@@ -49,7 +49,7 @@
 XCOMM -----------------------------------------------------------------------
 XCOMM Definitions from config.h included here.  The definitions here override
 XCOMM the defaults in Project.tmpl.  See ...../zebra/config/project/config.h.
-XCOMM $Id: config.h.dist,v 1.45 1997-01-06 19:55:03 burghart Exp $
+XCOMM $Id: config.h.dist,v 1.46 1997-01-06 21:28:04 burghart Exp $
 XCOMM -----------------------------------------------------------------------
 # endif
 
@@ -220,9 +220,11 @@ XCOMM -----------------------------------------------------------------------
 
 /*
  * The map utilities allow converting maps from a few different existing
- * formats into a Zebra-usable format.  The forms handled include USGS
- * DLG/SDTS format, CIA World Database II CBD format, and NCAR Graphics 
- * map format.  A couple of Zebra map "massaging" utilities are also provided.
+ * formats into a Zebra-usable format.  An ANSI-compliant C compiler (just
+ * about anything but Sun's cc) is required to build these utilities.  The
+ * forms handled include USGS DLG/SDTS format, CIA World Database II CBD
+ * format, and NCAR Graphics map format.  A couple of Zebra map "massaging"
+ * utilities are also provided. 
  */
 # define	BuildMapUtilities		NO
 
