@@ -1,7 +1,7 @@
 /*
  * This is the symbol table module.
  */
-static char *Rcsid = "$Id: ui_symbol.c,v 1.12 1993-07-27 22:20:20 case Exp $";
+static char *Rcsid = "$Id: ui_symbol.c,v 1.13 1993-12-28 20:46:55 case Exp $";
 
 # ifdef VMS
 # include <string.h>
@@ -11,6 +11,9 @@ static char *Rcsid = "$Id: ui_symbol.c,v 1.12 1993-07-27 22:20:20 case Exp $";
 # endif
 # ifdef SVR4
 # include <libgen.h>
+# endif
+# ifdef hpux 
+# include <regex.h>
 # endif
 
 # include <ctype.h>
@@ -861,9 +864,15 @@ char *re;
 {
 	struct symbol_table *table = (struct symbol_table *) stable;
 	int slot = 0, ret, nsy = 0, i;
-#ifndef SVR4 
+#ifdef SVR4
+        /* nothing special for Solaris yet */
+#else
+#ifdef hpux 
+        regex_t *preg;
+#else 
 	char *re_comp (), *re_exec ();
 #endif
+#endif /* ifdefs system checks */
 	struct ste *sp;
 	struct ste **list =
 		(struct ste **) getvm (table->st_nsym * sizeof (struct ste *));
@@ -883,10 +892,16 @@ char *re;
                 if (!stat)
                         ui_error ("(BUG) RE comp error: %s", stat);
 #else
+#ifdef hpux 
+                int stat = regcomp ( preg, re, REG_EXTENDED );
+                if (stat)
+                        ui_error ("(BUG) RE comp error: %d", stat);
+#else 
 		char *stat = re_comp (re);
                 if (stat)
                         ui_error ("(BUG) RE comp error: %s", stat);
 #endif
+#endif /* ifdefs system checks */
 	}
 /*
  * Go through, and build up a list of all entries in this table.
@@ -898,8 +913,14 @@ char *re;
 #ifdef SVR4
                         if (! re ||  ! regex (re, sp->ste_sym))
 #else
+#ifdef hpux 
+                        if (! re ||  ! regexec (preg, sp->ste_sym,
+                                        (size_t) 0, NULL, 0))
+#else
                         if (! re || re_exec (sp->ste_sym))
 #endif
+#endif /* ifdefs system checks */
+
 				list[nsy++] = sp;
 			sp = sp->ste_next;
 		}
