@@ -15,11 +15,16 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.1 1993-05-17 22:23:16 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.2 1993-06-07 18:55:05 granger Exp $"
 
-LOCAL_LIBS = $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
+LIBZEBDS = $(TOP)/src/ds/libZebDS.a
+INCLUDES = -I$(TOP)/src/ds
+LOCAL_LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
+DEPLIBS = $(LIBZEBDS) $(LIBZEB)
 
 LINTOPTS = -nuvxz
+
+SRCS = trmm_rain.c
 
 DISTFILES = trmm_rain.c Imakefile
 
@@ -28,3 +33,6 @@ NormalProgramTarget(trmm_rain, trmm_rain.o, $(DEPLIBS), $(LOCAL_LIBS),
 
 DistfilesTarget($(DISTFILES))
 
+DependTarget()
+
+LintTarget()
