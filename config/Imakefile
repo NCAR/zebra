@@ -1,5 +1,5 @@
 /*
- * $Id: Imakefile,v 1.1 1993-05-12 15:06:08 case Exp $
+ * $Id: Imakefile,v 1.2 1994-01-04 20:46:49 case Exp $
  *
  * Basically just install site-def.h into the include directory,
  * and make sure the necessary files are distributed.
@@ -14,8 +14,9 @@ SUBDIRS = scripts
 
 all::
 
-DISTFILES = Imakefile Makefile Project.tmpl README README.imake Xosdefs.h \
-	    RDSS-Imake.doc RDSSLib.rules site-def.h scripts
+DISTFILES = Imakefile Makefile Project.tmpl README.imake Xosdefs.h \
+	    RDSSLib.rules site-def.h graphdev.h
+DISTSUBDIRS = scripts
 
 depend::
 
@@ -26,4 +27,5 @@ lint::
 Makefiles::
 
 DistfilesTarget($(DISTFILES))
+DistfilesSubdirs($(DISTSUBDIRS))
 
