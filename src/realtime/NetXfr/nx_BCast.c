@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: nx_BCast.c,v 2.2 1991-11-22 20:48:40 kris Exp $";
+static char *rcsid = "$Id: nx_BCast.c,v 3.1 1992-05-27 17:24:03 corbet Exp $";
 
 # include <sys/time.h>
 # include <sys/signal.h>
@@ -69,29 +69,16 @@ static int NCAlloc = 0, NCReuse = 0;
 /*
  * Routines.
  */
-# ifdef __STDC__
-	static tx_BCast *NewBCast (int, int);
-	static DataBCChunk *GetBCastPacket (tx_BCast *, int);
-	static tx_BCast *FindBCP (int);
-	static void FlushRetrans (time *, void *);
-	static void ZapBCast (time *, tx_BCast *);
-	void Delay (void);
-	void Alarm (void);
-	static int BCastPlain (tx_BCast *, DataBCChunk *, char *, int);
-	static int BCastRLE (tx_BCast *, DataBCChunk *, char *, int);
-	static int RLEncode (unsigned char *, DataBCChunk *, int);
-# else
-	static tx_BCast *NewBCast ();
-	static DataBCChunk *GetBCastPacket ();
-	static tx_BCast *FindBCP ();
-	static void FlushRetrans ();
-	static void ZapBCast ();
-	void Delay ();
-	void Alarm ();
-	static int BCastPlain ();
-	static int BCastRLE ();
-	static int RLEncode ();
-# endif
+static tx_BCast *NewBCast FP ((int, int));
+static DataBCChunk *GetBCastPacket FP ((tx_BCast *, int));
+static tx_BCast *FindBCP FP ((int));
+static void FlushRetrans FP ((time *, void *));
+static void ZapBCast FP ((time *, tx_BCast *));
+void Delay FP ((void));
+void Alarm FP ((void));
+static int BCastPlain FP ((tx_BCast *, DataBCChunk *, char *, int));
+static int BCastRLE FP ((tx_BCast *, DataBCChunk *, char *, int));
+static int RLEncode FP ((unsigned char *, DataBCChunk *, int));
 
 
 
@@ -143,38 +130,28 @@ int port;
 
 
 int
-DoBCast (plat, dobj)
+DoBCast (plat, dc)
 PlatformId plat;
-DataObject *dobj;
+DataChunk *dc;
 /*
  * Broadcast this data to the world.
  */
 {
 	tx_BCast *bcp;
 	DataBCChunk template;
-	DataOffsets offsets;
 	int fld, nchunk, nsent, bfld;
-	char *cdata = (char *) dobj->do_data[0];
+	char *cdata = (char *) dc->dc_Data;
 /*
  * Set up to output this sequence.
  */
-	bcp = NewBCast (Seq, dobj->do_nbyte);
-/*
- * Send out the offsets first, through normal channels.  Note that this
- * assumes that the data arrays are allocated in one big chunk.
- */
-	for (fld = 0; fld < dobj->do_nfield; fld++)
-		offsets.dh_Offsets[fld] = dobj->do_data[fld]-dobj->do_data[0];
-	offsets.dh_MsgType = NMT_DataOffsets;
-	offsets.dh_DataSeq = Seq;
-	SendOut (plat, &offsets, sizeof (offsets));
+	bcp = NewBCast (Seq, dc->dc_DataLen);
 /*
  * Fill in the header info in our template packet.
  */
 	template.dh_MsgType = NMT_DataBCast;
 	template.dh_DataSeq = Seq;
 	template.dh_Offset = 0;
-	template.dh_DataSize = dobj->do_nbyte;
+	template.dh_DataSize = dc->dc_DataLen;
 	template.dh_NChunk = bcp->txb_NChunk;
 	template.dh_Size = MAXDATA;
 	template.dh_Chunk = 0;
@@ -185,17 +162,17 @@ DataObject *dobj;
  * Now we blast them out.
  */
  	nsent = 0;
-	if (dobj->do_org == OrgImage)
-		nsent = BCastRLE (bcp, &template, cdata, dobj->do_nbyte);
+	if (dc->dc_Class == DCC_Image)
+		nsent = BCastRLE (bcp, &template, cdata, dc->dc_DataLen);
 	else
-		nsent = BCastPlain (bcp, &template, cdata, dobj->do_nbyte);
+		nsent = BCastPlain (bcp, &template, cdata, dc->dc_DataLen);
 	msg_ELog (DbEL, "%d packets calc, %d sent seq %d",
 		template.dh_NChunk, nsent, Seq);
 	bcp->txb_NChunk = nsent;
 /*
  * Add the timeout that will eventually cause all this to go away.
  */
-	tl_AddRelativeEvent (ZapBCast, bcp, BCastSave*INCFRAC, 0);
+	tl_RelativeReq (ZapBCast, bcp, BCastSave*INCFRAC, 0);
 	return (nsent);
 }
 
@@ -229,10 +206,6 @@ int nbyte;
 	/*
 	 * Encode some data into it.
 	 */
-# ifdef notdef
-		ninpack = RLEncode ((unsigned char *) cdata, chunk,
-					nbyte - nbsent);
-# endif
 		RL_Encode ((unsigned char *) cdata,
 			(unsigned char *) chunk->dh_data, 
 			nbyte - nbsent, chunk->dh_Size, &ninpack,

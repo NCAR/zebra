@@ -1,5 +1,5 @@
 /*
- * "$Id: dslib.h,v 2.2 1991-09-26 23:22:54 gracio Exp $"
+ * "$Id: dslib.h,v 3.1 1992-05-27 17:24:03 corbet Exp $"
  * Internal info for the data store application interface library.
  */
 
@@ -45,16 +45,12 @@ typedef struct _GetList
 {
 	int	gl_dfindex;		/* Corresponding DF entry	*/
 	int	gl_dfuse;		/* Use count for this entry	*/
-	time	gl_begin;		/* Begin time			*/
-	time	gl_end;			/* End time			*/
+	ZebTime	gl_begin;		/* Begin time			*/
+	ZebTime	gl_end;			/* End time			*/
 	int	gl_flags;		/* Flag values			*/
 	int	gl_npoint;		/* Number of data points	*/
 	int	gl_nsample;		/* Number of samples		*/
-	DataObject *gl_dobj;		/* The DO in progress		*/
-	float	*gl_data[MAXFIELD];	/* Where the data goes		*/
 	struct _GetList *gl_next;	/* Next in the list		*/
-	time	*gl_time;		/* Where to put sample times	*/
-	Location *gl_locs;		/* Location array for mobile	*/
 	int	gl_sindex;		/* Sample index for entire rq	*/
 } GetList;
 
@@ -67,40 +63,20 @@ typedef struct _GetList
 
 
 
-# ifdef __STDC__
-	int 	dsm_Init (void);
-	void	dsm_ShmLock (void);
-	void	dsm_ShmUnlock (void);
-	int	dfa_CheckName (int, char *);
-	int	dfa_QueryDate (int, char *, time *, time *, int *);
-	int	dfa_InqNPlat (int);
-	void	dfa_Setup (GetList *);
-	void	dfa_GetData (GetList *);
-	int	dfa_InqRGrid (int, Location *, RGrid *);
-	int	dfa_DataTimes (int, time *, TimeSpec, int, time *);
-	GetList *dgl_MakeGetList (DataObject *);
-	void	dgl_ReturnList (GetList *);
-	int	dgl_GetDestFile (DataObject *, int, int, int *);
-	bool	dfa_CreateFile (int, DataObject *);
-	void	dfa_PutData (int, DataObject *, int, int);
-	void	dfa_NoteRevision (int);
-	char	*dfa_GetAttr (int, time *, int *);
-# else
-	int 	dsm_Init ();
-	void	dsm_ShmLock ();
-	void	dsm_ShmUnlock ();
-	int	dfa_CheckName ();
-	int	dfa_QueryDate ();
-	int	dfa_InqNPlat ();
-	void	dfa_Setup ();
-	void	dfa_GetData ();
-	int	dfa_InqRGrid ();
-	int	dfa_DataTimes ();
-	GetList *dgl_MakeGetList ();
-	void	dgl_ReturnList ();
-	int	dgl_GetDestFile ();
-	bool	dfa_CreateFile ();
-	void	dfa_PutData ();
-	void	dfa_NoteRevision ();
-	char	*dfa_GetAttr ();
-# endif
+int 	dsm_Init FP ((void));
+void	dsm_ShmLock FP ((void));
+void	dsm_ShmUnlock FP ((void));
+int	dfa_CheckName FP ((int, char *));
+int	dfa_QueryDate FP ((int, char *, ZebTime *, ZebTime *, int *));
+int	dfa_InqNPlat FP ((int));
+DataChunk *dfa_Setup FP ((GetList *, FieldId *, int, DataClass));
+void	dfa_GetData FP ((DataChunk *, GetList *, dsDetail *, int));
+int	dfa_InqRGrid FP ((int, Location *, RGrid *));
+int	dfa_DataTimes FP ((int, ZebTime *, TimeSpec, int, ZebTime *));
+void	dfa_MakeFileName FP ((Platform *, ZebTime *, char *));
+GetList *dgl_MakeGetList FP ((PlatformId, ZebTime *, ZebTime *));
+void	dgl_ReturnList FP ((GetList *));
+bool	dfa_CreateFile FP ((int, DataChunk *, ZebTime *));
+void	dfa_NoteRevision FP ((int));
+char	*dfa_GetAttr FP ((int, ZebTime *, int *));
+int	ds_GetDetail FP ((char *, dsDetail *, int, SValue *));

@@ -1,4 +1,4 @@
-/* $Id: NetXfr.h,v 2.1 1991-09-26 22:51:59 gracio Exp $ */
+/* $Id: NetXfr.h,v 3.1 1992-05-27 17:24:03 corbet Exp $ */
 /* 
  * Definitions used for the data store network transfer protocol.
  */
@@ -27,7 +27,8 @@
 typedef enum
 {
 	NMT_DataHdr,		/* Begin a data transfer		*/
-	NMT_DataContinue,	/* Continuation of data transfer	*/
+	NMT_AuxData,		/* Aux data chain entry			*/
+	NMT_DataArray,		/* Straight data stuff			*/
 	NMT_DataDone,		/* End of data transfer			*/
 	NMT_DontSend,		/* Stop sending me something		*/
 	NMT_DataBCast,		/* Broadcast do_data chunk		*/
@@ -48,26 +49,39 @@ typedef struct _DataHdr
 	NetMsgType	dh_MsgType;	/* == NMT_DataHdr		*/
 	int		dh_DataSeq;	/* Sequence number		*/
 	char		dh_Platform[NAMELEN];	/* The name of this plat */
-	DataObject	dh_DObj;	/* The associated data object	*/
+	DataChunk	dh_DChunk;	/* The associated data object	*/
 	char		dh_BCast;	/* Broadcast will be used	*/
 	char		dh_BCRLE;	/* Run-length encoded data	*/
 	char		dh_NewFile;	/* Start a new file here	*/
 } DataHdr;
 
 
+
 /*
- * The various pieces attached to a data object are sent by way of
- * these structures.
+ * We use these to send the aux data chain.
  */
-typedef struct _DataCont
+typedef struct _NxAuxData
 {
-	NetMsgType	dh_MsgType;	/* == NMT_DataContinue		*/
+	NetMsgType	dh_MsgType;	/* == NMT_AuxData		*/
 	int		dh_DataSeq;	/* Sequence number		*/
-	int		dh_Offset;	/* Offset for this memory	*/
-	int		dh_Size;	/* Size of the chunk		*/
-	int		dh_Flags;	/* Flags to add to dobj		*/
-	char		dh_data[1];	/* The actual data		*/
-} DataContinue;
+	AuxDataEntry	dh_Ade;		/* Chain entry			*/
+	unsigned char	dh_Stuff[1];	/* The aux data itself		*/
+} NxAuxData;
+	
+
+/*
+ * The structure used with non-broadcast data.
+ */
+# define DTSIZE	1024
+typedef struct _DataArray
+{
+	NetMsgType	dh_MsgType;	/* == NMT_DataArray		*/
+	int		dh_DataSeq;	/* The inevitable sequence #	*/
+	int		dh_Offset;	/* Where in the array this goes */
+	int		dh_Len;		/* How much data here		*/
+	unsigned char	dh_Data[DTSIZE]; /* The real stuff		*/
+} DataArray;
+
 
 /*
  * When we're done.
@@ -162,21 +176,13 @@ extern int DbEL;
 /*
  * Global routines.
  */
-# ifdef __STDC__
-	void BCastSetup (struct ui_command *);
-	int BCastHandler (int, char *, int);
-	int DoBCast (PlatformId, DataObject *);
-	void ReceiveSetup (int);
-	void SendOut (PlatformId, void *, int);
-	void Retransmit (DataRetransRq *);
-	int ReadBCast (int, char *, int);
-# else
-	void BCastSetup ();
-	int BCastHandler ();
-	int DoBCast ();
-	void ReceiveSetup ();
-	int ReadBCast ();
-# endif
+void BCastSetup FP ((struct ui_command *));
+int BCastHandler FP ((int, char *, int));
+int DoBCast FP ((PlatformId, DataChunk *));
+void ReceiveSetup FP ((int));
+void SendOut FP ((PlatformId, void *, int));
+void Retransmit FP ((DataRetransRq *));
+int ReadBCast FP ((int, char *, int));
 
 
 /*

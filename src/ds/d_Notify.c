@@ -19,7 +19,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: d_Notify.c,v 2.1 1991-09-26 22:58:59 gracio Exp $";
+static char *rcsid = "$Id: d_Notify.c,v 3.1 1992-05-27 17:24:03 corbet Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -189,10 +189,10 @@ struct dsp_Template *dt;
 
 
 void
-dap_Notify (pid, t, nsample)
+dap_Notify (pid, t, nsample, now, append)
 PlatformId pid;
-time *t;
-int nsample;
+ZebTime *t;
+int nsample, now, append;
 /*
  * Actually send out notifications that data is available for this platform
  * up through this time.
@@ -212,6 +212,8 @@ int nsample;
 	msg.dsp_pid = pid;
 	msg.dsp_when = *t;
 	msg.dsp_nsample = nsample;
+	msg.dsp_ucode = append ? UpdAppend : 
+			(nsample > 0) ? UpdInsert : UpdOverwrite;
 /*
  * Go through and tell everybody.
  */

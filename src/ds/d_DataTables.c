@@ -27,7 +27,7 @@
 # include "dsPrivate.h"
 # include "commands.h"
 # include "dsDaemon.h"
-MAKE_RCSID("$Id: d_DataTables.c,v 2.2 1992-03-18 21:13:33 corbet Exp $")
+MAKE_RCSID("$Id: d_DataTables.c,v 3.1 1992-05-27 17:24:03 corbet Exp $")
 
 
 /*
@@ -288,7 +288,7 @@ int *link;
 	for (index = *link; index; index = DFTable[index].df_FLink)
 	{
 		chain = DFTable + index;
-		if (DLT (chain->df_begin, df->df_begin))
+		if (TC_Less (chain->df_begin, df->df_begin))
 			break;
 		else
 			last = chain;

@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: nx_DirImage.c,v 2.1 1991-09-26 23:10:21 gracio Exp $";
+static char *rcsid = "$Id: nx_DirImage.c,v 3.1 1992-05-27 17:24:03 corbet Exp $";
 
 
 # include <defs.h>
@@ -32,20 +32,16 @@ static char *rcsid = "$Id: nx_DirImage.c,v 2.1 1991-09-26 23:10:21 gracio Exp $"
  * We're only set up to deal with one image source for now.  Should
  * be enough.
  */
-static DataObject OutData;
+/* static DataObject OutData; */
 struct _ix_desc *Desc;
 static int XRes, YRes, NField;
 static char *Fields[20];
+static FieldId Fids[20];
+static PlatformId Plat;
 
 
-# ifdef __STDC__
-	static void TrimXY (const unsigned char * , int *, int *, int);
-	static void AdjoinImages (DataObject *, unsigned char **, int,
-			int, int, int);
-# else
-	static void TrimXY ();
-	static void AdjoinImages ();
-# endif
+static void TrimXY FP ((const unsigned char * , int *, int *, int));
+static void AdjoinImage FP ((unsigned char *, int, int, int, int));
 
 void
 DirImage (plat)
@@ -58,7 +54,7 @@ char *plat;
 /*
  * Look up our platform.
  */
-	if ((OutData.do_id = ds_LookupPlatform (plat)) == BadPlatform)
+	if ((Plat = ds_LookupPlatform (plat)) == BadPlatform)
 	{
 		msg_ELog (EF_EMERGENCY, "Bad DIRIMAGE plat %s", plat);
 		return;
@@ -75,16 +71,11 @@ char *plat;
 /*
  * Do other static initialization.
  */
-	OutData.do_org = OrgImage;
-	OutData.do_npoint = 1;
-	OutData.do_aloc = ALLOC (Location);
 	for (i = 0; i < NField; i++)
 	{
 		msg_ELog (EF_INFO, "Field %s", Fields[i]);
-		OutData.do_fields[i] = Fields[i];
+		Fids[i] = F_Lookup (Fields[i]);
 	}
-	OutData.do_nfield = NField;
-	OutData.do_flags = 0;
 }
 
 
@@ -102,11 +93,13 @@ int set;
 	RGrid rg;
 	Location loc;
 	time t;
+	ZebTime zt;
 	ScaleInfo scale[2];
 	char *images[4], *attr;
 	int xmin, ymin, xmax, ymax, i, offset, fnb;
 	static float PrevAlt = -99;
 	float junk;
+	DataChunk *dc;
 /*
  * Grab it.
  */
@@ -133,40 +126,41 @@ int set;
 			&loc.l_lat, &junk);
 	rg.rg_nX = xmax - xmin + 1;
 	rg.rg_nY = ymax - ymin + 1;
+
 /*
- * Fill in the rest of our data object.
+ * Create a data chunk to hold this thing.
+ */
+	dc = dc_CreateDC (DCC_Image);
+	dc->dc_Platform = Plat;
+	dc_ImgSetup (dc, NField, Fids, scale);
+	dc_SetGlobalAttr (dc, "radar_space", "true");
+	dc_SetGlobalAttr (dc, "scan_type", attr + 6);  /* XXXXXXXXXXX */
+/*
+ * Add the images to it.
  */
 	msg_ELog (EF_INFO, "Set %d, [%d, %d] to [%d, %d] el %.2f attr '%s'",
 			set, xmin, ymin, xmax, ymax, loc.l_alt, attr);
-	OutData.do_begin = OutData.do_end = t;
-	OutData.do_times = &t;
-	OutData.do_desc.d_img.ri_rg = &rg;
-	OutData.do_desc.d_img.ri_scale = scale;
-	OutData.do_aloc = &loc;
-	OutData.do_nbyte = OutData.do_nfield*rg.rg_nX*rg.rg_nY;
-	OutData.do_attr = attr;
-/*
- * The broadcast code wants the frames to be contiguous, so let's make
- * that happen here.
- */
-	if (rg.rg_nX > 0 && rg.rg_nY > 0)
-		AdjoinImages (&OutData, (unsigned char **) images, xmin,
-				ymin, xmax, ymax);
+	TC_UIToZt (&t, &zt);
+	for (i = 0; i < NField; i++)
+	{
+		AdjoinImage (images[i], xmin, ymin, xmax, ymax);
+		dc_ImgAddImage (dc, 0, Fids[i], &loc, &rg, &zt, images[i], 0);
+	}
 /*
  * Now we can give back the image frames.
  */
-	for (i = 0; i < OutData.do_nfield; i++)
+	for (i = 0; i < NField; i++)
 		memset (images[i] + ymin*XRes, 0xff, (ymax - ymin + 1)*XRes);
 	IX_ReleaseFrame (Desc, set);
 /*
  * Send it, but only if there's something real.
  */
 	if (ymin < ymax && xmin < xmax)
-		SendDObj (&OutData, PrevAlt > loc.l_alt);
+		SendDChunk (dc, PrevAlt > loc.l_alt);
 	else
 		msg_ELog (EF_INFO, "Dropping empty image");
 	PrevAlt = loc.l_alt;
-	free (OutData.do_data[0]);
+	dc_DestroyDC (dc);
 }
 
 
@@ -256,38 +250,25 @@ int *xmin, *xmax, ny;
 
 
 static void
-AdjoinImages (dobj, images, xmin, ymin, xmax, ymax)
-DataObject *dobj;
-unsigned char **images;
+AdjoinImage (image, xmin, ymin, xmax, ymax)
+unsigned char *image;
 int xmin, ymin, xmax, ymax;
 /*
- * Put these images together into a single chunk of memory, with
- * the empty part trimmed out.
+ * Reunite this image.
  */
 {
 	int nx = (xmax - xmin + 1), ny = (ymax - ymin + 1), x, y, im;
 	const int incr = XRes - nx;
-	unsigned char *mem = (unsigned char *) malloc (dobj->do_nfield*nx*ny);
 	const unsigned char *cp;
-	unsigned char *mp = mem;
+	unsigned char *mp = image;
 /*
  * We need to go through each raster line and trim off the part we want.
  */
-	for (im = 0; im < dobj->do_nfield; im++)
+	cp = image + ymin*XRes + xmin;
+	for (y = ymin; y <= ymax; y++)
 	{
-	/*
-	 * Fix up the data object.
-	 */
-	 	dobj->do_data[im] = (float *) mp;
-	/*
-	 * Copy over the data.
-	 */
-		cp = images[im] + ymin*XRes + xmin;
-		for (y = ymin; y <= ymax; y++)
-		{
-			for (x = xmin; x <= xmax; x++)
-				*mp++ = *cp++;
-			cp += incr;
-		}
+		for (x = xmin; x <= xmax; x++)
+			*mp++ = *cp++;
+		cp += incr;
 	}
 }

@@ -19,7 +19,6 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: DFA_Boundary.c,v 2.1 1991-09-25 22:17:04 burghart Exp $";
 
 # include <sys/types.h>
 # include <errno.h>
@@ -33,6 +32,7 @@ static char *rcsid = "$Id: DFA_Boundary.c,v 2.1 1991-09-25 22:17:04 burghart Exp
 # include "dsPrivate.h"
 # include "dslib.h"
 # include "BoundaryFile.h"
+MAKE_RCSID ("$Id: DFA_Boundary.c,v 3.1 1992-05-27 17:24:03 corbet Exp $")
 
 
 
@@ -52,22 +52,24 @@ typedef struct s_BFTag
 /*
  * Local routines.
  */
-# ifdef __STDC__
-	static void bf_Sync (BFTag *);
-	static void bf_WriteBoundary (BFTag *, Location *, time *, int);
-	static int bf_TimeIndex (BFTag *, time *);
-# else
-	static void bf_Sync ();
-	static void bf_WriteBoundary ();
-	static int bf_TimeIndex ();
-# endif
+static void 	bf_Sync FP ((BFTag *));
+static void 	bf_WriteBoundary FP ((BFTag *, int, Location *,ZebTime *,int));
+static int 	bf_TimeIndex FP ((BFTag *, ZebTime *));
+
+
+
+/*
+ * The biggest boundary we expect to deal with.
+ */
+# define MAX_BOUNDARY	200	/* Should really ought to do it	*/
+
 
 
 
 int
 bf_QueryTime (file, begin, end, nsample)
 char *file;
-time *begin, *end;
+ZebTime *begin, *end;
 int *nsample;
 /*
  * Tell the daemon what's in this file.
@@ -95,8 +97,12 @@ int *nsample;
 /*
  * Pull out the info and return.
  */
+# ifdef ancient_stuff
 	*begin = hdr.bh_Begin;
 	*end = hdr.bh_End;
+# endif
+	TC_UIToZt (&hdr.bh_Begin, begin);
+	TC_UIToZt (&hdr.bh_End, end);
 	*nsample = hdr.bh_NBoundary;
 	close (fd);
 	return (TRUE);
@@ -107,15 +113,18 @@ int *nsample;
 
 
 void
-bf_MakeFileName (dir, name, t, string)
-time *t;
+bf_MakeFileName (dir, name, zt, string)
+ZebTime *zt;
 char *dir, *name, *string;
 /*
  * Generate a new file name.
  */
 {
-	sprintf (string, "%s/%s.%06d.%04d.bf", dir, name, t->ds_yymmdd,
-		t->ds_hhmmss/100);
+	time t;
+	
+	TC_ZtToUI (zt, &t);
+	sprintf (string, "%s/%s.%06d.%04d.bf", dir, name, t.ds_yymmdd,
+		t.ds_hhmmss/100);
 }
 
 
@@ -123,15 +132,16 @@ char *dir, *name, *string;
 
 
 int
-bf_CreateFile (dfile, dobj, rtag)
+bf_CreateFile (dfile, dc, rtag)
 DataFile *dfile;
-DataObject *dobj;
+DataChunk *dc;
 char **rtag;
 /*
  * Create a new boundary file.
  */
 {
 	BFTag *tag = ALLOC (BFTag);
+	PlatformId id = dc->dc_Platform;
 /*
  * Start by trying to create the file.
  */
@@ -146,10 +156,8 @@ char **rtag;
  * Fill in the header.
  */
 	tag->bt_hdr.bh_Magic = BH_MAGIC;
-	strcpy (tag->bt_hdr.bh_Platform, PTable[dobj->do_id].dp_name);
-	tag->bt_hdr.bh_MaxBoundary = PTable[dobj->do_id].dp_maxsamp;
-	tag->bt_hdr.bh_Begin = dobj->do_begin;
-	tag->bt_hdr.bh_End = dobj->do_end;
+	strcpy (tag->bt_hdr.bh_Platform, PTable[id].dp_name);
+	tag->bt_hdr.bh_MaxBoundary = PTable[id].dp_maxsamp;
 	tag->bt_hdr.bh_NBoundary = 0;
 /*
  * Allocate the boundary table.
@@ -187,16 +195,19 @@ BFTag *tag;
 
 
 int
-bf_PutData (dfile, dobj, begin, end)
-int dfile, begin, end;
-DataObject *dobj;
+bf_PutSample (dfile, dc, sample, wc)
+int dfile, sample;
+DataChunk *dc;
+WriteCode wc;
 /*
  * Put data into this file.
  */
 {
 	BFTag *tag;
 	struct BFHeader *hdr;
-	int sample, offset;
+	int offset, npt, i;
+	ZebTime t;
+	Location *locs;
 /*
  * Open up the file.
  */
@@ -204,29 +215,52 @@ DataObject *dobj;
 		return (FALSE);
 	hdr = &tag->bt_hdr;
 /*
+ * Get the info on this boundary.
+ */
+	dc_GetTime (dc, sample, &t);
+	locs = dc_BndGet (dc, sample, &npt);
+/*
  * Sanity checking.
  */
-	if ((hdr->bh_NBoundary + end - begin + 1) > hdr->bh_MaxBoundary)
+	if (hdr->bh_NBoundary >= hdr->bh_MaxBoundary && wc != wc_Overwrite)
 	{
 		msg_ELog (EF_PROBLEM, "Too many samples in df %d", dfile);
-		end = begin + (hdr->bh_MaxBoundary - hdr->bh_NBoundary) - 1;
+		return (FALSE);
 	}
 /*
- * Position to the first sample that we are writing.
+ * Figure out where this sample is to go.
  */
-	offset = 0;
-	for (sample = 0; sample < begin; sample++)
-		offset += dobj->do_desc.d_bnd[sample].bd_npoint;
-/*
- * Write each sample.
- */
-	for (; sample <= end; sample++)
+	switch (wc)
 	{
-		bf_WriteBoundary (tag, dobj->do_aloc + offset, 
-			dobj->do_times + offset,
-			dobj->do_desc.d_bnd[sample].bd_npoint);
-		offset += dobj->do_desc.d_bnd[sample].bd_npoint;
+	/*
+	 * Appends are easy.
+	 */
+	   case wc_Append:
+		offset = hdr->bh_NBoundary++;
+		break;
+	/*
+	 * For an insert we need to open up a hole in the toc.
+	 */
+	   case wc_Insert:
+	   	offset = bf_TimeIndex (tag, &t);
+		for (i = hdr->bh_NBoundary - 1; i > offset; i--)
+			tag->bt_BTable[i + 1] = tag->bt_BTable[i];
+		offset++;
+		hdr->bh_NBoundary++;
+		break;
+	/*
+	 * For overwrites we find the unluck sample and we are done.
+	 */
+	   case wc_Overwrite:
+	   	offset = bf_TimeIndex (tag, &t);
+		if (offset < 0)
+			offset = 0;
+		break;
 	}
+/*
+ * Write the boundary.
+ */
+	bf_WriteBoundary (tag, offset, locs, &t, npt);
 /*
  * Synchronize and we're done.
  */
@@ -239,16 +273,15 @@ DataObject *dobj;
 
 
 static void
-bf_WriteBoundary (tag, loc, t, len)
+bf_WriteBoundary (tag, sample, loc, t, len)
 BFTag *tag;
 Location *loc;
-time *t;
-int len;
+ZebTime *t;
+int len, sample;
 /*
  * Write out a new boundary.
  */
 {
-	int sample = tag->bt_hdr.bh_NBoundary++;
 	struct BFBTable *bt = tag->bt_BTable + sample;
 /*
  * Move to the end of the file and do the write.
@@ -259,9 +292,15 @@ int len;
  * Update the housekeeping, and we're done.
  */
 	bt->bt_NPoint = len;
-	bt->bt_Time = *t;
-	if (DLT (tag->bt_hdr.bh_End, *t))
-		tag->bt_hdr.bh_End = *t;
+	TC_ZtToUI (t, &bt->bt_Time);
+	/* bt->bt_Time = *t; */
+/*
+ * Tweak times.
+ */
+	if (sample == 0)
+		tag->bt_hdr.bh_End = tag->bt_hdr.bh_Begin = bt->bt_Time;
+	else if (DLT (tag->bt_hdr.bh_End, bt->bt_Time))
+		tag->bt_hdr.bh_End = bt->bt_Time;
 }
 
 
@@ -349,9 +388,12 @@ BFTag *tag;
 
 
 
-int
-bf_Setup (gp)
+DataChunk *
+bf_Setup (gp, fields, nfield, class)
 GetList *gp;
+char **fields;
+int nfield;
+DataClass class;
 /*
  * Get set up to do this data grab.
  */
@@ -359,30 +401,32 @@ GetList *gp;
 	BFTag *tag;
 	int tbegin, tend, sample;
 /*
+ * Do some sanity checking.
+ */
+	if (class != DCC_Boundary)
+	{
+		msg_ELog (EF_PROBLEM, "Non-boundary fetch from boundary file");
+		return (NULL);
+	}
+	if (nfield > 0)
+		msg_ELog (EF_PROBLEM, "Fields in a boundary get?");
+/*
  * Open this file.
  */
 	if (! dfa_OpenFile (gp->gl_dfindex, FALSE, (void *) &tag))
-		return (FALSE);
+		return (NULL);
 /*
- * Find the offsets for the desired times.
+ * Simply create and return a data chunk.
  */
-	tbegin = bf_TimeIndex (tag, &gp->gl_begin);
-	tend = bf_TimeIndex (tag, &gp->gl_end);
-/*
- * Fill in the info.
- */
-	gp->gl_nsample = 0;
-	for (sample = tbegin; sample <= tend; sample++)
-		gp->gl_nsample += tag->bt_BTable[sample].bt_NPoint;
-	gp->gl_npoint = gp->gl_nsample;
-	return (TRUE);
+	return (dc_CreateDC (DCC_Boundary));
 }
 
 
 
 
 int
-bf_GetData (gp)
+bf_GetData (dc, gp)
+DataChunk *dc;
 GetList *gp;
 /*
  * Get the data from this GetList entry.
@@ -390,9 +434,8 @@ GetList *gp;
 {
 	BFTag *tag;
 	int tbegin, tend, sample, pt;
-	Location *lp = gp->gl_locs;
-	time *tp = gp->gl_time;
-	BndDesc *bp = gp->gl_dobj->do_desc.d_bnd + gp->gl_sindex;
+	Location locs[MAX_BOUNDARY];
+	ZebTime zt;
 /*
  * Open this file.
  */
@@ -406,29 +449,20 @@ GetList *gp;
 /*
  * Get the information.
  */
-	gp->gl_nsample = 0;
 	for (sample = tbegin; sample <= tend; sample++)
 	{
 		struct BFBTable *bt = tag->bt_BTable + sample;
-	/*
-	 * New boundary desc stuff.
-	 */
-		bp->bd_npoint = bt->bt_NPoint;
-		bp->bd_begin = lp - gp->gl_dobj->do_aloc;
-		bp->bd_pid = gp->gl_dobj->do_id;
-		bp++;
 	/*
 	 * Position to the right spot in the file, and grab out the
 	 * location info.
 	 */
 		lseek (tag->bt_fd, bt->bt_Offset, SEEK_SET);
-		read (tag->bt_fd, lp, bt->bt_NPoint * sizeof (Location));
-		lp += bt->bt_NPoint;
+		read (tag->bt_fd, locs, bt->bt_NPoint * sizeof (Location));
 	/*
-	 * Stuff in the appropriate number of times.
+	 * Add it to the data chunk.
 	 */
-		for (pt = 0; pt < bt->bt_NPoint; pt++)
-			*tp++ = bt->bt_Time;
+		TC_UIToZt (&bt->bt_Time, &zt);
+	 	dc_BndAdd (dc, &zt, dc->dc_Platform, locs, bt->bt_NPoint);
 	}
 	return (TRUE);
 }
@@ -438,9 +472,9 @@ GetList *gp;
 
 
 static int
-bf_TimeIndex (tag, t)
+bf_TimeIndex (tag, zt)
 BFTag *tag;
-time *t;
+ZebTime *zt;
 /*
  * Find the offset into this file for the first entry before or equal to
  * the given time.
@@ -448,16 +482,18 @@ time *t;
 {
 	int offset;
 	struct BFBTable *bt = tag->bt_BTable;
+	time t;
 /*
  * Just search back from the end until we find the first entry before the
  * one we went.  There will generally not be all that many boundaries in
- * a given file, so we can get away with a dumb sort here.  Famous last 
+ * a given file, so we can get away with a dumb search here.  Famous last 
  * words if I ever heard them.
  */
+	TC_ZtToUI (zt, &t);
 	for (offset = tag->bt_hdr.bh_NBoundary - 1; offset >= 0; offset--)
-		if (DLE (bt[offset].bt_Time, *t))
+		if (DLE (bt[offset].bt_Time, t))
 			return (offset);
-	return (0);
+	return (-1);
 }
 
 
@@ -466,7 +502,7 @@ time *t;
 int
 bf_DataTimes (dfindex, t, which, n, dest)
 int dfindex, n;
-time *t, *dest;
+ZebTime *t, *dest;
 TimeSpec which;
 /*
  * Return the times for which data is available.
@@ -487,12 +523,14 @@ TimeSpec which;
 	toff = bf_TimeIndex (tag, t);
 	if (which == DsBefore)
 		for (i = 0; toff >= 0 && i < n; i++)
-			*dest++ = tag->bt_BTable[toff--].bt_Time;
+			/* *dest++ = tag->bt_BTable[toff--].bt_Time; */
+			TC_UIToZt (&tag->bt_BTable[toff--].bt_Time, dest++);
 	else if (which == DsAfter)
 	{
 		toff++;
 		for (i = 0; i < n && toff < tag->bt_hdr.bh_NBoundary; i++)
-			*dest-- = bt[toff++].bt_Time;
+			/* *dest-- = bt[toff++].bt_Time; */
+			TC_UIToZt (&bt[toff++].bt_Time, dest--);
 	}
 	return (i);
 }
@@ -504,7 +542,7 @@ bf_GetFields (dfile, t, nfld, flist)
 int dfile;
 time *t;
 int *nfld;
-char **flist;
+FieldId *flist;
 /*
  * Return the field list.
  */

@@ -19,7 +19,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: GetList.c,v 2.3 1992-03-18 21:12:44 corbet Exp $";
+static char *rcsid = "$Id: GetList.c,v 3.1 1992-05-27 17:24:03 corbet Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -34,28 +34,16 @@ static char *rcsid = "$Id: GetList.c,v 2.3 1992-03-18 21:12:44 corbet Exp $";
 GetList *GList = 0;
 
 
-# ifdef __STDC__
-	static GetList	*dgl_GetEntry (void);
-	static void	dgl_ReturnEntry (GetList *);
-	static int	dgl_DoList (int, GetList *);
-	static int	dgl_Overlaps (GetList *, DataFile *);
-	static GetList	*dgl_FixList (GetList *, DataFile *, int *);
-	static bool	dgl_TimeProblem (int, DataObject *, int, int *);
-	static int	dgl_RequestNewDF (Platform *, char *, time *);
-	static int	dgl_GetNDFResp (struct message *,
-					struct dsp_R_CreateFile *);
-	static void	dgl_AbortNewDF (Platform *, int);
-# else
-	static GetList	*dgl_GetEntry ();
-	static void	dgl_ReturnEntry ();
-	static int	dgl_DoList ();
-	static int	dgl_Overlaps ();
-	static GetList	*dgl_FixList ();
-	static bool	dgl_TimeProblem ();
-	static int	dgl_RequestNewDF ();
-	static int	dgl_GetNDFResp ();
-	static void	dgl_AbortNewDF ();
-# endif
+static GetList	*dgl_GetEntry FP ((void));
+static void	dgl_ReturnEntry FP ((GetList *));
+static int	dgl_DoList FP ((int, GetList *));
+static int	dgl_Overlaps FP ((GetList *, DataFile *));
+static GetList	*dgl_FixList FP ((GetList *, DataFile *, int *));
+static bool	dgl_TimeProblem FP ((int, DataObject *, int, int *));
+static int	dgl_RequestNewDF FP ((Platform *, char *, time *));
+static int	dgl_GetNDFResp FP ((struct message *,
+				struct dsp_R_CreateFile *));
+static void	dgl_AbortNewDF FP ((Platform *, int));
 
 
 
@@ -75,7 +63,7 @@ dgl_GetEntry ()
 	}
 	else
 		ret = ALLOC (GetList);
-	ret->gl_locs = 0;
+	/* ret->gl_locs = 0; */
 	return (ret);
 }
 
@@ -113,24 +101,23 @@ GetList *gl;
 
 
 
-
 GetList *
-dgl_MakeGetList (dobj)
-DataObject *dobj;
+dgl_MakeGetList (pid, begin, end)
+PlatformId pid;
+ZebTime *begin, *end;
 /*
  * Figure out how to satisfy this data object.
  */
 {
 	GetList *list, *l, *zap;
-	Platform *p = PTable + dobj->do_id;
+	Platform *p = PTable + pid;
 /*
  * Make an initial, unsatisfied entry.
  */
 	list = dgl_GetEntry ();
-	list->gl_begin = dobj->do_begin;
-	list->gl_end = dobj->do_end;
+	list->gl_begin = *begin;
+	list->gl_end = *end;
 	list->gl_flags = 0;
-	list->gl_dobj = dobj;
 	list->gl_next = 0;
 /*
  * Now try to satisfy it against the platform lists.
@@ -140,7 +127,7 @@ DataObject *dobj;
 		dgl_DoList (REMOTEDATA (*p), list);
 	dsm_ShmUnlock ();
 /*
- * Remove any unsatisfied segments, and return the rest.
+ * Remove any unsatisfied elements at the beginning of the list.
  */
 	while (list && ! (list->gl_flags & GLF_SATISFIED))
 	{
@@ -148,6 +135,10 @@ DataObject *dobj;
 		list = list->gl_next;
 		dgl_ReturnEntry (zap);
 	}
+/*
+ * Now wander into the middle of the list and look for unsatisfied chunks
+ * therein.
+ */
 	for (l = zap = list; zap; zap = l->gl_next)
 	{
 		if (! (zap->gl_flags & GLF_SATISFIED))
@@ -193,6 +184,8 @@ GetList *list;
 	 * Move forward through the data list until we find an entry which
 	 * overlaps with this getlist entry.
 	 * MAKE THIS SMARTER!
+	 * (Smarter means not passing over the files that we have already
+	 *  been over N times satisfying earlier getlist entries.)
 	 */
 	 	for (dp = data; dp; dp = DFTable[dp].df_FLink)
 			if (dgl_Overlaps (list, DFTable + dp))
@@ -230,13 +223,13 @@ DataFile *dp;
  * If the data begins before our desired time, then we have an overlap iff
  * it ends after that time.
  */
-	if  (DLT (dp->df_begin, gp->gl_begin))
-		return (DLE (gp->gl_begin, dp->df_end));
+	if  (TC_Less (dp->df_begin, gp->gl_begin))
+		return (TC_LessEq (gp->gl_begin, dp->df_end));
 /*
  * Otherwise overlap iff the data begins before the desired end time.
  */
 	else
-		return (DLE (dp->df_begin, gp->gl_end));
+		return (TC_LessEq (dp->df_begin, gp->gl_end));
 }
 
 
@@ -258,13 +251,13 @@ int *complete;
 /*
  * If the data ends before our request, we have to split the request.
  */
-	if (DLT (dp->df_end, gp->gl_end))
+	if (TC_Less (dp->df_end, gp->gl_end))
 	{
 		*complete = FALSE;
 	/*
 	 * Get a new entry and splice it into the list.
 	 */
-		new = ALLOC (GetList);
+		new = dgl_GetEntry ();
 		*new = *gp;
 		gp->gl_next = new;
 	/*
@@ -282,7 +275,7 @@ int *complete;
 	gp->gl_dfindex = dp - DFTable;
 	gp->gl_dfuse = dp->df_use;
 	gp->gl_flags |= GLF_SATISFIED;
-	if (DLE (dp->df_begin, gp->gl_begin))
+	if (TC_LessEq (dp->df_begin, gp->gl_begin))
 		return (gp);
 /*
  * Otherwise we have to split again, and leave an unsatisfied chunk for
@@ -298,13 +291,15 @@ int *complete;
  */
 	new->gl_flags &= ~GLF_SATISFIED;
 	new->gl_end = dp->df_begin;		/* - 1? */
-	pmu_dsub (&new->gl_end.ds_yymmdd, &new->gl_end.ds_hhmmss, 1);
+	/* pmu_dsub (&new->gl_end.ds_yymmdd, &new->gl_end.ds_hhmmss, 1); */
+	TC_SysToZt (TC_ZtToSys (&new->gl_end) - 1, &new->gl_end);
 	return (new);
 }
 
 
 
 
+# ifdef NOT_YET
 
 
 int
@@ -516,3 +511,5 @@ int df;
 	abort.dsp_pid = plat - PTable;
 	msg_send ("DS_Daemon", MT_DATASTORE, FALSE, &abort, sizeof (abort));
 }
+
+# endif

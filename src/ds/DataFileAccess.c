@@ -23,7 +23,6 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: DataFileAccess.c,v 2.1 1991-09-26 22:42:34 gracio Exp $";
 
 
 # include "../include/defs.h"
@@ -32,6 +31,7 @@ static char *rcsid = "$Id: DataFileAccess.c,v 2.1 1991-09-26 22:42:34 gracio Exp
 # include "dsPrivate.h"
 # include "dslib.h"
 # include "dfa.h"
+MAKE_RCSID ("$Id: DataFileAccess.c,v 3.1 1992-05-27 17:24:03 corbet Exp $")
 
 
 
@@ -43,7 +43,7 @@ static char *rcsid = "$Id: DataFileAccess.c,v 2.1 1991-09-26 22:42:34 gracio Exp
  *
  * f_QueryTime (file, begin, end, nsample)
  * char *file;
- * time *begin, *end;
+ * ZebTime *begin, *end;
  * int *nsample
  *
  *	Given the file name, return the begin and end times of the data
@@ -54,12 +54,16 @@ static char *rcsid = "$Id: DataFileAccess.c,v 2.1 1991-09-26 22:42:34 gracio Exp
  *	missing period.  NSAMPLE should be set to the number of data
  *	samples found in this file.  Returns TRUE on success.
  *
- * f_Setup (dlist)
- * GetList *dlist;
+ * DataChunk *
+ * f_Setup (glist, fields, nfield, class)
+ * GetList *glist;
+ * FieldId *fields;
+ * int nfield;
+ * DataClass class;
  *
- *	Get set up to do a data access.  Modifies the AccessList as needed --
- *	in particular, sets the sample count for each entry.  Should cache
- *	info wherever necessary to make the actual grab go faster.
+ *	Get ready to do this data access.  The format driver should, at
+ *	a minimum, create and return a data chunk with the appropriate
+ *	class.  The get list is provided to aid setup for efficiency.
  *
  * f_OpenFile (dp, write, tag)
  * DataFile *dp;
@@ -86,8 +90,11 @@ static char *rcsid = "$Id: DataFileAccess.c,v 2.1 1991-09-26 22:42:34 gracio Exp
  *
  *	Return the number of platforms contained here.
  *
- * f_GetData (getlist)
+ * f_GetData (dc, getlist, details, ndetail)
+ * DataChunk *dc;
  * GetList *getlist;
+ * dsDetail *details;
+ * int ndetail;
  *
  *	Actually get the data called for here.
  *
@@ -105,7 +112,7 @@ static char *rcsid = "$Id: DataFileAccess.c,v 2.1 1991-09-26 22:42:34 gracio Exp
  *
  * f_DataTimes (index, time, which, n, dest, attrs)
  * int index, n;
- * time *time, *dest;
+ * ZebTime *time, *dest;
  * TimeSpec which;
  * char *attrs;
  *
@@ -113,22 +120,34 @@ static char *rcsid = "$Id: DataFileAccess.c,v 2.1 1991-09-26 22:42:34 gracio Exp
  *
  * f_MakeFileName (directory, platform, time, dest)
  * char *directory, *platform;
- * time *time;
+ * ZebTime *time;
  * char *dest;
  *
  *	Create an appropriate name for a new file in directory, starting
  *	at the given time.
  *
- * f_CreateFile (dfile, dobj, tag)
+ * f_CreateFile (dfile, dc, tag)
  * DataFile *dfile;
- * DataObject *dobj;
+ * DataChunk *dc;
  * void **tag;
  *
  *	Cause the given file to exist, returning TRUE and a tag if
- *	successful.  DOBJ describes the current data put request, which
+ *	successful.  DC describes the current data put request, which
  *	should describe the layout of the file.
  *
- * f_PutData (dfile, dobj, begin, end)
+ * f_PutSample (dfile, dc, sample, wc)
+ * int dfile, sample;
+ * DataChunk *dc;
+ * WriteCode wc;
+ *
+ *	Write the given sample from the DC into the indicated file, as
+ *	controlled by the write code:
+ *		wc_Append	Append the sample to the file
+ *		wc_Insert	Insert before an existing sample.
+ *		wc_OverWrite	Overwrite an existing sample.
+ *	Returns true iff the data write was successful.
+ *
+ * f_PutData (dfile, dobj, begin, end)  This is no longer real
  * int *dfile;
  * DataObject *dobj;
  * int begin, end;
@@ -147,7 +166,7 @@ static char *rcsid = "$Id: DataFileAccess.c,v 2.1 1991-09-26 22:42:34 gracio Exp
  * int dfile;
  * time *time;
  * int *nfld;
- * char **flist;
+ * FieldId *flist;
  *
  *	Return a list of available fields in this platform.  "NFLD" starts
  * 	as the max the caller can accept; should be returned as the number
@@ -156,7 +175,7 @@ static char *rcsid = "$Id: DataFileAccess.c,v 2.1 1991-09-26 22:42:34 gracio Exp
  * char *
  * f_GetAttrs (dfile, time, len)
  * int dfile, *len;
- * time *time;
+ * ZebTime *time;
  *
  *	Get the attributes from the file for this time.  Returns a
  *	piece of dynamically allocated memory (whose length comes back
@@ -170,7 +189,7 @@ struct DataFormat
 	char *f_ext;			/* File name extension		*/
 	/* Functions below here */
 	int (*f_QueryTime)();		/* Query the times of a file	*/
-	int (*f_Setup) ();		/* Set up access		*/
+	DataChunk *(*f_Setup) ();	/* Set up access		*/
 	int (*f_OpenFile) ();		/* Open a file			*/
 	int (*f_CloseFile) ();		/* Close a file.		*/
 	int (*f_SyncFile) ();		/* Synchronize a file		*/
@@ -181,7 +200,7 @@ struct DataFormat
 	int (*f_DataTimes) ();		/* Get data times		*/
 	int (*f_MakeFileName) ();	/* Make new file name		*/
 	int (*f_CreateFile) ();		/* Create a new file		*/
-	int (*f_PutData) ();		/* Put data to a file		*/
+	int (*f_PutSample) ();		/* Put data to a file		*/
 	int (*f_GetObsSamples) ();	/* Get observation samples	*/
 	int (*f_GetFields) ();		/* Get fields			*/
 	char *(*f_GetAttrs) ();		/* Get attributes		*/
@@ -192,20 +211,24 @@ struct DataFormat
  * Function definitions for the format table.
  */
 extern int dnc_QueryTime (), dnc_OpenFile (), dnc_CloseFile ();
-extern int dnc_SyncFile (), dnc_Setup (), dnc_InqPlat (), dnc_GetData ();
+extern int dnc_SyncFile (), dnc_InqPlat (), dnc_GetData ();
 extern int dnc_GetIRGLoc (), dnc_GetRGrid (), dnc_DataTimes ();
-extern int dnc_MakeFileName (), dnc_CreateFile (), dnc_PutData ();
+extern int dnc_MakeFileName (), dnc_CreateFile (), dnc_PutSample ();
 extern int dnc_GetFields ();
+extern DataChunk *dnc_Setup ();
 
 extern int bf_QueryTime (), bf_MakeFileName (), bf_CreateFile ();
-extern int bf_PutData (), bf_OpenFile (), bf_CloseFile (), bf_SyncFile ();
-extern int bf_Setup (), bf_GetData (), bf_DataTimes (), bf_GetFields ();
+extern int bf_PutSample (), bf_OpenFile (), bf_CloseFile (), bf_SyncFile ();
+extern int bf_GetData (), bf_DataTimes (), bf_GetFields ();
+extern DataChunk *bf_Setup ();
 
-extern int drf_OpenFile (), drf_CloseFile (), drf_QueryTime (), drf_PutData ();
-extern int drf_MakeFileName (), drf_CreateFile (), drf_Sync (), drf_Setup ();
+extern int drf_OpenFile (), drf_CloseFile (), drf_QueryTime ();
+extern int drf_PutSample ();
+extern int drf_MakeFileName (), drf_CreateFile (), drf_Sync ();
 extern int drf_GetData (), drf_DataTimes (), drf_GetObsSamples ();
 extern int drf_GetFields ();
 extern char *drf_GetAttrs ();
+extern DataChunk *drf_Setup ();
 # define ___ 0
 
 /*
@@ -231,7 +254,7 @@ struct DataFormat Formats[] =
 	dnc_DataTimes,			/* Get data times		*/
 	dnc_MakeFileName,		/* Make file name		*/
 	dnc_CreateFile,			/* Create a new file		*/
-	dnc_PutData,			/* Write to file		*/
+	dnc_PutSample,			/* Write to file		*/
 	___,				/* Get observation samples	*/
 	dnc_GetFields,			/* Get fields			*/
 	___,				/* Get Attributes		*/
@@ -250,7 +273,7 @@ struct DataFormat Formats[] =
 	bf_DataTimes,			/* Get data times		*/
 	bf_MakeFileName,		/* Make file name		*/
 	bf_CreateFile,			/* Create a new file		*/
-	bf_PutData,			/* Write to file		*/
+	bf_PutSample,			/* Write to file		*/
 	___,				/* Get observation samples	*/
 	bf_GetFields,			/* Get fields			*/
 	___,				/* Get Attributes		*/
@@ -269,7 +292,7 @@ struct DataFormat Formats[] =
 	drf_DataTimes,			/* Get data times		*/
 	drf_MakeFileName,		/* Make file name		*/
 	drf_CreateFile,			/* Create a new file		*/
-	drf_PutData,			/* Write to file		*/
+	drf_PutSample,			/* Write to file		*/
 	drf_GetObsSamples,		/* Get observation samples	*/
 	drf_GetFields,			/* Get fields			*/
 	drf_GetAttrs,			/* Get Attributes		*/
@@ -288,7 +311,7 @@ struct DataFormat Formats[] =
 	drf_DataTimes,			/* Get data times		*/
 	drf_MakeFileName,		/* Make file name		*/
 	drf_CreateFile,			/* Create a new file		*/
-	drf_PutData,			/* Write to file		*/
+	drf_PutSample,			/* Write to file		*/
 	drf_GetObsSamples,		/* Get observation samples	*/
 	drf_GetFields,			/* Get fields			*/
 	drf_GetAttrs,			/* Get Attributes		*/
@@ -357,7 +380,7 @@ char *name;
 void
 dfa_MakeFileName (plat, t, dest)
 Platform *plat;
-time *t;
+ZebTime *t;
 char *dest;
 /*
  * Create a new file name for this platform, and this time.
@@ -374,7 +397,7 @@ char *dest;
 int
 dfa_GetObsSamples (dfile, times, locs, max)
 int dfile, max;
-time *times;
+ZebTime *times;
 Location *locs;
 /*
  * Return sample info from this observation.
@@ -393,8 +416,8 @@ Location *locs;
 int
 dfa_GetFields (dfile, t, nfld, flist)
 int dfile, *nfld;
-time *t;
-char **flist;
+ZebTime *t;
+FieldId *flist;
 /*
  * Return the available fields.
  */
@@ -411,7 +434,7 @@ char **flist;
 char *
 dfa_GetAttr (dfile, t, len)
 int dfile, *len;
-time *t;
+ZebTime *t;
 /*
  * Get the attributes for this time if we can.
  */
@@ -429,7 +452,7 @@ int
 dfa_QueryDate (type, name, begin, end, nsample)
 int type;
 char *name;
-time *begin, *end;
+ZebTime *begin, *end;
 int *nsample;
 /*
  * Query the dates on this file.
@@ -442,20 +465,27 @@ int *nsample;
 
 
 
-void
-dfa_Setup (gl)
+DataChunk *
+dfa_Setup (gl, fields, nfield, class)
 GetList *gl;
+FieldId *fields;
+int nfield;
+DataClass class;
 /*
  * Set up to grab the data described by this GetList entry.
  */
 {
 	DataFile *dp = DFTable + gl->gl_dfindex;
-	
+
+	return ((*Formats[dp->df_ftype].f_Setup) (gl, fields, nfield, class));
+
+# ifdef notdef
 	if (dp->df_use != gl->gl_dfuse)
 		msg_ELog (EF_INFO, "File '%s' use change: %d %d", dp->df_name,
 			gl->gl_dfuse, dp->df_use);
 	else
 		(*Formats[dp->df_ftype].f_Setup) (gl);
+# endif
 }
 
 
@@ -464,8 +494,11 @@ GetList *gl;
 
 
 void
-dfa_GetData (gl)
+dfa_GetData (dc, gl, details, ndetail)
+DataChunk *dc;
 GetList *gl;
+dsDetail *details;
+int ndetail;
 /*
  * Get the data from this getlist entry.
  */
@@ -474,10 +507,11 @@ GetList *gl;
 /*
  * Do the snarf.
  */
-	(*Formats[dp->df_ftype].f_GetData) (gl);
+	(*Formats[dp->df_ftype].f_GetData) (dc, gl, details, ndetail);
 /*
  * For some orgs, get the location info.
  */
+# ifdef notdef
 	if (! gl->gl_next)	/* Kludge: last one only */
 		switch (gl->gl_dobj->do_org)
 		{
@@ -485,12 +519,14 @@ GetList *gl;
 		   	(*Formats[dp->df_ftype].f_GetIRGLoc) (gl->gl_dfindex,
 				gl->gl_dobj->do_desc.d_irgrid.ir_loc);
 		}
+# endif
 }
 
 
 
 
 
+# ifdef notdef
 void
 dfa_PutData (dfile, dobj, begin, end)
 int dfile, begin, end;
@@ -502,7 +538,20 @@ DataObject *dobj;
 	(*Formats[DFTable[dfile].df_ftype].f_PutData) (dfile, dobj, begin,end);
 }
 
+# endif
 
+int
+dfa_PutSample (dfile, dc, sample, wc)
+int dfile, sample;
+DataChunk *dc;
+WriteCode wc;
+/*
+ * Add data to this file.
+ */
+{
+	return ((*Formats[DFTable[dfile].df_ftype].f_PutSample)
+						(dfile, dc, sample,wc));
+}
 
 
 
@@ -546,7 +595,7 @@ RGrid *rg;
 int
 dfa_DataTimes (index, when, which, n, dest)
 int index, n;
-time *when, *dest;
+ZebTime *when, *dest;
 TimeSpec which;
 {
 	DataFile *dp = DFTable + index;
@@ -564,9 +613,10 @@ TimeSpec which;
 
 
 bool
-dfa_CreateFile (df, dobj)
+dfa_CreateFile (df, dc, t)
 int df;
-DataObject *dobj;
+DataChunk *dc;
+ZebTime *t;
 /*
  * Cause this file to exist, if at all possible.
  */
@@ -574,14 +624,15 @@ DataObject *dobj;
 	char *tag;
 	DataFile *dfp = DFTable + df;
 /*
- * Make sure that it isn't somehow open now.
+ * Make sure that it isn't somehow open now.  (Would be strange but 
+ * can't hurt to be sure.)
  */
 	dfa_ForceClose (df);
 /*
  * Try to open up the file.  If successful, do our accounting and return
  * our success.
  */
-	if (! (*Formats[dfp->df_ftype].f_CreateFile) (dfp, dobj, &tag))
+	if (! (*Formats[dfp->df_ftype].f_CreateFile) (dfp, dc, &tag))
 		return (FALSE);
 	dfa_AddOpenFile (df, TRUE, tag);
 	return (TRUE);
@@ -775,7 +826,7 @@ void **tag;
 /*
  * If the file is open, check the revision and access and return the tag.
  */
-	if (ofp = dfa_FileIsOpen (dfindex, tag))
+	if (ofp = dfa_FileIsOpen (dfindex))
 	{
 		*tag = ofp->of_tag;
 		if (write && ! ofp->of_write)
@@ -797,7 +848,7 @@ void **tag;
 /*
  * Nope, open it now.
  */
-	if (! (*Formats[dp->df_ftype].f_OpenFile) (dp->df_name, write, tag))
+	if (! (*Formats[dp->df_ftype].f_OpenFile) (dp, write, tag))
 		retv = FALSE;
 	else 	/* success */
 		dfa_AddOpenFile (dfindex, write, *tag);

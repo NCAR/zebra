@@ -25,7 +25,7 @@
 # include "DataStore.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: DataChunk.c,v 1.4 1992-03-18 21:12:14 corbet Exp $")
+MAKE_RCSID ("$Id: DataChunk.c,v 3.1 1992-05-27 17:24:03 corbet Exp $")
 
 /*
  * ADE Codes for the raw data object.
@@ -35,8 +35,8 @@ MAKE_RCSID ("$Id: DataChunk.c,v 1.4 1992-03-18 21:12:14 corbet Exp $")
 /*
  * The class methods structure for the raw class.
  */
-DataChunk *Dc_RawCreate FP((DataClass));
-void Dc_RawDestroy FP((DataChunk *));
+static DataChunk *Dc_RawCreate FP((DataClass));
+static void Dc_RawDestroy FP((DataChunk *));
 void Dc_RawDump FP((DataChunk *));
 
 

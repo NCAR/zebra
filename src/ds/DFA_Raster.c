@@ -13,7 +13,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 # include "RasterFile.h"
-MAKE_RCSID ("$Id: DFA_Raster.c,v 3.0 1992-03-31 20:28:50 corbet Exp $")
+MAKE_RCSID ("$Id: DFA_Raster.c,v 3.1 1992-05-27 17:24:03 corbet Exp $")
 
 
 
@@ -37,6 +37,11 @@ typedef struct _RFTag
 static unsigned char *Sbuf = 0;
 static int NSbuf = 0;
 
+/*
+ * Buffer used for attribute encoding/decoding.
+ */
+static char AttrBuf[2048];
+static int AttrLen;
 
 
 /*
@@ -44,11 +49,16 @@ static int NSbuf = 0;
  */
 static void	drf_WSync FP ((RFTag *));
 static int	drf_FindOffset FP ((DataObject *, int));
-static int	drf_WriteImage FP ((RFTag *, DataObject *, int, int));
-static int	drf_FldOffset FP ((RFHeader *, char *));
+static int	drf_WriteImage FP ((RFTag *, DataChunk *, int, RFToc *, int));
+static int	drf_FldOffset FP ((RFTag *, FieldId));
 static int	drf_TimeIndex FP ((const RFTag *, const ZebTime *));
 static void	drf_GetField FP ((const RFTag *, const RFToc *,int));
 static void	drf_ReadOldToc FP ((RFTag *));
+static void	drf_ReadAttrs FP ((RFTag *, RFToc *, int, DataChunk *));
+static void	drf_ClearToc FP ((RFHeader *, RFToc *));
+static void	drf_FindSpace FP ((RFTag *, RFToc *, int, int, int));
+static int	drf_ProcAttr FP ((char *, char *));
+static void	drf_WriteAttrs FP ((RFTag *, RFToc *, DataChunk *, int, int));
 
 
 
@@ -204,7 +214,7 @@ RFTag *tag;
 int
 drf_QueryTime (file, begin, end, nsample)
 char *file;
-time *begin, *end;
+ZebTime *begin, *end;
 int *nsample;
 /*
  * Query the times available in this file.
@@ -240,8 +250,12 @@ int *nsample;
  * Return the info, clean up, and we're done.
  */
 	*nsample = hdr.rf_NSample;
+# ifdef notdef
 	*begin = toc[0].rft_Time;
 	*end = toc[*nsample - 1].rft_Time;
+# endif
+	TC_UIToZt (&toc[0].rft_Time, begin);
+	TC_UIToZt (&toc[*nsample - 1].rft_Time, end);
 	free (toc);
 	close (fd);
 	return (TRUE);
@@ -254,30 +268,35 @@ int *nsample;
 void
 drf_MakeFileName (dir, name, t, dest)
 char *dir, *name, *dest;
-time *t;
+ZebTime *t;
 /*
  * Generate a file name.
  */
 {
-	sprintf (dest, "%s/%s.%06d.%06d.rf", dir, name, t->ds_yymmdd,
-		t->ds_hhmmss);
+	time ut;
+	
+	TC_ZtToUI (t, &ut);
+	sprintf (dest, "%s/%s.%06d.%06d.rf", dir, name, ut.ds_yymmdd,
+		ut.ds_hhmmss);
 }
 
 
 
 
 int
-drf_CreateFile (dp, dobj, rtag)
+drf_CreateFile (dp, dc, rtag)
 DataFile *dp;
-DataObject *dobj;
+DataChunk *dc;
 void **rtag;
 /*
- * Create a new raster file to contain this data object.
+ * Create a new raster file to contain this data chunk.
  */
 {
 	RFTag *tag = ALLOC (RFTag);
-	ScaleInfo *scale = dobj->do_desc.d_img.ri_scale;
-	int fld;
+	ScaleInfo scale;
+	int fld, nfld;
+	PlatformId id = dc->dc_Platform;
+	FieldId *fids;
 /*
  * We gotta create a file before doing much of anything.
  */
@@ -292,20 +311,24 @@ void **rtag;
  * Start to fill in the header.
  */
 	tag->rt_hdr.rf_Magic = RF_MAGIC;
-	strcpy (tag->rt_hdr.rf_Platform, PTable[dobj->do_id].dp_name);
-	tag->rt_hdr.rf_MaxSample = PTable[dobj->do_id].dp_maxsamp;
+	strcpy (tag->rt_hdr.rf_Platform, PTable[id].dp_name);
+	tag->rt_hdr.rf_MaxSample = PTable[id].dp_maxsamp;
 	tag->rt_hdr.rf_NSample = 0;
 	tag->rt_hdr.rf_Flags = (dp->df_ftype == FTCmpRaster) ? RFF_COMPRESS :0;
 /*
  * Fill in the fields info.
  */
-	for (fld = 0; fld < dobj->do_nfield; fld++)
+	fids = dc_GetFields (dc, &nfld);
+	tag->rt_fids = (FieldId *) malloc (nfld * sizeof (FieldId));
+	for (fld = 0; fld < nfld; fld++)
 	{
 		strcpy (tag->rt_hdr.rf_Fields[fld].rff_Name,
-				dobj->do_fields[fld]);
-		tag->rt_hdr.rf_Fields[fld].rff_Scale = scale[fld];
+				F_GetName (fids[fld]));
+		(void) dc_ImgGetImage (dc, 0, fids[fld], 0, 0, 0, &scale);
+		tag->rt_hdr.rf_Fields[fld].rff_Scale = scale;
+		tag->rt_fids[fld] = fids[fld];
 	}
-	tag->rt_hdr.rf_NField = dobj->do_nfield;
+	tag->rt_hdr.rf_NField = nfld;
 /*
  * Get a table of contents.
  */
@@ -339,17 +362,19 @@ RFTag *tag;
 
 
 int
-drf_PutData (dfile, dobj, begin, end)
-int dfile;
-DataObject *dobj;
-int begin, end;
+drf_PutSample (dfile, dc, sample, wc)
+int dfile, sample;
+DataChunk *dc;
+WriteCode wc;
 /*
  * Write some data to the file.
  */
 {
 	RFTag *tag;
+	RFToc *toc;
 	RFHeader *hdr;
-	int soffset;
+	int soffset, i, ret;
+	ZebTime t;
 /*
  * Open the file for write access.
  */
@@ -362,85 +387,110 @@ int begin, end;
 	if (tag->rt_hdr.rf_Magic == RF_OLDMAGIC)
 	{
 		msg_ELog (EF_PROBLEM, "I won't write old file");
-		return (FALSE);
+		return (0);
 	}
 /*
  * Make sure they are not trying to overwrite us.
  */
-	if ((hdr->rf_NSample + end - begin + 1) > hdr->rf_MaxSample)
+	if (hdr->rf_NSample >= hdr->rf_MaxSample && wc != wc_Overwrite)
 	{
 		msg_ELog (EF_PROBLEM, "File %s overfull",
 					DFTable[dfile].df_name);
-		end = begin + (hdr->rf_MaxSample - hdr->rf_NSample) - 1;
+		return (0);
 	}
 /*
- * Find the offset to the first sample that we will be writing.
+ * Figure out what we're going to do with this sample.
  */
-	soffset = drf_FindOffset (dobj, begin);
+	switch (wc)
+	{
+	/*
+	 * For the append case, we need a new TOC   entry and some
+	 * new space.
+	 */
+	   case wc_Append:
+		toc = tag->rt_toc + hdr->rf_NSample++;	
+		drf_ClearToc (hdr, toc);
+		break;
+	/*
+	 * For overwrites, find the sample to zap.
+	 */
+	   case wc_Overwrite:
+		dc_GetTime (dc, sample, &t);
+	   	soffset = drf_TimeIndex (tag, &t);
+		toc = tag->rt_toc + soffset;
+		break;
+	/*
+	 * For inserts, we need to open up a hole.
+	 */
+	   case wc_Insert:
+	   	dc_GetTime (dc, sample, &t);
+	   	soffset = drf_TimeIndex (tag, &t);
+		for (i = hdr->rf_NSample - 1; i > soffset; i--)
+			tag->rt_toc[i + 1] = tag->rt_toc[i];
+		toc = tag->rt_toc + soffset;
+		drf_ClearToc (hdr, toc);
+		break;
+	}
 /*
  * Now actually output the data.
  */
-	for (; begin <= end; begin++)
-		if ((soffset = drf_WriteImage (tag, dobj, begin, soffset)) < 0)
-			break;	/* bail */
+	ret = drf_WriteImage (tag, dc, sample, toc, wc == wc_Overwrite);
 	drf_WSync (tag);
+	return (ret);
 }
 
 
 
 
-
 static int
-drf_FindOffset (dobj, begin)
-DataObject *dobj;
-int begin;
-/*
- * Find the byte offset into the data fields for the beginning sample.
- */
-{
-	int offset = 0, sample;
-	RGrid *rg = dobj->do_desc.d_img.ri_rg;
-
-	for (sample = 0; sample < begin; sample++)
-		offset += rg[sample].rg_nX * rg[sample].rg_nY;
-	return (offset);
-}
-
-
-
-
-
-static int
-drf_WriteImage (tag, dobj, begin, offset)
+drf_WriteImage (tag, dc, sample, toc, reuse)
 RFTag *tag;
-DataObject *dobj;
-int begin, offset;
+DataChunk *dc;
+int sample, reuse;
+RFToc *toc;
 /*
  * Write an image to the file.
+ * Entry:
+ *	TAG	is the file tag.
+ *	DC	is the data chunk containing the image.
+ *	SAMPLE	is the index of the sample to be written.
+ *	TOC	is the TOC entry to describe this sample.
+ *	REUSE	is TRUE iff we should attempt to reuse the space already
+ *		allocated by this TOC entry.
  */
 {
 	RFHeader *hdr = &tag->rt_hdr;
-	RFToc *toc;
-	RGrid *rg = dobj->do_desc.d_img.ri_rg + begin;
-	int nb, fld, dfield;
+	int nb, fld, dfield, nfield;
 	unsigned char *data;
+	FieldId *fids;
+	ScaleInfo scale;
 /*
- * Allocate a new TOC entry.
+ * Start to fill in the TOC entry.
  */
-	toc = tag->rt_toc + hdr->rf_NSample++;
-	toc->rft_Time = dobj->do_times[begin];
-	toc->rft_Rg = *rg;
-	toc->rft_Origin = dobj->do_aloc[begin];
+	if (! reuse)
+	{
+		ZebTime zt;
+		dc_GetTime (dc, sample, &zt);
+		TC_ZtToUI (&zt, &toc->rft_Time);
+	}
+/*
+		toc->rft_Rg = *rg;
+		toc->rft_Origin = dobj->do_aloc[begin];
+*/
 /*
  * Now write each field.
  */
-	for (fld = 0; fld < dobj->do_nfield; fld++)
+	fids = dc_GetFields (dc, &nfield);
+	for (fld = 0; fld < nfield; fld++)
 	{
-		data = (unsigned char *) (dobj->do_data[fld] + offset);
+	/*
+	 * Get the data.
+	 */
+		data = dc_ImgGetImage (dc, sample, fids[fld], &toc->rft_Origin,
+				&toc->rft_Rg, &nb, &scale);
 	/*
 	 * Compress the data if called for.
 	 */
-		nb = rg->rg_nX * rg->rg_nY;
 		if (hdr->rf_Flags & RFF_COMPRESS)
 		{
 			int junk;
@@ -452,22 +502,72 @@ int begin, offset;
 	/*
 	 * Find the offset for this field, move there, and write it.
 	 */
-	 	dfield = drf_FldOffset (hdr, dobj->do_fields[fld]);
-		toc->rft_Offset[dfield] = lseek (tag->rt_fd, 0, SEEK_END);
-		toc->rft_Size[dfield] = nb;
+	 	dfield = drf_FldOffset (tag, fids[fld]);
+		drf_FindSpace (tag, toc, dfield, nb, reuse);
 		if (write (tag->rt_fd, data, nb) < nb)
+		{
 			msg_ELog (EF_PROBLEM, "Error %d writing image", errno);
+			return (0);
+		}
 	}
 /*
  * Write out the attribute table if there is one.
  */
-	if (dobj->do_attr)
-	{
-		toc->rft_AttrLen = strlen (dobj->do_attr) + 1;
+	drf_WriteAttrs (tag, toc, dc, sample, reuse);
+	return (1);
+}
+
+
+
+
+
+static void
+drf_WriteAttrs (tag, toc, dc, sample, reuse)
+RFTag *tag;
+RFToc *toc;
+DataChunk *dc;
+int sample, reuse;
+/*
+ * Write the attributes into a file.
+ */
+{
+/*
+ * Pull the attributes out of the dc.
+ */
+	AttrLen = 0;
+	dc_ProcessAttrs (dc, 0, drf_ProcAttr);
+	if (AttrLen == 0)
+		return;
+/*
+ * Figure out where to put them.  If we are reusing, try to reuse the
+ * old attribute space; otherwise make a new spot.
+ */
+	if (reuse && AttrLen <= toc->rft_AttrLen)
+		lseek (tag->rt_fd, toc->rft_AttrOffset, SEEK_SET);
+	else
 		toc->rft_AttrOffset = lseek (tag->rt_fd, 0, SEEK_END);
-		write (tag->rt_fd, dobj->do_attr, toc->rft_AttrLen);
-	}
-	return (offset + nb);
+/*
+ * Just do the write and we are finished.
+ */
+	if (write (tag->rt_fd, AttrBuf, AttrLen) < AttrLen)
+		msg_ELog (EF_PROBLEM, "Error writing raster attrs");
+	toc->rft_AttrLen = AttrLen;
+}
+
+
+
+
+static int
+drf_ProcAttr (name, value)
+char *name, *value;
+/*
+ * Add this attribute to the list.
+ */
+{
+	strcpy (AttrBuf + AttrLen, name);
+	strcpy (AttrBuf + AttrLen + strlen (name) + 1, value);
+	AttrLen += strlen (name) + strlen (value) + 2;
+	return (0);
 }
 
 
@@ -475,22 +575,75 @@ int begin, offset;
 
 
 
-static int
-drf_FldOffset (hdr, fname)
+
+static void
+drf_FindSpace (tag, toc, fld, nb, reuse)
+RFTag *tag;
+RFToc *toc;
+int fld, nb, reuse;
+/*
+ * Try to find a place to put this data.  Fills in the TOC entry and
+ * positions the file at the beginning of the space.
+ */
+{
+/*
+ * If we are trying to reuse space, see if the existing allocation is
+ * sufficient.  If so, just return it.
+ */
+	if (reuse && toc->rft_Size[fld] >= nb)
+		lseek (tag->rt_fd, toc->rft_Offset[fld], SEEK_SET);
+/*
+ * Otherwise we (for now) just grab something at the end.  If we were
+ * trying to reuse, this causes a fair amount of space to be wasted; 
+ * later we need some sort of way to keep track of free space.
+ */
+	else
+		toc->rft_Offset[fld] = lseek (tag->rt_fd, 0, SEEK_END);
+	toc->rft_Size[fld] = nb;
+}
+
+
+
+
+
+
+
+static void
+drf_ClearToc (hdr, toc)
 RFHeader *hdr;
-char *fname;
+RFToc *toc;
+/*
+ * Initialize this TOC entry to clear.
+ */
+{
+	memset (toc, 0, sizeof (RFToc));
+}
+
+
+
+
+
+static int
+drf_FldOffset (tag, fid)
+RFTag *tag;
+FieldId fid;
 /*
  * Find the offset in the file for this field.
  */
 {
 	int nf;
+	RFHeader *hdr = &tag->rt_hdr;
 /*
- * Ugly.
+ * See if we know about this field.
  */
 	for (nf = 0; nf < hdr->rf_NField; nf++)
-		if (! strcmp (fname, hdr->rf_Fields[nf].rff_Name))
+		if (tag->rt_fids[nf] == fid)
 			return (nf);
-	msg_ELog (EF_PROBLEM, "No RF slot for field %s", fname);
+/*
+ * For the moment, gripe.  What we really need to do is to add the
+ * field to the list of those we know.
+ */
+	msg_ELog (EF_PROBLEM, "No RF slot for field %d", fid);
 	return (0);	/* XXX */
 }
 
@@ -545,7 +698,10 @@ DataClass class;
  * Now we need to find the first file so we can pull out the scale info.
  */
 	if (! dfa_OpenFile (gp->gl_dfindex, FALSE, (void *) &tag))
+	{
+		dc_DestroyDC (dc);
 		return (FALSE);
+	}
 	hdr = &tag->rt_hdr;
 	sc = (ScaleInfo *) malloc (nfield * sizeof (ScaleInfo));
 /*
@@ -571,32 +727,6 @@ DataClass class;
 	dc_ImgSetup (dc, nfield, fields, sc);
 	free (sc);
 	return (dc);
-
-# ifdef notdef
-	RFTag *tag;
-	int tbegin, tend, sample;
-/*
- * Gotta open the file.
- */
-	if (! dfa_OpenFile (gp->gl_dfindex, FALSE, (void *) &tag))
-		return (FALSE);
-/*
- * Find the TOC offsets.
- */
-	tbegin = drf_TimeIndex (tag, &gp->gl_begin);
-	tend = drf_TimeIndex (tag, &gp->gl_end);
-/*
- * Now fill in the getlist and we're done.
- */
-	gp->gl_npoint = 0;
-	for (sample = tbegin; sample <= tend; sample++)
-	{
-		RGrid *rg = &tag->rt_toc[sample].rft_Rg;
-		gp->gl_npoint += rg->rg_nX*rg->rg_nY;
-	}
-	gp->gl_nsample = tend - tbegin + 1;
-	return (TRUE);
-# endif
 }
 
 
@@ -620,7 +750,7 @@ const ZebTime * const zbegin;
 	for (offset = tag->rt_hdr.rf_NSample - 1; offset >= 0; offset--)
 		if (DLE (toc[offset].rft_Time, begin))
 			return (offset);
-	return (0);
+	return (-1);
 }
 
 
@@ -704,22 +834,69 @@ const GetList *gp;
 		 	dc_ImgAddImage (dc, dcsamp, fids[fld],&toc->rft_Origin,
 				&toc->rft_Rg, &t_hack, Sbuf, 0);
 		}
-# ifdef notdef
 	/*
-	 * Fill in the location info.
+	 * Deal with attributes.
 	 */
-		gp->gl_time[sample - tbegin] = toc->rft_Time;
-		gp->gl_locs[sample - tbegin] = toc->rft_Origin;
-		rip->ri_rg[gp->gl_sindex + sample - tbegin] = toc->rft_Rg;
-	/*
-	 * Bump our offset for the next field.
-	 */
-		offset += toc->rft_Rg.rg_nX*toc->rft_Rg.rg_nY;
-# endif
+	 	drf_ReadAttrs (tag, toc, sample, dc);
 		dcsamp++;
 	}
 	return (TRUE);
 }
+
+
+
+
+
+static void
+drf_ReadAttrs (tag, toc, sample, dc)
+RFTag *tag;
+RFToc *toc;
+int sample;
+DataChunk *dc;
+/*
+ * Pull in the attributes for this sample, converting the format
+ * if need be.
+ */
+{
+	char *adata, *aname, *avalue;
+	int len;
+/*
+ * If no attributes, don't bother.
+ */
+	if ((len = toc[sample].rft_AttrLen) <= 0)
+		return;
+/*
+ * Get some space and pull in the attributes.
+ */
+	adata = malloc (len);
+	lseek (tag->rt_fd, toc[sample].rft_AttrOffset, SEEK_SET);
+	if (read (tag->rt_fd, adata, len) < len)
+	{
+		msg_ELog (EF_PROBLEM, "Error %d reading attributes", errno);
+		return;
+	}
+/*
+ * If we have attributes in the old format, convert them here.
+ */
+	if (! strncmp (adata, "radar,", 6))
+	{
+		dc_SetGlobalAttr (dc, "radar_space", "true");
+		dc_SetGlobalAttr (dc, "scan_type", adata + 6);
+		free (adata);
+		return;
+	}
+/*
+ * Go through and store all the attributes.
+ */
+	for (aname = adata; aname < adata + len;)
+	{
+		avalue = aname + strlen (aname) + 1;
+		dc_SetGlobalAttr (dc, aname, avalue);
+		aname = avalue + strlen (avalue) + 1;
+	}
+}
+
+
 
 
 
@@ -793,13 +970,11 @@ TimeSpec which;
 	if (which == DsBefore)
 		for (i = 0; begin >= 0 && i < ntime; i++)
 			TC_UIToZt (&tag->rt_toc[begin--].rft_Time, dest++);
-			/* *dest++ = tag->rt_toc[begin--].rft_Time; */
 	else if (which == DsAfter)
 	{
 		begin++;
-		for (i = 0; begin < tag->rt_hdr.rf_NSample; i++)
+		for (i = 0; begin < tag->rt_hdr.rf_NSample && i < ntime; i++)
 			TC_UIToZt (&tag->rt_toc[begin++].rft_Time, dest++);
-			/* *dest++ = tag->rt_toc[begin++].rft_Time; */
 	}
 	return (i);
 }
@@ -845,7 +1020,7 @@ int
 drf_GetFields (dfile, t, nfld, flist)
 int dfile, *nfld;
 ZebTime *t;
-char **flist;
+FieldId *flist;
 /*
  * Return a list of fields available from this file at this time.
  */
@@ -864,7 +1039,7 @@ char **flist;
  */
 	*nfld = hdr->rf_NField;
 	for (f = 0; f < hdr->rf_NField; f++)
-		flist[f] = hdr->rf_Fields[f].rff_Name;
+		flist[f] = F_Lookup (hdr->rf_Fields[f].rff_Name);
 	return (*nfld);
 }
 

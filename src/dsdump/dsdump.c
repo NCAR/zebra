@@ -25,7 +25,7 @@
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dslib.h"
-MAKE_RCSID ("$Id: dsdump.c,v 2.3 1992-01-24 18:40:50 corbet Exp $")
+MAKE_RCSID ("$Id: dsdump.c,v 3.1 1992-05-27 17:24:03 corbet Exp $")
 
 
 msg_handler ()
@@ -41,8 +41,10 @@ char **argv;
 	int i, pid, np;
 	DataObject *data;
 	static char *field = "velocity";
-	time begin, end, ts[5];
+	ZebTime begin, end, ts[5];
+	time kludge;
 	Location locs[5];
+	char atime[40];
 
 	msg_connect (msg_handler, "DSDump");
 	usy_init ();
@@ -54,10 +56,9 @@ char **argv;
 		if (argc < 2 || ! strcmp (argv[1], PTable[i].dp_name))
 			dump_platform (PTable + i);
 	dsm_ShmUnlock ();
-	exit (0);
+	/* exit (0); */
 
 
-#ifdef notdef
 
 
 /*
@@ -69,23 +70,48 @@ char **argv;
 		exit (1);
 	}
 	ui_printf ("\ncp4 PID is %d\n", pid);
+#ifdef notdef
 	begin.ds_yymmdd = end.ds_yymmdd = 910312;
 	begin.ds_hhmmss = 73210;
 	end.ds_hhmmss = 73210;
 	data = ds_GetData (pid, &field, 1, &begin, &end, OrgImage,
 		0.0, 99.9);
+# endif
 /*
  * Get some sample info.
  */
+	kludge.ds_yymmdd = 910802;
+	kludge.ds_hhmmss = 220100;
+	TC_UIToZt (&kludge, &begin);
 	np = ds_GetObsSamples (pid, &begin, ts, locs, 5);
-	ui_printf ("Got %d samples\n", np);
+	ui_printf ("ds_GetObsSamples: Got %d samples\n", np);
 	for (i = 0; i < np; i++)
-		ui_printf ("\t%d: %d %06d, alt %.2f\n", i, ts[i].ds_yymmdd,
-			ts[i].ds_hhmmss, locs[i].l_alt);
+	{
+		TC_EncodeTime (ts + i, TC_Full, atime);
+		ui_printf ("\t%d: %s, alt %.2f\n", i, atime, locs[i].l_alt);
+	}
+/*
+ * Obs times.
+ */
+	np = ds_GetObsTimes (pid, &begin, ts, 5, 0);
+	ui_printf ("ds_GetObsTimes (no attr): Got %d times\n", np);
+	for (i = 0; i < np; i++)
+	{
+		TC_EncodeTime (ts + i, TC_Full, atime);
+		ui_printf ("\t%d: %s\n", i, atime);
+	}
+	np = ds_GetObsTimes (pid, &begin, ts, 5, "sur");
+	ui_printf ("ds_GetObsTimes (attr sur): Got %d times\n", np);
+	for (i = 0; i < np; i++)
+	{
+		TC_EncodeTime (ts + i, TC_Full, atime);
+		ui_printf ("\t%d: %s\n", i, atime);
+	}
 	exit (0);
 /*
  * Print it out.
  */
+# ifdef notdef
 	ui_printf ("%d grid points\n", np = data->do_desc.d_irgrid.ir_npoint);
 	ui_printf ("%d plain points\n", data->do_npoint);
 	for (i = 0; i < 10; i++)
@@ -170,7 +196,6 @@ int start, dlen;
  */
 {
 	DataFile *dp;
-	ZebTime begin, end;
 	char abegin[40], aend[20];
 
 	while (start)
@@ -179,10 +204,8 @@ int start, dlen;
 	/*
 	 * Pull out the date information and encode it.
 	 */
-		TC_UIToZt (&dp->df_begin, &begin);
-		TC_UIToZt (&dp->df_end, &end);
-		TC_EncodeTime (&begin, TC_Full, abegin);
-		TC_EncodeTime (&end, TC_TimeOnly, aend);
+		TC_EncodeTime (&dp->df_begin, TC_Full, abegin);
+		TC_EncodeTime (&dp->df_end, TC_TimeOnly, aend);
 	/*
 	 * Do the print.
 	 */

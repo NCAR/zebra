@@ -25,7 +25,7 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_RGrid.c,v 1.4 1992-01-22 23:22:58 corbet Exp $")
+MAKE_RCSID ("$Id: dc_RGrid.c,v 3.1 1992-05-27 17:24:03 corbet Exp $")
 
 # define SUPERCLASS DCC_MetData
 
@@ -51,7 +51,7 @@ typedef struct _GridGeometry
  * Local routines.
  */
 static DataChunk *dc_RGCreate FP((DataClass));
-	/* static void dc_IRDump (DataChunk *); */
+static void dc_RGDump FP ((DataChunk *));
 
 RawDCClass RGridMethods =
 {
@@ -60,7 +60,7 @@ RawDCClass RGridMethods =
 	dc_RGCreate,
 	InheritMethod,		/* No special destroy		*/
 	0,			/* Add??			*/
-	0,		/* Dump				*/
+	dc_RGDump,		/* Dump				*/
 };
 
 
@@ -115,6 +115,42 @@ FieldId *fields;
 	dc_SetupFields (dc, nfld, fields);
 }
 
+
+
+
+static void
+dc_RGDump (dc)
+DataChunk *dc;
+/*
+ * Dump out some info.
+ */
+{
+	GridGeometry *gg;
+	int nsamples = dc_GetNSample (dc), samp;
+/*
+ * If there is no data, bail.
+ */
+	if (nsamples <= 0)
+		return;
+/*
+ * Get the grid info.
+ */
+	if (! (gg = (GridGeometry *) dc_FindADE (dc, DCC_RGrid,
+							ST_GRID_GEOM, NULL)))
+	{
+		msg_ELog (EF_PROBLEM, "Grid geometry block vanished!");
+		return;
+	}
+/*
+ * Dump out each sample.
+ */
+	printf ("RGRID Class:\n");
+	for (samp = 0; samp < nsamples; samp++)
+		printf ("\tGrid at %.4f %.4f %.3f, %dx%dx%d\n",
+			gg[samp].gg_Loc.l_lat, gg[samp].gg_Loc.l_lon,
+			gg[samp].gg_Loc.l_alt, gg[samp].gg_Rg.rg_nX,
+			gg[samp].gg_Rg.rg_nY, gg[samp].gg_Rg.rg_nZ);
+}
 
 
 
@@ -248,4 +284,45 @@ RGrid *rg;
 	if (rg)
 		*rg = gg[sample].gg_Rg;
 	return ((float *) data);
+}
+
+
+
+
+
+
+
+int
+dc_RGGeometry (dc, sample, origin, rg)
+DataChunk *dc;
+int sample;
+Location *origin;
+RGrid *rg;
+/*
+ * Pull out the geometry of a grid in this DC.
+ */
+{
+	GridGeometry *gg;
+/*
+ * Checking time.
+ */
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_RGrid, "RGGetGrid"))
+		return (FALSE);
+/*
+ * Now look up our dimension info.
+ */
+	if (! (gg = (GridGeometry *) dc_FindADE (dc, DCC_RGrid, ST_GRID_GEOM, 
+					NULL)))
+	{
+		msg_ELog (EF_PROBLEM, "GridGeometry structure gone");
+		return (FALSE);
+	}
+/*
+ * Return the stuff they want.
+ */
+	if (origin)
+		*origin = gg[sample].gg_Loc;
+	if (rg)
+		*rg = gg[sample].gg_Rg;
+	return (TRUE);
 }

@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: nx_PktGrabber.c,v 2.1 1991-09-26 23:11:01 gracio Exp $";
+static char *rcsid = "$Id: nx_PktGrabber.c,v 3.1 1992-05-27 17:24:03 corbet Exp $";
 
 # include <errno.h>
 # include <sys/types.h>
@@ -29,7 +29,7 @@ static char *rcsid = "$Id: nx_PktGrabber.c,v 2.1 1991-09-26 23:11:01 gracio Exp 
 # include <signal.h>
 # include <defs.h>
 # include <message.h>
-# include <DataStore.h>
+# include "DataStore.h"
 # include "NetXfr.h"
 
 /*
@@ -42,7 +42,7 @@ struct ShmHeader
 	int	sm_FirstFull;		/* Index of first full pkt	*/
 	int	sm_LastFull;		/* Index of first empty pkt	*/
 	int	sm_NDrop;		/* How many dropped		*/
-	unsigned char sm_Data[0];	/* The data begins here		*/
+	unsigned char sm_Data[1];	/* The data begins here		*/
 };
 
 

@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: NetXfr.c,v 2.5 1991-12-17 19:52:48 kris Exp $";
+static char *rcsid = "$Id: NetXfr.c,v 3.1 1992-05-27 17:24:03 corbet Exp $";
 
 # include <copyright.h>
 # include <defs.h>
@@ -53,7 +53,7 @@ char *PlatName[MAXPLAT];
 typedef struct _PFields
 {
 	int	pf_NField;		/* How many		*/
-	char	*pf_Fields[MAXFIELD];	/* What they are	*/
+	FieldId	pf_Fields[MAXFIELD];	/* What they are	*/
 } PField;
 
 static PField *PFields[MAXPLAT] = { 0 };
@@ -110,8 +110,7 @@ typedef struct _InProgress
 {
 	int		ip_Seq;		/* Sequence number	*/
 	PlatformId	ip_Plat;	/* The platform		*/
-	DataObject	*ip_DObj;	/* The data object	*/
-	DataOffsets	ip_Offsets;	/* Offset struct, if needed	*/
+	DataChunk	*ip_Dc;		/* The data chunk	*/
 	char		*ip_Arrived;	/* Indications of arrived packets*/
 	char		ip_Source[MAX_NAME_LEN]; /* Who is sending these */
 	struct _InProgress *ip_Next;	/* Next in chain	*/
@@ -129,66 +128,36 @@ typedef struct _InProgress
 InProgress *IPList = 0;
 
 
-# ifdef __STDC__
-	static int Incoming (Message *);
-	static void Die (void);
-	static int Dispatcher (int, struct ui_command *);
-	static void NewRecipients (struct ui_command *);
-	static void Run (void);
-	static void DataAvailable (PlatformId, int, time *, int);
-	static int NXMessage (Message *);
-	static void SendChunk (PlatformId, void *, int, int, int);
-	static DataObject *GetData (PlatformId, time *, int);
-	static void NewData (char *, DataHdr *);
-	InProgress *FindIP (int);
-	static void ContData (DataContinue *);
-	static void Done (DataDone *);
-	static void FinishIP (InProgress *);
-	static void IncOffsets (DataOffsets *);
-	static void UnknownBCast (DataBCChunk *, int);
-	static void FindQueued (int);
-	static void ZapIP (InProgress *);
-	static void Timeout (time *, int);
-	static void AskRetrans (InProgress *, int);
-	void ProcessPolled (void);
-	static void RLEDecode (unsigned char *, unsigned char *, int);
-	static void ScanIP (void);
-	void SendDObj (DataObject *, int);
-	void SendOut (PlatformId, void *, int);
-	static inline DataBCChunk *NewBCChunk (void);
-	static inline void FreeBCChunk (DataBCChunk *);
-	static inline float *GetDataArray (int, int);
-# else
-	static int Incoming ();
-	static void Die ();
-	static int Dispatcher ();
-	static void NewRecipients ();
-	static void Run ();
-	static void DataAvailable ();
-	static int NXMessage ();
-	static void SendChunk ();
-	static DataObject *GetData ();
-	static void NewData ();
-	InProgress *FindIP ();
-	static void ContData ();
-	static void Done ();
-	static void FinishIP ();
-	static void IncOffsets ();
-	static void UnknownBCast ();
-	static void FindQueued ();
-	static void ZapIP ();
-	static void Timeout ();
-	static void AskRetrans ();
-	void ProcessPolled ();
-	static void RLEDecode ();
-	static void ScanIP ();
-	void SendDObj ();
-	void SendOut ();
-	static inline DataBCChunk *NewBCChunk ();
-	static inline void FreeBCChunk ();
-	static inline float *GetDataArray ();
-# endif
-
+static int	Incoming FP ((Message *));
+static void	Die FP ((void));
+static int	Dispatcher FP ((int, struct ui_command *));
+static void	NewRecipients FP ((struct ui_command *));
+static void	Run FP ((void));
+static void	DataAvailable FP ((PlatformId, int, ZebTime *, int, UpdCode));
+static int	NXMessage FP ((Message *));
+static void	SendAux FP ((PlatformId, AuxDataChain));
+static DataChunk *GetData FP ((PlatformId, ZebTime *, int));
+static void	NewData FP ((char *, DataHdr *));
+InProgress	*FindIP FP ((int));
+static void	Done FP ((DataDone *));
+static void	FinishIP FP ((InProgress *));
+static void	UnknownBCast FP ((DataBCChunk *, int));
+static void	FindQueued FP ((int));
+static void	ZapIP FP ((InProgress *));
+static void	Timeout FP ((time *, int));
+static void	AskRetrans FP ((InProgress *, int));
+void		ProcessPolled FP ((void));
+static void	RLEDecode FP ((unsigned char *, unsigned char *, int));
+static void 	canIP FP ((void));
+void		SendDChunk FP ((DataChunk *, int));
+void		SendOut FP ((PlatformId, void *, int));
+static inline	DataBCChunk *NewBCChunk FP ((void));
+static inline	void FreeBCChunk FP ((DataBCChunk *));
+static inline	float *GetDataArray FP ((int, int));
+static void	NewADE FP ((NxAuxData *));
+static void	NewArray FP ((DataArray *));
+static void	ScanIP FP ((void));
+static int	SendDataArray FP ((PlatformId, DataChunk *));
 /*
  * Just define the keywords here.
  */
@@ -199,11 +168,9 @@ InProgress *IPList = 0;
 # define NXC_BROADCAST	5
 # define NXC_RECEIVE	6
 # define NXC_DIRIMAGE	7
+# define NXC_FIELD	8
+# define NXC_ALIAS	9
 
-/*
- * Return the offset of a data object field.
- */
-# define DOFFSET(field) ((int) &(((DataObject *) 0)->field))
 
 static char *CFile;
 
@@ -226,11 +193,11 @@ main (argc, argv)
 int argc;
 char **argv;
 {
-	char cmd[128], loadfile[100];
+	char loadfile[100];
 	SValue v;
 	stbl vtable;
 	int i;
-	time t;
+	ZebTime t;
 /*
  * Hook into the user interface.  Only go interactive if they didn't
  * give us a file on the command line.
@@ -269,8 +236,8 @@ char **argv;
 /*
  * Try to do something reasonable to get a unique starting sequence number.
  */
-	tl_GetTime (&t);
-	Seq = getpid () * (t.ds_hhmmss % 100);
+	tl_Time (&t);
+	Seq = getpid () * (t.zt_Sec % 1000);
 	msg_ELog (EF_INFO, "Starting seq %d", Seq);
 /*
  * Initialize the data store.
@@ -337,8 +304,7 @@ struct ui_command *cmds;
 	 */
 	   case NXC_RUN:
 	   	/* Run (); */
-		tl_AddRelativeEvent (ScanIP, 0, IPScan*60*INCFRAC,
-				IPScan*60*INCFRAC);
+		tl_RelativeReq(ScanIP,0, IPScan*60*INCFRAC, IPScan*60*INCFRAC);
 		msg_await ();
 		break;
 	/*
@@ -358,6 +324,15 @@ struct ui_command *cmds;
 	 */
 	   case NXC_DIRIMAGE:
 	   	DirImage (UINT (cmds[1]));
+		break;
+	/*
+	 * Field definition.
+	 */
+	   case NXC_FIELD:
+	   	F_DeclareField (UPTR (cmds[1]), UPTR (cmds[2]), UPTR(cmds[3]));
+		break;
+	   case NXC_ALIAS:
+	   	F_Alias (UPTR (cmds[1]), UPTR (cmds[2]));
 		break;
 	}
 	return (TRUE);
@@ -416,23 +391,23 @@ struct ui_command *cmds;
 
 
 static void
-DataAvailable (plat, junk, t, ns)
+DataAvailable (plat, junk, t, ns, ucode)
 PlatformId plat;
-int junk;
-time *t;
-int ns;
+int junk, ns;
+ZebTime *t;
+UpdCode ucode;
 /*
  * Data for which somebody is interested has arrived.
  */
 {
-	DataObject *dobj;
-	time otimes;
+	DataChunk *dc;
+	ZebTime otimes, dctime;
 	int newfile;
 	Location loc;
 /*
  * First thing we need to do is to get this data.
  */
-	if (! (dobj = GetData (plat, t, ns)))
+	if (! (dc = GetData (plat, t, ns)))
 		return;
 /*
  * For now, we handle the "newfile" problem by getting the first in
@@ -440,12 +415,11 @@ int ns;
  *
  * Eventually do this with attributes?
  */
-	newfile = 
-		(ds_GetObsSamples (plat, t, &otimes, &loc, 1) > 0) &&
-			otimes.ds_yymmdd == dobj->do_begin.ds_yymmdd &&
-			otimes.ds_hhmmss == dobj->do_begin.ds_hhmmss;
-	SendDObj (dobj, newfile);
-	ds_FreeDataObject (dobj);
+	dc_GetTime (dc, 0, &dctime);
+	newfile = (ds_GetObsSamples (plat, t, &otimes, &loc, 1) > 0) &&
+			TC_Eq (otimes, dctime);
+	SendDChunk (dc, newfile);
+	dc_DestroyDC (dc);
 }
 
 
@@ -453,8 +427,8 @@ int ns;
 
 
 void
-SendDObj (dobj, newfile)
-DataObject *dobj;
+SendDChunk (dc, newfile)
+DataChunk *dc;
 int newfile;
 /*
  * Ship out  a chunk of data.
@@ -462,9 +436,8 @@ int newfile;
 {
 	DataHdr dhdr;
 	DataDone done;
-	int i, naloc;
-	RastImg *rip;
-	PlatformId plat = dobj->do_id;
+	AuxDataChain ade;
+	PlatformId plat = dc->dc_Platform;
 /*
  * Create and send out the data header.
  */
@@ -472,93 +445,19 @@ int newfile;
 	dhdr.dh_MsgType = NMT_DataHdr;
 	dhdr.dh_DataSeq = ++Seq;
 	strcpy (dhdr.dh_Platform, PlatName[plat]);
-	dhdr.dh_DObj = *dobj;
+	dhdr.dh_DChunk = *dc;
 	dhdr.dh_BCast = Broadcast;
-	dhdr.dh_BCRLE = Broadcast && dobj->do_org == OrgImage;
+	dhdr.dh_BCRLE = Broadcast && dc->dc_Class == DCC_Image;
 	SendOut (plat, &dhdr, sizeof (dhdr));
 /*
- * Send out the times.
+ * Send out the auxdata entries.
  */
-	SendChunk (plat, dobj->do_times, DOFFSET (do_times),
-		dobj->do_npoint*sizeof (time), DOF_FREETIME);
+	for (ade = dc->dc_AuxData; ade; ade = ade->dca_Next)
+		SendAux (plat, ade);
 /*
- * Send out locations where called for.  Just how many there are is
- * a bit obnoxious to find out when we're dealing with outlines.
+ * Send over the data itself.
  */
-	if (dobj->do_aloc)
-	{
-		if (dobj->do_org == OrgOutline)
-		{
-			naloc = 0;
-			for (i = 0; i < dobj->do_npoint; i++)
-				naloc += dobj->do_desc.d_bnd[i].bd_npoint;
-		}
-		else
-			naloc = dobj->do_npoint;
-		SendChunk (plat, dobj->do_aloc, DOFFSET (do_aloc),
-			naloc*sizeof (Location), DOF_FREEALOC);
-	}
-/*
- * Send per-field stuff.
- */
-	for (i = 0; i < dobj->do_nfield; i++)
-	{
-		SendChunk (plat, dobj->do_fields[i], DOFFSET (do_fields[i]),
-			strlen (dobj->do_fields[i]) + 1, 0);
-		if (! Broadcast)
-			SendChunk (plat, dobj->do_data[i], DOFFSET(do_data[i]),
-				dobj->do_nbyte/dobj->do_nfield,
-				DOF_FREEALLDATA);
-	}
-/*
- * The attribute table.
- */
-	if (dobj->do_attr)
-		SendChunk (plat, dobj->do_attr, DOFFSET (do_attr),
-				strlen (dobj->do_attr) + 1, DOF_FREEATTR);
-/*
- * Now per-organization stuff.
- */
-	switch (dobj->do_org)
-	{
-	/*
-	 * Irgrids -- pid and location for the subplatforms.
-	 */
-	   case OrgIRGrid:
-	   	SendChunk (plat, dobj->do_desc.d_irgrid.ir_subplats,
-			DOFFSET (do_desc.d_irgrid.ir_subplats),
-			dobj->do_desc.d_irgrid.ir_npoint*sizeof (PlatformId),
-			0);
-	   	SendChunk (plat, dobj->do_desc.d_irgrid.ir_loc,
-			DOFFSET (do_desc.d_irgrid.ir_loc),
-			dobj->do_desc.d_irgrid.ir_npoint*sizeof (Location), 0);
-		break;
-	/*
-	 * Images have lots of rgrid structures, and scaling too.
-	 */
-	   case OrgImage:
-	   	rip = &dobj->do_desc.d_img;
-		SendChunk (plat, rip->ri_rg, DOFFSET (do_desc.d_img.ri_rg),
-			dobj->do_npoint*sizeof (RGrid), 0);
-		SendChunk (plat, rip->ri_scale,DOFFSET(do_desc.d_img.ri_scale),
-			dobj->do_nfield*sizeof (ScaleInfo), 0);
-		break;
-	/*
-	 * Length info for outlines.  UGLY KLUDGE: I don't see how anybody
-	 * can enter more than one boundary at once, so we will only send
-	 * info for one.  This is because there is no easy way to see how
-	 * many of these there are.
-	 */
-	   case OrgOutline:
-	   	SendChunk (plat, dobj->do_desc.d_bnd, 
-			DOFFSET (do_desc.d_bnd), sizeof (BndDesc), 0);
-		break;
-	}
-/*
- * If we're broadcasting, do that now.
- */
-	if (Broadcast)
-		done.dh_NBSent = DoBCast (plat, dobj);
+	done.dh_NBSent = SendDataArray (plat, dc);
 /*
  * Done at last.
  */
@@ -567,6 +466,55 @@ int newfile;
 	SendOut (plat, &done, sizeof (done));
 }
 
+
+
+
+
+
+static int
+SendDataArray (plat, dc)
+PlatformId plat;
+DataChunk *dc;
+/*
+ * Send out the data array for this data chunk.
+ */
+{
+	unsigned char *dp = (unsigned char *) dc->dc_Data;
+	unsigned char *begin = dp;
+	int nsent = 0;
+	DataArray out;
+/*
+ * If we are broadcasting, we just hand it off.
+ */
+	if (Broadcast)
+		return (DoBCast (plat, dc));
+/*
+ * Initialize the array.
+ */
+	out.dh_MsgType = NMT_DataArray;
+	out.dh_DataSeq = Seq;
+	out.dh_Offset = 0;
+/*
+ * Now plow through and send it all.
+ */
+	while (nsent < dc->dc_DataLen)
+	{
+	/*
+	 * Get the array segment ready.
+	 */
+		if ((out.dh_Len = dc->dc_DataLen - nsent) > DTSIZE)
+			out.dh_Len = DTSIZE;
+		out.dh_Offset = dp - begin;
+		memcpy (out.dh_Data, dp, out.dh_Len);
+	/*
+	 * Ship it out and move on.
+	 */
+		SendOut (plat, &out, sizeof (out) - (DTSIZE - out.dh_Len));
+		nsent += out.dh_Len;
+		dp += out.dh_Len;
+	}
+	return (0);
+}
 
 
 
@@ -590,17 +538,17 @@ int len;
 
 
 static void
-SendChunk (plat, stuff, offset, len, flags)
+SendAux (plat, ade)
 PlatformId plat;
-void *stuff;
-int offset, len, flags;
+AuxDataChain ade;
 /*
- * Send a chunk of stuff in a Continue packet.
+ * Send an aux data chain entry.
  */
 {
 	static char *buf = 0;
 	static int buflen = -1;
-	static DataContinue *cont;
+	static NxAuxData *nxa;
+	int len = sizeof (NxAuxData) + ade->dca_Len - 1;
 /*
  * Make sure our buffer is big enough.
  */
@@ -608,47 +556,45 @@ int offset, len, flags;
 	{
 		if (buflen > 0)
 			free (buf);
-		buf = malloc (len + sizeof (DataContinue) - 1);
+		buf = malloc (len);
 		buflen = len;
-		cont = (DataContinue *) buf;
+		nxa = (NxAuxData *) buf;
 	}
 /*
  * Fill in the packet info.
  */
-	cont->dh_MsgType = NMT_DataContinue;
-	cont->dh_DataSeq = Seq;
-	cont->dh_Offset = offset;
-	cont->dh_Size = len;
-	cont->dh_Flags = flags;
-	memcpy (cont->dh_data, stuff, len);
+	nxa->dh_MsgType = NMT_AuxData;
+	nxa->dh_DataSeq = Seq;
+	nxa->dh_Ade = *ade;
+	memcpy (nxa->dh_Stuff, ade->dca_Data, ade->dca_Len);
 /*
  * Send it.
  */
-	SendOut (plat, buf, len + sizeof (DataContinue) - 1);
+	SendOut (plat, buf, len);
 }
 
 
 
 
-static DataObject *
+static DataChunk *
 GetData (plat, t, ns)
 PlatformId plat;
-time *t;
+ZebTime *t;
 int ns;
 /*
  * Grab the data for this info.
  */
 {
-	time *times, begin;
+	ZebTime *times, begin;
 	int ntime;
-	DataObject *ret;
 	PField *pf;
+	DataClass class;
 /*
  * Allocate a time array, then find the sample times for the new data.
  */
 	if (ns > 1)
 	{
-		times = (time *) malloc (ns * sizeof (time));
+		times = (ZebTime *) malloc (ns * sizeof (ZebTime));
 		ntime = ds_DataTimes (plat, t, ns, DsBefore, times);
 		if (ntime <= 0)
 		{
@@ -669,23 +615,32 @@ int ns;
 		pf = PFields[plat] = ALLOC (PField);
 		pf->pf_NField = MAXFIELD;
 		ds_GetFields (plat, t, &pf->pf_NField, pf->pf_Fields);
-		{
-			int i;
-			msg_ELog (EF_DEBUG, "%d Fields: ", pf->pf_NField);
-			for (i = 0; i < pf->pf_NField; i++)
-			{
-				pf->pf_Fields[i] =
-						usy_string (pf->pf_Fields[i]);
-				msg_ELog (EF_DEBUG, "   %s ", pf->pf_Fields[i]);
-			}
-		}
 	}
+/*
+ * Figure out what class of DC we want.
+ */
+	switch (ds_PlatformDataOrg (plat))
+	{
+	   case OrgCmpImage:	/* Hopefully separate someday */
+	   case OrgImage:	class = DCC_Image; break;
+	   case Org1dGrid:
+	   case Org2dGrid:
+	   case Org3dGrid:	class = DCC_RGrid; break;
+	   case OrgIRGrid:	class = DCC_IRGrid; break;
+	   case OrgScalar:	class = DCC_Scalar; break;
+	   case OrgOutline:	class = DCC_Boundary; break;
+	};
 /*
  * Get the data.
  */
-	return (ds_GetData (plat, pf->pf_Fields, pf->pf_NField, &begin, t,
-			ds_PlatformDataOrg (plat), 0.0, 9999.9));
+	return (ds_Fetch (plat, class, &begin, t, pf->pf_Fields, pf->pf_NField,
+			0, 0));
 }
+
+
+
+
+
 
 
 
@@ -747,10 +702,17 @@ struct message *msg;
 		break;
 
 	/*
-	 * Continuation of existing data.
+	 * An aux data chain entry.
 	 */
-	   case NMT_DataContinue:
-	   	ContData ((DataContinue *) tmpl);
+	   case NMT_AuxData:
+	   	NewADE ((NxAuxData *) tmpl);
+		break;
+
+	/*
+	 * Data coming in straight through the msg system.
+	 */
+	   case NMT_DataArray:
+	   	NewArray ((DataArray *) tmpl);
 		break;
 
 	/*
@@ -761,19 +723,15 @@ struct message *msg;
 		break;
 
 	/*
-	 * Offsets for bcast data.
-	 */
-	   case NMT_DataOffsets:
-	   	IncOffsets ((DataOffsets *) tmpl);
-		break;
-
-	/*
 	 * A retransmission request, alas.
 	 */
 	   case NMT_Retransmit:
 	   	Retransmit ((DataRetransRq *) tmpl);
 		break;
 
+	/*
+	 * Packet grabber trying to get our attention.
+	 */
 	   case NMT_WakeUp:
 	   	break;
 
@@ -799,9 +757,8 @@ DataHdr *hdr;
 {
 	InProgress *ip = ALLOC (InProgress);
 
-	msg_ELog (DbEL, "Begin data %s from %s, seq %d, t %d %06d",
-		hdr->dh_Platform, from, hdr->dh_DataSeq,
-		hdr->dh_DObj.do_end.ds_yymmdd, hdr->dh_DObj.do_end.ds_hhmmss);
+	msg_ELog (DbEL, "Begin data %s from %s, seq %d",
+		hdr->dh_Platform, from, hdr->dh_DataSeq);
 /*
  * Sanity check.
  */
@@ -822,19 +779,20 @@ DataHdr *hdr;
 		free (ip);
 		return;
 	}
-	ip->ip_DObj = ALLOC (DataObject);
-	*ip->ip_DObj = hdr->dh_DObj;
-	ip->ip_DObj->do_id = ip->ip_Plat;
 	ip->ip_Arrived = 0;
 	ip->ip_Done = FALSE;
 	ip->ip_Age = 0;
 	ip->ip_NewFile = hdr->dh_NewFile;
 	strcpy (ip->ip_Source, from);
 /*
- * Weird bug tracking.
+ * Fill in the data chunk, and go ahead and get the data array.
  */
-	ip->ip_DObj->do_flags = 0;
-	ip->ip_DObj->do_desc.d_irgrid.ir_subplats = 0;
+	ip->ip_Dc = ALLOC (DataChunk);
+	*ip->ip_Dc = hdr->dh_DChunk;
+	ip->ip_Dc->dc_Platform = ip->ip_Plat;
+	ip->ip_Dc->dc_AuxData = 0;
+	ip->ip_Dc->dc_Data = (DataPtr) GetDataArray (ip->ip_Seq,
+					ip->ip_Dc->dc_DataLen);
 /*
  * Add it to the list
  */
@@ -851,6 +809,72 @@ DataHdr *hdr;
 		FindQueued (ip->ip_Seq);
 	}
 }
+
+
+
+
+
+static void
+NewADE (nxa)
+NxAuxData *nxa;
+/*
+ * Here's a new aux data entry.
+ */
+{
+	AuxDataEntry *ade = ALLOC (AuxDataEntry);
+	InProgress *ip;
+/*
+	msg_ELog (EF_DEBUG, "ADE, seq %d, len %d, class %d sub %d", 
+		nxa->dh_DataSeq, nxa->dh_Ade.dca_Len, 
+		nxa->dh_Ade.dca_Class, nxa->dh_Ade.dca_SubType);
+*/
+/*
+ * Find this transfer.
+ */
+	if (! (ip = FindIP (nxa->dh_DataSeq)))
+		return;
+/*
+ * Fill in the ADE and add it to the data chunk.
+ */
+	*ade = nxa->dh_Ade;
+	ade->dca_Data = (DataPtr) malloc (ade->dca_Len);
+	memcpy (ade->dca_Data, nxa->dh_Stuff, ade->dca_Len);
+	ade->dca_Next = ip->ip_Dc->dc_AuxData;
+	ip->ip_Dc->dc_AuxData = ade;
+}
+
+
+
+
+
+
+
+static void
+NewArray (array)
+DataArray *array;
+/*
+ * A piece of data has arrived.
+ */
+{
+	InProgress *ip;
+
+/*
+	msg_ELog (EF_DEBUG, "Data array, seq %d, off %d len %d", 
+		array->dh_DataSeq, array->dh_Offset, array->dh_Len);
+*/
+/*
+ * Find this transfer.
+ */
+	if (! (ip = FindIP (array->dh_DataSeq)))
+		return;
+/*
+ * Just copy the data over.
+ */
+	memcpy (((char *) ip->ip_Dc->dc_Data) + array->dh_Offset,
+		array->dh_Data, array->dh_Len);
+}
+
+
 
 
 
@@ -919,20 +943,6 @@ ScanIP ()
 
 
 
-static void
-IncOffsets (off)
-DataOffsets *off;
-/*
- * Deal with an incoming offsets structure.
- */
-{
-	InProgress *ip = FindIP (off->dh_DataSeq);
-
-	if (ip)
-		ip->ip_Offsets = *off;
-}
-
-
 
 
 
@@ -954,36 +964,6 @@ int seq;
 		msg_ELog (EF_PROBLEM, "Unknown IP sequence %d", seq);
 # endif
 	return (ip);
-}
-
-
-
-
-
-static void
-ContData (cont)
-DataContinue *cont;
-/*
- * Deal with a data continuation.
- */
-{
-	InProgress *ip = FindIP (cont->dh_DataSeq);
-	char **hack;
-
-	msg_ELog (EF_DEBUG, "Data seq %d, size %d off %d", cont->dh_DataSeq,
-		cont->dh_Size, cont->dh_Offset);
-/*
- * If we don't know about this one, bail.
- */
-	if (! ip)
-		return;
-/*
- * Allocate the memory and fill it in.
- */
-	hack = (char **) (cont->dh_Offset + (char *) ip->ip_DObj);
-	*hack = malloc (cont->dh_Size);
-	memcpy (*hack, cont->dh_data, cont->dh_Size);
-	ip->ip_DObj->do_flags |= cont->dh_Flags;
 }
 
 
@@ -1033,6 +1013,7 @@ char *data;
 	}
 /*
  * If we are currently polling, we just set this one aside.
+ * 5/92 jc So far as I know the following is not used for anything.
  */
 	if (Polling)
 	{
@@ -1064,19 +1045,10 @@ char *data;
  */
 	if (! ip->ip_Arrived)
 	{
-	/*
-	 * Set up some stuff.
-	 */
 		ip->ip_Arrived = malloc (chunk->dh_NChunk);
 		memset (ip->ip_Arrived, 0, chunk->dh_NChunk);
 		ip->ip_NBCast = 0;
 		ip->ip_NBExpect = chunk->dh_NChunk;
-	/* ip->ip_DObj->do_data[0] = (float *) malloc(chunk->dh_DataSize); */
-		ip->ip_DObj->do_data[0] = GetDataArray (ip->ip_Seq,
-							chunk->dh_DataSize);
-		ip->ip_DObj->do_flags &= ~DOF_FREEALLDATA;
-		if (ip->ip_Seq != BDA_IPSeq)
-			ip->ip_DObj->do_flags |= DOF_FREEDATA;
 	}
 /*
  * Mark this packet as arrived, and copy over the stuff.
@@ -1085,11 +1057,11 @@ char *data;
 	ip->ip_NBCast++;
 	if (ip->ip_RLE)
 		RL_Decode (chunk->dh_Offset +
-				((unsigned char *) ip->ip_DObj->do_data[0]),
+				((unsigned char *) ip->ip_Dc->dc_Data),
 				(unsigned char *) chunk->dh_data,
 				chunk->dh_Size);
 	else
-		memcpy (chunk->dh_Offset +((char *)(ip->ip_DObj->do_data[0])), 
+		memcpy (chunk->dh_Offset + ((char *) (ip->ip_Dc->dc_Data)), 
 			chunk->dh_data, chunk->dh_Size);
 /*
  * If everything is done, finish it out.
@@ -1223,13 +1195,6 @@ DataDone *done;
 	if (! ip)
 		return;
 /*
- * If this is an IRGRID dobj, and the subplatform list is missing, then
- * we gripe mightily.
- */
-	if (ip->ip_DObj->do_org == OrgIRGrid && 
-			! ip->ip_DObj->do_desc.d_irgrid.ir_subplats)
-		msg_ELog (EF_PROBLEM, "Missing subplatform list");
-/*
  * If we have all of the data, we can finish this thing out now.
  */
 	ip->ip_NBExpect = done->dh_NBSent;
@@ -1251,7 +1216,7 @@ DataDone *done;
 	else
 	{
 		ip->ip_Done = TRUE;
-		ip->ip_TReq = tl_AddRelativeEvent (Timeout,(void *)ip->ip_Seq, 
+		ip->ip_TReq = tl_RelativeReq (Timeout, (void *) ip->ip_Seq, 
 			BCInitialWait*INCFRAC, 0);
 	}
 }
@@ -1295,7 +1260,9 @@ int seq;
 	}
 /*
  * We've not yet exhausted our patience.  Go through and ask for
- * retransmits on everything we lack.
+ * retransmits on everything we lack.  This code is suboptimal, in that it
+ * can flood the world with retransmit requests if there have been a lot
+ * of drops; fortunately that does not happen very often.
  */
 	if (ip->ip_NBCast == 0)
 		AskRetrans (ip, 0);
@@ -1308,7 +1275,7 @@ int seq;
 /*
  * Schedule a new timer request on this IP.
  */
-	ip->ip_TReq = tl_AddRelativeEvent (Timeout, (void *) seq,
+	ip->ip_TReq = tl_RelativeReq (Timeout, (void *) seq,
 			BCRetransWait*INCFRAC, 0);
 }
 
@@ -1346,18 +1313,16 @@ InProgress *ip;
  */
 {
 	int i;
-/*
- * If this is a broadcast-distributed chunk, apply the data offsets.
- */
-	if (ip->ip_BCast)
-		for (i = 1; i < ip->ip_DObj->do_nfield; i++)
-			ip->ip_DObj->do_data[i] = ip->ip_DObj->do_data[0] + 
-					ip->ip_Offsets.dh_Offsets[i];
+	ZebTime zt;
+	char atime[30];
 /*
  * Throw this data into the data store.
  */
-	msg_ELog (DbEL, "Store sequence %d", ip->ip_Seq);
-	ds_PutData (ip->ip_DObj, ip->ip_NewFile);
+	dc_GetTime (ip->ip_Dc, 0, &zt);
+	TC_EncodeTime (&zt, TC_Full, atime);
+	msg_ELog (DbEL, "Store sequence %d ns %d at %s", ip->ip_Seq, 
+		dc_GetNSample (ip->ip_Dc), atime);
+	ds_Store (ip->ip_Dc, ip->ip_NewFile, 0, 0);
 	ZapIP (ip);
 }
 
@@ -1373,15 +1338,14 @@ InProgress *ip;
 /*
  * Free up dynamic storage.
  */
-	/* ip->ip_DObj->do_flags &= ~DOF_FREETIME; */
-	ds_FreeDataObject (ip->ip_DObj);
+	if (seq == BDA_IPSeq)
+	{
+		ip->ip_Dc->dc_DataLen = 0;
+		BDA_IPSeq = -1;
+	}
+	dc_DestroyDC (ip->ip_Dc);
 	if (ip->ip_Arrived)
 		free (ip->ip_Arrived);
-/*
- * If we were using the static array, "free" it.
- */
-	if (ip->ip_Seq == BDA_IPSeq)
-		BDA_IPSeq = -1;
 /*
  * Clear this entry out of the inprogress list.
  */

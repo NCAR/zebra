@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 2.2 1992-03-18 21:13:33 corbet Exp $
+ * $Id: dsPrivate.h,v 3.1 1992-05-27 17:24:03 corbet Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -48,7 +48,7 @@ struct ds_ShmHeader
 	int	sm_nDTEUsed;		/* How many used		*/
 	int	sm_DTFreeList;		/* First free entry		*/
 };
-# define SHM_MAGIC	0x123091	/* Change for incompatible changes */
+# define SHM_MAGIC	0x50792		/* Change for incompatible changes */
 
 
 
@@ -71,6 +71,8 @@ typedef struct ds_Platform
 	int	dp_RemoteData;		/* The remote data table	*/
 	short	dp_flags;		/* Attribute flags -- see below	*/
 	short	dp_Tfile;		/* Temp file under creation	*/
+	short	dp_NewSamps;		/* New samps (not yet notified) */
+	short	dp_OwSamps;		/* Overwritten samps (n.y.n.)	*/
 } Platform;
 
 # define DPF_MOBILE	0x0001		/* Does this platform move?	*/
@@ -94,8 +96,8 @@ typedef struct ds_DataFile
 {
 	char	df_name[NAMELEN];	/* The name of the file		*/
 	FileType df_ftype;		/* Type of this file		*/
-	time	df_begin;		/* When the data begins		*/
-	time	df_end;			/* When it ends			*/
+	ZebTime	df_begin;		/* When the data begins		*/
+	ZebTime	df_end;			/* When it ends			*/
 	int	df_rev;			/* Revision count		*/
 	short	df_FLink;		/* Data table forward link	*/
 	short	df_BLink;		/* Data table backward link	*/
@@ -122,6 +124,19 @@ struct ds_ShmHeader *ShmHeader;
  */
 # define S_READ		0	/* The read semaphore	*/
 # define S_WRITE	1	/* The write semaphore	*/
+
+
+/*
+ * Write codes -- used to control the placement of data.
+ */
+typedef enum
+{
+	wc_NewFile,		/* Create a new file		*/
+	wc_Overwrite,		/* Overwrite existing datum	*/
+	wc_Append,		/* Append to existing file	*/
+	wc_Insert,		/* Insert before some data	*/
+} WriteCode;
+
 
 
 /*----------------------------------------------------------------------
@@ -167,7 +182,7 @@ struct dsp_CreateFile
 {
 	enum dsp_Types dsp_type;	/* == dpt_NewFileRequest	*/
 	PlatformId dsp_plat;		/* Platform ID			*/
-	time	dsp_time;		/* Initial file time		*/
+	ZebTime	dsp_time;		/* Initial file time		*/
 	char	dsp_file[DSP_FLEN];	/* The name of the file		*/
 };
 
@@ -196,8 +211,10 @@ struct dsp_UpdateFile
 {
 	enum dsp_Types dsp_type;	/* == dpt_UpdateFile		*/
 	int	dsp_FileIndex;		/* The index of this file	*/
-	time	dsp_EndTime;		/* The new end time		*/
+	ZebTime	dsp_EndTime;		/* The new end time		*/
 	int	dsp_NSamples;		/* How many samples added	*/
+	int	dsp_NOverwrite;		/* How many overwritten		*/
+	int	dsp_Last;		/* Last update			*/
 };
 
 
@@ -240,7 +257,8 @@ struct dsp_Notify
 	PlatformId dsp_pid;		/* Platform of interest		*/
 	int dsp_param;			/* Requestor parameter		*/
 	int dsp_nsample;		/* Number of new samples	*/
-	time dsp_when;			/* The lastest time for data	*/
+	ZebTime dsp_when;		/* The lastest time for data	*/
+	UpdCode dsp_ucode;		/* The update code		*/
 };
 
 

@@ -1,7 +1,7 @@
 /*
  * Data store daemon-specific definitions.
  */
-/* $Id: dsDaemon.h,v 2.1 1991-09-26 23:01:53 gracio Exp $ */
+/* $Id: dsDaemon.h,v 3.1 1992-05-27 17:24:03 corbet Exp $ */
 /*
  * The platform and data tables, via pointer.
  */
@@ -39,20 +39,18 @@ char DefDataDir[80];
 extern int DisableRemote;
 
 
-# ifdef __STDC__
-	void InitSharedMemory (void);
-	Platform *dt_NewPlatform (char *);
-	Platform *dt_FindPlatform (char *, int);
-	DataFile *dt_NewFile (void);
-	void dt_FreeDFE (DataFile *);
-	void dt_AddToPlatform (Platform *, DataFile *, int);
-	void dc_DefPlatform (char *);
-# else
-	void InitSharedMemory ();
-	Platform *dt_NewPlatform ();
-	Platform *dt_FindPlatform ();
-	DataFile *dt_NewFile ();
-	void dt_FreeDFE ();
-	void dt_AddToPlatform ();
-	void dc_DefPlatform ();
-# endif
+/*
+ * Internal functions.
+ */
+void InitSharedMemory FP ((void));
+Platform *dt_NewPlatform FP ((char *));
+Platform *dt_FindPlatform FP ((char *, int));
+DataFile *dt_NewFile FP ((void));
+void dt_FreeDFE FP ((DataFile *));
+void dt_AddToPlatform FP ((Platform *, DataFile *, int));
+void dc_DefPlatform FP ((char *));
+void dap_Init FP ((void));
+void dap_Request FP ((char *, struct dsp_NotifyRequest *));
+void dap_Cancel FP ((char *, struct dsp_Template *));
+void dap_Notify FP ((PlatformId, ZebTime *, int, int, int));
+void dap_Copy FP ((char *));

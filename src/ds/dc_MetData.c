@@ -27,7 +27,7 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_MetData.c,v 1.4 1992-01-22 23:22:58 corbet Exp $")
+MAKE_RCSID ("$Id: dc_MetData.c,v 3.1 1992-05-27 17:24:03 corbet Exp $")
 
 # define SUPERCLASS DCC_Transparent
 
@@ -137,6 +137,7 @@ FieldId *fields;
 		finfo->fi_Fields[fld] = fields[fld];
 	finfo->fi_Uniform = FALSE;
 	finfo->fi_Badval = DefaultBadval;
+	finfo->fi_Size = 0;
 /* 
  * Attach it to the DC.
  */
@@ -198,7 +199,7 @@ FieldId *fields;
 
 
 
-float
+double
 dc_GetBadval (dc)
 DataChunk *dc;
 /*
@@ -206,11 +207,21 @@ DataChunk *dc;
  */
 {
 	FldInfo *finfo;
+	char *abad;
 /*
  * The usual sanity checking.
  */
 	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "GetBadval"))
 		return (0);
+/*
+ * Look first for a global attribute.
+ */
+	if (abad = dc_GetGlobalAttr (dc, "bad_value_flag"))
+	{
+		float fbad;
+		sscanf (abad, "%f", &fbad);
+		return (fbad);
+	}
 /*
  * Grab the field info structure, and return the bad value flag stored
  * therein.  If the structure doesn't exist, return the default.
@@ -257,7 +268,7 @@ float badval;
  * Also store it as a global attribute.
  */
 	sprintf (sbad, "%f", badval);
-	dc_SetGlobalAttr (dc, "Bad_value_flag", sbad);
+	dc_SetGlobalAttr (dc, "bad_value_flag", sbad);
 }
 
 
@@ -414,6 +425,7 @@ DataPtr data;
 			ft[findex].ft_Offset = len;
 			ft[findex].ft_Len = size;
 			dc_AdjustSample (dc, samp, len + size);
+			ft = (FieldTOC *) (space = dc_GetSample(dc,samp,&len));
 		}
 	/*
 	 * Otherwise, create it.
@@ -432,12 +444,15 @@ DataPtr data;
 	/*
 	 * Now copy in the data.
 	 */
-		memcpy ((char *) space + ft[findex].ft_Offset, data, size);
+		if (data)
+			memcpy ((char *) space + ft[findex].ft_Offset, data,
+					size);
 	/*
 	 * On to the next one.
 	 */
 		t++;
-		data = (char *) data + size;
+		if (data)
+			data = (char *) data + size;
 	}
 }
 
@@ -530,7 +545,14 @@ DataPtr data;
  */
 {
 	int samp, offset = finfo->fi_Size * findex;
-
+/*
+ * If no data, no work.
+ */
+	if (! data)
+		return;
+/*
+ * Otherwise go through a sample at a time.
+ */
 	for (samp = 0; samp < nsamp; samp++)
 	{
 		DataPtr dest = dc_GetSample (dc, start + samp, NULL);
@@ -646,6 +668,6 @@ DataChunk *dc;
 		finfo->fi_NField, finfo->fi_Uniform ? "True" : "False",
 		finfo->fi_Size);
 	for (i = 0; i < finfo->fi_NField; i++)
-		printf (" %d", finfo->fi_Fields[i]);
+		printf (" %s", F_GetName (finfo->fi_Fields[i]));
 	printf ("\n");
 }

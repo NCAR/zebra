@@ -25,27 +25,25 @@
 #include "DataStore.h"
 #include "dsPrivate.h"
 #include "dslib.h"
-MAKE_RCSID ("$Id: Appl.c,v 2.5 1991-11-22 20:22:59 corbet Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.1 1992-05-27 17:24:03 corbet Exp $")
 
 
 /*
  * Local stuff.
  */
-#ifdef __STDC__
-	static void     ds_InitPFTable(void);
-	static void     ds_AllocMemory(DataObject *, GetList *);
-	static void     ds_NotifyDaemon(int, DataObject *, int, int);
-	static void     ds_DispatchNotify(struct dsp_Notify *);
-	int             ds_DSMessage(struct message *);
-	static int      ds_AttrCheck(int, char *);
-#else
-	static void     ds_InitPFTable();
-	static void     ds_AllocMemory();
-	static void     ds_NotifyDaemon();
-	static void     ds_DispatchNotify();
-	int             ds_DSMessage();
-	static int      ds_AttrCheck();
-#endif
+static void     ds_InitPFTable FP ((void));
+static void     ds_NotifyDaemon FP ((int, DataChunk *, int, int, int, int));
+static void     ds_DispatchNotify FP ((struct dsp_Notify *));
+int             ds_DSMessage FP ((struct message *));
+static int      ds_AttrCheck FP ((int, char *));
+static int	ds_FindDF FP ((PlatformId, ZebTime *));
+static int 	ds_FindDest FP ((DataChunk *, int, int *, WriteCode *, int));
+static bool	ds_SameDay FP ((ZebTime *, ZebTime *));
+static int	ds_MakeNewFile FP ((DataChunk *, int));
+static int	ds_RequestNewDF FP ((PlatformId, char *, ZebTime *));
+static int	ds_GetNDFResp FP ((struct message *,
+				struct dsp_R_CreateFile *));
+static void	ds_AbortNewDF FP ((PlatformId, int));
 
 
 /*
@@ -80,6 +78,7 @@ ds_Initialize()
  * Join the data store group.
  */
 	msg_join("DataStore");
+	F_Init ();
 	msg_AddProtoHandler(MT_DATASTORE, ds_DSMessage);
 
 	return (TRUE);
@@ -168,11 +167,10 @@ PlatformId id;
 
 
 
-
 int
 ds_GetObsSamples (pid, when, times, locs, max)
 PlatformId pid;
-time *times, *when;
+ZebTime *times, *when;
 Location *locs;
 int max;
 /*
@@ -192,11 +190,36 @@ int max;
 
 
 
+static int
+ds_FindDF (pid, when)
+PlatformId pid;
+ZebTime *when;
+/*
+ * Find the first datafile entry before this time.
+ */
+{
+	int ret = LOCALDATA (PTable[pid]);
+
+	for (; ret; ret = DFTable[ret].df_FLink)
+		if (TC_LessEq (DFTable[ret].df_begin, *when))
+			return (ret);
+/*
+ * If we didn't find the data locally, see if there's anything in the
+ * remote data table.
+ */
+	for (ret = REMOTEDATA(PTable[pid]); ret; ret = DFTable[ret].df_FLink)
+		if (TC_LessEq (DFTable[ret].df_begin, *when))
+			return (ret);
+	return (-1);
+}
+
+
+
 
 int
 ds_GetObsTimes (pid, when, times, ntime, attr)
 PlatformId pid;
-time *when, *times;
+ZebTime *when, *times;
 int ntime;
 char *attr;
 /*
@@ -257,13 +280,12 @@ char *attr;
 
 
 
-
 int
 ds_GetFields (plat, t, nfld, flist)
 PlatformId plat;
-time *t;
+ZebTime *t;
 int *nfld;
-char **flist;
+FieldId *flist;
 /*
  * Return a list of the available fields in this platform at this time.
  */
@@ -283,356 +305,10 @@ char **flist;
 
 
 
-
-
-DataObject *
-ds_GetData (pid, fields, nfield, begin, end, org, sel, badflag)
-PlatformId pid;
-char **fields;
-int nfield;
-time *begin, *end;
-DataOrganization org;
-float sel, badflag;
-/*
- * Get the requested data.
- */
-{
-	int i;
-	DataObject *dobj = ALLOC (DataObject);
-	GetList *get, *gp;
-#ifdef notdef
-	msg_ELog (EF_INFO, "Get data (%s) at %d %06d", fields[0],
-		 begin->ds_yymmdd, begin->ds_hhmmss);
-#endif
-/*
- * Start to fill things in.
- */
-	if (org == Org2dGrid && PTable[pid].dp_org == OrgIRGrid)
-		dobj->do_org = OrgIRGrid;
-	else
-		dobj->do_org = org;
-	dobj->do_id = pid;
-	dobj->do_begin = *begin;
-	dobj->do_end = *end;
-	dobj->do_flags = 0;
-	dobj->do_loc.l_alt = sel;	/* XXX */
-	dobj->do_badval = badflag;
-	dobj->do_npoint = 0;
-	dobj->do_attr = 0;
-/*
- * Move the field names over too.
- */
-	dobj->do_nfield = nfield;
-	for (i = 0; i < nfield; i++)
-		dobj->do_fields[i] = usy_string (fields[i]);
-/*
- * Make the get list.
- */
-	if (! (get = dgl_MakeGetList (dobj)))
-	{
-		msg_ELog (EF_DEBUG, "GetList get failure");
-		ds_FreeDataObject (dobj);	/* Complete failure	 */
-		return (NULL);
-	}
-/*
- * Do the first pass over each list, initializing the DFA modules and
- * getting the point count.
- */
-	for (gp = get; gp; gp = gp->gl_next)
-		dfa_Setup(gp);
-#ifdef notdef
-	for (gp = get; gp; gp = gp->gl_next)
-		msg_ELog (EF_DEBUG,
-			 "GL dfi %d/%d, flags 0x%x, %d %06d -> %06d np %d\n",
-			 gp->gl_dfindex, gp->gl_dfuse, gp->gl_flags,
-			 gp->gl_begin.ds_yymmdd, gp->gl_begin.ds_hhmmss,
-			 gp->gl_end.ds_hhmmss, gp->gl_npoint);
-#endif
-/*
- * Allocate memory.
- */
-	ds_AllocMemory (dobj, get);
-/*
- * Now we pass through and actually get the data.
- */
-	for (gp = get; gp; gp = gp->gl_next)
-		dfa_GetData (gp);
-/*
- * Free the get list.  If this is a boundary, we have to fix up a
- * couple of things.  Then return the data object.
- */
-	dgl_ReturnList (get);
-	if (dobj->do_org == OrgOutline)
-		dobj->do_npoint = 1;
-	return (dobj);
-}
-
-
-
-
-
-
-
-
-void
-ds_FreeDataObject (dobj)
-DataObject *dobj;
-/*
- * Return this thing to the system.
- */
-{
-	int i;
-/*
- * Get rid of the field names.
- */
-	for (i = 0; i < dobj->do_nfield; i++)
-		usy_rel_string (dobj->do_fields[i]);
-/*
- * Data arrays.
- */
-	if (dobj->do_flags & DOF_FREEALLDATA)
-	{
-		for (i = 0; i < dobj->do_nfield; i++)
-			free (dobj->do_data[i]);
-	}
-	else if (dobj->do_flags & DOF_FREEDATA && dobj->do_nfield > 0)
-		free (dobj->do_data[0]);
-/*
- * Locations for mobile platforms.
- */
-	if (dobj->do_flags & DOF_FREEALOC)
-		free (dobj->do_aloc);
-/*
- * Times.
- */
-	if (dobj->do_flags & DOF_FREETIME)
-		free (dobj->do_times);
-/*
- * Attributes.
- */
-	if (dobj->do_flags & DOF_FREEATTR)
-		free (dobj->do_attr);
-/*
- * Some organizations have additional stuff to get rid of.
- */
-	switch (dobj->do_org) {
-	case OrgIRGrid:
-		free (dobj->do_desc.d_irgrid.ir_loc);
-		if (dobj->do_desc.d_irgrid.ir_subplats)
-			free (dobj->do_desc.d_irgrid.ir_subplats);
-		break;
-
-	case OrgOutline:
-		free (dobj->do_desc.d_bnd);
-		break;
-
-	case OrgImage:
-		free (dobj->do_desc.d_img.ri_rg);
-		free (dobj->do_desc.d_img.ri_scale);
-		break;
-	}
-/*
- * Finally we can dump the data object itself.
- */
-	free ((char *) dobj);
-}
-
-
-
-
-static void
-ds_AllocMemory (dobj, get)
-DataObject *dobj;
-GetList *get;
-/*
- * Allocate the memory needed to satisfy this data request.
- */
-{
-	int nsample, npoint, field, offset, toffset, size;
-	GetList *gp;
-	IRGrid *irg;
-	RastImg *rip;
-/*
- * Pass through the list and get the total number of data points.
- */
-	npoint = nsample = 0;
-	for (gp = get; gp; gp = gp->gl_next)
-	{
-		npoint += gp->gl_npoint;
-		nsample += gp->gl_nsample;
-	}
-/*
- * Figure the size of our data items.
- */
-	size = (dobj->do_org == OrgImage) ? sizeof (char) : sizeof (float);
-/*
- * Get the memory in a big chunk.
- */
-	if (dobj->do_nfield > 0)
-		dobj->do_data[0] = (float *)
-			malloc (npoint * dobj->do_nfield * size);
-	dobj->do_times = (time *) malloc (nsample * sizeof(time));
-	dobj->do_flags |= DOF_FREEDATA | DOF_FREETIME;
-	dobj->do_npoint = nsample;
-	dobj->do_nbyte = npoint * size * dobj->do_nfield;
-/*
- * Set the pointers for each field.
- */
-	for (field = 1; field < dobj->do_nfield; field++)
-		dobj->do_data[field] = (float *) (npoint * field * size +
-						  (char *) dobj->do_data[0]);
-/*
- * If this is a mobile platform, we need to arrange for location
- * info. If this if gets changed, change it throughout this file, and
- * in NetXfr.c as well.
- */
-	if (ds_IsMobile(dobj->do_id) || dobj->do_org == OrgOutline ||
-			    dobj->do_org == OrgImage)
-	{
-		dobj->do_aloc = (Location *)
-			malloc (nsample * sizeof(Location));
-		dobj->do_flags |= DOF_FREEALOC;
-	}
-	else
-		dobj->do_aloc = (Location *) 0;
-/*
- * Fix up the getlist pointers.
- */
-	offset = npoint;
-	toffset = nsample;
-	for (gp = get; gp; gp = gp->gl_next)
-	{
-	/*
-	 * Move our offsets back to the beginning of the period
-	 * covered by this getlist entry.
-	 */
-		offset -= gp->gl_npoint;
-		toffset -= gp->gl_nsample;
-	/*
-	 * Adjust the various gp pointers so that this entry can be
-	 * satisfied without the rest.
-	 */
-		for (field = 0; field < dobj->do_nfield; field++)
-			gp->gl_data[field] = (float *) (offset * size +
-					     (char *) dobj->do_data[field]);
-		gp->gl_time = dobj->do_times + toffset;
-		if (dobj->do_aloc)
-			gp->gl_locs = dobj->do_aloc + toffset;
-		gp->gl_sindex = toffset;
-	}
-	if (offset != 0 || toffset != 0)
-		msg_ELog (EF_PROBLEM, "BUG: Offsets nonzero: %d %d", offset,
-			 toffset);
-/*
- * Do the organization-specific stuff.
- */
-	switch (dobj->do_org)
-	{
-	   case OrgIRGrid:
-		irg = &dobj->do_desc.d_irgrid;
-		irg->ir_npoint = dfa_InqNPlat (get->gl_dfindex);
-		irg->ir_loc = (Location *)
-			malloc(irg->ir_npoint * sizeof (Location));
-		irg->ir_subplats = (PlatformId *)
-			malloc(irg->ir_npoint * sizeof (PlatformId));
-		break;
-	   case Org1dGrid:
-	   case Org2dGrid:
-	   case Org3dGrid:
-		dfa_InqRGrid(get->gl_dfindex, &dobj->do_loc,
-			     &dobj->do_desc.d_rgrid);
-		if (dobj->do_org == Org1dGrid)
-		{
-			dobj->do_desc.d_rgrid.rg_nY = 1;
-			dobj->do_desc.d_rgrid.rg_nZ = 1;
-		}
-		else if (dobj->do_org == Org2dGrid)
-			dobj->do_desc.d_rgrid.rg_nZ = 1;
-		break;
-	   case OrgScalar:
-		break;
-	   case OrgImage:
-		rip = &dobj->do_desc.d_img;
-		rip->ri_rg = (RGrid *) malloc (nsample * sizeof(RGrid));
-		rip->ri_scale = (ScaleInfo *) malloc (dobj->do_nfield *
-						     sizeof (ScaleInfo));
-		break;
-	   case OrgOutline:
-		dobj->do_desc.d_bnd = (BndDesc *)
-			malloc (nsample * sizeof(BndDesc));
-		break;
-	}
-}
-
-
-
-
-
-
-bool
-ds_GetRgridParams(pid, when, loc, rg)
-PlatformId pid;
-time *when;
-Location *loc;
-RGrid *rg;
-/*
- * Get the rgrid params for this date.
- */
-{
-	Platform *p = PTable + pid;
-	int dfindex;
-/*
- * Make sure this makes sense.
- */
-	if (p->dp_org != Org1dGrid && p->dp_org != Org2dGrid &&
-					p->dp_org != Org3dGrid)
-		return (FALSE);
-/*
- * Now find a datafile entry we can use.
- */
-	if ((dfindex = ds_FindDF (pid, when)) < 0)
-		return (FALSE);
-/*
- * Get the rest from the format-specific code.
- */
-	loc->l_alt = 0;
-	return (dfa_InqRGrid (dfindex, loc, rg));
-}
-
-
-
-
-
-int
-ds_FindDF (pid, when)
-PlatformId pid;
-time *when;
-/*
- * Find the first datafile entry before this time.
- */
-{
-	int ret = LOCALDATA (PTable[pid]);
-
-	for (; ret; ret = DFTable[ret].df_FLink)
-		if (DLE (DFTable[ret].df_begin, *when))
-			return (ret);
-/*
- * If we didn't find the data locally, see if there's anything in the
- * remote data table.
- */
-	for (ret = REMOTEDATA(PTable[pid]); ret; ret = DFTable[ret].df_FLink)
-		if (DLE (DFTable[ret].df_begin, *when))
-			return (ret);
-	return (-1);
-}
-
-
-
-
 int
 ds_DataTimes (platform, when, n, which, rettimes)
 PlatformId platform;
-time *when, *rettimes;
+ZebTime *when, *rettimes;
 int n;
 TimeSpec which;
 /*
@@ -676,7 +352,7 @@ TimeSpec which;
 		for (index = LOCALDATA(PTable[platform]); index;
 					index = DFTable[index].df_FLink)
 		{
-			if (DLE(DFTable[index].df_end, *when))
+			if (TC_LessEq (DFTable[index].df_end, *when))
 				break;
 			last = index;
 		}
@@ -687,7 +363,7 @@ TimeSpec which;
 			for (index = REMOTEDATA(PTable[platform]); index;
 			     index = DFTable[index].df_FLink)
 			{
-				if (DLE (DFTable[index].df_end, *when))
+				if (TC_LessEq (DFTable[index].df_end, *when))
 					break;
 				last = index;
 			}
@@ -710,7 +386,7 @@ TimeSpec which;
 	 */
 		if (ndone && ndone < n)
 			memcpy (rettimes, rettimes + n - ndone,
-			       (n - ndone) * sizeof(time));
+			       (n - ndone) * sizeof (ZebTime));
 		return (ndone);
 	/*
 	 * But that's all.
@@ -726,120 +402,36 @@ TimeSpec which;
 
 
 
-
-DataObject *
-ds_GetObservation (pid, fields, nfield, when, org, sel, badflag)
+bool
+ds_GetRgridParams (pid, when, loc, rg)
 PlatformId pid;
-char **fields;
-int nfield;
-time *when;
-DataOrganization org;
-float sel, badflag;
+ZebTime *when;
+Location *loc;
+RGrid *rg;
 /*
- * Get an entire data observation.
+ * Get the rgrid params for this date.
  */
 {
-	int i;
-	DataObject *dobj = ALLOC(DataObject);
-	GetList *get;
-
-#ifdef notdef
-	msg_ELog (EF_INFO, "Get obs (%s) at %d %06d", fields[0],
-		 when->ds_yymmdd, when->ds_hhmmss);
-#endif
+	Platform *p = PTable + pid;
+	int dfindex;
 /*
- * Start to fill things in.
+ * Make sure this makes sense.
  */
-	if (org == Org2dGrid && PTable[pid].dp_org == OrgIRGrid)
-		dobj->do_org = OrgIRGrid;
-	else
-		dobj->do_org = org;
-	dobj->do_id = pid;
-	dobj->do_begin = *when;
-	dobj->do_end = *when;
-	dobj->do_flags = 0;
-	dobj->do_loc.l_alt = sel;	/* XXX */
-	dobj->do_badval = badflag;
-	dobj->do_npoint = 0;
+	if (p->dp_org != Org1dGrid && p->dp_org != Org2dGrid &&
+					p->dp_org != Org3dGrid)
+		return (FALSE);
 /*
- * Move the field names over too.
+ * Now find a datafile entry we can use.
  */
-	dobj->do_nfield = nfield;
-	for (i = 0; i < nfield; i++)
-		dobj->do_fields[i] = usy_string (fields[i]);
+	if ((dfindex = ds_FindDF (pid, when)) < 0)
+		return (FALSE);
 /*
- * Make the get list.
+ * Get the rest from the format-specific code.
  */
-	if (!(get = dgl_MakeGetList(dobj))) {
-		msg_ELog (EF_DEBUG, "GetList get failure");
-		ds_FreeDataObject (dobj);	/* Complete failure	 */
-		return (NULL);
-	}
-/*
- * We should have a single-element get list.  Modify the times to
- * cover the entire observation of interest.
- */
-	if (get->gl_next)
-		msg_ELog (EF_PROBLEM, "GetObservation multiple get list!");
-	dobj->do_begin = get->gl_begin = DFTable[get->gl_dfindex].df_begin;
-	dobj->do_end = get->gl_end = DFTable[get->gl_dfindex].df_end;
-/*
- * Do the first pass over each list, initializing the DFA modules and
- * getting the point count.
- */
-	dfa_Setup (get);
-#ifdef notdef
-	ui_printf("GL dfi %d/%d, flags 0x%x, %d %06d -> %06d np %d\n",
-		  get->gl_dfindex, get->gl_dfuse, get->gl_flags,
-		  get->gl_begin.ds_yymmdd, get->gl_begin.ds_hhmmss,
-		  get->gl_end.ds_hhmmss, get->gl_npoint);
-#endif
-/*
- * Allocate memory, then get the data.
- */
-	ds_AllocMemory (dobj, get);
-	dfa_GetData (get);
-/*
- * Free the get list.
- */
-	dgl_ReturnList (get);
-	return (dobj);
+	loc->l_alt = 0;
+	return (dfa_InqRGrid (dfindex, loc, rg));
 }
 
-
-
-
-
-
-void
-ds_PutData (dobj, newfile)
-DataObject *dobj;
-int newfile;
-/*
- * Add this data to the data store. Entry: DOBJ	is the data object describing
- * the data to be added. NEWFILE	is TRUE iff a new file is to be
- * created to hold this data. Exit: The data has been added.
- */
-{
-	int dfile, begin = 0, end;
-/*
- * Split this data object into chunks, in case we exceed file size
- * limits.
- */
-	while (begin < dobj->do_npoint)
-	{
-	/*
-	 * Find the destination file for this data, and put it there.
-	 * Let the daemon know that we have done it.
-	 */
-		if ((dfile = dgl_GetDestFile (dobj,newfile, begin, &end)) >= 0)
-		{
-			dfa_PutData (dfile, dobj, begin, end);
-			ds_NotifyDaemon (dfile, dobj, begin, end);
-		}
-		begin = end + 1;
-	}
-}
 
 
 
@@ -854,37 +446,6 @@ PlatformId pid;
 {
 	return (PTable[pid].dp_org);
 }
-
-
-
-
-
-
-static void
-ds_NotifyDaemon (dfile, dobj, begin, end)
-int dfile, begin, end;
-DataObject *dobj;
-/*
- * Tell the data store daemon about this data.
- */
-{
-	struct dsp_UpdateFile update;
-/*
- * Fire off the message.
- */
-	update.dsp_type = dpt_UpdateFile;
-	update.dsp_FileIndex = dfile;
-	update.dsp_EndTime = dobj->do_times[end];
-	update.dsp_NSamples = end - begin + 1;
-	msg_send ("DS_Daemon", MT_DATASTORE, FALSE, &update, sizeof(update));
-/*
- * Then let DFA know that we've signalled a revision on this file.
- */
-	dfa_NoteRevision (dfile);
-}
-
-
-
 
 
 
@@ -922,7 +483,7 @@ struct message *msg;
 	   case dpt_NotifyRequest:
 	   case dpt_CancelNotify:
 		if (CopyFunc)
-			(*CopyFunc) (dt);
+			(*CopyFunc) (msg->m_data);
 		break;
 
 	   default:
@@ -1015,8 +576,8 @@ struct dsp_Notify *notify;
 {
 	if (ApplFuncs[notify->dsp_pid])
 		(*ApplFuncs[notify->dsp_pid]) (notify->dsp_pid,
-				       notify->dsp_param, &notify->dsp_when,
-					       notify->dsp_nsample);
+			       notify->dsp_param, &notify->dsp_when,
+			       notify->dsp_nsample, notify->dsp_ucode);
 }
 
 
@@ -1036,3 +597,441 @@ void (*handler) ();
 	msg_send ("DS_Daemon", MT_DATASTORE, FALSE, &req, sizeof(req));
 	CopyFunc = handler;
 }
+
+
+
+
+
+DataChunk *
+ds_Fetch (pid, class, begin, end, fields, nfield, details, ndetail)
+PlatformId pid;
+DataClass class;
+ZebTime *begin, *end;
+FieldId *fields;
+int nfield, ndetail;
+dsDetail *details;
+/*
+ * The net data store fetch interface.
+ * Entry:
+ *	PID	is the name of the platform of interest.
+ *	CLASS	is the class of the desired data chunk.
+ *	BEGIN	is the desired time of the first datum
+ *	END	is the end time
+ *	FIELDS	is a list of desired fields
+ *	NFIELD	is the length of that list
+ *	DETAILS	is a list of fetch control details
+ *	NDETAIL	is the length of that list.
+ * Exit:
+ *	If any data could be found then
+ *		The return value is a data chunk containing that data
+ *	else
+ *		The return value is NULL.
+ */
+{
+	DataChunk *dc;
+	GetList *get, *gp;
+/*
+ * Make the get list describing where this data has to come from.
+ */
+	if (! (get = dgl_MakeGetList (pid, begin, end)))
+	{
+		msg_ELog (EF_DEBUG, "GetList get failure");
+		return (NULL);
+	}
+/*
+ * Now it is up to the format driver to get ready and create a data 
+ * chunk for us.
+ */
+	if (! (dc = dfa_Setup (get, fields, nfield, class)))
+	{
+		msg_ELog (EF_DEBUG, "Setup failure");
+		dgl_ReturnList (get);
+		return (NULL);
+	}
+	dc->dc_Platform = pid;
+/*
+ * Pass through the get list, snarfing data for each entry.
+ */
+	for (gp = get; gp; gp = gp->gl_next)
+		dfa_GetData (dc, gp, details, ndetail);
+	dgl_ReturnList (get);
+	return (dc);
+}
+
+
+
+
+
+DataChunk *
+ds_FetchObs (pid, class, when, fields, nfield, details, ndetail)
+PlatformId pid;
+DataClass class;
+ZebTime *when;
+FieldId *fields;
+int nfield, ndetail;
+dsDetail *details;
+/*
+ * Get an observation from this source.
+ * Entry:
+ *	PID	is the name of the platform of interest.
+ *	CLASS	is the class of the desired data chunk.
+ *	WHEN	is the time of the desired observation.
+ *	FIELDS	is a list of desired fields
+ *	NFIELD	is the length of that list
+ *	DETAILS	is a list of fetch control details
+ *	NDETAIL	is the length of that list.
+ * Exit:
+ *	If any data could be found then
+ *		The return value is a data chunk containing that data
+ *	else
+ *		The return value is NULL.
+ */
+{
+	DataChunk *dc;
+	GetList *get;
+/*
+ * Make the get list describing where this data has to come from.  Then 
+ * expand it to cover the entire file.
+ */
+	if (! (get = dgl_MakeGetList (pid, when, when)))
+	{
+		msg_ELog (EF_DEBUG, "GetList get failure");
+		return (NULL);
+	}
+	get->gl_begin = DFTable[get->gl_dfindex].df_begin;
+	get->gl_end = DFTable[get->gl_dfindex].df_end;
+/*
+ * Now it is up to the format driver to get ready and create a data 
+ * chunk for us.
+ */
+	if (! (dc = dfa_Setup (get, fields, nfield, class)))
+	{
+		msg_ELog (EF_DEBUG, "Setup failure");
+		dgl_ReturnList (get);
+		return (NULL);
+	}
+	dc->dc_Platform = pid;
+/*
+ * Now just do the snarf.
+ */
+	dfa_GetData (dc, get, details, ndetail);
+	dgl_ReturnList (get);
+	return (dc);
+}
+
+
+
+
+
+bool
+ds_Store (dc, newfile, details, ndetail)
+DataChunk *dc;
+bool newfile;
+dsDetail *details;
+int ndetail;
+/*
+ * The storage interface to the data store.
+ */
+{
+	int nsample, sample, dfile, nnew = 0, now = 0, olddf = -1, ndone = 0;
+	WriteCode wc;
+/*
+ * For now (and maybe forever) we do the writing one sample at a time,
+ * to ease the process of figuring out what goes where.
+ */
+	nsample = dc_GetNSample (dc);
+	for (sample = 0; sample < nsample; sample++)
+	{
+	/*
+	 * Find a feasible location for this data.
+	 */
+		if (! ds_FindDest (dc, sample, &dfile, &wc,
+						newfile && (sample == 0)))
+			continue;	/* Sigh */
+	/*
+	 * If a new file is called for, create it.  Then write the data.
+	 */
+	 	if (wc == wc_NewFile)
+		{
+			if ((dfile = ds_MakeNewFile (dc, sample)) < 0)
+				break;	/* Bail completely */
+			wc = wc_Append; /* Now that the file is around */
+		}
+	/*
+	 * Now we just shove the sample out.
+	 */
+		if (dfa_PutSample (dfile, dc, sample, wc))
+		{
+		/*
+		 * Keep track of this.
+		 */
+			ndone++;
+			if (wc == wc_Overwrite)
+				now++;
+			else
+				nnew++;
+		}
+	/*
+	 * Fill in the daemon on what we have done.
+	 */
+	 	ds_NotifyDaemon (dfile, dc, now, nnew, sample, 
+			sample == (nsample - 1));
+		now = nnew = 0;
+	}
+/*
+ * Final daemon update.
+ */
+	return (ndone == nsample);
+}
+
+
+
+
+
+
+static int
+ds_FindDest (dc, sample, dfile, wc, newfile)
+DataChunk *dc;
+int sample, *dfile, newfile;
+WriteCode *wc;
+/*
+ * Try to find an appropriate destination for this datum.
+ * Return value is TRUE iff it was possible.
+ */
+{
+	int df = LOCALDATA (PTable[dc->dc_Platform]);
+	DataFile *dp;
+	ZebTime when, dftime;
+/*
+ * Find the first file in the local list which begins before the time
+ * of interest.
+ */
+	dc_GetTime (dc, sample, &when);
+	for (; df; df = DFTable[df].df_FLink)
+		if (TC_LessEq (DFTable[df].df_begin, when))
+			break;
+/*
+ * If there is none, then this data predates anything we have, so we
+ * just return a new file case.
+ */
+	if (! df)
+	{
+		*dfile = -1;
+		*wc = wc_NewFile;
+		return (TRUE);
+	}
+/*
+ * See if the datum actually falls after the end of this dfile (most common
+ * case).  If so, we either append or newfile.
+ */
+	dp = DFTable + df;
+	*dfile = df;
+	if (TC_Less (dp->df_end, when))
+	{
+		if (! newfile &&
+			 dp->df_nsample < PTable[dp->df_platform].dp_maxsamp &&
+			 ds_SameDay (&when, &dp->df_end) &&
+			 ! dp->df_archived)
+			*wc = wc_Append;
+		else
+			*wc = wc_NewFile;
+		return (TRUE);
+	}
+/*
+ * The simple cases are not to be.  Now we have to see whether we need to be
+ * overwriting data, or stuffing it in between.
+ */
+	if (! dfa_DataTimes (df, &when, DsBefore, 1, &dftime) ||
+			! TC_Eq (when, dftime))
+		*wc = wc_Insert;
+	else
+		*wc = wc_Overwrite;
+	return (TRUE);
+}
+
+
+
+
+static bool
+ds_SameDay (t1, t2)
+ZebTime *t1, *t2;
+/*
+ * Return TRUE iff the two times are on the same day.
+ */
+{
+	int d1, d2;
+
+	TC_ZtSplit (t1, 0, 0, &d1, 0, 0, 0, 0);
+	TC_ZtSplit (t2, 0, 0, &d2, 0, 0, 0, 0);
+	return (d1 == d2);
+}
+
+
+
+
+static int
+ds_MakeNewFile (dc, sample)
+DataChunk *dc;
+int sample;
+/*
+ * Make a new file that will contain this DC and sample.
+ */
+{
+	char fname[256];
+	int newdf;
+	PlatformId plat = dc->dc_Platform;
+	ZebTime when;
+/*
+ * Create the new file name and tell the daemon what we have in mind
+ * to do.
+ */
+	dc_GetTime (dc, sample, &when);
+	dfa_MakeFileName (PTable + plat, &when, fname);
+	if ((newdf = ds_RequestNewDF (plat, fname, &when)) < 0)
+		return (-1);
+/*
+ * Have DFA get the file made for us.  They use the data object to know which
+ * fields/platforms belong therein.  A bit kludgy, but it works.
+ */
+	if (! dfa_CreateFile (newdf, dc, &when))
+	{
+		ds_AbortNewDF (plat, newdf);
+		return (-1);
+	}
+	return (newdf);
+}
+
+
+
+
+static int
+ds_RequestNewDF (plat, file, t)
+PlatformId plat;
+char *file;
+ZebTime *t;
+/*
+ * Get a new datafile entry from the DS daemon for this new file.
+ * Entry:
+ *	PLAT	is the platform for which this file is being created.
+ *	FILE	is the name of the file.
+ *	T	is the expected begin time of the data to put into the file.
+ * Exit:
+ *	On success, the return value is the new DF entry.  Otherwise a
+ *	negative value is returned.
+ */
+{
+	struct dsp_CreateFile dspcf;
+	struct dsp_R_CreateFile dspresp;
+/*
+ * Put together the request for the daemon.
+ */
+	dspcf.dsp_type = dpt_NewFileRequest;
+	dspcf.dsp_plat = plat;
+	dspcf.dsp_time = *t;
+	strcpy (dspcf.dsp_file, file);
+/*
+ * Ship it off, and pick out our response.
+ */
+	msg_send ("DS_Daemon", MT_DATASTORE, FALSE, &dspcf, sizeof (dspcf));
+	msg_Search (MT_DATASTORE, ds_GetNDFResp, &dspresp);
+	return ((dspresp.dsp_type == dpt_R_NewFileSuccess) ?
+			dspresp.dsp_FileIndex : -1);
+}
+
+
+
+
+
+static int
+ds_GetNDFResp (msg, dspresp)
+struct message *msg;
+struct dsp_R_CreateFile *dspresp;
+/*
+ * Pick out our response to the new file create request.
+ */
+{
+	struct dsp_Template *t = (struct dsp_Template *) msg->m_data;
+
+	if (t->dsp_type == dpt_R_NewFileSuccess ||
+			t->dsp_type == dpt_R_NewFileFailure)
+	{
+		*dspresp = * (struct dsp_R_CreateFile *) t;
+		return (0);
+	}
+	return (1);
+}
+
+
+
+
+static void
+ds_AbortNewDF (plat, df)
+PlatformId plat;
+int df;
+/*
+ * Abort this DF create, for some reason.
+ */
+{
+	struct dsp_AbortNewFile abort;
+
+	abort.dsp_type = dpt_AbortNewFile;
+	abort.dsp_FileIndex = df;
+	abort.dsp_pid = plat;
+	msg_send ("DS_Daemon", MT_DATASTORE, FALSE, &abort, sizeof (abort));
+}
+
+
+
+
+
+static void
+ds_NotifyDaemon (dfile, dc, now, nnew, sample, last)
+int dfile, now, nnew, sample, last;
+DataChunk *dc;
+/*
+ * Tell the data store daemon about this data.
+ */
+{
+	struct dsp_UpdateFile update;
+/*
+ * Fire off the message.
+ */
+	update.dsp_type = dpt_UpdateFile;
+	update.dsp_FileIndex = dfile;
+	dc_GetTime (dc, sample, &update.dsp_EndTime);
+	update.dsp_NSamples = nnew;
+	update.dsp_NOverwrite = now;
+	update.dsp_Last = last;
+	msg_send ("DS_Daemon", MT_DATASTORE, FALSE, &update, sizeof(update));
+/*
+ * Then let DFA know that we've signalled a revision on this file.
+ */
+	dfa_NoteRevision (dfile);
+}
+
+
+
+
+
+
+int
+ds_GetDetail (key, details, ndetail, v)
+char *key;
+dsDetail *details;
+int ndetail;
+SValue *v;
+/*
+ * Try to find this detail value in the list, returning TRUE iff it is
+ * there.
+ */
+{
+	for (; ndetail > 0; details++, ndetail--)
+		if (! strcmp (key, details->dd_Name))
+		{
+			*v = details->dd_V;
+			return (TRUE);
+		}
+	return (FALSE);
+}
+
+

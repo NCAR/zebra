@@ -34,7 +34,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 # include "commands.h"
-MAKE_RCSID ("$Id: Daemon.c,v 2.4 1992-03-18 21:11:51 corbet Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.1 1992-05-27 17:24:03 corbet Exp $")
 
 
 
@@ -55,7 +55,7 @@ static void	dp_UpdateFile FP ((struct dsp_UpdateFile *));
 static void	dp_DeleteData FP ((Platform *, int));
 static void	ZapDF FP ((DataFile *));
 static void	SetUpEvery FP ((struct ui_command *));
-static void	ExecEvery FP ((time *, int));
+static void	ExecEvery FP ((ZebTime *, int));
 static void	Truncate FP ((struct ui_command *));
 static int	FreeSpace FP ((int, SValue *, int *, SValue *, int *));
 static int	BCHandler FP ((int, char *, int));
@@ -414,9 +414,9 @@ bool local;
  * Look at this file and see what we think of it.
  */
 {
-	time begin, end;
 	DataFile *df;
 	int ns;
+	char abegin[40], aend[40];
 /*
  * If DFA doesn't recognize it, we don't even bother.
  */
@@ -439,10 +439,17 @@ bool local;
 		return;
 	}
 	df->df_nsample = ns;
-	msg_ELog (EF_DEBUG, "%c File '%s', %d %d to %d ns %d",
-		local ? 'L' : 'C', file,
-		df->df_begin.ds_yymmdd, df->df_begin.ds_hhmmss,
-		df->df_end.ds_hhmmss, df->df_nsample);
+/*
+ * Debugging is nice sometimes.
+ */
+ 	TC_EncodeTime (&df->df_begin, TC_Full, abegin);
+	TC_EncodeTime (&df->df_end, TC_TimeOnly, aend);
+	msg_ELog (EF_DEBUG, "%c File '%s', %s to %s ns %d",
+		local ? 'L' : 'C', file, abegin, aend, df->df_nsample);
+# ifdef notdef
+	TC_UIToZt (&begin, &df->df_begin);
+	TC_UIToZt (&end, &df->df_end);
+# endif
 /*
  * Finish the fillin and add it to this platform's list.
  */
@@ -477,7 +484,8 @@ struct message *msg;
 	   case MH_CLIENT:
 		client = (struct mh_client *) msg->m_data;
 		if (client->mh_evtype == MH_CE_DISCONNECT)
-			dap_Cancel (client->mh_client, tm);
+			dap_Cancel (client->mh_client,
+					(struct dsp_Template *) tm);
 		break;
 
 	   default:
@@ -643,14 +651,26 @@ struct dsp_UpdateFile *request;
 {
 	DataFile *df = DFTable + request->dsp_FileIndex;
 	Platform *plat = PTable + df->df_platform;
+	int append = FALSE;
 /*
  * Mark the changes in the datafile entry.  Update the rev count so that
  * reader processes know things have changed.
  */
+	msg_ELog (EF_DEBUG, "Update file %d plat %s, ns %d, ow %d last %d", 
+		request->dsp_FileIndex, plat->dp_name, request->dsp_NSamples,
+		request->dsp_NOverwrite, request->dsp_Last);
 	ShmLock ();
-	df->df_end = request->dsp_EndTime;
+	if (TC_Less (df->df_end, request->dsp_EndTime))
+	{
+		df->df_end = request->dsp_EndTime;
+		if (request->dsp_FileIndex == LOCALDATA (*plat) ||
+		    request->dsp_FileIndex == plat->dp_Tfile)
+		    	append = TRUE;
+	}
 	df->df_nsample += request->dsp_NSamples;
 	df->df_rev++;
+	plat->dp_NewSamps += request->dsp_NSamples;
+	plat->dp_OwSamps += request->dsp_NOverwrite;
 /*
  * If this file is in the Tfile slot, now we move it over to the localdata
  * list.
@@ -664,7 +684,12 @@ struct dsp_UpdateFile *request;
 /*
  * Now we do data available notifications.
  */
-	dap_Notify (df->df_platform, &df->df_end, request->dsp_NSamples);
+	if (request->dsp_Last)
+	{
+		dap_Notify (df->df_platform, &df->df_end, plat->dp_NewSamps,
+				plat->dp_OwSamps, append);
+		plat->dp_NewSamps = plat->dp_OwSamps = 0;
+	}
 }
 
 
@@ -680,7 +705,7 @@ int sub;
  */
 {
 	int index = LOCALDATA (*p), last;
-	time t;
+	ZebTime t;
 /*
  * If there is no data at all, life is easy.
  */
@@ -702,8 +727,7 @@ int sub;
  * Calculate the time before which all data is zapped.
  */
 	t = DFTable[index].df_end;
-	TC_SysToFcc (TC_FccToSys (&t) - sub, &t);
-	msg_ELog (EF_DEBUG, "ZAP before %d %06d", t.ds_yymmdd, t.ds_hhmmss);
+	TC_SysToZt (TC_ZtToSys (&t) - sub, &t);
 /*
  * Now we go through and remove every file which ends before this time.
  */
@@ -715,7 +739,7 @@ int sub;
 	/*
 	 * If this file is too new, go on to the next one.
 	 */
-	 	if (DLT (t, df->df_end))
+	 	if (TC_Less (t, df->df_end))
 		{
 			last = index;
 			index = df->df_FLink;
@@ -838,7 +862,7 @@ struct ui_command *cmds;
  * Get the timer to let us know when it's time.  Then remember the command
  * to execute when things happen.
  */
-	tl_AddRelativeEvent (ExecEvery, (void *) NEvery, interval, interval);
+	tl_RelativeReq (ExecEvery, (void *) NEvery, interval, interval);
 	ECmds[NEvery++] = usy_string (UPTR (cmds[1]));
 }
 	
@@ -847,7 +871,7 @@ struct ui_command *cmds;
 
 static void
 ExecEvery (t, slot)
-time *t;
+ZebTime *t;
 int slot;
 /*
  * Run this EVERY command.

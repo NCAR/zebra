@@ -1,4 +1,4 @@
-/* $Id: DataChunk.h,v 1.5 1992-03-30 19:40:11 corbet Exp $ */
+/* $Id: DataChunk.h,v 3.1 1992-05-27 17:24:03 corbet Exp $ */
 
 /*
  * DataChunks -- the new "data object" format.
@@ -95,7 +95,7 @@ typedef struct _RawDataChunk
  * Definitions of basic routines dealing with data chunks.
  */
 bool		dc_IsSubClassOf FP((DataClass, DataClass));
-DataChunk 	*ConvertDObj FP((DataObject *));
+/* DataChunk 	*ConvertDObj FP((DataObject *)); */
 /*
  * Basic data chunk methods.
  */

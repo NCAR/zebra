@@ -22,7 +22,7 @@
 # include <defs.h>
 # include <message.h>
 # include "ds_fields.h"
-MAKE_RCSID ("$Id: Fields.c,v 1.3 1992-04-27 22:35:47 corbet Exp $")
+MAKE_RCSID ("$Id: Fields.c,v 3.1 1992-05-27 17:24:03 corbet Exp $")
 
 
 
@@ -38,10 +38,10 @@ typedef struct _FieldDesc
 	/* more to follow */
 } FieldDesc;
 
-FieldDesc FieldTable[MaxFieldID];
-stbl FNameTable;
+static FieldDesc FieldTable[MaxFieldID];
+static stbl FNameTable;
 
-int NField = 0;
+static int NField = 0;
 
 
 

@@ -30,17 +30,10 @@ static char *rcsid = "$ID$";
 # include "dsPrivate.h"
 
 
-# ifdef __STDC__
-	static int IMessage (struct message *);
-	static void NotificationRequest (struct dsp_Template *);
-	static void MakeTimerRequest (PlatformId);
-	static void TimeToNotify (time *, PlatformId);
-# else
-	static int IMessage ();
-	static void NotificationRequest ();
-	static void MakeTimerRequest ();
-	static void TimeToNotify ();
-# endif
+static int IMessage FP ((struct message *));
+static void NotificationRequest FP ((struct dsp_Template *));
+static void MakeTimerRequest FP ((PlatformId));
+static void TimeToNotify FP ((ZebTime *, PlatformId));
 
 /*
  * Keep track of timer events.
@@ -149,6 +142,8 @@ struct dsp_Template *dmsg;
 			MakeTimerRequest (nrq.dsp_pid);
 		from = sizeof (nrq) + (char *) dmsg;
 		dap_Request (from, &nrq);
+		msg_ELog (EF_DEBUG, "Notif request for %s from %s",
+			ds_PlatformName (nrq.dsp_pid), from);
 	}
 /*
  * For cancels, just clean it out of the notification data structure.
@@ -172,7 +167,7 @@ PlatformId pid;
  * from this platform.
  */
 {
-	time t, now;
+	ZebTime t, now;
 	char *pname = ds_PlatformName (pid);
 /*
  * If there is already a timer event on this PID, we assume we don't need
@@ -183,14 +178,13 @@ PlatformId pid;
 /*
  * Find out what our time is now, and when the next data shows up.
  */
-	tl_GetTime (&now);
+	tl_Time (&now);
 	if (! ds_DataTimes (pid, &now, 1, DsAfter, &t))
 		return;
 /*
  * Set up our request for that time.
  */
-	TimeEvent[pid] = tl_AddAbsoluteEvent (TimeToNotify, (void *) pid,
-			&t, 0);
+	TimeEvent[pid] = tl_AbsoluteReq (TimeToNotify, (void *) pid, &t, 0);
 }
 
 
@@ -199,7 +193,7 @@ PlatformId pid;
 
 static void
 TimeToNotify (t, pid)
-time *t;
+ZebTime *t;
 PlatformId pid;
 /*
  * It's time to send a notification on this platform.
@@ -209,10 +203,11 @@ PlatformId pid;
  * If somebody is still interested, we do the notification and schedule
  * the next one.
  */
+	t->zt_MicroSec = 0;	/* xxx */
 	TimeEvent[pid] = -1;		/* Event is gone	*/
 	if (dap_IsInterest (pid))
 	{
-		dap_Notify (pid, t);
+		dap_Notify (pid, t, 1, 0, TRUE);
 		MakeTimerRequest (pid);
 	}
 }
