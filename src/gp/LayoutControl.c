@@ -1,7 +1,7 @@
 /*
  * Layout Control and Coordinate Transformations
  */
-static char *rcsid = "$Id: LayoutControl.c,v 1.1 1991-10-30 19:23:42 barrett Exp $";
+static char *rcsid = "$Id: LayoutControl.c,v 1.2 1992-01-02 17:04:27 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -27,6 +27,7 @@ static char *rcsid = "$Id: LayoutControl.c,v 1.1 1991-10-30 19:23:42 barrett Exp
 # include <pd.h>
 # include <message.h>
 # include <DataStore.h>
+# include <time.h>
 # include "derive.h"
 # include "GraphProc.h"
 # include "LayoutControl.h"
@@ -93,7 +94,7 @@ static char *rcsid = "$Id: LayoutControl.c,v 1.1 1991-10-30 19:23:42 barrett Exp
  * Variables defining the layout of the various components.
  * and user coordinate-transformation.
  */
-float	UX0 = 0.0, UX1 = 1.0, UY0 = 0.0, UY1 = 1.0;
+DataValRec	UX0, UX1, UY0, UY1;
 float	FX0 = 0.0, FY0 = 0.0, FX1 = 1.0, FY1 = 1.0;
 float	AxisX0[4],AxisX1[4],AxisY0[4],AxisY1[4];
 float	IconX0,IconX1,IconY0,IconY1;
@@ -101,24 +102,6 @@ float	AnnotateX0,AnnotateX1,AnnotateY0,AnnotateY1;
 float	LegendX0,LegendX1,LegendY0,LegendY1;
 int	AxisSet[] = {0,0,0,0}, LegendSet = 0, IconSet = 0, AnnotateSet = 0;
 TransRegion CurrentTrans = DataTrans;
-int	TransConfig = 0;
-
-void
-lc_ClearTrans()
-{
-    FX0 = 0.0;
-    FX1 = 1.0;
-    FY0 = 0.0;
-    FY1 = 1.0;
-    lc_SetUserCoord(0.0,1.0,0.0,1.0);
-    lc_SetAxisDim ( AXIS_BOTTOM, 0 );
-    lc_SetAxisDim ( AXIS_TOP, 0 );
-    lc_SetAxisDim ( AXIS_LEFT, 0 );
-    lc_SetAxisDim ( AXIS_RIGHT, 0 );
-    lc_SetAnnotateDim ( 0, 0);
-    lc_SetIconDim ( 0, 0);
-    lc_SetLegendDim ( 0, 0);
-}
 
 void
 lc_SetAxisDim(axis,pixSize)
@@ -315,41 +298,153 @@ int	pixWidth,pixHeight;
 	AnnotateSet = 0;
 }
 
-
 void
 lc_SetUserCoord( xmin, xmax, ymin,ymax)
-float xmin,xmax,ymin,ymax;
+DataValPtr xmin,xmax,ymin,ymax;
 {
-	UX0 = xmin;
-	UX1 = xmax;
-	UY0 = ymin;
-	UY1 = ymax;
+	UX0 = *xmin;
+	UX1 = *xmax;
+	UY0 = *ymin;
+	UY1 = *ymax;
 }
+
+void
+lc_GetTime( t, tsec )
+time	*t;
+time_t	tsec;
+{
+    struct tm 	*tstruct;
+    tstruct = gmtime(&tsec);
+    t->ds_yymmdd = tstruct->tm_year*10000 + 
+		(tstruct->tm_mon+1)*100 + tstruct->tm_mday;
+    t->ds_hhmmss = tstruct->tm_hour*10000 + 
+		tstruct->tm_min*100 + tstruct->tm_sec;
+}
+
+void
+lc_DecrData( d1,incr )
+DataValPtr	d1;
+double		incr;
+{
+    time_t	timeSec;
+    switch ( d1->type )
+    {
+	case 't':
+	    timeSec = ts_GetSec(d1->val.t) - (long)incr;
+	    lc_GetTime ( &(d1->val.t), timeSec);
+	break;
+	case 'i':
+	    d1->val.i -= (int)incr;
+	break;
+	case 'f':
+	    d1->val.f -= (float)incr;
+	break;
+	case 'd':
+	    d1->val.d -= incr;
+	break;
+    }
+}
+void
+lc_IncrData( d1,incr )
+DataValPtr	d1;
+double		incr;
+{
+    time_t	timeSec;
+    switch ( d1->type )
+    {
+	case 't':
+	    timeSec = ts_GetSec(d1->val.t) + (long)incr;
+	    lc_GetTime ( &(d1->val.t), timeSec);
+	break;
+	case 'i':
+	    d1->val.i += (int)incr;
+	break;
+	case 'f':
+	    d1->val.f += (float)incr;
+	break;
+	case 'd':
+	    d1->val.d += incr;
+	break;
+    }
+}
+
+int
+lc_CompareData( d1,d2 )
+DataValPtr	d1,d2;
+{
+    int	val;
+    switch ( d1->type )
+    {
+	case 't':
+	    val = ts_GetSec(d1->val.t) - ts_GetSec(d2->val.t);
+	break;
+	case 'i':
+	    val = d1->val.i-d2->val.i;
+	break;
+	case 'f':
+	    val = (d1->val.f-d2->val.f)< 0.0 ? -1 : 0;
+	    val = (d1->val.f-d2->val.f)> 0.0 ? 1 : 0;
+	break;
+	case 'd':
+	    val = (d1->val.d-d2->val.d)< 0.0 ? -1 : 0;
+	    val = (d1->val.d-d2->val.d)> 0.0 ? 1 : 0;
+	break;
+    }
+    return val;
+}
+
 int 
-devY ( user_y )
-float user_y;
+devY ( user_y , mode)
+DataValPtr user_y;
+unsigned short mode;
 {
     int dev_y = 0;
+    float	uy0,uy1,uy;
+    switch ( user_y->type )
+    {
+	case 't': /* scale the time so as to minimize loss of acuracy */
+	    uy0 = 0.0;
+	    uy1 = (float)(ts_GetSec(UY1.val.t) - ts_GetSec(UY0.val.t));
+	    uy = (float)(ts_GetSec(user_y->val.t) - ts_GetSec(UY0.val.t));
+	break;
+	case 'd':
+	    uy0 = (float)UY0.val.d;
+	    uy1 = (float)UY1.val.d;
+	    uy = (float)user_y->val.d;
+	break;
+	case 'i':
+	    uy0 = (float)UY0.val.i;
+	    uy1 = (float)UY1.val.i;
+	    uy = (float)user_y->val.i;
+	break;
+	case 'f':
+	    uy0 = (float)UY0.val.f;
+	    uy1 = (float)UY1.val.f;
+	    uy = (float)user_y->val.f;
+	break;
+	default:
+	    fprintf ( stdout, "\rbad coordinate type\n");
+    }
     switch ( CurrentTrans )
     {
 	case DataTrans:
-	    if ( TransConfig & INVERT_Y )
+	    if ( mode & INVERT )
 	    {
-		dev_y = LC_FYPIX(user_y);
+		dev_y = LC_FYPIX(uy,uy0,uy1);
 	    }
 	    else
 	    {
-		dev_y = LC_YPIX(user_y);
+		dev_y = LC_YPIX(uy,uy0,uy1);
 	    }
 	break;
 	case DeviceTrans:
-	    if ( TransConfig & INVERT_Y )
+	    if ( mode & INVERT )
 	    {
-	        dev_y = GWWidth(Graphics) - user_y;
+	        dev_y = GWWidth(Graphics) - (int)uy;
 	    }
 	    else
 	    {
-	        dev_y = user_y;
+	        dev_y = (int)uy;
 	    }
 	break;
     }
@@ -357,92 +452,204 @@ float user_y;
 }
 
 int 
-devX ( user_x )
-float user_x;
+devX ( user_x,mode )
+DataValPtr user_x;
+unsigned short mode;
 {
     int dev_x = 0;
+    float ux,ux0,ux1;
+    switch ( user_x->type )
+    {
+	case 't': /* scale the time so as to minimize loss of acuracy */
+	    ux0 = 0.0;
+	    ux1 = (float)(ts_GetSec(UX1.val.t) - ts_GetSec(UX0.val.t));
+	    ux = (float)(ts_GetSec(user_x->val.t) - ts_GetSec(UX0.val.t));
+	break;
+	case 'd':
+	    ux0 = (float)UX0.val.d;
+	    ux1 = (float)UX1.val.d;
+	    ux = (float)user_x->val.d;
+	break;
+	case 'i':
+	    ux0 = (float)UX0.val.i;
+	    ux1 = (float)UX1.val.i;
+	    ux = (float)user_x->val.i;
+	break;
+	case 'f':
+	    ux0 = UX0.val.f;
+	    ux1 = UX1.val.f;
+	    ux = user_x->val.f;
+	break;
+	default:
+	    fprintf ( stdout, "\rbad coordinate type\n");
+    }
     switch ( CurrentTrans )
     {
 	case DataTrans:
-	    if ( TransConfig & INVERT_X )
+	    if ( mode & INVERT )
 	    {
-		dev_x = LC_FXPIX(user_x);
+		dev_x = LC_FXPIX(ux,ux0,ux1);
 	    }
 	    else
 	    {
-		dev_x = LC_XPIX(user_x);
+		dev_x = LC_XPIX(ux,ux0,ux1);
 	    }
 	break;
 	case DeviceTrans:
-	    if ( TransConfig & INVERT_X )
+	    if ( mode & INVERT )
 	    {
-	        dev_x = GWWidth(Graphics) - user_x;
+	        dev_x = GWWidth(Graphics) - (int)ux;
 	    }
 	    else
 	    {
-	        dev_x = user_x;
+	        dev_x = (int)ux;
 	    }
 	break;
     }
     return (dev_x);
 }
 
-float 
-userX ( dev_x )
+DataValRec 
+userX ( dev_x,mode )
 int dev_x;
+unsigned short mode;
 {
-    float user_x = 0;
+    DataValRec user_x;
+    float	ux0,ux1,ux;
+    struct tm	*t;
+    time_t	timeSec;
+
+/*
+    user_x = (DataValPtr)calloc(1,sizeof(DataValRec));
+*/
+    switch ( UX0.type )
+    {
+	case 't': /* scale the time so as to minimize loss of acuracy */
+	    ux0 = 0.0;
+	    ux1 = (float)(ts_GetSec(UX1.val.t) - ts_GetSec(UX0.val.t));
+	break;
+	case 'f':
+	    ux0 = (float)UX0.val.f;
+	    ux1 = (float)UX1.val.f;
+	break;
+	case 'i':
+	    ux0 = (float)UX0.val.i;
+	    ux1 = (float)UX1.val.i;
+	break;
+	case 'd':
+	    ux0 = (float)UX0.val.d;
+	    ux1 = (float)UX1.val.d;
+	break;
+    }
     switch ( CurrentTrans )
     {
 	case DataTrans:
-	    if ( TransConfig & INVERT_X )
+	    if ( mode & INVERT )
 	    {
-		user_x = LC_FXUSER(dev_x);
+		ux = LC_FXUSER(dev_x,ux0,ux1);
 	    }
 	    else
 	    {
-		user_x = LC_XUSER(dev_x);
+		ux = LC_XUSER(dev_x,ux0,ux1);
 	    }
 	break;
 	case DeviceTrans:
-	    if ( TransConfig & INVERT_X )
+	    if ( mode & INVERT )
 	    {
-	        user_x = GWWidth(Graphics) - dev_x;
+	        ux = (float)(GWWidth(Graphics) - dev_x);
 	    }
 	    else
 	    {
-	        user_x = dev_x;
+	        ux = (float)dev_x;
 	    }
+	break;
+    }
+    switch (user_x.type = UX0.type)
+    {
+	case 't': 
+	    timeSec = ts_GetSec(UX0.val.t) + (long)ux;
+	    lc_GetTime ( &(user_x.val.t), timeSec);
+	break;
+	case 'f':
+	    user_x.val.f = ux;
+	break;
+	case 'i':
+	    user_x.val.i = (int)ux;
+	break;
+	case 'd':
+	    user_x.val.d = (double)ux;
 	break;
     }
     return (user_x);
 }
-float 
-userY ( dev_y )
+DataValRec 
+userY ( dev_y ,mode)
 int dev_y;
+unsigned short mode;
 {
-    float user_y = 0;
+    DataValRec user_y;
+    float	uy0,uy1,uy;
+    struct tm	*t;
+    time_t	timeSec;
+
+/*
+    user_y = (DataValPtr)calloc(1,sizeof(DataValRec));*/
+    switch ( UY0.type )
+    {
+	case 't': /* scale the time so as to minimize loss of acuracy */
+	    uy0 = 0.0;
+	    uy1 = (float)(ts_GetSec(UY1.val.t) - ts_GetSec(UY0.val.t));
+	break;
+	case 'f':
+	    uy0 = (float)UY0.val.f;
+	    uy1 = (float)UY1.val.f;
+	break;
+	case 'i':
+	    uy0 = (float)UY0.val.i;
+	    uy1 = (float)UY1.val.i;
+	break;
+	case 'd':
+	    uy0 = (float)UY0.val.d;
+	    uy1 = (float)UY1.val.d;
+	break;
+    }
     switch ( CurrentTrans )
     {
 	case DataTrans:
-	    if ( TransConfig & INVERT_Y )
+	    if ( mode & INVERT )
 	    {
-		user_y = LC_FYUSER(dev_y);
+		uy = LC_FYUSER(dev_y,uy0,uy1);
 	    }
 	    else
 	    {
-		user_y = LC_YUSER(dev_y);
+		uy = LC_YUSER(dev_y,uy0,uy1);
 	    }
 	break;
 	case DeviceTrans:
-	    if ( TransConfig & INVERT_Y )
+	    if ( mode & INVERT )
 	    {
-	        user_y = GWWidth(Graphics) - dev_y;
+	        uy = (float)(GWWidth(Graphics) - dev_y);
 	    }
 	    else
 	    {
-	        user_y = dev_y;
+	        uy = (float)dev_y;
 	    }
+	break;
+    }
+    switch (user_y.type = UY0.type)
+    {
+	case 't': 
+	    timeSec = ts_GetSec(UY0.val.t) + (time_t)uy;
+	    lc_GetTime ( &(user_y.val.t), timeSec);
+	break;
+	case 'f':
+	    user_y.val.f = uy;
+	break;
+	case 'i':
+	    user_y.val.i = (int)uy;
+	break;
+	case 'd':
+	    user_y.val.d = (double)uy;
 	break;
     }
     return (user_y);
