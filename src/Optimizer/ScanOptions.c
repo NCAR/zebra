@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: ScanOptions.c,v 1.3 1991-11-22 20:45:49 kris Exp $";
+static char *rcsid = "$Id: ScanOptions.c,v 1.4 1992-11-25 18:12:25 burghart Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -89,8 +89,8 @@ ScanOptions ()
 	int	r, itime, opt, slow;
 	float	slowtime, voltime, hres, vres, dis;
 	Radar	temp;
-	char	string[80];
-	Arg	stringarg, arg;
+	char	string[80], empty[] = "";
+	Arg	stringarg, arg, emptyarg;
 	Pixel	color;
 /*
  * Sanity check
@@ -104,6 +104,7 @@ ScanOptions ()
  * Put the address of 'string' into an X Toolkit argument
  */
 	XtSetArg (stringarg, XtNlabel, string);
+	XtSetArg (emptyarg, XtNlabel, empty);
 /*
  * Unhighlight the old option
  */
@@ -203,6 +204,20 @@ ScanOptions ()
 			continue;
 		}
 	/*
+	 * For the fixed time case, we can generate the real scans now
+	 */
+		if (Vol_time != TIME_ASAP)
+		{
+			for (r = 0; r < Nradars; r++)
+			{
+				if (! Rad[r].enabled)
+					continue;
+
+				GenScan (Rad + r, Vol_time, hres, vres, TRUE);
+			}
+			Slowtime[opt+3] = slowtime = Vol_time;
+		}
+	/*
 	 * Keep track of the limits of our valid options
 	 */
 		MinOpt = (opt < MinOpt) ? opt : MinOpt;
@@ -220,7 +235,10 @@ ScanOptions ()
 			opt, Rad[slow].name, itime / 60, itime % 60, 
 			ATAND (hres / dis), hres, ATAND (vres / dis), vres, 
 			Rad[slow].nsweeps);
-
+	/*
+	 * Fool the widget by giving it an empty label and then the new one
+	 */
+		XtSetValues (WOpt[opt+3], &emptyarg, 1);
 		XtSetValues (WOpt[opt+3], &stringarg, 1);
 	}
 /*
@@ -582,8 +600,6 @@ so_CreateDisplayWidget ()
 	XtSetArg (args[n], XtNdisplayCaret, False); n++;
 	XtSetArg (args[n], XtNscrollHorizontal, XawtextScrollWhenNeeded); n++;
 	XtSetArg (args[n], XtNscrollVertical, XawtextScrollWhenNeeded); n++;
-	XtSetArg (args[n], XtNuseStringInPlace, True); n++;
-	XtSetArg (args[n], XtNlength, STRSIZE); n++;
 	WDispText = XtCreateManagedWidget ("display", asciiTextWidgetClass, 
 		form, args, n);
 }
