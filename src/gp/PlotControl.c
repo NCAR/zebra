@@ -1,7 +1,7 @@
 /*
  * Window plot control routines.
  */
-static char *rcsid = "$Id: PlotControl.c,v 2.22 1993-10-14 20:22:10 corbet Exp $";
+static char *rcsid = "$Id: PlotControl.c,v 2.23 1993-10-22 21:25:18 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -267,6 +267,7 @@ char	*param;
 		if(! MovieMode)
 		{
 			pc_PlotHandler ();	/* Schedule an update	*/
+			aa_ResetAreas ();
 			return;			/* That's enough	*/
 		}
 		else mc_ParamChange();

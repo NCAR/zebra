@@ -48,7 +48,7 @@
 # include "PixelCoord.h"
 # include "LayoutControl.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.33 1993-10-15 16:31:15 corbet Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.34 1993-10-22 21:25:02 corbet Exp $")
 
 /*
  * Default resources.
@@ -414,6 +414,7 @@ msg_handler (msg)
 struct message *msg;
 {
 	struct mh_template *tm = (struct mh_template *) msg->m_data;
+	static int dmgr_message ();
 /*
  * Just branch out on the message type.
  */
@@ -423,7 +424,7 @@ struct message *msg;
 	 * Display manager messages.
 	 */
 	   case MT_DISPLAYMGR:
-	   	dm_message ((struct dm_msg *) msg->m_data);
+	   	dmgr_message ((struct dm_msg *) msg->m_data);
 		break;
 
 	/*
@@ -702,11 +703,14 @@ struct ui_command *cmds;
 
 
 
-
-dm_message (dmsg)
+static int
+dmgr_message (dmsg)
 struct dm_msg *dmsg;
 /*
  * Deal with a display manager message.
+ *
+ * This used to be "dm_message" but hpux:sys/types.h defines their own
+ * dm_message type...grumble grumble...
  */
 {
 	struct dm_dial *dmd;

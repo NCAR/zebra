@@ -1,7 +1,7 @@
 /*
  * Layout Control and Coordinate Transformations
  */
-static char *rcsid = "$Id: LayoutControl.c,v 1.8 1993-06-24 20:36:13 barrett Exp $";
+static char *rcsid = "$Id: LayoutControl.c,v 1.9 1993-10-22 21:25:14 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -140,7 +140,15 @@ float xmin,xmax,ymin,ymax;   /* normalized coordinates of area to be "zoomed" */
 {
    ScaleStack *zs = NULL;
    int		i;
-   float      box[4] = { xmin, xmax, ymin, ymax };
+   float      box[4];
+
+   /*
+    * Initialize the box manually since certain compilers gripe otherwise.
+    */
+        box[0] = xmin;
+        box[1] = xmax;
+        box[2] = ymin;
+        box[3] = ymax;
    /*
     * Only allow 13 levels of zoom...
     */

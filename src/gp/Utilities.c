@@ -28,7 +28,7 @@
 # include <time.h>
 # include "GraphProc.h"
 # include "PixelCoord.h"
-MAKE_RCSID ("$Id: Utilities.c,v 2.13 1993-10-14 20:22:22 corbet Exp $")
+MAKE_RCSID ("$Id: Utilities.c,v 2.14 1993-10-22 21:25:31 corbet Exp $")
 
 
 static void ApplyConstOffset FP ((Location *, double, double));
@@ -339,41 +339,6 @@ ZebTime	*t;
 
 
 
-long
-GetSec (t)
-UItime    t;
-/*
- * Get the seconds in a number represented by hhmmss.
- * (Note: type long == type time_t, see <sys/stdtypes.h>)
- */
-{
-        struct tm       syst;
-#ifdef SVR4
-	char tz[20];
-#endif
-
-        syst.tm_year = t.ds_yymmdd/10000;
-        syst.tm_mon = (t.ds_yymmdd/100) % 100 - 1;
-        syst.tm_mday = t.ds_yymmdd % 100;
-        syst.tm_hour = t.ds_hhmmss/10000;
-        syst.tm_min = t.ds_hhmmss/100 % 100;
-        syst.tm_sec = t.ds_hhmmss % 100;
-#ifdef SVR4
-        strcpy (tz, "TZ=GMT");
-        putenv (tz);
-        timezone = 0;
-        altzone = 0;
-        daylight = 0;
-        syst.tm_wday = syst.tm_yday = 0;
-        syst.tm_isdst = -1;
-        return (mktime (&syst));
-#else
-        syst.tm_zone = (char *) 0;
-        syst.tm_wday = syst.tm_isdst = syst.tm_yday = 0;
-        return (timegm (&syst));
-#endif
-}
-
 
 
 
@@ -633,3 +598,21 @@ int np;
 	}
 }
 	
+
+
+
+# ifdef hpux
+int
+nint (x)
+double x;
+/*
+ * nearest int to x
+ */
+{
+	if (x > 0)
+		return ((int) (x + 0.5));
+	else
+		return ((int) (x - 0.5));
+}
+
+# endif

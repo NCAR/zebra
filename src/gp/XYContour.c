@@ -1,7 +1,7 @@
 /*
  * XY-Contour plotting module
  */
-static char *rcsid = "$Id: XYContour.c,v 1.13 1993-07-29 16:56:21 corbet Exp $";
+static char *rcsid = "$Id: XYContour.c,v 1.14 1993-10-22 21:25:46 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -950,9 +950,15 @@ float		badval;
     lydim = ydim;
     lnpts = npts;
     lbad = badval;
-    status = do_rgrid_ (pinfo->grid, &lxdim, &lydim, &lnpts,
-                data, &lbad, xpos, ypos, &fxmin, &fymin,
-                &fxmax, &fymax, pinfo->scratch);
+    status =
+# ifdef hpux
+	    do_rgrid
+# else
+	    do_rgrid_
+# endif
+		    (pinfo->grid, &lxdim, &lydim, &lnpts,
+		     data, &lbad, xpos, ypos, &fxmin, &fymin,
+		     &fxmax, &fymax, pinfo->scratch);
     switch ( status )
     {
 	case RG_NOTENUFPTS:

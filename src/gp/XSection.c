@@ -1,7 +1,7 @@
 /*
  * Vertical cross-sectioning
  */
-static char *rcsid = "$Id: XSection.c,v 2.12 1993-09-20 17:16:14 burghart Exp $";
+static char *rcsid = "$Id: XSection.c,v 2.13 1993-10-22 21:25:37 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -24,7 +24,9 @@ static char *rcsid = "$Id: XSection.c,v 2.12 1993-09-20 17:16:14 burghart Exp $"
 
 # if C_PT_XSECT
 
+# ifndef hpux
 # include <alloca.h>
+# endif
 # include <math.h>
 # include <ctype.h>
 # include <X11/Intrinsic.h>

@@ -1,7 +1,7 @@
 /*
  * Time Series Plotting
  */
-static char *rcsid = "$Id: TimeSeries.c,v 2.12 1993-08-04 17:16:47 granger Exp $";
+static char *rcsid = "$Id: TimeSeries.c,v 2.13 1993-10-22 21:25:27 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -825,7 +825,7 @@ long	*step;
 	long	span, diff;
 	short	i, nstep;
 	struct tm	*tm;
-#ifdef SVR4
+#if defined(SVR4) || defined(SYSV)
 	char tz[20];
 	struct tm zt;
 #endif
@@ -842,11 +842,10 @@ long	*step;
 
 	tm = gmtime (&(first->zt_Sec));
 	tm->tm_hour = tm->tm_min = tm->tm_sec = 0;
-#ifdef SVR4
+#if defined(SVR4) || defined(SYSV)
         strcpy (tz, "TZ=GMT");
         putenv (tz);
         timezone = 0;
-        altzone = 0;
         daylight = 0;
         zt.tm_wday = zt.tm_yday = 0;
         zt.tm_isdst = -1;

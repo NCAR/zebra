@@ -1,7 +1,7 @@
 /*
  * Routines common to XY-Type plots
  */
-static char *rcsid = "$Id: XYCommon.c,v 1.14 1993-10-15 16:31:31 corbet Exp $";
+static char *rcsid = "$Id: XYCommon.c,v 1.15 1993-10-22 21:25:43 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -207,7 +207,7 @@ DataValPtr	min, max, interval;
 /*
  * Array of good time steps and the associated minimum span for each
  */
-	struct
+	static struct
 	{
 		int	step, minspan;
 	} timeSteps[] =

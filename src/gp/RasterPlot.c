@@ -1,7 +1,7 @@
 /*
  * Raster display a rectangular array
  */
-static char *rcsid = "$Id: RasterPlot.c,v 2.7 1992-12-22 17:35:53 granger Exp $";
+static char *rcsid = "$Id: RasterPlot.c,v 2.8 1993-10-22 21:25:23 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -24,9 +24,11 @@ static char *rcsid = "$Id: RasterPlot.c,v 2.7 1992-12-22 17:35:53 granger Exp $"
 # include <math.h>
 # include <X11/Intrinsic.h>
 # include "config.h"		/* dependent on changes in SHM def */
-# include "defs.h"
-# include "message.h"
-# include "GraphicsW.h"
+# include <defs.h>
+# include <pd.h>
+# include <message.h>
+# include <GraphicsW.h>
+# include "GraphProc.h"
 
 # ifdef TIMING
 # include <sys/time.h>
@@ -392,7 +394,7 @@ bool	fast;
  * Get our ximage and do the rasterization.
  */
 # ifdef SHM
-	if (RP_ShmPossible (disp))
+	if (GWShmPossible (Graphics))
 		image = RP_GetSharedXImage (w, width, height);
 	else
 # endif
@@ -409,7 +411,7 @@ bool	fast;
  * Now we ship over the image, and deallocate everything.
  */
 # ifdef SHM
-	if (RP_ShmPossible (disp))
+	if (GWShmPossible (Graphics))
 		XShmPutImage (disp, d, gcontext, image, 0, 0,
 			xlo, yhi, width, height, False);
 	else
@@ -431,7 +433,7 @@ bool	fast;
 
 
 
-# ifdef SHM
+# ifdef SHMx
 static bool
 RP_ShmPossible (dpy)
 Display *dpy;
@@ -802,7 +804,7 @@ float 		scale, bias;
 	 * must create a local image, process our data, and then
 	 * send the image to the server.
 	 */
-	if (RP_ShmPossible(disp))
+	if (GWShmPossible (Graphics))
 	{
 		destimg = (unsigned char *) GWGetFrameAddr (w, frame);
 		destimg += yhi * GWGetBPL(w, frame) + xlo;

@@ -1,5 +1,5 @@
 /**/# ---------------------------------------------------------------------
-/**/# $Id: Imakefile,v 1.13 1993-10-14 20:22:01 corbet Exp $ 
+/**/# $Id: Imakefile,v 1.14 1993-10-22 21:25:11 corbet Exp $ 
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -32,13 +32,21 @@ CLIBS = /local/lib/gcc-lib/sparc-sun-solaris2/2.4.3/libgcc.a
    LABELOBJS = 
 #endif
 
+
+# if defined(HPArchitecture) && (! UseGcc)
+   ALLOCA=alloca.o
+# else
+   ALLOCA=
+# endif
+
+
 OBJS =  TimeSeries.o ColorTable.o EventQueue.o LLEvent.o PlotControl.o \
 	PlotExec.o UserEvent.o Contour.o FillContour.o \
 	DrawText.o RasterPlot.o VectorGrid.o derive.o \
 	Lightning.o Track.o GridAccess.o Overlay.o  PositionWidget.o\
 	FrameCache.o MovieControl.o rgrid.o bints.o cfit.o AltControl.o \
 	Icons.o Skewt.o RBand.o Annotate.o XSection.o LimitWidgets.o \
-	ConstAltPlot.o Utilities.o DataMenu.o malloc.o \
+	ConstAltPlot.o Utilities.o DataMenu.o $(ALLOCA) \
 	XYGraph.o PlotPrim.o LayoutControl.o AxisControl.o $(LABELOBJS) \
 	XYWind.o XYCommon.o XYContour.o InsertWidget.o AnnotWidget.o \
 	XYObservation.o GraphProc.o PDMonitor.o FieldMenu.o ActiveArea.o
@@ -51,8 +59,8 @@ SRCS =  AltControl.c AnnotWidget.c Annotate.c AxisControl.c \
 	Overlay.c PlotControl.c PlotExec.c PlotPrim.c PositionWidget.c \
 	RBand.c RasterPlot.c Skewt.c TimeSeries.c Track.c UserEvent.c \
 	Utilities.c VectorGrid.c XSection.c XYCommon.c XYContour.c \
-	XYGraph.c XYObservation.c XYWind.c derive.c malloc.c sfont_1.c \
-	PDMonitor.c FieldMenu.c ActiveArea.c
+	XYGraph.c XYObservation.c XYWind.c derive.c  sfont_1.c \
+	PDMonitor.c FieldMenu.c ActiveArea.c 
 
 HDRS =  AxisControl.h Contour.h DrawText.h EventQueue.h GC.h GraphProc.h \
 	LLEvent.h Label.h LabelP.h \
@@ -63,6 +71,15 @@ FSRCS = cfit.F mudras.f rgrid.F bints.f
 
 DISTFILES = Imakefile $(SRCS) $(FSRCS) $(HDRS) \
 	    GraphProc.state GraphProc.widgets Graphproc.ad
+
+
+
+# ifdef hpux
+.SUFFIXES:	.F
+
+.F.o:
+	$(FC) $(FFLAGS) -c $<
+# endif
 
 NormalProgramTarget(gp,$(OBJS),$(DEPLIBS), $(LOCAL_LIBRARIES), $(SYSLIBS))
 
