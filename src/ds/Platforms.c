@@ -45,7 +45,7 @@
 # include "dsPrivate.h"
 # include "Platforms.h"
 
-RCSID("$Id: Platforms.c,v 3.6 1999-03-01 02:03:34 burghart Exp $")
+RCSID("$Id: Platforms.c,v 3.7 2000-11-07 19:53:18 granger Exp $")
 
 
 
@@ -739,6 +739,24 @@ pi_SuggestedDir (const Platform *p)
     }
 
     return (dir);
+}
+
+
+
+/*
+ * Return non-zero if the platform instance is a member of the given class
+ * or a member of a subclass of the given class.
+ */
+int
+pi_IsSubclass (const PlatformInstance *pi, const PlatformClass *spc)
+{
+    int result = 0;
+    const PlatformClass *pc = pi_Class (pi);
+    while (pc && spc && ! (result = (pc_Id(pc) == pc_Id(spc))))
+    {
+	pc = pc_SuperClass (pc);
+    }
+    return result;
 }
 
 

@@ -1,5 +1,5 @@
 /*
- * $Id: Platforms.h,v 3.5 2000-04-27 15:38:45 burghart Exp $
+ * $Id: Platforms.h,v 3.6 2000-11-07 19:53:19 granger Exp $
  *
  * The interface to platform classes and instances shared by daemon
  * and client.  The application, be they daemon or client, can choose
@@ -175,6 +175,12 @@ INLINE PlatformId pi_ParentId (const PlatformInstance *pi)
  * And a method to return the suggested subdirectory for this platform
  */
 const char* pi_SuggestedDir (const PlatformInstance *pi);
+
+/*
+ * Return non-zero if the platform instance is a member of the given class
+ * or a member of a subclass of the given class.
+ */
+int pi_IsSubclass (const PlatformInstance *pi, const PlatformClass *spc);
 
 /*
  * Easy access to class members
