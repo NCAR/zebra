@@ -1,0 +1,256 @@
+
+INGESTING SATELLITE IMAGES FROM MCIDAS GOES FILES
+=================================================
+
+SatIngest and GMSIngest
+-----------------------
+
+The Zeb satellite ingest programs are called SatIngest and GMSIngest.  Both
+programs ingest MCIDAS format satellite images.  SatIngest ingests fields
+from the GOES satellites, usually visual and infrared radiation ('vis' and
+'ir').  GMSIngest ingests infrared data from GMS satellites, translating
+the image bytes into temperatures.  The source for both of the ingest
+programs, as well as the 'areadump' utility described in the next section,
+resides in zeb/src/ingest/satellite.
+
+The satellite ingest programs operate with a UI command file, which gives the
+ingest program important parameters such as the latitude of the origin at
+which the images will be displayed, the resolution of the kilometer grid,
+and the names of the MCIDAS area files to ingest.  Following are examples of
+typical command file commands.
+
+Essentially, the satellite ingest programs work by navigating satellite
+image cells, which are stored as line/element pairs in the area file, into
+squares of a regularly-spaced kilometer grid.  The program must be told
+where on the earth the grid is located and the size of the grid cells.
+This information is specified in a UI command file using special commands.
+For example, the location and range of the grid is specified by the limits
+command, which takes four arguments.
+
+	limits <south lat> <west lon> <north lat> <east lon>
+
+West longitudes are negative, while north latitudes are positive.  For
+ingesting GOES VIS images for UAV project in Oklahoma, the limits command 
+looks like:
+
+	limits 34.6 -100.5 39 -92.5
+
+Note that the ideal range of the grid depends upon the range of the image
+and the area which needs to be viewed.  A satellite image with 16 kilometer
+resolution which spans the entire U.S. will not look that good if the area
+being concentrated on is Oklahoma.  Likewise, there is no sense translating
+a 1 kilometer image the size of Oklahoma into a grid the size of the U.S.
+The limits given above just span the range of the satellite image, so that
+the diagonal edges which follow the satellites path are visible when
+viewing the whole grid.  If a sufficiently small portion of the image is
+ingested, the image will fill the grid and appear square.
+
+To convert the latitude and longitude coordinates of the image cells to
+kilometers, the ingest program must know the latitude at which the image
+will be viewed.  The 'originLat' variable holds this latitude.  Use the UI
+'set' command to specify the latitude.
+
+	set originLat <latitude>	! North latitudes are positive
+
+Next, the program needs the size of the grid squares.  This can be given two
+ways, either by the size of a square as a resolution in kilometers, or by
+the number of squares to put in each of the X and Y directions.  The kilometer
+resolution is specified in the 'kmResolution' floating point variable.
+
+	set kmResolution <grid square edge size>
+
+The number of squares in each direction are given in the following two
+variables:
+
+	set gridX <number of squares between west and east longitude of grid>
+	set gridY <number of squares between south and north latitude of grid>
+
+The ingest program requires that either 'kmResolution' be set or both
+'gridX' and 'gridY' be set.  If all three are set, then 'gridX' and 'gridY'
+will take precedence.  Usually, only the 'kmResolution' variable is
+specified.
+
+For area files which have multi-byte image cells, the command file must set
+the 'truncate' variable to 'true'.
+
+	set truncate <boolean>
+
+The ingest programs cannot really handle any images with cells of more than
+a single byte.  However, setting 'truncate' to true will tell the program
+to accept only the most-significant byte as the byte value of the cell; the
+other bytes are ignored, i.e., truncated.
+
+The DataStore platform to which the ingested images should be stored is
+specified in the 'platform' variable.  For example,
+
+	set platform "sgpgoesvis.tmp"
+
+Lastly, the ingest programs need to know which area files to ingest, as well
+as the field being ingested, such as 'vis' or 'ir'.  The filename can be
+any absolute or relative path, or just the name of the file if the file is
+in the current directory.  The field parameter can be any field name;
+usually, though, the graphics configuration expects a particular field name,
+so consistency is important.
+
+	file <filename> <field>
+
+Many 'file' commands can be specified in one command file.  By default, the
+program checks each file and ingests only those with the most recent time.
+It is possible to have more than one file with identical times, but only
+if those files contain the same field.  Suppose there is a spool directory
+which contains the last three hours worth of both visible and infrared
+images, but only the most recent need to be ingested since the older images
+were ingested in hours past.  Then there can be six 'file' commands in the
+command file.
+
+	file area7000 vis
+	file area7001 vis
+	file area7002 vis
+	file area8000 ir
+	file area8001 ir
+	file area8002 ir
+
+Depending upon how MCIDAS has been configured, the most recent area file
+may not always have the same name.  If new images arrive every hour, then
+ingesting with the above file commands every hour will assure that every
+image is ingested, and no image will be ingested more than once.
+
+However, suppose ALL of the files in spool directory need to be ingested,
+not just the most recent.  Then the ingest program needs to be told to
+ignore the file times and ingest all of the files.  When the 'checkTimes'
+variable is 'false', the ingestor does not check any of the file times
+before ingesting them.
+
+	set checkTimes <boolean>
+
+So in the example of size 'file' commands above, every area file would be
+ingested, regardless of its time and regardless of whether the file had
+already been ingested.  This can be useful when images from past hours
+have been updated because of glitches in the originals.
+
+Ordinarily, the commands explained above are the only commands which appear
+in the satellite ingest command file.  Once the entire command file has
+been read, the ingestor implicitly executes the 'go' command and begins
+processing the files.  However, it is possible to explicitly specify the
+'go' command.  An explicit 'go' command causes all of the files specified
+thus far in the command file to be processed with the current parameter
+settings.  After each 'go' command, the file list is reset to zero files
+but the parameters remain constant.  Further 'file' commands can list more
+files and fields to ingest, either with the original parameter settings or
+with new ones.  Calling 'go' after each 'file' command achieves the same
+end as setting 'checkTimes' to false and using the implicit 'go' at the end
+of the file.  Note that there is always an implicit 'go' at the end of the
+file; it is not necessary, and probably not a good idea, to end a command
+file with a 'go' command.
+
+This example of a complete command file ingests all of the files listed.
+
+	limits 34.6 -100.5 39 -92.5
+	set originLat 36.61
+	set kmResolution 1
+	set checkTimes false
+	file area7000 vis
+	file area7001 vis
+	file area7002 vis
+	file area8000 ir
+	file area8001 ir
+	file area8002 ir
+
+This complete command file ingests all of the same files.
+
+	limits 34.6 -100.5 39 -92.5
+	set originLat 36.61
+	set kmResolution 1
+	file area7000 vis
+	go
+	file area7001 vis
+	go
+	file area7002 vis
+	go
+	file area8000 ir
+	go
+	file area8001 ir
+	go
+	file area8002 ir
+	
+Note that the example above has does not set 'checkTimes', leaving it at
+its default of 'true'.  Also, a 'go' command is not needed after the very
+last 'file' command.
+
+If the most recent 'ir' and most recent 'vis' images are needed, even if
+one image may be more recent than the other, then the this command file
+might be appropriate.
+
+	set originLat 36.61
+	set originLon -97.48
+	set kmResolution 1
+	file area7000 vis
+	file area7001 vis
+	file area7002 vis
+	go
+	file area8000 ir
+	file area8001 ir
+	file area8002 ir
+
+Since 'checkTimes' is left 'true', only the most recent of the 'vis' and
+'ir' area files will be ingested at each execution of 'go' (the explicit
+execution and the implied execution).
+
+The areadump Utility
+--------------------
+
+The source for satellite ingest includes a utility called 'areadump', which
+dumps important information about area files to the terminal.  Run 'areadump'
+with no options to see a usage message:
+
+	host% areadump
+	Usage: areadump [-d] [-r] [-t] [-s] [-a] <area_file> ...
+	Defaults to showing date and resolution, but the following
+	options can be combined to tailor output:
+	 -d  Display dates
+	 -r  Resolution info
+	 -t  Image type and source
+	 -s  Image sizes: lines, elements, bytes
+	 -a  Display all
+
+The 'areadump' program extracts the information from the header record of
+the area file.  Here is an example of the default output from two area
+files.
+
+	host% areadump area*
+	8-Feb-94,19:01:00    area7000  X,Y Res: 1,1 km
+	8-Feb-94,19:01:00    area8000  X,Y Res: 4,4 km
+
+The first column lists the date and time of the file.  The second column
+lists the file name, and the thrid column gives the X and Y resolution of
+the image.  Usually the X and Y resolution are equal.
+
+All of the information accessible by 'areadump' can be displayed using the
+'-a' option.
+
+	kodiak|171|% areadump -a area*
+	8-Feb-94,19:01:00    area7000  X,Y Res: 1,1 km
+	    Image type:      GOES         Source: visr 
+	    Bytes/element:   1            Elements/line: 640 
+	    Prefix length:   0  bytes     Bytes/line:   640  Number lines: 350
+	8-Feb-94,19:01:00    area8000  X,Y Res: 4,4 km
+	    Image type:      GOES         Source: aaa  
+	    Bytes/element:   2            Elements/line: 640 
+	    Prefix length:   120 bytes    Bytes/line:   1400 Number lines: 350
+
+With the '-a' option, the dumped information includes the image type, image
+source, and statistics on the elements, lines, and bytes in the image.  A
+source of 'visr' indicates visible radiation, while 'aaa' indicates
+infrared radiation.  Both area files come from GOES satellites.  The first
+file has one byte per element, while the second, 'area8000', has 2 bytes
+per element.  Therefore, 'area8000' could be ingested with the following
+command file.
+
+	limits 34.6 -100.5 39 -92.5
+	set kmResolution 4
+	file area8000 ir
+	set truncate true
+
+Note that 'truncate' must be 'true', otherwise the ingestor will not be able
+to handle the multi-byte data.
+
