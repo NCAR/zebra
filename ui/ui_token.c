@@ -11,7 +11,7 @@
 # include "ui_tty.h"
 # include "ui_mode.h"
 
-static char *Rcsid = "$Id: ui_token.c,v 1.3 1989-03-16 15:47:54 corbet Exp $";
+static char *Rcsid = "$Id: ui_token.c,v 1.4 1989-05-31 16:20:47 corbet Exp $";
 
 /*
  * For input analysis, all characters are classified into one of the
@@ -2150,7 +2150,7 @@ ut_out_lines ()
  * Kludge to only get them out once.  This variable is reset at the begin
  * of each token.
  */
- 	if (ctx->tc_dumped || ! Initialized)
+ 	if (!ctx || ! Initialized || ctx->tc_dumped)
 		return;
 	ctx->tc_dumped = TRUE;
 /*
