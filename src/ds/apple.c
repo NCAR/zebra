@@ -1,5 +1,5 @@
 /*
- * $Id: apple.c,v 3.4 1996-01-10 21:02:51 granger Exp $
+ * $Id: apple.c,v 3.5 1996-01-10 21:15:49 granger Exp $
  */
 
 /*
@@ -135,8 +135,8 @@ to 'expect'?
 /* #define DIFF_DATACHUNKS */
 
 #define GRID_BLOCKS
-#define FETCH_GAP
 
+#define FETCH_GAP
 #define TIME_UNITS
 /* #define EXAMPLE_ONLY */
 #define NSPACE_AERI
@@ -157,7 +157,11 @@ to 'expect'?
 #define DUMMY_FILES
 #define DATA_TIMES
 
+#ifndef DEBUG
 #define PRINT_MASK	(EF_INFO | EF_EMERGENCY | EF_PROBLEM)
+#else
+#define PRINT_MASK	(EF_ALL & ~EF_DEVELOP)
+#endif
 
 struct TestField {
 	char *name;
@@ -211,6 +215,7 @@ struct TestPlatform {
 	{ "t_copy_source", OrgScalar, 1000, TRUE },
 	{ "t_copy_dest", OrgScalar, 1000, TRUE },
 #endif
+	{ "t_transparent" },
 	{ "t_aeri_types_cdf" },
 	{ "t_aeri_types_znf" },
 	{ "t_virtual" },
