@@ -1,6 +1,6 @@
 #! /usr/local/bin/perl5
 #
-# $Id: zplotloop,v 1.5 2002-03-13 07:55:57 granger Exp $
+# $Id: zplotloop,v 1.6 2002-03-17 07:20:11 granger Exp $
 #
 # Loop through times by a certain time step collecting from zplotd all the
 # plots which need to be generated, then generate those plots with
@@ -36,13 +36,13 @@ sub ztsys
 {
     # print `ztsplit $_[0]`, "\n";
     ($year, $mon, $day, $hour, $min, $sec) = split(/\s+/,`ztsplit $_[0]`);
-    $time = timegm($sec,$min,$hour,$day,$mon-1,$year);
+    timegm($sec,$min,$hour,$day,$mon-1,$year);
 }
 
 sub syszt
 {
     ($sec,$min,$hour,$mday,$mon,$year) = gmtime($_[0]);
-    $ztime = strftime ("%d-%h-%Y,%H:%M:%S", $sec,$min,$hour,$mday,$mon,$year);
+    strftime ("%d-%h-%Y,%H:%M:%S", $sec,$min,$hour,$mday,$mon,$year);
 }
 
 
@@ -50,7 +50,7 @@ $project_start_date = "$ENV{'PROJECT_START_DATE'}";
 $project_end_date = "$ENV{'PROJECT_END_DATE'}";
 $plot_hours = "$ENV{'PLOT_HOURS'}";
 @hours = split(/\s+/,"$plot_hours");
-if ($begin != 'start')
+if ("$begin" ne 'start')
 {
     $sbegin = &ztsys($begin);
 }
@@ -67,7 +67,7 @@ else
     $sbegin = &ztsys($project_start_date . "," . "$hours[0]:00");
 }
 $send = time();
-if ($end = 'end')
+if ('end' eq "$end")
 {
     if (! $project_end_date)
     {
@@ -79,7 +79,7 @@ if ($end = 'end')
     }
     $send = &ztsys($project_end_date . "," . "$hours[0]:00");
 }
-elsif ($end != 'now')
+elsif ("$end" ne 'now')
 {
     $send = &ztsys($end);
 }
