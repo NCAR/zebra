@@ -1,4 +1,4 @@
-! $Id: GraphProc.state,v 1.3 1990-11-09 16:34:48 corbet Exp $
+! $Id: GraphProc.state,v 1.4 1991-01-09 16:31:17 burghart Exp $
 !
 ! State entries for the graphics process.
 !
@@ -31,6 +31,12 @@ define state initial
 		next ust$no_more	! Eventually put coords here too.
 	endinput
 	input 'popcoords' 13
+		next ust$no_more
+	endinput
+	input 'drawline' 14
+		next initial
+	endinput
+	input 'sendendpoints' 15
 		next ust$no_more
 	endinput
 enddef
