@@ -1,7 +1,7 @@
 /*
  * Plot execution module
  */
-static char *rcsid = "$Id: PlotExec.c,v 2.4 1991-10-25 18:03:42 kris Exp $";
+static char *rcsid = "$Id: PlotExec.c,v 2.5 1991-10-30 21:35:22 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -33,6 +33,7 @@ static char *rcsid = "$Id: PlotExec.c,v 2.4 1991-10-25 18:03:42 kris Exp $";
 # include "DrawText.h"
 # include "PixelCoord.h"
 # include "EventQueue.h"
+# include "LayoutControl.h"
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -55,7 +56,8 @@ typedef struct
 # define PT_SKEWT	1
 # define PT_XSECT	2
 # define PT_TSERIES	3
-# define N_PTYPES	4	/* Increase this as plot types are added */
+# define PT_XYGRAPH	4
+# define N_PTYPES	5	/* Increase this as plot types are added */
 
 name_to_num Pt_table[] =
 {
@@ -70,6 +72,9 @@ name_to_num Pt_table[] =
 # endif
 # if C_PT_TSERIES
 	{"tseries",	PT_TSERIES	},
+# endif
+# if C_PT_XYGRAPH
+	{"xygraph",	PT_XYGRAPH	},
 # endif
 	{NULL,		0		}
 };
@@ -87,7 +92,8 @@ name_to_num Pt_table[] =
 # define RT_FCONTOUR	7
 # define RT_TSERIES	8
 # define RT_LIGHTNING	9
-# define N_RTYPES	10	/* Increase this as rep. types are added */
+# define RT_LINE	10
+# define N_RTYPES	11	/* Increase this as rep. types are added */
 
 name_to_num Rt_table[] = 
 {
@@ -103,6 +109,9 @@ name_to_num Rt_table[] =
 # endif
 # if C_PT_TSERIES
 	{"tseries",		RT_TSERIES	},
+# endif
+# if C_PT_XYGRAPH
+	{"line",		RT_LINE	},
 # endif
 	{"lightning",		RT_LIGHTNING	},
 	{NULL,			0		}
@@ -169,6 +178,9 @@ static void	(*EOPHandler) () = 0;
 # endif
 # if C_PT_TSERIES
 	extern void	ts_Plot();
+# endif
+# if C_PT_XYGRAPH
+	extern void	xy_Graph();
 # endif
 
 /*
@@ -415,6 +427,7 @@ px_GetCoords ()
 	bool ok, cvt_Origin ();
 	int expand, rs = 0;
 	float lat, lon;
+	int axisSpace;
 /*
  * Get the origin and plot limits
  */
@@ -458,6 +471,41 @@ px_GetCoords ()
  */
 	if (! cvt_Origin (lat, lon))
 		return (FALSE);
+/*
+ * Get layout parameters for use in conjunction with "LayoutControl"
+ * routines
+ */
+	/* Currently, Icon, Legend and Annotation space are all fixed
+	   to reflect the hard-coded sizes in "PixelCoord.h" */
+        lc_SetIconDim(GWWidth(Graphics),ICONSPACE);
+        lc_SetLegendDim( (int)(0.15*GWWidth(Graphics)), GWHeight(Graphics));
+        lc_SetAnnotateDim ( GWWidth(Graphics),(int)(0.1*GWHeight(Graphics)));
+
+        if ( pda_Search (Pd, "global", "axis-bottom-space", NULL,
+                CPTR (axisSpace), SYMT_INT))
+        {
+            lc_SetAxisDim ( AXIS_BOTTOM, axisSpace );
+        }
+        if ( pda_Search (Pd, "global", "axis-top-space", NULL,
+                CPTR (axisSpace), SYMT_INT))
+        {
+            lc_SetAxisDim ( AXIS_TOP, axisSpace );
+        }
+        if ( pda_Search (Pd, "global", "axis-left-space", NULL,
+                CPTR (axisSpace), SYMT_INT))
+        {
+            lc_SetAxisDim ( AXIS_LEFT, axisSpace );
+        }
+        if ( pda_Search (Pd, "global", "axis-right-space", NULL,
+                CPTR (axisSpace), SYMT_INT))
+        {
+            lc_SetAxisDim ( AXIS_RIGHT, axisSpace );
+        }
+
+	/* initialize the data-region coordinate system for "LayoutControl"
+	   transformations */
+        lc_SetUserCoord (Xlo,Xhi,Ylo,Yhi);
+
 	return (TRUE);
 }
 
@@ -602,6 +650,9 @@ px_Init ()
 # endif
 # if C_PT_TSERIES
 	Plot_routines[PT_TSERIES][RT_TSERIES] = ts_Plot;	
+# endif
+# if C_PT_XYGRAPH
+	Plot_routines[PT_XYGRAPH][RT_LINE] = xy_Graph;	
 # endif
 /*
  * Done
