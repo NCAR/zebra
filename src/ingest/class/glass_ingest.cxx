@@ -1,5 +1,5 @@
 /* -*- mode: c++; c-basic-offset: 8; -*-
- * $Id: glass_ingest.cxx,v 2.21 2002-11-18 18:49:24 granger Exp $
+ * $Id: glass_ingest.cxx,v 2.22 2002-11-19 22:15:56 granger Exp $
  *
  * Ingest GLASS data into the system.
  *
@@ -80,7 +80,7 @@ extern "C"
 #include <met_formulas.h>
 }
 
-RCSID("$Id: glass_ingest.cxx,v 2.21 2002-11-18 18:49:24 granger Exp $")
+RCSID("$Id: glass_ingest.cxx,v 2.22 2002-11-19 22:15:56 granger Exp $")
 
 #include <ZTime.h>
 #define FC_DEFINE_FIELDS
@@ -470,6 +470,9 @@ char DumpDataChunk = (char)0;   /* Dump chunks AS BUILT rather than
 char PlatformName[256] = "";
 Sounding::RecordType SoundingType = Sounding::GLASS;
 
+/* Use one time variable convention in files, rather than base_time. */
+static bool OptionBaseTime = false;
+
 static void GlassIngest (int argc, char *argv[]);
 
 
@@ -607,7 +610,8 @@ GlassIngest (int argc, char *argv[])
  */
 	ds_SetStringDetail (DD_FILE_EXT, ".nc", details, ndetail++);
 	ds_SetDetail (DD_FOUR_YEAR, details, ndetail++);
-	ds_SetDetail (DD_NC_ONE_TIME, details, ndetail++);
+	if (! OptionBaseTime)
+		ds_SetDetail (DD_NC_ONE_TIME, details, ndetail++);
 	IngestLog(EF_DEBUG,"%s: Sending data to DataStore", PlatformName);
 	if (!ds_StoreBlocks (Dchunk, /*newfile*/ TRUE, details, ndetail))
 	{
@@ -731,6 +735,16 @@ ParseCommandLineOptions (int *argc, char *argv[])
 			DumpDataChunk = (char)1;
 			IngestRemoveOptions(argc, argv, i, 1);
 		}
+		else if (streq(argv[i],"-nobasetime"))
+		{
+			OptionBaseTime = false;
+			IngestRemoveOptions(argc, argv, i, 1);
+		}
+		else if (streq(argv[i],"-basetime"))
+		{
+			OptionBaseTime = true;
+			IngestRemoveOptions(argc, argv, i, 1);
+		}
 		else if (streq(argv[i],"-fields"))
 		{
 			JustShowFields = (char)1;
@@ -767,6 +781,8 @@ Usage (char *prog)
 	printf ("       %s -help\n",prog);
 	printf ("\nOptions:\n");
 	printf ("   -show, -s		Dump data chunk as it's built\n");
+	printf ("   -basetime		Include base_time in netcdf file\n");
+	printf ("   -nobasetime		Do not include base_time (default)\n");
 	printf ("   -fields		List the sounding fields\n");
 	printf ("   -trans <tfile>	Use the site/platform translations in 'tfile'\n");
 	printf ("   -platform <name>	Explicitly set the platform name\n");
