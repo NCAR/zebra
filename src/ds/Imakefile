@@ -2,8 +2,10 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.15 1993-08-12 18:25:01 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.16 1993-09-14 17:57:46 granger Exp $"
 
+LIBMPROF=/dt/granger/libc_mp.a
+SYSLIBS=/* $(LIBMPROF) */
 LIBS=$(LIBZEB) $(LIBNETCDF) $(LIBRDSS)
 /**/#LIBGCC=/usr/local/lib/gcc-lib/sparc-sun-sunos4.1.2/2.2/libgcc.a
 /**/#LIBGCC=/locallib/gcc-lib/sparc-sun-sunos4.1/2.4.1/libgcc.a
@@ -42,7 +44,7 @@ UTILSRCS = rfdump.c zfdump.c
 /*
  * For debugging
  */
-TESTSRCS = dstest.c dctest.c nstest.c nxtest.c
+TESTSRCS = dstest.c dctest.c nstest.c nxtest.c aline.c
 
 
 /*
@@ -85,7 +87,7 @@ NormalProgramTarget (zfdump, zfdump.o, /**/, $(LIBZEB), /**/)
  * Test routines.
  */
 TestProgramTarget (nstest, nstest.o $(DSLIBOBJS) $(DCOBJS), $(DEPLIBS),
-		  $(LIBS), /**/)
+		  $(LIBS), $(SYSLIBS))
 
 cc_nstest:: nstest.c $(DSLIBSRCS) $(DCSRCS)
 	# setopt ansi
@@ -99,6 +101,10 @@ nstest.tc:  nstest.o $(DSLIBOBJS) $(DCOBJS)  $(DEPLIBS)
 	$(PROOF) $(CC) -static -o $@  nstest.o $(DSLIBOBJS) $(DCOBJS) \
 		$(LDOPTIONS) $(LIBS) $(LDLIBS)   $(EXTRA_LOAD_FLAGS)
 
+CflowTarget (nstest, nstest.c $(DSLIBSRCS) $(DCSRCS), /**/)
+
+TestProgramTarget (aline, aline.o $(DSLIBOBJS) $(DCOBJS), $(DEPLIBS),
+		   $(LIBS), $(SYSLIBS))
 
 /*
  * Saber stuff.  This is a bit complicated, depending on what you are
@@ -118,5 +124,3 @@ DependTarget()
 LintTarget()
 
 DistfilesTarget($(DISTFILES))
-
-
