@@ -24,22 +24,22 @@
 # include <unistd.h>
 
 # include <ui.h>
+# include <config.h>
 # include <defs.h>
 # include <message.h>
 # include <timer.h>
-# include <config.h>
 # include "DataStore.h"
 # include "NetXfr.h"
 
 
-RCSID("$Id: NetXfr.c,v 3.9 1996-11-19 08:08:12 granger Exp $")
+RCSID("$Id: NetXfr.c,v 3.10 1997-02-14 07:36:57 granger Exp $")
 
 
 /*
  * Here's the array of stuff we send to people.
  */
 
-# define MAXPLAT 1024
+# define MAXPLAT CFG_MAX_PLATFORMS
 
 typedef struct _DataRecip
 {
@@ -153,7 +153,8 @@ void		SendDChunk FP ((DataChunk *, int));
 void		SendOut FP ((PlatformId, void *, int));
 static inline	DataBCChunk *NewBCChunk FP ((void));
 static inline	void FreeBCChunk FP ((DataBCChunk *));
-static inline	float *GetDataArray FP ((int, int));
+static inline	DataPtr GetDataArray FP ((int, int));
+static inline 	void FreeDataArray FP ((int seq, DataPtr array));
 static void	NewADE FP ((NxAuxData *));
 static void	NewArray FP ((DataArray *));
 static void	ScanIP FP ((void));
@@ -190,6 +191,89 @@ void UglyDeath ()
 
 
 
+static inline DataPtr
+GetDataArray (seq, size)
+int seq, size;
+/*
+ * Get the data array.
+ */
+{
+	size += 50000;	/* Memory bug kludge */
+
+	if (size < 100000 || BDA_IPSeq >= 0 || size > BDASIZE)
+		return ((DataPtr) malloc (size));
+	else
+	{
+		BDA_IPSeq = seq;
+		return ((DataPtr) BigDataArray);
+	}
+}
+
+
+
+static inline void
+FreeDataArray (seq, array)
+int seq;
+DataPtr array;
+/*
+ * Get the data array.
+ */
+{
+	if (array == NULL)
+		return ;
+	if ((array == (DataPtr) BigDataArray) || (seq == BDA_IPSeq))
+	{
+		BDA_IPSeq = -1;
+		if ((array != (DataPtr) BigDataArray) || (seq != BDA_IPSeq))
+		{
+			msg_ELog (EF_PROBLEM, 
+				  "%s: mismatched sequence numbers",
+				  "release of static data array");
+		}
+	}
+	else
+	{
+		free (array);
+	}
+}
+
+
+
+
+static inline DataBCChunk *
+NewBCChunk ()
+/*
+ * Return a free broadcast chunk.
+ */
+{
+	DataBCChunk *ret;
+
+	if (BCFree)
+	{
+		ret = BCFree;
+		BCFree = BCFree->dh_Next;
+	}
+	else
+		ret = (DataBCChunk *) malloc (CBYTES + 32);
+	return (ret);
+}
+
+
+
+
+static inline void
+FreeBCChunk (chunk)
+DataBCChunk *chunk;
+/*
+ * Free up this chunk.
+ */
+{
+	chunk->dh_Next = BCFree;
+	BCFree = chunk;
+}
+
+
+
 
 int
 main (argc, argv)
@@ -215,7 +299,6 @@ char **argv;
 	}
 	else
 		ui_init (loadfile, TRUE, FALSE);
-	SetupConfigVariables ();
 /*
  * Debug level for certain things.
  */
@@ -236,6 +319,7 @@ char **argv;
  */
 	msg_connect (Incoming, OURNAME);
 	msg_AddProtoHandler (MT_NETXFR, NXMessage);
+	SetupConfigVariables ();
 /*
  * Try to do something reasonable to get a unique starting sequence number.
  */
@@ -416,7 +500,8 @@ UpdCode ucode;
  * For now, we handle the "newfile" problem by getting the first in
  * the list of obs samples, and seeing if it matches our time.
  *
- * Eventually do this with attributes?
+ * Eventually do this with attributes?  Or perhaps with an enhanced
+ * data-available notification callback...
  */
 	dc_GetTime (dc, 0, &dctime);
 	newfile = (ds_GetObsSamples (plat, t, &otimes, &loc, 1) > 0) &&
@@ -442,6 +527,10 @@ int newfile;
 	AuxDataChain ade;
 	PlatformId plat = dc->dc_Platform;
 	int i, j;
+/*
+ * First prepare the datachunk for transmission.
+ */
+	dc_Serialize (dc);
 /*
  * Create and send out the data header.
  */
@@ -802,7 +891,7 @@ DataHdr *hdr;
 	ip->ip_Dc = ALLOC (DataChunk);
 	*ip->ip_Dc = hdr->dh_DChunk;
 	ip->ip_Dc->dc_Platform = ip->ip_Plat;
-	memset ((void *)ip->ip_Dc->dc_AuxData,0,sizeof(ip->ip_Dc->dc_AuxData));
+	dc_ClearADE (ip->ip_Dc);
 	ip->ip_Dc->dc_Data = (DataPtr) GetDataArray (ip->ip_Seq,
 					ip->ip_Dc->dc_DataLen);
 /*
@@ -854,10 +943,9 @@ NxAuxData *nxa;
 /*
  * Add this ade and the data by passing the fields from the ade
  */
-	dc_AddADE (ip->ip_Dc, data, ade->dca_ClassId, ade->dca_SubType,
-		   ade->dca_Len, ade->dca_Free);
+	dc_AddADE (ip->ip_Dc, data, dc_ClassP(ade->dca_ClassId), 
+		   ade->dca_SubType, ade->dca_Len, ade->dca_Free);
 }
-
 
 
 
@@ -978,28 +1066,6 @@ int seq;
 		msg_ELog (EF_PROBLEM, "Unknown IP sequence %d", seq);
 # endif
 	return (ip);
-}
-
-
-
-
-
-static inline float *
-GetDataArray (seq, size)
-int seq, size;
-/*
- * Get the data array.
- */
-{
-	size += 50000;	/* Memory bug kludge */
-
-	if (size < 100000 || BDA_IPSeq >= 0 || size > BDASIZE)
-		return ((float *) malloc (size));
-	else
-	{
-		BDA_IPSeq = seq;
-		return ((float *) BigDataArray);
-	}
 }
 
 
@@ -1267,9 +1333,12 @@ int seq;
 	{
 		msg_ELog (EF_INFO, "Too many timeouts on %d (%d missing)",
 			seq, ip->ip_NBExpect - ip->ip_NBCast);
+#ifdef notdef
+		/* trying to store an incomplete chunk is likely to crash us */
 		if (ip->ip_NBCast > 0)
 			FinishIP (ip);
 		else
+#endif
 			ZapIP (ip);
 		return;
 	}
@@ -1332,11 +1401,14 @@ InProgress *ip;
 /*
  * Throw this data into the data store.
  */
+	dc_Localize (ip->ip_Dc);
 	dc_GetTime (ip->ip_Dc, 0, &zt);
 	TC_EncodeTime (&zt, TC_Full, atime);
 	msg_ELog (DbEL, "Store sequence %d ns %d at %s", ip->ip_Seq, 
 		dc_GetNSample (ip->ip_Dc), atime);
-	ds_StoreBlocks (ip->ip_Dc, ip->ip_NewFile, 0, 0);
+	ds_Store (ip->ip_Dc, ip->ip_NewFile, 0, 0);
+	dc_DestroyDC (ip->ip_Dc);
+	ip->ip_Dc = NULL;
 	ZapIP (ip);
 }
 
@@ -1357,7 +1429,18 @@ InProgress *ip;
 		ip->ip_Dc->dc_DataLen = 0;
 		BDA_IPSeq = -1;
 	}
-	dc_DestroyDC (ip->ip_Dc);
+/* 
+ * Check for the remains of a partial datachunk; it must be destroyed
+ * carefully since it has not been localized.
+ */
+	/* dc_DestroyDC (ip->ip_Dc); */
+	if (ip->ip_Dc)
+	{
+		dc_DestroyADE (ip->ip_Dc);
+		FreeDataArray (ip->ip_Seq, ip->ip_Dc->dc_Data);
+		free (ip->ip_Dc);
+		ip->ip_Dc = NULL;
+	}
 	if (ip->ip_Arrived)
 		free (ip->ip_Arrived);
 /*
@@ -1380,37 +1463,3 @@ InProgress *ip;
 }
 
 
-
-
-
-static inline DataBCChunk *
-NewBCChunk ()
-/*
- * Return a free broadcast chunk.
- */
-{
-	DataBCChunk *ret;
-
-	if (BCFree)
-	{
-		ret = BCFree;
-		BCFree = BCFree->dh_Next;
-	}
-	else
-		ret = (DataBCChunk *) malloc (CBYTES + 32);
-	return (ret);
-}
-
-
-
-
-static inline void
-FreeBCChunk (chunk)
-DataBCChunk *chunk;
-/*
- * Free up this chunk.
- */
-{
-	chunk->dh_Next = BCFree;
-	BCFree = chunk;
-}
