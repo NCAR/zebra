@@ -42,7 +42,7 @@
 XCOMM -----------------------------------------------------------------------
 XCOMM Definitions from config.h included here.  The definitions here override
 XCOMM the defaults in Project.tmpl.  See ...../zeb/config/config.h.
-XCOMM $Id: config.h.dist,v 1.20 1994-11-29 22:53:42 granger Exp $
+XCOMM $Id: config.h.dist,v 1.21 1994-11-30 18:02:45 corbet Exp $
 XCOMM -----------------------------------------------------------------------
 # endif
 
@@ -55,6 +55,20 @@ XCOMM -----------------------------------------------------------------------
 
 /*_/////////////////////////////////////////////////////////////////////-*/
 /*=======================================================================*/
+
+/*
+ * Which help browser do you want to use?  If you set UseMosaic to YES, then
+ * Mosaic will be used; otherwise the (old) xhelp browser will be used.
+ * Xhelp is almost certain to be removed from future releases, so the use
+ * of Mosaic is recommended.
+ *
+ * The UseXHelp variable in the display manager can be used to override this
+ * definition at run time.
+ *
+ * Mosaic's distribution conditions do not allow us to distribute the software,
+ * but you can get it in binary or source form from ftp.ncsa.uiuc.edu.
+ */
+# define UseMosaic YES
 
 
 # ifdef MAKING_MAKEFILE
