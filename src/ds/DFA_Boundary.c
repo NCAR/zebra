@@ -36,7 +36,7 @@
 # include "BoundaryFile.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_Boundary.c,v 3.14 1997-02-21 00:01:29 burghart Exp $")
+RCSID ("$Id: DFA_Boundary.c,v 3.15 1997-06-30 21:12:52 ishikawa Exp $")
 
 
 /*
@@ -108,7 +108,8 @@ static DataFormat boundaryFormatRec =
 	___,				/* Get observation samples	*/
 	bf_GetFields,			/* Get fields			*/
 	___,				/* Get Attributes		*/
-	bf_GetTimes			/* Get times			*/
+	bf_GetTimes,			/* Get times			*/
+	___                             /* Get the associated files     */
 };
 
 

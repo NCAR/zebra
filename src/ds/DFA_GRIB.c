@@ -39,7 +39,7 @@
 # include "DataFormat.h"
 # include "GRIB.h"
 
-RCSID ("$Id: DFA_GRIB.c,v 3.30 1997-06-10 23:11:55 burghart Exp $")
+RCSID ("$Id: DFA_GRIB.c,v 3.31 1997-06-30 21:16:49 ishikawa Exp $")
 
 
 /*
@@ -143,7 +143,8 @@ static DataFormat gribFormatRec =
 	grb_GetObsSamples,		/* Get observation samples	*/
 	grb_GetFields,			/* Get fields			*/
 	___,				/* Get Attributes		*/
-	grb_GetTimes			/* Return array of times	*/
+	grb_GetTimes,			/* Return array of times	*/
+	___                             /* Get the associated files     */
 };
 
 DataFormat *gribFormat = (DataFormat *) &gribFormatRec;
@@ -178,7 +179,8 @@ static DataFormat gribSfcFormatRec =
 	grb_GetObsSamples,		/* Get observation samples	*/
 	grb_GetFields,			/* Get fields			*/
 	___,				/* Get Attributes		*/
-	grb_GetTimes			/* Return array of times	*/
+	grb_GetTimes,			/* Return array of times	*/
+	___                             /* Get the associated files     */
 };
 
 DataFormat *gribSfcFormat = (DataFormat *) &gribSfcFormatRec;
