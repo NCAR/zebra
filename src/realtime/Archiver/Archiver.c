@@ -64,7 +64,7 @@
 
 # include "Database.h"
 
-RCSID ("$Id: Archiver.c,v 1.39 1997-10-03 23:49:18 ishikawa Exp $")
+RCSID ("$Id: Archiver.c,v 1.40 1998-05-21 17:31:14 corbet Exp $")
 
 /*
  * Issues:
@@ -129,6 +129,7 @@ RCSID ("$Id: Archiver.c,v 1.39 1997-10-03 23:49:18 ishikawa Exp $")
 # define DEF_DEVICEFILE "/dev/nrst8"
 # define DEF_MOUNTNAME "eod0"
 # define DEF_OUTPUTDIR "/eod0"
+# define DEF_EXCLUDE ""
 # ifdef __STDC__
 # define DEF_TAPELIMIT ((unsigned long) 3500000000ul)
 # define DEF_MINDISK ((unsigned long) 10000ul)
@@ -163,6 +164,13 @@ char listfile[200];
  */
 int	*DumpedFiles = NULL;
 int	NFiles = 0;		/* Number files in DumpedFiles */
+
+/*
+ * Platform exclusion stuff.
+ */
+# define MAX_EXCLUDES 32
+PlatformId ExcludePlats[MAX_EXCLUDES];
+int 	N_Excl = 0;
 
 /*
  * Global timer event slots
@@ -226,6 +234,7 @@ Pixel RedPix, WhitePix; 	/* Colors for the status widget. */
 	String	WaitTimes;	/* Delay button times, "n1,n2,n3,..." */
 	String  Database;	/* Name of the database file */
 	int	BFactor;	/* Blocking factor to calculate blk size */
+	String  ExclPlatNames;	/* Excluded platforms	*/
 
 #define DEF_BFACTOR 120
 
@@ -260,14 +269,17 @@ static XtResource AppResources[] = {
    { "database", "Database", XtRString, sizeof(String),
       0, XtRString, DUMPED_FILES },
    { "blockFactor", "BlockFactor", XtRInt, sizeof(int),
-      0, XtRImmediate, (XtPointer)DEF_BFACTOR }
+      0, XtRImmediate, (XtPointer)DEF_BFACTOR },
+   { "exclude", "Exclude", XtRString, sizeof (String),
+      0, XtRString, DEF_EXCLUDE }
 };
 
 static XtPointer OptionBase[] = {
    (XtPointer) &TapeLimit, (XtPointer) &DriveName, (XtPointer) &OutputDir, 
    (XtPointer) &MountName, (XtPointer) &DumpInterval, (XtPointer) &StartMinute,
    (XtPointer) &MinDisk, (XtPointer) &ModeString, (XtPointer) &ZeroZFree, 
-   (XtPointer) &WaitTimes, (XtPointer) &Database, (XtPointer) &BFactor };
+   (XtPointer) &WaitTimes, (XtPointer) &Database, (XtPointer) &BFactor,
+   (XtPointer) &ExclPlatNames };
 
 /*
  * For loading these resource from the command line:
@@ -287,7 +299,8 @@ static XrmOptionDescRec Options[] = {
    {"-tapelimit",".tapeLimit",	XrmoptionSepArg,	NULL},
    {"-wait",	".waitTimes",	XrmoptionSepArg,	NULL},
    {"-database",".database",	XrmoptionSepArg,	NULL},
-   {"-b",	".blockFactor",	XrmoptionSepArg,	NULL}
+   {"-b",	".blockFactor",	XrmoptionSepArg,	NULL},
+   {"-exclude",	".exclude",	XrmoptionSepArg,	NULL}
 };
 
 /*---------------------------------------------------------------------*/
@@ -342,6 +355,8 @@ static int	WriteFileDate FP ((char *, int, SValue *, FILE *));
 static int	TellDaemon FP ((char *, int, SValue *, int));
 /* static void	UpdateMem FP ((void)); */
 static void	FinishFinishing FP((int error));
+static void	SetupExcludes ();
+static int	Excluded (PlatformId pid);
 
 /*---------------------------------------------------------------------*/
 
@@ -486,7 +501,56 @@ char **argv;
 			  "tapelimit: %lu", DriveName, BFactor,
 			  (BFactor*512), TapeLimit);
 	}
+	if (ExclPlatNames[0])
+	{
+		msg_ELog (EF_INFO, "Excluding %s", ExclPlatNames);
+		SetupExcludes ();
+	}
 }
+
+
+
+static void
+SetupExcludes ()
+/*
+ * Deal with excluded platforms.
+ */
+{
+	char *ourexcl = strdup (ExclPlatNames), *pnames[MAX_EXCLUDES];
+	int npname = CommaParse (ourexcl, pnames), i;
+
+	for (i = 0; i < npname; i++)
+	{
+		PlatformId pid = ds_LookupPlatform (pnames[i]);
+		if (pid == BadPlatform)
+		{
+			msg_ELog (EF_PROBLEM, "Bad exclude platform: %s",
+					pnames[i]);
+			continue;
+		}
+		ExcludePlats[N_Excl++] = pid;
+	}
+	free (ourexcl);
+}
+
+
+
+
+static int
+Excluded (PlatformId pid)
+/*
+ * Return TRUE iff this platform should not be archived.
+ */
+{
+	int i;
+	for (i = 0; i < N_Excl; i++)
+		if (pid == ExcludePlats[i])
+			return (TRUE);
+	return (FALSE);
+}
+
+
+
 
 
 /*
@@ -1233,10 +1297,17 @@ int all;
 	/*
 	 * Pass through the platform table and dump things.  Keep adding
 	 * files until DumpPlatform indicates it's time to stop.
+	 *
+	 * There is a big of bogosity here in that this loop expects that
+	 * PlatformId's are sequential integers starting at zero.  Of
+	 * course, PlatformId's are currently sequential integers starting
+	 * at zero, but that could change.
 	 */
 	SetStatus (FALSE, "Scanning platforms");
 	for (plat = 0; plat < nplat; plat++)
 	{
+		if (Excluded (plat))
+			continue;
 		ds_GetPlatInfo (plat, &pi);
 		if (! pi.pl_SubPlatform)
 		{
