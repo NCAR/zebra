@@ -36,7 +36,7 @@
 /**/# -----------------------------------------------------------------------
 /**/# Definitions from config.h included here.  The definitions here override
 /**/# the defaults in Project.tmpl.  See ...../zeb/config/config.h.
-/**/# $Id: config.h-v4.0,v 1.4 1993-03-31 22:26:56 granger Exp $
+/**/# $Id: config.h-v4.0,v 1.5 1993-05-26 22:00:35 corbet Exp $
 /**/# -----------------------------------------------------------------------
 # endif
 
@@ -80,24 +80,24 @@
  */
 # ifdef MAKING_MAKEFILE	 	/* use unquoted definitions for Makefiles */
 
-# define BaseDir	/zeb
+# define BaseDir	/rdss/jc/zeb
 # define LibDir		BaseDir/lib
 # define EtcDir		BaseDir/etc	/* Shouldn't really be used for much */
 # define BinDir		BaseDir/bin
-# define DataDir	/zeb/data
+# define DataDir	/rdss/jc/zeb/data
 # define RDSSDir	/rdss
 # define RDSSIncDir	RDSSDir/include
 
 # else 		/* use the quoted versions for inclusion in source files */
 
-# define BASEDIR	"/zeb"
+# define BASEDIR	"/rdss/jc/zeb"
 # define ZEBDIR		BASEDIR
 # define FCCDIR		BASEDIR
 # define RDSSDIR	"/rdss"
-# define LIBDIR		"/zeb/lib"
-# define ETCDIR		"/zeb/etc"
-# define BINDIR		"/zeb/bin"
-# define DATADIR	"/zeb/data"
+# define LIBDIR		"/rdss/jc/zeb/lib"
+# define ETCDIR		"/rdss/jc/zeb/etc"
+# define BINDIR		"/rdss/jc/zeb/bin"
+# define DATADIR	"/rdss/jc/zeb/data"
 
 # endif /* MAKING_MAKEFILE */
 /*=======================================================================*/
@@ -364,7 +364,7 @@
  * next section for more details and more of the available 'Library' symbols.
  */
 
-/* # define XLibDir /local/X11R5/lib */
+# define XLibDir /local/X11R5/lib
 
 /*
  * If you need to define the actual command-line option for specifying
