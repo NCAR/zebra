@@ -1,5 +1,5 @@
 /* 1/88 jc */
-static char *rcsid = "$Id: bfile.c,v 1.10 1993-12-28 20:49:46 case Exp $";
+static char *rcsid = "$Id: bfile.c,v 1.11 1998-01-15 20:03:38 burghart Exp $";
 /*
  * System-dependant binary file stuff.  These routines are needed because
  * the VMS-specific variable-length-record-format file does not exist in
@@ -159,7 +159,7 @@ char *buf;
  */
 	assert (sizeof (unsigned int) == 4);
 
-	Offset = tell (fd);
+	Offset = lseek (fd, 0, SEEK_CUR);
 	if (read (fd, &rlen, 4) < 4)
 		return (-1);
 /*
@@ -181,7 +181,7 @@ char *buf;
 	 * Skip the rest of the record, including the 4 byte record length
 	 * at the end of the record
 	 */
-		lseek (fd, (long) rlen - len + 4, 1);
+		lseek (fd, (long) rlen - len + 4, SEEK_CUR);
 		return (len);
 	}
 /*
@@ -220,7 +220,7 @@ char *buf;
  */
 	assert (sizeof (unsigned int) == 4);
 
-	Offset = tell (fd);
+	Offset = lseek (fd, 0, SEEK_CUR);
 	write (fd, &rlen, 4);
 	if (rlen > 0)
 		write (fd, buf, len);
@@ -287,7 +287,7 @@ short rfa[3];
 	else
 		fd = lun_lookup (r);
 #   endif
-	if (lseek (fd, *(long *) rfa, 0) == -1)
+	if (lseek (fd, *(long *) rfa, SEEK_SET) == -1)
 		printf ("\nImproper seek\n");
 # endif
 }
