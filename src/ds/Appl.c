@@ -29,7 +29,7 @@
 #include "dslib.h"
 #include "Appl.h"
 
-RCSID ("$Id: Appl.c,v 3.41 1995-07-06 10:21:15 granger Exp $")
+RCSID ("$Id: Appl.c,v 3.42 1996-08-13 21:20:31 granger Exp $")
 
 /*
  * Platform search lists
@@ -437,10 +437,10 @@ PlatformId id;
 int
 ds_FindDF (pid, when, src)
 PlatformId pid;
-ZebTime *when;
+const ZebTime *when;
 int src;
 /*
- * Find the first datafile entry before this time.
+ * Find the first datafile entry before this time.  DS private routine.
  */
 {
 	struct dsp_FindDF req;
@@ -461,11 +461,26 @@ int src;
 
 
 int
+ds_FindBefore (pid, when)
+PlatformId pid;
+const ZebTime *when;
+/*
+ * Find the first datafile entry before this time, for all sources.
+ */
+{
+	return (ds_FindDF (pid, when, SRC_ALL));
+}
+
+
+
+
+int
 ds_FindAfter (pid, when)
 PlatformId pid;
-ZebTime *when;
+const ZebTime *when;
 /*
- * Find the first datafile entry containing data after this time.
+ * Find the first datafile entry containing data after this time, for
+ * all sources.
  */
 {
 	struct dsp_FindDF req;
@@ -481,7 +496,6 @@ ZebTime *when;
 	msg_Search (MT_DATASTORE, ds_AwaitDF, &index);
 	return (index);
 }
-
 
 
 

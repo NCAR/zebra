@@ -1,5 +1,5 @@
 /*
- * "$Id: dslib.h,v 3.12 1995-10-31 02:13:18 granger Exp $"
+ * "$Id: dslib.h,v 3.13 1996-08-13 21:20:39 granger Exp $"
  * Internal info for the data store application interface library.
  */
 
@@ -61,6 +61,6 @@ void 	dgl_ForceClosure FP ((void));
 int	ds_GetDetail FP ((char *, dsDetail *, int, SValue *));
 void	ds_GetFileStruct FP ((int, DataFile *));
 void	ds_GetPlatStruct FP ((PlatformId, ClientPlatform *, int));
-int	ds_FindDF FP ((PlatformId, ZebTime *, int));
+int	ds_FindDF FP ((PlatformId, const ZebTime *, int));
 
 #endif /* __zeb_dslib_h_ */

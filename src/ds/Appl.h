@@ -3,7 +3,7 @@
  * Appl.c and DFA_Appl.c
  */
 
-/* $Id: Appl.h,v 3.1 1995-07-06 10:21:19 granger Exp $ */
+/* $Id: Appl.h,v 3.2 1996-08-13 21:20:34 granger Exp $ */
 
 /*		Copyright (C) 1987-1995 by UCAR
  *	University Corporation for Atmospheric Research
@@ -35,7 +35,6 @@ extern int MaxFuture;
  * Shared functions, but not for public consumption.
  */
 void	ds_SendToDaemon FP ((void *, int));
-int	ds_FindAfter FP ((PlatformId, ZebTime *));
 void	ds_ZapCache FP ((DataFile *));
 void	ds_WriteLock FP ((PlatformId));
 void	ds_FreeWLock FP ((PlatformId));

@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.33 1995-07-06 05:09:57 granger Exp $
+ * $Id: DataStore.h,v 3.34 1996-08-13 21:20:36 granger Exp $
  *
  * Public data store definitions.
  */
@@ -748,6 +748,8 @@ void		ds_RequestNotify FP ((PlatformId, int, void (*)()));
 void		ds_CancelNotify FP ((void));
 void		ds_MarkArchived FP ((int dfi));
 void		ds_SnarfCopies FP ((void (*handler)()));
+int		ds_FindBefore FP ((PlatformId pid, const ZebTime *when));
+int		ds_FindAfter FP ((PlatformId pid, const ZebTime *when));
 int		ds_DataTimes FP ((PlatformId, ZebTime *, int, TimeSpec,
 			ZebTime *));
 int		ds_GetObsSamples FP ((PlatformId, ZebTime *, ZebTime *,
