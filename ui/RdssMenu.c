@@ -1,4 +1,4 @@
-/* $Id: RdssMenu.c,v 1.8 1993-04-12 18:38:51 granger Exp $ */
+/* $Id: RdssMenu.c,v 1.9 1994-09-01 10:49:52 granger Exp $ */
 /*
  * Hacked up version of SimpleMenu to provide some useful stuff -- in
  * particular, better cascading menus.
@@ -132,6 +132,7 @@ static XtResource resources[] = {
  * may also want to change the method used by SmeMenu in its Unhighlight
  * method so that submenus are consistent.
  */
+#ifdef notdef
 #ifndef USE_UNMAP
 static char defaultTranslations[] =
     "<EnterWindow>:     highlight()             \n\
@@ -146,6 +147,25 @@ static char defaultTranslations[] =
      <BtnMotion>:       highlight()             \n\
      <BtnUp>:           unmap() notify() unhighlight() MenuPopdown()";
 #endif
+#endif
+/*
+ * Forget that stuff above and use these translations instead.  We don't
+ * need to highlight on Enter events, and in fact not highlighting on enter
+ * events prevents submenus from automatically popping up when menu entries
+ * pop up underneath the pointer.
+ */
+static char defaultTranslations[] =
+    "<LeaveWindow>:     unhighlight()           \n\
+     <BtnMotion>:       highlight()             \n\
+     <BtnUp>:           disable-highlight() notify() \
+                        unhighlight() MenuPopdown()";
+
+/*
+ * This is the amount to shift the menu position by so that the pointer
+ * appears inside the left edge of the menu entries.  Use something 
+ * greater than 5 for best results.
+ */
+#define POINTER_X_INDENT 10
 
 /*
  * Semi Public function definitions. 
@@ -799,10 +819,7 @@ Cardinal * num_params;
 	MoveMenu(menu, x, y, &dx, &dy);
 
 	/*
-	 * Now that we've set the position, pop it up so that we can
-	 * warp the pointer into the new popup.  We must assume that the popup
-	 * has not been moved far enough left to cause a submenu to
-	 * immediately popup when the pointer appears in its entry.
+	 * Now that we've set the position, pop it up.
 	 */
 	if (event->type == ButtonPress)
 		spring_loaded = True;
@@ -811,7 +828,8 @@ Cardinal * num_params;
 	else 
 	{
 		XtAppWarningMsg(XtWidgetToApplicationContext(w),
-				"invalidPopup","unsupportedOperation","RdssMenu",
+				"invalidPopup","unsupportedOperation",
+				"RdssMenu",
 "Pop-up menu creation is only supported on ButtonPress, KeyPress or EnterNotify events.",
 				(String *)NULL, (Cardinal *)NULL);
 		spring_loaded = False;
@@ -822,17 +840,21 @@ Cardinal * num_params;
 	else 
 		XtPopup(menu, XtGrabNonexclusive);
 	
+#ifdef notdef
 	/*
-	 * We also warp the pointer by the amount we had to move the
-	 * widget, so that the pointer stays in the place the caller
-	 * expected it (i.e. the top left of the menu or a particular entry)
+	 * We also warp the pointer horizontally by the amount we had to
+	 * move the widget, so that the pointer does not end up in the middle
+	 * of a menu entry causing an automatic pop-up of a submenu and so on
+	 * ad infinitum.  We do not need to warp vertically since it is ok
+	 * for the pointer to end up on the left side of any of the entries.
 	 */
-	if (dx || dy)
+	if (dx)
 	{
 		XWarpPointer (XtDisplay(menu), 
 			      RootWindowOfScreen(XtScreen(menu)), 
-			      None, 0, 0, 0, 0, dx, dy);
+			      None, 0, 0, 0, 0, dx, /*dy*/ 0);
 	}
+#endif
 	
 	/*
 	 * And we're done.
@@ -906,12 +928,12 @@ Cardinal * num_params;
     else
     {
 	IFD(ui_printf("	ignoring LeaveWindow event in SmeMenuObject %s\n",
-			XtName(entry));)
+			XtName((Widget)entry));)
     }
 
     IFD(ui_printf("	entry_set is now %s\n",
 		(smw->rdss_menu.entry_set)?
-		XtName(smw->rdss_menu.entry_set):("NULL"));)
+		XtName((Widget)smw->rdss_menu.entry_set):("NULL"));)
     EXIT("Unhighlight()",w)
 }
 
@@ -951,9 +973,9 @@ Cardinal * num_params;
 
     entry = GetEventEntry(w, event);
     IFD(ui_printf("	event entry is %s;   entry_set is %s\n",
-		(entry)?XtName(entry):"NULL",
+		(entry)?XtName((Widget)entry):"NULL",
 		(smw->rdss_menu.entry_set)?
-		XtName(smw->rdss_menu.entry_set):"NULL");)
+		XtName((Widget)smw->rdss_menu.entry_set):"NULL");)
     /*
      * Ignore highlight actions when the event entry is NULL, or
      * when the event entry is the current entry_set and entry
@@ -1194,11 +1216,13 @@ RdssMenuPositionAndPopup(w, locn, grab)
     MoveMenu(w, x, y, &dx, &dy);
     XtPopup(w, grab);
 
-    if (dx || dy)
+#ifdef notdef
+    if (dx)
     {
 	XWarpPointer (XtDisplay(w), RootWindowOfScreen(XtScreen(w)), 
-		      None, 0, 0, 0, 0, dx, dy);
+		      None, 0, 0, 0, 0, dx, /*dy*/ 0);
     }
+#endif
 } 
 
 
@@ -1427,16 +1451,19 @@ Position *y;
     }
     
     /*
-     * The width will not be correct unless it is realized.
+     * The width will not be correct unless it is realized, but we don't
+     * want to map it yet (i.e. we don't want it to receive any events).
      */
+    XtSetMappedWhenManaged (w, False);
     XtRealizeWidget(w);
     
     /*
      * Given x,y for optimal origin of popup menu widget, adjust so
-     * that cursor will be on the default
-     * entry, the label, or the first entry.
+     * that cursor will be on the default entry, the label, or the first 
+     * entry.  Try to position the menu so that the pointer is always a 
+     * fixed amount inside the left edge of the menu.
      */
-    location->x -= (Position) 10;  /* Fixed for consistency */
+    location->x -= (Position) POINTER_X_INDENT;
     
     if (smw->rdss_menu.popup_entry == NULL)
     {
@@ -1468,6 +1495,14 @@ Position *y;
  *                 x, y - the current location of the widget.
  *		   dx, dy - returns amount moved if non-NULL
  *	Returns: dx, dy 
+ *
+ * We have two objectives here.  The first is to make sure the menu appears
+ * on the screen, either at the desired location or close to it.
+ * The second is to make sure the menu does not pop up with the pointer
+ * on top of another entry in a position to immediately popup another
+ * submenu.  If we can't show the menu to the right, move it to the other
+ * side of the pointer.  NOTE that we are assuming the pointer is pretty
+ * close, if not exactly at, (x,y).
  */
 static void
 MoveMenu(w, x, y, rdx, rdy)
@@ -1485,10 +1520,20 @@ Position *rdx, *rdy;
 	int width = w->core.width + 2 * w->core.border_width;
 	int height = w->core.height + 2 * w->core.border_width;
 	
-	if (x >= 0) {
+	if (x >= 0)
+	{
+	/*
+	 * Move the menu to the other side just enough past the
+	 * pointer to keep the pointer from activating anything,
+	 * but don't move it so far that the pointer has to leave
+	 * the menu popup region of the current entry to
+	 * enter the submenu.  Since the menu was originally positioned
+	 * with some indent space for the pointer, add half of the
+	 * indent space to the left shift.
+	 */
 	    int scr_width = WidthOfScreen(XtScreen(w));
 	    if (x + width > scr_width)
-		dx = (scr_width - width) - x;
+		    dx = 0 - width + (POINTER_X_INDENT / 2);
 	}
 	if (x < 0) 
 	    dx = 0 - x;
@@ -1708,7 +1753,7 @@ XEvent * event;
 	    {
 		IFD(ui_printf(
 		   "GetEventEntry('%s',x=%i,y=%i) in entry, returning '%s'\n",
-		   XtName(w), x_loc, y_loc, XtName(*entry));)
+		   XtName(w), x_loc, y_loc, XtName((Widget)*entry));)
 		return(*entry);
             }
     }
