@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-/* $Id: radar_ingest.h,v 2.10 1995-09-20 20:45:48 burghart Exp $ */
+/* $Id: radar_ingest.h,v 2.11 1996-03-15 22:25:57 burghart Exp $ */
 
 
 /*
@@ -189,3 +189,4 @@ Beam GetEtherBeam FP ((Beam));
 # define RIC_ENDCAL	12
 # define RIC_BEAMBUF	13
 # define RIC_DUMPRHI	14
+# define RIC_TAPE	15
