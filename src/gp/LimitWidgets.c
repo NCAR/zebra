@@ -1,7 +1,7 @@
 /*
  * Widgets for changing plot limits.
  */
-static char *rcsid = "$Id: LimitWidgets.c,v 2.9 1992-07-07 23:59:01 kris Exp $";
+static char *rcsid = "$Id: LimitWidgets.c,v 2.10 1992-07-22 16:20:59 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -1428,6 +1428,7 @@ struct ui_command	*cmds;
  */
 {
 	char	platforms[40*MAXSTA], *pnames[MAXSTA];
+	char	number[40];
 	int	i, sta, nump;
 	Arg	args[2];
 /*
@@ -1453,11 +1454,22 @@ struct ui_command	*cmds;
 			SwNManaged--;
 		}
 /*
+ * Unset all the buttons.
+ */
+	for (i = 0; i < Sw_Nsta; i++)
+	{
+		XtSetArg (args[0], XtNstate, False);
+		XtSetValues (Sw_Swidgets[i], args, 1);
+		Sw_Sset[i] = FALSE;
+	}
+
+/*
  * Save the other platforms.
  */
 	pd_Retrieve (Pd, wq->wq_comp, "platform", platforms, SYMT_STRING);
 	nump = CommaParse (platforms, pnames);
 	SavePlat[0] = '\0';
+	Sw_RetSta[0] = '\0';
 	for (i = 0; i < nump; i++)
 	{
 		msg_ELog (EF_DEBUG, "compare %s", pnames[i]);
@@ -1469,10 +1481,13 @@ struct ui_command	*cmds;
 		}
 		else
 		{
-			pnames[i] += strlen (wq->wq_param[0]) + 1;
-			sta = atoi (pnames[i]) - 1;
+			strcpy (number, pnames[i] + strlen (wq->wq_param[0])+1);
+			sta = atoi (number) - 1;
+			msg_ELog (EF_DEBUG, "found %s %d", pnames[i], sta);
 			XtSetArg (args[0], XtNstate, True);
 			XtSetValues (Sw_Swidgets[sta], args, 1);
+			strcat (Sw_RetSta, pnames[i]);
+			strcat (Sw_RetSta, ",");
 			Sw_Sset[sta] = TRUE;
 		}
 	}
