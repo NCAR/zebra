@@ -1,7 +1,7 @@
 /*
  * Track drawing routines.
  */
-static char *rcsid = "$Id: Track.c,v 1.12 1991-02-12 21:17:08 corbet Exp $";
+static char *rcsid = "$Id: Track.c,v 1.13 1991-03-08 00:59:34 corbet Exp $";
 
 
 # include <X11/Intrinsic.h>
@@ -301,7 +301,7 @@ bool update;
 		wheight = GWHeight (Graphics);
 		
 		left += 10;
-		top += 2;
+		top += 10;
 		mid = (left + right)/2;
 	/*
 	 * Some text.
@@ -345,21 +345,21 @@ bool update;
 	/*
 	 * Annotate arrows if necessary on side
 	 */
+		yannot = top + 0.04 * wheight;
 		if(arrow)
 		{
 			XSetForeground (disp, Gcontext, taclr.pixel);
 			top += 2;
-			xannot = (left + right)/2;
-			yannot = top + 0.04 * wheight;
+			xannot = (left + right)/2 - 5;
 			DrawText(Graphics, GWFrame(Graphics), Gcontext,
 				xannot, yannot, "10 m/sec", 0.0, sascale,
 				JustifyCenter, JustifyBottom); 
-			xannot = left;
+			xannot = left - 10;
 			yannot += 0.022 * wheight;
 			tr_DrawVector(xannot, yannot + 4, 10.0, 0.0, unitlen,
 				disp, d, Gcontext);
 		}
-	
+		An_SAUsed (yannot + 10);
 	}
 }
 

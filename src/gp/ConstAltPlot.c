@@ -1,7 +1,7 @@
 /*
  * Herein lies all the Constant Altitude Plot code, carved from PlotExec.
  */
-static char *rcsid = "$Id: ConstAltPlot.c,v 1.2 1991-02-12 21:16:03 corbet Exp $";
+static char *rcsid = "$Id: ConstAltPlot.c,v 1.3 1991-03-08 00:59:27 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include <ui.h>
@@ -160,6 +160,7 @@ Boolean	update;
 				left + 15, (int)(top + i * bar_height), string,
 				 0.0, Sascale, JustifyLeft, JustifyCenter);
 		}
+		An_SAUsed ((int) (Ncolors*bar_height + top + 8));
 	}
 }
 
@@ -191,8 +192,8 @@ Boolean	update;
 /*
  * Top annotation
  */
-	if (pda_Search (Pd, c, "ta-color-match", NULL, &tacmatch, SYMT_BOOL) &&
-			tacmatch && Monocolor)
+	if (pda_Search (Pd, c, "ta-color-match", NULL,
+			(char *) &tacmatch, SYMT_BOOL) && tacmatch && Monocolor)
 		An_TopAnnot (px_FldDesc (c, fname), Ctclr.pixel);
 	else 
 		An_TopAnnot (px_FldDesc (c, fname), Tadefclr.pixel);
@@ -488,8 +489,8 @@ Boolean	update;
  * Top annotation
  */
 	sprintf (annot, " plot (%s).  ", platform);
-	if (pda_Search (Pd, c, "ta-color-match", NULL, &tacmatch, SYMT_BOOL) &&
-			tacmatch)
+	if (pda_Search (Pd, c, "ta-color-match", NULL, (char *) &tacmatch,
+			SYMT_BOOL) && tacmatch)
 		An_TopAnnot ("Vector winds", color.pixel);
 	else
 		An_TopAnnot ("Vector winds", Tadefclr.pixel);
@@ -515,6 +516,7 @@ Boolean	update;
 	else
 		VG_AnnotVector (xannot, yannot + 4, 10.0, 0.0, Tadefclr.pixel);
 	lw_TimeStatus (c, &t);
+	An_SAUsed (yannot + 15);
 }
 
 
@@ -671,4 +673,5 @@ Boolean	update;
 			(int)(top + frac * (bottom - top)),string,0.0,Sascale, 
 			JustifyLeft, JustifyCenter);
 	}
+	An_SAUsed ((int) (Ncolors*bar_height + top + 1));
 }
