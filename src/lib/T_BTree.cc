@@ -34,8 +34,8 @@ typedef BTreeFile<string,string> StringTree;
 //typedef string test_key;
 typedef ZTime test_key;
 
-typedef BTreeFile<test_key,test_key> test_tree;
-//typedef BTree<test_key,test_key> test_tree;
+//typedef BTreeFile<test_key,test_key> test_tree;
+typedef BTree<test_key,test_key> test_tree;
 
 static int Debug = 0;
 
@@ -54,11 +54,18 @@ int __getfpucw ()
 template <class T>
 Summarize (ostream &out, T &t)
 {
-	out << "Depth: " << t.Depth() << "; ";
+	int m = t.Order();
+	out << " --- Depth: " << t.Depth() << "; Order: " << m << "; ";
 	typename T::Stats cs;
 	t.currentStats (cs);
-	cs.dump (out) << endl;
+	cs.dump (out);
+	out << endl;
+	int minnodes = ((t.numKeys() - 1) / (m - 1)) + 1;
+	int pctnodes = (int)(100.0*(float)minnodes/(float)cs.nNodes);
+	out << " --- Min Nodes: " << minnodes << "; % nodes: " << pctnodes;
+	out << endl;
 
+#ifdef notdef
 	BTreeStats s;
 	t.collectStats (s);
 
@@ -68,7 +75,6 @@ Summarize (ostream &out, T &t)
 	out << " Avg keys per node: " << s.averageKeys() << endl;
 	out << " Max keys per node: " << s.maxKeys() << endl;
 	out << " Min keys per node: " << s.minKeys() << endl;
-#ifdef notdef
 	out << "   Total key slots: " << s.totalSlots() << endl;
 	out << "  Key slots unused: " << s.keysUnused() << endl;
 	out << " Elem slots unused: " 
@@ -134,9 +140,9 @@ int main (int argc, char *argv[])
 	for (int o = 3; (o == 3) || (o < N / 10); o *= 3)
 	{
 		BlockFile bf("btree.bf");
-		test_tree tree(0, bf, o);
-		//test_tree tree(o);
-		cout << "BTreeFile address: " << tree.Address() << endl;
+		//test_tree tree(0, bf, o);
+		test_tree tree(o);
+		//cout << "BTreeFile address: " << tree.Address() << endl;
 		tree.Erase ();	// Start fresh
 		
 		cout << "Testing tree of order " << tree.Order() 
