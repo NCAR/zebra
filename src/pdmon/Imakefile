@@ -1,0 +1,20 @@
+
+SRCS = pdmon.c
+OBJS = pdmon.o
+
+LIBS = $(LIBZEB) $(LIBRDSS)
+
+
+NormalProgramTarget(pdmon, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+BuildIncludes (pdmon.h,.,.)
+
+/*
+ * Specialty stuff for the elisp file.
+ */
+all::	pd-utils.elc
+
+pd-utils.elc:	pd-utils.el bcomp.el
+	emacs -batch -l bcomp.el
+
+install::
+	install -m 0444 pd-utils.elc LibDir
