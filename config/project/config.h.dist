@@ -49,7 +49,7 @@
 XCOMM -----------------------------------------------------------------------
 XCOMM Definitions from config.h included here.  The definitions here override
 XCOMM the defaults in Project.tmpl.  See ...../zebra/config/project/config.h.
-XCOMM $Id: config.h.dist,v 1.40 1996-05-01 20:29:27 granger Exp $
+XCOMM $Id: config.h.dist,v 1.41 1996-11-19 07:05:10 granger Exp $
 XCOMM -----------------------------------------------------------------------
 # endif
 
@@ -770,19 +770,7 @@ XCOMM -----------------------------------------------------------------------
  *------------------------------------------------------------------------*/
 #ifdef ARM_PROJECT
 
-#define CFG_DC_MAXFIELD 150	/* Maximum allowable fields in one datachunk */
-#define CFG_DC_MF_HASH_SIZE 256	/* Least power of 2 > (not =) CFG_DC_MAXFIELD*/
-
-#define CFG_DATAFILE_LEN	50
 #define CFG_PLATNAME_LEN	100
-
-/*
- * Set fields table limits to accept longer ARM names and descriptions
- */
-# define CFG_FIELD_MAX_ID	512
-# define CFG_FIELD_NAME_LEN	40
-# define CFG_FIELD_LONG_LEN	256
-# define CFG_FIELD_UNITS_LEN	40
 
 /*
  * If defined, DC field attributes will override the fields table when 
@@ -868,7 +856,7 @@ XCOMM -----------------------------------------------------------------------
 #define CFG_FILENAME_LEN 32	/* Len of general file names (not full paths)*/
 #endif
 #ifndef CFG_DATAFILE_LEN
-#define CFG_DATAFILE_LEN 40	/* Len of data file names (not full paths)   */
+#define CFG_DATAFILE_LEN 50	/* Len of data file names (not full paths)   */
 #endif
 #ifndef CFG_FILEPATH_LEN
 #define CFG_FILEPATH_LEN 256	/* Len of full path filenames		     */
@@ -886,10 +874,10 @@ XCOMM -----------------------------------------------------------------------
 #define CFG_FIELD_NAME_LEN 40	/* Length of field names		     */
 #endif
 #ifndef CFG_FIELD_LONG_LEN
-#define CFG_FIELD_LONG_LEN 80	/* Length of field description (long name)   */
+#define CFG_FIELD_LONG_LEN 256	/* Length of field description (long name)   */
 #endif
 #ifndef CFG_FIELD_UNITS_LEN
-#define CFG_FIELD_UNITS_LEN 20	/* Length of field units string		     */
+#define CFG_FIELD_UNITS_LEN 40	/* Length of field units string		     */
 #endif
 #ifndef CFG_SEARCHPATH_LEN
 #define CFG_SEARCHPATH_LEN 512	/* Length of exec search paths and such	     */
@@ -903,7 +891,7 @@ XCOMM -----------------------------------------------------------------------
 #endif
 
 /*
- * Maximum number of top level platforms (doesn't include subplatforms)
+ * Maximum number of platforms (including subplatforms)
  */
 #ifndef CFG_MAX_PLATFORMS
 #define CFG_MAX_PLATFORMS 2048
@@ -913,17 +901,17 @@ XCOMM -----------------------------------------------------------------------
  * DataChunk symbols
  */
 #ifndef CFG_DC_MAXFIELD
-#define CFG_DC_MAXFIELD	100	/* Maximum allowable fields in one datachunk */
+#define CFG_DC_MAXFIELD	255	/* Maximum allowable fields in one datachunk */
 #endif
 #ifndef CFG_DC_MF_HASH_SIZE
-#define CFG_DC_MF_HASH_SIZE 128	/* Least power of 2 > (not =) CFG_DC_MAXFIELD*/
+#define CFG_DC_MF_HASH_SIZE 256	/* Least power of 2 > (not =) CFG_DC_MAXFIELD*/
 #endif
 #ifndef CFG_DC_MAXDIMN
 #define CFG_DC_MAXDIMN	30	/* Max number of dimensions for NSpace chunk,*/
                                 /* should be less than netCDF limit	     */
 #endif
 #ifndef CFG_DC_DEFAULT_BADVAL
-#define CFG_DC_DEFAULT_BADVAL -99999.9	/* Default bad value 		     */
+#define CFG_DC_DEFAULT_BADVAL -99999	/* Default floating poing bad value  */
 #endif
 
 /*
