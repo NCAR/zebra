@@ -190,6 +190,7 @@ double	ccenter, cstep;
 /*
  * Sanity test
  */
+# ifdef NOTSOSANE
 	if ((cndx_max - cndx_min + 1) > CFG_GP_MAX_CONTOURS)
 	{
 		msg_ELog (EF_PROBLEM, 
@@ -198,6 +199,7 @@ double	ccenter, cstep;
 			  CFG_GP_MAX_CONTOURS);
 		return;
 	}
+# endif
 /*
  * Loop through the contours
  */

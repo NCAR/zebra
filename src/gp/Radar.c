@@ -19,7 +19,7 @@
 #include "PixelCoord.h"
 #include "GC.h"
 
-RCSID ("$Id: Radar.c,v 2.5 1997-10-16 19:50:11 burghart Exp $")
+RCSID ("$Id: Radar.c,v 2.6 1998-06-03 17:22:19 corbet Exp $")
 
 
 static char *ScanNames[5] = 
@@ -690,8 +690,16 @@ R_ScanMode *scan;
 /*
  * Find the most recent, possibly qualified, scan.  We need to look
  * through more than one, even though we only need one. 
+ *
+ * 5/98 jc: Sure, I'm slow, but I don't see exactly *why* we need to
+ *	    look at more than one, and it sure does slow things down.
+ *	    Let's try without.
  */
+# ifdef WeNeededLotsAfterAll
 	ntime = ds_AttrTimes (pid, &PlotTime, MAXALT, DsBefore, NULL, 
+			      r_ScanModeAtt(attr), times);
+# endif
+	ntime = ds_AttrTimes (pid, &PlotTime, 1, DsBefore, NULL, 
 			      r_ScanModeAtt(attr), times);
 	if (ntime < 1)
 		msg_ELog (EF_DEBUG, "r_latest: no '%s' scan found", 

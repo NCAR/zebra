@@ -24,6 +24,7 @@
 
 # include <math.h>
 # include <ctype.h>
+# include <stdlib.h>
 # include <X11/Intrinsic.h>
 
 # define TIMING
@@ -55,7 +56,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.73 1998-05-04 19:51:31 corbet Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.74 1998-06-03 17:22:14 corbet Exp $")
 
 
 /*
@@ -126,7 +127,7 @@ static int	CAP_PolarParams FP ((char *c, char *plat, PlatformId *pid,
 				FieldId *fids, int *nfids, float *tvalue,
 				int *ttest, float *center, float *step,
 				int *nstep, char *ctable, XColor *outrange,
-				int *project, int *tfill));
+				int *project, int *tfill, int *legend));
 # endif
 void		CAP_LineContour FP ((char *, int));
 static void	CAP_Contour FP ((char *, contour_type, char **, char **, 
@@ -137,6 +138,7 @@ static DataChunk *CAP_ImageGrid FP ((char *, ZebTime *, PlatformId, FieldId,
 static int	CAP_AutoScale FP ((char *c, char *qual, char *platform,
 				   char *fname, float *center, float *step));
 void		CAP_RasterSideAnnot FP ((char *, char *, int, int, int));
+static void	CAP_LegendAnnot FP ((char *, char *, int, int, int));
 void		CAP_StaPltSideAnnot FP ((char *, char *, int, int, int));
 static bool	CAP_VecParams FP ((char *c, char *platform, float *vscale,
 		   char *cname, int *linewidth, float *unitlen, 
@@ -240,9 +242,9 @@ bool	update;
  * Filled contour CAP plot for the given component
  */
 {
-	float	center, step;
-	char	*plat, *fname, *ctable, string[100];
-	int shift;
+	float	center, step, scale;
+	char	*plat, *fname, *ctable, string[100], style[40];
+	int shift, lim, lheight, space;
 /*
  * Use the common CAP contouring routine to do a filled contour plot
  */
@@ -263,17 +265,33 @@ bool	update;
 
 	An_TopAnnot (string, Tadefclr.pixel);
 /*
- * Side annotation (color bar)
- * (We have to subtract half a step from the center value that goes to 
- * An_ColorBar to make it label things correctly based on the plot that
- * comes out of CAP_Contour)
+ * If there's no side annotation we can go have a beer now.
  */
-	if (Sashow)
-	{
-		sprintf (string, "%s %s %f %f", fname, ctable, center, step); 
+	if (! Sashow)
+		return;
+/*
+ * Sigh, no beer for the weary.  Figure out how much space we really need,
+ * and format up a string for the annot proc.
+ */
+	An_GetSideParams (c, &scale, &lim);
+	lheight = DT_ApproxHeight (Graphics, scale, 1);
+	space = (Ncolors + 1)*lheight;
+	sprintf (string, "%s %s %f %f %d", fname, ctable, center, step,
+				Ncolors);
+/*
+ * Now we see if we're really doing a legend, then head out to the
+ * right place.
+ */
+	if (pda_Search (Pd, c, "side-annot-style", fname, style, SYMT_STRING)
+			&& ! strcmp (style, "legend"))
+		An_AddAnnotProc (CAP_LegendAnnot, c, string, strlen (string),
+				space, FALSE, FALSE);
+	else
 		An_AddAnnotProc (An_ColorBar, c, string, strlen (string),
-				 75, TRUE, FALSE);
-	}
+				space, TRUE, FALSE);
+/*
+ * NOW we can go have that beer.
+ */
 }
 
 
@@ -320,15 +338,24 @@ bool	update;
 /*
  * Side annotation
  */
-	if (Sashow)
+	if (Sashow && ! Monocolor)
 	{
-		if (! Monocolor)
-		{
-			sprintf (string, "%s %s %f %f", fname, ctable, 
-				 center, step); 
+		float scale;
+		int lim, lheight, space;
+		char style[40];
+		
+		An_GetSideParams (c, &scale, &lim);
+		lheight = DT_ApproxHeight (Graphics, scale, 1);
+		sprintf (string, "%s %s %f %f %d", fname, ctable, center, step,
+			Ncolors);
+		space = (Ncolors + 1)*lheight;
+		if (pda_Search (Pd, c, "side-annot-style", fname, style,
+				SYMT_STRING) && ! strcmp (style, "legend"))
+			An_AddAnnotProc (CAP_LegendAnnot, c, string,
+					strlen (string), space, FALSE, FALSE);
+		else
 			An_AddAnnotProc (An_ColorNumber, c, string, 
-					 strlen (string), 75, TRUE, FALSE);
-		}
+					strlen (string), space, FALSE, FALSE);
 	}
 }
 
@@ -2213,6 +2240,7 @@ CAP_Polar (char *c, int update)
 	PlatformId pid;
 	FieldId fids[2];	/* plot and threshold */
 	int nfid, ttest, shifted, project, beam, ncolors, nstep, xr, yr, tfill;
+	int legend;
 	float center, step, tvalue, alt = Alt, min, max, cmult, x, y;
 	char ctable[40], plat[CFG_PLATNAME_LEN], adata[300];
 	XColor outrange, *colors;
@@ -2244,7 +2272,7 @@ CAP_Polar (char *c, int update)
  */
 	if (! CAP_PolarParams (c, plat, &pid, fids, &nfid, &tvalue, &ttest,
 			&center, &step, &nstep, ctable, &outrange, &project,
-			&tfill))
+			&tfill, &legend))
 		return;
 	if (! ct_LoadTable (ctable, &colors, &ncolors))
 		return;
@@ -2347,10 +2375,20 @@ CAP_Polar (char *c, int update)
 /*
  * Set up for side annotation.
  */
-	sprintf (adata, "%s %s %f %f %d %d %f %s %f", F_GetFullName(fids[0]),
+	sprintf (adata, "%s %s %f %f %d %d %f %s %f", F_GetName(fids[0]),
 			ctable, center, step, nstep, FALSE, 0.0, "white", 0.0);
-	An_AddAnnotProc (CAP_RasterSideAnnot, c, adata, strlen (adata), 
-		140, TRUE, FALSE);
+	if (legend)
+	{
+		int lim, lheight;
+		float scale;
+		An_GetSideParams (c, &scale, &lim);
+		lheight = DT_ApproxHeight (Graphics, scale, 1);
+		An_AddAnnotProc (CAP_LegendAnnot, c, adata, strlen (adata),
+				(legend/2 + 1)*lheight, FALSE, FALSE);
+	}
+	else
+		An_AddAnnotProc (CAP_RasterSideAnnot, c, adata, strlen (adata),
+				140, TRUE, FALSE);
 	r_AddAnnot (c, plat);
 /*
  * How did the timing work out?
@@ -2374,13 +2412,13 @@ CAP_PolarParams (char *c, char *platform, PlatformId *pid, FieldId *fids,
 		int *nfids,
 		float *tvalue, int *ttest, float *center, float *step,
 		int *nstep, char *ctable, XColor *outrange, int *project,
-		int *tfill)
+		int *tfill, int *legend)
 /*
  * Grab all of the PD parameters controlling polar plots.
  */
 {
 	int ok, enab = 0;
-	char cparam[120], fname[40], param[40];
+	char cparam[120], fname[40], param[40], sastyle[40];
 /*
  * Platform info.
  */
@@ -2448,6 +2486,24 @@ CAP_PolarParams (char *c, char *platform, PlatformId *pid, FieldId *fids,
 	if (! pda_Search(Pd, c, "triangular-fill", platform, CPTR (*tfill),
 			SYMT_BOOL))
 		*tfill = TRUE;
+/*
+ * Do they want legend-style annotation?
+ */
+	*legend = 0;
+	if (pda_Search (Pd, c, "side-annot-style", fname, sastyle, SYMT_STRING)
+			&& ! strcmp (sastyle, "legend"))
+	{
+	/*
+	 * Don't actually hang on to the map now, but do verify that they
+	 * have one.
+	 */
+		char lmap[1024], *me[128];
+		if (! pda_Search (Pd, c, "legend-map", fname, lmap,
+				SYMT_STRING))
+			msg_ELog (EF_PROBLEM, "No legend map!");
+		else
+			*legend = CommaParse (lmap, me);
+	}
 	return (ok);
 
 }
@@ -2455,5 +2511,89 @@ CAP_PolarParams (char *c, char *platform, PlatformId *pid, FieldId *fids,
 # endif C_CAP_POLAR
 
 
+
+
+static void
+CAP_LegendAnnot (char *comp, char *data, int datalen, int begin, int space)
+/*
+ * Do a legend annotation.
+ */
+{
+	char map[1024], *mentries[128], ctable[40], field[40];
+	float scale, center, step, mapv, min, max, cmult;
+	int limit, nstep, nmap, left, lheight, i, ncolors, cind;
+	XColor *colors;
+/*
+ * Pull out the stuff that was stashed into our data array.
+ */
+	if (sscanf (data, "%s %s %f %f %d", field, ctable, &center, &step,
+			&nstep) != 5)
+	{
+		msg_ELog (EF_PROBLEM, "LegendAnnot data screwup");
+		return;
+	}
+/*
+ * Start by getting the legend map
+ */
+       if (! pda_Search (Pd, comp, "legend-map", field, map, SYMT_STRING))
+       {
+	       msg_ELog (EF_PROBLEM, "Legend map disappeared!");
+	       return;
+       }
+       nmap = CommaParse (map, mentries);
+       if (nmap & 0x1)
+       {
+	       msg_ELog (EF_PROBLEM, "Odd number of map entries!");
+	       return;
+       }
+       nmap /= 2;
+/*
+ * Some graphics parameters.
+ */
+	An_GetSideParams (comp, &scale, &limit);
+	lheight = DT_ApproxHeight (Graphics, scale, 1);
+/*
+ * We need the color table.
+ */
+	ct_LoadTable (ctable, &colors, &ncolors);
+	min = center - (nstep/2.0)*step;
+	max = center + (nstep/2.0)*step;
+	cmult = ncolors/(max - min);
+/*
+ * Put out the field name.
+ */
+       	left = An_GetLeft ();
+	XSetForeground (XtDisplay (Graphics), Gcontext, Tadefclr.pixel);
+	DrawText (Graphics, GWFrame (Graphics), Gcontext, left, 
+		begin, field, 0.0, scale, JustifyLeft, 	JustifyCenter);
+	begin += lheight;
+/*
+ * Put out all of the entries.
+ */
+	for (i = 0; i < nmap; i++)
+	{
+	/*
+	 * Get the map value and turn it into a color index.
+	 */
+		mapv = atof (mentries[2*i]);
+		if (mapv < min || mapv >= max)
+			continue;
+		cind = (mapv - min)*cmult;
+	/*
+	 * Now draw it.
+	 */
+		XSetForeground (Disp, Gcontext, colors[cind].pixel);
+		XFillRectangle (XtDisplay (Graphics), GWFrame (Graphics), 
+			Gcontext, left, begin - lheight/2, 10, lheight);
+		XSetForeground (Disp, Gcontext, Tadefclr.pixel);
+		DrawText (Graphics, GWFrame (Graphics), Gcontext, left + 12,
+				begin, mentries[2*i + 1], 0.0, scale,
+				JustifyLeft, JustifyCenter);
+	/*
+	 * Move on.
+	 */
+		begin += lheight;
+	}
+}
 
 # endif  /* C_PT_CAP */
