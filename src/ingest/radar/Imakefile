@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.21 1998-02-27 16:59:51 burghart Exp $"
+MFVERSION="$Id: Imakefile,v 1.22 1998-03-06 17:24:50 burghart Exp $"
 
 LIBS = $(DFALIBS) $(ZLIBS) $(XLIBS)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
@@ -54,10 +54,6 @@ ROBJS = radar_ingest.o mtape.o Rasterize.o \
 RLIBS = $(LIBS) $(LIBPCAP)
 
 CccProgramTarget(radar_ingest,$(ROBJS),$(DEPLIBS),$(RLIBS),$(SYSLIBS))
-
-CccProgramTarget(btest, btest.o BeamBuffer.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
-
-CccProgramTarget(bdump, bdump.o BeamBuffer.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
 CccProgramTarget(RadarStatus,RadarStatus.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
