@@ -1,4 +1,4 @@
-/* $Id: dm_process.h,v 2.3 1995-05-18 18:22:59 granger Exp $
+/* $Id: dm_process.h,v 2.4 1995-05-24 00:13:54 granger Exp $
  *
  * Define the ProcessClass and Process structures, and the public interface
  */
@@ -79,7 +79,8 @@ ProcessClass *dp_DefineClass FP ((char *name, char *exec, char **args,
 				  int xargs));
 ProcessClass *dp_DefaultClass FP ((void));
 ProcessClass *dp_MatchArgs FP ((char *exec, int narg, char **args));
-Process *dp_ExecProcess FP ((ProcessClass *pc, char *name, char *group));
+Process *dp_ExecProcess FP ((ProcessClass *pc, char *name, char *group,
+			     int *created));
 void dp_DeleteProcess FP ((Process *proc));
 void dp_DeleteClass FP ((ProcessClass *pc));
 void dp_FreeAll FP ((void));

@@ -35,7 +35,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm_config.c,v 1.22 1995-05-05 22:43:58 granger Exp $")
+MAKE_RCSID ("$Id: dm_config.c,v 1.23 1995-05-24 00:13:48 granger Exp $")
 
 /*
  * Exported variables
@@ -275,9 +275,9 @@ int update;	/* do an update if nonzero */
  * If we just did the equivalent of a "save as", change to the config we
  * saved as.
  */	
+	fclose (fp);
 	if (saveas)
 		dg_PutConfig (cfg);
-	fclose (fp);
 }
 
 
@@ -1034,7 +1034,7 @@ struct cf_window *wp;
 {
 	proc->p_state = P_ASSIGNED;
 	/*
-	 * See if this proces is already attached to this window,
+	 * See if this process is already attached to this window,
 	 * in which case we have nothing to do.
 	 */
 	if (proc->p_cfw == wp)
@@ -1068,13 +1068,19 @@ bool force;
  * new process. 
  */
 {
-	bool created = FALSE;
+	int created = FALSE;
 	ProcessClass *pc;
 	Process *proc;
-	struct cf_window *exist = NULL;
+	struct cf_window *exist;
 	struct cf_graphic *g = wp->cfw_graphic;
 
 	pc = dp_LookupClass (wp->cfw_pcname);
+	if (! pc)
+	{
+		msg_ELog (EF_PROBLEM, "unknown class '%s' for window '%s'",
+			  wp->cfw_pcname, wp->cfw_name);
+		return (FALSE);
+	}
 	if (! force)
 		proc = dg_FindExisting (pc, cfg, wp, wp->cfw_name);
 	else
@@ -1082,19 +1088,20 @@ bool force;
 
 	if (proc)
 	{
-		exist = proc->p_cfw;
 		msg_ELog (EF_DEBUG, "Existing process %s for win %s", 
 			  proc->p_name, wp->cfw_name);
 	}
 	else
 	{
 		/*
-		 * Otherwise we actually fire off the process.
+		 * Otherwise we actually try to fire off the process.
 		 */
 		msg_ELog (EF_DEBUG, "Need new process, class %s, for win %s",
 			  pc->pc_name, wp->cfw_name);
-		proc = dp_ExecProcess (pc, wp->cfw_name, GroupName);
-		created = TRUE;
+		/*
+		 * We may get a process from another class if names clashed.
+		 */
+		proc = dp_ExecProcess (pc, wp->cfw_name, GroupName, &created);
 	}
 	if (! proc)
 	{
@@ -1105,6 +1112,7 @@ bool force;
 			  wp->cfw_name);
 		return (FALSE);
 	}
+	exist = proc->p_cfw;
 	dg_AssignWindow (proc, wp);
 
 	/*
@@ -1140,7 +1148,7 @@ bool force;
 	 * Configure existing processes now, but new processes must first
 	 * say hello before we'll send them their configuration.
 	 */
-	if (exist)
+	if (! created)
 		dg_ConfigWindow (wp);
 	return (created);
 }
@@ -1509,6 +1517,7 @@ char *name;
 
 		win = copy->c_wins[i];
 		wp = dg_NewWindow (new, win->cfw_class, win->cfw_name);
+		strcpy (wp->cfw_pcname, win->cfw_pcname);
 		wp->cfw_x = win->cfw_x;
 		wp->cfw_y = win->cfw_y;
 		wp->cfw_dx = win->cfw_dx;
@@ -2095,8 +2104,8 @@ char *who;
 			 (proc->p_state == P_ASSIGNED) ? "assigned" :
 			 "unknown");
 		sprintf (buf, 
-			 "%-20s [%-8s] pid:%6i win:%#10lx  // class: %s", 
-			 proc->p_name, state, proc->p_pid, proc->p_win,
+			 "%-20s [%-8s] pid:%6li win:%#10lx  // class: %s", 
+			 proc->p_name, state, (long)proc->p_pid, proc->p_win,
 			 proc->p_class->pc_name);
 		if ((wp = proc->p_cfw))
 		{

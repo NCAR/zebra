@@ -36,7 +36,7 @@
 # include <dm.h>
 # include "dm_vars.h"
 
-MAKE_RCSID ("$Id: dm_process.c,v 2.3 1995-05-18 18:22:57 granger Exp $")
+MAKE_RCSID ("$Id: dm_process.c,v 2.4 1995-05-24 00:13:52 granger Exp $")
 
 /*
  * Private symbol tables containing ProcessClass structures indexed by 
@@ -679,10 +679,11 @@ dp_handler ()
 
 
 Process *
-dp_ExecProcess (pc, window, group)
+dp_ExecProcess (pc, window, group, created)
 ProcessClass *pc;
-char *window;		/* The name of the window we'll be realizing */
+char *window;	/* The name of the window we'll be realizing */
 char *group;
+int *created;	/* Non-zero if we return a newly forked process */
 /*
  * Exec a process for this process class, with the given message name, and
  * adding it to the class' members.
@@ -694,6 +695,31 @@ char *group;
 	pid_t pid;
 	char *name;
 
+	/*
+	 * Decide on the message handle for this process: either unique
+	 * for this message session or identical to the window name.
+	 */
+	*created = 0;
+	name = dp_NextHandle (pc, window);
+	/*
+	 * See if a process by this name already exists.
+	 */
+	if ((proc = dp_LookupProcess (name)))
+	{
+		/* 
+		 * uh-oh --- someone has tried to create a process with
+		 * the same name as another but under a different class.
+		 * So we throw up our hands and hand back the existing
+		 * process, hoping that doesn't break anything.
+		 */
+		msg_ELog (EF_PROBLEM, 
+			  "process '%s' already exists in class '%s'",
+			  proc->p_name, proc->p_class->pc_name);
+		return (proc);
+	}
+	/*
+	 * Look for the executable
+	 */
 	if (! FindFile (pc->pc_exec, ExecPath, abs_prog))
 	{
 		msg_ELog (EF_PROBLEM, "'%s' not in ExecPath '%s'",
@@ -704,7 +730,6 @@ char *group;
 	 * We need to build an arg list by appending the dm command-line
 	 * args to the class args.  The array should be freed by us.
 	 */
-	name = dp_NextHandle (pc, window);
 	argv = dp_BuildArgs (pc, name, window, group);
 	dp_LogExec ("exec", abs_prog, argv);
 	if ( (pid = fork()) == 0 )
@@ -745,6 +770,7 @@ char *group;
 		strcpy (proc->p_name, name);
 		dp_AddMember (pc, proc);
 		dp_ProcessTableAdd (proc);
+		*created = 1;
 	}
 	dp_FreeArgs (argv);		     
 	return (proc);
