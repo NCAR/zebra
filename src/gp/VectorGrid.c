@@ -1,7 +1,7 @@
 /*
  * Display two rectangular arrays (u and v) as wind vectors
  */
-static char *rcsid = "$Id: VectorGrid.c,v 2.4 1992-07-07 23:56:52 kris Exp $";
+static char *rcsid = "$Id: VectorGrid.c,v 2.5 1993-09-20 17:16:09 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -72,6 +72,11 @@ float	vlen;
  */
 	unitlen = dheight * vlen;
 /*
+ * Pixels per grid step in each direction
+ */
+	xstep = (xdim > 1) ? (float)(xhi - xlo) / (float)(xdim - 1) : 0.0;
+	ystep = (ydim > 1) ? (float)(yhi - ylo) / (float)(ydim - 1) : 0.0;
+/*
  * Loop through the array points
  */
 	if (Gcontext == NULL)
@@ -86,13 +91,12 @@ float	vlen;
 
 	for (i = 0; i < xdim; i++)
 	{
-		xpos = (int)(xlo + (float) i / (float)(xdim - 1) * 
-			(xhi - xlo) + 0.5);
+		xpos = (int)(xlo + i * xstep + 0.5);
 
 		for (j = 0; j < ydim; j++)
 		{
-			ypos = (int)(ylo + (float) j / (float)(ydim - 1) *
-				(yhi - ylo) + 0.5);
+			ypos = (int)(ylo + j * ystep + 0.5);
+
 			if (degrade > 1 && ((i % degrade) || (j % degrade)))
 				continue;
 		/*

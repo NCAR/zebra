@@ -1,7 +1,7 @@
 /*
  * Vertical cross-sectioning
  */
-static char *rcsid = "$Id: XSection.c,v 2.11 1993-07-15 16:12:07 burghart Exp $";
+static char *rcsid = "$Id: XSection.c,v 2.12 1993-09-20 17:16:14 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -63,10 +63,37 @@ char	Scratch[128];
 			}
 
 /*
- * The cross-section plane array, its length, height, and dimensions
+ * Data plane structure
  */
-float	*Plane, *P_wgt, P_len, P_hgt, P_bot;
-int	Hdim, Vdim;
+typedef struct _dplane
+{
+	float	*data;
+	int	hdim, vdim;
+} DPlane;
+
+/*
+ * Zig-zag data plane structure
+ */
+typedef struct _zz_dplane
+{
+	int	nobs;		/* number of observations in this plane */
+	int	vdim;
+	float	*bot, *top;	/* bottom and top heights for each obs */
+	float	*dist;		/* distance along the "plane" to each obs */
+	ZebTime	*dtime;		/* data time for each obs */
+	char	**plats;	/* platform list */
+	float	*data;		/* (nobs x vdim) data array */
+} ZZ_DPlane;
+
+/*
+ * The length, height, and bottom of our plane
+ */
+float	P_len, P_hgt, P_bot;
+
+/*
+ * User-selected grid dimensions (if any)
+ */
+int	Hgrid, Vgrid;
 
 /*
  * Cross-section endpoints
@@ -82,20 +109,18 @@ static int	Pix_left, Pix_right, Pix_bottom, Pix_top;
 /*
  * Altitude or pressure on the vertical scale?
  * Field for vertical scale
- * Time-height plot?
  * Use filled contours?
  * "Zig-zag" cross-section?
  */
 static bool	Use_alt = TRUE;
 static char	Zfld[20];
-static bool	Time_height;
 static bool	Fill_contour;
 static bool	Zig_zag;
 
 /*
- * Contour info
+ * Drawing info
  */
-static float	Contour_center, Contour_step;
+static float	Contour_center, Contour_step, Vector_scale;
 static int	Line_width;
 static bool	Do_labels;
 
@@ -123,113 +148,55 @@ static XColor	White, Black;
 static XRectangle	Clip, Unclip;
 
 /*
- * Forward declarations
+ * Prototypes
  */
+void	xs_Init FP ((UItime *));
 void	xs_LineContour FP ((char *, int));
 void	xs_FilledContour FP ((char *, int));
+void	xs_Vector FP ((char *, int));
 static void	xs_Contour FP ((char *, int)); 
-static void	xs_Planar FP ((char *, char *, char *)); 
-static void	xs_ZigZag FP ((char *, char *, char *)); 
-static void	xs_ZigZagFillIn FP ((int, float *));
+static void	xs_ZZContour FP ((char **, int, char *));
+static void	xs_PlaneContour FP ((char *, char **, int, char *));
+static void	xs_ZZVector FP ((char **, int, char *, char *));
+static void	xs_PlaneVector FP ((char *, char **, int, char *, char *));
+static void	xs_ZZFillIn FP ((ZZ_DPlane *));
 static void	xs_Background FP ((void));
-static void	xs_TimeHeight FP ((void)); 
 static void	xs_ExtendTrace FP ((double, double)); 
-static void	xs_HDWeighting FP ((char *, char *));
-static void	xs_Bilinear FP ((char *, char *));
+static DPlane	*xs_HDWeighting FP ((char **, int, char *, ZebTime *));
+static DPlane	*xs_Bilinear FP ((char *, char *));
 static void	xs_DrawTrace FP ((char *)); 
-static void	xs_AddToLevel FP ((int, double, double, double)); 
-static void	xs_BuildLimits FP ((float *, float *, double, double, double));
+static void	xs_AddToLevel FP ((DPlane *, DPlane *, int, double, double, 
+				   double)); 
+static void	xs_BuildLimits FP ((float *, float *, int, double, double, 
+				    double));
 static int	xs_Pos FP ((char *, ZebTime *, float **, float **)); 
-static int	xs_TimePos FP ((char *, ZebTime *, float **)); 
-static int	xs_ZIndex FP ((double));
-static void	xs_ColorScale FP ((void));
-static DataChunk *xs_GetObsDC FP ((char *, char *, ZebTime *));
-static DataChunk *xs_GetGridDC FP ((char *, char *, ZebTime *));
+static int	xs_ZIndex FP ((double, int));
+static ZZ_DPlane	*xs_ZZGetData FP ((char **, int, char *));
+static ZZ_DPlane	*xs_AllocZZ_DPlane FP ((int, int));
+static void		xs_FreeZZ_DPlane FP ((ZZ_DPlane *));
+static DataChunk	*xs_GetObsDC FP ((char *, char *, ZebTime *));
+static DataChunk	*xs_GetGridDC FP ((char *, char *, ZebTime *));
 
 
 
 
 void
-xs_LineContour (c, update)
-char	*c;
-bool	update;
-{
-	Fill_contour = FALSE;
-
-	Do_labels = TRUE;
-	pda_Search (Pd, c, "do-labels", "xsect", (char *) &Do_labels, 
-		    SYMT_BOOL);
-	
-	Line_width = 0;
-	pda_Search (Pd, c, "line-width", "xsect", (char *) &Line_width,
-		    SYMT_INT);
-
-	xs_Contour (c, update);
-}
-
-
-
-
-void
-xs_FilledContour (c, update)
-char	*c;
-bool	update;
-{
-	Fill_contour = TRUE;
-	xs_Contour (c, update);
-}
-
-
-
-
-static void
-xs_Contour (c, update)
-char	*c;
-bool	update;
+xs_Init (t)
+UItime	*t;
 /*
- * Draw a cross-section based on the given PD component.
+ * Initialize for a cross-section plot.
  */
 {
-	bool	ok;
 	float	zmax;
-	char	platforms[120], fldname[20], ctname[20];
-	char	param[50];
 /*
- * Get the platform(s), field, contour limits, and color table
+ * Initialize the overlay times widget
  */
-	ok = pda_ReqSearch (Pd, c, "platform", NULL, platforms, SYMT_STRING);
-	ok = pda_ReqSearch (Pd, c, "field", NULL, fldname, SYMT_STRING);
-	sprintf (param, "%s-center", fldname);
-	ok &= pda_ReqSearch (Pd, c, param, "contour", (char *) &Contour_center,
-		SYMT_FLOAT);
-	sprintf (param, "%s-step", fldname);
-	ok &= pda_ReqSearch (Pd, c, param, "contour", (char *) &Contour_step, 
-		SYMT_FLOAT);
-	ok &= pda_ReqSearch (Pd, c, "color-table", "xsect", ctname, 
-		SYMT_STRING);
-
-	if (! ok)
-		return;
-/*
- * User-specified maximum time difference
- */
-	if (! pda_Search (Pd, c, "max-time-diff", "xsect", (char *) &Maxdiff,
-		SYMT_INT))
-		Maxdiff = -1;
-	else
-		Maxdiff *= 60;	/* Convert to seconds */
-/*
- * Load the color table + explicitly get black and white
- */
-	ct_LoadTable (ctname, &Colors, &Ncolors);
-
-	ct_GetColorByName ("black", &Black);
-	ct_GetColorByName ("white", &White);
+	lw_OvInit ("COMPONENT      PLATFORM   FIELD       TIME\n");
 /*
  * Altitude or pressure z scaling?
  */
 	Use_alt = TRUE;
-	pda_Search (Pd, c, "by-altitude", "xsect", (char *) &Use_alt, 
+	pda_Search (Pd, "global", "by-altitude", "xsect", (char *) &Use_alt, 
 		SYMT_BOOL);
 
 	if (Use_alt)
@@ -247,6 +214,14 @@ bool	update;
 	if (pda_Search (Pd, "global", "z-max", NULL, (char *) &zmax, 
 			SYMT_FLOAT))
 		P_hgt = zmax - P_bot;
+/*
+ * User-specified maximum time difference
+ */
+	if (! pda_Search (Pd, "global", "max-time-diff", "xsect", 
+			  (char *) &Maxdiff, SYMT_INT))
+		Maxdiff = -1;
+	else
+		Maxdiff *= 60;	/* Convert to seconds */
 /*
  * Pixel plot limits
  */
@@ -270,56 +245,153 @@ bool	update;
 	Unclip.height = GWHeight (Graphics);
 /*
  * Zig-zag cross section?
- * Time-height plot?
  */
 	Zig_zag = FALSE;
-	pda_Search (Pd, c, "zig-zag", "xsect", (char *) &Zig_zag,
-		SYMT_BOOL);
+	pda_Search (Pd, "global", "zig-zag", "xsect", (char *) &Zig_zag,
+		    SYMT_BOOL);
 
-	Time_height = FALSE;
-	pda_Search (Pd, c, "time-height", "xsect", (char *) &Time_height,
-		SYMT_BOOL);
+	sprintf (Scratch, "%s cross-section plot.  ", 
+		 Zig_zag ? "Zig-zag" : "Planar");
+	An_TopAnnot (Scratch, White.pixel);
 /*
- * Actually draw the cross-section based on type
+ * For planar cross sections, get the endpoints
  */
-	if (Time_height)	
-		/* xs_TimeHeight (); */
-		msg_ELog (EF_INFO, "Time-height plots not yet implemented");
-	else if (Zig_zag)
-		xs_ZigZag (c, platforms, fldname);
-	else
-		xs_Planar (c, platforms, fldname);
+	if (! Zig_zag)
+	{
+	/*
+	 * Left endpoint
+	 */
+		if (! pda_ReqSearch (Pd, "global", "left-endpoint", NULL, 
+				     Scratch, SYMT_STRING))
+			return;
+
+		if (sscanf (Scratch, "%f,%f", &X0, &Y0) != 2)
+		{
+			msg_ELog (EF_PROBLEM, "Bad left endpoint '%s'", 
+				  Scratch);
+			return;
+		}
+	/*
+	 * Right endpoint
+	 */
+		if (! pda_ReqSearch (Pd, "global", "right-endpoint", NULL, 
+				     Scratch, SYMT_STRING))
+			return;
+
+		if (sscanf (Scratch, "%f,%f", &X1, &Y1) != 2)
+		{
+			msg_ELog (EF_PROBLEM, "Bad right endpoint '%s'", 
+				  Scratch);
+			return;
+		}
+	/*
+	 * Find the plane length
+	 */
+		P_len = hypot (X1 - X0, Y1 - Y0);
+	}
+}
+
+
+
+
+void
+xs_LineContour (c, update)
 /*
- * Draw the background and color scale
+ * Handle a line contour cross-section component
  */
-	xs_Background ();
-	xs_ColorScale ();
+char	*c;
+bool	update;
+{
+	Fill_contour = FALSE;
+
+	Do_labels = TRUE;
+	pda_Search (Pd, c, "do-labels", "xsect", (char *) &Do_labels, 
+		    SYMT_BOOL);
+	
+	Line_width = 0;
+	pda_Search (Pd, c, "line-width", "xsect", (char *) &Line_width,
+		    SYMT_INT);
+
+	xs_Contour (c, update);
+}
+
+
+
+
+void
+xs_FilledContour (c, update)
+/*
+ * Handle a filled contour cross-section component
+ */
+char	*c;
+bool	update;
+{
+	Fill_contour = TRUE;
+	xs_Contour (c, update);
 }
 
 
 
 
 static void
-xs_ZigZag (c, platforms, fldname)
-char	*c, *platforms, *fldname;
+xs_Contour (c, update)
+char	*c;
+bool	update;
 /*
- * Draw a zig-zag "pseudo-planar" cross-section
+ * Draw a cross-section contour plot based on the given PD component.
  */
 {
-	int	p, nplat, pt, npts, ngood = 0, zndx, zndx_prev, diff;
-	int	row, col;
-	char	*pnames[MAXPLAT];
-	float	badvalue, fdata, val, val_prev, frac, dist[MAXPLAT];
-	float	z, zpos, zstep, z_prev;
-	float	loc_x[MAXPLAT], loc_y[MAXPLAT], bot[MAXPLAT], top[MAXPLAT];
-	ZebTime	dtime;
-	DataChunk	*dc;
-	Location	loc;
+	bool	ok;
+	int	nplat;
+	char	platforms[120], *pnames[MAXPLAT], fldname[20], ctname[20];
+	char	param[50];
 /*
- * Title
+ * Platform(s).  Platform must come from the global component for zig-zag
+ * plots so we don't have plots with different endpoints overlaying each
+ * other.
  */
-	sprintf (Scratch, "Zig-zag cross-section of %s using: ", fldname);
-	An_TopAnnot (Scratch, White.pixel);
+	if (Zig_zag)
+	{
+		ok = pda_ReqSearch (Pd, "global", "platform", NULL, platforms, 
+				    SYMT_STRING);
+		if (! ok)
+		{
+			strcpy (Scratch, "'platform' must be in the global ");
+			strcat (Scratch, "component for zig-zag plots");
+			msg_ELog (EF_INFO, Scratch);
+		}
+	}
+	else
+		ok = pda_ReqSearch (Pd, c, "platform", NULL, platforms, 
+				    SYMT_STRING);
+/*
+ * Get the field, contour limits, and color table
+ */
+	ok &= pda_ReqSearch (Pd, c, "field", NULL, fldname, SYMT_STRING);
+	sprintf (param, "%s-center", fldname);
+	ok &= pda_ReqSearch (Pd, c, param, "contour", (char *) &Contour_center,
+		SYMT_FLOAT);
+	sprintf (param, "%s-step", fldname);
+	ok &= pda_ReqSearch (Pd, c, param, "contour", (char *) &Contour_step, 
+		SYMT_FLOAT);
+	ok &= pda_ReqSearch (Pd, c, "color-table", "xsect", ctname, 
+		SYMT_STRING);
+
+	if (! ok)
+		return;
+/*
+ * Load the color table + explicitly get black and white
+ */
+	ct_LoadTable (ctname, &Colors, &Ncolors);
+
+	ct_GetColorByName ("black", &Black);
+	ct_GetColorByName ("white", &White);
+/*
+ * Grid dimensions
+ */
+	Hgrid = Vgrid = 0;
+	pda_Search (Pd, c, "hgrid", NULL, (char *) &Hgrid, SYMT_INT);
+	pda_Search (Pd, c, "vgrid", NULL, (char *) &Vgrid, SYMT_INT);
 /*
  * Pull apart the platforms (and test for how many, albeit a little late
  * since we'll write past the end of the pnames array if there really are
@@ -332,54 +404,445 @@ char	*c, *platforms, *fldname;
 		return;
 	}
 /*
- * Arbitrarily use 50 vertical levels (for now)
+ * Actually draw the cross-section based on type
  */
-	Vdim = 50;
+	if (Zig_zag)
+		xs_ZZContour (pnames, nplat, fldname);
+	else
+		xs_PlaneContour (c, pnames, nplat, fldname);
 /*
- * Get the data plane and fill it with bad values
+ * Draw the background and set up for side annotation
  */
-	Plane = (float *) alloca (nplat * Vdim * sizeof (float));
+	xs_Background ();
 
-	for (pt = 0; pt < nplat * Vdim; pt++)
-		Plane[pt] = BADVAL;
+	if (Fill_contour)
+	{
+		sprintf (Scratch, "%s %s %f %f", fldname, ctname, 
+			 Contour_center - Contour_step / 2, Contour_step); 
+	/*			 
+	 * (We have to subtract half a step from the center value that goes to
+	 * An_ColorBar to make it label things correctly)
+	 */
+		An_AddAnnotProc (An_ColorBar, c, Scratch, strlen (Scratch),
+				 75, TRUE, FALSE);
+	}
+	else
+	{
+		sprintf (Scratch, "%s %s %f %f", fldname, ctname, 
+			 Contour_center, Contour_step); 
+		An_AddAnnotProc (An_ColorNumber, c, Scratch, strlen (Scratch), 
+				 75, TRUE, FALSE);
+	}
+}
+
+
+
+
+void
+xs_Vector (c, update)
+char	*c;
+bool	update;
+/*
+ * Draw vectors from a cross-section based on the given PD component.
+ */
+{
+	bool	ok;
+	char	platforms[80], ufldname[20], vfldname[20], *pnames[MAXPLAT];
+	char	cname[20];
+	int	nplat;
+	float	unitlen;
+/*
+ * Platform(s).  Platform must come from the global component for zig-zag
+ * plots so we don't have plots with different endpoints overlaying each
+ * other.
+ */
+	if (Zig_zag)
+	{
+		ok = pda_ReqSearch (Pd, "global", "platform", NULL, platforms, 
+				    SYMT_STRING);
+		if (! ok)
+		{
+			strcpy (Scratch, "'platform' must be in the global ");
+			strcat (Scratch, "component for zig-zag plots");
+			msg_ELog (EF_INFO, Scratch);
+		}
+	}
+	else
+		ok = pda_ReqSearch (Pd, c, "platform", NULL, platforms, 
+				    SYMT_STRING);
+/*
+ * Get the fields and arrow scale factor
+ */
+	ok &= pda_ReqSearch (Pd, c, "u-field", "xsect", ufldname, SYMT_STRING);
+	ok &= pda_ReqSearch (Pd, c, "v-field", "xsect", vfldname, SYMT_STRING);
+	ok &= pda_ReqSearch (Pd, c, "arrow-scale", "xsect", 
+			     (char *) &Vector_scale, SYMT_FLOAT);
+
+	if (! ok)
+		return;
+/*
+ * Arrow color and line width
+ */
+	strcpy (cname, "white");
+	if (! pda_Search (Pd, c, "arrow-color", "xsect", cname, SYMT_STRING))
+		pda_Search (Pd, c, "color", "xsect", cname, SYMT_STRING);
+	if (! ct_GetColorByName (cname, &Colors[0]))
+	{
+		msg_ELog (EF_PROBLEM, "Can't get arrow color '%s'!", cname);
+		return;
+	}
+
+	Line_width = 0;
+	pda_Search (Pd, c, "line-width", "xsect", (char *) &Line_width,
+		    SYMT_INT);
+/*
+ * Grid dimensions
+ */
+	Hgrid = Vgrid = 0;
+	pda_Search (Pd, c, "hgrid", "xsect", (char *) &Hgrid, SYMT_INT);
+	pda_Search (Pd, c, "vgrid", "xsect", (char *) &Vgrid, SYMT_INT);
+/*
+ * Pull apart the platforms (and test for how many, albeit a little late
+ * since we'll write past the end of the pnames array if there really are
+ * too many platforms.)
+ */
+	nplat = CommaParse (platforms, pnames);
+	if (nplat > MAXPLAT)
+	{
+		msg_ELog (EF_PROBLEM, "Too many platforms!");
+		return;
+	}
+/*
+ * Actually draw the cross-section based on type
+ */
+	
+	if (Zig_zag)
+		xs_ZZVector (pnames, nplat, ufldname, vfldname);
+	else
+		xs_PlaneVector (c, pnames, nplat, ufldname, vfldname);
+/*
+ * Draw the background and set up to draw side annotation (scale vector)
+ */
+	xs_Background ();
+
+	sprintf (Scratch, "%s %s %f %f %f", "10m/s", cname, 10.0, 0.0, 
+		 Vector_scale * USABLE_HEIGHT); 
+	An_AddAnnotProc (An_ColorVector, c, Scratch, strlen (Scratch),
+		40, FALSE, FALSE);
+
+}
+
+
+
+
+static void
+xs_ZZContour (pnames, nplat, fldname)
+char	**pnames, *fldname;
+int	nplat;
+/*
+ * Draw a zig-zag contour plot given the platform string and field name
+ */
+{
+	ZZ_DPlane	*plane;
+	float		*data, *dist;
+	int		vdim, diff, p;
+	ZebTime		dtime;
+
+	sprintf (Scratch, "Contour of %s using: ", fldname);
+	An_TopAnnot (Scratch, White.pixel);
+/*
+ * Get the filled data plane
+ */
+	plane = xs_ZZGetData (pnames, nplat, fldname);
+
+	if (plane->nobs < 2)
+	{
+		msg_ELog (EF_INFO, 
+			  "Nothing drawn (< 2 good soundings)");
+		return;
+	}
+/*
+ * I want shorter names to get at some pieces of the data plane structure
+ */
+	data = plane->data;
+	dist = plane->dist;
+	vdim = plane->vdim;
+/*
+ * Set user coordinates for the graphics
+ */
+	Xlo = 0.0;
+	Xhi = P_len = dist[plane->nobs - 1];
+	Ylo = P_bot;
+	Yhi = P_bot + P_hgt;
+/*
+ * Draw the contour in sections
+ */
+	for (p = 0; p < plane->nobs; p++)
+	{
+	/*
+	 * Contour between this observation and the next one
+	 */
+		if (p < plane->nobs - 1)
+		{
+			if (Fill_contour)
+			{
+				FC_Init (Colors, Ncolors, Ncolors / 2, Black, 
+					 Clip, TRUE, BADVAL);
+				FillContour (Graphics, GWFrame (Graphics), 
+					     data + p * vdim, 2, vdim,
+					     XPIX (dist[p]), Pix_bottom, 
+					     XPIX (dist[p+1]), Pix_top, 
+					     Contour_center, Contour_step);
+			}
+			else
+			{
+				CO_Init (Colors, Ncolors, Ncolors / 2, Black, 
+					 Clip, TRUE, BADVAL);
+				Contour (Graphics, GWFrame (Graphics), 
+					 data + p * vdim, 2, vdim, 
+					 XPIX (dist[p]), Pix_bottom, 
+					 XPIX (dist[p+1]), Pix_top, 
+					 Contour_center, Contour_step, 
+					 Do_labels, Line_width);
+			}
+		}
+	/*
+	 * Site label
+	 */
+		strcpyUC (Scratch, plane->plats[p]);
+		XSetForeground (XtDisplay (Graphics), Gcontext, 
+				White.pixel);
+		DrawText (Graphics, GWFrame (Graphics), Gcontext, 
+			  XPIX (dist[p]), Pix_bottom + 3, Scratch, 
+			  0.0, 0.02, JustifyCenter, JustifyTop);
+	/*
+	 * Trace of altitude span
+	 */
+		xs_ExtendTrace (dist[p], plane->bot[p]);
+		xs_ExtendTrace (dist[p], plane->top[p]);
+		xs_DrawTrace ("");
+	/*
+	 * Top annotation: site name and data time (or date and time if
+	 * the difference from the plot time is > 12 hours).
+	 */
+		if (p != 0)
+			An_TopAnnot (", ", White.pixel);
+
+		An_TopAnnot (plane->plats[p], White.pixel);
+
+		sprintf (Scratch, " (");
+
+		dtime = plane->dtime[p];
+		diff = PlotTime.zt_Sec - dtime.zt_Sec;
+
+		if (diff > 43200)
+			TC_EncodeTime (&dtime, TC_Full, Scratch + 2);
+		else
+			TC_EncodeTime (&dtime, TC_TimeOnly, 
+				       Scratch + 2);
+
+		strcat (Scratch + strlen (Scratch) - 3, ")");
+
+		An_TopAnnot (Scratch, White.pixel);
+	}
+	
+	An_TopAnnot (".  ", White.pixel);
+
+	xs_FreeZZ_DPlane (plane);
+}
+
+
+
+
+static void
+xs_ZZVector (pnames, nplat, ufldname, vfldname)
+char	**pnames, *ufldname, *vfldname;
+int	nplat;
+/*
+ * Draw a zig-zag vector plot given the platform string and field names
+ */
+{
+	ZZ_DPlane	*uplane, *vplane, *plane;
+	float		*udata, *vdata, *dist;
+	int		vdim, diff, p;
+	ZebTime		dtime;
+
+	sprintf (Scratch, "Vectors of (%s,%s) using: ", ufldname, vfldname);
+	An_TopAnnot (Scratch, White.pixel);
+/*
+ * Get the filled data planes.  
+ */
+	uplane = xs_ZZGetData (pnames, nplat, ufldname);
+	vplane = xs_ZZGetData (uplane->plats, uplane->nobs, vfldname);
+
+	if (uplane->nobs != vplane->nobs)
+	{
+		msg_ELog (EF_PROBLEM, "Not all plats that have '%s' have '%s'",
+			  ufldname, vfldname);
+		return;
+	}
+
+	if (uplane->nobs < 2)
+	{
+		msg_ELog (EF_INFO, 
+			  "Nothing drawn (< 2 good soundings)");
+		return;
+	}
+/*
+ * Info other than the actual data should be the same between uplane
+ * and vplane, so we'll just create a generic "plane" to get at it
+ */
+	plane = uplane;
+/*
+ * I want shorter names to get at some pieces of the data plane structures
+ */
+	udata = uplane->data;
+	vdata = vplane->data;
+
+	dist = plane->dist;
+	vdim = plane->vdim;
+/*
+ * Set user coordinates for the graphics
+ */
+	Xlo = 0.0;
+	Xhi = P_len = dist[plane->nobs - 1];
+	Ylo = P_bot;
+	Yhi = P_bot + P_hgt;
+/*
+ * Loop through the observations (platforms)
+ */
+	for (p = 0; p < plane->nobs; p++)
+	{
+	/*
+	 * Draw the vectors for this observation
+	 */
+		XSetLineAttributes (XtDisplay (Graphics), Gcontext, 
+				    Line_width, LineSolid, CapButt, JoinMiter);
+		VectorGrid (Graphics, GWFrame (Graphics), Gcontext, 
+			    udata + p * vdim, vdata + p * vdim, 1, vdim, 
+			    XPIX (dist[p]), Pix_bottom, XPIX (dist[p]), 
+			    Pix_top, Vector_scale, BADVAL, Colors[0], 1);
+	/*
+	 * Return the line width to the default of zero, since this is a
+	 * shared GC
+	 */
+		XSetLineAttributes (XtDisplay (Graphics), Gcontext, 
+				    0, LineSolid, CapButt, JoinMiter);
+	/*
+	 * Site label
+	 */
+		strcpyUC (Scratch, plane->plats[p]);
+		XSetForeground (XtDisplay (Graphics), Gcontext, 
+				White.pixel);
+		DrawText (Graphics, GWFrame (Graphics), Gcontext, 
+			  XPIX (dist[p]), Pix_bottom + 3, Scratch, 
+			  0.0, 0.02, JustifyCenter, JustifyTop);
+	/*
+	 * Trace of altitude span
+	 */
+		xs_ExtendTrace (dist[p], plane->bot[p]);
+		xs_ExtendTrace (dist[p], plane->top[p]);
+		xs_DrawTrace ("");
+	/*
+	 * Top annotation: site name and data time (or date and time if
+	 * the difference from the plot time is > 12 hours).
+	 */
+		if (p != 0)
+			An_TopAnnot (", ", White.pixel);
+
+		An_TopAnnot (plane->plats[p], White.pixel);
+
+		sprintf (Scratch, " (");
+
+		dtime = plane->dtime[p];
+		diff = PlotTime.zt_Sec - dtime.zt_Sec;
+
+		if (diff > 43200)
+			TC_EncodeTime (&dtime, TC_Full, Scratch + 2);
+		else
+			TC_EncodeTime (&dtime, TC_TimeOnly, 
+				       Scratch + 2);
+
+		strcat (Scratch + strlen (Scratch) - 3, ")");
+
+		An_TopAnnot (Scratch, White.pixel);
+	}
+	
+	An_TopAnnot (".  ", White.pixel);
+
+	xs_FreeZZ_DPlane (uplane);
+	xs_FreeZZ_DPlane (vplane);
+}
+
+
+
+
+static ZZ_DPlane *
+xs_ZZGetData (pnames, nplat, fldname)
+char	**pnames, *fldname;
+int	nplat;
+/*
+ * Create and return a zig-zag "pseudo-planar" data plane.  The caller is
+ * responsible for calling xs_FreeZZ_DPlane() to destroy the plane.
+ */
+{
+	int	p, pt, npts, zndx, zndx_prev, nobs;
+	int	row, col, vdim, hdim;
+	float	badvalue, fdata, val, val_prev, frac;
+	float	z, zpos, zstep, z_prev;
+	float	loc_x[MAXPLAT], loc_y[MAXPLAT];
+	ZebTime	dtime;
+	DataChunk	*dc;
+	Location	loc;
+	ZZ_DPlane	*plane;
+/*
+ * Get the plane structure
+ */
+	vdim = Vgrid ? Vgrid : 50;
+	hdim = nplat;
+	plane = xs_AllocZZ_DPlane (hdim, vdim);
+/*
+ * Initialize to the bad value flag
+ */
+	for (pt = 0; pt < vdim * hdim; pt++)
+		plane->data[pt] = BADVAL;
 /*
  * Vertical grid spacing
  */
-	zstep = P_hgt / (float)(Vdim - 1);
+	zstep = P_hgt / (float)(vdim - 1);
 /*
  * Loop through the platforms
  */
 	for (p = 0; p < nplat; p++)
 	{
 	/*
-	 * Add this platform to the top annotation
-	 */
-		if (p != 0)
-			An_TopAnnot (", ", White.pixel);
-
-		An_TopAnnot (pnames[p], White.pixel);
-	/*
 	 * Get the data
 	 */
 		if (! (dc = xs_GetObsDC (pnames[p], fldname, &dtime)))
-			BAD_SOUNDING;
+		{
+			TC_EncodeTime (&PlotTime, TC_Full, Scratch);
+			msg_ELog (EF_INFO, "No data for '%s' at %s", pnames[p],
+				  Scratch);
+			continue;
+		}
 	/*
-	 * Move the platform name to the appropriate spot in the name array,
-	 * increment the good platform count and set the index for the
-	 * column we'll be building in Plane
+	 * Update the structure
 	 */
-		pnames[ngood] = pnames[p];
-		col = ngood++;
+		col = plane->nobs++;
+
+		plane->plats[col] = (char *) 
+			malloc ((strlen (pnames[p]) + 1) * sizeof (char));
+		strcpy (plane->plats[col], pnames[p]);
+
+		plane->dtime[col] = dtime;
+
+		plane->bot[col] = 99e6;
+		plane->top[col] = -99e6;
 	/*
-	 * Store the platform location
+	 * Stash the platform location
 	 */
 		dc_GetLoc (dc, 0, &loc);
 		cvt_ToXY (loc.l_lat, loc.l_lon, &loc_x[col], &loc_y[col]);
-	/*
-	 * Initialize bottom and top
-	 */
-		bot[col] = 99e6;
-		top[col] = -99e6;
 	/*
  	 * Get some info from the data chunk
 	 */
@@ -410,7 +873,7 @@ char	*c, *platforms, *fldname;
 			 */
 				val_prev = fdata;
 				z_prev = zpos;
-				zndx_prev = xs_ZIndex (zpos);
+				zndx_prev = xs_ZIndex (zpos, vdim);
 			/*
 			 * Go on to the next point
 			 */
@@ -419,21 +882,23 @@ char	*c, *platforms, *fldname;
 		/*
 		 * Adjust bottom or top if necessary
 		 */
-			bot[p] = zpos < bot[p] ? zpos : bot[p];
-			top[p] = zpos > top[p] ? zpos : top[p];
+			plane->bot[p] = zpos < plane->bot[p] ? 
+				zpos : plane->bot[p];
+			plane->top[p] = zpos > plane->top[p] ? 
+				zpos : plane->top[p];
 		/*
 		 * Quit when we get above the grid
 		 */
-			if (zndx_prev >= Vdim)
+			if (zndx_prev >= vdim)
 				break;
 		/*
 		 * Find the index of the next grid height at or above zpos[pt]
 		 */
-			zndx = xs_ZIndex (zpos);
+			zndx = xs_ZIndex (zpos, vdim);
 		/*
 		 * Assign values in Plane between this and the previous point
 		 */
-			for (row = zndx_prev; row < zndx && row < Vdim; row++)
+			for (row = zndx_prev; row < zndx && row < vdim; row++)
 			{
 			/*
 			 * Don't assign anything below the first grid level
@@ -451,7 +916,7 @@ char	*c, *platforms, *fldname;
 			/*
 			 * Insert this point into the Plane
 			 */
-				Plane[col * Vdim + row] = val;
+				plane->data[col * vdim + row] = val;
 			}
 		/*
 		 * Make this the previous point
@@ -461,141 +926,55 @@ char	*c, *platforms, *fldname;
 			zndx_prev = zndx;
 		}
 	/*
-	 * Annotate the sounding with a time or date and time if the
-	 * difference from the plot time is > 12 hours.  Mark the sounding
-	 * as bad if we had no good points
 	 */
 		if (val_prev == badvalue)
 		{
 			TC_EncodeTime (&dtime, TC_Full, Scratch);
 			msg_ELog (EF_PROBLEM, 
-				"%s or %s data missing for %s at %s",
-				fldname, Zfld, pnames[p], Scratch);
-			BAD_SOUNDING;
+				  "%s or %s data all bad for %s at %s",
+				  fldname, Zfld, pnames[p], Scratch);
 		}
-		else
-		{
-			sprintf (Scratch, " (");
-
-			diff = PlotTime.zt_Sec - dtime.zt_Sec;
-
-			if (diff > 43200)
-				TC_EncodeTime (&dtime, TC_Full, Scratch + 2);
-			else
-				TC_EncodeTime (&dtime, TC_TimeOnly, 
-					Scratch + 2);
-
-			strcat (Scratch + strlen (Scratch) - 3, ")");
-
-			An_TopAnnot (Scratch, White.pixel);
-		}
-	}
-/*
- * Sanity
- */
-	if (ngood < 2)
-	{
-		msg_ELog (EF_INFO, "Nothing drawn (< 2 good soundings)");
-		return;
 	}
 /*
  * Find the position of each sounding
  */
-	dist[0] = 0.0;
-	for (p = 1; p < ngood; p++)
-		dist[p] = dist[p-1] + hypot ((loc_x[p] - loc_x[p-1]), 
-			(loc_y[p] - loc_y[p-1]));
+	plane->dist[0] = 0.0;
+	for (p = 1; p < plane->nobs; p++)
+		plane->dist[p] = plane->dist[p-1] + 
+		    hypot ((loc_x[p] - loc_x[p-1]), (loc_y[p] - loc_y[p-1]));
 /*
  * Interpolate data where possible
  */
-	xs_ZigZagFillIn (ngood, dist);
-/*
- * Set user coordinates for the graphics (remember that Xlo, Ylo, Xhi, and Yhi
- * are in screen space, not in data space)
- */
-	Xlo = 0.0;
-	Xhi = P_len = dist[ngood - 1];
-	Ylo = P_bot;
-	Yhi = P_bot + P_hgt;
-/*
- * Draw the contour in sections
- */
-	for (p = 0; p < ngood; p++)
-	{
-	/*
-	 * Contour between this sounding and the next one
-	 */
-		if (p < ngood - 1)
-		{
-			if (Fill_contour)
-			{
-				FC_Init (Colors, Ncolors, Ncolors / 2, Black, 
-					Clip, TRUE, BADVAL);
-				FillContour (Graphics, GWFrame (Graphics), 
-					Plane + p * Vdim, 2, Vdim, 
-					XPIX (dist[p]), Pix_bottom, 
-					XPIX (dist[p+1]), Pix_top, 
-					Contour_center, Contour_step);
-			}
-			else
-			{
-				CO_Init (Colors, Ncolors, Ncolors / 2, Black, 
-					Clip, TRUE, BADVAL);
-				Contour (Graphics, GWFrame (Graphics), 
-					Plane + p * Vdim, 2, Vdim, 
-					XPIX (dist[p]), Pix_bottom, 
-					XPIX (dist[p+1]), Pix_top, 
-					Contour_center, Contour_step, 
-					Do_labels, Line_width);
-			}
-		}
-	/*
-	 * Site label
-	 */
-		strcpyUC (Scratch, pnames[p]);
-		XSetForeground (XtDisplay (Graphics), Gcontext, White.pixel);
-		DrawText (Graphics, GWFrame (Graphics), Gcontext, 
-			XPIX (dist[p]), Pix_bottom + 3, Scratch, 0.0, 0.02, 
-			JustifyCenter, JustifyTop);
-	/*
-	 * Trace of altitude span
-	 */
-		xs_ExtendTrace (dist[p], bot[p]);
-		xs_ExtendTrace (dist[p], top[p]);
-		xs_DrawTrace ("");
-	}
-/*
- * Done
- */
-	return;
+	xs_ZZFillIn (plane);
+	return (plane);
 }
 
 
 
 
 static void
-xs_ZigZagFillIn (ncols, dist)
-int	ncols;
-float	*dist;
+xs_ZZFillIn (plane)
+ZZ_DPlane	*plane;
 /*
- * Interpolate data horizontally in the Plane array consisting of ncols 
- * columns by Vdim rows.  The dist array holds the relative positions of
- * the columns.
+ * Interpolate data horizontally in the ZZ_DPlane structure.
  */
 {
 	int	col, row, prev, next;
+	float	*data = plane->data;
+	int	vdim = plane->vdim;
+	float	*dist = plane->dist;
 /*
  * We can potentially interpolate to any of the interior columns (all but the
  * first and last)
  */
-	for (col = 1; col < ncols - 1; col++)
+	for (col = 1; col < plane->nobs - 1; col++)
 	{
-		for (row = 0; row < Vdim; row++)
+		for (row = 0; row < vdim; row++)
 		{
 		/*
 		 * Move on if we have data here
 		 */
-			if (Plane[col * Vdim + row] != BADVAL)
+			if (data[col * vdim + row] != BADVAL)
 				continue;
 		/*
 		 * We have a hole, so try to interpolate
@@ -605,104 +984,168 @@ float	*dist;
 		 * can't interpolate.
 		 */
 			for (prev = col - 1; prev >= 0; prev--)
-				if (Plane[prev * Vdim + row] != BADVAL)
+				if (data[prev * vdim + row] != BADVAL)
 					break;
 
 			if (prev < 0)
 				continue;
 
 
-			for (next = col + 1; next < ncols; next++)
-				if (Plane[next * Vdim + row] != BADVAL)
+			for (next = col + 1; next < plane->nobs; next++)
+				if (data[next * vdim + row] != BADVAL)
 					break;
 
-			if (next >= ncols)
+			if (next >= plane->nobs)
 				continue;
 		/*
 		 * We have good data on both sides, so do the interpolation
 		 */
-			Plane[col * Vdim + row] = ((dist[next] - dist[col]) * 
-				Plane[prev * Vdim + row] + (dist[col] - 
-				dist[prev]) * Plane[next * Vdim + row]) /
+			data[col * vdim + row] = ((dist[next] - dist[col]) * 
+				data[prev * vdim + row] + (dist[col] - 
+				dist[prev]) * data[next * vdim + row]) /
 				(dist[next] - dist[prev]);
 		}
 	}
 }
 
+
 			
+
+static ZZ_DPlane *
+xs_AllocZZ_DPlane (maxobs, vdim)
+int	maxobs, vdim;
+/*
+ * Allocate a ZZ_Dplane structure and its arrays, with enough space for
+ * up to maxobs observations and a vertical dimension of vdim.
+ */
+{
+	int	i;
+	ZZ_DPlane	*plane = (ZZ_DPlane *) malloc (sizeof (ZZ_DPlane));
+
+	plane->nobs = 0;
+	plane->vdim = vdim;
+	plane->bot = (float *) malloc (maxobs * sizeof (float));
+	plane->top = (float *) malloc (maxobs * sizeof (float));
+	plane->dist = (float *) malloc (maxobs * sizeof (float));
+	plane->dtime = (ZebTime *) malloc (maxobs * sizeof (ZebTime));
+	plane->plats = (char **) malloc (maxobs * sizeof (char *));
+	plane->data = (float *) malloc (vdim * maxobs * sizeof (float));
+
+	for (i = 0; i < vdim * maxobs; i++)
+		plane->data[i] = BADVAL;
+	
+	return (plane);
+}
 
 
 
 
 static void
-xs_Planar (c, platforms, fldname)
-char	*c, *platforms, *fldname;
+xs_FreeZZ_DPlane (plane)
+ZZ_DPlane	*plane;
 /*
- * Draw a true planar cross-section
+ * Free the given ZZ_DPlane structure and its component parts
  */
 {
-	char	*vals[2], method[20];
+	int	i;
+
+	for (i = 0; i < plane->nobs; i++)
+		free (plane->plats[i]);
+
+	free (plane->bot);
+	free (plane->top);
+	free (plane->dist);
+	free (plane->dtime);
+	free (plane->plats);
+	free (plane->data);
+	free (plane);
+}
+
+
+
+
+static void
+xs_PlaneContour (c, pnames, nplat, fldname)
+char	*c, **pnames, *fldname;
+int	nplat;
 /*
- * Title
+ * Draw a contour of a planar cross-section
  */
-	sprintf (Scratch, "Cross-section of %s using: ", fldname);
+{
+	int	i;
+	DPlane	*plane;
+/*
+ * Annotate
+ */
+	sprintf (Scratch, "Contour of %s using: ", fldname);
 	An_TopAnnot (Scratch, White.pixel);
 /*
- * Grab the left endpoint from the PD (should be in the global component, since
- * we don't want different endpoints for various components of the plot)
+ * Find the gridding method and grab the data
  */
-	if (! pda_ReqSearch (Pd, "global", "left-endpoint", NULL, Scratch, 
-		SYMT_STRING))
-		return;
+	strcpy (Scratch, "default");
+	pda_Search (Pd, c, "grid-method", "xsect", Scratch, SYMT_STRING);
 
-	if (CommaParse (Scratch, vals) != 2)
+	if (! strcmp (Scratch, "bilinear"))
 	{
-		msg_ELog (EF_PROBLEM, "Endpoints must be in x,y format");
-		return;
+	/*
+	 * Complain if we got more than one platform
+	 */
+		if (nplat > 1)
+		   msg_ELog (EF_INFO, 
+		      "Only one platform used for bilinear method x-sections");
+	/*
+	 * Add this platform to the top annotation
+	 */
+		An_TopAnnot (pnames[0], White.pixel);
+		An_TopAnnot (".  ", White.pixel);
+	/*
+	 * Get the data
+	 */
+		plane = xs_Bilinear (pnames[0], fldname);
 	}
-
-
-	if (! sscanf (vals[0], "%f", &X0) || ! sscanf (vals[1], "%f", &Y0))
-	{
-		msg_ELog (EF_PROBLEM, "Bad left endpoint (%s,%s)", 
-			vals[0], vals[1]);
-		return;
-	}
-/*
- * Grab the right endpoint from the PD (should be in the global component, 
- * since we don't want different endpoints for various components of the plot)
- */
-	if (! pda_ReqSearch (Pd, "global", "right-endpoint", NULL, Scratch, 
-		SYMT_STRING))
-		return;
-
-	if (CommaParse (Scratch, vals) != 2)
-	{
-		msg_ELog (EF_PROBLEM, "Endpoints must be in x,y format");
-		return;
-	}
-
-
-	if (! sscanf (vals[0], "%f", &X1) || ! sscanf (vals[1], "%f", &Y1))
-	{
-		msg_ELog (EF_PROBLEM, "Bad right endpoint (%s,%s)",
-			vals[0], vals[1]);
-		return;
-	}
-/*
- * Find the plane length
- */
-	P_len = hypot (X1 - X0, Y1 - Y0);
-/*
- * Create and fill the data plane
- */
-	strcpy (method, "default");
-	pda_Search (Pd, c, "grid-method", "xsect", method, SYMT_STRING);
-
-	if (! strcmp (method, "bilinear"))
-		xs_Bilinear (platforms, fldname);
 	else
-		xs_HDWeighting (platforms, fldname);
+	{
+		ZebTime	*times = (ZebTime *) alloca (nplat * sizeof (ZebTime));
+		int	diff;
+	/*
+	 * Get the data
+	 */
+		plane = xs_HDWeighting (pnames, nplat, fldname, times);
+	/*
+	 * Annotate with the platforms
+	 */
+		for (i = 0; i < nplat; i++)
+		{
+			if (i != 0)
+				An_TopAnnot (", ", White.pixel);
+
+			An_TopAnnot (pnames[i], White.pixel);
+		/*
+		 * Annotate the sounding with a time or date and time if the
+		 * difference from the plot time is > 12 hours.  
+		 */
+			sprintf (Scratch, " (");
+
+			diff = PlotTime.zt_Sec - times[i].zt_Sec;
+
+			if (times[i].zt_Sec == 0)
+				strcat (Scratch, "BAD");
+			else if (diff > 43200)
+				TC_EncodeTime (&times[i], TC_Full, 
+					       Scratch + 2);
+			else
+				TC_EncodeTime (&times[i], TC_TimeOnly, 
+					       Scratch + 2);
+
+			strcat (Scratch + strlen (Scratch) - 3, ")");
+
+			An_TopAnnot (Scratch, White.pixel);
+		}
+		An_TopAnnot (".  ", White.pixel);
+	}
+
+	if (! plane)
+		return;
 /*
  * Draw the contours
  */
@@ -710,22 +1153,24 @@ char	*c, *platforms, *fldname;
 	{
 		FC_Init (Colors, Ncolors, Ncolors / 2, Black, Clip, 
 			TRUE, BADVAL);
-		FillContour (Graphics, GWFrame (Graphics), Plane, Hdim, Vdim, 
-			Pix_left, Pix_bottom, Pix_right, Pix_top, 
-			Contour_center, Contour_step);
+		FillContour (Graphics, GWFrame (Graphics), plane->data, 
+			     plane->hdim, plane->vdim, Pix_left, Pix_bottom, 
+			     Pix_right, Pix_top, Contour_center, Contour_step);
 	}
 	else
 	{
 		CO_Init (Colors, Ncolors, Ncolors / 2, Black, Clip, 
 			TRUE, BADVAL);
-		Contour (Graphics, GWFrame (Graphics), Plane, Hdim, Vdim, 
-			Pix_left, Pix_bottom, Pix_right, Pix_top, 
-			Contour_center, Contour_step, Do_labels, Line_width);
+		Contour (Graphics, GWFrame (Graphics), plane->data, 
+			 plane->hdim, plane->vdim, Pix_left, Pix_bottom, 
+			 Pix_right, Pix_top, Contour_center, Contour_step, 
+			 Do_labels, Line_width);
 	}
 /*
  * Clean up
  */
-	free (Plane);
+	free (plane->data);
+	free (plane);
 	return;
 }
 
@@ -733,32 +1178,155 @@ char	*c, *platforms, *fldname;
 
 
 static void
-xs_HDWeighting (platforms, fldname)
-char	*platforms, *fldname;
+xs_PlaneVector (c, pnames, nplat, ufldname, vfldname)
+char	*c, **pnames, *ufldname, *vfldname;
+int	nplat;
+{
+	int	i;
+	DPlane	*uplane, *vplane;
 /*
- * Fill the cross-section array with data from the chosen soundings, using
- * a horizontal distance weighting scheme.  Plane is malloc'ed here and 
- * should be free'd by the caller.
+ * Annotate
+ */
+	sprintf (Scratch, "Vectors of (%s,%s) using: ", ufldname, vfldname);
+	An_TopAnnot (Scratch, White.pixel);
+/*
+ * Find the gridding method and grab the data
+ */
+	strcpy (Scratch, "default");
+	pda_Search (Pd, c, "grid-method", "xsect", Scratch, SYMT_STRING);
+
+	if (! strcmp (Scratch, "bilinear"))
+	{
+	/*
+	 * Complain if we got more than one platform
+	 */
+		if (nplat > 1)
+		   msg_ELog (EF_INFO, 
+		      "Only one platform used for bilinear method x-sections");
+	/*
+	 * Add this platform to the top annotation
+	 */
+		An_TopAnnot (pnames[0], White.pixel);
+		An_TopAnnot (".  ", White.pixel);
+	/*
+	 * Get the data
+	 */
+		uplane = xs_Bilinear (pnames[0], ufldname);
+		vplane = xs_Bilinear (pnames[0], vfldname);
+	}
+	else
+	{
+		ZebTime	*times = (ZebTime *) alloca (nplat * sizeof (ZebTime));
+		int	diff;
+	/*
+	 * Get the data
+	 */
+		uplane = xs_HDWeighting (pnames, nplat, ufldname, times);
+		vplane = xs_HDWeighting (pnames, nplat, vfldname, times);
+	/*
+	 * Annotate with the platforms
+	 */
+		for (i = 0; i < nplat; i++)
+		{
+			if (i != 0)
+				An_TopAnnot (", ", White.pixel);
+
+			An_TopAnnot (pnames[i], White.pixel);
+		/*
+		 * Annotate the sounding with a time or date and time if the
+		 * difference from the plot time is > 12 hours.  
+		 */
+			sprintf (Scratch, " (");
+
+			diff = PlotTime.zt_Sec - times[i].zt_Sec;
+
+			if (times[i].zt_Sec == 0)
+				strcat (Scratch, "BAD");
+			else if (diff > 43200)
+				TC_EncodeTime (&times[i], TC_Full, 
+					       Scratch + 2);
+			else
+				TC_EncodeTime (&times[i], TC_TimeOnly, 
+					       Scratch + 2);
+
+			strcat (Scratch + strlen (Scratch) - 3, ")");
+
+			An_TopAnnot (Scratch, White.pixel);
+		}
+		An_TopAnnot (".  ", White.pixel);
+	}
+
+	if (! uplane || ! vplane)
+	{
+		if (uplane)
+		{
+			free (uplane->data);
+			free (uplane);
+		}
+		else if (vplane)
+		{
+			free (vplane->data);
+			free (vplane);
+		}
+
+		return;
+	}
+/*
+ * Draw the vectors
+ */
+	XSetLineAttributes (XtDisplay (Graphics), Gcontext, Line_width, 
+			    LineSolid, CapButt, JoinMiter);
+	VectorGrid (Graphics, GWFrame (Graphics), Gcontext, uplane->data, 
+		    vplane->data, uplane->hdim, uplane->vdim, 
+		    Pix_left, Pix_bottom, Pix_right, Pix_top, Vector_scale, 
+		    BADVAL, Colors[0], 1);
+/*
+ * Return the line width to the default of zero, since this is a
+ * shared GC
+ */
+	XSetLineAttributes (XtDisplay (Graphics), Gcontext, 0, LineSolid, 
+			    CapButt, JoinMiter);
+/*
+ * Clean up
+ */
+	free (uplane->data);
+	free (vplane->data);
+	free (uplane);
+	free (vplane);
+
+	return;
+}
+
+
+
+
+static DPlane *
+xs_HDWeighting (pnames, nplat, fldname, times)
+char	**pnames, *fldname;
+int	nplat;
+ZebTime	*times;
+/*
+ * Create and fill a cross-section array with data from the chosen 
+ * soundings, using a horizontal distance weighting scheme.  Return the 
+ * data times for each platform also, with a time of zero if data for a
+ * given platform are non-existent or bad.
  */
 {
-	int	plat, nplat, pt, npts, iz, zndx, zndx_prev, ih, iv;
+	int	pt, plat, npts, iz, zndx, zndx_prev, ih, iv, hdim, vdim;
 	int	i, j, diff, offset;
-	float	val, x, y, z, t, val_prev, x_prev, y_prev, z_prev, t_prev;
+	float	val, x, y, z, val_prev, x_prev, y_prev, z_prev, t_prev;
 	float	zstep, hlen, frac, badvalue;
-	float	fdata, *xpos = NULL, *ypos = NULL, zpos, *tpos = NULL;
+	float	fdata, *xpos = NULL, *ypos = NULL, zpos;
 	float	xhighest, yhighest, zhighest;
 	float	*floor, *ceiling, *f_wgt, *c_wgt;
-	char	*pnames[20];
-	ZebTime	dtime;
+	ZebTime	dtime, badtime;
 	DataChunk	*dc;
+	DPlane	*plane, *p_wgt;
 /*
- * Parse out platform names
+ * Grid size
  */
-	nplat = CommaParse (platforms, pnames);
-/*
- * Arbitrarily choose 50x50 for our grid size.
- */
-	Hdim = Vdim = 50;
+	hdim = Hgrid ? Hgrid : 50;
+	vdim = Vgrid ? Vgrid : 50;
 /*
  * Set user coordinates for pixel conversions
  */
@@ -770,30 +1338,37 @@ char	*platforms, *fldname;
 /*
  * Allocate space for the plane and weight arrays.
  */
-	Plane = (float *) malloc (Hdim * Vdim * sizeof (float));
+	plane = (DPlane *) malloc (sizeof (DPlane));
+
+	plane->hdim = hdim;
+	plane->vdim = vdim;
+	plane->data = (float *) malloc (hdim * vdim * sizeof (float));
 /*
  * Get the plane weight array plus the floor and ceiling arrays and 
  * their associated weight arrays.  These arrays are all only needed
  * for the duration of this routine, so we can use alloca.
  */
-	P_wgt = (float *) alloca (Hdim * Vdim * sizeof (float));
+	p_wgt = (DPlane *) alloca (sizeof (DPlane));
+	p_wgt->hdim = hdim;
+	p_wgt->vdim = vdim;
+	p_wgt->data = (float *) alloca (hdim * vdim * sizeof (float));
 
-	floor = (float *) alloca (Hdim * sizeof (float));
-	f_wgt = (float *) alloca (Hdim * sizeof (float));
-	ceiling = (float *) alloca (Hdim * sizeof (float));
-	c_wgt = (float *) alloca (Hdim * sizeof (float));
+	floor = (float *) alloca (hdim * sizeof (float));
+	f_wgt = (float *) alloca (hdim * sizeof (float));
+	ceiling = (float *) alloca (hdim * sizeof (float));
+	c_wgt = (float *) alloca (hdim * sizeof (float));
 /*
  * Fill the plane with BADVALs and set the weights to zero.
  * Initialize the floor and ceiling arrays also.
  */
-	for (i = 0; i < Hdim; i++)
+	for (i = 0; i < hdim; i++)
 	{
-		for (j = 0; j < Vdim; j++)
+		for (j = 0; j < vdim; j++)
 		{
-			offset = (i * Vdim) + j;
+			offset = (i * vdim) + j;
 
-			Plane[offset] = BADVAL;
-			P_wgt[offset] = 0.0;
+			plane->data[offset] = BADVAL;
+			p_wgt->data[offset] = 0.0;
 		}
 
 		floor[i] = P_bot;
@@ -804,19 +1379,16 @@ char	*platforms, *fldname;
 /*
  * Vertical grid spacing
  */
-	zstep = P_hgt / (float)(Vdim - 1);
+	zstep = P_hgt / (float)(vdim - 1);
+/*
+ * Create a bogus time for reporting bad soundings
+ */
+	badtime.zt_Sec = badtime.zt_MicroSec = 0;
 /*
  * Loop through the platforms
  */
 	for (plat = 0; plat < nplat; plat++)
 	{
-	/*
-	 * Add this platform to the top annotation
-	 */
-		if (plat != 0)
-			An_TopAnnot (", ", White.pixel);
-
-		An_TopAnnot (pnames[plat], White.pixel);
 	/*
 	 * Initialize for keeping track of the highest point
 	 */
@@ -828,7 +1400,12 @@ char	*platforms, *fldname;
 	 * Get the data
 	 */
 		if (! (dc = xs_GetObsDC (pnames[plat], fldname, &dtime)))
-			BAD_SOUNDING;
+		{
+			times[plat] = badtime;
+			continue;
+		}
+		else
+			times[plat] = dtime;
 	/*
  	 * Get some info from the data chunk
 	 */
@@ -837,20 +1414,13 @@ char	*platforms, *fldname;
 	/*
 	 * Put together the x,y position data
 	 */
-		if (Time_height && ! xs_TimePos (pnames[plat], &dtime, &tpos))
-		{
-			TC_EncodeTime (&dtime, TC_Full, Scratch);
-			msg_ELog (EF_PROBLEM, "No '%s' time data at %s",
-				pnames[plat], Scratch);
-			BAD_SOUNDING;
-		}
-		else if (! Time_height && ! xs_Pos (pnames[plat], &dtime, 
-			&xpos, &ypos))
+		if (! xs_Pos (pnames[plat], &dtime, &xpos, &ypos))
 		{
 			TC_EncodeTime (&dtime, TC_Full, Scratch);
 			msg_ELog (EF_PROBLEM, "No '%s' position data at %s", 
 				pnames[plat], Scratch);
-			BAD_SOUNDING;
+			times[plat] = badtime;
+			continue;
 		}
 	/*
 	 * Loop through the points
@@ -862,17 +1432,9 @@ char	*platforms, *fldname;
 		/*
 		 * Bag this point if the datum or position is bad
 		 */
-			if (Time_height)
-			{
-				if (tpos[pt] == badvalue)
+			if (xpos[pt] == badvalue || ypos[pt] == badvalue)
+
 					continue;
-			}
-			else
-			{
-				if (xpos[pt] == badvalue 
-				    || ypos[pt] == badvalue)
-					continue;
-			}
 	
 			fdata = dc_GetScalar (dc, pt, F_Lookup (fldname));
 			zpos = dc_GetScalar (dc, pt, F_Lookup (Zfld));
@@ -899,19 +1461,14 @@ char	*platforms, *fldname;
 			 */
 				val_prev = fdata;
 				z_prev = zpos;
-				zndx_prev = xs_ZIndex (zpos);
+				zndx_prev = xs_ZIndex (zpos, vdim);
 
-				if (Time_height)
-					t_prev = tpos[pt];
-				else
-				{
-					x_prev = xpos[pt];
-					y_prev = ypos[pt];
-				}
+				x_prev = xpos[pt];
+				y_prev = ypos[pt];
 			/*
 			 * Use the point to help build the floor array
 			 */
-				xs_BuildLimits (floor, f_wgt, xpos[pt], 
+				xs_BuildLimits (floor, f_wgt, hdim, xpos[pt], 
 					ypos[pt], zpos);
 			/*
 			 * Go on to the next point
@@ -921,17 +1478,17 @@ char	*platforms, *fldname;
 		/*
 		 * Quit when we get above the grid
 		 */
-			if (zndx_prev >= Vdim)
+			if (zndx_prev >= vdim)
 				break;
 		/*
 		 * Find the index of the next grid height at or above zpos[pt]
 		 */
-			zndx = xs_ZIndex (zpos);
+			zndx = xs_ZIndex (zpos, vdim);
 		/*
 		 * Assign values at grid levels between this point and the
 		 * previous one
 		 */
-			for (iz = zndx_prev; iz < zndx && iz < Vdim; iz++)
+			for (iz = zndx_prev; iz < zndx && iz < vdim; iz++)
 			{
 			/*
 			 * Don't assign anything below the first grid level
@@ -947,32 +1504,20 @@ char	*platforms, *fldname;
 
 				val = val_prev + frac * (fdata - val_prev);
 
-				if (Time_height)
-					t = (t_prev + frac * 
-						(tpos[pt] - t_prev)) / 3600.0;
-				else
-				{
-					x = x_prev + frac * (xpos[pt]-x_prev);
-					y = y_prev + frac * (ypos[pt]-y_prev);
-				}
+				x = x_prev + frac * (xpos[pt]-x_prev);
+				y = y_prev + frac * (ypos[pt]-y_prev);
 			/*
 			 * Add this datum in at the current height index
 			 */
-				if (Time_height)
-					xs_AddToLevel (iz, t, 0.0, val);
-				else
-					xs_AddToLevel (iz, x, y, val);
+				xs_AddToLevel (plane, p_wgt, iz, x, y, val);
 			}
 		/*
 		 * Project this point onto the plane, and add a point to 
 		 * the trace for this sounding
 		 */
-			if (Time_height)
-				hlen = tpos[pt] / 3600.0;	/* to hours */
-			else
-				hlen = hypot (xpos[pt] - X0, ypos[pt] - Y0) *
-					cos (atan2 (ypos[pt]-Y0, xpos[pt]-X0) -
-					atan2 (Y1-Y0, X1-X0));
+			hlen = hypot (xpos[pt] - X0, ypos[pt] - Y0) *
+				cos (atan2 (ypos[pt]-Y0, xpos[pt]-X0) -
+				atan2 (Y1-Y0, X1-X0));
 
 			xs_ExtendTrace (hlen, zpos);
 		/*
@@ -981,25 +1526,17 @@ char	*platforms, *fldname;
 			val_prev = fdata;
 			z_prev = zpos;
 			zndx_prev = zndx;
-			if (Time_height)
-				t_prev = tpos[pt];
-			else
-			{
-				x_prev = xpos[pt];
-				y_prev = ypos[pt];
-			}
+			x_prev = xpos[pt];
+			y_prev = ypos[pt];
 		}
 	/*
-	 * Free the position arrays returned by xs_Pos () or xs_TimePos ()
+	 * Free the position arrays returned by xs_Pos ()
 	 */
 		if (xpos)
 			free (xpos);
 
 		if (ypos)
 			free (ypos);
-
-		if (tpos)
-			free (tpos);
 	/*
 	 * Only go on if we had at least one good data value
 	 */
@@ -1009,75 +1546,57 @@ char	*platforms, *fldname;
 			msg_ELog (EF_PROBLEM, 
 				"%s or %s data missing for %s at %s",
 				fldname, Zfld, pnames[plat], Scratch);
-			BAD_SOUNDING;
+			times[plat] = badtime;
+			continue;
 		}
 	/*
 	 * Use the highest point of this sounding to help build the 
 	 * ceiling array
 	 */
-		xs_BuildLimits (ceiling, c_wgt, xhighest, yhighest, zhighest);
+		xs_BuildLimits (ceiling, c_wgt, hdim, xhighest, yhighest, 
+				zhighest);
 	/*
 	 * Draw the trace for this sounding
 	 */
 		xs_DrawTrace (pnames[plat]);
-	/*
-	 * Annotate the sounding with a time or date and time if the
-	 * difference from the plot time is > 12 hours.  
-	 */
-		sprintf (Scratch, " (");
-
-		diff = PlotTime.zt_Sec - dtime.zt_Sec;
-
-		if (diff > 43200)
-			TC_EncodeTime (&dtime, TC_Full, Scratch + 2);
-		else
-			TC_EncodeTime (&dtime, TC_TimeOnly, Scratch + 2);
-
-		strcat (Scratch + strlen (Scratch) - 3, ")");
-
-		An_TopAnnot (Scratch, White.pixel);
 	/*
 	 * The plane array is populated, free the allocated memory and return
 	 */
 		dc_DestroyDC (dc);
 	}
 /*
- * Finish the top annotation with a period
- */
-	An_TopAnnot (".  ", White.pixel);
-/*
  * Remove data below the floor and above the ceiling
  */
-	for (ih = 0; ih < Hdim; ih++)
+	for (ih = 0; ih < hdim; ih++)
 	{
-		for (iv = 0; iv < xs_ZIndex (floor[ih]); iv++)
-			Plane[ih * Vdim + iv] = BADVAL;
+		for (iv = 0; iv < xs_ZIndex (floor[ih], vdim); iv++)
+			plane->data[ih * vdim + iv] = BADVAL;
 
-		for (iv = xs_ZIndex (ceiling[ih]); iv < Vdim; iv++)
-			Plane[ih * Vdim + iv] = BADVAL;
+		for (iv = xs_ZIndex (ceiling[ih], vdim); iv < vdim; iv++)
+			plane->data[ih * vdim + iv] = BADVAL;
 	}
 
-	return;
+	return (plane);
 }
 
 
 
-static void
+static DPlane *
 xs_Bilinear (platform, fldname)
 char	*platform, *fldname;
 /*
- * Fill the cross-section array with data from a cartesian grid, using
+ * Create a cross-section array with data from a cartesian grid, using
  * bilinear interpolation.  It is assumed that the data source will be a
- * 3d cartesian grid.  Plane is malloc'ed here and should be free'd by the
- * caller.
+ * 3d cartesian grid.  The DPlane is alloc'ed here and should be free'd by the
+ * caller.  Return NULL if there's a problem.
  */
 {
-	int	nplat, len, h, v, i, j, k;
+	int	len, h, v, i, j, k, hdim, vdim;
 	float	*sourcegrid, *sgp, sgbad, *pp;
 	float	f_i0, f_istep, f_j0, f_jstep, f_k0, f_kstep, f_i, f_j;
 	float	grid_x0, grid_y0, grid_z0, di, dj, val0, val1, val2, val3;
-	char	*pnames[20];
 	RGrid	rg;
+	DPlane	*plane;
 	ZebTime dtime;
 	Location	loc;
 	DataChunk	*dc;
@@ -1088,34 +1607,13 @@ char	*platform, *fldname;
 	{
 		msg_ELog (EF_PROBLEM, 
 			  "Can't do bilinear plots with pressure vert. scale");
-		return;
+		return (NULL);
 	}
-/*
- * Parse out platform names
- */
-	nplat = CommaParse (platform, pnames);
-	if (nplat > 1)
-		msg_ELog (EF_INFO, 
-		    "Only one platform used for bilinear method x-sections");
-/*
- * Add this platform to the top annotation
- */
-	An_TopAnnot (platform, White.pixel);
-	An_TopAnnot (".  ", White.pixel);
 /*
  * Get the data
  */
 	if (! (dc = xs_GetGridDC (platform, fldname, &dtime)))
-	{
-	/*
-	 * Return if we fail.  Make sure to allocate *something* for Plane,
-	 * since our caller will be free'ing it.
-	 */
-		Hdim = Vdim = 1;
-		Plane = (float *) malloc (sizeof (float));
-		*Plane = BADVAL;
-		return;
-	}
+		return (NULL);
 /*
  * Get the info we need from the data chunk
  */
@@ -1125,14 +1623,20 @@ char	*platform, *fldname;
 
 	sgbad = dc_GetBadval (dc);
 /*
- * More or less arbitrarily base the horizontal spacing for our plane
- * on the x spacing of the source grid.  The vertical spacing is set to
- * the z spacing of the source grid.
+ * Use the specified grid size, if any.  Otherwise use x spacing of the source
+ * grid as the horizontal spacing for our plane and the z spacing of the source
+ * grid as the vertical spacing for the plane.
  */
-	Hdim = (P_len / rg.rg_Xspacing) + 1;
-	Vdim = (P_hgt / rg.rg_Zspacing) + 1;
+	hdim = Hgrid ? Hgrid : (P_len / rg.rg_Xspacing) + 1;
+	vdim = Vgrid ? Vgrid : (P_hgt / rg.rg_Zspacing) + 1;
+/*
+ * Allocate the plane structure
+ */
+	plane = (DPlane *) malloc (sizeof (DPlane));
 
-	Plane = (float *) malloc (Hdim * Vdim * sizeof (float));
+	plane->hdim = hdim;
+	plane->vdim = vdim;
+	plane->data = (float *) malloc (hdim * vdim * sizeof (float));
 /*
  * Set user coordinates for pixel conversions (Note that "x" and "y" here refer
  * to user coordinates on the screen, which correspond to the direction of the
@@ -1152,10 +1656,10 @@ char	*platform, *fldname;
 	f_j0 = (Y0 - grid_y0) / rg.rg_Yspacing;
 	f_k0 = (P_bot - grid_z0) / rg.rg_Zspacing;
 
-	if (Hdim > 1)
+	if (hdim > 1)
 	{
-		f_istep = (X1 - X0) / (rg.rg_Xspacing * (Hdim - 1));
-		f_jstep = (Y1 - Y0) / (rg.rg_Yspacing * (Hdim - 1));
+		f_istep = (X1 - X0) / (rg.rg_Xspacing * (hdim - 1));
+		f_jstep = (Y1 - Y0) / (rg.rg_Yspacing * (hdim - 1));
 	}
 	else
 		f_istep = f_jstep = 0.0;
@@ -1164,16 +1668,17 @@ char	*platform, *fldname;
 /*
  * h is the horizontal index and v is the vertical index into the vertical 
  * plane we're building.
+ *
  * i and j are the horizontal indices and k is the vertical index into the 
  * source grid.
  */
-	for (v = 0; v < Vdim; v++)
+	for (v = 0; v < vdim; v++)
 	{
 		k = nint (f_k0 + v * f_kstep);
 
-		for (h = 0; h < Hdim; h++)
+		for (h = 0; h < hdim; h++)
 		{
-			pp = Plane + h * Vdim + v;
+			pp = plane->data + h * vdim + v;
 
 			f_i = f_i0 + h * f_istep;
 			f_j = f_j0 + h * f_jstep;
@@ -1237,20 +1742,21 @@ char	*platform, *fldname;
  * The plane array is populated, free the data chunk and return
  */
 	dc_DestroyDC (dc);
-	return;
+	return (plane);
 }
 
 
 
 
 static int
-xs_ZIndex (z)
+xs_ZIndex (z, vdim)
 float	z;
+int	vdim;
 /*
  * Return the index of the first grid level at or above z
  */
 {
-	float	fndx = (z - P_bot) / P_hgt * (Vdim - 1);
+	float	fndx = (z - P_bot) / P_hgt * (vdim - 1);
 
 	if ((float)((int) fndx) == fndx)
 		return ((int) fndx);	
@@ -1262,47 +1768,33 @@ float	z;
 
 
 static void
-xs_AddToLevel (iv, xdat, ydat, vdat)
+xs_AddToLevel (plane, p_wgt, iv, xdat, ydat, vdat)
+DPlane	*plane, *p_wgt;
 int	iv;
 float	vdat, xdat, ydat;
 /*
  * Apply the point with value vdat located at (xdat,ydat) to the plane
- * at vertical index iv.  (For time-height plots, xdat should be the time 
- * position and ydat should be zero)
+ * at vertical index iv.
  */
 {
 	int	ih, offset;
-	float	x, y, d, xstep, ystep, tstep, wgt;
+	float	x, y, d, xstep, ystep, wgt, *dp, *wp;
 /*
  * Sanity check
  */
-	if (iv < 0 || iv >= Vdim)
+	if (iv < 0 || iv >= plane->vdim)
 		ui_error ("*BUG* Bad vertical index in xs_AddToLevel");
 /*
  * Step through the grid horizontally at vertical index iv and use a distance
  * weighting scheme to apply the given point
  */
-	if (Time_height)
-		tstep = P_len / (Hdim - 1);
-	else
-	{
-		xstep = (X1 - X0) / (Hdim - 1);
-		ystep = (Y1 - Y0) / (Hdim - 1);
-	}
+	xstep = (X1 - X0) / (plane->hdim - 1);
+	ystep = (Y1 - Y0) / (plane->hdim - 1);
 
-
-	for (ih = 0; ih < Hdim; ih++)
+	for (ih = 0; ih < plane->hdim; ih++)
 	{
-		if (Time_height)
-		{
-			x = ih * tstep;
-			y = 0.0;
-		}
-		else
-		{
-			x = X0 + ih * xstep;
-			y = Y0 + ih * ystep;
-		}
+		x = X0 + ih * xstep;
+		y = Y0 + ih * ystep;
 
 		d = sqrt ((xdat - x) * (xdat - x) + (ydat - y) * (ydat - y));
 	/*
@@ -1315,10 +1807,13 @@ float	vdat, xdat, ydat;
 	/*
 	 * Apply the point
 	 */
-		offset = (ih * Vdim) + iv;
-		Plane[offset] = (Plane[offset] * P_wgt[offset] + vdat * wgt) /
-			(P_wgt[offset] + wgt);
-		P_wgt[offset] = P_wgt[offset] + wgt;
+		offset = (ih * plane->vdim) + iv;
+
+		dp = plane->data + offset;
+		wp = p_wgt->data + offset;
+
+		*dp = ((*dp) * (*wp) + vdat * wgt) / ((*wp) + wgt);
+		*wp = (*wp) + wgt;
 	}
 }
 
@@ -1326,13 +1821,13 @@ float	vdat, xdat, ydat;
 
 
 static void
-xs_BuildLimits (array, weight, xdat, ydat, zdat)
+xs_BuildLimits (array, weight, hdim, xdat, ydat, zdat)
 float	*array, *weight;
 float	xdat, ydat, zdat;
+int	hdim;
 /*
  * Use the given point to help build either the given ceiling or floor
- * array.  For time-height plots, xdat should be the time position and 
- * ydat should be zero.
+ * array.
  */
 {
 	int	ih;
@@ -1340,22 +1835,19 @@ float	xdat, ydat, zdat;
 /*
  * Horizontal step length in the plane
  */
-	hstep = P_len / (Hdim - 1);
+	hstep = P_len / (hdim - 1);
 /*
  * Find the distance from the left endpoint of the plane to the projection
  * of the given point onto the plane.
  */
-	if (Time_height)
-		pos = xdat;
-	else
-		pos = hypot (xdat - X0, ydat - Y0) * 
-			cos (atan2 (ydat-Y0, xdat-X0) - atan2 (Y1-Y0, X1-X0));
+	pos = hypot (xdat - X0, ydat - Y0) * 
+		cos (atan2 (ydat-Y0, xdat-X0) - atan2 (Y1-Y0, X1-X0));
 /*
  * Step through the array and use a distance weighting scheme to apply 
  * the given point.  The point is projected onto the plane before distances
  * are calculated. 
  */
-	for (ih = 0; ih < Hdim; ih++)
+	for (ih = 0; ih < hdim; ih++)
 	{
 	/*
 	 * Find the distance from this array point to the projection of
@@ -1486,24 +1978,7 @@ xs_Background ()
 /*
  * Figure out where to put ticks on horizontal axes
  */
-	if (Time_height)
-	{
-		tickinc = pow (10.0, floor (log10 (P_len)));
-
-		if ((P_len / tickinc) < 1.5)
-			tickinc *= 0.1;
-		else if ((P_len / tickinc) < 3.0)
-			tickinc *= 0.2;
-		else if ((P_len / tickinc) < 8.0)
-			tickinc *= 0.5;
-	/*
-	 * Don't make tick increment finer than 1/2 hour
-	 */
-		if (Time_height && tickinc < 0.5)
-			tickinc = 0.5;
-	}
-	else
-		tickinc = P_len / 8.0;
+	tickinc = P_len / 8.0;
 /*
  * Label the horizontal axes
  */
@@ -1529,12 +2004,9 @@ xs_Background ()
 	 */
 		if (dolabel)
 		{
-			if (Time_height)
-				sprintf (Scratch, "%d", (int) tick);
-			else
-				sprintf (Scratch, "(%.1f,%.1f)", 
-					X0 + tick / P_len * (X1 - X0),
-					Y0 + tick / P_len * (Y1 - Y0));
+			sprintf (Scratch, "(%.1f,%.1f)", 
+				X0 + tick / P_len * (X1 - X0),
+				Y0 + tick / P_len * (Y1 - Y0));
 
 			DrawText (Graphics, GWFrame (Graphics), Gcontext, 
 				XPIX (tick), YPIX (P_bot - 0.005 * P_hgt), 
@@ -1543,109 +2015,11 @@ xs_Background ()
 		dolabel = ! dolabel;
 	}
 
-	if (Time_height)
-		DrawText (Graphics, GWFrame (Graphics), Gcontext, 
-			XPIX (0.5 * P_len), YPIX (P_bot - 0.04 * P_hgt), 
-			"Time from start (hours)", 0.0, 0.02, 
-			JustifyCenter, JustifyTop);
-	else
-		DrawText (Graphics, GWFrame (Graphics), Gcontext,
-			XPIX (0.5 * P_len), YPIX (P_bot - 0.04 * P_hgt), 
-			"Position (km)", 0.0, 0.02, JustifyCenter, 
-			JustifyTop);
+	DrawText (Graphics, GWFrame (Graphics), Gcontext, XPIX (0.5 * P_len), 
+		  YPIX (P_bot - 0.04 * P_hgt), "Position (km)", 0.0, 0.02, 
+		  JustifyCenter, JustifyTop);
 }
 
-
-
-
-static void
-xs_TimeHeight ()
-/*
- * Initialize for a time-height plot
- */
-{
-# ifdef notdef
-	int	snd, sec_delta, pt, npts;
-	float	*tdata;
-	date	stime, diff, latest, earliest;
-	date	snd_time ();
-/*
- * Find the earliest and latest times from all of the soundings used
- */
-	earliest.ds_yymmdd = 99991231;
-	earliest.ds_hhmmss = 235959;
-	latest.ds_yymmdd = 0;
-	latest.ds_hhmmss = 0;
-
-	for (snd = 0; snd < Nsnd; snd++)
-	{
-		stime = snd_time (S_id[snd]);
-	/*
-	 * See if this is the latest sounding by start time.
-	 * If so, put the length of the sounding into sec_delta
-	 */
-		if (stime.ds_yymmdd > latest.ds_yymmdd || 
-			(stime.ds_yymmdd == latest.ds_yymmdd && 
-			 stime.ds_hhmmss > latest.ds_hhmmss))
-		{
-			latest = stime;
-
-			if (snd_has_field (S_id[snd], f_time))
-			{
-				tdata = (float *) 
-					malloc (BUFLEN * sizeof (float));
-				npts = snd_get_data (S_id[snd], tdata, BUFLEN, 
-					f_time, BADVAL);
-				for (pt = npts-1; pt >= 0; pt--)
-					if (tdata[pt] != BADVAL)
-					{
-						sec_delta = 
-							(int)(tdata[pt] + 0.5);
-						break;
-					}
-
-				free (tdata);
-			}
-			else
-				sec_delta = 0;
-		}
-					
-	/*
-	 * See if this is the earliest sounding
-	 */
-		if (stime.ds_yymmdd < earliest.ds_yymmdd ||
-			(stime.ds_yymmdd == earliest.ds_yymmdd &&
-			 stime.ds_hhmmss < earliest.ds_hhmmss))
-			earliest = stime;
-	}
-/*
- * Make sure we have a time range
- */
-	if (earliest.ds_yymmdd == latest.ds_yymmdd && 
-		earliest.ds_hhmmss == latest.ds_hhmmss)
-		ui_error ("All soundings used are at the same time!");
-/*
- * Set the plot start time
- */
-	T0 = earliest;
-/*
- * Find the length of the plane (the total time range in hours)
- */
-	ud_sub_date (&latest, &earliest, &diff);
-	P_len = (diff.ds_yymmdd % 100) * 86400 + 	/* days    */
-		(diff.ds_hhmmss / 10000) * 3600 + 	/* hours   */
-		((diff.ds_hhmmss / 100) % 100) * 60 + 	/* minutes */
-		(diff.ds_hhmmss % 100) + sec_delta;	/* seconds */
-
-	P_len /= 3600.0;
-/*
- * Set the time-height flag
- */
-	Time_height = TRUE;
-# endif
-}
-
-	
 
 
 
@@ -1831,65 +2205,6 @@ float	**xpp, **ypp;
 
 
 
-static int
-xs_TimePos (plat, ptime, tpos)
-char	*plat;
-ZebTime	*ptime;
-float	**tpos;
-/*
- * Return the time positions of the data points for 'pid' relative to T0
- */
-{
-# ifdef notdef
-	float	*time;
-	int	npts, pt, start_sec;
-	date	stime, diff, snd_time ();
-/*
- * Get the sounding start time and the difference from the start time
- * of the plot
- */
-	stime = snd_time (sid);
-	ud_sub_date (&stime, &T0, &diff);
-/*
- * Convert the time difference into seconds
- */
-	start_sec = (diff.ds_yymmdd % 100) * 86400 +
-		(diff.ds_hhmmss / 10000) * 3600 +
-		((diff.ds_hhmmss / 100) % 100) * 60 + 
-		(diff.ds_hhmmss % 100);
-/*
- * If there is no time data for this sounding, fill the array with the
- * start time and return
- */
-	if (! snd_has_field (sid, f_time))
-	{
-		for (pt = 0; pt < BUFLEN; pt++)
-			tpos[pt] = start_sec;
-
-		return;
-	}
-/*
- * Get the time data for the sounding
- */
-	time = (float *) malloc (BUFLEN * sizeof (float));	
-
-	npts = snd_get_data (sid, time, BUFLEN, f_time, BADVAL);
-
-	for (pt = 0; pt < npts; pt++)
-		if (time[pt] != BADVAL)
-			tpos[pt] = start_sec + time[pt];
-		else
-			tpos[pt] = BADVAL;
-
-	free (time);
-
-	return;
-# endif
-}
-
-
-
-
 static void
 xs_ExtendTrace (x, y)
 float	x, y;
@@ -1979,81 +2294,6 @@ char	*name;
 	Tracelen = 0;
 }
 
-
-
-static void
-xs_ColorScale ()
-/*
- * Draw a color scale on the side of the plot
- */
-{
-	int	top, bottom, left, right, i;
-	float	bar_height, cval;
-/*
- * Side annotation (color scales)
- */
-	An_AnnotLimits (&top, &bottom, &left, &right);
-
-	if (Fill_contour)
-	{
-		left += 5;
-		top += 5;
-		bottom -= 5;
-
-		bar_height = (float)(bottom - top) / (float) Ncolors;
-
-		for (i = 0; i <= Ncolors; i++)
-		{
-		/*
-		 * Draw a color rectangle
-		 */
-			if (i < Ncolors)
-			{
-				XSetForeground (XtDisplay (Graphics), Gcontext,
-					Colors[i].pixel);
-				XFillRectangle (XtDisplay (Graphics), 
-					GWFrame (Graphics), Gcontext, left, 
-					(int)(top + i * bar_height), 10, 
-					(int)(bar_height + 1.5));
-			}
-		/*
-		 * Numeric label
-		 */
-			cval = Contour_center + 
-				(i - Ncolors / 2) * Contour_step;
-			sprintf (Scratch, "%.1f", cval);
-
-			XSetForeground (XtDisplay (Graphics), Gcontext, 
-				White.pixel);
-			DrawText (Graphics, GWFrame (Graphics), Gcontext, 
-				left + 15, (int)(top + i * bar_height), 
-				Scratch, 0.0, 0.02, JustifyLeft, 
-				JustifyCenter);
-		}
-	}
-	else
-	{
-		left += 10;
-		top += 5;
-
-		for (i = 0; i < Ncolors; i++)
-		{
-		/*
-		 * Numeric label
-		 */
-			cval = Contour_center + 
-				(i - Ncolors / 2) * Contour_step;
-			sprintf (Scratch, "%.1f", cval);
-
-			XSetForeground (XtDisplay (Graphics), Gcontext, 
-				Colors[i].pixel);
-			DrawText (Graphics, GWFrame (Graphics), Gcontext,
-				left, top, Scratch, 0.0, 0.02, JustifyLeft, 
-				JustifyTop);
-			top += (int)(1.2 * 0.02 *  GWHeight (Graphics));
-		}
-	}
-}
 
 
 

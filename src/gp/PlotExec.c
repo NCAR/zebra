@@ -34,7 +34,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 # include "LayoutControl.h"
-MAKE_RCSID ("$Id: PlotExec.c,v 2.29 1993-07-01 20:14:41 granger Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.30 1993-09-20 17:16:05 burghart Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -174,7 +174,10 @@ static void _UncompiledFunction() {};
 	extern void	sk_Skewt ();
 # endif
 # if C_PT_XSECT
-	extern void	xs_LineContour (), xs_FilledContour ();
+	extern void	xs_Init FP ((UItime *));
+	extern void	xs_LineContour FP ((char *, int));
+	extern void	xs_FilledContour FP ((char *, int));
+	extern void	xs_Vector FP ((char *, int));
 # endif
 # if C_PT_TSERIES
 	extern void	ts_Plot();
@@ -829,11 +832,15 @@ px_Init ()
 # endif
 
 # if C_PT_XSECT
+	Plot_routines[PT_XSECT][RT_INIT] = xs_Init;
 	Plot_routines[PT_XSECT][RT_CONTOUR] = xs_LineContour;
 	Plot_routines[PT_XSECT][RT_FCONTOUR] = xs_FilledContour;
+	Plot_routines[PT_XSECT][RT_VECTOR] = xs_Vector;
 # else
+	Plot_routines[PT_XSECT][RT_INIT] = UNCOMPILED_FUNCTION;
 	Plot_routines[PT_XSECT][RT_CONTOUR] = UNCOMPILED_FUNCTION;
 	Plot_routines[PT_XSECT][RT_FCONTOUR] = UNCOMPILED_FUNCTION;
+	Plot_routines[PT_XSECT][RT_VECTOR] = UNCOMPILED_FUNCTION;
 # endif
 # if C_PT_TSERIES
 	Plot_routines[PT_TSERIES][RT_TSERIES] = ts_Plot;	
