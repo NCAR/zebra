@@ -28,6 +28,12 @@ char *PlatName[MAXPLAT];
 static int Seq = 0;
 static int Broadcast = 0, Port = 0;
 static long Addr = 0;
+static int Pid;			/* Our process id		*/
+
+/*
+ * The queue of broadcast packets awaiting everything else.
+ */
+static DataBCChunk *BCQueue = 0;
 
 /*
  * Stuff for data builds in progress.
@@ -69,6 +75,9 @@ InProgress *IPList = 0;
 	static void DoBCast (PlatformId, DataObject *);
 	static void FinishIP (InProgress *);
 	static void ReceiveSetup (int);
+	static void IncOffsets (DataOffsets *);
+	static void UnknownBCast (DataBCChunk *, int);
+	static void FindQueued (int);
 # else
 	static int Incoming ();
 	static void Die ();
@@ -89,6 +98,9 @@ InProgress *IPList = 0;
 	static void DoBCast ();
 	static void FinishIP ();
 	static void ReceiveSetup ();
+	static void IncOffsets ();
+	static void UnknownBCast ();
+	static void FindQueued ();
 # endif
 
 /*
@@ -144,6 +156,7 @@ char **argv;
 /*
  * Start reading commands.
  */
+	Pid = getpid ();
 	ui_get_command ("initial", "NetXfr>", Dispatcher, 0);
 	Die ();
 }
@@ -265,7 +278,7 @@ struct ui_command *cmds;
 /*
  * Figure out params.
  */
-	if (sscanf (UPTR (*cmds), "%d.%d.%d.%d", &a, &b, &c, &d) != 1)
+	if (sscanf (UPTR (*cmds), "%d.%d.%d.%d", &a, &b, &c, &d) != 4)
 	{
 		msg_ELog (EF_EMERGENCY, "Bad broadcast addr '%s'",UPTR(*cmds));
 		exit (1);
@@ -350,11 +363,6 @@ int ns;
 				dobj->do_nbyte, DOF_FREEALLDATA);
 	}
 /*
- * If we're broadcasting, do that now.
- */
-	if (Broadcast)
-		DoBCast (plat, dobj);
-/*
  * Now per-organization stuff.
  */
 	switch (dobj->do_org)
@@ -392,6 +400,11 @@ int ns;
 			DOFFSET (do_desc.d_length), sizeof (int), 0);
 		break;
 	}
+/*
+ * If we're broadcasting, do that now.
+ */
+	if (Broadcast)
+		DoBCast (plat, dobj);
 /*
  * Done at last.
  */
@@ -482,6 +495,7 @@ DataObject *dobj;
 	for (fld = 0; fld < dobj->do_nfield; fld++)
 		offsets.dh_Offsets[fld] = dobj->do_data[fld]-dobj->do_data[0];
 	offsets.dh_MsgType = NMT_DataOffsets;
+	offsets.dh_DataSeq = Seq;
 	SendOut (plat, &offsets, sizeof (offsets));
 /*
  * Allocate memory for our chunk, and figure out how much we can do in
@@ -503,6 +517,7 @@ DataObject *dobj;
 	chunk->dh_DataSize = dobj->do_nbyte;
 	chunk->dh_NChunk = (dobj->do_nbyte + chunk->dh_Size -1)/chunk->dh_Size;
 	chunk->dh_Chunk = 0;
+	chunk->dh_ID = Pid;
 	msg_ELog (EF_DEBUG, "BCast in %d chunks of %d", chunk->dh_NChunk,
 		chunk->dh_Size);
 /*
@@ -653,6 +668,13 @@ struct message *msg;
 	   	Done (tmpl->dh_DataSeq);
 		break;
 
+	/*
+	 * Offsets for bcast data.
+	 */
+	   case NMT_DataOffsets:
+	   	IncOffsets ((DataOffsets *) tmpl);
+		break;
+
 	   default:
 	   	msg_ELog (EF_PROBLEM, "Unknown data proto type: %d",
 				tmpl->dh_MsgType);
@@ -692,15 +714,35 @@ DataHdr *hdr;
 	ip->ip_DObj->do_id = ip->ip_Plat;
 	ip->ip_Arrived = 0;
 /*
- * BCast stuff.
- */
-	if (ip->ip_BCast = hdr->dh_BCast)
-		ip->ip_NBCast = ip->ip_NBExpect = 0;
-/*
- * Add it to the list, and we're done.
+ * Add it to the list
  */
 	ip->ip_Next = IPList;
 	IPList = ip;
+/*
+ * BCast stuff.
+ */
+	if (ip->ip_BCast = hdr->dh_BCast)
+	{
+		ip->ip_NBCast = ip->ip_NBExpect = 0;
+		FindQueued (ip->ip_Seq);
+	}
+	msg_ELog (EF_DEBUG,"BCast is %d for seq %d", ip->ip_BCast, ip->ip_Seq);
+}
+
+
+
+
+static void
+IncOffsets (off)
+DataOffsets *off;
+/*
+ * Deal with an incoming offsets structure.
+ */
+{
+	InProgress *ip = FindIP (off->dh_DataSeq);
+
+	if (ip)
+		ip->ip_Offsets = *off;
 }
 
 
@@ -777,13 +819,12 @@ char *data;
 		return (0);
 	}
 /*
- * Look for this IP.  For now, we assume that the header will have arrived
- * by now.  That may not be a good assumption.
+ * Look for this IP.  If we don't find it, we need to go to some more effort
+ * to decide what the hell to do with this thing.
  */
 	if (! (ip = FindIP (chunk->dh_DataSeq)))
 	{
-		msg_ELog (EF_PROBLEM, "Unknown Data Seq %d Bcast", 
-			chunk->dh_DataSeq);
+		UnknownBCast (chunk, len);
 		return (0);
 	}
 /*
@@ -814,6 +855,83 @@ char *data;
  */
 	if (ip->ip_Done && ip->ip_NBCast >= ip->ip_NBExpect)
 		FinishIP (ip);
+}
+
+
+
+
+
+
+static void
+UnknownBCast (chunk, len)
+DataBCChunk *chunk;
+int len;
+/*
+ * Deal with a broadcast chunk that does not correspond to a known
+ * IP.
+ */
+{
+	DataBCChunk *new;
+/*
+ * Here is where we try to detect packets that we have sent out ourselves.
+ * The algorithm is, basically: (1) if we are doing broadcasts, (2) the PID
+ * matches, and (3) the sequence is close to ours, we assume that this
+ * packet was sent by us and we drop it.
+ */
+	if (Broadcast && chunk->dh_ID == Pid &&
+				ABS (chunk->dh_DataSeq - Seq) < 5)
+	{
+		msg_ELog (EF_DEBUG, "Drop own BC pkt, seq %d",
+				chunk->dh_DataSeq);
+		return;
+	}
+/*
+ * Otherwise we enqueue it, waiting for the header info to arrive.
+ */
+	msg_ELog (EF_DEBUG, "Enqueue BC seq %d ch %d/%d", chunk->dh_DataSeq,
+		chunk->dh_Chunk, chunk->dh_NChunk);
+	new = (DataBCChunk *) malloc (len);
+	new->dh_Next = BCQueue;
+	BCQueue = new;
+}
+
+
+
+
+static void
+FindQueued (seq)
+int seq;
+/*
+ * Find any enqueued bcast packets for this seq and dispatch them.
+ */
+{
+	DataBCChunk *chunk, *last;
+/*
+ * See if there are any at the head of the list.
+ */
+	while (BCQueue && BCQueue->dh_DataSeq == seq)
+	{
+		chunk = BCQueue;
+		BCQueue = BCQueue->dh_Next;
+		BCastHandler (0, (char *) chunk, 0);
+		free (chunk);
+	}
+/*
+ * Now pass through the rest.
+ */
+	last = chunk = BCQueue;
+	while (chunk)
+	{
+		if (chunk->dh_DataSeq == Seq)
+		{
+			last->dh_Next = chunk->dh_Next;
+			BCastHandler (0, (char *) chunk, 0);
+			free (chunk);
+		}
+		else
+			last = chunk;
+		chunk = last->dh_Next;
+	}
 }
 
 
