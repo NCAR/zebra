@@ -20,14 +20,14 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: Daemon.c,v 2.1 1991-09-26 22:40:41 gracio Exp $";
+static char *rcsid = "$Id: Daemon.c,v 2.2 1991-11-04 18:04:55 corbet Exp $";
 
 # include <sys/types.h>
 # include <sys/vfs.h>
 # include <dirent.h>
 # include <errno.h>
 # include <copyright.h>
-# include "../config/config.h"
+# include "../include/config.h"
 # include "../include/defs.h"
 # include "../include/message.h"
 # include "../include/timer.h"
