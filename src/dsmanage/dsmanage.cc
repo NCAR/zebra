@@ -4,6 +4,23 @@
 // This is my first real C++ program.  It is probably not an outstanding
 // example of the application of object-oriented techniques.
 //
+/*		Copyright (C) 1987,88,89,90,91,92 by UCAR
+ *	University Corporation for Atmospheric Research
+ *		   All rights reserved
+ *
+ * No part of this work covered by the copyrights herein may be reproduced
+ * or used in any form or by any means -- graphic, electronic, or mechanical,
+ * including photocopying, recording, taping, or information storage and
+ * retrieval systems -- without permission of the copyright owner.
+ * 
+ * This software and any accompanying written materials are provided "as is"
+ * without warranty of any kind.  UCAR expressly disclaims all warranties of
+ * any kind, either express or implied, including but not limited to the
+ * implied warranties of merchantibility and fitness for a particular purpose.
+ * UCAR does not indemnify any infringement of copyright, patent, or trademark
+ * through use or modification of this software.  UCAR does not provide 
+ * maintenance or updates for its software.
+ */
 
 
 //
@@ -25,6 +42,8 @@ extern "C" {
 # include "dsmanage.h"
 # include "DataDir.h"
 # include "Index.h"
+
+MAKE_RCSID ("$Id: dsmanage.cc,v 1.2 1992-09-10 22:26:51 corbet Exp $");
 
 extern "C" void strcat (char *, const char *);
 extern "C" char *strrchr (const char *, int);
@@ -281,4 +300,18 @@ MakeLocalIndex (const char *fname)
 // get destructed.
 //
 	index.save (fname);
+}
+
+
+
+
+const char *
+GetPlatDir (const char *name)
+//
+// Return the data directory for this platform.
+//
+{
+	PlatformId pid = ds_LookupPlatform ((char *) name);
+
+	return (PTable[pid].dp_dir);
 }

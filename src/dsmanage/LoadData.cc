@@ -1,6 +1,24 @@
 //
 // Loading data from whereever.
 //
+/*		Copyright (C) 1987,88,89,90,91,92 by UCAR
+ *	University Corporation for Atmospheric Research
+ *		   All rights reserved
+ *
+ * No part of this work covered by the copyrights herein may be reproduced
+ * or used in any form or by any means -- graphic, electronic, or mechanical,
+ * including photocopying, recording, taping, or information storage and
+ * retrieval systems -- without permission of the copyright owner.
+ * 
+ * This software and any accompanying written materials are provided "as is"
+ * without warranty of any kind.  UCAR expressly disclaims all warranties of
+ * any kind, either express or implied, including but not limited to the
+ * implied warranties of merchantibility and fitness for a particular purpose.
+ * UCAR does not indemnify any infringement of copyright, patent, or trademark
+ * through use or modification of this software.  UCAR does not provide 
+ * maintenance or updates for its software.
+ */
+
 # include <stdio.h>
 # include <stream.h>
 # include <unistd.h>
@@ -23,6 +41,7 @@ extern "C"
 #	include "../DataStore/dsPrivate.h" 	// XXX
 #	include "../DataStore/dslib.h" 		// XXX
 	extern int uit_parse_date (const char *, SValue *, int); // XXX XXX
+	extern int atoi (const char *);
 }
 # include "container.h"
 # include "DataDir.h"
@@ -30,7 +49,7 @@ extern "C"
 # include "dsmWindows.h"
 # include "Index.h"
 # include "ZTime.h"
-MAKE_RCSID ("$Id: LoadData.cc,v 1.1 1992-09-02 16:06:08 corbet Exp $")
+MAKE_RCSID ("$Id: LoadData.cc,v 1.2 1992-09-10 22:26:51 corbet Exp $")
 
 class LoadSelect;
 
@@ -39,17 +58,18 @@ void dsLoadContinue (Widget, XtPointer, XtPointer);
 
 void SetToggles (Widget, XtPointer, XtPointer);
 void ClearToggles (Widget, XtPointer, XtPointer);
-void DataSelected (Widget, XtPointer, XtPointer);
+void PerformLoad (Widget, XtPointer, XtPointer);
 void SkipCB (Widget, XtPointer, XtPointer);
 void ExecTimeSelect (Widget, XtPointer, XtPointer);
 static void PlatformSel (Widget, XtPointer, XtPointer);
 static void MarkTimeFiles (LoadSelect *ls, PlatformIndex *select,
-		const ZebTime &tbegin, const ZebTime &tend);
+		const ZebTime &tbegin, const ZebTime &tend, int skip);
 static void MakeFileLabel (const IndexFile *, char *);
 static void GetFileChooser (Widget, XtPointer, XtPointer);
 static void SelFile (Widget, XtPointer, XtPointer);
 static void MarkAllFiles (Widget, XtPointer, XtPointer);
 static void UnmarkAllFiles (Widget, XtPointer, XtPointer);
+static void ClearAll (Widget, XtPointer, XtPointer);
 static void SyncChoosers ();
 static void ZapChoosers ();
 
@@ -337,6 +357,7 @@ class LoadSelect : public dsPopupWindow
 	Widget startTime;		// Begin time
 	Widget endTime;
 	PlatformIndex *index;		// Index we are working from
+	int tape;
 	char *dir;
 	Widget	*toggles;		// All our toggles.
 	int ntoggle;			// How many there are.
@@ -349,8 +370,8 @@ class LoadSelect : public dsPopupWindow
 	void addButtons (Widget, PlatformIndex *);
 	void UpdFSummary ();
 public:
-	LoadSelect (PlatformIndex *, const char *);
-	~LoadSelect () { ZapChoosers (); };
+	LoadSelect (PlatformIndex *, const char *, int);
+	~LoadSelect () { delete[] dir; ZapChoosers (); };
 //
 // Widget tweaking methods.
 //
@@ -361,8 +382,13 @@ public:
 //
 	const char *begin () const { return (getstring (startTime)); }
 	const char *end () const { return (getstring (endTime)); }
+	int skip () const;
 	PlatformIndex *selected () const;	// Which plats selected
 	PlatformIndex *pindex () const { return index; }
+	const char *tfile () const { return dir; }
+	int istape () const { return tape; }
+	int file_sel () const { return nfile; }
+	int byte_sel () const { return nbyte; }
 //
 // File accounting.
 //
@@ -374,7 +400,8 @@ public:
 
 
 
-LoadSelect::LoadSelect (PlatformIndex *ind, const char *directory) :
+LoadSelect::LoadSelect (PlatformIndex *ind, const char *directory,
+				int fromtape) :
 	dsPopupWindow (*Disp, "Load data -- selection", 545)
 //
 // Create the "load select" dialog.
@@ -388,6 +415,7 @@ LoadSelect::LoadSelect (PlatformIndex *ind, const char *directory) :
 // Save our info first.
 //
 	index = ind;
+	tape = fromtape;
 	dir = new char[strlen (directory) + 1];
 	strcpy (dir, directory);
 	nfile = nbyte = 0;
@@ -404,7 +432,8 @@ LoadSelect::LoadSelect (PlatformIndex *ind, const char *directory) :
 //
 	above = NULL;
 	n = 0;
-	XtSetArg (args[n], XtNlabel, "File selection by time:"); n++;
+	XtSetArg (args[n], XtNlabel,
+		"File selection by time: (format: dd-mmm-yy,hh:mm:ss)"); n++;
 	XtSetArg (args[n], XtNborderWidth, 0);			n++;
 	above = XtCreateManagedWidget ("subtitle", labelWidgetClass, selform,
 			args, n);
@@ -503,7 +532,7 @@ LoadSelect::LoadSelect (PlatformIndex *ind, const char *directory) :
 	n = 0;
 	left = NULL;
 	above = minutes;
-	XtSetArg (args[n], XtNlabel, "Perform selection");	n++;
+	XtSetArg (args[n], XtNlabel, "Apply to selected platforms");	n++;
 	AddConstraints (args, &n);
 	XtSetArg (args[n], XtNfromVert, above);			n++;
 	XtSetArg (args[n], XtNfromHoriz, left);			n++;
@@ -537,6 +566,19 @@ LoadSelect::LoadSelect (PlatformIndex *ind, const char *directory) :
 	XtSetArg (args[n], XtNresize, False);			n++;
 	fsummary = XtCreateManagedWidget ("fsummary", labelWidgetClass,
 			dw_form, args, n);
+//
+// The "clear all selections" button.
+//
+	n = 0;
+	XtSetArg (args[n], XtNlabel, "Clear all file selections");	n++;
+	XtSetArg (args[n], XtNfromHoriz, selform);			n++;
+	XtSetArg (args[n], XtNfromVert, fsummary);			n++;
+	XtSetArg (args[n], XtNhorizDistance, 20);			n++;
+	XtSetArg (args[n], XtNvertDistance, 15);			n++;
+	AddConstraints (args, &n);
+	above = XtCreateManagedWidget ("clearall", commandWidgetClass,
+			dw_form, args, n);
+	XtAddCallback (above, XtNcallback, ClearAll, this);
 //
 // A title for the platform list.
 //
@@ -598,14 +640,14 @@ LoadSelect::LoadSelect (PlatformIndex *ind, const char *directory) :
 // Even a "go" button.
 //
 	n = 0;
-	XtSetArg (args[n], XtNlabel, "Continue...");		n++;
+	XtSetArg (args[n], XtNlabel, "Load the data");		n++;
 	XtSetArg (args[n], XtNfromVert, above);			n++;
 	XtSetArg (args[n], XtNfromHoriz, left);			n++;
 	XtSetArg (args[n], XtNhorizDistance, 75);		n++;
 	AddConstraints (args, &n);
 	left = XtCreateManagedWidget ("doit", commandWidgetClass, dw_form,
 			args, n);
-	XtAddCallback (left, XtNcallback, DataSelected, (XtPointer) this);
+	XtAddCallback (left, XtNcallback, PerformLoad, (XtPointer) this);
 //
 // And, of course, a gripe window.
 //
@@ -799,7 +841,7 @@ LoadSelect::MarkPlat (const char *platform, const int state)
 // If we already have this platform in this state, there
 // is nothing to do.
 //
-	if (index->isMarked (platform) == state)
+	if (index->isMarked (platform) == state && index->files (platform))
 		return;
 	index->isMarked (platform) = state;
 //
@@ -911,6 +953,31 @@ LoadSelect::selected () const
 
 
 static void
+ClearAll (Widget w, XtPointer xls, XtPointer junk)
+//
+// Clear all file selections.
+//
+{
+	LoadSelect *ls = (LoadSelect *) xls;
+	PlatformIndex *index = ls->pindex ();
+	int plat;
+
+	for (plat = 0; plat < PList->ncontained (); plat++)
+	{
+		dsPlatform &p = PList->nth (plat);
+
+		IndexFile *file = index->files (p.name ());
+		for (; file; file = file->next ())
+			ls->MarkFile (file, False);
+	}
+	SyncChoosers ();
+}
+
+
+
+
+
+static void
 PlatformSel (Widget w, XtPointer xls, XtPointer junk)
 //
 // They hit a platform select button.
@@ -924,7 +991,6 @@ PlatformSel (Widget w, XtPointer xls, XtPointer junk)
 	XtSetArg (args[0], XtNstate, &state);
 	XtSetArg (args[1], XtNradioData, &plat);
 	XtGetValues (w, args, 2);
-	printf ("Plat '%s' set at state %d\n", plat, state);
 	ls->MarkPlat (plat, state);
 }
 
@@ -967,7 +1033,8 @@ dsLoadContinue (Widget w, XtPointer xdialog, XtPointer junk)
 // Throw a select widget up on the screen, get this one off, and we
 // are done.
 //
-	LoadSelect *ls = new LoadSelect (index, dialog->GetDev ());
+	LoadSelect *ls = new LoadSelect (index, dialog->GetDev (),
+			dialog->isTape ());
 	dialog->popdown ();
 	ls->popup ();
 }
@@ -1004,41 +1071,15 @@ void ClearToggles (Widget w, XtPointer xls, XtPointer junk)
 
 
 
-void DataSelected (Widget w, XtPointer xls, XtPointer junk)
+void PerformLoad (Widget w, XtPointer xls, XtPointer junk)
 //
-// They think they have selected their stuff.
+// Actually load the data onto the disk.
 //
 {
 	LoadSelect *ls = (LoadSelect *) xls;
-	const char *begin = ls->begin ();
-	const char *end = ls->end ();
-	SValue v;
-	ZebTime tbegin, tend;
 	PlatformIndex *select;
-//
-// Try to comprehend the times.
-//
-	if (! uit_parse_date (begin, &v, 1))
-	{
-		ls->complain ("Unable to parse begin time");
-		return;
-	}
-	TC_UIToZt (&v.us_v_date, &tbegin);
-	if (! uit_parse_date (end, &v, 1))
-	{
-		ls->complain ("Unable to parse end time");
-		return;
-	}
-	TC_UIToZt (&v.us_v_date, &tend);
-//
-// basic sanity check.
-//
-	if (tbegin >= tend)
-	{
-		ls->complain ("Begin time must be before end time!");
-		return;
-	}
-	ls->complain ("Got through dates OK");
+	int tape = ls->istape (), fsel = ls->file_sel ();
+	int bsel = ls->byte_sel ();
 //
 // Get the list of selected platforms.
 //
@@ -1046,11 +1087,22 @@ void DataSelected (Widget w, XtPointer xls, XtPointer junk)
 	{
 		ls->complain ("No platforms selected");
 		return;
-	}		
-
-// Make sure there are some!
-// Total up space
-// present to user
+	}
+//
+// Make sure some files have been selected.
+//
+	if (fsel <= 0)
+	{
+		ls->complain ("You have not selected any files!");
+		return;
+	}
+//
+// Pass it off to be executed.
+//
+	char tdev[200];
+	strcpy (tdev, ls->tfile ());
+	ls->popdown ();
+	DLoad (select, tape, tdev, fsel, bsel);
 }
 
 
@@ -1079,6 +1131,32 @@ void SkipCB (Widget w, XtPointer xls, XtPointer junk)
 
 
 
+int
+LoadSelect::skip () const
+//
+// Return the skip period.
+//
+{
+	Arg args[1];
+	Boolean state;
+	const char *str;
+//
+// See if the skip is enabled.  If not, just return zero.
+//
+	XtSetArg (args[0], XtNstate, &state);
+	XtGetValues (skipt, args, 1);
+	if (! state)
+		return (0);
+//
+// OK, we need to extract the time and send it back.
+//
+	str = getstring (minutes);
+	return (atoi (str) * 60);
+}
+
+
+
+
 
 void ExecTimeSelect (Widget w, XtPointer xls, XtPointer junk)
 //
@@ -1091,6 +1169,7 @@ void ExecTimeSelect (Widget w, XtPointer xls, XtPointer junk)
 	ZebTime tbegin, tend;
 	PlatformIndex *select;
 	SValue v;
+	int skip = ls->skip ();
 
 	ls->complain (" ", True);
 //
@@ -1127,7 +1206,7 @@ void ExecTimeSelect (Widget w, XtPointer xls, XtPointer junk)
 //
 // Go through and mark all of the files which meet the selection criteria.
 //
-	MarkTimeFiles (ls, select, tbegin, tend);
+	MarkTimeFiles (ls, select, tbegin, tend, skip);
 //
 // We also have to make sure that any file selection widgets get updated
 // properly.
@@ -1141,13 +1220,14 @@ void ExecTimeSelect (Widget w, XtPointer xls, XtPointer junk)
 
 static void
 MarkTimeFiles (LoadSelect *ls, PlatformIndex *select,
-		const ZebTime &tbegin, const ZebTime &tend)
+		const ZebTime &tbegin, const ZebTime &tend, int skip)
 //
 // Mark up files which should be selected according to the criteria.
 //
 {
 	int plat;
 	IndexFile *file;
+	ZebTime skiptime;
 
 	for (plat = 0; plat < PList->ncontained (); plat++)
 	{
@@ -1158,13 +1238,19 @@ MarkTimeFiles (LoadSelect *ls, PlatformIndex *select,
 	//
 		if (! select->isMarked (p.name ()))
 			continue;
+		skiptime = tbegin;
 	//
 	// Now we need to go through the file chain and check dates.
 	//
 		for (file = select->files (p.name ()); file; 
 						file = file->next ())
-			if (tbegin < file->end () && tend > file->begin ())
+			if (skiptime < file->end () && tend > file->begin ())
+			{
 				ls->MarkFile (file, True);
+				skiptime.zt_Sec += skip;
+				while (skip && skiptime < file->begin ())
+					skiptime.zt_Sec += skip;
+			}
 	}
 }
 

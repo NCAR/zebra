@@ -1,3 +1,23 @@
+//
+// The main program window.
+//
+/*		Copyright (C) 1987,88,89,90,91,92 by UCAR
+ *	University Corporation for Atmospheric Research
+ *		   All rights reserved
+ *
+ * No part of this work covered by the copyrights herein may be reproduced
+ * or used in any form or by any means -- graphic, electronic, or mechanical,
+ * including photocopying, recording, taping, or information storage and
+ * retrieval systems -- without permission of the copyright owner.
+ * 
+ * This software and any accompanying written materials are provided "as is"
+ * without warranty of any kind.  UCAR expressly disclaims all warranties of
+ * any kind, either express or implied, including but not limited to the
+ * implied warranties of merchantibility and fitness for a particular purpose.
+ * UCAR does not indemnify any infringement of copyright, patent, or trademark
+ * through use or modification of this software.  UCAR does not provide 
+ * maintenance or updates for its software.
+ */
 
 extern "C" 
 {
@@ -17,6 +37,7 @@ extern "C"
 # include "dsmWindows.h"
 # include "Dialog.h"
 
+static char *rcsid = "$Id: MainWindow.cc,v 1.2 1992-09-10 22:26:51 corbet Exp $";
 //
 // Externs.
 //
@@ -115,6 +136,24 @@ dsMainWindow::dsMainWindow (const dsDisplay &disp) :
 
 
 
+
+void
+dsMainWindow::UpdateSpace ()
+//
+// Tweak the "space available" line.
+//
+{
+	char label[200];
+	const char *dir;
+	float space;
+	Arg args[1];
+
+	DDInfo (&dir, &space);
+	sprintf (label, "%.2f MB free in %s.", space, dir);
+	
+	XtSetArg (args[0], XtNlabel, label);
+	XtSetValues (spaceLabel, args, 1);
+}
 
 
 
