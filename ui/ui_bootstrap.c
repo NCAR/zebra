@@ -45,10 +45,10 @@ var struct state_table_entry st_boot_initial =
 	ST_NO_VP,		/* No value params.		*/
 	STF_EOFTXT | STF_BOOT,
 	6,			/* Five keywords.		*/
-	0,			/* EOS action	*/
-	0,			/* OTHER action			*/
-	{ ___, ___, ___},	/* value action			*/
-	boot_initial_kw, "exit", ___, ___
+	(struct state_action *) 0,	/* EOS action	*/
+	(struct state_action *) 0,	/* OTHER action			*/
+	{ ___, "", "" },		/* value action			*/
+	 boot_initial_kw, "exit", ___ , ___
 };
 
 
@@ -86,8 +86,8 @@ var struct state_table_entry st_define_what =
 	ST_NO_VP,  STF_BOOT,  1,	/* One keyword.			*/
 	0,
 	0,
-	{ ___, ___, ___ },
-	define_what_kw, ___, ___, ___
+	{ ___, "", "" },
+	define_what_kw, "", ___, ___
 };
 
 
@@ -144,7 +144,7 @@ var struct state_table_entry st_no_more =
 	0,	/* no keywords */
 	&st_nm_eos,
 	&st_nm_other,
-	{ ___, ___, ___ },
+	{ ___, "", "" },
 	___, ___, ___, ___
 };
 
@@ -171,7 +171,7 @@ var struct state_table_entry st_save_file =
 	SYMT_STRING, STF_EOS | STF_BOOT, 0,
 	&st_sf_eos,
 	0,
-	{ ___, "ust$no_more", ___ },
+	{ ___, "ust$no_more", ""},
 	___, ___, ___, ___
 };
 
@@ -198,7 +198,7 @@ var struct state_table_entry st_in_initial =
 	ST_NO_VP, STF_EOFTXT | STF_BOOT, 2,
 	0,
 	0,
-	{ ___, ___, ___ }, 
+	{ ___, "", "" }, 
 	input_initial_kw, "enddef", ___, ___
 };
 
@@ -289,7 +289,7 @@ var struct state_table_entry st_final_int =
 	SYMT_INT, STF_BOOT, 0,
 	0,
 	0,
-	{ ___, "ust$no_more", ___ },
+	{ ___, "ust$no_more", "" },
 	___, ___, ___, ___
 };
 
@@ -331,7 +331,7 @@ var struct state_table_entry st_within_input =
 	ST_NO_VP, STF_EOFTXT | STF_BOOT, 7,
 	0,
 	0,
-	{ ___, ___, ___ },
+	{ ___, "", "" },
 	within_input_kw, "endinput", ___, ___
 };
 
