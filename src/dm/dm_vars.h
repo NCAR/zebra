@@ -1,7 +1,7 @@
 /*
  * DM variables.
  *
- * $Id: dm_vars.h,v 1.1 1990-07-08 12:59:32 corbet Exp $
+ * $Id: dm_vars.h,v 1.2 1990-08-30 16:35:11 corbet Exp $
  */
 # include <X11/Xlib.h>
 # include "../include/defs.h"
@@ -87,6 +87,8 @@ extern Display		*Dm_Display;		/* Our display		*/
  */
 # ifdef __STDC__
 	struct cf_window *lookup_win (char *, int);
+	void PickWin (char *);
 # else
 	struct cf_window *lookup_win ();
+	void PickWin ();
 # endif
