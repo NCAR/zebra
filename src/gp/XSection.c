@@ -43,7 +43,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: XSection.c,v 2.33 1995-09-23 02:33:16 granger Exp $")
+RCSID ("$Id: XSection.c,v 2.34 1995-09-25 18:00:38 granger Exp $")
 
 /*
  * General definitions
@@ -3287,7 +3287,8 @@ bool	update;
 				     NULL, 0)))
 			return;
 
-		igrid = dc_ImgGetImage (dc, 0, fid, &loc, &rg, NULL, &scale);
+		igrid = (char *) dc_ImgGetImage (dc, 0, fid, &loc, &rg, 
+						 NULL, &scale);
 	/*
 	 * In kluged RHI raster files, x is the horizontal dimension, and y
 	 * is the vertical dimension.
