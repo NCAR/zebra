@@ -1,0 +1,8 @@
+
+SRCS = zrun.c
+OBJS = zrun.o
+
+LIBS = $(LIBZEB) $(LIBRDSS)
+
+
+NormalProgramTarget(zrun, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))

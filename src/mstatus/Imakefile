@@ -1,0 +1,8 @@
+
+SRCS = mstatus.c
+OBJS = mstatus.o
+
+LIBS = $(LIBZEB) $(LIBRDSS)
+
+
+NormalProgramTarget(mstatus, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
