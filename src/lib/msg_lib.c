@@ -32,7 +32,7 @@
 # define MESSAGE_LIBRARY	/* to get netread prototypes */
 # include "message.h"
 # ifndef lint
-MAKE_RCSID ("$Id: msg_lib.c,v 2.25 1995-04-25 17:46:54 granger Exp $")
+MAKE_RCSID ("$Id: msg_lib.c,v 2.26 1995-04-25 20:19:56 granger Exp $")
 # endif
 
 /*
@@ -1116,8 +1116,8 @@ msg_abort ()
 
 static int
 msg_echo (echo, param)
-struct message *echo;
-void *param;
+struct message *echo;	/* the presumed echo message from the manager */
+void *param;		/* the source of the echo */
 /*
  * Look for an echo message and verify it.
  */
@@ -1137,9 +1137,9 @@ void *param;
 		return (MSG_ENQUEUE);
 	}
 /*
- * Make sure the message was from ourself
+ * Make sure the echoed message was from ourself
  */
-	if (strcmp (msg->m_from, Identity))
+	if (strcmp (echo->m_from, Identity))
 		return (MSG_ENQUEUE);
 /*
  * Compare the data
