@@ -1,5 +1,5 @@
 /* 1/87 jc */
-/* $Id: ui_expr.c,v 1.5 1989-07-17 14:48:25 corbet Exp $ */
+/* $Id: ui_expr.c,v 1.6 1990-03-05 16:07:29 corbet Exp $ */
 /*
  * Expression handling.
  */
@@ -116,7 +116,7 @@ int col;
 	ip->iss_stuff[0] = ' ';
 	strcpy (ip->iss_stuff + 1, string);
 	strcat (ip->iss_stuff, " ");
-	(void) zapcase (ip->iss_stuff);
+	/* (void) zapcase (ip->iss_stuff); */
 	ip->iss_col = col - 1;
 	ip->iss_sp = ip->iss_stuff;
 	ip->iss_next = Istack;
