@@ -34,7 +34,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 # include "LayoutControl.h"
-MAKE_RCSID ("$Id: PlotExec.c,v 2.13 1992-09-22 20:12:07 corbet Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.14 1992-10-02 21:58:20 barrett Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -497,7 +497,12 @@ px_GetCoords ()
  */
 	/* Currently, Icon, Legend and Annotation space are all fixed
 	   to reflect the hard-coded sizes in "PixelCoord.h" */
-        lc_SetIconDim(GWWidth(Graphics),ICONSPACE);
+        if ( !pda_Search (Pd, "global", "icon-space", NULL,
+                CPTR (IconSpace), SYMT_INT))
+        {
+	    IconSpace = ICONSPACE;
+        }
+        lc_SetIconDim(GWWidth(Graphics),IconSpace);
         lc_SetLegendDim( (int)(0.15*GWWidth(Graphics)), GWHeight(Graphics));
         lc_SetAnnotateDim ( GWWidth(Graphics),(int)(0.1*GWHeight(Graphics)));
 
