@@ -16,11 +16,13 @@
 static char Istate[80];
 
 
-main ()
+main (argc, argv)
+int argc;
+char **argv;
 {
-	char sname[80];
-	int ambig = 0, kwnum = 0, c_handler ();
+	int c_handler ();
 # ifndef CRAY
+	char *getenv ();
 	char *loadfile = getenv ("LOADFILE");
 # endif
 /*
@@ -41,6 +43,7 @@ main ()
 		ui_printf ("No loadfile!\n");
 		exit (1);
 	ENDCATCH
+	ui_setup ("uic", &argc, argv, 0);
 /*
  * Now go for it.
  */
@@ -58,7 +61,7 @@ main ()
 
 
 
-
+/* ARGSUSED */
 c_handler (arg, cmds)
 int arg;
 struct ui_command *cmds;
