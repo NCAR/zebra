@@ -1,0 +1,57 @@
+#
+# Field file for FASTEX.
+#
+# Conventions: blank lines and anything after # is ignored.  Any other line
+# has three fields, separated by white space:
+#
+#	field-name	units	record?	description
+#
+# The description is the rest of the line, and may thus contain white space.
+#
+Iac	(none)		n	Aircraft ID
+Imo	month		n	Month of year
+Idy	day		n	Day of the month
+Iyr	year		n	Year
+Ihr	hours		n	Hour of the day
+
+Imn	minutes		n	Minutes
+Isc	seconds		n	Seconds
+Nav	(none)		n	Selected navigation system
+fla1	degrees		n	INE 1 latitude
+flo1	degrees		n	INE 1 longitude
+
+fla2	degrees		n	INE 2 latitude
+flo2	degrees		n	INE 2 longitude
+fla4	degrees		n	GPS latitude
+flo4	degrees		n	GPS longitude
+Gx1	m/s		n	INE 1 ground speed (x)
+
+Gy1	m/s		n	INE 1 ground speed (y)
+Gx2	m/s		n	INE 2 ground speed (x)
+Gy2	m/s		n	INE 2 ground speed (y)
+Gx4	m/s		n	GPS ground speed (x)
+Gy4	m/s		n	GPS ground speed (y)
+
+hdnav	degrees		y	Heading 
+pcnav	degrees		y	Pitch
+rlnav	degrees		y	Roll
+ra1	m		y	Radar Altimeter (APN 159)
+ra2	m		y	Radar Altimeter (APN 232)
+
+ra3	m		y	GPS altitude
+pres	mb		y	Pressure
+tdry	C		y	Temperature
+dp	C		y	Dewpoint temperature
+gs	m/s		n	Ground speed
+
+tk	?		n	Track
+wspd	m/s		y	Wind speed
+wdir	m/s		y	Wind direction
+rd	C		y	Downward radiometer temp
+rs	C		y	Side radiometer temp
+
+#Ru	K?		Upward radiometer temp
+w_wind	m/s		y      Vertical wind speed
+ui3	m/s		n      Vertical ground speed
+lw	?		y      Johnson/Williams liquid water
+tasc	m/s		n      True airspeed
