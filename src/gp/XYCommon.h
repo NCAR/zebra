@@ -47,7 +47,10 @@ typedef struct _xydatavector
 typedef struct _xyobsinfo
 {
 	short	nobs;			/* number of observations contained */
-	short	obsndx[MAX_DV_OBS];	/* index to each observation */
+	short	*obsndx;		/* array index to each observation */
+	/* static space for almost all cases */
+        short   obsndx_static[MAX_DV_OBS];
+	int     nalloc;
 } xyObsInfo;
 
 
@@ -71,5 +74,7 @@ int	xy_DetermineBounds FP ((char *, int, DataValPtr, DataValPtr, int,
 				char *, int));
 int	xy_GetDataVectors FP ((PlatformId, ZebTime*, ZebTime*, int, int, 
 			       xyDataVector*, int, xyObsInfo*, char *comp));
+xyObsInfo *xy_ObsAlloc (int n);
+void xy_ObsFree (xyObsInfo *obsinfo, int n);
 
 

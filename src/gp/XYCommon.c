@@ -35,7 +35,7 @@
 # include "DrawText.h"
 # include "XYCommon.h"
 
-RCSID("$Id: XYCommon.c,v 1.34 1999-03-01 02:04:33 burghart Exp $")
+RCSID("$Id: XYCommon.c,v 1.35 2000-07-13 20:41:26 granger Exp $")
 
 /* 
  * One somewhat reasonable definition for infinity in XDR, lifted from 
@@ -738,6 +738,65 @@ zbool	update;
 
 
 
+xyObsInfo *
+xy_ObsAlloc (int n)
+{
+    xyObsInfo *obsinfo;
+    int i;
+
+    obsinfo = (xyObsInfo *) malloc (n * sizeof (xyObsInfo));
+    for (i = 0; i < n; ++i)
+    {
+	obsinfo[i].obsndx = obsinfo[i].obsndx_static;
+	obsinfo[i].nalloc = MAX_DV_OBS;
+    }
+    return obsinfo;
+}
+
+
+void
+xy_ObsFree (xyObsInfo *obsinfo, int n)
+{
+    int i;
+    for (i = 0; i < n; ++i)
+    {
+	if (obsinfo[i].obsndx != 0  && 
+	    obsinfo[i].obsndx != obsinfo[i].obsndx_static)
+	{
+	    free (obsinfo[i].obsndx);
+	}
+    }
+    free (obsinfo);
+}
+
+
+
+/*
+ * Make sure the obs index of this obsinfo structure is large enough.
+ */
+static void
+xy_ObsIndexAlloc (xyObsInfo *obsinfo, int newnobs)
+{
+    if (obsinfo->nalloc < newnobs)
+    {
+	obsinfo->nalloc += MAX_DV_OBS;
+	if (obsinfo->obsndx == obsinfo->obsndx_static)
+	{
+	    obsinfo->obsndx = 
+		(short *) malloc (obsinfo->nalloc * sizeof(short));
+	    memcpy (obsinfo->obsndx, obsinfo->obsndx_static, 
+		    obsinfo->nobs * sizeof(short));
+	}
+	else
+	{
+	    obsinfo->obsndx = (short *) 
+		realloc (obsinfo->obsndx, obsinfo->nalloc * sizeof (short));
+	}
+    }
+}
+
+
+
 
 int
 xy_GetDataVectors (pid, btime, etime, single_obs, nskip, dvectors, ndvec, 
@@ -1188,21 +1247,20 @@ int		npts;
  */
 {
 	int i;
-	int nobs;
 	ZebTime last;
 
-	nobs = 1;
 	obsinfo->obsndx[0] = 0;
+	obsinfo->nobs = 1;
 	last = dvtimes[0];
 	for (i = 1; i < npts; ++i)
 	{
 		if (! TC_LessEq(dvtimes[i], last))
 		{
-			obsinfo->obsndx[nobs++] = i;
+		        xy_ObsIndexAlloc (obsinfo, obsinfo->nobs+1);
+			obsinfo->obsndx[obsinfo->nobs++] = i;
 			last = dvtimes[i];
 		}
 	}
-	obsinfo->nobs = nobs;
 }
 
 

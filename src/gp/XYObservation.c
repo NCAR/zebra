@@ -40,7 +40,7 @@
 # include "DrawText.h"
 # include "PlotPrim.h"
 
-RCSID ("$Id: XYObservation.c,v 1.26 1999-03-01 02:04:34 burghart Exp $")
+RCSID ("$Id: XYObservation.c,v 1.27 2000-07-13 20:41:27 granger Exp $")
 
 /*
  * Enum to tell how we anchor z values
@@ -216,7 +216,7 @@ zbool	update;
 	ydata = (DataValPtr *) calloc (nplat, sizeof (DataValPtr));
 	zdata = (DataValPtr *) calloc (nplat, sizeof (DataValPtr));
 
-	dvObsInfo = (xyObsInfo *) malloc (nplat * sizeof (xyObsInfo));
+	dvObsInfo = xy_ObsAlloc (nplat);
 /*
  * Colors
  */
@@ -514,7 +514,7 @@ zbool	update;
 	free (ydata);
 	free (zdata);
 	free (lcolor);
-	free (dvObsInfo);
+	xy_ObsFree (dvObsInfo, nplat);
 }
 
 
