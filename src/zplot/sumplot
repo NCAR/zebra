@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# $Id: sumplot,v 1.1 2000-08-02 20:19:12 granger Exp $
+# $Id: sumplot,v 1.2 2000-08-03 18:31:19 granger Exp $
 #
 # Collect all the images of a given pattern, reduce their size, and
 # put them into a table in the current directory.
@@ -45,7 +45,7 @@ echo "<p>Click on an image to view the full-size plot.</p>"
 echo "<table border="0" cellspacing=4 cellpadding=4><tr>"
 
 i=0
-find $basedir -name "*${pattern}*" | while read path ; do
+find $basedir -type f -name "*${pattern}*" | sort | while read path ; do
 
     image=`basename $path`
     (set -x; \
