@@ -32,8 +32,11 @@
 # include "GRIB.h"
 
 static void ShowGDS FP ((GFgds *gds_in));
+static void ShowGDS_LL FP ((GDSLatLon *gds_in));
 static void ShowGDS_PS FP ((GDSPolarStereo *gds_in));
 static void ShowGDS_LC FP ((GDSLambertConformal *gds_in));
+static void ShowResCompFlags FP ((int rcflags));
+static void ShowScanMode FP ((int scanmode));
 static int DumpFile FP ((char *file));
 static void DumpGrid FP ((int ng, GFgds *gds, GFpds *pds));
 
@@ -346,6 +349,9 @@ GFgds *gds_in;
 
 	switch (gds_in->data_type)
 	{
+	  case 0:
+	    ShowGDS_LL ((GDSLatLon *)gds_in);
+	    break;
 	  case 5:
 	    ShowGDS_PS ((GDSPolarStereo *)gds_in);
 	    break;
@@ -356,6 +362,43 @@ GFgds *gds_in;
 
 	printf ("-----\n");
 }
+
+
+
+static void
+ShowGDS_LL (gds)
+GDSLatLon *gds;
+/*
+ * Summarize a Lat/Lon GDS to stdout
+ */
+{
+	int nx, ny;
+	float lov;
+	float la1, lo1;
+	float la2, lo2;
+	float dx, dy;
+	float x0, y0, xpole, ypole, x, y;
+	float ipole, jpole;
+	float i, j;
+	float lat, lon;
+
+	nx = grb_TwoByteInt (gds->gd_ni);
+	ny = grb_TwoByteInt (gds->gd_nj);
+	printf ("Nx = %4i   Ny = %4i\n", nx, ny);
+	la1 = grb_ThreeByteSignInt (gds->gd_lat1) / 1000.0;
+	lo1 = grb_ThreeByteSignInt (gds->gd_lon1) / 1000.0;
+	la2 = grb_ThreeByteSignInt (gds->gd_lat2) / 1000.0;
+	lo2 = grb_ThreeByteSignInt (gds->gd_lon2) / 1000.0;
+	printf ("grid(0,0) @ lon/lat %.3f/%.3f\n", lo1, la1);
+	printf ("grid(%d,%d) @ lon/lat %.3f/%.3f\n", nx-1, ny-1, lo2, la2);
+	dx = grb_TwoByteInt (gds->gd_di) / 1000.0;
+	dy = grb_TwoByteInt (gds->gd_dj) / 1000.0;
+	printf ("lon/lat step %.3f/%.3f\n", dx, dy);
+
+	ShowResCompFlags ((int)gds->gd_res);
+	ShowScanMode ((int)gds->gd_scanmode);
+}
+
 
 
 
@@ -381,12 +424,10 @@ GDSPolarStereo *gds;
 	printf ("Nx = %4i   Ny = %4i\n", nx, ny);
 	la1 = grb_ThreeByteSignInt (gds->gd_lat1) / 1000.0;
 	lo1 = grb_ThreeByteSignInt (gds->gd_lon1) / 1000.0;
-	printf ("grid(0,0) at (lon,lat) = (%.3f,%.3f)\n", lo1, la1);
-	printf ("Resolution and Component Flags: %i\n", (int)gds->gd_res);
-	printf ("[increments %sgiven; earth is %s; u,v relative to %s]\n",
-		(gds->gd_res & (1<<7)) ? "" : "not ",
-		(gds->gd_res & (1<<6)) ? "oblate spheroid" : "spherical",
-		(gds->gd_res & (1<<3)) ? "grid x,y" : "E and N");
+	printf ("grid(0,0) @ lon/lat %.3f/%.3f\n", lo1, la1);
+
+	ShowResCompFlags ((int)gds->gd_res);
+
 	lov = grb_ThreeByteInt (gds->gd_lov) / 1000.0;
 	if (lov >= 180.0 && lov <= 360.0)
 		lov -= 360.0;
@@ -399,11 +440,8 @@ GDSPolarStereo *gds;
 		dx, dy);
 	printf ("Projection contains %s pole.\n",
 		gds->gd_pole ? "South" : "North");
-	printf ("Scan mode: %i ", gds->gd_scanmode);
-	printf ("[%si, %sj, adjacent points consecutive along %s]\n",
-		(gds->gd_scanmode & (1<<7)) ? "-" : "+",
-		(gds->gd_scanmode & (1<<6)) ? "+" : "-",
-		(gds->gd_scanmode & (1<<5)) ? "j" : "i");
+
+	ShowScanMode ((int)gds->gd_scanmode);
 
 	phi1 = DEG_TO_RAD(60.0);	/* 60 degrees N */
 	lambda0 = DEG_TO_RAD(lov);	/* longitude of orientation */
@@ -479,12 +517,10 @@ GDSLambertConformal *gds;
 	printf ("Nx = %4i   Ny = %4i\n", nx, ny);
 	la1 = grb_ThreeByteSignInt (gds->gd_lat1) / 1000.0;
 	lo1 = grb_ThreeByteSignInt (gds->gd_lon1) / 1000.0;
-	printf ("grid(0,0) at (lon,lat) = (%.3f,%.3f)\n", lo1, la1);
-	printf ("Resolution and Component Flags: %i\n", (int)gds->gd_res);
-	printf ("[increments %sgiven; earth is %s; u,v relative to %s]\n",
-		(gds->gd_res & (1<<7)) ? "" : "not ",
-		(gds->gd_res & (1<<6)) ? "oblate spheroid" : "spherical",
-		(gds->gd_res & (1<<3)) ? "grid x,y" : "E and N");
+	printf ("grid(0,0) @ lon/lat %.3f/%.3f\n", lo1, la1);
+
+	ShowResCompFlags ((int)gds->gd_res);
+
 	lov = grb_ThreeByteInt (gds->gd_lov) / 1000.0;
 	if (lov >= 180.0 && lov <= 360.0)
 		lov -= 360.0;
@@ -499,11 +535,8 @@ GDSLambertConformal *gds;
 	else
 	    printf ("Projection contains %s pole.\n",
 		    (gds->gd_pole && 1<<7) ? "South" : "North");
-	printf ("Scan mode: %i ", gds->gd_scanmode);
-	printf ("[%si, %sj, adjacent points consecutive along %s]\n",
-		(gds->gd_scanmode & (1<<7)) ? "-" : "+",
-		(gds->gd_scanmode & (1<<6)) ? "+" : "-",
-		(gds->gd_scanmode & (1<<5)) ? "j" : "i");
+
+	ShowScanMode ((int) gds->gd_scanmode);
 
 	phi1 = grb_ThreeByteSignInt (gds->gd_latin1) / 1000.0;
 	phi2 = grb_ThreeByteSignInt (gds->gd_latin2) / 1000.0;
@@ -516,3 +549,32 @@ GDSLambertConformal *gds;
 		spol_lat);
 }
 
+
+
+static void
+ShowResCompFlags (int rcflags)
+/*
+ * Decode and print the GDS resolution and component flags
+ */
+{
+	printf ("Resolution and Component Flags: %i\n", rcflags);
+	printf ("[increments %sgiven; earth is %s; u,v relative to %s]\n",
+		(rcflags & (1<<7)) ? "" : "not ",
+		(rcflags & (1<<6)) ? "oblate spheroid" : "spherical",
+		(rcflags & (1<<3)) ? "grid x,y" : "E and N");
+}
+
+
+
+static void
+ShowScanMode (int scanmode)
+/*
+ * Decode and print the GDS scan mode flags
+ */
+{
+	printf ("Scan mode: %i ", scanmode);
+	printf ("[%si, %sj, adjacent points consecutive along %s]\n",
+		(scanmode & (1<<7)) ? "-" : "+",
+		(scanmode & (1<<6)) ? "+" : "-",
+		(scanmode & (1<<5)) ? "j" : "i");
+}
