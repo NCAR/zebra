@@ -165,7 +165,7 @@ int *nsample;
 /*
  * Return the info, clean up, and we're done.
  */
-	*nsample = hdr.rf_MaxSample;
+	*nsample = hdr.rf_NSample;
 	*begin = toc[0].rft_Time;
 	*end = toc[*nsample - 1].rft_Time;
 	free (toc);
@@ -557,7 +557,7 @@ const GetList *gp;
 	 */
 		gp->gl_time[sample - tbegin] = toc->rft_Time;
 		gp->gl_locs[sample - tbegin] = toc->rft_Origin;
-		rip->ri_rg[gp->gl_sindex + sample] = toc->rft_Rg;
+		rip->ri_rg[gp->gl_sindex + sample - tbegin] = toc->rft_Rg;
 	/*
 	 * Bump our offset for the next field.
 	 */
@@ -612,5 +612,38 @@ TimeSpec which;
 	begin = drf_TimeIndex (tag, t);
 	for (i = 0; begin >= 0 && i < ntime; i++)
 		*dest++ = tag->rt_toc[begin--].rft_Time;
+	return (i);
+}
+
+
+
+
+
+int
+drf_GetObsSamples (dfile, times, locs, max)
+int dfile, max;
+time *times;
+Location *locs;
+/*
+ * Return sample info.
+ */
+{
+	RFTag *tag;
+	RFToc *toc;
+	int i;
+/*
+ * Open the file.
+ */
+	if (! dfa_OpenFile (dfile, FALSE, (void *) &tag))
+		return (0);
+/*
+ * Now we blast through and copy out as many as we can.
+ */
+	toc = tag->rt_toc;
+	for (i = 0; i < tag->rt_hdr.rf_NSample && i < max; i++)
+	{
+		*times++ = toc[i].rft_Time;
+		*locs++ = toc[i].rft_Origin;
+	}
 	return (i);
 }
