@@ -1,7 +1,7 @@
 /*
  * Vertical cross-sectioning
  *
- * $Revision: 1.3 $ $Date: 1991-03-08 15:52:37 $ $Author: burghart $
+ * $Revision: 1.4 $ $Date: 1991-04-09 02:24:55 $ $Author: burghart $
  */
 # include <math.h>
 # include <ctype.h>
@@ -498,23 +498,6 @@ char	*platforms, *fldname;
 				BAD_SOUNDING;
 		}
 	/*
-	 * We can annotate the sounding with a time now, since it's pretty much
-	 * certain we'll use this sounding
-	 */
-		yymmdd = f_dobj->do_times[0].ds_yymmdd;
-		hhmmss = f_dobj->do_times[0].ds_hhmmss;
-
-		if (yymmdd != PlotTime.ds_yymmdd)
-			sprintf (string, " (%d/%d/%d,%02d:%02d)", 
-				yymmdd / 10000, (yymmdd / 100) % 100,
-				yymmdd % 100, hhmmss / 10000, 
-				(hhmmss / 100) % 100);
-		else
-			sprintf (string, " (%02d:%02d)", hhmmss / 10000, 
-				(hhmmss / 100) % 100);
-
-		An_TopAnnot (string, White.pixel);
-	/*
 	 * Loop through the points
 	 */
 		val_prev = BADVAL;
@@ -659,6 +642,11 @@ char	*platforms, *fldname;
 		if (tpos)
 			free (tpos);
 	/*
+	 * Only go on if we had at least one good data value
+	 */
+		if (val_prev == BADVAL)
+			continue;
+	/*
 	 * Use the highest point of this sounding to help build the 
 	 * ceiling array
 	 */
@@ -667,6 +655,22 @@ char	*platforms, *fldname;
 	 * Draw the trace for this sounding
 	 */
 		xs_DrawTrace (pnames[plat]);
+	/*
+	 * Annotate the sounding with a time
+	 */
+		yymmdd = f_dobj->do_times[0].ds_yymmdd;
+		hhmmss = f_dobj->do_times[0].ds_hhmmss;
+
+		if (yymmdd != PlotTime.ds_yymmdd)
+			sprintf (string, " (%d/%d/%d,%02d:%02d)", 
+				yymmdd / 10000, (yymmdd / 100) % 100,
+				yymmdd % 100, hhmmss / 10000, 
+				(hhmmss / 100) % 100);
+		else
+			sprintf (string, " (%02d:%02d)", hhmmss / 10000, 
+				(hhmmss / 100) % 100);
+
+		An_TopAnnot (string, White.pixel);
 	}
 /*
  * Finish the top annotation with a period
