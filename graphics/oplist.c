@@ -1,4 +1,5 @@
 /* 5/87 jc */
+/* $Id: oplist.c,v 1.3 1989-10-13 14:03:54 corbet Exp $ */
 /*
  * Handle operations lists.
  */
@@ -208,11 +209,20 @@ struct overlay *ov;
 		break;
 	   /*
 	    * Set hardware clip window.
+	    *
+	    * 10/89 jc:	Stash the clip information into the overlay itself,
+	    *		since some of the other operations use it.  We should
+	    *		end up back with the original clip info by the time
+	    *		we get to the end of the oplist.
 	    */
 	   case GOP_SETHCW:
 	   	(*wstn->ws_dev->gd_set_hcw) (wstn->ws_tag,
 			data->op_extra[GOP_W_X0], data->op_extra[GOP_W_Y0],
 			data->op_extra[GOP_W_X1], data->op_extra[GOP_W_Y1]);
+	   	ov->ov_cx0 = data->op_extra[GOP_W_X0];
+	   	ov->ov_cy0 = data->op_extra[GOP_W_Y0];
+	   	ov->ov_cx1 = data->op_extra[GOP_W_X1];
+	   	ov->ov_cy1 = data->op_extra[GOP_W_Y1];
 		break;
 
 	   default:
