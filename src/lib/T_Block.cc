@@ -9,12 +9,13 @@
 #include "BlockFile.hh"
 #include "Logger.hh"
 
-RCSID ("$Id: T_Block.cc,v 1.4 1997-12-14 23:50:16 granger Exp $")
+RCSID ("$Id: T_Block.cc,v 1.5 1997-12-17 03:50:28 granger Exp $")
 
 static int TestStore (char *name);
 
 int main (int, char *[])
 {
+	{
 	Logger log;
 
 	cout << "-----------------------------------------------" << endl;
@@ -48,6 +49,7 @@ int main (int, char *[])
 	log.Info ("Testing storage on second block file:");
 	TestStore ("test.bf");
 
+	}
 	exit (0);
 }
 
