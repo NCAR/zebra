@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: dm_pd.c,v 2.1 1991-09-12 01:30:31 corbet Exp $";
+static char *rcsid = "$Id: dm_pd.c,v 2.2 1992-10-27 18:05:35 burghart Exp $";
 /*
  * Plot description related routines.
  */
@@ -52,7 +52,8 @@ char *file;
 /*
  * Just pull it in.
  */
-	rpd.rp_data = malloc (rpd.rp_len);
+	rpd.rp_data = malloc (rpd.rp_len + 1);
+	rpd.rp_data[rpd.rp_len] = '\0';
 	if (read (fd, rpd.rp_data, rpd.rp_len) < rpd.rp_len)
 		ui_warning ("Read incomplete...");
 	close (fd);
