@@ -1,4 +1,4 @@
-/* $Id: gp_cmds.h,v 2.0 1991-07-18 23:00:21 corbet Exp $ */
+/* $Id: gp_cmds.h,v 2.1 1991-07-30 16:11:47 kris Exp $ */
 /*
  * Command symbols for the graphics process.
  */
@@ -20,3 +20,4 @@
 # define GPC_ACTIVATE	16
 # define GPC_POLYLINE	17
 # define GPC_MOVECOMP	18
+# define GPC_GETPOSITION	19

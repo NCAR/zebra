@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: GraphProc.c,v 2.0 1991-07-18 23:00:21 corbet Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 2.1 1991-07-30 16:11:12 kris Exp $";
 
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
@@ -236,8 +236,8 @@ finish_setup ()
 	Ue_Init ();		/* User event handling	*/
 	I_init ();		/* Icons		*/
 	lw_InitWidgets ();	/* Limit widgets	*/
-	tr_InitAcWidget ();	/* Aircraft widget	*/
 	InitDataMenu ();	/* Data available menu	*/
+	pw_InitPos ();		/* Position Widget	*/
 /*
  * Tell DM that we're here.
  */
@@ -508,6 +508,12 @@ struct ui_command *cmds;
 				pc_PlotHandler ();
 			Eq_AddEvent (PWhenever, eq_ReturnPD, 0, 0, Override);
 		}
+		break;
+	/*
+	 * Get a position and display it in its widget.
+	 */
+	   case GPC_GETPOSITION:
+		pw_PosStatus ();
 		break;
 	/*
 	 * "Should never happen"

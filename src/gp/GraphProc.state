@@ -1,4 +1,4 @@
-! $Id: GraphProc.state,v 1.9 1991-06-14 22:36:09 kris Exp $
+! $Id: GraphProc.state,v 1.10 1991-07-30 16:11:32 kris Exp $
 !
 ! State entries for the graphics process.
 !
@@ -47,6 +47,9 @@ define state initial
 	endinput
 	input 'movecomp' 18
 		next move-component
+	endinput
+	input 'getposition' 19
+		next ust$no_more
 	endinput
 enddef
 
@@ -182,6 +185,13 @@ define state act-widget
 		next act-si-comp
 	endinput
 	input 'stationwidget' 5
+		next act-sw-comp
+	endinput
+enddef
+
+define state act-sw-comp
+	input string
+		lowercase
 		next ust$final_string
 	endinput
 enddef

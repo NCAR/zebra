@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.0 1991-07-18 23:00:21 corbet Exp $ */
+/* $Id: GraphProc.h,v 2.1 1991-07-30 16:12:00 kris Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -141,6 +141,7 @@ extern int AgeCheck (char *, time *);
 	extern int ct_GetColorByName (char *, XColor *);
 	extern int ct_GetColorByRGB (XColor *);
 	extern void An_TopAnnot (char *, Pixel);
+	extern Widget LeftRightButtons (Widget, void *);
 # endif
 # else
 	extern void tr_InitAcWidget ();
@@ -190,6 +191,7 @@ extern int AgeCheck (char *, time *);
 	extern void cvt_ToLatLon ();
 	extern void cvt_GetOrigin ();
 	extern bool cvt_Origin ();
+	extern Widget LeftRightButtons ();
 	extern int GetLocation ();
 	extern void SetClip ();
 	extern void ResetGC ();
@@ -202,5 +204,6 @@ extern int AgeCheck (char *, time *);
 	extern int ct_GetColorByName ();
 	extern int ct_GetColorByRGB ();
 	extern void An_TopAnnot ();
+	extern Widget LeftRightButtons ();
 # endif
 # endif
