@@ -1,4 +1,4 @@
-/* $Id: gp_cmds.h,v 2.2 1991-09-12 20:27:54 corbet Exp $ */
+/* $Id: gp_cmds.h,v 2.3 1991-12-04 23:05:51 corbet Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -38,3 +38,5 @@
 # define GPC_POLYLINE	17
 # define GPC_MOVECOMP	18
 # define GPC_GETPOSITION	19
+# define GPC_FIELD	20
+# define GPC_ALIAS	21

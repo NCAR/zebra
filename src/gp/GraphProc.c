@@ -43,7 +43,7 @@
 # include "GC.h"
 # include "GraphProc.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.11 1991-12-04 20:50:43 corbet Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.12 1991-12-04 23:05:51 corbet Exp $")
 
 /*
  * Default resources.
@@ -266,6 +266,8 @@ finish_setup ()
 /*
  * Module initializations.
  */
+	SetupConfigVariables (); /* Configuration info	*/
+	F_Init ();		/* Data store fields module */
 	ct_Init ();		/* Color tables		*/
 	Ue_Init ();		/* User event handling	*/
 	I_init ();		/* Icons		*/
@@ -416,12 +418,14 @@ greet_dm ()
 
 
 
+
+
 /* ARGSUSED */
 dispatcher (junk, cmds)
 int junk;
 struct ui_command *cmds;
 /*
- * The command dispatcher.  Assume it is RUN for now.
+ * The GP command dispatcher.
  */
 {
 	static bool first = TRUE;
@@ -550,6 +554,15 @@ struct ui_command *cmds;
 	 */
 	   case GPC_GETPOSITION:
 		pw_PosStatus ();
+		break;
+	/*
+	 * Field definition.
+	 */
+	   case GPC_FIELD:
+	   	F_DeclareField (UPTR (cmds[1]), UPTR (cmds[2]), UPTR(cmds[3]));
+		break;
+	   case GPC_ALIAS:
+	   	F_Alias (UPTR (cmds[1]), UPTR (cmds[2]));
 		break;
 	/*
 	 * "Should never happen"

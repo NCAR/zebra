@@ -1,4 +1,4 @@
-! $Id: GraphProc.state,v 1.11 1991-09-12 20:27:54 corbet Exp $
+! $Id: GraphProc.state,v 1.12 1991-12-04 23:05:51 corbet Exp $
 !
 !		Copyright (C) 1987,88,89,90,91 by UCAR
 !	University Corporation for Atmospheric Research
@@ -69,8 +69,32 @@ define state initial
 	input 'getposition' 19
 		next ust$no_more
 	endinput
+	! field name description units
+	input 'field' 20
+		next field-name
+	endinput
+	input 'alias' 21
+		next alias-old
+	endinput
 enddef
 
+define state field-name
+	input string
+		next field-description
+	endinput
+enddef
+
+define state field-description
+	input string
+		next ust$final_unmunged_string
+	endinput
+enddef
+
+define state alias-old
+	input string
+		next ust$final_string
+	endinput
+enddef
 !
 ! Movie control.
 !
