@@ -1,5 +1,5 @@
 #if ( !defined(lint) && !defined(SABER) )
-static char rcsid[] = "$Id: SmeMenu.c,v 1.13 1994-09-01 10:53:24 granger Exp $";
+static char rcsid[] = "$Id: SmeMenu.c,v 1.14 1996-02-03 16:34:24 granger Exp $";
 #endif 
 
 /*
@@ -297,7 +297,7 @@ Region region;
 	}
 
 	y_loc += (entry->rectangle.height - 
-		  (font_ascent + font_descent)) / 2 + font_ascent;
+		  (font_ascent + font_descent)) / (unsigned)2 + font_ascent;
 	
 	XDrawString(XtDisplayOfObject(w), XtWindowOfObject(w), gc,
 		    x_loc, y_loc, label, len);
@@ -635,7 +635,7 @@ Dimension * width, * height;
 	       entry->sme_menu.font->max_bounds.descent);
 
     *height = (*height * ( ONE_HUNDRED + 
-			  entry->sme_menu.vert_space )) / ONE_HUNDRED;
+		  entry->sme_menu.vert_space )) / (unsigned)ONE_HUNDRED;
 }
 
 /*      Function Name: DrawBitmaps
@@ -657,7 +657,7 @@ GC gc;
 	 (entry->sme_menu.right_bitmap == None) ) return;
 
     y_loc = entry->rectangle.y + (entry->rectangle.height -
-				  entry->sme_menu.left_bitmap_height) / 2;
+	  entry->sme_menu.left_bitmap_height) / (unsigned)2;
 
 /*
  * Draw Left Bitmap.
@@ -665,7 +665,7 @@ GC gc;
 
   if (entry->sme_menu.left_bitmap != None) {
     x_loc = (entry->sme_menu.left_margin - 
-	     entry->sme_menu.left_bitmap_width) / 2;
+	     entry->sme_menu.left_bitmap_width) / (unsigned)2;
     XCopyPlane(XtDisplayOfObject(w), entry->sme_menu.left_bitmap,
 	       XtWindowOfObject(w), gc, 0, 0, 
 	       entry->sme_menu.left_bitmap_width,
@@ -678,7 +678,7 @@ GC gc;
 
   if (entry->sme_menu.right_bitmap != None) {
     x_loc = entry->rectangle.width - (entry->sme_menu.right_margin - 
-				      entry->sme_menu.right_bitmap_width) / 2;
+	      entry->sme_menu.right_bitmap_width) / (unsigned)2;
     XCopyPlane(XtDisplayOfObject(w), entry->sme_menu.right_bitmap,
 	       XtWindowOfObject(w), gc, 0, 0, 
 	       entry->sme_menu.right_bitmap_width,
