@@ -1,4 +1,4 @@
-/* $Id: message.h,v 2.12 1993-05-25 20:01:25 corbet Exp $ */
+/* $Id: message.h,v 2.13 1993-08-16 19:59:16 burghart Exp $ */
 /*
  * Message protocol types.
  */
@@ -40,6 +40,7 @@
 # define MT_PDMON	15	/* Plot description monitoring		*/
 # define MT_PBOUNDS	16	/* Plot bounds exchange protocol	*/
 # define MT_MTAP	17	/* Message tap				*/
+# define MT_FINISH	18	/* Generic "clean up and exit"		*/
 
 /*
  * Preallocated chunks of protocol numbers for various groups.
