@@ -23,7 +23,7 @@
 # include <message.h>
 # include <copyright.h>
 
-RCSID("$Id: zstop.c,v 1.8 1999-11-01 21:30:02 granger Exp $")
+RCSID("$Id: zstop.c,v 1.9 2000-07-25 18:27:35 granger Exp $")
 
 static char *argv0;
 
@@ -56,7 +56,7 @@ static void
 Usage (char *prog)
 {
     printf ("Usage: %s [-help]\n", prog);
-    printf ("       %s [-help] [-b group] [client] [...]\n", prog);
+    printf ("       %s [-help] [-b(roadcast) group] [client] [...]\n", prog);
     printf ("If no arguments, send the DIE message to the\n");
     printf ("message manager.\n");
     exit (1);
@@ -71,14 +71,23 @@ char **argv;
 {
 	int handler ();
 	int i;
+	int len;
 
 	if ((argv0 = strrchr(argv[0], '/')) != NULL)
 		++argv0;
 	else
 		argv0 = argv[0];
+
+
+	/* Check for help request */
+	if (argc > 1 && (len = strlen (argv[1])) > 1 && 
+	    strncmp("-help",argv[1],len) == 0)
+	{
+	    Usage (argv0);
+	}
+
 	if (! msg_connect (handler, "Grim reaper"))
 		exit (1);
-	
 	/*
 	 * Process the command line arguments.
 	 */
@@ -87,12 +96,10 @@ char **argv;
 	{
 	    char *name;
 	    int broadcast;
-	    int len = strlen (argv[i]);
-	    if (len > 1 && strncmp("-help",argv[i],len) == 0)
-	    {
-		Usage (argv0);
-	    }
-	    else if (len > 1 && strncmp("-broadcast",argv[i],len) == 0)
+
+	    len = strlen (argv[i]);
+
+	    if (len > 1 && strncmp("-broadcast",argv[i],len) == 0)
 	    {
 		broadcast = 1;
 		++i;
@@ -113,22 +120,33 @@ char **argv;
 
 	if (argc == 1)
 	{
-	    /* Default is still to just kill the message manager. */
+	    /*
+	     * Default is still to just kill the message manager. 
+	     */
 	    SendDie ();
-	}
-	/* 
-	 * Check for any death notices instead of rudely exiting
-	 * right away and causing write errors in the handler.
-	 */
-	while (msg_poll(5) != MSG_TIMEOUT)
-	{
+
+	    /* 
+	     * Check that we receive notice of the shutdown we just tried
+	     * to start.  
+	     */
+	    while (msg_poll(5) != MSG_TIMEOUT)
+	    {
 		/* wait for a shutdown message or a timeout */
+	    }
+	    if (argc == 1)
+	    {
+		printf ("%s: shutdown message never received.\n", argv0);
+		exit (1);
+	    }
 	}
-	if (argc == 1)
-	{
-	    printf ("%s: shutdown message never received.\n", argv0);
-	    exit (1);
-	}
+
+	/* 
+	 * Try to avoid some rude errors about lost connections by
+	 * clearing messages (such as automatic event logger messages)
+	 * before disconnecting.
+	 */
+	msg_poll(1);
+	msg_disconnect ();
 	exit (0);
 }
 
