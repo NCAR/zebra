@@ -1,7 +1,7 @@
 ;;
 ;; Utilities for dealing with plot descriptions.
 ;;
-(defvar pd::rcsid "$Id: pd-utils.el,v 1.2 1993-02-25 17:20:21 corbet Exp $"
+(defvar pd::rcsid "$Id: pd-utils.el,v 1.3 1993-06-09 20:41:25 corbet Exp $"
  "The RCS id")
 ;
 ; Our position when scanning through the PD.
@@ -292,6 +292,18 @@ track, if the ARROW parameter is TRUE")
 
 	("arrow-scale"		nil		nil	pd::ck-float
 	 "The scale factor used to determine the length of the arrows.")
+
+	("auto-scale-x-min"	nil		nil	nil
+	  "X min as determined by autoscale code -- not for human use")
+
+	("auto-scale-x-max"	nil		nil	nil
+	  "X min as determined by autoscale code -- not for human use")
+
+	("auto-scale-y-min"	nil		nil	nil
+	  "X min as determined by autoscale code -- not for human use")
+
+	("auto-scale-y-max"	nil		nil	nil
+	  "X min as determined by autoscale code -- not for human use")
 
 	("axis-color"		"tseries"	nil	nil
 	 "The color to use in drawing time series axes.")
