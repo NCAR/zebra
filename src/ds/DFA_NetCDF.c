@@ -34,7 +34,7 @@
 # include "DataFormat.h"
 # include "DFA_ncutil.c"
 
-RCSID ("$Id: DFA_NetCDF.c,v 3.82 2003-08-07 20:53:56 burghart Exp $")
+RCSID ("$Id: DFA_NetCDF.c,v 3.83 2003-08-08 16:42:01 burghart Exp $")
 
 /*
  * Location fields: standard attributes
@@ -1786,8 +1786,8 @@ int ndetail;
 	 * The time dimension, if any, will be first, followed by the
 	 * irgrid station dimension, if any.  We skip these.
 	 */
-	firstdim = (tag->nc_haveTimeDim ? 0 : 1) +
-	    ((tag->nc_org == OrgIRGrid) ? 0 : 1);
+	firstdim = (tag->nc_haveTimeDim ? 1 : 0) +
+	    ((tag->nc_org == OrgIRGrid) ? 1 : 0);
 
 	for (dim = firstdim; dim < ndims; dim++)
 	{
@@ -3186,7 +3186,7 @@ DataChunk *dc;
 	strcat (history, "Created by the Zebra DataStore library, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.82 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.83 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 	free (history);
