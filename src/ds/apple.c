@@ -1,5 +1,5 @@
 /*
- * $Id: apple.c,v 3.3 1995-12-04 11:32:05 granger Exp $
+ * $Id: apple.c,v 3.4 1996-01-10 21:02:51 granger Exp $
  */
 
 /*
@@ -233,9 +233,9 @@ static float test_data[10000];
 
 
 DataChunk *T_SimpleScalarChunk FP ((ZebTime *start, int interval, int nsample,
-				    int nfield, bool is_mobile, bool addatts));
+				    int nfield, int is_mobile, int addatts));
 DataChunk *T_ScalarNSpaceChunk FP((ZebTime *start, int nsample, int nfield,
-				   bool is_mobile, bool addatts));
+				   int is_mobile, int addatts));
 static void T_DumpData FP((float *retrieve, int n, int len, char *fname));
 
 
@@ -1395,7 +1395,7 @@ ZebTime *now;
 	ZebTime end = *now;
 	ZebTime begin = *now;
 	float *retrieve;
-	long size;
+	unsigned long size;
 	FieldId *fields;
 	int nfield;
 	int errors = 0;
@@ -1960,8 +1960,8 @@ T_ScalarNSpaceChunk (start, nsample, nfield, is_mobile, addatts)
 ZebTime *start;
 int nsample;
 int nfield;
-bool is_mobile;
-bool addatts;
+int is_mobile;
+int addatts;
 {
 	DataChunk *dc;
 	FieldId fids[50];
@@ -2033,8 +2033,8 @@ ZebTime *start;
 int interval;
 int nsample;
 int nfield;
-bool is_mobile;
-bool addatts;
+int is_mobile;
+int addatts;
 {
 	DataChunk *dc;
 	FieldId fids[50];
@@ -2120,12 +2120,12 @@ bool addatts;		/* per-sample atts only 	*/
 "Died on level  17",
 "You are quite disappointing:",
 "Started on level   1.  Score:     9542.",
-" burghart        - Died on level   9. Started on level   1.  Score:     9542.
- burghart        - Died on level  18. Started on level  12.  Score:     8583.
- burghart        - Died on level   8. Started on level   1.  Score:     8420.
- burghart        - Died on level  17. Started on level  12.  Score:     8153.
- burghart        - Died on level  10. Started on level   1.  Score:     7905.
- burghart        - Died on level   8. Started on level   1.  Score:     7800.",
+" burghart     - Died on level   9. Started on level   1.  Score:     9542.\n\
+ burghart     - Died on level  18. Started on level  12.  Score:     8583.\n\
+ burghart     - Died on level   8. Started on level   1.  Score:     8420.\n\
+ burghart     - Died on level  17. Started on level  12.  Score:     8153.\n\
+ burghart     - Died on level  10. Started on level   1.  Score:     7905.\n\
+ burghart     - Died on level   8. Started on level   1.  Score:     7800.",
 "You are quite disappointing: *granger" };
 	int ntext = sizeof(text)/sizeof(text[0]);
 	int i, len;

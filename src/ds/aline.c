@@ -1,5 +1,5 @@
 /*
- * $Id: aline.c,v 3.5 1995-12-04 11:32:00 granger Exp $
+ * $Id: aline.c,v 3.6 1996-01-10 21:02:48 granger Exp $
  *
  * An 'Assembly Line' test driver for the DataStore.
  *
@@ -556,7 +556,7 @@ int num;
    result = (int)(trunc);
    /* printf ("%i\n",result); */
    return result;
-};
+}
 
 
 
