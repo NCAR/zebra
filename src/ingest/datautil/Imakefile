@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.16 1995-07-06 04:26:48 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.17 1997-10-03 23:41:32 ishikawa Exp $"
 
 #define IHaveSubdirs
 #define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
@@ -42,12 +42,6 @@ OTHERS = mud.id gp.hdr convmud.doc uwtocdf iss.problem netcdf_fixlon
 
 DISTFILES = Imakefile $(SRCS) $(FSRCS) $(HEADERS) dscopy.state
 
-# if defined(HPArchitecture) || defined(SGIArchitecture) 
-.SUFFIXES:	.F
-
-.F.o:
-	$(FC) $(FFLAGS) -c $<
-# endif
 
 all:: $(PROGRAMS)
 
