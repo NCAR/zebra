@@ -5,7 +5,7 @@
  * commands are in ui_cmds.c
  */
 
-static char *Rcsid = "$Id: ui.c,v 1.8 1990-04-26 12:11:51 corbet Exp $";
+static char *Rcsid = "$Id: ui.c,v 1.9 1990-05-13 11:09:01 corbet Exp $";
 /*
  * Declare all globals here
  */
@@ -80,6 +80,9 @@ struct procarg
 	char pa_name[MAXPNAME];		/* Name of this argument	*/
 	int pa_type;			/* Argument type		*/
 };
+
+
+
 
 
 ui_init (loadfile, interact, nokeypad)
@@ -161,6 +164,12 @@ bool interact, nokeypad;
 	usy_s_symbol   (Ui_variable_table, "ui$system_type", SYMT_STRING, &v);
 	Bail = TRUE;
 /*
+ * Initialize other stuff.
+ */
+	strcpy (Appl_name, "UI");
+	Argv = Argc = 0;
+	Resources = 0;
+/*
  * Finally, if an initialization procedure exists, execute it.
  */
 	if (usy_defined (Proc_table, "ui$init"))
@@ -172,6 +181,23 @@ bool interact, nokeypad;
 		kludge[1].uc_ctype = UTT_END;
 		ui_pcall (kludge);
 	}
+}
+
+
+
+
+void
+ui_setup (name, argc, argv, resources)
+char *name, **argv, *resources;
+int argc;
+/*
+ * Perform application-specific setup.
+ */
+{
+	strcpy (Appl_name, name);
+	Argc = argc;
+	Argv = argv;
+	Resources = resources;
 }
 
 
