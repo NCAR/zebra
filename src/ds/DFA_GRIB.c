@@ -39,7 +39,7 @@
 # include "DataFormat.h"
 # include "GRIB.h"
 
-RCSID ("$Id: DFA_GRIB.c,v 3.34 1997-08-26 22:44:03 burghart Exp $")
+RCSID ("$Id: DFA_GRIB.c,v 3.35 1997-10-23 15:48:58 burghart Exp $")
 
 
 /*
@@ -383,14 +383,14 @@ struct s_GRB_TypeInfo
 
 /*
  * Regular lat/lon grids need the degree spacing in each direction and the
- * coordinates of the southwest corner.
+ * coordinates of the first point.
  */
 typedef struct s_Regular
 {
 	float	lat_spacing;
 	float	lon_spacing;
-	float	s_lat;
-	float	w_lon;
+	float	lat0;	/* lat @ (0,0) */
+	float	lon0;	/* lon @ (0,0) */
 } Regular;
 
 static Regular Regular2 = 
@@ -400,8 +400,8 @@ static Regular Regular2 =
 {
     2.5,	/* lat_spacing */
     2.5,	/* lon_spacing */
-    -90.0,	/* s_lat */
-    0.0		/* w_lon */
+    -90.0,	/* lat @ (0,0) */
+    0.0,	/* lon @ (0,0) */
 };
 
 
@@ -569,10 +569,14 @@ static GRB_TypeInfo GRB_Types[] =
 	 * 2: 10512 point (144x73) global longitude-latitude grid
 	 * (0,0) at 0E, 90N [C type indexing] matrix layout.  2.5
 	 * degree grid, prime meridian not duplicated.
+	 *
+	 * A bit of a kluge here, since we make the destination grid
+	 * 540 degrees wide to extend from -180 to 360 in longitude.
+	 * This avoids ugly "turn-the-plane-into-a-cylinder" code elsewhere.
 	 */
 	{ 2, 144, 73, NULL, NULL, 
-		  grb_RegularIndex, grb_RegularLatLon, 144, 73, 
-		  -90.0, 0.0, 2.5, 2.5, NULL, NULL, &Regular2 },
+		  grb_RegularIndex, grb_RegularLatLon, 216, 73, 
+		  -90.0, -180.0, 2.5, 2.5, NULL, NULL, &Regular2 },
 	/*
 	 * 27: 4225-point (65x65) N. Hemisphere polar stereographic grid
 	 * oriented 80W; pole at (32,32) [C type indexing].  381.0 km
@@ -943,7 +947,7 @@ int		ndetail;
 	GFTag	*tag = GFTAGP (of);
 	GFpds	*pds;
 	GFgds	*gds;
-	FieldId	fids[5], lat_id, lon_id, alt_id, checkfld = -1;
+	FieldId	fids[5], lat_id, lon_id, alt_id, checkfld = BadField;
 	ZebTime	stime;
 	GRB_TypeInfo	*grbinfo = NULL;
 	AltUnitType	altunits;
@@ -2043,9 +2047,24 @@ AltUnitType	altunits;
 	     *	  val =	(1-di)(1-dj) val0 + (di)(1-dj) val1 +
 	     *		(1-di)(dj) val2 + (di)(dj) val3
 	     */
+	    /*
+	     * Get the integer i and j indices for the source grid.
+	     */
 		si = (int)(*fsi);
 		sj = (int)(*fsj);
-				
+	    /*
+	     * Kludge to allow us to get data *exactly* at the last
+	     * index in each direction
+	     */
+		if (si == (nsx - 1) && si == *fsi)
+		    si -= 1;
+		
+		if (sj == (nsy - 1) && sj == *fsj)
+		    sj -= 1;
+	    /*
+	     * Get the four surrounding points and do the bilinear 
+	     * interpolation
+	     */
 		if (si >= 0 && si < (nsx - 1) &&
 		    sj >= 0 && sj < (nsy - 1))
 		{
@@ -2134,7 +2153,7 @@ ScaleInfo	*sc;
 	int	i;
 	float	scale = 1.0, offset = 0.0;
 	char	fname[8];
-	FieldId	fid = -1;
+	FieldId	fid = BadField;
 /*
  * Search through the field table first, to see if we've associated a
  * "real" name with the field.  Fields associated with the particular model
@@ -2200,12 +2219,12 @@ float	*ifloat, *jfloat;
  */
 {
 	Regular *reg = (Regular *) gg->gg_transform;
-	float dlon = lon - reg->w_lon;
-	float dlat = lat - reg->s_lat;
+	float dlon = lon - reg->lon0;
+	float dlat = lat - reg->lat0;
 
 	if (dlon < 0.0)
 		dlon += 360.0;
-	
+
 	*ifloat = dlon / reg->lon_spacing;
 	*jfloat = dlat / reg->lat_spacing;
 }
@@ -2225,8 +2244,8 @@ float	*lat, *lon;
 {
 	Regular *reg = (Regular *) gg->gg_transform;
 
-	*lon = reg->w_lon + idouble * reg->lon_spacing;
-	*lat = reg->s_lat + (jdouble * reg->lat_spacing);
+	*lon = reg->lon0 + idouble * reg->lon_spacing;
+	*lat = reg->lat0 + (jdouble * reg->lat_spacing);
 }
 
 
@@ -2918,7 +2937,7 @@ GDSLatLon *gds;
 	grbinfo->gg_slatang = grbinfo->gg_slonang = NULL;
 	grbinfo->gg_dsi = grbinfo->gg_dsj = NULL;
 /*
- * Simple stuff here.  Just make our destination grid match the source grid.
+ * Grab grid information
  */
 	nlon = grbinfo->gg_snx = grbinfo->gg_dnx = grb_TwoByteInt (gds->gd_ni);
 	nlat = grbinfo->gg_sny = grbinfo->gg_dny = grb_TwoByteInt (gds->gd_nj);
@@ -2928,14 +2947,33 @@ GDSLatLon *gds;
 
 	lat2 = 0.001 * (float) grb_ThreeByteSignInt (gds->gd_lat2);
 	lon2 = 0.001 * (float) grb_ThreeByteSignInt (gds->gd_lon2);
+/*
+ * Lat and lon step in the GDS are absolute values, with the signs coming
+ * from the scanning mode flags
+ */
+	lonstep = 0.001 * (float) grb_TwoByteInt (gds->gd_di);
+	latstep = 0.001 * (float) grb_TwoByteInt (gds->gd_dj);
 
-	latstep = (lat2 - lat1) / (nlat - 1);
-	lonstep = (lon2 - lon1) / (nlon - 1);
-
-	grbinfo->gg_dlat = (lat1 < lat2) ? lat1 : lat2;
+	lonstep *= (gds->gd_scanmode & (1<<7)) ? -1 : 1;
+	latstep *= (gds->gd_scanmode & (1<<6)) ? 1 : -1;
+/*
+ * Define the destination grid info.
+ *
+ * KLUGE: for full global grids we make the destination grid extend 540
+ * degrees in longitude, from -180 to 360, duplicating half of the array.
+ * The helps avoid clunky "turn-the-plane-into-a-cylinder" code elsewhere.
+ */
+	grbinfo->gg_dlat = (latstep > 0) ? lat1 : lat2;
 	grbinfo->gg_dlatstep = fabs (latstep);
 
-	grbinfo->gg_dlon = (lon1 < lon2) ? lon1 : lon2;
+	if (fabs (lonstep * nlon) >= 360.0)
+	{
+		grbinfo->gg_dlon = -180.0;
+		grbinfo->gg_dnx = fabs (540.0 / lonstep);
+	}
+	else
+		grbinfo->gg_dlon = (lonstep > 0) ? lon1 : lon2;
+
 	grbinfo->gg_dlonstep = fabs (lonstep);
 /*
  * Allocate and build our transform structure
@@ -2944,8 +2982,8 @@ GDSLatLon *gds;
 
 	transform->lat_spacing = latstep;
 	transform->lon_spacing = lonstep;
-	transform->s_lat = (latstep < 0) ? lat2 : lat1;
-	transform->w_lon = (lonstep < 0) ? lon2 : lon1;
+	transform->lat0 = lat1;
+	transform->lon0 = lon1;
 
 	grbinfo->gg_transform = (void*) transform;
 /*
