@@ -115,9 +115,9 @@ char *file;
 			buflen = grib_len;
 
 			if (buf)
-				buf = realloc (buf, buflen);
+				buf = (unsigned char *) realloc (buf, buflen);
 			else
-				buf = malloc (buflen);
+				buf = (unsigned char *) malloc (buflen);
 		}
 	/*
 	 * Copy in the eight bytes we have, and read the rest
