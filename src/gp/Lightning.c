@@ -24,7 +24,7 @@ char *comp;
 bool update;
 {
 	char	platform[30], step[30], ctable[30];
-	char	*fields[5], string[40],	tadefcolor[30];
+	char	**fields, string[40],	tadefcolor[30];
 	int	period, dsperiod, x, y, numcolor, pid, istep;
 	int	i, top, bottom, left, right, numfields, index;
 	time	begin, t, temp;
@@ -112,6 +112,7 @@ bool update;
  * Set up the field list.
  */
 	numfields = 0;
+	fields = NULL;
 /*
  * Get the data.
  */
@@ -146,11 +147,6 @@ bool update;
 		ov_PositionIcon ("light", x, y, colors[index].pixel);
 	}
 /*
- * Put in the status line before we lose the data object, then get rid of it.
- */
-	lw_TimeStatus (comp, &dobj->do_end);
-	ds_FreeDataObject (dobj);
-/*
  * Annotate if necessary.
  */
  	if (! update)
@@ -174,18 +170,23 @@ bool update;
 			XFillRectangle (disp, d, Gcontext, left,
 				(int) (top + i * bar_height), 10,
 				(int) (bar_height + 1));
-			sprintf (string, "%d - %d", i*(istep),(i+1)*istep-1); 
+			sprintf (string, "%d - %d", i*(istep),(i+1)*istep); 
 			XSetForeground (disp, Gcontext, White);
 			DrawText (Graphics, d, Gcontext, left + 15, 
 				(int) (top + i * bar_height), string, 
 				0.0, sascale, JustifyLeft, JustifyTop);
 		}
 		sprintf (string, "Total = %d", dobj->do_npoint); 
-		DrawText (Graphics, d, Gcontext, left + 15, 
+		DrawText (Graphics, d, Gcontext, left, 
 			(int) (top + numcolor * bar_height), string, 0.0, 
-			sascale, JustifyLeft, JustifyBottom);
+			sascale, JustifyLeft, JustifyTop);
 		An_SAUsed ((int) (top + (numcolor + 1) * bar_height +  8));
 	}
+/*
+ * Put in the status line before we lose the data object, then get rid of it.
+ */
+	lw_TimeStatus (comp, &dobj->do_end);
+	ds_FreeDataObject (dobj);
 }
 
 
