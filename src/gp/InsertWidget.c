@@ -45,7 +45,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 
-RCSID("$Id: InsertWidget.c,v 1.11 1996-11-19 07:28:50 granger Exp $")
+RCSID("$Id: InsertWidget.c,v 1.12 1997-02-21 23:33:17 granger Exp $")
 
 # ifndef PI
 # define PI		3.141592654
@@ -714,16 +714,22 @@ Attributes ()
 	else if (Entry >= 0 && Entry < NumPlatforms)
 		strcpy (platform, IPlatform[Entry]);
 	else
+	{
 		msg_ELog (EF_PROBLEM, "Can't get a good platform name.");
+		platform[0] = '\0';
+	}
 /*
  * Read in and parse the attributes for this platform.
  */
-	if (! pda_Search (Pd, "global", "attributes", platform, attributes, 
-		SYMT_STRING))
+	NumAttr = 0;
+	if (! platform[0])
 	{
-		NumAttr = 0;
+		msg_ELog (EF_PROBLEM, "No platform active for attributes");
+	}
+	else if (! pda_Search (Pd, "global", "attributes", platform, 
+			       attributes, SYMT_STRING))
+	{
 		msg_ELog (EF_PROBLEM, "No attributes for %s", platform);
-		SetHelp ("No attributes.");
 	}
 	else
 	{
@@ -753,6 +759,8 @@ Attributes ()
 			NumAttr++;
 		}
 	}
+	if (NumAttr == 0)
+		SetHelp ("No attributes.");
 /*
  * Clean out extras.
  */
