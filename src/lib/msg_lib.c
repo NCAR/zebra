@@ -22,12 +22,13 @@
 # include <varargs.h>
 # include <errno.h>
 # include <sys/types.h>
+# include <sys/time.h>
 # include <sys/socket.h>
 # include <sys/un.h>
 # include <sys/uio.h>
-# include "../include/defs.h"
+# include "defs.h"
 # include "message.h"
-MAKE_RCSID ("$Id: msg_lib.c,v 2.9 1992-11-09 18:06:47 burghart Exp $")
+MAKE_RCSID ("$Id: msg_lib.c,v 2.10 1992-11-18 00:00:03 granger Exp $")
 
 /*
  * The array of functions linked with file descriptors.
@@ -475,7 +476,6 @@ int fd;
 
 
 
-
 int
 msg_incoming (fd)
 int fd;
@@ -504,6 +504,37 @@ int fd;
 	}
 }
 
+
+
+int
+msg_poll(timeout)
+int timeout; /* seconds */
+/*
+ * Check the message queue and poll the message handler fd for any pending
+ * messages and handle them with msg_incoming().  The number of seconds to
+ * block on the select() is set with the 'timeout' parameter.  Either the
+ * return from msg_incoming() is returned or -1 if no messages.
+ */
+{
+	fd_set readfds;
+	int ret;
+	struct timeval delay;
+
+	delay.tv_sec = timeout;
+	delay.tv_usec = 0;
+
+	FD_ZERO(&readfds);
+	FD_SET(Msg_fd,&readfds);
+
+	if (Mq || (select(Msg_fd+1, &readfds, NULL, NULL, &delay) > 0))
+	{
+		/* We have a message to read */
+		return(msg_incoming(Msg_fd));
+	}
+	else
+		/* No messages waiting */
+		return(-1);
+}
 
 
 
@@ -645,11 +676,6 @@ int type, broadcast, datalen;
 		nsent += len;
 	}
 }
-
-
-
-
-
 
 
 
