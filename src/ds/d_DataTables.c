@@ -24,26 +24,35 @@
 # include <stdio.h>
 # include <string.h>
 
-# include "defs.h"
-# include "message.h"
+# include <defs.h>
+# include <message.h>
+/*
+ * Implement our symbol tables for platform and class names with the
+ * Zebra library module.  This does not affect using the full UI in
+ * the daemon, since these tables are private to this module.
+ */
+# include <zl_symbol.h>
+
 # include "DataStore.h"
 # include "dsPrivate.h"
+# include "Platforms.h"
 # include "commands.h"
 # include "dsDaemon.h"
-MAKE_RCSID("$Id: d_DataTables.c,v 3.22 1996-08-22 01:36:14 granger Exp $")
+
+RCSID("$Id: d_DataTables.c,v 3.23 1996-11-19 09:26:42 granger Exp $")
 
 
 /*
  * Declare global variables declared external in dsDaemon.h
  */
-PlatformClass 	*CTable;
-PlatformInstance *PTable;
-DataFile 	*DFTable;
+PlatformClass 	*CTable = NULL;
+PlatformInstance *PTable = NULL;
+DataFile 	*DFTable = NULL;
 
-int NDTEUsed;		/* How many data table entries used. 	*/
-int DTFreeList;		/* The datafile free list		*/
-int NPlatform;		/* How many platforms (instances)	*/
-int NClass;		/* Number of platform classes		*/
+int NDTEUsed = 0;	/* How many data table entries used. 	*/
+int DTFreeList = 0;	/* The datafile free list		*/
+int NPlatform = 0;	/* How many platforms (instances)	*/
+int NClass = 0;		/* Number of platform classes		*/
 
 
 /*
@@ -51,11 +60,6 @@ int NClass;		/* Number of platform classes		*/
  */
 static stbl Platforms = NULL;
 static stbl Classes = NULL;
-
-/*
- * What is the default time period to keep data?
- */
-static int DefaultKeep = 60;
 
 /*
  * Have we initialized things?  Initialization is delayed as long as possible
@@ -66,22 +70,14 @@ static int Initialized = FALSE;
 /*-------------------------------------------------------------------------
  * Local forwards.
  */
-static void dt_InitTables FP((void));
-static void dt_InitClass FP((PlatformClass *pc, const char *name));
-static void dt_Subclass FP((PlatformClass *super, PlatformClass *sub,
-			    const char *name));
 static void dt_ExpandClassTable FP((int growth));
 static void dt_InstantSubPlats FP((PlatformClass *pc, PlatformId parent));
-static SubPlatform *dt_NewClassSubPlat FP((PlatformClass *pc));
-static void dt_AddSubPlat FP((PlatformInstance *plat, PlatformInstance *sub));
 static void dt_EraseSubPlats FP((PlatformInstance *plat));
-static void dt_CopyClassSubPlats FP((PlatformClass *src, PlatformClass *dest));
 static void dt_FillInstanceDirs FP((PlatformClass *pc, PlatformInstance *new,
 				    const char *defname));
 static PlatformInstance *dt_NewPlatform FP((char *name));
 static void dt_ExpandPlatformTable FP((int growth));
 static void dt_InitInstance FP((PlatformInstance *new, char *name));
-static void dt_SetPlatformNames FP((char *name, PlatformInstance *p));
 static void dt_SetTableName FP((stbl table, const char *name, void *p));
 static void dt_IPAdd FP((DataFile *df, int *link));
 
@@ -107,16 +103,19 @@ dt_InitTables ()
 		malloc (PTableSize * sizeof (PlatformInstance));
 	DFTable = (DataFile *) malloc (DFTableSize*sizeof (DataFile));
 	NPlatform = NClass = NDTEUsed = 0;
+	if (!CTable || !PTable || !DFTable)	/* uh-oh */
+	{
+		msg_ELog (EF_EMERGENCY, "%s: %s",
+			  "memory alloc failure", 
+			  "could not initialize platform or datafile tables");
+		exit (9);
+	}
 /*
  * Create the symbol tables to hold the platform names and classes.
  */
-	Platforms = usy_c_stbl ("Platforms");
-	Classes = usy_c_stbl ("Classes");
-/*
- * Make DefaultKeep available.
- */
-	usy_c_indirect (usy_g_stbl ("ui$variable_table"), "defaultkeep",
-		&DefaultKeep, SYMT_INT, 0);
+	zl_usy_init ();
+	Platforms = zl_c_stbl ("Platforms");
+	Classes = zl_c_stbl ("Classes");
 /*
  * Go through and build the free list.
  */
@@ -130,6 +129,34 @@ dt_InitTables ()
 
 
 
+int
+dt_CheckId (id)
+PlatformId id;
+/*
+ * Return non-zero if this is a valid platform id, zero otherwise.
+ * Right now this just checks the range; someday it may check for
+ * deleted or disabled platforms.
+ */
+{
+	return ((id >= 0) && (id < NPlatform));
+}
+
+
+
+int
+dt_CheckClassId (id)
+PlatClassId id;
+/*
+ * Return non-zero if this is a valid platform class id, zero otherwise.
+ * Right now this just checks the range; someday it may check for
+ * deleted or disabled platform classes.
+ */
+{
+	return ((id >= 0) && (id < NClass));
+}
+
+
+
 PlatformClass *
 dt_NewClass (name, superclass)
 const char *name;
@@ -137,6 +164,7 @@ const char *superclass;
 /*
  * Given the name of the new class and a superclass, create a PlatformClass
  * structure.  If superclass non-NULL, inherit defaults from that class.
+ * Returns NULL if the class cannot be created.
  */
 {
 	PlatformClass *pc;
@@ -154,6 +182,18 @@ const char *superclass;
 		msg_ELog (EF_INFO, "WARNING: platform class '%s' redefined",
 			  name);
 		return (pc);
+	}
+/*
+ * If we've reached the hardcoded limit, we must obey it.
+ */
+	if (NClass >= MAXPLAT)
+	{
+		static int max_warning = 0;
+		if (! max_warning++)
+			msg_ELog (EF_PROBLEM, "%s %d exceeded at '%s': %s",
+				  "Max class count", MAXPLAT, (char *) name,
+				  "further definitions ignored");
+		return (NULL);
 	}
 /*
  * If the class table is full, expand it.
@@ -181,7 +221,11 @@ const char *superclass;
 		}
 	}
 	if (spc) 
-		dt_Subclass (spc, pc, name);
+	{
+		if (ParseOnly)
+			printf("Subclass %s from %s\n", name, spc->dpc_name);
+		dt_Subclass (spc - CTable, spc, pc, name);
+	}
 	else
 		dt_InitClass (pc, name);
 	return (pc);
@@ -189,75 +233,9 @@ const char *superclass;
 
 
 
-static void
-dt_Subclass (super, sub, name)
-PlatformClass *super;
-PlatformClass *sub;
-const char *name;	/* name to give to the subclass */
-/*
- * Copy the super class to the sub class, taking care of details like
- * copying subplats and resetting the comment and subclass name.
- */
-{
-	*sub = *super;
-	sub->dpc_comment = NULL;
-	sub->dpc_subplats = NULL;
-	sub->dpc_nsubplats = 0;
-/*
- * A subclass isn't an abstract base class or virtual
- * just because it's superclass is!
- */
-	if (ParseOnly)
-		printf ("Subclass %s from %s\n", name, super->dpc_name);
-	sub->dpc_flags &= ~DPF_ABSTRACT;
-	sub->dpc_flags &= ~DPF_VIRTUAL;
-	dt_CopyClassSubPlats (super, sub);
-
-	dt_SetString (sub->dpc_name, name, sizeof(sub->dpc_name),
-		      "assigning name to subclass");
-	sub->dpc_superclass = super - CTable;
-/* 
- * Erase our directories since these will be given defaults later
- */
-	sub->dpc_dir[0] = '\0';
-	sub->dpc_rdir[0] = '\0';
-}
-
-
 
 static void
-dt_InitClass (pc, name)
-PlatformClass *pc;
-const char *name;
-/*
- * Initialize all of the members of a platform class, but do not assign
- * any defaults for the directories.
- */
-{
-	dt_SetString (pc->dpc_name, name, sizeof(pc->dpc_name),
-		      "assigning name to class");
-	pc->dpc_dir[0] = '\0';
-	pc->dpc_rdir[0] = '\0';
-
-	pc->dpc_superclass = BadClass;
-	pc->dpc_org = OrgUnknown;
-
-	pc->dpc_ftype = FTUnknown;
-	pc->dpc_keep = DefaultKeep;
-	pc->dpc_maxsamp = 60;
-	pc->dpc_flags = 0;
-	pc->dpc_inherit = InheritNone;
-	pc->dpc_instance = InstanceDefault;
-	pc->dpc_comment = NULL;
-	pc->dpc_subplats = NULL;
-	pc->dpc_nsubplats = 0;
-}
-
-
-
-
-static void
-dt_ExpandClassTable(growth)
+dt_ExpandClassTable (growth)
 int growth;
 /*
  * Expand class table by 'growth' entries.  UGLINESS: we need to go 
@@ -268,7 +246,11 @@ int growth;
 {
 	int i;
 
+	if (NClass > MAXPLAT)
+		return;
 	CTableSize += growth;
+	if (CTableSize > MAXPLAT)
+		CTableSize = MAXPLAT;
 	msg_ELog (EF_INFO, "Expanding CTable to %d entries", CTableSize);
 	CTable = (PlatformClass *) realloc (CTable,
 				    CTableSize * sizeof (PlatformClass));
@@ -291,27 +273,28 @@ void *p;
 	SValue v;
 
 	v.us_v_ptr = (char *) p;
-	usy_s_symbol (table, (char *)name, SYMT_POINTER, &v);
+	zl_s_symbol (table, (char *)name, SYMT_POINTER, &v);
 }
 
 
 
 static void
-dt_SetPlatformNames (name, p)
-char *name;
-PlatformInstance *p;
+dt_SetPlatformNames (table, name, p)
+stbl table;
+const char *name;
+void *p;
 /*
  * Associate this name (and all subnames) with p.
  */
 {
-	char *cp;
+	const char *cp;
 	SValue v;
 
 	v.us_v_ptr = (char *) p;
 	cp = name;
 	do
 	{
-		usy_s_symbol (Platforms, cp, SYMT_POINTER, &v);
+		zl_s_symbol (table, (char *) cp, SYMT_POINTER, &v);
 		if ((cp = strchr (cp, '/')) != 0)
 			cp++;
 	}
@@ -320,11 +303,13 @@ PlatformInstance *p;
 
 
 
+
 static PlatformInstance *
 dt_NewPlatform (name)
 char *name;
 /*
  * Create a new platform instance in the list for the given name.
+ * Return NULL if the platform cannot be created.
  */
 {
 	PlatformInstance *new;
@@ -344,6 +329,18 @@ char *name;
 		return (new);
 	}
 /*
+ * If we've reached our limit, disallow it.
+ */
+	if (NPlatform >= MAXPLAT)
+	{
+		static int max_warning = 0;
+		if (! max_warning++)
+			msg_ELog (EF_PROBLEM, "%s %d exceeded at '%s': %s",
+				  "Max platform count", MAXPLAT, name,
+				  "further definitions ignored");
+		return (NULL);
+	}
+/*
  * If the platform table is full, expand it.
  */
 	if (NPlatform >= PTableSize)
@@ -352,7 +349,7 @@ char *name;
  * Allocate a new platform table entry.
  */
 	new = PTable + NPlatform;
-	dt_SetPlatformNames (name, new);
+	dt_SetPlatformNames (Platforms, name, new);
 	++NPlatform;
 /*
  * Initialize the instance.  Note this is not the same as assigning defaults.
@@ -406,82 +403,17 @@ int growth;
 {
 	int i;
 
+	if (PTableSize >= MAXPLAT)
+		return;
 	PTableSize += growth;
+	if (PTableSize > MAXPLAT)
+		PTableSize = MAXPLAT;
 	msg_ELog (EF_INFO, "Expanding PTable to %d entries", PTableSize);
 	PTable = (PlatformInstance *) realloc (PTable,
 		PTableSize * sizeof (PlatformInstance));
 	for (i = 0; i < NPlatform; i++)
-		dt_SetPlatformNames (PTable[i].dp_name, PTable + i);
+		dt_SetPlatformNames (Platforms, PTable[i].dp_name, PTable + i);
 }
-
-
-
-void
-dt_FillClassDirs (pc)
-PlatformClass *pc;
-/*
- * Fill in the directories if the definition hasn't done it already.
- * If the directory is relative, use the inherit flags to determine whether
- * to prepend DataDir, the prepend the superclass dir, or copy the superclass
- * dir.  If its absolute, use the full path name without modifying it.
- * If the dir is nonexistent and inheritance is none, use DataDir/name.
- *
- * For remote directories, if remote is disabled or the remote directory
- * is absolute, we do nothing.
- * If we have no default remote datadir, there is nothing we *can* do.
- * Otherwise, prepend the default remote dir to either the name or the
- * relative path.
- */
-{
-	char newdir[512];
-	PlatformClass *super;
-	char *dirname;
-
-	dirname = (pc->dpc_dir[0] == '\0') ? pc->dpc_name : pc->dpc_dir;
-	super = pc_SuperClass (pc);
-
-	if (pc->dpc_dir[0] != '/')	/* absolute paths don't change */
-	{
-		if  (((InheritDir)pc->dpc_inherit == InheritNone) ||
-		     (super == NULL))
-		{
-			sprintf (newdir, "%s/%s", DefDataDir, dirname);
-		}
-		else if ((InheritDir)pc->dpc_inherit == InheritCopy)
-		{
-			sprintf (newdir, "%s", super->dpc_dir);
-		}
-		else 	/* InheritAppend */
-		{
-			sprintf (newdir, "%s/%s", super->dpc_dir, dirname);
-		}
-		dt_SetString (pc->dpc_dir, newdir, sizeof(pc->dpc_dir),
-			      "class data directory");
-	}
-	if (DisableRemote || (pc->dpc_rdir[0] == '/'))
-		return;
-	dirname = (pc->dpc_rdir[0] == '\0') ? pc->dpc_name : pc->dpc_rdir;
-	if (RemDataDir[0] != '\0')
-	{
-		if  (((InheritDir)pc->dpc_inherit == InheritNone) ||
-		     (super == NULL))
-		{
-			sprintf (newdir, "%s/%s", RemDataDir, dirname);
-		}
-		else if ((InheritDir)pc->dpc_inherit == InheritCopy)
-		{
-			sprintf (newdir, "%s", super->dpc_rdir);
-		}
-		else 	/* InheritAppend */
-		{
-			sprintf (newdir, "%s/%s", super->dpc_rdir, dirname);
-		}
-		dt_SetString (pc->dpc_rdir, newdir, sizeof(pc->dpc_rdir),
-			      "class remote data directory");
-	}
-}
-
-
 
 
 
@@ -498,12 +430,13 @@ const char *name;	/* The name to be instantiated	*/
  *
  * This code must be re-entrant!  It may be called recursively to instantiate
  * subplatforms defined in the platform's class.
+ * 
+ * Returns NULL if the platform cannot be created.
  */
 {
 	PlatformInstance *new;
 	PlatformId newid;
 	char iname[1024];
-	static int n_top_plats = 0;
 /*
  * Subplats must be given unique names for the symbol table by prefixing
  * the parent name.  If the parent name is also a subplatform, it will 
@@ -513,21 +446,7 @@ const char *name;	/* The name to be instantiated	*/
 	if (parent != BadPlatform)
 		sprintf (iname, "%s/%s", pi_Name(PTable + parent), name);
 	else
-	{
-	/*
-	 * Keep a count of the number of platforms in the top level of the 
-	 * hierarchy since we have a limit on those
-	 */
-		if (++n_top_plats > MAXPLAT)
-		{
-			msg_ELog (EF_EMERGENCY, 
-			  "Max platform count of %d exceed at '%s'.  Exiting.",
-			  MAXPLAT, name);
-			exit (1);
-		}
-
 		strcpy (iname, name);
-	}
 /*
  * Of course, we can't very well agree to instantiate an abstract base class
  */
@@ -537,13 +456,15 @@ const char *name;	/* The name to be instantiated	*/
 			  pc->dpc_name, "cannot instantiate", name);
 		return (NULL);
 	}
-	if (ParseOnly)
-		printf ("IIIIIIII Instantiating %s (class %s)\n",
-			iname, pc->dpc_name);
 /*
  * Create and initialize the platform instance in the platform table.
  */
 	new = dt_NewPlatform (iname);
+	if (! new)	/* so much for that idea */
+		return (NULL);
+	if (ParseOnly)
+		printf ("IIIIIIII Instantiating %s (class %s)\n",
+			iname, pc->dpc_name);
 	newid = new - PTable;
 /*
  * Set the stuff in the instance structure which comes from the class:
@@ -570,7 +491,7 @@ const char *name;	/* The name to be instantiated	*/
 			new->dp_flags |= DPF_SUBPLATFORM;
 			new->dp_flags &= ~DPF_COMPOSITE;
 		}
-		dt_AddSubPlat (PTable + parent, new);
+		dt_AddSubPlat (PTable + parent, newid);
 	}
 /*
  * Fill our directory paths, using the definition name and not the full
@@ -581,13 +502,21 @@ const char *name;	/* The name to be instantiated	*/
  * Instantiate any subplatforms designated by the platform class
  */
 	dt_InstantSubPlats (pc, newid);
-
+/*
+ * Our structure may have moved, so use the id to get a new reference
+ */
+	new = PTable + newid;
 	if (ParseOnly)
 	{
 		dbg_DumpInstance (PTable + newid);
 		printf ("IIIIIIII Done instantiating %s (class %s)\n",
 			iname, pc->dpc_name);
 	}
+/*
+ * In case of on-the-fly definitions, scan the platform directory
+ */
+	if ( !InitialScan && !pi_Subplatform(new) )
+		RescanPlat (new);
 	return (new);
 }
 
@@ -599,96 +528,19 @@ PlatformClass *pc;
 PlatformInstance *new;
 const char *defname;	/* Defined name, doesn't include parent if a subplat */
 /* 
- * Determine our instance directory given our directory instance flags.
- * Otherwise we do the default of using a subdirectory of datadir.
- *
- * If the class specifies subdir, the instance directory is a subdir of the
- * class directory (DataDir/<class name> unless the class has a directory).
- *
- * If the class specified samedir, the instance directory is the same 
- * directory as the class (DataDir/<class name> unless the class has a 
- * valid directory).
- *
- * Platforms being instantiated via 'platform', whose class has the same
- * name, will have samedir set by default, so that the instance will
- * automatically be where it has always been.
+ * Perform the standard derivations of instance directories according to
+ * the class settings.
  */
 {
-	char newdir[512];
-	const char *dirname;
 	PlatformInstance *parent;
 
-	dirname = defname;
 	parent = pi_Parent (new);
-/*
- * First lets do the local directory.
- */
-	if ((InstanceDir)pc->dpc_instance == InstanceDefault ||
-	    (InstanceDir)pc->dpc_instance == InstanceRoot)
-		/* InstanceDefault and InstanceRoot */
-		sprintf (newdir, "%s/%s", DefDataDir, dirname);
-	else if ((InstanceDir)pc->dpc_instance == InstanceCopyClass)
-		/* InstanceCopyClass */
-		sprintf (newdir, "%s", pc->dpc_dir);
-	else if ((InstanceDir)pc->dpc_instance == InstanceSubdirClass)
-		/* InstanceSubdirClass */
-		sprintf (newdir, "%s/%s", pc->dpc_dir, dirname);
-	else if (parent == NULL)
-		/* No parent for parent instance types */
-		sprintf (newdir, "%s/%s", DefDataDir, dirname);
-	else if ((InstanceDir)pc->dpc_instance == InstanceCopyParent)
-		/* InstanceCopyParent */
-		sprintf (newdir, "%s", parent->dp_dir);
-	else
-		/* InstanceSubdirParent */
-		sprintf (newdir, "%s/%s", parent->dp_dir, dirname);
+	dt_FillDirs (pc, defname, new->dp_dir, new->dp_rdir,
+		     (parent) ? parent->dp_dir : NULL,
+		     (parent) ? parent->dp_rdir : NULL);
 
-	dt_SetString (new->dp_dir, newdir, sizeof(new->dp_dir),
-		      "instance data directory");
-/*
- * Now we have to do the remote directory, but only if enabled,
- * and if this isn't a subplatform class.
- */
-	if (DisableRemote || (pc->dpc_flags & DPF_SUBPLATFORM))
-		return;
-/*
- * Otherwise we treat remote dirs just like the data dirs above.  If 
- * RemDataDir is empty, then we must have a remote directory from our
- * parent or class in order to generate a new remote directory.
- */
-	newdir[0] = '\0';
-	if (((InstanceDir)pc->dpc_instance == InstanceDefault ||
-	    (InstanceDir)pc->dpc_instance == InstanceRoot) && RemDataDir[0])
-		/* InstanceDefault and InstanceRoot */
-		sprintf (newdir, "%s/%s", RemDataDir, dirname);
-	else if (((InstanceDir)pc->dpc_instance == InstanceCopyClass) 
-		 && (pc->dpc_rdir[0]))
-		/* InstanceCopyClass */
-		sprintf (newdir, "%s", pc->dpc_rdir);
-	else if (((InstanceDir)pc->dpc_instance == InstanceSubdirClass) 
-		 && (pc->dpc_rdir[0]))
-		/* InstanceSubdirClass */
-		sprintf (newdir, "%s/%s", pc->dpc_rdir, dirname);
-	else if (parent == NULL)
+	if (new->dp_rdir[0] && !DisableRemote)
 	{
-		/* No parent for parent instance types */
-		if (RemDataDir[0])
-			sprintf (newdir, "%s/%s", RemDataDir, dirname);
-		else
-			newdir[0] = '\0';
-	}
-	else if (((InstanceDir)pc->dpc_instance == InstanceCopyParent)
-		 && (parent->dp_rdir[0]))
-		/* InstanceCopyParent */
-		sprintf (newdir, "%s", parent->dp_rdir);
-	else if (parent->dp_rdir)
-		/* InstanceSubdirParent */
-		sprintf (newdir, "%s/%s", parent->dp_dir, dirname);
-
-	if (newdir[0])
-	{
-		dt_SetString (new->dp_rdir, newdir, sizeof(new->dp_rdir),
-			      "instance remote data directory");
 		/*
 		 * Only set the remote flag if the directory is accessible.
 		 */
@@ -702,77 +554,8 @@ const char *defname;	/* Defined name, doesn't include parent if a subplat */
 
 
 
-void
-dt_AddClassSubPlat (pc, spc, name)
-PlatformClass *pc;
-PlatformClass *spc;
-const char *name;
-/*
- * Add a subplat of class 'spc' and name 'name' to class 'pc'
- */
-{
-	SubPlatform *sp;
 
-	sp = dt_NewClassSubPlat (pc);
-	sp->dps_class = spc - CTable;
-	dt_SetString (sp->dps_name, name, sizeof(sp->dps_name), 
-		      "subplats name");
-}
-
-
-
-static SubPlatform *
-dt_NewClassSubPlat (pc)
-PlatformClass *pc;
-/*
- * Add a SubPlatform template to this class.
- * The subplats list will be allocated in blocks of ALLOC_SUBPLATS.  We
- * know we need to increase size whenever we reach a multiple of this
- * value.
- */
-{
-	SubPlatform *sp;
-	int len;
-
-	len = (pc->dpc_nsubplats + ALLOC_SUBPLATS) * sizeof(SubPlatform);
-	if (pc->dpc_nsubplats == 0)
-		pc->dpc_subplats = (SubPlatform *) malloc (len);
-	else if ((pc->dpc_nsubplats % ALLOC_SUBPLATS) == 0)
-		pc->dpc_subplats = (SubPlatform *)
-			realloc (pc->dpc_subplats, len);
-	sp = pc->dpc_subplats + pc->dpc_nsubplats;
-	pc->dpc_nsubplats++;
-	return (sp);
-}
-
-
-
-
-static void
-dt_AddSubPlat (plat, sub)
-PlatformInstance *plat;
-PlatformInstance *sub;
-/*
- * Add space for a subplatform index to this instance.
- * The subplats list will be allocated in blocks of ALLOC_SUBPLATS.  We
- * know we need to increase size whenever we reach a multiple of this
- * value.
- */
-{
-	int len;
-
-	len = (plat->dp_nsubplats + ALLOC_SUBPLATS) * sizeof(int);
-	if (plat->dp_nsubplats == 0)
-		plat->dp_subplats = (int *) malloc (len);
-	else if ((plat->dp_nsubplats % ALLOC_SUBPLATS) == 0)
-		plat->dp_subplats = (int *)
-			realloc (plat->dp_subplats, len);
-	plat->dp_subplats[plat->dp_nsubplats++] = sub - PTable;
-}
-
-
-
-void
+PlatformInstance *
 dt_DefSubPlat (parent, spc, name)
 PlatformId parent;		/* Parent of subplat to be instantiated */
 PlatformClass *spc;		/* Class of subplat			*/
@@ -789,19 +572,15 @@ const char *name;		/* Name of subplat instance		*/
  * The unique symbol table lookup name of the subplat instance is prefixed 
  * by the parent name.
  */
-	sprintf (iname, "%s/%s", (PTable + parent)->dp_name, name);
+	sprintf (iname, "%s/%s", pi_Name (PTable + parent), name);
 	if ((sub = dt_FindInstance (iname)))
 	{
 		msg_ELog (EF_PROBLEM, "subplatform '%s' already exists",
 			  sub->dp_name);
-		return;
+		return (sub);
 	}
 	sub = dt_Instantiate (spc, parent, name);
-/*
- * In case of on-the-fly definitions, scan the platform directory
- */
-	if ( !InitialScan && !pi_Subplatform(sub) )
-		RescanPlat (sub);
+	return (sub);
 }
 
 
@@ -859,106 +638,6 @@ PlatformInstance *plat;
 
 
 
-void
-dt_EraseClassSubPlats (pc)
-PlatformClass *pc;
-/*
- * Remove the subplats from this class 
- */
-{
-	if (pc->dpc_subplats)
-		free (pc->dpc_subplats);
-	pc->dpc_subplats = NULL;
-	pc->dpc_nsubplats = 0;
-}
-
-
-
-static void
-dt_CopyClassSubPlats (src, dest)
-PlatformClass *src;
-PlatformClass *dest;
-/*
- * Create space for the src subplats in dest and copy.
- * First erase the any subplats from the dest class.
- */
-{
-	int len;
-
-	dt_EraseClassSubPlats (dest);
-	if (src->dpc_nsubplats == 0)
-		return;
-/*
- * Figure out how many blocks of ALLOC_SUBPLATS have been allocated in src,
- * and allocate this much for the dest class
- */
-	len = ((src->dpc_nsubplats - 1) / ALLOC_SUBPLATS) + 1;
-	len *= ALLOC_SUBPLATS * sizeof(SubPlatform);
-	dest->dpc_subplats = (SubPlatform *) malloc (len);
-	dest->dpc_nsubplats = src->dpc_nsubplats;
-	memcpy (dest->dpc_subplats, src->dpc_subplats,
-		src->dpc_nsubplats * sizeof(SubPlatform));
-}
-
-
-
-
-bool
-dt_ValidateClass (pc)
-PlatformClass *pc;
-/*
- * Make sure this platform class is properly filled out. This means
- * making sure the organization and filetype have been specified, at a
- * minimum.  Of course, if this class is abstract only, we don't care
- * what's in it since the subclasses may fill in the rest.
- *
- * And how could I forget: subplatforms of course have but one
- * requirement at the moment, that they be scalar.
- */
-{
-	bool valid = TRUE;
-
-	if (pc->dpc_flags & DPF_ABSTRACT)
-		return (TRUE);
-	if (pc->dpc_flags & DPF_SUBPLATFORM)
-	{
-		if (pc->dpc_org != OrgScalar)
-		{
-			msg_ELog (EF_PROBLEM, 
-				  "class %s: subplatforms must be scalar",
-				  pc->dpc_name);
-			valid = FALSE;
-		}
-		return (valid);
-	}
-	if (pc->dpc_org == OrgUnknown)
-	{
-		msg_ELog (EF_PROBLEM, 
-			  "class %s: no organization", pc->dpc_name);
-		valid = FALSE;
-	}
-	if (pc->dpc_ftype == FTUnknown)
-	{
-		msg_ELog (EF_PROBLEM,
-			  "class %s: no file type", pc->dpc_name);
-		valid = FALSE;
-	}
-	if (pc->dpc_dir[0] == '\0')
-	{
-		msg_ELog (EF_PROBLEM,
-			  "class %s: no directory", pc->dpc_name);
-		valid = FALSE;
-	}
-	if (!DisableRemote && !pc->dpc_dir)
-	{
-		msg_ELog (EF_DEBUG, "class %s: remote enabled but %s",
-			  pc->dpc_name, "no remote data directory");
-		/* just a warning, still valid class */
-	}
-	return (valid);
-}
-
-
 
 
 PlatformInstance *
@@ -975,7 +654,7 @@ const char *name;
 		dt_InitTables ();
 	if (ParseOnly)
 		printf ("Looking for instance '%s'...", name);
-	if (! usy_g_symbol (Platforms, (char *)name, &type, &v))
+	if (! zl_g_symbol (Platforms, (char *)name, &type, &v))
 	{
 		if (ParseOnly) printf ("not found.\n");
 		return (0);
@@ -988,9 +667,8 @@ const char *name;
 
 
 PlatformInstance *
-dt_FindPlatform (name, full)
+dt_FindPlatform (name)
 const char *name;
-int full;
 /*
  * Look up this platform.
  */
@@ -1000,14 +678,10 @@ int full;
 
 	if (! Initialized)
 		dt_InitTables ();
-	if (ParseOnly)
-		printf ("Looking for instance '%s'...", name);
-	if (! usy_g_symbol (Platforms, (char *)name, &type, &v))
+	if (! zl_g_symbol (Platforms, (char *)name, &type, &v))
 	{
-		if (ParseOnly) printf ("not found.\n");
 		return (0);
 	}
-	if (ParseOnly) printf ("found.\n");
 	return ((PlatformInstance *) v.us_v_ptr);
 }
 
@@ -1025,29 +699,27 @@ const char *name;
 
 	if (! Initialized)
 		dt_InitTables ();
-	if (ParseOnly)
-		printf ("Looking for class '%s'...", name);
-	if (! usy_g_symbol (Classes, (char *)name, &type, &v))
+	if (! zl_g_symbol (Classes, (char *)name, &type, &v))
 	{
-		if (ParseOnly) printf ("not found.\n");
 		return (0);
 	}
-	if (ParseOnly) printf ("found.\n");
 	return ((PlatformClass *) v.us_v_ptr);
 }
 
 
 
+
 void
-dt_SearchPlatforms (function, arg, sort, re)
+dt_SearchPlatforms (function, req, pids, npids)
 int (*function)();
-void *arg;
-bool sort;
-char *re;
+struct dsp_PlatformSearch *req;
+PlatformId *pids;
+int *npids;
 {
 	if (! Initialized)
 		dt_InitTables ();
-	usy_search (Platforms, function, (int)arg, sort, re);
+
+	ds_SearchPlatTable (Platforms, function, req, pids, npids);
 }
 
 
@@ -1203,7 +875,7 @@ int *link;
  * The internal platform add.
  */
 {
-	DataFile *chain, *last;
+	DataFile *chain = NULL, *last = NULL;
 	int index;
 /*
  * See if, by chance, this is the easy case.
@@ -1341,7 +1013,7 @@ ClientPlatform *p;
 	PlatformClass *pc = pi_Class(pi);
 
 	strcpy (p->cp_name, pi->dp_name);
-	strcpy (p->cp_class, pc->dpc_name);
+	p->cp_class = pi->dp_class;
 	strcpy (p->cp_dir, pi->dp_dir);
 	strcpy (p->cp_rdir, pi->dp_rdir);
 	p->cp_parent = pi->dp_parent;
@@ -1354,34 +1026,6 @@ ClientPlatform *p;
 	p->cp_maxsamp = pc->dpc_maxsamp;
 }
 
-
-
-int
-dt_SetString (dest, src, maxlen, op)
-char *dest;
-const char *src;
-int maxlen;
-char *op;	       	/* optional operation for error message */
-/*
- * Set the dest string to the src string.  If the src is longer than
- * maxlen, issue a warning and return nonzero, else return zero.
- * In either case, the dest will hold the first maxlen-1 characters
- * and be null terminated.
- */
-{
-	int max = 0;
-
-	if (strlen(src) >= (unsigned) maxlen)
-	{
-		msg_ELog (EF_PROBLEM, 
-			  "%s%sstring '%s' too long",
-			  (op) ? op : "", (op) ? ": " : "", src);
-		max = 1;
-	}
-   	strncpy (dest, src, maxlen - 1);
-	dest[maxlen - 1] = '\0';
-	return (max);
-}
 
 
 
