@@ -1,7 +1,7 @@
 /*
  * Vertical cross-sectioning
  */
-static char *rcsid = "$Id: XSection.c,v 2.20 1994-05-02 20:20:17 burghart Exp $";
+static char *rcsid = "$Id: XSection.c,v 2.21 1994-05-19 21:11:41 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -249,6 +249,11 @@ UItime	*t;
 	Unclip.width = GWWidth (Graphics);
 	Unclip.height = GWHeight (Graphics);
 /*
+ * Black and white
+ */
+	ct_GetColorByName ("black", &Black);
+	ct_GetColorByName ("white", &White);
+/*
  * Zig-zag cross section?
  */
 	Zig_zag = FALSE;
@@ -439,15 +444,12 @@ bool	update;
 	if (! ok)
 		return;
 /*
- * Load the color table + explicitly get black and white
+ * Load the color table
  */
 	if (Mono_color)
 		ct_GetColorByName (cname, &Ccolor);
 	else
 		ct_LoadTable (cname, &Colors, &Ncolors);
-
-	ct_GetColorByName ("black", &Black);
-	ct_GetColorByName ("white", &White);
 /*
  * Grid dimensions
  */
