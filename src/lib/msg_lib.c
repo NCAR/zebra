@@ -28,7 +28,7 @@
 # include <sys/uio.h>
 # include "defs.h"
 # include "message.h"
-MAKE_RCSID ("$Id: msg_lib.c,v 2.11 1993-02-11 22:55:04 martin Exp $")
+MAKE_RCSID ("$Id: msg_lib.c,v 2.12 1993-03-09 22:16:09 martin Exp $")
 
 /*
  * The array of functions linked with file descriptors.
@@ -388,9 +388,12 @@ msg_await ()
 		}
 	/*
 	 * Now dispatch the events.
+         *
+         * Make sure that callback has not been removed during
+         * this select (ie. within a message handler) by msg_delete_fd
 	 */
 		for (fd = 0; fd <= Max_fd && nsel > 0; fd++)
-			if (FD_ISSET (fd, &fds))
+			if (FD_ISSET (fd, &fds) && Fd_funcs[fd])
 			{
 				int ret;
 				nsel--;
