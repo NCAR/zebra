@@ -51,6 +51,29 @@ procedure skewt-remove
 endprocedure
 
 
+!
+! Menu for changing time offsets from top annotation
+!
+define widget skewt-topannot-offsets intmenu 'offsets'
+	title 'Time Offsets'
+	line
+	entry 'Reset all offsets to 0' 'skewt-reset-offsets'
+	entry '0, 24, 48 hours' 'skewt-set-offset 0h,24h,48h'
+	entry '0, 12, 24 hours' 'skewt-set-offset 0h,12h,24h'
+	entry '0, 6, 12 hours' 'skewt-set-offset 0h,6h,12h'
+	entry '0, 3, 6 hours' 'skewt-set-offset 0h,3h,6h'
+	entry '3, 6, 9 hours' 'skewt-set-offset 3h,6h,9h'
+	entry '6, 12, 18 hours' 'skewt-set-offset 6h,12h,18h'
+endmenu
+
+procedure skewt-reset-offsets
+!	local dontcare pd_removeparam(icon_component,"time-offset")
+	parameter #icon_component "time-offset" "0,0,0"
+endprocedure
+
+procedure skewt-set-offset offset string
+	parameter #icon_component "time-offset" #offset
+endprocedure
 
 !
 ! Various skewt params.
