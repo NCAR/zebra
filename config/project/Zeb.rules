@@ -1,5 +1,5 @@
 XCOMM
-XCOMM $Id: Zeb.rules,v 1.2 1992-08-20 13:30:52 granger Exp $
+XCOMM $Id: Zeb.rules,v 1.3 1993-03-24 22:41:41 granger Exp $
 XCOMM
 XCOMM Rules specific to the Zeb project, including some which override
 XCOMM definitions in Imake.rules
@@ -180,11 +180,12 @@ InstallNonExec(loadfile,$(LIBDIR))				@@\
 								@@\
 loadfile: uisrc depfiles					@@\
 	$(RM) loadfile						@@\
-	$(CC) -E $(CFLAGS) uisrc | sed -e '/^#/d' > uisrc.TMP; \ @@\
-	echo read uisrc.TMP \; \				@@\
+	$(CPP) $(ALLINCLUDES) $(ALLDEFINES) uisrc \		@@\
+		| sed -e '/^#/d' > /tmp/uisrc.TMP; \ 		@@\
+	echo read /tmp/uisrc.TMP \; \				@@\
 	     set 'ui$$pager_mode' false \; \			@@\
 	     save loadfile all | $(UIC) ; \			@@\
-	rm -f uisrc.TMP						@@\
+	rm -f /tmp/uisrc.TMP					@@\
 								@@\
 clean::								@@\
 	$(RM) loadfile
@@ -213,25 +214,30 @@ clean::								@@\
 	$(RM) loadfile
 
 /*
- * Adds a list of object files to a library on an install target
- * Objects are remade if newer than the library, and objects are
- * always re-installed to the library with the FORCE target, since
- * the library may be newer becuase of objects added from other
- * directories, while the objects in the library from this 
- * directory might still be out of date.  That's just one of the
- * problems with building libraries from multiple source dirs!
+ * Adds a list of object files to a library on an install.lib target.
+ * Object files are always added or updated in the library, since the
+ * library may be newer becuase of objects added from other directories,
+ * while the objects in the library from this directory might still be
+ * out of date.  That's just one of the problems with building libraries
+ * from multiple source dirs!
  *
  * Note that a program install (install::) and a library
  * install (install.lib::) are now two separate targets---neither
  * implies the other.  This behavior is necessitated by Zeb.
  * The developer needs to be able to install stable programs without
  * automatically installing library objects which may not be stable.
- * Though an object is more recent than a library, the
+ * Likewise, though an object is more recent than a library, the
  * developer may not want it installed into the library.
+ *
+ * Because we are by name 'installing', technically it is appropriate
+ * to first make sure the library directory exists first.  For the moment
+ * we'll assume the directory is LIBDIR.  The MakeDir(dir) macro is
+ * defined in the standard Imake.rules file.
  */
 #define InstallObjectsIntoLibrary(library,objects)		@@\
 								@@\
-install.lib:: objects 						@@\
+install.lib:: objects						@@\
+	MakeDir($(LIBDIR))					@@\
 	$(ARADD) library objects				@@\
 	$(RANLIB) library					@@\
 								@@\
@@ -327,12 +333,35 @@ program: objects deplibs						@@\
 									@@\
 InstallProgram(program,$(BINDIR))					@@\
 									@@\
-SaberProgramTarget(program,program.c,objects,deplibs locallibs,syslibs) @@\
+SaberProgramTarget(program,$(SRCS),objects,deplibs locallibs,syslibs)	@@\
 									@@\
 clean::									@@\
 	$(RM) program
 #endif /* NormalProgramTarget */
 
+
+/* 
+ * CccProgramTarget - generate rules to compile and link a C++
+ * program; since it does not use any default object files, it may be used for
+ * multiple programs in the same Imakefile.  It ALSO adds an install target
+ * for the program.  This relies on an implicit rule for .cc.o: defined
+ * in Project.tmpl.  Note that this macro does not generate a saber target
+ * since I don't know what it should look like.  It should be easy enough to
+ * to add though.
+ */
+#ifndef CccProgramTarget
+#define	CccProgramTarget(program,objects,deplibs,locallibs,syslibs)	@@\
+AllTarget(program)							@@\
+									@@\
+program: objects deplibs						@@\
+	RemoveTargetProgram($@)						@@\
+	$(C++) -o $@ objects $(LDOPTIONS) locallibs $(LDLIBS) syslibs $(EXTRA_LOAD_FLAGS) @@\
+									@@\
+InstallProgram(program,$(BINDIR))					@@\
+									@@\
+clean::									@@\
+	$(RM) program
+#endif /* CccProgramTarget */
 
 
 /*
@@ -360,6 +389,10 @@ clean::									@@\
 
 
 /*
+ * CccProgramTarget(
+
+
+/*
  * InstallProgramSetUID -- Install a program into 'dest' using
  * the INSTUIDFLAGS variable.  If the user is not 'root', a warning
  * is issued.
@@ -368,8 +401,8 @@ clean::									@@\
 #define InstallProgramSetUID(program,dest)				@@\
 install:: program							@@\
 	@if [ x$$LOGNAME != xroot ]; then \				@@\
-		echo "WARNING: You should install" program "as root," ; \ @@\
-		echo "         su root and re-do 'make install'"; \ 	@@\
+		echo " *** WARNING: You should install" program "as root," ; \ @@\
+		echo "              su root and re-do 'make install'"; \ 	@@\
 	fi ; \								@@\
 	set -x; $(INSTALL) -c $(INSTUIDFLAGS) program dest
 #endif
@@ -447,7 +480,8 @@ NamedTargetSubdirs(install.lib,dirs,"installing libraries",\
  */
 #ifndef MakefileAdditions
 #define MakefileAdditions()						@@\
-mf: Makefile								@@\
+mf:: Makefile								@@\
+	$(MAKE) $(MFLAGS) depend					@@\
 									@@\
 distfiles::								@@\
 									@@\
