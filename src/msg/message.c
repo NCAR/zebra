@@ -39,7 +39,7 @@
 # include "message.h"
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.14 1993-12-04 19:58:13 granger Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.15 1994-04-28 21:05:15 corbet Exp $")
 /*
  * Symbol tables.
  */
@@ -135,7 +135,10 @@ char Hostname[40];
 static int S_nmessage = 0, S_bnmessage = 0, S_nbcast = 0, S_bnbcast = 0;
 static int S_npipe = 0, S_ndisc = 0, S_NDRead = 0, S_NDWrite = 0;
 
-
+/*
+ * How long we wait between announcing a shutdown and really going down.
+ */
+# define SHUTDOWN_DELAY 15
 
 /*
  * Message tap stuff.
@@ -169,6 +172,7 @@ void	DoTaps FP ((Message *));
 int	TapperWants FP ((struct MTap *, Message *));
 void	SendTap FP ((struct MTap *, Message *));
 void	SetNonBlock FP ((int));
+void	ReallyDie FP ((void));
 
 
 
@@ -966,9 +970,6 @@ die ()
 {
 	struct message msg;
 	struct mh_template tmpl;
-	int i;
-
-	Dying = TRUE;
 /*
  * Send out a message saying that it's all over.  Note that we do not
  * explicitly broadcast to inet connections, or we could take down the
@@ -983,6 +984,26 @@ die ()
 	msg.m_data = (char *) &tmpl;
 	tmpl.mh_type = MH_SHUTDOWN;
 	broadcast (&msg, 0);
+/*
+ * Now set an alarm and continue to operate for a little while longer so that
+ * processes can communicate while they shut down.
+ */
+	signal (SIGALRM, (void *) ReallyDie);
+	alarm (SHUTDOWN_DELAY);
+}
+
+
+
+
+void
+ReallyDie ()
+/*
+ * Shut us down for real.
+ */
+{
+	int i;
+
+	Dying = TRUE;
 /*
  * Close out network connections.
  */
