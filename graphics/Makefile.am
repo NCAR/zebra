@@ -24,7 +24,7 @@ DEFS = -DCOLORDB=\"${rdssgraphdir}/rgb.txt\"
 # Only generate targets if we have X11
 #
 if WITH_X
-  noinst_PROGRAMS = aspect gt ov_test
+  noinst_PROGRAMS = aspect gt ov_test vpt
 
   lib_LIBRARIES = librdssgraph.a 
 
