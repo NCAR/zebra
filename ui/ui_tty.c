@@ -1,3 +1,4 @@
+/* $Id: ui_tty.c,v 1.3 1989-08-09 09:16:11 corbet Exp $ */
 /*
  * Basic terminal handling.  This is an extremely VMS-dependant module.
  */
