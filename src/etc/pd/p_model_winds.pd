@@ -19,6 +19,8 @@ p_model_winds
 	limit-proc:	adj_arrow_scale
 	line-width:	2
 	representation:	vector
+	hgrid:		21
+	vgrid:		19
 	u-field:	u_wind
 	v-field:	v_wind
 	require:	simple-color
