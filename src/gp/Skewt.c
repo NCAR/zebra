@@ -1,7 +1,7 @@
 /*
  * Skew-t plotting module
  */
-static char *rcsid = "$Id: Skewt.c,v 2.16 1994-11-19 00:35:38 burghart Exp $";
+static char *rcsid = "$Id: Skewt.c,v 2.17 1994-12-09 16:19:52 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -835,6 +835,7 @@ bool    update;
 	{
 		sprintf (string, "%-19.19s ", pname);
 		TC_EncodeTime (&ptime, TC_Full, string + 20);
+		strcat (string, "\n");
 		ot_Append (string);
 	}
 	
@@ -1052,6 +1053,7 @@ int	skip;
 	{
 		sprintf (string, "%-11.11s (winds) ", pname);
 		TC_EncodeTime (&ptime, TC_Full, string + 20);
+		strcat (string, "\n");
 		ot_Append (string);
 	}
 /*
