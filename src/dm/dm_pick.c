@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: dm_pick.c,v 2.4 1993-02-18 22:18:27 burghart Exp $";
+static char *rcsid = "$Id: dm_pick.c,v 2.5 1993-03-09 19:09:24 granger Exp $";
 /*
  * Handle the window picking operation.
  */
@@ -24,7 +24,10 @@ static char *rcsid = "$Id: dm_pick.c,v 2.4 1993-02-18 22:18:27 burghart Exp $";
 # include <X11/Xutil.h>
 # include <X11/cursorfont.h>
 
-
+/*
+ * The string returned by PickWin() when an invalid window is chosen
+ */
+# define DM_PICKWIN_DEFAULT	"none"
 
 /*
  * This structure is used to communicate through usy_traverse.
@@ -86,9 +89,7 @@ char *winname;
 		 * On a button press, we've selected a window.
 		 */
 		    case ButtonPress:
-			win = (event.xbutton.subwindow == None) ? root :
-				event.xbutton.subwindow;
-
+			win = event.xbutton.subwindow;
 			break;
 		/*
 		 * On a button release, we're done.
@@ -104,10 +105,19 @@ char *winname;
 	XUngrabPointer (Dm_Display, CurrentTime);
 	XSync (Dm_Display, False);
 /*
+ * Establish a default answer, in case our search fails
+ */
+	strcpy (wp.wp_name, DM_PICKWIN_DEFAULT);
+	strcpy (winname, DM_PICKWIN_DEFAULT);
+	/* 
+	 * Make sure the window chosen was not the root window,
+	 * in which case there is no subwindow and we just return.
+	 */
+	if (win == None)
+		return;
+/*
  * Pass through the current config, trying to find the window.
  */
-	if (! win)
-		return;
 	wp.wp_id = win;
 	usy_traverse (Current, dm_CmpPickWin, (long) &wp, FALSE);
 	strcpy (winname, wp.wp_name);
@@ -124,12 +134,13 @@ int type;
 union usy_value *v;
 struct wpick *wp;
 /*
- * Check out this window.
+ * Check out this window.  The *wp structure must NOT be modified
+ * unless a match is found, since contains a default value for PickWin()
  */
 {
 	struct cf_window *win = (struct cf_window *) v->us_v_ptr;
-	Window root, parent, *children;
-	unsigned int nchild;
+	Window root, parent, *children = NULL;
+	unsigned int nchild = 0;
 	XWindowAttributes attr;
 	
 	if (! (win->cfw_flags & CF_WIDGET) && (win->cfw_win != 0))
@@ -159,6 +170,11 @@ struct wpick *wp;
 		 */
 			XQueryTree (Dm_Display, win->cfw_win, &root, &parent, 
 				&children, &nchild);	
+		/*
+		 * Don't need the children, so free them, if any
+		 */
+			if (nchild)
+				XFree(children);
 			if (wp->wp_id == parent)
 			{
 				strcpy (wp->wp_name, win->cfw_name);
