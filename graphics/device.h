@@ -1,4 +1,4 @@
-/* $Id: device.h,v 1.6 1990-01-12 14:03:43 wyngaard Exp $ */
+/* $Id: device.h,v 1.7 1990-03-29 15:46:12 corbet Exp $ */
 /* 5/87 jc */
 /*
  * This file contains the definition of the device structure.
@@ -29,6 +29,8 @@ struct device
 	int	(*gd_set_color) ();	/* Set color lookup table	*/
 	int	(*gd_polyline) ();	/* Draw a polyline		*/
 	int	(*gd_pixel) ();		/* Pixel fill operation		*/
+	int	(*gd_qtext) ();		/* Query text			*/
+	int	(*gd_tsize) ();		/* Text size			*/
 	int	(*gd_text) ();		/* Draw text			*/
 	int	(*gd_set_hcw) ();	/* Set hardware clip window	*/
 	int	(*gd_clear) ();		/* Clear entire screen		*/
@@ -66,5 +68,6 @@ struct device
 # define GDF_VP		0x0100		/* Device has adjustable viewport */
 # define GDF_HARDCOPY	0x0200		/* Hardcopy device		*/
 # define GDF_MONO	0x0400		/* Monochrome device		*/
+# define GDF_TEXT	0x0800		/* Hardware text supported	*/
 
 struct device *gd_get_dev ();
