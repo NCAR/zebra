@@ -1,7 +1,7 @@
 /*
  * This is the symbol table module.
  */
-static char *Rcsid = "$Id: ui_symbol.c,v 1.13 1993-12-28 20:46:55 case Exp $";
+static char *Rcsid = "$Id: ui_symbol.c,v 1.14 1997-08-07 19:41:03 ishikawa Exp $";
 
 # ifdef VMS
 # include <string.h>
@@ -9,7 +9,7 @@ static char *Rcsid = "$Id: ui_symbol.c,v 1.13 1993-12-28 20:46:55 case Exp $";
 # ifdef BSD
 # include <string.h>
 # endif
-# ifdef SVR4
+# if defined(SVR4) || defined(AIXV3)
 # include <libgen.h>
 # endif
 # ifdef hpux 
