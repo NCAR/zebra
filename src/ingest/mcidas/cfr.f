@@ -1,0 +1,20 @@
+       CHARACTER*12 FUNCTION CFR(L)
+C *** McIDAS Revision History ***
+C 1 CFR.FOR 27-Feb-90,9:44:12,`SSEC' PC-McIDAS ver 5.00
+C 2 CFR.FOR 24-Sep-90,18:19:18,`SMG' First Release into COMmon
+C *** McIDAS Revision History ***
+C $    FUNCTION CFR(L)      (JMB)
+C $    CFR  -  CONVERT INTEGER TO CHARACTER*12 LEFT JUSTIFIED
+C $    INPUT:
+C $        L  (I)  4-BYTE INTEGER
+C $    FUNCTION VALUE:
+C $        CHARACTER*12 REPRESENTATION OF INTEGER, LEFT JUSTIFIED
+       IMPLICIT CHARACTER*12 (C), INTEGER*4 (L)
+       C1=CFI(L)
+       DO 1 JA=1,12
+       IF(C1(JA:JA).NE.' ') GOTO 2
+ 1     CONTINUE
+ 2     C2=C1(JA:12)
+       CFR=C2
+       RETURN
+       END

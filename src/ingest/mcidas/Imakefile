@@ -1,28 +1,85 @@
-/*
+/* -*- C -*-
  * Installs the MCIDAS object files into libmcidas.a
  * for ingest modules like
  * nowrad and satellite.  Note that any program which references these
  * routines must also link with the FORTRAN libraries ($(FLIBS))
  */
-MFVERSION = "$Id: Imakefile,v 1.5 1994-02-18 16:22:55 granger Exp $"
+MFVERSION = "$Id: Imakefile,v 1.6 1997-06-17 09:30:02 granger Exp $"
 
-SRCS =  clit.f flalo.f ftime.f geolat.f iround.f itime.f lit.f llcart.f \
+FSRCS = clit.f flalo.f ftime.f geolat.f iround.f itime.f lit.f llcart.f \
 	movcw.f movwc.f nvxgoes.f nvxps.f nvxrect.f raerac.f solarp.f \
-	timdif.f movb.c
+	timdif.f
 
-# Note that nvxgoes.f, nvxps.f, nvxrect.f are not compiled or installed
-# into the library.  See the README file in this directory
-#
+SRCS =  movb.c dc.c filbuf.c iopn.c movb.c scra.c delfil.c getday.c \
+	laddr.c movbmem.c sendtext.c dw.c gettim.c leof.c stc.c \
+	ffiletoc.c ic.c luc.c puc.c mcidas.c
+
+HEADERS = mcidas.h
+
+ALLSRCS = $(FSRCS) $(SRCS)
+
+NAVOBJS = nvxgoes.o nvxps.o nvxrect.o nvxgvar.o
+
 OBJS =  clit.o flalo.o ftime.o geolat.o iround.o itime.o lit.o llcart.o \
-	movcw.o movwc.o raerac.o solarp.o timdif.o movb.o
+	movcw.o movwc.o raerac.o solarp.o timdif.o movb.o \
+	cfd.o cfg.o cfi.o cfr.o cfz.o ddest.o edest.o dpsino.o \
+	idmyyd.o iftok.o ih.o len_trim.o lwendw.o lwmop.o lwo.o nchars.o \
+	sdest.o spout.o squak.o volnam.o xonoff.o \
+	puc.o movbmem.o gettim.o ic.o getday.o dw.o sendtext.o laddr.o leof.o \
+	iopn.o luc.o filbuf.o scra.o stc.o dc.o delfil.o ffiletoc.o \
+	$(NAVOBJS) mcidas.o
 
-DISTFILES = Imakefile $(SRCS) README
+/*
+ * So far on every architecture except these we expect the FORTRAN
+ * compiler to append an underscore to the symbol name.  Note that
+ * technically this is compiler-dependent.  For example, if you're
+ * using GNU F77 you'll want UNDERSCORE defined on any architecture.
+ * I think.
+ */
+#if defined(OSF1Architecture) || defined(AIXArchitecture)
+DEFINES = 
+#else
+DEFINES = -DUNDERSCORE=1
+#endif
+
+XCOMM nvx*.f files contain definitions of the nvxeas, nvxini, 
+XCOMM nvxopt, and nvxsae routines required by the satellite ingestors.
+XCOMM They are U. of Wisconsin SSEC copyrighted code and should *not* be 
+XCOMM distributed outside of NCAR/UCAR.
+
+DISTFILES = Imakefile $(ALLSRCS) $(HEADERS) README
 
 all:: $(OBJS)
+
+XCOMM Special targets to rename the common navigation entry points to
+XCOMM unique symbols so we can link to all of them in one program:
+
+#define NavRule(base,sub) \
+base.o: base.f								@@\
+	$(RM) base.F							@@\
+	$(LN) base.f base.F						@@\
+	RemoveFile($@)							@@\
+	$(FC) -c $(FCFLAGS) \						@@\
+	`echo '-DNVXINI=NNNINI -DNVXEAS=NNNEAS -DNVXSAE=NNNSAE -DNVXOPT=NNNOPT' | sed -e 's,NNN,sub,g'` \ @@\
+	$*.F								@@\
+
+
+/*
+ * These name substutions must match the method names used in mcidas.c!
+ */
+NavRule(nvxgoes,NGS)
+NavRule(nvxps,NPS)
+NavRule(nvxrect,NRC)
+NavRule(nvxgvar,NGV)
 
 NormalLibraryTarget(mcidas,$(OBJS))
 
 InstallLibrary(mcidas,$(LIBDIR))
 
+BuildIncludesTop($(HEADERS))
+InstallMultipleFlags($(HEADERS),$(INCDIR),$(INSTINCFLAGS))
+
 DistfilesTarget($(DISTFILES))
+
+DependTarget()
 
