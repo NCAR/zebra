@@ -10,7 +10,7 @@
 # include "device.h"
 # include <stdio.h>
 
-static char *rcsid = "$Id: dev_ps.c,v 1.4 1990-07-18 13:16:44 burghart Exp $";
+static char *rcsid = "$Id: dev_ps.c,v 1.5 1991-05-02 21:35:16 burghart Exp $";
 /*
  * The tag structure
  */
@@ -170,6 +170,9 @@ char *ctag;
 
 	if (ptp->pt_winfilled)
 		ps_out_s (ptp, "showpage\n");
+
+	ps_out_s (ptp, "grestoreall\n");
+
 	ps_buf_out (ptp);
 	if (ptp->pt_pipe)
 	{
