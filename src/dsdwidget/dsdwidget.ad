@@ -1,4 +1,4 @@
-! $Id: dsdwidget.ad,v 1.4 1995-03-04 19:25:16 granger Exp $
+! $Id: dsdwidget.ad,v 1.5 1996-08-13 21:38:06 granger Exp $
 !
 ! Application defaults file for dsdwidget
 !
@@ -26,11 +26,21 @@
 
 ! Constraints for the platform popup
 
-*displayForm.remove.left:	chainLeft
-*displayForm.remove.right:	chainLeft
-*displayForm.remove.top:	chainTop
-*displayForm.remove.bottom:	chainTop
-*displayForm.remove.resizable:	false
+*displayForm.title.left:	chainLeft
+*displayForm.title.right:	chainLeft
+*displayForm.title.top:		chainTop
+*displayForm.title.bottom:	chainTop
+*displayForm.title.resizable:	false
+*displayForm.quit.left:		chainLeft
+*displayForm.quit.right:	chainLeft
+*displayForm.quit.top:		chainTop
+*displayForm.quit.bottom:	chainTop
+*displayForm.quit.resizable:	false
+*displayForm.rescan.left:	chainLeft
+*displayForm.rescan.right:	chainLeft
+*displayForm.rescan.top:	chainTop
+*displayForm.rescan.bottom:	chainTop
+*displayForm.rescan.resizable:	false
 *displayForm.viewport.height:	200
 *displayForm.viewport.left:	chainLeft
 *displayForm.viewport.right:	chainRight
@@ -38,6 +48,7 @@
 *displayForm.viewport.bottom:	chainBottom
 *displayForm.viewport.resizable:	true
 *displayForm.viewport.allowVert:	true
+*displayForm.viewport.forceBars:	true
 *displayForm.info.label:	Click on a file to view it
 *displayForm.info.resizable:	true
 *displayForm.info.horizDistance:	20
@@ -47,5 +58,6 @@
 *displayForm*font:	*-courier-bold-r-normal--12-*
 *displayForm*list.defaultColumns:	1
 *displayForm*list.forceColumns:		True
-*displayForm*list.verticalList:		True
+*displayForm*list.rowSpacing:		2
+
 
