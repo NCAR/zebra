@@ -1,7 +1,7 @@
 !
 ! Widget definitions for the graphics process.
 !
-! $Id: GraphProc.widgets,v 1.1 1992-12-10 15:52:51 corbet Exp $
+! $Id: GraphProc.widgets,v 1.2 1992-12-15 18:26:06 corbet Exp $
 !
 set ui$initial_state 'initial'
 
@@ -10,3 +10,323 @@ set ui$initial_state 'initial'
 !
 ! A nifty widget for tweaking irgrid gridding params.
 !
+define widget InterpParams form "Surface interpolation parameters"
+	popup IPSetup
+	noheader
+!
+! Title line.
+!
+	label l0 'Surface interpolation params'
+	label comp 'comp' color white
+	button apply 'Apply' command IPApply
+	button zap 'zap' color red command 'popdown #ui$form'
+!
+! Methods.
+!
+	newline
+	label l1 'Interpolation method: '
+	pulldown method 'rgrid' width 120 menu int-methods
+	newline
+!
+! Params for the barnes method.
+!
+	label l2 'Barnes parameters:'
+	newline
+	label l3 '  Grid resolution: '
+	blank gx '20' width 50
+	label l4 '(x)'
+	blank gy '20' width 50
+	label l5 '(y)'
+	newline
+	label l6 '  Radius of influence:'
+	blank radius '2.0' width 50
+	label l7 'Max fill: '
+	blank fill '3.0' width 50
+!	newline
+!	label gripe ' ' color red width 200
+enddef
+
+
+define widget int-methods intmenu 'interp methods'
+	title 'Interpolation methods'
+	line
+	entry 'Triangulation (RGRID)' 'IPSetMethod rgrid'
+	entry 'Barnes analysis' 'IPSetMethod barnes'
+	entry 'Closest point' 'IPSetMethod closest-point'
+endmenu
+
+define widget int-grid-params intmenu 'params'
+	title 'Interpolation parameters'
+	line
+	entry 'Popup interpolation parameters widget' 'popup InterpParams'
+endmenu
+!
+! The popup procedure.
+!
+procedure IPSetup
+	local f ui$form
+	local plat pd_param(icon_component,'platform','string')
+	formtext #f comp #icon_component
+
+	local method pd_paramsearch(icon_component,'grid-method',platform,'string')
+	if (method <> '(Undefined)')
+		formtext #f method #method
+	endif
+
+	local gx pd_paramsearch(icon_component,'x-points',platform,'string')
+	if (gx <> '(Undefined)')
+		formtext #f gx #gx
+	endif
+	local gy pd_paramsearch(icon_component,'y-points',platform,'string')
+	if (gy <> '(Undefined)')
+		formtext #f gy #gy
+	endif
+	local rad pd_paramsearch(icon_component,'radius',platform,'string')
+	if (rad <> '(Undefined)')
+		formtext #f radius #rad
+	endif
+	local fill pd_paramsearch(icon_component,'max-fill',platform,'string')
+	if (fill <> '(Undefined)')
+		formtext #f max-fill #fill
+	endif
+endprocedure
+
+
+!
+! Apply changes.
+!
+procedure IPApply
+	local f ui$form
+	local c getftext(f,'comp')
+	local method getftext(f,'method')
+	parameter #c 'grid-method' #method
+
+	local gx getftext(f,'gx')
+	parameter #c 'x-points' #gx
+	local gy getftext(f,'gy')
+	parameter #c 'y-points' #gy
+	local radius getftext(f,'radius')
+	parameter #c 'radius' #radius
+	local fill getftext(f,'fill')
+	parameter #c 'max-fill' #fill
+endprocedure
+
+
+
+procedure IPSetMethod method string
+	formtext #ui$form 'method' #method
+endprocedure
+
+
+!
+! Widgets for handling offsets.
+!
+define widget Offsets form 'Spatial offsets'
+	noheader
+	popup offset_form_popup
+	label l1 "Spatial offset control"
+	label comp "COMPONENT"
+	newline
+	label l2 "Spatial offsets are currently:"
+	button GlobalEnable "Enabled" command 'ToggleEnable GlobalEnable' \
+		width 80
+	newline
+	!
+	! Constant offset stuff.
+	!
+	label l3 "     X offset:"
+	blank xoff "WEIRD" width 40
+	pulldown const_units "km" width 60 menu units
+	newline
+	label l4 "     Y offset:"
+	blank yoff "WEIRD" width 40
+	!
+	! Advection stuff.
+	!
+	newline
+	label l5 'Advection for'
+	label platform 'WEIRD' width 80
+	label l6 'is'
+	button AdvEnable 'Enabled' command 'ToggleEnable AdvEnable' width 80
+	!
+	! Advection parameters.
+	!
+	newline
+	label l7 "      Advection speed:    "
+	blank advspeed "0.0"
+	pulldown adv_units "m/s" width 60 menu speedunits
+	newline
+	label l8 "      Advection direction:"
+	blank advdir "0.0"
+	label l9 "degrees"
+	!
+	! Buttons to get out.
+	!
+	newline
+	button apply "Apply" command 'offset_apply false'
+	button apply "Apply and dismiss" command 'offset_apply true'
+	button cancel "Dismiss" command 'popdown #ui$form' color red
+endform
+
+
+
+procedure offset_apply dismiss bool
+!
+! Apply the offsets.
+!
+	local xoff getftext(ui$form,"xoff")
+	local yoff getftext(ui$form,"yoff")
+	local comp getftext(ui$form,"comp")
+!
+! Store the parameters.
+!
+	parameter #comp "x-shift" #xoff
+	parameter #comp "y-shift" #yoff
+!
+! Deal with the global enable flag.
+!
+	local genable getftext(ui$form,'GlobalEnable')
+	if (genable = "Enabled")
+		parameter 'global' 'enable-spatial-shift' 'true'
+	else
+		parameter 'global' 'enable-spatial-shift' 'false'
+	endif
+!
+! Deal with advection enable.
+!
+	local aenable getftext(ui$form,'AdvEnable')
+	if (aenable = "Enabled")
+		parameter #comp 'enable-advection' 'true'
+	else
+		parameter #comp 'enable-advection' 'false'
+	endif
+!
+! And advection parameters.
+!
+	local adir getftext(ui$form,'advdir')
+	local aspeed getftext(ui$form,'advspeed')
+	parameter #comp "advection-direction" #adir
+	parameter #comp "advection-speed" #aspeed
+!
+! Get rid of the widget if that is what they want.
+!
+	if (dismiss)
+		popdown #ui$form
+	endif
+endprocedure
+
+
+
+
+define widget units intmenu "units"
+	title "Offset units (IGNORED!)"
+	line
+	entry "Kilometers" "ConstUnits km"
+	entry "Miles" "ConstUnits miles"
+	entry "Nautical miles" "ConstUnits 'n. mi'"
+endmenu
+
+
+procedure ConstUnits units string
+	local qunits quote(units)
+	formtext #ui$form const_units #qunits
+endprocedure
+
+
+
+procedure offset_form_popup
+!
+! Initialize an offset form.
+!
+	formtext #ui$form 'comp' #icon_component
+!
+! Figure out the current enable status of offsets.
+!
+	local enabled pd_paramsearch('global','spatial-shift','enable','string')
+	if (enabled = 'true')
+		formtext #ui$form GlobalEnable "Enabled"
+	else
+		formtext #ui$form GlobalEnable "Disabled"
+	endif
+!
+! Put in the offsets.
+!
+	local xoff pd_param(icon_component,"x-shift","string")
+	local yoff pd_param(icon_component,"y-shift","string")
+	if (xoff = "(Undefined)")
+		formtext #ui$form xoff "0"
+	else
+		formtext #ui$form xoff #xoff
+	endif
+	if (yoff = "(Undefined)")
+		formtext #ui$form yoff "0"
+	else
+		formtext #ui$form yoff #yoff
+	endif
+!
+! Stuff in the platform name.
+!
+	local platform pd_param(icon_component,'platform','string')
+	formtext #ui$form platform #platform
+!
+! Advection enable.
+!
+	local enabled \
+	    pd_paramsearch(icon_component,'enable-advection',platform,'string')
+	if (enabled = 'true')
+		formtext #ui$form AdvEnable 'Enabled'
+	else
+		formtext #ui$form AdvEnable 'Disabled'
+	endif
+!
+! Advection params.
+!
+	local aspeed pd_param(icon_component,'advection-speed','string')
+	local adir pd_param(icon_component,'advection-direction','string')
+	if (aspeed = '(Undefined)')
+		formtext #ui$form advspeed "0"
+	else
+		formtext #ui$form advspeed #aspeed
+	endif
+	if (adir = '(Undefined)')
+		formtext #ui$form advdir "0"
+	else
+		formtext #ui$form advdir #adir
+	endif
+endprocedure
+
+
+
+
+
+procedure ToggleEnable button string
+!
+! Toggle an enable button.
+!
+	local current getftext(ui$form,button)
+	if (current = "Enabled")
+		formtext #ui$form #button "Disabled"
+	else
+		formtext #ui$form #button "Enabled"
+	endif
+endprocedure
+
+
+
+!
+! Speed unit selection.
+!
+define widget SpeedUnits intmenu "units"
+	title "Speed units (IGNORED!)"
+	line
+	entry "Meters/second" "SpeedUnits m/s"
+	entry "Miles/hour" "SpeedUnits mph"
+	entry "Furlongs/fortnight" "SpeedUnits f/f"
+endmenu
+
+
+procedure SpeedUnits units string
+	local qunits quote(units)
+	formtext #ui$form adv_units #qunits
+endprocedure
+

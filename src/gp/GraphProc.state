@@ -1,4 +1,4 @@
-! $Id: GraphProc.state,v 1.18 1992-12-09 16:14:26 corbet Exp $
+! $Id: GraphProc.state,v 1.19 1992-12-15 18:26:06 corbet Exp $
 !
 !		Copyright (C) 1987,88,89,90,91 by UCAR
 !	University Corporation for Atmospheric Research
@@ -420,10 +420,10 @@ define state help-opt-topic
 enddef
 
 !
-! Read in offset control widgets too.
+! Read in control widgets too.
 !
 set ui$initial_state "initial"
-read offset.w
+read GraphProc.widgets
 !
 ! The init process to be run at startup.  This throws us immediately
 ! into the graphproc event loop.
