@@ -1,4 +1,4 @@
-! $Id: GraphProc.state,v 1.15 1992-03-04 22:12:57 kris Exp $
+! $Id: GraphProc.state,v 1.16 1992-09-04 20:56:57 burghart Exp $
 !
 !		Copyright (C) 1987,88,89,90,91 by UCAR
 !	University Corporation for Atmospheric Research
@@ -409,6 +409,10 @@ define state move-component
 	endinput
 enddef
 
+!
+! Don't die just because we hit something undefined
+!
+set ui$bailout false
 
 !
 ! The init process to be run at startup.  This throws us immediately
