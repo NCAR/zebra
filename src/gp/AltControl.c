@@ -41,7 +41,7 @@
  */
 int	AltControlComp;
 
-MAKE_RCSID("$Id: AltControl.c,v 2.16 1995-09-20 20:44:41 burghart Exp $")
+MAKE_RCSID("$Id: AltControl.c,v 2.17 1995-09-23 02:30:59 granger Exp $")
 
 # define MAXALT		80	/* Max heights we expect to see		*/
 
@@ -51,6 +51,7 @@ MAKE_RCSID("$Id: AltControl.c,v 2.16 1995-09-20 20:44:41 burghart Exp $")
 static void	alt_GetControlComp FP ((void));
 static void	alt_SetAlt FP ((int));
 static int	alt_GetRSAlts FP ((char *, float *));
+static void	alt_SetLabel FP ((char *label));
 
 
 
@@ -66,6 +67,7 @@ alt_Initialize ()
  * Find the control component
  */
 	alt_GetControlComp ();
+	msg_ELog (EF_DEBUG, "chose #%d for altitude control", AltControlComp);
 # ifdef notdef
 /*
  * Now set the "altitude" and "altitude-label" parameters if we don't have them
@@ -199,14 +201,7 @@ int nstep;
 	     ! pd_Retrieve (Pd, comps[AltControlComp], "wspd-field", field,
 			    SYMT_STRING)))
 	{
-		pd_Store (Pd, "global", "altitude-label", "",
-			  SYMT_STRING);
-	/*
-	 * Schedule to send the modified PD to dm and the PD monitor
-	 */
-		Eq_AddEvent (PWhenever, eq_ReturnPD, 0, 0, Override);
-		pdm_ScheduleUpdate ();
-
+		alt_SetLabel ("");
 		return;
 	}
 /*
@@ -236,18 +231,24 @@ int nstep;
 			/* There are too many reasons this can fail
 			 * in normal situations to flag it as a problem
 			 */
+			alt_SetLabel ("");
 			msg_ELog (EF_DEBUG, "alt_Step: bad platform '%s'",
 				  platform);
 			return;
 		}
-
-		fid = F_Lookup (field);
+		else if ((fid = F_Lookup (field)) == BadField)
+		{
+			alt_SetLabel ("");
+			msg_ELog (EF_DEBUG, "alt_Step: bad field '%s'", field);
+			return;
+		}
 	/*
 	 * Check it out.
 	 */
-		if (! ds_GetAlts (pid, fid, &PlotTime, ForecastOffset, alts, 
-				  &nalt, &altunits))
+		else if (! ds_GetAlts (pid, fid, &PlotTime, ForecastOffset, 
+				       alts, &nalt, &altunits) || nalt == 0)
 		{
+			alt_SetLabel ("");
 			msg_ELog (EF_DEBUG, 
 				  "No available alts for %s/%s @ %d h offset",
 				  platform, field, ForecastOffset / 3600);
@@ -274,9 +275,7 @@ int nstep;
 		if ((nalt = alt_GetRSAlts (platform, alts)) <= 0)
 		{
 			pd_RemoveParam (Pd, "global", "altitude");
-			pd_Store (Pd, "global", "altitude-label", "?", 
-				  SYMT_STRING);
-
+			alt_SetLabel ("?");
 			msg_ELog (EF_DEBUG, "No available RS alts for %s",
 				  platform);
 			return;
@@ -332,25 +331,29 @@ int nstep;
  */
 	if (! rspace)
 	{
-		sprintf (scratch, "Alt: %s", 
+		sprintf (scratch, "Alt: %s",
 			 au_AltLabel (alts[closest], altunits));
-		pd_Store (Pd, "global", "altitude-label", scratch, 
-			  SYMT_STRING);
 	}
 	else
 	{
 		sprintf (scratch, "%.1f deg", alts[closest]);
-		pd_Store (Pd, "global", "altitude-label", scratch,
-			  SYMT_STRING);
 	}
+	alt_SetLabel (scratch);
+}
+
+
+
+static void
+alt_SetLabel (label)
+char *label;
+{
+	pd_Store (Pd, "global", "altitude-label", label, SYMT_STRING);
 /*
  * Schedule to send the modified PD to dm and the PD monitor
  */
 	Eq_AddEvent (PWhenever, eq_ReturnPD, 0, 0, Override);
 	pdm_ScheduleUpdate ();
 }
-
-
 
 
 
