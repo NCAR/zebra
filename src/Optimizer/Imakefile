@@ -1,5 +1,5 @@
 /* -*- C -*- */
-/* $Id: Imakefile,v 1.9 1997-04-29 03:51:13 granger Exp $ */
+/* $Id: Imakefile,v 1.10 1998-02-10 16:07:00 burghart Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -34,7 +34,7 @@ DISTFILES = Imakefile $(SRCS) $(HEADERS) Optimizer.state $(OTHERS)
 
 /*------------------------------------------------------------------------*/
 
-CompleteProgramTarget(Optimizer, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+CccProgramTarget(Optimizer, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 
 InstallAppDefaults(Optimizer)
 
