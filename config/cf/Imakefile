@@ -43,7 +43,8 @@ DISTFILES = DGUX.cf Imake.rules Imake.tmpl Imakefile Library.tmpl \
             ibmLib.rules ibmLib.tmpl imake.c imake.man imakemdep.h luna.cf \
             macII.cf moto.cf noop.rules oldlib.rules pegasus.cf rtcchack.bac \
             sgi.cf sgiLib.rules site.def sony.cf sun.cf sunLib.rules \
-            sunLib.tmpl sv4Lib.rules sv4Lib.tmpl ultrix.cf x386.cf
+            sunLib.tmpl sv4Lib.rules sv4Lib.tmpl ultrix.cf x386.cf \
+            Xosdefs.h
 
 
 DistfilesTarget($(DISTFILES))
