@@ -1,7 +1,26 @@
 /*
  * Volume boundary handling
- * $Id: Boundary.c,v 1.1 1991-06-16 17:02:25 burghart Exp $
  */
+/*		Copyright (C) 1987,88,89,90,91 by UCAR
+ *	University Corporation for Atmospheric Research
+ *		   All rights reserved
+ *
+ * No part of this work covered by the copyrights herein may be reproduced
+ * or used in any form or by any means -- graphic, electronic, or mechanical,
+ * including photocopying, recording, taping, or information storage and
+ * retrieval systems -- without permission of the copyright owner.
+ * 
+ * This software and any accompanying written materials are provided "as is"
+ * without warranty of any kind.  UCAR expressly disclaims all warranties of
+ * any kind, either express or implied, including but not limited to the
+ * implied warranties of merchantibility and fitness for a particular purpose.
+ * UCAR does not indemnify any infringement of copyright, patent, or trademark
+ * through use or modification of this software.  UCAR does not provide 
+ * maintenance or updates for its software.
+ */
+
+static char *rcsid = "$Id: Boundary.c,v 1.2 1991-09-17 14:44:21 burghart Exp $";
+
 # include <math.h>
 # include <defs.h>
 # include <DataStore.h>
@@ -45,37 +64,29 @@ bnd_InitBoundary ()
 	float		*lat, *lon;
 	bool		have_boundary = FALSE;
 /*
- * Get the initial boundary from the data store if possible
+ * Get the platform ID for "boundary"
  */
-	if (Ds)
+	pid = ds_LookupPlatform ("boundary");
+/*
+ * Get the boundary
+ */
+	if (pid != BadPlatform)
 	{
+		have_boundary = bnd_GetBoundary (pid);
 	/*
-	 * Get the platform ID for "boundary"
+	 * Request the data store to inform us when a new boundary
+	 * shows up
 	 */
-		pid = ds_LookupPlatform ("boundary");
-	/*
-	 * Get the boundary
-	 */
-		if (pid != BadPlatform)
-		{
-			have_boundary = bnd_GetBoundary (pid);
-		/*
-		 * Request the data store to inform us when a new boundary
-		 * shows up
-		 */
-			ds_RequestNotify (pid, 0, bnd_NewBoundary);
-		}
-		else
-			ui_warning ("No 'boundary' platform in data store");
+		ds_RequestNotify (pid, 0, bnd_NewBoundary);
 	}
+	else
+		msg_ELog (EF_PROBLEM, "No 'boundary' platform in data store");
 /*
  * If we didn't get a boundary from the data store, build a phony one
  */
 	if (! have_boundary)
 	{
 		float	lat[4], lon[4];
-
-		ui_printf ("\nVolume boundaries must be typed in!\n");
 
 		lat[0] = Rad[0].lat + 0.05;
 		lat[1] = Rad[0].lat + 0.10;
@@ -118,7 +129,8 @@ PlatformId	pid;
 
 	if (! dobj)
 	{
-		ui_warning ("BUG:  Data store LIED!  Couldn't get boundary");
+		msg_ELog (EF_PROBLEM, 
+			"BUG:  Data store LIED!  Couldn't get boundary");
 		return (FALSE);
 	}
 
@@ -162,7 +174,7 @@ time		t;
  * The data store has a new boundary for us, so go get it
  */
 {
-	ui_printf ("New boundary on its way...\n");
+	msg_ELog (EF_INFO, "New boundary on its way...\n");
 	bnd_GetBoundary (pid);
 	ScanOptions ();
 }
@@ -265,7 +277,7 @@ int	npts;
 
 		if (Rad[r].inside)
 		{
-			ui_printf ("Radar %s is enclosed by the volume\n", 
+			msg_ELog (EF_INFO, "Radar %s enclosed by the volume\n",
 				Rad[r].name);
 			Rad[r].az_left = Rad[r].az_right = 0.0;
 			Rad[r].rng_front = 0.0;
