@@ -1,7 +1,7 @@
 /*
  * Color control / display manager interface code.
  */
-static char *rcsid = "$Id: ColorTable.c,v 2.4 1994-11-17 07:33:56 granger Exp $";
+static char *rcsid = "$Id: ColorTable.c,v 2.5 1995-04-17 21:09:17 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -93,17 +93,13 @@ static stbl Ctable = 0;
 /*
  * Forward routine definitions.
  */
-# ifdef __STDC__
-	static CTable * ct_AskDMForTable (char *);
-	static int ct_GetDMResponse (struct message *, struct dm_ctable **);
-	static void ct_DoAlloc (CTable *);
-	static int ct_MarkDealloc (char *, int, union usy_value *, int);
-# else
-	static CTable * ct_AskDMForTable ();
-	static int ct_GetDMResponse ();
-	static void ct_DoAlloc ();
-	static int ct_MarkDealloc ();
-# endif
+static CTable * ct_AskDMForTable FP((char *));
+static void ct_DoAlloc FP((CTable *));
+static int ct_MarkDealloc FP((char *, int, union usy_value *, int));
+#ifdef notdef
+static int ct_GetDMResponse FP((struct message *, struct dm_ctable **));
+#endif
+
 
 ct_Init ()
 /*
@@ -189,26 +185,11 @@ char *name;
  * Attempt to obtain this color table from the display manager.
  */
 {
-	struct dm_ctr ctr;
 	struct dm_ctable *repl;
 	CTable *ct;
 	union usy_value v;
-/*
- * Send off the color table request.
- */
-	ctr.dmm_type = DM_R_CTABLE;
-	strcpy (ctr.dmm_table, name);
-	msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &ctr, sizeof (ctr));
-/*
- * Now await the reply.
- */
-	repl = NULL;
-	msg_Search (MT_DISPLAYMGR, ct_GetDMResponse, &repl);
-/*
- * If it failed, we fail too.
- */
-	if (repl == NULL)
-		return (0);
+
+	repl = dm_ColorTable (name);
 /*
  * Otherwise it's time to allocate and fill in a ctable structure.
  */
@@ -229,46 +210,6 @@ char *name;
  */
 	return (ct);
 }
-
-
-
-
-
-
-static int
-ct_GetDMResponse (msg, ctr)
-struct message *msg;
-struct dm_ctable **ctr;
-/*
- * The color table search routine, called out of msg_Search.  This guy, on
- * success, returns a structure which must be freed after use.
- */
-{
-	struct dm_ctable *dmm = (struct dm_ctable *) msg->m_data;
-/*
- * If this is not a color table response, blow it off.
- */
-	if (dmm->dmm_type != DM_TABLE && dmm->dmm_type != DM_NOTABLE)
-		return (1);
-/*
- * If it's a negative response, we heave a sigh, and, head low, return the
- * bad news.
- */
-	if (dmm->dmm_type == DM_NOTABLE)
-	{
-		*ctr = 0;
-		return (0);
-	}
-/*
- * Got it.  Copy out the info and return.
- */
-	/* *ctr = (dmm->dmm_type == DM_TABLE) ? dmm : 0; */
-	*ctr = (struct dm_ctable *) malloc (msg->m_len);
-	memcpy (*ctr, dmm, msg->m_len);
-	return (0);
-}
-
-
 
 
 
