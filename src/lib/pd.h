@@ -1,7 +1,7 @@
 /*
  * Plot description related stuff.
  *
- * $Id: pd.h,v 1.11 1994-04-27 13:58:29 granger Exp $
+ * $Id: pd.h,v 1.12 1995-04-15 00:35:18 granger Exp $
  */
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
@@ -57,9 +57,12 @@ typedef void *plot_description;
  * The PD routines.
  */
 plot_description pd_Load FP((raw_plot_description *raw));
+plot_description pd_Read FP((char *file));
 raw_plot_description *pd_Unload FP((plot_description pd));
 void pd_RPDRelease FP((raw_plot_description *raw));
 void pd_Merge FP((plot_description dest, plot_description src));
+void pd_MergeComp FP((plot_description dest, char *destname,
+		      plot_description src, char *srcname));
 bool pd_Retrieve FP((plot_description pd, char *comp, char *param,
 	char *target, int type));
 char **pd_CompList FP((plot_description pd));
@@ -70,6 +73,7 @@ bool pda_Search FP((plot_description pd, char *comp, char *param,
 	char *qual, char *dest, int type));
 bool pda_ReqSearch FP((plot_description pd, char *comp, char *param,
 	char *qual, char *dest, int type));
+void pda_ReleaseAll FP ((void));
 plot_description pd_CopyPD FP((plot_description pd));
 void pd_Store FP((plot_description pd, char *comp, char *param,
 	char *value, int type));
