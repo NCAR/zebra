@@ -45,7 +45,7 @@
 # include "GC.h"
 # include "GraphProc.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.16 1992-03-26 20:11:37 kris Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.17 1992-05-27 17:26:55 corbet Exp $")
 
 /*
  * Default resources.
@@ -86,7 +86,7 @@ bool	HoldProcess = FALSE;		/* Plotting on hold?		*/
 stbl	Vtable;				/* The variable table		*/
 plot_description	Pd = 0;		/* Current plot description	*/
 plot_description	Defaults = 0;	/* Plot description info	*/
-time	PlotTime;			/* The current plot time.	*/
+ZebTime	PlotTime;			/* The current plot time.	*/
 int	Event_X, Event_Y;		/* Button event locations	*/
 enum pmode	PlotMode = NoMode;
 enum wstate	WindowState = DOWN;
@@ -98,7 +98,7 @@ float	Alt;
  * Post processing mode stuff.
  */
 int	PostProcMode = FALSE;
-time	PostProcTime;
+ZebTime	PostProcTime;
 
 /*
  * Definition of the global graphics context in GC.h
@@ -128,13 +128,8 @@ extern void Ue_MotionEvent ();
  */
 void eq_reconfig (), eq_sync ();
 
-# ifdef __STDC__
-	static void NewTime (time *);
-	static int AnswerQuery (char *);
-# else
-	static void NewTime ();
-	static int AnswerQuery ();
-# endif
+static void NewTime FP ((ZebTime *));
+static int AnswerQuery FP ((char *));
 
 
 
@@ -635,7 +630,6 @@ struct dm_msg *dmsg;
 {
 	struct dm_dial *dmd;
 	struct dm_history *dmh;
-	date uidate;
 
 	switch (dmsg->dmm_type)
 	{
@@ -674,8 +668,7 @@ struct dm_msg *dmsg;
 	 */
 	   case DM_HISTORY:
 	   	dmh = (struct dm_history *) dmsg;
-		TC_ZtToUI (&dmh->dmm_time, &uidate);
-	   	HistoryMode (&uidate);
+		HistoryMode (&dmh->dmm_time);
 		break;
 	/*
 	 * Real time mode.
@@ -997,7 +990,7 @@ struct dm_pdchange *dmp;
 
 
 HistoryMode (when)
-time *when;
+ZebTime *when;
 /*
  * Go into history mode.
  */
@@ -1071,10 +1064,7 @@ int motion;
  * Simple (for now) time control through dials.
  */
 {
-	if (motion > 0)
-		pmu_dadd (&PlotTime.ds_yymmdd, &PlotTime.ds_hhmmss, 100);
-	else
-		pmu_dsub (&PlotTime.ds_yymmdd, &PlotTime.ds_hhmmss, 100);
+	PlotTime.zt_Sec += (motion > 0) ? 60 : -60;
 	HistoryMode (&PlotTime);
 }
 
@@ -1124,7 +1114,7 @@ RealTimeMode ()
 /* ARGSUSED */
 static void
 NewTime (t)
-time *t;
+ZebTime *t;
 /*
  * Deal with a change in ``current'' time
  */

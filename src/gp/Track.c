@@ -32,13 +32,13 @@
 # include "../include/defs.h"
 # include "../include/pd.h"
 # include "../include/message.h"
-# include "../include/DataStore.h"
+# include <DataStore.h>
 # include "../include/GraphicsW.h"
 # include "GC.h"
 # include "GraphProc.h"
 # include "PixelCoord.h"
 # include "DrawText.h"
-MAKE_RCSID ("$Id: Track.c,v 2.12 1991-12-06 22:03:03 corbet Exp $")
+MAKE_RCSID ("$Id: Track.c,v 2.13 1992-05-27 17:26:55 corbet Exp $")
 
 # define ARROWANG .2618 /* PI/12 */
 
@@ -63,19 +63,21 @@ char *comp;
 bool update;
 {
 	char platform[30], ccfield[30], positionicon[40];
-	char *fields[5], mtcolor[20], ctable[30], a_color[30];
+	char mtcolor[20], ctable[30], a_color[30];
 	char a_xfield[30], a_yfield[30], a_type[30];
-	int period, dsperiod, x0, y0, x1, y1, nc, lwidth, pid, index;
-	int dskip = 0, npt = 0, i, a_invert, a_int, numfields = 1;
-	int arrow, a_lwidth, showposition;
+	int period, x0, y0, x1, y1, nc, lwidth, pid, index;
+	int dskip = 0, npt = 0, i, a_invert, a_int, numfields = 0, afield;
+	int arrow, a_lwidth, showposition, nfld, nsamp;
 	long timenow, vectime = 0;
 	bool mono; 
-	time begin;
+	ZebTime begin, zt;
 	float *data, fx, fy, base, incr, a_scale, *a_xdata, *a_ydata;
 	float unitlen, center, step;
 	Drawable d;
 	XColor xc, *colors, outrange, a_clr;
-	DataObject *dobj;
+	DataChunk *dc;
+	Location loc;
+	FieldId fields[5];
 /*
  * Pull in our parameters.
  */
@@ -89,23 +91,13 @@ bool update;
  * Color code field.
  */
 	if (! mono)
-	{
 		mono = ! tr_CCSetup (comp, platform, ccfield, ctable, &colors,
 				&nc, &base, &incr, &outrange, &center, &step);
-	}
 /*
  * Put together the field list.
  */
 	if (! mono)
-	{
-		fields[0] = ccfield;
-		numfields = 1;
-	}
-	else
-	{
-		fields[0] = NULL;
-		numfields = 0;
-	}
+		fields[numfields++] = F_Lookup (ccfield);
 /*
  * Read arrow parameters if necessary.
  */
@@ -116,39 +108,35 @@ bool update;
 		tr_GetArrowParams (comp, platform, &a_scale, &a_lwidth,
 			&a_invert, &a_int, a_color, &a_clr, a_type, 
 			a_xfield, a_yfield);
-		fields[1] = a_xfield;
-		fields[2] = a_yfield;
+		fields[numfields] = F_Lookup (a_xfield);
+		fields[numfields + 1] = F_Lookup (a_yfield);
+		afield = numfields;
 		numfields += 2;
 	} 
 /*
  * Figure the begin time.
  */
 	begin = PlotTime;
-	dsperiod = (period/3600)*10000 + ((period/60) % 60)*100 + period % 60;
-	pmu_dsub (&begin.ds_yymmdd, &begin.ds_hhmmss, dsperiod);
+	begin.zt_Sec -= period;
 /*
  * Get the data.
  */
-	dobj = ds_GetData(pid, fields, numfields, &begin, &PlotTime, OrgScalar,
-		0.0, BADVAL);
-	if (! dobj)
+	dc = ds_Fetch (pid, numfields ? DCC_Scalar : DCC_Location, &begin,
+			&PlotTime, fields, numfields, 0, 0);
+	if (! dc)
 	{
 		msg_ELog (EF_INFO, "No %s data available", platform);
 		return;
 	}
+	nsamp = dc_GetNSample (dc);
 /*
  * Convert the first points.
  */
-	cvt_ToXY (dobj->do_aloc[0].l_lat, dobj->do_aloc[0].l_lon, &fx, &fy);
+	dc_GetLoc (dc, 0, &loc);
+	cvt_ToXY (loc.l_lat, loc.l_lon, &fx, &fy);
 	x0 = XPIX (fx); y0 = YPIX (fy);
-	data = dobj->do_data[0];
-	if(arrow)
-	{
-		a_xdata = dobj->do_data[1];
-		a_ydata = dobj->do_data[2];
-	}
 /*
- * We need a graphics context.
+ * Fix up some graphics info.
  */
 	if (mono)
 	{
@@ -164,9 +152,8 @@ bool update;
 /*
  * Now work through the data.
  */
-	for (i = 1; i < dobj->do_npoint; i++)
+	for (i = 1; i < nsamp; i++)
 	{
-		Location *loc = ds_Where (dobj, i);
 	/*
 	 * Do skipping if requested.
 	 */
@@ -175,14 +162,16 @@ bool update;
 	/*
 	 * Locate this point.
 	 */
-		cvt_ToXY (loc->l_lat, loc->l_lon, &fx, &fy);
+		dc_GetLoc (dc, i, &loc);
+		cvt_ToXY (loc.l_lat, loc.l_lon, &fx, &fy);
 		x1 = XPIX (fx); y1 = YPIX (fy);
 	/*
 	 * Draw arrows if necessary.
 	 */
 		if(arrow)
 		{
-			timenow = TC_FccToSys (dobj->do_times + i);
+			dc_GetTime (dc, i, &zt);
+			timenow = TC_ZtToSys (&zt);
 			if(((timenow % a_int) == 0) || 
 			   ((vectime + a_int) < timenow))
 			{
@@ -190,7 +179,9 @@ bool update;
 				FixForeground (a_clr.pixel);
 				FixLWidth (a_lwidth);
 				draw_vector (Disp, d, Gcontext, x0, y0, 
-					a_xdata[i-1], a_ydata[i-1], unitlen);
+					dc_GetScalar (dc, i-1, fields[afield]),
+					dc_GetScalar(dc, i-1,fields[afield+1]),
+					unitlen);
 				FixLWidth (lwidth);
 			}
 		}
@@ -199,7 +190,7 @@ bool update;
 	 */
 	 	if (! mono)
 		{
-			index = (data[i] - base)/incr;
+			index = (dc_GetScalar (dc, i, fields[0]) - base)/incr;
 			FixForeground ((index >= 0 && index < nc) ?
 				colors[index].pixel : outrange.pixel);
 		}
@@ -223,8 +214,14 @@ bool update;
  * it's likely to overflow the overlay widget's text space.)
  */
 	if (! update)
-		lw_TimeStatus (comp, &dobj->do_end);
-	ds_FreeDataObject (dobj);
+	{
+		date t;
+
+		dc_GetTime (dc, nsamp - 1, &zt);
+		TC_ZtToUI (&zt, &t);
+		lw_TimeStatus (comp, &t);
+	}
+	dc_DestroyDC (dc);
 /*
  * Annotate if necessary.
  */
