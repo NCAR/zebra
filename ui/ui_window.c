@@ -1,4 +1,5 @@
 /* 3/89 jc */
+# include <unistd.h>
 
 # ifdef XSUPPORT
 /* 
@@ -27,7 +28,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_window.c,v 1.35 1998-02-26 21:19:06 burghart Exp $";
+static char *Rcsid = "$Id: ui_window.c,v 1.36 1998-10-29 21:22:01 burghart Exp $";
 
 /*
  * Public variables, declared in ui_window.h
@@ -1641,29 +1642,78 @@ char *name;
 	unsigned int w, h;
 	int xh, yh, type;
 	SValue v;
-	char fname[120];
+	char fname[128], spath[256];
+	char *delim, *path;
+	static int warned = 0;
 /*
  * See if we already have this one.
  */
 	if (usy_g_symbol (PixmapTable, name, &type, &v))
 		return ((Pixmap) v.us_v_ptr);
 /*
- * If they've defined ui$bitmap_directory, we'll use it.
+ * Get our directory search path.  If the wanted name uses an absolute path, 
+ * we just build an empty directory path string.  Otherwise check
+ * for ui$bitmap_path (or the deprecated ui$bitmap_directory) as the
+ * directory path to search.  Failing that, just use the current 
+ * directory.
  */
-	if (! usy_g_symbol (Ui_variable_table, "ui$bitmap_directory",&type,&v)
-			|| name[0] == '/')
-		strcpy (fname, name);
-	else if (type != SYMT_STRING)
+	if (name[0] == '/')
+	    spath[0] = '\0';
+	else if (usy_g_symbol (Ui_variable_table, "ui$bitmap_path", 
+			       &type, &v))
 	{
+	    if (type == SYMT_STRING)
+		strcpy (spath, v.us_v_ptr);
+	    else
+		ui_warning ("ui$bitmap_path is not a string -- ignored");
+	    
+	    if (! warned && usy_g_symbol (Ui_variable_table, 
+					  "ui$bitmap_directory", &type, &v))
+	    {
+		ui_warning ("ignoring ui$bitmap_directory: %s",
+			    "ui$bitmap_path is defined");
+		warned = 1;
+	    }
+	}
+	else if (usy_g_symbol (Ui_variable_table, "ui$bitmap_directory", 
+			       &type, &v))
+	{
+	    if (type == SYMT_STRING)
+		strcpy (spath, v.us_v_ptr);
+	    else
 		ui_warning ("ui$bitmap_directory is not a string -- ignored");
-		strcpy (fname, name);
 	}
 	else
+	    spath[0] = '\0';
+/*
+ * Now use the path to look for the bitmap file
+ */
+	for (delim = path = spath; delim; path = delim + 1)
 	{
-		strcpy (fname, v.us_v_ptr);
-		strcat (fname, "/");
-		strcat (fname, name);
+	/*
+	 * Build up a new program name from the next path entry.
+	 */
+	    if ((delim = strchr (path, ',')) != 0)
+	    {
+		strncpy (fname, path, delim - path);
+		fname[delim - path] = '\0';
+	    }
+	    else
+		strcpy (fname, path);
+
+	    strcat (fname, "/");
+	    strcat (fname, name);
+	/*
+	 * Break out if this one exists.
+	 */
+	    if (! access (fname, F_OK))
+		break;
+
+	    fname[0] = '\0';
 	}
+
+	if (! *fname)
+	    return (None);
 /*
  * Now try to pull in the file.
  */
