@@ -43,7 +43,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm.c,v 2.73 2000-06-12 23:49:44 granger Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.74 2000-11-07 18:09:50 granger Exp $")
 
 /*
  * Pick a help browser.
@@ -638,7 +638,7 @@ struct ui_command *cmds;
 	 */
 	   case DMC_PDDROP:
 		MergeComp (UPTR (cmds[1]), UPTR (cmds[2]), 
-			   UPTR (cmds[3]), UPTR (cmds[3]));
+			   UPTR (cmds[3]), UPTR (cmds[4]));
 		break;
 	/*
 	 * They want a list of windows.
