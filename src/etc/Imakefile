@@ -8,7 +8,15 @@ SUBDIRS = maps icons helpfiles audio pd gplib colortables
 DISTFILES = Imakefile FieldDefs
 DISTSUBDIRS = $(SUBDIRS)
 
-all::		/* don't want first target to be install */
+all:: startzeb		/* don't want first target to be install */
+
+startzeb.script:	startzeb.sh
+	sed -e 's^##TOPDIR^$(TOP)^' <startzeb.sh >startzeb.script
+
+clean::
+	rm -f startzeb.script
+
+InstallScript (startzeb, $(BINDIR))
 
 InstallLibFile (FieldDefs,.,.)
 
