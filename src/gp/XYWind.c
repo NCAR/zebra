@@ -1,7 +1,7 @@
 /*
  * XY-Wind plotting module
  */
-static char *rcsid = "$Id: XYWind.c,v 1.8 1992-07-31 22:02:13 barrett Exp $";
+static char *rcsid = "$Id: XYWind.c,v 1.9 1992-08-10 18:07:46 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -77,10 +77,10 @@ bool	update;
 	int	ncolors;
 	char	dataNames[4][80];
 	FieldId	fids[4];
-	time	ptime;
-	time	bTimeTarget,eTimeTarget;
-	time	eTimeReq,bTimeReq;
-	time	eTimeOld,bTimeOld;
+	ZebTime	bTimeTarget,eTimeTarget;
+	ZebTime	eTimeReq,bTimeReq;
+	ZebTime	eTimeOld,bTimeOld;
+	char	stime1[80],stime2[80];
 	long	autoTime;
 	char	*pnames[MAX_PLAT];
 	char	*fnames[4][MAX_PLAT];
@@ -88,8 +88,6 @@ bool	update;
 	DataChunk	*dc = NULL;
 	DataClass	xyClass;
 	Location	origin;
-	ZebTime		when, when2;
-	time		t;
 	int		n, m, len;
 	float		badvalue, *data[MAX_PLAT], *tempdata;
 	RGrid		rg;
@@ -261,12 +259,12 @@ bool	update;
         {
             if ( update )
             {
+		TC_EncodeTime ( &eTimeTarget, TC_Full, stime1 );
+		TC_EncodeTime ( &(xmax.val.t), TC_Full, stime2 );
                 msg_ELog ( EF_DEBUG,
-                   "%s new Axis EndTime = %d %d old Axis EndTime = %d %d",
-                        c,
-                        eTimeTarget.ds_yymmdd,eTimeTarget.ds_hhmmss,
-                        xmax.val.t.ds_yymmdd,xmax.val.t.ds_hhmmss);
-                if ( GetSec(eTimeTarget) > GetSec((xmax.val.t)) )
+                   "%s new Axis EndTime = %s old Axis EndTime = %s",
+                        c, stime1, stime2 );
+                if ( eTimeTarget.zt_Sec > xmax.val.t.zt_Sec )
                 {
                     TriggerGlobal = 1;
                 }
@@ -276,7 +274,7 @@ bool	update;
         {
             if ( update )
             {
-                if ( GetSec(eTimeTarget) > GetSec((ymax.val.t)) )
+                if ( eTimeTarget.zt_Sec > ymax.val.t.zt_Sec )
                 {
                     TriggerGlobal = 1;
                 }
@@ -402,26 +400,23 @@ bool	update;
 	    /*
 	     *  Determine times of data to request.
 	     */
-            if (xy_AvailableData(pid,bTimeTarget,eTimeTarget,eTimeOld,
+            if (xy_AvailableData(pid,&bTimeTarget,&eTimeTarget,&eTimeOld,
                                 &bTimeReq, &eTimeReq))
             {
-                msg_ELog ( EF_DEBUG,
-                   "%s Data request times begin %d %d end = %d %d",
-                        c,
-                        bTimeTarget.ds_yymmdd,bTimeTarget.ds_hhmmss,
-                        eTimeTarget.ds_yymmdd,eTimeTarget.ds_hhmmss);
+		TC_EncodeTime ( &bTimeTarget, TC_Full, stime1 );
+		TC_EncodeTime ( &eTimeTarget, TC_Full, stime2 );
+                msg_ELog ( EF_DEBUG, "%s Data request times begin %s end = %s",
+                        c, stime1, stime2 );
 		dc = NULL;
-		TC_UIToZt (&bTimeReq, &when);
-		TC_UIToZt (&eTimeReq, &when2);
-                dc = ds_Fetch (pid, xyClass, &when, &when2, fids, fcount,
+                dc = ds_Fetch (pid, xyClass, &bTimeReq, &eTimeReq, fids, fcount,
 			NULL, 0);
 	    }
 	    if (! dc)
 	    {
+		TC_EncodeTime ( &eTimeReq, TC_Full, stime1 );
 		msg_ELog (EF_INFO, 
-			"Unable to get field data for '%s' at %d %06d", 
-			pnames[plat], eTimeReq.ds_yymmdd, 
-			eTimeReq.ds_hhmmss);
+			"Unable to get field data for '%s' at %s", 
+			pnames[plat], stime1 );
 		npts = 0;
 	        xdata[plat] = NULL;
 	        ydata[plat] = NULL;
@@ -490,9 +485,7 @@ bool	update;
 		  if ( xtype == 't' )
 		  {
 		    dc_GetTime (dc, xyOrg == OrgScalar ? ii : 
-			(int) (ii/rg.rg_nX), &when);
-		    TC_ZtToUI (&when, &t);
-		    xdata[plat][count].val.t = t;
+			(int) (ii/rg.rg_nX), &(xdata[plat][count].val.t));
 		    xdata[plat][count].type = 't';
 		  }
 		  else
@@ -503,9 +496,7 @@ bool	update;
 		  if ( ytype == 't' )
 		  {
 		    dc_GetTime (dc, xyOrg == OrgScalar ? ii : 
-			(int) (ii/rg.rg_nX), &when);
-		    TC_ZtToUI (&when, &t);
-		    xdata[plat][count].val.t = t;
+			(int) (ii/rg.rg_nX), &(ydata[plat][count].val.t));
 		    ydata[plat][count].type = 't';
 		  }
 		  else
@@ -544,8 +535,8 @@ bool	update;
 /*
  * Now set the current scale bounds.
  */
-        autoTime = GetSec(eTimeTarget) +
-                (long)((GetSec(eTimeTarget)-GetSec(bTimeTarget))*0.025);
+        autoTime = eTimeTarget.zt_Sec +
+                (long)((eTimeTarget.zt_Sec-bTimeTarget.zt_Sec)*0.025);
         if ( !update )
         {
             if ( xscalemode & AUTO)
@@ -553,7 +544,8 @@ bool	update;
                 switch ( xtype )
                 {
                     case 't':
-                        lc_GetTime( &(xmax.val.t), autoTime);
+			xmax.val.t.zt_Sec = autoTime;
+			xmax.val.t.zt_MicroSec = 0;
                         xmin.val.t = bTimeTarget;
                     break;
                     case 'f':
@@ -567,7 +559,8 @@ bool	update;
                 switch ( ytype )
                 {
                     case 't':
-                        lc_GetTime( &(ymax.val.t), autoTime);
+			ymax.val.t.zt_Sec = autoTime;
+			ymax.val.t.zt_MicroSec = 0;
                         ymin.val.t = bTimeTarget;
                     break;
                     case 'f':

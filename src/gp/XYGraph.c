@@ -1,7 +1,7 @@
 /*
  * XY-Graph plotting module
  */
-static char *rcsid = "$Id: XYGraph.c,v 1.9 1992-07-31 22:01:33 barrett Exp $";
+static char *rcsid = "$Id: XYGraph.c,v 1.10 1992-08-10 18:07:27 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -80,8 +80,8 @@ bool	update;
 	char	platforms[80], tadefcolor[30];
 	char	ctname[20];
 	char	dataNames[2][80];
-	time    eTimeTarget,bTimeTarget,bTimeOld,eTimeOld;
-	time    eTimeReq,bTimeReq;
+	ZebTime    eTimeTarget,bTimeTarget,bTimeOld,eTimeOld;
+	ZebTime    eTimeReq,bTimeReq;
 	int	change;
 	long	autoTime;
 	char	*pnames[MAX_PLAT];
@@ -90,8 +90,7 @@ bool	update;
 	FieldId		fids[2];
 	DataClass	xyClass;
 	DataChunk	*dc = NULL;
-	ZebTime		when, when2;
-	time		t, t1;
+	char		stime1[80],stime2[80];
 	float		badvalue, *data[MAX_PLAT], *tempdata;
 	int		n, m, len;
 	RGrid		rg;
@@ -189,12 +188,12 @@ bool	update;
 	{
 	    if ( update )
 	    {
+		TC_EncodeTime ( &eTimeTarget, TC_Full, stime1 );
+		TC_EncodeTime ( &(xmax.val.t), TC_Full, stime2 );
 		msg_ELog ( EF_DEBUG, 
-		   "%s new Axis EndTime = %d %d old Axis EndTime = %d %d",
-			c,
-			eTimeTarget.ds_yymmdd,eTimeTarget.ds_hhmmss,
-			xmax.val.t.ds_yymmdd,xmax.val.t.ds_hhmmss);
-		if ( GetSec(eTimeTarget) > GetSec((xmax.val.t)) )
+			"%s new Axis EndTime = %s old Axis EndTime = %s",
+			c, stime1, stime2 );
+		if (eTimeTarget.zt_Sec > xmax.val.t.zt_Sec )
 		{
 		    TriggerGlobal = 1;
 		}
@@ -204,7 +203,7 @@ bool	update;
 	{
 	    if ( update )
 	    {
-		if ( GetSec(eTimeTarget) > GetSec((ymax.val.t)) )
+		if ( eTimeTarget.zt_Sec > ymax.val.t.zt_Sec )
 		{
 		    TriggerGlobal = 1;
 		}
@@ -299,36 +298,31 @@ bool	update;
 	    /*
  	     * Determine times of data to request.
  	     */
-	    if (xy_AvailableData(pid,bTimeTarget,eTimeTarget,eTimeOld,
+	    if (xy_AvailableData(pid,&bTimeTarget,&eTimeTarget,&eTimeOld,
 				&bTimeReq, &eTimeReq))
 	    {
-		msg_ELog ( EF_DEBUG, 
-		   "%s Data request times begin %d %d end = %d %d",
-			c,
-			bTimeTarget.ds_yymmdd,bTimeTarget.ds_hhmmss,
-			eTimeTarget.ds_yymmdd,eTimeTarget.ds_hhmmss);
+		TC_EncodeTime ( &bTimeTarget, TC_Full, stime1 );
+		TC_EncodeTime ( &eTimeTarget, TC_Full, stime2 );
+		msg_ELog ( EF_DEBUG, "%s Data request times begin %s end = %s",
+			c, stime1, stime2 );
 		dc = NULL;
 		if ( dmode == DATA_SNAPSHOT )
 		{
-		    TC_UIToZt (&eTimeReq, &when);
-		    dc = ds_FetchObs (pid, xyClass, &when, fids, fcount, NULL, 
+		    dc = ds_FetchObs (pid, xyClass,&eTimeReq, fids, fcount, NULL, 
 			0);
 		}
 		else
 		{
-		    TC_UIToZt (&bTimeReq, &when);
-		    TC_UIToZt (&eTimeReq, &when2);
-		    dc = ds_Fetch (pid, xyClass, &when, &when2, fids, fcount,
-			NULL, 0);
+		    dc = ds_Fetch (pid, xyClass, &bTimeReq, &eTimeReq, 
+			fids, fcount, NULL, 0);
 		}
 	    }
 
 	    if (! dc)
 	    {
-		msg_ELog (EF_PROBLEM, 
-				"Unable to get field data for '%s' at %d %06d", 
-				pnames[plat], eTimeReq.ds_yymmdd, 
-			eTimeReq.ds_hhmmss);
+		TC_EncodeTime ( &eTimeReq, TC_Full, stime1 );
+		msg_ELog (EF_PROBLEM, "Unable to get field data for '%s' at %s",
+				pnames[plat], stime1 );
 		npts[plat] = 0;
 	        xdata[plat] = NULL;
 	        ydata[plat] = NULL;
@@ -392,9 +386,7 @@ bool	update;
 		  if ( xtype == 't' )
 		  {
 		    dc_GetTime (dc, xyOrg == OrgScalar ? ii : (int) (ii/
-			rg.rg_nX), &when);
-		    TC_ZtToUI (&when, &t);
-		    xdata[plat][count].val.t = t;
+			rg.rg_nX), &(xdata[plat][count].val.t));
 		    xdata[plat][count].type = 't';
 		  }
 		  else
@@ -405,9 +397,7 @@ bool	update;
 		  if ( ytype == 't' )
 		  {
 		    dc_GetTime (dc, xyOrg == OrgScalar ? ii : (int) (ii/
-			rg.rg_nX), &when);
-		    TC_ZtToUI (&when, &t);
-		    ydata[plat][count].val.t = t;
+			rg.rg_nX), &(ydata[plat][count].val.t));
 		    ydata[plat][count].type = 't';
 		  }
 		  else
@@ -447,7 +437,7 @@ bool	update;
 			fnames[1][plat], linecolor[plat]);
 		An_AddAnnotProc ( An_ColorString, c, datalabel,
 		strlen(datalabel)+1,25, FALSE,FALSE);
-		    ud_format_date ( timelabel, &eTimeReq, UDF_FULL );
+		    TC_EncodeTime ( &eTimeReq, TC_Full, timelabel );
 		    sprintf(datalabel, "   %s %s", timelabel, linecolor[plat]);
 		    An_AddAnnotProc ( An_ColorString, c, datalabel,
 		    strlen(datalabel)+1,25, FALSE,FALSE);
@@ -460,8 +450,8 @@ bool	update;
 	 *  If this is a global update, and there's autoscaling going on,
 	 *  set a fudge factor to bound the min and max of the data.
 	 */
-	autoTime = GetSec(eTimeTarget) + 
-		(long)((GetSec(eTimeTarget)-GetSec(bTimeTarget))*0.025);
+	autoTime = eTimeTarget.zt_Sec + 
+		(long)((eTimeTarget.zt_Sec-bTimeTarget.zt_Sec)*0.025);
 	if ( !update )
 	{
 	    if ( xscalemode & AUTO)
@@ -469,7 +459,8 @@ bool	update;
 		switch ( xtype )
 		{
 		    case 't':
-		        lc_GetTime( &(xmax.val.t), autoTime);
+			xmax.val.t.zt_Sec = autoTime;
+			xmax.val.t.zt_MicroSec = 0;
 		        xmin.val.t = bTimeTarget;
 		    break;
 		    case 'f':
@@ -483,7 +474,8 @@ bool	update;
 		switch ( ytype )
 		{
 		    case 't':
-		        lc_GetTime( &(ymax.val.t), autoTime);
+			ymax.val.t.zt_Sec = autoTime;
+			ymax.val.t.zt_MicroSec = 0;
 		        ymin.val.t = bTimeTarget;
 		    break;
 		    case 'f':

@@ -1,7 +1,7 @@
 /*
  * Axis control. 
  */
-static char *rcsid = "$Id: AxisControl.c,v 1.10 1992-07-31 19:17:26 kris Exp $";
+static char *rcsid = "$Id: AxisControl.c,v 1.11 1992-08-10 18:08:29 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -146,7 +146,7 @@ int		dim;
 	    sprintf ( string[0], "%d",d1->val.i);
 	break;
 	case 't':
-	    ud_format_date ( tstring, &(d1->val.t), UDF_FULL);
+	    TC_EncodeTime ( &(d1->val.t), TC_Full, tstring );
 	    *nlab = CommaParse( tstring, lab);
 	    for ( i = 0; i < *nlab; i++)
 	    {
@@ -211,12 +211,12 @@ char			datatype;
     {
 	case 't':
 	{
-	    iVal = GetSec(min.val.t);
+	    iVal = min.val.t.zt_Sec;
 	    nint = iVal/((long)ticInterval);
-	    iBase = nint*((long)ticInterval) < iVal?
+	    baseTic.val.t.zt_Sec =  nint*((long)ticInterval) < iVal?
 		((long)(nint+1)) * (long)ticInterval :
 		((long)nint) * (long)ticInterval ;
-	    lc_GetTime( &(baseTic.val.t), iBase );
+	    baseTic.val.t.zt_MicroSec = 0;
 	}
 	break;
 	case 'f':
@@ -291,6 +291,7 @@ unsigned short		mode;
     int		x1,x2,y1,y2,n;
     char	*flist[10];
     char	fnames[80];
+    char	smin[80],smax[80];
 
     if ( side == 't' || side == 'b' )
     {
@@ -348,10 +349,10 @@ unsigned short		mode;
 		min.val.f, max.val.f);
 	break;
 	case 't':
-        msg_ELog ( EF_DEBUG,"Draw Axis: component = %s min = %d %d max = %d %d",
-		c,
-		min.val.t.ds_yymmdd, min.val.t.ds_hhmmss,
-		max.val.t.ds_yymmdd, max.val.t.ds_hhmmss);
+	    TC_EncodeTime ( &(min.val.t), TC_Full, smin );
+	    TC_EncodeTime ( &(max.val.t), TC_Full, smax );
+            msg_ELog ( EF_DEBUG,"Draw Axis: component = %s min = %s max = %s",
+		c, smin, smax );
 	break;
     }
     switch (side)
@@ -766,7 +767,6 @@ float   *drawGrid;
 {
     char        keyword[80];
     char        string[80];
-    ZebTime	zt;
     /*
      * Get the user-settable axis descriptors
      */
@@ -880,12 +880,11 @@ float   *drawGrid;
         {
             case 't':
                 if (! pda_Search (pd, c, keyword, NULL,
-                    (char *) &(zt), SYMT_DATE))
+                    (char *) &(baseTic->val.t), SYMT_DATE))
                 {
-                    baseTic->val.t.ds_yymmdd = 0;
-                    baseTic->val.t.ds_hhmmss = 0;
+                    baseTic->val.t.zt_Sec = 0;
+                    baseTic->val.t.zt_MicroSec = 0;
                 }
-		else TC_ZtToUI (&zt, &baseTic->val.t);
             break;
             case 'f':
                 if (! pda_Search (pd, c, keyword, NULL,
@@ -945,7 +944,6 @@ int     *nticLabel;
 float   *ticInterval;
 {
     char        keyword[80];
-    ZebTime	zt;
 
     if ( offset )
     {
@@ -965,8 +963,7 @@ float   *ticInterval;
         switch( datatype )
         {
             case 't':
-		TC_UIToZt (&baseTic->val.t, &zt);
-                pd_Store (pd, c, keyword, (char *) &(zt), SYMT_DATE);
+                pd_Store(pd, c, keyword, (char *) &(baseTic->val.t), SYMT_DATE);
             break;
             case 'f':
                 pd_Store (pd, c, keyword,(char *)&(baseTic->val.f), SYMT_FLOAT);
