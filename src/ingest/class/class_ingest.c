@@ -1,5 +1,5 @@
 /*
- * $Id: class_ingest.c,v 2.20 1998-03-25 22:53:32 burghart Exp $
+ * $Id: class_ingest.c,v 2.21 2001-06-13 21:56:55 granger Exp $
  *
  * Ingest CLASS data into the system.
  *
@@ -34,7 +34,7 @@
 
 #ifndef lint
 MAKE_RCSID(
-   "$Id: class_ingest.c,v 2.20 1998-03-25 22:53:32 burghart Exp $")
+   "$Id: class_ingest.c,v 2.21 2001-06-13 21:56:55 granger Exp $")
 #endif
 
 static void	Usage FP((char *prog_name));
@@ -54,7 +54,7 @@ static void	FixBadTimes FP ((float *, int));
 
 # define INGEST_NAME "class_ingest"
 # define SND	"snd"
-# define BUFLEN	5000
+# define BUFLEN	10000
 # define BADVAL -9999.0
 # define MAX_FIELDS 32
 
@@ -146,6 +146,7 @@ char DumpDataChunk = (char)0;   /* Dump chunks AS BUILT rather than
 				 * like ingest.c option which is
 				 * WHEN STORED */
 
+char *PlatformName = 0;
 
 int main (argc, argv)
 	int argc;
@@ -478,11 +479,18 @@ GetPlatformName (classfile, plat)
 	char *site;
 	int i;
 	SiteTranslation	*strans;
-
 /*
  * Load the sounding file (0 indicates we're loading a CLASS format file)
  */
 	snd_load_file (classfile, 0, SND);
+/*
+ * A platform name from the command line takes precedence.
+ */
+	if (PlatformName)
+	{
+	    strcpy (plat, PlatformName);
+	    return;
+	}
 /*
  * Get the site name and make it lower case
  */
@@ -564,6 +572,11 @@ ParseCommandLineOptions(argc, argv)
 		   QualThresh = atof (argv[i+1]);
 		   IngestRemoveOptions (argc, argv, i, 2);
 		}
+		else if (! strncmp (argv[i], "-p", 2))
+		{
+		   PlatformName = argv[i+1];
+		   IngestRemoveOptions (argc, argv, i, 2);
+		}
 		else
 		   ++i;
 	}
@@ -582,6 +595,7 @@ Usage(prog)
 	printf ("   -fields		Describe the sounding file\n");
 	printf ("   -trans <tfile>	Use the site/platform translations in 'tfile'\n");
 	printf ("   -q <qval>		Set pressure quality threshold\n");
+	printf ("   -platform <name>    Set the platform name explicitly\n");
 	printf ("\n");
 	IngestUsage();
 	printf ("\nExamples:\n");
