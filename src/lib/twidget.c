@@ -45,7 +45,7 @@
 # include "bitmaps.h"
 # include "twidget.h"
 
-RCSID ("$Id: twidget.c,v 2.18 1995-09-07 21:20:46 granger Exp $")
+RCSID ("$Id: twidget.c,v 2.19 1995-09-09 16:36:04 granger Exp $")
 
 
 # define LABELWIDTH	65
@@ -1730,7 +1730,9 @@ char *label;
 	 */
 	if (remove)
 	{
-		ZebTime rm = remove->ht_zt;
+		ZebTime rm;
+
+		rm = remove->ht_zt;
 		tw_RemoveHotTime (&rm);
 		if (HT_DeleteCallback)
 			(*HT_DeleteCallback) (&rm);
