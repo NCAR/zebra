@@ -1,5 +1,5 @@
 /* -*- mode: c++; c-basic-offset: 8; -*-
- * $Id: glass_ingest.cxx,v 2.13 2001-09-18 21:55:50 granger Exp $
+ * $Id: glass_ingest.cxx,v 2.14 2002-04-25 07:32:37 granger Exp $
  *
  * Ingest GLASS data into the system.
  *
@@ -74,7 +74,7 @@ extern "C"
 #include <met_formulas.h>
 }
 
-RCSID("$Id: glass_ingest.cxx,v 2.13 2001-09-18 21:55:50 granger Exp $")
+RCSID("$Id: glass_ingest.cxx,v 2.14 2002-04-25 07:32:37 granger Exp $")
 
 #include <ZTime.h>
 #define FC_DEFINE_FIELDS
@@ -175,7 +175,6 @@ DefineField(F_sdewpoint, "sdp", FT_DP, "degC", "surface dewpoint")
 
 DefineField(F_u, "u_wind", FT_UWind, "m/s", "u wind component")
 DefineField(F_v, "v_wind", FT_VWind, "m/s", "v wind component")
-DefineField(F_ascent, "ascent", "", "m/s", "ascent rate")
 DefineField(F_range, "range", "", "km", "range from launch site")
 DefineField(F_az, "az", "", "degrees", "azimuth from launch site")
 DefineField(F_qpres, "qpres", "", "hPa", "pressure quality")
@@ -200,7 +199,7 @@ struct ClassFileRecord
 	F_v v;
 	F_wspd wspd;
 	F_wdir wdir;
-	F_ascent ascent;
+	F_dz dz;
 	F_lon lon;
 	F_lat lat;
 	F_range range;
@@ -217,7 +216,7 @@ struct ClassFileRecord
 	void enumerate (E &e)
 	{
 		e << tdelta << pres << temp << dp << rh << u << v;
-		e << wspd << wdir << ascent;
+		e << wspd << wdir << dz;
 		e << lon << lat << range << az << alt;
 		e << qpres << qtemp << qrh << qu << qv << qwind;
 	}
@@ -231,7 +230,6 @@ struct GlassFileRecord
 	F_tdelta tdelta;
 	F_pres pres;
 	F_temp temp;
-	// F_dp dp;
 	F_rh rh;
 	F_wdir wdir;
 	F_wspd wspd;
@@ -495,7 +493,7 @@ CreateSoundingDC (Sounding &snd)
 	// Collect the sounding fields (different from the surface fields)
 	CollectFields cf (&nfields, fields);
 	snd.enumerate (cf);
-	// Add the dewpoint field which we'll derive
+	// Add the dewpoint field which we'll derive (from D-files)
 	fields[nfields++] = F_dewpoint::fieldId();
 	for (i = 0; i < nfields; ++i)
 	{
@@ -529,12 +527,19 @@ GlassIngest (int argc, char *argv[])
 {
 	char 	*filename;	/* Name of the snding file, pts to argv[1] */
 	DataChunk *Dchunk;   	/* The DataChunk we'll be building */
+	dsDetail details[4];
+	int ndetail = 0;
 /*
  * Get our command-line options, setting appropriate global variables.
  * Only the file name should remain.
  */
 	ParseCommandLineOptions(&argc, argv);
-	Sounding snd(SoundingType);
+/*
+ * Always ingest to the GLASS data model.  If the SoundingType is
+ * actually class format, then fields will be copied from the
+ * class records.
+ */
+	Sounding snd(Sounding::GLASS);
 	if (JustShowFields)
 	{
 		ofield of(cout);
@@ -590,8 +595,11 @@ GlassIngest (int argc, char *argv[])
 /*
  * Send everything to the data store
  */
+	ds_SetStringDetail (DD_FILE_EXT, ".nc", details, ndetail++);
+	ds_SetDetail (DD_FOUR_YEAR, details, ndetail++);
+	ds_SetDetail (DD_NC_ONE_TIME, details, ndetail++);
 	IngestLog(EF_DEBUG,"%s: Sending data to DataStore", PlatformName);
-	if (!ds_StoreBlocks (Dchunk, /*newfile*/ TRUE, (dsDetail *)0, 0))
+	if (!ds_StoreBlocks (Dchunk, /*newfile*/ TRUE, details, ndetail))
 	{
 		IngestLog(EF_EMERGENCY,"%s: Data store failed", PlatformName);
 	}
@@ -717,14 +725,11 @@ ParseCommandLineOptions (int *argc, char *argv[])
 			JustShowFields = (char)1;
 			IngestRemoveOptions(argc, argv, i, 1);
 		}
-		else if (streq(argv[i],"-glass"))
+		else if (streq(argv[i],"-glass") || streq(argv[i],"-class"))
 		{
-			SoundingType = Sounding::GLASS;
-			IngestRemoveOptions(argc, argv, i, 1);
-		}
-		else if (streq(argv[i],"-class"))
-		{
-			SoundingType = Sounding::CLASS;
+			IngestLog (EF_INFO, "%s option deprecated. "
+				   "Format will be determined automatically.",
+				   argv[i]);
 			IngestRemoveOptions(argc, argv, i, 1);
 		}
 		else if (! strncmp (argv[i], "-t", 2))
@@ -754,8 +759,6 @@ Usage (char *prog)
 	printf ("   -fields		List the sounding fields\n");
 	printf ("   -trans <tfile>	Use the site/platform translations in 'tfile'\n");
 	printf ("   -platform <name>	Explicitly set the platform name\n");
-	printf ("   -glass		Specify GLASS mode\n");
-	printf ("   -class		Specify CLASS mode\n");
 	printf ("\n");
 	IngestUsage();
 	printf ("\nExamples:\n");
@@ -905,20 +908,30 @@ ReadHeader (DataChunk *dc, char *file, Sounding &snd)
 	}
 	snd.tlaunch = 0;
 
-	/* Nothing graceful here.  Just read lines until we reach
-	   a line without a colon.  Everything before the colon
-	   becomes an attribute, everything after is the value.
-	   Check for specific attributes for the location and launch time.
+	/* Nothing graceful here.  Just read the first 12 lines, parsing
+	   those with a colon.  Everything before the colon becomes an
+	   attribute, everything after is the value.  Check for specific
+	   attributes for the location and launch time.  Lines without
+	   colons are accumulated as is.
 	*/
 	   
 	string line;
 	string::size_type n;
 	int lino = 0;
 	char attr[16];
-	while (getline (fin, line) && (n = line.find (':')) != string::npos)
+	while (lino < 12 && getline (fin, line))
 	{
 		++lino;
 		trim (line);
+		// Just store the entire line as an attribute, since netcdf
+		// will not accept the unconventional characters in the
+		// header labels.
+		sprintf (attr, "header%02d", lino);
+		dc_SetGlobalAttr (dc, attr, const_cast<char *>(line.c_str()));
+		if ((n = line.find (':')) == string::npos)
+		{
+			continue;
+		}
 		// Extract name and value from the line.
 		string left(line, 0, n);
 		string right(line, n+1, line.length());
@@ -927,11 +940,6 @@ ReadHeader (DataChunk *dc, char *file, Sounding &snd)
 		IngestLog (EF_DEBUG, "'%s': '%s'", 
 			   left.c_str(), right.c_str());
 
-		// Just store the entire line as an attribute, since netcdf
-		// will not accept the unconventional characters in the
-		// header labels.
-		sprintf (attr, "header%02d", lino);
-		dc_SetGlobalAttr (dc, attr, const_cast<char *>(line.c_str()));
 		// Now check for expected attributes.
 		int year, mon, day, hour, min, sec;
 		if (left.find("GMT Launch Time") != string::npos)
@@ -976,6 +984,37 @@ ReadHeader (DataChunk *dc, char *file, Sounding &snd)
 	{
 		throw AppException ("Could not find launch time in header");
 	}
+
+	// We've also got problems if we didn't read enough header lines.
+	if (lino < 12)
+	{
+		throw AppException ("Failed to read 12 header lines, "
+				    "unexpected end of the file.");
+	}
+
+	// We should now be at the column header line.  See how many
+	// columns we can parse to distinguish "class" format files and
+	// D-files.
+	if (! getline (fin, line))
+	{
+		throw AppException ("Could not read column headings, "
+				    "file shorter than expected.");
+	}
+	const char* cp = line.c_str();
+	char c1[16], c2[16], c3[16], c4[16], c5[16];
+	if (sscanf (cp, " %s %s %s %s %s ", c1, c2, c3, c4, c5) != 5)
+		throw AppException ("Could not parse column headers.");
+	if (strcmp (c4, "Dewpt") == 0 && strcmp (c5, "RH") == 0)
+	{
+		SoundingType = Sounding::CLASS;
+		IngestLog (EF_INFO, "Reading 'class format' file.");
+	}
+	else
+	{
+		SoundingType = Sounding::GLASS;
+		IngestLog (EF_INFO, "Reading GLASS D-file format.");
+	}
+
 }
 
 
@@ -1046,16 +1085,56 @@ struct AddRecord
 };
 
 
+double ComputeDewpoint (Sounding& snd)
+{
+	// From Chris Burghart:
+	//
+	// From relative humidity (%) and temperature (K!), you can
+	// get to dewpoint (also K) using two functions:
+	//
+	//   dp = dewpoint (0.01 * rh * e_sw (t)); */
+	//
+	double ddp = BADVAL;
+	if (snd.rh() != BADVAL && snd.temp() != BADVAL)
+	{
+		ddp = dewpoint (0.01 * snd.rh() * 
+				e_sw(snd.temp() + 273.15));
+		ddp -= 273.15;
+		if (isnan(ddp))
+			ddp = BADVAL;
+	}
+	return ddp;
+}
+
+
+void
+CopyFields (GlassFileRecord& snd, ClassFileRecord& cfr)
+{
+	snd.tdelta = cfr.tdelta;
+	snd.pres = cfr.pres;
+	snd.temp = cfr.temp;
+	snd.rh = cfr.rh;
+	snd.wdir = cfr.wdir;
+	snd.wspd = cfr.wspd;
+	snd.dz = cfr.dz;
+	snd.lon = cfr.lon;
+	snd.lat = cfr.lat;
+	snd.alt = cfr.alt;
+	snd.sa = BADVAL;
+}
+
 
 /*
- * Read the samples from the sounding file into the datachunk,
- * skipping samples with bad times, setting all fields to bad values
- * when important fields are bad.  Throw an exception if anything
- * unexpected happens.
+ * Read the samples from the sounding file into the datachunk, skipping
+ * samples with bad times, setting all fields to bad values when important
+ * fields are bad.  Throw an exception if anything unexpected happens.  Use
+ * a Sounding for the expected format type to input the records before
+ * storing them in a glass sounding.
  */
 static void
 ReadSamples (DataChunk *dc, char *file, Sounding &snd)
 {
+	ClassFileRecord cfinput;
 	ifstream fin (file);
 	if (! fin)
 	{
@@ -1083,9 +1162,17 @@ ReadSamples (DataChunk *dc, char *file, Sounding &snd)
 	{
 		++lino;
 		istrstream ss(line.c_str());
-		ReadRecord rr(ss);
 		try {
-			snd.enumerate (rr);
+			ReadRecord rr(ss);
+			if (SoundingType == Sounding::GLASS)
+			{
+				snd.enumerate (rr);
+			}
+			else
+			{
+				cfinput.enumerate (rr);
+				CopyFields (*snd.gl, cfinput);
+			}
 		}
 		catch (ReadRecord::InvalidRecord &)
 		{
@@ -1141,23 +1228,17 @@ ReadSamples (DataChunk *dc, char *file, Sounding &snd)
 			++badlines;
 		}
 
-		// From Chris Burghart:
-		//
-		// From relative humidity (%) and temperature (K!), you can
-		// get to dewpoint (also K) using two functions:
-		//
-		//   dp = dewpoint (0.01 * rh * e_sw (t)); */
-		//
-		double ddp = BADVAL;
-		if (snd.rh() != BADVAL && snd.temp() != BADVAL)
+		// Class format already contains the dewpoint so no need
+		// to compute it.
+		F_dewpoint dp;
+		if (SoundingType == Sounding::GLASS)
 		{
-			ddp = dewpoint (0.01 * snd.rh() * 
-					e_sw(snd.temp() + 273.15));
-			ddp -= 273.15;
-			if (isnan(ddp))
-				ddp = BADVAL;
+			dp = ComputeDewpoint (snd);
 		}
-		F_dewpoint dp = ddp;
+		else
+		{
+			dp = cfinput.dp;
+		}
 
 		// Records with negative tdelta are stored as surface fields.
 		int sample = dc_GetNSample(dc);
