@@ -1,12 +1,12 @@
 /*
- * $Id: GRIB.h,v 3.2 1995-06-09 16:00:49 granger Exp $
+ * $Id: GRIB.h,v 3.3 1996-11-19 08:47:21 granger Exp $
  *
  * GRIB file access structures and utility prototypes.
  */
 
 
-#ifndef _zeb_GRIB_h_
-#define _zeb_GRIB_h_
+#ifndef _zebra_GRIB_h_
+#define _zebra_GRIB_h_
 
 /*
  * The GRIB product definition section (PDS)
@@ -166,4 +166,4 @@ extern bool grb_UsableLevel FP ((GFpds *, int));
 extern bool grb_NormalLevel FP ((GFpds *pds));
 extern float grb_ZLevel FP ((GFpds *, AltUnitType *));
 
-#endif /* ndef _zeb_GRIB_h_ */
+#endif /* ndef _zebra_GRIB_h_ */
