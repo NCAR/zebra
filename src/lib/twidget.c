@@ -33,11 +33,11 @@
 
 # include <ui.h>
 # include <ui_date.h>
-# include "../include/defs.h"
-# include "../include/message.h"
-# include "../include/timer.h"
+# include "defs.h"
+# include "message.h"
+# include "timer.h"
 
-MAKE_RCSID ("$Id: twidget.c,v 2.10 1993-01-12 17:59:14 pai Exp $")
+MAKE_RCSID ("$Id: twidget.c,v 2.11 1993-03-12 23:48:55 granger Exp $")
 
 
 # define LABELWIDTH	60
@@ -83,6 +83,7 @@ static void ChangeMonth (), ChangeDay (), ChangeYear ();
 static void ChangeHour (), ChangeMin ();
 static void TimeSkip ();
 static void ChangeControl ();
+static void CallForHelp ();
 extern Widget LeftRightButtons ();
 
 
@@ -116,9 +117,9 @@ Widget	parent;
 XtAppContext appc;
 {
 	Arg args[20];
-	Widget form, title, f, left, dayleft, dform, sform, cform;
+	Widget form, title, f, left, dayleft, dform, sform, cform, hform;
 	Widget mbutton, dbutton, ybutton, hbutton, minbutton, sbutton;
-	Widget skipbutton;
+	Widget skipbutton, helpbutton;
 	Widget MonText, DayText, YearText, HMSText;
 	int n;
 	static char *ttrans = "<Btn1Down>,<Btn1Up>: 	set()notify()";
@@ -152,14 +153,34 @@ XtAppContext appc;
 	title = XtCreateManagedWidget ("title", labelWidgetClass, form,
 		args, 3);
 /*
- * Control one/all windows selection.
+ * Establish a help button
  */
 	n = 0;
 	XtSetArg (args[n], XtNborderWidth, 2);		n++;
 	XtSetArg (args[n], XtNfromHoriz, title);	n++;
 	XtSetArg (args[n], XtNfromVert, NULL);		n++;
 	XtSetArg (args[n], XtNdefaultDistance, 5);	n++;
-	cform = XtCreateManagedWidget ("cform", formWidgetClass, form, args, n);
+	hform = XtCreateManagedWidget ("hform", formWidgetClass, 
+				       form, args, n);
+
+	n = 0;
+	XtSetArg (args[n], XtNlabel, "Help");		n++;
+	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
+	XtSetArg (args[n], XtNfromVert, NULL);		n++;
+	helpbutton = XtCreateManagedWidget ("helpbutton", 
+					    commandWidgetClass, 
+					    hform, args,n);
+	XtAddCallback (helpbutton, XtNcallback, CallForHelp, NULL);
+/*
+ * Control one/all windows selection.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNborderWidth, 2);		n++;
+	XtSetArg (args[n], XtNfromHoriz, hform);	n++;
+	XtSetArg (args[n], XtNfromVert, NULL);		n++;
+	XtSetArg (args[n], XtNdefaultDistance, 5);	n++;
+	cform = XtCreateManagedWidget ("cform", formWidgetClass, 
+				       form, args, n);
 
 	n = 0;
 	XtSetArg (args[n], XtNlabel, "Windows:");	n++;
@@ -378,6 +399,20 @@ XtAppContext appc;
 	set_dt ();
 	return (form);
 }
+
+
+
+static void
+CallForHelp ()
+/*
+ * Performs a 'help' command through UI.  Note that technically we
+ * are not guaranteed such a command has been defined, but since
+ * this "widget" is used exclusively by the Zeb display manager... XXX
+ */
+{
+	ui_perform ("help historytime");
+}
+
 
 
 static void
