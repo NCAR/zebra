@@ -602,14 +602,14 @@ set_dt ()
  */
 {
 	Arg args[2];
-	char dbuf[40], *time, *strchr ();
+	char dbuf[40], *timestr, *strchr ();
 /*
  * Format, then split, the date.
  */
 	ud_format_date (dbuf, &Histdate, UDF_FULL);
 	strcpy (Ahistdate, dbuf);
-	time = strchr (dbuf, ',');
-	*time++ = '\0';
+	timestr = strchr (dbuf, ',');
+	*timestr++ = '\0';
 /*
  * Text too.
  */
