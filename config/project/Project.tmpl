@@ -28,7 +28,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.39 1996-01-02 21:24:00 granger Exp $
+XCOMM $Id: Project.tmpl,v 1.40 1996-01-12 01:14:01 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -906,6 +906,14 @@ CXXEXTRA_INCLUDES = $(XINCLUDES) $(RDSSINCLUDES) $(CONFIGINCLUDES)
 .F.o:
 	$(FC) $(FFLAGS) -c $<
 #endif
+
+/*
+ * For GNU make's sake, which can really go overboard searching implicit
+ * rules
+ */
+.PHONY: all install clean depend includes World Everything
+
+.PHONY: test distclean distfiles distmakefiles
 
 /*
  * Rules specific to the Zebra project.  Some of them override rules
