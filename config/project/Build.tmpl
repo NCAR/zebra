@@ -9,17 +9,28 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project auto-build parameters for development compilations
-XCOMM $Id: Build.tmpl,v 1.3 1995-05-04 19:26:50 granger Exp $
+XCOMM $Id: Build.tmpl,v 1.4 1995-05-24 23:41:09 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
-# define UseInstalledZeb	YES
-# define BuildIngest		YES
+#ifndef UseInstalledZebra
+# define UseInstalledZebra	NO
+#endif
+#ifndef BuildIngest
+# define BuildIngest		NO
+#endif
 /*
  * For development, default to omitting xhelp.  To include xhelp, define
  * this to YES and define SUPPORT_XHELP in the AUTO_DEFINES.
  */
 #ifndef BuildXHelp
 # define BuildXHelp		NO
+#endif
+
+/*
+ * See if we're supposed to build RDSS in this tree also; default to NO
+ */
+#ifndef BuildRDSS
+#define BuildRDSS NO
 #endif
 
 /*
@@ -66,48 +77,62 @@ XCOMM -----------------------------------------------------------------------
 # define	BuildDataManager		NO
 
 #ifdef SunArchitecture
-# define UseOpenWindows 	NO	
+# ifndef UseOpenWindows
+#  define UseOpenWindows 	NO	
+# endif
 # define OpenWindowsVersion 	3
 # define OpenWinHome		/usr/openwin
 #else
+# ifdef UseOpenWindows
+#  undef UseOpenWindows
+# endif
 # define UseOpenWindows 	NO	
 #endif
 
-# define XSharedMemory YES
-# define UseGcc YES
-# define CccOptions
+#define XSharedMemory YES
+
+XCOMM --- Deciding C compiler and options
+
+#ifndef CDebugFlags
 # define CDebugFlags -g
-# define CCOptions -O
-
-XCOMM --- Deciding X and netCDF include directories
-
-#ifdef HPArchitecture
-# define XIncDir /usr/contrib/mitX11R5/include
-#else
-# define XIncDir /local/X11R5/include
 #endif
 
-#define NetCDFIncDir /usr/local/include
+#ifndef UseGcc
+# define UseGcc YES
+#endif
+
 
 XCOMM --- Deciding X, RDSS and netCDF library directories
 
 #if defined(HPArchitecture)
 # define XLibDir /usr/contrib/mitX11R5/lib	/* contrib for HP */
+# define XIncDir /usr/contrib/mitX11R5/include
 #else
 # if defined(SGIArchitecture)
   /* # define XLibDir /usr/lib */		/* leave it empty for SGI */
 # else
-#  define XLibDir /local/X11R5/lib		/* local for everything else */
+#  if ! UseOpenWindows	/* otherwise use default in Project.tmpl */
+#   if defined(SVR4Architecture)
+#    define XIncDir /local/X11R6/include
+#    define XLibDir /local/X11R6/lib
+#   else
+#    define XIncDir /local/X11R5/include
+#    define XLibDir /local/X11R5/lib
+#   endif
+#  endif
 # endif
 #endif /* HPArchitecture */
 
+#if !BuildRDSS
 # define RDSSLibDir /usr/local/lib
-# define NetCDFLibDir /usr/local/lib
+#endif
+#define NetCDFLibDir /usr/local/lib
+#define NetCDFIncDir /usr/local/include
 
 XCOMM --- Deciding FORTRAN library paths
 
 #ifdef SunArchitecture
-# if OSMajorVersion < 5
+# ifndef SVR4Architecture /* sunos 4.1.3 */
 #  ifndef FortMajorVersion
 #   define FortMajorVersion 1
 #  endif
@@ -120,8 +145,7 @@ XCOMM --- Deciding FORTRAN library paths
 #  else	/* SC 1.0.1 */
 #   define FortranLibraries -L/usr/lang/SC1.0.1 -lF77 -lV77
 #  endif /* FortMajorVersion */
-# else /* OSMajorVersion >= 5 */
-/* Solaris, C2 and C3.0. */
+# else /* Solaris, C2 and C3.0. */
 #  ifndef FortMajorVersion
 #   define FortMajorVersion 3	/* default to C3.0.1 */
 #  endif
@@ -139,7 +163,7 @@ XCOMM --- Deciding FORTRAN library paths
 #  else
 #   define FortranLibraries -L/opt/SUNWspro/SC2.0.1 -lF77 -lV77
 #  endif /* FortMajorVersion */
-# endif /* OSMajorVersion */
+# endif /* SVR4Architecture */
 #endif /* SunArchitecture */
 
 #ifdef HPArchitecture
@@ -148,7 +172,7 @@ XCOMM --- Deciding FORTRAN library paths
 
 #ifdef SGIArchitecture
 /* IRIX 5.x */
-# define FortranLibraries -lF77 -lI77 -lisam
+# define FortranLibraries -lF77 -lI77 -lU77 -lisam
 #endif
 
 XCOMM --- Finished with Build.tmpl
