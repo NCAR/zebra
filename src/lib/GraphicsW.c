@@ -3,7 +3,7 @@
  * of pixmap "frames" associated with it.  Zero frames means just write 
  * everything directly to the window.
  */
-static char *rcsid = "$Id: GraphicsW.c,v 2.9 1992-12-18 09:06:48 granger Exp $";
+static char *rcsid = "$Id: GraphicsW.c,v 2.10 1993-05-14 17:01:35 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -25,11 +25,10 @@ static char *rcsid = "$Id: GraphicsW.c,v 2.9 1992-12-18 09:06:48 granger Exp $";
 # include <errno.h>
 # include <X11/IntrinsicP.h>
 # include <X11/StringDefs.h>
-# include "config.h"		/* to establish dependency on SHM def */
-# include "defs.h"
-# include "message.h"
-# include "pd.h"
-# include "GraphProc.h"
+# include <config.h>		/* to establish dependency on SHM def */
+# include <defs.h>
+# include <message.h>
+# include <pd.h>
 # include "GraphicsWP.h"
 
 # ifdef SHM
