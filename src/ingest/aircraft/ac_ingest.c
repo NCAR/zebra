@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: ac_ingest.c,v 1.10 1998-09-12 17:38:18 burghart Exp $";
+static char *rcsid = "$Id: ac_ingest.c,v 1.11 1998-09-16 17:31:18 burghart Exp $";
 
 # include <copyright.h>
 # include <errno.h>
@@ -59,6 +59,7 @@ static int	SetBaudRate (), IsOurs ();
 static int	GetAcPacket (); 
 int 		DoData ();
 static Packet   RATS2packet ();
+static void	Die ();
 static void	Go (), SetupIndirect (), Dial (), StoreData(); 
 static void	CvtData (), CvtToLatLon ();
 static int	AddTrans (), ChangeTrans (), DelTrans ();
@@ -122,6 +123,7 @@ struct message	*msg;
 }
 
 
+static void
 Die ()
 /*
  * Finish gracefully.
@@ -144,6 +146,8 @@ Die ()
 /*
  * Send the kill command to the black box.
  */
+  	writeRats ("1", 1);
+	
 	writeRats (Shut_Down, 1);
 	sleep (2);
 /*
@@ -198,6 +202,20 @@ char	**argv;
 	ui_setup ("ac_ingest", &argc, argv, 0);
 	SetupIndirect ();
 	ds_Initialize ();
+/*
+ * Default values
+ */
+	BaudRate = 2400;
+	RangeRes = 0.125;	/* nautical miles	*/
+	AzimuthRes = 0.0875;	/* degrees		*/
+	RadarLat = 0.0;
+	RadarLon = 0.0;
+	AltMin = 0.0;	/* km */
+	AltMax = 25.0;	/* km */
+	LatMin = -90.0;
+	LatMax = 90.0;
+	LonMin = -180.0;
+	LonMax = 180.0;
 /*
  * Create and initialize a data chunk with one integer field (transponder code)
  */
@@ -491,7 +509,8 @@ Dial ()
 	sleep(2);
 #endif
 	/* sometimes helps to shut down the system first */
-  	/* writeRats (Shut_Down, 1);*/
+  	/* writeRats ("1", 1);
+  	writeRats (Shut_Down, 1);*/
 
 	/* tcflush (Fd, TCIOFLUSH);
 	sleep (2);*/
