@@ -35,6 +35,7 @@ struct operation
 # define  GOP_T_Y	 1		/* Y Position			*/
 # define  GOP_T_FONT	 2		/* Font number			*/
 # define  GOP_T_SCALE	 3		/* Scale, *100			*/
+# define  GOP_T_ROT	 4		/* Rotation in degrees (*100)	*/
 # define GOP_SETHCW	2	/* Set hardware clip window		*/
 # define  GOP_W_X0	 0		/* x0				*/
 # define  GOP_W_Y0	 1		/* y0				*/
