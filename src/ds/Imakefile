@@ -2,12 +2,15 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.14 1993-08-04 17:15:51 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.15 1993-08-12 18:25:01 granger Exp $"
 
-LIBS=$(LIBZEB) $(LIBNETCDF) $(LIBRDSS) $(LIBREGEXP)
-
-LIBGCC=/usr/local/lib/gcc-lib/sparc-sun-sunos4.1.2/2.2/libgcc.a
+LIBS=$(LIBZEB) $(LIBNETCDF) $(LIBRDSS)
+/**/#LIBGCC=/usr/local/lib/gcc-lib/sparc-sun-sunos4.1.2/2.2/libgcc.a
+/**/#LIBGCC=/locallib/gcc-lib/sparc-sun-sunos4.1/2.4.1/libgcc.a
+LIBGCC=/locallib/gcc-lib/sparc-sun-sunos4.1/2.4.5/libgcc.a
 CLIBS=$(LIBGCC)
+PROOF=/net/rsf_pkgs/CenterLine/bin/proof
+/* CCOPTIONS=-pipe -pg */
 
 /* 
  * DSOBJS, DSSRCS = Daemon-specific object modules 
@@ -58,7 +61,7 @@ HEADERS = DataStore.h DataChunk.h ingest.h fields.h ds_fields.h
 DISTFILES = Imakefile $(SRCS) $(PRIVATE_HEADERS) $(HEADERS) Daemon.state
 
 NormalProgramTarget(dsDaemon,$(DSOBJS) $(DSLIBOBJS) $(DCOBJS),
-		    $(DEPLIBS),$(LIBS) $(XLIBS),$(SYSLIBS))
+		    $(DEPLIBS),$(LIBS) $(XLIBS), /**/)
 
 UILoadFileTarget(dsDaemon.lf,Daemon.state)
 
@@ -77,6 +80,25 @@ BuildIncludes($(HEADERS),.,.)
 NormalProgramTarget (rfdump, rfdump.o, /**/, /**/, /**/)
 
 NormalProgramTarget (zfdump, zfdump.o, /**/, $(LIBZEB), /**/)
+
+/*
+ * Test routines.
+ */
+TestProgramTarget (nstest, nstest.o $(DSLIBOBJS) $(DCOBJS), $(DEPLIBS),
+		  $(LIBS), /**/)
+
+cc_nstest:: nstest.c $(DSLIBSRCS) $(DCSRCS)
+	# setopt ansi
+	# load $(ALLDEFINES) nstest.c  $(DSLIBSRCS) $(DCSRCS) \
+		$(DEPLIBS) $(LIBS) $(SYS_LIBRARIES)  \
+		$(EXTRA_LIBRARIES)   $(CLIBS)
+	# link
+
+nstest.tc:  nstest.o $(DSLIBOBJS) $(DCOBJS)  $(DEPLIBS)
+	$(RM) $@
+	$(PROOF) $(CC) -static -o $@  nstest.o $(DSLIBOBJS) $(DCOBJS) \
+		$(LDOPTIONS) $(LIBS) $(LDLIBS)   $(EXTRA_LOAD_FLAGS)
+
 
 /*
  * Saber stuff.  This is a bit complicated, depending on what you are
