@@ -28,8 +28,6 @@
 /*
  * Function prototypes
  */
-extern int ac_DisplayAxes FP(( ));
-extern void ac_GetComponentAxes FP((plot_description, char*, int[4]));
-extern int ac_QueryAxisState FP((plot_description,char*,int,char*));
-extern void ac_UpdateAxisState FP((plot_description,char*,int, char*,int*));
-extern int ac_AxisSide FP(( int ));
+extern void	ac_ResetAxes FP ((void));
+extern void	ac_PlotAxes FP ((char *));
+extern int	ac_AxisEnabled FP ((char *, AxisSide));

@@ -1,8 +1,8 @@
 /*
  * Axis control. 
  */
-static char *rcsid = "$Id: AxisControl.c,v 1.15 1993-11-15 22:42:16 burghart Exp $";
-/*		Copyright (C) 1987,88,89,90,91 by UCAR
+static char *rcsid = "$Id: AxisControl.c,v 1.16 1993-12-01 16:53:11 burghart Exp $";
+/*		Copyright (C) 1993 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
  *
@@ -38,985 +38,737 @@ static char *rcsid = "$Id: AxisControl.c,v 1.15 1993-11-15 22:42:16 burghart Exp
 # include "ui_date.h"
 # include "AxisControl.h"
 
+/*
+ * Convenient scratch string
+ */
+char	Scratch[200];
+
+/*
+ * How much space (in pixels) have we used on each side so far
+ */
+static int	SpaceUsed[NumSides];
 
 /*
  *  Static functions -- function prototypes
  */
-static void ac_GetAxisDescriptors FP((plot_description, char*, int, int,
-                       int*, int*,int*, int*, int*, float*, DataValPtr, 
-			float*, char*, char*, float*));
-static void ac_SetPrivateAxisDescriptors FP((plot_description, char*, int,
-                int,  int*, DataValPtr, int*, int*, int*, float*));
-static void ac_FormatLabel FP((DataValPtr, char*[], int*, int ));
-static void ac_ComputeAxisDescriptors FP((plot_description, char*, int, int));
-static int ac_DrawAxis FP((plot_description, char*, int, int, int));
-static void ac_GetLabel FP ((plot_description, char *, int, char *));
+static void	ac_GetAxisDescriptors FP ((char*, AxisSide, int*, float*, 
+					   float*, char*, char*, float*));
+static void	ac_FormatLabel FP ((DataValPtr, char*, char*));
+static void	ac_DrawAxis FP ((char*, AxisSide));
+static int	ac_LabelInfo FP ((DataValPtr, DataValPtr, float, float,
+				  DataValPtr, int*, int*));
+static double	ac_AutoTicInterval FP ((DataValPtr, DataValPtr));
+static void	ac_GetLabel FP ((char *, int, char *));
 
 
 
-int 
-ac_DisplayAxes ()
-/*
- * Display all axes of plot, fitting into allocated space on each side.
- */
-{
-    int 		ic,i;
-    char		side;
-    int 	        fitAxes = 0;
-    int			nextoffset = 0;
-    unsigned short	scalemode = 0;
-    static int		oldHeight = 0;
-    static int		oldncomps = 0;
-    static int          zlev = 0;
-    int		        ncomps = 0;
-    int			currentHeight = GWHeight(Graphics);
-    char		**comps;
-    int			computed;
-    char		datatype;
-    char		dim;
-    /*
-     * Get list of components and count them.
-     */
-    comps = pd_CompList(Pd);
-    for ( ic = 1; comps[ic]; ic++);
-    ncomps = ic-1;
-    /*
-     *  Compute the axes: i.e. determine font-size and tic-base.
-     *
-     *  If the Graphics widget has been resized, then the axes need to
-     *  re-computed and re-fitted as the fontscale is dependent upon 
-     *  the size of the Graphics widget.
-     *  Also, if there have been components added or deleted, the
-     *  axes need to be fitted.
-     */
-    if ( currentHeight != oldHeight || ncomps != oldncomps) fitAxes = 1;
-    for ( i = 0; i < 4; i++)
-    {
-	side = i == AXIS_BOTTOM ? 'b' :
-		i == AXIS_LEFT ? 'l' :
-		i == AXIS_RIGHT ? 'r' :
-		i == AXIS_TOP ? 't' : 'n' ;
-	nextoffset = 0;
-        for ( ic = 1; comps[ic]; ic++ )
-        {
-            if ( ac_PlotAxis( Pd, comps[ic], side ) )
-            {
-	        computed = ac_QueryAxisState(Pd,comps[ic],side,&datatype);
-	        if ( !computed || oldHeight != currentHeight || zlev != Zlevel )
-	        {
-		    ac_ComputeAxisDescriptors(Pd, comps[ic], side, datatype);
-		    computed = 1;
-		    ac_UpdateAxisState(Pd,comps[ic],side, NULL, &computed );
-	        }
-		dim = side == 'r' || side == 'l' ? 'y' : 'x' ;
-	        xy_GetScaleInfo(Pd,comps[ic],dim, &scalemode);
-		if ( fitAxes )
-		{
-		    ac_SetPrivateAxisDescriptors(Pd, comps[ic],side, datatype,
-			 &nextoffset,NULL,NULL,NULL, NULL,NULL);
-		}
-	    	nextoffset = ac_DrawAxis(Pd,comps[ic],side, datatype,scalemode);
-            }
-        }
-    }
-    oldHeight = GWHeight(Graphics);
-    oldncomps = ncomps;
-    zlev = Zlevel;
-}
-
-
-static void
-ac_FormatLabel( d1, string, nlab, dim )
-DataValPtr	d1;
-char		*string[];
-int		*nlab;
-int		dim;
-{
-    char	*lab[5];
-    char	tstring[80];
-    int		i;
-    *nlab = 1;
-    switch (d1->type)
-    {
-	case 'f':
-	    string[0] = (char*)calloc(80,sizeof(char));
-	    sprintf ( string[0], "%.2f",d1->val.f);
-	break;
-	case 'd':
-	    string[0] = (char*)calloc(80,sizeof(char));
-	    sprintf ( string[0], "%.2f",(double)(d1->val.d));
-	break;
-	case 'i':
-	    string[0] = (char*)calloc(80,sizeof(char));
-	    sprintf ( string[0], "%d",d1->val.i);
-	break;
-	case 't':
-	    TC_EncodeTime ( &(d1->val.t), TC_Full, tstring );
-	    *nlab = CommaParse( tstring, lab);
-	    for ( i = 0; i < *nlab; i++)
-	    {
-	        string[i] = (char*)calloc(80,sizeof(char));
-		strcpy( string[i], lab[i] );
-	    }
-	break;
-    }
-}
-
-static void
-ac_ComputeAxisDescriptors (pd, c, side, datatype )
-plot_description	pd;
-char			*c;
-char			side;
-char			datatype;
-{
-    DataValRec	min,max;
-    int		offset,maxWidth,maxHeight,nticLabel;
-    int		ticlen; 
-    float	ticInterval;
-    DataValRec	baseTic,ticLoc;
-    char	color[80],label[80];
-    float	fscale;
-    char	*ticLabel[2];
-    int		nlab;
-    int		maxDim = 80;
-    int		kk,x1,y1,x2,y2;
-    long	iVal,iBase;
-    float	drawGrid;
-    int		nint;
-    char	*flist[10];
-    char	fnames[80];
-    int		n;
-    unsigned short	scalemode = 0;
-
-    /*
-     *  Get parameters to use while computing the scale.
-     */
-    if ( side == 't' || side == 'b' )
-    {
-	if (pda_ReqSearch( pd, c, "x-field", NULL, fnames, SYMT_STRING))
-	    n = CommaParse ( fnames,flist );
-        xy_GetCurrentScaleBounds(pd,c,'x',datatype,&min,&max,
-				 n > 0 ? flist[0] : "");
-	xy_GetScaleInfo(pd,c,'x', &scalemode);
-	lc_ComputeZoom( &min, &max, 'x',scalemode);
-    }
-    else if ( side == 'r' || side == 'l' )
-    {
-	if (pda_ReqSearch( pd, c, "y-field", NULL, fnames, SYMT_STRING))
-	    n = CommaParse ( fnames,flist );
-        xy_GetCurrentScaleBounds(pd,c,'y',datatype,&min,&max,
-				 n > 0 ? flist[0] : "");
-	xy_GetScaleInfo(pd,c,'y', &scalemode);
-	lc_ComputeZoom( &min, &max, 'y',scalemode);
-    }
-
-    ac_GetAxisDescriptors( pd, c, side, datatype, &offset,
-		&maxWidth, &maxHeight, &nticLabel, &ticlen, &ticInterval,
-		&baseTic,&fscale, color, label, &drawGrid );
-    /*
-     * Now re-compute the private axis-descriptors;
-     */
-    baseTic.type = min.type;
-    switch ( min.type )
-    {
-	case 't':
-	{
-	    iVal = min.val.t.zt_Sec;
-	    nint = iVal/((long)ticInterval);
-	    baseTic.val.t.zt_Sec =  nint*((long)ticInterval) < iVal?
-		((long)(nint+1)) * (long)ticInterval :
-		((long)nint) * (long)ticInterval ;
-	    baseTic.val.t.zt_MicroSec = 0;
-	}
-	break;
-	case 'f':
-	{
-	    nint = (int)(min.val.f/ticInterval);
-	    baseTic.val.f = ((float)nint)*ticInterval < min.val.f ?
-		((float)(nint+1)) * ticInterval :
-		((float)nint) * ticInterval ;
-	}
-	break;
-    }
-    
-    /*
-     *  Loop on tic-labels to determine required space.
-     */
-    ticLoc = baseTic;
-    maxWidth = 0;
-    maxHeight = 0;
-    nticLabel = 0;
-    while ( lc_CompareData(&ticLoc,&max) <= 0 )
-    {
-	ac_FormatLabel ( &ticLoc, ticLabel, &nlab,maxDim );
-	for ( kk = 0; kk < nlab; kk++)
-	{
-            DT_TextBox ( Graphics, GWFrame(Graphics), 0,0,
-				ticLabel[kk], 0.0, fscale, 
-				JustifyLeft, JustifyTop, &x1,&y1,&x2,&y2);
-	    maxWidth = abs(x2-x1) > maxWidth ? abs(x2-x1) : maxWidth;
-	    maxHeight = abs(y2-y1) > maxHeight ? abs(y2-y1) : maxHeight;
-	    free(ticLabel[kk]);
-	}
-	nticLabel = nlab > nticLabel ? nlab : nticLabel;
-	lc_IncrData( &ticLoc, (double)ticInterval );
-    }
-    ac_SetPrivateAxisDescriptors(pd,c,side,datatype,
-		NULL,&baseTic,&maxHeight,&maxWidth, &nticLabel,&ticInterval);
-}
-
-static int
-ac_DrawAxis(pd,c,side,datatype,mode)
-plot_description	pd;
-char			*c;
-char			side, datatype;
-unsigned short		mode;
-{
-    DataValRec	min,max;
-    int		offset,maxWidth,maxHeight,maxLabel;
-    int		ticlen; 
-    float	ticInterval;
-    DataValRec	baseTic;
-    char	color[80],label[80];
-    float	fscale;
-    char	*ticLabel[2];
-    int		nlab, even;
-    int		maxDim = 80;
-    int		labelExtent;
-    int		kk;
-    DataValRec	ticLoc;
-    int		fit = 1;
-    int		xloc,yloc;
-    DataValRec	savemin, savemax;
-    int		axisSpaceHeight;
-    float	center;
-    int		axisSpaceWidth;
-    DataValRec	yOrig,xOrig;
-    DataValRec	umin,umax;
-    int		direction;
-    int		nextoffset = 0;
-    unsigned short xmode = 0,ymode = 0;
-    float	drawGrid;
-    XColor	mainPix, gridPix;
-    float	red,green,blue,hue,lightness,saturation;
-    int		x1,x2,y1,y2,n;
-    char	*flist[10];
-    char	fnames[80];
-    char	smin[80],smax[80];
-
-    if ( side == 't' || side == 'b' )
-    {
-	if (pda_ReqSearch( pd, c, "x-field", NULL, fnames, SYMT_STRING))
-	    n = CommaParse ( fnames,flist );
-        xy_GetCurrentScaleBounds(pd,c,'x',datatype,&min,&max,
-				 n > 0 ? flist[0] : "");
-    }
-    else if ( side == 'r' || side == 'l' )
-    {
-	if (pda_ReqSearch( pd, c, "y-field", NULL, fnames, SYMT_STRING))
-	    n = CommaParse ( fnames,flist );
-        xy_GetCurrentScaleBounds(pd,c,'y',datatype,&min,&max,
-				 n > 0 ? flist[0] : "");
-    }
-
-    ac_GetAxisDescriptors( pd, c, side, datatype, &offset,
-		&maxWidth, &maxHeight, &maxLabel, &ticlen, &ticInterval,
-		&baseTic,&fscale, color, label,&drawGrid );
-    XSetLineAttributes ( XtDisplay(Graphics), Gcontext, 0, LineSolid,
-		CapButt, JoinMiter);
-/*    SetColor(c,"axis-color",NULL,color);*/
-    if ( !ct_GetColorByName( color, &mainPix ) )
-    {
-	msg_ELog ( EF_PROBLEM, "Unknown axis color: %s", color );
-	ct_GetColorByName ( "white", &mainPix );
-    }
-    gridPix = mainPix;
-    
-    /*
-     * Compute the RGB values for the grid color intensity
-     */
-    if ( drawGrid > 0.0 && drawGrid < 1.0 )
-    {
-	gp_RGBtoHLS ((float)((double)mainPix.red /(double)65535), 
-		     (float)((double)mainPix.green /(double)65535),
-		     (float)((double)mainPix.blue /(double)65535), 
-		     &hue, &lightness, &saturation );
-	lightness = lightness * drawGrid;
-	gp_HLStoRGB ( &red, &green, &blue, hue, lightness, saturation );
-	gridPix.red = (short)((double)red * (double)65535);
-	gridPix.green = (short)((double)green * (double)65535);
-	gridPix.blue = (short)((double)blue * (double)65535);
-	ct_GetColorByRGB( &gridPix );
-    }
-    XSetForeground ( Disp, Gcontext, mainPix.pixel );
-	
-    msg_ELog ( EF_DEBUG,"Draw Axis: component = %s side = %c datatype = %c",
-		c,side,datatype);
-    switch (side)
-    {
-	case 't':
-	    direction = -1;
-	    axisSpaceHeight = abs((int)(GWHeight(Graphics)*AxisY1[AXIS_TOP]) -
-			(int)(GWHeight(Graphics)*AxisY0[AXIS_TOP]));
-	    lc_GetUserCoord (NULL,NULL,NULL,&yOrig,ymode);
-	    goto horizontal;
-	case 'b':
-	    direction = 1;
-	    axisSpaceHeight = (int)(GWHeight(Graphics)*AxisY1[AXIS_BOTTOM]) -
-			(int)(GWHeight(Graphics)*AxisY0[AXIS_BOTTOM]);
-	    lc_GetUserCoord (NULL,NULL,&yOrig,NULL,ymode);
-horizontal:
-	    xmode = mode;
-	   /*
-            * Set-up coordinate system.
-            */
-            lc_GetOrigCoord ( &savemin, &savemax, NULL, NULL);
-	    lc_SetUserCoord ( &min,&max, NULL,NULL);
-            lc_GetUserCoord ( &min,&max, NULL,NULL, xmode);
-            switch ( datatype )
-            {
-	        case 'f':
-                    msg_ELog ( EF_DEBUG,
-			"Draw Axis: component = %s x-min = %f x-max = %f",
-			c, min.val.f, max.val.f);
-	        break;
-	        case 't':
-	            TC_EncodeTime ( &(min.val.t), TC_Full, smin );
-	            TC_EncodeTime ( &(max.val.t), TC_Full, smax );
-                    msg_ELog ( EF_DEBUG,
-			"Draw Axis: component = %s x-min = %s x-max = %s",
-			c, smin, smax );
-	        break;
-            }
-
-	   /*
-            * Draw axis-line.
-            */
-	    XDrawLine( XtDisplay(Graphics), GWFrame(Graphics), Gcontext, 
-		devX(&min,xmode), devY(&yOrig,ymode) + direction*(offset), 
-		devX(&max,xmode), devY(&yOrig,ymode) + direction*(offset));
-
-	    labelExtent = xmode & INVERT ?
-		devX(&min,xmode) + abs((int)(GWWidth(Graphics)*AxisX1[AXIS_RIGHT]) -
-			(int)(GWWidth(Graphics)*AxisX0[AXIS_RIGHT])):
-		devX(&min,xmode) - abs((int)(GWWidth(Graphics)*AxisX1[AXIS_LEFT]) -
-			(int)(GWWidth(Graphics)*AxisX0[AXIS_LEFT]));
-	    /* 
-	     * Draw tic-marks and tic-labels
-	     */
-	    ticLoc = baseTic;
-	    while ( lc_CompareData(&ticLoc,&max) <= 0 )
-	    {
-		if ( ticlen > axisSpaceHeight )
-		{
-		    fit = 0;
-		    break;
-		}
-		else
-		{
-
-		  /* 
-		   * Check for tic label to fit in given space 
-		   */
-		  if ( (maxHeight+2)* maxLabel > axisSpaceHeight - ticlen )
-		  {
-		    fit = 0;
-		    break;
-		  }
-		  else
-		  {
-		    xloc = devX(&ticLoc,xmode);
-		    /*
-		     *  Make sure tic - labels don't over-lap
-		     */
-		    if ( xmode & INVERT ? xloc + (maxWidth/2) < labelExtent :
-				xloc - (maxWidth/2) > labelExtent )
-		    {
-		        ac_FormatLabel ( &ticLoc, ticLabel, &nlab,maxDim );
-		        yloc = devY(&yOrig,ymode) + direction*(offset + ticlen + 2);
-		        kk = direction > 0 ? 0 : nlab-1; 
-		        fit = 1;
-		        while( direction > 0 ? kk < nlab: kk >= 0 )
-		        {
-		    	    XDrawLine( XtDisplay(Graphics), 
-			    	GWFrame(Graphics), Gcontext, 
-			    	devX(&ticLoc,xmode), 
-				devY(&yOrig,ymode) + direction*(offset), 
-			    	devX(&ticLoc,xmode), 
-			    	devY(&yOrig,ymode) + direction*(offset + ticlen));
-			    if ( drawGrid > 0.0 )
-			    {
-				lc_GetUserCoord(NULL, NULL, &umin,&umax, ymode);
-    				XSetForeground ( Disp, Gcontext, gridPix.pixel);
-		    	        XDrawLine( XtDisplay(Graphics), 
-			    	    GWFrame(Graphics), Gcontext, 
-			    	    devX(&ticLoc,xmode), 
-				    devY(&umax,ymode) , 
-			    	    devX(&ticLoc,xmode), 
-			    	    devY(&umin,ymode) );
-    				XSetForeground ( Disp, Gcontext, mainPix.pixel);
-			    }
-		            DrawText ( Graphics, GWFrame(Graphics), 
-				    Gcontext, xloc, yloc,
-				    ticLabel[kk], 0.0,fscale, 
-				    JustifyCenter, 
-				    direction > 0 ? JustifyTop : JustifyBottom);
-			    free(ticLabel[kk]);
-			    kk += direction;
-			    yloc += direction*(maxHeight + 2);
-		        }
-			labelExtent = xmode & INVERT ? xloc - maxWidth/2 :
-				xloc + maxWidth/2 ;
-		    }
-		    else
-		    {
-		        XDrawLine( XtDisplay(Graphics), 
-			    GWFrame(Graphics), Gcontext, 
-			    devX(&ticLoc,xmode), devY(&yOrig,ymode) + direction*(offset), 
-			    devX(&ticLoc,xmode), 
-			    devY(&yOrig,ymode) + direction*(offset + ticlen/2));
-		    }
-		  }
-		}
-		    
-		lc_IncrData( &ticLoc, (double)(ticInterval) );
-	    }
-	    nextoffset = offset + ticlen + (maxHeight+2)*maxLabel + 2;
-	    /*
-	     * Now draw the axis label
-	     */
-	    xloc = xmode & INVERT ? devX(&max,xmode) + 
-			(abs(devX(&min,xmode) - devX(&max,xmode)))/2:
-	    	devX(&min,xmode) + 
-			(abs(devX(&min,xmode) - devX(&max,xmode)))/2;
-	    yloc = devY(&yOrig,ymode) + direction*(nextoffset); 
-            DrawText ( Graphics, GWFrame(Graphics), 
-		    Gcontext, xloc, yloc, label, 0.0,fscale, 
-		    JustifyCenter, direction > 0 ? JustifyTop : JustifyBottom);
-	    nextoffset = nextoffset + maxHeight + 2;
-	    lc_SetUserCoord ( &savemin,&savemax, NULL,NULL);
-	break;
-	case 'r':
-	    direction = 1;
-	    axisSpaceWidth = abs((int)(GWWidth(Graphics)*AxisX1[AXIS_RIGHT]) -
-			(int)(GWWidth(Graphics)*AxisX0[AXIS_RIGHT]));
-	    lc_GetUserCoord (NULL,&xOrig,NULL,NULL,xmode);
-	    goto vertical;
-	case 'l':
-	    direction = -1;
-	    axisSpaceWidth = abs((int)(GWWidth(Graphics)*AxisX1[AXIS_LEFT]) -
-			(int)(GWWidth(Graphics)*AxisX0[AXIS_LEFT]));
-	    lc_GetUserCoord (&xOrig,NULL,NULL,NULL,xmode);
-vertical:
-	    ymode = mode;
-	   /*
-            * Set-up coordinate system.
-            */
-            lc_GetOrigCoord ( NULL,NULL, &savemin, &savemax );
-	    lc_SetUserCoord ( NULL,NULL,&min,&max );
-	    lc_GetUserCoord ( NULL,NULL,&min,&max, ymode );
-            switch ( datatype )
-            {
-	        case 'f':
-                    msg_ELog ( EF_DEBUG,
-			"Draw Axis: component = %s y-min = %f y-max = %f",
-			c, min.val.f, max.val.f);
-	        break;
-	        case 't':
-	            TC_EncodeTime ( &(min.val.t), TC_Full, smin );
-	            TC_EncodeTime ( &(max.val.t), TC_Full, smax );
-                    msg_ELog ( EF_DEBUG,
-			"Draw Axis: component = %s y-min = %s y-max = %s",
-			c, smin, smax );
-	        break;
-            }
-
-	   /*
-            * Draw axis-line.
-            */
-	    XDrawLine( XtDisplay(Graphics), GWFrame(Graphics), Gcontext, 
-			devX(&xOrig,xmode)+direction*(offset), devY(&min,ymode), 
-			devX(&xOrig,xmode)+direction*(offset), devY(&max,ymode));
-
-	    labelExtent = devY(&min,ymode);
-	    labelExtent = ymode & INVERT ?
-		devY(&min,ymode) - 
-		  abs((int)(GWHeight(Graphics)*AxisY1[AXIS_TOP]) -
-			(int)(GWHeight(Graphics)*AxisY0[AXIS_TOP])):
-		devY(&min,ymode) + 
-		  abs((int)(GWHeight(Graphics)*AxisY1[AXIS_BOTTOM]) -
-			(int)(GWHeight(Graphics)*AxisY0[AXIS_BOTTOM]));
-	    /* 
-	     * Draw tic-marks and tic-labels
-	     */
-	    ticLoc = baseTic;
-	    while ( lc_CompareData(&ticLoc,&max) <= 0 )
-	    {
-		if ( ticlen > axisSpaceWidth )
-		{
-		    fit = 0;
-		    break;
-		}
-		else
-		{
-		  /* 
-		   * Check for tic label to fit in given space 
-		   */
-		  if ( maxWidth > axisSpaceWidth - ticlen )
-		  {
-		    fit = 0;
-		    break;
-		  }
-		  else
-		  {
-		    ac_FormatLabel ( &ticLoc, ticLabel, &nlab,maxDim );
-		    xloc = devX(&xOrig,xmode) + direction*(offset + ticlen + 2);
-		    xloc = xloc + direction*(maxWidth/2);
-                    center = (float)(nlab-1)/2.0;
-                    even = nlab%2 ? 0 : 1;
-		    for ( kk = nlab-1; kk >= 0; kk--)
-		    {
-			yloc = devY(&ticLoc,ymode) -
-                            (center-(float)(kk))*(maxHeight+1);
-
-		        if ( ((yloc+maxHeight/2) < labelExtent && 
-					!(ymode & INVERT)) ||
-			       ((yloc-maxHeight/2) > labelExtent && 
-					 (ymode &INVERT)) )
-		        {
-		    	    XDrawLine( XtDisplay(Graphics), 
-			    	GWFrame(Graphics), Gcontext, 
-			    	devX(&xOrig,xmode) + direction*(offset), 
-			    	devY(&ticLoc,ymode), 
-			    	devX(&xOrig,xmode) + direction*(offset+ticlen), 
-			    	devY(&ticLoc,ymode));
-			    if ( drawGrid > 0.0 )
-			    {
-				lc_GetUserCoord(&umin,&umax, NULL, NULL, xmode);
-    				XSetForeground ( Disp, Gcontext, gridPix.pixel);
-		    	        XDrawLine( XtDisplay(Graphics), 
-			    	    GWFrame(Graphics), Gcontext, 
-			    	    devX(&umin,xmode) , 
-			    	    devY(&ticLoc,ymode), 
-			    	    devX(&umax,xmode) , 
-			    	    devY(&ticLoc,ymode));
-    				XSetForeground ( Disp, Gcontext, mainPix.pixel);
-			    }
-		            DrawText ( Graphics, GWFrame(Graphics), 
-				    Gcontext, xloc, yloc,
-				    ticLabel[kk], 0.0,fscale, 
-				    JustifyCenter, JustifyCenter);
-			        if(direction > 0 ? kk==nlab-1 : kk==0)
-				    labelExtent = ymode & INVERT ? 
-					yloc+maxHeight/2 : 
-					yloc-maxHeight/2;
-		        }
-			else
-			{
-		    	    XDrawLine( XtDisplay(Graphics), 
-			    	GWFrame(Graphics), Gcontext, 
-			    	devX(&xOrig,xmode) + direction*(offset), 
-			    	devY(&ticLoc,ymode), 
-			    	devX(&xOrig,xmode) + direction*(offset+ticlen/2), 
-			    	devY(&ticLoc,ymode));
-			}
-			free(ticLabel[kk]);
-			yloc += direction*(maxHeight + 2);
-		    }
-		  }
-		}
-		    
-		lc_IncrData( &ticLoc, (double)(ticInterval) );
-	    }
-	    nextoffset = offset + ticlen + maxWidth + 2;
-	    /*
-	     * Now draw the axis label
-	     */
-	    yloc = ymode & INVERT ? devY(&min,ymode) + 
-			(abs(devY(&min,ymode) - devY(&max,ymode)))/2:
-	    	devY(&max,ymode) + 
-			(abs(devY(&min,ymode) - devY(&max,ymode)))/2;
-	    xloc = devX(&xOrig,xmode) + direction*(nextoffset); 
-            DrawText ( Graphics, GWFrame(Graphics), 
-		    Gcontext, xloc, yloc, label, direction > 0 ? -90.0 :90.0,
-		    fscale, JustifyCenter, JustifyBottom);
-
-	    /*
-	     * Because the (rotated)title text will be stroked, it's size might
-	     * differ from the label text so test to see how tall it really is
-	     * to compute next offset
-	     */
-            DT_TextBox ( Graphics, GWFrame(Graphics), 0, 0, 
-		    label, direction > 0 ? -90.0 :90.0,
-		    fscale, JustifyCenter, JustifyBottom,&x1,&y1,&x2,&y2);
-	    nextoffset = nextoffset + abs(x1-x2) + 2;
-	    lc_SetUserCoord ( NULL,NULL,&savemin,&savemax);
-	break;
-
-    }
-    if ( !fit )
-    {
-        msg_ELog (EF_PROBLEM,"Not enough space for axis: %s on side: %c",
-	flist[0],side);
-    }
-    ResetGC();
-    return(nextoffset);
-}
-
-int
-ac_QueryAxisState (pd,c,side,datatype)
-plot_description	pd; /* input */
-char			*c; /* input */
-char			side; /* input */
-char			*datatype; /*return*/
-{
-    char	keyword[80];
-    int		computed = 0;
-    char	dtype[3];
-
-    *datatype = 'n';
-    strcpy(keyword, "private-axis-");
-    keyword[13] = side;
-    keyword[14] = '\0';
-    strcat(keyword, "-computed");
-    if (! pda_Search (pd, c, keyword, NULL, (char *)&computed, SYMT_INT))
-    {
-	computed = 0;
-    }
-
-    strcpy(keyword, "private-axis-");
-    keyword[13] = side;
-    keyword[14] = '\0';
-    strcat(keyword, "-datatype");
-    if (  pda_Search (pd, c, keyword, NULL, dtype, SYMT_STRING) )
-    {
-	*datatype = dtype[0];
-    }
-
-    return ( computed );
-}
 
 void
-ac_UpdateAxisState(pd,c,side, datatype, computed )
-plot_description	pd;
-char	*c;
-char	side;
-char	*datatype;
-int	*computed;
+ac_ResetAxes ()
+/*
+ * Reset for drawing new axes
+ */
 {
-    char	keyword[80];
-    char	dtype[3];
+	AxisSide	side;
+	
+	for (side = 0; side < NumSides; side++)
+		SpaceUsed[side] = 0;
+}
 
-    if ( computed )
-    {
-        strcpy(keyword, "private-axis-");
-        keyword[13] = side;
-        keyword[14] = '\0';
-        strcat(keyword, "-computed");
-        pd_Store (pd,c,keyword,(char *)computed, SYMT_INT);
-    }
 
-    if ( datatype )
+
+
+void
+ac_PlotAxes (c)
+char	*c;
+/*
+ * Actually plot the axes for all sides
+ */
+{
+	AxisSide	side;
+	/*
+	 * Loop through the sides
+	 */
+	for (side = 0; side < NumSides; side++)
+	{
+		if (ac_AxisEnabled (c, side))
+			ac_DrawAxis (c, side);
+	}
+}
+
+	
+
+
+static void
+ac_FormatLabel (v, string1, string2)
+DataValPtr	v;
+char		*string1, *string2;
+/*
+ * Encode the value from v into string1.  For time values, put the date into
+ * string1 and the time into string2.
+ */
+{
+    switch (v->type)
     {
-        dtype[0] = datatype[0];
-        dtype[1] = '\0';
-        strcpy(keyword, "private-axis-");
-        keyword[13] = side;
-        keyword[14] = '\0';
-        strcat(keyword, "-datatype");
-        pd_Store (pd,c,keyword,dtype, SYMT_STRING);
+	case 'f':
+	    sprintf (string1, "%.2f", v->val.f);
+	    break;
+	case 'd':
+	    sprintf (string1, "%.2f", (double) (v->val.d));
+	    break;
+	case 'i':
+	    sprintf (string1, "%d", v->val.i);
+	    break;
+	case 't':
+	    TC_EncodeTime (&(v->val.t), TC_DateOnly, string1);
+	    TC_EncodeTime (&(v->val.t), TC_TimeOnly, string2);
+	    break;
     }
 }
-int
-ac_PlotAxis(pd, c, side)
-plot_description pd; /* input */
-char    *c;          /* input */
-char	side;
+
+
+
+
+static void
+ac_DrawAxis (c, side)
+char		*c;
+AxisSide	side;
+/*
+ * Draw the axis for the given component and side.
+ */
 {
-    bool plot=FALSE;
-    char ptype[32];
-    if ( !pda_Search (pd, "global", "plot-type", NULL, ptype,SYMT_STRING)||
-	 strcmp(ptype,"xygraph") != 0)
+    int		ticlen, maxHeight, maxWidth, edge, fit = TRUE, inverted;
+    int		xloc, yloc, axisSpaceHeight, axisSpaceWidth;
+    int		yOrig, xOrig, direction, totalHeight;
+    char	color[32], label[80], ticLabel[20], ticLabel2[20];
+    float	ticInterval, fscale, drawGrid;
+    float	red, green, blue, hue, lightness, sat;
+    DataValRec	ticLoc, min, max, val0, val1;
+    XColor	mainPix, gridPix;
+/*
+ * Get the axis drawing details from the plot description
+ */
+    ac_GetAxisDescriptors (c, side, &ticlen, &ticInterval, &fscale, color, 
+			   label, &drawGrid);
+
+    if (!ct_GetColorByName (color, &mainPix))
     {
-	return(0);
+	msg_ELog (EF_PROBLEM, "Unknown axis color '%s', using white", color);
+	ct_GetColorByName ("white", &mainPix);
     }
-    switch ( side )
+
+    XSetForeground (Disp, Gcontext, mainPix.pixel);
+/*
+ * Compute the RGB values for the grid color (which is just the axis color
+ * modified to have a different intensity)
+ */
+    gridPix = mainPix;
+
+    if (drawGrid > 0.0 && drawGrid < 1.0)
     {
-	case 'b':
-    	    if ( !pda_Search (pd, c, "axis-bottom", "xy",
-                (char *)&plot, SYMT_BOOL))
-    	    {
-        	plot = 1;
-    	    }
-	break;
-	case 't':
-    	    if ( !pda_Search (pd, c, "axis-top", "xy",
-                (char *)&plot, SYMT_BOOL))
-    	    {
-        	plot = 0;
-    	    }
-	break;
-	case 'r':
-    	    if ( !pda_Search (pd, c, "axis-right", "xy",
-                (char *)&plot, SYMT_BOOL))
-    	    {
-        	plot = 0;
-    	    }
-	break;
-	case 'l':
-    	    if ( !pda_Search (pd, c, "axis-left", "xy",
-                (char *)&plot, SYMT_BOOL))
-    	    {
-        	plot = 1;
-    	    }
-	break;
+	pp_RGBtoHLS ((float) mainPix.red / 65535.0, 
+		     (float) mainPix.green / 65535.0,
+		     (float) mainPix.blue / 65535.0, 
+		     &hue, &lightness, &sat);
+
+	pp_HLStoRGB (&red, &green, &blue, hue, lightness * drawGrid, sat);
+
+	gridPix.red = (short) (red * 65535);
+	gridPix.green = (short) (green * 65535);
+	gridPix.blue = (short) (blue * 65535);
+
+	ct_GetColorByRGB (&gridPix);
     }
+/*
+ * Starting pixel location and user coordinate bounds
+ */	
+    switch (side)
+    {
+	case SideTop:
+	    direction = -1;
+            lc_GetUserCoord (&val0, &val1, NULL, NULL);
+	    yOrig = (1.0 - AxisY0[SideTop]) * GWHeight (Graphics) - 
+		    SpaceUsed[SideTop];
+	    break;
+	case SideBottom:
+	    direction = 1;
+            lc_GetUserCoord (&val0, &val1, NULL, NULL);
+	    yOrig = (1.0 - AxisY1[SideBottom]) * GWHeight (Graphics) + 
+		    SpaceUsed[SideBottom];
+	    break;
+	case SideRight:
+	    direction = 1;
+            lc_GetUserCoord (NULL, NULL, &val0, &val1);
+	    xOrig = AxisX0[SideRight] * GWWidth (Graphics) + 
+		    SpaceUsed[SideRight];
+	    break;
+	case SideLeft:
+	    direction = -1;
+            lc_GetUserCoord (NULL, NULL, &val0, &val1);
+	    xOrig = AxisX1[SideLeft] * GWWidth (Graphics) -
+		    SpaceUsed[SideLeft];
+	    break;
+    }
+/*
+ * Find the min and max ends of the bounds
+ */
+    inverted = (lc_CompareData (&val0, &val1) > 0);
+    
+    max = inverted ? val0 : val1;
+    min = inverted ? val1 : val0;
+/*
+ * Generate auto tic interval if necessary
+ */
+    if (ticInterval == 0.0)
+	    ticInterval = (float) ac_AutoTicInterval (&min, &max);
+/*
+ * Get max label sizes and the location for the first tic
+ */
+    ac_LabelInfo (&min, &max, ticInterval, fscale, &ticLoc, &maxHeight, 
+		  &maxWidth);
+/*
+ * For time axes, we break tic labels onto two lines, so
+ * the total height is actually bigger than maxHeight (the
+ * maximum height of a single label)
+ */
+    totalHeight = (ticLoc.type == 't') ? maxHeight * 2 + 2 : maxHeight;
+/*
+ * Now do the work, based on the side
+ */    
+    switch (side)
+    {
+    /*
+     * Bottom or top axis
+     */
+	case SideBottom:
+	case SideTop:
+	    /*
+	     * How much space for the axis?	
+	     */
+	    axisSpaceHeight = (int) (GWHeight (Graphics) * 
+				     (AxisY1[side] - AxisY0[side]));
+	    /*
+	     * Draw axis line
+	     */
+	    XDrawLine (XtDisplay (Graphics), GWFrame (Graphics), Gcontext,
+		       devX (&min), yOrig, devX (&max), yOrig);
+	    /*
+	     * Set the edge pixel that the next tic label shouldn't cross
+	     */
+	    edge = inverted ? AxisY1[SideRight] * GWWidth (Graphics) : 0;
+	    /* 
+	     * Draw tic marks and tic labels
+	     */
+	    while (lc_CompareData (&ticLoc, &max) <= 0)
+	    {
+		/*
+		 * Will this stuff be too tall?
+		 */
+		if (totalHeight + ticlen + 2 > axisSpaceHeight)
+		{
+		    fit = FALSE;
+		    break;
+		}
+		/*
+		 * Put a full tic and a label here if we're far enough from 
+		 * the previous one
+		 */
+		xloc = devX (&ticLoc);
+
+		if (abs (xloc - edge) >= maxWidth / 2)
+		{
+		    /*
+		     * Draw the tic
+		     */
+		    XDrawLine (XtDisplay (Graphics), GWFrame (Graphics), 
+			       Gcontext, xloc, yOrig, xloc, 
+			       yOrig + direction * ticlen);
+		    /*
+		     * Draw a grid line if we're doing a grid
+		     */
+		    if (drawGrid > 0.0)
+		    {
+			XSetForeground (Disp, Gcontext, gridPix.pixel);
+			XDrawLine (XtDisplay (Graphics), GWFrame (Graphics), 
+				   Gcontext, 
+				   xloc, (1.0 - FY0) * GWHeight (Graphics), 
+				   xloc, (1.0 - FY1) * GWHeight (Graphics));
+			XSetForeground (Disp, Gcontext, mainPix.pixel);
+		    }
+		    /*
+		     * Draw the tic label
+		     */
+		    ac_FormatLabel (&ticLoc, ticLabel, ticLabel2);
+
+		    yloc = yOrig + direction * (ticlen + 2);
+
+		    DrawText (Graphics, GWFrame (Graphics), Gcontext, xloc, 
+			      yloc, ticLabel, 0.0, fscale, JustifyCenter, 
+			      direction > 0 ? JustifyTop : JustifyBottom);
+		    /*
+		     * Draw the second tic label if it's a time axis
+		     */
+		    if (ticLoc.type == 't')
+		    {
+			yloc += direction * (maxHeight + 2);
+
+			DrawText (Graphics, GWFrame (Graphics), Gcontext, xloc,
+				  yloc, ticLabel2, 0.0, fscale, JustifyCenter, 
+				  direction > 0 ? JustifyTop : JustifyBottom);
+		    }
+		    /*
+		     * Move the edge defining where we allow the next tic label
+		     */
+		    edge = (xloc < edge) ? 
+			    xloc - 5 - maxWidth / 2 : xloc + 5 + maxWidth / 2;
+	    	}
+		/*
+		 * Otherwise, just put in a half tic
+		 */
+		else
+		    XDrawLine (XtDisplay (Graphics), GWFrame (Graphics), 
+			       Gcontext, xloc, yOrig, xloc, 
+			       yOrig + direction * (ticlen / 2));
+		/*
+		 * Next tic location
+		 */
+		lc_IncrData (&ticLoc, (double) (ticInterval));
+	    }
+	    /*
+	     * Keep track of how much space we've used in the axis area
+	     */
+	    if (fit)
+		    SpaceUsed[side] += ticlen + totalHeight + 2;
+	    /*
+	     * Now draw the axis label, if any
+	     */
+	    if (fit && label[0] != '\0')
+	    {
+		    xloc = 0.5 * (FX1 + FX0) * GWWidth (Graphics);
+		    yloc += direction * (maxHeight + 2);
+		    DrawText (Graphics, GWFrame (Graphics), Gcontext, xloc, 
+			      yloc, label, 0.0, fscale, JustifyCenter,
+			      direction > 0 ? JustifyTop : JustifyBottom);
+
+		    SpaceUsed[side] += maxHeight + 2;
+	    }
+	    /*
+	     * Done with bottom or top axis
+	     */
+	    break;
+	/*
+	 * Left or right axis
+	 */
+	case SideLeft:
+	case SideRight:
+	    /*
+	     * How much space for the axis?	
+	     */
+	    axisSpaceWidth = (int) (GWWidth (Graphics) * 
+				    (AxisX1[side] - AxisX0[side]));
+	    /*
+	     * Draw axis line
+	     */
+	    XDrawLine (XtDisplay (Graphics), GWFrame (Graphics), Gcontext, 
+		       xOrig, devY (&min), xOrig, devY (&max));
+	    /*
+	     * Set the edge pixel that the next tic label shouldn't cross
+	     */
+	    edge = inverted ? (1.0 - AxisY1[SideTop]) * GWHeight (Graphics) :
+		    (1.0 - AxisY0[SideBottom]) * GWHeight (Graphics);
+	    /* 
+	     * Draw tic marks and tic labels
+	     */
+	    while (lc_CompareData (&ticLoc, &max) <= 0)
+	    {
+		/*
+		 * Too wide?
+		 */
+		if ((ticlen + maxWidth + 2) > axisSpaceWidth)
+		{
+		    fit = FALSE;
+		    break;
+		}
+		/*
+		 * Put a full tic and a label here if we're far enough from 
+		 * the previous one
+		 */
+		yloc = devY (&ticLoc);
+
+		if (abs (yloc - edge) >= totalHeight / 2)
+		{
+		    /*
+		     * Draw the tic
+		     */
+		    XDrawLine (XtDisplay (Graphics), GWFrame (Graphics), 
+			       Gcontext, xOrig, yloc, 
+			       xOrig + direction * ticlen, yloc);
+		    /*
+		     * Draw a grid line if we're doing a grid
+		     */
+		    if (drawGrid > 0.0)
+		    {
+			XSetForeground (Disp, Gcontext, gridPix.pixel);
+			XDrawLine (XtDisplay (Graphics), GWFrame (Graphics), 
+				   Gcontext, FX0 * GWWidth (Graphics), yloc, 
+				   FX1 * GWWidth (Graphics), yloc);
+			XSetForeground (Disp, Gcontext, mainPix.pixel);
+		    }
+		    /*
+		     * Adjust the label location a bit for times, since
+		     * we'll be writing two labels
+		     */
+		    if (ticLoc.type == 't')
+			    yloc -= maxHeight / 2 + 1;
+		    /*
+		     * Draw the tic label
+		     */
+		    ac_FormatLabel (&ticLoc, ticLabel, ticLabel2);
+
+		    xloc = xOrig + direction * (ticlen + 2 + maxWidth / 2);
+
+		    DrawText (Graphics, GWFrame (Graphics), Gcontext,
+			      xloc, yloc, ticLabel, 0.0, fscale, 
+			      JustifyCenter, JustifyCenter);
+		    /*
+		     * Draw the second tic label if it's a time axis
+		     */
+		    if (ticLoc.type == 't')
+		    {
+			yloc += maxHeight + 2;
+
+			DrawText (Graphics, GWFrame (Graphics), Gcontext,
+				  xloc, yloc, ticLabel2, 0.0, fscale,
+				  JustifyCenter, JustifyCenter);
+		    }
+		    /*
+		     * Move the edge defining where we allow the next tic label
+		     */
+		    edge = (yloc < edge) ? yloc - 5 - totalHeight / 2 : 
+			    yloc + 5 + totalHeight / 2;
+	    	}
+		/*
+		 * Otherwise, just put in a half tic
+		 */
+		else
+		    XDrawLine (XtDisplay (Graphics), GWFrame (Graphics), 
+			       Gcontext, xOrig, yloc, 
+			       xOrig + direction * ticlen / 2, yloc);
+		/*
+		 * Next tic location
+		 */
+		lc_IncrData (&ticLoc, (double) (ticInterval));
+	    }
+	    /*
+	     * Keep track of how much space we've used in the axis area
+	     */
+	    if (fit)
+		    SpaceUsed[side] += ticlen + maxWidth + 4;
+	    /*
+	     * Now draw the axis label, if any
+	     */
+	    if (fit && label[0] != '\0')
+	    {
+		yloc = (1.0 - 0.5 * (FY0 + FY1)) * GWHeight (Graphics);
+		xloc = xOrig + direction * (ticlen + maxWidth + 2); 
+		DrawText (Graphics, GWFrame (Graphics), Gcontext, xloc, yloc,
+			  label, direction > 0 ? -90.0 : 90.0, fscale,
+			  JustifyCenter, JustifyBottom);
+
+		SpaceUsed[side] += maxHeight + 2;
+	    }
+	    /*
+	     * Done with bottom or top axis
+	     */
+	    break;
+    }
+
+    if (! fit)
+        msg_ELog (EF_PROBLEM, "Can't fit %s axis for component %s",
+		  SIDE_NAME (side), c);
+
+    ResetGC ();
+    return;
+}
+
+
+
+
+static int
+ac_LabelInfo (min, max, step, fontscale, firstTic, maxHeight, maxWidth)
+DataValPtr	min, max, firstTic;
+float		step, fontscale;
+int		*maxHeight, *maxWidth;
+/*
+ * Given the min, max, step, and font scale, return the first tic 
+ * location and the maximum width and height of the resulting tic labels.
+ */
+{
+	DataValRec	lastTic;
+	float		diff;
+	int		idiff, width, height, x1, x2, y1, y2, i;
+	char		label1[16], label2[16];
+	/*
+	 * Start by finding the location of the first and last tics
+	 */
+	*firstTic = *min;
+	lastTic = *max;
+
+	switch (firstTic->type)
+	{
+	    case 't':
+		if ((idiff = firstTic->val.t.zt_Sec % (int) step) != 0)
+			firstTic->val.t.zt_Sec += (int)(step - idiff);
+
+		lastTic.val.t.zt_Sec -= lastTic.val.t.zt_Sec % (int) step;
+
+		break;
+	    case 'f':
+		diff = fmod (firstTic->val.f, step);
+		if (diff > 0)
+			firstTic->val.f += step - diff;
+		else if (diff < 0)
+			firstTic->val.f -= diff;
+
+		diff = fmod (lastTic.val.f, step);
+		if (diff > 0)
+			lastTic.val.f -= diff;
+		else if (diff < 0)
+			lastTic.val.f -= (step + diff);
+		
+		break;
+	}
+	/*
+	 * Now find the maximum label sizes, making the assumption that the
+	 * biggest labels will occur either at the first or the last tic.
+	 */
+	*maxHeight = *maxWidth = 0;
+
+	for (i = 0; i < 2; i++)
+	{
+		/*
+		 * Get the label(s) for the appropriate tic
+		 */
+		if (i == 0)
+			ac_FormatLabel (firstTic, label1, label2);
+		else
+			ac_FormatLabel (&lastTic, label1, label2);
+		/*
+		 * Test on the first label
+		 */
+		DT_TextBox (Graphics, GWFrame (Graphics), 0, 0, label1, 0.0,
+			    fontscale, JustifyLeft, JustifyTop, &x1, &y1, &x2, 
+			    &y2);
+
+		width = abs (x2 - x1);
+		height = abs (y2 - y1);
+		
+		*maxWidth = width > *maxWidth ? width : *maxWidth;
+		*maxHeight = height > *maxHeight ? height : *maxHeight;
+		/*
+		 * We have a second label to test for time variables
+		 */
+		if (firstTic->type == 't')
+		{
+			DT_TextBox (Graphics, GWFrame (Graphics), 0, 0, 
+				    label1, 0.0, fontscale, JustifyLeft, 
+				    JustifyTop, &x1, &y1, &x2, &y2);
+
+			width = abs (x2 - x1);
+			height = abs (y2 - y1);
+		
+			*maxWidth = width > *maxWidth ? width : *maxWidth;
+			*maxHeight = height > *maxHeight ? height : *maxHeight;
+		}
+	}
+}
+
+
+
+
+int
+ac_AxisEnabled (c, side)
+char    *c;
+AxisSide	side;
+{
+    bool plot;
+/*
+ * By default, we put an axis on the bottom and on the left
+ */
+    plot = (side == SideBottom || side == SideLeft);
+/*
+ * Of course, we get the last word from the plot description
+ */
+    sprintf (Scratch, "axis-%s", SIDE_NAME (side));
+    pda_Search (Pd, c, Scratch, "xy", (char *) &plot, SYMT_BOOL);
+
     return (plot);
 }
 
+
+
+
 static void
-ac_GetAxisDescriptors( pd, c, side, datatype,
-                       offset, tlabelWidth,tlabelHeight, nticLabel,
-                       ticlen, ticInterval,baseTic,fontScale, color, label,
-                       drawGrid)
-plot_description pd; /* input */
-char    *c;          /* input */
-char    side;        /* input */
-char    datatype;    /* input */
-int     *offset;
-int     *tlabelWidth,*tlabelHeight;
-int     *nticLabel;
-int     *ticlen;
-float   *ticInterval;
-DataValPtr      baseTic;
-float   *fontScale;
-char    *color;
-char    *label;
+ac_GetAxisDescriptors (c, side, ticLen, ticInterval, fontScale, color, label, 
+		       drawGrid)
+char    *c;
+AxisSide	side;
+int     *ticLen;
+float   *ticInterval, *fontScale;
+char    *color, *label;
 float   *drawGrid;
+/*
+ * Return axis info from the plot description for the given component and side.
+ */
 {
-    char        keyword[80];
-    char        string[80];
-    /*
-     * Get the user-settable axis descriptors
-     */
-    if ( color )
-    {
-        strcpy(keyword, "axis-");
-        keyword[5] = side;
-        keyword[6] = '\0';
-        strcat(keyword, "-color");
-        if (! pda_Search (pd, c, keyword, "xy", (char *)color, SYMT_STRING))
-        {
-            strcpy(color,"white");
-        }
-    }
-    if (label)
-	    ac_GetLabel (pd, c, side, label);
+	char	tstep[20], sideletter, type;
+	DataValRec	val;
+/*
+ * Get the side identification letter for our PD parameter lookups
+ */
+	sideletter = SIDE_LETTER (side);
+/*
+ * axis color
+ */
+	strcpy (color, "white");
+	sprintf (Scratch, "axis-%c-color", sideletter);
+	pda_Search (Pd, c, Scratch, "xy", (char *) color, SYMT_STRING);
+/*
+ * axis label
+ */
+	ac_GetLabel (c, side, label);
+/*
+ * tic length
+ */
+	*ticLen = 5;
+	sprintf (Scratch, "axis-%c-tic-len", sideletter);
+	pda_Search (Pd, c, Scratch, "xy", (char *) ticLen, SYMT_INT);
+/*
+ * Find the scale type (which we need for tic interval below)
+ */
+	if (side == SideLeft || side == SideRight)
+		lc_GetUserCoord (NULL, NULL, &val, NULL);
+	else
+		lc_GetUserCoord (&val, NULL, NULL, NULL);
 
-    if ( ticlen )
-    {
-        strcpy(keyword, "axis-");
-        keyword[5] = side;
-        keyword[6] = '\0';
-        strcat(keyword, "-tic-len");
-        if (! pda_Search (pd, c, keyword, "xy", (char *)ticlen, SYMT_INT))
-        {
-            *ticlen = 5;
-        }
-    }
-    if ( ticInterval )
-    {
-        strcpy(keyword, "axis-");
-        keyword[5] = side;
-        keyword[6] = '\0';
-        strcat(keyword, "-tic-interval");
-        /* hardwired for now */
-        switch( datatype )
-        {
-            case 't':
-                *ticInterval = 600.0;
-                if(pda_Search (pd, c, keyword,"xy", (char*)string,SYMT_STRING))
-                {
-                    if ( (*ticInterval = (float)pc_TimeTrigger(string)) == 0.0 )
-                    {
-                        msg_ELog (EF_PROBLEM,"Unparseable tic interval: %s",string);
-                    }
-                }
-            break;
-            case 'f':
-                if(!pda_Search (pd, c, keyword,"xy", (char*)ticInterval,SYMT_FLOAT))
-                {
-                    *ticInterval = 1.0;
-                }
-            break;
-        }
-    }
-    if ( fontScale )
-    {
-        strcpy(keyword, "axis-");
-        keyword[5] = side;
-        keyword[6] = '\0';
-        strcat(keyword, "-font-scale");
-        if (! pda_Search (pd, c, keyword, "xy", (char *)fontScale, SYMT_FLOAT))
-        {
-            *fontScale = 0.025;
-        }
-    }
-    if ( drawGrid )
-    {
-        strcpy(keyword, "axis-");
-        keyword[5] = side;
-        keyword[6] = '\0';
-        strcat(keyword, "-grid-intensity");
-        if (! pda_Search (pd, c, keyword, "xy", (char *)drawGrid, SYMT_FLOAT))
-        {
-            *drawGrid = 0.75;
-        }
-    }
+	type = val.type;
+/*
+ * tic interval
+ */
+	sprintf (Scratch, "axis-%c-tic-interval", sideletter);
 
-    
-    /*
-     * Get the axis descriptors that are private (calculated)
-     */
-    if ( offset )
-    {
-        strcpy(keyword, "private-axis-");
-        keyword[13] = side;
-        keyword[14] = '\0';
-        strcat(keyword, "-offset");
-        if (! pda_Search (pd, c, keyword, NULL, (char *)offset, SYMT_INT))
-        {
-            *offset = 0;
-        }
-    }
-    if ( baseTic )
-    {
-        strcpy(keyword, "private-axis-");
-        keyword[13] = side;
-        keyword[14] = '\0';
-        strcat(keyword, "-base-tic");
-        baseTic->type = datatype;
-        switch( datatype )
-        {
-            case 't':
-                if (! pda_Search (pd, c, keyword, NULL,
-                    (char *) &(baseTic->val.t), SYMT_DATE))
-                {
-                    baseTic->val.t.zt_Sec = 0;
-                    baseTic->val.t.zt_MicroSec = 0;
-                }
-            break;
-            case 'f':
-                if (! pda_Search (pd, c, keyword, NULL,
-                    (char *)&(baseTic->val.f), SYMT_FLOAT))
-                {
-                    baseTic->val.f = 0.0;
-                }
-            break;
-        }
-    }
-    if ( tlabelHeight )
-    {
-        strcpy(keyword, "private-axis-");
-        keyword[13] = side;
-        keyword[14] = '\0';
-        strcat(keyword, "-tic-label-height");
-        if (! pda_Search (pd, c, keyword, NULL, (char *)tlabelHeight, SYMT_INT))
-        {
-            *tlabelHeight = 0;
-        }
-    }
-    if ( nticLabel )
-    {
-        strcpy(keyword, "private-axis-");
-        keyword[13] = side;
-        keyword[14] = '\0';
-        strcat(keyword, "-n-tic-label");
-        if (! pda_Search (pd, c, keyword, NULL, (char *)nticLabel, SYMT_INT))
-        {
-            *nticLabel = 0;
-        }
-    }
-    if ( tlabelWidth )
-    {
-        strcpy(keyword, "private-axis-");
-        keyword[13] = side;
-        keyword[14] = '\0';
-        strcat(keyword, "-tic-label-width");
-        if (! pda_Search (pd, c, keyword, NULL, (char *)tlabelWidth, SYMT_INT))
-        {
-            *tlabelWidth = 0;
-        }
-    }
+	*ticInterval = 0.0;
+	if (type == 't')
+	{
+                if (pda_Search (Pd, c, Scratch, "xy", tstep, SYMT_STRING) &&
+		    ! (*ticInterval = (float) pc_TimeTrigger (tstep)))
+			msg_ELog (EF_PROBLEM, "Bad tic interval: %s", 
+				  tstep);
+	}
+	else
+		pda_Search (Pd, c, Scratch, "xy", (char*) ticInterval,
+			    SYMT_FLOAT);
+/*
+ * font scale
+ */
+	*fontScale = 0.025;
+	sprintf (Scratch, "axis-%c-font-scale", sideletter);
+	pda_Search (Pd, c, Scratch, "xy", (char *) fontScale, SYMT_FLOAT);
+/*
+ * grid intensity
+ */
+	*drawGrid = 0.75;
+	sprintf (Scratch, "axis-%c-grid-intensity", sideletter);
+	pda_Search (Pd, c, Scratch, "xy", (char *) drawGrid, SYMT_FLOAT);
 }
-static void
-ac_SetPrivateAxisDescriptors( pd, c, side, datatype, 
-                       offset, baseTic,tlabelHeight,tlabelWidth,nticLabel,
-                       ticInterval)
-plot_description pd; /* input */
-char    *c;          /* input */
-char    side;        /* input */
-char    datatype;    /* input */
-int     *offset;
-DataValPtr      baseTic;
-int     *tlabelHeight,*tlabelWidth;
-int     *nticLabel;
-float   *ticInterval;
+
+
+
+
+static double
+ac_AutoTicInterval (min, max)
+DataValPtr	min, max;
+/*
+ * Find a good tic interval, given the min and max
+ */
 {
-    char        keyword[80];
+	float	span, interval;
+	int	i, tspan;
+/*
+ * Array of good time steps and the associated minimum span for each
+ */
+	struct
+	{
+		int	step, minspan;
+	} timeSteps[] =
+	{
+		{86400,	345600}, 	/* 1d, 4d */
+		{43200,	172800}, 	/* 12h, 2d */
+		{21600,	86400},		/* 6h, 1d */
+		{7200, 	43200},		/* 2h, 12h */
+		{3600, 	21600},		/* 1h, 6h */
+		{1800, 	10800},		/* 30m, 3h */
+		{900, 	3600}, 		/* 15m, 1h */
+		{300, 	1800}, 		/* 5m, 30m */
+		{120, 	600}, 		/* 2m, 10m */
+		{60, 	300}, 		/* 1m, 5m */
+		{30, 	180}, 		/* 30s, 3m */
+		{15, 	60}, 		/* 15s, 1m */
+		{5, 	30}, 		/* 5s, 30s */
+		{2, 	10}, 		/* 2s, 10s */
+		{1, 	0}, 		/* 1s for anything smaller than 10s */
+	};
+/*
+ * Handle float and time limits differently
+ */
+	switch (min->type)
+	{
+	/*
+	 * Float values
+	 */
+	    case 'f':
+	    /*
+	     * Find a good interval based on the span
+	     */
+		span = max->val.f - min->val.f;
 
-    if ( offset )
-    {
-        strcpy(keyword, "private-axis-");
-        keyword[13] = side;
-        keyword[14] = '\0';
-        strcat(keyword, "-offset");
-        pd_Store (pd, c, keyword, (char *)offset, SYMT_INT);
-    }
+		interval = pow (10.0, floor (log10 (fabs (span))));
 
-    if ( baseTic)
-    {
-        strcpy(keyword, "private-axis-");
-        keyword[13] = side;
-        keyword[14] = '\0';
-        strcat(keyword, "-base-tic");
-        switch( datatype )
-        {
-            case 't':
-                pd_Store(pd, c, keyword, (char *) &(baseTic->val.t), SYMT_DATE);
-            break;
-            case 'f':
-                pd_Store (pd, c, keyword,(char *)&(baseTic->val.f), SYMT_FLOAT);
-            break;
-        }
-    }
+		if (fabs (span / interval) < 1.5)
+			interval *= 0.1;
+		else if (fabs (span / interval) < 3.0)
+			interval *= 0.2;
+		else if (fabs (span / interval) < 8.0)
+			interval *= 0.5;
 
-    if ( tlabelHeight )
-    {
-        strcpy(keyword, "private-axis-");
-        keyword[13] = side;
-        keyword[14] = '\0';
-        strcat(keyword, "-tic-label-height");
-        pd_Store (pd, c, keyword, (char *)tlabelHeight, SYMT_INT);
-    }
+		break;
+	/*
+	 * Time values
+	 */
+	    case 't':
+	    /*
+	     * Find the appropriate time interval from the table, based on
+	     * the span between min and max
+	     */
+		tspan = max->val.t.zt_Sec - min->val.t.zt_Sec;
+		for (i = 0; tspan < timeSteps[i].minspan; i++)
+			/* nothing */;
+	    /*
+	     * Store the interval we found
+	     */
+		interval = (float) timeSteps[i].step;
 
-    if ( nticLabel )
-    {
-        strcpy(keyword, "private-axis-");
-        keyword[13] = side;
-        keyword[14] = '\0';
-        strcat(keyword, "-n-tic-label");
-        pd_Store (pd, c, keyword, (char *)nticLabel, SYMT_INT);
-    }
+		break;
+	/*
+	 * Uh-oh.  Can't handle any others
+	 */
+	    default:
+		msg_ELog (EF_PROBLEM, 
+			  "ac_AutoTicInterval can't handle type '%c'", 
+			  min->type);
+	}
 
-    if ( tlabelWidth )
-    {
-        strcpy(keyword, "private-axis-");
-        keyword[13] = side;
-        keyword[14] = '\0';
-        strcat(keyword, "-tic-label-width");
-        pd_Store (pd, c, keyword,  (char *)tlabelWidth, SYMT_INT);
-    }
+	return ((double) interval);
 }
 
 
@@ -1024,29 +776,26 @@ float   *ticInterval;
 
 
 static void
-ac_GetLabel (pd, c, side, label)
-plot_description pd;
+ac_GetLabel (c, side, label)
 char *c, side, *label;
 /*
  * Figure out a label for this side.
  */
 {
-	char keyword[120], field[120];
+	char keyword[16];
 	FieldId fid;
 /*
  * Try to find an explicit label first.
  */
-        strcpy(keyword, "axis-");
-        keyword[5] = side;
-        keyword[6] = '\0';
-        strcat(keyword, "-label");
-        if (pda_Search (pd, c, keyword, "xy", label, SYMT_STRING))
+	sprintf (keyword, "axis-%c-label", SIDE_LETTER (side));
+        if (pda_Search (Pd, c, keyword, "xy", label, SYMT_STRING))
 		return;
 /*
  * Figure out what our display field is.
  */
-	if (! pda_Search (pd, c, (side == 'b' || side == 't') ? "x-field" :
-			  "y-field", "xy", field, SYMT_STRING))
+	if (! pda_Search (Pd, c, 
+			  (side == SideBottom || side == SideTop) ? "x-field" :
+			  "y-field", "xy", Scratch, SYMT_STRING))
 	{
 		strcpy (label, "Who knows?");
 		return;
@@ -1057,8 +806,8 @@ char *c, side, *label;
  * fail, of course, with comma-separated field lists; but I don't know how
  * we would annotate those anyway.
  */
-	if ((fid = F_Declared (field)) != BadField)
+	if ((fid = F_Declared (Scratch)) != BadField)
 		strcpy (label, F_GetDesc (fid));
 	else
-		strcpy (label, field);
+		strcpy (label, Scratch);
 }
