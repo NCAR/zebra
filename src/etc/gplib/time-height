@@ -128,12 +128,14 @@ define widget vertical-global-left intmenu 'Global left menu'
 	line
 	entry 'Adjust global limits' 'popup th-tweakglobal'
 	line
-	entry 'Reset window to initial state' 'dm "ResetWindow"'
-	line
 	entry 'Popup Overlay Times Window' 'popup overlay'
-	entry 'Popup Movie Controller' 'popup movie'
 	entry 'Popup image file generator' 'popup imagecrank'
+	entry 'Popup Movie Controller' 'popup movie'
 	submenu 'Movies' movie-control
+	line
+	submenu 'Window Operations' global-window-ops
+	line
+	entry 'Help on this Plot Type' 'plot-type-help'
 endmenu
 
 
