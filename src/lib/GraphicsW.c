@@ -3,13 +3,16 @@
  * of pixmap "frames" associated with it.  Zero frames means just write 
  * everything directly to the window.
  *
- * $Id: GraphicsW.c,v 1.6 1991-03-11 15:16:45 kris Exp $
+ * $Id: GraphicsW.c,v 1.7 1991-03-28 18:22:36 kris Exp $
  */
 # include <stdio.h>
 # include <errno.h>
 # include <X11/IntrinsicP.h>
 # include <X11/StringDefs.h>
 # include "../include/message.h"
+# include "../include/defs.h"
+# include "../include/pd.h"
+# include "GraphProc.h"
 # include "GraphicsWP.h"
 
 # ifdef SHM
@@ -258,6 +261,14 @@ Region		region;
  */
 	if (gp.frame_count < 1)
 		return;
+/*
+ *  If the index of the display_frame is no good then return.
+ */
+	if(gp.display_frame < 0 || gp.display_frame >= gp.frame_count)
+	{
+		msg_ELog (EF_PROBLEM, "Invalid frame number in Redraw");
+		return;
+	}
 # ifdef use_XB
 /*
  * Make sure the current XB draw buffer is the same as the display buffer
@@ -330,7 +341,7 @@ GraphicsWidget	current, request, new;
  * Deal with a call from XtSetValues ()
  */
 {
-	int	i;
+	int	i, display_frame;
 	int	oldcount = current->graphics.frame_count;
 	int	newcount = request->graphics.frame_count;
 	Pixel	oldbg = current->core.background_pixel;
@@ -404,6 +415,10 @@ GraphicsWidget	current, request, new;
 				new->graphics.frames[i], new->graphics.gc, 
 				0, 0, new->core.width, new->core.height);
 		}
+		display_frame = fc_LookupFrame(&PlotTime);
+		if(display_frame < 0)
+			new->graphics.display_frame = 0;
+		else new->graphics.display_frame = display_frame;
 	}
 	return (False);
 }
