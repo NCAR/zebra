@@ -1,4 +1,5 @@
 /* 1/87 jc */
+/* $Id: ui_expr.c,v 1.3 1989-03-28 11:37:30 corbet Exp $ */
 /*
  * Expression handling.
  */
@@ -1291,6 +1292,29 @@ int *type;
  *		An error is signalled.
  */
 {
+/*
+ * Simply call the internal evaluator.  If a string value comes back, we
+ * then have to reallocate the string before passing it back.
+ */
+ 	ue_ieval (tree, v, type);
+	if (*type == SYMT_STRING)
+		v->us_v_ptr = usy_string (v->us_v_ptr);
+}
+
+
+
+
+
+
+
+ue_ieval (tree, v, type)
+struct parse_tree *tree;
+union usy_value *v;
+int *type;
+/*
+ * The internal version of the evaluator, which does the real work.
+ */
+{
 	switch (tree->pt_ntype)
 	{
 	/*
@@ -1452,8 +1476,8 @@ union usy_value *v;
 /*
  * Evaluate the left and right branches of the tree.
  */
- 	ue_eval (tree->pt_left, &leftv, &leftt);
-	ue_eval (tree->pt_right, &rightv, &rightt);
+ 	ue_ieval (tree->pt_left, &leftv, &leftt);
+	ue_ieval (tree->pt_right, &rightv, &rightt);
 /*
  * Now we need to worry about type compatibility.
  */
@@ -1693,7 +1717,7 @@ union usy_value *v;
 /*
  * Evaluate the item to be negated.
  */
- 	ue_eval (tree->pt_left, &leftv, &leftt);
+ 	ue_ieval (tree->pt_left, &leftv, &leftt);
 /*
  * Now, branch out and do the negation.
  */
@@ -1733,8 +1757,8 @@ union usy_value *v;
 /*
  * Evaluate the left and right branches of the tree.
  */
- 	ue_eval (tree->pt_left, &leftv, &leftt);
-	ue_eval (tree->pt_right, &rightv, &rightt);
+ 	ue_ieval (tree->pt_left, &leftv, &leftt);
+	ue_ieval (tree->pt_right, &rightv, &rightt);
 /*
  * Now we need to worry about type compatibility.  Fortunately, logical 
  * operators take nothing other than boolean values, so the coercion
@@ -1781,8 +1805,8 @@ union usy_value *v;
 /*
  * Evaluate the left and right branches of the tree.
  */
- 	ue_eval (tree->pt_left, &leftv, &leftt);
-	ue_eval (tree->pt_right, &rightv, &rightt);
+ 	ue_ieval (tree->pt_left, &leftv, &leftt);
+	ue_ieval (tree->pt_right, &rightv, &rightt);
 /*
  * Deal with type compatibility.  Here, we do essentially the same thing
  * as for the arithmetic operators.
