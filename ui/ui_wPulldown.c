@@ -1,4 +1,4 @@
-/* $Id: ui_wPulldown.c,v 1.1 1990-03-06 10:43:19 corbet Exp $ */
+/* $Id: ui_wPulldown.c,v 1.2 1990-04-20 11:03:51 corbet Exp $ */
 /*
  * Windowing code for pulldown menu widgets.
  */
@@ -137,6 +137,7 @@ struct ui_command *cmds;
  * Initialize the menu structure, and add it to the list.
  */
  	menu->mbm_nmap = menu->mbm_nentries = 0;
+	menu->mbm_expr = FALSE;
 	menu->mbm_next = 0;
 	strcpy (menu->mbm_name, UPTR (cmds[1]));
 	if (mb->mw_nmenus++ == 0)
