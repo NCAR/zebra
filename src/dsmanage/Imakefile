@@ -1,0 +1,38 @@
+/*
+ * Imakefile for the data store management stuff.
+ */
+# undef DataDir
+
+SRCS = dsmanage.cc dsmWindows.cc DataDir.cc Index.cc MainWindow.cc Dialog.cc \
+	LoadData.cc StatusWin.cc DLoad.cc Tape.cc TBCleanup.cc
+
+HEADERS = DataDir.h Dialog.h Index.h STable.h StatusWin.h Tape.h ZTime.h \
+	container.h dsmWindows.h dsmanage.h
+
+DSMLIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS) -lg++
+TILIBS = $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) -lg++
+
+OBJS = dsmanage.o dsmWindows.o DataDir.o Index.o MainWindow.o Dialog.o \
+	LoadData.o StatusWin.o DLoad.o Tape.o TBCleanup.o
+TIOBJS = TapeIndex.o Index.o Tape.o
+
+/*
+ * Eventually this needs to go into the templates somewhere.
+ */
+COMPILE.cc = $(CC) $(CFLAGS) $(CPPFLAGS) -c 
+
+/*
+ * NormalProgramTarget invokes SaberProgramTarget, which messes up with
+ * c++ source files.
+ */
+# undef SaberProgramTarget
+# define SaberProgramTarget(a,b,c,de,f)	/* nothing */
+
+/*
+ * Now we can get around to the real stuff.
+ */
+ 
+NormalProgramTarget (tapeindex,$(TIOBJS),$(DEPLIBS),$(TILIBS),$(SYSLIBS))
+NormalProgramTarget (dsmanage,$(OBJS),$(DEPLIBS),$(DSMLIBS),$(SYSLIBS))
+
+InstallAppDefaults(dsmanage)
