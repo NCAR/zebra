@@ -1,5 +1,5 @@
 /*
- * $Id: XDR.hh,v 1.5 1997-12-28 05:57:44 granger Exp $
+ * $Id: XDR.hh,v 1.6 1998-03-16 17:50:36 burghart Exp $
  *
  * C++ interface to the xdr layer.
  */
@@ -39,23 +39,6 @@ typedef XDRTranslator XDRDecoder;
  * pointers to it to the superclass.
  */
 
-
-
-#ifdef linux
-/*
- * At present there is no xdr_sizeof function on my linux laptop,
- * so this just lets things compile and mostly work.
- */
-/// Amount of space required to encode 'data' into XDR
-template <class T>
-unsigned long
-Length (XDRTranslator, const T* data)
-{
-	return (sizeof (*data));
-}
-#endif
-
-
 ///
 /**
   Abstract base class for XDR stream subclasses.
@@ -66,60 +49,39 @@ public:
 
 	// Constructors
 
-	inline 
-	XDRStream::XDRStream() : results(0) { }
+	inline XDRStream() : results(0) { }
 
 	// ---------------- Class members which do not need a stream
 
 	/// Free any allocated memory in a decoded structure.
 	static void Free (XDRTranslator xp, void *data);
 
-#ifndef linux
-	/// Amount of space required to encode 'data' into XDR
-	static inline unsigned long
-	Length (XDRTranslator xp, const void *data)
-	{
-		return (xdr_sizeof ((xdrproc_t)xp, (char *)data));
-	}
-#else
-	// Without xdr_sizeof on linux, just make a wild guess
-	static inline unsigned long
-	Length (XDRTranslator, const void *)
-	{
-		return (256);
-	}
-#endif
+	/// Amount of space required to encode specific types into XDR
+#define XDR_LENGTH_METHOD(_T_,size) \
+	static inline unsigned long Length (_T_ x) { return (size); }
 
-	/**
-	  Overloaded CLASS methods for returning the xdr size
-	  of a primitive type.
-	 */
-#ifndef linux
-#define XDR_LENGTH(T) \
-	static unsigned long Length (T & tp) \
-	{ \
-		return (Length ((XDRTranslator)xdr_##T , &tp)); \
-	}
-#else
-#define XDR_LENGTH(T) \
-	static unsigned long Length (T & tp) \
-	{ \
-		return (::Length ((XDRTranslator)xdr_##T , &tp)); \
-	}
-#endif
+	XDR_LENGTH_METHOD(char, 4);
+	XDR_LENGTH_METHOD(u_char, 4);
+	XDR_LENGTH_METHOD(int, 4);
+	XDR_LENGTH_METHOD(u_int, 4);
+	XDR_LENGTH_METHOD(long, 4);
+	XDR_LENGTH_METHOD(u_long, 4);
+	XDR_LENGTH_METHOD(short, 4);
+	XDR_LENGTH_METHOD(u_short, 4);
+	XDR_LENGTH_METHOD(float, 4);
+	XDR_LENGTH_METHOD(double, 8);
 
-	XDR_LENGTH(char);
-	XDR_LENGTH(u_char);
-	XDR_LENGTH(int);
-	XDR_LENGTH(u_int);
-	XDR_LENGTH(long);
-	XDR_LENGTH(u_long);
-	XDR_LENGTH(short);
-	XDR_LENGTH(u_short);
-	XDR_LENGTH(float);
-	XDR_LENGTH(double);
+# undef XDR_LENGTH_METHOD
 
-#undef XDR_LENGTH
+
+# ifdef notdef	// maybe when xdr_sizeof is implemented under Irix and Linux
+	/// Generic length function, given a translator
+	static inline unsigned long Length (xdrproc_t xp, void *data)
+	{ 
+		return xdr_sizeof (xp, data); 
+	}
+# endif
+
 
 	// ---------------- Instance members
 
