@@ -6,3 +6,5 @@ LIBS = $(LIBZEB) $(LIBRDSS)
 
 
 NormalProgramTarget(zquery, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+
+DependTarget ()
