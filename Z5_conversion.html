@@ -1,0 +1,259 @@
+<!doctype html public "-//w3c//dtd html 4.0 transitional//en">
+<html>
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   <meta name="GENERATOR" content="Mozilla/4.6 [en] (X11; U; Linux 2.0.36 i686) [Netscape]">
+</head>
+<body>
+
+<center>
+<h1>
+<font color="#000099">Converting Zebra Configurations For Use With Zebra
+5</font></h1></center>
+Zebra 5 contains a number of enhancements, some of which are incompatible
+with older project configuration files. Project configurations distributed
+with version 5 have already been converted to work with it, but users with
+custom configurations will need to update them in order to use them with
+the Zebra version 5 software. Below are the changes necessary to convert
+old configurations for use with the new Zebra. It is hoped that most of
+these changes can be made via simple translations mapping old concepts
+onto new.
+<h2>
+Data Store Daemon</h2>
+The data store daemon has some changes that will require modifications
+to
+<i>all</i> old configurations. The daemon configuration file, generally
+named <tt>ds.config</tt> is be the target of the necessary changes for
+the daemon. The old concept which allowed just one "local" data repository
+and one optional "remote" repository has been replaced by a more general
+concept of data "sources". A source is simply a directory which contains
+subdirectories with data files for one or more of the platforms known to
+the data store daemon, and certain attributes regarding file constancy
+and handling can be assigned to a source. At least one source must be defined,
+and in general only one is used (corresponding to the old "local" data
+repository). However, now up to nine additional data sources may be defined
+for a total of up to ten sources.
+<p>The commands used in the daemon configuration file for defining a source
+are as follows
+<center><table WIDTH="85%" NOSAVE >
+<tr NOSAVE>
+<td NOSAVE><tt>source &lt;source_name></tt></td>
+
+<td>Begin source definition, with the name of the source.</td>
+</tr>
+
+<tr>
+<td><tt>directory &lt;dir></tt></td>
+
+<td>Set the top-level directory of the source.</td>
+</tr>
+
+<tr NOSAVE>
+<td NOSAVE><tt>cachefile &lt;filename></tt></td>
+
+<td NOSAVE>(optional) Set the location of the source's cache file. The
+file name specified can be a relative path (which will be taken with respect
+to the source's top level directory) or an absolute path. The default value
+is <tt>Zebra.cache</tt>.</td>
+</tr>
+
+<tr NOSAVE>
+<td><a NAME="FileConst"></a><tt>FileConst true|false</tt></td>
+
+<td NOSAVE>(optional) This is an efficiency flag which may be set if data
+files within the source are essentially atomic, i.e., they come and go
+as whole units, rather than growing or shrinking. This flag defaults to
+false.</td>
+</tr>
+
+<tr>
+<td><a NAME="DirConst"></a><tt>DirConst true|false</tt></td>
+
+<td>(optional) This is an efficiency flag which may be set if the data
+store can consider the entire source to be effectively constant. This flag
+defaults to false.</td>
+</tr>
+
+<tr>
+<td><a NAME="DelayDataDirs"></a><tt>DelayDataDirs true|false</tt></td>
+
+<td>(optional) When this flag is true, a new directory will be created
+for a plaform only when needed for writing files. Otherwise, directories
+are created at daemon startup for all platforms which do not already have
+them. This flag defaults to true.</td>
+</tr>
+
+<tr>
+<td><tt>RememberAll true|false</tt></td>
+
+<td>(optional) When this flag is set, the daemon will not remove files
+from the source's cache if it finds they are no longer on the disk. This
+flag defaults to false.</td>
+</tr>
+
+<tr NOSAVE>
+<td NOSAVE><a NAME="PlatDir"></a><tt>PlatDir &lt;plat> &lt;dir></tt></td>
+
+<td>(optional) Set the directory where a given platform's files are stored.
+The directory specified can be a relative path (which will be taken with
+respect to the source's top level directory) or an absolute path. The default
+is to use the platform's name as the directory name.</td>
+</tr>
+
+<tr NOSAVE>
+<td NOSAVE><tt>endsource</tt></td>
+
+<td>Finish source definition</td>
+</tr>
+</table></center>
+Here are a couple of example source definitions, one simple and one more
+complex:
+<blockquote><tt>source main</tt>
+<br><tt>&nbsp;&nbsp;&nbsp; directory /data/myproject</tt>
+<br><tt>endsource</tt>
+<p><tt>source another</tt>
+<br><tt>&nbsp;&nbsp;&nbsp; directory /data/another/top/directory</tt>
+<br><tt>&nbsp;&nbsp;&nbsp; DirConst true</tt>
+<br><tt>&nbsp;&nbsp;&nbsp; RememberAll false</tt>
+<br><tt>&nbsp;&nbsp;&nbsp; !</tt>
+<br><tt>&nbsp;&nbsp;&nbsp; ! Platforms grib1_sfc and grib2_sfc share directories</tt>
+<br><tt>&nbsp;&nbsp;&nbsp; ! with their non-surface counterparts</tt>
+<br><tt>&nbsp;&nbsp;&nbsp; !</tt>
+<br><tt>&nbsp;&nbsp;&nbsp; PlatDir grib1_sfc grib1</tt>
+<br><tt>&nbsp;&nbsp;&nbsp; PlatDir grib2_sfc grib2</tt>
+<br><tt>endsource</tt></blockquote>
+An additional daemon change resulting from the move to sources is that
+file cache handling is quite different. Previously, a file cache was only
+written upon shutdown of the data store daemon (if this option was configured)
+or when the daemon was specifically told to write a cache. Now the persistent
+file cache is continuously updated, removing the need for some cache-related
+configuration variables. Also, some variables affecting interpretation
+of the cache have moved from being global to being specified on a source-by-source
+basis.
+<p>Below is a list of old data store daemon configuration variables that
+need to change or go away, with the necessary translations.
+<center><table WIDTH="75%" NOSAVE >
+<tr NOSAVE>
+<td ALIGN=RIGHT NOSAVE><tt>LDirConst</tt>, <tt>RDirConst&nbsp;</tt></td>
+
+<td>replaced by the per-source <tt><a href="#DirConst">DirConst</a></tt>
+flag</td>
+</tr>
+
+<tr NOSAVE>
+<td ALIGN=RIGHT NOSAVE><tt>LFileConst</tt>, <tt>RFileConst&nbsp;</tt></td>
+
+<td>replaced by the per-source <tt><a href="#FileConst">FileConst</a></tt>
+flag</td>
+</tr>
+
+<tr>
+<td ALIGN=RIGHT><tt>DelayDataDirs&nbsp;</tt></td>
+
+<td>replaced by the per-source <tt><a href="#DelayDataDirs">DelayDataDirs</a></tt>
+flag</td>
+</tr>
+
+<tr>
+<td ALIGN=RIGHT><tt>CacheOnExit&nbsp;</tt></td>
+
+<td>no longer relevant</td>
+</tr>
+</table></center>
+
+<h2>
+Graphics Process</h2>
+Changes have been made in Zebra 5 that also affect data store client programs.
+The new field derivation capability includes generalized field name strings,
+which can contain simple name, type, units, and long description information.
+These new strings can cause problems with some old configurations because
+they may contain embedded spaces that will confuse or break certain functions.
+In general it is only necessary to modify the problem functions so that
+they quote field name strings before passing them on. For most users, only
+files associated with Zebra's graphics process, gp, will show any of these
+problems. Within a project configuration directory, the files used by gp
+are generally
+<tt>gp.init</tt> and all files in the project's <tt>modules</tt>
+directory. Here's an example of a problem function:
+<blockquote><tt>procedure my_set_zfield zfld string</tt>
+<br><tt>&nbsp;&nbsp; parameter #icon_component z-field #zfld</tt>
+<br><tt>endprocedure</tt></blockquote>
+and a fixed version:
+<blockquote><tt>procedure my_set_zfield zfld string</tt>
+<br><tt>&nbsp;&nbsp;&nbsp; local qzfld quote(zfld)</tt>
+<br><tt>&nbsp;&nbsp;&nbsp; parameter #icon_component z-field #qzfld</tt>
+<br><tt>endprocedure</tt></blockquote>
+Also, problems may arise when building special plot description parameters
+that contain a field name as part of the parameter name. These parameters
+must use just the simple field name and not the new full field string.
+Most often these special parameters are defined for setting plotting limits
+for a given field. For example, a contour plot of field <tt>tdry[T][degC][ambient
+temperature]</tt> will look for plot description parameter <tt>tdry-step</tt>,
+and not <tt>tdry[T][degC][ambient temperature]-step</tt> . If a function
+is building these &lt;field><tt>-center</tt>, &lt;field><tt>-step</tt>,
+or similar parameters, it must be careful not to use the full field string
+to build them. For this purpose, a new function SimpleFieldName() is provided
+for stripping the simple field name from the full description string. Here
+is an example old function that would need to be changed:
+<blockquote><tt>procedure set-field-center-step center string step string</tt>
+<br><tt>&nbsp;&nbsp;&nbsp; local fname PDParam(icon_component, "field")</tt>
+<br><tt>&nbsp;&nbsp;&nbsp; local param concat(fname, "-center")</tt>
+<br><tt>&nbsp;&nbsp;&nbsp; parameter #icon_component #param #center</tt>
+<br><tt>&nbsp;&nbsp;&nbsp; local param concat(fname,"-step")</tt>
+<br><tt>&nbsp;&nbsp;&nbsp; parameter #icon_component #param #step</tt>
+<br><tt>endprocedure</tt></blockquote>
+and a fixed version:
+<blockquote><tt>procedure set-field-center-step center string step string</tt>
+<br><tt>&nbsp;&nbsp;&nbsp; local fname SimpleFieldName(PDParam(icon_component,
+"field"))</tt>
+<br><tt>&nbsp;&nbsp;&nbsp; local param concat(fname, "-center")</tt>
+<br><tt>&nbsp;&nbsp;&nbsp; parameter #icon_component #param #center</tt>
+<br><tt>&nbsp;&nbsp;&nbsp; local param concat(fname,"-step")</tt>
+<br><tt>&nbsp;&nbsp;&nbsp; parameter #icon_component #param #step</tt>
+<br><tt>endprocedure</tt></blockquote>
+Another change which may require updating your <tt>gp.init</tt>file is
+that the old <tt>field</tt> and
+<tt>alias</tt> commands in <tt>gp</tt>
+are deprecated and should be removed or replaced.&nbsp; For most <tt>gp.init</tt>
+files, this simply means removing the automatic loading of the old <tt>FieldDefs</tt>
+file, which uses the <tt>field</tt> and <tt>alias</tt> commands.&nbsp;
+The loading of <tt>FieldDefs</tt> often
+<br>looks like this in old <tt>gp.init</tt> files:
+<blockquote><tt>!</tt>
+<br><tt>! Get our field definitions.</tt>
+<br><tt>!</tt>
+<br><tt>set DefFile (concat (concat (c$libdir, "/"), "FieldDefs"))</tt>
+<br><tt>read #DefFile</tt></blockquote>
+Just remove these lines from your <tt>gp.init</tt>.&nbsp; The most obvious
+problem that will arise if a <tt>FieldDefs</tt> file is loaded
+<br>under Zebra 5 will be repeated messages in the event logger saying:
+"<tt>F_Alias() is no more, so stop calling it!</tt>".&nbsp; If you see
+this message, there is likely a <tt>FieldDefs</tt> or similar file being
+read via <tt>gp.init</tt>.
+<p>If you still need the function of the old <tt>alias</tt> command, a
+simple field derivation can be used in its place.&nbsp; For example, if
+for platform <tt>myplat</tt> you need to the name <tt>altitude</tt> to
+be an alias for existing field
+<tt>alt</tt>, the old <tt>alias</tt> command
+(which applied to <i>all</i> platforms) was:
+<blockquote><tt>alias altitude alt</tt></blockquote>
+This is now replaced by creating the file &lt;project><tt>/derivs/myplat</tt>
+and adding the line:
+<blockquote><tt>altitude = alt;</tt></blockquote>
+which will crate an alias that applies only to <tt>myplat</tt>.
+<p>The old <tt>field</tt> command has no substitute in Zebra5's <tt>gp</tt>.
+<h2>
+Display Manager</h2>
+One small change is recommended for display manager control files <tt>dm.config</tt>
+and <tt>IconBar</tt>.&nbsp; Some of these files set the variable <tt>ui$icon_directory</tt>;
+often this is done in IconBar with a line like:
+<blockquote><tt>set ui$bitmap_directory concat(c$libdir, "/icons")</tt></blockquote>
+It is recommended instead to use the variable ui$bitmap_path, which can
+give a number of directories to search for icons and bitmaps, and to set
+this variable in dm.config (rather than IconBar) as follows:
+<blockquote><tt>set ui$bitmap_path concat3("./icons,",c$libdir, "/icons")</tt></blockquote>
+This will make the display manager look for icons first in the project's
+<tt>icons</tt>
+directory, and then in &lt;zebra_lib><tt>/icons</tt>.
+</body>
+</html>
