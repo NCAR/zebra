@@ -1,7 +1,7 @@
 /*
  * Vertical cross-sectioning
  */
-static char *rcsid = "$Id: XSection.c,v 2.16 1994-01-31 19:36:20 burghart Exp $";
+static char *rcsid = "$Id: XSection.c,v 2.17 1994-01-31 19:51:22 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -1631,7 +1631,7 @@ char	*platform, *fldname;
 	if (rg.rg_nX < 2 || rg.rg_nY < 2 || rg.rg_nZ < 2)
 	{
 		msg_ELog (EF_INFO, 
-		  "xs_Bilinear: Can't interpolate from %dx%dx%d %s data\n",
+		  "xs_Bilinear: Can't interpolate from %dx%dx%d %s data",
 		  rg.rg_nX, rg.rg_nY, rg.rg_nZ, platform);
 
 		plane = (DPlane *) malloc (sizeof (DPlane));
