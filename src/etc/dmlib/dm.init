@@ -1,4 +1,4 @@
-! $Id: dm.init,v 1.1 2000-12-05 19:07:37 granger Exp $ 
+! $Id: dm.init,v 1.2 2000-12-05 19:35:01 granger Exp $ 
 !
 ! The generic and perpetual loading process, encapsulated into a simple
 ! module.  At least, I think this is generic enough that someday it could
@@ -46,9 +46,7 @@ message '     ...plot descriptions...'
 ! Grab the ones in the library and project pd directory
 !
 
-!set libpddir concat(c$libdir,'/pd')
-! Use source pd directory while testing
-set libpddir 'etc/pd'
+set libpddir concat(c$libdir,'/pd')
 pddir #libpddir
 pddir pd
 
