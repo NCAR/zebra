@@ -37,7 +37,7 @@
 # include "PolarPlot.h"
 # endif
 
-MAKE_RCSID ("$Id: GridAccess.c,v 2.38 2001-06-19 23:48:29 granger Exp $")
+MAKE_RCSID ("$Id: GridAccess.c,v 2.39 2002-12-04 00:04:58 burghart Exp $")
 
 # define DEG_TO_RAD(x)	((x)*0.017453292)
 # define KM_TO_DEG(x)	((x)*0.008982802) /* on a great circle */
@@ -1297,6 +1297,7 @@ zbool transpose;
 	float		*fdata, *grid;
 	void		*nsdata;
 	short		*sdata;
+	unsigned char	*ucdata;
 	RGrid		rg;
 	ZebTime		when;
 	DC_ElemType	type;
@@ -1336,6 +1337,12 @@ zbool transpose;
 		fdata = (float *) malloc (nlats * nlons * sizeof (float));
 		for (i = 0; i < nlats * nlons; i++)
 			fdata[i] = (float) sdata[i];
+		break;
+	    case DCT_UnsignedChar:
+	        ucdata = (unsigned char*) nsdata;
+		fdata = (float *) malloc (nlats * nlons * sizeof (float));
+		for (i = 0; i < nlats * nlons; i++)
+		    fdata[i] = (float)ucdata[i];
 		break;
 	    default:
 		msg_ELog (EF_PROBLEM, "ga_NSRGrid cannot handle '%s' data",
