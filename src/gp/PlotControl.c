@@ -37,7 +37,7 @@
 # include "PixelCoord.h"
 # include "ActiveArea.h"
 
-RCSID("$Id: PlotControl.c,v 2.40 1996-11-19 07:29:02 granger Exp $")
+RCSID("$Id: PlotControl.c,v 2.41 1997-02-14 07:18:22 granger Exp $")
 
 int		pc_TimeTrigger FP ((char *));
 void		pc_TriggerGlobal FP (());
@@ -48,6 +48,7 @@ static void	pc_Notification FP ((PlatformId, int, ZebTime *,
 				     int nsample, UpdCode ucode));
 static void	pc_DoTrigger FP ((char *, char *, int));
 static void	pc_SetUpTriggers FP ((void));
+static void	pc_ParseTriggers FP ((char *list, char *comp, int index));
 
 
 /*
@@ -344,14 +345,15 @@ pc_SetUpTriggers ()
  * Figure out what our trigger condition will be.
  */
 {
-	char trigger[200], **comps;
+	char trigger[PlatformListLen];
+	char **comps;
 	bool disable = FALSE;
 	int i;
 /*
  * Find the global trigger first.
  */
 	if (pda_Search (Pd, "global", "trigger", 0, trigger, SYMT_STRING))
-		pc_DoTrigger (trigger, "global", 0);
+		pc_ParseTriggers (trigger, "global", 0);
 	else
 		/* it's not THAT important that we have a global trigger */
 		msg_ELog (EF_DEBUG, "No global trigger specified!");
@@ -365,7 +367,49 @@ pc_SetUpTriggers ()
 		if (pd_Retrieve (Pd, comps[i], "trigger", trigger, SYMT_STRING)
 		    && (! pda_Search (Pd, comps[i], "disable", comps[i],
 			      (char *) &disable, SYMT_BOOL) || !disable))
-			pc_DoTrigger (trigger, comps[i], i);
+			pc_ParseTriggers (trigger, comps[i], i);
+	}
+}
+
+
+
+static void
+pc_ParseTriggers (list, comp, index)
+char *list, *comp;
+int index;
+/*
+ * Cope with a trigger condition. 'list' will be modified.
+ */
+{
+	char platform[PlatformListLen];
+	char *triggers[2*MaxPlatforms];
+	int plat;
+	int n, i;
+/*
+ * Parse the list parameter into individual triggers.
+ */
+	n = CommaParse (list, triggers);
+	i = 0;
+	plat = 0;
+	while (i < n)
+	{
+	/*
+	 * Allow "platform" as a trigger, meaning we should look at the
+	 * platform in this component.  Tack those platforms onto the end
+	 * of our trigger list, but only once.
+	 */
+		if (! strcmp (triggers[i], "platform"))
+		{
+			if (!(plat++) && 
+			    pda_ReqSearch (Pd, comp, "platform", 
+					   NULL, platform, SYMT_STRING))
+				n += CommaParse (platform, triggers+n);
+		}
+		else
+		{
+			pc_DoTrigger (triggers[i], comp, index);
+		}
+		++i;
 	}
 }
 
@@ -381,35 +425,32 @@ int index;
 {
 	int seconds;
 	PlatformId pid;
-	char platform[PlatformListLen];
 /*
  * Try to interpret the trigger as a time.
  */
 	if ((seconds = pc_TimeTrigger (trigger)))
 	{
 		pc_SetTimeTrigger (seconds, comp);
-		return;
 	}
 /*
- * Allow "platform" as a trigger, meaning it should look at the
- * platform in this component.
+ * Else look it up as a platform and request notifications.
  */
-	if (! strcmp (trigger, "platform"))
+	else if ((pid = ds_LookupPlatform (trigger)) != BadPlatform)
 	{
-		if (! pda_ReqSearch (Pd, comp, "platform", NULL, platform,
-				SYMT_STRING))
-			return;
-		trigger = platform;
+		msg_ELog (EF_DEBUG, "comp %s: trigger on platform '%s'",
+			  comp, trigger);
+		ds_RequestNotify (pid, index, pc_Notification);
 	}
 /*
- * Now look up our platform and request notifications.
+ * Otherwise it's junk.
  */
-	if ((pid = ds_LookupPlatform (trigger)) != BadPlatform)
-		ds_RequestNotify (pid, index, pc_Notification);
 	else
-		msg_log ("Funky trigger time '%s' in component %s", trigger, 
-			comp);
+	{
+		msg_ELog (EF_PROBLEM, 
+			  "Funky trigger '%s', component %s", trigger, comp);
+	}
 }
+
 
 
 int 
@@ -452,6 +493,7 @@ char *param;
 {
 	int ns;
 	UItime t;
+	ZebraTime zt;
 /*
  * Get the current time, and pull out the seconds portion.
  */
@@ -483,6 +525,9 @@ char *param;
  * Send off the alarm request.
  */
 	tl_AddAbsoluteEvent (pc_PlotAlarm, param, &t, seconds * INCFRAC);
+	TC_UIToZt (&t, &zt);
+	msg_ELog (EF_DEBUG, "comp %s: %d sec time trigger @ %s",
+		  param, seconds, TC_AscTime (&zt, TC_TimeOnly));
 }
 
 

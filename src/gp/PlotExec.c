@@ -40,7 +40,7 @@
 # include "AxisControl.h"
 # include "ActiveArea.h"
 
-MAKE_RCSID ("$Id: PlotExec.c,v 2.51 1996-11-19 07:29:04 granger Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.52 1997-02-14 07:18:24 granger Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -125,7 +125,6 @@ name_to_num Rt_table[] =
  * of plotting routines and a boolean to record if it's been initialized
  */
 static void	 (*Plot_routines[N_PTYPES][N_RTYPES]) ();
-static Boolean	Table_built = FALSE;
 
 /*
  * Our plot type
@@ -242,24 +241,15 @@ char	*component;
 	char	plt[30], *info;
 	Boolean	global;
 	ZebTime	cachetime;
-	UItime	temptime;
 /*
  * Check now for an abort condition
  */
 	if (Abort)
 	{
-		TC_ZtToUI (&PlotTime, &temptime);
-		msg_ELog (EF_INFO, "%d %06d %s plot aborted!",
-			temptime.ds_yymmdd, temptime.ds_hhmmss, component);
+		msg_ELog (EF_INFO, "%s %s plot aborted!",
+			  TC_AscTime (&PlotTime, TC_Full), component);
 		return;
 	}
-# ifdef notdef /* Finally moved to GraphProc.c */
-/*
- * Initialize the table of plot functions if necessary
- */
-	if (! Table_built)
-		px_Init ();
-# endif
 /*
  * Get the white pixel value
  */
@@ -604,65 +594,93 @@ ZebTime	*t;
  * Roll back the plot time to the nearest multiple of the trigger time.
  */
 {
-	char	trigger[PlatformListLen], **comps;
-	int	itrigger, seconds, i;
-	UItime	temptime,latest, avail;
-	ZebTime	ztavail;
+	char	list[PlatformListLen], **comps;
+	int	plats;
+	char	platform[PlatformListLen];
+	char 	*triggers[2*MaxPlatforms];
+	int	n, i;
+	int	itrigger, seconds;
+	int	c;
+	ZebTime	latest, avail;
 	PlatformId pid;
+	PlatformId fid = BadPlatform;
+	int found;
 /*
- * If the global trigger is time based, we just roll back to that time.
+ * First try to roll back to the most recent global trigger time.
  */
-	if (! pda_Search (Pd, "global", "trigger", 0, trigger, SYMT_STRING))
+	if (! pda_Search (Pd, "global", "trigger", 0, list, SYMT_STRING))
 		return;
-	if ((itrigger = pc_TimeTrigger (trigger)))
+	n = CommaParse (list, triggers);
+	seconds = 0;
+	for (i = 0; i < n; ++i)
 	{
-		TC_ZtToUI (t, &temptime);
-		seconds = (temptime.ds_hhmmss / 10000) * 3600 +
-			  ((temptime.ds_hhmmss / 100) % 100) * 60 +
-			  (temptime.ds_hhmmss % 100);
-		seconds -= seconds % itrigger;
-		temptime.ds_hhmmss = (seconds / 3600) * 10000 + 
-			 ((seconds / 60) % 60) * 100 + seconds % 60;
-		/* temptime.ds_yymmdd = temptime.ds_yymmdd; */
-		TC_UIToZt (&temptime, t);
+		if ((itrigger = pc_TimeTrigger (triggers[i])))
+		{
+			if (!seconds || (itrigger < seconds))
+				seconds = itrigger;
+		}
+	}
+	if (seconds)
+	{
+		t->zt_Sec -= t->zt_Sec % seconds;
+		msg_ELog (EF_DEBUG, "%s: %d sec @ %s",
+			  "fixing plot time to time trigger",
+			  seconds, TC_AscTime (t, TC_TimeOnly));
 		return;
 	}
 /*
  * Otherwise we need to look at platform triggers.
  */
 	comps = pd_CompList (Pd);
-	latest.ds_yymmdd = 800101;	/* pretty early */
-	for (i = 0; comps[i]; i++)
+	found = 0;
+	plats = 0;
+	for (c = 0; comps[c]; c++)
 	{
 	/*
 	 * Get the trigger platform.
 	 */
-		if (! pd_Retrieve (Pd, comps[i], "trigger", trigger,
-				   SYMT_STRING))
+		if (! pd_Retrieve(Pd, comps[c], "trigger", list, SYMT_STRING))
 			continue;
-		if (! strcmp (trigger, "platform"))
+		n = CommaParse (list, triggers);
+		i = -1;
+		while (++i < n)
 		{
-			if (! pda_ReqSearch (Pd, comps[i], "platform",
-					     NULL, trigger, SYMT_STRING))
+			if (! strcmp (triggers[i], "platform"))
+			{
+				if (!(plats++) &&
+				    pda_ReqSearch (Pd, comps[c], "platform",
+					   NULL, platform, SYMT_STRING))
+				{
+					n += CommaParse (platform, triggers+n);
+				}
 				continue;
+			}
+			pid = ds_LookupPlatform(triggers[i]);
+			if (pid == BadPlatform)
+				continue;
+		/*
+		 * Find the most recent time.
+		 */
+			if (!ds_DataTimes(pid, &PlotTime, 1, DsBefore, &avail))
+				continue;
+			if (!(found++) || TC_Less (latest, avail))
+			{
+				latest = avail;
+				fid = pid;
+			}
 		}
-		if ((pid = ds_LookupPlatform(trigger)) == BadPlatform)
-			continue;
-	/*
-	 * Find the most recent time.
-	 */
-		if (!ds_DataTimes (pid, &PlotTime, 1, DsBefore, &ztavail))
-			continue;
-		TC_ZtToUI (&ztavail, &avail);
-		if (DLE (latest, avail))
-			latest = avail;
 	}
 /*
  * If we found something, we go with it; otherwise keep the
  * plot time as it was. 
  */
-	if (latest.ds_yymmdd > 800101) 	/* still pretty early */
-		TC_UIToZt (&latest, t);
+	if (found)
+	{
+		*t = latest;
+		msg_ELog (EF_DEBUG, "%s: %s @ %s",
+			  "rolling plot time back to platform trigger",
+			  ds_PlatformName(fid), TC_AscTime (t, TC_TimeOnly));
+	}
 }
 
 
@@ -815,10 +833,6 @@ px_Init ()
 	Plot_routines[PT_HISTOGRAM][RT_INIT] = UNCOMPILED_FUNCTION;
 	Plot_routines[PT_HISTOGRAM][RT_BARCHART] = UNCOMPILED_FUNCTION;
 # endif
-/*
- * Done
- */
-	Table_built = TRUE;
 }
 
 
