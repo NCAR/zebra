@@ -1,5 +1,5 @@
 /*
- * $Id: tao_ingest.c,v 1.1 1993-05-18 20:24:22 granger Exp $
+ * $Id: tao_ingest.c,v 1.2 1993-07-01 14:40:08 granger Exp $
  *
  * Ingest TAO moorings data as an irregular grid
  *
@@ -27,7 +27,7 @@
 #include <copyright.h>
 
 #ifndef lint
-MAKE_RCSID("$Id: tao_ingest.c,v 1.1 1993-05-18 20:24:22 granger Exp $")
+MAKE_RCSID("$Id: tao_ingest.c,v 1.2 1993-07-01 14:40:08 granger Exp $")
 #endif
 
 # define NUMBER(arr)		((unsigned long)(sizeof(arr)/sizeof(arr[0])))
@@ -275,9 +275,11 @@ GetLocation (locn, name)
 	locn->l_alt = 0;
 	switch (hemlat)
 	{
-	   case 'N','n':
+	   case 'N':
+	   case 'n':
 		break;
-	   case 'S','s':
+	   case 'S':
+	   case 's':
 		locn->l_lat = -(locn->l_lat);
 		break;
 	   default:
@@ -289,9 +291,11 @@ GetLocation (locn, name)
 	}
 	switch (hemlon)
 	{
-	   case 'E','e':
+	   case 'E':
+	   case 'e':
 		break;
-	   case 'W','w':
+	   case 'W':
+	   case 'w':
 		locn->l_lon = -(locn->l_lon);
 		break;
 	   default:
