@@ -56,7 +56,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.81 1999-11-01 21:27:12 granger Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.82 2000-04-10 20:25:32 burghart Exp $")
 
 
 /*
@@ -1771,7 +1771,7 @@ CAP_PlotRaster (char *c, zbool update, char *topannot, char *sideannot)
  * description, specified conent, and plot time
  */
 {
-	char	fname[80], ctname[40], hcolor[40];
+	char	fname[20], ctname[40], data[100], hcolor[40], style[40];
 	char 	platform[PlatformListLen];
 	char	param[50], outrange[40];
 	int	xdim, ydim, slow;
@@ -2007,14 +2007,31 @@ CAP_PlotRaster (char *c, zbool update, char *topannot, char *sideannot)
 /*
  * Side annotation (color bar)
  */
-	if (highlight)
+	if (pda_Search (Pd, c, "side-annot-style", fname, style,
+			SYMT_STRING) && ! strcmp (style, "legend"))
+	{
+	    float scale;
+	    int lim, lheight, space;
+		
+	    An_GetSideParams (c, &scale, &lim);
+	    lheight = DT_ApproxHeight (Graphics, scale, 1);
+	    space = (Ncolors + 1)*lheight;
+	    sprintf (data, "%s|%s|%f|%f|%d", fname, ctname, center, step,
+		     Ncolors);
+	    An_AddAnnotProc (CAP_LegendAnnot, c, data, strlen (data),
+			     space, FALSE, FALSE);
+	}
+	else
+	{
+	    if (highlight)
 		sprintf (sideannot, "%s|%s|%f|%f|%d|%d|%f|%s|%f", 
 			 px_FldDesc (fname), ctname, center, step, nsteps, 
 			 highlight, hvalue, hcolor, hrange);
-	else
+	    else
 		sprintf (sideannot, "%s|%s|%f|%f|%d|%d|%f|%s|%f", 
 			 px_FldDesc (fname), ctname, center, step, nsteps, 
 			 highlight, 0.0, "null", 0.0);
+	}
 }
 
 
