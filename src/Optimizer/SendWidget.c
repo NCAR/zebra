@@ -23,6 +23,7 @@
 # include <stdlib.h>
 # include <unistd.h>
 # include <signal.h>
+# include <errno.h>
 # include <time.h>
 # include <sys/time.h>
 # include <setjmp.h>
@@ -37,7 +38,7 @@
 # include "prototypes.h"
 # include "radar.h"
 
-RCSID("$Id: SendWidget.c,v 1.7 1997-04-29 03:51:17 granger Exp $")
+RCSID("$Id: SendWidget.c,v 1.8 1999-03-04 22:15:52 burghart Exp $")
 
 /*
  * Private prototypes
@@ -46,9 +47,9 @@ static void sw_DialMode FP ((int));
 static void sw_SendMode FP ((int));
 static void sw_DialRadar FP ((Widget, XtPointer, XtPointer));
 static void sw_SendScan FP ((Widget, XtPointer, XtPointer));
-static void sw_Timeout FP ((void));
-static void sw_KermitCheck FP ((void));
-static void sw_MakeFile FP ((int, char *, char *));
+static void sw_Timeout FP ((int signal));
+static void sw_KermitCheck FP ((int signal));
+static int sw_MakeFile FP ((int, char *));
 static void sw_KillKermit FP ((int));
 
 /*
@@ -112,13 +113,10 @@ Widget	parent;
 	form = XtCreateManagedWidget ("sendForm", formWidgetClass, parent,
 		args, n);
 /*
- * Put together a dial/send widget and status widget for each radar with an
- * associated outgoing line
+ * Put together a dial/send widget and status widget for each radar
  */
 	for (r = 0; r < Nradars; r++)
 	{
-		if (! Rad[r].line_out)
-			continue;
 	/*
 	 * Dial/send widget
 	 */
@@ -128,7 +126,8 @@ Widget	parent;
 		XtSetArg (args[n], XtNfromHoriz, wstatus); n++;
 		XtSetArg (args[n], XtNfromVert, NULL); n++;
 		XtSetArg (args[n], XtNwidth, 100); n++;
-		XtSetArg (args[n], XtNresize, False); n++;
+		XtSetArg (args[n], XtNresizable, True); n++;
+		XtSetArg (args[n], XtNresize, True); n++;
 		w = WButton[r] = XtCreateManagedWidget (wname, 
 			commandWidgetClass, form, args, n);
 	/*
@@ -141,13 +140,18 @@ Widget	parent;
 		XtSetArg (args[n], XtNfromVert, w); n++;
 		XtSetArg (args[n], XtNborderWidth, 0); n++;
 		XtSetArg (args[n], XtNwidth, 100); n++;
-		XtSetArg (args[n], XtNresize, False); n++;
+		XtSetArg (args[n], XtNresizable, True); n++;
+		XtSetArg (args[n], XtNresize, True); n++;
 		wstatus = WStatus[r] = XtCreateManagedWidget (wname, 
 			labelWidgetClass, form, args, n);
 	/*
-	 * Start out in dial mode
+	 * If we have a phone number, start out in dial mode.  Otherwise,
+	 * start in send mode.
 	 */
-		sw_DialMode (r);
+		if (Rad[r].phone)
+		  sw_DialMode (r);
+		else
+		  sw_SendMode (r);
 	/*
 	 * Initialize some stuff
 	 */
@@ -214,12 +218,15 @@ int	r;
  * Go into "send" mode for radar r
  */
 {
-	char	string[20];
+	char	string[40];
 	Arg	arg;
 /*
  * Put "Send to <rad>" on the button widget and make it call the send routine
  */	
-	sprintf (string, "Send to %s", Rad[r].name);
+	if (Rad[r].phone)
+	    sprintf (string, "Send to %s", Rad[r].name);
+	else
+	    sprintf (string, "Write %s file", Rad[r].name);
 
 	XtSetArg (arg, XtNlabel, string);
 	XtSetValues (WButton[r], &arg, 1);
@@ -235,9 +242,13 @@ int	r;
  */
 	XtAddCallback (WButton[r], XtNcallback, sw_SendScan, (XtPointer) r);
 /*
- * Put "Connected" on the status widget
+ * Put either "Connected" or "OK" on the status widget
  */
-	XtSetArg (arg, XtNlabel, "Connected");
+	if (Rad[r].phone)
+	  XtSetArg (arg, XtNlabel, "Connected");
+	else
+	  XtSetArg (arg, XtNlabel, "OK");
+
 	XtSetValues (WStatus[r], &arg, 1);
 }
 
@@ -374,70 +385,73 @@ sw_SendScan (w, val, junk)
 Widget	w;
 XtPointer	val, junk;
 /*
- * Send the current scan to the selected radar
+ * Send the current scan to the selected radar, or write the scan file
  */
 {
-	int	r = (int) val;
-	time_t	itime;
-	char	fn[20], fullname[40], label[20];
-	Arg	arg;
+    int	r = (int) val;
+    time_t	itime;
+    char	fn[20], label[20];
+    Arg	arg;
 /*
  * Make sure we have a valid scan option
  */
-	if (Opt == NO_OPT)
-	{
-		msg_ELog (EF_INFO, "No scan to send!");
-		return;
-	}
+    if (Opt == NO_OPT)
+    {
+	msg_ELog (EF_INFO, "No scan to send!");
+	return;
+    }
 /*
- * Increment the file number.  We count from 1 to 6, then start over
+ * Modem option
  */
+    if (Rad[r].phone)
+    {
+    /*
+     * Increment the file number.  We count from 1 to 6, then start over
+     */
 	Last[r]++;
 	if (Last[r] > 6)
-		Last[r] = 1;
-/*
- * Build the filename
- */
-	sprintf (fn, "jon%1d", Last[r]);
+	    Last[r] = 1;
+    /*
+     * Build the filename
+     */
+	sprintf (fn, "/tmp/%s%1d", Rad[r].name, Last[r]);
 	msg_ELog (EF_INFO, "Sending file %s to %s", fn, Rad[r].name);
-/*
- * Create the file
- */
-	sw_MakeFile (r, fn, fullname);
-/*
- * Tell kermit to send it
- */
+    /*
+     * Create the file
+     */
+	sw_MakeFile (r, fn);
+    /*
+     * Tell kermit to send it
+     */
 	fprintf (ToKermit[r], "%s\n", fn);
-/*
- * Wait for a reply from kermit
- */
+    /*
+     * Wait for a reply from kermit
+     */
 	signal (SIGALRM, sw_Timeout);
 	alarm (SENDWAIT);
 
 	if (! setjmp (Jmpbuf))
-		fgets (Buf, BUFLEN, FromKermit[r]);
+	    fgets (Buf, BUFLEN, FromKermit[r]);
 	else
-		sprintf (Buf, "%d s timeout sending %s", SENDWAIT, fn);
+	    sprintf (Buf, "%d s timeout sending %s", SENDWAIT, fn);
 
 	alarm (0);
-/*
- * Remove the file and check the result
- */
-	remove (fullname);
-
+    /*
+     * Remove the file and check the result
+     */
 	if (strncmp (Buf, "Successfully sent", 17) != 0)
 	{
 	/*
 	 * If we failed, kill this kermit and go back to dial mode
 	 */
-		msg_ELog (EF_PROBLEM, "File send failed: %s", Buf);
-		Last[r]--;
-		sw_KillKermit (r);
-		return;
+	    msg_ELog (EF_PROBLEM, "File send failed: %s", Buf);
+	    Last[r]--;
+	    sw_KillKermit (r);
+	    return;
 	}
-/*
- * Success! Update the status widget to show the time and file sent
- */
+    /*
+     * Success! Update the status widget to show the time and file sent
+     */
 	msg_ELog (EF_INFO, "Successfully sent %s", fn);
 
 	sprintf (label, "%s ", fn);
@@ -445,6 +459,28 @@ XtPointer	val, junk;
 	strncat (label, ctime (&itime) + 11, 5);
 	XtSetArg (arg, XtNlabel, label);
 	XtSetValues (WStatus[r], &arg, 1);
+    }
+/*
+ * File writing option
+ */
+    else
+    {
+    /*
+     * Create the file
+     */
+	if (sw_MakeFile (r, Rad[r].line_out))
+	{
+	    msg_ELog (EF_INFO, "Successfully wrote scan file %s for %s\n", 
+		      Rad[r].line_out, Rad[r].name);
+	    XtVaSetValues (WStatus[r], XtNlabel, "OK", NULL);
+	}
+	else
+	{
+	    msg_ELog (EF_PROBLEM, "Write of scan file for %s failed\n", 
+		      Rad[r].name);
+	    XtVaSetValues (WStatus[r], XtNlabel, "FAILED", NULL);
+	}
+    }
 }
 
 
@@ -452,7 +488,7 @@ XtPointer	val, junk;
 
 
 void
-sw_Timeout ()
+sw_Timeout (int signal)
 {
 /* 
  * Sending a file has taken too long
@@ -464,7 +500,7 @@ sw_Timeout ()
 
 
 void
-sw_KermitCheck ()
+sw_KermitCheck (int signal)
 /*
  * Handle a "change in child status" signal.  We only care if a child
  * died.
@@ -494,205 +530,94 @@ sw_KermitCheck ()
 
 
 
-static void
-sw_MakeFile (r, fname, fullname)
+static int
+sw_MakeFile (r, fname)
 int	r;
-char	*fname, *fullname;
+char	*fname;
 /*
  * Write scan parameter file 'fname' for radar r.  On exit, 'fullname'
  * contains the full pathname of the file created.
  */
 {
-	FILE	*sfile;
-	int	i, state, nstates, first, sweeps;
-	float	left, right, bottom, top;
+    FILE *sfile;
+    int	i;
+    float left, right, bottom, top;
 /*
- * Open the file in /tmp
+ * Open the file
  */
-	sprintf (fullname, "/tmp/%s", fname);
-	if (! (sfile = fopen (fullname, "w")))
-	{
-		msg_ELog (EF_PROBLEM, "Cannot open %s", fullname);
-		return;
-	}
+    if (! (sfile = fopen (fname, "w")))
+    {
+	msg_ELog (EF_PROBLEM, "Error %d opening %s", errno, fname);
+	return;
+    }
 /*
  * Generate the scan
  */
-	ERRORCATCH
-		GenScan (Rad + r, Slowtime[Opt+3], Hres + Opt * RES_STEP, 
-			Vres + Opt * RES_STEP, TRUE);
-	ON_ERROR
-		msg_ELog (EF_PROBLEM, "BUG: Scan should have worked!");
-	ENDCATCH
+    ERRORCATCH
+	GenScan (Rad + r, Slowtime[Opt+3], Hres + Opt * RES_STEP, 
+		 Vres + Opt * RES_STEP, TRUE);
+    ON_ERROR
+	msg_ELog (EF_PROBLEM, "BUG: Scan should have worked!");
+    ENDCATCH
 /*
  * Find the scan limits
  */
-	if (Rad[r].scantype == RHI)
-	{
-		bottom = MAX (Rad[r].el_bottom, Rad[r].min_elev);
-		top = MIN (Rad[r].el_top, 
-			RAD_TO_DEG (atan (Vol_top / Rad[r].min_range)));
+    if (Rad[r].scantype == RHI)
+    {
+	bottom = MAX (Rad[r].el_bottom, Rad[r].min_elev);
+	top = MIN (Rad[r].el_top, 
+		   RAD_TO_DEG (atan (Vol_top / Rad[r].min_range)));
 
-		left = Rad[r].anglist[0];
-		right = Rad[r].anglist[Rad[r].nsweeps - 1];
-	}
-	else
-	{
-		bottom = Rad[r].anglist[0];
-		top = Rad[r].anglist[Rad[r].nsweeps - 1];
+	left = Rad[r].anglist[0];
+	right = Rad[r].anglist[Rad[r].nsweeps - 1];
+    }
+    else
+    {
+	bottom = Rad[r].anglist[0];
+	top = Rad[r].anglist[Rad[r].nsweeps - 1];
 
-		left = Rad[r].az_left;
-		right = Rad[r].az_right;
-	}
+	left = Rad[r].az_left;
+	right = Rad[r].az_right;
+    }
 /*
- * Number of states (one state per 24 angles in the angle list)
+ * Write the file
  */
-	nstates = (Rad[r].nsweeps + 23) / 24;
-/*
- * Build the schedule portion
- */
-	fprintf (sfile, "**********\n");
-	fprintf (sfile, "%s\n", fname);	/* file name		*/
-	fprintf (sfile, "21.00\n");	/* schedule = 21	*/
+    switch (Rad[r].scantype)
+    {
+      case PPI:
+	fprintf (sfile, "PPI\n");
+	break;
+      case RHI:
+	fprintf (sfile, "RHI\n");
+	break;
+      case SUR:
+	fprintf (sfile, "SUR\n");
+	break;
+      default:
+	msg_ELog (EF_PROBLEM, "Bad scan type %d in sw_MakeFile\n",
+		  (int)Rad[r].scantype);
+	return 0;
+    }
 
-	for (i = 0; i < 5; i++)
-	{
-		if (i == 0)
-			fprintf (sfile, "2000000.00\n");
-		else if (i < nstates)
-			fprintf (sfile, "0.00\n");
-		else
-			fprintf (sfile, "-1000000.00\n");
-	}
+    fprintf (sfile, "Sweeps: %d\n", Rad[r].nsweeps);
+    fprintf (sfile, "Scan rate: %.2f deg/s\n", Rad[r].scanrate);
+    fprintf (sfile, "Hits: %d\n", Rad[r].hits);
+    fprintf (sfile, "PRF: %d Hz\n", Rad[r].prf);
+    fprintf (sfile, "Left azimuth: %.1f\n", left);
+    fprintf (sfile, "Right azimuth: %.1f\n", right);
+    fprintf (sfile, "Bottom elevation: %.1f\n", bottom);
+    fprintf (sfile, "Top elevation: %.1f\n", top);
+    fprintf (sfile, "Angle list:");
+    for (i = 0; i < Rad[r].nsweeps; i++)
+    {
+	if (! (i % 8))
+	    fprintf (sfile, "\n");
+	fprintf (sfile, "%.1f ", Rad[r].anglist[i]);
+    }
+    fprintf (sfile, "\n");
 
-	for (i = 0; i < 2; i++)
-		fprintf (sfile, "-1000000.00\n");
-
-	for (i = 0; i < 5; i++)
-	{
-		if (i < nstates)
-			fprintf (sfile, "1000000.00\n");
-		else
-			fprintf (sfile, "-1000000.00\n");
-	}
-
-	for (i = 0; i < 5; i++)
-	{
-		if (i < nstates)
-			fprintf (sfile, "1.00\n");
-		else
-			fprintf (sfile, "-1.00\n");
-	}
-
-	for (i = 0; i < 5; i++)
-	{
-		if (i < (nstates - 1))
-			fprintf (sfile, "%.2f\n", (float) (i + 2));
-		else if (i == (nstates - 1))
-			fprintf (sfile, "0.00\n");
-		else
-			fprintf (sfile, "-2.00\n");
-	}
-
-	for (i = 0; i < 2; i++)
-		fprintf (sfile, "-2.00\n");
-
-	for (i = 0; i < 5; i++)
-		fprintf (sfile, "0.00\n");
-
-	for (i = 0; i < 6; i++)
-	{
-		if (i < nstates)
-			fprintf (sfile, "%ss%d\n", fname, i + 1);
-		else
-			fprintf (sfile, ".none\n");
-	}
-
-	for (i = 0; i < 4; i++)
-		fprintf (sfile, "\\\\\\\\\\\\\n");
-/*
- * State and angle list file(s)
- */
-	for (state = 0; state < nstates; state++)
-	{
-	/*
-	 * State file
-	 */
-		fprintf (sfile, "**********\n");
-
-		fprintf (sfile, "%ss%d\n", fname, state + 1); /* state name */
-
-		if (Rad[r].scantype == PPI)		/* scan type */
-			fprintf (sfile, "1.00\n");
-		else if (Rad[r].scantype == RHI)
-			fprintf (sfile, "2.00\n");
-		else
-			fprintf (sfile, "3.00\n");
-
-		fprintf (sfile, "%.2f\n%.2f\n%.2f\n%.2f\n%.2f\n", left, right, 
-			Rad[r].scanrate, bottom, top);
-
-		fprintf (sfile, "0.00\n");	/* elevation step */
-		fprintf (sfile, "%.2f\n", (float) Rad[r].ngates);
-		fprintf (sfile, "%.2f\n", (float) Rad[r].hits);
-		fprintf (sfile, "0.00\n");	/* R0 */
-		fprintf (sfile, "%.2f\n", (float) Rad[r].gspacing);
-		fprintf (sfile, "1.00\n");	/* recording on */
-		fprintf (sfile, "0.00\n");	/* no half PRF */
-		fprintf (sfile, "3.00\n");	/* data type */
-		fprintf (sfile, "0.00\n");	/* no dual pol. processing */
-		fprintf (sfile, "1024.00\n");	/* dual pol. switching */
-		fprintf (sfile, "0.00\n");	/* azimuth step (not fixed) */
-		fprintf (sfile, "%.2f\n", Rad[r].scanrate);
-		fprintf (sfile, "0.00\n");	/* SUR start azimuth */
-		fprintf (sfile, "0.00\n");	/* no full 360 on SUR */
-		fprintf (sfile, "0.00\n");	/* COP baseline */
-		fprintf (sfile, "%.2f\n", Rad[r].scantime);
-		fprintf (sfile, "%.2f\n", (Rad[r].scantype == RHI) ? 
-			Rad[r].res_vert : Rad[r].res_horiz);
-		fprintf (sfile, "1.00\n");	/* Use angle list */
-		fprintf (sfile, "%.2f\n", (float) Rad[r].prf);
-		fprintf (sfile, "0.00\n");	/* filter */
-		fprintf (sfile, "0.00\n");	/* use DC removal */
-
-		for (i = 0; i < 3; i++)		/* three unused lines */
-			fprintf (sfile, "0.00\n");
-
-		fprintf (sfile, "%sa%d\n", fname, state + 1); /* angle list */
-		for (i = 0; i < 9; i++)		/* 9 empty angle list names */
-				fprintf (sfile, "\\\\\\\\\\\\\n");
-	/*
-	 * Angle list file
-	 */
-		first = 24 * state;
-		sweeps = Rad[r].nsweeps - first;
-		if (sweeps > 24)
-			sweeps = 24;
-
-		fprintf (sfile, "**********\n");
-		fprintf (sfile, "%sa%d\n", fname, state + 1);
-
-		fprintf (sfile, "11.00\n");		/* angle list */
-		fprintf (sfile, "%.2f\n", (float)sweeps);/* length of list */
-		fprintf (sfile, "%.2f\n",		/* az or elev? */
-			(Rad[r].scantype == RHI) ? 2.0 : 1.0);
-
-		for (i = 0; i < sweeps; i++)		/* angle list */
-			fprintf (sfile, "%.2f\n", Rad[r].anglist[first+i]);
-
-		for (i = sweeps; i < 24; i++)
-			fprintf (sfile, "-1313.00\n");	/* unused angles */
-
-		for (i = 0; i < 3; i++)
-			fprintf (sfile, "0.00\n");	/* unused */
-
-		for (i = 0; i < 10; i++)		/* unused */
-			fprintf (sfile, "\\\\\\\\\\\\\n");
-	}
-
-	fprintf (sfile, "**********\n");
-
-	fclose (sfile);
+    fclose (sfile);
+    return 1;
 }
 
 

@@ -38,7 +38,7 @@
 # include "keywords.h"
 # include "prototypes.h"
 
-RCSID ("$Id: Optimizer.c,v 1.8 1997-04-29 03:51:14 granger Exp $")
+RCSID ("$Id: Optimizer.c,v 1.9 1999-03-04 22:15:51 burghart Exp $")
 
 /*
  * Declare global variables here
@@ -320,7 +320,7 @@ char	*cfg;
  */
 {
 	int	status, i, baud;
-	char	fname[200], string[30], line[30], phone[30];
+	char	fname[200], string[80], cmd[30], line[30], phone[30];
 	FILE	*cfile;
 	Radar	r;
 /*
@@ -329,13 +329,8 @@ char	*cfg;
 	strcpy (fname, cfg);
 	if (access (fname, R_OK) != 0)
 	{
-		sprintf (fname, "/zeb/src/Optimizer/%s", cfg);
-		if (access (fname, R_OK) != 0)
-		{
-			msg_ELog (EF_PROBLEM, "Cannot open '%s' config file!",
-				cfg);
-			exit (1);
-		}
+	  msg_ELog (EF_PROBLEM, "Cannot open '%s' config file!", cfg);
+	  exit (1);
 	}
 /*
  * Open the file and read everything out of it
@@ -376,29 +371,33 @@ char	*cfg;
 
 		r.name[strlen (r.name) - 1] = '\0';
 	/*
-	 * Outgoing line, phone number, and baud rate for sending scan info
+	 * file <filename>
+	 *     -OR-
+	 * modem <device> <phone-number> <baud>
 	 */
 		fgets (string, sizeof (string), cfile);
-		sscanf (string, "%s%s%d", line, phone, &baud);
-
-		if (line[0] != '-')
+		if (! strncmp (string, "modem", 5))
+		/*
+		 * modem <device> <phone-number> <baud>
+		 */
 		{
-			r.line_out = (char *) 
-				malloc ((1 + strlen (line)) * sizeof (char));
-			strcpy (r.line_out, line);
-
-			r.phone = (char *) 
-				malloc ((1 + strlen (phone)) * sizeof (char));
-			strcpy (r.phone, phone);
-
-			r.baud = baud;
+		  sscanf (string, "%s%s%s%d", cmd, line, phone, &baud);
+		  r.phone = (char*) malloc (1 + strlen (phone));
+		  strcpy (r.phone, phone);
+		  r.baud = baud;
 		}
 		else
+		/*
+		 * file <filename>
+		 */
 		{
-			r.line_out = NULL;
-			r.phone = NULL;
-			r.baud = 0;
+		  sscanf (string, "%s%s", cmd, line);
+		  r.phone = NULL;
+		  r.baud = 0;
 		}
+
+		r.line_out = (char*) malloc (1 + strlen (line));
+		strcpy (r.line_out, line);;
 	/*
 	 * Lat and lon
 	 */
