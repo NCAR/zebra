@@ -30,7 +30,7 @@
 # include <DataStore.h>
 # include <Platforms.h>
 
-RCSID ("$Id: dsdump.c,v 3.25 2000-11-06 21:18:17 granger Exp $")
+RCSID ("$Id: dsdump.c,v 3.26 2000-11-07 19:54:10 granger Exp $")
 
 /*
  * Standalone scanning flag.
@@ -105,6 +105,7 @@ struct dsdump_options
     int tcf;		/* time formats */
     platform_att_id *atts;
     int natts;
+    const PlatformClass *subclass;
     ZebraTime since;
     ZebraTime before;
 };
@@ -127,7 +128,8 @@ DumpOptions Options =
     FALSE,		/* quiet */
     FALSE,		/* full */
     TC_Full,		/* tcf, time formats */
-    0, 0		/* default to no table rows */
+    0, 0,		/* default to no table rows */
+    0			/* don't limit to a particular class */
 };
 	
 
@@ -295,6 +297,8 @@ char *prog;
     printf("\t-i\tIndependently of the datastore, scan the given\n");
     printf("\t\tfiles and dump the results as usual.\n");
 #endif
+    printf("\t-C <classname>\n"
+	   "\t\tLimit platforms to subclasses of this class.\n");
     printf("\t-r '<column1>, <column2>, ...'\n"
 	   "\t\tRow output with the given attributes in each column\n");
     for (i = 1; i < PA_LASTATT; ++i)
@@ -450,11 +454,16 @@ GetPeriod (char *arg, ZebTime *when)
 
 
 
-static void
+/*
+ * Return 1 if this platform was matched and dumped, 0 if not.
+ */
+static int
 NextPlatform (PlatformId pid, DumpOptions *opts)
 {
     const Platform *p = dt_FindPlatform (pid);
 
+    if (opts->subclass && ! pi_IsSubclass (p, opts->subclass))
+	return 0;
     if (! opts->quiet)
 	DumpPlatform (p, opts);
     if (opts->defn)
@@ -470,6 +479,7 @@ NextPlatform (PlatformId pid, DumpOptions *opts)
     }
     if (opts->tier)
 	DumpSubplatforms (p);
+    return 1;
 }
 
 
@@ -609,6 +619,19 @@ main (argc, argv)
 		}
 		ParseAttList (argv[opt], opts);
 		break;
+	    case 'C':
+		if (! argv[++opt])
+		{
+		    usage (argv[0]);
+		    exit (1);
+		}
+		opts->subclass = dt_FindClassName (argv[opt]);
+		if (! opts->subclass)
+		{
+		    printf ("%s: class unknown\n", argv[opt]);
+		    exit (1);
+		}
+		break;
 	    default:
 		printf ("%s: illegal option '%s'\n",
 			argv[0], argv[opt]);
@@ -624,8 +647,7 @@ main (argc, argv)
 		printf ("%s: bad platform\n", argv[opt]);
 	    else
 	    {
-		NextPlatform (pid, opts);
-		++matches;
+		matches += NextPlatform (pid, opts);
 	    }
 	    exact = FALSE;
 	    first = TRUE;
@@ -636,10 +658,9 @@ main (argc, argv)
 	    platforms = ds_SearchPlatforms (pattern, &nplat, 
 					    opts->sort, 
 					    opts->subs);
-	    matches += nplat;
 	    for (i = 0; i < nplat; i++)
 	    {
-		NextPlatform (platforms[i], opts);
+		matches += NextPlatform (platforms[i], opts);
 	    }
 	    if (pattern && (nplat == 0))
 		printf ("No matches for '%s'\n", pattern);
