@@ -29,7 +29,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID ("$Id: d_Scan.c,v 1.3 1993-05-03 17:21:58 corbet Exp $");
+MAKE_RCSID ("$Id: d_Scan.c,v 1.4 1993-09-02 08:24:29 granger Exp $");
 
 
 /*
@@ -393,6 +393,7 @@ int chain;
 		{
 			msg_ELog (EF_DEBUG, "File %s disappeared",
 				DFTable[dfi].df_name);
+			DataFileGone (DFTable + dfi);
 			dt_RemoveDFE (p, dfi);
 			p->dp_flags |= DPF_DIRTY;
 		}
