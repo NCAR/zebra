@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# $Id: zplotbatch,v 1.31 2004-07-16 19:08:48 granger Exp $
+# $Id: zplotbatch,v 1.32 2004-07-17 05:36:51 granger Exp $
 #
 # Start a display manager session with a virtual X server and dump
 # images of its plots.
@@ -316,6 +316,8 @@ echo "Shutting down $DM."
 #    # Give the server time to die and clear its socket
 #fi
 
+wait
+
 # Pass on the image file names in sorted order
 echo Images: `(for img in $images DONE ; do
 		if [ $img != "DONE" ]; then
@@ -328,5 +330,5 @@ if [ -n "$errors" ]; then
     echo $errors
     exit 1
 fi
-echo "No problems."
+echo "___ No problems. ___"
 exit 0
