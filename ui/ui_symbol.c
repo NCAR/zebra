@@ -1,16 +1,8 @@
 /*
  * This is the symbol table module.
- *
- * 	5/20/87 cb	Routine names had to be shortened to make them unique
- * 			on the CRAY.  Here is a glossary to help decode the
- *			new names:
- *				Routine name with	Means
- *				-----------------       -----
- *					_c_		"create"
- *					_g_		"get"
- *					_s_		"set"
- *					_z_		"zap"
  */
+static char *Rcsid = "$Id: ui_symbol.c,v 1.7 1990-03-27 15:41:57 corbet Exp $";
+
 # ifdef VMS
 # include <string.h>
 # endif
@@ -24,7 +16,6 @@
 # include "ui_date.h"
 # include "ui_globals.h"
 
-static char *Rcsid = "$Id: ui_symbol.c,v 1.6 1990-03-27 11:32:13 corbet Exp $";
 
 /*
  * This is the format of a single symbol table entry.
@@ -833,13 +824,32 @@ char *s;
 
 
 
+
 usy_traverse (table, func, arg, sort)
 struct symbol_table *table;
 int (*func) ();
 long arg;
 bool sort;
 /*
- * Perform a traversal of this table.
+ * The old interface to usy_search.
+ */
+{
+	return (usy_search (table, func, arg, sort, (char *) 0));
+}
+
+
+
+
+
+usy_search (table, func, arg, sort, re)
+struct symbol_table *table;
+int (*func) ();
+long arg;
+bool sort;
+char *re;
+/*
+ * Perform a traversal of this table, possibly controlled by a regular
+ * expression.
  * Entry:
  *	TABLE	is a symbol table.
  *	FUNC	is an integer function, that expects to be called as:
@@ -851,6 +861,9 @@ bool sort;
  *			long arg;
  *
  *	SORT	is true iff the list is to be sorted.
+ *	RE	is a regular expression to be applied to the names of the
+ *		symbols in the table.  If it is non-NULL, only symbols 
+ *		which match the expression will be passed through.
  *
  * Action:
  *	The given function will be called once for every entry in the
@@ -859,14 +872,26 @@ bool sort;
  *	FUNC will be the return value here.
  */
 {
-	int slot = 0, ret, nsy = 0;
+	int slot = 0, ret, nsy = 0, i;
+	char *re_comp (), *re_exec ();
 	struct ste *sp;
 	struct ste **list =
 		(struct ste **) getvm (table->st_nsym * sizeof (struct ste *));
 	union usy_value v;
-
+/*
+ * If the table is empty, why bother?
+ */
 	if (table->st_nsym == 0)
 		return (0);
+/*
+ * If there is an RE, compile it.
+ */
+	if (re)
+	{
+		char *stat = re_comp (re);
+		if (stat)
+			ui_error ("(BUG) RE comp error: %s", stat);
+	}
 /*
  * Go through, and build up a list of all entries in this table.
  */
@@ -874,14 +899,15 @@ bool sort;
  	for (; slot < HASH_MOD; slot++)
 		for (sp = table->st_ste[slot]; sp; )
 		{
-			list[nsy++] = sp;
+			if (! re || re_exec (sp->ste_sym))
+				list[nsy++] = sp;
 			sp = sp->ste_next;
 		}
 /*
  * Sort the list, if necessary.
  */
  	if (sort)
-		usy_sort (list, table->st_nsym);
+		usy_sort (list, nsy);
 /*
  * Now we go through and execute the handler for each one.  While this
  * separation eliminates the problems that result when the handler deletes
@@ -889,9 +915,9 @@ bool sort;
  * particular, the deletion of a symbol that has not yet been passed to
  * the handler.
  */
-	for (nsy = 0; nsy < table->st_nsym; nsy++)
+	for (i = 0; i < nsy; i++)
 	{
-		sp = list[nsy];
+		sp = list[i];
 		if (sp->ste_indirect)
 			usy_g_indirect (sp, &v);
 		if ((ret = (*func) (sp->ste_sym, sp->ste_type,
