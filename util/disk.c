@@ -1,5 +1,5 @@
 /* 11/84 jc */
-/* $Id: disk.c,v 1.3 1990-01-03 11:06:57 wyngaard Exp $ */
+/* $Id: disk.c,v 1.4 1990-01-16 09:57:54 wyngaard Exp $ */
 /*
  * Disk handling.
  *
@@ -16,13 +16,15 @@
 # ifdef UNIX
 # include <stdio.h>
 # include <errno.h>
+# ifdef NETACCESS
+#   include "netdisk.h"
+# endif
 # define LTYPE long
 FILE *fopen ();
 long ftell (), Offset;
 # endif
 
 # define FALSE 0
-
 
 
 static char *Def_name = "SYS$SCRATCH:TAPE.TAP";
@@ -110,13 +112,27 @@ char *file;
 # ifdef UNIX
 	FILE *fd;
 
+#   ifdef NETACCESS
+	if (strchr (file, ':'))
+	{
+		int	fnum;
+
+		if (!(fnum = cli_dcreate (file)))
+			return (FALSE);
+		return (lun_assign (fnum, LUN_NTDSK_DISK));
+	}
+#   endif
 	if ((fd = fopen (file, "w")) == NULL)
 	{
 		perror (file);
 		printf ("\n");
 		return (FALSE);
 	}
+#   ifdef NETACCESS
+	return ((LTYPE) lun_assign ((int) fd, LUN_LOCAL));
+#   else
 	return ((LTYPE) fd);
+#   endif
 # endif
 }
 
@@ -258,6 +274,16 @@ char *file;
 # ifdef UNIX
 	FILE *fd;
 
+#   ifdef NETACCESS
+	if (strchr (file, ':'))
+	{
+		int	fnum;
+
+		if (!(fnum = cli_dopen (file)))
+			return (FALSE);
+		return (lun_assign (fnum, LUN_NTDSK_DISK));
+	}
+#   endif
 	if ((fd = fopen (file, "rw")) == NULL)
 	{
 		if (errno != ENOENT)
@@ -267,7 +293,11 @@ char *file;
 		}
 		return (FALSE);
 	}
+#   ifdef NETACCESS
+	return ((LTYPE) lun_assign ((int) fd, LUN_LOCAL));
+#   else
 	return ((LTYPE) fd);
+#   endif
 # endif
 }
 
@@ -343,6 +373,16 @@ char *file;
 # ifdef UNIX
 	FILE *fd;
 
+#   ifdef NETACCESS
+	if (strchr (file, ':'))
+	{
+		int	fnum;
+
+		if (!(fnum = cli_dview (file)))
+			return (FALSE);
+		return (lun_assign (fnum, LUN_NTDSK_DISK));
+	}
+#   endif
 	if ((fd = fopen (file, "r")) == NULL)
 	{
 		if (errno != ENOENT)
@@ -352,7 +392,11 @@ char *file;
 		}
 		return (FALSE);
 	}
+#   ifdef NETACCESS
+	return ((LTYPE) lun_assign ((int) fd, LUN_LOCAL));
+#   else
 	return ((LTYPE) fd);
+#   endif
 # endif
 }
 
@@ -452,10 +496,17 @@ int len;
 
 # ifdef UNIX
 	char cbuf[5000];
+	FILE *fd = (FILE *) r;
 
+#   ifdef NETACCESS
+	if (lun_type (r) == LUN_NTDSK_DISK)
+		return (cli_dput (lun_lookup (r), buf, len));
+	else
+		fd = (FILE *) lun_lookup (r);
+#   endif
 	memcpy (cbuf, buf, len);
 	cbuf[len] = 0;
-	fprintf ((FILE *) r, "%s\n", cbuf);
+	fprintf (fd, "%s\n", cbuf);
 	return (1);
 # endif
 }
@@ -500,8 +551,16 @@ int max;
 
 # ifdef UNIX
 	int len;
-	Offset = ftell ((FILE *) r);
-	if (! fgets (buf, max, (FILE *) r))
+	FILE *fd = (FILE *) r;
+
+#   ifdef NETACCESS
+	if (lun_type (r) == LUN_NTDSK_DISK)
+		return (cli_dget (lun_lookup (r), buf, max));
+	else
+		fd = (FILE *) lun_lookup (r);
+#   endif
+	Offset = ftell (fd);
+	if (! fgets (buf, max, fd))
 		return (-1);
 	len = strlen (buf);
 	buf[len-1] = '\0';	/* Zap newline */
@@ -526,8 +585,18 @@ short rfa[3];
 
 # ifdef UNIX
 	long *temp = (long *) rfa;
+	FILE *fd = (FILE *) r;
 
-	*temp = ftell ((FILE *) r);
+#   ifdef NETACCESS
+	if (lun_type (r) == LUN_NTDSK_DISK)
+	{
+		cli_drfa (lun_lookup (r), rfa);
+		return;
+	}
+	else
+		fd = (FILE *) lun_lookup (r);
+#   endif
+	*temp = ftell (fd);
 # endif
 }
 
@@ -566,7 +635,18 @@ LTYPE r;
 # endif
 
 # ifdef UNIX
-	if (fseek ((FILE *) r, Offset, 0) == -1)
+	FILE *fd = (FILE *) r;
+
+#   ifdef NETACCESS
+	if (lun_type (r) == LUN_NTDSK_DISK)
+	{
+		cli_dagain (lun_lookup (r));
+		return;
+	}
+	else
+		fd = (FILE *) lun_lookup (r);
+#   endif
+	if (fseek (fd, Offset, 0) == -1)
 		printf ("\nImproper seek\n");
 # endif
 }
@@ -607,7 +687,18 @@ short rfa[3];
 # endif
 
 # ifdef UNIX
-	if (fseek ((FILE *) r, *(long *) rfa, 0) == -1)
+	FILE *fd = (FILE *) r;
+
+#   ifdef NETACCESS
+	if (lun_type (r) == LUN_NTDSK_DISK)
+	{
+		cli_dfind (lun_lookup (r), rfa);
+		return;
+	}
+	else
+		fd = (FILE *) lun_lookup (r);
+#   endif
+	if (fseek (fd, *(long *) rfa, 0) == -1)
 		printf ("\nImproper seek\n");
 # endif
 }
@@ -639,7 +730,15 @@ LTYPE r;
 # endif
 
 # ifdef UNIX
+#   ifdef NETACCESS
+	if (lun_type (r) == LUN_NTDSK_DISK)
+		cli_dclose (lun_lookup (r));
+	else
+		fclose ((FILE *) lun_lookup (r));
+	lun_deassign (r);
+#   else
 	fclose ((FILE *) r);
+#   endif
 # endif
 }
 
@@ -661,7 +760,15 @@ LTYPE r;
 # endif
 
 # ifdef UNIX
-	rewind ((FILE *) r);
+	FILE *fd = (FILE *) r;
+
+#   ifdef NETACCESS
+	if (lun_type (r) == LUN_NTDSK_DISK)
+		return (cli_drewind (lun_lookup (r)));
+	else
+		fd = (FILE *) lun_lookup (r);
+#   endif
+	rewind (fd);
 	return (1);
 # endif
 }

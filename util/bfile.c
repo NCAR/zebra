@@ -4,6 +4,9 @@
  * the VMS-specific variable-length-record-format file does not exist in
  * other systems, and must be emulated.
  */
+# ifdef NETACCESS
+#   include "netdisk.h"
+# endif
 
 
 
@@ -18,9 +21,18 @@ char *file;
 # ifdef UNIX
 	int fd;
 
+#   ifdef NETACCESS
+	if (strchr (file, ':'))
+		return (dview (file));
+#   endif
 	if ((fd = open (file, 0)) < 0)
 		perror (file);
-	return (fd < 0 ? 0 : fd);
+#   ifdef NETACCESS
+	return (fd < 0 ? 0 : lun_assign (fd, LUN_LOCAL));
+#   else
+	return (fd < 0 ? 0 : fd));
+#   endif
+
 # else
 	return (dview (file));
 # endif
@@ -38,9 +50,18 @@ char *file;
 # ifdef UNIX
 	int fd;
 
+#   ifdef NETACCESS
+	if (strchr (file, ':'))
+		return (dopen (file));
 	if ((fd = open (file, 2)) < 0)
 		perror (file);
+#    endif
+#    ifdef NETACCESS
+	return (fd < 0 ? 0 : lun_assign (fd, LUN_LOCAL));
+#    else
 	return (fd < 0 ? 0 : fd);
+#    endif
+
 # else
 	return (dopen (file));
 # endif
@@ -58,13 +79,20 @@ char *file;
 {
 # ifdef UNIX
 	int fd;
-
+#   ifdef NETACCESS
+	if (strchr (file, ':'))
+		return (dcreate (file));
+#   endif
 	if ((fd = creat (file, 0777)) < 0)
 	{
 		perror (file);
 		return (0);
 	}
+#   ifdef NETACCESS 
+	return (lun_assign (fd, LUN_LOCAL));
+#   else
 	return (fd);
+#   endif
 # else
 	return (dcreate (file));
 # endif
@@ -79,7 +107,15 @@ int fd;
  */
 {
 # ifdef UNIX
+#    ifdef NETACCESS
+	if (lun_type (fd) == LUN_NTDSK_DISK)
+		dclose (fd);
+	else
+		close (lun_lookup (fd));
+	lun_deassign (fd);
+#    else
 	close (fd);
+#    endif
 # else
 	dclose (fd);
 # endif
@@ -101,6 +137,12 @@ char *buf;
 /*
  * First, get the record length.
  */
+#   ifdef NETACCESS
+	if (lun_type (fd) == LUN_NTDSK_DISK)
+		return (dget (fd, buf, len));
+	else
+		fd = lun_lookup (fd);
+#   endif
 	if (read (fd, &rlen, sizeof (int)) < sizeof (int))
 		return (-1);
 	if (rlen == 0)
@@ -132,6 +174,12 @@ char *buf;
 # ifdef UNIX
 	unsigned int rlen = len;
 
+#   ifdef NETACCESS
+	if (lun_type (fd) == LUN_NTDSK_DISK)
+		return (dput (fd, buf, len));
+	else
+		fd = lun_lookup (fd);
+# endif
 	write (fd, &rlen, sizeof (unsigned int));
 	if (rlen > 0)
 		write (fd, buf, len);
