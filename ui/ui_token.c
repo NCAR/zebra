@@ -11,7 +11,7 @@
 # include "ui_tty.h"
 # include "ui_mode.h"
 
-static char *Rcsid = "$Id: ui_token.c,v 1.9 1989-09-25 15:37:19 corbet Exp $";
+static char *Rcsid = "$Id: ui_token.c,v 1.10 1990-03-27 10:52:40 corbet Exp $";
 
 /*
  * For input analysis, all characters are classified into one of the
@@ -399,17 +399,11 @@ int subst;
 	if (ctx->tc_in_line)
 		ut_finish_line (TRUE);
 # endif
-	zfill (ctx, sizeof (struct token_context));
+	/* zfill (ctx, sizeof (struct token_context)); */
+	memset (ctx, 0, sizeof (struct token_context));
 	if (! Cs->cs_input)
 		ui_error ("There is no input source!!!!!!!!");
 	ctx->tc_do_sub = subst;
-# ifdef notdef
-/*
- * Clean out the Iflags array.
- */
- 	for (i = 0; i < ctx->tc_iindex; i++)
-		ctx->tc_iflags[i] = 0;
-# endif
 /*
  * Get things going.
  */
