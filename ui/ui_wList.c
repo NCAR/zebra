@@ -3,7 +3,7 @@
  */
 
 # ifdef XSUPPORT
-static char *rcsid = "$Id: ui_wList.c,v 1.5 1990-09-19 09:11:22 corbet Exp $";
+static char *rcsid = "$Id: ui_wList.c,v 1.6 1991-12-20 18:11:44 corbet Exp $";
 /* 
  * Window system code.
  */
@@ -11,7 +11,7 @@ static char *rcsid = "$Id: ui_wList.c,v 1.5 1990-09-19 09:11:22 corbet Exp $";
 # include <X11/Xlib.h>
 # include <X11/cursorfont.h>
 # include <X11/Intrinsic.h>
-# include <X11/Cardinals.h>
+# include <X11/Xaw/Cardinals.h>
 # include <X11/StringDefs.h>
 # include <X11/Shell.h>
 
@@ -21,7 +21,6 @@ static char *rcsid = "$Id: ui_wList.c,v 1.5 1990-09-19 09:11:22 corbet Exp $";
 # include <X11/List.h>
 # include <X11/Form.h>
 # include <X11/Label.h>
-# include <X11/VPaned.h>
 # define XawListHighlight XtListHighlight
 # define XawListUnhighlight XtListUnhighlight
 
@@ -31,7 +30,6 @@ static char *rcsid = "$Id: ui_wList.c,v 1.5 1990-09-19 09:11:22 corbet Exp $";
 # include <X11/Xaw/List.h>
 # include <X11/Xaw/Form.h>
 # include <X11/Xaw/Label.h>
-# include <X11/Xaw/VPaned.h>
 # endif
 
 # include "ui.h"
