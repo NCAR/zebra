@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.48 1996-11-27 02:21:26 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.49 1996-12-03 07:10:20 granger Exp $"
 
 DEPLIBS=$(LIBZEB)
 LIBMPROF=/dt/granger/libc_mp.a
@@ -229,7 +229,7 @@ TESTOUT =
 DEBUG_FLAG =
 TESTOUT = > /dev/null 2>&1
 #endif
-ALINE = aline -nconsumers 4 $(DEBUG_FLAG) -period 4 -inventory $(INVENTORY)
+ALINE = aline -n 4 $(DEBUG_FLAG) -per 3 -inv $(INVENTORY)
 DSDAEMON = ./dsDaemon $(DEBUG_FLAG)
 APPLE = apple -a -c 2 $(DEBUG_FLAG)
 
@@ -255,64 +255,24 @@ test.session $(SOCKET): $(ZPROGS) dsDaemon dsDaemon.lf $(DSCONFIG)
 	($(DSDAEMON) $(DSCONFIG) $(TESTOUT) &); \
 	sleep 5; /* give daemon time to connect */
 
-#ifndef LinuxArchitecture
 test.aline.only: aline $(SOCKET)
 	TEST_ENV
 	echo "Assembly line testing with 'aline'..."; \
 	set +x; \
-	echo " -- Shared netCDF platform" ; \
-	if $(ALINE) -share $(TESTOUT); \
-		then echo "Passed."; \
-	else \
-		echo "FAILED."; \
-	fi; \
-	echo " -- Linked netCDF platforms (files removed)" ; \
-	if $(ALINE) -remove $(TESTOUT); \
-		then echo "Passed."; \
-	else \
-		echo "FAILED."; \
-	fi; \
-	echo " -- Shared ZNF platform" ; \
-	if $(ALINE) -znf -share $(TESTOUT); \
-		then echo "Passed."; \
-	else \
-		echo "FAILED."; \
-	fi; \
-	echo " -- Linked ZNF platforms (files removed)" ; \
-	if $(ALINE) -znf -remove $(TESTOUT); \
-		then echo "Passed."; \
-	else \
-		echo "FAILED."; \
-	fi
-#else
-test.aline.only: aline $(SOCKET)
-	TEST_ENV
-	echo "Assembly line testing with 'aline'..."; \
-	set +x; \
-	echo " -- Shared netCDF platform" ; \
-	if $(ALINE) -share $(TESTOUT); \
-		then echo "Passed."; \
-	else \
-		echo "FAILED."; \
-	fi; \
-	echo " -- Linux NFS bug -- skipping linked netCDF test" ; \
-	echo " -- Shared ZNF platform" ; \
-	if $(ALINE) -znf -share $(TESTOUT); \
-		then echo "Passed."; \
-	else \
-		echo "FAILED."; \
-	fi; \
-	echo " -- Linux NFS bug -- skipping linked znf test"
-#endif
+	RunTest($(ALINE) -shar $(TESTOUT),"shared cdf platform, r/o"); \
+	RunTest($(ALINE) -shar -w $(TESTOUT),"shared cdf platform, r/w"); \
+	RunTest($(ALINE) -rem $(TESTOUT),"linked cdf (files removed)"); \
+	RunTest($(ALINE) -ov $(TESTOUT),"linked cdf (files copied)"); \
+	RunTest($(ALINE) -z -sh $(TESTOUT),"shared znf platform, r/o"); \
+	RunTest($(ALINE) -z -sh -w $(TESTOUT),"shared znf platform, r/w"); \
+	RunTest($(ALINE) -z -r $(TESTOUT),"linked znf (files removed)"); \
+	RunTest($(ALINE) -z -ov $(TESTOUT),"linked znf (files copied)"); \
+	echo "End assembly line testing."
 
 test.apple.only: apple $(SOCKET) $(DSDUMP)
 	TEST_ENV
-	echo "Running 'apple', arrows away..."; \
-	if $(APPLE) $(TESTOUT); \
-		then echo "Passed."; \
-	else \
-		echo "FAILED."; \
-	fi
+	RunTest($(APPLE) $(TESTOUT),"William Tell, arrows away"); \
+	echo "End apple testing."
 
 test.close: $(ZSTOP)
 	TEST_ENV
