@@ -27,7 +27,7 @@
 # include <config.h>
 # include <defs.h>
 
-RCSID("$Id: Overlay.c,v 2.51 1995-09-26 15:36:14 granger Exp $")
+RCSID("$Id: Overlay.c,v 2.52 1995-09-29 20:00:52 burghart Exp $")
 
 # include <pd.h>
 # include <GraphicsW.h>
@@ -155,7 +155,7 @@ static bool 	ov_GetBndParams FP ((char *, char *, XColor *, int *, bool *,
 			LabelOpt *, char *, float *, int *, char *, int *));
 static int 	ov_RRInfo FP ((char *, char *, Location *, float *, float *,
 			float *, float *, int *, float *, XColor *, int *,
-			float *, bool *, bool *));
+			float *, bool *, float *, bool *));
 static OvIcon 	*ov_GetIcon FP ((char *));
 static int 	ov_LocSetup FP ((char *, char **, int *, char *, LabelOpt *,
 			char *, bool *, float *, int *));
@@ -1369,7 +1369,7 @@ int update;
 	Location loc;
 	bool dolabels, do_nm;
 	float ringint, azint, rannot, aannot, maxrange, x, y, az, azoff;
-	float radius, azrad, textrot;
+	float radius, azrad, textrot, labelsize;
 	int lastring, ring, lwidth, px, py, pradius, farx, fary;
 	char platform[40], label[8];
 	XColor xc;
@@ -1378,7 +1378,7 @@ int update;
  */
 	if (! ov_RRInfo (comp, platform, &loc, &ringint, &azint, &rannot,
 			 &aannot, &lastring, &maxrange, &xc, &lwidth, &azoff,
-			 &dolabels, &do_nm))
+			 &dolabels, &labelsize, &do_nm))
 		return;
 /*
  * Convert the ring interval to km if necessary
@@ -1428,7 +1428,8 @@ int update;
 
 		textrot = sin (azrad) >= 0.0 ? -rannot : 180.0 - rannot;
 		DrawText (Graphics, GWFrame (Graphics), Gcontext, px, py, 
-			  label, textrot, 0.02, JustifyCenter, JustifyCenter);
+			  label, textrot, labelsize, JustifyCenter, 
+			  JustifyCenter);
 	}
 /*
  * Draw the azimuth lines.
@@ -1458,7 +1459,8 @@ int update;
 			textrot = 0.5; /* force stroke text */
 
 		DrawText (Graphics, GWFrame (Graphics), Gcontext, px, py, 
-			  label, textrot, 0.02, JustifyCenter, JustifyCenter);
+			  label, textrot, labelsize, JustifyCenter, 
+			  JustifyCenter);
 	}
 /*
  * Clean up.
@@ -1472,10 +1474,10 @@ int update;
 
 static int
 ov_RRInfo (comp, platform, loc, ringint, azint, rannot, aannot, lastring,
-		maxrange, xc, lwidth, azoff, dolabels, do_nm)
+	   maxrange, xc, lwidth, azoff, dolabels, labelsize, do_nm)
 char *comp, *platform;
 Location *loc;
-float *ringint, *maxrange, *azint, *rannot, *aannot, *azoff;
+float *ringint, *maxrange, *azint, *rannot, *aannot, *azoff, *labelsize;
 int *lastring, *lwidth;
 XColor *xc;
 bool *dolabels, *do_nm;
@@ -1522,6 +1524,10 @@ bool *dolabels, *do_nm;
 	*dolabels = TRUE;
 	pda_Search (Pd, comp, "do-labels", "range-ring", (char *) dolabels,
 		    SYMT_BOOL);
+
+	*labelsize = 0.020;
+	pda_Search (Pd, comp, "label-size", "range-ring", (char *) labelsize,
+		    SYMT_FLOAT);
 /*
  * Nautical miles instead of km?
  */
