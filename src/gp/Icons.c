@@ -263,7 +263,7 @@ I_DoIcons ()
 {
 	int xpos = 5, comp, disable = 0;
 	int fg, bg;
-	char **comps = pd_CompList (Pd), platform[40], *qual = NULL;
+	char **comps = pd_CompList (Pd), platform[500], *qual = NULL;
 	Pixmap icon;
 	struct IconList *ilp;
 /* 
@@ -333,7 +333,7 @@ int *fg, *bg, disable;
  * Try to get the icon for this component.
  */
 {
-	char platform[80], iname[40], fname[120], color[40]; 
+	char platform[500], iname[40], fname[120], color[40]; 
 	union usy_value v;
 	int type, yh, xh;
 	unsigned int h, w;
@@ -553,7 +553,7 @@ char *colorcomp;
         int disable, fg, bg;
         int seconds, ntime, update;
 	ZebTime timenow, datatime;
-        char comp[40], platform[40], repr[40];
+        char comp[40], platform[500], repr[40];
 	char agelimit[40], color[40];
 	PlatformId pid;
 	Arg args[2];
