@@ -30,7 +30,7 @@
 # include <message.h>
 # include "RasterFile.h"
 
-RCSID("$Id: rfdump.c,v 2.10 1999-11-04 17:22:41 granger Exp $")
+RCSID("$Id: rfdump.c,v 2.11 2000-11-20 18:07:29 granger Exp $")
 
 
 typedef struct s_RFile
@@ -247,12 +247,13 @@ DumpFile (int fd, RFHeader *hdr, RFToc *toc)
 	    printf ("\tField %d, '%s' at offset: %d\n", fld, 
 		    hdr->rf_Fields[fld].rff_Name, toc[i].rft_Offset[fld]);
 
-	if (toc[i].rft_AttrLen > 0)
+	if (toc[i].rft_AttrLen > 0 && toc[i].rft_AttrLen < 512)
 	{
 	    char *c;
 	    int len = toc[i].rft_AttrLen;
 	    lseek (fd, toc[i].rft_AttrOffset, 0);
 	    read (fd, attr, len);
+	    attr[len] = '\0';
 	    printf ("\tAttributes:");
 	    c = attr;
 	    while (c - attr < len)

@@ -19,7 +19,7 @@
 # include "RasterFile.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_Raster.c,v 3.26 1999-10-29 22:41:06 granger Exp $")
+RCSID ("$Id: DFA_Raster.c,v 3.27 2000-11-20 18:07:28 granger Exp $")
 
 /*
  * This is the tag for an open raster file.
@@ -855,16 +855,24 @@ DataChunk *dc;
  */
 	if ((len = toc->rft_AttrLen) <= 0)
 		return;
+	if (len >= 512)
+	{
+	    msg_ELog (EF_INFO, "sample %d attributes look bogus: "
+		      "len %i, offset %li", sample,
+		      toc->rft_AttrLen, toc->rft_AttrOffset);
+	    return;
+	}
 /*
  * Get some space and pull in the attributes.
  */
-	adata = malloc (len);
+	adata = malloc (len+1);
 	lseek (tag->rt_fd, toc->rft_AttrOffset, SEEK_SET);
 	if (read (tag->rt_fd, adata, len) < len)
 	{
 		msg_ELog (EF_PROBLEM, "Error %d reading attributes", errno);
 		return;
 	}
+	adata[len] = '\0';
 /*
  * If we have attributes in the old format, convert them here.  This 
  * recognizes occurences of "radar,<scan>" and "newfile,radar,<scan>".

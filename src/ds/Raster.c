@@ -20,7 +20,7 @@
 # include "RasterFile.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: Raster.c,v 3.3 1999-10-29 22:41:06 granger Exp $")
+RCSID ("$Id: Raster.c,v 3.4 2000-11-20 18:07:29 granger Exp $")
 
 
 /*
@@ -363,13 +363,40 @@ int fd;
 		if (read (fd, old, hdr->rf_MaxSample*sizeof (OldRFToc)) <
 				hdr->rf_MaxSample*sizeof (OldRFToc))
 			msg_ELog (EF_PROBLEM, "Old raster TOC read error");
-		for (i = 0; i < hdr->rf_MaxSample; i++)
+		for (i = 0; i < hdr->rf_NSample; i++)
 		{
+		        int attrlen = old[i].rft_AttrLen;
+			long attroffset = old[i].rft_AttrOffset;
 			toc[i].rft_Time = old[i].rft_Time;
 			toc[i].rft_Rg = old[i].rft_Rg;
 			toc[i].rft_Origin = old[i].rft_Origin;
-			toc[i].rft_AttrLen = old[i].rft_AttrLen;
-			toc[i].rft_AttrOffset = old[i].rft_AttrOffset;
+			/* 
+			 * Make sure the attributes make sense.  There
+			 * are CAPE raster files out there with an
+			 * intermediate format between AncientMagic and
+			 * OldMagic which does not seem to have attributes
+			 * and for which the attr fields hold garbage.
+			 */
+			if (LittleEndian())
+			{
+			    swap4 (&attrlen);
+			    swap4 (&attroffset);
+			}
+			if (attrlen < 512) 
+			{
+			    toc[i].rft_AttrLen = old[i].rft_AttrLen;
+			    toc[i].rft_AttrOffset = old[i].rft_AttrOffset;
+			}
+			else
+			{
+			    long attroffset = old[i].rft_AttrOffset;
+			    msg_ELog (EF_INFO, 
+				      "sample %d attributes look bogus: "
+				      "len %i, offset %li", 
+				      i, attrlen, attroffset);
+			    toc[i].rft_AttrLen = 0;
+			    toc[i].rft_AttrOffset = 0;
+			}
 			for (fld = 0; fld < hdr->rf_NField; fld++)
 			{
 				toc[i].rft_Offset[fld] =old[i].rft_Offset[fld];
