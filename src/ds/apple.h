@@ -82,6 +82,8 @@ void T_MetDataStats FP ((void));
 void T_ApplStats FP ((void));
 void T_DumpData FP((float *retrieve, int n, int len, char *fname));
 int T_CompareData FP((float *src1, float *src2, int size));
+int T_CompareDataPrec(float *src1, float *src2, int size, float epsilon);
+
 int T_VerifyObs FP((PlatformId pid, ZebTime *begin, ZebTime *end, int nsamp));
 void T_ReceiveNotify FP((PlatformId pid, int param, ZebTime *when,
 			 int nsample, UpdCode ucode));

@@ -35,7 +35,7 @@
 #include "dfa.h"
 #include "Appl.h"
 
-RCSID ("$Id: DFA_Appl.c,v 3.20 2002-09-17 18:28:43 granger Exp $")
+RCSID ("$Id: DFA_Appl.c,v 3.21 2002-10-06 08:11:01 granger Exp $")
 
 /*
  * Local private prototypes.
@@ -1010,6 +1010,7 @@ Derive (PlatformId pid, DataClass class, GetList *gl, FieldId *destflds,
     
     nextraflds = 0;
     nraw = 0;
+    srcflds = NULL;
 
     for (df = 0; df < ndestflds; df++)
     {
@@ -1092,6 +1093,8 @@ Derive (PlatformId pid, DataClass class, GetList *gl, FieldId *destflds,
 	    /*
 	     * Move on to the next destination field
 	     */
+		free (srcflds);
+		srcflds = NULL;
 		continue;
 	    }
 	}
@@ -1116,6 +1119,7 @@ Derive (PlatformId pid, DataClass class, GetList *gl, FieldId *destflds,
 	    extraflds[nextraflds++] = srcflds[sf];
 	}
 	free (srcflds);
+	srcflds = NULL;
     }
 /* 
  * KLUGE: If we are doing derivations, we need at least one raw field in
@@ -1197,6 +1201,8 @@ Derive (PlatformId pid, DataClass class, GetList *gl, FieldId *destflds,
 
 		dc_NSDefineVariable (dest_dc, destflds[df], ndims, dims,
 				     is_static);
+		free (srcflds);
+		srcflds = NULL;
 	    }
 	}
     }

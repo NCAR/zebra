@@ -1021,6 +1021,25 @@ int addatts;
 }
 
 
+static float wnumFirst[] = {
+    520.2368, 520.719, 521.2011, 521.6832, 522.1654, 522.6476, 523.1297, 
+    523.6118, 524.094, 524.5762, 525.0583, 525.5404
+};
+static float wnumLast[] = {
+    1794.552, 1795.034, 1795.516, 
+    1795.998, 1796.48, 1796.963, 1797.445, 1797.927, 1798.409, 1798.891, 
+    1799.373, 1799.855
+};
+static float meanradFirst[] = {
+    131.5714, 136.2048, 133.0598, 127.105, 121.5019, 130.3238, 127.5575, 
+    129.9059, 136.0601, 141.6882, 138.4667, 135.3472
+};
+static float meanradLast[] = {
+    10.08288, 10.03311, 9.884606, 
+    9.592488, 9.636732, 9.467347, 10.00038, 9.934047, 9.487029, 9.978018, 
+    10.09118, 9.523479
+};
+
 
 static int
 T_Aeri()
@@ -1034,6 +1053,7 @@ T_Aeri()
 	int n, i;
 	unsigned long len;
 	int err = 0;
+	float prec = 0.0005;
 
 	n = 0;
 	fields[n] = F_Lookup("lat"); ++n;
@@ -1074,9 +1094,13 @@ T_Aeri()
 	/* retrieve data and dump it out */
 	retrieve = dc_NSGetStatic (dc, F_Lookup("wnum"), &len);
 	T_DumpData (retrieve, 12, len, "wnum");
+	err += T_CompareDataPrec (retrieve, wnumFirst, 12, prec);
+	err += T_CompareDataPrec (retrieve+len-12, wnumLast, 12, prec);
 
 	retrieve = dc_NSGetSample (dc, 0, F_Lookup("mean_rad"), &len);
 	T_DumpData (retrieve, 12, len, "mean_rad");
+	err += T_CompareDataPrec (retrieve, meanradFirst, 12, prec);
+	err += T_CompareDataPrec (retrieve+len-12, meanradLast, 12, prec);
 
 	retrieve = dc_NSGetStatic (dc, F_Lookup("wnum2"), &len);
 	T_DumpData (retrieve, 12, len, "wnum2");

@@ -49,7 +49,8 @@ list:	/* empty */
 	;
 
 derivation:	
-	field '=' expr ';'	{ FDTable->AddDerivation(*($1), $3); }
+	field '=' expr ';'	{ FDTable->AddDerivation(*($1), $3); 
+				  delete $1; }
 	| error ';'
 	;
 

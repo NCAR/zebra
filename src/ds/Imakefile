@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.78 2002-09-17 20:00:18 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.79 2002-10-06 08:11:01 granger Exp $"
 
 DEPLIBS=$(DEPZLIBS)
 
@@ -190,7 +190,7 @@ FDParse.tab.h: FDParse.tab.cc
 	$(CP) -f $@ $@.dist
 
 FDParse.tab.cc: FDParse.bison
-	bison -p FD -d --file-prefix=FDParse FDParse.bison
+	bison -p FD -d --output-file=FDParse.tab.c  FDParse.bison
 	$(MV) FDParse.tab.c FDParse.tab.cc
 	$(CP) -f $@ $@.dist
 
@@ -275,7 +275,12 @@ ZSTOP = $(TOP)/src/zstop/zstop
 DSDUMP = $(TOP)/src/dsdump/dsdump
 #endif
 ZPROGS = $(MESSAGE) $(TIMER) $(ZSTOP) $(DSDUMP)
-TESTPROJ = /net/shared/zebra/project/test
+/*
+ * The default test project directory will be linked into the current directory
+ * if not already done so manually.
+ */
+DEFAULTTESTPROJ = /net/shared/zebra/project/test
+TESTPROJ = test
 DSCONFIG = perm.config
 DATA_DIR = ./data
 SOCKET = /tmp/DStest.socket
@@ -317,10 +322,13 @@ test.session $(SOCKET): $(ZPROGS) dsDaemon dsDaemon.lf $(DSCONFIG)
 	set -x; \
 	HOST=`uname -n` $(MESSAGE) $(TESTOUT) ; \
 	($(TIMER) $(TESTOUT) &); \
+	if [ ! -d ./test/. ]; then rm -f ./test; \
+	ln -s $(DEFAULTTESTPROJ) test ; fi ; \
 	if [ ! -d ./data/. ]; then rm -f ./data; \
 	ln -s $(TESTPROJ)/data . ; fi ; \
 	if [ ! -d ./derivs/. ]; then rm -f ./derivs; \
 	ln -s $(TESTPROJ)/derivs . ; fi ; \
+	rm -f ./data/Zebra.cache ; \
 	($(DSDAEMON) $(DSCONFIG) $(TESTOUT) &); \
 	sleep 5; /* give daemon time to connect */
 

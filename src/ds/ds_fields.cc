@@ -87,6 +87,8 @@ F_Closure( void )
  * Reset to zero fields and destroy our field cache.
  */
 {
+    for (int f = 0; f < NFlds; f++)
+	delete FList[f];
     delete[] FList;
     FList = 0;
     NFlds = MaxFlds = 0;

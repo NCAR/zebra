@@ -130,9 +130,7 @@ const char *name;
 
 
 int
-T_CompareData(src1, src2, size)
-float *src1, *src2;
-int size;
+T_CompareDataPrec(float *src1, float *src2, int size, float epsilon)
 {
 	int i;
 
@@ -140,10 +138,24 @@ int size;
 	if (!src1 || !src2)
 		return (1);
 	for (i = 0; i < size; ++i)
-		if (src1[i] != src2[i]) break;
-	msg_ELog ((i < size) ? EF_PROBLEM : EF_DEVELOP, "  %s at %i",
-		  (i < size) ? "failed" : "succeeded", i);
+		if (src1[i] - src2[i] > epsilon ||
+		    src1[i] - src2[i] > epsilon) break;
+	if (i < size)
+	    msg_ELog (EF_PROBLEM, "  failed at %i, %f != %f", 
+		      i, src1[i], src2[i]);
+	else
+	    msg_ELog (EF_DEVELOP, "  succeeded at %i", i);
 	return ((i < size) ? 1 : 0);
+}
+
+
+
+int
+T_CompareData(src1, src2, size)
+float *src1, *src2;
+int size;
+{
+    return T_CompareDataPrec (src1, src2, size, 0);
 }
 
 

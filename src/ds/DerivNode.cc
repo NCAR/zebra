@@ -1009,9 +1009,9 @@ ResultCache::Add( const DerivNode& dnode, const double *data, const int ndata )
 	    newlengths[i] = lengths[i];
 	}
 
-	delete nodes;
-	delete results;
-	delete lengths;
+	delete[] nodes;
+	delete[] results;
+	delete[] lengths;
 
 	nodes = newnodes;
 	results = newresults;
@@ -1037,12 +1037,12 @@ ResultCache::~ResultCache( void )
     for (int i = 0; i < cachelen; i++)
     {
 	delete nodes[i];
-	delete results[i];
+	delete[] results[i];
     }
     
-    delete nodes;
-    delete results;
-    delete lengths;
+    delete[] nodes;
+    delete[] results;
+    delete[] lengths;
 }
 
 

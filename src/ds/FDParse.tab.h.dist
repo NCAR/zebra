@@ -1,16 +1,25 @@
+#ifndef BISON_FDPARSE_TAB_H
+# define BISON_FDPARSE_TAB_H
+
+#ifndef YYSTYPE
 typedef union {
 	char	str[128];
 	double	val;
 	Field*	fld;
 	DerivNode*	dnode;
-} YYSTYPE;
-#define	NAME	258
-#define	BSTRING	259
-#define	DOUBLE	260
-#define	EQ	261
-#define	NE	262
-#define	LE	263
-#define	GE	264
+} yystype;
+# define YYSTYPE yystype
+# define YYSTYPE_IS_TRIVIAL 1
+#endif
+# define	NAME	257
+# define	BSTRING	258
+# define	DOUBLE	259
+# define	EQ	260
+# define	NE	261
+# define	LE	262
+# define	GE	263
 
 
 extern YYSTYPE FDlval;
+
+#endif /* not BISON_FDPARSE_TAB_H */

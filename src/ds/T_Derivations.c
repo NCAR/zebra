@@ -7,7 +7,7 @@
 # include "DataStore.h"
 # include "apple.h"
 
-RCSID("$Id: T_Derivations.c,v 3.6 2002-09-17 18:28:43 granger Exp $")
+RCSID("$Id: T_Derivations.c,v 3.7 2002-10-06 08:11:01 granger Exp $")
 
 # define NTIMES 100
 
@@ -111,6 +111,7 @@ T_ClassDerivations ()
     FieldId fields[50];
     DataChunk *dc;
     ZebraTime now, times[NTIMES];
+    int nsample;
 
     /* Verify that we can get class fields from the daemon
      * for a permanent platform, inherited into a subclass in fact.
@@ -181,23 +182,41 @@ T_ClassDerivations ()
 	return (++errors);
     }
     
+    nsample = dc_GetNSample (dc);
+    if (nsample != NTIMES)
+    {
+	msg_ELog (EF_PROBLEM, "Expected %d samples, got %d", NTIMES, nsample);
+	++errors;
+    }
+
     for (i = 0; i < nfield; ++i)
     {
-	int nbad = 0;
+	int nfound = 0;
+	int nwant = nsample;
+	float target = dc_GetBadval (dc);
 	int j;
-	for (j = 0; j < NTIMES; ++j)
-	{
-	    if (dc_GetScalar (dc, j, fields[i]) == dc_GetBadval (dc))
-		++nbad;
-	}
 	/* We know most of esol is bad. */
-	if (!strcmp(F_GetName(fields[i]),"esol") && nbad < NTIMES)
+	if (!strcmp(F_GetName(fields[i]),"esol"))
 	    continue;
-	if (nbad > 0)
+	if (!strcmp(F_GetName(fields[i]),"lat"))
+	    target = 40.0;
+	else if (!strcmp(F_GetName(fields[i]),"lon"))
+	    target = -100;
+	else if (!strcmp(F_GetName(fields[i]),"alt"))
+	    target = 1500;
+	else
+	    nwant = 0;
+	for (j = 0; j < nsample; ++j)
+	{
+	    float f = dc_GetScalar (dc, j, fields[i]);
+	    if (f == target)
+		++nfound;
+	}
+	if (nfound != nwant)
 	{
 	    ++errors;
-	    msg_ELog (EF_PROBLEM, "unexpected %d bad values in field %s",
-		      nbad, F_GetFullName (fields[i]));
+	    msg_ELog (EF_PROBLEM, "found %d, expected %d values in field %s",
+		      nfound, nwant, F_GetFullName (fields[i]));
 	}
     }
     dc_DestroyDC (dc);
