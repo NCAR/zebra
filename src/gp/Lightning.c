@@ -1,7 +1,7 @@
 /*
- * Lightning display routine.
+ * Locaton display routine.
  */
-static char *rcsid = "$Id: Lightning.c,v 2.5 1992-05-27 16:35:19 kris Exp $";
+static char *rcsid = "$Id: Lightning.c,v 2.6 1992-07-02 15:44:42 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -49,9 +49,9 @@ char *comp;
 bool update;
 {
 	char	platform[30], step[30], ctable[30];
-	char	tadefcolor[30], data[100];
+	char	tadefcolor[30], data[100], temp[50], iconname[40];
 	int	period, dsperiod, x, y, numcolor, pid, istep;
-	int	i, index, nsamp;
+	int	i, index, nsamp, showicon;
 	time	t;
 	ZebTime	begin;
 	float	fx, fy, sascale;
@@ -75,7 +75,7 @@ bool update;
 	if (! ds_IsMobile (pid))
 	{
 		msg_ELog (EF_PROBLEM, 
-			"Lightning display on static platform %s", platform);
+			"Location display on static platform %s", platform);
 		return;
 	}
 /*
@@ -120,6 +120,17 @@ bool update;
 		SYMT_FLOAT))
 		sascale = 0.02;
 /*
+ * Get the name of the icon to use.
+ */
+	showicon = TRUE;
+	pda_Search (Pd, comp, "show-icon", platform, (char *) &showicon, 
+		SYMT_INT);
+	if (! pda_ReqSearch (Pd, comp, "icon", platform, iconname, SYMT_STRING))
+	{
+		msg_ELog (EF_PROBLEM, "Can't find icon.");
+		return;
+	}
+/*
  * Figure the begin time.
  */
 	begin = PlotTime;
@@ -158,7 +169,11 @@ bool update;
 			(float) (numcolor - 1));
 		if ((index < 0) || (index >= numcolor))
 			index = 0;
-		ov_PositionIcon ("light", x, y, colors[index].pixel);
+		if (showicon)
+			I_PositionIcon (comp, platform, when, iconname, x, y,
+				colors[index].pixel);
+		else
+			ov_PositionIcon (iconname, x, y, colors[index].pixel);
 	}
 /*
  * Annotate if necessary.
@@ -168,7 +183,8 @@ bool update;
 	/*
 	 * On the top.
 	 */
-		An_TopAnnot ("Lightning location. ", tadefclr.pixel);
+		sprintf (temp, "%s location.", platform);
+		An_TopAnnot (temp, tadefclr.pixel);
 	/*
 	 * Down the side too.
 	 */
@@ -181,7 +197,7 @@ bool update;
  */
 	dc_GetTime (dc, nsamp - 1, &when);
 	TC_ZtToUI (&when, &t);
-	lw_TimeStatus (comp, &t);
+	lw_TimeStatus (comp, platform, &t);
 /*
  * Free the data.
  */
@@ -195,7 +211,7 @@ li_SideAnnot (comp, data, datalen, begin, space)
 char *comp, *data;
 int datalen, begin, space;
 /*
- * Do side annotation for a lightning plot.
+ * Do side annotation for a location plot.
  */
 {
         char string[40], ctable[40];
