@@ -1,5 +1,5 @@
 /*
- * $Id: dfa.h,v 2.4 1995-02-10 01:17:28 granger Exp $
+ * $Id: dfa.h,v 2.5 1996-11-19 09:34:59 granger Exp $
  * Internal DFA declarations.  Requires DataStore.h and dslib.h.
  */
 
@@ -21,11 +21,12 @@
  * maintenance or updates for its software.
  */
 
-#ifndef __zeb_dfa_h_
-#define __zeb_dfa_h_
+#ifndef __zebra_dfa_h_
+#define __zebra_dfa_h_
+
+#include "GetList.h"
 
 void	dfa_ForceClose FP ((int));
-int	dfa_OpenFile FP ((int, int, void **));
 int	dfa_CheckName FP ((int, char *));
 int	dfa_QueryDate FP ((int, char *, ZebTime *, ZebTime *, int *));
 int	dfa_InqNPlat FP ((int));
@@ -33,12 +34,12 @@ DataChunk *dfa_Setup FP ((GetList *, FieldId *, int, DataClass));
 void	dfa_GetData FP ((DataChunk *, GetList *, dsDetail *, int));
 int	dfa_InqRGrid FP ((int, Location *, RGrid *));
 int	dfa_DataTimes FP ((int, ZebTime *, TimeSpec, int, ZebTime *));
-void	dfa_MakeFileName FP ((ClientPlatform *, ZebTime *, char *));
+void	dfa_MakeFileName FP ((ClientPlatform *, ZebTime *, char *,
+			      dsDetail *details, int ndetail));
 bool	dfa_CreateFile FP ((int, DataChunk *, ZebTime *, dsDetail *, int));
 void	dfa_NoteRevision FP ((int dfindex, long revision));
 void	dfa_ForceClosure FP ((void));
 char	*dfa_GetAttr FP ((int, ZebTime *, int *));
-char	*dfa_FilePath FP ((ClientPlatform *, DataFile *));
 int	dfa_GetFields FP((int dfile, ZebTime *t, int *nfld, FieldId *flist));
 int	dfa_GetAlts FP ((int index, FieldId fid, int offset, float *alts,
 			 int *nalts, AltUnitType *altunits));
@@ -50,4 +51,4 @@ int	dfa_PutBlock FP ((int dfile, DataChunk *dc, int sample, int nsample,
 int	dfa_PutSample FP ((int dfile, DataChunk *dc, int sample, WriteCode wc,
 			   dsDetail *details, int ndetail));
 
-#endif /* __zeb_dfa_h_ */
+#endif /* __zebra_dfa_h_ */
