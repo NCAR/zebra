@@ -1,5 +1,5 @@
 /* 5/87 jc */
-/* $Id: device.c,v 1.5 1989-08-24 17:12:54 corbet Exp $ */
+/* $Id: device.c,v 1.6 1989-09-07 09:45:25 burghart Exp $ */
 /*
  * Handle device specifics.
  */
@@ -18,7 +18,7 @@ extern int gx_pl (), gx_casn (), gx_pixel (), gx_target (), gx_check ();
 # ifdef DEV_X11
 extern int x11_open (), x11_clear (), x11_close (), x11_flush (), x11_noop ();
 extern int x11_poly (), x11_pick (), x11_target (), x11_casn (), x11_color ();
-extern int x11_pixel (), x11_put_target ();
+extern int x11_pixel (), x11_put_target (), x11_clip ();
 # endif
 # ifdef DEV_XTITAN
 extern int xt_open (), xt_clear (), xt_close (), xt_flush (), xt_noop ();
@@ -191,7 +191,7 @@ struct device D_tab[] =
 	{
 		"X11",
 		3, { "X11-700", "X700", "X500" },
-		GDF_VECTOR | GDF_TOP | GDF_DEV_COLOR,
+		GDF_VECTOR | GDF_TOP | GDF_DEV_COLOR | GDF_HCW,
 		256,			/* x11_open will modify...	*/
 		500, 500,		/* Our resolution for now */
 		1.0,			/* Square pixels (X assumption) */
@@ -206,7 +206,7 @@ struct device D_tab[] =
 		x11_poly,		/* Draw polyline		*/
 		x11_pixel,		/* Pixel fill			*/
 		___,			/* Text				*/
-		___,			/* Set clip window		*/
+		x11_clip,		/* Set clip window		*/
 		x11_clear,		/* Clear screen			*/
 		___,			/* Polygon fill			*/
 		___,			/* (no) Segment init		*/
