@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# $Id: zplotbatch,v 1.4 1998-04-21 20:28:09 granger Exp $
+# $Id: zplotbatch,v 1.5 1999-02-11 23:58:54 granger Exp $
 #
 # Start a display manager session with a virtual X server and dump
 # images of its plots.
@@ -18,7 +18,7 @@ spool=/net/global/www/sssf/projects/forestabl/realtime
 config="iss1"
 
 # Top zebra directory
-ztop="/scr/steam/granger/zebra"
+ztop="$ZEB_TOPDIR"
 zstart=zstart
 
 # Project directory
@@ -161,8 +161,8 @@ while read when config windows; do
     # Derive the image name from the plot time
     set `./tcsplit $when`
     base="$1$2$3$4$5.${config}_"
-    # For the Web, put the images in directories by date
-    subspool="$spool/$1$2$3"
+    # For the Web, put the images in directories by date and display
+    subspool="${spool}/${config}/$1$2$3"
     if [ ! -d $subspool ]; then
 	mkdir -p $subspool
     fi
