@@ -1,4 +1,4 @@
-! $Id: Graphproc.ad,v 1.8 1993-03-23 19:53:53 granger Exp $
+! $Id: Graphproc.ad,v 1.9 1993-05-20 18:45:21 granger Exp $
 !
 ! The Graphics process resource file.
 !
@@ -35,6 +35,11 @@ Graphproc.?.form.background:	gray95
 	<EnterWindow>:		highlight() \n\
 	<LeaveWindow>:		reset() \n\
 	<BtnDown>:		IconMenuPopup()
+!*grshell.Graphics.icon.translations:	#override \n\
+!	<EnterWindow>:		highlight() \n\
+!	<LeaveWindow>:		reset() \n\
+!	<BtnDown>:		IconMenuSetup() PositionAndPopupRdssMenu()
+!
 *SimpleMenu*menuLabel.font: -*-helvetica-bold-r-*-*-14-140-*
 *DataAvailable*DAEntry.font:	-*-lucidatypewriter-medium-r-*-*-14-140-*-*-*-*-*-*
 *SimpleMenu*font: -*-helvetica-medium-r-*-*-14-140-*
