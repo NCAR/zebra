@@ -1,7 +1,7 @@
 /*
  * Routines common to XY-Type plots
  */
-static char *rcsid = "$Id: XYCommon.c,v 1.13 1993-07-01 20:14:46 granger Exp $";
+static char *rcsid = "$Id: XYCommon.c,v 1.14 1993-10-15 16:31:31 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -548,7 +548,7 @@ ZebTime            *bTimeReq,*eTimeReq;
         if (! ds_DataTimes (pid, bTimeTarget, 1, DsBefore, bTimeReq))
         {
 	    TC_EncodeTime ( bTimeTarget, TC_Full, stime );
-            msg_ELog (EF_INFO, "No data before %s", stime );
+            msg_ELog (EF_DEBUG, "No data before %s", stime );
             if (! ds_DataTimes (pid, bTimeTarget, 1, DsAfter, bTimeReq))
             {
 	        TC_EncodeTime ( bTimeTarget, TC_Full, stime );

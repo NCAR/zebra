@@ -27,7 +27,7 @@
 # include "DrawText.h"
 # include "PixelCoord.h"
 # include "GC.h"
-MAKE_RCSID ("$Id: Annotate.c,v 2.16 1993-10-07 16:57:05 corbet Exp $")
+MAKE_RCSID ("$Id: Annotate.c,v 2.17 1993-10-15 16:31:06 corbet Exp $")
 
 /*
  * Graphics context (don't use the global one in GC.h because we don't
@@ -53,7 +53,6 @@ static int	SA_first;
 static int	Ncomps;		/* How many components		*/
 
 
-# define AN_XYG_SYMBOL 12	/* Pixels for xygraph symbol	*/
 
 
 
@@ -642,7 +641,7 @@ int datalen, begin, space;
         XSetForeground (XtDisplay (Graphics), AnGcontext, xc.pixel);
         DrawText (Graphics, GWFrame (Graphics), AnGcontext,
                 left, begin, string, 0.0, scale, JustifyLeft, JustifyTop);
-	used = scale * (float) USABLE_HEIGHT;
+	used = DT_ApproxHeight (Graphics, scale, 1);
         begin += used;
         space -= used;
 /*
@@ -805,7 +804,7 @@ int datalen, begin, space;
         XSetForeground (XtDisplay (Graphics), AnGcontext, xc.pixel);
         DrawText (Graphics, GWFrame (Graphics), AnGcontext, left, begin,
                 string, 0.0, scale, JustifyLeft, JustifyTop);
-        used = scale * (float) USABLE_HEIGHT;
+        used = DT_ApproxHeight (Graphics, scale, 1);
         begin += used;
         space -= used;
 /*
@@ -860,7 +859,7 @@ int datalen, begin, space;
         XSetForeground (XtDisplay (Graphics), AnGcontext, xc.pixel);
 	DrawText (Graphics, GWFrame (Graphics), AnGcontext, left, begin, 
 		string, 0.0, scale, JustifyLeft, JustifyTop);
-	used = scale * (float) USABLE_HEIGHT;
+	used = DT_ApproxHeight (Graphics, scale, 1);
 	begin += used;
 	space -= used;
 /*
@@ -961,6 +960,7 @@ int datalen, begin, space;
 	float scale;
 	char *stuff[20];
 	XColor xc;
+	extern void I_AAButton ();	/* XXX */
 /*
  * Get annotation parameters.
  */
@@ -1007,6 +1007,11 @@ int datalen, begin, space;
         DrawText (Graphics, GWFrame (Graphics), AnGcontext, 
         	left + cheight + 2, begin, stuff[2], 0.0, scale,
 		JustifyLeft, JustifyTop);
+/*
+ * Make the symbol active.
+ */
+	aa_AddArea (left, begin, cheight, cheight, comp, stuff[2], 0,
+		    I_AAButton);
 /*
  * Draw any additional lines.
  */

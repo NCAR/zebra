@@ -3,7 +3,7 @@
  */
 #ifndef lint
 static char *rcsid = 
-	"$Id: Overlay.c,v 2.25 1993-10-14 20:22:06 corbet Exp $";
+	"$Id: Overlay.c,v 2.26 1993-10-15 16:31:27 corbet Exp $";
 #endif
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -171,8 +171,8 @@ static int 	ov_RRInfo FP ((char *, char *, Location *, float *, float *,
 			float *, float *, int *, float *, XColor *, int *,
 			float *));
 static OvIcon 	*ov_GetIcon FP ((char *));
-static int 	ov_LocSetup FP ((char *, char **, int *, OvIcon **, LabelOpt *,
-			char *, bool *, float *));
+static int 	ov_LocSetup FP ((char *, char **, int *, char *, LabelOpt *,
+			char *, bool *, float *, int *));
 static void	ov_SGSetup FP ((char *, float *, float *, float *, bool *,
 			int *, bool *, float *, float *));
 static void 	ov_SolidGrid FP ((int, int, int, int, double, double,
@@ -1464,10 +1464,9 @@ int update;
  * Plot the location of a series of platforms.
  */
 {
-	char *plist[100], label[40];
-	int nplat, plat, px, py;
+	char *plist[100], label[40], icon[40];
+	int nplat, plat, px, py, fg, xh, yh, width, height;
 	bool tlabel;
-	OvIcon *icon;
 	Location loc;
 	float x, y, asize;
 	LabelOpt opt;
@@ -1475,8 +1474,8 @@ int update;
 /*
  * Do our initialization.
  */
-	if (! ov_LocSetup (comp, plist, &nplat, &icon, &opt, label, &tlabel,
-			 &asize))
+	if (! ov_LocSetup (comp, plist, &nplat, icon, &opt, label, &tlabel,
+			 &asize, &fg))
 		return;
 	SetClip (FALSE);
 /*
@@ -1495,11 +1494,15 @@ int update;
 	 * the icon there.
 	 */
 		cvt_ToXY (loc.l_lat, loc.l_lon, &x, &y);
-		px = XPIX (x) - icon->oi_xh;
-		py = YPIX (y) - icon->oi_yh; 	
+		px = XPIX (x);
+		py = YPIX (y);
+		I_PositionIcon (comp, plist[plat], &loctime, icon, px, py, fg);
+# ifdef notdef
 		XSetTSOrigin (Disp, Gcontext, px, py);
 		XFillRectangle (Disp, GWFrame (Graphics), Gcontext, px, py,
 			icon->oi_w, icon->oi_h);
+# endif
+		(void) I_GetPMap (icon, &xh, &yh, &width, &height);
 	/*
 	 * Annotate beneath the icon if called for.
 	 */
@@ -1507,8 +1510,7 @@ int update;
 		{
 			XSetFillStyle (Disp, Gcontext, FillSolid);
 			DrawText (Graphics, GWFrame (Graphics), Gcontext,
-				px + icon->oi_w/2,
-				YPIX (y) + icon->oi_h - icon->oi_yh, 
+				px + width/2 - xh, py + height - yh, 
 				(opt == LabelString) ? label : plist[plat],
 				0.0, asize, JustifyCenter, JustifyTop);
 			XSetFillStyle (Disp, Gcontext, FillStippled);
@@ -1527,16 +1529,13 @@ int update;
 		 * See if this time should be displayed in the location's
 		 * local time.
 		 */
-			(void) pda_Search (Pd, comp, 
-					   "local-time", plist[plat], 
-					   &tlocal,
-					   SYMT_BOOL);
+			(void) pda_Search (Pd, comp, "local-time",plist[plat], 
+					   &tlocal, SYMT_BOOL);
 			if (tlocal)
 			{
 				if (! pda_Search (Pd, comp, "timezone-offset",
-						  plist[plat], 
-						  (char *)&tzoffset,
-						  SYMT_INT))
+						  plist[plat],
+						  (char *)&tzoffset, SYMT_INT))
 				{
 					tzstr = "z";
 					msg_ELog(EF_PROBLEM,
@@ -1549,16 +1548,14 @@ int update;
 			/*
 			 * Now do time zone adjustment
 			 */
-				{
 				/* 
 				 * Local time is GMT time minus the number
 				 * of minutes west of GMT, which for the 
 				 * eastern hemisphere (just west of date
 				 * line) is negative
 				 */
-					loctime.zt_Sec -= tzoffset * 60;
-					tzstr = "loc";
-				}
+				loctime.zt_Sec -= tzoffset * 60;
+				tzstr = "loc";
 			}
 		/*
 		 * Format up the date.  Only put in the month/day portion
@@ -1577,15 +1574,11 @@ int update;
 		 */
 			XSetFillStyle (Disp, Gcontext, FillSolid);
 			DrawText (Graphics, GWFrame (Graphics), Gcontext,
-				px + icon->oi_w, py, lstr,
+				px + width, py, lstr,
 				0.0, asize, JustifyLeft, JustifyTop);
 			XSetFillStyle (Disp, Gcontext, FillStippled);
 		}
 	}
-/*
- * Do side annotation.
- */
-
 /*
  * Clean up and we are done.
  */
@@ -1599,19 +1592,19 @@ int update;
 
 
 static int
-ov_LocSetup (comp, plist, nplat, icon, opt, label, tlabel, asize)
-char *comp, **plist, *label;
+ov_LocSetup (comp, plist, nplat, icon, opt, label, tlabel, asize, fg)
+char *comp, **plist, *label, *icon;
 int *nplat;
 bool *tlabel;
-OvIcon **icon;
 LabelOpt *opt;
 float *asize;
+int *fg;
 /*
  * Do the setup required to plot locations.
  */
 {
 	static char platform[1000];	/* XXX */
-	char iconname[40], color[40];
+	char color[40];
 	XColor xc;
 	XGCValues vals;
 /*
@@ -1634,21 +1627,24 @@ float *asize;
 		msg_ELog (EF_PROBLEM, "Unknown color: %s", color);
 		ct_GetColorByName ("white", &xc);
 	}
+	*fg = xc.pixel;
 /*
  * Find our icon.
  */
-	if (! pda_Search (Pd, comp, "location-icon", plist[0], iconname, 
+	if (! pda_Search (Pd, comp, "location-icon", plist[0], icon, 
 		SYMT_STRING) && 
-	    ! pda_Search (Pd, comp, "icon", plist[0], iconname, SYMT_STRING))
+	    ! pda_Search (Pd, comp, "icon", plist[0], icon, SYMT_STRING))
 	{
 		msg_ELog (EF_PROBLEM, "No location icon for %s", plist[0]);
 		return (FALSE);
 	}
+# ifdef notdef
 	if (! (*icon = ov_GetIcon (iconname)))
 	{
 		msg_ELog (EF_PROBLEM, "Can't find icon '%s'", iconname);
 		return (FALSE);
 	}
+# endif
 /*
  * Labeling
  */
@@ -1668,11 +1664,15 @@ float *asize;
 /*
  * Now that we seem to have everything, fix up the graphics context.
  */
+# ifdef notdef
 	vals.foreground = xc.pixel;
 	vals.fill_style = FillStippled;
 	vals.stipple = (*icon)->oi_pixmap;
 	XChangeGC (Disp, Gcontext, GCForeground|GCFillStyle|GCStipple,
 			&vals);
+# endif
+	vals.foreground = xc.pixel;
+	XChangeGC (Disp, Gcontext, GCForeground, &vals);
 	return (TRUE);
 }
 

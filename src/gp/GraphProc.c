@@ -48,7 +48,7 @@
 # include "PixelCoord.h"
 # include "LayoutControl.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.32 1993-10-14 20:21:51 corbet Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.33 1993-10-15 16:31:15 corbet Exp $")
 
 /*
  * Default resources.
@@ -102,6 +102,8 @@ float	Alt;
  */
 bool	PostProcMode = FALSE;
 ZebTime	PostProcTime;
+
+static int ListPosition (), RmElement (), ReplElement ();
 
 /*
  * Definition of the global graphics context in GC.h
@@ -336,6 +338,13 @@ finish_setup ()
 	uf_def_function ("pd_removeparam", 2, type, pd_removeparam);
 	uf_def_function ("substr_remove", 2, type, substr_remove);
 	uf_def_function ("realplatform", 1, type, RealPlatform);
+	uf_def_function ("listposition", 2, type, ListPosition);
+/*
+ * Couple more CLF's with non-string parameters
+ */
+	type[1] = SYMT_INT;
+	uf_def_function ("rmelement", 2, type, RmElement);
+	uf_def_function ("replelement", 3, type, ReplElement);
 /*
  * Redirect UI output.
  */
@@ -1614,3 +1623,82 @@ DoRequires ()
 	}
 }
 		    
+
+
+
+
+static int
+ListPosition (narg, argv, argt, retv, rett)
+int narg, *argt, *rett;
+SValue *argv, *retv;
+/*
+ * CLF: ListPosition (element, list)
+ *
+ * Returns the cardinal position of the given element in the list.
+ */
+{
+	char *elems[40];
+	int nelem = CommaParse (argv[1].us_v_ptr, elems), i;
+	*rett = SYMT_INT;
+	
+	for (i = 0; i < nelem; i++)
+		if (! strcmp (elems[i], argv[0].us_v_ptr))
+		{
+			retv->us_v_int = i;
+			return;
+		}
+	retv->us_v_int = -1;
+}
+
+
+
+
+static int
+RmElement (narg, argv, argt, retv, rett)
+int narg, *argt, *rett;
+SValue *argv, *retv;
+/*
+ * CLF: RmElement (list, nth)
+ */
+{
+	char *elems[40], *ret = usy_string (argv[0].us_v_ptr);
+	int nelem = CommaParse (argv[0].us_v_ptr, elems), i;
+	bool first = TRUE;
+
+	*ret = '\0';
+	for (i = 0; i < nelem; i++)
+		if (i != argv[1].us_v_int)
+		{
+			if (first)
+				first = FALSE;
+			else
+				strcat (ret, ",");
+			strcat (ret, elems[i]);
+		}
+	*rett = SYMT_STRING;
+	retv->us_v_ptr = ret;
+}
+
+
+static int
+ReplElement (narg, argv, argt, retv, rett)
+int narg, *argt, *rett;
+SValue *argv, *retv;
+/*
+ * CLF: ReplElement (list, nth, new)
+ */
+{
+	char *elems[40], *ret = usy_string (argv[0].us_v_ptr);
+	int nelem = CommaParse (argv[0].us_v_ptr, elems), i;
+
+	*ret = '\0';
+	for (i = 0; i < nelem; i++)
+	{
+		if (i > 0)
+			strcat (ret, ",");
+		strcat (ret, (i == argv[1].us_v_int) ?
+			           argv[2].us_v_ptr : elems[i]);
+	}
+	*rett = SYMT_STRING;
+	retv->us_v_ptr = ret;
+}

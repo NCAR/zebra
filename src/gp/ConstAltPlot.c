@@ -39,7 +39,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.33 1993-10-14 20:21:43 corbet Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.34 1993-10-15 16:31:11 corbet Exp $")
 
 
 /*
@@ -1091,7 +1091,7 @@ int datalen, begin, space;
 	XSetForeground (XtDisplay (Graphics), Gcontext, vc.pixel);
 	DrawText (Graphics, GWFrame (Graphics), Gcontext, left, begin, 
 		"10 m/sec", 0.0, scale, JustifyLeft, JustifyTop);
-	used = scale * (float) USABLE_HEIGHT;
+	used = DT_ApproxHeight (Graphics, scale, 1);
 	begin += used;
 	space -= used;
 
@@ -1349,13 +1349,13 @@ int datalen, begin, space;
 	DrawText (Graphics, GWFrame (Graphics), Gcontext, left, 
 		begin, string, 0.0, scale, JustifyLeft, 
 		JustifyCenter);
-	used = scale * (float) USABLE_HEIGHT;
+	/* used = scale * (float) USABLE_HEIGHT; */
+	used = DT_ApproxHeight (Graphics, scale, 1);
 	begin += used;
-	space -= used;
+	space -= 2*used;  /* 2* so as to leave room at the bottom */
 /*
  * Add all the colors.
  */
-	space -= scale * (float) USABLE_HEIGHT; /* save space for last num */
 	bar_height = (float) space / (float) ncolors;
 	if (bar_height <= 0) bar_height = 1;
 	for (i = 0; i < ncolors; i++)

@@ -1,7 +1,7 @@
 /*
  * Deal with the icons on the bottom of the window.
  */
-static char *rcsid = "$Id: Icons.c,v 2.17 1993-10-14 20:21:59 corbet Exp $";
+static char *rcsid = "$Id: Icons.c,v 2.18 1993-10-15 16:31:23 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -96,8 +96,7 @@ static struct 	IconList *I_GetWidget FP ((struct IconList **,
 static void 	I_MenuPopup FP ((Widget, XEvent *, String *, Cardinal *));
 static void	I_Clear FP ((struct IconList **, struct IconList **));
 void		I_ClearPosIcons FP (());
-static Pixmap	I_GetPMap FP ((char *, int *, int *, int *, int *));
-static void	I_AAButton FP ((ActiveArea *, XEvent *));
+void	I_AAButton FP ((ActiveArea *, XEvent *));
 
 
 /*
@@ -219,7 +218,7 @@ int	x, y, fg;
 
 
 
-static void
+void
 I_AAButton (area, ev)
 ActiveArea *area;
 XEvent *ev;
@@ -483,7 +482,7 @@ int *fg, *bg, disable;
 
 
 
-static Pixmap
+Pixmap
 I_GetPMap (iname, xh, yh, w, h)
 char *iname;
 int *xh, *yh, *w, *h;

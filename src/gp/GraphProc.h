@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.27 1993-10-14 20:21:54 corbet Exp $ */
+/* $Id: GraphProc.h,v 2.28 1993-10-15 16:31:19 corbet Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -264,4 +264,5 @@ extern int ApplySpatialOffset FP ((DataChunk *, char *, ZebTime *));
 	extern Widget LeftRightButtons FP ((Widget, void *,XtTranslations));
 	extern void draw_vector FP ((Display *, Drawable, GC, int, int,
 		double, double, double));
+	extern Pixmap I_GetPMap FP ((char *, int *, int *, int *, int *));
 # endif
