@@ -1,5 +1,5 @@
 /* 2/87 jc */
-static char *rcsid = "$Id: ui_interrupt.c,v 1.5 1991-02-25 18:44:10 corbet Exp $";
+static char *rcsid = "$Id: ui_interrupt.c,v 1.6 1993-07-23 19:51:56 case Exp $";
 /*
  * Interrupt handling.
  */
@@ -17,7 +17,6 @@ static char *rcsid = "$Id: ui_interrupt.c,v 1.5 1991-02-25 18:44:10 corbet Exp $
 typedef void (*vfptr) ();
 static vfptr Handlers[MAXHANDLERS];
 # define EMPTYSLOT	(vfptr) 0
-
 
 
 
@@ -75,7 +74,7 @@ uii_cc_handler ()
 {
 	int hndl;
 
-# ifdef BSD
+# ifdef BSD 
 /*
  * Under BSD, we should go ahead and unblock interrupts, in case one of
  * the handlers longjmps out from under us.
@@ -84,7 +83,16 @@ uii_cc_handler ()
 	mask &= ~(sigmask (SIGINT));
 	sigsetmask (mask);
 # endif
-/* Careful of what SYSV may need here.... */
+
+# ifdef SYSV
+
+/* SYSV kindly resets the handler to SIG_DFL before it executes our handler
+ * so we have to reset the signal to make sure it will work right the next 
+ * time we want it to
+ */   
+        signal (SIGINT, uii_cc_handler);
+# endif
+
 # ifdef VMS
 /*
  * VMS handlers need to be reestablished each time.
@@ -96,7 +104,7 @@ uii_cc_handler ()
  */
  	for (hndl = 0; hndl < MAXHANDLERS; hndl++)
 		if (Handlers[hndl] != EMPTYSLOT)
-			(*Handlers[hndl]) ();
+			(*Handlers[hndl]) (); 
 }
 
 
@@ -109,15 +117,30 @@ uii_tstp ()
  * Deal with a STOP signal.
  */
 {
+#ifndef SVR4 
 	int oldmask;
-
+#else
+        sigset_t oldmask;
+#endif 
 	tty_kpoff ();
 	tty_return ();	/* Terminal back to normal state */
 	signal (SIGTSTP, SIG_DFL);
+
+#ifndef SVR4 
 	oldmask = sigsetmask (0);
+#else
+        sigprocmask (SIG_SETMASK, NULL, &oldmask);
+#endif
+       
 	kill (getpid (), SIGTSTP);
 	/* ... */
+
+#ifndef SVR4 
 	sigsetmask (oldmask);
+#else
+        sigprocmask (SIG_SETMASK, &oldmask, NULL);
+#endif
+        
 	signal (SIGTSTP, uii_tstp);
 	tty_setup ();
 	if (Keypad_on)
