@@ -1,0 +1,52 @@
+/**/# ---------------------------------------------------------------------
+/**/# $Id: Imakefile,v 1.1 1993-05-26 20:32:54 corbet Exp $ 
+
+/*		Copyright (C) 1987,88,89,90,91 by UCAR
+ *	University Corporation for Atmospheric Research
+ *		   All rights reserved
+ *
+ * No part of this work covered by the copyrights herein may be reproduced
+ * or used in any form or by any means -- graphic, electronic, or mechanical,
+ * including photocopying, recording, taping, or information storage and
+ * retrieval systems -- without permission of the copyright owner.
+ * 
+ * This software and any accompanying written materials are provided "as is"
+ * without warranty of any kind.  UCAR expressly disclaims all warranties of
+ * any kind, either express or implied, including but not limited to the
+ * implied warranties of merchantibility and fitness for a particular purpose.
+ * UCAR does not indemnify any infringement of copyright, patent, or trademark
+ * through use or modification of this software.  UCAR does not provide 
+ * maintenance or updates for its software.
+ */
+
+
+LOCAL_LIBRARIES=$(LIBZEB) $(LIBNETCDF) $(LIBRDSS) $(XLIBS) $(FLIBS) 
+
+CLIBS = /usr/local/lib/gcc-lib/sparc-sun-sunos4.1.2/2.2/libgcc.a
+
+OBJS =	surf_convert.o
+
+SRCS =	surf_convert.c
+
+HDRS =	sc_cmds.h
+
+DISTFILES = Imakefile $(SRCS) $(FSRCS) $(HDRS) surf_convert.state
+
+HEADERS =
+
+NormalProgramTarget(surf_convert,$(OBJS),$(DEPLIBS), $(LOCAL_LIBRARIES), $(SYSLIBS))
+
+UILoadFileTarget(surf_convert.lf, surf_convert.state)
+
+BuildIncludes($(HEADERS),.,.)
+
+TestProgramTarget(pc_test,$(OBJS),$(DEPLIBS),$(LOCAL_LIBRARIES),$(SYSLIBS))
+
+CflowTarget(surf_convert, $(OBJS),)
+
+DependTarget()
+
+LintTarget()
+
+DistfilesTarget($(DISTFILES))
+
