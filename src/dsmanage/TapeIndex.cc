@@ -46,7 +46,7 @@ extern "C"
 # include "Tape.h"
 
 
-static char *rcsid = "$Id: TapeIndex.cc,v 1.6 1995-01-10 15:36:14 burghart Exp $";
+static char *rcsid = "$Id: TapeIndex.cc,v 1.7 1995-01-17 22:03:05 burghart Exp $";
 
 
 //
@@ -118,7 +118,7 @@ main (int argc, char **argv)
 //
 // Start by making sure we have our arguments
 //
-	sprintf (TmpFile, "%s/%s", Scratch, "TapeIndex.tmp");
+	sprintf (TmpFile, "%s/TapeIndex%x.tmp", Scratch, getpid ());
 	while ((flag = parser ()) != EOF)
 	{
 		switch (flag)
