@@ -1,7 +1,7 @@
 !
 ! Display manager widgets.
 !
-! $Id: dm.widgets,v 1.29 1999-05-14 20:42:17 burghart Exp $
+! $Id: dm.widgets,v 1.30 1999-05-17 14:50:25 burghart Exp $
 !
 
 define widget SaveConfig form 'Configuration saver'
@@ -208,6 +208,7 @@ procedure DoEnter overwrite bool
 !
 ! Pull info from the widget.
 !
+	local plat getftext(ui$form,'platform')
 	local lat_deg getftext(ui$form,'lat_deg')
 	local lon_deg getftext(ui$form,'lon_deg')
 	local lat_min getftext(ui$form,'lat_min')
@@ -217,10 +218,10 @@ procedure DoEnter overwrite bool
 ! Do the entry.
 !
 	if (overwrite)
-		enter #platform #lat_deg #lat_min #lon_deg #lon_min #alt
+		enter #plat #lat_deg #lat_min #lon_deg #lon_min #alt
 	else
 		local when getftext(ui$form,'time')
-		enter #platform #lat_deg #lat_min #lon_deg #lon_min #alt #when
+		enter #plat #lat_deg #lat_min #lon_deg #lon_min #alt #when
 	endif
 endprocedure
 
@@ -959,5 +960,5 @@ procedure AllXSect x0 string y0 string x1 string y1 string
 endprocedure
 
 procedure dm_widgets_id
-	local '$Id: dm.widgets,v 1.29 1999-05-14 20:42:17 burghart Exp $'
+	local '$Id: dm.widgets,v 1.30 1999-05-17 14:50:25 burghart Exp $'
 endprocedure
