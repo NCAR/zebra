@@ -6,3 +6,5 @@ LIBS = $(LIBZEB) $(LIBRDSS)
 
 
 NormalProgramTarget(zrun, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+
+DependTarget ()
