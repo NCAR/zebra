@@ -20,12 +20,15 @@
  */
 
 # include <string.h>
+# include <ctype.h>
 
 # include <config.h>		/* For CFG_ parameters */
 # include <defs.h>
+# include <zl_symbol.h>
 # include <message.h>
 # include "ds_fields.h"
-MAKE_RCSID ("$Id: Fields.c,v 3.9 1995-02-10 01:09:04 granger Exp $")
+
+RCSID ("$Id: Fields.c,v 3.10 1996-11-19 08:32:17 granger Exp $")
 
 
 /*
@@ -45,7 +48,7 @@ typedef struct _FieldDesc
 } FieldDesc;
 
 static FieldDesc FieldTable[MaxFieldID];
-static stbl FNameTable;
+static stbl FNameTable = NULL;
 
 static int NField = 0;
 
@@ -58,7 +61,63 @@ F_Init ()
  * Initialize the fields module.
  */
 {
-	FNameTable = usy_c_stbl ("FieldNames");
+	if (! FNameTable)
+	{
+		zl_usy_init ();
+		FNameTable = usy_c_stbl ("FieldNames");
+	}
+}
+
+
+
+
+void
+F_Closure ()
+/*
+ * Reset to zero fields and destroy the symbol table.
+ */
+{
+	if (FNameTable)
+	{
+		zl_z_stbl (FNameTable);
+		FNameTable = NULL;
+	}
+	NField = 0;
+}
+
+
+
+
+int
+F_CheckName (name)
+const char *name;
+/*
+ * Check this name for legality.  Return zero if it passes, nonzero else.
+ */
+{
+	const char *c = name;
+	int check = 0;
+
+	if (strlen (name) >= MaxFieldName)
+	{
+		msg_ELog (EF_PROBLEM, "declare field '%s': %s %d characters",
+			  name, "name longer than", MaxFieldName);
+		++check;
+	}
+	c = name;
+	while (*c)
+	{
+		if (! isalnum (*c) && (*c != '_') && (*c != '-'))
+			break;
+		c++;
+	}
+	if (*c)
+	{
+		msg_ELog (EF_PROBLEM, "declare field '%s': %s",
+			  name, "illegal characters");
+		++check;
+	}
+	return (check);
 }
 
 
@@ -82,6 +141,7 @@ const char *name;
 
 
 
+
 FieldId
 F_Declared (name)
 const char *name;
@@ -98,6 +158,7 @@ const char *name;
 	else
 		return (v.us_v_int);
 }
+
 
 
 
@@ -139,6 +200,10 @@ const char *name, *desc, *units;
 
 	v.us_v_int = ind;
 	usy_s_symbol (FNameTable, (char *)name, SYMT_INT, &v);
+/*
+ * Now that we've defined it, warn if we didn't really like it.
+ */
+	F_CheckName (name);
 	return (ind);
 }
 
@@ -206,3 +271,5 @@ FieldId id;
 		return (0);
 	return (FieldTable[id].fd_Units);
 }
+
+
