@@ -1,5 +1,5 @@
 /* Archiver Imakefile -*- C -*-
- * $Id: Imakefile,v 1.22 2002-12-13 23:23:01 granger Exp $
+ * $Id: Imakefile,v 1.23 2003-07-02 18:52:19 granger Exp $
  */
 
 SRCS = XArchiver.cc Archiver.cc Database.c Arq.c
@@ -11,7 +11,8 @@ CXXOPTIONS=-fexceptions
 /*CXXDEBUGFLAGS=-DNO_RUNTAR -DNO_MOUNT*/
 
 #ifdef LinuxArchitecture
-NDBMINCLUDES = -I/usr/include/db1
+NDBMINCLUDES = -I/usr/include/gdbm
+LIBNDBM = -lgdbm
 #endif
 
 INCLUDES = $(NDBMINCLUDES) $(XINCLUDES) 
