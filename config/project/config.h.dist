@@ -39,7 +39,7 @@
 /**/# -----------------------------------------------------------------------
 /**/# Definitions from config.h included here.  The definitions here override
 /**/# the defaults in Project.tmpl.  See ...../zeb/config/config.h.
-/**/# $Id: config.h.dist,v 1.2 1994-01-27 02:44:09 granger Exp $
+/**/# $Id: config.h.dist,v 1.3 1994-01-31 17:12:52 corbet Exp $
 /**/# -----------------------------------------------------------------------
 # endif
 
@@ -100,7 +100,6 @@
 # endif /* MAKING_MAKEFILE */
 /*=======================================================================*/
 
-
 /* =========================================================================
  * The following definitions determine which parts of the Zeb system will
  * be compiled and installed in the build process.
@@ -108,60 +107,14 @@
  * 	YES --- The capability WILL be compiled into the system.
  * 	NO  --- The capability WILL NOT be included into the system.
  *
- * Configurable options:
- * 
- * 	Plots
- * 		CAP (Constant Altitude Plots)
- * 			lightning
- * 			various overlays (or overlays at all)
- * 			raster variations
- * 			contour variations
- * 			vector variations
- * 			tracks
- * 		Skewt
- * 		Xsection
- * 		Tseries
- * 
- * 	Position widget stuff
- * 	Movie control?
- * 
- * 	Data store format types
- * 		netcdf
- * 		boundary
- * 		raster
- * 
- * 	Data menu
    ------------------------------------------------------------------------ */
-/*
- * The various plot types.
- */
-# define C_PT_CAP	YES		/* Constant altitude plots	*/
-# define C_PT_SKEWT	YES		/* Skew T plots			*/
-# define C_PT_XSECT	YES		/* Cross section plots		*/
-# define C_PT_TSERIES	YES		/* Time series plots		*/
-# define C_PT_XYGRAPH	YES		/* XY-Graph plots		*/
-# define C_PT_XYWIND	YES		/* XY-Graph wind plots		*/
 
-/*
- * CAP Subplots.
- */
-# if C_PT_CAP
-/*
- * Define these YES if you want them.  If C_PT_CAP above is not YES, these
- * settings will be ignored and none of them will be built.
- */
-#	define C_CAP_OVERLAY	YES	/* Overlays			*/
-#	define C_CAP_VECTOR	YES	/* Vector plots			*/
-# 	define C_CAP_LIGHTNING	YES	/* Lightning location		*/
-#	define C_CAP_RASTER	YES	/* Raster plots			*/
-#	define C_CAP_TRACKS	YES	/* Track plots (e.g. aircraft)	*/
-# endif
 
 /* 
  * Do you want to build any of Zeb's ingest modules?  Only recommended for
  * Sun machines, and only if you know that you need them.
  */
-#define BuildIngest YES
+#define BuildIngest NO
 
 /*
  * Here you can select which individual ingest modules to build.  
@@ -250,7 +203,7 @@
  * then define OpenWinHome to the correct directory.
  */
 # define UseOpenWindows 	NO	
-# define OpenWindowsVersion 	2
+# define OpenWindowsVersion 	3
 # define OpenWinHome		/usr/openwin
 
 /*
@@ -385,6 +338,12 @@
  * Note that defining one of the 'Library' symbols as above will completely
  * circumvent the definition of the corresponding 'LibDir' symbol.  See the
  * next section for more details and more of the available 'Library' symbols.
+ *
+ * WARNING: If any of the following libraries are in /usr/lib and you are
+ * building on a Sun, DO NOT specify /usr/lib explicitly.  Otherwise you
+ * will run into extremely weird linking problems involving the fact that
+ * Sun provides at least three math libraries and you HAVE to get the right
+ * one.
  */
 
 /* # define XLibDir /local/X11R5/lib */
@@ -437,7 +396,8 @@
  * you followed the recommended installation for FORTRAN.
  */
 
-# define FortranLibraries -L/usr/lang/SC1.0.1 -lF77 -lV77	/* Sun */
+# define FortranLibraries -L/usr/lang/SC1.0.1 -lF77 -lV77	/* SunOS 4 */
+/* # define FortranLibraries -L/opt/SUNWspro/SC2.0.1 -lF77 -lV77 /* Solaris */
 /* # define FortranLibraries -lU77 -lf -lisamstub */	/* HPUX version */
 
 
@@ -456,6 +416,37 @@
 
 # define MathLibrary	-lm
 # define TermcapLibrary -ltermcap
+
+/*
+ * The following allows you to configure in or out various pieces of the
+ * zeb graphics process.  There are very few cases in which it is desirable
+ * to change any of the following.
+ */
+
+/*
+ * The various plot types.
+ */
+# define C_PT_CAP	YES		/* Constant altitude plots	*/
+# define C_PT_SKEWT	YES		/* Skew T plots			*/
+# define C_PT_XSECT	YES		/* Cross section plots		*/
+# define C_PT_TSERIES	YES		/* Time series plots		*/
+# define C_PT_XYGRAPH	YES		/* XY-Graph plots		*/
+# define C_PT_XYWIND	YES		/* XY-Graph wind plots		*/
+
+/*
+ * CAP Subplots.
+ */
+# if C_PT_CAP
+/*
+ * Define these YES if you want them.  If C_PT_CAP above is not YES, these
+ * settings will be ignored and none of them will be built.
+ */
+#	define C_CAP_OVERLAY	YES	/* Overlays			*/
+#	define C_CAP_VECTOR	YES	/* Vector plots			*/
+# 	define C_CAP_LIGHTNING	YES	/* Lightning location		*/
+#	define C_CAP_RASTER	YES	/* Raster plots			*/
+#	define C_CAP_TRACKS	YES	/* Track plots (e.g. aircraft)	*/
+# endif
 
 /*========================================================================
  * Distribution Options
