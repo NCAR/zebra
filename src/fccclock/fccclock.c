@@ -35,7 +35,7 @@
 # include <timer.h>
 # include <pd.h>
 
-MAKE_RCSID ("$Id: fccclock.c,v 2.10 1995-07-06 04:22:01 granger Exp $")
+MAKE_RCSID ("$Id: fccclock.c,v 2.11 1995-10-31 02:10:09 granger Exp $")
 
 /*
  * Default resources.
@@ -47,21 +47,27 @@ static String Resources[] = {
 
 # define FONTNAME "-*-times-bold-r-*-*-*-240-*-*-*-*-*-*"
 
-Widget Top;				/* The top level widget		*/
-Widget Graphics, GrShell;		/* The graphics widget		*/
-XtAppContext Actx;			/* The application context	*/
-GC Gc = 0;
-Font Tfont;
+static Widget Top;			/* The top level widget		*/
+static Widget Graphics, GrShell;	/* The graphics widget		*/
+static XtAppContext Actx;		/* The application context	*/
+static GC Gc = 0;
+static Font Tfont;
 /*
  * The state of the window.
  */
 enum wstate { UP, DOWN };
 enum wstate WindowState = DOWN;
 
-int Height;
-int WindowSent = 0;	/* True once we've sent our window ID to dm */
-unsigned long Fg = 0, Bg;
-Colormap Cm;
+static int Height;
+static int WindowSent = 0;	/* True once we've sent our window ID to dm */
+static unsigned long Fg = 0, Bg;
+static Colormap Cm;
+
+/*
+ * Our plot description.
+ */
+static plot_description Pd = 0, Defaults = 0;
+
 /*
  * Forward routine definitions.
  */
@@ -77,11 +83,6 @@ static void ParamChange FP((struct dm_parchange *dmp));
 static void NewPD FP((struct dm_pdchange *dmp));
 static void ChangeState FP((enum wstate new));
 static void inspectPD FP((void));
-
-/*
- * Our plot description.
- */
-plot_description Pd = 0, Defaults = 0;
 
 
 void
