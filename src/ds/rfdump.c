@@ -25,8 +25,12 @@
 # include <defs.h>
 # include "RasterFile.h"
 
-RCSID("$Id: rfdump.c,v 2.5 1996-11-19 09:20:08 granger Exp $")
+RCSID("$Id: rfdump.c,v 2.6 1997-05-09 05:19:28 granger Exp $")
 
+long BE_long (long l);
+float BE_float (float f);
+
+static void DumpFile (char *file);
 
 
 int
@@ -34,71 +38,130 @@ main (argc, argv)
 int argc;
 char **argv;
 {
-	int fd, fld, ntocb, i;
-	RFHeader hdr;
-	RFToc *toc;
+    int i;
 
-	if (argc != 2)
-	{
-		printf ("Usage: %s rasterfile\n", argv[0]);
-		exit (1);
-	}
+    if (argc < 2)
+    {
+	printf ("Usage: %s rasterfile ...\n", argv[0]);
+	exit (1);
+    }
+
+    for (i = 1; i < argc; ++i)
+    {
+        printf ("File: %s\n", argv[i]);
+	DumpFile (argv[i]);
+    }
+
+    return (0);
+}
+
+
+
+
+static void
+DumpFile (char *file)
+{
+    int fd, fld, ntocb, i;
+    RFHeader hdr;
+    RFToc *toc;
 /*
  * Open the file.
  */
-	if ((fd = open (argv[1], 0)) < 0)
-	{
-		perror (argv[1]);
-		exit (1);
-	}
+    if ((fd = open (file, 0)) < 0)
+    {
+	perror (file);
+	exit (1);
+    }
 /*
  * Get the header.
  */
-	if (read (fd, &hdr, sizeof (hdr)) != sizeof (hdr))
-	{
-		perror ("Header read error");
-		exit (1);
-	}
+    if (read (fd, &hdr, sizeof (hdr)) != sizeof (hdr))
+    {
+	perror ("Header read error");
+	exit (1);
+    }
 /*
  * Print it.
  */
-	printf ("Header magic = 0x%x, platform '%s' %s\n", hdr.rf_Magic,
-		hdr.rf_Platform,
-		hdr.rf_Flags & RFF_COMPRESS ? "compressed" : "not compressed");
-	printf ("Currently %d of max %d samples, with %d fields\n", 
-		hdr.rf_NSample, hdr.rf_MaxSample, hdr.rf_NField);
-	for (fld = 0; fld < hdr.rf_NField; fld++)
-		printf ("\tField %d, '%s'\n", fld,hdr.rf_Fields[fld].rff_Name);
+    printf ("Header magic = 0x%x, platform '%s' %s\n", 
+	    BE_long (hdr.rf_Magic), hdr.rf_Platform,
+	    BE_long (hdr.rf_Flags) & RFF_COMPRESS ? 
+	    "compressed" : "not compressed");
+    printf ("Currently %d of max %d samples, with %d fields\n", 
+	    BE_long (hdr.rf_NSample), BE_long (hdr.rf_MaxSample), 
+	    BE_long (hdr.rf_NField));
+    for (fld = 0; fld < BE_long (hdr.rf_NField); fld++)
+	printf ("\tField %d, '%s'\n", fld, 
+		hdr.rf_Fields[fld].rff_Name);
 /*
  * Get and read the table of contents.
  */
-	ntocb = hdr.rf_NSample*sizeof (RFToc);
-	toc = (RFToc *) malloc (ntocb);
-	if (read (fd, toc, ntocb) != ntocb)
-	{
-		perror ("TOC read error");
-		exit (1);
-	}
+    ntocb = BE_long (hdr.rf_NSample) * sizeof (RFToc);
+    toc = (RFToc *) malloc (ntocb);
+    if (read (fd, toc, ntocb) != ntocb)
+    {
+	perror ("TOC read error");
+	exit (1);
+    }
 /*
  * Dump it out.
  */
-	for (i = 0; i < hdr.rf_NSample; i++)
+    for (i = 0; i < BE_long (hdr.rf_NSample); i++)
+    {
+	char attr[200];
+	printf ("%2d: %ld %06ld at %8ld, (%dx%d) space %.2f, L %.2f %.2f %.2f\n",
+		i, BE_long (toc[i].rft_Time.ds_yymmdd), 
+		BE_long (toc[i].rft_Time.ds_hhmmss),
+		BE_long (toc[i].rft_Offset[0]), 
+		BE_long (toc[i].rft_Rg.rg_nX),
+		BE_long (toc[i].rft_Rg.rg_nY), 
+		BE_float (toc[i].rft_Rg.rg_Xspacing),
+		BE_float (toc[i].rft_Origin.l_lat), 
+		BE_float (toc[i].rft_Origin.l_lon),
+		BE_float (toc[i].rft_Origin.l_alt));
+	if (BE_long (toc[i].rft_AttrLen) > 0)
 	{
-		char attr[200];
-		printf (
-	     "%2d: %ld %06ld at %8ld, (%dx%d) space %.2f, L %.2f %.2f %.2f\n",
-			i,
-			toc[i].rft_Time.ds_yymmdd, toc[i].rft_Time.ds_hhmmss,
-			toc[i].rft_Offset[0], toc[i].rft_Rg.rg_nX,
-			toc[i].rft_Rg.rg_nY, toc[i].rft_Rg.rg_Xspacing,
-			toc[i].rft_Origin.l_lat, toc[i].rft_Origin.l_lon,
-			toc[i].rft_Origin.l_alt);
-		if (toc[i].rft_AttrLen > 0)
-		{
-			lseek (fd, toc[i].rft_AttrOffset, 0);
-			read (fd, attr, toc[i].rft_AttrLen);
-			printf ("\tAttributes: '%s'\n", attr);
-		}
+	    char *c;
+	    int len = BE_long (toc[i].rft_AttrLen);
+	    lseek (fd, BE_long (toc[i].rft_AttrOffset), 0);
+	    read (fd, attr, len);
+	    printf ("\tAttributes:");
+	    c = attr;
+	    while (c - attr < len)
+	    {
+		printf (" %s=", c);
+		c += strlen (c) + 1;
+		printf ("%s; ", c);
+		c += strlen (c) + 1;
+	    }
+	    printf ("\n");
 	}
-	return (0);
+    }
+}
+
+
+long
+BE_long (long l)
+{
+    char c;
+    char *bl = (char *)&l;
+
+    c = bl[0]; bl[0] = bl[3]; bl[3] = c;
+    c = bl[1]; bl[1] = bl[2]; bl[2] = c;
+
+    return l;
+}
+
+
+
+float
+BE_float (float f)
+{
+    char c;
+    char *bf = (char *)&f;
+
+    c = bf[0]; bf[0] = bf[3]; bf[3] = c;
+    c = bf[1]; bf[1] = bf[2]; bf[2] = c;
+
+    return f;
 }

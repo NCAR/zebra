@@ -34,7 +34,7 @@
 #include "dfa.h"
 #include "Appl.h"
 
-RCSID ("$Id: DFA_Appl.c,v 3.6 1996-12-06 00:39:58 granger Exp $")
+RCSID ("$Id: DFA_Appl.c,v 3.7 1997-05-09 05:19:27 granger Exp $")
 
 /*
  * Local private prototypes.
@@ -160,23 +160,37 @@ char *attr;
  * See if this attribute is found in the data.
  */
 {
-	char *dattr, *pattr[50], copy[200];
+	char *dattr;
+	char *a;
 	int len, i;
+	int result = 0;
 /*
  * If no data attrs, assume yes.
  */
 	if (! (dattr = dfa_GetAttr (df, t, &len)))
 		return (TRUE);
 /*
- * Parse up the attributes and see if any match.
+ * Parse up the attributes and see if any match.  Technically
+ * here we're comparing against both keys and values, but since
+ * this is mostly a kludge for radar images anyway...
  */
-	strcpy (copy, dattr);
+#ifdef notdef
 	free (dattr);
+	strcpy (copy, dattr);
 	len = CommaParse (copy, pattr);
 	for (i = 0; i < len; i++)
 		if (!strcmp (pattr[i], attr))
 			return (TRUE);
-	return (FALSE);
+#endif
+	a = dattr;
+	while (a - dattr < len)
+	{
+		if ((result = (!strcmp (a, attr))))
+			break;
+		a += strlen (a) + 1;
+	}
+	free (dattr);
+	return (result);
 }
 #endif
 
