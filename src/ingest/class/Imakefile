@@ -15,11 +15,13 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.8 1995-05-24 22:08:29 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.9 1995-06-06 21:29:00 corbet Exp $"
 
 LIBS = $(LIBSUDS) $(LIBZEBDS) $(LIBZEB) $(LIBRDSSGRAPH) \
 	$(LIBRDSS) $(LIBNETCDF) $(XLIBS)
+
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
+
 
 LINTOPTS = -nuvxz
 

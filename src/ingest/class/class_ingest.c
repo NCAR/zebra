@@ -1,5 +1,5 @@
 /*
- * $Id: class_ingest.c,v 2.16 1995-03-14 21:36:00 granger Exp $
+ * $Id: class_ingest.c,v 2.17 1995-06-06 21:29:01 corbet Exp $
  *
  * Ingest CLASS data into the system.
  *
@@ -32,7 +32,7 @@
 
 #ifndef lint
 MAKE_RCSID(
-   "$Id: class_ingest.c,v 2.16 1995-03-14 21:36:00 granger Exp $")
+   "$Id: class_ingest.c,v 2.17 1995-06-06 21:29:01 corbet Exp $")
 #endif
 
 static void	Usage FP((char *prog_name));
@@ -48,10 +48,11 @@ static void 	LoadFieldData FP((DataChunk *dc, ZebTime *times,
 ZebTime *	GetTimes FP((int *npts));
 static void	BuildTranslationTable FP ((void));
 static char *	GetNextString FP ((char *, char*));
+static void	FixBadTimes FP ((float *, int));
 
 # define INGEST_NAME "class_ingest"
 # define SND	"snd"
-# define BUFLEN	1280
+# define BUFLEN	5000
 # define BADVAL -9999.0
 # define MAX_FIELDS 32
 
@@ -259,7 +260,11 @@ GetTimes (npts)
 	start = snd_time (SND);
 
 	Npts = snd_get_data (SND, Buf, BUFLEN, fd_num("time"), BADVAL);
-
+/*
+ * Bad-value times do really nasty things to the result in the data
+ * store.  You don't wanna know.  Fix them up here.
+ */
+	FixBadTimes (Buf, Npts);
 /*
  * Allocate the times array
  */
@@ -287,6 +292,57 @@ GetTimes (npts)
 	*npts = Npts;
 	return (times);
 }
+
+
+
+
+static void
+FixBadTimes (times, ntime)
+float *times;
+int ntime;
+/*
+ * Interpolate in for bad-value times.
+ */
+{
+	int t, fwd, fix, nfix = 0;
+/*
+ * First time has gotta be good.
+ */
+	if (times[0] == BADVAL)
+		times[0] = 0;	/* XXXXX */
+/*
+ * Plow through looking for bad ones.
+ */
+	for (t = 1; t < ntime; t++)
+	{
+		if (times[t] == BADVAL)
+		{
+			for (fwd = t + 1; fwd < ntime; fwd++)
+				if (times[fwd] != BADVAL)
+					break;
+			if (fwd >= ntime)
+			{
+				for (fwd = t; fwd < ntime; fwd++) /* XXX */
+					times[fwd] = times[fwd - 1] + 1;
+				nfix += ntime - t;
+				break;
+			}
+			else
+			{
+				for (fix = t; fix < fwd; fix++)
+					times[fix] = times[t-1] +
+						(times[fwd]-times[t-1])*
+						(fix - t + 1)/(fwd - t + 1);
+				nfix += fwd - t;
+			}
+		}
+	}
+	if (nfix)
+		msg_ELog (EF_INFO, "%d times thrashed", nfix);
+}
+
+
+
 
 
 /* SetLocations ---------------------------------------------------------
