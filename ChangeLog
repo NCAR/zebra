@@ -1,3 +1,15 @@
+Thu Aug  5 12:18:02 1993  Jonathan Corbet  (corbet@ale)
+
+	* Tagged revision V3-4
+
+	* data store, dsdelete
+	dsdelete now takes an absolute date instead of an offset for
+	deletion.  Offsets are still handled, but go from the current time
+	(as known by the timer) rather than the latest file date.
+	ds_Store refuses to store data way in the future.  ("Way"
+	determined by the number of seconds in the MaxFuture indirect
+	variable -- default one hour).
+
 Wed Aug  4 11:45:44 1993  Gary Granger  (granger@stout)
 
 	* Zeb now compiles under SunOS 5.0 (Solaris), using GNU's gcc and
