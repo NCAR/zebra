@@ -36,7 +36,7 @@
 # include "DataDir.h"
 
 extern "C" {
-	int stat (const char *, struct stat *);
+//	int stat (const char *, struct stat *);
 # ifndef USE_STATVFS
 	int statfs (const char *, struct statfs *);
 # endif
@@ -46,7 +46,7 @@ extern "C" {
 # endif
 };
 
-static char *rcsid = "$Id: DataDir.cc,v 1.7 1996-01-04 01:29:49 granger Exp $";
+static char *rcsid = "$Id: DataDir.cc,v 1.8 1996-01-23 22:36:27 corbet Exp $";
 
 //
 // The data directory class.
