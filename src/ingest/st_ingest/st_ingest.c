@@ -39,6 +39,7 @@
 # define MAXP3FIELD 100
 static int	Nfld, Nrec, DoRec[MAXP3FIELD], NRead;
 static FieldId  Fids[MAXP3FIELD], RecFids[MAXP3FIELD];
+static char	Format[MAXP3FIELD][16];
 
 /*
  * Here is a list of the fields we care about, for one reason or another,
@@ -93,7 +94,7 @@ struct FMap
 	{ "pt",		FI_PT },
 };
 
-static FieldId FOffsets[N_INDEX];
+static int FOffsets[N_INDEX];
 
 
 /*
@@ -152,6 +153,11 @@ char	**argv;
 		exit (1);
 	}	
 /*
+ * Initialize FOffsets to bogus values
+ */
+	for (i = 0; i < N_INDEX; i++)
+	    FOffsets[i] = -1;
+/*
  * Set up fields and create an initial data chunk.
  */
 	getfids (argv[3]);
@@ -164,6 +170,7 @@ char	**argv;
  */
 	while (data != NULL)
 	{
+		int navchoice;
 	/*
 	 * Get the raw data.
 	 */
@@ -188,26 +195,30 @@ char	**argv;
 		TC_ZtAssemble (&zt, year, month, day, hour, minute,
 			second, 0); 
 	/*
-	 * Extract a location.
+	 * Extract a location.  Use the "Nav" field to choose the best
+	 * navigation, or default to "fla1" and "flo1".
 	 */
-		switch ((int) data[FOffsets[FI_SelINE]])
+		navchoice = (FOffsets[FI_SelINE] >= 0) ? 
+		    (int)data[FOffsets[FI_SelINE]] : 1;
+		
+		switch (navchoice)
 		{
 		    case 1:
 			origin.l_lat = data[FOffsets[FI_INE1Lat]];
 			origin.l_lon = data[FOffsets[FI_INE1Lon]];
-			origin.l_alt = data[FOffsets[FI_RAlt1]];
+			origin.l_alt = data[FOffsets[FI_RAlt1]] * 0.001;
 			break;
 
 		    case 2:
 			origin.l_lat = data[FOffsets[FI_INE2Lat]];
 			origin.l_lon = data[FOffsets[FI_INE2Lon]];
-			origin.l_alt = data[FOffsets[FI_RAlt2]];
+			origin.l_alt = data[FOffsets[FI_RAlt2]] * 0.001;
 			break;
 
 		    case 4:
 			origin.l_lat = data[FOffsets[FI_GPSLat]];
 			origin.l_lon = data[FOffsets[FI_GPSLon]];
-			origin.l_alt = data[FOffsets[FI_GPSAlt]];
+			origin.l_alt = data[FOffsets[FI_GPSAlt]] * 0.001;
 			break;
 
 		    default:
@@ -315,7 +326,7 @@ char *file;
 	Nfld = 0;
 	while (fgets (line, 120, fp))
 	{
-		char *cp, *units, *desc, *record;
+		char *cp, *units, *format, *desc, *record;
 	/*
 	 * Ignore comments and blank lines.
 	 */
@@ -331,6 +342,8 @@ char *file;
 		desc = line;
 		(void) strtok_r (line, " \t", &desc);
 		units = strtok_r (NULL, " \t", &desc);
+		format = strtok_r (NULL, " \t", &desc);
+		strcpy (Format[Nfld], format);
 		record = strtok_r (NULL, " \t", &desc);
 		DoRec[Nfld] = (*record != 'n' && *record != 'N');
 	/*
@@ -372,7 +385,6 @@ char *file;
 	DoRec[Nfld] = TRUE;
 	RecFids[Nrec++] = Fids[Nfld++] = F_DeclareField ("pt",
 			"Potential Temperature", "K");
-	printf ("%d fields, read %d record %d\n", Nfld, NRead, Nrec);
 }
 
 
@@ -431,12 +443,42 @@ float	*data;
  * Get the variables.
  */
 	for (i = 0; i < NRead; i++)
-		if (fscanf (fptr, "%f", data + i) < 1)
-		{
-			msg_ELog (EF_INFO, "End of data. Ingested %d records",
-				  count);
-			return (FALSE);
-		}
+	{
+	    char cval;
+	    int ival, got;
+	/*
+	 * Determine the type of this field from the last character of its 
+	 * format string
+	 */
+	    char ftype = Format[i][strlen( Format[i] ) - 1];
+	    
+	    switch (ftype)
+	    {
+	      case 'c':
+		got = fscanf (fptr, Format[i], &cval);
+		data[i] = (float)cval;
+		break;
+	      case 'd':
+		got = fscanf (fptr, Format[i], &ival);
+		data[i] = (float)ival;
+		break;
+	      case 'f':
+		got = fscanf (fptr, Format[i], data + i);
+		break;
+	      default:
+		msg_ELog (EF_PROBLEM, "Unable to parse field with format '%s'",
+			  Format[i]);
+		return (FALSE);
+	    }
+	    
+
+	    if (got < 1)
+	    {
+		msg_ELog (EF_INFO, "End of data. Ingested %d records",
+			  count);
+		return (FALSE);
+	    }
+	}
 /*
  * Increment buffer count.
  */
@@ -453,7 +495,8 @@ float	*data;
  */
 {
 	float	wspd, wdir, t, t_k, p, dp, l;
-	extern float	bolton(), raf_thetae();
+	extern float bolton (float press, float temp, float dewpoint);
+	extern float raf_thetae (float t, float p, float dp, float l);
 /*
  * u wind and v wind
  */
@@ -474,8 +517,13 @@ float	*data;
  * Kerry Emanuel's equivalent potential temperature (includes liquid water 
  * component)
  */
-	l = data[FOffsets[FI_LWater]];	/* liquid water content	*/
-	data[FOffsets[FI_ThetaEE]] = raf_thetae (p, t, dp, l);
+	if (FOffsets[FI_LWater] >= 0)
+	{
+	    l = data[FOffsets[FI_LWater]];	/* liquid water content	*/
+	    data[FOffsets[FI_ThetaEE]] = raf_thetae (p, t, dp, l);
+	}
+	else
+	    data[FOffsets[FI_ThetaEE]] = -999.0;
 /*
  * Potential temperature (per formula from Jorgensen, FASTEX, 1/97)
  */
