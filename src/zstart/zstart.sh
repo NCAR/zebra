@@ -2,7 +2,7 @@
 #
 # This is an attempt at a generalized zebra startup script.
 #
-# $Id: zstart.sh,v 1.15 2002-04-19 01:22:32 burghart Exp $
+# $Id: zstart.sh,v 1.16 2002-04-26 21:14:24 burghart Exp $
 #
 # Here we do basic location of directories, set environment variables,
 # and try to hand things off to a project-specific startup file.
@@ -407,7 +407,7 @@ restart_prompt:
 		if ( $status == 0 ) then
 		    echo "...done"
 		else
-		    echo "Zebra startup on $DS_DAEMON_HOST " \ 
+		    echo "Zebra startup on $DS_DAEMON_HOST " \
 			"is taking too long"
 		    exit 1
 		endif
