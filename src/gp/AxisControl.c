@@ -1,7 +1,7 @@
 /*
  * Skew-t plotting module
  */
-static char *rcsid = "$Id: AxisControl.c,v 1.4 1992-01-02 23:02:14 barrett Exp $";
+static char *rcsid = "$Id: AxisControl.c,v 1.5 1992-01-10 18:54:07 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -112,11 +112,12 @@ int ac_DisplayAxes ()
 		(!(AxisInfoList[h][i].computed)||
 		oldHeight != currentHeight))
 	    {
-		ac_ComputeAxisDescriptors(Pd, AxisInfoList[h][i].component,
 			side = h == AXIS_BOTTOM ? 'b' :
 			       h == AXIS_LEFT ? 'l' :
 			       h == AXIS_TOP ? 't' :
 			       h == AXIS_RIGHT ? 'r':'n',
+		ac_ComputeAxisDescriptors(Pd, AxisInfoList[h][i].component,
+			side,
 			AxisInfoList[h][i].datatype);
 		AxisInfoList[h][i].computed = 1;
 	    }
@@ -693,25 +694,9 @@ DataValPtr		min,max;
 {
     char	keyword[80];
     int		axid;
-    if ( (axid = ac_AxisId (side, c)) < 0 )
-    {
-	switch ( datatype )
-	{
-	    case 'f':
-		min->val.f = 0.0;
-		max->val.f = 0.0;
-	    break;
-	    case 't':
-		min->val.t.ds_yymmdd = 0;
-		min->val.t.ds_hhmmss = 0;
-		max->val.t.ds_yymmdd = 0;
-		max->val.t.ds_hhmmss = 0;
-	    break;
-	}
-	return(0);
-    }
     min->type = datatype;
     max->type = datatype;
+    axid = ac_AxisId (side, c);
     strcpy(keyword, "private-axis-");
     keyword[13] = side;
     keyword[14] = '\0';
@@ -719,7 +704,7 @@ DataValPtr		min,max;
     switch( datatype )
     {
         case 't':
-            if (! pda_Search (pd, c, keyword, NULL,
+            if (axid < 0 || ! pda_Search (pd, c, keyword, NULL,
                 (char *)&(min->val.t), SYMT_DATE))
             {
                 min->val.t.ds_yymmdd = 0;
@@ -727,7 +712,7 @@ DataValPtr		min,max;
             }
         break;
         case 'f':
-            if (! pda_Search (pd, c, keyword, NULL,
+            if (axid < 0 || ! pda_Search (pd, c, keyword, NULL,
                 (char *)&(min->val.f), SYMT_FLOAT))
             {
                 min->val.f = 0.0;
@@ -741,7 +726,7 @@ DataValPtr		min,max;
     switch( datatype )
     {
         case 't':
-            if (! pda_Search (pd, c, keyword, NULL,
+            if (axid < 0 || ! pda_Search (pd, c, keyword, NULL,
                 (char *)&(max->val.t), SYMT_DATE))
             {
                 max->val.t.ds_yymmdd = 0;
@@ -749,14 +734,21 @@ DataValPtr		min,max;
             }
         break;
         case 'f':
-            if (! pda_Search (pd, c, keyword, NULL,
+            if (axid < 0 || ! pda_Search (pd, c, keyword, NULL,
                 (char *)&(max->val.f), SYMT_FLOAT))
             {
                 max->val.f = 0.0;
             }
         break;
     }
-    return ( AxisInfoList[ac_AxisSide(side)][axid].computed );
+    if ( axid < 0 )
+    {
+	return ( 0 );
+    }
+    else
+    {
+        return ( AxisInfoList[ac_AxisSide(side)][axid].computed );
+    }
 }
 
 void
@@ -803,5 +795,5 @@ DataValPtr	scalemax;
             pd_Store (pd,c,keyword,(char *)&(scalemin->val.f), SYMT_FLOAT);
         break;
     }
-    AxisInfoList[ac_AxisSide(side)][axid].computed  = 0;
+    AxisInfoList[ac_AxisSide(side)][axid].computed = 0;
 }
