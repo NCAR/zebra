@@ -29,7 +29,7 @@
 # include "commands.h"
 # include <ui_error.h>
 
-MAKE_RCSID("$Id: d_Config.c,v 2.13 1995-08-28 21:36:35 granger Exp $")
+MAKE_RCSID("$Id: d_Config.c,v 2.14 1996-01-23 04:22:58 granger Exp $")
 
 /*-----------------------------------------------------------------------
  * Local forwards.
@@ -89,7 +89,7 @@ bool platform;		/* Implicit class creation from a platform command? */
 /*
  * Grab a platform table entry for this guy.
  */
-	if (Debug)
+	if (ParseOnly)
 		printf ("----->Defining%s class '%s', superclass '%s'\n",
 			((platform) ? " implicit" : ""), name, 
 			((superclass != NULL) ? superclass : "none"));
@@ -111,7 +111,7 @@ bool platform;		/* Implicit class creation from a platform command? */
  * For now there will only be a warning about invalid classes.
  */
 	dt_ValidateClass (pc);
-	if (Debug)
+	if (ParseOnly)
 	{
 		dbg_DumpClass (pc);
 		printf ("----->Finished defining class %s\n", name);
@@ -154,7 +154,7 @@ struct ui_command *cmds;
 	 * of the parent's class (so start with a subclass of the parent's
 	 * class).
 	 */
-		if (Debug)
+		if (ParseOnly)
 			printf ("----->Defining subplatform class %s\n",
 				spcname);
 		parent_class = CTable + parent->dp_class;
@@ -166,7 +166,7 @@ struct ui_command *cmds;
 		spc->dpc_flags |= DPF_SUBPLATFORM;
 		dt_FillClassDirs (spc);
 
-		if (Debug)
+		if (ParseOnly)
 		{
 			dbg_DumpClass (spc);
 			printf ("----->Finished defining class %s\n", spcname);
@@ -438,7 +438,7 @@ struct ui_command *cmds;	/* Name of the instances		*/
 /*
  * Debuggery.
  */
-	if (Debug)
+	if (ParseOnly)
 	{
 		int i;
 

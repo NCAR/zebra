@@ -30,7 +30,7 @@
 # include "dsPrivate.h"
 # include "commands.h"
 # include "dsDaemon.h"
-MAKE_RCSID("$Id: d_DataTables.c,v 3.20 1995-08-31 09:38:39 granger Exp $")
+MAKE_RCSID("$Id: d_DataTables.c,v 3.21 1996-01-23 04:23:01 granger Exp $")
 
 
 /*
@@ -97,8 +97,7 @@ dt_InitTables ()
 	int i;
 
 	Initialized = TRUE;
-	if (Debug)
-		printf ("Initializing platform and class tables\n");
+	msg_ELog (EF_DEBUG, "Initializing platform and class tables");
 /*
  * Create the platform and data file tables.
  */
@@ -107,8 +106,6 @@ dt_InitTables ()
 		malloc (PTableSize * sizeof (PlatformInstance));
 	DFTable = (DataFile *) malloc (DFTableSize*sizeof (DataFile));
 	NPlatform = NClass = NDTEUsed = 0;
-	if (Debug)
-		dbg_DumpStatus ();
 /*
  * Create the symbol tables to hold the platform names and classes.
  */
@@ -209,7 +206,7 @@ const char *name;	/* name to give to the subclass */
  * A subclass isn't an abstract base class or virtual
  * just because it's superclass is!
  */
-	if (Debug)
+	if (ParseOnly)
 		printf ("Subclass %s from %s\n", name, super->dpc_name);
 	sub->dpc_flags &= ~DPF_ABSTRACT;
 	sub->dpc_flags &= ~DPF_VIRTUAL;
@@ -271,9 +268,7 @@ int growth;
 	int i;
 
 	CTableSize += growth;
-	if (Debug)
-		printf ("Expanding class table to %d entries\n", CTableSize);
-	msg_ELog (EF_INFO, "Expanding CTable to %d", CTableSize);
+	msg_ELog (EF_INFO, "Expanding CTable to %d entries", CTableSize);
 	CTable = (PlatformClass *) realloc (CTable,
 				    CTableSize * sizeof (PlatformClass));
 	for (i = 0; i < NClass; i++)
@@ -411,9 +406,7 @@ int growth;
 	int i;
 
 	PTableSize += growth;
-	if (Debug)
-		printf ("Expanding platform table to %d entries\n",PTableSize);
-	msg_ELog (EF_INFO, "Expanding PTable to %d", PTableSize);
+	msg_ELog (EF_INFO, "Expanding PTable to %d entries", PTableSize);
 	PTable = (PlatformInstance *) realloc (PTable,
 		PTableSize * sizeof (PlatformInstance));
 	for (i = 0; i < NPlatform; i++)
@@ -543,7 +536,7 @@ const char *name;	/* The name to be instantiated	*/
 			  pc->dpc_name, "cannot instantiate", name);
 		return (NULL);
 	}
-	if (Debug)
+	if (ParseOnly)
 		printf ("IIIIIIII Instantiating %s (class %s)\n",
 			iname, pc->dpc_name);
 /*
@@ -588,7 +581,7 @@ const char *name;	/* The name to be instantiated	*/
  */
 	dt_InstantSubPlats (pc, newid);
 
-	if (Debug)
+	if (ParseOnly)
 	{
 		dbg_DumpInstance (PTable + newid);
 		printf ("IIIIIIII Done instantiating %s (class %s)\n",
@@ -826,7 +819,7 @@ PlatformId newid;
 	int i;
 	PlatformClass *spc;
 
-	if (Debug && pc->dpc_nsubplats)
+	if (ParseOnly && pc->dpc_nsubplats)
 	{
 		printf ("Automatic subplats for instance %s (class %s)\n",
 			(PTable + newid)->dp_name, pc->dpc_name);
@@ -977,14 +970,14 @@ const char *name;
 	SValue v;
 	int type;
 
-	if (Debug)
+	if (ParseOnly)
 		printf ("Looking for instance '%s'...", name);
 	if (! usy_g_symbol (Platforms, (char *)name, &type, &v))
 	{
-		if (Debug) printf ("not found.\n");
+		if (ParseOnly) printf ("not found.\n");
 		return (0);
 	}
-	if (Debug) printf ("found.\n");
+	if (ParseOnly) printf ("found.\n");
 	return ((PlatformInstance *) v.us_v_ptr);
 }
 
@@ -1002,14 +995,14 @@ int full;
 	SValue v;
 	int type;
 
-	if (Debug)
+	if (ParseOnly)
 		printf ("Looking for instance '%s'...", name);
 	if (! usy_g_symbol (Platforms, (char *)name, &type, &v))
 	{
-		if (Debug) printf ("not found.\n");
+		if (ParseOnly) printf ("not found.\n");
 		return (0);
 	}
-	if (Debug) printf ("found.\n");
+	if (ParseOnly) printf ("found.\n");
 	return ((PlatformInstance *) v.us_v_ptr);
 }
 
@@ -1025,14 +1018,14 @@ const char *name;
 	SValue v;
 	int type;
 
-	if (Debug)
+	if (ParseOnly)
 		printf ("Looking for class '%s'...", name);
 	if (! usy_g_symbol (Classes, (char *)name, &type, &v))
 	{
-		if (Debug) printf ("not found.\n");
+		if (ParseOnly) printf ("not found.\n");
 		return (0);
 	}
-	if (Debug) printf ("found.\n");
+	if (ParseOnly) printf ("found.\n");
 	return ((PlatformClass *) v.us_v_ptr);
 }
 
