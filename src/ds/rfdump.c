@@ -22,11 +22,10 @@
 # include <stdio.h>
 # include <unistd.h>
 
-# include <copyright.h>
 # include <defs.h>
 # include "RasterFile.h"
 
-RCSID("$Id: rfdump.c,v 2.4 1995-06-29 21:37:40 granger Exp $")
+RCSID("$Id: rfdump.c,v 2.5 1996-11-19 09:20:08 granger Exp $")
 
 
 
