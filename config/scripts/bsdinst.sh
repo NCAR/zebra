@@ -55,7 +55,7 @@ case "$mode" in
 *)
 	case "$owner" in
 	"")
-		flags="$flags -u root"
+		flags="$flags"
 		;;
 	esac
 	;;
