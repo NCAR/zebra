@@ -1,4 +1,4 @@
-/* $Id: DataChunk.h,v 1.2 1991-12-04 23:44:38 corbet Exp $ */
+/* $Id: DataChunk.h,v 1.3 1991-12-16 17:44:12 corbet Exp $ */
 /*
  * DataChunks -- the new "data object" format.
  *
@@ -89,75 +89,80 @@ typedef struct _RawDataChunk
 /*
  * Definitions of basic routines dealing with data chunks.
  */
-# ifdef __STDC__
-	bool		dc_IsSubClassOf (DataClass, DataClass);
+bool		dc_IsSubClassOf FP((DataClass, DataClass));
+DataChunk 	*ConvertDObj FP((DataObject *));
 /*
  * Basic data chunk methods.
  */
-	DataChunk 	*dc_CreateDC (DataClass);
-	void		dc_DestroyDC (DataChunk *);
-	void		dc_DumpDC (DataChunk *);
-	void 		Dc_RawAdd (DataChunk *, int);
+DataChunk 	*dc_CreateDC FP((DataClass));
+void		dc_DestroyDC FP((DataChunk *));
+void		dc_DumpDC FP((DataChunk *));
+void 		Dc_RawAdd FP((DataChunk *, int));
+void		dc_SetGlobalAttr FP ((DataChunk *, char *, char *));
+char *		dc_GetGlobalAttr FP ((DataChunk *, char *));
+int		dc_ProcessAttrs FP ((DataChunk *, char *, int (*) ()));
 /*
  * Transparent class methods.
  */
-	int		dc_GetNSample (DataChunk *);
-	DataPtr		dc_GetSample (DataChunk *, int, int *);
-	void		dc_AddSample (DataChunk *, time *, DataPtr, int);
-	void		dc_SetPlat (DataChunk *, int, PlatformId);
-	PlatformId	dc_GetPlat (DataChunk *, int);
-	bool		dc_GetTime (DataChunk *, int, time *);
-	void		dc_AdjustSample (DataChunk *, int, int);
-	void		dc_SetStaticLoc (DataChunk *, Location *);
-	void		dc_SetLoc (DataChunk *, int, Location *);
-	void		dc_GetLoc (DataChunk *, int, Location *);
+int		dc_GetNSample FP((DataChunk *));
+DataPtr		dc_GetSample FP((DataChunk *, int, int *));
+void		dc_AddSample FP((DataChunk *, time *, DataPtr, int));
+void		dc_SetPlat FP((DataChunk *, int, PlatformId));
+PlatformId	dc_GetPlat FP((DataChunk *, int));
+bool		dc_GetTime FP((DataChunk *, int, time *));
+void		dc_AdjustSample FP((DataChunk *, int, int));
+void		dc_SetStaticLoc FP((DataChunk *, Location *));
+void		dc_SetLoc FP((DataChunk *, int, Location *));
+void		dc_GetLoc FP((DataChunk *, int, Location *));
 /*
  * Boundary class methods.
  */
-	void		dc_BndAdd (DataChunk *, time *, PlatformId, 
-				Location *, int);
-	Location *	dc_BndGet (DataChunk *, int, int *);
+void		dc_BndAdd FP((DataChunk *, time *, PlatformId, 
+			Location *, int));
+Location *	dc_BndGet FP((DataChunk *, int, int *));
 /*
  * MetData class
  */
-	void		dc_SetupUniformFields (DataChunk *, int, int,
-				FieldId *, int);
-	void		dc_SetupFields (DataChunk *, int, FieldId *);
-	float		dc_GetBadval (DataChunk *);
-	void		dc_SetBadval (DataChunk *, double);
-	int		dc_GetNField (DataChunk *);
-	void		dc_AddMData (DataChunk *, time *, FieldId, int, int,
-				int, DataPtr);
-	DataPtr		dc_GetMData (DataChunk *, int, FieldId,   int *);
-	FieldId		*dc_GetFields (DataChunk *, int *);
+void		dc_SetupUniformFields FP((DataChunk *, int, int,
+			FieldId *, int));
+void		dc_SetupFields FP((DataChunk *, int, FieldId *));
+float		dc_GetBadval FP((DataChunk *));
+void		dc_SetBadval FP((DataChunk *, double));
+int		dc_GetNField FP((DataChunk *));
+void		dc_AddMData FP((DataChunk *, time *, FieldId, int, int,
+			int, DataPtr));
+DataPtr		dc_GetMData FP((DataChunk *, int, FieldId,   int *));
+FieldId		*dc_GetFields FP((DataChunk *, int *));
 /*
  * Scalar class.
  */
-	void		dc_SetScalarFields (DataChunk *, int, FieldId *);
-	void		dc_AddScalar (DataChunk *, time *, int, FieldId,
-				float *);
-	void		dc_AddMultScalar (DataChunk *, time *, int, int,
-				FieldId, float *);
-	float		dc_GetScalar (DataChunk *, int, FieldId);
+void		dc_SetScalarFields FP((DataChunk *, int, FieldId *));
+void		dc_AddScalar FP((DataChunk *, time *, int, FieldId, float *));
+void		dc_AddMultScalar FP((DataChunk *, time *, int, int,
+			FieldId, float *));
+float		dc_GetScalar FP((DataChunk *, int, FieldId));
 /*
  * IRGrid class.
  */
-	void		dc_IRSetup (DataChunk *, int, PlatformId *, Location *,
-				int, FieldId *);
-	void		dc_IRAddGrid (DataChunk *, time *, int, FieldId,
-				float *);
-	int		dc_IRGetNPlatform (DataChunk *);
-	void		dc_IRGetPlatforms (DataChunk *, PlatformId *,
-				Location *);
-	float 		*dc_IRGetGrid (DataChunk *, int, FieldId);
+void		dc_IRSetup FP((DataChunk *, int, PlatformId *, Location *,
+			int, FieldId *));
+void		dc_IRAddGrid FP((DataChunk *, time *, int, FieldId, float *));
+int		dc_IRGetNPlatform FP((DataChunk *));
+void		dc_IRGetPlatforms FP((DataChunk *, PlatformId *, Location *));
+float 		*dc_IRGetGrid FP((DataChunk *, int, FieldId));
 /*
  * RGrid.
  */
-	void		dc_RGSetup (DataChunk *, int, FieldId *);
-	void		dc_RGAddGrid (DataChunk *, int, FieldId, Location *,
-				RGrid *, time *, float *, int);
-	float *		dc_RGGetGrid (DataChunk *, int, FieldId, Location *,
-				RGrid *, int *);
-# else
-	/* Later */
-# endif
+void		dc_RGSetup FP((DataChunk *, int, FieldId *));
+void		dc_RGAddGrid FP((DataChunk *, int, FieldId, Location *,
+			RGrid *, time *, float *, int));
+float *		dc_RGGetGrid FP((DataChunk *, int, FieldId, Location *,
+			RGrid *, int *));
+/*
+ * Image.
+ */
+void		dc_ImgSetup FP ((DataChunk *, int, FieldId *, ScaleInfo *));
+void		dc_ImgAddImage FP ((DataChunk *, int, FieldId, Location *,
+			RGrid *, time *, unsigned char *, int));
+unsigned char *	dc_ImgGetImage FP ((DataChunk *, int, FieldId, Location *,
+			RGrid *, int *, ScaleInfo *));
