@@ -1,7 +1,7 @@
 /*
  * Routines to effect image transfer through shared memory.
  */
-static char *rcsid = "$Id: ImageXfr.c,v 2.4 1993-08-17 14:54:04 burghart Exp $";
+static char *rcsid = "$Id: ImageXfr.c,v 2.5 1993-10-25 22:06:35 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -435,8 +435,10 @@ ix_desc *desc;
  * root to do this....
  */
 {
+# ifdef sun
 	if (mlock (desc->id_shmseg, desc->id_len) < 0)
 		msg_ELog (EF_PROBLEM, "Error %d locking shm segment", errno);
+# endif
 }
 
 
