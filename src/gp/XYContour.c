@@ -1,7 +1,7 @@
 /*
  * XY-Contour plotting module
  */
-static char *rcsid = "$Id: XYContour.c,v 1.1 1992-02-19 23:56:26 barrett Exp $";
+static char *rcsid = "$Id: XYContour.c,v 1.2 1992-04-09 18:30:37 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -62,6 +62,36 @@ static GridInfoPtr GridInfoList = NULL;
  * Color array and indices
  */
 static XColor 	Tadefclr;
+
+/*
+ * Forwards
+ */
+GridInfoPtr getGrid FP((char *, bool, int, int, float));
+
+float *xy_RGridit FP((char *, bool, DataValPtr, DataValPtr,
+		      unsigned short, DataValPtr, DataValPtr, DataValPtr,
+		      int, float, int, int));
+
+void gridRandomData FP((
+	GridInfoPtr	ginfo,
+	DataValPtr	xdata,
+	DataValPtr	ydata,
+	DataValPtr	zdata,
+	int		npts,
+	DataValPtr	xmin,
+	DataValPtr	xmax,
+	unsigned short	xscalemode,
+	DataValPtr	ymin,
+	DataValPtr	ymax,
+	unsigned short	yscalemode));
+
+float *xy_InterpolateLinearOnY FP((
+	GridInfoPtr	ginfo,
+	DataValPtr	xmin,
+	DataValPtr	xmax,
+	DataValPtr	ymin,
+	DataValPtr	ymax,
+	float		badval));
 
 
 void
@@ -130,9 +160,9 @@ bool	update;
  * "platform","x-field", "y-field", "wind-coords", "color-table", "org"
  */
 	ok = pda_ReqSearch (Pd, c, "platform", NULL, platforms, SYMT_STRING);
-	ok = pda_ReqSearch (Pd,c,"x-field",NULL, &(dataNames[0]), SYMT_STRING);
-	ok = pda_ReqSearch (Pd,c,"y-field",NULL, &(dataNames[1]), SYMT_STRING);
-	ok = pda_ReqSearch (Pd,c,"z-field",NULL, &(dataNames[2]), SYMT_STRING);
+	ok = pda_ReqSearch (Pd,c,"x-field",NULL, (dataNames[0]), SYMT_STRING);
+	ok = pda_ReqSearch (Pd,c,"y-field",NULL, (dataNames[1]), SYMT_STRING);
+	ok = pda_ReqSearch (Pd,c,"z-field",NULL, (dataNames[2]), SYMT_STRING);
 
 	ok &= pda_ReqSearch (Pd, c, "color-table", "xy-contour",ctname,SYMT_STRING);
 
@@ -166,7 +196,7 @@ bool	update;
             sideAnnot = True;
         }
 
-	if ( !pda_Search (Pd,c,"representation-style", "xy-contour",(char *) &style, SYMT_STRING))
+	if ( !pda_Search (Pd,c,"representation-style", "xy-contour",(char *)style, SYMT_STRING))
 	{
 	    strcpy(style, "line" );
 	}
@@ -183,7 +213,7 @@ bool	update;
 		zstep = 20.0;
 	}
 	if ( !pda_Search(Pd,c,"grid-method", "xy-contour",
-		(char *) &gridtype, SYMT_STRING))
+		(char *)gridtype, SYMT_STRING))
 	{
 		strcpy( gridtype, "raw");
 	}
@@ -1036,6 +1066,7 @@ float		badval;
     int		obsid;
     float	dz;
     int		*dataLoc;
+
     dataLoc = (int*)calloc( ginfo->xdim, sizeof(int));
 
     for ( iy = 0; iy < ginfo->ydim; iy++)
@@ -1069,6 +1100,6 @@ float		badval;
 	    }
 	}
     }
-    return ( ginfo->grid );
     free(dataLoc);
+    return ( ginfo->grid );
 }

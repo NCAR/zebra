@@ -1,7 +1,7 @@
 /*
  * XY-Wind plotting module
  */
-static char *rcsid = "$Id: XYWind.c,v 1.5 1992-02-19 23:55:11 barrett Exp $";
+static char *rcsid = "$Id: XYWind.c,v 1.6 1992-04-09 18:30:37 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -114,19 +114,19 @@ bool	update;
  * "platform","x-field", "y-field", "coords", "color-table", "org"
  */
 	ok = pda_ReqSearch (Pd, c, "platform", NULL, platforms, SYMT_STRING);
-	ok = pda_ReqSearch (Pd,c,"x-field",NULL, (char*)&(dataNames[0]), SYMT_STRING);
-	ok = pda_ReqSearch (Pd,c,"y-field",NULL, (char*)&(dataNames[1]), SYMT_STRING);
+	ok = pda_ReqSearch (Pd,c,"x-field",NULL, (char*)(dataNames[0]), SYMT_STRING);
+	ok = pda_ReqSearch (Pd,c,"y-field",NULL, (char*)(dataNames[1]), SYMT_STRING);
 
 	/* The winds coordinate system */
 	ok = pda_ReqSearch (Pd,c,"coords","xy-wind", csystem, SYMT_STRING);
 	if ( strcmp ( csystem , "compass" ) == 0 )
 	{
-	    if( !pda_Search (Pd,c,"wdir-field","xy-wind",&(dataNames[2]),
+	    if( !pda_Search (Pd,c,"wdir-field","xy-wind",(dataNames[2]),
 			     SYMT_STRING) )
 	    {
 		strcpy ( dataNames[2], "wdir");
 	    }
-	    if( !pda_Search (Pd,c,"wspd-field","xy-wind",&(dataNames[3]),
+	    if( !pda_Search (Pd,c,"wspd-field","xy-wind",(dataNames[3]),
 			     SYMT_STRING) )
 	    {
 		strcpy ( dataNames[3], "wspd");
@@ -135,12 +135,12 @@ bool	update;
 	}
 	else 
 	{
-	    if( !pda_Search (Pd,c,"u-field","xy-wind",&(dataNames[2]),
+	    if( !pda_Search (Pd,c,"u-field","xy-wind",(dataNames[2]),
 			     SYMT_STRING) )
 	    {
 		strcpy ( dataNames[2], "u_wind");
 	    }
-	    if( !pda_Search (Pd,c,"v-field","xy-wind",&(dataNames[3]),
+	    if( !pda_Search (Pd,c,"v-field","xy-wind",(dataNames[3]),
 			     SYMT_STRING) )
 	    {
 		strcpy ( dataNames[3], "v_wind");
@@ -187,7 +187,7 @@ bool	update;
 	{
 	    skip = 5;
 	}
-	if ( !pda_Search (Pd,c,"representation-style", "xy-wind",(char *) &style, SYMT_STRING))
+	if ( !pda_Search (Pd,c,"representation-style", "xy-wind",(char *)style, SYMT_STRING))
 	{
 	    strcpy(style, "vector" );
 	}

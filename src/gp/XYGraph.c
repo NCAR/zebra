@@ -1,7 +1,7 @@
 /*
  * XY-Graph plotting module
  */
-static char *rcsid = "$Id: XYGraph.c,v 1.6 1992-02-19 23:54:17 barrett Exp $";
+static char *rcsid = "$Id: XYGraph.c,v 1.7 1992-04-09 18:30:37 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -108,8 +108,8 @@ bool	update;
  * "platform","x-field", "y-field", "wind-coords", "org"
  */
 	ok = pda_ReqSearch (Pd, c, "platform", NULL, platforms, SYMT_STRING);
-	ok = pda_ReqSearch (Pd,c,"x-field",NULL, (char*)&(dataNames[0]), SYMT_STRING);
-	ok = pda_ReqSearch (Pd,c,"y-field",NULL, (char*)&(dataNames[1]), SYMT_STRING);
+	ok = pda_ReqSearch (Pd,c,"x-field",NULL, (char*)(dataNames[0]), SYMT_STRING);
+	ok = pda_ReqSearch (Pd,c,"y-field",NULL, (char*)(dataNames[1]), SYMT_STRING);
 
 	if (! ok) return;
 /*
@@ -132,7 +132,7 @@ bool	update;
  *  "style" - "point" , "line", "cross" or "xmark"
  */
         if ( !pda_Search (Pd,c,"representation-style", "xy-simple",
-		(char *) &style, SYMT_STRING))
+		(char *) style, SYMT_STRING))
         {
             strcpy(style, "line" );
         }

@@ -1,7 +1,7 @@
 /*
  * Skew-t plotting module
  */
-static char *rcsid = "$Id: AxisControl.c,v 1.8 1992-04-03 19:49:51 barrett Exp $";
+static char *rcsid = "$Id: AxisControl.c,v 1.9 1992-04-09 18:30:37 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -709,7 +709,7 @@ char	side;
 {
     int	plot=0;
     char ptype[32];
-    if ( !pda_Search (pd, "global", "plot-type", NULL, &ptype,SYMT_STRING)||
+    if ( !pda_Search (pd, "global", "plot-type", NULL, ptype,SYMT_STRING)||
 	 strcmp(ptype,"xygraph") != 0)
     {
 	return(0);
@@ -748,7 +748,7 @@ char	side;
     return (plot);
 }
 
-void
+static void
 ac_GetAxisDescriptors( pd, c, side, datatype,
                        offset, tlabelWidth,tlabelHeight, nticLabel,
                        ticlen, ticInterval,baseTic,fontScale, color, label,
@@ -932,7 +932,7 @@ float   *drawGrid;
         }
     }
 }
-void
+static void
 ac_SetPrivateAxisDescriptors( pd, c, side, datatype, 
                        offset, baseTic,tlabelHeight,tlabelWidth,nticLabel,
                        ticInterval)
