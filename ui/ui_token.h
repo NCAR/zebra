@@ -1,5 +1,5 @@
 /* 10/86 jc */
-/* $Id: ui_token.h,v 1.3 1989-06-05 16:03:22 corbet Exp $ */
+/* $Id: ui_token.h,v 1.4 1995-03-20 20:13:52 case Exp $ */
 /*
  * Included info for the tokenizer.
  */
@@ -10,7 +10,7 @@
  * This is the structure passed to and from the tokenizer, which describes
  * the next token.
  */
-# define TK_MAXSTR	256	/* Maximum length of one token	*/
+# define TK_MAXSTR	768	/* Maximum length of one token	*/
 struct token
 {
 	char	tk_string[TK_MAXSTR];	/* The actual token text	*/
