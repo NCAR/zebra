@@ -1,7 +1,7 @@
 /*
  * Vertical cross-sectioning
  */
-static char *rcsid = "$Id: XSection.c,v 2.23 1994-11-19 00:35:57 burghart Exp $";
+static char *rcsid = "$Id: XSection.c,v 2.24 1995-02-24 22:41:52 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -2811,11 +2811,13 @@ float		*alts;
  *	3) The values in 'lat', 'lon' are regularly spaced.
  */
 {
-	int	i, ndims, dimorder = 0, is_static;
+	int	i, ndims, dimorder = 0;
 	float	*lat, *lon, *dc_alts, latspacing, lonspacing;
-	float	delta, olat, olon, *grid, *nsdata;
-	FieldId	lat_id, lon_id, alt_id, dims[DC_MaxDimension];
+	float	delta, olat, olon, *grid, *nsdata, *dname;
+	FieldId	lat_id, lon_id, alt_id, dim_id;
 	bool	have_lat, have_lon, have_alt, good_order, alts_regular;
+	char	*dnames[DC_MaxDimension];
+	unsigned long	dsizes[DC_MaxDimension];
 	RGrid	rg;
 	unsigned long	nlats, nlons, nalts, dimsize;
 	Location	location;
@@ -2829,7 +2831,7 @@ float		*alts;
  * dimensions occur in order lat,alt,lon then dimorder will end up 213.)
  * We use 'dimorder' below when copying data from one data chunk to the other.
  */
-	dc_NSGetVariable (dc, fid, &ndims, dims, &is_static);
+	dc_NSGetField (dc, fid, &ndims, dnames, dsizes, NULL);
 
 	lat_id = F_Lookup ("lat");
 	lon_id = F_Lookup ("lon");
@@ -2839,26 +2841,35 @@ float		*alts;
 	
 	for (i = 0; i < ndims; i++)
 	{
+		dim_id = F_Declared (dnames[i]);
 	/*
 	 * Alt, lat, or lon
 	 */
-		if (dims[i] == alt_id)
+		if (dim_id == alt_id)
+		{
 			dimorder = dimorder * 10 + 1;
-		else if (dims[i] == lat_id)		
+			nalts = dsizes[i];
+		}
+		else if (dim_id == lat_id)
+		{
 			dimorder = dimorder * 10 + 2;
-		else if (dims[i] == lon_id)
+			nlats = dsizes[i];
+		}
+		else if (dim_id == lon_id)
+		{
 			dimorder = dimorder * 10 + 3;
+			nlons = dsizes[i];
+		}
 	/*
 	 * Other dimension (make sure its size is exactly one)
 	 */
 		else
 		{
-			dc_NSGetDimension (dc, dims[i], NULL, &dimsize);
 			if (dimsize != 1)
 			{
 				msg_ELog (EF_PROBLEM, 
-					  "xs_NSpaceToRGrid: dim %s too big",
-					  F_GetName (dims[i]), dimsize);
+				    "xs_NSpaceToRGrid: dim '%s' too big (%d)",
+				    dnames[i], dimsize);
 				return (NULL);
 			}
 		}
@@ -2875,24 +2886,24 @@ float		*alts;
 /*
  * Make sure lat, lon, and alt are coordinate variables
  */
-	if (! dc_NSGetVariable (dc, lat_id, &ndims, dims, &is_static) ||
-	    (ndims != 1) || (dims[0] != lat_id))
+	if (! dc_NSGetField (dc, lat_id, &ndims, dnames, NULL, NULL) ||
+	    (ndims != 1) || (F_Declared (dnames[0]) != lat_id))
 	{
 		msg_ELog (EF_PROBLEM, 
 			  "xs_NSpaceToRGrid: lat is not a coordinate var");
 		return (NULL);
 	}
 
-	if (! dc_NSGetVariable (dc, lon_id, &ndims, dims, &is_static) ||
-	    (ndims != 1) || (dims[0] != lon_id))
+	if (! dc_NSGetField (dc, lon_id, &ndims, dnames, NULL, NULL) ||
+	    (ndims != 1) || (F_Declared (dnames[0]) != lon_id))
 	{
 		msg_ELog (EF_PROBLEM, 
 			  "xs_NSpaceToRGrid: lon is not a coordinate var");
 		return (NULL);
 	}
 
-	if (! dc_NSGetVariable (dc, alt_id, &ndims, dims, &is_static) ||
-	    (ndims != 1) || (dims[0] != alt_id))
+	if (! dc_NSGetField (dc, alt_id, &ndims, dnames, NULL, NULL) ||
+	    (ndims != 1) || (F_Declared (dnames[0]) != alt_id))
 	{
 		msg_ELog (EF_PROBLEM, 
 			  "xs_NSpaceToRGrid: alt is not a coordinate var");
@@ -2902,9 +2913,6 @@ float		*alts;
  * Make sure our dimensions are all non-zero.  (We can occasionally get 
  * a 0x0x0 grid from GRIB files...)
  */
-	dc_NSGetDimension (dc, lat_id, NULL, &nlats);
-	dc_NSGetDimension (dc, lon_id, NULL, &nlons);
-	dc_NSGetDimension (dc, alt_id, NULL, &nalts);
 	if (nlats * nlons * nalts == 0)
 	{
 		msg_ELog (EF_DEBUG, "xs_NSpaceToRGrid: zero size grid");
