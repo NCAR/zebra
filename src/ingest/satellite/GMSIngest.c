@@ -19,20 +19,22 @@
  * maintenance or updates for its software.
  */
 
-# include <copyright.h>
 # include <unistd.h>
+# include <string.h>
 # include <errno.h>
 # include <math.h>
 # include <stdio.h>
 # include <dirent.h>
+
 # include <config.h>
+# include <copyright.h>
 # include <defs.h>
 # include <message.h>
 # include <timer.h>
 # include <DataStore.h>
 # include <DataChunk.h>
 
-MAKE_RCSID("$Id: GMSIngest.c,v 1.7 1995-06-12 19:24:35 corbet Exp $")
+MAKE_RCSID("$Id: GMSIngest.c,v 1.8 1995-07-06 04:51:31 granger Exp $")
 
 # include "keywords.h"
 
@@ -153,7 +155,9 @@ static void	AddFile FP ((struct ui_command *));
 static void	Ingest FP ((void));
 static void	TimeCheck FP ((ZebTime *));
 static void	swapfour FP ((int *, int));
+#ifdef notdef
 static void	FileLimits FP ((void));
+#endif
 static int	MDispatcher FP ((struct message *));
 static void *	DoFile FP ((int));
 static void	GetFileTime FP ((int, ZebTime *));
@@ -162,7 +166,7 @@ static inline unsigned char	imageval FP ((int, int));
 
 
 
-
+int
 main (argc, argv)
 int argc;
 char **argv;
@@ -181,7 +185,7 @@ char **argv;
 		fprintf (stderr, "could not connect to message manager\n");
 		exit (9);
 	}
-	msg_DeathHandler (Die);
+	msg_DeathHandler ((int (*)()) Die);
 /*
  * UI stuff
  */
@@ -501,7 +505,7 @@ ZebTime *t;
  */
 {
 	ZebTime	ftime;
-	int	f, prev, ngood = 0;
+	int	f, ngood = 0;
 /*
  * Run through the file list, leaving only one(s) with the latest time
  */
@@ -582,11 +586,11 @@ int	fentry;
 /*
  * Verify that this is a GOES image
  */
-	if (strncmp (nav_cod, "GOES", 4))
+	if (strncmp ((char *) nav_cod, "GOES", 4))
 	{
 		char	imtype[4];
 
-		strncpy (imtype, nav_cod, 4);
+		strncpy (imtype, (char *) nav_cod, 4);
 		imtype[4] = '\0';
 
 		msg_ELog (EF_PROBLEM, "'%s' contains a '%s' image, not GOES",
@@ -620,7 +624,7 @@ int	fentry;
 /*
  * Source name from header word 51 (convert to lower case and remove spaces)
  */
-	strncpy (source, header + 51, 4);
+	strncpy (source, (char *) (header + 51), 4);
 	source[4] = '\0';
 
 	for (i = 0; i < 4; i++)
@@ -804,7 +808,7 @@ int	*array, count;
 
 
 
-
+#ifdef notdef
 static void
 FileLimits ()
 {
@@ -873,7 +877,7 @@ FileLimits ()
 
 	HaveLimits = TRUE;
 }
-
+#endif
 
 
 
@@ -885,7 +889,6 @@ int	line, elem;
  */
 {
 	int	image_x, image_y, pos;
-	unsigned int	val;
 
 	if (BETWEEN(line, Minline, Maxline) && BETWEEN(elem, Minelem, Maxelem))
 	{

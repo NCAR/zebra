@@ -19,12 +19,14 @@
  * maintenance or updates for its software.
  */
 
-# include <copyright.h>
 # include <unistd.h>
+# include <string.h>
 # include <errno.h>
 # include <math.h>
 # include <stdio.h>
 # include <dirent.h>
+
+# include <copyright.h>
 # include <config.h>
 # include <defs.h>
 # include <message.h>
@@ -32,7 +34,7 @@
 # include <DataStore.h>
 # include <DataChunk.h>
 
-MAKE_RCSID("$Id: SatIngest.c,v 1.11 1994-11-17 03:42:36 granger Exp $")
+MAKE_RCSID("$Id: SatIngest.c,v 1.12 1995-07-06 04:51:34 granger Exp $")
 
 # include "keywords.h"
 
@@ -118,7 +120,9 @@ static void	RemoveOldFile FP ((int f));
 static void	RemoveFile FP ((int f));
 static void	TimeCheck FP ((ZebTime *));
 static void	swapfour FP ((int *, int));
+#ifdef notdef
 static void	FileLimits FP ((void));
+#endif
 static int	MDispatcher FP ((struct message *));
 static void *	DoFile FP ((int));
 static void	GetFileTime FP ((int, ZebTime *));
@@ -127,7 +131,7 @@ static inline unsigned char	imageval FP ((int, int));
 
 
 
-
+int
 main (argc, argv)
 int argc;
 char **argv;
@@ -142,7 +146,7 @@ char **argv;
  * Connect to the message handler
  */
 	msg_connect (MDispatcher, "SatIngest");
-	msg_DeathHandler (Die);
+	msg_DeathHandler ((int (*)()) Die);
 /*
  * UI stuff
  */
@@ -532,7 +536,7 @@ ZebTime *t;
  */
 {
 	ZebTime	ftime;
-	int	f, prev, i;
+	int	f, i;
 	int 	ngood;
 /*
  * Run through the file list, leaving only one(s) with the latest time
@@ -613,11 +617,11 @@ int	fentry;
 /*
  * Verify that this is a GOES image
  */
-	if (strncmp (nav_cod, "GOES", 4))
+	if (strncmp ((char *) nav_cod, "GOES", 4))
 	{
 		char	imtype[4];
 
-		strncpy (imtype, nav_cod, 4);
+		strncpy (imtype, (char *) nav_cod, 4);
 		imtype[4] = '\0';
 
 		msg_ELog (EF_PROBLEM, "'%s' contains a '%s' image, not GOES",
@@ -660,7 +664,7 @@ int	fentry;
 /*
  * Source name from header word 51 (convert to lower case and remove spaces)
  */
-	strncpy (source, header + 51, 4);
+	strncpy (source, (char *) (header + 51), 4);
 	source[4] = '\0';
 
 	for (i = 0; i < 4; i++)
@@ -836,6 +840,7 @@ int	*array, count;
 
 
 
+#ifdef notdef
 static void
 FileLimits ()
 {
@@ -904,7 +909,7 @@ FileLimits ()
 
 	HaveLimits = TRUE;
 }
-
+#endif
 
 
 
@@ -916,7 +921,6 @@ int	line, elem;
  */
 {
 	int	image_x, image_y, pos;
-	unsigned int	val;
 
 	if (BETWEEN(line, Minline, Maxline) && BETWEEN(elem, Minelem, Maxelem))
 	{
