@@ -8,7 +8,7 @@ OBJS = NetXfr.o nx_BCast.o nx_DirImage.o nx_PktGrabber.o
 
 HEADERS = NetXfr.h
 
-LIBS = $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
+LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
 
 
 /*
@@ -17,3 +17,5 @@ LIBS = $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
  
 NormalProgramTarget(NetXfr, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 UILoadFileTarget (NetXfr.lf, NetXfr.state)
+
+DependTarget ()

@@ -6,7 +6,7 @@
 SRCS = Archiver.c
 OBJS = Archiver.o
 
-LIBS = $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
+LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
 
 
 /*
@@ -15,3 +15,5 @@ LIBS = $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
  
 NormalProgramTarget(Archiver, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 InstallAppDefaults (Archiver)
+
+DependTarget ()

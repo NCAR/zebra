@@ -6,7 +6,7 @@
 SRCS = LastData.c
 OBJS = LastData.o
 
-LIBS = $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
+LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
 
 
 /*
@@ -15,3 +15,5 @@ LIBS = $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
  
 NormalProgramTarget(LastData, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 InstallAppDefaults (LastData)
+
+DependTarget ()
