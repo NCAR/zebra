@@ -1,7 +1,7 @@
 /*
  * Data insertion widget.
  */
-static char *rcsid = "$Id: InsertWidget.c,v 1.1 1992-09-15 20:00:10 corbet Exp $";
+static char *rcsid = "$Id: InsertWidget.c,v 1.2 1992-11-03 16:20:42 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -1000,7 +1000,8 @@ YesInsertLine ()
 	DataChunk	*dc;
 	PlatformId	pid;
 	Location	*pts, center;
-	int		i, sub = FALSE;
+	int		i;
+	bool		sub = FALSE;
 	char		temp[STRLEN], param[STRLEN];
 	char		string[1000];
 
@@ -1897,8 +1898,9 @@ XtPointer	entry, junk;
  * Toggle the icons for the platform indicated by entry.
  */
 {
-	int	i = (int) entry, iconon;
+	int	i = (int) entry;
 	char	param[40];
+	bool	iconon;
 /*
  * Is the icon currently on or off?
  */
