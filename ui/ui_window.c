@@ -47,7 +47,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_window.c,v 1.4 1990-03-02 16:42:35 corbet Exp $";
+static char *Rcsid = "$Id: ui_window.c,v 1.5 1990-03-02 17:02:02 corbet Exp $";
 
 static bool Initialized = FALSE;
 static bool Active = FALSE;	/* Is window mode active??	*/
@@ -2181,6 +2181,8 @@ struct ui_command *cmds;
 			menu->mbm_eexpr[menu->mbm_nentries] =
 				usy_pstring (UPTR (cmds[3]));
 		}
+		else
+			menu->mbm_eexpr[menu->mbm_nentries] = 0;
 		menu->mbm_nentries++;
 		break;
 	/*
