@@ -1,5 +1,5 @@
 /*
- * Imakefile for the zeb library.
+ * Imakefile for the zebra library.
  */
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-/* $Id: Imakefile,v 1.20 1996-12-09 17:56:49 granger Exp $ */
+/* $Id: Imakefile,v 1.21 1997-01-14 22:07:49 granger Exp $ */
 
 #if !HasWritev
 WRITEVOBJ=writev.o
@@ -70,7 +70,7 @@ PRIVATE_HEADERS = setup.h
 
 DISTFILES = $(SRCS) writev.c $(HEADERS) Imakefile $(PRIVATE_HEADERS)
 
-NormalLibraryTarget (Zeb, $(OBJS))
+NormalLibraryTarget (Zebra, $(OBJS))
 
 SpecialObjectRule($(XUIOBJS),/**/,$(XINCLUDES) $(RDSSINCLUDES))
 SpecialObjectRule($(XOBJS),/**/,$(XINCLUDES))
@@ -78,7 +78,11 @@ SpecialObjectRule($(UIOBJS),/**/,$(RDSSINCLUDES))
 SpecialObjectRule($(CFGOBJS),/**/,$(DIRDEFINES) $(RDSSINCLUDES))
 SpecialObjectRule(GraphicsW.o,/**/,$(SHMDEFINES) $(XINCLUDES) $(RDSSINCLUDES))
 
-InstallLibrary (Zeb, $(LIBDIR))
+InstallLibrary (Zebra, $(LIBDIR))
+
+install::
+	(cd $(LIBDIR); $(RM) libZeb.a; $(LN) libZebra.a libZeb.a)
+
 BuildIncludesTop ($(HEADERS))
 InstallMultipleFlags($(HEADERS),$(INCDIR),$(INSTINCFLAGS))
 
