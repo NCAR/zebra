@@ -1,7 +1,7 @@
 /*
  * DM variables.
  *
- * $Id: dm_vars.h,v 2.2 1992-02-07 21:03:48 corbet Exp $
+ * $Id: dm_vars.h,v 2.3 1992-07-21 20:29:33 pai Exp $
  */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -103,6 +103,7 @@ extern char Cur_config[MAXNAME];
  */
 extern char ConfigDir[200];
 extern char ConfigPD[200];
+extern char ConfigPath[512];
 
 /*
  * If we blast out too many new windows at once, things (i.e. listen queues)
