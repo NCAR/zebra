@@ -27,7 +27,7 @@
 
 # include <netcdf.h>
 
-/* $Id: dem2zebra.c,v 1.7 2002-03-22 18:22:08 burghart Exp $ */
+/* $Id: dem2zebra.c,v 1.8 2002-04-11 20:39:49 burghart Exp $ */
 
 struct _Map
 {
@@ -131,10 +131,10 @@ void
 CreateMapFile (char *fname)
 {
     int		ncid, i, time_dim, lat_dim, lon_dim, lat_var, lon_var, alt_var;
-    int		base_var, offset_var, dims[3];
+    int		base_var, time_var, dims[3];
     long	start, count, nlats, nlons;
     long	base;
-    double	step, offset;
+    double	step, time;
     char	attrval[128];
 
     if ((ncid = nccreate (fname, NC_NOCLOBBER)) < 0)
@@ -196,32 +196,26 @@ CreateMapFile (char *fname)
      * "elevation" variable below
      */
     lat_var = ncvardef (ncid, "latitude", NC_FLOAT, 1, &lat_dim);
-    strcpy (attrval, "north latitude");
-    ncattput (ncid, lat_var, "long_name", NC_CHAR, strlen (attrval) + 1, 
-	      attrval);
-    strcpy (attrval, "degrees");
+    strcpy (attrval, "degrees_north");
     ncattput (ncid, lat_var, "units", NC_CHAR, strlen (attrval) + 1, attrval);
     
     lon_var = ncvardef (ncid, "longitude", NC_FLOAT, 1, &lon_dim);
-    strcpy (attrval, "east longitude");
-    ncattput (ncid, lon_var, "long_name", NC_CHAR, strlen (attrval) + 1, 
-	      attrval);
-    strcpy (attrval, "degrees");
+    strcpy (attrval, "degrees_east");
     ncattput (ncid, lon_var, "units", NC_CHAR, strlen (attrval) + 1, attrval);
 
     alt_var = ncvardef (ncid, "altitude", NC_FLOAT, 0, 0);
     strcpy (attrval, "altitude");
-    ncattput (ncid, lon_var, "long_name", NC_CHAR, strlen (attrval) + 1, 
+    ncattput (ncid, alt_var, "long_name", NC_CHAR, strlen (attrval) + 1, 
 	      attrval);
     strcpy (attrval, "km");
-    ncattput (ncid, lon_var, "units", NC_CHAR, strlen (attrval) + 1, attrval);
+    ncattput (ncid, alt_var, "units", NC_CHAR, strlen (attrval) + 1, attrval);
 
    /*
     * the elevation variable
     */
     dims[0] = time_dim;
-    dims[1] = lon_dim;
-    dims[2] = lat_dim;
+    dims[1] = lat_dim;
+    dims[2] = lon_dim;
     Map.elev_var = ncvardef (ncid, "elevation", NC_SHORT, 3, dims);
     strcpy (attrval, "elevation MSL");
     ncattput (ncid, Map.elev_var, "long_name", NC_CHAR, strlen (attrval) + 1,
@@ -230,33 +224,20 @@ CreateMapFile (char *fname)
     ncattput (ncid, Map.elev_var, "units", NC_CHAR, strlen (attrval) + 1, 
 	      attrval);
 
-    base_var = ncvardef (ncid, "base_time", NC_LONG, 0, 0);
-    strcpy (attrval, "Base time in Epoch");
-    ncattput (ncid, base_var, "long_name", NC_CHAR, strlen (attrval) + 1, 
-	      attrval);
+    time_var = ncvardef (ncid, "time", NC_DOUBLE, 1, &time_dim);
     strcpy (attrval, "seconds since 1970-1-1 0:00:00 0:00");
-    ncattput (ncid, base_var, "units", NC_CHAR, strlen (attrval) + 1, 
-	      attrval);
-
-    offset_var = ncvardef (ncid, "time_offset", NC_DOUBLE, 1, &time_dim);
-    strcpy (attrval, "Time offset from base_time");
-    ncattput (ncid, offset_var, "long_name", NC_CHAR, strlen (attrval) + 1, 
-	      attrval);
-    strcpy (attrval, "seconds since 1970-1-1 0:00:00 0:00");
-    ncattput (ncid, offset_var, "units", NC_CHAR, strlen (attrval) + 1, 
+    ncattput (ncid, time_var, "units", NC_CHAR, strlen (attrval) + 1, 
 	      attrval);
     /*
      * Get out of definition mode and write our times (we just use zero...)
      */
     ncendef (ncid);
 
-    base = 0;
-    offset = 0.0;
+    time = 0.0;
     start = 0;
     count = 1;
     
-    ncvarput (ncid, base_var, &start, &count, &base);
-    ncvarput (ncid, offset_var, &start, &count, &offset);
+    ncvarput (ncid, time_var, &start, &count, &time);
     /*
      * Write our lats & lons, and the nominal altitude (0)
      */
@@ -522,12 +503,12 @@ ProcessFiles (char *fnames[], int nfiles)
 	     * with this column
 	     */
 	    start[0] = 0;
-	    start[1] = (lon - Map.west) / Map.lon_spacing;
-	    start[2] = (lat_start - Map.south) / Map.lat_spacing;
+	    start[1] = (lat_start - Map.south) / Map.lat_spacing;
+	    start[2] = (lon - Map.west) / Map.lon_spacing;
 
 	    count[0]= 1;
-	    count[1] = 1;
-	    count[2] = (lastneeded - firstneeded) / step + 1;
+	    count[1] = (lastneeded - firstneeded) / step + 1;
+	    count[2] = 1;
 	    /*
 	     * Write the part of the column that goes into the output file
 	     */
