@@ -26,7 +26,7 @@
 
 #ifndef lint
 static char *rcsid = 
-	"$Id: ssmi_ingest.c,v 1.4 1993-06-21 22:19:07 granger Exp $";
+	"$Id: ssmi_ingest.c,v 1.5 1993-10-22 22:48:44 granger Exp $";
 #endif
 
 #include <time.h>
@@ -175,7 +175,9 @@ char	**argv;
 	SSMI_LogicalRec *lrec;
 	int res;	/* return value from ProcessTape and ReadHeader */
 
+#ifdef MPROF
 	mprof_stop();
+#endif
 /*
  * Get our program-specific defaults and options
  */
@@ -250,8 +252,9 @@ char	**argv;
 /*
  * Start poring through the data records from the tape
  */
-/*	mprof_restart("mprof.data2");	*/
-
+#ifdef MPROF
+	mprof_restart("mprof.data2");
+#endif
 	i = 1;
 	while (1)
 	{
