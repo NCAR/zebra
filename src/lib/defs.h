@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 2.38 1998-02-26 19:50:25 granger Exp $ */
+/* $Id: defs.h,v 2.39 1998-04-23 15:55:03 granger Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -73,8 +73,8 @@ extern const Location LOC_NONE;
 extern const ZebraTime ZT_NONE;
 extern const ZebraTime ZT_ALPHA;
 extern const ZebraTime ZT_OMEGA;
-#define ZT_EPOCH ZT_ALPHA;
-#define ZT_END ZT_OMEGA;
+#define ZT_EPOCH ZT_ALPHA
+#define ZT_END ZT_OMEGA
 
 /*
  * Time conversion options.
