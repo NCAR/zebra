@@ -32,7 +32,7 @@
 # include "dslib.h"
 # include "dfa.h"
 #ifndef lint
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.41 1995-03-03 18:28:44 granger Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.42 1995-03-03 23:17:23 burghart Exp $")
 #endif
 
 #include <netcdf.h>
@@ -773,21 +773,27 @@ NCTag *tag;
 /*
  * Get the grid origin.
  */
-	if ((v = ncvarid (tag->nc_id, "lat")) < 0)
+/*
+ * Get the grid origin.
+ */
+	if ((v = ncvarid (tag->nc_id, "lat")) < 0 &&
+	    (v = ncvarid (tag->nc_id, "latitude")) < 0) 
 	{
-		dnc_NCError ("No 'lat' variable");
+		dnc_NCError ("No 'lat' or 'latitude' variable");
 		return (FALSE);
 	}
 	ncvarget1 (tag->nc_id, v, 0, &tag->nc_sloc.l_lat);
-	if ((v = ncvarid (tag->nc_id, "lon")) < 0)
+	if ((v = ncvarid (tag->nc_id, "lon")) < 0 &&
+	    (v = ncvarid (tag->nc_id, "longitude")) < 0)
 	{
-		dnc_NCError ("No 'lon' variable");
+		dnc_NCError ("No 'lon' or 'longitude' variable");
 		return (FALSE);
 	}
 	ncvarget1 (tag->nc_id, v, 0, &tag->nc_sloc.l_lon);
-	if ((v = ncvarid (tag->nc_id, "alt")) < 0)
+	if ((v = ncvarid (tag->nc_id, "alt")) < 0 &&
+	    (v = ncvarid (tag->nc_id, "altitude")) < 0) 
 	{
-		dnc_NCError ("No 'alt' variable");
+		dnc_NCError ("No 'alt' or 'altitude' variable");
 		return (FALSE);
 	}
 	ncvarget1 (tag->nc_id, v, 0, &tag->nc_sloc.l_alt);
@@ -3126,7 +3132,7 @@ DataChunk *dc;
 	sprintf(history,"created by Zeb DataStore, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.41 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.42 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 #endif /* TEST_TIME_UNITS */
