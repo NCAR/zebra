@@ -28,7 +28,7 @@
 # include <message.h>
 # include "DataStore.h"
 
-RCSID ("$Id: dc_Elements.c,v 3.4 1997-11-21 18:27:37 burghart Exp $")
+RCSID ("$Id: dc_Elements.c,v 3.5 1998-12-17 17:17:53 burghart Exp $")
 
 static const char *DC_ElemTypeNames[] =
 {
@@ -404,7 +404,7 @@ DC_ElemType type;
 			TC_EncodeTime (&e->dcv_zebtime, TC_Full, dest);
 		break;
 	   case DCT_VoidPointer:
-		sprintf (dest, "%#0x", (int) e->dcv_pointer);
+		sprintf (dest, "%#0lx", (long) e->dcv_pointer);
 		break;
 	   default:
 		hex = (unsigned char *)e;

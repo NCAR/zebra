@@ -46,7 +46,7 @@
 # include "EventQueue.h"
 # include "ActiveArea.h"
 
-RCSID ("$Id: MovieControl.c,v 2.29 1998-11-20 16:08:56 burghart Exp $")
+RCSID ("$Id: MovieControl.c,v 2.30 1998-12-17 17:18:01 burghart Exp $")
 
 # define ATSLEN		80	/* Length for AsciiText strings		*/
 # define FLEN 		60	/* Length of a field string		*/
@@ -300,7 +300,7 @@ XtAppContext appc;
 					       args, n);
 		XtAddCallback (entry, XtNcallback, 
 			       (XtCallbackProc) mc_ChangeTimeUnits, 
-			       (XtPointer) i);
+			       (XtPointer)(long) i);
 	}
 
 	n = 0;
@@ -1135,7 +1135,7 @@ XtPointer junk, position;
  * The scrollbar callback.
  */
 {
-	int ipos = (int) position;
+	long ipos = (long) position;
 
 	mc_Dial (ipos < 0 ? 1 : -1);
 }

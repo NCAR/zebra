@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *Version = "$Revision: 2.12 $ $Date: 1998-10-28 21:22:59 $";
+static char *Version = "$Revision: 2.13 $ $Date: 1998-12-17 17:18:14 $";
 
 # include <sys/types.h>
 # include <sys/time.h>
@@ -30,7 +30,7 @@ static char *Version = "$Revision: 2.12 $ $Date: 1998-10-28 21:22:59 $";
 # include <message.h>
 # include <timer.h>
 
-MAKE_RCSID ("$Id: timer.c,v 2.12 1998-10-28 21:22:59 corbet Exp $")
+MAKE_RCSID ("$Id: timer.c,v 2.13 1998-12-17 17:18:14 burghart Exp $")
 
 /*
  * The timer queue is made up of these sorts of entries.
@@ -93,7 +93,7 @@ static void TimeChangeBc FP ((void));
 	((t1)->tv_sec == (t2)->tv_sec && (t1)->tv_usec < (t2)->tv_usec))
 
 
-void
+int
 main (argc, argv)
 int argc;
 char *argv[];

@@ -38,7 +38,7 @@
 # include <pd.h>
 # include "GraphProc.h"
 
-RCSID("$Id: LimitWidgets.c,v 2.24 1998-11-20 16:04:18 burghart Exp $")
+RCSID("$Id: LimitWidgets.c,v 2.25 1998-12-17 17:17:59 burghart Exp $")
 
 /*
  * Station widget static data.
@@ -1364,7 +1364,7 @@ XtAppContext	appc;
 		Sw_Swidgets[sta] = XtCreateManagedWidget (name,
 			toggleWidgetClass, box, args, 1);
 		XtAddCallback (Sw_Swidgets[sta], XtNcallback, 
-			(XtCallbackProc) lw_SwCb, (XtPointer) sta);
+			(XtCallbackProc) lw_SwCb, (XtPointer)(long) sta);
 		Sw_Sset[sta] = FALSE;
 	}
 	SwNManaged = MAXSTA;

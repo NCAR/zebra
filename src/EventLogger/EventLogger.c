@@ -47,7 +47,7 @@
 # include <config.h>
 # include <copyright.h>
 
-RCSID ("$Id: EventLogger.c,v 2.37 1998-10-28 21:20:07 corbet Exp $")
+RCSID ("$Id: EventLogger.c,v 2.38 1998-12-17 17:17:24 burghart Exp $")
 
 # define LOGNAME "EventLogger"
 
@@ -813,7 +813,7 @@ int deflt;
 	Arg args[10];
 	int n, i;
 #	define NPERIOD_ENTRIES	9
-	static int periods[10] = { 0, 1, 5, 10, 30, 60, 300, 600, 1800 };
+	static long periods[10] = { 0, 1, 5, 10, 30, 60, 300, 600, 1800 };
 	static char *pnames[10] = { "None", "1 second", "5 seconds", 
 				    "10 seconds", "30 seconds", "1 minute",
 				    "5 minutes", "10 minutes", "30 minutes" };
@@ -2260,7 +2260,7 @@ Widget entry;
 XtPointer client_data;
 XtPointer call_data;
 {
-	int period = (int)client_data;
+	long period = (long)client_data;
 	Arg args[2];
 
 	TimestampSetup (period);

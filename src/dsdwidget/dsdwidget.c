@@ -39,7 +39,7 @@
 # include <copyright.h>
 # include "DataStore.h"
 
-RCSID ("$Id: dsdwidget.c,v 1.27 1998-10-28 21:21:22 corbet Exp $")
+RCSID ("$Id: dsdwidget.c,v 1.28 1998-12-17 17:17:55 burghart Exp $")
 
 
 # define MAXPLAT	1024
@@ -132,7 +132,7 @@ char *prog;
 }
 
 
-void
+int
 main (argc, argv)
 int	argc;
 char	**argv;
@@ -501,7 +501,7 @@ zbool sort;	/* true if we want them alphabetized 	*/
 			commandWidgetClass, Box, NULL, 0);
 		XtAddCallback (Entry[NPlat], XtNcallback, 
 			       (XtCallbackProc) PopupDisplay, 
-			       (XtPointer) platforms[i]);
+			       (XtPointer)(long) platforms[i]);
 
 		SetEntry (NPlat, &begin, &end);
 		NPlat++;
@@ -525,7 +525,7 @@ XtPointer call;
 	struct df_context *dfc = NEW (struct df_context);
 	PlatformInfo pi;
 	
-	dfc->pid = (PlatformId) cdata;
+	dfc->pid = (PlatformId) (long)cdata;
 	dfc->list = NULL;
 	dfc->entries = NULL;
 	dfc->nent = 0;
@@ -673,7 +673,7 @@ PlatformInfo *pi;
         rescan = XtCreateManagedWidget ("rescan", commandWidgetClass, form,
 					args, n);
         XtAddCallback (rescan, XtNcallback, RescanCallback, 
-		       (XtPointer) dfc->pid);
+		       (XtPointer)(long) dfc->pid);
 /*
  * An informational label in the upper right
  */
@@ -720,7 +720,7 @@ Widget w;
 XtPointer cdata;
 XtPointer call_data;
 {
-	int pid = (int) cdata;
+	PlatformId pid = (PlatformId) (long)cdata;
 
 	ds_ForceRescan (pid, (pid < 0));
 }

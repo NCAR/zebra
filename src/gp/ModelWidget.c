@@ -37,7 +37,7 @@
 # include "GraphProc.h"
 # include "EventQueue.h"
 
-RCSID("$Id: ModelWidget.c,v 2.10 1998-10-28 21:21:53 corbet Exp $")
+RCSID("$Id: ModelWidget.c,v 2.11 1998-12-17 17:18:00 burghart Exp $")
 
 # define MODEL_NAME	"model" /* Name of the movie controller widget  */
 
@@ -298,7 +298,7 @@ XtAppContext appc;
 
 	w = WAllNone = XtCreateManagedWidget ("AllNone", commandWidgetClass, 
 					      form, args, n);
-	XtAddCallback (w, XtNcallback, mw_UseAllOrNone, (XtPointer) i);
+	XtAddCallback (w, XtNcallback, mw_UseAllOrNone, (XtPointer)(long) i);
 /*
  * Start loop button
  */
@@ -549,7 +549,8 @@ mw_Update ()
 		 * We choose the button by its "radioData", which is just
 		 * the frame number + 1.
 		 */
-			XawToggleSetCurrent (RadioGroup, (XtPointer)(i + 1));
+			XawToggleSetCurrent (RadioGroup, 
+					     (XtPointer)(long)(i + 1));
 			break;
 		}
 	}
@@ -1082,7 +1083,7 @@ int	*frame;
  * We select the FrameButton by its "radioData", which is just the frame 
  * number + 1.
  */
-	XawToggleSetCurrent (RadioGroup, (XtPointer)(*frame + 1));
+	XawToggleSetCurrent (RadioGroup, (XtPointer)(long)(*frame + 1));
 /*
  * Stash the desired forecast offset and plot time in the PD
  */
@@ -1173,7 +1174,7 @@ XtPointer	id_ptr, junk;
  * The 'valid' or 'issue' button was pressed
  */
 {
-	char	id = (char)((int) id_ptr);
+	char	id = (char)((long) id_ptr);
 	Boolean	set;
 /*
  * If this is a call because the button became unset, we can just return

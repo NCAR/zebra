@@ -26,7 +26,7 @@
 # include "DataStore.h"
 # include "dsPrivate.h"
 
-RCSID("$Id: prt_Notify.c,v 3.10 1997-02-14 06:23:34 granger Exp $")
+RCSID("$Id: prt_Notify.c,v 3.11 1998-12-17 17:18:12 burghart Exp $")
 
 static int IMessage FP ((struct message *));
 static void NotificationRequest FP ((struct dsp_Template *));
@@ -188,7 +188,7 @@ PlatformId pid;
  * to send it in the synthetic notify.
  */
 	DataTime[pid] = t[ntime];
-	TimeEvent[pid] = tl_AbsoluteReq (TimeToNotify, (void *) pid, 
+	TimeEvent[pid] = tl_AbsoluteReq (TimeToNotify, (void *)(long) pid, 
 					 t+ntime, 0);
 }
 

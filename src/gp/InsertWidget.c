@@ -45,7 +45,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 
-RCSID("$Id: InsertWidget.c,v 1.14 1998-10-28 21:21:46 corbet Exp $")
+RCSID("$Id: InsertWidget.c,v 1.15 1998-12-17 17:17:58 burghart Exp $")
 
 # ifndef PI
 # define PI		3.141592654
@@ -166,8 +166,8 @@ static char	ValidTime[STRLEN];	/* User entered valid time.	*/
 static int 	Mode = NOTHING;		/* What are we trying to do?	*/
 static int	Type;			/* Type of data to deal with.	*/
 static int	Step = 0;		/* Step in the process.		*/
-static int	Entry = -1;		/* Insert menu entry selected.	*/
-static int	AttrEntry = -1;		/* Attribute menu entry selected*/
+static long	Entry = -1;		/* Insert menu entry selected.	*/
+static long	AttrEntry = -1;		/* Attribute menu entry selected*/
 static char	IconComponent[STRLEN];	/* Selected component name. 	*/
 static char	IconPlatform[STRLEN];	/* Selected platform name. 	*/
 static date	IconTime;		/* Selected data name. 		*/
@@ -781,7 +781,7 @@ XtPointer	entry, junk;
 /*
  * Store the entry number.
  */
-	AttrEntry = (int) entry;
+	AttrEntry = (long) entry;
 	msg_ELog (EF_DEBUG, "Selected attribute %s", Attr[AttrEntry]);
 }
 
@@ -904,7 +904,7 @@ XtPointer	entry, junk;
 	/*
 	 * Store the entry number.
 	 */
-		Entry = (int) entry;
+		Entry = (long) entry;
 	/*
 	 * Check that the entry number is valid.
 	 */
@@ -1985,7 +1985,7 @@ Widget	parent;
 		InsertEntries[i] = XtCreateWidget ("InsertEntry", 
 			smeBSBObjectClass, InsertMenu, args, n);
 		XtAddCallback (InsertEntries[i], XtNcallback, 
-			(XtCallbackProc) InsertData, (XtPointer) i);
+			(XtCallbackProc) InsertData, (XtPointer)(long) i);
 	}
 	InsertNManaged = 0;
 }
@@ -2020,7 +2020,7 @@ Widget	parent;
 		AttrEntries[i] = XtCreateWidget ("AttrEntry", 
 			smeBSBObjectClass, AttrMenu, args, n);
 		XtAddCallback (AttrEntries[i], XtNcallback, 
-			(XtCallbackProc) SelectAttr, (XtPointer) i);
+			(XtCallbackProc) SelectAttr, (XtPointer)(long) i);
 	}
 	AttrNManaged = 0;
 }
@@ -2092,7 +2092,7 @@ Widget	parent;
 		ChangeEntries[i] = XtCreateWidget ("ChangeEntry", 
 			smeBSBObjectClass, ChangeMenu, args, n);
 		XtAddCallback (ChangeEntries[i], XtNcallback, 
-			(XtCallbackProc) SelectChange, (XtPointer) i);
+			(XtCallbackProc) SelectChange, (XtPointer)(long) i);
 	}
 	ChangeNManaged = 0;
 }
@@ -2189,7 +2189,7 @@ XtPointer	entry, junk;
  * Change the type of data indicated by the entry.
  */
 {
-	int	e = (int) entry;
+	long	e = (long) entry;
 /*
  * See what mode we're in and if its possible to insert.
  */	
@@ -2305,7 +2305,7 @@ XtPointer	yesno, junk;
 	 * If they clicked 'Yes' tell them what they did and increment the 
 	 * Step, otherwise they clicked 'No' so tell them what they didn't do.
 	 */
-		if ((int) yesno == YES)
+		if ((long) yesno == YES)
 		{
 			if (YesRoutines[Mode][Type])
 				(*YesRoutines[Mode][Type]) ();

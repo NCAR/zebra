@@ -43,7 +43,7 @@
 # include <DataStore.h>
 # include "GraphProc.h"
 
-RCSID ("$Id: FieldMenu.c,v 2.21 1998-11-20 16:08:54 burghart Exp $")
+RCSID ("$Id: FieldMenu.c,v 2.22 1998-12-17 17:17:57 burghart Exp $")
 
 /*
  * Stuff for the SME menu.
@@ -112,7 +112,7 @@ InitFieldMenu ()
 		Entries[i] = XtCreateWidget ("DAEntry", smeBSBObjectClass,
 			Menu, args, n);
 		XtAddCallback (Entries[i], XtNcallback, 
-			(XtCallbackProc) EntryCallback, (XtPointer) i);
+			(XtCallbackProc) EntryCallback, (XtPointer)(long) i);
 	}
 	NManaged = 0;
 /*
@@ -135,7 +135,7 @@ XtPointer xwhich, junk;
  * One of the entries has been selected.
  */
 {
-	int which = (int) xwhich;
+	long which = (long) xwhich;
 	char cbuf[512], *fname;
 /*
  * See which field name we should use.

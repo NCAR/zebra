@@ -28,7 +28,7 @@
 # include "dm_cmds.h"
 # include "dm_vars.h"
 
-RCSID("$Id: dm_color.c,v 2.9 1995-06-29 21:29:23 granger Exp $")
+RCSID("$Id: dm_color.c,v 2.10 1998-12-17 17:17:41 burghart Exp $")
 
 /*
  * The symbol table used to hold color tables.
@@ -117,7 +117,8 @@ char *name;
  * Now parse the internals of the table.
  */
 	ERRORCATCH
-		ui_subcommand ("dm-ct-initial", "CTable>", dc_InTable,(int)ct);
+		ui_subcommand ("dm-ct-initial", "CTable>", dc_InTable,
+			       (long) ct);
 	ON_ERROR
 		free (ct->ct_colors);
 		free (ct);

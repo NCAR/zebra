@@ -52,7 +52,7 @@
 # define MESSAGE_MANAGER	/* define prototypes for netread functions */
 # include <message.h>
 
-RCSID ("$Id: message.c,v 2.55 1998-03-16 17:21:09 corbet Exp $")
+RCSID ("$Id: message.c,v 2.56 1998-12-17 17:18:10 burghart Exp $")
 
 /*
  * Symbol tables.
@@ -1580,7 +1580,7 @@ int fd;
 	{
 		setmask = 1;
 	}
-	usy_traverse (Group_table, clear_group, (int)cp, FALSE);
+	usy_traverse (Group_table, clear_group, (long)cp, FALSE);
 /*
  * Send out the notification.
  */
@@ -3004,7 +3004,7 @@ int query;	/* nonzero if this a MT_QUERY rather the MH_STATS */
  * Finally list our groups and the members of each.
  */
 	strcpy (text, "Groups:\n");
-	usy_traverse (Group_table, stat_group, (int)text, FALSE);
+	usy_traverse (Group_table, stat_group, (long)text, FALSE);
 	msg.m_len = len + strlen (text);
 	send_msg (conp, &msg);
 /*

@@ -1,4 +1,4 @@
-/* $Id: DataChunkP.h,v 1.16 1998-10-28 21:20:50 corbet Exp $ */
+/* $Id: DataChunkP.h,v 1.17 1998-12-17 17:17:49 burghart Exp $ */
 /*
  * Internal data chunk definitions.
  */
@@ -154,10 +154,10 @@ typedef struct _BoundaryDataChunkPart
  * since it depends on DC_MaxField
  * 
  * HASH_FIELD_ID NOTE: FieldIds are now pointers, and assuming that they're 
- * aligned on 4-byte boundaries, we shift away those lower two bits that will 
- * always be zero.
+ * aligned on 8-byte or 4-byte boundaries, we shift away those lower three 
+ * bits that will always be zero (8-byte) or mostly be zero (4-byte).
  */
-# define HASH_FIELD_ID(fid)	(((int)(fid)>>2)&(MD_HASH_SIZE-1))
+# define HASH_FIELD_ID(fid)	(((long)(fid)>>3)&(MD_HASH_SIZE-1))
 # define HASH_SIZE		MD_HASH_SIZE
 
 

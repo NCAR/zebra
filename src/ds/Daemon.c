@@ -53,7 +53,7 @@
 # include "dsDaemon.h"
 # include "commands.h"
 
-RCSID ("$Id: Daemon.c,v 3.65 1998-10-28 21:20:48 corbet Exp $")
+RCSID ("$Id: Daemon.c,v 3.66 1998-12-17 17:17:47 burghart Exp $")
 
 /*
  * Local forwards.
@@ -1413,7 +1413,7 @@ struct ui_command *cmds;
  * Get the timer to let us know when it's time.  Then remember the command
  * to execute when things happen.
  */
-	tl_RelativeReq (ExecEvery, (void *) NEvery, interval, interval);
+	tl_RelativeReq (ExecEvery, (void *)(long) NEvery, interval, interval);
 	ECmds[NEvery++] = usy_string (UPTR (cmds[1]));
 }
 	

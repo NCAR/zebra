@@ -45,7 +45,7 @@
 # include "bitmaps.h"
 # include "twidget.h"
 
-RCSID ("$Id: twidget.c,v 2.20 1998-10-28 21:22:47 corbet Exp $")
+RCSID ("$Id: twidget.c,v 2.21 1998-12-17 17:18:07 burghart Exp $")
 
 
 # define LABELWIDTH	65
@@ -812,7 +812,7 @@ XtPointer change, junk;
 
 	SkipSecs = atoi (TSString) * TSScale;
 	systime = TC_ZtToSys (&Histdate);
-	TC_SysToZt (((int) change == 1) ? systime + SkipSecs :
+	TC_SysToZt (((long) change == 1) ? systime + SkipSecs :
 			systime - SkipSecs, &Histdate);
 	tw_ChangeTime (&Histdate, NULL);
 }
@@ -824,7 +824,7 @@ ChangeMonth (w, change, junk)
 Widget w;
 XtPointer change, junk;
 {
-	if ((int) change == 1)
+	if ((long) change == 1)
 		datebutton (MONTHUP);
 	else datebutton (MONTHDOWN);
 }
@@ -836,7 +836,7 @@ ChangeDay (w, change, junk)
 Widget w;
 XtPointer change, junk;
 {
-	if ((int) change == 1)
+	if ((long) change == 1)
 		datebutton (DAYUP);
 	else datebutton (DAYDOWN);
 }
@@ -847,7 +847,7 @@ ChangeYear (w, change, junk)
 Widget w;
 XtPointer change, junk;
 {
-	if ((int) change == 1)
+	if ((long) change == 1)
 		datebutton (YEARUP);
 	else datebutton (YEARDOWN);
 }
@@ -858,7 +858,7 @@ ChangeHour (w, change, junk)
 Widget w;
 XtPointer change, junk;
 {
-	if ((int) change == 1)
+	if ((long) change == 1)
 		datebutton (HOURUP);
 	else datebutton (HOURDOWN);
 }
@@ -869,7 +869,7 @@ ChangeMin (w, change, junk)
 Widget w;
 XtPointer change, junk;
 {
-	if ((int) change == 1)
+	if ((long) change == 1)
 		datebutton (MINUP);
 	else datebutton (MINDOWN);
 }
@@ -908,7 +908,7 @@ XtPointer calldata;
  */
 {
 	enum pmode mode = (enum pmode) cdata;
-	int activate = (int) calldata;
+	long activate = (long) calldata;
 
 	if (! activate)
 		return;
@@ -942,7 +942,8 @@ int code;
  * Add the timeout to start repeating.
  */
 	if (! norep)
-		Tslot = tl_RelativeReq (arrow_timeout, (char *) code, 5, 1);
+		Tslot = tl_RelativeReq (arrow_timeout, (void*)(long)code, 
+					5, 1);
 	uw_sync ();
 }
 
@@ -1304,7 +1305,7 @@ XtPointer call;
  * tw_WCallback().
  */
 {
-	int which = (int) client;
+	long which = (long) client;
 	HotTime *ht = HTimes + which;
 
 	tw_ChangeTime (&ht->ht_zt, ht->ht_label);
@@ -1322,7 +1323,7 @@ XtPointer call;
  * A hot list entry forget callback.  
  */
 {
-	int which = (int) client;
+	long which = (long) client;
 	HotTime *ht = HTimes + which;
 
 	tw_DeleteHotTime (&ht->ht_zt);
@@ -1444,7 +1445,7 @@ void (*callback)();
 		entry = XtCreateWidget ("HTentry", smeBSBObjectClass,
 					menu, args, narg);
 		XtAddCallback (entry, XtNcallback, (XtCallbackProc) 
-			       callback, (XtPointer) i);
+			       callback, (XtPointer)(long)i);
 	}
 	return (menu);
 }
@@ -1486,7 +1487,7 @@ void (*callback)();
 		entry = XtCreateManagedWidget ("skipentry", smeBSBObjectClass,
 					       menu, args, narg);
 		XtAddCallback (entry, XtNcallback, (XtCallbackProc) 
-			       callback, (XtPointer) i);
+			       callback, (XtPointer)(long)i);
 	}
 	return (menu);
 }
@@ -1503,7 +1504,7 @@ XtPointer call;
  * Change the units (scale) of the skip interval.
  */
 {
-	int which = (int) client;
+	long which = (long) client;
 	Widget button = XtParent(XtParent(w));
 	Arg arg;
 

@@ -34,7 +34,7 @@
 # include <ui_date.h>
 # include "GraphProc.h"
 
-RCSID ("$Id: DataMenu.c,v 2.19 1998-10-28 21:21:35 corbet Exp $")
+RCSID ("$Id: DataMenu.c,v 2.20 1998-12-17 17:17:56 burghart Exp $")
 
 
 /*
@@ -98,7 +98,7 @@ InitDataMenu ()
 		Entries[i] = XtCreateWidget ("DAEntry", smeBSBObjectClass,
 			Menu, args, 1);
 		XtAddCallback (Entries[i], XtNcallback, 
-			(XtCallbackProc) EntryCallback, (XtPointer) i);
+			(XtCallbackProc) EntryCallback, (XtPointer)(long) i);
 	}
 	NManaged = 0;
 }
@@ -117,7 +117,7 @@ XtPointer xwhich, junk;
  * One of the entries has been selected.
  */
 {
-	int which = (int) xwhich;
+	long which = (long) xwhich;
 	char cbuf[200];
 	char *qual;
 /*
@@ -395,7 +395,7 @@ XtPointer xwhich, junk;
  * Put this window into real time mode.
  */
 {
-	int	which = (int) xwhich;
+	long	which = (long) xwhich;
 	char	cbuf[256], *plat;
 
 	parameter ("global", "plot-mode", "real-time");

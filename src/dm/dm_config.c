@@ -35,7 +35,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm_config.c,v 1.28 1998-10-28 21:20:27 corbet Exp $")
+MAKE_RCSID ("$Id: dm_config.c,v 1.29 1998-12-17 17:17:43 burghart Exp $")
 
 /*
  * Exported variables
@@ -84,8 +84,8 @@ static void dg_SendButtonMap FP ((struct cf_window *win));
 static void dg_SendDefault FP ((struct cf_window *));
 static int dg_ListConfig FP ((char *name, int type, union usy_value *, int));
 static int dg_FreeOne FP ((char *name, int type, union usy_value *v, int));
-static int dg_UnlinkPD FP ((char *name, int type, union usy_value *v, int));
-static int dg_MemberOf FP ((char *name, int type, union usy_value *v, int));
+static int dg_UnlinkPD FP ((char *name, int type, union usy_value *v, long));
+static int dg_MemberOf FP ((char *name, int type, union usy_value *v, long));
 static void dg_DeleteConfig FP ((struct config *cfg));
 static struct cf_graphic *dg_NewGraphic FP ((void));
 static struct config *dg_TryConfigDir FP ((char *dir, char *name));
@@ -1977,7 +1977,7 @@ struct cf_window *win;
 {
 	struct cf_graphic *g = win->cfw_graphic;
 
-	usy_traverse (Configs, dg_UnlinkPD, (int)win, FALSE);
+	usy_traverse (Configs, dg_UnlinkPD, (long) win, FALSE);
 	if (g->g_pd)
 		pd_Release (g->g_pd);
 }
@@ -1989,7 +1989,7 @@ dg_UnlinkPD (name, type, v, param)
 char *name;
 int type;
 union usy_value *v;
-int param;
+long param;
 /*
  * In the config by this name, check all of the windows for 
  * pd's shared with the window being deleted.
@@ -2046,7 +2046,7 @@ struct cf_window *win;
 	cp.cp_win = win;
 	cp.cp_cfg = NULL;
 	if (Configs)
-		usy_traverse (Configs, dg_MemberOf, (int) &cp, FALSE);
+		usy_traverse (Configs, dg_MemberOf, (long) &cp, FALSE);
 	return (cp.cp_cfg);
 }
 
@@ -2056,7 +2056,7 @@ dg_MemberOf (name, type, v, param)
 char *name;
 int type;
 union usy_value *v;
-int param;
+long param;
 {
 	cfg_pair *cp = (cfg_pair *) param;
 	struct config *cfg = (struct config *) v->us_v_ptr;

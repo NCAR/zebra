@@ -39,7 +39,7 @@
 # include "dsPrivate.h"
 # include "Platforms.h"
 
-RCSID("$Id: Platforms.c,v 3.4 1998-10-28 21:20:57 corbet Exp $")
+RCSID("$Id: Platforms.c,v 3.5 1998-12-17 17:17:51 burghart Exp $")
 
 
 /*
@@ -1140,7 +1140,7 @@ int *npids;
  */
 	if (re_result == NULL)
 	{
-		zl_search ((stbl) table, function, (int)&info, 
+		zl_search ((stbl) table, function, (long)&info, 
 			   req->dsp_alphabet, NULL);
 		*npids = info.si_npids;
 	}

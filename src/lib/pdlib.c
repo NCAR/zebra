@@ -36,7 +36,7 @@
 # include "message.h"
 # include "pd.h"
 
-RCSID ("$Id: pdlib.c,v 1.26 1998-10-28 21:22:44 corbet Exp $")
+RCSID ("$Id: pdlib.c,v 1.27 1998-12-17 17:18:06 burghart Exp $")
 
 struct traverse {
 	int (*func)();		/* Function to call for traverse */
@@ -78,7 +78,7 @@ static char *pd_GetToken FP ((char *data, char *end, char *name,
 static char *pd_GetValue FP ((char *data, char *end, char *value));
 static void pd_CarveString FP ((char *dest, char *begin, char *end));
 static int pd_ForEachComponent FP ((plot_description pd, int (*func)(),
-				    int param));
+				    long param));
 static stbl pd_NewPD FP ((char *name));
 static stbl pd_NewComponent FP ((stbl pd, char *compname));
 static int pd_ParamFunc FP((char *name, int type, union usy_value *v,
@@ -626,7 +626,7 @@ plot_description pd;
 /*
  * Now just go through each component.
  */
-	pd_ForEachComponent (pd, pd_UnloadComp, (int) rpd);
+	pd_ForEachComponent (pd, pd_UnloadComp, (long) rpd);
 	rpd->rp_len = strlen (rpd->rp_data);
 /*
  * Sanity check
@@ -697,7 +697,7 @@ static int
 pd_ForEachComponent (pd, func, param)
 plot_description pd;
 int (*func) ();
-int param;
+long param;
 /*
  * Execute the given FUNC for each component within the pd.  FUNC is called:
  *
@@ -876,7 +876,7 @@ plot_description pd, new;
  * Add all components of "new" DESTRUCTIVELY onto "pd".
  */
 {
-	pd_ForEachComponent (new, pd_OverrideComp, (int) pd);
+	pd_ForEachComponent (new, pd_OverrideComp, (long) pd);
 	usy_z_stbl (new);
 }
 
