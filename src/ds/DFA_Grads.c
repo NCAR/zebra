@@ -19,7 +19,7 @@
 # include "dfa.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_Grads.c,v 3.10 1996-11-19 08:35:47 granger Exp $")
+RCSID ("$Id: DFA_Grads.c,v 3.11 1997-04-17 16:07:20 corbet Exp $")
 
 
 /*
@@ -58,6 +58,7 @@ typedef struct _GradsTag
 	int	gt_nfield;		/* How many fields do we have?	*/
 	FieldId *gt_fids;		/* The field ID's		*/
 	int	*gt_nlevels;		/* How many levels/field	*/
+	int	gt_swap;		/* Data need to be swapped	*/
 } GradsTag;
 
 
@@ -146,9 +147,8 @@ static void	dgr_CalcTime FP ((GradsTag *, int, ZebTime *));
 static void	dgr_SetTimes FP ((GradsTag *tag));
 static int	dgr_FindIndex FP ((GradsTag *, FieldId));
 static off_t	dgr_FOffset FP ((GradsTag *, int, int, int));
-# ifdef LITTLE_ENDIAN
+static float	dgr_Swap FP ((float *));
 static void	dgr_SwapFloats FP ((float *, int));
-# endif
 
 
 /*
@@ -277,6 +277,9 @@ FILE *fp;
 			}
 			levels[level] = atof (words[word++]);
 		}
+		spacing = levels[1] - levels[0];
+		if (spacing < 0)
+			spacing = -spacing;
 	}
 /*
  * Now we just have to find a place to store all this in the tag.
@@ -287,18 +290,21 @@ FILE *fp;
 		tag->gt_rg.rg_nX = np;
 		tag->gt_xc = levels;
 		tag->gt_origin.l_lon = levels[0];
+		tag->gt_rg.rg_Xspacing = spacing;
 		break;
 
 	    case 'Y':
 		tag->gt_rg.rg_nY = np;
 		tag->gt_yc = levels;
 		tag->gt_origin.l_lat = levels[0];
+		tag->gt_rg.rg_Yspacing = spacing;
 		break;
 		
 	    case 'Z':
 		tag->gt_rg.rg_nZ = np;
 		tag->gt_zc = levels;
 		tag->gt_origin.l_alt = levels[0];
+		tag->gt_rg.rg_Zspacing = spacing;
 		break;
 	}
 }
@@ -520,6 +526,8 @@ char *dfname, *cfname;
  */
 {
 	char realname[120], *slash;
+	float data[10];
+	int i;
 /*
  * Grads convention allows the data file name to start with "^", meaning
  * look in the same directory as the control file.
@@ -538,7 +546,18 @@ char *dfname, *cfname;
 /*
  * Now just try to open it.
  */
-	return ((tag->gt_dfd = open (realname, O_RDONLY)) >= 0);
+	if ((tag->gt_dfd = open (realname, O_RDONLY)) < 0)
+		return (0);
+/*
+ * Try to figure out which byte ordering is in use here.  It can be either,
+ * as it turns out, with no real indication of what's going on.
+ */
+	if (read (tag->gt_dfd, data, 10*sizeof (float)) < 10*sizeof (float))
+		return;		/* No data, who cares about order? */
+	tag->gt_swap = 0;
+	for (i = 0; i < 10; i++)
+		if (fabs (data[i]) > 1e10 && dgr_Swap (data + i) < 1e10)
+			tag->gt_swap = 1;
 }
 
 
@@ -851,9 +870,9 @@ int ndetail;
 					(level > 0) ? level : 0);
 			lseek (tag->gt_dfd, offset, SEEK_SET);
 			read (tag->gt_dfd, grid, lvlsize*nlev);
-# ifdef LITTLE_ENDIAN
-			dgr_SwapFloats (grid, (lvlsize*nlev)/sizeof (float));
-# endif
+			if (tag->gt_swap)
+				dgr_SwapFloats (grid,
+						(lvlsize*nlev)/sizeof (float));
 			dc_NSAddSample (dc, tag->gt_times+sample, 
 					start+sample-begin, fids[field], grid);
 		}
@@ -865,7 +884,6 @@ int ndetail;
 
 
 
-# ifdef LITTLE_ENDIAN
 static void
 dgr_SwapFloats (grid, n)
 float *grid;
@@ -875,9 +893,29 @@ int n;
  */
 {
 	for (; n > 0; n--)
-		swap4 (grid++);
+	{
+		*grid = dgr_Swap (grid);
+		grid++;
+	}
 }
-# endif
+
+
+
+static float
+dgr_Swap (float *v)
+/*
+ * Swap a floating point value.
+ */
+{
+	float ret;
+	char *cp = (char *) v, *r = (char *) &ret;
+
+	r[0] = cp[3];
+	r[1] = cp[2];
+	r[2] = cp[1];
+	r[3] = cp[0];
+	return (ret);
+}
 
 
 
