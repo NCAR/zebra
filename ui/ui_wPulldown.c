@@ -1,17 +1,3 @@
-(Message /home/corbet/Mail/inbox:43)
-Return-Path: corbet@gaia.UUCP
-Received: from handies.ucar.edu by stout.atd.ucar.EDU (5.61/ NCAR Mail Server 04/10/90)
-	id AA13025; Mon, 27 Aug 90 21:41:53 MDT
-Received: by ncar.ucar.EDU (5.64/ NCAR Central Post Office 04/10/90)
-	id AA29634; Mon, 27 Aug 90 21:41:49 MDT
-Received: by gaia. (4.0/SMI-4.0)
-	id AA00388; Mon, 27 Aug 90 21:38:43 MDT
-Date: Mon, 27 Aug 90 21:38:43 MDT
-From: corbet@gaia.UUCP (Jonathan Corbet)
-Message-Id: <9008280338.AA00388@gaia.>
-To: corbet@ncar.UUCP
-Subject: ui_WPulldown
-
 /*
  * Windowing code for pulldown menu widgets.
  */
@@ -19,7 +5,7 @@ Subject: ui_WPulldown
 # ifdef XSUPPORT
 
 
-static char *rcsid = "$Id: ui_wPulldown.c,v 1.3 1990-08-28 08:56:54 corbet Exp $";
+static char *rcsid = "$Id: ui_wPulldown.c,v 1.4 1990-08-28 08:57:47 corbet Exp $";
 
 # ifndef X11R3		/* This stuff don't work under R3.	*/
 /* 
