@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: GraphProc.c,v 1.19 1991-01-26 00:10:36 corbet Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 1.20 1991-01-29 22:46:51 corbet Exp $";
 
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
@@ -698,6 +698,11 @@ void eq_ReturnPD ()
 	dmp->dmm_pdlen = rpd->rp_len;
 	memcpy (dmp->dmm_pdesc, rpd->rp_data, rpd->rp_len);
 	msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, dmp, len);
+/*
+ * (1/29/91 jc -- sigh) Free the memory we used.
+ */
+	pd_RPDRelease (rpd);
+	free (dmp);
 }
 
 
