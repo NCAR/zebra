@@ -47,7 +47,7 @@
 # include "LayoutControl.h"
 # include "LLEvent.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.58 1995-10-12 16:41:25 corbet Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.59 1996-02-05 14:58:18 granger Exp $")
 
 /*
  * Default resources.
@@ -1647,7 +1647,7 @@ char *line;
  * Clean out NL's.
  */
 	strcpy (tbuf, line);
-	while ((nl = strchr (tbuf, '\n')) != 0)
+	while ((nl = (char *) strchr (tbuf, '\n')) != 0)
 		*nl = ' ';
 	msg_ELog (EF_INFO, "ui_printf('%s')", tbuf);
 }

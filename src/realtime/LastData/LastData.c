@@ -38,7 +38,7 @@
 # include <copyright.h>
 # include <DataStore.h>
 
-RCSID ("$Id: LastData.c,v 2.11 1995-06-29 22:38:05 granger Exp $")
+RCSID ("$Id: LastData.c,v 2.12 1996-02-05 14:57:43 granger Exp $")
 
 
 /*
@@ -266,7 +266,7 @@ char *config_file;
  */
 	while (fgets (line, 80, cfile) != NULL)
 	{
-		if ((cp = strchr (line, ' ')) == NULL ||
+		if ((cp = (char *) strchr (line, ' ')) == NULL ||
 			sscanf (cp + 1, "%d %d", &yellow, &red) < 2)
 		{
 			msg_ELog (EF_PROBLEM, "Bad config line: %s", line);
