@@ -44,10 +44,9 @@ int	doKnots;
 {
 	int xend, yend;
 	float barbspd ;
-	int x1,y1,x2,y2,tx,ty;
+	int x1,y1,x2,y2;
 	XPoint	coord[5];
 	int	flaglen = 10;
-	double	pixeldx,pixeldy;
 	int	quadrant;
 	int	dxsign,dysign;
 	double flagangle;
