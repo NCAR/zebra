@@ -34,7 +34,7 @@
 # include <config.h>
 # include <copyright.h>
 # include <xhelp.h>
-MAKE_RCSID ("$Id: dm.c,v 2.29 1993-03-18 07:29:56 granger Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.30 1993-03-19 23:31:22 granger Exp $")
 
 
 /*
@@ -184,7 +184,7 @@ char **argv;
 /*
  * Interpret commands.
  */
-	tw_DefTimeWidget (tw_cb, "System time control");
+	tw_DefTimeWidget (tw_cb, "System Time Control");
 	aw_DefAlarmWidget ();
 	ui_get_command ("dm-initial", "DM>", dm_dispatcher, 0);
 	dm_shutdown ();
