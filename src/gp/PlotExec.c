@@ -34,7 +34,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 # include "LayoutControl.h"
-MAKE_RCSID ("$Id: PlotExec.c,v 2.40 1994-06-29 21:04:07 case Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.41 1994-11-01 20:39:40 corbet Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -753,6 +753,7 @@ px_Init ()
 	Plot_routines[PT_XYGRAPH][RT_SIMPLE] = xy_Graph;	
 	Plot_routines[PT_XYGRAPH][RT_WIND] = xy_Wind;	
 	Plot_routines[PT_XYGRAPH][RT_CONTOUR] = xy_Contour;	
+	Plot_routines[PT_XYGRAPH][RT_FCONTOUR] = xy_Contour;	
 	Plot_routines[PT_XYGRAPH][RT_OBS] = xy_Observation;	
 # else
 	Plot_routines[PT_XYGRAPH][RT_INIT] = UNCOMPILED_FUNCTION;

@@ -1,7 +1,7 @@
 /*
  * XY-Contour plotting module
  */
-static char *rcsid = "$Id: XYContour.c,v 1.25 1994-09-15 21:50:32 corbet Exp $";
+static char *rcsid = "$Id: XYContour.c,v 1.26 1994-11-01 20:39:43 corbet Exp $";
 /*		Copyright (C) 1993 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -78,7 +78,7 @@ bool	update;
  * Draw an xy-graph on the given component
  */
 {
-	bool	ok;
+	bool	ok, fill;
 	int	npts[MAX_PLAT], plat, nplat, angle = 0, ncolors, dmode;
 	int	dolabel = 1, linewidth = 0, nxfield, nyfield, nzfield;
 	int	xgridres, ygridres = 0;
@@ -163,10 +163,19 @@ bool	update;
 	sideAnnot = True;
 	pda_Search (Pd, c, "do-side-annotation", "xy-contour", 
 		    (char *) &sideAnnot, SYMT_BOOL);
-	
-	strcpy (style, "line");
-	pda_Search (Pd, c, "representation-style", "xy-contour",
-		    (char *) style, SYMT_STRING);
+/*
+ * New scheme for contour styles: take the old "representation-style"
+ * if it's there (backwards compatibility); otherwise look at the
+ * representation directly, as is done in CAPland.
+ */
+	if (pda_Search (Pd, c, "representation-style", "xy-contour",
+		    (char *) style, SYMT_STRING))
+		fill = ! strcmp (style, "filled");
+	else
+	{
+		pd_Retrieve (Pd, c, "representation", style, SYMT_STRING);
+		fill = ! strcmp (style, "filled-contour");
+	}
 
 	xgridres = 25;
 	pda_Search (Pd, c, "x-grid", "xy-contour", (char *) &xgridres, 
@@ -423,7 +432,7 @@ bool	update;
 	 */
 		ct_GetColorByName ("white", &white);
 
-	        if (strcmp (style, "line") == 0)
+	        if (! fill)
 	        {
 			CO_Init (colors, ncolors, ncolors/2, &white, clip, 
 				 TRUE, BADVAL);
