@@ -54,7 +54,7 @@ usage (const char *prog)
 		 "Convert multiple ascii maps to a single XDR map:\n"
 		 "   %s -x -o complete.map fed.map state.map roads.map\n"
 		 "Using stdin and stdout:\n"
-		 "   cat fed.map state.map | %s > complete.map\n",
+		 "   cat fed.map state.map | %s > complete.map\n"
 		 "Reduce map polylines to minimum 2 km between points:\n"
 		 "   %s -r 2 detailed.map > smaller.map\n",
 		 prog, prog, prog, prog);
