@@ -1,4 +1,4 @@
-/* $Id: ui_param.h,v 1.4 1990-03-27 13:40:04 corbet Exp $ */
+/* $Id: ui_param.h,v 1.5 1991-10-15 21:44:23 corbet Exp $ */
 /*
  * Basic UI parameters.
  */
@@ -40,7 +40,7 @@ typedef struct date_st date;		/* Date in date/time format */
  * Define these if nobody else has already done it.
  */
 # ifndef TRUE
-# define TRUE -1
+# define TRUE 1
 # define FALSE 0
 # endif
 # ifndef NULL
