@@ -10,6 +10,18 @@ DISTFILES = Imakefile $(HELPFILES)
 
 all::
 
-InstallLibFile ($(HELPFILES),.,.)
+/*
+ * Install the old xhelp files.
+ */
+InstallLibFile ($(HELPFILES),help,.)
+
+/*
+ * Install all the new junk.  I don't feel much like typing them all in.
+ */
+install::
+	MakeDir ($(LIBDIR)/help)
+	for file in *.gif *.html ; do \
+		$(INSTALL) -m 444 $${file} $(LIBDIR)/help ; \
+	done
 
 DistfilesTarget ($(DISTFILES))

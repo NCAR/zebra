@@ -1,0 +1,140 @@
+<title> EDITING DISPLAY CONFIGURATIONS </title>
+<h1> Editing Display Configurations</h1>
+
+This topic describes the process of editing a display configuration.  New
+configurations can be created or existing configurations can be modified to
+personal preference.  First, change to the display configuration which will
+be modified.  To start a new configuration from scratch, change to the
+<b>Empty</b> configuration.  See the help topic "Changing Display
+Configurations" for details on setting the display configuration.
+<p>
+Next, popup the "Configuration Editing" widget from the <img
+src=zeb-icon.gif> on the Icon Bar.   A widget will appear containing six
+buttons. In newer version of Zeb the Configuration Editing widget has been
+replaced with t
+<p>
+The <tt>Cancel</tt> button, as always, removes the widget from the
+screen.  All of the configuration pop-up widgets will have a <Cancel>
+button; press this button to remove the widget without performing any
+actions.  The <tt>Help</tt> button pops up this help topic.  The rest of the
+buttons function as described in the following paragraphs.  Essentially
+there are four options: create a new configuration by copying an existing
+one, add a window to the current configuration, delete a window from the
+current configuration, or save the current configuration under a specified
+name in specified directories.  After adding, deleting, moving, and/or
+resizing windows in a new or existing configuration, and after configuring
+the plots in each window as desired, the entire display configuration can
+be saved for future reference through the "Save Configuration" mechanism
+described at the end of this topic.
+
+
+<h2>CLONING A CONFIGURATION</h2>
+
+The <tt>New Configuration</tt> button pops up a window for creating a new
+configuration by 'cloning' an existing configuration.  Two names must be
+specified in the popped-up window: the name of the configuration to create
+and the name of the configuration to clone.  Note that the configuration
+being cloned need not be the configuration which is currently displayed.
+However, the default clone name will always be taken as the name of the
+current configuration.  Once both names have been specified, press the
+<tt>Create Configuration</tt> button.  The new configuration will be
+created and automatically installed as the current display configuration.
+
+
+<h2>ADDING A NEW WINDOW</h2>
+
+The <tt>New Window</tt> button pops up a widget for adding a new window to
+the current display configuration.  Several parameters may be set through
+this widget.  The "New window name:" field will be the name of the new
+window.  This name must be unique among the other windows in the
+configuration.  The window must also be assigned a plot description.  The
+plot description name can be typed directly, inside the "Plot description:"
+text window, or it can be chosen from the pull-down menu under the
+<tt>Select Plot Description</tt> button.  The window also needs a button
+map, specified in the "Button map:" text window or through the pull-down
+menu <tt>Select Button Map</tt>.  The default plot description is "template",
+while the default button map is "default".  For horizontal plots, the "big"
+button map is the most commonly used map.  The choice of plot description
+will depend principally on the type of plot desired, such as "Mesonet" for
+a horizontal plot with surface data, "Skew-t" for a skew-t plot, "Time
+Series" for a time-series plot, or "Cross-Sect" for a cross-section plot.
+Once the new window is created with the basic plot type configured, new
+combinations of platforms and overlays can be configured through the normal
+icon menus.
+<p>
+The last parameter for the new window is "PD Force?"  This parameter can be
+toggled between "yes" and "no".  If "yes", a new plot description will
+always be forced onto the window, even if the window already exists.
+Otherwise a window which already exists will keep its current plot
+description.
+<p>
+Display configurations typically share window names so that new windows
+need not be created for every configuration change.  For example, the
+"Radar" configuration uses four windows named "UpperLeft", "UpperRight",
+"LowerLeft", and "LowerRight".  In the "Radar" configuration, the window
+"UpperLeft" is a skew-t plot, whereas in the "Surface Data" configuration,
+"UpperLeft" is a horizontal plot.  Another possible naming scheme, however,
+might include a window named "CrossSection" which is present in most
+display configurations and is always a cross-section plot.  Hence the
+necessity of the "Force PD" parameter.  When changing to a configuration
+which uses a window whose name is used in the present configuration, the
+new plot description must replace the current one in order for the correct
+plot-type and platform overlays to be installed in the window.
+<p>
+Once all of the parameters have been set as desired, press the <tt>Create
+Window</tt> button to actually create the new window.  After the window
+appears, use the window manager to move and resize the window to the
+desired geometry.  Use the Icon Bar and graphics window icons to add,
+remove, and configure the platform plots in the window.
+
+
+<h2>DELETING A WINDOW</h2>
+
+The <tt>Delete Window</tt> button pops up a window selection widget.  The
+window to be deleted must be specified by name.  The name can be entered in
+the text window next to "Window name:" or by selecting the window with the
+mouse.  Mouse selection is only possible if the window is visible on the
+screen.  To use the mouse, press the <tt>Select with mouse</tt> button.
+When the cursor becomes a cross-hair, click the mouse inside the window you
+wish to delete.  The name of the selected window will be entered as the
+"Window name:".  If the selected window was not a valid choice, "none" will
+appear in the text window.  Once the window name has been specified, press
+the <tt>Do it</tt> button to delete the window.
+
+
+<h2>SAVING A CONFIGURATION</h2>
+
+The <tt>Save Configuration</tt> button of the "Configuration Editing" widget
+allows the current configuration to be saved to disk so that it can be
+recalled on later invocations of Zeb.  Press the <tt>Save Configuration</tt>
+button to pop-up the "Save Configuration" widget.  In the top text window,
+specify a name for the configuration.  The "Config directory:" text window
+specifies where the display configuration files will be stored, while "PD
+directory:" specifies where the plot descriptions for all of the windows
+will be stored.  Ordinarily neither of the directory paths will need to
+change.
+<p>
+To actually save the configuration, press the <Do It> button.  The entire
+state of the current Zeb display, including the locations and plot
+descriptions of all of the graphics windows, will be written to disk under
+the given name.  The configuration may be displayed by entering the
+following command at the display manager prompt:
+
+<pre>
+DM> pconfig <config-name>
+</pre>
+
+The configuration can be added to the Icon Bar <tt>Zeb</tt> menu by editing the
+file 'IconBar' in the <tt>project</tt> directory.
+
+
+
+<hr>
+<a href=.html><img src=la.gif></a>
+<a href=.html><img src=ra.gif></a><p>
+<i>Return to <a href=index.html> Zeb Help Index</i></a>
+
+
+
+
+

@@ -1,0 +1,111 @@
+<title>Movies</title>
+<h2> Movies (Time-Lapse Displays)</h2>
+<hr>
+Movies are chronological sequences of "time frames"
+generated and displayed by the movie controller to create
+animation of graphics window plots.  Movies can be run in
+each of the graphics windows at any time.  First, you must
+popup the movie controller.  You can do this two ways:
+<ul>
+<li>Find the <img src=zeb-icon.gif> icon in the lower left corner
+of the graphics window.  Choose the
+"Popup Movie Controller" entry from the icon menu. <p>
+
+<li> Or, type 'm' inside the graphics window.
+</ul>
+
+The Movie widget:<p>
+<img src=movie.gif><P>
+
+<h3> Setting Movie Parameters </h3> 
+The movie controller provides four
+parameters for adjusting; 
+<ul>
+<li> the duration of the movie, 
+<li> the time of the last frame of the movie, 
+<li> the interval between frames, and 
+<li> the rate at which the frames are displayed.  
+</ul>
+
+The movie controller shown above is set to display a movie that is 300
+minutes long with a display every 60 minutes, the ending time (displayed as
+<b> now </b> on the movie widget) will be the time in the upper left corner
+of the graphics window. The display interva is 10 frames/second.<p>
+
+The movie duration and frame interval are measured in "time units" of
+seconds, minutes, hours, or days.  The time units are changed using the
+pull-down menu under the <img src=movie-tu.gif> button.<p>
+
+There is a limit to the maximum number of frames in a movie (based on
+available memory), therefore, the movie duration must be reduced as the
+frequency of the frames increases.<p>
+
+There are two options for entering the ending time for a
+movie; 
+<ul>
+
+<li> Type in the time using the format "DD-MMM-YYYY,HH:MM" for example <img
+src=movie-end.gif>. Note that the year must have four digits.  If the time
+is left out, as in "04-mar-1992", or specified as "04-mar-1992,0", "00:00"
+is assumed. <p>
+
+<li> Type the word "<b>now</b>".  In this case, the ending time is determined
+according to the current mode of the graphics window.  If
+the graphics window is in real-time mode, the ending time
+will be the current system time.  If the graphics window
+is in history mode, the ending time will be the history
+time (displayed in yellow at the upper left corner of the
+window) of the window.
+</ul>
+
+<h3>Running the Movie</h3>
+
+Once the movie parameters are adjusted, begin the movie by
+pressing the <img src=movie-run.gif> button.  If
+the parameters are all valid, the movie controller will
+begin generating each frame of the movie.  If an error
+occurs, a message will appear on the <img src=movie-stat.gif> line.<p><p>
+
+After each of the frames has been generated and stored, the
+movie will run more quickly and smoothly.  The speed of the
+movie will depend upon the <img src=movie-speed.gif> parameter (in this
+case the movie will run at 10 frames/second). <p><p>
+
+The movie can be stopped at any time, even while the
+controller is generating frames, by pressing the <img src=movie-stop.gif>
+button.  This leaves the graphics window in history mode,
+with a plot time corresponding to the frame at which the
+movie stopped.  The movie can be continued by pressing
+<img src=movie-run.gif> again.<p><P>
+
+The scroll bar <img src=movie-stat.gif> at the bottom of the movie
+controller provides a convenient method for stepping backward and forward
+through the movie frames. The first line gives the status of the movie
+subsystem ("stopped").  The second line, allows manual control
+of the movie.  With the pointer in the second line, you may:
+<ul>
+<li> Manually step forward with the <b>right</b> mouse button.
+<li> Manually step backword with the <b>left</b> mouse button.
+<li> Drag the movie in either direction by pressing and holding the
+     <b>center</b> mouse button and moving the mouse from side to side.
+</ul>
+
+The <img src=movie-rt.gif> button puts the graphics window in real time
+mode, taking the plot time from the current system time and disactivating
+the movie controller.  This is useful only in real-time applications.<p>
+
+<h3> Quitting the Movie Contoller </h3>
+
+The movie controller window can be removed by pressing the <img
+src=movie-dismiss.gif>.<br> <b> Removing the movie controller leaves the
+graphics window in the mode and time last set by the movie
+controller.</b><p>
+
+<a href=.html><img src=la.gif></a>
+<a href=.html><img src=ra.gif></a><p>
+<i>Return to <a href=index.html> Zeb Help Index</i></a>
+
+
+
+
+

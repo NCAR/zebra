@@ -1,0 +1,89 @@
+<title>Using Icons in Graphics Windows</title>
+<h2>Using Icons in Graphics Windows</h2>
+<hr>
+
+Three types of icons may be present in a <a href=graphic-windows.html>
+graphics window</a>;
+
+<ul>
+
+<li> The <img src=zeb-icon.gif> icon is always located in the lower left
+hand corner of the grahpics display.<p>
+
+<li>The "field" icons at the bottom of each graphics window are used
+to control the contents and the plots of the data being displayed in that
+window.  There is one icon present for each data field or overlay.<p>
+
+<li>The mouse sensitive position icons are located within a horizontal plot at
+origin of the data platform. Position icons are used to add data to other
+graphics windows and to control the plots of the data displayed in the
+current graphics window. <p>
+
+</uL>
+
+Each mouse button (left, right, and middle) activates a different menu
+within each icon.  These menus are often referred to as the left-button,
+middle-button, and right-button pulldown menus. <p>
+<h2> The Global Icon </h2>
+The <img src=zeb-icon.gif> icon controls
+'global' functions that are independent of the
+individual platforms being displayed in the window. (NOTE: The Zeb
+icon described here is 
+located at the lower-left corner of each <a href=graphic-windows.html>
+graphics windows </a>, it is NOT located in the 
+<a href=iconbar.html>Iconbar</a>.)  The
+left-button menu has entries for setting global limits,
+popping up the Movie and Overlay Times widgets, and
+resetting the window.  The right-button menu usually adjusts
+the color and size of the window's top annotation.  The
+function of the middle-button menu differs among the types
+of plots.  For example in horizontal plots, it selects
+between real-time mode and the history times at which data
+is available from the base component.  However, for X-Y
+Graphs and Time Series Plots the middle-button menu selects
+fields for addition to the window. <p>
+
+<h2> The Field Icons </h2>
+
+The rest of the icons in the lower-left corner of the graphics window are
+each associated with a specific platform or field and hence are often
+called Field icons.  Generally the Field icon menus on the left button
+allow users to change <a href=limits.html> plotting limits and intervals
+</a>, <a href=disable.html> disable/re-enable data </a>, and move data to
+the top or bottom of the display stack.  The middle buttons usually allows
+users to change the fields being plotted from a specific platform.  For
+example, a mesonet contour of temperature can be changed to a contour of
+dewpoint.  The right button allows modification of miscellaneous items such
+as line width, color, and annotation size (see <a href=color-lables.html>
+Changing colors and labels </a>.<p>
+
+The field icon's color indicates the state of the data.<p>
+<ul>
+A dark blue background <img src=iconbar-sat.gif> indicates that the field represented by the icon
+is displayed. <p>
+
+A red background <img src=iconbar-sat-red.gif> indicates that the data represented by the
+icon is displayed but is "old".  The time used for defining "old" is set in
+the defaults.pd file.  Generally it is set to be twice the data report
+interval (so if satellite data was collected at 30 minute intervals, the
+icon would turn red when the displayed satellite data was over an hour
+old).  The only way to determine the actual time the data was collected in
+to popup the <a href=overlay-time.html> overlay times </a> widget.<p>
+
+A gray background <img src=iconbar-sat-gray.gif> indicates that the field
+has been temporarily <a href=disable.html> disabled </a>. The
+<tt>Disable/reenable</tt> option on the left-button pull-down menu toggles
+between display or no display of the data represented by the icon. <p>
+</ul>
+
+<h2> Position Icons </h2> 
+
+Mouse sensitive position icons allow data to be added to other windows
+using the middle mouse button. Position Icons </a>) as well as to preform
+miscellaneous tasks such as changing the color and annotation size (similar
+to the field icon right mouse button menus). For a more complete
+description of their use, see <a href=posicons.html>Position Icons </a>.<p>
+<hr>
+<a href=.html><img src=la.gif></a>
+<a href=.html><img src=ra.gif></a><p>
+<i>Return to <a href=index.html> Zeb Help Index</i></a>

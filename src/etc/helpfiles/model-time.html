@@ -1,0 +1,128 @@
+<title>Model Data in Zeb</title>
+<h2>Model Data in Zeb</h2>
+<hr>
+
+<h3>Times for Model Data: Issue Time and Valid Time</h3>
+
+One significant difference between dealing with observed and model data is
+in specifying the time of the data to be displayed. With observed data,
+only one time is associated with each datum: the time at which the
+observation was made. (This is a simplification since not all observations
+are instantaneous; e.g., a satellite may take many minutes to scan a
+complete image. However, for purposes of Zeb, one time is assigned to each
+observed datum.) However, with model data two times are used to identify a
+datum: an issue time and a valid time. The issue time of a model run is the
+time for which the run was initialized, essentially the time at which the
+model was run. A given run may then be comprised of a number of different
+forecasts, each with a time offset from the issue time of the model
+run. Adding an individual forecast's offset to the issue time of the run
+gives the valid time for that forecast.<p>
+
+<h3>Time Correspondence Between Observed and Model Data</h3>	
+
+In comparing observed data with model data in Zeb, a choice must be made
+regarding how to align times, since the observed data can be matched to
+either the issue time or the valid time of model data. The user chooses how
+to match data, but as a rule of thumb, observed data will be matched to the
+valid time of model data when post-processing, and to the issue time of
+model data when working in real-time. <p>
+
+Behind the rule of thumb lie two things. First, in general, the desire is
+to compare a model's prediction to what actually happened when the
+prediction was valid. This means matching observed data to the model valid
+time. In real-time, though, observed data corresponding to model valid time
+are not available, since the valid times are typically sometime in the
+future. This constrains the user to using observed data corresponding to
+the model issue time. <p>
+
+The choice between these two modes of display, matching observed data times
+with model valid or issue times, can be made from the model data widget
+(see below).<p>
+
+In order to remain consistent with the way Zeb has worked in the past, the
+time shown in the upper left of a graphics window will always be the time
+of the observed data in the plot. When model data are present in a plot,
+and the valid time of the model is different from the issue time, a
+separate annotation will be included on the plot indicating the model's
+issue and valid times.<p>
+
+<h3> Model Data Widget</h3>
+
+<img src=model-widget.gif><p>
+
+The model data widget provides a means for controlling most time-related
+parameters associated with a plot of model data. In general, the widget is
+brought up by clicking the right mouse button on any graphics window icon
+associated with model data, and selecting Pop up model widget from the
+resulting menu. The widget will appear essentially as in the figure,
+although the number of frame buttons will vary depending on which model or
+models are currently included in the plot. Included in the diagram is a
+description of function of each of the controls on the model widget.<p>
+<hr>
+<img src=model-widget-title.gif><br>
+<b>Title</b>: tells which graphics process owns this model data widget.<p>
+
+<hr><img src=model-widget-one.gif><br>
+<b> Model Issue Time</b>: change the date and time here when you wish to see a
+different model issue time. The new time is not used until the Apply button
+is used.<p>
+
+<b>Apply Button</b>: this button becomes active whenever the model issue time to
+the left is different from that in the current plot. Press the button to
+apply the new issue time.<p>
+
+<hr><img src=model-widget-two.gif><br>
+
+<img src=model-widget-three.gif>
+<b>Frame Selection Buttons</B>: used to immediately display the associated
+forecast time. The currently displayed frame is highlighted in black. There
+is one button for each forecast time available in one or more of the models
+in the current display.<p>
+
+<img src=model-widget-four.gif>
+<B>Frame Include/Exclude Buttons</b>: toggle whether the associated frame will be
+included or excluded when a loop is executed. Black indicates the frame
+will be included.<p>
+
+<img src=model-widget-five.gif>
+<b>Include All/Exclude All Button</b>: used to immediately toggle all frames to
+either the include or exclude state for a frame loop.<p>
+
+<hr><img src=model-widget-six.gif><br>
+
+<b>Start Loop Button</b>: starts generation of a frame loop.<p>
+
+<b>Stop Loop Button</b>: halts a running frame loop.<p>
+
+<img src=model-widget-seven.gif>
+<b>Frame Step Button</b>: step forward or backward through the forecast times by
+clicking here with the left mouse button (for backward) or the right mouse
+button (or forward).<p>
+
+<hr><img src=model-widget-eight.gif><br>
+
+<b>Valid/Issue Toggles</b>: these buttons toggle whether observational data will
+be selected to match the model issue time or the model valid time. The
+black button indicates the current selection.<p>
+
+<b>Frames/Second</b>: set the desired frame rate for the loop here. It will take
+effect the next time a loop is started.<p>
+
+<b>Dismiss</b>: pop down this widget.<p>
+
+<h3>Other Model Controls</h3>
+
+For models with many vertical levels, the level displayed is changed using
+the up and down cursor keys on the keyboard. It is also possible to use the
+PageUp and PageDown keys to move immediately to the highest or lowest level
+of the model, respectively.<p>
+
+
+<a href=.html><img src=la.gif></a>
+<a href=.html><img src=ra.gif></a><p>
+<i>Return to <a href=index.html> Zeb Help Index</i></a>
+
+
+
+
+

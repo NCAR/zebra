@@ -1,0 +1,75 @@
+<title>Starting Zeb</title>
+<h2>Starting Zeb</h2>
+<hr>
+
+Documentation on obtaining the Zeb software and installation can be found
+in the <a href=../../../zebdoc/Install.html> Zeb release notes, installation,
+and tutorial</A> option off the <a href=../../../zeb.html>Zeb home page</a>.<p>
+
+Once Zeb is loaded onto your system, type <code>startzeb</code>	in a free
+window.  Note: Do not run startzeb in background.  
+<p>
+The <code>startzeb</code> command
+starts up zeb through the following series of steps:
+
+<ul>
+<li> The first step is to try to find the project directory.  If
+     <code>startzeb</code> is given a parameter on the command line, it is
+     expected to be the project directory.  If not, <code>startzeb</code>
+     first checks to see if the current directory is a project directory.
+     Failing that, the user will be prompted for the name of the directory
+     to use.
+<li> Next <code>startzeb</code> needs to find the data directory.  If the
+     environment variable <code>DATA_DIR</code> is set then its value will
+     be used; otherwise the user is prompted.
+<li> Finally, all of the zeb processes are started up with a properly
+     configured environment.  Some project configurations include special
+     startup code which will also be run by <code>startzeb</code>.  For
+     example, the STORMFEST configuration has code to deal with the
+     possible existence of a CDROM on the system.
+</ul>
+
+<code>startzeb</code> has numerous other options controlled mostly through
+environment variables.  These are mostly of use to zeb developers and are
+beyond the scope of this tutorial.
+
+<h3>What happens when zeb starts up</h3>
+
+Zeb is made up of several processes which must be running for things to
+work properly.  What you will see initially is the <code>startzeb</code>
+command starting up all of these processes.  You will see output like:
+<blockquote> <pre><code> Project dir is .  182 colors tweaked Starting core
+zeb processes:
+        message daemon [1] 4731
+        event logger [2] 4734
+        timer [3] 4736
+[4] 4739
+Loading:
+     ...plot descriptions...
+     ...button maps...
+     ...display configurations ...
+     ...ISS active area code ...
+     ...the icon bar...
+ready!
+DM> 
+</code></pre>
+</blockquote>
+The last line is the display manager prompt.  You may type commands at that
+prompt.<p>
+
+A set of windows will come up on the workstation.  The set of windows
+displayed is dependant on the "DEFAULT_CONFIG" environment variable.  In
+general the <a href=event-logger.html>Event Logger</a>, <a
+href=iconbar.html>IconBar </a>, and a <a href=graphic-windows.html>
+Graphics Window </a> will be displayed.
+
+
+<hr>
+<a href=intro.html><img src=la.gif></a>
+<a href=shut-down.html><img src=ra.gif></a><p>
+<i>Return to <a href=index.html> Zeb Help Index</i></a>
+
+
+
+
+
