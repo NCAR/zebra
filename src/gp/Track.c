@@ -32,21 +32,24 @@
 # include <string.h>
 # include <signal.h>
 # include <math.h>
-# include "defs.h"
-# include "pd.h"
-# include "message.h"
-# include "DataStore.h"
-# include "GraphicsW.h"
+# include <defs.h>
+# include <draw.h>
+# include <pd.h>
+# include <message.h>
+# include <DataStore.h>
+# include <GraphicsW.h>
+
 # include "GC.h"
 # include "GraphProc.h"
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-# ifndef lint
-MAKE_RCSID ("$Id: Track.c,v 2.34 1995-06-09 17:10:41 granger Exp $")
-# endif
+RCSID ("$Id: Track.c,v 2.35 1995-06-29 23:29:53 granger Exp $")
 
 # define ARROWANG .2618 /* PI/12 */
+# ifndef M_PI
+# define M_PI 3.14159265358979323846
+# endif
 
 /*
  * Forwards.
@@ -66,6 +69,8 @@ static float tr_FigureRot FP ((double, double, double, double, int *));
 static int tr_LocateAnnot FP ((DataChunk *dc, int sample,
 			       ZebTime *a_time, int *x, int *y, 
 			       float *rot, int *justify));
+static int tr_GetParam FP ((char *comp, char *param, char *qual, 
+			    char *target, int type));
 
 
 static float
@@ -109,7 +114,7 @@ bool update;
 	bool arrow, showposition, annot_time;
 	bool mono, shifted, a_invert, autoscale;
 	ZebTime begin, zt;
-	float *data, base, incr, a_scale;
+	float base, incr, a_scale;
 	float unitlen, center, step;
 	Drawable d;
 	XColor xc, *colors, outrange, a_clr;
@@ -1029,7 +1034,7 @@ char *a_type;
 
 
 
-
+static int
 tr_GetParam (comp, param, qual, target, type)
 char *comp, *param, *qual, *target;
 int type;

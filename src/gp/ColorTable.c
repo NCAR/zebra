@@ -1,7 +1,6 @@
 /*
  * Color control / display manager interface code.
  */
-static char *rcsid = "$Id: ColorTable.c,v 2.5 1995-04-17 21:09:17 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -30,8 +29,7 @@ static char *rcsid = "$Id: ColorTable.c,v 2.5 1995-04-17 21:09:17 granger Exp $"
 # include <message.h>
 # include "GraphProc.h"
 
-
-
+RCSID ("$Id: ColorTable.c,v 2.6 1995-06-29 23:28:24 granger Exp $")
 
 /*
  * For now, we use a simple bitmap to keep track of the colors that
@@ -49,7 +47,7 @@ static int MaxAlloc = 0;
  */
 static inline void
 ct_MarkColor (color)
-int color;
+Pixel color;
 {
 	Cmap[color/8] |= BitMap[color & 0x7];
 	if (color > MaxAlloc)
@@ -101,6 +99,7 @@ static int ct_GetDMResponse FP((struct message *, struct dm_ctable **));
 #endif
 
 
+void
 ct_Init ()
 /*
  * Initialize the color table code.

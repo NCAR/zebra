@@ -1,7 +1,6 @@
 /*
  * The graphics process event/processing queue system.
  */
-static char *rcsid = "$Id: EventQueue.c,v 2.6 1995-04-17 21:22:10 granger Exp $";
 /*		Copyright (C) 1993 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -27,6 +26,8 @@ static char *rcsid = "$Id: EventQueue.c,v 2.6 1995-04-17 21:22:10 granger Exp $"
 # include "message.h"
 # include "GraphProc.h"
 # include "EventQueue.h"
+
+RCSID ("$Id: EventQueue.c,v 2.7 1995-06-29 23:28:37 granger Exp $")
 
 /*
  * The event queue consists of actions to be performed -- as represented by

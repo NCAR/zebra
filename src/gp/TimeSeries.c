@@ -1,7 +1,6 @@
 /*
  * Time Series Plotting
  */
-static char *rcsid = "$Id: TimeSeries.c,v 2.16 1994-11-19 00:35:41 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -26,6 +25,8 @@ static char *rcsid = "$Id: TimeSeries.c,v 2.16 1994-11-19 00:35:41 burghart Exp 
 # include <math.h>
 # include <ctype.h>
 # include <time.h>
+# include <unistd.h>
+
 # include <X11/Intrinsic.h>
 # include <ui.h> 
 # include <ui_date.h>
@@ -33,11 +34,14 @@ static char *rcsid = "$Id: TimeSeries.c,v 2.16 1994-11-19 00:35:41 burghart Exp 
 # include <pd.h>
 # include <message.h>
 # include <DataStore.h>
+# include <GraphicsW.h>
 # include "GC.h"
 # include "GraphProc.h"
 # include "PixelCoord.h"
 # include "DrawText.h"
 # include "EventQueue.h"
+
+RCSID("$Id: TimeSeries.c,v 2.17 1995-06-29 23:29:49 granger Exp $")
 
 /*
  * General definitions
@@ -721,10 +725,9 @@ int	nstep;
  */
 {
 	Display	*disp = XtDisplay (Graphics);
-	float	begin_x, tick, tickinc;
+	float	tick, tickinc;
 	long	sec, secinc;
 	ZebTime	first;
-	int	i;
 	XPoint	pts[2];
 	Drawable	d = GWFrame (Graphics);
 
@@ -819,7 +822,7 @@ long	*step;
  *	step:	tick step
  */
 {
-	long	span, diff;
+	long	span;
 	short	i, nstep;
 	struct tm	*tm;
 #if defined(SVR4) || defined(SYSV)
@@ -842,8 +845,10 @@ long	*step;
 #if defined(SVR4) || defined(SYSV)
         strcpy (tz, "TZ=GMT");
         putenv (tz);
+#ifdef notdef
         timezone = 0;
         daylight = 0;
+#endif
         zt.tm_wday = zt.tm_yday = 0;
         zt.tm_isdst = -1;
 
@@ -851,7 +856,6 @@ long	*step;
 #else
 	first->zt_Sec = timegm (tm);
 #endif
-
 
 	nstep = (begin->zt_Sec - first->zt_Sec) / *step;
 	first->zt_Sec += nstep * (*step);

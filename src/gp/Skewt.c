@@ -1,7 +1,7 @@
 /*
  * Skew-t plotting module
  */
-static char *rcsid = "$Id: Skewt.c,v 2.18 1994-12-09 17:07:41 burghart Exp $";
+
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -28,8 +28,10 @@ static char *rcsid = "$Id: Skewt.c,v 2.18 1994-12-09 17:07:41 burghart Exp $";
 # include <ui.h>
 # include <ui_error.h>
 # include <defs.h>
+# include <draw.h>
 # include <pd.h>
 # include <message.h>
+# include <GraphicsW.h>
 # include <DataStore.h>
 # include <DataChunk.h>
 # include "derive.h"
@@ -37,6 +39,8 @@ static char *rcsid = "$Id: Skewt.c,v 2.18 1994-12-09 17:07:41 burghart Exp $";
 # include "GC.h"
 # include "PixelCoord.h"
 # include "DrawText.h"
+
+RCSID ("$Id: Skewt.c,v 2.19 1995-06-29 23:29:46 granger Exp $")
 
 /*
  * General definitions
@@ -130,7 +134,7 @@ bool	update;
  */
 {
 	bool		ok;
-	int		plat, n, i, nplat, nwplat;
+	int		plat, nplat, nwplat;
 	char		ctname[24], tadefcolor[32], style[16];
 	char		platforms[PlatformListLen];
 	char		windplats[PlatformListLen];

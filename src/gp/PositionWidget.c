@@ -1,7 +1,7 @@
 /*
  * Widget for getting position of cursor.
  */
-static char *rcsid = "$Id: PositionWidget.c,v 1.18 1995-04-17 22:16:22 granger Exp $";
+
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -33,8 +33,11 @@ static char *rcsid = "$Id: PositionWidget.c,v 1.18 1995-04-17 22:16:22 granger E
 # include <message.h>
 # include <pd.h>
 # include <GraphicsW.h>
+# include <bitmaps.h>
 # include "PixelCoord.h"
 # include "GraphProc.h"
+
+RCSID ("$Id: PositionWidget.c,v 1.19 1995-06-29 23:29:40 granger Exp $")
 
 # define PI 3.141592654
 # define MAXORG 20
@@ -43,7 +46,6 @@ static Widget 	PosLabel = NULL, DMSButton, OrgText, OrgLabel;
 static Widget	KNButton;
 static char	GPOrigin[40];
 static int 	PWMade = FALSE, DegMinSec = TRUE, DoNm = TRUE;
-static int 	NOrg;
 static int	CursorX = 0, 
 	        CursorY = 0; 		/* Location of last XQueryPointer  */
 static int	CursorValid = FALSE;	/* X,Y have been set and are valid */
@@ -51,8 +53,9 @@ static int	CursorValid = FALSE;	/* X,Y have been set and are valid */
 /*
  * Forward declarations
  */
-static void pw_PosPopup ();
+#ifdef notdef
 static void pw_PosPopdown FP((Widget, int, int));
+#endif
 void pw_PosStatus ();
 static void pw_PosDisplay ();
 void pw_InitPos();
@@ -72,6 +75,7 @@ static XtActionsRec pw_Actions[] =
 };
 
 
+#ifdef notdef /* not used */
 static void
 pw_PosPopdown (w, junk1, junk2)
 Widget 	w; 
@@ -82,6 +86,7 @@ int 	junk1, junk2;
 {
 	uw_popdown ("position");
 }
+#endif
 
 
 void

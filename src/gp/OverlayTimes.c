@@ -33,7 +33,7 @@
 # include <dm.h>
 # include "GraphProc.h"
 
-RCSID("$Id: OverlayTimes.c,v 2.5 1995-04-17 22:12:48 granger Exp $")
+RCSID("$Id: OverlayTimes.c,v 2.6 1995-06-29 23:29:22 granger Exp $")
 
 static Widget	OTWidget = NULL;
 static char	OTString[1024];
@@ -144,7 +144,7 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNright, XtChainLeft); n++;
 	w = XtCreateManagedWidget ("overlayDismiss", commandWidgetClass, form,
 		args, n);
-	XtAddCallback (w, XtNcallback, ot_Dismiss, 0);
+	XtAddCallback (w, XtNcallback, (XtCallbackProc) ot_Dismiss, 0);
 /*
  * Create an AsciiText widget to hold our info.  The "resizable" resource
  * is a constraint resource available to us because our parent is a Form

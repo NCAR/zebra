@@ -36,8 +36,9 @@
 # include "XYCommon.h"
 # include "AxisControl.h"
 # include "rg_status.h"
+# include "Contour.h"
 
-RCSID("$Id: XYContour.c,v 1.32 1995-04-17 21:20:25 granger Exp $")
+RCSID("$Id: XYContour.c,v 1.33 1995-06-29 23:30:06 granger Exp $")
 
 # define GRID(g,i,j,ydim)   (g[((i) * (ydim)) + (j)])
 

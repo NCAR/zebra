@@ -22,13 +22,15 @@
 # include <X11/Intrinsic.h>
 # include <math.h>
 # include <defs.h>
+# include <draw.h>
 # include <pd.h>
 # include <message.h>
+# include <GraphicsW.h>
 # include "GraphProc.h"
 # include "DrawText.h"
 # include "PixelCoord.h"
 # include "GC.h"
-MAKE_RCSID ("$Id: Annotate.c,v 2.26 1995-04-17 21:08:08 granger Exp $")
+MAKE_RCSID ("$Id: Annotate.c,v 2.27 1995-06-29 23:28:15 granger Exp $")
 
 /*
  * Graphics context (don't use the global one in GC.h because we don't

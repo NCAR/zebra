@@ -1,7 +1,7 @@
 /*
  * Deal with user-originated events.
  */
-static char *rcsid = "$Id: UserEvent.c,v 2.9 1995-04-17 22:18:24 granger Exp $";
+
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -26,11 +26,13 @@ static char *rcsid = "$Id: UserEvent.c,v 2.9 1995-04-17 22:18:24 granger Exp $";
 # include <pd.h>
 # include <dm.h>
 # include <message.h>
+# include <GraphicsW.h>
 # include "GraphProc.h"
 # include "EventQueue.h"
 # include "ActiveArea.h"
 # include "PixelCoord.h"
 
+RCSID("$Id: UserEvent.c,v 2.10 1995-06-29 23:29:56 granger Exp $")
 
 /*
  * The structure which defines the response to a user event, such as a
@@ -83,7 +85,7 @@ static void Ue_HighlightArea FP ((ActiveArea *));
 
 
 
-
+void
 Ue_Init ()
 /*
  * Initialize.
@@ -95,7 +97,7 @@ Ue_Init ()
 
 
 
-
+void
 Ue_NewBinding (dmsg)
 struct dm_ebchange *dmsg;
 /*
@@ -154,8 +156,8 @@ struct dm_ebchange *dmsg;
 
 
 
-
-
+#ifdef notdef
+static void
 Ue_FixTransl (menu, button)
 char *menu, *button;
 /*
@@ -179,7 +181,7 @@ char *menu, *button;
  * a way around it.
  */
 }
-
+#endif /* notdef */
 
 
 
@@ -267,7 +269,6 @@ char *data;
  */
 {
 /*	uw_IWPopup (data); */
-	Widget uw_IWWidget ();
 	Widget w = uw_IWWidget (data);
 
 	XtCallActionProc (w, "XawPositionSimpleMenu", event, &data, 1);
@@ -306,7 +307,7 @@ Cardinal *nparam;
 /*
  * Otherwise look for active areas to deal with.
  */
-	else if (which = aa_Which (xme->x, xme->y))
+	else if ((which = aa_Which (xme->x, xme->y)))
 		Ue_HighlightArea (which);
 	else if (Highlighted)
 		Ue_UnHighlight ();

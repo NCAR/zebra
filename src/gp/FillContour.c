@@ -65,6 +65,7 @@
 # include "GraphProc.h"
 
 # include "Contour.h"
+# include "ContourP.h"
 
 /*
  * Triangle and vertex structures
@@ -99,17 +100,18 @@ int	X0, Y0;
 /*
  * Forward declarations
  */
-void	FC_Init (), FC_MinMax (), FC_DoContour (), FC_AddPoint ();
+void	FC_MinMax (), FC_DoContour (), FC_AddPoint ();
 
 
 
-
+void
 FillContour (w, d, array, xdim, ydim, xlo, ylo, xhi, yhi, ccenter, cstep)
 Widget	w;
 Drawable 	d;
-int	xlo, ylo, xhi, yhi;
-float	*array, ccenter, cstep;
+float	*array;
 int	xdim, ydim;
+int	xlo, ylo, xhi, yhi;
+double	ccenter, cstep;
 /*
  * Draw filled contours of the rectangular (xdim x ydim) array into 
  * widget w.  The coordinates (xlo,ylo) and (xhi,yhi) specify the 
@@ -209,7 +211,7 @@ FC_Init (colors, count, center, c_outrange, clip, flagged, flagval)
 int	center, count, flagged;
 XColor	*colors, *c_outrange;
 XRectangle	clip;
-float	flagval;
+double	flagval;
 /*
  * Initialize colors and data flagging
  *

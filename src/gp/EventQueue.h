@@ -41,6 +41,7 @@ typedef enum {
 
 void Eq_AddEvent FP ((EQpriority pri, void (*proc) (), void *data, int len,
 	EQoverride override));
+int Eq_Execute FP ((void));
 void Eq_ZapProc FP ((EQpriority pri, void (*proc) ()));
 void Eq_HoldProcess FP ((void));
 void Eq_ReleaseHold FP ((void));

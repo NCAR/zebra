@@ -32,7 +32,7 @@
 # include "GraphProc.h"
 # include "LayoutControl.h"
 
-RCSID("$Id: LayoutControl.c,v 1.11 1995-04-17 22:10:32 granger Exp $")
+RCSID("$Id: LayoutControl.c,v 1.12 1995-06-29 23:28:59 granger Exp $")
 
 /*
  * This set of routines maintains the division of the (NDC) coordinate
@@ -122,6 +122,7 @@ ScaleStack *ZoomTail[4] = {NULL, NULL, NULL, NULL};
 int	Zlevel = 0;
 
 
+static void lc_ComputeZoom FP ((DataValPtr bottom, DataValPtr top, int dim));
 
 
 void
@@ -344,6 +345,9 @@ int	pixSize;
 		FX1 = AxisX0[axis] = AxisX1[axis] - 
 			(float) pixSize / (float) GWWidth (Graphics);
 		break;
+	   default:
+		msg_ELog (EF_PROBLEM, "axis type trashed; invalid side");
+		break;
 	}
 }
 
@@ -486,10 +490,10 @@ DataValPtr xleft, xright, ybottom, ytop;
 
 
 
-int
+static void
 lc_ComputeZoom (bottom, top, dim)
 DataValPtr	bottom, top;
-char dim;
+int dim;
 {
    float	ftop, fbottom;
    float	adjbottom, adjtop;
@@ -519,7 +523,6 @@ char dim;
       default:
         msg_ELog (EF_PROBLEM, "ComputeZoom: unknown dimension '%c'", dim);
 	return;
-      break;
    }
 
    while (zsBottom && zsTop) {
@@ -618,7 +621,6 @@ DataValPtr xleft, xright, ybottom, ytop;
 	        msg_ELog (EF_PROBLEM, 
 			"Unknown type for x user coordinate system");
         	return;
-	    break;
         }
 	OUX0 = *xleft; OUX1 = *xright;
 	UX0 = *xleft; UX1 = *xright;
@@ -656,7 +658,6 @@ DataValPtr xleft, xright, ybottom, ytop;
 	        msg_ELog (EF_PROBLEM, 
 			"Unknown type for y user coordinate system");
         	return;
-	    break;
         }
 	OUY0 = *ybottom; OUY1 = *ytop;
 	UY0 = *ybottom; UY1 = *ytop;
@@ -795,6 +796,8 @@ DataValPtr user_y;
 	case DeviceTrans:
 	    dev_y = (int) y;
 	break;
+       default:
+	    break;
     }
 
     return (dev_y);
@@ -845,6 +848,8 @@ DataValPtr user_x;
 	case DeviceTrans:
 	    dev_x = (int) x;
 	break;
+       default:
+	    break;
     }
 
     return (dev_x);
@@ -888,6 +893,8 @@ int dev_x;
 	case DeviceTrans:
 	        x = (float) dev_x;
 	break;
+       default:
+	    break;
     }
 
     switch (user_x.type = UX0.type)
@@ -948,6 +955,8 @@ int dev_y;
 	case DeviceTrans:
 	    uy = (float) dev_y;
 	break;
+       default:
+	    break;
     }
 
     switch (user_y.type = UY0.type)

@@ -141,10 +141,13 @@ typedef struct DataVal_
 typedef enum {DataTrans, DeviceTrans, IconTrans, LegendTrans,
 	       ATTrans, ARTrans, ALTrans, ABTrans} TransRegion;
 
+extern void	lc_Init FP ((void));
 extern void	lc_SetAxisSpace FP ((AxisSide, int));
 extern void	lc_SetIconSpace FP ((int));
 extern void	lc_SetLegendSpace FP ((int));
 extern void	lc_SetAnnotateSpace FP ((int));
+extern void	lc_SetBaseUserCoord FP ((DataValPtr xleft, DataValPtr xright,
+					 DataValPtr ybottom, DataValPtr ytop));
 extern void	lc_SetUserCoord FP ((DataValPtr, DataValPtr, DataValPtr,
 				     DataValPtr));
 extern void	lc_GetUserCoord FP ((DataValPtr, DataValPtr, DataValPtr,
@@ -155,6 +158,7 @@ extern void	lc_IncrData FP ((DataValPtr, double));
 extern int	lc_CompareData FP ((DataValPtr, DataValPtr));
 extern void	lc_Zoom FP ((double, double, double, double));
 extern int	lc_UnZoom FP ((int));
+extern void	lc_LoadZoom FP ((void));
 extern int	devY FP ((DataValPtr));
 extern int	devX FP ((DataValPtr));
 extern DataValRec	userX FP ((int));

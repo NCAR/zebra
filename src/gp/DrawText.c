@@ -3,7 +3,6 @@
  * draw the text ourselves using a stroke font.  We need this so we can use 
  * rotated text.
  */
-static char *rcsid = "$Id: DrawText.c,v 2.10 1994-11-19 00:34:41 burghart Exp $";
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -24,11 +23,14 @@ static char *rcsid = "$Id: DrawText.c,v 2.10 1994-11-19 00:34:41 burghart Exp $"
  */
 
 # include <math.h>
+# include <unistd.h>
 # include <X11/Intrinsic.h>
 # include <ui.h>
 # include <defs.h>
 # include <message.h>
 # include "DrawText.h"
+
+RCSID("$Id: DrawText.c,v 2.11 1995-06-29 23:28:33 granger Exp $")
 
 # ifndef __STDC__
 #  ifndef sgi
@@ -123,7 +125,7 @@ float	rot, scale;
 	if (scale > 1.0)
 	{
 		cheight = (int) scale;
-		scale /= geom.height;
+		scale /= (int)geom.height;
 	}
 	else
 		cheight = (int)(scale * geom.height);
@@ -211,6 +213,8 @@ int	*width, *hoffset, *voffset;
 }
 
 
+
+void
 dt_SetBlankLabel(flag)
 int flag;
 {
@@ -275,7 +279,7 @@ float	rot, scale;
 /*
  * Find the pixel scale factor based on character height
  */
-	pixscale = scale * geom.height / textheight;
+	pixscale = scale * (float) geom.height / textheight;
 /*
  * Initialize the text position
  */
@@ -324,7 +328,7 @@ float	rot, scale;
 	/*
 	 * Locate the vector info.
 	 */
-	 	cp = Gt_sf_1[*text++];
+	 	cp = Gt_sf_1[(int)*text++];
 		cdata = cp + 4;
 	/*
 	 * Now step through and draw the lines.
@@ -428,7 +432,7 @@ int	*sx, *sy, *ex, *ey;
 	if (scale > 1.0)
 	{
 		cheight = (int) scale;
-		scale /= geom.height;
+		scale /= (float) geom.height;
 	}
 	else
 		cheight = (int)(scale * geom.height);
@@ -508,7 +512,7 @@ float	*xoffset, *yoffset, *width, *height;
 	*width = 0.0;
 	while (*text)
 	{
-		cp = Gt_sf_1[*text++];
+		cp = Gt_sf_1[(int)*text++];
 		*width += (float)(cp[3] - cp[2]);
 	}
 /*
@@ -578,7 +582,6 @@ int	*actual;
  */
 	if (! Fontnames)
 	{
-		char	*getenv ();
 		char	*pattern = getenv ("XFONTPATTERN") ? 
 				getenv ("XFONTPATTERN") : FONTPAT;
 	/*
@@ -673,7 +676,7 @@ int lines;
 	if (scale > 1.0)
 	{
 		cheight = (int) scale;
-		scale /= geom.height;
+		scale /= (int)geom.height;
 	}
 	else
 		cheight = (int)(scale * geom.height);

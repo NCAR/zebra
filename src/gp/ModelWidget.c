@@ -37,7 +37,7 @@
 # include "GraphProc.h"
 # include "EventQueue.h"
 
-RCSID("$Id: ModelWidget.c,v 2.8 1995-04-17 22:11:47 granger Exp $")
+RCSID("$Id: ModelWidget.c,v 2.9 1995-06-29 23:29:10 granger Exp $")
 
 # define MODEL_NAME	"model" /* Name of the movie controller widget  */
 
@@ -63,8 +63,10 @@ static int	Foffsets[NCACHE];	/* Forecast offset for each frame */
 static int 	Nframes = 0;		/* Number of frames in the loop	*/
 static int 	TimerSlot = -1;
 static int 	Rate;			/* Display Rate frames/second	*/
+#ifdef notdef
 static bool 	Notification = FALSE;
 static ZebTime 	NotTime;
+#endif
 static ZebTime	IssueTime;		/* Issue time for model data	*/
 
 /*
@@ -140,7 +142,7 @@ XtAppContext appc;
 		"<Btn1Down>,<Btn1Up>: toggle() notify() ShowFrame()";
 	static XtActionsRec	actions[] = {{"FrameStep", mw_FrameStep},
 					     {"ShowFrame", mw_FrameAction}};
-	static char		allnone_bits[] = 
+	static unsigned char	allnone_bits[] = 
 	{
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0xff, 0x9f, 
 		0xfd, 0x7f, 0x11, 0x91, 0xfd, 0x7f, 0x11, 0xd1, 0xfc, 0x7f, 
@@ -283,7 +285,7 @@ XtAppContext appc;
  */
 	pm = XCreateBitmapFromData (XtDisplay (parent), 
 				    RootWindowOfScreen (XtScreen (parent)), 
-				    allnone_bits, 31, 8);
+				    (const char *) allnone_bits, 31, 8);
 
 	n = 0;
 	XtSetArg (args[n], XtNfromVert, above); n++;

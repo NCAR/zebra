@@ -19,8 +19,5 @@
  * maintenance or updates for its software.
  */
 
-# ifdef __STDC__
-	void lle_AddFD (int fd, void (*proc) ());
-# else
-	void lle_AddFD ();
-# endif
+extern void lle_AddFD FP ((int fd, void (*proc) ()));
+extern void lle_MainLoop FP ((void));

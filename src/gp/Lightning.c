@@ -1,7 +1,7 @@
 /*
  * Locaton display routine.
  */
-static char *rcsid = "$Id: Lightning.c,v 2.9 1994-04-15 21:26:07 burghart Exp $";
+
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -27,6 +27,7 @@ static char *rcsid = "$Id: Lightning.c,v 2.9 1994-04-15 21:26:07 burghart Exp $"
 # include <defs.h>
 # include <pd.h>
 # include <message.h>
+# include <GraphicsW.h>
 # include <DataStore.h>
 # include <DataChunk.h>
 # include <ui_date.h>
@@ -34,6 +35,8 @@ static char *rcsid = "$Id: Lightning.c,v 2.9 1994-04-15 21:26:07 burghart Exp $"
 # include "GraphProc.h"
 # include "PixelCoord.h"
 # include "DrawText.h"
+
+RCSID("$Id: Lightning.c,v 2.10 1995-06-29 23:29:06 granger Exp $")
 
 extern Pixel	White;
 

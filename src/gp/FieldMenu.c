@@ -36,7 +36,7 @@
 # include <DataStore.h>
 # include <ui_date.h>
 # include "GraphProc.h"
-MAKE_RCSID ("$Id: FieldMenu.c,v 2.13 1995-04-17 21:50:53 granger Exp $")
+MAKE_RCSID ("$Id: FieldMenu.c,v 2.14 1995-06-29 23:28:42 granger Exp $")
 
 
 /*
@@ -172,8 +172,8 @@ XtPointer junk, junk1;
  * If we don't have the star pixmap, get it now.
  */
 	if (! Star)
-		Star = XCreateBitmapFromData (Disp, XtWindow (Menu), Star_bits,
-			Star_width, Star_height);
+		Star = XCreateBitmapFromData (Disp, XtWindow (Menu), 
+		      (const char *)Star_bits, Star_width, Star_height);
 	pd_Retrieve (Pd, IComp, "field", field, SYMT_STRING);
 /*
  * Go through and make the labels for each one.

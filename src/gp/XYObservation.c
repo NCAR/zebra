@@ -31,6 +31,7 @@
 # include <pd.h>
 # include <time.h>
 # include <message.h>
+# include <GraphicsW.h>
 # include <DataStore.h>
 # include "derive.h"
 # include "GraphProc.h"
@@ -42,7 +43,7 @@
 # include "DrawText.h"
 # include "PlotPrim.h"
 
-RCSID ("$Id: XYObservation.c,v 1.17 1995-05-05 22:46:30 granger Exp $")
+RCSID ("$Id: XYObservation.c,v 1.18 1995-06-29 23:30:13 granger Exp $")
 
 /*
  * Enum to tell how we anchor z values
@@ -78,7 +79,7 @@ bool	update;
 	char	platforms[PlatformListLen], *pnames[MaxPlatforms];
 	char	xflds[FieldListLen], yflds[FieldListLen], zflds[FieldListLen];
 	char	*xfnames[MaxFields], *yfnames[MaxFields], *zfnames[MaxFields];
-	char	label[40], style[20], zJustify[10], annotcontrol[80];
+	char	label[40], style[20], zJustify[10];
 	char	xtype, ytype, ztype;
 	ZebTime	eTimeTarget, bTimeTarget, bTimeOld, eTimeOld;
 	ZebTime	eTimeReq, bTimeReq;
@@ -535,7 +536,7 @@ float zscale;
  * Main annotation stuff.
  */
 	pda_Search (Pd, c, "sa-scale", NULL, (char *) &scale, SYMT_FLOAT);
-	sprintf (label, "line|%d|%s|%s|%s|%s", color, plat, xfield, yfield,
+	sprintf (label, "line|%li|%s|%s|%s|%s", color, plat, xfield, yfield,
 			zfield);
 	if (pda_Search (Pd, c, "dimensions", NULL, dimns, SYMT_STRING))
 		sprintf (label+strlen(label), "(%s)", dimns);
@@ -567,7 +568,7 @@ float zscale;
 	if (! pda_Search (Pd, c, "z-ruler", "xy-obs", (char *) &doscale,
 			SYMT_BOOL) || doscale)
 	{
-		sprintf (label, "%f %d %d %s", zscale, F_PIX_WIDTH, color,
+		sprintf (label, "%f %d %li %s", zscale, F_PIX_WIDTH, color,
 				zfield);
 		An_AddAnnotProc (An_ColorScale, c,  label, strlen (label) + 1,
 				40, FALSE, FALSE);

@@ -22,7 +22,7 @@
 # include <config.h>
 # include <defs.h>
 
-RCSID("$Id: Overlay.c,v 2.43 1995-06-12 14:30:22 granger Exp $")
+RCSID("$Id: Overlay.c,v 2.44 1995-06-29 23:29:19 granger Exp $")
 
 /* 
  * Since the annotate widget uses ov_PositionIcon, and the annotate widget is
@@ -38,7 +38,17 @@ RCSID("$Id: Overlay.c,v 2.43 1995-06-12 14:30:22 granger Exp $")
 
 # include <stdio.h>
 # include <X11/Intrinsic.h>
+/* take the atof and strtod prototypes from stdlib.h (included by defs.h)
+ * rather than floatingpoint.h (included by math.h) */
+#ifdef SVR4
+# define strtod __strtod_fp_h
+# define atof __atof_fp_h
+#endif
 # include <math.h>
+#ifdef SVR4
+# undef strtod
+# undef atof
+#endif
 # include <string.h>
 # include <pd.h>
 # include <GraphicsW.h>
@@ -50,6 +60,10 @@ RCSID("$Id: Overlay.c,v 2.43 1995-06-12 14:30:22 granger Exp $")
 # include "PixelCoord.h"
 # include "DrawText.h"
 # include "gp_cmds.h"
+
+# ifndef M_PI
+# define M_PI 3.14159265358979323846
+# endif
 
 /*
  * Stuff for locations and other things needing icons.

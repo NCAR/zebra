@@ -24,10 +24,11 @@
 
 # include <defs.h>
 # include <message.h>
+# include "GraphProc.h"
 # include "EventQueue.h"
 # include "LLEvent.h"
 
-RCSID ("$Id: LLEvent.c,v 2.2 1995-05-05 17:44:48 granger Exp $")
+RCSID ("$Id: LLEvent.c,v 2.3 1995-06-29 23:28:53 granger Exp $")
 
 /*
  * The master fd_set, which always holds the list of FD's that we are watching.
@@ -38,6 +39,7 @@ static int Mfd_width = 0;
 typedef void (*vfptr) ();
 static vfptr Procs[256];
 
+static void lle_DoInput FP((int block));
 
 void
 lle_AddFD (fd, proc)
@@ -61,7 +63,7 @@ void (*proc) ();
 
 
 
-
+void
 lle_MainLoop ()
 /*
  * Run the main loop.
@@ -86,7 +88,7 @@ lle_MainLoop ()
 
 
 
-
+static void
 lle_DoInput (block)
 int block;
 /*

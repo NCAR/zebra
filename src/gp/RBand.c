@@ -29,11 +29,14 @@
 # include <defs.h>
 # include <pd.h>
 # include <message.h>
+# include <timer.h>
+# include <GraphicsW.h>
 # include <DataStore.h>
 # include "GraphProc.h"
 # include "PixelCoord.h"
+# include "EventQueue.h"
 
-RCSID("$Id: RBand.c,v 2.11 1995-04-17 22:16:41 granger Exp $")
+RCSID("$Id: RBand.c,v 2.12 1995-06-29 23:29:43 granger Exp $")
 
 /*
  * Types of things we can rubber band
@@ -93,7 +96,7 @@ XPoint		Point;
 /*
  * Forwards
  */
-static int rb_MakeGC FP((void));
+static void rb_MakeGC FP((void));
 static void rb_Init FP((struct ui_command *));
 static void rb_Draw FP((void));
 static void rb_ButtonUp FP((XEvent *));
@@ -205,7 +208,7 @@ struct ui_command *cmds;
 
 
 
-static int
+static void
 rb_MakeGC ()
 /*
  * Create the rubber band GC.
@@ -239,7 +242,7 @@ rb_MakeGC ()
 	gcv.function = GXxor;
 	gcv.subwindow_mode = IncludeInferiors;
 	RBandGC = XCreateGC (Disp, XtWindow (Graphics),
-		GCLineWidth | GCFunction | GCForeground | GCSubwindowMode, &gcv);
+	   GCLineWidth | GCFunction | GCForeground | GCSubwindowMode, &gcv);
 }
 
 

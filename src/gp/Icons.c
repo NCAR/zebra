@@ -32,10 +32,11 @@
 # include <defs.h>
 # include <pd.h>
 # include <message.h>
+# include <timer.h>
 # include <DataStore.h>
 # include <GraphicsW.h>
 
-RCSID("$Id: Icons.c,v 2.25 1995-04-17 22:08:06 granger Exp $")
+RCSID("$Id: Icons.c,v 2.26 1995-06-29 23:28:47 granger Exp $")
 
 # include "GraphProc.h"
 # include "ActiveArea.h"
@@ -733,9 +734,9 @@ Widget w;
 
 	sw = WidthOfScreen (XtScreen(w));
 	sh = HeightOfScreen (XtScreen(w));
-	if (x - 5 + width + 2*border > sw)
+	if (x - 5 + width + 2*border > (unsigned) sw)
 		x -= width + 2*border;
-	if (y - 5 + height + 2*border > sh)
+	if (y - 5 + height + 2*border > (unsigned) sh)
 		y = sh - height - 2*border;
 
 	/*

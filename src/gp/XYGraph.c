@@ -1,7 +1,7 @@
 /*
  * XY-Graph plotting module
  */
-static char *rcsid = "$Id: XYGraph.c,v 1.32 1995-05-02 20:34:58 corbet Exp $";
+
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -40,7 +40,10 @@ static char *rcsid = "$Id: XYGraph.c,v 1.32 1995-05-02 20:34:58 corbet Exp $";
 # include "XYCommon.h"
 # include "AxisControl.h"
 # include "PlotPrim.h"
+# include "DrawText.h"
 # include "ui_date.h"
+
+RCSID ("$Id: XYGraph.c,v 1.33 1995-06-29 23:30:09 granger Exp $")
 
 /*
  * Prototypes
@@ -348,7 +351,7 @@ ZebTime *time;
  * Throw together the basic info.
  */
 	pda_Search (Pd, c, "sa-scale", NULL, (char *) &scale, SYMT_FLOAT);
-	sprintf(label, "%s|%d|%s|%s|%s", style, color, plat, xfield, yfield);
+	sprintf(label, "%s|%li|%s|%s|%s", style, color, plat, xfield, yfield);
 	if (pda_Search (Pd, c, "dimensions", NULL, dimns, SYMT_STRING))
 		sprintf (label+strlen(label), "(%s)", dimns);
 /*

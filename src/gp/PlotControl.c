@@ -1,7 +1,7 @@
 /*
  * Window plot control routines.
  */
-static char *rcsid = "$Id: PlotControl.c,v 2.34 1995-06-22 15:47:33 burghart Exp $";
+
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -32,14 +32,15 @@ static char *rcsid = "$Id: PlotControl.c,v 2.34 1995-06-22 15:47:33 burghart Exp
 # include "EventQueue.h"
 # include "LayoutControl.h"
 # include "PixelCoord.h"
+# include "ActiveArea.h"
 
+RCSID("$Id: PlotControl.c,v 2.35 1995-06-29 23:29:27 granger Exp $")
 
 int		pc_TimeTrigger FP ((char *));
 void		pc_TriggerGlobal FP (());
 static void	pc_SetTimeTrigger FP ((int, char *));
 static void	pc_PlotAlarm FP ((UItime *, char *));
 static void	pc_Plot FP ((char *));
-static void	pc_NextFrame FP (());
 static void	pc_Notification FP ((PlatformId, int, ZebTime *,
 				     int nsample, UpdCode ucode));
 static void	pc_DoTrigger FP ((char *, char *, int));
@@ -373,7 +374,7 @@ int index;
 /*
  * Try to interpret the trigger as a time.
  */
-	if (seconds = pc_TimeTrigger (trigger))
+	if ((seconds = pc_TimeTrigger (trigger)))
 	{
 		pc_SetTimeTrigger (seconds, comp);
 		return;
@@ -589,7 +590,6 @@ float x0, y0, x1, y1;
  * Actually store these coords.
  */
 {
-	extern void eq_ReturnPD ();
 	float temp;
 /*
  * Put the new stuff in the PD.
@@ -612,6 +612,7 @@ float x0, y0, x1, y1;
 }
 
 
+void
 pc_PushCoords (cmds)
 struct ui_command *cmds;
 /*
@@ -665,6 +666,7 @@ struct ui_command *cmds;
 }
 
 
+void
 pc_PopCoords ()
 /*
  * Pop one level of coords off the stack.
@@ -689,7 +691,7 @@ pc_PopCoords ()
 
 
 
-
+void
 pc_Zoom (cmds)
 struct ui_command *cmds;
 /*
@@ -723,7 +725,7 @@ struct ui_command *cmds;
 
 
 
-
+void
 pc_UnZoom () 
 /*
  * Pop one level of coords off the stack.

@@ -36,7 +36,7 @@
 # include "DrawText.h"
 # include "XYCommon.h"
 
-RCSID("$Id: XYCommon.c,v 1.27 1995-06-09 17:14:01 granger Exp $")
+RCSID("$Id: XYCommon.c,v 1.28 1995-06-29 23:30:02 granger Exp $")
 
 /* 
  * One somewhat reasonable definition for infinity in XDR, lifted from 
@@ -1081,6 +1081,9 @@ int *ndetail;
 		break;
 	   case Org1dGrid:
 		*class = DCC_RGrid;
+		break;
+	   default:
+		msg_ELog (EF_PROBLEM, "xygraph: no class for org %d", *org);
 		break;
 	}
 	return ((*class == DCC_None) ? FALSE : TRUE);

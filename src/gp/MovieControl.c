@@ -40,9 +40,10 @@
 # include <GraphicsW.h>
 # include "GraphProc.h"
 # include "EventQueue.h"
+# include "ActiveArea.h"
 # include <ui_date.h>
 
-RCSID ("$Id: MovieControl.c,v 2.22 1995-04-27 15:56:24 granger Exp $")
+RCSID ("$Id: MovieControl.c,v 2.23 1995-06-29 23:29:14 granger Exp $")
 
 # define ATSLEN		80	/* Length for AsciiText strings		*/
 # define FLEN 		40	/* Length of a field string		*/
@@ -142,6 +143,7 @@ static void	mc_Notification FP ((PlatformId, int, ZebTime *));
 static void	mc_MovieDismiss ();
 static void	mc_ChangeTimeUnits FP ((Widget, XtPointer, XtPointer));
 static void	mc_LoadParams FP ((void));
+static void	mc_UpdateWidgets FP ((void));
 
 
 void
@@ -266,7 +268,7 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNlabel, "Stop"); n++;
 	w = XtCreateManagedWidget ("movieStop", commandWidgetClass, form,
 		args, n);
-	XtAddCallback (w, XtNcallback, mc_MovieStop, 0);
+	XtAddCallback (w, XtNcallback, (XtCallbackProc) mc_MovieStop, 0);
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, w); n++;
 	XtSetArg (args[n], XtNfromVert, NULL); n++;
@@ -499,6 +501,7 @@ char *string;
 }
 
 
+static void
 mc_UpdateWidgets ()
 /*
  * Make the widgets reflect reality.
@@ -856,7 +859,6 @@ static ZebTime
 mc_FixTime(zt)
 ZebTime zt;
 {
-	int	timestep = TUTable[TimeUnits].scale;
 /*
  * Fix up the time.
  * 10/17/94 jc: I sure wish I knew *why* the time needs to be "fixed up".
@@ -864,6 +866,7 @@ ZebTime zt;
  *		a little weird.  I'm gonna zap it and see what breaks.
  */
 # ifdef notdef
+	int timestep = TUTable[TimeUnits].scale;
 	zt.zt_Sec -= zt.zt_Sec % timestep;
 	zt.zt_Sec += timestep;
 # endif

@@ -1,6 +1,6 @@
 /*
  * Definitions for plot primitives stuff
- * $Id: PlotPrim.h,v 2.1 1993-12-01 17:21:25 burghart Exp $
+ * $Id: PlotPrim.h,v 2.2 1995-06-29 23:29:38 granger Exp $
  */
 /*
  *		Copyright (C) 1993 by UCAR
@@ -37,4 +37,8 @@ void pp_WindVector FP ((DataValPtr, DataValPtr, DataValPtr, DataValPtr,
 void pp_WindBarb FP ((DataValPtr, DataValPtr, DataValPtr, DataValPtr, int, 
 		      int, int, LineStyle, XColor*, int, double, int));
 void pp_Icons FP ((DataValPtr, DataValPtr, int, char*, Pixel, char*, char*));
+void pp_HLStoRGB FP ((float *r, float *g, float *b, 
+		      double h, double l, double s));
+void pp_RGBtoHLS FP ((double r, double g, double b, /* range [0,1] */
+		      float *h, float *l, float *s));
 

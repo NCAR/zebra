@@ -43,7 +43,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 
-RCSID("$Id: InsertWidget.c,v 1.7 1995-04-17 22:10:07 granger Exp $")
+RCSID("$Id: InsertWidget.c,v 1.8 1995-06-29 23:28:50 granger Exp $")
 
 # define PI		3.141592654
 # define STRLEN		40
@@ -143,9 +143,11 @@ static Widget 	TimeText;		/* Time ascii text widget	*/
 static Widget 	InsertMenu;		/* Menu of insertable platforms */
 static Widget 	InsertEntries[MAXENTRY];/* Entries in the InsertMenu	*/
 static int	InsertNManaged;		/* Number of entries managed	*/
+#ifdef notdef
 static Widget 	IconMenu;		/* Menu of toggle-able icons	*/
 static Widget 	IconEntries[MAXENTRY];	/* Entries in the IconMenu	*/
 static int	IconNManaged;		/* Number of entries managed	*/
+#endif
 static Widget	AttrMenu;		/* Select attributes menu.	*/
 static Widget	AttrEntries[MAXENTRY];	/* Entried in the AttrMenu.	*/
 static int	AttrNManaged;		/* Number of entries managed.	*/
@@ -186,11 +188,14 @@ static int	NumPlatforms;		/* Number of platforms		*/
 static char	Attr[MAXENTRY][20];	/* Selectable attributes.	*/
 static int	NumAttr;		/* Number of attributes.	*/
 
+#ifdef notdef
 /*
  * Platforms that we know about for the icons menu.
  */
 static char	IconPlats[MAXENTRY][20];/* User insertable platforms.	*/
 static int	NumIconPlats;		/* Number of platforms.		*/
+#endif
+
 /*
  * Data to be stored.
  */
@@ -216,13 +221,17 @@ Widget		iw_CreateWidget FP((char *, Widget, XtAppContext));
 static void	Insert FP ((void));
 static void	Remove FP ((void));
 static void	Change FP ((void));
+#ifdef notdef
 static void	Icons FP ((void));
+static void	ChangeHour FP ((Widget, XtPointer, XtPointer));
+static void	ChangeMin FP ((Widget, XtPointer, XtPointer));
+static void	InitIconMenu FP ((Widget));
+static void	IconToggle FP ((Widget, XtPointer, XtPointer));
+#endif
 static void	AbortIt FP ((void));
 static void	ResetTime FP ((void));
 static void	YesNo FP ((Widget, XtPointer, XtPointer));
 static void	Attributes FP ((void));
-static void	ChangeHour FP ((Widget, XtPointer, XtPointer));
-static void	ChangeMin FP ((Widget, XtPointer, XtPointer));
 static void	SetHelp FP ((char *));
 static void	SetInstr FP ((char *));
 static void	SetTime FP ((void));
@@ -236,7 +245,6 @@ static void	attrHelpAction FP (());
 static void	iconHelpAction FP (());
 static void	resetTimeHelpAction FP (());
 static void	InitInsertMenu FP ((Widget));
-static void	InitIconMenu FP ((Widget));
 static void	InitAttrMenu FP ((Widget));
 static void	InitChangeMenu FP ((Widget));
 static void	InsertData FP ((Widget, XtPointer, XtPointer));
@@ -246,7 +254,6 @@ static void	SelectChange FP ((Widget, XtPointer, XtPointer));
 static void	ChangeLine FP ((int));
 static void	ChangeLoc FP ((int));
 static void	SelectAttr FP ((Widget, XtPointer, XtPointer));
-static void	IconToggle FP ((Widget, XtPointer, XtPointer));
 static void	YesInsertLine FP ((void));
 static void	YesInsertLoc FP ((void));
 static void	YesRemove FP ((void));
@@ -1829,6 +1836,7 @@ YesChangeLoc ()
 
 
 
+#ifdef notdef
 static void
 Icons ()
 /*
@@ -1930,6 +1938,8 @@ XtPointer	entry, junk;
 	Eq_AddEvent (PWhenever, eq_ReturnPD, 0, 0, Override);
 	pdm_ScheduleUpdate ();
 }
+#endif /* notdef */
+
 
 
 static void

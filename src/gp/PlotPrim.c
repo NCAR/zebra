@@ -30,6 +30,7 @@
 # include <ui.h>
 # include <ui_error.h>
 # include <defs.h>
+# include <draw.h>
 # include <pd.h>
 # include <GraphicsW.h>
 # include <message.h>
@@ -41,7 +42,7 @@
 # include "DrawText.h"
 # include "PlotPrim.h"
 
-RCSID("$Id: PlotPrim.c,v 1.9 1995-04-17 22:15:37 granger Exp $")
+RCSID("$Id: PlotPrim.c,v 1.10 1995-06-29 23:29:35 granger Exp $")
 
 
 
@@ -335,7 +336,7 @@ int		doKnot;
 
 void
 pp_RGBtoHLS (r,g,b,h,l,s)
-float	r, g, b; /* range [0,1] */
+double	r, g, b; /* range [0,1] */
 float	*h, *l, *s; /* hue = [0,360], lightness & saturation = [0,1] 
 		     except if s == 0, h = undefined */
 {
@@ -403,7 +404,7 @@ float	n1,n2,hue;
 void
 pp_HLStoRGB(r,g,b,h,l,s)
 float	*r,*g,*b;
-float	h,l,s;
+double	h,l,s;
 {
     float	m1,m2;
     float	undefined = 0.0;

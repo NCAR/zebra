@@ -28,6 +28,7 @@
 # include <defs.h>
 # include <pd.h>
 # include <message.h>
+# include <GraphicsW.h>
 # include <DataStore.h>
 # include "derive.h"
 # include "GraphProc.h"
@@ -36,8 +37,9 @@
 # include "DrawText.h"
 # include "ui_date.h"
 # include "AxisControl.h"
+# include "PlotPrim.h"
 
-RCSID("$Id: AxisControl.c,v 1.24 1995-06-09 16:50:44 granger Exp $")
+RCSID("$Id: AxisControl.c,v 1.25 1995-06-29 23:28:20 granger Exp $")
 
 /*
  * Convenient scratch string
@@ -56,7 +58,7 @@ static void	ac_GetAxisDescriptors FP ((char*, AxisSide, int*, float*,
 					   float*, char*, char*, float*));
 static void	ac_FormatLabel FP ((DataValPtr, char*, char*));
 static void	ac_DrawAxis FP ((char*, AxisSide));
-static int	ac_LabelInfo FP ((DataValPtr, DataValPtr, double, double,
+static void	ac_LabelInfo FP ((DataValPtr, DataValPtr, double, double,
 				  DataValPtr, int*, int*));
 static double	ac_AutoTicInterval FP ((DataValPtr, DataValPtr));
 static void	ac_GetLabel FP ((char *, int, char *));
@@ -208,6 +210,9 @@ AxisSide	side;
             lc_GetUserCoord (NULL, NULL, &val0, &val1);
 	    xOrig = AxisX1[SideLeft] * GWWidth (Graphics) -
 		    SpaceUsed[SideLeft];
+	    break;
+       default:
+	    msg_ELog (EF_PROBLEM, "DrawAxis: axis side corrupted");
 	    break;
     }
 /*
@@ -511,6 +516,8 @@ AxisSide	side;
 	     * Done with bottom or top axis
 	     */
 	    break;
+       default:
+	    break;
     }
 
     if (! fit)
@@ -524,7 +531,7 @@ AxisSide	side;
 
 
 
-static int
+static void
 ac_LabelInfo (min, max, step, fontscale, firstTic, maxHeight, maxWidth)
 DataValPtr	min, max, firstTic;
 float		step, fontscale;

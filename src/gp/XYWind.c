@@ -1,7 +1,6 @@
 /*
  * XY-Wind plotting module
  */
-static char *rcsid = "$Id: XYWind.c,v 1.26 1994-11-19 00:36:18 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -40,6 +39,8 @@ static char *rcsid = "$Id: XYWind.c,v 1.26 1994-11-19 00:36:18 burghart Exp $";
 # include "XYCommon.h"
 # include "AxisControl.h"
 # include "PlotPrim.h"
+
+RCSID ("$Id: XYWind.c,v 1.27 1995-06-29 23:30:16 granger Exp $")
 
 /*
  * General definitions
@@ -306,7 +307,7 @@ bool	update;
 		    {
 			if (strcmp (style, "vector") == 0)
 			{
-			    sprintf (annotcontrol, "%5.1f%s %d %f %f %f", 
+			    sprintf (annotcontrol, "%5.1f%s %li %f %f %f", 
 				     scaleSpeed, "m/sec", taColor, scaleSpeed, 
 				     0.0, vecScale);
 			    An_AddAnnotProc (An_ColorVector, c, annotcontrol,
@@ -319,7 +320,7 @@ bool	update;
 			}
 			else if (strcmp (style, "barb") == 0)
 			{	
-			    sprintf (annotcontrol, "%s %d %d", barbtype,
+			    sprintf (annotcontrol, "%s %li %d", barbtype,
 				     taColor,  (int) vecScale);
 			    An_AddAnnotProc (An_BarbLegend, c, annotcontrol,
 					     strlen (annotcontrol) + 1, 100, 
@@ -335,7 +336,7 @@ bool	update;
 					 strlen (annotcontrol) + 1, 75, TRUE, 
 					 FALSE);
 
-			sprintf (annotcontrol, "%s %d", pnames[plat], taColor);
+			sprintf(annotcontrol, "%s %li", pnames[plat], taColor);
 			An_AddAnnotProc (An_ColorString, c, annotcontrol, 
 					 strlen (annotcontrol), 25, FALSE, 
 					 FALSE);

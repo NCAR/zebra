@@ -18,6 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+# include <string.h>
 
 # include <defs.h>
 # include <message.h>
@@ -29,7 +30,7 @@
 
 
 
-MAKE_RCSID ("$Id: PDMonitor.c,v 1.4 1994-05-24 01:01:48 granger Exp $")
+MAKE_RCSID ("$Id: PDMonitor.c,v 1.5 1995-06-29 23:29:24 granger Exp $")
 
 
 /*

@@ -1,7 +1,7 @@
 /*
  * Display two rectangular arrays (u and v) as wind vectors
  */
-static char *rcsid = "$Id: VectorGrid.c,v 2.7 1995-04-17 21:17:12 granger Exp $";
+
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -22,11 +22,14 @@ static char *rcsid = "$Id: VectorGrid.c,v 2.7 1995-04-17 21:17:12 granger Exp $"
 # include <math.h>
 # include <X11/Intrinsic.h>
 # include <defs.h>
+# include <draw.h>
 # include <message.h>
 # include <pd.h>
 # include <GraphicsW.h>
 # include "GraphProc.h"
 # include "PixelCoord.h"
+
+RCSID ("$Id: VectorGrid.c,v 2.8 1995-06-29 23:29:58 granger Exp $")
 
 /*
  * Angle in radians between vector and lines for arrow head
@@ -48,7 +51,7 @@ Drawable 	d;
 GC	Gcontext;
 float	*u_array, *v_array;
 int	xdim, ydim, xlo, ylo, xhi, yhi;
-float	vlen, bad;
+double	vlen, bad;
 XColor	color;
 int	degrade, vector;
 /*

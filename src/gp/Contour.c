@@ -1,7 +1,7 @@
 /*
  * Contour a rectangular array
  */
-static char *rcsid = "$Id: Contour.c,v 2.10 1995-04-17 21:21:24 granger Exp $";
+
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -19,15 +19,6 @@ static char *rcsid = "$Id: Contour.c,v 2.10 1995-04-17 21:21:24 granger Exp $";
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-/*
- * A macro to make function prototypes a little easier across both STDC and
- * non-STDC implementations.
- */
-# ifdef __STDC__
-#  define FP(stuff) stuff
-# else
-#  define FP(stuff) ()
-# endif
 
 # include <errno.h>
 # include <math.h>
@@ -37,7 +28,10 @@ static char *rcsid = "$Id: Contour.c,v 2.10 1995-04-17 21:21:24 granger Exp $";
 # include <pd.h>
 # include "GraphProc.h"
 # include "Contour.h"
+# include "ContourP.h"
 # include "DrawText.h"
+
+RCSID("$Id: Contour.c,v 2.11 1995-06-29 23:28:28 granger Exp $")
 
 typedef short	cbool;
 
@@ -82,11 +76,17 @@ static char	Label[16];
 static int	Ltoggle = FALSE;
 
 /*
+ * Other globals used here but not shared by FillContour.c
+ */
+static float	*Xpos, *Ypos;
+static XColor	Color_mono;
+static int	Monoflag;
+
+/*
  * Forward declarations
  */
 void	CO_MinMax (), CO_DoContours (), CO_DrawContour ();
-void	CO_Init (), CO_FollowContour (), CO_FirstPoint (), CO_AddPoint (),
-	CO_InitMono();
+void	CO_FollowContour (), CO_FirstPoint (), CO_AddPoint ();
 
 /*
  * The size of our drawable
@@ -100,16 +100,15 @@ Pixel	Pix;
 
 
 
-
-
 void
 Contour (w, d, array, xdim, ydim, xlo, ylo, xhi, yhi, ccenter, cstep, 
 	dolabels, linewidth)
 Widget		w;
 Drawable 	d;
-int	xlo, xhi, ylo, yhi;
-float	*array, ccenter, cstep;
+float	*array;
 int	xdim, ydim;
+int	xlo, ylo, yhi, xhi;
+double	ccenter, cstep;
 int	dolabels, linewidth;
 /*
  * Draw contours of the rectangular (xdim x ydim) array into drawable d
@@ -194,7 +193,7 @@ int	dolabels, linewidth;
 		linewidth = 0;
 	XSetLineAttributes (XtDisplay (W), ContourGC, linewidth, LineSolid, 
 			    CapButt, JoinMiter);
-	XSetClipRectangles (XtDisplay (W), ContourGC, 0, 0, &Clip, 1, Unsorted);
+	XSetClipRectangles(XtDisplay (W), ContourGC, 0, 0, &Clip, 1, Unsorted);
 /*
  * Sanity test
  */
@@ -260,7 +259,7 @@ int	dolabels, linewidth;
 				fabs (max) : fabs (min);
 			prec = (int) (log10 (maxabs / cstep));
 			sprintf (testlabel, " %.*E ", prec, Cval);
-			if (strlen (testlabel) < strlen (Label))
+			if ((int)strlen (testlabel) < (int)strlen (Label))
 				strcpy (Label, testlabel);
 		/*
 		 * Alternate the toggle so that adjacent contours have slightly
@@ -288,7 +287,7 @@ CO_Init (colors, count, center, c_outrange, clip, flagged, flagval)
 int	center, count, flagged;
 XColor	*colors, *c_outrange;
 XRectangle	clip;
-float	flagval;
+double	flagval;
 /*
  * Initialize colors and data flagging
  *
@@ -338,7 +337,7 @@ CO_InitMono (color, clip, flagged, flagval)
 int	flagged;
 XColor	color;
 XRectangle	clip;
-float	flagval;
+double	flagval;
 /*
  * Initialize monochrome color and data flagging
  *

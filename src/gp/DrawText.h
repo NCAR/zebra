@@ -32,3 +32,4 @@ void	DT_StrokeText FP ((Widget, Drawable, GC, int, int, char *,
 void	DT_TextBox FP ((Widget, Drawable, int, int, char *, double, 
 			double, int, int, int *, int *, int *, int *));
 int	DT_ApproxHeight FP ((Widget, double, int));
+void	dt_SetBlankLabel FP ((int flag));
