@@ -1,5 +1,5 @@
 /**/# ---------------------------------------------------------------------
-/**/# $Id: Imakefile,v 1.8 1993-05-14 21:33:25 corbet Exp $ 
+/**/# $Id: Imakefile,v 1.9 1993-05-27 10:58:17 granger Exp $ 
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -60,7 +60,7 @@ HDRS =  AxisControl.h Contour.h DrawText.h EventQueue.h GC.h GraphProc.h \
 FSRCS = cfit.F mudras.f rgrid.F bints.f
 
 DISTFILES = Imakefile $(SRCS) $(FSRCS) $(HDRS) \
-	    GraphProc.state GraphProc.widgets Graphproc.ad offset.w
+	    GraphProc.state GraphProc.widgets Graphproc.ad
 
 NormalProgramTarget(gp,$(OBJS),$(DEPLIBS), $(LOCAL_LIBRARIES), $(SYSLIBS))
 
