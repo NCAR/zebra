@@ -16,7 +16,7 @@
 # include <dm.h>
 # include "dm_vars.h"
 
-# define URL_LEN (2 * CFG_FILEPATH_LEN)
+# define URL_LEN (3 * CFG_FILEPATH_LEN)
 
 /*
  * When the browser is running, we keep it's PID here.
@@ -128,6 +128,7 @@ char *url, *realurl;
 {
 	char temp[ URL_LEN ];
 	char section[ URL_LEN ];
+	char cwd[ URL_LEN ];
 	char *c, *sharp;
 /*
  * If this is some sort of network URL we don't mess with it.
@@ -166,11 +167,17 @@ char *url, *realurl;
 		strcat (realurl, section);
 	}
 /*
- * The full URL includes file and localhost, so that the URL is
- * found locally rather than at any current remote server.
+ * The full URL (as opposed to a partial URL) explicitly specifies the
+ * 'file' scheme, so that the file is found locally rather than appended 
+ * to any current remote URL.  Likewise, it seems there's no way to keep
+ * Mosaic from appending a file:<relative path> to the current file:<path>,
+ * so we have to convert a relative path to absolute using our cwd.
  */
-	sprintf (temp, "file://localhost%s%s", 
-		 (realurl[0] == '/') ? "" : "/", realurl);
+	if (realurl[0] == '/')	/* absolute */
+		sprintf (temp, "file:%s", realurl);
+	else
+		sprintf (temp, "file:%s/%s", 
+			 (char *)getcwd(cwd, (size_t)URL_LEN), realurl);
 	strcpy (realurl, temp);
 	return (TRUE);
 }
