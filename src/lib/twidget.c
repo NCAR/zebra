@@ -37,6 +37,8 @@
 # include "../include/message.h"
 # include "../include/timer.h"
 
+MAKE_RCSID ("$Id: twidget.c,v 2.7 1991-12-30 20:48:12 corbet Exp $")
+
 
 # define LABELWIDTH	60
 /*
@@ -65,7 +67,7 @@ static Widget Form, Htext, Stext, ControlButton;
  * the highest date we've ever seen, used to keep the date from being
  * moved into the future.
  */
-static date Histdate, Maxdate;
+static ZebTime Histdate, Maxdate;
 static char Ahistdate[80];
 static char Title[200];
 static int Tslot = -1;	/* Timeout slot		*/
@@ -92,8 +94,15 @@ char	*title;
  * Hook the time widget into the UI.
  */
 {
-	tl_GetTime (&Histdate);
-	Histdate.ds_hhmmss -= Histdate.ds_hhmmss % 100;
+	int year, month, day, hour, minute, second;
+/*
+ * Get the current time, then clear out the seconds portion of it.
+ */
+	tl_Time (&Histdate);
+	/* Histdate.ds_hhmmss -= Histdate.ds_hhmmss % 100; */
+	TC_ZtSplit (&Histdate, &year, &month, &day, &hour, &minute, &second,0);
+	TC_ZtAssemble (&Histdate, year, month, day, hour, minute, 0, 0);
+
 	strcpy (Title, title);
 	Tw_Callback = callback;
 	uw_def_widget ("time", "Time control widget", tw_WCreate, 0, 0);
@@ -392,14 +401,19 @@ Widget w;
 XtPointer change, junk;
 {
 	int min;
+	long systime;
 
 	SkipMin = atoi (TSString);
-
+# ifdef notdef
 	min = (SkipMin / 60) * 10000 + (SkipMin % 60) * 100;
 	if ((int) change == 1)
 		pmu_dadd (&Histdate.ds_yymmdd, &Histdate.ds_hhmmss, min); 
 	else
 		pmu_dsub (&Histdate.ds_yymmdd, &Histdate.ds_hhmmss, min); 
+# endif
+	systime = TC_ZtToSys (&Histdate);
+	TC_SysToZt (((int) change == 1) ? systime + SkipMin*60 :
+			systime - SkipMin*60, &Histdate);
 	set_dt ();
 	(*Tw_Callback) (History, &Histdate, ControlAll);
 }
@@ -493,9 +507,7 @@ int code;
  * Add the timeout to start repeating.
  */
 	if (! norep)
-	{
-		Tslot = tl_AddRelativeEvent(arrow_timeout, (char *) code, 5,1);
-	}
+		Tslot = tl_RelativeReq (arrow_timeout, (char *) code, 5, 1);
 	uw_sync ();
 }
 
@@ -504,7 +516,7 @@ int code;
 
 void
 arrow_timeout (t, code)
-time *t;
+ZebTime *t;
 int code;
 /*
  * Deal with repeating arrows.
@@ -529,66 +541,81 @@ finish_arrow ()
 }
 
 
+
+
 do_adjust (which)
 int which;
 /*
  * Perform a clock adjustment.
  */
 {
-	date incr, temp;
-	int y, m, d;
+	/* date incr, temp; */
+	int y, m, d, hour, min, sec;
+	long systime = TC_ZtToSys (&Histdate);;
 
+/*
 	y = Histdate.ds_yymmdd / 10000;
 	m = (Histdate.ds_yymmdd % 10000) / 100;
 	d = Histdate.ds_yymmdd % 100;
-
+*/
+	TC_ZtSplit (&Histdate, &y, &m, &d, &hour, &min, &sec, 0);
+/*
+ * See what they want to do.
+ */
 	switch (which)
 	{
 	   case MONTHUP:
-		m = m % 12 + 1;
-		if (m == 1) y++;
-		Histdate.ds_yymmdd = (y * 10000) + (m * 100) + d;
+		m = (m + 1) % 12;
+		if (m == 0)
+			y++;
+		TC_ZtAssemble (&Histdate, y, m, d, hour, min, sec, 0);
 		break;
+
 	   case MONTHDOWN:
 		m -= 1;
-		if (m <= 0) 
+		if (m < 0) 
 		{
-			m = 12;
+			m = 11;
 			y--;
 		}
-		Histdate.ds_yymmdd = (y * 10000) + (m * 100) + d;
+		TC_ZtAssemble (&Histdate, y, m, d, hour, min, sec, 0);
 		break;
+
 	   case DAYUP:
-	   	pmu_dadd (&Histdate.ds_yymmdd, &Histdate.ds_hhmmss, 240000);
+		TC_SysToZt (systime + 24*60*60, &Histdate);
 		break;
 	   case DAYDOWN:
-	   	pmu_dsub (&Histdate.ds_yymmdd, &Histdate.ds_hhmmss, 240000);
+		TC_SysToZt (systime - 24*60*60, &Histdate);
 		break;
+
 	   case YEARUP:
 		y += 1;
-		Histdate.ds_yymmdd = (y * 10000) + (m * 100) + d;
+		TC_ZtAssemble (&Histdate, y, m, d, hour, min, sec, 0);
 		break;
 	   case YEARDOWN:
 		y -= 1;
-		Histdate.ds_yymmdd = (y * 10000) + (m * 100) + d;
+		TC_ZtAssemble (&Histdate, y, m, d, hour, min, sec, 0);
 		break;
+
 	   case HOURUP:
-	   	pmu_dadd (&Histdate.ds_yymmdd, &Histdate.ds_hhmmss, 10000);
+		TC_SysToZt (systime + 60*60, &Histdate);
 		break;
 	   case HOURDOWN:
-	   	pmu_dsub (&Histdate.ds_yymmdd, &Histdate.ds_hhmmss, 10000);
+		TC_SysToZt (systime - 60*60, &Histdate);
 		break;
+
 	   case MINUP:
-	   	pmu_dadd (&Histdate.ds_yymmdd, &Histdate.ds_hhmmss, 100);
+		TC_SysToZt (systime + 60, &Histdate);
 		break;
 	   case MINDOWN:
-	   	pmu_dsub (&Histdate.ds_yymmdd, &Histdate.ds_hhmmss, 100);
+		TC_SysToZt (systime - 60, &Histdate);
 		break;
+
 	   case SECUP:
-	   	pmu_dadd (&Histdate.ds_yymmdd, &Histdate.ds_hhmmss, 1);
+		TC_SysToZt (systime + 1, &Histdate);
 		break;
 	   case SECDOWN:
-	   	pmu_dsub (&Histdate.ds_yymmdd, &Histdate.ds_hhmmss, 1);
+		TC_SysToZt (systime - 1, &Histdate);
 		break;
 	}
 	set_dt ();
@@ -606,7 +633,7 @@ set_dt ()
 /*
  * Format, then split, the date.
  */
-	ud_format_date (dbuf, &Histdate, UDF_FULL);
+	TC_EncodeTime (&Histdate, TC_Full, dbuf);
 	strcpy (Ahistdate, dbuf);
 	timestr = strchr (dbuf, ',');
 	*timestr++ = '\0';
