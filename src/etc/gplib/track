@@ -149,7 +149,7 @@ define widget track-parameters form 'Track parameters'
 	button arrow-enab 'Funky' command 'tp-toggle-enable  arrow-enab' \
 			 width 70
 	label tac 'arrow color: '
-	pulldown arrow-color 'mauve' color black width 80 menu form-color-menu
+	pulldown arrowcolor 'mauve' width 80 menu form-color-menu
 	newline
 	label tad '     Draw arrows every'
 	blank arrowtime 'Funky' width 50
@@ -173,7 +173,7 @@ define widget track-parameters form 'Track parameters'
 	label tfont '     font size'
 	blank annot-scale 'funk' width 40
 	label tpix 'pixels.  Annotation color: '
-	pulldown annotation-color 'x' color black width 80 menu form-color-menu
+	pulldown annotation-color 'x' width 80 menu form-color-menu
 	newline
 enddef
 
@@ -200,7 +200,7 @@ procedure tp-popup
 		formtext #f arrow-enab 'Disabled'
 	endif
 	local acolor PDSearch(c, 'arrow-color', plat)
-	formtext #f arrow-color #acolor
+	formtext #f arrowcolor #acolor
 !
 ! arrow spacing
 !
@@ -254,8 +254,8 @@ procedure tp-apply
 	else
 		parameter #c 'arrow' 'false'
 	endif
-	local color getftext(f, 'arrow-color')
-	parameter #c arrow-color #color
+	local color getftext(f, 'arrowcolor')
+	parameter #c arrowcolor #color
 	local atime getftext(f, 'arrowtime')
 	parameter #c arrow-interval #atime
 	local ascale getftext(f, 'arrowscale')
