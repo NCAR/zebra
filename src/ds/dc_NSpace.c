@@ -146,7 +146,7 @@
 #include "ds_fields.h"
 #include "DataChunkP.h"
 #ifndef lint
-MAKE_RCSID ("$Id: dc_NSpace.c,v 1.2 1993-05-04 21:42:11 granger Exp $")
+MAKE_RCSID ("$Id: dc_NSpace.c,v 1.3 1993-09-30 18:22:07 granger Exp $")
 #endif
 
 /*
@@ -239,6 +239,7 @@ float *dc_NSGetStatic FP((DataChunk *dc, FieldId field, unsigned long *size));
  * Semi-private routines.
  */
 static DataChunk *NSCreate FP((DataClass));
+static void NSDestroy FP((DataChunk *dc));
 static void NSDump FP((DataChunk *dc));
 
 /*------------------------------------------------------------------------
@@ -251,7 +252,7 @@ RawDCClass NSpaceMethods =
 	"NSpace",
 	SUPERCLASS,		/* Superclass			*/
 	NSCreate,
-	InheritMethod,		/* No special destroy		*/
+	NSDestroy,		/* No special destroy		*/
 	0,			/* Add??			*/
 	NSDump			/* Dump				*/
 };
@@ -313,7 +314,7 @@ typedef struct _NSpaceFldInfo
 	unsigned short	nsf_Index;	/* index of the ADE	*/
 	unsigned long	nsf_Size;	/* product of its dimns */
 	unsigned char	nsf_Flags;	/* flags		*/
-	unsigned long	nsf_StOffset;	/* Offset of static data*/
+	void 		*nsf_StData;	/* Pointer to static data*/
 } NSpaceFldInfo;
 
 typedef struct _NSpaceDimInfo
@@ -1003,13 +1004,13 @@ dc_NSAddStatic (dc, field, values)
 		dc_NSDefineComplete (dc);
 
 	/*
-	 * If we don't already have space in the data chunk (i.e. our
-	 * offset into the data chunk is not valid), get some.
+	 * If we don't already have some space, get it.  If we have space
+	 * already, then we'll just be copying over it.
 	 */
-	if (!(finfo->nsf_Flags & NSF_OFFSET) && values)
+	if (!(finfo->nsf_StData) && values)
 	{
-		finfo->nsf_StOffset = dc->dc_DataLen;
-		Dc_RawAdd (dc, finfo->nsf_Size * sizeof(float));
+		finfo->nsf_StData = 
+			(void *)malloc(finfo->nsf_Size * sizeof(float));
 		finfo->nsf_Flags |= NSF_OFFSET;
 	}
 
@@ -1017,8 +1018,7 @@ dc_NSAddStatic (dc, field, values)
 	 * Now copy the data
 	 */
 	if (values)
-		memcpy ((char *) ((unsigned long)dc->dc_Data + 
-				  finfo->nsf_StOffset), 
+		memcpy ((char *) (finfo->nsf_StData),
 			(char *) values, (finfo->nsf_Size * sizeof(float)));
 }
 /*------------------------------------------------- end: dc_NSAddStatic ---*/
@@ -1106,10 +1106,9 @@ dc_NSGetStatic (dc, field, size)
 	/*
 	 * Find our data, if there is any, and return a pointer to it
 	 */
-	if (finfo->nsf_Flags & NSF_OFFSET)
+	if (finfo->nsf_StData)
 	{
-		data = (DataPtr) ((unsigned long)dc->dc_Data + 
-				  finfo->nsf_StOffset);
+		data = (DataPtr) (finfo->nsf_StData);
 		if (size)
 			*size = (unsigned long) (finfo->nsf_Size);
 		return ((float *)data);
@@ -1164,6 +1163,56 @@ DataClass class;
 	return (dc);
 }
 /*-------------------------------------------------------- end: NSCreate() */
+
+
+
+
+
+/*----------------------------------------------------- begin: NSDestroy() */
+static void
+NSDestroy (dc)
+DataChunk *dc;
+/*
+ * Destroy this DataChunk.  Free any static data and then pass the chunk off
+ * as our parent class.
+ */
+{
+	NSpaceInfo *info;
+	NSpaceFldInfo *finfo;
+	int i;
+
+#ifdef DEBUG
+	printf("Destroying NSpace chunk...\n");
+#endif
+/*
+ * Find our general info.
+ */
+	info = GetInfo(dc);
+	if (info)		/* can't destroy what we don't got */
+	{
+		for (i = 0; i < info->ns_NField; ++i)
+		{
+			finfo = info->ns_Fields[i];
+			if ((finfo) && (finfo->nsf_StData))
+			{
+#ifdef DEBUG
+				printf ("\tFreeing static field '%s'\n",
+					F_GetName(finfo->nsf_Id));
+#endif
+				free (finfo->nsf_StData);
+			}
+		}
+	}
+/*
+ * Destroy the rest.
+ */
+#ifdef DEBUG
+	printf("\tCalling superclass destroy method.\n");
+#endif
+	dc->dc_Class = SUPERCLASS;
+	dc_DestroyDC (dc);
+}
+/*------------------------------------------------------- end: NSDestroy() */
 
 
 
@@ -1525,7 +1574,7 @@ DefineField (dc, info, field, ndims, dim_indices, is_static, routine)
 		finfo->nsf_Index = i;
 		finfo->nsf_Size = 0;
 		finfo->nsf_Flags = (is_static) ? NSF_STATIC : 0;
-		finfo->nsf_StOffset = 0;
+		finfo->nsf_StData = NULL;
 		AddFld(dc,finfo,i);
 		info->ns_Fields[ info->ns_NField ] = finfo;
 		++(info->ns_NField);
@@ -1575,9 +1624,10 @@ SetFieldSizes (info, routine)
 			size *= (dinfo->nsd_Size);
 		}					/* dimn loop */
 		finfo->nsf_Size = size;
+#ifdef DEBUG
 		msg_ELog (EF_DEBUG, "%s: field %s, size set to %lu",
 			  routine, F_GetName(finfo->nsf_Id), size);
-
+#endif
 	}					/* field loop */
 }
 /*------------------------------------------------- end: SetFieldSizes --*/
