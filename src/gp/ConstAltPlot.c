@@ -56,7 +56,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.82 2000-04-10 20:25:32 burghart Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.83 2000-04-28 16:33:53 burghart Exp $")
 
 
 /*
@@ -124,10 +124,11 @@ void		CAP_Raster FP ((char *, int));
 # if C_CAP_POLAR
 void		CAP_Polar FP ((char *, int));
 static int	CAP_PolarParams FP ((char *c, char *plat, PlatformId *pid,
-				FieldId *fids, int *nfids, float *tvalue,
-				int *ttest, float *center, float *step,
-				int *nstep, char *ctable, XColor *outrange,
-				int *project, int *tfill, int *legend));
+				     FieldId *fids, int *nfids, float *tvalue,
+				     int *ttest, float *center, float *step,
+				     int *nstep, char *ctable, 
+				     XColor *outrange, int *transparent,
+				     int *project, int *tfill, int *legend));
 # endif
 void		CAP_LineContour FP ((char *, int));
 static int	CAP_Contour FP ((char *, contour_type, char **, char **, 
@@ -2347,6 +2348,7 @@ CAP_Polar (char *c, int update)
 	SweepInfo swpinfo;
 	Pixel ccbuf[4096];
 	Location rloc;
+	int transparent;
 /*
  * Instrumentation if needed.
  */
@@ -2368,8 +2370,8 @@ CAP_Polar (char *c, int update)
  * Get our config info.
  */
 	if (! CAP_PolarParams (c, plat, &pid, fids, &nfid, &tvalue, &ttest,
-			&center, &step, &nstep, ctable, &outrange, &project,
-			&tfill, &legend))
+			       &center, &step, &nstep, ctable, &outrange, 
+			       &transparent, &project, &tfill, &legend))
 		return;
 	if (! ct_LoadTable (ctable, &colors, &ncolors))
 		return;
@@ -2413,7 +2415,7 @@ CAP_Polar (char *c, int update)
 /*
  * Get ready to do some serious plotting.
  */
-	pc = pol_DisplaySetup (project, tfill);
+	pc = pol_DisplaySetup (project, tfill, transparent);
 	dcp_GetSweepInfo (dc, 0, &swpinfo);
 /*
  * OK, do some serious plotting.
@@ -2506,10 +2508,9 @@ CAP_Polar (char *c, int update)
 
 static int
 CAP_PolarParams (char *c, char *platform, PlatformId *pid, FieldId *fids,
-		int *nfids,
-		float *tvalue, int *ttest, float *center, float *step,
-		int *nstep, char *ctable, XColor *outrange, int *project,
-		int *tfill, int *legend)
+		 int *nfids, float *tvalue, int *ttest, float *center, 
+		 float *step, int *nstep, char *ctable, XColor *outrange, 
+		 int *transparent, int *project, int *tfill, int *legend)
 /*
  * Grab all of the PD parameters controlling polar plots.
  */
@@ -2573,6 +2574,10 @@ CAP_PolarParams (char *c, char *platform, PlatformId *pid, FieldId *fids,
 			SYMT_STRING))
 		strcpy (cparam, "black");
 	ct_GetColorByName (cparam, outrange);
+/*
+ * Transparent background iff they chose "none" as the out-of-range-color
+ */
+	*transparent = ! strcmp (cparam, "none");
 /*
  * Are we doing horizontal projection?
  */

@@ -1201,7 +1201,7 @@ ScanConverter::PFill_4_C (void *vdata)
 // C-access functions from here on down.
 //
 extern "C" PPCookie
-pol_DisplaySetup (int project, int tfill)
+pol_DisplaySetup (int project, int tfill, int transparent)
 //
 // Set up to plot a sweep into display memory.
 //
@@ -1212,8 +1212,15 @@ pol_DisplaySetup (int project, int tfill)
 // Set up a nice display area, then create a scanconverter to work
 // with it.
 //
-	img = ri_GetDestImage (DrawFrame, XPIX (Xlo), YPIX (Yhi),
-			XPIX (Xhi) - XPIX (Xlo), YPIX (Ylo) - YPIX (Yhi));
+	if (transparent)
+	    img = ri_GetTransparentImage (DrawFrame, XPIX (Xlo), YPIX (Yhi),
+					  XPIX (Xhi) - XPIX (Xlo), 
+					  YPIX (Ylo) - YPIX (Yhi));
+	else
+	    img = ri_GetDestImage (DrawFrame, XPIX (Xlo), YPIX (Yhi),
+				   XPIX (Xhi) - XPIX (Xlo), 
+				   YPIX (Ylo) - YPIX (Yhi));
+
 	sc = new ScanConverter (img, Xlo, Ylo, Xhi, Yhi, project, tfill);
 	return ((PPCookie) sc);
 }
