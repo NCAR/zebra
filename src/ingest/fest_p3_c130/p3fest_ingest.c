@@ -1,5 +1,5 @@
 /*
- * $Id: p3fest_ingest.c,v 1.7 1994-02-02 20:07:51 burghart Exp $
+ * $Id: p3fest_ingest.c,v 1.8 1994-07-13 16:37:14 sobol Exp $
  *
  * Ingest P3 format data files into Zeb using DCC_Scalar class DataChunks.
  * The general program flow is as follows:
@@ -35,7 +35,6 @@
 
 #define MAX_WORDS_RECORD5	106
 #define MAX_RECORD_SIZE		420	/* max size of any record in words */
-#define PLATFORM_NAME		"p3"
 #define INGEST_NAME		"P-3 Ingest"
 
 /*
@@ -280,6 +279,12 @@ P3_ErrorFields[] =
  */
 short P3_WordToField[MAX_WORDS_RECORD5 + 1];
 
+/*
+ * Platform name was hardcoded.  Instead we will set it on the fly based on
+ * the aircraft number which we get from the header.  Since the platform
+ * name is used by more than one routine, it will be declared globally here.
+ */
+char PLATFORM_NAME[9];
 
 /*-----------------------------------------
  * Prototypes
@@ -509,6 +514,7 @@ IngestRecords(p3file, hdr)
 	{
 		/*
 		 * We shouldn't have found any more data if type6found is true
+		 *  ris 6/21/94 disabled type6found (see case 6).
 		 */
 		if (type6found)
 		{
@@ -554,7 +560,7 @@ IngestRecords(p3file, hdr)
 		  case 6:
 			/* signifies last record of file */
 			IngestLog(EF_DEBUG,"Trailer record found");
-			type6found++;
+			/* type6found++; */
 			/* 
 			   We won't do much with this for now.  If this is the end,
 			   then we'll quit when EOF is reached in next
@@ -1182,7 +1188,7 @@ static DataChunk *
 CreateDataChunk(hdr)
 	P3_header_t *hdr;
 {
-	static char version_info[] = "$RCSfile: p3fest_ingest.c,v $ $Revision: 1.7 $";
+	static char version_info[] = "$RCSfile: p3fest_ingest.c,v $ $Revision: 1.8 $";
 	static int file_part = 0;
 	DataChunk *dc;
 	unsigned int nsamples;
@@ -1196,6 +1202,20 @@ CreateDataChunk(hdr)
 	nsamples = (hdr->times.flight_end.zt_Sec - 
 		    hdr->times.flight_begin.zt_Sec + 60);
 	IngestLog(EF_INFO, "Estimating %u samples in file", nsamples);
+
+	if (hdr->p3header.aircraft == 42)
+	{
+		strcpy (PLATFORM_NAME, "n42rf_st");
+	}
+	else if (hdr->p3header.aircraft == 43)
+	{
+		strcpy (PLATFORM_NAME, "n43rf_st");
+	}
+	else
+	{
+		IngestLog (EF_PROBLEM, "Unable to set platform name");
+		return(NULL);
+	} 
 
 	if ((plat_id = ds_LookupPlatform(PLATFORM_NAME)) == BadPlatform)
 	{
