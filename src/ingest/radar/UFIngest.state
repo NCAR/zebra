@@ -94,6 +94,9 @@ define state source-type
 	input 'file' 3
 		next ust$final_unmunged_string
 	endinput
+	input 'tape' 15
+		next ust$final_unmunged_string
+	endinput
 	input 'interface' 4
 		next ust$final_unmunged_string
 	endinput
