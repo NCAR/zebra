@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.56 1997-02-18 22:22:04 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.57 1997-06-19 20:19:26 granger Exp $"
 
 DEPLIBS=$(LIBZEBRA)
 LIBMPROF=/dt/granger/libc_mp.a
@@ -26,9 +26,9 @@ DSOBJS = Daemon.o d_DataTables.o d_Config.o d_Scan.o d_Debug.o d_Appl.o
 DSSRCS = Daemon.c d_DataTables.c d_Config.c d_Scan.c d_Debug.c d_Appl.c
 
 DFAOBJS = DataFormat.o DFA_NetCDF.o DFA_Zebra.o DFA_HDF.o DFA_Grads.o \
-          DFA_Boundary.o DFA_GRIB.o GRIB.o DFA_Raster.o DFA_None.o
+          DFA_Boundary.o DFA_GRIB.o GRIB.o DFA_Raster.o Raster.o DFA_None.o
 DFASRCS = DataFormat.c DFA_NetCDF.c DFA_Zebra.c DFA_HDF.c DFA_Grads.c \
-          DFA_Boundary.c DFA_GRIB.c GRIB.c DFA_Raster.c DFA_None.c
+          DFA_Boundary.c DFA_GRIB.c GRIB.c DFA_Raster.c Raster.c DFA_None.c
 
 /* 
  * DSLIBOBJS, DSLIBSRCS = normal DS library code 
@@ -119,7 +119,8 @@ InstallMultipleFlags($(HEADERS),$(INCDIR),$(INSTINCFLAGS))
 /*
  * Dump routines.
  */
-CompleteProgramTarget (rfdump, rfdump.o, $(LIBZEBRA), $(LIBZEBRA), $(LIBMATH))
+RFDOBJS = rfdump.o Raster.o
+CompleteProgramTarget (rfdump,$(RFDOBJS),$(LIBZEBRA),$(LIBZEBRA),$(LIBMATH))
 
 TestProgramTarget (bfdump, bfdump.o, $(LIBZEBRA), $(LIBZEBRA), $(LIBMATH))
 

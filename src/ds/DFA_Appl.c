@@ -34,7 +34,7 @@
 #include "dfa.h"
 #include "Appl.h"
 
-RCSID ("$Id: DFA_Appl.c,v 3.9 1997-05-16 23:50:50 granger Exp $")
+RCSID ("$Id: DFA_Appl.c,v 3.10 1997-06-19 20:19:21 granger Exp $")
 
 /*
  * Local private prototypes.
@@ -149,9 +149,6 @@ char *attr;
 
 
 #ifndef NO_GETATTR
-/*
- * Superceded by datachunk per-sample-attributes method
- */
 static int
 ds_AttrCheck (df, t, attr)
 int df;
@@ -174,10 +171,16 @@ char *attr;
  * Parse up the attributes and see if any match.  Technically
  * here we're comparing against both keys and values, but since
  * this is mostly a kludge for radar images anyway...
+ *
+ * Accept both nulls and commas as separators, for backwards
+ * compatibiliity.
  */
 	a = dattr;
 	while (a - dattr < len)
 	{
+		char *comma;
+		if ((comma = strchr (a, ',')))
+			*comma = '\0';
 		if ((result = (!strcmp (a, attr))))
 			break;
 		a += strlen (a) + 1;

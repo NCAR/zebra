@@ -24,14 +24,13 @@
 
 # include <defs.h>
 # include <byteorder.h>
+# include <message.h>
 # include "RasterFile.h"
 
-RCSID("$Id: rfdump.c,v 2.7 1997-06-17 14:33:54 granger Exp $")
+RCSID("$Id: rfdump.c,v 2.8 1997-06-19 20:19:32 granger Exp $")
 
-long BE_long (long l);
-float BE_float (float f);
 
-static void DumpFile (char *file);
+static int DumpFile (char *file);
 
 
 int
@@ -40,6 +39,7 @@ int argc;
 char **argv;
 {
     int i;
+    int status = 0;
 
     if (argc < 2)
     {
@@ -47,22 +47,23 @@ char **argv;
 	exit (1);
     }
 
+    msg_connect (NULL, "rfdump");
     for (i = 1; i < argc; ++i)
     {
         printf ("File: %s\n", argv[i]);
-	DumpFile (argv[i]);
+	status += DumpFile (argv[i]);
     }
 
-    return (0);
+    exit (status);
 }
 
 
 
 
-static void
+static int
 DumpFile (char *file)
 {
-    int fd, fld, ntocb, i;
+    int fd, fld, i;
     RFHeader hdr;
     RFToc *toc;
 /*
@@ -71,60 +72,61 @@ DumpFile (char *file)
     if ((fd = open (file, 0)) < 0)
     {
 	perror (file);
-	exit (1);
+	return (-1);
     }
 /*
  * Get the header.
  */
-    if (read (fd, &hdr, sizeof (hdr)) != sizeof (hdr))
+    if (drf_ReadHeader (fd, &hdr) < 0)
     {
-	perror ("Header read error");
-	exit (1);
+	msg_ELog (EF_PROBLEM, "Read header failed for '%s'", file);
+	close (fd);
+	return (-1);
     }
 /*
  * Print it.
  */
     printf ("Header magic = 0x%x, platform '%s' %s\n", 
-	    BE_long (hdr.rf_Magic), hdr.rf_Platform,
-	    BE_long (hdr.rf_Flags) & RFF_COMPRESS ? 
+	    hdr.rf_Magic, hdr.rf_Platform,
+	    hdr.rf_Flags & RFF_COMPRESS ? 
 	    "compressed" : "not compressed");
     printf ("Currently %d of max %d samples, with %d fields\n", 
-	    BE_long (hdr.rf_NSample), BE_long (hdr.rf_MaxSample), 
-	    BE_long (hdr.rf_NField));
-    for (fld = 0; fld < BE_long (hdr.rf_NField); fld++)
+	    hdr.rf_NSample, hdr.rf_MaxSample, 
+	    hdr.rf_NField);
+    for (fld = 0; fld < hdr.rf_NField; fld++)
 	printf ("\tField %d, '%s'\n", fld, 
 		hdr.rf_Fields[fld].rff_Name);
 /*
  * Get and read the table of contents.
  */
-    ntocb = BE_long (hdr.rf_NSample) * sizeof (RFToc);
-    toc = (RFToc *) malloc (ntocb);
-    if (read (fd, toc, ntocb) != ntocb)
+    if (! (toc = drf_ReadTOC (&hdr, fd)))
     {
-	perror ("TOC read error");
-	exit (1);
+	    msg_ELog (EF_PROBLEM, "Read TOC failed for file '%s'", file);
+	    close (fd);
+	    return (-1);
     }
 /*
  * Dump it out.
  */
-    for (i = 0; i < BE_long (hdr.rf_NSample); i++)
+    for (i = 0; i < hdr.rf_NSample; i++)
     {
-	char attr[200];
-	printf ("%2d: %ld %06ld at %8ld, (%dx%d) space %.2f, L %.2f %.2f %.2f\n",
-		i, BE_long (toc[i].rft_Time.ds_yymmdd), 
-		BE_long (toc[i].rft_Time.ds_hhmmss),
-		BE_long (toc[i].rft_Offset[0]), 
-		BE_long (toc[i].rft_Rg.rg_nX),
-		BE_long (toc[i].rft_Rg.rg_nY), 
-		BE_float (toc[i].rft_Rg.rg_Xspacing),
-		BE_float (toc[i].rft_Origin.l_lat), 
-		BE_float (toc[i].rft_Origin.l_lon),
-		BE_float (toc[i].rft_Origin.l_alt));
-	if (BE_long (toc[i].rft_AttrLen) > 0)
+	char attr[512];
+	printf ("%2d: %ld %06ld at %8ld, (%dx%d) "
+	        "space %.2f, L %.2f %.2f %.2f\n",
+		i, toc[i].rft_Time.ds_yymmdd, 
+		toc[i].rft_Time.ds_hhmmss,
+		toc[i].rft_Offset[0], 
+		toc[i].rft_Rg.rg_nX,
+		toc[i].rft_Rg.rg_nY, 
+		toc[i].rft_Rg.rg_Xspacing,
+		toc[i].rft_Origin.l_lat, 
+		toc[i].rft_Origin.l_lon,
+		toc[i].rft_Origin.l_alt);
+	if (toc[i].rft_AttrLen > 0)
 	{
 	    char *c;
-	    int len = BE_long (toc[i].rft_AttrLen);
-	    lseek (fd, BE_long (toc[i].rft_AttrOffset), 0);
+	    int len = toc[i].rft_AttrLen;
+	    lseek (fd, toc[i].rft_AttrOffset, 0);
 	    read (fd, attr, len);
 	    printf ("\tAttributes:");
 	    c = attr;
@@ -138,35 +140,8 @@ DumpFile (char *file)
 	    printf ("\n");
 	}
     }
+    free (toc);
+    return (0);
 }
 
 
-long
-BE_long (long l)
-{
-    char c;
-    char *bl = (char *)&l;
-
-    if (LittleEndian ())
-    {
-	    c = bl[0]; bl[0] = bl[3]; bl[3] = c;
-	    c = bl[1]; bl[1] = bl[2]; bl[2] = c;
-    }
-    return l;
-}
-
-
-
-float
-BE_float (float f)
-{
-    char c;
-    char *bf = (char *)&f;
-
-    if (LittleEndian ())
-    {
-	    c = bf[0]; bf[0] = bf[3]; bf[3] = c;
-	    c = bf[1]; bf[1] = bf[2]; bf[2] = c;
-    }
-    return f;
-}

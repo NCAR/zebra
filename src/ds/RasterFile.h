@@ -1,4 +1,4 @@
-/* $Id: RasterFile.h,v 2.3 1997-03-31 22:06:36 corbet Exp $ */
+/* $Id: RasterFile.h,v 2.4 1997-06-19 20:19:31 granger Exp $ */
 
 /*
  * This is the file for FCC native raster files.  Note that these are not
@@ -97,6 +97,15 @@ typedef struct s_OldRFToc
 	int	rft_AttrLen;		/* Length of attrs		*/
 	long	rft_AttrOffset;		/* Where they are		*/
 } OldRFToc;
+
+
+/*
+ * Prototypes for the low-level RasterFile.c interface.
+ */
+int drf_ReadHeader (int fd, RFHeader *hdr);
+RFToc *drf_ReadTOC (RFHeader *, int);
+void drf_SwapHeader (RFHeader *hdr);
+void drf_SwapTOC (RFToc *toc, int ntoc);
 
 
 # ifdef notdef /* ancient */
