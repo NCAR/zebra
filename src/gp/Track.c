@@ -44,7 +44,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: Track.c,v 2.40 1996-03-12 17:41:39 granger Exp $")
+RCSID ("$Id: Track.c,v 2.41 1996-11-19 07:26:16 granger Exp $")
 
 # define ARROWANG .2618 /* PI/12 */
 # ifndef M_PI
@@ -1342,8 +1342,7 @@ int		ndetail;
 	dc_SetLocAltUnits (dc, AU_mb);
 	if (class == DCC_Scalar)
 	{
-		dc_SetupUniformFields (dc, ntimes, numfields, fields, 
-				       sizeof (float));
+		dc_SetScalarFields (dc, numfields, fields);
 		dc_SetBadval (dc, dc_GetBadval (dc_ns));
 	}
 /*
