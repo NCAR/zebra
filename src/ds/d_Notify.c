@@ -19,7 +19,6 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: d_Notify.c,v 3.4 1994-06-10 21:56:07 burghart Exp $";
 
 # include "defs.h"
 # include "message.h"
@@ -27,6 +26,7 @@ static char *rcsid = "$Id: d_Notify.c,v 3.4 1994-06-10 21:56:07 burghart Exp $";
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 
+RCSID("$Id: d_Notify.c,v 3.5 1995-02-10 01:02:50 granger Exp $")
 
 /*
  * Here we take advantage of the knowledge that PlatformID's are simply small
@@ -249,6 +249,7 @@ char *proc;
 
 int
 dap_IsInterest (pid)
+int pid;
 /*
  * Return true iff some process has a notification request on this platform.
  */
