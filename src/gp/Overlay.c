@@ -1,7 +1,7 @@
 /*
  * Deal with static (or almost static) overlays.
  */
-static char *rcsid = "$Id: Overlay.c,v 2.19 1992-12-18 10:05:19 granger Exp $";
+static char *rcsid = "$Id: Overlay.c,v 2.20 1993-02-05 22:24:25 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -786,7 +786,7 @@ char *name;
 /*
  * Nope.  Try to open up a file.
  */
-	fixdir_t ("GP_MAP_DIR", LIBDIR, name, fname, ".map");
+	fixdir_t ("GP_MAP_DIR", GetLibDir (), name, fname, ".map");
 	/* sprintf (fname, "../lib/%s.map", name); */
 	if ((mapfp = fopen (fname, "r")) == NULL)
 	{
@@ -1981,7 +1981,7 @@ char *name;
  * Nope.  Time to get it from a file. 
  */
 	icon = ALLOC (OvIcon);
-	sprintf (filename, "%s/icons/%s", LIBDIR, name);
+	sprintf (filename, "%s/icons/%s", GetLibDir (), name);
 	if (XReadBitmapFile (Disp, RootWindow (Disp, 0), filename, &icon->oi_w,
 		&icon->oi_h, &icon->oi_pixmap, &icon->oi_xh, &icon->oi_yh)
 		!= BitmapSuccess)

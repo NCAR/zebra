@@ -125,6 +125,9 @@ I_init ()
  * Add our actions.
  */
 	XtAppAddActions (Actx, Actions, ONE);
+	XtRegisterGrabAction (I_MenuPopup, True,
+		ButtonPressMask|ButtonReleaseMask, GrabModeAsync,
+		GrabModeAsync);
 # ifdef notdef
 /* 
  * Set up our translations.
@@ -199,7 +202,7 @@ int	x, y, fg;
  */
 	if (! usy_g_symbol (IconTable, name, &type, &v))
 	{
-		sprintf (fname, "%s/icons/%s", LIBDIR, name);
+		sprintf (fname, "%s/icons/%s", GetLibDir (), name);
 		if (XReadBitmapFile(disp, root, fname, &w, &h, &pmap, &xh, &yh)
 			!= BitmapSuccess)
 		{
@@ -375,7 +378,7 @@ int *fg, *bg, disable;
 /*
  * Otherwise we gotta go dig it up.
  */
-	sprintf (fname, "%s/icons/%s", LIBDIR, iname);
+	sprintf (fname, "%s/icons/%s", GetLibDir (), iname);
 	if (XReadBitmapFile (disp, root, fname, &w, &h, &pmap, &xh, &yh) !=
 		BitmapSuccess)
 	{

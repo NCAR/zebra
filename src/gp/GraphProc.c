@@ -45,7 +45,7 @@
 # include "GC.h"
 # include "GraphProc.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.23 1992-12-09 16:14:26 corbet Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.24 1993-02-05 22:24:25 corbet Exp $")
 
 /*
  * Default resources.
@@ -185,7 +185,7 @@ char **argv;
 /*
  * Hand off our information to the UI, and initialize things.
  */
-	fixdir ("GP_LOAD_FILE", LIBDIR, "graphproc.lf", loadfile);
+	fixdir ("GP_LOAD_FILE", GetLibDir (), "graphproc.lf", loadfile);
 	ui_init (loadfile, FALSE, TRUE);
 	Argc = argc;  Argv = argv;
 	ui_setup ("Graphproc", &Argc, Argv, (char *) Resources);
@@ -605,7 +605,7 @@ struct ui_command *cmds;
 	 * Get some help.
 	 */
 	   case GPC_HELP:
-		fixdir ("ZEB_HELPFILE", LIBDIR, "zeb.hlp", helpfile);
+		fixdir ("ZEB_HELPFILE", GetLibDir (), "zeb.hlp", helpfile);
 		XhCallXHelp (Graphics, helpfile, 
 			cmds[1].uc_ctype == UTT_END ? XHELP_INTRO_ID : 
 				UPTR (cmds[1]), "Welcome to Zeb");
