@@ -25,7 +25,7 @@
 # include "DataFormat.h"
 
 
-RCSID ("$Id: DFA_SweepFile.cc,v 3.2 1999-03-01 02:03:27 burghart Exp $")
+RCSID ("$Id: DFA_SweepFile.cc,v 3.3 2000-04-10 19:59:27 burghart Exp $")
 
 //
 // From here down only if sweepfile access is enabled.
@@ -78,7 +78,7 @@ public:
 //
 	void Init ()
 	{
-		SFile = new dd_sweepfile_access;
+		SFile = new dd_sweepfile_access();
 		Mapper = new dd_mapper;
 		NField = 0;
 		Fids = 0;
@@ -210,6 +210,19 @@ DataFormat *sweepfileFormat = &sweepfileFormatRec;
 
 
 
+static int
+dsf_NameFilter (const char *name)
+//
+// Filter out files we don't want to deal with.
+//
+{
+	int l = strlen (name);
+
+	return (strcmp (name + l - 4, ".tmp"));
+}
+
+
+
 
 static int
 dsf_QueryTime (const char *file, ZebTime *begin, ZebTime *end, int *nsample)
@@ -222,8 +235,8 @@ dsf_QueryTime (const char *file, ZebTime *begin, ZebTime *end, int *nsample)
 //
 // Open up the file.
 //
-	int ok = sfile.access_sweepfile (file, &mapper);
-
+	int ok = dsf_NameFilter (file) && 
+		 sfile.access_sweepfile (file, &mapper);
 	if (! ok)
 		return (FALSE);
 //
@@ -231,7 +244,23 @@ dsf_QueryTime (const char *file, ZebTime *begin, ZebTime *end, int *nsample)
 // exactly one sample in it.
 //
 	if (mapper.rays_in_sweep () < 10)
+	{
+		sfile.close_sweepfile ();
 		return (FALSE);
+	}
+//
+// Filter out files with funky modes.
+//
+	int mode = mapper.scan_mode ();
+	if (mode != PPI && mode != RHI && mode != SUR)
+	{
+		msg_ELog (EF_INFO, "Filter funky mode %s", file);
+		sfile.close_sweepfile ();
+		return (FALSE);
+	}
+//
+// Fake up one sample and return it.
+//
 	*nsample = 1;
 	begin->zt_Sec = mapper.unix_time ();
 	begin->zt_MicroSec = 0;
@@ -261,6 +290,8 @@ dsf_OpenFile (OpenFile *ofp, int write)
 				fname);
 		return (FALSE);
 	}
+	if (! dsf_NameFilter (fname))
+		return (FALSE);
 //	msg_ELog (EF_INFO, "Open file %d %s", fmt_FileIndex (ofp),fname);
 //
 // Actually open it.
