@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.34 1996-01-10 21:14:37 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.35 1996-01-12 23:03:00 granger Exp $"
 
 DEPLIBS=$(LIBZEB) /*$(LIBNETCDF)*/
 /* LIBNETCDF=/net/src/netcdf-2.3.2/libsrc/libnetcdf.a */
@@ -134,7 +134,8 @@ TestProgramTarget (aline, $(ALOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
  */
 ZEBPROGS = $(BINDIR)/message $(BINDIR)/timer $(BINDIR)/zstop $(BINDIR)/dsdump
 TESTPROJ = /net/shared/zebra/project/test
-TESTOUT = > /dev/null 2>&1
+/* TESTOUT = > /dev/null 2>&1 */
+TESTOUT =
 SOCKET = ./test.socket
 
 test:: $(ZEBPROGS) dsDaemon aline apple nstest.config
