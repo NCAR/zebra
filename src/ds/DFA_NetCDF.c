@@ -29,7 +29,7 @@
 # include "dslib.h"
 # include "dfa.h"
 #ifndef lint
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.32 1994-04-27 08:23:43 granger Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.33 1994-05-05 17:07:19 corbet Exp $")
 #endif
 
 # include <netcdf.h>
@@ -159,6 +159,9 @@ static struct CO_Compat
 	{ OrgIRGrid,		DCC_Scalar	},
 	{ OrgScalar,		DCC_Scalar	},
 	{ OrgScalar,		DCC_Location	},
+	{ Org1dGrid,		DCC_Location	},
+	{ Org2dGrid,		DCC_Location	},
+	{ Org3dGrid,		DCC_Location	},
 	{ OrgScalar,		DCC_NSpace	},
 	{ OrgNSpace,		DCC_NSpace	},
 /*
@@ -2830,7 +2833,7 @@ DataChunk *dc;
 	sprintf(history,"created by Zeb DataStore, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.32 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.33 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 }
