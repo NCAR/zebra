@@ -1,5 +1,5 @@
 /*
- * Contour.h -- Common definitions for Contour.c and FillContour.c
+ * Contour.h -- Public contour interface.
  */
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
@@ -19,56 +19,20 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-/*
- * The array we're contouring, its x and y dimensions
- * and a macro to reference it by vertex
- */
-static float	*Z;
-static int	Nx, Ny;
-static float	Badflag;
-static int	Use_flag = FALSE;
-# define ZVAL(i,j)	Z[(i)*Ny + (j)]
 
 /*
- * Color stuff
+ * Public prototypes for the contouring interfaces
  */
-static int	Color_center = 1, Ncolor = 1;
-static XColor	*Colors, Color_outrange, Color_mono;
-static int	Monoflag;
+extern void FC_Init FP((XColor *colors, int count, int center, XColor *out,
+			XRectangle clip, int flagged, double flagval));
+extern void FillContour FP((Widget w, Drawable d, float *array, int xdim, 
+			    int ydim, int xlo, int ylo, int xhi, int yhi, 
+			    double ccenter, double cstep));
+extern void CO_Init FP((XColor *colors, int count, int center, XColor *out,
+			XRectangle clip, int flagged, double flagval));
+extern void CO_InitMono FP((XColor color, XRectangle clip, int flagged, 
+			    double flagval));
+extern void Contour FP((Widget w, Drawable d, float *array, int xdim, int ydim,
+			int xlo, int ylo, int xhi, int yhi, double ccenter, 
+			double cstep, int dolabels, int linewidth));
 
-/*
- * Do out-of-range contours?
- */
-static int	Do_outrange;
-
-/*
- * Clipping rectangle
- */
-static XRectangle	Clip;
-
-/*
- * Graphics context
- */
-static GC	ContourGC = NULL;
-
-/*
- * The widget and drawable we're using (the drawable should belong to the
- * widget, i.e., either its window or an associated pixmap)
- */
-static Widget		W;
-static Drawable		D;
-
-/*
- * Arrays for pixel coordinates in x and y plus
- * x and y spacing.
- */
-static float	*Xpos, *Ypos;
-static float	Xinc, Yinc;
-
-/*
- * General definitions
- */
-# ifndef TRUE
-#	define TRUE	1
-#	define FALSE	0
-# endif
