@@ -30,7 +30,7 @@
 # include "DataStore.h"
 # include "DataChunkP.h"
 
-RCSID ("$Id: dc_MetAttr.c,v 3.7 1997-02-12 08:55:07 granger Exp $")
+RCSID ("$Id: dc_MetAttr.c,v 3.8 1997-02-21 23:38:06 granger Exp $")
 
 
 /*
@@ -424,13 +424,15 @@ DataChunk *dc;
  * Return the default bad value for this DC, which implies looking in
  * the global attributes.  Note that this returns a default value even if
  * no badvalue attribute has actually been set.
+ *
+ * This used to be limited to subclasses of MetData, but since it only
+ * uses global attributes there's no reason it can't be used by any
+ * class.
  */
 {
 	DC_ElemType type;
 	void *ptr;
 	
-	if (! dc_ReqSubClass (dc, DCP_MetData, "GetBadval"))
-		return (0);
 	ptr = dcp_GetGlobalAttrArray (dc, PK_BADVAL, &type, NULL);
 	if (! ptr)
 		return ((double) DefaultBadval);
