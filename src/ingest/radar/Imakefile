@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.11 1995-06-23 19:39:09 corbet Exp $"
+MFVERSION="$Id: Imakefile,v 1.12 1995-06-23 19:59:25 burghart Exp $"
 
 LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS) $(LIBPCAP)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
@@ -41,31 +41,19 @@ PARAMS = cp4.params adrad.params mhr.params nexrad-kmlb.params \
 
 DISTFILES = Imakefile $(SRCS) $(HDRS) $(APPDEFAULTS) $(STATES) $(PARAMS)
 
-<<<<<<< Imakefile
-NormalProgramTargetNoInstall(radar_ingest,radar_ingest.o mtape.o Rasterize.o\
-	StatusWidget.o Input.o cp2.o PCapInput.o BeamBuffer.o,\
-	 $(DEPLIBS),$(LIBS),$(SYSLIBS))
-||||||| 1.10
-NormalProgramTargetNoInstall(radar_ingest,radar_ingest.o mtape.o Rasterize.o
-	StatusWidget.o Input.o cp2.o PCapInput.o, $(DEPLIBS),$(LIBS),$(SYSLIBS))
-=======
 AllTarget(radar_ingest)
 NormalProgramTarget(radar_ingest,radar_ingest.o mtape.o Rasterize.o
-    StatusWidget.o Input.o cp2.o PCapInput.o, $(DEPLIBS),$(LIBS),$(SYSLIBS))
->>>>>>> /tmp/T4a0063n
+	StatusWidget.o Input.o cp2.o PCapInput.o BeamBuffer.o, \
+	$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
-<<<<<<< Imakefile
-NormalProgramTargetNoInstall(btest, btest.o BeamBuffer.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
+NormalProgramTargetNoInstall(btest, btest.o BeamBuffer.o,$(DEPLIBS), \
+	$(LIBS),$(SYSLIBS))
 
-NormalProgramTargetNoInstall(bdump, bdump.o BeamBuffer.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
+NormalProgramTargetNoInstall(bdump, bdump.o BeamBuffer.o,$(DEPLIBS), \
+	$(LIBS),$(SYSLIBS))
 
-NormalProgramTargetNoInstall(adrad_ingest,adrad_ingest.o Rasterize.o 
-||||||| 1.10
-NormalProgramTargetNoInstall(adrad_ingest,adrad_ingest.o Rasterize.o 
-=======
 AllTarget(adrad_ingest)
 NormalProgramTarget(adrad_ingest,adrad_ingest.o Rasterize.o 
->>>>>>> /tmp/T4a0063n
 	adradInput.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
 CompleteProgramTarget(adradFieldList,
