@@ -1,7 +1,7 @@
 /*
  * Track drawing routines.
  */
-static char *rcsid = "$Id: Track.c,v 1.2 1990-07-08 12:56:11 corbet Exp $";
+static char *rcsid = "$Id: Track.c,v 1.3 1990-09-04 08:45:37 corbet Exp $";
 
 
 # include <X11/Intrinsic.h>
@@ -99,8 +99,9 @@ bool update;
 /*
  * Color code field.
  */
-	mono = ! tr_GetParam (comp, "color-code-field", platform, ccfield,
-		SYMT_STRING);
+	mono = ! (tr_GetParam (comp, "field", platform, ccfield, SYMT_STRING)
+			|| tr_GetParam (comp, "color-code-field", platform,
+				ccfield, SYMT_STRING));
 	if (! mono)
 		mono = ! tr_CCSetup (file, comp, platform, ccfield, &colors,
 				&nc, &base, &incr, &outrange);
