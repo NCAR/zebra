@@ -1,7 +1,7 @@
 /*
  * XY-Wind plotting module
  */
-static char *rcsid = "$Id: XYWind.c,v 1.3 1992-01-10 19:18:40 barrett Exp $";
+static char *rcsid = "$Id: XYWind.c,v 1.4 1992-01-29 22:30:39 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -37,13 +37,12 @@ static char *rcsid = "$Id: XYWind.c,v 1.3 1992-01-10 19:18:40 barrett Exp $";
 # include "GraphProc.h"
 # include "GC.h"
 # include "LayoutControl.h"
-# include "DrawText.h"
+# include "XYCommon.h"
+# include "AxisControl.h"
 
 /*
  * General definitions
  */
-# define BADVAL		-999.0
-# define MAX_PLAT	10
 
 void	xy_Wind();
 
@@ -55,8 +54,6 @@ typedef enum {L_solid, L_dashed, L_dotted} LineStyle;
 /*
  * Color array and indices
  */
-extern XColor	*Colors;
-extern int	Ncolors;
 extern XColor 	Tadefclr;
 
 
@@ -69,7 +66,7 @@ bool	update;
  */
 {
 	bool	ok;
-	int	status, i, npts, plat, nplat,ii,jj;
+	int	i, npts, plat, nplat,ii,jj;
 	int	nxfield,nyfield;
 	int	count;
 	int 	nPlotted=0;
@@ -77,6 +74,8 @@ bool	update;
 	char	ctname[20];
 	float   cstep;               /* interval for each step of color tables */
 	float	scaleSpeed;
+	XColor	*colors;
+	int	ncolors;
 	char	dataNames[4][80];
 	char	*flist[4];
 	time	ptime;
@@ -92,18 +91,19 @@ bool	update;
 	DataValPtr	*xdata,*ydata;
 	DataValPtr	*udata,*vdata;
 	DataValRec	xmin,xmax,ymin,ymax;
+	DataValRec	oldxmin,oldxmax,oldymin,oldymax;
+	int		xrescale=0,yrescale =0;
 	char		xtype = 'f',ytype = 'f';
 	DataValRec	oldmin, oldmax;
 	unsigned short	xscalemode,yscalemode;
 	int	fcount;
         int	xdim,ydim;
-	int	plotAxis[4];
 	int	saveConfig;
 	int	angle = 0;
 	int	udim,vdim;
 	int	nufield, nvfield;
 	float	vecScale = 0.01;
-	int	sample;
+	int	skip;
 	char	style[80];
 	char	csystem[32];
 	int	dmode;
@@ -113,11 +113,11 @@ bool	update;
  * "platform","x-field", "y-field", "wind-coords", "color-table", "org"
  */
 	ok = pda_ReqSearch (Pd, c, "platform", NULL, platforms, SYMT_STRING);
-	ok = pda_ReqSearch (Pd,c,"x-field",NULL, &(dataNames[0]), SYMT_STRING);
-	ok = pda_ReqSearch (Pd,c,"y-field",NULL, &(dataNames[1]), SYMT_STRING);
+	ok = pda_ReqSearch (Pd,c,"x-field",NULL, (char*)&(dataNames[0]), SYMT_STRING);
+	ok = pda_ReqSearch (Pd,c,"y-field",NULL, (char*)&(dataNames[1]), SYMT_STRING);
 
 	/* The winds coordinate system */
-	ok = pda_ReqSearch (Pd,c,"wind-coords",NULL, &csystem, SYMT_STRING);
+	ok = pda_ReqSearch (Pd,c,"wind-coords",NULL, csystem, SYMT_STRING);
 	if ( strcmp ( csystem , "compass" ) == 0 )
 	{
 	    if( !pda_Search (Pd,c,"wdir-field",NULL,&(dataNames[2]),
@@ -172,21 +172,33 @@ bool	update;
  * Get X-Y Winds optional parameters:
  * "vec-scale" - the number of pixels long to make the barb, or the vector
  *		scaling factor
- * "sample-n" - sample every "n" data points.
+ * "data-skip" - skip every "n" data points.
  * "style" - "barb" or "vector"
  * "step" - float, the size of the color table intervale
  */
-	if( !pda_Search (Pd,c,"vec-scale", NULL,(char *) &vecScale, SYMT_FLOAT))
+	if ( !pda_Search (Pd,c,"data-skip", NULL,(char *) &skip, SYMT_INT))
 	{
-	    vecScale = 25.0;
-	}
-	if ( !pda_Search (Pd,c,"sample-n", NULL,(char *) &sample, SYMT_INT))
-	{
-	    sample = 5;
+	    skip = 5;
 	}
 	if ( !pda_Search (Pd,c,"representation-style", NULL,(char *) &style, SYMT_STRING))
 	{
 	    strcpy(style, "vector" );
+	}
+	if ( strcmp(style, "vector" )==0)
+	{
+	    if( !pda_Search (Pd,c,"vec-scale", NULL,(char *) &vecScale, 
+			SYMT_FLOAT))
+	    {
+	        vecScale = .02;
+	    }
+	}
+	else 
+	{
+	    if( !pda_Search (Pd,c,"barb-scale", NULL,(char *) &vecScale, 
+			SYMT_FLOAT))
+	    {
+	        vecScale = 25.0;
+	    }
 	}
 	if( !pda_Search (Pd,c,"step", NULL,(char *) &cstep, SYMT_FLOAT))
 	{
@@ -214,15 +226,19 @@ bool	update;
 	    xtype = 't';
 	if ( strcmp( fnames[1][0],"time" ) == 0 )
 	    ytype = 't';
-        xy_GetScaleMode(Pd,c,'x',&xscalemode);
-        xy_GetScaleMode(Pd,c,'y',&yscalemode);
-        xy_GetCurrentScaleBounds(Pd,c,'x',xtype,&xmin,&xmax);
-        xy_GetCurrentScaleBounds(Pd,c,'y',ytype,&ymin,&ymax);
-        xy_GetComponentAxes(Pd,c,plotAxis);
+        xy_GetScaleInfo(Pd,c,'x',&xscalemode);
+        xy_GetScaleInfo(Pd,c,'y',&yscalemode);
+        xy_GetCurrentScaleBounds(Pd,c,'x',xtype,&oldxmin,&oldxmax);
+        xy_GetCurrentScaleBounds(Pd,c,'y',ytype,&oldymin,&oldymax);
+	xmin = oldxmin;
+        xmax = oldxmax;
+        ymin = oldymin;
+        ymax = oldymax;
+
         xy_GetDataDescriptors(Pd, c, update,
                               &bTimeTarget,&eTimeTarget,
                               &bTimeOld,&eTimeOld,
-                              &dmode );
+                              &dmode,&nPlotted );
 
    /*
     * Check to see if the current Plot-Time is already beyond
@@ -237,7 +253,7 @@ bool	update;
                         c,
                         eTimeTarget.ds_yymmdd,eTimeTarget.ds_hhmmss,
                         xmax.val.t.ds_yymmdd,xmax.val.t.ds_hhmmss);
-                if ( ts_GetSec(eTimeTarget) > ts_GetSec((xmax.val.t)) )
+                if ( GetSec(eTimeTarget) > GetSec((xmax.val.t)) )
                 {
                     TriggerGlobal = 1;
                 }
@@ -247,14 +263,14 @@ bool	update;
         {
             if ( update )
             {
-                if ( ts_GetSec(eTimeTarget) > ts_GetSec((ymax.val.t)) )
+                if ( GetSec(eTimeTarget) > GetSec((ymax.val.t)) )
                 {
                     TriggerGlobal = 1;
                 }
             }
         }
 
-	xy_GetPlotAttr(Pd,c,nplat,NULL,tadefcolor);
+	xy_GetPlotColors(Pd,c,nplat,NULL,tadefcolor);
 
 /*
  **********************************************************
@@ -274,8 +290,8 @@ bool	update;
 /*
  * Attempt to load color table 
  */
-	ct_LoadTable (ctname, &Colors, &Ncolors);
-	if (Ncolors < 1)
+	ct_LoadTable (ctname, &colors, &ncolors);
+	if (ncolors < 1)
 	{
 		msg_ELog(EF_PROBLEM, "XY-Windcolor table too small");
 		return;
@@ -296,7 +312,6 @@ bool	update;
 	{
 	    An_TopAnnot ("X/Y Wind:", Tadefclr.pixel);
 	    An_TopAnnot (c,Tadefclr.pixel);
-	    lw_OvInit ("PLATFORM    TIME\n");
 	}
 /*
  * Loop through the platforms
@@ -311,7 +326,7 @@ bool	update;
 
 	        if ( strcmp(style, "vector" ) == 0 )
 		{
-                    sprintf (datalabel, "%f5.1%s %s %f %f %f", scaleSpeed,
+                    sprintf (datalabel, "%5.1f%s %s %f %f %f", scaleSpeed,
 			"m/sec", tadefcolor, scaleSpeed, 0.0, vecScale);
                     An_AddAnnotProc (An_ColorVector, c, datalabel,
                                 strlen(datalabel)+1, 30, FALSE, FALSE);
@@ -324,7 +339,7 @@ bool	update;
                                 strlen(datalabel)+1, 100, FALSE, FALSE);
 		}
                 sprintf (datalabel, "%s %s %f %f", "wind-speed:m/sec", ctname,
-                    Ncolors%2 ?(Ncolors*cstep*0.5)-cstep*0.5 :Ncolors*cstep*0.5, 
+                    ncolors%2 ?(ncolors*cstep*0.5)-cstep*0.5 :ncolors*cstep*0.5, 
 		    cstep);
                 An_AddAnnotProc (An_ColorBar, c, datalabel,
                                 strlen(datalabel)+1, 75, TRUE, FALSE);
@@ -448,7 +463,7 @@ bool	update;
 		  vdata[plat][count].val.f = dobj->do_data[vdim][ii];
 		  udata[plat][count].type = 'f';
 		  vdata[plat][count].type = 'f';
-		  count += nPlotted % sample == 0 ? 1 : 0;
+		  count += nPlotted % (skip+1) == 0 ? 1 : 0;
 		  nPlotted++;
 		}
 	    }
@@ -470,8 +485,8 @@ bool	update;
 /*
  * Now set the current scale bounds.
  */
-        autoTime = ts_GetSec(eTimeTarget) +
-                (long)((ts_GetSec(eTimeTarget)-ts_GetSec(bTimeTarget))*0.025);
+        autoTime = GetSec(eTimeTarget) +
+                (long)((GetSec(eTimeTarget)-GetSec(bTimeTarget))*0.025);
         if ( !update )
         {
             if ( xscalemode & AUTO)
@@ -503,56 +518,28 @@ bool	update;
                 }
             }
         }
-        xy_SetScaleBounds(Pd,c,'x',xtype,&xmin,&xmax);
-        xy_SetScaleBounds(Pd,c,'y',ytype,&ymin,&ymax);
+        if ( xscalemode & AUTO ) xy_SetScaleBounds(Pd,c,'x',xtype,&xmin,&xmax);
+        if ( yscalemode & AUTO ) xy_SetScaleBounds(Pd,c,'y',ytype,&ymin,&ymax);
 
         /*
          * Now check if scale-bounds are different from the axis-bounds
+         * If so, and this is only an update, then trigger a global
+         * redraw so shift is reflected for all components
          */
-        if ( plotAxis[AXIS_TOP] )
+        if ( ((lc_CompareData(&ymin,&ymax) >= 0 ) ||
+              (lc_CompareData(&xmin,&xmax) >= 0 ) )) 
         {
-            status = ac_AxisState( Pd,c,'t',xtype,&oldmin, &oldmax);
-            if ( !status ||
-                 lc_CompareData(&oldmin,&xmin) != 0 ||
-                 lc_CompareData(&oldmax,&xmax) != 0 )
-            {
-                ac_UpdateAxisState(Pd,c,'t',xtype,&xmin,&xmax);
-                if ( update ) TriggerGlobal = 1;
-            }
+	    msg_ELog ( EF_PROBLEM, 
+	     "Scale max's must be greater than scale min's");
+	    goto errorExit;
         }
-        if ( plotAxis[AXIS_BOTTOM] )
-        {
-            status = ac_AxisState( Pd,c,'b',xtype,&oldmin, &oldmax);
-            if ( !status ||
-                 lc_CompareData(&oldmin,&xmin) != 0 ||
-                 lc_CompareData(&oldmax,&xmax) != 0 )
-            {
-                ac_UpdateAxisState(Pd,c,'b',xtype,&xmin,&xmax);
-                if ( update ) TriggerGlobal = 1;
-            }
-        }
-        if ( plotAxis[AXIS_LEFT] )
-        {
-            status = ac_AxisState( Pd,c,'l',ytype,&oldmin, &oldmax);
-            if ( !status ||
-                 lc_CompareData(&oldmin,&ymin) != 0 ||
-                 lc_CompareData(&oldmax,&ymax) != 0 )
-            {
-                ac_UpdateAxisState(Pd,c,'l',ytype,&ymin,&ymax);
-                if ( update ) TriggerGlobal = 1;
-            }
-        }
-        if ( plotAxis[AXIS_RIGHT] )
-        {
-            status = ac_AxisState( Pd,c,'r',ytype,&oldmin, &oldmax);
-            if ( !status ||
-                 lc_CompareData(&oldmin,&ymin) != 0 ||
-                 lc_CompareData(&oldmax,&ymax) != 0 )
-            {
-                ac_UpdateAxisState(Pd,c,'r',ytype,&ymin,&ymax);
-                if ( update ) TriggerGlobal = 1;
-            }
-        }
+
+        if ( ((lc_CompareData(&ymin,&oldymin) != 0 ) ||
+              (lc_CompareData(&ymax,&oldymax) != 0 ) )) yrescale = 1;
+        if ( ((lc_CompareData(&xmin,&oldxmin) != 0 ) ||
+              (lc_CompareData(&xmax,&oldxmax) != 0 ) )) xrescale = 1;
+        if ( update && (xrescale || yrescale )) TriggerGlobal = 1;
+        xy_AdjustAxes( Pd,c,xtype,update ? 0 : 1,ytype,update ? 0 : 1);
 
 
 /*
@@ -571,14 +558,14 @@ bool	update;
 	            gp_WindBarb( xdata[plat],ydata[plat],
 			udata[plat],vdata[plat],
 			npts, angle, (int)vecScale, L_solid, 
-			Colors,Ncolors,cstep,xscalemode,yscalemode);
+			colors,ncolors,cstep,xscalemode,yscalemode);
 	        }
 	        else
 	        {
 	            gp_WindVector( xdata[plat],ydata[plat],
 			udata[plat],vdata[plat],
 			npts, angle, (double)vecScale, L_solid, 
-			Colors,Ncolors,cstep,xscalemode,yscalemode);
+			colors,ncolors,cstep,xscalemode,yscalemode);
 	        }
 
             }
@@ -602,6 +589,7 @@ bool	update;
 /*
  * Free local memory
  */
+errorExit:
 	for ( i = 0; i < nplat; i++)
 	{
 	    if (xdata[i]) free(xdata[i]);
@@ -610,6 +598,5 @@ bool	update;
 	    if (vdata[i]) free(vdata[i]);
 	}
 	free(xdata); free(ydata); free(udata); free(vdata);
-	ac_DisplayAxes();
 }
 # endif /* C_PT_XYWIND */

@@ -1,7 +1,7 @@
 /*
  * XY-Graph plotting module
  */
-static char *rcsid = "$Id: XYGraph.c,v 1.4 1992-01-03 00:28:10 barrett Exp $";
+static char *rcsid = "$Id: XYGraph.c,v 1.5 1992-01-29 22:31:23 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -37,13 +37,14 @@ static char *rcsid = "$Id: XYGraph.c,v 1.4 1992-01-03 00:28:10 barrett Exp $";
 # include "GraphProc.h"
 # include "GC.h"
 # include "LayoutControl.h"
-# include "DrawText.h"
+# include "XYCommon.h"
+# include "AxisControl.h"
 
 /*
  * General definitions
  */
-# define BADVAL		-999.0
-# define MAX_PLAT	10
+# define CROSS		1
+# define XMARK		2
 
 extern void xy_Graph();
 
@@ -55,8 +56,6 @@ typedef enum {L_solid, L_dashed, L_dotted} LineStyle;
 /*
  * Color array and indices
  */
-extern XColor	*Colors;
-extern int	Ncolors;
 extern XColor 	Tadefclr;
 
 
@@ -69,7 +68,8 @@ bool	update;
  */
 {
 	bool	ok;
-	int	status, i,  plat, nplat,ii,jj;
+	int	i,  plat, nplat,ii,jj;
+	int	xrescale = 0, yrescale = 0;
 	int	npts = 0;
 	int	nxfield,nyfield;
 	int	count;
@@ -81,7 +81,6 @@ bool	update;
 	time    eTimeTarget,bTimeTarget,bTimeOld,eTimeOld;
 	time    eTimeReq,bTimeReq;
 	int	change;
-	int	fudge;
 	long	autoTime;
 	char	*pnames[MAX_PLAT];
 	char	*fnames[2][MAX_PLAT];
@@ -92,24 +91,22 @@ bool	update;
 	DataOrganization	xyOrg;
 	DataValPtr	*xdata,*ydata;
 	DataValRec	xmin,xmax,ymin,ymax;
-	DataValRec	oldmin,oldmax;
+	DataValRec	oldxmin,oldxmax,oldymin,oldymax;
 	unsigned short	xscalemode,yscalemode;
 	char	xtype = 'f', ytype = 'f';
 	int	fcount;
         int	xdim,ydim;
-	int	plotAxis[4];
 	int	saveConfig;
 	int	dmode ;
 	char	style[80];
 	char	datalabel[80];
 /*
  * Get X-Y Graph Required parameters:
- * "platform","x-field", "y-field", "wind-coords", "color-table", "org"
+ * "platform","x-field", "y-field", "wind-coords", "org"
  */
 	ok = pda_ReqSearch (Pd, c, "platform", NULL, platforms, SYMT_STRING);
-	ok = pda_ReqSearch (Pd,c,"x-field",NULL, &(dataNames[0]), SYMT_STRING);
-	ok = pda_ReqSearch (Pd,c,"y-field",NULL, &(dataNames[1]), SYMT_STRING);
-	ok = pda_ReqSearch (Pd, c, "color-table", NULL,ctname,SYMT_STRING);
+	ok = pda_ReqSearch (Pd,c,"x-field",NULL, (char*)&(dataNames[0]), SYMT_STRING);
+	ok = pda_ReqSearch (Pd,c,"y-field",NULL, (char*)&(dataNames[1]), SYMT_STRING);
 
 	if (! ok) return;
 /*
@@ -129,7 +126,7 @@ bool	update;
 		nplat = MAX_PLAT;
 /*
  *  Get optional "simple" parameters.
- *  "style" - "point" or "line"
+ *  "style" - "point" , "line", "cross" or "xmark"
  */
         if ( !pda_Search (Pd,c,"representation-style", NULL,
 		(char *) &style, SYMT_STRING))
@@ -154,15 +151,18 @@ bool	update;
 	    xtype = 't';
 	if ( strcmp( fnames[1][0],"time" ) == 0 )
 	    ytype = 't';
-	xy_GetScaleMode(Pd,c,'x',&xscalemode);
-	xy_GetScaleMode(Pd,c,'y',&yscalemode);
-	xy_GetCurrentScaleBounds(Pd,c,'x',xtype,&xmin,&xmax);
-	xy_GetCurrentScaleBounds(Pd,c,'y',ytype,&ymin,&ymax);
-	xy_GetComponentAxes(Pd,c,plotAxis);
+	xy_GetScaleInfo(Pd,c,'x',&xscalemode);
+	xy_GetScaleInfo(Pd,c,'y',&yscalemode);
+	xy_GetCurrentScaleBounds(Pd,c,'x',xtype,&oldxmin,&oldxmax);
+	xy_GetCurrentScaleBounds(Pd,c,'y',ytype,&oldymin,&oldymax);
+	xmin = oldxmin;
+	xmax = oldxmax;
+	ymin = oldymin;
+	ymax = oldymax;
         xy_GetDataDescriptors(Pd, c, update, 
 			      &bTimeTarget,&eTimeTarget, 
 			      &bTimeOld,&eTimeOld,
-			      &dmode );
+			      &dmode,&nPlotted );
 
    /*
     * Check to see if the current Plot-Time is already beyond
@@ -177,7 +177,7 @@ bool	update;
 			c,
 			eTimeTarget.ds_yymmdd,eTimeTarget.ds_hhmmss,
 			xmax.val.t.ds_yymmdd,xmax.val.t.ds_hhmmss);
-		if ( ts_GetSec(eTimeTarget) > ts_GetSec((xmax.val.t)) )
+		if ( GetSec(eTimeTarget) > GetSec((xmax.val.t)) )
 		{
 		    TriggerGlobal = 1;
 		}
@@ -187,7 +187,7 @@ bool	update;
 	{
 	    if ( update )
 	    {
-		if ( ts_GetSec(eTimeTarget) > ts_GetSec((ymax.val.t)) )
+		if ( GetSec(eTimeTarget) > GetSec((ymax.val.t)) )
 		{
 		    TriggerGlobal = 1;
 		}
@@ -195,7 +195,7 @@ bool	update;
 	}
 	for ( i = 0; i < nplat; i++)
 	    linecolor[i] = (char*)calloc(64,sizeof(char));
-	xy_GetPlotAttr(Pd,c,nplat,linecolor,tadefcolor);
+	xy_GetPlotColors(Pd,c,nplat,linecolor,tadefcolor);
 /*
  **********************************************************
  * X-dependent set-up
@@ -221,15 +221,6 @@ bool	update;
 	    ct_GetColorByName(tadefcolor, &Tadefclr);
 	}
 /*
- * Attempt to load color table 
- */
-	ct_LoadTable (ctname, &Colors, &Ncolors);
-	if (Ncolors < 1)
-	{
-		msg_ELog(EF_PROBLEM, "XY-Graph color table too small");
-		return;
-	}
-/*
  **********************************************************
  **********************************************************
  */
@@ -245,7 +236,6 @@ bool	update;
 	{
 	    An_TopAnnot ("X/Y Graph:", Tadefclr.pixel);
 	    An_TopAnnot (c, Tadefclr.pixel);
-	    lw_OvInit ("PLATFORM    TIME\n");
 	}
 /*
  * Loop through the platforms
@@ -394,9 +384,12 @@ bool	update;
 /*
  * Now set the current scale bounds.
  */
-	fudge = 300;
-	autoTime = ts_GetSec(eTimeTarget) + 
-		(long)((ts_GetSec(eTimeTarget)-ts_GetSec(bTimeTarget))*0.025);
+	/*
+	 *  If this is a global update, and there's autoscaling going on,
+	 *  set a fudge factor to bound the min and max of the data.
+	 */
+	autoTime = GetSec(eTimeTarget) + 
+		(long)((GetSec(eTimeTarget)-GetSec(bTimeTarget))*0.025);
 	if ( !update )
 	{
 	    if ( xscalemode & AUTO)
@@ -428,56 +421,18 @@ bool	update;
 		}
 	    }
 	}
-	xy_SetScaleBounds(Pd,c,'x',xtype,&xmin,&xmax);
-	xy_SetScaleBounds(Pd,c,'y',ytype,&ymin,&ymax);
-
-	/*
-	 * Now check if scale-bounds are different from the axis-bounds
+	if ( xscalemode & AUTO ) xy_SetScaleBounds(Pd,c,'x',xtype,&xmin,&xmax);
+	if ( yscalemode & AUTO ) xy_SetScaleBounds(Pd,c,'y',ytype,&ymin,&ymax);
+	/* 
+	 * Trigger a global redraw to update the axis if they will have
+	 * changed.
 	 */
-	if ( plotAxis[AXIS_TOP] )
-	{
-	    status = ac_AxisState( Pd,c,'t',xtype,&oldmin, &oldmax);
-	    if ( !status ||
-		 lc_CompareData(&oldmin,&xmin) != 0 ||
-	         lc_CompareData(&oldmax,&xmax) != 0 )
-	    {
-		ac_UpdateAxisState(Pd,c,'t',xtype,&xmin,&xmax);
-	        if ( update ) TriggerGlobal = 1;
-	    }
-	}
-	if ( plotAxis[AXIS_BOTTOM] )
-	{
-	    status = ac_AxisState( Pd,c,'b',xtype,&oldmin, &oldmax);
-	    if ( !status ||
-		 lc_CompareData(&oldmin,&xmin) != 0 ||
-	         lc_CompareData(&oldmax,&xmax) != 0 )
-	    {
-		ac_UpdateAxisState(Pd,c,'b',xtype,&xmin,&xmax);
-	        if ( update ) TriggerGlobal = 1;
-	    }
-	}
-	if ( plotAxis[AXIS_LEFT] )
-	{
-	    status = ac_AxisState( Pd,c,'l',ytype,&oldmin, &oldmax);
-	    if ( !status ||
-		 lc_CompareData(&oldmin,&ymin) != 0 ||
-	         lc_CompareData(&oldmax,&ymax) != 0 )
-	    {
-		ac_UpdateAxisState(Pd,c,'l',ytype,&ymin,&ymax);
-	        if ( update ) TriggerGlobal = 1;
-	    }
-	}
-	if ( plotAxis[AXIS_RIGHT] )
-	{
-	    status = ac_AxisState( Pd,c,'r',ytype,&oldmin, &oldmax);
-	    if ( !status ||
-		 lc_CompareData(&oldmin,&ymin) != 0 ||
-	         lc_CompareData(&oldmax,&ymax) != 0 )
-	    {
-		ac_UpdateAxisState(Pd,c,'r',ytype,&ymin,&ymax);
-	        if ( update ) TriggerGlobal = 1;
-	    }
-	}
+	if ( ((lc_CompareData(&ymin,&oldymin) != 0 ) ||
+	      (lc_CompareData(&ymax,&oldymax) != 0 ) )) yrescale = 1;
+	if ( ((lc_CompareData(&xmin,&oldxmin) != 0 ) ||
+	      (lc_CompareData(&xmax,&oldxmax) != 0 ) )) xrescale = 1;
+	if ( update && (xrescale || yrescale )) TriggerGlobal = 1;
+	xy_AdjustAxes( Pd,c,xtype,update ? 0 : 1,ytype,update ? 0 : 1);
 
 /*
  * Plot the data.
@@ -495,6 +450,28 @@ bool	update;
                     if ( npts > 0 )
 		        gp_Points( xdata[plat],ydata[plat],npts,
                           lcolor[plat], xscalemode, yscalemode);
+	            else
+		    {
+	    	        msg_ELog ( EF_INFO, 
+       				"X-Y Graph: zero plottable points for %s.",c);
+		    }
+		}
+		else if ( strcmp(style,"cross")==0)
+		{
+                    if ( npts > 0 )
+		        gp_Symbol( xdata[plat],ydata[plat],npts,
+                          lcolor[plat], xscalemode, yscalemode,CROSS);
+	            else
+		    {
+	    	        msg_ELog ( EF_INFO, 
+       				"X-Y Graph: zero plottable points for %s.",c);
+		    }
+		}
+		else if ( strcmp(style,"xmark")==0)
+		{
+                    if ( npts > 0 )
+		        gp_Symbol( xdata[plat],ydata[plat],npts,
+                          lcolor[plat], xscalemode, yscalemode,XMARK);
 	            else
 		    {
 	    	        msg_ELog ( EF_INFO, 
