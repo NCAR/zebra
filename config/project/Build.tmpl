@@ -9,7 +9,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project auto-build parameters for development compilations
-XCOMM $Id: Build.tmpl,v 1.33 1998-03-03 15:45:20 burghart Exp $
+XCOMM $Id: Build.tmpl,v 1.34 1998-07-12 22:26:38 burghart Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -108,6 +108,23 @@ XCOMM --- Auto-binary distribution
  */
 # define HDFLibrary HDFLibDir/libdf.a HDFLibDir/libz.a
 #endif
+
+/*
+ * Sweepfile stuff is in flux, and depends on the architecture
+ */
+# ifndef HasSweepFiles
+#   define HasSweepFiles NO
+#   if SolarisArchitecture
+#     define HasSweepFiles YES
+#     define SweepFileIncDir /usr/local/spol/include
+#     define SweepFileLibrary /usr/local/spol/lib/ddmlib.a
+#   endif
+#   if LinuxArchitecture
+#     define HasSweepFiles YES
+#     define SweepFileIncDir /zebra/include
+#     define SweepFileLibrary /zebra/lib/ddmlib.a
+#   endif
+# endif
 
 /*
  * Map projections are installed on all our machines, and now that we're
