@@ -1,5 +1,5 @@
 /*
- * $Id: class_ingest.c,v 2.15 1994-07-11 21:40:52 corbet Exp $
+ * $Id: class_ingest.c,v 2.16 1995-03-14 21:36:00 granger Exp $
  *
  * Ingest CLASS data into the system.
  *
@@ -32,7 +32,7 @@
 
 #ifndef lint
 MAKE_RCSID(
-   "$Id: class_ingest.c,v 2.15 1994-07-11 21:40:52 corbet Exp $")
+   "$Id: class_ingest.c,v 2.16 1995-03-14 21:36:00 granger Exp $")
 #endif
 
 static void	Usage FP((char *prog_name));
@@ -51,7 +51,7 @@ static char *	GetNextString FP ((char *, char*));
 
 # define INGEST_NAME "class_ingest"
 # define SND	"snd"
-# define BUFLEN	1024
+# define BUFLEN	1280
 # define BADVAL -9999.0
 # define MAX_FIELDS 32
 
