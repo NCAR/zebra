@@ -9,13 +9,13 @@ p_model_winds
 	icon:		SOMETHING
 	altitude-control:	true
 	arrow-scale:	0.002
+	barb-scale:	0.06
 	degrade:	2
-	color:	white
+	color:		white
 	color-mono:	true
 	color-table:	gcook16
 	grid-method:	bilinear
-	icon-middle-menu:	simple-color
-	icon-right-menu:	linewidth
+	icon-right-menu:	winds-right
 	limit-proc:	adj_arrow_scale
 	line-width:	2
 	representation:	vector
@@ -23,4 +23,4 @@ p_model_winds
 	vgrid:		19
 	u-field:	u_wind
 	v-field:	v_wind
-	require:	simple-color
+	require:	winds, simple-color
