@@ -20,7 +20,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: dsdwidget.c,v 1.13 1993-07-01 20:13:15 granger Exp $";
+static char *rcsid = "$Id: dsdwidget.c,v 1.14 1993-07-20 21:06:45 burghart Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -285,7 +285,7 @@ int start;
  */
 {
 	DataFileInfo dfi;
-	char abegin[30], aend[30];
+	char abegin[20], aend[20];
 
 	while (start)
 	{
@@ -294,7 +294,7 @@ int start;
 		fprintf (Fptr, "%-8s '%s' %s", which, dfi.dfi_Name, abegin);
 		if (dfi.dfi_NSample > 1)
 		{
-			TC_EncodeTime (&dfi.dfi_End, TC_TimeOnly, aend);
+			TC_EncodeTime (&dfi.dfi_End, TC_Full, aend);
 			fprintf (Fptr, " -> %s [%hu]", aend, dfi.dfi_NSample);
 		}
 		fprintf (Fptr, "\n");
@@ -389,7 +389,7 @@ ZebTime *begin, *end;
  * Make a label for this platform.
  */
 {
-        char label[80], end_date[40], begin_date[40];
+        char label[80], end_date[20], begin_date[20];
         Arg arg;
 /*
  * Make the label.
@@ -397,13 +397,13 @@ ZebTime *begin, *end;
 	msg_ELog (EF_DEBUG, "Setting entry for %s", Names[index]);
 	if ((end->zt_Sec == 0) && (begin->zt_Sec == 0))
 	{
-		sprintf (label, "%-17s     -- None --         ", Names[index]);
+		sprintf (label, "%-17s  -- None --         ", Names[index]);
 	}
 	else 
 	{
 		TC_EncodeTime (end, TC_Full, end_date);
 		TC_EncodeTime (begin, TC_Full, begin_date);
-		sprintf (label, "%-17s     %20s -> %20s", Names[index],
+		sprintf (label, "%-17s  %20s -> %20s", Names[index],
 			begin_date, end_date);
 	}
 	msg_ELog (EF_DEBUG, "Entry %s", label);
@@ -529,7 +529,7 @@ CreateDisplayWidget ()
         XtSetArg (args[n], XtNdisplayCaret, False);	n++;
         XtSetArg (args[n], XtNscrollHorizontal, XawtextScrollWhenNeeded); n++;
         XtSetArg (args[n], XtNscrollVertical, XawtextScrollWhenNeeded); n++;
-        XtSetArg (args[n], XtNwidth, 550);		n++;
+        XtSetArg (args[n], XtNwidth, 650);		n++;
         XtSetArg (args[n], XtNheight, 200);		n++;
         XtSetArg (args[n], XtNtype, XawAsciiFile);	n++;
         XtSetArg (args[n], XtNeditType, XawtextEdit);	n++;
