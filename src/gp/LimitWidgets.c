@@ -1,7 +1,7 @@
 /*
  * Widgets for changing plot limits.
  */
-static char *rcsid = "$Id: LimitWidgets.c,v 2.0 1991-07-18 23:00:21 corbet Exp $";
+static char *rcsid = "$Id: LimitWidgets.c,v 2.1 1991-08-07 20:02:54 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -29,9 +29,8 @@ static char *rcsid = "$Id: LimitWidgets.c,v 2.0 1991-07-18 23:00:21 corbet Exp $
 static int Sw_Nsta;			/* Number of stations		*/
 static Widget Sw_Swidgets[MAXSTA];	/* Per-station toggles		*/
 static bool Sw_Sset[MAXSTA];		/* Is this station selected?	*/
-static char Sw_RetSta[20*MAXSTA];	/* What we return		*/
-static char Sw_Plat[20], SavePlat[20*MAXSTA];
-static int Sw_NRetSta = 0;		/* Number of selected stations	*/
+static char Sw_RetSta[30*MAXSTA];	/* What we return		*/
+static char Sw_Plat[30], SavePlat[30*MAXSTA];
 
 /*
  * The types of widgets we know.
@@ -46,7 +45,6 @@ typedef enum {
 } WidgetType;
 # define N_WIDGET_TYPES 6	/* Keep this updated!	*/
 
-typedef char ParamStr[32];
 
 /*
  * Widget queues -- this is how we keep track of which widgets are out
@@ -60,7 +58,7 @@ typedef struct _WidgetQueue_
 	void	*wq_wdata;		/* Widget-specific data		*/
 	WidgetType	wq_type;	/* Type of this widget		*/
 	char	wq_comp[32];		/* Component			*/
-	ParamStr	*wq_param;	/* Parameter			*/
+	char	wq_param[2][32];		/* Parameter			*/
 } WidgetQueue;
 
 /*
@@ -75,7 +73,7 @@ static WidgetQueue *BusyQueue[N_WIDGET_TYPES];
 typedef struct _WidgetDesc_
 {
 	char	*wd_name;	/* Name of this widget type	*/
-	WidgetType wd_type;	/* The actual type		*/
+	WidgetType we_type;	/* The actual type		*/
 	Widget	(*wd_create)();	/* Create routine		*/
 	void	(*wd_setup)();	/* Setup routine		*/
 	int	wd_seq;		/* Sequence number		*/
@@ -241,7 +239,7 @@ int type;
  * Nope, allocate a new entry.
  */
 	ret = ALLOC (WidgetQueue);
-	ret->wq_next = 0;
+	ret->wq_next = (WidgetQueue *) 0;
 	ret->wq_type = type;
 	sprintf (ret->wq_name, "%s%d", wd->wd_name, wd->wd_seq++);
 /*
@@ -829,9 +827,8 @@ XtPointer junk;
  * Get the string out of the widget and store it.
  */
 	msg_ELog (EF_DEBUG, "New value is '%s'", wd->d_vstring);
-	parameter (wq->wq_comp, wq->wq_param, wd->d_vstring);
+	parameter (wq->wq_comp, wq->wq_param[0], wd->d_vstring);
 	lw_Popdown (wq);
-	free (wq->wq_param);
 }
 
 
@@ -850,9 +847,8 @@ XtPointer junk;
  * Get the string out of the widget and store it.
  */
 	msg_ELog (EF_DEBUG, "New value is '%s'", wd->d_vstring);
-	parameter (wq->wq_comp, wq->wq_param, wd->d_vstring);
+	parameter (wq->wq_comp, wq->wq_param[0], wd->d_vstring);
 	lw_Popdown (wq);
-	free (wq->wq_param);
 }
 
 
@@ -874,12 +870,11 @@ XtPointer junk;
 
 	if(pd_Retrieve(Pd, wq->wq_comp, "field", field, SYMT_STRING))
 	{
-		sprintf(param, "%s-%s", field, wq->wq_param);
+		sprintf(param, "%s-%s", field, wq->wq_param[0]);
 		pd_Store(Pd, "global", param, wd->d_vstring, SYMT_STRING);
 	}
-	parameter (wq->wq_comp, wq->wq_param, wd->d_vstring);
+	parameter (wq->wq_comp, wq->wq_param[0], wd->d_vstring);
 	lw_Popdown (wq);
-	free (wq->wq_param);
 }
 
 
@@ -911,7 +906,6 @@ XtPointer junk;
 	parameter (wq->wq_comp, wq->wq_param[0], wd->d_vstring[0]);
 	parameter (wq->wq_comp, wq->wq_param[1], wd->d_vstring[1]);
 	lw_Popdown (wq);
-	free (wq->wq_param);
 }
 
 
@@ -938,7 +932,6 @@ XtPointer junk;
 	parameter (wq->wq_comp, wq->wq_param[0], wd->d_vstring[0]);
 	parameter (wq->wq_comp, wq->wq_param[1], wd->d_vstring[1]);
 	lw_Popdown (wq);
-	free (wq->wq_param);
 }
 
 
@@ -978,12 +971,7 @@ struct ui_command *cmds;
 /*
  *  Stash the parameter name.
  */
-	if((wq->wq_param = (ParamStr *) malloc(sizeof(ParamStr))) == NULL)
-	{
-		msg_ELog(EF_PROBLEM, "Can't get memory for param string.");
-		return;
-	}
-	strcpy (wq->wq_param, UPTR (cmds[0]));
+	strcpy (wq->wq_param[0], UPTR (cmds[0]));
 /*
  * Stash the label into the widget.
  */
@@ -1014,12 +1002,7 @@ struct ui_command *cmds;
 /*
  *  Stash the parameter name.
  */
-	if((wq->wq_param = (ParamStr *) malloc(sizeof(ParamStr))) == NULL)
-	{
-		msg_ELog(EF_PROBLEM, "Can't get memory for param string.");
-		return;
-	}
-	strcpy (wq->wq_param, UPTR (cmds[0]));
+	strcpy (wq->wq_param[0], UPTR (cmds[0]));
 /*
  * Stash the label into the widget.
  */
@@ -1051,12 +1034,7 @@ struct ui_command *cmds;
 /*
  *  Stash the parameter name.
  */
-	if((wq->wq_param = (ParamStr *) malloc(sizeof(ParamStr))) == NULL)
-	{
-		msg_ELog(EF_PROBLEM, "Can't get memory for param string.");
-		return;
-	}
-	strcpy (wq->wq_param, UPTR (cmds[0]));
+	strcpy (wq->wq_param[0], UPTR (cmds[0]));
 /*
  * Stash the label into the widget.
  */
@@ -1082,18 +1060,13 @@ struct ui_command *cmds;
  * Set up a double float widget.
  */
 {
-	char string[10];
+	char string[50];
 	Arg args[5];
 	int n;
 	struct DFWData *wd = (struct DFWData *) wq->wq_wdata;
 /*
  *  Stash the parameter name.
  */
-	if((wq->wq_param = (ParamStr *) malloc(2 * sizeof(ParamStr))) == NULL)
-	{
-		msg_ELog(EF_PROBLEM, "Can't get memory for param string.");
-		return;
-	}
 	strcpy (wq->wq_param[0], UPTR (cmds[0]));
 	strcpy (wq->wq_param[1], UPTR (cmds[3]));
 /*
@@ -1147,11 +1120,6 @@ struct ui_command *cmds;
 /*
  *  Stash the parameter name.
  */
-	if((wq->wq_param = (ParamStr *) malloc(2 * sizeof(ParamStr))) == NULL)
-	{
-		msg_ELog(EF_PROBLEM, "Can't get memory for param string.");
-		return;
-	}
 	if (strcmp (UPTR (cmds[0]), "left") == 0)
 	{
 		sprintf (wq->wq_param[0], "%s-%s", fnames[0], UPTR (cmds[1]));
@@ -1428,7 +1396,8 @@ struct ui_command	*cmds;
 	for (i = 0; i < nump; i++)
 	{
 		msg_ELog (EF_DEBUG, "compare %s", pnames[i]);
-		if (strncmp(pnames[i], wq->wq_param, strlen(wq->wq_param)) != 0)
+		if (strncmp(pnames[i], wq->wq_param[0], strlen(wq->wq_param[0]))
+			!= 0)
 		{
 			strcat (SavePlat, pnames[i]);
 			strcat (SavePlat, ",");
@@ -1458,8 +1427,6 @@ XtPointer	junk;
  * Store the return stations string (Sw_RetSta).
  */
 {
-	struct SFWData *wd = (struct SFWData *) wq->wq_wdata;
-
 	parameter (wq->wq_comp, "platform", strcat (SavePlat, Sw_RetSta));
 	lw_Popdown (wq);	
 }
@@ -1478,14 +1445,12 @@ int sta, new;
 	
 	Sw_Sset[sta] = new;
 	Sw_RetSta[0] = '\0';
-	Sw_NRetSta = 0;
 	for (i = 0; i < Sw_Nsta; i++)
 		if (Sw_Sset[i])
 		{
 			sprintf (name, "%s/%d", Sw_Plat, i + 1);
 			strcat (Sw_RetSta, name);
 			strcat (Sw_RetSta, ",");
-			Sw_NRetSta++;
 		}
 	msg_ELog (EF_DEBUG, "In SwCb Sw_RetSta: %s", Sw_RetSta);
 }
