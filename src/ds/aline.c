@@ -1,5 +1,5 @@
 /*
- * $Id: aline.c,v 3.9 1996-03-12 02:24:50 granger Exp $
+ * $Id: aline.c,v 3.10 1996-11-19 09:09:34 granger Exp $
  *
  * An 'Assembly Line' test driver for the DataStore.
  *
@@ -37,7 +37,6 @@
 #include <message.h>
 #include <timer.h>
 #include "DataStore.h"
-#include "ds_fields.h"
 #include "DataChunkP.h"
 
 
@@ -63,6 +62,8 @@
  */
 char ProducerPlat[64] = "t_producer";	/* platform producer writes to 	*/
 char ConsumerPlat[64] = "t_consumer";	/* platform consumer reads from	*/
+char *NetcdfClass = "AssemblyLine";
+char *ZebraClass = "ZebraAssemblyLine";
 
 static int NConsumers = 2;		/* number of children 		*/
 static int RemoveDest = 1;		/* remove consumer file before copy */
@@ -73,6 +74,7 @@ static int Debug = 0;
 static int Blow = 0;			/* Dump data chunks		*/
 static int LinkPlatforms = 1;	/* link/copy/rescan consumer file updates */
 static int UseZNF = 0;
+static int WriteClasses = 0;		/* Show class definitions */
 /*
  * If true, all consumers act on producer notifications concurrently, as
  * opposed to cascading.
@@ -135,20 +137,68 @@ struct message *msg;
 }
 
 
-void
+
+static void
+DefinePlatforms ()
+/*
+ * Make sure the daemon has definitions for our platforms.
+ */
+{
+	PlatClassRef pc;
+	PlatClassId cid, zid;
+	PlatformId pid;
+
+	if ((cid = ds_LookupClass (NetcdfClass)) == BadClass)
+	{
+		pc = ds_NewClass (NetcdfClass);
+		ds_AssignClass (pc, OrgScalar, FTNetCDF, TRUE);
+		ds_SetMaxSample (pc, 20);
+		ds_SetDirectory (pc, "/tmp");
+		ds_SetInstanceDir (pc, InstanceSubdirClass);
+		ds_SetInheritDir (pc, InheritCopy);
+		cid = ds_DefineClass (pc);
+	}
+	if ((pid = ds_LookupPlatform ("t_consumer")) == BadPlatform)
+	{
+		pid = ds_DefinePlatform (cid, "t_consumer");
+	}
+	if ((pid = ds_LookupPlatform ("t_producer")) == BadPlatform)
+	{
+		pid = ds_DefinePlatform (cid, "t_producer");
+	}
+	if ((zid = ds_LookupClass (ZebraClass)) == BadClass)
+	{
+		pc = ds_NewSubClass (ZebraClass, cid);
+		ds_SetFiletype (pc, FTZebra);
+		zid = ds_DefineClass (pc);
+	}
+	if ((pid = ds_LookupPlatform ("t_consumer_znf")) == BadPlatform)
+	{
+		pid = ds_DefinePlatform (cid, "t_consumer_znf");
+	}
+	if ((pid = ds_LookupPlatform ("t_producer_znf")) == BadPlatform)
+	{
+		pid = ds_DefinePlatform (cid, "t_producer_znf");
+	}
+}
+
+
+
+
+static void
 Init (name)
 char *name;
 {
 	int i;
-	char buf[50];
 
 	SRAND(10);
 #ifdef MPROF
-	sprintf (buf, "mprof.%s", name);
-	mprof_restart (buf);
+	{
+		char buf[50];
+		sprintf (buf, "mprof.%s", name);
+		mprof_restart (buf);
+	}
 #endif
-	usy_init();
-	F_Init();
 	if (!msg_connect (msg_handler, name) ||
 	    !ds_Initialize())
 	{
@@ -164,6 +214,7 @@ char *name;
 		msg_ELPrintMask (EF_INFO | EF_PROBLEM | EF_EMERGENCY);
 	msg_ELog (EF_INFO, "Hello from '%s'", name);
 	strcpy (OurName, name);
+	DefinePlatforms ();
 	for (i = 0; i < NFIELDS; ++i)
 		Fields[i] = F_Lookup(FieldNames[i]);
 	for (i = NFIELDS; i < NFIELDS+10; ++i)
@@ -182,6 +233,7 @@ char *prog;
 	printf (" -znf                   Use ZNF files instead of netCDF\n");
 	printf (" -inventory <number>    Number of samples to produce\n");
 	printf (" -debug                 Verbose debugging output\n");
+	printf (" -write                 Write platform definitions used\n");
 	printf (" -blow                  Dump data chunks\n");
 	printf (" -period <seconds>      Fixed delay between productions\n");
 	printf (" -average <seconds>     Average wait between productions\n");
@@ -233,6 +285,8 @@ char **argv;
 			Debug = 1;
 		else if (!strncmp(argv[opt], "-blow", optlen))
 			Blow = 1;
+		else if (!strncmp(argv[opt], "-write", optlen))
+			WriteClasses = 1;
 		else if (!strncmp(argv[opt], "-znf", optlen))
 			UseZNF = 1;
 		else if (!strncmp(argv[opt], "-inventory", optlen))
@@ -308,9 +362,10 @@ main (argc, argv)
 	int nconsumers;
 	PlatformId platid;
 	ZebTime now;
+#ifdef DEBUGGER
 	char dbg[256];
+#endif
 	int err = 0;
-	int opt;
 
 	alarm (4*NConsumers*Interval*Inventory);
 #ifdef NoBuffer
@@ -383,6 +438,11 @@ main (argc, argv)
 	 * We're the parent, so we'll be the producer.
 	 */
 	Init("Producer");
+	if (WriteClasses)
+	{
+		ds_ShowPlatformClass(stdout, ds_LookupClass(NetcdfClass));
+		ds_ShowPlatformClass(stdout, ds_LookupClass(ZebraClass));
+	}
 
 	/*
 	 * Make sure our platforms are starting out clean.  Remove the
@@ -721,17 +781,19 @@ UpdCode ucode;
 	    }
 	    if (ConcurrentWrite && (i > 0))
 	    {
-		    char name[128];
 		    /*
 		     * Add a sample attribute to the most recent sample
 		     */
 		    dc_SetSampleAttr (dc, i - 1, OurName, "consumed");
 #ifdef notdef
-		    /*
-		     * And a field attribute to the 0th field
-		     */
-		    sprintf (name, "%s_notify%d", OurName, nreceived);
-		    dc_SetFieldAttr (dc, Fields[0], name, atime);
+		    {
+			    char name[128];
+			    /*
+			     * And a field attribute to the 0th field
+			     */
+			    sprintf (name, "%s_notify%d", OurName, nreceived);
+			    dc_SetFieldAttr (dc, Fields[0], name, atime);
+		    }
 #endif
 		    /*
 		     * Re-store this chunk with the added attribute
@@ -864,7 +926,7 @@ PlatformId pid;
         PlatformInfo pinfo;
         DataSrcInfo dsi;
         static DataFileInfo dfi;
-        int i, findex;
+        int i;
 	char *name = NULL;
 
         ds_LockPlatform (pid);
