@@ -1,7 +1,7 @@
 /*
  * Plot description related stuff.
  *
- * $Id: pd.h,v 1.3 1990-09-04 16:36:55 burghart Exp $
+ * $Id: pd.h,v 1.4 1990-09-20 09:15:06 corbet Exp $
  */
 
 /*
@@ -44,6 +44,7 @@ typedef void *plot_description;
 		char *value, int type);
 	int pd_RemoveComp (plot_description pd, char *name);
 	plot_description pd_ReadComponent (plot_description pd, char *comp);
+	void pd_AddComponent (plot_description, plot_description, int);
 # else
 	plot_description pd_Load ();
 	raw_plot_description *pd_Unload ();
@@ -60,4 +61,5 @@ typedef void *plot_description;
 	void pd_Store ();
 	int pd_RemoveComp ();
 	plot_description pd_ReadComponent ();
+	void pd_AddComponent ();
 # endif

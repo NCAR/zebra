@@ -1,11 +1,11 @@
-static char *rcsid = "$Id: pdlib.c,v 1.3 1990-07-08 13:00:58 corbet Exp $";
+static char *rcsid = "$Id: pdlib.c,v 1.4 1990-09-20 09:14:45 corbet Exp $";
 /*
  * The plot description library. 
  */
 # include <ui_symbol.h>
 # include <ui_error.h>
 # include <ui_date.h>
-# include "/rdss/ui/ui_expr.h"		/* XXX */
+# include <ui_expr.h>		/* XXX */
 # include <message.h>
 # include "pd.h"
 
@@ -37,7 +37,7 @@ static stbl pd_NewComponent ();
 /*
  * Size of temp buffer used for writing raw PD's.
  */
-# define RAWTEMP	40960
+# define RAWTEMP	20480
 
 
 /*
@@ -304,7 +304,7 @@ raw_plot_description *rpd;
 
 	strcat (rpd->rp_data, name);
 	strcat (rpd->rp_data, "\n");
-	usy_traverse (comp, pd_UnloadParam, rpd, TRUE);
+	usy_traverse (comp, pd_UnloadParam, (long) rpd, TRUE);
 	return (0);
 }
 
@@ -486,7 +486,7 @@ stbl dest, src;
 {
 	static int pd_CopyParam ();
 
-	usy_traverse (src, pd_CopyParam, dest, FALSE);
+	usy_traverse (src, pd_CopyParam, (long) dest, FALSE);
 }
 
 
@@ -544,7 +544,7 @@ char *compname;
 /*
  * Add a new component with this name, but with the old table.
  */
-	usy_g_symbol (dest, "$components", &type, &v);
+	usy_g_symbol ((stbl) dest, "$components", &type, &v);
 	comps = (char **) v.us_v_ptr;
 	for (i = 0; comps[i]; i++)
 		;
@@ -554,6 +554,67 @@ char *compname;
 
 	return (0);
 }
+
+
+
+
+void
+pd_AddComponent (pd, new, position)
+plot_description pd, new;
+int position;
+/*
+ * Add a new component to PD at the given position.
+ */
+{
+	int ndest, type, i;
+	SValue v;
+	char **srccomps, **dstcomps;
+	extern char *zapcase ();
+/*
+ * Get both component lists now.
+ */
+	usy_g_symbol ((stbl) new, "$components", &type, &v);
+	srccomps = (char **) v.us_v_ptr;
+	usy_g_symbol ((stbl) pd, "$components", &type, &v);
+	dstcomps = (char **) v.us_v_ptr;
+/*
+ * If this component exists in the table now, get rid of it.  Then count
+ * the destination components.
+ */
+	pd_RemoveComp (pd, srccomps[0]);
+	for (ndest = 0; dstcomps[ndest]; ndest++)
+		; /* yawn */
+/*
+ * If the position is positive, it is an absolute position, after the 
+ * global comp.  Figure the real position accordingly.
+ */
+	if (position > 0)
+	{
+		if (position > ndest)
+			position = ndest;
+	}
+/*
+ * A negative position means count back from the end.
+ */
+	else
+	{
+		if ((position = position + ndest) < 1)
+			position = 1;
+	}
+/*
+ * Move any intervening components upward and store this one.
+ */
+	for (i = ndest; i > position; i--)
+		dstcomps[i] = dstcomps[i - 1];
+	dstcomps[position] = zapcase (usy_string (srccomps[0]));
+	dstcomps[ndest + 1] = 0;
+/*
+ * Add the actual entry into the destination table.
+ */
+	usy_g_symbol (new, srccomps[0], &type, &v);
+	usy_s_symbol ((stbl) pd, srccomps[0], SYMT_SYMBOL, &v);
+}
+
 
 
 
