@@ -20,14 +20,19 @@
 # endif /* UNIX */
 
 
-static char *rcsid = "$Id: ui_error.c,v 1.7 1993-10-04 15:03:22 case Exp $";
+static char *rcsid = "$Id: ui_error.c,v 1.8 1993-12-28 20:46:00 case Exp $";
 /*
  * Stack stuff.
  */
 static struct jstack
 {
 	struct jstack *js_next;	/* Next entry in the stack	*/
+#ifdef __hp9000s800  /* certain hps have to be different */
+        double *js_value;
+#else
 	int *js_value;		/* The value we pushed		*/
+#endif  
+
 } *Stack = 0;
 
 /*
