@@ -1,10 +1,13 @@
+/* Archiver Imakefile -*- C -*-
+ * $Id: Imakefile,v 1.12 1997-05-14 19:44:50 granger Exp $
+ */
 
 SRCS = Archiver.c Database.c Arq.c
 OBJS = Archiver.o Database.o
 
 INCLUDES = $(XINCLUDES)
 LIBS = $(DSLIBS) $(ZLIBS) $(XLIBS)
-SYSLIBS = -lndbm $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
+SYSLIBS = $(LIBNDBM) $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 DISTFILES = $(SRCS) Imakefile Archiver.ad
 
 CompleteProgramTarget(Archiver, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
