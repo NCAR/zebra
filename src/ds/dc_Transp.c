@@ -23,7 +23,7 @@
 # include "DataStore.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_Transp.c,v 1.6 1992-06-09 19:22:52 corbet Exp $")
+MAKE_RCSID ("$Id: dc_Transp.c,v 1.7 1992-11-16 21:12:01 granger Exp $")
 
 /*
  * TODO:
@@ -74,10 +74,10 @@ typedef struct _TransSample
  */
 typedef struct _AuxTrans
 {
-	short	at_NSample;	/* Number of samples in this DC		*/
-	short	at_NSampAlloc;	/* Space allocated for this many	*/
-	Location at_SLoc;	/* Location for static platforms	*/
-	TransSample at_Samples[1];	/* Description of each sample	*/
+	unsigned short at_NSample;	/* Number of samples in this DC	 */
+	unsigned short at_NSampAlloc;	/* Space allocated for this many */
+	Location at_SLoc;		/* Location for static platforms */
+	TransSample at_Samples[1];	/* Description of each sample	 */
 } AuxTrans;
 
 
