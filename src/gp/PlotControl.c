@@ -1,7 +1,7 @@
 /*
  * Window plot control routines.
  */
-static char *rcsid = "$Id: PlotControl.c,v 2.7 1992-01-02 16:56:10 barrett Exp $";
+static char *rcsid = "$Id: PlotControl.c,v 2.8 1992-04-24 17:51:35 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -22,7 +22,7 @@ static char *rcsid = "$Id: PlotControl.c,v 2.7 1992-01-02 16:56:10 barrett Exp $
 
 # include <ctype.h>
 # include <X11/Intrinsic.h>
-# include "../include/GraphicsW.h"
+# include "GraphicsW.h"
 # include "../include/defs.h"
 # include "../include/message.h"
 # include "../include/timer.h"
