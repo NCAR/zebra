@@ -20,11 +20,14 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* JF: modified to make all rmtXXX calls into macros for speed */
 
 #ifndef lint
-static char *RCSid = "$Header: /code/cvs/rdss/rdsslibs/util/rtape_lib.c,v 1.2 1995-07-06 04:49:16 granger Exp $";
+static char *RCSid = "$Header: /code/cvs/rdss/rdsslibs/util/rtape_lib.c,v 1.3 1995-07-09 15:08:45 granger Exp $";
 #endif
 
 /*
  * $Log: not supported by cvs2svn $
+ * Revision 1.2  1995/07/06  04:49:16  granger
+ * cast return value from signal() to avoid compiler warnings
+ *
  * Revision 1.1  1991/12/20  20:34:30  case
  * Initial revision
  *
@@ -136,14 +139,14 @@ int fildes;
 char *buf;
 {
 	register int blen;
-	int (*pstat)();
+	void (*pstat)();
 
 /*
  *	save current pipe status and try to make the request
  */
 
 	blen = strlen(buf);
-	pstat = (int (*)()) signal(SIGPIPE, SIG_IGN);
+	pstat = (void (*)()) signal(SIGPIPE, SIG_IGN);
 	if (write(WRITE(fildes), buf, blen) == blen)
 	{
 		signal(SIGPIPE, pstat);
@@ -487,13 +490,13 @@ char *buf;
 unsigned int nbyte;
 {
 	char buffer[BUFMAGIC];
-	int (*pstat)();
+	void (*pstat)();
 
 	sprintf(buffer, "W%d\n", nbyte);
 	if (command(fildes, buffer) == -1)
 		return(-1);
 
-	pstat = (int (*)()) signal(SIGPIPE, SIG_IGN);
+	pstat = (void (*)()) signal(SIGPIPE, SIG_IGN);
 	if (write(WRITE(fildes), buf, nbyte) == nbyte)
 	{
 		signal (SIGPIPE, pstat);
