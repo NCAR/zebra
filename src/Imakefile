@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.24 2000-04-10 21:53:37 burghart Exp $"
+MFVERSION="$Id: Imakefile,v 1.25 2000-07-14 20:34:37 granger Exp $"
 
 #define IHaveSubdirs
 #define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
@@ -47,6 +47,9 @@ XHELP = xhelp
 MAPUTIL = maputil
 #endif
 
+#if BuildPythonUtils
+PYTHON = python
+#endif
 
 /*
  * "lib" and "ds" must come first, in that order.  Thereafter it's
@@ -56,7 +59,7 @@ SUBDIRS = $(LIBS) $(DATAUTIL) dm dsdelete dsdump dsnotice dsprint \
 	dsdwidget dsmanage dsrescan $(ETC) EventLogger fccclock \
 	gettime $(GP) $(INGEST) ListMaker $(MAPUTIL) msg msg_ping \
 	mstatus mtap $(OPTIMIZER_DIR) pdmon pdcheck prt_Notify \
-	python $(REALTIME) settime Sound timer \
+	$(PYTHON) $(REALTIME) settime Sound timer \
 	tweakcolor $(XHELP) xmgrpipe zstop zmon zquery zrun zstart
 
 DSUTILS = $(LIBS) dsdelete dsdump dsnotice dsprint dsdwidget dsmanage \
