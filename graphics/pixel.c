@@ -1,5 +1,5 @@
 /* 7/87 jc */
-/* $Id: pixel.c,v 1.2 1989-10-13 11:24:37 corbet Exp $ */
+/* $Id: pixel.c,v 1.3 1993-09-16 22:08:05 case Exp $ */
 /*
  * Operations relating to pixel maps are performed here.
  */
@@ -27,7 +27,7 @@ static unsigned short Vpats[GPLT_NTYPES] =
 /*
  * Absolute value.
  */
-# define abs(v) ((v) < 0 ? - (v) : (v))
+# define ABS(v) ((v) < 0 ? - (v) : (v))
 
 
 /*
@@ -136,9 +136,9 @@ int color, ltype, npt, *ndata;
 	/*
 	 * Figure out what our longer dimension is.
 	 */
-		len = abs (ndata[2] - ndata[0]);
-		if (abs (ndata[3] - ndata[1]) > len)
-			len = abs (ndata[3] - ndata[1]);
+		len = ABS(ndata[2] - ndata[0]);
+		if ( ABS(ndata[3] - ndata[1]) > len)
+			len = ABS(ndata[3] - ndata[1]);
 	/*
 	 * Now calculate our increments in each direction.
 	 */
