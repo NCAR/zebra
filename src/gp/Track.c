@@ -1,7 +1,7 @@
 /*
  * Track drawing routines.
  */
-static char *rcsid = "$Id: Track.c,v 2.2 1991-08-07 20:04:43 corbet Exp $";
+static char *rcsid = "$Id: Track.c,v 2.3 1991-08-10 20:53:46 burghart Exp $";
 
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
@@ -279,8 +279,11 @@ bool update;
 	XSetLineAttributes (disp, Gcontext, 0, LineSolid, CapButt, JoinMiter);
 /*
  * Put in the status line before we lose the data object, then get rid of it.
+ * (Only do it if this isn't an update.  It won't get printed anyway, and
+ * it's likely to overflow the overlay widget's text space.)
  */
-	lw_TimeStatus (comp, &dobj->do_end);
+	if (! update)
+		lw_TimeStatus (comp, &dobj->do_end);
 	ds_FreeDataObject (dobj);
 /*
  * Annotate if necessary.
