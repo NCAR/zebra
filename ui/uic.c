@@ -2,11 +2,6 @@
 # include "ui_globals.h"
 # include "ui.h"
 
-# ifdef UNIX
-# ifndef LF
-# define LF "/locallib/ui.lf"
-# endif
-# endif
 
 /*
  * This string holds the initial state used by uic.  By changing it
