@@ -5,7 +5,7 @@
 # ifdef XSUPPORT
 
 
-static char *rcsid = "$Id: ui_wPulldown.c,v 1.4 1990-08-28 08:57:47 corbet Exp $";
+static char *rcsid = "$Id: ui_wPulldown.c,v 1.5 1990-09-04 09:18:25 corbet Exp $";
 
 # ifndef X11R3		/* This stuff don't work under R3.	*/
 /* 
@@ -50,6 +50,7 @@ struct menubar_widget
 	/* -- end of gen_widget stuff */
 	int	mw_nmenus;	/* The number of menus in this bar	*/
 	struct mb_menu *mw_menus; /* The actual menus			*/
+	bool	mw_vert;	/* Is this a vertical menubar?		*/
 };
 
 
@@ -68,6 +69,7 @@ struct mb_menu
 	Widget	mbm_pulldown;		/* The actual pulldown		*/
 	/* -- end of gen_widget stuff */
 	char	mbm_name[MAXTITLE];	/* The name of the menu		*/
+	char	mbm_title[MAXTITLE];	/* Title to appear on the menu	*/
 	Widget	mbm_button;		/* The menu button		*/
 	int	mbm_nentries;		/* The number of entries.	*/
 	char	*mbm_etext[MAX_ENTRY];	/* The text of each entry	*/
@@ -118,6 +120,7 @@ uw_mb_def ()
 	new->mw_create = uw_mbcreate;
 	new->mw_destroy = uw_mbdestroy;
 	new->mw_popup = 0;
+	new->mw_vert = FALSE;
 /*
  * Read in each pulldown.
  */
@@ -147,21 +150,30 @@ struct ui_command *cmds;
  * Define a pulldown menu.
  */
 {
-	struct mb_menu *menu = NEW (struct mb_menu), *list;
+	struct mb_menu *menu, *list;
 	int uw_in_mbentry ();
 /*
  * If this is an ENDDEF, we're done.
  */
 	if (UKEY (cmds[0]) == UIC_ENDDEF)
-	{
-		relvm (menu);
 		return (FALSE);
+/*
+ * Otherwise maybe it says "vertical"
+ */
+	if (UKEY (cmds[0]) == UIC_VERTICAL)
+	{
+		mb->mw_vert = TRUE;
+		return (TRUE);
 	}
+/*
+ * OK, we must have a pulldown menu.
+ */
 	cmds++;
+	menu = NEW (struct mb_menu);
 /*
  * If there is a keyword here, we want a pixmap.
  */
-	if ((menu->mbm_pixmap = cmds[0].uc_ctype) == UTT_KW)
+	if (menu->mbm_pixmap = (cmds[0].uc_ctype == UTT_KW))
 		cmds++;
 /*
  * Initialize the menu structure, and add it to the list.
@@ -170,6 +182,7 @@ struct ui_command *cmds;
 	menu->mbm_expr = FALSE;
 	menu->mbm_next = 0;
 	menu->mbm_type = WT_MENUBUTTON;
+	menu->mbm_title[0] = '\0';
 	strcpy (menu->mbm_name, UPTR (*cmds));
 	if (mb->mw_nmenus++ == 0)
 		mb->mw_menus = menu;
@@ -184,8 +197,8 @@ struct ui_command *cmds;
 /*
  * If this is a one-of-many menu, grab also the selector.
  */
-	if (menu->mbm_oom = (cmds[2].uc_ctype != UTT_END))
-		menu->mbm_selector = usy_pstring (UPTR (cmds[2]));
+	if (menu->mbm_oom = (cmds->uc_ctype != UTT_END))
+		menu->mbm_selector = usy_pstring (UPTR (*cmds));
 /*
  * Deal with the actual entries now.
  */
@@ -215,6 +228,7 @@ char *name;
 	menu->mbm_next = 0;
 	menu->mbm_type = WT_INTPOPUP;
 	menu->mbm_create = uw_mbmcreate;
+	menu->mbm_title[0] = '\0';
 	strcpy (menu->mbm_name, name);
 /*
  * Deal with the actual entries now.
@@ -270,6 +284,12 @@ struct ui_command *cmds;
 		menu->mbm_etext[menu->mbm_nentries++] = (char *) 0;
 		break;
 	/*
+	 * It could be a title.
+	 */
+	   case UIC_TITLE:
+	   	strcpy (menu->mbm_title, UPTR (cmds[1]));
+		break;
+	/*
 	 * Maybe we have a map table.
 	 */
 	   case UIC_MAPPING:
@@ -311,13 +331,13 @@ Widget parent;
  * Realize this widget.
  */
 {
-	static Arg mbargs[10] = {
-		{ XtNorientation,	(XtArgVal) XtorientHorizontal}
-	};
+	Arg mbargs[2];
 	struct mb_menu *menu;
 /*
  * Create the box widget that will contain the menu buttons.
  */
+	XtSetArg (mbargs[0], XtNorientation,
+		mw->mw_vert ? XtorientVertical : XtorientHorizontal);
 	mw->mw_w = XtCreateWidget ("menubar", boxWidgetClass, parent,
 		mbargs, 1);
 /*
@@ -367,8 +387,14 @@ Widget parent;
 			menuButtonWidgetClass, parent, margs, i);
 		parent = menu->mbm_button;
 	}
+/*
+ * Create the pulldown.  Add the title if necessary.
+ */
+	if (menu->mbm_title[0])
+		XtSetArg (margs[0], XtNlabel, menu->mbm_title);
 	menu->mbm_pulldown = XtCreatePopupShell (menu->mbm_name,
-		simpleMenuWidgetClass, parent, NULL, ZERO);
+		simpleMenuWidgetClass, parent, margs,
+		menu->mbm_title[0] ? ONE : ZERO);
 /*
  * Go through and add each entry.
  */
@@ -421,10 +447,30 @@ char *name;
 {
 	Pixmap ret;
 	unsigned int w, h;
-	int xh, yh;
-
+	int xh, yh, type;
+	union usy_value v;
+	char fname[120];
+/*
+ * If they've defined ui$bitmap_directory, we'll use it.
+ */
+	if (! usy_g_symbol (Ui_variable_table, "ui$bitmap_directory",&type,&v))
+		strcpy (fname, name);
+	else if (type != SYMT_STRING)
+	{
+		ui_warning ("ui$bitmap_directory is not a string -- ignored");
+		strcpy (fname, name);
+	}
+	else
+	{
+		strcpy (fname, v.us_v_ptr);
+		strcat (fname, "/");
+		strcat (fname, name);
+	}
+/*
+ * Now try to pull in the file.
+ */
 	if (XReadBitmapFile (XtDisplay (Top), RootWindow (XtDisplay (Top), 0),
-		name, &w, &h, &ret, &xh, &yh) == BitmapSuccess)
+		fname, &w, &h, &ret, &xh, &yh) == BitmapSuccess)
 		return (ret);
 	return (NULL);
 }
