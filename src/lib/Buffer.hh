@@ -1,5 +1,5 @@
 /*
- * $Id: Buffer.hh,v 1.1 1997-11-24 10:26:28 granger Exp $
+ * $Id: Buffer.hh,v 1.2 1997-12-17 05:23:20 granger Exp $
  * 
  * Simple expandable sequential buffer.
  */
@@ -134,12 +134,16 @@ public:
 	    somewhere or compact unused space.  Overlapping moves are ok.
 	    Moves beyond the size of the buffer will increase buffer size.
 	    Returns a pointer to the destination in the buffer, 0 on error.
+	    Seeks() to the destination and expands the buffer
+	    if necessary.  The position after success is the destination,
+	    a pointer to which is returned by the function.
 	    */
 	void *Move (int to, int from, int n)
 	{
 		if (to < 0 || from < 0 || n < 0 || from+n > length)
 			return 0;
-		if (to+n > length && ! Need (to+n-length))
+		Seek (to);
+		if (! Need (n))
 			return 0;
 		if (to == from || n == 0)
 			return (buffer + to);
