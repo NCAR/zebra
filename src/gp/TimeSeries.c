@@ -1,7 +1,7 @@
 /*
  * Time Series Plotting
  */
-static char *rcsid = "$Id: TimeSeries.c,v 2.9 1992-09-02 15:47:52 burghart Exp $";
+static char *rcsid = "$Id: TimeSeries.c,v 2.10 1992-11-03 20:41:52 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -72,7 +72,7 @@ static float	Save_v[MAXPLTS * MAXFLDS];
 /*
  * Should time axis be flipped.
  */
-static int	FlipTime;
+static bool	FlipTime;
 
 /*
  * Update plot?

@@ -1,7 +1,7 @@
 /*
  * Skew-t plotting module
  */
-static char *rcsid = "$Id: Skewt.c,v 2.7 1992-10-20 17:33:48 burghart Exp $";
+static char *rcsid = "$Id: Skewt.c,v 2.8 1992-11-03 20:40:50 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -80,12 +80,12 @@ typedef enum {L_solid, L_dashed, L_dotted} LineStyle;
  */
 static XColor	*Colors;
 static int	Ncolors;
-static int 	Tacmatch = TRUE;
+static bool 	Tacmatch = TRUE;
 static XColor 	Tadefclr;
 /*
  * Feet vs. Kilometer flag.
  */
-static int	DoFeet = FALSE;
+static bool	DoFeet = FALSE;
 
 # define C_BLACK	0
 # define C_WHITE	1

@@ -34,7 +34,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 # include "LayoutControl.h"
-MAKE_RCSID ("$Id: PlotExec.c,v 2.18 1992-11-02 22:09:16 burghart Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.19 1992-11-03 20:37:15 burghart Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -447,8 +447,7 @@ ZebTime *cachetime;
 static bool
 px_GetCoords ()
 {
-	bool ok, cvt_Origin ();
-	int expand, rs = 0;
+	bool ok, expand, rs = FALSE, cvt_Origin ();
 	float lat, lon;
 	int axisSpace;
 /*
@@ -620,7 +619,8 @@ px_GetAltitude ()
  */
 {
 	char altcomp[120], **comps = pd_CompList (Pd), plat[80];
-	int i, control;
+	bool control;
+	int i;
 /*
  * Start by simply looking up the altitude in the global component.
  */
@@ -641,7 +641,7 @@ px_GetAltitude ()
 				break;
 		if (comps[i])	/* Disabled? */
 		{
-			int disabled = 0;
+			bool disabled = FALSE;
 			if (! pda_Search (Pd, comps[i], "disable", NULL, 
 				CPTR (disabled), SYMT_BOOL) || ! disabled)
 			{
@@ -690,7 +690,8 @@ Boolean	update;
  * Update is true if we're appending more data to a previous plot.
  */
 {
-	int	rtype, disable = FALSE;
+	int	rtype;
+	bool	disable = FALSE;
 	char	rep[30];
 /*
  * If this overlay is disabled, ignore it.
