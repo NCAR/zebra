@@ -26,7 +26,7 @@
 # include "DataStore.h"
 # include "dsPrivate.h"
 
-RCSID("$Id: prt_Notify.c,v 3.12 1999-03-01 02:04:51 burghart Exp $")
+RCSID("$Id: prt_Notify.c,v 3.13 1999-08-10 23:11:01 burghart Exp $")
 
 static int IMessage FP ((struct message *));
 static void NotificationRequest FP ((struct dsp_Template *));
@@ -74,7 +74,7 @@ struct message *msg;
  */
 {
 	struct mh_template *tm = (struct mh_template *) msg->m_data;
-	struct mh_client *client;
+	struct mh_clientevent *client;
 /*
  * About the only thing we expect to see here is MH stuff.
  */
@@ -98,7 +98,7 @@ struct message *msg;
 	 * notification requests.
 	 */
 	   case MH_CLIENT:
-		client = (struct mh_client *) msg->m_data;
+		client = (struct mh_clientevent *) msg->m_data;
 		if (client->mh_evtype == MH_CE_DISCONNECT)
 			dap_Cancel (client->mh_client);
 		break;

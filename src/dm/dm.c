@@ -44,7 +44,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm.c,v 2.69 1998-10-28 21:20:25 corbet Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.70 1999-08-10 23:10:54 burghart Exp $")
 
 /*
  * Pick a help browser.
@@ -706,7 +706,7 @@ struct message *msg;
  */
 {
 	struct mh_template *tm = (struct mh_template *) msg->m_data;
-	struct mh_client *client;
+	struct mh_clientevent *client;
 
 	switch (tm->mh_type)
 	{
@@ -719,7 +719,7 @@ struct message *msg;
 	 * For client events, we are really only interested in deaths.
 	 */
 	   case MH_CLIENT:
-		client = (struct mh_client *) msg->m_data;
+		client = (struct mh_clientevent *) msg->m_data;
 		if (client->mh_evtype == MH_CE_DISCONNECT)
 			ProcessDeath (client->mh_client);
 		break;
@@ -1090,7 +1090,7 @@ void *param;
  */
 {
 	struct mh_template *tm;
-	struct mh_client *client;
+	struct mh_clientevent *client;
 	char *cname = (char *) param; /* name of client expecting obituary */
 	int found = 0;
 
@@ -1105,7 +1105,7 @@ void *param;
 	 * Our real interest is here
 	 */
 	   case MH_CLIENT:
-		client = (struct mh_client *) msg->m_data;
+		client = (struct mh_clientevent *) msg->m_data;
 		if (client->mh_evtype == MH_CE_DISCONNECT &&
 		    !strcmp (cname, client->mh_client))
 		{

@@ -40,7 +40,7 @@
 # define MESSAGE_LIBRARY	/* to get netread prototypes */
 # include "message.h"
 
-RCSID ("$Id: msg_lib.c,v 2.50 1999-03-01 02:04:44 burghart Exp $")
+RCSID ("$Id: msg_lib.c,v 2.51 1999-08-10 23:10:59 burghart Exp $")
 
 /*
  * The array of functions linked with file descriptors.
@@ -364,7 +364,7 @@ msg_SendPID ()
  * Tell the handler what our PID is.
  */
 {
-	struct mh_pid pid;
+	struct mh_pidmsg pid;
 
 	pid.mh_type = MH_PID;
 	pid.mh_pid = getpid ();

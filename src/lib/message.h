@@ -1,4 +1,4 @@
-/* $Id: message.h,v 2.36 1999-03-01 02:04:44 burghart Exp $ */
+/* $Id: message.h,v 2.37 1999-08-10 23:10:59 burghart Exp $ */
 /*
  * Message protocol types.
  */
@@ -184,7 +184,7 @@ struct mh_ack
 /*
  * The client event structure.
  */
-struct mh_client
+struct mh_clientevent
 {
 	int	mh_type;	/* == MH_CLIENT			*/
 	short	mh_evtype;	/* The client event type	*/
@@ -207,7 +207,7 @@ struct mh_members
 /*
  * For reporting PID's.
  */
-struct mh_pid
+struct mh_pidmsg
 {
 	int	mh_type;	/* == MH_PID			*/
 	int	mh_pid;

@@ -52,7 +52,7 @@
 # define MESSAGE_MANAGER	/* define prototypes for netread functions */
 # include <message.h>
 
-RCSID ("$Id: message.c,v 2.59 1999-06-18 16:36:14 burghart Exp $")
+RCSID ("$Id: message.c,v 2.60 1999-08-10 23:11:00 burghart Exp $")
 
 /*
  * Symbol tables.
@@ -2068,7 +2068,7 @@ Message *msg;
 	 * Some process reporting it's PID.
 	 */
 	   case MH_PID:
-	   	Fd_map[fd]->c_pid = ((struct mh_pid *) tm)->mh_pid;
+	   	Fd_map[fd]->c_pid = ((struct mh_pidmsg *) tm)->mh_pid;
 		break;
  	/*
 	 * Client query.
@@ -2803,7 +2803,7 @@ char *group;
  */
 {
 	struct message msg;
-	struct mh_client cl;
+	struct mh_clientevent cl;
 	int i;
 /*
  * Fill in our message.

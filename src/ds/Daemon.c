@@ -54,7 +54,7 @@
 # include "dsDaemon.h"
 # include "commands.h"
 
-RCSID ("$Id: Daemon.c,v 3.70 1999-05-18 22:14:14 burghart Exp $")
+RCSID ("$Id: Daemon.c,v 3.71 1999-08-10 23:10:56 burghart Exp $")
 
 /*
  * Private SourceId type, for convenience
@@ -850,7 +850,7 @@ struct message *msg;
  */
 {
 	struct mh_template *tm = (struct mh_template *) msg->m_data;
-	struct mh_client *client;
+	struct mh_clientevent *client;
 
 	switch (tm->mh_type)
 	{
@@ -863,7 +863,7 @@ struct message *msg;
 	 * that we can get rid of any notification requests.
 	 */
 	   case MH_CLIENT:
-		client = (struct mh_client *) msg->m_data;
+		client = (struct mh_clientevent *) msg->m_data;
 		if (client->mh_evtype == MH_CE_DISCONNECT)
 			dap_Disconnect (client->mh_client);
 		break;

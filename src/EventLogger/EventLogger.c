@@ -47,7 +47,7 @@
 # include <config.h>
 # include <copyright.h>
 
-RCSID ("$Id: EventLogger.c,v 2.39 1999-02-28 23:18:38 burghart Exp $")
+RCSID ("$Id: EventLogger.c,v 2.40 1999-08-10 23:10:47 burghart Exp $")
 
 # define LOGNAME "EventLogger"
 
@@ -1244,7 +1244,7 @@ struct message *msg;
  * Log a client event.
  */
 {
-	struct mh_client *client = (struct mh_client *) msg->m_data;
+	struct mh_clientevent *client = (struct mh_clientevent *) msg->m_data;
 	struct mh_members *mg;
 	char mb[256];
 /*

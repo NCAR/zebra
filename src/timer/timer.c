@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *Version = "$Revision: 2.14 $ $Date: 1999-03-01 02:04:55 $";
+static char *Version = "$Revision: 2.15 $ $Date: 1999-08-10 23:11:02 $";
 
 # include <sys/types.h>
 # include <sys/time.h>
@@ -30,7 +30,7 @@ static char *Version = "$Revision: 2.14 $ $Date: 1999-03-01 02:04:55 $";
 # include <message.h>
 # include <timer.h>
 
-MAKE_RCSID ("$Id: timer.c,v 2.14 1999-03-01 02:04:55 burghart Exp $")
+MAKE_RCSID ("$Id: timer.c,v 2.15 1999-08-10 23:11:02 burghart Exp $")
 
 /*
  * The timer queue is made up of these sorts of entries.
@@ -71,7 +71,7 @@ static int Status ();
 static void SetTimeout FP ((struct timeval *t));
 static void RunQueue FP ((void));
 static void timer_request FP ((char *who, struct tm_req *tr));
-static void client_event FP ((struct mh_client *ce));
+static void client_event FP ((struct mh_clientevent *ce));
 static void SendTime FP ((char *who));
 static void RelativeTR FP ((char *who, struct tm_rel_alarm_req *tr));
 static void ZapRequests FP ((char *who, int ack, int param, int all));
@@ -174,7 +174,7 @@ struct message *msg;
 	   	if (tm->mh_type == MH_SHUTDOWN)
 			exit (0);
 		else if (tm->mh_type == MH_CLIENT)
-			client_event ((struct mh_client *) tm);
+			client_event ((struct mh_clientevent *) tm);
 		else
 			msg_ELog (EF_PROBLEM, "Unknown MESSAGE proto type: %d",
 				tm->mh_type);
@@ -262,7 +262,7 @@ struct tm_req *tr;
 
 static void
 client_event (ce)
-struct mh_client *ce;
+struct mh_clientevent *ce;
 /*
  * Deal with a client event.
  */
