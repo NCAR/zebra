@@ -1,10 +1,10 @@
 colortable Skew-t
 	xcolor Black
 	xcolor White
+	xcolor Gray80
 	xcolor Gray60
-	xcolor Gray45
-	xcolor SteelBlue
-	xcolor Sienna
+	xcolor SkyBlue
+	xcolor Tan
 	xcolor Cyan
 	xcolor Red
 	xcolor Magenta
