@@ -1,7 +1,6 @@
 /*
  * Raster display a rectangular array
  */
-static char *rcsid = "$Id: RasterPlot.c,v 2.17 1995-06-16 16:19:43 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -30,6 +29,8 @@ static char *rcsid = "$Id: RasterPlot.c,v 2.17 1995-06-16 16:19:43 burghart Exp 
 # include <GraphicsW.h>
 # include "GraphProc.h"
 
+RCSID ("$Id: RasterPlot.c,v 2.18 1995-06-29 23:40:55 granger Exp $")
+
 # ifdef TIMING
 # include <sys/time.h>
 # include <sys/resource.h>
@@ -45,9 +46,9 @@ static char *rcsid = "$Id: RasterPlot.c,v 2.17 1995-06-16 16:19:43 burghart Exp 
 # endif
 
 # ifdef SHM
-static char shmopt[] = "$XShm: Compiled $";
+static char *shmopt[2] = { "$XShm: Compiled $", (char *)shmopt };
 # else
-static char shmopt[] = "$XShm: NOT Compiled $";
+static char *shmopt[2] = { "$XShm: NOT Compiled $", (char *)shmopt };
 # endif /* SHM */
 
 /*
@@ -352,7 +353,7 @@ bool	fast;
 		   && (*gp <= (HValue + HRange/2.0)) 
 		   && (*gp >= (HValue - HRange/2.0)))
 		{
-			*gp++;
+			++gp;
 			*cgp++ = HColor.pixel;
 		}
 		else
@@ -380,8 +381,13 @@ bool	fast;
 
 	ylo -= 0.5 / rowinc;
 	yhi += 0.5 / rowinc;
-/*	toprow = (ydim - 1) + 0.5; /* row (floating) corresponding to yhi */
+#ifdef notdef
+	toprow = (ydim - 1) + 0.5; /* row (floating) corresponding to yhi */
+#endif
+#ifdef notdef
 	toprow = ydim + rowinc;
+#endif
+	toprow = ydim - 1;	/* why wouldn't we start at the top row? */
 /*
  * Clip to the window, if appropriate.
  */
@@ -391,7 +397,7 @@ bool	fast;
 		xlo = Clip.x;
 	}
 
-	if (xhi > (Clip.x + Clip.width))
+	if (xhi > (int)(Clip.x + Clip.width))
 		xhi = Clip.x + Clip.width;
 
 	if (yhi < Clip.y)
@@ -400,7 +406,7 @@ bool	fast;
 		yhi = Clip.y;
 	}
 	
-	if (ylo > (Clip.y + Clip.height))
+	if (ylo > (int)(Clip.y + Clip.height))
 		ylo = Clip.y + Clip.height;
 /*
  * Now we can figure the width and height
@@ -783,7 +789,7 @@ float 		scale, bias;
 		xlo = Clip.x;
 	}
 
-	if (xhi > (Clip.x + Clip.width))
+	if (xhi > (int)(Clip.x + Clip.width))
 		xhi = Clip.x + Clip.width;
 
 	if (yhi < Clip.y)
@@ -792,7 +798,7 @@ float 		scale, bias;
 		yhi = Clip.y;
 	}
 	
-	if (ylo > (Clip.y + Clip.height))
+	if (ylo > (int)(Clip.y + Clip.height))
 		ylo = Clip.y + Clip.height;
 /*
  * Now we can figure the width and height

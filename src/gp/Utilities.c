@@ -31,7 +31,7 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 
-MAKE_RCSID ("$Id: Utilities.c,v 2.32 1995-06-09 17:11:22 granger Exp $")
+MAKE_RCSID ("$Id: Utilities.c,v 2.33 1995-06-29 23:40:59 granger Exp $")
 
 /*
  * Rules for image dumping.  Indexed by keyword number in GraphProc.state
@@ -48,6 +48,9 @@ static char *ImgRules[] =
 
 # define DEG_TO_RAD(deg) ((deg)*0.017453292) /* Deg to Rad conv. */
 
+# ifndef M_PI
+# define M_PI 3.14159265358979323846
+# endif
 
 static void ApplyConstOffset FP ((Location *, double, double));
 static void ApplyAdvection FP ((Location *, double, double, ZebTime *,
@@ -245,7 +248,7 @@ int full;
 
 int
 Intersects (x0, y0, x1, y1)
-float x0, y0, x1, y1;
+double x0, y0, x1, y1;
 /*
  * Return non-zero if the line (x0, y0) <-> (x1, y1) intersects the plot's
  * grid in the kilometer domain.
@@ -608,8 +611,10 @@ float *center, *step;
 {
 	int samp, nsamp = dc_GetNSample (dc), freedata = FALSE, np;
 	float max = -99999.9, min = 99999.9, badval = dc_GetBadval (dc);
-	float *data;
+	float *data = NULL;
+	unsigned char *cdata = NULL;
 	RGrid rg;
+	ScaleInfo scale;
 /*
  * Pull out the data.
  * We are organization-dependent here...
@@ -634,6 +639,11 @@ float *center, *step;
 		np = rg.rg_nX * rg.rg_nY * rg.rg_nZ;
 		break;
 
+	   case DCC_Image:
+		cdata = dc_ImgGetImage (dc, 0, field, 0, &rg, 0, &scale);
+		np = rg.rg_nX * rg.rg_nY * rg.rg_nZ;
+		break;
+
 	   default:
 		msg_ELog (EF_PROBLEM, "FindCenterStep on unsupported org");
 		*center = 0;
@@ -643,7 +653,22 @@ float *center, *step;
 /*
  * Get the range of the data, then calculate the values.
  */
-	GetRange (data, np, badval, &min, &max);
+	if (data)
+	{
+		GetRange (data, np, badval, &min, &max);
+	}
+	else	/* calculate byte range and scale to data range */
+	{
+		GetByteRange  (cdata, np, &min, &max);
+		min = min * scale.s_Scale + scale.s_Offset;
+		max = max * scale.s_Scale + scale.s_Offset;
+		if (min > max)	/* scale is negative */
+		{
+			float swap = min;
+			min = max; 
+			max = swap;
+		}
+	}
 	CalcCenterStep (min, max, nstep, center, step);
 	if (freedata)
 		free (data);
@@ -678,13 +703,45 @@ int np;
 		if (dv > *max)
 			*max = dv;
 	}
+	if (*min > *max)	/* all bad values */
+		*min = *max = badval;
 }
 	
 
 
+
+void
+GetByteRange (cdata, np, min, max)
+unsigned char *cdata;
+int np;
+float *min, *max;
 /*
- * This test seems wrong -- is it really !sunos?
+ * Find the data range covered by this byte data.
  */
+{
+	*min = 256;
+	*max = -1;
+/*
+ * Just pass through and figure it out.  Someday we may want to do something
+ * fancier, like skipping outliers or some such.
+ */
+	for (; np > 0; np--)
+	{
+		float dv = (float) *cdata++;
+		if (dv == 255)
+			continue;
+		if (dv < *min)
+			*min = dv;
+		if (dv > *max)
+			*max = dv;
+	}
+	if (*min > *max)	/* all out-of-range bytes */
+		*min = *max = 255;
+}
+	
+
+
+
 # if defined(hpux) || defined(SVR4) || defined (linux)
 int
 nint (x)
@@ -722,8 +779,8 @@ char *file;
 /*
  * Do it.
  */
-	sprintf (cmd, "xwd -id 0x%x | %s > %s", XtWindow (Graphics),
-			ImgRules[format], efile);
+	sprintf (cmd, "xwd -id 0x%x | %s > %s", 
+		 (unsigned int) XtWindow (Graphics), ImgRules[format], efile);
 	system (cmd);
 }
 
@@ -950,7 +1007,7 @@ ZebTime		*dtime;
 {
 	ZebTime	stimes[60], obstimes[2];
 	ZebTime wanted_time;
-	int	nsample, samp, ntime, len;
+	int	nsample, samp, ntime;
 	bool	all = FALSE, rspace = FALSE;
 	float	cdiff;
 	Location	slocs[60];

@@ -27,6 +27,7 @@
 # include <X11/Intrinsic.h>
 # include <ui.h>
 # include <defs.h>
+# include <draw.h>
 # include <pd.h>
 # include <ui_date.h>
 # include <message.h>
@@ -39,10 +40,11 @@
 # include "DrawText.h"
 # include "PixelCoord.h"
 # include "EventQueue.h"
+# include "Contour.h"
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.53 1995-05-05 22:46:21 granger Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.54 1995-06-29 23:40:48 granger Exp $")
 
 
 /*
@@ -109,7 +111,8 @@ static void	CAP_Contour FP ((char *, contour_type, char **, char **,
 static DataChunk *CAP_ImageGrid FP ((char *, ZebTime *, PlatformId, char *, 
 			int *, int *, float *, float *, float *, float *, 
 			float *, int *));
-static void	CAP_ImageDataTime FP ((ZebTime *dtime));
+static int	CAP_AutoScale FP ((char *c, char *qual, char *platform,
+				   char *fname, float *center, float *step));
 void		CAP_RasterSideAnnot FP ((char *, char *, int, int, int));
 void		CAP_StaPltSideAnnot FP ((char *, char *, int, int, int));
 static bool	CAP_VecParams FP ((char *c, char *platform, float *vscale,
@@ -325,37 +328,12 @@ int *shifted;
 /*
  * Get necessary parameters from the plot description
  */
+	strcpy (fname, "none");
+	strcpy (platform, "none");
 	ok = pda_ReqSearch (Pd, c, "platform", NULL, platform, SYMT_STRING);
 	ok &= pda_ReqSearch (Pd, c, "field", NULL, fname, SYMT_STRING);
-/*
- * Make a beginning at center/step too.
- */
-	if (pda_Search (Pd, c, "scale-mode", platform, param, SYMT_STRING))
-		autoscale = ! strncmp (param, "auto", 4);
-	else
-		autoscale = FALSE;
-	if (ok && ! autoscale)
-	{
-	/*
-	 * Get the parameters.
-	 */
-		sprintf (param, "%s-center", fname);
-		ok &= pda_ReqSearch (Pd, c, param, "contour", (char *) center, 
-				     SYMT_FLOAT);
-		sprintf (param, "%s-step", fname);
-		ok &= pda_ReqSearch (Pd, c, param, "contour", (char *) step, 
-				     SYMT_FLOAT);
-	/*
-	 * If they blew it, give them a second chance by turning on
-	 * autoscaling.
-	 */
-		if (! ok)
-		{
-			msg_ELog (EF_PROBLEM,
-					"Desperately turning on autoscale");
-			ok = autoscale = TRUE;
-		}
-	}
+	autoscale = CAP_AutoScale (c, "contour", platform, fname,
+				   center, step);
 /*
  * color coding info.
  */
@@ -509,6 +487,51 @@ int *shifted;
 	free (grid);
 }
 
+
+
+static int
+CAP_AutoScale (c, qual, platform, fname, center, step)
+char *c;	/* component */
+char *qual;	/* qualifier */
+char *platform;	/* platform name */
+char *fname;	/* field name */
+float *center;	/* center of scale */
+float *step;	/* scale step */
+{
+	int ok = 1;
+	int autoscale;
+	char param[50];
+/*
+ * Make a beginning at center/step based on scale-mode.
+ */
+	if (pda_Search (Pd, c, "scale-mode", platform, param, SYMT_STRING))
+		autoscale = ! strncmp (param, "auto", 4);
+	else
+		autoscale = FALSE;
+	if (! autoscale)
+	{
+	/*
+	 * Get the parameters.
+	 */
+		sprintf (param, "%s-center", fname);
+		ok &= pda_ReqSearch (Pd, c, param, "contour", (char *) center, 
+				     SYMT_FLOAT);
+		sprintf (param, "%s-step", fname);
+		ok &= pda_ReqSearch (Pd, c, param, "contour", (char *) step, 
+				     SYMT_FLOAT);
+	/*
+	 * If they blew it, give them a second chance by turning on
+	 * autoscaling.
+	 */
+		if (! ok)
+		{
+			msg_ELog (EF_PROBLEM,
+					"Desperately turning on autoscale");
+			ok = autoscale = TRUE;
+		}
+	}
+	return (autoscale);
+}
 
 
 
@@ -1538,7 +1561,7 @@ bool	update;
 	char	param[50], outrange[40];
 	int	xdim, ydim;
 	int	nsteps;
-	bool	ok, highlight, fastloop, newrp;
+	bool	ok, highlight, fastloop, newrp, autoscale;
 	float	*fgrid;			/* Floating point grid	*/
 	unsigned char *igrid;		/* Image grid		*/
 	float	x0, x1, y0, y1, alt;
@@ -1559,17 +1582,11 @@ bool	update;
  * Get necessary parameters from the plot description
  */
 	strcpy (fname, "none");
+	strcpy (platform, "none");
 	ok = pda_ReqSearch (Pd, c, "platform", NULL, platform, SYMT_STRING);
 	ok &= pda_ReqSearch (Pd, c, "field", NULL, fname, SYMT_STRING);
-	sprintf (param, "%s-center", fname);
-	ok &= pda_ReqSearch (Pd, c, param, "raster", CPTR (center), 
-		SYMT_FLOAT);
-	sprintf (param, "%s-step", fname);
-	ok &= pda_ReqSearch (Pd, c, param, "raster", CPTR (step), 
-		SYMT_FLOAT);
-	sprintf (param, "%s-nsteps", fname);
-	if (! pda_ReqSearch (Pd, c, param, "raster", CPTR (nsteps), SYMT_INT))
-		nsteps = 11;
+	autoscale = CAP_AutoScale (c, "contour", platform, fname, 
+				   &center, &step);
 	ok &= pda_ReqSearch (Pd, c, "color-table", "raster", ctname, 
 		SYMT_STRING);
 
@@ -1641,6 +1658,12 @@ bool	update;
  */
 	ct_LoadTable (ctname, &Colors, &Ncolors);
 /*
+ * Default nsteps to number of colors in color table if not set.
+ */
+	sprintf (param, "%s-nsteps", fname);
+	if (! pda_Search (Pd, c, param, "raster", CPTR (nsteps), SYMT_INT))
+		nsteps = Ncolors;
+/*
  * Get the data (pass in plot time, get back actual data time)
  */
 	alt = Alt;
@@ -1682,13 +1705,24 @@ bool	update;
 	clip.width = (F_X1 - F_X0) * GWWidth (Graphics);
 	clip.height = (F_Y1 - F_Y0) * USABLE_HEIGHT;
 /*
+ * Calculate the rasterization limits
+ */
+	if (autoscale)
+	{
+		FindCenterStep (dc, F_Lookup (fname), nsteps, &center, &step);
+		sprintf (param, "%s-center", fname);
+		pd_Store (Pd, c, param, (char *) &center, SYMT_FLOAT);
+		sprintf (param, "%s-step", fname);
+		pd_Store (Pd, c, param, (char *) &step, SYMT_FLOAT);
+	}
+	max = center + (nsteps/2.0) * step;
+	min = center - (nsteps/2.0) * step;
+/*
  * Draw the raster plot
  */
 	ct_GetColorByName (hcolor, &xc);
-	max = center + (nsteps/2) * step;
-	min = center - (nsteps/2) * step;
 	RP_Init (Colors, Ncolors, xoutr, clip, min, max, highlight, hvalue, 
-		xc, hrange);
+		 xc, hrange);
 	if (image)
 		RasterImagePlot (Graphics, DrawFrame, igrid, xdim,
 			ydim, pix_x0, pix_y0, pix_x1, pix_y1, scale.s_Scale,
@@ -1738,7 +1772,8 @@ int datalen, begin, space;
 {
 	char string[40], ctable[40], color[40];
 	float center, step, val, used, scale, value, range, max;
-	int i, left, ncolors, bar_height, limit, nsteps, y;
+	int i, left, ncolors, limit, nsteps, y;
+	float bar_height, step_height;
 	int highlight;
 	XColor *colors, xc;
 /*
@@ -1768,26 +1803,30 @@ int datalen, begin, space;
  * Add all the colors.
  */
 	bar_height = (float) space / (float) ncolors;
-	if (bar_height <= 0) bar_height = 1;
+	if (bar_height <= 0) bar_height = 1.0;
 	for (i = 0; i < ncolors; i++)
 	{
 		XSetForeground (XtDisplay (Graphics), Gcontext, 
 			colors[ncolors - i - 1].pixel);
 		XFillRectangle (XtDisplay (Graphics), GWFrame (Graphics), 
 			Gcontext, left, (int) (begin + i * bar_height), 10, 
-			bar_height);
+			(int) bar_height);
 	}
 /*
  * Do the numeric labels.
  */
-	for (i = 0; i < nsteps; i++)
+	step_height = (float) space / (float) nsteps;
+	for (i = 0; step_height > 0 && i <= nsteps; i++)
 	{
-		val = center + (nsteps/2 - i) * step;
+		val = center + (nsteps/2.0 - i) * step;
 		sprintf (string, "%.1f", val);
 
 		XSetForeground (XtDisplay (Graphics), Gcontext,Tadefclr.pixel);
+#ifdef notdef
 		y = (float) begin + (float) i * (float) ncolors / (float)
 			(nsteps - 1.0) * (float) bar_height;
+#endif
+		y = (float) begin + (float) i * step_height;
 		DrawText (Graphics, GWFrame (Graphics), Gcontext, left + 15, 
 			y, string, 0.0, scale, JustifyLeft, JustifyCenter);
 	}
@@ -1796,8 +1835,8 @@ int datalen, begin, space;
  */
 	if (highlight)
 	{
+#ifdef notdef
 		space = bar_height * ncolors; 
-		XSetForeground (XtDisplay (Graphics), Gcontext, xc.pixel);
 		bar_height = space * range / (step * (nsteps - 1.0));
 		max = center + nsteps / 2 * step;
 		y = (float) begin + (float) space * (max - value) / 
@@ -1809,9 +1848,22 @@ int datalen, begin, space;
 			bar_height -= (begin - y);
 			y = begin;
 		}
+#endif
+		XSetForeground (XtDisplay (Graphics), Gcontext, xc.pixel);
+		bar_height = space * range / (step * nsteps);
+		max = center + (float) nsteps / 2.0 * step;
+		y = (float) begin + (float) space * (max - value) / 
+			(step * nsteps) - bar_height / 2.0; 
+		if ((y + (int)bar_height) > (begin + space)) 
+			bar_height = begin + space - y;
+		else if (y < begin)
+		{
+			bar_height -= (begin - y);
+			y = begin;
+		}
 		if (bar_height <= 0) bar_height = 1;
 		XFillRectangle (XtDisplay (Graphics), GWFrame (Graphics), 
-			Gcontext, left, y, 10, bar_height);
+			Gcontext, left, y, 10, (int) bar_height);
 	}
 }
 
