@@ -371,10 +371,10 @@ T_MakeFileName ()
 		if ((bar = strrchr (name, '|')))
 			*bar++ = '\0';
 		/* see what we get */
-		errors += CheckFileName (cp, &when, name, NULL, 0);
+		errors += CheckFileName (&cp, &when, name, NULL, 0);
 		/* try no extension */
 		ds_SetStringDetail (DD_FILE_NAME, "filename", details, 0);
-		errors += CheckFileName (cp, &when, "filename", details, 1);
+		errors += CheckFileName (&cp, &when, "filename", details, 1);
 		/* try choosing the other extension */
 		ndetail = 0;
 		if (bar)
@@ -383,7 +383,7 @@ T_MakeFileName ()
 						      details, ndetail);
 			sprintf (name, "%s.%s%s", fplat.name, stime, bar);
 
-			errors += CheckFileName (cp, &when, name, 
+			errors += CheckFileName (&cp, &when, name, 
 						 details, ndetail);
 		}
 		else
@@ -391,7 +391,7 @@ T_MakeFileName ()
 		ndetail = ds_SetStringDetail (DD_FILE_BASE, "basename",
 					      details, ndetail);
 		sprintf (name, "%s%s", "basename", bar);
-		errors += CheckFileName (cp, &when, name, details, ndetail);
+		errors += CheckFileName (&cp, &when, name, details, ndetail);
 		/*
 		 * Test error messages for faulty extensions
 		 */
