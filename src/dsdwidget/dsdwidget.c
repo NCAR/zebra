@@ -20,7 +20,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$ID$";
+static char *rcsid = "$Id: dsdwidget.c,v 1.11 1993-02-23 21:00:33 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -50,6 +50,7 @@ static char *rcsid = "$ID$";
 char	*Names[MAXPLAT];
 Widget	Entry[MAXPLAT];
 
+char *RemoteName;
 /*
  * Data structures for widgets and their contents.
  */
@@ -133,6 +134,8 @@ char	**argv;
 /*
  * Add platform labels and times to our widget.
  */
+	if (! (RemoteName = getenv ("REMOTE_NAME")))
+		RemoteName = "Remote";
 	AddPlatforms ();
 /*
  * Display the widget and wait for something to happen.
@@ -213,20 +216,15 @@ Platform *p;
 /*
  * Write platform name and info to the file.
  */
-	fprintf (Fptr, "Platform '%s', dir '%s'\n\tFlags 0x%x ( ", p->dp_name,
-		p->dp_dir, p->dp_flags);
-	for (i = 0; i < NFLAG; i++)
-		if (p->dp_flags & Flags[i].flag)
-			fprintf (Fptr, "%s ", Flags[i].name);
-	fprintf (Fptr, " )\n");
+	fprintf (Fptr, "Platform '%s', dir '%s'\n", p->dp_name, p->dp_dir);
 /*
  * Write data times to the file.
  */
 	if (! (p->dp_flags & DPF_SUBPLATFORM))
 	{
-		DumpChain ("L", p->dp_LocalData);
+		DumpChain ("Local", p->dp_LocalData);
 		if (p->dp_flags & DPF_REMOTE)
-			DumpChain ("R", p->dp_RemoteData);
+			DumpChain (RemoteName, p->dp_RemoteData);
 	}
 /*
  * Close the data file.
@@ -245,7 +243,9 @@ ZebTime *begin, *end;
 {
 	int start = p->dp_LocalData;
 	DataFile *dp;
-	
+/*
+ * Go through the local data list.
+ */
 	if (start == NULL)
 	{
 		end->zt_Sec = end->zt_MicroSec = 0;	
@@ -262,6 +262,24 @@ ZebTime *begin, *end;
 		}
 		*begin = dp->df_begin;		
 	}
+/*
+ * If there is no remote data, quit.
+ */
+	if (! (start = p->dp_RemoteData))
+		return;
+/*
+ * See if there is remote data on a wider scale.
+ */
+	dp = DFTable + start;
+	if (end->zt_Sec == 0 || TC_Less (*end, dp->df_end))
+		*end = dp->df_end;
+	while (start)
+	{
+		dp = DFTable + start;
+		start = dp->df_FLink;
+	}
+	if (begin->zt_Sec == 0 || TC_Less (dp->df_begin, *begin))
+		*begin = dp->df_begin;
 }
 
 
@@ -280,9 +298,10 @@ int start;
 		dp = DFTable + start;
 		TC_EncodeTime (&dp->df_begin, TC_Full, abegin);
 		TC_EncodeTime (&dp->df_end, TC_TimeOnly, aend);
-		fprintf (Fptr, "  %s %2d/%d '%s' %s -> %s [%hu]\n", which,
-			start, dp->df_use, dp->df_name,
-			abegin, aend, dp->df_nsample);
+		fprintf (Fptr, "%-8s '%s' %s", which, dp->df_name, abegin);
+		if (dp->df_nsample > 1)
+			fprintf (Fptr, " -> %s [%hu]", aend, dp->df_nsample);
+		fprintf (Fptr, "\n");
 		start = dp->df_FLink;
 	}
 }
@@ -383,7 +402,7 @@ ZebTime *begin, *end;
 	msg_ELog (EF_DEBUG, "Setting entry for %s", Names[index]);
 	if ((end->zt_Sec == 0) && (begin->zt_Sec == 0))
 	{
-		sprintf (label, "%-17s     -- None --", Names[index]);
+		sprintf (label, "%-17s     -- None --         ", Names[index]);
 	}
 	else 
 	{
@@ -526,7 +545,7 @@ CreateDisplayWidget ()
         XtSetArg (args[n], XtNdisplayCaret, False);	n++;
         XtSetArg (args[n], XtNscrollHorizontal, XawtextScrollWhenNeeded); n++;
         XtSetArg (args[n], XtNscrollVertical, XawtextScrollWhenNeeded); n++;
-        XtSetArg (args[n], XtNwidth, 600);		n++;
+        XtSetArg (args[n], XtNwidth, 550);		n++;
         XtSetArg (args[n], XtNheight, 200);		n++;
         XtSetArg (args[n], XtNtype, XawAsciiFile);	n++;
         XtSetArg (args[n], XtNeditType, XawtextEdit);	n++;
