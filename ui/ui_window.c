@@ -39,7 +39,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_window.c,v 1.10 1990-03-06 11:07:49 corbet Exp $";
+static char *Rcsid = "$Id: ui_window.c,v 1.11 1990-03-30 09:28:08 corbet Exp $";
 
 static bool Initialized = FALSE;
 static bool Active = FALSE;	/* Is window mode active??	*/
@@ -127,6 +127,11 @@ struct ui_command *cmds;
 	uw_sync ();
 	tty_watch (XConnectionNumber (XtDisplay (Top)), uw_xevent);
 	Active = TRUE;
+/*
+ * Finally, if we have a widget name as an argument, go ahead and put it up.
+ */
+	if (cmds->uc_ctype != UTT_END)
+		uw_popup (UPTR (*cmds));
 	return (TRUE);
 }
 
