@@ -26,7 +26,7 @@
 # include <stdio.h>
 # include <netcdf.h>
 # include "defs.h"
-MAKE_RCSID ("$Id: gprotocdf.c,v 1.2 1992-05-19 16:54:36 corbet Exp $")
+MAKE_RCSID ("$Id: gprotocdf.c,v 1.3 1992-09-10 21:31:15 corbet Exp $")
 
 
 /*
@@ -54,6 +54,8 @@ int NField = 0;
 float Scales[MAXFLD];	/* Scaling for each field		*/
 int Foffsets[MAXFLD];	/* Offsets into the GP record		*/
 int AltOffset;		/* Altitude offset			*/
+int LatOffset, LonOffset;	/* Ugly.  Please don't ask.	*/
+int NTrashed = 0;
 int Gp_fd;		/* The genpro file FD			*/
 int Gp_lrlen;		/* Logical Record length;		*/
 int Gp_prlen;		/* Physical Record length;		*/
@@ -61,7 +63,8 @@ int Gp_lperp;		/* Logical per physical record		*/
 time Gp_Begin;		/* Begin time				*/
 long Gp_Base;		/* Begin time as unix value		*/
 
-int Time_off = 6;	/* The time offset to use		*/
+int Time_off = 0;	/* The time offset to use		*/
+int Time_tweak = 0;	/* Seconds to tweak time		*/
 typedef enum { tf_NCAR, tf_UW } TimeFmt;
 TimeFmt TFmt = tf_NCAR;
 /*
@@ -103,6 +106,10 @@ char **argv;
 	else
 		printf ("WARNING: Using default time offset\n");
 	printf ("Using time offset of %d hours\n", Time_off);
+	if (getenv ("TIME_TWEAK"))
+		Time_tweak = atoi (getenv ("TIME_TWEAK"));
+	if (Time_tweak)
+		printf ("Tweaking times by %d seconds\n", Time_tweak);
 /*
  * Open the input file.
  */
@@ -117,6 +124,13 @@ char **argv;
 	Nrec = 0;
 	Plow ();
 	ncclose (NFile);
+/*
+ * Done.
+ */
+	if (NTrashed > 0)
+		printf ("Warning: %d points dropped due to zero lat/lon\n",
+			NTrashed);
+	exit (0);
 }
 
 
@@ -156,8 +170,10 @@ int count;
 	strcpy (SrcFlds[NField], "hgm");
 	strcpy (DstFlds[NField++], "alt");
 # endif
+	LatOffset = NField;
 	strcpy (SrcFlds[NField], "latg");	Scales[NField] = 10000.0;
 	strcpy (DstFlds[NField++], "lat");
+	LonOffset = NField;
 	strcpy (SrcFlds[NField], "long");	Scales[NField] = 10000.0;
 	strcpy (DstFlds[NField++], "lon");
 	AltOffset = NField;
@@ -587,15 +603,35 @@ Plow ()
 	 	if (! (ip = (int *) DataRec ()))
 			break;
 	/*
+	 * Major source of ugliness.
+	 */
+		if (ip[Foffsets[LatOffset]]/Scales[LatOffset] == 1000 ||
+		    ip[Foffsets[LonOffset]]/Scales[LonOffset] == 1000)
+		{
+			NTrashed++;
+			continue;
+		}
+	/*
 	 * Pull out the time.
 	 */
 		if (TFmt == tf_NCAR)
+		{
 			tv.ds_hhmmss = ((ip[0]/1000 - 1000) + Time_off)*10000 
 			      + (ip[1]/1000 - 1000)*100 + (ip[2]/1000) - 1000;
+			if (Time_tweak)
+			{
+				ZebTime zt;
+				TC_UIToZt (&tv, &zt);
+				zt.zt_Sec += Time_tweak;
+				TC_ZtToUI (&zt, &tv);
+			}
+		}
 		else
 		{
+			tv.ds_yymmdd = ip[0];
 			tv.ds_hhmmss = ip[1];
-			TC_SysToFcc (TC_FccToSys (&tv) + Time_off*3600, &tv);
+			TC_SysToFcc (TC_FccToSys (&tv) + Time_off*3600 
+					+ Time_tweak, &tv);
 		}
 		toff = (float) (TC_FccToSys (&tv) - Gp_Base);
 		ncvarput1 (NFile, VTime, &NOut, &toff);
