@@ -1,4 +1,4 @@
-/* $Id: message.h,v 2.11 1993-05-18 04:38:32 granger Exp $ */
+/* $Id: message.h,v 2.12 1993-05-25 20:01:25 corbet Exp $ */
 /*
  * Message protocol types.
  */
@@ -48,6 +48,15 @@
 # define MT_ISS_BASE	50	/* and 20 for ISS			*/
 	/* Next available: 70 */
 
+/*
+ * Return codes for functions called out of msg_Search.  Note that
+ * the value for MSG_CONSUMED is something truly funky.  This is because
+ * that option was added late, and I don't want to run into a message
+ * handler that returns it accidentally.
+ */
+# define MSG_DONE	0	/* All finished				*/
+# define MSG_ENQUEUE	1	/* Enqueue message for later		*/
+# define MSG_CONSUMED	-334455	/* Message eaten, but keep searching	*/
 
 /*
  * Message handler protocol message types.

@@ -28,7 +28,7 @@
 # include <sys/uio.h>
 # include "defs.h"
 # include "message.h"
-MAKE_RCSID ("$Id: msg_lib.c,v 2.14 1993-05-04 19:33:31 corbet Exp $")
+MAKE_RCSID ("$Id: msg_lib.c,v 2.15 1993-05-25 20:01:25 corbet Exp $")
 
 /*
  * The array of functions linked with file descriptors.
@@ -586,6 +586,7 @@ void *param;
 	queue = 0;
 	for (;;)
 	{
+		int action = MSG_ENQUEUE;
 	/*
 	 * Get a message.
 	 */
@@ -594,10 +595,22 @@ void *param;
 	/*
 	 * If it's the desired type, call the handler.
 	 */
-		if (msg->m_proto == proto && (*func) (msg, param) == 0)
-			break;
+		if (msg->m_proto == proto)
+		{
+			action = (*func) (msg, param);
+			if (action == MSG_DONE)
+				break;
+		}
 	/*
-	 * For whatever reason, we don't want it.  Stash it for later.
+	 * If they munched this one, recycle it.
+	 */
+	 	if (action == MSG_CONSUMED)
+		{
+			msg_free (msg);
+			continue;
+		}
+	/*
+	 * They didn't want it, and we need to put it into the queue.
 	 */
 		if (! queue)
 			queue = tail = msg_NewMq (msg);
