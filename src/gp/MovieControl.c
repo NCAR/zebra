@@ -1,7 +1,7 @@
 /*
  * Movie control functions.
  */
-static char *rcsid = "$Id: MovieControl.c,v 1.8 1991-01-26 00:10:56 corbet Exp $";
+static char *rcsid = "$Id: MovieControl.c,v 1.9 1991-03-06 22:51:31 kris Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -31,7 +31,7 @@ static char Minutes[ATSLEN], Endt[ATSLEN], Frate[ATSLEN], Fskip[ATSLEN];
 static Widget StatusLabel;	/* Where the current status goes	*/
 static Widget Indicator;
 static Widget WEndt, WMinutes, WFrate, WFskip;
-
+static int OldFrameCount;
 /*
  * The actual movie control parameters.
  */
@@ -451,7 +451,7 @@ mc_SetupParams ()
 		mc_SetStatus ("Unable to understand frame rate");
 		return (FALSE);
 	}
-	msg_ELog (EF_INFO, "Frame rate %d", Rate);
+	msg_ELog (EF_DEBUG, "Frame rate %d", Rate);
 	if (! sscanf (Fskip, "%d", &TimeSkip))
 	{
 		mc_SetStatus ("Unable to understand frame skip");
@@ -492,7 +492,9 @@ mc_GenFrames ()
  */
 	if (FrameCount < Nframes)
 	{
+		OldFrameCount = FrameCount;
 		FrameCount = Nframes;
+		fc_SetNumFrames(FrameCount);
 		XtSetArg (args[0], XtNframeCount, Nframes);
 		XtSetValues (Graphics, args, ONE);
 		pd_Store (Pd, "global", "time-frames", (char *)&Nframes,
@@ -641,9 +643,18 @@ mc_MovieRT ()
  * Stop the movie and go back to real time mode.
  */
 {
+	Arg args[2];
+	
 	mc_MovieStop ();
 	mc_SetStatus ("Inactive (real time)");
 	pd_Store (Pd, "global", "plot-mode", "real-time", SYMT_STRING);
+	FrameCount = OldFrameCount;
+	fc_SetNumFrames(FrameCount);
+	fc_UnMarkFrames();
+	XtSetArg (args[0], XtNframeCount, FrameCount);
+	XtSetValues (Graphics, args, ONE);
+	pd_Store (Pd, "global", "time-frames", (char *)&FrameCount,
+		SYMT_INT);
 	pc_PlotHandler ();
 }
 
