@@ -35,7 +35,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 
-MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.6 1994-04-15 22:27:30 burghart Exp $")
+MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.7 1994-04-19 17:14:57 burghart Exp $")
 
 /*
  * The GRIB product definition section (PDS)
@@ -2310,7 +2310,7 @@ float	*grid;
 	exponent = 4 * (bds_hdr->ref_top & 0x7F) - 280;
 	mantissa = grb_ThreeByteInt (&(bds_hdr->ref_mant));
 
-	ref = sign * mantissa * exp2 ((double) exponent);
+	ref = sign * mantissa * pow (2, (double) exponent);
 /*
  * From GRIB documentation:
  *	               E       -D
@@ -2322,10 +2322,10 @@ float	*grid;
  * If the bit is set, the value is negative.
  */
 	sign = (pds->ds_factor & 0x8000) ? -1 : 1;
-	dscale = exp10 ((double)(-sign * (pds->ds_factor & 0x7FFF)));
+	dscale = pow (10, (double)(-sign * (pds->ds_factor & 0x7FFF)));
 
 	sign = (bds_hdr->bs_factor & 0x8000) ? -1 : 1;
-	bscale = exp2 ((double)(sign * (bds_hdr->bs_factor & 0x7FFF)));
+	bscale = pow (2, (double)(sign * (bds_hdr->bs_factor & 0x7FFF)));
 /*
  * Check the bit count and build a mask with the appropriate number of bits set
  */
