@@ -34,7 +34,7 @@
 # include "DataFormat.h"
 # include "DFA_ncutil.c"
 
-RCSID ("$Id: DFA_NetCDF.c,v 3.79 2003-03-11 00:32:21 burghart Exp $")
+RCSID ("$Id: DFA_NetCDF.c,v 3.80 2003-08-06 21:48:33 burghart Exp $")
 
 /*
  * Location fields: standard attributes
@@ -64,6 +64,7 @@ typedef struct _nctag
 	int             nc_id;		/* netCDF ID value		*/
 	long            nc_base;	/* Base time value from the file*/
 	int             nc_vTime;	/* Time variable ID		*/
+	zbool		nc_haveTimeDim;	/* Is there a time dimension?	*/
 	int             nc_dTime;	/* The time dimension ID	*/
 	nc_type		nc_timeType;	/* Type of time or time_offset	*/
 	ZebTime        *nc_times;	/* The time offset array	*/
@@ -151,7 +152,7 @@ static DataFormat netcdfFormatRec =
 {
 	"netCDF",			/* Name				*/
 	FTNetCDF,			/* Our enumerated file type	*/
-	".cdf|.nc",			/* Alternate extensions		*/
+	".nc|.cdf",			/* Alternate extensions		*/
 	COCTable,       		/* org-class compatibility table*/
 	N_COC (COCTable),		/* number of org-class pairs	*/
 	sizeof(NetCDFOpenFile),		/* size of open file instance	*/
@@ -369,6 +370,7 @@ dnc_QueryTime (const char *file, ZebraTime *begin, ZebraTime *end, int *nsamp)
 	    break;
 	  case NC_DOUBLE:
 	    ncvarget1 (id, tvar, &index, &offset);
+# if 0 /* I think Java netCDF syncing is fixed now */
 	    /*
 	     * Big time kluge for Java-generated files, which may not be
 	     * properly synced in real-time.  Look for a missing value
@@ -383,6 +385,7 @@ dnc_QueryTime (const char *file, ZebraTime *begin, ZebraTime *end, int *nsamp)
 		ncvarget1 (id, tvar, &index, &offset);
 	    }
 	    /* End-of-kluge */
+# endif
 	    break;
 	  case NC_LONG:
 	    ncvarget1 (id, tvar, &index, &loffset);
@@ -1139,13 +1142,16 @@ NCTag *tag;
  * of syncing the number of times already in the tag with the number now
  * recorded in the file.
  */
-	if (! dnc_DecipherTime (tag->nc_id, &tag->nc_vTime, &tag->nc_dTime,
+	if (! dnc_DecipherTime (tag->nc_id, &tag->nc_vTime, &tag->nc_dTime
+,
 				&ntime, &tag->nc_timeType, &base))
 	{
 		dnc_NCError ("could not decipher time variables");
 		return (FALSE);
 	}
 	tag->nc_base = base.zt_Sec;
+
+	tag->nc_haveTimeDim = (tag->nc_dTime >= 0);
 /*
  * Pull in the time array, and we're done.
  */
@@ -1171,11 +1177,17 @@ NCTag *tag;
  * If the number of times available exceeds the space allocated,
  * start over.
  */
-	if (ncdiminq (tag->nc_id, tag->nc_dTime, (char *) 0, &ntime) < 0)
+	if (tag->nc_haveTimeDim)
 	{
+	    if (ncdiminq (tag->nc_id, tag->nc_dTime, (char *) 0, &ntime) < 0)
+	    {
 		dnc_NCError ("time_offset dim inq");
 		return (FALSE);
+	    }
 	}
+	else
+	    ntime = 1;
+	
 	if (ntime > tag->nc_ntime)
 	{
 		if (tag->nc_ntime)
@@ -1201,6 +1213,7 @@ NCTag *tag;
 			for (i = 0; i < ntime; i++)
 				dnc_OffsetToZt (tag, dtime[i], 
 						tag->nc_times + i);
+# if 0 /* I think Java netCDF syncing is fixed now */
 	/*
 	 * Big time kluge for Java-generated files, which may not be
 	 * properly synced in real-time.  Look for a missing value
@@ -1213,6 +1226,7 @@ NCTag *tag;
 				  dtime[ntime-1]))
 		    tag->nc_ntime--;
 	/* End-of-kluge */
+# endif
 		
 		free (dtime);
 	}
@@ -1465,7 +1479,7 @@ FieldId fid;
 	int varid;
 	nc_type vtype;
 	int is_static;
-	int ndims, natts, nsdims;
+	int ndims, natts, nsdims, startdim;
 	int dims[ MAX_VAR_DIMS ];
 	unsigned long sizes[ MAX_NC_DIMS ];
 	static char dim_names[ MAX_NC_DIMS ][ MAX_NC_NAME ];
@@ -1504,11 +1518,19 @@ FieldId fid;
 		 */
 		ncvarinq (tag->nc_id, varid, 0, &vtype, &ndims, 
 			  dims, &natts);
-		is_static = ((ndims == 0) || 
-			     (dims[0] != tag->nc_dTime));
+		/*
+		 * Consider the field static if:
+		 *   o this file has a time dimension
+		 *		AND
+		 *   o the time dimension is not the first dimension
+		 *     of the field
+		 */
+		is_static = tag->nc_haveTimeDim &&
+		    ((ndims == 0) || (dims[0] != tag->nc_dTime));
 	}
 	nsdims = 0;
-	for (j = (is_static ? 0 : 1); j < ndims; ++j)
+	startdim = ((!tag->nc_haveTimeDim || is_static) ? 0 : 1);
+	for (j = startdim; j < ndims; ++j)
 	{
 		ncdiminq (tag->nc_id, dims[j], names[nsdims], 
 			  (long *) &(sizes[nsdims]));
@@ -1746,6 +1768,7 @@ int ndetail;
 	int dindex;
 	long size;
 	int dim;
+	int firstdim;
 	int altindex;
 
 	/* 
@@ -1754,13 +1777,20 @@ int ndetail;
 	 */
 	if (ncvarinq (id, varid, NULL, NULL, &ndims, dimids, NULL) < 0)
 		return;
+
 	/*
-	 * The first dimension is time, the second is a station if our org
-	 * is an irgrid.
+	 * What altitude index?
 	 */
 	altindex = dnc_AltIndex (tag, details, ndetail);
-	dim = (tag->nc_org == OrgIRGrid) ? 2 : 1;
-	while (dim < ndims)
+
+	/*
+	 * The time dimension, if any, will be first, followed by the
+	 * irgrid station dimension, if any.  We skip these.
+	 */
+	firstdim = (tag->nc_haveTimeDim ? 0 : 1) +
+	    ((tag->nc_org == OrgIRGrid) ? 0 : 1);
+
+	for (dim = firstdim; dim < ndims; dim++)
 	{
 		if ((tag->nc_org == OrgIRGrid) && (altindex >= 0) &&
 		    (dim == 2))
@@ -1791,7 +1821,6 @@ int ndetail;
 			dindex = 0;
 		start[dim] = dindex;
 		count[dim] = 1;
-		++dim;
 	}
 }
 
@@ -1824,8 +1853,12 @@ int ndetail;
 /*
  *  Figure out our coords.
  */
-	start[0] = begin;
-	count[0] = nsamp;
+	if (tag->nc_haveTimeDim)
+	{
+	    start[0] = begin;
+	    count[0] = nsamp;
+	}
+	
 	for (i = 0; i < MAX_VAR_DIMS; ++i)
 		imap[i] = 0;
 /*
@@ -1922,6 +1955,7 @@ long count[];
  */
 {
 	int spix = -1;	/* subplatform index */
+	int subplatdim;
 
 	if (dc->dc_Platform == tag->nc_plat)
 	{
@@ -1943,10 +1977,12 @@ long count[];
 			  ds_PlatformName (dc->dc_Platform));
 	}
 /*
- * Add our subplatform coords.
+ * Add our subplatform coords.  Subplatform is the second dimension if
+ * we have a time dimension, otherwise first.
  */
-	start[1] = spix;
-	count[1] = 1;
+	subplatdim = (tag->nc_haveTimeDim) ? 1 : 0;
+	start[subplatdim] = spix;
+	count[subplatdim] = 1;
 	return (spix);
 }
 
@@ -2103,8 +2139,6 @@ int ndetail;
 		/*
 		 * Dynamic fields will need these coords for the 1st dimn
 		 */
-			start[0] = begin;
-			count[0] = nsamp;
 			data = dc_NSAddMultSamples (dc, tag->nc_times + begin,
 					     sbegin, nsamp, fids[field], NULL);
 			if (! dc_SampleStride (dc, &sampsize))
@@ -2121,7 +2155,14 @@ int ndetail;
 			  is_static ? " static" : "",
 			  F_GetName (fids[field]), data);
 #endif
-		dim = (is_static) ? 0 : 1;
+		dim = 0;
+		if (tag->nc_haveTimeDim && !is_static)
+		{
+		    dim = 1;
+		    start[0] = begin;
+		    count[0] = nsamp;
+		}
+
 		dim += (ndim-1);
 		elemsize = dc_SizeOf (dc, fids[field]);
 		for (i = ndim - 1; i >= 0; --i, --dim)
@@ -2226,14 +2267,23 @@ int ndetail;
 {
 	long start[MAX_VAR_DIMS], count[MAX_VAR_DIMS];
 	void *grid;
-	int sample, f, vfield, dsamp = dc_GetNSample (dc);
+	int platdim, sample, f, vfield, dsamp = dc_GetNSample (dc);
 	int nfield;
 	FieldId *fids = dc_GetFields (dc, &nfield);
 /*
  * Coords.
  */
-	start[0] = begin;	count[0] = 1;
-	start[1] = 0;		count[1] = tag->nc_nPlat;
+	if (tag->nc_haveTimeDim)
+	{
+	    start[0] = begin;
+	    count[0] = 1;
+	    platdim = 1;
+	}
+	else
+	    platdim = 0;
+
+	start[platdim] = 0;
+	count[platdim] = tag->nc_nPlat;
 /*
  * Plow through each desired sample.
  */
@@ -2287,7 +2337,8 @@ dsDetail *dets;
  */
 {
 	long start[MAX_VAR_DIMS], count[MAX_VAR_DIMS];
-	int sample, field, vfield, dsamp = dc_GetNSample (dc), nc = 1;
+	int i, sample, field, vfield, dsamp = dc_GetNSample (dc);
+	int dim, xdim, ydim, zdim;
 	SValue v;
 	Location origin;
 	RGrid rg;
@@ -2297,17 +2348,29 @@ dsDetail *dets;
 /*
  * Make an initial set of coords that pull in the entire grid.
  */
-	count[2] = count[3] = 1;
-	start[0] = begin;	count[0] = 1;
-	start[1] = start[2] = start[3] = 0;
+	if (tag->nc_haveTimeDim)
+	{
+	    start[0] = begin;
+	    count[0] = 1;
+	    dim = 1;
+	}
+	else
+	    dim = 0;
+	
 	switch (tag->nc_org)
 	{
 	   case Org3dGrid:
-	   	count[nc++] = tag->nc_rgrid.rg_nZ;
+		zdim = dim++;
+		start[zdim] = 0;
+	   	count[zdim] = tag->nc_rgrid.rg_nZ;
 	   case Org2dGrid:
-	   	count[nc++] = tag->nc_rgrid.rg_nY;
+		ydim = dim++;
+		start[ydim] = 0;
+	   	count[ydim] = tag->nc_rgrid.rg_nY;
 	   case Org1dGrid:
-	   	count[nc++] = tag->nc_rgrid.rg_nX;
+		xdim = dim++;
+		start[xdim] = 0;
+	   	count[xdim] = tag->nc_rgrid.rg_nX;
 		break;
 	   default:
 		/* suppress warnings */
@@ -2328,17 +2391,18 @@ dsDetail *dets;
 	/*
 	 * Figure out what level we want.
 	 */
-		start[1] = (v.us_v_float - origin.l_alt)/ rg.rg_Zspacing + 0.5;
-		if (start[1] < 0)
-			start[1] = 0;
-		else if (start[1] >= rg.rg_nZ)
-			start[1] = rg.rg_nZ - 1;
-		count[1] = 1;
+		start[zdim] = (v.us_v_float - origin.l_alt) / rg.rg_Zspacing + 
+		    0.5;
+		if (start[zdim] < 0)
+			start[zdim] = 0;
+		else if (start[zdim] >= rg.rg_nZ)
+			start[zdim] = rg.rg_nZ - 1;
+		count[zdim] = 1;
 	/*
 	 * Update our info accordingly.
 	 */
 	 	rg.rg_nZ = 1;
-		origin.l_alt += start[1]*rg.rg_Zspacing;
+		origin.l_alt += start[zdim]*rg.rg_Zspacing;
 	}
 /*
  * Plow through each desired sample.
@@ -2363,7 +2427,7 @@ dsDetail *dets;
 		 * Look up the field and try to read it in.
 		 */
 			if (((vfield = dnc_GetFieldVar (tag, fids[field])) < 0)
-			    || (ncvarget (tag->nc_id, vfield,start, count, 
+			    || (ncvarget (tag->nc_id, vfield, start, count, 
 					  dp) < 0))
 			{
 			    	if (vfield >= 0) dnc_NCError ("Rgrid read");
@@ -3122,7 +3186,7 @@ DataChunk *dc;
 	strcat (history, "Created by the Zebra DataStore library, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.79 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.80 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 	free (history);
