@@ -6,7 +6,6 @@
  */
 #define DEBUG
 #include "DataFormat.c"
-#include "NoFormat.h"
 #include "dsPrivate.h"
 #include "GetList.h"
 #include "Appl.h"
@@ -262,7 +261,8 @@ TestFormats ()
 	nerror += VerifyFiletype (FTGRIB, "GRIB", gribFormat);
 	nerror += VerifyFiletype (FTGRIBSfc, "GRIB_sfc", gribSfcFormat);
 	nerror += VerifyFiletype (FTGrads, "GRADS", gradsFormat);
-	nerror += VerifyFiletype (FTHDF, "HDF", hdfFormat);
+	if (hdfFormat->f_OpenFile != fmt_OpenNotCompiled)
+		nerror += VerifyFiletype (FTHDF, "HDF", hdfFormat);
 
 	/*
 	 * Test file name checks

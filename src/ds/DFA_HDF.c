@@ -79,7 +79,7 @@ static char *hdfopt[2] = { "@(#)$DFA: HDF_INTERFACE Compiled $",
 # include <config.h>
 # include <message.h>
 
-RCSID ("$Id: DFA_HDF.c,v 3.9 1996-11-19 08:36:00 granger Exp $")
+RCSID ("$Id: DFA_HDF.c,v 3.10 1996-11-27 02:21:20 granger Exp $")
 
 # include "DataStore.h"
 # include "dsPrivate.h"
@@ -209,11 +209,9 @@ static DataFormat hdfFormatRec =
 
 #else /* ! HDF_INTERFACE */
 
-#include "NoFormat.h"
-
 static DataFormat hdfFormatRec =
 {
-	"HDF-uncompiled",
+	"HDF-Uncompiled",
 	FTHDF,
 	".hdf",
 

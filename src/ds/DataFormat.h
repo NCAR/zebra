@@ -17,7 +17,7 @@
  */
 
 /*
- * $Id: DataFormat.h,v 3.2 1996-11-19 08:56:14 granger Exp $
+ * $Id: DataFormat.h,v 3.3 1996-11-27 02:21:24 granger Exp $
  */
 #ifndef _zebra_dataformat_h_
 #define _zebra_dataformat_h_
@@ -390,6 +390,13 @@ M_MakeFileName (fmt_MakeFileName);
 OpenFile *dfa_OpenFile FP ((int dfile, int write));
 ZebTime *dfa_GetTimes FP ((OpenFile *ofp, int *ntime));
 int dfa_SyncFile FP ((OpenFile *ofp));
+
+/*
+ * Prototypes for non-compiled methods defined in DFA_None.c
+ */
+M_QueryTime (fmt_QueryNotCompiled);
+M_OpenFile (fmt_OpenNotCompiled);
+M_CreateFile (fmt_CreateNotCompiled);
 
 #endif /* ndef _zebra_dataformat_h_ */
 

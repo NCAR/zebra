@@ -1299,11 +1299,11 @@ ZebTime *when;
 
 	fid = F_DeclareField ("height_p", "Array of heights for each power",
 			      "km");
-	dc_SetFieldAttr (dc, fid, "resolution", "0.01");
-	dc_SetFieldAttr (dc, fid, "field_index", "1");
 	dims[0] = gate;
 	dims[1] = power;
 	dc_NSDefineVariable (dc, fid, 2, dims, TRUE);
+	dc_SetFieldAttr (dc, fid, "resolution", "0.01");
+	dc_SetFieldAttr (dc, fid, "field_index", "1");
 	dims[2] = angle;
 	nfield = 0;
 	dfields[nfield++] = F_Lookup ("height_p");

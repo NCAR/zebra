@@ -513,7 +513,7 @@ ZebTime *begin;
 	dc_SetBadval (newdc, 999.9);
 	DestDC = newdc;
 	dc_ProcessAttrs (dc, NULL, CopyGlobalAtts);
-	for (fld = 0; fld < n; ++fld)
+	for (fld = 0; fld < n - 1; ++fld)
 	{
 		DestFID = fields[fld];
 		dc_ProcessFieldAttrs (dc, fields[fld], NULL, CopyFieldAtts);

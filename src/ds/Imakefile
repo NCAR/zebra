@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.47 1996-11-21 22:21:30 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.48 1996-11-27 02:21:26 granger Exp $"
 
 DEPLIBS=$(LIBZEB)
 LIBMPROF=/dt/granger/libc_mp.a
@@ -26,9 +26,9 @@ DSOBJS = Daemon.o d_DataTables.o d_Config.o d_Scan.o d_Debug.o d_Appl.o
 DSSRCS = Daemon.c d_DataTables.c d_Config.c d_Scan.c d_Debug.c d_Appl.c
 
 DFAOBJS = DataFormat.o DFA_NetCDF.o DFA_Zebra.o DFA_HDF.o DFA_Grads.o \
-          DFA_Boundary.o DFA_GRIB.o GRIB.o DFA_Raster.o
+          DFA_Boundary.o DFA_GRIB.o GRIB.o DFA_Raster.o DFA_None.o
 DFASRCS = DataFormat.c DFA_NetCDF.c DFA_Zebra.c DFA_HDF.c DFA_Grads.c \
-          DFA_Boundary.c DFA_GRIB.c GRIB.c DFA_Raster.c
+          DFA_Boundary.c DFA_GRIB.c GRIB.c DFA_Raster.c DFA_None.c
 
 /* 
  * DSLIBOBJS, DSLIBSRCS = normal DS library code 
@@ -89,14 +89,14 @@ SRCS = $(DSLIBSRCS) $(DCSRCS) $(DSSRCS) $(UTILSRCS)
 
 PRIVATE_HEADERS = BoundaryFile.h DataChunkP.h dslib.h znfile.h \
 		  RasterFile.h commands.h dfa.h dsDaemon.h dsPrivate.h \
-		  GRIB.h Appl.h DataFormat.h NoFormat.h Platforms.h apple.h
+		  GRIB.h Appl.h DataFormat.h Platforms.h apple.h
 
 HEADERS = DataStore.h DataChunk.h ingest.h fields.h ds_fields.h
 
 DSCONFIGS = perm.config aline.config apple.config
 
 DISTFILES = Imakefile $(SRCS) $(PRIVATE_HEADERS) $(TESTSRCS) \
-            $(HEADERS) Daemon.state hdflook.c $(DSCONFIGS) dbgstart
+            $(HEADERS) Daemon.state hdflook.c $(DSCONFIGS) dbgstart.csh
 
 DEPEND_DEFINES=$(HDFDEFINES) $(HDFINCLUDES) $(NETCDFINCLUDES) $(RDSSINCLUDES)
 

@@ -40,7 +40,7 @@
 #include "dfa.h"
 #include "Appl.h"
 
-RCSID ("$Id: SA_Appl.c,v 3.1 1996-11-19 08:14:39 granger Exp $")
+RCSID ("$Id: SA_Appl.c,v 3.2 1996-11-27 02:21:30 granger Exp $")
 
 
 static int DFNext = 1;	/* Next df index to use when standalone */
@@ -354,7 +354,7 @@ PlatformId parent;
 	{
 		msg_ELog (EF_PROBLEM, "class %s: abstract base class, %s %s",
 			  pc->dpc_name, "cannot instantiate", name);
-		return (NULL);
+		return (BadPlatform);
 	}
 
 	cp.cp_parent = parent;
