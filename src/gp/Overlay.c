@@ -1,10 +1,11 @@
 /*
  * Deal with static (or almost static) overlays.
  */
-static char *rcsid = "$Id: Overlay.c,v 1.13 1991-02-26 22:41:11 corbet Exp $";
+static char *rcsid = "$Id: Overlay.c,v 1.14 1991-03-10 19:04:45 corbet Exp $";
 
 # include <stdio.h>
 # include <X11/Intrinsic.h>
+# include <math.h>
 # include "../include/defs.h"
 # include "../include/pd.h"
 # include "../include/message.h"
@@ -18,6 +19,24 @@ static char *rcsid = "$Id: Overlay.c,v 1.13 1991-02-26 22:41:11 corbet Exp $";
 
 
 /*
+ * Stuff for locations and other things needing icons.
+ */
+typedef struct _OvIcon
+{
+	Pixmap	oi_pixmap;		/* The pixmap for this icon	*/
+	unsigned int oi_w, oi_h;	/* Dimensions of the pixmap	*/
+	int	oi_xh, oi_yh;		/* Hot spot			*/
+} OvIcon;
+
+static stbl OvIcons = 0;	/* Symbol table for icons		*/
+
+typedef enum
+{
+	NoLabel, LabelPlatform, LabelString
+} LabelOpt;
+
+
+/*
  * Our internal overlay drawing routines.
  */
 # ifdef __STDC__
@@ -25,11 +44,18 @@ static char *rcsid = "$Id: Overlay.c,v 1.13 1991-02-26 22:41:11 corbet Exp $";
 	static void ov_DrawFeature (char *, int);
 	static void ov_Map (char *, int);
 	static void ov_WBounds (char *, int);
+	static void ov_RangeRings (char *, int);
+	static void ov_Location (char *, int);
 	static bool ov_GetWBounds (char *, char *, float *, float *, float *,
 			float *, float *);
 	static int ov_FindWBReply (struct message *, struct dm_rp_wbounds *);
 	static void ov_Boundary (char *, int);
 	static bool ov_GetBndParams (char *, char *, XColor *, int *, int *);
+	static int ov_RRInfo (char *, char *, Location *, float *, float *,
+			float *, float *, int *, float *, XColor *, int *);
+	static OvIcon *ov_GetIcon (char *);
+	static int ov_LocSetup (char *, char **, int *, OvIcon **, LabelOpt *,
+		char *, float *);
 # else
 	static void ov_GridBBox ();
 	static void ov_DrawFeature ();
@@ -39,6 +65,10 @@ static char *rcsid = "$Id: Overlay.c,v 1.13 1991-02-26 22:41:11 corbet Exp $";
 	static int ov_FindWBReply ();
 	static void ov_Boundary ();
 	static bool ov_GetBndParams ();
+	static void ov_RangeRings ();
+	static int ov_RRInfo ();
+	static OvIcon *ov_GetIcon ();
+	static int ov_LocSetup ();
 # endif
 
 # define BADVAL -9999.9
@@ -59,6 +89,8 @@ static struct overlay_table
 	{ "feature",	ov_DrawFeature	},
 	{ "map",	ov_Map		},
 	{ "boundary",	ov_Boundary	},
+	{ "range-rings", ov_RangeRings	},
+	{ "location",	ov_Location	},
 	{ 0, 0}
 };
 
@@ -97,6 +129,7 @@ static stbl Ftable = 0;
  * How many polyline segments we can get away with drawing at once.
  */
 # define MAXPLSEG 100
+
 
 
 
@@ -822,4 +855,331 @@ int *lwidth, *closed;
 			(char *) closed, SYMT_BOOL))
 		*closed = TRUE;
 	return (TRUE);
+}
+
+
+
+
+
+
+
+static void
+ov_RangeRings (comp, update)
+char *comp;
+int update;
+/*
+ * Draw range rings onto the display.
+ */
+{
+	Location loc;
+	float ringint, azint, rannot, aannot, maxrange, x, y, az;
+	int lastring, ring, lwidth, px, py, radius, farx, fary;
+	char platform[40];
+	XColor xc;
+/*
+ * Get our information.
+ */
+	if (! ov_RRInfo (comp, platform, &loc, &ringint, &azint, &rannot,
+				&aannot, &lastring, &maxrange, &xc, &lwidth))
+		return;
+/*
+ * Set up the graphics context.
+ */
+	XSetForeground (Disp, Gcontext, xc.pixel);
+	XSetLineAttributes (Disp, Gcontext, lwidth, LineSolid, CapButt,
+			JoinMiter);
+	SetClip (FALSE);
+/*
+ * Draw the rings.
+ */
+	cvt_ToXY (loc.l_lat, loc.l_lon, &x, &y);
+	for (ring = 1; ring <= lastring; ring++)
+	{
+		px = XPIX (x - ring*ringint); py = YPIX (y + ring*ringint);
+		radius = XPIX (x + ring*ringint) - XPIX (x);
+		XDrawArc (Disp, GWFrame (Graphics), Gcontext, px, py, 
+			2*radius, 2*radius, 0, 360*64);
+	}
+/*
+ * Draw the azimuth lines.
+ */
+	for (az = 0; az < 360; az += azint)
+	{
+		float azrad = az*M_PI/180.0;
+		px = XPIX (x + ringint*cos (azrad));
+		py = YPIX (y + ringint*sin (azrad));
+		farx = XPIX (x + lastring*ringint * cos (azrad));
+		fary = YPIX (y + lastring*ringint * sin (azrad));
+		XDrawLine (Disp, GWFrame (Graphics), Gcontext, px, py,
+			farx, fary);
+	}
+/*
+ * Clean up.
+ */
+	ResetGC ();
+	SetClip (TRUE);
+}
+
+
+
+
+
+static int
+ov_RRInfo (comp, platform, loc, ringint, azint, rannot, aannot, lastring,
+		maxrange, xc, lwidth)
+char *comp, *platform;
+Location *loc;
+float *ringint, *maxrange, *azint, *rannot, *aannot;
+int *lastring, *lwidth;
+XColor *xc;
+/*
+ * Get all of the parameters which control the plotting of range rings.
+ */
+{
+	char color[40];
+/*
+ * Get the platform, then turn that into a location.
+ */
+	if (! pda_ReqSearch (Pd, comp, "platform","ring",platform,SYMT_STRING))
+		return (FALSE);
+	if (! GetLocation (platform, &PlotTime, loc))
+	{
+		msg_ELog (EF_PROBLEM, "No location for %s", platform);
+		return (FALSE);
+	}
+/*
+ * Intervals.
+ */
+	if (! pda_Search (Pd, comp, "ring-interval", platform, (char *)ringint,
+			SYMT_FLOAT))
+		*ringint = 20.0;
+	if (! pda_Search (Pd, comp, "azimuth-interval", platform,
+			(char *) azint, SYMT_FLOAT))
+		*azint = 30.0;
+/*
+ * Find out where to annotate.
+ */
+	if (! pda_Search (Pd, comp, "ring-annot-azimuth", platform,
+			(char *) rannot, SYMT_FLOAT))
+		*rannot = 45;
+	if (! pda_Search (Pd, comp, "azimuth-annot-range", platform,
+			(char *) aannot, SYMT_FLOAT))
+		*aannot = 30;
+/*
+ * Kludge in the number of rings for now.
+ */
+	*lastring = 8;
+/*
+ * Color.
+ */
+	if (! pda_Search (Pd, comp, "color", "range-ring", color, SYMT_STRING))
+		strcpy (color, "white");
+	if (! ct_GetColorByName (color, xc))
+	{
+		msg_ELog (EF_PROBLEM, "Unknown color: %s", color);
+		ct_GetColorByName ("white", xc);
+	}
+	if (! pda_Search(Pd, comp, "line-width", "range-ring", (char *) lwidth,
+			SYMT_INT))
+		*lwidth = 0;
+	return (TRUE);
+}
+
+
+
+
+
+
+static void
+ov_Location (comp, update)
+char *comp;
+int update;
+/*
+ * Plot the location of a series of platforms.
+ */
+{
+	char *plist[30], label[40];
+	int nplat, plat, px, py;
+	OvIcon *icon;
+	Location loc;
+	float x, y, asize;
+	LabelOpt opt;
+/*
+ * Do our initialization.
+ */
+	if (! ov_LocSetup (comp, plist, &nplat, &icon, &opt, label, &asize))
+		return;
+	SetClip (FALSE);
+/*
+ * Go through and place each platform.
+ */
+	for (plat = 0; plat < nplat; plat++)
+	{
+	/*
+	 * Find this platform.
+	 */
+		if (! GetLocation (plist[plat], &PlotTime, &loc))
+		{
+			msg_ELog (EF_INFO, "Can't find platform '%s'",
+				plist[plat]);
+			continue;
+		}
+	/*
+	 * Convert to pixel space, then offset to put the hot spot of
+	 * the icon there.
+	 */
+		cvt_ToXY (loc.l_lat, loc.l_lon, &x, &y);
+		px = XPIX (x) - icon->oi_xh;
+		py = YPIX (y) - icon->oi_yh; 	
+		XSetTSOrigin (Disp, Gcontext, px, py);
+		XFillRectangle (Disp, GWFrame (Graphics), Gcontext, px, py,
+			icon->oi_w, icon->oi_h);
+	/*
+	 * Annotate beneath the icon if called for.
+	 */
+	 	if (opt != NoLabel)
+		{
+			XSetFillStyle (Disp, Gcontext, FillSolid);
+			DrawText (Graphics, GWFrame (Graphics), Gcontext,
+				px + icon->oi_w/2,
+				YPIX (y) + icon->oi_h - icon->oi_yh, 
+				(opt == LabelString) ? label : plist[plat],
+				0.0, asize, JustifyCenter, JustifyTop);
+			XSetFillStyle (Disp, Gcontext, FillStippled);
+		}
+	}
+/*
+ * Do side annotation.
+ */
+
+/*
+ * Clean up and we are done.
+ */
+	ResetGC ();
+	SetClip (TRUE);
+}
+
+
+
+
+
+
+static int
+ov_LocSetup (comp, plist, nplat, icon, opt, label, asize)
+char *comp, **plist, *label;
+int *nplat;
+OvIcon **icon;
+LabelOpt *opt;
+float *asize;
+/*
+ * Do the setup required to plot locations.
+ */
+{
+	static char platform[80];	/* XXX */
+	char iconname[40], color[40];
+	XColor xc;
+	XGCValues vals;
+/*
+ * Deal with platforms.
+ */
+	if (! pda_ReqSearch (Pd, comp, "platform", NULL, platform,SYMT_STRING))
+		return (FALSE);
+	if ((*nplat = CommaParse (platform, plist)) <= 0)
+	{
+		msg_ELog (EF_PROBLEM, "No platforms for location plot");
+		return (FALSE);
+	}
+/*
+ * Color.
+ */
+	if (! pda_Search (Pd, comp, "color", "location", color, SYMT_STRING))
+		strcpy (color, "white");
+	if (! ct_GetColorByName (color, &xc))
+	{
+		msg_ELog (EF_PROBLEM, "Unknown color: %s", color);
+		ct_GetColorByName ("white", &xc);
+	}
+/*
+ * Find our icon.
+ */
+	if (! pda_Search (Pd, comp, "icon", plist[0], iconname, SYMT_STRING) &&
+	    ! pda_Search (Pd, comp, "location-icon", plist[0], iconname,
+	    			SYMT_STRING))
+	{
+		msg_ELog (EF_PROBLEM, "No location icon for %s", plist[0]);
+		return (FALSE);
+	}
+	if (! (*icon = ov_GetIcon (iconname)))
+	{
+		msg_ELog (EF_PROBLEM, "Can't find icon '%s'", iconname);
+		return (FALSE);
+	}
+/*
+ * Labeling
+ */
+	if (! pda_Search (Pd, comp, "label", "location", label, SYMT_STRING) ||
+			! strcmp (label, "platform"))
+		*opt = LabelPlatform;
+	else if (! strcmp (label, "none"))
+		*opt = NoLabel;
+	else
+		*opt = LabelString;
+	if (*opt != NoLabel && ! pda_Search(Pd, comp, "label-size","location", 
+			(char *) asize, SYMT_FLOAT))
+		*asize = 0.015;
+/*
+ * Now that we seem to have everything, fix up the graphics context.
+ */
+	vals.foreground = xc.pixel;
+	vals.fill_style = FillStippled;
+	vals.stipple = (*icon)->oi_pixmap;
+	XChangeGC (Disp, Gcontext, GCForeground|GCFillStyle|GCStipple,
+			&vals);
+	return (TRUE);
+}
+
+
+
+
+
+static OvIcon *
+ov_GetIcon (name)
+char *name;
+/*
+ * Get the icon by this name.
+ */
+{
+	SValue v;
+	int type;
+	OvIcon *icon;
+	char filename[80];
+/*
+ * Make sure our symbol table exists.
+ */
+	if (! OvIcons)
+		OvIcons = usy_c_stbl ("LocationIcons");
+/*
+ * If this icon is already cached in the symbol table, just return it.
+ */
+	if (usy_g_symbol (OvIcons, name, &type, &v))
+		return ((OvIcon *) v.us_v_ptr);
+/*
+ * Nope.  Time to get it from a file. 
+ */
+	icon = ALLOC (OvIcon);
+	strcpy (filename, "../lib/icons/");
+	strcat (filename, name);
+	if (XReadBitmapFile (Disp, RootWindow (Disp, 0), filename, &icon->oi_w,
+		&icon->oi_h, &icon->oi_pixmap, &icon->oi_xh, &icon->oi_yh)
+		!= BitmapSuccess)
+	{
+		free (icon);
+		return (NULL);
+	}
+/*
+ * Cache this one, and we're done.
+ */
+	v.us_v_ptr = (char *) icon;
+	usy_s_symbol (OvIcons, name, SYMT_POINTER, &v);
+	return (icon);
 }
