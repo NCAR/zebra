@@ -20,11 +20,14 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* JF: modified to make all rmtXXX calls into macros for speed */
 
 #ifndef lint
-static char *RCSid = "$Header: /code/cvs/rdss/rdsslibs/util/rtape_lib.c,v 1.1 1991-12-20 20:34:30 case Exp $";
+static char *RCSid = "$Header: /code/cvs/rdss/rdsslibs/util/rtape_lib.c,v 1.2 1995-07-06 04:49:16 granger Exp $";
 #endif
 
 /*
  * $Log: not supported by cvs2svn $
+ * Revision 1.1  1991/12/20  20:34:30  case
+ * Initial revision
+ *
  * Revision 1.7  89/03/23  14:09:51  root
  * Fix from haynes@ucscc.ucsc.edu for use w/compat. ADR.
  * 
@@ -77,7 +80,7 @@ static char *RCSid = "$Header: /code/cvs/rdss/rdsslibs/util/rtape_lib.c,v 1.1 19
  */
 
 #define RMTIOCTL	1
-/* #define USE_REXEC	1	/* rexec code courtesy of Dan Kegel, srs!dan */
+/* #define USE_REXEC	1 */	/* rexec code courtesy of Dan Kegel, srs!dan */
 
 #include <stdio.h>
 #include <signal.h>
@@ -140,7 +143,7 @@ char *buf;
  */
 
 	blen = strlen(buf);
-	pstat = signal(SIGPIPE, SIG_IGN);
+	pstat = (int (*)()) signal(SIGPIPE, SIG_IGN);
 	if (write(WRITE(fildes), buf, blen) == blen)
 	{
 		signal(SIGPIPE, pstat);
@@ -490,7 +493,7 @@ unsigned int nbyte;
 	if (command(fildes, buffer) == -1)
 		return(-1);
 
-	pstat = signal(SIGPIPE, SIG_IGN);
+	pstat = (int (*)()) signal(SIGPIPE, SIG_IGN);
 	if (write(WRITE(fildes), buf, nbyte) == nbyte)
 	{
 		signal (SIGPIPE, pstat);
