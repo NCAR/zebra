@@ -1,5 +1,5 @@
 XCOMM -*- C -*-
-XCOMM $Id: Zebra.rules,v 1.6 1996-03-14 19:24:18 granger Exp $
+XCOMM $Id: Zebra.rules,v 1.7 1996-03-15 15:46:07 granger Exp $
 XCOMM
 XCOMM Rules specific to the Zebra project, including some which override
 XCOMM definitions in Imake.rules
@@ -336,8 +336,10 @@ distclean::								@@\
  * Thanks to GNU's inclusion of variables and -- options in MFLAGS,
  * this test gets rather complicated.
  */
-#define IKFLAGPATTERN	-[ik]*|-[^-]*[ik]*|*\ -[ik]*|*\ -[^-]*[ik]*
-#define NFLAGPATTERN	-n*|-[^-]*n*|*\ -n*|*\ -[^-]*n*
+#define IKFLAGPATTERN \
+   -[ik]*|-[a-zA-Z][ik]*|-[a-zA-Z][a-zA-Z][ik]*|*\ -[ik]*|*\ -[a-zA-Z][ik]*|*\ -[a-zA-Z][a-zA-Z][ik]*
+#define NFLAGPATTERN \
+   -n*|-[a-zA-Z]n*|-[a-zA-Z][a-zA-Z]n*|*\ -n*|*\ -[a-zA-Z]n*|*\ -[a-zA-Z][a-zA-Z]n*
 
 /*
  * Propagate the distfiles and distclean targets to dist subdirectories.
@@ -618,9 +620,9 @@ step step.srcname:: srcname						@@\
 #define MakeMakeSubdirs(dirs,target)					@@\
 target::								@@\
 	-@case '${MFLAGS}' in IKFLAGPATTERN) \
-		 set +e;; esac; \					@@\
+		 echo 'Ignoring errors in sub-makes...'; set +e;; esac; \ @@\
 	case '${MFLAGS}' in NFLAGPATTERN) \
-		executeit="no";; esac; \				@@\
+		echo 'Not executing imake...'; executeit="no";; esac; \	@@\
 	for i in dirs END ;\						@@\
 	do \								@@\
 		if [ $$i = "END" ]; then break; fi; \			@@\
