@@ -35,7 +35,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 # include "commands.h"
-MAKE_RCSID ("$Id: Daemon.c,v 3.4 1992-08-10 17:30:54 corbet Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.5 1992-09-08 21:48:51 corbet Exp $")
 
 
 
@@ -424,7 +424,12 @@ bool local, rescan;
 	{
 		msg_ELog (EF_PROBLEM,
 			"Data dir %s (plat %s) nonexistent", dir, p->dp_name);
-		return;
+		if (mkdir (dir, 0777))
+		{
+			msg_ELog (EF_PROBLEM, "...and unable to create.");
+			return;
+		}
+		dp = opendir (dir);
 	}
 /*
  * Try to load a cache file.
