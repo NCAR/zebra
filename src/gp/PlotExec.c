@@ -1,7 +1,7 @@
 /*
  * Plot execution module
  */
-static char *rcsid = "$Id: PlotExec.c,v 1.3 1990-11-15 14:19:19 burghart Exp $";
+static char *rcsid = "$Id: PlotExec.c,v 1.4 1990-11-15 14:50:09 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include <ui.h>
@@ -90,9 +90,6 @@ typedef enum {LineContour, FilledContour} contour_type;
 	float	*px_GetGrid (time *, char *, char *, int *, int *, float *, 
 		float *, float *, float *);
 	int	px_NameToNumber (char *, name_to_num *);
-	void	px_TopAnnot (char *, Pixel);
-	void	px_ResetAnnot ();
-	void	px_AnnotLimits (int *, int *, int *, int *);
 	void	px_Init ();
 	void	px_AddComponent (char *, int);
 	void	px_CAPFContour (char *, int);
@@ -105,7 +102,6 @@ typedef enum {LineContour, FilledContour} contour_type;
 # else
 	float	*px_GetGrid ();
 	int	px_NameToNumber ();
-	void	px_TopAnnot (), px_ResetAnnot (), px_AnnotLimits ();
 	void	px_Init (), px_AddComponent (), px_CAPFContour ();
 	void	px_CAPVector (), px_CAPRaster (), px_CAPLineContour ();
 	void	px_CAPContour (), px_AdjustCoords ();
@@ -123,20 +119,6 @@ extern void	tr_CAPTrack (), ov_CAPOverlay (), sk_Skewt ();
 #	define do_rgrid do_rgrid_
 # endif
 extern int	do_rgrid ();
-
-/*
- * Top annotation stuff
- */
-# define TOPANNOTHEIGHT	0.035
-static int	Annot_xpos, Annot_ypos;
-static int	Annot_height;
-static int	Annot_lmargin = 10, Annot_rmargin;
-
-/*
- * Side annotation stuff.
- */
-static int	SA_position;	/* Current position		*/
-static int	SA_space;	/* How much space each gets	*/
 
 /*
  * How many plot components in our plot description and which
@@ -292,10 +274,10 @@ char	*component;
 	/*
 	 * Annotate with the date and time
 	 */
-		px_ResetAnnot ();
+		An_ResetAnnot (Ncomps);
 		ud_format_date (datestring, (date *)(&PlotTime), UDF_FULL);
 		strcat (datestring, "  ");
-		px_TopAnnot (datestring, White);
+		An_TopAnnot (datestring, White);
 	/*
 	 * Run through the plot components (start at 1 to skip the
 	 * global component)
@@ -492,173 +474,6 @@ float *x0, *y0, *x1, *y1;
 
 
 void
-px_ResetAnnot ()
-/*
- * Reset the annotation position
- */
-{
-	int	height = GWHeight (Graphics);
-/*
- * Get the line spacing for the top annotation
- */
-	Annot_height = (int)(1.2 * TOPANNOTHEIGHT * GWHeight (Graphics));
-/*
- * Set the right margin
- */
-	Annot_rmargin = GWWidth (Graphics) - Annot_lmargin;
-/*
- * Set the initial text position
- */
-	Annot_xpos = Annot_lmargin;
-	Annot_ypos = 2;
-/*
- * Initialize the stuff for side annotation.
- */
-	SA_position  = (1.0 - F_Y1) * height;
-	SA_space = ((F_Y1 - F_Y0) * height)/ (float) Ncomps;
-}
-
-
-
-
-void
-px_TopAnnot (string, color)
-char	*string;
-Pixel	color;
-/*
- * Add the string to the top annotation using the given color
- */
-{
-	int	i, brk, slen, swidth, dummy;
-	char	*cstring;
-
-	slen = strlen (string);
-/*
- * If we're at the left margin, strip leading spaces
- */
-	while ((Annot_xpos == Annot_lmargin) && (string[0] == ' '))
-	{
-		string++;
-		slen--;
-	}
-/*
- * Just return for zero length string
- */
-	if (slen == 0)
-		return;
-/*
- * Make a copy of the string so we can diddle with it
- */
-	cstring = (char *) malloc ((slen + 1) * sizeof (char));
-	strcpy (cstring, string);
-/*
- * Handle newlines in the text
- */
-	for (i = 0; i < slen; i++)
-	{
-		if (cstring[i] == '\n')
-		{
-		/*
-		 * TopAnnot the string up to the newline
-		 */
-			cstring[i] = '\0';
-			px_TopAnnot (cstring, color);
-		/*
-		 * Move the annotation location to start a new line
-		 * and call px_TopAnnot for the remainder of the string
-		 */
-			Annot_ypos += Annot_height;
-			Annot_xpos = Annot_lmargin;
-			px_TopAnnot (cstring + i + 1, color);
-		/*
-		 * We're done
-		 */
-			free (cstring);
-			return;
-		}
-	}
-/*
- * Make sure the string will fit on the current line.  Break at
- * a space if necessary
- */
-	DT_TextBox (Graphics, GWFrame (Graphics), 0, 0, cstring, 0.0, 
-		TOPANNOTHEIGHT, JustifyLeft, JustifyTop, &dummy, &dummy, 
-		&swidth, &dummy);
-
-	brk = slen;
-
-	while (swidth > Annot_rmargin - Annot_xpos)
-	{
-		for (brk-- ; cstring[brk] != ' ' && brk > 0; brk--)
-			/* backing up to a space */;
-
-		cstring[brk] = '\0';
-	/*
-	 * Get the new string width
-	 */
-		DT_TextBox (Graphics, GWFrame (Graphics), 0, 0, cstring, 0.0, 
-			TOPANNOTHEIGHT, JustifyLeft, JustifyTop, &dummy, 
-			&dummy, &swidth, &dummy);
-	}
-/*
- * If we're at the left margin and the break position is at zero, 
- * we have nowhere to break this string.  Just print what we can and
- * log an error.
- */
-	if (brk == 0 && Annot_xpos == Annot_lmargin)
-	{
-		brk = slen;
-		msg_ELog (EF_PROBLEM,
-			"px_TopAnnot could not break annotation '%s'", string);
-	}
-/*
- * Draw the string up to the break, if any
- */
-	DrawText (Graphics, GWFrame (Graphics), color, Annot_xpos, Annot_ypos, 
-		cstring, 0.0, TOPANNOTHEIGHT, JustifyLeft, JustifyTop);
-	Annot_xpos += swidth;
-/*
- * If we have to break, move down to the next line and call TopAnnot with
- * the remainder of the string
- */
-	if (brk < slen - 1)
-	{
-		Annot_ypos += Annot_height;
-		Annot_xpos = Annot_lmargin;
-		px_TopAnnot (string + brk, color);
-	}
-/*
- * Free up the string copy
- */
-	free (cstring);
-	return;
-}
-
-
-
-
-void
-px_AnnotLimits (top, bottom, left, right)
-int	*top, *bottom, *left, *right;
-/*
- * Return the pixel limits for the right side annotation area for
- * the current plot component
- */
-{
-	int	width = GWWidth (Graphics);
-
-	*top = SA_position;
-	SA_position += SA_space;
-	*bottom = SA_position - 1;
-
-	*left = F_X1 * width;
-	*right = width;
-}
-
-
-
-
-void
 px_CAPFContour (c, update)
 char	*c;
 Boolean	update;
@@ -684,13 +499,13 @@ Boolean	update;
 /*
  * Top annotation
  */
-	px_TopAnnot ("Filled contour plot of ", White);
-	px_TopAnnot (px_FldDesc (c, fname), White);
-	px_TopAnnot (".  ", White);
+	An_TopAnnot ("Filled contour plot of ", White);
+	An_TopAnnot (px_FldDesc (c, fname), White);
+	An_TopAnnot (".  ", White);
 /*
  * Side annotation (color bar)
  */
-	px_AnnotLimits (&top, &bottom, &left, &right);
+	An_AnnotLimits (&top, &bottom, &left, &right);
 	left += 5;
 	top += 5;
 	bottom -= 5;
@@ -749,13 +564,13 @@ Boolean	update;
 /*
  * Top annotation
  */
-	px_TopAnnot ("Contour plot of ", White);
-	px_TopAnnot (px_FldDesc (c, fname), White);
-	px_TopAnnot (".  ", White);
+	An_TopAnnot ("Contour plot of ", White);
+	An_TopAnnot (px_FldDesc (c, fname), White);
+	An_TopAnnot (".  ", White);
 /*
  * Side annotation
  */
-	px_AnnotLimits (&top, &bottom, &left, &right);
+	An_AnnotLimits (&top, &bottom, &left, &right);
 	left += 10;
 	top += 5;
 
@@ -984,19 +799,12 @@ Boolean	update;
 /*
  * Top annotation
  */
-# ifdef notdef
-	px_TopAnnot ("Vector plot of ", White);
-	px_TopAnnot (uname, White);
-	px_TopAnnot (" vs. ", White);
-	px_TopAnnot (vname, White);
-	px_TopAnnot (".  ", White);
-# endif
 	sprintf (annot, "Vector winds plot (%s).", platform);
-	px_TopAnnot (annot, White);
+	An_TopAnnot (annot, White);
 /*
  * Side annotation (scale vectors)
  */
-	px_AnnotLimits (&top, &bottom, &left, &right);
+	An_AnnotLimits (&top, &bottom, &left, &right);
 
 	xannot = (left + right) / 2;
 	yannot = top + 0.04 * GWHeight (Graphics);
@@ -1115,13 +923,13 @@ Boolean	update;
 /*
  * Top annotation
  */
-	px_TopAnnot ("Raster plot of ", White);
-	px_TopAnnot (px_FldDesc (c, name), White);
-	px_TopAnnot (".  ", White);
+	An_TopAnnot ("Raster plot of ", White);
+	An_TopAnnot (px_FldDesc (c, name), White);
+	An_TopAnnot (".  ", White);
 /*
  * Side annotation (color bar)
  */
-	px_AnnotLimits (&top, &bottom, &left, &right);
+	An_AnnotLimits (&top, &bottom, &left, &right);
 
 	bottom -= 5;
 	top += 5;
