@@ -209,8 +209,14 @@ ScaleInfo	*scale;
 		  (raw_rec[20] / 64.0) / 3600.0);
 	londeg = (raw_rec[21] + raw_rec[22] / 60.0 + 
 		  (raw_rec[23] / 64.0) / 3600.0);
-	Hk.latitude = latdeg * LAT_CF;
-	Hk.longitude = londeg * LON_CF;
+/*
+ * KLUGE: We use the normal DEG_TO_BIN conversion here, since LAT_CF and 
+ * LON_CF only yield unambiguous values from 0-90 and 0-180, and we need 
+ * southern and hemispheres...  The recipient of this beam must be careful
+ * to use the right value in unpacking these.
+ */
+	Hk.latitude = latdeg * DEG_TO_BIN;
+	Hk.longitude = londeg * DEG_TO_BIN;
 	Hk.altitude = raw_rec[24];
 /*
  * Scan type (we only really care about PPI and RHI)
