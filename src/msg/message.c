@@ -45,7 +45,7 @@
 # include <message.h>
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.32 1995-05-05 17:43:38 granger Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.33 1995-06-09 16:11:34 granger Exp $")
 /*
  * Symbol tables.
  */
@@ -2762,11 +2762,11 @@ char *to;
 /*
  * UNIX socket path and Internet port:
  */
-	sprintf (text, "unix socket: %s", UnSocketName);
+	sprintf (text, "unix socket: %s; ", UnSocketName);
 	if (M_in_socket >= 0)
-		sprintf (text+strlen(text), ", internet port %d", Port);
+		sprintf(text+strlen(text), "internet socket on port %d", Port);
 	else
-		strcat (text, ", no internet socket");
+		strcat (text, "internet socket not enabled");
 	msg.m_len = sizeof (struct mh_stats) + strlen (text);
 	send_msg (conp, &msg);
 /*
