@@ -30,7 +30,7 @@
 # include <defs.h>
 # include <map.h>
 
-RCSID("$Id: Overlay.c,v 2.61 1997-06-24 18:32:57 granger Exp $")
+RCSID("$Id: Overlay.c,v 2.62 1998-10-08 21:02:31 burghart Exp $")
 
 # include <pd.h>
 # include <GraphicsW.h>
@@ -1559,9 +1559,11 @@ bool *dolabels, *do_nm;
 	pda_Search (Pd, comp, "azimuth-interval", platform, (char *) azint, 
 		    SYMT_FLOAT);
 /*
- * Kludge in the number of rings for now.
+ * How many rings?
  */
 	*lastring = 8;
+	pda_Search (Pd, comp, "num-rings", platform, (char*) lastring,
+		    SYMT_INT);
 /*
  * VOR/DME rings have azimuth offsets.
  */
