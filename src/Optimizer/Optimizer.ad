@@ -1,4 +1,4 @@
-! $Id: Optimizer.ad,v 1.2 1994-06-29 15:11:13 case Exp $
+! $Id: Optimizer.ad,v 1.3 2000-04-24 19:07:20 burghart Exp $
 !
 ! Optimizer application defaults file
 ! Do Not modify if this is the library installed copy
@@ -6,12 +6,13 @@
 *font:  *-courier-bold-r-normal--12-*
 *Foreground: black
 *Background: gray65
-! *BorderColor: white
+*resizable: True
+*allowShellResize: True
 *BorderColor: black
 *font: *times-medium-r-*-*-14*
 
 *Command*foreground: black
-*Command*background: goldenrod
+*Command*background: gray80
 
 *Text*borderColor: black
 *Text*background: white
@@ -20,6 +21,6 @@
 	<Key>Delete:	end-of-line()delete-previous-character() \n\
 	Ctrl<Key>u:	beginning-of-line()kill-to-end-of-line()
 
-*exit*background: hot pink
+*exit*background: pink3
 
 *optionForm*font: *courier-medium-r-normal--12*
