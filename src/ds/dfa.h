@@ -1,5 +1,5 @@
 /*
- * $Id: dfa.h,v 2.3 1994-04-27 08:24:22 granger Exp $
+ * $Id: dfa.h,v 2.4 1995-02-10 01:17:28 granger Exp $
  * Internal DFA declarations.  Requires DataStore.h and dslib.h.
  */
 
@@ -36,10 +36,18 @@ int	dfa_DataTimes FP ((int, ZebTime *, TimeSpec, int, ZebTime *));
 void	dfa_MakeFileName FP ((ClientPlatform *, ZebTime *, char *));
 bool	dfa_CreateFile FP ((int, DataChunk *, ZebTime *, dsDetail *, int));
 void	dfa_NoteRevision FP ((int dfindex, long revision));
+void	dfa_ForceClosure FP ((void));
 char	*dfa_GetAttr FP ((int, ZebTime *, int *));
 char	*dfa_FilePath FP ((ClientPlatform *, DataFile *));
+int	dfa_GetFields FP((int dfile, ZebTime *t, int *nfld, FieldId *flist));
 int	dfa_GetAlts FP ((int index, FieldId fid, int offset, float *alts,
 			 int *nalts, AltUnitType *altunits));
 int	dfa_GetForecastTimes FP ((int index, int *times, int *ntimes));
+int	dfa_GetObsSamples FP ((int dfile, ZebTime *times,
+			       Location *locs, int max));
+int	dfa_PutBlock FP ((int dfile, DataChunk *dc, int sample, int nsample,
+			  WriteCode wc, dsDetail *details, int ndetail));
+int	dfa_PutSample FP ((int dfile, DataChunk *dc, int sample, WriteCode wc,
+			   dsDetail *details, int ndetail));
 
 #endif /* __zeb_dfa_h_ */
