@@ -34,7 +34,7 @@
 # include <DataStore.h>
 # include <DataChunk.h>
 
-MAKE_RCSID("$Id: SatIngest.c,v 1.12 1995-07-06 04:51:34 granger Exp $")
+MAKE_RCSID("$Id: SatIngest.c,v 1.13 1995-09-19 21:35:30 burghart Exp $")
 
 # include "keywords.h"
 
@@ -136,7 +136,7 @@ main (argc, argv)
 int argc;
 char **argv;
 /*
- * Ingest a GOES visible and/or IR image
+ * Ingest McIDAS GOES area file(s)
  */
 {
 	SValue	v;
@@ -599,21 +599,34 @@ int	fentry;
 	int	header[64], nav_cod[128];
 	unsigned char	*grid;
 	int	i, j, line, elem, status, stuff[128], one = 1;
-	int	imagelen, ngot;
+	int	imagelen, ngot, doswap;
 	float	dummy, fline, felem, lat, lon;
 	char	source[5], *c;
 
 /*
  * Read the 256 byte "area directory" header and the 512 byte
- * navigation codicil and swap bytes around in each one.  
+ * navigation codicil and swap bytes around in each one if necessary.
  * NOTE: We don't swap in those portions which contain text
+ * 
+ * 9 May 95 cb: We now test to see if swapping is necessary.  Sometimes we
+ * get big-endian area files and sometimes little-endian.  The second longword
+ * of the area directory should always be 4 for a valid area, so decide the
+ * byte order based on that longword.
  */
 	fread ((void *) header, 4, 64, Infile[fentry].stream);
-	swapfour (header, 20);
-	swapfour (header + 32, 19);
+	doswap = (header[1] == 0x04000000);
+
+	if (doswap)
+	{
+		swapfour (header, 20);
+		swapfour (header + 32, 19);
+	}
 
 	fread ((void *) nav_cod, 4, 128, Infile[fentry].stream);
-	swapfour (nav_cod + 1, 39);
+	if (doswap)
+	{
+		swapfour (nav_cod + 1, 39);
+	}
 /*
  * Verify that this is a GOES image
  */
@@ -624,8 +637,9 @@ int	fentry;
 		strncpy (imtype, (char *) nav_cod, 4);
 		imtype[4] = '\0';
 
-		msg_ELog (EF_PROBLEM, "'%s' contains a '%s' image, not GOES",
-			Infile[fentry].name, imtype);
+		msg_ELog (EF_PROBLEM, 
+			  "'%s' contains a '%s' image, not GOES",
+			  Infile[fentry].name, imtype);
 		fclose (Infile[fentry].stream);
 		return (NULL);
 	}
@@ -778,14 +792,20 @@ ZebTime	*t;
  * Return the time of the fentry'th file
  */
 {
-	int	year, month, day, hour, minute, second, header[5];
+	int	year, month, day, hour, minute, second, header[5], doswap;
 /*
  * Read the first piece of the area directory and do the appropriate byte
  * swapping.
  */
 	fread ((void *) header, 4, 5, Infile[fentry].stream);
 	fseek (Infile[fentry].stream, 0, 0);	/* rewind the file */
-	swapfour (header, 5);
+/*
+ * The second word of the area directory should always be 4.  Determine
+ * big-endian vs. little-endian using this word, and swap bytes if necessary.
+ */
+	doswap = (header[1] == 0x04000000);
+	if (doswap)
+		swapfour (header, 5);
 /*
  * Extract the date.
  */
