@@ -1,7 +1,7 @@
 /*
  * Deal with user-originated events.
  */
-static char *rcsid = "$Id: UserEvent.c,v 1.2 1990-06-07 11:04:41 corbet Exp $";
+static char *rcsid = "$Id: UserEvent.c,v 1.3 1990-11-09 16:36:51 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include "../include/defs.h"
@@ -31,6 +31,17 @@ typedef struct ev_resp
  * button name.
  */
 static stbl EventHandlers = 0;
+
+/*
+ * The procedure for dealing with motion events.  Normally, there is nothing
+ * here, but some sorts of events can make motions interesting for a while.
+ *
+ * While motions are being processed, the usual actions for button events
+ * may also be overridden.
+ */
+static void (*MotionHandler) () = 0;	/* Motion event handler		*/
+static void (*ORBtnDown)() = 0;		/* Override button down handler	*/
+static void (*ORBtnUp) () = 0;		/* Override button up handler	*/
 
 
 /*
@@ -232,6 +243,25 @@ char *data;
 
 
 
+void
+Ue_MotionEvent (w, event, params, nparam)
+Widget w;
+XEvent *event;
+String *params;
+Cardinal *nparam;
+/*
+ * Deal with motion events.
+ */
+{
+	XMotionEvent *xme = (XMotionEvent *) event;
+	if (MotionHandler)
+		(*MotionHandler) (xme->x, xme->y);
+}
+
+
+
+
+
 void 
 Ue_PointerEvent (w, event, params, nparam)
 Widget w;
@@ -246,6 +276,7 @@ Cardinal *nparam;
 /*
  * Make sure params are right.
  */
+	msg_ELog (EF_DEBUG, "Pointer event in widget 0x%x", w);
 	if (*nparam != 1)
 	{
 		msg_log ("RESOURCE BUG: Ue_pointer_event with %d params",
@@ -253,7 +284,15 @@ Cardinal *nparam;
 		return;
 	}
 /*
- * Try to find our response.
+ * If there is an override handler, use it.
+ */
+	if (ORBtnDown)
+	{
+		(*ORBtnDown) (event, params[0]);
+		return;
+	}
+/*
+ * Otherwise try to find our response.
  */
 	if ((resp = Ue_FindResponse (params[0])) == 0)
 	{
@@ -307,7 +346,37 @@ XEvent *event;
 String *params;
 int nparam;
 /*
- * Deal with a buttonup event by efficiently doing nothing.  George Bush
- * would be proud.
+ * Deal with button events.  Our usual response is to prudently do nothing,
+ * but that can be overridden.
  */
-{ }
+{
+	if (ORBtnUp)
+		(*ORBtnUp) (event);
+}
+
+
+
+
+
+void
+Ue_Override (down, up, motion)
+void (*down) (), (*up) (), (*motion) ();
+/*
+ * Temporarily take over handling of button events.
+ */
+{
+	ORBtnDown = down;
+	ORBtnUp = up;
+	MotionHandler = motion;
+}
+
+
+
+void 
+Ue_ResetOverride ()
+/*
+ * Get rid of a button override.
+ */
+{
+	ORBtnDown = ORBtnUp = MotionHandler = 0;
+}
