@@ -12,7 +12,7 @@
 # endif /* SYSV */
 # endif /* UNIX */
 
-static char *rcsid = "$Id: ui_error.c,v 1.5 1990-12-18 15:35:16 corbet Exp $";
+static char *rcsid = "$Id: ui_error.c,v 1.6 1991-02-22 23:25:48 burghart Exp $";
 /*
  * Stack stuff.
  */
@@ -267,9 +267,9 @@ ui_epop ()
 
 
 
-bailout (fmt, args)
+bailout (fmt, ARGS)
 char *fmt;
-int args;
+int ARGS;
 /*
  * Give an informative message, then longjmp back to the last catch.
  */
@@ -278,8 +278,11 @@ int args;
 /*
  * Write out the message.
  */
-	sprintrmt (buf, fmt, &args);
-	printf ("\n\t--> %s\n", buf);
+	if (fmt)
+	{
+		sprintrmt (buf, fmt, SPRINTARGS);
+		printf ("\n\t--> %s\n", buf);
+	}
 /*
  * Return to the command interpreter.
  * (10/11/85 jc)	If there is an alternate jbuf on the stack, we will
@@ -297,10 +300,10 @@ int args;
 
 
 
-sys_error (status, fmt, args)
+sys_error (status, fmt, ARGS)
 int status;
 char *fmt;
-int args;
+int ARGS;
 /*
  * Deal with a system error.  Like the normal "error" except that the
  * system error text is output first.
@@ -318,21 +321,21 @@ int args;
 /*
  * Now add the program text.
  */
-	ui_error (fmt, args);
+	ui_error (fmt, ARGS);
 }
 
 
 
-warning (fmt, args)
+warning (fmt, ARGS)
 char *fmt;
-int args;
+int ARGS;
 /*
  * Put out a warning message.
  */
 {
 	char buf[200];
 
-	sprintrmt (buf, fmt, &args);
+	sprintrmt (buf, fmt, SPRINTARGS);
 	printf ("\t*** WARNING:\t%s\n", buf);
 }
 
