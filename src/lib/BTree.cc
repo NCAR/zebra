@@ -11,7 +11,7 @@ extern "C" {
 #include <message.h>
 }
 
-RCSID ("$Id: BTree.cc,v 1.7 1997-12-28 05:57:28 granger Exp $")
+RCSID ("$Id: BTree.cc,v 1.8 1997-12-29 07:15:26 granger Exp $")
 
 #include "Logger.hh"
 #include "BTreeP.hh"
@@ -47,7 +47,7 @@ BTree<K,T>::BTree (int _order, long sz = 0, int fix = 0) :
 	//factory = new HeapFactory<K,T>();
 
 	// Set our best guess for initial serial buffer size
-	bufSize = sizes * MaxKeys();
+	bufSize = sizes * order;
 	if (! bufSize)
 	{
 		bufSize = order << 2;
@@ -352,22 +352,19 @@ BTree<K,T>::destroy (BTreeNode<K,T> *node)
 template <class K, class T>
 BTreeNode<K,T>::BTreeNode (BTree<K,T> &t, int d) : tree(t), depth(d)
 {
-	// Parent info, if any, gets set by setParent() when we
-	// get inserted into a parent node.
-	// parent = 0;
-
+	int maxkeys = tree.Order();
 	children = 0;
 	table = 0;
 	sbuf = 0;
-	keys = new K[tree.MaxKeys()];
+	keys = new K[maxkeys];
 	nkeys = 0;
 	if (depth > 0)	// we're an internal node which only has children
 	{
-		children = new Node[tree.Order()];
+		children = new Node[maxkeys];
 	}
 	else	// we're a leaf which needs an element offset table
 	{
-		table = new Element[tree.MaxKeys()+1];
+		table = new Element[maxkeys+1];
 		table[0].offset = 0; // Offset for first element insertion
 		sbuf = new SerialBuffer (tree.bufSize, 0);
 	}
@@ -380,7 +377,6 @@ void
 BTreeNode<K,T>::translate (SerialStream &ss)
 {
 	ss << nkeys;
-	ss << tag;
 	for (int i = 0; i < nkeys; ++i)
 	{
 		ss << keys[i];
@@ -408,9 +404,8 @@ template <class K, class T>
 long
 BTreeNode<K,T>::blockSize (SerialBuffer &sbuf)
 {
-	int keysize = serialCount (sbuf, tag);
+	int keysize = serialCount (sbuf, keys[0]);
 	long s = serialCount (sbuf, nkeys);	// nkeys
-	s += keysize;				// tag
 	int maxkeys = tree.MaxKeys();
 	s += maxkeys * keysize;			// keys
 	if (depth == 0)

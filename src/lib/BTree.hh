@@ -1,5 +1,5 @@
 /*
- * $Id: BTree.hh,v 1.5 1997-12-28 05:57:30 granger Exp $
+ * $Id: BTree.hh,v 1.6 1997-12-29 07:15:27 granger Exp $
  *
  * Public BTree class interface.
  */
@@ -218,11 +218,6 @@ public:
 	{
 		return depth;
 	}
-
-	inline int MaxKeys ()
-	{ 
-		return (Order() - 1);
-	};
 
 	inline int elementFixed ()
 	{
