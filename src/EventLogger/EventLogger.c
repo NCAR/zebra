@@ -42,10 +42,10 @@
 # include <config.h>
 # include <copyright.h>
 # ifndef lint
-MAKE_RCSID ("$Id: EventLogger.c,v 2.28 1995-04-07 16:45:56 corbet Exp $")
+MAKE_RCSID ("$Id: EventLogger.c,v 2.29 1995-04-20 08:22:36 granger Exp $")
 # endif
 
-# define EL_NAME "EventLogger"
+# define LOGNAME "EventLogger"
 
 #ifndef streq
 #define streq(a,b) (!strcmp((a),(b)))
@@ -94,7 +94,7 @@ static int FortuneWait = FORTUNE_WAIT;	/* secs idle time between fortunes */
  */
 static int Buflen = 0;
 static char *Initmsg = 
-"$Id: EventLogger.c,v 2.28 1995-04-07 16:45:56 corbet Exp $\nCopyright (C)\
+"$Id: EventLogger.c,v 2.29 1995-04-20 08:22:36 granger Exp $\nCopyright (C)\
  1991 UCAR, All rights reserved.\n";
 
 /*
@@ -488,9 +488,9 @@ char **argv;
 /*
  * Hook into the message system.
  */
-	if (! msg_connect (msg_event, "Event logger"))
+	if (! msg_connect (msg_event, EVENT_LOGGER_NAME))
 	{
-		printf ("Unable to connect to message handler\n");
+		printf ("%s: unable to connect to message handler\n", argv[0]);
 		exit (1);
 	}
 /*
@@ -502,8 +502,8 @@ char **argv;
 /*
  * Join the client event and event logger groups.
  */
-	msg_join ("Client events");
-	msg_join ("Event logger");
+	msg_join (MSG_CLIENT_EVENTS);
+	msg_join (EVENT_LOGGER_NAME);
 /*
  * Tell msglib about our X connection.
  */
@@ -521,7 +521,7 @@ char **argv;
 		sprintf (buf, "Logging to file '%s'", Log_path);
 	else
 		sprintf (buf, "No log file specified.");
-	LogMessage (EF_INFO, EL_NAME, buf);
+	LogMessage (EF_INFO, LOGNAME, buf);
 /*
  * Now we wait and process messages as we get them.
  */
@@ -590,8 +590,9 @@ CreateEventLogger()
 	XtSetArg (args[n], XtNoverrideRedirect, Override);	n++;
 	XtSetArg (args[n], XtNallowShellResize, True);	n++;
 	XtSetArg (args[n], XtNtitle, "Event Logger");	n++;
+	XtSetArg (args[n], XtNwinGravity, StaticGravity); n++;
 	Shell = XtCreatePopupShell ("eventlogger", topLevelShellWidgetClass,
-		Top, args, n);
+				    Top, args, n);
 /*
  * Put a form inside it.
  */
@@ -933,19 +934,19 @@ XtPointer call_data;
 		{
 			sprintf (buf, "Log file '%s' now empty",
 				 Log_path);
-			LogMessage (EF_INFO, EL_NAME, buf);
+			LogMessage (EF_INFO, LOGNAME, buf);
 		}
 		else
 		{
 			sprintf (buf, 
 				 "Error %d trying to reopen log file '%s'",
 				 errno, Log_path);
-			LogMessage (EF_PROBLEM, EL_NAME, buf);
+			LogMessage (EF_PROBLEM, LOGNAME, buf);
 			LogDisable (toggle);
 		}
 	}
 	else
-		LogMessage (EF_DEBUG, EL_NAME, "No log file to truncate");
+		LogMessage (EF_DEBUG, LOGNAME, "No log file to truncate");
 }
 
 
@@ -960,7 +961,7 @@ Widget toggle;		/* The widget which displays our state */
 	Log_enabled = FALSE;
 	XtSetArg (arg, XtNlabel, "Disabled");
 	XtSetValues (toggle, &arg, (Cardinal)1);
-	LogMessage (EF_DEBUG, EL_NAME, "File logging disabled.");
+	LogMessage (EF_DEBUG, LOGNAME, "File logging disabled.");
 }
 
 
@@ -998,7 +999,7 @@ XtPointer call_data;
 		Log_enabled = TRUE;
 		XtSetArg (arg, XtNlabel, "Enabled");
 		XtSetValues (w, &arg, (Cardinal)1);
-		LogMessage (EF_DEBUG, EL_NAME, "File logging enabled.");
+		LogMessage (EF_DEBUG, LOGNAME, "File logging enabled.");
 		return;
 	}
 
@@ -1010,7 +1011,7 @@ XtPointer call_data;
 	{
 		fclose (Log_file);
 		sprintf (buf, "Log file %s closed.", Log_path);
-		LogMessage (EF_INFO, EL_NAME, buf);
+		LogMessage (EF_INFO, LOGNAME, buf);
 	}
 	Log_file = NULL;
 	strcpy (Log_path, filepath);
@@ -1022,17 +1023,17 @@ XtPointer call_data;
 		{
 			sprintf (buf, "Error %d opening log file '%s'",
 				 errno, filepath);
-			LogMessage (EF_PROBLEM, EL_NAME, buf);
+			LogMessage (EF_PROBLEM, LOGNAME, buf);
 		}
 		else
 		{
 			sprintf (buf, "Log file %s opened.", filepath);
-			LogMessage (EF_INFO, EL_NAME, buf);
+			LogMessage (EF_INFO, LOGNAME, buf);
 		}
 	}
 	else
 	{
-		LogMessage (EF_PROBLEM, EL_NAME, 
+		LogMessage (EF_PROBLEM, LOGNAME, 
 			    "Could not open log file, no file name specified");
 	}
 
@@ -1041,7 +1042,7 @@ XtPointer call_data;
 	XtSetValues (w, &arg, (Cardinal)1);
 	sprintf (buf, "File logging %s.", 
 		 (Log_enabled) ? "enabled" : "disabled");
-	LogMessage (EF_DEBUG, EL_NAME, buf);
+	LogMessage (EF_DEBUG, LOGNAME, buf);
 }
 
 
@@ -1395,7 +1396,7 @@ char *msg_in;
 		if (repeat_count > 5)
 			sprintf (fmtbuf, 
 				 "R %-*s Last message repeated %d times\n%s",
-				 FROMLEN-1, EL_NAME, repeat_count, last_msg);
+				 FROMLEN-1, LOGNAME, repeat_count, last_msg);
 		repeat_count = 1;
 	}
 
@@ -1520,18 +1521,18 @@ struct dm_msg *dmsg;
 	 * Maybe it's a DM scoping us out.
 	 */
 	   case DM_HELLO:
-	   	reply.dmm_type = DM_HELLO;
-	   	reply.dmm_win = 0;
-		msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &reply, 
-			sizeof (reply));
+		dm_Greet ();
 		break;
 	/*
 	 * Maybe it's a reconfig.
 	 */
 	   case DM_RECONFIG:
 		if (Override)
+		{
+			dm_Reconfig ((struct dm_reconfig *)dmsg);
 		   	reconfig (dmsg->dmm_x, dmsg->dmm_y, dmsg->dmm_dx,
 				dmsg->dmm_dy);
+		}
 		break;
 	/*
 	 * Geometry request.
@@ -1588,7 +1589,7 @@ struct dm_msg *dmm;
 	reply.dmm_dx = width;
 	reply.dmm_dy = height;
 
-	msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &reply, sizeof (reply));
+	msg_send (DISPLAY_MANAGER, MT_DISPLAYMGR, FALSE, &reply, sizeof (reply));
 }
 
 
@@ -1675,12 +1676,12 @@ wm ()
 		{
 			XEvent	event;
 
-			event.type = 0;
-			while (event.type != ReparentNotify)
+			do
 			{
 				XtAppNextEvent (Appc, &event);
 				XtDispatchEvent (&event);
 			}
+			while (event.type != ReparentNotify);
 		}
 	/*
 	 * Now we can safely pop up again...
@@ -1994,7 +1995,7 @@ void *param;
 		       buf + strlen(buf));
 #endif
 	TC_EncodeTime (t, TC_Full, buf + strlen(buf));
-	msg = FormatMessage ('T', EL_NAME, buf);
+	msg = FormatMessage ('T', LOGNAME, buf);
 	AppendToLogFile (msg);
 	if (Windows)
 		AppendToDisplay (msg);
@@ -2039,7 +2040,7 @@ LogFortune ()
 	if (!pipe)
 	{
 		sprintf (fortune, "%s: pipe failed, err %d", command, errno);
-		LogMessage (EF_DEBUG, EL_NAME, fortune);
+		LogMessage (EF_DEBUG, LOGNAME, fortune);
 		return;
 	}
 	strcpy (fortune, "J ");
