@@ -25,7 +25,7 @@
 # include <copyright.h>
 # include "DataStore.h"
 
-MAKE_RCSID ("$Id: dsdump.c,v 3.9 1994-01-03 07:21:11 granger Exp $")
+MAKE_RCSID ("$Id: dsdump.c,v 3.10 1994-01-03 10:22:31 granger Exp $")
 
 
 /*
@@ -218,7 +218,8 @@ bool files;		/* list files if true */
  */
 	if (!names && files)
 		ui_printf ("\n");
-	if (name = strchr(pi->pl_Name, '/'))
+	
+	if ((pi->pl_SubPlatform) && (name = strrchr(pi->pl_Name, '/')))
 		++name;
 	else
 		name = pi->pl_Name;
