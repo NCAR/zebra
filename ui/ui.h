@@ -1,5 +1,5 @@
 /* 10/86 jc */
-/* $Id: ui.h,v 1.3 1990-05-23 09:11:09 burghart Exp $ */
+/* $Id: ui.h,v 1.4 1990-09-19 08:49:58 corbet Exp $ */
 
 # ifndef UI_H_SYMBOLS
 # define UI_H_SYMBOLS
@@ -42,10 +42,83 @@ struct ui_command
 # define UCOL(cmd)	(cmd).uc_col
 
 /*
- * Forward definitions of useful routines.
+ * User interface routine prototypes.
  */
-int ui_int_prompt ();
-double ui_float_prompt ();
+# ifdef __STDC__
+	int ui_init (char *, int, int);
+	void ui_setup (char *, int *, char **, char *);
+	int ui_get_command (char *, char *, int (*)(), long);
+	int ui_subcommand (char *, char *, int (*)(), long);
+	int ui_perform (char *);
+	int ui_OutputRoutine (void (*)(), void (*)());
+	int ui_ErrorOutputRoutine (void (*)());
+	int ui_ErrHook (void (*)());
+		/* int ui_printf (char *, ...);	*/
+		/* int ui_nf_printf (char *, ...); */
+	int ui_ErrOut (char *);
+	int ui_WarnOut (char *);
+	int uf_def_function (char *, int, int *, int (*)());
+	int uii_set_handler (void (*)(), int);
+	int uii_clear_handler (void (*)());
+	int ui_int_prompt (char *, char *, int, int, int);
+	double ui_float_prompt (char *, char *, double, double, double);
+	int ui_string_prompt (char *, char *, char *, char *);
+	int ui_date_prompt (char *, char *, date *, date *);
+	int ui_kw_prompt (char *, char *, char *, char *);
+	char *usy_string (char *);
+	int usy_rel_string (char *);
+	char *usy_pstring (char *);
+	int tty_watch (int, void (*)());
+	int tty_nowatch (int);
+	struct ui_command *uip_clone_clist (struct ui_command *);
+# ifdef _XtIntrinsic_h
+	int uw_def_widget (char *, char *, Widget (*)(), void (*)(), char *);
+	int uw_ForceWindowMode (char *, Widget *, XtAppContext *);
+	int uw_IWRealize (char *, Widget);
+	Widget uw_IWWidget (char *);
+	int uw_IWPopup (char *);
+# endif
+	int uw_mk_list (char *, char *, int, char **, void (*)(), char *);
+	int uw_popup (char *);
+	int uw_popdown (char *);
+# else
+	int ui_init ();
+	void ui_setup ();
+	int ui_get_command ();
+	int ui_subcommand ();
+	int ui_perform ();
+	int ui_OutputRoutine ();
+	int ui_ErrorOutputRoutine ();
+	int ui_ErrHook ();
+		/* int ui_printf (char *, ...);	*/
+		/* int ui_nf_printf (char *, ...); */
+	int ui_ErrOut ();
+	int ui_WarnOut ();
+	int uf_def_function ();
+	int uii_set_handler ();
+	int uii_clear_handler ();
+	int ui_int_prompt ();
+	double ui_float_prompt ();
+	int ui_string_prompt ();
+	int ui_date_prompt ();
+	int ui_kw_prompt ();
+	char *usy_string ();
+	int usy_rel_string ();
+	char *usy_pstring ();
+	int tty_watch ();
+	int tty_nowatch ();
+	struct ui_command *uip_clone_clist ();
+# ifdef _XtIntrinsic_h
+	int uw_def_widget ();
+	int uw_ForceWindowMode ();
+	int uw_IWRealize ();
+	Widget uw_IWWidget ();
+	int uw_IWPopup ();
+# endif
+	int uw_mk_list ();
+	int uw_popup ();
+	int uw_popdown ();
+# endif
 
 /*
  * Let the application know if X support is present.
