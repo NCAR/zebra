@@ -6,6 +6,7 @@
  */
 
 #include <stdio.h>
+#include <string.h>
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -36,7 +37,7 @@ open_client_sock(hostname,port)
 	if(!hostport) return(-1);
 
 	/* copy the remote sockets internet address to local hostport struct*/
-	bcopy(hostport->h_addr,&rem_soc.sin_addr,sizeof(rem_soc.sin_addr));
+	memcpy (&rem_soc.sin_addr,hostport->h_addr,sizeof(rem_soc.sin_addr));
 	rem_soc.sin_port = port;			/* fill in port number */
 	rem_soc.sin_port = htons(rem_soc.sin_port);	
 
