@@ -6,3 +6,4 @@ LIBS = $(LIBZEB) $(LIBRDSS) $(XLIBS)
 
 
 NormalProgramTarget(fccclock, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+InstallAppDefaults (FccClock)
