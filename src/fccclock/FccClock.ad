@@ -1,0 +1,7 @@
+! $Id: FccClock.ad,v 1.1 1993-05-26 19:40:37 corbet Exp $
+!
+! fccclock application defaults file
+! Do Not modify if this is the library installed copy
+!
+*grshell*transient:		True
+*grshell*overrideRedirect:	False

@@ -1,0 +1,8 @@
+
+SRCS = mtap.c
+OBJS = mtap.o
+
+LIBS = $(LIBZEB) $(LIBRDSS)
+
+
+NormalProgramTarget(mtap, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))

@@ -1,0 +1,59 @@
+!
+! App defaults for the ds manager.
+!
+*.quit.foreground:	red
+*.delete.foreground:	red
+*.cancel.foreground:	red
+*.gripe.foreground:	red
+*.flabel.background:	gray80
+!*.llabel.font:		-adobe-courier-bold-r-*-*-12-120-75-75-*-*-iso8859-1
+*.llabel.background:	gray80
+*.Command.background:	gray80
+*.Toggle.background:	gray80
+*.Text.background:	gray80
+*.AsciiSink.background:	gray80
+*.delete.borderWidth:	0
+*background:		gray90
+*.title.borderWidth:	0
+*.title.font:		-adobe-times-bold-r-*-*-18-*-*-*-*-*-*-1
+*.subtitle.font:		-adobe-times-bold-r-*-*-16-*-*-*-*-*-*-1
+*.dtext.width:		250
+*.Text.borderWidth:	2
+!
+! Translations to get the right toggle behavior.
+!
+*.srcToggle.translations: #override \n\
+	<EnterWindow>:		highlight(always) \n\
+	<LeaveWindow>:		unhighlight() \n\
+	<Btn1Down>,<Btn1Up>:	set()notify()
+!
+*.FCToggle.translations: #override \n\
+	<EnterWindow>:		highlight(always) \n\
+	<LeaveWindow>:		unhighlight() \n\
+	<Btn1Down>,<Btn1Up>:	set()notify()reset()
+!
+! Text widget translations.  These are designed to keep people out
+! of trouble as much as possible.
+!
+*.skip.translations: #override \n\
+	<Key>Delete:	end-of-line()delete-previous-character() \n\
+	<Key>Return:	no-op() \n\
+	<Key>Linefeed:	no-op()	\n\
+	<Key>0:		kill-to-end-of-line()insert-char() \n\
+	<Key>1:		kill-to-end-of-line()insert-char() \n\
+	<Key>2:		kill-to-end-of-line()insert-char() \n\
+	<Key>3:		kill-to-end-of-line()insert-char() \n\
+	<Key>4:		kill-to-end-of-line()insert-char() \n\
+	<Key>5:		kill-to-end-of-line()insert-char() \n\
+	<Key>6:		kill-to-end-of-line()insert-char() \n\
+	<Key>7:		kill-to-end-of-line()insert-char() \n\
+	<Key>8:		kill-to-end-of-line()insert-char() \n\
+	<Key>9:		kill-to-end-of-line()insert-char() \n\
+	<Key>:		no-op()
+!
+! Most text widgets are a bit more flexible.
+!
+*.Text.translations: #override \n\
+	<Key>Delete:	end-of-line()delete-previous-character() \n\
+	<Key>Return:	no-op() \n\
+	<Key>Linefeed:	no-op()

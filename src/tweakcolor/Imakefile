@@ -1,0 +1,8 @@
+
+SRCS = tweakcolor.c
+OBJS = tweakcolor.o
+
+LIBS = $(LIBZEB) $(LIBRDSS) $(XLIBS)
+
+
+NormalProgramTarget(tweakcolor, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))

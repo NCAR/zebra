@@ -1,0 +1,8 @@
+
+SRCS = timer.c
+OBJS = timer.o
+
+LIBS = $(LIBZEB) $(LIBRDSS)
+
+
+NormalProgramTarget(timer, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
