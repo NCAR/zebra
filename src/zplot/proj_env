@@ -2,4 +2,34 @@
 #
 
 setenv ZEB_CACHEDIR tmp
+setenv DATA_DIR /net/sssf2/cases99
+setenv ZEB_PROJDIR /net/sssf2/cases99/cases99-iss
+
+# This project uses its own specific socket
+setenv ZEB_SOCKET "/tmp/zebra.cases99-iss"
+
+# The spool dir is where images are dumped by batch-plot
+setenv BATCH_IMAGE_SPOOL "/net/global/www/sssf/projects/cases99/realtime"
+
+# Use a fixed zebra top since we are version-dependent
+setenv ZEB_TOPDIR /scr/steam/granger/zebra
+
+# Settings required by ftpjoss.pl
+setenv JOSS_HOST "ftp.joss.ucar.edu"
+setenv JOSS_DIR "/pub/incoming/catalog/cases99"
+setenv JOSS_ENABLE_FTP 1
+
+# Special paths for Xvfb and zebra.
+setenv PATH "$ZEB_TOPDIR/bin:/local/X11R6/bin:$PATH"
+if ($?LD_LIBRARY_PATH) then
+    setenv LD_LIBRARY_PATH "/local/X11R6/lib:/usr/local/lib:${LD_LIBRARY_PATH}"
+else
+    setenv LD_LIBRARY_PATH "/local/X11R6/lib:/usr/local/lib"
+endif
+
+# zplotd parameters
+setenv IMAGE_MAIL_LIST " granger "
+setenv PLOT_PLATFORMS "$ZEB_PROJDIR/Plots"
+
+
 

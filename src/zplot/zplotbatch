@@ -1,49 +1,29 @@
-#! /bin/sh
+#! /usr/bin/sh
 #
-# $Id: zplotbatch,v 1.7 1999-04-27 20:33:49 granger Exp $
+# $Id: zplotbatch,v 1.8 1999-10-08 20:44:33 granger Exp $
 #
 # Start a display manager session with a virtual X server and dump
 # images of its plots.
 
+# Set to 'echo' to debug rather than actually dump images
 echo=
 
-# ---- Site-specific configuration settings ----
-
-host=`uname -n`
-
-# The spool dir is where images are dumped
-spool=/net/global/www/sssf/projects/forestabl/realtime
-
-# Default config to dump when none specified on command line
-config="iss1"
-
-# Top zebra directory
-ztop="$ZEB_TOPDIR"
-zstart=$ztop/bin/zstart
-
-# Project directory
-project="."
-
-# Special paths for Xvfb and zebra.
-PATH=$ztop/bin:/local/X11R6/bin:$PATH
-
-# Only used when file paths are not what were compiled into Xvfb
-#owl="/usr/openwin/lib/X11"
-#owf="$owl/fonts"
-#fp="-fp $owf/misc,$owf/Speedo,$owf/Type1,$owf/75dpi,$owf/100dpi"
-#co="-co $owl/rgb"
-fp=
-co=
-
 # Path to Xvfb
-xvfb="Xvfb $fp $co"
+xvfb="Xvfb"
+
+if [ x$BATCH_IMAGE_SPOOL = x ]; then
+    echo "Batch image spool directory not set: BATCH_IMAGE_SPOOL"
+    echo "This script probably needs to be run with 'zconfig'."
+    exit 1
+fi
+
+spool="$BATCH_IMAGE_SPOOL"
 
 # Display connection to use for virtual X server
 display=":9"
 
-# ---- End site configuration ----
-
 # Get a time
+when=""
 if [ $# -gt 0 ]; then
     when=$1
     shift
@@ -56,15 +36,29 @@ if [ $# -gt 0 ]; then
 	echo "Accepting plots from stdin"
 	;;
      *)
-	echo "First argument, if present, must be 'now' or a time."
-	echo "$0 now [config] [window ..]"
-	echo "$0 3-Dec-97,22:06:03 [config] [window ..]"
-	exit 1
+	when=""
 	;;
     esac
+else
+    # Time defaults to now
+    when=now
+fi
+
+# The only argument we really check is the first one
+if [ "x$when" = "x" ]; then
+    echo "Usage: $0 [ {now|<time>} config [window ..]]"
+    echo "First argument, if present, must be 'now' or a time:"
+    echo "$0 now [config] [window ..]"
+    echo "$0 3-Dec-97,22:06:03 [config] [window ..]"
+    echo "'now' is the default time."
+    echo "A single argument of - accepts arguments from standard input:"
+    echo "$0 -"
+    echo "When reading stdin, lines are '{now|<time>} config [window ..]'"
+    exit 1
 fi
 
 # Get a config
+config=''
 if [ $# -gt 0 ]; then
     config=$1
     shift
@@ -77,14 +71,6 @@ while [ $# -gt 0 ]; do
     shift
 done
 
-# Should be no arguments left
-if [ $# -gt 0 ]; then
-    echo "Usage: $0 [ {now|<time>} config [window ..]]"
-    echo "Usage: $0 -"
-    echo "When reading stdin, lines are '{now|<time>} config [window ..]'"
-    exit 1
-fi
-
 if [ "x$when" != "x-" ]; then
     temp=/tmp/batch-plot.$$
     echo "$when $config $windows" > $temp
@@ -92,14 +78,13 @@ if [ "x$when" != "x-" ]; then
 fi
 
 PRESERVE_ZEB=1; export PRESERVE_ZEB
-#ZEB_DM=$ztop/bin/dm; export ZEB_DM
 
 # Start our private, virtual X display.
 # This may fail if one is already there, in which case we'll use the
-# existing one.  Either way, disable access control so that iss can
+# existing one.  Either way, disable access control so that others can
 # connect to it no matter who starts it.
 
-$xvfb $display &
+$xvfb $display >/dev/null 2>&1 &
 x=$!
 sleep 5
 DISPLAY=${display}.0 ; export DISPLAY
@@ -109,8 +94,8 @@ xhost +
 ZEB_EVENTLOGGER=true ; export ZEB_EVENTLOGGER
 
 echo "-- Checking for datastore session:"
-$zstart -n -ds -data /net/sssf2/forestabl $project
-sleep 5
+zstart -n -ds $ZEB_PROJDIR
+sleep 1
 
 # Then start a private display session
 # We set the dm name explicitly so that we can query it
@@ -120,7 +105,7 @@ DM=B$$
 ZEB_DM_CONFIG="-multiple -name $DM dm.config"
 export DEFAULT_CONFIG ZEB_DM_CONFIG
 echo "-- Starting display manager:"
-$zstart -dm -preserve $project &
+zstart -dm -preserve $ZEB_PROJDIR >/dev/null 2>&1 &
 dm=$!
 sleep 10
 # Wait for dm to connect to datastore, then wait for dm to respond to
@@ -130,53 +115,61 @@ if zquery -t 600 $DM > /dev/null 2>&1; then true ; else
     exit 1
 fi
 # Wait for dm initialization after passing the daemon scan
-sleep 10
+# sleep 10
 
 images=''
 
 now=`zquery timer | egrep 'Current time' | sed -e 's/^.*is //'`
+echo "Current time: $now"
 
 # Begin looping over the plots we're supposed to make
+queryprocs=''
 while read when config windows; do
 
-    echo $when $config $windows
+    echo "Processing: $when $config $windows"
 
-    zrun $DM "display $config"
-    sleep 30
+    (set -x; zrun $DM "display $config")
+    sleep 15
     if [ $when = "now" ]; then
     	zrun $DM "realtime all"
 	when=$now
     else
     	zrun $DM "history all $when"
     fi
-    # Wait for windows to take the new time
-    sleep 30
+    # Wait for windows to take the new time.  Apparently a window might
+    # actually respond to an imgdump command before it has received or
+    # acted on the time change, so we must delay here until the time
+    # takes effect.
+    sleep 15
 
     # Get a list of the graphics processes appearing in this display
-    mstatus
+    # mstatus
     procs=`mstatus | egrep "group-$DM" | sed -e 's,^.*:,,g' -e 's/,//g'`
     echo "Processes: $procs"
 
     # For each process, tell it to dump its plot
 
-    # JOSS filenames: YYMMDDHHmm.stationid_plottype.gif
+    # JOSS filenames: platform.YYYYMMDDHHmm.plottype.{jpg,gif}
+    # We're sticking with gif for now
     # Derive the image name from the plot time
     set `./tcsplit $when`
-    base="$1$2$3$4$5.${config}_"
+    base="${config}.$1$2$3$4$5."
     # For the Web, put the images in directories by date and display
     subspool="${spool}/${config}/$1$2$3"
+    echo "Putting images in $subspool"
     if [ ! -d $subspool ]; then
 	mkdir -p $subspool
     fi
 
     for plot in $procs ; do
 
-	name=`echo $plot | sed -e "s/-$DM.*//"`
+	win=`echo $plot | sed -e "s/-$DM.*//"`
 
 	# If we have specific targets, skip this window if it's not one of them
-	if test "$windows" = "" || echo "$windows" | egrep -s "$name"; then
+	if test "$windows" = "" || echo "$windows" | egrep -s "$win"; then
 
-	    name="$subspool/${base}${name}.gif"
+	    name="$subspool/${base}${win}.gif"
+	    /bin/rm -f "$name"
 
 	    # Form the gif file name by extracting the plot name from the
 	    # process. An alternative is to grep the pd-name from a zquery of
@@ -184,13 +177,25 @@ while read when config windows; do
 	    # prepend the config here.
 
 	    images="$images $name"
-	    $echo zrun $plot "imgdump gif \"$name\""
+	    (set -x; zrun $plot "imgdump gif \"$name\"" ; sleep 5 ; \
+	     zquery -t 30 $plot >/dev/null ; perl5 disclaim.pl $name) &
+	    queryprocs="$queryprocs $plot"
 
 	fi
 
     done
-    # Wait for plots to finish
-    $echo sleep 60
+    # Now make sure each imgdump has finished before possibly switching
+    # to another display configuration.  This is our re-synch or rendezvous
+    # of all the background parallel image dumps.  disclaim may still be
+    # running on the images, but we're through with those files.  The sleep
+    # is to give the windows time to actually start the dumps, so that
+    # our query doesn't succeed *before* the imgdump command is received.
+    echo "Waiting for windows to finish image dumps..."
+    sleep 5
+    for plot in $queryprocs ; do
+        (set -x; zquery -t 30 $plot > /dev/null)
+    done
+    echo "Window dumps finished."
 
 done
 
@@ -200,15 +205,17 @@ fi
 
 # Add the disclaimer to each of the images
 #
-$echo perl5 disclaim.pl $images
+# $echo perl5 disclaim.pl $images
 
-# Exit the window manager and kill our virtual X server
-
-zrun $DM 'shutdown'
-sleep 20
+# Exit the window manager, give it a little time to shutdown before
+# outrightly killing it
+(set -x; zrun $DM 'shutdown')
+sleep 10
 kill $dm
-kill $x
-sleep 15
+# sleep 15
+
+# We'd kill our virtual X server, but another batch-plot may be using it
+# kill $x
 
 # Kill the server if no one else is using it
 #if [ `xlswins -display $display | wc -l` -lt 2 ]; then
@@ -219,4 +226,7 @@ sleep 15
 # Pass on the image file names
 echo Images: $images
 
+# echo "$0: waiting..."
+# wait
+echo "$0: exiting."
 exit 0

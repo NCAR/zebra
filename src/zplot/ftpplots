@@ -1,17 +1,12 @@
 #! /usr/local/bin/perl5
 #
 # FTP images to JOSS
-# $Id: ftpplots,v 1.5 1998-01-22 17:52:14 granger Exp $
+# $Id: ftpplots,v 1.6 1999-10-08 20:44:34 granger Exp $
 
-$site="ftp.joss.ucar.edu";
+$site="$ENV{'JOSS_HOST'}";
+$dir="$ENV{'JOSS_DIR'}";
 $user="anonymous";
-$pass="granger\@ucar.edu";
-$dir="/pub/incoming/lakeice";
-
-#$site="fog.personal.engin.umich.edu";
-#$user="anonymous";
-#$pass="granger\@ucar.edu";
-#$dir="/pub/lakeice";
+$pass="iss\@atd.ucar.edu";
 
 $error=0;
 

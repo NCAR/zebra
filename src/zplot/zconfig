@@ -1,0 +1,26 @@
+#! /bin/csh
+
+# This is a script which sets this project's environment variables
+# then executes whatever command and arguments are given on the
+# command line.  It is a 'gateway' for script utilities to get
+# their configuration information from one place, the proj_env
+# file used by zstart.  Eventually I think this capability should
+# be part of zstart, since this is very similar to the option to 
+# start a shell, right down to changing the working directory to the
+# project directory.
+
+if ($#argv < 2) then
+    echo "Usage: $0 project command [args ...]"
+    echo "Where <project> is the project directory containing the proj_env"
+    echo "file.  <command> will be executed with the environment settings"
+    echo "from proj_env and the project directory as its working directory."
+    exit 1
+endif
+
+cd $1
+shift
+source ./proj_env
+
+exec $*
+
+exit 0

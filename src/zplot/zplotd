@@ -15,11 +15,9 @@ $D_NoEmail = 4; # Don't email
 $debug = 0;		     	# No debugging
 $FAIL = "ZPLOTD_FAILED";	# failure string
 
-$image_mail_list = " granger ";
-
-$ENV{'LD_LIBRARY_PATH'} = "/local/X11R6/lib:/usr/local/lib";
-$ENV{'ZEBRA_SOCKET'} = "/tmp/zebra.forestabl";
-$ENV{'ZEB_TOPDIR'} = "/scr/steam/granger/zebra";
+# Some option variables we need
+$image_mail_list = " $ENV{'IMAGE_MAIL_LIST'} ";
+$enable_ftpjoss = $ENV{'JOSS_ENABLE_FTP'};
 
 # Top zebra directory
 $ztop=$ENV{'ZEB_TOPDIR'};
@@ -27,24 +25,34 @@ $zbin="$ztop/bin";
 $ENV{'PATH'} = "$zbin:" . $ENV{'PATH'};
 
 # Project directory
-$project = `pwd`;
-chop $project;
+$project = "$ENV{'ZEB_PROJDIR'}";
 
-# The platforms which are plotted for each observation rather
-# than only the most recent
-%Observations = ("iss2/class", 1, "iss3/class", 1, "iss4/class", 1);
+if (! $ENV{'PLOT_PLATFORMS'})
+{
+    print "Need a platforms file set in PLOT_PLATFORMS\n";
+    exit 1;
+}
 
-%Plots = (
-	  "iss2/class", 	"iss2 class",
-	  "iss2/prof915h",	"iss2 prof915l",
-	  "iss2/rass915",	"iss2 rass",
-	  "iss2/surface_met",	"iss2 surfmet surfwind surfrad",
+%Observations = ();
+%Plots = ();
 
-	  "iss4/class", 	"iss4 class",
-	  "iss4/prof915h",	"iss4 prof915l",
-	  "iss4/rass915",	"iss4 rass",
-	  "iss4/surface_met",	"iss4 surfmet surfwind surfrad"
-	  );
+$plotfile = "$ENV{'PLOT_PLATFORMS'}";
+open(PLOTS, "$plotfile") || die "$plotfile: $!\n";
+while (<PLOTS>)
+{
+    next if /^\s*(#.*)?$/;
+    ($platform, $obs, @windows) = split(/\s+/,$_);
+    print "$platform, $obs, ", join(' ', @windows), "\n" if ($debug);
+    if ("$obs" eq "yes")
+    {
+	$Observations{"$platform"} = 1;
+    }
+    $Plots{"$platform"} = join (' ', @windows);
+}
+close(PLOTS);
+
+# print "Plots: \n", join("\n", %Plots), "\n";
+# print "Observations: \n", join("\n", %Observations), "\n";
 
 @Queue = ();
 @Targets = ();
@@ -60,6 +68,35 @@ $first = 0;		# true when platforms were queued from the cmd-line
 # command line, just do those
 while ($pattern = shift @ARGV)
 {
+    if ($pattern =~ /-h.*/)
+    {
+	print "Usage:\n";
+	print "$0 [-debug] [-d<DEBUGLEVEL>] " . 
+	    "{-since|-notice|-time} [platforms ...]\n";
+	print "$0 -since [timestampfile]\n";
+	print
+	    "   Generate new plot images for all platforms with data\n" .
+	    "   more recent than the timestamps in the <timestampfile>.\n";
+	print "$0 -notice [platforms ...]\n";
+	print "   Generate plots on each notify from dsnotice\n";
+	print "$0 -time <begin> <end>\n";
+	print
+	    "   Generate plots with the given end time for all platforms\n" .
+	    "   with data between begin and end.\n" . 
+	    "   Times are dd-mon-yyyy,hh:mm:ss\n";
+	print "The debug and platform options are recognized by all\n";
+	print "variations.  If platforms are given, only those platforms\n";
+	print "matching the regexp name from the command line will be\n";
+	print "checked for new data and plotted.\n";
+	print "\n";
+	print "This script and the scripts it calls (batch-plot and others)\n";
+	print "need configuration information from the project's proj_env\n";
+	print "file, so it probably needs to be run with zconfig.\n";
+	print "\n";
+	print "If -since, -notice, nor -time is chosen, the default is to\n";
+	print "read stdin in the format of dsnotice update lines.\n";
+	exit 0;
+    }
     if ($pattern eq "-since")
     {
 	$since = shift @ARGV;
@@ -122,6 +159,7 @@ if ($first && ! $since && ! $notice && ! $fixtime)
 
 $dt = `date -u '+%y%m%d.%H%M'`;
 chop $dt;
+system("mkdir $project/logs > /dev/null 2>&1");
 $log="$project/logs/zplotd.$dt.log";
 if ($debug >= $D_Out)
 {
@@ -140,7 +178,7 @@ $EL = "true";
 #$EL = "$zbin/EventLogger -n -l epic -f logs/zebra.$dt.log";
 
 # Make sure zebra is running; usually it should already be running
-if (system("ZEB_TOPDIR=\"$ztop\" ZEB_EVENTLOGGER=\"$EL\" $zbin/zstart -n -ds -preserve -data /net/sssf2/forestabl $project"))
+if (system("ZEB_EVENTLOGGER=\"$EL\" $zbin/zstart -n -ds -preserve $project"))
 {
     die "Failed to start zebra.\n";
 }
@@ -150,8 +188,9 @@ sleep 5;
 # for the rescan to finish, since later queries of the daemon should just
 # block until the rescan is done.
 
-!system("dsrescan -all") || print "*** dsrescan failed ***";
-sleep 15;
+!system("dsrescan -all") || die "*** dsrescan failed ***";
+#sleep 15;
+sleep 1;
 
 $timeout = 30;
 
@@ -264,31 +303,19 @@ sub clear
     open(PLOG, "> $plog") || die "could not open $plog: $!\n";
     $oldfh = select(PLOG); $| = 1; select($oldfh);
 
-    # Map the platforms in the queue into an array
-    # of display configs and windows
-    #foreach $entry (@Queue)
-    #{
-    #   ($platform, $time) = split(/\s+/,$entry);
-    #    ($config, @window) = split(/\s+/,$Plots{$platform});
-    #    print "$platform $time --> " .
-    #	"$config " . join(" ",@window) . "\n";
-    #    print PLOG "$platform $time --> " .
-    #	"$config " . join(" ",@window) . "\n";
-    #    foreach $w (@window)
-    #    {
-    #	if (index($Displays{$config},"$w") < 0)
-    #	{
-    #	    $Displays{$config} .= " $w ";
-    #	}
-    #    }
-    #}
-
-    # Finally we can plot each config and its windows
-    # Open batch-plot and pipe our plot entries to it
+    # Finally, we can plot each config and its windows.
+    # Open batch-plot and pipe our plot entries to it.
 
     $images = "";
     $status="ok";
     $batch = "/tmp/zplotd.batch.$$";
+    %Configs = ();
+    foreach $entry (@Queue)
+    {
+	($platform, $time, $config, @window) = split(/\s+/,$entry);
+	if ($fixtime) { $time = $fixend; }
+	$Configs{"$time $config"} .= " " . join(" ",@window) . " ";
+    }
     print "Opening $batch...\n" if $debug;
     if (! open (BATCH, "> $batch"))
     {
@@ -296,20 +323,18 @@ sub clear
 	print "$status" if $debug;
 	return 0;
     }
-    foreach $entry (@Queue)
+    foreach $entry (keys(%Configs))
     {
-	($platform, $time, $config, @window) = split(/\s+/,$entry);
-	if ($fixtime) { $time = $fixend; }
-	$plot = "$time $config " . join(" ",@window);
+	$plot = "$entry " . $Configs{"$entry"};
 	print "$plot\n";
 	print PLOG "$plot\n";
 	print BATCH "$plot\n";
     }
     close BATCH;
-    print "Running: sh -x ./batch-plot - < $batch\n";
+    print "Running: /bin/sh ./batch-plot - < $batch\n";
     if ($debug < $D_NoPlot)
     {
-	if (! open (BP, "sh -x ./batch-plot - < $batch 2>&1 |"))
+	if (! open (BP, "/bin/sh ./batch-plot - < $batch 2>&1 |"))
 	{
 	    $status="$FAIL batch-plot: $!";
 	    print "$status" if $debug;
@@ -328,11 +353,18 @@ sub clear
 	$status = "$FAIL" if ($?);
     }
     unlink("$batch");
-    print "Running: ftpjoss.pl $images\n" unless ($D_NoFtp);
-    if ($D_NoFtp)
-    { }
+    if (! $enable_ftpjoss)
+    {
+	print "ftpjoss.pl not enabled.\n";
+    }
+    elsif ($debug >= $D_NoFtp)
+    {
+	print "Disabled by debug level: ftpjoss.pl $images\n";
+    }
     elsif (open (FTP, "ftpjoss.pl $images 2>&1 |"))
     {
+	print "Waiting to be sure disclaimers finish...\n";
+	sleep 10;
 	while (<FTP>)
 	{
 	    print;
