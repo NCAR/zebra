@@ -1,4 +1,4 @@
-/* $Id: message.h,v 1.11 1991-06-06 23:40:45 corbet Exp $ */
+/* $Id: message.h,v 1.12 1991-06-14 22:10:27 corbet Exp $ */
 /*
  * Message protocol types.
  */
@@ -13,6 +13,7 @@
 # define MT_PING	 8	/* Boing...				*/
 # define MT_CPING	 9	/* Client ping				*/
 # define MT_NETXFR	10	/* Data store network transfer		*/
+# define MT_ACINGEST	11	/* Aircraft ingest			*/
 
 /*
  * Message handler protocol message types.
@@ -23,6 +24,8 @@
 # define MH_JOIN	-4	/* Join process group			*/
 # define MH_CLIENT	-5	/* Client event				*/
 # define MH_STATS	-6	/* Message handler stats.		*/
+# define MH_NETCLOSE	-7	/* Close network connection		*/
+# define MH_PID		-8	/* Report PID				*/
 # define MH_DIE 	-99	/* Kill the server -- use with care!	*/
 # define MH_SHUTDOWN	-100	/* Server is shutting down		*/
 
@@ -89,7 +92,14 @@ struct mh_client
 	char	mh_group[MAX_NAME_LEN]; /* Group name, when appl	*/
 };
 
-
+/*
+ * For reporting PID's.
+ */
+struct mh_pid
+{
+	int	mh_type;	/* == MH_PID			*/
+	int	mh_pid;
+};
 
 /*
  * The actual message header structure.
