@@ -39,7 +39,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_window.c,v 1.14 1990-09-04 09:17:41 corbet Exp $";
+static char *Rcsid = "$Id: ui_window.c,v 1.15 1990-09-11 14:27:52 corbet Exp $";
 
 static bool Initialized = FALSE;
 static bool Active = FALSE;	/* Is window mode active??	*/
@@ -135,7 +135,7 @@ XtAppContext *appc;
  */
 	if (! Initialized)
 	{
-		Top = XtAppInitialize (&Appc, Appl_name, NULL, ZERO, &Argc, 
+		Top = XtAppInitialize (&Appc, Appl_name, NULL, ZERO, Argc, 
 			Argv, Resources, NULL, ZERO);
 		Labelfont = XLoadQueryFont (XtDisplay (Top), Title_font_name);
 		Zapcursor = XCreateFontCursor (XtDisplay (Top), XC_pirate);

@@ -5,7 +5,7 @@
  * commands are in ui_cmds.c
  */
 
-static char *Rcsid = "$Id: ui.c,v 1.10 1990-09-07 11:27:43 corbet Exp $";
+static char *Rcsid = "$Id: ui.c,v 1.11 1990-09-11 14:27:21 corbet Exp $";
 # include "ui_param.h"
 # include "ui.h"
 # include "ui_error.h"
@@ -157,7 +157,7 @@ bool interact, nokeypad;
  * Initialize other stuff.
  */
 	strcpy (Appl_name, "UI");
-	Argv = Argc = 0;
+	Argv = 0; Argc = 0;
 	Resources = 0;
 /*
  * Finally, if an initialization procedure exists, execute it.
@@ -179,7 +179,7 @@ bool interact, nokeypad;
 void
 ui_setup (name, argc, argv, resources)
 char *name, **argv, *resources;
-int argc;
+int *argc;
 /*
  * Perform application-specific setup.
  */

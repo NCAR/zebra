@@ -1,5 +1,5 @@
 /* 10/86 jc */
-/* $Id: ui_globals.h,v 1.4 1990-05-13 11:09:27 corbet Exp $ */
+/* $Id: ui_globals.h,v 1.5 1990-09-11 14:27:49 corbet Exp $ */
 /*
  * Global variable definitions.
  */
@@ -58,7 +58,7 @@ var bool Bail;
  * Application setup information.
  */
 var char Appl_name[80];
-var int Argc;
+var int *Argc;
 var char **Argv;
 var char *Resources;
 
