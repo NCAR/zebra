@@ -28,6 +28,7 @@ field	wdir		"wind direction"		deg
 field	wspd		"wind speed"			m/sec
 field	trans		"transponder code"		none
 field	sst		"sea surface temperature"	"deg c"
+field	pres_w		"pressure vertical velocity"	Pa/s
 
 !
 ! Aliases exist to make the name of one field the equivalent to another.
