@@ -35,7 +35,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.13 1994-09-12 22:04:29 granger Exp $")
+MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.14 1994-09-14 15:26:01 burghart Exp $")
 
 /*
  * The GRIB product definition section (PDS)
@@ -74,12 +74,52 @@ typedef struct s_GFpds
 	short		ds_factor;	/* decimal scale factor		*/
 	unsigned char	reserved1;	/* any length of reserved data	*/
 } GFpds;
+/*
+ * The GRIB grid description section (GDS)
+ * This is currently only set up for Latitude/Longitude Grids.
+ */
+typedef struct s_GFgds
+{
+	unsigned char	len;		/* length of GDS		*/
+	unsigned char	len1;		/* 2nd byte of length		*/
+	unsigned char	len2;		/* 3rd byte of length		*/
+	unsigned char	nm_bytes;	/* Number of unused bytes	*/
+	unsigned char	g_zero;		/* Always set to 0 ECMWF Ed. 0	*/
+	unsigned char	data_type;	/* Data representation type	*/
+	unsigned char	gd_ni;		/* Number of longitude points 	*/
+	unsigned char	gd_ni1;		/* 2nd byte for ni		*/
+	unsigned char	gd_nj;		/* Number of latitude points   */
+	unsigned char	gd_nj1;		/* 2nd byte for nj		*/
+	unsigned char	gd_1lat;	/* latitude of 1st grid point	*/
+	unsigned char	gd_1lat1;	/* 2nd byte for lat.		*/
+	unsigned char	gd_1lat2;	/* 3rd byte for lat.		*/
+	unsigned char	gd_1lon;	/* longitude of 1st grid point	*/
+	unsigned char	gd_1lon1;	/* 2nd byte for lon.		*/
+	unsigned char	gd_1lon2;	/* 3rd byte for lon.		*/
+	unsigned char	gd_res;		/* resolution and component flags */
+	unsigned char	gd_2lat;	/* latitude of last grid point	*/
+	unsigned char	gd_2lat1;	/* 2nd byte for lat.		*/
+	unsigned char	gd_2lat2;	/* 3rd byte for lat.		*/
+	unsigned char	gd_2lon;	/* longitude of last grid point	*/
+	unsigned char	gd_2lon1;	/* 2nd byte for lon.		*/
+	unsigned char	gd_2lon2;	/* 3rd byte for lon.		*/
+	unsigned char	gd_di;		/* longitudinal increment	*/
+	unsigned char	gd_di1;		/* 2nd byte for di		*/
+	unsigned char	gd_dj;		/* latitudinal increment	*/
+	unsigned char	gd_dj1;		/* 2nd byte for dj		*/
+	unsigned char	gd_scnmd;	/* scanning mode flags		*/
+	unsigned char	gd_resv;	/* reserved - set to 0		*/
+	unsigned char	gd_resv1;	/* reserved - set to 0		*/
+	unsigned char	gd_resv2;	/* reserved - set to 0		*/
+	unsigned char	gd_resv3;	/* reserved - set to 0		*/
+	unsigned char	gd_buf[10];	/* for 42 byte gds		*/
+} GFgds;
 
 /*
  * Flag bits for section_flags
  */
-# define GDS_FLAG	1
-# define BMS_FLAG	2
+# define GDS_FLAG	(1<<7)
+# define BMS_FLAG	(1<<6)
 
 /*
  * Binary Data Section header
@@ -108,6 +148,7 @@ typedef struct s_BDShdr
 typedef struct s_GRIBdesc
 {
 	GFpds	*gd_pds;	/* Product definition section	*/
+	GFgds   *gd_gds;	/* Grid description section	*/
 	long	gd_doffset;	/* offset to binary data section*/
 	int	gd_bds_len;	/* binary data section length	*/
 	ZebTime	gd_time;
@@ -187,6 +228,7 @@ static int	grb_TimeIndex FP ((GFTag *, ZebTime *, int));
 static void	grb_DestroyTag FP ((GFTag *));
 static int	grb_TwoByteInt FP ((char *));
 static int	grb_ThreeByteInt FP ((char *));
+static int	grb_ThreeByteSignInt FP ((char *));
 static void	grb_ReadRGrid FP ((DataChunk *, GFTag *, GRB_TypeInfo *, int, 
 				   int, int, FieldId, int, float *));
 static FieldId	grb_Field FP ((GFpds *, ScaleInfo *));
@@ -199,13 +241,16 @@ static void	grb_36Index FP ((double, double, float *, float *));
 static void	grb_36LatLon FP ((double, double, float *, float *));
 static void	grb_27Index FP ((double, double, float *, float *));
 static void	grb_27LatLon FP ((double, double, float *, float *));
+static void	grb_2Index FP ((double, double, float *, float *));
+static void	grb_2LatLon FP ((double, double, float *, float *));
 static void	grb_UnpackBDS FP ((GFTag *, int, float *, int, int));
 static void	grb_ResetWind FP ((void));
 static void	grb_UnpackWind FP ((GFTag *, int, FieldId, int, int, float *, 
 				    GRB_TypeInfo *));
 static void	grb_DCFinishDefs FP ((DataChunk *, GRB_TypeInfo *, int));
 static void	grb_InitGInfo FP ((GRB_TypeInfo	*));
-static GRB_TypeInfo	*grb_GridTypeInfo FP ((GFpds *));
+static GRB_TypeInfo	*grb_GridTypeInfo FP ((GFpds *, GFgds *));
+static GRB_TypeInfo	*grb_Build255GInfo FP ((GFgds *));
 
 /*
  * Field list.  We only include here the fields for which we have
@@ -259,6 +304,37 @@ struct s_GRB_FList
 	{ 61, "precip", 1.0, 0.0 },
 	/* Convective precipitation (kg/m**2)	*/
 	{ 63, "conv_precip", 1.0, 0.0 },
+/*
+ * ECMWF fields
+ */
+	/* Geopotential (m**2/s)		*/
+	{ 129, "geopotential", 0.3048, 0.0 },
+	/* Temperature (K), scale to C 		*/
+	{ 130, "tdry", 1.0, -273.15 },
+	/* u component of wind (m/s)		*/
+	{ 131, "u_wind", 1.0, 0.0 },
+	/* v component of wind (m/s)		*/
+	{ 132, "v_wind", 1.0, 0.0 },
+	/* Surface pressure (Pa), scale to mb	*/
+	{ 134, "sfc_pres", 100.0, 0.0 },
+	/* pressure vertical velocity (Pa/s)	*/
+	{ 135, "pres_w", 1.0, 0.0 },
+	/* Surface temperature (K), scale to C	*/
+	{ 139, "sfc_temp", 1.0, -273.15 },
+	/* Pressure reduced to MSL (Pa), scale to mb */
+	{ 151, "cpres0", 100.0, 0.0 },
+	/* Relative humidity (%) */
+	{ 157, "rh", 1.0, 0.0 },
+	/* u component of wind at 10m (m/s)	*/
+	{ 165, "u_wind_10m", 1.0, 0.0 },
+	/* v component of wind at 10m (m/s)	*/
+	{ 166, "v_wind_10m", 1.0, 0.0 },
+	/* temperature at 2m (K), scale to C	*/
+	{ 167, "temp_2m", 1.0, -273.15 },
+	/* dewpoint at 2m (K), scale to C	*/
+	{ 168, "dp_2m", 1.0, -273.15 },
+	/* land/sea (0/1)			*/
+	{ 172, "land/sea", 1.0, 0.0 },
 };
 
 int GRB_FList_len = sizeof (GRB_FList) / sizeof (struct s_GRB_FList);
@@ -270,6 +346,13 @@ int GRB_FList_len = sizeof (GRB_FList) / sizeof (struct s_GRB_FList);
  */
 GRB_TypeInfo GRB_Types[] =
 {
+	/*
+	 * 2: 10512 point (144x73) global longitude-latitude grid
+	 * (0,0) at 0E, 90N [C type indexing] matrix layout.  2.5
+	 * degree grid, prime meridian not duplicated.
+	 */
+	{ 2, 144, 73, NULL, NULL, grb_2Index, grb_2LatLon, 144, 73, 
+		  -90.0, 0.0, 2.5, 2.5, NULL, NULL },
 	/*
 	 * 27: 4225-point (65x65) N. Hemisphere polar stereographic grid
 	 * oriented 80W; pole at (32,32) [C type indexing].  381.0 km
@@ -316,8 +399,6 @@ float	*U_data[MAXLEVELS], *V_data[MAXLEVELS];
 
 
 
-
-
 int
 grb_QueryTime (file, begin, end, nsample)
 char	*file;
@@ -334,6 +415,7 @@ int	*nsample;
 # ifdef GRIB_SLOWSCAN
 
 	GFTag	*tag;
+	int	g;
 /*
  * Get the file tag.
  */
@@ -367,11 +449,11 @@ int	*nsample;
 /*
  * Fast QueryTime, assuming there's only one time in the file.
  */
-	int	fd;
-	char	is[8];
+	int	fd, len, ednum;
+	char	buf[8];
 	GFpds	pds;
 /*
- * Try to open the file
+ * Open the file
  */
 	if ((fd = open (file, O_RDONLY)) < 0)
 	{
@@ -380,17 +462,30 @@ int	*nsample;
 		return (FALSE);
 	}
 /*
- * Get the first Indicator Section (8 bytes) and the first Product Definition
- * Section.
+ * Get the first eight bytes ("GRIB" + [octets 5-8 of IS (Edition > 0) ||
+ * octets 1-4 of PDS (Edition 0)]) and determine our GRIB edition.
  */
-	if ((read (fd, is, 8) != 8) || 
-	    (read (fd, &pds, sizeof (GFpds)) != sizeof (GFpds)))
+	if ((read (fd, buf, 8) != 8))
 	{
 		msg_ELog (EF_PROBLEM, 
-			  "grb_QueryTime: Can't get first grid time from '%s'",
-			  file);
+			  "grb_QueryTime: Can't get first IS from '%s'", file);
 		return (FALSE);
 	}
+
+	len = grb_ThreeByteInt (buf + 4);
+	ednum = (len == 24) ? 0 : (int) buf[7];
+/*
+ * If we have the first 4 bytes of the PDS, move them over, otherwise read
+ * them.
+ */
+	if (ednum == 0)
+		memcpy (&pds, buf + 4, 4);
+	else
+		read (fd, &pds, 4);
+/*
+ * Read the rest of the PDS
+ */
+	read (fd, (void *)(&pds) + 4, sizeof (GFpds) - 4);
 /*
  * Extract the time from the PDS
  */
@@ -637,6 +732,7 @@ int		ndetail;
 	SValue	v;
 	GFTag	*tag;
 	GFpds	*pds;
+	GFgds	*gds;
 	FieldId	fids[5], lat_id, lon_id, alt_id, checkfld;
 	ZebTime	stime;
 	GRB_TypeInfo	*grbinfo;
@@ -681,8 +777,9 @@ int		ndetail;
 	for (i = 0; i < tag->gt_ngrids; i++)
 	{
 		pds = tag->gt_grib[i].gd_pds;
+		gds = tag->gt_grib[i].gd_gds;
 
-		if ((grbinfo = grb_GridTypeInfo (pds)) != NULL &&
+		if ((grbinfo = grb_GridTypeInfo (pds, gds)) != NULL &&
 		    grb_UsableLevel (pds, tag->gt_sfc_only) && 
 		    grb_Field (pds, NULL) == checkfld &&
 		    grb_Offset (pds) == offset)
@@ -1004,6 +1101,7 @@ AltUnitType	*altunits;
 	int	i, count;
 	float	temp;
 	GFpds	*pds;
+	GFgds	*gds;
 	GFTag	*tag;
 	GRB_TypeInfo	*grbinfo;
 	ZebTime	t;
@@ -1018,8 +1116,9 @@ AltUnitType	*altunits;
 	for (i = 0; i < tag->gt_ngrids; i++)
 	{
 		pds = tag->gt_grib[i].gd_pds;
+		gds = tag->gt_grib[i].gd_gds;
 
-		if ((grbinfo = grb_GridTypeInfo (pds)) != NULL &&
+		if ((grbinfo = grb_GridTypeInfo (pds, gds)) != NULL &&
 		    grb_UsableLevel (pds, tag->gt_sfc_only) && 
 		    grb_Field (pds, NULL) == fid &&
 		    grb_Offset (pds) == offset)
@@ -1267,7 +1366,7 @@ Location	*locs;
  */
 {
 	GFTag	*tag;
-	int	i, ntimes, ngrids = tag->gt_ngrids;
+	int	i, ntimes, ngrids;
 	GRB_TypeInfo	*grbinfo;
 	Location	gloc;
 /*
@@ -1275,6 +1374,7 @@ Location	*locs;
  */
 	if (! dfa_OpenFile (dfile, FALSE, (void *) &tag))
 		return (0);
+	ngrids = tag->gt_ngrids;
 /*
  * Find the first grid we know how to unpack and use its type to determine 
  * location
@@ -1282,7 +1382,8 @@ Location	*locs;
 	for (i = 0; i < ngrids; i++)
 	{
 		
-		grbinfo = grb_GridTypeInfo (tag->gt_grib[i].gd_pds);
+		grbinfo = grb_GridTypeInfo (tag->gt_grib[i].gd_pds,
+			 tag->gt_grib[i].gd_gds);
 		if (grbinfo)
 		{
 			gloc.l_lat = grbinfo->gg_dlat;
@@ -1403,61 +1504,155 @@ GFTag	*tag;
  */
 {
 	int	fd = tag->gt_fd;
-	int	is_len, grib_len, pds_len, gds_len, bms_len, bds_len;
-	int	status, ng, ncopy, grib_start, buflen = 0;
-	char	is[8], *trailer, *buf = 0;
+	int	len, pds_len, gds_len, bms_len, bds_len;
+	int	status, ng, ncopy, grib_start, ednum, bds_pos;
+	char	buf[64];
 	GFpds	*pds;
+	GFgds	*gds;
 /*
  * Rewind the file first
  */
-	lseek (fd, 0, SEEK_SET);
-/*
- * File offset to the start of the current GRIB record.
- */
-	grib_start = tell (fd);
+	grib_start = lseek (fd, 0, SEEK_SET);
 /*
  * Each grid starts with an Indicator Section.  Loop through grids
- * until we fail to get one of these.
+ * looking for an IS.  In Edition 1 and beyond, the IS is 8 bytes long,
+ * but it's 4 bytes long in Edition 0.
+ * An added complication is that sometimes records are separated by 20 blanks.
+ * Read 4 bytes and if we find "GRIB" then read another 4 so that we
+ * can tell what type of file this is.
  */
-	is_len = 8;	/* Fixed length of the Indicator Section */
-
-	while ((status = read (fd, is, is_len)) == is_len)
+	while ((status = read (fd, buf, 4)) == 4)
 	{
 	/*
-	 * Make sure we have the "GRIB" tag at the beginning
+	 * Keep reading until we hit "GRIB", which is the beginning
+	 * of a GRIB record.
 	 */
-		if (strncmp (is, "GRIB", 4))
+		if (strncmp (buf, "GRIB", 4) != 0)
 		{
-			msg_ELog (EF_PROBLEM, "Got '%4s' instead of 'GRIB'!", 
-				  is);
-			return (FALSE);
+			grib_start = tell (fd);
+			continue;
 		}
 	/*
-	 * Get the length of this GRIB 'message' (one grid), make sure we
-	 * have space for it.
+	 * Read the next 4 bytes and determine the GRIB edition.  In Edition 1
+	 * and beyond, these are the the last 4 bytes of the IS.  For Edition
+	 * 0 files, they're the first four bytes of the PDS...
 	 */
-		grib_len = grb_ThreeByteInt (is + 4);
-		if (grib_len > buflen)
-		{
-			buflen = grib_len;
-
-			if (buf)
-				buf = realloc (buf, buflen);
-			else
-				buf = malloc (buflen);
-		}
-	/*
-	 * Copy in the eight bytes we have, and read the rest
-	 */
-		memcpy (buf, is, is_len);
-		status = read (fd, buf + is_len, grib_len - is_len);
-		if (status < (grib_len - is_len))
+		if (read (fd, buf, 4) < 4)
 		{
 			msg_ELog (EF_INFO, 
 				  "GRIB file ends with incomplete record");
 			status = 0;	/* Treat it like an EOF */
 			break;
 		}
+	/*
+	 * Figure out the GRIB Edition.  If the three byte length here is
+	 * 24 (the length of an Edition 0 PDS), we assume that it's Edition 0.
+	 * Otherwise, assume it's Edition 1 or later and we can get the real
+	 * edition number from the fourth byte.
+	 */
+		len = grb_ThreeByteInt (buf);
+		ednum = (len == 24) ? 0 : (int) buf[3];
+	/*
+	 * Allocate space for a PDS.
+	 */
+		pds = (GFpds *) calloc (1, sizeof (GFpds));
+	/*
+	 * For Edition > 0, we still need to read the first four bytes of 
+	 * the PDS.
+	 */
+		if (ednum != 0 && read (fd, buf, 4) < 4)
+		{
+			msg_ELog (EF_INFO, "Missing PDS at grid %d", ng + 1);
+			status = 0;	/* Treat it like an EOF */
+			break;
+		}
+
+		pds_len = grb_ThreeByteInt (buf);
+	/*
+	 * Read the rest of the PDS into our buffer. 
+	 */
+		if (read (fd, buf + 4, pds_len - 4) != pds_len - 4)
+		{
+			msg_ELog (EF_INFO, "Short PDS at grid %d", ng + 1);
+			status = 0;	/* Treat it like an EOF */
+			break;
+		}
+	/*
+	 * Copy up to 28 bytes into our PDS space.  We don't need to keep
+	 * the stuff (if any) beyond that.
+	 */
+		ncopy = (pds_len < sizeof (GFpds)) ? pds_len : sizeof (GFpds);
+		memcpy (pds, buf, ncopy);
+	/*
+	 * If we have a Grid Description Section, read it
+	 */
+		if (pds->section_flags & GDS_FLAG)
+		{
+		/*
+		 * Allocate space for a GDS and read the first four bytes.
+		 */
+			gds = (GFgds *) calloc (1, sizeof (GFgds));
+
+			if (read (fd, gds, 4)  < 4)
+			{
+				msg_ELog (EF_INFO, 
+					  "Missing GDS at grid %d", ng + 1);
+				status = 0;	/* Treat it like an EOF */
+				break;
+			}
+
+			gds_len = grb_ThreeByteInt ((char *) gds);
+		/*
+		 * Read the rest of the GDS.
+		 */
+			if (read (fd, ((void *)gds) + 4, gds_len - 4) != 
+			    gds_len - 4)
+			{
+				msg_ELog (EF_INFO, 
+					  "Short GDS at grid %d", ng + 1);
+				status = 0;	/* Treat it like an EOF */
+				break;
+			}
+		}
+	/*
+	 * If there's a Bit Map Section, bypass it.
+	 */
+		if (pds->section_flags & BMS_FLAG)
+		{
+		/*
+		 * Read the first four bytes of the BMS and get its length
+		 */
+			if (read (fd, buf, 4) < 4)
+			{
+				msg_ELog (EF_INFO, 
+					  "Missing BMS at grid %d", ng + 1);
+				status = 0;	/* Treat it like an EOF */
+				break;
+			}
+
+			bms_len = grb_ThreeByteInt (buf);
+		/*
+		 * Seek past the rest
+		 */
+			lseek (fd, bms_len - 4, SEEK_CUR);
+		}
+	/*
+	 * We're at the Binary Data Section.
+	 */
+		bds_pos = lseek (fd, 0, SEEK_CUR);
+
+		if (read (fd, buf, 4) < 4)
+		{
+			msg_ELog (EF_INFO, 
+				  "Missing BDS at grid %d", ng + 1);
+			status = 0;	/* Treat it like an EOF */
+			break;
+		}
+		bds_len = grb_ThreeByteInt (buf);
+	/*
+	 * Skip over the rest of the BDS
+	 */
+		lseek (fd, bds_len - 4, SEEK_CUR);
 	/*
 	 * It looks like we really have a GRIB record here, so update
 	 * the file tag.
@@ -1477,19 +1672,9 @@ GFTag	*tag;
 				realloc (tag->gt_grib, 
 					 tag->gt_maxgrids * sizeof (GRIBdesc));
 		}
-	/*
-	 * Read the first 3 bytes of the Product Definition Section to
-	 * get the PDS length, then make a copy of the PDS and stash it
-	 * in the tag.  Our structure only holds the (required) first 28 bytes
-	 * of the PDS, so we don't copy any more than that.  We accomodate
-	 * illegal smaller ones though, by padding with zeros.
-	 */
-		pds_len = grb_ThreeByteInt (buf + is_len);
-		pds = (GFpds *) calloc (1, sizeof (GFpds));
 
-		ncopy = (pds_len < sizeof (GFpds)) ? pds_len : sizeof (GFpds);
-		memcpy (pds, buf + is_len, ncopy);
 		tag->gt_grib[ng-1].gd_pds = pds;
+		tag->gt_grib[ng-1].gd_gds = gds;
 	/*
 	 * Extract the time from the PDS
 	 */
@@ -1497,47 +1682,33 @@ GFTag	*tag;
 			       pds->month, pds->day, pds->hour, pds->minute,
 			       0, 0);
 	/*
-	 * If we have a Grid Description Section, read its length from the
-	 * first three bytes of the GDS.
+	 * Save the position of the Binary Data Section relative to the 
+	 * start of the file, and its length.
 	 */
-		if (pds->section_flags && GDS_FLAG)
-			gds_len = grb_ThreeByteInt (buf + is_len + pds_len);
-		else
-			gds_len = 0;
-	/*
-	 * Same for the Bit Map Section
-	 */
-		if (pds->section_flags && BMS_FLAG)
-			bms_len = grb_ThreeByteInt (buf + is_len + 
-						    pds_len + gds_len);
-		else
-			bms_len = 0;
-	/*
-	 * Save the position of the Binary Data Section relative to the start
-	 * of the file, and get its length.
-	 */
-		tag->gt_grib[ng-1].gd_doffset = grib_start + is_len + pds_len +
-			gds_len + bms_len;
-
-		bds_len = tag->gt_grib[ng-1].gd_bds_len = 
-			grb_ThreeByteInt (buf + is_len + pds_len + gds_len +
-					  bms_len);
+		tag->gt_grib[ng-1].gd_doffset = bds_pos;
+		tag->gt_grib[ng-1].gd_bds_len = bds_len;
 	/*
 	 * Sanity check.  Make sure the last 4 bytes of the GRIB record are 
 	 * the GRIB trailer "7777"
 	 */
-		trailer = buf + grib_len - 4;
-		if (strncmp (trailer, "7777", 4))
+		if (read (fd, buf, 4) < 4)
+		{
+			msg_ELog (EF_INFO, "Missing trailer at grid %d", ng);
+			status = 0;	/* Treat it as an EOF */
+			break;
+		}
+		
+		if (strncmp (buf, "7777", 4))
 		{
 			msg_ELog (EF_EMERGENCY, 
 				  "Bad GRIB trailer '%4s' at grid %d",
-				  trailer, ng);
+				  buf, ng);
 			return (FALSE);
 		}
 	/*
 	 * Keep the position of the start of the next GRIB record
 	 */
-		grib_start = tell (fd);
+		grib_start = lseek (fd, 0, SEEK_CUR);
 	}
 /*
  * Complain if we exited on anything other than an EOF
@@ -1582,6 +1753,33 @@ char	*buf;
 	char	*cptr = (char *) &i;
 
 	memcpy (cptr + 1, buf, 3);
+	return (i);
+}
+
+
+
+static int
+grb_ThreeByteSignInt (buf)
+char	*buf;
+/*
+ * Extract the first three bytes of buf into an int and return it.
+ */
+{
+	int	i = 0, sign;
+	char	*cptr = (char *) &i;
+/*
+ * Upper bit is the sign.
+ */
+	sign = (buf[0] & 0x80) ? -1 : 1;
+/*
+ * Extract the three bytes into an int and lose the top bit.
+ */
+	memcpy (cptr + 1, buf, 3);
+	i &= 0x7fffff;
+/*
+ * Multiply in the sign.
+ */
+	i *= sign;
 	return (i);
 }
 
@@ -2067,6 +2265,47 @@ AltUnitType	*units;
 	}
 
 	return ((float) grb_TwoByteInt (&(pds->level_val)));
+}
+
+
+
+
+static void
+grb_2Index (lat, lon, ifloat, jfloat)
+double	lat, lon;
+float	*ifloat, *jfloat;
+/*
+ * Return the (floating point) array indices for a GRIB 2 type grid, given a
+ * latitude and longitude.  
+ */
+{
+/*
+ * Simple 2.5 degree grid.
+ */
+	if (lon < 0.0)
+		lon += 360.0;
+	
+	*ifloat = lon / 2.5;
+	*jfloat = (lat + 90.0) / 2.5;
+}
+
+
+
+
+static void
+grb_2LatLon (idouble, jdouble, lat, lon)
+double	idouble, jdouble;
+float	*lat, *lon;
+/*
+ * Turn the (double precision) indices into a GRIB 2 type grid into
+ * a latitude and longitude.
+ */
+{
+/*
+ * Simple 2.5 degree grid.
+ */
+	*lon = idouble * 2.5;
+	*lat = (jdouble * 2.5) - 90.0;
 }
 
 
@@ -2729,8 +2968,9 @@ GRB_TypeInfo	*ginfo;
 
 
 GRB_TypeInfo *
-grb_GridTypeInfo (pds)
+grb_GridTypeInfo (pds, gds)
 GFpds	*pds;
+GFgds	*gds;
 /*
  * Return a pointer to a GRB_TypeInfo structure for the type of grid associated
  * with the given PDS.  If we don't understand this grid type, return NULL.
@@ -2738,7 +2978,23 @@ GFpds	*pds;
 {
 	int	i;
 	GRB_TypeInfo	*grbinfo = NULL;
+	static GRB_TypeInfo	*ginfo255 = NULL;
+/*
+ * Special handling for 255 type grids.  We make the (almost certainly 
+ * dangerous) assumption that all 255 grids we see will be similar...
+ * At some point, different GRB_TypeInfo's should be created, cached, and 
+ * accessed based on the GDS.
+ */
+	if (pds->grid_id == 255)
+	{
+		if (! ginfo255)
+			ginfo255 = grb_Build255GInfo (gds);
 
+		return (ginfo255);
+	}
+/*
+ * Otherwise, check our list of types we understand
+ */
 	for (i = 0; i < GRB_NTypes; i++)
 	{
 		if (GRB_Types[i].gg_type == pds->grid_id)
@@ -2750,3 +3006,102 @@ GFpds	*pds;
 
 	return (grbinfo);
 }
+
+
+
+GRB_TypeInfo *
+grb_Build255GInfo (gds)
+GFgds	*gds;
+/*
+ * Check the gds data type and if it is one that we know, set up the fields
+ * in grbinfo using info from the gds.  Set grbinfo to NULL if it is an 
+ * unknown data type.
+ */
+{
+	int	nlat, nlon, j, i;
+	float	end, lat1, lat2, lon1, lon2, latstep, lonstep, *fi, *fj;
+	GRB_TypeInfo	*grbinfo;
+/*
+ * For now we only know how to build a latitude/longitude grid
+ *  (data type 0 or 4 in GDS byte 6)
+ */
+	if ((gds->data_type != 0) && (gds->data_type != 4))
+	{
+		msg_ELog (EF_PROBLEM, 
+			  "grb_Build255GInfo: Unknown data type %d",
+			  gds->data_type);
+		return (NULL);
+	}
+/*
+ * Allocate a GRB_TypeInfo structure
+ */
+	grbinfo = (GRB_TypeInfo *) malloc (sizeof (GRB_TypeInfo));
+	grbinfo->gg_type = 255;
+/*
+ * Extract info from the GDS
+ */
+	nlon = grbinfo->gg_snx = grbinfo->gg_dnx = 
+		grb_TwoByteInt (&gds->gd_ni);
+	nlat = grbinfo->gg_sny = grbinfo->gg_dny = 
+		grb_TwoByteInt (&gds->gd_nj);
+
+	lat1 = 0.001 * (float) grb_ThreeByteSignInt (&gds->gd_1lat);
+	lon1 = 0.001 * (float) grb_ThreeByteSignInt (&gds->gd_1lon);
+
+	lat2 = 0.001 * (float) grb_ThreeByteSignInt (&gds->gd_2lat);
+	lon2 = 0.001 * (float) grb_ThreeByteSignInt (&gds->gd_2lon);
+
+	latstep = (lat2 - lat1) / (nlat - 1);
+	lonstep = (lon2 - lon1) / (nlon - 1);
+/*
+ * Set our destination grid origin and steps
+ */
+	grbinfo->gg_dlat = (lat1 < lat2) ? lat1 : lat2;
+	grbinfo->gg_dlatstep = fabs (latstep);
+
+	grbinfo->gg_dlon = (lon1 < lon2) ? lon1 : lon2;
+	grbinfo->gg_dlonstep = fabs (lonstep);
+/*
+ * Make the GRB_TypeInfo translation arrays now, since we won't have the 
+ * GDS (which we need for this) later.
+ */
+/*
+ * Build arrays mapping destination grid indices into equivalent floating 
+ * point source grid indices.
+ */
+	fi = grbinfo->gg_dsi = (float *) malloc (nlat * nlon * sizeof (float));
+	fj = grbinfo->gg_dsj = (float *) malloc (nlat * nlon * sizeof (float));
+
+	for (j = 0; j < nlat; j++)
+	{
+		for (i = 0; i < nlon; i++)
+		{
+			*fi++ = (float)((lonstep > 0) ? i : (nlon - i - 1));
+			*fj++ = (float)((latstep > 0) ? j : (nlat - j - 1));
+		}
+	}
+/*
+ * Build arrays of local angles for lines of constant lat and lon through
+ * source grid points.  Since our source is a rectangular grid, the latangs
+ * are all zero, and the lonangs are all pi/2.
+ */
+	fi = grbinfo->gg_slonang = 
+		(float *) malloc (nlat * nlon * sizeof (float));
+	fj = grbinfo->gg_slatang = 
+		(float *) malloc (nlat * nlon * sizeof (float));
+
+	for (j = 0; j < nlat; j++)
+	{
+		for (i = 0; i < nlon; i++)
+		{
+			*fi++ = 1.5707963;	/* PI/2 */
+			*fj++ = 0.0;
+		}
+	}
+/*
+ * Done
+ */
+	return (grbinfo);
+}
+
+
