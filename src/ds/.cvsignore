@@ -1,0 +1,6 @@
+dsDaemon.lf
+dsDaemon
+*.znf
+*.out
+Makefile
+Makefile.bak
