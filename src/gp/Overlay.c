@@ -29,7 +29,7 @@
 # include <config.h>
 # include <defs.h>
 
-RCSID("$Id: Overlay.c,v 2.55 1996-11-19 07:28:59 granger Exp $")
+RCSID("$Id: Overlay.c,v 2.56 1996-12-30 15:21:07 burghart Exp $")
 
 # include <pd.h>
 # include <GraphicsW.h>
@@ -131,6 +131,7 @@ typedef struct _MapPoints
 {
 	int mp_npt;		/* Number of points in this segment. 	*/
 	int mp_pkey;		/* Projection key			*/
+	bool mp_fill;		/* Draw as filled polygon if true 	*/
 	float *mp_x, *mp_y;	/* The points themselves		*/
 	struct _MapPoints *mp_next;	/* Next entry in chain		*/
 } MapPoints;
@@ -167,6 +168,7 @@ static MapPoints *ov_LoadMap FP ((char *));
 static void	ov_DrawMap FP ((const MapPoints *));
 static void	ov_ZapMap FP ((MapPoints *));
 static int ov_InFeature ();
+static void	ov_FillPolygon FP ((float *x, float *y, int));
 
 
 /*
@@ -738,6 +740,15 @@ const MapPoints * points;
  */
 	for (; points; points = points->mp_next)
 	{
+	/* 
+	 * Do a filled polygon if requested
+	 */
+		if (points->mp_fill)
+		{
+		    ov_FillPolygon (points->mp_x, points->mp_y, 
+				    points->mp_npt);
+		    continue;
+		}
 	/*
 	 * Pass through each point.
 	 */
@@ -797,6 +808,30 @@ const MapPoints * points;
 
 
 
+static void
+ov_FillPolygon (float *x, float *y, int npts)
+{
+    static XPoint	*poly = 0;
+    static int		polysize = 0;
+    int	i;
+
+    if (! poly || polysize < npts)
+    {
+	poly = (XPoint *) realloc (poly, npts * sizeof (XPoint));
+	polysize = npts;
+    }
+
+    for (i = 0; i < npts; i++)
+    {
+	poly[i].x = XPIX (x[i]);
+	poly[i].y = YPIX (y[i]);
+    }
+
+    XSetFillRule (XtDisplay (Graphics), Gcontext, WindingRule);
+    XFillPolygon (XtDisplay (Graphics), GWFrame (Graphics), Gcontext, poly,
+		  npts, Complex, CoordModeOrigin);
+}
+
 
 
 static MapPoints *
@@ -806,9 +841,9 @@ char *name;
  * Load the map by this name.
  */
 {
-	char fname[200], line[200];
+	char fname[200], line[200], fill[4];
 	int c, pkey = prj_ProjKey ();
-	float lat, lon;
+	float lat, lon, junk;
 	int type, npt, pt;
 	SValue v;
 	FILE *mapfp;
@@ -849,10 +884,12 @@ char *name;
 	while (fgets (line, 200, mapfp))
 	{
 	/*
-	 * Figure out how many points we have.  Then discard the rest of the
-	 * line, which seems to be a sort of bounding box.
+	 * Figure out how many points we have.  Ignore the four floats that
+	 * give us the bounding box, but try for the optional "FILL" string.
 	 */
-	 	sscanf (line, "%4d", &npt);
+		strncpy (fill, "    ", 4);
+	 	sscanf (line, "%d %f %f %f %f %4s", &npt, &junk, &junk, &junk,
+			&junk, fill);
 	/*
 	 * Do landmarks separately.
 	 */
@@ -871,6 +908,7 @@ char *name;
 		mp->mp_x = (float *) malloc (npt*sizeof (float));
 		mp->mp_y = (float *) malloc (npt*sizeof (float));
 		mp->mp_npt = npt;
+		mp->mp_fill = ! strncmp (fill, "FILL", 4);
 		mp->mp_pkey = pkey;
 		mp->mp_next = list;
 		list = mp;
