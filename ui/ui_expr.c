@@ -1,5 +1,5 @@
 /* 1/87 jc */
-/* $Id: ui_expr.c,v 1.3 1989-03-28 11:37:30 corbet Exp $ */
+/* $Id: ui_expr.c,v 1.4 1989-04-18 17:18:37 corbet Exp $ */
 /*
  * Expression handling.
  */
@@ -1982,6 +1982,8 @@ union usy_value *v1, *v2, *result;
 	switch (type)
 	{
 	   case SYMT_BOOL:
+	   	result->us_v_int = (v1->us_v_int == 0) == (v2->us_v_int == 0);
+		break;
 	   case SYMT_INT:
 	   	result->us_v_int = v1->us_v_int == v2->us_v_int;
 		break;
@@ -2012,6 +2014,8 @@ union usy_value *v1, *v2, *result;
 	switch (type)
 	{
 	   case SYMT_BOOL:
+	   	result->us_v_int = (v1->us_v_int == 0) != (v2->us_v_int == 0);
+		break;
 	   case SYMT_INT:
 	   	result->us_v_int = v1->us_v_int != v2->us_v_int;
 		break;
