@@ -37,7 +37,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.13 1992-06-24 21:58:06 pai Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.14 1992-09-18 16:26:06 corbet Exp $")
 
 
 /*
@@ -498,7 +498,7 @@ Boolean	update;
 		badvalue = dc_GetBadval (dc);
 		VectorGrid (Graphics, GWFrame (Graphics), Gcontext, ugrid, 
 			vgrid, xdim, ydim, pix_x0, pix_y0, pix_x1, pix_y1, 
-			vscale, badvalue, color, 0);
+			vscale, badvalue, color, degrade);
 	/*
 	 * Free the data arrays
 	 */
