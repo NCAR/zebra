@@ -1,7 +1,7 @@
 /*
  * Frame cache maintenance.
  */
-static char *rcsid = "$Id: FrameCache.c,v 1.7 1991-04-08 20:55:29 kris Exp $";
+static char *rcsid = "$Id: FrameCache.c,v 1.8 1991-04-10 23:08:25 kris Exp $";
 # include <X11/Intrinsic.h>
 # include <errno.h>
 # include <fcntl.h>
@@ -15,7 +15,6 @@ static char *rcsid = "$Id: FrameCache.c,v 1.7 1991-04-08 20:55:29 kris Exp $";
 # define BFLEN 40
 # define FLEN 200
 # define OLEN 1024
-# define NCACHE 40
 # define PMODE 0777
 # define InvalidEntry	-1
 # define FREE -2
@@ -251,7 +250,8 @@ time *when;
 		if (FCache[i].fc_valid && 
 		    FCache[i].fc_time.ds_yymmdd == when->ds_yymmdd &&
 		    FCache[i].fc_time.ds_hhmmss == when->ds_hhmmss &&
-		    FCache[i].fc_alt == alt &&
+		    FCache[i].fc_alt >= (alt - 0.1) &&
+		    FCache[i].fc_alt <= (alt + 0.1) &&
 		    ! strcmp (FCache[i].fc_base, base) &&
 		    ! strcmp (FCache[i].fc_fields, fieldlist))
 		{
