@@ -12,7 +12,7 @@
 # include "ui_mode.h"
 # include "ui_cstack.h"
 
-static char *Rcsid = "$Header: /code/cvs/rdss/rdsslibs/ui/ui_cmds.c,v 1.4 1989-02-14 16:55:25 corbet Exp $";
+static char *Rcsid = "$Header: /code/cvs/rdss/rdsslibs/ui/ui_cmds.c,v 1.5 1989-03-10 16:19:15 corbet Exp $";
 
 # ifdef VMS
 # define HELPDIR "ui_help:"
@@ -360,7 +360,13 @@ bool eval;
  	if (eval)
 	{
 	 	pt = ue_parse (cmds[1].uc_v.us_v_ptr, cmds[1].uc_col, TRUE);
-		ue_eval (pt, &v, &type);
+		ERRORCATCH
+			ue_eval (pt, &v, &type);
+		ON_ERROR
+			ue_rel_tree (pt);
+			RESIGNAL
+		ENDCATCH
+		ue_rel_tree (pt);
 	}
 	else
 	{
