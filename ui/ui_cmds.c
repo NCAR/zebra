@@ -12,7 +12,7 @@
 # include "ui_mode.h"
 # include "ui_cstack.h"
 
-static char *Rcsid = "$Header";
+static char *Rcsid = "$Header: /code/cvs/rdss/rdsslibs/ui/ui_cmds.c,v 1.4 1989-02-14 16:55:25 corbet Exp $";
 
 # ifdef VMS
 # define HELPDIR "ui_help:"
