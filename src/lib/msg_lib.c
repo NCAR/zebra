@@ -21,25 +21,27 @@
 # include <stdio.h>
 # include <varargs.h>
 # include <errno.h>
+# include <signal.h>
 # include <sys/types.h>
 # include <sys/time.h>
 # include <sys/socket.h>
 # include <sys/un.h>
 # include <sys/uio.h>
+
 # include "defs.h"
+# define MESSAGE_LIBRARY	/* to get netread prototypes */
 # include "message.h"
 # ifndef lint
-MAKE_RCSID ("$Id: msg_lib.c,v 2.22 1994-05-24 02:37:41 granger Exp $")
+MAKE_RCSID ("$Id: msg_lib.c,v 2.23 1995-04-15 00:57:53 granger Exp $")
 # endif
 
 /*
  * The array of functions linked with file descriptors.
  */
-typedef int (*ifptr) ();
-static ifptr Fd_funcs[64] = { 0 };
-static ifptr Msg_handler;	/* Kludge */
+static ifptr Fd_funcs[ FD_MAP_SIZE ] = { 0 };
+static ifptr Msg_handler = 0;	/* Kludge */
 static ifptr Death_handler = 0;
-static ifptr Query_Handler;
+static ifptr Query_Handler = 0;
 static ifptr QueryRoutine = 0;
 
 /*
@@ -56,9 +58,29 @@ static int Seq = 0;
 
 /*
  * State info.  At the moment, this is only used to prevent sending messages,
- * especially log messages, after we've received a SHUTDOWN message.
+ * especially log messages, after we've received a SHUTDOWN message or
+ * before msg_connect has been called.
  */
 static int ShuttingDown = 0;
+static int NoConnection = 1; 	/* True when in a non-connected state */
+
+/*
+ * Event logger info.  Initialize the masks so that everything is printed
+ * and nothing is sent until we actually have a connection.  This way
+ * library routines can print error messages even when the program is not
+ * using the message library or a message connection.  These are reversed
+ * when msg_connect succeeds.
+ */
+static int PrintMask = (EF_ALL & ~(EF_DEVELOP));
+static int SendMask = 0x00;
+
+/*
+ * Echo mode: a test mode where we first send all of our messages to 
+ * ourselves and verify correct transmission before sending the message
+ * to the intended recipient.  It is enabled by the ZEBRA_TEST_ECHO_MESSAGE
+ * environment variable.
+ */
+static int EchoMode = 0;
 static char Identity[ sizeof(struct mh_ident) ] = "unknown";
 
 /*
@@ -74,15 +96,15 @@ static struct mqueue
 /*
  * The list of protocol-specific handlers.
  */
-# define MAXPROTO 25	/* Should last for a while	*/
 static ifptr 
-ProtoHandlers[MAXPROTO] = { 0 };
+ProtoHandlers[MT_MAX_PROTO] = { 0 };
 
 /*
  * Forward routines.
  */
 static struct mqueue *msg_NewMq FP ((struct message *));
 static void msg_RemQueue FP ((struct mqueue *));
+static void msg_AddQueue FP ((struct message *msg));
 static int msg_SrchAck FP ((struct message *, struct mh_ack *));
 static int msg_ELHandler FP ((struct message *));
 static int msg_PingHandler FP ((Message *));
@@ -91,6 +113,11 @@ static int msg_DefaultQH FP ((char *));
 static void msg_SendPID FP ((void));
 static int msg_CQReply FP ((struct message *, int *));
 static void msg_free FP ((Message *));
+static int msg_HandleProto FP ((Message *msg, int n, int *plist, int *ret));
+static void msg_write FP ((struct message *msg));
+static int msg_echo FP ((struct message *msg, void *param));
+static void msg_abort FP ((void));
+static int msg_xf_ack FP ((struct message *msg));
 
 /*
  * How much data we write at once.
@@ -106,7 +133,7 @@ static void msg_free FP ((Message *));
 
 
 
-
+int
 msg_connect (handler, ident)
 ifptr handler;
 char *ident;
@@ -121,6 +148,9 @@ char *ident;
  *		The return value is TRUE;
  *	else
  *		FALSE is returned, and no connection exists.
+ *
+ * If handler is passed as NULL, then we don't actually connect anywhere
+ * or open any sockets.  Just set our identity and NoConnection mode.
  */
 {
 	struct sockaddr_un saddr;
@@ -133,6 +163,14 @@ char *ident;
  * Preserve our identity
  */
 	strcpy (Identity, ident);
+	if (! handler)
+	{
+		NoConnection = 1;
+		/* 
+		 * FALSE implies no connection, which is accurate.
+		 */
+		return (0);
+	}
 /*
  * Create our master socket.
  */
@@ -156,7 +194,7 @@ char *ident;
 /*
  * Get the greeting message.
  */
-	msg_netread (Msg_fd, &msg, sizeof (struct message));
+	msg_netread (Msg_fd, (char *)&msg, sizeof (struct message));
 	if (msg.m_proto != MT_MESSAGE || msg.m_len != sizeof (greet))
 	{
 		printf ("Funky greeting from message server: %d\n",
@@ -164,7 +202,7 @@ char *ident;
 		close (Msg_fd);
 		return (FALSE);
 	}
-	msg_netread (Msg_fd, &greet, sizeof (greet));
+	msg_netread (Msg_fd, (char *)&greet, sizeof (greet));
 /*
  * Send our Ident packet.
  */
@@ -190,14 +228,71 @@ char *ident;
 	if (Msg_fd > Max_fd)
 		Max_fd = Msg_fd;
 /*
- * Establish the event logger handler, and we're done.
+ * Establish the event logger handler.
  */
 	msg_AddProtoHandler (MT_ELOG, msg_ELHandler);
 	msg_AddProtoHandler (MT_CPING, msg_PingHandler);
 	msg_AddProtoHandler (MT_QUERY, msg_QueryHandler);
 	Query_Handler = msg_DefaultQH;
+/*
+ * Looks we're going to succeed with the connection, so note as much
+ * and re-initialize event logging masks.
+ */
+	NoConnection = 0;
+	PrintMask = 0x00;
+	SendMask = (EF_ALL & (~EF_DEVELOP));
 	msg_SendPID ();
+/*
+ * Now that everything's hunky-dory, see if we should operate in echo
+ * mode.
+ */
+	if (getenv ("ZEBRA_TEST_ECHO_MESSAGE"))
+	{
+		msg_ELog (EF_INFO, "echo testing enabled");
+		EchoMode = 1;
+	}
  	return (TRUE);
+}
+
+
+
+void
+msg_disconnect ()
+/*
+ * Close all file descriptors and sockets and reset all of our
+ * handlers.  Make it look like we've never been connected.
+ */
+{
+	int i;
+	/*
+	 * Free the queued messages
+	 */
+	while (Mq)
+		msg_RemQueue (Mq);
+	/*
+	 * Close the message socket
+	 */
+	close (Msg_fd);
+	/*
+	 * Reset global variables and function tables
+	 */
+	for (i = 0; i < MT_MAX_PROTO; ++i)
+		ProtoHandlers[i] = 0;
+	for (i = 0; i < FD_MAP_SIZE; ++i)
+		Fd_funcs[i] = 0;
+	Msg_handler = 0;
+	Death_handler = 0;
+	Query_Handler = 0;
+	QueryRoutine = 0;
+	FD_ZERO (&Fd_list);
+	Max_fd = 0;
+	Msg_fd = -1;
+	Seq = 0;
+
+	ShuttingDown = 0;
+	NoConnection = 0;
+	EchoMode = 0;
+	Identity[0] = 0;
 }
 
 
@@ -248,14 +343,14 @@ ifptr handler;
  * Add a protocol-specific handler.
  */
 {
-	if (proto >= 0 && proto < MAXPROTO)
+	if (proto >= 0 && proto < MT_MAX_PROTO)
 		ProtoHandlers[proto] = handler;
 }
 
 
 
 
-
+static int
 msg_xf_ack (msg)
 struct message *msg;
 /*
@@ -292,8 +387,17 @@ struct mh_ack *ack;
  * Search out an ack.
  */
 {
-	if (msg->m_len == sizeof (struct mh_ack))
+	struct mh_template *mt = (struct mh_template *) msg->m_data;
+
+	if (mt->mh_type == MH_ACK)
 	{
+		*ack = * (struct mh_ack *) msg->m_data;
+		return (0);
+	}
+	else if (msg->m_len == sizeof (struct mh_ack))
+	{
+		fprintf (stderr, "%s: accepting ack w/out MH_ACK type\n", 
+			 "msg_SrchAck bug");
 		*ack = * (struct mh_ack *) msg->m_data;
 		return (0);
 	}
@@ -412,7 +516,7 @@ msg_await ()
 			{
 				int ret;
 				nsel--;
-				if (ret = (*Fd_funcs[fd]) (fd))
+				if ((ret = (*Fd_funcs[fd]) (fd)))
 					return (ret);
 			}
 	}
@@ -442,6 +546,7 @@ msg_myname ()
 
 
 
+void
 msg_DeathHandler (f)
 ifptr f;
 {
@@ -466,7 +571,7 @@ int fd;
 /*
  * Read in the message structure.
  */
- 	if (msg_netread (Msg_fd, msg, sizeof (Message)) <= 0)
+ 	if (msg_netread (Msg_fd, (char *)msg, sizeof (Message)) <= 0)
 	{
 		perror ("Message handler disconnect");
 		free (msg);
@@ -505,6 +610,51 @@ Message *msg;
 
 
 
+static int
+msg_HandleProto (msg, nproto, protolist, ret)
+Message *msg;
+int nproto;
+int *protolist;
+int *ret;	/* return value of message handler, if called */
+/*
+ * Return nonzero if the message is handled, else return zero.  The
+ * message must belong to one of the protocols listed in the proto array,
+ * else protolist must be NULL or nproto equal to zero.
+ */
+{
+	int i;
+
+	if (protolist != NULL && nproto != 0)
+	{
+		/*
+		 * Search the protocol list for this protocol
+		 */
+		for (i = 0; i < nproto; ++i)
+			if (msg->m_proto == protolist[i])
+				break;
+		if (i >= nproto)
+			return (0);
+	}
+	/*
+	 * Check for a shutdown message and note it internally
+	 */
+	if ((msg->m_proto == MT_MESSAGE) && (msg->m_len > 0))
+	{
+		struct mh_template *tm;
+		tm = (struct mh_template *) msg->m_data;
+		if (tm->mh_type == MH_SHUTDOWN)
+			ShuttingDown = TRUE;
+	}
+	if (msg->m_proto >= 0 && msg->m_proto < MT_MAX_PROTO &&
+	    ProtoHandlers[msg->m_proto])
+			*ret =(*ProtoHandlers[msg->m_proto])(msg);
+		else
+			*ret = (*Msg_handler) (msg);
+	return (1);
+}
+
+
+
 int
 msg_incoming (fd)
 int fd;
@@ -526,21 +676,7 @@ int fd;
 	{
 		if (! (msg = msg_read (fd)))
 			return (1);
-	/*
-	 * Check for a shutdown message and note it internally
-	 */
-		if (msg->m_proto == MT_MESSAGE && msg->m_len > 0)
-		{
-			struct mh_template *tm;
-			tm = (struct mh_template *) msg->m_data;
-			if (tm->mh_type == MH_SHUTDOWN)
-				ShuttingDown = TRUE;
-		}
-		if (msg->m_proto >= 0 && msg->m_proto < MAXPROTO &&
-				ProtoHandlers[msg->m_proto])
-			ret = (*ProtoHandlers[msg->m_proto]) (msg);
-		else
-			ret = (*Msg_handler) (msg);
+		msg_HandleProto (msg, NULL, 0, &ret);
 		msg_free (msg);
 		return (ret);
 	}
@@ -549,7 +685,7 @@ int fd;
 
 
 int
-msg_poll(timeout)
+msg_poll (timeout)
 int timeout; /* seconds */
 /*
  * Check the message queue and poll the fd set for any pending messages and
@@ -598,6 +734,101 @@ int timeout; /* seconds */
 		}
 	}
 }
+
+
+
+
+int
+msg_PollProto (timeout, nproto, protolist)
+int timeout; 	/* seconds */
+int nproto;	/* number of protocols in proto array */
+int *protolist;	/* array of protocols to handle */
+/*
+ * Check the message queue and poll the fd set for any pending messages of
+ * the specified protocols.  Handle one queued message if any, else handle
+ * one message from an active fd if a message is read before timeout
+ * occurs.  The number of seconds to block on the select() is set with the
+ * 'timeout' parameter.  Either the return from message handler is returned
+ * or MSG_TIMEOUT if no messages.  The number of protocols to check is
+ * 'nproto' and protolist is the list of the protocols.  If nproto is zero
+ * or protolist is NULL, we'll accept messages from any protocol (equivalent
+ * to calling msg_poll).
+ */
+{
+	fd_set fds;
+	int nsel, fd;
+	struct timeval delay;
+	struct mqueue *mq;
+	struct message *msg;
+	int ret;
+
+	delay.tv_sec = timeout;
+	delay.tv_usec = 0;
+
+	/*
+	 * Check the queue for a message of one of the specified protocols.
+	 * This would be best handled by separate protocol queues, oh well...
+	 */
+	mq = Mq;
+	while (mq)
+	{
+		if (msg_HandleProto (mq->mq_msg, nproto, protolist, &ret))
+		{
+			msg_RemQueue (mq);
+			return (ret);
+		}
+		mq = mq->mq_next;
+	}
+	/*
+	 * No queued messages, so poll for something.
+	 */
+	for (;;)
+	{
+		fds = Fd_list;
+		if ((nsel = select (Max_fd + 1, &fds, 0, 0, &delay)) < 0)
+		{
+			if (errno == EINTR) /* gdb attach can cause this */
+				continue;
+			printf ("Return code %d from msg select", errno);
+			return (1);
+		}
+		else if (nsel == 0)		/* timeout occurred */
+			return (MSG_TIMEOUT);
+	/*
+	 * Now dispatch a single message of one of the protocols.  Messages
+	 * on fd's other than the Msg_fd are just sent to that fd handler.
+	 * The handler will have to implement it's own queueing for that fd.
+	 */
+		for (fd = 0; fd <= Max_fd && nsel > 0; fd++)
+		{
+			if (FD_ISSET (fd, &fds) && Fd_funcs[fd])
+			{
+				nsel--;
+				if (fd == Msg_fd)
+				{
+					if (! (msg = msg_read (fd)))
+						return (1);
+					if (msg_HandleProto (msg, nproto,
+							     protolist, &ret))
+					{
+						msg_free (msg);
+						return (ret);
+					}
+					else
+						msg_AddQueue (msg);
+				}			
+				else
+					return ((*Fd_funcs[fd]) (fd));
+			}
+		}
+	/*
+	 * If we get this far it's because none of the descriptors had
+	 * messages pending in the protocol list.
+	 */
+		return (MSG_TIMEOUT);
+	}
+}
+
 
 
 
@@ -749,6 +980,33 @@ int fd;
 
 
 
+static void
+msg_write (msg)
+struct message *msg;
+/*
+ * Write the message structure and its data.
+ */
+{
+	int nsent;
+	int len;
+
+	if (write (Msg_fd, msg, sizeof (struct message)) <
+	    		sizeof (struct message))
+		perror ("Message structure write");
+/*
+ * Now send the data, in chunks.
+ */
+	nsent = 0;
+	while (nsent < msg->m_len)
+	{
+		len = ((msg->m_len - nsent) > DCHUNK) ? DCHUNK : 
+				(msg->m_len - nsent);
+		if (write (Msg_fd, ((char *)msg->m_data) + nsent, len) < len)
+			perror ("Message data write");
+		nsent += len;
+	}
+}
+
 
 
 void
@@ -770,41 +1028,155 @@ int type, broadcast, datalen;
  */
 {
 	struct message msg;
-	int nsent = 0, len;
 /*
  * We shouldn't try to send anything if the handler is shutting down
  */
-	if (ShuttingDown)
+	if (ShuttingDown || NoConnection)
 	{
 		printf ("%s: msg_send: attempt to send message %s\n",
-			Identity, "after shutdown received");
+			Identity, (NoConnection) ? "with no connection" :
+			"after shutdown received");
 		return;
 	}
 /*
  * Put together the message structure.
  */
  	msg.m_proto = type;
+	msg.m_len = datalen;
+	msg.m_data = data;
+/*
+ * Check for echo mode
+ */
+	if (EchoMode)
+	{
+		/*
+		 * Send a copy of this message to ourselves and make
+		 * sure it comes back just as we sent it.
+		 */
+		strcpy (msg.m_to, Identity);
+		msg.m_flags = 0;
+		msg.m_seq = Seq++;
+		msg_write (&msg);
+		signal (SIGALRM, (void *) msg_abort);
+		alarm (30);
+		msg_Search (type, msg_echo, (void *) &msg);
+		alarm (0);
+	}
+/*
+ * Finish the structure for transmission to the intended recipient
+ */
 	strcpy (msg.m_to, to);
 	msg.m_flags = broadcast ? MF_BROADCAST : 0;
 	msg.m_seq = Seq++;
-	msg.m_len = datalen;
+	msg_write (&msg);
+}
+
+
+
+static void
+msg_abort ()
 /*
- * Send the message structure.
+ * Uh-oh, a search for an echo failed.
  */
-	if (write (Msg_fd, &msg, sizeof (struct message)) <
-			sizeof (struct message))
-		perror ("Message structure write");
+{
+	fprintf (stderr, "%s: echo: expected echo never found, aborting\n",
+		 Identity);
+	exit (99);
+}
+
+
+
+static int
+msg_echo (echo, param)
+struct message *echo;
+void *param;
 /*
- * Now send the data, in chunks.
+ * Look for an echo message and verify it.
  */
-	while (nsent < datalen)
+{
+	struct message *msg = (struct message *) param;
+	int datamatch;
+	int seqmatch;
+/*
+ * See if this message compares to what we're expecting.
+ * If so, we'll consider the test successful.  Do lots of mundane
+ * checks, just to be sure.
+ */
+	if (echo->m_proto != msg->m_proto)
 	{
-		len = ((datalen - nsent) > DCHUNK) ? DCHUNK : 
-				(datalen - nsent);
-		if (write (Msg_fd, (char *) data + nsent, len) < len)
-			perror ("Message data write");
-		nsent += len;
+		fprintf (stderr, "echo: unexpected proto %i from msg_Search\n",
+			 echo->m_proto);
+		return (MSG_ENQUEUE);
 	}
+/*
+ * Make sure the message was from ourself
+ */
+	if (strcmp (msg->m_from, Identity))
+		return (MSG_ENQUEUE);
+/*
+ * Compare the data
+ */
+	datamatch = 0;
+	if (echo->m_len == msg->m_len)
+	{
+		datamatch = (! memcmp (echo->m_data, msg->m_data, 
+				       echo->m_len));
+	}
+/*
+ * Check the sequence number.
+ */
+	seqmatch = (echo->m_seq == msg->m_seq);
+/*
+ * If neither match, we assume this wasn't our echo.  If one of them
+ * did match but not the other, then something fishy is going on.
+ * Either way we finish the search.
+ */
+	if (!datamatch && !seqmatch)
+		return (MSG_ENQUEUE);
+	if (!seqmatch)
+		fprintf (stderr, "%s: echo: proto %i, %s [echo %i, sent %i]\n",
+			 Identity, echo->m_proto, "sequence mismatch",
+			 echo->m_seq, msg->m_seq);
+	if (!datamatch)
+		fprintf (stderr, 
+			 "%s: echo: proto %i, %s [echo len %i, sent len %i]\n",
+			 Identity, echo->m_proto, "data mismatch",
+			 echo->m_len, msg->m_len);
+	return (MSG_DONE);
+}
+
+
+
+
+int
+msg_ELPrintMask (mask)
+int mask;
+/*
+ * Set the mask of events we print to the terminal, and return the
+ * old mask.
+ */
+{
+	int old = PrintMask;
+
+	PrintMask = mask;
+	return (old);
+}
+
+
+int
+msg_ELSendMask (mask)
+int mask;
+/*
+ * Set the mask for messages which we send down our socket.
+ * This is set to zero to disable message manager logging when
+ * there is no message connection.  Return the old mask.  The
+ * event logger may still tell us to use a different mask.
+ */
+{
+	int old = SendMask;
+
+	SendMask = mask;
+	return (old);
 }
 
 
@@ -827,18 +1199,19 @@ va_dcl
 	vsprintf (mbuf, fmt, args);
 	va_end (args);
 /*
- * Send it to the event logger.
+ * Possibly print it out 
  */
-	msg_send ("Event logger", MT_LOG, 0, mbuf, strlen (mbuf) + 1);
+	if (PrintMask || (SendMask && ShuttingDown))
+		printf ("%s: %s\n", Identity, mbuf);
+/*
+ * Send it to the event logger, maybe.
+ */
+	if (SendMask && !ShuttingDown && !NoConnection)
+		msg_send (EVENT_LOGGER_NAME, MT_LOG, 0, 
+			  mbuf, strlen (mbuf) + 1);
 }
 
 
-
-/*
- * Event logger info.  We assume that we send all messages until told
- * otherwise.
- */
-static int EMask = 0xff;
 
 
 void
@@ -865,22 +1238,26 @@ va_dcl
 /*
  * If this message won't get logged, don't even send it.
  */
-	if (! (flags & EMask))
+	if (! (flags & SendMask) && ! (flags & PrintMask))
 		return;
 /*
- * If we're shutting down, we print the message rather than send it
+ * Print the message if we're shutting down or the message matches the 
+ * print mask.
  */
-	if (ShuttingDown)
+	if ((ShuttingDown && (flags & SendMask)) || (flags & PrintMask))
 	{
 		printf ("%s: %s\n", Identity, el->el_text); 
-		return;
 	}
 /*
- * Otherwise, send it.
+ * Actually send the message only if it's in the send mask, we're not
+ * shutting down, and we're connected.
  */
-	el->el_flag = flags;
-	msg_send ("Event logger", MT_ELOG, 0, el,
-		sizeof (*el) + strlen (el->el_text));
+	if (! ShuttingDown && (flags & SendMask) && ! NoConnection)
+	{
+		el->el_flag = flags;
+		msg_send (EVENT_LOGGER_NAME, MT_ELOG, 0, el,
+			  sizeof (*el) + strlen (el->el_text));
+	}
 }
 
 
@@ -899,7 +1276,7 @@ struct message *msg;
 
 	if (el->el_flag & EF_SETMASK)
 	{
-		EMask = el->el_flag & ~EF_SETMASK;
+		SendMask = el->el_flag & ~EF_SETMASK;
 		return (0);
 	}
 	else
@@ -941,6 +1318,50 @@ struct message *msg;
 	return (new);
 }
 
+
+
+static void
+msg_AddQueue (msg)
+struct message *msg;
+/*
+ * This is the private, internal enqueueing function.  The message is not
+ * copied before being added to the queue.
+ */
+{
+	struct mqueue *tail;
+
+	tail = msg_NewMq (msg);
+	tail->mq_next = 0;
+	if (! Mq)
+		Mq = tail;
+	else
+		Mq_tail->mq_next = tail;
+	Mq_tail = tail;
+}
+
+
+
+void
+msg_Enqueue (msg)
+Message *msg;
+/*
+ * The public interface for enqueuing a message from within a handler.
+ * It is assumed the handler (msg_incoming) will free the message once
+ * it is handled, so this function copies the message before placing it
+ * on the queue.
+ */
+{
+	Message *copy;
+
+	copy = ALLOC(Message);
+	*copy = *msg;
+	if (msg->m_len)
+	{
+		copy->m_data = (char *) malloc (msg->m_len);
+		memcpy (copy->m_data, msg->m_data, msg->m_len);
+	}
+	msg_AddQueue (copy);
+}
 
 
 
@@ -1007,7 +1428,8 @@ msg_DispatchQueued ()
 	/*
 	 * Check for a shutdown message and note it internally
 	 */
-		if (Mq->mq_msg->m_proto == MT_MESSAGE)
+		if ((Mq->mq_msg->m_proto == MT_MESSAGE) && 
+		    (Mq->mq_msg->m_len > 0))
 		{
 			struct mh_template *tm;
 			tm = (struct mh_template *) Mq->mq_msg->m_data;
@@ -1018,7 +1440,7 @@ msg_DispatchQueued ()
 	 * Then process the message normally
 	 */
 		if (Mq->mq_msg->m_proto >= 0 &&
-				Mq->mq_msg->m_proto < MAXPROTO &&
+				Mq->mq_msg->m_proto < MT_MAX_PROTO &&
 				ProtoHandlers[Mq->mq_msg->m_proto])
 			ret =(*ProtoHandlers[Mq->mq_msg->m_proto])(Mq->mq_msg);
 		else
