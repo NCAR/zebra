@@ -37,5 +37,6 @@ p_track
 	annot-time-scale:	10
 	active-icon:	true
 !	posicon-middle-menu:	FieldMenu
+	posicon-left-menu:	standard-cap-left-menu
 	posicon-middle-menu:	tr-simple-send
 	posicon-right-menu:	track-right
