@@ -8,7 +8,7 @@
 #include <iomanip.h>
 
 //#include <defs.h>
-//RCSID ("$Id: Journal.cc,v 1.9 1998-09-15 16:50:00 granger Exp $");
+//RCSID ("$Id: Journal.cc,v 1.10 1998-09-16 21:26:06 granger Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
 #include "BlockFileP.hh"	// For the private header structure and stuff
@@ -82,10 +82,14 @@ Journal::Changed (BlkVersion rev, BlkOffset offset, BlkSize length)
 	else
 	{
 		// Search the journal for a change to this region
-		// more recent than the given revision
+		// *more recent* than the given revision: the block
+		// is already in sync *at* the given revision.  In other
+		// words, don't make blocks read sync with changes
+		// they just wrote.
+		// 
 		changed = 0;
 		int i = first;
-		while (i != last && entries[i].block.revision >= rev)
+		while (i != last && entries[i].block.revision > rev)
 		{
 			Block *b = &entries[i].block;
 			if (entries[i].change == BlockChanged &&
