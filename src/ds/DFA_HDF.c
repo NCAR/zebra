@@ -78,7 +78,7 @@ static char *hdfopt[2] = { "@(#)$DFA: HDF_INTERFACE Compiled $",
 # include <config.h>
 # include <message.h>
 
-RCSID ("$Id: DFA_HDF.c,v 3.7 1996-03-12 06:49:49 granger Exp $")
+RCSID ("$Id: DFA_HDF.c,v 3.8 1996-03-18 16:54:17 granger Exp $")
 
 #ifdef HDF_TEST
 #define ds_PlatformDataOrg(id) Org2dGrid
@@ -99,6 +99,9 @@ RCSID ("$Id: DFA_HDF.c,v 3.7 1996-03-12 06:49:49 granger Exp $")
 static const double R_EARTH = 6378.;
 static const double D_PI = 3.14159265358979323846;
 
+#if defined(sun) && !defined(SVR4) && !defined(__GNUC__)
+# define signed
+#endif
 
 # define MAX_DIMS	128
 # define MAX_FIELDS 	CFG_FIELD_MAX_ID
