@@ -38,7 +38,7 @@
 # include "DataFormat.h"
 # include "GRIB.h"
 
-RCSID ("$Id: DFA_GRIB.c,v 3.26 1997-02-03 22:16:50 granger Exp $")
+RCSID ("$Id: DFA_GRIB.c,v 3.27 1997-05-22 23:14:23 burghart Exp $")
 
 
 /*
@@ -48,6 +48,8 @@ typedef struct s_GRIBdesc
 {
 	GFpds	*gd_pds;	/* Product definition section	*/
 	GFgds   *gd_gds;	/* Grid description section	*/
+	GFbmshdr *gd_bmshdr;	/* Bit map section header	*/
+	long	gd_bmoffset;	/* offset to the bitmap (if any)*/
 	long	gd_doffset;	/* offset to binary data section*/
 	int	gd_bds_len;	/* binary data section length	*/
 } GRIBdesc;
@@ -230,6 +232,8 @@ static struct s_GRB_FList
 	{ 33, ANY, "u_wind", "u component of wind", "m/s", 1.0, 0.0 },
 	/* v component of wind (m/s) */
 	{ 34, ANY, "v_wind", "v component of wind", "m/s", 1.0, 0.0 },
+	/* Stream function */
+	{ 35, ANY, "stream_fn", "Stream function", "km**2/s", 1.0e6, 0.0 },
 	/* Montgomery stream function */
 	{ 37, ANY, "monty_stream", "Montgomery stream function", 
 		  "m**2/s**2", 1.0, 0.0 },
@@ -247,6 +251,8 @@ static struct s_GRB_FList
 	{ 52, ANY, "rh", "Relative humidity", "%", 1.0, 0.0 },
 	/* Humidity mixing ratio (kg/kg), scale to g/kg */
 	{ 53, ANY, "mr", "Humidity mixing ratio", "g/kg", 0.001, 0.0 },
+	/* Cloud ice (kg/m**2)	*/
+	{ 58, ANY, "cloud_ice", "Cloud ice", "kg/m**2", 1.0, 0.0 },
 	/* Total precipitation (kg/m**2)	*/
 	{ 61, ANY, "precip", "Total precipitation", "kg/m**2", 1.0, 0.0 },
 	/* Large-scale precipitation */
@@ -288,12 +294,14 @@ static struct s_GRB_FList
 	/* 147 Ice specific humidity (kg/kg) */
 	{ 147, MM5, "ice_sph", "Ice specific humidity", "kg/kg", 1.0, 0.0 },
 /*
- * ECMWF fields (cont)
+ * General fields (cont)
  */
 	/* Pressure reduced to MSL (Pa), scale to mb */
 	{ 151, ANY, "cpres0", "Pressure reduced to MSL", "mb", 100.0, 0.0 },
 	/* Relative humidity (%) */
 	{ 157, ANY, "rh", "Relative humidity", "%", 1.0, 0.0 },
+	/* Turbulent kinetic energy (TKE) (J/kg) */
+	{ 158, ANY, "tke", "Turbulent kinetic energy", "J/kg", 1.0, 0.0 },
 	/* Condenstation pressure (Pa) scale to mb */
 	{ 159, ANY, "condp", "Condenstation pressure", "mb", 100.0, 0.0 },
 	/* u component of wind at 10m (m/s)	*/
@@ -364,12 +372,15 @@ typedef struct s_GRB_TypeInfo
 
 
 /*
- * Regular lat/lon grids only need the degree spacing in each direction.
+ * Regular lat/lon grids need the degree spacing in each direction and the
+ * coordinates of the southwest corner.
  */
 typedef struct s_Regular
 {
 	float	lat_spacing;
 	float	lon_spacing;
+	float	s_lat;
+	float	w_lon;
 } Regular;
 
 static Regular Regular2 = 
@@ -377,8 +388,10 @@ static Regular Regular2 =
  * 2.5 degree spacing in both directions
  */
 {
-	/* lat_spacing */	2.5,
-	/* lon_spacing */	2.5
+    2.5,	/* lat_spacing */
+    2.5,	/* lon_spacing */
+    -90.0,	/* s_lat */
+    0.0		/* w_lon */
 };
 
 
@@ -452,6 +465,26 @@ static PolarStereo Transform87 =
 	/* xpole */	0.0,
 	/* ypole */	5938.4
 };
+
+static PolarStereo Transform104 =
+/*
+ * Origin lat & long, in radians, and scale factor at the origin for
+ * GRIB grid type 104 [NGM Super C grid, 16170-point (147x110) N. hemisphere 
+ * polar stereographic grid oriented 105W].  For type 104, the pole is at grid
+ * location (75.5, 109.5), in Fortran terms, or (74.5, 108.5) here in the C 
+ * world.
+ */
+{
+	/* phi1 */	1.047197551,	/* 60.0 deg. north */
+	/* lambda0 */	-1.832595715,	/* 105.0 deg. west */
+	/* scale */	90.75464,	/* ~90 km at 60 N */
+	/* ipole */	74.5,
+	/* jpole */	108.5,
+	/* xpole */	0.0,
+	/* ypole */	3412.31689
+};
+
+
 
 static PolarStereo Transform105 =
 /*
@@ -533,10 +566,20 @@ static GRB_TypeInfo GRB_Types[] =
 	{ 87, 81, 62, NULL, NULL, 
 		  grb_PolarStereoIndex, grb_PolarStereoLatLon, 60, 24,
 		  20.0, -130.0, 1.0, 1.0, NULL, NULL, &Transform87 },
+
+	/* 
+	 * 104: 16170-point (147x110) N. hemisphere polar stereographic
+	 * grid oriented 105W; pole at (74.5, 108.5) [C type indexing].
+	 * (NGM Super C Grid, used by the Eta model).  90.75464 km spacing
+	 * at 60N.
+	 */
+	{ 104, 147, 110, NULL, NULL, 
+		  grb_PolarStereoIndex, grb_PolarStereoLatLon, 191, 91, 
+		  0.0, -190.0, 1.0, 1.0, NULL, NULL, &Transform104 },
 	/*
 	 * 105: 6889-point (83x83) N. Hemisphere polar stereographic grid
 	 * oriented 105W; pole at (39.5,87.5) [C type indexing].  (U.S. area
-	 * subset of NGM Super C grid, used by ETA model).  90.75464 km
+	 * subset of NGM Super C grid, used by Eta model).  90.75464 km
 	 * spacing at 60N.
 	 */
 	{ 105, 83, 83, NULL, NULL, 
@@ -555,9 +598,9 @@ static GRB_TypeInfo GRB_Types[] =
 int GRB_NTypes = sizeof (GRB_Types) / sizeof (GRB_TypeInfo);
 
 /*
- * How many vertical levels can we handle?
+ * How many vertical levels can we handle? 
  */
-# define MAXLEVELS	40
+# define MAXLEVELS	50
 
 /*
  * Winds info.  Since this stuff takes a while to calculate, we keep track
@@ -580,10 +623,10 @@ static void	grb_DestroyTag FP ((GFTag *));
 static void	grb_ReadRGrid FP ((DataChunk *, GFTag *, GRB_TypeInfo *, int, 
 				   int, int, FieldId, int, float *));
 static FieldId	grb_Field FP ((GFpds *, ScaleInfo *));
-static void	grb_UnpackBDS FP ((GFTag *, int, float *, int, int));
+static void	grb_UnpackBDS FP ((GFTag *, int, float *, int, int, double));
 static void	grb_ResetWind FP ((void));
 static void	grb_UnpackWind FP ((GFTag *, int, FieldId, int, int, float *, 
-				    GRB_TypeInfo *));
+				    GRB_TypeInfo *, double));
 static void	grb_DCFinishDefs FP ((DataChunk *, GRB_TypeInfo *, int));
 static void	grb_InitGInfo FP ((GRB_TypeInfo *));
 static GRB_TypeInfo *grb_GridTypeInfo FP ((GFpds *, GFgds *));
@@ -1171,100 +1214,142 @@ AltUnitType	*altunits;
  * sorted in increasing order.
  */
 {
-	GFTag	*tag = GFTAGP (of);
-	int	i, count;
-	float	temp;
-	GFpds	*pds = NULL;
-	GFgds	*gds;
-	GRB_TypeInfo	*grbinfo = NULL;
-	ZebTime	t;
+    GFTag	*tag = GFTAGP (of);
+    int	i, count;
+    float	temp;
+    GFpds	*pds = NULL;
+    GFgds	*gds;
+    GRB_TypeInfo	*grbinfo = NULL;
+    ZebTime	t;
+    AltUnitType units;
 /*
  * Find the first usable grid for the chosen field and forecast offset.
  */
-	for (i = 0; i < tag->gt_ngrids; i++)
-	{
-		pds = tag->gt_grib[i].gd_pds;
-		gds = tag->gt_grib[i].gd_gds;
+    for (i = 0; i < tag->gt_ngrids; i++)
+    {
+	pds = tag->gt_grib[i].gd_pds;
+	gds = tag->gt_grib[i].gd_gds;
 
-		if ((grbinfo = grb_GridTypeInfo (pds, gds)) != NULL &&
-		    grb_UsableLevel (pds, tag->gt_sfc_only) && 
-		    grb_Field (pds, NULL) == fid &&
-		    grb_Offset (pds) == offset)
-		{
-			t = tag->gt_times[i];
-			break;
-		}
+	if ((grbinfo = grb_GridTypeInfo (pds, gds)) != NULL &&
+	    grb_UsableLevel (pds, tag->gt_sfc_only) && 
+	    grb_Field (pds, NULL) == fid &&
+	    grb_Offset (pds) == offset)
+	{
+	    t = tag->gt_times[i];
+	    break;
 	}
+    }
 /*
  * Simple if the file is open for surface data only
  */
-	if (tag->gt_sfc_only)
-	{
-		alts[0] = grb_ZLevel (pds, altunits);
-		*nalts = 1;
-		return (TRUE);
-	}
+    if (tag->gt_sfc_only)
+    {
+	alts[0] = grb_ZLevel (pds, altunits);
+	*nalts = 1;
+	return (TRUE);
+    }
 /*
  * Count the grids matching the field, offset, and time, building the
  * altitude array as we go.
  */
-	count = 0;
-	for (; i < tag->gt_ngrids; i++)
+    count = 0;
+    for (; i < tag->gt_ngrids; i++)
+    {
+	if (! TC_Eq (tag->gt_times[i], t))
+	    break;
+    /*
+     * Grab the altitude from this grid if it has the same type, field, 
+     * and time offset as the first grid, and is a usable grid.
+     */
+	pds = tag->gt_grib[i].gd_pds;
+
+	if (pds->grid_id == grbinfo->gg_type  &&
+	    grb_UsableLevel (pds, tag->gt_sfc_only) && 
+	    grb_Field (pds, NULL) == fid &&
+	    grb_Offset (pds) == offset)
 	{
-		if (! TC_Eq (tag->gt_times[i], t))
-			break;
+	    float alt = grb_ZLevel (pds, &units);
 	/*
-	 * Grab the altitude from this grid if it has the same type, field, 
-	 * and time offset as the first grid, and is a usable grid.
+	 * Sanity check on the count
 	 */
-		pds = tag->gt_grib[i].gd_pds;
-
-		if (pds->grid_id == grbinfo->gg_type  &&
-		    grb_UsableLevel (pds, tag->gt_sfc_only) && 
-		    grb_Field (pds, NULL) == fid &&
-		    grb_Offset (pds) == offset)
+	    if (count == MAXLEVELS)
+	    {
+		msg_ELog (EF_PROBLEM, 
+			  "grb_GetAlts: number of levels exceeds max of %d",
+			  MAXLEVELS);
+		break;
+	    }
+	/*
+	 * Units KLUGE: We sometimes have multiple level types in the same
+	 * file, e.g., pressures in mb, sigma levels, altitudes, etc.  We
+	 * want to return a list in consistent units, so we arbitrarily
+	 * choose levels in mb, if they exist, otherwise return those
+	 * matching the first type we find. 
+	 */
+	    if (! count)
+		*altunits = units;
+	    else if (units != *altunits)
+	    {
+		if (units == AU_mb)
 		{
-			if (alts)
-				alts[count++] = grb_ZLevel (pds, altunits);
-			else
-				count++;
+		    msg_ELog (EF_DEBUG, "grb_GetAlts switched from %s to mb",
+			      au_UnitsName (*altunits));
+		    *altunits = units;
+		    count = 0;	/* We found our preferred type, so switch! */
 		}
+		else
+		{
+		    msg_ELog (EF_DEBUG, 
+			      "grb_GetAlts dropped a level because of type");
+		    continue;
+		}
+	    }
+	/*
+	 * Add this altitude to our list
+	 */
+	    if (alts)
+		alts[count++] = alt;
+	    else
+		count++;
 	}
+    }
+    
 
-	if (! count)
-		return (FALSE);
+    if (! count)
+	return (FALSE);
 
-	if (nalts)
-		*nalts = count;
-/*
- * Sort into increasing order (internal calls to grb_GetAlts() require this)
+    if (nalts)
+	*nalts = count;
+/* 
+ * Sort into increasing order (internal calls to grb_GetAlts()
+ * require this)
  */
-	if (alts)
+    if (alts)
+    {
+	for (i = 1; i < count; i++)
 	{
-		for (i = 1; i < count; i++)
-		{
-			int	si = i;
+	    int	si = i;
 
-			while (si && alts[si] < alts[si-1])
-			{
-				temp = alts[si-1];
-				alts[si-1] = alts[si];
-				alts[si] = temp;
+	    while (si && alts[si] < alts[si-1])
+	    {
+		temp = alts[si-1];
+		alts[si-1] = alts[si];
+		alts[si] = temp;
 
-				si--;
-			}
-		}
+		si--;
+	    }
 	}
+    }
 /*
  * Done
  */	
-	return (TRUE);
+    return (TRUE);
 }
 
 
 
 
-static int
+    static int
 grb_GetForecastTimes (of, times, ntimes)
 OpenFile *of;
 int	*times;
@@ -1504,8 +1589,8 @@ GFTag	*tag;
  */
 {
 	int	fd = tag->gt_fd;
-	int	len, pds_len, bms_len, bds_len;
-	int	status, ng, ncopy, ednum, bds_pos;
+	int	len, pds_len, bds_len;
+	int	status, ng, ncopy, ednum, bm_pos = 0, bds_pos;
 	unsigned char buf[64];
 /*
  * Rewind the file first
@@ -1521,6 +1606,7 @@ GFTag	*tag;
 	while ((status = grb_FindRecord (fd, buf)) > 0)
 	{
 		GFpds *pds;
+		GFbmshdr *bmshdr = 0;
 		GFgds *gds = 0;
 	/*
 	 * Read the next 4 bytes and determine the GRIB edition.  In Edition 1
@@ -1587,26 +1673,34 @@ GFTag	*tag;
 				break;
 		}
 	/*
-	 * If there's a Bit Map Section, bypass it.
+	 * If there's a Bit Map Section, save the header and skip past the 
+	 * bitmap itself
 	 */
 		if (pds->section_flags & BMS_FLAG)
 		{
+			int bmslen;
+			int hdrlen = sizeof (GFbmshdr);
+
+			bmshdr = (GFbmshdr *) malloc (hdrlen);
 		/*
-		 * Read the first four bytes of the BMS and get its length
+		 * Read the BMS header
 		 */
-			if (read (fd, buf, 4) < 4)
+			if (read (fd, bmshdr, hdrlen) < hdrlen)
 			{
 				msg_ELog (EF_INFO, 
 					  "Missing BMS at grid %d", ng + 1);
 				status = 0;	/* Treat it like an EOF */
 				break;
 			}
-
-			bms_len = grb_ThreeByteInt (buf);
+		/*
+		 * Remember where the bitmap itself begins
+		 */
+			bm_pos = lseek (fd, 0, SEEK_CUR);
 		/*
 		 * Seek past the rest
 		 */
-			lseek (fd, bms_len - 4, SEEK_CUR);
+			bmslen = grb_ThreeByteInt (&(bmshdr->len));
+			lseek (fd, bmslen - hdrlen, SEEK_CUR);
 		}
 	/*
 	 * We're at the Binary Data Section.
@@ -1652,6 +1746,12 @@ GFTag	*tag;
 
 		tag->gt_grib[ng-1].gd_pds = pds;
 		tag->gt_grib[ng-1].gd_gds = gds;
+	/*
+	 * For the (maybe non-existent) BMS, save the header and the offset 
+	 * to the bitmap itself
+	 */
+		tag->gt_grib[ng-1].gd_bmshdr = bmshdr;
+		tag->gt_grib[ng-1].gd_bmoffset = bm_pos;
 	/*
 	 * Extract the reference time from the PDS
 	 */
@@ -1714,254 +1814,258 @@ float		*ztarget;
  * given z level.  Otherwise, return all planes.
  */
 {
-	int	nsx, nsy, si, sj, i, j, itemp;
-	int	indices[MAXLEVELS], u_indices[MAXLEVELS], v_indices[MAXLEVELS];
-	float	zvals[MAXLEVELS], badval = dc_GetBadval (dc), ftemp;
-	int	level, nlevels, ulevels, vlevels, ndx;
-	float	*sgrid, *sp, *dgrid, *dp, *lats, *lons;
-	float	z, di, dj, val0, val1, val2, val3, *fsi, *fsj;
-	GFpds	*pds;
-	ZebTime	time;
-	bool	u_or_v;
-	FieldId	grid_fid, u_fid, v_fid;
-	ScaleInfo	sc;
-	unsigned long	dc_nlevels, nlat, nlon;
+    int	nsx, nsy, si, sj, i, j, itemp;
+    int	indices[MAXLEVELS], u_indices[MAXLEVELS], v_indices[MAXLEVELS];
+    float	zvals[MAXLEVELS], badval = dc_GetBadval (dc), ftemp;
+    int	level, nlevels, ulevels, vlevels, ndx;
+    float	*sgrid, *sp, *dgrid, *dp, *lats, *lons;
+    float	z, di, dj, val0, val1, val2, val3, *fsi, *fsj;
+    GFpds	*pds;
+    ZebTime	time;
+    bool	u_or_v;
+    FieldId	grid_fid, u_fid, v_fid;
+    ScaleInfo	sc;
+    unsigned long	dc_nlevels, nlat, nlon;
 /*
  * Are we getting u or v wind?  If so, we actually have to get both.
  */
-	u_fid = F_Lookup ("u_wind");
-	v_fid = F_Lookup ("v_wind");
-	u_or_v = (fid == u_fid || fid == v_fid);
+    u_fid = F_Lookup ("u_wind");
+    v_fid = F_Lookup ("v_wind");
+    u_or_v = (fid == u_fid || fid == v_fid);
 /*
  * Get the lists of lats and lons from the data chunk.
  */
-	lats = (float *) dc_NSGetStatic (dc, F_Lookup ("lat"), &nlat);
-	lons = (float *) dc_NSGetStatic (dc, F_Lookup ("lon"), &nlon);
+    lats = (float *) dc_NSGetStatic (dc, F_Lookup ("lat"), &nlat);
+    lons = (float *) dc_NSGetStatic (dc, F_Lookup ("lon"), &nlon);
 /*
  * Build a list of grids that contain our field and have the right forecast
  * time
  */
-	nlevels = ulevels = vlevels = 0;
+    nlevels = ulevels = vlevels = 0;
 
-	for (ndx = sbegin; ndx <= send; ndx++)
+    for (ndx = sbegin; ndx <= send; ndx++)
+    {
+	pds = tag->gt_grib[ndx].gd_pds;
+    /*
+     * Bag this grid now if the type is wrong, the forecast time is wrong,
+     * or it's a not a usable level
+     */
+	if (pds->grid_id != ginfo->gg_type ||
+	    ! grb_UsableLevel (pds, tag->gt_sfc_only) || 
+	    grb_Offset (pds) != offset)
+	    continue;
+    /*
+     * If we just want one level, make sure we get the right one.
+     */
+	z = grb_ZLevel (pds, NULL);
+	if (ztarget && z != *ztarget)
+	    continue;
+    /*
+     * Now check the field
+     */
+	grid_fid = grb_Field (pds, NULL);
+
+	if (grid_fid == fid)
 	{
-		pds = tag->gt_grib[ndx].gd_pds;
-	/*
-	 * Bag this grid now if the type is wrong, the forecast time is wrong,
-	 * or it's a not a usable level
-	 */
-		if (pds->grid_id != ginfo->gg_type ||
-		    ! grb_UsableLevel (pds, tag->gt_sfc_only) || 
-		    grb_Offset (pds) != offset)
-			continue;
-	/*
-	 * If we just want one level, make sure we get the right one.
-	 */
-		z = grb_ZLevel (pds, NULL);
-		if (ztarget && z != *ztarget)
-			continue;
-	/*
-	 * Now check the field
-	 */
-		grid_fid = grb_Field (pds, NULL);
-
-		if (grid_fid == fid)
-		{
-			zvals[nlevels] = z;
-			indices[nlevels++] = ndx;
-		}
-
-		if (u_or_v)
-		{
-			if (grid_fid == u_fid)
-				u_indices[ulevels++] = ndx;
-			else if (grid_fid == v_fid)
-				v_indices[vlevels++] = ndx;
-		}
-	/*
-	 * Semi-kluge: For surface-only access, just take the first "surface"
-	 * grid we get.  Some files have both 0m MSL (level type 102) and 
-	 * 0m AGL (level type 1) grids for a given field.  We count either one
-	 * as a "surface" grid, so we'll just give them whichever one we see
-	 * first.
-	 */
-		if (tag->gt_sfc_only && nlevels == 1)
-			break;
+	    zvals[nlevels] = z;
+	    indices[nlevels++] = ndx;
 	}
+
+	if (u_or_v)
+	{
+	    if (grid_fid == u_fid)
+		u_indices[ulevels++] = ndx;
+	    else if (grid_fid == v_fid)
+		v_indices[vlevels++] = ndx;
+	}
+    /*
+     * Semi-kluge: For surface-only access, just take the first "surface"
+     * grid we get.  Some files have both 0m MSL (level type 102) and 
+     * 0m AGL (level type 1) grids for a given field.  We count either one
+     * as a "surface" grid, so we'll just give them whichever one we see
+     * first.
+     */
+	if (tag->gt_sfc_only && nlevels == 1)
+	    break;
+    }
 /*
  * If we're doing wind, make sure we got the same number of levels for
  * both u and v
  */
-	if (u_or_v && ulevels != vlevels)
-	{
-		msg_ELog (EF_PROBLEM, 
-			  "GRIB u_wind and v_wind levels don't match!");
-		nlevels = 0;
-	}
+    if (u_or_v && ulevels != vlevels)
+    {
+	msg_ELog (EF_PROBLEM, 
+		  "GRIB u_wind and v_wind levels don't match!");
+	nlevels = 0;
+    }
 /*
  * Make sure we're copacetic with the number of levels defined in the
  * data chunk.
  */
-	dc_NSGetDimension (dc, F_Lookup ("alt"), NULL, &dc_nlevels);
-	if (nlevels && dc_nlevels != nlevels)
-	{
-/*		msg_ELog (EF_PROBLEM, "*BUG*: GRIB level count mismatch!"); */
-		msg_ELog (EF_INFO, "grb_ReadRGrid: Can't get %s/%s data",
-			  ds_PlatformName (dc->dc_Platform), F_GetName (fid));
-		nlevels = 0;
-	}
+    dc_NSGetDimension (dc, F_Lookup ("alt"), NULL, &dc_nlevels);
+    if (nlevels && dc_nlevels != nlevels)
+    {
+    /*		msg_ELog (EF_PROBLEM, "*BUG*: GRIB level count mismatch!"); */
+	msg_ELog (EF_INFO, "grb_ReadRGrid: Can't get %s/%s data",
+		  ds_PlatformName (dc->dc_Platform), F_GetName (fid));
+	nlevels = 0;
+    }
 /*
  * If we have no levels, create a grid full of badvals and put that in the
  * data chunk.
  */
-	if (nlevels == 0)
-	{
-		msg_ELog (EF_INFO, "GRIB: No %d hr forecast for %s/%s", 
-			  offset / 3600, ds_PlatformName (dc->dc_Platform), 
-			  F_GetName (fid));
+    if (nlevels == 0)
+    {
+	msg_ELog (EF_INFO, "GRIB: No %d hr forecast for %s/%s", 
+		  offset / 3600, ds_PlatformName (dc->dc_Platform), 
+		  F_GetName (fid));
 		
-		time = tag->gt_times[sbegin];
+	time = tag->gt_times[sbegin];
 
-		dc_NSAddSample (dc, &time, samp, fid, DC_FillValues);
-		return;
-	}
+	dc_NSAddSample (dc, &time, samp, fid, DC_FillValues);
+	return;
+    }
 /*
  * Sort the z levels increasing so that we return them in some reasonable order
  */
-	for (level = 1; level < nlevels; level++)
+    for (level = 1; level < nlevels; level++)
+    {
+	int	sl = level;
+
+	while (sl && zvals[sl] < zvals[sl-1])
 	{
-		int	sl = level;
+	    ftemp = zvals[sl-1];
+	    zvals[sl-1] = zvals[sl];
+	    zvals[sl] = ftemp;
 
-		while (sl && zvals[sl] < zvals[sl-1])
-		{
-			ftemp = zvals[sl-1];
-			zvals[sl-1] = zvals[sl];
-			zvals[sl] = ftemp;
+	    itemp = indices[sl-1];
+	    indices[sl-1] = indices[sl];
+	    indices[sl] = itemp;
 
-			itemp = indices[sl-1];
-			indices[sl-1] = indices[sl];
-			indices[sl] = itemp;
+	    itemp = u_indices[sl-1];
+	    u_indices[sl-1] = u_indices[sl];
+	    u_indices[sl] = itemp;
 
-			itemp = u_indices[sl-1];
-			u_indices[sl-1] = u_indices[sl];
-			u_indices[sl] = itemp;
+	    itemp = v_indices[sl-1];
+	    v_indices[sl-1] = v_indices[sl];
+	    v_indices[sl] = itemp;
 
-			itemp = v_indices[sl-1];
-			v_indices[sl-1] = v_indices[sl];
-			v_indices[sl] = itemp;
-
-			sl--;
-		}
+	    sl--;
 	}
+    }
 /*
  * Grab some info on the GRIB grid type we're unpacking
  */
-	nsx = ginfo->gg_snx;	/* source grid width	*/
-	nsy = ginfo->gg_sny;	/* source grid height	*/
+    nsx = ginfo->gg_snx;	/* source grid width	*/
+    nsy = ginfo->gg_sny;	/* source grid height	*/
 /*
  * Allocate space for the source and destination grids
  */
-	sgrid = (float *) calloc (nsx * nsy, sizeof (float));
-	dgrid = (float *) malloc (nlat * nlon * nlevels * sizeof (float));
+    sgrid = (float *) calloc (nsx * nsy, sizeof (float));
+    dgrid = (float *) malloc (nlat * nlon * nlevels * sizeof (float));
 /*
  * Loop through our list of GRIB records, remapping their data into the
  * destination grid.
  */
-	dp = dgrid;
+    dp = dgrid;
 	
-	for (level = 0; level < nlevels; level++)
+    for (level = 0; level < nlevels; level++)
+    {
+    /*
+     * Get the scaling information for our field and unpack the GRIB
+     * Binary Data Section into sgrid.
+     */
+	grb_Field (tag->gt_grib[indices[level]].gd_pds, &sc);
+
+	if (u_or_v)
+	    grb_UnpackWind (tag, offset, fid, u_indices[level], 
+			    v_indices[level], sgrid, ginfo, badval);
+	else
+	    grb_UnpackBDS (tag, indices[level], sgrid, nsx, nsy, badval);
+    /*
+     * Get the arrays mapping the destination grid indices into (floating
+     * point) source grid indices.
+     */
+	fsi = ginfo->gg_dsi;
+	fsj = ginfo->gg_dsj;
+    /*
+     * Now fill in our destination grid, using a bilinear interpolation
+     * of data from the source grid
+     */
+	for (j = 0; j < nlat; j++)
 	{
-	/*
-	 * Get the scaling information for our field and unpack the GRIB
-	 * Binary Data Section into sgrid.
-	 */
-		grb_Field (tag->gt_grib[indices[level]].gd_pds, &sc);
-
-		if (u_or_v)
-			grb_UnpackWind (tag, offset, fid, u_indices[level], 
-					v_indices[level], sgrid, ginfo);
-		else
-			grb_UnpackBDS (tag, indices[level], sgrid, nsx, nsy);
-	/*
-	 * Get the arrays mapping the destination grid indices into (floating
-	 * point) source grid indices.
-	 */
-		fsi = ginfo->gg_dsi;
-		fsj = ginfo->gg_dsj;
-	/*
-	 * Now fill in our destination grid, using a bilinear interpolation
-	 * of data from the source grid
-	 */
-		for (j = 0; j < nlat; j++)
-		{
-			for (i = 0; i < nlon; i++)
-			{
-			/*
-			 * Do a bilinear interpolation using the four source 
-			 * grid points (.) surrounding the destination grid 
-			 * point (+).  
-			 *
-			 * Point 0 is at grid position (si,sj) and di and dj 
-			 * are fractions of the source grid spacing.
-			 *
-			 *     2	 3
-			 *	.	.
-			 *	     +    -
-			 *		   |
-			 *		   | dj
-			 *	.	. -
-			 *     0	 1
-			 *
-			 *	|____|
-			 *        di
-			 *
-			 *
-			 *	  val =	(1-di)(1-dj) val0 + (di)(1-dj) val1 +
-			 *		(1-di)(dj) val2 + (di)(dj) val3
-			 */
-				si = (int)(*fsi);
-				sj = (int)(*fsj);
+	    for (i = 0; i < nlon; i++)
+	    {
+	    /*
+	     * Do a bilinear interpolation using the four source 
+	     * grid points (.) surrounding the destination grid 
+	     * point (+).  
+	     *
+	     * Point 0 is at grid position (si,sj) and di and dj 
+	     * are fractions of the source grid spacing.
+	     *
+	     *     2	 3
+	     *	.	.
+	     *	     +    -
+	     *		   |
+	     *		   | dj
+	     *	.	. -
+	     *     0	 1
+	     *
+	     *	|____|
+	     *        di
+	     *
+	     *
+	     *	  val =	(1-di)(1-dj) val0 + (di)(1-dj) val1 +
+	     *		(1-di)(dj) val2 + (di)(dj) val3
+	     */
+		si = (int)(*fsi);
+		sj = (int)(*fsj);
 				
-				if (si >= 0 && si < (nsx - 1) &&
-				    sj >= 0 && sj < (nsy - 1))
-				{
-					di = *fsi - si;
-					dj = *fsj - sj;
+		if (si >= 0 && si < (nsx - 1) &&
+		    sj >= 0 && sj < (nsy - 1))
+		{
+		    di = *fsi - si;
+		    dj = *fsj - sj;
 
-					sp = sgrid + sj * nsx + si;
-					val0 = *sp;
-					val1 = *(sp + 1);
-					val2 = *(sp + nsx);
-					val3 = *(sp + nsx + 1);
+		    sp = sgrid + sj * nsx + si;
+		    val0 = *sp;
+		    val1 = *(sp + 1);
+		    val2 = *(sp + nsx);
+		    val3 = *(sp + nsx + 1);
 
-					*dp++ = ((1 - di) * (1 - dj) * val0 +
-						 di * (1 - dj) * val1 + 
-						 (1 - di) * dj * val2 + 
-						 di * dj * val3) / sc.s_Scale +
-							 sc.s_Offset;
-				}
-				else
-					*dp++ = badval;
-			/*
-			 * Increment the pointers to the source grid index
-			 * arrays.
-			 */
-				fsi++;
-				fsj++;
-			}
+		    if (val0 == badval || val1 == badval || 
+			val2 == badval || val3 == badval)
+			*dp++ = badval;
+		    else
+			*dp++ = ((1 - di) * (1 - dj) * val0 +
+				 di * (1 - dj) * val1 + 
+				 (1 - di) * dj * val2 + 
+				 di * dj * val3) / sc.s_Scale +
+			    sc.s_Offset;
 		}
+		else
+		    *dp++ = badval;
+	    /*
+	     * Increment the pointers to the source grid index
+	     * arrays.
+	     */
+		fsi++;
+		fsj++;
+	    }
 	}
+    }
 /*
  * Stuff the grid we just built into the data chunk
  */
-	/* time = tag->gt_grib[sbegin].gd_time;*/
-	time = tag->gt_times[sbegin];
-	dc_NSAddSample (dc, &time, samp, fid, (void *) dgrid);
+/* time = tag->gt_grib[sbegin].gd_time;*/
+    time = tag->gt_times[sbegin];
+    dc_NSAddSample (dc, &time, samp, fid, (void *) dgrid);
 /*
  * Free our grids and lat/lon arrays
  */
-	free (sgrid);
-	free (dgrid);
+    free (sgrid);
+    free (dgrid);
 }
 
 
@@ -2073,12 +2177,14 @@ float	*ifloat, *jfloat;
  */
 {
 	Regular *reg = (Regular *) gg->gg_transform;
+	float dlon = lon - reg->w_lon;
+	float dlat = lat - reg->s_lat;
 
-	if (lon < 0.0)
-		lon += 360.0;
+	if (dlon < 0.0)
+		dlon += 360.0;
 	
-	*ifloat = lon / reg->lon_spacing;
-	*jfloat = (lat + 90.0) / reg->lat_spacing;
+	*ifloat = dlon / reg->lon_spacing;
+	*jfloat = dlat / reg->lat_spacing;
 }
 
 
@@ -2090,15 +2196,14 @@ GRB_TypeInfo *gg;
 double	idouble, jdouble;
 float	*lat, *lon;
 /*
- * Turn the (double precision) indices into a GRIB 2 type grid into
- * a latitude and longitude.
+ * Turn the (double precision) indices of a GRIB regularly-spaced lat/lon
+ * grid into a latitude and longitude.
  */
 {
-/*
- * Simple 2.5 degree grid.
- */
-	*lon = idouble * 2.5;
-	*lat = (jdouble * 2.5) - 90.0;
+	Regular *reg = (Regular *) gg->gg_transform;
+
+	*lon = reg->w_lon + idouble * reg->lon_spacing;
+	*lat = reg->s_lat + (jdouble * reg->lat_spacing);
 }
 
 
@@ -2193,23 +2298,54 @@ float	*lat, *lon;
 
 
 static void
-grb_UnpackBDS (tag, which, grid, nx, ny)
+grb_UnpackBDS (tag, which, grid, nx, ny, badval)
 GFTag	*tag;
 int	which, nx, ny;
 float	*grid;
+double	badval;
 /*
  * Unpack the Binary Data Section from the which'th GRIB record in tag into 
- * grid, which is (nx x ny).
+ * grid, which is (nx x ny).  Insert the given badval for any missing points.
  */
 {
 	int	bds_len, sign, mantissa, exponent, n_bits, i, j;
 	int	longbits, firstbit, firstbyte, shift;
 	unsigned long	bits, mask;
 	bool	int_data;
-	char	flag, *bds;
+	char	flag, *bds, *bitmap;
 	float	ref, bscale, dscale, *gp;
 	GFpds	*pds = tag->gt_grib[which].gd_pds;
 	BDShdr	*bds_hdr;
+	GFbmshdr *bms_hdr = tag->gt_grib[which].gd_bmshdr;
+/*
+ * Get the bitmap, if we have a BMS
+ */
+	bitmap = 0;
+
+	if (bms_hdr)
+	{
+	    int	id;
+	    int	bmlen;
+	/*
+	 * The BMS header has an id: 
+	 *	0 = the bitmap is here in the file,
+	 *	other = an ID for a predefined bitmap (of which we have none)
+	 */
+	    if ((id = grb_TwoByteInt (&(bms_hdr->bitmap_id))) != 0)
+		msg_ELog (EF_PROBLEM, 
+			  "grb_UnpackBDS: don't have predefined BMS %d!", id);
+	    else
+	    {
+	    /*
+	     * Calculate the length of the bitmap, allocate space, and read 
+	     * it out of the file.
+	     */
+		bmlen = grb_ThreeByteInt (&(bms_hdr->len)) - sizeof (GFbmshdr);
+		bitmap = (char *) malloc (bmlen);
+		lseek (tag->gt_fd, tag->gt_grib[which].gd_bmoffset, SEEK_SET);
+		read (tag->gt_fd, bitmap, bmlen);
+	    }
+	}
 /*
  * Allocate space for the BDS, move to the beginning of the BDS in the file 
  * and read it.  We allocate some extra space at the end of the BDS, since 
@@ -2229,11 +2365,13 @@ float	*grid;
  *
  *		1	2	3	4
  *		|	|	|	|
- *   grid point data?	| 	|    additional flags in byte 14?
- *			|	|
- *	simple packing (0)   original data were integers?
- *		or
- *	2nd order packing (1)
+ * grid point data (0)	| 	|    additional flags in byte 14?
+ *	or		|	|
+ * S.H. coeff. (1)	|   original data were integers?
+ *			|
+ *		simple packing (0)
+ *			or
+ *		2nd order packing (1)
  *
  * We only deal with grid point data, simple packing, and no additional
  * flags.
@@ -2243,6 +2381,11 @@ float	*grid;
 	{
 		msg_ELog (EF_EMERGENCY,
 			  "Can't unpack GRIB BDS with flags: %x", flag);
+
+		free (bds);
+		if (bitmap)
+		    free (bitmap);
+		
 		return;
 	}
 
@@ -2297,6 +2440,11 @@ float	*grid;
 	{
 		msg_ELog (EF_EMERGENCY, "Can't unpack GRIB data > %d bits!",
 			  longbits - 8);
+
+		free (bds);
+		if (bitmap)
+		    free (bitmap);
+		
 		return;
 	}
 
@@ -2310,6 +2458,10 @@ float	*grid;
 	{
 		for (i = 0; i < nx * ny; i++)
 			grid[i] = ref * dscale;
+
+		free (bds);
+		if (bitmap)
+		    free (bitmap);
 
 		return;
 	}
@@ -2327,6 +2479,25 @@ float	*grid;
 		for (i = 0; i < nx; i++)
 		{
 		/*
+		 * If we have a bitmap, see if this point's bit is set.  If
+		 * not, put in the bad value flag and move on.
+		 */
+		    if (bitmap)
+		    {
+			int bmbit = j * nx + i;
+			int bmbyte = bmbit / 8;
+			int havepoint;
+
+			bmbit %= 8;
+			havepoint = bitmap[bmbyte] & (1 << (7 - bmbit));
+
+			if (! havepoint)
+			{
+			    *gp++ = badval;
+			    continue;
+			}
+		    }
+		/*
 		 * Find the first bit and first byte of this point and 
 		 * calculate the shift to move our bits to the bottom of 
 		 * a long.
@@ -2334,6 +2505,9 @@ float	*grid;
 			firstbit += n_bits;
 			firstbyte = firstbit / 8;
 			shift = longbits - firstbit % 8 - n_bits;
+			if (firstbyte >= bds_len)
+			    msg_ELog (EF_PROBLEM, 
+				      "Bad GRIB unpack, reading beyond BDS!");
 		/*
 		 * Copy from the BDS into a long, starting with the first
 		 * byte with bits of interest to us.  Remember that the
@@ -2354,6 +2528,8 @@ float	*grid;
 	}
 
 	free (bds);
+	if (bitmap)
+	    free (bitmap);
 }
 
 
@@ -2381,19 +2557,21 @@ grb_ResetWind ()
 
 
 static void
-grb_UnpackWind (tag, foffset, fid, undx, vndx, grid, ginfo)
+grb_UnpackWind (tag, foffset, fid, undx, vndx, grid, ginfo, badval)
 GFTag	*tag;
 int	foffset;
 FieldId	fid;
 int	undx, vndx;
 float	*grid;
 GRB_TypeInfo	*ginfo;
+double	badval;
 /*
  * Get the u- and v-wind data from the undx'th and vndx'th grids in our
  * data file and return the "true" u- or v-wind grid in grid, which is
  * of size (nx x ny).  When possible, we return data that we've already
  * transmogrified.  Calculated winds are cached and only released if winds
- * from a different file or forecast offset are requested.
+ * from a different file or forecast offset are requested.  Insert the given
+ * badval for any missing points.
  */
 {
 	int	i, j, nx, ny;
@@ -2438,8 +2616,8 @@ GRB_TypeInfo	*ginfo;
 /*
  * Extract the grids of projection-relative u and v wind
  */
-	grb_UnpackBDS (tag, undx, ugrid, nx, ny);
-	grb_UnpackBDS (tag, vndx, vgrid, nx, ny);
+	grb_UnpackBDS (tag, undx, ugrid, nx, ny, badval);
+	grb_UnpackBDS (tag, vndx, vgrid, nx, ny, badval);
 /*
  * Grab the arrays of local angles for lines of constant lat and lon at
  * each of our grid points.
@@ -2460,17 +2638,22 @@ GRB_TypeInfo	*ginfo;
 		 * Now convert the projection-relative u and v winds into
 		 * eastward and northward wind components.
 		 */
+		    if (*u == badval || *v == badval)
+			u_true = v_true = badval;
+		    else
+		    {
 			u_true = *u * cos (*latang) + *v * sin (*latang);
 			v_true = *u * cos (*lonang) + *v * sin (*lonang);
+		    }
 
-			*u++ = u_true;
-			*v++ = v_true;
+		    *u++ = u_true;
+		    *v++ = v_true;
 		/*
 		 * Step to the next grid position in the latang and lonang
 		 * arrays.
 		 */
-			latang++;
-			lonang++;
+		    latang++;
+		    lonang++;
 		}
 	}
 /*
