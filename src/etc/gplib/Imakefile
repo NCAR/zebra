@@ -4,7 +4,8 @@
 
 LFILES = color-table contour ctr-step form-color grid interp \
 	offsets radar range raster rings simple-color simple-track \
-	station track xytrace skewt xywind location winds active-loc
+	station track xytrace skewt xywind location winds active-loc \
+	active-time time-height global
 
 DISTFILES = $(LFILES) Imakefile
 
