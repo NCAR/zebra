@@ -3,7 +3,7 @@
  * draw the text ourselves using a stroke font.  We need this so we can use 
  * rotated text.
  */
-static char *rcsid = "$Id: DrawText.c,v 2.1 1991-09-12 20:27:54 corbet Exp $";
+static char *rcsid = "$Id: DrawText.c,v 2.2 1992-01-02 17:01:14 barrett Exp $";
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -62,7 +62,7 @@ static int BlankLabel = TRUE;
 	void	DT_XTextInfo (char *, int, int, int, int *, int *, int *);
 	void	DT_TextInfo (char *, double, int, int, float *, float *, 
 			float *, float *);
-	bool	DT_HaveXFont (Widget, int);
+	bool	DT_HaveXFont (Widget, int, int *);
 # else
 	void	DT_XTextInfo (), DT_TextInfo ();
 	bool	DT_HaveXFont ();
@@ -104,6 +104,7 @@ float	rot, scale;
 {
 	int			cheight, width, hoffset, voffset, i;
 	XtWidgetGeometry	geom;
+	int			actual;
 /*
  * Get the geometry of the widget (which must have the same geometry as 
  * the drawable)
@@ -116,7 +117,8 @@ float	rot, scale;
 /*
  * Do the text with the stroke font, if necessary
  */
-	if (rot != 0.0 || ! DT_HaveXFont (w, cheight))
+	actual = cheight;
+	if (rot != 0.0 || ! DT_HaveXFont (w, cheight, &actual))
 	{
 		DT_StrokeText (w, d, gc, x, y, text, rot, scale, hjust, vjust);
 		return;
@@ -400,6 +402,7 @@ int	*sx, *sy, *ex, *ey;
 	float	cos_rot = cos (DEG_TO_RAD (rot));
 	float	sin_rot = sin (DEG_TO_RAD (rot));
 	XtWidgetGeometry	geom;
+	int	actual;
 /*
  * Get the geometry of the widget (and presumably of the Drawable)
  */
@@ -408,7 +411,7 @@ int	*sx, *sy, *ex, *ey;
  * If we can draw the text using X fonts, we treat it specially
  */
 	cheight = (int)(scale * geom.height);
-	if (rot == 0.0 && DT_HaveXFont (w, cheight))
+	if (rot == 0.0 && DT_HaveXFont (w, cheight,&actual))
 	{
 		int	hoffset, voffset, w;
 
@@ -419,7 +422,9 @@ int	*sx, *sy, *ex, *ey;
 		*sy = y + voffset;
 
 		*ex = x + hoffset + w;
-		*ey = y + voffset - cheight;
+                *ey = y + voffset - actual;
+/*              *ey = y + voffset - cheight;*/
+
 
 		return;
 	}
@@ -531,9 +536,10 @@ float	*xoffset, *yoffset, *width, *height;
 
 
 bool
-DT_HaveXFont (w, size)
+DT_HaveXFont (w, size, actual)
 Widget	w;
 int	size;
+int	*actual;
 /*
  * Do we have an X font 'size' pixels high (within about 20%)?
  */
@@ -552,6 +558,7 @@ int	size;
 	/*
 	 * Get the font names matching the desired (or default) pattern
 	 */
+		Fonts = NULL;
 		Fontnames = XListFontsWithInfo (XtDisplay (w), pattern,
 			MAXFONTS, &Nfonts, &Fonts);
 	/*
@@ -565,7 +572,10 @@ int	size;
  * return TRUE
  */
 	if (Fndx[size] >= 0)
+	{
+               *actual = Fonts[Fndx[size]].ascent + Fonts[Fndx[size]].descent;
 		return (TRUE);
+	}
 /*
  * See which one (if any) of the fonts will work best for this pixel size
  */
@@ -607,5 +617,6 @@ int	size;
  */
 	fs = XLoadQueryFont (XtDisplay (w), Fontnames[index]);
 	Fonts[index] = *fs;
+	*actual = Fonts[Fndx[size]].ascent + Fonts[Fndx[size]].descent;
 	return (TRUE);
 }
