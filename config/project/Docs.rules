@@ -1,0 +1,97 @@
+XCOMM -*- C -*-
+XCOMM
+XCOMM $Id: Docs.rules,v 1.1 1996-02-10 23:20:36 granger Exp $
+XCOMM
+XCOMM An Imake rules file for fules which generate postscript and html
+XCOMM from FrameMaker books.
+XCOMM
+
+
+/* FM2HTML = /localbin/frame/fm2html */
+FM2HTML = fm2html
+FRAMELIB = /locallib/frame
+#ifdef notdef
+TAGSFILE = $(FRAMELIB)/mif2html.tags
+PRINTFILE = $(FRAMELIB)/mif2gif.printsettings
+#endif
+LANGUAGE = US
+FMBATCH = /net/FMaker5/bin/fmbatch
+/* FMBATCH = fmbatch */
+
+DOCDIR = /net/shared/zebra/doc/4.2
+HTMLDIR = $(DOCDIR)/html/$(BOOK)
+POSTSCRIPTDIR = $(DOCDIR)/hardcopy
+
+DISTCLEANFILES = *.backup *.gif *.mif *.html *.html1 *.html2 *.ps
+
+#ifdef FrameExtension
+FMEXT = FrameExtension
+#else
+FMEXT = book
+#endif
+
+BOOKFILE = $(BOOK).$(FMEXT)
+
+/*
+ * By default, don't do anything unless given a specific target
+ */
+
+all:: $(BOOKFILE) $(CHAPTERS)
+
+/*
+ * Install PostScript files into PostScript directory
+ */
+install:: $(BOOK).ps
+	@echo Installing PostScript files into $(POSTSCRIPTDIR)
+	MakeDir($(POSTSCRIPTDIR))
+	$(CP) $(BOOK).ps $(POSTSCRIPTDIR)
+
+
+/*
+ * Install all of the hypertext files into another directory
+ */
+install:: $(BOOKFILE).html html
+	@echo Installing HTML files into $(HTMLDIR)
+	MakeDir($(HTMLDIR))
+	$(CP) *.html `ls *.gif 2>/dev/null` $(HTMLDIR)
+
+html:: $(BOOKFILE).html
+
+/*
+ * Make the HTML files for this book
+ */
+$(BOOKFILE).html:: $(BOOKFILE) $(CHAPTERS)
+	DOCUMENTLANGUAGE=$(LANGUAGE) $(FM2HTML) $(BOOKFILE)
+
+#ifdef notdef
+$(BOOK).html:: $(BOOKFILE) $(CHAPTERS)
+	FRAME2HTMLTAGSFILE=$(TAGSFILE) DOCUMENTLANGUAGE=$(LANGUAGE) \
+		FRAME2HTMLPRINTFILE=$(PRINTFILE) $(FM2HTML) $(BOOKFILE)
+#endif
+
+ps:: $(BOOK).ps
+
+$(BOOK).ps:: $(BOOKFILE) $(CHAPTERS)
+	RemoveFile($@)
+	@echo Creating $@	;\
+	 (echo "Open $(BOOKFILE)"; \
+	  echo "Update $(BOOKFILE)"; \
+	  echo "Save $(BOOKFILE)" ;\
+	  echo "Print $(BOOKFILE)" ;\
+	  echo "Quit") >> batch.$$$$ ;\
+	$(FMBATCH) < batch.$$$$ ;\
+	$(RM) batch.$$$$ ;\
+	i=0; while [ \! -f $@ ]; do \
+	  i=`expr $$i + 1`; if [ $$i -gt 6 ]; then exit 1; fi; \
+	  echo "($$i) waiting for $@ to finish printing..."; \
+	  sleep 10; \
+	done ;\
+	echo "Done."
+
+distclean::
+	$(RM) $(DISTCLEANFILES)
+
+#ifdef notdef
+clean::
+	$(RM) $(CLEANFILES)
+#endif
