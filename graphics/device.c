@@ -1,5 +1,5 @@
 /* 5/87 jc */
-/* $Id: device.c,v 1.8 1989-09-29 11:16:14 burghart Exp $ */
+/* $Id: device.c,v 1.9 1989-10-11 14:03:23 corbet Exp $ */
 /*
  * Handle device specifics.
  */
@@ -19,6 +19,7 @@ extern int gx_pl (), gx_casn (), gx_pixel (), gx_target (), gx_check ();
 extern int x11_open (), x11_clear (), x11_close (), x11_flush (), x11_noop ();
 extern int x11_poly (), x11_pick (), x11_target (), x11_casn (), x11_color ();
 extern int x11_pixel (), x11_put_target (), x11_untarget (), x11_clip ();
+extern int x11_vp (), x11_event ();
 # endif
 # ifdef DEV_XTITAN
 extern int xt_open (), xt_clear (), xt_close (), xt_flush (), xt_noop ();
@@ -193,8 +194,8 @@ struct device D_tab[] =
 # ifdef DEV_X11
 	{
 		"X11",
-		3, { "X11-700", "X700", "X500" },
-		GDF_VECTOR | GDF_TOP | GDF_DEV_COLOR | GDF_HCW,
+		3, { "X11-huge", "X700", "X500" },
+		GDF_VECTOR | GDF_TOP | GDF_DEV_COLOR | GDF_HCW | GDF_VP,
 		256,			/* x11_open will modify...	*/
 		500, 500,		/* Our resolution for now */
 		1.0,			/* Square pixels (X assumption) */
@@ -221,10 +222,10 @@ struct device D_tab[] =
 		x11_put_target,		/* Put target			*/
 		x11_untarget,		/* Remove target		*/
 		x11_casn,		/* Color assignment		*/
-		___,		/* Exposure checking		*/
-		___,		/* (no)	viewport adjustment	*/
-		___,		/* readscreen			*/
-		x11_pick,			/* (no) pick		*/
+		x11_event,		/* Exposure checking		*/
+		x11_vp,			/* viewport adjustment	*/
+		___,			/* readscreen			*/
+		x11_pick,		/* pick		*/
 	},
 # endif
 
