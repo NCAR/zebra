@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.1 1992-08-20 13:29:05 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.2 1993-06-28 07:00:20 granger Exp $"
 
 LIBS = $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
 
@@ -32,8 +32,11 @@ DISTFILES = Imakefile $(SRCS) $(HDRS) $(APPDEFAULTS) \
 	    radar_ingest.state cp4.lr.params cp4.params \
 	    cp4disk.p mhr.params mhrdisk.p
 
+/*-----------------------------------------------------------------------*/
+#if BuildRadarIngest && BuildIngest
 
-NormalProgramTargetNoInstall(radar_ingest,$(OBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
+NormalProgramTargetNoInstall(radar_ingest,
+	$(OBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
 UILoadFileTarget(radar_ingest.lf,radar_ingest.state)
 
@@ -47,8 +50,11 @@ TestProgramTarget(ds_consumer,ds_consumer.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
 NormalProgramTarget(RadarStatus,RadarStatus.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
 LintTarget()
-
 DependTarget()
+/*-----------------------------------------------------------------------*/
+#else
+OmitBuildRules(radar_ingest)
+#endif
 
 DistfilesTarget($(DISTFILES))
 

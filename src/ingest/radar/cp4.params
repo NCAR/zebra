@@ -1,0 +1,11 @@
+!
+! Parameters to read in sur scans from CP4.
+!
+set x_resolution 900
+set y_resolution 900
+set x_radar 450
+set y_radar 450
+set gmt_offset 0
+set platform "cp4"
+set minimum_sweep 50
+set pixels_per_km 6
