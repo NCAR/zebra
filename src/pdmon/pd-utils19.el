@@ -1,7 +1,7 @@
 ;;
 ;; GNU Emacs v19 utilities for dealing with plot descriptions.
 ;;
-(defvar pd::rcsid "$Id: pd-utils19.el,v 1.7 1994-04-21 16:03:11 burghart Exp $"
+(defvar pd::rcsid "$Id: pd-utils19.el,v 1.8 1997-01-25 02:31:03 burghart Exp $"
  "The RCS id")
 
 ;
@@ -397,6 +397,14 @@ so that time proceeds from right to left.")
 	 "The default frame skip (in minutes) to appear in the movie control
 widget"
 	 ( 1 . 600 ))
+
+	("x-grid"		"xygraph"	"contour"	pd::ck-int
+	 "X grid dimension for xygraph contour plots."
+	 (5 . 500))
+
+	("y-grid"		"xygraph"	"contour"	pd::ck-int
+	 "Y grid dimension for xygraph contour plots."
+	 (5 . 500))
 
 	("grid"			"cap"		"vector"	pd::ck-bool
 	 "Determines whether irregular grid data (i.e. mesonetworks) should
