@@ -2,21 +2,22 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.28 1995-05-24 22:07:36 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.29 1995-06-29 21:43:08 granger Exp $"
 
 DEPLIBS=$(LIBZEB) /*$(LIBNETCDF)*/
 /* LIBNETCDF=/net/src/netcdf-2.3.2/libsrc/libnetcdf.a */
 LIBMPROF=/dt/granger/libc_mp.a
 /* SYSLIBS= $(LIBMPROF) */
 SYSLIBS= $(LIBREGEXP) $(LIBMATH) $(LIBTERMCAP)
-LIBS=$(LIBZEB) $(LIBNETCDF) $(LIBRDSS) $(XLIBS)
-/**/#LIBGCC=/usr/local/lib/gcc-lib/sparc-sun-sunos4.1.2/2.2/libgcc.a
-/**/#LIBGCC=/locallib/gcc-lib/sparc-sun-sunos4.1/2.4.1/libgcc.a
+LIBS=$(LIBZEB) $(LIBRDSS) $(XLIBS) $(LIBNETCDF) $(LIBHDF)
 LIBGCC=/locallib/gcc-lib/sparc-sun-sunos4.1/2.4.5/libgcc.a
 CLIBS=$(LIBGCC)
 /*PROOF=/net/CenterLine/bin/proof*/
 
-DEFINES = /* -DDEBUG -DTEST_TIME_UNITS */
+INCLUDES = $(HDFINCLUDES) $(NETCDFINCLUDES)
+
+/* DEFINES = -DHDF_TEST -DHDF_INTERFACE */	/* for HDF testing */
+DEFINES = $(HDFDEFINES) /* -DDEBUG -DTEST_TIME_UNITS */
 
 #CCOPTIONS=
 #CCOPTIONS=-pipe -pg
@@ -36,10 +37,10 @@ DSSRCS= Daemon.c d_DataTables.c d_Config.c d_Scan.c d_Debug.c
  */
 DSLIBOBJS = Appl.o DataFileAccess.o DFA_GRIB.o DFA_NetCDF.o ingest.o \
 	GetList.o DFA_Boundary.o DFA_Raster.o Fields.o DFA_Zeb.o \
-	DFA_Grads.o GRIB.o d_Notify.o 
+	DFA_Grads.o GRIB.o d_Notify.o DFA_HDF.o
 DSLIBSRCS = Appl.c DataFileAccess.c DFA_GRIB.c DFA_NetCDF.c ingest.c \
 	GetList.c DFA_Boundary.c DFA_Raster.c Fields.c DFA_Zeb.c \
-	DFA_Grads.c GRIB.c d_Notify.c
+	DFA_Grads.c GRIB.c d_Notify.c DFA_HDF.c
 
 /* 
  * DCOBJS, DCSRCS =  data chunk modules 
@@ -56,12 +57,12 @@ UTILSRCS = rfdump.c zfdump.c GRIBdump.c
 /*
  * For debugging
  */
-TESTSRCS = dstest.c dctest.c nstest.c aline.c
+TESTSRCS = dstest.c dctest.c nstest.c aline.c hdflook.c
 
 /*
  * All of the sources in this directory, for the make depend.
  */
-SRCS = $(DSLIBSRCS) $(DCSRCS) $(DSSRCS) $(UTILSRCS) $(TESTSRCS)
+SRCS = $(DSLIBSRCS) $(DCSRCS) $(DSSRCS) $(UTILSRCS)
 
 PRIVATE_HEADERS = BoundaryFile.h DataChunkP.h dslib.h znfile.h \
 		  RasterFile.h commands.h dfa.h dsDaemon.h dsPrivate.h \
@@ -69,7 +70,8 @@ PRIVATE_HEADERS = BoundaryFile.h DataChunkP.h dslib.h znfile.h \
 
 HEADERS = DataStore.h DataChunk.h ingest.h fields.h ds_fields.h
 
-DISTFILES = Imakefile $(SRCS) $(PRIVATE_HEADERS) $(HEADERS) Daemon.state
+DISTFILES = Imakefile $(SRCS) $(TESTSRCS) $(PRIVATE_HEADERS) \
+            $(HEADERS) Daemon.state
 
 DMNOBJS = $(DSOBJS) $(DSLIBOBJS) $(DCOBJS)
 CompleteProgramTarget(dsDaemon, $(DMNOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
@@ -101,6 +103,8 @@ CompleteProgramTarget (GRIBdump, $(GDOBJS), $(LIBZEB), $(LIBZEB), $(LIBMATH))
  */
 NSOBJS = nstest.o $(DSLIBOBJS) $(DCOBJS)
 TestProgramTarget (nstest, $(NSOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+
+TestProgramTarget (hdflook, hdflook.o, /**/, $(LIBHDF), /**/)
 
 APOBJS = apple.o $(DSLIBOBJS) $(DCOBJS)
 TestProgramTarget (apple, $(APOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
