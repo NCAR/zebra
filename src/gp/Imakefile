@@ -1,5 +1,5 @@
 /**/# ---------------------------------------------------------------------
-/**/# $Id: Imakefile,v 1.5 1992-12-22 22:56:42 granger Exp $ 
+/**/# $Id: Imakefile,v 1.6 1993-05-03 21:44:41 burghart Exp $ 
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -55,7 +55,7 @@ SRCS =  AltControl.c AnnotWidget.c Annotate.c AxisControl.c \
 HDRS =  AxisControl.h Contour.h DrawText.h EventQueue.h GC.h GraphProc.h \
 	GraphicsW.h GraphicsWP.h LLEvent.h Label.h LabelP.h \
 	LayoutControl.h PixelCoord.h XYCommon.h derive.h getpagesize.h \
-	gp_cmds.h rg_status.h rgrid.h
+	gp_cmds.h rg_status.h rgrid.h xdr_infinity.h
 
 FSRCS = cfit.F mudras.f rgrid.F bints.f
 
