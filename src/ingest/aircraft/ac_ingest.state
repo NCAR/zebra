@@ -36,23 +36,6 @@ set ui$initial_state "initial"
 
 procedure ui$init
 !
-! Set up parameters for testing.
-!
-	set black_box	"/dev/cua0"
-	set dial_out	"atdt 3058873507"
-	set baud_rate	2400
-	set range_res	0.125
-	set azimuth_res	0.0875
-	set radar_lat		39.95
-	set radar_lon		-105.19
-	set alt_min	0.0
-	set alt_max	25.0
-	set lat_min	23.0
-	set lat_max	35.0
-	set lon_min	-85.0
-	set lon_max	-75.0
-	set our_aircraft "n312d,5034,n2uw,5035,n42rf,5053,n431na,5054,n4706b,5055,n566na,5056,n709na,5036,n510mh,5037,n9929j,5040"
-!
 ! If there was a command file specified, we just read it and go
 ! straight into run mode.  Otherwise we expect to be interactive.
 !
