@@ -31,7 +31,7 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_MetData.c,v 3.13 1995-06-08 21:26:57 burghart Exp $")
+MAKE_RCSID ("$Id: dc_MetData.c,v 3.14 1995-06-09 16:49:15 granger Exp $")
 
 # define SUPERCLASS DCC_Transparent
 
@@ -1042,7 +1042,7 @@ DataChunk *dc;
 		return (DefaultBadval);
 	return (finfo->fi_Badval);
 #else
-	return (0);
+	return (DefaultBadval);
 #endif /* SUPPORT_BADVALUES */
 }
 
