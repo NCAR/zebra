@@ -1,7 +1,7 @@
 /*
  * The structures defining a boundary file.
  */
-/* $Id: BoundaryFile.h,v 2.1 1991-09-26 22:37:48 gracio Exp $ */
+/* $Id: BoundaryFile.h,v 2.2 1993-07-01 20:12:35 granger Exp $ */
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -31,8 +31,8 @@ struct BFHeader
 	int	bh_Magic;		/* Magic ID == BH_MAGIC		*/
 	char	bh_Platform[MAXBFPLAT];	/* The platform stored here	*/
 	int	bh_MaxBoundary;		/* Max samples/platform		*/
-	time	bh_Begin;		/* Earliest time in file	*/
-	time	bh_End;			/* Latest time in file		*/
+	UItime	bh_Begin;		/* Earliest time in file	*/
+	UItime	bh_End;			/* Latest time in file		*/
 	int	bh_NBoundary;		/* How many boundaries now?	*/
 };
 
@@ -43,7 +43,7 @@ struct BFHeader
 struct BFBTable
 {
 	int	bt_NPoint;		/* How many points 		*/
-	time	bt_Time;		/* When is this boundary?	*/
+	UItime	bt_Time;		/* When is this boundary?	*/
 	int	bt_Offset;		/* Where first point is in file */
 };
 

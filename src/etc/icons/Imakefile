@@ -1,11 +1,17 @@
 /*
- * Imakefile for the ETC directory.
+ * Imakefile for the etc/icons directory.
  */
 
 /*
  * Hell if I'm going to type in all of those damn icon names.
  */
 
+all::
+
 install::
 	MakeDir ($(LIBDIR)/icons)
-	cp [a-z]* $(LIBDIR)/icons
+	$(CP) [a-z]* $(LIBDIR)/icons
+
+DISTFILES = Imakefile [a-z]*
+
+DistfilesTarget($(DISTFILES))

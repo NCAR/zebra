@@ -1,7 +1,7 @@
 /*
  * Ingest scheduler
  */
-static char    *rcsid = "$Id: is.c,v 1.15 1992-09-30 22:20:52 burghart Exp $";
+static char    *rcsid = "$Id: is.c,v 1.16 1993-07-01 20:15:24 granger Exp $";
 
 /*
  * Copyright (C) 1987,88,89,90,91 by UCAR University Corporation for
@@ -1157,7 +1157,7 @@ cfg_done(cfg)
 
 void
 timed_check(t, cfg)
-	time           *t;
+	UItime           *t;
 	struct is_config *cfg;
 {
 	/*

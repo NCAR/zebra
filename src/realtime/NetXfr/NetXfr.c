@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: NetXfr.c,v 3.2 1992-07-08 19:14:26 kris Exp $";
+static char *rcsid = "$Id: NetXfr.c,v 3.3 1993-07-01 20:17:18 granger Exp $";
 
 # include <copyright.h>
 # include <defs.h>
@@ -144,7 +144,7 @@ static void	FinishIP FP ((InProgress *));
 static void	UnknownBCast FP ((DataBCChunk *, int));
 static void	FindQueued FP ((int));
 static void	ZapIP FP ((InProgress *));
-static void	Timeout FP ((time *, int));
+static void	Timeout FP ((UItime *, int));
 static void	AskRetrans FP ((InProgress *, int));
 void		ProcessPolled FP ((void));
 static void	RLEDecode FP ((unsigned char *, unsigned char *, int));
@@ -1226,7 +1226,7 @@ DataDone *done;
 
 static void
 Timeout (t, seq)
-time *t;
+UItime *t;
 int seq;
 /*
  * This is the retransmit timeout routine.

@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: nx_DirImage.c,v 3.1 1992-05-27 17:24:03 corbet Exp $";
+static char *rcsid = "$Id: nx_DirImage.c,v 3.2 1993-07-01 20:17:23 granger Exp $";
 
 
 # include <defs.h>
@@ -92,7 +92,7 @@ int set;
 {
 	RGrid rg;
 	Location loc;
-	time t;
+	UItime t;
 	ZebTime zt;
 	ScaleInfo scale[2];
 	char *images[4], *attr;

@@ -7,4 +7,10 @@ MAPS = cape.map cape_aircraft.map cape_ddop.map cape_llpnet.map \
 	harp.map nowrad.map raps_now_region.map stormfest.map \
 	stormfest_lobes.map trmm.map wisp.map wisp91.map
 
+DISTFILES = Imakefile $(MAPS)
+
+all::
+
 InstallLibFile ($(MAPS),.,.)
+
+DistfilesTarget($(DISTFILES))

@@ -22,9 +22,11 @@ Makefile::  imake
 
 SimpleProgramTarget(imake)
 
+#ifdef notdef				/* removed for Zeb distribution */
 BuildIncludes($(HEADERS),config,..)
 
 InstallMultipleDestFlags(install,$(CFFILES),$(CONFIGDIR),$(INSTDATFLAGS))
+#endif
 
 depend::
 

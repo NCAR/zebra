@@ -3,6 +3,9 @@ SRCS = mtap.c
 OBJS = mtap.o
 
 LIBS = $(LIBZEB) $(LIBRDSS)
-
+DISTFILES = $(SRCS) Imakefile
 
 NormalProgramTarget(mtap, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+DistfilesTarget($(DISTFILES))
+DependTarget()
+LintTarget()

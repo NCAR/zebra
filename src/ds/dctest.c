@@ -48,7 +48,7 @@ BndTest ()
 {
 	DataChunk *dc;
 	int i;
-	static time t = {911114, 123456 };
+	static UItime t = {911114, 123456 };
 
 	dc = dc_CreateDC (DCC_Boundary);
 	dc->dc_Platform = 20;
@@ -92,7 +92,7 @@ MDTest ()
 	DataChunk *dc;
 	const int fsize = 100;
 	int f;
-	static time t = {911114, 123456 };
+	static UItime t = {911114, 123456 };
 	static FieldId flds[5] = { 10, 20, 30, 40, 50 };
 	static char dbuf[100];
 
@@ -119,7 +119,7 @@ MDTest ()
 
 SCTest ()
 {
-	static time t = {911114, 120000 };
+	static UItime t = {911114, 120000 };
 	static FieldId flds[5] = { 10, 20, 30, 40, 50 };
 	int i;
 	DataChunk *dc = dc_CreateDC (DCC_Scalar);
@@ -159,7 +159,7 @@ IRTest ()
 {
 	DataChunk *dc;
 	int f;
-	static time t = {911114, 123456 };
+	static UItime t = {911114, 123456 };
 	static FieldId flds[5] = { 10, 20, 30, 40, 50 };
 	static PlatformId plats[4] = { 5, 6, 7, 8 };
 	float fbuf[4], *data;
@@ -193,8 +193,8 @@ CvtTest ()
 	DataChunk *dc;
 	PlatformId pid;
 	static char *fields[] = { "tdry" };
-	static time begin = { 910802, 183000 };
-	static time end = { 910802, 183500 };
+	static UItime begin = { 910802, 183000 };
+	static UItime end = { 910802, 183500 };
 	DataChunk *ConvertDObj ();
 
 /*

@@ -1,7 +1,6 @@
 /*
  * Imakefile for the network transfer daemon
  */
-# undef DataDir
 
 SRCS = NetXfr.c nx_BCast.c nx_DirImage.c nx_PktGrabber.c
 OBJS = NetXfr.o nx_BCast.o nx_DirImage.o nx_PktGrabber.o
@@ -10,12 +9,19 @@ HEADERS = NetXfr.h
 
 LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
 
+DISTFILES = $(SRCS) $(HEADERS) Imakefile NetXfr.state
 
-/*
- * Now we can get around to the real stuff.
- */
- 
+/*------------------------------------------------------------------------*/
+#if BuildRealtimeDataStoreTools
+
 NormalProgramTarget(NetXfr, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
-UILoadFileTarget (NetXfr.lf, NetXfr.state)
+UILoadFileTarget(NetXfr.lf, NetXfr.state)
+DependTarget()
+LintTarget()
 
-DependTarget ()
+/*------------------------------------------------------------------------*/
+#else
+OmitBuildRules(NetXfr)
+#endif
+
+DistfilesTarget($(DISTFILES))

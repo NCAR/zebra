@@ -1,7 +1,7 @@
 /*
  * Routines common to XY-Type plots
  */
-static char *rcsid = "$Id: XYCommon.c,v 1.12 1993-05-03 21:40:54 burghart Exp $";
+static char *rcsid = "$Id: XYCommon.c,v 1.13 1993-07-01 20:14:46 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -41,7 +41,7 @@ static char *rcsid = "$Id: XYCommon.c,v 1.12 1993-05-03 21:40:54 burghart Exp $"
 /*
  * Our routines.
  */
-void	xy_Init FP ((time *));
+void	xy_Init FP ((UItime *));
 void	xy_GetScaleInfo FP ((plot_description, char *, int, short *));
 void	xy_SetScaleBounds FP ((plot_description, char *, int, int, DataValPtr,
 		DataValPtr));
@@ -51,7 +51,7 @@ void	xy_GetCurrentScaleBounds FP ((plot_description, char *, int, int,
 
 void
 xy_Init (t)
-time *t;
+UItime *t;
 /*
  * CAP Plot initialization.
  */

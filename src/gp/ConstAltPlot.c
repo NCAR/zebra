@@ -39,7 +39,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.30 1993-06-04 20:23:34 burghart Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.31 1993-07-01 20:14:17 granger Exp $")
 
 
 /*
@@ -140,7 +140,7 @@ static void 	CAP_SpFilter FP ((float *, float *, float *, StInfo *, int,
 
 void
 CAP_Init (t)
-time *t;
+UItime *t;
 /*
  * CAP Plot initialization.
  */

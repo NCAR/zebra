@@ -22,7 +22,7 @@
 
 typedef struct _RadarInfo
 {
-	time ri_last;
+	UItime ri_last;
 	float ri_az, ri_el, ri_fixed;
 	int ri_mode;		/* Scan mode		*/
 } RadarInfo;

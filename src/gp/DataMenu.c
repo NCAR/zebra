@@ -31,7 +31,7 @@
 # include <DataStore.h>
 # include <ui_date.h>
 # include "GraphProc.h"
-MAKE_RCSID ("$Id: DataMenu.c,v 2.8 1992-05-27 16:40:26 kris Exp $")
+MAKE_RCSID ("$Id: DataMenu.c,v 2.9 1993-07-01 20:14:20 granger Exp $")
 
 
 /*
@@ -117,7 +117,7 @@ XtPointer xwhich, junk;
 	int which = (int) xwhich;
 	char cbuf[200];
 	char *qual;
-	time uitime;
+	UItime uitime;
 /*
  * Here we just put together the command and go.  Start by searching for
  * a command to execute.
@@ -161,7 +161,7 @@ XtPointer junk, junk1;
 	int nentry, i;
 	Arg args[2];
 	char string[80];
-	time uitime;
+	UItime uitime;
 /*
  * Get the platforms set.
  */

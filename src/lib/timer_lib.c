@@ -19,11 +19,10 @@
  * maintenance or updates for its software.
  */
 
-# include "../include/defs.h"
+# include "defs.h"
 # include "timer.h"
-# include "../include/message.h"
-MAKE_RCSID ("$Id: timer_lib.c,v 2.4 1992-08-28 21:03:25 barrett Exp $");
-
+# include "message.h"
+MAKE_RCSID ("$Id: timer_lib.c,v 2.5 1993-07-01 20:16:44 granger Exp $");
 
 typedef enum { Empty = 0, Active, Cancelled } sstatus;
 
@@ -437,7 +436,7 @@ ZebTime *t;
 
 void
 tl_GetTime (t)
-time *t;
+UItime *t;
 /*
  * Return the current time in t.
  */
@@ -514,7 +513,7 @@ int
 tl_AddAbsoluteEvent (func, param, when, incr)
 void (*func) ();
 void *param;
-time *when;
+UItime *when;
 int incr;
 /*
  * Add an absolute timer event.

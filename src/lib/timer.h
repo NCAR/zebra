@@ -1,4 +1,4 @@
-/* $Id: timer.h,v 2.3 1991-12-27 17:18:07 corbet Exp $ */
+/* $Id: timer.h,v 2.4 1993-07-01 20:16:42 granger Exp $ */
 /*
  * Timer module protocol requests and responses.
  */
@@ -152,6 +152,6 @@ int tl_RelativeReq FP ((void (*func) (), void *, int, int));
 int tl_AbsoluteReq FP ((void (*func) (), void *, ZebTime *, int));
 
 /* The following preserve the old interface for compatibility */
-void tl_GetTime FP ((time *));
+void tl_GetTime FP ((UItime *));
 int tl_AddRelativeEvent FP ((void (*func) (), void *, int, int));
-int tl_AddAbsoluteEvent FP ((void (*func) (), void *, time *, int));
+int tl_AddAbsoluteEvent FP ((void (*func) (), void *, UItime *, int));

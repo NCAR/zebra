@@ -1,7 +1,7 @@
 /*
  * Color table routines.
  */
-static char *rcsid = "$Id: dm_color.c,v 2.2 1991-10-24 20:31:39 corbet Exp $";
+static char *rcsid = "$Id: dm_color.c,v 2.3 1993-07-01 20:12:30 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -23,7 +23,7 @@ static char *rcsid = "$Id: dm_color.c,v 2.2 1991-10-24 20:31:39 corbet Exp $";
 # include <X11/Xlib.h>
 # include <ui.h>
 # include <ui_error.h>
-# include "../include/defs.h"
+# include "defs.h"
 # include "dm_cmds.h"
 # include "dm_vars.h"
 
@@ -51,14 +51,27 @@ typedef struct color_table
 # ifdef __STDC__
 	static CTable *dc_LookupTable (char *);
 	static int dc_InTable (CTable *, struct ui_command *);
-	static unsigned short dc_ColorValue (double);
 	static void dm_TRNak (struct dm_ctr *, char *);
 # else
 	static CTable *dc_LookupTable ();
 	static int dc_InTable ();
-	static unsigned short dc_ColorValue ();
 	static void dm_TRNak ();
 # endif
+
+
+
+
+static inline unsigned short
+dc_ColorValue (v)
+float v;
+/*
+ * Turn a floating point color value into something that X can deal with.
+ */
+{
+	if (v < 0.0 || v > 1.0)
+		ui_error ("Color value %.2f out of range 0 to 1", v);
+	return ((unsigned short) (v * 65535.0));
+}
 
 
 
@@ -165,21 +178,6 @@ struct ui_command *cmds;
 	return (TRUE);
 }
 
-
-
-
-
-static inline unsigned short
-dc_ColorValue (v)
-float v;
-/*
- * Turn a floating point color value into something that X can deal with.
- */
-{
-	if (v < 0.0 || v > 1.0)
-		ui_error ("Color value %.2f out of range 0 to 1", v);
-	return ((unsigned short) (v * 65535.0));
-}
 
 
 

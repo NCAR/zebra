@@ -26,7 +26,7 @@
 /* # include "dsPrivate.h" */
 /* # include "dslib.h" */
 
-MAKE_RCSID ("$Id: dsdump.c,v 3.7 1993-04-26 16:00:50 corbet Exp $")
+MAKE_RCSID ("$Id: dsdump.c,v 3.8 1993-07-01 20:13:08 granger Exp $")
 
 
 msg_handler ()
@@ -42,7 +42,7 @@ char **argv;
 	int i, pid, np, nplat;
 	static char *field = "velocity";
 	ZebTime begin, end, ts[5];
-	time kludge;
+	UItime kludge;
 	Location locs[5];
 	char atime[40];
 	PlatformInfo pi;

@@ -27,14 +27,15 @@
 # include <ui_symbol.h>
 # include <ui_date.h>
 
-# include "../include/defs.h"
-# include "../include/message.h"
-# include "../include/dm.h"
-# include "../include/GraphicsW.h"
-# include "../include/copyright.h"
+# include "defs.h"
+# include "message.h"
+# include "dm.h"
+# include "GraphicsW.h"
+# include "copyright.h"
 # include "timer.h"
-# include "../include/pd.h"
-MAKE_RCSID ("$Id: fccclock.c,v 2.3 1991-12-27 17:17:51 corbet Exp $");
+# include "pd.h"
+MAKE_RCSID ("$Id: fccclock.c,v 2.4 1993-07-01 20:13:54 granger Exp $");
+
 /*
  * Default resources.
  */
@@ -398,7 +399,7 @@ StartUpdate ()
  * Start Updating the time.
  */
 {
-	time t;
+	UItime t;
 /*
  * Cancel everything just to be sure.
  */

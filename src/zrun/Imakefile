@@ -4,7 +4,10 @@ OBJS = zrun.o
 
 LIBS = $(LIBZEB) $(LIBRDSS)
 
+DISTFILES = Imakefile $(SRCS)
 
 NormalProgramTarget(zrun, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 
-DependTarget ()
+DependTarget()
+LintTarget()
+DistfilesTarget($(DISTFILES))

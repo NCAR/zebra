@@ -6,8 +6,9 @@ SRCS = dsrescan.c
 OBJS = dsrescan.o
 
 LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF)
-
+DISTFILES = $(SRCS) Imakefile
 
 NormalProgramTarget(dsrescan, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
-
-DependTarget ()
+DistfilesTarget($(DISTFILES))
+DependTarget()
+LintTarget()

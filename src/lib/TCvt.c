@@ -22,7 +22,7 @@
 # include "defs.h"
 # include <sys/types.h>
 # include <sys/time.h>
-MAKE_RCSID ("$Id: TCvt.c,v 2.6 1992-06-22 22:07:22 kris Exp $");
+MAKE_RCSID ("$Id: TCvt.c,v 2.7 1993-07-01 20:16:37 granger Exp $");
 
 
 /*
@@ -39,7 +39,7 @@ static char *Months[] =
 void
 TC_SysToFcc (sys, fcc)
 long sys;
-time *fcc;
+UItime *fcc;
 /*
  * Convert a system time to an fcc time.
  */
@@ -56,7 +56,7 @@ time *fcc;
 
 long
 TC_FccToSys (fcc)
-time *fcc;
+UItime *fcc;
 /*
  * Convert an FCC time into a system time.
  */
@@ -110,7 +110,7 @@ ZebTime *zt;
 void
 TC_ZtToUI (zt, ui)
 const ZebTime *zt;
-date *ui;
+UItime *ui;
 /*
  * Convert a system time to an fcc time.
  */
@@ -127,7 +127,7 @@ date *ui;
 
 void
 TC_UIToZt (ui, zt)
-const date *ui;
+const UItime *ui;
 ZebTime *zt;
 /*
  * Convert an FCC time into a system time.

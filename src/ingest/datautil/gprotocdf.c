@@ -26,7 +26,7 @@
 # include <stdio.h>
 # include <netcdf.h>
 # include "defs.h"
-MAKE_RCSID ("$Id: gprotocdf.c,v 1.11 1992-12-18 12:40:12 granger Exp $")
+MAKE_RCSID ("$Id: gprotocdf.c,v 1.12 1993-07-01 20:12:11 granger Exp $")
 
 /*
  * Netcdf stuff.
@@ -97,7 +97,7 @@ int DTime;		/* The time (unlimited) dimension	*/
 int VTime;		/* The time offset variable		*/
 int VBTime;		/* The base time variable		*/
 int NFile;		/* id for the netCDF file		*/
-int NOut = 0;		/* Output record index			*/
+long NOut = 0;		/* Output record index			*/
 
 /*
  * Local Genpro stuff.
@@ -109,7 +109,7 @@ int Gp_fd;		/* The genpro file FD			*/
 int Gp_lrlen;		/* Logical Record length;		*/
 int Gp_prlen;		/* Physical Record length;		*/
 int Gp_lperp;		/* Logical per physical record		*/
-time Gp_Begin;		/* Begin time				*/
+UItime Gp_Begin;	/* Begin time				*/
 long Gp_Base;		/* Begin time as unix value		*/
 
 int Time_off = 0;	/* The time offset to use		*/
@@ -782,7 +782,7 @@ Plow ()
  */
 {
 	int *ip, i;
-	time tv;
+	UItime tv;
 	float toff, data;
 	static int nplow = 0;
 	ZebTime	zt, last_zt;

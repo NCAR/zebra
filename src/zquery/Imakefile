@@ -4,7 +4,10 @@ OBJS = zquery.o
 
 LIBS = $(LIBZEB) $(LIBRDSS)
 
+DISTFILES = Imakefile $(SRCS)
 
 NormalProgramTarget(zquery, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 
-DependTarget ()
+DependTarget()
+LintTarget()
+DistfilesTarget($(DISTFILES))

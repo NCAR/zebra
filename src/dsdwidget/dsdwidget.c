@@ -20,7 +20,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: dsdwidget.c,v 1.12 1993-04-26 16:00:50 corbet Exp $";
+static char *rcsid = "$Id: dsdwidget.c,v 1.13 1993-07-01 20:13:15 granger Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -423,7 +423,7 @@ AddPlatforms ()
 {
 	int i, nplat = 0, np;
 	PlatformInfo pi;
-	time begin, end;
+	UItime begin, end;
 
 	np = ds_GetNPlat ();
 	for (i = 0; i < np; i++)

@@ -1,7 +1,7 @@
 /*
  * Translate MUDRAS files to netcdf.
  */
-static char *rcsid = "$Id: mudtocdf.c,v 1.1 1991-12-19 22:30:49 kris Exp $";
+static char *rcsid = "$Id: mudtocdf.c,v 1.2 1993-07-01 20:12:14 granger Exp $";
 
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
@@ -68,7 +68,8 @@ char **argv;
 {
 	char *cdfname, *malloc (), *tmp;
 	char junk[10];
-	int print = -1, status, i, btime, level, nx, ny, toff = 60000;
+	int print = -1, status, btime, level, nx, ny, toff = 60000;
+	long i;
 	float *grid, lat, lon, zero = 0, alt;
 /*
  * Deal with file names.
@@ -264,7 +265,8 @@ char *tmp;
  * Move this data.
  */
 {
-	int start[4], count[4], status, nid = 510, axis = 3;
+	long start[4], count[4];
+	int status, nid = 510, axis = 3;
 	float bf = BADVAL;
 /*
  * Pull the data from the mudras file.

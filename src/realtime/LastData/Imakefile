@@ -1,19 +1,26 @@
 /*
  * Imakefile for the last data displayer.
  */
-# undef DataDir
 
 SRCS = LastData.c
 OBJS = LastData.o
 
 LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
 
+APPDEFAULTS = LastData.ad
 
-/*
- * Now we can get around to the real stuff.
- */
- 
+DISTFILES = $(SRCS) $(APPDEFAULTS) Imakefile
+
+/*------------------------------------------------------------------------*/
+#if BuildRealtimeDataStoreTools
+
 NormalProgramTarget(LastData, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
-InstallAppDefaults (LastData)
+InstallAppDefaults(LastData)
+DependTarget()
 
-DependTarget ()
+/*------------------------------------------------------------------------*/
+#else
+OmitBuildRules(LastData)
+#endif
+
+DistfilesTarget($(DISTFILES))

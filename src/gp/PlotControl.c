@@ -1,7 +1,7 @@
 /*
  * Window plot control routines.
  */
-static char *rcsid = "$Id: PlotControl.c,v 2.18 1993-06-24 20:36:17 barrett Exp $";
+static char *rcsid = "$Id: PlotControl.c,v 2.19 1993-07-01 20:14:37 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -37,11 +37,11 @@ static char *rcsid = "$Id: PlotControl.c,v 2.18 1993-06-24 20:36:17 barrett Exp 
 int		pc_TimeTrigger FP ((char *));
 void		pc_TriggerGlobal FP (());
 static void	pc_SetTimeTrigger FP ((int, char *));
-static void	pc_PlotAlarm FP ((time *, char *));
+static void	pc_PlotAlarm FP ((UItime *, char *));
 static void	pc_FrameAlarm FP (());
 static void	pc_Plot FP ((char *));
 static void	pc_NextFrame FP (());
-static void	pc_Notification FP ((PlatformId, int, time *));
+static void	pc_Notification FP ((PlatformId, int, UItime *));
 static void	pc_DoTrigger FP ((char *, char *, int));
 
 
@@ -384,7 +384,7 @@ char *param;
  */
 {
 	int ns;
-	time t;
+	UItime t;
 /*
  * Get the current time, and pull out the seconds portion.
  */
@@ -421,7 +421,7 @@ char *param;
 
 static void
 pc_PlotAlarm (t, comp)
-time *t;
+UItime *t;
 char *comp;
 /*
  * Deal with a timer alarm.
@@ -440,7 +440,7 @@ static void
 pc_Notification (pid, index, t)
 PlatformId pid;
 int index;
-time *t;
+UItime *t;
 /*
  * A data available notification has arrived.  Only do global updates for
  * the moment, until we decide how we're passing the component through

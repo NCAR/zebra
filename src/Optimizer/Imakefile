@@ -1,4 +1,4 @@
-/* $Id: Imakefile,v 1.2 1993-05-14 21:33:08 corbet Exp $ */
+/* $Id: Imakefile,v 1.3 1993-07-01 20:11:56 granger Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -31,6 +31,9 @@ OTHERS = cape cinde config_format.doc Optimizer.ad
 
 DISTFILES = Imakefile $(SRCS) $(HEADERS) Optimizer.state $(OTHERS)
 
+/*------------------------------------------------------------------------*/
+#if BuildOptimizer
+
 NormalProgramTarget(Optimizer, $(OBJS), $(DEPLIBS),
 		    $(LIBS), $(SYSLIBS))
 
@@ -57,6 +60,10 @@ UICppLoadFileTarget(Optimizer.lf,Optimizer.state,keywords.h)
 DependTarget()
 
 LintTarget()
+/*------------------------------------------------------------------------*/
+#else
+OmitBuildRules(Optimizer)
+#endif
 
 DistfilesTarget($(DISTFILES))
 

@@ -3,11 +3,14 @@
  */
 # undef DataDir
 
+TISRCS = TapeIndex.cc
 SRCS = dsmanage.cc dsmWindows.cc DataDir.cc Index.cc MainWindow.cc Dialog.cc \
-	LoadData.cc StatusWin.cc DLoad.cc Tape.cc TBCleanup.cc
+	LoadData.cc StatusWin.cc DLoad.cc Tape.cc TBCleanup.cc $(TISRCS) \
+	Examiner.cc
 
 HEADERS = DataDir.h Dialog.h Index.h STable.h StatusWin.h Tape.h ZTime.h \
-	container.h dsmWindows.h dsmanage.h
+	fcontainer.h plcontainer.h container.h dsmWindows.h dsmanage.h \
+	Exceptions.h dsPlatform.h
 
 DSMLIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS) $(C++LIBS)
 TILIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(C++LIBS)
@@ -16,12 +19,21 @@ OBJS = dsmanage.o dsmWindows.o DataDir.o Index.o MainWindow.o Dialog.o \
 	LoadData.o StatusWin.o DLoad.o Tape.o TBCleanup.o
 TIOBJS = TapeIndex.o Index.o Tape.o
 
-DISTFILES = $(SRCS) $(HEADERS) Imakefile
+APPDEFAULTS = dsmanage.ad
+
+DISTFILES = $(SRCS) $(HEADERS) $(APPDEFAULTS) Imakefile
+
+/*------------------------------------------------------------------------*/
+#if BuildDataManager
 
 CccProgramTarget (tapeindex,$(TIOBJS),$(DEPLIBS),$(TILIBS),/**/)
 CccProgramTarget (dsmanage,$(OBJS),$(DEPLIBS),$(DSMLIBS),/**/)
 
 InstallAppDefaults(dsmanage)
+/*------------------------------------------------------------------------*/
+#else
+OmitBuildRules(DataStore Manager)
+#endif
 
 DistfilesTarget($(DISTFILES))
 

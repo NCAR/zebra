@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.1 1992-08-20 13:28:56 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.2 1993-07-01 20:15:00 granger Exp $"
 
 LIBS = $(LIBZEB) $(LIBRDSS) $(LIBNETCDF)
 
@@ -26,14 +26,20 @@ HEADERS = SLGrabber.h
 
 DISTFILES = Imakefile $(SRCS) $(HEADERS)
 
+/*-----------------------------------------------------------------------*/
+#if BuildSLGrabber && BuildIngest
+
 NormalProgramTargetNoInstall(SLGrabber,$(OBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
 InstallProgramWithFlags(SLGrabber,$(BINDIR),-s)
 
 BuildIncludes($(HEADERS),.,.)
 
 DependTarget()
-
 LintTarget()
+/*-----------------------------------------------------------------------*/
+#else
+OmitBuildRules(SLGrabber)
+#endif
 
 DistfilesTarget($(DISTFILES))
 

@@ -4,4 +4,10 @@
 
 AFILES = chord.au click.au ding.au flush.au hallelujah.au intercom.au
 
+DISTFILES = Imakefile $(AFILES)
+
+all::
+
 InstallLibFile ($(AFILES),audio,..)
+
+DistfilesTarget($(DISTFILES))

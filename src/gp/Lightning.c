@@ -1,7 +1,7 @@
 /*
  * Locaton display routine.
  */
-static char *rcsid = "$Id: Lightning.c,v 2.6 1992-07-02 15:44:42 kris Exp $";
+static char *rcsid = "$Id: Lightning.c,v 2.7 1993-07-01 20:14:27 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -52,7 +52,7 @@ bool update;
 	char	tadefcolor[30], data[100], temp[50], iconname[40];
 	int	period, dsperiod, x, y, numcolor, pid, istep;
 	int	i, index, nsamp, showicon;
-	time	t;
+	UItime	t;
 	ZebTime	begin;
 	float	fx, fy, sascale;
 	XColor	*colors, tadefclr;

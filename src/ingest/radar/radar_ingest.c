@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: radar_ingest.c,v 2.5 1992-07-31 16:54:31 corbet Exp $";
+static char *rcsid = "$Id: radar_ingest.c,v 2.6 1993-07-01 20:16:08 granger Exp $";
 
 # include <copyright.h>
 # include <errno.h>
@@ -432,7 +432,7 @@ Go ()
 
 void
 OutputSweep (bt, alt, newvol, left, right, up, down, mode)
-time *bt;
+UItime *bt;
 float alt;
 int newvol, left, right, up, down, mode;
 /*
@@ -443,7 +443,7 @@ int newvol, left, right, up, down, mode;
 	int i;
 	RGrid rg;
 	Location loc;
-	time t;
+	UItime t;
 	char attr[100];
 /*
  * MHR filtering.

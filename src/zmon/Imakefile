@@ -4,7 +4,10 @@ OBJS = zmon.o
 
 LIBS = $(LIBZEB) $(LIBRDSS) $(XLIBS)
 
+DISTFILES = Imakefile $(SRCS)
 
 NormalProgramTarget(zmon, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 
-DependTarget ()
+DependTarget()
+LintTarget()
+DistfilesTarget($(DISTFILES))

@@ -6,14 +6,14 @@
 # include <fcntl.h>
 # include <unistd.h>
 
-# include "../include/defs.h"
-# include "../include/message.h"
+# include "defs.h"
+# include "message.h"
 # include "dfa.h"
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dslib.h"
 # include "RasterFile.h"
-MAKE_RCSID ("$Id: DFA_Raster.c,v 3.5 1993-04-26 16:00:50 corbet Exp $")
+MAKE_RCSID ("$Id: DFA_Raster.c,v 3.6 1993-07-01 20:12:47 granger Exp $")
 
 
 
@@ -273,7 +273,7 @@ ZebTime *t;
  * Generate a file name.
  */
 {
-	time ut;
+	UItime ut;
 	
 	TC_ZtToUI (t, &ut);
 	sprintf (dest, "%s.%06d.%06d.rf", name, ut.ds_yymmdd, ut.ds_hhmmss);
@@ -743,7 +743,7 @@ const ZebTime * const zbegin;
 {
 	int offset;
 	RFToc *toc = tag->rt_toc;
-	time begin;
+	UItime begin;
 /*
  * Yet another dumb sequential search loop.
  */

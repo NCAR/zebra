@@ -3,7 +3,7 @@
  */
 #ifndef lint
 static char *rcsid = 
-	"$Id: Overlay.c,v 2.22 1993-05-27 10:51:58 granger Exp $";
+	"$Id: Overlay.c,v 2.23 1993-07-01 20:14:34 granger Exp $";
 #endif
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -115,7 +115,7 @@ typedef struct feature
 	float		f_radius;		/* Circle radius	*/
 	char		f_string[MAXFSTRING];	/* Text string		*/
 	float		f_size;			/* Text size		*/
-	time		f_when;			/* Time			*/
+	UItime		f_when;			/* Time			*/
 	struct feature	*f_next;		/* Next in chain	*/
 } Feature;
 
@@ -289,7 +289,7 @@ bool update;
 	PlatformId pid;
 	Location loc;
 	DataChunk *dc;
-	time	t;
+	UItime	t;
 	ZebTime zt;
 	FieldId fieldlist[2];
 /*
@@ -599,7 +599,7 @@ bool update;
 	struct FList *fl;
 	union usy_value v;
 	Feature *last, *fp;
-	time temptime;
+	UItime temptime;
 /*
  * Find our "platform".  (Really the name of the feature of interest).
  */

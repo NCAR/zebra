@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-/* $Id: radar_ingest.h,v 2.2 1992-07-31 16:54:31 corbet Exp $ */
+/* $Id: radar_ingest.h,v 2.3 1993-07-01 20:16:11 granger Exp $ */
 
 
 /*
@@ -111,7 +111,7 @@ extern bool Project;
 	void 	SetupInput (void);
 	Beam 	GetBeam (void);
 	void	Rasterize (Beam, RDest *, int);
-	void	OutputSweep (time *, double, int, int, int, int, int, int);
+	void	OutputSweep (UItime *, double, int, int, int, int, int, int);
 # else
 # 	define const
 	void 	SetupInput ();

@@ -25,7 +25,7 @@
 # include <defs.h>
 # include "mudutil.h"
 
-MAKE_RCSID ("$Id: mudutil.c,v 1.2 1993-05-10 18:10:15 burghart Exp $");
+MAKE_RCSID ("$Id: mudutil.c,v 1.3 1993-07-01 20:12:16 granger Exp $");
 
 
 /*
@@ -127,7 +127,7 @@ static bool	Cray_mudras = TRUE;
 
 MudOpen (file, t, origin, xi, yi, zi, nfld)
 char *file;
-time *t;
+UItime *t;
 Location *origin;
 CoordInfo *xi, *yi, *zi;
 int *nfld;

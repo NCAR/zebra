@@ -3,6 +3,9 @@ SRCS = Sound.c
 OBJS = Sound.o
 
 LIBS = $(LIBZEB) $(LIBRDSS)
-
+DISTFILES = $(SRCS) Imakefile
 
 NormalProgramTarget(Sound, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+DependTarget()
+LintTarget()
+DistfilesTarget($(DISTFILES))

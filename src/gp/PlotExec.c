@@ -34,7 +34,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 # include "LayoutControl.h"
-MAKE_RCSID ("$Id: PlotExec.c,v 2.28 1993-04-20 20:25:14 burghart Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.29 1993-07-01 20:14:41 granger Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -153,7 +153,7 @@ static void _UncompiledFunction() {};
 	void	CAP_FContour FP ((char *, int));
 	void	CAP_Station FP ((char *, int));
 	void	CAP_LineContour FP ((char *, int));
-	void	CAP_Init FP ((time *));
+	void	CAP_Init FP ((UItime *));
 #    if C_CAP_VECTOR
 	void	CAP_Vector FP ((char *, int));
 #    endif
@@ -225,7 +225,7 @@ char	*component;
 	char	plt[30], *info;
 	Boolean	global;
 	ZebTime	cachetime;
-	time	temptime;
+	UItime	temptime;
 /*
  * Check now for an abort condition
  */
@@ -353,7 +353,7 @@ ZebTime *cachetime;
 	char **comps, datestring[40], rep[30], tadefcolor[30];
 	int i, showsteps = FALSE;
 	Pixel timecolor;
-	time temptime;
+	UItime temptime;
 /*
  * Choose the drawing frame and clear it out
  */
@@ -587,7 +587,7 @@ ZebTime	*t;
 {
 	char	trigger[40], **comps;
 	int	itrigger, seconds, i;
-	time	temptime,latest, avail;
+	UItime	temptime,latest, avail;
 	ZebTime	ztavail;
 	PlatformId pid;
 /*

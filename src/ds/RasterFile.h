@@ -1,4 +1,4 @@
-/* $Id: RasterFile.h,v 2.1 1991-09-26 22:53:44 gracio Exp $ */
+/* $Id: RasterFile.h,v 2.2 1993-07-01 20:12:51 granger Exp $ */
 
 /*
  * This is the file for FCC native raster files.  Note that these are not
@@ -59,7 +59,7 @@ typedef struct s_RFHeader
  */
 typedef struct s_RFToc
 {
-	time	rft_Time;		/* Time of this image		*/
+	UItime	rft_Time;		/* Time of this image		*/
 	long	rft_Offset[MaxRFField];	/* It's place in the file	*/
 	long	rft_Size[MaxRFField];	/* Length			*/
 	RGrid	rft_Rg;			/* Geometry info		*/
@@ -70,7 +70,7 @@ typedef struct s_RFToc
 
 typedef struct s_OldRFToc
 {
-	time	rft_Time;		/* Time of this image		*/
+	UItime	rft_Time;		/* Time of this image		*/
 	long	rft_Offset[MaxRFField];	/* It's place in the file	*/
 	long	rft_Size[MaxRFField];	/* Length			*/
 	RGrid	rft_Rg;			/* Geometry info		*/

@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.12 1993-06-23 18:36:12 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.13 1993-07-01 20:12:49 granger Exp $"
 
 LIBS=$(LIBZEB) $(LIBNETCDF) $(LIBRDSS)
 LIBGCC=/usr/local/lib/gcc-lib/sparc-sun-sunos4.1.2/2.2/libgcc.a
@@ -33,6 +33,7 @@ DCSRCS = DataChunk.c dc_Boundary.c dc_IRGrid.c dc_Image.c \
 	dc_MetData.c dc_RGrid.c dc_Scalar.c dc_Transp.c dc_Attr.c \
 	dc_Location.c dc_NSpace.c
 
+UTILSRCS = rfdump.c zfdump.c
 
 /*
  * For debugging
@@ -46,16 +47,14 @@ TESTSRCS = dstest.c dctest.c nstest.c nxtest.c
  * need to be changed if it is decided that they will not be
  * distributed with the general distribution
  */
-SRCS = $(DSLIBSRCS) $(DCSRCS) $(DSSRCS) 
+SRCS = $(DSLIBSRCS) $(DCSRCS) $(DSSRCS) $(UTILSRCS)
 
 PRIVATE_HEADERS = BoundaryFile.h DataChunkP.h dslib.h znfile.h \
 		  RasterFile.h commands.h dfa.h dsDaemon.h dsPrivate.h
 
 HEADERS = DataStore.h DataChunk.h ingest.h fields.h ds_fields.h
 
-DISTFILES = Imakefile $(SRCS) $(PRIVATE_HEADERS) $(HEADERS) Daemon.state \
-	    $(APPDEFAULTS)
-
+DISTFILES = Imakefile $(SRCS) $(PRIVATE_HEADERS) $(HEADERS) Daemon.state
 
 NormalProgramTarget(dsDaemon,$(DSOBJS) $(DSLIBOBJS) $(DCOBJS),
 		    $(DEPLIBS),$(LIBS) $(XLIBS),$(SYSLIBS))
@@ -74,9 +73,9 @@ BuildIncludes($(HEADERS),.,.)
 /*
  * Dump routines.
  */
-NormalProgramTarget (rfdump, rfdump.o, , ,)
+NormalProgramTarget (rfdump, rfdump.o, /**/, /**/, /**/)
 
-NormalProgramTarget (zfdump, zfdump.o,, $(LIBZEB),)
+NormalProgramTarget (zfdump, zfdump.o, /**/, $(LIBZEB), /**/)
 
 /*
  * Saber stuff.  This is a bit complicated, depending on what you are

@@ -34,7 +34,7 @@
 # include <config.h>
 # include <copyright.h>
 # include <xhelp.h>
-MAKE_RCSID ("$Id: dm.c,v 2.31 1993-04-09 15:42:55 corbet Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.32 1993-07-01 20:12:27 granger Exp $")
 
 
 /*
@@ -1320,7 +1320,7 @@ struct cf_window *win;
 
 
 SetTime (when)
-time *when;
+UItime *when;
 /*
  * Force pseudo real time mode at this time.
  */

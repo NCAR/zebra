@@ -33,16 +33,16 @@
 # include <mda.h>
 # include <station.h>
 
-MAKE_RCSID ("$Id: pam_ingest.c,v 2.7 1992-12-02 19:03:54 granger Exp $")
+MAKE_RCSID ("$Id: pam_ingest.c,v 2.8 1993-07-01 20:15:49 granger Exp $")
 
 static int incoming FP ((struct message *));
 void	Stations FP ((char *));
 void	Fields FP ((int, char **));
 void	SnarfLoop FP ((void));
-void	DoSnarf FP ((time *, int));
+void	DoSnarf FP ((UItime *, int));
 int	rollback FP ((int, int));
-void	DoRain FP ((int, time, time));
-void	DoPres FP ((int, time, time));
+void	DoRain FP ((int, UItime, UItime));
+void	DoPres FP ((int, UItime, UItime));
 
 
 /*
@@ -99,7 +99,7 @@ main (argc, argv)
 int argc;
 char **argv;
 {
-	time t;
+	UItime t;
 	char ourname[40];
 /*
  * Basic arg check.
@@ -357,7 +357,7 @@ SnarfLoop ()
  */
 {
 	ZebTime zt;
-	time wakeup, t;
+	UItime wakeup, t;
 	int add;
 	
 	add = (Report/60)*100 + Report % 60;
@@ -386,7 +386,7 @@ SnarfLoop ()
 /* ARGSUSED */
 void
 DoSnarf (t, junk)
-time *t;
+UItime *t;
 int junk;
 /*
  * Handle the data snarf for this time.
@@ -395,7 +395,7 @@ int junk;
 	int i, fld;
 	int add = (Report/60)*100 + Report % 60;
 	int sadd = (Sample/60)*100 + Sample % 60;
-	time begin, end;
+	UItime begin, end;
 	DataChunk *dc;
 /*
  * Get the data from MDA.
@@ -491,7 +491,7 @@ int t, period;
 void
 DoRain (fndx, begin, end)
 int	fndx;
-time	begin, end;
+UItime	begin, end;
 /*
  * Find the rain accumulation or rate for the fndx'th field
  */
@@ -565,7 +565,7 @@ time	begin, end;
 void
 DoPres (fndx, begin, end)
 int	fndx;
-time	begin, end;
+UItime	begin, end;
 /*
  * Perform a pressure correction
  */

@@ -28,7 +28,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 #ifndef lint
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.18 1993-05-25 18:37:45 granger Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.19 1993-07-01 20:12:42 granger Exp $")
 #endif
 
 # include "netcdf.h"
@@ -122,7 +122,7 @@ static int      dnc_OFTimes FP ((NCTag *));
 static int      dnc_GetTimes FP ((NCTag *));
 static int      dnc_OFIRGrid FP ((NCTag *));
 static int     	dnc_TimeIndex FP ((NCTag *, ZebTime *));
-static void     dnc_LoadLocation FP ((NCTag *, Location *, int, int));
+static void     dnc_LoadLocation FP ((NCTag *, Location *, long, long));
 static int      dnc_BuildPMap FP ((NCTag *));
 static void     dnc_CFMakeDims FP ((NCTag *, DataChunk *, int *, int *));
 static void     dnc_CFMakeVars FP ((NCTag *, DataChunk *));
@@ -134,19 +134,19 @@ static int	dnc_OrgClassCompat FP ((DataOrganization, DataClass));
 static void	dnc_ConvTimes FP ((NCTag *, int, int, ZebTime *));
 static void	dnc_NSpaceSetup FP((NCTag *tag, DataChunk *dc, 
 				    int nfield, FieldId *fields));
-static int 	dnc_ReadScalar FP ((DataChunk *, NCTag *, int, int, FieldId *,
+static int 	dnc_ReadScalar FP ((DataChunk *, NCTag *, long, long, FieldId *,
 			int, double));
 static int 	dnc_ReadIRGrid FP ((DataChunk *, NCTag *, int, int, FieldId *,
 			int, double));
 static int 	dnc_ReadRGrid FP ((DataChunk *, NCTag *, int, int, FieldId *,
 			int, double, dsDetail *, int));
-static int	dnc_ReadNSpace FP((DataChunk *dc, NCTag *tag, int begin,
-				int nsamp, FieldId *fids, int nfield, 
+static int	dnc_ReadNSpace FP((DataChunk *dc, NCTag *tag, long begin,
+				long nsamp, FieldId *fids, int nfield, 
 				float badval));
 static void	dnc_ReadNSpaceScalar FP((DataChunk *dc, NCTag *tag, 
 			 ZebTime *t, int begin, int nsamp, FieldId *fids, 
 			 int nfield, float badval));
-static int	dnc_ReadLocation FP ((DataChunk *, NCTag *, int, int));
+static int	dnc_ReadLocation FP ((DataChunk *, NCTag *, long, long));
 static int	dnc_GetFieldVar FP ((NCTag *, FieldId));
 static void	dnc_ApplyBadval FP ((NCTag *, int varid, 
 				     DataChunk *dc, FieldId fid,
@@ -491,7 +491,8 @@ NCTag *tag;
  * Build the subplatform lookup map.
  */
 {
-	int i, name_id, len_id, fldlen, plat;
+	int i, name_id, len_id, plat;
+	long fldlen;
 	long start[2], count[2];
 	char *name, *base, *fullname;
 /*
@@ -1137,8 +1138,9 @@ static int
 dnc_ReadScalar (dc, tag, begin, nsamp, fids, nfield, badval)
 DataChunk *dc;
 NCTag *tag;
-int begin, nsamp, nfield;
+long begin, nsamp;
 FieldId *fids;
+int nfield;
 float badval;
 /*
  * Retrieve scalar data from this file.
@@ -1243,7 +1245,7 @@ static int
 dnc_ReadNSpace (dc, tag, begin, nsamp, fids, nfield, badval)
 DataChunk *dc;
 NCTag *tag;
-int begin, nsamp;
+long begin, nsamp;
 FieldId *fids;
 int nfield;
 float badval;
@@ -1396,7 +1398,7 @@ static int
 dnc_ReadLocation (dc, tag, begin, nsamp)
 DataChunk *dc;
 NCTag *tag;
-int begin, nsamp;
+long begin, nsamp;
 /*
  * Pull in a location-class data chunk.
  */
@@ -1674,7 +1676,7 @@ static void
 dnc_LoadLocation (tag, locs, begin, count)
 NCTag *tag;
 Location *locs;
-int begin, count;
+long begin, count;
 /*
  * Load in mobile platform location info.
  */
@@ -2297,7 +2299,7 @@ DataChunk *dc;
 	sprintf(history,"created by Zeb DataStore, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.18 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.19 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 }
@@ -2943,7 +2945,7 @@ WriteCode wc;
 	char *mdata;		/* A field's metdata at a particular sample */
 	unsigned long idata;	/* The number of bytes written into the data*/
 	                        /* array for a particular field.	    */
-	int mdatasize;		/* Size, in bytes, of a field's sample data */
+	unsigned long mdatasize;/* Size, in bytes, of a field's sample data */
 	unsigned long datasize;	/* Size, in bytes, of the data array.	    */
 	FieldId *fids;
 	long i;
@@ -3006,7 +3008,7 @@ WriteCode wc;
 			{
 				mdata = (char *)dc_GetMData (dc, sample + i,
 							     fids[field], 
-							     &mdatasize);
+							     (int *)&mdatasize);
 			}
 			else
 			{

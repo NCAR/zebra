@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.22 1993-03-12 22:01:49 granger Exp $ */
+/* $Id: GraphProc.h,v 2.23 1993-07-01 20:14:23 granger Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -223,7 +223,7 @@ extern void pdm_Finish FP ((void));
 /* Other stuff */
 extern int GetLocation FP ((char *, ZebTime *, Location *));
 extern int AgeCheck FP ((char *, char *, ZebTime *));
-extern long GetSec FP(( time ));
+extern long GetSec FP(( UItime ));
 extern void sync FP ((void));
 extern int  reset_limits FP ((char *, char *, char *));
 extern void eq_ResetAbort FP ((void));

@@ -33,14 +33,14 @@
 # include <mda.h>
 # include <station.h>
 
-MAKE_RCSID ("$Id: daypam_ingest.c,v 1.3 1993-03-30 01:42:32 granger Exp $")
+MAKE_RCSID ("$Id: daypam_ingest.c,v 1.4 1993-07-01 20:15:47 granger Exp $")
 
 static int incoming FP ((struct message *));
 void	Stations FP ((char *));
 void	Fields FP ((int, char **));
 void	DoSnarf FP ((int));
-void	DoRain FP ((int, time, time));
-void	DoPres FP ((int, time, time));
+void	DoRain FP ((int, UItime, UItime));
+void	DoPres FP ((int, UItime, UItime));
 void	CalculateRain FP ((int fndx, int ngrab, float *dp, float *mdp));
 
 /*
@@ -92,7 +92,7 @@ main (argc, argv)
 int argc;
 char **argv;
 {
-	time t;
+	UItime t;
 	char ourname[40];
 /*
  * Basic arg check.
@@ -396,7 +396,7 @@ int	yymmdd;
 {	
 	int	i, fld;
 	int	samp_mmss = (Sample/60)*100 + Sample % 60;
-	time	begin, end;
+	UItime	begin, end;
 	ZebTime	*zt;
 	DataChunk *dc;
 /*
@@ -479,7 +479,7 @@ int	yymmdd;
 void
 DoRain (fndx, begin, end)
 int	fndx;
-time	begin, end;
+UItime	begin, end;
 /*
  * Find the rain accumulation or rate for the fndx'th field
  */
@@ -491,7 +491,7 @@ time	begin, end;
 	float	*dp;
 	int	sta, i;
 	struct dstream *dsp;
-	time	mid;
+	UItime	mid;
 
 	sprintf(fldname,"rain%c%i",(Mods[fndx].mod == RainAccum)?'a':'r',
 		Mods[fndx].offset);
@@ -612,7 +612,7 @@ CalculateRain(fndx, ngrab, dp, mdp)
 void
 DoPres (fndx, begin, end)
 int	fndx;
-time	begin, end;
+UItime	begin, end;
 /*
  * Perform a pressure correction
  */

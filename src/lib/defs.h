@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 2.14 1993-03-18 18:51:38 granger Exp $ */
+/* $Id: defs.h,v 2.15 1993-07-01 20:16:39 granger Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -31,8 +31,9 @@
 /*
  * FCC-specific defined types.
  */
-typedef struct date_st time;	/* Different from UI "date" so we can 
+typedef struct date_st UItime;	/* Different from UI "date" so we can 
 				   change it. */
+
 enum pmode { NoMode, History, RealTime };
 
 /*
@@ -83,8 +84,8 @@ void 	tw_DefTimeWidget FP ((int (*callback) (), char *title));
 void	tw_SetTime FP ((ZebTime *init_or_null)); /* null <==> use system time */
 void 	tw_DialAdjust FP ((int, int));
 int 	InterpDTime FP ((char *));
-void 	TC_SysToFcc FP ((long, time *));
-long 	TC_FccToSys FP ((time *));
+void 	TC_SysToFcc FP ((long, UItime *));
+long 	TC_FccToSys FP ((UItime *));
 void	RL_Encode FP ((unsigned char *, unsigned char *, int, int, 
 		int *, int *));
 void 	RL_Decode FP ((unsigned char *, unsigned char *const, int));

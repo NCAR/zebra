@@ -19,11 +19,11 @@
  * maintenance or updates for its software.
  */
 
-# include "../include/defs.h"
-# include "../include/message.h"
+# include "defs.h"
+# include "message.h"
 # include <copyright.h>
 # include "DataStore.h"
-MAKE_RCSID ("$Id: dstest-br.c,v 3.1 1992-05-27 17:24:03 corbet Exp $")
+MAKE_RCSID ("$Id: dstest-br.c,v 3.2 1993-07-01 20:12:55 granger Exp $")
 
 
 msg_handler ()
@@ -41,7 +41,7 @@ char **argv;
 	DataChunk *dc, *rdc;
 	static char *field = "velocity";
 	ZebTime begin, end, ts[5], rdt;
-	time kludge;
+	UItime kludge;
 	Location locs[5];
 	char atime[40], *fields[20];
 	FieldId fid;

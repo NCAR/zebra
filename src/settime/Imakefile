@@ -3,6 +3,11 @@ SRCS = settime.c
 OBJS = settime.o
 
 LIBS = $(LIBZEB) $(LIBRDSS)
-
+DISTFILES = $(SRCS) Imakefile
 
 NormalProgramTarget(settime, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+DistfilesTarget($(DISTFILES))
+DependTarget()
+LintTarget()
+
+

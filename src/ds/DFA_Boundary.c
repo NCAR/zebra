@@ -25,14 +25,14 @@
 # include <fcntl.h>
 # include <unistd.h>
 
-# include "../include/defs.h"
-# include "../include/message.h"
+# include "defs.h"
+# include "message.h"
 # include "dfa.h"
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dslib.h"
 # include "BoundaryFile.h"
-MAKE_RCSID ("$Id: DFA_Boundary.c,v 3.3 1993-04-26 16:00:50 corbet Exp $")
+MAKE_RCSID ("$Id: DFA_Boundary.c,v 3.4 1993-07-01 20:12:37 granger Exp $")
 
 
 
@@ -120,7 +120,7 @@ char *dir, *name, *string;
  * Generate a new file name.
  */
 {
-	time t;
+	UItime t;
 	
 	TC_ZtToUI (zt, &t);
 	sprintf (string, "%s.%06d.%04d.bf", name, t.ds_yymmdd,
@@ -485,7 +485,7 @@ ZebTime *zt;
 {
 	int offset;
 	struct BFBTable *bt = tag->bt_BTable;
-	time t;
+	UItime t;
 /*
  * Just search back from the end until we find the first entry before the
  * one we went.  There will generally not be all that many boundaries in
@@ -543,7 +543,7 @@ TimeSpec which;
 
 bf_GetFields (dfile, t, nfld, flist)
 int dfile;
-time *t;
+UItime *t;
 int *nfld;
 FieldId *flist;
 /*

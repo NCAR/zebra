@@ -3,6 +3,9 @@ SRCS = zebstop.c
 OBJS = zebstop.o
 
 LIBS = $(LIBZEB) $(LIBRDSS)
-
+DISTFILES = $(SRCS) Imakefile
 
 NormalProgramTarget(zebstop, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+DistfilesTarget($(DISTFILES))
+DependTarget()
+LintTarget()

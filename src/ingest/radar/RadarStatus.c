@@ -30,12 +30,12 @@
 # include <X11/Xaw/Cardinals.h>
 # include <GraphicsW.h>
 # include "defs.h"
-# include "../include/message.h"
-# include "../include/dm.h"
-# include "../include/timer.h"
+# include "message.h"
+# include "dm.h"
+# include "timer.h"
 # include "RadarInfo.h"
 
-static char *rcsid = "$Id: RadarStatus.c,v 2.3 1992-04-02 21:47:11 burghart Exp $";
+static char *rcsid = "$Id: RadarStatus.c,v 2.4 1993-07-01 20:16:01 granger Exp $";
 
 # define PI		3.1415927
 # define DEG_TO_RAD(x)	(((x) * 0.017453293))

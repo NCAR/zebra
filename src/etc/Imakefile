@@ -1,11 +1,17 @@
 /*
  * Imakefile for the ETC directory.
  */
-# define IHaveSubdirs
+#define IHaveSubdirs
+#define PassCDebugFlags /*nothing*/
 
 SUBDIRS = maps icons helpfiles audio
+DISTFILES = Imakefile FieldDefs
+DISTSUBDIRS = $(SUBDIRS)
+
+all::		/* don't want first target to be install */
 
 InstallLibFile (FieldDefs,.,.)
 
 MakeSubdirs($(SUBDIRS))
-DependSubdirs($(SUBDIRS))
+DistfilesTarget($(DISTFILES))
+DistfilesSubdirs($(DISTSUBDIRS))

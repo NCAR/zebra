@@ -18,14 +18,14 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: nx_BCast.c,v 3.1 1992-05-27 17:24:03 corbet Exp $";
+static char *rcsid = "$Id: nx_BCast.c,v 3.2 1993-07-01 20:17:21 granger Exp $";
 
 # include <sys/time.h>
 # include <sys/signal.h>
 
-# include "../include/defs.h"
-# include "../include/message.h"
-# include "../include/timer.h"
+# include "defs.h"
+# include "message.h"
+# include "timer.h"
 # include "DataStore.h"
 # include "NetXfr.h"
 
@@ -72,8 +72,8 @@ static int NCAlloc = 0, NCReuse = 0;
 static tx_BCast *NewBCast FP ((int, int));
 static DataBCChunk *GetBCastPacket FP ((tx_BCast *, int));
 static tx_BCast *FindBCP FP ((int));
-static void FlushRetrans FP ((time *, void *));
-static void ZapBCast FP ((time *, tx_BCast *));
+static void FlushRetrans FP ((UItime *, void *));
+static void ZapBCast FP ((UItime *, tx_BCast *));
 void Delay FP ((void));
 void Alarm FP ((void));
 static int BCastPlain FP ((tx_BCast *, DataBCChunk *, char *, int));
@@ -355,7 +355,7 @@ int number;
 
 static void
 ZapBCast (t, bcp)
-time *t;
+UItime *t;
 tx_BCast *bcp;
 /*
  * Age out this set of broadcast data.
@@ -470,7 +470,7 @@ int seq;
 
 static void
 FlushRetrans (t, junk)
-time *t;
+UItime *t;
 void *junk;
 /*
  * Actually cause retransmits to happen.

@@ -33,7 +33,7 @@ char **argv;
 {
 	Location origin;
 	ZebTime zt;
-	time t;
+	UItime t;
 	CoordInfo xi, yi, zi;
 	int nfld;
 	char *cdfname;

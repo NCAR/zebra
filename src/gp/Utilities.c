@@ -28,7 +28,7 @@
 # include <time.h>
 # include "GraphProc.h"
 # include "PixelCoord.h"
-MAKE_RCSID ("$Id: Utilities.c,v 2.9 1992-11-10 18:37:10 burghart Exp $")
+MAKE_RCSID ("$Id: Utilities.c,v 2.10 1993-07-01 20:14:44 granger Exp $")
 
 
 static void ApplyConstOffset FP ((Location *, double, double));
@@ -339,7 +339,7 @@ ZebTime	*t;
 
 long
 GetSec (t)
-time    t;
+UItime    t;
 /*
  * Get the seconds in a number represented by hhmmss.
  * (Note: type long == type time_t, see <sys/stdtypes.h>)

@@ -6,9 +6,10 @@ SRCS = dsdwidget.c
 OBJS = dsdwidget.o
 
 LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
-
+DISTFILES = $(SRCS) Imakefile dsdwidget.ad
 
 NormalProgramTarget(dsdwidget, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
-InstallAppDefaults (dsdwidget)
-
-DependTarget ()
+InstallAppDefaults(dsdwidget)
+DistfilesTarget($(DISTFILES))
+DependTarget()
+LintTarget()

@@ -1,19 +1,21 @@
-/*
- * Imakefile for the last data displayer.
- */
-# undef DataDir
 
 SRCS = Archiver.c
 OBJS = Archiver.o
 
 LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
+DISTFILES = $(SRCS) Imakefile Archiver.ad
 
+/*------------------------------------------------------------------------*/
+#if BuildRealtimeDataStoreTools
 
-/*
- * Now we can get around to the real stuff.
- */
- 
 NormalProgramTarget(Archiver, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
-InstallAppDefaults (Archiver)
+InstallAppDefaults(Archiver)
+DependTarget()
+LintTarget()
 
-DependTarget ()
+/*------------------------------------------------------------------------*/
+#else
+OmitBuildRules(Archiver)
+#endif
+
+DistfilesTarget($(DISTFILES))

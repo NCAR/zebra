@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.3 1993-05-17 19:42:39 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.4 1993-07-01 20:14:54 granger Exp $"
 
 /*
  * All individual ingest-related routines are kept in subdirectories.  Code
@@ -28,75 +28,19 @@ MFVERSION="$Id: Imakefile,v 1.3 1993-05-17 19:42:39 granger Exp $"
 #define IHaveSubdirs
 #define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
 
-#if BuildIngestScheduler
-IS=is
-#endif
-#if BuildClassIngest
-CLASS=class
-#endif
-#if BuildRadarIngest
-RADAR=radar
-#endif
-#if BuildRadarLimits
-RADARLIMITS=RadarLimits
-#endif
-#if BuildSLGrabber
-SLGRABBER=SLGrabber
-#endif
-#if BuildAircrftIngest
-AIRCRAFT=aircraft
-#endif
-#if BuildFMIngest
-FM=fm
-#endif
-#if BuildLLPIngest
-LLP=llp
-#endif
-#if BuildNatsIngest
-NATS=nats
-#endif
-#if BuildNowradIngest
-NOWRAD=nowrad
-#endif
-#if BuildP3Ingest
-P3=p3
-#endif
-#if BuildPamIngest
-PAM=pam
-#endif
-#if BuildProfsIngest
-PROFS=profs
-#endif
-#if BuildRsgIngest	/* the rsg directory is currently ignored since */
-			/*    I don't know what it does 		*/
-RSG=
-#endif
-#if BuildSatelliteIngest
-SATELLITE=satellite
-#endif
-#if BuildTaoIngest
-TAO=tao
-#endif
+SUBDIRS = mcidas aircraft llp radar nats class pam p3 nowrad \
+          SLGrabber RadarLimits satellite profs fm is tao
 
-SUBDIRS = mcidas \
-	$(AIRCRAFT) \
-	$(LLP) \
-	$(RADAR) \
-	$(NATS) \
-	$(CLASS) \
-	$(PAM) \
-	$(P3) \
-	$(NOWRAD) \
-	$(SLGRABBER) \
-	$(RADARLIMITS) \
-	$(SATELLITE) \
-	$(TAO) \
-	$(PROFS) \
-	$(FM) \
-	$(RSG) \
-	$(IS)
+/*
+ * Other subdirectories which for the moment are not made by their
+ * parent directory, but they are included as distfiles so they'll
+ * be put in distribution lists as whole directories rather than 
+ * file-by-file.  The idea is that these will not usually be built, so
+ * they won't need Makefiles, cleaning, or a specific distfiles target.
+ */
+OTHERSUBDIRS = fest_p3_c130 precip ssmi trmm_rain trmm_sonde gmsISCCP
 
-DISTFILES = Imakefile
+DISTFILES = Imakefile $(OTHERSUBDIRS)
 DISTSUBDIRS = mcidas aircraft llp radar nats class pam p3 nowrad \
 	      SLGrabber RadarLimits satellite profs fm is tao
 
@@ -105,4 +49,3 @@ DependSubdirs($(SUBDIRS))
 InstallLibSubdirs($(SUBDIRS))
 DistfilesTarget($(DISTFILES))
 DistfilesSubdirs($(DISTSUBDIRS))
-

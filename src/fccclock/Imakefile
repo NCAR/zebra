@@ -3,7 +3,10 @@ SRCS = fccclock.c
 OBJS = fccclock.o
 
 LIBS = $(LIBZEB) $(LIBRDSS) $(XLIBS)
-
+DISTFILES = $(SRCS) Imakefile FccClock.ad
 
 NormalProgramTarget(fccclock, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 InstallAppDefaults (FccClock)
+DistfilesTarget($(DISTFILES))
+DependTarget()
+LintTarget()

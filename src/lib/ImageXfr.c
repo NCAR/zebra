@@ -1,7 +1,7 @@
 /*
  * Routines to effect image transfer through shared memory.
  */
-static char *rcsid = "$Id: ImageXfr.c,v 2.1 1991-09-13 15:01:58 corbet Exp $";
+static char *rcsid = "$Id: ImageXfr.c,v 2.2 1993-07-01 20:16:29 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -56,7 +56,7 @@ typedef enum _SetOwner  { NoOwner, WriteOwner, ReadOwner } SetOwner;
 struct set_desc
 {
 	SetOwner	sd_Owner;	/* Who owns this set		*/
-	time		sd_Time;	/* When.			*/
+	UItime		sd_Time;	/* When.			*/
 	RGrid		sd_Rgrid;	/* Grid information		*/
 	Location	sd_Where;	/* Location information		*/
 	ScaleInfo	sd_Scale[MAXFRAME];	/* Scaling information	*/
@@ -299,7 +299,7 @@ char **frames;
 void
 IX_SendFrame (desc, set, when, rg, loc, scale, xmin, ymin, xmax, ymax, attr)
 ix_desc *desc;
-time *when;
+UItime *when;
 RGrid *rg;
 Location *loc;
 ScaleInfo *scale;
@@ -345,7 +345,7 @@ IX_GetReadFrame (desc, set, frames, when, rg, loc, scale, xmin, ymin,
 ix_desc *desc;
 int set;
 char **frames;
-time *when;
+UItime *when;
 RGrid *rg;
 Location *loc;
 ScaleInfo *scale;

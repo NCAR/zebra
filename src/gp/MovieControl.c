@@ -1,7 +1,7 @@
 /*
  * Movie control functions.
  */
-static char *rcsid = "$Id: MovieControl.c,v 2.14 1993-06-11 22:15:02 burghart Exp $";
+static char *rcsid = "$Id: MovieControl.c,v 2.15 1993-07-01 20:14:30 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -558,7 +558,7 @@ mc_SetupParams ()
  */
 {
 	int movielen;
-	time temptime;
+	UItime temptime;
 	ZebTime t, t1, zt;
 	union usy_value v;
 	char trigger[200];
@@ -1146,7 +1146,7 @@ mc_ReGenFrames()
 /*
  *  When the end time is 'now' used to regenerate frames as the time changes.
  */
-	time	tmp;
+	UItime	tmp;
 	ZebTime t, endtime;
 	int movielen, diff;
 	float sec;
@@ -1262,7 +1262,7 @@ PlatformId pid;
 int global;
 ZebTime *t;
 {
-	time tmp;
+	UItime tmp;
 /*
  *  When the end time is 'now' used to regenerate frames as new data 
  *  becomes available.
@@ -1278,7 +1278,7 @@ ZebTime *t;
 static void
 mc_ReGenFramesDS()
 {
-	time tmp;
+	UItime tmp;
 	ZebTime endtime;
 	int movielen, diff;
 	float sec;

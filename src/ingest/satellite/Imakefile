@@ -15,9 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.4 1993-06-28 07:14:10 granger Exp $"
-
-LIBMCIDAS = $(LIBDIR)/libmcidas.a
+MFVERSION="$Id: Imakefile,v 1.5 1993-07-01 20:16:19 granger Exp $"
 
 LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS) \
 	$(LIBMCIDAS) $(FLIBS)

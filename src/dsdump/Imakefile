@@ -6,8 +6,9 @@ SRCS = dsdump.c
 OBJS = dsdump.o
 
 LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF)
-
+DISTFILES = $(SRCS) Imakefile
 
 NormalProgramTarget(dsdump, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
-
+DistfilesTarget($(DISTFILES))
 DependTarget ()
+LintTarget()

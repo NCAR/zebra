@@ -3,6 +3,9 @@ SRCS = timer.c
 OBJS = timer.o
 
 LIBS = $(LIBZEB) $(LIBRDSS)
-
+DISTFILES = $(SRCS) Imakefile
 
 NormalProgramTarget(timer, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+DistfilesTarget($(DISTFILES))
+DependTarget()
+LintTarget()

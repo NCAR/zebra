@@ -21,28 +21,26 @@
 
 #if !HasWritev
 WRITEVOBJ=writev.o
-WRITEVSRC=writev.c
 #else
 WRITEVOBJ=
 WRITEVSRC=
 #endif
 
 SRCS = alarmwidget.c barb.c Bitmaps.c cmd_proto.c ConfigVars.c convert.c \
-	GraphicsW.c \
-	ImageXfr.c LeftRightButtons.c msg_BCast.c msg_lib.c \
+	GraphicsW.c ImageXfr.c LeftRightButtons.c msg_BCast.c msg_lib.c \
 	netread.c Parse.c pdlib.c pdaux.c RLEncode.c \
 	Sound_lib.c TCvt.c TInterp.c timer_lib.c twidget.c vector.c \
-	$(WRITEVSRC)
+	writev.c
 
 OBJS = alarmwidget.o barb.o Bitmaps.o cmd_proto.o ConfigVars.o convert.o \
-	GraphicsW.o \
-	ImageXfr.o LeftRightButtons.o msg_BCast.o msg_lib.o \
-	netread.o Parse.o pdlib.o pdaux.o RLEncode.o \
-	Sound_lib.o TCvt.o TInterp.o timer_lib.o twidget.o vector.o \
-	$(WRITEVOBJ)
+	GraphicsW.o ImageXfr.o LeftRightButtons.o msg_BCast.o msg_lib.o \
+	netread.o Parse.o pdlib.o pdaux.o RLEncode.o Sound_lib.o TCvt.o \
+	TInterp.o timer_lib.o twidget.o vector.o $(WRITEVOBJ)
 
 HEADERS = bitmaps.h copyright.h defs.h GraphicsW.h GraphicsWP.h message.h \
 	pd.h timer.h ImageXfr.h
+
+DISTFILES = $(SRCS) $(HEADERS) Imakefile
 
 NormalLibraryTarget (Zeb, $(OBJS))
 
@@ -51,6 +49,8 @@ InstallLibrary (Zeb, $(LIBDIR))
 BuildIncludes ($(HEADERS),.,.)
 
 DependTarget()
+
+LintTarget()
 
 /*
  * Hard-coded targets for testing library objects
@@ -62,3 +62,5 @@ tconvert: tconvert.c convert.o $(DEPLIBS)
 
 clean::
 	$(RM) -f tconvert
+
+DistfilesTarget($(DISTFILES))

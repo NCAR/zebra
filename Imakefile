@@ -1,4 +1,4 @@
-XCOMM $Id: Imakefile,v 1.7 1993-06-25 10:27:02 granger Exp $
+XCOMM $Id: Imakefile,v 1.8 1993-07-01 20:11:31 granger Exp $
 XCOMM
 XCOMM This is the top-level Imakefile for the Zeb distribution.
 XCOMM It is modeled after the top-level Imakefile of the MIT X11R5
@@ -11,9 +11,9 @@ XCOMM distribution.
      CHECKFNSRC = $(UTILSRC)/checkfn
         CHECKFN = $(CHECKFNSRC)/checkfn
 
-        SUBDIRS = config src 
-    DISTSUBDIRS = config src imake
-     SRCSUBDIRS = config src imake
+        SUBDIRS = config imake src
+    DISTSUBDIRS = config imake src
+     SRCSUBDIRS = config imake src
       DISTFILES = Imakefile Makefile.ini
        LINKDIRS = dist/zeb/doc dist/zeb/project
       LINKNAMES = $(TARNAME)/doc $(TARNAME)/project
@@ -70,7 +70,6 @@ DependSubdirs($(SUBDIRS))
 /*InstallLibSubdirs($(SUBDIRS))*/ 		/* Not used at the moment  */
 DistfilesTarget($(DISTFILES))
 DistfilesSubdirs($(DISTSUBDIRS))
-/* install:: for subdirs automatically included by the IHaveSubdirs defn   */
 
 XCOMM do not name your log file make.log or MakeOut when you run this ...
 World::
@@ -80,7 +79,9 @@ World::
 	@echo "else it will be erased."
 	@date
 	@echo ""
-	cd $(IMAKESRC); $(MAKE) $(MFLAGS) -f Makefile.ini clean; $(MAKE) $(MFLAGS) -f Makefile.ini BOOTSTRAPCFLAGS="$(BOOTSTRAPCFLAGS)" INCLUDES=-I../config
+	cd $(IMAKESRC); \
+		$(MAKE) $(MFLAGS) clean; \
+		$(MAKE) $(MFLAGS) INCLUDES=-I../config
 	-$(RM) Makefile.bak; $(MV) Makefile Makefile.bak
 	$(MAKE) $(MFLAGS) -f Makefile.bak Makefile
 	$(MAKE) $(MFLAGS) Makefiles
@@ -119,7 +120,7 @@ Everything::
  * distribution state, this is the 'distclean' target:
  */
 distclean::
-	$(RM) -rf ./include ./bin
+	$(RM) -rf $(TOP)/include $(TOP)/bin $(TOP)/lib
 	cd $(IMAKESRC); $(MAKE) $(MFLAGS) -f Makefile.ini clean
 
 distclean:: clean

@@ -8,6 +8,12 @@ OBJS = prt_Notify.o d_Notify.o
 LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF)
 
 
-NormalProgramTarget(prt_Notify, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+#if 0	/* not building this just yet, but do it silently */
 
+NormalProgramTarget(prt_Notify, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 DependTarget ()
+
+#endif
+
+DISTFILES = $(SRCS) Imakefile
+DistfilesTarget($(DISTFILES))

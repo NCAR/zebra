@@ -1,5 +1,5 @@
 XCOMM
-XCOMM $Id: Zeb.rules,v 1.6 1993-05-26 19:12:20 corbet Exp $
+XCOMM $Id: Zeb.rules,v 1.7 1993-07-01 20:11:41 granger Exp $
 XCOMM
 XCOMM Rules specific to the Zeb project, including some which override
 XCOMM definitions in Imake.rules
@@ -103,6 +103,10 @@ XCOMM
  *     CURRENT_DIR=$(CURRENT_DIR)/$$subdir so that a special top-level
  *     path can be given, as in the case of making a tar file of a
  *     whole distribution.
+ *
+ * OmitBuild(name)
+ *  -- Inserts comments indicating that rules to build the named module
+ *     were not included because of symbols defined elsewhere (config.h)
  */
 
 /*
@@ -591,6 +595,20 @@ install.lib::								@@\
 
 #endif
 
+
+#ifndef OmitBuildRules
+#define OmitBuildRules(name)						@@\
+XCOMM !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  @@\
+XCOMM ------ Rules for building name omitted ------			@@\
+XCOMM !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  @@\
+									@@\
+all::									@@\
+	@echo No build of name for this configuration			@@\
+									@@\
+install::								@@\
+	@echo name not being built---nothing to install			@@\
+
+#endif
 
 /*
  * This is almost a direct copy from Imake.rules, except for passing

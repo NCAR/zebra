@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: Rasterize.c,v 2.4 1992-12-22 21:19:36 granger Exp $";
+static char *rcsid = "$Id: Rasterize.c,v 2.5 1993-07-01 20:16:05 granger Exp $";
 
 # include <defs.h>
 # include <message.h>
@@ -362,7 +362,7 @@ Beam beam;
 	static int mode = -1, fixed = -1, scan = 0, lastfixed = -999;
 	static int firstbeam, firstaz, firstel, gs, ng;
 	static int sweep, vol;
-	static time begintime;
+	static UItime begintime;
 	static struct timeval oldtime, newtime;
 	static Direction dir = Unknown;
 /*

@@ -21,7 +21,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: SLGrabber.c,v 2.3 1992-04-09 18:39:20 granger Exp $";
+static char *rcsid = "$Id: SLGrabber.c,v 2.4 1993-07-01 20:15:02 granger Exp $";
 
 # include <copyright.h>
 # include <stdio.h>
@@ -46,7 +46,7 @@ FILE *FpFd;
 	int SLData ();
 	void Die (void);
 	void Send (char *);
-	void CheckDCD (time *, int);
+	void CheckDCD (UItime *, int);
 # else
 	int MHandler();
 	void Connect();
@@ -421,7 +421,7 @@ char *data;
 
 void
 CheckDCD (t, junk)
-time *t;
+UItime *t;
 int junk;
 /*
  * Check to see that we are still connected here.
