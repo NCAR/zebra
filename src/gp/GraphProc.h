@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.45 1995-04-07 22:21:59 burghart Exp $ */
+/* $Id: GraphProc.h,v 2.46 1995-04-17 21:59:30 granger Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -49,10 +49,6 @@
  * plot operation.
  */
 extern bool Abort;
-/*
- * Our name.
- */
-extern char Ourname[CFG_MSGNAME_LEN];
 
 /*
  * Keep the variable table around, since we use it at times.
@@ -261,11 +257,14 @@ extern void An_SAUsed FP ((int));
 extern void An_XYGString FP ((char *, char *, int, int, int));
 extern void An_XYZGString FP ((char *, char *, int, int, int));
 
+#ifdef notdef /* prototypes finally added to defs.h where they belong */
+
 /* Coord space transformations */
 extern void cvt_ToXY FP ((double, double, float *, float *));
 extern void cvt_ToLatLon FP ((double, double, float *, float *));
 extern void cvt_GetOrigin FP ((float *, float *));
 extern bool cvt_Origin FP ((double, double));
+#endif
 
 /* PLot description monitor protocol */
 extern void pdm_Init FP ((void));
@@ -294,11 +293,20 @@ extern void GetRange FP ((float *, int, double, float *, float *));
 extern void CalcCenterStep FP ((double, double, int, float *, float *));
 extern void FindCenterStep FP ((DataChunk *, FieldId, int, float *, float *));
 extern int ApplySpatialOffset FP ((DataChunk *, char *, ZebTime *));
-extern void FindWindsFields FP ((PlatformId, ZebTime *, char *, char *,
-		FieldId *));
-extern void GetWindData FP ((FieldId *, float *, float *, double));
 extern bool ImageDataTime FP ((char *c, PlatformId pid, double alt,
 			       ZebTime *dtime));
+
+typedef struct _WindInfo {
+	int wi_polar;		/* 0 == use uwind/vwind; 1 == use wspd/wdir */
+	FieldId wi_wspd;	/* field id's of found fields		    */
+	FieldId wi_wdir;
+	FieldId wi_uwind;
+	FieldId wi_vwind;
+} WindInfo;
+
+extern void FindWindsFields FP ((char *comp, PlatformId, ZebTime *, 
+				 FieldId *, WindInfo *));
+extern void GetWindData FP ((WindInfo *, float *, float *, double));
 
 
 
