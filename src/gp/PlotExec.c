@@ -34,12 +34,12 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 # include "LayoutControl.h"
-MAKE_RCSID ("$Id: PlotExec.c,v 2.34 1993-11-09 22:54:08 corbet Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.35 1993-12-01 17:16:49 burghart Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
  */
-# define CPTR(x)	(char *)(&(x))
+# define CPTR(x) 	 (char *) (& (x))
 
 /*
  * Structure for building a name to number conversion table
@@ -88,7 +88,7 @@ name_to_num Pt_table[] =
 # define RT_SIMPLE	10
 # define RT_WIND	11
 # define RT_OBS		12
-# define RT_STATION	13	/* Station plot (not vector any more)	*/
+# define RT_STATION	13	/* Station plot (not vector any more) 	*/
 # define N_RTYPES	14	/* Increase this as rep. types are added */
 
 name_to_num Rt_table[] = 
@@ -115,7 +115,7 @@ name_to_num Rt_table[] =
  * Two dimensional table (plot type vs. plot representation)
  * of plotting routines and a boolean to record if it's been initialized
  */
-static void	(*Plot_routines[N_PTYPES][N_RTYPES])();
+static void	 (*Plot_routines[N_PTYPES][N_RTYPES]) ();
 static Boolean	Table_built = FALSE;
 
 /*
@@ -126,7 +126,7 @@ static int	PlotType;
 /*
  * The end of plot handler, if any.
  */
-static void	(*EOPHandler) () = 0;
+static void	 (*EOPHandler) () = 0;
 
 /*
  * Forward declarations
@@ -143,8 +143,8 @@ static	void px_GetAltitude FP ((void));
  * To distinguish between missing capability and uncompiled capability in the
  * plot function table
  */
-static void _UncompiledFunction() {};
-# define UNCOMPILED_FUNCTION	(_UncompiledFunction)
+static void _UncompiledFunction () {};
+# define UNCOMPILED_FUNCTION	 (_UncompiledFunction)
 
 /*
  * External plot table routines
@@ -180,14 +180,14 @@ static void _UncompiledFunction() {};
 	extern void	xs_Vector FP ((char *, int));
 # endif
 # if C_PT_TSERIES
-	extern void	ts_Plot();
+	extern void	ts_Plot ();
 # endif
 # if C_PT_XYGRAPH
 	extern void	xy_Init ();
-	extern void	xy_Graph();
-	extern void	xy_Wind();
-	extern void	xy_Contour();
-	extern void	xy_Observation();
+	extern void	xy_Graph ();
+	extern void	xy_Wind ();
+	extern void	xy_Contour ();
+	extern void	xy_Observation ();
 # endif
 
 /*
@@ -210,8 +210,8 @@ Pixel	White;
  * Stuff for px_GetGrid (the phony data store)
  * Macro to reference the grid two-dimensionally
  */
-/* # define GRID(i,j)	grid[(i)* (*ydim) + (j)] */
-# define GRID(j,i)	grid[(i)* (*ydim) + (j)]
+/* # define GRID(i,j) 	grid[ (i) * (*ydim) + (j) ] */
+# define GRID(j,i) 	grid[ (i) * (*ydim) + (j) ]
 static float Melev = 0.0;	/* Mean pam elevation		*/
 
 # endif
@@ -256,7 +256,7 @@ char	*component;
 	PlotType = px_NameToNumber (plt, Pt_table);
 	if (PlotType < 0)
 	{
-		msg_ELog(EF_PROBLEM, "Invalid plot-type parameter: %s", plt);
+		msg_ELog (EF_PROBLEM, "Invalid plot-type parameter: %s", plt);
 		return;
 	}
 /*
@@ -274,7 +274,7 @@ char	*component;
  * Global or update plot?
  */
 	if ((global = strcmp (component, "global") == 0) &&
-		(PlotMode == RealTime))
+		 (PlotMode == RealTime))
 	/*
 	 * Semi-kludge: roll back the plot time to the last trigger incr.
 	 */
@@ -304,27 +304,28 @@ char	*component;
  */
 	else if (global)
 	{
+		ac_ResetAxes ();
 		I_ClearPosIcons ();
 		aa_ResetAreas ();
 		Ue_ResetHighlight ();
 		px_GlobalPlot (&cachetime);
 		An_DoSideAnnot ();
-		ac_DisplayAxes ();
 	}
 /*
  * (3) Update plot.
  */
 	else
+	{
 		px_AddComponent (component, True);
-/*
- * A component made a change that requires the other components to also
- * be redrawn to insure correctness, so force a re-draw of the plot.
- */
-        if ( TriggerGlobal )
-        {
-            TriggerGlobal = 0;
-            pc_TriggerGlobal();
-        }
+	/*
+	 * Some updates require us to redo the whole plot.
+	 */
+		if (TriggerGlobal)
+		{
+			TriggerGlobal = FALSE;
+			pc_TriggerGlobal ();
+		}
+	}
 /*
  * Display the frame
  */
@@ -334,7 +335,7 @@ char	*component;
  * Call the end of plot handler, if there is one.
  */
 	if (EOPHandler)
-		(*EOPHandler) ();
+		 (*EOPHandler) ();
 /*
  * Put the cursor back.
  */
@@ -385,32 +386,32 @@ ZebTime *cachetime;
  * See if they want to see each overlay as it is drawn.
  */
 	if (! pda_Search (Pd, "global", "show-steps", NULL,
-			(char *) &showsteps, SYMT_BOOL))
+			 (char *) &showsteps, SYMT_BOOL))
 		showsteps = FALSE;
 /*
  * Get annotation information
  */
 	if (! pda_Search (Pd, "global", "ta-color", NULL, tadefcolor, 
 		SYMT_STRING))
-		strcpy(tadefcolor, "white");
+		strcpy (tadefcolor, "white");
 
-	if (! ct_GetColorByName(tadefcolor, &Tadefclr))
+	if (! ct_GetColorByName (tadefcolor, &Tadefclr))
 	{
-		msg_ELog(EF_PROBLEM, "Can't get top annotation color: '%s'.",
+		msg_ELog (EF_PROBLEM, "Can't get top annotation color: '%s'.",
 			tadefcolor);
-		strcpy(tadefcolor, "white");
-		ct_GetColorByName(tadefcolor, &Tadefclr);
+		strcpy (tadefcolor, "white");
+		ct_GetColorByName (tadefcolor, &Tadefclr);
 	}
 	if (pda_Search (Pd, "global", "ta-scale", NULL, (char *) &tascale,
 		SYMT_FLOAT))
-		An_SetScale(tascale);
+		An_SetScale (tascale);
 	
 /*
  * Annotate with the date and time
  */
 	An_ResetAnnot (Ncomps);
 	TC_ZtToUI (&PlotTime, &temptime);
-	ud_format_date (datestring, (date *)(&temptime), UDF_FULL);
+	ud_format_date (datestring, (date *) (&temptime), UDF_FULL);
 	strcat (datestring, "  ");
 	if (PlotMode == History)
 	{
@@ -445,7 +446,7 @@ ZebTime *cachetime;
  * If there is an initialization routine, call it now.
  */
 	if (Plot_routines[PlotType][RT_INIT])
-		(*Plot_routines[PlotType][RT_INIT]) (&PlotTime);
+		 (*Plot_routines[PlotType][RT_INIT]) (&PlotTime);
 /*
  * Run through the plot components (start at 1 to skip the
  * global component)
@@ -492,6 +493,8 @@ px_GetCoords ()
 	bool ok, expand, cvt_Origin ();
 	float lat, lon;
 	int axisSpace;
+	AxisSide side;
+	char param[32];
 /*
  * Get the origin and plot limits
  */
@@ -524,41 +527,26 @@ px_GetCoords ()
  */
 	/* Currently, Icon, Legend and Annotation space are all fixed
 	   to reflect the hard-coded sizes in "PixelCoord.h" */
-        if ( !pda_Search (Pd, "global", "icon-space", NULL,
-                CPTR (IconSpace), SYMT_INT))
-        {
-	    IconSpace = ICONSPACE;
-        }
-        lc_SetIconDim(GWWidth(Graphics),IconSpace);
-        lc_SetLegendDim( (int)(0.15*GWWidth(Graphics)), GWHeight(Graphics));
-        lc_SetAnnotateDim ( GWWidth(Graphics),(int)(0.1*GWHeight(Graphics)));
+	IconSpace = ICONSPACE;
+        pda_Search (Pd, "global", "icon-space", NULL, CPTR (IconSpace),
+		    SYMT_INT);
 
-        if ( pda_Search (Pd, "global", "axis-bottom-space", NULL,
-                CPTR (axisSpace), SYMT_INT))
-        {
-            lc_SetAxisDim ( AXIS_BOTTOM, axisSpace );
-        }
-        if ( pda_Search (Pd, "global", "axis-top-space", NULL,
-                CPTR (axisSpace), SYMT_INT))
-        {
-            lc_SetAxisDim ( AXIS_TOP, axisSpace );
-        }
-        if ( pda_Search (Pd, "global", "axis-left-space", NULL,
-                CPTR (axisSpace), SYMT_INT))
-        {
-            lc_SetAxisDim ( AXIS_LEFT, axisSpace );
-        }
-        if ( pda_Search (Pd, "global", "axis-right-space", NULL,
-                CPTR (axisSpace), SYMT_INT))
-        {
-            lc_SetAxisDim ( AXIS_RIGHT, axisSpace );
-        }
+	lc_SetIconSpace (IconSpace);
+	lc_SetLegendSpace ((int) (0.15 * GWWidth (Graphics)));
+	lc_SetAnnotateSpace ((int) (0.1 * GWHeight (Graphics)));
 
+	for (side = 0; side < NumSides; side++)
+	{
+		sprintf (param, "axis-%s-space", SIDE_NAME (side));
+		if (pda_Search (Pd, "global", param, NULL, CPTR (axisSpace), 
+				SYMT_INT))
+			lc_SetAxisSpace (side, axisSpace);
+	}
 /*
  * Unless told otherwise, readjust the coordinates so that x == y.
  */
 	if (! pda_Search (Pd, "global", "expand", NULL, (char *) &expand,
-			SYMT_BOOL) || expand == FALSE)
+			  SYMT_BOOL) || expand == FALSE)
 		px_AdjustCoords (&Xlo, &Ylo, &Xhi, &Yhi);
 
 	return (TRUE);
@@ -590,12 +578,12 @@ ZebTime	*t;
 		return;
 	if (itrigger = pc_TimeTrigger (trigger))
 	{
-		seconds = (temptime.ds_hhmmss/10000)*60*60 +
-			  ((temptime.ds_hhmmss/100) % 100)*60 +
+		seconds = (temptime.ds_hhmmss / 10000) * 3600 +
+			  ((temptime.ds_hhmmss / 100) % 100) * 60 +
 			  (temptime.ds_hhmmss % 100);
 		seconds -= seconds % itrigger;
-		temptime.ds_hhmmss = (seconds/3600)*10000 + 
-			((seconds/60) % 60)*100 + seconds % 60;
+		temptime.ds_hhmmss = (seconds / 3600) * 10000 + 
+			 ((seconds / 60) % 60) * 100 + seconds % 60;
 		temptime.ds_yymmdd = temptime.ds_yymmdd;
 		TC_UIToZt (&temptime, t);
 		return;
@@ -628,7 +616,7 @@ ZebTime	*t;
  * If we found something, we go with it; otherwise keep the plot time
  * as it was.
  */
-	if (latest.ds_yymmdd > 800101)	/* still pretty early */
+	if (latest.ds_yymmdd > 800101) 	/* still pretty early */
 		TC_UIToZt (&latest, t);
 	else
 		TC_UIToZt (&temptime, t);
@@ -665,7 +653,7 @@ px_GetAltitude ()
 		for (i = 0; comps[i]; i++)
 			if (! strcmp (comps[i], altcomp))
 				break;
-		if (comps[i])	/* Disabled? */
+		if (comps[i]) 	/* Disabled? */
 		{
 			bool disabled = FALSE;
 			if (! pda_Search (Pd, comps[i], "disable", NULL, 
@@ -739,18 +727,18 @@ Boolean	update;
  */
 	rtype = px_NameToNumber (rep, Rt_table);
 	if (rtype < 0)
-		msg_ELog (EF_PROBLEM, "Comp '%s': invalid representation, '%s'", 
-			  c, rep);
+		msg_ELog (EF_PROBLEM, 
+			  "Comp '%s': unknown representation, '%s'", c, rep);
 	else if (Plot_routines[PlotType][rtype] == NULL)
 		msg_ELog (EF_PROBLEM, 
-			  "Comp '%s': cannot plot representation '%s', type '%s'",
+			  "Comp '%s': no representation '%s' for type '%s'",
 			  c, rep, px_NumberToName (PlotType, Pt_table));
 	else if (Plot_routines[PlotType][rtype] == UNCOMPILED_FUNCTION)
 		msg_ELog (EF_PROBLEM, 
 			  "Comp '%s': '%s' plot, type '%s' was not compiled",
 			  c, rep, px_NumberToName (PlotType, Pt_table));
 	else
-		(*Plot_routines[PlotType][rtype]) (c, update);
+		 (*Plot_routines[PlotType][rtype]) (c, update);
 }
 
 
@@ -870,24 +858,24 @@ float *x0, *y0, *x1, *y1;
 /*
  * Figure out the current scales in both directions.
  */
-	hkmp = (*x1 - *x0)/width;
-	vkmp = (*y1 - *y0)/height;
+	hkmp = (*x1 - *x0) / width;
+	vkmp = (*y1 - *y0) / height;
 /*
  * Find which one is greater, and adjust the other to match.
  */
 	if (hkmp > vkmp)
 	{
-		float newv = hkmp*height;
+		float newv = hkmp * height;
 		float incr = newv - (*y1 - *y0);
-		*y0 -= incr/2;
-		*y1 += incr/2;
+		*y0 -= incr / 2;
+		*y1 += incr / 2;
 	}
 	else
 	{
-		float newh = vkmp*width;
+		float newh = vkmp * width;
 		float incr = newh - (*x1 - *x0);
-		*x0 -= incr/2;
-		*x1 += incr/2;
+		*x0 -= incr / 2;
+		*x1 += incr / 2;
 	}
 }
 
