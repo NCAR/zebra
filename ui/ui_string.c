@@ -7,7 +7,7 @@
 # include "ui_globals.h"
 # include "ui_symbol.h"
 
-static char *Rcsid = "$Id: ui_string.c,v 1.2 1989-03-10 17:02:05 corbet Exp $";
+static char *Rcsid = "$Id: ui_string.c,v 1.3 1989-04-18 15:10:20 corbet Exp $";
 /*
  * For small, temporary strings, we maintain some internal lookaside 
  * lists with fixed-size strings.  This way, many malloc/free cycles are
@@ -67,6 +67,7 @@ static int S_pstring = 0;		/* "permanent" strings		*/
  * allocation works before this module is initialized.
  */
 static int N_small = 0, N_med = 0, N_big = 0;
+static int N_asmall = 0, N_amed = 0, N_abig = 0;
 
 static bool D_string = FALSE;
 
@@ -118,8 +119,11 @@ stbl stable;
 	usy_c_indirect (stable, "s_getvm", &S_getvm, SYMT_INT, 0);
 	usy_c_indirect (stable, "s_pstring", &S_pstring, SYMT_INT, 0);
 	usy_c_indirect (stable, "n_small", &N_small, SYMT_INT, 0);
+	usy_c_indirect (stable, "n_asmall", &N_asmall, SYMT_INT, 0);
 	usy_c_indirect (stable, "n_med", &N_med, SYMT_INT, 0);
+	usy_c_indirect (stable, "n_amed", &N_amed, SYMT_INT, 0);
 	usy_c_indirect (stable, "n_big", &N_big, SYMT_INT, 0);
+	usy_c_indirect (stable, "n_abig", &N_abig, SYMT_INT, 0);
 	usy_c_indirect (Ui_variable_table, "ui$dstring", &D_string,
 		SYMT_BOOL, 0);
 }
@@ -148,18 +152,21 @@ char *text;
 		ret = Small->data;
 		Small = Small->next;
 		N_small--;
+		N_asmall++;
 	}
 	else if (len < MEDSIZE && Med)
 	{
 		ret = Med->data;
 		Med = Med->next;
 		N_med--;
+		N_amed++;
 	}
 	else if (len < BIGSIZE && Big)
 	{
 		ret = Big->data;
 		Big = Big->next;
 		N_big--;
+		N_abig++;
 	}
 /*
  * Failing that, just allocate something special.
