@@ -31,7 +31,7 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 
-RCSID ("$Id: RasterPlot.c,v 2.29 1996-11-19 07:23:30 granger Exp $")
+RCSID ("$Id: RasterPlot.c,v 2.30 1997-06-10 19:10:41 burghart Exp $")
 
 # ifdef TIMING
 # include <sys/time.h>
@@ -94,11 +94,7 @@ static XRectangle	Clip;
  *
  * Here we give the offset (in shorts) to the integer part of such a number.
  */
-# ifdef LITTLE_ENDIAN
-# define FF_OFFSET 1
-# else
-# define FF_OFFSET 0
-# endif
+# define FF_OFFSET (LittleEndian() ? 1 : 0)
 
 
 /*--------------------------------------------------
@@ -775,11 +771,12 @@ int		xdim, ydim, pad;
 	int i, j, icolinc;
 # ifdef __STDC__
 	static int col;
-	static const short *s_col = FF_OFFSET + (short *) &col;
+	static short *s_col;
 # else
 	int col;
-	short *s_col = FF_OFFSET + (short *) &col;
+	short *s_col;
 # endif
+	s_col = FF_OFFSET + (short *) &col;
 /*
  * Set up our integer values, which are simply the FP values scaled by 
  * 64K, so that the integer part is in the upper two bytes.  We then kludge
@@ -1025,11 +1022,12 @@ int		xdim, ydim, pad;
 
 # ifdef __STDC__
 	static int col;
-	static const short *s_col = FF_OFFSET + (short *) &col;
+	static short *s_col;
 # else
 	int col;
-	short *s_col = FF_OFFSET + (short *) &col;
+	short *s_col;
 # endif
+	s_col = FF_OFFSET + (short *) &col;
 /*
  * Set up our integer values, which are simply the FP values scaled by 
  * 64K, so that the integer part is in the upper two bytes.  We then kludge

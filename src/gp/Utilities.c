@@ -47,7 +47,7 @@ typedef struct {
         CARD8   pad;
 } U_XWDColor;
 
-RCSID ("$Id: Utilities.c,v 2.49 1997-05-14 16:36:39 ishikawa Exp $")
+RCSID ("$Id: Utilities.c,v 2.50 1997-06-10 19:10:46 burghart Exp $")
 
 /*
  * Rules for image dumping.  Indexed by keyword number in GraphProc.state
@@ -818,41 +818,35 @@ char *file;
     vis = win_info.visual;
     ncolors = vis->map_entries;
 /*
- * Build the xwd header
+ * Build the xwd header.  All pieces of the header are of type CARD32, which
+ * is a 4-byte big-endian unsigned int.
  */
-    header.header_size = (CARD32) SIZEOF (XWDheader) + strlen (wname) + 1;
-    header.file_version = (CARD32) XWD_FILE_VERSION;
-    header.pixmap_format = (CARD32) imgfmt;
-    header.pixmap_depth = (CARD32) image->depth;
-    header.pixmap_width = (CARD32) image->width;
-    header.pixmap_height = (CARD32) image->height;
-    header.xoffset = (CARD32) image->xoffset;
-    header.byte_order = (CARD32) image->byte_order;
-    header.bitmap_unit = (CARD32) image->bitmap_unit;
-    header.bitmap_bit_order = (CARD32) image->bitmap_bit_order;
-    header.bitmap_pad = (CARD32) image->bitmap_pad;
-    header.bits_per_pixel = (CARD32) image->bits_per_pixel;
-    header.bytes_per_line = (CARD32) image->bytes_per_line;
-    header.visual_class = (CARD32) vis->class;
-    header.red_mask = (CARD32) vis->red_mask;
-    header.green_mask = (CARD32) vis->green_mask;
-    header.blue_mask = (CARD32) vis->blue_mask;
-    header.bits_per_rgb = (CARD32) vis->bits_per_rgb;
-    header.colormap_entries = (CARD32) vis->map_entries;
-
-    header.ncolors = ncolors;
-    header.window_width = (CARD32) GWWidth (Graphics);
-    header.window_height = (CARD32) GWHeight (Graphics);
-    header.window_x = 0;
-    header.window_y = 0;
-    header.window_bdrwidth = 0;
-# ifdef LITTLE_ENDIAN
-    for (i = 0; i < sizeof(header); i += 4)
-    {
-	void *ptr = (void*)((char*)&header + i);
-	swap4 (ptr);
-    }
-# endif
+    ToBigUI4 (SIZEOF (XWDheader) + strlen (wname) + 1,
+	      (void*)&(header.header_size));
+    ToBigUI4 (XWD_FILE_VERSION, (void*)&(header.file_version));
+    ToBigUI4 (imgfmt, (void*)&(header.pixmap_format));
+    ToBigUI4 (image->depth, (void*)&(header.pixmap_depth));
+    ToBigUI4 (image->width, (void*)&(header.pixmap_width));
+    ToBigUI4 (image->height, (void*)&(header.pixmap_height));
+    ToBigUI4 (image->xoffset, (void*)&(header.xoffset));
+    ToBigUI4 (image->byte_order, (void*)&(header.byte_order));
+    ToBigUI4 (image->bitmap_unit, (void*)&(header.bitmap_unit));
+    ToBigUI4 (image->bitmap_bit_order, (void*)&(header.bitmap_bit_order));
+    ToBigUI4 (image->bitmap_pad, (void*)&(header.bitmap_pad));
+    ToBigUI4 (image->bits_per_pixel, (void*)&(header.bits_per_pixel));
+    ToBigUI4 (image->bytes_per_line, (void*)&(header.bytes_per_line));
+    ToBigUI4 (vis->class, (void*)&(header.visual_class));
+    ToBigUI4 (vis->red_mask, (void*)&(header.red_mask));
+    ToBigUI4 (vis->green_mask, (void*)&(header.green_mask));
+    ToBigUI4 (vis->blue_mask, (void*)&(header.blue_mask));
+    ToBigUI4 (vis->bits_per_rgb, (void*)&(header.bits_per_rgb));
+    ToBigUI4 (vis->map_entries, (void*)&(header.colormap_entries));
+    ToBigUI4 (ncolors, (void*)&(header.ncolors));
+    ToBigUI4 (GWWidth (Graphics), (void*)&(header.window_width));
+    ToBigUI4 (GWHeight (Graphics), (void*)&(header.window_height));
+    ToBigUI4 (0, (void*)&(header.window_x));
+    ToBigUI4 (0, (void*)&(header.window_y));
+    ToBigUI4 (0, (void*)&(header.window_bdrwidth));
 /*
  * Write out the header
  */
@@ -873,18 +867,11 @@ char *file;
     /*
      * Convert it to a XWDColor
      */
-	xwdc.pixel = xc.pixel;
-	xwdc.red = xc.red;
-	xwdc.green = xc.green;
-	xwdc.blue = xc.blue;
+	ToBigUI4 (xc.pixel, (void*)&(xwdc.pixel));
+	ToBigUI2 (xc.red, (void*)&(xwdc.red));
+	ToBigUI2 (xc.green, (void*)&(xwdc.green));
+	ToBigUI2 (xc.blue, (void*)&(xwdc.blue));
 	xwdc.flags = xc.flags;
-
-# ifdef LITTLE_ENDIAN
-	swap4 ((void *) &(xwdc.pixel));
-	swap2 ((void *) &(xwdc.red));
-	swap2 ((void *) &(xwdc.green));
-	swap2 ((void *) &(xwdc.blue));
-# endif
 
 	fwrite ((char *) &xwdc, SIZEOF(XWDColor), 1, xwdfile);
     }
