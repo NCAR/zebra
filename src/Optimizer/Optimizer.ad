@@ -1,8 +1,9 @@
-! $Id: Optimizer.ad,v 1.1 1992-08-20 05:44:51 granger Exp $
+! $Id: Optimizer.ad,v 1.2 1994-06-29 15:11:13 case Exp $
 !
 ! Optimizer application defaults file
 ! Do Not modify if this is the library installed copy
 !
+*font:  *-courier-bold-r-normal--12-*
 *Foreground: black
 *Background: gray65
 ! *BorderColor: white

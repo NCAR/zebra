@@ -1,8 +1,9 @@
-! $Id: EventLogger.ad,v 1.5 1994-05-21 05:16:44 granger Exp $
+! $Id: EventLogger.ad,v 1.6 1994-06-29 15:09:00 case Exp $
 !
 ! Application defaults file for the EventLogger
 ! DO NOT MODIFY this file if this is the library installed copy!!!
 !
+*font:	*-courier-bold-r-normal--12-*
 *eventlogger.geometry:	-10-10
 *text.width:		600
 *text.height:		175
