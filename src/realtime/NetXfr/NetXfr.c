@@ -73,6 +73,7 @@ typedef struct _InProgress
 	short		ip_NBExpect;	/* # expected			*/
 	char		ip_BCast;	/* Broadcast packets coming	*/
 	char		ip_Done;	/* DONE packet arrived	*/
+	char		ip_RLE;		/* Run length encoding used	*/
 	short		ip_TReq;	/* Timer request	*/
 	short		ip_NRetrans;	/* Number of requests	*/
 } InProgress;
@@ -102,6 +103,7 @@ InProgress *IPList = 0;
 	static void Timeout (time *, int);
 	static void AskRetrans (InProgress *, int);
 	static void ProcessPolled (void);
+	static void RLEDecode (unsigned char *, unsigned char *, int);
 # else
 	static int Incoming ();
 	static void Die ();
@@ -124,6 +126,7 @@ InProgress *IPList = 0;
 	static void Timeout ();
 	static void AskRetrans ();
 	static void ProcessPolled ();
+	static void RLEDecode ();
 # endif
 
 /*
@@ -328,6 +331,7 @@ int ns;
 	strcpy (dhdr.dh_Platform, PlatName[plat]);
 	dhdr.dh_DObj = *dobj;
 	dhdr.dh_BCast = Broadcast;
+	dhdr.dh_BCRLE = Broadcast && dobj->do_org == OrgImage;
 	SendOut (plat, &dhdr, sizeof (dhdr));
 /*
  * Send out the various pieces.
@@ -392,7 +396,7 @@ int ns;
  * If we're broadcasting, do that now.
  */
 	if (Broadcast)
-		DoBCast (plat, dobj);
+		done.dh_NBSent = DoBCast (plat, dobj);
 /*
  * Done at last.
  */
@@ -658,6 +662,7 @@ DataHdr *hdr;
 	{
 		ip->ip_NRetrans = ip->ip_NBCast = 0;
 		ip->ip_NBExpect = 1; /* Expect at least this many	*/
+		ip->ip_RLE = hdr->dh_BCRLE;
 		FindQueued (ip->ip_Seq);
 	}
 	msg_ELog (EF_DEBUG,"BCast is %d for seq %d", ip->ip_BCast, ip->ip_Seq);
@@ -803,7 +808,13 @@ char *data;
  */
 	ip->ip_Arrived[chunk->dh_Chunk] = 1;
 	ip->ip_NBCast++;
-	memcpy (chunk->dh_Offset + ((char *) (ip->ip_DObj->do_data[0])), 
+	if (ip->ip_RLE)
+		RLEDecode (chunk->dh_Offset +
+				((unsigned char *) ip->ip_DObj->do_data[0]),
+				(unsigned char *) chunk->dh_data,
+				chunk->dh_Size);
+	else
+		memcpy (chunk->dh_Offset +((char *)(ip->ip_DObj->do_data[0])), 
 			chunk->dh_data, chunk->dh_Size);
 /*
  * If everything is done, finish it out.
@@ -811,6 +822,51 @@ char *data;
 	if (ip->ip_Done && ip->ip_NBCast >= ip->ip_NBExpect)
 		FinishIP (ip);
 }
+
+
+
+
+static void
+RLEDecode (dest, src, len)
+register unsigned char *dest;
+unsigned char * const src;
+const int len;
+/*
+ * Run-length decode this packet.
+ */
+{
+	register unsigned char *sp = src;
+	register int i;
+
+	while (sp - src < len)
+	{
+	/*
+	 * Look for the run bit.  If it's there, we replicate the next
+	 * byte.
+	 */
+	 	if (*sp & 0x80)
+		{
+			const int runlen = (*sp & 0x7f) ? (*sp & 0x7f) : 128;
+			const unsigned char c = *++sp;
+			for (i = 0; i < runlen; i++)
+				*dest++ = c;
+			sp++;
+		}
+	/*
+	 * Otherwise we have a literal run.
+	 */
+	 	else
+		{
+			const int runlen = *sp ? *sp : 128;
+			sp++;
+			for (i = 0; i < runlen; i++)
+				*dest++ = *sp++;
+		}
+	}
+}
+
+
+
 
 
 

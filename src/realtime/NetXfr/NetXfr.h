@@ -1,4 +1,4 @@
-/* $Id: NetXfr.h,v 1.5 1991-06-08 17:06:47 corbet Exp $ */
+/* $Id: NetXfr.h,v 1.6 1991-06-12 16:41:15 corbet Exp $ */
 /* 
  * Definitions used for the data store network transfer protocol.
  */
@@ -30,6 +30,7 @@ typedef struct _DataHdr
 	char		dh_Platform[NAMELEN];	/* The name of this plat */
 	DataObject	dh_DObj;	/* The associated data object	*/
 	char		dh_BCast;	/* Broadcast will be used	*/
+	char		dh_BCRLE;	/* Run-length encoded data	*/
 } DataHdr;
 
 
@@ -54,6 +55,7 @@ typedef struct _DataDone
 {
 	NetMsgType	dh_MsgType;	/* == NMT_DataDone		*/
 	int		dh_DataSeq;	/* Sequence number		*/
+	int		dh_NBSent;	/* How many bcast packets sent	*/
 } DataDone;
 
 
@@ -130,13 +132,28 @@ extern int Broadcast, BCBurst, BCReceive, Polling;
 # ifdef __STDC__
 	void BCastSetup (struct ui_command *);
 	int BCastHandler (int, char *, int);
-	void DoBCast (PlatformId, DataObject *);
+	int DoBCast (PlatformId, DataObject *);
 	void ReceiveSetup (int);
 	void SendOut (PlatformId, void *, int);
 	void Retransmit (DataRetransRq *);
 # else
 	void BCastSetup ();
 	int BCastHandler ();
-	void DoBCast ();
+	int DoBCast ();
 	void ReceiveSetup ();
 # endif
+
+
+/*
+ * The Run Length Encoding mechanism:
+ *
+ * Each "run" is preceeded by a count byte, where 1 <= count <= 127.  A 
+ * count of zero is translated to 128.
+ *
+ * If the uppermost bit of the count byte is set, then the run consists
+ * of COUNT bytes, all the same as the byte following COUNT.  Otherwise
+ * COUNT distinct bytes follow.
+ *
+ * Runs do not span packet boundaries, so packets may be decoded 
+ * independently, in any order.
+ */

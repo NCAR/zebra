@@ -1,7 +1,7 @@
 /*
  * Handling of broadcast stuff.
  */
-static char *rcsid = "$Id: nx_BCast.c,v 1.3 1991-06-08 17:06:47 corbet Exp $";
+static char *rcsid = "$Id: nx_BCast.c,v 1.4 1991-06-12 16:41:15 corbet Exp $";
 
 # include <sys/time.h>
 # include <sys/signal.h>
@@ -60,6 +60,9 @@ static int NCAlloc = 0, NCReuse = 0;
 	static void ZapBCast (time *, tx_BCast *);
 	static void Delay (void);
 	static void Alarm (void);
+	static int BCastPlain (tx_BCast *, DataBCChunk *, char *, int);
+	static int BCastRLE (tx_BCast *, DataBCChunk *, char *, int);
+	static int RLEncode (unsigned char *, DataBCChunk *, int);
 # else
 	static tx_BCast *NewBCast ();
 	static DataBCChunk *GetBCastPacket ();
@@ -68,6 +71,9 @@ static int NCAlloc = 0, NCReuse = 0;
 	static void ZapBCast ();
 	static void Delay ();
 	static void Alarm ();
+	static int BCastPlain ();
+	static int BCastRLE ();
+	static int RLEncode ();
 # endif
 
 
@@ -119,7 +125,7 @@ int port;
 
 
 
-void
+int
 DoBCast (plat, dobj)
 PlatformId plat;
 DataObject *dobj;
@@ -128,9 +134,9 @@ DataObject *dobj;
  */
 {
 	tx_BCast *bcp;
-	DataBCChunk *chunk, template;
+	DataBCChunk template;
 	DataOffsets offsets;
-	int fld, nchunk;
+	int fld, nchunk, nsent;
 	char *cdata = (char *) dobj->do_data[0];
 /*
  * Set up to output this sequence.
@@ -161,42 +167,210 @@ DataObject *dobj;
 /*
  * Now we blast them out.
  */
-	for (; template.dh_Chunk < template.dh_NChunk - 1; template.dh_Chunk++)
+	if (dobj->do_org == OrgImage)
+		nsent = BCastRLE (bcp, &template, cdata, dobj->do_nbyte);
+	else
+		nsent = BCastPlain (bcp, &template, cdata, dobj->do_nbyte);
+	msg_ELog (EF_INFO, "%d packets calc, %d sent", template.dh_NChunk,
+		nsent);
+	bcp->txb_NChunk = nsent;
+/*
+ * Add the timeout that will eventually cause all this to go away.
+ */
+	tl_AddRelativeEvent (ZapBCast, bcp, BCastSave*INCFRAC, 0);
+	return (nsent);
+}
+
+
+
+
+static int
+BCastRLE (bcp, template, cdata, nbyte)
+tx_BCast *bcp;
+DataBCChunk *template;
+char *cdata;
+int nbyte;
+/*
+ * Send this stuff out run-length encoded.
+ */
+{
+	int count, inlit = FALSE, npacket = 0, nbsent = 0, ninpack;
+	int cmplen = 0;
+	unsigned char *runbegin, *cdest;
+	DataBCChunk *chunk;
+/*
+ * Keep sending packets as long as data remains.
+ */
+	while (nbsent < nbyte)
+	{
+	/*
+	 * Get a packet and initialize it.
+	 */
+		chunk = GetBCastPacket (bcp, template->dh_Chunk);
+		*chunk = *template;
+	/*
+	 * Encode some data into it.
+	 */
+		ninpack = RLEncode ((unsigned char *) cdata, chunk,
+					nbyte - nbsent);
+		nbsent += ninpack;
+		template->dh_Offset += ninpack;
+		cdata += ninpack;
+	/*
+	 * Ship it out.
+	 */
+	 	msg_BCast (BCastChannel, chunk, CBYTES);
+		npacket++;
+		template->dh_Chunk++;
+		cmplen += chunk->dh_Size;
+	/*
+	 * Maybe delay a bit to allow things to drain out.
+	 */
+		if ((npacket % BCBurst) == 1)
+			Delay ();
+	}
+	msg_ELog (EF_INFO, "RLE, %d by -> %d, %d%%", nbyte, cmplen,
+		((int) (100.0 * cmplen)/nbyte));
+	return (npacket);
+}
+
+
+
+
+
+static int
+RLEncode (data, chunk, max)
+unsigned char *data;
+DataBCChunk *chunk;
+int max;
+/*
+ * Actually run length encode a packet full of data.
+ */
+{
+	int count, inlit = FALSE, ninpack = 0, pcount = 0;
+	unsigned char *runbegin, *cdest = (unsigned char *)chunk->dh_data, *cp;
+
+	while (ninpack < max && pcount < chunk->dh_Size)
+	{
+	/*
+	 * If we are doing literal stuff and this would be the last byte,
+	 * we just finish it out.
+	 */
+	 	if (inlit && pcount == chunk->dh_Size - 1)
+		{
+			*cdest = *data;
+			if ((*runbegin = cdest - runbegin) == 128)
+				*runbegin = 0;
+			return (ninpack + 1);
+		}
+	/*
+	 * If there is only one byte left, and we're not in literal
+	 * we have no room to start anything.
+	 */
+	 	else if (! inlit && pcount == chunk->dh_Size - 1)
+		{
+			chunk->dh_Size--;
+			return (ninpack);
+		}
+	/*
+	 * Otherwise figure out if we can do a run from here.
+	 */
+	 	for (count = 0; count <= 128 && (count + ninpack) < max &&
+					data[count] == data[0]; count++)
+			;
+		count--;
+	/*
+	 * If there's enough of the same stuff here to do a run, put it in.
+	 */
+		if (count > 2)
+		{
+			if (inlit)
+				*runbegin = cdest - runbegin - 1;
+			inlit = FALSE;
+			*cdest++ = 0x80 | (count == 128 ? 0 : count);
+			*cdest++ = *data;
+			data += count;
+			pcount += 2;
+			ninpack += count;
+		}
+	/*
+	 * If no run, but in literal, make sure we've not filled it.
+	 */
+	 	else if (inlit && cdest - runbegin == 128)
+		{
+			*runbegin = 0;
+			*cdest++ = *data++;
+			pcount++;
+			ninpack++;
+		}
+	/*
+	 * Otherwise we just add to the literal run, starting it if need be.
+	 */
+	 	else
+		{
+			if (! inlit)
+			{
+				runbegin = cdest++;
+				inlit = TRUE;
+				pcount++;
+			}
+			*cdest++ = *data++;
+			pcount++;
+			ninpack++;
+		}
+	}
+	return (ninpack);
+}
+
+
+static int 
+BCastPlain (bcp, template, cdata, nbyte)
+tx_BCast *bcp;
+DataBCChunk *template;
+char *cdata;
+int nbyte;
+/*
+ * Send out this data straight.
+ */
+{
+	DataBCChunk *chunk;
+	int nsent = 0;
+/*
+ * Pass through each chunk and blast it out.
+ */
+	for (; template->dh_Chunk < template->dh_NChunk - 1;
+						template->dh_Chunk++)
 	{
 	/*
 	 * Allocate an outgoing packet and fill in header and data.
 	 */
-		chunk = GetBCastPacket (bcp, template.dh_Chunk);
-		*chunk = template;
+		chunk = GetBCastPacket (bcp, template->dh_Chunk);
+		*chunk = *template;
 		memcpy (chunk->dh_data, cdata, chunk->dh_Size);
 	/*
 	 * Send it out and update info.
 	 */
 		msg_BCast (BCastChannel, chunk, CBYTES);
 		cdata += chunk->dh_Size;
-		template.dh_Offset += chunk->dh_Size;
+		template->dh_Offset += chunk->dh_Size;
+		nsent++;
 	/*
 	 * Maybe delay a bit to allow things to drain out.
 	 */
-		if ((template.dh_Chunk % BCBurst) == 1)
+		if ((template->dh_Chunk % BCBurst) == 1)
 			Delay ();
 	}
 /*
  * Don't forget the last one.
  */
-	chunk = GetBCastPacket (bcp, template.dh_Chunk);
-	*chunk = template;
-	chunk->dh_Size = dobj->do_nbyte - chunk->dh_Offset;
+	chunk = GetBCastPacket (bcp, template->dh_Chunk);
+	*chunk = *template;
+	chunk->dh_Size = nbyte - chunk->dh_Offset;
 	memcpy (chunk->dh_data, cdata, chunk->dh_Size);
 	msg_BCast (BCastChannel, chunk, CBYTES);
-/*
- * Add the timeout that will eventually cause all this to go away.
- */
-	tl_AddRelativeEvent (ZapBCast, bcp, BCastSave*INCFRAC, 0);
+	return (nsent + 1);
 }
-
-
-
+	
 
 
 
