@@ -1,7 +1,7 @@
 /*
  * Window plot control routines.
  */
-static char *rcsid = "$Id: PlotControl.c,v 1.2 1990-12-14 14:03:25 burghart Exp $";
+static char *rcsid = "$Id: PlotControl.c,v 1.3 1991-01-26 00:12:17 corbet Exp $";
 
 # include <ctype.h>
 # include <X11/Intrinsic.h>
@@ -11,6 +11,7 @@ static char *rcsid = "$Id: PlotControl.c,v 1.2 1990-12-14 14:03:25 burghart Exp 
 # include "../include/message.h"
 # include "../include/timer.h"
 # include "../include/pd.h"
+# include "../include/DataStore.h"
 # include "GraphProc.h"
 # include "EventQueue.h"
 
@@ -29,6 +30,7 @@ static int	MovieEvent = -1;
 	static void pc_FrameAlarm ();
 	static void pc_Plot (char *);
 	static void pc_NextFrame ();
+	static void pc_Notification (PlatformId, int, time *);
 # else
 	int pc_TimeTrigger ();
 	static void pc_SetTimeTrigger ();
@@ -36,6 +38,7 @@ static int	MovieEvent = -1;
 	static void pc_FrameAlarm ();
 	static void pc_Plot ();
 	static void pc_NextFrame ();
+	static void pc_Notification ();
 # endif
 
 
@@ -117,6 +120,7 @@ pc_PlotHandler ()
  * Cancel all existing timer requests.
  */
  	tl_AllCancel ();
+	ds_CancelNotify ();
 /*
  * Get the plot mode
  */
@@ -264,11 +268,17 @@ char *trigger, *comp;
  */
 {
 	int seconds;
+	PlatformId pid;
 /*
  * Try to interpret the trigger as a time.
  */
 	if (seconds = pc_TimeTrigger (trigger))
 		pc_SetTimeTrigger (seconds, comp);
+/*
+ * Then as a platform name.
+ */
+	else if ((pid = ds_LookupPlatform (trigger)) != BadPlatform)
+		ds_RequestNotify (pid, 0, pc_Notification);
 	else
 		msg_log ("Funky trigger time '%s' in component %s", trigger, 
 			comp);
@@ -366,6 +376,29 @@ char *comp;
 
 
 
+
+
+static void
+pc_Notification (pid, global, t)
+PlatformId pid;
+int global;
+time *t;
+/*
+ * A data available notification has arrived.  Only do global updates for
+ * the moment, until we decide how we're passing the component through
+ * the PARAM field....
+ */
+{
+	PlotTime = *t;
+	msg_ELog (EF_DEBUG, "Data available on %s at %d %d", 
+		ds_PlatformName (pid), t->ds_yymmdd, t->ds_hhmmss);
+	Eq_AddEvent (PDisplay, pc_Plot, "global", 7, Override);
+}
+
+
+
+
+
 static void
 pc_Plot (comp)
 char	*comp;
@@ -412,6 +445,7 @@ pc_CancelPlot ()
  * Cancel any timer requests.
  */
 	tl_AllCancel ();
+	ds_CancelNotify ();
 }
 
 
