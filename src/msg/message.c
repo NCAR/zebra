@@ -51,7 +51,7 @@
 # include <message.h>
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.38 1996-08-08 22:22:30 granger Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.39 1996-08-13 21:53:58 granger Exp $")
 /*
  * Symbol tables.
  */
@@ -2721,8 +2721,8 @@ int query;	/* nonzero if this a MT_QUERY rather the MH_STATS */
 		username = pw->pw_name;
 	}
 	sprintf (text, "'%s'@%s: pid %i, uid %i (%s)", 
-		 MSG_MGR_NAME, Hostname, getpid(), 
-		 getuid(), (username) ? username : "unknown");
+		 MSG_MGR_NAME, Hostname, (int) getpid(), 
+		 (int) getuid(), (username) ? username : "unknown");
 /*
  * The 1 character in mh_text included in sizeof holds space for the '\0'
  */
@@ -2843,10 +2843,10 @@ int fd;
  * Remove any tap nodes for this connection.
  */
 {
-	struct MTap *mt, *last;
-
 	if (Taps)
 	{
+		struct MTap *mt;
+
 		if (Taps->mt_who == fd)
 		{
 			mt = Taps;
@@ -2854,6 +2854,8 @@ int fd;
 		}
 		else
 		{
+			struct MTap *last = Taps;
+
 			for (mt = Taps->mt_next; mt; mt = mt->mt_next)
 			{
 				if (mt->mt_who == fd)
