@@ -32,7 +32,7 @@
 # include "GraphProc.h"
 # include "LayoutControl.h"
 
-RCSID("$Id: LayoutControl.c,v 1.12 1995-06-29 23:28:59 granger Exp $")
+RCSID("$Id: LayoutControl.c,v 1.13 1995-09-21 21:21:33 granger Exp $")
 
 /*
  * This set of routines maintains the division of the (NDC) coordinate
@@ -84,11 +84,11 @@ RCSID("$Id: LayoutControl.c,v 1.12 1995-06-29 23:28:59 granger Exp $")
  *	 |					|
  *       ----------------------------------------
  *
- * The transformations CL_XPIX,  CL_YPIX, CL_XUSER and CL_YUSER should
+ * The transformations LC_XPIX,  LC_YPIX, LC_XUSER and LC_YUSER should
  * be used to reference the data region.  Utilities that plot in
  * each of the various component regions need to provide their own
  * boundary checking to ensure that plotting doesn't overflow the
- * space limits defined by their boundarys.
+ * space limits defined by their boundaries.
  *
  */
 
@@ -100,14 +100,16 @@ DataValRec	UX0, UX1, UY0, UY1; /* Actual coordinates of use */
 DataValRec	OUX0, OUX1, OUY0, OUY1; /* The base (original) coordinates
 				           before applying zoom transform */
 /*
- *  Variables containing boundary of the the various graphics regions
+ *  Variables containing boundary of the various graphics regions
  *  in the normalized coordinate system (0.0, 1.0)
  */
 
 float	FX0 = 0.0, FY0 = 0.0, FX1 = 1.0, FY1 = 1.0;
 float	AxisX0[4], AxisX1[4], AxisY0[4], AxisY1[4];
 float	IconX0, IconX1, IconY0, IconY1;
+#ifdef notdef
 int	IconSpace;
+#endif
 float	AnnotateX0, AnnotateX1, AnnotateY0, AnnotateY1;
 float	LegendX0, LegendX1, LegendY0, LegendY1;
 TransRegion CurrentTrans = DataTrans;
@@ -319,7 +321,7 @@ int	pixSize;
 	if (pixSize < 0)
 	{	
 		msg_ELog (EF_PROBLEM, 
-			  "Negative pixel size (%d) for %c axis space", 
+			  "Negative pixel size (%d) for %s axis space", 
 			  pixSize, SIDE_NAME (axis));
 		return;
 	}
@@ -443,7 +445,7 @@ int	pixHeight;
 	}
 /*
  * Adjust the bottom of the annotation space, which then affects the
- * top axis space and the data region.
+ * top axis space, the data region, and the legend region.
  */
 	AnnotateY0 = AnnotateY1 - 
 		(float) pixHeight / (float) GWWidth (Graphics);
@@ -453,6 +455,7 @@ int	pixHeight;
 	AxisY0[SideTop] = AxisY1[SideTop] - axisdepth;
 	
 	FY1 = AxisY0[SideTop];
+	LegendY1 = AnnotateY0;
 }
 
 
