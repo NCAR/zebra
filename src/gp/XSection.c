@@ -42,7 +42,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: XSection.c,v 2.42 1998-10-28 21:22:16 corbet Exp $")
+RCSID ("$Id: XSection.c,v 2.43 1998-11-20 16:05:18 burghart Exp $")
 
 /*
  * General definitions
@@ -130,7 +130,7 @@ static int	Pix_left, Pix_right, Pix_bottom, Pix_top;
  * "Zig-zag" cross-section?
  * Horizontal axis labeling
  */
-static char	Zfld[20];
+static char	Zfld[80];
 static zbool	Fill_contour;
 static zbool	Zig_zag;
 
