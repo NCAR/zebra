@@ -50,7 +50,7 @@ Xosdefs.h:	An X11 include file required by imake; it is included
 		directly from this directory when imake is compiled.
 
 Imakefile:	The Imakefile for this directory.  Basically it installs the
-		config.h and version.h files into the include directory.
+		config.h file into the include directory.
 
 Differences from X11R6:
 =======================
