@@ -30,7 +30,7 @@
 # include <DataStore.h>
 # include <Platforms.h>
 
-RCSID ("$Id: dsdump.c,v 3.27 2000-11-07 22:24:50 granger Exp $")
+RCSID ("$Id: dsdump.c,v 3.28 2000-11-08 20:03:44 granger Exp $")
 
 /*
  * Standalone scanning flag.
@@ -58,7 +58,7 @@ typedef enum e_platform_att_id
 {
     PA_NONE = 0, PA_NAME, PA_CLASS, PA_SUPERCLASS, PA_CLASSTREE,
     PA_FILETYPE, PA_ORGANIZATION, PA_MAXSAMPLES, PA_CLASSDIR,
-    PA_INHERIT_DIR, PA_INSTANCE_DIR, PA_COMMENT, PA_LASTATT
+    PA_PARENT, PA_INHERIT_DIR, PA_INSTANCE_DIR, PA_COMMENT, PA_LASTATT
 } platform_att_id;
 
 typedef struct s_platform_att 
@@ -82,6 +82,7 @@ platform_att PlatformAtts[] =
     { "organization", PA_ORGANIZATION },
     { "maxsamples", PA_MAXSAMPLES },
     { "classdir", PA_CLASSDIR },
+    { "parent", PA_PARENT },
     { "inheritdir", PA_INHERIT_DIR },
     { "instancedir", PA_INSTANCE_DIR },
     { "comment", PA_COMMENT }
@@ -141,6 +142,7 @@ DumpAtt (const Platform *p, const PlatformClass *pc,
 {
     static char buf[512];
 
+    PlatformId ppid;
     char name[512];
     const PlatformClass *spc;
 
@@ -162,7 +164,7 @@ DumpAtt (const Platform *p, const PlatformClass *pc,
 	if (spc)
 	    return (pc_Name (spc));
 	else
-	    return ("none");
+	    return ("NA");
 	break;
 
     case PA_CLASSTREE:
@@ -194,6 +196,14 @@ DumpAtt (const Platform *p, const PlatformClass *pc,
 	return pi_ClassDir (p);
 	break;
 
+    case PA_PARENT:
+	ppid = pi_ParentId (p);
+	if (ppid != BadPlatform)
+	    return ds_PlatformName (ppid);
+	else
+	    return "NA";
+	break;
+
     case PA_INHERIT_DIR:
 	return ds_InheritDirFlagName (pc_InheritDirFlag (pc));
 	break;
@@ -208,7 +218,7 @@ DumpAtt (const Platform *p, const PlatformClass *pc,
 
     default:
     }
-    return "unknown";
+    return "NA";
 }
 
 
