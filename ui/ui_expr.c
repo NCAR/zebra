@@ -1,5 +1,5 @@
 /* 1/87 jc */
-/* $Id: ui_expr.c,v 1.4 1989-04-18 17:18:37 corbet Exp $ */
+/* $Id: ui_expr.c,v 1.5 1989-07-17 14:48:25 corbet Exp $ */
 /*
  * Expression handling.
  */
@@ -21,6 +21,7 @@
  * one of these.
  */
 # define CHLENGTH 132
+# define TLEN 200
 struct iss
 {
 	char *iss_sp;			/* Where we are in the stuff.	*/
@@ -605,7 +606,7 @@ bool signal;
  */
 {
 	struct parse_tree *node, *left;
-	char token[40];
+	char token[TLEN];
 	int col;
 /*
  * In any case, we need to be able to parse a conjunction.
@@ -652,7 +653,7 @@ bool signal;
  */
 {
 	struct parse_tree *node, *left;
-	char token[40];
+	char token[TLEN];
 	int col;
 /*
  * In any case, we need to be able to parse a relational expression
@@ -700,7 +701,7 @@ bool signal;
 {
 	struct parse_tree *node, *left;
 	struct roptab *rp = Roptbl;
-	char token[40];
+	char token[TLEN];
 	int col;
 /*
  * Grab up a mathematical expression.
@@ -749,7 +750,7 @@ bool signal;
  */
 {
 	struct parse_tree *node, *left;
-	char token[40];
+	char token[TLEN];
 	int col;
 /*
  * In any case, we need to be able to parse a term.
@@ -795,7 +796,7 @@ bool signal;
  */
 {
 	struct parse_tree *node, *left;
-	char token[40];
+	char token[TLEN];
 	int col;
 /*
  * In any case, we need to be able to parse an efactor.
@@ -841,7 +842,7 @@ bool signal;
  */
 {
 	struct parse_tree *node, *left;
-	char token[40];
+	char token[TLEN];
 	int col;
 /*
  * In any case, we need to be able to parse a factor.
@@ -886,7 +887,7 @@ bool signal;
  */
 {
 	struct parse_tree *left;
-	char token[40];
+	char token[TLEN];
 	int col;
 /*
  * Grab a token and see if it is a left parenthesis.
@@ -944,7 +945,7 @@ bool signal;
  */
 {
 	struct parse_tree *node;
-	char token[40], token2[40];
+	char token[TLEN], token2[TLEN];
 	int col, col2;
 /*
  * Let's go ahead and try to allocate a node structure.  Then we can run
@@ -1033,7 +1034,7 @@ bool signal;
  */
 {
 	int col;
-	char token[40];
+	char token[TLEN];
 /*
  * Start by putting this node entry together.
  */
@@ -1098,7 +1099,7 @@ bool signal;
  * <arglist> :== <expr> | <expr> , <arglist>
  */
 {
-	char token[40];
+	char token[TLEN];
 	int col;
 	struct parse_tree *node = ue_get_node ();
 /*
@@ -1211,7 +1212,7 @@ int type;
  * Print out this value.
  */
 {
-	char d_buf[40];
+	char d_buf[TLEN];
 
  	switch (type)
 	{
@@ -1248,7 +1249,7 @@ char *dest;
  * Encode this value into the destination string.
  */
 {
-	char d_buf[40];
+	char d_buf[TLEN];
 
  	switch (type)
 	{
