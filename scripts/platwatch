@@ -21,7 +21,7 @@ set sleep = $2
 #
 set plat = $0:e
 if ($plat == "") then
-    echo "This script *must* have an extension matching the"
+    echo "${0}: This script *must* have an extension matching the"
     echo "platform to be watched."
     exit 1
 endif
@@ -31,7 +31,7 @@ endif
 #
 which dsrescan >& /dev/null
 if ($status) then
-    echo "Can't find dsrescan in the path\!"
+    echo "${0}: Can't find dsrescan in the path\!"
     exit 1
 endif
 
