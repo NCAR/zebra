@@ -29,7 +29,7 @@
 # define MESSAGE_LIBRARY
 # include "message.h"
 
-RCSID("$Id: msg_BCast.c,v 2.6 1995-05-02 23:16:27 granger Exp $")
+RCSID("$Id: msg_BCast.c,v 2.7 1995-05-05 18:05:18 granger Exp $")
 
 /*
  * An open UDP socket looks like this:
@@ -173,8 +173,8 @@ int fd;
 	 */
 		FD_ZERO (&fds);
 		FD_SET (fd, &fds);
-		if ((ret = select (fd + 1, (z_FdSet *)&fds, (z_FdSet *) 0,
-				   (z_FdSet *) 0, &tv)) <= 0)
+		if ((ret = select (fd + 1, (SelectSet *)&fds, (SelectSet *)0,
+				   (SelectSet *)0, &tv)) <= 0)
 			return (ret);
 	/*
 	 * If so, dispatch it.
