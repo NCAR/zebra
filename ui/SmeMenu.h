@@ -1,5 +1,5 @@
 /*
- * $XConsortium: SmeMenu.h,v 1.5 89/12/11 15:20:14 kit Exp $
+ * $Id: SmeMenu.h,v 1.5 1993-04-12 18:38:14 granger Exp $
  *
  * Copyright 1989 Massachusetts Institute of Technology
  *
