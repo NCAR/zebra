@@ -1,4 +1,4 @@
-/* $Id: gp_cmds.h,v 1.6 1991-03-22 16:02:28 corbet Exp $ */
+/* $Id: gp_cmds.h,v 2.0 1991-07-18 23:00:21 corbet Exp $ */
 /*
  * Command symbols for the graphics process.
  */

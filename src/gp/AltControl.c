@@ -1,7 +1,7 @@
 /*
  * Altitude control for CAP plots.
  */
-static char *rcsid = "$Id: AltControl.c,v 1.4 1991-06-14 22:19:52 corbet Exp $";
+static char *rcsid = "$Id: AltControl.c,v 2.0 1991-07-18 23:00:21 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -108,10 +108,11 @@ float *alts;
  * Find the list of available radar space altitudes.
  */
 {
-	time stimes[MAXALT];
+	time stimes[MAXALT], otimes[2];
 	PlatformId pid;
 	Location locs[MAXALT];
-	int i, nalt;
+	char cattr[200], *attr = NULL;
+	int i, nalt, ntime;
 /*
  * Find our platform first.
  */
@@ -121,11 +122,31 @@ float *alts;
 		return (-1);
 	}
 /*
+ * See if there is a filter attribute to apply.
+ */
+	if (pda_Search (Pd, "global", "filter-attribute", platform,
+			cattr, SYMT_STRING))
+		attr = cattr;
+/*
  * Now we have to copy out the altitudes to match what is expected
  * in alt_Step;
  */
-	nalt = ds_GetObsSamples (pid, &PlotTime, stimes, locs, MAXALT);
+	if ((ntime = ds_GetObsTimes (pid, &PlotTime, otimes, 2, attr)) <= 0)
+		return (0);
+	nalt = ds_GetObsSamples (pid, otimes, stimes, locs, MAXALT);
 	for (i = 0; i < nalt; i++)
 		alts[i] = locs[i].l_alt;
+/*
+ * Now look at the previous observation and get any tilts higher than
+ * what we have here.
+ */
+	if (ntime > 1)
+	{
+		int na = ds_GetObsSamples (pid, otimes + 1, stimes, locs,
+				MAXALT);
+		for (i = 0; i < na; i++)
+			if (locs[i].l_alt > alts[nalt - 1])
+				alts[nalt++] = locs[i].l_alt;
+	}
 	return (nalt);
 }

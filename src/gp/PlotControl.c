@@ -1,7 +1,7 @@
 /*
  * Window plot control routines.
  */
-static char *rcsid = "$Id: PlotControl.c,v 1.9 1991-07-01 13:45:36 corbet Exp $";
+static char *rcsid = "$Id: PlotControl.c,v 2.0 1991-07-18 23:00:21 corbet Exp $";
 
 # include <ctype.h>
 # include <X11/Intrinsic.h>
@@ -193,6 +193,10 @@ pc_PlotHandler ()
 	}
 	else
 		tl_GetTime (&PlotTime);
+/*
+ * Arrange for AcWidget notifications.
+ */
+	tr_InitNot ();
 /*
  * Force a replot if the window is visible.
  */
@@ -402,7 +406,7 @@ time *t;
 {
 	char **comps;
 	char rep[40];
-	int reroute;
+	int reroute, global;
 /*
  * Look at times and components.  Florida change: Use the current time
  * for the plot, instead of the data time -- that way things like boundaries
@@ -411,7 +415,7 @@ time *t;
 	/* PlotTime = *t; */
 	tl_GetTime (&PlotTime);
 	comps = pd_CompList (Pd);
-	msg_ELog (EF_DEBUG, "Data available on %s (c: sd) at %d %d", 
+	msg_ELog (EF_DEBUG, "Data available on %s (c: %s) at %d %d", 
 		ds_PlatformName (pid), comps[index], t->ds_yymmdd,
 		t->ds_hhmmss);
 /*
@@ -425,6 +429,9 @@ time *t;
 		index = reroute;
 		msg_ELog (EF_DEBUG, " (reroute to %d)", index);
 	}
+	else if (pda_Search (Pd, comps[index], "trigger-global", NULL,
+			(char *) &global, SYMT_BOOL) && global)
+		index = 0;
 	Eq_AddEvent (PDisplay, pc_Plot, comps[index],
 			strlen (comps[index]) + 1, Override);
 }

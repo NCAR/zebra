@@ -1,7 +1,7 @@
 /*
  * Vertical cross-sectioning
  *
- * $Revision: 1.4 $ $Date: 1991-04-09 02:24:55 $ $Author: burghart $
+ * $Revision: 2.0 $ $Date: 1991-07-18 23:00:21 $ $Author: corbet $
  */
 # include <math.h>
 # include <ctype.h>

@@ -1,7 +1,7 @@
 /*
  * Rubber-band interactive drawing routines.
  */
-static char *rcsid = "$Id: RBand.c,v 1.6 1991-03-05 21:26:23 corbet Exp $";
+static char *rcsid = "$Id: RBand.c,v 2.0 1991-07-18 23:00:21 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/cursorfont.h>
@@ -735,6 +735,7 @@ rb_PLConvert ()
  */
 {
 	DataObject dobj;
+	BndDesc bnd;
 	int npt = N_PolySeg + 1, pt;
 /*
  * If it's empty, what's the point?
@@ -754,7 +755,10 @@ rb_PLConvert ()
 	dobj.do_npoint = 1;
 	dobj.do_aloc = (Location *) malloc (npt * sizeof (Location));
 	dobj.do_times = (time *) malloc (npt * sizeof (time));
-	dobj.do_desc.d_length = &npt;
+	dobj.do_desc.d_bnd = &bnd;
+	bnd.bd_npoint = npt;
+	bnd.bd_pid = dobj.do_id;
+	bnd.bd_begin = 0;
 	dobj.do_nfield = 0;
 	dobj.do_flags = 0;
 	dobj.do_badval = 0.0;

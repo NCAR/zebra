@@ -9,7 +9,7 @@
 # include "EventQueue.h"
 # include "LLEvent.h"
 
-static char *rcsid = "$Id: LLEvent.c,v 1.3 1990-12-14 14:00:45 burghart Exp $";
+static char *rcsid = "$Id: LLEvent.c,v 2.0 1991-07-18 23:00:21 corbet Exp $";
 
 
 /*

@@ -8,7 +8,7 @@
 # include "GraphProc.h"
 # include "rg_status.h"
 
-static char *rcsid = "$Id: GridAccess.c,v 1.7 1991-06-25 14:14:07 corbet Exp $";
+static char *rcsid = "$Id: GridAccess.c,v 2.0 1991-07-18 23:00:21 corbet Exp $";
 
 
 # define BADVAL	-32768.0

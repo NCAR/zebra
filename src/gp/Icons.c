@@ -47,6 +47,8 @@ struct IconList
 };
 static struct IconList *AvailIcons = 0;	/* Which icons are available	*/
 static struct IconList *UsedIcons = 0;	/* Which are in use		*/
+static struct IconList *AvailPos = 0;	/* Which position icons are available*/
+static struct IconList *UsedPos = 0;	/* Which position icons are in use*/
 
 /*
  * We want to keep the icon pixmaps around, since there aren't a whole
@@ -59,9 +61,10 @@ static stbl IconTable = 0;
  * Forwards.
  */
 # ifdef __STDC__
-	static Pixmap I_GetIcon (char *, int *, int *);
+	static Pixmap I_GetIcon (char *, int *, int *, int);
 	static struct IconList *I_PutIcon (Pixmap, int *, int, int);
-	static struct IconList *I_GetWidget (void);
+	static struct IconList *I_GetWidget (struct IconList **, 
+			struct IconList **);
 	static void I_MenuPopup (Widget, XEvent *);
 # else
 	static Pixmap I_GetIcon ();
@@ -137,7 +140,48 @@ I_clear ()
 }
 
 
+void
+I_PositionIcon (name, x, y, fg)
+char	*name;
+int	x, y, fg;
+{
+	union usy_value	v;
+	int		type, xh, yh, junk;
+	unsigned int	w, h, ujunk;
+	char		fname[120];
+	Pixmap		pmap;
+	Display		*disp = XtDisplay (Graphics);
+	Window		root = RootWindow (disp, 0);
+	Arg		args[5];
+	struct IconList	*ilp;
 
+	msg_ELog (EF_DEBUG, "Position Icon %s %d %d", name, x, y);
+	if (! usy_g_symbol (IconTable, name, &type, &v))
+	{
+		strcpy (fname, "../lib/icons");
+		strcat (fname, name);
+		if (XReadBitmapFile(disp, root, fname, &w, &h, &pmap, &xh, &yh)
+			!= BitmapSuccess)
+		{
+			msg_ELog (EF_PROBLEM, "Unable to read icon file '%s'",
+				fname);
+			return; 
+		}
+		v.us_v_ptr = (char *) pmap;
+		usy_s_symbol (IconTable, name, SYMT_POINTER, &v);
+	}
+
+	pmap = (Pixmap) v.us_v_ptr;
+	ilp = I_GetWidget (&AvailPos, &UsedPos);
+
+	XGetGeometry (disp, pmap, &root, &junk, &junk, &w, &h, &ujunk, &ujunk);
+
+	XtSetArg (args[0], XtNbitmap, pmap);
+	XtSetArg (args[1], XtNx, x);
+	XtSetArg (args[2], XtNy, y);
+	XtSetArg (args[3], XtNforeground, fg);
+	XtSetValues (ilp->il_icon, args, 4);
+}
 
 
 void
@@ -162,15 +206,15 @@ I_DoIcons ()
 	for (comp = 0; comps[comp]; comp++)
 	{
 	/*
-	 * No icon for disabled components.
+	 * Is this one disabled?	
 	 */
-	 	if (pda_Search (Pd, comps[comp], "disable", comps[comp],
-				(char *) &disable, SYMT_BOOL) && disable)
-			continue;
+	 	if (! pda_Search (Pd, comps[comp], "disable", comps[comp],
+				(char *) &disable, SYMT_BOOL))
+			disable = FALSE;
 	/*
 	 * Dig up an icon.
 	 */
-		if (! (icon = I_GetIcon (comps[comp], &fg, &bg)))
+		if (! (icon = I_GetIcon (comps[comp], &fg, &bg, disable)))
 			continue;
 	/*
 	 * Put it onto the display
@@ -211,9 +255,9 @@ I_DoIcons ()
 
 
 static Pixmap
-I_GetIcon (comp, fg, bg)
+I_GetIcon (comp, fg, bg, disable)
 char *comp;
-int *fg, *bg;
+int *fg, *bg, disable;
 /*
  * Try to get the icon for this component.
  */
@@ -240,12 +284,14 @@ int *fg, *bg;
 /*
  * Figure out colors.
  */
-	if (! pda_Search (Pd, comp, "icon-color", platform, color,SYMT_STRING))
-		strcpy (color, "white");
+	if (! pda_Search (Pd, comp,
+		disable ? "disabled-icon-color" : "icon-color",
+		platform, color,SYMT_STRING)) strcpy (color, "white");
 	ct_GetColorByName (color, &xc);
 	*fg = xc.pixel;
-	if (! pda_Search (Pd, comp, "icon-background", platform, color,
-			SYMT_STRING))
+	if (! pda_Search (Pd, comp,
+			disable? "disabled-icon-background" :"icon-background",
+			 platform, color, SYMT_STRING))
 		strcpy (color, "black");
 	ct_GetColorByName (color, &xc);
 	*bg = xc.pixel;
@@ -294,7 +340,7 @@ int *xpos, fg, bg;
 /*
  * We need a label widget to put this in.
  */
-	ilp = I_GetWidget ();
+	ilp = I_GetWidget (&AvailIcons, &UsedIcons);
 /*
  * Figure out the dimensions of this pixmap.
  */
@@ -322,7 +368,8 @@ int *xpos, fg, bg;
 
 
 static struct IconList *
-I_GetWidget ()
+I_GetWidget (avail, used)
+struct IconList	**avail, **used;
 /*
  * Get a widget.
  */
@@ -333,10 +380,10 @@ I_GetWidget ()
 /*
  * Return one off the available list if possible.
  */
-	if (AvailIcons)
+	if (*avail)
 	{
-		ilp = AvailIcons;
-		AvailIcons = ilp->il_next;
+		ilp = *avail;
+		*avail = ilp->il_next;
 		XtManageChild (ilp->il_icon);
 	}
 /*
@@ -359,8 +406,8 @@ I_GetWidget ()
  * Put it onto the used list, and return it.
  */
 	/* XtOverrideTranslations (ilp->il_icon, MBTranslations); */
-	ilp->il_next = UsedIcons;
-	UsedIcons = ilp;
+	ilp->il_next = *used;
+	*used = ilp;
 	return (ilp);
 }
 
@@ -404,7 +451,8 @@ XEvent *ev;
 /*
  * Throw it up onto the screen, and let it handle things from here.
  */
-	uw_IWRealize (menu, Graphics);
+	if (strcmp (menu, "DataAvailable"))
+		uw_IWRealize (menu, Graphics);
 	XtCallActionProc (w, "XawPositionSimpleMenu", ev, &menu, 1);
 	XtCallActionProc (w, "MenuPopup", ev, &menu, 1);
 }

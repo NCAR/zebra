@@ -1,7 +1,7 @@
 /*
  * Deal with user-originated events.
  */
-static char *rcsid = "$Id: UserEvent.c,v 1.3 1990-11-09 16:36:51 corbet Exp $";
+static char *rcsid = "$Id: UserEvent.c,v 2.0 1991-07-18 23:00:21 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include "../include/defs.h"

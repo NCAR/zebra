@@ -1,7 +1,7 @@
 /*
  * Raster display a rectangular array
  */
-static char *rcsid = "$Id: RasterPlot.c,v 1.8 1991-06-14 22:21:26 corbet Exp $";
+static char *rcsid = "$Id: RasterPlot.c,v 2.0 1991-07-18 23:00:21 corbet Exp $";
 
 # include <errno.h>
 # include <math.h>
@@ -611,16 +611,16 @@ float scale, bias;
 	}
 	else
 		icol = 0.5;
-	if (width > Clip.width)
-		width = Clip.width;
+	if (width + (xlo - Clip.x) > Clip.width)
+		width = Clip.width - (xlo - Clip.x);
 	if (yhi < Clip.y)
 	{
 		row += (Clip.y - yhi)*rowinc;
 		height -= (Clip.y - yhi);
 		yhi = Clip.y;
 	}
-	if (height > Clip.height)
-		height = Clip.height;
+	if (height + (yhi - Clip.y) > Clip.height)
+		height = Clip.height - (yhi - Clip.y);
 /*
  * Find the image space and start rasterizing.  Also force a sync with 
  * the server; things could happen in the wrong order otherwise.

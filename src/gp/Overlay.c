@@ -1,11 +1,12 @@
 /*
  * Deal with static (or almost static) overlays.
  */
-static char *rcsid = "$Id: Overlay.c,v 1.17 1991-07-01 13:47:16 corbet Exp $";
+static char *rcsid = "$Id: Overlay.c,v 2.0 1991-07-18 23:00:21 corbet Exp $";
 
 # include <stdio.h>
 # include <X11/Intrinsic.h>
 # include <math.h>
+# include <string.h>
 # include "../include/defs.h"
 # include "../include/pd.h"
 # include "../include/message.h"
@@ -101,21 +102,26 @@ typedef struct _MapPoints
 	static void ov_RangeRings (char *, int);
 	static void ov_Location (char *, int);
 	static void ov_Grid (char *, int);
+	static void ov_AzLimits (char *, int);
 	static bool ov_GetWBounds (char *, char *, float *, float *, float *,
 			float *, float *);
 	static int ov_FindWBReply (struct message *, struct dm_rp_wbounds *);
 	static void ov_Boundary (char *, int);
-	static bool ov_GetBndParams (char *, char *, XColor *, int *, int *);
+	static bool ov_GetBndParams (char *, char *, XColor *, int *, int *,
+			LabelOpt *, char *,float *);
 	static int ov_RRInfo (char *, char *, Location *, float *, float *,
-			float *, float *, int *, float *, XColor *, int *);
+			float *, float *, int *, float *, XColor *, int *,
+			float *);
 	static OvIcon *ov_GetIcon (char *);
 	static int ov_LocSetup (char *, char **, int *, OvIcon **, LabelOpt *,
 					char *, float *);
 	static void	ov_SGSetup (char *, float *, float *, float *, int *,
-					int *);
+					int *, int *, float *, float *);
 	static void 	ov_SolidGrid (int, int, int, int, double, double,
-				double, int);
+				double, int, double, double);
 	static void	ov_TicGrid (int, int, int, int, double, double,
+				double, int, int, double, double);
+	static void	ov_LLTicGrid (int, int, int, int, double, double,
 				double, int, int);
 	static MapPoints *ov_LoadMap (char *);
 	static void	ov_DrawMap (const MapPoints *);
@@ -136,6 +142,7 @@ typedef struct _MapPoints
 	static void	ov_SGSetup ();
 	static void 	ov_SolidGrid ();
 	static void	ov_TicGrid ();
+	static void	ov_LLTicGrid ();
 	static MapPoints *ov_LoadMap ();
 	static void	ov_DrawMap ();
 # endif
@@ -163,6 +170,7 @@ static struct overlay_table
 	{ "location",	ov_Location	},
 	{ "solidgrid",	ov_Grid		},
 	{ "grid",	ov_Grid		},
+	{ "azimuth-limits", ov_AzLimits },
 	{ 0, 0}
 };
 
@@ -216,6 +224,109 @@ bool update;
 	(*Ov_table[i].ot_func) (comp, update);
 }
 
+
+
+
+static void
+ov_AzLimits (comp, update)
+char *comp;
+bool update;
+/*
+ * Do an azimuth limits plot.
+ */
+{
+	char color[40], plat[40], alplat[40];
+	int lwidth, range, pox, poy, lx, ly, rx, ry;
+	unsigned int bbsize;
+	float ox, oy, left, right;
+	XColor xc;
+	PlatformId pid;
+	Location loc;
+	DataObject *dobj;
+	time t;
+	static char *fields[2] = { "left", "right" };
+/*
+ * Platform stuff.
+ */
+	if (! pda_ReqSearch (Pd, comp, "platform", NULL, plat, SYMT_STRING))
+		return;
+	if (! GetLocation (plat, &PlotTime, &loc))
+	{
+		msg_ELog (EF_PROBLEM, "Unable to locate platform '%s'", plat);
+		return;
+	}
+/*
+ * How far do we go.
+ */
+	if (! pda_Search (Pd, comp, "range", plat, (char *) &range, SYMT_INT))
+		range = 100;
+/*
+ * Find our limits platform.
+ */
+	strcat (plat, "-az-limits");
+	if ((pid = ds_LookupPlatform (plat)) == BadPlatform)
+	{
+		msg_ELog (EF_PROBLEM, "No az limits plat %s", plat);
+		return;
+	}
+/*
+ * Color information.
+ */
+	if (! pda_Search (Pd, comp, "color", "overlay", color, SYMT_STRING))
+		strcpy (color, "white");
+/*
+ * Graphics context stuff.
+ */
+	ct_GetColorByName (color, &xc);
+	XSetForeground (Disp, Gcontext, xc.pixel);
+	if (pda_Search (Pd, comp, "line-width", "overlay", (char *) &lwidth,
+			SYMT_INT))
+		XSetLineAttributes (Disp, Gcontext, lwidth, LineSolid,
+			CapButt, JoinMiter);
+/*
+ * Find out when there is something available.
+ */
+	if (! ds_DataTimes (pid, &PlotTime, 1, DsBefore, &t))
+		return;
+/*
+ * Check into age limits.
+ */
+ 	if (! AgeCheck (comp, &t))
+	{
+		msg_ELog (EF_INFO, "Az limits %s too old %d %d", plat,
+			t.ds_yymmdd, t.ds_hhmmss);
+		return;
+	}
+/*
+ * Snarf it.
+ */
+	if ((dobj = ds_GetData (pid, fields, 2, &t, &t, OrgScalar, 0, BADVAL))
+				== 0)
+	{
+		msg_ELog (EF_PROBLEM, "Get failed on %s", plat);
+		return;
+	}
+	left = *(dobj->do_data[0]);
+	right = *(dobj->do_data[1]);
+/*
+ * Figure out end points.
+ */
+	cvt_ToXY (loc.l_lat, loc.l_lon, &ox, &oy);
+	pox = XPIX (ox);  poy = YPIX (oy);
+	lx = XPIX (ox + range*sin (left*M_PI/180.0));
+	ly = YPIX (oy + range*cos (left*M_PI/180.0));
+	rx = XPIX (ox + range*sin (right*M_PI/180.0));
+	ry = YPIX (oy + range*cos (right*M_PI/180.0));
+/*
+ * Draw.
+ */
+	XDrawLine (Disp, GWFrame (Graphics), Gcontext, pox, poy, lx, ly);
+	XDrawLine (Disp, GWFrame (Graphics), Gcontext, pox, poy, rx, ry);
+	bbsize = 2*(XPIX (ox + range) - pox);
+	XDrawArc (Disp, GWFrame (Graphics), Gcontext, XPIX (ox - range),
+		YPIX (oy + range), bbsize, bbsize,
+		(int) (90 - left)*64, (int) (left - right)*64);
+}
 
 
 
@@ -848,81 +959,106 @@ int update;
  * TODO:
  *	overlay widget entry
  *	annotation
- *	name label?
  */
 {
-	char platform[40], *junk = "junk";
+	char platform[40], *junk = "junk", label[20], *pnames[40];
 	PlatformId pid;
-	int lwidth, pt, npt, closed;
+	int lwidth, pt, npt, closed, nplats, i;
 	time t, target = PlotTime;
 	DataObject *dobj;
 	XPoint *xpts;
 	XColor xc;
-	float x, y;
+	LabelOpt opt;
+	float x, y, asize;
 /*
  * Get the various parameters that control boundary drawing.
  */
-	if (!ov_GetBndParams (comp, platform, &xc, &lwidth, &closed))
+	if (! ov_GetBndParams (comp, platform, &xc, &lwidth, &closed, &opt, 
+		label, &asize))
 		return;
-	if ((pid = ds_LookupPlatform (platform)) == BadPlatform)
+/*
+ * Loop through the platforms.
+ */
+	nplats = CommaParse (platform, pnames);
+	for (i = 0; i < nplats; i++)
 	{
-		msg_ELog (EF_PROBLEM, "Unknown boundary platform %s",platform);
-		return;
+		if ((pid = ds_LookupPlatform (pnames[i])) == BadPlatform)
+		{
+			msg_ELog (EF_PROBLEM, "Unknown boundary platform %s",
+				pnames[i]);
+			return;
+		}
+	/*
+	 * Find out when there is something available.
+	 */
+		if (! ds_DataTimes (pid, &target, 1, DsBefore, &t))
+		{
+			msg_ELog (EF_INFO, "No %s boundary available", 
+				pnames[i]);
+			return;
+		}
+	/*
+	 * Check into age limits.
+	 */
+ 		if (! AgeCheck (comp, &t))
+		{
+			msg_ELog (EF_INFO, "Boundary %s too old", pnames[i]);
+			return;
+		}
+	/*
+	 * Snarf it.
+	 */
+		if ((dobj = ds_GetData (pid, &junk, 0, &t, &t, OrgOutline, 
+			0, BADVAL)) == 0)
+		{
+			msg_ELog (EF_PROBLEM, "Get failed on %s boundary", 
+				pnames[i]);
+			return;
+		}
+	/*
+	 * Get set up to draw the thing.
+	 */
+		 /* npt = *dobj->do_desc.d_length; */
+		npt = dobj->do_desc.d_bnd->bd_npoint;
+		xpts = (XPoint *) malloc ((closed ? npt + 1 : npt) * 
+			sizeof (XPoint));
+		XSetForeground (Disp, Gcontext, xc.pixel);
+		XSetLineAttributes (Disp, Gcontext, lwidth, LineSolid, CapButt,
+				JoinMiter);
+	/*
+	 * Convert all points into window system space.
+	 */
+		for (pt = 0; pt < npt; pt++)
+		{
+			Location *lp = dobj->do_aloc + pt;
+			cvt_ToXY (lp->l_lat, lp->l_lon, &x, &y);
+			xpts[pt].x = XPIX (x);
+			xpts[pt].y = YPIX (y);
+		/*
+		 * Annotate beneath the icon if called for.
+		 */
+ 			if ((pt == 0) && (opt != NoLabel))
+			{
+				XSetFillStyle (Disp, Gcontext, FillSolid);
+				DrawText (Graphics, GWFrame (Graphics), 
+					Gcontext, xpts[0].x + 5, xpts[0].y - 5, 
+					(opt == LabelString) ? label : 
+					pnames[i], 0.0, asize, JustifyCenter, 
+					JustifyBottom);
+			}
+		}
+	/*
+	 * Wrap back to the beginning if this is a closed boundary.
+	 */
+		if (closed)
+			xpts[npt++] = xpts[0];
+	/*
+	 * Draw them, clean up.
+	 */
+		XDrawLines (Disp, GWFrame (Graphics), Gcontext, xpts, npt,
+				CoordModeOrigin);
+		lw_TimeStatus (comp, &t);
 	}
-/*
- * Find out when there is something available.
- */
-	if (! ds_DataTimes (pid, &target, 1, DsBefore, &t))
-	{
-		msg_ELog (EF_INFO, "No %s boundary available", platform);
-		return;
-	}
-/*
- * Check into age limits.
- */
- 	if (! AgeCheck (comp, &t))
-	{
-		msg_ELog (EF_INFO, "Boundary %s too old", platform);
-		return;
-	}
-/*
- * Snarf it.
- */
-	if ((dobj = ds_GetData (pid, &junk, 0, &t, &t, OrgOutline, 0, BADVAL))
-				== 0)
-	{
-		msg_ELog (EF_PROBLEM, "Get failed on %s boundary", platform);
-		return;
-	}
-/*
- * Get set up to draw the thing.
- */
-	npt = *dobj->do_desc.d_length;
-	xpts = (XPoint *) malloc ((closed ? npt + 1 : npt) * sizeof (XPoint));
-	XSetForeground (Disp, Gcontext, xc.pixel);
-	XSetLineAttributes (Disp, Gcontext, lwidth, LineSolid, CapButt,
-			JoinMiter);
-/*
- * Convert all points into window system space.
- */
-	for (pt = 0; pt < npt; pt++)
-	{
-		Location *lp = dobj->do_aloc + pt;
-		cvt_ToXY (lp->l_lat, lp->l_lon, &x, &y);
-		xpts[pt].x = XPIX (x);
-		xpts[pt].y = YPIX (y);
-	}
-/*
- * Wrap back to the beginning if this is a closed boundary.
- */
-	if (closed)
-		xpts[npt++] = xpts[0];
-/*
- * Draw them, clean up, and we're done.
- */
-	XDrawLines (Disp, GWFrame (Graphics), Gcontext, xpts, npt,
-			CoordModeOrigin);
-	lw_TimeStatus (comp, &t);
 	XSetLineAttributes (Disp, Gcontext, 0, LineSolid, CapButt, JoinMiter);
 	free (xpts);
 	ds_FreeDataObject (dobj);
@@ -940,10 +1076,12 @@ int update;
 
 
 static bool
-ov_GetBndParams (comp, platform, xc, lwidth, closed)
-char *comp, *platform;
+ov_GetBndParams (comp, platform, xc, lwidth, closed, opt, label, asize)
+char *comp, *platform, *label;
 XColor *xc;
 int *lwidth, *closed;
+LabelOpt *opt;
+float *asize;
 /*
  * Get all of the parameters which control boundary drawing.
  */
@@ -979,6 +1117,19 @@ int *lwidth, *closed;
 	if (! pda_Search (Pd, comp, "closed-boundary", platform,
 			(char *) closed, SYMT_BOOL))
 		*closed = TRUE;
+/*
+ * Labeling
+ */
+	if (! pda_Search (Pd, comp, "label", "location", label, SYMT_STRING) ||
+			! strcmp (label, "platform"))
+		*opt = LabelPlatform;
+	else if (! strcmp (label, "none"))
+		*opt = NoLabel;
+	else
+		*opt = LabelString;
+	if (*opt != NoLabel && ! pda_Search(Pd, comp, "label-size","location", 
+			(char *) asize, SYMT_FLOAT))
+		*asize = 0.015;
 	return (TRUE);
 }
 
@@ -997,7 +1148,7 @@ int update;
  */
 {
 	Location loc;
-	float ringint, azint, rannot, aannot, maxrange, x, y, az;
+	float ringint, azint, rannot, aannot, maxrange, x, y, az, azoff;
 	int lastring, ring, lwidth, px, py, radius, farx, fary;
 	char platform[40];
 	XColor xc;
@@ -1005,7 +1156,7 @@ int update;
  * Get our information.
  */
 	if (! ov_RRInfo (comp, platform, &loc, &ringint, &azint, &rannot,
-				&aannot, &lastring, &maxrange, &xc, &lwidth))
+			&aannot, &lastring, &maxrange, &xc, &lwidth, &azoff))
 		return;
 /*
  * Set up the graphics context.
@@ -1028,7 +1179,14 @@ int update;
 /*
  * Draw the azimuth lines.
  */
-	for (az = 0; az < 360; az += azint)
+# ifdef ERNEST
+if (strcmp(platform,"mlb") == 0 || strcmp(platform,"orl") == 0 ||
+    strcmp(platform,"omn") == 0)
+az = 3;
+else
+az = 0;
+# endif
+	for (az = azoff ; az < 360 + azoff; az += azint)
 	{
 		float azrad = az*M_PI/180.0;
 		px = XPIX (x + ringint*cos (azrad));
@@ -1051,10 +1209,10 @@ int update;
 
 static int
 ov_RRInfo (comp, platform, loc, ringint, azint, rannot, aannot, lastring,
-		maxrange, xc, lwidth)
+		maxrange, xc, lwidth, azoff)
 char *comp, *platform;
 Location *loc;
-float *ringint, *maxrange, *azint, *rannot, *aannot;
+float *ringint, *maxrange, *azint, *rannot, *aannot, *azoff;
 int *lastring, *lwidth;
 XColor *xc;
 /*
@@ -1095,6 +1253,12 @@ XColor *xc;
  */
 	*lastring = 8;
 /*
+ * VOR/DME rings have azimuth offsets.
+ */
+	if (! pda_Search (Pd, comp, "azimuth-offset", platform, (char *) azoff,
+			SYMT_FLOAT))
+		*azoff = 0.0;
+/*
  * Color.
  */
 	if (! pda_Search (Pd, comp, "color", "range-ring", color, SYMT_STRING))
@@ -1120,22 +1284,25 @@ int	x, y, fg;
 	Display	*Disp = XtDisplay (Graphics);
 	XGCValues vals;
 
-	SetClip (FALSE);
-
+	SetClip (TRUE);
 	icon = ov_GetIcon (name);
+	if (icon == NULL)
+	{
+		msg_ELog (EF_PROBLEM, "Can't get icon %s.", name);
+		return (FALSE);
+	}
+	x -= icon->oi_xh;
+	y -= icon->oi_yh;
 
 	vals.foreground = fg;
 	vals.fill_style = FillStippled;
 	vals.stipple = icon->oi_pixmap;
 	XChangeGC (Disp, Gcontext, GCForeground|GCFillStyle|GCStipple,
 			&vals);
-	x -= icon->oi_xh;
-	y -= icon->oi_yh;
 	XSetTSOrigin (Disp, Gcontext, x, y);
 	XFillRectangle (Disp, GWFrame (Graphics), Gcontext, x, y,
 			icon->oi_w, icon->oi_h);
 	ResetGC ();
-	SetClip (TRUE);
 }
 
 
@@ -1148,7 +1315,7 @@ int update;
  * Plot the location of a series of platforms.
  */
 {
-	char *plist[30], label[40];
+	char *plist[80], label[40];
 	int nplat, plat, px, py;
 	OvIcon *icon;
 	Location loc;
@@ -1347,13 +1514,13 @@ int update;
  * Draw a solid grid overlay.
  */
 {
-	float xs, ys, theight;
-	int top, bottom, left, right, aint, n, solid, tic;
+	float xs, ys, theight, xoff, yoff;
+	int top, bottom, left, right, aint, n, solid, tic, ll;
 /*
  * Dig out our info.
  */
-	ov_SGSetup (comp, &xs, &ys, &theight, &solid, &tic);
-	bottom = YPIX (Yhi);
+	ov_SGSetup (comp, &xs, &ys, &theight, &solid, &tic, &ll, &xoff, &yoff);
+	bottom = YPIX (Yhi) - 10;
 	top = YPIX (Ylo) - 12;
 	left = XPIX (Xlo);
 	right = XPIX (Xhi);
@@ -1366,10 +1533,17 @@ int update;
  * Draw the grid.
  */
 	if (solid)
-		ov_SolidGrid (left, right, top, bottom, xs, ys, theight, aint);
+		ov_SolidGrid (left, right, top, bottom, xs, ys, theight, aint,
+				xoff, yoff);
 	else
-		ov_TicGrid (left, right, top, bottom, xs, ys, theight, aint,
-				tic);
+	{
+		if (ll)
+			ov_LLTicGrid (left, right, top, bottom, xs, ys,
+				theight, aint, tic);
+		else
+			ov_TicGrid (left, right, top, bottom, xs, ys, theight,
+				aint, tic, xoff, yoff);
+	}
 }
 
 
@@ -1377,9 +1551,10 @@ int update;
 
 
 static void
-ov_TicGrid (left, right, top, bottom, xs, ys, theight, aint, ticwidth)
+ov_TicGrid (left, right, top, bottom, xs, ys, theight, aint, ticwidth, 
+		xoff, yoff)
 int left, right, top, bottom, aint, ticwidth;
-float xs, ys, theight;
+float xs, ys, theight, xoff, yoff;
 /*
  * Draw a tic-style cartesian grid.
  */
@@ -1391,16 +1566,17 @@ float xs, ys, theight;
 /*
  * Pass along the rows.
  */
- 	for (xpos = FloatTrunc (Xlo, xs); xpos <= Xhi; xpos += xs)
+ 	for (xpos = FloatTrunc (Xlo + xoff, xs); xpos <= Xhi+xoff; xpos += xs)
 	{
-		if ((xp = XPIX (xpos)) < left)
+		if ((xp = XPIX (xpos - xoff)) < left)
 			continue;
 	/*
 	 * And down the columns.
 	 */
-	 	for (ypos = FloatTrunc (Ylo, ys); ypos <= Yhi; ypos += ys)
+	 	for (ypos = FloatTrunc (Ylo + yoff, ys); ypos <= Yhi + yoff;
+				ypos += ys)
 		{
-			if ((yp = YPIX (ypos)) > top)
+			if ((yp = YPIX (ypos - yoff)) > top)
 				continue;
 		/*
 		 * Draw the tic marks.
@@ -1416,8 +1592,8 @@ float xs, ys, theight;
 			{
 				sprintf (label, "%.1f", ypos);
 				DrawText (Graphics, frame, Gcontext, left - 1,
-					yp, label, 0.0, theight,
-					JustifyRight, JustifyCenter);
+					yp, label, 0.0, theight, JustifyRight,
+					JustifyCenter);
 			}
 		}
 	/*
@@ -1426,9 +1602,113 @@ float xs, ys, theight;
 		if ((nx++ % aint) == 0)
 		{
 			sprintf (label, "%.1f", xpos);
-			DrawText (Graphics, frame, Gcontext, xp,
-				top + 1, label, 0.0, theight,
-				JustifyCenter, JustifyTop);
+			DrawText (Graphics, frame, Gcontext, xp, top + 1,
+				label, 0.0, theight,JustifyCenter, JustifyTop);
+		}
+	}
+}
+
+
+
+
+static void
+ov_CGFixLL (blat, blon, xs, ys)
+float *blat, *blon, xs, ys;
+/*
+ * Fix these values up to nice increments.
+ */
+{
+	int iblat, iblon, ixs, iys;
+/*
+ * Put everything into easy integer increments.
+ */
+	cvt_ToLatLon (Xlo, Ylo, blat, blon);
+	iblat = (int) (*blat * 3600.0 + 0.5);
+	iblon = (int) ((-*blon) * 3600 + 0.5);
+	ixs = (int) (xs * 60.0 + 0.5);
+	iys = (int) (ys * 60.0 + 0.5);
+/*
+ * Now truncate things accordingly.
+ */
+	iblat -= iblat % iys;
+	iblat += iys;
+	iblon -= iblon % ixs;
+	/* iblon += ixs; */
+	*blat = ((float) iblat + 0.5)/3600.0;
+	*blon = -((float) iblon + 0.5)/3600.0;
+}
+
+
+
+
+static void
+ov_LLTicGrid (left, right, top, bottom, xs, ys, theight, aint, ticwidth)
+int left, right, top, bottom, aint, ticwidth;
+float xs, ys, theight;
+/*
+ * Draw a tic-style lat/lon cartesian grid.
+ */
+{
+	float xpos, ypos, blat, blon, maxlat, maxlon;
+	int xp, yp, nx = 0, ny = 0;
+	char label[30];
+	Drawable frame = GWFrame (Graphics);
+/*
+ * Figure out where we are.
+ */
+	ov_CGFixLL (&blat, &blon, xs, ys);
+	cvt_ToLatLon (Xhi, Yhi, &maxlat, &maxlon);
+	xs /= 60.0;
+	ys /= 60.0;
+/*
+ * Pass along the rows.
+ */
+	for (xpos = blon; xpos <= maxlon; xpos += xs)
+	{
+	/*
+	 * And down the columns.
+	 */
+		for (ypos = blat; ypos <= maxlat; ypos += ys)
+		{
+			float xkm, ykm;
+			cvt_ToXY (ypos, xpos, &xkm, &ykm);
+			xp = XPIX (xkm);
+			yp = YPIX (ykm);
+		/*
+		 * Draw the tic marks.
+		 */
+			XDrawLine (Disp, frame, Gcontext, xp - ticwidth, yp,
+					xp + ticwidth, yp);
+			XDrawLine (Disp, frame, Gcontext, xp, yp - ticwidth,
+					xp, yp + ticwidth);
+		/*
+		 * Annotate if this is the first time through.
+		 */
+			if (nx == 0 && (ny++ % aint) == 0)
+			{
+				sprintf (label, "%d  ", (int) ypos);
+				DrawText (Graphics, frame, Gcontext, left - 1,
+					yp, label, 0.0, theight/1.2,
+					JustifyRight, JustifyBottom);
+				sprintf (label, "%d' %d\"", (int) (ypos*60)%60,
+					(int) (ypos*3600)%60);
+				DrawText (Graphics, frame, Gcontext, left - 1,
+					yp, label, 0.0, theight, JustifyRight,
+					JustifyTop);
+			}
+		}
+	/*
+	 * Bottom annotation.
+	 */
+		if ((nx++ % aint) == 0)
+		{
+			sprintf (label, "%d", (int) xpos);
+			DrawText (Graphics, frame, Gcontext, xp, top + 1,
+				label, 0.0, theight,JustifyCenter, JustifyTop);
+			sprintf (label, "%d' %d\"", (int)(-xpos*60)%60,
+					(int) (-xpos*3600)%60);
+			DrawText (Graphics, frame, Gcontext, xp, top + 14,
+				label, 0.0, theight,JustifyCenter, JustifyTop);
 		}
 	}
 }
@@ -1437,10 +1717,11 @@ float xs, ys, theight;
 
 
 
+
 static void
-ov_SolidGrid (left, right, top, bottom, xs, ys, theight, aint)
+ov_SolidGrid (left, right, top, bottom, xs, ys, theight, aint, xoff, yoff)
 int left, right, top, bottom, aint;
-float xs, ys, theight;
+float xs, ys, theight, xoff, yoff;
 /*
  * Draw a solid grid.
  */
@@ -1453,16 +1734,16 @@ float xs, ys, theight;
  * Draw the vertical lines.
  */
 	n = 0;
-	for (pos = FloatTrunc (Xlo, xs); pos <= Xhi; pos += xs)
+	for (pos = FloatTrunc (Xlo + xoff, xs); pos <= Xhi + xoff; pos += xs)
 	{
-		if (XPIX (pos) < left)
+		if (XPIX (pos - xoff) < left)
 			continue;
-		XDrawLine (Disp, frame, Gcontext, XPIX (pos), top,
-				XPIX (pos), bottom);
+		XDrawLine (Disp, frame, Gcontext, XPIX (pos - xoff), top,
+				XPIX (pos - xoff), bottom);
 		if ((n++ % aint) == 0)
 		{
 			sprintf (label, "%.1f", pos);
-			DrawText (Graphics, frame, Gcontext, XPIX (pos),
+			DrawText (Graphics, frame, Gcontext, XPIX (pos - xoff),
 				top + 1, label, 0.0, theight,
 				JustifyCenter, JustifyTop);
 		}
@@ -1471,17 +1752,17 @@ float xs, ys, theight;
  * And horizontal.
  */
 	n = 0;
-	for (pos = FloatTrunc (Ylo, ys); pos <= Yhi; pos += ys)
+	for (pos = FloatTrunc (Ylo + yoff, ys); pos <= Yhi + yoff; pos += ys)
 	{
-		if (YPIX (pos) > top)
+		if (YPIX (pos - yoff) > top)
 			continue;
-		XDrawLine (Disp, frame, Gcontext, left, YPIX (pos),
-				right, YPIX (pos));
+		XDrawLine (Disp, frame, Gcontext, left, YPIX (pos - yoff),
+				right, YPIX (pos - yoff));
 		if ((n++ % aint) == 0)
 		{
 			sprintf (label, "%.1f", pos);
 			DrawText (Graphics, frame, Gcontext, left - 1,
-				YPIX (pos), label, 0.0, theight,
+				YPIX (pos - yoff), label, 0.0, theight,
 				JustifyRight, JustifyCenter);
 		}
 	}
@@ -1491,16 +1772,18 @@ float xs, ys, theight;
 
 
 static void
-ov_SGSetup (comp, xs, ys, theight, solid, ticwidth)
+ov_SGSetup (comp, xs, ys, theight, solid, ticwidth, ll, xoff, yoff)
 char *comp;
 float *xs, *ys;
-float *theight;
-int *solid, *ticwidth;
+float *theight, *xoff, *yoff;
+int *solid, *ticwidth, *ll;
 /*
  * Get everything set up to draw a grid.
  */
 {
 	int lwidth;
+	Location loc;
+	char origin[80];
 /*
  * Find our spacings.
  */
@@ -1533,4 +1816,24 @@ int *solid, *ticwidth;
 	if (! pda_Search (Pd, comp, "tic-width", "grid", (char *) ticwidth,
 			SYMT_INT))
 		*ticwidth = 8;
+/*
+ * Do we do this in lat/lon?
+ */
+	if (! pda_Search (Pd, comp, "lat-lon", "grid", (char *) ll, SYMT_BOOL))
+		*ll = FALSE;
+/*
+ * See if we should displace the origin.
+ */
+	*xoff = *yoff = 0.0;
+	if (pda_Search (Pd, comp, "origin", "grid", origin, SYMT_STRING))
+	{
+		if (GetLocation (origin, &PlotTime, &loc))
+		{
+			cvt_ToXY (loc.l_lat, loc.l_lon, xoff, yoff);
+			*xoff = - *xoff;
+			*yoff = - *yoff;
+		}
+		else
+			msg_ELog (EF_PROBLEM, "Bad origin '%s'", origin);
+	}
 }

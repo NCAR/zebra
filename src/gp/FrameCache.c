@@ -1,7 +1,7 @@
 /*
  * Frame cache maintenance.
  */
-static char *rcsid = "$Id: FrameCache.c,v 1.10 1991-06-14 22:36:46 kris Exp $";
+static char *rcsid = "$Id: FrameCache.c,v 2.0 1991-07-18 23:00:21 corbet Exp $";
 # include <X11/Intrinsic.h>
 # include <errno.h>
 # include <fcntl.h>
@@ -12,8 +12,8 @@ static char *rcsid = "$Id: FrameCache.c,v 1.10 1991-06-14 22:36:46 kris Exp $";
 # include "GraphProc.h"
 # include "GraphicsW.h"
 
-# define BFLEN 120
-# define FLEN 200
+# define BFLEN 500
+# define FLEN 1024
 # define OLEN 1024
 # define PMODE 0666
 # define InvalidEntry	-1

@@ -1,7 +1,7 @@
 /*
  * Color control / display manager interface code.
  */
-static char *rcsid = "$Id: ColorTable.c,v 1.2 1990-05-14 09:03:36 burghart Exp $";
+static char *rcsid = "$Id: ColorTable.c,v 2.0 1991-07-18 23:00:21 corbet Exp $";
 
 
 # include <X11/Intrinsic.h>

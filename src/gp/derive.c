@@ -5,7 +5,7 @@
  * from the document "Formulation of Output Parameters for PAM II CMF Data"
  * compiled by Paul Herzegh (18 March 1988 revision).
  *
- * $Revision: 1.2 $ $Date: 1990-12-14 13:49:01 $ $Author: burghart $
+ * $Revision: 2.0 $ $Date: 1991-07-18 23:00:21 $ $Author: corbet $
  */
 
 # include <math.h>

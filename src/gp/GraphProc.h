@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 1.12 1991-07-01 13:49:28 corbet Exp $ */
+/* $Id: GraphProc.h,v 2.0 1991-07-18 23:00:21 corbet Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -79,6 +79,7 @@ extern int DrawFrame;			/* Frame to draw in		*/
  * Routines of interest.
  */
 # ifdef __STDC__
+extern void tr_InitAcWidget ();
 extern void pc_CancelPlot (void);
 extern void pc_PlotHandler (void);
 extern void pc_ParamChange (char *);
@@ -115,6 +116,7 @@ extern void mc_PDChange (void);
 extern void mc_Dial (int);
 extern char *px_FldDesc (char *, char *);
 extern void I_DoIcons (void);
+extern int ov_PositionIcon (char *, int, int, int);
 extern void Ue_Override (void (*) (), void (*) (), void (*) ());
 extern void Ue_ResetOverride (void);
 extern void An_ResetAnnot (int);
@@ -129,7 +131,6 @@ extern void cvt_GetOrigin (float *, float *);
 extern bool cvt_Origin (double, double);
 extern int GetLocation (char *, time *, Location *);
 extern void SetClip (int);
-extern int CommaParse (char *, char **);
 extern void ResetGC (void);
 extern void SetColor (char *, char *, char *, char *);
 extern int AgeCheck (char *, time *);
@@ -142,6 +143,7 @@ extern int AgeCheck (char *, time *);
 	extern void An_TopAnnot (char *, Pixel);
 # endif
 # else
+	extern void tr_InitAcWidget ();
 	extern void pc_CancelPlot ();
 	extern void pc_PlotHandler ();
 	extern void pc_ParamChange ();
@@ -177,6 +179,7 @@ extern int AgeCheck (char *, time *);
 	extern void mc_Dial ();
 	extern char *px_FldDesc ();
 	extern void I_DoIcons ();
+	extern int ov_PositionIcon ();
 	extern void Ue_Override ();
 	extern void Ue_ResetOverride ();
 	extern void An_ResetAnnot ();
@@ -189,7 +192,6 @@ extern int AgeCheck (char *, time *);
 	extern bool cvt_Origin ();
 	extern int GetLocation ();
 	extern void SetClip ();
-	extern int CommaParse ();
 	extern void ResetGC ();
 	extern void SetColor ();
 	extern int AgeCheck ();

@@ -24,7 +24,7 @@
 # define BADVAL		-999.0
 # define MAXFLDS	2		/*  Maximum number of fields	*/
 # define STRLEN		80		/*  Generic string length	*/
-# define MAXPLTS	5		/*  Maximum number of platforms	*/
+# define MAXPLTS	20		/*  Maximum number of platforms	*/
 # define PARAMLEN	30		/*  Parameter string length	*/
 
 /*
@@ -306,13 +306,17 @@ int	nplat, nfld;
 	{
 		for (j = 0; j < nplat; j++)
 		{
-			XSetForeground (XtDisplay (Graphics), Gcontext, 
-				Colors[i * nplat + j].pixel);
-			sprintf (string, "%s-%s", fields[i], platforms[j]);
-			DrawText (Graphics, GWFrame (Graphics), Gcontext, 
-				left, top, string, 0.0, sascale, JustifyLeft, 
-				JustifyTop);
-			top += sascale * GWHeight (Graphics);
+			if (ds_LookupPlatform (platforms[j]) != BadPlatform)
+			{
+				XSetForeground (XtDisplay (Graphics), Gcontext, 
+					Colors[i * nplat + j].pixel);
+				sprintf (string, "%s-%s", fields[i], 
+					platforms[j]);
+				DrawText (Graphics, GWFrame (Graphics), 
+					Gcontext, left, top, string, 0.0, 
+					sascale, JustifyLeft, JustifyTop);
+				top += sascale * GWHeight (Graphics);
+			}
 		}
 	}
 }

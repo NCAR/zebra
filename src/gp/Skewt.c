@@ -66,6 +66,10 @@ static XColor	*Colors;
 static int	Ncolors;
 static int 	Tacmatch = TRUE;
 static XColor 	Tadefclr;
+/*
+ * Feet vs. Kilometer flag.
+ */
+static int	DoFeet = FALSE;
 
 # define C_BLACK	0
 # define C_WHITE	1
@@ -141,6 +145,13 @@ bool	update;
 	pda_Search (Pd, "global", "ta-color-match", NULL, (char *) &Tacmatch,
 		SYMT_BOOL);
 /*
+ * Do feet or kilometers.
+ */
+	if (! pda_Search (Pd, c, "do-feet", "skewt", (char *) &DoFeet,
+		SYMT_BOOL))
+		DoFeet = FALSE;
+	msg_ELog (EF_DEBUG, "DoFeet %s", DoFeet ? "true" : "false");
+/*
  * Get the color table
  */
 	ct_LoadTable (ctname, &Colors, &Ncolors);
@@ -200,7 +211,7 @@ bool	update;
 		ptime = PlotTime;
 		if (! ds_DataTimes (pid, &ptime, 1, DsBefore, &ptime))
 		{
-			msg_ELog (EF_PROBLEM, "No data for '%s' at %d %d",
+			msg_ELog (EF_INFO, "No data for '%s' at %d %d",
 				pnames[plat], ptime.ds_yymmdd, 
 				ptime.ds_hhmmss);
 			continue;
@@ -264,7 +275,7 @@ sk_Background ()
 	char	string[64];
 	float	t, pt, p, annot_angle, slope, intercept, xloc, yloc;
 	static float	mr[] = {0.1, 0.2, 0.4, 1.0, 2.0, 3.0, 5.0, 8.0, 
-			12.0, 20.0, 0.0};
+			12.0, 20.0, 30.0, 40.0, 50.0, 60.0, 0.0};
 /*
  * ICAO standard atmosphere pressures for altitudes from 0 km to 16 km
  * every 1 km
@@ -369,7 +380,10 @@ sk_Background ()
 	/*
 	 * Label
 	 */
-		sprintf (string, "%d ", i);
+		if (DoFeet)
+			sprintf (string, "%.1f ", i*1000.0/0.30480);
+		else
+			sprintf (string, "%d ", i);
 		sk_DrawText (string, x[1], y[1], 0.0, Colors[C_BG2], 0.02, 
 			JustifyRight, JustifyCenter);
 	}
@@ -401,7 +415,7 @@ sk_Background ()
 /*
  * Saturated adiabats
  */
-	for (t = 0; t <= 32; t += 4)
+	for (t = 0; t <= 36; t += 4)
 	{
 		int	npts = 0;
 		float	ept;
@@ -460,7 +474,7 @@ sk_Background ()
 	 */
 		sk_Polyline (x, y, npts, L_dotted, Colors[C_BG4]);
 
-		sprintf (string, "%d", (int) pt);
+		sprintf (string, "%d", (int) (pt + 273));
 
 		if (x[0] > 0.0 && x[0] <= 1.0)
 		{

@@ -1,7 +1,7 @@
 /*
  * Plot execution module
  */
-static char *rcsid = "$Id: PlotExec.c,v 1.23 1991-05-01 17:08:50 kris Exp $";
+static char *rcsid = "$Id: PlotExec.c,v 2.0 1991-07-18 23:00:21 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include <ui.h>
@@ -60,7 +60,8 @@ name_to_num Pt_table[] =
 # define RT_SKEWT	6
 # define RT_FCONTOUR	7
 # define RT_TSERIES	8
-# define N_RTYPES	9	/* Increase this as rep. types are added */
+# define RT_LIGHTNING	9
+# define N_RTYPES	10	/* Increase this as rep. types are added */
 
 name_to_num Rt_table[] = 
 {
@@ -73,6 +74,7 @@ name_to_num Rt_table[] =
 	{"overlay",		RT_OVERLAY	},
 	{"skewt",		RT_SKEWT	},
 	{"tseries",		RT_TSERIES	},
+	{"lightning",		RT_LIGHTNING	},
 	{NULL,			0		}
 };
 
@@ -121,6 +123,7 @@ static void	(*EOPHandler) () = 0;
  */
 extern void	tr_CAPTrack (), ov_CAPOverlay (), sk_Skewt ();
 extern void	xs_LineContour (), xs_FilledContour (), ts_Plot();
+extern void	li_CAPLight ();
 
 /*
  * How many plot components in our plot description and which
@@ -260,6 +263,8 @@ time *cachetime;
 	float orig_alt,tascale;
 	char **comps, datestring[40], rep[30], tadefcolor[30];
 	int i;
+	Pixel timecolor;
+	XColor xc;
 /*
  * Choose the drawing frame and clear it out
  */
@@ -286,7 +291,7 @@ time *cachetime;
  * Get annotation information
  */
 	if(! pd_Retrieve (Pd, "global", "ta-color", tadefcolor, SYMT_STRING))
-		strcpy(tadefcolor, "white");
+			strcpy(tadefcolor, "white");
 	if(! ct_GetColorByName(tadefcolor, &Tadefclr))
 	{
 		msg_ELog(EF_PROBLEM, "Can't get default color: '%s'.",
@@ -304,7 +309,14 @@ time *cachetime;
 	An_ResetAnnot (Ncomps);
 	ud_format_date (datestring, (date *)(&PlotTime), UDF_FULL);
 	strcat (datestring, "  ");
-	An_TopAnnot (datestring, Tadefclr.pixel);
+	if (PlotMode == History)
+	{
+		ct_GetColorByName ("red", &xc);
+		timecolor = xc.pixel;
+	}
+	else
+		timecolor = Tadefclr.pixel;
+	An_TopAnnot (datestring, timecolor);
 /*
  * If there is an initialization routine, call it now.
  */
@@ -326,8 +338,10 @@ time *cachetime;
 		CAP_Finish (Alt);
 /*
  * If the altitude has changed, stash it.
+ *
+ * Only change if necessary.  This is certain to break something.
  */
-	if (Alt != orig_alt)
+	if (orig_alt < 0 && Alt != orig_alt)
 	{
 		pd_Store (Pd, "global", "altitude", CPTR (Alt),
 			SYMT_FLOAT);
@@ -523,6 +537,7 @@ px_Init ()
 	Plot_routines[PT_CAP][RT_RASTER] = CAP_Raster;
 	Plot_routines[PT_CAP][RT_TRACK] = tr_CAPTrack;
 	Plot_routines[PT_CAP][RT_OVERLAY] = ov_CAPOverlay;
+	Plot_routines[PT_CAP][RT_LIGHTNING] = li_CAPLight;
 
 	Plot_routines[PT_SKEWT][RT_SKEWT] = sk_Skewt;
 

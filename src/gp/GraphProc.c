@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: GraphProc.c,v 1.32 1991-06-14 20:53:47 kris Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 2.0 1991-07-18 23:00:21 corbet Exp $";
 
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
@@ -190,7 +190,7 @@ finish_setup ()
 		{ "ue_motion",		Ue_MotionEvent	},
 	};
 	int type[5], pd_defined (), pd_param (), pd_paramsearch();
-	int substr_remove();
+	int pd_removeparam (), substr_remove(), strlength ();
 	char *initfile, perf[80];
 /*
  * Force a shift into window mode, so we can start with the fun stuff.
@@ -227,7 +227,7 @@ finish_setup ()
  * Cursors.
  */
 	Disp = XtDisplay (Top);
-	NormalCursor = XCreateFontCursor (Disp, XC_trek);
+	NormalCursor = XCreateFontCursor (Disp, XC_draft_small);
 	BusyCursor = XCreateFontCursor (Disp, XC_watch);
 /*
  * Module initializations.
@@ -236,6 +236,8 @@ finish_setup ()
 	Ue_Init ();		/* User event handling	*/
 	I_init ();		/* Icons		*/
 	lw_InitWidgets ();	/* Limit widgets	*/
+	tr_InitAcWidget ();	/* Aircraft widget	*/
+	InitDataMenu ();	/* Data available menu	*/
 /*
  * Tell DM that we're here.
  */
@@ -257,7 +259,9 @@ finish_setup ()
 	uf_def_function ("pd_param", 3, type, pd_param);
 	uf_def_function ("pd_paramsearch", 4, type, pd_paramsearch);
 	uf_def_function ("pd_defined", 2, type, pd_defined);
+	uf_def_function ("pd_removeparam", 2, type, pd_removeparam);
 	uf_def_function ("substr_remove", 2, type, substr_remove);
+	uf_def_function ("strlength", 1, type, strlength);
 /*
  * Redirect UI output.
  */
@@ -1101,6 +1105,21 @@ union usy_value *argv, *retv;
 }
 
 
+pd_removeparam (narg, argv, argt, retv, rett)
+int narg, *argt, *rett;
+union usy_value *argv, *retv;
+/*
+ * the pd_removeparam CLF.
+ *
+ *	pd_removeparam (comp, param)
+ */
+{
+	*rett = SYMT_BOOL;
+	pd_RemoveParam (Pd, argv[0].us_v_ptr, argv[1].us_v_ptr);
+	retv->us_v_int = TRUE;
+}
+
+
 
 
 
@@ -1192,6 +1211,23 @@ union usy_value	*argv, *retv;
 	*rett = SYMT_STRING;
 	retv->us_v_ptr = usy_string (tmp);
 	free (tmp);
+}
+	
+
+strlength (narg, argv, argt, retv, rett)
+int 	narg, *argt, *rett;
+union usy_value	*argv, *retv;
+/*
+ * Command line function to return the length of a string.
+ *
+ *	strlength (string)
+ */
+{
+	int	i;
+	
+	i = strlen (argv[0].us_v_ptr);
+	*rett = SYMT_INT;
+	retv->us_v_int = i;
 }
 	
 

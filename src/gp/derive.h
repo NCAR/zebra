@@ -1,7 +1,7 @@
 /*
  * Forward declarations
  *
- * $Revision: 1.1 $ $Date: 1990-07-08 12:57:08 $ $Author: corbet $
+ * $Revision: 2.0 $ $Date: 1991-07-18 23:00:21 $ $Author: corbet $
  */
 # ifndef __STDC__
 	double	w_sat (), e_w (), t_mr (), theta_to_t (), theta_e (), t_sat ();

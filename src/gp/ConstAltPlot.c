@@ -1,7 +1,7 @@
 /*
  * Herein lies all the Constant Altitude Plot code, carved from PlotExec.
  */
-static char *rcsid = "$Id: ConstAltPlot.c,v 1.5 1991-06-25 19:23:35 kris Exp $";
+static char *rcsid = "$Id: ConstAltPlot.c,v 2.0 1991-07-18 23:00:21 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include <ui.h>
@@ -336,7 +336,7 @@ float	*center, *step;
 		Alt = alt;
 	if (! rgrid)
 	{
-		msg_ELog (EF_PROBLEM, "Unable to get grid");
+		msg_ELog (EF_INFO, "Unable to get grid");
 		return;
 	}
 /*
@@ -402,19 +402,22 @@ Boolean	update;
  */
 {
 	char	uname[20], vname[20], cname[30], platform[40], annot[120];
-	int	i, xdim, ydim;
+	int	i, j, xdim, ydim;
 	float	*rgrid, *ugrid, *vgrid;
 	float	vscale, x0, x1, y0, y1, alt;
 	int	pix_x0, pix_x1, pix_y0, pix_y1;
 	int	top, bottom, left, right, xannot, yannot;
 	Boolean	ok;
 	int	tacmatch = 0, grid;
-	XColor	color;
+	XColor	color, qcolor;
 	time 	t;
 	PlatformId pid;
-	char	*fields[2];
+	char	*fields[6];
 	DataObject *dobj;
 	float	unitlen;
+	char	quadrants[120], *quads[6], quadclr[30], string[10];
+	int	numquads = 0, offset_x[] = {-15, -15, 15, 15};
+	int	offset_y[] = {-15, 15, -15, 15};
 /*
  * Get necessary parameters from the plot description
  */
@@ -464,7 +467,7 @@ Boolean	update;
 			Alt = alt;
 		if (! rgrid)
 		{
-			msg_ELog (EF_PROBLEM, "Unable to get U grid");
+			msg_ELog (EF_INFO, "Unable to get U grid");
 			return;
 		}
 		ugrid = (float *) malloc (xdim * ydim * sizeof (float));
@@ -511,35 +514,62 @@ Boolean	update;
 
 		if (! ds_DataTimes (pid, &PlotTime, 1, DsBefore, &t))
 		{
-			msg_ELog (EF_DEBUG,"No data available at all for '%s'",
+			msg_ELog(EF_INFO,"No data available at all for '%s'",
 				platform);
 			return;
+		}
+		if (pd_Retrieve (Pd, c, "quadrants", quadrants, SYMT_STRING))
+		{
+			if (!pd_Retrieve(Pd,c,"quad-color",quadclr,SYMT_STRING))
+				qcolor = color;
+			else if(! ct_GetColorByName(quadclr, &qcolor))
+				qcolor = color;
+			numquads = CommaParse (quadrants, quads);
+			if (numquads > 4) numquads = 4;
 		}
 
 		fields[0] = uname;
 		fields[1] = vname;
-		if ((dobj = ds_GetData (pid, fields, 2, &t, &t, Org2dGrid,
-			alt, BADVAL)) == 0)
+		for (i = 0; i < numquads; i++)
+			fields[i + 2] = quads[i];
+
+		if ((dobj = ds_GetData (pid, fields, 2 + numquads, &t, &t, 
+			Org2dGrid, alt, BADVAL)) == 0)
 		{
-			msg_ELog (EF_PROBLEM, "Get failed on '%s'", platform);
+			msg_ELog (EF_INFO, "Get failed on '%s'", platform);
 			return;
 		}
 		unitlen = USABLE_HEIGHT * vscale;
 		XSetForeground (XtDisplay (Graphics), Gcontext, color.pixel);
 		for (i = 0; i < dobj->do_desc.d_irgrid.ir_npoint; i++)
 		{
-			if ((dobj->do_data[0][i] == BADVAL) || 
-			    (dobj->do_data[1][i] == BADVAL))
-				continue;
 			cvt_ToXY (dobj->do_desc.d_irgrid.ir_loc[i].l_lat, 
 				dobj->do_desc.d_irgrid.ir_loc[i].l_lon, 
 				&x0, &y0);
 			pix_x0 = XPIX (x0);
 			pix_y0 = YPIX (y0);
-			tr_DrawVector (pix_x0, pix_y0, dobj->do_data[0][i],
-				dobj->do_data[1][i], unitlen, 
-				XtDisplay (Graphics), GWFrame (Graphics),
-				Gcontext);
+			ov_PositionIcon ("pam-loc", pix_x0, pix_y0, 
+				color.pixel);
+			if ((dobj->do_data[0][i] != BADVAL) && 
+			    (dobj->do_data[1][i] != BADVAL))
+				tr_DrawVector (pix_x0, pix_y0, 
+				dobj->do_data[0][i], dobj->do_data[1][i], 
+				unitlen, XtDisplay (Graphics), 
+				GWFrame (Graphics), Gcontext);
+			XSetForeground (XtDisplay (Graphics), Gcontext,
+					qcolor.pixel);
+			for (j = 0; j < numquads; j++)
+			{
+				if (dobj->do_data[j+2][i] == BADVAL)
+					continue;
+				sprintf(string, "%.1f", dobj->do_data[j+2][i]); 
+				DrawText (Graphics, GWFrame (Graphics), 
+					Gcontext, pix_x0 + offset_x[j], 
+					pix_y0 + offset_y[j], string, 0.0, 
+					Sascale, JustifyCenter, JustifyCenter);
+			}
+			XSetForeground (XtDisplay (Graphics), Gcontext,
+					color.pixel);
 		}
 	}
 /*
@@ -579,19 +609,63 @@ Boolean	update;
 			VG_AnnotVector (xannot, yannot + 4, 10.0, 0.0, 
 				color.pixel);
 		else
+		{
+			XSetForeground (XtDisplay (Graphics), Gcontext,
+					color.pixel);
 			tr_DrawVector (xannot, yannot + 4, 10.0, 0.0,
 				unitlen, XtDisplay (Graphics), 
 				GWFrame (Graphics), Gcontext);
+			XSetForeground (XtDisplay (Graphics), Gcontext,
+					qcolor.pixel);
+			if (numquads > 0)
+			{
+				XDrawLine (XtDisplay (Graphics), 
+					GWFrame (Graphics), Gcontext, 
+					xannot + 25, yannot + 10, 
+					xannot + 25, yannot + 55);
+				XDrawLine (XtDisplay (Graphics), 
+					GWFrame (Graphics), Gcontext, 
+					xannot, yannot + 30, 
+					xannot + 55, yannot + 30);
+			}
+			for (i = 0; i < numquads; i++)
+				DrawText (Graphics, GWFrame (Graphics), 
+					Gcontext, xannot + offset_x[i] + 15, 
+					yannot + offset_y[i] + 25, 
+					dobj->do_fields[i + 2], 0.0, 
+					Sascale, JustifyLeft, JustifyTop);
+		}
 	else
 		if (grid)
 			VG_AnnotVector (xannot, yannot + 4, 10.0, 0.0, 
 				Tadefclr.pixel);
 		else
+		{
+			XSetForeground (XtDisplay (Graphics), Gcontext, 
+				Tadefclr.pixel);
 			tr_DrawVector (xannot, yannot + 4, 10.0, 0.0,
 				unitlen, XtDisplay (Graphics), 
 				GWFrame (Graphics), Gcontext);
+			if (numquads > 0)
+			{
+				XDrawLine (XtDisplay (Graphics), 
+					GWFrame (Graphics), Gcontext, 
+					xannot + 20, yannot + 10, 
+					xannot + 20, yannot + 55);
+				XDrawLine (XtDisplay (Graphics), 
+					GWFrame (Graphics), Gcontext, 
+					xannot, yannot + 30, 
+					xannot + 55, yannot + 30);
+			}
+			for (i = 0; i < numquads; i++)
+				DrawText (Graphics, GWFrame (Graphics), 
+					Gcontext, xannot + offset_x[i] + 15, 
+					yannot + offset_y[i] + 25, 
+					dobj->do_fields[i + 2], 0.0, 
+					Sascale, JustifyLeft, JustifyTop);
+		}
 	lw_TimeStatus (c, &t);
-	An_SAUsed (yannot + 15);
+	An_SAUsed (yannot + 50);
 }
 
 
@@ -730,7 +804,7 @@ Boolean	update;
  * Top annotation
  */
 	An_TopAnnot (px_FldDesc (c, name), Tadefclr.pixel);
-	An_TopAnnot ("plot", Tadefclr.pixel);
+	An_TopAnnot (" plot", Tadefclr.pixel);
 	An_TopAnnot (".  ", Tadefclr.pixel);
 /*
  * Side annotation (color bar)
@@ -796,16 +870,16 @@ ScaleInfo *scale;
  * Fetch an image grid from this platform.
  */
 {
-	time realtime, stimes[60];
+	time realtime, stimes[60], obstimes[2];
 	DataObject *dobj;
 	RGrid *rg;
 	float *ret, cdiff;
 	Location slocs[60];
-	int nsample, samp, csamp, all = 0;
+	int nsample, samp, csamp, all = 0, ntime;
 /*
  * Find out when we can really get data.
  */
-	if (! ds_DataTimes (pid, when, 1, DsBefore, &realtime))
+	if (! (ntime = ds_DataTimes (pid, when, 2, DsBefore, &realtime)))
 	{
 		msg_ELog (EF_INFO, "No data available at all for %s",
 			ds_PlatformName (pid));
@@ -818,21 +892,59 @@ ScaleInfo *scale;
  * to find the specific one of interest.
  */
 	if (! pda_Search (Pd, c, "every-sweep", NULL, (char *) &all, SYMT_BOOL)
-			|| !all)
+			|| !all || PlotMode == History)
 	{
+		char cattr[200], *attr = NULL;
+	/*
+	 * Look for a filter attribute.
+	 */
+		if (pda_Search (Pd, "global", "filter-attribute", 
+				ds_PlatformName (pid), cattr, SYMT_STRING))
+			attr = cattr;
+	/*
+	 * Look at the previous two observations.
+	 */
+		if (! (ntime = ds_GetObsTimes (pid, when, obstimes, 2, attr)))
+		{
+			msg_ELog (EF_PROBLEM, "Strange...no observations");
+			return (0);
+		}
+		msg_ELog (EF_DEBUG, "Ptime %d, obs %d -- %d", 
+				when->ds_hhmmss, obstimes[0].ds_hhmmss,
+				obstimes[1].ds_hhmmss);
+	/*
+	 * Get the samples from the first volume and see which is closest.
+	 */
+		realtime = obstimes[0];
 		nsample = ds_GetObsSamples (pid, &realtime, stimes, slocs, 60);
 		cdiff = 99.9;
-		csamp = -1;
 		for (samp = 0; samp < nsample; samp++)
 			if (ABS (*alt - slocs[samp].l_alt) < cdiff)
 			{
-				csamp = samp;
 				cdiff = ABS (*alt - slocs[samp].l_alt);
+				realtime = stimes[samp];
 			}
-		if (csamp >= 0)
-			realtime = stimes[csamp];
+		msg_ELog (EF_DEBUG, "First, %d, diff %.1f", realtime.ds_hhmmss,
+			cdiff);
+	/*
+	 * If we don't come within a degree, drop back to the previous
+	 * one and try one more time.
+	 */
+		if (cdiff > 1.0 && ntime > 1)
+		{
+			nsample = ds_GetObsSamples (pid, obstimes + 1, stimes,
+					slocs, 60);
+			for (samp = 0; samp < nsample; samp++)
+				if (ABS (*alt - slocs[samp].l_alt) < cdiff)
+				{
+				msg_ELog (EF_DEBUG, "Drop back case");
+					cdiff = ABS (*alt - slocs[samp].l_alt);
+					realtime = stimes[samp];
+				}
+			msg_ELog (EF_DEBUG, "Second, %d, diff %.1f",
+				realtime.ds_hhmmss, cdiff);
+		}
 	}
-		
 /*
  * Snarf it.
  */
@@ -884,7 +996,7 @@ float alt;
  */
 	if (pd_Retrieve (Pd, "global", "radar-space", (char *) &deg, SYMT_BOOL)
 			&& deg)
-		sprintf (string, "El %.1f\260", Alt);
+		sprintf (string, "El   %.1f\260", Alt);
 	else
 		sprintf (string, "Alt: %dm", (int) (Alt*1000.0));
 

@@ -1,7 +1,7 @@
 /*
  * The graphics process event/processing queue system.
  */
-static char *rcsid = "$Id: EventQueue.c,v 1.3 1991-02-20 18:26:05 corbet Exp $";
+static char *rcsid = "$Id: EventQueue.c,v 2.0 1991-07-18 23:00:21 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>

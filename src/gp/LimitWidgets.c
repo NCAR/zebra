@@ -1,7 +1,7 @@
 /*
  * Widgets for changing plot limits.
  */
-static char *rcsid = "$Id: LimitWidgets.c,v 1.6 1991-07-01 13:43:50 corbet Exp $";
+static char *rcsid = "$Id: LimitWidgets.c,v 2.0 1991-07-18 23:00:21 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -29,8 +29,8 @@ static char *rcsid = "$Id: LimitWidgets.c,v 1.6 1991-07-01 13:43:50 corbet Exp $
 static int Sw_Nsta;			/* Number of stations		*/
 static Widget Sw_Swidgets[MAXSTA];	/* Per-station toggles		*/
 static bool Sw_Sset[MAXSTA];		/* Is this station selected?	*/
-static char Sw_RetSta[10*MAXSTA];	/* What we return		*/
-static char SavePlat[200];
+static char Sw_RetSta[20*MAXSTA];	/* What we return		*/
+static char Sw_Plat[20], SavePlat[20*MAXSTA];
 static int Sw_NRetSta = 0;		/* Number of selected stations	*/
 
 /*
@@ -141,7 +141,6 @@ struct DFWData
 	Widget d_value[2];
 	char d_vstring[2][50];
 };
-
 
 /*
  * Overlay status widget info.
@@ -1045,6 +1044,7 @@ struct ui_command *cmds;
  * Set up a single float widget.
  */
 {
+	char string[50];
 	Arg args[5];
 	int n;
 	struct SFWData *wd = (struct SFWData *) wq->wq_wdata;
@@ -1067,7 +1067,8 @@ struct ui_command *cmds;
  * Set the initial value.
  */
 	n = 0;
-	strcpy (wd->d_vstring, cmds[2].uc_text);
+	sprintf (string, "%.3f", UFLOAT (cmds[2]));
+	strcpy (wd->d_vstring, string);
 	XtSetArg (args[n], XtNstring, wd->d_vstring);		n++;
 	XtSetValues (wd->d_value, args, n);
 }
@@ -1081,6 +1082,7 @@ struct ui_command *cmds;
  * Set up a double float widget.
  */
 {
+	char string[10];
 	Arg args[5];
 	int n;
 	struct DFWData *wd = (struct DFWData *) wq->wq_wdata;
@@ -1104,7 +1106,8 @@ struct ui_command *cmds;
  * Set the initial value.
  */
 	n = 0;
-	strcpy (wd->d_vstring[0], cmds[2].uc_text);
+	sprintf (string, "%.1f", UFLOAT (cmds[2]));
+	strcpy (wd->d_vstring[0], string);
 	XtSetArg (args[n], XtNstring, wd->d_vstring[0]);		n++;
 	XtSetValues (wd->d_value[0], args, n);
 /*
@@ -1117,7 +1120,8 @@ struct ui_command *cmds;
  * Set the initial value.
  */
 	n = 0;
-	strcpy (wd->d_vstring[1], cmds[5].uc_text);
+	sprintf (string, "%.1f", UFLOAT (cmds[5]));
+	strcpy (wd->d_vstring[1], string);
 	XtSetArg (args[n], XtNstring, wd->d_vstring[1]);		n++;
 	XtSetValues (wd->d_value[1], args, n);
 }
@@ -1331,7 +1335,7 @@ time *t;
 
 
 /*
- * Mesonet station selector widget.
+ * Sub-platform selector widget.
  */
 
 static Widget
@@ -1371,7 +1375,6 @@ XtAppContext	appc;
 	for (sta = 0; sta < Sw_Nsta; sta++)
 	{
 		sprintf (name, "%d", sta + 1);
-		msg_ELog (EF_DEBUG, "Making station %s", name);
 		XtSetArg (args[0], XtNlabel, name);
 		Sw_Swidgets[sta] = XtCreateManagedWidget (name,
 			toggleWidgetClass, box, args, 1);
@@ -1409,9 +1412,13 @@ struct ui_command	*cmds;
  * Set up the station widget.
  */
 {
-	char	platforms[200], *pnames[30];
+	char	platforms[20*MAXSTA], *pnames[MAXSTA];
 	int	i, sta, nump;
 	Arg	args[2];
+/*
+ *  Stash the platform name.
+ */
+	strcpy (Sw_Plat, UPTR (cmds[0]));
 /*
  * Save the other platforms.
  */
@@ -1421,7 +1428,7 @@ struct ui_command	*cmds;
 	for (i = 0; i < nump; i++)
 	{
 		msg_ELog (EF_DEBUG, "compare %s", pnames[i]);
-		if (strncmp (pnames[i], "mesonet", 7) != 0)
+		if (strncmp(pnames[i], wq->wq_param, strlen(wq->wq_param)) != 0)
 		{
 			strcat (SavePlat, pnames[i]);
 			strcat (SavePlat, ",");
@@ -1439,7 +1446,6 @@ struct ui_command	*cmds;
 		}
 	}
 	msg_ELog (EF_DEBUG, "save platforms %s", SavePlat);
-	
 }
 
 
@@ -1462,8 +1468,7 @@ XtPointer	junk;
 static void
 lw_SwCb (w, sta, new)
 Widget w;
-int sta;
-int new;
+int sta, new;
 /*
  * The station widget callback.  Creates the return stations string.
  */
@@ -1477,7 +1482,7 @@ int new;
 	for (i = 0; i < Sw_Nsta; i++)
 		if (Sw_Sset[i])
 		{
-			sprintf (name, "mesonet/%d", i + 1);
+			sprintf (name, "%s/%d", Sw_Plat, i + 1);
 			strcat (Sw_RetSta, name);
 			strcat (Sw_RetSta, ",");
 			Sw_NRetSta++;

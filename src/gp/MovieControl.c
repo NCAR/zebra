@@ -1,7 +1,7 @@
 /*
  * Movie control functions.
  */
-static char *rcsid = "$Id: MovieControl.c,v 1.14 1991-06-14 20:56:27 kris Exp $";
+static char *rcsid = "$Id: MovieControl.c,v 2.0 1991-07-18 23:00:21 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -423,7 +423,7 @@ mc_MovieRun ()
 	mc_SetStatus ("Initializing.");
 	if (! mc_SetupParams ())
 	{
-		msg_ELog (EF_DEBUG, "SetupParams failure.");
+		msg_ELog (EF_PROBLEM, "SetupParams failure.");
 		return;
 	}
 	mc_SetupPreGen();
@@ -470,7 +470,7 @@ mc_SetupParams ()
 	union usy_value v;
 	char trigger[200];
 	PlatformId pid;
-	char fskipk[ATSLEN];
+	char fskipk[ATSLEN], string[ATSLEN];
 
 	EndTime = (char *) malloc(ATSLEN * sizeof(char));
 /*
@@ -480,11 +480,15 @@ mc_SetupParams ()
 	{
 		Now = TRUE;
 		tl_GetTime(&t);
+		msg_ELog (EF_DEBUG, "time %d %d", t.ds_yymmdd, t.ds_hhmmss);
 		pda_Search(Pd, "global", "trigger",0,trigger,SYMT_STRING);
 		if((pid = ds_LookupPlatform(trigger)) != BadPlatform)
 		{
 			if(! ds_DataTimes(pid, &t, 1, DsBefore, &t1))
+			{
+				mc_SetStatus ("Unable to find any data.");
 				return(FALSE);
+			}
 			ReGenFrame = FALSE;
 			ud_format_date(EndTime, &t1, UDF_FULL);
 			if(EndTime[0] == ' ')
@@ -537,15 +541,21 @@ mc_SetupParams ()
  * Store these values in the PD.
  */
 	pd_Store (Pd, "global", "movie-minutes", (char *) &minutes, SYMT_INT);
-	pd_Store (Pd, "global", "movie-end-time", (char *) &v.us_v_date,
-			SYMT_DATE);
+	if (! strcmp (Endt, "now"))
+		pd_Store (Pd, "global", "movie-end-time", "now", SYMT_STRING);
+	else
+		pd_Store (Pd, "global", "movie-end-time",
+				(char *) &v.us_v_date, SYMT_DATE);
 	pd_Store (Pd, "global", "frame-rate", (char *) &Rate, SYMT_INT);
 	pd_Store (Pd, "global", "frame-skip", (char *) &TimeSkip, SYMT_INT);
 /*
  * Now calculate our frame times.
  */
 	if (! mc_GetFrameTimes (&v.us_v_date, minutes))
+	{
+		mc_SetStatus ("Unable to get frame times.");
 		return (FALSE);
+	}
 	return (TRUE);
 }
 
@@ -569,6 +579,7 @@ mc_GenFrames ()
 		OldFrameCount = FrameCount;
 		FrameCount = Nframes;
 		fc_SetNumFrames(FrameCount);
+		msg_ELog (EF_DEBUG, "Asking for %d frames", Nframes);
 		XtSetArg (args[0], XtNframeCount, Nframes);
 		XtSetValues (Graphics, args, ONE);
 		pd_Store (Pd, "global", "time-frames", (char *)&Nframes,
