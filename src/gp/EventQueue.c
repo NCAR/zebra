@@ -1,9 +1,11 @@
 /*
  * The graphics process event/processing queue system.
  */
-static char *rcsid = "$Id: EventQueue.c,v 1.1 1990-05-07 16:08:02 corbet Exp $";
+static char *rcsid = "$Id: EventQueue.c,v 1.2 1990-11-09 16:34:17 corbet Exp $";
 
 # include "../include/defs.h"
+# include "../include/pd.h"
+# include "GraphProc.h"
 # include "EventQueue.h"
 
 /*
@@ -233,9 +235,9 @@ Eq_Execute ()
  */
 	if (pqe = P_queue[PUrgent])
 		pri = PUrgent;
-	else if (pqe = P_queue[PDisplay])
+	else if (! HoldProcess && (pqe = P_queue[PDisplay]))
 		pri = PDisplay;
-	else if (pqe = P_queue[PWhenever])
+	else if (! HoldProcess && (pqe = P_queue[PWhenever]))
 		pri = PWhenever;
 /*
  * Do it.
