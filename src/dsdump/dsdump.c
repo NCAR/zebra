@@ -29,22 +29,12 @@
 # include <timer.h>
 # include <DataStore.h>
 
-RCSID ("$Id: dsdump.c,v 3.17 1996-11-25 21:15:37 granger Exp $")
-
-
-/*
- * Local prototypes
- */
-static void DumpSubplatforms FP((PlatformId pid, PlatformInfo *pi));
-static void DumpPlatform FP((PlatformId pid, PlatformInfo *pi, ZebTime *since,
-			     int names, int files, int obs));
-static void PrintInfo FP((int index, DataFileInfo *dfi));
-static void PrintFilePath FP((DataSrcInfo *dsi, DataFileInfo *dfi, int files));
+RCSID ("$Id: dsdump.c,v 3.18 1997-04-28 04:55:01 granger Exp $")
 
 /*
- * Table of contents flag (enable ds_GetFields)
+ * Standalone scanning flag.
  */
-static int TOC = 0;
+static int Alone = 0;
 
 /*
  * Options for displaying files
@@ -53,6 +43,51 @@ static int TOC = 0;
 #define SHOWFILES 1
 #define ONLYFILES 2
 #define FULLFILES 3
+
+/*
+ * The global options structure which gets passed around.
+ */
+struct dsdump_options
+{
+	bool sort;
+	bool subs;
+	bool tier;
+	int files;
+	bool names;
+	bool obs;
+	bool defn;
+	bool toc;
+	bool quiet;	/* skip default output if true */
+};
+
+typedef struct dsdump_options DumpOptions;
+
+/*
+ * Default options: don't sort and don't include subplatforms
+ */
+DumpOptions Options =
+{
+	FALSE,
+	FALSE,
+	FALSE,
+	SHOWFILES,
+	FALSE,
+	FALSE,		/* only show most recent file */
+	FALSE,		/* don't show class definitions */
+	FALSE,		/* don't dump field list */
+	FALSE
+};
+	
+
+/*
+ * Local prototypes
+ */
+static void DumpSubplatforms FP((PlatformId pid, PlatformInfo *pi));
+static void DumpPlatform FP((PlatformId pid, PlatformInfo *pi, ZebTime *since,
+			     DumpOptions *opts));
+static void PrintInfo FP((int index, DataFileInfo *dfi, DumpOptions *opts));
+static void PrintFilePath FP((DataSrcInfo *dsi, DataFileInfo *dfi, 
+			      DumpOptions *opts));
 
 
 static int
@@ -66,12 +101,15 @@ char *prog;
 {
 	printf("Usage: %s -h\n", prog);
 	printf("       %s [options] [-e name] [regexp ...]\n", prog);
+	printf("       %s -i filename [filename ...]\n", prog);
 	printf("Lists all platforms if no regular expressions are given.\n");
 	printf("\t-h\tPrint this usage information\n");
 	printf("\t-a\tAlphabetize list for each regular expression\n");
 	printf("\t-e\tMatch the following name exactly\n");
 	printf("\t-s\tInclude subplatforms in the list\n");
 	printf("\t-c\tShow subplatforms (children) for each platform\n");
+	printf("\t-d\tShow class definitions for each platform\n");
+	printf("\t-q\tQuiet: skip any default output\n");
 	printf("\t-x\tExclude data files from listing\n");
 	printf("\t-n\tList platform names only\n");
 	printf("\t-z\tList only the most recent observation\n");
@@ -82,6 +120,10 @@ char *prog;
 	printf("\t-p '<number> [days|minutes|hours]'\n");
 	printf("\t\tList data within a certain period of the current time,\n");
 	printf("\t\twhere units can be abbreviated and defaults to days.\n");
+#ifdef notyet
+	printf("\t-i\tIndependently of the datastore, scan the given\n");
+	printf("\t\tfiles and dump the results as usual.\n");
+#endif
 	printf("Examples:\n");
 	printf("\tAlphabetized list of all platforms:\n\t   %s -a\n", prog);
 	printf("\tList 'ship' platforms, including subplatforms for each:\n");
@@ -94,6 +136,10 @@ char *prog;
 	printf("\t   tar cf goes.tar `%s -g -p '6 hours' goes`\n", prog);
 	printf("\tList fields in most recent observation of each platform:\n");
 	printf("\t   %s -z -t\n", prog);
+#ifdef notyet
+	printf("\tCreate a prelim ds config file from a set of files:\n");
+	printf("\t   %s -i -q -d *.cdf > ds.config\n", prog);
+#endif
 }
 
 
@@ -142,23 +188,41 @@ char *arg;
 
 
 
+static void
+NextPlatform (PlatformId pid, ZebraTime *since, DumpOptions *opts)
+{
+	PlatformInfo pi;
+
+	ds_GetPlatInfo (pid, &pi);
+	if (! opts->quiet)
+		DumpPlatform (pid, &pi, since, opts);
+	if (opts->defn)
+	{
+		fprintf (stdout, "\n");
+		ds_ShowPlatformClass (stdout, ds_PlatformClass(pid));
+	}
+	if (opts->tier)
+		DumpSubplatforms (pid, &pi);
+}
+
+
+
 int
 main (argc, argv)
 int argc;
 char **argv;
 {
 	int i, nplat, total, opt;
-	PlatformInfo pi;
 	PlatformId *platforms;
 	PlatformId pid;
 	char *pattern;
-	bool sort, subs, tier, exact, first, names, obs;
-	int files;
+	bool first, exact;
 	char name[20];
 	int matches;
 	long period = 0;	/* Length of time to show data for */
 	ZebTime now;
 	ZebTime since;		/* Time to dump since */
+	DumpOptions *opts = &Options;
 /*
  * First check for the help option
  */
@@ -167,10 +231,20 @@ char **argv;
 		usage (argv[0]);
 		exit (0);
 	}
+#ifdef notyet
+	else if ((argc > 1) && (!strcmp(argv[1], "-i")))
+	{
+		Alone = 1;
+	}
+#endif
 
 	sprintf (name, "DSDump-%d", getpid());
-	msg_connect (msg_handler, name);
-	if (! ds_Initialize ())
+	if (Alone)
+	{
+		msg_connect (0, name);
+		ds_Standalone ();
+	}
+	else if (! msg_connect (msg_handler, name) || (! ds_Initialize ()))
 	{
 		printf("%s: could not connect to DataStore daemon\n",argv[0]);
 		exit (1);
@@ -186,19 +260,10 @@ char **argv;
 	matches = 0;
 	platforms = NULL;
 /*
- * Default options: don't sort and don't include subplatforms
- */
-	sort = FALSE;
-	subs = FALSE;
-	tier = FALSE;
-	exact = FALSE;
-	files = SHOWFILES;
-	names = FALSE;
-	obs = FALSE;		/* only show most recent file */
-/*
  * Traverse the options, turning on options as encountered
  */
 	opt = 1;
+	exact = FALSE;
 	first = FALSE;	/* true once we try at least one pattern */
 	do {
 		if ((opt < argc) && (argv[opt][0] == '-'))
@@ -212,39 +277,45 @@ char **argv;
 			switch (argv[opt][1])
 			{
 			   case 's':
-				subs = TRUE;
+				opts->subs = TRUE;
 				break;
 			   case 'a':
-				sort = TRUE;
+				opts->sort = TRUE;
 				break;
 			   case 'c':
-				tier = TRUE;
+				opts->tier = TRUE;
+				break;
+			   case 'd':
+				opts->defn = TRUE;
 				break;
 			   case 'e':
 				exact = TRUE;
 				break;
 			   case 'x':
-				files = NOFILES;
+				opts->files = NOFILES;
 				break;
 			   case 'n':
-				names = TRUE;
+				opts->names = TRUE;
 				break;
 			   case 'z':
-				obs = TRUE;
+				opts->obs = TRUE;
 				break;
 			   case 't':
-				TOC = TRUE;
+				opts->toc = TRUE;
 				break;
 			   case 'f':
-				files = ONLYFILES;
+				opts->files = ONLYFILES;
 				break;
 			   case 'g':
-				files = FULLFILES;
+				opts->files = FULLFILES;
 				break;
 			   case 'p':
 				period = GetPeriod (argv[++opt]);
 				since = now;
 				since.zt_Sec -= period;
+				break;
+			   case 'q':
+				opts->quiet = TRUE;
 				break;
 			   default:
 				printf ("%s: illegal option '%s'\n",
@@ -261,11 +332,7 @@ char **argv;
 				printf ("%s: bad platform\n", argv[opt]);
 			else
 			{
-				ds_GetPlatInfo (pid, &pi);
-				DumpPlatform (pid, &pi, &since, names, files,
-					      obs);
-				if (tier)
-					DumpSubplatforms (pid, &pi);
+				NextPlatform (pid, &since, opts);
 				++matches;
 			}
 			exact = FALSE;
@@ -275,15 +342,12 @@ char **argv;
 		{
 			pattern = (opt < argc) ? (argv[opt]) : (NULL);
 			platforms = ds_GatherPlatforms (pattern, &nplat, 
-							sort, subs);
+							opts->sort, 
+							opts->subs);
 			matches += nplat;
 			for (i = 0; i < nplat; i++)
 			{
-				ds_GetPlatInfo (platforms[i], &pi);
-				DumpPlatform (platforms[i], &pi, &since,
-					      names, files, obs);
-				if (tier)
-					DumpSubplatforms (platforms[i], &pi);
+				NextPlatform (platforms[i], &since, opts);
 			}
 			if (pattern && (nplat == 0))
 				printf ("No matches for '%s'\n", pattern);
@@ -297,7 +361,7 @@ char **argv;
 /*
  * Done.
  */
-	if (files <= SHOWFILES)
+	if (opts->files <= SHOWFILES && !opts->quiet)
 	{
 		printf ("%d platforms, total.\n", total);
 		printf ((matches == 1) ? "\n1 match found.\n" :	
@@ -311,13 +375,11 @@ char **argv;
 
 
 static void
-DumpPlatform (pid, pi, since, names, files, obs)
+DumpPlatform (pid, pi, since, opts)
 PlatformId pid;
 PlatformInfo *pi;
 ZebTime *since;		/* Time since which to dump files */
-int names;		/* list names only when true */
-int files;		/* list files if true */
-int obs;		/* list only most recent file */
+DumpOptions *opts;
 {
 	int i, index;
 	DataSrcInfo dsi;
@@ -326,14 +388,14 @@ int obs;		/* list only most recent file */
 /*
  * Add a newline only when not listing only the names, and when listing files
  */
-	if (!names && (files == SHOWFILES))
+	if (!opts->names && (opts->files == SHOWFILES))
 		printf ("\n");
 	
 	if ((pi->pl_SubPlatform) && (name = strrchr(pi->pl_Name, '/')))
 		++name;
 	else
 		name = pi->pl_Name;
-	if (files <= SHOWFILES)
+	if (opts->files <= SHOWFILES)
 	{
 		printf ("Platform %s, %d data sources", name, pi->pl_NDataSrc);
 		if (pi->pl_Mobile)
@@ -341,7 +403,7 @@ int obs;		/* list only most recent file */
 		printf ("\n");
 	}
 
-	if (!names)
+	if (!opts->names)
 	{
 	/*
 	 * Now dump out each source, quitting at the first file outside
@@ -351,12 +413,12 @@ int obs;		/* list only most recent file */
 		for (i = 0; i < pi->pl_NDataSrc; i++)
 		{
 			ds_GetDataSource (pid, i, &dsi);
-			if (files <= SHOWFILES)
+			if (opts->files <= SHOWFILES)
 			{
 				printf (" Data source '%s', in %s, type %d\n", 
 					dsi.dsrc_Name, dsi.dsrc_Where, 
 					dsi.dsrc_Type);
-				if (! files)
+				if (! opts->files)
 					continue;
 			}
 			for (index = dsi.dsrc_FFile; index > 0; 
@@ -365,11 +427,11 @@ int obs;		/* list only most recent file */
 				ds_GetFileInfo (index, &dfi);
 				if (TC_Less(dfi.dfi_End, *since))
 					break;
-				if (files >= ONLYFILES)
-					PrintFilePath (&dsi, &dfi, files);
+				if (opts->files >= ONLYFILES)
+					PrintFilePath (&dsi, &dfi, opts);
 				else
-					PrintInfo (index, &dfi);
-				if (obs)
+					PrintInfo (index, &dfi, opts);
+				if (opts->obs)
 					break;
 			}
 		}
@@ -424,9 +486,10 @@ PlatformInfo *pi;
 
 
 static void
-PrintInfo (index, dfi)
+PrintInfo (index, dfi, opts)
 int index;
 DataFileInfo *dfi;
+DumpOptions *opts;
 /*
  * Dump out file info.
  */
@@ -448,7 +511,7 @@ DataFileInfo *dfi;
 /*
  * Perform GetFields on this file if enabled.
  */
-	if (TOC && 
+	if (opts->toc && 
 	    ds_GetFields (dfi->dfi_Plat, &dfi->dfi_Begin, &nfield, fields))
 	{
 		int i;
@@ -462,17 +525,17 @@ DataFileInfo *dfi;
 
 
 static void
-PrintFilePath (dsi, dfi, files)
+PrintFilePath (dsi, dfi, opts)
 DataSrcInfo *dsi;
 DataFileInfo *dfi;
-int files;
+DumpOptions *opts;
 /*
  * Print just the pathname of this file on one line.
  */
 {
-	if (files == ONLYFILES)
+	if (opts->files == ONLYFILES)
 		printf ("%s\n", dfi->dfi_Name);
-	else if (files == FULLFILES)
+	else if (opts->files == FULLFILES)
 		printf ("%s/%s\n", dsi->dsrc_Where, dfi->dfi_Name);
 }
 
