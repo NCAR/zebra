@@ -1,4 +1,4 @@
-! $Id: GraphProc.state,v 1.25 1996-08-20 20:23:32 granger Exp $
+! $Id: GraphProc.state,v 1.26 1996-08-21 17:26:06 granger Exp $
 !
 !		Copyright (C) 1987,88,89,90,91 by UCAR
 !	University Corporation for Atmospheric Research
@@ -116,14 +116,12 @@ define state alias-old
 		next ust$final_string
 	endinput
 enddef
+
 !
 ! Movie control.
 !
 define state movie-state
-	input 'run' 1
-		next ust$no_more
-	endinput
-	input 'stop' 0
+	input string
 		next ust$no_more
 	endinput
 enddef
@@ -482,7 +480,7 @@ read GraphProc.widgets
 ! into the graphproc event loop.
 !
 procedure ui$init
-	local _id '$Id: GraphProc.state,v 1.25 1996-08-20 20:23:32 granger Exp $'
+	local _id '$Id: GraphProc.state,v 1.26 1996-08-21 17:26:06 granger Exp $'
 	!
 	! Don't die just because we hit something undefined
 	!

@@ -43,7 +43,7 @@
 # include "ActiveArea.h"
 # include <ui_date.h>
 
-RCSID ("$Id: MovieControl.c,v 2.24 1996-01-25 18:05:13 corbet Exp $")
+RCSID ("$Id: MovieControl.c,v 2.25 1996-08-21 17:26:08 granger Exp $")
 
 # define ATSLEN		80	/* Length for AsciiText strings		*/
 # define FLEN 		40	/* Length of a field string		*/
@@ -75,10 +75,11 @@ struct _tu_table
 /*
  * Globals.
  */
+static int	ParamsLoaded = FALSE;
 static char 	MovieLen[ATSLEN], Endt[ATSLEN], Frate[ATSLEN], Fskip[ATSLEN];
 static t_units	TimeUnits = tu_minutes;
-static Widget 	StatusLabel;	/* Where the current status goes	*/
-static Widget 	Indicator;
+static Widget 	StatusLabel = NULL;	/* Where the current status goes*/
+static Widget 	Indicator = NULL;
 static Widget 	WEndt, WMovieLen, WUnits1, WUnits2, WFrate, WFskip;
 /*
  * The actual movie control parameters.
@@ -206,6 +207,7 @@ mc_LoadParams ()
 		strcpy (Frate, "2");
 	if (! pda_Search (Pd, "global", "frame-skip", NULL, Fskip,SYMT_STRING))
 		strcpy (Fskip, "3");
+	ParamsLoaded = TRUE;
 }
 
 
@@ -504,13 +506,16 @@ char *string;
 static void
 mc_UpdateWidgets ()
 /*
- * Make the widgets reflect reality.
+ * Make the widgets reflect reality, if they've been created.
  */
 {
-	mc_DoOneWidget (WEndt, Endt);
-	mc_DoOneWidget (WMovieLen, MovieLen);
-	mc_DoOneWidget (WFrate, Frate);
-	mc_DoOneWidget (WFskip, Fskip);
+	if (StatusLabel)
+	{
+		mc_DoOneWidget (WEndt, Endt);
+		mc_DoOneWidget (WMovieLen, MovieLen);
+		mc_DoOneWidget (WFrate, Frate);
+		mc_DoOneWidget (WFskip, Fskip);
+	}
 }
 
 
@@ -549,6 +554,9 @@ mc_MovieRun ()
 {
 	char trigger[200];
 	PlatformId pid;
+
+	if (! ParamsLoaded)
+		mc_LoadParams();
 /*
  * If something else has a movie going, then complain.
  */
@@ -896,6 +904,8 @@ mc_MovieStop ()
  * Stop the movie.
  */
 {
+	if (! ParamsLoaded)
+		mc_LoadParams ();
 	mc_SetStatus ("Stopped (history mode).");
 /*
  * If there are timer events active, get rid of them.
@@ -995,12 +1005,15 @@ char *string;
  * Set the status line to this string.
  */
 {
-	Arg args[5];
+	if (StatusLabel)
+	{
+		Arg args[5];
 
-	XtSetArg (args[0], XtNlabel, string);
-	XtSetValues (StatusLabel, args, ONE);
-	eq_sync ();
-	xtEvent (0);	/* XXX */
+		XtSetArg (args[0], XtNlabel, string);
+		XtSetValues (StatusLabel, args, ONE);
+		eq_sync ();
+		xtEvent (0);	/* XXX */
+	}
 }
 
 
@@ -1071,10 +1084,13 @@ int frame;
  * Set the indicator to show that we're on this frame.
  */
 {
-	float width = 1.0/Nframes;
+	if (Indicator)
+	{
+		float width = 1.0/Nframes;
 
-	XawScrollbarSetThumb (Indicator, frame*width, width);
-	eq_sync ();
+		XawScrollbarSetThumb (Indicator, frame*width, width);
+		eq_sync ();
+	}
 }
 
 

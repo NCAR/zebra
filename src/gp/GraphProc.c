@@ -47,7 +47,7 @@
 # include "LayoutControl.h"
 # include "LLEvent.h"
 
-RCSID ("$Id: GraphProc.c,v 2.61 1996-03-12 17:41:29 granger Exp $")
+RCSID ("$Id: GraphProc.c,v 2.62 1996-08-21 17:26:03 granger Exp $")
 
 /*
  * Default resources.
@@ -609,10 +609,13 @@ struct ui_command *cmds;
 	 * Movie control.
 	 */
 	   case GPC_MOVIE:
-	   	if (UKEY (cmds[1]))
+	   	if (! strcmp (UPTR(cmds[1]), "run"))
 			Eq_AddEvent (PDisplay, mc_MovieRun, 0, 0, Bounce);
-		else
+		else if (! strcmp (UPTR(cmds[1]), "stop"))
 			mc_MovieStop ();
+		else
+			msg_ELog (EF_PROBLEM, "unknown movie command: %s", 
+				  UPTR(cmds[1]));
 		break;
 	/*
 	 * Box drawing.
