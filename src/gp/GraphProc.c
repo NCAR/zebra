@@ -48,7 +48,7 @@
 # include "LLEvent.h"
 # include "FieldMenu.h"
 
-RCSID ("$Id: GraphProc.c,v 2.74 2000-12-01 23:13:12 granger Exp $")
+RCSID ("$Id: GraphProc.c,v 2.75 2001-06-19 22:32:25 granger Exp $")
 
 /*
  * Default resources.
@@ -307,6 +307,8 @@ char **argv;
  */
 	ui_get_command ("initial", (char *)msg_myname(), dispatcher, 0);
 	GPShutDown ();
+
+	return 0; 	/* Keep compilers and checkers happy. */
 }
 
 

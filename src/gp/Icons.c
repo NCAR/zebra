@@ -38,7 +38,7 @@
 # include <DataStore.h>
 # include <GraphicsW.h>
 
-RCSID("$Id: Icons.c,v 2.32 2000-12-01 23:13:12 granger Exp $")
+RCSID("$Id: Icons.c,v 2.33 2001-06-19 22:32:25 granger Exp $")
 
 # include "GraphProc.h"
 # include "FieldMenu.h"
@@ -243,6 +243,72 @@ I_ActivateArea (int x, int y, int w, int h, const char *type, const char *comp,
 
 
 
+static void
+I_PutContext (char *comp, char *atype, char *icon_platform, UItime *icon_time)
+{
+    SValue v;
+
+    v.us_v_ptr = comp;
+    usy_s_symbol (Vtable, "icon_component", SYMT_STRING, &v);
+    v.us_v_ptr = atype;
+    usy_s_symbol (Vtable, "area_type", SYMT_STRING, &v);
+    v.us_v_int = ! strcmp (atype, "posicon"); /* back compat */
+    usy_s_symbol (Vtable, "position_icon", SYMT_BOOL, &v);
+    if (icon_platform)
+    {
+	v.us_v_ptr = icon_platform;
+	usy_s_symbol (Vtable, "icon_platform", SYMT_STRING, &v);
+    }
+    if (icon_time)
+    {
+	v.us_v_date = *icon_time;
+	usy_s_symbol (Vtable, "icon_time", SYMT_DATE, &v);
+    }
+}
+
+
+static void
+I_PutMenu (char *menu, XEvent *ev)
+{
+    char *mp = menu; /* kludge */
+    Arg arg;
+
+    /*
+     * Throw it up onto the screen, and let it handle things from here.
+     * Setup special dynamic menus as needed before popping them up.
+     */
+    if ((mp = fm_SetupFieldMenu (menu)) != 0)
+    {
+	/* Done. */
+    }
+    else if ((mp = SetupDataMenu (menu)) != 0)
+    {
+	/* Done. */
+    }
+    else
+    {
+ 	/* Just a normal UI menu widget */
+	ERRORCATCH
+	mp = menu;
+	uw_IWRealize (menu, Graphics);
+	ENDCATCH
+    }
+    /*
+     * Specify the menu name in the MenuButton's menuName resource so that
+     * further actions can find it.
+     */
+    XtSetArg (arg, XtNmenuName, mp);
+    XtSetValues (Graphics, &arg, (Cardinal)1 );
+    /*
+     * We have to explicitly call the actions from here since attempting to
+     * popup the menu is conditional on whether a menu was found for this
+     * menu for the particular button.  Hence the actions cannot be 
+     * unconditionally called via the <BtnDn> translation.
+     */
+    XtCallActionProc (Graphics, "PositionAndPopupRdssMenu", ev, &mp, 1);
+}
+
+
 
 static void
 I_AAButton (area, ev)
@@ -254,9 +320,6 @@ XEvent *ev;
 {
 	static char *bnames[3] = { "left", "middle", "right" };
 	char pname[32], menu[64];
-	char *mp = menu; /* kludge */
-	SValue v;
-	Arg arg;
 /*
  * Look up a menu for this button.
  */
@@ -266,45 +329,11 @@ XEvent *ev;
 			  SYMT_STRING))
 		return;
 /*
- * Tweak variable values.
+ * Tweak variable values and popup.
  */
-	v.us_v_ptr = area->aa_comp;
-	usy_s_symbol (Vtable, "icon_component", SYMT_STRING, &v);
-	v.us_v_ptr = area->aa_type;
-	usy_s_symbol (Vtable, "area_type", SYMT_STRING, &v);
-	v.us_v_int = ! strcmp (area->aa_type, "posicon"); /* back compat */
-	usy_s_symbol (Vtable, "position_icon", SYMT_BOOL, &v);
-	v.us_v_ptr = area->aa_plat;
-	usy_s_symbol (Vtable, "icon_platform", SYMT_STRING, &v);
-/*
- * Throw it up onto the screen, and let it handle things from here.
- */
-	mp = menu;
-	if (strcmp (menu, "DataAvailable") &&
-	    !(mp = fm_SetupFieldMenu (menu)))
-	{
-	    mp = menu;
-	    uw_IWRealize (menu, Graphics);
-	}
-/*
- * Specify the menu name in the MenuButton's menuName resource so that
- * further actions can find it
- */
-	XtSetArg (arg, XtNmenuName, mp);
-	XtSetValues (Graphics, &arg, (Cardinal)1 );
-/*
- * We have to explicitly call the actions from here since attempting to
- * popup the menu is conditional on whether a menu was found for this
- * menu for the particular button.  Hence the actions cannot be 
- * unconditionally called via the <BtnDn> translation.
- */
-	XtCallActionProc (Graphics, "PositionAndPopupRdssMenu", ev, &mp, 1);
+	I_PutContext (area->aa_comp, area->aa_type, area->aa_plat, 0);
+	I_PutMenu (menu, ev);
 }
-
-
-
-
-
 
 
 
@@ -668,106 +697,18 @@ Cardinal *cardjunk;
 /*
  * Store the component name where the action procedures can find it.
  */
-	v.us_v_ptr = ilp->il_component;
-	usy_s_symbol (Vtable, "icon_component", SYMT_STRING, &v);
-	v.us_v_int = posicon;
-	usy_s_symbol (Vtable, "position_icon", SYMT_BOOL, &v);
-	v.us_v_ptr = posicon ? "posicon" : "icon";
-	usy_s_symbol (Vtable, "area_type", SYMT_STRING, &v);
-	if (ilp->il_data != NULL)
-	{
-		v.us_v_ptr = ilp->il_data->id_platform;
-		usy_s_symbol (Vtable, "icon_platform", SYMT_STRING, &v);
-		v.us_v_date = ilp->il_data->id_time;
-		usy_s_symbol (Vtable, "icon_time", SYMT_DATE, &v);
-	}
-/*
- * Throw it up onto the screen, and let it handle things from here.
- */
-	mp = menu;
-	ERRORCATCH
-        if (strcmp (menu, "DataAvailable") &&
-	    !(mp = fm_SetupFieldMenu (menu)))
-	{
-	    mp = menu;
-	    uw_IWRealize (menu, Graphics);
-	}
-	ENDCATCH
-/*
- * Specify the menu name in the MenuButton's menuName resource so that
- * further actions can find it
- */
-	XtSetArg (arg, XtNmenuName, mp);
-	XtSetValues (w, &arg, (Cardinal)1 );
-/*
- * We have to explicitly call the actions from here since attempting to
- * popup the menu is conditional on whether a menu was found for this
- * particular button.  Hence the actions cannot be unconditionally called
- * via the <BtnDn> translation.
- */
-	XtCallActionProc (w, "PositionAndPopupRdssMenu", ev, &mp, 1);
+	I_PutContext (ilp->il_component, posicon ? "posicon" : "icon",
+		      ilp->il_data ? ilp->il_data->id_platform : 0,
+		      ilp->il_data ? &ilp->il_data->id_time : 0);
+	I_PutMenu (menu, ev);
 }
-
 
 
 void
 I_RepositionMenu (w)
 Widget w;
-/*
- * Get the current size and location of the popup shell widget and make
- * sure the entire widget appears on the screen (or as much as possible
- * anyway).  Since we could have already been moved based on an old size,
- * we have to start all over with positioning the menu based on the
- * pointer location.  This is a utility function called by popup callbacks
- * for menus like FieldMenu and DataMenu.  
- *
- * This fixes the old bug of FieldMenus not popping up completely on the
- * screen the first time. This could also be done by calling the popup
- * callbacks before calling the popup-and-position action in I_MenuPopup(),
- * so that the menu shell figures its new size before getting positioned.
- * That approach might produce less flashing on the screen when the window
- * resizes before realizing the shell.  However, using this function allows
- * the FieldMenu and DataMenu source to be more self-contained and generic.
- */
 {
-	int root_x, root_y, win_x, win_y;
-	Window root, child;
-	unsigned int mask;
-	Position x, y;
-	Dimension width, height, sw, sh;
-	Dimension border;
-	Arg args[10];
-	Cardinal n;
-
-	XQueryPointer (XtDisplay(w), XtWindow(w), &root, &child,
-		       &root_x, &root_y, &win_x, &win_y, &mask);
-	/*
-	 * Default to popping up with pointer over top left corner
-	 */
-	x = root_x - 5;
-	y = root_y - 5;
-
-	n = 0;
-	XtSetArg (args[n], XtNwidth, &width); ++n;
-	XtSetArg (args[n], XtNheight, &height); ++n;
-	XtSetArg (args[n], XtNborderWidth, &border); ++n;
-	XtGetValues (w, args, n);
-
-	sw = WidthOfScreen (XtScreen(w));
-	sh = HeightOfScreen (XtScreen(w));
-	if (x - 5 + width + 2*border > (unsigned) sw)
-		x -= width + 2*border;
-	if (y - 5 + height + 2*border > (unsigned) sh)
-		y = sh - height - 2*border;
-
-	/*
-	 * Send the widget its new location.  If it hasn't changed,
-	 * it will ignore this.
-	 */
-	n = 0;
-	XtSetArg (args[n], XtNx, x); ++n;
-	XtSetArg (args[n], XtNy, y); ++n;
-	XtSetValues (w, args, n);
+    uw_PositionWidget (w);
 }
 
 

@@ -13,8 +13,11 @@
 # include <X11/Xaw/Viewport.h>
 # include <X11/Xaw/AsciiText.h>
 
+extern "C" 
+{
 # include <ui.h>
 # include <ui_date.h>
+}
 
 # include <defs.h>
 # include <copyright.h>
@@ -31,7 +34,7 @@ extern "C"
 
 }
 
-RCSID ("$Id: FieldSelect.cc,v 2.1 2000-12-01 23:13:11 granger Exp $")
+RCSID ("$Id: FieldSelect.cc,v 2.2 2001-06-19 22:32:24 granger Exp $")
 
 
 extern "C" void fs_QuitCallback (Widget w, XtPointer cdata, XtPointer);
@@ -199,8 +202,9 @@ public:
 	if (shell)
 	{
 	/*
-	 * Popup the shell and forget about it.
+	 * Place the shell, pop it up, and forget about it.
 	 */
+	    uw_PositionWidget (shell);
 	    XtPopup (shell, XtGrabNone);	
 	}
     }

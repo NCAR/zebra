@@ -46,7 +46,7 @@
 # include "GraphProc.h"
 # include "FieldMenu.h"
 
-RCSID ("$Id: FieldMenu.c,v 2.25 2001-04-24 23:42:25 granger Exp $")
+RCSID ("$Id: FieldMenu.c,v 2.26 2001-06-19 22:32:24 granger Exp $")
 
 /*
  * Establish a single interface style for dynamic field selection
@@ -170,7 +170,10 @@ fm_SetupFieldMenu (char *spec)
     if (strncmp (spec, "FieldMenu", 9))
 	return 0;
     if (fm_GetContext (&FieldMenuContext, spec+9))
+    {
+	PopupCallback (0, 0, 0);
 	return "FieldMenu";
+    }
     return 0;
 }
 
@@ -219,8 +222,6 @@ InitFieldMenu ()
 	XtSetArg (args[0], XtNlabel, "Field selection menu");
 	Menu = XtCreatePopupShell ("FieldMenu", simpleMenuWidgetClass,
 		Top, args, 1);
-	XtAddCallback (Menu, XtNpopupCallback, (XtCallbackProc) PopupCallback, 
-		(XtPointer) Menu);
 	XtCreateManagedWidget ("Line", smeLineObjectClass, Menu, NULL, 0);
 /*
  * Always have an entry to popup the field selector on the current context.
@@ -389,10 +390,6 @@ XtPointer junk, junk1;
 	XtUnmanageChildren (Entries + nentry, NManaged - nentry);
     }
     NManaged = nentry;
-/*
- * Re-position the pop-up shell now that our size is correct.
- */
-    I_RepositionMenu (w);
 }
 
 
@@ -410,7 +407,6 @@ fm_GetContext (fm_Context *fmc, char *spec)
 	PlatformId pid;
 	char *comma;
 	char buf[256];
-
 /*
  * Initialization.
  */

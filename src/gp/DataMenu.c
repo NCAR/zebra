@@ -34,7 +34,7 @@
 # include <ui_date.h>
 # include "GraphProc.h"
 
-RCSID ("$Id: DataMenu.c,v 2.21 2000-06-12 23:43:36 granger Exp $")
+RCSID ("$Id: DataMenu.c,v 2.22 2001-06-19 22:32:24 granger Exp $")
 
 
 /*
@@ -76,8 +76,6 @@ InitDataMenu ()
 	XtSetArg (args[0], XtNlabel, "Data available menu");
 	Menu = XtCreatePopupShell ("DataAvailable", simpleMenuWidgetClass,
 		Top, args, 1);
-	XtAddCallback (Menu, XtNpopupCallback, (XtCallbackProc) PopupCallback, 
-		(XtPointer) Menu);
 	XtCreateManagedWidget ("Line", smeLineObjectClass, Menu, NULL, 0);
 /*
  * Real time mode.
@@ -104,15 +102,23 @@ InitDataMenu ()
 }
 
 
-
+char *
+SetupDataMenu (char *spec)
+{
+    static char *datamenu = "DataAvailable";
+    if (strcmp (spec, datamenu) == 0)
+    {
+	PopupCallback (0, 0, 0);
+	return datamenu;
+    }
+    return 0;
+}
 
 
 
 /* ARGSUSED */
 static void
-EntryCallback (w, xwhich, junk)
-Widget w;
-XtPointer xwhich, junk;
+EntryCallback (Widget w, XtPointer xwhich, XtPointer junk)
 /*
  * One of the entries has been selected.
  */
@@ -155,9 +161,7 @@ XtPointer xwhich, junk;
 
 
 static void
-PopupCallback (w, junk, junk1)
-Widget w;
-XtPointer junk, junk1;
+PopupCallback (Widget wjunk, XtPointer junk, XtPointer junk1)
 /*
  * We're being popped up.  Set the entries accordingly.
  */
@@ -211,10 +215,6 @@ XtPointer junk, junk1;
  	for (i = nentry; i < NManaged; i++)
 		XtUnmanageChild (Entries[i]);
 	NManaged = nentry;
-/*
- * Reposition the menu based on our new size.
- */
-	I_RepositionMenu (w);
 }
 
 
