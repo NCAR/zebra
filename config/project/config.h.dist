@@ -42,7 +42,7 @@
 XCOMM -----------------------------------------------------------------------
 XCOMM Definitions from config.h included here.  The definitions here override
 XCOMM the defaults in Project.tmpl.  See ...../zeb/config/config.h.
-XCOMM $Id: config.h.dist,v 1.24 1995-03-28 22:48:48 corbet Exp $
+XCOMM $Id: config.h.dist,v 1.25 1995-04-13 20:50:36 corbet Exp $
 XCOMM -----------------------------------------------------------------------
 # endif
 
@@ -436,6 +436,12 @@ XCOMM -----------------------------------------------------------------------
 /* # define PamCfgLibrary /usr/local/lib/libunp.a */
 
 /*
+ * If you have a nonstandard Fortran compiler (i.e. you "make" won't figure
+ * it out automatically) set it here.  (This example for the GNU compiler).
+ */
+/* # define FortranCompiler g77 */
+
+/*
  * FORTRAN libraries tend to be very system-specific.  Define this
  * parameter to be the command-line options necessary to link with
  * the FORTRAN libraries on your system.
@@ -466,6 +472,9 @@ XCOMM -----------------------------------------------------------------------
 
 /* IRIX 5.x */
 /* # define FortranLibraries -lF77 -lI77 -lisam */
+
+/* G77 -- may also have to give -L if not linking with gcc */
+/* # define FortranLibraries -lf2c */
 
 /*
  * Some of Zeb's routines require the terminal capability library,
