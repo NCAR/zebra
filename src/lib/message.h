@@ -1,4 +1,4 @@
-/* $Id: message.h,v 2.8 1992-11-09 18:18:51 burghart Exp $ */
+/* $Id: message.h,v 2.9 1993-02-11 22:56:49 martin Exp $ */
 /*
  * Message protocol types.
  */
@@ -214,6 +214,7 @@ void msg_quit FP ((char *));
 void msg_log FP ((/* char *, ... */));
 void msg_ELog FP (());
 void msg_add_fd FP ((int, int (*handler) ()));
+void msg_delete_fd FP ((int));
 int msg_get_fd FP ((void));
 int msg_await FP ((void));
 int msg_Search FP ((int proto, int (*func) (), void * param));

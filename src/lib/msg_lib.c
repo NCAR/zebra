@@ -28,7 +28,7 @@
 # include <sys/uio.h>
 # include "defs.h"
 # include "message.h"
-MAKE_RCSID ("$Id: msg_lib.c,v 2.10 1992-11-18 00:00:03 granger Exp $")
+MAKE_RCSID ("$Id: msg_lib.c,v 2.11 1993-02-11 22:55:04 martin Exp $")
 
 /*
  * The array of functions linked with file descriptors.
@@ -625,6 +625,19 @@ ifptr handler;
 	FD_SET (fd, &Fd_list);
 	if (fd > Max_fd)
 		Max_fd = fd;
+}
+
+
+void
+msg_delete_fd (fd)
+int fd;
+
+/*
+ * Remove this file descriptor from the list of FD's that we watch.
+ */
+{
+	Fd_funcs[fd] = NULL;
+	FD_CLR (fd, &Fd_list);
 }
 
 
