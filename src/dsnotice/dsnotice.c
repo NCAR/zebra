@@ -27,12 +27,13 @@
 # include <copyright.h>
 # include <DataStore.h>
 
-RCSID ("$Id: dsnotice.c,v 1.5 1996-11-22 20:56:49 granger Exp $")
+RCSID ("$Id: dsnotice.c,v 1.6 1996-12-17 01:49:14 granger Exp $")
 
 static void ReceiveNotify FP ((PlatformId pid, int param, ZebTime *when,
 			      int nsample, UpdCode ucode));
 static char *PlatFileName FP ((PlatformId pid, ZebTime *when));
 
+static int ShowPlatDir = 0;
 
 void
 usage (prog)
@@ -40,10 +41,11 @@ char *prog;
 {
    fprintf(stderr,"Usage: %s -help\n", prog);
    fprintf(stderr,"   Print this usage message\n");
-   fprintf(stderr,"Usage: %s [-all] [regexp ...]\n", prog);
+   fprintf(stderr,"Usage: %s [-all] [-dir] [regexp ...]\n", prog);
    fprintf(stderr,"   Print notifications for all platforms or only those\n");
    fprintf(stderr,"   matching the given regular expressions.\n");
    fprintf(stderr,"   -all   \tReceive notifies all platforms\n");
+   fprintf(stderr,"   -dir   \tShow platform directory path on each update\n");
    fprintf(stderr,"   Options can be abbreviated to any number of letters.\n");
 }
 
@@ -123,6 +125,8 @@ char **argv;
 			platname[p++] = argv[i];
 		else if (!strncmp(argv[i], "-all", len))
 			all = TRUE;
+		else if (!strncmp(argv[i], "-dir", len))
+			ShowPlatDir = TRUE;
 		else
 		{
 			fprintf (stderr, "%s: invalid option '%s'\n",
@@ -229,7 +233,7 @@ UpdCode ucode;
 {
 	char tbuf[64];
 	char *platname;
-	/*char *platdir;*/
+	char *platdir;
 	char *filename;
 	/*
 	 * Print lines of the form:
@@ -238,12 +242,12 @@ UpdCode ucode;
 	 */
 	TC_EncodeTime (when, TC_Full, tbuf);
 	platname = ds_PlatformName (pid);
-	/*platdir = PlatDirectory (pid);*/
+	platdir = PlatDirectory (pid);
 	filename = PlatFileName (pid, when);
-	printf ("%s %s %s %i %s\n", 
+	printf ("%s %s %s %s %i %s\n", 
 		platname ? platname : "NULL", 
 		filename ? filename : "NULL",
-		/*platdir ? platdir : "NULL",*/
+		(ShowPlatDir ? (platdir ? platdir : "NULL") : ""),
 		tbuf, nsample, (ucode == UpdOverwrite) ? "owr" :
 		((ucode == UpdInsert) ? "ins" : "app"));
 	fflush (stdout);
