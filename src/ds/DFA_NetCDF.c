@@ -33,7 +33,7 @@
 # include "dfa.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_NetCDF.c,v 3.66 1999-03-01 02:03:24 burghart Exp $")
+RCSID ("$Id: DFA_NetCDF.c,v 3.67 1999-07-21 17:24:59 burghart Exp $")
 
 # include <netcdf.h>
 
@@ -2119,6 +2119,7 @@ int ndetail;
 			 * altitude, so use the altitude index.
 			 */
 			dindex = altindex;
+			size = tag->nc_nalts;
 		}
 		/*
 		 * Get the dimension's name and check for relevant details
@@ -3410,7 +3411,7 @@ DataChunk *dc;
 	sprintf(history,"created by the Zebra DataStore library, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.66 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.67 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 }
