@@ -23,7 +23,7 @@
 # include "ui_date.h"
 # include "ui_globals.h"
 
-static char *Rcsid = "$Id: ui_symbol.c,v 1.3 1989-03-10 16:41:28 corbet Exp $";
+static char *Rcsid = "$Id: ui_symbol.c,v 1.4 1989-04-13 15:37:23 corbet Exp $";
 
 /*
  * This is the format of a single symbol table entry.
@@ -36,6 +36,7 @@ struct ste
 	short	ste_length;		/* ...for indirect strings	*/
 	union usy_value ste_v;		/* Symbol value			*/
 	struct ste *ste_next;		/* Next entry in hash chain	*/
+	struct sdaemon *ste_daemons;	/* Watcher daemons		*/
 };
 
 /*
@@ -45,6 +46,17 @@ struct ste
 # define HASH_MOD 113
 /* # define HASH_MASK 0x3F */
 # define HASH(s) usy_hash (s)
+
+/*
+ * A structure describing a symbol daemon.
+ */
+struct sdaemon
+{
+	int (*sd_func) ();		/* The function to call		*/
+	char * sd_arg;			/* Arg to pass in		*/
+	struct sdaemon *sd_next;	/* Next daemon			*/
+	int sd_ops;			/* Operations of interest	*/
+};
 
 /* 
  * This is the format of an actual symbol table.
@@ -103,6 +115,8 @@ usy_init ()
  */
 {
 	stbl usy_c_stbl ();
+	int usy_t_daemon ();
+	union usy_value v;
 /*
  * Create the master table.
  */
@@ -127,8 +141,30 @@ usy_init ()
  * Initialize dynamic strings.
  */
  	usy_st_init (Stat_table);
+/*
+ * TEST feature: create a daemon for a test symbol.
+ */
+	v.us_v_int = 0;
+	usy_s_symbol (Ui_variable_table, "daemon", SYMT_INT, &v);
+	if (! usy_daemon (Ui_variable_table, "daemon", SOP_WRITE,
+		usy_t_daemon, 0))
+		ui_warning ("Daemon create failed");
 	return;
 }
+
+
+
+usy_t_daemon (symbol, arg, op, ot, ov, nt, nv)
+char *symbol, *arg;
+int op, ot, nt;
+union usy_value *ov, *nv;
+{
+	ui_nf_printf ("SYM CHANGE on '%s': from\n", symbol);
+	usy_list_symbol (symbol, ot, ov, 0);
+	ui_nf_printf ("    -- to --\n");
+	usy_list_symbol (symbol, nt, nv, 0);
+}
+
 
 
 
@@ -220,11 +256,23 @@ char *symbol;
 {
 	int slot;
 	struct ste *sym, *prev;
+	struct sdaemon *sdp, *old;
 /*
  * Look up this symbol.  If it does not exist, we will silently quit.
  */
  	if ((sym = usy_find_symbol (table, symbol)) == 0)
 		return;
+/*
+ * Release any daemon structures.  Eventually we will want to signal
+ * DESTROY operations too.
+ */
+	for (sdp = sym->ste_daemons; sdp;)
+	{
+		old = sdp;
+		sdp = sdp->sd_next;
+		relvm (old);
+	}
+
 /*
  * We have to unlink this symbol from the chain.  If it is the first one,
  * we have it easy.
@@ -473,12 +521,10 @@ union usy_value *value;
 	table = usy_extr_table (table, symbol);
  	if (sp = usy_find_symbol (table, symbol))
 	{
+		if (sp->ste_daemons)
+			usy_dcall (sp, SOP_WRITE, type, value);
 		if (sp->ste_indirect && sp->ste_type != type)
 			uit_coerce (value, type, sp->ste_type);
-# ifdef notdef
-			ui_error ("Attempted type change on sym '%s' from %d to %d",
-				symbol, sp->ste_type, type);
-# endif
 		if (sp->ste_type == SYMT_STRING && ! sp->ste_indirect)
 			usy_rel_string (sp->ste_v.us_v_ptr);
 	}
@@ -500,6 +546,34 @@ union usy_value *value;
 			sp->ste_v.us_v_ptr = usy_string (value->us_v_ptr);
 	}
 }
+
+
+
+
+
+usy_dcall (sym, op, type, value)
+struct ste *sym;
+int op, type;
+union usy_value *value;
+/*
+ * Call the daemons associated with this symbol.
+ * Entry:
+ *	SYM	is the symbol of interest.
+ *	OP	is the operation being performed.
+ *	TYPE	is the type of any new value.
+ *	VALUE	is a new value for SOP_WRITE.
+ * Exit:
+ *	The daemons have been called.
+ */
+{
+	struct sdaemon *sdp;
+
+	for (sdp = sym->ste_daemons; sdp; sdp = sdp->sd_next)
+		(*sdp->sd_func) (sym->ste_sym, sdp->sd_arg, op, sym->ste_type,
+			&sym->ste_v, type, value);
+}
+
+
 
 
 
@@ -891,3 +965,55 @@ char *symbol;
 }
 
 
+
+
+
+
+int
+usy_daemon (table, symbol, ops, func, arg)
+struct symbol_table *table;
+char *symbol;
+int ops;
+int (*func) ();
+char * arg;
+/*
+ * Define a daemon for this symbol.
+ * Entry:
+ *	TABLE	is the table containing the symbol.
+ *	SYMBOL	is the name of the actual symbol.
+ *	OPS	is a mask of operations of interest:
+ *		SOP_READ	Any symbol reference.
+ *		SOP_WRITE	Whenever the symbol is changed.
+ *		SOP_DESTROY	When the symbol is destroyed.
+ *	FUNC	is the function to be called.
+ *	ARG	is an argument to be passed to that function.
+ * Exit:
+ *	If SYMBOL exists then
+ *		the daemon is established.
+ *		the return value is TRUE
+ *	else
+ *		no daemon is established.
+ *		the return value is FALSE.
+ *
+ * The daemon function is called as:
+ *
+ *	(*func) (symbol, arg, op, oldtype, oldvalue, newtype, newvalue)
+ */
+{
+	struct ste *sym = usy_find_symbol (table, symbol);
+	struct sdaemon *sdp;
+/*
+ * No symbol ==> do nothing.
+ */
+	if (! sym)
+		return (FALSE);
+/*
+ * Get a new daemon structure and link it in.
+ */
+	sdp = NEW (struct sdaemon);
+	sdp->sd_func = func;
+	sdp->sd_arg = arg;
+	sdp->sd_next = sym->ste_daemons;
+	sym->ste_daemons = sdp;
+	return (TRUE);
+}
