@@ -32,7 +32,7 @@
 # include <DataStore.h>
 # include <DataChunk.h>
 
-MAKE_RCSID("$Id: SatIngest.c,v 1.6 1993-08-10 20:03:51 burghart Exp $")
+MAKE_RCSID("$Id: SatIngest.c,v 1.7 1994-02-02 19:33:56 burghart Exp $")
 
 # include "keywords.h"
 
@@ -754,7 +754,7 @@ int	*array, count;
 
 
 
-void
+static void
 FileLimits ()
 {
 	float	fline, felem, dummy, lat, lon;
