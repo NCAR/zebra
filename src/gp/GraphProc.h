@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.13 1992-05-27 16:37:19 kris Exp $ */
+/* $Id: GraphProc.h,v 2.14 1992-06-24 20:44:30 kris Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -196,7 +196,7 @@ extern bool cvt_Origin FP ((double, double));
 
 /* Other stuff */
 extern int GetLocation FP ((char *, ZebTime *, Location *));
-extern int AgeCheck FP ((char *, ZebTime *));
+extern int AgeCheck FP ((char *, char *, ZebTime *));
 extern long GetSec FP(( time ));
 extern void sync FP ((void));
 extern int  reset_limits FP ((char *, char *, char *));
