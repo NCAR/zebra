@@ -1,7 +1,6 @@
 /*
  * Set up configuration variables so that they are available at the UI level.
  */
-MAKE_RCSID("$Id: ConfigVars.c,v 1.4 1994-01-26 11:24:46 granger Exp $")
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -22,6 +21,8 @@ MAKE_RCSID("$Id: ConfigVars.c,v 1.4 1994-01-26 11:24:46 granger Exp $")
 # include <config.h>
 # include <ui_symbol.h>
 # include "defs.h"
+
+MAKE_RCSID("$Id: ConfigVars.c,v 1.5 1994-01-26 11:53:23 granger Exp $")
 
 /*
  * Keep the directories around for queries.
