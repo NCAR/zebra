@@ -37,7 +37,7 @@
 # include "PixelCoord.h"
 # include "ActiveArea.h"
 
-RCSID("$Id: PlotControl.c,v 2.43 1998-10-28 21:21:59 corbet Exp $")
+RCSID("$Id: PlotControl.c,v 2.44 2000-11-16 22:55:43 granger Exp $")
 
 int		pc_TimeTrigger FP ((char *));
 void		pc_TriggerGlobal FP (());
@@ -461,6 +461,7 @@ char *trigger;
  */
 {
 	int seconds = 0;
+	char *period = trigger;
 /*
  * Interpret as much as possible as a number.
  */
@@ -479,7 +480,10 @@ char *trigger;
 	else if (trigger[0] == 'd' && trigger[1] == '\0')
 		return (seconds*24*60*60);
 	else
+	{
+		msg_ELog (EF_PROBLEM, "Funky time period: '%s'", period);
 		return (0);
+	}
 }
 
 
