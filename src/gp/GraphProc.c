@@ -19,6 +19,7 @@
  * maintenance or updates for its software.
  */
 
+# include <unistd.h>
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -45,7 +46,7 @@
 # include "GC.h"
 # include "GraphProc.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.24 1993-02-05 22:24:25 corbet Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.25 1993-02-08 21:40:06 corbet Exp $")
 
 /*
  * Default resources.
@@ -228,7 +229,7 @@ finish_setup ()
 	};
 	int type[5], pd_defined (), pd_param (), pd_paramsearch();
 	int pd_removeparam (), substr_remove();
-	char *initfile, perf[80];
+	char initfile[128], perf[80];
 	XSizeHints hints;
 	long supplied;
 /*
@@ -245,9 +246,14 @@ finish_setup ()
  * of an initialization file to read.
  */
 	if (Argc > 1)
-		initfile = Argv[1];
+	{
+		if (! access (Argv[1], F_OK))
+			strcpy (initfile, Argv[1]);
+		else
+			sprintf (initfile, "%s/%s", GetProjDir (), Argv[1]);
+	}
 	else
-		initfile = "../gp/Widgets";
+		strcpy (initfile, "../gp/Widgets");
 	Vtable = usy_g_stbl ("ui$variable_table");
 /*
  * Now create a popup shell to hold the graphics widget that holds
