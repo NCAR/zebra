@@ -26,7 +26,7 @@
 # include <stdio.h>
 # include <netcdf.h>
 # include "defs.h"
-MAKE_RCSID ("$Id: gprotocdf.c,v 1.5 1992-10-12 22:46:47 kris Exp $")
+MAKE_RCSID ("$Id: gprotocdf.c,v 1.6 1992-10-20 22:21:11 kris Exp $")
 
 
 /*
@@ -649,12 +649,14 @@ Plow ()
 	/*
 	 * Major source of ugliness.
 	 */
+# ifdef notdef
 		if (ip[Foffsets[LatOffset]]/Scales[LatOffset] == 1000 ||
 		    ip[Foffsets[LonOffset]]/Scales[LonOffset] == 1000)
 		{
 			NTrashed++;
 			continue;
 		}
+# endif
 	/*
 	 * Pull out the time.
 	 */
@@ -685,10 +687,8 @@ Plow ()
 	 	for (i = 0; i < NField; i++)
 		{
 			data = ip[Foffsets[i]]/Scales[i] - 1000.0;
-# ifdef notdef
 			if (i == AltOffset)
 				data /= 1000.0;	/* m -> km */
-# endif
 			ncvarput1 (NFile, VFields[i], &NOut, &data);
 		}
 		NOut++;
