@@ -36,7 +36,7 @@
 # include "message.h"
 # include "pd.h"
 
-RCSID ("$Id: pdlib.c,v 1.28 1999-03-01 02:04:45 burghart Exp $")
+RCSID ("$Id: pdlib.c,v 1.29 2003-04-09 23:53:38 burghart Exp $")
 
 struct traverse {
 	int (*func)();		/* Function to call for traverse */
@@ -688,8 +688,16 @@ raw_plot_description *rpd;
  * Dump out this component of the pd.
  */
 {
-	char outbuf[300];
+	char outbuf[1024];
 
+	if (sizeof(outbuf) < (strlen(name) + strlen(v->us_v_ptr) + 4))
+	{
+	    msg_ELog (EF_EMERGENCY, 
+		      "pd_UnloadParam: param '%s' too long (name+value > %d)!",
+		      name, sizeof(outbuf));
+	    exit (1);
+	}
+	    
 	sprintf (outbuf, "\t%s:\t%s\n", name, v->us_v_ptr);
 	strcat (rpd->rp_data, outbuf);
 	return (TRUE);
