@@ -1,4 +1,4 @@
-/* $Id: Makefile.cpp,v 1.7 1991-11-22 20:54:03 kris Exp $ */
+/* $Id: Makefile.cpp,v 1.8 1991-12-06 21:27:29 corbet Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -20,16 +20,16 @@
 # include "../include/config.h"
 
 
-# ifdef sun
-/*
- * Sun options
- */
-CC=CCompiler
-CFLAGS=CCOptions -I$(FCCINC) -I$(RDSSINC) -DSHM
-/* CFLAGS=-g -O -I/fcc/include -I/rdss/include -DTIMING -DSHM */
-FFLAGS=-g 
-LIBS=ZebLibrary -L/usr/lang/SC0.0 -lF77 -lV77 -lrdss -ltermcap -lnetcdf -lXaw -lXmu -lXt -lXext -lX11 -lm
+# if XSharedMemory
+	SHMFLAG=-DSHM
+# else
+	SHMFLAG=
 # endif
+
+CC=CCompiler
+CFLAGS=CCOptions IncludeDirs $(SHMFLAG)
+FFLAGS=FortOptions
+LIBS=ZebLibrary CDFLibrary FortranLibs MiscLibs XLibraries
 
 # if OPENWIN
 OBJS =  TimeSeries.o ColorTable.o EventQueue.o LLEvent.o PlotControl.o \
