@@ -23,7 +23,7 @@
 # include "DataStore.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_Transp.c,v 1.5 1992-05-21 20:16:28 corbet Exp $")
+MAKE_RCSID ("$Id: dc_Transp.c,v 1.6 1992-06-09 19:22:52 corbet Exp $")
 
 /*
  * TODO:
@@ -87,12 +87,16 @@ typedef struct _AuxTrans
 # define ST_SAMPLES	1	/* Sample locations and sizes.		*/
 # define ST_PLATFORMS	2	/* Optional platform list		*/
 # define ST_LOCATIONS	3	/* Locations for mobile plats		*/
+/* XXX Make sure any others are less than ST_ATTR! */
+# define ST_ATTR	1000	/* Per-sample attributes		*/
+
 
 /*
  * Local routines.
  */
 static AuxTrans * dc_TrMoreSamples FP ((DataChunk *, AuxTrans *, int));
 static int	dc_TrMoreData FP ((DataChunk *, int));
+static int 	dc_PrintSaAttr FP ((char *, char *));
 
 
 static DataChunk *
@@ -495,7 +499,7 @@ DataChunk *dc;
  */
 {
 	AuxTrans *tp;
-	int i;
+	int i, len;
 	char atime[40];
 /*
  * The obbligatory class check.
@@ -518,11 +522,35 @@ DataChunk *dc;
 			tp->at_NSample, tp->at_NSampAlloc);
 	for (i = 0; i < tp->at_NSample; i++)
 	{
+	/*
+	 * Put out time and size info.
+	 */
 		TransSample *ts = tp->at_Samples + i;
 		TC_EncodeTime (&ts->ats_Time, TC_Full, atime);
 		printf ("\t%2d at %s, len %d offset %d\n", i,
 			atime, ts->ats_Len, ts->ats_Offset);
+	/*
+	 * If there are sample attributs, do them too.
+	 */
+		if (dca_GetBlock (dc, DCC_Transparent, ST_ATTR + i, &len))
+			dca_ProcAttrs (dc, DCC_Transparent, ST_ATTR + i,
+					NULL, dc_PrintSaAttr);
 	}
+}
+
+
+
+
+
+static int
+dc_PrintSaAttr (key, value)
+char *key, *value;
+/*
+ * Print out an attribute value.
+ */
+{
+	printf ("\t\t%s --> %s\n", key, value);
+	return (0);
 }
 
 
@@ -756,6 +784,79 @@ int sample, newsize;
 	}
 	ts->ats_Len = newsize;
 }
+
+
+
+
+
+
+void
+dc_SetSampleAttr (dc, sample, key, value)
+DataChunk *dc;
+int sample;
+char *key, *value;
+/*
+ * Add a per-sample attribute to this data chunk.
+ */
+{
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent,"SetSampleAttr"))
+		return;
+	dca_AddAttr (dc, DCC_Transparent, ST_ATTR + sample, key, value);
+}
+
+
+
+
+char *
+dc_GetSampleAttr (dc, sample, key)
+DataChunk *dc;
+int sample;
+char *key;
+/*
+ * Look up a per-sample attribute.
+ */
+{
+	char *value;
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent,"GetSampleAttr"))
+		return;
+	if (value = dca_GetAttr (dc, DCC_Transparent, ST_ATTR + sample, key))
+		return (value);
+	return (dc_GetGlobalAttr (dc, key));
+}
+
+
+
+
+void *
+dc_GetSaAttrBlock (dc, sample, len)
+DataChunk *dc;
+int sample, *len;
+/*
+ * Get the per-sample attributes out as an opaque chunk.
+ */
+{
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent,"GetSampleAttr"))
+		return;
+	return (dca_GetBlock (dc, DCC_Transparent, ST_ATTR + sample, len));
+}
+
+
+
+void
+dc_SetSaAttrBlock (dc, sample, block, len)
+DataChunk *dc;
+void *block;
+int sample, len;
+/*
+ * Store a per-sample attribute block back.
+ */
+{
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent,"GetSampleAttr"))
+		return;
+	dca_PutBlock (dc, DCC_Transparent, ST_ATTR + sample, block, len);
+}
+
+
 
 
 
