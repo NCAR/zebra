@@ -44,7 +44,7 @@
 # include "bitmaps.h"
 # include "twidget.h"
 
-RCSID ("$Id: twidget.c,v 2.15 1995-04-27 14:54:47 granger Exp $")
+RCSID ("$Id: twidget.c,v 2.16 1995-07-10 09:16:38 granger Exp $")
 
 
 # define LABELWIDTH	60
@@ -113,6 +113,9 @@ static Widget tw_WCreate ();
 static int tw_SyncTime FP((void));
 static void tw_WCallback ();
 static void enter_time FP ((Widget w, XEvent *, String *, Cardinal *));
+#ifdef notdef
+static void enter_hotlabel FP ((Widget w, XEvent *, String *, Cardinal *));
+#endif
 static void finish_arrow (), datebutton ();
 static void ChangeMonth (), ChangeDay (), ChangeYear (); 
 static void ChangeHour (), ChangeMin ();
@@ -233,6 +236,22 @@ tw_WCreate (junk, parent, appc)
 int	junk;
 Widget	parent;
 XtAppContext appc;
+/*
+ * Create the complicated time widget interface.  The current notion is
+ * that the menus and buttons follow the order the user would ordinarily
+ * follow to set and change things, from top to bottom.  So the upper right
+ * is the menu for choosing which windows will be controlled.  Below that
+ * are the arrow buttons and entry widget for setting the time manually.
+ * Finally are the buttons one might press once a time is entered, such as
+ * "real time", "set time", and "skip".  The bottom line is the hot times
+ * interface, which allows the user to choose from a set of pre-determined
+ * times and add a label for a time which has just been chosen.  The help
+ * and quit buttons really should be near the top, but they fit better in
+ * the bottom corner.  Also, the hot times description really should be a
+ * dialog which pops up when "remember" is pressed, but in the interest of
+ * time and expedience that has not been done yet.  Volunteers are welcome
+ * to take it up. 
+ */
 {
 	Arg args[20];
 	Widget form, title, left, cform, sform;
@@ -246,17 +265,29 @@ XtAppContext appc;
 	static char *ttrans = "<Btn1Down>,<Btn1Up>: 	set()notify()";
 	static XtActionsRec actions[] = {
 			{"finishadj", finish_arrow},
-			{"enter-time", enter_time}
+			{"enter-time", enter_time},
+#ifdef notdef
+			{"enter-hotlabel", enter_hotlabel}
+#endif
 	};
 	static char *atrans = "<Btn1Down>:	set()notify() \n\
 	           	       <Btn1Up>: 	finishadj()unset()";
+#ifdef notdef
+	static char *htrans = "#override \n\
+ 			       <KeyPress>Return:	set() \n\
+			       <KeyRelease>Return:	notify()unset()";
+	XtTranslations htable;
+#endif
 	XtTranslations ttable, atable;
 /*
  * Translations.
  */
-	ttable = XtParseTranslationTable (ttrans);
 	XtAppAddActions (appc, actions, XtNumber(actions));
+	ttable = XtParseTranslationTable (ttrans);
 	atable = XtParseTranslationTable (atrans);
+#ifdef notdef
+	htable = XtParseAcceleratorTable (htrans);
+#endif
 /*
  * Make the bitmaps for the left and right arrow buttons and the menu icon.
  */
@@ -286,153 +317,47 @@ XtAppContext appc;
 	title = XtCreateManagedWidget ("title", labelWidgetClass, form,
 				       args, n);
 /*
- * Put a text window for the current hot label next to it
+ * ----------------------------------------------------------------
+ * Control one/all windows selection in upper right corner.  Uses a menu
+ * of the window names in the current configuration.  
  */
 	n = 0;
+	XtSetArg (args[n], XtNborderWidth, 2);		n++;
 	XtSetArg (args[n], XtNfromHoriz, title);	n++;
 	XtSetArg (args[n], XtNfromVert, NULL);		n++;
-	XtSetArg (args[n], XtNdisplayPosition, 0);	n++;
-	XtSetArg (args[n], XtNborderWidth, 2);		n++;
-	XtSetArg (args[n], XtNinsertPosition, 0);	n++;
-	XtSetArg (args[n], XtNresize, XawtextResizeNever);	n++;
-	XtSetArg (args[n], XtNwidth, 180);		n++;
-	XtSetArg (args[n], XtNheight, 20);		n++;
-	XtSetArg (args[n], XtNlength, 80);		n++;
-	XtSetArg (args[n], XtNtype, XawAsciiString);	n++;
-	XtSetArg (args[n], XtNuseStringInPlace, False);	n++;
-	XtSetArg (args[n], XtNstring, "");		n++;
-	XtSetArg (args[n], XtNleftMargin, 5);		n++;
-	XtSetArg (args[n], XtNeditType, XawtextEdit);	n++;
-	HT_Text = XtCreateManagedWidget ("hotlabel", asciiTextWidgetClass,
-					 form, args, n);
-/*
- * --------------------------------------------------------------------
- * On the next row put the most-used buttons in two button bars:
- * real-time mode, history mode, history times menu, help, and dismiss.
- * The real-time and history buttons are in a radio group so put them
- * in their own separate box.
- */
+	XtSetArg (args[n], XtNdefaultDistance, 5);	n++;
+	cform = XtCreateManagedWidget ("cform", formWidgetClass, 
+				       form, args, n);
+
 	n = 0;
-	XtSetArg (args[n], XtNborderWidth, 2);		n++;
+	XtSetArg (args[n], XtNlabel, "Control:");	n++;
 	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
-	XtSetArg (args[n], XtNfromVert, title);		n++;
-	XtSetArg (args[n], XtNdefaultDistance, 5);	n++;
-	button_bar = XtCreateManagedWidget ("radiobar", formWidgetClass, 
-					    form, args, n);
-/*
- * Real time mode button is the leftmost
- */
-	n = 0;
-	XtSetArg (args[n], XtNlabel, "Real Time");	++n;
-	XtSetArg (args[n], XtNfromHoriz, NULL);		++n;
-	XtSetArg (args[n], XtNfromVert, NULL);		++n;
-	XtSetArg (args[n], XtNborderWidth, 1);		++n;
-	XtSetArg (args[n], XtNstate, (RTMode)?(True):(False));	++n;
-	RTToggle = XtCreateManagedWidget ("rt", toggleWidgetClass, 
-					  button_bar, args, n);
-	left = RTToggle;
-	XtOverrideTranslations (left, ttable);
-	XtAddCallback (left, XtNcallback, tw_WCallback, (XtPointer) RealTime);
-/*
- * Set history time button
- */
-	n = 0;
-	XtSetArg (args[n], XtNlabel, "Set Time");	++n;
-	XtSetArg (args[n], XtNfromHoriz, left);		++n;
-	XtSetArg (args[n], XtNfromVert, NULL);		++n;
-	XtSetArg (args[n], XtNradioGroup, left);	++n;
-	XtSetArg (args[n], XtNborderWidth, 1);		++n;
-	XtSetArg (args[n], XtNstate, (RTMode)?(False):(True));	++n;
-	HistoryToggle = XtCreateManagedWidget ("history", toggleWidgetClass, 
-					       button_bar, args, n);
-	left = HistoryToggle;
-	XtOverrideTranslations (left, ttable);
-	XtAddCallback (left, XtNcallback, tw_WCallback, (XtPointer) History);
-/*
- * Now the button bar for the other buttons, right of the radio bar.
- */
-	n = 0;
-	XtSetArg (args[n], XtNborderWidth, 2);		n++;
-	XtSetArg (args[n], XtNfromHoriz, button_bar);	n++;
-	XtSetArg (args[n], XtNfromVert, title);		n++;
-	XtSetArg (args[n], XtNdefaultDistance, 5);	n++;
-	button_bar = XtCreateManagedWidget ("buttonbar", formWidgetClass, 
-					    form, args, n);
-	left = NULL;
-/*
- * Menu button for the history times menu
- */
-	n = 0;
-	XtSetArg (args[n], XtNlabel, "Select Time");	++n;
-	XtSetArg (args[n], XtNfromHoriz, left);		++n;
-	XtSetArg (args[n], XtNfromVert, NULL);		++n;
-	XtSetArg (args[n], XtNborderWidth, 1);		++n;
-	XtSetArg (args[n], XtNmenuName, HT_MenuName);	++n;
-	XtSetArg (args[n], XtNleftBitmap, MenuIcon);	++n;
-	menubutton = XtCreateManagedWidget ("timemenu", menuButtonWidgetClass, 
-					    button_bar, args, n);
-	HT_Menu = tw_HTCreateMenu (menubutton, "Select History Time", 
-				   HT_MenuName, tw_HTEntryCallback);
-/*
- * Add a history time
- */
-	n = 0;
-	XtSetArg (args[n], XtNlabel, "Remember"); n++;
-	XtSetArg (args[n], XtNfromHoriz, menubutton);	n++;
 	XtSetArg (args[n], XtNfromVert, NULL);		n++;
-	XtSetArg (args[n], XtNborderWidth, 1);		++n;
-	left = XtCreateManagedWidget ("remember", commandWidgetClass, 
-				      button_bar, args,n);
-	XtAddCallback (left, XtNcallback, (XtCallbackProc) tw_HTAddCurrent, 
-		       (XtPointer) 0);
-/*
- * Delete a history time
- */
+	XtSetArg (args[n], XtNborderWidth, 0);		n++;
+	left = XtCreateManagedWidget ("control", labelWidgetClass, 
+		cform, args,n);
+
 	n = 0;
-	XtSetArg (args[n], XtNlabel, "Forget");		++n;
+	XtSetArg (args[n], XtNlabel, ALL_WINDOWS);	++n;
 	XtSetArg (args[n], XtNfromHoriz, left);		++n;
 	XtSetArg (args[n], XtNfromVert, NULL);		++n;
+	XtSetArg (args[n], XtNwidth, 140);		++n;
 	XtSetArg (args[n], XtNborderWidth, 1);		++n;
-	XtSetArg (args[n], XtNmenuName, HT_ForgetMenuName); ++n;
+	XtSetArg (args[n], XtNmenuName, "window-menu"); ++n;
 	XtSetArg (args[n], XtNleftBitmap, MenuIcon);	++n;
-	menubutton = XtCreateManagedWidget ("forgetbutton", 
+	menubutton = XtCreateManagedWidget ("window-button", 
 					    menuButtonWidgetClass,  
-					    button_bar, args, n);
-	HT_ForgetMenu = tw_HTCreateMenu (menubutton, "Forget History Time", 
-				 HT_ForgetMenuName, tw_HTDeleteCallback);
-	left = menubutton;
+					    cform, args, n);
+	TW_WindowMenu = tw_CreateWindowMenu (menubutton, 
+		     "Select Window to Control", "window-menu", menubutton);
 /*
- * Help button
- */
-	n = 0;
-	XtSetArg (args[n], XtNlabel, "Help");		n++;
-	XtSetArg (args[n], XtNfromHoriz, left);		n++;
-	XtSetArg (args[n], XtNfromVert, NULL);		n++;
-	XtSetArg (args[n], XtNborderWidth, 1);		++n;
-	helpbutton = XtCreateManagedWidget ("helpbutton", commandWidgetClass, 
-					    button_bar, args,n);
-	XtAddCallback (helpbutton, XtNcallback, CallForHelp, NULL);
-/*
- * Quit button
- */
-	n = 0;
-	XtSetArg (args[n], XtNlabel, "Dismiss");	n++;
-	XtSetArg (args[n], XtNfromHoriz, helpbutton);	n++;
-	XtSetArg (args[n], XtNfromVert, NULL);		n++;
-	XtSetArg (args[n], XtNborderWidth, 1);		++n;
-	quitbutton = XtCreateManagedWidget ("quitbutton", 
-					    commandWidgetClass, 
-					    button_bar, args,n);
-	XtAddCallback (quitbutton, XtNcallback, QuitCallback, NULL);
-/*
- * End of button bar
  * ================================================================
- * Create a form for the history date below the button bar.
+ * Create a form for the history date below the title.
  */
 	n = 0;
 	XtSetArg (args[n], XtNborderWidth, 2);		n++;
 	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
-	XtSetArg (args[n], XtNfromVert, button_bar);	n++;
+	XtSetArg (args[n], XtNfromVert, cform);		n++;
 	XtSetArg (args[n], XtNdefaultDistance, 5);	n++;
 	dateform = XtCreateManagedWidget ("dateform", formWidgetClass, form, 
 					  args, n);
@@ -539,47 +464,57 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNeditType, XawtextEdit);	n++;
 	Htext = XtCreateManagedWidget ("entertime", asciiTextWidgetClass,
 				       dateform, args, n);
+
 /*
- * ----------------------------------------------------------------
- * Control one/all windows selection in lower left corner.  Uses a menu
- * of the window names in the current configuration.  
+ * ====================================================================
+ * The main button bar.
+ * --------------------------------------------------------------------
+ * The real-time and history buttons are in a radio group so put them
+ * in their own separate box.
  */
 	n = 0;
 	XtSetArg (args[n], XtNborderWidth, 2);		n++;
 	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
 	XtSetArg (args[n], XtNfromVert, dateform);	n++;
 	XtSetArg (args[n], XtNdefaultDistance, 5);	n++;
-	cform = XtCreateManagedWidget ("cform", formWidgetClass, 
-				       form, args, n);
-
+	button_bar = XtCreateManagedWidget ("radiobar", formWidgetClass, 
+					    form, args, n);
+/*
+ * Real time mode button is the leftmost
+ */
 	n = 0;
-	XtSetArg (args[n], XtNlabel, "Control:");	n++;
-	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
-	XtSetArg (args[n], XtNfromVert, NULL);		n++;
-	XtSetArg (args[n], XtNborderWidth, 0);		n++;
-	left = XtCreateManagedWidget ("control", labelWidgetClass, 
-		cform, args,n);
-
+	XtSetArg (args[n], XtNlabel, "Real Time");	++n;
+	XtSetArg (args[n], XtNfromHoriz, NULL);		++n;
+	XtSetArg (args[n], XtNfromVert, NULL);		++n;
+	XtSetArg (args[n], XtNborderWidth, 1);		++n;
+	XtSetArg (args[n], XtNstate, (RTMode)?(True):(False));	++n;
+	RTToggle = XtCreateManagedWidget ("rt", toggleWidgetClass, 
+					  button_bar, args, n);
+	left = RTToggle;
+	XtOverrideTranslations (left, ttable);
+	XtAddCallback (left, XtNcallback, tw_WCallback, (XtPointer) RealTime);
+/*
+ * Set history time button
+ */
 	n = 0;
-	XtSetArg (args[n], XtNlabel, ALL_WINDOWS);	++n;
+	XtSetArg (args[n], XtNlabel, "Set Time");	++n;
 	XtSetArg (args[n], XtNfromHoriz, left);		++n;
 	XtSetArg (args[n], XtNfromVert, NULL);		++n;
-	XtSetArg (args[n], XtNwidth, 140);		++n;
+	XtSetArg (args[n], XtNradioGroup, left);	++n;
 	XtSetArg (args[n], XtNborderWidth, 1);		++n;
-	XtSetArg (args[n], XtNmenuName, "window-menu"); ++n;
-	XtSetArg (args[n], XtNleftBitmap, MenuIcon);	++n;
-	menubutton = XtCreateManagedWidget ("window-button", 
-					    menuButtonWidgetClass,  
-					    cform, args, n);
-	TW_WindowMenu = tw_CreateWindowMenu (menubutton, 
-		     "Select Window to Control", "window-menu", menubutton);
+	XtSetArg (args[n], XtNstate, (RTMode)?(False):(True));	++n;
+	HistoryToggle = XtCreateManagedWidget ("history", toggleWidgetClass, 
+					       button_bar, args, n);
+	left = HistoryToggle;
+	XtOverrideTranslations (left, ttable);
+	XtAddCallback (left, XtNcallback, tw_WCallback, (XtPointer) History);
 /*
- * ----------------------------------------------------------------
- * Time skipping stuff in lower right corner.
+ * ------------------------------------------------------------------
+ * Time skipping stuff immediately right of the other action buttons.
  */
 	n = 0;
 	XtSetArg (args[n], XtNborderWidth, 2);		n++;
-	XtSetArg (args[n], XtNfromHoriz, cform);	n++;
+	XtSetArg (args[n], XtNfromHoriz, button_bar);	n++;
 	XtSetArg (args[n], XtNfromVert, dateform);	n++;
 	XtSetArg (args[n], XtNdefaultDistance, 2);	n++;
 	sform = XtCreateManagedWidget ("sform", formWidgetClass, form, 
@@ -625,6 +560,135 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNfromHoriz, left);		n++;
 	XtSetArg (args[n], XtNfromVert, NULL);		n++;
 	XtSetValues (skipbutton, args, n);
+/*
+ * ---------------------------------------------------------------------
+ * Help and quit, being more administrative type actions, get their own
+ * bounding box.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNborderWidth, 2);		n++;
+	XtSetArg (args[n], XtNfromHoriz, sform);	n++;
+	XtSetArg (args[n], XtNfromVert, dateform);	n++;
+	XtSetArg (args[n], XtNdefaultDistance, 5);	n++;
+	button_bar = XtCreateManagedWidget ("helpbar", formWidgetClass, 
+					    form, args, n);
+/*
+ * Help button
+ */
+	n = 0;
+	XtSetArg (args[n], XtNlabel, "Help");		n++;
+	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
+	XtSetArg (args[n], XtNfromVert, NULL);		n++;
+	XtSetArg (args[n], XtNborderWidth, 1);		++n;
+	helpbutton = XtCreateManagedWidget ("helpbutton", commandWidgetClass, 
+					    button_bar, args,n);
+	XtAddCallback (helpbutton, XtNcallback, CallForHelp, NULL);
+/*
+ * Quit button
+ */
+	n = 0;
+	XtSetArg (args[n], XtNlabel, "Dismiss");	n++;
+	XtSetArg (args[n], XtNfromHoriz, helpbutton);	n++;
+	XtSetArg (args[n], XtNfromVert, NULL);		n++;
+	XtSetArg (args[n], XtNborderWidth, 1);		++n;
+	quitbutton = XtCreateManagedWidget ("quitbutton", 
+					    commandWidgetClass, 
+					    button_bar, args,n);
+	XtAddCallback (quitbutton, XtNcallback, QuitCallback, NULL);
+/*
+ * =====================================================================
+ * The hot-times interface consists of the description label, select button,
+ * remember button, and forget button, all in their own bounding box on
+ * the row beneath the title row.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNborderWidth, 2);		n++;
+	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
+	XtSetArg (args[n], XtNfromVert, button_bar);	n++;
+	XtSetArg (args[n], XtNdefaultDistance, 5);	n++;
+	button_bar = XtCreateManagedWidget ("hotbar", formWidgetClass, 
+					    form, args, n);
+/*
+ * Label the succeeding text window as a description of the current time
+ */
+	n = 0;
+	XtSetArg (args[n], XtNlabel, "Enter label:");	n++;
+	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
+	XtSetArg (args[n], XtNfromVert, NULL);		n++;
+	XtSetArg (args[n], XtNborderWidth, 0);		n++;
+	left = XtCreateManagedWidget ("description", labelWidgetClass, 
+				      button_bar, args,n);
+/*
+ * Add a text window for the current hot label next
+ */
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, left);		n++;
+	XtSetArg (args[n], XtNfromVert, NULL);		n++;
+	XtSetArg (args[n], XtNdisplayPosition, 0);	n++;
+	XtSetArg (args[n], XtNborderWidth, 2);		n++;
+	XtSetArg (args[n], XtNinsertPosition, 0);	n++;
+	XtSetArg (args[n], XtNresize, XawtextResizeNever);	n++;
+	XtSetArg (args[n], XtNwidth, 150);		n++;
+	XtSetArg (args[n], XtNheight, 20);		n++;
+	XtSetArg (args[n], XtNlength, 80);		n++;
+	XtSetArg (args[n], XtNtype, XawAsciiString);	n++;
+	XtSetArg (args[n], XtNuseStringInPlace, False);	n++;
+	XtSetArg (args[n], XtNstring, "");		n++;
+	XtSetArg (args[n], XtNleftMargin, 5);		n++;
+	XtSetArg (args[n], XtNeditType, XawtextEdit);	n++;
+	HT_Text = XtCreateManagedWidget ("hotlabel", asciiTextWidgetClass,
+					 button_bar, args, n);
+	left = HT_Text;
+/*
+ * Menu button for the history times menu
+ */
+	n = 0;
+	XtSetArg (args[n], XtNlabel, "Select");		++n;
+	XtSetArg (args[n], XtNfromHoriz, left);		++n;
+	XtSetArg (args[n], XtNfromVert, NULL);		++n;
+	XtSetArg (args[n], XtNborderWidth, 1);		++n;
+	XtSetArg (args[n], XtNmenuName, HT_MenuName);	++n;
+	XtSetArg (args[n], XtNleftBitmap, MenuIcon);	++n;
+	menubutton = XtCreateManagedWidget ("timemenu", menuButtonWidgetClass, 
+					    button_bar, args, n);
+	HT_Menu = tw_HTCreateMenu (menubutton, "Select History Time", 
+				   HT_MenuName, tw_HTEntryCallback);
+/*
+ * Add a history time
+ */
+	n = 0;
+	XtSetArg (args[n], XtNlabel, "Remember"); n++;
+	XtSetArg (args[n], XtNfromHoriz, menubutton);	n++;
+	XtSetArg (args[n], XtNfromVert, NULL);		n++;
+	XtSetArg (args[n], XtNborderWidth, 1);		++n;
+#ifdef notdef
+	XtSetArg (args[n], XtNaccelerators, htable);	++n;
+#endif
+	left = XtCreateManagedWidget ("remember", commandWidgetClass, 
+				      button_bar, args,n);
+	XtAddCallback (left, XtNcallback, (XtCallbackProc) tw_HTAddCurrent, 
+		       (XtPointer) 0);
+	XtInstallAllAccelerators (button_bar, button_bar);
+	XtInstallAccelerators (HT_Text, left);
+/*
+ * Delete a history time
+ */
+	n = 0;
+	XtSetArg (args[n], XtNlabel, "Forget");		++n;
+	XtSetArg (args[n], XtNfromHoriz, left);		++n;
+	XtSetArg (args[n], XtNfromVert, NULL);		++n;
+	XtSetArg (args[n], XtNborderWidth, 1);		++n;
+	XtSetArg (args[n], XtNmenuName, HT_ForgetMenuName); ++n;
+	XtSetArg (args[n], XtNleftBitmap, MenuIcon);	++n;
+	menubutton = XtCreateManagedWidget ("forgetbutton", 
+					    menuButtonWidgetClass,  
+					    button_bar, args, n);
+	HT_ForgetMenu = tw_HTCreateMenu (menubutton, "Forget History Time", 
+				 HT_ForgetMenuName, tw_HTDeleteCallback);
+/*
+ * End of hot-times bar
+ * ======================================================================
+ */
 /*
  * See what we get.
  */
@@ -840,6 +904,23 @@ Cardinal *num_params;
 	tw_WCallback (w, (XtPointer) History, (XtPointer) True);
 }
 
+
+
+#ifdef notdef
+/*ARGSUSED*/
+static void
+enter_hotlabel (w, event, params, num_params)
+Widget w;
+XEvent *event;
+String *params;
+Cardinal *num_params;
+/*
+ * Add the current description to the hot menu.
+ */
+{
+	tw_HTAddCurrent (w, NULL, NULL);
+}
+#endif
 
 
 static void
