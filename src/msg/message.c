@@ -37,7 +37,7 @@
 # include "message.h"
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.2 1992-02-11 18:24:51 corbet Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.3 1992-08-06 15:32:57 corbet Exp $")
 /*
  * Symbol tables.
  */
@@ -255,6 +255,7 @@ MakeUnixSocket ()
  */
 {
 	struct sockaddr_un saddr;
+	char *sn, *getenv ();
 
 	if ((M_un_socket = socket (AF_UNIX, SOCK_STREAM, 0)) < 0)
 	{
@@ -266,7 +267,8 @@ MakeUnixSocket ()
  * Bind it to it's name.
  */
  	saddr.sun_family = AF_UNIX;
-	strcpy (saddr.sun_path, UN_SOCKET_NAME);
+	strcpy (saddr.sun_path,
+			(sn = getenv ("ZEB_SOCKET")) ? sn : UN_SOCKET_NAME);
 	if (bind (M_un_socket, (struct sockaddr *) &saddr,
 			sizeof (struct sockaddr_un)) < 0)
 	{
@@ -774,7 +776,7 @@ int fd;
 			deadconn (fd);
 			return (0);
 		}
-		if (msg->m_len < 0 || msg->m_len > 50000)
+		if (msg->m_len > 50000)
 		{
 			send_log ("CORRUPT msg, len %d from %s", msg->m_len,
 				msg->m_from);

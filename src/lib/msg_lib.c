@@ -27,7 +27,7 @@
 # include <sys/uio.h>
 # include "../include/defs.h"
 # include "message.h"
-MAKE_RCSID ("$Id: msg_lib.c,v 2.5 1992-06-20 22:29:33 granger Exp $")
+MAKE_RCSID ("$Id: msg_lib.c,v 2.6 1992-08-06 15:32:57 corbet Exp $")
 
 /*
  * The array of functions linked with file descriptors.
@@ -117,6 +117,7 @@ char *ident;
 	struct mh_greeting greet;
 	struct mh_ident id;
 	int msg_incoming ();
+	char *getenv (), *sn = getenv ("ZEB_SOCKET");
 /*
  * Create our master socket.
  */
@@ -129,7 +130,7 @@ char *ident;
  * Connect.
  */
  	saddr.sun_family = AF_UNIX;
-	strcpy (saddr.sun_path, UN_SOCKET_NAME);
+	strcpy (saddr.sun_path, sn ? sn : UN_SOCKET_NAME);
 	if (connect (Msg_fd, (struct sockaddr *) &saddr,
 			sizeof (struct sockaddr_un)) < 0)
 	{
