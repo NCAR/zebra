@@ -101,6 +101,8 @@ private:
 	int sp_Vertical;	// Are we pointing more-or-less up/downward?
 	int sp_CFill, sp_FFill;	// Triangular filling needed?  (near/far)
 	int sp_DoTFill;
+	int sp_UseTransparency;
+	unsigned long sp_TransparentValue;
 //
 // The various increments.
 //
@@ -161,8 +163,9 @@ private:
 
 
 public:
-	ScanConverter (DestImage *dest, double, double, double, double, int,
-			int);
+	ScanConverter (DestImage *dest, double xlo, double ylo, double xhi, 
+		       double yhi, int project,	int tfill, 
+		       int transparent, unsigned long transparent_pixel);
 	void DoBeam (PolarBeam *pb, void *data, float xr, float yr);
 	
 	DestImage *getDest () { return sc_Dest; };
@@ -173,7 +176,8 @@ public:
 
 
 ScanConverter::ScanConverter (DestImage *dest, double xlo, double ylo,
-		double xhi, double yhi, int project, int tfill)
+			      double xhi, double yhi, int project, int tfill,
+			      int transparent, unsigned long transparent_pixel)
 //
 // Get one of these things set up.
 //
@@ -188,6 +192,8 @@ ScanConverter::ScanConverter (DestImage *dest, double xlo, double ylo,
 	sc_yhi = yhi;
 	sp_Project = project;
 	sp_DoTFill = tfill;
+	sp_UseTransparency = transparent;
+	sp_TransparentValue = transparent_pixel;
 //
 // Initialize a couple of other things.
 //
@@ -798,7 +804,13 @@ ScanConverter::TFillR (int dir, int row, float col1, float col2, float gate,
 		{
 			if (gc >= sp_NGates)
 				break;
-			set |= SetPixel (col, row, vdata[(int) gc]);
+		/*
+		 * Set this pixel unless we're using transparency and
+		 * the value is the transparent value.
+		 */
+			if (!sp_UseTransparency || 
+			    (vdata[(int)gc] != sp_TransparentValue))
+			    set |= SetPixel (col, row, vdata[(int) gc]);
 			gc += sp_colinc;
 		}
 	}
@@ -829,7 +841,13 @@ ScanConverter::TFillC (int dir, int col, float row1, float row2, float gate,
 		{
 			if (gc >= sp_NGates)
 				break;
-			set |= SetPixel (col, row, vdata[(int) gc]);
+		/*
+		 * Set this pixel unless we're using transparency and
+		 * the value is the transparent value.
+		 */
+			if (!sp_UseTransparency || 
+			    (vdata[(int)gc] != sp_TransparentValue))
+			    set |= SetPixel (col, row, vdata[(int) gc]);
 			gc += sp_rowinc;
 		}
 	}
@@ -876,7 +894,13 @@ ScanConverter::PFill_1_R (void *vdata)
 	 */
 		for (col = left.ival (); col <= right.ival (); col++)
 		{
-			dp[col] = data[gate_col.ival ()];
+		/*
+		 * Set this pixel unless we're using transparency and
+		 * the value is the transparent value.
+		 */
+			unsigned int v = data[gate_col.ival()];
+			if (!sp_UseTransparency || (v != sp_TransparentValue))
+			    dp[col] = v;
 			gate_col += col_inc;
 		}
 
@@ -936,7 +960,13 @@ ScanConverter::PFill_1_C (void *vdata)
 	 */
 		for (row = top.ival (); row <= bottom.ival (); row++)
 		{
-			*dp = data[gate_row.ival ()];
+		/*
+		 * Set this pixel unless we're using transparency and
+		 * the value is the transparent value.
+		 */
+			unsigned int v = data[gate_row.ival()];
+			if (!sp_UseTransparency || (v != sp_TransparentValue))
+			    *dp = v;
 			dp += xr;	/* Go to next scan line */
 			gate_row += row_inc;
 		}
@@ -996,7 +1026,13 @@ ScanConverter::PFill_2_R (void *vdata)
 	 */
 		for (col = left.ival (); col <= right.ival (); col++)
 		{
-			sdp[col] = data[gate_col.ival ()];
+		/*
+		 * Set this pixel unless we're using transparency and
+		 * the value is the transparent value.
+		 */
+			unsigned int v = data[gate_col.ival()];
+			if (!sp_UseTransparency || (v != sp_TransparentValue))
+			    sdp[col] = v;
 			gate_col += col_inc;
 		}
 	/*
@@ -1055,7 +1091,13 @@ ScanConverter::PFill_2_C (void *vdata)
 	 */
 		for (row = top.ival (); row <= bottom.ival (); row++)
 		{
-			* (unsigned short *) dp = data[gate_row.ival ()];
+		/*
+		 * Set this pixel unless we're using transparency and
+		 * the value is the transparent value.
+		 */
+			unsigned int v = data[gate_row.ival()];
+			if (!sp_UseTransparency || (v != sp_TransparentValue))
+			    *(unsigned short*)dp = v;
 			dp += xr;	/* Go to next scan line */
 			gate_row += row_inc;
 		}
@@ -1113,7 +1155,13 @@ ScanConverter::PFill_4_R (void *vdata)
 	 */
 		for (col = left.ival (); col <= right.ival (); col++)
 		{
-			ldp[col] = data[gate_col.ival ()];
+		/*
+		 * Set this pixel unless we're using transparency and
+		 * the value is the transparent value.
+		 */
+			unsigned int v = data[gate_col.ival()];
+			if (!sp_UseTransparency || (v != sp_TransparentValue))
+			    ldp[col] = v;
 			gate_col += col_inc;
 		}
 	/*
@@ -1172,7 +1220,13 @@ ScanConverter::PFill_4_C (void *vdata)
 	 */
 		for (row = top.ival (); row <= bottom.ival (); row++)
 		{
-			* (unsigned int *) dp = data[gate_row.ival ()];
+		/*
+		 * Set this pixel unless we're using transparency and
+		 * the value is the transparent value.
+		 */
+			unsigned int v = data[gate_row.ival()];
+			if (!sp_UseTransparency || (v != sp_TransparentValue))
+			    *(unsigned int*)dp = v;
 			dp += xr;	/* Go to next scan line */
 			gate_row += row_inc;
 		}
@@ -1202,7 +1256,8 @@ ScanConverter::PFill_4_C (void *vdata)
 // C-access functions from here on down.
 //
 extern "C" PPCookie
-pol_DisplaySetup (int project, int tfill, int transparent)
+pol_DisplaySetup (int project, int tfill, int transparent,
+		  unsigned long transparent_pixel)
 //
 // Set up to plot a sweep into display memory.
 //
@@ -1222,7 +1277,8 @@ pol_DisplaySetup (int project, int tfill, int transparent)
 				   XPIX (Xhi) - XPIX (Xlo), 
 				   YPIX (Ylo) - YPIX (Yhi));
 
-	sc = new ScanConverter (img, Xlo, Ylo, Xhi, Yhi, project, tfill);
+	sc = new ScanConverter (img, Xlo, Ylo, Xhi, Yhi, project, tfill,
+				transparent, transparent_pixel);
 	return ((PPCookie) sc);
 }
 
@@ -1238,7 +1294,7 @@ pol_GridSetup (int project, DestImage *di, double xlo, double ylo, double xhi,
 //
 {
 	ScanConverter *sc = new ScanConverter(di, xlo, ylo, xhi, yhi, project,
-			FALSE);
+			FALSE, FALSE, 0);
 	return ((PPCookie) sc);
 }
 
