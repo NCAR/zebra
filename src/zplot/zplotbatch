@@ -1,6 +1,6 @@
 #! /usr/bin/sh
 #
-# $Id: zplotbatch,v 1.14 1999-10-20 02:10:04 granger Exp $
+# $Id: zplotbatch,v 1.15 1999-10-20 05:20:27 granger Exp $
 #
 # Start a display manager session with a virtual X server and dump
 # images of its plots.
@@ -123,17 +123,16 @@ while read when config windows; do
 
     echo "Processing: $when $config $windows"
 
-    if ($config != $lastconfig)
-    {
+    if [ x$config != x$lastconfig ]; then
 	(set -x; zrun $DM "display $config")
 	sleep 20
-	$lastconfig = $config;
-    }
+	lastconfig="$config";
+    fi
     if [ $when = "now" ]; then
-    	zrun $DM "realtime all"
+    	(set -x; zrun $DM "realtime all")
 	when=$now
     else
-    	zrun $DM "history all $when"
+    	(set -x; zrun $DM "history all $when")
     fi
     # Wait for windows to take the new time.  Apparently a window might
     # actually respond to an imgdump command before it has received or
