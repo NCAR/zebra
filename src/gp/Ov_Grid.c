@@ -33,7 +33,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-MAKE_RCSID ("$Id: Ov_Grid.c,v 2.3 1995-09-21 21:06:40 granger Exp $")
+MAKE_RCSID ("$Id: Ov_Grid.c,v 2.4 1995-09-29 20:03:14 burghart Exp $")
 
 /*
  * Some macros.  I'm not sure they are all used here.
@@ -481,12 +481,20 @@ float aint;
 				DrawText (Graphics, frame, Gcontext, left - 1,
 					  yp, label, 0.0, theight, 
 					  JustifyRight, JustifyBottom);
-				sprintf (label, "%d' %d\"", 
-					 Round(fabs(ypos)*60)%60,
-					 Round(fabs(ypos)*3600)%60);
-				DrawText (Graphics, frame, Gcontext, left - 1,
-					  yp, label, 0.0, theight, 
-					  JustifyRight, JustifyTop);
+			/*
+			 * Do minutes and seconds if the interval is not
+			 * in integral degrees.
+			 */
+				if (fmod (aint, 1.0) != 0.0)
+				{
+					sprintf (label, "%d' %d\"", 
+						 Round(fabs(ypos)*60)%60,
+						 Round(fabs(ypos)*3600)%60);
+					DrawText (Graphics, frame, Gcontext, 
+						  left - 1, yp, label, 0.0, 
+						  theight, JustifyRight, 
+						  JustifyTop);
+				}
 			}
 		}
 	/*
@@ -498,10 +506,19 @@ float aint;
 				 Round(((xpos>180)?(xpos-360):(xpos))*60)/60);
 			DrawText (Graphics, frame, Gcontext, xp, top + 1,
 				  label,0.0,theight,JustifyCenter,JustifyTop);
-			sprintf (label, "%d' %d\"", Round(fabs(xpos)*60)%60,
-				 Round(fabs(xpos)*3600)%60);
-			DrawText (Graphics, frame, Gcontext, xp, top+approx+1,
-				  label,0.0,theight,JustifyCenter,JustifyTop);
+		/*
+		 * Do minutes and seconds if the interval is not
+		 * in integral degrees.
+		 */
+			if (fmod (aint, 1.0) != 0.0)
+			{
+				sprintf (label, "%d' %d\"", 
+					 Round(fabs(xpos)*60)%60,
+					 Round(fabs(xpos)*3600)%60);
+				DrawText (Graphics, frame, Gcontext, xp, 
+					  top+approx+1, label, 0.0, theight,
+					  JustifyCenter, JustifyTop);
+			}
 		}
 		nx++;
 	}
@@ -575,11 +592,19 @@ float aint;
 			DrawText (Graphics, frame, Gcontext, left - 1,
 				  yp, label, 0.0, theight/1.2,
 				  JustifyRight, JustifyBottom);
-			sprintf (label, "%d' %d\"", Round(fabs(ypos)*60)%60,
-				 Round(fabs(ypos)*3600)%60);
-			DrawText (Graphics, frame, Gcontext, left - 1,
-				  yp, label, 0.0, theight, JustifyRight,
-				  JustifyTop);
+		/*
+		 * Do minutes and seconds if the interval is not
+		 * in integral degrees.
+		 */
+			if (fmod (aint, 1.0) != 0.0)
+			{
+				sprintf (label, "%d' %d\"", 
+					 Round(fabs(ypos)*60)%60,
+					 Round(fabs(ypos)*3600)%60);
+				DrawText (Graphics, frame, Gcontext, left - 1,
+					  yp, label, 0.0, theight, 
+					  JustifyRight, JustifyTop);
+			}
 			SetClip (FALSE);
 		}
 	}
@@ -618,11 +643,19 @@ float aint;
 			DrawText (Graphics, frame, Gcontext, xp, top + 1,
 				  label, 0.0, theight,JustifyCenter, 
 				  JustifyTop);
-			sprintf (label, "%d' %d\"", Round(fabs(xpos)*60)%60,
-				 Round(fabs(xpos)*3600)%60);
-			DrawText (Graphics, frame, Gcontext, xp, 
-				  top + 1 + approx, label, 0.0, theight,
-				  JustifyCenter, JustifyTop);
+		/*
+		 * Do minutes and seconds if the interval is not
+		 * in integral degrees.
+		 */
+			if (fmod (aint, 1.0) != 0.0)
+			{
+				sprintf (label, "%d' %d\"", 
+					 Round(fabs(xpos)*60)%60,
+					 Round(fabs(xpos)*3600)%60);
+				DrawText (Graphics, frame, Gcontext, xp, 
+					  top + 1 + approx, label, 0.0, 
+					  theight, JustifyCenter, JustifyTop);
+			}
 			yp = top - 1;
 			SetClip (FALSE);
 		}
