@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.11 1993-08-05 18:17:01 corbet Exp $
+ * $Id: DataStore.h,v 3.12 1993-08-12 18:23:33 granger Exp $
  *
  * Public data store definitions.
  */
@@ -123,6 +123,12 @@ typedef struct _dsDetail
  */
 # define DD_NC_TIME_FLOAT	"dd_time_float" 
 # define DD_NC_TIME_DOUBLE	"dd_time_double"
+
+/*
+ * Details for doing program testing: Force closure of files when finished
+ * with them to free dynamic memory allocated for the opening.
+ */
+# define DD_FORCE_CLOSURE	"dd_force_closure"
 
 /*
  * DataChunks -- the new "data object" format.
