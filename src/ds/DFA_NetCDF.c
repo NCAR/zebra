@@ -22,17 +22,73 @@
 # include <math.h>
 # include <sys/time.h>
 # include "defs.h"
+# include "config.h"
 # include "message.h"
 # include "dfa.h"
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dslib.h"
 #ifndef lint
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.27 1994-01-12 21:09:59 granger Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.28 1994-01-26 11:24:17 granger Exp $")
 #endif
 
 # include "netcdf.h"
 
+/*
+ * Do we include units attribute for altitude
+ */
+#ifndef CFG_NC_NO_ALT_UNITS
+#define STORE_ALT_UNTIS
+#endif
+
+/*
+ * Location fields: standard attributes
+ */
+#ifdef CFG_NC_ALTITUDE_UNITS
+#	define ALT_UNITS	CFG_NC_ALTITUDE_UNITS
+#else
+#	define ALT_UNITS	"km"
+#endif
+#	define ALT_LONGNAME	"altitude"
+#	define LAT_UNITS	"degrees"
+#	define LAT_LONGNAME	"north latitude"
+#	define LON_UNITS	"degrees"
+#	define LON_LONGNAME	"east longitude"
+
+/*
+ * Grid organizations: standard attributes
+ */
+#	define X_UNITS		"km"
+#	define Y_UNITS		"km"
+#ifdef CFG_NC_ALTITUDE_UNITS
+#	define Z_UNITS		CFG_NC_ALTITUDE_UNITS
+#else
+#	define Z_UNITS		"km"
+#endif
+#	define X_LONGNAME	"grid spacing in west->east direction"
+#	define Y_LONGNAME	"grid spacing in south->north direction"
+#	define Z_LONGNAME	"grid spacing along vertical"
+
+/*
+ * Do DataChunk attributes override default fields table attributes?
+ */
+# ifndef CFG_NC_DCATTS_OVERRIDE
+# define STRICT_FIELDS_TABLE_ATTS
+# endif
+
+/*
+ * Do we try to store, read, apply, and fill bad values?  If we don't fill
+ * with bad values, then we fill with zeros.
+ */
+# ifndef CFG_NO_BADVALUES
+#   define READ_BADVALUE_ATT
+#   define APPLY_BADVALUE
+#   define FILL_BADVALUE
+#   define STORE_BADVALUE_ATT
+# endif
+
+# define FILL_FIELDS	/* Fill unknown fields with data, either zero or
+			   badvalues */
 
 /*
  * This is our tag structure.
@@ -155,9 +211,11 @@ static void	dnc_ReadNSpaceScalar FP((DataChunk *dc, NCTag *tag,
 			 int nfield, double badval));
 static int	dnc_ReadLocation FP ((DataChunk *, NCTag *, long, long));
 static int	dnc_GetFieldVar FP ((NCTag *, FieldId));
+#ifdef APPLY_BADVALUE
 static void	dnc_ApplyBadval FP ((NCTag *, int varid, 
 				     DataChunk *dc, FieldId fid,
 				     double, float *, int));
+#endif /* APPLY_BADVALUE */
 static double	dnc_ZtToOffset FP ((NCTag *, ZebTime *));
 static void	dnc_DoWriteCoords FP ((NCTag *, DataChunk *, int, long *,
 			long *, int *));
@@ -174,7 +232,9 @@ static void	dnc_DefineLocVars FP ((NCTag *tag, int ndims, int *dims,
 static void	dnc_PutGlobalAttributes FP ((NCTag *tag, DataChunk *dc));
 static int	dnc_PutAttribute FP ((char *key, void *value, int nval,
 				      DC_ElemType type, void *arg));
+#ifdef FILL_FIELDS
 static void	dnc_FillArray FP ((float *, int, double));
+#endif
 static int	dnc_FindTimes FP ((NCTag *tag, DataChunk *dc, int sample, 
 				   int count, WriteCode wc, long *start));
 static char *	dnc_ValueToString FP ((void *value, nc_type type, int len));
@@ -1116,21 +1176,24 @@ int ndetail;
 	int tbegin, tend, nfield, nsamp;
 	FieldId *fids;
 	SValue v;
-	float badval;
+	float badval = 0;
 /*
  * Open the data file.
  */
 	if (!dfa_OpenFile (gp->gl_dfindex, FALSE, (void *) &tag))
 		return (0);
+
 /*
  * Figure out what bad value flag they want, and make sure it is stored
  * in the DC.
  */
 	if (dc->dc_Class != DCC_Location)
 	{
+#ifdef READ_BADVALUE_ATT
 		badval = ds_GetDetail ("badval", details, ndetail, &v) ?
 				v.us_v_float : 99999.9;
 		dc_SetBadval (dc, badval);
+#endif /* READ_BADVALUE_ATT */
 		fids = dc_GetFields (dc, &nfield);
 	}
 /*
@@ -1267,12 +1330,16 @@ float badval;
 		{
 			if (vfield >= 0)
 				dnc_NCError ("Scalar read");
+#ifdef FILL_FIELDS
 			if (dc_Type(dc, fids[field]) == DCT_Float)
 				dnc_FillArray (temp, nsamp, badval);
+#endif /* FILL_FIELDS */
 		}
+#ifdef APPLY_BADVALUE
 		else if (dc_Type (dc, fids[field]) == DCT_Float)
 			dnc_ApplyBadval (tag, vfield, dc, fids[field],
 					 badval, temp, nsamp);
+#endif /* APPLY_BADVALUE */
 	/*
 	 * Add it to the data chunk.
 	 */
@@ -1428,12 +1495,16 @@ float badval;
 			msg_ELog (EF_PROBLEM, 
 				  "dnc_ReadNSpace, error on field %i", 
 				  fids[field]);
+#ifdef FILL_FIELDS
 			if (dc_Type(dc, fids[field]) == DCT_Float)
 				dnc_FillArray ((float *)temp, size, badval);
+#endif /* FILL_FIELDS */
 		}
+#ifdef APPLY_BADVALUE
 		else if (dc_Type (dc, fids[field]) == DCT_Float);
 			dnc_ApplyBadval (tag, varid, dc, fids[field],
 					 badval, (float *)temp, size);
+#endif /* APPLY_BADVALUE */
 		/*
 		 * Add the data to the data chunk.
 		 */
@@ -1520,21 +1591,29 @@ float badval;
 		 */
 			if (((vfield = dnc_GetFieldVar (tag, fids[f])) < 0) &&
 			    (dc_Type (dc, fids[f]) == DCT_Float))
+			{
+#ifdef FILL_FIELDS
 				dnc_FillArray((float *)grid, count[1], badval);
+#endif /* FILL_FIELDS */
+			}
 			else if (ncvarget (tag->nc_id, vfield, start, count, 
 				grid) < 0)
 			{
 				dnc_NCError ("Irgrid read");
+#ifdef FILL_FIELDS
 				if (dc_Type (dc, fids[f]) == DCT_Float)
 					dnc_FillArray ((float *)grid, count[1],
 						       badval);
+#endif /* FILL_FIELDS */
 			}
+#ifndef APPLY_BADVALUE
 		/*
 		 * If we got data, swap our bad value flag for the netCDF one
 		 */
 			else if (dc_Type (dc, fids[f]) == DCT_Float)
 				dnc_ApplyBadval (tag, vfield, dc, fids[f],
 					 badval, (float *)grid, count[1]);
+#endif /* APPLY_BADVALUE */
 		/*
 		 * Put the data into the chunk
 		 */
@@ -1633,16 +1712,23 @@ dsDetail *dets;
 		 */
 			if (((vfield = dnc_GetFieldVar (tag, fids[field])) < 0)
 			    && (dc_Type (dc, fids[field]) == DCT_Float))
+			{
+#ifdef FILL_FIELDS
 				dnc_FillArray ((float *)dp, 
 				       count[1]*count[2]*count[3], badval);
+#endif /* FILL_FIELDS */
+			}
 			else if (ncvarget (tag->nc_id, vfield,start, count, 
 			    dp) < 0)
 			{
 				dnc_NCError ("Rgrid read");
+#ifdef FILL_FIELDS
 				if (dc_Type (dc, fids[field]) == DCT_Float)
 					dnc_FillArray ((float *)dp, 
 					   count[1]*count[2]*count[3], badval);
+#endif /* FILL_FIELDS */
 			}
+#ifndef APPLY_BADVALUE
 		/*
 		 * If that works, we can apply the bad value flag and
 		 * store the data away.
@@ -1651,6 +1737,7 @@ dsDetail *dets;
 				dnc_ApplyBadval (tag, vfield, dc, fids[field],
 						 badval, (float *)dp,
 						 count[1]*count[2]*count[3]);
+#endif /* APPLY_BADVALUE */
 		}
 		start[0]++;
 	}
@@ -1658,7 +1745,7 @@ dsDetail *dets;
 
 
 
-
+#ifdef APPLY_BADVALUE
 static void
 dnc_ApplyBadval (tag, vfield, dc, fid, badval, data, ndata)
 NCTag *tag;
@@ -1701,6 +1788,7 @@ int ndata;
 			 dnc_ValueToString ((void *)&badval, NC_FLOAT, 1));
 	}
 }
+#endif /* APPLY_BADVALUE */
 
 
 
@@ -2227,7 +2315,9 @@ int *dims;
  * it supply the field attributes from the data chunk.
  */
 {
+#ifdef STORE_BADVALUE_ATT
 	float badval;
+#endif /* STORE_BADVALUE_ATT */
 	FieldId *fids;
 	int nfield;
 	char *attr;
@@ -2240,7 +2330,9 @@ int *dims;
 	if (dc->dc_Class == DCC_NSpace)
 		dnc_DefineNSpaceDims(tag, dc);
 
+#ifdef STORE_BADVALUE_ATT
 	badval = dc_GetBadval (dc);
+#endif /* STORE_BADVALUE_ATT */
 	fids = dc_GetFields (dc, &nfield);
 	for (var = 0; var < nfield; var++)
 	{
@@ -2271,6 +2363,8 @@ int *dims;
 		attr = F_GetUnits(fids[var]);
 		(void) ncattput (tag->nc_id, varid, VATT_UNITS,
 				NC_CHAR, strlen(attr)+1, attr);
+
+#ifdef STORE_BADVALUE_ATT
 	/*
 	 * Add the missing_value attribute.  This one must be written as
 	 * a float, so we write it here with the expectation than 
@@ -2280,6 +2374,8 @@ int *dims;
 		if (type == NC_FLOAT)
 			(void) ncattput (tag->nc_id, varid, VATT_MISSING,
 					 NC_FLOAT, 1, &badval);
+#endif /* STORE_BADVALUE_ATT */
+
 	/* 
 	 * Add the field attributes from the DataChunk,
 	 * passing the tag and varid via global variables.  
@@ -2379,7 +2475,7 @@ DataChunk *dc;
 	sprintf(history,"created by Zeb DataStore, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.27 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.28 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 }
@@ -2400,6 +2496,7 @@ void *arg;
 {
 	struct AttArg *attarg = (struct AttArg *)arg;
 
+#ifdef STRICT_FIELDS_TABLE_ATTS
 	/*
 	 * Ignore certain attributes so that we don't override the
 	 * legitimate ones, but only for non-global attributes.
@@ -2407,6 +2504,7 @@ void *arg;
 	if ((attarg->varid == NC_GLOBAL) || 
 	    (strcmp(key, VATT_MISSING) && 
 	     strcmp(key, VATT_LONGNAME) && strcmp(key, VATT_UNITS)))
+#endif /* STRICT_FIELDS_TABLE_ATTS */
 	{
 		if (type == DCT_String)
 			(void)ncattput(attarg->tag->nc_id, attarg->varid,
@@ -2560,10 +2658,6 @@ DataChunk *dc;
 {
 	int vlat, vlon, valt, vx, vy, vz;
 	Location loc;
-#	define XYZ_UNITS	"km"
-#	define X_LONGNAME	"grid spacing in west->east direction"
-#	define Y_LONGNAME	"grid spacing in south->north direction"
-#	define Z_LONGNAME	"grid spacing along vertical, from ground up"
 
 	dc_RGGeometry (dc, 0, &loc, &tag->nc_rgrid);
 /*
@@ -2575,21 +2669,23 @@ DataChunk *dc;
 	(void)ncattput(tag->nc_id, vx, VATT_LONGNAME,
 		       NC_CHAR, strlen(X_LONGNAME)+1, X_LONGNAME);
 	(void)ncattput(tag->nc_id, vx, VATT_UNITS, NC_CHAR, 
-		       strlen(XYZ_UNITS)+1, XYZ_UNITS);
+		       strlen(X_UNITS)+1, X_UNITS);
 	if ((tag->nc_org == Org2dGrid) || (tag->nc_org == Org3dGrid))
 	{
 		vy = ncvardef(tag->nc_id, "y_spacing", NC_FLOAT, 0, 0);
 		(void)ncattput(tag->nc_id, vy, VATT_LONGNAME,
 			       NC_CHAR, strlen(Y_LONGNAME)+1, Y_LONGNAME);
 		(void)ncattput(tag->nc_id, vy, VATT_UNITS, NC_CHAR, 
-			       strlen(XYZ_UNITS)+1, XYZ_UNITS);
+			       strlen(Y_UNITS)+1, Y_UNITS);
 		if (tag->nc_org == Org3dGrid)
 		{
 			vz = ncvardef(tag->nc_id, "z_spacing", NC_FLOAT, 0, 0);
 			(void)ncattput(tag->nc_id, vz, VATT_LONGNAME, NC_CHAR,
 				       strlen(Z_LONGNAME)+1, Z_LONGNAME);
+#ifdef STORE_ALT_UNITS
 			(void)ncattput(tag->nc_id, vz, VATT_UNITS, NC_CHAR, 
-				       strlen(XYZ_UNITS)+1, XYZ_UNITS);
+				       strlen(Z_UNITS)+1, Z_UNITS);
+#endif /* STORE_ALT_UNITS */
 		}
 	}
 /*
@@ -2702,12 +2798,6 @@ int *vlat, *vlon, *valt;
  * adding the appropriate attributes as well.  Return the ids given to each.
  */
 {
-#	define ALT_UNITS	"km"
-#	define ALT_LONGNAME	"altitude"
-#	define LAT_UNITS	"degrees"
-#	define LAT_LONGNAME	"north latitude"
-#	define LON_UNITS	"degrees"
-#	define LON_LONGNAME	"east longitude"
 	float lat_range[2];
 	float lon_range[2];
 
@@ -2734,8 +2824,10 @@ int *vlat, *vlon, *valt;
 	*valt = ncvardef (tag->nc_id, "alt", NC_FLOAT, ndims, dims);
 	(void)ncattput(tag->nc_id, *valt, VATT_LONGNAME,
 		       NC_CHAR, strlen(ALT_LONGNAME)+1, ALT_LONGNAME);
+#ifdef STORE_ALT_UNITS
 	(void)ncattput(tag->nc_id, *valt, VATT_UNITS, NC_CHAR, 
 		       strlen(ALT_UNITS)+1, ALT_UNITS);
+#endif /* STORE_ALT_UNITS */
 }
 
 
@@ -3503,7 +3595,7 @@ int nfield;
 
 
 
-
+#ifdef FILL_FIELDS
 static void
 dnc_FillArray (array, len, val)
 float	*array;
@@ -3518,4 +3610,5 @@ double	val;
 	for (i = 0; i < len; i++)
 		array[i] = val;
 }
+#endif /* FILL_FIELDS */
 

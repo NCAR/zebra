@@ -21,9 +21,10 @@
  */
 
 # include <defs.h>
+# include <config.h>
 # include "message.h"
 
-MAKE_RCSID ("$Id: cmd_proto.c,v 1.1 1992-08-06 22:22:14 corbet Exp $")
+MAKE_RCSID ("$Id: cmd_proto.c,v 1.2 1994-01-26 11:24:48 granger Exp $")
 
 
 static int cp_RunCommand FP ((Message *));

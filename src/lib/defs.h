@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 2.16 1993-08-26 20:13:24 corbet Exp $ */
+/* $Id: defs.h,v 2.17 1994-01-26 11:24:50 granger Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -19,8 +19,10 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-# ifndef _DEFS_H_
-# define _DEFS_H_
+# ifndef _zeb_defs_h_
+# define _zeb_defs_h_
+
+# include <version.h>
 
 # include <ui.h>
 # include <stdlib.h>
@@ -146,13 +148,8 @@ int     FindFile FP ((char *, char *, char *));
 # endif
 
 /*
- * Saber-C generates warnings on RCSID's, so we leave them out.
+ * Use more complete macro from version.h
  */
-# ifdef SABER
-#	define MAKE_RCSID(id)
-# else
-#	define MAKE_RCSID(id) \
-	static char *rcsid = id;
-# endif
+# define MAKE_RCSID(id) RCSID(id)
 
-# endif /* _DEFS_H_ */
+# endif /* !_zeb_defs_h_ */

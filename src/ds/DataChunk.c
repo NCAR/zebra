@@ -23,9 +23,8 @@
 # include <defs.h>
 # include <message.h>
 # include "DataStore.h"
-# include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: DataChunk.c,v 3.5 1994-01-03 07:17:35 granger Exp $")
+MAKE_RCSID ("$Id: DataChunk.c,v 3.6 1994-01-26 11:24:23 granger Exp $")
 
 /*
  * ADE Codes for the raw data object.
@@ -814,9 +813,38 @@ int
 dc_GetNGlobalAttrs(dc)
 DataChunk *dc;
 /*
- * Return the number of global 
- * attributes in a datachunk.  
+ * Return the number of global attributes in a datachunk.  
  */
 {
 	return (dca_GetNAttrs (dc, DCC_Raw, ST_GLOBATTR));
 }
+
+
+
+char **
+dc_GetGlobalAttrList(dc, pattern, values, natts)
+DataChunk *dc;
+char *pattern;
+char **values[];
+int *natts;
+{
+	return(	dca_GetAttrList(dc, DCC_Raw, ST_GLOBATTR,
+				pattern, values, natts));
+}
+
+
+
+char **
+dc_GetGlobalAttrKeys (dc, natts)
+DataChunk *dc;
+int *natts;
+/*
+ * Return an array of pointers to the global attribute keys.
+ * The array is only valid until the next call to any one of
+ * the Get*AttrList or Get*AttrKeys functions.
+ */
+{
+	return( dca_GetAttrList(dc, DCC_Raw, ST_GLOBATTR,
+				NULL, NULL, natts));
+}
+

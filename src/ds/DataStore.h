@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.17 1994-01-03 07:13:51 granger Exp $
+ * $Id: DataStore.h,v 3.18 1994-01-26 11:24:26 granger Exp $
  *
  * Public data store definitions.
  */
@@ -7,6 +7,7 @@
 # ifndef __zeb_DataStore_h_
 # define __zeb_DataStore_h_
 
+# include <config.h>		/* To get CFG_ parameter definitions */
 # include "ds_fields.h"
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
@@ -288,14 +289,14 @@ typedef struct _RawDataChunk {
 } DataChunk, RawDataChunk;
 	
 
-# define MAXFIELD		100	/* Max fields in one data object*/
+# define MAXFIELD	CFG_DC_MAXFIELD	/* Max fields in one data object*/
 
 /*
  * Class-specific defines.
  */
-# define DC_MaxField		MAXFIELD /* MetData -- max # of fields	*/
-# define DC_MaxDimension	30	/* Maximum number of dimensions */
-# define DC_MaxDimName		32	/* Max name length, incl \0	*/
+# define DC_MaxField		MAXFIELD    /* MetData -- max # of fields   */
+# define DC_MaxDimension	CFG_DC_MAXDIMN /* Max number of dimensions  */
+# define DC_MaxDimName		CFG_DIMNAME_LEN /* Max name length, incl \0 */
 
 /* 
  * HEY YOU!  READ THIS IF YOU CHANGE THE DEFINITION OF 'DC_MaxField':
@@ -303,7 +304,7 @@ typedef struct _RawDataChunk {
  * The field index hash size depends on DC_MaxField, so we define it here.
  * It must be the least power of 2 greater than (not equal to) DC_MaxField.
  */
-# define MD_HASH_SIZE		128
+# define MD_HASH_SIZE		CFG_DC_MF_HASH_SIZE
 
 /*
  * Definitions of basic routines dealing with data chunks.
@@ -336,6 +337,9 @@ int		dc_ProcessAttrs FP ((DataChunk *, char *, int (*) ()));
 void		*dc_GetGlAttrBlock FP ((DataChunk *, int *));
 void		dc_SetGlAttrBlock FP ((DataChunk *, void *, int));
 int		dc_GetNGlobalAttrs FP ((DataChunk *));
+char 		**dc_GetGlobalAttrList FP ((DataChunk *dc, char *pattern,
+					    char **values[], int *natts));
+char 		**dc_GetGlobalAttrKeys FP ((DataChunk *dc, int *natts));
 /*
  * Transparent class methods.
  */
@@ -372,6 +376,10 @@ char		*dc_GetSampleAttr FP ((DataChunk *, int, char *));
 void		*dc_GetSaAttrBlock FP ((DataChunk *, int, int *));
 void		dc_SetSaAttrBlock FP ((DataChunk *, int, void *, int));
 int		dc_GetNSampleAttrs FP ((DataChunk *, int sample));
+char 		**dc_GetSampleAttrList FP ((DataChunk *dc, int sample,
+			    char *pattern, char **values[], int *natts));
+char 		**dc_GetSampleAttrKeys FP ((DataChunk *dc, int sample,
+					    int *natts));
 /*
  * Boundary class methods.
  */
@@ -418,13 +426,15 @@ int		dc_ProcFieldAttrArrays FP((DataChunk *dc, FieldId field,
 void		dc_RemoveFieldAttr FP((DataChunk *dc, FieldId field, char *));
 void		dc_SetFieldAttr FP ((DataChunk *, FieldId, char *, char *));
 char		*dc_GetFieldAttr FP ((DataChunk *, FieldId, char *));
+int		dc_ProcessFieldAttrs
+	            FP ((DataChunk *, FieldId, char *, int (*)()));
 void		*dc_GetFiAttrBlock FP ((DataChunk *, FieldId, int *));
 void		dc_SetFiAttrBlock FP ((DataChunk *, FieldId, void *, int));
 int		dc_GetNFieldAttrs FP ((DataChunk *, FieldId));
 char		**dc_GetFieldAttrList FP ((DataChunk *, FieldId, char *,
 					   char **values[], int *));
-int		dc_ProcessFieldAttrs
-	            FP ((DataChunk *, FieldId, char *, int (*)()));
+char 		**dc_GetFieldAttrKeys FP ((DataChunk *dc, FieldId fid,
+					   int *natts));
 /*
  * Scalar class.
  */
@@ -552,7 +562,7 @@ void *dc_NSGetStatic FP((DataChunk *dc, FieldId field, unsigned long *size));
 /*
  * The platform information structure for application queries.
  */
-# define P_NAMELEN 80		/* Mirrors that in dsPrivate.h		*/
+# define P_NAMELEN 	CFG_PLATNAME_LEN
 
 typedef struct s_PlatformInfo
 {

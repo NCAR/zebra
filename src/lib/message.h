@@ -1,4 +1,4 @@
-/* $Id: message.h,v 2.14 1993-10-22 21:30:08 granger Exp $ */
+/* $Id: message.h,v 2.15 1994-01-26 11:24:52 granger Exp $ */
 /*
  * Message protocol types.
  */
@@ -21,6 +21,8 @@
  */
 # ifndef _ZEB_MESSAGE_H_
 # define _ZEB_MESSAGE_H_
+
+# include <config.h>		/* To get CFG_ parameters */
 
 # define MT_MESSAGE	 0	/* Message handler protocol		*/
 # define MT_DISPLAYMGR	 1	/* Display manager messages		*/
@@ -96,13 +98,14 @@
 # define MHQ_QUERY		1	/* The basic query		*/
 # define MHQ_QTEXT		2	/* Query answer text		*/
 # define MHQ_QDONE		3	/* Query finished		*/
-# define MAX_NAME_LEN	32	/* Maximum length of a name.	*/
 
 /*
  * Internet protocol stuff.
  */
-# define DEFAULT_PORT	1500	/* Default tcp port		*/
+# define DEFAULT_PORT	CFG_MSG_DEFAULT_PORT   /* Default tcp port, eg 1500 */
 # define SERVICE_NAME	"zeb-msg"
+
+# define MAX_NAME_LEN	CFG_MSGNAME_LEN  /* Maximum length of a name, eg 32 */
 
 /*
  * Structures for message handler protocol messages.
@@ -188,12 +191,13 @@ typedef struct message
 /*
  * The extended event log protocol.
  */
-# define MAXETEXT 200
 struct msg_elog
 {
 	int	el_flag;		/* Flags -- see below	*/
 	char	el_text[1];	/* Message text		*/
 };
+
+# define MAXETEXT 	CFG_MSGEVENT_LEN   /* usually 200 */
 
 /*
  * Flags controlling which messages are printed when.
@@ -215,7 +219,11 @@ struct msg_elog
 /*
  * The name of the message (unix domain) socket.
  */
+# ifndef CFG_MSG_SOCKET_NAME
 # define UN_SOCKET_NAME		"/tmp/fcc.socket"
+# else
+# define UN_SOCKET_NAME		CFG_MSG_SOCKET_NAME
+# endif
 
 /*
  * The name of the event manager.
@@ -267,7 +275,7 @@ void msg_SetQueryHandler FP ((int (*) ()));
 /*
  * Network broadcast stuff below.
  */
-# define MAXBCAST 1500
+# define MAXBCAST 	CFG_MSG_MAXBCAST	/* usually 1500 */
 
 void	msg_BCast FP ((int, void *, int));
 int	msg_BCSetup FP ((int, int, int (*) ()));

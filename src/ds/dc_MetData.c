@@ -22,24 +22,30 @@
  */
 
 # include <defs.h>
+# include <config.h>		/* For CFG_ symbols */
 # include <message.h>
 # include "DataStore.h"
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_MetData.c,v 3.7 1994-01-03 07:18:07 granger Exp $")
+MAKE_RCSID ("$Id: dc_MetData.c,v 3.8 1994-01-26 11:24:29 granger Exp $")
 
 # define SUPERCLASS DCC_Transparent
 
+# ifndef CFG_NO_BADVALUES
+# define SUPPORT_BADVALUES
+# endif
+
 /*
- * The default bad value flag.
+ * The default bad value flag, usually -99999.9
  */
-# define DefaultBadval -99999.9
+# define DefaultBadval 		CFG_DC_DEFAULT_BADVAL
 
 # define HASH_FIELD_ID(fid)	((fid)&(MD_HASH_SIZE-1))
 # define HASH_SIZE		MD_HASH_SIZE
 /* 
- * MD_HASH_SIZE is defined next to DC_MaxField, since it depends on DC_MaxField
+ * MD_HASH_SIZE is defined next to DC_MaxField, in DataStore.h, 
+ * since it depends on DC_MaxField
  */
 
 const char *DC_ElemTypeNames[] =
@@ -226,7 +232,7 @@ int size;
 /*
  * The usual sanity checking.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "SetupUniformFields"))
+	if (!dc_ReqSubClassOf(dc->dc_Class, DCC_MetData, "SetupUniformFields"))
 		return;
 
 	finfo = dc_BuildFieldInfo (dc, nfield, fields);
@@ -879,6 +885,7 @@ DataChunk *dc;
  */
 	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "GetBadval"))
 		return (0);
+#ifdef SUPPORT_BADVALUES
 /*
  * Look first for a global attribute.
  */
@@ -896,6 +903,9 @@ DataChunk *dc;
 						== NULL)
 		return (DefaultBadval);
 	return (finfo->fi_Badval);
+#else
+	return (0);
+#endif /* SUPPORT_BADVALUES */
 }
 
 
@@ -918,6 +928,7 @@ float badval;
  */
 	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "SetBadval"))
 		return;
+#ifdef SUPPORT_BADVALUES
 /*
  * Grab the field info structure, and set the bad value flag.
  */
@@ -933,6 +944,7 @@ float badval;
  */
 	sprintf (sbad, "%f", badval);
 	dc_SetGlobalAttr (dc, "bad_value_flag", sbad);
+#endif /* SUPPORT_BADVALUES */
 }
 
 
@@ -1747,6 +1759,25 @@ int *natts;
 }
 
 
+
+char **
+dc_GetFieldAttrKeys (dc, fid, natts)
+DataChunk *dc;
+FieldId fid;
+int *natts;
+{
+/*
+ * Returns a list of keys for the field attributes in this data chunk.
+ * Also puts into natt the number of global attributes for this dc.
+ * The returned array of attribute keys is only valid until the next call
+ * of any of the Get*AttrList or Get*AttrKeys functions.
+ */
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "GetFieldAttrKeys"))
+		return (NULL);
+	return(dca_GetAttrList(dc, DCC_MetData, ST_FIELDATTR(fid),
+			       NULL, NULL, natts));
+}
+ 
 
 
 static void

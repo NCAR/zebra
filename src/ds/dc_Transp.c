@@ -29,7 +29,7 @@
 #endif
 # endif
 
-MAKE_RCSID ("$Id: dc_Transp.c,v 1.13 1994-01-03 07:18:20 granger Exp $")
+MAKE_RCSID ("$Id: dc_Transp.c,v 1.14 1994-01-26 11:24:33 granger Exp $")
 
 /*
  * TODO:
@@ -1674,3 +1674,42 @@ int sample, len;
 	dca_PutBlock (dc, DCC_Transparent, ST_ATTR + sample, block, len);
 }
 
+
+
+
+char **
+dc_GetSampleAttrList(dc, sample, pattern, values, natts)
+DataChunk *dc;
+int sample;
+char *pattern;
+char **values[];
+int *natts;
+{
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent,
+				"GetSampleAttrList"))
+		return (NULL);
+	return(dca_GetAttrList(dc, DCC_Transparent, ST_ATTR + sample,
+			       pattern, values, natts));
+}
+
+
+
+char **
+dc_GetSampleAttrKeys (dc, sample, natts)
+DataChunk *dc;
+int sample;
+int *natts;
+{
+/*
+ * Returns a list of keys for the sample attributes for this sample.
+ * Also puts into natt the number of global attributes for this dc.
+ * The returned array of attribute keys is only valid until the next call
+ * of any of the Get*AttrList or Get*AttrKeys functions.
+ */
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent,
+				"GetSampleAttrKeys"))
+		return (NULL);
+	return(dca_GetAttrList(dc, DCC_Transparent, ST_ATTR + sample,
+			       NULL, NULL, natts));
+}
+ 

@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 3.19 1994-01-03 07:13:56 granger Exp $
+ * $Id: dsPrivate.h,v 3.20 1994-01-26 11:24:38 granger Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -21,6 +21,9 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+
+# include <config.h>		/* CFG_ symbol definitions */
+
 /*
  * The file types.  These are tied into the format table definition in
  * DFA, so don't mess with them.
@@ -48,11 +51,11 @@ typedef struct s_Lock
 } Lock;
 
 
+# define NAMELEN 	CFG_PLATNAME_LEN
 
 /*
  * A platform in the data table is described by this structure.
  */
-# define NAMELEN 80
 typedef struct ds_Platform
 {
 	char	dp_name[NAMELEN];	/* The full name of this platform */
@@ -98,10 +101,11 @@ typedef struct ds_Platform
 #	define REMOTEDATA(p) (ds_DataChain (&(p), 1))
 # endif
 
+
+# define FNAMELEN 	CFG_DATAFILE_LEN
 /*
  * The structure describing a file full of data.
  */
-# define FNAMELEN 40
 typedef struct ds_DataFile
 {
 	char	df_name[FNAMELEN];	/* The name of the file		*/
@@ -198,7 +202,8 @@ enum dsp_Types
 	 dpt_R_PlatformSearch,		/* Reply with list of plat ids	*/
 	 dpt_R_PlatStructSearch,	/* For sending back structs 	*/
 };
-# define DSP_FLEN	256		/* File name length		*/
+
+# define DSP_FLEN	CFG_FILEPATH_LEN /* File name length		*/
 
 /*
  * The current data store protocol version.  CHANGE this when incompatible

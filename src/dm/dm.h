@@ -1,4 +1,4 @@
-/* $Id: dm.h,v 2.6 1993-11-30 02:07:28 granger Exp $ */
+/* $Id: dm.h,v 2.7 1994-01-26 11:24:06 granger Exp $ */
 /*
  * Display manager stuff.
  */
@@ -22,6 +22,8 @@
 
 #ifndef __zeb_dm_h_
 #define __zeb_dm_h_
+
+# include <config.h>		/* CFG_ symbol definitions 	*/
 
 # define DM_RECONFIG	1	/* Change screen configuration	*/
 # define DM_SUSPEND	2	/* Disappear from screen	*/
@@ -53,9 +55,13 @@
 # define DM_PICKWIN_NONE	"none"
 
 /*
+ * The space required for plot description names in DM messages
+ */
+# define PDLEN 		CFG_PDNAME_LEN
+
+/*
  * The message structure sent out by the display manager.
  */
-# define PDLEN 40
 struct dm_msg
 {
 	int	dmm_type;		/* the type of this message	*/
@@ -86,9 +92,14 @@ struct dm_pdchange
 
 
 /*
+ * Space for DM event data
+ */
+# define CODENAMELEN	CFG_DM_CODELEN	/* Length of event codes, eg 20 */
+# define MAXADATA 	CFG_DM_MAXADATA	/* Usually 128			*/
+
+/*
  * event message.
  */
-# define MAXADATA 128	/* ??? */
 struct dm_event
 {
 	int dmm_type;			/* = DM_EVENT		*/
@@ -167,7 +178,6 @@ typedef enum dm_ac
 /*
  * The structures describing an event binding
  */
-# define CODENAMELEN	20	/* Length of an event code		*/
 struct dm_evbind
 {
 	int	dmm_mods;	/* Modifiers				*/

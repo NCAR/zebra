@@ -1,7 +1,7 @@
 /*
  * Set up configuration variables so that they are available at the UI level.
  */
-static char *rcsid = "$Id: ConfigVars.c,v 1.3 1993-08-26 20:13:17 corbet Exp $";
+MAKE_RCSID("$Id: ConfigVars.c,v 1.4 1994-01-26 11:24:46 granger Exp $")
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved

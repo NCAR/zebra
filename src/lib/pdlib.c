@@ -23,9 +23,10 @@
 # include <ui_date.h>
 # include <ui_expr.h>		/* XXX */
 # include <defs.h>
+# include <config.h>
 # include <message.h>
 # include "pd.h"
-MAKE_RCSID ("$Id: pdlib.c,v 1.17 1992-11-03 16:18:48 burghart Exp $")
+MAKE_RCSID ("$Id: pdlib.c,v 1.18 1994-01-26 11:24:55 granger Exp $")
 
 /*
  * A counter used to generate unique symbol table names.
@@ -45,15 +46,15 @@ static stbl pd_NewPD FP ((char *name));
 static stbl pd_NewComponent FP ((stbl pd, char *pdname, char *compname));
 
 /*
- * Size of temp buffer used for writing raw PD's.
+ * Size of temp buffer used for writing raw PD's, eg 40960
  */
-# define RAWTEMP	40960
+# define RAWTEMP	CFG_PD_RAWTEMP
 
 
 /*
- * Maximum number of components we expect.
+ * Maximum number of components we expect, eg 50
  */
-# define MAXCOMP 50
+# define MAXCOMP 	CFG_PD_MAXCOMP
 
 
 
