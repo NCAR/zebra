@@ -29,7 +29,7 @@
 # include "DataStore.h"
 # include "DataChunkP.h"
 
-RCSID ("$Id: dc_MetData.c,v 3.19 1996-11-26 22:36:46 granger Exp $")
+RCSID ("$Id: dc_MetData.c,v 3.20 1996-11-27 02:24:43 granger Exp $")
 
 /*
  * If we have non-uniform, non-fixed, non-pre-arranged fields, then the 
@@ -1182,7 +1182,7 @@ int len;
 	if (type == DCT_Unknown)
 	{
 		msg_ELog (EF_PROBLEM, "attempt to fill unknown field %d", fid);
-		return (NULL);
+		return (0);
 	}
 	ptr = dc_FindFieldBadval (dc, fid);
 	if (! ptr && ((ptr = dc_DefaultBadval (type)) != NULL))
