@@ -1456,7 +1456,7 @@ BTree<K,T>::translate (SerialStream &ss)
 template <class K, class T>
 BTree<K,T>::~BTree ()
 {
-	Destroy ();
+	BTree<K,T>::Destroy ();
 }
 
 

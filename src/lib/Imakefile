@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-/* $Id: Imakefile,v 1.39 2001-01-18 17:55:50 granger Exp $ */
+/* $Id: Imakefile,v 1.40 2001-12-28 00:27:54 granger Exp $ */
 
 #if !HasWritev
 WRITEVOBJ=writev.o
@@ -54,7 +54,7 @@ CSRCS = alarmwidget.c altunits.c barb.c Bitmaps.c byteorder.c cmd_proto.c \
 CCSRCS = BTree.cc BTreeFile.cc BlockFile.cc FreeList.cc Journal.cc XDR.cc \
 	Logger.cc Format.cc Buffer.cc AuxBlock.cc BlockObject.cc \
 	SerialBuffer.cc SerialStream.cc Serializable.cc \
-	T_Block.cc dbf.cc T_BTree.cc ZTime.cc ztime_test.cc
+	T_Block.cc dbf.cc T_BTree.cc TestTrees.cc ZTime.cc ztime_test.cc
 
 SRCS = $(CSRCS) $(CCSRCS)
 
