@@ -10,7 +10,7 @@ all::
 
 install::
 	MakeDir ($(LIBDIR)/icons)
-	for icon_file in [a-z]* ; do \
+	for icon_file in [0-9a-z]* ; do \
 		$(INSTALL) $${icon_file} $(LIBDIR)/icons ; \
 	done
 
