@@ -110,6 +110,7 @@ procedure DoWindowCreate
 !
 	local name quote(getftext(ui$form,"wname"))
 	local pdname getftext(ui$form,"pdname")
+	local bmap getftext(ui$form,"bmap")
 	local forcepd getftext(ui$form,"forcepd")
 !
 ! Get the forcepd flag right.
@@ -122,7 +123,7 @@ procedure DoWindowCreate
 !
 ! Create the window.
 !
-	newwindow #name #pdname #forcepd
+	newwindow #name #pdname #forcepd buttonmap #bmap
 	popdown #ui$form
 endprocedure
 
