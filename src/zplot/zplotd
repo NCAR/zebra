@@ -15,7 +15,7 @@ $D_NoEmail = 4; # Don't email
 $debug = 0;		     	# No debugging
 $FAIL = "ZPLOTD_FAILED";	# failure string
 
-$image_mail_list = " granger louvers ";
+$image_mail_list = " granger ";
 
 # Top zebra directory
 $ztop=$ENV{'ZEB_TOPDIR'};
