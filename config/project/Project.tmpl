@@ -39,7 +39,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.55 1997-04-29 03:49:22 granger Exp $
+XCOMM $Id: Project.tmpl,v 1.56 1997-05-14 19:42:56 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -502,6 +502,18 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #define PamCfgLibrary LoaderLibPrefix -lunp
 #endif
 
+/*
+ * Linux needs the ndbm library; other operating
+ * systems probably have ndbm in libc
+ */
+#ifndef NDBMLibrary
+#  ifdef LinuxArchitecture
+#     define NDBMLibrary LoaderLibPrefix -lndbm
+#  else
+#     define NDBMLibrary /**/
+#  endif
+#endif
+
 #ifndef RegexpLibrary
 #  if SystemV || SystemV4
 #     define RegexpLibrary LoaderLibPrefix -lgen
@@ -933,6 +945,7 @@ CXXEXTRA_INCLUDES = /* $(XINCLUDES) $(RDSSINCLUDES) */ $(CONFIGINCLUDES)
         LIBMCIDAS = MCIDASLibrary
             XLIBS = XLibraries
           LIBMATH = MathLibrary
+          LIBNDBM = NDBMLibrary
        LIBTERMCAP = TermcapLibrary
         LIBREGEXP = RegexpLibrary
     SYS_LIBRARIES = SystemLibraries
