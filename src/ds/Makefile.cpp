@@ -1,4 +1,4 @@
-MFVERSION="$Id: Makefile.cpp,v 1.9 1992-06-01 18:34:33 corbet Exp $"
+MFVERSION="$Id: Makefile.cpp,v 1.10 1992-07-15 17:14:22 corbet Exp $"
 
 # include "../include/config.h"
 
@@ -12,9 +12,9 @@ XLIBS=XLibraries
 DSOBJS= Daemon.o d_SharedMemory.o d_DataTables.o d_Config.o d_Notify.o
 /* OBJS, SRCS = normal DS library code */
 OBJS = Appl.o SharedMemory.o DataFileAccess.o DFA_NetCDF.o GetList.o \
-	DFA_Boundary.o DFA_Raster.o Fields.o
+	DFA_Boundary.o DFA_Raster.o Fields.o DFA_Zeb.o
 SRCS = Appl.c SharedMemory.c DataFileAccess.c DFA_NetCDF.c GetList.c \
-	DFA_Boundary.c DFA_Raster.c Fields.c
+	DFA_Boundary.c DFA_Raster.c Fields.c DFA_Zeb.c
 
 /* DCOBJS, DCSRCS =  data chunk modules */
 DCOBJS = DataChunk.o dc_Boundary.o dc_IRGrid.o dc_Image.o \
@@ -25,12 +25,13 @@ DCSRCS = DataChunk.c dc_Boundary.c dc_IRGrid.c dc_Image.c \
 	dc_Location.c
 
 all::	dsDaemon dsDaemon.lf $(OBJS) $(DCOBJS) dsdump dsdelete prt_Notify \
-	dsdwidget
+	dsdwidget dsrescan
 
 install::	dsDaemon dsDaemon.lf $(OBJS) dsdelete include prt_Notify \
-		dsdump dsdwidget $(DCOBJS)
+		dsdump dsdwidget dsrescan $(DCOBJS)
 	install -c dsDaemon D_BINDIR
 	install -c -s dsdelete D_BINDIR
+	install -c -s dsrescan D_BINDIR
 	install -c -s prt_Notify D_BINDIR
 	install -c -s dsdump D_BINDIR
 	install -c -s dsdwidget D_BINDIR
@@ -70,8 +71,11 @@ dstest: dstest.o $(OBJS) $(DCOBJS)
 dsdump:	dsdump.o $(OBJS) $(DCOBJS)
 	$(CC) $(CFLAGS) -o dsdump dsdump.o $(OBJS) $(DCOBJS) $(LIBS)
 
-dsdwidget:	dsdwidget.o $(OBJS)
-	$(CC) $(CFLAGS) -o dsdwidget dsdwidget.o $(OBJS) $(LIBS) $(XLIBS)
+zfdump:	zfdump.o
+	$(CC) $(CFLAGS) -o zfdump zfdump.o ZebLibrary
+
+dsdwidget:	dsdwidget.o $(OBJS) $(DCOBJS)
+	$(CC) $(CFLAGS) -o dsdwidget dsdwidget.o $(OBJS) $(DCOBJS) $(LIBS) $(XLIBS)
 
 prt_Notify:	prt_Notify.o d_Notify.o $(OBJS) $(DCOBJS)
 	$(CC) $(CFLAGS) -o prt_Notify prt_Notify.o d_Notify.o $(OBJS) $(DCOBJS) $(LIBS)
@@ -82,19 +86,21 @@ NetXfr:	NetXfr.o nx_BCast.o nx_PktGrabber.o nx_DirImage.o $(OBJS) $(DCOBJS)
 	$(CC) $(CFLAGS) -o NetXfr NetXfr.o nx_BCast.o nx_PktGrabber.o \
 			nx_DirImage.o $(OBJS) $(DCOBJS) $(LIBS) $(XLIBS);
 
-LastData:	LastData.o $(OBJS)
-	$(CC) $(CFLAGS) -o LastData LastData.o $(OBJS) $(LIBS) $(XLIBS)
+LastData:	LastData.o $(OBJS) $(DCOBJS)
+	$(CC) $(CFLAGS) -o LastData LastData.o $(OBJS) $(DCOBJS) $(LIBS) $(XLIBS)
 
 NetXfr.lf:	NetXfr.state
 	uic < make-nx-lf
 
-Archiver:	Archiver.o $(OBJS)
-	$(CC) $(CFLAGS) -o Archiver Archiver.o $(OBJS) $(LIBS) $(XLIBS)
+Archiver:	Archiver.o $(OBJS) $(DCOBJS)
+	$(CC) $(CFLAGS) -o Archiver Archiver.o $(OBJS) $(DCOBJS) $(LIBS) $(XLIBS)
 # endif
 
 dsdelete:	dsdelete.o $(OBJS)
-	$(CC) $(CFLAGS) -o dsdelete dsdelete.o $(OBJS) $(LIBS)
+	$(CC) $(CFLAGS) -o dsdelete dsdelete.o $(OBJS) $(DCOBJS) $(LIBS)
 
+dsrescan:	dsrescan.o $(OBJS)
+	$(CC) $(CFLAGS) -o dsrescan dsrescan.o $(OBJS) $(DCOBJS) $(LIBS)
 /*
  * Saber stuff.  This is a bit complicated, depending on what you are
  * trying to debug.  The saber "#" construct makes it through the Sun
@@ -103,7 +109,7 @@ dsdelete:	dsdelete.o $(OBJS)
 saber_lib:
 	#setopt ansi
 	#load $(CFLAGS) -I/usr/local/include $(SRCS) $(DCOBJS)
-	#load -Bstatic $(LIBS) "/local/lib/gcc-lib/sparc-sun-sunos4.1/2.1/libgcc.a"
+	#load -Bstatic $(LIBS) "/local/lib/gcc-lib/sparc-sun-sunos4.1.2/2.2/libgcc.a"
 
 saber_dsd: saber_lib
 	#load $(CFLAGS) dsdump.c
@@ -138,7 +144,8 @@ mf:
 	mv Makefile Makefile~
 	cp Makefile.cpp Makefile.c
 	echo "# DO NOT EDIT -- EDIT Makefile.cpp INSTEAD" > Makefile
-	cc -E -DMAKING_MAKEFILE Makefile.c | cat -s >> Makefile
+	cc -E -DMAKING_MAKEFILE Makefile.c | \
+		sed -f /zeb/config/notabs.sed | cat -s >> Makefile
 	rm -f Makefile.c
 	make depend
 

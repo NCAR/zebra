@@ -34,7 +34,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 # include "commands.h"
-MAKE_RCSID ("$Id: Daemon.c,v 3.2 1992-06-09 19:18:00 corbet Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.3 1992-07-15 17:14:22 corbet Exp $")
 
 
 
@@ -45,8 +45,8 @@ static int 	msg_Handler FP ((struct message *));
 static int	ui_Handler FP ((int, struct ui_command *));
 void		Shutdown FP ((void));
 static void	DataScan FP ((void));
-static void	ScanDirectory FP ((Platform *, int));
-static void	ScanFile FP ((Platform *, char *, char *, int));
+static void	ScanDirectory FP ((Platform *, int, int));
+static void	ScanFile FP ((Platform *, char *, char *, int, int));
 static void	mh_message FP ((struct message *));
 static void	ds_message FP ((char *, struct dsp_Template *));
 static void	dp_NewFile FP ((char *, struct dsp_CreateFile *));
@@ -61,6 +61,10 @@ static int	FreeSpace FP ((int, SValue *, int *, SValue *, int *));
 static int	BCHandler FP ((int, char *, int));
 static void	BCSetup FP ((char *, int));
 static void	RemDataGone FP ((struct dsp_BCDataGone *));
+static void	Rescan FP ((struct dsp_Rescan *));
+static void	RescanPlat FP ((Platform *));
+static int	FileKnown FP ((Platform *, char *, char *, int));
+static void	CleanChain FP ((Platform *, int));
 
 /*
  * Broadcast stuff.
@@ -364,9 +368,9 @@ DataScan ()
 	/*
 	 * Scan the local directory, and the local one if it exists.
 	 */
-		ScanDirectory (p, TRUE);
+		ScanDirectory (p, TRUE, FALSE);
 		if (p->dp_flags & DPF_REMOTE)
-			ScanDirectory (p, FALSE);
+			ScanDirectory (p, FALSE, FALSE);
 	}
 }
 
@@ -374,9 +378,9 @@ DataScan ()
 
 
 static void
-ScanDirectory (p, local)
+ScanDirectory (p, local, rescan)
 Platform *p;
-bool local;
+bool local, rescan;
 /*
  * Scan a directory for this platform.
  */
@@ -397,7 +401,7 @@ bool local;
  * Go through the files.
  */
 	while (ent = readdir (dp))
-		ScanFile (p, dir, ent->d_name, local);
+		ScanFile (p, dir, ent->d_name, local, rescan);
 	closedir (dp);
 }
 
@@ -406,10 +410,10 @@ bool local;
 
 
 static void
-ScanFile (p, dir, file, local)
+ScanFile (p, dir, file, local, rescan)
 Platform *p;
 char *file, *dir;
-bool local;
+bool local, rescan;
 /*
  * Look at this file and see what we think of it.
  */
@@ -421,6 +425,11 @@ bool local;
  * If DFA doesn't recognize it, we don't even bother.
  */
 	if (! dfa_CheckName (p->dp_ftype, file))
+		return;
+/*
+ * If this is a rescan, check to see if we already know about this file.
+ */
+	if (rescan && FileKnown (p, dir, file, local))
 		return;
 /*
  * Grab a new datafile entry and begin to fill it in.
@@ -458,6 +467,122 @@ bool local;
 }
 
 
+
+
+
+static int
+FileKnown (p, dir, file, local)
+Platform *p;
+char *dir, *file;
+bool local;
+/*
+ * See if we already know about this file.
+ */
+{
+	int dfi = local ? LOCALDATA (*p) : REMOTEDATA (*p);
+	int dirlen = strlen (dir) + 1;
+/*
+ * Just pass through the list and see if we find it.
+ */
+	for (; dfi; dfi = DFTable[dfi].df_FLink)
+		if (! strcmp (DFTable[dfi].df_name + dirlen, file))
+		{
+			msg_ELog (EF_DEBUG, "File %s known dfi %d", file, dfi);
+			DFTable[dfi].df_flags |= DFF_Seen;
+			return (TRUE);
+		}
+	msg_ELog (EF_DEBUG, "New file %s/%s", p->dp_name, file);
+	return (FALSE);
+}
+
+
+
+
+
+
+
+static void
+Rescan (req)
+struct dsp_Rescan *req;
+/*
+ * Implement the rescan request.
+ */
+{
+	if (req->dsp_all)
+	{
+		int plat;
+		for (plat = 0; plat < ShmHeader->sm_nPlatform; plat++)
+		{
+			Platform *p = PTable + plat;
+		/*
+		 * Don't scan subplatforms.
+		 */
+			if ((p->dp_flags & DPF_SUBPLATFORM) == 0)
+				RescanPlat (p);
+		}
+	}
+	else
+		RescanPlat (PTable + req->dsp_pid);
+}
+
+
+
+
+static void
+RescanPlat (p)
+Platform *p;
+/*
+ * Rescan the files for this platform.
+ */
+{
+	int dfindex;
+/*
+ * Go through and clear the "seen" flags.
+ */
+	for (dfindex = LOCALDATA (*p); dfindex;
+				dfindex = DFTable[dfindex].df_FLink)
+		DFTable[dfindex].df_flags &= ~DFF_Seen;
+	for (dfindex = REMOTEDATA (*p); dfindex;
+				dfindex = DFTable[dfindex].df_FLink)
+		DFTable[dfindex].df_flags &= ~DFF_Seen;
+/*
+ * Rescan the directory(ies).
+ */
+	ScanDirectory (p, TRUE, TRUE);
+	if (p->dp_flags & DPF_REMOTE)
+		ScanDirectory (p, FALSE, TRUE);
+/*
+ * Now get rid of anything that has disappeared.
+ */
+	CleanChain (p, LOCALDATA (*p));
+	CleanChain (p, REMOTEDATA (*p));
+}
+
+
+
+
+
+static void
+CleanChain (p, chain)
+Platform *p;
+int chain;
+/*
+ * Get rid of vanished files in this chain.
+ */
+{
+	int dfi, next;
+
+	for (dfi = chain; dfi; dfi = next)
+	{
+		next = DFTable[dfi].df_FLink;
+		if ((DFTable[dfi].df_flags & DFF_Seen) == 0)
+		{
+			msg_ELog (EF_DEBUG, "File %s disappeared",
+				DFTable[dfi].df_name);
+			dt_RemoveDFE (p, dfi);
+		}
+	}
+}
 
 
 
@@ -553,7 +678,13 @@ struct dsp_Template *dt;
 	 */
 	   case dpt_MarkArchived:
 	   	dma = (struct dsp_MarkArchived *) dt;
-		DFTable[dma->dsp_FileIndex].df_archived = TRUE;
+		DFTable[dma->dsp_FileIndex].df_flags |= DFF_Archived;
+		break;
+	/*
+	 * Do a rescan.
+	 */
+	   case dpt_Rescan:
+	   	Rescan ((struct dsp_Rescan *) dt);
 		break;
 	/*
 	 * Chaos.

@@ -1,7 +1,7 @@
 /*
  * Data store daemon-specific definitions.
  */
-/* $Id: dsDaemon.h,v 3.1 1992-05-27 17:24:03 corbet Exp $ */
+/* $Id: dsDaemon.h,v 3.2 1992-07-15 17:14:22 corbet Exp $ */
 /*
  * The platform and data tables, via pointer.
  */
@@ -43,11 +43,16 @@ extern int DisableRemote;
  * Internal functions.
  */
 void InitSharedMemory FP ((void));
+/*
+ * Data table routines.
+ */
 Platform *dt_NewPlatform FP ((char *));
 Platform *dt_FindPlatform FP ((char *, int));
 DataFile *dt_NewFile FP ((void));
 void dt_FreeDFE FP ((DataFile *));
 void dt_AddToPlatform FP ((Platform *, DataFile *, int));
+void dt_RemoveDFE FP ((Platform *, int));
+
 void dc_DefPlatform FP ((char *));
 void dap_Init FP ((void));
 void dap_Request FP ((char *, struct dsp_NotifyRequest *));

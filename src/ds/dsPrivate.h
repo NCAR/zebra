@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 3.2 1992-06-09 19:23:49 corbet Exp $
+ * $Id: dsPrivate.h,v 3.3 1992-07-15 17:14:22 corbet Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -49,7 +49,7 @@ struct ds_ShmHeader
 	int	sm_nDTEUsed;		/* How many used		*/
 	int	sm_DTFreeList;		/* First free entry		*/
 };
-# define SHM_MAGIC	0x50792		/* Change for incompatible changes */
+# define SHM_MAGIC	0x71492		/* Change for incompatible changes */
 
 
 
@@ -105,9 +105,14 @@ typedef struct ds_DataFile
 	short	df_nsample;		/* How many samples in this file */
 	short	df_platform;		/* Platform index		*/
 	int	df_use;			/* Structure use count		*/
-	bool	df_archived;		/* Has this file been archived?	*/
+	char	df_flags;		/* File flags			*/
 } DataFile;
 
+/*
+ * Flags:
+ */
+# define DFF_Archived	0x01		/* File has been archived	*/
+# define DFF_Seen	0x02		/* Seen during rescan		*/
 
 
 /*
@@ -170,6 +175,7 @@ enum dsp_Types
 	dpt_CopyNotifyReq,		/* Get copies of notification rq*/
 	dpt_MarkArchived,		/* Mark a file as archived	*/
 	dpt_R_UpdateAck,		/* Acknowledge a file update	*/
+	dpt_Rescan,			/* Force rescan of platform	*/
 /*
  * Cross-machine broadcast notifications.
  */
@@ -287,4 +293,15 @@ struct dsp_BCDataGone
 	enum dsp_Types dsp_type;	/* == dpt_BCDataGone		*/
 	char dsp_Plat[60];		/* Platform name		*/
 	char dsp_File[DSP_FLEN];	/* The file -- sans directory	*/
+};
+
+
+/*
+ * Force rescan.
+ */
+struct dsp_Rescan
+{
+	enum dsp_Types dsp_type;	/* == dpt_Rescan		*/
+	PlatformId dsp_pid;		/* Which platform...		*/
+	int dsp_all;			/* ...or all of them.		*/
 };

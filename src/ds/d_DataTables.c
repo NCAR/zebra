@@ -27,7 +27,7 @@
 # include "dsPrivate.h"
 # include "commands.h"
 # include "dsDaemon.h"
-MAKE_RCSID("$Id: d_DataTables.c,v 3.1 1992-05-27 17:24:03 corbet Exp $")
+MAKE_RCSID("$Id: d_DataTables.c,v 3.2 1992-07-15 17:14:22 corbet Exp $")
 
 
 /*
@@ -242,6 +242,46 @@ dt_NewFile ()
 
 
 void
+dt_RemoveDFE (p, dfi)
+Platform *p;
+int dfi;
+/*
+ * Remove this entry from the given platform and free it.
+ */
+{
+	DataFile *df = DFTable + dfi;
+
+	ShmLock ();
+/*
+ * See if it is at the top of a list.
+ */
+	if (dfi == p->dp_LocalData)
+		p->dp_LocalData = df->df_FLink;
+	else if (dfi == p->dp_RemoteData)
+		p->dp_RemoteData = df->df_FLink;
+/*
+ * Nope.  Adjust backward links.
+ */
+	else
+		DFTable[df->df_BLink].df_FLink = df->df_FLink;
+/*
+ * Now adjust the backward links of the following DFI, if there is one.
+ */
+	if (df->df_FLink)
+		DFTable[df->df_FLink].df_BLink = df->df_BLink;
+/*
+ * The entry is now out of the chain.  Free it and we are done.
+ */
+	dt_FreeDFE (df);
+	ShmUnlock ();
+}
+
+
+
+
+
+
+void
 dt_FreeDFE (df)
 DataFile *df;
 /*
@@ -339,7 +379,7 @@ bool local;
 {
 	df->df_platform = p - PTable;
 	df->df_use++;
-	df->df_archived = FALSE;
+	df->df_flags = DFF_Seen;
 	if (local)
 		dt_IPAdd (df, &p->dp_LocalData);
 	else
