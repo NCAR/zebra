@@ -51,7 +51,7 @@
 # include <message.h>
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.37 1996-08-08 20:39:20 granger Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.38 1996-08-08 22:22:30 granger Exp $")
 /*
  * Symbol tables.
  */
@@ -901,6 +901,7 @@ int inet;
 	conp->c_ndwrite = 0;
 	conp->c_inprog = 0;
 	conp->c_pid = 0;
+	conp->c_msg.m_data = NULL;
 	conp->c_dwrite = conp->c_dwtail = NULL;
 	strcpy (conp->c_name, UNKNOWN_NAME);
 	Fd_map[fd] = conp;
@@ -1365,7 +1366,18 @@ fd_set *fds;
 					  Hostname, msg->m_from, msg->m_to);
 			}
 			dispatch (fd, msg);
-			free (msg->m_data);
+		/*
+		 * This message will no longer exist if the connection died,
+		 * and it may not have had any data to begin with.  Reset
+		 * data pointer to NULL, since msg likely points to the
+		 * connection's permanent message header and we need to know
+		 * that the data has been freed.
+		 */
+			if (Fd_map[fd] && msg->m_data)
+			{
+				free (msg->m_data);
+				msg->m_data = NULL;
+			}
 		}
 	}
 }
@@ -1487,11 +1499,15 @@ static void
 FreeConnection (cp)
 Connection *cp;
 /*
- * Free any existing delayed write data and the connection structure itself
+ * Free any existing message data, delayed write data, and the 
+ * connection structure itself.
  */
 {
 	DWrite *dwp;
 
+	if (cp->c_msg.m_data)
+		free (cp->c_msg.m_data);
+	cp->c_msg.m_data = NULL;
 	dwp = cp->c_dwrite;
 	while (dwp)
 	{
