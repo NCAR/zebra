@@ -30,13 +30,14 @@
 # include <string.h>
 # include <unistd.h>
 
+# include <ui.h>
 # include <defs.h>
 # include <message.h>
 # include <copyright.h>
 # include <DataStore.h>
 # include <ingest.h>
 
-MAKE_RCSID ("$Id: xmgrpipe.c,v 1.3 1995-06-29 22:38:35 granger Exp $")
+RCSID ("$Id: xmgrpipe.c,v 1.4 1996-11-19 08:08:47 granger Exp $")
 
 static void Spew FP((DataChunk *dc, FieldId field, ZebTime *end));
 static void PipeData FP((PlatformId pid, ZebTime *begin, ZebTime *end,
