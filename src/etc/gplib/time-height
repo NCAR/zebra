@@ -66,6 +66,9 @@ define widget th-global form 'global time-height parameters'
 	label l2 '(s = seconds, m = minutes, h = hours)'
 	newline
 
+	label l6 'Time axis direction:'
+	button style 'unknown' command 'fu-toggle-enum normal invert'
+	newline
 !
 ! Height scale mode.
 !
@@ -90,14 +93,22 @@ procedure thg-popup
 ! We are no longer dependent on the particular y-field of the
 ! component, since we set the global scale parameters which
 ! will take precedence over any per-component settings.
+! However, until those global parameters exist we must initialize
+! from the field-qualified parameters.
+! This is not necessary for style and mode, since those were
+! never qualified by field name and so are not quite so
+! convoluted.
 !
-!	local fld PDParam('global','y-field')
+	local fld PDParam(icon_component,'y-field')
 
 	formtext #f comp #c
-	local t PDParam('global','xy-series-span')
+	local t PDSearch('global','series-span','xy')
 	formtext #f time #t
 
 	local minheight PDParam('global','xy-scale-y-min')
+	if (minheight = PUNDEF)
+		local minheight PDSearch(icon_component,'scale-y-min',fld)
+	endif
 	if (minheight = PUNDEF)
 		local minheight '0.0'
 	endif
@@ -105,17 +116,44 @@ procedure thg-popup
 
 	local maxheight PDParam('global','xy-scale-y-max')
 	if (maxheight = PUNDEF)
+		local maxheight PDSearch(icon_component,'scale-y-max',fld)
+	endif
+	if (maxheight = PUNDEF)
 		local maxheight '0.0'
 	endif
 	formtext #f maxheight #maxheight
 
-	! This expects there to be no 'scale-y-mode' in the component,
-	! so that only the global xy- qualified setting takes effect.
+	! This expects there to be no 'scale-y-mode' in the component, so
+	! that only the global xy- qualified setting takes effect and is
+	! consistent with all components sharing the height scale.  Unless
+	! explicitly set to 'manual', the mode will be auto.  Thus remove
+	! the local parameter and move any existing setting into the
+	! global parameter.
+
+	local mode PDParam(icon_component, 'scale-y-mode')
+	if (mode <> PUNDEF)
+		parameter global xy-scale-y-mode #mode
+		local b pd_removeparam(icon_component,'scale-y-mode')
+	endif
 	local mode PDParam('global', 'xy-scale-y-mode')
-	if (mode = 'auto' or mode = 'autoscale')
-		formtext #f mode 'autoscale'
-	else
+	if (mode = 'manual')
 		formtext #f mode 'manual'
+	else
+		formtext #f mode 'autoscale'
+	endif
+
+	! Same for style (inverted or not) as for mode.
+	! 
+	local style PDParam(icon_component, 'scale-x-style')
+	if (style <> PUNDEF)
+		parameter global xy-scale-x-style #style
+		local b pd_removeparam(icon_component,'scale-x-style')
+	endif
+	local style PDParam('global', 'xy-scale-x-style')
+	if (style = 'invert')
+		formtext #f style 'invert'
+	else
+		formtext #f style 'normal'
 	endif
 
 	local l PDParam('global','xy-axis-l-tic-interval')
@@ -127,8 +165,11 @@ procedure thg-apply
 	local f ui$form
 	local c getftext(f, 'comp')
 
+	! series-span is the unqualified form, initially searched in
+	! global, and thus it is the setting which overrides all others,
+	! including an xy-series-span in the global component.
 	local t getftext(f, 'time')
-	parameter global xy-series-span #t
+	parameter global series-span #t
 
 	local minheight getftext(f,'minheight')
 	parameter 'global' 'xy-scale-y-min' #minheight
@@ -138,6 +179,9 @@ procedure thg-apply
 
 	local maxheight getftext(f,'maxheight')
 	parameter 'global' 'xy-scale-y-max' #maxheight
+
+	local style getftext(f, 'style')
+	parameter 'global' 'xy-scale-x-style' #style
 
 	local l getftext(f, 'lines')
 	parameter global xy-axis-l-tic-interval #l
