@@ -116,16 +116,6 @@ I_clear ()
  * Clear out all of the icons that are currently in use.
  */
 {
-# ifdef notdef
-	Arg args[3];
-	int nicon, i;
-/*
- * Query the graphics widget for the number of child icons.
- */
-	XtSetArg (args[0], XtNnumChildren, &nicon);
-	XtGetValues (Graphics, args, ONE);
-	msg_ELog (EF_DEBUG, "%d icons to clear", nicon);
-# endif
 /*
  * Go through and make each one free.
  */
@@ -208,8 +198,10 @@ I_DoIcons ()
 		if (! pda_Search (Pd, comps[comp], "icon-right-menu",
 				qual, ilp->il_menus[2], SYMT_STRING))
 			strcpy (ilp->il_menus[2], "");
+# ifdef notdef
 		msg_ELog (EF_DEBUG, "Menus: '%s', '%s', '%s'",
 			ilp->il_menus[0], ilp->il_menus[1], ilp->il_menus[2]);
+# endif
 	}
 }
 
@@ -307,7 +299,8 @@ int *xpos, fg, bg;
  * Figure out the dimensions of this pixmap.
  */
 	XGetGeometry (XtDisplay (Graphics), icon, &root, &junk, &junk,
-		&width, &height, &junk, &junk);
+		&width, &height, (unsigned int *) &junk,
+		(unsigned int *) &junk);
 /*
  * Store all the necessary values.
  */
