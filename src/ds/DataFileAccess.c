@@ -37,7 +37,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-MAKE_RCSID ("$Id: DataFileAccess.c,v 3.23 1995-06-29 21:33:00 granger Exp $")
+MAKE_RCSID ("$Id: DataFileAccess.c,v 3.24 1996-01-23 04:47:55 granger Exp $")
 
 /*
  * This is the structure which describes a format.
@@ -982,6 +982,10 @@ int ndetail;
 						     &dfe, dc, &tag,
 						     details, ndetail))
 		return (FALSE);
+#ifdef DEBUG
+	msg_ELog (EF_DEBUG, "created file #%d, %s", df,
+		  dfa_FilePath (&p, &dfe));
+#endif
 	dfa_AddOpenFile (df, &dfe, TRUE, tag);
 	return (TRUE);
 }
@@ -1038,6 +1042,10 @@ void *tag;
 		for (ofp = OpenFiles->of_next; ofp; ofp = ofp->of_next)
 			if (ofp->of_lru < zap->of_lru)
 				zap = ofp;
+#ifdef DEBUG
+		msg_ELog (EF_DEBUG, "%s (%d): lru file #%d being purged",
+			  "DFA open limit", MaxOpenFiles, zap->of_dfindex);
+#endif
 		dfa_CloseFile (zap);
 	}
 }
@@ -1110,6 +1118,9 @@ OpenFile *victim;
 /*
  * Get the actual file closed.
  */
+#ifdef DEBUG
+	msg_ELog (EF_DEBUG, "closing file #%d", victim->of_dfindex);
+#endif		  
 	(*Formats[victim->of_dftype].f_CloseFile) (victim->of_tag);
 	OF_NOpen--;
 /*
@@ -1231,22 +1242,49 @@ void **tag;
 	{
 		*tag = ofp->of_tag;
 		if (write && ! ofp->of_write)
+		{
 			dfa_CloseFile (ofp);
+		}
+		else if (df.df_rev > ofp->of_dfrev)
+		{
+		/*
+		 * The latest data file entry has a new revision, so our
+		 * open file's tag must be out of date.  So sync the file. 
+		 */
+			msg_ELog (EF_DEBUG, 
+				  "file #%d (%s) out of sync: %d < %d",
+				  ofp->of_dfindex, df.df_name, 
+				  ofp->of_dfrev, df.df_rev);
+#ifdef NCSYNC_FIXED
+			retv = (*Formats[df.df_ftype].f_SyncFile)(*tag);
+			ofp->of_dfrev = df.df_rev;
+			ofp->of_lru = OF_Lru++;
+			return (retv);
+#else
+		/*
+		 * close and re-open netCDF files to work around broken ncsync
+		 */
+			if (df.df_ftype != FTNetCDF)
+			{
+				retv = (*Formats[df.df_ftype].f_SyncFile)
+					(*tag);
+				ofp->of_dfrev = df.df_rev;
+				ofp->of_lru = OF_Lru++;
+				return (retv);
+			}
+			else
+			{
+				msg_ELog (EF_DEBUG, "%s(%s #%d) to force sync",
+					  "ncsync bug: closing netCDF file ",
+					  df.df_name, ofp->of_dfindex);
+				dfa_CloseFile (ofp);
+				/* it will get re-opened below */
+			}
+#endif
+		}
 		else
 		{
-			if (df.df_rev > ofp->of_dfrev)
-			{
-			/*
-			 * The latest data file entry has a new revision,
-			 * so our open file's tag must be out of date.  Thus
-			 * we must sync the file.
-			 */
-				msg_ELog (EF_DEBUG, "Out of rev file %s",
-					  df.df_name);
-				retv = (*Formats[df.df_ftype].f_SyncFile)
-						(*tag);
-				ofp->of_dfrev = df.df_rev;
-			}
+			ofp->of_lru = OF_Lru++;
 			return (retv);
 		}
 	}
@@ -1258,8 +1296,14 @@ void **tag;
 						  write, tag))
 		retv = FALSE;
 	else 	/* success */
+	{
+#ifdef DEBUG
+		msg_ELog (EF_DEBUG, "opened file #%d %s, %s", dfindex,
+			  (write) ? "read-write" : "read-only",
+			  dfa_FilePath (&p, &df));
+#endif
 		dfa_AddOpenFile (dfindex, &df, write, *tag);
-
+	}
 	return (retv);
 }
 
