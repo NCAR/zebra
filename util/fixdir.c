@@ -10,7 +10,8 @@ char *env, *def, *file, *dest;
  * The result is put into DEST.
  */
 {
-	char *trans, *getenv ();
+	char *trans, *temp, *getenv ();
+	
 /*
  * First of all, look at the file name.  If it starts with a slash,
  * we simply take it as it is.
@@ -26,7 +27,12 @@ char *env, *def, *file, *dest;
  	if (trans = getenv (env))
 	{
 		strcpy (dest, trans);
-		strcat (dest, "/");
+/*
+ * Check to see if the last character in the directory name indicates
+ * that the file is on a VMS machine.  If so, don't add a '/'.
+ */
+		temp = &dest[strlen(dest) - 1];
+		if (strcspn (temp, ":]>")) strcat (dest, "/");
 		strcat (dest, file);
 	}
 /*
@@ -35,7 +41,8 @@ char *env, *def, *file, *dest;
  	else if (def)
 	{
 		strcpy (dest, def);
-		strcat (dest, "/");
+		temp = &dest[strlen(dest) - 1];
+		if (strcspn (temp, ":]>")) strcat (dest, "/");
 		strcat (dest, file);
 	}
 	else
