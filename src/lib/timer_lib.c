@@ -22,7 +22,7 @@
 # include "../include/defs.h"
 # include "timer.h"
 # include "../include/message.h"
-MAKE_RCSID ("$Id: timer_lib.c,v 2.3 1991-12-27 17:18:07 corbet Exp $");
+MAKE_RCSID ("$Id: timer_lib.c,v 2.4 1992-08-28 21:03:25 barrett Exp $");
 
 
 typedef enum { Empty = 0, Active, Cancelled } sstatus;
@@ -30,7 +30,7 @@ typedef enum { Empty = 0, Active, Cancelled } sstatus;
 /*
  * The list of pending timer events.
  */
-# define MAXEVENT 10
+# define MAXEVENT 100
 static struct Tevent
 {
 	void	(*te_func) ();		/* Function to call		*/
