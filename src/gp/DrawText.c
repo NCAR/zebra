@@ -7,19 +7,12 @@
 # include <math.h>
 # include <X11/Intrinsic.h>
 # include <ui.h>
+# include <message.h>
 # include "DrawText.h"
-# include <X11/StringDefs.h>	/* Added for kluge */
-# include <X11/Shell.h>		/* Added for kluge */
-# include "../include/defs.h"	/* Kluge */
-# include "../include/message.h"/* Kluge */
-# include "../include/timer.h"	/* Kluge */
-# include "../include/pd.h"	/* Kluge */
-# include "GraphProc.h"		/* Added for kluge */
 # include "sfont_1.c"
 
-Widget	KlugeShell = NULL;
-
 # define DEG_TO_RAD(x)	((x) * 0.017453292)
+# define ALL_BITS	0xFFFFFFFF
 
 /*
  * X font stuff
@@ -32,6 +25,11 @@ static char		**Fontnames = 0;
 static XFontStruct	*Fonts;
 static int		Nfonts;
 static short		Fndx[MAXFONTHEIGHT];
+
+/*
+ * Our local graphics context
+ */
+static GC		Local_gc = (GC) 0;
 
 /*
  * Forward declarations
@@ -50,10 +48,10 @@ static short		Fndx[MAXFONTHEIGHT];
 
 
 void
-DrawText (w, d, color, x, y, text, rot, scale, hjust, vjust)
+DrawText (w, d, gc, x, y, text, rot, scale, hjust, vjust)
 Widget	w;
 Drawable	d;
-Pixel	color;
+GC	gc;
 int	x, y, hjust, vjust;
 String	text;
 float	rot, scale;
@@ -64,7 +62,8 @@ float	rot, scale;
  * ENTRY:
  *	w	widget to use for size info
  *	d	X Drawable where text is to go (must be associated with w)
- *	color	Pixel color to use
+ *	gc	Graphics context to use (the font will be ignored, since
+ *		DrawText chooses its own, but the rest is used)
  *	x, y	pixel location for the text
  *	text	text string to draw
  *	rot	text rotation in degrees counterclockwise from horizontal
@@ -80,10 +79,7 @@ float	rot, scale;
  */
 {
 	int			cheight, width, hoffset, voffset, i;
-	char			*copy;
 	XtWidgetGeometry	geom;
-	GC			gc;
-	XGCValues		gcvals;
 /*
  * Get the geometry of the widget (which must have the same geometry as 
  * the drawable)
@@ -98,34 +94,29 @@ float	rot, scale;
  */
 	if (rot != 0.0 || ! DT_HaveXFont (w, cheight))
 	{
-		DT_StrokeText (w, d, color, x, y, text, rot, scale, hjust, 
-			vjust);
+		DT_StrokeText (w, d, gc, x, y, text, rot, scale, hjust, vjust);
 		return;
 	}
 /*
- * Get a graphics context with the right color and font
+ * Get our local graphics context if we don't have one yet
  */
-	gcvals.foreground = color;
-	gcvals.font = Fonts[Fndx[cheight]].fid;
-	gc = XtGetGC (w, GCForeground | GCFont, &gcvals);
+	if (! Local_gc)
+		Local_gc = XCreateGC (XtDisplay (w), d, 0, NULL);
+/*
+ * Copy the user's GC into the local one and set the font based on the 
+ * selected text height
+ */
+	XCopyGC (XtDisplay (w), gc, ALL_BITS, Local_gc);
+	XSetFont (XtDisplay (w), Local_gc, Fonts[Fndx[cheight]].fid);
 /*
  * Find the text width, horizontal offset, and vertical offset
  */
 	DT_XTextInfo (text, cheight, hjust, vjust, &width, &hoffset, &voffset);
 /*
- * Ardent KLUGE!
- */
-	copy = (char *) malloc ((81 + strlen (text)) * sizeof (char));
-	strcpy (copy, text);
-	for (i = strlen (text); i < 80 + strlen (text); i++)
-		copy[i] = ' ';
-	copy[strlen (text) + 80] = '\0';
-/*
  * Draw the text
  */
-	XDrawString (XtDisplay (w), d, gc, x + hoffset, y + voffset, copy,
-		strlen (copy));
-	free (copy);
+	XDrawString (XtDisplay (w), d, Local_gc, x + hoffset, y + voffset, 
+		text, strlen (text));
 }
 
 
@@ -160,7 +151,7 @@ int	*width, *hoffset, *voffset;
 		break;
 	    default:
 		*hoffset = 0;
-		msg_log ("BUG! Bad hjust in DrawText!");
+		msg_ELog (EF_PROBLEM, "BUG! Bad hjust in DrawText!");
 	}
 
 	switch (vjust)
@@ -176,7 +167,7 @@ int	*width, *hoffset, *voffset;
 		break;
 	    default:
 		*voffset = 0;
-		msg_log ("BUG! Bad vjust in DrawText!");
+		msg_ELog (EF_PROBLEM, "BUG! Bad vjust in DrawText!");
 	}
 }
 
@@ -184,10 +175,10 @@ int	*width, *hoffset, *voffset;
 
 
 void
-DT_StrokeText (w, d, color, x, y, text, rot, scale, hjust, vjust)
+DT_StrokeText (w, d, gc, x, y, text, rot, scale, hjust, vjust)
 Widget	w;
 Drawable	d;
-Pixel	color;
+GC	gc;
 int	x, y, hjust, vjust;
 String	text;
 float	rot, scale;
@@ -197,7 +188,7 @@ float	rot, scale;
  * ENTRY:
  *	w	widget to use for size info
  *	d	X Drawable where text is to go (must be associated with w)
- *	color	X Pixel value to use in drawing text
+ *	gc	X graphics context to use for drawing
  *	x, y	pixel location for the text
  *	text	text string to draw
  *	rot	text rotation in degrees counterclockwise from horizontal
@@ -219,9 +210,7 @@ float	rot, scale;
 	float	cos_rot = cos (DEG_TO_RAD (rot));
 	float	sin_rot = sin (DEG_TO_RAD (rot));
 	float	pixscale;
-	GC	gc, gc_black;
 	XPoint	box[4];
-	XGCValues		gcvals;
 	XtWidgetGeometry	geom;
 /*
  * Get the character bottom level from the stoke font data
@@ -248,6 +237,11 @@ float	rot, scale;
 	xpos = (float) x + pixscale * xoffset;
 	ypos = (float) y + pixscale * yoffset;
 /*
+ * Get our local graphics context if we don't have one yet
+ */
+	if (! Local_gc)
+		Local_gc = XCreateGC (XtDisplay (w), d, 0, NULL);
+/*
  * Make a black box where the text will be written
  */
 	box[0].x = (int)(xpos + 0.5);
@@ -265,16 +259,12 @@ float	rot, scale;
 	box[3].y = (int)(ypos + 0.5 - pixscale * textheight * cos_rot);
 
 
-	gcvals.foreground = BlackPixelOfScreen (XtScreen (w));
-	gc_black = XtGetGC (w, GCForeground, &gcvals);
+	XCopyGC (XtDisplay (w), gc, ALL_BITS, Local_gc);
+	XSetForeground (XtDisplay (w), Local_gc, 
+		BlackPixelOfScreen (XtScreen (w)));
 
-	XFillPolygon (XtDisplay (w), d, gc_black, box, 4, Convex, 
+	XFillPolygon (XtDisplay (w), d, Local_gc, box, 4, Convex, 
 		CoordModeOrigin);
-/*
- * Graphics context for the text
- */
-	gcvals.foreground = color;
-	gc = XtGetGC (w, GCForeground, &gcvals);
 /*
  * Now step through each character
  */
@@ -299,7 +289,7 @@ float	rot, scale;
 			if (*cdata == -128)
 			{
 				if (npts > 0)
-					XDrawLines (XtDisplay (w), d, gc, 
+					XDrawLines (XtDisplay (w), d, gc,
 						points, npts, CoordModeOrigin);
 				npts = 0;
 				cdata += 2;
