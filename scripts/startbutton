@@ -44,10 +44,16 @@ class Main (Frame):
 	self.button = Button (self, text = 'Click here to Start system',
 			      command = self.startsys)
 	self.button.pack (side = 'top')
+	self.no_t1 = Button (self, text = 'Start system - WITHOUT T-1',
+			      command = self.startsys_no_t1)
+	self.no_t1.pack (side = 'top')
 	self.kill = Button( self, text = 'Click here to Stop zebra tasks',
 		command = self.killit)
         self.kill.pack (side = 'top')
 
+	self.status = Label (self, foreground='blue',
+			    text = '----')
+	self.status.pack (side = 'bottom')
 	self.killallb = Button( self,  foreground='red', 
 	    text = 'Click to STOP Zebra AND All Data Aquisition Tasks ',
 		command = self.kill_all)
@@ -66,6 +72,7 @@ class Main (Frame):
         self.selb.pack (side = 'bottom')
 	
     def startsys(self):
+	self.show_status('--')
         self.doit()
 	return  # disable image generation for now
 	d = Dialog(self, 
@@ -86,6 +93,15 @@ class Main (Frame):
         # and now actually start zebra
 	self.doit()
 	
+    def startsys_no_t1(self):
+	# notify do_dist to not enable notifications.
+	self.show_status('T1 line disabled')
+	os.environ['T1_DISABLED'] = '1'
+	self.doit()
+	
+    def show_status(self, msg):
+	self.status['text'] = msg
+	
         
 
     def doit (self):
@@ -101,15 +117,19 @@ class Main (Frame):
 	sys.exit (0)
 
     def killit(self):
+	self.show_status( '...stopping Zebra now...')
 	os.system('/usr/local/zebra/bin/zstop &')
 
     def kill_all(self):
+	self.show_status('...killing all Zebra tasks...')
 	os.system('/usr/local/spol/bin/kill_all &')
 
     def reset_rain(self):
 	os.system('/usr/local/spol/bin/reset_rain &')
 
     def new_iop(self):
+	self.kill_all()
+	self.status['text'] = 'Killing all tasks ...Starting new IOP'
 	os.system('/usr/local/zebra/bin/do_new_iop &')
 
     def select_archive(self):
