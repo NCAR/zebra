@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.10 1994-11-29 02:30:28 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.11 1995-01-26 21:17:27 granger Exp $"
 
 #define IHaveSubdirs
 #define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
@@ -47,16 +47,17 @@ DSMANAGE = dsmanage
  * "lib" and "ds" must come first, in that order.  Thereafter it's
  * alphabetical but really doesn't matter.
  */
-SUBDIRS = $(LIBS) $(DATAUTIL) dm dsdelete dsdump dsdwidget $(DSMANAGE) \
-	dsrescan $(ETC) EventLogger fccclock gettime $(GP) $(INGEST) \
-	msg msg_ping mstatus mtap $(OPTIMIZER_DIR) pdmon prt_Notify \
-	$(REALTIME) settime Sound timer tweakcolor xhelp zstop zmon \
-	zquery zrun zstart
+SUBDIRS = $(LIBS) $(DATAUTIL) dm dsdelete dsdump dsprint dsdwidget \
+	$(DSMANAGE) dsrescan $(ETC) EventLogger fccclock gettime \
+	$(GP) $(INGEST) msg msg_ping mstatus mtap $(OPTIMIZER_DIR) \
+	pdmon prt_Notify $(REALTIME) settime Sound timer tweakcolor \
+	xhelp zstop zmon zquery zrun zstart
 
-DSCLIENTS = $(LIBS) dsdelete dsdump dsdwidget $(DSMANAGE) \
+DSCLIENTS = $(LIBS) dsdelete dsdump dsprint dsdwidget $(DSMANAGE) \
 	dsrescan $(GP) $(INGEST) $(OPTIMIZER_DIR) $(REALTIME)
 
-DSUTILS = $(LIBS) dsdelete dsdump dsdwidget $(DSMANAGE) dsrescan $(REALTIME)
+DSUTILS = $(LIBS) dsdelete dsdump dsprint dsdwidget $(DSMANAGE) \
+	dsrescan $(REALTIME)
 
 MSGUTILS = $(ZEBLIB) msg msg_ping mstatus mtap zebstop zmon zquery zrun
 
@@ -82,12 +83,11 @@ DISTDSMANAGE = dsmanage
 #endif
 
 DISTFILES = Imakefile
-DISTSUBDIRS = lib ds $(DISTDATAUTIL) dm dsdelete dsdump dsdwidget \
-	$(DISTDSMANAGE) \
-	dsrescan etc EventLogger fccclock gettime $(GP) $(DISTINGEST) \
-	msg msg_ping mstatus mtap $(DISTOPTIMIZER) pdmon prt_Notify \
-	$(DISTREALTIME) settime Sound timer tweakcolor xhelp zebstop \
-	zmon zquery zrun
+DISTSUBDIRS = lib ds $(DISTDATAUTIL) dm dsdelete dsdump dsprint \
+	dsdwidget $(DISTDSMANAGE) dsrescan etc EventLogger fccclock \
+	gettime $(GP) $(DISTINGEST) msg msg_ping mstatus mtap \
+	$(DISTOPTIMIZER) pdmon prt_Notify $(DISTREALTIME) settime \
+	Sound timer tweakcolor xhelp zebstop zmon zquery zrun
 
 MakeSubdirs($(SUBDIRS))
 DependSubdirs($(SUBDIRS))
