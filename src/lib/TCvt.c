@@ -23,7 +23,7 @@
 # include <time.h>
 # include <sys/types.h>
 
-MAKE_RCSID ("$Id: TCvt.c,v 2.8 1993-08-04 17:17:08 granger Exp $");
+MAKE_RCSID ("$Id: TCvt.c,v 2.9 1993-10-21 14:27:13 burghart Exp $");
 
 /*
  * The months of the year.
@@ -204,8 +204,8 @@ char *dest;
 		break;
 
 	   case TC_DateOnly:	/* Day of year only */
-		sprintf (dest, "%d-%s-%d", t->tm_year, Months[t->tm_mon],
-			t->tm_mday);
+		sprintf (dest, "%d-%s-%d", t->tm_mday, Months[t->tm_mon],
+			t->tm_year);
 		break;
 
 	   case TC_TimeOnly:	/* Time of day only */
