@@ -24,17 +24,18 @@
 # include <string.h>
 # include <ctype.h>
 
-# include "defs.h"
-# include "config.h"
-# include "message.h"
+# include <defs.h>
+# include <config.h>
+# include <message.h>
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dslib.h"
 # include "dfa.h"
+# include "DataFormat.h"
 
-RCSID ("$Id: DFA_NetCDF.c,v 3.54 1996-09-05 17:44:19 granger Exp $")
+RCSID ("$Id: DFA_NetCDF.c,v 3.55 1996-11-19 08:44:15 granger Exp $")
 
-#include <netcdf.h>
+# include <netcdf.h>
 
 /*
  * Do we include units attribute for altitude
@@ -87,32 +88,29 @@ RCSID ("$Id: DFA_NetCDF.c,v 3.54 1996-09-05 17:44:19 granger Exp $")
 #   define STORE_BADVALUE_ATT
 # endif
 
-# define FILL_FIELDS	/* Fill unknown fields with data, either zero or
-			   badvalues */
-
 /*
  * This is our tag structure.
  */
 typedef struct _nctag
 {
-	int             nc_id;		/* netCDF ID value		 */
-	long            nc_base;	/* Base time value		 */
-	int             nc_vTime;	/* Time variable ID		 */
-	int             nc_dTime;	/* The time dimension ID	 */
-	double         *nc_times;	/* The time offset array	 */
-	nc_type		nc_timeType;	/* Type of time or time_offset	 */
-	int             nc_ntime;	/* The number of time records	 */
-	int             nc_nrec;	/* How many records in the file	 */
-	DataOrganization nc_org;	/* The purported organization	 */
-	Location       *nc_locs;	/* Location array (IRGRID)	 */
-	Location        nc_sloc;	/* Static location		 */
-	RGrid           nc_rgrid;	/* Regular grid info		 */
-	long 		nc_nPlat;	/* Number of platforms		 */
-	PlatformId      nc_plat;	/* The base platform ID		 */
-	PlatformId     *nc_subplats;	/* IRGRID subplatform ID's	 */
+	int             nc_id;		/* netCDF ID value		*/
+	long            nc_base;	/* Base time value from the file*/
+	int             nc_vTime;	/* Time variable ID		*/
+	int             nc_dTime;	/* The time dimension ID	*/
+	nc_type		nc_timeType;	/* Type of time or time_offset	*/
+	ZebTime        *nc_times;	/* The time offset array	*/
+	int             nc_ntime;	/* The number of time records	*/
+	int             nc_nrec;	/* How many records in the file	*/
+	DataOrganization nc_org;	/* The purported organization	*/
+	Location       *nc_locs;	/* Location array (IRGRID)	*/
+	Location        nc_sloc;	/* Static location		*/
+	RGrid           nc_rgrid;	/* Regular grid info		*/
+	long 		nc_nPlat;	/* Number of platforms		*/
+	PlatformId      nc_plat;	/* The base platform ID		*/
+	PlatformId     *nc_subplats;	/* IRGRID subplatform ID's	*/
+	int	       *nc_subindex;	/* Subplatform index hash	*/
 	int		nc_nVar;	/* Number of variables in the file */
 	FieldId		*nc_FMap;	/* The field map		*/
-	char		nc_buffered;	/* Is buffering on?		*/
 	AltUnitType	nc_altUnits;	/* alt units for Locations and	*/
 					/*     RGrid z spacing		*/
 	float		*nc_alts;	/* Alts for 3dgrid and nspace	*/ 
@@ -122,44 +120,48 @@ typedef struct _nctag
 
 
 /*
- * The platform name mapping table.  This is here to allow quick lookup of
- * the index of a subplatform in an irgrid file.  It is all built on the
- * assumption that all the files for a given platform are organized the same
- * way, which should be safe.
+ * Our open file instance structure
  */
-#define BASEDONE	-1	/* Flag to mark bases which are done	 */
-#define UNKNOWN		-2
+typedef struct _NetCDFOpenFile 
+{
+	OpenFile	open_file;
+	NCTag		nc_tag;
+} 
+NetCDFOpenFile;
 
-static int      SPMap[MAXPLAT] = {0};
-static bool     SPMapInited = FALSE;
-/*
- * We also maintain a subplatform list for IRGrid platforms, which ends up in
- * the ir_subplats field of the data object eventually.
- */
-static PlatformId *SubPlats[MAXPLAT] = {0};
+#define TAGP(ofp) (&((NetCDFOpenFile *)ofp)->nc_tag)
 
 /*
- * We use this buffer for field queries.
+ * NetCDF format methods
  */
-#define MAXFLDBUF 	512
-static char     FldBuf[MAXFLDBUF];
+P_QueryTime (dnc_QueryTime);
+P_OpenFile (dnc_OpenFile);
+P_CloseFile (dnc_CloseFile);
+P_SyncFile (dnc_SyncFile);
+P_GetData (dnc_GetData);
+P_GetAlts (dnc_GetAlts);
+P_CreateFile (dnc_CreateFile);
+#ifdef notdef
+P_PutSample (dnc_PutSample);
+#endif
+P_PutBlock (dnc_PutBlock);
+P_GetFields (dnc_GetFields);
+P_GetObsSamples (dnc_GetObsSamples);
+P_Setup (dnc_Setup);
+P_GetTimes (dnc_TimesArray);
 
 /*
  * The class/organization compatibility table.  If the desired class
  * and the given file organization appear together here, we can do it.
  */
-static struct CO_Compat
-{
-	DataOrganization	c_org;
-	DataClass		c_class;
-} COCTable [] =
+static CO_Compat COCTable [] =
 {
 	{ Org1dGrid,		DCC_RGrid	},
 	{ Org2dGrid,		DCC_RGrid	},
 	{ Org3dGrid,		DCC_RGrid	},
 	{ OrgIRGrid,		DCC_IRGrid	},
 #ifdef notdef /* notyet */
-	{ OrgIRGrid,		DCC_RGrid	}, /* profiles from irgrid */
+	{ OrgIRGrid,		DCC_RGrid	},/* 1D profiles from irgrid */
 #endif
 	{ OrgIRGrid,		DCC_Scalar	},
 	{ OrgScalar,		DCC_Scalar	},
@@ -176,9 +178,58 @@ static struct CO_Compat
  */
 	{ Org1dGrid,		DCC_NSpace	},
 	{ Org2dGrid,		DCC_NSpace	},
-	{ Org3dGrid,		DCC_NSpace	},
+	{ Org3dGrid,		DCC_NSpace	}
 };
-# define N_COC (sizeof (COCTable)/sizeof (struct CO_Compat))
+
+
+static DataFormat netcdfFormatRec =
+{
+	"netCDF",			/* Name				*/
+	FTNetCDF,			/* Our enumerated file type	*/
+	".cdf|.nc",			/* Alternate extensions		*/
+	COCTable,       		/* org-class compatibility table*/
+	N_COC (COCTable),		/* number of org-class pairs	*/
+	sizeof(NetCDFOpenFile),		/* size of open file instance	*/
+	0,				/* Read-only			*/
+
+	FORMAT_INIT,
+
+	/* class */
+	dnc_QueryTime,			/* Query times			*/
+	fmt_MakeFileName,		/* Make file name		*/
+
+	/* open file */
+	dnc_Setup,			/* setup			*/
+	dnc_OpenFile,			/* Open				*/
+	dnc_CloseFile,			/* Close			*/
+	dnc_SyncFile,			/* Synchronize			*/
+	dnc_GetData,			/* Get the data			*/
+	dnc_GetAlts,			/* Get altitude info		*/
+	fmt_DataTimes,			/* Get data times		*/
+	___,				/* Get forecast times		*/
+	dnc_CreateFile,			/* Create a new file		*/
+	___ /*dnc_PutSample*/,		/* Write to file		*/
+	dnc_PutBlock,			/* Write block to a file	*/
+	dnc_GetObsSamples,		/* Get observation samples	*/
+	dnc_GetFields,			/* Get fields			*/
+	___,				/* Get Attributes		*/
+	dnc_TimesArray			/* Return the times array	*/
+};
+
+
+DataFormat *netcdfFormat = (DataFormat *) &netcdfFormatRec;
+
+
+/*
+ * This will always be zero unless changed by the T_NetCDF module. 
+ */
+static int TestTimeUnits = 0;
+
+/*
+ * We use this buffer for field queries.
+ */
+#define MAXFLDBUF 	512
+static char     FldBuf[MAXFLDBUF];
 
 /*
  * Structure for passing attribute info among process functions
@@ -189,14 +240,7 @@ struct AttArg {
 };
 
 /*
- * Semi-public prototypes (data format methods)
- */
-int dnc_CloseFile FP ((NCTag *tag));
-int dnc_GetAlts FP ((int dfindex, FieldId fid, int offset, float *alts,
-		     int *nalts, AltUnitType *altunits));
-
-/*
- * Locally used stuff.
+ * Locally used private stuff.
  */
 static void     dnc_NCError FP ((char *));
 static int      dnc_OFTimes FP ((NCTag *));
@@ -213,9 +257,10 @@ static int	dnc_GetRGridAlts FP ((NCTag *tag, FieldId fid,
 static int	dnc_GetNSpaceAlts FP ((NCTag *tag, FieldId fid,
 				       int offset, int opening));
 static int	dnc_GetIRGridAlts FP ((NCTag *tag, FieldId fid, int offset));
-static int     	dnc_TimeIndex FP ((NCTag *, ZebTime *));
 static int	dnc_AltIndex FP ((NCTag *tag, dsDetail *, int ndetail));
 static void     dnc_LoadLocation FP ((NCTag *, Location *, long, long));
+static void	dnc_SPBuildIndex FP ((NCTag *tag));
+static int	dnc_SPIndex FP ((NCTag *tag, PlatformId pid));
 static int      dnc_BuildPMap FP ((NCTag *, int pdim));
 static void     dnc_CFMakeDims FP ((NCTag *, DataChunk *, int *, int *));
 static void     dnc_CFMakeVars FP ((NCTag *, DataChunk *));
@@ -223,8 +268,6 @@ static void     dnc_CFScalarVars FP ((NCTag *, DataChunk *));
 static void     dnc_CFGridVars FP ((NCTag *, DataChunk *));
 static void     dnc_CFIRGridVars FP ((NCTag *, DataChunk *));
 static bool     dnc_OverheadField FP ((char *const));
-static int	dnc_OrgClassCompat FP ((DataOrganization, DataClass));
-static void	dnc_ConvTimes FP ((NCTag *, int, int, ZebTime *));
 static void	dnc_SetFieldTypes FP ((NCTag *tag, DataChunk *dc, int nfield,
 				       FieldId *fields));
 static void	dnc_NSpaceSetup FP((NCTag *tag, DataChunk *dc, 
@@ -232,33 +275,32 @@ static void	dnc_NSpaceSetup FP((NCTag *tag, DataChunk *dc,
 static void	dnc_NSpaceFinishSetup FP ((NCTag *tag, DataChunk *dc,
 					   dsDetail *details, int ndetail));
 static void	dnc_Slice FP ((NCTag *tag, int varid, long *start,
-			       long *count, int altindex, dsDetail *, int));
-static int 	dnc_ReadScalar FP((DataChunk *, NCTag *, long, long, FieldId *,
-				   int, double, dsDetail *, int ndetail));
-static void 	dnc_ReadIRGrid FP ((DataChunk *, NCTag *, int, int, FieldId *,
-			int, double, dsDetail *, int ndetail));
-static void 	dnc_ReadRGrid FP ((DataChunk *, NCTag *, int, int, FieldId *,
-			int, double, dsDetail *, int));
+			       long *count, dsDetail *, int));
+static int 	dnc_ReadScalar FP((DataChunk *, NCTag *, long, long,
+				   dsDetail *, int ndetail));
+static int	dnc_ReadSubplat FP((DataChunk *dc, NCTag *tag, long begin, 
+				    long nsamp, long *start, long *count));
+static void 	dnc_ReadIRGrid FP ((DataChunk *, NCTag *, int, int,
+				    dsDetail *, int ndetail));
+static void 	dnc_ReadRGrid FP ((DataChunk *, NCTag *, int, int,
+				   dsDetail *, int));
 static int	dnc_ReadNSpace FP((DataChunk *, NCTag *, long,
-			long, FieldId *, int, double, dsDetail *, int));
+				   long, dsDetail *, int));
 static void	dnc_ReadNSpaceScalar FP((DataChunk *dc, NCTag *tag, 
-			 ZebTime *t, int begin, int nsamp, FieldId *fids, 
-			 int nfield, double badval, int altindex,
-			 dsDetail *details, int ndetail));
+					 int begin, int nsamp, 
+					 dsDetail *details, int ndetail));
 static int	dnc_ReadLocation FP ((DataChunk *, NCTag *, long, long));
 static int 	dnc_VarAlts FP ((int ncid, int varid, AltUnitType *au));
 static int	dnc_GetFieldVar FP ((NCTag *, FieldId));
-#ifdef APPLY_BADVALUE
-static void	dnc_ApplyBadval FP ((NCTag *, int varid, 
-				     DataChunk *dc, FieldId fid,
-				     double, float *, int));
-#endif /* APPLY_BADVALUE */
 static double	dnc_ZtToOffset FP ((NCTag *, ZebTime *));
 static void	dnc_DoWriteCoords FP ((NCTag *, DataChunk *, int, long *,
 			long *, int *));
 static int	dnc_NSpaceVarPut FP ((NCTag *tag, DataChunk *dc, int varid, 
 				      FieldId fid, long *start, long *count, 
 				      int ndim, DataPtr data));
+static int	dnc_PutRecords FP ((OpenFile *ofp, DataChunk *dc,
+				    int sample, int nsample, long start));
+static void	dnc_PutStatic FP ((OpenFile *ofp, DataChunk *dc));
 static void	dnc_DefineVars FP ((NCTag *tag, DataChunk *dc, int ndim,
 				    int *dims));
 static void	dnc_DefineNSpaceDims FP ((NCTag *tag, DataChunk *dc));
@@ -269,31 +311,17 @@ static void	dnc_DefineLocVars FP ((NCTag *tag, int ndims, int *dims,
 static void	dnc_PutGlobalAttributes FP ((NCTag *tag, DataChunk *dc));
 static int	dnc_PutAttribute FP ((char *key, void *value, int nval,
 				      DC_ElemType type, void *arg));
-#ifdef FILL_FIELDS
-static void	dnc_FillArray FP ((float *, int, double));
-#endif
-static int	dnc_FindTimes FP ((NCTag *tag, DataChunk *dc, int sample, 
+static int	dnc_FindTimes FP ((OpenFile *ofp, DataChunk *dc, int sample, 
 				   int count, WriteCode wc, long *start));
 static char *	dnc_ValueToString FP ((void *value, nc_type type, int len));
 static DC_ElemType dnc_ElemType FP ((nc_type type));
 static nc_type	dnc_NCType FP ((DC_ElemType type));
 static char *	dnc_GetStringAtt FP ((int cdfid, int varid, char *att_name, 
 				      char *att_val, int len));
-int		dnc_PutBlock FP ((int dfile, DataChunk *dc, int sample,
-				  int nsample, WriteCode wc));
 static int	dnc_ReadGlobalAtts FP ((DataChunk *, NCTag *));
 static void	dnc_ReadFieldAtts FP ((DataChunk *, NCTag *, FieldId *, int));
-#ifndef TEST_TIME_UNITS
-static
-#endif
-int dnc_TimeUnits FP ((ZebTime *zt, const char *time_units));
+static int	dnc_TimeUnits FP ((ZebTime *zt, const char *time_units));
 static void	strtolower FP ((char *c));
-
-/*
- * The minimum size of a time list before it's worthwhile to do a binary
- * search.
- */
-#define MINTIME 10
 
 /*
  * Global attribute names which are automatically stored with the file
@@ -331,7 +359,7 @@ ZebTime *zt;
  */
 {
 	zt->zt_Sec = tag->nc_base + (long)offset;
-	zt->zt_MicroSec = (1e+6) * (offset - (long)offset);
+	zt->zt_MicroSec = (long)((1e+6) * (offset - (long)offset) + 0.5);
 }
 
 
@@ -509,7 +537,7 @@ ZebTime *base_time;
 
 
 
-int
+static int
 dnc_QueryTime (file, begin, end, nsamp)
 char *file;
 ZebTime *begin, *end;
@@ -588,27 +616,26 @@ int *nsamp;
 
 
 
-
-int
-dnc_OpenFile (fname, dp, write, rtag)
+static int
+dnc_OpenFile (of, fname, dp, write)
+OpenFile *of;
 char *fname;
 DataFile *dp;
 int write;
-NCTag **rtag;
 /*
  * Try to open this file.
  */
 {
-	NCTag *tag = ALLOC (NCTag);
+	NCTag *tag = TAGP(of);
 	int ret, v;
+	int flags;
 /*
  * Try to open the file.
  */
 	ncopts = 0;		/* Change default error behavior	 */
-	if ((tag->nc_id = ncopen (fname, write ? NC_WRITE : NC_NOWRITE))
-			    < 0)
+	flags = (write ? (NC_WRITE | NC_NOFILL) : NC_NOWRITE);
+	if ((tag->nc_id = ncopen (fname, flags)) < 0)
 	{
-		free (tag);
 		dnc_NCError ("file open");
 		return (FALSE);
 	}
@@ -619,17 +646,18 @@ NCTag **rtag;
 	tag->nc_plat = dp->df_platform;
 	tag->nc_ntime = 0;
 	tag->nc_locs = (Location *) NULL;
-	tag->nc_alts = NULL;
+	tag->nc_alts = (float *) NULL;
+	tag->nc_subplats = (PlatformId *) NULL;
+	tag->nc_subindex = (int *) NULL;
 	tag->nc_nalts = 0;
 	tag->nc_altvar = -1;
 	tag->nc_FMap = 0;
-	tag->nc_buffered = TRUE;
 /*
  * Deal with the time and field information.
  */
 	if (!dnc_OFTimes (tag) || ! dnc_LoadFields (tag))
 	{
-		dnc_CloseFile (tag);
+		dnc_CloseFile (of);
 		return (FALSE);
 	}
 /*
@@ -643,10 +671,6 @@ NCTag **rtag;
 	{
 		if (! dnc_VarAlts (tag->nc_id, v, &tag->nc_altUnits))
 		{
-# ifdef notdef
-			dnc_CloseFile (tag);
-			return (FALSE);
-# endif
 			msg_ELog (EF_PROBLEM, "using ambiguous 'level' units");
 			tag->nc_altUnits = AU_level;
 		}
@@ -702,10 +726,8 @@ NCTag **rtag;
 
 	if (!ret)
 	{
-		dnc_CloseFile (tag);
-		tag = NULL;
+		dnc_CloseFile (of);
 	}
-	*rtag = tag;
 	return (ret);
 }
 
@@ -795,15 +817,6 @@ const char *name;
 			continue;
 		if ((platid >= 0) && (ndim == 0 || dimids[0] != platid))
 			continue;
-#ifdef notdef
-		for (i = 0; i < ndim; ++i)
-		{
-			if (dimids[i] == platid)
-				break;
-		}
-		if (i >= ndim)
-			continue;
-#endif
 		strtolower (vname);
 		if (strcmp (vname, target) == 0)
 		{
@@ -831,9 +844,10 @@ NCTag *tag;
  * Figure out the setup for this IRGRID file.
  */
 {
-	int dim, lat, lon, alt, i;
+	int dim, lat, lon, alt;
 	long start = 0, stop;
-	float *pos;
+	long stride[1];
+	long imap[1];
 /*
  * See how many platforms there are.  Try to be flexible about the
  * dimension names which we'll accept.
@@ -868,32 +882,28 @@ NCTag *tag;
  * OK, assume this is going to work.  Allocate the space we need.
  */
 	tag->nc_locs = (Location *) malloc (tag->nc_nPlat * sizeof(Location));
-	pos = (float *) malloc (tag->nc_nPlat * sizeof (float));
 /*
  * Now we go through and grab each piece of the location.
  */
 	stop = tag->nc_nPlat;
-	if (ncvarget (tag->nc_id, lat, &start, &stop, pos) < 0)
+	stride[0] = 1;
+	imap[0] = sizeof(Location);
+	if (ncvargetg (tag->nc_id, lat, &start, &stop, stride, imap,
+		       &(tag->nc_locs[0].l_lat)) < 0)
 		msg_ELog (EF_PROBLEM, "Lat get failure %d", ncerr);
-	for (i = 0; i < tag->nc_nPlat; i++)
-		tag->nc_locs[i].l_lat = pos[i];
 
-	if (ncvarget (tag->nc_id, lon, &start, &stop, pos) < 0)
+	if (ncvargetg (tag->nc_id, lon, &start, &stop, stride, imap,
+		       &(tag->nc_locs[0].l_lon)) < 0)
 		msg_ELog (EF_PROBLEM, "Lon get failure %d", ncerr);
-	for (i = 0; i < tag->nc_nPlat; i++)
-		tag->nc_locs[i].l_lon = pos[i];
 
-	if (ncvarget (tag->nc_id, alt, &start, &stop, pos) < 0)
+	if (ncvargetg (tag->nc_id, alt, &start, &stop, stride, imap,
+		      &(tag->nc_locs[0].l_alt)) < 0)
 		msg_ELog (EF_PROBLEM, "Alt get failure %d", ncerr);
-	for (i = 0; i < tag->nc_nPlat; i++)
-		tag->nc_locs[i].l_alt = pos[i];
-	free (pos);
 /*
  * Build the subplatform map.
  */
 	if (!dnc_BuildPMap (tag, dim))
 		return (FALSE);
-	tag->nc_subplats = SubPlats[tag->nc_plat];
 /*
  * All done.
  */
@@ -901,10 +911,86 @@ NCTag *tag;
 }
 
 
+/*
+ * Abandon the huge persistent subplatform map in favor of something which
+ * allows the list of subplatforms stored in each file to vary.  Keep the
+ * nc_subplats array to map the file subplat dimension to platform ID, and
+ * use the nc_subindex array to hash a platform ID into the file dimension
+ * coordinate.  Take advantage of the fact that subplatform ID's are
+ * virtually always consecutive with a simple modulo hash.
+ */
+
+static void
+dnc_SPBuildIndex (tag)
+NCTag *tag;
+/*
+ * Create and initialize the subplat index array according to the number
+ * of subplatforms.  The extra slot in the index array is for a perpetual
+ * -1 to stop hash searches on a non-existent id.
+ */
+{
+	int nplat = tag->nc_nPlat;
+	int i;
+
+	tag->nc_subindex = (int *) malloc ((nplat + 1) * sizeof(int));
+	/*
+	 * Create an empty hash array.
+	 */
+	for (i = 0; i < nplat+1; ++i)
+	{
+		tag->nc_subindex[i] = -1;
+	}
+	/*
+	 * Fill it according to the id's in the subplats array.
+	 */
+	for (i = 0; i < nplat; ++i)
+	{
+		int hash;
+
+		if (tag->nc_subplats[i] == BadPlatform)
+			continue;
+		hash = tag->nc_subplats[i] % tag->nc_nPlat;
+		while (tag->nc_subindex[hash] != -1)
+			if (++hash == (tag->nc_nPlat + 1))
+				hash = 0;
+		tag->nc_subindex[hash] = i;
+	}
+}
+	
+
+
+static int
+dnc_SPIndex (tag, pid)
+NCTag *tag;
+PlatformId pid;
+/*
+ * Map this subplatform id into its netcdf coordinate.  Return -1
+ * if the id is not contained in the subplatform list.
+ */
+{
+	int idx = -1;
+
+	if (tag->nc_subindex && pid != BadPlatform)
+	{
+		int hash = (pid % tag->nc_nPlat);
+		idx = tag->nc_subindex[hash];
+		while ((idx != -1) && (tag->nc_subplats[idx] != pid))
+		{
+			if (++hash == (tag->nc_nPlat + 1))
+				hash = 0;
+			idx = tag->nc_subindex[hash];
+		}
+	}
+	return (idx);
+}
+
+
+
 static const char *PlatDimnNames[] = {
 	"platform", "station", "site_num", "stn_num", "plat_num", "site_id", 
 	"stn_id", "plat_id", "num_site", "num_stn", "num_plat", "subplat", 
 	"facility", NULL };
+
 
 static int
 dnc_BuildPMap (tag, pdim)
@@ -914,7 +1000,7 @@ int pdim;
  * Build the subplatform lookup map.
  */
 {
-	int i, name_id, len_id, plat;
+	int i, name_id = -1, len_id, plat;
 	int ndims;
 	int dimids[MAX_VAR_DIMS];
 	nc_type vtype;
@@ -923,21 +1009,6 @@ int pdim;
 	long count[MAX_VAR_DIMS];
 	char *name, *base, *fullname;
 	char value[sizeof(double)];
-/*
- * Initialize the map if necessary.
- */
-	if (!SPMapInited)
-	{
-		for (i = 0; i < MAXPLAT; i++)
-			SPMap[i] = UNKNOWN;
-		SPMapInited = TRUE;
-	}
-/*
- * Before we do anything else, let's make sure that this job hasn't
- * already been done.
- */
-	if (SPMap[tag->nc_plat] == BASEDONE)
-		return (TRUE);
 /*
  * Get set up to start snooping through platform names.
  */
@@ -1002,7 +1073,7 @@ int pdim;
 /*
  * Go through and read back all the platform ids.
  */
-	tag->nc_subplats = SubPlats[tag->nc_plat] =
+	tag->nc_subplats = 
 		(PlatformId *) malloc (tag->nc_nPlat * sizeof(PlatformId));
 	for (i = 0; i < tag->nc_nPlat; i++)
 	{
@@ -1033,15 +1104,17 @@ int pdim;
 	 */
 		if ((plat = ds_LookupPlatform (fullname)) == BadPlatform)
 			msg_ELog (EF_INFO, "NC Platform %s unknown", fullname);
-		else
-			SPMap[plat] = i;
 		tag->nc_subplats[i] = plat;
 	}
 	free (name);
 	free (fullname);
 	if (i < tag->nc_nPlat)
+	{
+		free (tag->nc_subplats);
+		tag->nc_subplats = NULL;
 		return (FALSE);
-	SPMap[tag->nc_plat] = BASEDONE;
+	}
+	dnc_SPBuildIndex (tag);
 	return (TRUE);
 }
 
@@ -1304,10 +1377,7 @@ char *c;
 
 
 
-#ifndef TEST_TIME_UNITS
-static
-#endif
-int
+static int
 dnc_TimeUnits (zt, time_units)
 ZebTime *zt;
 const char *time_units;
@@ -1442,6 +1512,7 @@ NCTag *tag;
  */
 {
 	long ntime, zero = 0;
+	double *dtime;
 	float *ftime;
 	long *ltime;
 	int status, i;
@@ -1458,7 +1529,7 @@ NCTag *tag;
 	{
 		if (tag->nc_ntime)
 			free (tag->nc_times);
-		tag->nc_times = (double *) malloc (ntime * sizeof (double));
+		tag->nc_times = (ZebTime *) malloc (ntime * sizeof (ZebTime));
 	}
 	tag->nc_ntime = ntime;
 	msg_ELog (EF_DEBUG, "cdf times: %d samps", ntime);
@@ -1469,36 +1540,44 @@ NCTag *tag;
  */
 	if (tag->nc_timeType == NC_DOUBLE)
 	{
+	/*
+	 * Read times as doubles, then convert to ZebTimes.
+	 */
+		dtime = (double *) malloc (ntime * sizeof (double));
 		status = ncvarget (tag->nc_id, tag->nc_vTime, &zero, &ntime, 
-			tag->nc_times);
+				   dtime);
+		if (status >= 0)
+			for (i = 0; i < ntime; i++)
+				dnc_OffsetToZt (tag, dtime[i], 
+						tag->nc_times + i);
+		free (dtime);
 	}
 	else if (tag->nc_timeType == NC_FLOAT)
 	{
 	/*
-	 * Read the time as floats, then move it to the double array.
+	 * Read times as floats, then move them to the ZebTime array.
 	 */
 		ftime = (float *) malloc (ntime * sizeof (float));
 		status = ncvarget (tag->nc_id, tag->nc_vTime, &zero, &ntime, 
-			ftime);
-
+				   ftime);
 		if (status >= 0)
 			for (i = 0; i < ntime; i++)
-				tag->nc_times[i] = (double) ftime[i];
-
+				dnc_OffsetToZt (tag, (double) ftime[i], 
+						tag->nc_times + i);
 		free (ftime);
 	}
 	else /* tag->nc_timeType == NC_LONG */
 	{
 	/*
-	 * Read the time as longs, then move it to the double array.
+	 * Read times as longs, then move them to the ZebTime array.
 	 */
 		ltime = (long *) malloc (ntime * sizeof (long));
 		status = ncvarget (tag->nc_id, tag->nc_vTime, &zero, &ntime, 
 				   ltime);
 		if (status >= 0)
 			for (i = 0; i < ntime; i++)
-				tag->nc_times[i] = (double) ltime[i];
-
+				dnc_OffsetToZt (tag, (double) ltime[i], 
+						tag->nc_times + i);
 		free (ltime);
 	}
 
@@ -1512,7 +1591,16 @@ NCTag *tag;
 
 
 
+static ZebTime *
+dnc_TimesArray (ofp, ntime)
+OpenFile *ofp;
+int *ntime;
+{
+	NCTag *tag = TAGP (ofp);
 
+	*ntime = tag->nc_ntime;
+	return (tag->nc_times);
+}
 
 
 
@@ -1552,13 +1640,15 @@ char *s;
 
 
 
-int
-dnc_CloseFile(tag)
-NCTag *tag;
+static void
+dnc_CloseFile (ofp)
+OpenFile *ofp;
 /*
  * Close this file.
  */
 {
+	NCTag *tag = TAGP (ofp);
+
 	ncclose (tag->nc_id);
 	if (tag->nc_ntime)
 		free (tag->nc_times);
@@ -1568,30 +1658,23 @@ NCTag *tag;
 		free (tag->nc_FMap);
 	if (tag->nc_alts)
 		free (tag->nc_alts);
-	free(tag);
-	return (0);
+	if (tag->nc_subplats)
+		free (tag->nc_subplats);
+	if (tag->nc_subindex)
+		free (tag->nc_subindex);
 }
 
 
 
 
-int
-dnc_SyncFile (tag)
-NCTag *tag;
+static int
+dnc_SyncFile (ofp)
+OpenFile *ofp;
 /*
  * Synchronize this file.
  */
 {
-#ifdef notdef
-/*
- * If buffering is still enabled, we need to turn it off now.
- */
-	if (tag->nc_buffered)
-	{
-		/* ncnobuf (tag->nc_id); */   /* never did anything anyway */
-		tag->nc_buffered = FALSE;
-	}
-#endif
+	NCTag *tag = TAGP (ofp);
 /*
  * Update to the file itself, then reload the times array.
  */
@@ -1603,31 +1686,10 @@ NCTag *tag;
 
 
 
-static int
-dnc_OrgClassCompat (org, class)
-DataOrganization org;
-DataClass class;
-/*
- * Return TRUE iff these two are compatible.
- */
-{
-	int i;
-/*
- * Go through and see if we find the combination in the table.
- */
-	for (i = 0; i < N_COC; i++)
-		if (class == COCTable[i].c_class && org == COCTable[i].c_org)
-			return (TRUE);
-	return (FALSE);
-}
 
-
-
-
-
-DataChunk *
-dnc_Setup (gp, fields, nfield, class)
-GetList *gp;
+static DataChunk *
+dnc_Setup (ofp, fields, nfield, class)
+OpenFile *ofp;
 FieldId *fields;
 int nfield;
 DataClass class;
@@ -1635,21 +1697,8 @@ DataClass class;
  * Get set up for this piece of data access.
  */
 {
-	NCTag *tag;
+	NCTag *tag = TAGP (ofp);
 	DataChunk *dc;
-/*
- * Start by opening the first file.  We'll need it soon.
- */
-	if (!dfa_OpenFile (gp->gl_dfindex, FALSE, (void *) &tag))
-		return (0);
-/*
- * Make sure this is a combination we can do.
- */
-	if (! dnc_OrgClassCompat (tag->nc_org, class))
-	{
-		msg_ELog (EF_PROBLEM, "File org/class mismatch");
-		return (NULL);
-	}
 /*
  * Create a data chunk with the desired organization.
  */
@@ -1658,7 +1707,7 @@ DataClass class;
  * Make sure we have altitudes, and put the units into the data chunk.
  */
 	if (nfield > 0)
-		dnc_GetAlts (gp->gl_dfindex, fields[0], 0, NULL, NULL, NULL);
+		dnc_GetAlts (ofp, fields[0], 0, NULL, NULL, NULL);
 	dc_SetLocAltUnits (dc, tag->nc_altUnits);
 /*
  * Now we try to get everything together.
@@ -1725,7 +1774,6 @@ DataClass class;
 
 
 
-
 static void
 dnc_SetFieldTypes (tag, dc, nfield, fields)
 NCTag *tag;
@@ -1762,6 +1810,73 @@ FieldId *fields;
 
 
 
+static void
+dnc_DefineNSpaceField (tag, dc, fid)
+NCTag *tag;
+DataChunk *dc;
+FieldId fid;
+{
+	int j;
+	int varid;
+	nc_type vtype;
+	int is_static;
+	int ndims, natts, nsdims;
+	int dims[ MAX_VAR_DIMS ];
+	unsigned long sizes[ MAX_NC_DIMS ];
+	static char dim_names[ MAX_NC_DIMS ][ MAX_NC_NAME ];
+	static char *names[ MAX_NC_DIMS ] = { NULL };
+
+	if (names[0] == NULL)
+	{
+		for (j = 0; j < MAX_NC_DIMS; ++j)
+			names[j] = &(dim_names[j][0]);
+	}
+	/*
+	 * See if this field's varid is in the tag.  If not, default
+	 * to scalar float.  Else inquire the varid and get its dimensions.
+	 */
+	if ((varid = dnc_GetFieldVar (tag, fid)) < 0)
+	{
+		/*
+		 * Field unknown, so default to a static scalar float.
+		 * This will later get filled with bad values.
+		 * It can be static since it will be all bad values
+		 * for every sample time.
+		 *
+		 * XXX Unless the next file read does have this field!
+		 */
+		ndims = 0;
+		is_static = TRUE;
+		vtype = NC_FLOAT;
+	}
+	else
+	{
+		/*
+		 * Have a varid for the field.  Get the dimensions.
+		 * If not static, then we skip the first dimension,
+		 * time, when defining the field for the NSpace
+		 * chunk.
+		 */
+		ncvarinq (tag->nc_id, varid, 0, &vtype, &ndims, 
+			  dims, &natts);
+		is_static = ((ndims == 0) || 
+			     (dims[0] != tag->nc_dTime));
+	}
+	nsdims = 0;
+	for (j = (is_static ? 0 : 1); j < ndims; ++j)
+	{
+		ncdiminq (tag->nc_id, dims[j], names[nsdims], 
+			  (long *) &(sizes[nsdims]));
+		++nsdims;
+	}
+	/*
+	 * Have all the dimensions.  Define the field.
+	 */
+	dc_NSDefineField (dc, fid, nsdims, names, sizes, is_static);
+}
+
+
+
 
 static void
 dnc_NSpaceSetup (tag, dc, nfield, fids)
@@ -1778,104 +1893,59 @@ FieldId *fids;
  * At exit, the definition of the chunk is completed and closed.
  */
 {
-	int i, j;
-	int varid;
-	FieldId fields[ DC_MaxField ];
-	FieldId fid;
-	int ndims, natts, nsdims;
-	nc_type vtype;
-	int dims[ MAX_VAR_DIMS ];
-	int is_static;
-	unsigned long sizes[ MAX_NC_DIMS ];
-	char dim_names[ MAX_NC_DIMS ][ MAX_NC_NAME ];
-	char *names[ MAX_NC_DIMS ];
-	DC_ElemType types[ MAX_NC_VARS ];
-	int nbase;
+	int i;
+	char *names[ DC_MaxDimension ];
 
-	for (i = 0; i < MAX_NC_DIMS; ++i)
-		names[i] = &(dim_names[i][0]);
 	/*
-	 * For each field, see if its varid is in the tag.  If not,
-	 * default to scalar float.
-	 * Else inquire the varid and get its dimensions
-	 * and define the field with dc_NSDefineField().
-	 *
-	 * For each field's dimensions, make sure any coordinate variables
-	 * are automatically included in the datachunk as well.
-	 *
+	 * First define the explicitly requested fields.
+	 */
+	dc_NSAllowRedefine (dc, TRUE);
+	for (i = 0; i < nfield; ++i)
+	{
+		dnc_DefineNSpaceField (tag, dc, fids[i]);
+	}
+	/*
 	 * Once the fields are defined, check each field for dimensions
-	 * which are coordinate variables, and define these in the
-	 * datachunk also.
+	 * which are coordinate variables, and add these to the datachunk
+	 * also.
 	 */
 	for (i = 0; i < nfield; ++i)
-	     fields[i] = fids[i];
-	i = 0;
-	nbase = nfield;
-	dc_NSAllowRedefine (dc, TRUE);
-	while (i < nfield)
 	{
-		if ((varid = dnc_GetFieldVar (tag, fields[i])) < 0)
-		{
-			/*
-			 * Field unknown, so default to a static scalar float.
-			 * This will later get filled with bad values.
-			 * It can be static since it will be all bad values
-			 * for every sample time.
-			 */
-			ndims = 0;
-			is_static = TRUE;
-			vtype = NC_FLOAT;
-		}
-		else
-		{
-			/*
-			 * Have a varid for the field.  Get the dimensions.
-			 * If not static, then we skip the first dimension,
-			 * time, when defining the field for the NSpace
-			 * chunk.
-			 */
-			ncvarinq (tag->nc_id, varid, 0, &vtype, &ndims, 
-				  dims, &natts);
-			is_static = ((ndims == 0) || 
-				     (dims[0] != tag->nc_dTime));
-		}
-		nsdims = 0;
-		for (j = (is_static ? 0 : 1); j < ndims; ++j)
-		{
-			ncdiminq (tag->nc_id, dims[j], names[nsdims], 
-				  (long *) &(sizes[nsdims]));
-			/*
-			 * Look up this dimension name as a field, and
-			 * see if it has a corresponding varid.  If so,
-			 * add it to the list of variables to define.  Of
-			 * course, if this is a coordinate variable we added
-			 * on earlier passes, ignore it.
-			 */
-			if ((i < nbase) && 
-			    (fid = F_Declared(names[nsdims])) != BadField)
-			{
-				if (dnc_GetFieldVar (tag, fid) >= 0)
-					fields[nfield++] = fid;
+		int ndims, j;
+		FieldId fid;
 
+		if (! dc_NSGetField (dc, fids[i], &ndims, names, NULL, NULL))
+			continue;
+		for (j = 0; j < ndims; ++j)
+		{
+			/*
+			 * Look up this dimension name as a field.  If the
+			 * name is not known then it cannot be a variable
+			 * in this file, so we can ignore it.  Otherwise,
+			 * see if the field has a corresponding varid, which
+			 * would mean this dimension is a coordinate variable.
+			 * If so, add the dimension name's field id to the
+			 * list of variables to define, unless that field id
+			 * is already in the list.
+			 */
+			fid = F_Declared(names[j]);
+			if ((fid != BadField) 
+			    && (dnc_GetFieldVar (tag, fid) >= 0)
+			    && (dc_GetFieldIndex (dc, fid) < 0))
+			{
+				msg_ELog (EF_DEBUG, "%s variable '%s'", 
+					  "fetching implicit coordinate",
+					  names[j]);
+				dnc_DefineNSpaceField (tag, dc, fid);
 			}
-			++nsdims;
 		}
-		/*
-		 * Have all the dimensions.  Define the field.
-		 */
-		types[i] = dnc_ElemType (vtype);
-		dc_NSDefineField (dc, fields[i], nsdims,
-				  names, sizes, is_static);
-		i++;
 	}
-#ifdef notdef /* must put off definition until we know whether to slice alts */
-	/*
-	 * All done.  Close it out and set the types.
+	/* 
+	 * Must put off completion until we know whether to slice alts.
 	 */
-	dc_NSDefineComplete (dc);
-	dc_SetFieldTypes (dc, nfield, fields, types);
-#endif
 }
+
+
 
 
 
@@ -1924,34 +1994,28 @@ int ndetail;
 
 
 
-int
-dnc_GetData (dc, gp, details, ndetail)
+
+static int
+dnc_GetData (ofp, dc, begin, nsamp, details, ndetail)
+OpenFile *ofp;
 DataChunk *dc;
-GetList *gp;
+int begin;		/* sample number to grab */
+int nsamp;		/* number of samples to grab */
 dsDetail *details;
 int ndetail;
 /*
- * Actually get the data that all that work has been done for.
+ * Actually get the data that all that work has been done for.  Append
+ * the samples to the given data chunk.
  */
 {
-	NCTag *tag;
-	int tbegin, tend, nfield, nsamp;
-	FieldId *fids;
-	SValue v;
-	double offset1, offset2;
-	float badval = 0;
-/*
- * Open the data file.
- */
-	if (!dfa_OpenFile (gp->gl_dfindex, FALSE, (void *) &tag))
-		return (0);
+	NCTag *tag = TAGP (ofp);
 /*
  * Verify alt units of this file match the datachunk we're adding to
  */
 	if (tag->nc_altUnits != dc_GetLocAltUnits (dc))
 	{
 		msg_ELog (EF_PROBLEM, "%s: altitude units mismatch in file %d",
-			  "netCDF get data", gp->gl_dfindex);
+			  "netCDF get data", dfa_FileIndex (ofp));
 		return (0);
 	}
 /*
@@ -1962,38 +2026,6 @@ int ndetail;
  */
 	if ((dc->dc_Class == DCC_NSpace) && !dc_NSDefineIsComplete(dc))
 		dnc_NSpaceFinishSetup(tag, dc, details, ndetail);
-	if (dc->dc_Class != DCC_Location)
-		fids = dc_GetFields (dc, &nfield);
-/*
- * Figure out what bad value flag they want, and make sure it is stored
- * in the DC.
- */
-#ifdef READ_BADVALUE_ATT
-	if (dc->dc_Class != DCC_Location)
-	{
-		badval = ds_GetDetail ("badval", details, ndetail, &v) ?
-				v.us_v_float : 99999.9;
-		dc_SetBadval (dc, badval);
-	}
-#endif /* READ_BADVALUE_ATT */
-/*
- * Get the time indices.
- */
-	tbegin = dnc_TimeIndex (tag, &gp->gl_begin);
-	tend = dnc_TimeIndex (tag, &gp->gl_end);
-	offset1 = dnc_ZtToOffset (tag, &gp->gl_begin);
-	offset2 = dnc_ZtToOffset (tag, &gp->gl_end);
-/*
- * Compare the times at these indices with the requested times and adjust.
- * We don't want any times outside the requested range.
- */
-	if (tag->nc_times[tbegin] < offset1)
-		++tbegin;
-	if (offset2 < tag->nc_times[tend])
-		--tend;
-	if (tbegin > tend)
-		return (FALSE);
-	nsamp = tend - tbegin + 1;
 /*
  * Prepare the DataChunk for the samples we're about to add using the current
  * sample size hint.
@@ -2008,35 +2040,31 @@ int ndetail;
 	 * Scalars.
 	 */
 	   case DCC_Scalar:
-	   	dnc_ReadScalar (dc, tag, tbegin, nsamp, fids, nfield, badval,
-				details, ndetail);
+		dnc_ReadScalar (dc, tag, begin, nsamp, details, ndetail);
 		break;
 	/*
 	 * IRGrids.
 	 */
 	   case DCC_IRGrid:
-	   	dnc_ReadIRGrid (dc, tag, tbegin, nsamp, fids, nfield, badval,
-				details, ndetail);
+	   	dnc_ReadIRGrid (dc, tag, begin, nsamp, details, ndetail);
 		break;
 	/*
 	 * Regular grids.
 	 */
 	   case DCC_RGrid:
-	   	dnc_ReadRGrid (dc, tag, tbegin, nsamp, fids, nfield, badval,
-			       details, ndetail);
+	   	dnc_ReadRGrid (dc, tag, begin, nsamp, details, ndetail);
 		break;
 	/*
 	 * Locations.
 	 */
 	   case DCC_Location:
-	   	dnc_ReadLocation (dc, tag, tbegin, nsamp);
+	   	dnc_ReadLocation (dc, tag, begin, nsamp);
 		break;
 	/*
 	 * NSpace.
 	 */
 	   case DCC_NSpace:
-		dnc_ReadNSpace (dc, tag, tbegin, nsamp, fids, nfield, badval,
-				details, ndetail);
+		dnc_ReadNSpace (dc, tag, begin, nsamp, details, ndetail);
 		break;
 
 	   default:
@@ -2050,13 +2078,13 @@ int ndetail;
 
 
 
+
 static void
-dnc_Slice (tag, varid, start, count, altindex, details, ndetail)
+dnc_Slice (tag, varid, start, count, details, ndetail)
 NCTag *tag;
 int varid;
 long start[MAX_VAR_DIMS];
 long count[MAX_VAR_DIMS];
-int altindex;
 dsDetail *details;
 int ndetail;
 /*
@@ -2072,6 +2100,7 @@ int ndetail;
 	int dindex;
 	long size;
 	int dim;
+	int altindex;
 
 	/* 
 	 * Find the variable's dimensions, and loop through them slicing
@@ -2083,6 +2112,7 @@ int ndetail;
 	 * The first dimension is time, the second is a station if our org
 	 * is an irgrid.
 	 */
+	altindex = dnc_AltIndex (tag, details, ndetail);
 	dim = (tag->nc_org == OrgIRGrid) ? 2 : 1;
 	while (dim < ndims)
 	{
@@ -2121,126 +2151,144 @@ int ndetail;
 
 
 
+
 static int
-dnc_ReadScalar (dc, tag, begin, nsamp, fids, nfield, badval, details, ndetail)
+dnc_ReadScalar (dc, tag, begin, nsamp, details, ndetail)
 DataChunk *dc;
 NCTag *tag;
 long begin, nsamp;
-FieldId *fids;
-int nfield;
-float badval;
 dsDetail *details;
 int ndetail;
 /*
- * Retrieve scalar data from this file.
+ * Retrieve scalar data from a subplatform of this file.
  */
 {
-	void *temp;
+	void *data;
 	long start[MAX_VAR_DIMS], count[MAX_VAR_DIMS];
-	int field, vfield, sbegin = dc_GetNSample (dc);
-	ZebTime *t;
+	long imap[MAX_VAR_DIMS];
+	int field;
+	int vfield = -1;
+	int sbegin = dc_GetNSample (dc);
 	int fill;
+	int i, sampsize;
+	int spix = -1;	/* subplatform index */
+	int nfield;
+	FieldId *fids = dc_GetFields (dc, &nfield);
 /*
  *  Figure out our coords.
  */
 	start[0] = begin;
 	count[0] = nsamp;
+	for (i = 0; i < MAX_VAR_DIMS; ++i)
+		imap[i] = 0;
 /*
- * If the file is really an IRGrid, then we need to figure out the index
- * for the platform.
+ * Check for reading a station from an irgrid.
  */
 	if (tag->nc_org == OrgIRGrid)
+		spix = dnc_ReadSubplat (dc, tag, begin, nsamp, start, count);
+/*
+ * Now we can actually pull out the data.  We can't use ncrecget because
+ * some of the fields may be sliced according to the details and any extra
+ * dimensions.  Make space first, then find the sample stride so we can
+ * read directly into the datachunk.
+ */
+	for (field = 0; field < nfield; field++)
 	{
-	/*
-	 * Be absolutely sure we're dealing with a known platform here.
-	 */
-		if (SPMap[dc->dc_Platform] == UNKNOWN)
-		{
-			msg_ELog (EF_PROBLEM, "Unknown plat %s",
-				ds_PlatformName (dc->dc_Platform));
-			return (0);
-		}
-	/*
-	 * Be sure they don't want a scalar from the grid as a whole.
-	 */
-		else if (SPMap[dc->dc_Platform] == BASEDONE)
-		{
-			msg_ELog (EF_PROBLEM, "Scalar access from grid %s",
-				ds_PlatformName (dc->dc_Platform));
-			return (0);
-		}
-	/*
-	 * Looks like we can really do this.
-	 */
-	 	start[1] = SPMap[dc->dc_Platform];
+		data = dc_AddMultScalar (dc, tag->nc_times + begin, sbegin, 
+					 nsamp, fids[field], NULL);
 	}
-	else
-		start[1] = 0;
-	count[1] = 1;
-/*
- * Get the time array.
- */
-	t = (ZebTime *) malloc (nsamp * sizeof (ZebTime));
-	dnc_ConvTimes (tag, begin, nsamp, t);
-/*
- * Now we can actually pull out the data.
- */
-	temp = (void *) malloc (nsamp * DC_ElemTypeMaxSize);
+	if (! dc_SampleStride (dc, &sampsize))
+	{
+		msg_ELog (EF_PROBLEM, "read subplat: %s",
+			  "How can scalar not have uniform sample size?");
+		return (0);
+	}
+	imap[0] = sampsize;
 	for (field = 0; field < nfield; field++)
 	{
 	/*
-	 * Look up the field and try to pull in the data.  Make sure we
-	 * get bad value flags right.
+	 * Look up the field and try to pull in the data.
 	 */
-		fill = 0;
-		vfield = dnc_GetFieldVar (tag, fids[field]);
-		if (vfield < 0)
-			fill = 1;	/* field not in file */
-		else
-			dnc_Slice (tag, vfield, start, count, -1,
+		fill = ((tag->nc_org == OrgIRGrid) && (spix < 0));
+		fill = (fill || 
+			(vfield = dnc_GetFieldVar (tag, fids[field])) < 0);
+		if (!fill)
+		{
+			dnc_Slice (tag, vfield, start, count,
 				   details, ndetail);
-		if (!fill &&
-		    ncvarget(tag->nc_id, vfield, start, count, temp) < 0)
-		{
-			dnc_NCError ("Scalar read");
-			fill = 1;
+			data = dc_AddMultScalar (dc, tag->nc_times + begin, 
+				sbegin, nsamp, fids[field], NULL);
+			if (ncvargetg (tag->nc_id, vfield, start, count,
+				       /*stride*/NULL, imap, data) < 0)
+			{
+				dnc_NCError ("Scalar read");
+				fill = 1;
+			}
 		}
-#ifdef APPLY_BADVALUE
-		else if (dc_Type (dc, fids[field]) == DCT_Float)
-			dnc_ApplyBadval (tag, vfield, dc, fids[field],
-					 badval, temp, nsamp);
-#endif /* APPLY_BADVALUE */
-#ifdef FILL_FIELDS
 		if (fill)
-		{
-			if (dc_Type(dc, fids[field]) == DCT_Float)
-				dnc_FillArray (temp, nsamp, badval);
-		}
-#endif /* FILL_FIELDS */
-	/*
-	 * Add it to the data chunk.
-	 */
-		dc_AddMultScalar (dc, t, sbegin, nsamp, fids[field], temp);
+			dc_AddScalarMissing (dc, tag->nc_times + begin, 
+					     sbegin, nsamp, fids[field]);
 	}
-	free (temp);
-	free (t);
 /*
  * Do something about locations.
  */
 	if (ds_IsMobile (dc->dc_Platform))
 	{
-		Location *locs = (Location *) malloc (nsamp*sizeof (Location));
+		Location *locs = dc_SetMLoc (dc, sbegin, nsamp, NULL);
 		dnc_LoadLocation (tag, locs, begin, nsamp);
-		dc_SetMLoc (dc, sbegin, nsamp, locs);
-		free (locs);
 	}
-	else if (tag->nc_org == OrgIRGrid)
-		dc_SetStaticLoc (dc, tag->nc_locs + SPMap[dc->dc_Platform]);
+	else if (spix >= 0)
+		dc_SetStaticLoc (dc, tag->nc_locs + spix);
 	else
 		dc_SetStaticLoc (dc, &tag->nc_sloc);
-	/* Whew! */
 	return (nsamp);
 }
+
+
+
+
+
+static int
+dnc_ReadSubplat (dc, tag, begin, nsamp, start, count)
+DataChunk *dc;
+NCTag *tag;
+long begin, nsamp;
+long start[];
+long count[];
+/*
+ * Retrieve scalar data from a subplatform of this file.
+ */
+{
+	int spix = -1;	/* subplatform index */
+
+	if (dc->dc_Platform == tag->nc_plat)
+	{
+	/*
+	 * If the platform is our base plat, then someone is probably doing
+	 * something they didn't intend and should be warned about it.
+	 */
+		msg_ELog (EF_PROBLEM, "%s whole irgrid %s",
+			  "Illegal scalar access:",
+			  ds_PlatformName (dc->dc_Platform));
+	}
+	else if ((spix = dnc_SPIndex (tag, dc->dc_Platform)) < 0)
+	{
+	/*
+	 * If we can't find this platform in our subplatform index, then
+	 * we have to fill it as missing.
+	 */
+		msg_ELog (EF_PROBLEM, "Unknown plat %s",
+			  ds_PlatformName (dc->dc_Platform));
+	}
+/*
+ * Add our subplatform coords.
+ */
+	start[1] = spix;
+	count[1] = 1;
+	return (spix);
+}
+
+
 
 
 static int
@@ -2276,14 +2324,13 @@ int ndetail;
 	
 
 
+
+
 static int
-dnc_ReadNSpace (dc, tag, begin, nsamp, fids, nfield, badval, details, ndetail)
+dnc_ReadNSpace (dc, tag, begin, nsamp, details, ndetail)
 DataChunk *dc;
 NCTag *tag;
 long begin, nsamp;
-FieldId *fids;
-int nfield;
-float badval;
 dsDetail *details;
 int ndetail;
 /*
@@ -2292,16 +2339,6 @@ int ndetail;
  */
 {
 	int sbegin = dc_GetNSample (dc);
-	ZebTime *t;
-	int altindex;
-
-	altindex = dnc_AltIndex (tag, details, ndetail);
-
-	/*
-	 * Get the time array.
-	 */
-	t = (ZebTime *) malloc (nsamp * sizeof(ZebTime));
-	dnc_ConvTimes (tag, begin, nsamp, t);
 
 	/*
 	 * Split up task based on platform organization.
@@ -2310,24 +2347,19 @@ int ndetail;
 	{
 	   case OrgScalar:
 	   case OrgNSpace:
-	        dnc_ReadNSpaceScalar (dc, tag, t, begin, nsamp, fids,
-				      nfield, badval, altindex, 
+	        dnc_ReadNSpaceScalar (dc, tag, begin, nsamp, 
 				      details, ndetail);
 		break;
 	   default:
 		return (0);
 	}
-	free (t);
-
 	/*
 	 * Do something about locations.
 	 */
 	if (ds_IsMobile (dc->dc_Platform))
 	{
-		Location *locs = (Location *) malloc (nsamp*sizeof (Location));
+		Location *locs = dc_SetMLoc (dc, sbegin, nsamp, NULL);
 		dnc_LoadLocation (tag, locs, begin, nsamp);
-		dc_SetMLoc (dc, sbegin, nsamp, locs);
-		free (locs);
 	}
 	else
 		dc_SetStaticLoc (dc, &tag->nc_sloc);
@@ -2339,15 +2371,260 @@ int ndetail;
 
 
 static void
-dnc_ReadNSpaceScalar (dc, tag, t, begin, nsamp, fids, nfield, badval, 
+dnc_ReadNSpaceScalar (dc, tag, begin, nsamp, details, ndetail)
+DataChunk *dc;
+NCTag *tag;
+int begin, nsamp;
+dsDetail *details;
+int ndetail;
+/*
+ * Retrieve multi-dimensional scalar data from this file and add it to
+ * the NSpace datachunk.
+ */
+{
+	long start[ MAX_VAR_DIMS ];
+	long count[ MAX_VAR_DIMS ];
+	long imap[ MAX_VAR_DIMS ];
+	unsigned long sizes[ DC_MaxDimension ];
+	char *names[ DC_MaxDimension ];
+	void *data;
+	int elemsize;
+	int field, i;
+	int varid;
+	int sbegin = dc_GetNSample (dc);
+	int dim, ndim, is_static;
+	int altid, altindex, dindex;
+	int nfield;
+	FieldId *fids = dc_GetFields (dc, &nfield);
+
+	altid = -1;
+	altindex = dnc_AltIndex (tag, details, ndetail);
+	if (altindex >= 0)
+		altid = F_Lookup ("altitude");
+	/*
+	 * Each field will have different hyperslab coordinates, depending
+	 * on whether or not the field is static, and depending on the
+	 * field's dimensions.  So we'll loop through the fields and handle
+	 * each one entirely separately.
+	 */
+	for (field = 0; field < nfield; ++field)
+	{
+		if ((varid = dnc_GetFieldVar (tag, fids[field])) < 0)
+		{
+			msg_ELog (EF_DEBUG, "netcdf: missing field %d %s", 
+				  fids[field], 
+				  "will be filled with bad values");
+		}
+		/*
+		 * All other limits get the whole slab, unless it's an
+		 * altitude dimension and we're slicing at an altitude level.
+		 */
+		dc_NSGetField (dc, fids[field], &ndim, 
+			       names, sizes, &is_static);
+		if (is_static)
+		{
+		/*
+		 * Don't need to check sample stride for static fields
+		 */
+			data = dc_NSAddStatic (dc, fids[field], NULL);
+		}
+		else
+		{
+			int sampsize = 0;
+		/*
+		 * Dynamic fields will need these coords for the 1st dimn
+		 */
+			start[0] = begin;
+			count[0] = nsamp;
+			data = dc_NSAddMultSamples (dc, tag->nc_times + begin,
+					     sbegin, nsamp, fids[field], NULL);
+			if (! dc_SampleStride (dc, &sampsize))
+			{
+				msg_ELog (EF_PROBLEM, "read nspace: %s",
+					  "sample size not uniform?!");
+				varid = -1;
+			}
+			imap[0] = sampsize;
+		}
+		dim = (is_static) ? 0 : 1;
+		dim += (ndim-1);
+		elemsize = dc_SizeOf (dc, fids[field]);
+		for (i = ndim - 1; i >= 0; --i, --dim)
+		{
+			start[dim] = 0;
+			count[dim] = sizes[i];
+			if ((altindex >= 0) && 
+			    (!strcmp (F_GetName(altid), names[i])))
+			{
+				start[dim] = altindex;
+				count[dim] = 1;
+			}
+			else if (dc_NSFixedDimension (details, ndetail,
+						      names[i], &dindex))
+			{
+				start[dim] = dindex;
+				count[dim] = 1;
+			}
+			if (i == (ndim - 1))
+				imap[dim] = elemsize;
+			else
+				imap[dim] = imap[dim+1] * count[dim+1];
+		}
+		if ((varid < 0) ||
+		    ncvargetg (tag->nc_id, varid, start, count, 
+			       /*stride*/NULL, imap, data) < 0)
+		{
+			if (varid >= 0)
+				msg_ELog (EF_PROBLEM, 
+				  "dnc_ReadNSpace, error on field %i", 
+				  fids[field]);
+			if (! is_static)
+				dc_NSAddMissing (dc, tag->nc_times + begin,
+						 sbegin, nsamp, fids[field]);
+			else
+				dc_NSFillStatic (dc, fids[field]);
+		}
+	}
+}
+
+
+
+
+#ifdef notdef
+static void
+dnc_ReadNSpaceScalar (dc, tag, begin, nsamp, altindex, details, ndetail)
+DataChunk *dc;
+NCTag *tag;
+int begin, nsamp;
+int altindex;
+dsDetail *details;
+int ndetail;
+/*
+ * Retrieve multi-dimensional scalar data from this file and add it to
+ * the NSpace datachunk.
+ */
+{
+	long start[ MAX_VAR_DIMS ];
+	long count[ MAX_VAR_DIMS ];
+	unsigned long sizes[ DC_MaxDimension ];
+	char *names[ DC_MaxDimension ];
+	void *temp;
+	unsigned long size, tempsize;
+	int elemsize;
+	int field, i;
+	int varid;
+	int sbegin = dc_GetNSample (dc);
+	int dim, ndim, is_static;
+	int altid, dindex;
+	int nfield;
+	FieldId *fids = dc_GetFields (dc, &nfield);
+
+	altid = -1;
+	if (altindex >= 0)
+		altid = F_Lookup ("altitude");
+	/*
+	 * Each field will have different hyperslab coordinates, depending
+	 * on whether or not the field is static, and depending on the
+	 * field's dimensions.  So we'll loop through the fields and handle
+	 * each one entirely separately.
+	 */
+	temp = NULL;
+	tempsize = 0;
+	for (field = 0; field < nfield; ++field)
+	{
+		if ((varid = dnc_GetFieldVar (tag, fids[field])) < 0)
+		{
+			msg_ELog (EF_DEBUG, "netcdf: missing field %d %s", 
+				  fids[field], 
+				  "will be filled with bad values");
+		}
+
+		/*
+		 * Dynamic fields will need these coords for the 1st dimn
+		 */
+		start[0] = begin;
+		count[0] = nsamp;
+		/*
+		 * All other limits get the whole slab, unless it's an
+		 * altitude dimension and we're slicing at an altitude level
+		 */
+		dc_NSGetField (dc, fids[field], &ndim, 
+			       names, sizes, &is_static);
+		size = (is_static) ? 1 : nsamp;
+		dim = (is_static) ? 0 : 1;
+		for (i = 0; i < ndim; ++i, ++dim)
+		{
+			start[dim] = 0;
+			count[dim] = sizes[i];
+			if ((altindex >= 0) && 
+			    (!strcmp (F_GetName(altid), names[i])))
+			{
+				start[dim] = altindex;
+				count[dim] = 1;
+			}
+			else if (dc_NSFixedDimension (details, ndetail,
+						      names[i], &dindex))
+			{
+				start[dim] = dindex;
+				count[dim] = 1;
+			}
+			size *= count[dim];
+		}
+
+		elemsize = dc_SizeOf (dc, fids[field]);
+		if (!temp)
+		{
+			tempsize = size * elemsize;
+			temp = (void *) malloc (tempsize);
+		}
+		else if (size * elemsize > tempsize)
+		{
+			tempsize = size * elemsize;
+			temp = (void *) realloc (temp, tempsize);
+		}
+
+		if ((varid < 0) ||
+		    ncvarget (tag->nc_id, varid, start, count, temp) < 0)
+		{
+			if (varid >= 0)
+				msg_ELog (EF_PROBLEM, 
+				  "dnc_ReadNSpace, error on field %i", 
+				  fids[field]);
+			if (! is_static)
+				dc_NSAddMissing (dc, tag->nc_times + begin,
+						 sbegin, nsamp, fids[field]);
+			else
+				dc_NSFillStatic (dc, fids[field]);
+		}
+		else
+		{
+			/*
+			 * Add the data to the data chunk.
+			 */
+			if (is_static)
+				dc_NSAddStatic (dc, fids[field], temp);
+			else
+				dc_NSAddMultSamples (dc, tag->nc_times + begin,
+					     sbegin, nsamp, fids[field], temp);
+		}
+	}
+	if (temp)
+		free (temp);
+}
+#endif
+
+
+
+#ifdef notdef
+
+static void
+dnc_ReadNSpaceScalar (dc, tag, begin, nsamp, fids, nfield,  
 		      altindex, details, ndetail)
 DataChunk *dc;
 NCTag *tag;
-ZebTime *t;
 int begin, nsamp;
 FieldId *fids;
 int nfield;
-float badval;
 int altindex;
 dsDetail *details;
 int ndetail;
@@ -2440,29 +2717,28 @@ int ndetail;
 				msg_ELog (EF_PROBLEM, 
 				  "dnc_ReadNSpace, error on field %i", 
 				  fids[field]);
-#ifdef FILL_FIELDS
-			if (dc_Type(dc, fids[field]) == DCT_Float)
-				dnc_FillArray ((float *)temp, size, badval);
-#endif /* FILL_FIELDS */
+			if (! is_static)
+				dc_NSAddMissing (dc, tag->nc_times + begin,
+						 sbegin, nsamp, fids[field]);
+			else
+				dc_NSFillStatic (dc, fids[field]);
 		}
-#ifdef APPLY_BADVALUE
-		else if (dc_Type (dc, fids[field]) == DCT_Float)
-			dnc_ApplyBadval (tag, varid, dc, fids[field],
-					 badval, (float *)temp, size);
-#endif /* APPLY_BADVALUE */
-		/*
-		 * Add the data to the data chunk.
-		 */
-		if (is_static)
-			dc_NSAddStatic (dc, fids[field], temp);
 		else
-			dc_NSAddMultSamples (dc, t, sbegin, nsamp,
-					     fids[field], temp);
+		{
+			/*
+			 * Add the data to the data chunk.
+			 */
+			if (is_static)
+				dc_NSAddStatic (dc, fids[field], temp);
+			else
+				dc_NSAddMultSamples (dc, tag->nc_times + begin,
+					     sbegin, nsamp, fids[field], temp);
+		}
 	}
 	if (temp)
 		free (temp);
 }
-
+#endif
 
 
 
@@ -2477,12 +2753,7 @@ long begin, nsamp;
  * then they'll get our location repeated for every sample.
  */
 {
-	ZebTime *t = (ZebTime *) malloc (nsamp * sizeof (ZebTime));
 	int i;
-/*
- * Get the time array.
- */
-	dnc_ConvTimes (tag, begin, nsamp, t);
 /*
  * Fill the location array based on whether we actually move or not.
  */
@@ -2490,18 +2761,14 @@ long begin, nsamp;
 	{
 		Location *locs;
 
-		locs = (Location *) malloc (nsamp*sizeof (Location));
+		locs = dc_LocAddMany (dc, nsamp, tag->nc_times+begin, NULL);
 		dnc_LoadLocation (tag, locs, begin, nsamp);
-		for (i = 0; i < nsamp; i++)
-			dc_LocAdd (dc, t + i, locs + i);
-		free (locs);
 	}
 	else
 	{
 		for (i = 0; i < nsamp; i++)
-			dc_LocAdd (dc, t + i, &tag->nc_sloc);
+			dc_LocAdd (dc, tag->nc_times+begin+i, &tag->nc_sloc);
 	}		
-	free (t);
 	return (nsamp);
 }
 
@@ -2509,13 +2776,10 @@ long begin, nsamp;
 
 
 static void
-dnc_ReadIRGrid (dc, tag, begin, nsamp, fids, nfield, badval, details, ndetail)
+dnc_ReadIRGrid (dc, tag, begin, nsamp, details, ndetail)
 DataChunk *dc;
 NCTag *tag;
 int begin, nsamp;
-FieldId *fids;
-int nfield;
-float badval;
 dsDetail *details;
 int ndetail;
 /*
@@ -2523,10 +2787,11 @@ int ndetail;
  */
 {
 	long start[MAX_VAR_DIMS], count[MAX_VAR_DIMS];
-	void *grid = (void *) malloc (tag->nc_nPlat * DC_ElemTypeMaxSize);
+	void *grid;
 	int sample, f, vfield, dsamp = dc_GetNSample (dc);
-	ZebTime t;
 	int altindex;
+	int nfield;
+	FieldId *fids = dc_GetFields (dc, &nfield);
 /*
  * Coords.
  */
@@ -2538,7 +2803,6 @@ int ndetail;
  */
  	for (sample = 0; sample < nsamp; sample++)
 	{
-		dnc_ConvTimes (tag, sample + begin, 1, &t);
 	/*
 	 * Now do each field.
 	 */
@@ -2548,55 +2812,39 @@ int ndetail;
 		 * Look up the field and get the data from the file.  If
 		 * either step fails, fill the array with bad value flags.
 		 */
-			vfield = dnc_GetFieldVar (tag, fids[f]);
-			if (vfield >= 0)
+			grid = NULL;
+			if ((vfield = dnc_GetFieldVar (tag, fids[f])) >= 0)
+			{
 				dnc_Slice (tag, vfield, start, count,
-					   altindex, details, ndetail);
-			if ((vfield < 0) &&
-			    (dc_Type (dc, fids[f]) == DCT_Float))
-			{
-#ifdef FILL_FIELDS
-				dnc_FillArray((float *)grid, count[1], badval);
-#endif /* FILL_FIELDS */
+					   details, ndetail);
+				grid = dc_IRAddGrid (dc, tag->nc_times + 
+					     begin + sample, dsamp + sample, 
+					     fids[f], NULL);
+				if (grid && ncvarget (tag->nc_id, vfield, 
+						      start, count, grid) < 0)
+				{
+					dnc_NCError ("Irgrid read");
+					grid = NULL;
+				}
 			}
-			else if (ncvarget (tag->nc_id, vfield, start, count, 
-					   grid) < 0)
+			if (! grid)
 			{
-				dnc_NCError ("Irgrid read");
-#ifdef FILL_FIELDS
-				if (dc_Type (dc, fids[f]) == DCT_Float)
-					dnc_FillArray ((float *)grid, count[1],
-						       badval);
-#endif /* FILL_FIELDS */
+				dc_IRAddMissing (dc, tag->nc_times + begin
+				 + sample, dsamp + sample, 1, fids[f]);
 			}
-#ifdef APPLY_BADVALUE
-		/*
-		 * If we got data, swap our bad value flag for the netCDF one
-		 */
-			else if (dc_Type (dc, fids[f]) == DCT_Float)
-				dnc_ApplyBadval (tag, vfield, dc, fids[f],
-					 badval, (float *)grid, count[1]);
-#endif /* APPLY_BADVALUE */
-		/*
-		 * Put the data into the chunk
-		 */
-			dc_IRAddGrid (dc, &t, dsamp + sample, fids[f], grid);
 		}
 		start[0]++;
 	}
-	free (grid);
 }
 
 
 
 
 static void
-dnc_ReadRGrid (dc, tag, begin, nsamp, fids, nfield, badval, dets, ndet)
+dnc_ReadRGrid (dc, tag, begin, nsamp, dets, ndet)
 DataChunk *dc;
 NCTag *tag;
-int begin, nsamp, nfield, ndet;
-FieldId *fids;
-float badval;
+int begin, nsamp, ndet;
 dsDetail *dets;
 /*
  * Pull some number of RGrids out of this file.
@@ -2604,11 +2852,12 @@ dsDetail *dets;
 {
 	long start[MAX_VAR_DIMS], count[MAX_VAR_DIMS];
 	int sample, field, vfield, dsamp = dc_GetNSample (dc), nc = 1;
-	ZebTime t;
 	SValue v;
 	Location origin;
 	RGrid rg;
 	DataPtr dp;
+	int nfield;
+	FieldId *fids = dc_GetFields (dc, &nfield);
 /*
  * Make an initial set of coords that pull in the entire grid.
  */
@@ -2638,7 +2887,7 @@ dsDetail *dets;
  * If the file contains 3d grids, they may wish to subsection things.
  */
 	if (tag->nc_org == Org3dGrid &&
-	    ds_GetDetail ("altitude", dets, ndet, &v))
+	    ds_GetDetail (DD_FETCH_ALTITUDE, dets, ndet, &v))
 	{
 	/*
 	 * Figure out what level we want.
@@ -2660,7 +2909,6 @@ dsDetail *dets;
  */
  	for (sample = 0; sample < nsamp; sample++)
 	{
-		dnc_ConvTimes (tag, sample + begin, 1, &t);
 	/*
 	 * Now do each field.
 	 */
@@ -2672,106 +2920,25 @@ dsDetail *dets;
 		 * data chunk.
 		 */
 		 	dc_RGAddGrid (dc, dsamp + sample, fids[field], &origin,
-				&rg, &t, (float *) 0, 0);
+				      &rg, tag->nc_times + begin + sample,
+				      NULL, 0);
 			dp = dc_GetMData (dc, dsamp + sample, fids[field], 0);
 		/*
 		 * Look up the field and try to read it in.
 		 */
 			if (((vfield = dnc_GetFieldVar (tag, fids[field])) < 0)
-			    && (dc_Type (dc, fids[field]) == DCT_Float))
-			{
-#ifdef FILL_FIELDS
-				dnc_FillArray ((float *)dp, 
-				       count[1]*count[2]*count[3], badval);
-#endif /* FILL_FIELDS */
-			}
-			else if (ncvarget (tag->nc_id, vfield,start, count, 
-			    dp) < 0)
+			    || (ncvarget (tag->nc_id, vfield,start, count, 
+					  dp) < 0))
 			{
 				dnc_NCError ("Rgrid read");
-#ifdef FILL_FIELDS
-				if (dc_Type (dc, fids[field]) == DCT_Float)
-					dnc_FillArray ((float *)dp, 
-					   count[1]*count[2]*count[3], badval);
-#endif /* FILL_FIELDS */
+				dc_RGAddMissing (dc, dsamp + sample, 
+					 fids[field], &origin, &rg, 
+					 tag->nc_times + begin + sample, 0);
 			}
-#ifdef APPLY_BADVALUE
-		/*
-		 * If that works, we can apply the bad value flag and
-		 * store the data away.
-		 */
-			else if (dc_Type (dc, fids[field]) == DCT_Float)
-				dnc_ApplyBadval (tag, vfield, dc, fids[field],
-						 badval, (float *)dp,
-						 count[1]*count[2]*count[3]);
-#endif /* APPLY_BADVALUE */
 		}
 		start[0]++;
 	}
 }
-
-
-
-#ifdef APPLY_BADVALUE
-/*
- * The attributes we check for to find a bad value.  The
- * 'MissingValue' string is for RAF ADS netCDF files.
- */
-
-static char *BadValueAtts[] = { 
-	VATT_MISSING, "MissingValue", "bad_value_flag", "bad_value", NULL
-};
-
-static void
-dnc_ApplyBadval (tag, vfield, dc, fid, badval, data, ndata)
-NCTag *tag;
-int vfield;
-DataChunk *dc;
-FieldId fid;
-float badval, *data;
-int ndata;
-/*
- * Turn the bad value flag stored with the data, if any, into the user-
- * supplied one.  If no bad value flag, no conversion is done.
- */
-{
-	float ncbadval;
-	nc_type atype;
-	char buf[256];
-	char **flag;
-	int len;
-	int i;
-
-	/*
-	 * If the att is not a float already, try to convert it to a string
-	 * first (from whatever type it is) and then convert to a float.
-	 */
-	for (flag = BadValueAtts; *flag != NULL; ++flag)
-	{
-		if (ncattinq (tag->nc_id, vfield, *flag, &atype, &len) >= 0)
-			break;
-	}
-	if (*flag == NULL)
-		return;
-	if (len*nctypelen(atype) > 255)
-		return;
-	if (ncattget (tag->nc_id, vfield, *flag, (void *)buf) < 0)
-		return;
-	if (atype == NC_FLOAT)
-		ncbadval = *(float *)buf;
-	else
-		ncbadval = atoi(dnc_ValueToString((void *)buf, atype, len));
-	if (ncbadval != badval)
-	{
-		for (i = 0; i < ndata; i++)
-			if (data[i] == ncbadval)
-				data[i] = badval;
-		dc_SetFieldAttr (dc, fid, VATT_MISSING,
-			 dnc_ValueToString ((void *)&badval, NC_FLOAT, 1));
-	}
-}
-#endif /* APPLY_BADVALUE */
-
 
 
 
@@ -2796,24 +2963,6 @@ FieldId fid;
 
 
 static void
-dnc_ConvTimes (tag, begin, nsamp, dest)
-NCTag *tag;
-int begin, nsamp;
-ZebTime *dest;
-/*
- * Pull out a series of times from the file.
- */
-{
-	int i;
-
-	for (i = 0; i < nsamp; i++)
-		dnc_OffsetToZt (tag, tag->nc_times[begin + i], dest++);
-}
-
-
-
-
-static void
 dnc_LoadLocation (tag, locs, begin, count)
 NCTag *tag;
 Location *locs;
@@ -2826,11 +2975,14 @@ long begin, count;
  */
 {
 	int i, var;
-	float *ltemp = (float *) malloc (count * sizeof (float));
 	int mobile;
 	int fail;
 	int nlocs = count;
+	long stride[1];
+	long imap[1];
 
+	stride[0] = 1;
+	imap[0] = sizeof(Location);
 	if (! (mobile = ds_IsMobile (tag->nc_plat)))
 	{
 		begin = 0;
@@ -2846,22 +2998,18 @@ long begin, count;
 		msg_ELog (EF_DEBUG, "No 'lat' or 'latitude' field");
 		fail = 1;
 	}
-	else if (ncvarget (tag->nc_id, var, &begin, &count, ltemp) < 0)
+	else if (ncvargetg (tag->nc_id, var, &begin, &count, 
+			    stride, imap, &(locs[0].l_lat)) < 0)
 	{
 		dnc_NCError ("Latitude read");
 		fail = 1;
 	}
 	if (fail)
-		ltemp[0] = 0.0;
-	if (mobile && !fail)
+		locs[0].l_lat = 0.0;
+	if (! mobile || fail)
 	{
-		for (i = 0; i < nlocs; i++)
-			locs[i].l_lat = ltemp[i];
- 	}
-	else
-	{
-		for (i = 0; i < nlocs; i++)
-			locs[i].l_lat = *ltemp;
+		for (i = 1; i < nlocs; i++)
+			locs[i].l_lat = locs[0].l_lat;
 	}
 /*
  * Longitude.
@@ -2873,22 +3021,18 @@ long begin, count;
 		msg_ELog (EF_DEBUG, "No 'lon' or 'longitude' field");
 		fail = 1;
 	}
-	else if (ncvarget (tag->nc_id, var, &begin, &count, ltemp) < 0)
+	else if (ncvargetg (tag->nc_id, var, &begin, &count, 
+			    stride, imap, &(locs[0].l_lon)) < 0)
 	{
 		dnc_NCError ("Longitude read");
 		fail = 1;
 	}
 	if (fail)
-		ltemp[0] = 0.0;
-	if (mobile && !fail)
+		locs[0].l_lon = 0.0;
+	if (! mobile || fail)
 	{
-		for (i = 0; i < nlocs; i++)
-			locs[i].l_lon = ltemp[i];
- 	}
-	else
-	{
-		for (i = 0; i < nlocs; i++)
-			locs[i].l_lon = *ltemp;
+		for (i = 1; i < nlocs; i++)
+			locs[i].l_lon = locs[0].l_lon;
 	}
 /*
  * Altitude.
@@ -2899,23 +3043,18 @@ long begin, count;
 		msg_ELog (EF_DEBUG, "No 'alt' or 'altitude' field");
 		fail = 1;
 	}
-	if (ncvarget (tag->nc_id, var, &begin, &count, ltemp) < 0) {
+	if (ncvargetg (tag->nc_id, var, &begin, &count, 
+		       stride, imap, &(locs[0].l_alt)) < 0) {
 		dnc_NCError ("Altitude read");
 		fail = 1;
 	}
 	if (fail)
-		ltemp[0] = 0.0;
-	if (mobile && !fail)
+		locs[0].l_alt = 0.0;
+	if (! mobile || fail)
 	{
-		for (i = 0; i < nlocs; i++)
-			locs[i].l_alt = ltemp[i];
- 	}
-	else
-	{
-		for (i = 0; i < nlocs; i++)
-			locs[i].l_alt = *ltemp;
+		for (i = 1; i < nlocs; i++)
+			locs[i].l_alt = locs[0].l_alt;
 	}
-	free (ltemp);
 }
 
 
@@ -2929,7 +3068,44 @@ Location *pos;
  * Write location info to a file.
  */
 {
-	int var, i;
+	int var;
+	long imap[1];
+	long stride[1];
+
+	imap[0] = sizeof(Location);
+	stride[0] = 1;
+
+	if ((var = dnc_Varid (tag->nc_id, "lat")) < 0)
+	{
+		dnc_NCError ("No latitude");
+	}
+	else if (ncvarputg (tag->nc_id, var, &start, &count, 
+			    stride, imap, &(pos[0].l_lat)) < 0)
+	{
+		dnc_NCError ("Latitude put");
+	}
+	if ((var = dnc_Varid (tag->nc_id, "lon")) < 0)
+	{
+		dnc_NCError ("No longitude");
+	}
+	else if (ncvarputg (tag->nc_id, var, &start, &count, 
+			    stride, imap, &(pos[0].l_lon)) < 0)
+	{
+		dnc_NCError ("Longitude put");
+	}
+	if ((var = dnc_Varid (tag->nc_id, "alt")) < 0)
+	{
+		dnc_NCError ("No altitude");
+	}
+	else if (ncvarputg (tag->nc_id, var, &start, &count, 
+			    stride, imap, &(pos[0].l_alt)) < 0)
+	{
+		dnc_NCError ("Altitude put");
+	}
+}		
+
+
+#ifdef notdef
 	float *ltemp;
 /*
  * Allocate temp space.
@@ -2986,99 +3162,7 @@ Location *pos;
  * tired of bloated processes sitting around.
  */
 	free (ltemp);
-}
-
-
-
-
-
-static int
-dnc_TimeIndex(tag, t)
-NCTag *tag;
-ZebTime *t;
-/*
- * Figure out how far into this file we have to go to get to this time.
- */
-{
-	double offset;
-	int i;
-/*
- * Find out the time offset from the beginning of the file.
- */
-	offset = dnc_ZtToOffset (tag, t);
-/*
- * Check the extreme cases.  STORE CASE WILL NEED A BIT DIFFERENT.
- */
-	if (offset <= tag->nc_times[0])
-		return (0);
-	else if (offset >= tag->nc_times[tag->nc_ntime - 1])
-		return (tag->nc_ntime - 1);
-/*
- * OK, search for it.  Someday we'll make this a binary search or
- * something, but, for now....
- *
- * Well, someday we did it....
- */
-	if (tag->nc_ntime < MINTIME)
-	{
-		for (i = tag->nc_ntime - 1; i >= 0; i--)
-			if (tag->nc_times[i] <= offset)
-				return (i);
-	}
-	else
-	{
-		int top = tag->nc_ntime - 1, bottom = 0;
-		while (top > bottom + 1)
-		{
-			int mid = (top + bottom)/2;
-			long toff = (long) tag->nc_times[mid];
-			if (toff == offset)	/* Might as well try */
-				return (mid);
-			else if (toff < offset)
-				bottom = mid;
-			else
-				top = mid;
-		}
-		return (tag->nc_times[top] < offset ? top : bottom);
-	}
-	return (0);
-}
-
-
-
-
-int
-dnc_InqPlat (dfindex)
-int dfindex;
-/*
- * Find out how many platforms are to be found here.
- */
-{
-	NCTag *tag;
-
-	if ( ! dfa_OpenFile (dfindex, FALSE, (void *) &tag))
-		return (0);
-	return (tag->nc_nPlat);
-}
-
-
-
-
-int
-dnc_GetIRGLoc (dfindex, loc)
-int dfindex;
-Location *loc;
-/*
- * Return the location array for this grid.
- */
-{
-	NCTag *tag;
-
-	if ( ! dfa_OpenFile (dfindex, FALSE, (void *) &tag))
-		return (FALSE);
-	memcpy (loc, tag->nc_locs, tag->nc_nPlat * sizeof (Location));
-	return (TRUE);
-}
+#endif
 
 
 
@@ -3122,9 +3206,10 @@ AltUnitType *au;
 
 
 
-int
-dnc_GetAlts (dfindex, fid, offset, alts, nalts, altunits)
-int dfindex;
+
+static int
+dnc_GetAlts (ofp, fid, offset, alts, nalts, altunits)
+OpenFile *ofp;
 FieldId	fid;
 int offset;
 float *alts;
@@ -3134,14 +3219,9 @@ AltUnitType *altunits;
  * Return the altitude information from this file for the given fid.
  */
 {
-	NCTag *tag;
+	NCTag *tag = TAGP (ofp);
 	int i;
 	int ret;
-/*
- * Do some checking.
- */
-	if (!dfa_OpenFile (dfindex, FALSE, (void *) &tag))
-		return (FALSE);
 /*
  * Let orgs do their own work.
  */
@@ -3316,116 +3396,12 @@ int offset;
 
 
 
-int
-dnc_GetForecastTimes (dfindex, times, ntimes)
-int dfindex;
-int *times, *ntimes;
-/*
- * Return model forecast offset times.
- */
-{
-	NCTag *tag;
-/*
- * Do some checking.
- */
-	if (!dfa_OpenFile (dfindex, FALSE, (void *) &tag))
-		return (FALSE);
-/*
- * Not yet implemented...
- */
-	return (FALSE);
-}
-
-
-
-
-int
-dnc_DataTimes (index, when, which, n, dest)
-int index, n;
-ZebTime *when, *dest;
-TimeSpec which;
-/*
- * Find out when data is available.
- */
-{
-	NCTag *tag;
-	int t, i;
-	double offset;
-/*
- * Get the file open.
- */
-	if (! dfa_OpenFile (index, FALSE, (void *) &tag))
-		return (0);
-	offset = dnc_ZtToOffset (tag, when);
-/*
- * PATCH: since dnc_TimeIndex returns 0 no-matter what when
- * there is only one data point in the file and then there
- * is no way to know whether "when" is greater than or
- * less than.
- */
-	if (tag->nc_ntime == 1)
-	{
-		if (offset < tag->nc_times[0])
-			t = -1;
-		else if (offset >= tag->nc_times[tag->nc_ntime - 1])
-			t = tag->nc_ntime - 1;
-	}
-	else
-	    t = dnc_TimeIndex (tag, when);
-/*
- * Copy out the info.
- */
-	if (which == DsBefore)
-	{
-		for (i = 0; t >= 0 && i < n; i++)
-			dnc_OffsetToZt (tag, tag->nc_times[t--], dest++);
-	}
-	else if (which == DsAfter)
-	{
-		if (t < 0)
-			t = 0;
-		else if (tag->nc_times[t] < offset)
-			++t;
-		for (i = 0; t < tag->nc_ntime && i < n; i++)
-			dnc_OffsetToZt (tag, tag->nc_times[t++], dest--);
-	}
-	return (i);
-}
-
-
-
-
-/* ARGSUSED */
-int
-dnc_MakeFileName (dir, platform, zt, dest)
-char *dir, *platform, *dest;
-ZebTime *zt;
-/*
- * Generate a file name.
- */
-{
-	UItime t;
-
-	TC_ZtToUI (zt, &t);
-#ifndef TEST_TIME_UNITS
-	sprintf (dest, "%s.%06ld.%06ld.cdf", platform, t.ds_yymmdd,
-		t.ds_hhmmss);
-#else
-	sprintf (dest, "%s.%06ld.%06ld.cdf", "test", t.ds_yymmdd,
-		t.ds_hhmmss);
-#endif
-	return (0);
-}
-
-
-
-
-int
-dnc_CreateFile (fname, df, dc, rtag, details, ndetail)
+static int
+dnc_CreateFile (ofp, fname, df, dc, details, ndetail)
+OpenFile *ofp;
 char *fname;
 DataFile *df;
 DataChunk *dc;
-NCTag **rtag;
 dsDetail *details;
 int ndetail;
 /*
@@ -3433,12 +3409,13 @@ int ndetail;
  * all of the organizations we know.
  */
 {
-	NCTag *tag = ALLOC(NCTag);
+	NCTag *tag = TAGP (ofp);
 	int ndim, dims[6], vbase;
 	ZebTime t;
 	nc_type time_type;
 	char full_time[50];
 	int year, month, day, hour, minute, second;
+	int flags;
 #	define BT_LONGNAME "Base time in Epoch"
 #	define BT_UNITS	   "seconds since 1970-1-1 0:00:00 0:00"
 #	define OT_LONGNAME "Time offset from base_time"
@@ -3447,9 +3424,9 @@ int ndetail;
  * We might as well start by creating the actual file.  After all,
  * that, at least, is common to all of the organizations.
  */
-	if ((tag->nc_id = nccreate (fname, NC_CLOBBER)) < 0)
+	flags = (NC_WRITE | NC_CLOBBER | NC_NOFILL);
+	if ((tag->nc_id = nccreate (fname, flags)) < 0)
 	{
-		free (tag);
 		dnc_NCError ("File create");
 		return (FALSE);
 	}
@@ -3467,13 +3444,12 @@ int ndetail;
 /*
  * Fill in some basic tag info.
  */
-	tag->nc_times = (double *) 0;
+	tag->nc_times = (ZebTime *) 0;
 	tag->nc_ntime = tag->nc_nrec = 0;
 	tag->nc_timeType = time_type;
 	tag->nc_org = ds_PlatformDataOrg (dc->dc_Platform);
 	tag->nc_locs = (Location *) 0;
 	tag->nc_plat = dc->dc_Platform;;
-	tag->nc_buffered = TRUE;
 	tag->nc_altUnits = dc_GetLocAltUnits (dc);
 	tag->nc_alts = NULL;
 	tag->nc_nalts = 0;
@@ -3485,13 +3461,10 @@ int ndetail;
  * 
  * XXX WIRE IT UNLIMITED FOR NOW, UNTIL WE FIGURE OUT HOW TO KEEP TRACK
  * OF HOW MANY SAMPLES ARE ACTUALLY WRITTEN.
+ *
+ * Keeping time on the record dimension allows us to use the ncrec* 
+ * routines to read and write consecutive records...
  */
-# ifdef notdef
-	if (plat->dp_org == OrgIRGrid || plat->dp_flags & DPF_DISCRETE)
-		tag->nc_dTime = ncdimdef (tag->nc_id, "time", NC_UNLIMITED);
-	else
-		tag->nc_dTime = ncdimdef(tag->nc_id, "time", plat->dp_maxsamp);
-# endif
 	tag->nc_dTime = ncdimdef (tag->nc_id, "time", NC_UNLIMITED);
 /*
  * Create the other dimensions that we need for variables.
@@ -3551,7 +3524,6 @@ int ndetail;
 	dnc_LoadFields (tag);
 	if (vbase >= 0)
 		ncvarput1 (tag->nc_id, vbase, 0, &tag->nc_base);
-	*rtag = tag;
 	ncsync (tag->nc_id);
 	return (TRUE);
 }
@@ -3570,7 +3542,7 @@ int *dims;
  */
 {
 #ifdef STORE_BADVALUE_ATT
-	float badval;
+	void *badval;
 #endif /* STORE_BADVALUE_ATT */
 	FieldId *fids;
 	int nfield;
@@ -3584,9 +3556,6 @@ int *dims;
 	if (dc->dc_Class == DCC_NSpace)
 		dnc_DefineNSpaceDims(tag, dc);
 
-#ifdef STORE_BADVALUE_ATT
-	badval = dc_GetBadval (dc);
-#endif /* STORE_BADVALUE_ATT */
 	fids = dc_GetFields (dc, &nfield);
 	for (var = 0; var < nfield; var++)
 	{
@@ -3620,14 +3589,17 @@ int *dims;
 
 #ifdef STORE_BADVALUE_ATT
 	/*
-	 * Add the missing_value attribute.  This one must be written as
-	 * a float, so we write it here with the expectation than 
-	 * dnc_PutAttribute() will not store any like-named attribute keys 
-	 * from the DataChunk.
+	 * Add the missing_value attribute.  This one must be written in
+	 * the same type as the field, so we write it here with the 
+	 * expectation that dnc_PutAttribute() will not store any 
+	 * like-named attribute keys from the DataChunk.
 	 */
-		if (type == NC_FLOAT)
+		if ((badval = dc_GetFieldBadval (dc, fids[var])))
+		{
 			(void) ncattput (tag->nc_id, varid, VATT_MISSING,
-					 NC_FLOAT, 1, &badval);
+					 dnc_NCType (dc_Type (dc, fids[var])),
+					 1, badval);
+		}
 #endif /* STORE_BADVALUE_ATT */
 
 	/* 
@@ -3722,22 +3694,39 @@ DataChunk *dc;
 	attarg.varid = NC_GLOBAL;
 	dc_ProcessAttrArrays (dc, NULL, dnc_PutAttribute, (void *)&attarg);
 
-#ifndef TEST_TIME_UNITS
-	/*
-	 * Skip time- and platform- specific info so that files can be
-	 * compared for testing.
-	 */
+	if (TestTimeUnits)
+	{
+		/*
+		 * Skip time- and platform- specific info so that files can
+		 * be compared for testing.
+		 */
+		return;
+	}
+#ifdef STORE_BADVALUE_ATT
+	{
+		void *badval;
+		DC_ElemType type;
+
+		/* 
+		 * Pull out the global bad value, if any, and store it as a
+		 * global attribute.
+		 */
+		if ((badval = dc_GetGlobalBadval (dc, &type)))
+		{
+			ncattput (tag->nc_id, NC_GLOBAL, VATT_MISSING,
+				  dnc_NCType (type), 1, badval);
+		}
+	}
+#endif
 	attr = ds_PlatformName(dc->dc_Platform);
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_PLATFORM,
 		       NC_CHAR, strlen(attr)+1, attr);
-
 	sprintf(history,"created by the Zebra DataStore library, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.54 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.55 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
-#endif /* TEST_TIME_UNITS */
 }
 
 
@@ -3926,7 +3915,7 @@ DataChunk *dc;
  * with it, I think, until ELDORA comes on line.
  */
 {
-	int vlat, vlon, valt, vx, vy, vz;
+	int vlat, vlon, valt, vx, vy = -1, vz = -1;
 	const char *units;
 	Location loc;
 
@@ -4036,25 +4025,11 @@ DataChunk *dc;
 		ncvarput1 (tag->nc_id, valt, &plat, &tag->nc_locs[plat].l_alt);
 	}
 /*
- * If necessary, we'll work on the platform map as well.
- */
-	if (!SPMapInited)
-	{
-		for (plat = 0; plat < MAXPLAT; plat++)
-			SPMap[plat] = UNKNOWN;
-		SPMapInited = TRUE;
-	}
-	if (SPMap[dc->dc_Platform] != BASEDONE)
-	{
-		for (plat = 0; plat < tag->nc_nPlat; plat++)
-			SPMap[plats[plat]] = plat;
-		SPMap[dc->dc_Platform] = BASEDONE;
-	}
-/*
  * Sigh.  We really ought to put this into the tag structure while we
  * are at it.
  */
-	SubPlats[tag->nc_plat] = tag->nc_subplats = plats;
+	tag->nc_subplats = plats;
+	dnc_SPBuildIndex (tag);
 }
 
 
@@ -4105,34 +4080,26 @@ int *vlat, *vlon, *valt;
 
 
 
-int
-dnc_PutSample (dfile, dc, sample, wc)
-int dfile, sample;
+#ifdef notdef
+static int
+dnc_PutSample (ofp, dc, sample, wc, details, ndetail)
+OpenFile *ofp;
 DataChunk *dc;
+int sample;
 WriteCode wc;
+dsDetail *details;
+int ndetail;
 /*
  * Write one sample from the DC into this file.
  */
 {
-	NCTag *tag;
+	NCTag *tag = TAGP (ofp);
 	long start[ MAX_VAR_DIMS ], count[ MAX_VAR_DIMS ];
 	int ndim;
 	int vfield, field, nfield;
 	DataPtr data;
 	FieldId *fids;
 	Location loc;
-/*
- * Gotta open up the file before we do anything.
- */
-	if (!dfa_OpenFile (dfile, TRUE, (void *) &tag))
-		return (0);
-/*
- * Figure out where this sample is supposed to go.
- */
-	start[0] = start[1] = start[2] = start[3] = 0;
-	count[0] = count[1] = count[2] = count[3] = 1;
-	if (! dnc_FindTimes (tag, dc, sample, 1, wc, start))
-		return (0);
 /*
  * Make sure the altitude units are consistent with what we expect
  */
@@ -4142,6 +4109,13 @@ WriteCode wc;
 			  "PutSample: Alt units inconsistent.  Write failed.");
 		return (0);
 	}
+/*
+ * Figure out where this sample is supposed to go.
+ */
+	start[0] = start[1] = start[2] = start[3] = 0;
+	count[0] = count[1] = count[2] = count[3] = 1;
+	if (! dnc_FindTimes (ofp, dc, sample, 1, wc, start))
+		return (0);
 /*
  * Work out coords and data stuff now.
  */
@@ -4198,7 +4172,7 @@ WriteCode wc;
 	ncsync (tag->nc_id);
 	return (1);
 }
-
+#endif
 
 
 
@@ -4238,8 +4212,8 @@ DataPtr data;
 
 
 static int
-dnc_FindTimes(tag, dc, sample, count, wc, start)
-NCTag *tag;
+dnc_FindTimes (ofp, dc, sample, count, wc, start)
+OpenFile *ofp;
 DataChunk *dc;
 int sample, count;
 WriteCode wc;
@@ -4253,9 +4227,12 @@ long *start;
  * times in the file.  Insertion requires a lot more juggling.
  *
  * This function replaces the original dnc_FindDest(), which relied on 
- * single-sample changes. */
+ * single-sample changes.
+ */
 {
+	NCTag *tag = TAGP (ofp);
 	int status;
+	double *dtime = NULL;
 	float *ftime = NULL;
 	long *ltime = NULL;
 	unsigned long i;
@@ -4268,16 +4245,15 @@ long *start;
 	{
 	   case wc_Append:
 		if (tag->nc_ntime)
-			tag->nc_times = (double *) realloc (tag->nc_times,
-			    (tag->nc_ntime + nsample) * sizeof(double));
+			tag->nc_times = (ZebTime *) realloc (tag->nc_times,
+			    (tag->nc_ntime + nsample) * sizeof(ZebTime));
 		else
-			tag->nc_times = (double *) malloc (nsample *
-							   sizeof(double));
+			tag->nc_times = (ZebTime *) malloc (nsample *
+							   sizeof(ZebTime));
 		for (i = 0; i < nsample; ++i)
 		{
-			dc_GetTime(dc, sample+i, &t);
-			tag->nc_times[tag->nc_ntime + i] = 
-				dnc_ZtToOffset (tag, &t);
+			dc_GetTime(dc, sample + i, 
+				   tag->nc_times + tag->nc_ntime + i);
 		}
 		*start = tag->nc_ntime;
 		tag->nc_ntime += nsample;
@@ -4290,13 +4266,14 @@ long *start;
 	 */
 	   case wc_Overwrite:
 		dc_GetTime(dc, sample, &t);
-	   	*start = dnc_TimeIndex (tag, &t);
+		*start = dfa_TimeIndex (ofp, &t, FALSE);
 		return(TRUE);
 	/*
 	 * For insertion, we must create space for the new samples by
 	 * moving everything back.  Essentially, take all of the arrays
 	 * indexed by the record dimension time and write them out
 	 * at a higher index, leaving space for the samples to be inserted.
+	 * Does that sound like something you'd be interested in doing?
 	 */
 	   case wc_Insert:
 
@@ -4308,14 +4285,20 @@ long *start;
  */
 	if (tag->nc_timeType == NC_DOUBLE)
 	{
+		dtime = (double *) malloc (nsample * sizeof(double));
+		for (i = 0; i < nsample; i++)
+			dtime[i] = (double) dnc_ZtToOffset
+				(tag, tag->nc_times + *start + i);
 		status = ncvarput (tag->nc_id, tag->nc_vTime, start,
-				   (long *) &nsample, tag->nc_times + *start);
+				   (long *) &nsample, (void *) dtime);
+		free (dtime);
 	}
 	else if (tag->nc_timeType == NC_FLOAT)
 	{
 		ftime = (float *) malloc (nsample * sizeof(float));
 		for (i = 0; i < nsample; i++)
-			ftime[i] = (float)tag->nc_times[*start + i];
+			ftime[i] = (float) dnc_ZtToOffset
+				(tag, tag->nc_times + *start + i);
 		status = ncvarput (tag->nc_id, tag->nc_vTime, start, 
 				   (long *) &nsample, (void *) ftime);
 		free (ftime);
@@ -4324,7 +4307,8 @@ long *start;
 	{
 		ltime = (long *) malloc (nsample * sizeof(long));
 		for (i = 0; i < nsample; i++)
-			ltime[i] = (long)tag->nc_times[*start + i];
+			ltime[i] = (long) dnc_ZtToOffset
+				(tag, tag->nc_times + *start + i);
 		status = ncvarput (tag->nc_id, tag->nc_vTime, start, 
 				   (long *) &nsample, (void *) ltime);
 		free (ltime);
@@ -4338,43 +4322,23 @@ long *start;
 
 
 
-int
-dnc_PutBlock (dfile, dc, sample, nsample, wc)
-int dfile;
+static int
+dnc_PutBlock (ofp, dc, sample, nsample, wc, details, ndetail)
+OpenFile *ofp;
 DataChunk *dc;
 int sample;
 int nsample;
 WriteCode wc;
+dsDetail *details;
+int ndetail;
 /*
  * Write a block of samples into this file
  */
 {
-	NCTag *tag;
+	NCTag *tag = TAGP (ofp);
 	long start[ MAX_VAR_DIMS ], count[ MAX_VAR_DIMS ];
-	int vfield, field, nfield;
-	char *data;		/* A single array we malloc and keep around */
-	                        /* for holding blocks of data for each field*/
-	char *mdata;		/* A field's metdata at a particular sample */
-	unsigned long idata;	/* The number of bytes written into the data*/
-	                        /* array for a particular field.	    */
-	unsigned long mdatasize;/* Size, in bytes, of a field's sample data */
-	unsigned long datasize;	/* Size, in bytes, of the data array.	    */
-	FieldId *fids;
-	long i;
 	Location *locns;
 	int ndim;
-/*
- * Gotta open up the file before we do anything.
- */
-	if (!dfa_OpenFile (dfile, TRUE, (void *) &tag))
-		return (0);
-/*
- * Figure out where this sample is supposed to go.
- */
-	start[0] = start[1] = start[2] = start[3] = 0;
-	count[0] = count[1] = count[2] = count[3] = (long)nsample;
-	if (! dnc_FindTimes (tag, dc, sample, (long)nsample, wc, start))
-		return (0);
 /*
  * Make sure the altitude units are consistent with what we expect
  */
@@ -4385,13 +4349,175 @@ WriteCode wc;
 		return (0);
 	}
 /*
+ * Figure out where this sample is supposed to go.
+ */
+	start[0] = start[1] = start[2] = start[3] = 0;
+	count[0] = count[1] = count[2] = count[3] = (long)nsample;
+	if (! dnc_FindTimes (ofp, dc, sample, (long)nsample, wc, start))
+		return (0);
+/*
  * Work out coords and data stuff now.
  */
 	dnc_DoWriteCoords (tag, dc, sample, start, count, &ndim);
+	dnc_PutRecords (ofp, dc, sample, nsample, start[0]);
+	dnc_PutStatic (ofp, dc);
 /*
- * Time for the humungo write to dump it all into the file.
+ * For mobile platforms, we need to store the location info too.
  */
+	if (ds_IsMobile (tag->nc_plat))
+	{
+		locns = dc_GetMLoc (dc, sample, nsample);
+		dnc_PutLocation (tag, start[0], count[0], locns);
+	}
+/*
+ * Synchronize.
+ */
+	ncsync (tag->nc_id);
+	return (1);
+}
+
+
+
+
+static int
+dnc_InquireRecord (tag, dc, nrvars, rvarids, dpids)
+NCTag *tag;
+DataChunk *dc;
+int *nrvars;
+int rvarids[];
+FieldId dpids[];
+{
+	int f, i;
+	int nfield;
+	FieldId *fids;
+
 	fids = dc_GetFields (dc, &nfield);
+	ncrecinq (tag->nc_id, nrvars, rvarids, NULL);
+	/*
+	 * Map the requested FieldIds into an array of the same order as
+	 * their corresponding record variables.
+	 */
+	for (f = 0; f < *nrvars; ++f)
+	{
+		dpids[f] = BadField;
+		for (i = 0; i < nfield; ++i)
+		{
+			if (tag->nc_FMap[rvarids[f]] == fids[i])
+			{
+				dpids[f] = fids[i];
+			}
+		}
+	}
+	return (1);
+}
+
+
+
+
+static int
+dnc_PutRecords (ofp, dc, sample, nsample, start)
+OpenFile *ofp;
+DataChunk *dc;
+int sample;
+int nsample;
+long start;
+/*
+ * Store the record variables sample by sample, taking advantage of a uniform
+ * sample stride when possible.
+ */
+{
+	NCTag *tag = TAGP (ofp);
+	int i, f;
+	int sampsize;
+	int nrvars, rvarids[ MAXFIELD ];
+	FieldId dpids[ MAXFIELD ];
+	void *dp[ MAXFIELD ];
+
+	dnc_InquireRecord (tag, dc, &nrvars, rvarids, dpids);
+	if (dc_SampleStride (dc, &sampsize))
+	{
+		dc_GetMVector (dc, sample, nrvars, dpids, dp, NULL);
+		for (i = 0; i < nsample; ++i)
+		{
+			ncrecput (tag->nc_id, start+i, dp);
+			for (f = 0; f < nrvars; ++f)
+				if (dp[f]) dp[f] = (char *)dp[f] + sampsize;
+		}
+	}
+	else
+	{
+		for (i = 0; i < nsample; ++i)
+		{
+			dc_GetMVector (dc, sample+i, nrvars, dpids, dp, NULL);
+			ncrecput (tag->nc_id, start+i, dp);
+		}
+	}
+	return (0);
+}
+
+
+
+
+static void
+dnc_PutStatic (ofp, dc)
+OpenFile *ofp;
+DataChunk *dc;
+/*
+ * Extract static data from this dc and write it to the file.
+ */
+{
+	NCTag *tag = TAGP (ofp);
+	int nfield;
+	FieldId *fids;
+	int vfield;
+	long start[MAXFIELD];
+	long count[MAXFIELD];
+	int f;
+	void *mdata;
+
+	/*
+	 * If this is not an N-Space datachunk, we have naught to do.
+	 */
+	if (dc->dc_Class != DCC_NSpace)
+		return;
+	fids = dc_GetFields (dc, &nfield);
+
+	for (f = 0; f < nfield; ++f)
+	{
+		if (! dc_NSIsStatic (dc, fids[f]))
+			continue;
+		if ((vfield = dnc_GetFieldVar (tag, fids[f])) < 0)
+		{
+			msg_ELog (EF_PROBLEM, "PutStatic: Can't find fld %s",
+				  F_GetName (fids[f]));
+			continue;
+		}
+		mdata = (char *)dc_NSGetStatic (dc, fids[f], NULL);
+		if (mdata == NULL)
+		{
+			msg_ELog (EF_PROBLEM, 
+				  "PutStatic: no data for field %s",
+				  F_GetName (fids[f]));
+			continue;
+		}
+		if (dnc_NSpaceVarPut (tag, dc, vfield, fids[f], start, 
+				      count, 0, (DataPtr)mdata) < 0)
+		{
+				dnc_NCError ("NSpace data write");
+		}
+	}
+}
+
+
+
+#ifdef notdef
+	char *data;		/* A single array we malloc and keep around */
+	                        /* for holding blocks of data for each field*/
+	char *mdata;		/* A field's metdata at a particular sample */
+	unsigned long idata;	/* The number of bytes written into the data*/
+	                        /* array for a particular field.	    */
+	unsigned long mdatasize;/* Size, in bytes, of a field's sample data */
+	unsigned long datasize;	/* Size, in bytes, of the data array.	    */
 
 	datasize = 0;
 	data = NULL;
@@ -4405,14 +4531,15 @@ WriteCode wc;
 		if ((vfield = dnc_GetFieldVar (tag, fids[field])) < 0)
 		{
 			msg_ELog (EF_PROBLEM, "PutBlock: Can't find fld %s",
-						 F_GetName (fids[field]));
+				  F_GetName (fids[field]));
 			continue;
 		}
 
-		for (i = 0; i < nsample; ++i)
+		staticf = ((dc->dc_Class == DCC_NSpace) &&
+			   (dc_NSIsStatic (dc, fids[field])));
+		for (i = 0; i < (staticf ? 1 : nsample); ++i)
 		{
-			if ((dc->dc_Class != DCC_NSpace) ||
-			    (! dc_NSIsStatic (dc, fids[field])))
+			if (! staticf)
 			{
 				mdata = (char *)dc_GetMData(dc, sample + i,
 							    fids[field], 
@@ -4451,13 +4578,6 @@ WriteCode wc;
 			}
 			memcpy (data + idata, mdata, mdatasize);
 			idata += mdatasize;
-		/*
-		 * If this was a static field, then we don't need 
-		 * to go through this for the rest of the samples.
-		 */
-			if ((dc->dc_Class == DCC_NSpace) &&
-			    (dc_NSIsStatic (dc, fids[field])))
-				break;
 		}
 	/*
 	 * Write it to the file.
@@ -4485,12 +4605,8 @@ WriteCode wc;
 		dnc_PutLocation (tag, start[0], count[0], locns);
 		free(locns);
 	}
-/*
- * Synchronize.
- */
-	ncsync (tag->nc_id);
-	return (1);
-}
+#endif
+
 
 
 
@@ -4579,23 +4695,22 @@ char *const fld;
 
 
 /* ARGSUSED */
-int
-dnc_GetFields (dfile, t, nfld, flist)
-int dfile, *nfld;
-ZebTime *t;
+static int
+dnc_GetFields (ofp, sample, nfld, flist)
+OpenFile *ofp;
+int sample;
+int *nfld;
 FieldId *flist;
 /*
- * Return the list of available fields.
+ * Return the list of available fields at this sample.
  */
 {
-	NCTag *tag;
+	NCTag *tag = TAGP (ofp);
 	int max = *nfld, fld;
 /*
  * Open the file.
  */
 	*nfld = 0;
-	if (!dfa_OpenFile (dfile, FALSE, (void *) &tag))
-		return (FALSE);
 /*
  * Pass through the fields.
  */
@@ -4614,32 +4729,27 @@ FieldId *flist;
 
 
 
-int
-dnc_GetObsSamples (dfile, times, locs, max)
-int dfile, max;
+static int
+dnc_GetObsSamples (ofp, times, locs, max)
+OpenFile *ofp;
 ZebTime *times;
 Location *locs;
+int max;
 /*
- * Return sample info.
+ * Copy times and locations for all samples.
  */
 {
-	NCTag *tag;
-	int i;
-/*
- * Get the file open.
- */
-	if (!dfa_OpenFile (dfile, FALSE, (void *) &tag))
-		return (0);
+	NCTag *tag = TAGP (ofp);
+	int i, nsamp;
 
-	for (i = 0; i < tag->nc_ntime && i < max; i++)
+	nsamp = (max <= tag->nc_ntime) ? max : tag->nc_ntime;
+	if (locs)
+		dnc_LoadLocation (tag, locs, 0, nsamp);
+	for (i = 0; (times) && (i < nsamp); i++)
 	{
-		times->zt_Sec = tag->nc_base + (int) tag->nc_times[i];
-		times->zt_MicroSec = 10e+6 * (tag->nc_times[i] -
-					      (int) tag->nc_times[i]);
-		times++;
-		*locs++ = (tag->nc_locs) ? tag->nc_locs[i] : tag->nc_sloc;
+		*times++ = tag->nc_times[i];
 	}
-	return (i);
+	return (nsamp);
 }
 
 
@@ -4819,9 +4929,19 @@ NCTag *tag;
 		else
 			dc_SetGlobalAttrArray (dc, key, dnc_ElemType(gltype),
 					       len, value);
+#ifdef READ_BADVALUE_ATT
+		/*
+		 * Look for an explicit global bad value attribute.
+		 */
+		if (! strcmp (key, VATT_MISSING))
+		{
+			dc_SetGlobalBadval (dc, dnc_ElemType(gltype),
+					    value);
+		}
+#endif
 		free(value);
 	}
-	return(nglatt);
+	return (nglatt);
 }
 
 
@@ -4923,27 +5043,20 @@ int nfield;
 			else
 				dc_SetFieldAttrArray (dc, fids[f], key,
 					      dnc_ElemType(ftype), len, value);
+#ifdef READ_BADVALUE_ATT
+			/*
+			 * Check for an explicit bad value.
+			 */
+			if (! strcmp (key, VATT_MISSING) &&
+			    dnc_ElemType (ftype) == dc_Type (dc, fids[f]))
+			{
+				dc_SetFieldBadval (dc, fids[f], value);
+			}
+#endif
 			free(value);
 		}
 	}  /* nfields */
 }
 
 
-
-#ifdef FILL_FIELDS
-static void
-dnc_FillArray (array, len, val)
-float	*array;
-int	len;
-double	val;
-/*
- * Fill the specified array of length len with val
- */
-{
-	int	i;
-
-	for (i = 0; i < len; i++)
-		array[i] = val;
-}
-#endif /* FILL_FIELDS */
 
