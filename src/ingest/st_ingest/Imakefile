@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.5 1997-01-21 18:57:25 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.6 1999-10-06 16:24:39 burghart Exp $"
 
 LIBS = $(DFALIBS) $(ZLIBS) $(XLIBS)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
@@ -27,8 +27,7 @@ HDRS = rawget.h
 
 DISTFILES = Imakefile $(SRCS) $(HDRS) rafthetae.orig
 
-CompleteProgramTarget(st_ingest,st_ingest.o bolton.o rafthetae.o,
-		$(DEPLIBS), $(LIBS), $(SYSLIBS))
+CccProgramTarget(st_ingest,st_ingest.o bolton.o rafthetae.o, $(DEPLIBS), $(LIBS), $(SYSLIBS))
 
 DependTarget()
 
