@@ -32,7 +32,7 @@
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dslib.h"
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.9 1992-11-06 22:21:43 granger Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.10 1992-11-14 00:06:12 burghart Exp $")
 
 # include "netcdf.h"
 
@@ -423,9 +423,9 @@ NCTag *tag;
  * Build the subplatform lookup map.
  */
 {
-	int i, vname, plat;
+	int i, name_id, len_id, fldlen, plat;
 	long start[2], count[2];
-	char name[10], base[20], fullname[30];
+	char *name, *base, *fullname;
 /*
  * Initialize the map if necessary.
  */
@@ -444,15 +444,28 @@ NCTag *tag;
 /*
  * Get set up to start snooping through platform names.
  */
-	strcpy(base, ds_PlatformName (tag->nc_plat));
-	if ((vname = ncvarid (tag->nc_id, "platform")) < 0)
+	base = ds_PlatformName (tag->nc_plat);
+	if ((name_id = ncvarid (tag->nc_id, "platform")) < 0)
 	{
 		msg_ELog (EF_PROBLEM, "No platform names for %s", base);
 		return (FALSE);
 	}
 	start[1] = 0;		/* Read full name */
+/*
+ * Find out how long the names are and allocate appropriate space.
+ */
+	if ((len_id = ncdimid (tag->nc_id, "fldlen")) < 0 ||
+		ncdiminq (tag->nc_id, len_id, NULL, &fldlen) < 0)
+	{
+		msg_ELog (EF_PROBLEM, 
+			"Bad or nonexistent 'fldlen' in netCDF file");
+		return (FALSE);
+	}
 	count[0] = 1;
-	count[1] = 10;		/* XXX */
+	count[1] = fldlen;
+
+	name = (char *) malloc (fldlen + 1);
+	fullname = (char *) malloc (fldlen + strlen (base) + 1);
 /*
  * Go through and read back all the platform names.  We should
  * someday be smart and look at the length dimension, but for now
@@ -466,7 +479,7 @@ NCTag *tag;
 	 * Read the name of this platform.
 	 */
 		start[0] = i;
-		if (ncvarget (tag->nc_id, vname, start, count, name) < 0)
+		if (ncvarget (tag->nc_id, name_id, start, count, name) < 0)
 		{
 			msg_ELog (EF_PROBLEM,
 			       "Error %d reading subplat %d from %s", ncerr,
@@ -484,6 +497,8 @@ NCTag *tag;
 		tag->nc_subplats[i] = plat;
 	}
 	SPMap[tag->nc_plat] = BASEDONE;
+	free (name);
+	free (fullname);
 	return (TRUE);
 }
 
@@ -1694,7 +1709,7 @@ NCTag **rtag;
 	ZebTime t;
 	float badval;
 	FieldId *fids;
-	char *attr, history[80];
+	char *attr, history[128];
 /*
  * We might as well start by creating the actual file.  After all,
  * that, at least, is common to all of the organizations.
@@ -1765,23 +1780,23 @@ NCTag **rtag;
 				NC_CHAR, strlen(attr)+1, attr);
 	}
 /*
- * Add global attributes from the data chunk and the create global
- *  history attribute.
+ * Add global attributes from the data chunk and create the global
+ * 'history' attribute.
  * Unfortunately, dc_ProcessAttrs does not provide for a 'tag' argument
- * to the function, so it must be set to a global variable.
+ * to the function, so the tag must be passed via a global variable.
  */
 	Tag = tag;
 	(void)dc_ProcessAttrs(dc, NULL, dnc_PutGlobalAttribute);
 	attr = ds_PlatformName(dc->dc_Platform);
 	(void)ncattput(tag->nc_id, NC_GLOBAL, "platform", 
 		       NC_CHAR, strlen(attr)+1, attr);
-	sprintf(history,"created: Zeb DataStore, $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.9 $, ");
 	{
 		struct timeval tv;
 
+		sprintf(history,"created by Zeb DataStore, ");
 		(void)gettimeofday(&tv, NULL);
 		TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-		strcat(history,"\n");
+		strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.10 $\n");
 		(void)ncattput(tag->nc_id, NC_GLOBAL, "history",
 			       NC_CHAR, strlen(history)+1, history);
 	}
