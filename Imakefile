@@ -1,4 +1,4 @@
-XCOMM $Id: Imakefile,v 1.23 1996-02-03 22:36:50 granger Exp $
+XCOMM $Id: Imakefile,v 1.24 1996-11-19 06:22:02 granger Exp $
 XCOMM
 XCOMM This is the top-level Imakefile for the Zebra distribution.
 XCOMM It is modeled after the top-level Imakefile of the MIT X11R5
@@ -89,46 +89,46 @@ TESTSUBDIRS = src
 
 TestSubdirs($(TESTSUBDIRS))
 
-XCOMM do not name your log file make.log or MakeOut when you run this ...
-World::
+#if !UseInstalledZebra
+#define MAKE_INCLUDES \
+	$(MAKE) MAKE=$(MAKE) $(MFLAGS) includes @@\
+	$(MAKE) MAKE=$(MAKE) $(MFLAGS) depend
+#else
+#define MAKE_INCLUDES \
+	@echo "Using installed files: skipping includes and depend"
+#endif
+
+World:: makeMakefile makeWorld
+
+makeWorld:
 	@echo ""
-	@echo "Building Zebra"
-	@echo "Do not name your log file make.log or MakeOut,"
-	@echo "else it will be erased."
+	@echo "Building the Zebra distribution"
+	@echo ""
+	@echo "####################################################"
+	@echo "#   Have you read the installation instructions?   #"
+	@echo "####################################################"
+	@echo "Any log file named make.log or MakeOut will be erased."
+	@echo ""
 	@date
 	@echo ""
-	cd $(IMAKESRC); \
-		$(MAKE) -f Makefile.ini MAKE=$(MAKE) $(MFLAGS) clean; \
-		$(MAKE) -f Makefile.ini MAKE=$(MAKE) $(MFLAGS) \
-			INCLUDES=-I../project \
-			BOOTSTRAPCFLAGS="$(BOOTSTRAPCFLAGS)" CC="$(CC)"
-	-$(RM) Makefile.bak; $(MV) Makefile Makefile.bak
-	$(MAKE) -f Makefile.bak MAKE=$(MAKE) $(MFLAGS) Makefile
 	$(MAKE) MAKE=$(MAKE) $(MFLAGS) Makefiles
 	$(MAKE) MAKE=$(MAKE) $(MFLAGS) clean
-	$(MAKE) MAKE=$(MAKE) $(MFLAGS) includes
-	$(MAKE) MAKE=$(MAKE) $(MFLAGS) depend
+	MAKE_INCLUDES
 	$(MAKE) $(WORLDOPTS) MAKE=$(MAKE) $(MFLAGS) install
 	@echo ""
 	@date
 	@echo ""
-	@echo "Zebra build complete."
+	@echo "Full build of Zebra complete."
 	@echo ""
 
-Everything::
+Everything:: makeMakefile
 	@echo ""
 	@echo "Rebuilding Zebra"
 	@echo ""
 	@date
 	@echo ""
-	cd $(IMAKESRC); \
-		$(MAKE) -f Makefile.ini $(MFLAGS) \
-		BOOTSTRAPCFLAGS="$(BOOTSTRAPCFLAGS)" CC="$(CC)"
-	-$(RM) Makefile.bak; $(MV) Makefile Makefile.bak
-	$(MAKE) -f Makefile.bak MAKE=$(MAKE) $(MFLAGS) Makefile
 	$(MAKE) MAKE=$(MAKE) $(MFLAGS) Makefiles
-	$(MAKE) MAKE=$(MAKE) $(MFLAGS) includes
-	$(MAKE) MAKE=$(MAKE) $(MFLAGS) depend
+	MAKE_INCLUDES
 	$(MAKE) $(WORLDOPTS) MAKE=$(MAKE) $(MFLAGS) install
 	@echo ""
 	@date
@@ -136,13 +136,18 @@ Everything::
 	@echo "Zebra rebuild complete"
 	@echo ""
 
+#
+# Use the Makefile target in Makefile.ini, to keep the rules in one place
+#
+makeMakefile:
+	$(MAKE) -f Makefile.ini MAKE=$(MAKE) $(MFLAGS) CC="$(CC)" \
+		BOOTSTRAPCFLAGS="$(BOOTSTRAPCFLAGS)" makeMakefile
+
 /*
- * Some probably wouldn't want a simple 'make clean' to remove
- * the ./include directory, and since this is the natural
- * distribution state, this is called the 'distclean' target:
+ * To be really clean, we also remove our shared header file directory.
  */
 distclean::
-	$(RM) -rf $(TOP)/include
+	$(RM) -rf $(TOP)/share
 
 /*
  * This is the top-level rule for generating tar files of the distributed
