@@ -1,11 +1,22 @@
 /*
  * Color management.
  */
+# include <stdio.h>
 # include "color.h"
 # include "graphics.h"
 # include "device.h"
 # include "overlay.h"
 # include "workstation.h"
+
+/*
+ * Table of all colors for which we can do color name to RGB translation
+ */
+static struct ctranstbl
+{
+	char	*name;
+	double	red, green, blue;
+	struct ctranstbl	*next;
+} *Cname_to_rgb = (struct ctranstbl *) 0;
 
 
 
@@ -84,4 +95,112 @@ struct workstation *wstn;
 		relvm (wstn->ws_color);
 		wstn->ws_color = cp;
 	}
+}
+
+
+
+
+gc_name_to_rgb (cname, r, g, b)
+char	*cname;
+double	*r, *g, *b;
+/*
+ * Translate the named color to RGB values
+ */
+{
+	struct ctranstbl	*clr;
+	int	status;
+/*
+ * Build the translation table if necessary
+ */
+	if (!Cname_to_rgb)
+		if ((status = gc_transtable ()) != GE_OK)
+			return (status);
+/*
+ * Look up this color in the table of all colors
+ */
+	clr = Cname_to_rgb;
+
+	while (clr)
+		if (! strcmp (clr->name, cname))
+			break;
+		else
+			clr = clr->next;
+
+	if (clr)
+	{
+		*r = clr->red;
+		*g = clr->green;
+		*b = clr->blue;
+		return (GE_OK);
+	}
+	else
+		return (GE_BAD_COLOR);
+}
+
+
+
+
+gc_transtable ()
+/*
+ * Build the color name to rbg translation structure from the X11
+ * rgb.txt file
+ */
+{
+	struct ctranstbl	*clr, *prev;
+	int	r, g, b;
+	char	fname[50], colorname[50];
+	FILE	*infile;
+/*
+ * Get the name of the translation file
+ */
+	if (getenv ("COLORNAMES") != 0)
+		strcpy (fname, getenv ("COLORNAMES"));
+	else
+# ifdef VMS
+		strcpy (fname, "ds:[rdss.graphics]rgb.txt");
+# else
+		strcpy (fname, "/usr/local/src/X/rgb/rgb.txt");
+# endif
+
+/*
+ * Open the file
+ */
+	if ((infile = fopen (fname, "r")) == NULL)
+		return (GE_BAD_FILE);
+/*
+ * Loop and read everything
+ */
+	clr = (struct ctranstbl *) 0;
+
+	while (fscanf (infile, "%d%d%d %[^\n]", &r, &g, &b, colorname) == 4)
+	{
+	/*
+	 * Allocate the next table entry
+	 */
+		prev = clr;
+		clr = (struct ctranstbl *) 
+			calloc (1, sizeof (struct ctranstbl));
+	/*
+	 * Set the next pointer (or set the head of the list)
+	 */
+		if (prev)
+			prev->next = clr;
+		else
+			Cname_to_rgb = clr;
+	/*
+	 * Assign the color values
+	 */
+		clr->red = (double) r / 255.0;
+		clr->green = (double) g / 255.0;
+		clr->blue = (double) b / 255.0;
+	/*
+	 * Save the name
+	 */
+		clr->name = (char *) malloc (1 + strlen (colorname));
+		strcpy (clr->name, colorname);
+	}
+/*
+ * Close the file
+ */
+	fclose (infile);
 }
