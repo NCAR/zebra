@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: GraphProc.c,v 1.13 1990-11-08 09:49:23 corbet Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 1.14 1990-11-09 16:32:36 corbet Exp $";
 
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
@@ -94,6 +94,9 @@ GPShutDown ()
  */
 {
 	ui_finish ();
+# ifdef SHM
+	RP_ZapSHMImage (Graphics);
+# endif
 	exit (0);
 }
 
