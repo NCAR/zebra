@@ -27,7 +27,7 @@
 # include <sys/uio.h>
 # include "../include/defs.h"
 # include "message.h"
-MAKE_RCSID ("$Id: msg_lib.c,v 2.8 1992-10-26 23:18:58 burghart Exp $")
+MAKE_RCSID ("$Id: msg_lib.c,v 2.9 1992-11-09 18:06:47 burghart Exp $")
 
 /*
  * The array of functions linked with file descriptors.
@@ -314,6 +314,41 @@ char *group;
 	msg.m_len = sizeof (ident);
 	msg.m_data = (char *) &ident;
  	ident.mh_type = MH_JOIN;
+	strcpy (ident.mh_name, group);
+/*
+ * Send it out.
+ */
+	msg_xf_ack (&msg);
+}
+
+
+
+
+
+
+void
+msg_quit (group)
+char *group;
+/*
+ * Quit a message group.
+ * Entry:
+ *	A connection to the message server exists.
+ *	GROUP	is the name of the group to quit.
+ * Exit:
+ *	We are no longer a member of GROUP.
+ */
+{
+	struct message msg;
+	struct mh_ident ident;
+/*
+ * Put together the QUIT message.
+ */
+	msg.m_proto = MT_MESSAGE;
+	msg.m_seq = Seq++;
+	msg.m_flags = 0;
+	msg.m_len = sizeof (ident);
+	msg.m_data = (char *) &ident;
+ 	ident.mh_type = MH_QUIT;
 	strcpy (ident.mh_name, group);
 /*
  * Send it out.
