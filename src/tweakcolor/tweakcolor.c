@@ -2,47 +2,41 @@
  * Attempt to allocate all color cells and set them to a bright
  * color, so that xoring stuff is more visible.
  */
-static char *rcsid="$Id: tweakcolor.c,v 1.3 1993-12-16 19:51:48 burghart Exp $";
+static char *rcsid="$Id: tweakcolor.c,v 1.4 1994-01-12 17:02:34 burghart Exp $";
 
-# include <stdio.h>	/* just for NULL */
-# include <X11/Xlib.h>
-
-
+# include <X11/Intrinsic.h>
 
 main (argc, argv)
 int argc; 
 char **argv;
 {
-	char *cname = (argc > 1) ? argv[1] : "yellow";
-	XColor exact, screen;
-	Display *disp;
-	Colormap cmap;
-	int ncolor;
-	unsigned long pix;
+	int	ncolor = 0;
+	char	*cname = (argc > 1) ? argv[1] : "yellow";
+	Widget	top;
+	Pixel	pix;
+        XtAppContext    appc;
+	Colormap	cmap;
 /*
  * Connect to the display.
  */
-	if ((disp = XOpenDisplay (NULL)) == NULL)
-	{
-		printf ("Unable to open display\n");
-		exit (1);
-	}
+	top = XtAppInitialize (&appc, "tweakcolor", NULL, 0, &argc, argv, NULL,
+			       NULL, 0);
 /*
  * Get the default colormap
  */
-	cmap = DefaultColormap (disp, DefaultScreen (disp));
+	cmap = DefaultColormapOfScreen (XtScreen (top));
 /*
  * Now we just allocate colors as long as we get away with it.
  */
-	for (ncolor = 0; ; ncolor++)
+	while (XAllocColorCells (XtDisplay (top), cmap, False, NULL, 0, 
+				 &pix, 1))
 	{
-		if (! XAllocColorCells (disp, cmap, False, NULL, 0, &pix, 1))
-			break;
-
-		XStoreNamedColor (disp, cmap, cname, pix, 
+		XStoreNamedColor (XtDisplay (top), cmap, cname, pix, 
 			DoRed | DoGreen | DoBlue);
+		ncolor++;
 	}
+
 	printf ("%d colors tweaked\n", ncolor);
-	XCloseDisplay (disp);
+
 	exit (0);
 }
