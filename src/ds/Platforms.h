@@ -1,5 +1,5 @@
 /*
- * $Id: Platforms.h,v 3.4 2000-04-24 21:20:37 burghart Exp $
+ * $Id: Platforms.h,v 3.5 2000-04-27 15:38:45 burghart Exp $
  *
  * The interface to platform classes and instances shared by daemon
  * and client.  The application, be they daemon or client, can choose
@@ -124,21 +124,7 @@ typedef PlatformInstance Platform;
  * for routines shared between the p_ and Platforms modules.
  */
 
-# undef INLINE	/* other definition by sweepfile stuff from DataStore.h */
 # define INLINE static inline
-
-# ifdef notdef
-/*
- * If inline has been defined because it is not supported by the compiler,
- * then use static instead.  This is an attempt to avoid using static
- * if 'inline' is supported.
- */
-#ifdef inline
-#define INLINE static inline
-#else
-#define INLINE inline
-#endif
-# endif
 
 /*
  * A bunch of inline boolean tests for class flags, which happen to be
@@ -384,6 +370,8 @@ int dt_SetString (char *dest, const char *src, int maxlen, char *op);
 # if __cplusplus
 }	// end extern "C"
 # endif
+
+# undef INLINE	/* other headers want to define this their own way... */
     
 #endif /* ndef __zebra_Platforms_h_ */
 
