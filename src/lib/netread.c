@@ -22,7 +22,7 @@
 # include <errno.h>
 # include "defs.h"
 
-RCSID("$Id: netread.c,v 2.2 1995-04-15 00:30:54 granger Exp $")
+RCSID("$Id: netread.c,v 2.3 1995-06-06 22:43:50 burghart Exp $")
 
 
 int
@@ -39,7 +39,19 @@ char *dest;
 	while (nread < len)
 	{
 		if ((status = read (fd, dest + nread, len - nread)) <= 0)
+		{
+		/*
+		 * Just try again if we get interrupted
+		 */
+			if (errno == EINTR)
+				continue;
+		/*
+		 * If we're blocked, return the amount we've read so far.  For
+		 * all other errors, return the status.
+		 */
 			return (errno == EWOULDBLOCK ? nread : status);
+		}
+		
 		nread += status;
 	}
 	return (nread);
@@ -62,7 +74,8 @@ char *dest;
 	{
 		if ((status = read (fd, dest + nread, len - nread)) <= 0)
 		{
-			if (errno == EWOULDBLOCK && nread > 0)
+			if (errno == EINTR || 
+			    (errno == EWOULDBLOCK && nread > 0))
 				continue;
 			return (status);
 		}
