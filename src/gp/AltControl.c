@@ -41,7 +41,7 @@
  */
 int	AltControlComp;
 
-MAKE_RCSID("$Id: AltControl.c,v 2.18 1997-04-04 19:53:19 corbet Exp $")
+MAKE_RCSID("$Id: AltControl.c,v 2.19 1997-04-10 13:42:43 granger Exp $")
 
 # define MAXALT		80	/* Max heights we expect to see		*/
 
@@ -52,7 +52,7 @@ static void	alt_GetControlComp FP ((void));
 static void	alt_SetAlt FP ((int));
 static int	alt_GetRSAlts FP ((char *, float *));
 static void	alt_SetLabel FP ((char *label));
-static int	alt_AlreadyThere FP ((float *, int, float));
+/* static int	alt_AlreadyThere FP ((float *, int, double)); */
 static int	alt_GetLatest FP ((char *, float *));
 
 
@@ -367,6 +367,25 @@ char *label;
 
 
 static int
+alt_AlreadyThere (alts, nalt, new)
+float *alts;
+int nalt;
+float new;
+/*
+ * See if this altitude is already present in the list.
+ */
+{
+	int i;
+
+	for (i = 0; i < nalt; i++)
+		if (alts[i] == new)
+			return (TRUE);
+	return (FALSE);
+}
+
+
+
+static int
 alt_GetRSAlts (platform, alts)
 char *platform;
 float *alts;
@@ -482,19 +501,3 @@ float *alts;
 
 
 
-
-static int
-alt_AlreadyThere (alts, nalt, new)
-float *alts, new;
-int nalt;
-/*
- * See if this altitude is already present in the list.
- */
-{
-	int i;
-
-	for (i = 0; i < nalt; i++)
-		if (alts[i] == new)
-			return (TRUE);
-	return (FALSE);
-}
