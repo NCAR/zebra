@@ -39,7 +39,7 @@ char **argv;
  */
 	printf ("Reading GENPRO header..."); fflush (stdout);
 	nrec = 0;
-	while (read (tape, Buf, 80) > 0)
+	while (GetHdrRec (tape, Buf) > 0)
 	{
 		if (nrec == 0 && strncmp (Buf, " BEGINHD", 8))
 			printf (
@@ -63,4 +63,36 @@ char **argv;
 		}
 	}
 	printf ("%d records read.\n", nrec);
+}
+
+
+
+
+int
+GetHdrRec (tape, dest)
+int tape;
+char *dest;
+/*
+ * Pull in a header line.  Try to cope with blocked headers.
+ */
+{
+	static char hbuf[8000];
+	static int hlen = -1, hpos = 0;
+/*
+ * If we have something in the buffer still just return it.
+ */
+	if (hpos < hlen)
+	{
+		memcpy (dest, hbuf + hpos, 80);
+		hpos += 80;
+		return (80);
+	}
+/*
+ * Nope, gotta read another.
+ */
+	if ((hlen = read (tape, hbuf, 8000)) <= 0)
+		return (0);	/* All done. */
+	memcpy (dest, hbuf, 80);
+	hpos = 80;
+	return (80);
 }
