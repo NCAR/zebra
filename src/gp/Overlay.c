@@ -27,7 +27,7 @@
 # include <config.h>
 # include <defs.h>
 
-RCSID("$Id: Overlay.c,v 2.49 1995-09-21 16:25:32 burghart Exp $")
+RCSID("$Id: Overlay.c,v 2.50 1995-09-21 21:24:27 granger Exp $")
 
 # include <pd.h>
 # include <GraphicsW.h>
@@ -1601,6 +1601,12 @@ int update;
 	 * the icon there.
 	 */
 		prj_Project (loc.l_lat, loc.l_lon, &x, &y);
+	/*
+	 * Though we set the clip above, I_PositionIcon clears it.  So we
+	 * resort to some manual clipping.
+	 */
+		if (x < Xlo || x > Xhi || y < Ylo || y > Yhi)
+			continue;
 		px = XPIX (x);
 		py = YPIX (y);
 		I_PositionIcon (comp, plist[plat], &loctime, icon, px, py, fg);
