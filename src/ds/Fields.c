@@ -22,14 +22,14 @@
 # include <defs.h>
 # include <message.h>
 # include "ds_fields.h"
-MAKE_RCSID ("$Id: Fields.c,v 3.2 1992-11-04 03:27:35 burghart Exp $")
+MAKE_RCSID ("$Id: Fields.c,v 3.3 1992-11-30 20:33:30 corbet Exp $")
 
 
 
 /*
  * The structure defining a field.
  */
-# define MaxFieldID	128
+# define MaxFieldID	256
 typedef struct _FieldDesc
 {
 	char	fd_CName[40];		/* Canonical name		*/
