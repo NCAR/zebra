@@ -9,6 +9,8 @@ p_station
 	representation:	station
 	u-field:	u_wind
 	v-field:	v_wind
+	wspd-field:	ws
+	wdir-field:	wd
 	icon-left-menu:	standard-cap-left-menu
 	icon-middle-menu:	FieldMenu
 !	posicon-middle-menu:	FieldMenu
