@@ -37,7 +37,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.16 1992-10-06 15:29:00 corbet Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.17 1992-10-06 15:53:25 corbet Exp $")
 
 
 /*
@@ -741,7 +741,7 @@ Boolean	update;
  */
 {
 	char	name[20], ctname[40], platform[40], data[100], hcolor[40];
-	char	param[50];
+	char	param[50], outrange[40];
 	int	xdim, ydim;
 	int	fastloop, newrp, nsteps;
 	Boolean	ok, highlight;
@@ -749,7 +749,7 @@ Boolean	update;
 	float	min, max, center, step, hvalue, hrange;
 	int	pix_x0, pix_x1, pix_y0, pix_y1, image, shifted;
 	XRectangle	clip;
-	XColor	black, xc;
+	XColor	xc, xoutr;
 	ZebTime	zt;
 	PlatformId pid;
 	DataOrganization org;
@@ -778,6 +778,14 @@ Boolean	update;
 
 	if (! ok)
 		return;
+/*
+ * An out of range color is nice, sometimes.
+ */
+	if (! pda_Search (Pd, c, "out-of-range-color", platform, outrange,
+			SYMT_STRING))
+		strcpy (outrange, "black");
+	if (! ct_GetColorByName (outrange, &xoutr))
+		ct_GetColorByName ("black", &xoutr);
 /*
  * Make sure the platform is other than bogus, and get its organization.
  */
@@ -876,11 +884,10 @@ Boolean	update;
 /*
  * Draw the raster plot
  */
-	ct_GetColorByName ("black", &black);
 	ct_GetColorByName (hcolor, &xc);
 	max = center + (nsteps/2) * step;
 	min = center - (nsteps/2) * step;
-	RP_Init (Colors, Ncolors, black, clip, min, max, highlight, hvalue, 
+	RP_Init (Colors, Ncolors, xoutr, clip, min, max, highlight, hvalue, 
 		xc, hrange);
 	if (image)
 # ifdef SHM
