@@ -1,18 +1,12 @@
-MFVERSION="$Id: Makefile.cpp,v 1.4 1991-11-09 05:31:04 martin Exp $"
+MFVERSION="$Id: Makefile.cpp,v 1.5 1991-12-13 00:12:40 martin Exp $"
 
-# ifdef sun
-/*
- * Sun options
- */
-CC=gcc
-CFLAGS= -g -O -I$(ZEBHOME)/fcc/include -I$(ZEBHOME)/rdss/include
-LIBS=$(ZEBHOME)/fcc/lib/libfcc.a $(ZEBHOME)/rdss/suds/libsuds.a -lrdss -ltermcap -lnetcdf -lXaw -lXmu -lXt -lXext -lX11 -lm 
-# endif
+# include "/zeb/include/config.h"
 
+CC=CCompiler
+CFLAGS=CCOptions IncludeDirs
+LIBS=ZebLibrary MiscLibs XLibraries
 
 BINDIR=../../bin
-LIBDIR=../../lib
-HDIR=../../include
 
 all:	is is.lf
 
@@ -38,7 +32,7 @@ mf:
 	mv Makefile Makefile~
 	cp Makefile.cpp Makefile.c
 	echo "# DO NOT EDIT -- EDIT Makefile.cpp INSTEAD" > Makefile
-	cc -E Makefile.c >> Makefile
+	cc -E -DMAKING_MAKEFILE Makefile.c | cat -s >> Makefile
 	rm -f Makefile.c
 	make depend
 
