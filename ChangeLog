@@ -1,3 +1,7 @@
+Fri Nov  5 15:00:25 1993  Gary Granger  (granger@kodiak)
+
+	* Tagging version V3-5.
+
 Thu Nov  4 09:24:43 1993  Jonathan Corbet  (corbet@ale)
 
 	* Fixed a "never should have worked" bug in dsmanage when loading
