@@ -295,8 +295,4 @@ mf:
 	cpp -I. -I$(TOP)/config -E $(TOP)/config/Template.c | grep -v '^# [0-9]' | cat -s >> Makefile
 	make depend
 
-testmf:
-	@mftest $(MFARCH)
-	
-
 
