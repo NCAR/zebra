@@ -32,7 +32,7 @@
 # include <DataStore.h>
 # include <DataChunk.h>
 
-MAKE_RCSID("$Id: SatIngest.c,v 1.3 1993-03-24 22:49:31 granger Exp $")
+MAKE_RCSID("$Id: SatIngest.c,v 1.4 1993-05-26 19:46:43 granger Exp $")
 
 # include "keywords.h"
 
@@ -574,6 +574,7 @@ int	fentry;
 		else
 			*c = tolower (*c);
 	}
+ 	msg_ELog (EF_DEBUG, "Source is '%s'", source);
 /*
  * 512 byte extra header for "aaa" areas (we ignore it for now)
  */
@@ -628,12 +629,12 @@ int	fentry;
  * Fill in the grid (This is the meat of the program, the rest is more or
  * less incidental.)
  */
-	for (j = 0; j < GridY; j++)
-	{
-		if (! ((j+1) % 20))
-			msg_ELog (EF_DEBUG, "%s: line %d of %d", 
-				Infile[fentry].name, j + 1, GridY);
-
+  	for (j = 0; j < GridY; j++)
+  	{
+  		if (! ((j+1) % 20))
+ 			msg_ELog (EF_DEBUG, "%s: line %d of %d, lat %.2f", 
+ 				Infile[fentry].name, j + 1, GridY, lat);
+  
 		lat = Maxlat - j * Latstep;
 
 		for (i = 0; i < GridX; i++)
