@@ -16,7 +16,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.33 2001-10-25 18:30:02 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.34 2003-07-11 17:24:13 burghart Exp $"
 
 #define IHaveSubdirs
 #define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
@@ -56,7 +56,7 @@ SUBDIRS = $(LIBS) dm dsdelete dsdump dsnotice dsprint \
 	rfdump zfdump GRIBdump \
 	dsdwidget dsmanage dsrescan $(ETC) EventLogger fccclock \
 	gettime pdmon $(GP) $(INGEST) ListMaker $(MAPUTIL) msg msg_ping \
-	mstatus mtap $(OPTIMIZER_DIR) pdcheck prt_Notify \
+	mstatus mtap $(OPTIMIZER_DIR) pdcheck platloc prt_Notify \
 	$(PYTHON) $(REALTIME) settime Sound timer \
 	tweakcolor $(XHELP) xmgrpipe zplot zstop zmon zquery zrun zstart
 
