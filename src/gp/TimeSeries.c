@@ -40,7 +40,7 @@
 # include "DrawText.h"
 # include "EventQueue.h"
 
-RCSID("$Id: TimeSeries.c,v 2.19 1997-05-13 16:27:32 ishikawa Exp $")
+RCSID("$Id: TimeSeries.c,v 2.20 1997-06-05 15:54:35 granger Exp $")
 
 /*
  * General definitions
@@ -839,7 +839,7 @@ long	*step;
  */
 	*first = *begin;
 
-	tm = gmtime (&(first->zt_Sec));
+	tm = gmtime ((time_t *)&(first->zt_Sec));
 	tm->tm_hour = tm->tm_min = tm->tm_sec = 0;
 #if defined(SVR4) || defined(SYSV) || defined (__osf__)
         strcpy (tz, "TZ=GMT");

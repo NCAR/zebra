@@ -1,4 +1,4 @@
-/* $Id: message.h,v 2.31 1997-05-13 22:08:30 ishikawa Exp $ */
+/* $Id: message.h,v 2.32 1997-06-05 15:54:50 granger Exp $ */
 /*
  * Message protocol types.
  */
@@ -366,16 +366,10 @@ void cp_Exec FP ((char *process, char *command));
 void cp_SetupCmdHandler FP ((int (*fn)(/* char * */)));
 
 /*
- * For some reason HP-UX uses pointers to int rather than
- * pointers to fd_set in its select prototype.  This typedef is just
- * to get the right cast for the compiler in select calls: pointer
- * to SelectSet.
+ * This was here for HP-UX when it prototyped select() to take (int *)
+ * rather than (fd_set *).  They finally got it right.
  */
-#ifdef hpux
-typedef int SelectSet;
-#else
 typedef fd_set SelectSet;
-#endif
 
 /*
  * The message manager and library reference the netread functions, 

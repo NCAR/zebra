@@ -26,7 +26,7 @@
 
 # include "defs.h"
 
-RCSID ("$Id: TCvt.c,v 2.22 1997-05-13 22:10:48 ishikawa Exp $")
+RCSID ("$Id: TCvt.c,v 2.23 1997-06-05 15:54:47 granger Exp $")
 
 /*
  * Public time constants
@@ -58,7 +58,7 @@ UItime *fcc;
  * Convert a system time to an fcc time.
  */
 {
-	struct tm *t = gmtime ((long *)&sys);
+	struct tm *t = gmtime ((time_t *)&sys);
 
 	fcc->ds_yymmdd = t->tm_year*10000 + (t->tm_mon + 1)*100 + t->tm_mday;
 	fcc->ds_hhmmss = t->tm_hour*10000 + t->tm_min*100 + t->tm_sec;
@@ -190,7 +190,7 @@ char *dest;
  * Encode this date/time value.
  */
 {
-	struct tm *t = gmtime (&zt->zt_Sec);
+	struct tm *t = gmtime ((time_t *)&zt->zt_Sec);
 /*
  * Just switch out depending on what they want.
  */
@@ -305,7 +305,7 @@ int *year, *month, *day, *hour, *minute, *second, *microsec;
  * which are non-NULL.
  */
 {
-	struct tm *t = gmtime (&zt->zt_Sec);
+	struct tm *t = gmtime ((time_t *)&zt->zt_Sec);
 
 	if (year)	*year = t->tm_year;
 	if (month)	*month = t->tm_mon+1;
