@@ -18,6 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+# include <string.h>
 # include <X11/Intrinsic.h>
 # include <math.h>
 # include <defs.h>
@@ -27,7 +28,7 @@
 # include "DrawText.h"
 # include "PixelCoord.h"
 # include "GC.h"
-MAKE_RCSID ("$Id: Annotate.c,v 2.25 1994-10-13 22:58:39 sobol Exp $")
+MAKE_RCSID ("$Id: Annotate.c,v 2.26 1995-04-17 21:08:08 granger Exp $")
 
 /*
  * Graphics context (don't use the global one in GC.h because we don't
@@ -148,7 +149,7 @@ char *comp, *plat;
  * parameters.
  */
 {
-	int	i, brk, slen, swidth, dummy, sx, sy, ex, ey;
+	int	i, brk, slen, swidth, sx, sy, ex, ey;
 	char	*cstring;
 
 	slen = strlen (string);
@@ -574,7 +575,7 @@ int datalen, begin, space;
 	char	label[32];
 	char	field[32];
 	int	nTic, i;
-	float	used, ticPix, step;
+	float	ticPix, step;
 	int	textlim, x1,x2,y1,y2;
 /*
  * Get annotation parameters.
@@ -583,7 +584,7 @@ int datalen, begin, space;
 /*
  * Get Data
  */
-	sscanf (data, "%f %d %d %s", &ratio, &graphWidth , &color, field);
+	sscanf (data, "%f %d %li %s", &ratio, &graphWidth , &color, field);
 /*
  * Draw the (ruler) scale
  */
@@ -665,7 +666,7 @@ int datalen, begin, space;
 /*
  * Get data.
  */
-        sscanf (data, "%s %d %f %f %f", string, &color, &u, &v, &unitlen);
+        sscanf (data, "%s %li %f %f %f", string, &color, &u, &v, &unitlen);
 /*
  * Draw the string.
  */
@@ -705,7 +706,7 @@ int datalen, begin, space;
 /*
  * Get data.
  */
-        sscanf (data, "%s %d %d", string, &color, &unitlen);
+        sscanf (data, "%s %li %d", string, &color, &unitlen);
 /*
  * Draw the string.
  */
@@ -776,7 +777,7 @@ int datalen, begin, space;
 	int limit, left;
 	float scale;
 	Pixel color;
-	char string[40], *strrchr (), *sp;
+	char *sp;
 /*
  * Get annotation parameters.
  */
@@ -870,7 +871,7 @@ int datalen, begin, space;
 	int i, limit, left, ncolors, match, barHeight;
 	char string[40], ctable[40];
 	XColor xc, *colors;
-	float scale, center, step, cval, maxval, used;
+	float scale, center, step, cval, used;
 /*
  * Get top and side annotation plot description parameters.
  */
