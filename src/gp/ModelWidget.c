@@ -1,7 +1,6 @@
 /*
  * Movie control functions.
  */
-static char *rcsid = "$Id: ModelWidget.c,v 2.7 1994-12-11 16:21:15 corbet Exp $";
 /*		Copyright (C) 1994 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -30,12 +29,15 @@ static char *rcsid = "$Id: ModelWidget.c,v 2.7 1994-12-11 16:21:15 corbet Exp $"
 # include <X11/Xaw/AsciiText.h>
 # include <defs.h>
 # include <message.h>
-# include <pd.h>
 # include <timer.h>
+# include <pd.h>
+# include <dm.h>
 # include <DataStore.h>
 # include <GraphicsW.h>
 # include "GraphProc.h"
 # include "EventQueue.h"
+
+RCSID("$Id: ModelWidget.c,v 2.8 1995-04-17 22:11:47 granger Exp $")
 
 # define MODEL_NAME	"model" /* Name of the movie controller widget  */
 
@@ -85,11 +87,11 @@ static void	mw_GetFrameOffsets FP ((void));
 static void	mw_StartLoop FP ((Widget, XtPointer, XtPointer));
 static void	mw_StopLoop FP ((Widget, XtPointer, XtPointer));
 static void	mw_TextChange FP ((Widget, XtPointer, XtPointer));
-static void	mw_DoNextFrame FP ((int *));
 static void	mw_NextFrame FP ((void));
-static void	mw_IndicateFrame FP ((int));
 static void	mw_GenNFrame FP ((int *));
+#ifdef notdef
 static void	mw_Notification FP ((PlatformId, int, ZebTime *));
+#endif
 static void	mw_Dismiss FP ((Widget, XtPointer, XtPointer));
 static void	mw_ShowFrame FP ((int *));
 static void	mw_FrameStep FP ((Widget, XEvent *, String *, Cardinal *));
@@ -107,8 +109,6 @@ mw_DefModelWidget ()
  * Hook the movie widget into UI.
  */
 {
-	stbl vtbl = usy_g_stbl ("ui$variable_table");
-
 	uw_def_widget (MODEL_NAME, "Model Control", mw_MWCreate, 0, 0);
 	uw_NoHeader (MODEL_NAME);
 }
@@ -168,7 +168,7 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNfromHoriz, NULL); n++;
 	XtSetArg (args[n], XtNfromVert, NULL); n++;
 	XtSetArg (args[n], XtNwidth, 600); n++;
-	sprintf (string, "Model Handling for %s", Ourname);
+	sprintf (string, "Model Handling for %s", dm_WindowName());
 	XtSetArg (args[n], XtNlabel, string); n++;
 	XtSetArg (args[n], XtNborderWidth, 0); n++;
 	w = XtCreateManagedWidget ("modelLabel", labelWidgetClass, form, 
@@ -533,7 +533,7 @@ mw_Update ()
 /*
  * Update the status and highlight the appropriate frame button
  */
-	sprintf (string, "%d hr forecast", ForecastOffset / 3600);
+	sprintf (string, "%li hr forecast", ForecastOffset / 3600);
 	mw_SetStatus (string);
 
 	XawToggleUnsetCurrent (RadioGroup);
@@ -566,6 +566,7 @@ mw_Update ()
 
 
 
+#ifdef notdef
 static Widget
 UWShell (name)
 char *name;
@@ -577,7 +578,7 @@ char *name;
 
 	return (shell);
 }
-
+#endif
 
 
 
@@ -686,7 +687,6 @@ XtPointer	junk1, junk2;
  * Stop the loop
  */
 {
-	Arg	arg;
 /*
  * If there are timer events active, get rid of them.
  */
@@ -794,7 +794,7 @@ int *which;
  * Generate the which'th movie frame.
  */
 {
-	char	string[50], *info;
+	char	string[50];
 	Boolean	use_frame;
 	int	frame = *which, next, interval;
 /*
@@ -1027,7 +1027,7 @@ char	*param;
 
 
 
-
+#ifdef notdef
 static void
 mw_Notification (pid, global, t)
 PlatformId pid;
@@ -1043,7 +1043,7 @@ ZebTime *t;
 	msg_ELog (EF_DEBUG, "mw_Notification: New data for %s", 
 		  ds_PlatformName(pid));
 }
-
+#endif /* notdef */
 
 
 static void
@@ -1076,7 +1076,6 @@ int	*frame;
  */
 {
 	char	string[40];
-	Boolean	set;
 /*
  * We select the FrameButton by its "radioData", which is just the frame 
  * number + 1.
@@ -1087,7 +1086,7 @@ int	*frame;
  */
 	ForecastOffset = Foffsets[*frame];
 
-	sprintf (string, "%ds", ForecastOffset);
+	sprintf (string, "%lis", ForecastOffset);
 	pd_Store (Pd, "global", "forecast-offset", string, SYMT_STRING);
 
 	PlotTime = IssueTime;
