@@ -42,7 +42,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.52 1995-04-17 21:15:32 granger Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.53 1995-05-05 22:46:21 granger Exp $")
 
 
 /*
@@ -820,7 +820,7 @@ bool quadstn[4];
 		{
 			label = ds_PlatformName (plat);
 			if (strchr (label, '/'))
-				label = strchr (label, '/') + 1;
+				label = (char *)strchr (label, '/') + 1;
 		}
 	/*
 	 * Else label with a data value if we've got a good one

@@ -36,7 +36,7 @@
 # include "DrawText.h"
 # include "XYCommon.h"
 
-RCSID("$Id: XYCommon.c,v 1.25 1995-04-17 21:20:45 granger Exp $")
+RCSID("$Id: XYCommon.c,v 1.26 1995-05-05 22:46:28 granger Exp $")
 
 /* 
  * One somewhat reasonable definition for infinity in XDR, lifted from 
@@ -1377,7 +1377,7 @@ int *nbadval;
 	{
 		char *bv, *comma;
 		bv = Scratch;
-		while (bv[0] && (comma = strchr(bv, ',')) != NULL)
+		while (bv[0] && (comma = (char *)strchr(bv, ',')) != NULL)
 		{
 			*comma = '\0';
 			badvals[nbad++] = atof(bv);

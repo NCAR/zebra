@@ -1,7 +1,6 @@
 /*
  * XY-Observation plotting module
  */
-static char *rcsid = "$Id: XYObservation.c,v 1.16 1994-11-19 00:36:15 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -42,6 +41,8 @@ static char *rcsid = "$Id: XYObservation.c,v 1.16 1994-11-19 00:36:15 burghart E
 # include "ui_date.h"
 # include "DrawText.h"
 # include "PlotPrim.h"
+
+RCSID ("$Id: XYObservation.c,v 1.17 1995-05-05 22:46:30 granger Exp $")
 
 /*
  * Enum to tell how we anchor z values

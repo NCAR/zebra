@@ -31,7 +31,7 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 
-MAKE_RCSID ("$Id: Utilities.c,v 2.29 1995-05-01 16:07:22 corbet Exp $")
+MAKE_RCSID ("$Id: Utilities.c,v 2.30 1995-05-05 22:46:26 granger Exp $")
 
 /*
  * Rules for image dumping.  Indexed by keyword number in GraphProc.state
@@ -913,7 +913,8 @@ ZebTime		*dtime;
  * selection if appropriate.
  */
 {
-	ZebTime	stimes[60], obstimes[2], wanted_time = *dtime;
+	ZebTime	stimes[60], obstimes[2];
+	ZebTime wanted_time;
 	int	nsample, samp, ntime, len;
 	bool	all = FALSE, rspace = FALSE;
 	float	cdiff;
@@ -921,6 +922,7 @@ ZebTime		*dtime;
 /*
  * Find out when we can really get data.
  */
+	wanted_time = *dtime;
 	if (! (ntime = ds_DataTimes (pid, &wanted_time, 1, DsBefore, dtime)))
 	{
 		msg_ELog (EF_INFO, "ImageDataTime: No data for '%s'",

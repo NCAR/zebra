@@ -46,7 +46,7 @@
 # include "PixelCoord.h"
 # include "LayoutControl.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.52 1995-05-01 16:07:16 corbet Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.53 1995-05-05 22:46:23 granger Exp $")
 
 /*
  * Default resources.
@@ -1823,8 +1823,8 @@ DoRequires ()
 		if (! pd_Retrieve (Pd, comps[comp], "require", rqs,
 				   SYMT_STRING))
 			continue;
-		for (module = strtok (rqs, ", \t"); module;
-		     module = strtok (NULL, ", \t"))
+		for (module = (char *)strtok (rqs, ", \t"); module;
+		     module = (char *)strtok (NULL, ", \t"))
 			Require (module);
 	}
 	msg_ELog (EF_DEBUG, "module requirements check complete");
