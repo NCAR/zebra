@@ -640,10 +640,88 @@ DM> pconfig <config-name>
 
 The configuration can be added to the Icon Bar <Zeb> menu
 by editing the file 'IconBar' in the <project> directory.
-dsdwidget    Finding Out What Data Times are Available
-0
+dsdwidget    Listing Available Data
+1128
+
+/ THE DATA STORE WIDGET /
+
+The Data Store Widget lists the data that is currently
+available for display by Zeb. In order to pop-up this list,
+move the cursor onto the <Zeb> icon in the IconBar,
+left-click to pull down the menu, and choose "Data Store
+Widget" from the menu.  The Data Store Widget will pop-up
+containing a list of all the STORM-FEST CDROM data sets, as
+well as the beginning and end times that are currently
+available to Zeb. The first list of data is contained in
+the `local' data store (i. e. data currently loaded on the
+hard disk) and the second list labelled remote is the data
+that is contained on the CD (note: the scroll-bar needs to
+be used to access both lists). Either data is accessible;
+however, the performance will improve measurably if you
+load the data onto your hard disk using the Data Store
+Manager accessible from the <Zeb> Icon Bar menu.
+
+To get further information on any data platforms,
+left-click on the platform name. This will pull up a new
+widget displaying the individual file names and the time
+period covered by each file. Left-click on the <Exit>
+button to remove the widget.  
+
 dsmanage     Managing Local Disk Space
-0
+2373
+
+/ THE DATA STORE MANAGER /
+
+To load data onto your local hard disk, choose Data Store
+Management under the Zeb Icon on the Iconbar. An Icon will
+pop-up titled `The Zeb disk manager'. This widget allows
+users to remove files from their local disk (Platform and
+file maintenance) and load data (Load data) from a remote
+medium, such as a CD or tape.
+
+/ LOADING DATA FROM CD /
+
+To load data, click on <Load data>; a new widget will
+pop-up.  Select load data from CDROM. Enter the CD
+directory and click on continue. A new widget will pop-up
+that contains four lists; "Select buttons", "Platforms",
+"Data present" (what is currently on the local disk) and
+"Data available" (what data is currently on the remote
+data-store or CDROM). When the widget is first brought up
+all of the platforms are selected (the select buttons are
+in reverse video when they are on). To select the data to
+be moved onto the local disk, enter the start and end times
+in the boxes at the top of the widget and click on <Apply 
+to selected platforms>.
+This
+will select all the data for each selected platform that
+falls between the start and end times. The number of files
+and size of the data will appear in the upper-right
+corner.  Modifications to the selected data can be made. 
+Entire platforms may be un-selected by clicking on the
+select button to the left of the platform name and then
+clicking on <Apply to selected platforms>.  Individual files
+can be selected by clicking on the platform name.  Finally,
+large data sets such as satellite or radar data can be
+selected at specified intervals by clicking on the <only
+select every> button.  After selecting the data to be moved
+to the local disk, click on <Load the data>. A widget will
+pop-up that gives the status of the load. After completing
+the load, use the <Quit> button to exit. The data is now on
+disk.  Pop-up the Data Store widget to verify that the
+load was successful.  
+
+/ REMOVING DATA FROM LOCAL DISK /
+
+To remove data from the local disk, click on <Platform and
+file maint.>  A widget will pop-up that contains a list of
+all of the platforms currently on the disk. Click on the
+platform name; a new widget will appear that contains all
+the files under that platform.  Choose the files for
+deletion by clicking on the <delete> button to the left of
+the file name.  Finally, click on <Execute deletions> to
+delete the files.
+
 printer      Printing Hardcopies of Windows
 6195
 
@@ -804,10 +882,10 @@ X11 Release 5 distribution, and the 'xwd2ps' program is
 freely distributed software.  See the copyright notices in
 the xwd2ps man(1) page in the directory doc/man in the
 distribution.  
-documentationGuide to Zeb Documentation
-3178
+documentationA Guide to Zeb Documentation
+3180
 
-/ GUIDE TO ZEB DOCUMENTATION /
+/ A GUIDE TO ZEB DOCUMENTATION /
 
 The Zeb documentation is contained in the "doc" directory
 under Zeb top directory.  For the STORM-FEST CDROM
@@ -893,31 +971,33 @@ user-index.ps     The index for the user's manual.
 
 
 icons        Using the Icons in a Graphics Window
-1050
+1037
 
 / GRAPHICS WINDOW ICONS /
 
-	The Iconbar is Zeb's main menu and allows the user 
-to choose the type of data to be plotted and the display 
-configuration.  All the available data is represented here. 
-A new data type or overlay may be added to any window by 
-simply using the mouse to pick the desired platform and 
-field from the icon bar, then clicking on the target window. 
-(NOTE: The target window must be a horizontal cross-section.)
+The Iconbar is Zeb's main menu and allows the user to
+choose the type of data to be plotted and the display
+configuration.  All the available data is represented here.
+A new data type or overlay may be added to any window by
+simply using the mouse to pick the desired platform and
+field from the icon bar, then clicking on the target
+window.  (NOTE: The target window must be a horizontal
+cross-section.)
 
-	The icons at the bottom of each window are used to 
-control the contents of the data present in that window.  
-There is one icon present for each data type and/or overlay.
-Each mouse button activates a different menu within each
+The icons at the bottom of each window are used to control
+the contents of the data present in that window.  There is
+one icon present for each data type and/or overlay.  Each
+mouse button activates a different menu within each
 platform icon.
 
-Generally the icon menus on the left button allow users to 
-change plotting limits/intervals, remove a field or 
-disable/reenable a field.  The middle buttons generally 
-allows users to change fields (i.e. change mesonet contours 
-from temperature to dewpoint) and the right button generally 
-allows modification of line width or other miscellaneous 
-information.
+Generally the icon menus on the left button allow users to
+change plotting limits/intervals, remove a field or
+disable/reenable a field.  The middle buttons generally
+allows users to change fields (i.e. change mesonet contours
+from temperature to dewpoint) and the right button
+generally allows modification of line width or other
+miscellaneous information.
+
 buttonmaps   Graphics Window Buttons
 2349
 
@@ -1218,53 +1298,104 @@ that this icon's data is no longer being displayed in the
 plot.
 
 limitwidgets Adjusting Limits
-1196
-Adjusting Limits
+3299
 
-	Values that affect the plotting of data, referred to
-as plot limits, may be directly changed using limit widgets.
-Some examples of plot limits are:
+/ ADJUSTING LIMITS /
 
-	- Center and Step:  Plot limits that map data values
-	  onto colors.
+Various plotting limits in a graphics window may be changed
+with a limit widget.  Limit widgets appear with the
+appropriate labels and blanks for setting specific plotting
+parameters.  Each of the styles of limit widgets are
+described in this topic.  Every limit widget contains three
+buttons: a <Help> button, which accesses this help topic; a
+<Store> button, which stores new limit values in the
+window's plot description and updates the plot; and a
+<Cancel> button, which removes the limit widget and ignores
+any changes made in the parameter values in the widget's
+windows.
 
-	- Arrow Scale:  Plot limit that determines the 
-	  length of a vector relative to the window size.
+Limit widgets are activated as follows:
 
-	- Time Interval:  Length of time of interest to
-	  the user.  Suffixes: m - minutes, h - hours,
-	   d- days, s - seconds (default)
+1.  Click and hold the left mouse button on the icon
+    representing the data whose limits must be adjusted.
 
-	- And many more.
+2.  Move the cursor until the "Adjust Limits" menu entry
+    is highlighted.
 
-	Limit widgets are activated by:
-
-	1.  Click and hold the left mouse button on the 
-	    icon representing the overlay whose limits 
-	    must be adjusted.
-
-	2.  Move the cursor until the
-
-		Adjust Limits
-
-	    menu entry is highlighted.
-
-	3.  If a submenu appears, then select the limit
-	    to be adjusted from the submenu.
+3.  If a submenu appears, then select the limits
+    to be adjusted from the submenu.
 	
-	4.  Release the mouse button.
+4.  Release the mouse button.
 
-	At this point a limit widget should have appeared,
-and the values within it may be changed.
+The limit widget will appear, containing one or more
+values which may now be changed.
 
-	1.  Place the cursor in the yellow text window,
-	    and type the new value.  The previous value
-	    will automatically be deleted.
+1.  Place the cursor in the yellow text window
+    and type the new value.  The previous value
+    will automatically be deleted.
 	
-	2.  Press Store when the value(s) are correct.
-	    Or, to abandon any changes, click on the
-	    Cancel button.
-overlaytimes Finding Data Times for a Plot
+2.  Press <Store> when the value(s) is(are) correct.
+    Or, to abandon all changes, click on the <Cancel>
+    button.
+
+
+/ DESCRIPTIONS OF LIMIT WIDGETS /
+
+___________________________________________________________
+Center/Step 
+
+These are plot limits that map data values onto colors. 
+The "Center:" value will map to the median of the color
+table, while the "Step:" specifies the distance in the data
+between the enumerated sections of the color table.  Note
+that the step does NOT correspond to the data range
+spanned by a single color.  More than one color may fall in
+a color table between the value labels.  For example, a
+32-color color table is labeled as 10 sections, so several
+colors fall within the "Step:" space.
+
+___________________________________________________________
+Highlight/Range
+
+These specify a range of data to highlight in a plot. 
+"Highlight:" is the center value of the range to highlight,
+and "Range:" is the size of the range.  In the plot, data
+values which fall within the specified range will be
+highlighted in a distinctive color.
+
+___________________________________________________________
+Minval/Maxval
+
+These limit parameters are used to specify the minimum and
+maximum data values to plot.  For example, in Skew-t plots,
+min/max ranges can be set for temperature and pressure. 
+For time-series plots, min/max limit widgets change the
+range of the Y axis for a specific field in the plot.
+
+___________________________________________________________
+Arrow Scale
+
+The "Arrow Scale:" value gives the length of an arrow
+relative to the size of the window.  
+
+___________________________________________________________
+Time Interval
+
+The time interval parameter, "Time(suffix h or m):", limits
+the time axis of a time series or profiler plot.  A suffix
+of "m" implies units of minutes; a suffix of "h" implies
+hours.  The default unit is seconds, so in most cases a
+suffix will be necessary.
+
+___________________________________________________________
+Tic Interval
+
+The data spacing between the Y axis tics of a time series
+plot.
+
+___________________________________________________________
+
+overlaytimes Finding the Times for Data in a Plot
 1701
 
 / THE OVERLAY TIMES WIDGET /
@@ -1304,8 +1435,37 @@ forward through frames and while running a movie.
 
 To remove the Overlay Times Widget, click on the <Zap>
 button.
-CAP          Constant-Altitude Plots, or Horizontal Cross-sections
-0
+CAP          Horizontal Plots
+900
+
+/ HORIZONTAL PLOTS /
+
+Horizontal cross-section plots, also known as
+constant-altitude plots, plot data in the latitude/longitude
+coordinate domain by plotting two-dimensional, horizontal
+representations of data sets on top of each other.  Hence
+data sets in a graphics window will often be referred to as
+'overlays'.
+
+Typically a horizontal plot contains a single 'base
+component' which determines the altitude of a plot and over
+which all other data representations are plotted.  The most
+common base components are radar and satellite platforms,
+represented as rasterized images in the horizontal plot.
+
+The next several topics cover specific aspects of
+horizontal plots:
+
+   Displaying Coordinates in Horizontal Plots
+
+   Changing Altitude in Horizontal Plots
+
+   Shifting Data in Horizontal Plots
+
+   Changing the Mesonet Station Density
+
+   Changing the Interpolation Scheme for Contour Plots
+
 getposition  Displaying Coordinates in Horizontal Plots
 3166
 
