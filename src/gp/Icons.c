@@ -28,6 +28,7 @@ static char *rcsid = "$id$";
 # include "../include/defs.h"
 # include "../include/pd.h"
 # include "../include/message.h"
+# include "../include/DataStore.h"
 # include "GraphProc.h"
 
 
@@ -279,10 +280,15 @@ int *fg, *bg, disable;
  * Try to get the icon for this component.
  */
 {
-	char platform[80], iname[40], fname[120], color[40];
+	char platform[80], iname[40], fname[120], color[40]; 
+	char agelimit[10], agecolor[40], agebackground[40];
+	char repr[40];
 	union usy_value v;
 	int type, yh, xh;
+	int seconds, ntime;
 	unsigned int h, w;
+	time dtime, timenow;
+	PlatformId pid;
 	Pixmap pmap;
 	Display *disp = XtDisplay (Graphics);
 	Window root = RootWindow (disp, 0);
@@ -312,6 +318,37 @@ int *fg, *bg, disable;
 		strcpy (color, "black");
 	ct_GetColorByName (color, &xc);
 	*bg = xc.pixel;
+/*
+ * If the data is too old, then change those colors.
+ */
+	pd_Retrieve (Pd, comp, "representation", repr, SYMT_STRING);
+	if (pda_Search (Pd, comp, "icon-age-limit", platform, agelimit,
+		SYMT_STRING) && (strcmp (repr, "overlay") != 0))
+	{
+		seconds = pc_TimeTrigger (agelimit);
+		pid = ds_LookupPlatform (platform);
+		if (! PlotTime.ds_hhmmss)
+			tl_GetTime (&timenow);
+		else
+			timenow = PlotTime;
+		ntime = ds_DataTimes (pid, &timenow, 1, DsBefore, &dtime);
+		if ((ntime == 0) || ((TC_FccToSys (&timenow) - 
+			TC_FccToSys (&dtime)) > seconds))
+		{
+			if (pda_Search (Pd, comp, "icon-age-color", NULL,
+				agecolor, SYMT_STRING))
+			{
+				ct_GetColorByName (agecolor, &xc);
+				*fg = xc.pixel;
+			}
+			if (pda_Search (Pd, comp, "icon-age-background", 
+				NULL, agebackground, SYMT_STRING))
+			{
+				ct_GetColorByName (agebackground, &xc);
+				*bg = xc.pixel;
+			}
+		}
+	}
 /*
  * If this icon already exists in our table, we can just return it.
  */
