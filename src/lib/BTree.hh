@@ -1,5 +1,5 @@
 /*
- * $Id: BTree.hh,v 1.10 1998-05-28 22:00:43 granger Exp $
+ * $Id: BTree.hh,v 1.11 1998-06-02 23:21:13 granger Exp $
  *
  * Public BTree class interface.
  */
@@ -160,6 +160,8 @@ public:
 
 	/// Create a simple, empty BTree
 	BTree (int order = DEFAULT_ORDER, long sz = sizeof(T), int fix = 0);
+
+	virtual void Reopen () { }
 
 	virtual ~BTree ();
 
