@@ -1,0 +1,16 @@
+/*
+ * Imakefile for the data store notice client
+ */
+
+SRCS = dsnotice.c
+OBJS = dsnotice.o
+
+DEPLIBS = $(LIBZEBDS) $(LIBZEB)
+LIBS = $(DSLIBS) $(ZLIBS) $(XLIBS)
+SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
+DISTFILES = $(SRCS) Imakefile
+
+CompleteProgramTarget(dsnotice, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+DistfilesTarget($(DISTFILES))
+DependTarget()
+LintTarget()
