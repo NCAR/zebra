@@ -1,7 +1,7 @@
 /*
  * DM variables.
  *
- * $Id: dm_vars.h,v 2.4 1993-01-14 20:51:57 corbet Exp $
+ * $Id: dm_vars.h,v 2.5 1993-02-08 21:37:24 corbet Exp $
  */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -106,6 +106,11 @@ extern char ConfigPD[200];
 extern char ConfigPath[512];
 
 /*
+ * The path for executable programs.
+ */
+# define ExecPathLen 512
+extern char ExecPath[ExecPathLen];
+/*
  * If we blast out too many new windows at once, things (i.e. listen queues)
  * get overwhelmed.  So we do an occasional sleep.
  */
@@ -139,3 +144,4 @@ struct cf_window *lookup_win FP ((char *, int));
 void PickWin FP ((char *));
 void SaveConfig FP ((char *));
 struct config *LookupConfig FP ((char *));
+int FindFile FP ((char *, char *, char *));

@@ -33,7 +33,7 @@
 # include <DataStore.h>
 # include <config.h>
 # include <copyright.h>
-MAKE_RCSID ("$Id: dm.c,v 2.20 1993-02-05 22:19:13 corbet Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.21 1993-02-08 21:37:24 corbet Exp $")
 
 
 /*
@@ -51,6 +51,7 @@ char ConfigDir[200];	/* Default directory for display configs */
 char ConfigPD[200];	/* Where to save plot descriptions	*/
 char ConfigPath[512];	/* Path to search for display configs */
 
+char ExecPath[ExecPathLen];	/* path for executables */
 int TBSpace = 0;	/* How much to tweak for title bar space. */
 /*
  * Is sound enabled?
@@ -138,6 +139,9 @@ char **argv;
 	usy_c_indirect (vtable, "configpd", ConfigPD, SYMT_STRING, 200);
 	usy_c_indirect (vtable, "configpath", ConfigPath, SYMT_STRING, 512);
 	usy_c_indirect (vtable, "tbspace", &TBSpace, SYMT_INT, 0);
+	strcpy (ExecPath, GetBinDir ());
+	usy_c_indirect (vtable, "execpath", &ExecPath, SYMT_STRING,
+			ExecPathLen);
 	usy_daemon (vtable, "soundenabled", SOP_WRITE, SEChange, 0);
 	tty_watch (msg_get_fd (), (void (*)()) msg_incoming);
 
@@ -1371,4 +1375,54 @@ struct ui_command *cmds;
  */
 	ds_Store (dc, FALSE, 0, 0);
 	dc_DestroyDC (dc);
+}
+
+
+
+
+int
+FindFile (file, spath, dest)
+char *file, *spath, *dest;
+/*
+ * Try to find the given file by applying components from the path.
+ */
+{
+	char *path, *colon;
+	char *strchr ();
+/*
+ * Try to find the file as given.
+ */
+	if (! access (file, F_OK))
+	{
+		strcpy (dest, file);
+		return (TRUE);
+	}
+/*
+ * Oops.  No such luck.  Now we try the search path
+ * and see if that works any better.
+ */
+	for (colon = path = spath; colon; path = colon + 1)
+	{
+	/*
+	 * Build up a new program name from the next path entry.
+	 */
+		if ((colon = strchr (path, ':')) != 0)
+		{
+			strncpy (dest, path, colon - path);
+			dest[colon - path] = '\0';
+		}
+		else
+			strcpy (dest, path);
+		strcat (dest, "/");
+		strcat (dest, file);
+	/*
+	 * See if this one exists.
+	 */
+		if (! access (dest, F_OK))
+			return (TRUE);
+	} 	
+/*
+ * Nope.
+ */
+ 	return (FALSE);
 }

@@ -27,7 +27,7 @@
 # include <ui_error.h>
 # include "dm_vars.h"
 # include "dm_cmds.h"
-MAKE_RCSID ("$Id: dm_config.c,v 1.3 1993-01-14 20:51:57 corbet Exp $")
+MAKE_RCSID ("$Id: dm_config.c,v 1.4 1993-02-08 21:37:24 corbet Exp $")
 
 
 /*
@@ -39,6 +39,7 @@ static bool ResolveLinks FP ((struct config *, struct ui_command *));
 static void DisplayWindow FP ((struct cf_window *));
 static void SetupExec FP ((struct cf_window *));
 static void PutConfig FP ((struct config *));
+static void RunProgram FP ((char *, char **));
 
 
 
@@ -430,15 +431,42 @@ struct cf_window *win;
  * Otherwise actually fire off the process.
  */
 	else if (fork () == 0)
-	{
-		/* close (0); close (1); close (2); */
-		close (msg_get_fd ());
-		execv (win->cfw_prog, win->cfw_args);
-		printf ("Unable to exec '%s'\n", win->cfw_prog);
-		perror (win->cfw_prog);
-		exit (1);
-	}
+		RunProgram (win->cfw_prog, win->cfw_args);
 }
+
+
+
+
+
+static void
+RunProgram (program, args)
+char *program, **args;
+/*
+ * Exec this program with the given arguments.
+ */
+{
+	char *path, *colon, abs_prog[128];
+	char *strchr ();
+/*
+ * Close some relevant FD's first.
+ */
+	/* close (0); close (1); close (2); */
+	close (msg_get_fd ());
+/*
+ * Try to locate and run the program.
+ */
+	if (FindFile (program, ExecPath, abs_prog))
+		execv (abs_prog, args);
+/*
+ * No luck.  Just gripe.  Unfortunately, we can not use msg_ELog here because
+ * we have disconnected from the message system above.  Someday when I am
+ * less lazy I will put in some code to reconnect and log the grip properly.
+ */
+	printf ("Unable to exec '%s'\n", program);
+	perror (program);
+	exit (1);
+}
+
 
 
 
