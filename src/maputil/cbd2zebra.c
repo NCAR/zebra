@@ -39,7 +39,7 @@
  * 	02	Indefinite or in Dispute
  * 	03	Other line of separation of sovreignty on land
  * 
- * In "Coast, Islands and Lakes" files (cil)
+ * In "Coast, Islands and Lakes" files (cil):
  * 	01	Coast, islands and lakes that appear on all maps
  * 	02	Additional major islands and lakes
  * 	03	Intermediate islands and lakes
@@ -52,8 +52,11 @@
  * 	13	Ice Shelves -- major
  * 	14	Ice Shelves -- minor
  * 	15	Glaciers
- * 
- * In "Rivers" files (riv)
+ *
+ * In "Political Boundary" (pby) file, North America only:
+ *	01	State or province boundary
+ *
+ * In "Rivers" files (riv):
  * 	01	Permanent major rivers
  * 	02	Additional major rivers
  * 	03	Additional rivers
@@ -302,7 +305,7 @@ Usage (char *ourname)
 "	segment depicts: \n"
 "	\n"
 "	In \"Boundary\" files (bdy): \n"
-"		01	Demarcated or delimited boundary \n"
+"		01	Demarcated or delimited boundary (country border)\n"
 "		02	Indefinite or in Dispute \n"
 "		03	Other line of separation of sovreignty on land \n"
 "	\n"
@@ -319,6 +322,9 @@ Usage (char *ourname)
 "		13	Ice Shelves -- major \n"
 "		14	Ice Shelves -- minor \n"
 "		15	Glaciers \n"
+"	\n"
+"	In \"Political Boundary\" (pby) file, North America only:\n"
+"		01	State or province boundary \n"
 "	\n"
 "	In \"Rivers\" files (riv) \n"
 "		01	Permanent major rivers \n"
