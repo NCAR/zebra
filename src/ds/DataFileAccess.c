@@ -36,7 +36,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-MAKE_RCSID ("$Id: DataFileAccess.c,v 3.17 1994-06-28 19:59:04 corbet Exp $")
+MAKE_RCSID ("$Id: DataFileAccess.c,v 3.18 1994-09-12 18:01:36 granger Exp $")
 
 /*
  * This is the structure which describes a format.
@@ -521,9 +521,7 @@ typedef struct _OpenFile
 	struct _OpenFile *of_next;	/* Next in chain		*/
 	int	of_write;		/* File open for write access	*/
 	long	of_dfrev;		/* Revision we're sync'd to	*/
-#ifdef notdef
-	DataFile of_dfe;		/* The data file entry		*/
-#endif
+	FileType of_dftype;		/* File type, shouldn't change	*/ 
 } OpenFile;
 
 
@@ -736,23 +734,6 @@ int ndetail;
 
 
 
-
-
-# ifdef notdef
-void
-dfa_PutData (dfile, dobj, begin, end)
-int dfile, begin, end;
-DataObject *dobj;
-/*
- * Add data to this file.
- */
-{
-	(*Formats[DFTable[dfile].df_ftype].f_PutData) (dfile, dobj, begin,end);
-}
-
-# endif
-
-
 int
 dfa_PutSample (dfile, dc, sample, wc, details, ndetail)
 int dfile, sample;
@@ -952,13 +933,11 @@ void *tag;
  */
 	ofp->of_dfindex = dfindex;
 	ofp->of_dfrev = df->df_rev;
+	ofp->of_dftype = df->df_ftype;
 	ofp->of_lru = OF_Lru++;
 	ofp->of_tag = tag;
 	ofp->of_next = OpenFiles;
 	ofp->of_write = write;
-#ifdef notdef
-	ofp->of_dfe = *df;
-#endif
 	OpenFiles = ofp;
 /*
  * If we have exceeded the maximum number of open files, we have to close
@@ -1005,13 +984,22 @@ static void
 dfa_CloseFile (victim)
 OpenFile *victim;
 /*
- * Close this file, whether it wants to be or not.
+ * Close this file, whether it wants to be or not.  This function MUST
+ * NOT query the daemon since it may be called while waiting (searching)
+ * for a different response.  For example, a DataGone message being
+ * handled while waiting for a platform lock calls this function.  In
+ * general, functions like this which bring the client in sync with the
+ * daemon must act independently.  Hence the reason the file type must
+ * be stored in the open file structure: so that we don't need to request
+ * a data file structure.
  */
 {
 	OpenFile *prev;
+#ifdef notdef
 	DataFile df;
 
 	ds_GetFileStruct (victim->of_dfindex, &df);
+#endif
 /*
  * Find this guy in the open file list and yank him.
  */
@@ -1024,8 +1012,8 @@ OpenFile *victim;
 				break;
 		if (! prev->of_next)
 		{
-			msg_ELog (EF_PROBLEM, "OF entry 0x%x (%s) missing",
-				victim, df.df_name);
+			msg_ELog (EF_PROBLEM, "OF entry 0x%x missing",
+				  victim);
 			return;
 		}
 		prev->of_next = victim->of_next;
@@ -1033,7 +1021,7 @@ OpenFile *victim;
 /*
  * Get the actual file closed.
  */
-	(*Formats[df.df_ftype].f_CloseFile) (victim->of_tag);
+	(*Formats[victim->of_dftype].f_CloseFile) (victim->of_tag);
 	OF_NOpen--;
 /*
  * Release the structure, and we're done.
@@ -1050,7 +1038,8 @@ void
 dfa_ForceClose (dfindex)
 int dfindex;
 /*
- * If this file index is opened, close it now.
+ * If this file index is opened, close it now.  See the comment for
+ * dfa_CloseFile.
  */
 {
 	OpenFile *ofp;
