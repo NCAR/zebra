@@ -18,4 +18,5 @@ p_radar
 	icon-right-menu:	DataAvailable
 	every-sweep:	true
 	scale-mode:	auto
-	require:	radar
+	limit-proc:	raster-limit-proc
+	require:	radar, raster
