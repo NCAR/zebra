@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.58 1997-06-22 22:14:45 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.59 1997-07-10 21:39:41 granger Exp $"
 
 DEPLIBS=$(LIBZEBRA)
 LIBMPROF=/dt/granger/libc_mp.a
@@ -227,7 +227,7 @@ DEBUG_FLAG =
 TESTOUT = > /dev/null 2>&1
 #endif
 ALINE = aline -n 4 $(DEBUG_FLAG) -per 3 -inv $(INVENTORY)
-DSDAEMON = ./dsDaemon $(DEBUG_FLAG)
+DSDAEMON = DSDLOADFILE=. ./dsDaemon $(DEBUG_FLAG)
 APPLE = apple -a -c 2 $(DEBUG_FLAG)
 
 .PHONY: test.session test.aline test.aline.only 
