@@ -34,7 +34,7 @@
 # include "DataFormat.h"
 # include "DFA_ncutil.c"
 
-RCSID ("$Id: DFA_NetCDF.c,v 3.81 2003-08-06 22:58:18 burghart Exp $")
+RCSID ("$Id: DFA_NetCDF.c,v 3.82 2003-08-07 20:53:56 burghart Exp $")
 
 /*
  * Location fields: standard attributes
@@ -2914,6 +2914,7 @@ int ndetail;
  * routines to read and write consecutive records...
  */
 	tag->nc_dTime = ncdimdef (tag->nc_id, "time", NC_UNLIMITED);
+	tag->nc_haveTimeDim = TRUE;
 /*
  * Create the other dimensions that we need for variables.
  */
@@ -3185,7 +3186,7 @@ DataChunk *dc;
 	strcat (history, "Created by the Zebra DataStore library, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.81 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.82 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 	free (history);
