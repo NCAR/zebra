@@ -1,5 +1,5 @@
 /*
- * $Id: nstest.c,v 1.18 1995-07-06 15:16:21 granger Exp $
+ * $Id: nstest.c,v 1.19 1995-08-31 09:50:09 granger Exp $
  */
 
 /*
@@ -2290,6 +2290,7 @@ DataChunk *dc;
 
 
 
+#ifdef GRID_BLOCKS
 T_1DGridStoreBlocks()
 {
 	DataChunk *dc;
@@ -2314,8 +2315,13 @@ T_1DGridStoreBlocks()
 	printf("Fetching observation from kapinga/prof915h... ");
 	fflush(stdout);
 	dc = ds_FetchObs (src_id, DCC_RGrid, &when, fields, nfield, 0, 0);
+	if (!dc)
+	{
+		printf ("kapinga/prof915h 1d observation not found.\n");
+		return (1);
+	}
 	printf("Done\n");
-	printf("Storing via PutBlock to 't_1dgrid_cdf' and 't_1dgrid_znf'... "); 
+	printf("PutBlock to 't_1dgrid_cdf' and 't_1dgrid_znf'... "); 
 	fflush(stdout);
 	dest_id = ds_LookupPlatform ("t_1dgrid_cdf");
 	dc->dc_Platform = dest_id;
@@ -2353,6 +2359,11 @@ T_IRGridStoreBlocks()
 	fflush(stdout);
 	dc = ds_Fetch (src_id, DCC_IRGrid, &begin, &end, 
 		       fields, nfield, 0, 0);
+	if (!dc)
+	{
+		printf ("t_mesonet irgrid observation not found.\n");
+		return (1);
+	}
 	printf("Done\n");
 	printf("PutBlock to 't_irgrid_cdf' and 't_irgrid_znf'... "); 
 	fflush(stdout);
@@ -2365,7 +2376,7 @@ T_IRGridStoreBlocks()
 	dc_DestroyDC (dc);
 	printf("Done.\n");
 }
-
+#endif
 
 
 
@@ -2572,8 +2583,13 @@ makes the beauty of your eyes glow with irresistable radiance",
 	Announce ("Fetching...");
 	ds_GetFields (plat_id, &when, &nfield, fields);
 	dc = ds_FetchObs (plat_id, DCC_NSpace, &begin, fields, nfield, 0, 0);
-	dc_DumpDC (dc);
-	dc_DestroyDC (dc);
+	if (! dc)
+		Announce ("AERI types observation could not be fetched back");
+	else
+	{
+		dc_DumpDC (dc);
+		dc_DestroyDC (dc);
+	}
 	Announce ("AERI typed NSpace test done.");
 	free (mean_rads);
 }
