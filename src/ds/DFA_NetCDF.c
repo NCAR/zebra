@@ -1,7 +1,7 @@
 /*
  * Access to netCDF files.
  */
-static char *rcsid = "$Id: DFA_NetCDF.c,v 2.0 1991-07-18 22:53:23 corbet Exp $";
+static char *rcsid = "$Id: DFA_NetCDF.c,v 2.1 1991-07-22 19:39:31 corbet Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -584,6 +584,8 @@ NCTag *tag;
 	ncclose (tag->nc_id);
 	if (tag->nc_ntime)
 		free (tag->nc_times);
+	if (tag->nc_locs)
+		free (tag->nc_locs);
 	free (tag);
 }
 
@@ -848,6 +850,12 @@ Location *pos;
 		dnc_NCError ("Altitude put");
 		return;
 	}
+/*
+ * 7/91 jc	Ah, yes, we really outta free up the ltemp array after
+ *		we're done with it.  Those CAPE folks are getting awful
+ * 		tired of bloated processes sitting around.
+ */
+	free (ltemp);
 }
 
 
