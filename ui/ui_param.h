@@ -1,4 +1,4 @@
-/* $Id: ui_param.h,v 1.3 1989-10-27 11:28:18 corbet Exp $ */
+/* $Id: ui_param.h,v 1.4 1990-03-27 13:40:04 corbet Exp $ */
 /*
  * Basic UI parameters.
  */
@@ -14,6 +14,11 @@
 #  endif
 # endif
 
+# ifdef titan
+#  ifndef UNIX
+#   define UNIX
+#  endif
+# endif
 
 # ifdef UNIX
 # include <stdio.h>
