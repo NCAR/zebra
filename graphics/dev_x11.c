@@ -1,5 +1,5 @@
 /* 12/88 jc */
-/* $Id: dev_x11.c,v 1.13 1989-10-20 14:08:14 corbet Exp $	*/
+/* $Id: dev_x11.c,v 1.14 1989-10-27 16:09:47 corbet Exp $	*/
 /*
  * Graphics driver for the X window system, version 11.3
  */
@@ -80,6 +80,14 @@ static struct
  */
 static unsigned short Ztable[256];
 
+/*
+ * "Certain" X servers seem to have problems with large reads.  Thus, this
+ * parameter, which limits the amount of data we will try to read in a 
+ * single operation.
+ */
+# define MAXREAD	8000	/* This is a guess */
+
+
 
 
 x11_open (device, type, ctag, dev)
@@ -108,7 +116,10 @@ struct device *dev;
 		dev->gd_xb = 152;
 	}
 	else
-		tag->x_xres = tag->x_yres = 500;
+	{
+		tag->x_xres = tag->x_yres = 512;
+		dev->gd_yb = dev->gd_xb = 128;
+	}
 /*
  * First, open up our display.  If the device is "screen", convert it to
  * unix:0; otherwise take the device as given.
@@ -145,14 +156,13 @@ struct device *dev;
 	{
 		tag->x_visual = vlist->visual;
 		depth = vlist->depth;
+		XFree (vlist);
 	}
 	else
 	{
 		tag->x_visual = DefaultVisual (tag->x_display, screen);
 		depth = CopyFromParent;
 	}
-	printf ("Visual is 0x%x depth %d\n", tag->x_visual, vlist->depth);
- 	XFree (vlist);
 /*
  * Create the window to exist on that display.
  */
@@ -915,10 +925,12 @@ XImage *read, *write;
 # ifdef notdef
 	XGetSubImage (tag->x_display, tag->x_sw[0], x, y, tag->x_xres/2, 
 		tag->x_yres/2, ~0, ZPixmap, read, 0, 0);
-# endif
 	read = XGetImage (tag->x_display, tag->x_sw[0], x, y, tag->x_xres/2,
 		tag->x_yres/2, AllPlanes, ZPixmap);
 	rp = read->data;
+# endif
+	x11_splitread (tag->x_display, tag->x_sw[0], rp, x, y, tag->x_xres/2,
+		tag->x_yres/2);
 /*
  * Zoom it.
  */
@@ -1084,28 +1096,59 @@ int x, y, xs, ys;
  */
 {
 	struct xtag *tag = (struct xtag *) ctag;
-	XImage *im;
-# ifdef notdef
-/*
- * Create our Ximage structure.
- */
-	im = XCreateImage (tag->x_display, tag->x_visual, 8, ZPixmap, 0,
-		data, xs, ys, 8, xs);
-/*
- * Read back the stuff.
- */
-	XGetSubImage (tag->x_display, tag->x_window, x, y, xs, ys, AllPlanes,
-			ZPixmap, im, 0, 0);
-# endif
-	im = XGetImage (tag->x_display, tag->x_window, x, y, xs, ys, AllPlanes,
-		ZPixmap);
-/*
- * Zap the Ximage and return.
- */
-	/* im->data = (char *) 0; */
-	memcpy (data, im->data, xs*ys);
-	XDestroyImage (im);
+
+	x11_splitread (tag->x_display, tag->x_window, data, x, y, xs, ys);
 	return (GE_OK);
+}
+
+
+
+
+
+x11_splitread (disp, src, dest, x, y, xs, ys)
+Display *disp;
+Drawable src;
+char *dest;
+int x, y, xs, ys;
+/*
+ * Read back a piece of image, split into chunks.
+ */
+{
+	XImage *im;
+	int readlen, nrast, nread, i;
+/*
+ * Figure out what our read size will be for the loop portion of the process.
+ */
+	nrast = MAXREAD/xs;
+	nread = ys/nrast;
+	readlen = nrast*xs;
+/*
+ * Now go through and do each chunk.
+ */
+	for (i = 0; i < nread; i++)
+	{
+	/*
+	 * Read back the image.
+	 */
+		im = XGetImage (disp, src, x, y + i*nrast, xs, nrast,
+			AllPlanes, ZPixmap);
+	/*
+	 * Copy the data over, and zap the Ximage.
+	 */
+		memcpy (dest, im->data, readlen);
+		dest += readlen;
+		XDestroyImage (im);
+	}
+/*
+ * If there is a last piece, we grab it now.
+ */
+	if (nread*nrast < ys)
+	{
+		im = XGetImage (disp, src, x, y + nrast*nread, xs,
+			ys - nread*nrast, AllPlanes, ZPixmap);
+		memcpy (dest, im->data, xs*(ys - nread*nrast));
+		XDestroyImage (im);
+	}
 }
 
 # endif /* DEV_X11 */
