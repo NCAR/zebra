@@ -1,5 +1,5 @@
 /*
- * $Id: aline.c,v 3.11 1996-11-21 18:20:37 granger Exp $
+ * $Id: aline.c,v 3.12 1996-12-03 07:08:20 granger Exp $
  *
  * An 'Assembly Line' test driver for the DataStore.
  *
@@ -38,6 +38,7 @@
 #include <timer.h>
 #include "DataStore.h"
 #include "DataChunkP.h"
+#include "dsPrivate.h"
 
 
 #if defined(SYSV) || defined(SVR4)
@@ -113,12 +114,14 @@ FieldId Fields[NFIELDS];
 
 int ConsumerNumber = -1;
 char OurName[50];
+int NNotifies = 0;	/* Global count of consumer notifications received */
 
 /*
  * Forwards
  */
 int Produce();
 void Consume();
+static void WaitForNotifies FP ((void *mdata));
 void ReceiveNotify FP ((PlatformId plat_id, int param, ZebTime *when,
 			int nsample, UpdCode ucode));
 char *PlatDirectory FP ((PlatformId pid));
@@ -216,8 +219,6 @@ char *name;
 	strcpy (OurName, name);
 	for (i = 0; i < NFIELDS; ++i)
 		Fields[i] = F_Lookup(FieldNames[i]);
-	for (i = NFIELDS; i < NFIELDS+10; ++i)
-		Fields[i] = Fields[0];
 }
 
 
@@ -459,31 +460,23 @@ main (argc, argv)
 	}
 
 	/*
-	 * Fork a process to do the definitions.
+	 * We're the parent, so we'll be the producer.
 	 */
-	if ((pid = fork()) == 0)
+	Init("Producer");
+	DefinePlatforms ();
+	if (WriteClasses)
 	{
-		Init ("Websters");
-		DefinePlatforms ();
-		msg_disconnect ();
-		exit (0);
+		ds_ShowPlatformClass (stdout, ds_LookupClass(NetcdfClass));
+		ds_ShowPlatformClass (stdout, ds_LookupClass(ZebraClass));
 	}
-	else if (pid < 0)
-	{
-		fprintf (stderr, "fork of platform defn child failed\n");
-		exit (1);
-	}
-	if (finish (&err) < 0)
-	{
-		fprintf (stderr, "platform defn exited abnormally\n");
-		exit (1);
-	}
+	NNotifies = 0;
+	ds_SnarfCopies (WaitForNotifies);
 
 	/*
 	 * To fork multiple producers/consumers: the parent will be the
 	 * First producer, and it creates the child consumers.
 	 */
-	printf ("Creating %d consumers...\n", nconsumers);
+	msg_ELog (EF_INFO, "Creating %d consumers...", nconsumers);
 	i = 0;
 	while (i < nconsumers)
 	{
@@ -496,6 +489,7 @@ main (argc, argv)
 			 */
 			sprintf (name, "Consumer_%d", i);
 			ConsumerNumber = i;
+			msg_disconnect ();
 			Init(name);
 #ifdef DEBUGGER
 			sprintf(dbg, "exec %s aline %d &", DEBUGGER, getpid());
@@ -519,16 +513,6 @@ main (argc, argv)
 			 */
 			++i;
 		}
-	}
-
-	/*
-	 * We're the parent, so we'll be the producer.
-	 */
-	Init("Producer");
-	if (WriteClasses)
-	{
-		ds_ShowPlatformClass (stdout, ds_LookupClass(NetcdfClass));
-		ds_ShowPlatformClass (stdout, ds_LookupClass(ZebraClass));
 	}
 
 	/*
@@ -557,6 +541,8 @@ main (argc, argv)
 
 	/*
 	 * Produce our inventory, then wait for our children to exit.
+	 * Hold off production until all consumers have registered
+	 * notifications with the datastore.
 	 */
 #ifdef DEBUGGER
 	sprintf (dbg, "exec %s aline %d &", DEBUGGER, getpid());
@@ -564,15 +550,51 @@ main (argc, argv)
 	system (dbg);
 	sleep (10);
 #endif
-	err = Produce(nconsumers);
+	while (NNotifies < nconsumers)
+		msg_poll (1);
+	err += Produce(nconsumers);
 	return(err);
 }
 
 
 
+static void
+WaitForNotifies (mdata)
+void *mdata;
+/*
+ * Wait for consumer processes to get their notification requests in.
+ */
+{
+	struct dsp_Template *dt = (struct dsp_Template *) mdata;
+	char *from;
+	struct dsp_NotifyRequest *nrq;
+
+	switch (dt->dsp_type)
+	{
+	   case dpt_NotifyRequest:
+		nrq = (struct dsp_NotifyRequest *) dt;
+		from = sizeof (struct dsp_NotifyRequest) + (char *) dt;
+		msg_ELog (EF_INFO, "Notify request for %s from %s",
+			  ds_PlatformName (nrq->dsp_pid), from);
+		if (! strncmp (from, "Consumer", 8))
+			++NNotifies;
+		break;
+	   case dpt_CancelNotify:
+		from = sizeof (struct dsp_Template) + (char *) dt;
+		msg_ELog (EF_PROBLEM, "Cancel request from %s", from);
+		break;
+	   default:
+		msg_ELog (EF_PROBLEM, "unknown ds proto %d in %s",
+			  dt->dsp_type, "request copy handler");
+		break;
+	}
+	return;
+}
+
+
 
 int
-Produce(nconsumers)
+Produce (nconsumers)
 int nconsumers;
 /*
  * Create Inventory number of samples, writing them to PLATFORM every 
@@ -629,6 +651,8 @@ int nconsumers;
 		 */
 		newfile = ((i == 0) || 
 			   (!LinkPlatforms && ((i % NEWFILE) == 0)));
+		msg_ELog (EF_DEBUG, "storing inventory %d of %d",
+			  i, Inventory);
 		if (! ds_StoreBlocks (dc, newfile, details, ndetail))
 			++err;
 		dc_DestroyDC (dc);
@@ -746,6 +770,7 @@ UpdCode ucode;
 	static int nreceived = 0;/* number of samples processed so far */
 	static int noverwrite = 0;
 	static ZebTime begin = { 0, 0 };
+	static ZebTime last = { 0, 0 };	/* time of last append update */
 	static err = 0;		/* our error count and eventual exit value */
         float check, value;	/* to check our data values */
 	DataChunk *dc;
@@ -759,8 +784,9 @@ UpdCode ucode;
 		 * want notifications from the producer, in which there are
 		 * new samples.
 		 */
-		if (nsample == 0)
+		if (ucode != UpdAppend)
 			return;
+		last = *when;
 	}
 	else
 	{
@@ -770,10 +796,15 @@ UpdCode ucode;
 		 * producer's notify.  If we're consumer i, i > 0, act on
 		 * the i'th overwrite notify from the preceding consumer.
 		 */
-		if (nsample == 0)
+		if (ucode == UpdAppend)
+		{
+			noverwrite = 0;
+			last = *when;
+		}
+		else if (last.zt_Sec && TC_Eq (*when, last))
 			++noverwrite;
 		else
-			noverwrite = 0;
+			return;
 		if (noverwrite != ConsumerNumber)
 			return;
 	}
@@ -856,6 +887,7 @@ UpdCode ucode;
 	{
 		msg_ELog (EF_INFO, "Consumer finished with %d errors.", err);
 		ds_ForceClosure();
+		msg_disconnect();
 		exit (err);
 	}
 }
