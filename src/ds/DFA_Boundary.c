@@ -36,7 +36,7 @@
 # include "BoundaryFile.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_Boundary.c,v 3.17 1999-03-01 02:03:21 burghart Exp $")
+RCSID ("$Id: DFA_Boundary.c,v 3.18 1999-10-26 22:22:57 burghart Exp $")
 
 
 /*
@@ -44,10 +44,11 @@ RCSID ("$Id: DFA_Boundary.c,v 3.17 1999-03-01 02:03:21 burghart Exp $")
  */
 typedef struct s_BFTag
 {
-	int		bt_fd;		/* File descriptor		*/
-	struct BFHeader	bt_hdr;		/* The file header		*/
-	struct BFBTable *bt_BTable;	/* The boundary table		*/
-	ZebTime		*bt_times;	/* Stash of ZebTime's		*/
+    int bt_fd;			/* File descriptor		*/
+    int bt_doswap;		/* swap byte endianness?	*/
+    struct BFHeader bt_hdr;	/* The file header		*/
+    struct BFBTable *bt_BTable;	/* The boundary table		*/
+    ZebTime *bt_times;		/* Stash of ZebTime's		*/
 } BFTag;
 
 
@@ -119,9 +120,15 @@ DataFormat *boundaryFormat = (DataFormat *) &boundaryFormatRec;
 /*
  * Local routines.
  */
-static void 	bf_WriteBoundary FP ((BFTag *, int, Location *,ZebTime *,int));
-static void	bf_SyncTimes FP ((BFTag *tag));
-static void	bf_WriteSync FP ((OpenFile *ofp));
+static void 	bf_WriteBoundary (BFTag *, int, Location *, ZebTime *, int);
+static void	bf_SyncTimes (BFTag *tag);
+static void	bf_WriteSync (OpenFile *ofp);
+static int	bf_GetHeader (int fd, struct BFHeader* hdr, int* doswap);
+static void	bf_GetTable (BFTag* tag);
+static void	bf_SwapHeader (struct BFHeader* hdr);
+static void	bf_SwapTable (struct BFBTable* tbl);
+static void	bf_SwapLocation (struct Location* loc);
+static void	bf_SwapFour (char* v);
 
 
 /*
@@ -151,7 +158,7 @@ bf_QueryTime (const char *file, ZebraTime *begin, ZebraTime *end, int *nsample)
 /*
  * Read the header.
  */
-	if (read (fd, &hdr, sizeof (hdr)) < sizeof (hdr))
+	if (! bf_GetHeader (fd, &hdr, 0))
 	{
 		msg_ELog (EF_PROBLEM, "Header read error on %s", file);
 		close (fd);
@@ -209,6 +216,10 @@ int ndetail;
 	tag->bt_times = (ZebTime *) 
 		malloc (tag->bt_hdr.bh_MaxBoundary * sizeof (ZebTime));
 /*
+ * Create the file using our native byte order; no swapping necessary.
+ */
+	tag->bt_doswap = 0;
+/*
  * Now synchronize the whole thing and return.
  */
 	bf_WriteSync (ofp);
@@ -228,13 +239,49 @@ OpenFile *ofp;
  * ZebTimes.
  */
 {
-	BFTag *tag = BF_TAGP(ofp);
+    BFTag *tag = BF_TAGP(ofp);
+    struct BFHeader *hdr;
+    struct BFBTable *btable;
+    int btlen = tag->bt_hdr.bh_MaxBoundary * sizeof (struct BFBTable);
+/*
+ * If the file does not have our endianness, make swapped copies of
+ * the header and table to write out.  Otherwise use the header and
+ * table direct from the tag.
+ */
+    if (tag->bt_doswap)
+    {
+	int b;
+	
+	hdr = (struct BFHeader *) malloc (sizeof (struct BFHeader));
+	memcpy (hdr, &tag->bt_hdr, sizeof (struct BFHeader));
+	bf_SwapHeader (hdr);
 
-	lseek (tag->bt_fd, 0, SEEK_SET);
-	write (tag->bt_fd, &tag->bt_hdr, sizeof (struct BFHeader));
-	write (tag->bt_fd, tag->bt_BTable,
-			tag->bt_hdr.bh_MaxBoundary*sizeof (struct BFBTable));
-	bf_SyncTimes (tag);
+	btable = (struct BFBTable *) malloc (btlen);
+	memcpy (btable, tag->bt_BTable, btlen);
+	for (b = 0; b < tag->bt_hdr.bh_NBoundary; b++)
+	    bf_SwapTable (btable + b);
+    }
+    else
+    {
+	hdr = &tag->bt_hdr;
+	btable = tag->bt_BTable;
+    }
+/*
+ * Write the header and table
+ */
+    lseek (tag->bt_fd, 0, SEEK_SET);
+    write (tag->bt_fd, hdr, sizeof (struct BFHeader));
+    write (tag->bt_fd, btable, btlen);
+
+    bf_SyncTimes (tag);
+/*
+ * If we made swapped copies, free them now
+ */
+    if (tag->bt_doswap)
+    {
+	free (hdr);
+	free (btable);
+    }
 }
 
 
@@ -253,73 +300,74 @@ int ndetail;
  * Put data into this file.
  */
 {
-	BFTag *tag = BF_TAGP(ofp);
-	struct BFHeader *hdr;
-	int offset, npt, i;
-	ZebTime t;
-	Location *locs;
+    BFTag *tag = BF_TAGP(ofp);
+    struct BFHeader *hdr;
+    int offset, npt, i;
+    ZebTime t;
+    Location *locs;
+
 /*
  * Open up the file.
  */
-	hdr = &tag->bt_hdr;
+    hdr = &tag->bt_hdr;
 /*
  * Get the info on this boundary.
  */
-	dc_GetTime (dc, sample, &t);
-	locs = dc_BndGet (dc, sample, &npt);
+    dc_GetTime (dc, sample, &t);
+    locs = dc_BndGet (dc, sample, &npt);
 /*
  * Sanity checking.
  */
-	if (hdr->bh_NBoundary >= hdr->bh_MaxBoundary && wc != wc_Overwrite)
-	{
-		msg_ELog (EF_PROBLEM, "Too many samples in datafile");
-		return (FALSE);
-	}
+    if (hdr->bh_NBoundary >= hdr->bh_MaxBoundary && wc != wc_Overwrite)
+    {
+	msg_ELog (EF_PROBLEM, "Too many samples in datafile");
+	return (FALSE);
+    }
 /*
  * Figure out where this sample is to go.
  */
-	switch (wc)
-	{
-	/*
-	 * Appends are easy.
-	 */
-	   case wc_Append:
-		offset = hdr->bh_NBoundary++;
-		break;
-	/*
-	 * For an insert we need to open up a hole in the toc.
-	 */
-	   case wc_Insert:
-	   	offset = dfa_TimeIndex (ofp, &t, 0);
-		for (i = hdr->bh_NBoundary - 1; i > offset; i--)
-			tag->bt_BTable[i + 1] = tag->bt_BTable[i];
-		offset++;
-		hdr->bh_NBoundary++;
-		break;
-	/*
-	 * For overwrites we find the unluck sample and we are done.
-	 */
-	   case wc_Overwrite:
-	   	offset = dfa_TimeIndex (ofp, &t, 0);
-		if (offset < 0)
-			offset = 0;
-		break;
-	/*
-	 * Shouldn't happen, but just to satisfy compiler checks...
-	 */
-	   default:
-		offset = hdr->bh_NBoundary++;
-		break;
-	}
+    switch (wc)
+    {
+    /*
+     * Appends are easy.
+     */
+      case wc_Append:
+	offset = hdr->bh_NBoundary++;
+	break;
+    /*
+     * For an insert we need to open up a hole in the toc.
+     */
+      case wc_Insert:
+	offset = dfa_TimeIndex (ofp, &t, 0);
+	for (i = hdr->bh_NBoundary - 1; i > offset; i--)
+	    tag->bt_BTable[i + 1] = tag->bt_BTable[i];
+	offset++;
+	hdr->bh_NBoundary++;
+	break;
+    /*
+     * For overwrites we find the unluck sample and we are done.
+     */
+      case wc_Overwrite:
+	offset = dfa_TimeIndex (ofp, &t, 0);
+	if (offset < 0)
+	    offset = 0;
+	break;
+    /*
+     * Shouldn't happen, but just to satisfy compiler checks...
+     */
+      default:
+	offset = hdr->bh_NBoundary++;
+	break;
+    }
 /*
  * Write the boundary.
  */
-	bf_WriteBoundary (tag, offset, locs, &t, npt);
+    bf_WriteBoundary (tag, offset, locs, &t, npt);
 /*
  * Synchronize and we're done.
  */
-	bf_WriteSync (ofp);
-	return (TRUE);
+    bf_WriteSync (ofp);
+    return (TRUE);
 }
 
 
@@ -336,25 +384,46 @@ int len, sample;
  * Write out a new boundary.
  */
 {
-	struct BFBTable *bt = tag->bt_BTable + sample;
+    struct BFBTable *bt = tag->bt_BTable + sample;
+    Location *wloc;
+/*
+ * If the file has different endianness, we copy and swap the given
+ * locations before writing them.  Otherwise we can use them as-is.
+ */
+    if (tag->bt_doswap)
+    {
+	int l;
+	
+	wloc = (Location*) malloc (len * sizeof (Location));
+	memcpy (wloc, loc, len * sizeof (Location));
+	for (l = 0; l < len; l++)
+	    bf_SwapLocation (wloc + l);
+    }
+    else
+	wloc = loc;
 /*
  * Move to the end of the file and do the write.
  */
-	bt->bt_Offset = lseek (tag->bt_fd, 0, SEEK_END);
-	write (tag->bt_fd, loc, len * sizeof (Location));
+    bt->bt_Offset = lseek (tag->bt_fd, 0, SEEK_END);
+    write (tag->bt_fd, wloc, len * sizeof (Location));
+/*
+ * If we allocated space for swapped locations, free it
+ */
+    if (tag->bt_doswap)
+	free (wloc);
 /*
  * Update the housekeeping, and we're done.
  */
-	bt->bt_NPoint = len;
-	TC_ZtToUI (t, &bt->bt_Time);
-	tag->bt_times[sample] = *t;
+    bt->bt_NPoint = len;
+    TC_ZtToUI (t, &bt->bt_Time);
+    tag->bt_times[sample] = *t;
 /*
  * Tweak times.
  */
-	if (sample == 0)
-		tag->bt_hdr.bh_End = tag->bt_hdr.bh_Begin = bt->bt_Time;
-	else if (DLT (tag->bt_hdr.bh_End, bt->bt_Time))
-		tag->bt_hdr.bh_End = bt->bt_Time;
+    if (sample == 0)
+	tag->bt_hdr.bh_End = tag->bt_hdr.bh_Begin = bt->bt_Time;
+    else if (DLT (tag->bt_hdr.bh_End, bt->bt_Time))
+	tag->bt_hdr.bh_End = bt->bt_Time;
 }
 
 
@@ -377,33 +446,108 @@ zbool write;
  */
 	if ((tag->bt_fd = open (fname, write ? O_RDWR : O_RDONLY)) < 0)
 	{
-		msg_ELog (EF_PROBLEM, "Error %d opening %s",errno,fname);
-		return (FALSE);
+	    msg_ELog (EF_PROBLEM, "Error %d opening %s", errno, fname);
+	    return (FALSE);
 	}
 /*
- * Pull in the header info.
+ * Pull in the header info, also stashing the hint about whether the
+ * file is other-endian from our native byte ordering.
  */
-	if (read (tag->bt_fd, &tag->bt_hdr, sizeof (struct BFHeader)) <
-			sizeof (struct BFHeader))
+	if (! bf_GetHeader (tag->bt_fd, &tag->bt_hdr, &tag->bt_doswap))
 	{
-		msg_ELog (EF_PROBLEM, "Error %d reading BF hdr on %s", errno,
-			fname);
-		close (tag->bt_fd);
-		return (FALSE);
+	    msg_ELog (EF_PROBLEM, "Can't read header for boundary file %s",
+		      fname);
+	    close (tag->bt_fd);
+	    return (FALSE);
 	}
-	if (tag->bt_hdr.bh_Magic != BH_MAGIC)
-		msg_ELog (EF_PROBLEM, "Bad magic (%x) on %s",
-			tag->bt_hdr.bh_Magic, fname);
 /*
  * Pull in the boundary table.
  */
 	btlen = tag->bt_hdr.bh_MaxBoundary * sizeof (struct BFBTable);
 	tag->bt_BTable = (struct BFBTable *) malloc (btlen);
-	read (tag->bt_fd, tag->bt_BTable, btlen);
+	bf_GetTable (tag);
+/*
+ * We also keep a local ZebraTime array separate from the times in the 
+ * table
+ */
 	tag->bt_times = (ZebTime *) 
 		malloc (tag->bt_hdr.bh_MaxBoundary * sizeof (ZebTime));
 	bf_SyncTimes (tag);
 	return (TRUE);
+}
+
+
+
+static int
+bf_GetHeader (int fd, struct BFHeader* hdr, int* doswap)
+/*
+ * Read the header into the given spot, swapping bytes if necessary and
+ * setting doswap (if non-NULL) to tell whether swapping was performed.
+ * The function returns true iff it gets a good header.
+ */
+{
+    int revmagic;
+    
+    if (read (fd, hdr, sizeof (struct BFHeader)) < sizeof (struct BFHeader))
+    {
+	msg_ELog (EF_PROBLEM, "Error %d reading boundary file hdr", errno);
+	return 0;
+    }
+/*
+ * If the magic number is good, we have a good header and the file's 
+ * endianness is the same as ours.
+ */
+    if (hdr->bh_Magic == BH_MAGIC)
+    {
+	if (doswap)
+	    *doswap = 0;
+	return 1;
+    }
+/*
+ * If things look good with a swapped magic number, assume the file was 
+ * written with endianness opposite from ours and swap everything in the
+ * header.
+ */ 
+    revmagic = hdr->bh_Magic;
+    bf_SwapFour ((char*) &revmagic);
+    
+    if (revmagic == BH_MAGIC)
+    {
+	if (doswap)
+	    *doswap = 1;
+	bf_SwapHeader (hdr);
+	
+	return 1;
+    }
+	
+    msg_ELog (EF_PROBLEM, "Bad magic (%x) in boundary file", hdr->bh_Magic);
+}
+
+
+
+
+static void
+bf_GetTable (BFTag* tag)
+/*
+ * Get the current table and stuff them into the tag
+ */
+{
+    int btlen = tag->bt_hdr.bh_MaxBoundary * sizeof (struct BFBTable);
+/*
+ * The table and times are just past the header
+ */
+    lseek (tag->bt_fd, sizeof (struct BFHeader), SEEK_SET);
+/*
+ * Read the table and swap if necessary
+ */
+    read (tag->bt_fd, tag->bt_BTable, btlen);
+    if (tag->bt_doswap)
+    {
+	int b;
+	
+	for (b = 0; b < tag->bt_hdr.bh_NBoundary; b++)
+	    bf_SwapTable (tag->bt_BTable + b);
+    }
 }
 
 
@@ -436,9 +580,8 @@ OpenFile *ofp;
 	BFTag *tag = BF_TAGP(ofp);
 
 	lseek (tag->bt_fd, 0, SEEK_SET);
-	read (tag->bt_fd, &tag->bt_hdr, sizeof (tag->bt_hdr));
-	read (tag->bt_fd, tag->bt_BTable,
-		tag->bt_hdr.bh_MaxBoundary*sizeof (struct BFBTable));
+	bf_GetHeader (tag->bt_fd, &tag->bt_hdr, 0);
+	bf_GetTable (tag);
 	bf_SyncTimes (tag);
 	return (TRUE);
 }
@@ -453,14 +596,13 @@ BFTag *tag;
  * Sync the ZebTimes in the tag with the boundary table entries
  */
 {
-	int i;
+    int i;
 
-	for (i = 0; i < tag->bt_hdr.bh_NBoundary; ++i)
-	{
-		TC_y2k (&tag->bt_BTable[i].bt_Time);
-		TC_UIToZt (&tag->bt_BTable[i].bt_Time, tag->bt_times+i);
-	}
-
+    for (i = 0; i < tag->bt_hdr.bh_NBoundary; ++i)
+    {
+	TC_y2k (&tag->bt_BTable[i].bt_Time);
+	TC_UIToZt (&tag->bt_BTable[i].bt_Time, tag->bt_times+i);
+    }
 }
 
 
@@ -518,6 +660,15 @@ int ndetail;
 		lseek (tag->bt_fd, bt->bt_Offset, SEEK_SET);
 		read (tag->bt_fd, locs, bt->bt_NPoint * sizeof (Location));
 	/*
+	 * Swap the location data if necessary
+	 */
+		if (tag->bt_doswap)
+		{
+		    int l;
+		    for (l = 0; l < bt->bt_NPoint; l++)
+			bf_SwapLocation (locs + l);
+		}
+	/*
 	 * Add it to the data chunk.
 	 */
 	 	dc_BndAdd (dc, tag->bt_times + sample, dc->dc_Platform, 
@@ -555,4 +706,61 @@ FieldId *flist;
 {
 	*nfld = 0;
 	return (TRUE);
+}
+
+
+
+static void
+bf_SwapHeader (struct BFHeader* hdr)
+/*
+ * Swap bytes as necessary to change the given header's endianness
+ */
+{
+    bf_SwapFour ((char*) &hdr->bh_Magic);
+    bf_SwapFour ((char*) &hdr->bh_MaxBoundary);
+    bf_SwapFour ((char*) &hdr->bh_Begin.ds_yymmdd);
+    bf_SwapFour ((char*) &hdr->bh_Begin.ds_hhmmss);
+    bf_SwapFour ((char*) &hdr->bh_End.ds_yymmdd);
+    bf_SwapFour ((char*) &hdr->bh_End.ds_hhmmss);
+    bf_SwapFour ((char*) &hdr->bh_NBoundary);
+}
+
+
+
+static void
+bf_SwapTable (struct BFBTable* tbl)
+/*
+ * Swap bytes as necessary to change the given BFBTable's endianness
+ */
+{
+    bf_SwapFour ((char*) &tbl->bt_NPoint);
+    bf_SwapFour ((char*) &tbl->bt_Time.ds_yymmdd);
+    bf_SwapFour ((char*) &tbl->bt_Time.ds_hhmmss);
+    bf_SwapFour ((char*) &tbl->bt_Offset);
+}
+
+
+
+static void
+bf_SwapLocation (struct Location* loc)
+/*
+ * Swap bytes as necessary to change the given Location's endianness
+ */
+{
+    bf_SwapFour ((char*) &loc->l_lat);
+    bf_SwapFour ((char*) &loc->l_lon);
+    bf_SwapFour ((char*) &loc->l_alt);
+}
+
+
+
+static void
+bf_SwapFour (char* v)
+/*
+ * Four byte in-place swap
+ */
+{
+    char c;
+    c = v[0]; v[0] = v[3]; v[3] = c;
+    c = v[1]; v[1] = v[2]; v[2] = c;
 }
