@@ -31,7 +31,7 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 
-MAKE_RCSID ("$Id: Utilities.c,v 2.33 1995-06-29 23:40:59 granger Exp $")
+MAKE_RCSID ("$Id: Utilities.c,v 2.34 1995-07-16 15:12:30 granger Exp $")
 
 /*
  * Rules for image dumping.  Indexed by keyword number in GraphProc.state
@@ -636,12 +636,12 @@ float *center, *step;
 
 	   case DCC_RGrid:
 		data = dc_RGGetGrid (dc, 0, field, 0, &rg, 0);
-		np = rg.rg_nX * rg.rg_nY * rg.rg_nZ;
+		np = rg.rg_nX * rg.rg_nY * ((rg.rg_nZ > 0) ? rg.rg_nZ : 1);
 		break;
 
 	   case DCC_Image:
 		cdata = dc_ImgGetImage (dc, 0, field, 0, &rg, 0, &scale);
-		np = rg.rg_nX * rg.rg_nY * rg.rg_nZ;
+		np = rg.rg_nX * rg.rg_nY;
 		break;
 
 	   default:
