@@ -31,7 +31,7 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 
-MAKE_RCSID ("$Id: Utilities.c,v 2.38 1995-09-25 18:00:03 granger Exp $")
+MAKE_RCSID ("$Id: Utilities.c,v 2.39 1996-12-06 19:32:26 granger Exp $")
 
 /*
  * Rules for image dumping.  Indexed by keyword number in GraphProc.state
@@ -1102,7 +1102,7 @@ float *latspacing, *lonspacing;
 /*
  * If it's not an rgrid, we don't even try.
  */
-	if (! dc_IsSubClassOf (dc_Class (dc), DCC_RGrid))
+	if (! dc_IsSubClassOf (dc_ClassId (dc), DCC_RGrid))
 	{
 		msg_ELog (EF_PROBLEM, "GetLLSpacings on non-rgrid DC");
 		return (FALSE);
