@@ -1,0 +1,8 @@
+!
+! $Id: global,v 1.1 1995-04-19 14:55:18 granger Exp $
+!
+! A default global module for those projects which don't pre-empt it
+! with a project-specific global module.  At the moment everything
+! we need is defined in the graphics process's load file.
+!
+
