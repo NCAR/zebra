@@ -1,4 +1,4 @@
-! $Id: GraphProc.state,v 1.7 1991-03-22 16:02:28 corbet Exp $
+! $Id: GraphProc.state,v 1.8 1991-05-03 18:18:59 kris Exp $
 !
 ! State entries for the graphics process.
 !
@@ -167,14 +167,54 @@ enddef
 !
 define state act-widget
 	input 'singlefloat' 0
-		next act-comp
+		next act-sf-comp
+	endinput
+	input 'doublefloat' 1
+		next act-df-comp
+	endinput
+	input 'singlestring' 2
+		next act-ss-comp
+	endinput
+	input 'timeseries' 3
+		next act-ts-comp
+	endinput
+	input 'singleint' 4
+		next act-si-comp
 	endinput
 enddef
 
-define state act-comp
+define state act-sf-comp
 	input string
 		lowercase
 		next act-sf-param
+	endinput
+enddef
+
+define state act-ts-comp
+	input string
+		lowercase
+		next act-ts-side
+	endinput
+enddef
+
+define state act-ss-comp
+	input string
+		lowercase
+		next act-ss-param
+	endinput
+enddef
+
+define state act-si-comp
+	input string
+		lowercase
+		next act-si-param
+	endinput
+enddef
+
+define state act-df-comp
+	input string
+		lowercase
+		next act-df-param
 	endinput
 enddef
 
@@ -185,9 +225,101 @@ define state act-sf-param
 	endinput
 enddef
 
+define state act-ss-param
+	input string
+		lowercase
+		next act-ss-label
+	endinput
+enddef
+
+define state act-si-param
+	input string
+		lowercase
+		next act-si-label
+	endinput
+enddef
+
+define state act-ts-param
+	input string
+		lowercase
+		next act-ts-label
+	endinput
+enddef
+
+define state act-ts-side
+	input string
+		lowercase
+		next act-ts-param
+	endinput
+enddef
+
+define state act-ts-label
+	input string
+		next act-ts-param2
+	endinput
+enddef
+
+define state act-ts-param2
+	input string
+		lowercase
+		next act-ts-label2
+	endinput
+enddef
+
+define state act-ts-label2
+	input string
+		next ust$no_more
+	endinput
+enddef
+
+
+define state act-df-param
+	input string
+		lowercase
+		next act-df-label
+	endinput
+enddef
+
+define state act-df-param2
+	input string
+		lowercase
+		next act-df-label2
+	endinput
+enddef
+
 define state act-sf-label
 	input string
 		next ust$final_real
+	endinput
+enddef
+
+define state act-ss-label
+	input string
+		next ust$final_string
+	endinput
+enddef
+
+define state act-si-label
+	input string
+		next ust$final_int
+	endinput
+enddef
+
+define state act-df-label2
+	input string
+		next ust$final_real
+	endinput
+enddef
+
+define state act-df-label
+	input string
+		next act-df-real
+	endinput
+enddef
+
+define state act-df-real
+	input real
+		next act-df-param2
 	endinput
 enddef
 
