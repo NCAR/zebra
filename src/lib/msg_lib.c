@@ -28,13 +28,19 @@
 # include <sys/time.h>
 # include <sys/socket.h>
 # include <sys/un.h>
+/*
+ * sys/socket.h includes linux/socket.h, which includes linux/uio.h, which
+ * gives its own definition of iovec, hence skip this include on linux
+ */
+# ifndef linux
 # include <sys/uio.h>
+# endif
 
 # include "defs.h"
 # define MESSAGE_LIBRARY	/* to get netread prototypes */
 # include "message.h"
 
-RCSID ("$Id: msg_lib.c,v 2.33 1995-08-22 06:21:29 granger Exp $")
+RCSID ("$Id: msg_lib.c,v 2.34 1996-01-12 01:11:01 granger Exp $")
 
 /*
  * The array of functions linked with file descriptors.

@@ -30,7 +30,13 @@
 # include <sys/time.h>
 # include <sys/socket.h>
 # include <sys/un.h>
+/*
+ * sys/socket.h includes linux/socket.h, which includes linux/uio.h, which
+ * gives its own definition of iovec, hence skip this include on linux
+ */
+# ifndef linux
 # include <sys/uio.h>
+# endif
 # include <netinet/in.h>
 # include <signal.h>
 # include <string.h>
@@ -45,7 +51,7 @@
 # include <message.h>
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.35 1995-10-03 05:12:40 granger Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.36 1996-01-12 01:11:32 granger Exp $")
 /*
  * Symbol tables.
  */
