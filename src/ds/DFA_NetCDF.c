@@ -32,7 +32,7 @@
 # include "dslib.h"
 # include "dfa.h"
 #ifndef lint
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.45 1995-04-18 22:21:34 granger Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.46 1995-04-26 14:36:21 granger Exp $")
 #endif
 
 #include <netcdf.h>
@@ -1644,7 +1644,8 @@ DataClass class;
 /*
  * Make sure we have altitudes, and put the units into the data chunk.
  */
-	dnc_GetAlts (gp->gl_dfindex, fields[0], 0, NULL, NULL, NULL);
+	if (nfield > 0)
+		dnc_GetAlts (gp->gl_dfindex, fields[0], 0, NULL, NULL, NULL);
 	dc_SetLocAltUnits (dc, tag->nc_altUnits);
 /*
  * Now we try to get everything together.
@@ -3652,7 +3653,7 @@ DataChunk *dc;
 	sprintf(history,"created by Zeb DataStore, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.45 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.46 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 #endif /* TEST_TIME_UNITS */
