@@ -43,7 +43,7 @@
 
 
 
-RCSID ("$Id: ThetaPlot.c,v 2.1 1997-05-21 21:09:24 corbet Exp $")
+RCSID ("$Id: ThetaPlot.c,v 2.2 1997-06-02 19:34:56 corbet Exp $")
 
 
 /*
@@ -263,7 +263,7 @@ TP_GetPlotParams (char *c, TPParams *params)
 	if (! pda_Search (Pd, c, "theta-minval", "thetaplot",
 			(char *) &params->tp_ThMin, SYMT_FLOAT))
 		params->tp_ThMin = 270;
-	if (! pda_Search (Pd, c, "theta-axval", "thetaplot",
+	if (! pda_Search (Pd, c, "theta-maxval", "thetaplot",
 			(char *) &params->tp_ThMax, SYMT_FLOAT))
 		params->tp_ThMax = 470.0;
 /*
