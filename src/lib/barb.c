@@ -138,7 +138,7 @@ int	shaftlen;   /* length in pixels to draw barb shaft */
 	    y1 = (int)((double)y - DY(shaftlen,angle));
 	    XDrawLine(W, D, Gcontext, x1, y1, x2, y2);
 	    shaftlen -= 2;
-	    barbspd -= 5.0;
+	    barbspd -= 7.5;
 	}
 	if ( barbspd >= 2.5 )
 	{
