@@ -32,7 +32,7 @@
 # include <DataStore.h>
 # include <DataChunk.h>
 
-MAKE_RCSID("$Id: SatIngest.c,v 1.9 1994-04-01 08:32:10 granger Exp $")
+MAKE_RCSID("$Id: SatIngest.c,v 1.10 1994-06-29 21:29:57 case Exp $")
 
 # include "keywords.h"
 
@@ -167,7 +167,7 @@ char **argv;
 	vtable = usy_g_stbl ("ui$variable_table");
 	usy_c_indirect (vtable, "originLat", &OriginLat, SYMT_FLOAT, 0);
 	usy_c_indirect (vtable, "kmResolution", &KmResolution, SYMT_FLOAT, 0);
-	usy_c_indirect (vtable, "platform", &Platname, SYMT_STRING, PF_LEN);
+	usy_c_indirect (vtable, "platform", Platname, SYMT_STRING, PF_LEN);
 	usy_c_indirect (vtable, "gridX", &GridX, SYMT_INT, 0);
 	usy_c_indirect (vtable, "gridY", &GridY, SYMT_INT, 0);
 	usy_c_indirect (vtable, "truncate", &Truncate, SYMT_BOOL, 0);
