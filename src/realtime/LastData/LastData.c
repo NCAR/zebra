@@ -39,7 +39,7 @@
 # include <copyright.h>
 # include <DataStore.h>
 
-RCSID ("$Id: LastData.c,v 2.14 1998-10-28 21:22:55 corbet Exp $")
+RCSID ("$Id: LastData.c,v 2.15 2000-04-10 21:06:09 burghart Exp $")
 
 
 /*
@@ -86,10 +86,12 @@ main (argc, argv)
 int argc;
 char **argv;
 {
+	char pname[80];
 /*
  * Hook into the message system.
  */
-	if (! msg_connect (MsgHandler, "LastData"))
+	sprintf (pname, "LastData-%d", getpid ());
+	if (! msg_connect (MsgHandler, pname))
 	{
 		printf ("Unable to connect to message handler\n");
 		exit (1);
