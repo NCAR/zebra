@@ -1,17 +1,25 @@
 #! /bin/sh
 #
-# $Id: sumplot,v 1.8 2001-06-29 20:57:07 granger Exp $
+# $Id: sumplot,v 1.9 2001-10-30 22:13:46 granger Exp $
 #
 # Collect all the images of a given pattern, reduce their size, and
 # put them into a table in the current directory.
 #
 
+brightness=20
+if [ "$1" = "-bright" ]; then
+    brightness=$2
+    shift; shift
+fi
+
 if [ $# -ne 4 -a $# -ne 5 ]; then
 
-    echo "Usage: $0 <project> <pattern> <basedir> <destdir> [<htmlfile>]"
+    echo "Usage: $0 [-bright %] <project> <pattern> <basedir> <destdir> [<htmlfile>]"
     echo "Finds all image files of the given <pattern> under <basedir>,"
     echo "creates thumbnails in <destdir> and a html table <htmlfile>."
     echo "If <htmlfile> not given, a default is created using the pattern."
+    echo "Any text on standard input is inserted onto the page under the"
+    echo "title."
     exit 1
 
 fi
@@ -44,12 +52,13 @@ cat <<EOF
    SRC="http://www.atd.ucar.edu/gif/atd_ban_sml.gif"></a>
 $project Plot Summary
 </h1>
-<hr>
 EOF
 
+# Insert any text from standard input here
+cat
 
-echo "<p>Click on an image to view the full-size plot.</p>"
-echo "<table border="0" cellspacing=4 cellpadding=4><tr>"
+echo "<hr><p>Click on an image to view the full-size plot.</p>"
+echo "<table border="0" cellspacing=2 cellpadding=2><tr>"
 
 i=0
 find $basedir -type f -name "*${pattern}*.png" -o -name "*${pattern}*.gif" \
@@ -58,9 +67,9 @@ find $basedir -type f -name "*${pattern}*.png" -o -name "*${pattern}*.gif" \
     image=`basename $path`
     destimage="$destdir/tn_$image"
     /bin/test $destimage -nt $path || \
-	(set -x; convert -geometry 140x140 -modulate 20 $path $destimage) 1>&2
+	(set -x; convert -modulate $brightness -geometry 140x140 $path $destimage) 1>&2
     echo '<td bgcolor="#f0f0f0">'
-    echo "<p><strong>$image</strong><p><a href=$path><img src=tn_$image></a>"
+    echo "<font size=-2><strong>$image<strong></font><br><a href=$path><img src=tn_$image></a>"
     echo "</td>"
     i=`expr $i + 1`
     if [ $i -eq 4 ]; then
