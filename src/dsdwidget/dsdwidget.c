@@ -40,7 +40,7 @@
 # include <DataStore.h>
 # include <Platforms.h>
 
-RCSID ("$Id: dsdwidget.c,v 1.30 1999-11-01 20:16:23 burghart Exp $")
+RCSID ("$Id: dsdwidget.c,v 1.31 2004-01-15 20:08:53 burghart Exp $")
 
 
 /*
@@ -423,7 +423,7 @@ ZebraTime *begin, *end;
  * Make a label for this platform.
  */
 {
-        char label[80], end_date[30], begin_date[30];
+        char label[CFG_PLATNAME_LEN + 64], end_date[30], begin_date[30];
         Arg arg;
 /*
  * Make the label.
