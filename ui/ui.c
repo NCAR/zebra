@@ -5,7 +5,7 @@
  * commands are in ui_cmds.c
  */
 
-static char *Rcsid = "$Id: ui.c,v 1.6 1989-07-12 09:37:48 corbet Exp $";
+static char *Rcsid = "$Id: ui.c,v 1.7 1989-09-19 16:39:50 corbet Exp $";
 /*
  * Declare all globals here
  */
@@ -28,6 +28,18 @@ static char *Rcsid = "$Id: ui.c,v 1.6 1989-07-12 09:37:48 corbet Exp $";
 # include "ui_expr.h"
 # include "ui_mode.h"
 
+/*
+ * Keep the system type around.
+ */
+# ifdef VMS
+# define SYSTEM_TYPE "vms"
+# endif
+# ifdef CRAY
+# define SYSTEM_TYPE "cray"
+# endif
+# ifdef UNIX
+# define SYSTEM_TYPE "unix"
+# endif
 
 /*
  * Jump is TRUE iff a longjmp is to be performed out of a ^C interrupt.
@@ -82,6 +94,7 @@ bool interact, nokeypad;
  * NOKEYPAD is true iff the terminal keypad is to be left in numeric mode.
  */
 {
+	union usy_value v;
 /*
  * Create an initial control stack, which puts us into command mode.  Since
  * new Cstack entries are cloned from existing ones, it behooves us to
@@ -144,6 +157,8 @@ bool interact, nokeypad;
 			SYMT_STRING, 100);
 	usy_c_indirect (Ui_variable_table, "ui$bailout", &Bail, SYMT_BOOL,
 			0);
+	v.us_v_ptr = SYSTEM_TYPE;
+	usy_s_symbol   (Ui_variable_table, "ui$system_type", SYMT_STRING, &v);
 	Bail = TRUE;
 /*
  * Finally, if an initialization procedure exists, execute it.
