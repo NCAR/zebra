@@ -22,15 +22,13 @@
 #ifndef _zeb_slgrabber_h_
 #define _zeb_slgrabber_h_
 
-# define SL_DATA	1		/* Data			*/
+# define SL_DATA	1			/* Data			*/
 
-
-
-typedef struct _sldata
+typedef struct _SLdata
 {
-	int	sl_type;		/* == SL_DATA		*/
-	int	sl_len;			/* The length		*/
-	char	sl_data[1];		/* Actual data		*/
-} sldata;
+	int		sl_type;		/* == SL_DATA		*/
+	int		sl_len;			/* The length		*/
+	unsigned char	sl_data[1];		/* Actual data		*/
+} SLdata;
 
 #endif /* _zeb_slgrabber_h_ */
