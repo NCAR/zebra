@@ -1,4 +1,4 @@
-XCOMM $Id: Imakefile,v 1.19 1994-09-20 19:34:25 granger Exp $
+XCOMM $Id: Imakefile,v 1.20 1994-11-21 23:20:12 granger Exp $
 XCOMM
 XCOMM This is the top-level Imakefile for the Zeb distribution.
 XCOMM It is modeled after the top-level Imakefile of the MIT X11R5
@@ -33,20 +33,20 @@ XCOMM target copies Makefile.ini over Makefile automatically.
        LINKDIRS = /* docs and projects will be distributed separately */
       LINKNAMES = 
 
-XCOMM From the top-level directory, the default "all" behavior will
-XCOMM be the same as the "Everything" target, i.e. make sure all
-XCOMM Makefiles are up-to-date, do includes, depends, install.lib,
-XCOMM and finally install.  There isn't really a plain "all" target
-XCOMM which does not do installations since building Zeb implies
-XCOMM installing the binaries.  The difference between World and
-XCOMM Everything is that Everything does not do a clean first.
+XCOMM From the top-level directory, the default behavior will be the same
+XCOMM as the "Everything" target, i.e. make sure all Makefiles are
+XCOMM up-to-date, do includes, depends, and finally install.  The
+XCOMM difference between World and Everything is that Everything does not
+XCOMM do a clean first.
+XCOMM 
+XCOMM If someone really wants to do an 'all', they have to ask for it 
+XCOMM explicitly.  Now that UseInstalledZeb exists and can be set to NO,
+XCOMM a 'make all' is a reasonable thing to do.
 
-all:: usage
-
-usage::
+default::
 	@echo "The default target is 'Everything'."
 	@echo "There are two principle top-level make targets available:"
-	@echo "The 'Everything' or 'all' target performs:"
+	@echo "The 'Everything' target performs:"
 	@echo "	make Makefile"
 	@echo "	make Makefiles"
 	@echo "	make includes"
@@ -63,26 +63,23 @@ usage::
 	@echo "out of this make by typing Ctl-C.  Make sure you have"
 	@echo "read and performed the configuration instructions,"
 	@echo "and then enter the command: 'make World'."
-	@echo "If you do not wish to do either of Everything or World,"
-	@echo "you can enter any of the targets Makefile, Makefiles, clean,"
-	@echo "includes, depend, install.lib, or install by specifically"
-	@echo "naming the target on the make command line.  However,"
-	@echo "with some targets you risk compiling with outdated files."
+	@echo "You can enter any of the targets Makefile, Makefiles, clean,"
+	@echo "includes, depend, all, or install on the make command line,"
+	@echo "but you risk compiling with outdated header or object files."
 	@echo "Other targets available:
-	@echo "	make distclean      - clean all subdirectories, even ./imake"
-	@echo "			      and ./include"
+	@echo "	make distclean      - clean all subdirectories, "
+	@echo "			      including ./imake and ./include"
 	@echo "	make tarfile        - make a tar file of the distribution,"
 	@echo "	                      see Imakefile for info before using"
 	@echo "Press <Return> here to continue with 'make Everything',"
 	@echo "or press <Ctl-C> to abort."
 	@line
 
-all:: Everything
+default:: Everything
 
-/*MakeSubdirs($(SUBDIRS))*/ /* Can't use all target because libraries must */
-			    /* be installed before executables built	   */
+MakeSubdirs($(SUBDIRS))
 DependSubdirs($(SUBDIRS))
-/*InstallLibSubdirs($(SUBDIRS))*/ 		/* Not used at the moment  */
+/*InstallLibSubdirs($(SUBDIRS))*/	/* No longer used */
 
 DistfilesTarget($(DISTFILES))
 DistfilesSubdirs($(DISTSUBDIRS))
