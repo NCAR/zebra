@@ -55,7 +55,7 @@ Less global variables: put them all in a global state structure.
 # include <timer.h>
 # include "SLGrabber.h"
 
-MAKE_RCSID("$Id: SLGrabber.c,v 2.6 1994-04-01 08:30:26 granger Exp $")
+MAKE_RCSID("$Id: SLGrabber.c,v 2.7 1994-10-13 23:02:48 sobol Exp $")
 
 typedef enum { UnspecifiedMode, TextMode, ByteMode } Mode;
 
@@ -551,7 +551,7 @@ again:
 
 
 
-int
+static int
 SLDataHandler ()
 /*
  * Here's some serial line data.
@@ -634,7 +634,7 @@ int start;		/* where in the buffer the new data begins */
 	{
 		*newline = '\0';
 		Send (conn, cp, strlen(cp)+1);
-		cp = newline + 1;
+		(char *) cp = newline + 1;
 	}
 /*
  * It's up to our caller to move what's left in the buffer to the front of
@@ -677,7 +677,7 @@ int start;		/* Index of newset data -- not used */
 
 
 
-void
+static void
 Send (conn, data, len)
 Connection *conn;
 const ubyte *data;	/* our array of data bytes 		   */
