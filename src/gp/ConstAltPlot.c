@@ -40,7 +40,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.46 1994-10-13 19:29:22 corbet Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.47 1994-11-04 18:07:48 corbet Exp $")
 
 
 /*
@@ -419,7 +419,8 @@ int *shifted;
  * Grab the color table
  */
 	if(! Monocolor)
-		ct_LoadTable (ctable, &Colors, &Ncolors);
+		if (!ct_LoadTable (ctable, &Colors, &Ncolors))
+			ct_LoadTable ("Contour", &Colors, &Ncolors);
 /*
  * Get the data (pass in plot time, get back actual data time)
  */

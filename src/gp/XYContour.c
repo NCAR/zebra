@@ -1,7 +1,7 @@
 /*
  * XY-Contour plotting module
  */
-static char *rcsid = "$Id: XYContour.c,v 1.27 1994-11-03 00:13:32 corbet Exp $";
+static char *rcsid = "$Id: XYContour.c,v 1.28 1994-11-04 18:07:53 corbet Exp $";
 /*		Copyright (C) 1993 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -43,7 +43,7 @@ static char *rcsid = "$Id: XYContour.c,v 1.27 1994-11-03 00:13:32 corbet Exp $";
  * General definitions
  */
 
-void	xy_Contour FP ((char *, int));
+
 
 
 typedef struct GridInfo {
@@ -59,14 +59,20 @@ static GridInfoPtr GridInfoList = NULL;
 /*
  * Prototypes
  */
+static int xyc_PlatsAndFields FP ((char *, char *, int *, char **, int *,
+		char **, int *, char **, int *, char **));
+static void xyc_DoColors FP ((char *, int, char *, XColor **, int *));
+
 float	*xy_RGridit FP ((char *, DataValPtr, DataValPtr, int, DataValPtr, 
 			 DataValPtr, int, DataValPtr, DataValPtr, DataValPtr, 
 			 int, double));
-void	gridRandomData FP ((GridInfoPtr, DataValPtr, DataValPtr, DataValPtr,
-			    int, DataValPtr, DataValPtr, DataValPtr,
-			    DataValPtr, double));
+static void gridRandomData FP ((GridInfoPtr, DataValPtr, DataValPtr,
+		DataValPtr, int, DataValPtr, DataValPtr, DataValPtr,
+		DataValPtr, double));
 float	*xy_InterpolateLinearOnY FP ((GridInfoPtr, double));
 GridInfoPtr 	getGrid FP ((char *, int, int, double));
+static void     xyc_FixYRes FP ((int *, DataValPtr, int, float, float));
+static float    gridStep FP ((int, DataValPtr, DataValPtr));
 
 
 
@@ -78,13 +84,12 @@ bool	update;
  * Draw an xy-graph on the given component
  */
 {
-	bool	ok, fill;
+	bool	fill;
 	int	npts[MAX_PLAT], plat, nplat, angle = 0, ncolors, dmode;
 	int	dolabel = 1, linewidth = 0, nxfield, nyfield, nzfield;
 	int	xgridres, ygridres = 0;
 	float	vecScale = 0.01, zstep, ccenter, *datagrid = NULL;
 	char	platforms[MAX_PLAT_LEN], *pnames[MAX_PLAT];
-	char	xflds[MAX_PLAT_LEN], yflds[MAX_PLAT_LEN], zflds[MAX_PLAT_LEN];
 	char	*xfnames[MAX_PLAT], *yfnames[MAX_PLAT], *zfnames[MAX_PLAT];
 	char	gridtype[20], ctname[24], style[20], annotcontrol[80];
 	char	xtype, ytype, ztype;
@@ -108,51 +113,11 @@ bool	update;
 	    return;
 	}
 /*
- * Get required parameters
+ * Figure out what they want to look at.
  */
-	ok = pda_ReqSearch (Pd, c, "platform", NULL, platforms, SYMT_STRING);
-	ok &= pda_ReqSearch (Pd, c, "x-field", NULL, xflds, SYMT_STRING);
-	ok &= pda_ReqSearch (Pd, c, "y-field", NULL, yflds, SYMT_STRING);
-	ok &= pda_ReqSearch (Pd, c, "z-field", NULL, zflds, SYMT_STRING);
-	ok &= pda_ReqSearch (Pd, c, "color-table", "xy-contour", ctname,
-			     SYMT_STRING);
-
-	if (! ok) 
+	if (! xyc_PlatsAndFields (c, platforms, &nplat, pnames, &nxfield,
+			xfnames, &nyfield, yfnames, &nzfield, zfnames))
 		return;
-/*
- * Parse platform and field name information. 
- */
-	if ((nplat = CommaParse (platforms, pnames)) > MAX_PLAT)
-	{
-		msg_ELog (EF_PROBLEM, "XYContour: %s: too many platforms", c);
-		return;
-	}
-	nxfield = CommaParse (xflds, xfnames);
-	nyfield = CommaParse (yflds, yfnames);
-	nzfield = CommaParse (zflds, zfnames);
-/*
- * Test for acceptable combinations of numbers of fields and platforms.
- * Number of fields must be equal, and the number must be equal to 
- * the number of platforms if greater than one.
- */
-	if ((nxfield != nplat && nxfield != 1 && nplat != 1) ||
-	    (nyfield != nplat && nyfield != 1 && nplat != 1) ||
-	    (nzfield != nplat && nzfield != 1 && nplat != 1) ||
-	    (nxfield != nyfield) || (nyfield != nzfield))
-	{
-		msg_ELog (EF_PROBLEM, "XYContour: %s: bad number of fields", 
-			  c);
-		return;
-	}
-/*
- * If one platform and many fields, replicate the platform name as if we
- * had that many platforms to begin with
- */
-	if ((nplat == 1) && (nxfield > 1))
-	{
-		for (plat = 1; plat < nxfield; ++plat)
-			pnames[plat] = pnames[0];
-	}
 /*
  * Get X-Y Contour optional parameters:
  * "style" - "line" or "filled"
@@ -176,7 +141,13 @@ bool	update;
 		pd_Retrieve (Pd, c, "representation", style, SYMT_STRING);
 		fill = ! strcmp (style, "filled-contour");
 	}
-
+/*
+ * Figure out our colors.
+ */
+	xyc_DoColors (c, fill, ctname, &colors, &ncolors);
+/*
+ * Gridding (for now)
+ */
 	xgridres = 25;
 	pda_Search (Pd, c, "x-grid", "xy-contour", (char *) &xgridres, 
 		    SYMT_INT);
@@ -187,6 +158,8 @@ bool	update;
 
 	strcpy (gridtype, "raw");
 	pda_Search (Pd, c, "grid-method", "xy-contour", gridtype, SYMT_STRING);
+	pda_Search (Pd, c, "line-width", "xy-contour", (char *) &linewidth,
+			SYMT_INT);
 /*
  * Data types
  */
@@ -218,16 +191,6 @@ bool	update;
  * Get top annotation color
  */
 	xy_GetPlotColors (c, nplat, NULL, &taColor);
-/*
- * Attempt to load color table 
- */
-	ct_LoadTable (ctname, &colors, &ncolors);
-	if (ncolors < 1)
-	{
-		msg_ELog (EF_PROBLEM, "XYContour: %s: color table too small",
-			  c);
-		return;
-	}
 /*
  * Initialize data min/max values.
  */
@@ -347,7 +310,7 @@ bool	update;
 /*
  * Top annotation
  */
-	An_TopAnnot ("XY Contour:", taColor);
+	An_TopAnnot ("Contour plot of ", taColor);
 	An_TopAnnot (platforms, taColor);
 /*
  * Do each platform
@@ -385,7 +348,7 @@ bool	update;
 	 * NOW that we have a center value, we can reasonably set up
 	 * for the color bar.
 	 */
-		if (sideAnnot)
+		if (sideAnnot && ncolors > 1)
 		{	
 			sprintf (annotcontrol, "%s %s %f %f", zfnames[plat],
 					ctname, ccenter, zstep);
@@ -414,6 +377,8 @@ bool	update;
 		}
 		else if (strcmp (gridtype, "profile-linear") == 0)
 		{
+			xyc_FixYRes (&ygridres, ydata[plat], npts[plat],
+					ybottom.val.f, ytop.val.f);
 			ginfo = getGrid (c, xgridres, ygridres, BADVAL);
 			gridRandomData (ginfo, xdata[plat], ydata[plat], 
 					zdata[plat], npts[plat], &xleft, 
@@ -432,16 +397,7 @@ bool	update;
 	 */
 		ct_GetColorByName ("white", &white);
 
-	        if (! fill)
-	        {
-			CO_Init (colors, ncolors, ncolors/2, &white, clip, 
-				 TRUE, BADVAL);
-			Contour (Graphics, GWFrame (Graphics), datagrid,
-				 xgridres, ygridres, devX (&xleft), 
-				 devY (&ytop), devX (&xright), devY (&ybottom),
-				 ccenter, zstep, dolabel, linewidth);
-	        }
-		else
+	        if (fill)
 		{
 			FC_Init (colors, ncolors, ncolors/2, &white, clip, 
 				 TRUE, BADVAL);
@@ -450,6 +406,18 @@ bool	update;
 				     devY (&ytop), devX (&xright), 
 				     devY (&ybottom), ccenter, zstep);
 		}
+		else
+	        {
+			if (ncolors > 1)
+				CO_Init (colors, ncolors, ncolors/2, &white,
+						clip, TRUE, BADVAL);
+			else
+				CO_InitMono (*colors, clip, TRUE, BADVAL);
+			Contour (Graphics, GWFrame (Graphics), datagrid,
+				 xgridres, ygridres, devX (&xleft), 
+				 devY (&ytop), devX (&xright), devY (&ybottom),
+				 ccenter, zstep, dolabel, linewidth);
+	        }
 		SetClip (TRUE);
 	}
 /*
@@ -703,7 +671,7 @@ DataValPtr	x0;
 
 
 
-float
+static float
 gridStep (ddim, data0, data1)
 int	ddim;
 DataValPtr	data0, data1;
@@ -724,7 +692,7 @@ DataValPtr	data0, data1;
 
 
 
-void
+static void
 gridRandomData (ginfo, xdata, ydata, zdata, npts, x0, x1, y0, y1, 
 		badval)
 GridInfoPtr	ginfo;
@@ -824,4 +792,157 @@ float		badval;
     }
     free (dataLoc);
     return (ginfo->grid);
+}
+
+
+
+
+
+static int
+xyc_PlatsAndFields (c, platforms, nplat, pnames, nxfield, xfnames, nyfield,
+		yfnames, nzfield, zfnames)
+int *nplat, *nxfield, *nyfield, *nzfield;
+char *c, *platforms, **pnames, **xfnames, **yfnames, **zfnames;
+{
+	static char xflds[MAX_PLAT_LEN], yflds[MAX_PLAT_LEN];
+	static char zflds[MAX_PLAT_LEN]; /* XXX */
+	bool ok;
+	int plat;
+/*
+ * Look up the parameters.
+ */
+	ok = pda_ReqSearch (Pd, c, "platform", NULL, platforms, SYMT_STRING);
+	ok &= pda_ReqSearch (Pd, c, "x-field", NULL, xflds, SYMT_STRING);
+	ok &= pda_ReqSearch (Pd, c, "y-field", NULL, yflds, SYMT_STRING);
+	ok &= pda_ReqSearch (Pd, c, "z-field", NULL, zflds, SYMT_STRING);
+/*
+ * Parse platform and field name information. 
+ */
+	if ((*nplat = CommaParse (platforms, pnames)) > MAX_PLAT)
+	{
+		msg_ELog (EF_PROBLEM, "XYContour: %s: too many platforms", c);
+		return (FALSE);
+	}
+	*nxfield = CommaParse (xflds, xfnames);
+	*nyfield = CommaParse (yflds, yfnames);
+	*nzfield = CommaParse (zflds, zfnames);
+/*
+ * Test for acceptable combinations of numbers of fields and platforms.
+ * Number of fields must be equal, and the number must be equal to 
+ * the number of platforms if greater than one.
+ */
+	if ((*nxfield != *nplat && *nxfield != 1 && *nplat != 1) ||
+	    (*nyfield != *nplat && *nyfield != 1 && *nplat != 1) ||
+	    (*nzfield != *nplat && *nzfield != 1 && *nplat != 1) ||
+	    (*nxfield != *nyfield) || (*nyfield != *nzfield))
+	{
+		msg_ELog (EF_PROBLEM, "XYContour: %s: bad number of fields", 
+			  c);
+		return (FALSE);
+	}
+/*
+ * If one platform and many fields, replicate the platform name as if we
+ * had that many platforms to begin with
+ */
+	if ((*nplat == 1) && (*nxfield > 1))
+		for (plat = 1; plat < *nxfield; ++plat)
+			pnames[plat] = pnames[0];
+	return (TRUE);
+}
+
+
+
+
+
+
+static void
+xyc_DoColors (c, fill, ctname, colors, ncolors)
+char *c, *ctname;
+XColor **colors;
+int *ncolors;
+/*
+ * Figure out what's happening with colors.
+ */
+{
+	bool mono;
+	static XColor monocolor;
+/*
+ * If we are not doing filled contours, give them the opportunity to
+ * ask for things in monochrome.
+ */
+	if (! fill && pda_Search (Pd, c, "color-mono", "xy-contour",
+			&mono, SYMT_BOOL) && mono)
+	{
+		if (! pda_Search (Pd, c, "color", "xy-contour", ctname,
+				SYMT_STRING))
+			strcpy (ctname, "white");
+		if (! ct_GetColorByName (ctname, &monocolor))
+			ct_GetColorByName ("white", &monocolor);
+		*colors = &monocolor;
+		*ncolors = 1;
+		return;
+	}
+/*
+ * OK, it's a polychromatic world.
+ */
+	if (! pda_Search (Pd, c, "color-table", "xy-contour", ctname,
+			     SYMT_STRING))
+	{
+		msg_ELog (EF_INFO, "No color table given, using Contour");
+		strcpy (ctname, "Contour");
+	}
+/*
+ * Attempt to load color table 
+ */
+	if (!ct_LoadTable (ctname, colors, ncolors))
+	{
+		msg_ELog (EF_PROBLEM,"Unable to load table %s, trying Contour",
+				ctname);
+		ct_LoadTable ("Contour", colors, ncolors);
+		strcpy (ctname, "Contour");
+	}
+}
+
+
+
+static void
+xyc_FixYRes (ygridres, ydata, npts, y0, y1)
+int *ygridres, npts;
+float y0, y1;
+DataValPtr ydata;
+/*
+ * Go through and adjust the Y grid resolution if need be.
+ */
+{
+	int nvisible = 0, i, lastnv = 0;
+	float lastyv;
+/*
+ * This is a heroic kludge.  You see, all the Y data has been mashed
+ * together at this point.  We really want to try to figure the number of
+ * levels that are visible, not the number of points.  So we try to catch
+ * when it drops back down and start over, taking the maximum.
+ */
+	for (i = 0; i < npts; i++)
+	{
+		float yv = ydata[i].val.f;
+		if (yv >= y0 && yv <= y1)
+			nvisible++;
+		if (i > 0 && yv < lastyv)
+		{
+			if (nvisible > lastnv)
+				lastnv = nvisible;
+			nvisible = 0;
+		}
+		lastyv = yv;
+	}
+/*
+ * OK, we have an answer of sorts.  IF the data resolution is below the
+ * grid resolution (but we have data), then tweak down the grid resolution
+ * to match.
+ */
+	if (lastnv > nvisible)
+		nvisible = lastnv;
+	msg_ELog (EF_DEBUG, "FIXY, res %d, vis %d", *ygridres, nvisible);
+	if (*ygridres > nvisible && nvisible > 3)
+		*ygridres = nvisible - 1;
 }
