@@ -1,5 +1,5 @@
 /* 12/88 jc */
-/* $Id: dev_xtitan.c,v 1.5 1990-02-08 10:23:30 burghart Exp $ */
+/* $Id: dev_xtitan.c,v 1.6 1990-11-15 11:19:08 burghart Exp $ */
 /*
  * Graphics driver for the X window system, version 11.3, with Titan 
  * enhancements.
@@ -108,6 +108,8 @@ struct device *dev;
  */
  	if (! strcmp (type, "titan") || ! strcmp (type, "pctitan"))
 		tag->x_xres = tag->x_yres = 800;
+	else if (! strcmp (type, "titan400") || ! strcmp (type, "pctitan400"))
+		tag->x_xres = tag->x_yres = 400;
 	else if (! strcmp (type, "titan500") || ! strcmp (type, "pctitan500"))
 		tag->x_xres = tag->x_yres = 500;
 /*
