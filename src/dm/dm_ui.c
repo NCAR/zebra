@@ -28,7 +28,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm_ui.c,v 2.10 1994-11-19 00:28:48 burghart Exp $")
+MAKE_RCSID ("$Id: dm_ui.c,v 2.11 1994-11-20 19:26:19 granger Exp $")
 
 
 static int in_pd FP((raw_plot_description *rpd, struct ui_command *cmds));
@@ -137,12 +137,18 @@ struct ui_command *cmds;
 		win = cfg->c_wins + cfg->c_nwin;
 		strcpy (win->cfw_name, UPTR (cmds[1]));
 		strcpy (win->cfw_prog, "popup");
+		strcpy (win->cfw_desc, "n/a");
 		win->cfw_win = 0;
+		win->cfw_linkpar = 0;
+		win->cfw_linksrc = 0;
 		win->cfw_nongraph = win->cfw_forcepd = FALSE;
+		win->cfw_pd = 0;
+		win->cfw_bmap = Default_map;
 		win->cfw_x = UINT (cmds[2]);
 		win->cfw_y = UINT (cmds[3]);
 		win->cfw_dx = UINT (cmds[4]);
 		win->cfw_dy = UINT (cmds[5]);
+		win->cfw_ncroak = 0;
 		win->cfw_flags = CF_WIDGET;
 		cfg->c_nwin++;
 		break;
