@@ -47,7 +47,7 @@
 # include "LayoutControl.h"
 # include "LLEvent.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.55 1995-07-24 20:07:31 granger Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.56 1995-08-28 21:49:10 granger Exp $")
 
 /*
  * Default resources.
@@ -1501,7 +1501,7 @@ union usy_value *argv, *retv;
 	else
 	{
 		*rett = type;
-		memcpy (retv, tmp, sizeof (date));	/* XXX */
+		memcpy ((void*)retv, tmp, sizeof (date));	/* XXX */
 	}
 	return (0);
 }
@@ -1535,7 +1535,7 @@ union usy_value *argv, *retv;
 	else
 	{
 		*rett = type;
-		memcpy (retv, tmp, sizeof (date));	/* XXX */
+		memcpy ((void*)retv, tmp, sizeof (date));	/* XXX */
 	}
 	return (0);
 }

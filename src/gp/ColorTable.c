@@ -29,7 +29,7 @@
 # include <message.h>
 # include "GraphProc.h"
 
-RCSID ("$Id: ColorTable.c,v 2.6 1995-06-29 23:28:24 granger Exp $")
+RCSID ("$Id: ColorTable.c,v 2.7 1995-08-28 21:49:05 granger Exp $")
 
 /*
  * For now, we use a simple bitmap to keep track of the colors that
@@ -67,7 +67,7 @@ int color;
 static void
 ct_ClearColors ()
 {
-	memset (Cmap, 0, NCBYTES);
+	memset ((void *) Cmap, 0, NCBYTES);
 }
 
 
@@ -196,7 +196,8 @@ char *name;
 	strcpy (ct->ct_name, name);
 	ct->ct_ncolor = repl->dmm_ncolor;
 	ct->ct_colors = (XColor *) malloc (ct->ct_ncolor * sizeof (XColor));
-	memcpy (ct->ct_colors, repl->dmm_cols, ct->ct_ncolor*sizeof (XColor));
+	memcpy ((void *)ct->ct_colors, (void *)repl->dmm_cols, 
+		ct->ct_ncolor*sizeof (XColor));
 	ct->ct_alloc = FALSE;
 	free (repl);
 /*

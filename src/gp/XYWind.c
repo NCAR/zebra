@@ -40,7 +40,7 @@
 # include "AxisControl.h"
 # include "PlotPrim.h"
 
-RCSID ("$Id: XYWind.c,v 1.27 1995-06-29 23:30:16 granger Exp $")
+RCSID ("$Id: XYWind.c,v 1.28 1995-08-28 21:49:18 granger Exp $")
 
 /*
  * General definitions
@@ -225,10 +225,10 @@ bool	update;
  * from experience.
  */
 	alen = nplat*sizeof (DataValPtr);
-	xdata = (DataValPtr*) malloc (alen);  memset (xdata, 0, alen);
-	ydata = (DataValPtr*) malloc (alen);  memset (ydata, 0, alen);
-	w1data = (DataValPtr*) malloc (alen); memset (w1data, 0, alen);
-	w2data = (DataValPtr*) malloc (alen); memset (w2data, 0, alen);
+	xdata = (DataValPtr*) malloc (alen);  memset ((void*)xdata, 0, alen);
+	ydata = (DataValPtr*) malloc (alen);  memset ((void*)ydata, 0, alen);
+	w1data = (DataValPtr*) malloc (alen); memset ((void*)w1data, 0, alen);
+	w2data = (DataValPtr*) malloc (alen); memset ((void*)w2data, 0, alen);
 /*
  * Initialize data min/max values.
  */

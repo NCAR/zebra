@@ -19,10 +19,12 @@
  * maintenance or updates for its software.
  */
 
+# include <math.h>
+
 # include <config.h>
 # include <defs.h>
 
-RCSID("$Id: Overlay.c,v 2.45 1995-08-03 21:00:02 corbet Exp $")
+RCSID("$Id: Overlay.c,v 2.46 1995-08-28 21:49:14 granger Exp $")
 
 /* 
  * Since the annotate widget uses ov_PositionIcon, and the annotate widget is
