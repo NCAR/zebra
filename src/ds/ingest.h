@@ -1,7 +1,7 @@
 /*
  * ingest.h --- Public protoypes and macros for ingest modules
  *
- * $Id: ingest.h,v 1.1 1992-06-05 23:02:57 granger Exp $
+ * $Id: ingest.h,v 1.2 1992-07-03 18:39:58 granger Exp $
  */
 
 # ifndef _ingest_h_
@@ -25,16 +25,60 @@
 /* ---------------------------------------------------------------------
  * Ingest Public Prototypes:						*/
 
-void	IngestLog FP((int, va_dcl));
-void	IngestParseOptions FP((int *argc, char *argv[], void (*usage)()));
-void 	IngestInitialize FP((char *module_name));
-void	IngestUsage();
+extern void	IngestLog ();
+extern void	IngestParseOptions FP((int *argc, char *argv[], 
+					void (*usage)()));
+extern void 	IngestInitialize FP((char *module_name));
+extern void	IngestUsage();
+
+extern bool _Ingest_ds_Store FP((DataChunk *dc, bool newfile, 
+				dsDetail *details, int ndetail));
+extern PlatformId _Ingest_ds_LookupPlatform FP((char *name));
+
+extern void RemoveOptions FP((int *argc, char *argv[], int i, int n));
+
+
+/*
+ * During testing and DryRun mode, the ds functions will be 
+ * omitted by the Ingest cover functions _Ingest_ds*
+ */
+#define ds_Store(a,b,c,d) _Ingest_ds_Store(a,b,c,d)
+#define ds_LookupPlatform(a) _Ingest_ds_LookupPlatform(a)
 
 /* -------------------------------------------------------------------- */
 
+
 /*
- * An exported flag so that ingest modules can test their debug state
+ * Exported flags so that ingest modules can test their debug state
  */
 extern int IngestLogFlags;
+extern short NoDataStore;
+extern short NoMessageHandler;
+extern short NoEventLogger;
+extern short DryRun;
+
+/* -----------------------------------------------------------------
+ * These macros allow ingest modules to set their default debug
+ * state within the program, such as during development
+ */
+#define SetNoMessageHandler() {\
+		NoDataStore = 1; \
+		NoMessageHandler = 1; \
+		NoEventLogger = 1; \
+		}
+
+#define SetNoEventLogger() {\
+		NoEventLogger = 1; \
+		}
+
+#define SetNoDataStore() {\
+		NoDataStore = 1;  \
+		}
+
+#define SetDryRun() {\
+		DryRun = 1; \
+		SetNoMessageHandler(); \
+		}
+		
 
 # endif
