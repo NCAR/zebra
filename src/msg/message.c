@@ -51,7 +51,7 @@
 # include <message.h>
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.40 1996-08-13 23:04:39 granger Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.41 1996-08-16 20:35:49 granger Exp $")
 /*
  * Symbol tables.
  */
@@ -74,7 +74,7 @@ static fd_set Allfds;
 static fd_set WriteFds;
 static int NWriteFd = 0, MaxWriteFd = 0;
 static int Port = 0;
-static int EMask = 0xff;
+static int EMask = 0x00;	/* Wait until we know an ELogger exists */
 static int Dying = FALSE;
 static int Debug = FALSE;	/* Debuggin' mode */
 
@@ -96,12 +96,10 @@ typedef struct _DWrite
 # define DWGRIPE	 50000
 # define DWDROP		250000
 
-/*
- * 'name' of an as yet un-named connection
- */
-# define UNKNOWN_NAME	"(Unknown)"
+# define UNKNOWN_NAME	"(Unknown)"	/* 'name' of yet un-named connection */
+# define INETCTIME	2		/* timeout for inet connections */
+# define MINFD		4		/* min fd to search for connections */
 
-# define INETCTIME	2	/* How long we wait for inet connections */
 /*
  * This structure describes a connection.
  */
@@ -247,6 +245,7 @@ void	NewInConnection FP ((void));
 void	new_un_connection FP ((void));
 static void MakeUnixSocket FP ((void));
 static void MakeInetSocket FP ((void));
+static void UpdateLogMask FP ((struct message *msg));
 static void send_log ();
 static void log ();
 static void inc_message FP ((int nsel, fd_set *fds));
@@ -1244,7 +1243,7 @@ fd_set *fds;
 /*
  * Pass through the list of fds.
  */
-	for (fd = 4; fd <= MaxWriteFd; fd++)
+	for (fd = MINFD; fd <= MaxWriteFd; fd++)
 	{
 		Connection *cp;
 	/*
@@ -1340,7 +1339,7 @@ fd_set *fds;
 /*
  * Pass through the list of file descriptors.
  */
-	for (fd = 4; fd < Nfd && nsel; fd++)
+	for (fd = MINFD; fd < Nfd && nsel; fd++)
 	{
 	/*
 	 * See if there is something on this FD.
@@ -1681,7 +1680,7 @@ die ()
  */
 	send_log (EF_DEBUG, "%s; going down in %d seconds",
 		  "broadcasting shutdown", SHUTDOWN_DELAY);
-	strcpy (msg.m_to, "Everybody");
+	strcpy (msg.m_to, MSG_EVERYBODY);
 	strcpy (msg.m_from, MSG_MGR_NAME);
 	msg.m_proto = MT_MESSAGE;
 	msg.m_flags = MF_BROADCAST;
@@ -1781,7 +1780,6 @@ struct message *msg;
  * Do something about this message.
  */
 {
-	struct msg_elog *el;
 /*
  * Branch out based on the protocol.  Most we just pass on through, but 
  * a couple are special.
@@ -1821,17 +1819,23 @@ struct message *msg;
 			route (fd, msg);
 		break;
 	/*
-	 * Check for elog messages sent to us to update our mask
+	 * Check for elog messages sent to us or broadcast to Everybody.
 	 */
 	   case MT_ELOG:
-		if (! strcmp (msg->m_to, MSG_MGR_NAME))
+		if ((msg->m_flags & MF_BROADCAST) &&
+		    (! strcmp (msg->m_to, MSG_EVERYBODY)))
 		{
-			el = (struct msg_elog *) msg->m_data;
-			if (el->el_flag & EF_SETMASK)
-				EMask = el->el_flag & ~EF_SETMASK;
+			UpdateLogMask (msg);
+			route (fd, msg);
+		}
+		else if (! strcmp (msg->m_to, MSG_MGR_NAME))
+		{
+			UpdateLogMask (msg);
 		}
 		else
+		{
 			route (fd, msg);
+		}
 		break;
 	/*
 	 * Most stuff just gets sent through to the destination.
@@ -2533,8 +2537,10 @@ struct connection *conp;
 	 * not to send to the originator of the message.
 	 */
 	 	for (i = 0; i < grp->g_nprocs; i++)
+		{
 			if (grp->g_procs[i] != conp)
 				send_msg (grp->g_procs[i], msg);
+		}
 	}
 }
 
@@ -2609,7 +2615,7 @@ struct connection *conp;
 	strcpy (cl.mh_client, conp->c_name);
 	strcat (cl.mh_client, "@");
 	strcat (cl.mh_client, Hostname);
-	for (i = 4; i < Nfd; i++)
+	for (i = MINFD; i < Nfd; i++)
 	{
 		if (Fd_map[i] && Fd_map[i]->c_inet)
 			send_msg (Fd_map[i], &msg);
@@ -2775,6 +2781,12 @@ int query;	/* nonzero if this a MT_QUERY rather the MH_STATS */
 		msg.m_len = len + strlen (text);
 		send_msg (conp, &msg);
 	}
+/*
+ * Current event mask.
+ */
+	sprintf (text, "Event mask: %0#x", EMask);
+	msg.m_len = len + strlen (text);
+	send_msg (conp, &msg);
 /*
  * Finally list our groups and the members of each.
  */
@@ -2991,6 +3003,25 @@ int fd;
 
 
 static void
+UpdateLogMask (msg)
+struct message *msg;
+{
+	struct msg_elog *el = (struct msg_elog *) msg->m_data;
+
+	if (el->el_flag & EF_SETMASK)
+	{
+		EMask = el->el_flag & ~EF_SETMASK;
+	}
+	else if (el->el_flag & EF_ORMASK)
+	{
+		EMask |= (el->el_flag & ~EF_ORMASK);
+	}
+}
+
+
+
+
+static void
 log (flags, va_alist)
 int flags;
 va_dcl
@@ -3032,9 +3063,12 @@ va_dcl
 	char *fmt;
 	struct message msg;
 	struct msg_elog *el;
-	int len, type;
+	int len;
+#ifdef notdef
+	int type;
 	union usy_value v;
 	struct connection *conp;
+#endif
 /*
  * Format the message.
  */
@@ -3048,6 +3082,7 @@ va_dcl
 			 el->el_text);
 	if ((flags & EMask) == 0)
 		return;
+#ifdef notdef
 /*
  * If there is no event logger, there is no point in the rest.
  */
@@ -3056,22 +3091,19 @@ va_dcl
 	conp = (struct connection *) v.us_v_ptr;
 	if (strcmp (conp->c_name, EVENT_LOGGER_NAME))
 		return;	/* Event logger not finished connecting? */
-#ifdef notdef
-	if (! strcmp (conp->c_name, EVENT_LOGGER_NAME))
-		return;	/* Event logger croaking */
 #endif
 /*
- * Now send this message out.
+ * Now broadcast this message to the event logger group.
  */
 	el->el_flag = flags;
 	len = sizeof (*el) + strlen (el->el_text);
 	msg.m_proto = MT_ELOG;
-	strcpy (msg.m_to, EVENT_LOGGER_NAME);
+	strcpy (msg.m_to, EVENT_LOGGER_GROUP);
 	strcpy (msg.m_from, MSG_MGR_NAME);
-	msg.m_flags = 0;
+	msg.m_flags = MF_BROADCAST;
 	msg.m_len = len;
 	msg.m_data = (char *) el;
-	send_msg (conp, &msg);
+	broadcast (&msg, 0);
 }
 
 
