@@ -1,0 +1,15 @@
+
+This directory contains a set of utility scripts for automatically
+generating zebra plots as data are received in a local datastore, including
+scripts for ingesting soundings and transferring files and images to remote
+ftp servers, such as for JOSS.  The scripts require configuration with
+environment variables which are usually set in a project's proj_env file.
+The zconfig script is the gateway script which sets up a project's
+environment and then runs a given script with that environment.  Most
+of the scripts here will need to be run with zconfig.
+
+The proj_env file is an example of a project environment file and contains
+examples of all of the environment variables expected by the scripts here.
+
+
+

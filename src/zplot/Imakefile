@@ -1,0 +1,27 @@
+/* -*- C -*-
+ * Imakefile for installing script utilities
+ */
+
+SCRIPTS = zplotbatch class2ascii dfsince disclaim ftpplots \
+          issclass logimages zplotlast sendclass ztsplit \
+          zconfig zplotd 
+
+DISTFILES = Imakefile $(SCRIPTS) proj_env
+
+all:: $(SCRIPTS)
+
+InstallNamedTarget(install,zplotbatch,$(INSTBINFLAGS),$(BINDIR),zplotbatch)
+InstallNamedTarget(install,class2ascii,$(INSTBINFLAGS),$(BINDIR),class2ascii)
+InstallNamedTarget(install,dfsince,$(INSTBINFLAGS),$(BINDIR),dfsince)
+InstallNamedTarget(install,disclaim,$(INSTBINFLAGS),$(BINDIR),disclaim)
+InstallNamedTarget(install,ftpplots,$(INSTBINFLAGS),$(BINDIR),ftpplots)
+InstallNamedTarget(install,issclass,$(INSTBINFLAGS),$(BINDIR),issclass)
+InstallNamedTarget(install,logimages,$(INSTBINFLAGS),$(BINDIR),logimages)
+InstallNamedTarget(install,zplotlast,$(INSTBINFLAGS),$(BINDIR),zplotlast)
+InstallNamedTarget(install,sendclass,$(INSTBINFLAGS),$(BINDIR),sendclass)
+InstallNamedTarget(install,ztsplit,$(INSTBINFLAGS),$(BINDIR),ztsplit)
+InstallNamedTarget(install,zconfig,$(INSTBINFLAGS),$(BINDIR),zconfig)
+InstallNamedTarget(install,zplotd,$(INSTBINFLAGS),$(BINDIR),zplotd)
+
+DistfilesTarget($(DISTFILES))
+
