@@ -1,0 +1,170 @@
+/* -*- C -*- */
+MFVERSION="$Id: Imakefile,v 1.17 2002-07-11 22:38:44 burghart Exp $"
+/*		Copyright (C) 1987,88,89,90,91 by UCAR
+ *	University Corporation for Atmospheric Research
+ *		   All rights reserved
+ *
+ * No part of this work covered by the copyrights herein may be reproduced
+ * or used in any form or by any means -- graphic, electronic, or mechanical,
+ * including photocopying, recording, taping, or information storage and
+ * retrieval systems -- without permission of the copyright owner.
+ * 
+ * This software and any accompanying written materials are provided "as is"
+ * without warranty of any kind.  UCAR expressly disclaims all warranties of
+ * any kind, either express or implied, including but not limited to the
+ * implied warranties of merchantibility and fitness for a particular purpose.
+ * UCAR does not indemnify any infringement of copyright, patent, or trademark
+ * through use or modification of this software.  UCAR does not provide 
+ * maintenance or updates for its software.
+ */
+
+#define IHaveSubdirs
+#define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
+
+SUBDIRS = LiteClue Tabs
+SUBDIRS = LiteClue
+DISTSUBDIRS = $(SUBDIRS)
+
+LOCALLIB = uilib.a
+UI_LF = $(LIBDIR)/ui.lf
+
+/*
+ * ProjectZebra needs the -I. since some ui headers use <> to include
+ * other headers, which may have not been installed yet into the include
+ * directory specified on the compiler command line.  It shouldn't hurt 
+ * to leave it there for RDSS builds also.
+ */
+INCLUDES = $(XINCLUDES) -I. -I./LiteClue
+LIBS = $(LIBRDSS) $(XLIBS)
+DEPLIBS = $(LIBRDSSUTIL)
+
+
+/*
+ * Zebra installs the ui_commands file into LIBDIR/ui; probably where it
+ * should have been located all along rather than in the source.  Setting
+ * UIDIR to LIBDIR makes the default ui$defs_file LIBDIR/ui/ui_commands
+ */
+#ifdef ProjectZebra
+UIDIR = -DUIDIR=\"$(LIBDIR)\"
+#else
+UIDIR = -DUIDIR=\"$(RDSSDIR)\"
+#endif
+
+LFDIR = -DLF=\"$(UI_LF)\"
+MENUDEFINES = -DSMEMENU
+NORMAL_DEFINES = $(UIDIR) $(LFDIR) $(XWINDOWSFLAG) $(MENUDEFINES)
+
+#if defined(SunArchitecture) && !SystemV4 && !SystemV
+SYSDEFINES = -DBSD
+#else
+SYSDEFINES =
+#endif
+
+#if ZebraSharedLibraries
+PICDEFS = $(PICFLAGS)
+#endif
+EXTRA_DEFINES = $(RDSS_EXTRA_DEFS) $(NORMAL_DEFINES) $(SYSDEFINES) $(PICDEFS)
+
+BINSRCS = uic.c uib.c
+
+/*
+ * Override UIB variable to always use the local one
+ */
+UIB = LdLibEnv ./uib
+
+# if (UseXWindows || (UseOpenWindows && !OldOpenWin))
+SMEMENUOBJS= SmeMenu.o RdssMenu.o
+# else
+SMEMENUOBJS=
+# endif
+
+SMEMENUSRCS= $(SMEMENUOBJS:.o=.c)
+
+TABOBJS = Tabs/Tabs.o Tabs/Gcs.o
+TABOBJS =
+
+LIBOBJS = ui.o ui_bootstrap.o ui_date.o ui_error.o ui_symbol.o ui_util.o \
+	ui_ctable.o ui_state.o ui_expr.o ui_keys.o ui_types.o ui_token.o \
+	ui_prompt.o ui_parser.o ui_menu.o ui_interrupt.o ui_tty.o ui_cmds.o \
+	ui_cstack.o ui_output.o ui_function.o ui_string.o ui_window.o \
+	ui_wPulldown.o ui_wList.o ui_wAppl.o ui_OutHook.o ui_globals.o \
+ui_wForm.o $(SMEMENUOBJS) LiteClue/LiteClue.o $(TABOBJS)
+
+LIBSRCS = ui.c ui_bootstrap.c ui_date.c ui_error.c ui_symbol.c ui_util.c \
+	ui_ctable.c ui_state.c ui_expr.c ui_keys.c ui_types.c ui_token.c \
+	ui_prompt.c ui_parser.c ui_menu.c ui_interrupt.c ui_tty.c ui_cmds.c \
+	ui_cstack.c ui_output.c ui_function.c ui_string.c ui_window.c \
+	ui_wPulldown.c ui_wList.c ui_wAppl.c ui_OutHook.c ui_globals.c \
+	ui_wForm.c $(SMEMENUSRCS)
+
+SRCS = 	$(BINSRCS) $(LIBSRCS)
+
+HEADERS = SmeMenu.h RdssMenu.h ui.h ui_symbol.h ui_param.h ui_error.h \
+	ui_date.h ui_expr.h
+
+PRIVATE_HEADERS = submenu.h ui_commands.h ui_cstack.h ui_globals.h \
+	ui_loadfile.h ui_menu.h ui_mode.h ui_state.h ui_token.h \
+	ui_tty.h ui_window.h RdssMenuP.h SmeMenuP.h X11/Xfuncproto.h
+
+DISTFILES = Imakefile ui_commands \
+	ui.state $(SRCS) $(HEADERS) $(PRIVATE_HEADERS)
+
+/*
+ * When RDSS moves to R6 imake, this ifdef can be removed.
+ */
+#ifdef ProjectZebra
+
+SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
+
+#if ZebraSharedLibraries
+DEPLIBS=
+SharedLibraryTarget(rdssui,1,$(LIBOBJS),.,.)
+InstallSharedLibrary(rdssui,1,$(LIBDIR))
+#else
+NormalLibraryTarget(rdssui,$(LIBOBJS))
+InstallLibrary(rdssui,$(LIBDIR))
+#endif
+
+InstallNonExecFile(ui_commands,$(LIBDIR)/ui)
+
+CompleteProgramTarget(uib, uib.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
+CompleteProgramTarget(uic, uic.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
+
+BuildIncludesTop($(HEADERS))
+InstallMultipleFlags($(HEADERS),$(INCDIR),$(INSTINCFLAGS))
+
+#else /* ProjectRDSSLibs */
+
+/* RDSS includes math and termcap in the SYS_LIBRARIES variable */
+SYSLIBS = $(LIBREGEXP)
+
+AllTarget ($(LIBOBJS))
+NormalLibraryTarget($(LOCALLIB),$(LIBOBJS))
+
+NormalProgramTarget(uib,uib.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
+NormalProgramTarget(uic,uic.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
+
+InstallObjectsIntoLibrary($(LIBRDSSUI),$(LIBOBJS))
+
+BuildIncludes($(HEADERS),.,.)
+
+#endif /* ProjectZebra */
+
+UIBootFileDepsTarget(ui.lf, ui.state, ui_commands ./uib)
+
+DependTarget()
+
+LiteClue/LiteClue.o: 
+	cd LiteClue && $(MAKE) MAKE=$(MAKE) $(MFLAGS) LiteClue.o
+
+s_uic:
+	#setopt ansi
+	#load $(CFLAGS) uic.c ui.c ui_w*.c ui.a -Bstatic $(LIBS)
+
+LintTarget()
+
+DistfilesTarget($(DISTFILES))
+
+MakeSubdirs($(SUBDIRS))
+DependSubdirs($(SUBDIRS))
+DistfilesSubdirs($(DISTSUBDIRS))
