@@ -4,19 +4,19 @@
  */
 # include "ui_param.h"
 
-# ifdef __STDC__
+# if __STDC__
 # include <stdarg.h>
 # else
 # include <varargs.h>
 # endif
 
-static char *rcsid = "$Id: ui_OutHook.c,v 1.4 1994-11-01 02:56:49 case Exp $";
+static char *rcsid = "$Id: ui_OutHook.c,v 1.5 1995-05-20 06:46:07 granger Exp $";
 
 /*
  * The routines we use to output normal (ui_printf) text.
  */
 
-#ifndef hpux
+#if !defined(hpux) && !defined(sgi)
 extern int printf ();
 #endif 
 static void errprint ();
