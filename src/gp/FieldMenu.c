@@ -43,7 +43,7 @@
 # include <DataStore.h>
 # include "GraphProc.h"
 
-RCSID ("$Id: FieldMenu.c,v 2.22 1998-12-17 17:17:57 burghart Exp $")
+RCSID ("$Id: FieldMenu.c,v 2.23 2000-08-25 20:12:53 burghart Exp $")
 
 /*
  * Stuff for the SME menu.
@@ -208,7 +208,10 @@ XtPointer junk, junk1;
 	for (i = 0; (i < nentry) && (i < MAXENTRY - NExtra); i++)
 	{
 		char *name = F_GetName (Fields[i]);
+		char *fullname = F_GetFullName (Fields[i]);
 		char *units = F_GetUnits (Fields[i]);
+		int fld_is_displayed = 
+		    ! strcmp (field, name) || ! strcmp (field, fullname);
 	/*
 	 * Add the text.
 	 */
@@ -220,7 +223,7 @@ XtPointer junk, junk1;
 			sprintf (string + strlen (string), " (%s)", units);
 		XtSetArg (args[0], XtNlabel, string);
 		XtSetArg (args[1], XtNleftBitmap, 
-			strcmp (field, name) ? None : Star);
+			  fld_is_displayed ? Star : None);
 		XtSetValues (Entries[i], args, 2);
 	/*
 	 * If this one isn't managed yet, make it so now.
