@@ -1,4 +1,4 @@
-/* $Id: message.h,v 2.27 1996-11-19 07:54:48 granger Exp $ */
+/* $Id: message.h,v 2.28 1996-12-13 18:27:27 granger Exp $ */
 /*
  * Message protocol types.
  */
@@ -322,6 +322,7 @@ int msg_await FP ((void));
 int msg_poll FP ((int timeout));
 int msg_PollProto FP ((int timeout, int nproto, int *protolist));
 int msg_Search FP ((int proto, int (*func) (), void * param));
+int msg_SearchFrom FP ((char *from, int proto, int (*func) (), void *param));
 void msg_AddProtoHandler FP ((int, int (*) ()));
 ifptr msg_ProtoHandler FP ((int proto));
 void msg_Enqueue FP ((Message *msg));

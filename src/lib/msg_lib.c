@@ -40,7 +40,7 @@
 # define MESSAGE_LIBRARY	/* to get netread prototypes */
 # include "message.h"
 
-RCSID ("$Id: msg_lib.c,v 2.44 1996-12-09 17:58:20 granger Exp $")
+RCSID ("$Id: msg_lib.c,v 2.45 1996-12-13 18:27:29 granger Exp $")
 
 /*
  * The array of functions linked with file descriptors.
@@ -130,6 +130,7 @@ static int msg_xf_ack FP ((struct message *msg));
 static void msg_PError FP ((/* char *s, ... */));
 static void msg_SendLog FP ((struct msg_elog *el));
 static int msg_netwrite FP ((int, void *, int));
+static int msg_FullSearch FP ((char *from, int proto, int (*)(), void *));
 
 /*
  * How much data we write at once.
@@ -942,15 +943,39 @@ int *protolist;	/* array of protocols to handle */
 
 
 
-
 int
 msg_Search (proto, func, param)
+int proto;
+int (*func) ();
+void *param;
+{
+	return (msg_FullSearch (NULL, proto, func, param));
+}
+
+
+
+int
+msg_SearchFrom (from, proto, func, param)
+char *from;
+int proto;
+int (*func) ();
+void *param;
+{
+	return (msg_FullSearch (from, proto, func, param));
+}
+
+
+
+static int
+msg_FullSearch (from, proto, func, param)
+char *from;
 int proto;
 int (*func) ();
 void *param;
 /*
  * Look for a specific message in the incoming stream.
  * Entry:
+ *	FROM	The client we expect to hear from, or NULL.
  *	PROTO	Is the protocol type of interest.
  *	FUNC	is a function to call with the message,
  *	PARAM	is an extra parameter for FUNC.
@@ -1033,16 +1058,17 @@ void *param;
 			msg_PError ("msg_Search (seq %d): %s: %s",
 				    msg->m_seq, "destination unknown",
 				    mh->mh_name);
-#ifdef BETTER		/* let the application know the search failed */
-			break;
-
-#else			/* all talk and no action */
-			msg_free (msg);
-			continue;
-#endif
-#ifdef notdef		/* drastic */
-			exit (1);
-#endif
+			if (from && (strcmp (mh->mh_name, from) == 0))
+			{
+				/* tell application the search failed */
+				break;
+			}
+			else
+			{
+				/* all talk and no action */
+				msg_free (msg);
+				continue;
+			}
 		}
 	/*
 	 * If it's the desired type, call the handler.
