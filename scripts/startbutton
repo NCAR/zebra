@@ -18,7 +18,7 @@ class Main (Frame):
 	#
 	# Redirect stdout to a log file
 	#
-	hostname = os.popen('hostname -a', 'r').readline()[:-2]
+        hostname = os.popen('hostname -s', 'r').readline()[:-1]
 	self.logname = os.environ['HOME'] + '/startbutton.' + hostname + '.log'
 	self.logfile = open(self.logname, 'w')
 	self.logfile.write(sys.argv[0] + ' started at ' + 
