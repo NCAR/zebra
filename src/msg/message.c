@@ -32,12 +32,12 @@
 # include <sys/filio.h>
 # include <signal.h>
 
-# include "../include/defs.h"
+# include "defs.h"
 # include <copyright.h>
 # include "message.h"
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.5 1992-11-10 04:20:16 corbet Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.6 1992-11-17 01:25:15 granger Exp $")
 /*
  * Symbol tables.
  */
