@@ -3,7 +3,7 @@ global
 	axis-bottom-space:	30
 	axis-left-space:	60
 	axis-right-space:	20
-	height-scale-y-max:	7000.0
+	height-scale-y-max:	7.0
 	pd-name:	wind-template
 	plot-mode:	history
 	plot-time:	now
