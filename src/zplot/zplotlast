@@ -1,17 +1,18 @@
 #! /bin/sh
 
-if [ $# -lt 2 ]; then
-    echo "Usage: $0 <project-directory> <period>"
+if [ $# -lt 1 ]; then
+    echo "Usage: $0 <period>"
     echo "Example:"
     echo "Generate plots for any forestabl data within the last 12 hours:"
-    echo "   $0 /net/sssf2/forestabl/forestabl 12"
+    echo "   $0 12"
+    echo "where the minutes and seconds are automatically reset to zero."
+    echo "This script expects to be run with the proj_env settings, such"
+    echo "as through zconfig."
     exit 1
 fi
 
-project=$1
-period=$2
-shift
+period=$1
 shift
 
-exec /net/sssf2/cases99/cases99-iss/zconfig $project zplotd -time `TZ=GMT+$period date +'%e-%h-%Y,%H:00:00'` `date -u +'%e-%h-%Y,%H:00:00'` $*
+exec zplotd -time `TZ=GMT+$period date +'%e-%h-%Y,%H:00:00'` `date -u +'%e-%h-%Y,%H:00:00'` $*
 
