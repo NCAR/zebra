@@ -3,17 +3,19 @@
  * nowrad and satellite.  Note that any program which references these
  * routines must also link with the FORTRAN libraries ($(FLIBS))
  */
-MFVERSION = "$Id: Imakefile,v 1.1 1992-08-20 13:29:01 granger Exp $"
+MFVERSION = "$Id: Imakefile,v 1.2 1993-03-24 22:52:26 granger Exp $"
 
 SRCS =  clit.f flalo.f ftime.f geolat.f iround.f itime.f lit.f llcart.f \
 	movcw.f movwc.f nvxgoes.f nvxps.f nvxrect.f raerac.f solarp.f \
 	timdif.f movb.c
 
+# Note that nvxgoes.f, nvxps.f, nvxrect.f are not compiled or installed
+# into the library.  See the README file in this directory
+#
 OBJS =  clit.o flalo.o ftime.o geolat.o iround.o itime.o lit.o llcart.o \
-	movcw.o movwc.o nvxgoes.o nvxps.o nvxrect.o raerac.o solarp.o \
-	timdif.o movb.o
+	movcw.o movwc.o raerac.o solarp.o timdif.o movb.o
 
-DISTFILES = Imakefile $(SRCS)
+DISTFILES = Imakefile $(SRCS) README
 
 all:: $(OBJS)
 
