@@ -48,7 +48,7 @@ extern "C"
 # include "Index.h"
 # include "ZTime.h"
 # include "plcontainer.h"
-MAKE_RCSID ("$Id: LoadData.cc,v 1.9 1994-10-11 16:25:23 corbet Exp $")
+MAKE_RCSID ("$Id: LoadData.cc,v 1.10 1994-11-19 00:31:01 burghart Exp $")
 
 class LoadSelect;
 
@@ -118,6 +118,7 @@ dsLoadSource::dsLoadSource () :
 	int n;
 	const int labelwidth = 120;
 	Widget above = corner, left = NULL;
+	char *defcd = getenv ("ZEB_CDROM");
 //
 // A simple label for starters.
 //
@@ -132,18 +133,21 @@ dsLoadSource::dsLoadSource () :
 	left = XtCreateManagedWidget ("prompt", labelWidgetClass, dw_form,
 			args, n);
 //
+// Choose a default mode.  Go to CD-ROM mode iff ZEB_CDROM defined.
+//
+	tape = (defcd != NULL) ? False : True;
+//
 // The "tape" button.
 //
 	n = 0;
 	XtSetArg (args[n], XtNlabel, "Tape");			n++;
 	XtSetArg (args[n], XtNfromHoriz, left);			n++;
 	XtSetArg (args[n], XtNfromVert, above);			n++;
-	XtSetArg (args[n], XtNstate, True);			n++;
+	XtSetArg (args[n], XtNstate, (tape) ? True : False);		n++;
 	AddConstraints (args, &n);
 	twidget = left = XtCreateManagedWidget ("srcToggle", toggleWidgetClass,
 			dw_form, args, n);
 	XtAddCallback (twidget, XtNcallback, dsSourceSelect, (XtPointer) 1);
-	tape = True;
 //
 // The CDROM button.
 //
@@ -151,7 +155,7 @@ dsLoadSource::dsLoadSource () :
 	XtSetArg (args[n], XtNlabel, "CDROM");			n++;
 	XtSetArg (args[n], XtNfromHoriz, left);			n++;
 	XtSetArg (args[n], XtNfromVert, above);			n++;
-	XtSetArg (args[n], XtNstate, False);			n++;
+	XtSetArg (args[n], XtNstate, (tape) ? False : True);	n++;
 	XtSetArg (args[n], XtNradioGroup, left);		n++;
 	AddConstraints (args, &n);
 	left = XtCreateManagedWidget ("srcToggle", toggleWidgetClass, dw_form,
@@ -163,7 +167,8 @@ dsLoadSource::dsLoadSource () :
 	n = 0;
 	left = NULL;
 	above = twidget;
-	XtSetArg (args[n], XtNlabel, "Tape device:");		n++;
+	XtSetArg (args[n], XtNlabel, 
+		  tape ? "Tape device:" : "CD Directory:");	n++;
 	XtSetArg (args[n], XtNfromHoriz, left);			n++;
 	XtSetArg (args[n], XtNfromVert, above);			n++;
 	XtSetArg (args[n], XtNborderWidth, 0);			n++;
@@ -177,7 +182,8 @@ dsLoadSource::dsLoadSource () :
 // The blank for the source.
 //
 	n = 0;
-	XtSetArg (args[n], XtNstring, "/dev/rst8");		n++;
+	XtSetArg (args[n], XtNstring, 
+		  tape ? "/dev/rst8" : defcd);			n++;
 	XtSetArg (args[n], XtNfromVert, above);			n++;
 	XtSetArg (args[n], XtNfromHoriz, left);			n++;
 	XtSetArg (args[n], XtNeditType, XawtextEdit);		n++;
@@ -198,11 +204,12 @@ dsLoadSource::dsLoadSource () :
 	XtSetArg (args[n], XtNwidth, labelwidth);		n++;
 	XtSetArg (args[n], XtNresize, False);			n++;
 	XtSetArg (args[n], XtNjustify, XtJustifyRight);		n++;
+	XtSetArg (args[n], XtNsensitive, tape ? True : False);	n++;
 	AddConstraints (args, &n);
 	indprompt = left = XtCreateManagedWidget ("indfile", labelWidgetClass,
 			dw_form, args, n);
 //
-// The blank for the source.
+// The blank for the tape index file.
 //
 	n = 0;
 	XtSetArg (args[n], XtNstring, "tape.index");		n++;
@@ -210,6 +217,7 @@ dsLoadSource::dsLoadSource () :
 	XtSetArg (args[n], XtNfromHoriz, left);			n++;
 	XtSetArg (args[n], XtNeditType, XawtextEdit);		n++;
 	XtSetArg (args[n], XtNwidth, 225);			n++;
+	XtSetArg (args[n], XtNsensitive, tape ? True : False);	n++;
 	AddConstraints (args, &n);
 	indtext = above = XtCreateManagedWidget("indfile",asciiTextWidgetClass,
 			dw_form, args, n);
@@ -765,6 +773,7 @@ LoadSelect::addButtons (Widget form, PlatformIndex *index)
 			strcat (ep, " -> ");
 			ep += strlen (ep);
 			dfi = p.files.nth (0).index;
+			ds_GetFileInfo (dfi, &dfinfo);
 			TC_EncodeTime (&dfinfo.dfi_End, TC_Full, ep);
 			strcat (ep, "        ");
 			ep += 22;
@@ -873,7 +882,7 @@ LoadSelect::MarkPlat (const char *platform, const int state)
 		return;
 	}
 //
-// set the toggle.  We do this because platform states can be set
+// Set the toggle.  We do this because platform states can be set
 // outside of the toggles.
 //
 	Arg args[1];
@@ -886,11 +895,28 @@ LoadSelect::MarkPlat (const char *platform, const int state)
 	int pnf = 0, pbytes = 0;
 	for (IndexFile *file = index->files (platform); file;
 							file = file->next ())
-		if (file->isMarked ())
+	{
+		if (! file->isMarked ())
+			continue;
+	//
+	// If any duplicate entries for this file are already selected, 
+	// then we don't need to adjust the accounting.  Otherwise, this is
+	// the only file in the chain of entries whose selection state 
+	// changes, so the accounting needs to change.	
+	//
+		IndexFile *chain = file->same();
+		for ( ; chain && (chain != file); chain = chain->same())
+		{
+			if (index->isMarked (chain->plat()) &&
+			    chain->isMarked())
+				break;
+		}
+		if (! chain || (chain == file))
 		{
 			pnf++;
 			pbytes += file->size ();
 		}
+	}
 	nfile += (state ? pnf : -pnf);
 	nbyte += (state ? pbytes : -pbytes);
 	UpdFSummary ();
@@ -913,24 +939,40 @@ LoadSelect::MarkFile (IndexFile *file, const int state)
 	if (state == file->isMarked ())
 		return;
 //
-// Actually mark the file, and adjust our accounting.
+// Actually mark the file and all other entries for the same file.
+// Note whether any files were already selected (i.e., in the count)
 //
+	int selected = file->isMarked() && index->isMarked(file->plat());
 	file->isMarked () = state;
-	if (index->isMarked (file->plat ()))
+	int newmark = file->isMarked() && index->isMarked(file->plat());
+	IndexFile *chain = file->same();
+	for ( ; chain && (chain != file); chain = chain->same())
 	{
-		if (state)
-		{
-			nfile++;
-			nbyte += file->size ();
-		}
-		else
-		{
-			nfile--;
-			nbyte -= file->size ();
-		}
+		selected |= (index->isMarked(chain->plat()) &&
+			     chain->isMarked());
+		chain->isMarked () = state;
+		newmark |= (index->isMarked(chain->plat()) &&
+			    chain->isMarked());
+	}
+
+	//
+	// If selecting any file where none were selected before, 
+	// add to the count.  Else if unselecting where at least one
+	// (including this file) was selected before, subtract.
+	//
+	if (state && newmark && !selected)
+	{
+		nfile++;
+		nbyte += file->size ();
 		UpdFSummary ();
 	}
-	// Now update any file chooser widgets!
+	else if (!state && selected)
+	{
+		nfile--;
+		nbyte -= file->size ();
+		UpdFSummary ();
+	}
+	// Now the caller should update any file chooser widgets!
 }
 
 
@@ -1535,6 +1577,7 @@ static void
 MarkAllFiles (Widget w, XtPointer xfc, XtPointer junk)
 {
 	((FileChooser *) xfc)->MarkAll (True);
+	SyncChoosers ();
 }
 
 
@@ -1544,6 +1587,7 @@ static void
 UnmarkAllFiles (Widget w, XtPointer xfc, XtPointer junk)
 {
 	((FileChooser *) xfc)->MarkAll (False);
+	SyncChoosers ();
 }
 
 
@@ -1582,6 +1626,7 @@ SelFile (Widget w, XtPointer xfc, XtPointer junk)
 // Make sure the platform is marked.
 //
 	fc->fc_ls->MarkPlat (fc->fc_plat, True);
+	SyncChoosers ();
 }
 
 

@@ -1,7 +1,7 @@
 /*
  * Window plot control routines.
  */
-static char *rcsid = "$Id: PlotControl.c,v 2.31 1994-09-15 21:50:17 corbet Exp $";
+static char *rcsid = "$Id: PlotControl.c,v 2.32 1994-11-19 00:35:32 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -111,8 +111,8 @@ pc_PlotHandler ()
 {
 	char	string[80];
 	Arg	arg;
-	static bool First = TRUE;
-	bool hold = FALSE;
+	static bool	First = TRUE;
+	bool	hold;
 /*
  * Cancel all existing timer requests.
  */
@@ -121,6 +121,7 @@ pc_PlotHandler ()
 /*
  * See if they have put us on hold.
  */
+	hold = FALSE;
 	if (pd_Retrieve (Pd, "global", "plot-hold", (char *) &hold, SYMT_BOOL)
 	    && hold)
 		return;
@@ -206,11 +207,7 @@ pc_PlotHandler ()
 		return;
 	}
 /*
- * Bring the model widget up-to-date
- */
-	mw_Update ();
-/*
- * If we're in history mode, find the plot time and do a global plot now
+ * Set plot time from the PD or get the current time
  */
 	if (PlotMode == History)
 	{
@@ -237,6 +234,11 @@ pc_PlotHandler ()
 	pda_Search (Pd, "global", "validation-mode", NULL, 
 		    (char *) &ValidationMode, SYMT_BOOL);
 /*
+ * If ValidationMode is true, we need to adjust the plot time
+ */
+	if (ValidationMode)
+		PlotTime.zt_Sec += ForecastOffset;
+/*
  * If we're in post processing mode assign PostProcTime to something.
  */
 	if ((PostProcMode && (PlotMode == RealTime)) || First)
@@ -244,6 +246,10 @@ pc_PlotHandler ()
 		PostProcTime = PlotTime;
 		First = FALSE;
 	}
+/*
+ * Bring the model widget up-to-date
+ */
+	mw_Update ();
 /*
  * Force a replot if the window is visible.
  */
@@ -349,7 +355,7 @@ int index;
 {
 	int seconds;
 	PlatformId pid;
-	char platform[80];
+	char platform[PlatformListLen];
 /*
  * Try to interpret the trigger as a time.
  */

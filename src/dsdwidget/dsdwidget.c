@@ -21,7 +21,7 @@
  */
 
 static char *rcsid = 
-   "$Id: dsdwidget.c,v 1.19 1994-10-11 16:25:12 corbet Exp $";
+   "$Id: dsdwidget.c,v 1.20 1994-11-19 00:30:00 burghart Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -320,7 +320,7 @@ ZebTime *begin, *end;
 		*begin = dfi.dfi_Begin;
 	}
 /*
- * If there is no remote data, quit.
+ * If there is no remote source, quit.
  */
 	if (pi->pl_NDataSrc < 2)
 		return;
@@ -329,6 +329,8 @@ ZebTime *begin, *end;
 /*
  * See if there is remote data on a wider scale.
  */
+	if (start == 0)
+		return;
 	ds_GetFileInfo (start, &dfi);
 	if (end->zt_Sec == 0 || TC_Less (*end, dfi.dfi_End))
 		*end = dfi.dfi_End;

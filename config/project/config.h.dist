@@ -42,7 +42,7 @@
 XCOMM -----------------------------------------------------------------------
 XCOMM Definitions from config.h included here.  The definitions here override
 XCOMM the defaults in Project.tmpl.  See ...../zeb/config/config.h.
-XCOMM $Id: config.h.dist,v 1.16 1994-11-17 03:42:09 granger Exp $
+XCOMM $Id: config.h.dist,v 1.17 1994-11-19 00:26:35 burghart Exp $
 XCOMM -----------------------------------------------------------------------
 # endif
 
@@ -301,6 +301,7 @@ XCOMM -----------------------------------------------------------------------
  *
  */
 # define CCOptions -O
+
 /* # define CCOptions -cckr */		/* SGI version */
 
 # define FortOptions -O
@@ -455,6 +456,7 @@ XCOMM -----------------------------------------------------------------------
 
 /* SGI */
 /* # define FortranLibraries -lF77 */
+
 /*
  * Some of Zeb's routines require the terminal capability library,
  * usually /usr/lib/libtermcap.a, and the math library, /usr/lib/libm.a.

@@ -1,5 +1,5 @@
 /*
- * The zeb display manager.
+ * The MOCCA display manager.
  */
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
@@ -32,21 +32,21 @@
 # include <DataStore.h>
 # include <config.h>
 # include <copyright.h>
+# include <xhelp.h>
+
+# include "dm.h"
+# include "dm_vars.h"
+# include "dm_cmds.h"
 
 /*
  * Preserve the xhelp functionality for now.  Since the help calls themselves
  * will change to the new mosaic URL's, one can't easily switch back and
  * forth, so I don't know how useful this is.
  */
-# include <xhelp.h>
 static void CallXHelp ();
 static bool UseXHelp = TRUE;
 
-# include "dm.h"
-# include "dm_vars.h"
-# include "dm_cmds.h"
-
-MAKE_RCSID ("$Id: dm.c,v 2.51 1994-11-17 08:45:06 granger Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.52 1994-11-19 00:28:25 burghart Exp $")
 
 
 /*
@@ -63,9 +63,10 @@ ButtonMap *Default_map;	/* The default button map	*/
  */
 Display *Dm_Display;
 static Widget Top;
+char **Argv;		/* Save our args for a potential exec */
 
 char ConfigDir[CFG_FILEPATH_LEN]; /* Default directory for display configs */
-char ConfigPD[CFG_FILEPATH_LEN]; /* Where to save plot descriptions	*/
+char ConfigPD[CFG_FILEPATH_LEN];  /* Where to save plot descriptions	*/
 char ConfigPath[512];	/* Path to search for display configs */
 char CTablePath[512];	/* Where are the color tables?		*/
 char HelpPath[CFG_FILEPATH_LEN]; /* Where are the helpfiles */
@@ -118,6 +119,10 @@ static int dm_msg_handler FP ((Message *));
 static void EnterPosition FP ((struct ui_command *));
 static void KillProcess FP ((char *));
 static struct config *TryConfigDir FP ((char *, char *));
+static int dm_cycle FP ((void));
+static int WaitForDeaths FP ((struct message *msg, void *param));
+int nsymbols FP ((stbl table));
+static int count_one FP ((char *symbol, int type, union usy_value *, int arg));
 static int RealPlatform FP ((int, SValue *, int *, SValue *, int *));
 static void MakeWindowList FP ((char *));
 static int AddToList FP ((char *, int, SValue *, long));
@@ -127,7 +132,7 @@ static int AddToList FP ((char *, int, SValue *, long));
 
 main (argc, argv)
 int argc;
-char **argv;
+char *argv[];
 {
 	int msg_incoming ();
 	int type[4], tw_cb ();
@@ -147,7 +152,6 @@ char **argv;
 	ui_setup ("DisplayMgr", &argc, argv, (char *) 0);
 	SetupConfigVariables ();
 	cp_SetupCmdProto ();
-	ds_Initialize ();
 /*
  * Create our symbol tables.
  */
@@ -185,9 +189,9 @@ char **argv;
 	usy_c_indirect (vtable, "restart", &Restart, SYMT_BOOL, 0);
 	usy_c_indirect (vtable, "sleepafter", &SleepAfter, SYMT_INT, 0);
 	usy_c_indirect (vtable, "sleepfor", &SleepFor, SYMT_INT, 0);
-	usy_c_indirect (vtable, "configdir", ConfigDir, SYMT_STRING,
+	usy_c_indirect (vtable, "configdir", ConfigDir, SYMT_STRING, 
 			CFG_FILEPATH_LEN);
-	usy_c_indirect (vtable, "configpd", ConfigPD, SYMT_STRING,
+	usy_c_indirect (vtable, "configpd", ConfigPD, SYMT_STRING, 
 			CFG_FILEPATH_LEN);
 	usy_c_indirect (vtable, "configpath", ConfigPath, SYMT_STRING, 512);
 	usy_c_indirect (vtable, "helppath", HelpPath, SYMT_STRING,
@@ -206,12 +210,17 @@ char **argv;
  * Watch for incoming messages.
  */
 	tty_watch (msg_get_fd (), (void (*)()) msg_incoming);
-
 /*
  * Can't figure out why these were in here.  Leaving them for now...
  *	strcpy (ConfigDir, ".");
  *	strcpy (ConfigPD, ".");
  */
+/*
+ * They should at least be initialized, and I can't see where else it's done
+ */
+	ConfigDir[0] = '\0';
+	ConfigPD[0] = '\0';
+	ConfigPath[0] = '\0';
 
 # ifdef titan
 /*
@@ -234,10 +243,10 @@ char **argv;
  */
 	tw_DefTimeWidget (tw_cb, "System Time Control");
 	aw_DefAlarmWidget ();
+	Argv = argv;
 	ui_get_command ("dm-initial", "DM>", dm_dispatcher, 0);
 	dm_shutdown ();
 }
-
 
 
 
@@ -250,7 +259,7 @@ struct ui_command *cmds;
  * Deal with a display manager command.
  */
 {
-	char winname[40];
+	char winname[40], helpfile[120], topic[40];
 	union usy_value nv;
 
 	switch (UKEY (*cmds))
@@ -357,6 +366,10 @@ struct ui_command *cmds;
 	   	dm_shutdown ();
 		break;
 
+	   case DMC_CYCLE:
+		dm_cycle ();
+		break;
+
 	   case DMC_SOUND:
 		if (SoundEnabled)
 		   	DoSound (UPTR (cmds[1]));
@@ -376,8 +389,16 @@ struct ui_command *cmds;
 	 * Saving of configurations.
 	 */
 	   case DMC_CFGSAVE:
-	   	SaveConfig (cmds[1].uc_ctype == UTT_END ?
-			    Cur_config : UPTR (cmds[1]));
+		SaveConfig (Cur_config, cmds[1].uc_ctype == UTT_END ?
+                            Cur_config : UPTR (cmds[1]), /*update*/ TRUE);
+		break;
+	/*
+	 * With one arg, re-save the config by the given name.  The optional
+	 * second arg is for saving the named config with a different name.
+	 */
+	   case DMC_CFGCONVERT:
+		SaveConfig (UPTR (cmds[1]), cmds[2].uc_ctype == UTT_END ?
+			    UPTR (cmds[1]) : UPTR (cmds[2]), /*update*/ FALSE);
 		break;
 	/*
 	 * New windows and configs.
@@ -418,17 +439,25 @@ struct ui_command *cmds;
 	   	KillProcess (UPTR (cmds[1]));
 		break;
 	/*
-	 * Write a named plot description to the terminal
+	 * Write a named plot description to the terminal as ASCII
 	 */
 	   case DMC_SHOWPD:
 		WritePD (UPTR (cmds[1]), NULL);
 		break;
 	/*
-	 * Write a named plot description to the terminal
+	 * Write a named plot description to a named file as ASCII
 	 */
 	   case DMC_WRITEPD:
 		WritePD (UPTR (cmds[1]), UPTR (cmds[2]));
 		break;
+
+	/*
+	 * Write a named plot description using a different name
+	 */
+	   case DMC_STOREPD:
+		StorePD (UPTR (cmds[1]), UPTR(cmds[2]), UPTR(cmds[3]));
+		break;
+
 	/*
 	 * They want a list of windows.
 	 */
@@ -513,8 +542,6 @@ struct message *msg;
 		break;
 	}
 }
-
-
 
 
 
@@ -870,6 +897,103 @@ dm_shutdown ()
 
 
 
+/*ARGSUSED*/
+static int
+WaitForDeaths (msg, param)
+struct message *msg;
+void *param;
+/*
+ * Search for client messages and process them
+ */
+{
+	struct mh_template *tm = (struct mh_template *) msg->m_data;
+	struct mh_client *client;
+
+	switch (tm->mh_type)
+	{
+	   case MH_SHUTDOWN:
+	   	ui_printf ("Message handler shutdown -- I quit!\n");
+		ui_finish ();
+		exit (1);
+	/*
+	 * Our real interest is here
+	 */
+	   case MH_CLIENT:
+		if (client->mh_evtype == MH_CE_DISCONNECT)
+		{
+			client = (struct mh_client *) msg->m_data;
+			usy_z_symbol (Windows, client->mh_client);
+			ui_printf ("Client '%s' finished.\n");
+		/*
+		 * If our table is now empty, our search is now over.
+		 */
+			if (nsymbols (Windows) == 0)
+				return (MSG_DONE);
+		}
+		break;
+	}
+	return (MSG_ENQUEUE);
+}
+
+
+
+static int
+dm_cycle ()
+/*
+ * Re-exec ourselves and just start all over
+ */
+{
+	struct dm_msg dmsg;
+/*
+ * Send a DIE message to all of the graphics processes, and wait for them
+ * to finish.
+ */
+	Restart = FALSE;
+	dmsg.dmm_type = DM_DIE;
+	msg_send ("Graphproc", MT_DISPLAYMGR, TRUE, &dmsg, sizeof (dmsg));
+	if (nsymbols (Windows) > 0)
+	{
+		alarm (30);
+		msg_Search (MT_MESSAGE, WaitForDeaths, NULL);
+		alarm (0);
+	}
+/*
+ * Finish up ui stuff, and disconnect our ipc connections
+ */
+	ui_printf ("Shutting down and starting over.\n");
+	ui_finish ();
+	XCloseDisplay (Dm_Display);
+	close (msg_get_fd());
+	return (execvp (Argv[0], Argv));
+}
+
+
+
+static int
+count_one (symbol, type, value, arg)
+char *symbol;
+int type; 
+union usy_value *value;
+int arg;
+{
+	*(int *)arg += 1;
+	return (TRUE);
+}
+
+
+
+int
+nsymbols (table)
+stbl table;
+{
+	int count;
+
+	count = 0;
+	usy_traverse (table, count_one, (int)&count, FALSE);
+	return (count);
+}
+
+
 
 newpd (window, pdesc)
 char *window, *pdesc;
@@ -877,11 +1001,9 @@ char *window, *pdesc;
  * Change the plot description for this window.
  */
 {
-	struct cf_window *win;
+	struct cf_window *win = lookup_win (window, TRUE);
 	plot_description pd;
 	struct dm_pdchange dmp;
-
-	win = lookup_win (window, TRUE);
 /*
  * Only mapped windows, for now.
  */
@@ -1525,8 +1647,17 @@ struct ui_command *cmds;
 	DataChunk *dc;
 	FieldId fid;
 	ZebTime when;
+	static int init_done = FALSE;
 	float dlat, dlon, mlat, mlon;
-
+/*
+ * If need be, initialize the data store.  We do this here because 99% of the
+ * invocations of dm will never need it.
+ */
+	if (! init_done)
+	{
+		init_done = TRUE;
+		ds_Initialize ();
+	}
 	fid = F_Lookup ("trans");
 /*
  * Pull out basic info.
@@ -1567,7 +1698,6 @@ struct ui_command *cmds;
 	ds_Store (dc, FALSE, 0, 0);
 	dc_DestroyDC (dc);
 }
-
 
 
 
@@ -1657,4 +1787,3 @@ struct ui_command *cmds;
 	XhCallXHelp (Top, helpfile, topic, "Welcome to Zeb");
 	XFlush(Dm_Display);	/* flush Xatoms to xhelp program */
 }
-

@@ -1,4 +1,4 @@
-/* $Id: dm.h,v 2.12 1994-11-17 08:45:07 granger Exp $ */
+/* $Id: dm.h,v 2.13 1994-11-19 00:28:29 burghart Exp $ */
 /*
  * Display manager stuff.
  */
@@ -239,7 +239,7 @@ struct dm_dial
  */
 struct cf_window *lookup_win FP ((char *, int));
 void 	PickWin FP ((char *));
-void 	SaveConfig FP ((char *));
+void 	SaveConfig FP ((char *src, char *dest, int update));
 struct config *LookupConfig FP ((char *));
 int 	FindFile FP ((char *, char *, char *));
 void	SetTimeMode FP ((char *, int, ZebTime *));
@@ -248,9 +248,12 @@ int	list_cfg FP((char *name, int type, union usy_value *v, int junk));
 void	def_bmap FP((char *name));
 void	list FP((char *opt_name));
 void	WritePD FP((char *name, char *filename));
+void	StorePD FP((char *name, char *copyname, char *filename));
 void	def_pd FP((struct ui_command *cmds));
 void	def_config FP((struct ui_command *cmds));
 void	display FP((struct ui_command *cmds));
+void	pdwrite FP((plot_description pd, char *filename));
+plot_description	find_pd FP((char *name));
 
 
 /*

@@ -1,4 +1,4 @@
-/* $Id: dm_cmds.h,v 2.10 1994-09-15 21:49:02 corbet Exp $ */
+/* $Id: dm_cmds.h,v 2.11 1994-11-19 00:28:39 burghart Exp $ */
 /*
  * Keyword numbers for displaymgr commands.
  */
@@ -61,6 +61,7 @@
  * Config editing and saving.
  */
 # define DMC_CFGSAVE	40
+# define DMC_CFGCONVERT	80
 # define DMC_NEWCONFIG	41
 # define DMC_NEWWINDOW	42
 /*
@@ -69,7 +70,8 @@
 # define DMC_ENTER	43
 # define DMC_HELP	44
 # define DMC_KILL	45
-# define DMC_WINDOWLIST	46
+# define DMC_CYCLE	46
+# define DMC_WINDOWLIST	47
 /*
  * In-line plot descriptions
  */
@@ -83,6 +85,7 @@
  */
 # define DMC_SHOWPD	60
 # define DMC_WRITEPD	61
+# define DMC_STOREPD	62
 /*
  * More newwindow optional keywords
  */

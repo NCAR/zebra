@@ -42,7 +42,7 @@
 # include <config.h>
 # include <copyright.h>
 # ifndef lint
-MAKE_RCSID ("$Id: EventLogger.c,v 2.26 1994-10-26 03:29:00 granger Exp $")
+MAKE_RCSID ("$Id: EventLogger.c,v 2.27 1994-11-19 00:27:59 burghart Exp $")
 # endif
 
 # define EL_NAME "EventLogger"
@@ -94,7 +94,7 @@ static int FortuneWait = FORTUNE_WAIT;	/* secs idle time between fortunes */
  */
 static int Buflen = 0;
 static char *Initmsg = 
-"$Id: EventLogger.c,v 2.26 1994-10-26 03:29:00 granger Exp $\nCopyright (C)\
+"$Id: EventLogger.c,v 2.27 1994-11-19 00:27:59 burghart Exp $\nCopyright (C)\
  1991 UCAR, All rights reserved.\n";
 
 /*
@@ -113,8 +113,8 @@ typedef struct _ProcInfo
  */
 Widget Top, Text, Shell, Form, Wm, ProcMenu;
 XtAppContext Appc;
-bool Visible = FALSE;
-bool Override = TRUE;
+bool Visible = False;
+bool Override = True;
 
 /*
  * Currently active entry from timestamp periods menu
@@ -348,10 +348,10 @@ char *argv[];
 			Windows = FALSE;
 			break;
 		   case 'o':
-			Override = TRUE;
+			Override = True;
 			break;
 		   case 'w':
-			Override = FALSE;
+			Override = False;
 			break;
 		   case 'f':
 			strcpy (Log_path, optarg);
@@ -587,8 +587,7 @@ CreateEventLogger()
  */
 	n = 0;
 	XtSetArg (args[n], XtNinput, True);		n++;
-	XtSetArg (args[n], XtNoverrideRedirect, 
-		  (Override) ? True : False);		n++;
+	XtSetArg (args[n], XtNoverrideRedirect, Override);	n++;
 	XtSetArg (args[n], XtNallowShellResize, True);	n++;
 	XtSetArg (args[n], XtNtitle, "Event Logger");	n++;
 	Shell = XtCreatePopupShell ("eventlogger", topLevelShellWidgetClass,
@@ -630,7 +629,7 @@ CreateEventLogger()
 	XtSetArg (args[3], XtNbottom, XtChainTop);
 	XtSetArg (args[4], XtNleft, XtChainLeft);
 	XtSetArg (args[5], XtNright, XtChainLeft);
-	XtSetArg (args[6], XtNlabel, "Ctl: DM");
+	XtSetArg (args[6], XtNlabel, (Override) ? "Ctl: DM" : "Ctl: WM");
 	w = Wm = XtCreateManagedWidget("wm",commandWidgetClass, Form, args, 7);
 	XtAddCallback (Wm, XtNcallback, (XtCallbackProc) wm, (XtPointer) 0);
 /*
@@ -1544,7 +1543,7 @@ struct dm_msg *dmsg;
 	   case DM_SUSPEND:
 	   	if (Visible && Override)
 		{
-			Visible = FALSE;
+			Visible = False;
 			XtPopdown (Shell);
 		}
 		break;
@@ -1638,7 +1637,9 @@ wm ()
  * Try to change override redirect.
  */
 {
-	Arg args[2];
+	Arg	args[2];
+	int	n;
+	XEvent	event;
 /*
  * If the window is up, take it down.
  */
@@ -1648,21 +1649,42 @@ wm ()
  * Set the parameter.
  */
 	Override = ! Override;
-	XtSetArg (args[0], XtNoverrideRedirect, Override);
-	XtSetValues (Shell, args, 1);
+	n = 0;
+	XtSetArg (args[n], XtNoverrideRedirect, Override); n++;
+	XtSetValues (Shell, args, n);
 /*
  * Set the label on the command widget too.
  */
-	if (Override)
-		XtSetArg (args[0], XtNlabel, "Ctl: DM");
-	else
-		XtSetArg (args[0], XtNlabel, "Ctl: WM");
-	XtSetValues (Wm, args, 1);
+	n = 0;
+	XtSetArg (args[n], XtNlabel, (Override) ? "Ctl: DM" : "Ctl: WM"); n++;
+	XtSetValues (Wm, args, n);
 /*
- * Put the window back if it was before.
+ * Put the window back if it was up before.  We wait for a ReparentNotify
+ * event from the X server before we ask to pop up again.
  */
 	if (Visible)
+	{
+	/*
+	 * Await the ReparentNotify from the server if we're popping back up
+	 * in OverrideRedirect mode.  Otherwise, timing of events may cause
+	 * us to pop up and then down never to be seen again...
+	 */
+		if (Override)
+		{
+			XEvent	event;
+
+			event.type = 0;
+			while (event.type != ReparentNotify)
+			{
+				XtAppNextEvent (Appc, &event);
+				XtDispatchEvent (&event);
+			}
+		}
+	/*
+	 * Now we can safely pop up again...
+	 */
 		XtPopup (Shell, XtGrabNone);
+	}
 }
 
 

@@ -28,6 +28,20 @@ define widget irg-winds-right intmenu ' '
 endmenu
 
 !
+! Right menu for model data
+!
+define widget winds-model-right intmenu ' '
+	title 'Model Winds Options'
+	line
+	entry 'Pop up model widget' 'popup model'
+	line
+	submenu 'Color' 'simple-color'
+	submenu	'Arrow Line Width' 'linewidth'
+	submenu 'Barbs/Vectors' 'winds-style'
+	submenu 'Data Degradation' 'winds-degrade'
+endmenu
+
+!
 ! Vector/Barb representation
 !
 define widget winds-style intmenu ' '

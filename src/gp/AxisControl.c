@@ -1,7 +1,7 @@
 /*
  * Axis control. 
  */
-static char *rcsid = "$Id: AxisControl.c,v 1.21 1994-05-05 16:04:48 corbet Exp $";
+static char *rcsid = "$Id: AxisControl.c,v 1.22 1994-11-19 00:34:29 burghart Exp $";
 /*		Copyright (C) 1993 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -141,7 +141,7 @@ AxisSide	side;
     int		xloc, yloc, axisSpaceHeight, axisSpaceWidth, emult;
     int		yOrig, xOrig, direction, totalHeight;
     char	color[32], label[80], ticLabel[20], ticLabel2[20];
-    float	ticInterval, fscale, drawGrid;
+    float	ticInterval, fscale, drawGrid, span;
     float	red, green, blue, hue, lightness, sat;
     DataValRec	ticLoc, min, max, val0, val1;
     XColor	mainPix, gridPix;
@@ -222,6 +222,32 @@ AxisSide	side;
  */
     if (ticInterval == 0.0)
 	    ticInterval = (float) ac_AutoTicInterval (&min, &max);
+/*
+ * Make sure we don't try to draw tics forever...
+ */
+    switch (max.type)
+    {
+	case 't':
+	    span = (float)(max.val.t.zt_Sec - min.val.t.zt_Sec);
+	break;
+	case 'i':
+	    span = (float)(max.val.i - min.val.i);
+	break;
+	case 'f':
+	    span = (float)(max.val.f - min.val.f);
+	break;
+	case 'd':
+	    span = (float)(max.val.d - min.val.d);
+	break;
+    }
+
+    if (fabs (span / ticInterval) > 150)
+    {
+	    msg_ELog (EF_INFO, 
+		      "ac_DrawAxis: Requested %s axis tic interval too small",
+		      SIDE_NAME (side));
+	    ticInterval = (float) ac_AutoTicInterval (&min, &max);
+    }
 /*
  * Get max label sizes and the location for the first tic
  */

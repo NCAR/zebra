@@ -25,6 +25,7 @@
 class IndexFile
 {
 	IndexFile	*if_next;		// Next file in chain
+	IndexFile	*if_same;		// Other entries for same file
 	char *		if_name;		// Name of the file
 	char *		if_plat;		// Platform name
 	int		if_size;		// How big it is.
@@ -47,7 +48,9 @@ public:
 	const int size () const { return if_size; } // how big?
 	int filenum () const { return if_fileno; }	// Tape file number
 	IndexFile *next () const { return if_next; }
+	IndexFile *same () const { return if_same; }
 	void link (IndexFile &next) { if_next = &next; }; // Link into chain
+	void dup (IndexFile &chain) { if_same = &chain; };
 	int& isMarked () { return if_marked; }
 };
 
@@ -70,8 +73,11 @@ class PlatformIndex
 {
 	friend STTraverseProc ZapPlat;
 	STable table;			// table containing platforms.
+	STable dirs;			// table containing directories.
 	struct PlatInfo *findPlat (const char *name) const;
 	static int TNum;		// To make unique stbl names
+	void FindDuplicates (IndexFile &file);
+	int SameFile (const char *name, IndexFile *file);
 public:
 	PlatformIndex ();
 	PlatformIndex (const char *);		// Load from file.

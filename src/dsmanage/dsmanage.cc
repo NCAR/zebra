@@ -42,7 +42,7 @@ extern "C" {
 # include "Index.h"
 # include "plcontainer.h"
 
-MAKE_RCSID ("$Id: dsmanage.cc,v 1.6 1993-11-03 23:34:31 corbet Exp $");
+MAKE_RCSID ("$Id: dsmanage.cc,v 1.7 1994-11-19 00:31:14 burghart Exp $");
 
 extern "C" void strcat (char *, const char *);
 extern "C" char *strrchr (const char *, int);
@@ -74,6 +74,7 @@ int main (int argc, char **argv)
 	usy_init ();				// User interface symbols
 	DSSetup ();				// Get data store going
 	DisplaySetup (&argc, argv);		// Get display going
+	DisplayAddInput (msg_get_fd(), (void (*)())msg_incoming);
 	Run ();
 //	msg_await ();
 }
@@ -83,12 +84,25 @@ int main (int argc, char **argv)
 static int
 MsgHandler (Message *msg)
 //
-// Deal with incoming messages.
+// Deal with incoming messages.  The only kind we really expect here
+// is the abandon ship variety.
 //
 {
+        if (msg->m_proto == MT_MESSAGE)
+        {
+                struct mh_template *tmpl = (struct mh_template *) msg->m_data;
+                if (tmpl->mh_type == MH_SHUTDOWN)
+		{
+			cout << "dsmanage: message manager shutdown\n";
+                        exit (0);
+		}
+        }
+        return (0);
+#ifdef notdef
 	cout << "Message handler\n";
 	cout.flush ();
 	return (1);
+#endif
 }
 
 

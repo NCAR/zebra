@@ -1,7 +1,7 @@
 !
 ! Display manager widgets.
 !
-! $Id: dm.widgets,v 1.20 1994-10-13 16:23:52 corbet Exp $
+! $Id: dm.widgets,v 1.21 1994-11-19 00:28:36 burghart Exp $
 !
 
 define widget SaveConfig form 'Configuration saver'
@@ -719,7 +719,7 @@ procedure printer_go
 	if (SystemType = 'bsd')
 		local pcommand '| lpr -P'
 	else
-		local pcommand '| lp -d'
+		local pcommand '| lp -d '  ! trailing space necessary
 	endif
 
 	! Add a little robustness

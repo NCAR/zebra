@@ -3,7 +3,7 @@
  * draw the text ourselves using a stroke font.  We need this so we can use 
  * rotated text.
  */
-static char *rcsid = "$Id: DrawText.c,v 2.9 1994-10-10 16:38:37 corbet Exp $";
+static char *rcsid = "$Id: DrawText.c,v 2.10 1994-11-19 00:34:41 burghart Exp $";
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -249,7 +249,7 @@ float	rot, scale;
 	XPoint	points[200];
 	float	xoffset, yoffset;
 	float	textwidth, textheight;
-	signed char	*cp;
+	SignedChar	*cp;
 	int	cbot;
 	float	xpos, ypos, del_x, del_y;
 	float	cos_rot = cos (DEG_TO_RAD (rot));
@@ -320,7 +320,7 @@ float	rot, scale;
  	while (*text)
 	{
 		int	npts = 0, npair;
-		signed char	*cdata;
+		SignedChar	*cdata;
 	/*
 	 * Locate the vector info.
 	 */
@@ -490,7 +490,7 @@ float	*xoffset, *yoffset, *width, *height;
  * text string, given its rotation and justification
  */
 {
-	signed char	*cp;
+	SignedChar	*cp;
 	float	descender;
 	float	hoffset, voffset;
 	float	cos_rot = cos (DEG_TO_RAD (rot));

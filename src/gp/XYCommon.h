@@ -20,6 +20,10 @@
  */
 /*
  * General definitions
+ *
+ * MAX_PLAT sets a limit on the number of platforms we'll try to plot, 
+ * NOT on the capacity for reading parameter platform lists (for which
+ * PlatformListLen is the limit).
  */
 # define MAX_PLAT	10
 # define BADVAL		-999.0

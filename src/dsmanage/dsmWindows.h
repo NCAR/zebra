@@ -30,6 +30,9 @@ public:
 	dsDisplay (int *, char **);
 	void run () { XtAppMainLoop (dd_Appc); }
 	void sync ();
+	int addinput (int fd, XtPointer condition, 
+		      XtInputCallbackProc proc, XtPointer cdata)
+		{ return (XtAppAddInput (dd_Appc,fd,condition,proc,cdata)); }
 //	~dsDisplay ();
 };
 

@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: dsrescan.c,v 1.6 1994-01-13 01:19:54 granger Exp $";
+static char *rcsid = "$Id: dsrescan.c,v 1.7 1994-11-19 00:31:44 burghart Exp $";
 
 # include "defs.h"
 # include "message.h"
@@ -44,11 +44,13 @@ char *prog;
 {
 	printf ("Usage: %s -h\n", prog);
 	printf ("   Print this usage message\n");
-	printf ("Usage: %s -all\n", prog);
-	printf ("Usage: %s regexp [regexp ...]\n", prog);
+	printf ("Usage: %s [-remote] -all\n", prog);
+	printf ("Usage: %s [-remote] regexp [regexp ...]\n", prog);
 	printf ("   Rescan all platforms or only those matching the given");
 	printf ("   regular expressions.\n");
 	printf ("   -all   \tRescan all platforms\n");
+	printf ("   -remote\tReset remote-dirs-constant (RDirConst) %s\n",
+		"flag before scan");
 	printf ("Usage: %s [-remote] -file <filename> platform\n", prog);
 	printf ("   Scan a new file in the named platform.\n");
 	printf ("   -remote\tThe file is in the platform's remote dir\n");
@@ -89,44 +91,59 @@ char **argv;
 /*
  * Figure out the params, then do the dirty work.
  */
-	if ((strlen (argv[1]) >= 2)
-	    && !strncmp (argv[1], "-all", strlen(argv[1])))
-		all = TRUE;
-	else
+	p = 0;
+	if (argc > 1)
+		platname = (char **)malloc((argc - 1)*sizeof(char *));
+	for (i = 1; i < argc; ++i)
 	{
-		p = 0;
-		platname = (char **)malloc(argc*sizeof(char *));
-		for (i = 1; i < argc; ++i)
+		if ((argv[i][0] != '-') || (strlen(argv[i]) < 2))
+			platname[p++] = argv[i];
+		else if (!strncmp(argv[i], "-all", strlen(argv[i])))
+			all = TRUE;
+		else if (!strncmp(argv[i],"-remote",strlen(argv[i])))
+			remote = TRUE;
+		else if (!strncmp(argv[i],"-file",strlen(argv[i])))
 		{
-			if ((argv[i][0] != '-') || (strlen(argv[i]) < 2))
-				platname[p++] = argv[i];
-			else if (!strncmp(argv[i],"-remote",strlen(argv[i])))
-				remote = TRUE;
-			else if (!strncmp(argv[i],"-file",strlen(argv[i])))
-			{
-				fileonly = TRUE;
-				if (i+1 < argc)
-					filename = argv[++i];
-				else
-				{
-					printf("%s: filename required\n",
-					       argv[0]);
-					usage(argv[0]);
-					exit(2);
-				}
-			}
+			fileonly = TRUE;
+			if (i+1 < argc)
+				filename = argv[++i];
 			else
 			{
-				printf ("%s: invalid option '%s'\n",
-					argv[0], argv[i]);
-				usage (argv[0]);
-				exit (99);
+				printf("%s: filename required\n",
+				       argv[0]);
+				usage(argv[0]);
+				exit(2);
 			}
 		}
+		else
+		{
+			printf ("%s: invalid option '%s'\n",
+				argv[0], argv[i]);
+			usage (argv[0]);
+			exit (99);
+		}
+		if (all && fileonly)
+		{
+			printf("%s: cannot combine -all and -file options\n", 
+			       argv[0]);
+			exit (99);
+		}
+	}
+
+	if (remote && !fileonly)
+	{
+		printf ("Resetting remote-dir-constant (RDirConst) flag.\n");
+		cp_Exec (DS_DAEMON_NAME, "set RDirConst false");
 	}
 
 	if (all)
 	{
+		if (p > 0)
+		{
+			printf ("%s: -all takes no platform name arguments\n",
+				argv[0]);
+			exit (99);
+		}
 		ds_ForceRescan (BadPlatform, TRUE);
 		printf ("All platforms being scanned.\n");
 	}

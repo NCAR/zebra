@@ -1,7 +1,7 @@
 /*
  * Widget for getting position of cursor.
  */
-static char *rcsid = "$Id: PositionWidget.c,v 1.15 1994-06-29 16:09:16 case Exp $";
+static char *rcsid = "$Id: PositionWidget.c,v 1.16 1994-11-19 00:35:35 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -169,7 +169,8 @@ XtAppContext 	actx;
         XtSetArg (args[n], XtNwidth, 70); n++;
         XtSetArg (args[n], XtNstring, GPOrigin); n++;
         XtSetArg (args[n], XtNtype, XawAsciiString); n++;
-        XtSetArg (args[n], XtNuseStringInPlace, True); n++; XtSetArg (args[n], XtNleftMargin, 5); n++;
+        XtSetArg (args[n], XtNuseStringInPlace, True); n++; 
+	XtSetArg (args[n], XtNleftMargin, 5); n++;
         XtSetArg (args[n], XtNeditType, XawtextAppend); n++;
         OrgText = XtCreateManagedWidget ("origintext", asciiTextWidgetClass,
                 parent, args, n);

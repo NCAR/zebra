@@ -1,7 +1,7 @@
 /*
  * XY-Wind plotting module
  */
-static char *rcsid = "$Id: XYWind.c,v 1.25 1994-10-20 17:40:30 corbet Exp $";
+static char *rcsid = "$Id: XYWind.c,v 1.26 1994-11-19 00:36:18 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -61,10 +61,10 @@ bool	update;
 	bool	mono;
 	int	npts[MAX_PLAT], plat, nplat, alen;
 	int	nxfield, nyfield, ncolors, skip, dmode;
-	char	platforms[MAX_PLAT_LEN], *pnames[MAX_PLAT];
-	char	xflds[MAX_PLAT_LEN], yflds[MAX_PLAT_LEN];
-	char	*xfnames[MAX_PLAT], *yfnames[MAX_PLAT];
-	char	windfld1[32], windfld2[32], style[32], ctname[32];
+	char	platforms[PlatformListLen], *pnames[MaxPlatforms];
+	char	xflds[FieldListLen], yflds[FieldListLen];
+	char	*xfnames[MaxFields], *yfnames[MaxFields];
+	char	windfld1[32], windfld2[32], ctname[32], style[32];
 	char	xtype, ytype, csystem[16], annotcontrol[80], barbtype[16];
 	float   cstep, scaleSpeed, vecScale = 0.01;
 	XColor	*colors;

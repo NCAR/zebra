@@ -1,7 +1,7 @@
 /*
  * XY-Contour plotting module
  */
-static char *rcsid = "$Id: XYContour.c,v 1.28 1994-11-04 18:07:53 corbet Exp $";
+static char *rcsid = "$Id: XYContour.c,v 1.29 1994-11-19 00:36:06 burghart Exp $";
 /*		Copyright (C) 1993 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -89,8 +89,9 @@ bool	update;
 	int	dolabel = 1, linewidth = 0, nxfield, nyfield, nzfield;
 	int	xgridres, ygridres = 0;
 	float	vecScale = 0.01, zstep, ccenter, *datagrid = NULL;
-	char	platforms[MAX_PLAT_LEN], *pnames[MAX_PLAT];
-	char	*xfnames[MAX_PLAT], *yfnames[MAX_PLAT], *zfnames[MAX_PLAT];
+	char	platforms[PlatformListLen], *pnames[MaxPlatforms];
+	char	xflds[FieldListLen], yflds[FieldListLen], zflds[FieldListLen];
+	char	*xfnames[MaxFields], *yfnames[MaxFields], *zfnames[MaxFields];
 	char	gridtype[20], ctname[24], style[20], annotcontrol[80];
 	char	xtype, ytype, ztype;
 	bool	xauto, yauto, xinvert, yinvert, sideAnnot, zauto, zinvert;

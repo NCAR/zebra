@@ -1,7 +1,7 @@
 /*
  * Time Series Plotting
  */
-static char *rcsid = "$Id: TimeSeries.c,v 2.15 1994-05-24 02:33:23 granger Exp $";
+static char *rcsid = "$Id: TimeSeries.c,v 2.16 1994-11-19 00:35:41 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -44,7 +44,7 @@ static char *rcsid = "$Id: TimeSeries.c,v 2.15 1994-05-24 02:33:23 granger Exp $
  */
 # define MAXFLDS	2		/*  Maximum number of fields	*/
 # define STRLEN		80		/*  Generic string length	*/
-# define MAXPLTS	20		/*  Maximum number of platforms	*/
+# define MAXPLTS	MaxPlatforms	/*  Maximum number of platforms	*/
 # define PARAMLEN	30		/*  Parameter string length	*/
 
 /*
@@ -119,9 +119,9 @@ bool	update;
  */
 {
 	bool	ok;
-	char	string[STRLEN], platforms[MAXPLTS*PARAMLEN]; 
+	char	string[STRLEN], platforms[PlatformListLen]; 
 	char	fields[MAXFLDS*PARAMLEN], ctname[PARAMLEN];
-	char	*pnames[MAXPLTS*PARAMLEN], *fnames[MAXFLDS*PARAMLEN];
+	char	*pnames[MaxPlatforms], *fnames[MAXFLDS*PARAMLEN];
 	char	interval[PARAMLEN], color[PARAMLEN], trigger[PARAMLEN];
 	int	period, nplat, nfld, nstep, i;
 	float	center[MAXFLDS], step[MAXFLDS];
@@ -373,7 +373,7 @@ ts_AnnotTime ()
 /*
  * "Time" label
  */
-	DrawText (Graphics, d, Gcontext, 0.5 * GWWidth (Graphics), 
+	DrawText (Graphics, d, Gcontext, (int) (0.5 * GWWidth (Graphics)), 
 		Pix_bottom + 1, "Time", 0.0, TSScale, JustifyCenter, 
 		JustifyTop);
 /*
@@ -383,7 +383,8 @@ ts_AnnotTime ()
 		TC_EncodeTime (&Begin, TC_Full, string);
 	else
 		TC_EncodeTime (&End, TC_Full, string);
-	DrawText (Graphics, d, Gcontext, Pix_left - 0.04 * GWWidth (Graphics),
+	DrawText (Graphics, d, Gcontext, 
+                (int) (Pix_left - 0.04 * GWWidth (Graphics)),
 		Pix_bottom + 1, string, 0.0, TSScale, JustifyLeft, JustifyTop);
 /*
  * Put time on the right side.
@@ -392,7 +393,8 @@ ts_AnnotTime ()
 		TC_EncodeTime (&End, TC_Full, string);
 	else
 		TC_EncodeTime (&Begin, TC_Full, string);
-	DrawText (Graphics, d, Gcontext, Pix_right + 0.04 * GWWidth (Graphics),
+	DrawText (Graphics, d, Gcontext, 
+                (int) (Pix_right + 0.04 * GWWidth (Graphics)),
 		Pix_bottom + 1, string, 0.0, TSScale, JustifyRight, 
 		JustifyTop);
 }
@@ -429,8 +431,8 @@ float 	*center, *step;
 /*
  * Label the vertical axis (left). 
  */
-	DrawText (Graphics, d, Gcontext, Pix_left - 0.035 * gwidth,
-		0.5 * gheight, px_FldDesc (fields[0]), 90.0, TSScale, 
+	DrawText (Graphics, d, Gcontext, (int) (Pix_left - 0.035 * gwidth),
+		(int) (0.5 * gheight), px_FldDesc (fields[0]), 90.0, TSScale, 
 		JustifyCenter, JustifyBottom);
 /*
  * Draw ticks on the vertical axis (left).
@@ -456,7 +458,8 @@ float 	*center, *step;
 		{
 			sprintf (string, "%d", nint (tick));
 			DrawText (Graphics, d, Gcontext, 
-				Pix_left - 0.005 * gwidth, YPIX (tick), string,
+				(int) (Pix_left - 0.005 * gwidth), 
+                                YPIX (tick), string,
 				0.0, TSScale, JustifyRight, JustifyBottom);
 		}
 		dolabel = ! dolabel;
@@ -468,8 +471,8 @@ float 	*center, *step;
 /*
  * Label the vertical axis (right). 
  */
-	DrawText (Graphics, d, Gcontext, Pix_right + 0.035 * gwidth, 
-		0.5 * gheight, px_FldDesc (fields[1]), -90.0, TSScale, 
+	DrawText (Graphics, d, Gcontext, (int) (Pix_right + 0.035 * gwidth), 
+		(int) (0.5 * gheight), px_FldDesc (fields[1]), -90.0, TSScale, 
 		JustifyCenter, JustifyBottom);
 /*
  * Draw ticks on the vertical axis (right).
@@ -496,7 +499,8 @@ float 	*center, *step;
 
 			sprintf (string, "%d", nint (tick));
 			DrawText (Graphics, d, Gcontext, 
-				Pix_right + 0.005 * gwidth, YPIX (tick), 
+				(int) (Pix_right + 0.005 * gwidth), 
+				YPIX (tick), 
 				string, 0.0, TSScale, JustifyLeft, 
 				JustifyBottom);
 		}

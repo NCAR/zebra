@@ -28,7 +28,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm_ui.c,v 2.9 1994-11-17 08:45:10 granger Exp $")
+MAKE_RCSID ("$Id: dm_ui.c,v 2.10 1994-11-19 00:28:48 burghart Exp $")
 
 
 static int in_pd FP((raw_plot_description *rpd, struct ui_command *cmds));
@@ -366,47 +366,39 @@ struct ui_command *cmds;
 void
 WritePD (name, filename)
 char *name;	/* Name of the plot description to list 	*/
-char *filename;	/* path of file to write to, NULL for stdout	*/
+char *filename;	/* file to write or dir path, NULL for stdout	*/
 {
-	raw_plot_description *rpd;
 	plot_description pd;
-	FILE *out = NULL;
-	char *line, *next;
 
-	if (filename)
-	{
-		out = fopen (filename, "w");
-		if (! out)
-		{
-			ui_error ("%s: could not open file %s",
-				  "pdstore", filename);
-		}
-	}
-	pd = pda_GetPD (name);
+	pd = find_pd (name);
 	if (! pd)
 	{
-		ui_error ("Unknown plot description: '%s'\n", name);
+		ui_error ("unknown plot description: '%s'\n", name);
 	}
 	else
+		pdwrite (pd, filename);
+}
+
+
+
+void
+StorePD (name, copyname, filename)
+char *name;	/* Name of the plot description to list 	*/
+char *copyname;	/* Name to give the pd when written		*/
+char *filename;	/* file to write or dir path, NULL for stdout	*/
+{
+	plot_description pd, copy;
+
+	pd = find_pd (name);
+	if (! pd)
 	{
-	/*
-	 * Print a line at a time else ui_printf() chokes.
-	 */
-		rpd = pd_Unload (pd);
-		for (line = rpd->rp_data; line != NULL; line = next)
-		{
-			next = strchr (line, '\n');
-			if (next)
-				*next++ = '\0';
-			if (out)
-				fprintf (out, "%s\n", line);
-			else
-				ui_printf ("%s\n", line);
-		}
-		pd_RPDRelease (rpd);
+		ui_error ("unknown plot description: '%s'\n", name);
+		return;
 	}
-	if (out)
-		fclose (out);
+	copy = pd_CopyPD (pd);
+	pd_Store (copy, "global", "pd-name", copyname, SYMT_STRING);
+	pdwrite (copy, filename);
+	pd_Release (copy);
 }
 
 

@@ -40,7 +40,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.47 1994-11-04 18:07:48 corbet Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.48 1994-11-19 00:34:35 burghart Exp $")
 
 
 /*
@@ -295,7 +295,8 @@ int *shifted;
  * the next call to CAP_Contour, and should not be modified.
  */
 {
-	static char	platform[40], fname[40], ctable[40], outrange[40];
+	static char	platform[PlatformListLen];
+	static char	fname[40], ctable[40], outrange[40];
 	char	ctcolor[40], param[50];
 	int	xdim, ydim;
 	float	*rgrid, *grid, x0, x1, y0, y1, alt;
@@ -515,10 +516,11 @@ bool update;
  * Deal with a station plot.
  */
 {
-	char	uname[20], vname[20], cname[30], platform[512], annot[120];
+	char	uname[20], vname[20], cname[30], annot[120];
+	char	platform[PlatformListLen];
 	char	quadrants[4][20], quadclr[30];
 	char	data[100], sticon[40];
-	char	*strchr (), *pnames[100];
+	char	*strchr (), *pnames[MaxPlatforms];
 	PlatformId pid;
 	float vscale, unitlen;
 	int linewidth, shifted, i, nplat;
@@ -534,7 +536,7 @@ bool update;
  * Get necessary parameters from the plot description
  */
 	if (! CAP_VecParams (c, platform, uname, vname, &vscale, cname, 
-			&linewidth, &unitlen, &color, &do_vectors))
+			     &linewidth, &unitlen, &color, &do_vectors))
 		return;
 /*
  * Initialize quadrant info
@@ -779,9 +781,9 @@ bool quadstn[4];
 		else
 			draw_barb (XtDisplay (Graphics), GWFrame (Graphics),
 				   Gcontext, x0, y0, 
-				   atan2 (-vgrid[pt], -ugrid[pt]), 
-				   hypot (vgrid[pt], ugrid[pt]), 
-				   (int) unitlen, FALSE);
+				   atan2 (vgrid[pt], ugrid[pt]), 
+				   hypot (vgrid[pt], ugrid[pt]), unitlen, 
+				   FALSE);
 	}
 /*
  * Do quadrants if necessary.
@@ -1154,7 +1156,8 @@ bool	update;
  * description, specified component, and plot time
  */
 {
-	char	uname[20], vname[20], cname[30], platform[40], annot[120];
+	char	uname[20], vname[20], cname[30], annot[120];
+	char 	platform[PlatformListLen];
 	char	data[100];
 	float	*rgrid, *ugrid, *vgrid, unitlen;
 	float	vscale, x0, x1, y0, y1, alt, badvalue;
@@ -1479,7 +1482,8 @@ bool	update;
  * description, specified conent, and plot time
  */
 {
-	char	fname[20], ctname[40], platform[40], data[100], hcolor[40];
+	char	fname[20], ctname[40], data[100], hcolor[40];
+	char 	platform[PlatformListLen];
 	char	param[50], outrange[40];
 	int	xdim, ydim;
 	int	nsteps;

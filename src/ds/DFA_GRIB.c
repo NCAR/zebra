@@ -35,7 +35,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.17 1994-11-08 18:04:53 corbet Exp $")
+MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.18 1994-11-19 00:29:28 burghart Exp $")
 
 /*
  * The GRIB product definition section (PDS)
@@ -261,80 +261,81 @@ struct s_GRB_FList
 {
 	int	fnum;
 	char	*fname;
+	char	*funits;
 	float	scale, offset;
 } GRB_FList[] = 
 {
 	/* Pressure (Pa), scale to mb */
-	{ 1, "pres", 100.0, 0.0 },
+	{ 1, "pres", "mb", 100.0, 0.0 },
 	/* Pressure reduced to MSL (Pa), scale to mb */
-	{ 2, "cpres0", 100.0, 0.0 },
+	{ 2, "cpres0", "mb", 100.0, 0.0 },
 	/* Geopotential height (m) */
-	{ 7, "gpalt", 1.0, 0.0 },
+	{ 7, "gpalt", "m", 1.0, 0.0 },
 	/* Geometric height (m) */
-	{ 8, "height", 1.0, 0.0 },
+	{ 8, "height", "m", 1.0, 0.0 },
 	/* Temperature (K), scale to C */
-	{ 11, "tdry", 1.0, -273.15 },
+	{ 11, "tdry", "deg C", 1.0, -273.15 },
 	/* Virtual temperature (K) */
-	{ 12, "vt", 1.0, 0.0 },
+	{ 12, "vt", "K", 1.0, 0.0 },
 	/* Potential temperature (K) */
-	{ 13, "pt", 1.0, 0.0 },
+	{ 13, "pt", "K", 1.0, 0.0 },
 	/* Dew point temperature (K) */
-	{ 17, "dp", 1.0, -273.15 },
+	{ 17, "dp", "K", 1.0, -273.15 },
 	/* Wind direction (deg. true) */
-	{ 31, "wdir", 1.0, 0.0 },
+	{ 31, "wdir", "deg", 1.0, 0.0 },
 	/* Wind speed (m/s) */
-	{ 32, "wspd", 1.0, 0.0 },
+	{ 32, "wspd", "m/s", 1.0, 0.0 },
 	/* u component of wind (m/s) */
-	{ 33, "u_wind", 1.0, 0.0 },
+	{ 33, "u_wind", "m/s", 1.0, 0.0 },
 	/* v component of wind (m/s) */
-	{ 34, "v_wind", 1.0, 0.0 },
+	{ 34, "v_wind", "m/s", 1.0, 0.0 },
 	/* pressure vertical velocity (Pa/s) */
-	{ 39, "pres_w", 1.0, 0.0 },
+	{ 39, "pres_w", "Pa/s", 1.0, 0.0 },
 	/* geometric vertical velocity (m/s) */
-	{ 40, "w_wind", 1.0, 0.0 },
+	{ 40, "w_wind", "m/s", 1.0, 0.0 },
 	/* Absolute vorticity ( /s) */
-	{ 41, "vort", 1.0, 0.0 },
+	{ 41, "vort", "1/s", 1.0, 0.0 },
 	/* Absolute divergence ( /s) */
-	{ 42, "dvrg", 1.0, 0.0 },
+	{ 42, "dvrg", "1/s", 1.0, 0.0 },
 	/* Relative humidity (%) */
-	{ 52, "rh", 1.0, 0.0 },
+	{ 52, "rh", "%", 1.0, 0.0 },
 	/* Humidity mixing ratio (kg/kg), scale to g/kg */
-	{ 53, "mr", 0.001, 0.0 },
+	{ 53, "mr", "g/kg", 0.001, 0.0 },
 	/* Total precipitation (kg/m**2)	*/
-	{ 61, "precip", 1.0, 0.0 },
+	{ 61, "precip", "kg/m**2", 1.0, 0.0 },
 	/* Convective precipitation (kg/m**2)	*/
-	{ 63, "conv_precip", 1.0, 0.0 },
+	{ 63, "conv_precip", "kg/m**2", 1.0, 0.0 },
 /*
  * ECMWF fields
  */
 	/* Geopotential (m**2/s)		*/
-	{ 129, "geopotential", 0.3048, 0.0 },
+	{ 129, "geopotential", "m**2/s", 0.3048, 0.0 },
 	/* Temperature (K), scale to C 		*/
-	{ 130, "tdry", 1.0, -273.15 },
+	{ 130, "tdry", "deg C", 1.0, -273.15 },
 	/* u component of wind (m/s)		*/
-	{ 131, "u_wind", 1.0, 0.0 },
+	{ 131, "u_wind", "m/s", 1.0, 0.0 },
 	/* v component of wind (m/s)		*/
-	{ 132, "v_wind", 1.0, 0.0 },
+	{ 132, "v_wind", "m/s", 1.0, 0.0 },
 	/* Surface pressure (Pa), scale to mb	*/
-	{ 134, "sfc_pres", 100.0, 0.0 },
+	{ 134, "sfc_pres", "Pa", 100.0, 0.0 },
 	/* pressure vertical velocity (Pa/s)	*/
-	{ 135, "pres_w", 1.0, 0.0 },
+	{ 135, "pres_w", "Pa/s", 1.0, 0.0 },
 	/* Surface temperature (K), scale to C	*/
-	{ 139, "sfc_temp", 1.0, -273.15 },
+	{ 139, "sfc_temp", "deg C", 1.0, -273.15 },
 	/* Pressure reduced to MSL (Pa), scale to mb */
-	{ 151, "cpres0", 100.0, 0.0 },
+	{ 151, "cpres0", "mb", 100.0, 0.0 },
 	/* Relative humidity (%) */
-	{ 157, "rh", 1.0, 0.0 },
+	{ 157, "rh", "%", 1.0, 0.0 },
 	/* u component of wind at 10m (m/s)	*/
-	{ 165, "u_wind_10m", 1.0, 0.0 },
+	{ 165, "u_wind_10m", "m/s", 1.0, 0.0 },
 	/* v component of wind at 10m (m/s)	*/
-	{ 166, "v_wind_10m", 1.0, 0.0 },
+	{ 166, "v_wind_10m", "m/s", 1.0, 0.0 },
 	/* temperature at 2m (K), scale to C	*/
-	{ 167, "temp_2m", 1.0, -273.15 },
+	{ 167, "temp_2m", "deg C", 1.0, -273.15 },
 	/* dewpoint at 2m (K), scale to C	*/
-	{ 168, "dp_2m", 1.0, -273.15 },
+	{ 168, "dp_2m", "deg C", 1.0, -273.15 },
 	/* land/sea (0/1)			*/
-	{ 172, "land/sea", 1.0, 0.0 },
+	{ 172, "land/sea", "", 1.0, 0.0 },
 };
 
 int GRB_FList_len = sizeof (GRB_FList) / sizeof (struct s_GRB_FList);
@@ -792,7 +793,7 @@ int		ndetail;
 	{
 		msg_ELog (EF_INFO, 
 			  "GRIB: No unpackable %d hr forecast for %s/%s", 
-			  offset / 3600, ds_PlatformName(dc->dc_Platform), 
+			  offset / 3600, ds_PlatformName (dc->dc_Platform), 
 			  F_GetName (checkfld));
 
 		if (! dc_NSDefineIsComplete (dc))
@@ -1309,6 +1310,7 @@ TimeSpec	which;
 
 
 
+int
 grb_GetFields (dfindex, t, nfld, flist)
 int	dfindex;
 ZebTime	*t;
@@ -1328,7 +1330,7 @@ FieldId	*flist;
  * Open this file.
  */
 	if (! dfa_OpenFile (dfindex, FALSE, (void *) &tag))
-		return;
+		return (FALSE);
 /*
  * Get the fields
  */
@@ -1351,6 +1353,8 @@ FieldId	*flist;
 		if (f == *nfld)
 			flist[(*nfld)++] = fid;
 	}
+
+	return ((*nfld > 0));
 }
 
 
@@ -1898,7 +1902,9 @@ float		*ztarget;
 	dc_NSGetDimension (dc, F_Lookup ("alt"), NULL, &dc_nlevels);
 	if (nlevels && dc_nlevels != nlevels)
 	{
-		msg_ELog (EF_PROBLEM, "*BUG*: GRIB level count mismatch!");
+/*		msg_ELog (EF_PROBLEM, "*BUG*: GRIB level count mismatch!"); */
+		msg_ELog (EF_INFO, "grb_ReadRGrid: Can't get %s/%s data",
+			  ds_PlatformName (dc->dc_Platform), F_GetName (fid));
 		nlevels = 0;
 	}
 /*
@@ -1911,7 +1917,7 @@ float		*ztarget;
 		int	gridsize;
 
 		msg_ELog (EF_INFO, "GRIB: No %d hr forecast for %s/%s", 
-			  offset / 3600, ds_PlatformName(dc->dc_Platform), 
+			  offset / 3600, ds_PlatformName (dc->dc_Platform), 
 			  F_GetName (fid));
 		
 		time = tag->gt_grib[sbegin].gd_time;
@@ -2117,7 +2123,16 @@ ScaleInfo	*sc;
 	{
 		if (pds->field_id == GRB_FList[i].fnum)
 		{
-			fid = F_Lookup (GRB_FList[i].fname);
+		/*
+		 * If the Data store doesn't know about this field yet, 
+		 * declare it properly with units.
+		 */
+			fid = F_Declared (GRB_FList[i].fname);
+			if (fid == BadField)
+				fid = F_DeclareField (GRB_FList[i].fname,
+						      GRB_FList[i].fname,
+						      GRB_FList[i].funits);
+				
 			scale = GRB_FList[i].scale;
 			offset = GRB_FList[i].offset;
 			break;
@@ -2735,7 +2750,7 @@ float	*grid;
 	exponent = 4 * (bds_hdr->ref_top & 0x7F) - 280;
 	mantissa = grb_ThreeByteInt (&(bds_hdr->ref_mant));
 
-	ref = sign * mantissa * pow (2, (double) exponent);
+	ref = sign * mantissa * pow (2.0, (double) exponent);
 /*
  * From GRIB documentation:
  *	               E       -D
@@ -2747,10 +2762,10 @@ float	*grid;
  * If the bit is set, the value is negative.
  */
 	sign = (pds->ds_factor & 0x8000) ? -1 : 1;
-	dscale = pow (10, (double)(-sign * (pds->ds_factor & 0x7FFF)));
+	dscale = pow (10.0, (double)(-sign * (pds->ds_factor & 0x7FFF)));
 
 	sign = (bds_hdr->bs_factor & 0x8000) ? -1 : 1;
-	bscale = pow (2, (double)(sign * (bds_hdr->bs_factor & 0x7FFF)));
+	bscale = pow (2.0, (double)(sign * (bds_hdr->bs_factor & 0x7FFF)));
 /*
  * Check the bit count and build a mask with the appropriate number of bits set
  */

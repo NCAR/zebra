@@ -31,7 +31,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm_config.c,v 1.16 1994-09-15 21:49:03 corbet Exp $")
+MAKE_RCSID ("$Id: dm_config.c,v 1.17 1994-11-19 00:28:42 burghart Exp $")
 
 
 /*
@@ -52,10 +52,11 @@ static void send_default FP ((struct cf_window *));
 
 
 
-
 void
-SaveConfig (name)
-char *name;
+SaveConfig (source, name, update)
+char *source;	/* config name to read */
+char *name;	/* name to save config as, or NULL to copy source name */
+int update;	/* do an update if nonzero */
 /*
  * Write the current configuration out to a file.
  */
@@ -69,8 +70,11 @@ char *name;
 /*
  * Look up our configuration.
  */
-	cfg = LookupConfig (Cur_config);
-	UpdateConfig (cfg);
+	cfg = LookupConfig (source);
+	if (update && !strcmp(source, Cur_config))
+		UpdateConfig (cfg);
+	if (! name)
+		name = source;
 /*
  * Make a brief attempt to create the configuration directory if it doesn't
  * exist.
@@ -166,7 +170,7 @@ struct config *cfg;
  * weren't looking.
  */
 {
-	Window root, realwin, qwin, *children;
+	Window root, realwin, qwin, parent, *children;
 	int win, junk;
 	unsigned int bw, depth, nchild;
 #ifdef notdef
@@ -177,59 +181,59 @@ struct config *cfg;
 	int n;
 #endif
 /*
- * Find the current geometry of each window and widget.
+ * Find the current geometry of each window and widget.  We play some games
+ * going back the window tree to find an immediate child of the root window
+ * so that we can be reasonably sure of getting an absolute x,y rather than
+ * a relative one. 
  */
 	for (win = 0; win < cfg->c_nwin; win++)
 	{
 		struct cf_window *wp = cfg->c_wins + win;
 	/*
-	 * If this is a widget, we can get the shell geometry directly.
+	 * For UI widgets, we want the enclosing shell's window, while for
+	 * other windows we want the window itself. 
 	 */
 	 	if (wp->cfw_flags & CF_WIDGET)
 		{
 			Widget tmp = uw_IWWidget (wp->cfw_name);
 			realwin = XtWindow (XtParent (XtParent (tmp)));
-			XQueryTree (Dm_Display, realwin, &root, &qwin,
-				&children, &nchild);
-			XFree (children);
-#ifdef notdef
-			shell = UWShell (wp->cfw_name);
-
-			n = 0;
-			XtSetArg (args[n], XtNx, (XtArgVal)&x);	n++;
-			XtSetArg (args[n], XtNy, (XtArgVal)&y);	n++;
-			XtSetArg (args[n], XtNwidth, &width);	n++;
-			XtSetArg (args[n], XtNheight, &height);	n++;
-			XtGetValues (shell, args, n);
-#endif
 		}
-	/*
-	 * Otherwise it's a client with a window, and we need to ask directly.
-	 */
 		else if (wp->cfw_win)
-		{
-			XQueryTree (Dm_Display, wp->cfw_win, &root, &qwin,
-				&children, &nchild);
 			realwin = wp->cfw_win;
-			XFree (children);
-#ifdef notdef
-			GetGeometry (wp, &x, &y, &width, &height);
-#endif
-		}
 		else
 			continue;
 	/*
-	 * Get the info.  The positioning comes from the parent window while
-	 * the size comes from the real window.
+	 * Back up the window tree until we find our ancestor whose parent is
+	 * root.  That one will be used below to get our x,y location.
+	 */
+		qwin = realwin;
+		msg_ELog (EF_DEBUG, "Ancestor search for %s", wp->cfw_name);
+		while (TRUE)
+		{
+			XQueryTree (Dm_Display, qwin, &root, &parent, 
+				    &children, &nchild);
+			XFree (children);
+			msg_ELog (EF_DEBUG, "\t%d's root: %d, parent: %d",
+				  (int) qwin, (int) root, (int) parent);
+			if (parent == root)
+				break;
+			else
+				qwin = parent;
+		}
+	/*
+	 * Get the info.  The positioning info comes from the ancestor
+	 * window we found above, while the size comes from the "real"
+	 * window. 
 	 */
 		XGetGeometry (Dm_Display, qwin, &root, &wp->cfw_x,
-			&wp->cfw_y, (unsigned int *) &junk,
-			(unsigned int *) &junk, &bw, &depth);
+			      &wp->cfw_y, (unsigned int *) &junk,
+			      (unsigned int *) &junk, &bw, &depth);
 		wp->cfw_x += bw;
 		wp->cfw_y += bw;
+
 		XGetGeometry (Dm_Display, realwin, &root, &junk,
-			&junk, (unsigned int *) &wp->cfw_dx,
-			(unsigned int *) &wp->cfw_dy, &bw, &depth);
+			      &junk, (unsigned int *) &wp->cfw_dx,
+			      (unsigned int *) &wp->cfw_dy, &bw, &depth);
 #ifdef notdef
 	/*
 	 * Record our latest geometry info
@@ -699,7 +703,7 @@ static void
 send_default (win)
 struct cf_window *win;
 /*
- * Send this window it's defaults table.
+ * Send this window its defaults table.
  */
 {
 	struct dm_pdchange *dmp;
@@ -733,7 +737,6 @@ struct cf_window *win;
 	pd_RPDRelease (rpd);
 	free (dmp);
 }
-
 
 
 

@@ -23,6 +23,7 @@
 //
 void Run ();
 void DisplaySetup (int *, char **);
+void DisplayAddInput (int fd, void (*proc)());
 
 //
 // from main

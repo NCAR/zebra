@@ -32,7 +32,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID ("$Id: d_Scan.c,v 1.20 1994-10-13 22:35:56 sobol Exp $")
+MAKE_RCSID ("$Id: d_Scan.c,v 1.21 1994-11-19 00:29:39 burghart Exp $")
 
 
 /*
@@ -106,13 +106,15 @@ bool local, rescan;
  */
 	if (! (dp = opendir (dir)))
 	{
-		msg_ELog (EF_PROBLEM,
-			"Data dir %s (plat %s) nonexistent", dir, p->dp_name);
 		if (mkdir (dir, 0777))
 		{
-			msg_ELog (EF_PROBLEM, "...and unable to create.");
+			msg_ELog (EF_PROBLEM, 
+				  "Cannot open or create dir %s (plat %s)",
+				  dir, p->dp_name);
 			return;
 		}
+		msg_ELog (EF_INFO, "Created data dir %s (plat %s)", dir,
+			  p->dp_name);
 		dp = opendir (dir);
 	}
 /*

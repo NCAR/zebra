@@ -132,14 +132,14 @@ static const char rcs_author[] = id ;
  */
 
 #ifdef notdef
-RCSID("$Id: version.h,v 1.2 1994-01-26 12:37:29 granger Exp $")
+RCSID("$Id: version.h,v 1.3 1994-11-19 00:26:39 burghart Exp $")
 #endif
 
 #if !defined(lint) && !defined(LINT) && !defined(SABER)
 
 #if __STDC__
 static const char V_sccsid[4] = { '@', '(', '#', ')' };
-static const char V_rcs_id[] = "@(#)$Id: version.h,v 1.2 1994-01-26 12:37:29 granger Exp $";
+static const char V_rcs_id[] = "@(#)$Id: version.h,v 1.3 1994-11-19 00:26:39 burghart Exp $";
 static const char V_compileid[] = 
 	"@(#)" "$Included: " __FILE__ " on " __DATE__ " at " __TIME__ " $";
 #endif /* __STDC__ */
@@ -151,7 +151,7 @@ static const char V_compileid[] =
  * well as updating the ChangeLog and this file.
  */
 static char zeb_version_id1[] = 
-"@(#)$ZebVersion: 4.0 $";
+"@(#)$ZebVersion: 4.0-SFCD $";
 static char zeb_version_id2[] = 
 "@(#)$ZebVersion: Research Data Program, NCAR $";
 static char zeb_version_id3[] = 

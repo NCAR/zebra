@@ -1,7 +1,7 @@
 /*
  * Data insertion widget.
  */
-static char *rcsid = "$Id: InsertWidget.c,v 1.5 1994-09-16 17:02:41 corbet Exp $";
+static char *rcsid = "$Id: InsertWidget.c,v 1.6 1994-11-19 00:35:07 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -772,7 +772,8 @@ Insert ()
  */
 {
 	int i, numplat, sub;
-	char platforms[200], *platlist[200];
+	char platforms[PlatformListLen];
+	char *platlist[MaxPlatforms];
 	Arg arg;
 	PlatformId pid;
 	DataOrganization org;
@@ -1833,7 +1834,8 @@ Icons ()
  */
 {
         int	i, numplat;
-        char	platforms[200], *platlist[200];
+        char	platforms[PlatformListLen];
+	char	*platlist[MaxPlatforms];
         Arg	arg;
 /*
  * Read in and parse the user insertable platforms.

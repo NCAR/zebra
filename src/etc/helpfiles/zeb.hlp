@@ -1,4 +1,4 @@
-38
+39
 000000%000000/////  Welcome to Zeb
 809
 
@@ -61,7 +61,7 @@ above the row of icon buttons in the help window.  If help
 is requested again at a later time, the help window will
 pop up again.  
 tablecontentsTable of Contents
-4096
+4069
 
 / TABLE OF CONTENTS /
 
@@ -118,7 +118,6 @@ ZEB SYSTEM COMPONENTS
  6. Shutting Down Zeb
 
 	A. Shutting down Zeb
-	B. StormFEST CD specifics
 
  7. Setting a History Time
 
@@ -393,7 +392,7 @@ See the topics "Changing the Display Configuration" and
 
 
 iconbar      The Icon Bar Icons
-4350
+4397
 
 / THE ICON BAR ICONS /
 
@@ -433,13 +432,14 @@ for each platform.  To see all of the list arrangements
 available, click on the <Up> and <Down> icons in the
 help window.
 
-The two sub-menu entries at the bottom generate hardcopies
-of some of the PostScript-format Zeb documents.  See the
-"Guide to Documentation" topic for a description of each of
-the documents.  When a document is selected from one of the
-sub-menus, it will be sent to the default printer.  [The
-default printer is either 'lp' or the value of the
-'PRINTER' environment variable.]
+The "Print Zeb Documents" entry is a sub-menu containing
+entries for generating hardcopies of the PostScript-format
+Zeb documents.  See the "Guide to Documentation" topic for
+a description of each of the documents.  When a document is
+selected from one of the sub-menus, it will be sent to the
+default printer.  The default printer is either 'lp' or the
+value of the 'LPDEST' or 'PRINTER' environment variable.
+
 
 / THE ZEB ICON /
 
@@ -507,17 +507,17 @@ the platform icons represent these platform categories:
 	Mesonet, 5-min and hourly station data
 	GOES Satellite
 	Aircraft tracks and track data
+	Model data
 	Static overlays
 
 shutdown     Shutting Down Zeb
-1211
+568
 
 / SHUTTING DOWN ZEB /
 
-Stopping the Zeb system entails two steps.  First, you must
-stop the Zeb graphics display.  Move the cursor to the
-<Zeb> icon in the Icon Bar.  Press and hold the left mouse
-button.  Drag the cursor until the entry "Shut down Zeb
+To shut down Zeb, move the cursor to the <Zeb> icon in
+the Icon Bar.  Press and hold the left mouse button.
+Drag the cursor until the entry "Shut down Zeb
 system" is highlighted.  Release the mouse button.
 
 The Icon Bar, the graphics windows, and all associated
@@ -531,24 +531,6 @@ the display manager prompt:
 
         DM> exit
 
-In the second step, the rest of the Zeb background
-processes must be stopped.  Type this command at any
-shell prompt, assuming the Zeb executable directory
-is in your path:
-
-	% zebstop
-
-This command stops processes such as the DataStore and
-the EventLogger.
-
-/ STORM-FEST CD SPECIFICS /
-
-If you are using the STORM-FEST CD-ROM distribution of Zeb,
-the script which starts the Zeb system also automatically
-shuts down all of the Zeb processes once the graphics
-display is shut down.  Hence STORM-FEST CD users do not
-need to perform the second step mentioned above.  
-
 historytime  Setting a History Time
 6414
 
@@ -558,14 +540,14 @@ When a graphics window is displaying data from some time in
 the past, rather than the most recent data available in
 real time, the window is in 'history mode'.  The time of
 the graphics window plot is the 'history time'.  While a
-graphics window is in history mode, it's plot will not be
+graphics window is in history mode, its plot will not be
 updated as new real-time data arrives.  When a graphics
 window is waiting on the arrival of new data and updating
 itself as the data arrives, the graphics window is in
 'real-time mode'.  In post-processing applications, only
 history mode will be meaningful.
 
-Zeb indicates that a history time has been set (i.e. the
+Zeb indicates that a history time has been set (i.e., the
 graphics window is in history mode) by changing the color
 of the date and time in the graphics window to yellow. 
 However, it is important to realize that the time the
@@ -725,7 +707,7 @@ configurations and modifying pre-defined configurations.
 
 
 editdconfig  Editing Display Configurations
-6745
+5065
 
 / EDITING DISPLAY CONFIGURATIONS /
 
@@ -740,8 +722,8 @@ setting the display configuration.
 
 Next, popup the "Configuration Editing" widget from the
 <Zeb> icon menu on the Icon Bar.  A widget will appear
-containing six buttons.  The <Cancel> button, as always,
-removes the widget from the screen.  All of the
+containing six buttons.  The <Zap> button, as always,
+removes the widget from the screen.  All of the subsequent
 configuration pop-up widgets will have a <Cancel> button;
 press this button to remove the widget without performing
 any actions.  The <Help> button pops up this help topic. 
@@ -782,46 +764,14 @@ window to the current display configuration.  Several
 parameters may be set through this widget.  The "New window
 name:" field will be the name of the new window.  This name
 must be unique among the other windows in the
-configuration.  The window must also be assigned a plot
-description.  The plot description name can be typed
-directly, inside the "Plot description:" text window, or it
-can be chosen from the pull-down menu under the <Select
-Plot Description> button.  The window also needs a button
-map, specified in the "Button map:" text window or through
-the pull-down menu <Select Button Map>.  The default plot
-description is "template", while the default button map is
-"default".  For horizontal plots, the "big" button map is
-the most commonly used map.  The choice of plot description
-will depend principally on the type of plot desired, such
-as "Mesonet" for a horizontal plot with surface data,
-"Skew-t" for a skew-t plot, "Time Series" for a time-series
-plot, or "Cross-Sect" for a cross-section plot.  Once the
-new window is created with the basic plot type configured,
-new combinations of platforms and overlays can be
-configured through the normal icon menus.  
-
-The last parameter for the new window is "PD Force?"   This
-parameter can be toggled between "yes" and "no".  If "yes",
-a new plot description will always be forced onto the
-window, even if the window already exists.  Otherwise a
-window which already exists will keep its current plot
-description.
-
-Display configurations typically share window names so that
-new windows need not be created for every configuration
-change.  For example, the "Radar" configuration uses four
-windows named "UpperLeft", "UpperRight", "LowerLeft", and
-"LowerRight".  In the "Radar" configuration, the window
-"UpperLeft" is a skew-t plot, whereas in the "Surface Data"
-configuration, "UpperLeft" is a horizontal plot.  Another
-possible naming scheme, however, might include a window
-named "CrossSection" which is present in most display
-configurations and is always a cross-section plot.  Hence
-the necessity of the "Force PD" parameter.  When changing
-to a configuration which uses a window whose name is used
-in the present configuration, the new plot description must
-replace the current one in order for the correct plot-type
-and platform overlays to be installed in the window.
+configuration.  The window must also be assigned a window
+type.  The default window type is "Constant altitude" and
+is displayed in the text window to the right of type.
+To change the default type, click and hold down the left
+mouse button in the window currently labeled "Constant
+altitude".  A menu of possible window types is displayed.
+Move the cursor until the desired type is highlighted
+and release the mouse button to select.
 
 Once all of the parameters have been set as desired, press
 the <Create Window> button to actually create the new
@@ -957,7 +907,7 @@ To delete the selected files, click on <Execute deletions>.
 
 
 printer      Printing Hardcopies of Windows
-6196
+6071
 
 / THE HARDCOPY WIDGET /
 
@@ -1100,9 +1050,6 @@ To add a date, time, border, and title, try
 
 	setenv ZEB_XWD2PS_PATH 'xwd2ps -d -t -b -s "title"'
 
-See the xwd2ps man(1) page included in the distribution,
-"doc/man/xwd2ps.man", for more information on command-line
-options.
 
 The 'xwd2ps' program is included in the STORM-FEST CD
 distribution, so the default path should be correct and
@@ -1117,12 +1064,12 @@ freely distributed software.  See the copyright notices in
 the xwd2ps man(1) page in the directory doc/man in the
 distribution.  
 documentationA Guide to Zeb Documentation
-2311
+1590
 
 / A GUIDE TO ZEB DOCUMENTATION /
 
 The Zeb documentation is contained in the "doc" directory
-under top Zeb directory.  For the STORM-FEST CDROM
+under the top Zeb directory.  For the STORM-FEST MODEL CDROM
 distribution, if the CD is mounted on /cd, the document
 directory will be /cd/doc.  This directory contains some
 notable documents specific to the CD distribution.  All
@@ -1130,53 +1077,32 @@ significant documentation can be printed from the sub-menus
 under the Icon Bar <Help> menu.  Select the menu entry
 corresponding to the documentation which you wish to get in
 hardcopy form.  The document will be sent to the default
-printer (or the printer named by the PRINTER environment
-variable).  The destination printer must have PostScript
-capability.
+printer (or the printer named by the PRINTER or LPDEST
+environment variable).  The destination printer must have
+PostScript capability.
 
-The "Running Zeb" document can be found in the PostScript
-file "CD/doc/zeb/zeb.startup.doc.ps".  This document
-provides an overview and several examples of the basic
-operation of Zeb and its use with the StormFEST CD data. 
-The "doc/zeb" directory also contains a general user's
-manual.  This document is not necessarily required for
-using the CD, and in fact it contains no CD-specific
-information.  It is just a general introduction to Zeb
-which may cover more issues, if only in less detail, than
-"Running Zeb".
+A brief overview of Zeb is contained in the "Zeb Overview"
+document and is stored on the CD as "CD/doc/overview.ps".  
 
-The "data" directory under the "doc" directory (in the
-above example it would be /cd/doc/data) contains PostScript
-files about the platforms and data supplied on the
-STORM-FEST compact discs.
+The "Running Zeb" document ("CD/doc/overview.ps") provides
+a description and several examples of the basic
+operation of Zeb and its use with the StormFEST CD data.
 
-File name:              Platforms covered:
+"Installing Zeb from CD-ROM" ("CD/doc/installcd.ps")
+contains directions for installing Zeb to local disk and
+explains why you should consider installing Zeb to disk.
 
-Cp4.ps                  cp4
-Satellite.ps            goes_us, goes_fest
-Nowrad.ps               nowrad, nowrad_f
-Storm1_N2UW.ps          storm1
-Storm2_N312D.ps         storm2
-P3.ps                   p3
-Storm4_C131.ps          storm4
-Profilers.ps            All platforms beginning with prof_
-Surface.ps              surface_5min, surface_hourly,
-Sounding.ps             All platforms whose names are four
-			characters begining with an s.
-fest_sites_hourly	Listing of the hourly surface
-			stations, their Zeb IDs, cities,
-			states, and coordinates.
-aster/			directory of ASTER documentation
+The "Advanced User Manual" ("CD/doc/AdvUsers.ps") is not
+necessarily required for using the CD, but it covers
+in depth the structure of the Zeb system and how to 
+configure it for specific uses.
 
-The "fest_sites_hourly" listing can also be viewed through
-the Zeb Help facility by choosing the "Surface Stations
-Listing" entry from the <Help> menu on the Icon Bar.  For
-information on the structure of the CD data directories,
-see the file "FileStructure.ps" in the "data/doc"
-directory.
-
-
-graphicswins /////  Graphics Windows
+The new Model Widget is described in the "Model Data
+in Zeb" ("CD/doc/ModelData.ps").  Directions for displaying
+observational and model data together can be printed from
+the "Displaying Observational & Model Data" entry
+("CD/doc/ObsAndModel.ps").
+ graphicswins /////  Graphics Windows
 475
 
 The following topics describe different aspects of using and
@@ -1315,7 +1241,7 @@ the STORM-FEST domain:
 	Center Button	Central and Midwest U.S.
 	Right Arrow	CP4 Radar domain
 movies       Running Movies
-3858
+3857
 
 / SETTING THE MOVIE PARAMETERS /
 
@@ -1405,7 +1331,6 @@ The movie controller window can be removed by pressing the
 <Dismiss> button at the right end of the row of buttons. 
 Removing the movie controller leaves the graphics window in
 the mode and time last set by the movie controller.
-
 zooming      Zooming a Graphics Window
 1338
 
@@ -1577,7 +1502,7 @@ specified in kilometers from the plot's lat/lon origin.
 ___________________________________________________________
 
 overlaytimes Finding the Times for Data in a Plot
-1731
+1730
 
 / THE OVERLAY TIMES WIDGET /
 
@@ -1616,6 +1541,79 @@ forward through frames and while running a movie.
 
 To remove the Overlay Times Widget, click on the <Dismiss>
 button at the top of the widget.
+
+ModelData   The Model Data Widget
+2854
+
+/ MODEL DATA WIDGET /
+
+Displaying model data in Zeb entails additional complexity 
+in describing exactly what to plot.  Control of these model-
+specific characteristics of a plot can be handled using 
+a graphics process' model data widget, which is generally 
+brought to the screen by selecting a "Pop up model widget" 
+entry from a menu attached to any model data icon.  
+
+/ DESCRIPTION OF THE MODEL WIDGET /
+
+Model data are distinguished in having two associated
+times: an issue time and a valid time.  In order to
+uniquely identify a given forecast from a model run, both
+of these times must be specified.  The main purpose of the
+model widget is to provide an easy means for changing both
+issue and valid time and for time animation through
+different valid times.  
+
+/ MODEL DATA TIMES /
+
+At the top of the model widget is a text area displaying
+the issue time currently being used.  The text can be
+edited to change the issue time; the new time being applied
+to the plot by pressing the adjacent [Apply] button on the
+widget.
+
+Following the issue time is a series of buttons showing the
+valid time offsets available from one or more of the 
+currently displayed model datasets.  Any one of these 
+buttons may be selected to immediately display the 
+associated valid time offset in the plot.  Below each
+of the valid time buttons is a toggle button showing 
+whether the given valid time will be included if a time
+animation loop is generated (see below).  If the button
+is black the valid time will be included, otherwise it will
+be left out of a loop.  The "include" state of each of
+the times can toggled by simply pressing the toggle button.
+At the right end of the toggle buttons is a master toggle
+which will switch between including all times and including
+none.
+
+/ TIME ANIMATION /
+
+A time animation through the valid times can be started by
+pressing the [Start Loop] button.  This will generate a
+plot for each of the currently included valid times and
+then will loop through the images.  The speed of the
+running animation can be set in the Frames/Second text
+area.  The animation will continue until the [Stop Loop]
+button is pressed.  When the loop is stopped, the [< >]
+button can be used to step forward and backward through the
+animation a frame at a time.  Click with the left mouse
+button to move backward and with the right button to move
+forward.
+
+/ TIME MATCHING FOR MODEL AND NON-MODEL DATA /
+
+Finally, the model widget can be used to select how model
+data times will be matched with non-model data times in the 
+plot.  Other data can be matched to either the issue time
+or the valid time of model data.  This selection can be
+made using the [valid] and [issue] buttons in the model 
+widget.
+
+/ QUITTING THE MODEL WIDGET /
+
+When the model widget is no longer needed, it can be removed
+from the screen using the [Dismiss] button.
 
 CAP          /////  Horizontal Plots
 1155
@@ -2462,4 +2460,5 @@ coordinates, and cities---in a help window, press <List
 Sounding Sites>.  When finished with the "Sounding Sites"
 widget, press <Dismiss> to remove the window from the
 screen.
+
 

@@ -25,23 +25,65 @@ extern "C"
 };
 # include <stream.h>
 # include <stdio.h>
+# include <string.h>
 # include <String.h>
 # include "STable.h"
 # include "Index.h"
 # include "ZTime.h"
 
-MAKE_RCSID ("$Id: Index.cc,v 1.4 1993-10-27 16:57:25 corbet Exp $");
+MAKE_RCSID ("$Id: Index.cc,v 1.5 1994-11-19 00:30:56 burghart Exp $");
+
+//
+// Internal structures
+//
+class DirList
+{
+public:
+	inline DirList (void) { count = 0; files = NULL; }
+	inline DirList (IndexFile *file)
+	{ 
+		count = 1;
+		files = new IndexFile * [1];
+		files[0] = file;
+	}
+	~DirList (void) 
+	{ 
+		if (files)
+			delete[] files;
+	}
+	void add (IndexFile *file);
+	inline IndexFile *nth (int n) { return files[n]; }
+	inline int ndirs (void) { return count; }
+private:
+	int count;
+	IndexFile **files;
+};
+	
 
 //
 // Forwards.
 //
 static int ZapPlat (const char *name, int type, const SValue *v, long junk);
+static int ZapDirList (const char *name, int type, const SValue *v, long junk);
 static int WritePlat (const char *name, int type, const SValue *v, long lfp);
 
 //
 // Platform index symbol table number.
 //
 int PlatformIndex::TNum = 0;
+
+void
+DirList::add (IndexFile *file)
+{
+	IndexFile **newfiles = new IndexFile * [count + 1];
+	if (count)
+	{
+		memcpy (newfiles, files, count * sizeof(IndexFile *));
+		delete[] files;
+	}
+	files = newfiles;
+	files[count++] = file;
+}
 
 //
 // IndexFile routines.
@@ -54,6 +96,7 @@ IndexFile::IndexFile (const char *plat, const char *name, int size, int fileno,
 //
 {
 	if_next = 0;			// No chain yet
+	if_same = 0;
 	if_name = new char[strlen (name) + 1];
 	strcpy (if_name, name);
 	if_plat = new char[strlen (plat) + 1];
@@ -80,6 +123,7 @@ IndexFile::IndexFile (const IndexFile &old)
 	if_plat = new char[strlen (old.if_plat) + 1];
 	strcpy (if_plat, old.if_plat);
 	if_next = 0;		// Must find its own chain
+	if_same = 0;
 }
 
 
@@ -94,8 +138,10 @@ PlatformIndex::PlatformIndex ()
 {
 	char tname[30];
 	
-	sprintf (tname, "PlatformIndex-%d", TNum++);
+	sprintf (tname, "PlatformIndex-%d", TNum);
 	table.init (tname);
+	sprintf (tname, "PlatformIndexDirs-%d", TNum++);
+	dirs.init (tname);
 }
 
 
@@ -145,7 +191,6 @@ PlatformIndex::add (const char *plat, IndexFile &file)
 		pi->pi_marked = 0;
 		pi->pi_files = 0;
 		table.set (plat, (void *) pi);
-		//!! return;
 	}
 //
 // Before adding to the list, see if we have expanded the time bounds.
@@ -157,28 +202,162 @@ PlatformIndex::add (const char *plat, IndexFile &file)
 //
 // See if the easy case is true, and we can prepend this file to the list.
 //
+	int placed = 0;
 	if (! pi->pi_files || fend <= pi->pi_files->begin())
 	{
 		file.link (*pi->pi_files);
 		pi->pi_files = &file;
-		return;
+		placed = 1;
 	}
 //
-// Nope, we need to go through the chain.
+// We need to go through the chain if the file wasn't prepended above
 //
 	IndexFile *chain;
-	for (chain = pi->pi_files; chain->next (); chain = chain->next ())
+	for (chain = pi->pi_files; !placed && chain->next (); 
+	     chain = chain->next ())
+	{
 		if (fend < chain->next ()->begin ())
 		{
-			file.link (*(chain->next ()));
-			chain->link (file);
+		//
+		// Avoid overlapping files
+		//
+			if (chain->end() < file.begin())
+			{
+				file.link (*(chain->next ()));
+				chain->link (file);
+				placed = 1;
+			}
 			break;
 		}
+	}
 //
-// If nothing, then it goes on the end.
+// If we're at the end at it's not added yet, then try the end.
 //
-	if (! chain->next ())
+	if (!placed && !chain->next() && (chain->end() < file.begin()))
+	{
 		chain->link (file);
+		placed = 1;
+	}
+//
+// If it was added, check for other entries in the index for the same file.
+//
+	if (placed)
+		FindDuplicates (file);
+//
+// If it still isn't placed, then it must overlap somewhere
+//
+#ifdef DEBUG
+	else
+	{
+		printf ("%s overlaps %s\n", file.name(),
+			chain->name());
+	}
+#endif
+}
+
+
+
+
+void
+PlatformIndex::FindDuplicates (IndexFile &file)
+//
+// Check for other references to this same file in other platforms
+//
+{
+	char *slash;
+	char *dir;
+	//
+	// Extract the directory of this file and see if any other
+	// files have been put in this directory.  If a platform 
+	// other than the current one has used this directory,
+	// check that platform's files for duplicates.
+	//
+	dir = new char[strlen(file.name()) + 1];
+	strcpy (dir, file.name());
+	if (slash = strrchr (dir, '/'))
+		*slash = '\0';
+	else
+	{
+		delete[] dir;
+		return;
+	}
+	void *vptr;
+	DirList *samedirs;
+	if (! dirs.get (dir, vptr))
+	{
+		samedirs = new DirList(&file);
+		dirs.set (dir, (void *)samedirs);
+	}
+	else
+	{
+		int i;
+		int platfound = 0;
+		samedirs = (DirList *) vptr;
+		for (i = 0; i < samedirs->ndirs(); ++i)
+		{
+			const char *plat = samedirs->nth(i)->plat();
+			//
+			// Compare this file with each of the files in each
+			// of the platforms represented in this list.  Returns
+			// true when a duplicate is found and the search
+			// can be ended.
+			//
+			if (!strcmp (plat, file.plat()))
+				platfound = 1;
+			else if (SameFile (plat, &file))
+				break;
+		}
+		if (!platfound)
+			samedirs->add (&file);
+	}
+	delete[] dir;
+}
+
+
+
+
+int
+PlatformIndex::SameFile (const char *name, IndexFile *file)
+//
+// Check the platform for and files with the same path.  Return
+// true if a duplicate is found.
+//
+{
+	PlatInfo *pi = (PlatInfo *) findPlat (name);
+
+	IndexFile *chain = pi->pi_files;
+	while (chain)
+	{
+		if (chain != file && 
+		    (strcmp (chain->name(), file->name()) == 0))
+		{
+#ifdef DEBUG
+			printf("duplicate entry for %s between "
+			       "platforms %s and %s\n", chain->name(),
+			       chain->plat(), file->plat());
+#endif
+			break;
+		}
+		chain = chain->next();
+	}
+//
+// If we didn't find a match, keep looking
+//
+	if (! chain)
+		return (FALSE);
+//
+// Otherwise add this file to the duplicate chain
+//
+	IndexFile *next = chain->same();
+	chain->dup (*file);
+	if (next)
+		file->dup (*next);
+	else
+		file->dup (*chain);
+//
+// The search ends here
+//
+	return (TRUE);
 }
 
 
@@ -207,6 +386,7 @@ PlatformIndex::~PlatformIndex ()
 //
 {
 	table.traverse (ZapPlat, 0);
+	dirs.traverse (ZapDirList, 0);
 }
 
 
@@ -231,6 +411,20 @@ ZapPlat (const char *name, int type, const SValue *v, long junk)
 // Now just the platinfo and we're done.
 //
 	delete (pi);
+	return (TRUE);
+}
+
+
+
+
+static int
+ZapDirList (const char *name, int type, const SValue *v, long junk)
+//
+// Get rid of a DirList
+//
+{
+	DirList *dl = (DirList *) v->us_v_ptr;
+	delete dl;
 	return (TRUE);
 }
 
@@ -303,6 +497,8 @@ PlatformIndex::PlatformIndex (const char *fname)
 // Make our symbol table.
 //
 	table.init (fname);
+	sprintf (file, "%s-dirs", fname);
+	dirs.init (file);
 //
 // Try to open the file.
 //

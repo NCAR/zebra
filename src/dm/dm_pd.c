@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: dm_pd.c,v 2.4 1993-10-21 20:10:05 corbet Exp $";
+static char *rcsid = "$Id: dm_pd.c,v 2.5 1994-11-19 00:28:45 burghart Exp $";
 /*
  * Plot description related routines.
  */
@@ -20,7 +20,9 @@ static char *rcsid = "$Id: dm_pd.c,v 2.4 1993-10-21 20:10:05 corbet Exp $";
  * maintenance or updates for its software.
  */
 # include <stdio.h>
+# include <string.h>
 # include <sys/types.h>
+# include <sys/stat.h>
 # include <sys/param.h>
 # include <sys/file.h>
 # include <fcntl.h>
@@ -81,6 +83,67 @@ char *file, *name;
  */
 {
 	pda_StorePD (pdread (file), name);
+}
+
+
+
+void
+pdwrite (pd, path)
+plot_description pd;
+char *path;
+{
+	raw_plot_description *rpd;
+	FILE *out = NULL;
+	char *line, *next;
+	struct stat buf;
+	char filename[512];
+	char pdname[128];
+
+	if (path)
+	{
+		/*
+		 * If the filename parameter is actually a directory, create 
+		 * the filename ourselves in the specified directory.
+		 */
+		if (stat (path, &buf) == 0 && S_ISDIR(buf.st_mode))
+		{
+			if (! pd_Retrieve (pd, "global", "pd-name", 
+					   pdname, SYMT_STRING))
+			{
+				ui_error ("pdwrite: pd has no name");
+				return;
+			}
+			sprintf (filename, "%s/%s.pd", path, pdname);
+		}
+		else
+		{
+			strcpy (filename, path);
+		}
+		out = fopen (filename, "w");
+		if (! out)
+		{
+			ui_error ("%s: could not open file %s",
+				  "pdwrite", filename);
+			return;
+		}
+	}
+	/*
+	 * Print a line at a time else ui_printf() chokes.
+	 */
+	rpd = pd_Unload (pd);
+	for (line = rpd->rp_data; line != NULL; line = next)
+	{
+		next = strchr (line, '\n');
+		if (next)
+			*next++ = '\0';
+		if (out)
+			fprintf (out, "%s\n", line);
+		else
+			ui_printf ("%s\n", line);
+	}
+	pd_RPDRelease (rpd);
+	if (out)
+		fclose (out);
 }
 
 

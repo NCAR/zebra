@@ -28,7 +28,7 @@
 #include "dfa.h"
 
 #ifndef lint
-MAKE_RCSID ("$Id: Appl.c,v 3.35 1994-10-11 16:24:24 corbet Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.36 1994-11-19 00:29:21 burghart Exp $")
 #endif
 
 /*
@@ -198,6 +198,11 @@ char *name;
 	if (usy_g_symbol (Pf_Names, name, &type, &v))
 		return (v.us_v_int);
 /*
+ * It can't be a valid platform if the name won't fit into the request.
+ */
+	if (strlen(name) >= sizeof(req.dsp_name))
+		return (BadPlatform);
+/*
  * Otherwise we need to ask mom.
  */
 	req.dsp_type = dpt_LookupPlatform;
@@ -267,7 +272,7 @@ bool sendplats;	/* True if we want to receive platform structures as well */
 	search.dsp_subplats = subs;
 	search.dsp_parent = BadPlatform;
 	search.dsp_children = FALSE;
-	if (regexp)
+	if (regexp && (strlen(regexp) < sizeof(search.dsp_regexp)))
 		strcpy(search.dsp_regexp, regexp);
 	else
 		search.dsp_regexp[0] = '\0';

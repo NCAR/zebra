@@ -1,4 +1,4 @@
-! $Id: EventLogger.ad,v 1.6 1994-06-29 15:09:00 case Exp $
+! $Id: EventLogger.ad,v 1.7 1994-11-19 00:27:55 burghart Exp $
 !
 ! Application defaults file for the EventLogger
 ! DO NOT MODIFY this file if this is the library installed copy!!!
@@ -8,7 +8,7 @@
 *text.width:		600
 *text.height:		175
 *allowShellResize:	True
-*resizable:		True
+*resizable:		False
 *borderWidth: 1
 *Toggle*font:	-*-helvetica-medium-r-*-*-*-120-*-*-*-*-*-*
 *Command*font:	-*-helvetica-medium-r-*-*-*-120-*-*-*-*-*-*
@@ -20,7 +20,6 @@
 *text*bottom:		chainBottom
 *text*horizDistance:	3
 *text*vertDistance:	3
-*text.resizable:	false
 *foreground:		MidnightBlue
 *background:		gray90
 *Form.background:	cadet blue

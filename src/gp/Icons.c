@@ -1,7 +1,7 @@
 /*
  * Deal with the icons on the bottom of the window.
  */
-static char *rcsid = "$Id: Icons.c,v 2.23 1994-10-11 16:26:17 corbet Exp $";
+static char *rcsid = "$Id: Icons.c,v 2.24 1994-11-19 00:34:59 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -307,7 +307,8 @@ I_DoIcons ()
 {
 	int xpos = 5, comp;
 	int fg, bg;
-	char **comps = pd_CompList (Pd), platform[500], *qual = NULL;
+	char **comps = pd_CompList (Pd), *qual = NULL;
+	char platform[PlatformListLen];
 	bool disable = FALSE;
 	Pixmap icon;
 	struct IconList *ilp;
@@ -378,7 +379,8 @@ int *fg, *bg, disable;
  * Try to get the icon for this component.
  */
 {
-	char platform[500], iname[40], color[40]; 
+	char platform[PlatformListLen];
+	char iname[40], color[40]; 
 	XColor xc;
 	int xh, yh, w, h;
 /*
@@ -669,8 +671,8 @@ Cardinal *cardjunk;
 /*
  * We have to explicitly call the actions from here since attempting to
  * popup the menu is conditional on whether a menu was found for this
- * menu for the particular button.  Hence the actions cannot be 
- * unconditionally called via the <BtnDn> translation.
+ * particular button.  Hence the actions cannot be unconditionally called
+ * via the <BtnDn> translation.
  */
 	XtCallActionProc (w, "PositionAndPopupRdssMenu", ev, &menu, 1);
 
@@ -679,6 +681,69 @@ Cardinal *cardjunk;
 	XtCallActionProc (w, "MenuPopup", ev, &menu, 1);
 #endif
 }
+
+
+
+void
+I_RepositionMenu (w)
+Widget w;
+/*
+ * Get the current size and location of the popup shell widget and make
+ * sure the entire widget appears on the screen (or as much as possible
+ * anyway).  Since we could have already been moved based on an old size,
+ * we have to start all over with positioning the menu based on the
+ * pointer location.  This is a utility function called by popup callbacks
+ * for menus like FieldMenu and DataMenu.  
+ *
+ * This fixes the old bug of FieldMenus not popping up completely on the
+ * screen the first time. This could also be done by calling the popup
+ * callbacks before calling the popup-and-position action in I_MenuPopup(),
+ * so that the menu shell figures its new size before getting positioned.
+ * That approach might produce less flashing on the screen when the window
+ * resizes before realizing the shell.  However, using this function allows
+ * the FieldMenu and DataMenu source to be more self-contained and generic.
+ */
+{
+	int root_x, root_y, win_x, win_y;
+	Window root, child;
+	unsigned int mask;
+	Position x, y;
+	Dimension width, height, sw, sh;
+	Dimension border;
+	Arg args[10];
+	Cardinal n;
+
+	XQueryPointer (XtDisplay(w), XtWindow(w), &root, &child,
+		       &root_x, &root_y, &win_x, &win_y, &mask);
+	/*
+	 * Default to popping up with pointer over top left corner
+	 */
+	x = root_x - 5;
+	y = root_y - 5;
+
+	n = 0;
+	XtSetArg (args[n], XtNwidth, &width); ++n;
+	XtSetArg (args[n], XtNheight, &height); ++n;
+	XtSetArg (args[n], XtNborderWidth, &border); ++n;
+	XtGetValues (w, args, n);
+
+	sw = WidthOfScreen (XtScreen(w));
+	sh = HeightOfScreen (XtScreen(w));
+	if (x - 5 + width + 2*border > sw)
+		x -= width + 2*border;
+	if (y - 5 + height + 2*border > sh)
+		y = sh - height - 2*border;
+
+	/*
+	 * Send the widget its new location.  If it hasn't changed,
+	 * it will ignore this.
+	 */
+	n = 0;
+	XtSetArg (args[n], XtNx, x); ++n;
+	XtSetArg (args[n], XtNy, y); ++n;
+	XtSetValues (w, args, n);
+}
+
 
 
 void
@@ -691,7 +756,8 @@ char *colorcomp;
         int fg, bg, seconds, ntime, update;
 	bool disable;
 	ZebTime timenow, datatime;
-        char comp[40], platform[500], repr[40];
+        char comp[40], repr[40];
+	char platform[PlatformListLen];
 	char agelimit[40], color[40];
 	PlatformId pid;
 	Arg args[2];
@@ -762,7 +828,7 @@ char *colorcomp;
 		/*
 		 * Plot time
 		 */
-			if ((pid = ds_LookupPlatform (platform)) == BadPlatform)
+			if ((pid = ds_LookupPlatform(platform)) == BadPlatform)
 			{
 				ilp = ilp->il_next;
 				continue;	

@@ -36,7 +36,7 @@
 # include <DataStore.h>
 # include <ui_date.h>
 # include "GraphProc.h"
-MAKE_RCSID ("$Id: FieldMenu.c,v 2.11 1994-09-15 21:50:07 corbet Exp $")
+MAKE_RCSID ("$Id: FieldMenu.c,v 2.12 1994-11-19 00:34:44 burghart Exp $")
 
 
 /*
@@ -44,7 +44,7 @@ MAKE_RCSID ("$Id: FieldMenu.c,v 2.11 1994-09-15 21:50:07 corbet Exp $")
  */
 # define MAXENTRY 100
 static Widget Menu, Entries[MAXENTRY];
-static char Platform[40];	/* Platform of interest	*/
+static char Platform[PlatformListLen];	/* Platform of interest	*/
 static FieldId Fields[MAXENTRY];
 static int NManaged, NField, NExtra;
 static char Extras[256], *PExtras[20];
@@ -152,14 +152,16 @@ XtPointer xwhich, junk;
 
 
 
-
-
 static void
 PopupCallback (w, junk, junk1)
 Widget w;
 XtPointer junk, junk1;
 /*
- * We're being popped up.  Set the entries accordingly.
+ * We're being popped up.  Set the entries accordingly.  At the time the
+ * callback is called, the popup-shell window has been sized, located, and
+ * mapped, but the shell widget has not been realized or raised.  Since our
+ * size will change depending upon the entries, we must re-calculate our
+ * size and location to fit on the screen.
  */
 {
 	int nentry, i, type;
@@ -248,9 +250,11 @@ XtPointer junk, junk1;
  	for (i = nentry; i < NManaged; i++)
 		XtUnmanageChild (Entries[i]);
 	NManaged = nentry;
+/*
+ * Re-position the pop-up shell now that our size is correct.
+ */
+	I_RepositionMenu (w);
 }
-
-
 
 
 

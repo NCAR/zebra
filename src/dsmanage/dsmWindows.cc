@@ -41,7 +41,7 @@ extern "C"
 }
 
 # include "dsmWindows.h"
-static char *rcsid = "$Id: dsmWindows.cc,v 1.4 1994-10-11 16:25:36 corbet Exp $";
+static char *rcsid = "$Id: dsmWindows.cc,v 1.5 1994-11-19 00:31:09 burghart Exp $";
 //
 // Forwards.
 //
@@ -135,7 +135,7 @@ static void ZapPopup (Widget, XtPointer, XtPointer);
 
 
 dsPopupWindow::dsPopupWindow (const dsDisplay &disp, char *title,
-				int zapspace) :
+			      int zapspace) :
 	dsWindow (title, disp, 0)
 //
 // Create a popup window.
@@ -232,6 +232,12 @@ DisplaySetup (int *argc, char **argv)
 }
 
 
+void
+DisplayAddInput (int fd, void (*proc)())
+{
+	Disp->addinput (fd, (XtPointer) XtInputReadMask, 
+			(XtInputCallbackProc) proc, NULL);
+}
 
 
 

@@ -50,7 +50,7 @@
 # include "PixelCoord.h"
 # include "LayoutControl.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.49 1994-10-19 21:42:14 corbet Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.50 1994-11-19 00:34:50 burghart Exp $")
 
 /*
  * Default resources.
@@ -62,7 +62,6 @@ static String Resources[] = {
 	"	*Text*font:	-*-helvetica-medium-r-*-*-*-120-*-*-*-*-*-*",
 	"	*title*font:	-*-times-bold-r-*-*-17-120-*-*-*-*-*-*",
 	"	*arrow*font:	-*-symbol-*-*-*-*-*-120-*-*-*-*-*-*",
-/*	"	*Text*height:	20", */
 	"	*title*borderWidth: 0",
 /*	"	*Command*font:	-*-times-medium-i-*-*-*-120-*-*-*-*-*-*", */
 	0,
@@ -138,6 +137,7 @@ static char RequirePath[PathLen];
 int	msg_handler (), dispatcher (), xtEvent ();
 void	SendEndpoints ();
 XtCallbackProc WMResize ();
+static void PopdownWidgets ();
 
 static void UiErrorReport (), UiPfHandler ();
 
@@ -326,6 +326,9 @@ finish_setup ()
 	Disp = XtDisplay (Top);
 	NormalCursor = XCreateFontCursor (Disp, XC_draft_small);
 	BusyCursor = XCreateFontCursor (Disp, XC_watch);
+#ifdef XDEBUG
+	XSynchronize (Disp, True);
+#endif
 /*
  * Get the require table set up just in case anybody needs it.
  */
@@ -817,6 +820,7 @@ struct dm_msg *dmsg;
 	 * Reconfigure.
 	 */
 	   case DM_RECONFIG:
+		msg_ELog (EF_DEBUG, "reconfig message received from dm");
 	   	Eq_AddEvent (PUrgent, eq_reconfig, dmsg, sizeof (*dmsg),
 			Override);
 		break;
@@ -836,6 +840,8 @@ struct dm_msg *dmsg;
 	 * Suspend.
 	 */
 	   case DM_SUSPEND:
+		msg_ELog (EF_DEBUG, "suspend message received from dm");
+		PopdownWidgets ();
 		ChangeState (DOWN);
 		pc_CancelPlot ();
 		break;
@@ -843,8 +849,10 @@ struct dm_msg *dmsg;
 	 * Load a new plot description.
 	 */
 	   case DM_PDCHANGE:
+		msg_ELog (EF_DEBUG, "new pd received from dm");
 	   	ChangePD ((struct dm_pdchange *) dmsg);
 		break;
+
 	   case DM_PARCHANGE:
 	   	ChangeParam ((struct dm_parchange *) dmsg);
 		break;
@@ -937,6 +945,14 @@ int len;
 	Dimension width, height;
 	Position x, y;
 	bool schanged, wchanged;
+
+	msg_ELog (EF_DEBUG, "reconfig routine entered from event queue");
+/*
+ * We're being told to reconfig, supposedly from a display configuration
+ * change, so pop down any existing widgets and start with a clean slate.
+ */
+	if (WindowState == UP)
+		PopdownWidgets ();
 /*
  * Figure out if anything really important has changed.
  */
@@ -1032,6 +1048,39 @@ enum wstate new;
 
 
 
+/*ARGSUSED*/
+static int
+popdown_ui_widget (symbol, type, v, junk)
+char *symbol;
+int type, junk;
+union usy_value *v;
+/*
+ * Make sure this widget is popped down.
+ */
+{
+	uw_popdown (symbol);
+	return (TRUE);
+}
+
+
+
+static void
+PopdownWidgets ()
+/*
+ * Pop down any UI widgets which are popped up by traversing the internal
+ * 'ui$widget_table' symbol table.
+ */
+{
+	stbl wtable;
+	int uw_t_popdown ();
+
+	msg_ELog (EF_DEBUG, "popping down all transient widgets");
+	wtable = usy_g_stbl ("ui$widget_table");
+	if (wtable != NULL)
+		usy_traverse (wtable, popdown_ui_widget, 0, FALSE);
+}
+
+
 
 void
 eq_sync ()
@@ -1045,7 +1094,8 @@ eq_sync ()
 
 
 
-void eq_ReturnPD ()
+void
+eq_ReturnPD ()
 /*
  * Send our PD back to the display manager -- it has changed locally.
  */
@@ -1133,9 +1183,9 @@ struct dm_pdchange *dmp;
 /*
  * Now we need to set up to display the new PD, and also to redo icons.
  */
+	Eq_AddEvent (PDisplay, DoRequires, 0, 0, Bounce);
 	Eq_AddEvent (PDisplay, pc_PlotHandler, 0, 0, Override);
 	Eq_AddEvent (PDisplay, I_DoIcons, 0, 0, Bounce);
-	Eq_AddEvent (PWhenever, DoRequires, 0, 0, Bounce);
 	pdm_ScheduleUpdate ();
 }
 
@@ -1786,6 +1836,12 @@ char *module;
 	msg_ELog (EF_INFO, "Loading module %s", module);
 	ui_perform (fname);
 	usy_s_symbol (RequireTable, module, SYMT_BOOL, &v);
+#ifdef notdef
+/*
+ * Sync any window popups which may have been performed
+ */
+	uw_sync ();
+#endif
 }
 
 
@@ -1805,6 +1861,7 @@ DoRequires ()
  * Pass through each component, including the global one, and see if there
  * is a require parameter therein.
  */
+	msg_ELog (EF_DEBUG, "checking components for module requirements");
 	for (comp = 0; comps[comp]; comp++)
 	{
 		if (! pd_Retrieve (Pd, comps[comp], "require", rqs,
@@ -1814,6 +1871,7 @@ DoRequires ()
 		     module = strtok (NULL, ", \t"))
 			Require (module);
 	}
+	msg_ELog (EF_DEBUG, "module requirements check complete");
 }
 		    
 

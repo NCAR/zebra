@@ -1,4 +1,4 @@
-! $Id: dm.state,v 1.23 1994-11-17 08:45:09 granger Exp $
+! $Id: dm.state,v 1.24 1994-11-19 00:28:32 burghart Exp $
 !
 ! Command definition for the display manager.
 !
@@ -96,6 +96,9 @@ define state dm-initial
 	input 'cfgsave' 40
 		next dm-opt-name
 	endinput
+	input 'cfgconvert' 80
+		next dm-cvt-src
+	endinput
 	input 'newconfig' 41
 		next dm-newcfg-name
 	endinput
@@ -111,20 +114,33 @@ define state dm-initial
 	input 'kill' 45
 		next ust$final_unmunged_string
 	endinput
+	input 'cycle' 46
+		next ust$no_more
+	endinput
+	input 'windowlist' 47
+		next ust$final_string
+	endinput
 	input 'showpd' 60
 		next ust$final_string
 	endinput
 	input 'pdshow' 60
 		next ust$final_string
 	endinput
-	input 'pdstore' 61
-		next dm-pd-file
-	endinput
 	input 'writepd' 61
-		next dm-pd-file
+		next dm-pd-name
 	endinput
-	input 'windowlist' 46
-		next ust$final_string
+	input 'pdstore' 62
+		next dm-pd-storename
+	endinput
+	input 'storepd' 62
+		next dm-pd-storename
+	endinput
+enddef
+
+
+define state dm-cvt-src
+	input string
+		next dm-opt-name
 	endinput
 enddef
 
@@ -291,13 +307,29 @@ enddef
 
 
 
+! A file followed by a pd name
+!
 define state dm-pd-file
 	input string
 		next ust$final_unmunged_string
 	endinput
 enddef
 
+! A pd name followed by a file
+!
+define state dm-pd-name
+	input string
+		next ust$final_unmunged_string
+	endinput
+enddef
 
+! A pd name, name to store the pd as, and the file to store to
+!
+define state dm-pd-storename
+	input string
+		next dm-pd-name
+	endinput
+enddef
 
 
 !

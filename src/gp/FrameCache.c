@@ -31,11 +31,10 @@
 # include "GraphicsW.h"
 # include "ActiveArea.h"
 
-MAKE_RCSID ("$Id: FrameCache.c,v 2.17 1994-07-07 21:39:59 corbet Exp $")
+MAKE_RCSID ("$Id: FrameCache.c,v 2.18 1994-11-19 00:34:46 burghart Exp $")
 
 # define BFLEN		500
 # define FLEN		40
-# define PLEN		1024
 # define PMODE		0666
 # define InvalidEntry	-1
 # define FREE		-2
@@ -374,8 +373,8 @@ PF_Pair	**fc_pairs;
 	int	numpairs = 0, numblocks = PAIRBLOCK;
 	int	i = 2, j;
 	int	nplats;
-	char	field[FLEN], platform[PLEN], rep[PLEN];
-	char	*pnames[PLEN];
+	char	field[FLEN], platform[PlatformListLen];
+	char	*pnames[MaxPlatforms];
 	PF_Pair	*pairs;
 /*
  * Allocate some memory.

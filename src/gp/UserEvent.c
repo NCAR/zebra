@@ -1,7 +1,7 @@
 /*
  * Deal with user-originated events.
  */
-static char *rcsid = "$Id: UserEvent.c,v 2.7 1994-06-07 22:10:59 corbet Exp $";
+static char *rcsid = "$Id: UserEvent.c,v 2.8 1994-11-19 00:35:51 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -21,10 +21,11 @@ static char *rcsid = "$Id: UserEvent.c,v 2.7 1994-06-07 22:10:59 corbet Exp $";
  */
 
 # include <X11/Intrinsic.h>
-# include "../include/defs.h"
-# include "../include/pd.h"
-# include "../include/dm.h"
-# include "../include/message.h"
+
+# include <defs.h>
+# include <pd.h>
+# include <dm.h>
+# include <message.h>
 # include "GraphProc.h"
 # include "EventQueue.h"
 # include "ActiveArea.h"

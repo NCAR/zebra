@@ -49,7 +49,7 @@ extern "C"
 # include "Index.h"
 # include "ZTime.h"
 # include "plcontainer.h"
-MAKE_RCSID ("$Id: TBCleanup.cc,v 1.3 1994-10-11 16:25:33 corbet Exp $")
+MAKE_RCSID ("$Id: TBCleanup.cc,v 1.4 1994-11-19 00:31:05 burghart Exp $")
 
 class DelSelect;
 
@@ -555,11 +555,28 @@ DelSelect::MarkPlat (const char *platform, const int state)
 	int pnf = 0, pbytes = 0;
 	for (IndexFile *file = index->files (platform); file;
 							file = file->next ())
-		if (file->isMarked ())
+	{
+		if (! file->isMarked ())
+			continue;
+	//
+	// If any duplicate entries for this file are already selected, 
+	// then we don't need to adjust the accounting.  Otherwise, this is
+	// the only file in the chain of entries whose selection state 
+	// changes, so the accounting needs to change.	
+	//
+		IndexFile *chain = file->same();
+		for ( ; chain && (chain != file); chain = chain->same())
+		{
+			if (index->isMarked (chain->plat()) &&
+			    chain->isMarked())
+				break;
+		}
+		if (! chain || (chain == file))
 		{
 			pnf++;
 			pbytes += file->size ();
 		}
+	}
 	nfile += (state ? pnf : -pnf);
 	nbyte += (state ? pbytes : -pbytes);
 	UpdFSummary ();
@@ -582,24 +599,40 @@ DelSelect::MarkFile (IndexFile *file, const int state)
 	if (state == file->isMarked ())
 		return;
 //
-// Actually mark the file, and adjust our accounting.
+// Actually mark the file and all other entries for the same file.
+// Note whether any files were already selected (i.e., in the count)
 //
+	int selected = file->isMarked() && index->isMarked(file->plat());
 	file->isMarked () = state;
-	if (index->isMarked (file->plat ()))
+	int newmark = file->isMarked() && index->isMarked(file->plat());
+	IndexFile *chain = file->same();
+	for ( ; chain && (chain != file); chain = chain->same())
 	{
-		if (state)
-		{
-			nfile++;
-			nbyte += file->size ();
-		}
-		else
-		{
-			nfile--;
-			nbyte -= file->size ();
-		}
+		selected |= (index->isMarked(chain->plat()) &&
+			     chain->isMarked());
+		chain->isMarked () = state;
+		newmark |= (index->isMarked(chain->plat()) &&
+			    chain->isMarked());
+	}
+
+	//
+	// If selecting any file where none were selected before, 
+	// add to the count.  Else if unselecting where at least one
+	// (including this file) was selected before, subtract.
+	//
+	if (state && newmark && !selected)
+	{
+		nfile++;
+		nbyte += file->size ();
 		UpdFSummary ();
 	}
-	// Now update any file chooser widgets!
+	else if (!state && selected)
+	{
+		nfile--;
+		nbyte -= file->size ();
+		UpdFSummary ();
+	}
+	// Now the caller should update any file chooser widgets!
 }
 
 
@@ -677,6 +710,7 @@ PlatformSel (Widget w, XtPointer xls, XtPointer junk)
 	XtSetArg (args[1], XtNradioData, &plat);
 	XtGetValues (w, args, 2);
 	ls->MarkPlat (plat, state);
+	SyncChoosers ();
 }
 
 
@@ -698,6 +732,7 @@ void SetToggles (Widget w, XtPointer xls, XtPointer junk)
 
 	for (plat = 0; plat < PList->ncontained (); plat++)
 		((DelSelect *) xls)->MarkPlat (PList->nth(plat).name(), True);
+	SyncChoosers ();
 }
 
 static
@@ -710,6 +745,7 @@ void ClearToggles (Widget w, XtPointer xls, XtPointer junk)
 
 	for (plat = 0; plat < PList->ncontained (); plat++)
 		((DelSelect *) xls)->MarkPlat (PList->nth(plat).name(),False);
+	SyncChoosers ();
 }
 
 
@@ -770,9 +806,43 @@ void PerformZap (Widget w, XtPointer xls, XtPointer junk)
 			if (! file->isMarked ())
 				continue;
 		//
+		// Only if the same file has not alreay been removed.
+		//
+			IndexFile *chain = file->same();
+			for ( ; chain && (chain != file); 
+			     chain = chain->same())
+			{
+			//
+			// Check for this platform among those already done
+			//
+				int done;
+				for (done = 0; done < plat; ++done)
+					if (strcmp ((PList->nth (done)).name(),
+						    chain->plat()) == 0)
+						break;
+			//
+			// If the file was removed here, don't remove it again
+			//
+				if (done < plat && chain->isMarked() && 
+				    index->isMarked (chain->plat()))
+				{
+#ifdef DEBUG
+					cout << p.name() << ": file " <<
+						file->name() << " already "
+						"removed\n";
+#endif
+					break;
+				}
+			}
+			if (chain && (chain != file))
+			{
+				ndel++;	// we still want this plat scanned
+				continue;
+			}
+		//
 		// OK, nail it.
 		//
-//			cout << "ZORCH " << file->name () << "\n";
+		//	cout << "ZORCH " << file->name () << "\n";
 			if (unlink (file->name ()))
 				perror (file->name ());
 			Main->UpdateSpace ();
@@ -1161,6 +1231,7 @@ static void
 MarkAllFiles (Widget w, XtPointer xfc, XtPointer junk)
 {
 	((VictimChooser *) xfc)->MarkAll (True);
+	SyncChoosers();
 }
 
 
@@ -1170,6 +1241,7 @@ static void
 UnmarkAllFiles (Widget w, XtPointer xfc, XtPointer junk)
 {
 	((VictimChooser *) xfc)->MarkAll (False);
+	SyncChoosers();
 }
 
 
@@ -1208,6 +1280,7 @@ SelFile (Widget w, XtPointer xfc, XtPointer junk)
 // Make sure the platform is marked.
 //
 	fc->fc_ls->MarkPlat (fc->fc_plat, True);
+	SyncChoosers();
 }
 
 

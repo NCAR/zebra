@@ -1,7 +1,7 @@
 /*
  * XY-Observation plotting module
  */
-static char *rcsid = "$Id: XYObservation.c,v 1.15 1994-10-11 16:26:37 corbet Exp $";
+static char *rcsid = "$Id: XYObservation.c,v 1.16 1994-11-19 00:36:15 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -74,9 +74,9 @@ bool	update;
 	bool	xauto, yauto, xinvert, yinvert;
 	int	plat, nplat, npts[MAX_PLAT], dmode, ob, nobs;
 	int	nxfield, nyfield, nzfield, obsStart, obsEnd, obsLen;
-	char	platforms[MAX_PLAT_LEN], *pnames[MAX_PLAT];
-	char	xflds[MAX_PLAT_LEN], yflds[MAX_PLAT_LEN], zflds[MAX_PLAT_LEN];
-	char	*xfnames[MAX_PLAT], *yfnames[MAX_PLAT], *zfnames[MAX_PLAT];
+	char	platforms[PlatformListLen], *pnames[MaxPlatforms];
+	char	xflds[FieldListLen], yflds[FieldListLen], zflds[FieldListLen];
+	char	*xfnames[MaxFields], *yfnames[MaxFields], *zfnames[MaxFields];
 	char	label[40], style[20], zJustify[10], annotcontrol[80];
 	char	xtype, ytype, ztype;
 	ZebTime	eTimeTarget, bTimeTarget, bTimeOld, eTimeOld;

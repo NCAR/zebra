@@ -43,7 +43,7 @@
 # include "DrawText.h"
 
 # ifndef lint
-MAKE_RCSID ("$Id: Track.c,v 2.31 1994-10-11 16:26:34 corbet Exp $")
+MAKE_RCSID ("$Id: Track.c,v 2.32 1994-11-19 00:35:46 burghart Exp $")
 # endif
 
 # define ARROWANG .2618 /* PI/12 */
@@ -94,7 +94,8 @@ tr_CAPTrack (comp, update)
 char *comp;
 bool update;
 {
-	char platform[30], ccfield[30], positionicon[40], param[40];
+	char platform[PlatformListLen];
+	char ccfield[30], positionicon[40], param[40];
 	char mtcolor[20], ctable[30], a_color[30];
 	char a_xfield[30], a_yfield[30], a_type[30];
 	int period, nc, lwidth, pid, index;

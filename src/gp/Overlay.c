@@ -3,7 +3,7 @@
  */
 #ifndef lint
 static char *rcsid = 
-	"$Id: Overlay.c,v 2.38 1994-11-17 07:36:57 granger Exp $";
+	"$Id: Overlay.c,v 2.39 1994-11-19 00:35:27 burghart Exp $";
 #endif
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -1092,7 +1092,9 @@ int update;
  * and use this to separate boundary data into multiple polylines.
  */
 {
-	char platform[500], label[20], *pnames[40];
+	char platform[PlatformListLen];
+	char label[20];
+	char *pnames[MaxPlatforms];
 	char iconname[40], *lat, *lon;
 	PlatformId pid;
 	int lwidth, npt, nplats, i;
@@ -1575,7 +1577,8 @@ int update;
  * Plot the location of a series of platforms.
  */
 {
-	char *plist[100], label[40], icon[40];
+	char *plist[MaxPlatforms];
+	char label[40], icon[40];
 	int nplat, plat, px, py, fg, xh, yh, width, height;
 	bool tlabel;
 	Location loc;
@@ -1713,7 +1716,7 @@ int *fg;
  * Do the setup required to plot locations.
  */
 {
-	static char platform[1000];	/* XXX */
+	static char platform[PlatformListLen];	/* XXX */
 	char color[40];
 	XColor xc;
 	XGCValues vals;
@@ -2203,13 +2206,14 @@ float aint;
 			sprintf (label, "%d", 
 				 (int)((xpos>180)?(xpos-360):(xpos)));
 			DrawText (Graphics, frame, Gcontext, xp, top + 1,
-				label, 0.0, theight,JustifyCenter, JustifyTop);
+				  label, 0.0, theight,JustifyCenter, 
+				  JustifyTop);
 			sprintf (label, "%d' %d\"", (int)(xpos*60)%60,
-					(int) (fabs(xpos)*3600)%60);
+				 (int) (fabs(xpos)*3600)%60);
 			DrawText (Graphics, frame, Gcontext, xp, 
-				(int) (top + theight * GWHeight(Graphics)),
-				 label, 0.0, theight, JustifyCenter,
-				 JustifyTop);
+				  (int) (top + theight * GWHeight(Graphics)),
+				  label, 0.0, theight, JustifyCenter,
+				  JustifyTop);
 			yp = top - 1;
 		}
 		XDrawLine (Disp, frame, Gcontext, 

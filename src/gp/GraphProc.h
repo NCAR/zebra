@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.42 1994-10-12 22:58:06 corbet Exp $ */
+/* $Id: GraphProc.h,v 2.43 1994-11-19 00:34:55 burghart Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -27,6 +27,22 @@
 #include <DataStore.h>
 
 #define PathLen CFG_FILEPATH_LEN
+
+/*
+ * Specify the space required for a list of platforms.  If we figure platform
+ * names to need about 8 characters on average, 128*8 gives us 1024 bytes,
+ * which should (we've said that before) be enough for ANY platform list.
+ * Use this definition for any string which will receive a 'platform'
+ * parameter value.
+ */
+#define MaxPlatforms		(128)	/* station lists with short names */
+#define PlatformListLen		(MaxPlatforms * 8)
+
+/*
+ * Something similar for field lists, used primarily by XY graphs
+ */
+#define MaxFields		(16)
+#define FieldListLen		(MaxFields * 8)
 
 /*
  * This flag is set when something happens which should abort an ongoing
@@ -300,6 +316,7 @@ extern void GetWindData FP ((FieldId *, float *, float *, double));
 	extern void draw_vector FP ((Display *, Drawable, GC, int, int,
 		double, double, double));
 	extern Pixmap I_GetPMap FP ((char *, int *, int *, int *, int *));
+	extern void I_RepositionMenu FP ((Widget w));
 
 	void RasterPlot FP ((Widget w, Drawable d, float *array, 
 		     int xdim, int ydim,

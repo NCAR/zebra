@@ -39,7 +39,7 @@
 # include "dsDaemon.h"
 # include "commands.h"
 
-MAKE_RCSID ("$Id: Daemon.c,v 3.43 1994-11-17 09:00:46 granger Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.44 1994-11-19 00:29:35 burghart Exp $")
 
 
 /*
@@ -1334,13 +1334,10 @@ struct dsp_PlatformSearch *req;
  * Create space for all possible matches, but we'll send only as many as we
  * fill.
  */
-	if (NPlatform > 1)
-		answer = (struct dsp_PlatformList *) 
-			malloc (sizeof(struct dsp_PlatformList) + 
-				(sizeof(PlatformId) * (NPlatform - 1)));
-	else
-		answer = (struct dsp_PlatformList *) 
-			malloc (sizeof(struct dsp_PlatformList));
+	len = sizeof(struct dsp_PlatformList);
+	len += (NPlatform <= 1) ? (0) : 
+		(sizeof(PlatformId) * (NPlatform - 1)); 
+	answer = (struct dsp_PlatformList *) malloc (len);
 	answer->dsp_type = dpt_R_PlatformSearch;
 	answer->dsp_npids = 0;
 /*
@@ -1372,10 +1369,10 @@ struct dsp_PlatformSearch *req;
 /*
  * The response has been filled or left empty.  Send it off.
  */
-	msg_send (to, MT_DATASTORE, FALSE, answer, 
-		  sizeof (struct dsp_PlatformList) + 
-		  (((answer->dsp_npids == 0)?(0):
-		    (answer->dsp_npids - 1)) * sizeof(PlatformId)));
+	len = sizeof (struct dsp_PlatformList);
+	len += (answer->dsp_npids <= 1) ? (0) :
+		(answer->dsp_npids - 1) * sizeof(PlatformId);
+	msg_send (to, MT_DATASTORE, FALSE, answer, len);
 	free (answer);
 }
 
@@ -1679,37 +1676,60 @@ FindDF (who, req)
 char *who;
 struct dsp_FindDF *req;
 /*
- * Find a data file entry based on time.
+ * Find a data file entry based on time.  Find the closest of the files
+ * containing or preceding the time among the specified sources.
  */
 {
-	int dfe = 0;
+	int dfe, dfmatch;
 	struct dsp_R_DFI answer;
 /*
  * Search the platform's local list first.
  */
+	dfmatch = 0;
 	if (req->dsp_src <= 0)
 	{
 		for (dfe = pi_LocalData (PTable + req->dsp_pid); dfe;
-					dfe = DFTable[dfe].df_FLink)
+		     dfe = DFTable[dfe].df_FLink)
+		{
 			if (TC_LessEq (DFTable[dfe].df_begin, req->dsp_when))
 				break;
+		}
+		dfmatch = dfe;
 	}
 /*
- * If we didn't find the data locally, see if there's anything in the
+ * If we didn't find a perfect match locally, see if there's anything in the
  * remote data table.
  */
-	if (! dfe && (req->dsp_src == 1 || req->dsp_src == SRC_ALL))
+	if ((! dfmatch || TC_Less (DFTable[dfmatch].df_end, req->dsp_when))
+	    && (req->dsp_src == 1 || req->dsp_src == SRC_ALL))
 	{
 		for (dfe = pi_RemoteData (PTable + req->dsp_pid); dfe;
-				dfe = DFTable[dfe].df_FLink)
+		     dfe = DFTable[dfe].df_FLink)
+		{
 			if (TC_LessEq (DFTable[dfe].df_begin, req->dsp_when))
+			{
+			/*
+			 * If we have a local candidate, but this file ends
+			 * later than the local one (it either contains the
+			 * time or is closer to it), then use it.  If its
+			 * end is less than the local, then it can't possibly
+			 * contain the time and the local is closer.
+			 */
+				if ((! dfmatch) ||
+				    TC_Less (DFTable[dfmatch].df_end, 
+					     DFTable[dfe].df_end))
+				{
+					dfmatch = dfe;
+				}
 				break;
+			}
+		}
 	}
 /*
  * Now return our answer.
  */
 	answer.dsp_type = dpt_R_DFIndex;
-	answer.dsp_index = (dfe) ? dfe : -1;
+	answer.dsp_index = (dfmatch) ? dfmatch : -1;
 	msg_send (who, MT_DATASTORE, FALSE, &answer, sizeof (answer));
 }
 

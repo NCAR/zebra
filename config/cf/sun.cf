@@ -24,7 +24,7 @@ XCOMM operating system:  OSName
 #define CppCmd /usr/ccs/lib/cpp
 
 #define SystemV4                YES
-#define ExtraLibraries          -lsocket -lnsl
+#define ExtraLibraries		-lsocket -lnsl -ldl
 #define XsunServer	  	YES	/* has color and mono support */
 #define XsunMonoServer	  	YES	/* monochrome only */
 #define BuildPexExt	  	XsunServer

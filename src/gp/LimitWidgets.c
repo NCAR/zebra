@@ -1,7 +1,7 @@
 /*
  * Widgets for changing plot limits.
  */
-static char *rcsid = "$Id: LimitWidgets.c,v 2.18 1994-10-11 16:26:20 corbet Exp $";
+static char *rcsid = "$Id: LimitWidgets.c,v 2.19 1994-11-19 00:35:12 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -1398,7 +1398,8 @@ struct ui_command	*cmds;
  * Set up the station widget.
  */
 {
-	char	platforms[40*MAXSTA], *pnames[MAXSTA];
+	char	platforms[PlatformListLen];
+	char	*pnames[MaxPlatforms];
 	char	number[40];
 	int	i, sta, nump;
 	Arg	args[2];

@@ -1,7 +1,7 @@
 /*
  * XY-Graph plotting module
  */
-static char *rcsid = "$Id: XYGraph.c,v 1.30 1994-05-09 21:06:31 corbet Exp $";
+static char *rcsid = "$Id: XYGraph.c,v 1.31 1994-11-19 00:36:11 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -62,9 +62,9 @@ bool	update;
 	bool	ok, sideAnnot, doLine;
 	int	plat, nplat, npts[MAX_PLAT];
 	int	nxfield, nyfield, dmode;
-	char	platforms[MAX_PLAT_LEN], *pnames[MAX_PLAT];
-	char	xflds[MAX_PLAT_LEN], yflds[MAX_PLAT_LEN];
-	char	*xfnames[MAX_PLAT], *yfnames[MAX_PLAT];
+	char	platforms[PlatformListLen], *pnames[MaxPlatforms];
+	char	xflds[FieldListLen], yflds[FieldListLen];
+	char	*xfnames[MaxFields], *yfnames[MaxFields];
 	char	style[24], xtype, ytype;
 	Pixel	taColor, *lcolor;
 	ZebTime	eTimeTarget, bTimeTarget, bTimeOld, eTimeOld;

@@ -38,7 +38,7 @@ extern "C"
 # include "DataDir.h"
 # include "Tape.h"
 # include "plcontainer.h"
-MAKE_RCSID ("$Id: DLoad.cc,v 1.6 1993-06-07 20:29:39 corbet Exp $")
+MAKE_RCSID ("$Id: DLoad.cc,v 1.7 1994-11-19 00:30:53 burghart Exp $")
 
 //
 // Import from main.
@@ -106,7 +106,6 @@ LoadFromCD (PlatformIndex *index, const char *basedir, StatusWindow &sw)
 {
 	int nstrip = -1, plat, nf = 0, nbyte = 0;
 	IndexFile *file;
-	const char *destdir;
 //
 // Pass through the list of platforms.
 //
@@ -119,7 +118,7 @@ LoadFromCD (PlatformIndex *index, const char *basedir, StatusWindow &sw)
 	//
 		if (! index->isMarked (p.name ()))
 			continue;
-		destdir = GetPlatDir (p.name ());
+		String destdir ((char *)GetPlatDir (p.name ()));
 	//
 	// Pass through the file list.
 	//
@@ -131,6 +130,42 @@ LoadFromCD (PlatformIndex *index, const char *basedir, StatusWindow &sw)
 		//
 			if (! file->isMarked ())
 				continue;
+		//
+		// Only if the same file has not alreay been moved.
+		//
+			IndexFile *chain = file->same();
+			for ( ; chain && (chain != file); 
+			     chain = chain->same())
+			{
+			//
+			// Check for this platform among those already done
+			//
+				String origdir
+					((char *)GetPlatDir (chain->plat()));
+				int done;
+				for (done = 0; done < plat; ++done)
+					if (strcmp ((PList->nth (done)).name(),
+						    chain->plat()) == 0)
+						break;
+				if (done < plat && chain->isMarked() && 
+				    index->isMarked(chain->plat()) &&
+				    (destdir == origdir))
+				{
+#ifdef DEBUG
+					cout << p.name() << ": file " <<
+						file->name() << " already "
+						"moved to directory " <<
+						origdir << "\n";
+#endif
+					break;
+				}
+			}
+			if (chain && (chain != file))
+			{
+				nfp++;	// we still want this plat scanned
+				continue;
+			}
+
 			if (nstrip < 0)
 				nstrip = FindNStrip (basedir, file->name ());
 		//

@@ -1,7 +1,7 @@
 /*
  * Movie control functions.
  */
-static char *rcsid = "$Id: MovieControl.c,v 2.20 1994-10-18 00:03:16 corbet Exp $";
+static char *rcsid = "$Id: MovieControl.c,v 2.21 1994-11-19 00:35:21 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -1238,7 +1238,8 @@ mc_SetupPreGen()
  *  component and which fields will be pregenerated.
  */
 	int i;
- 	char **complist, platform[500], f[FLEN]; 
+ 	char **complist, f[FLEN]; 
+	char platform[PlatformListLen];
  	char fields[2*FLEN], *fieldlist[2*FLEN];
 /*
  *  Loop through the component list looking for a movie-pregenerate parameter.

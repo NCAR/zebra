@@ -27,6 +27,7 @@
 # include <X11/Xaw/Label.h>
 # include <X11/Xaw/Cardinals.h>
 # include <X11/Xaw/Scrollbar.h>
+# include <string.h>
 
 # include <defs.h>
 # include <message.h>
@@ -40,7 +41,7 @@
  */
 int	AltControlComp;
 
-MAKE_RCSID("$Id: AltControl.c,v 2.12 1994-10-13 22:58:36 sobol Exp $")
+MAKE_RCSID("$Id: AltControl.c,v 2.13 1994-11-19 00:34:25 burghart Exp $")
 
 # define MAXALT		80	/* Max heights we expect to see		*/
 
@@ -82,7 +83,8 @@ alt_GetControlComp ()
  * Find the altitude control component of our PD.
  */
 {
-	char altcomp[80], **comps = pd_CompList (Pd), plat[CFG_PLATNAME_LEN*2];
+	char altcomp[80], **comps = pd_CompList (Pd);
+	char plat[PlatformListLen];
 	bool control;
 	int i;
 /*
@@ -169,7 +171,9 @@ int nstep;
 	int nalt, closest = 0, i;
 	bool rspace, have_target;
 	float alts[MAXALT], target_alt, dist, temp;
-	char platform[512], field[40], **comps = pd_CompList (Pd), scratch[40];
+	char platform[PlatformListLen];
+	char *comma;
+	char field[40], **comps = pd_CompList (Pd), scratch[40];
 	FieldId fid;
 	PlatformId pid;
 	AltUnitType altunits;
@@ -194,6 +198,11 @@ int nstep;
 
 		return;
 	}
+/*
+ * Use only the first platform name if this is a platform list
+ */
+	if ((comma = strchr(platform, ',')) != NULL)
+		*comma = '\0';
 /*
  * Radar space?
  */

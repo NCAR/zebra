@@ -1,7 +1,7 @@
 /*
  * Movie control functions.
  */
-static char *rcsid = "$Id: ModelWidget.c,v 2.4 1994-05-25 14:48:18 burghart Exp $";
+static char *rcsid = "$Id: ModelWidget.c,v 2.5 1994-11-19 00:35:17 burghart Exp $";
 /*		Copyright (C) 1994 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -127,7 +127,7 @@ XtAppContext appc;
 {
 	Widget	form, w, above, src;
 	Arg	args[20];
-	char	string[40];
+	char	string[120];
 	int	n, i;
 	Pixmap	pm;
 	XtTranslations	trans;
@@ -478,7 +478,9 @@ mw_Update ()
  * Frame rate
  */
 	strcpy (string, "2");
-	pda_Search (Pd, "global", "frame-rate", NULL, string, SYMT_STRING);
+	if (Pd)
+		pda_Search (Pd, "global", "frame-rate", NULL, string, 
+			    SYMT_STRING);
 
 	if (! sscanf (string, "%d", &Rate))
 	{
@@ -553,15 +555,47 @@ mw_Update ()
 
 
 
+static Widget
+UWShell (name)
+char *name;
+/*
+ * Return the top-level shell widget for this UI widget
+ */
+{
+	Widget shell = uw_IWWidget (name);
+
+	return (shell);
+}
+
+
+
+
 static void
 mw_Dismiss (w, junk1, junk2)
 Widget	w;
 XtPointer	junk1, junk2;
 /*
- * Popdown the model widget
+ * Popdown the model widget.
+ *
+ * XXX
+ * The first is to make sure UI is up with what's going on.  It won't
+ * affect the display since the widget is already mapped else we wouldn't
+ * have gotten this callbak.  The second step actually pops it down in case
+ * UI is confused and failed the first step.  This is only necessary (we
+ * think) when popping up a model widget from a require module and changing
+ * configs while loading modules.
+ * XXX
  */
 {
+	Widget shell = w;
+
+	uw_popup (MODEL_NAME);
 	uw_popdown (MODEL_NAME);
+
+	while (shell && !XtIsSubclass (shell, wmShellWidgetClass))
+		shell = XtParent(shell);
+	if (shell)
+		XtPopdown (shell);
 }
 
 
@@ -817,7 +851,8 @@ mw_GetFrameOffsets ()
  */
 {
 	int	i, f, n, insert_pos, offsets[20], noffsets;
-	char	**complist, platform[40];
+	char	**complist;
+	char	platform[PlatformListLen];
 	bool	disabled;
 	PlatformId	pid;
 /*
@@ -825,6 +860,11 @@ mw_GetFrameOffsets ()
  */
 	Foffsets[0] = 0;
 	Nframes = 1;	/* number of frames in the loop = number of offsets */
+/*
+ * Bail out now if we don't have a plot description yet.
+ */
+	if (! Pd)
+		return;
 /*
  * Loop through the plot components and add forecast offsets for each 
  * model platform we find
@@ -853,8 +893,7 @@ mw_GetFrameOffsets ()
 	/*
 	 * Get the offset list for this platform
 	 */
-		if (! ds_GetForecastTimes (pid, &PlotTime, offsets, 
-					     &noffsets))
+		if (! ds_GetForecastTimes (pid, &PlotTime, offsets, &noffsets))
 			continue;
 	/*
 	 * Merge these offsets into the main list
@@ -1043,8 +1082,6 @@ int	*frame;
 	PlotTime = IssueTime;
 	if (ValidationMode)
 		PlotTime.zt_Sec += ForecastOffset;
-	TC_EncodeTime (&PlotTime, TC_Full, string);
-	pd_Store (Pd, "global", "plot-time", string, SYMT_STRING);
 /*
  * Make sure DM and pdmon get the changes
  */
@@ -1138,7 +1175,7 @@ XtPointer	id_ptr, junk;
 	if ((id == 'V' && ValidationMode) || (id == 'I' && !ValidationMode))
 		return;
 /*
- * Otherwise update
+ * Otherwise toggle
  */
 	ValidationMode = (id == 'V');
 	parameter ("global", "validation-mode", 
@@ -1199,14 +1236,9 @@ XtPointer	junk1, junk2;
 	if (TC_Eq (prevtime, IssueTime))
 		return;
 /*
- * Update the PD
+ * Use parameter() to update the PD and replot
  */
-	PlotTime = IssueTime;
-	if (ValidationMode)
-		PlotTime.zt_Sec += ForecastOffset;
-
-	TC_EncodeTime (&PlotTime, TC_Full, scratch);
-	parameter ("global", "plot-time", scratch);
+	parameter ("global", "plot-time", itstring);
 }
 
 

@@ -1,7 +1,7 @@
 /*
  * Skew-t plotting module
  */
-static char *rcsid = "$Id: Skewt.c,v 2.15 1994-10-12 22:58:09 corbet Exp $";
+static char *rcsid = "$Id: Skewt.c,v 2.16 1994-11-19 00:35:38 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -126,8 +126,9 @@ bool	update;
 	bool		ok;
 	int		plat, n, i, nplat, nwplat;
 	char		ctname[20], tadefcolor[30];
-	char		platforms[80], windplats[80];
-	char		*pnames[5], *wpnames[5];
+	char		platforms[PlatformListLen];
+	char		windplats[PlatformListLen];
+	char		*pnames[MaxPlatforms], *wpnames[MaxPlatforms];
 	XColor		color;
 	int		skip;
 /*

@@ -291,3 +291,4 @@ step:: list								@@\
 		(set -x && $(RM) $$i && $(LN) sub/$$i .); done
 
 #include <sgiLib.rules>
+

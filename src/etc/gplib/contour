@@ -51,6 +51,12 @@ endmenu
 
 procedure ContourType type string
 	parameter #icon_component representation #type
+!
+! Move filled contours to the bottom
+!
+	if (type = "filled-contour")
+		move #icon_component 1
+	endif
 endprocedure
 
 
