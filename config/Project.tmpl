@@ -1,6 +1,6 @@
 /**/#-------------------------------------------------------------------------
 /**/# RDSS Software project build parameters
-/**/# $Id: Project.tmpl,v 1.6 1994-01-24 16:46:16 case Exp $
+/**/# $Id: Project.tmpl,v 1.7 1994-01-24 21:17:42 case Exp $
 /**/#-------------------------------------------------------------------------
 
 /*****************************************************************************
@@ -208,7 +208,7 @@
 #define RADARInclude $(RDSSDIR)/radar/h
 #endif
 
-#if SystemV
+#if defined (SunArchitecture) && SystemV4 
 #  ifndef UseSystemVDev
 #     define UseSystemVDev YES
 #  endif
@@ -343,7 +343,7 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #   define NetCDFFlag    /* Nothing */
 #endif
 
-#if SystemV
+#if defined(SunArchitecture) && SystemV4 
 #  if UseSystemVDev
 #     define SystemVDevFlag -DSYSVDEV
 #  else
