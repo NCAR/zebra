@@ -27,11 +27,13 @@ endprocedure
 define widget label-size-scale intmenu 'Label size annotation'
 	title 'Annotation Size'
 	line
-	entry 'Small' 'do_label_size 10' \
+	entry 'tiny' 'do_label_size 10' \
 		(pd_param(icon_component, "label-size", "string") = "10")
-	entry 'Medium' 'do_label_size 20' \
+	entry 'small' 'do_label_size 14' \
 		(pd_param(icon_component, "label-size", "string") = "20")
-	entry 'Large' 'do_label_size 30' \
+	entry 'medium' 'do_label_size 18' \
+		(pd_param(icon_component, "label-size", "string") = "20")
+	entry 'large' 'do_label_size 24' \
 		(pd_param(icon_component, "label-size", "string") = "30")
 endmenu
 
