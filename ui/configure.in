@@ -1,0 +1,65 @@
+# Process this file with autoconf to produce a configure script.
+AC_INIT(rdssui)
+AM_INIT_AUTOMAKE(rdssui, 20020709beta, rdp-support@atd.ucar.edu)
+AC_CONFIG_SRCDIR([ui.c])
+
+# Checks for programs.
+AC_PROG_CC
+AC_PROG_INSTALL
+AC_PROG_RANLIB
+
+#
+# X is required
+#
+AC_PATH_X
+
+if test "$no_x" != "yes"; then
+	DEFS="$DEFS -DXSUPPORT -DSMEMENU"
+	LIBS="$LIBS -lXaw -lXmu -lXt -lX11"
+fi
+
+AM_CONDITIONAL(WITH_X, [test x$no_x = x])
+
+if test x$x_libraries != x; then 
+	LDFLAGS="$LDFLAGS -L$x_libraries"
+fi
+
+if test x$x_includes != x; then 
+	INCLUDES="$INCLUDES -I$x_includes"
+fi
+
+#
+# Expect to find RDSS libraries under our installation directory
+#
+LDFLAGS="$LDFLAGS -L${libdir}"
+
+#
+# Checks for libraries.
+#
+AC_CHECK_LIB([m], [pow], ,
+	[echo "Cannot find math library"; exit 1])
+AC_CHECK_LIB([termcap], [tgetstr], ,
+	[echo "Cannot find termcap library"; exit 1])
+# Link to libnsl and libsocket if we can find them (i.e., on Solaris systems),
+# otherwise we probably get the necessary stuff from libc (i.e., under Linux)
+AC_CHECK_LIB([nsl], [gethostbyname])
+AC_CHECK_LIB([socket], [socket])
+
+# Checks for header files.
+AC_HEADER_STDC
+AC_CHECK_HEADERS([errno.h fcntl.h malloc.h stdlib.h string.h sys/ioctl.h sys/time.h termios.h unistd.h])
+
+# Checks for typedefs, structures, and compiler characteristics.
+AC_C_CONST
+AC_TYPE_SIZE_T
+
+# Checks for library functions.
+AC_PROG_GCC_TRADITIONAL
+AC_FUNC_MALLOC
+AC_TYPE_SIGNAL
+AC_FUNC_VPRINTF
+AC_CHECK_FUNCS([memset pow re_comp regcmp regcomp select sqrt strchr strdup strrchr])
+
+AC_CONFIG_SUBDIRS([LiteClue])
+AC_CONFIG_FILES([Makefile])
+AC_OUTPUT
