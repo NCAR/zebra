@@ -33,7 +33,7 @@
 # include "dfa.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_NetCDF.c,v 3.74 2002-04-29 17:55:46 granger Exp $")
+RCSID ("$Id: DFA_NetCDF.c,v 3.75 2002-05-19 03:54:54 burghart Exp $")
 
 # include <netcdf.h>
 
@@ -293,6 +293,8 @@ static FieldId	dnc_GetFieldByName FP ((NCTag *tag, char *fname));
 static void	strtolower FP ((char *c));
 static int	dnc_MatchVarName (int id, int platid, const char *name, 
 				  const char *longname, int pri);
+static zbool	dnc_TimeIsBad (int ncid, int timevar, nc_type ttype, 
+			       double val);
 
 /*
  * Global attribute names which are automatically stored with the file
@@ -564,22 +566,38 @@ dnc_QueryTime (const char *file, ZebraTime *begin, ZebraTime *end, int *nsamp)
 	begin->zt_MicroSec = 1e+6 * (offset - (long)offset);
 
 	index = ntime - 1;
+
 	switch (dtype)
 	{
-	   case NC_FLOAT:
-		ncvarget1 (id, tvar, &index, &foffset);
-		offset = (double) foffset;
-		break;
-	   case NC_DOUBLE:
+	  case NC_FLOAT:
+	    ncvarget1 (id, tvar, &index, &foffset);
+	    offset = (double) foffset;
+	    break;
+	  case NC_DOUBLE:
+	    ncvarget1 (id, tvar, &index, &offset);
+	    /*
+	     * Big time kluge for Java-generated files, which may not be
+	     * properly synced in real-time.  Look for a missing value
+	     * attribute for time, and ignore the last time if it matches
+	     * the missing value...
+	     * 
+	     * This kluge must parallel the one in dnc_GetTimes() below.  */
+	    if (dnc_TimeIsBad(id, tvar, dtype, offset))
+	    {
+		index--;
+		ntime--;
 		ncvarget1 (id, tvar, &index, &offset);
-		break;
-	   case NC_LONG:
-		ncvarget1 (id, tvar, &index, &loffset);
-		offset = (double) loffset;
-		break;
-	   default:
-		return (FALSE);
+	    }
+	    /* End-of-kluge */
+	    break;
+	  case NC_LONG:
+	    ncvarget1 (id, tvar, &index, &loffset);
+	    offset = (double) loffset;
+	    break;
+	  default:
+	    return (FALSE);
 	}
+	
 	end->zt_Sec = base.zt_Sec + (long)offset;
 	end->zt_MicroSec = 1e+6 * (offset - (long)offset);
 /*
@@ -1662,6 +1680,19 @@ NCTag *tag;
 			for (i = 0; i < ntime; i++)
 				dnc_OffsetToZt (tag, dtime[i], 
 						tag->nc_times + i);
+	/*
+	 * Big time kluge for Java-generated files, which may not be
+	 * properly synced in real-time.  Look for a missing value
+	 * attribute for time, and ignore the last time if it matches
+	 * the missing value...
+	 *
+	 * This kluge must parallel the one in dnc_QueryTime() above.
+	 */
+		if (dnc_TimeIsBad(tag->nc_id, tag->nc_vTime, tag->nc_timeType,
+				  dtime[ntime-1]))
+		    tag->nc_ntime--;
+	/* End-of-kluge */
+		
 		free (dtime);
 	}
 	else if (tag->nc_timeType == NC_FLOAT)
@@ -3544,7 +3575,7 @@ DataChunk *dc;
 	strcat (history, "Created by the Zebra DataStore library, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.74 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.75 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 	free (history);
@@ -4738,4 +4769,34 @@ int nfield;
 }
 
 
+/*
+ * Return true iff the given time var has a missing_value flag and the
+ * given value matches the flag.
+ */
+static zbool
+dnc_TimeIsBad (int ncid, int timevar, nc_type ttype, double val)
+{
+    double missing;
+    float fmissing;
+    long lmissing;
 
+    switch (ttype)
+    {
+      case NC_DOUBLE:
+	if (ncattget (ncid, timevar, VATT_MISSING, (void *)(&missing)) < 0)
+	    return (FALSE);
+	break;
+      case NC_FLOAT:
+	if (ncattget (ncid, timevar, VATT_MISSING, (void *)(&fmissing)) < 0)
+	    return (FALSE);
+	missing = (double)fmissing;
+	break;
+      case NC_LONG:
+	if (ncattget (ncid, timevar, VATT_MISSING, (void *)(&lmissing)) < 0)
+	    return (FALSE);
+	missing = (double)lmissing;
+	break;
+    }
+
+    return (val == missing);
+}
