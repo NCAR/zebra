@@ -25,7 +25,12 @@
 #define ZTime long
 typedef BTree<ZTime,long> TimeTree;
 
-typedef long test_key;
+#include <string>
+
+typedef BTree<string,string> StringTree;
+
+//typedef long test_key;
+typedef string test_key;
 typedef BTree<test_key,test_key> test_tree;
 
 static int Debug = 0;
@@ -103,7 +108,7 @@ int main (int argc, char *argv[])
 	// Perform the tests on trees of various orders, using a bigger N
 	if (argc <= 1)
 		N = 5000;
-	for (int o = 3; o < 1000; o *= 3)
+	for (int o = 3; o < N / 10; o *= 3)
 	{
 		test_tree tree(o, sizeof(test_key));
 		
@@ -131,16 +136,37 @@ int main (int argc, char *argv[])
 // Use internal checking and automatic aborting.
 
 
+/*
+ * Simple generator for keys.
+ */
+template <class K>
 struct Counter
 {
-	typedef test_key result_type;
+	typedef K result_type;
+	typedef long counter_type;
 
-	Counter (result_type _n = result_type()) : n(_n) {}
-	result_type operator()() { return n++; }
+	Counter (counter_type _n = counter_type()) : n(_n) {}
+	K operator()();
 
-	result_type n;
+	counter_type n;
 };
 
+
+template <class K>
+K Counter<K>::operator()()
+{
+	return K(n++);
+}
+
+
+template <>
+string
+Counter<string>::operator()()
+{
+	string s;
+	cin >> s;
+	return s;
+}
 
 
 struct tree_member // predicate
@@ -485,7 +511,7 @@ TestTree (test_tree &tree, int N)
 	MLCG rng(time(0));
 	RandomInteger rnd(&rng);
 #endif
-	generate (keys.begin(), keys.end(), Counter(1));
+	generate (keys.begin(), keys.end(), Counter<test_key>(1));
 
 	// Insert the sequential keys and values and test.
 	cout << "Sequential insert... " 
@@ -588,6 +614,5 @@ TestTree (test_tree &tree, int N)
 
 	return err;
 }
-
 
 
