@@ -17,13 +17,14 @@
 # ifdef BSD
 # include <string.h>
 # endif
+# include <ctype.h>
 # include "ui_error.h"
 # include "ui_param.h"
 # include "ui_symbol.h"
 # include "ui_date.h"
 # include "ui_globals.h"
 
-static char *Rcsid = "$Id: ui_symbol.c,v 1.5 1989-10-27 14:05:30 corbet Exp $";
+static char *Rcsid = "$Id: ui_symbol.c,v 1.6 1990-03-27 11:32:13 corbet Exp $";
 
 /*
  * This is the format of a single symbol table entry.
@@ -361,9 +362,21 @@ char *symbol;
  *		null is returned.
  */
 {
+# ifdef notdef
 	char *lsym = zapcase (usy_string (symbol));
+# endif
+	char lsym[500];
+	int i;
 	struct ste *sp;
-	
+/*
+ * Copy over the symbol, putting it into lower case while we're at it.
+ */
+	for (i = 0; symbol[i]; i++)
+		lsym[i] = isupper(symbol[i]) ? tolower(symbol[i]) : symbol[i];
+	lsym[i] = '\0';
+/*
+ * Find the table.
+ */
 	S_nlookup++;
 	table = usy_extr_table (table, lsym);
 /*
@@ -379,14 +392,10 @@ char *symbol;
 		char *sym = sp->ste_sym, *test = lsym;
 		for (; *sym == *test; sym++, test++)
 			if (*sym == '\0')
-			{
-				usy_rel_string (lsym);
 				return (sp);
-			}
 		S_ncoll++;
 		sp = sp->ste_next;
 	}
-	usy_rel_string (lsym);
 	return (0);
 }
 
