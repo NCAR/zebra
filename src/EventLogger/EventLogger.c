@@ -42,7 +42,7 @@
 # include "config.h"
 # include "copyright.h"
 # ifndef lint
-MAKE_RCSID ("$Id: EventLogger.c,v 2.18 1993-09-07 18:19:53 granger Exp $")
+MAKE_RCSID ("$Id: EventLogger.c,v 2.19 1993-09-13 23:38:44 granger Exp $")
 # endif
 
 # define EL_NAME "EventLogger"
@@ -87,7 +87,7 @@ struct EMMap
  * Text info.
  */
 static int Buflen = 0;
-static char *Initmsg = "$Id: EventLogger.c,v 2.18 1993-09-07 18:19:53 granger Exp $\n\
+static char *Initmsg = "$Id: EventLogger.c,v 2.19 1993-09-13 23:38:44 granger Exp $\n\
 Copyright (C) 1991 UCAR, All rights reserved.\n";
 
 /*
@@ -192,6 +192,9 @@ static void TimestampCallback FP ((Widget w, XtPointer client_data,
 				   XtPointer call_data));
 static void PopupLogSettings FP ((Widget w, XtPointer client_data,
 				  XtPointer call_data));
+static void LogErase FP ((Widget w, XtPointer client_data, 
+			  XtPointer call_data));
+static void LogDisable FP ((Widget toggle));
 static void LogToggle FP ((Widget w, XtPointer client_data, 
 			   XtPointer call_data));
 static Widget CreateLogSettings FP ((Widget w, Widget top));
@@ -674,7 +677,11 @@ XtPointer call_data;
 	}
 
 	XtPopup (shell, XtGrabNone);
-	XtSetSensitive (w, False);
+	/*
+	 * In case the above did nothing, try to raise the window as well
+	 */
+	XRaiseWindow (XtDisplay(shell), XtWindow(shell));
+	/* XtSetSensitive (w, False); */
 }
 
 
@@ -686,7 +693,7 @@ Widget w;	/* the button which will pop us up */
 Widget top;	/* our top-level parent 	   */
 {
 	static XtPopdownIDRec pop_rec;
-	Widget shell, dialog, toggle, mbutton;
+	Widget shell, dialog, toggle, erase, mbutton;
 	Arg args[10];
 	Cardinal n;
 	Position root_x, root_y;
@@ -723,11 +730,11 @@ Widget top;	/* our top-level parent 	   */
 		       (XtPointer) &pop_rec);
 
 	/*
-	 * Toggle button for activating and deactivating file logging
+	 * Toggle button for activating and deactivating file logging.
+	 * Create the button with the longer label, then set it to what
+	 * it should actually be after it's been realized.
 	 */
-	n = 0;
-	XtSetArg (args[n], XtNlabel, (Log_enabled) ? "Enabled" : "Disabled");
-	++n;
+	n = 0; XtSetArg (args[n], XtNlabel, "Disabled"); ++n;
 	toggle = XtCreateManagedWidget ("toggle", commandWidgetClass,
 					dialog, args, n);
 	XtAddCallback (toggle, XtNcallback, LogToggle, (XtPointer)dialog);
@@ -740,10 +747,19 @@ Widget top;	/* our top-level parent 	   */
 	CreateMaskMenu (mbutton, "FileMask", &Log_mask);
 
 	/*
+	 * Erasure button for pruning back file
+	 */
+	erase = XtCreateManagedWidget ("erase", commandWidgetClass,
+					dialog, NULL, 0);
+	XtAddCallback (erase, XtNcallback, LogErase, (XtPointer)toggle );
+
+	/*
 	 * Realize the shell to get it to calculate its size; note that 
 	 * mapped_when_managed is false, so its window will not be mapped.
 	 */
 	XtRealizeWidget (shell);
+	XtSetArg (args[0], XtNlabel, (Log_enabled) ? "Enabled" : "Disabled");
+	XtSetValues (toggle, args, (Cardinal)1 );
 
 	/*
 	 * Get its size, and use this to position it entirely on the screen.
@@ -769,6 +785,57 @@ Widget top;	/* our top-level parent 	   */
 
 
 
+/*ARGSUSED*/
+static void
+LogErase (w, client_data, call_data)
+Widget w;
+XtPointer client_data;
+XtPointer call_data;
+/*
+ * If we have a log file active, truncate it to nothingness
+ */
+{
+	Widget toggle = (Widget) client_data;
+	char buf[80];
+
+	if (Log_file)
+	{
+		Log_file = freopen (Log_path, "w", Log_file);
+		if (Log_file)
+		{
+			sprintf (buf, "Log file '%s' now empty",
+				 Log_path);
+			LogMessage (EF_INFO, EL_NAME, buf);
+		}
+		else
+		{
+			sprintf (buf, 
+				 "Error %d trying to reopen log file '%s'",
+				 errno, Log_path);
+			LogMessage (EF_PROBLEM, EL_NAME, buf);
+			LogDisable (toggle);
+		}
+	}
+	else
+		LogMessage (EF_DEBUG, EL_NAME, "No log file to truncate");
+}
+
+
+
+
+static void
+LogDisable (toggle)
+Widget toggle;		/* The widget which displays our state */
+{
+	Arg arg;
+
+	Log_enabled = FALSE;
+	XtSetArg (arg, XtNlabel, "Disabled");
+	XtSetValues (toggle, &arg, (Cardinal)1);
+	LogMessage (EF_DEBUG, EL_NAME, "File logging disabled.");
+}
+
+
 
 /*ARGSUSED*/
 static void
@@ -790,10 +857,7 @@ XtPointer call_data;
 
 	if (Log_enabled == TRUE)
 	{
-		Log_enabled = FALSE;
-		XtSetArg (arg, XtNlabel, "Disabled");
-		XtSetValues (w, &arg, (Cardinal)1);
-		LogMessage (EF_DEBUG, EL_NAME, "File logging disabled.");
+		LogDisable (w);
 		return;
 	}
 
@@ -978,7 +1042,6 @@ struct message *msg;
 	if (msg->m_proto == MT_LOG)
 	{
 		DoLog (msg->m_from, msg->m_data);
-		return (0);
 	}
 /*
  * Maybe it's a display manager message.
@@ -986,7 +1049,6 @@ struct message *msg;
 	else if (msg->m_proto == MT_DISPLAYMGR)
 	{
 		dm_msg (msg->m_data);
-		return (0);
 	}
 /*
  * If it's an extended message, do something with it.
@@ -996,12 +1058,11 @@ struct message *msg;
 		struct msg_elog *el = (struct msg_elog *) msg->m_data;
 
 		LogMessage (el->el_flag, msg->m_from, el->el_text);
-		return (0);
 	}
 /*
  * Everything else is assumed to be a message handler event.
  */	
-	switch (client->mh_type)
+	else switch (client->mh_type)
 	{
 	   case MH_CLIENT:
 	   	switch (client->mh_evtype)
@@ -1035,6 +1096,14 @@ struct message *msg;
 	   	LogMessage (EF_PROBLEM, "EventLogger", mb);
 		break;
 	}
+	/* 
+	 * Check for any pending X events, which we'll want to process right
+	 * away.  The theory is that X events will not be very frequent,
+	 * relative to Zeb messages, so this function will normally not do
+	 * anything.  But if there is X interface stuff to be done, it
+	 * needs to be done ASAP, for the user's sake.
+	 */
+	xevent ();
 	return (0);
 }
 
@@ -1186,7 +1255,7 @@ char *msg_in;
 	 */
 		if (repeat_count > 5)
 			sprintf (fmtbuf, 
-				 "R %-14sLast message repeated %d times\n%s",
+				 "R %-16sLast message repeated %d times\n%s",
 				 EL_NAME, repeat_count, last_msg);
 		repeat_count = 1;
 	}

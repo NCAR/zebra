@@ -1,4 +1,4 @@
-! $Id: EventLogger.ad,v 1.3 1993-09-07 18:19:50 granger Exp $
+! $Id: EventLogger.ad,v 1.4 1993-09-13 23:38:40 granger Exp $
 !
 ! Application defaults file for the EventLogger
 ! DO NOT MODIFY this file if this is the library installed copy!!!
@@ -31,6 +31,7 @@
 *logpopup*logdialog.dismiss.label:	Dismiss
 *logpopup*logdialog.value.width:	300
 *logpopup*logdialog.mask.label:		Events ->
+*logpopup*logdialog.erase.label:	Erase
 *logpopup*logdialog.value.translations:	#override \n\
 	<Key>Return:	no-op()		 	\n\
 	<Key>Linefeed:	no-op()			\n\
