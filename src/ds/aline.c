@@ -1,5 +1,5 @@
 /*
- * $Id: aline.c,v 3.15 1999-03-01 02:03:37 burghart Exp $
+ * $Id: aline.c,v 3.16 2004-07-05 18:04:16 granger Exp $
  *
  * An 'Assembly Line' test driver for the DataStore.
  *
@@ -574,7 +574,11 @@ main (argc, argv)
 	sleep (10);
 #endif
 	while (NNotifies < nconsumers)
-		msg_poll (1);
+	{
+	  int result = msg_poll (1);
+	  if (result != MSG_TIMEOUT && result != 0)
+	    break;
+	}
 	err += Produce (nconsumers);
 	ds_ForceClosure ();
 	msg_disconnect ();
@@ -656,7 +660,7 @@ int nconsumers;
 	value = 0.0;
 	for (i = 0; i < Inventory; ++i)
 	{
-		while (msg_poll(0) != MSG_TIMEOUT) /* clear messages */;
+		while (msg_poll(0) == 0) /* clear messages */;
 		tl_Time(&when);
 		when.zt_MicroSec = 0;
 

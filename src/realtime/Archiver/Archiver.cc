@@ -65,7 +65,7 @@ extern "C" {
 # include "Database.h"
 # include "Archiver.h"
 
-RCSID ("$Id: Archiver.cc,v 1.51 2001-09-18 21:54:32 granger Exp $")
+RCSID ("$Id: Archiver.cc,v 1.52 2004-07-05 18:04:19 granger Exp $")
 
 /*
  * Issues:
@@ -1668,7 +1668,7 @@ RunTar (char *cmd)
 		/*
 		 * Check for messages and X events between writes
 		 */
-		while (msg_poll (0) != MSG_TIMEOUT)
+		while (msg_poll (0) == 0)
 			/* keep responding */;
 		/*
 		 * If suspended, handle messages and X events until

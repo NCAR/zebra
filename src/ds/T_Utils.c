@@ -296,8 +296,8 @@ T_CatchNotify ()
 	 */
 	while (! TX_Pending ())
 	{
-		if (msg_poll (5) == MSG_TIMEOUT)
-			break;
+	  if (msg_poll (5) != 0)
+	    break;
 	}
 	return (TX_Caught ());
 }

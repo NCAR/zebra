@@ -23,7 +23,7 @@
 # include <message.h>
 # include <copyright.h>
 
-RCSID("$Id: zstop.c,v 1.9 2000-07-25 18:27:35 granger Exp $")
+RCSID("$Id: zstop.c,v 1.10 2004-07-05 18:04:20 granger Exp $")
 
 static char *argv0;
 
@@ -129,7 +129,7 @@ char **argv;
 	     * Check that we receive notice of the shutdown we just tried
 	     * to start.  
 	     */
-	    while (msg_poll(5) != MSG_TIMEOUT)
+	    while (msg_poll(5) == 0)
 	    {
 		/* wait for a shutdown message or a timeout */
 	    }
