@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 2.12 1992-09-17 15:50:49 corbet Exp $ */
+/* $Id: defs.h,v 2.13 1993-03-18 18:32:10 corbet Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -88,7 +88,12 @@ void	RL_Encode FP ((unsigned char *, unsigned char *, int, int,
 		int *, int *));
 void 	RL_Decode FP ((unsigned char *, unsigned char *const, int));
 int	CommaParse FP ((char *, char **));
+
 void	SetupConfigVariables FP ((void));
+char 	*GetBaseDir FP ((void));
+char 	*GetBinDir FP ((void));
+char 	*GetLibDir FP ((void));
+char 	*GetProjDir FP ((void));
 
  /* New time format utilities */
 

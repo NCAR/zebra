@@ -1,7 +1,7 @@
 /*
  * Set up configuration variables so that they are available at the UI level.
  */
-static char *rcsid = "$Id: ConfigVars.c,v 1.1 1991-12-20 20:03:06 kris Exp $";
+static char *rcsid = "$Id: ConfigVars.c,v 1.2 1993-03-18 18:32:10 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -21,7 +21,58 @@ static char *rcsid = "$Id: ConfigVars.c,v 1.1 1991-12-20 20:03:06 kris Exp $";
  */
 # include <config.h>
 # include <ui_symbol.h>
+# include "defs.h"
 
+/*
+ * Keep the directories around for queries.
+ */
+# define DIRLENGTH 80
+static char Basedir[DIRLENGTH], Bindir[DIRLENGTH], Libdir[DIRLENGTH];
+static char Projdir[DIRLENGTH];
+
+
+
+
+static void
+InitDirVariables ()
+/*
+ * Initialize the relocatable directory variables, if not yet done.
+ */
+{
+	static int done = FALSE;
+	char *getenv ();
+	char *envbase;
+
+	if (done)
+		return;
+	envbase = getenv ("ZEB_TOPDIR");
+/*
+ * If no base directory in the environment, use the compile-time defaults.
+ */
+	if (! envbase)
+	{
+		strcpy (Basedir, BASEDIR);
+		strcpy (Libdir, LIBDIR);
+		strcpy (Bindir, BINDIR);
+	}
+/*
+ * Otherwise build the names using the environment value.
+ */
+	else
+	{
+		strcpy (Basedir, envbase);
+		sprintf (Bindir, "%s/bin", envbase);
+		sprintf (Libdir, "%s/lib", envbase);
+	}
+/*
+ * Try to figure out a project directory.
+ */
+	if (envbase = getenv ("ZEB_PROJECT"))
+		sprintf (Projdir, "%s/%s", Basedir, envbase);
+	else
+		strcpy (Projdir, Libdir);	/* Probably useless */
+	done = TRUE;
+}
 
 
 
@@ -34,19 +85,59 @@ SetupConfigVariables ()
 {
 	stbl vtable = usy_g_stbl ("ui$variable_table");
 	SValue v;
-
-	v.us_v_ptr = BASEDIR;
+	
+	InitDirVariables ();
+/*
+ * Now set the variables.
+ */
+	v.us_v_ptr = Basedir;
 	usy_s_symbol (vtable, "c$basedir", SYMT_STRING, &v);
-
+	v.us_v_ptr = Libdir;
+	usy_s_symbol (vtable, "c$libdir", SYMT_STRING, &v);
+	v.us_v_ptr = Bindir;
+	usy_s_symbol (vtable, "c$bindir", SYMT_STRING, &v);
+/*
+ * Data dir is separate.  RDSS doesn't change, I don't think.
+ */
+ 	if ((v.us_v_ptr = getenv ("DATA_DIR")) == 0)
+		v.us_v_ptr = DATADIR;
+	usy_s_symbol (vtable, "c$datadir", SYMT_STRING, &v);
 	v.us_v_ptr = RDSSDIR;
 	usy_s_symbol (vtable, "c$rdssdir", SYMT_STRING, &v);
+	
+}
 
-	v.us_v_ptr = LIBDIR;
-	usy_s_symbol (vtable, "c$libdir", SYMT_STRING, &v);
 
-	v.us_v_ptr = BINDIR;
-	usy_s_symbol (vtable, "c$bindir", SYMT_STRING, &v);
 
-	v.us_v_ptr = DATADIR;
-	usy_s_symbol (vtable, "c$datadir", SYMT_STRING, &v);
+
+
+char *
+GetBaseDir ()
+{
+	InitDirVariables ();
+	return (Basedir);
+}
+
+
+char *
+GetLibDir ()
+{
+	InitDirVariables ();
+	return (Libdir);
+}
+
+
+char *
+GetBinDir ()
+{
+	InitDirVariables ();
+	return (Bindir);
+}
+
+
+char *
+GetProjDir ()
+{
+	InitDirVariables ();
+	return (Projdir);
 }
