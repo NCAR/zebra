@@ -22,7 +22,7 @@
 define state initial
 	eoftext 'exit'
 	ctable ui$command_table
-	@ /rdss/ui/ui_commands.
+	@ #ui$defs_file 
 
 	input 'send' 1
 		next send-what

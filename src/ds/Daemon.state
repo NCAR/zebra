@@ -1,5 +1,5 @@
 !
-! $Id: Daemon.state,v 2.3 1991-09-26 22:41:42 gracio Exp $
+! $Id: Daemon.state,v 2.4 1991-12-17 19:52:29 kris Exp $
 !
 ! The data store daemon configuration language.
 !
@@ -25,7 +25,7 @@
 define state initial
 	eoftext 'exit'
 	ctable ui$command_table
-	@ /rdss/ui/ui_commands.
+	@ #ui$defs_file 
 
 	input 'platform' 1
 		next ust$final_unmunged_string
