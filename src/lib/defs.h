@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 2.37 1997-04-28 04:42:31 granger Exp $ */
+/* $Id: defs.h,v 2.38 1998-02-26 19:50:25 granger Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -113,7 +113,7 @@ void	TC_SysToZt FP ((const long, ZebTime *));
 void	TC_UIToZt FP ((const date *, ZebTime *));
 void	TC_ZtToUI FP ((const ZebTime *, date *));
 void	TC_EncodeTime FP ((const ZebTime *, TimePrintFormat, char *));
-const char *TC_AscTime FP ((const ZebTime *zt, int format));
+const char *TC_AscTime FP ((const ZebTime *zt, TimePrintFormat format));
 bool	TC_DecodeTime FP ((const char *, ZebTime *));
 void	TC_ZtSplit FP ((const ZebTime *, int *, int *, int *, int *, int *,
 		int *, int *));
