@@ -11,7 +11,7 @@
 # include "dm_cmds.h"
 # include "../include/timer.h"
 
-static char *rcsid = "$Id: dm.c,v 1.16 1991-01-10 22:43:20 burghart Exp $";
+static char *rcsid = "$Id: dm.c,v 1.17 1991-04-14 01:42:07 corbet Exp $";
 
 /*
  * Definitions of globals.
@@ -220,6 +220,13 @@ struct ui_command *cmds;
 	   case DMC_SOUND:
 		if (SoundEnabled)
 		   	DoSound (UPTR (cmds[1]));
+		break;
+
+	   case DMC_SHELL:
+	   	if (cmds[1].uc_vptype != SYMT_STRING)
+			msg_ELog (EF_PROBLEM, "Non-string shell command");
+		else
+			system (UPTR (cmds[1]));
 		break;
 
 	   default:
