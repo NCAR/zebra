@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.6 1996-05-01 20:30:10 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.7 2001-01-17 19:04:05 granger Exp $"
 
 OBJS =  xhelp.o fileServices.o Directory.o DirectoryMgr.o MultiList.o \
 	RegExp.o ScrolledList.o
@@ -27,7 +27,11 @@ HDRS =  Directory.h DirectoryMgr.h MultiList.h MultiListP.h RegExp.h \
 
 OTHERS = bitmaps xhelp.man XHelp.ad
 
-DISTFILES = Imakefile $(SRCS) $(HDRS) $(OTHERS) /*$(HELPFILES)*/
+HELPFILES = \
+	xhelp.hlp zeb.hlp \
+	fest_stations.hlp fest_soundings.hlp fest_codes.hlp fest_profilers.hlp
+
+DISTFILES = Imakefile $(SRCS) $(HDRS) $(OTHERS) $(HELPFILES)
 
 DEPLIBS =
 
@@ -35,17 +39,15 @@ LOCAL_LIBRARIES = $(XLIBS)
 
 HEADERS = xhelp.h
 
-/* HELPFILES = xhelp.hlp zeb.hlp */
-
 ComplexProgramTarget(xhelp)
 
 BuildIncludesTop($(HEADERS))
 InstallMultipleFlags($(HEADERS),$(INCDIR),$(INSTINCFLAGS))
 
-#ifdef notdef
-InstallNonExec(xhelp.hlp,$(LIBDIR))
-InstallNonExec(zeb.hlp,$(LIBDIR))
-#endif
+/*
+ * Install zebra xhelp files.
+ */
+InstallLibFile ($(HELPFILES),help,.)
 
 InstallAppDefaults(XHelp)
 

@@ -1,0 +1,80 @@
+2
+000000%000000StormFEST Profiler Locations
+1778
+
+Following is a list of StormFEST profiler locations,
+ordered alphabetically by ID.  The next topic, accessible
+by pressing the <Down> icon button above, contains a
+listing ordered alphabetically by city.
+
+
+/ PROFILER LOCATIONS, ALPHABETICALLY BY ID /
+
+   Site ID   Lat     Lon     Alt     City
+   --------- ------- ------- ------- --------------------
+   AZCN5     36.84   -107.90 1902    Aztec, NM 
+   BLMM7     36.88   -89.97  130     Bloomfield MO
+   BLRW3     43.22   -90.53  226     Blue River WI
+   CNWM7     37.52   -92.70  390     Conway MO 
+   DQUA4     34.11   -94.29  195     DeQueen AR 
+   FBYN1     40.09   -97.34  433     Fairbury NE
+   GDAC2     37.77   -102.17 1155    Granada CO 
+   HBRK1     38.30   -97.29  447     Hillsboro KS
+   HKLO2     35.81   -95.78  212     Haskell Ok
+   HVLK1     37.65   -99.09  648     Haviland KS
+   JTNT2     33.02   -100.98 707     Jayton TX
+   LMNO2     36.69   -97.48  306     Lamont OK
+   LTHM7     39.58   -94.19  297     Lathrop MI
+   MBWW4     41.90   -106.18 1997    Medicine Bow WY
+   MRRN1     42.90   -101.69 991     Merriman NE
+   NDSK1     37.37   -95.63  255     Neodesha KS
+   NLGN1     42.20   -97.79  524     Neligh NE
+   NRCM5     38.96   -94.57  244     Kansas City MO
+   OKOM6     34.08   -88.86  125     Okolona MS
+   PATT2     31.77   -95.71  119     Palestine TX
+   PLTC2     40.18   -104.72 1524    Platteville CO
+   PRCO2     34.97   -97.51  331     Purcell OK
+   RWDN1     40.08   -100.65 800     McCook NE
+   SLAI4     41.90   -93.70  315     Slater IA
+   TCUN5     35.08   -103.61 1241    Tucumcari NM 
+   VCIO2     36.07   -99.21  648     Vici OK
+   WDLM5     44.67   -95.44  319     Wood Lake MN
+   WNCI2     39.66   -90.48  170     Winchester IL
+   WSMN5     32.40   -106.34 1224    White Sands NM
+profilerscityProfiler Locations, Alphabetically by City
+1575
+
+/ PROFILER LOCATIONS, ALPHABETICALLY BY CITY /
+
+   Site ID   Lat     Lon     Alt     City
+   --------- ------- ------- ------- --------------------
+   AZCN5     36.84   -107.90 1902    Aztec, NM 
+   BLMM7     36.88   -89.97  130     Bloomfield MO
+   BLRW3     43.22   -90.53  226     Blue River WI
+   CNWM7     37.52   -92.70  390     Conway MO 
+   DQUA4     34.11   -94.29  195     DeQueen AR 
+   FBYN1     40.09   -97.34  433     Fairbury NE
+   GDAC2     37.77   -102.17 1155    Granada CO 
+   HKLO2     35.81   -95.78  212     Haskell Ok
+   HVLK1     37.65   -99.09  648     Haviland KS
+   HBRK1     38.30   -97.29  447     Hillsboro KS
+   JTNT2     33.02   -100.98 707     Jayton TX
+   NRCM5     38.96   -94.57  244     Kansas City MO
+   LMNO2     36.69   -97.48  306     Lamont OK
+   LTHM7     39.58   -94.19  297     Lathrop MI
+   RWDN1     40.08   -100.65 800     McCook NE
+   MBWW4     41.90   -106.18 1997    Medicine Bow WY
+   MRRN1     42.90   -101.69 991     Merriman NE
+   NLGN1     42.20   -97.79  524     Neligh NE
+   NDSK1     37.37   -95.63  255     Neodesha KS
+   OKOM6     34.08   -88.86  125     Okolona MS
+   PATT2     31.77   -95.71  119     Palestine TX
+   PLTC2     40.18   -104.72 1524    Platteville CO
+   PRCO2     34.97   -97.51  331     Purcell OK
+   SLAI4     41.90   -93.70  315     Slater IA
+   TCUN5     35.08   -103.61 1241    Tucumcari NM 
+   VCIO2     36.07   -99.21  648     Vici OK
+   WSMN5     32.40   -106.34 1224    White Sands NM
+   WNCI2     39.66   -90.48  170     Winchester IL
+   WDLM5     44.67   -95.44  319     Wood Lake MN
+
