@@ -1,4 +1,4 @@
-/* $Id: ui_tty.c,v 1.9 1995-11-19 18:16:16 granger Exp $ */
+/* $Id: ui_tty.c,v 1.10 1996-01-12 20:38:35 granger Exp $ */
 /*
  * Basic terminal handling.  This is an extremely VMS-dependant module.
  */
@@ -938,7 +938,7 @@ int c;
 /*
  * See if this first character maps onto a partial sequence.
  */
-	sequence[0] = c; sequence[1] = NULL; sp = sequence + 1;
+	sequence[0] = c; sequence[1] = 0; sp = sequence + 1;
 	if ((map = tty_partmap (sequence)) == 0)
 		return (c);	/* nope. */
 /*
@@ -950,7 +950,7 @@ int c;
 	 * Get the next character.  If it does not arrive quickly,
 	 * give up on the sequence and return the first char.
 	 */
-		if ((*sp = tty_do_read (TIMEOUT)) == NULL)
+		if ((*sp = tty_do_read (TIMEOUT)) == 0)
 		{
 			if (sequence[1])
 			{
@@ -962,7 +962,7 @@ int c;
 	/*
 	 * See if we have a full sequence now.
 	 */
-		*++sp = NULL;
+		*++sp = 0;
 		map = tty_partmap (sequence);
 	}
 /*
