@@ -27,7 +27,7 @@
 # include <ui_error.h>
 # include "dm_vars.h"
 # include "dm_cmds.h"
-MAKE_RCSID ("$Id: dm_config.c,v 1.6 1993-02-22 21:15:14 corbet Exp $")
+MAKE_RCSID ("$Id: dm_config.c,v 1.7 1993-04-15 19:36:12 corbet Exp $")
 
 
 /*
@@ -434,12 +434,27 @@ struct cf_window *win;
 		dmh.dmm_type = DM_HELLO;
 		msg_send (win->cfw_name, MT_DISPLAYMGR, FALSE, &dmh,
 			sizeof (dmh));
+		return;
 	}
 /*
  * Otherwise actually fire off the process.
  */
-	else if (fork () == 0)
+	if (fork () == 0)
 		RunProgram (win->cfw_prog, win->cfw_args);
+/*
+ * The parent process (that's us) can now go ahead and set up the plot 
+ * description for this window.  Do it now so that parameter changes that
+ * occur before the window checks in will be honored.
+ */
+	if (win->cfw_pd = pda_GetPD (win->cfw_desc))
+		win->cfw_pd = pd_CopyPD (win->cfw_pd);
+	else
+	{
+		msg_ELog (EF_EMERGENCY, "Window %s wants bad PD %s",
+			win->cfw_name, win->cfw_desc);
+		return;
+	}
+	win->cfw_tmpforce = TRUE;
 }
 
 
@@ -505,6 +520,10 @@ struct cf_window *win;
 /*
  * Dig out the plot description for this window.  Clone it so that our changes
  * do not affect the other invocations of this PD.
+ *
+ * (4/93 jc) NOTE:	The following code should really never be executed
+ *			any more, since the plot description gets put into
+ *			the window structure when the process is forked.
  */
 	if (! win->cfw_pd)
 	{
