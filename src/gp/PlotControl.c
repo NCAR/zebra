@@ -1,7 +1,7 @@
 /*
  * Window plot control routines.
  */
-static char *rcsid = "$Id: PlotControl.c,v 2.33 1995-06-09 17:03:46 granger Exp $";
+static char *rcsid = "$Id: PlotControl.c,v 2.34 1995-06-22 15:47:33 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -214,11 +214,16 @@ pc_PlotHandler ()
 	if (PlotMode == History)
 	{
 		if (! pda_Search (Pd, "global", "plot-time", 0, 
-			(char *) &PlotTime, SYMT_DATE))
+				  (char *) &PlotTime, SYMT_DATE))
 		{
 			msg_log ("No plot time in plot description");
 			return;
 		}
+	/*
+	 * We have our plot time only to the second.  Set the microseconds 
+	 * field to 999999, so that we get *all* data from that second...
+	 */
+		PlotTime.zt_MicroSec = 999999;
 	}
 	else
 		tl_Time (&PlotTime);
