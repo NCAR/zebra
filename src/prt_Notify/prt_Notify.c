@@ -52,7 +52,7 @@ main ()
  * Initialize and hook in to the daemon for copies.
  */
 	msg_connect (IMessage, "Notifier");
-	msg_join ("Client events");
+	msg_join (MSG_CLIENT_EVENTS);
 	usy_init ();
 	ds_Initialize ();
 	dap_Init ();
