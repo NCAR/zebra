@@ -767,9 +767,9 @@ CO_DrawContour ()
 		 * This point is good, write in the label and continue the
 		 * line from just after the label
 		 */
-			DrawText (W, D, Pix, Pl[start].x, Pl[start].y, 
-				Label, RAD_TO_DEG (angle), charsize, hjust, 
-				JustifyCenter);
+			DT_StrokeText (W, D, Gcontext, Pl[start].x, 
+				Pl[start].y, Label, RAD_TO_DEG (angle), 
+				charsize, hjust, JustifyCenter);
 
 			if (hjust == JustifyLeft)
 			{
