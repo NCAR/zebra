@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.32 1993-12-27 17:40:35 corbet Exp $ */
+/* $Id: GraphProc.h,v 2.33 1994-02-25 02:38:45 granger Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -23,7 +23,10 @@
 /*
  * Some of the prototypes rely on the DataChunk type
  */
+#include <defs.h>
 #include <DataStore.h>
+
+#define PathLen CFG_FILEPATH_LEN
 
 /*
  * This flag is set when something happens which should abort an ongoing
@@ -33,7 +36,7 @@ extern bool Abort;
 /*
  * Our name.
  */
-extern char Ourname[40];
+extern char Ourname[CFG_MSGNAME_LEN];
 
 /*
  * Keep the variable table around, since we use it at times.
@@ -60,7 +63,7 @@ extern ZebTime PostProcTime;	/* Post processing mode history time	*/
 /*
  * Needed for opening the FrameFile.
  */
-extern char FrameFilePath[40];	/* Path to the FrameFile 		*/
+extern char FrameFilePath[PathLen];/* Path to the FrameFile 		*/
 extern int  FrameFileFlag;	/* True when FrameFile should be opened */
 extern int  MaxFrames;		/* Maximun number of frames		*/
 /*
@@ -74,7 +77,6 @@ extern float	Alt;		/* CAP plot altitude			*/
 /*
  * Search path for icon and map files.
  */
-# define PathLen	120
 extern char	IconPath[PathLen];	/* The icon path */
 extern char	MapPath[PathLen];	/* Path for maps */
 

@@ -48,7 +48,7 @@
 # include "PixelCoord.h"
 # include "LayoutControl.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.38 1993-12-14 18:32:02 burghart Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.39 1994-02-25 02:38:42 granger Exp $")
 
 /*
  * Default resources.
@@ -69,7 +69,7 @@ static String Resources[] = {
 /*
  * Globals.
  */
-char Ourname[40];	/* What is our process name?	*/
+char Ourname[CFG_MSGNAME_LEN];	/* What is our process name?	*/
 
 /*
  * Definition of globals referenced in GraphProc.h
@@ -77,7 +77,7 @@ char Ourname[40];	/* What is our process name?	*/
 Widget	Top;				/* The top level widget		*/
 Widget	Graphics, GrShell;		/* The graphics widget		*/
 Display	*Disp;				/* Our display			*/
-char 	FrameFilePath[40];		/* Path to FrameFile		*/
+char 	FrameFilePath[PathLen];		/* Path to FrameFile		*/
 int	FrameFileFlag = 0;		/* True when file should be opened */
 int	FrameCount = 1;			/* Number of frames		*/
 int	MaxFrames;			/* Maximum number of frames	*/	
