@@ -23,62 +23,70 @@
 # include <defs.h>
 # include <message.h>
 # include "DataStore.h"
-# include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_Location.c,v 1.4 1994-01-03 07:18:05 granger Exp $")
 
 
+RCSID ("$Id: dc_Location.c,v 1.5 1996-11-19 09:34:01 granger Exp $")
+
+
+typedef struct _LocationDataChunk
+{
+	RawDataChunkPart	rawpart;
+	TranspDataChunkPart	transpart;
+	LocationDataChunkPart	locnpart;
+
+} LocationDataChunk;
+
+#define LP(dc) (&((LocationDataChunk *)(dc))->locnpart)
 
 
 /*
- * Forwards.
+ * Class method prototypes.
  */
-static DataChunk *dc_LocCreate FP ((DataClass));
-
-
+static DataChunk *loc_Create FP ((DataChunk *));
 
 /*
  * The basic methods structure.
  */
-# define SUPERCLASS DCC_Transparent
+# define SUPERCLASS ((DataClassP)&TranspMethods)
 # define CLASSDEPTH 2
 
-RawDCClass LocationMethods =
+RawClass LocationMethods =
 {
+	DCID_Location,
 	"Location",
 	SUPERCLASS,		/* Superclass			*/
 	CLASSDEPTH,		/* Depth, Raw = 0		*/
-	dc_LocCreate,
-	InheritMethod,		/* No special destroy		*/
-	0,			/* Add??			*/
+	loc_Create,
+	0,			/* No special destroy		*/
+	0,			/* Add				*/
+	0,			/* Dump				*/
 	0,
+	0,
+	sizeof (LocationDataChunk)
 };
 
+DataClassP DCP_Location = ((DataClassP)&LocationMethods);
 
 
 
-
+/*-----------------------------------------------------------------------*/
+/* Location class methods */
 
 static DataChunk *
-dc_LocCreate (class)
-DataClass class;
+loc_Create (dc)
+DataChunk *dc;
 /*
- * Create a boundary data chunk.
+ * Initialize a location data chunk.
  */
 {
-	DataChunk *dc;
 /*
- * Start by creating a superclass chunk.
+ * No AuxData at all for locations.
  */
-	dc = DC_ClassCreate (SUPERCLASS);
-/*
- * No AuxData at all for boundaries, so we just set the class and return.
- */
-	dc->dc_Class = class;
 	return (dc);
 }
 
-
+/*========================================================================*/
 
 
 
@@ -91,10 +99,37 @@ Location *loc;
  * Add a location to this data chunk.
  */
 {
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Location, "Loc add"))
+	if (! dc_ReqSubClass (dc, DCP_Location, "LocAdd"))
 		return;
 	dc_AddSample (dc, t, 0, 0);
 	dc_SetLoc (dc, dc_GetNSample (dc) - 1, loc);
+}
+
+
+
+
+Location *
+dc_LocAddMany (dc, nsamp, t, loc)
+DataChunk *dc;
+int nsamp;
+ZebTime *t;
+Location *loc;
+/*
+ * Add multiple locations to this data chunk.  If loc is NULL, allocates
+ * space only.  On success, returns a pointer to the datachunk's array of
+ * locations.
+ */
+{
+	int begin;
+	int i;
+
+	if (! dc_ReqSubClass (dc, DCP_Location, "LocAddMany"))
+		return (NULL);
+	begin = dc_GetNSample (dc);
+	dc_AddMoreSamples (dc, nsamp, 0);	/* this is a hint */
+	for (i = 0; i < nsamp; ++i)
+		dc_AddSample (dc, t+i, 0, 0);	/* this adds each sample */
+	return (dc_SetMLoc (dc, begin, nsamp, loc));
 }
 
 
@@ -113,7 +148,7 @@ Location *loc;
 /*
  * Sanity checking.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Location, "Loc get"))
+	if (! dc_ReqSubClass (dc, DCP_Location, "Loc get"))
 		return (0);
 	if (sample < 0 || sample >= dc_GetNSample (dc))
 		return (0);
