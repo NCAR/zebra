@@ -40,7 +40,7 @@
 # include "DrawText.h"
 # include "PlotPrim.h"
 
-RCSID ("$Id: XYObservation.c,v 1.24 1998-10-28 21:22:22 corbet Exp $")
+RCSID ("$Id: XYObservation.c,v 1.25 1998-11-20 16:09:00 burghart Exp $")
 
 /*
  * Enum to tell how we anchor z values
@@ -109,9 +109,9 @@ zbool	update;
 		return;
 	}
 
-	nxfield = CommaParse (xflds, xfnames);
-	nyfield = CommaParse (yflds, yfnames);
-	nzfield = CommaParse (zflds, zfnames);
+	nxfield = ParseFieldList (xflds, xfnames);
+	nyfield = ParseFieldList (yflds, yfnames);
+	nzfield = ParseFieldList (zflds, zfnames);
 
 	if ((nxfield != nplat && nxfield != 1 && nplat != 1) ||
 	    (nyfield != nplat && nyfield != 1 && nplat != 1) ||

@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.64 1998-10-28 21:21:41 corbet Exp $ */
+/* $Id: GraphProc.h,v 2.65 1998-11-20 16:08:54 burghart Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -400,6 +400,7 @@ extern zbool ClosestRHI FP ((char *c, PlatformId pid, double azimuth,
 			    ZebTime *dtime, float *angdiff));
 extern int GetLLSpacings FP ((DataChunk *, float *, float *));
 extern void FreeColors FP ((plot_description pd));
+extern int ParseFieldList (char *string, char **substrings);
 #ifdef UI_H_SYMBOLS	/* dependent on ui.h */
 extern void ov_Feature FP ((struct ui_command *cmds));
 #endif

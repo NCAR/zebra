@@ -40,7 +40,7 @@
 # include "DrawText.h"
 # include "EventQueue.h"
 
-RCSID("$Id: TimeSeries.c,v 2.22 1998-10-28 21:22:10 corbet Exp $")
+RCSID("$Id: TimeSeries.c,v 2.23 1998-11-20 16:08:57 burghart Exp $")
 
 /*
  * General definitions
@@ -124,7 +124,7 @@ zbool	update;
 	zbool	ok;
 	char	string[STRLEN], platforms[PlatformListLen]; 
 	char	fields[MAXFLDS*PARAMLEN], ctname[PARAMLEN];
-	char	*pnames[MaxPlatforms], *fnames[MAXFLDS*PARAMLEN];
+	char	*pnames[MaxPlatforms], *fnames[MAXFLDS];
 	char	interval[PARAMLEN], color[PARAMLEN], trigger[PARAMLEN];
 	int	period, nplat, nfld, nstep, i;
 	float	center[MAXFLDS], step[MAXFLDS];
@@ -147,7 +147,7 @@ zbool	update;
 		ok = FALSE;
 	}
 
-	if ((nfld = CommaParse (fields, fnames)) == 0)
+	if ((nfld = ParseFieldList (fields, fnames)) == 0)
 	{
 		msg_ELog (EF_PROBLEM, "Empty 'field' parameter");
 		ok = FALSE;

@@ -1,7 +1,7 @@
 /*
  * Miscellaneous utility functions.
  */
-/*		Copyright (C) 1987,88,89,90,91 by UCAR
+/*		Copyright (C) 1987-1998 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
  *
@@ -29,6 +29,7 @@
 # include <GraphicsW.h>
 # include <DataStore.h>
 # include <byteorder.h>
+# include <string.h>
 # include <time.h>
 # include "GraphProc.h"
 # include "PixelCoord.h"
@@ -47,7 +48,7 @@ typedef struct {
         CARD8   pad;
 } U_XWDColor;
 
-RCSID ("$Id: Utilities.c,v 2.54 1998-10-28 21:22:14 corbet Exp $")
+RCSID ("$Id: Utilities.c,v 2.55 1998-11-20 16:08:58 burghart Exp $")
 
 /*
  * Rules for image dumping.  Indexed by keyword number in GraphProc.state
@@ -1311,4 +1312,81 @@ float           *azim;
 	}
 	
 	return (1);
+}
+
+
+int
+ParseFieldList (char *string, char **substrings)
+/*
+ * Parse comma-separated names from 'string' by putting NULLs in place of
+ * the commas, and putting pointers to the beginning of each name into the
+ * 'substrings' array.  Return the number of substrings in the string.
+ *
+ * We ignore commas enclosed in brackets.
+ */
+{
+    int       i = 0, nsubs = 0, bracketlevel = 0;
+
+    while (1)
+    {
+	int foundcomma;
+    /*
+     * Skip past leading white space
+     */
+	i += strspn (string + i, " \t");
+
+	if (string[i] == '\0')
+	    break;
+    /*                                          
+     * We're at the beginning of a substring
+     */
+	substrings[nsubs++] = string + i;
+    /*
+     * Skip characters until we hit a comma not enclosed in brackets
+     */
+	foundcomma = 0;
+	while (! foundcomma)
+	{
+	/*
+	 * Move to the next character that isn't a comma or bracket,
+	 * quitting if that brings us to the end of the string.
+	 */
+	    i += strcspn (string + i, ",[]");
+	    if (string[i] == '\0')
+		break;
+	/*
+	 * Switch based on the character that stopped us
+	 */
+	    switch (string[i])
+	    {
+	    /*
+	     * If we found a comma not enclosed in brackets, replace it
+	     * with a NULL, and move on to the next field.
+	     */
+	      case ',':
+		if (bracketlevel == 0)
+		{
+		    string[i++] = '\0';
+		    foundcomma = 1;
+		}
+		break;
+	    /*
+	     * Open bracket.  Increment the bracket level.
+	     */
+	      case '[':
+		bracketlevel++;
+		i++;
+		break;
+	    /*
+	     * Close bracket.  Decrement the bracket level.
+	     */
+	      case ']':
+		bracketlevel--;
+		i++;
+		break;
+	    }
+	}
+    }
+
+    return (nsubs);
 }

@@ -40,7 +40,7 @@
 # include "PlotPrim.h"
 # include "DrawText.h"
 
-RCSID ("$Id: XYGraph.c,v 1.37 1998-10-28 21:22:21 corbet Exp $")
+RCSID ("$Id: XYGraph.c,v 1.38 1998-11-20 16:08:59 burghart Exp $")
 
 /*
  * Prototypes
@@ -96,8 +96,8 @@ zbool	update;
 		return;
 	}
 
-	nxfield = CommaParse (xflds, xfnames);
-	nyfield = CommaParse (yflds, yfnames);
+	nxfield = ParseFieldList (xflds, xfnames);
+	nyfield = ParseFieldList (yflds, yfnames);
 /*
  * Check out field/plat combinations.
  */

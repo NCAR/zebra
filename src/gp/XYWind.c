@@ -38,7 +38,7 @@
 # include "AxisControl.h"
 # include "PlotPrim.h"
 
-RCSID ("$Id: XYWind.c,v 1.33 1998-10-28 21:22:23 corbet Exp $")
+RCSID ("$Id: XYWind.c,v 1.34 1998-11-20 16:09:01 burghart Exp $")
 
 /*
  * General definitions
@@ -127,8 +127,8 @@ zbool	update;
 		return;
 	}
 
-	nxfield = CommaParse (xflds, xfnames);
-	nyfield = CommaParse (yflds, yfnames);
+	nxfield = ParseFieldList (xflds, xfnames);
+	nyfield = ParseFieldList (yflds, yfnames);
 
 	if (((nxfield != 1) && (nplat != 1) && (nplat != nxfield)) ||
 	    ((nyfield != 1) && (nplat != 1) && (nplat != nyfield)) ||

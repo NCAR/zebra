@@ -30,7 +30,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-MAKE_RCSID ("$Id: Histogram.c,v 2.6 1998-10-28 21:21:43 corbet Exp $")
+MAKE_RCSID ("$Id: Histogram.c,v 2.7 1998-11-20 16:08:55 burghart Exp $")
 
 # if C_PT_HISTOGRAM
 
@@ -354,7 +354,7 @@ zbool *bvbin, *anncounts, *autoscale, *zanchor;
  */
 	if (! pda_ReqSearch (Pd, c, "field", NULL, s, SYMT_STRING))
 		return (FALSE);
-	nf = CommaParse (s, names);
+	nf = ParseFieldList (s, names);
 	for (*nfield = 0; *nfield < nf; (*nfield)++)
 		fids[*nfield] = F_Lookup (names[*nfield]);
 /*

@@ -43,7 +43,7 @@
 # include <DataStore.h>
 # include "GraphProc.h"
 
-RCSID ("$Id: FieldMenu.c,v 2.20 1998-10-08 20:53:03 burghart Exp $")
+RCSID ("$Id: FieldMenu.c,v 2.21 1998-11-20 16:08:54 burghart Exp $")
 
 /*
  * Stuff for the SME menu.
@@ -200,7 +200,7 @@ XtPointer junk, junk1;
 	    pda_Search (Pd, IComp, "field-menu-extras", Platform, Extras,
 			SYMT_STRING))
 	{
-		NExtra = CommaParse (Extras, PExtras);
+		NExtra = ParseFieldList (Extras, PExtras);
 	}
 /*
  * Go through and make the labels for each one.

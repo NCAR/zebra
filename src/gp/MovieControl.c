@@ -46,10 +46,10 @@
 # include "EventQueue.h"
 # include "ActiveArea.h"
 
-RCSID ("$Id: MovieControl.c,v 2.28 1998-10-28 21:21:55 corbet Exp $")
+RCSID ("$Id: MovieControl.c,v 2.29 1998-11-20 16:08:56 burghart Exp $")
 
 # define ATSLEN		80	/* Length for AsciiText strings		*/
-# define FLEN 		40	/* Length of a field string		*/
+# define FLEN 		60	/* Length of a field string		*/
 # define DAPERCENT      .6666	/* Percent of Frame Skip that must have */
 				/* elapsed before newly available data  */
 	 			/* will result in regenerating frames.  */
@@ -1309,7 +1309,7 @@ mc_SetupPreGen()
 	int i;
  	char **complist, f[FLEN]; 
 	char platform[PlatformListLen];
- 	char fields[2*FLEN], *fieldlist[2*FLEN];
+ 	char fields[4*FLEN], *fieldlist[8];
 /*
  *  Loop through the component list looking for a movie-pregenerate parameter.
  */ 
@@ -1323,7 +1323,7 @@ mc_SetupPreGen()
 		if(pda_Search(Pd, complist[i], "movie-pregenerate", platform,
 			fields, SYMT_STRING))
 		{
-			if(CommaParse(fields, fieldlist) != 2)
+			if (ParseFieldList (fields, fieldlist) != 2)
 			{
 				msg_ELog(EF_PROBLEM,"Pregenerate fields bad.");
 				Pregenerate = FALSE;
