@@ -38,7 +38,7 @@
 #endif
 
 # ifndef lint
-MAKE_RCSID ("$Id: DFA_Zeb.c,v 1.27 1996-01-15 07:48:45 granger Exp $")
+MAKE_RCSID ("$Id: DFA_Zeb.c,v 1.28 1996-01-23 04:38:54 granger Exp $")
 # endif
 
 /*
@@ -531,6 +531,9 @@ znTag *tag;
 		zn_PutBlock (tag, hdr->znh_OffRg, tag->zt_Rg,
 			hdr->znh_NSampAlloc*sizeof (RGrid));
 	tag->zt_Sync = 0;
+#ifdef notdef /* might this be necessary for concurrent reads and writes? */
+	fsync (tag->zt_Fd);
+#endif
 }
 
 
@@ -3954,9 +3957,25 @@ int len;
  * Pull in a chunk of data from this file.
  */
 {
+	int n;
+
+	if (len == 0)
+		return;
 	lseek (tag->zt_Fd, offset, SEEK_SET);
-	if (read (tag->zt_Fd, dest, len) != len)
-		msg_ELog (EF_PROBLEM, "ZN Read error %d", errno);
+	if ((n = read (tag->zt_Fd, dest, len)) < 0)
+		msg_ELog (EF_PROBLEM, "ZN read: error %d", errno);
+	else if (n < len)
+	{
+		char dbg[128];
+
+		msg_ELog (EF_PROBLEM, "ZN read: %s: got %d bytes out of %d",
+			  "unexpected eof", n, len);
+#ifdef DEBUGGER
+		sprintf (dbg, "%s aline %d &", DEBUGGER, getpid());
+		system (dbg);
+		sleep (15);
+#endif
+	}
 }
 
 
