@@ -3,12 +3,21 @@
  * of pixmap "frames" associated with it.  Zero frames means just write 
  * everything directly to the window.
  *
- * $Id: GraphicsW.c,v 1.5 1991-01-16 22:08:43 burghart Exp $
+ * $Id: GraphicsW.c,v 1.6 1991-03-11 15:16:45 kris Exp $
  */
 # include <stdio.h>
+# include <errno.h>
 # include <X11/IntrinsicP.h>
 # include <X11/StringDefs.h>
+# include "../include/message.h"
 # include "GraphicsWP.h"
+
+# ifdef SHM
+# include <sys/ipc.h>
+# include <sys/shm.h>
+# include <X11/extensions/XShm.h>
+Pixmap gw_GetShmPixmap();
+# endif
 
 # ifdef use_XB
 #	include <X11/XB.h>
@@ -82,7 +91,6 @@ GraphicsClassRec graphicsClassRec =
 WidgetClass graphicsWidgetClass = (WidgetClass)&graphicsClassRec;
 
 
-
 void
 Realize (w, value_mask, attributes)
 GraphicsWidget	w;
@@ -91,6 +99,7 @@ XSetWindowAttributes	*attributes;
 {
 	XVisualInfo	vinfo;
 	int		i, status, depth = 8;
+
 /*
  * Get an eight deep pseudocolor visual if possible, otherwise go 
  * with monochrome
@@ -111,6 +120,7 @@ XSetWindowAttributes	*attributes;
 		XtError ("No visual matches for realizing a GraphicsWidget");
 
 	w->core.depth = depth;
+
 /*
  * Make the window and get its attributes
  */
@@ -135,31 +145,55 @@ XSetWindowAttributes	*attributes;
 	XtCreateWindow (w, (unsigned int) InputOutput, vinfo.visual, 
 		*value_mask, attributes);
 # endif /* use_XB */
+
 /*
  * Get the GC that travels with the widget
  */
 	w->graphics.gc = XCreateGC (XtDisplay (w), XtWindow (w), 0, NULL);
+
 /*
  * Allocate the pixmaps for the frames and clear them out
  */
 	if (w->graphics.frame_count > 0)
+	{
 		w->graphics.frames = (Pixmap *) 
 			XtMalloc (w->graphics.frame_count * sizeof (Pixmap));
-	else
-		w->graphics.frames = NULL;
-
+# ifdef SHM
+		if(GWShmPossible(w))
+		{
+			w->graphics.frameaddr = (char **) 
+				XtMalloc (w->graphics.frame_count * 
+				sizeof (char *));
+			w->graphics.shminfo = (XShmSegmentInfo *) 
+				XtMalloc (w->graphics.frame_count * 
+				sizeof (XShmSegmentInfo));
+			w->graphics.image = (XImage **) 
+				XtMalloc (w->graphics.frame_count * 
+				sizeof (XImage *));
+		}
+# endif
+	}
+	else w->graphics.frames = NULL;
+	
 	XSetForeground (XtDisplay (w), w->graphics.gc, 
 		w->core.background_pixel);
-
 	for (i = 0; i < w->graphics.frame_count; i++)
 	{
-		w->graphics.frames[i] = XCreatePixmap (XtDisplay (w), 
-			XtWindow (w), w->core.width, w->core.height, 
-			w->core.depth);
-
+# ifdef SHM
+		if(GWShmPossible(w))
+			w->graphics.frames[i] = gw_GetShmPixmap(w,
+				w->core.width, w->core.height, 
+				w->core.depth, i);
+		else
+# endif
+			w->graphics.frames[i] = XCreatePixmap (XtDisplay (w), 
+				XtWindow (w), w->core.width, w->core.height, 
+				w->core.depth);
+		
 		XFillRectangle (XtDisplay (w), w->graphics.frames[i], 
 			w->graphics.gc, 0, 0, w->core.width, w->core.height);
 	}
+
 /*
  * Initialize the draw and display frame numbers
  */
@@ -180,8 +214,6 @@ XSetWindowAttributes	*attributes;
 }
 
 
-
-
 void
 Destroy (w)
 GraphicsWidget	w;
@@ -189,13 +221,28 @@ GraphicsWidget	w;
 	int	i;
 
 	for (i = 0; i < w->graphics.frame_count; i++)
-		XFreePixmap (XtDisplay (w), w->graphics.frames[i]);
+# ifdef SHM
+		if(GWShmPossible(w))
+			GWZapShmPixmap(w, i);
+		else
+# endif
+			XFreePixmap (XtDisplay (w), w->graphics.frames[i]);
 
 	XtFree ((char *) w->composite.children);
 	if (w->graphics.frames)
-		XtFree ((char *) w->graphics.frames);
+		XtFree ((Pixmap *) w->graphics.frames);
+# ifdef SHM
+	if(GWShmPossible(w))
+	{
+		if (w->graphics.frameaddr)
+			XtFree ((char **) w->graphics.frameaddr);
+		if (w->graphics.shminfo)
+			XtFree ((XShmSegmentInfo *) w->graphics.shminfo);
+		if (w->graphics.image)
+			XtFree ((XImage **) w->graphics.image);
+	}
+# endif
 }
-
 
 
 void
@@ -204,9 +251,8 @@ GraphicsWidget	w;
 XEvent		*event;
 Region		region;
 {
-	GraphicsPart	gp;
+	GraphicsPart	gp = w->graphics;
 
-	gp = w->graphics;
 /*
  * If we don't have any frames, we have nothing from which to redraw
  */
@@ -220,6 +266,7 @@ Region		region;
 		XBSetDrawBuffer (XtDisplay (w), XtWindow (w), 
 			gp.display_buffer, 0);
 # endif
+
 /*
  * Do a CopyArea to copy the current frame into the window
  */
@@ -236,11 +283,13 @@ GraphicsWidget	w;
 {
 	int		i;
 	int		have_frames = (w->graphics.frames != NULL);
+	
 /*
  * If we don't have frames, just return 
  */
 	if (! have_frames)
 		return;
+
 /*
  * Free the old pixmaps, get new pixmaps and clear them out
  */
@@ -249,12 +298,22 @@ GraphicsWidget	w;
 
 	for (i = 0; i < w->graphics.frame_count; i++)
 	{
-		XFreePixmap (XtDisplay (w), w->graphics.frames[i]);
-
-		w->graphics.frames[i] = XCreatePixmap (XtDisplay (w), 
-			XtWindow (w), w->core.width, w->core.height, 
-			w->core.depth);
-
+# ifdef SHM
+		if(GWShmPossible(w))
+		{
+			GWZapShmPixmap(w, i);
+			w->graphics.frames[i] = gw_GetShmPixmap(w,
+				w->core.width, w->core.height, 
+				w->core.depth, i);
+		}
+		else
+# endif
+		{
+			XFreePixmap (XtDisplay (w), w->graphics.frames[i]);
+			w->graphics.frames[i] = XCreatePixmap (XtDisplay (w), 
+				XtWindow (w), w->core.width, w->core.height, 
+				w->core.depth);
+		}
 		XFillRectangle (XtDisplay (w), w->graphics.frames[i], 
 			w->graphics.gc, 0, 0, w->core.width, w->core.height);
 	}
@@ -262,8 +321,6 @@ GraphicsWidget	w;
 	XFillRectangle (XtDisplay (w), w->core.window, w->graphics.gc, 0, 0, 
 		w->core.width, w->core.height);
 }
-
-
 
 
 Boolean
@@ -275,54 +332,81 @@ GraphicsWidget	current, request, new;
 {
 	int	i;
 	int	oldcount = current->graphics.frame_count;
-	int	newcount = new->graphics.frame_count;
+	int	newcount = request->graphics.frame_count;
 	Pixel	oldbg = current->core.background_pixel;
-	Pixel	newbg = new->core.background_pixel;
+	Pixel	newbg = request->core.background_pixel;
+	
 /*
  * Return now if the frame count and background color didn't change
  */
 	if (oldcount == newcount && oldbg == newbg)
 		return (False);
+
 /*
  * Deal with background color change if necessary
  */
 	if (oldbg != newbg)
 		GWClearFrame (new, ClearAll);
+
 /*
  * Deal with frame count change if necessary
  */
 	if (oldcount != newcount)
 	{
 	/*
-	 * Release excess pixmaps (if any)
+	 * Release excess pixmaps (if any) 
 	 */
 		for (i = newcount; i < oldcount; i++)
-			XFreePixmap (XtDisplay (new), new->graphics.frames[i]);
+# ifdef SHM
+			if(GWShmPossible(new))
+				GWZapShmPixmap(new, i);
+			else
+# endif
+				XFreePixmap (XtDisplay (new), 
+					new->graphics.frames[i]);
 	/*
-	 * Reallocate the space for the pixmap array and create pixmaps
-	 * if necessary 
+	 * Reallocate the space for the pixmap array 
+	 * and create pixmaps if necessary 
 	 */
 		new->graphics.frames = (Pixmap *) 
 			XtRealloc (new->graphics.frames, 
 			newcount * sizeof (Pixmap));
-
+# ifdef SHM
+		if(GWShmPossible(new))
+		{
+			new->graphics.frameaddr = (char **) XtRealloc (
+				new->graphics.frameaddr, 
+				newcount * sizeof (char *));
+			new->graphics.shminfo = (XShmSegmentInfo *) XtRealloc (
+				new->graphics.shminfo, newcount * 
+				sizeof (XShmSegmentInfo));
+			new->graphics.image = (XImage **) XtRealloc (
+				new->graphics.image, newcount * 
+				sizeof (XImage *));
+		}
+# endif
 		for (i = oldcount; i < newcount; i++)
 		{
-			new->graphics.frames[i] = 
-				XCreatePixmap (XtDisplay (new), XtWindow (new),
-				new->core.width, new->core.height, 
-				new->core.depth);
-
+# ifdef SHM
+			if(GWShmPossible(new))
+				new->graphics.frames[i] = gw_GetShmPixmap(new,
+					new->core.width, new->core.height, 
+					new->core.depth, i);
+			else
+# endif
+				new->graphics.frames[i] = 
+					XCreatePixmap (XtDisplay (new), 
+					XtWindow (new),
+					new->core.width, new->core.height, 
+					new->core.depth);
+			
 			XFillRectangle (XtDisplay (new), 
 				new->graphics.frames[i], new->graphics.gc, 
 				0, 0, new->core.width, new->core.height);
 		}
 	}
-
 	return (False);
 }
-
-
 
 
 XtGeometryResult
@@ -347,13 +431,12 @@ XtWidgetGeometry	*request, *reply;
 		w->core.y = request->y;
 	if (request->request_mode & CWBorderWidth)
 		w->core.border_width = request->border_width;
+
 /*
  * Return our approval.
  */
 	return (XtGeometryYes);
 }
-
-
 
 
 void
@@ -362,8 +445,6 @@ Widget	w;
 {
 	return;
 }
-
-
 
 
 /*
@@ -384,16 +465,12 @@ GraphicsWidget	w;
 }
 
 
-
-
 int
 GWWidth (w)
 GraphicsWidget	w;
 {
 	return (w->core.width);
 }
-
-
 
 
 int
@@ -404,16 +481,12 @@ GraphicsWidget	w;
 }
 
 
-
-
 int
 GWDepth (w)
 GraphicsWidget	w;
 {
 	return ((int) w->core.depth);
 }
-
-
 
 
 void
@@ -425,8 +498,6 @@ int	width, height;
 		XtGeometryYes)
 		Resize (w);
 }
-
-
 
 
 void
@@ -442,12 +513,14 @@ int		frame;
 
 	XSetForeground (XtDisplay (w), w->graphics.gc, 
 		w->core.background_pixel);
+
 /*
  * If we have no frames, clear the window
  */
 	if (w->graphics.frame_count < 1)
 		XFillRectangle (XtDisplay (w), w->core.window, w->graphics.gc, 
 			0, 0, w->core.width, w->core.height);
+
 /*
  * Clear all frames?
  */
@@ -458,6 +531,7 @@ int		frame;
 				w->graphics.gc, 0, 0, w->core.width, 
 				w->core.height);
 	}
+
 /*
  * Just clear the one frame
  */
@@ -465,8 +539,6 @@ int		frame;
 		XFillRectangle (XtDisplay (w), w->graphics.frames[frame],
 			w->graphics.gc, 0, 0, w->core.width, w->core.height);
 }
-
-
 
 
 void
@@ -478,11 +550,12 @@ unsigned int	frame;
  */
 {
 	if (frame < 0 || frame >= w->graphics.frame_count)
-		XtError ("Invalid frame number in GWDrawFrame");
-
+	{
+		msg_ELog (EF_DEBUG,"Invalid frame number %d", frame);
+		XtError ("Invalid frame number in GWDrawInFrame");
+	}
 	w->graphics.draw_frame = frame;
 }
-
 
 
 void
@@ -494,16 +567,19 @@ unsigned int	frame;
  */
 {
 	unsigned int	use_buffer;
+
 /*
  * Sanity check
  */
 	if (frame < 0 || frame >= w->graphics.frame_count)
 		XtError ("Invalid frame number in GWDisplayFrame");
+
 /*
  * If we don't have any frames, just return now
  */
 	if (w->graphics.frame_count < 1)
 		return;
+
 /*
  * OK, this is a legal frame to display
  */
@@ -538,3 +614,145 @@ unsigned int	frame;
 	}
 # endif
 }
+
+
+GC
+GWGetGC(w)
+GraphicsWidget w;
+{
+ 	return(w->graphics.gc);
+}
+
+
+Pixmap
+GWGetFrame(w, p)
+GraphicsWidget w;
+int p;
+{
+ 	return(w->graphics.frames[p]);
+}
+
+
+/*
+ *  Shared Memory Routines
+ */
+
+# ifdef SHM
+
+int 
+GWGetBPL(w, p)
+GraphicsWidget w;
+int p;
+{
+ 	return(w->graphics.image[p]->bytes_per_line);
+}
+
+char *
+GWGetFrameAddr(w, p)
+GraphicsWidget w;
+int p;
+{
+ 	return(w->graphics.frameaddr[p]);
+}
+
+
+int
+GWShmPossible(w)
+GraphicsWidget w;
+/*
+ *  Return true if we can do shared memory.
+ */
+{
+	static int known = FALSE, possible;
+	int maj, min, sp;
+	
+	if(known)
+		return(possible);
+	known = TRUE;
+	possible = XShmQueryVersion(XtDisplay(w), &maj, &min, &sp);
+	possible = possible && sp;
+	msg_ELog(EF_DEBUG, "Shared memory: %s", possible ? "True" : "False");
+	return(possible);
+}
+
+
+Pixmap  
+gw_GetShmPixmap(w, width, height, depth, index)
+GraphicsWidget w;
+int width, height, depth, index;
+/*
+ *  Return a shared memory Pixap.
+ */
+{
+	Display *disp = XtDisplay(w);
+	Pixmap pixmap;
+	int bpl;
+	struct shmid_ds buf;
+/*
+ *  Create the shared memory image.
+ */
+	w->graphics.image[index] = XShmCreateImage(disp, 0, depth, ZPixmap, 0, 
+		w->graphics.shminfo + index, width, height);
+	bpl = w->graphics.image[index]->bytes_per_line;
+	msg_ELog(EF_DEBUG, "SHM width %d bytes/line %d", width, bpl);
+
+/*
+ *  Create the shared memory segment
+ */
+	w->graphics.shminfo[index].shmid=shmget(IPC_PRIVATE, bpl * height, 
+		IPC_CREAT|0777);
+	if(w->graphics.shminfo[index].shmid < 0)
+		msg_ELog(EF_EMERGENCY, "SHM get failure (%d)!", errno);
+	w->graphics.shminfo[index].shmaddr = (char *) 
+		shmat(w->graphics.shminfo[index].shmid, 0, 0);
+	if(w->graphics.shminfo[index].shmaddr == ((char *) -1))
+		msg_ELog(EF_EMERGENCY, "SHM attach failure (%d)!",errno);
+	w->graphics.shminfo[index].readOnly = False;
+	msg_ELog(EF_DEBUG,"shminfo shmid %d shmaddr 0x%X readOnly %d shmseg %d",
+		w->graphics.shminfo[index].shmid,
+		w->graphics.shminfo[index].shmaddr,
+		w->graphics.shminfo[index].readOnly,
+		w->graphics.shminfo[index].shmseg);
+	
+/*
+ *  Hook everything together and create the shared memory pixmap.
+ */
+	w->graphics.frameaddr[index] =  w->graphics.shminfo[index].shmaddr;
+	w->graphics.image[index]->data =  w->graphics.shminfo[index].shmaddr;
+	XShmAttach(disp, w->graphics.shminfo + index);
+	pixmap = XShmCreatePixmap(disp, XtWindow(w),
+	       w->graphics.shminfo[index].shmaddr,w->graphics.shminfo+index,
+		width, height, depth);
+	XSync(disp, False);
+	if(shmctl(w->graphics.shminfo[index].shmid, IPC_RMID, 0) < 0)
+		msg_ELog(EF_PROBLEM, "SHM remove failure (%d)!", errno);
+/*
+ *  Return the pixmap id.
+ */
+	return(pixmap);		
+}
+
+
+void
+GWZapShmPixmap(w, index)
+GraphicsWidget w;
+int index;
+/*
+ *  If there is a shared memory Pixmap get rid of it.
+ */
+{
+	Display *disp = XtDisplay(w);
+	
+	XShmDetach(disp, w->graphics.shminfo + index);
+	XFreePixmap(disp, w->graphics.frames[index]);
+	XtFree((XImage *) w->graphics.image[index]);
+	if(shmdt(w->graphics.shminfo[index].shmaddr) < 0)
+		msg_ELog(EF_PROBLEM, "SHM detach failure (%d)!", errno);
+
+}
+
+
+# endif
+
+
+
