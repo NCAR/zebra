@@ -1,5 +1,5 @@
 XCOMM
-XCOMM $Id: Zeb.rules,v 1.12 1994-01-26 11:13:57 granger Exp $
+XCOMM $Id: Zeb.rules,v 1.13 1994-02-02 21:23:02 granger Exp $
 XCOMM
 XCOMM Rules specific to the Zeb project, including some which override
 XCOMM definitions in Imake.rules
@@ -547,15 +547,18 @@ includes::								@@\
 #endif /* SunArchitecture */
 #endif /* BuildIncludes */
 
+/*
+ * Install a list of non-exec files (srclist) into a library 
+ * subdirectory (dstsubdir), using install and INSTDATFLAGS
+ */
 #ifndef InstallLibFile
 #define InstallLibFile(srclist,dstsubdir,dstupdir)			@@\
 install::								@@\
 	MakeDir($(LIBDIR)/dstsubdir)					@@\
-	@(set -x; cd $(LIBDIR)/dstsubdir; for i in srclist; do \	@@\
-		$(RM) $$i; \						@@\
-		$(CP) $(BUILDINCTOP)/dstupdir/$(CURRENT_DIR)/$$i .; \ @@\
+	@(set -x; for i in srclist; do \				@@\
+		$(INSTALL) -c $(INSTDATFLAGS) $$i $(LIBDIR)/dstsubdir ;\@@\
 	done)
-#endif /* BuildIncludes */
+#endif /* InstallLibFile */
 
 /*
  * Echo distribution file lists
