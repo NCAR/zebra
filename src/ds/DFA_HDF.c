@@ -78,7 +78,7 @@ static char *hdfopt[2] = { "@(#)$DFA: HDF_INTERFACE Compiled $",
 # include <config.h>
 # include <message.h>
 
-RCSID ("$Id: DFA_HDF.c,v 3.3 1995-07-09 14:21:13 granger Exp $")
+RCSID ("$Id: DFA_HDF.c,v 3.4 1995-07-16 15:43:43 granger Exp $")
 
 #ifdef HDF_TEST
 #define ds_PlatformDataOrg(id) Org2dGrid
@@ -224,7 +224,7 @@ static void dh_SetImageFields FP ((Htag *tag, DataChunk *dc, int nfield,
 				   FieldId *fields));
 static void dh_ReadImage FP ((DataChunk *dc, Htag *tag, FieldId *fields,
 			      int nfield));
-static void dh_Origin FP ((Htag *tag, int nx, int ny, Location *origin));
+static void dh_Origin FP ((Htag *tag, RGrid *info, Location *origin));
 
 
 
@@ -1342,21 +1342,23 @@ void *values;
 
 
 static void
-dh_Origin (tag, nx, ny, origin)
+dh_Origin (tag, info, origin)
 Htag *tag;
-int nx, ny;
+RGrid *info;
 Location *origin;
 /*
  * Convert the distance from the center to the southwest corner into
  * degrees to get the lat/lon coords of the origin.  I think the origin
  * is defined as the *center* of the lower left cell, hence the 0.5 addend.
+ * We want the centers of the two projected grids to coincide, hence we
+ * calculate the origin of the EC grid using the eq cyl projection.
  */
 {
 	float ox, oy;
 	float del_lat, del_lon;
 
-	ox = ((float)nx / 2.0 - 0.5) * tag->h_pixel;
-	oy = ((float)ny / 2.0 - 0.5) * tag->h_pixel;
+	ox = ((float)info->rg_nX / 2.0 - 0.5) * info->rg_Xspacing;
+	oy = ((float)info->rg_nY / 2.0 - 0.5) * info->rg_Yspacing;
 	del_lat = oy / R_EARTH;
 	del_lon = ox / (R_EARTH * cos (DEG_TO_RAD (tag->h_center.l_lat)));
 	origin->l_lat = tag->h_center.l_lat - RAD_TO_DEG(del_lat);
@@ -1368,49 +1370,40 @@ Location *origin;
 
 
 static inline int
-dh_TranslateRow (rg, phi1, i)
+dh_TranslateRow (rg, phi1, y0, i)
 RGrid *rg;
-double phi1;
+double phi1, y0;
 int i;
 {
-	double delta_phi, y;
+	double phi, y;
 	int m;
 
 	/*
-	 * Convert row in eq-cyl grid to km and then to latitude delta.
+	 * Convert row in eq-cyl grid to km and then to latitude.
 	 * Use the center of the cell as its location.
 	 */
-	y = (rg->rg_nY/2.0 - i + 0.5) * rg->rg_Yspacing;
-	delta_phi = (y / R_EARTH);
+	y = (rg->rg_nY/2.0 - i - 0.5) * rg->rg_Yspacing;
+	phi = (y / R_EARTH) + phi1;
 	/*
-	 * Project the latitude delta back to y using Mercatur
+	 * Project the latitude back to y using Mercatur.  Subtract the
+	 * kilometer coordinate of the grid center latitude before
+	 * calculating the row.
 	 */
-#ifdef notdef
-	/*
-	 * Apparently the center of the image is NOT the center of
-	 * the projection, as could be implied from the documentation.
-	 */
-	y = R_EARTH*log(tan(PI/4.0+delta_phi/2.0))*cos(phi1);
-#endif
-	y = R_EARTH*log(tan(PI/4.0+delta_phi/2.0));
-	m = rg->rg_nY/2.0 - (y / rg->rg_Yspacing) + 0.5;
+	y = R_EARTH*log(tan(PI/4.0+phi/2.0))*cos(phi1) - y0;
+	m = rg->rg_nY/2.0 - (y / rg->rg_Yspacing) - 0.5;
 	return (m);
 }
 
 
 
 /*
- * To re-project a grid, the x and lon coordinates do not change between
- * Mercatur and equidistant cylindrical projections.  So for each column
- * in the grid we just recalculate the y coordinate.
+ * Fill an eq cyl grid from a Mercatur grid:
  *
- * Since the grid is in row major order, just calculate where each row will
- * come from in the source grid and copy it.  Y is independent of X for
- * both Mercatur and eq cyl projections, and both projections use the same
- * X transformation.
- *
- * If I weren't so lazy and behind, the row translations for the top half
- * could be reflected and used for the bottom.  Oh well. 
+ * The X spacing is assumed to have been adjusted for the eq cyl so that
+ * the widths of columns in both grids are equal.  Both grids share the
+ * same center, so the grid values along any row are identical between the
+ * two grids.  Since the grid is in row major order, just calculate where
+ * each row will come from in the source grid and copy it.
  */
 static void
 dh_ProjectGrid (tag, dest, grid, rg, badval)
@@ -1420,13 +1413,14 @@ float *grid;
 RGrid *rg;
 float badval;
 {
-	double phi1;
+	double phi1, y0;
 	int i, j, m;
 
 	phi1 = DEG_TO_RAD (tag->h_center.l_lat);
+	y0 = R_EARTH*log(tan(PI/4.0+phi1/2.0))*cos(phi1);
 	for (i = 0; i < rg->rg_nY; ++i)
 	{
-		m = dh_TranslateRow (rg, phi1, i);
+		m = dh_TranslateRow (rg, phi1, y0, i);
 		if (m >= 0 && m < rg->rg_nY)
 			memcpy (dest + i*rg->rg_nX, grid + m*rg->rg_nX,
 				rg->rg_nX * sizeof(float));
@@ -1440,7 +1434,6 @@ float badval;
 
 
 
-
 static void
 dh_ProjectImage (tag, dest, grid, rg)
 Htag *tag;
@@ -1448,13 +1441,14 @@ unsigned char *dest;
 unsigned char *grid;
 RGrid *rg;
 {
-	double phi1;
+	double phi1, y0;
 	int i, m;
 
 	phi1 = DEG_TO_RAD (tag->h_center.l_lat);
+	y0 = R_EARTH*log(tan(PI/4.0+phi1/2.0))*cos(phi1);
 	for (i = 0; i < rg->rg_nY; ++i)
 	{
-		m = dh_TranslateRow (rg, phi1, i);
+		m = dh_TranslateRow (rg, phi1, y0, i);
 		if (m >= 0 && m < rg->rg_nY)
 			memcpy (dest + i*rg->rg_nX, grid + m*rg->rg_nX,
 				rg->rg_nX);
@@ -1518,13 +1512,17 @@ int nfield;
 			continue;
 		}
 		/*
-		 * The X dimension varies fastest and is the second of the two
+		 * The X dimension varies fastest and is the second of the two.
+		 * For the Mercatur and EC grid columns to coincide, the
+		 * EC X spacing must be scaled by cos(phi) to account for
+		 * the two projections having different latitude centers.
+		 * (Merc uses equator and EC uses grid center.)
 		 */
 		nx = dimsizes[1];
 		ny = dimsizes[0];
 		info.rg_nX = nx;
 		info.rg_nY = ny;
-		dh_Origin (tag, nx, ny, &origin);
+		dh_Origin (tag, &info, &origin);
 
 		/*
 		 * Make space for the grid and get a pointer to that space
@@ -1815,7 +1813,7 @@ int nfield;
 		ny = dimsizes[0];
 		info.rg_nX = nx;
 		info.rg_nY = ny;
-		dh_Origin (tag, nx, ny, &origin);
+		dh_Origin (tag, &info, &origin);
 
 		/*
 		 * Make space for the grid and get a pointer to that space
