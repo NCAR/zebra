@@ -143,20 +143,33 @@ XCOMM site:  $XConsortium: site.sample,v 1.9 94/04/08 17:02:06 rws Exp $
 #endif
 
 /*
- * Override the vendor Default* symbols with symbols from config.h
+ * Override some vendor Default* symbols with symbols from config.h.  In
+ * other words, if we have a setting from config.h, it gets passed into
+ * Imake.tmpl as the corresponding Default* symbol, regardless of whether
+ * the vendor cf file set it.  If we have no setting from config.h, let the
+ * vendor and Imake.tmpl settings work out their defaults as usual.  The
+ * values of DefaultCCOptions and Default*DebugFlags eventually become the
+ * values of the CCOPTIONS, CDEBUGFLAGS, and CXXDEBUGFLAGS make variables,
+ * set in Imake.tmpl after this file has been included.
  */
-#if defined(DefaultCCOptions) && defined(CCOptions)
-# undef DefaultCCOptions
+#if defined(CCOptions)
+# if defined(DefaultCCOptions)
+#  undef DefaultCCOptions
+# endif
 # define DefaultCCOptions CCOptions
 #endif
 
-#if defined(DefaultCDebugFlags) && defined(CDebugFlags)
-# undef DefaultCDebugFlags
+#if defined(CDebugFlags)
+# if defined(DefaultCDebugFlags)
+#  undef DefaultCDebugFlags
+# endif
 # define DefaultCDebugFlags CDebugFlags
 #endif
 
-#if defined(DefaultCplusplusDebugFlags) && defined(CplusplusDebugFlags)
-# undef DefaultCplusplusDebugFlags
+#if defined(CplusplusDebugFlags)
+# if defined(DefaultCplusplusDebugFlags)
+#  undef DefaultCplusplusDebugFlags
+# endif
 # define DefaultCplusplusDebugFlags CplusplusDebugFlags
 #endif
 
