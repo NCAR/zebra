@@ -50,7 +50,7 @@ int BCRetransMax = 2;	/* How many times we will ask for a retransmit
 int BCBurst = 5;	/* How many packets to blast before waiting	*/
 int BCReceive = 0;	/* Receive-only socket				*/
 int Polling = FALSE;	/* Are we polling the broadcast socket?		*/
-
+int IPScan = 5;		/* Scan interval in minutes			*/
 
 /*
  * The queue of broadcast packets awaiting everything else.
@@ -74,6 +74,8 @@ typedef struct _InProgress
 	char		ip_BCast;	/* Broadcast packets coming	*/
 	char		ip_Done;	/* DONE packet arrived	*/
 	char		ip_RLE;		/* Run length encoding used	*/
+	char		ip_NewFile;	/* Start a new file?		*/
+	char		ip_Age;		/* How long has it been waiting? */
 	short		ip_TReq;	/* Timer request	*/
 	short		ip_NRetrans;	/* Number of requests	*/
 } InProgress;
@@ -94,7 +96,7 @@ InProgress *IPList = 0;
 	static void NewData (char *, DataHdr *);
 	InProgress *FindIP (int);
 	static void ContData (DataContinue *);
-	static void Done (int);
+	static void Done (DataDone *);
 	static void FinishIP (InProgress *);
 	static void IncOffsets (DataOffsets *);
 	static void UnknownBCast (DataBCChunk *, int);
@@ -104,6 +106,7 @@ InProgress *IPList = 0;
 	static void AskRetrans (InProgress *, int);
 	static void ProcessPolled (void);
 	static void RLEDecode (unsigned char *, unsigned char *, int);
+	static void ScanIP (void);
 # else
 	static int Incoming ();
 	static void Die ();
@@ -127,6 +130,7 @@ InProgress *IPList = 0;
 	static void AskRetrans ();
 	static void ProcessPolled ();
 	static void RLEDecode ();
+	static void ScanIP ();
 # endif
 
 /*
@@ -159,13 +163,13 @@ char **argv;
  */
 	if (argc > 1)
 	{
-		ui_init ("NetXfr.lf", FALSE, TRUE);
+		ui_init ("/fcc/lib/NetXfr.lf", FALSE, TRUE);
 		v.us_v_ptr = argv[1];
 		usy_s_symbol (usy_g_stbl ("ui$variable_table"), "commandfile",
 				SYMT_STRING, &v);
 	}
 	else
-		ui_init ("NetXfr.lf", TRUE, FALSE);
+		ui_init ("/fcc/lib/NetXfr.lf", TRUE, FALSE);
 /*
  * Set up indirect variables so that the user can do some tweaking.
  */
@@ -175,6 +179,7 @@ char **argv;
 	usy_c_indirect (vtable, "initialwait", &BCInitialWait, SYMT_INT, 0);
 	usy_c_indirect (vtable, "maxretrans", &BCRetransMax, SYMT_INT, 0);
 	usy_c_indirect (vtable, "burst", &BCBurst, SYMT_INT, 0);
+	usy_c_indirect (vtable, "ipscan", &IPScan, SYMT_INT, 0);
 /*
  * Hook into the message system.
  */
@@ -208,6 +213,7 @@ Die ()
  */
 {
 	ui_finish ();
+	ShutdownSeg ();
 	exit (0);
 }
 
@@ -236,6 +242,8 @@ struct ui_command *cmds;
 	 */
 	   case NXC_RUN:
 	   	/* Run (); */
+		tl_AddRelativeEvent (ScanIP, 0, IPScan*60*INCFRAC,
+				IPScan*60*INCFRAC);
 		msg_await ();
 		break;
 	/*
@@ -248,7 +256,7 @@ struct ui_command *cmds;
 	 * Set up to receive broadcast stuff.
 	 */
 	   case NXC_RECEIVE:
-	   	ReceiveSetup (UINT (cmds[1]));
+	   	DoReceive (UINT (cmds[1]));
 		break;
 	}
 	return (TRUE);
@@ -318,11 +326,21 @@ int ns;
 	DataDone done;
 	int i;
 	RastImg *rip;
+	time otimes;
+	Location loc;
 /*
  * First thing we need to do is to get this data.
  */
 	if (! (dobj = GetData (plat, t, ns)))
 		return;
+/*
+ * For now, we handle the "newfile" problem by getting the first in
+ * the list of obs samples, and seeing if it matches our time.
+ */
+	dhdr.dh_NewFile = 
+		(ds_GetObsSamples (plat, t, &otimes, &loc, 1) > 0) &&
+			otimes.ds_yymmdd == dobj->do_begin.ds_yymmdd &&
+			otimes.ds_hhmmss == dobj->do_begin.ds_hhmmss;
 /*
  * Create and send out the data header.
  */
@@ -572,6 +590,7 @@ struct message *msg;
 /*
  * See what we've got here.
  */
+	ProcessBCasts ();
 	switch (tmpl->dh_MsgType)
 	{
 	/*
@@ -592,7 +611,7 @@ struct message *msg;
 	 * Done with data.
 	 */
 	   case NMT_DataDone:
-	   	Done (tmpl->dh_DataSeq);
+	   	Done ((DataDone *) tmpl);
 		break;
 
 	/*
@@ -609,11 +628,15 @@ struct message *msg;
 	   	Retransmit ((DataRetransRq *) tmpl);
 		break;
 
+	   case NMT_WakeUp:
+	   	break;
+
 	   default:
 	   	msg_ELog (EF_PROBLEM, "Unknown data proto type: %d",
 				tmpl->dh_MsgType);
 		break;
 	}
+	ProcessBCasts ();
 	return (0);
 }
 
@@ -649,6 +672,8 @@ DataHdr *hdr;
 	ip->ip_DObj->do_id = ip->ip_Plat;
 	ip->ip_Arrived = 0;
 	ip->ip_Done = FALSE;
+	ip->ip_Age = 0;
+	ip->ip_NewFile = hdr->dh_NewFile;
 	strcpy (ip->ip_Source, from);
 /*
  * Add it to the list
@@ -665,9 +690,66 @@ DataHdr *hdr;
 		ip->ip_RLE = hdr->dh_BCRLE;
 		FindQueued (ip->ip_Seq);
 	}
-	msg_ELog (EF_DEBUG,"BCast is %d for seq %d", ip->ip_BCast, ip->ip_Seq);
 }
 
+
+
+
+static void
+ScanIP ()
+/*
+ * Search the IP list for old stuff.
+ */
+{
+	InProgress *ip;
+	DataBCChunk *chunk, *last;
+	int nzapped = 0;
+/*
+ * Go through the IP list, and increment all of the scan flags.  If a
+ * particular one has been seen before, we clean it up.
+ */
+	for (ip = IPList; ip; ip = ip->ip_Next)
+		if (ip->ip_Age++)
+		{
+			msg_ELog (EF_PROBLEM, "Old IP, seq %d", ip->ip_Seq);
+			ZapIP (ip);
+		}
+/*
+ * Do the same thing with queued broadcast packets.  Start with the head
+ * of the list.
+ */
+	for (chunk = BCQueue; chunk && chunk->dh_ID; chunk = BCQueue)
+	{
+		BCQueue = chunk->dh_Next;
+		free (chunk);
+		nzapped++;
+	}
+/*
+ * Now go inside (where the old ones really will be), increment counts, and
+ * zap things.
+ */
+	chunk = last = BCQueue;
+	while (chunk)
+	{
+	/*
+	 * Increment the counter and see if this one is too old.
+	 */
+		if (chunk->dh_ID++)
+		{
+			nzapped++;
+			last->dh_Next = chunk->dh_Next;
+			free (chunk);
+		}
+		else
+			last = chunk;
+	/*
+	 * Move on.
+	 */
+		chunk = last->dh_Next;
+	}
+	if (nzapped)
+		msg_ELog (EF_INFO, "%d old bc chunks zapped", nzapped);
+}
 
 
 
@@ -799,9 +881,9 @@ char *data;
 		memset (ip->ip_Arrived, 0, chunk->dh_NChunk);
 		ip->ip_NBCast = 0;
 		ip->ip_NBExpect = chunk->dh_NChunk;
-		ip->ip_DObj->do_data[0] = (float *) malloc(chunk->dh_DataSize);
-	msg_ELog (EF_INFO, "Inc data %d by in %d chunk", chunk->dh_DataSize,
-		chunk->dh_NChunk);
+		ip->ip_DObj->do_data[0] = (float *) malloc(chunk->dh_DataSize + 50000);
+		ip->ip_DObj->do_flags &= ~DOF_FREEALLDATA;
+		ip->ip_DObj->do_flags |= DOF_FREEDATA;
 	}
 /*
  * Mark this packet as arrived, and copy over the stuff.
@@ -921,11 +1003,13 @@ int len;
 		return;
 	}
 /*
- * Otherwise we enqueue it, waiting for the header info to arrive.
+ * Otherwise we enqueue it, waiting for the header info to arrive.  Use the
+ * ID Flag for scanning, now that the above check is done.
  */
 	new = (DataBCChunk *) malloc (len);
 	memcpy (new, chunk, len);
 	new->dh_Next = BCQueue;
+	new->dh_ID = 0;
 	BCQueue = new;
 }
 
@@ -973,13 +1057,13 @@ int seq;
 
 
 static void 
-Done (seq)
-int seq;
+Done (done)
+DataDone *done;
 /*
  * Finish out this chunk of data.
  */
 {
-	InProgress *ip = FindIP (seq);
+	InProgress *ip = FindIP (done->dh_DataSeq);
 /*
  * Make sure we know about this sequence.
  */
@@ -988,6 +1072,7 @@ int seq;
 /*
  * If we have all of the data, we can finish this thing out now.
  */
+	ip->ip_NBExpect = done->dh_NBSent;
 	if (! ip->ip_BCast || ip->ip_NBCast >= ip->ip_NBExpect)
 	{
 		FinishIP (ip);
@@ -1022,10 +1107,7 @@ int seq;
  */
 	PollBCast (TRUE);
 	if (! ip)
-	{
-		msg_ELog (EF_INFO, "Timeout with no IP on %d", seq);
 		return;
-	}
 /*
  * If we have exceeded the number of timeouts we are willing to deal with,
  * we give up on this.  If any data has arrived at all, finish out the IP
@@ -1105,12 +1187,11 @@ InProgress *ip;
 			ip->ip_DObj->do_data[i] = ip->ip_DObj->do_data[0] + 
 					ip->ip_Offsets.dh_Offsets[i];
 /*
- * Throw this data into the data store.  FIGURE OUT WHAT TO DO ABOUT
- * NEWFILE!!!!
+ * Throw this data into the data store.
  */
 	msg_ELog (EF_INFO, "Store sequence %d", ip->ip_Seq);
 	PollBCast (FALSE);
-	ds_PutData (ip->ip_DObj, FALSE);
+	ds_PutData (ip->ip_DObj, ip->ip_NewFile);
 	ZapIP (ip);
 	ProcessPolled ();
 }
@@ -1125,9 +1206,14 @@ InProgress *ip;
 	InProgress *zap;
 	int seq = ip->ip_Seq;
 /*
- * Clear this entry out of the inprogress list.
+ * Free up dynamic storage.
  */
 	ds_FreeDataObject (ip->ip_DObj);
+	if (ip->ip_Arrived)
+		free (ip->ip_Arrived);
+/*
+ * Clear this entry out of the inprogress list.
+ */
 	if (ip == IPList)
 		IPList = ip->ip_Next;
 	else

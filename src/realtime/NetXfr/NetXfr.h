@@ -1,4 +1,4 @@
-/* $Id: NetXfr.h,v 1.6 1991-06-12 16:41:15 corbet Exp $ */
+/* $Id: NetXfr.h,v 1.7 1991-06-12 16:43:00 corbet Exp $ */
 /* 
  * Definitions used for the data store network transfer protocol.
  */
@@ -17,6 +17,9 @@ typedef enum
 	NMT_DataBRetrans,	/* Data retransmission (bcast)		*/
 	NMT_DataOffsets,	/* Offsets for bcast data		*/
 	NMT_Retransmit,		/* Please retransmit something		*/
+  /* Internal messages */
+	NMT_NewPort,		/* Connect to a new port		*/
+	NMT_WakeUp,		/* Deal with your packets!		*/
 } NetMsgType;
 
 /*
@@ -31,6 +34,7 @@ typedef struct _DataHdr
 	DataObject	dh_DObj;	/* The associated data object	*/
 	char		dh_BCast;	/* Broadcast will be used	*/
 	char		dh_BCRLE;	/* Run-length encoded data	*/
+	char		dh_NewFile;	/* Start a new file here	*/
 } DataHdr;
 
 
@@ -97,6 +101,18 @@ typedef struct _DataOffsets
 	int		dh_Offsets[MAXFIELD];	/* The actual offsets	*/
 } DataOffsets;
 
+
+
+/*
+ * The new port request.
+ */
+typedef struct _NewPort
+{
+	NetMsgType	dh_MsgType;	/* == NMT_NewPort		*/
+	int		dh_Port;	/* The port number		*/
+} NewPort;
+
+
 /*
  * Generic template.
  */
@@ -136,11 +152,13 @@ extern int Broadcast, BCBurst, BCReceive, Polling;
 	void ReceiveSetup (int);
 	void SendOut (PlatformId, void *, int);
 	void Retransmit (DataRetransRq *);
+	int ReadBCast (int, char *, int);
 # else
 	void BCastSetup ();
 	int BCastHandler ();
 	int DoBCast ();
 	void ReceiveSetup ();
+	int ReadBCast ();
 # endif
 
 

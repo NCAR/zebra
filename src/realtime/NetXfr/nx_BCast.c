@@ -1,7 +1,7 @@
 /*
  * Handling of broadcast stuff.
  */
-static char *rcsid = "$Id: nx_BCast.c,v 1.4 1991-06-12 16:41:15 corbet Exp $";
+static char *rcsid = "$Id: nx_BCast.c,v 1.5 1991-06-12 16:43:00 corbet Exp $";
 
 # include <sys/time.h>
 # include <sys/signal.h>
@@ -117,7 +117,7 @@ int port;
  * Set up to receive bcast info.
  */
 {
-	if ((BCReceive = msg_BCSetup (0, port, BCastHandler)) < 0)
+	if ((BCReceive = msg_BCSetup (0, port, ReadBCast)) < 0)
 		msg_ELog (EF_PROBLEM, "Unable to setup BCast on port %d",port);
 }
 
@@ -290,8 +290,7 @@ int max;
 			*cdest++ = 0x80 | (count == 128 ? 0 : count);
 			*cdest++ = *data;
 			data += count;
-			pcount += 2;
-			ninpack += count;
+			pcount += 2; ninpack += count;
 		}
 	/*
 	 * If no run, but in literal, make sure we've not filled it.
@@ -300,8 +299,7 @@ int max;
 		{
 			*runbegin = 0;
 			*cdest++ = *data++;
-			pcount++;
-			ninpack++;
+			pcount++; ninpack++; inlit = FALSE;
 		}
 	/*
 	 * Otherwise we just add to the literal run, starting it if need be.
@@ -315,10 +313,10 @@ int max;
 				pcount++;
 			}
 			*cdest++ = *data++;
-			pcount++;
-			ninpack++;
+			pcount++; ninpack++;
 		}
 	}
+	chunk->dh_Size = pcount;
 	return (ninpack);
 }
 
@@ -645,7 +643,8 @@ int process;
 	if (BCReceive > 0)
 	{
 		Polling = ! process;
-		msg_PollBCast (BCReceive);
+		/* msg_PollBCast (BCReceive); */
+		ProcessBCasts ();
 		Polling = FALSE;
 	}
 }
