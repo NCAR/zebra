@@ -19,8 +19,12 @@
  * maintenance or updates for its software.
  */
 
+# include <stdlib.h>
 # include <stdio.h>
+# include <unistd.h>
 # include <errno.h>
+# include <ctype.h>
+
 # include <X11/Intrinsic.h>
 # include <X11/Xaw/Form.h>
 # include <X11/Shell.h>
@@ -41,9 +45,8 @@
 # include <dm.h>
 # include <config.h>
 # include <copyright.h>
-# ifndef lint
-MAKE_RCSID ("$Id: EventLogger.c,v 2.30 1995-05-16 20:48:36 granger Exp $")
-# endif
+
+RCSID ("$Id: EventLogger.c,v 2.31 1995-06-29 21:03:01 granger Exp $")
 
 # define LOGNAME "EventLogger"
 
@@ -94,7 +97,7 @@ static int FortuneWait = FORTUNE_WAIT;	/* secs idle time between fortunes */
  */
 static int Buflen = 0;
 static char *Initmsg = 
-"$Id: EventLogger.c,v 2.30 1995-05-16 20:48:36 granger Exp $\nCopyright (C)\
+"$Id: EventLogger.c,v 2.31 1995-06-29 21:03:01 granger Exp $\nCopyright (C)\
  1991 UCAR, All rights reserved.\n";
 
 /*
@@ -196,7 +199,11 @@ static void SendEMask FP ((char *who));
 int	SendDbgMask FP ((char *, int, SValue *, long));
 int	PassDebug FP ((int,  char *));
 int 	xevent (), msg_event ();
-static void sync ();
+static void dm_msg FP ((struct dm_msg *dmsg));
+static void clearbutton FP ((void));
+static void reconfig FP ((int x, int y, int w, int h));
+static void wm FP ((void));
+static void Sync ();
 static void CreateEventLogger FP ((void));
 static void SendGeometry FP((struct dm_msg *dmm));
 static Widget MakeTimestampButton FP ((Widget left, int default_period));
@@ -446,11 +453,11 @@ static void
 CreateBitmaps()
 {
 	Check = XCreateBitmapFromData (XtDisplay (Top),
-		RootWindowOfScreen (XtScreen (Top)), Check_bits,
-		check_width, check_height);
+		RootWindowOfScreen (XtScreen (Top)), 
+	        (const char *) Check_bits, check_width, check_height);
 	Scroll = XCreateBitmapFromData (XtDisplay (Top),
-		RootWindowOfScreen (XtScreen (Top)), scroll_bits,
-		scroll_width, scroll_height);
+		RootWindowOfScreen (XtScreen (Top)), 
+		(const char *) scroll_bits, scroll_width, scroll_height);
 }
 
 
@@ -530,6 +537,7 @@ char **argv;
  * Now we wait and process messages as we get them.
  */
 	Wait();
+	return (0);	/* to keep compilers happy */
 }
 
 
@@ -546,7 +554,7 @@ Wait()
 
 	if (Windows)
 	{
-		sync ();
+		Sync ();
 		xevent ();
 	}
 	if (!TellFortune || !Windows)
@@ -585,7 +593,6 @@ CreateEventLogger()
 	Arg args[20];
 	Cardinal n;
 	Widget w, label;
-	int clearbutton (), wm ();
 /*
  * Create our shell.
  */
@@ -904,9 +911,9 @@ Widget top;	/* our top-level parent 	   */
 	root_width = WidthOfScreen(XtScreen(shell));
 	root_height = HeightOfScreen(XtScreen(shell));
 	XtTranslateCoords (w, 5, 5, &root_x, &root_y);
-	if (root_x + width + 5 > root_width)
+	if (root_x + width + (unsigned)5 > root_width)
 		root_x = root_width - width - 5;  /* minus any borders */
-	if (root_y + height + 5 > root_height)
+	if (root_y + height + (unsigned)5 > root_height)
 		root_y = root_height - height - 5;
 	n = 0;
 	XtSetArg (args[n], XtNx, root_x); n++;
@@ -1146,12 +1153,12 @@ xevent ()
 /*
  * Deal with events as long as they keep coming.
  */
-	sync ();
+	Sync ();
  	while (XtAppPending (Appc))
 	{
 		XtAppNextEvent (Appc, &event);
 		XtDispatchEvent (&event);
-		sync ();
+		Sync ();
 	}
 	return (0);
 }
@@ -1182,7 +1189,7 @@ struct message *msg;
 	else if (msg->m_proto == MT_DISPLAYMGR)
 	{
 		if (Windows)
-			dm_msg (msg->m_data);
+			dm_msg ((struct dm_msg *) msg->m_data);
 	}
 /*
  * If it's an extended message, do something with it.
@@ -1456,7 +1463,7 @@ char *fmtbuf;
 /*
  * If this is getting too big, trim it back.  Try to trim it at a line break.
  */
-	if ((Buflen += strlen (fmtbuf)) > MAXCHAR)
+	if ((Buflen += strlen (fmtbuf)) > (unsigned)MAXCHAR)
 	{
 		XawTextSetInsertionPoint (Text, Buflen - TRIMCHAR);
 		tb.firstPos = 0;
@@ -1483,7 +1490,7 @@ char *fmtbuf;
 
 
 
-
+static void
 clearbutton ()
 /*
  * Clear log message buffer, then clear text window.
@@ -1501,7 +1508,7 @@ clearbutton ()
 
 
 static void
-sync ()
+Sync ()
 /*
  * Synchronize with the window system.
  */
@@ -1513,7 +1520,7 @@ sync ()
 
 
 
-
+static void
 dm_msg (dmsg)
 struct dm_msg *dmsg;
 /*
@@ -1605,7 +1612,7 @@ struct dm_msg *dmm;
 
 
 
-
+static void
 reconfig (x, y, w, h)
 int x, y, w, h;
 /*
@@ -1636,14 +1643,13 @@ int x, y, w, h;
 	XtSetArg (args[n], XtNx, x);	n++;
 	XtSetArg (args[n], XtNy, y);	n++;
 	XtSetValues (Shell, args, n);
-	sync ();
+	Sync ();
 }
 
 
 
 
-
-
+static void
 wm ()
 /*
  * Try to change override redirect.
@@ -2045,7 +2051,7 @@ LogFortune ()
 	int len, nread;
 
 	sprintf (command, "%s", FORTUNE_CMD);
-	pipe = popen (command, "r");
+	pipe = (FILE *) popen (command, "r");
 	if (!pipe)
 	{
 		sprintf (fortune, "%s: pipe failed, err %d", command, errno);
