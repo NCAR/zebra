@@ -607,7 +607,7 @@ int *x, *y;
  */
 	gtty_readprompt (tag->tek_tty, "\033%!0\033SQ01X", reply, 80);
 	if (strlen (reply) != 9)
-		ui_error ("(BUG) Unexpected 4107 reply length %d: '%s'", 
+		printf ("(BUG) Unexpected 4107 reply length %d: '%s'", 
 			strlen (reply), reply);
 
 	hi_x = reply[7] & LOW5BITS;
@@ -624,7 +624,7 @@ int *x, *y;
  */
 	gtty_readprompt (tag->tek_tty, "", dummy, 1);
 	if (strlen (dummy))
-		ui_error ("(BUG) Got more than a <CR> in 4107 dummy read");
+		printf ("(BUG) Got more than a <CR> in 4107 dummy read");
 }
 
 
