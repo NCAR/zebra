@@ -25,11 +25,13 @@
 # include <defs.h>
 # include <message.h>
 # include <pd.h>
+# include <GraphicsW.h>
 # include <DataStore.h>
 # include <time.h>
 # include "GraphProc.h"
 # include "PixelCoord.h"
-MAKE_RCSID ("$Id: Utilities.c,v 2.27 1995-04-07 22:21:57 burghart Exp $")
+
+MAKE_RCSID ("$Id: Utilities.c,v 2.28 1995-04-17 21:16:32 granger Exp $")
 
 /*
  * Rules for image dumping.  Indexed by keyword number in GraphProc.state
@@ -321,7 +323,6 @@ int def;
  */
 {
 	int lwidth;
-	XColor xc;
 
 	if (! pda_Search (Pd, comp, param, qual, (char *) &lwidth, SYMT_INT))
 		lwidth = def;
@@ -356,7 +357,7 @@ ZebTime	*t;
  */
 {
 	char	limit[100];
-	int	seconds, psec, dsec;
+	int	seconds;
 /*
  * Look for the limit.  If none exists, return TRUE.
  */
@@ -400,7 +401,7 @@ ZebTime *ptime;
 {
 	int advect, constant, sample, ns;
 	bool enable = FALSE;
-	float xoffset = 0, yoffset = 0, xpos, ypos, advdir, advspeed;
+	float xoffset = 0, yoffset = 0, advdir, advspeed;
 	char *pname = ds_PlatformName (dc->dc_Platform);
 	Location loc;
 	ZebTime t;
@@ -693,39 +694,137 @@ char *file;
 
 
 
+static int
+FindWindComps (pid, nfid, fids, name1, name2, field1, field2)
+PlatformId pid;
+int nfid;
+FieldId *fids;
+char *name1;
+char *name2;
+FieldId *field1;
+FieldId *field2;
+{
+	int i;
+	int f1 = 0, f2 = 0;
+
+	*field1 = F_Lookup (name1);
+	*field2 = F_Lookup (name2);
+	for (i = 0; i < nfid; i++)
+	{
+		if (*field1 == fids[i])
+			f1 = 1;
+		if (*field2 == fids[i])
+			f2 = 1;
+		if (f1 && f2)
+			break;
+	}
+	if (! f1 || ! f2)
+	{
+		msg_ELog (EF_PROBLEM, 
+			  "platform %s missing field %s or %s",
+			  ds_PlatformName (pid), name1, name2);
+		return (0);
+	}
+	return (1);
+}
+
 
 
 void
-FindWindsFields (plat, zt, ufield, vfield, fids)
+FindWindsFields (comp, plat, zt, fids, wi)
+char *comp;		/* plot component name */
 PlatformId plat;
 ZebTime *zt;
-char *ufield, *vfield;
 FieldId *fids;
+WindInfo *wi;
 /*
- * Figure out what fields to snarf for winds.
+ * Figure out what fields to snarf for winds.  Initialize *info according
+ * to what we find.  Set the fids array to the fields which need to be
+ * fetched.
  */
 {
-	FieldId afids[128];
-	int nfid = 128, i;
+	char uname[128];
+	char vname[128];
+	char *p;
+	char wspd[128];
+	char wdir[128];
+	FieldId fields[128];
+	int nfield = 128;
+	int found;
 /*
- * Look up the u component and see if we can really get it.
+ * Initialize info structure
  */
-	fids[0] = F_Lookup (ufield);
-	ds_GetFields (plat, zt, &nfid, afids);
-	for (i = 0; i < nfid; i++)
-		if (fids[0] == afids[i])
-		{
-			msg_ELog (EF_INFO, "Found U");
-			fids[1] = F_Lookup (vfield);
-			return;
-		}
+	wi->wi_polar = 0;
+	wi->wi_wspd = BadField;
+	wi->wi_wdir = BadField;
+	wi->wi_uwind = BadField;
+	wi->wi_vwind = BadField;
+
+	ds_GetFields (plat, zt, &nfield, fields);
 /*
- * Nope.  Instead, we need to ask for speed and direction and hope it
- * is available.
+ * Explicit parameters take precedence, then we start looking for default
+ * field names.  Look for "x-field" and "y-field" as well since those
+ * names are accepted for track plots.
  */
-	msg_ELog (EF_INFO, "Going for speed/direction");
-	fids[0] = F_Lookup ("wspd");	/* XXX should parameterize */
-	fids[1] = F_Lookup ("wdir");
+	p = ds_PlatformName (plat);
+	found = 0;
+	if (pda_Search (Pd, comp, "u-field", p, uname, SYMT_STRING) &&
+	    pda_Search (Pd, comp, "v-field", p, vname, SYMT_STRING))
+	{
+		found = FindWindComps (plat, nfield, fields, uname, vname,
+				       &wi->wi_uwind, &wi->wi_vwind);
+	}
+
+	if (! found &&
+	    pda_Search (Pd, comp, "x-field", p, uname, SYMT_STRING) &&
+	    pda_Search (Pd, comp, "y-field", p, vname, SYMT_STRING))
+	{
+		found = FindWindComps (plat, nfield, fields, uname, vname,
+				       &wi->wi_uwind, &wi->wi_vwind);
+	}
+
+	if (! found &&
+	    pda_Search (Pd, comp, "wspd-field", p, wspd, SYMT_STRING) &&
+	    pda_Search (Pd, comp, "wdir-field", p, wdir, SYMT_STRING))
+	{
+		wi->wi_polar = 1;
+		found = FindWindComps (plat, nfield, fields, wspd, wdir,
+				       &wi->wi_wspd, &wi->wi_wdir);
+	}
+
+	if (! found)
+	{
+		wi->wi_polar = 0;
+		found = FindWindComps (plat, nfield, fields, "u_wind", 
+				       "v_wind", &wi->wi_uwind, &wi->wi_vwind);
+	}
+	if (! found)
+	{
+		wi->wi_polar = 1;
+		found = FindWindComps (plat, nfield, fields, "wspd", "wdir",
+				       &wi->wi_wspd, &wi->wi_wdir);
+	}
+/*
+ * Let someone know if we didn't succeed
+ */
+	if (! found)
+	{
+		msg_ELog (EF_PROBLEM, "no wind vector fields for %s:%s",
+			  comp, p);
+	}
+/*
+ * Now return the fields which need to be fetched.
+ */
+	if (wi->wi_polar)
+	{
+		fids[0] = wi->wi_wspd;
+		fids[1] = wi->wi_wdir;
+	}
+	else
+	{
+		fids[0] = wi->wi_uwind;
+		fids[1] = wi->wi_vwind;
+	}
 }
 
 
@@ -733,19 +832,18 @@ FieldId *fids;
 
 
 void
-GetWindData (fids, u, v, badval)
-FieldId *fids;
+GetWindData (wi, u, v, badval)
+WindInfo *wi;
 float *u, *v, badval;
 /*
  * Return the actual wind data.
  */
 {
-	int wsfid = F_Lookup ("wspd");
 	float wspd, wdir;
 /*
  * If we already have u/v, just return it.
  */
-	if (fids[0] != wsfid)
+	if (! wi->wi_polar)
 		return;
 /*
  * Nope gotta calculate it.
