@@ -40,7 +40,7 @@
 # include "Platforms.h"		/* for dt_SetString */
 # include "byteorder.h"
 
-RCSID ("$Id: d_Scan.c,v 1.37 1999-04-13 18:36:23 granger Exp $")
+RCSID ("$Id: d_Scan.c,v 1.38 2000-06-07 20:29:59 granger Exp $")
 
 /*
  * Define this to force changed files to be closed and re-opened by
@@ -86,31 +86,45 @@ DataScan (Source *src)
     int plat;
 
     FilesScanned = 0;
-/*
- * Do this for every platform.
- */
-    for (plat = 0; plat < dt_NPlatform(); plat++)
+
+    /*
+     * If src is dirconst (meaning we wouldn't be comparing the directory
+     * listing in ScanDirectory() with the cache listing) and data
+     * directories do not need to be created if non-existent, then
+     * the initial scan of this source is a no-op.  This avoids the 
+     * automatic open and close of the data directory in ScanDirectory().
+     */
+    if (! src_IsDirConst (src) || src_DirsAreForced (src))
     {
-	const Platform *p = dt_FindPlatform (plat);
-    /*
-     * We sometimes hit a bad id if a platform has been deleted.
-     */
-	if (! p)
-	    continue;
-    /*
-     * Check and handle any pending messages except ds protocol
-     */
-	while (msg_PollProto (0, NProto, ScanProto) != MSG_TIMEOUT)
-	/* handle messages besides our own */ ;
-    /*
-     * If it isn't a subplatform or virtual platform, scan its directory.
-     */
-	if (! pi_Subplatform(p) && ! pi_Virtual(p))
-	    ScanDirectory (src, p, FALSE);
-    /*
-     * Update the count of scanned platforms, i.e. the highest scanned PID
-     */
-	++PlatformsScanned;
+	/*
+	 * Do this for every platform.
+	 */
+	for (plat = 0; plat < dt_NPlatform(); plat++)
+	{
+	    const Platform *p = dt_FindPlatform (plat);
+	    /*
+	     * We sometimes hit a bad id if a platform has been deleted.
+	     */
+	    if (! p)
+		continue;
+	    /*
+	     * Check and handle any pending messages except ds protocol
+	     */
+	    while (msg_PollProto (0, NProto, ScanProto) != MSG_TIMEOUT)
+		/* handle messages besides our own */ ;
+
+	    /*
+	     * If it isn't a subplatform or virtual platform, scan its
+	     * directory.
+	     */
+	    if (! pi_Subplatform(p) && ! pi_Virtual(p))
+		ScanDirectory (src, p, FALSE);
+	    /*
+	     * Update the count of scanned platforms, i.e. the highest
+	     * scanned PID.
+	     */
+	    ++PlatformsScanned;
+	}
     }
 /*
  * Update the time of this scan if we're not using stat revisions
