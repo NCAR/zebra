@@ -9,7 +9,7 @@
 # include "ui_error.h"
 # include "ui_globals.h"
 
-static char *rcsid = "$Id: ui_function.c,v 1.4 1991-12-20 18:10:13 corbet Exp $";
+static char *rcsid = "$Id: ui_function.c,v 1.5 1992-01-28 21:00:08 corbet Exp $";
 
 /*
  * These structures represent functions.
@@ -38,7 +38,7 @@ struct func
 int uf_sqrt (), uf_exp (), uf_defined (), uf_stbl (), uf_concat ();
 int uf_quote (), uf_within ();
 int uf_cos (), uf_sin (), uf_tan (), uf_contains (), uf_substring ();
-int uf_getenv (), uf_noccur ();
+int uf_getenv (), uf_noccur (), uf_string ();
 
 static struct func
 Func_tbl[] =
@@ -53,6 +53,7 @@ Func_tbl[] =
   { "quote",	1,	{ SYMT_STRING },		FF_HARD, uf_quote   },
   { "sin",	1,	{ SYMT_FLOAT },			FF_HARD, uf_sin     },
   { "sqrt",	1,	{ SYMT_FLOAT },			FF_HARD, uf_sqrt    },
+  { "string",	1,	{ SYMT_UNDEFINED },		FF_HARD, uf_string  },
   { "substring", 2,	{ SYMT_STRING, SYMT_STRING },	FF_HARD, uf_substring},
   { "symbol_table", 1,	{ SYMT_STRING },		FF_HARD, uf_stbl },
   { "tan",	1,	{ SYMT_FLOAT },			FF_HARD, uf_tan },
@@ -158,7 +159,8 @@ int *argt;
 			ui_error ("Not enough args for '%s' -- need %d",
 				fp->f_name, fp->f_narg);
 		ue_eval (arglist->pt_left, argv, argt);
-		if (*argt != fp->f_types[arg])
+		if (*argt != fp->f_types[arg] &&
+					fp->f_types[arg] != SYMT_UNDEFINED)
 			uit_coerce (argv, *argt, fp->f_types[arg]);
 		argv++;
 		argt++;
@@ -358,6 +360,33 @@ union usy_value *argv, *retv;
 		if (! strncmp (check, argv[1].us_v_ptr, len))
 			return;
 	retv->us_v_int = FALSE;
+}
+
+
+
+
+uf_string (narg, argv, argt, retv, rett)
+int narg, *argt, *rett;
+union usy_value *argv, *retv;
+/*
+ * Encode an expression into string format.
+ */
+{
+	char ebuf[200];
+/*
+ * If it's already a string, just return it.
+ */
+	if (*argt == SYMT_STRING)
+		retv->us_v_ptr = usy_string (argv->us_v_ptr);
+/*
+ * Otherwise we need to encode it.
+ */
+	else
+	{
+		ue_enc_val (argv, *argt, ebuf);
+		retv->us_v_ptr = usy_string (ebuf);
+	}
+	*rett = SYMT_STRING;
 }
 	
 
