@@ -1,0 +1,1061 @@
+
+IMAKE GUIDE FOR ZEB DEVELOPERS
+==============================
+
+
+			--- Contents ---
+	
+	Introduction
+	
+	How Imake Works
+	
+	Imakefiles Versus Makefile.cpp Files
+	
+	Changes Made to Zeb with the Installation of Imake
+	
+	General Imake Features
+	
+	Zeb's Own Imakefile Features
+	
+	Common Pitfalls
+	
+	Tips and Suggestions
+	
+	Future Developments
+	
+
+Introduction
+============
+
+Those who are simply installing Zeb should read the README file in the
+top directory.  You should not need to read this, unless you are simply
+curious, or you are porting Zeb to a new system.  For developers, most
+of this is perhaps detail that you will not need 'til further down the
+road.  Any section that does not look immediately necessary is not.
+
+This document describes Zeb's use of the Imake system to handle its
+distribution hierarchy.  First, to give credit where credit is due:
+Imake was originally written by Todd Brunhoff, Tektronix, inc., while a
+guest engineer at Project Athena, MIT, and further developed by Jim
+Fulton of the X Consortium.  Imake is copyrighted by MIT, but
+permission has been granted for any use and distribution (as long as
+the Copyright message is distributed as well and all that...).
+
+This document describes the general operation of imake and its
+implementation in the Zeb directory hierarchy.  It also offers some
+guidelines for 'making' the most out of Imakefiles.  For most intents
+and purposes, you should notice little difference in the behavior of
+Imake-generated Makefiles and the original cpp-generated Makefiles.
+The most common targets, such as depend, all, install, clean, and
+Makefile (mf), still exist.  New ones, such as includes and Makefiles,
+are described below.  If a directory's Makefile is not behaving as it
+did prior to Imake, or you just don't like the behavior, or you need to
+make some changes, then try adjusting the Imakefile yourself with the
+guidelines given here.  But also please feel very welcome to just tell
+me to do it. (Though doing it yourself is the better part of
+learning...) Likewise, please give me any suggestions you may have for
+additions, corrections, or clarifications to this document.
+
+				--- Gary, granger@ncar.ucar.edu
+
+
+
+Some other places to look for information about imake:
+
+  o	The imake(1) man page, imake.man.
+  o	The make(1) man page.
+  o	The cpp(1) man page.
+
+You should be familiar with make and cpp to get the most from
+this document.  The imake man page offers some details and
+command line options which are not discussed here.  The imake man
+page, as well as the imake source and configuration files, can be
+found in the Zeb directory zeb/imake, or in the X11 distribution
+in mit/config.
+
+This document refers to several files which Imake uses to generate
+Makefiles.  All of these files can be found in the X11 distribution
+under mit/config, or under Zeb's distribution in zeb/imake:
+
+  o	Imake.tmpl
+  o	Imake.rules
+  o	*.cf
+  o	site.def
+
+The zeb/imake directory includes the source files and makefiles
+necessary for building the imake program.  This directory is almost an
+exact copy of the X11 directory .../mit/config.  For Zeb's
+distribution, the X11 Project.tmpl file has been removed, and the
+Imakefile has been slightly modified.  The hope is that as the imake
+system evolves and new system configurations are added, the zeb/imake
+directory can be easily updated by directly copying the most recent X11
+release of imake.  Therefore it is imperative that NO changes be made
+to this directory.  All adjustments and edits should be done to files
+in the zeb/config directory.  This directory contains files which
+override some of the files and definitions in the imake directory.  By
+including the zeb/config directory before the zeb/imake directory on
+the imake command line, the files in zeb/config replace some of the
+imake configuration files in zeb/imake.
+
+
+How Imake Works
+===============
+
+Imake takes advantage of the C pre-processor to generate a Makefile
+from a file called an Imakefile.  Makefile rules and variables are set
+through macros defined in a series of files included by Imake.  Imake
+tells cpp to include a master template file, Imake.tmpl, which in turn
+uses #include directives to include other files, such as the
+machine-specific configuration file (with the .cf extension), the
+Imake.rules file, the Project.tmpl file, and the Imakefile. The
+Project.tmpl file defines common variables, such as install
+directories, needed libraries, and include directories, which are
+specific to a particular project.  The Imake.rules file defines macros
+for common Makefile targets, such as 'depend', 'includes', and 'clean',
+and rules for building and installing programs and libraries.  These
+macros expand into Makefile rules when processed by cpp to produce the
+Makefile.
+
+The imake program is necessary to overcome certain limitations of
+C pre-processors.  First of all, cpp macros cannot expand into multiple
+lines, whereas Makefile targets must be separated from their shell
+commands by newlines.  So Imake rules are defined using two consecutive
+'@' characters to indicate where newlines should be placed when the
+macro is expanded.  Also, C pre-processors are not consistent in their
+behavior among different platforms.  Some pre-processors convert
+escaped newlines to spaces, others convert tabs to spaces.  Since tabs
+are required before each line of a rule's shell commands, imake
+attempts to make sure the tabs are there or insert its own tabs in the
+cpp output.
+
+A Makefile is built from an Imakefile through the following steps:
+
+ 1) imake invokes cpp, piping both cpp's stdin and stdout.
+    Imake sends cpp an include directive to include the Imake template
+    file, Imake.tmpl.  Meanwhile, imake filters cpp's output: "@@" is
+    replaced with "\n" and lines following targets (those lines
+    containing a ':') are prepended with tabs.
+ 
+ 2) Imake.tmpl determines the architecture it is being compiled on
+    through pre-defined cpp symbols and includes a machine-specific
+    configuration file, *.cf.  Then a site.def file is included,
+    allowing a particular site to override any .cf definitions 
+    or any of the Imake.tmpl default symbol definitions.
+    
+ 3) Imake.tmpl then gives default definitions to any variables
+    that were not set in the previously included files.  Here are some
+    examples of these machine- and site-specific symbols:
+ 
+    SystemV 				HasSockets
+    HasVFork 				HasVoidSignalReturn
+    HasSaberC 				HasFortran
+    DefaultCDebugFlags 			ArCmd
+    InstallCmd 				RanlibCmd
+ 
+    See Imake.tmpl for the full complement.  This isn't even close.
+ 
+ 4) Next, Imake.tmpl outputs text which assigns each cpp
+    symbol defined so far to the corresponding conventional Makefile
+    variable: AR=ArCmd, INSTALL=InstallCmd, CC=CCompiler,
+    RANLIB=RanlibCmd, and INSTPGMFLAGS=InstPgmFlags.  Note the name
+    convention: cpp symbols are lowercase with capitalized word
+    separations, while Make variables are all uppercase.  Remembering
+    this can save some confusion when looking through Imakefiles.
+ 
+ 5) Imake.tmpl then includes the Project.tmpl file.  The
+    Project.tmpl file assigns default values to project-specific cpp
+    symbols and then outputs the text which assigns these symbols to
+    the corresponding Makefile variables, just as Imake.tmpl does in
+    step (4).  For Zeb's project template, some of these variables are
+    UIC=UicCmd, ARADD=ArAdd, and LIBZEB=ZebLibrary.
+
+ 6) For Zeb's implementation, Project.tmpl is in zeb/config.  It
+    includes the config.h file which indicates the installer's
+    choices on various build options.  The last line of the Zeb
+    template includes the Zeb.rules file, which defines some rules to
+    override the default definitions given in Imake.rules.  The rules
+    in Zeb.rules are specially designed for the Zeb development
+    environment.
+
+ 7) Imake.tmpl then includes the Imake.rules file.  All of
+    the definitions here first test that the rule macro has not been
+    defined already.  In this way rules defined in Zeb.rules replace
+    any definitions that would have occurred in Imake.rules.  For
+    example, Zeb.rules defines the NormalProgramTarget() macro to
+    include an install target, where the Imake.rules definition does
+    not.  Also, the SaberProgramTarget() has been 're-defined' in
+    Zeb.rules to perform the Saber commands most often used by Zeb
+    programmers.
+
+ 8) Next, the Imake.tmpl file includes the actual Imakefile.  Here
+    rule macros are expanded, and imake inserts any necessary newlines
+    and tabs into the output.
+
+ 9) Imake.tmpl outputs some targets necessary for all
+    Makefiles, such as the following:
+
+    Makefile    -- For re-creating the Makefile from the Imakefile
+		   using imake.
+    clean       -- The generic clean target which removes all
+		   object files, core files, etc.
+
+    If the Imakefile defined the 'IHaveSubdirs' cpp symbol, targets are
+    included for propagating the 'depend', 'includes', 'clean',
+    'install', 'all', and 'Makefiles' targets to the subdirectories.
+    More on this option later.
+
+10) Imake writes the resulting output to a Makefile.  Though this may
+    sound long and complicated, the whole process has been methodically 
+    laid out, and Makefile generation is actually very quick.
+
+
+Imakefiles Versus Makefile.cpp Files
+====================================
+
+The Imakefile system is similar to Zeb's original Makefile.cpp system.
+Both systems rely on the C pre-processor to handle the configuration
+and dissemination of distribution-wide variables to the Makefile
+hierarchy.  Imake's template files are simply Zeb's config.h taken to a
+more thorough and flexible level to maximize portability.  Symbols like
+CCompiler and CCOptions, defined in config.h, are assigned to Makefile
+variables by lines like the following in each Makefile.cpp:
+
+CC=CCompiler
+CFLAGS=CCOptions IncludeDirs
+
+Imake takes care of this assignment outside of the Imakefile by putting
+these lines in the template files, thus prepending the general,
+distribution-wide information to the directory-specific information in
+the Imakefile.  An Imakefile only describes the directory where it is
+located.  It knows nothing about its parent or where it is in the rest
+of the distribution.  This makes the whole Imakefile system modular,
+flexible, and easy to maintain.  And where each and every Makefile.cpp
+had to include a rule for re-making a Makefile, Imake appends this rule
+to each Makefile automatically.  Imake also provides the added bonus of
+using cpp macros to generate rules as well as variables; any adjustment
+required in a rule is made in one rules file, and the whole hierarchy
+is automatically updated by the 'Makefiles' target.
+
+Notice that because of the Imake system's modularity, where each
+directory need only know about its immediate subdirectories, the whole
+Zeb distribution could be inserted inside another Imake distribution
+hierarchy by simply adding Zeb's directory to one Imakefile's SUBDIRS
+variable.  Imagine compiling *every* RDSS package by editing one
+config.h file and typing one make command, while maintaining the
+capability to distribute packages individually.
+
+
+Changes Made to Zeb with the Installation of Imake
+==================================================
+
+Several changes were made to the Zeb distribution and build behavior
+with the installation of imake.  Most of these changes were made to
+make imake more effective in building and maintaining Zeb; others were
+just plain overdue.  This section describes these changes.
+
+1)  The resource files originally stored in zeb/lib/resources
+    have been moved to their respective source directories where they
+    should be.  They have an extension of '.ad' indicating an
+    application defaults file.  These files have been put under the
+    control of RCS and are installed into the lib/resources directory
+    Installation rules are generated with the InstallAppDefaults()
+    Imake macro.
+
+    Other files are now installed from more appropriate places rather
+    than permanently residing in their installed location.  The
+    master copy of the zeb.hlp file resides in util/xhelp, where it
+    is under RCS control.
+
+2)  The distribution now behaves much more 'hierarchically'.  
+    A make in a directory will automatically propagate to all
+    of its subdirectories.  Note that Imake subdirectory rules
+    make full use of $(MAKE) and $(MFLAGS) when recursively calling
+    make.  Hence command-line flags, even -n, will be
+    automatically propagated to subdirectory makes.  For a great
+    example of this, try the following command from the toplevel
+    Zeb directory.
+
+       After the imake program and all of the Makefiles have already 
+       been made:
+
+       % make -n Everything MFLAGS='-n DEPLIBS='
+
+    This will run make through the process of building the ENTIRE
+    distribution without ever actually executing a single command,
+    except of course for the recursive makes.  The DEPLIBS= assignment
+    removes any library dependencies for programs; otherwise if the
+    library does not exist, make will give an error about not being
+    able to create the dependency target.  (Note that this assignment
+    works because every Imakefile uses the DEPLIBS variable to set its
+    dependent libraries; this variable ususally defaults to
+    'libzeb.a'.)  If the distribution has recently been cleaned, the
+    compile command for every source file will be printed by make.
+    Otherwise compile commands will be shown for only those source
+    files which are out-of-date.  This is an extremely useful technique
+    for testing configuration settings and Imakefile modifications.
+
+3)  The functionality of the 'Makefile' target has been separated.  The
+    'Makefile' target no longer automatically does a 'make depend'.
+    During installation, a 'make Makefiles' must be done to make sure
+    all Makefiles in the distribution are up-to-date.  Then a 'make
+    includes' is done for the whole distribution to install public
+    header files in the build's include directory ($(TOP)/include).
+    The 'depend' target cannot be performed until after the 'includes'
+    target is complete.   Hence the 'Makefile' and 'depend' targets had
+    to be separated.  The shorthand 'mf' target, since it is not
+    invoked in a hierarchical build, performs both the 'Makefile' and
+    'depend' targets.  So when building a Makefile before the includes
+    directory has been built, use 'Makefile' rather than 'mf'.  But in
+    normal development, you can use 'mf'.
+
+4)  Because the zeb/util directory builds library objects on which
+    programs in zeb/util depend, the install.lib target must be
+    performed on the zeb hierarchy before the general install target.
+    The install.lib target builds all of the necessary object files
+    in each directory and installs these into the Zeb library without
+    trying to build any executables.  The install target explicitly
+    builds the executables.  Thus if you edit library objects which
+    an executable gets from the library rather than the directory,
+    you must run the install.lib target to update the library file
+    before the changes will be reflected in the executables.  This
+    is not a fault of imake but of the Zeb hierarchy's requirement
+    that executables be built with the installed libraries and
+    headers. 
+
+    General header files, such as 'copyright.h' and 'defs.h' that 
+    do not correspond to a particular source directory, are 
+    installed into the include directory from the util directory.  
+
+5)  All of the ingest modules in zeb/ingest have been moved into their
+    own subdirectory.  Library routines that other ingest modules
+    depend upon are compiled and installed from zeb/ingest/ingest.
+
+6)  The distribution hierarchy now includes a new subdirectory,
+    zeb/imake, which contains the imake source and necessary
+    configuration and template files which are not replaced by
+    Zeb's files in zeb/config.
+
+
+General Imake Features
+======================
+
+Imakefiles are designed to be as machine independent as possible.
+Makefile variables are used wherever possible to name source files,
+object files, libraries, and even shell commands such as 'rm' and
+'cat'.  The use of Makefile variables allows a great deal of
+flexibility.  Usually each variable defaults to some normal value in
+the makefile, but this value can be overridden from the command line of
+the make(1) command.  For example, a programmer may want to compile a
+source file with the cpp symbol DEBUG set, even though this is not the
+default in the Makefile.  Using an imake-generated Makefile, the make
+command would be
+
+% make EXTRA_DEFINES=-DDEBUG
+
+The same make variables are generated from each and every Imakefile.  So
+even without having written the Imakefile originally, a programmer
+can be assured that the EXTRA_DEFINES variable is referenced in the
+Makefile and will produce the desired results.  
+
+Imakefile rules are defined once in a central file rather than
+redundantly copied into every Makefile which requires a particular
+rule.  Thus rules can be adjusted in a single location for different
+development behaviors and for machine portability.  For example, here
+is the definition of the BuildIncludes() macro:
+
+
+#ifndef BuildIncludes
+#define BuildIncludes(srclist,dstsubdir,dstupdir)           @@\
+includes::                                                  @@\
+        MakeDir($(BUILDINCDIR)/dstsubdir)                   @@\
+        @(set -x; cd $(BUILDINCDIR)/dstsubdir; for i in srclist; do \ @@\
+                $(RM) $$i; \                                @@\
+                $(CP) -p $(BUILDINCTOP)/dstupdir/$(CURRENT_DIR)/$$i .; \ @@\
+        done)
+#endif /* BuildIncludes */
+
+Note the "@@" strings at the end of each line.  When invoked in an
+Imakefile as BuildIncludes($(HEADERS),.,.), using the definition
+in Zeb.rules, this macro expands to
+
+includes::
+        @if [ -d $(BUILDINCDIR)/. ]; then set +x; \
+        else (set -x; $(MKDIRHIER) $(BUILDINCDIR)/.); fi
+        @(set -x; cd $(BUILDINCDIR)/.; for i in $(HEADERS); do \
+        $(RM) $$i; \
+        $(CP) -p $(BUILDINCTOP)/./$(CURRENT_DIR)/$$i .; \
+        done)
+
+
+This is a Makefile rule for installing the files in the
+'srclist' parameter into the directory $(BUILDINCDIR)/dstsubdir.  
+[BUILDINCDIR is a Makefile variable that gives the location of the
+include directory in use by an entire distribution.  For Zeb,
+BUILDINCDIR usually equals $(TOP)/include, where $(TOP) is the relative
+path to the top of the distribution hierarchy.  TOP is set
+automatically when Makefiles are generated for subdirectories.  For
+example, in zeb/gp, TOP=..]
+
+The header files are in the Makefile HEADERS variable, and the
+subdirectory is '.', hence the path back to the top of the include
+directory (dstupdir) is '.'.  The most common macros and their uses
+will be described in more detail later.
+
+The BuildIncludes() macro is an example of a rule which has been
+re-defined for Zeb's development environment.  Usually, BuildIncludes()
+installs header files by simply creating symbolic links in the include
+directory to the header file in the source directory.  Zeb uses a
+different behavior; header files are copied directly into the
+hierarchy's include directory rather than linked.  [The -p option,
+which is hopefully portable, preserves the modification time of the
+copied file rather than using the time of the copy.]
+
+The Imake system offers a great deal of consistency among the
+directories of a distribution.  Rules which every Makefile needs, such
+as clean and depend, and rules for generating Makefiles, are
+automatically included in the generated Makefile.  Distribution-wide
+variables (i.e. project template variables) are automatically included
+in every Makefile, so that every directory will know where to install
+any binaries it creates and what command to use for RANLIB ('ranlib'
+for BSD but 'true' for SYSV).  Likewise, rule macros can be adjusted as
+necessary from a central file and the changes will automatically be
+distributed throughout the distribution.  This can be especially
+important when porting distributions to different platforms.  If a
+particular rule must do something special on a certain platform, the
+rule macro can be adjusted with #ifdef directives to conform to that
+platform's requirements.  The adjustments will be reflected throughout
+the distribution hierarchy when the Makefiles are re-made.
+
+The Imake system has built-in support for subdirectories.
+If a directory has subdirectories that must be built, and to which
+rules like clean, depend, and includes must be propagated, rules
+for these actions can be automatically included in the Makefile.
+All that is necessary is the definition of the IHaveSubdirs cpp symbol
+and the make variable SUBDIRS in the Imakefile.  Here is an example from
+Zeb's top-level Imakefile:
+
+#define IHaveSubdirs
+#define PassCDebugFlags
+
+#if BUILD_OPTIMIZER
+  OPTIMIZER_DIR = Optimizer
+#endif
+#if BUILD_INGEST
+     INGEST_DIR = ingest
+#endif
+
+        SUBDIRS = config libutil msg timer pd DataStore \
+                  gp dm util datautil \
+                  $(OPTIMIZER_DIR) $(INGEST_DIR)
+
+DependSubdirs($(SUBDIRS))
+
+
+The order of the subdirectories is important, since it is the order in
+which the subdirectories are built.  Directories whose objects are
+needed by other directories should be listed first in the SUBDIRS variable.
+The DependSubdirs() macro is included because 'depend:' targets for
+subdirectories are not automatically included in the Imake template,
+though targets like clean, all, and install are included.
+
+The PassCDebugFlags defines any flags that should be propagated to
+subdirectories.  For example, if the ./ingest directory is being
+compiled with CDEBUGFLAGS=-g, all of the subdirectories will be
+compiled with this flag since the ingest Imakefile defines
+
+#define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
+
+The definition of PassCDebugFlags is included on the make command line
+for each of the subdirectories.  In other situations, such as the xhelp
+subdirectory of ./util, it probably isn't very useful to compile xhelp
+with the debug flag, so the util Imakefile does not pass the debug
+variable.
+
+Another important feature of Imake is the CURDIR and TOPDIR cpp
+symbols.  These symbols are passed from directory to subdirectory on
+the imake command line by the Makefiles target.  The Makefile knows its
+current directory and appends the subdirectory name to this value to
+define the subdirectory's CURDIR symbol.  The TOPDIR symbol is prefixed
+with '..' for every subdirectory.  The CURDIR and TOPDIR symbols are
+assigned to the CURRENT_DIR and TOP Makefile variables.  For example,
+in the gp Makefile, CURRENT_DIR=./gp and TOP=../.  Hence the include
+directory can be specified the same way for every Makefile, without
+using an absolute pathname, as $(TOP)/include.  If the current
+directory is ./ingest/class, $(TOP)/include will be evaluated as
+../.././include---the correct directory.  For the TOP and CURRENT_DIR
+variables to be correctly initialized, a 'make Makefiles' must be done
+from the top-level directory.  Once initialized, though, a Makefile
+will remember its values each time it is re-made.  This
+hierarchy-independent strategy for defining distribution-wide variables
+is a large contributor to Imake's flexibility and modularity.
+
+
+Zeb's Own Imakefile Features
+============================
+
+Zeb uses some custom-designed Imakefile rule macros for added
+capability and convenience, from generating UI load files to creating
+compressed tar distribution files.  An excerpt from Zeb.rules
+describing the rules is included below, followed by examples of using
+some of the rules.  See the Imakefiles for the best examples of using
+these rules.  The actual definitions found in Zeb.rules are the final
+authority on the behavior of each of these targets.
+
+There are a few general points about rule macros that might be
+helpful.  Where the target is not a conventional target like install or
+clean, the target is the first parameter of the macro.  So for the UI
+load file macros, the first parameter is the name of the .lf which you
+want to create.  Since this name is also the target, 'make <loadfile>'
+works as you would expect.  For the NormalProgramTarget() macro, the
+first parameter and the Makefile target is the program name.  Aslo,
+note that a single macro can actually specify more than one target,
+either explicitly or by invoking another rule macro.  For example,
+NormalProgramTarget() includes all, install, and clean targets for its
+target program.
+
+UI Load File Targets
+--------------------
+These macros cover all of the methods for generating .lf files found in
+the Zeb hierarchy.
+    
+   UILoadFileTarget(loadfile,uisrc)
+    -- loadfile is the .lf file to be created, and uisrc is the
+       source file which will be 'read' into uic.  The uisrc file is
+       read into $(UIC), pager$mode is set to false, and a 
+       'save <loadfile> all' is performed.
+    
+   UITestLoadFileTarget(loadfile,uisrc)
+    -- Same as above, but <loadfile> is not named as an all target
+       and not installed.  This target is meant for load files required
+       by test files.  In general such files are not installed and
+       should not be made with the general build target (all).  To
+       compile <loadfile> when the test program is being made,
+       <loadfile> can be specifically mentioned in the deplibs
+       parameter of TestProgramTarget().
+
+   UICppLoadFileTarget(loadfile,uisrc,depfiles)
+    -- <uisrc> is processed with cpp before being compiled with uic to
+       produce <loadfile>.  <depfiles> is the list of files, other than
+       uisrc, on which uisrc depends (i.e. include files)
+
+   UILoadFileTarget_2(loadfile,uisrc1,istate,uisrc2)
+    -- loadfile is a .lf file to be created, uisrc1 and uisrc2 are
+       2 files to be read into uic, and istate is the initial state to
+       which ui$initial_state will be set.  For example, the ./dm
+       Imakefile uses:
+
+       UILoadFileTarget_2(dm.lf,dm.state,'dm-initial',dm.widgets)
+
+Library Install Targets
+-----------------------
+These are install: targets for adding object files to a library archive,
+such as libzeb.a.
+   
+   InstallObjectsIntoLibrary(library,objects)
+    -- Adds, using $(ARADD), 'objects' to 'library' as an install
+       target and an install.lib target.  
+       Typically, ARADD will be 'ar ruv' and library will be $(LIBZEB)
+    
+   AddObjectsToLibrary(library,objects)
+    -- Alias for InstallObjectsIntoLibrary()
+
+Program Targets
+---------------
+These targets compile a program.  These are the targets most common
+in Zeb Imakefiles.
+   
+   NormalProgramTarget(program,objects,deplibs,locallibs,syslibs)
+    -- Redefines rule in Imake.rules, adding program to the
+       all:: target and generating a saber target.  ALSO generates
+       the install target for the program.  The paramters:
+    	<program>	Name of program to create (the Makefile target)
+    	<objects>	Objects on which the program depends and which
+    			should be linked.
+    	<deplibs>	Local libraries, such as $(LIBZEB), which should
+    			be listed as dependencies.  Almost always this
+    			parameter is simple $(DEPLIBS), and the default
+    			value for DEPLIBS set in Zeb.tmpl is used.
+    	<locallibs>	Local libraries required, such as LIBZEB,
+    			LIBNETCDF, LIBRDSS, etc.
+    	<syslibs>	System libraries, such as -lm, -ltermcap. Usually
+    			the value of $(SYSLIBS) set in Zeb.tmpl will suffice.
+    
+   NormalProgramTargetNoInstall(program,objects,deplibs,locallibs,syslibs)
+    -- Same as above without an automatic install target.  An install
+       target should be explicitly included in the Imakefile!
+    
+   TestProgramTarget(program,objects,deplibs,locallibs,syslibs)
+    -- Same as NormalProgramTarget, except program will not be
+       installed, nor be part of the All target, but a saber
+       target will be generated.
+
+Program and Script Install Targets
+----------------------------------
+These targets augment the more commonly used definitions in
+Imake.rules.  Usually a program's install target is included through
+one of the *ProgramTarget() macros, using the
+InstallProgram(program,destdir) macro.  The shell script macros were
+added to conform to Zeb's method of installing shell scripts.
+
+   InstallProgramSetUID(program,dest)
+    -- Uses $(INSTUIDFLAGS) to install a program with setuid privileges.
+       If the user doing the installation is not the root user, a warning is
+       printed advising the user to re-install the program as root.
+       The default value of INSTUIDFLAGS is '-m 4755'.
+
+   InstallShellScriptDest(program,shell,dest)
+    -- Installs 'program.shell' in dest with the name 'program' and
+       permissions $(INSTALLPGMFLAGS)
+    
+   InstallShellScript(program,shell)
+    -- InstallShellScriptDest(program,shell,$(BINDIR))
+
+The Includes Target
+-------------------
+    
+   BuildIncludes(headers,dstsubdir,dstupdir)
+    -- Redefines the BuildIncludes of Imake.rules.  Uses cp -p rather than
+       symbolic links.  The -p option, which hopefully works on most
+       systems, preserves the modification time of the file so the copy
+       won't force a remake of any file that includes a header file
+       unless the header file has actually changed.  dstsubdir is the
+       subdirectory path within the include dir where the file will be
+       put.  E.g.  for X this is commonly X11, and dstupdir is the path
+       back to the topdir, i.e. '..' Zeb will most likely always use
+       BuildIncludes(headers,.,.)
+
+Saber Targets
+-------------
+If HasSaberC is defined, this macro expands into two Saber (CodeCenter)
+targets: saber_<program> and osaber_<program>.  The 'saber_' target 
+loads the source, while the 'osaber_' target loads object files. 
+A CLIBS variable is included on the load line; for Zeb development this
+can be set to the libgcc.a library as necessary.  Often this macro is
+automatically included in other marco rules, such as NormalProgramTarget()
+and TestProgramTarget().
+
+   SaberProgramTarget(program,srclist,objlist,locallibs,syslibs)
+    -- Redefines the Imake.rules definition to use local conventions
+       for Saber, such as #setopt ansi.
+
+
+The Distribution List Targets
+-----------------------------
+This section can be skipped without missing any necessary information,
+but you may find some of it useful eventually.  
+
+   DistfilesTarget(distfiles)
+    -- Echoes each of the files in <distfiles>, prepended with the
+       $(CURRENT_DIR) variable (normally the path of the Imakefile's
+       directory relative to the top).  The <distfiles> are listed as
+       dependencies of the distfiles:: target, so the target fails if the
+       file does not exist (or with GNU make an attempt is made to check
+       the file out of RCS).  The distfiles parameter should usually be
+       the $(DISTFILES) variable.
+
+   DistfilesSubdirs(subdirs)
+    -- Propagate the distfiles target to the subdirectories in the
+       subdirs parameter.  A new value of CURRENT_DIR is passed as
+       CURRENT_DIR=$(CURRENT_DIR)/$$subdir so that a special top-level
+       path can be given, as in the case of making a tar file of a whole
+       distribution.
+
+This target, distfiles::, lists the files of a directory intended for 
+distribution.  The Imakefile stores a list of the distribtution files
+in the DISTFILES variable, and passes the value of this variable to the
+DistfilesTarget() macro.  The distfiles:: rule echoes each of the filenames
+in DISTFILES, prepended with the current directory.  For example, in the
+msg/ directory,
+
+% make distfiles
+./msg/Imakefile
+./msg/msg_lib.c
+./msg/msg_BCast.c
+./msg/netread.c
+./msg/message.c
+./msg/fccstop.c
+./msg/mstatus.c
+./msg/msg_ping.c
+./msg/zquery.c
+./msg/mlog.c
+./msg/cquery.c
+./msg/mtest.c
+./msg/writev.c
+./msg/cmd_proto.c
+./msg/message.h
+
+For Imakefiles with subdirectories, the DistfilesSubdirs() macro
+expands to a distfiles:: target which performs a 'make distfiles' in
+each of the subdirectories.  Sometimes the DISTSUBDIRS variable is
+different from SUBDIRS, since all subdirectories should be included in
+distributions even though the current configuration does not build in
+some of those subdirectories.  This target makes possible some useful
+operations.
+
+Without having to clean a directory or remove all of your backup files,
+you can get a tar of the directory and any or all of its
+subdirectories.  Likewise, a file can be under development and under
+RCS control, but until the file is included in the DISTFILES variable,
+it will not be distributed.  The tar file generated by the following
+command will only include the files necessary to build that directory:
+
+% tar cvf - `make -s distfiles CURRENT_DIR=.` | compress -c >msg.tar.Z
+a ./Imakefile 6 blocks
+a ./msg_lib.c 34 blocks
+a ./msg_BCast.c 8 blocks
+a ./netread.c 4 blocks
+a ./message.c 71 blocks
+a ./fccstop.c 3 blocks
+a ./mstatus.c 3 blocks
+a ./msg_ping.c 5 blocks
+a ./zquery.c 4 blocks
+a ./mlog.c 6 blocks
+a ./cquery.c 4 blocks
+a ./mtest.c 4 blocks
+a ./writev.c 4 blocks
+a ./cmd_proto.c 4 blocks
+a ./message.h 13 blocks
+
+The 'CURRENT_DIR=.' overrides CURRENT_DIR=./msg in the Makefile.
+In the ingest directory, the same command would make a tar file of all
+of the ingest modules.
+
+And check this capability out!  Suppose you want to create a shadow
+directory of part of Zeb without copying all of the source files or
+necessitating a preliminary cleaning.  For example, to create a linked
+copy of /zeb/gp in /zeb/gp/noshm so that you can compile a graphics
+process without the shared memory definition:
+
+In the /zeb/gp/noshm directory,
+
+% ln -s `(cd /zeb/gp; make -s CURRENT_DIR=/zeb/gp distfiles)` .
+
+All of the files necessary for making the gp directory will now be
+links in /zeb/gp/noshm.  Create a Makefile with
+
+% imake -I/zeb/config -I/zeb/imake -DCURDIR=/zeb/gp/noshm -DTOPDIR=/zeb
+
+and compile with
+
+% make SHMDEFINES=
+
+
+For making full distributions of Zeb from within the source hierarchy, the 
+following target is included in the top-level Imakefile:
+
+/*
+ * This is the top-level rule for generating tar files of the distributed
+ * files.  The list of files to tar is gotten from the distfiles target.
+ * The name of the tarfile can be changed by setting the TARNAME variable
+ * on the command line.  It defaults to zebdist.
+ *
+ * The -s (silent) option is necessary to get GNU make to not print out
+ * its commands for automatically checking for or checking out files.
+ * This option is compatible with SunOS's make, but others...?
+ * Since development is being done on Sun's, this is not much of a
+ * concern.
+ */
+TARNAME = zebdist
+
+dist:
+        @echo Making file $(TARNAME).tar.Z ; \
+        mkdir $(TARNAME) ; \
+        (set -x; cd $(TARNAME); for f in $(DISTFILES) $(DISTSUBDIRS); do \
+                $(LN) ../$$f . ; \
+        done) ; \
+        tar chf - `$(MAKE) $(MFLAGS) -s CURRENT_DIR=$(TARNAME) distfiles` | \
+                compress -c > $(TARNAME).tar.Z ; \
+        rm -rf $(TARNAME)
+
+This creates a subdirectory called $(TARNAME) and puts links to the 
+top-level files into this directory.  The `make distfiles` command supplies
+the list of filenames to the tar command, where each filename is prefixed
+with TARNAME through the CURRENT_DIR variable.  The result is a compressed
+tar file of the Zeb distribution hierarchy.  At the moment, the only directory
+not included in this tar file is the distributed CAPE project directory.
+Adding this directory should be as simple as adding the directory name to
+the DISTFILES variable in the top-level Imakefile.
+
+
+Common Pitfalls
+===============
+
+The Makefiles target DOES NOT re-make the Makefile in the current
+directory.  Therefore if you change the SUBDIRS variable in the Imakefile,
+and then do 'make Makefiles', the wrong subdirectories will be used.  Do a
+'make Makefile' first.
+
+When a Makefile is re-made, makedepend's dependency targets are lost and a
+'make depend' is not automatically re-done (unless the 'mf' target was
+used.  If some header files change, it is not a bad idea to do a 'make
+depend' at that time.  The dependency lists may be out of date, or someone
+else may have re-made the Makefile without re-making the dependency lists.
+
+Sometimes a Makefile can be corrupted when an incorrect Imakefile is used
+to generate a new Makefile.  Just copy Makefile.bak to Makefile, fix the
+Imakefile, and try the 'make mf' or 'make Makefile' again.
+
+In trying to understand how Imake works, it is helpful to remember that
+Makefile variables are evaluated recursively.  So given the following
+assignment from Imake.tmpl,
+
+ALLINCLUDES = $(INCLUDES) $(EXTRA_INCLUDES) $(TOP_INCLUDES) $(STD_INCLUDES)
+
+if INCLUDES is set to '-Imy_include' in an Imakefile AFTER the ALLINCLUDES
+assignment above, ALLINCLUDES will evaluate to '-Imy_include ....' in the
+Makefile.  It is because of this recursion that assignments like
+TOP=../$(TOP) are illegal.
+
+
+Tips and Suggestions
+====================
+
+-------------------------------------------------------------------------
+To use a make program other than /bin/make, use the MFLAGS variable.
+For example, to use GNU make on stout clients:
+
+% gmake MFLAGS='MAKE=gmake'
+
+The MFLAGS macro is passed down the entire Makefile hierarchy.  Any
+command-line flags you wish to add must be in both the MFLAGS rhs and
+on the command-line:
+
+% gmake -n MFLAGS='-n MAKE=gmake'
+
+A more permanent way to substitute make programs is create a link to the
+make program of your choice in your home (or home/bin) directory, like so:
+
+% ln -s /usr/local/bin/gmake $HOME/bin/make
+% set path=($HOME/bin $path)
+% rehash
+
+The current distribution has been tested with GNU make.  (It passes.)
+
+-------------------------------------------------------------------------
+As the saying in the X distribution goes, the easiest way to make a new
+Imakefile is to first copy an existing one that is similar to what you
+need and then modify it.
+
+-------------------------------------------------------------------------
+To find out exactly what targets and variables are generated in the
+Makefile, first look in the Makefile.  For VERY detailed info, try GNU
+make's -p option for printing the Makefile database:
+
+% gmake -p -q | less
+
+The output is quite voluminous, hence the necessity of piping.
+To get just one variable's value, pipe to 'egrep <variable name>'.
+
+-------------------------------------------------------------------------
+Take advantage of setting variables on the command line.  If you just want
+to make the class, pam, and radar ingest modules, use this one command:
+
+% make SUBDIRS='pam class radar' install
+
+If you want to test-link a program with OpenWindows, use
+
+% make XLIBS='-L/usr/openwin/lib -lXaw -lXmu -lXt -lX11' <program>
+
+To temporarily test gp without the X Shared Memory Extension, use
+
+% make SHMDEFINES=
+
+Look in .../config/Project.tmpl or a Makefile to see all of the Make
+variables which you can override from the command line.
+
+-------------------------------------------------------------------------
+Take advantage of the automatically generated targets, such as saber_* and
+osaber_*.  To pass all of the source files through lint, use 'make lint'.
+To pass one file through lint, try 'make FILE=file.c lint1'.  Another
+automatic target is 'tags'.  The default command contained in the TAGS
+variable is 'tags', but this could be changed to use Emacs tags with
+'TAGS=etags' on the command line or in the Imakefile.  Also, a rule macro
+exists in Zeb.rules for generating a <program>.flow file from cflow(1):
+CflowTarget(prog,objs,locallibs).
+
+-------------------------------------------------------------------------
+Imake's flexibility is seriously hindered by fixed include paths, like
+"../include/defs.h".  DO NOT use this in your source files, and correct
+any files that you find using this construct.
+
+-------------------------------------------------------------------------
+At the moment, .lf files are not listed as dependencies of the program
+target.  So a 'make <program>' will not automatically make sure the .lf
+file is up to date, though the 'all' and 'install' targets will.  If
+you want the load file to be a program dependency, add the load file
+name to the dependent libraries parameter of the program target
+macro.
+
+-------------------------------------------------------------------------
+As you can see from many of the Imakefiles, it is entirely legal and
+sometimes very useful to include normal, hardcoded Makefile targets in
+an Imakefile.  For example, the Optimizer Imakefile defines the target
+'lf: Optimzer.lf' as a shortcut for building the Optimizer load file.
+
+-------------------------------------------------------------------------
+If you feel the need for a new rule macro, or find yourself using the
+same rule construct in several places, just add a macro to Zeb.rules.
+Be sure to document it.
+
+-------------------------------------------------------------------------
+Do not use tests for machine-specific cpp symbols.  Use a cpp symbol
+which indicates exactly whether the condition you are testing is true.
+For example, use the HasWriteV symbol instead of the more general and
+less accurate symbol SunArchitecture.  To add a new symbol, give it a
+default in Zeb.tmpl and use the machine-specific symbols defined
+in Imake.tmpl to determine the correct value for the symbol.
+
+-------------------------------------------------------------------------
+Be sure to keep the Imakefiles up to date.  If you add a source file,
+add the filename to the SRCS variable and its object to the appropriate
+OBJS variable.  If a file is to be distributed, add it to the DISTFILES
+variable.  If you add a subdirectory somewhere which you wish built with
+the rest of the distribution, add the subdirectory to the parent
+directory Imakefile's SUBDIRS variable.  If the directory should be
+distributed but not built, add it to the DISTSUBDIRS variable in the
+parent directory Imakefile.
+
+-------------------------------------------------------------------------
+One of the nice things about using imake for development is its ability to
+build Makefile's for directories outside of the standard source tree.  For
+example, in a source directory <cur-abs-path>, use
+
+% imake -I/zeb/config -I/zeb/imake -DTOPDIR=/zeb -DCURDIR=<cur-abs-path>
+
+This sets up a Makefile to use absolute path names for its TOP and
+CURRENT_DIR variables, and since include and library paths are relative
+to the TOP variable in the Imakefile, the location of the current
+directory does not hinder Imake's ability to specify and find files in
+the Makefile.
+
+You can also use the 'zmkmf' script which is installed in the bin/
+directory of the Zeb tree. This script takes two arguments, a path to 
+the top directory and a path from the top to the current directory.
+If developing in a directory outside the standard source tree, use
+absolute paths, as in the previous example:
+
+% zmkmf /zeb <absolute-path>
+
+Otherwise, you can use relative paths to make Makefiles from within
+the source tree:
+
+% zmkmf ./../.. ./ingest/ingestor_dir
+
+-------------------------------------------------------------------------
+
+Different Zeb configurations can be tested in isolation from rest of the
+development hierarchy, within either a development directory or a shadow
+directory.  [A shadow directory consists of symbolic links to the source
+files; see the /zeb/gp/noshm example in the section on the 'distfiles'
+target.]  Put a copy of config.h in the directory, and set the INCLUDES
+variable in the Imakefile to '-I.'.  The local copy of config.h will be
+used by the Imakefile and all of the source files rather than the global
+distribution copy in zeb/config.  The local config.h can be edited to the
+configuration you wish to test regardless of the configuration defined in
+the global 'config.h'.  For the /zeb/gp/noshm example given earlier, rather
+than using SHMDEFINES= on the make command line, the 'XSharedMemory' symbol
+in the local copy of config.h could be defined to NO without affecting the
+rest of the distribution.  The INCLUDES variable could also be set on the
+command line, as in
+
+% make INCLUDES=-I.
+
+so that the Imakefile does not have to be changed.  However, this method is
+error-prone since you must remember always to add the INCLUDES argument.
+It's best just to make changes to the local Imakefile.
+
+
+Future Developments
+===================
+
+There are LOTS of possiblities from here, not the least of which is testing
+Zeb and this Imake implementation on systems besides Suns.  Other
+enhancements are possible and relatively simple.  For example, a target
+macro could be written which executed a command and propagated it to all
+subdirectories.  It might look like this:
+
+% make command CMD='rcsfreeze v2'
+
+This command would freeze the entire distribution. It will always work no
+matter how much the distribution hierarchy changes, because each directory
+takes care of its own subdirectories.  It's encapsulated programming
+applied to Makefile hierarchies!  Other convenient commands might check out
+all RCS files in an entire distribution.  Others might just gather
+statistics like the number of source lines.  To add this capability, only a
+couple files in config/ would need to be changed.
+
+------ 
+As was mentioned above (see 'Imakefiles Versus Makefile.cpp'), it is very
+possible to use Imake to build all of the RDSS packages while maintaining
+and distributing each package separately as well.  The decision of whether
+this is desirable or worth the effort must be deferred to some
+investigation and the authority of someone else.
+
+------
+On a more immediate timescale, the current distribution automatically
+compiles and uses the distributed imake.  It would be nice to easily
+allow the use of a previously installed imake.  This does not mean much
+of an improvement in build time; it is simply a desirable capability
+when porting to other systems.
+
+------
+The Imakefile system might also be used to replace and automate the scripts
+which are currently used to create distribution tar files.  An Imakefile
+rule could be used to make shadow hierarchies---a replicated directory
+structure with symbolic links to all of the files and RCS directories in
+the original source directory.  This can be used to check out a previous
+version of Zeb which in turn can be used to create a distribution file.
+The advantage of this method over the current use of scripts is that the
+mirrored directory structure, like that under /zeb/dist/zeb, can be created
+automatically and accurately and can be easily kept up to date.  In the
+current method, files must be explicitly excluded (using tar's X option)
+rather than explicitly included through the distfiles method.  This can
+lead to accidents: the first release of Zeb contains a compiled copy of
+the libfcc.a library; this wastes space and can cause problems during the
+build.  [However, this is more of a problem with Zeb's build behavior.
+Most distributions do not install files into directories which are also
+distributed.  Otherwise it is hard to make clean copies of the
+distribution.  For example, you cannot get a clean copy of the lib
+directory without manually erasing files or explicitly excluding them from
+a tar.  This can be corrected by adding a Makefile to the lib directory
+(which is how the 'make dist' works for the Imakefile implementation), but
+this is really just a kludge.  Anyway, at present the Imakefile in lib
+removes the library archive under the 'clean' target.]
+
+------
+To make the distribution even fancier, it should be possible to use the GNU
+Autoconf (or perhaps Larry Wall's metaconfig) package to configure some of
+the variables in config.h, either automatically or interactively.  The
+ultimate goal would be a distribution which needed no editing---just a few
+questions to the installer and away it goes.
+
+------
+Provide a shortcut for the standard NormalProgramTarget; for example,
+define ZebProgramTarget or StandardProgramTarget which automatically
+fill in the standard make variables like LIBS and DEPLIBS in a
+NormalProgramTarget macro.  Short of this, go back and remove the
+SYSLIBS variable in the Imakefile's since the value of this variable
+is already included in the standard SYSTEM_LIBRARIES (or something
+like that).
+
+------
+Problem with NormalProgramTarget:
+It generates Saber targets using <program_name>.c rather than using an
+actual list of C source files, which is not currently available in with
+the NormalProgramTarget macro.  For the moment, the saber targets assume
+the existence and correctness of a SRCS variable.  An official solution
+though might envelop the previous point by taking parameters like
+SYSLIBS out of NormalProgramTarget, adding a srclist parameter, and
+creating a new macro.
+
+------
+Saber targets: Rename the targets to codecenter_ or codectr_ or even
+cc_ and make the old saber_ forms refer to the newer targets.  Everyone
+will have the option of using both and eventually perhaps we will wish 
+to phase out use of the 'saber_' form.
+
+------
+The -n option does not work for the tarfile: target in the top-level
+Imakefile since the rules are all one script line and the line
+contains $(MAKE).  
+

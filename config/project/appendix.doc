@@ -1,0 +1,236 @@
+
+Appendix A:
+Machine cpp Symbols Defined in Imake.tmpl
+=========================================
+
+See Imake.tmpl for details on how Imake.tmpl actually determines which
+of these symbols to define.  When these symbols are defined,
+many of the pre-defined cpp symbols are undefined (such as sun).  Using
+any other symbols than these to test system type in an Imakefile
+will probably be an inaccurate test.
+
+VaxArchitecture		MipsArchitecture	UltrixArchitecture
+SunArchitecture		HPArchitecture		ATTArchitecture
+ApolloArchitecture	SonyArchitecture	Mc68020Architecture
+SonySysvArchitecture	SonyBsdArchitecture	PegasusArchitecture
+M4330Architecture	MacIIArchitecture	CrayArchitecture
+SGIArchitecture		StellarArchitecture	IBMArchitecture
+PS2Architecture		RtArchitecture		AIXArchitecture
+RsArchitecture		Mc68000Architecture	MipsBsdArchitecture
+MipsSysvArchitecture	MotoR3Architecture	MotoR4Architecture
+i386SVR4Architecture	i386SVR3Architecture	DguxArchitecture
+ConvexArchitecture
+
+
+
+Appendix B:
+Default Symbol Definitions in Imake.tmpl
+========================================
+
+The definitions below are only used if the symbol has not been previously
+defined in the .cf or site.def files.
+
+#define HasSharedLibraries 	NO
+#define SystemV			NO	/* SYSV (R3) */
+#define SystemV4		NO	/* SVR4 */
+#define OSMajorVersion          0
+#define OSMinorVersion          0
+#define UnalignedReferencesAllowed NO	/* if arbitrary deref is okay */
+#define BourneShell		/bin/sh
+#define HasLargeTmp		NO	/* be paranoid */
+#define HasPutenv		NO	/* assume not */
+#define HasVoidSignalReturn	YES	/* assume yes */
+#define HasBsearch		YES	/* assume yes */
+#define HasSaberC		NO	/* for people unclear on the concept */
+#define HasFortran		NO
+#define HasNdbm			NO
+#define HasSecureRPC		NO	/* if you have Secure RPC */
+#define NeedConstPrototypes	NO
+#define NeedVarargsPrototypes	NO
+#define NeedNestedPrototypes	NO
+#define NeedFunctionPrototypes (NeedVarargsPrototypes || NeedNestedPrototypes)
+#define NeedWidePrototypes	YES	/* mix and match ANSI-C, non-ANSI */
+#define StripInstalledPrograms  NO	/* leave symbol table just in case */
+#define UNCOMPRESSPATH 		/usr/ucb/uncompress
+#define OptimizedCDebugFlags 	-O
+#define DebuggableCDebugFlags 	-g
+#define NoOpCDebugFlags 	/* as nothing */
+#define DefaultCDebugFlags 	OptimizedCDebugFlags
+#define DefaultCCOptions 	/* as nothing: this is for floating point, etc. */
+#define InstPgmFlags 		-s /* only used if StripInstalledPrograms is true */
+#define InstBinFlags 		-m 0755
+#define InstUidFlags 		-m 4755
+#define InstLibFlags 		-m 0644
+#define InstIncFlags 		-m 0444
+#define InstManFlags 		-m 0444
+#define InstDatFlags 		-m 0444
+#define InstKmemFlags 		InstUidFlags /* put -g kmem -m 2755 in site.def... */
+#define BootstrapCFlags 	/**/
+#define HasGcc 			NO
+#define FortranCmd 		f77
+#define FortranFlags 		/**/
+#define FortranDebugFlags 	/**/		/* for -O or -g */
+#define AsCmd 			as
+#define CompressCmd 		compress
+#define CppCmd 			/lib/cpp
+#define PreProcessCmd 		CcCmd -E
+#define CcCmd 			cc
+#define LdCmd 			ld
+#define LintCmd 		lint
+#define CpCmd 			cp
+#define MakeCmd 		make
+#define MvCmd 			mv
+#define RanlibCmd 		ranlib
+#define RanlibInstFlags 	/**/
+#define RmCmd 			rm -f
+#define StandardIncludes 	/**/		/* for platform-specifics */
+#define StandardCppDefines 	StandardDefines
+#define Malloc0ReturnsNull 	NO
+#define ExtraLoadFlags 		/**/
+#define TagsCmd 		ctags
+#define LoaderLibPrefix 	/**/		/* cray does -l libX11.a */
+#define DependFlags 		/**/
+#define TroffCmd 		psroff
+#define MsMacros 		-ms
+#define TblCmd 			tbl
+#define EqnCmd 			eqn
+#define ExtraFilesToClean 	/**/
+#define FilesToClean 		*.CKP *.ln *.BAK *.bak *.o core errs ,* \
+				*~ *.a .emacs_* tags TAGS make.log MakeOut 
+
+Because of the following defaults, any Makefile generated with imake
+and not through the Makefiles target will assume it is the top-level
+Makefile, i.e. TOP=. and CURRENT_DIR=.
+
+#define TOPDIR .
+#define CURDIR .
+
+The following symbols are also given defaults if not previously defined, 
+but the default value depends on the architecture, usually SYSV versus BSD.
+
+ExecableScripts 	ConstructMFLAGS 	HasSockets
+HasVFork		HasShm			ArCmd 
+InstallCmd 		LintLibFlag 		LintOpts
+LnCmd 			DoRanlibCmd 		StandardDefines 
+NdbmDefines
+
+
+Appendix C:
+Makefile Variables Assigned in Imake.tmpl
+=========================================
+
+The lines which assign cpp symbol values to Makefile variables:
+
+            SHELL = BourneShell
+              TOP = TOPDIR
+      CURRENT_DIR = CURDIR
+               AR = ArCmd
+  BOOTSTRAPCFLAGS = BootstrapCFlags	/* set if cpp does not have uniq sym */
+               CC = CcCmd
+               AS = AsCmd
+               FC = FortranCmd
+      FDEBUGFLAGS = FortranDebugFlags
+          FCFLAGS = FortranFlags $(FDEBUGFLAGS)
+         COMPRESS = CompressCmd
+              CPP = CppCmd $(STD_CPP_DEFINES)		/* simple filters */
+    PREPROCESSCMD = PreProcessCmd $(STD_CPP_DEFINES)	/* prefered; mdep */
+          INSTALL = InstallCmd
+               LD = LdCmd
+             LINT = LintCmd
+      LINTLIBFLAG = LintLibFlag
+         LINTOPTS = LintOpts
+               LN = LnCmd
+             MAKE = MakeCmd
+               MV = MvCmd
+               CP = CpCmd
+#if DoRanlibCmd
+           RANLIB = RanlibCmd
+  RANLIBINSTFLAGS = RanlibInstFlags
+#endif
+               RM = RmCmd
+            TROFF = TroffCmd
+         MSMACROS = MsMacros
+              TBL = TblCmd
+              EQN = EqnCmd
+     STD_INCLUDES = StandardIncludes
+  STD_CPP_DEFINES = StandardCppDefines
+      STD_DEFINES = StandardDefines
+ EXTRA_LOAD_FLAGS = ExtraLoadFlags
+  EXTRA_LIBRARIES = ExtraLibraries
+             TAGS = TagsCmd
+#if ConstructMFLAGS
+           MFLAGS = -$(MAKEFLAGS)
+#endif
+#if HasSharedLibraries
+    SHAREDCODEDEF = SharedCodeDef
+         SHLIBDEF = SharedLibraryDef
+#endif
+#if !HasVoidSignalReturn
+   SIGNAL_DEFINES = -DSIGNALRETURNSINT
+#endif
+
+#if StripInstalledPrograms
+     INSTPGMFLAGS = InstPgmFlags	/* install flags for stripping */
+#else
+     INSTPGMFLAGS = 
+#endif
+     INSTBINFLAGS = InstBinFlags	/* install flags for programs */
+     INSTUIDFLAGS = InstUidFlags	/* install flags for setuid programs */
+     INSTLIBFLAGS = InstLibFlags	/* install flags for libraries */
+     INSTINCFLAGS = InstIncFlags	/* install flags for headers */
+     INSTMANFLAGS = InstManFlags	/* install flags for man pages */
+     INSTDATFLAGS = InstDatFlags	/* install flags for data files */
+    INSTKMEMFLAGS = InstKmemFlags	/* install flags for /dev/kmem progs */
+
+#ifdef ProjectRoot
+      PROJECTROOT = ProjectRoot
+#endif
+#ifdef UseInstalled
+#if AlternateIncRoot
+     TOP_INCLUDES = -I$(INCROOT)	/* def: for alternative /usr/include */
+#endif
+#else
+     TOP_INCLUDES = -I$(TOP)		/* def: for builds within tree */
+#endif
+      CDEBUGFLAGS = DefaultCDebugFlags
+        CCOPTIONS = DefaultCCOptions	/* to distinguish from param flags */
+/*
+ * STD_INCLUDES contains system-specific includes
+ * TOP_INCLUDES specifies how to get to /usr/include or its build substitute
+ * EXTRA_INCLUDES contains project-specific includes set in project incfiles
+ * INCLUDES contains client-specific includes set in Imakefile
+ * LOCAL_LDFLAGS contains client-specific ld flags flags set in Imakefile
+ */
+      ALLINCLUDES = $(INCLUDES) $(EXTRA_INCLUDES) $(TOP_INCLUDES) $(STD_INCLUDES)
+       ALLDEFINES = $(ALLINCLUDES) $(STD_DEFINES) $(EXTRA_DEFINES) $(PROTO_DEFINES) $(DEFINES)
+           CFLAGS = $(CDEBUGFLAGS) $(CCOPTIONS) $(ALLDEFINES)
+        LINTFLAGS = $(LINTOPTS) -DLINT $(ALLDEFINES)
+#if AlternateUsrLibDir && !defined(UseInstalled)
+           LDLIBS = -L$(USRLIBDIR) $(SYS_LIBRARIES) $(EXTRA_LIBRARIES)
+#else
+           LDLIBS = $(SYS_LIBRARIES) $(EXTRA_LIBRARIES)
+#endif
+#if AlternateUsrLibDir && defined(UseInstalled)
+        LDOPTIONS = $(CDEBUGFLAGS) $(CCOPTIONS) $(LOCAL_LDFLAGS) -L$(USRLIBDIR)
+#else
+        LDOPTIONS = $(CDEBUGFLAGS) $(CCOPTIONS) $(LOCAL_LDFLAGS)
+#endif
+   LDCOMBINEFLAGS = LdCombineFlags
+      DEPENDFLAGS = DependFlags
+
+        MACROFILE = MacroFile
+           RM_CMD = $(RM) FilesToClean ExtraFilesToClean
+
+    IMAKE_DEFINES = /* leave blank, for command line use only */
+#ifdef UseInstalled
+         IRULESRC = $(CONFIGDIR)	/* used in rules file */
+        IMAKE_CMD = $(IMAKE) -DUseInstalled -I$(IRULESRC) $(IMAKE_DEFINES)
+#else
+         IRULESRC = $(CONFIGSRC)
+        IMAKE_CMD = $(NEWTOP)$(IMAKE) -I$(NEWTOP)$(IRULESRC) $(IMAKE_DEFINES)
+#endif
+     ICONFIGFILES = $(IRULESRC)/Imake.tmpl $(IRULESRC)/Imake.rules \
+			$(IRULESRC)/Project.tmpl $(IRULESRC)/site.def \
+			$(IRULESRC)/$(MACROFILE) $(EXTRA_ICONFIGFILES)
+  
+

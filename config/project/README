@@ -1,0 +1,45 @@
+This directory holds the Zeb-specific include files for Imake and
+the configuration file 'config.h' which is included by the source
+files.  As long as this directory is listed first on imake's list
+of include directories, the files here will override any other
+imake include files.  Hence you can use either the imake distributed
+with Zeb (which is just an exact copy of the MIT X11 distribution),
+or you can use a previously installed imake.
+
+Files:
+======
+
+Zeb.rules:	Unique Zeb Makefile rules and re-definitions of 
+		some of the rule definitions in Imake.rules.
+
+Project.tmpl:	Unique Zeb make(1) variables and definitions which
+		are defaulted here.  This file includes the Zeb.rules
+		file and the config.h file.  
+
+config.h:	The user-configurable file which defines certain
+		choices and configurations available to the
+		Zeb installer.  This file is included when creating
+		Makefiles and by source files.  Stable copies are
+		installed in $(TOP)/include for inclusion by 
+		source files.
+
+README:		This file.
+
+README.imake:	Describes the ../imake directory and its role in this
+		distribution.
+
+Imakefile.imake: A modified copy of the ../imake directory's Imakefile.
+		 See README.imake.
+
+Zeb-Imake.doc:	A guide to imake and its use in the Zeb distribution.
+
+Xosdefs.h:	An X11 include file required by imake; it is included
+		directly from this directory when imake is compiled.
+
+site.def:	A site-specific configuration file for overriding some
+		of Imake's definitions in Imake.tmpl and <machine>.cf
+		files.  See Zeb-Imake.doc.
+
+Imakefile:	The Imakefile for this directory.  It just installs the
+		config.h file into the build include directory.
+
