@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: ac_ingest.c,v 1.11 1998-09-16 17:31:18 burghart Exp $";
+static char *rcsid = "$Id: ac_ingest.c,v 1.12 1999-04-01 16:11:51 burghart Exp $";
 
 # include <copyright.h>
 # include <errno.h>
@@ -30,10 +30,7 @@ static char *rcsid = "$Id: ac_ingest.c,v 1.11 1998-09-16 17:31:18 burghart Exp $
 # include <sys/resource.h>
 # include <signal.h>
 # include <string.h>
-
-# ifdef linux
 # include <termios.h>
-# endif
 
 # ifdef SUNOS5
 # include <termio.h>
@@ -868,20 +865,6 @@ int	fd, baud;
  * return TRUE or FALSE.
  */
 {
-#ifdef SUNOS4
-    struct  sgttyb tbuf;
-
-	if (ioctl(Fd, TIOCGETP, (char *) &tbuf) < 0)
-	{
-		msg_ELog (EF_DEBUG, "ioctl error (%d)", errno);
-		return (FALSE);
-	}
-
-	tbuf.sg_flags |= RAW;
-	tbuf.sg_flags &= ~ECHO;
-#endif
-
-#ifdef linux
 	struct  termios temp_mode;
 
 	/*ioctl (Fd, TCGETS, &temp_mode);*/
@@ -897,9 +880,8 @@ int	fd, baud;
     	temp_mode.c_lflag &= ~(ISIG | ICANON | XCASE | ECHO | ECHONL | ECHOPRT);
     	temp_mode.c_lflag |= (IEXTEN | ECHOE | ECHOK | ECHOCTL | ECHOKE);
     
-		temp_mode.c_cc[VMIN] = 1;
+	temp_mode.c_cc[VMIN] = 1;
     	temp_mode.c_cc[VTIME] = 0;
-#endif
 
 #ifdef SUNOS5
 	struct  termio temp_mode;
@@ -920,73 +902,35 @@ int	fd, baud;
 	switch (baud)
 	{
 	   case 300:  
-#ifdef SUNOS4
-          	tbuf.sg_ispeed = B300;
-	  	tbuf.sg_ospeed = B300;
-#else
 	  	cfsetospeed (&temp_mode, B300);
 	  	cfsetispeed (&temp_mode, B300);
-#endif
 	   	break;
 	   case 1200:
-
-#ifdef SUNOS4
-		tbuf.sg_ispeed = B1200;
-		tbuf.sg_ospeed = B1200;
-#else
 		cfsetospeed (&temp_mode, B1200);
 		cfsetispeed (&temp_mode, B1200);
-#endif
 		break;
-
 	   case 2400:
-
-#ifdef SUNOS4
-		tbuf.sg_ispeed = B2400;
-		tbuf.sg_ospeed = B2400;
-#else
 		cfsetospeed (&temp_mode, B2400);
 		cfsetispeed (&temp_mode, B2400);
-#endif
 		break;
-
 	   case 4800:
-
-#ifdef SUNOS4
-		tbuf.sg_ispeed = B4800;
-		tbuf.sg_ospeed = B4800;
-#else
 		cfsetospeed (&temp_mode, B4800);
 		cfsetispeed (&temp_mode, B4800);
-#endif
-
 		break;
 	   case 9600:
-
-#ifdef SUNOS4
-		tbuf.sg_ispeed = B9600;
-		tbuf.sg_ospeed = B9600;
-#else
 		cfsetospeed (&temp_mode, B9600);
 		cfsetispeed (&temp_mode, B9600);       
-#endif
             	break;
 	   default:
 		return (FALSE);
 	}
-#ifdef SUNOS4
-	if (ioctl (Fd, TIOCSETP, &tbuf) < 0)
-	{
-		msg_ELog (EF_DEBUG, "ioctl error (%d)", errno);
-		return (FALSE);
-	}
-#else
+
 	if (tcsetattr (Fd, TCSANOW, &temp_mode) != 0)
 	{
 		msg_ELog (EF_DEBUG, "tcsetattr error (%d)", errno);
 		return (FALSE);
 	}
-#endif
+
 	else return (TRUE);
 }
 
