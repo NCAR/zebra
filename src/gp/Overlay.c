@@ -1,7 +1,7 @@
 /*
  * Deal with static (or almost static) overlays.
  */
-static char *rcsid = "$Id: Overlay.c,v 1.12 1991-02-21 16:09:57 corbet Exp $";
+static char *rcsid = "$Id: Overlay.c,v 1.13 1991-02-26 22:41:11 corbet Exp $";
 
 # include <stdio.h>
 # include <X11/Intrinsic.h>
@@ -9,6 +9,7 @@ static char *rcsid = "$Id: Overlay.c,v 1.12 1991-02-21 16:09:57 corbet Exp $";
 # include "../include/pd.h"
 # include "../include/message.h"
 # include "../include/dm.h"
+# include "../include/DataStore.h"
 # include "GC.h"
 # include "GraphProc.h"
 # include "PixelCoord.h"
@@ -27,6 +28,8 @@ static char *rcsid = "$Id: Overlay.c,v 1.12 1991-02-21 16:09:57 corbet Exp $";
 	static bool ov_GetWBounds (char *, char *, float *, float *, float *,
 			float *, float *);
 	static int ov_FindWBReply (struct message *, struct dm_rp_wbounds *);
+	static void ov_Boundary (char *, int);
+	static bool ov_GetBndParams (char *, char *, XColor *, int *, int *);
 # else
 	static void ov_GridBBox ();
 	static void ov_DrawFeature ();
@@ -34,8 +37,11 @@ static char *rcsid = "$Id: Overlay.c,v 1.12 1991-02-21 16:09:57 corbet Exp $";
 	static void ov_WBounds ();
 	static bool ov_GetWBounds ();
 	static int ov_FindWBReply ();
+	static void ov_Boundary ();
+	static bool ov_GetBndParams ();
 # endif
 
+# define BADVAL -9999.9
 
 /*
  * The table to map the overlay type ("field" parameter) onto the function
@@ -52,6 +58,7 @@ static struct overlay_table
 	{ "wbounds",	ov_WBounds	},
 	{ "feature",	ov_DrawFeature	},
 	{ "map",	ov_Map		},
+	{ "boundary",	ov_Boundary	},
 	{ 0, 0}
 };
 
@@ -679,3 +686,140 @@ struct ui_command *cmds;
 	return (TRUE);
 }
 
+
+
+
+
+
+
+static void
+ov_Boundary (comp, update)
+char *comp;
+int update;
+/*
+ * Draw a boundary overlay.
+ *
+ * TODO:
+ *	overlay widget entry
+ *	annotation
+ *	name label?
+ */
+{
+	char platform[40], *junk = "junk";
+	PlatformId pid;
+	int lwidth, pt, npt, closed;
+	time t, target = PlotTime;
+	DataObject *dobj;
+	XPoint *xpts;
+	XColor xc;
+	float x, y;
+/*
+ * Get the various parameters that control boundary drawing.
+ */
+	if (!ov_GetBndParams (comp, platform, &xc, &lwidth, &closed))
+		return;
+	if ((pid = ds_LookupPlatform (platform)) == BadPlatform)
+	{
+		msg_ELog (EF_PROBLEM, "Unknown boundary platform %s",platform);
+		return;
+	}
+/*
+ * Find out when there is something available.
+ */
+	if (! ds_DataTimes (pid, &target, 1, DsBefore, &t))
+	{
+		msg_ELog (EF_INFO, "No %s boundary available", platform);
+		return;
+	}
+/*
+ * Snarf it.
+ */
+	if ((dobj = ds_GetData (pid, &junk, 0, &t, &t, OrgOutline, 0, BADVAL))
+				== 0)
+	{
+		msg_ELog (EF_PROBLEM, "Get failed on %s boundary", platform);
+		return;
+	}
+/*
+ * Get set up to draw the thing.
+ */
+	npt = *dobj->do_desc.d_length;
+	xpts = (XPoint *) malloc ((closed ? npt + 1 : npt) * sizeof (XPoint));
+	XSetForeground (Disp, Gcontext, xc.pixel);
+	XSetLineAttributes (Disp, Gcontext, lwidth, LineSolid, CapButt,
+			JoinMiter);
+/*
+ * Convert all points into window system space.
+ */
+	for (pt = 0; pt < npt; pt++)
+	{
+		Location *lp = dobj->do_aloc + pt;
+		cvt_ToXY (lp->l_lat, lp->l_lon, &x, &y);
+		xpts[pt].x = XPIX (x);
+		xpts[pt].y = YPIX (y);
+	}
+/*
+ * Wrap back to the beginning if this is a closed boundary.
+ */
+	if (closed)
+		xpts[npt++] = xpts[0];
+/*
+ * Draw them, clean up, and we're done.
+ */
+	XDrawLines (Disp, GWFrame (Graphics), Gcontext, xpts, npt,
+			CoordModeOrigin);
+	lw_TimeStatus (comp, &t);
+	XSetLineAttributes (Disp, Gcontext, 0, LineSolid, CapButt, JoinMiter);
+	free (xpts);
+	ds_FreeDataObject (dobj);
+}
+
+
+
+
+
+
+
+
+static bool
+ov_GetBndParams (comp, platform, xc, lwidth, closed)
+char *comp, *platform;
+XColor *xc;
+int *lwidth, *closed;
+/*
+ * Get all of the parameters which control boundary drawing.
+ */
+{
+	char color[40];
+/*
+ * Look up our platform.
+ */
+	if (! pd_Retrieve (Pd, comp, "platform", platform, SYMT_STRING))
+	{
+		msg_ELog (EF_PROBLEM, "Missing platform in boundary overlay");
+		return (FALSE);
+	}
+/*
+ * Get the color that we will use to draw this boundary.
+ */
+	if (! pda_Search (Pd, comp, "color", platform, color, SYMT_STRING))
+		strcpy (color, "white");
+	if (! ct_GetColorByName (color, xc))
+	{
+		msg_ELog (EF_PROBLEM, "Unknown color: %s", color);
+		ct_GetColorByName ("white", xc);
+	}
+/*
+ * Figure a line width too.
+ */
+	if (! pda_Search (Pd, comp, "line-width", "boundary", (char *) lwidth,
+				SYMT_INT))
+		*lwidth = 0;
+/*
+ * See if they want the boundary drawn open or closed.
+ */
+	if (! pda_Search (Pd, comp, "closed-boundary", platform,
+			(char *) closed, SYMT_BOOL))
+		*closed = TRUE;
+	return (TRUE);
+}
