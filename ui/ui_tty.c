@@ -1,4 +1,4 @@
-/* $Id: ui_tty.c,v 1.12 1997-05-13 21:45:01 ishikawa Exp $ */
+/* $Id: ui_tty.c,v 1.13 1998-02-26 21:18:50 burghart Exp $ */
 /*
  * Basic terminal handling.  This is an extremely VMS-dependant module.
  */
@@ -212,7 +212,22 @@ static struct termios Ui_params;
 static bool Has_arrows;
 static int N_lines = 24;	/* How many lines on the screen.	*/
 
+/*
+ * Prototypes 
+ */
+void tty_set (void);
+void tty_setup (void);
+void tty_flush (void);
+void tty_putpad (char *str);
+void tty_standout (void);
+void tty_standin (void);
+void tty_ul (void);
+void tty_ulend (void);
 
+
+
+
+void
 tty_set ()
 /*
  * Set up the terminal capabilities.
@@ -410,7 +425,7 @@ tty_set ()
 }
 
 
-
+void
 tty_setup ()
 /*
  * Initialize the terminal the way we like it.
@@ -440,7 +455,7 @@ tty_setup ()
 }
 
 
-
+void
 tty_return ()
 /*
  * Return the terminal to its original state.
@@ -457,7 +472,7 @@ tty_return ()
 
 
 
-
+void
 tty_move (x, y)
 int x, y;
 /*
@@ -517,7 +532,7 @@ int top, bottom;
 
 
 
-
+void
 tty_out (cp, len)
 char *cp;
 int len;
@@ -540,7 +555,7 @@ int len;
 
 
 
-
+void
 tty_sout (cp)
 char *cp;
 /*
@@ -583,7 +598,7 @@ char *cp;
 }
 
 
-
+void
 tty_flush ()
 /*
  * Flush the output buffer.
@@ -635,7 +650,7 @@ tty_flush ()
 
 
 
-
+void
 tty_drain ()
 /*
  * Throw away the terminal output buffer.
@@ -645,7 +660,7 @@ tty_drain ()
 }
 
 
-
+void
 tty_putpad (str)
 char *str;
 /*
@@ -660,7 +675,7 @@ char *str;
 
 
 
-
+void
 tty_home ()
 /*
  * Position the cursor to 1,1.
@@ -670,7 +685,7 @@ tty_home ()
 }
 
 
-
+void
 tty_down_scroll ()
 /*
  * Open up one line at the top of the screen.
@@ -681,7 +696,7 @@ tty_down_scroll ()
 }
 
 
-
+void
 tty_standout ()
 /*
  * Enter standout mode.
@@ -691,7 +706,7 @@ tty_standout ()
 }
 
 
-
+void
 tty_standin ()
 /*
  * Leave standout mode.
@@ -700,7 +715,7 @@ tty_standin ()
 	tty_putpad (TC_se);
 }
 
-
+void
 tty_ul ()
 /*
  * Start underlining.
@@ -709,7 +724,7 @@ tty_ul ()
 	tty_putpad (TC_ul);
 }
 
-
+void
 tty_ulend ()
 /*
  * Stop underlining.
@@ -720,7 +735,7 @@ tty_ulend ()
 
 
 
-
+void
 tty_clear ()
 /*
  * Clear the screen.
@@ -732,7 +747,7 @@ tty_clear ()
 }
 
 
-
+void
 tty_clear_l ()
 /*
  * Clear the current line.
@@ -932,7 +947,7 @@ tty_readch ()
 
 
 
-
+int
 tty_map (c)
 int c;
 /*
@@ -988,6 +1003,8 @@ int c;
 		return (Sp_keys[map - 1].spk_keycode);
 }
 
+
+void
 tty_bell ()
 {
 	static char bell = '\007';
@@ -996,7 +1013,7 @@ tty_bell ()
 
 
 
-
+int
 tty_partmap (string)
 char *string;
 /* 
@@ -1018,7 +1035,7 @@ char *string;
 
 
 
-
+void
 tty_zap_ta ()
 /*
  * Clear out the typeahead buffer.
@@ -1038,7 +1055,7 @@ tty_zap_ta ()
 
 
 
-
+void
 tty_dump_keys ()
 /*
  * Dump out the special key database.
@@ -1115,7 +1132,7 @@ tty_set_exh ()
 }
 
 
-
+int
 tty_exit_handler ()
 /*
  * The actual exit handler.
@@ -1129,7 +1146,7 @@ tty_exit_handler ()
 
 
 
-
+void
 tty_string (string)
 char *string;
 /*
@@ -1140,6 +1157,7 @@ char *string;
 }
 
 
+void
 tty_kpon ()
 /*
  * Turn the keypad over to application mode.
@@ -1153,7 +1171,7 @@ tty_kpon ()
 }
 
 
-
+void
 tty_kpoff ()
 /*
  * Back to numeric mode.
@@ -1168,7 +1186,7 @@ tty_kpoff ()
 
 
 
-
+int
 tty_nlines ()
 /*
  * Return the number of lines on the terminal screen.
@@ -1182,6 +1200,7 @@ tty_nlines ()
 
 # ifdef XSUPPORT
 
+void
 tty_watch (fd, func)
 int fd;
 void_function_pointer func;
@@ -1202,7 +1221,7 @@ void_function_pointer func;
 }
 
 
-
+void
 tty_nowatch (fd)
 int fd;
 /*

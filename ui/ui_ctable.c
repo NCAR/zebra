@@ -7,7 +7,7 @@
 # include "ui_loadfile.h"
 
 
-
+void
 uct_init ()
 /*
  * Initialize the command table.
@@ -44,7 +44,7 @@ char *name;
 
 
 
-
+void
 uct_def_command (name, string)
 char *name, *string;
 /*
@@ -62,7 +62,7 @@ char *name, *string;
 
 
 
-
+void
 uct_dump_command (cmd)
 char *cmd;
 /*
@@ -83,7 +83,7 @@ char *cmd;
 
 
 
-
+void
 uct_save (lun)
 int lun;
 /*
@@ -101,7 +101,7 @@ int lun;
 }
 
 
-
+int
 uct_sv_command (command, type, v, lun)
 char *command;
 int type, lun;
@@ -127,7 +127,7 @@ union usy_value *v;
 }
 
 
-
+void
 uct_load (lun)
 int lun;
 /*
@@ -151,7 +151,7 @@ int lun;
 
 
 
-
+void
 uct_delete (command, col)
 char *command;
 int col;

@@ -12,9 +12,15 @@
  */
 static stbl Key_table = 0;
 
+/*
+ * Prototypes 
+ */
+int uk_sv_key (char *key, int type, union usy_value *v, int lun);
 
 
 
+
+void
 uk_init ()
 /*
  * Initialize the keyboard module.
@@ -28,7 +34,7 @@ uk_init ()
 
 
 
-
+void
 uk_define_key (cmds)
 struct ui_command *cmds;
 /*
@@ -78,6 +84,7 @@ char *key;
 
 
 
+void
 uk_delete (key, col)
 char *key;
 int col;
@@ -99,7 +106,7 @@ int col;
 
 
 
-
+void
 uk_save (lun)
 int lun;
 /*
@@ -107,7 +114,6 @@ int lun;
  */
 {
 	char marker = LF_KEYS;
-	int uk_sv_key ();
 /*
  * Output the marker, romp through the table, then put the end marker in.
  */
@@ -118,6 +124,7 @@ int lun;
 
 
 
+int
 uk_sv_key (key, type, v, lun)
 char *key;
 int type, lun;
@@ -139,10 +146,11 @@ union usy_value *v;
  * Write it out.
  */
  	bfput (lun, tbuf, strlen (tbuf) + 1);
+	return (TRUE);
 }
 
 
-
+void
 uk_load (lun)
 int lun;
 /*

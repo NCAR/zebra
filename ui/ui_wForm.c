@@ -19,7 +19,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_wForm.c,v 1.8 1996-01-30 21:04:03 burghart Exp $";
+static char *Rcsid = "$Id: ui_wForm.c,v 1.9 1998-02-26 21:18:57 burghart Exp $";
 
 
 # define MAXENTRY 100
@@ -736,6 +736,7 @@ SValue *argv, *retv;
 	XtGetValues (fe->fe_Widget, args, 1);
 	*rett = SYMT_STRING;
 	retv->us_v_ptr = usy_string (value);
+	return (TRUE);
 }
 
 

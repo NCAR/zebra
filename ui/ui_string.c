@@ -7,7 +7,7 @@
 # include "ui_globals.h"
 # include "ui_symbol.h"
 
-static char *Rcsid = "$Id: ui_string.c,v 1.4 1989-08-10 11:05:13 corbet Exp $";
+static char *Rcsid = "$Id: ui_string.c,v 1.5 1998-02-26 21:18:43 burghart Exp $";
 /*
  * For small, temporary strings, we maintain some internal lookaside 
  * lists with fixed-size strings.  This way, many malloc/free cycles are
@@ -72,6 +72,7 @@ static int N_asmall = 0, N_amed = 0, N_abig = 0;
 static bool D_string = FALSE;
 
 
+void
 usy_st_init (stable)
 stbl stable;
 /*
@@ -188,7 +189,7 @@ char *text;
 
 
 
-
+void
 usy_rel_string (string)
 char *string;
 {
@@ -234,7 +235,7 @@ char *string;
 
 char *
 usy_pstring (text)
-char *text;
+const char *text;
 /*
  * Allocate a "permanent" string, in that it's unlikely to be released
  * soon.  Use of this routine for long-lived strings will be more efficient

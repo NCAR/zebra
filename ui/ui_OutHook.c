@@ -10,7 +10,7 @@
 # include <varargs.h>
 # endif
 
-static char *rcsid = "$Id: ui_OutHook.c,v 1.8 1997-05-13 21:44:31 ishikawa Exp $";
+static char *rcsid = "$Id: ui_OutHook.c,v 1.9 1998-02-26 21:18:20 burghart Exp $";
 
 /*
  * The routines we use to output normal (ui_printf) text.
@@ -32,6 +32,7 @@ static vfptr Error_out = errprint;
 static vfptr Error_hook = 0;
 
 
+void
 ui_OutputRoutine (normal, nf)
 vfptr normal, nf;
 /*
@@ -44,6 +45,7 @@ vfptr normal, nf;
 
 
 
+void
 ui_ErrorOutputRoutine (err)
 vfptr err;
 /*
@@ -54,6 +56,7 @@ vfptr err;
 }
 
 
+void
 ui_ErrorHook (hook)
 vfptr hook;
 /*
@@ -70,6 +73,7 @@ vfptr hook;
 
 /* use the ANSI standard variable args */
 
+void
 ui_printf (char *fmt, ...)
 
 /*
@@ -91,7 +95,7 @@ ui_printf (char *fmt, ...)
 /*
  * We still need the K&R version for some compilers, unfortunately
  */ 
-
+void
 ui_printf (va_alist)
 va_dcl
 
@@ -136,7 +140,7 @@ va_dcl
 
 
 /* use the ANSI standard variable args */
-
+void
 ui_nf_printf (char *fmt, ...)
 
 /*
@@ -152,7 +156,7 @@ ui_nf_printf (char *fmt, ...)
 
 
 /* use K&R for non-ANSI compilers */
-
+void
 ui_nf_printf (va_alist)
 va_dcl
 
@@ -183,6 +187,7 @@ va_dcl
 
 
 
+void
 ui_ErrOut (line)
 char *line;
 /*
@@ -195,7 +200,7 @@ char *line;
 }
 
 
-
+void
 ui_WarnOut (line)
 char *line;
 /*

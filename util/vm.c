@@ -63,7 +63,7 @@ int size;
 
 
 
-
+void
 relvm (space)
 char *space;
 /*

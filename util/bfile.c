@@ -1,5 +1,5 @@
 /* 1/88 jc */
-static char *rcsid = "$Id: bfile.c,v 1.11 1998-01-15 20:03:38 burghart Exp $";
+static char *rcsid = "$Id: bfile.c,v 1.12 1998-02-26 21:16:40 burghart Exp $";
 /*
  * System-dependant binary file stuff.  These routines are needed because
  * the VMS-specific variable-length-record-format file does not exist in
@@ -110,6 +110,7 @@ char *file;
 
 
 
+void
 bfclose (fd)
 int fd;
 /*
@@ -133,7 +134,7 @@ int fd;
 
 
 
-
+int
 bfget (fd, buf, len)
 int fd, len;
 char *buf;
@@ -197,7 +198,7 @@ char *buf;
 
 
 
-
+void
 bfput (fd, buf, len)
 int fd, len;
 char *buf;
@@ -210,7 +211,10 @@ char *buf;
 
 #   ifdef NETACCESS
 	if (lun_type (fd) == LUN_NTDSK_DISK)
-		return (dput (fd, buf, len));
+	{
+		dput (fd, buf, len);
+		return;
+	}
 	else
 		fd = lun_lookup (fd);
 # endif
@@ -232,7 +236,7 @@ char *buf;
 
 
 
-
+int
 bfrfa (r, rfa)
 int r;
 short rfa[3];
@@ -259,11 +263,12 @@ short rfa[3];
 #   endif
 	*temp = Offset;
 # endif
+	return (1);
 }
 
 
 
-
+int
 bffind (r, rfa)
 int r;
 short rfa[3];
@@ -290,11 +295,12 @@ short rfa[3];
 	if (lseek (fd, *(long *) rfa, SEEK_SET) == -1)
 		printf ("\nImproper seek\n");
 # endif
+	return (1);
 }
 
 
 
-
+void
 bfrewind (fd)
 int fd;
 /*

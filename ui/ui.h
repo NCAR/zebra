@@ -1,5 +1,5 @@
 /* 10/86 jc */
-/* $Id: ui.h,v 1.5 1990-09-19 09:11:02 corbet Exp $ */
+/* $Id: ui.h,v 1.6 1998-02-26 21:18:19 burghart Exp $ */
 
 # ifndef UI_H_SYMBOLS
 # define UI_H_SYMBOLS
@@ -45,47 +45,47 @@ struct ui_command
  * User interface routine prototypes.
  */
 # ifdef __STDC__
-	int ui_init (char *, int, int);
+	void ui_init (char *, int, int);
 	void ui_setup (char *, int *, char **, char *);
-	int ui_get_command (char *, char *, int (*)(), long);
-	int ui_subcommand (char *, char *, int (*)(), long);
+	void ui_get_command (char *, char *, int (*)(), long);
+	void ui_subcommand (char *, char *, int (*)(), long);
 	void ui_perform (char *);
 	int ui_OutputRoutine (void (*)(), void (*)());
 	int ui_ErrorOutputRoutine (void (*)());
 	int ui_ErrHook (void (*)());
-		/* int ui_printf (char *, ...);	*/
-		/* int ui_nf_printf (char *, ...); */
+	int ui_printf (char *, ...);
+	int ui_nf_printf (char *, ...);
 	int ui_ErrOut (char *);
 	int ui_WarnOut (char *);
-	int uf_def_function (char *, int, int *, int (*)());
+	void uf_def_function (char *, int, int *, int (*)());
 	int uii_set_handler (void (*)(), int);
 	int uii_clear_handler (void (*)());
 	int ui_int_prompt (char *, char *, int, int, int);
 	double ui_float_prompt (char *, char *, double, double, double);
-	int ui_string_prompt (char *, char *, char *, char *);
-	int ui_date_prompt (char *, char *, date *, date *);
+	void ui_string_prompt (char *, char *, char *, char *);
+	void ui_date_prompt (char *, char *, date *, date *);
 	int ui_kw_prompt (char *, char *, char *, char *);
 	char *usy_string (char *);
-	int usy_rel_string (char *);
-	char *usy_pstring (char *);
-	int tty_watch (int, void (*)());
-	int tty_nowatch (int);
+	void usy_rel_string (char *);
+	char *usy_pstring (const char *);
+	void tty_watch (int, void (*)());
+	void tty_nowatch (int);
 	struct ui_command *uip_clone_clist (struct ui_command *);
 # ifdef _XtIntrinsic_h
-	int uw_def_widget (char *, char *, Widget (*)(), void (*)(), char *);
+	void uw_def_widget (char *, char *, Widget (*)(), void (*)(), char *);
 	int uw_ForceWindowMode (char *, Widget *, XtAppContext *);
-	int uw_IWRealize (char *, Widget);
+	void uw_IWRealize (char *, Widget);
 	Widget uw_IWWidget (char *);
-	int uw_IWPopup (char *);
+	void uw_IWPopup (char *);
 # endif
-	int uw_mk_list (char *, char *, int, char **, void (*)(), char *);
-	int uw_popup (char *);
-	int uw_popdown (char *);
+	void uw_mk_list (char *, char *, int, char **, void (*)(), char *);
+	void uw_popup (char *);
+	void uw_popdown (char *);
 # else
-	int ui_init ();
+	void ui_init ();
 	void ui_setup ();
-	int ui_get_command ();
-	int ui_subcommand ();
+	void ui_get_command ();
+	void ui_subcommand ();
 	void ui_perform ();
 	int ui_OutputRoutine ();
 	int ui_ErrorOutputRoutine ();
@@ -94,30 +94,30 @@ struct ui_command
 		/* int ui_nf_printf (char *, ...); */
 	int ui_ErrOut ();
 	int ui_WarnOut ();
-	int uf_def_function ();
+	void uf_def_function ();
 	int uii_set_handler ();
 	int uii_clear_handler ();
 	int ui_int_prompt ();
 	double ui_float_prompt ();
-	int ui_string_prompt ();
-	int ui_date_prompt ();
+	void ui_string_prompt ();
+	void ui_date_prompt ();
 	int ui_kw_prompt ();
 	char *usy_string ();
-	int usy_rel_string ();
+	void usy_rel_string ();
 	char *usy_pstring ();
-	int tty_watch ();
-	int tty_nowatch ();
+	void tty_watch ();
+	void tty_nowatch ();
 	struct ui_command *uip_clone_clist ();
 # ifdef _XtIntrinsic_h
-	int uw_def_widget ();
+	void uw_def_widget ();
 	int uw_ForceWindowMode ();
-	int uw_IWRealize ();
+	void uw_IWRealize ();
 	Widget uw_IWWidget ();
-	int uw_IWPopup ();
+	void uw_IWPopup ();
 # endif
-	int uw_mk_list ();
-	int uw_popup ();
-	int uw_popdown ();
+	void uw_mk_list ();
+	void uw_popup ();
+	void uw_popdown ();
 # endif
 
 /*

@@ -1,5 +1,6 @@
 # ifdef NETACCESS
 
+# include <stdlib.h>
 # include <sys/types.h>
 # include <sys/socket.h>
 # include <netinet/in.h>
@@ -35,9 +36,19 @@ static int	Xmit_pos = 0;
 
 
 /*
- * Forward declarations
+ * Prototypes
  */
 char	*rpl_getstr (), *rpl_getbyt ();
+void msg_addopc (int opc);
+void msg_addstr (char *str);
+void msg_addbyt (char *ptr, int num);
+void ntd_msg_send (void);
+void rpl_receive (void);
+void tcp_read (char *buf, int len);
+void tcp_write (char *buf, int len);
+
+
+
 /*
  * Inline min (x, y)
  */
@@ -46,7 +57,7 @@ char	*rpl_getstr (), *rpl_getbyt ();
 
 
 
-
+int
 netdisk_setup (file)
 char *file;
 /*
@@ -142,7 +153,7 @@ char *file;
 }
 
 
-
+int
 cli_bio_open (file)
 char *file;
 {
@@ -159,7 +170,7 @@ char *file;
 
 
 
-
+int
 cli_bio_view (file)
 char *file;
 {
@@ -178,7 +189,7 @@ char *file;
 
 
 
-
+int
 cli_bio_create (file, alloc, extend)
 char *file;
 int *alloc, *extend;
@@ -198,7 +209,7 @@ int *alloc, *extend;
 
 
 
-
+int
 cli_bio_temp (file, alloc, extend)
 char *file;
 int *alloc, *extend;
@@ -219,7 +230,7 @@ int *alloc, *extend;
 
 
 
-
+int
 cli_bio_close (lun)
 int lun;
 {
@@ -227,12 +238,13 @@ int lun;
 	msg_addopc (OP_BIO_CLOSE);
 	msg_addbyt ((char *) &lun, 4);
 	ntd_msg_send ();
+	return (TRUE);
 }
 
 
 
 
-
+int
 cli_bio_read (lun, block, buffer, nbytes)
 int lun, *block, *nbytes;
 char *buffer;
@@ -256,7 +268,7 @@ char *buffer;
 
 
 
-
+int
 cli_bio_wait (lun)
 int lun;
 {
@@ -266,7 +278,7 @@ int lun;
 
 
 
-
+int
 cli_bio_write (lun, block, buffer, nbytes)
 int lun, *block, *nbytes;
 char *buffer;
@@ -286,7 +298,7 @@ char *buffer;
 
 
 
-
+int
 cli_dcreate (file)
 char *file;
 {
@@ -301,7 +313,7 @@ char *file;
 
 
 
-
+int
 cli_dopen (file)
 char *file;
 {
@@ -316,7 +328,7 @@ char *file;
 
 
 
-
+int
 cli_dview (file)
 char *file;
 {
@@ -331,7 +343,7 @@ char *file;
 
 
 
-
+int
 cli_dappend (file)
 char *file;
 {
@@ -345,15 +357,15 @@ char *file;
 
 
 
-
+int
 cli_dput (fnum, buf, len)
 int fnum, len;
 char *buf;
 {
 	if (!Connected) return (FALSE);
 	msg_addopc (OP_DPUT);
-	msg_addbyt (&fnum, 4);
-	msg_addbyt (&len, 4);
+	msg_addbyt ((char*)&fnum, 4);
+	msg_addbyt ((char*)&len, 4);
 	msg_addbyt (buf, len);
 	ntd_msg_send ();
 	rpl_receive ();
@@ -363,7 +375,7 @@ char *buf;
 
 
 
-
+int
 cli_dget (fnum, buf, max)
 int fnum, max;
 char *buf;
@@ -372,8 +384,8 @@ char *buf;
 
 	if (!Connected) return (FALSE);
 	msg_addopc (OP_DGET);
-	msg_addbyt (&fnum, 4);
-	msg_addbyt (&max, 4);
+	msg_addbyt ((char*)&fnum, 4);
+	msg_addbyt ((char*)&max, 4);
 	ntd_msg_send ();
 	rpl_receive ();
 	nread = *(int *) rpl_getbyt (4);
@@ -385,77 +397,82 @@ char *buf;
 
 
 
-
+int
 cli_drfa (fnum, rfa)
 int fnum;
 short *rfa;
 {
 	if (!Connected) return (FALSE);
 	msg_addopc (OP_DRFA);
-	msg_addbyt (&fnum, 4);
+	msg_addbyt ((char*)&fnum, 4);
 	ntd_msg_send ();
 	rpl_receive ();
 	memcpy (rfa, rpl_getbyt (6), 6);
+	return (TRUE);
 }
 
 
 
 
-
+int
 cli_dagain (fnum)
 int fnum;
 {
 	if (!Connected) return (FALSE);
 	msg_addopc (OP_DAGAIN);
-	msg_addbyt (&fnum, 4);
+	msg_addbyt ((char*)&fnum, 4);
 	ntd_msg_send ();
+	return (TRUE);
 }
 
 
 
 
-
+int
 cli_dfind (fnum, rfa)
 int fnum;
 short rfa[3];
 {
 	if (!Connected) return (FALSE);
 	msg_addopc (OP_DFIND);
-	msg_addbyt (&fnum, 4);
-	msg_addbyt (rfa, 6);
+	msg_addbyt ((char*)&fnum, 4);
+	msg_addbyt ((char*)rfa, 6);
 	ntd_msg_send ();
+	return (TRUE);
 }
 
 
 
 
-
+int
 cli_dclose (fnum)
 int fnum;
 {
 	if (!Connected) return (FALSE);
 	msg_addopc (OP_DCLOSE);
-	msg_addbyt (&fnum, 4);
+	msg_addbyt ((char*)&fnum, 4);
 	ntd_msg_send ();
+	return (TRUE);
 }
 
 
 
 
-
+int
 cli_drewind (fnum)
 int fnum;
 {
 	if (!Connected) return (FALSE);
 	msg_addopc (OP_DREWIND);
-	msg_addbyt (&fnum, 4);
+	msg_addbyt ((char*)&fnum, 4);
 	ntd_msg_send ();
+	return (TRUE);
 }
 
 
 
 
-
+void
 msg_addopc (opc)
 int opc;
 {
@@ -467,7 +484,7 @@ int opc;
 
 
 
-
+void
 msg_addstr (str)
 char *str;
 {
@@ -477,7 +494,7 @@ char *str;
 
 
 
-
+void
 msg_addbyt (ptr, num)
 char *ptr;
 int num;
@@ -489,7 +506,7 @@ int num;
 
 
 
-
+void
 ntd_msg_send ()
 {
 	int	num, ntimes, nsend;
@@ -498,11 +515,11 @@ ntd_msg_send ()
 	num = Xmit_pos;
 	Xmit_pos = 0;
 	ntimes = ceil ((double) num / (double) MAXIO);
-	tcp_write (&ntimes, 4);
+	tcp_write ((char*)&ntimes, 4);
 	while (ntimes--)
 	{
 		nsend = MIN (num, MAXIO);
-		tcp_write (&nsend, 4);
+		tcp_write ((char*)&nsend, 4);
 		tcp_write (&Xmit_buf[Xmit_pos], nsend);
 		Xmit_pos += nsend;
 		num -= nsend;
@@ -540,17 +557,17 @@ int num;
 
 
 
-
+void
 rpl_receive ()
 {
 	char	temp[4];
 	int	ntimes, ngot;
 
-	tcp_read (&ntimes, 4);
+	tcp_read ((char*)&ntimes, 4);
 	Rply_pos = 0;
 	while (ntimes--)
 	{
-		tcp_read (&ngot, 4);
+		tcp_read ((char*)&ngot, 4);
 		tcp_read (&Rply_buf[Rply_pos], ngot);
 		Rply_pos += ngot;
 	}
@@ -560,7 +577,7 @@ rpl_receive ()
 
 
 
-
+void
 tcp_read (buf, len)
 char *buf;
 int len;
@@ -577,7 +594,7 @@ int len;
 
 
 
-
+void
 tcp_write (buf, len)
 char *buf;
 int len;
@@ -607,6 +624,7 @@ int len;
 static int Lun_table[256][2];
 static int Initialized = 0;
 
+int
 lun_type (lun)
 int lun;
 {
@@ -618,7 +636,7 @@ int lun;
 
 
 
-
+int
 lun_lookup (lun)
 int lun;
 {
@@ -630,7 +648,7 @@ int lun;
 
 
 
-
+int
 lun_assign (lun, type)
 int lun, type;
 {
@@ -655,12 +673,12 @@ int lun, type;
 
 
 
-
+void
 lun_deassign (lun)
 int lun;
 {
 	if (lun == (int) stdin || lun == (int) stdout || lun == (int) stderr)
-		return (-1);
+		return;
 	Lun_table[lun - 3][0] = LUN_FREE;
 }
 

@@ -27,7 +27,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_window.c,v 1.34 1996-01-02 02:49:13 granger Exp $";
+static char *Rcsid = "$Id: ui_window.c,v 1.35 1998-02-26 21:19:06 burghart Exp $";
 
 /*
  * Public variables, declared in ui_window.h
@@ -75,23 +75,24 @@ static stbl PixmapTable;
 static stbl FontTable;
 
 /*
- * Forward routines.
+ * Prototypes
  */
 struct gen_widget *uw_list_def (), *uw_cm_def (), *uw_mb_def ();
 extern struct gen_widget *uw_DefIPU ();
-# ifdef __STDC__
-	Widget uw_MakeHeader (FrameWidget *, Widget);
-	static FrameWidget *uw_MakeInstance (FrameWidget *);
-	void uw_FPopup (Widget, XEvent *, String *, Cardinal *);
-	void uw_FBRet (Widget, XEvent *, String *, Cardinal *);
-	void uw_BringDown (FrameWidget *);
-# else
-	Widget uw_MakeHeader ();
-	static FrameWidget *uw_MakeInstance ();
-	void uw_FPopup ();
-	void uw_FBRet ();
-	void uw_BringDown ();
-# endif
+
+Widget uw_MakeHeader (FrameWidget *, Widget);
+static FrameWidget *uw_MakeInstance (FrameWidget *);
+void uw_FPopup (Widget, XEvent *, String *, Cardinal *);
+void uw_FBRet (Widget, XEvent *, String *, Cardinal *);
+void uw_BringDown (FrameWidget *);
+void uw_wdef (struct frame_widget *frame);
+void uw_GeomPopup (char *name, char *geom);
+void uw_cr_frame (struct frame_widget *w);
+void uw_add_child (struct frame_widget *frame, struct gen_widget *child);
+void uw_cchild (struct frame_widget *frame, struct gen_widget *child);
+void uw_sync (void);
+void uw_zap_widget (struct frame_widget *frame);
+
 
 
 /*
@@ -104,7 +105,7 @@ static XtActionsRec UIActions[] =
 };
 
 
-
+void
 uw_init ()
 /*
  * Initialize.  This is stuff which can (and should) be done whether we
@@ -136,7 +137,7 @@ uw_init ()
 
 
 
-
+void
 uw_mode (cmds)
 struct ui_command *cmds;
 /*
@@ -159,7 +160,7 @@ struct ui_command *cmds;
 
 
 
-/* void */
+int
 uw_ForceWindowMode (popup, top, appc)
 char *popup;
 Widget *top;
@@ -220,7 +221,7 @@ XtAppContext *appc;
 
 
 
-
+void
 uw_XInit (top, appc)
 Widget	*top;
 XtAppContext	*appc;
@@ -244,7 +245,7 @@ XtAppContext	*appc;
 
 
 
-
+void
 uw_endmode ()
 /*
  * Drop out of window mode.
@@ -267,6 +268,7 @@ uw_endmode ()
 
 
 
+int
 uw_t_popdown (symbol, type, v, junk)
 char *symbol;
 int type, junk;
@@ -372,7 +374,7 @@ char *strings;
 
 
 
-
+int
 uw_define (cmds)
 struct ui_command *cmds;
 {
@@ -446,7 +448,7 @@ struct ui_command *cmds;
 
 
 
-
+void
 uw_wdef (frame)
 struct frame_widget *frame;
 /*
@@ -470,7 +472,7 @@ struct frame_widget *frame;
 
 
 
-
+int
 uw_dstack (name, title)
 char *name, *title;
 /*
@@ -501,7 +503,7 @@ char *name, *title;
 
 
 
-
+int
 uw_in_stack (frame, cmds)
 struct frame_widget *frame;
 struct ui_command *cmds;
@@ -539,7 +541,7 @@ struct ui_command *cmds;
 
 
 
-
+int
 uw_in_map (mt, cmds)
 struct mtemp *mt;
 struct ui_command *cmds;
@@ -595,7 +597,7 @@ struct ui_command *cmds;
 
 
 
-
+void
 uw_popup (name)
 char *name;
 /*
@@ -607,7 +609,7 @@ char *name;
 
 
 
-
+void
 uw_GeomPopup (name, geom)
 char *name, *geom;
 /*
@@ -683,7 +685,7 @@ char *name, *geom;
 }
 
 
-
+void
 uw_popdown (name)
 char *name;
 /*
@@ -785,6 +787,7 @@ char *name, *title;
 
 
 
+void
 uw_cr_frame (w)
 struct frame_widget *w;
 /*
@@ -901,7 +904,7 @@ Widget form;
 
 
 
-
+void
 uw_add_child (frame, child)
 struct frame_widget *frame;
 struct gen_widget *child;
@@ -933,7 +936,7 @@ struct gen_widget *child;
 
 
 
-
+void
 uw_cchild (frame, child)
 struct frame_widget *frame;
 struct gen_widget *child;
@@ -974,7 +977,7 @@ struct gen_widget *child;
 
 
 
-
+void
 uw_sync ()
 /*
  * Sync up with the server.
@@ -994,7 +997,7 @@ uw_sync ()
 
 
 
-
+int
 uw_map_lookup (type, v, nmap, map)
 int type, nmap;
 union usy_value *v;
@@ -1045,7 +1048,7 @@ struct map_table *map;
 
 
 
-
+void
 uw_save (lun, all)
 int lun, all;
 /*
@@ -1063,7 +1066,7 @@ int lun, all;
 
 
 
-
+int
 uw_w_save (name, type, v, lun)
 char *name;
 int type, lun;
@@ -1124,7 +1127,7 @@ union usy_value *v;
 
 
 
-
+void
 uw_s_map (lun, nmap, map)
 int lun, nmap;
 struct map_table *map;
@@ -1152,7 +1155,7 @@ struct map_table *map;
 
 
 
-
+void
 uw_load (lun, init)
 int lun, init;
 /*
@@ -1280,6 +1283,7 @@ int lun, nmap;
 
 
 
+void
 uw_zap_widget (frame)
 struct frame_widget *frame;
 /*
@@ -1343,7 +1347,7 @@ int lun;
 
 
 
-
+void
 uw_IWRealize (name, parent)
 char *name;
 Widget parent;
@@ -1404,7 +1408,7 @@ char *name;
 
 
 
-
+void
 uw_IWPopup (name)
 char *name;
 /*
@@ -1480,7 +1484,7 @@ struct ui_command *cmds;
 
 
 
-
+void
 uw_SetGeometry (widget, x, y, width, height)
 char *widget;
 int x, y, width, height;

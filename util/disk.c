@@ -1,5 +1,5 @@
 /* 11/84 jc */
-/* $Id: disk.c,v 1.5 1993-12-28 20:50:50 case Exp $ */
+/* $Id: disk.c,v 1.6 1998-02-26 21:16:43 burghart Exp $ */
 /*
  * Disk handling.
  *
@@ -32,7 +32,7 @@ static char Def_buf[200];
 char *malloc ();
 
 
-
+void
 dsetdef (name)
 char *name;
 /*
@@ -138,7 +138,7 @@ char *file;
 
 
 # ifdef VMS
-
+int
 dcreate_nra (file)
 char *file;
 /*
@@ -471,6 +471,7 @@ char *file;
 
 
 
+int
 dput (r, buf, len)
 LTYPE r;
 char *buf;
@@ -570,6 +571,7 @@ int max;
 
 
 
+int
 drfa (r, rfa)
 LTYPE r;
 short rfa[3];
@@ -598,13 +600,14 @@ short rfa[3];
 #   endif
 	*temp = ftell (fd);
 # endif
+	return (1);
 }
 
 
 
 
 
-
+int
 dagain (r)
 LTYPE r;
 /*
@@ -649,12 +652,13 @@ LTYPE r;
 	if (fseek (fd, Offset, 0) == -1)
 		printf ("\nImproper seek\n");
 # endif
+	return (1);
 }
 
 
 
 
-
+int
 dfind (r, rfa)
 LTYPE r;
 short rfa[3];
@@ -701,11 +705,12 @@ short rfa[3];
 	if (fseek (fd, *(long *) rfa, 0) == -1)
 		printf ("\nImproper seek\n");
 # endif
+	return (1);
 }
 
 
 
-
+void
 dclose (r)
 LTYPE r;
 /*

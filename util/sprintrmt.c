@@ -5,6 +5,7 @@
  */
 
 # ifdef VMS
+	void
 	sprintrmt(buf, fmt, arg)
 	char   *buf, *fmt;
 	register char **arg;
@@ -25,6 +26,7 @@
 		*arg++ = t1;
 	}
 # else
+	void
 	sprintrmt(buf, fmt, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10)
 	char   *buf, *fmt;
 	int	a1, a2, a3, a4, a5, a6, a7, a8, a9, a10;

@@ -17,7 +17,7 @@
 # include "ui_expr.h"
 # include "ui_error.h"
 
-static char *Rcsid = "$Id: ui_parser.c,v 1.10 1995-12-08 22:25:10 granger Exp $";
+static char *Rcsid = "$Id: ui_parser.c,v 1.11 1998-02-26 21:18:40 burghart Exp $";
 
 void ui_error ();
 char *zapcase ();
@@ -52,7 +52,17 @@ struct ctnames
 };
 
 
+/* 
+ * Prototypes
+ */
+void uip_reject (void);
+void uip_dequote (char *cp);
+void uip_release (struct ui_command *cmds);
+void uip_fix_params (struct ui_command *cmds);
 
+
+
+void
 uip_init ()
 /*
  * Initialize the parser module.
@@ -155,7 +165,7 @@ top:
 
 
 
-
+int
 uip_loop_parse (state, cmds, depth, prevgrp)
 struct state_table_entry *state;
 int depth, prevgrp;
@@ -460,7 +470,7 @@ again: /* (sigh) */
 
 
 
-
+void
 uip_reject ()
 /*
  * Do a token reject.
@@ -660,7 +670,7 @@ int *type;
 
 
 
-
+void
 uip_dequote (cp)
 char *cp;
 /*
@@ -682,7 +692,7 @@ char *cp;
 
 
 
-
+void
 uip_release (cmds)
 struct ui_command *cmds;
 /*
@@ -743,7 +753,7 @@ struct ui_command *cmds;
 
 
 
-
+int
 uip_ct_match (ste, tok, ambig)
 struct state_table_entry *ste;
 struct token *tok;
@@ -812,7 +822,7 @@ bool *ambig;
 
 
 
-
+int
 uip_check_cmd (sym, type, v, np)
 char *sym;
 int type;
@@ -857,7 +867,7 @@ struct ctnames *np;
 
 
 
-
+void
 uip_fix_params (cmds)
 struct ui_command *cmds;
 /*

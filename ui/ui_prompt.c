@@ -15,9 +15,20 @@
 # include "ui_expr.h"
 # include "ui_cstack.h"
 
-static char *Rcsid = "$Id: ui_prompt.c,v 1.6 1990-05-23 09:12:44 burghart Exp $";
+static char *Rcsid = "$Id: ui_prompt.c,v 1.7 1998-02-26 21:18:41 burghart Exp $";
 
-void ui_pr_cc ();	/* Keyboard interrupt handler.	*/
+/*
+ * Prototypes
+ */
+void ui_pr_cc (void);	/* Keyboard interrupt handler.	*/
+void ui_cp_date (struct ui_command *cmds);
+void ui_cp_string (struct ui_command *cmds);
+void ui_cp_yn (struct ui_command *cmds);
+
+extern void ui_ns_error (char *fmt, ...);
+
+
+
 
 
 int
@@ -102,7 +113,7 @@ int lower, upper, def;
 			ON_ERROR
 				if (tree)
 					ue_rel_tree (tree);
-				err_pop ();
+				ui_epop ();
 				continue;
 			ENDCATCH
 			ue_rel_tree (tree);
@@ -114,7 +125,7 @@ int lower, upper, def;
 		 	if (type != SYMT_INT)
 				uit_coerce (&v, type, SYMT_INT);
 		ON_ERROR
-			err_pop ();
+			ui_epop ();
 			continue;
 		ENDCATCH;
 	/*
@@ -222,7 +233,7 @@ float lower, upper, def;
 			ON_ERROR
 				if (tree)
 					ue_rel_tree (tree);
-				err_pop ();
+				ui_epop ();
 				continue;
 			ENDCATCH
 			ue_rel_tree (tree);
@@ -234,7 +245,7 @@ float lower, upper, def;
 		 	if (type != SYMT_FLOAT)
 				uit_coerce (&v, type, SYMT_FLOAT);
 		ON_ERROR
-			err_pop ();
+			ui_epop ();
 			continue;
 		ENDCATCH;
 	/*
@@ -259,7 +270,7 @@ float lower, upper, def;
 
 
 
-
+void
 ui_string_prompt (prompt, helpfile, dest, def)
 char *prompt, *helpfile, *dest, *def;
 /*
@@ -327,7 +338,7 @@ char *prompt, *helpfile, *dest, *def;
 
 
 
-
+void
 ui_date_prompt (prompt, helpfile, val, def)
 char *prompt, *helpfile;
 date *val, *def;
@@ -415,7 +426,7 @@ date *val, *def;
 			ON_ERROR
 				if (tree)
 					ue_rel_tree (tree);
-				err_pop ();
+				ui_epop ();
 				continue;
 			ENDCATCH
 			ue_rel_tree (tree);
@@ -427,7 +438,7 @@ date *val, *def;
 		 	if (type != SYMT_DATE)
 				uit_coerce (&v, type, SYMT_DATE);
 		ON_ERROR
-			err_pop ();
+			ui_epop ();
 			continue;
 		ENDCATCH;
 	/*
@@ -529,7 +540,7 @@ char *prompt, *helpfile, *state, *def;
 
 
 void
-ui_pr_cc ()
+ui_pr_cc (void)
 /*
  * The ^C handler used during short periods of time to properly
  * catch interrupts.
@@ -542,6 +553,7 @@ ui_pr_cc ()
 
 
 
+void
 ui_cprompt (cmds)
 struct ui_command *cmds;
 /*
@@ -614,7 +626,7 @@ struct ui_command *cmds;
 
 
 
-
+void
 ui_cp_date (cmds)
 struct ui_command *cmds;
 /*
@@ -658,7 +670,7 @@ struct ui_command *cmds;
 
 
 
-
+void
 ui_cp_string (cmds)
 struct ui_command *cmds;
 /*
@@ -706,7 +718,7 @@ struct ui_command *cmds;
 
 
 
-
+void
 ui_cp_yn (cmds)
 struct ui_command *cmds;
 /*

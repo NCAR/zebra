@@ -1,6 +1,6 @@
 /* 10/88 jc */
 
-
+void
 fixdir (env, def, file, dest)
 char *env, *def, *file, *dest;
 /*
@@ -19,7 +19,7 @@ char *env, *def, *file, *dest;
 	if (file[0] == '/')
 	{
 		strcpy (dest, file);
-		return (0);
+		return;
 	}
 /*
  * If the environment variable translates, use it.
@@ -51,7 +51,7 @@ char *env, *def, *file, *dest;
 
 
 
-
+void
 fixdir_t (env, def, file, dest, type)
 char *env, *def, *file, *dest, *type;
 /*

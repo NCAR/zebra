@@ -1,5 +1,5 @@
 /* 10/85 jc */
-/* $Id: ui_error.h,v 1.4 1993-07-23 19:53:01 case Exp $ */
+/* $Id: ui_error.h,v 1.5 1998-02-26 21:18:31 burghart Exp $ */
 
 # ifndef UI_ERROR_SYMBOLS
 # define UI_ERROR_SYMBOLS
@@ -20,7 +20,7 @@
  */
 # define ERRORCATCH	{\
 				jmp_buf __JB__; \
-				ui_epush (__JB__); \
+				ui_epush (&__JB__); \
 				if (setjmp (__JB__) == 0) {
 # define ON_ERROR	} else {
 # define ENDCATCH	} ui_epop (); }
@@ -32,8 +32,8 @@
  * stuff is cleaned up.
  */
 # ifdef __STDC__
-	int ui_epush (jmp_buf);
-	int ui_epop (void);
-	int ui_eresignal (void);
+	void ui_epush (jmp_buf*);
+	void ui_epop (void);
+	void ui_eresignal (void);
 # endif
 # endif

@@ -1,5 +1,5 @@
 /* 1/87 jc */
-/* $Id: ui_expr.c,v 1.9 1992-05-06 18:47:10 corbet Exp $ */
+/* $Id: ui_expr.c,v 1.10 1998-02-26 21:18:32 burghart Exp $ */
 /*
  * Expression handling.
  */
@@ -86,7 +86,46 @@ static struct roptab
 static struct parse_tree *Pt_lal = (struct parse_tree *) 0;
 
 
+/*
+ * Prototypes
+ */
+void ue_qstring_snarf (char quote, char *string);
+void ue_clear (void);
+void ue_print_val (union usy_value *v, int type);
+int ue_ieval (struct parse_tree *tree, union usy_value *v, int *type);
+void ue_arith_op (struct parse_tree *tree, int *type, union usy_value *v);
+void ue_do_add (int lt, union usy_value *lv, union usy_value *rv, int *type, 
+		union usy_value *v);
+void ue_do_sub (int lt, union usy_value *lv, union usy_value *rv, int *type, 
+		union usy_value *v);
+void ue_do_times (int lt, union usy_value *lv, union usy_value *rv, int *type, 
+		  union usy_value *v);
+void ue_do_div (int lt, union usy_value *lv, union usy_value *rv, int *type, 
+		union usy_value *v);
+void ue_do_exp (int lt, union usy_value *lv, union usy_value *rv, int *type, 
+		union usy_value *v);
+void ue_type_coerce (int *t1, union usy_value *v1, int *t2, 
+		     union usy_value *v2);
+void ue_log_op (struct parse_tree *tree, int *type, union usy_value *v);
+void ue_rel_op (struct parse_tree *tree, int *type, union usy_value *v);
+void ue_do_gt (int type, union usy_value *v1, union usy_value *v2, 
+	       union usy_value *result);
+void ue_do_ge (int type, union usy_value *v1, union usy_value *v2, 
+	       union usy_value *result);
+void ue_do_lt (int type, union usy_value *v1, union usy_value *v2, 
+	       union usy_value *result);
+void ue_do_le (int type, union usy_value *v1, union usy_value *v2, 
+	       union usy_value *result);
+void ue_do_eq (int type, union usy_value *v1, union usy_value *v2, 
+	       union usy_value *result);
+void ue_do_neq (int type, union usy_value *v1, union usy_value *v2, 
+		union usy_value *result);
 
+
+
+
+
+void
 ue_init ()
 /*
  * Initialize the expression parser.
@@ -99,7 +138,7 @@ ue_init ()
 
 
 
-
+void
 ue_push (string, col)
 char *string;
 int col;
@@ -170,7 +209,7 @@ ue_peek ()
 
 
 
-
+void
 ue_lookahead (string)
 char *string;
 /*
@@ -188,7 +227,7 @@ char *string;
 
 
 
-
+int
 ue_get_token (string, col)
 char *string;
 int *col;
@@ -307,7 +346,7 @@ int *col;
 
 
 
-
+int
 ue_alnum_snarf (string)
 char *string;
 /*
@@ -338,7 +377,7 @@ char *string;
 
 
 
-
+void
 ue_qstring_snarf (quote, string)
 char quote, *string;
 /*
@@ -364,8 +403,7 @@ char quote, *string;
 
 
 
-
-
+int
 ue_time_snarf (string)
 char *string;
 /*
@@ -392,12 +430,12 @@ char *string;
 			break;
 	}
 	*string = '\0';
-	return;
+	return (TRUE);
 }
 
 
 
-
+int
 ue_num_snarf (string)
 char *string;
 /*
@@ -449,7 +487,7 @@ char *test, *month;
 
 
 
-
+int
 ue_check_date (string)
 char *string;
 /*
@@ -593,7 +631,7 @@ ue_get_node ()
 
 
 
-
+void
 ue_clear ()
 /*
  * Clear out the pushback stack.
@@ -1154,7 +1192,7 @@ bool signal;
 
 
 
-
+void
 ue_rel_tree (tree)
 struct parse_tree *tree;
 /*
@@ -1175,7 +1213,7 @@ struct parse_tree *tree;
 
 
 
-
+void
 ue_dump_tree (tree)
 struct parse_tree *tree;
 /*
@@ -1225,7 +1263,7 @@ struct parse_tree *tree;
 
 
 
-
+void
 ue_print_val (v, type)
 union usy_value *v;
 int type;
@@ -1261,7 +1299,7 @@ int type;
 
 
 
-
+void
 ue_enc_val (v, type, dest)
 union usy_value *v;
 int type;
@@ -1297,7 +1335,7 @@ char *dest;
 
 
 
-
+void
 ue_eval (tree, v, type)
 struct parse_tree *tree;
 union usy_value *v;
@@ -1330,7 +1368,7 @@ int *type;
 
 
 
-
+int
 ue_ieval (tree, v, type)
 struct parse_tree *tree;
 union usy_value *v;
@@ -1369,11 +1407,12 @@ int *type;
 	   default:
 	   	c_panic ("Unknown parse tree node type: %d", tree->pt_ntype);
 	}
+	return (0);
 }
 
 
 
-
+int
 ue_lookup_sym (tree, type, v)
 struct parse_tree *tree;
 int *type;
@@ -1413,7 +1452,7 @@ union usy_value *v;
 
 
 
-
+int
 ue_operate (tree, type, v)
 struct parse_tree *tree;
 int *type;
@@ -1474,7 +1513,7 @@ union usy_value *v;
 
 
 
-
+void
 ue_arith_op (tree, type, v)
 struct parse_tree *tree;
 int *type;
@@ -1522,7 +1561,7 @@ union usy_value *v;
 }
 
 
-
+void
 ue_do_add (lt, lv, rv, type, v)
 int lt, *type;
 union usy_value *lv, *rv, *v;
@@ -1552,7 +1591,7 @@ union usy_value *lv, *rv, *v;
 
 
 
-
+void
 ue_do_sub (lt, lv, rv, type, v)
 int lt, *type;
 union usy_value *lv, *rv, *v;
@@ -1579,7 +1618,7 @@ union usy_value *lv, *rv, *v;
 
 
 
-
+void
 ue_do_times (lt, lv, rv, type, v)
 int lt, *type;
 union usy_value *lv, *rv, *v;
@@ -1605,7 +1644,7 @@ union usy_value *lv, *rv, *v;
 
 
 
-
+void
 ue_do_div (lt, lv, rv, type, v)
 int lt, *type;
 union usy_value *lv, *rv, *v;
@@ -1636,7 +1675,7 @@ union usy_value *lv, *rv, *v;
 
 
 
-
+void
 ue_do_exp (lt, lv, rv, type, v)
 int lt, *type;
 union usy_value *lv, *rv, *v;
@@ -1666,7 +1705,7 @@ union usy_value *lv, *rv, *v;
 
 
 
-
+void
 ue_type_coerce (t1, v1, t2, v2)
 int *t1, *t2;
 union usy_value *v1, *v2;
@@ -1719,7 +1758,7 @@ union usy_value *v1, *v2;
 
 
 
-
+int
 ue_negate_op (tree, type, v)
 struct parse_tree *tree;
 int *type;
@@ -1759,7 +1798,7 @@ union usy_value *v;
 
 
 
-
+void
 ue_log_op (tree, type, v)
 struct parse_tree *tree;
 int *type;
@@ -1807,7 +1846,7 @@ union usy_value *v;
 
 
 
-
+void
 ue_rel_op (tree, type, v)
 struct parse_tree *tree;
 int *type;
@@ -1863,7 +1902,7 @@ union usy_value *v;
 
 
 
-
+void
 ue_do_gt (type, v1, v2, result)
 int type;
 union usy_value *v1, *v2, *result;
@@ -1895,7 +1934,7 @@ union usy_value *v1, *v2, *result;
 
 
 
-
+void
 ue_do_ge (type, v1, v2, result)
 int type;
 union usy_value *v1, *v2, *result;
@@ -1927,7 +1966,7 @@ union usy_value *v1, *v2, *result;
 
 
 
-
+void
 ue_do_lt (type, v1, v2, result)
 int type;
 union usy_value *v1, *v2, *result;
@@ -1959,7 +1998,7 @@ union usy_value *v1, *v2, *result;
 
 
 
-
+void
 ue_do_le (type, v1, v2, result)
 int type;
 union usy_value *v1, *v2, *result;
@@ -1991,7 +2030,7 @@ union usy_value *v1, *v2, *result;
 
 
 
-
+void
 ue_do_eq (type, v1, v2, result)
 int type;
 union usy_value *v1, *v2, *result;
@@ -2023,7 +2062,7 @@ union usy_value *v1, *v2, *result;
 
 
 
-
+void
 ue_do_neq (type, v1, v2, result)
 int type;
 union usy_value *v1, *v2, *result;

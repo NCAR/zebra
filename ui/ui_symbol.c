@@ -1,7 +1,7 @@
 /*
  * This is the symbol table module.
  */
-static char *Rcsid = "$Id: ui_symbol.c,v 1.16 1997-09-18 22:14:39 ishikawa Exp $";
+static char *Rcsid = "$Id: ui_symbol.c,v 1.17 1998-02-26 21:18:45 burghart Exp $";
 
 # ifdef VMS
 # include <string.h>
@@ -17,11 +17,13 @@ static char *Rcsid = "$Id: ui_symbol.c,v 1.16 1997-09-18 22:14:39 ishikawa Exp $
 # endif
 
 # include <ctype.h>
-# include "ui_error.h"
-# include "ui_param.h"
 # include "ui_symbol.h"
+# include "ui_param.h"
+# include "ui_error.h"
 # include "ui_date.h"
 # include "ui_globals.h"
+
+extern void ui_nf_printf (char *fmt, ...);
 
 
 /*
@@ -119,14 +121,26 @@ static int S_ncoll = 0;			/* Number of hash collisions	*/
 static int S_nset = 0;			/* Number of symbol sets	*/
 
 
+/*
+ * Prototypes
+ */
+int usy_t_daemon (char *symbol, char *arg, int op, int ot, 
+		   union usy_value *ov, int nt, union usy_value *nv);
+void usy_g_indirect (struct ste *sym, union usy_value *v);
+void usy_dcall (struct ste *sym, int op, int type, 
+		const union usy_value *value);
+void usy_s_indirect (struct ste *sym, const union usy_value *v);
+void usy_sort (struct ste **list, int nste);
+
+
+
+
 void
 usy_init ()
 /*
  * Initialize the symbol table module.
  */
 {
-	stbl usy_c_stbl ();
-	int usy_t_daemon ();
 	union usy_value v;
 /*
  * Create the master table.
@@ -164,7 +178,7 @@ usy_init ()
 }
 
 
-
+int
 usy_t_daemon (symbol, arg, op, ot, ov, nt, nv)
 char *symbol, *arg;
 int op, ot, nt;
@@ -174,6 +188,7 @@ union usy_value *ov, *nv;
 	usy_list_symbol (symbol, ot, ov, 0);
 	ui_nf_printf ("    -- to --\n");
 	usy_list_symbol (symbol, nt, nv, 0);
+	return (1);
 }
 
 
@@ -218,7 +233,7 @@ const char *name;
 
 
 
-
+void
 usy_z_stbl (stable)
 stbl stable;
 /*
@@ -257,7 +272,7 @@ stbl stable;
 
 
 
-
+void
 usy_z_symbol (stable, symbol)
 stbl stable;
 const char *symbol;
@@ -421,7 +436,7 @@ int *type;
 
 
 
-
+void
 usy_g_indirect (sym, v)
 struct ste *sym;
 union usy_value *v;
@@ -478,7 +493,7 @@ const char *symbol;
 
 
 
-
+void
 usy_s_symbol (stable, symbol, type, value)
 stbl stable;
 const char *symbol;
@@ -536,11 +551,11 @@ const union usy_value *value;
 
 
 
-
+void
 usy_dcall (sym, op, type, value)
 struct ste *sym;
 int op, type;
-union usy_value *value;
+const union usy_value *value;
 /*
  * Call the daemons associated with this symbol.
  * Entry:
@@ -563,10 +578,10 @@ union usy_value *value;
 
 
 
-
+void
 usy_s_indirect (sym, v)
 struct ste *sym;
-union usy_value *v;
+const union usy_value *v;
 /*
  * Set this indirect symbol's value from v.
  */
@@ -633,7 +648,7 @@ char *symbol;
 
 
 
-
+void
 usy_dump_table (stable)
 const stbl stable;
 /*
@@ -650,6 +665,7 @@ const stbl stable;
 
 
 
+int
 usy_list_symbol (sym, type, value, arg)
 char *sym;
 int type, arg;
@@ -755,7 +771,7 @@ const char *name;
 
 
 
-
+void
 usy_c_indirect (stable, symbol, target, type, length)
 stbl stable;
 const char *symbol;
@@ -813,7 +829,7 @@ const char *s;
 
 
 
-
+int
 usy_traverse (stable, func, arg, sort)
 const stbl stable;
 int (*func) ();
@@ -830,7 +846,7 @@ bool sort;
 
 
 
-
+int
 usy_search (stable, func, arg, sort, re)
 const stbl stable;
 int (*func) ();
@@ -962,7 +978,7 @@ char *re;
 
 
 
-
+void
 usy_sort (list, nste)
 struct ste **list;
 int nste;

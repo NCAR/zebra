@@ -10,7 +10,7 @@
 # include "ui_error.h"
 # include "ui_mode.h"
 
-static char *Rcsid = "$Id: ui_cstack.c,v 1.6 1994-04-14 14:15:09 burghart Exp $";
+static char *Rcsid = "$Id: ui_cstack.c,v 1.7 1998-02-26 21:18:23 burghart Exp $";
 
 /*
  * The list of free cs_entry structures.  Whenever we need a new one,
@@ -30,6 +30,15 @@ static char *Modes[] =
 {
 	"???", "Menu", "Command", "NONE", "Window", 0
 };
+
+/*
+ * Prototypes
+ */
+void ucs_in_dump (struct input_stack *inp);
+void ucs_z_input (int cleanup);
+void ucs_z_middle (struct cs_entry *backptr);
+
+
 
 
 struct cs_entry *
@@ -69,7 +78,7 @@ ucs_new_entry ()
 
 
 
-
+void
 ucs_dump_cstack ()
 /*
  * Dump out the cstack.
@@ -97,7 +106,7 @@ ucs_dump_cstack ()
 
 
 
-
+void
 ucs_in_dump (inp)
 struct input_stack *inp;
 /*
@@ -129,7 +138,7 @@ struct input_stack *inp;
 }
 
 
-
+void
 ucs_csave_source (csp, replace)
 struct csave *csp;
 bool replace;
@@ -163,7 +172,7 @@ bool replace;
 
 
 
-
+void
 ucs_pop_cstack ()
 /*
  * Remove the top entry from the Cstack.
@@ -210,7 +219,7 @@ ucs_pop_cstack ()
 
 
 
-
+void
 ucs_rel_csave (csp)
 struct csave *csp;
 /*
@@ -254,7 +263,7 @@ ucs_input ()
 
 
 
-
+void
 ucs_z_input (cleanup)
 bool cleanup;
 /*
@@ -353,7 +362,7 @@ ucs_g_csline ()
 
 
 
-
+void
 ucs_z_middle (backptr)
 struct cs_entry *backptr;
 /*
@@ -379,7 +388,7 @@ struct cs_entry *backptr;
 
 
 
-
+void
 ucs_tty_cmode ()
 /*
  * Throw a command mode structure onto the control stack, with the terminal

@@ -19,7 +19,8 @@ static int Status, Len;
 
 # define BLOCK_SIZE 512
 
-int bio_open (file, len, alq)
+int 
+bio_open (file, len, alq)
 char *file;
 int *len, *alq;
 /*
@@ -67,7 +68,8 @@ int *len, *alq;
 
 
 
-int bio_view (file, len, alq)
+int 
+bio_view (file, len, alq)
 char *file;
 int *len, *alq;
 /*
@@ -116,7 +118,7 @@ int *len, *alq;
 
 
 
-
+int
 bio_create (file, len, alloc, extend)
 char *file;
 int *len, *alloc, *extend;
@@ -161,7 +163,7 @@ int *len, *alloc, *extend;
 
 
 
-
+int
 bio_temp (file, len, alloc, extend)
 char *file;
 int *len, *alloc, *extend;
@@ -210,7 +212,7 @@ int *len, *alloc, *extend;
 
 
 
-
+void
 bio_close (lun)
 int *lun;
 /*
@@ -232,7 +234,7 @@ int *lun;
 
 
 
-
+int
 bio_read (lun, block, buffer, nbytes, wait)
 int *lun, *block, *nbytes, *wait;
 char *buffer;
@@ -277,7 +279,7 @@ char *buffer;
 
 
 
-
+int
 bio_wait (lun)
 int *lun;
 /*
@@ -293,7 +295,7 @@ int *lun;
 
 
 
-
+int
 bio_write (lun, block, buffer, nbytes, wait)
 int *lun, *block, *nbytes, *wait;
 char *buffer;
@@ -336,7 +338,7 @@ char *buffer;
 
 
 
-
+void
 bio_set_dfn (dfn)
 char *dfn;
 /*

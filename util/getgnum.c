@@ -27,6 +27,7 @@
 
 #include <stdio.h>
 
+int
 get_g_num (min, max, deflt, base)
 int min, max, deflt, base;
 {
@@ -83,6 +84,7 @@ int min, max, deflt, base;
  *			If a non valid entry is received, err is set to SELERR.
  */
 
+int
 mlt_dig (deflt, base, err)
 int deflt, base, *err;
 {
@@ -147,7 +149,7 @@ int deflt, base, *err;
 }
 
 /*-------------------------------------------------------------------*/
-
+void
 cr_hold ()		/* wait until CR is typed */
 {
 	printf ("\nType RETURN to proceed: ");
@@ -155,7 +157,7 @@ cr_hold ()		/* wait until CR is typed */
 }
 
 /*-------------------------------------------------------------------*/
-
+int
 cr_hold_esc ()		/* wait until CR is typed and check for exit */
 {
 	printf ("\nType RETURN to proceed or -1 to exit: ");
@@ -164,7 +166,7 @@ cr_hold_esc ()		/* wait until CR is typed and check for exit */
 }
 
 /*----------------------------------------------------------------------*/
-
+void
 get_int_param (name, var, min, max)	/* generic parameter entry routine */
 char *name;
 int *var, min, max;
@@ -175,7 +177,7 @@ int *var, min, max;
 }
 
 /*----------------------------------------------------------------------*/
-
+int
 str_prompt (prompt, str, maxlen)	/* generic string entry routine */
 char *prompt, *str;
 int maxlen;

@@ -27,8 +27,17 @@ struct stinfo
 };
 
 
+/*
+ * Prototypes
+ */
+void ust_input (struct state_table_entry *ste, struct ui_command *cmds);
+void ust_act_dump (struct state_action *ap);
+void ust_do_load (int lun, int init);
 
 
+
+
+void
 ust_init ()
 /*
  * Initialize the state table.
@@ -76,7 +85,7 @@ char *state;
 
 
 
-
+void
 ust_def_state (cmds)
 struct ui_command *cmds;
 /*
@@ -106,7 +115,7 @@ struct ui_command *cmds;
 		if (ste->sta_nkw)
 			relvm (ste->sta_kw);
 		relvm (ste);
-		err_pop ();
+		ui_epop ();
 		ui_error ("Definition of state '%s' abandoned due to error.",
 			ste->sta_name);
 	ENDCATCH
@@ -130,7 +139,7 @@ struct ui_command *cmds;
 
 
 
-
+void
 ust_delete (name, col)
 char *name;
 int col;
@@ -212,7 +221,7 @@ struct ui_command *cmds;
 }
 
 
-
+void
 ust_input (ste, cmds)
 struct state_table_entry *ste;
 struct ui_command *cmds;
@@ -316,7 +325,7 @@ struct ui_command *cmds;
 
 
 
-
+int
 ust_within_input (s, cmds)
 struct stinfo *s;
 struct ui_command *cmds;
@@ -362,7 +371,7 @@ struct ui_command *cmds;
 
 
 
-
+void
 ust_dump (state)
 char *state;
 /*
@@ -412,7 +421,7 @@ char *state;
 }
 
 
-
+void
 ust_act_dump (ap)
 struct state_action *ap;
 /*
@@ -433,7 +442,7 @@ struct state_action *ap;
  */
 static int Save_all;
 
-
+void
 ust_save (lun, all)
 int lun, all;
 /*
@@ -460,7 +469,7 @@ int lun, all;
 
 
 
-
+int
 ust_state_save (symbol, type, v, lun)
 char *symbol;
 int type, lun;
@@ -502,18 +511,18 @@ union usy_value *v;
 
 
 
-
+void
 ust_load (lun)
 int lun;
 /*
  * Perform a state load from this file.
  */
 {
-	ust_do_load (lun);
+	ust_do_load (lun, 1);
 }
 
 
-
+void
 ust_do_load (lun, init)
 int lun;
 int init;

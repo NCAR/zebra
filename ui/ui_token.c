@@ -11,7 +11,7 @@
 # include "ui_tty.h"
 # include "ui_mode.h"
 
-static char *Rcsid = "$Id: ui_token.c,v 1.15 1992-01-29 21:45:52 corbet Exp $";
+static char *Rcsid = "$Id: ui_token.c,v 1.16 1998-02-26 21:18:47 burghart Exp $";
 
 /*
  * For input analysis, all characters are classified into one of the
@@ -282,10 +282,23 @@ static int Logging = FALSE;
 FILE *Log_fp;
 # endif
 
+/*
+ * Prototypes
+ */
+void ut_fix_pb (void);
+void ut_crlf (void);
+void ut_do_reline (void);
+void ut_drain_ta (void);
+void ut_redo (char *line);
+void ut_new_state (struct token_context *ctx, int state);
+void ut_clr_back (struct token_context *ctx);
 
 
 
 
+
+
+void
 ut_init (interact, nokeypad)
 bool interact, nokeypad;
 /*
@@ -451,6 +464,7 @@ int subst;
 
 
 
+void
 ut_fix_pb ()
 /*
  * Fix up the pushback stack to deal a little more gracefully with 
@@ -572,7 +586,7 @@ struct token *tok;
 }
 
 
-
+void
 ut_pushback (string, flags)
 char *string;
 int flags;
@@ -599,7 +613,7 @@ int flags;
 }
 
 
-
+int
 ut_are_repl ()
 /*
  * Return TRUE iff we are reading from replacement text.
@@ -754,7 +768,7 @@ top:
 }
 
 
-
+int
 ut_file_line (flags)
 int *flags;
 /*
@@ -804,7 +818,7 @@ int *flags;
 
 
 
-
+void
 ut_crlf ()
 /*
  * Put out a carriage return/line feed.
@@ -820,6 +834,7 @@ ut_crlf ()
 
 
 
+void
 ut_reline ()
 /*
  * Signal that a line redrawing is needed.
@@ -831,7 +846,7 @@ ut_reline ()
 
 
 
-
+void
 ut_do_reline ()
 /*
  * Repaint the current line.
@@ -851,7 +866,7 @@ ut_do_reline ()
 
 
 
-
+void
 ut_backup ()
 /*
  * Erase the previous character on the display.
@@ -866,7 +881,7 @@ ut_backup ()
 
 
 
-
+void
 ut_put_msg (line, refresh)
 char *line;
 int refresh;
@@ -1018,7 +1033,7 @@ ut_continue ()
 
 
 
-
+void
 ut_drain_ta ()
 /*
  * Delete any pending stuff, due to an error.  This routine is still
@@ -1054,7 +1069,7 @@ ut_drain_ta ()
 
 
 
-
+void
 ut_open_file (file, fatal)
 char *file;
 bool fatal;
@@ -1091,7 +1106,7 @@ bool fatal;
 
 
 
-
+void
 ut_breakout ()
 /*
  * Break out of any existing file sources.  This is primarily an error-
@@ -1111,7 +1126,7 @@ ut_breakout ()
 
 
 
-
+void
 ut_clr_line (howmany)
 int howmany;
 /*
@@ -1268,7 +1283,7 @@ struct token_context *ctx;
 
 
 
-
+void
 ut_redo (line)
 char *line;
 /*
@@ -1284,7 +1299,7 @@ char *line;
 
 
 
-
+void
 ut_list_recall ()
 /*
  * Dump out the recall buffer.
@@ -1360,7 +1375,7 @@ struct token_context *ctx;
 
 
 
-
+int
 ut_classify (c)
 unsigned char c;
 /* 
@@ -1629,6 +1644,7 @@ struct token_context *ctx;
 
 
 
+void
 ut_new_state (ctx, state)
 int state;
 struct token_context *ctx;
@@ -1704,7 +1720,7 @@ struct token_context *ctx;
 
 
 
-
+void
 ut_clr_back (ctx)
 struct token_context *ctx;
 /*
@@ -2136,7 +2152,7 @@ ut_reset ()
 
 
 
-
+void
 ut_out_lines ()
 /*
  * Dump out the input lines, in anticipation of an error message.
@@ -2306,7 +2322,7 @@ struct token *tok;
 
 
 
-
+void
 ut_new_ctx ()
 /*
  * Throw a new tokenizer context onto the control stack.
@@ -2317,6 +2333,7 @@ ut_new_ctx ()
 
 
 
+void
 ut_rel_ctx (ctx)
 struct token_context *ctx;
 /*
@@ -2329,7 +2346,7 @@ struct token_context *ctx;
 
 
 
-
+void
 ut_done ()
 /*
  * Kludge finishing routine for now.  Just resets terminal parameters,

@@ -21,23 +21,14 @@
 
 
 static char *rcsid =
-   "$Id: ui_error.c,v 1.13 1996-01-12 20:37:27 granger Exp $";
+   "$Id: ui_error.c,v 1.14 1998-02-26 21:18:29 burghart Exp $";
 /*
  * Stack stuff.
  */
 static struct jstack
 {
 	struct jstack *js_next;	/* Next entry in the stack	*/
-#ifdef __hp9000s800  /* certain hps have to be different */
-        double *js_value;
-#else
-# ifdef linux
-	void *js_value;
-# else
-	int *js_value;		/* The value we pushed		*/
-# endif
-#endif  
-
+	jmp_buf *js_value;
 } *Stack = 0;
 
 /*
@@ -55,6 +46,14 @@ static struct jstack
 static struct jstack *Js_lal = 0;
 
 
+/*
+ * Prototypes
+ */
+
+
+
+
+void
 ui_errinit ()
 /*
  * Initialize the error handling stuff.
@@ -74,10 +73,8 @@ ui_errinit ()
 # if __STDC__  /* Use the ANSI variable args list */
 
 
-
+void
 ui_error (char *fmt, ...)
-
-
 /*
  * Put out an error message.
  */
@@ -90,10 +87,9 @@ ui_error (char *fmt, ...)
 
 # else  /* Use K&R version for non-ANSI compilers */
 
-
+void
 ui_error ( va_alist )
 va_dcl
-
 {
         char buf[200], buf1[200];
         char *fmt;
@@ -117,7 +113,7 @@ va_dcl
  *			jump to that instead.
  */
 	if (Stack)
-		longjmp (Stack->js_value, TRUE);
+		longjmp (*Stack->js_value, TRUE);
 	else
 		c_panic ("No error handler specified");
 
@@ -133,7 +129,7 @@ va_dcl
 #if __STDC__  /* Use ANSI variable args */
 
 
-
+void
 ui_cl_error ( bool jump, int col, char *fmt, ...)
 
 /*
@@ -157,7 +153,7 @@ ui_cl_error ( bool jump, int col, char *fmt, ...)
 
 # else  /*  Use K&R variable args list for non-ANSI compilers */
 
-
+void
 ui_cl_error ( va_alist )
 va_dcl
 
@@ -235,7 +231,7 @@ va_dcl
  	if (jump)
 	{
 		if (Stack)
-			longjmp (Stack->js_value, TRUE);
+			longjmp (*Stack->js_value, TRUE);
 		else
 			c_panic ("No error handler specified");
 	}
@@ -245,9 +241,8 @@ va_dcl
 
 # if __STDC__  /* ANSI variable args */
 
-
+void
 ui_ns_error (char *fmt, ...)
-
 /*
  * Put out an error message, but don't actually signal it.
  */
@@ -258,6 +253,7 @@ ui_ns_error (char *fmt, ...)
 
 # else  /* non-ANSI */
 
+void
 ui_ns_error ( va_alist )
 va_dcl
 {
@@ -285,7 +281,7 @@ va_dcl
 
 # if __STDC__  /* ANSI variable args */
 
-
+void
 ui_bailout ( char *fmt, ...)
 
 /*
@@ -299,7 +295,7 @@ ui_bailout ( char *fmt, ...)
 
 # else  /* non-ANSI */
 
-
+void
 ui_bailout ( va_alist )
 va_dcl
 
@@ -328,7 +324,7 @@ va_dcl
  * Jump through the error stack.
  */
 	if (Stack)
-		longjmp (Stack->js_value, TRUE);
+		longjmp (*Stack->js_value, TRUE);
 	else
 		c_panic ("No error handler specified");
 }
@@ -337,6 +333,7 @@ va_dcl
 
 # if __STDC__  /* ANSI variable args */
 
+void
 ui_warning (char *fmt, ...)
 
 /*
@@ -350,7 +347,7 @@ ui_warning (char *fmt, ...)
 
 # else /* non-ANSI */
 
-
+void
 ui_warning ( va_alist )
 va_dcl
 {
@@ -371,18 +368,8 @@ va_dcl
 
 
 
-
-err_push (label)
-jmp_buf label;
-{
-	ui_epush (label);
-}
-
-
-
-
-ui_epush (label)
-jmp_buf label;
+void
+ui_epush (jmp_buf *label)
 /*
  * Push an error catch onto the stack.
  */
@@ -400,14 +387,7 @@ jmp_buf label;
 
 
 
-err_pop ()
-{
-	ui_epop ();
-}
-
-
-
-
+void
 ui_epop ()
 /*
  * Pull a value off the stack.
@@ -426,6 +406,7 @@ ui_epop ()
 
 # if __STDC__  /* Use ANSI variable args */
 
+void
 bailout ( char *fmt, ...)
 
 
@@ -440,7 +421,7 @@ bailout ( char *fmt, ...)
 
 # else  /* Use non-ANSI variable args */
 
-
+void
 bailout ( va_alist )
 va_dcl
 
@@ -477,7 +458,7 @@ va_dcl
  *			somebody will have put something on the stack.
  */
 	if (Stack)
-		longjmp (Stack->js_value, TRUE);
+		longjmp (*Stack->js_value, TRUE);
 	else
 		c_panic ("No error handler specified");
 }
@@ -487,6 +468,7 @@ va_dcl
 
 # if __STDC__  /* Use ANSI variable args */
 
+void
 sys_error (int status, char *fmt, ...)
 
 
@@ -504,6 +486,7 @@ sys_error (int status, char *fmt, ...)
 
 # else   /* non-ANSI variable args */
 
+void
 sys_error ( va_alist )
 va_dcl
 
@@ -543,7 +526,7 @@ va_dcl
 
 # if __STDC__    /* Use ANSI variable args */
 
-
+void
 warning (char *fmt, ...)
 
 /*
@@ -557,7 +540,7 @@ warning (char *fmt, ...)
 
 # else  /* non_ANSI */
 
-
+void
 warning ( va_alist )
 va_dcl
 {
@@ -580,28 +563,23 @@ va_dcl
 
 
 
-
-err_resignal ()
-{
-	ui_eresignal ();
-}
-
-
-
-
+void
 ui_eresignal ()
 /*
  * Resignal a trapped error.  The effect of this routine is (1) to perform
- * an err_pop(), then to longjmp to the next entry in the error stack.
+ * a ui_epop(), then to longjmp to the next entry in the error stack.
  */
 {
-	err_pop ();
+	ui_epop ();
 	if (Stack)
-		longjmp (Stack->js_value, TRUE);
+		longjmp (*Stack->js_value, TRUE);
 	else
 		c_panic ("No error handler specified");
 }
 
 
-
-
+void
+err_resignal ()
+{
+	ui_eresignal ();
+}

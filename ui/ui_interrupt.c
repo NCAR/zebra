@@ -1,5 +1,5 @@
 /* 2/87 jc */
-static char *rcsid = "$Id: ui_interrupt.c,v 1.8 1996-01-02 18:25:08 granger Exp $";
+static char *rcsid = "$Id: ui_interrupt.c,v 1.9 1998-02-26 21:18:36 burghart Exp $";
 /*
  * Interrupt handling.
  */
@@ -34,6 +34,7 @@ static SIGNAL_RETURN uii_tstp ();
 static SIGNAL_RETURN uii_fault ();
 # endif
 
+void
 uii_init ()
 /*
  * Initialize the interrupt handling.
@@ -75,7 +76,7 @@ uii_init ()
 
 
 
-
+void
 uii_set_handler (handler, last)
 void (*handler) ();
 bool last;
@@ -108,7 +109,7 @@ bool last;
 }
 
 
-
+void
 uii_clear_handler (handler)
 vfptr handler;
 /*

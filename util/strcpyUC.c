@@ -1,4 +1,4 @@
-
+void
 strcpyUC (dest, src)
 char *dest, *src;
 /*

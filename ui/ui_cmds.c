@@ -12,7 +12,7 @@
 # include "ui_mode.h"
 # include "ui_cstack.h"
 
-static char *Rcsid = "$Id: ui_cmds.c,v 1.13 1994-01-03 16:19:29 granger Exp $";
+static char *Rcsid = "$Id: ui_cmds.c,v 1.14 1998-02-26 21:18:22 burghart Exp $";
 
 # ifdef VMS
 # define HELPDIR "ui_help:"
@@ -26,6 +26,14 @@ static char *Rcsid = "$Id: ui_cmds.c,v 1.13 1994-01-03 16:19:29 granger Exp $";
 # define HELPDIR "nowhere"	/* No interactive help on batch systems! */
 # endif
 
+/*
+ * Prototypes
+ */
+void ui_enc_sym (char *dest, char *sym);
+
+
+
+void
 ui_set (cmds, local)
 struct ui_command *cmds;
 bool local;
@@ -63,6 +71,7 @@ bool local;
 
 
 
+void
 ui_define (cmds)
 struct ui_command *cmds;
 /*
@@ -117,7 +126,7 @@ struct ui_command *cmds;
 
 
 
-
+int
 ui_dump (cmds)
 struct ui_command *cmds;
 /*
@@ -162,7 +171,7 @@ struct ui_command *cmds;
 
 
 
-
+void
 ui_test (cmds)
 struct ui_command *cmds;
 {
@@ -182,7 +191,7 @@ struct ui_command *cmds;
 
 
 
-
+void
 ui_eval (string, col)
 char *string;
 int col;
@@ -220,7 +229,7 @@ int col;
 
 
 
-
+void
 ui_message (cmds)
 struct ui_command *cmds;
 /*
@@ -334,7 +343,7 @@ struct ui_command *cmds;
 
 
 
-
+void
 ui_enc_sym (dest, sym)
 char *dest, *sym;
 /*
@@ -362,6 +371,7 @@ char *dest, *sym;
 }
 
 
+int
 ui_vset (cmds, eval)
 struct ui_command *cmds;
 bool eval;
@@ -405,7 +415,7 @@ bool eval;
 
 
 
-
+void
 ui_type_file (file)
 char *file;
 /*
@@ -428,7 +438,7 @@ char *file;
 
 
 
-
+void
 ui_load (file, init)
 char *file;
 int init;
@@ -495,7 +505,7 @@ int init;
 
 
 
-
+void
 ui_save (file, all)
 char *file;
 int all;
@@ -537,7 +547,7 @@ int all;
 
 
 
-
+void
 ui_mode (cmds)
 struct ui_command *cmds;
 /*
@@ -564,7 +574,7 @@ struct ui_command *cmds;
 
 
 
-
+void
 ui_help (file)
 char *file;
 /*
@@ -617,7 +627,7 @@ char *file;
 
 
 
-
+void
 ui_keypad (state)
 bool state;
 /*
@@ -632,7 +642,7 @@ bool state;
 
 
 
-
+void
 ui_delete (cmds)
 struct ui_command *cmds;
 /*

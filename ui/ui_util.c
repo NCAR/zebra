@@ -27,7 +27,7 @@ char * string;
 
 
 
-
+void
 zfill (stuff, size)
 char *stuff;
 int size;
@@ -43,6 +43,7 @@ int size;
 }
 
 
+void
 uiu_slowcopy (len, from, to)
 char	*from, *to;
 int	len;

@@ -1,4 +1,4 @@
-/* $Id: RdssMenu.c,v 1.9 1994-09-01 10:49:52 granger Exp $ */
+/* $Id: RdssMenu.c,v 1.10 1998-02-26 21:18:15 burghart Exp $ */
 /*
  * Hacked up version of SimpleMenu to provide some useful stuff -- in
  * particular, better cascading menus.
@@ -762,7 +762,6 @@ Cardinal * num_params;
     PositionMenu(menu, NULL, &x, &y);
     MoveMenu(menu, x, y, 0, 0);
     return;
-    break;
   }
   PositionMenu(menu, &loc, &x, &y);
   MoveMenu(menu, x, y, 0, 0);

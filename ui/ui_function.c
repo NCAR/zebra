@@ -15,7 +15,7 @@
 extern char *malloc ();
 # endif
 
-static char *rcsid = "$Id: ui_function.c,v 1.12 1997-05-15 18:33:40 granger Exp $";
+static char *rcsid = "$Id: ui_function.c,v 1.13 1998-02-26 21:18:35 burghart Exp $";
 
 /*
  * These structures represent functions.
@@ -90,7 +90,7 @@ static stbl F_table = NULL;
 
 
 
-
+void
 uf_init ()
 /*
  * Initialize the function table.
@@ -117,7 +117,7 @@ uf_init ()
 
 
 
-
+void
 uf_eval (name, arglist, v, type)
 char *name;
 struct parse_tree *arglist;
@@ -199,7 +199,7 @@ int *argt;
 
 
 
-
+void
 uf_def_function (name, narg, argt, func)
 char *name;
 int narg, *argt, (*func) ();
@@ -240,7 +240,7 @@ int narg, *argt, (*func) ();
 /*
  * Here are functions that we like to provide.  Mostly math functions here.
  */
-
+int
 uf_sqrt (narg, argv, argt, retv, rett)
 int narg, *argt, *rett;
 union usy_value *argv, *retv;
@@ -250,10 +250,11 @@ union usy_value *argv, *retv;
 {
 	*rett = SYMT_FLOAT;
 	retv->us_v_float = sqrt (argv->us_v_float);
+	return (TRUE);
 }
 
 
-
+int
 uf_exp (narg, argv, argt, retv, rett)
 int narg, *argt, *rett;
 union usy_value *argv, *retv;
@@ -263,11 +264,12 @@ union usy_value *argv, *retv;
 {
 	*rett = SYMT_FLOAT;
 	retv->us_v_float = exp (argv->us_v_float);
+	return (TRUE);
 }
 
 
 
-
+int
 uf_defined (narg, argv, argt, retv, rett)
 int narg, *argt, *rett;
 union usy_value *argv, *retv;
@@ -277,10 +279,11 @@ union usy_value *argv, *retv;
 {
 	*rett = SYMT_BOOL;
 	retv->us_v_int = usy_defined (Ui_variable_table, argv->us_v_ptr);
+	return (TRUE);
 }
 
 
-
+int
 uf_stbl (narg, argv, argt, retv, rett)
 int narg, *argt, *rett;
 union usy_value *argv, *retv;
@@ -290,11 +293,12 @@ union usy_value *argv, *retv;
 {
 	*rett = SYMT_BOOL;
 	retv->us_v_int = usy_g_stbl (argv->us_v_ptr) != NULL;
+	return (TRUE);
 }
 
 
 
-
+int
 uf_concat (narg, argv, argt, retv, rett)
 int narg, *argt, *rett;
 union usy_value *argv, *retv;
@@ -319,11 +323,12 @@ union usy_value *argv, *retv;
 	*rett = SYMT_STRING;
 	retv->us_v_ptr = usy_string (result);
 	relvm (result);
+	return (TRUE);
 }
 
 
 
-
+int
 uf_sin (narg, argv, argt, retv, rett)
 int narg, *argt, *rett;
 union usy_value *argv, *retv;
@@ -333,12 +338,13 @@ union usy_value *argv, *retv;
 {
 	*rett = SYMT_FLOAT;
 	retv->us_v_float = sin (argv->us_v_float);
+	return (TRUE);
 }
 
 
 
 
-
+int
 uf_cos (narg, argv, argt, retv, rett)
 int narg, *argt, *rett;
 union usy_value *argv, *retv;
@@ -348,12 +354,13 @@ union usy_value *argv, *retv;
 {
 	*rett = SYMT_FLOAT;
 	retv->us_v_float = cos (argv->us_v_float);
+	return (TRUE);
 }
 
 
 
 
-
+int
 uf_tan (narg, argv, argt, retv, rett)
 int narg, *argt, *rett;
 union usy_value *argv, *retv;
@@ -363,13 +370,14 @@ union usy_value *argv, *retv;
 {
 	*rett = SYMT_FLOAT;
 	retv->us_v_float = tan (argv->us_v_float);
+	return (TRUE);
 }
 
 
 
 
 
-
+int
 uf_substring (narg, argv, argt, retv, rett)
 int narg, *argt, *rett;
 union usy_value *argv, *retv;
@@ -389,13 +397,14 @@ union usy_value *argv, *retv;
  	len = strlen (argv[1].us_v_ptr);
 	for (check = argv[0].us_v_ptr; *check; check++)
 		if (! strncmp (check, argv[1].us_v_ptr, len))
-			return;
+			return (TRUE);
 	retv->us_v_int = FALSE;
+	return (TRUE);
 }
 
 
 
-
+int
 uf_string (narg, argv, argt, retv, rett)
 int narg, *argt, *rett;
 union usy_value *argv, *retv;
@@ -418,12 +427,13 @@ union usy_value *argv, *retv;
 		retv->us_v_ptr = usy_string (ebuf);
 	}
 	*rett = SYMT_STRING;
+	return (TRUE);
 }
 	
 
 
 
-
+int
 uf_noccur (narg, argv, argt, retv, rett)
 int narg, *argt, *rett;
 union usy_value *argv, *retv;
@@ -437,12 +447,13 @@ union usy_value *argv, *retv;
 	retv->us_v_int = (*cp == *argv[1].us_v_ptr) ? 1 : 0;
 	while (cp = strchr (cp + 1, *argv[1].us_v_ptr))
 		(retv->us_v_int)++;
+	return (TRUE);
 }
 	
 
 
 
-
+int
 uf_contains (narg, argv, argt, retv, rett)
 int narg, *argt, *rett;
 union usy_value *argv, *retv;
@@ -452,12 +463,13 @@ union usy_value *argv, *retv;
 {
 	*rett = SYMT_BOOL;
 	retv->us_v_int = (int) strchr (argv[0].us_v_ptr, *argv[1].us_v_ptr);
+	return (TRUE);
 }
 
 
 
 
-
+int
 uf_quote (narg, argv, argt, retv, rett)
 int narg, *argt, *rett;
 union usy_value *argv, *retv;
@@ -473,11 +485,12 @@ union usy_value *argv, *retv;
 	*rett = SYMT_STRING;
 	retv->us_v_ptr = usy_string (ctmp);
 	free (ctmp);
+	return (TRUE);
 }
 
 
 
-
+int
 uf_getenv (narg, argv, argt, retv, rett)
 int narg, *argt, *rett;
 union usy_value *argv, *retv;
@@ -491,11 +504,13 @@ union usy_value *argv, *retv;
 		retv->us_v_ptr = usy_string (env);
 	else
 		retv->us_v_ptr = usy_string ("UNDEFINED");
+	return (TRUE);
 }
 
 
 
 
+int
 uf_within (narg, argv, argt, retv, rett)
 int narg, *argt, *rett;
 union usy_value *argv, *retv;
@@ -508,6 +523,7 @@ union usy_value *argv, *retv;
 	*rett = SYMT_BOOL;
 	retv->us_v_int = ABS (argv[0].us_v_float - argv[1].us_v_float) <=
 				argv[2].us_v_float;
+	return (TRUE);
 }
 
 
@@ -530,6 +546,7 @@ union usy_value	*argv, *retv;
 	i = strlen (argv[0].us_v_ptr);
 	*rett = SYMT_INT;
 	retv->us_v_int = i;
+	return (TRUE);
 }
 
 
@@ -558,4 +575,5 @@ union usy_value	*argv, *retv;
 	else
 		retv->us_v_ptr = usy_string (argv[0].us_v_ptr);
 	*rett = SYMT_STRING;
+	return (TRUE);
 }

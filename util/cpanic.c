@@ -11,7 +11,7 @@
 #	define SPRINTARGS	a1, a2, a3, a4, a5
 # endif
 
-
+void
 c_panic (fmt, ERRARGS)
 char *fmt;
 int ERRARGS;

@@ -25,10 +25,13 @@ static int Page_size = 21;		/* How many lines to a screen page */
 
 
 void uio_print (), uio_nfprint (), uio_ErrorOut (), uio_EHook ();
+void ui_line_out (char *line);
+void uio_stall (void);
 
 
 
 
+void
 uio_init (tty, lun)
 bool tty;
 int lun;
@@ -122,7 +125,7 @@ char *buf;
 }
 
 
-
+int
 ui_fix_lf (old, new)
 char *old, *new;
 /*
@@ -143,7 +146,7 @@ char *old, *new;
 
 
 
-
+void
 ui_line_out (line)
 char *line;
 /*
@@ -183,7 +186,7 @@ char *line;
 
 
 
-
+void
 uio_stall ()
 /*
  * Wait for user input before continuing with output.

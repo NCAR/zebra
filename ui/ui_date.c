@@ -22,6 +22,11 @@ static int Month_days[] =
 };
 
 
+/*
+ * Prototypes
+ */
+void ud_dayn_to_date (long daynum, long year, long *month, long *day);
+
 
 
 char *
@@ -64,7 +69,7 @@ int opts;
 
 
 
-
+void
 ud_add_date (d1, d2, result)
 date *d1, *d2, *result;
 /*
@@ -164,9 +169,8 @@ long dte;
 	
 	
 	
-	
-ud_dayn_to_date (daynum, year, month, day)
-int daynum, year, *month, *day;
+void	
+ud_dayn_to_date (long daynum, long year, long *month, long *day)
 /*
  * Convert the day number into a month/day pair.  YEAR is needed for the
  * leap year case.
@@ -201,7 +205,7 @@ int daynum, year, *month, *day;
 
 
 
-
+void
 ud_sub_date (d1, d2, result)
 date *d1, *d2, *result;
 /*

@@ -5,7 +5,7 @@
  * commands are in ui_cmds.c
  */
 
-static char *Rcsid = "$Id: ui.c,v 1.21 1994-11-09 17:33:51 corbet Exp $";
+static char *Rcsid = "$Id: ui.c,v 1.22 1998-02-26 21:18:17 burghart Exp $";
 # include "ui_param.h"
 # include "ui.h"
 # include "ui_error.h"
@@ -72,9 +72,31 @@ struct procarg
 };
 
 
+/*
+ * prototypes
+ */
+void ui_un_init (void);
+void ui_snarf_cmd (struct ui_command *cmds);
+void ui_endwhile (void);
+void ui_reset (void);
+void ui_else (struct ui_command *cmds);
+void ui_endfor (void);
+void ui_finish (void);
+void ui_defproc (struct ui_command *cmds);
+void ui_endproc (void);
+void ui_pcall (struct ui_command *cmds);
+void ui_return (void);
+void ui_edt (char* file);
+void ui_zapproc (char *name);
+void ui_endmode (int mode);
+void ui_pushcmd (char *command);
+void ui_cs_cmd (struct ui_command *cmds);
 
 
 
+
+
+void
 ui_init (loadfile, interact, nokeypad)
 char *loadfile;
 bool interact, nokeypad;
@@ -201,7 +223,7 @@ int *argc;
 
 
 
-
+void
 ui_un_init ()
 /*
  * Initialize the USERNAME variable.
@@ -218,6 +240,7 @@ ui_un_init ()
 
 
 
+void
 ui_get_command (initial, prompt, handler, arg)
 char *initial, *prompt;
 int (*handler) ();
@@ -336,7 +359,7 @@ ui_do_cmode ()
 					continue;
 				}
 			ON_ERROR
-				ui_reset (TRUE);
+				ui_reset ();
 				if (Bail && ! ut_interactive ())
 				{
 					uii_clear_handler (ui_cc);
@@ -399,7 +422,7 @@ bool exec;
  * cases, give up entirely (unless told not to).
  */
 	ON_ERROR
-		ui_reset (TRUE);
+		ui_reset ();
 		if (Bail && ! ut_interactive ())
 		{
 			uii_clear_handler (ui_cc);
@@ -438,7 +461,7 @@ bool exec;
  	if (cmds->uc_ctype == UTT_VALUE)
 	{
 	  	ui_vset (cmds, TRUE);
-		return;
+		return (TRUE);
 	}
 /*
  * Trap the control structure commands right now.
@@ -627,7 +650,7 @@ bool exec;
 
 
 
-
+void
 ui_cs_cmd (cmds)
 struct ui_command *cmds;
 /*
@@ -689,10 +712,7 @@ struct ui_command *cmds;
 
 
 
-
-
-
-
+void
 ui_subcommand (initial, prompt, handler, arg)
 char *initial, *prompt;
 int (*handler) ();
@@ -730,7 +750,7 @@ long arg;
 
 
 
-
+void
 ui_snarf_cmd (cmds)
 struct ui_command *cmds;
 /*
@@ -805,7 +825,7 @@ struct ui_command *cmds;
 
 
 
-
+void
 ui_endwhile ()
 /*
  * Handle an endwhile command.
@@ -870,7 +890,7 @@ ui_endwhile ()
 
 
 
-
+void
 ui_reset ()
 /*
  * Reset the Control stack back to the last major mode.
@@ -889,7 +909,7 @@ ui_cc ()
  * This is the ui control/c handler.
  */
 {
-	ui_reset (TRUE);
+	ui_reset ();
 	ut_reline ();
 	if (Jump)
 		ui_bailout ((char *) 0);
@@ -897,7 +917,7 @@ ui_cc ()
 
 
 
-
+int
 ui_if (cmds)
 struct ui_command *cmds;
 /*
@@ -918,7 +938,7 @@ struct ui_command *cmds;
 
 
 
-
+int
 ui_endif ()
 /*
  * Handle the ENDIF command.
@@ -944,6 +964,7 @@ ui_endif ()
 
 
 
+void
 ui_else (cmds)
 struct ui_command *cmds;
 /*
@@ -1078,8 +1099,7 @@ struct ui_command *cmds;
 
 
 
-
-
+void
 ui_endfor ()
 /*
  * Handle an endfor command.
@@ -1197,7 +1217,7 @@ union usy_value *v;
 
 
 
-
+void
 ui_finish ()
 /*
  * Perform whatever closing work may need to be done.
@@ -1209,7 +1229,7 @@ ui_finish ()
 
 
 
-
+void
 ui_defproc (cmds)
 struct ui_command *cmds;
 /*
@@ -1285,7 +1305,7 @@ struct ui_command *cmds;
 
 
 
-
+void
 ui_endproc ()
 /*
  * Handle the end of a procedure definition.
@@ -1354,7 +1374,7 @@ ui_endproc ()
 
 
 
-
+void
 ui_pcall (cmds)
 struct ui_command *cmds;
 /*
@@ -1459,7 +1479,7 @@ struct ui_command *cmds;
 
 
 
-
+void
 ui_return ()
 /*
  * Handle a procedure return.
@@ -1522,7 +1542,7 @@ char *name;
 # endif
 
 
-
+void
 ui_edt (file)
 char *file;
 /*
@@ -1541,6 +1561,7 @@ char *file;
 
 static int Save_all;
 
+void
 ui_psave (lun, all)
 int lun, all;
 /*
@@ -1599,7 +1620,7 @@ union usy_value *v;
 
 
 
-
+void
 ui_pload (lun, init)
 int lun, init;
 /*
@@ -1660,7 +1681,7 @@ int lun, init;
 
 
 
-
+void
 ui_zapproc (name)
 char *name;
 /*
@@ -1695,7 +1716,7 @@ char *name;
 
 
 
-
+void
 ui_push_mode (mode)
 int mode;
 /*
@@ -1732,7 +1753,7 @@ int mode;
 
 
 
-
+void
 ui_endmode (mode)
 int mode;
 /*
@@ -1804,7 +1825,7 @@ char *command;
 
 
 
-
+void
 ui_pushcmd (command)
 char *command;
 /*

@@ -371,7 +371,7 @@ static struct state_table_entry *boot_array[] =
 
 
 
-
+void
 ust_bootstrap (table)
 stbl table;
 /*

@@ -12,7 +12,7 @@
  *		Send a GMT timestamp and message to stdout		*
  *		UCAR/NCAR/ATD/RDP/G. Forrest Cook	5/8/90		*
 \*----------------------------------------------------------------------*/
-
+void
 log_gmt (msg)
 char *msg;
 {

@@ -3,7 +3,7 @@
  */
 
 # ifdef XSUPPORT
-static char *rcsid = "$Id: ui_wList.c,v 1.8 1995-12-08 22:25:12 granger Exp $";
+static char *rcsid = "$Id: ui_wList.c,v 1.9 1998-02-26 21:19:00 burghart Exp $";
 /* 
  * Window system code.
  */
@@ -79,9 +79,18 @@ struct cmenu_temp
 	int c_nentry;
 };
 
-void uw_lselect ();
+/*
+ * Prototypes 
+ */
+int uw_ldaemon (char *sym, char *cw, int op, int ot, union usy_value *ov, 
+		 int nt, union usy_value *nv);
+void uw_lselect (struct list_widget *lw);
+void uw_setselector (char *sym, int value);
+void uw_lsel_fix (struct list_widget *lw, int type, union usy_value *v);
 
 
+
+void
 uw_mk_list (name, title, nitem, items, callback, cbdata)
 char *name, *title, *cbdata;
 int nitem;
@@ -195,7 +204,7 @@ uw_list_def ()
 
 
 
-
+int
 uw_in_list (lw, cmds)
 struct list_widget *lw;
 struct ui_command *cmds;
@@ -362,7 +371,6 @@ Widget parent;
 		{ 0 },
 	};
 	void uw_cmcb ();
-	int uw_ldaemon ();
 /*
  * Put together the list of entries.
  */
@@ -389,7 +397,7 @@ Widget parent;
 
 
 
-
+int
 uw_ldaemon (sym, cw, op, ot, ov, nt, nv)
 char *sym, *cw;
 int op, ot, nt;
@@ -405,17 +413,18 @@ union usy_value *ov, *nv;
  * taken care of the next time it's popped up.
  */
  	if ((w->lw_frame->fw_flags & WF_POPPED) == 0)
-		return;
+		return (TRUE);
 /*
  * If the value hasn't changed, we also do nothing.
  */
 	if (ot == nt && ov->us_v_int == nv->us_v_int)
-		return;
+		return (TRUE);
 /*
  * Fix up the widget.
  */
  	uw_lsel_fix (w, nt, nv);
 	uw_sync ();
+	return (TRUE);
 }
 
 
@@ -509,7 +518,7 @@ uw_cm_def ()
 
 
 
-
+int
 uw_in_cmenu (cm, cmds)
 struct cmenu_temp *cm;
 struct ui_command *cmds;
@@ -631,7 +640,7 @@ char *item;
 
 
 
-
+void
 uw_setselector (sym, value)
 char *sym;
 int value;
@@ -674,7 +683,7 @@ struct list_widget *lw;
 
 
 
-
+void
 uw_lsel_fix (lw, type, v)
 struct list_widget *lw;
 int type;
@@ -699,7 +708,7 @@ union usy_value *v;
 
 
 
-
+void
 uw_s_list (lun, lw)
 int lun;
 struct list_widget *lw;
@@ -731,7 +740,7 @@ struct list_widget *lw;
 
 
 
-
+void
 uw_s_cmenu (lun, lw)
 int lun;
 struct list_widget *lw;

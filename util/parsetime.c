@@ -37,6 +37,12 @@ struct tofftab
 	{	0,		0	}
 };
 
+/*
+ * Prototypes
+ */
+void pmu_g_yesterday (int *date);
+void pmu_check_end (char *string);
+void pmu_split_date (char *string, char *dest, char **date, char **time);
 
 
 
@@ -74,7 +80,7 @@ static int Month_days[] =
 
 
 
-
+void
 pmu_encode_date (date, time, string)
 int date, time;
 char *string;
@@ -90,8 +96,7 @@ char *string;
 
 
 
-
-
+int
 pmu_parse_time (string, date, time)
 char *string;
 int *time, *date;
@@ -161,7 +166,7 @@ int *time, *date;
 
 
 
-
+int
 pmu_g_date (ds, date)
 char *ds;
 int *date;
@@ -233,7 +238,7 @@ int *date;
 
 
 
-
+int
 pmu_g_time (ts, time)
 char *ts;
 int *time;
@@ -323,7 +328,7 @@ int *time;
 
 
 
-
+int
 pmu_g_today (date)
 int *date;
 /*
@@ -368,7 +373,7 @@ int *date;
 
 
 
-
+void
 pmu_g_yesterday (date)
 int *date;
 /*
@@ -416,7 +421,7 @@ int *date;
 
 
 
-
+void
 pmu_check_end (string)
 char *string;
 /*
@@ -429,8 +434,9 @@ char *string;
 	while (*s)
 		if (*s != ' ' && *s != '\t' && *s != '\n')
 		{
-			warning ("Junk past end of legal command: '%s'",string);
-			return (1);
+			warning ("Junk past end of legal command: '%s'",
+				 string);
+			return;
 		}
 		else
 			s++;
@@ -440,7 +446,7 @@ char *string;
 
 
 
-
+int
 pmu_dadd (date, time, incr)
 int *date, *time, incr;
 /*
@@ -502,13 +508,15 @@ int *date, *time, incr;
 		}
 	}
 	*date = year*10000 + month*100 + day;
+
+	return (1);
 }
 
 
 
 
 
-
+int
 pmu_dsub (date, time, incr)
 int *date, *time, incr;
 /*
@@ -572,6 +580,8 @@ int *date, *time, incr;
 			day = Month_days[month];
 	}
 	*date = year*10000 + month*100 + day;
+
+	return (1);
 }
 
 
@@ -630,7 +640,7 @@ int d1, t1, d2, t2;
 
 
 
-
+int
 pmu_g_gmt_offset ()
 /*
  * Return the number of hours to add to a local time to get GMT.
@@ -660,7 +670,7 @@ pmu_g_gmt_offset ()
 
 
 
-
+int
 pmu_g_now (date, rtime)
 int *date, *rtime;
 /*
@@ -705,7 +715,7 @@ int *date, *rtime;
 
 
 
-
+int
 pmu_g_minus (ds, date, time)
 char *ds;
 int *date, *time;
@@ -735,7 +745,7 @@ int *date, *time;
 
 
 
-
+void
 pmu_split_date (string, dest, date, time)
 char *string, *dest, **date, **time;
 /*

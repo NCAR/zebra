@@ -6,7 +6,7 @@
 # include "ui_param.h"
 # include "ui_symbol.h"
 
-static char *rcsid = "$Id: ui_types.c,v 1.6 1992-08-14 22:16:54 corbet Exp $";
+static char *rcsid = "$Id: ui_types.c,v 1.7 1998-02-26 21:18:52 burghart Exp $";
 
 /*
  * Month info.
@@ -31,11 +31,11 @@ static int Month_days[] =
  *
  * Note that it depends on the definitions in ui_symbol.h
  */
-int uit_bad (), uit_ftoi (), uit_itof (), uit_ident (), uit_ftod ();
-int uit_itod (), uit_ftob (), uit_btof (), uit_btoi ();
+void uit_bad (), uit_ftoi (), uit_itof (), uit_ident (), uit_ftod ();
+void uit_itod (), uit_ftob (), uit_btof (), uit_btoi ();
 
 # define CVT_WIDTH 5	/* Table width */
-typedef int (*ifptr) ();
+typedef void (*ifptr) ();
 ifptr Cvt_tbl[CVT_WIDTH * CVT_WIDTH] =
 {
 /* float	int		string		date		bool	*/
@@ -46,8 +46,15 @@ ifptr Cvt_tbl[CVT_WIDTH * CVT_WIDTH] =
   uit_btof,	uit_btoi,	uit_bad,	uit_bad, 	uit_ident
 };
 
+/*
+ * Prototypes
+ */
+void uit_split_date (char *string, char *dest, char **dte, char **time);
 
 
+
+
+void
 uit_interp (string, type, v)
 char *string;
 int *type;
@@ -95,7 +102,7 @@ union usy_value *v;
 
 
 
-
+int
 uit_parse_date (string, v, strict)
 char *string;
 union usy_value *v;
@@ -180,7 +187,7 @@ char *test, *month;
 
 
 
-
+int
 uit_date_get (ds, ts, dte)
 char *ds, *ts;
 int *dte;
@@ -242,7 +249,7 @@ int *dte;
 
 
 
-
+int
 uit_time_get (ts, time)
 char *ts;
 int *time;
@@ -314,7 +321,7 @@ int *time;
 
 
 
-
+void
 uit_split_date (string, dest, dte, time)
 char *string, *dest, **dte, **time;
 /*
@@ -351,7 +358,7 @@ char *string, *dest, **dte, **time;
 
 
 
-
+int
 uit_int_parse (string, v)
 char *string;
 union usy_value *v;
@@ -390,7 +397,7 @@ union usy_value *v;
 
 
 
-
+int
 uit_real_parse (string, v)
 char *string;
 union usy_value *v;
@@ -442,7 +449,7 @@ union usy_value *v;
 
 
 
-
+int
 uit_bool_parse (string, v, strict)
 char *string;
 union usy_value *v;
@@ -473,7 +480,7 @@ bool strict;
 
 
 
-
+void
 uit_coerce (value, from, to)
 union usy_value *value;
 int from, to;
@@ -485,7 +492,7 @@ int from, to;
 }
 
 
-
+void
 uit_bad (value, from, to)
 union usy_value *value;
 int from, to;
@@ -500,7 +507,7 @@ int from, to;
 }
 
 
-
+void
 uit_ident ()
 /*
  * Identity transformation.
@@ -508,7 +515,7 @@ uit_ident ()
 { /* This is a rough one */ }
 
 
-
+void
 uit_ftoi (v)
 union usy_value *v;
 /*
@@ -519,6 +526,7 @@ union usy_value *v;
 }
 
 
+void
 uit_itof (v)
 union usy_value *v;
 /*
@@ -530,7 +538,7 @@ union usy_value *v;
 
 
 
-
+void
 uit_itod (v)
 union usy_value *v;
 /*
@@ -543,7 +551,7 @@ union usy_value *v;
 
 
 
-
+void
 uit_ftod (v)
 union usy_value *v;
 /*
@@ -561,7 +569,7 @@ union usy_value *v;
 
 
 
-
+void
 uit_ftob (v)
 union usy_value *v;
 /*
@@ -572,7 +580,7 @@ union usy_value *v;
 }
 
 
-
+void
 uit_btof (v)
 union usy_value *v;
 /*
@@ -583,6 +591,7 @@ union usy_value *v;
 }
 
 
+void
 uit_btoi (v)
 union usy_value *v;
 /*

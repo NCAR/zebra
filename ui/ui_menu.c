@@ -1,5 +1,5 @@
 /* 12/87 jc */
-/* $Id: ui_menu.c,v 1.5 1992-01-30 21:58:18 corbet Exp $ */
+/* $Id: ui_menu.c,v 1.6 1998-02-26 21:18:38 burghart Exp $ */
 /*
  * Menuing functions are handled here.
  */
@@ -47,8 +47,21 @@ static char *Cmodestr =
 menu mode after the command completes.  If you entered this mode by\r\n\
 mistake, type ~^U~, and you will be returned to menu mode immediately.\r\n\r\n";
  
- 
+/*
+ * Prototypes
+ */
+void um_glom_mstr (struct ui_command *cmds, struct mchoice *cp);
+void um_push (struct menu *mp);
+void um_cstack (void);
+void um_present (struct menu *mp);
+void um_enc_choice (int selected, char *dest, char *chstr, int number);
+void um_indicate (struct menu *mp, int choice, int line);
+void um_represent (struct menu *mp, int old, int new, int line);
+void um_stall (void);
 
+
+ 
+void
 um_init ()
 /*
  * Initialize the menu module.
@@ -99,7 +112,7 @@ char *name;
 
 
 
-
+void
 um_delete (menu, col)
 char *menu;
 int col;
@@ -125,7 +138,7 @@ int col;
 
 
 
-
+int
 um_define (name)
 char *name;
 /*
@@ -165,7 +178,7 @@ char *name;
 	ON_ERROR
 		relvm (mp->m_choices);
 		relvm (mp);
-		err_pop ();
+		ui_epop ();
 		ui_error ("Definition of menu '%s' abandoned due to error",
 			name);
 	ENDCATCH
@@ -252,7 +265,7 @@ struct ui_command *cmds;
 
 
 
-
+void
 um_glom_mstr (cmds, cp)
 struct ui_command *cmds;
 struct mchoice *cp;
@@ -302,7 +315,7 @@ struct mchoice *cp;
 
 
 
-
+int
 um_choice (chp, cmds)
 struct mchoice *chp;
 struct ui_command *cmds;
@@ -350,7 +363,7 @@ struct ui_command *cmds;
 
 
 
-
+int
 um_dump (menu)
 char *menu;
 /*
@@ -386,6 +399,7 @@ char *menu;
 
 static int Save_all = 0;
 
+void
 um_save (lun, all)
 int lun, all;
 /*
@@ -403,6 +417,7 @@ int lun, all;
 
 
 
+int
 um_m_save (menu, type, v, lun)
 char *menu;
 int type, lun;
@@ -429,7 +444,7 @@ union usy_value *v;
 
 
 
-
+void
 um_load (lun, init)
 int lun, init;
 /*
@@ -474,7 +489,7 @@ int lun, init;
 
 
 
-
+int
 um_mode (cmds)
 struct ui_command *cmds;
 /*
@@ -528,7 +543,7 @@ struct ui_command *cmds;
 
 
 
-
+void
 um_push (mp)
 struct menu *mp;
 /*
@@ -569,7 +584,7 @@ um_get_stack ()
 }
 
 
-
+void
 um_mpop ()
 /*
  * Remove the top entry from the menu stack.
@@ -587,7 +602,7 @@ um_mpop ()
 
 
 
-
+void
 um_cstack ()
 /*
  * Entirely clear the menu stack.
@@ -598,7 +613,7 @@ um_cstack ()
 }
 
 
-
+void
 um_do_menu (cmds, initial, prompt)
 struct ui_command **cmds;
 char *initial, *prompt;
@@ -756,7 +771,7 @@ top:
 
 
 
-
+int
 um_do_next (next)
 char *next;
 /*
@@ -800,7 +815,7 @@ char *next;
 
 
 
-
+void
 um_present (mp)
 struct menu *mp;
 /*
@@ -837,7 +852,7 @@ struct menu *mp;
 
 
 
-
+void
 um_enc_choice (selected, dest, chstr, number)
 bool selected;
 char *dest, *chstr;
@@ -931,7 +946,7 @@ int number;
 
 
 
-
+void
 um_indicate (mp, choice, line)
 struct menu *mp;
 int choice, line;
@@ -954,7 +969,7 @@ int choice, line;
 
 
 
-
+void
 um_represent (mp, old, new, line)
 struct menu *mp;
 int old, new, line;
@@ -987,7 +1002,7 @@ int old, new, line;
 
 
 
-
+void
 um_stall ()
 /*
  * Force a wait before drawing a new menu.

@@ -7,7 +7,7 @@
 # include "ui.h"
 # include "ui_window.h"
 
-static char *rcsid = "$Id: ui_wAppl.c,v 1.6 1993-03-19 23:32:21 granger Exp $";
+static char *rcsid = "$Id: ui_wAppl.c,v 1.7 1998-02-26 21:18:56 burghart Exp $";
 
 /*
  * The format of an application widget.
@@ -31,7 +31,7 @@ struct appl_widget
 
 static void uw_ApplCreate (), uw_ApplDestroy ();
 
-
+void
 uw_def_widget (name, title, create, destroy, tag)
 char *name, *title;
 Widget (*create) ();

@@ -5,7 +5,7 @@
 # ifdef XSUPPORT
 
 
-static char *rcsid = "$Id: ui_wPulldown.c,v 1.18 1996-02-03 16:36:39 granger Exp $";
+static char *rcsid = "$Id: ui_wPulldown.c,v 1.19 1998-02-26 21:19:02 burghart Exp $";
 
 # ifndef X11R3		/* This stuff don't work under R3.	*/
 /* 
@@ -112,15 +112,15 @@ struct mb_menu
 };
 
 /*
- * Forward routines.
+ * Prototypes
  */
-# ifdef __STDC__
-	static void uw_mbmcreate (struct mb_menu *menu, Widget parent);
-	static void uw_MenuDestroy (struct mb_menu *, int);
-# else
-	static void uw_mbmcreate ();
-	static void uw_MenuDestroy ();
-# endif
+static void uw_mbmcreate (struct mb_menu *menu, Widget parent);
+static void uw_MenuDestroy (struct mb_menu *, int);
+static void uw_mb_cb (Widget w, XtPointer action, XtPointer junk);
+static void uw_mb_popup (Widget wgt, XtPointer xpmenu, XtPointer junk);
+static void uw_mb_submenu_marks (struct mb_menu *menu);
+static void uw_mb_set_marks (struct mb_menu *menu, int all);
+void uw_SavePulldown (int lun, struct mb_menu *mb);
 
 
 
@@ -427,9 +427,8 @@ Widget parent;
  * Actually create this menubar widget.
  */
 {
-	int i, uw_mb_cb ();
+	int i;
 	Arg margs[10];
-	int uw_mb_popup ();
 /*
  * Create the menubutton and the shell for the menu.
  */
@@ -568,7 +567,7 @@ char *name;
 # endif
 
 
-
+static void
 uw_mb_cb (w, action, junk)
 Widget w;
 XtPointer action, junk;
@@ -580,6 +579,7 @@ XtPointer action, junk;
 }
 
 
+static void
 uw_mb_popup (wgt, xpmenu, junk)
 Widget wgt;
 XtPointer xpmenu, junk;
@@ -682,6 +682,7 @@ XtPointer xpmenu, junk;
 
 
 # ifdef SMEMENU
+static void
 uw_mb_submenu_marks (menu)
 struct mb_menu *menu;
 /*
@@ -709,7 +710,7 @@ struct mb_menu *menu;
 
 
 
-
+static void
 uw_mb_set_marks (menu, all)
 struct mb_menu *menu;
 bool all;
@@ -834,7 +835,7 @@ bool realized;
 }
 		
 
-
+void
 uw_SaveMenubar (lun, mw)
 int lun;
 struct menubar_widget *mw;
@@ -862,7 +863,7 @@ struct menubar_widget *mw;
 
 
 
-
+void
 uw_SavePulldown (lun, mb)
 int lun;
 struct mb_menu *mb;
