@@ -1,7 +1,7 @@
 /*
  * XY-Wind plotting module
  */
-static char *rcsid = "$Id: XYWind.c,v 1.1 1992-01-02 17:06:09 barrett Exp $";
+static char *rcsid = "$Id: XYWind.c,v 1.2 1992-01-03 00:28:24 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -86,8 +86,6 @@ bool	update;
 	char	*fnames[4][MAX_PLAT];
 	PlatformId	pid;
 	DataObject	*dobj = NULL;
-	XColor	*lcolor;
-	char	*linecolor[MAX_PLAT];
 	DataOrganization	xyOrg;
 	DataValPtr	*xdata,*ydata;
 	DataValPtr	*udata,*vdata;
@@ -107,6 +105,7 @@ bool	update;
 	char	style[80];
 	char	csystem[32];
 	int	dmode;
+	char	datalabel[80];
 /*
  * Get X-Y Winds Required parameters:
  * "platform","x-field", "y-field", "wind-coords", "color-table", "org"
@@ -189,7 +188,6 @@ bool	update;
 /*
  * Allocate memory for data and attibutes
  */
-	lcolor = (XColor*)malloc ( nplat* sizeof(XColor));
 	xdata = (DataValPtr*)malloc (nplat* sizeof(DataValPtr));
 	ydata = (DataValPtr*)malloc (nplat* sizeof(DataValPtr));
 	udata = (DataValPtr*)malloc (nplat* sizeof(DataValPtr));
@@ -245,9 +243,7 @@ bool	update;
             }
         }
 
-	for ( i = 0; i < nplat; i++)
-	    linecolor[i] = (char*)calloc(64,sizeof(char));
-	xy_GetPlotAttr(Pd,c,nplat,linecolor,tadefcolor);
+	xy_GetPlotAttr(Pd,c,nplat,NULL,tadefcolor);
 
 /*
  **********************************************************
@@ -257,15 +253,6 @@ bool	update;
 /*
  * Get X-pixel for colors...
  */
-	for ( i =0 ; i < nplat; i++)
-	{
-	    if(! ct_GetColorByName(linecolor[i], &(lcolor[i])))
-	    {
-		msg_ELog(EF_PROBLEM, "Can't get X line color: '%s'.",
-				linecolor[i]);
-		ct_GetColorByName("white", &(lcolor[i]));
-	    }
-	}
 	if (! ct_GetColorByName(tadefcolor, &Tadefclr))
 	{
 	    msg_ELog(EF_PROBLEM, "Can't get X annotation color: '%s'.",
@@ -296,7 +283,8 @@ bool	update;
  */
 	if (! update)
 	{
-	    An_TopAnnot ("X/Y Wind for ", Tadefclr.pixel);
+	    An_TopAnnot ("X/Y Wind:", Tadefclr.pixel);
+	    An_TopAnnot (c,Tadefclr.pixel);
 	    lw_OvInit ("PLATFORM    TIME\n");
 	}
 /*
@@ -309,12 +297,26 @@ bool	update;
 	 */
 	    if (! update)
 	    {
-		if (plat > 0)
-		    An_TopAnnot (", ", Tadefclr.pixel);
 
-		An_TopAnnot (pnames[plat], lcolor[plat].pixel);
-		An_TopAnnot (":", lcolor[plat].pixel);
-		An_TopAnnot (fnames[0][plat], lcolor[plat].pixel);
+	        if ( strcmp(style, "vector" ) == 0 )
+		{
+                    sprintf (datalabel, "%s %s %f %f %f", "50m/sec",
+                                        tadefcolor, 50.0, 0.0, vecScale);
+                    An_AddAnnotProc (An_ColorVector, c, datalabel,
+                                strlen(datalabel)+1, 30, FALSE, FALSE);
+		}
+	        if ( strcmp(style, "barb" ) == 0 )
+		{
+                    sprintf (datalabel, "%s %s %d", "m/sec",
+				tadefcolor,  (int)vecScale);
+                    An_AddAnnotProc (An_BarbLegend, c, datalabel,
+                                strlen(datalabel)+1, 100, FALSE, FALSE);
+		}
+                sprintf (datalabel, "%s %s %f %f", "wind-speed:m/sec", ctname,
+                    Ncolors%2 ?(10.0*Ncolors)-10.0 :10.0*Ncolors, 
+		    20.0);
+                An_AddAnnotProc (An_ColorBar, c, datalabel,
+                                strlen(datalabel)+1, 75, TRUE, FALSE);
 	    }
 	/*
 	 * Get the data and determine the coordinate min and max's
@@ -595,9 +597,8 @@ bool	update;
 	    if (ydata[i]) free(ydata[i]);
 	    if (udata[i]) free(udata[i]);
 	    if (vdata[i]) free(vdata[i]);
-	    free(linecolor[i]);
 	}
-	free(lcolor); free(xdata); free(ydata); free(udata); free(vdata);
+	free(xdata); free(ydata); free(udata); free(vdata);
 	ac_DisplayAxes();
 }
 # endif /* C_PT_XYWIND */
