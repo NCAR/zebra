@@ -38,7 +38,7 @@
 # include <DataStore.h>
 # include <GraphicsW.h>
 
-RCSID("$Id: Icons.c,v 2.30 2000-08-22 20:28:53 burghart Exp $")
+RCSID("$Id: Icons.c,v 2.31 2000-11-16 22:55:05 granger Exp $")
 
 # include "GraphProc.h"
 # include "ActiveArea.h"
@@ -839,11 +839,13 @@ char *colorcomp;
 			SYMT_STRING);
 	/*
 	 * See if this platform has an age limit and convert it to seconds. 
+	 * Allow an explicit agelimit of zero to disable the age limit.
 	 */
 	        if (pda_Search (Pd, comp, "icon-age-limit", platform, agelimit,
-                	SYMT_STRING) && (strcmp (repr, "overlay") != 0))
+				SYMT_STRING) &&
+		    (strcmp (repr, "overlay") != 0) &&
+		    ((seconds = pc_TimeTrigger (agelimit)) > 0))
         	{
-			seconds = pc_TimeTrigger (agelimit); 
 		/*
 		 * Plot time
 		 */
