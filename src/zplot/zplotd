@@ -551,10 +551,9 @@ sub clear
 	$result = 0;
     }
 
-    $cmd = "(echo \"Subject: zplotd $status, log $plog\"; echo \" \"; cat -)"
+    $cmd = "(echo \"Subject: zplotd $status, log $log\"; echo \" \"; cat -)"
 	. " | /bin/mail $image_mail_list";
     print "$cmd\n";
-#   if ($debug < $D_NoEmail && ! open (MAIL, "| cat - $plog | $cmd"))
     if ($debug < $D_NoEmail && ! open (MAIL, "| $cmd"))
     {
 	print "*** Mail failed! ***\n";
@@ -567,18 +566,19 @@ sub clear
 	{
 	    # Setup a file url first, and if it matches the http path,
 	    # then replace the file path with the http url.
-	    $url = "file:$i";
-	    $url =~ s,file:/net/www,http://www.atd.ucar.edu, ;
-	    $parenturl = "file:" . `dirname $i`;
+	    $url = "file://$i";
+	    $url =~ s,file:///net/www/docs,http://www.atd.ucar.edu, ;
+	    $parenturl = "file://" . `dirname $i`;
 	    chop $parenturl;
-	    $parenturl =~ s,file:/net/www,http://www.atd.ucar.edu, ;
+	    $parenturl =~ s,file:///net/www/docs,http://www.atd.ucar.edu, ;
 	    print MAIL "$parenturl\n";
 	    print MAIL "$url\n\n";
 	}
 	print MAIL "\n";
 	print MAIL "Log files:\n";
-	print MAIL "file:$log\n";
-	print MAIL "file:$plog\n";
+	print MAIL "file://$log\n";
+	print MAIL "http://www.atd.ucar.edu/rtf/projects/" .
+	    "$project_name/iss/realtime/logs/" . `basename $log`;
 	print MAIL "\n";
 	close MAIL;
 	print "--- Mail sent. ---\n";
