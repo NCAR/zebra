@@ -40,7 +40,7 @@
  */
 int	AltControlComp;
 
-MAKE_RCSID("$Id: AltControl.c,v 2.7 1994-05-19 20:56:53 burghart Exp $")
+MAKE_RCSID("$Id: AltControl.c,v 2.8 1994-05-25 14:31:02 burghart Exp $")
 
 # define MAXALT		80	/* Max heights we expect to see		*/
 
@@ -60,15 +60,18 @@ alt_Initialize ()
  */
 {
 	float	alt;
+	char	label[32];
 /*
  * Find the control component
  */
 	alt_GetControlComp ();
 /*
- * Now set the "altitude" parameter if we don't have one
+ * Now set the "altitude" and "altitude-label" parameters if we don't have them
  */
 	if (! pda_Search (Pd, "global", "altitude", NULL, (char *)&alt, 
-			  SYMT_FLOAT))
+			  SYMT_FLOAT) ||
+	    ! pda_Search (Pd, "global", "altitude-label", NULL, label,
+			  SYMT_STRING))
 		alt_SetAlt (0);
 }
 
