@@ -1,4 +1,4 @@
-XCOMM $Id: Imakefile,v 1.18 1994-05-21 05:12:31 granger Exp $
+XCOMM $Id: Imakefile,v 1.19 1994-09-20 19:34:25 granger Exp $
 XCOMM
 XCOMM This is the top-level Imakefile for the Zeb distribution.
 XCOMM It is modeled after the top-level Imakefile of the MIT X11R5
@@ -16,7 +16,7 @@ XCOMM distribution.
      SRCSUBDIRS = config imake src
 
           ETAGS = etags
-     ETAGSFLAGS = -T
+     ETAGSFLAGS = 
 
         ZIPPIPE = gzip -c
          ZIPEXT = gz
