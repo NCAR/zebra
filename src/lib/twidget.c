@@ -37,7 +37,7 @@
 # include "../include/message.h"
 # include "../include/timer.h"
 
-MAKE_RCSID ("$Id: twidget.c,v 2.9 1992-06-22 22:29:36 pai Exp $")
+MAKE_RCSID ("$Id: twidget.c,v 2.10 1993-01-12 17:59:14 pai Exp $")
 
 
 # define LABELWIDTH	60
@@ -105,7 +105,7 @@ char	*title;
 
 	strcpy (Title, title);
 	Tw_Callback = callback;
-	uw_def_widget ("time", "Time control widget", tw_WCreate, 0, 0);
+	uw_def_widget ("time", "Time control", tw_WCreate, 0, 0);
 }
 
 
@@ -147,7 +147,7 @@ XtAppContext appc;
  * Put the top label on the form.
  */
 	XtSetArg (args[0], XtNlabel, Title);
-	XtSetArg (args[1], XtNfromHoriz, NULL);
+	XtSetArg (args[1], XtNfromHoriz, form);
 	XtSetArg (args[2], XtNfromVert, NULL);
 	title = XtCreateManagedWidget ("title", labelWidgetClass, form,
 		args, 3);
@@ -162,7 +162,7 @@ XtAppContext appc;
 	cform = XtCreateManagedWidget ("cform", formWidgetClass, form, args, n);
 
 	n = 0;
-	XtSetArg (args[n], XtNlabel, "Window control:");	n++;
+	XtSetArg (args[n], XtNlabel, "Windows:");	n++;
 	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
 	XtSetArg (args[n], XtNfromVert, NULL);		n++;
 	XtSetArg (args[n], XtNborderWidth, 0);		n++;
