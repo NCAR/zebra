@@ -1,0 +1,114 @@
+XCOMM site:  $XConsortium: site.sample,v 1.9 94/04/08 17:02:06 rws Exp $
+
+/*****************************************************************************
+ *                                                                           *
+ *			   SITE-SPECIFIC DEFINITIONS                         *
+ *                                                                           *
+ * This file contains two halves, one included before the vendor-specific    *
+ * configuration file (.cf file), and one included after the .cf file.       *
+ * The before-half should be protected by #ifdef BeforeVendorCF, and the     *
+ * after-half should be protected by #ifdef AfterVendorCF.                   *
+ *                                                                           *
+ * The before-half should only set things that the .cf file depends on.      *
+ * For the .cf files shipped in this release, the main variables in this     *
+ * category are HasGcc and HasGcc2.                                          *
+ *                                                                           *
+ * The after-half should contain all other definitions.  For example,        *
+ * place your ProjectRoot definition here.                                   *
+ *                                                                           *
+ * OS Major and Minor version numbers should be changed directly in the .cf  *
+ * file, not overridden in site.def.                                         *
+ *                                                                           *
+ *****************************************************************************/
+
+#ifdef BeforeVendorCF
+
+#ifdef AutoBuild
+# define ProjectConfigFile "Build.tmpl"
+#else
+# define MAKING_MAKEFILE
+# define ProjectConfigFile "config.h"
+#endif
+#include ProjectConfigFile
+
+/*
+ * Map the config.h symbols into the equivalent Imake.tmpl definitions
+ */
+#ifndef UseGcc
+# define UseGcc NO
+#endif
+#if UseGcc
+# define HasGcc2 YES
+# define HasGcc2ForCplusplus YES
+#else
+# define HasGcc NO
+#endif
+
+#ifdef CCompiler
+# define CcCmd CCompiler
+#endif
+
+/* #define HasCplusplus YES */
+/* #define HasSunCplusplus YES */
+
+#endif /* BeforeVendorCF */
+
+#ifdef AfterVendorCF
+
+#ifndef CCOptions
+# if UseGcc
+#  define CCOptions OptimizedCDebugFlags
+# else
+#  define CCOptions /**/
+# endif
+#endif
+
+#ifndef CDebugFlags
+# define CDebugFlags /**/
+#endif
+
+/*
+ * hp.cf just blindly sets options for the native compiler, so we
+ * must redo its definitions if we're using gcc
+ */
+#ifdef HPArchitecture
+#if UseGcc
+# ifdef OptimizedCDebugFlags
+# undef OptimizedCDebugFlags
+# endif
+# define OptimizedCDebugFlags -O2
+#endif /* UseGcc */
+/*
+ * Assume there is no -lgen regexp library even though the HP sets SystemV
+ */
+#ifndef RegexpLibrary
+# define RegexpLibrary /**/
+#endif
+#endif /* HPArchitecture */
+
+/*
+ * Override the vendors DeafultCCOptions with CCOptions from config.h
+ */
+#ifdef DefaultCCOptions
+#undef DefaultCCOptions
+#endif
+#define DefaultCCOptions CCOptions
+
+#define DefaultCDebugFlags CDebugFlags
+
+#if defined(SunArchitecture) && defined(SparcArchitecture)
+#define HasCodeCenter	YES
+#ifndef SVR4
+#define HasTestCenter	YES
+#endif
+#endif
+
+/*
+#if defined(SunArchitecture) && defined(SparcArchitecture) && !defined(SVR4)
+#define HasPurify	YES
+#endif
+*/
+
+#define HasSentinel	NO	/* bug in Imake.rules Sentinel rules */
+
+#endif /* AfterVendorCF */
