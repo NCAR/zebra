@@ -32,7 +32,7 @@
 # include "dslib.h"
 # include "dfa.h"
 #ifndef lint
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.40 1995-02-24 22:49:43 burghart Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.41 1995-03-03 18:28:44 granger Exp $")
 #endif
 
 #include <netcdf.h>
@@ -259,11 +259,12 @@ static char *	dnc_GetStringAtt FP ((int cdfid, int varid, char *att_name,
 				      char *att_val, int len));
 int		dnc_PutBlock FP ((int dfile, DataChunk *dc, int sample,
 				  int nsample, WriteCode wc));
-/*
- * New functions defined by TRS from ARM
- */
 static int	dnc_ReadGlobalAtts FP ((DataChunk *, NCTag *));
 static void	dnc_ReadFieldAtts FP ((DataChunk *, NCTag *, FieldId *, int));
+#ifndef TEST_TIME_UNITS
+static
+#endif
+int dnc_TimeUnits FP ((ZebTime *zt, const char *time_units));
 
 /*
  * The minimum size of a time list before it's worthwhile to do a binary
@@ -322,11 +323,15 @@ int *nsamp;
  */
 {
 	int id, ndim, nvar, natt, rdim, tvar, btime;
-	nc_type dtype;
+	nc_type dtype, atype;
 	int dims[MAX_VAR_DIMS];
+	char time_units[256];
+	int alen;
+	ZebTime zt;
 	long base, maxrec, index;
 	float foffset;
 	double offset;
+	long loffset;
 /*
  * Try opening the file.
  */
@@ -338,39 +343,77 @@ int *nsamp;
  */
 	ncinquire (id, &ndim, &nvar, &natt, &rdim);
 	ncdiminq (id, rdim, (char *) 0, &maxrec);
-	btime = ncvarid (id, "base_time");
-	tvar = ncvarid (id, "time_offset");
+	if (((tvar = ncvarid (id, "time_offset")) < 0) && 
+	    ((tvar = ncvarid (id, "time")) < 0))
+	{
+		return (FALSE);
+	}
 /*
- * Find out whether the time offsets are float (old files) or double (newer
- * files)
+ * Find out whether the time offsets are long, float, or double.
  */
 	ncvarinq (id, tvar, (char *) 0, &dtype, &ndim, dims, &natt);
+	if (ndim > 1)
+		return (FALSE);
+#ifdef notdef
+	if ((ndim == 0) || (dims[0] != rdim))
+		return (FALSE);
+#endif
 /*
- * Now pull out the times.
+ * Now pull out the times.  The base time comes from the base_time
+ * variable if it exists, otherwise from the units of the time variable.
  */
-	ncvarget1 (id, btime, 0, &base);
+	if ((btime = ncvarid (id, "base_time")) >= 0)
+	{
+		ncvarget1 (id, btime, 0, &base);
+	}
+	else if (ncattinq (id, tvar, "units", &atype, &alen) < 0)
+		return (FALSE);
+	else if ((atype != NC_CHAR) || (alen >= sizeof(time_units)))
+		return (FALSE);
+	else if (ncattget (id, tvar, "units", (void *)time_units) < 0)
+		return (FALSE);
+	else if (! dnc_TimeUnits (&zt, time_units))
+		return (FALSE);
+	else
+		base = (long) zt.zt_Sec;
 
 	index = 0;
-	if (dtype == NC_FLOAT)
+	switch (dtype)
 	{
+	   case NC_FLOAT:
 		ncvarget1 (id, tvar, &index, &foffset);
 		offset = (double) foffset;
-	}
-	else
+		break;
+	   case NC_DOUBLE:
 		ncvarget1 (id, tvar, &index, &offset);
-
+		break;
+	   case NC_LONG:
+		ncvarget1 (id, tvar, &index, &loffset);
+		offset = (double) loffset;
+		break;
+	   default:
+		return (FALSE);
+	}
 	begin->zt_Sec = base + (long)offset;
 	begin->zt_MicroSec = 1e+6 * (offset - (long)offset);
 
 	index = maxrec - 1;
-	if (dtype == NC_FLOAT)
+	switch (dtype)
 	{
+	   case NC_FLOAT:
 		ncvarget1 (id, tvar, &index, &foffset);
 		offset = (double) foffset;
-	}
-	else
+		break;
+	   case NC_DOUBLE:
 		ncvarget1 (id, tvar, &index, &offset);
-
+		break;
+	   case NC_LONG:
+		ncvarget1 (id, tvar, &index, &loffset);
+		offset = (double) loffset;
+		break;
+	   default:
+		return (FALSE);
+	}
 	end->zt_Sec = base + (long)offset;
 	end->zt_MicroSec = 1e+6 * (offset - (long)offset);
 /*
@@ -3083,7 +3126,7 @@ DataChunk *dc;
 	sprintf(history,"created by Zeb DataStore, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.40 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.41 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 #endif /* TEST_TIME_UNITS */
