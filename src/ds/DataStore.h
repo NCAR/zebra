@@ -1,11 +1,11 @@
 /*
- * $Id: DataStore.h,v 3.38 1996-12-06 00:40:17 granger Exp $
+ * $Id: DataStore.h,v 3.39 1997-01-10 23:31:24 granger Exp $
  *
  * Public data store definitions.
  */
 
-# ifndef __zeb_DataStore_h_
-# define __zeb_DataStore_h_
+# ifndef __zebra_DataStore_h_
+# define __zebra_DataStore_h_
 
 # include <stdio.h>
 # include <config.h>		/* CFG_ parameter definitions 	*/
@@ -44,7 +44,7 @@ typedef enum {
 	OrgCmpImage	= 7,
         Org1dGrid       = 8,
 	OrgTransparent  = 9,
-	OrgFixedScalar  = 10,	/* Inflexible scalar for DFA_Zeb */
+	OrgFixedScalar  = 10,	/* Inflexible scalar for DFA_Zebra */
 	OrgNSpace	= 11
 } DataOrganization;
 
@@ -79,7 +79,7 @@ typedef int PlatClassId;
 
 /* ================================================================
  * RGrid and ScaleInfo type definitions have moved to defs.h in the
- * Zeb library.
+ * Zebra library.
  * ================================================================
  */
 
@@ -244,10 +244,12 @@ typedef enum _DC_ElemType {
 	DCT_UnsignedLong,
 	DCT_String,
 	DCT_Boolean,
-	DCT_ZebTime,
+	DCT_ZebraTime,
 	DCT_VoidPointer,
 	DCT_Element	/* the element union type */
 } DC_ElemType;
+
+#define DCT_ZebTime DCT_ZebraTime
 
 #if defined(__STDC__) && !defined(sgi)
 typedef long double LongDouble;
@@ -269,7 +271,7 @@ typedef union _DC_Element {
 	unsigned long 	dcv_ulong;
 	char *		dcv_string;
 	unsigned char	dcv_boolean;
-	ZebTime		dcv_zebtime;
+	ZebraTime	dcv_zebtime;
 	void *		dcv_pointer;
 } DC_Element;
 
@@ -917,7 +919,8 @@ int		ds_IsModelPlatform FP ((PlatformId));
 int		ds_MaxSamples FP ((PlatformId id));
 /* -------------------------------------------------------------------- */
 
-#ifdef _ZEB_MESSAGE_H_ /* protect for programs which don't need message.h */
+/* protect for programs which don't need message.h */
+#if defined(_ZEBRA_MESSAGE_H_) || defined(_ZEB_MESSAGE_H_)
 int             ds_DSMessage FP ((struct message *));
 #endif
 
@@ -996,4 +999,4 @@ const char *	ds_InheritDirName FP ((InheritDir id));
 const char *	ds_FTypeName FP ((FileType ft));
 const char *	ds_OrgName FP ((DataOrganization org));
 
-# endif	/* !__zeb_DataStore_h_ */
+# endif	/* !__zebra_DataStore_h_ */
