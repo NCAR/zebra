@@ -1,5 +1,5 @@
 /*
- * $Id: scan.c,v 1.2 1993-06-21 22:08:49 granger Exp $
+ * $Id: scan.c,v 1.3 1994-02-02 23:49:47 burghart Exp $
  *
  * Functions for manipulating scans and square-scans
  */
@@ -295,7 +295,7 @@ Location *locn;
 void
 SqGridInfo (ss, res, info)
 SquareScan *ss;
-float res;
+double res;
 RGrid *info;
 /*
  * Fill in the grid info structure with the optimum grid for the given

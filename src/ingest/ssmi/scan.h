@@ -1,7 +1,7 @@
 /*
  * The Scan structures
  *
- * $Id: scan.h,v 1.2 1993-06-21 22:14:10 granger Exp $
+ * $Id: scan.h,v 1.3 1994-02-02 23:49:50 burghart Exp $
  */
 
 #ifndef _scan_h_
@@ -81,7 +81,7 @@ void SqClear FP((SquareScan *ss));
 void SqOrigin FP((SquareScan *ss, Location *locn));
 void SqRange FP((SquareScan *ss, float *minlat, float *minlon,
 		 float *maxlat, float *maxlon));
-void SqGridInfo FP((SquareScan *ss, float res, RGrid *info));
+void SqGridInfo FP((SquareScan *ss, double res, RGrid *info));
 void SqOrder FP((SquareScan *ss));
 void SqZebTime FP((SquareScan *ss, ZebTime *zt));
 void BuildGridMap FP((SquareScan *ss, GridMap *gm, RGrid *info, Channel ch));
