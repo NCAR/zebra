@@ -1,7 +1,7 @@
 /*
  * XY-Graph plotting module
  */
-static char *rcsid = "$Id: XYGraph.c,v 1.23 1993-12-01 17:32:24 burghart Exp $";
+static char *rcsid = "$Id: XYGraph.c,v 1.24 1993-12-01 19:02:03 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -194,6 +194,8 @@ bool	update;
 	{
 		bool	single_obs;
 		PlatformId	pid = ds_LookupPlatform (pnames[plat]);
+
+		npts[plat] = 0;
 	/*
 	 * Check the platform ID
 	 */

@@ -1,7 +1,7 @@
 /*
  * XY-Contour plotting module
  */
-static char *rcsid = "$Id: XYContour.c,v 1.16 1993-12-01 17:32:21 burghart Exp $";
+static char *rcsid = "$Id: XYContour.c,v 1.17 1993-12-01 19:01:59 burghart Exp $";
 /*		Copyright (C) 1993 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -243,6 +243,8 @@ bool	update;
 	{
 		bool	single_obs;
 		PlatformId	pid = ds_LookupPlatform (pnames[plat]);
+
+		npts[plat] = 0;
 	/*
 	 * Get and check the platform ID
 	 */
