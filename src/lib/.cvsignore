@@ -1,8 +1,13 @@
+*.la
+*.lo
+.libs
 Makefile
 cvt_test
+map.h
+map_xdr.c
 msg_test
 re_test
 tbtree
-*.lo
-*.la
-.libs
+zebra_rpc.h
+zebra_rpc_xdr.c
+*.bf
