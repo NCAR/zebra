@@ -10,22 +10,13 @@
 
 TODO:
 
-Do character and line processing in SLDataHandler based on mode.
-Make all of the original command-line parameters actual - flags and options
-Options which aren't present (like phone number), have defaults.
-Print defaults in Usage ().
 Allow Ingest options?
-Is there a better way to do the waiting between dialing while handling msgs?
 Make sure everything is prototype up top.
-Add a blocking option: the largest size blocks to send
 More status info
 Testing mode which reads bytes from file and sends to consumer
-This could all be done in perl couldn't it?
-Less global variables: put them all in a global state structure.
-
 
  */
-/*		Copyright (C) 1987,88,89,90,91 by UCAR
+/*		Copyright (C) 1987-2000 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
  *
@@ -56,7 +47,7 @@ Less global variables: put them all in a global state structure.
 # include <timer.h>
 # include "SLGrabber.h"
 
-MAKE_RCSID("$Id: SLGrabber.c,v 2.9 2000-04-10 20:55:28 burghart Exp $")
+MAKE_RCSID("$Id: SLGrabber.c,v 2.10 2000-05-24 21:08:17 granger Exp $")
 
 typedef enum { UnspecifiedMode, TextMode, ByteMode } Mode;
 
@@ -83,6 +74,7 @@ typedef struct _Connection
 	char 	*c_Number;
 	char 	*c_Consumer;
 	int	c_blocksize;
+        int     c_striphibit;
 	int 	c_nbuf;
 	ubyte	c_buf[BUFSIZE];
 } Connection;
@@ -113,9 +105,10 @@ static void
 Usage (prog)
 const char *prog;
 {
-   printf("Usage: %s [options] consumer\n", prog);
-   printf("Reads binary or line text data from a serial port and\n");
-   printf("sends it to a consumer process via the message handler.\n");
+   printf("Usage: %s [options] [consumer]\n", prog);
+   printf("Read binary or line text data from a serial port and\n");
+   printf("send it to a consumer process via the message handler.\n");
+   printf("With no consumer specified, send the data to standard output.\n");
    printf("Options:\n"); 
    printf("   -h          Print this usage message\n");	
    printf("   -n <name>   Our message handler name [%s]\n", 
@@ -124,11 +117,12 @@ const char *prog;
 	  DEFAULT_TERM);
    printf("   -s <baud>   The baud rate to use for the port [%s]\n",
 	  DEFAULT_SPEED);
-   printf("   -d <ph#>    Phone number to dial [no default]\n");
+   printf("   -d <ph#>    Phone number to dial [default is none]\n");
    printf("   -l          Character lines and text mode.\n");
-   printf("               MSbit stripped and data passed to consumer\n");
-   printf("               line by line, with line feeds removed.\n");
-   printf("   -u          Byte mode.  Bytes are shipped to the consumer\n");
+   printf("               Passes character data to consumer\n");
+   printf("               line by line, removing line feeds and returns.\n");
+   printf("   -7          Clear high-order bit in text mode. [default off]\n");
+   printf("   -u          Binary mode.  Bytes are shipped to the consumer\n");
    printf("               exactly as they are read.\n");
    printf("   -f <size>   Blocking factor in bytes.  Data will be sent\n");
    printf("               to the consumer in blocks no larger than this\n");
@@ -164,6 +158,7 @@ Connection *conn;
 	conn->c_Number = DEFAULT_PHONE;
  	conn->c_Consumer = NULL;
 	conn->c_blocksize = DEFAULT_BLOCK;
+	conn->c_striphibit = 0;
 	conn->c_nbuf = 0;
 	conn->c_buf[0] = 0;
 }
@@ -200,6 +195,9 @@ char **name;		/* Our process name	 */
 		   case 's':
 			conn->c_Speed = optarg;
 			break;
+		   case '7':
+			conn->c_striphibit = 1;
+			break;
 		   case 'n':
 			*name = optarg;
 			break;
@@ -216,12 +214,23 @@ char **name;		/* Our process name	 */
 			break;
 		}
 	}
+#ifdef notdef
 	if (*argc - optind != 1)
 	{
 		printf ("%s: need exactly one consumer name", argv[0]);
 		exit (1);
 	}
 	conn->c_Consumer = argv[optind];
+#endif
+	if (*argc - optind > 1)
+	{
+		printf ("%s: only one consumer name allowed", argv[0]);
+		exit (1);
+	}
+	else if (*argc - optind == 1)
+	{
+		conn->c_Consumer = argv[optind];
+	}
 }
 
 
@@ -242,7 +251,7 @@ char **argv;
 	name = DEFAULT_NAME;
 	ParseCommandLine (&argc, argv, &conn, &name);
 
-	if (! strcmp (conn.c_Consumer, "print"))
+	if (conn.c_Consumer && ! strcmp (conn.c_Consumer, "print"))
 		conn.c_Consumer = NULL;
 /* 
  * Hook in.
@@ -257,7 +266,6 @@ char **argv;
 /*
  * Now we just wait for things.
  */
-	msg_add_fd (conn.c_Fd, SLDataHandler);
 	msg_await ();
 }
 
@@ -325,6 +333,10 @@ Connection *conn;
  */
 	if (conn->c_Number)
 		Dial (conn);
+/*
+ * Start watching for input.
+ */
+	msg_add_fd (conn->c_Fd, SLDataHandler);
 }
 
 
@@ -344,7 +356,6 @@ Connection *conn;
 		conn->c_Fd = -1;
 	}
 	Connect (conn);
-	msg_add_fd (conn->c_Fd, SLDataHandler);
 }
 
 
@@ -625,8 +636,13 @@ int start;		/* where in the buffer the new data begins */
  * Zap out the top bit for now, but only those characters we haven't
  * processed before.
  */
-	for (cp = conn->c_buf + start; cp < conn->c_buf + conn->c_nbuf; cp++)
-		*cp &= 0x7f;
+	if (conn->c_striphibit)
+	{
+		for (cp = conn->c_buf + start; 
+		     cp < conn->c_buf + conn->c_nbuf; cp++)
+			*cp &= 0x7f;
+	}
+#ifdef notdef
 /*
  * From the beginning, skip past returns, parse out any lines that we find.
  */
@@ -634,12 +650,13 @@ int start;		/* where in the buffer the new data begins */
 	     (cp - conn->c_buf < conn->c_nbuf) && 
 	     (*cp < '\040'); cp++)
 		/* null statement */;
+#endif
 /*
  * Now look for newlines indicating that whole lines have been read.
  */
 	conn->c_buf[conn->c_nbuf] = '\0';
-	while ((cp - conn->c_buf < conn->c_nbuf) && 
-	       (newline = strchr (cp, '\n')))
+	while ((cp - conn->c_buf < conn->c_nbuf) &&
+	       ((newline = strchr (cp, '\n')) != 0))
 	{
 		*newline = '\0';
 		Send (conn, cp, strlen(cp)+1);
@@ -695,25 +712,35 @@ int len;	/* number of bytes to send from data array */
  * Send this data.
  */
 {
-	static char dbuf[sizeof(SLdata) + BUFSIZE];
-	SLdata *sld = (SLdata *) dbuf;
+	static char *dbuf = 0;
 
 	if (len <= 0)		/* just in case */
 		return;
-/*
- * Prepare the packet.
- */
-	sld->sl_type = SL_DATA;
-	sld->sl_len = len;
-	memcpy (sld->sl_data, data, len);
-/*
- * Out it goes.
- */
+
 	if (conn->c_Consumer)
+	{
+	        SLdata *sld = (SLdata *) dbuf;
+
+		if (!dbuf)
+		{
+		        dbuf = (char *) malloc (sizeof(SLdata) + BUFSIZE);
+		}
+	/*
+	 * Prepare the packet.
+	 */
+		sld->sl_type = SL_DATA;
+		sld->sl_len = len;
+		memcpy (sld->sl_data, data, len);
+	/*
+	 * Out it goes.
+	 */
 		msg_send (conn->c_Consumer, MT_SLDATA, FALSE, sld,
 			  sld->sl_len + sizeof (SLdata) - 1);
+	}
 	else
+	{
 		printf ("%s\n", data);
+	}
 }
 
 
