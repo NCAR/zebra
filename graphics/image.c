@@ -1,4 +1,5 @@
 /* 10/88 jc */
+/* $Id: image.c,v 1.2 1989-06-28 13:51:04 corbet Exp $ */
 /*
  * Routines related to image save/restore functions. 
  */
@@ -268,6 +269,7 @@ char *description;
 	(*dev->gd_readscreen)(sta->ws_tag, 0, 0, dev->gd_xres, dev->gd_yres,
 		data);
 	bio_write (&ifl->if_bio_lun, &toc->it_offset, data, &len, &one);
+	relvm (data);
 /*
  * All done.
  */
