@@ -1,4 +1,4 @@
-MFVERSION="$Id: Makefile.cpp,v 1.3 1991-10-24 20:32:14 corbet Exp $"
+MFVERSION="$Id: Makefile.cpp,v 1.4 1991-12-07 17:53:43 kris Exp $"
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -23,8 +23,8 @@ MFVERSION="$Id: Makefile.cpp,v 1.3 1991-10-24 20:32:14 corbet Exp $"
 /*
  * Sun options
  */
-CC=gcc
-CFLAGS=-g -O -I$(FCCINC) -I$(RDSSINC)
+CC=CCompiler
+CFLAGS=CCOptions -I$(FCCINC) -I$(RDSSINC)
 LIBS=ZebLibrary -lrdss -ltermcap -lXaw -lXmu -lXt -lXext -lX11 -lm
 # endif
 
@@ -46,6 +46,11 @@ dm.o:	dm.h
 
 dm.lf:	dm.state
 	uic < make-lf
+
+saber:	$(OBJS)
+	# setopt ansi
+	# load $(CFLAGS) $(OBJS) -Bstatic $(LIBS) /locallib/gcc-gnulib
+	# link
 
 clean:
 	rm -f *~ dm graphproc *.o dm.lf Makefile.bak
