@@ -1,0 +1,19 @@
+!
+! Support for active locations.
+!
+
+define widget al-send-other-window intmenu 'sender'
+	title 'Display'
+	line
+	entry 'Display in other window' 'al-do-send'
+endmenu
+
+
+!
+! Stuff called out of the above
+!
+procedure al-do-send
+	local dmcmd quote(concat3('PutScalar ', icon_platform, ' alt'))
+	dm #dmcmd
+endprocedure
+
