@@ -4,7 +4,7 @@
 # include <defs.h>
 # include "message.h"
 # include <DataStore.h>
-# include "../DataStore/dsPrivate.h"
+# include "../ds/dsPrivate.h"
 
 
 
