@@ -28,11 +28,11 @@
 /*  Font Size Entry (Pointed to be character code 0)  */
 
 /*				top	cap	base	bottom	*/
-static readonly char size[4] = { 16,	12,	-9,	-16 };
+static readonly short size[4] = { 16,	12,	-9,	-16 };
 
 /*  Stroke Tables  */
 
-static readonly char ascii_027[ 28] = { 10, '\027',  -4,   13,	/* degrees */
+static readonly short ascii_027[ 28] = { 10, '\027',  -4,   13,	/* degrees */
 	   0,  10,
 	   0,  13,
 	   3,  16,
@@ -43,9 +43,9 @@ static readonly char ascii_027[ 28] = { 10, '\027',  -4,   13,	/* degrees */
 	   3,   7,
 	   0,  10,
 	-128,   0};
-static readonly char ascii_040[  6] = {  1, '\040',  -8,   8,	/*   */
+static readonly short ascii_040[  6] = {  1, '\040',  -8,   8,	/*   */
 	-128,   0};
-static readonly char ascii_041[ 34] = { 15, '\041',  -5,   5,	/* ! */
+static readonly short ascii_041[ 34] = { 15, '\041',  -5,   5,	/* ! */
 	   0,  12,
 	  -1,  10,
 	   0,  -2,
@@ -61,7 +61,7 @@ static readonly char ascii_041[ 34] = { 15, '\041',  -5,   5,	/* ! */
 	   1,  -8,
 	   0,  -7,
 	-128,   0};
-static readonly char ascii_042[ 28] = { 12, '\042',  -8,   8,	/* " */
+static readonly short ascii_042[ 28] = { 12, '\042',  -8,   8,	/* " */
 	  -4,  12,
 	  -5,   5,
 	-128,   0,
@@ -74,7 +74,7 @@ static readonly char ascii_042[ 28] = { 12, '\042',  -8,   8,	/* " */
 	   5,  12,
 	   3,   5,
 	-128,   0};
-static readonly char ascii_043[ 28] = { 12, '\043', -10,  11,	/* # */
+static readonly short ascii_043[ 28] = { 12, '\043', -10,  11,	/* # */
 	   1,  12,
 	  -6, -16,
 	-128,   0,
@@ -87,7 +87,7 @@ static readonly char ascii_043[ 28] = { 12, '\043', -10,  11,	/* # */
 	  -7,  -5,
 	   7,  -5,
 	-128,   0};
-static readonly char ascii_044[ 88] = { 42, '\044', -10,  10,	/* $ */
+static readonly short ascii_044[ 88] = { 42, '\044', -10,  10,	/* $ */
 	  -2,  16,
 	  -2, -13,
 	-128,   0,
@@ -130,7 +130,7 @@ static readonly char ascii_044[ 88] = { 42, '\044', -10,  10,	/* $ */
 	  -5,  -5,
 	  -6,  -6,
 	-128,   0};
-static readonly char ascii_045[ 68] = { 32, '\045', -12,  12,	/* % */
+static readonly short ascii_045[ 68] = { 32, '\045', -12,  12,	/* % */
 	   9,  12,
 	  -9,  -9,
 	-128,   0,
@@ -163,7 +163,7 @@ static readonly char ascii_045[ 68] = { 32, '\045', -12,  12,	/* % */
 	   7,  -2,
 	   5,  -2,
 	-128,   0};
-static readonly char ascii_046[102] = { 49, '\046', -12,  13,	/* & */
+static readonly short ascii_046[102] = { 49, '\046', -12,  13,	/* & */
 	   9,   4,
 	   8,   3,
 	   9,   2,
@@ -213,7 +213,7 @@ static readonly char ascii_046[102] = { 49, '\046', -12,  13,	/* & */
 	   6,  -8,
 	   8,  -9,
 	-128,   0};
-static readonly char ascii_047[ 20] = {  8, '\047',  -5,   5,	/* ' */
+static readonly short ascii_047[ 20] = {  8, '\047',  -5,   5,	/* ' */
 	   0,  10,
 	  -1,  11,
 	   0,  12,
@@ -222,7 +222,7 @@ static readonly char ascii_047[ 20] = {  8, '\047',  -5,   5,	/* ' */
 	   0,   7,
 	  -1,   6,
 	-128,   0};
-static readonly char ascii_050[ 44] = { 20, '\050',  -7,   7,	/* ( */
+static readonly short ascii_050[ 44] = { 20, '\050',  -7,   7,	/* ( */
 	   4,  16,
 	   2,  14,
 	   0,  11,
@@ -243,7 +243,7 @@ static readonly char ascii_050[ 44] = { 20, '\050',  -7,   7,	/* ( */
 	   0, -10,
 	   2, -14,
 	-128,   0};
-static readonly char ascii_051[ 44] = { 20, '\051',  -7,   7,	/* ) */
+static readonly short ascii_051[ 44] = { 20, '\051',  -7,   7,	/* ) */
 	  -4,  16,
 	  -2,  14,
 	   0,  11,
@@ -264,7 +264,7 @@ static readonly char ascii_051[ 44] = { 20, '\051',  -7,   7,	/* ) */
 	   0, -10,
 	  -2, -14,
 	-128,   0};
-static readonly char ascii_052[ 22] = {  9, '\052',  -8,   8,	/* * */
+static readonly short ascii_052[ 22] = {  9, '\052',  -8,   8,	/* * */
 	   0,  12,
 	   0,   0,
 	-128,   0,
@@ -274,14 +274,14 @@ static readonly char ascii_052[ 22] = {  9, '\052',  -8,   8,	/* * */
 	   5,   9,
 	  -5,   3,
 	-128,   0};
-static readonly char ascii_053[ 16] = {  6, '\053', -13,  13,	/* + */
+static readonly short ascii_053[ 16] = {  6, '\053', -13,  13,	/* + */
 	   0,   9,
 	   0,  -9,
 	-128,   0,
 	  -9,   0,
 	   9,   0,
 	-128,   0};
-static readonly char ascii_054[ 20] = {  8, '\054',  -5,   5,	/* , */
+static readonly short ascii_054[ 20] = {  8, '\054',  -5,   5,	/* , */
 	   0,  -9,
 	  -1,  -8,
 	   0,  -7,
@@ -290,22 +290,22 @@ static readonly char ascii_054[ 20] = {  8, '\054',  -5,   5,	/* , */
 	   0, -12,
 	  -1, -13,
 	-128,   0};
-static readonly char ascii_055[ 10] = {  3, '\055', -13,  13,	/* - */
+static readonly short ascii_055[ 10] = {  3, '\055', -13,  13,	/* - */
 	  -9,   0,
 	   9,   0,
 	-128,   0};
-static readonly char ascii_056[ 16] = {  6, '\056',  -5,   5,	/* . */
+static readonly short ascii_056[ 16] = {  6, '\056',  -5,   5,	/* . */
 	   0,  -7,
 	  -1,  -8,
 	   0,  -9,
 	   1,  -8,
 	   0,  -7,
 	-128,   0};
-static readonly char ascii_057[ 10] = {  3, '\057', -11,  11,	/* / */
+static readonly short ascii_057[ 10] = {  3, '\057', -11,  11,	/* / */
 	   9,  16,
 	  -9, -16,
 	-128,   0};
-static readonly char ascii_060[ 84] = { 40, '\060', -10,  10,	/* 0 */
+static readonly short ascii_060[ 84] = { 40, '\060', -10,  10,	/* 0 */
 	  -1,  12,
 	  -4,  11,
 	  -6,   8,
@@ -346,7 +346,7 @@ static readonly char ascii_060[ 84] = { 40, '\060', -10,  10,	/* 0 */
 	   3,  11,
 	   1,  12,
 	-128,   0};
-static readonly char ascii_061[ 26] = { 11, '\061', -10,  10,	/* 1 */
+static readonly short ascii_061[ 26] = { 11, '\061', -10,  10,	/* 1 */
 	  -4,   8,
 	  -2,   9,
 	   1,  12,
@@ -358,7 +358,7 @@ static readonly char ascii_061[ 26] = { 11, '\061', -10,  10,	/* 1 */
 	  -4,  -9,
 	   5,  -9,
 	-128,   0};
-static readonly char ascii_062[ 94] = { 45, '\062', -10,  10,	/* 2 */
+static readonly short ascii_062[ 94] = { 45, '\062', -10,  10,	/* 2 */
 	  -6,   8,
 	  -5,   7,
 	  -6,   6,
@@ -404,7 +404,7 @@ static readonly char ascii_062[ 94] = { 45, '\062', -10,  10,	/* 2 */
 	   7,  -6,
 	   7,  -4,
 	-128,   0};
-static readonly char ascii_063[ 96] = { 46, '\063', -10,  10,	/* 3 */
+static readonly short ascii_063[ 96] = { 46, '\063', -10,  10,	/* 3 */
 	  -6,   9,
 	  -5,   8,
 	  -6,   7,
@@ -451,7 +451,7 @@ static readonly char ascii_063[ 96] = { 46, '\063', -10,  10,	/* 3 */
 	   4,  -8,
 	   2,  -9,
 	-128,   0};
-static readonly char ascii_064[ 30] = { 13, '\064', -10,  10,	/* 4 */
+static readonly short ascii_064[ 30] = { 13, '\064', -10,  10,	/* 4 */
 	   2,  10,
 	   2,  -9,
 	-128,   0,
@@ -465,7 +465,7 @@ static readonly char ascii_064[ 30] = { 13, '\064', -10,  10,	/* 4 */
 	  -1,  -9,
 	   6,  -9,
 	-128,   0};
-static readonly char ascii_065[ 82] = { 39, '\065', -10,  10,	/* 5 */
+static readonly short ascii_065[ 82] = { 39, '\065', -10,  10,	/* 5 */
 	  -5,  12,
 	  -7,   2,
 	-128,   0,
@@ -505,7 +505,7 @@ static readonly char ascii_065[ 82] = { 39, '\065', -10,  10,	/* 5 */
 	   0,  11,
 	   5,  12,
 	-128,   0};
-static readonly char ascii_066[100] = { 48, '\066', -10,  10,	/* 6 */
+static readonly short ascii_066[100] = { 48, '\066', -10,  10,	/* 6 */
 	   5,   9,
 	   4,   8,
 	   5,   7,
@@ -554,7 +554,7 @@ static readonly char ascii_066[100] = { 48, '\066', -10,  10,	/* 6 */
 	   3,   3,
 	   1,   4,
 	-128,   0};
-static readonly char ascii_067[ 66] = { 31, '\067', -10,  10,	/* 7 */
+static readonly short ascii_067[ 66] = { 31, '\067', -10,  10,	/* 7 */
 	  -7,  12,
 	  -7,   6,
 	-128,   0,
@@ -586,7 +586,7 @@ static readonly char ascii_067[ 66] = { 31, '\067', -10,  10,	/* 7 */
 	  -1,  -4,
 	  -1,  -9,
 	-128,   0};
-static readonly char ascii_070[130] = { 63, '\070', -10,  10,	/* 8 */
+static readonly short ascii_070[130] = { 63, '\070', -10,  10,	/* 8 */
 	  -2,  12,
 	  -5,  11,
 	  -6,   9,
@@ -650,7 +650,7 @@ static readonly char ascii_070[130] = { 63, '\070', -10,  10,	/* 8 */
 	   4,   2,
 	   2,   3,
 	-128,   0};
-static readonly char ascii_071[100] = { 48, '\071', -10,  10,	/* 9 */
+static readonly short ascii_071[100] = { 48, '\071', -10,  10,	/* 9 */
 	   6,   5,
 	   5,   2,
 	   3,   0,
@@ -699,7 +699,7 @@ static readonly char ascii_071[100] = { 48, '\071', -10,  10,	/* 9 */
 	   2,  -8,
 	   0,  -9,
 	-128,   0};
-static readonly char ascii_072[ 28] = { 12, '\072',  -5,   5,	/* : */
+static readonly short ascii_072[ 28] = { 12, '\072',  -5,   5,	/* : */
 	   0,   5,
 	  -1,   4,
 	   0,   3,
@@ -712,7 +712,7 @@ static readonly char ascii_072[ 28] = { 12, '\072',  -5,   5,	/* : */
 	   1,  -8,
 	   0,  -7,
 	-128,   0};
-static readonly char ascii_073[ 32] = { 14, '\073',  -5,   5,	/* ; */
+static readonly short ascii_073[ 32] = { 14, '\073',  -5,   5,	/* ; */
 	   0,   5,
 	  -1,   4,
 	   0,   3,
@@ -727,24 +727,24 @@ static readonly char ascii_073[ 32] = { 14, '\073',  -5,   5,	/* ; */
 	   0, -12,
 	  -1, -13,
 	-128,   0};
-static readonly char ascii_074[ 12] = {  4, '\074', -12,  12,	/* < */
+static readonly short ascii_074[ 12] = {  4, '\074', -12,  12,	/* < */
 	   8,   9,
 	  -8,   0,
 	   8,  -9,
 	-128,   0};
-static readonly char ascii_075[ 16] = {  6, '\075', -13,  13,	/* = */
+static readonly short ascii_075[ 16] = {  6, '\075', -13,  13,	/* = */
 	  -9,   3,
 	   9,   3,
 	-128,   0,
 	  -9,  -3,
 	   9,  -3,
 	-128,   0};
-static readonly char ascii_076[ 12] = {  4, '\076', -12,  12,	/* > */
+static readonly short ascii_076[ 12] = {  4, '\076', -12,  12,	/* > */
 	  -8,   9,
 	   8,   0,
 	  -8,  -9,
 	-128,   0};
-static readonly char ascii_077[ 68] = { 32, '\077',  -9,   9,	/* ? */
+static readonly short ascii_077[ 68] = { 32, '\077',  -9,   9,	/* ? */
 	  -5,   8,
 	  -4,   7,
 	  -5,   6,
@@ -777,7 +777,7 @@ static readonly char ascii_077[ 68] = { 32, '\077',  -9,   9,	/* ? */
 	   1,  -8,
 	   0,  -7,
 	-128,   0};
-static readonly char ascii_100[116] = { 56, '\100', -13,  14,	/* @ */
+static readonly short ascii_100[116] = { 56, '\100', -13,  14,	/* @ */
 	   5,   4,
 	   4,   6,
 	   2,   7,
@@ -834,7 +834,7 @@ static readonly char ascii_100[116] = { 56, '\100', -13,  14,	/* @ */
 	   5,  -3,
 	   6,  -4,
 	-128,   0};
-static readonly char ascii_101[ 40] = { 18, '\101', -10,  10,	/* A */
+static readonly short ascii_101[ 40] = { 18, '\101', -10,  10,	/* A */
 	   0,  12,
 	  -7,  -9,
 	-128,   0,
@@ -853,7 +853,7 @@ static readonly char ascii_101[ 40] = { 18, '\101', -10,  10,	/* A */
 	   3,  -9,
 	   9,  -9,
 	-128,   0};
-static readonly char ascii_102[ 94] = { 45, '\102', -11,  11,	/* B */
+static readonly short ascii_102[ 94] = { 45, '\102', -11,  11,	/* B */
 	  -6,  12,
 	  -6,  -9,
 	-128,   0,
@@ -899,7 +899,7 @@ static readonly char ascii_102[ 94] = { 45, '\102', -11,  11,	/* B */
 	   5,  -8,
 	   3,  -9,
 	-128,   0};
-static readonly char ascii_103[ 68] = { 32, '\103', -11,  10,	/* C */
+static readonly short ascii_103[ 68] = { 32, '\103', -11,  10,	/* C */
 	   6,   9,
 	   7,   6,
 	   7,  12,
@@ -932,7 +932,7 @@ static readonly char ascii_103[ 68] = { 32, '\103', -11,  10,	/* C */
 	  -3,  -8,
 	  -1,  -9,
 	-128,   0};
-static readonly char ascii_104[ 64] = { 30, '\104', -11,  11,	/* D */
+static readonly short ascii_104[ 64] = { 30, '\104', -11,  11,	/* D */
 	  -6,  12,
 	  -6,  -9,
 	-128,   0,
@@ -963,7 +963,7 @@ static readonly char ascii_104[ 64] = { 30, '\104', -11,  11,	/* D */
 	   3,  -8,
 	   1,  -9,
 	-128,   0};
-static readonly char ascii_105[ 48] = { 22, '\105', -11,  10,	/* E */
+static readonly short ascii_105[ 48] = { 22, '\105', -11,  10,	/* E */
 	  -6,  12,
 	  -6,  -9,
 	-128,   0,
@@ -986,7 +986,7 @@ static readonly char ascii_105[ 48] = { 22, '\105', -11,  10,	/* E */
 	   7,  -3,
 	   6,  -9,
 	-128,   0};
-static readonly char ascii_106[ 44] = { 20, '\106', -11,   9,	/* F */
+static readonly short ascii_106[ 44] = { 20, '\106', -11,   9,	/* F */
 	  -6,  12,
 	  -6,  -9,
 	-128,   0,
@@ -1007,7 +1007,7 @@ static readonly char ascii_106[ 44] = { 20, '\106', -11,   9,	/* F */
 	  -9,  -9,
 	  -2,  -9,
 	-128,   0};
-static readonly char ascii_107[ 84] = { 40, '\107', -11,  12,	/* G */
+static readonly short ascii_107[ 84] = { 40, '\107', -11,  12,	/* G */
 	   6,   9,
 	   7,   6,
 	   7,  12,
@@ -1048,7 +1048,7 @@ static readonly char ascii_107[ 84] = { 40, '\107', -11,  12,	/* G */
 	   3,  -1,
 	  10,  -1,
 	-128,   0};
-static readonly char ascii_110[ 58] = { 27, '\110', -12,  12,	/* H */
+static readonly short ascii_110[ 58] = { 27, '\110', -12,  12,	/* H */
 	  -7,  12,
 	  -7,  -9,
 	-128,   0,
@@ -1076,7 +1076,7 @@ static readonly char ascii_110[ 58] = { 27, '\110', -12,  12,	/* H */
 	   3,  -9,
 	  10,  -9,
 	-128,   0};
-static readonly char ascii_111[ 28] = { 12, '\111',  -5,   6,	/* I */
+static readonly short ascii_111[ 28] = { 12, '\111',  -5,   6,	/* I */
 	   0,  12,
 	   0,  -9,
 	-128,   0,
@@ -1089,7 +1089,7 @@ static readonly char ascii_111[ 28] = { 12, '\111',  -5,   6,	/* I */
 	  -3,  -9,
 	   4,  -9,
 	-128,   0};
-static readonly char ascii_112[ 44] = { 20, '\112',  -7,   8,	/* J */
+static readonly short ascii_112[ 44] = { 20, '\112',  -7,   8,	/* J */
 	   3,  12,
 	   3,  -5,
 	   2,  -8,
@@ -1110,7 +1110,7 @@ static readonly char ascii_112[ 44] = { 20, '\112',  -7,   8,	/* J */
 	  -1,  12,
 	   6,  12,
 	-128,   0};
-static readonly char ascii_113[ 58] = { 27, '\113', -12,  10,	/* K */
+static readonly short ascii_113[ 58] = { 27, '\113', -12,  10,	/* K */
 	  -7,  12,
 	  -7,  -9,
 	-128,   0,
@@ -1138,7 +1138,7 @@ static readonly char ascii_113[ 58] = { 27, '\113', -12,  10,	/* K */
 	   3,  -9,
 	   9,  -9,
 	-128,   0};
-static readonly char ascii_114[ 32] = { 14, '\114',  -9,   9,	/* L */
+static readonly short ascii_114[ 32] = { 14, '\114',  -9,   9,	/* L */
 	  -4,  12,
 	  -4,  -9,
 	-128,   0,
@@ -1153,7 +1153,7 @@ static readonly char ascii_114[ 32] = { 14, '\114',  -9,   9,	/* L */
 	   8,  -3,
 	   7,  -9,
 	-128,   0};
-static readonly char ascii_115[ 64] = { 30, '\115', -12,  13,	/* M */
+static readonly short ascii_115[ 64] = { 30, '\115', -12,  13,	/* M */
 	  -7,  12,
 	  -7,  -9,
 	-128,   0,
@@ -1184,7 +1184,7 @@ static readonly char ascii_115[ 64] = { 30, '\115', -12,  13,	/* M */
 	   4,  -9,
 	  11,  -9,
 	-128,   0};
-static readonly char ascii_116[ 46] = { 21, '\116', -11,  12,	/* N */
+static readonly short ascii_116[ 46] = { 21, '\116', -11,  12,	/* N */
 	  -6,  12,
 	  -6,  -9,
 	-128,   0,
@@ -1206,7 +1206,7 @@ static readonly char ascii_116[ 46] = { 21, '\116', -11,  12,	/* N */
 	  -9,  -9,
 	  -3,  -9,
 	-128,   0};
-static readonly char ascii_117[ 92] = { 44, '\117', -11,  11,	/* O */
+static readonly short ascii_117[ 92] = { 44, '\117', -11,  11,	/* O */
 	  -1,  12,
 	  -4,  11,
 	  -6,   9,
@@ -1251,7 +1251,7 @@ static readonly char ascii_117[ 92] = { 44, '\117', -11,  11,	/* O */
 	   3,  11,
 	   1,  12,
 	-128,   0};
-static readonly char ascii_120[ 62] = { 29, '\120', -11,  11,	/* P */
+static readonly short ascii_120[ 62] = { 29, '\120', -11,  11,	/* P */
 	  -6,  12,
 	  -6,  -9,
 	-128,   0,
@@ -1281,7 +1281,7 @@ static readonly char ascii_120[ 62] = { 29, '\120', -11,  11,	/* P */
 	  -9,  -9,
 	  -2,  -9,
 	-128,   0};
-static readonly char ascii_121[132] = { 64, '\121', -11,  11,	/* Q */
+static readonly short ascii_121[132] = { 64, '\121', -11,  11,	/* Q */
 	  -1,  12,
 	  -4,  11,
 	  -6,   9,
@@ -1346,7 +1346,7 @@ static readonly char ascii_121[132] = { 64, '\121', -11,  11,	/* Q */
 	   7, -13,
 	   8, -12,
 	-128,   0};
-static readonly char ascii_122[ 94] = { 45, '\122', -11,  11,	/* R */
+static readonly short ascii_122[ 94] = { 45, '\122', -11,  11,	/* R */
 	  -6,  12,
 	  -6,  -9,
 	-128,   0,
@@ -1392,7 +1392,7 @@ static readonly char ascii_122[ 94] = { 45, '\122', -11,  11,	/* R */
 	   9,  -7,
 	   9,  -6,
 	-128,   0};
-static readonly char ascii_123[ 72] = { 34, '\123', -10,  10,	/* S */
+static readonly short ascii_123[ 72] = { 34, '\123', -10,  10,	/* S */
 	   6,   9,
 	   7,  12,
 	   7,   6,
@@ -1427,7 +1427,7 @@ static readonly char ascii_123[ 72] = { 34, '\123', -10,  10,	/* S */
 	  -7,  -9,
 	  -6,  -6,
 	-128,   0};
-static readonly char ascii_124[ 36] = { 16, '\124',  -9,  10,	/* T */
+static readonly short ascii_124[ 36] = { 16, '\124',  -9,  10,	/* T */
 	   0,  12,
 	   0,  -9,
 	-128,   0,
@@ -1444,7 +1444,7 @@ static readonly char ascii_124[ 36] = { 16, '\124',  -9,  10,	/* T */
 	  -3,  -9,
 	   4,  -9,
 	-128,   0};
-static readonly char ascii_125[ 50] = { 23, '\125', -12,  12,	/* U */
+static readonly short ascii_125[ 50] = { 23, '\125', -12,  12,	/* U */
 	  -7,  12,
 	  -7,  -3,
 	  -6,  -6,
@@ -1468,7 +1468,7 @@ static readonly char ascii_125[ 50] = { 23, '\125', -12,  12,	/* U */
 	   4,  12,
 	  10,  12,
 	-128,   0};
-static readonly char ascii_126[ 34] = { 15, '\126', -10,  10,	/* V */
+static readonly short ascii_126[ 34] = { 15, '\126', -10,  10,	/* V */
 	  -7,  12,
 	   0,  -9,
 	-128,   0,
@@ -1484,7 +1484,7 @@ static readonly char ascii_126[ 34] = { 15, '\126', -10,  10,	/* V */
 	   3,  12,
 	   9,  12,
 	-128,   0};
-static readonly char ascii_127[ 52] = { 24, '\127', -12,  12,	/* W */
+static readonly short ascii_127[ 52] = { 24, '\127', -12,  12,	/* W */
 	  -8,  12,
 	  -4,  -9,
 	-128,   0,
@@ -1509,7 +1509,7 @@ static readonly char ascii_127[ 52] = { 24, '\127', -12,  12,	/* W */
 	   5,  12,
 	  11,  12,
 	-128,   0};
-static readonly char ascii_130[ 46] = { 21, '\130', -10,  10,	/* X */
+static readonly short ascii_130[ 46] = { 21, '\130', -10,  10,	/* X */
 	  -7,  12,
 	   6,  -9,
 	-128,   0,
@@ -1531,7 +1531,7 @@ static readonly char ascii_130[ 46] = { 21, '\130', -10,  10,	/* X */
 	   3,  -9,
 	   9,  -9,
 	-128,   0};
-static readonly char ascii_131[ 44] = { 20, '\131', -10,  11,	/* Y */
+static readonly short ascii_131[ 44] = { 20, '\131', -10,  11,	/* Y */
 	  -7,  12,
 	   0,   1,
 	   0,  -9,
@@ -1552,7 +1552,7 @@ static readonly char ascii_131[ 44] = { 20, '\131', -10,  11,	/* Y */
 	  -3,  -9,
 	   4,  -9,
 	-128,   0};
-static readonly char ascii_132[ 36] = { 16, '\132', -10,  10,	/* Z */
+static readonly short ascii_132[ 36] = { 16, '\132', -10,  10,	/* Z */
 	   6,  12,
 	  -7,  -9,
 	-128,   0,
@@ -1569,7 +1569,7 @@ static readonly char ascii_132[ 36] = { 16, '\132', -10,  10,	/* Z */
 	   7,  -3,
 	   6,  -9,
 	-128,   0};
-static readonly char ascii_133[ 28] = { 12, '\133',  -7,   7,	/* [ */
+static readonly short ascii_133[ 28] = { 12, '\133',  -7,   7,	/* [ */
 	  -3,  16,
 	  -3, -16,
 	-128,   0,
@@ -1582,11 +1582,11 @@ static readonly char ascii_133[ 28] = { 12, '\133',  -7,   7,	/* [ */
 	  -3, -16,
 	   4, -16,
 	-128,   0};
-static readonly char ascii_134[ 10] = {  3, '\134', -11,  11,	/* \ */
+static readonly short ascii_134[ 10] = {  3, '\134', -11,  11,	/* \ */
 	  -9,  16,
 	   9, -16,
 	-128,   0};
-static readonly char ascii_135[ 28] = { 12, '\135',  -7,   7,	/* ] */
+static readonly short ascii_135[ 28] = { 12, '\135',  -7,   7,	/* ] */
 	   2,  16,
 	   2, -16,
 	-128,   0,
@@ -1599,18 +1599,18 @@ static readonly char ascii_135[ 28] = { 12, '\135',  -7,   7,	/* ] */
 	  -4, -16,
 	   3, -16,
 	-128,   0};
-static readonly char ascii_136[ 16] = {  6, '\136',  -8,   8,	/* ^ */
+static readonly short ascii_136[ 16] = {  6, '\136',  -8,   8,	/* ^ */
 	   0,  14,
 	  -8,   0,
 	-128,   0,
 	   0,  14,
 	   8,   0,
 	-128,   0};
-static readonly char ascii_137[ 10] = {  3, '\137', -10,  10,	/* _ */
+static readonly short ascii_137[ 10] = {  3, '\137', -10,  10,	/* _ */
 	 -10, -11,
 	  10, -11,
 	-128,   0};
-static readonly char ascii_140[ 20] = {  8, '\140',  -5,   5,	/* ` */
+static readonly short ascii_140[ 20] = {  8, '\140',  -5,   5,	/* ` */
 	   0,  10,
 	   1,  11,
 	   0,  12,
@@ -1619,7 +1619,7 @@ static readonly char ascii_140[ 20] = {  8, '\140',  -5,   5,	/* ` */
 	   0,   7,
 	   1,   6,
 	-128,   0};
-static readonly char ascii_141[ 82] = { 39, '\141',  -9,  11,	/* a */
+static readonly short ascii_141[ 82] = { 39, '\141',  -9,  11,	/* a */
 	  -4,   3,
 	  -4,   2,
 	  -5,   2,
@@ -1659,7 +1659,7 @@ static readonly char ascii_141[ 82] = { 39, '\141',  -9,  11,	/* a */
 	  -4,  -8,
 	  -2,  -9,
 	-128,   0};
-static readonly char ascii_142[ 70] = { 33, '\142', -11,  10,	/* b */
+static readonly short ascii_142[ 70] = { 33, '\142', -11,  10,	/* b */
 	  -6,  12,
 	  -6,  -9,
 	-128,   0,
@@ -1693,7 +1693,7 @@ static readonly char ascii_142[ 70] = { 33, '\142', -11,  10,	/* b */
 	  -9,  12,
 	  -5,  12,
 	-128,   0};
-static readonly char ascii_143[ 60] = { 28, '\143', -10,   9,	/* c */
+static readonly short ascii_143[ 60] = { 28, '\143', -10,   9,	/* c */
 	   5,   2,
 	   4,   1,
 	   5,   0,
@@ -1722,7 +1722,7 @@ static readonly char ascii_143[ 60] = { 28, '\143', -10,   9,	/* c */
 	  -3,  -8,
 	  -1,  -9,
 	-128,   0};
-static readonly char ascii_144[ 76] = { 36, '\144', -10,  11,	/* d */
+static readonly short ascii_144[ 76] = { 36, '\144', -10,  11,	/* d */
 	   5,  12,
 	   5,  -9,
 	-128,   0,
@@ -1759,7 +1759,7 @@ static readonly char ascii_144[ 76] = { 36, '\144', -10,  11,	/* d */
 	   5,  -9,
 	   9,  -9,
 	-128,   0};
-static readonly char ascii_145[ 66] = { 31, '\145', -10,   9,	/* e */
+static readonly short ascii_145[ 66] = { 31, '\145', -10,   9,	/* e */
 	  -6,  -1,
 	   6,  -1,
 	   6,   1,
@@ -1791,7 +1791,7 @@ static readonly char ascii_145[ 66] = { 31, '\145', -10,   9,	/* e */
 	  -3,  -8,
 	  -1,  -9,
 	-128,   0};
-static readonly char ascii_146[ 48] = { 22, '\146',  -7,   6,	/* f */
+static readonly short ascii_146[ 48] = { 22, '\146',  -7,   6,	/* f */
 	   3,  11,
 	   2,  10,
 	   3,   9,
@@ -1814,7 +1814,7 @@ static readonly char ascii_146[ 48] = { 22, '\146',  -7,   6,	/* f */
 	  -5,  -9,
 	   2,  -9,
 	-128,   0};
-static readonly char ascii_147[124] = { 60, '\147',  -9,  10,	/* g */
+static readonly short ascii_147[124] = { 60, '\147',  -9,  10,	/* g */
 	  -1,   5,
 	  -3,   4,
 	  -4,   3,
@@ -1875,7 +1875,7 @@ static readonly char ascii_147[124] = { 60, '\147',  -9,  10,	/* g */
 	  -6, -10,
 	  -3,  -9,
 	-128,   0};
-static readonly char ascii_150[ 60] = { 28, '\150', -11,  11,	/* h */
+static readonly short ascii_150[ 60] = { 28, '\150', -11,  11,	/* h */
 	  -6,  12,
 	  -6,  -9,
 	-128,   0,
@@ -1904,7 +1904,7 @@ static readonly char ascii_150[ 60] = { 28, '\150', -11,  11,	/* h */
 	   2,  -9,
 	   9,  -9,
 	-128,   0};
-static readonly char ascii_151[ 40] = { 18, '\151',  -5,   6,	/* i */
+static readonly short ascii_151[ 40] = { 18, '\151',  -5,   6,	/* i */
 	   0,  12,
 	  -1,  11,
 	   0,  10,
@@ -1923,7 +1923,7 @@ static readonly char ascii_151[ 40] = { 18, '\151',  -5,   6,	/* i */
 	  -3,  -9,
 	   4,  -9,
 	-128,   0};
-static readonly char ascii_152[ 54] = { 25, '\152',  -5,   6,	/* j */
+static readonly short ascii_152[ 54] = { 25, '\152',  -5,   6,	/* j */
 	   1,  12,
 	   0,  11,
 	   1,  10,
@@ -1949,7 +1949,7 @@ static readonly char ascii_152[ 54] = { 25, '\152',  -5,   6,	/* j */
 	  -2,   5,
 	   2,   5,
 	-128,   0};
-static readonly char ascii_153[ 58] = { 27, '\153', -11,  10,	/* k */
+static readonly short ascii_153[ 58] = { 27, '\153', -11,  10,	/* k */
 	  -6,  12,
 	  -6,  -9,
 	-128,   0,
@@ -1977,7 +1977,7 @@ static readonly char ascii_153[ 58] = { 27, '\153', -11,  10,	/* k */
 	   2,  -9,
 	   8,  -9,
 	-128,   0};
-static readonly char ascii_154[ 28] = { 12, '\154',  -5,   6,	/* l */
+static readonly short ascii_154[ 28] = { 12, '\154',  -5,   6,	/* l */
 	   0,  12,
 	   0,  -9,
 	-128,   0,
@@ -1990,7 +1990,7 @@ static readonly char ascii_154[ 28] = { 12, '\154',  -5,   6,	/* l */
 	  -3,  -9,
 	   4,  -9,
 	-128,   0};
-static readonly char ascii_155[ 92] = { 44, '\155', -16,  17,	/* m */
+static readonly short ascii_155[ 92] = { 44, '\155', -16,  17,	/* m */
 	 -11,   5,
 	 -11,  -9,
 	-128,   0,
@@ -2035,7 +2035,7 @@ static readonly char ascii_155[ 92] = { 44, '\155', -16,  17,	/* m */
 	   8,  -9,
 	  15,  -9,
 	-128,   0};
-static readonly char ascii_156[ 60] = { 28, '\156', -11,  11,	/* n */
+static readonly short ascii_156[ 60] = { 28, '\156', -11,  11,	/* n */
 	  -6,   5,
 	  -6,  -9,
 	-128,   0,
@@ -2064,7 +2064,7 @@ static readonly char ascii_156[ 60] = { 28, '\156', -11,  11,	/* n */
 	   2,  -9,
 	   9,  -9,
 	-128,   0};
-static readonly char ascii_157[ 76] = { 36, '\157', -10,  10,	/* o */
+static readonly short ascii_157[ 76] = { 36, '\157', -10,  10,	/* o */
 	  -1,   5,
 	  -4,   4,
 	  -6,   2,
@@ -2101,7 +2101,7 @@ static readonly char ascii_157[ 76] = { 36, '\157', -10,  10,	/* o */
 	   3,   4,
 	   1,   5,
 	-128,   0};
-static readonly char ascii_160[ 76] = { 36, '\160', -11,  10,	/* p */
+static readonly short ascii_160[ 76] = { 36, '\160', -11,  10,	/* p */
 	  -6,   5,
 	  -6, -16,
 	-128,   0,
@@ -2138,7 +2138,7 @@ static readonly char ascii_160[ 76] = { 36, '\160', -11,  10,	/* p */
 	  -9, -16,
 	  -2, -16,
 	-128,   0};
-static readonly char ascii_161[ 70] = { 33, '\161', -10,  10,	/* q */
+static readonly short ascii_161[ 70] = { 33, '\161', -10,  10,	/* q */
 	   5,   5,
 	   5, -16,
 	-128,   0,
@@ -2172,7 +2172,7 @@ static readonly char ascii_161[ 70] = { 33, '\161', -10,  10,	/* q */
 	   2, -16,
 	   9, -16,
 	-128,   0};
-static readonly char ascii_162[ 50] = { 23, '\162',  -9,   8,	/* r */
+static readonly short ascii_162[ 50] = { 23, '\162',  -9,   8,	/* r */
 	  -4,   5,
 	  -4,  -9,
 	-128,   0,
@@ -2196,7 +2196,7 @@ static readonly char ascii_162[ 50] = { 23, '\162',  -9,   8,	/* r */
 	  -7,  -9,
 	   0,  -9,
 	-128,   0};
-static readonly char ascii_163[ 68] = { 32, '\163',  -8,   9,	/* s */
+static readonly short ascii_163[ 68] = { 32, '\163',  -8,   9,	/* s */
 	   5,   3,
 	   6,   5,
 	   6,   1,
@@ -2229,7 +2229,7 @@ static readonly char ascii_163[ 68] = { 32, '\163',  -8,   9,	/* s */
 	  -5,  -9,
 	  -4,  -7,
 	-128,   0};
-static readonly char ascii_164[ 36] = { 16, '\164',  -7,   8,	/* t */
+static readonly short ascii_164[ 36] = { 16, '\164',  -7,   8,	/* t */
 	  -2,  12,
 	  -2,  -5,
 	  -1,  -8,
@@ -2246,7 +2246,7 @@ static readonly char ascii_164[ 36] = { 16, '\164',  -7,   8,	/* t */
 	  -5,   5,
 	   3,   5,
 	-128,   0};
-static readonly char ascii_165[ 60] = { 28, '\165', -11,  11,	/* u */
+static readonly short ascii_165[ 60] = { 28, '\165', -11,  11,	/* u */
 	  -6,   5,
 	  -6,  -6,
 	  -5,  -8,
@@ -2275,7 +2275,7 @@ static readonly char ascii_165[ 60] = { 28, '\165', -11,  11,	/* u */
 	   5,  -9,
 	   9,  -9,
 	-128,   0};
-static readonly char ascii_166[ 34] = { 15, '\166',  -9,   9,	/* v */
+static readonly short ascii_166[ 34] = { 15, '\166',  -9,   9,	/* v */
 	  -6,   5,
 	   0,  -9,
 	-128,   0,
@@ -2291,7 +2291,7 @@ static readonly char ascii_166[ 34] = { 15, '\166',  -9,   9,	/* v */
 	   2,   5,
 	   8,   5,
 	-128,   0};
-static readonly char ascii_167[ 52] = { 24, '\167', -12,  12,	/* w */
+static readonly short ascii_167[ 52] = { 24, '\167', -12,  12,	/* w */
 	  -8,   5,
 	  -4,  -9,
 	-128,   0,
@@ -2316,7 +2316,7 @@ static readonly char ascii_167[ 52] = { 24, '\167', -12,  12,	/* w */
 	   5,   5,
 	  11,   5,
 	-128,   0};
-static readonly char ascii_170[ 46] = { 21, '\170', -10,  10,	/* x */
+static readonly short ascii_170[ 46] = { 21, '\170', -10,  10,	/* x */
 	  -6,   5,
 	   5,  -9,
 	-128,   0,
@@ -2338,7 +2338,7 @@ static readonly char ascii_170[ 46] = { 21, '\170', -10,  10,	/* x */
 	   2,  -9,
 	   8,  -9,
 	-128,   0};
-static readonly char ascii_171[ 48] = { 22, '\171', -10,   9,	/* y */
+static readonly short ascii_171[ 48] = { 22, '\171', -10,   9,	/* y */
 	  -6,   5,
 	   0,  -9,
 	-128,   0,
@@ -2361,7 +2361,7 @@ static readonly char ascii_171[ 48] = { 22, '\171', -10,   9,	/* y */
 	   2,   5,
 	   8,   5,
 	-128,   0};
-static readonly char ascii_172[ 36] = { 16, '\172',  -9,   9,	/* z */
+static readonly short ascii_172[ 36] = { 16, '\172',  -9,   9,	/* z */
 	   5,   5,
 	  -6,  -9,
 	-128,   0,
@@ -2378,7 +2378,7 @@ static readonly char ascii_172[ 36] = { 16, '\172',  -9,   9,	/* z */
 	   6,  -5,
 	   5,  -9,
 	-128,   0};
-static readonly char ascii_173[ 60] = { 28, '\173',  -7,   7,	/* { */
+static readonly short ascii_173[ 60] = { 28, '\173',  -7,   7,	/* { */
 	   2,  16,
 	  -1,  13,
 	  -2,  10,
@@ -2407,11 +2407,11 @@ static readonly char ascii_173[ 60] = { 28, '\173',  -7,   7,	/* { */
 	  -1, -11,
 	   0, -14,
 	-128,   0};
-static readonly char ascii_174[ 10] = {  3, '\174',  -4,   4,	/* | */
+static readonly short ascii_174[ 10] = {  3, '\174',  -4,   4,	/* | */
 	   0,  16,
 	   0, -16,
 	-128,   0};
-static readonly char ascii_175[ 60] = { 28, '\175',  -7,   7,	/* } */
+static readonly short ascii_175[ 60] = { 28, '\175',  -7,   7,	/* } */
 	  -2,  16,
 	   1,  13,
 	   2,  10,
@@ -2440,7 +2440,7 @@ static readonly char ascii_175[ 60] = { 28, '\175',  -7,   7,	/* } */
 	   1, -11,
 	   0, -14,
 	-128,   0};
-static readonly char ascii_176[ 52] = { 24, '\176', -12,  12,	/* ~ */
+static readonly short ascii_176[ 52] = { 24, '\176', -12,  12,	/* ~ */
 	  -9,  -3,
 	  -9,  -1,
 	  -8,   2,
@@ -2465,7 +2465,7 @@ static readonly char ascii_176[ 52] = { 24, '\176', -12,  12,	/* ~ */
 	   9,   1,
 	   9,   3,
 	-128,   0};
-static readonly char ascii_177[  6] = {  1, '\177',  -8,   8,	/*  */
+static readonly short ascii_177[  6] = {  1, '\177',  -8,   8,	/*  */
 	-128,   0};
 
 /*	Stroke Table	*/
@@ -2473,7 +2473,7 @@ static readonly char ascii_177[  6] = {  1, '\177',  -8,   8,	/*  */
 # ifdef VMS
 globaldef readonly
 # endif
-char *Gt_sf_0[128] = {
+short *Gt_sf_0[128] = {
 	size, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
 	0, 0, 0, 0, 0, 0, 0, ascii_027, 0, 0, 0, 0, 0, 0, 0, 0, 
 	ascii_040, ascii_041, ascii_042, ascii_043,
