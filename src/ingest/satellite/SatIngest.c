@@ -32,7 +32,7 @@
 # include <DataStore.h>
 # include <DataChunk.h>
 
-MAKE_RCSID("$Id: SatIngest.c,v 1.4 1993-05-26 19:46:43 granger Exp $")
+MAKE_RCSID("$Id: SatIngest.c,v 1.5 1993-07-26 19:45:35 burghart Exp $")
 
 # include "keywords.h"
 
@@ -60,9 +60,16 @@ float	Latstep, Lonstep;
 int 	HaveLimits = FALSE;
 
 /*
- * Image unpacking info
+ * Image unpacking info.
  */
 int	Nbytes, Prefixlen, Linelen, Xres, Yres;
+
+/*
+ * If Truncate is true, then the low order byte(s) of multi-byte data are 
+ * truncated to give us one byte data.  Otherwise, we insist that we get
+ * one byte data to start with.
+ */
+bool	Truncate = FALSE;
 
 /*
  * Image limits in line/elem coordinates
@@ -159,6 +166,7 @@ char **argv;
 	usy_c_indirect (vtable, "platform", &Platname, SYMT_STRING, PF_LEN);
 	usy_c_indirect (vtable, "gridX", &GridX, SYMT_INT, 0);
 	usy_c_indirect (vtable, "gridY", &GridY, SYMT_INT, 0);
+	usy_c_indirect (vtable, "truncate", &Truncate, SYMT_BOOL, 0);
 /*
  * Get on with it
  */
@@ -548,9 +556,18 @@ int	fentry;
 	Nbytes = header[10];
 	if (Nbytes != 1)
 	{
-		msg_ELog (EF_EMERGENCY, "Can't deal with %d byte GOES data",
-			Nbytes);
-		return (NULL);
+		if (Truncate)
+			msg_ELog (EF_INFO, 
+				  "%d byte data will be truncated to one byte",
+				  Nbytes);
+		else
+		{
+			msg_ELog (EF_EMERGENCY, 
+				  "Can't deal with %d byte GOES data",
+				  Nbytes);
+			return (NULL);
+		}
+		
 	}
 /*
  * Image size (Nx x Ny), bytes per element and prefix length
@@ -831,19 +848,10 @@ int	line, elem;
 	 */
 		pos = image_y * Linelen + Prefixlen + image_x * Nbytes;
 	/*
-	 * Unpack the appropriate number of bytes
+	 * Return the byte.  For multi-byte data, this means we're just
+	 * returning the most significant byte (truncating).
 	 */
-		switch (Nbytes)
-		{
-		    case 1:
-			return (Image[pos]);
-			break;
-		    default:
-			msg_ELog (EF_EMERGENCY, 
-				"Exiting.  Cannot handle %d byte values.", 
-				Nbytes);
-			exit (1);
-		}
+		return (Image[pos]);
 	}
 	else
 		return ((unsigned char) 0xff);
