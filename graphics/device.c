@@ -1,5 +1,5 @@
 /* 5/87 jc */
-static char *rcsid = "$Id: device.c,v 1.14 1990-04-05 14:23:26 corbet Exp $";
+static char *rcsid = "$Id: device.c,v 1.15 1990-04-09 16:00:40 corbet Exp $";
 /*
  * Handle device specifics.
  */
@@ -33,7 +33,7 @@ extern int tek_open (), tek_clear (), tek_flush (), tek_cmap (), tek_poly ();
 extern int tek_s_init (), tek_s_clear (), tek_s_select (), tek_s_end ();
 extern int tek_s_attr (), tek_close (), tek_pixel (), tek_vp ();
 extern int tek_target (), tek_put_target (), tek_untarget (), tek_flush_nr ();
-extern int tek_tsize (), tek_qtext (); tek_text ();
+extern int tek_tsize (), tek_qtext (), tek_text ();
 # endif
 # ifdef DEV_4010
 extern int t10_open (), t10_clear (), t10_flush (), t10_cmap (), t10_poly ();
@@ -84,7 +84,7 @@ struct device D_tab[] =
 		3, { "nl", "bitbucket", "blackhole", "defensebudget" },
 		GDF_VECTOR | GDF_PIXEL,
 		150,
-		512, 512,		/* Our resolution for now */
+		500, 500,		/* Our resolution for now */
 		1.0,			/* Square pixels (X assumption) */
 		100, 100,
 		0,			/* no buttons, for now		*/
@@ -743,7 +743,7 @@ struct device D_tab[] =
  */
  	{
 		"4010",			/* Device type 			*/
-		1, { "xterm" },
+		2, { "4014", "vt100" },
 		GDF_VECTOR,
 		2,			/* 16 colors			*/
 		4096, 3072,		/* Our screen resolution	*/
