@@ -13,7 +13,7 @@ extern "C" {
 #endif
 
 /*
- * $Id: zebra.h,v 2.2 1997-07-10 22:04:24 granger Exp $
+ * $Id: zebra.h,v 2.3 1998-03-13 15:29:25 burghart Exp $
  *
  * XDR definitions and interface for basic zebra types and structures
  */
@@ -78,7 +78,8 @@ enum AltUnitType {
 	AU_mAGL = 3,
 	AU_mb = 4,
 	AU_sigma = 5,
-	AU_level = 6
+	AU_level = 6,
+	AU_unknown = 7
 };
 typedef enum AltUnitType AltUnitType;
 
