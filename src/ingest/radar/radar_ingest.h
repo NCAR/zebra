@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-/* $Id: radar_ingest.h,v 2.4 1993-08-18 15:34:49 burghart Exp $ */
+/* $Id: radar_ingest.h,v 2.5 1994-06-01 17:01:59 burghart Exp $ */
 
 
 /*
@@ -53,7 +53,7 @@ extern int XRes, YRes;
 extern float AzFill;
 
 /*
- * The sortest sweep that interests us.
+ * The shortest sweep that interests us.
  */
 extern int MinSweep;
 
@@ -86,6 +86,11 @@ extern float PixScale;
  * The (temporary) color map.
  */
 unsigned char CMap[256];
+
+/*
+ * The difference we tolerate between fixed angle and actual elevation
+ */
+extern float ElTolerance;
 
 /*
  * Thresholding information.

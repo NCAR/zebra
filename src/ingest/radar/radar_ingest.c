@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: radar_ingest.c,v 2.8 1993-12-28 18:04:47 burghart Exp $";
+static char *rcsid = "$Id: radar_ingest.c,v 2.9 1994-06-01 17:01:57 burghart Exp $";
 
 # include <copyright.h>
 # include <errno.h>
@@ -45,6 +45,7 @@ int XRadar = 250, YRadar = 400;
 float AzFill = 0.6;
 float PixScale = 5.0;		/* Pixels per kilometer		*/
 float RadarLat = 0, RadarLon = 0;
+float ElTolerance = 1.0;	/* Elevation difference tolerance, deg. */
 int MinSweep = 25;
 int GMTOffset = 0;
 int NFrames = 2;		/* How many frames		*/
@@ -198,6 +199,7 @@ SetupIndirect ()
 	usy_c_indirect (vtable, "radar_lat", &RadarLat, SYMT_FLOAT, 0);
 	usy_c_indirect (vtable, "radar_lon", &RadarLon, SYMT_FLOAT, 0);
 	usy_c_indirect (vtable, "azimuth_fill", &AzFill, SYMT_FLOAT, 0);
+	usy_c_indirect (vtable, "el_tolerance", &ElTolerance, SYMT_FLOAT, 0);
 	usy_c_indirect (vtable, "pixels_per_km", &PixScale, SYMT_FLOAT, 0);
 	usy_c_indirect (vtable, "minimum_sweep", &MinSweep, SYMT_INT, 0);
 	usy_c_indirect (vtable, "gmt_offset", &GMTOffset, SYMT_INT, 0);

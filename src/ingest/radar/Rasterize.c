@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: Rasterize.c,v 2.7 1993-10-05 16:13:23 burghart Exp $";
+static char *rcsid = "$Id: Rasterize.c,v 2.8 1994-06-01 17:01:52 burghart Exp $";
 
 # include <defs.h>
 # include <message.h>
@@ -40,8 +40,6 @@ typedef enum { Unknown, Clockwise, CounterClockwise } Direction;
 # define TRUE 1
 # define FALSE 0
 # endif
-
-# define ELTOLERANCE	CORR_FACT	/* One degree	*/
 
 /*
  * Rasterization info for each chunk of data.
@@ -394,8 +392,9 @@ Beam beam;
 		msg_ELog (EF_DEBUG, "Sweep count/transition break");
 	else if (fixed != hk->fixed)		/* Fixed angle change */
 		msg_ELog (EF_DEBUG, "Fixed angle break");
-	else if (ABS (hk->fixed - hk->elevation) > ELTOLERANCE)
-		msg_ELog (EF_DEBUG, "Fixed/real difference break");
+	else if (ABS (hk->fixed - hk->elevation) > ElTolerance * CORR_FACT)
+		msg_ELog (EF_DEBUG, "Fixed/real difference break: %.2f/%.2f",
+			  hk->fixed / CORR_FACT, hk->elevation / CORR_FACT);
 	else if (DirCheck (&dir, beam, hk->log_rec_num - firstbeam,
 			firstaz/CORR_FACT))
 		msg_ELog (EF_DEBUG, "DirCheck break");
@@ -460,7 +459,7 @@ Beam beam;
  *	behavior.
  */
 	if (hk->scan_mode != SM_SUR && hk->scan_mode != SM_PPI ||
-			ABS (hk->elevation - hk->fixed) > ELTOLERANCE
+			ABS (hk->elevation - hk->fixed) > ElTolerance*CORR_FACT
 			|| hk->elevation <= (int) (0.1*CORR_FACT))
 	{
 		InSweep = FALSE;
@@ -602,8 +601,11 @@ struct RastInfo *rinfo;
 /*
  * Calculate some trig params we'll need.
  */
-	sincos (DegToRad (az1), &sin1, &cos1);
-	sincos (DegToRad (az2), &sin2, &cos2);
+	sin1 = sin (DegToRad (az1));
+	cos1 = cos (DegToRad (az1));
+
+	sin2 = sin (DegToRad (az2));
+	cos2 = cos (DegToRad (az2));
 /*
  * Find the edge which is furthest right or below the other.
  */
