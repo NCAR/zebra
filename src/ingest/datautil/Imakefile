@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.7 1993-10-25 20:19:47 corbet Exp $"
+MFVERSION="$Id: Imakefile,v 1.8 1993-11-09 17:07:00 corbet Exp $"
 
 #define IHaveSubdirs
 #define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
@@ -24,7 +24,7 @@ SUBDIRS = profiler surface
 
 LIBS=$(LIBZEB) $(LIBNETCDF) $(LIBRDSS)
 
-SRCS  = convmud.c dscopy.c gprotocdf.c mudtocdf.c \
+SRCS  = convmud.c dscopy.c gprotocdf.c mudtocdf.c tao_conv.c \
 	mudutil.c cdf_interpolate.c dump-fgp.c fix-gp.c readgp.c fix_cdf.c
 
 FSRCS = mudras.F
@@ -47,6 +47,11 @@ InstallProgramWithFlags(convmud,$(BINDIR),-s)
 
 NormalProgramTarget(cdf_interpolate,cdf_interpolate.o,$(DEPLIBS),$(LIBS),
 		$(SYSLIBS))
+
+NormalProgramTargetNoInstall(tao_conv, tao_conv.o, $(DEPLIBS),
+			     $(LIBZEBDS) $(LIBS) $(XLIBS), $(SYSLIBS))
+InstallProgramWithFlags(tao_conv,$(BINDIR),-s)
+
 
 /*
  * Links with RDSS libraries twice until calls to ui removed from util
