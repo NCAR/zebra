@@ -30,7 +30,7 @@
 # include "DrawText.h"
 # include "PixelCoord.h"
 # include "GC.h"
-MAKE_RCSID ("$Id: Annotate.c,v 2.28 1995-09-21 20:43:02 granger Exp $")
+MAKE_RCSID ("$Id: Annotate.c,v 2.29 1995-10-09 22:09:23 burghart Exp $")
 
 /*
  * Graphics context (don't use the global one in GC.h because we don't
@@ -637,8 +637,8 @@ int datalen, begin, space;
 		textlim = x2;
 	    }
 	    XDrawLine( XtDisplay(Graphics),GWFrame(Graphics), AnGcontext,
-	        left+(int)(i*ticPix), begin + 1+abs(y1-y2)+2, left+(i*ticPix), 
-		begin+1+abs(y1-y2)+5);
+		      left+(int)(i*ticPix), begin + 1+abs(y1-y2)+2, 
+		      left+(int)(i*ticPix), begin+1+abs(y1-y2)+5);
 
 	}
 	XDrawLine( XtDisplay(Graphics),GWFrame(Graphics), AnGcontext,
