@@ -62,7 +62,7 @@ float	Origin_lat;
 # define RAD_TO_DEG(x)	((x)*57.29577951)
 # define DEG_TO_KM(x)	((x)*111.3238367) /* on a great circle */
 
-int	Mdays[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+int	Mdays[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 
 /*
  * Prototypes
@@ -322,7 +322,7 @@ char	*platform, *fname;
 		Mdays[2] = 29;	/* February has 29 days in leap years */
 
 	day = header[3] % 1000;
-	month = 0;
+	month = 1;
 	while (day > Mdays[month])
 		day -= Mdays[month++];
 
