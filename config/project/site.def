@@ -123,27 +123,17 @@ XCOMM site:  $XConsortium: site.sample,v 1.9 94/04/08 17:02:06 rws Exp $
 
 #ifndef CCOptions
 # if UseGcc
-#  ifdef OSF1Architecture
-#    define CCOptions
-#    define ExtraLoadOptions -Xlinker -taso -Xlinker -non_shared
-#    define CplusplusOptions OptimizedCDebugFlags
-#  else
 #  define CCOptions OptimizedCDebugFlags
 #  define CplusplusOptions OptimizedCDebugFlags
-#  endif
 # else
 #  ifdef HPArchitecture
 #   define CCOptions -Aa  /* now that we handle it, we may as well use it */
 #  else
-#   ifdef OSF1Architecture
-#    define CCOptions -taso -non_shared
-#   else
-#    ifdef AIXArchitecture
-#     define CCOptions -U__STR__ -qlanglvl=ansi
-#    else  
-#     define CCOptions /**/
-#    endif /*AIX*/
-#   endif /* OSF1-Alpha */
+#   ifdef AIXArchitecture
+#    define CCOptions -U__STR__ -qlanglvl=ansi
+#   else  
+#    define CCOptions /**/
+#   endif /*AIX*/
 #  endif /* HP */
 # endif /* UseGcc */
 #endif
