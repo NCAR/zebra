@@ -8,21 +8,18 @@ XCOMM Nearly all of the source files in this directory are U. of Wisconsin
 XCOMM SSEC copyrighted code and should *not* be distributed outside 
 XCOMM of NCAR/UCAR.
 
-MFVERSION = "$Id: Imakefile,v 1.13 2003-01-27 22:20:21 burghart Exp $"
+MFVERSION = "$Id: Imakefile,v 1.14 2003-01-29 17:31:45 burghart Exp $"
 
-REALMCIDAS=$(McINST_ROOT)/src/libmcidas.a
-CHECKOBJ=$(McINST_ROOT)/src/alit.o
+REALMCIDASLIB=$(McINST_ROOT)/src/libmcidas.a
 
 SRCS = mcidas_nav.c
 
 HEADERS = mcidas_nav.h
 
-ALLSRCS = $(FSRCS) $(SRCS)
-
-NAVOBJS = nvxdmsp.o nvxgoes.o nvxgraf.o nvxgvar.o nvxlamb.o nvxmerc.o \
-	  nvxmoll.o nvxmsat.o nvxps.o nvxradr.o nvxrect.o nvxsin.o \
-	  nvxtanc.o nvxtiro.o nvxgmsx.o nvxairc.o nvxlalo.o nvxmsg.o \
-          nvxnowr.o
+NAVOBJS = nvxairc.o nvxdmsp.o nvxgmsx.o nvxgoes.o nvxgraf.o nvxgvar.o \
+          nvxlalo.o nvxlamb.o nvxmerc.o nvxmoll.o nvxmsat.o nvxmsg.o \
+          nvxnowr.o nvxps.o nvxradr.o nvxrect.o nvxsin.o nvxtanc.o \
+          nvxtiro.o
 
 OBJS =  $(SRCS:.c=.o) $(NAVOBJS)
 
@@ -33,14 +30,15 @@ OBJS =  $(SRCS:.c=.o) $(NAVOBJS)
  */
 DEFINES = -DUNDERSCORE=1
 
-DISTFILES = Imakefile $(ALLSRCS) $(HEADERS) README
+DISTFILES = Imakefile $(SRCS) $(HEADERS) README
 
-MCIDASOBJS=
+all:: libmcidas.a
+install:: all
 
-all:: mcidascheck
-install:: mcidascheck
-
-NormalLibraryTarget(mcidas,$(OBJS) $(wildcard $(McINST_ROOT)/src/?*.o))
+libmcidas.a: hex80.inc $(REALMCIDASLIB) $(OBJS)
+	$(CP) $(REALMCIDASLIB) $@
+	$(AR) $@ $(OBJS)
+	$(RANLIB) $@
 
 InstallLibrary(mcidas,$(LIBDIR))
 
@@ -74,39 +72,36 @@ clean::									@@\
  * These name substitutions must match the method names used in mcidas.c!
  * And they must begin with I-N so FORTRAN returns an integer type!
  */
+NavRule(nvxairc,NAI)
 NavRule(nvxdmsp,NDM)
 NavRule(nvxgraf,NGR)
 NavRule(nvxgvar,NGV)
+NavRule(nvxlalo,NLO)
 NavRule(nvxlamb,NLA)
 NavRule(nvxmerc,NME)
 NavRule(nvxmoll,NMO)
 NavRule(nvxmsat,NMS)
+NavRule(nvxmsg,NMG)
+NavRule(nvxnowr,NOW)
 NavRule(nvxps,NPS)
 NavRule(nvxradr,NRA)
 NavRule(nvxrect,NRC)
 NavRule(nvxsin,NSI)
 NavRule(nvxtanc,NTA)
 NavRule(nvxtiro,NTI)
-NavRule(nvxairc,NAI)
-NavRule(nvxlalo,NLO)
-NavRule(nvxmsg,NMG)
-NavRule(nvxnowr,NOW)
 
 NavRuleSed(nvxgoes,NGS,goes.sed)
 NavRuleSed(nvxgmsx,NGX,goes.sed)
 
-mcidascheck: checkpath $(McINST_ROOT)/jpeg/jconfig.h $(CHECKOBJ)
-
-$(CHECKOBJ): $(McINST_ROOT)/jpeg/jconfig.h
+$(REALMCIDASLIB): $(McINST_ROOT)/jpeg/jconfig.h
 	(cd $(McINST_ROOT)/src && make mclog mcar mccomp mcfc && \
 	 make VENDOR=-g77 libmcidas.a)
-
 
 $(McINST_ROOT)/jpeg/jconfig.h: 
 	@echo "Configuring $(McINST_ROOT)/jpeg to create jconfig.h" ; \
 	(cd $(McINST_ROOT)/jpeg && ./configure)
 
-checkpath: 
+hex80.inc: 
 	@if [ ! -f $(McINST_ROOT)/src/hex80.inc ]; then \
 	echo "McINST_ROOT not set correctly.  Set McINST_ROOT to the top"; \
 	echo "directory of the MCIDAS source tree."; \
