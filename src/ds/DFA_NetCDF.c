@@ -31,7 +31,7 @@
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dslib.h"
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.6 1992-08-10 17:30:54 corbet Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.7 1992-09-01 21:46:43 burghart Exp $")
 
 # include "netcdf.h"
 
@@ -706,7 +706,30 @@ char *s;
  * Report a NETCDF error.
  */
 {
-	msg_ELog (EF_PROBLEM, "NetCDF error %d -- %s", ncerr, s);
+/*
+ * error number -> message mapping (taken from netcdf.h)
+ */
+	static char *errmsg[] =
+	{ 
+	  "no error", "bad NetCDF id", "too many files open", 
+	  "can't overwrite file", "invalid argument", "write to read only",
+	  "op not allowed in data mode", "op not allowed in define mode",
+	  "coordinates out of domain", "MAX_NC_DIMS exceeded", "name in use",
+	  "attribute not found", "MAX_NC_ATTRS exceeded", 
+	  "not a NetCDF data type", "invalid dimension id", 
+	  "NC_UNLIMITED in wrong index", "MAX_NC_VARS exceeded", 
+	  "variable not found", "bad action on NC_GLOBAL varid", 
+	  "not a NetCDF file", "string too short", "MAX_NC_NAME exceeded",
+	  "NC_UNLIMITED size already in use"
+	};
+/*
+ * Print the error message
+ */
+	if (ncerr <= 22)
+		msg_ELog (EF_PROBLEM, "NetCDF error %d (%s) -- %s", ncerr, 
+			errmsg[ncerr], s);
+	else
+		msg_ELog (EF_PROBLEM, "NetCDF error %d -- %s", ncerr, s);
 }
 
 
