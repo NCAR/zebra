@@ -1,11 +1,11 @@
-MFVERSION="$Id: Makefile.cpp,v 1.1 1991-08-05 16:58:33 corbet Exp $"
+MFVERSION="$Id: Makefile.cpp,v 1.2 1991-09-26 17:16:16 gracio Exp $"
 
 # ifdef sun
 /*
  * Sun options
  */
 CC=gcc
-CFLAGS=-g -O -I/fcc/include -I/rdss/include
+CFLAGS=-g -O -I$(ZEBHOME)/fcc/include -I$(ZEBHOME)/rdss/include
 LIBS=../lib/libfcc.a -lrdss -ltermcap -lXaw -lXmu -lXt -lXext -lX11 -lm
 # endif
 
@@ -13,7 +13,7 @@ LIBS=../lib/libfcc.a -lrdss -ltermcap -lXaw -lXmu -lXt -lXext -lX11 -lm
 /*
  * Ardent options
  */
-CFLAGS = -g -DUNIX -43 -I/fcc/include -I/rdss/include
+CFLAGS = -g -DUNIX -43 -I$(ZEBHOME)/fcc/include -I$(ZEBHOME)/rdss/include
 LIBS=../lib/libfcc.a -lrdss -ltermcap -L/usr/lib/X11 -lXaw -lXmu -lXt -lXext -lX11 -lm
 # endif
 
@@ -54,7 +54,7 @@ Makefile: Makefile.cpp
 	rm -f Makefile.c
 
 coda:
-	(cd /fcc; CODA=/fcc/.codarc; export CODA; coda dm)
+	(cd $(ZEBHOME)/fcc; CODA=$(ZEBHOME)/fcc/.codarc; export CODA; coda dm)
 
 depend:
 	makedepend $(CFLAGS) *.c
