@@ -23,7 +23,7 @@
 # include <ui_error.h>
 # include "dm_vars.h"
 # include "dm_cmds.h"
-MAKE_RCSID ("$Id: dm_ui.c,v 2.3 1992-02-07 21:03:48 corbet Exp $")
+MAKE_RCSID ("$Id: dm_ui.c,v 2.4 1993-10-14 20:12:20 corbet Exp $")
 
 
 
@@ -354,6 +354,68 @@ union usy_value *argv, *retv;
 			argv[2].us_v_ptr, junk, SYMT_STRING);
 }
 
+
+
+int
+pd_complist (narg, argv, argt, retv, rett)
+int narg, *argt, *rett;
+SValue *argv, *retv;
+/*
+ * Return a space-separated (foreachable) list of the components in
+ * the given PD.
+ */
+{
+	char tmp[500];
+	plot_description find_pd ();
+	plot_description pd = find_pd (argv[0].us_v_ptr);
+	char **comps;
+
+	*rett = SYMT_STRING;
+	tmp[0] = '\0';
+/*
+ * If they gave us a bogus PD name, give them a bogus answer back.
+ */
+	if (! pd)
+	{
+		*retv = usy_string ("bogus");
+		return;
+	}
+/*
+ * Get the components and make up a nice string.
+ */
+	for (comps = pd_CompList (pd); *comps; comps++)
+	{
+		strcat (tmp, *comps);
+		if (comps[1])
+			strcat (tmp, " ");
+	}
+/*
+ * Done.
+ */
+	retv->us_v_ptr = usy_string (tmp);
+}
+
+
+nvalue (narg, argv, argt, retv, rett)
+int narg, *argt, *rett;
+union usy_value *argv, *retv;
+/*
+ * CLF: nvalue (pd, comp, param)
+ *
+ * Returns the number of values specified for this parameter.
+ */
+{
+	char *vals[32], tmp[500];
+	plot_description find_pd ();
+	plot_description pd = find_pd (argv[0].us_v_ptr);
+
+	*rett = SYMT_INT;
+	if (pd && pd_Retrieve (pd, argv[1].us_v_ptr, argv[2].us_v_ptr, tmp,
+			       SYMT_STRING))
+		retv->us_v_int = CommaParse (tmp, vals);
+	else
+		retv->us_v_int = 0;
+}
 
 
 

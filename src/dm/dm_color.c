@@ -1,7 +1,7 @@
 /*
  * Color table routines.
  */
-static char *rcsid = "$Id: dm_color.c,v 2.3 1993-07-01 20:12:30 granger Exp $";
+static char *rcsid = "$Id: dm_color.c,v 2.4 1993-10-14 20:12:18 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -196,6 +196,46 @@ char *name;
 	if (! usy_g_symbol (Ct_table, name, &type, &v))
 		return (NULL);
 	return ((CTable *) v.us_v_ptr);
+}
+
+
+
+
+int
+NthColor (narg, argv, argt, retv, rett)
+int narg, *argt, *rett;
+SValue *argv, *retv;
+/*
+ * The NthColor clf.
+ *
+ *	set color NthColor(table, n)
+ */
+{
+	char ret[32];
+	int n = argv[1].us_v_int;
+	CTable *ct = dc_LookupTable (argv->us_v_ptr);
+	XColor *xc;
+/*
+ * No table, no color.
+ */
+	*rett = SYMT_STRING;
+	if (! ct)
+	{
+		*retv = usy_string ("white");
+		return;
+	}
+/*
+ * Pull it out.
+ */
+	if (n >= 0 && n < ct->ct_ncolor)
+	{
+		xc = ct->ct_colors + n;
+		sprintf (ret, "rgb:%02x/%02x/%02x", xc->red, xc->green,
+			 xc->blue);
+		*retv = usy_string (ret);
+	}
+	else
+		*retv = usy_string ("hot pink");	/* WTH */
 }
 
 
