@@ -51,7 +51,7 @@
 # include <message.h>
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.26 1995-04-25 20:21:20 granger Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.27 1995-04-25 21:11:09 corbet Exp $")
 /*
  * Symbol tables.
  */
@@ -1380,8 +1380,17 @@ int fd;
  */
 	if (! cp->c_inprog)
 	{
-		/* nb = msg_netread (fd, msg, sizeof (struct message)); */
 		nb = msg_XX_netread (fd, (char *)msg, sizeof (struct message));
+	/*
+	 * Check for a negative return.  Solaris 2.4 seems to drop out of
+	 * a select for network connections before it is actually willing
+	 * to hand over the data....
+	 *
+	 * As an extra weirdness, neither gcc-2.6.3 nor Sun CC correctly
+	 * test a negative value against sizeof(...).  Weird.
+	 */
+		if (nb < 0)
+			return (0);
 	/*
 	 * If we get nothing, the connection has been broken.
 	 */
