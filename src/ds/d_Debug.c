@@ -14,7 +14,7 @@
 # include "commands.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID("$Id: d_Debug.c,v 3.14 2002-01-19 06:50:02 granger Exp $")
+MAKE_RCSID("$Id: d_Debug.c,v 3.15 2005-01-10 21:42:48 granger Exp $")
 
 static struct flagmask {
 	unsigned short mask;
@@ -261,7 +261,7 @@ char *who;
 {
 	char buf[1024];
 	time_t now = time (NULL);
-	extern Source **Srcs;	/* from Daemon.c */
+	extern Source *Srcs[];	/* from Daemon.c */
 	extern int NSrcs;	/* from Daemon.c */
 	int s;
 
@@ -298,12 +298,12 @@ char *who;
 	for (s = 0; s < NSrcs; s++)
 	{
 	    sprintf (buf+strlen(buf), "%18s: %s%s%s%s%s\n", 
-		     src_Name (Srcs + s),
-		     src_IsDirConst (Srcs + s) ? "DirConst, " : "", 
-		     src_IsFileConst (Srcs + s) ? "FileConst, " : "",
-		     src_RemembersAll (Srcs + s) ? "RememberAll, " : "",
-		     src_DirsAreForced (Srcs + s) ? "ForceDirs, " : "",
-		     src_RootDir (Srcs + s));
+		     src_Name (Srcs[s]),
+		     src_IsDirConst (Srcs[s]) ? "DirConst, " : "", 
+		     src_IsFileConst (Srcs[s]) ? "FileConst, " : "",
+		     src_RemembersAll (Srcs[s]) ? "RememberAll, " : "",
+		     src_DirsAreForced (Srcs[s]) ? "ForceDirs, " : "",
+		     src_RootDir (Srcs[s]));
 	}
 	msg_AnswerQuery (who, buf);
 
