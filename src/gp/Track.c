@@ -37,7 +37,7 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 # include "DrawText.h"
-MAKE_RCSID ("$Id: Track.c,v 2.9 1991-12-05 22:50:59 corbet Exp $")
+MAKE_RCSID ("$Id: Track.c,v 2.10 1991-12-05 23:26:25 corbet Exp $")
 
 # define ARROWANG .2618 /* PI/12 */
 
@@ -49,7 +49,8 @@ static bool tr_CCSetup FP((char *, char *, char *, char *, XColor **,
 		int *, float *, float *, XColor *, float *, float *));
 static void tr_GetArrowParams FP((char *, char *, float *, int *, int *,
 		int *, char *, XColor *, char *, char *, char *));
-
+static bool tr_CTSetup FP((char *, char *, PlatformId *, int *, int *,
+		char *, bool *, char *, int *, char *));
 # define BADVAL -32768
 
 
@@ -58,15 +59,13 @@ tr_CAPTrack (comp, update)
 char *comp;
 bool update;
 {
-	char platform[30], tp[30], ccfield[30], datastr[100];
+	char platform[30], ccfield[30], datastr[100], positionicon[40];
 	char *fields[5], mtcolor[20], string[40], ctable[30], a_color[30];
-	char a_xfield[30], a_yfield[30];
-	char a_type[30], tadefcolor[30];
-	char positionicon[40];
+	char a_xfield[30], a_yfield[30], a_type[30], tadefcolor[30];
 	int period, dsperiod, x0, y0, x1, y1, nc, lwidth, pid, index;
 	int dskip = 0, npt = 0, i, top, bottom, left, right, wheight, mid;
 	int arrow, a_invert, a_int, numfields = 1, dummy, xannot, yannot;
-	int a_lwidth, tacmatch, ctlimit, showposition;
+	int a_lwidth, tacmatch, showposition;
 	long timenow, vectime = 0;
 	unsigned int udummy, dwidth, dheight;
 	bool mono; 
@@ -75,78 +74,24 @@ bool update;
 	float a_x, a_y, unitlen, sascale, center, step;
 	Drawable d;
 	Window win;
-	Display *disp = XtDisplay (Graphics);
 	XColor xc, *colors, outrange, a_clr, taclr, tadefclr;
 	DataObject *dobj;
-
 /*
- * Get our platform first, since that's what is of interest to us.
+ * Pull in our parameters.
  */
-	if (! pda_ReqSearch (Pd,comp, "platform", NULL, platform, SYMT_STRING))
+	if (! tr_CTSetup (comp, platform, &pid, &period, &dskip, mtcolor,
+			&mono, ccfield, &showposition, positionicon));
 		return;
-	if ((pid = ds_LookupPlatform (platform)) == BadPlatform)
-	{
-		msg_ELog (EF_PROBLEM, "Unknown platform '%s'", platform);
-		return;
-	}
-/*
- * Make sure that we'll get the right sort of stuff.
- */
-	if (! ds_IsMobile (pid))
-	{
-		msg_ELog (EF_PROBLEM, "Track attempted on static platform %s",
-			platform);
-		return;
-	}
-/*
- * Pull out other parameters of interest.
- */
-# ifdef notdef
-	if (! tr_GetParam (comp, update ? "trigger" : "time-period", platform,
-			tp, SYMT_STRING))
-# endif
-	if (! tr_GetParam (comp, "time-period", platform, tp, SYMT_STRING))
-		period = 300;
-	else if ((period = pc_TimeTrigger (tp)) == 0)
-	{
-		msg_ELog (EF_PROBLEM, "Unparsable time-period: '%s'", tp);
-		period = 300;
-	}
 	if (update)
 		period = period/4;
-/*
- * Do they want us to pare things down?
- */
-	if (! tr_GetParam (comp, "data-skip", platform, (char *) &dskip,
-			SYMT_INT))
-		dskip = 0;
-/*
- * Color info.
- */
-	if (! tr_GetParam (comp, "color", platform, mtcolor,SYMT_STRING))
-		strcpy (mtcolor, "white");
+
 /*
  * Color code field.
  */
-	mono = ! (tr_GetParam (comp, "field", platform, ccfield, SYMT_STRING)
-			|| tr_GetParam (comp, "color-code-field", platform,
-				ccfield, SYMT_STRING));
 	if (! mono)
 	{
 		mono = ! tr_CCSetup (comp, platform, ccfield, ctable, &colors,
 				&nc, &base, &incr, &outrange, &center, &step);
-	}
-/*
- * Show the location?
- */
-	if (! tr_GetParam (comp, "show-position", platform, 
-		(char *) &showposition, SYMT_BOOL))
-		showposition = FALSE;
-	if (showposition && (! tr_GetParam (comp, "position-icon", platform, 
-		positionicon, SYMT_STRING)))
-	{
-			msg_ELog (EF_PROBLEM, "Show position, but no icon.");
-			showposition = FALSE;
 	}
 /*
  * Put together the field list.
@@ -178,15 +123,15 @@ bool update;
 /*
  * Read in annotation information.
  */
-	if(! tr_GetParam("global", "ta-color", NULL, tadefcolor, 
-		SYMT_STRING))
-		strcpy(tadefcolor, "white");
-	if(! ct_GetColorByName(tadefcolor, &tadefclr))
+	if(! tr_GetParam ("global", "ta-color", NULL, tadefcolor, 
+			SYMT_STRING))
+		strcpy (tadefcolor, "white");
+	if(! ct_GetColorByName (tadefcolor, &tadefclr))
 	{
-		msg_ELog(EF_PROBLEM,"Can't get default color: '%s'.", 
+		msg_ELog (EF_PROBLEM,"Can't get default color: '%s'.", 
 			tadefcolor);
-		strcpy(tadefcolor,"white");
-		ct_GetColorByName(tadefcolor,&tadefclr);
+		strcpy (tadefcolor,"white");
+		ct_GetColorByName (tadefcolor,&tadefclr);
 	}
 	tacmatch = FALSE;
 	tr_GetParam("global", "ta-color-match", NULL, (char *) &tacmatch,
@@ -197,10 +142,6 @@ bool update;
 	if(! tr_GetParam(comp, "sa-scale", platform, (char *) &sascale,
 		SYMT_FLOAT))
 		sascale = 0.02;
-	if(! tr_GetParam(comp, "ct-limit", platform, (char *) &ctlimit,
-		SYMT_INT))
-		ctlimit = 1;
-	if(ctlimit < 1) ctlimit = 1;
 /*
  * Figure the begin time.
  */
@@ -234,17 +175,13 @@ bool update;
 	if (mono)
 	{
 		ct_GetColorByName (mtcolor, &xc);
-		XSetForeground (disp, Gcontext, xc.pixel);
+		XSetForeground (Disp, Gcontext, xc.pixel);
 	}
 	d = GWFrame (Graphics);
 /*
  * How wide do they like their lines?
  */
-	if (! tr_GetParam (comp, "line-width", platform, (char *) &lwidth,
-			SYMT_INT))
-		lwidth = 0;
-	XSetLineAttributes (disp, Gcontext, lwidth, LineSolid,
-			CapButt, JoinMiter);
+	lwidth = SetLWidth (comp, "line-width", platform, 0);
 /*
  * Now work through the data.
  */
@@ -271,19 +208,17 @@ bool update;
 			   ((vectime + a_int) < timenow))
 			{
 				vectime = timenow - timenow % a_int;
-				XGetGeometry(disp, d, &win, &dummy, &dummy,
+				XGetGeometry(Disp, d, &win, &dummy, &dummy,
 					&dwidth, &dheight, &udummy, 
 					&udummy);
 				unitlen = dheight * a_scale;
-				XSetForeground(disp, Gcontext, a_clr.pixel);
+				XSetForeground(Disp, Gcontext, a_clr.pixel);
 				a_x = *(a_xdata + i - 1);
-				XSetLineAttributes (disp, Gcontext, a_lwidth, 
-					LineSolid, CapButt, JoinMiter);
+				FixLWidth (a_lwidth);
 				a_y = *(a_ydata + i - 1);
-				draw_vector (disp, d, Gcontext, x0, y0, 
+				draw_vector (Disp, d, Gcontext, x0, y0, 
 					a_x, a_y, unitlen);
-				XSetLineAttributes (disp, Gcontext, lwidth, 
-					LineSolid, CapButt, JoinMiter);
+				FixLWidth (lwidth);
 			}
 		}
 	/*
@@ -292,14 +227,14 @@ bool update;
 	 	if (! mono)
 		{
 			index = (data[i] - base)/incr;
-			XSetForeground (disp, Gcontext,
+			XSetForeground (Disp, Gcontext,
 				(index >= 0 && index < nc) ?
 				colors[index].pixel : outrange.pixel);
 		}
 	/*
 	 * Finally draw the line.
 	 */
-		XDrawLine (disp, d, Gcontext, x0, y0, x1, y1); 
+		XDrawLine (Disp, d, Gcontext, x0, y0, x1, y1); 
 		x0 = x1; y0 = y1;
 	}
 /*
@@ -309,7 +244,7 @@ bool update;
 		if (mono) ov_PositionIcon (positionicon, x0, y0, xc.pixel);
 		else ov_PositionIcon (positionicon, x0, y0, (index >= 0 &&
 			index < nc) ? colors[index].pixel : outrange.pixel);
-	XSetLineAttributes (disp, Gcontext, 0, LineSolid, CapButt, JoinMiter);
+	ResetGC ();
 /*
  * Put in the status line before we lose the data object, then get rid of it.
  * (Only do it if this isn't an update.  It won't get printed anyway, and
@@ -369,6 +304,84 @@ bool update;
 			}
 		}
 	}
+}
+
+
+
+
+
+static bool
+tr_CTSetup (comp, platform, pid, period, dskip, mtcolor, mono, ccfield,
+	showposition, positionicon)
+char *comp, *platform, *mtcolor, *ccfield, *positionicon;
+PlatformId *pid;
+int *period, *dskip, *showposition;
+bool *mono;
+/*
+ * Do the basic setup to plot aircraft tracks.
+ */
+{
+	char tmp[80];
+/*
+ * Get our platform first, since that's what is of interest to us.
+ */
+	if (! pda_ReqSearch (Pd,comp, "platform", NULL, platform, SYMT_STRING))
+		return (FALSE);
+	if ((*pid = ds_LookupPlatform (platform)) == BadPlatform)
+	{
+		msg_ELog (EF_PROBLEM, "Unknown platform '%s'", platform);
+		return;
+	}
+/*
+ * Make sure that we'll get the right sort of stuff.
+ */
+	if (! ds_IsMobile (*pid))
+	{
+		msg_ELog (EF_PROBLEM, "Track attempted on static platform %s",
+			platform);
+		return (FALSE);
+	}
+/*
+ * Pull out other parameters of interest.
+ */
+	if (! tr_GetParam (comp, "time-period", platform, tmp, SYMT_STRING))
+		*period = 300;
+	else if ((*period = pc_TimeTrigger (tmp)) == 0)
+	{
+		msg_ELog (EF_PROBLEM, "Unparsable time-period: '%s'", tmp);
+		*period = 300;
+	}
+/*
+ * Do they want us to pare things down?
+ */
+	if (! tr_GetParam (comp, "data-skip", platform, (char *) &dskip,
+			SYMT_INT))
+		dskip = 0;
+/*
+ * Color info.
+ */
+	if (! tr_GetParam (comp, "color", platform, mtcolor,SYMT_STRING))
+		strcpy (mtcolor, "white");
+/*
+ * Color code field.
+ */
+	*mono = ! (tr_GetParam (comp, "field", platform, ccfield, SYMT_STRING)
+			|| tr_GetParam (comp, "color-code-field", platform,
+				ccfield, SYMT_STRING));
+
+/*
+ * Show the location?
+ */
+	if (! tr_GetParam (comp, "show-position", platform, 
+				(char *) showposition, SYMT_BOOL))
+		*showposition = FALSE;
+	if (*showposition && (! tr_GetParam (comp, "position-icon", platform, 
+			positionicon, SYMT_STRING)))
+	{
+		msg_ELog (EF_PROBLEM, "Show position, but no icon.");
+		*showposition = FALSE;
+	}
+	return (TRUE);
 }
 
 
