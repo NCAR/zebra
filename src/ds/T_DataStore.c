@@ -380,7 +380,7 @@ char *plat;
 		msg_ELog (EF_PROBLEM, 
 			  "ds_GetFields('%s',nfld=10) failed", plat);
 	}
-	else if (nfield != dc_nfield)
+	else if (nfield < dc_nfield)
 	{
 		++errors;
 		msg_ELog (EF_PROBLEM, 
@@ -389,20 +389,20 @@ char *plat;
 	}
 	else
 	{
-		for (i = 0; i < nfield; ++i)
+		for (i = 0; i < dc_nfield; ++i)
 		{
 			for (j = 0; j < nfield; ++j)
-				if (fields[i] == dc_fields[j])
+				if (fields[j] == dc_fields[i])
 					break;
 			if (j >= nfield)
 				break;
 		}
-		if (i < nfield)
+		if (i < dc_nfield)
 		{
 			++errors;
 			msg_ELog (EF_PROBLEM,
-				  "ds_GetFields(): field %d incorrect", 
-				  fields[i]);
+				  "ds_GetFields(): field %d of %d incorrect", 
+				  i, dc_nfield);
 		}
 	}
 	/*
