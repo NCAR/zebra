@@ -1,3 +1,13 @@
+Thu May 25 09:41:44 1995  Gary Granger  <granger@narnia.atd.ucar.edu>
+
+	* Tagged modules zebra, ui, and util: V4_2_alpha_ARM
+
+	* imake R6 transition: significant changes in the directory
+	  structure, project rules, project template, and Imakefiles to
+	  accomodate Release 6 of imake.
+
+	* combined builds of RDSS ui and util with BuildRDSS symbol
+
 Mon May  8 13:26:57 1995  Gary Granger  <granger@narnia.atd.ucar.edu>
 
 	* display manager: defaults to singleton mode (-single); -multiple
