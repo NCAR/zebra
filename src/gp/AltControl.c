@@ -41,7 +41,7 @@
  */
 int	AltControlComp;
 
-MAKE_RCSID("$Id: AltControl.c,v 2.13 1994-11-19 00:34:25 burghart Exp $")
+MAKE_RCSID("$Id: AltControl.c,v 2.14 1995-04-17 21:07:11 granger Exp $")
 
 # define MAXALT		80	/* Max heights we expect to see		*/
 
@@ -147,6 +147,7 @@ alt_GetControlComp ()
 	
 void
 alt_Step (nstep)
+int nstep;
 /*
  * Step the altitude by this many steps and schedule a replot.
  */
@@ -186,6 +187,8 @@ int nstep;
 	    (! pd_Retrieve (Pd, comps[AltControlComp], "field", field, 
 			   SYMT_STRING) &&
 	     ! pd_Retrieve (Pd, comps[AltControlComp], "u-field", field,
+			    SYMT_STRING) &&
+	     ! pd_Retrieve (Pd, comps[AltControlComp], "wspd-field", field,
 			    SYMT_STRING)))
 	{
 		pd_Store (Pd, "global", "altitude-label", "",
@@ -241,9 +244,10 @@ int nstep;
 		}
 	/*
 	 * semi-KLUGE: Force the array to be increasing if altitude or 
-	 * decreasing if pressure
+	 * decreasing if pressure or sigma
 	 */
-		if ((altunits == AU_mb && alts[0] < alts[1]) ||
+		if (((altunits == AU_mb || altunits == AU_sigma)
+		     && alts[0] < alts[1]) ||
 		    (altunits != AU_mb && alts[0] > alts[1]))
 		{
 			for (i = 0; i < nalt / 2; i++)
@@ -301,7 +305,7 @@ int nstep;
 /*
  * Stash the new altitude
  */
-	sprintf (scratch, "%.2f", alts[closest]);
+	sprintf (scratch, "%.4f", alts[closest]);
 	pd_Store (Pd, "global", "altitude", scratch, SYMT_STRING);
 /*
  * and the new altitude label
