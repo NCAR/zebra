@@ -1,4 +1,4 @@
-XCOMM $Id: Imakefile,v 1.16 1994-02-25 03:02:21 granger Exp $
+XCOMM $Id: Imakefile,v 1.17 1994-04-15 19:58:20 granger Exp $
 XCOMM
 XCOMM This is the top-level Imakefile for the Zeb distribution.
 XCOMM It is modeled after the top-level Imakefile of the MIT X11R5
@@ -17,6 +17,9 @@ XCOMM distribution.
 
           ETAGS = etags
      ETAGSFLAGS = -T
+
+        ZIPPIPE = gzip -c
+         ZIPEXT = gz
 
 XCOMM Note that for distributions, Makefile should be a copy of 
 XCOMM Makefile.ini and NOT the Makefile created by imake.  The tarfile
@@ -142,8 +145,8 @@ distclean::
 /*
  * This is the top-level rule for generating tar files of the distributed
  * files.  The list of files to tar is gotten from the distfiles target.
- * The name of the tarfile can be changed by setting the TARNAME variable
- * on the command line.  It defaults to zebdist.
+ * The name of the tarfile can be changed by setting the TARFILE variable
+ * on the command line.
  *
  * The -s (silent) option is necessary to get GNU make to not print out
  * its commands for automatically checking for or checking out files.
@@ -166,7 +169,7 @@ TARFILE = zeb-4.0
 SRCFILE = zeb-src
 
 tarfile:
-	@echo Making file $(TARFILE).tar.Z ; \
+	@echo Making file $(TARFILE).tar.$(ZIPEXT) ; \
 	if mkdir $(TARFILE) ; then \
 	  (set -x; \
 	   cd $(TARFILE); \
@@ -178,16 +181,16 @@ tarfile:
 	  ) ; \
 	  tar cvhf - $(LINKNAMES) \
 	     `$(MAKE) MAKE=$(MAKE) $(MFLAGS) -s DISTCURDIR=$(TARFILE) distfiles` | \
-		  compress -c > $(TARFILE).tar.Z ; \
+		  $(ZIPPIPE) > $(TARFILE).tar.$(ZIPEXT) ; \
 	  rm -rf $(TARFILE) ; \
-	  echo Done making $(TARFILE).tar.Z ; \
+	  echo Done making $(TARFILE).tar.$(ZIPEXT) ; \
 	else \
 	  echo "Cannot make directory '$(TARFILE)'!  Aborting."; \
 	  false ; \
 	fi
 
 srcfile:
-	@echo Making file $(SRCFILE).tar.Z ; \
+	@echo Making file $(SRCFILE).tar.$(ZIPEXT) ; \
 	if mkdir $(SRCFILE) ; then \
 	  (set -x; \
 	   cd $(SRCFILE); for f in $(DISTFILES) $(SRCSUBDIRS); do \
@@ -196,9 +199,9 @@ srcfile:
 	  tar cvhf - \
 	     `$(MAKE) MAKE=$(MAKE) $(MFLAGS) -s DISTCURDIR=$(SRCFILE) \
 	      DISTSUBDIRS="$(SRCSUBDIRS)" distfiles ` | \
-		  compress -c > $(SRCFILE).tar.Z ; \
+		  $(ZIPPIPE) > $(SRCFILE).tar.$(ZIPEXT) ; \
 	  rm -rf $(SRCFILE) ; \
-	  echo Done making $(SRCFILE).tar.Z ; \
+	  echo Done making $(SRCFILE).tar.$(ZIPEXT) ; \
 	else \
 	  echo "Cannot make directory '$(SRCFILE)'!  Aborting."; \
 	  false ; \
