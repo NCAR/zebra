@@ -50,7 +50,7 @@
  * OldOpenWin to Yes.
  */
 # define UseOpenWin No
-# define OldOpenWin Yes
+# define OldOpenWin No
 
 /*
  * You can change the location of OpenWindow's home directory here:
