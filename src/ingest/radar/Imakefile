@@ -15,46 +15,51 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.3 1993-07-01 20:15:57 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.4 1993-08-18 15:34:20 burghart Exp $"
 
 LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
 
-SRCS =  radar_ingest.c mtape.c Input.c Rasterize.c StatusWidget.c \
-	RadarStatus.c XDisplay.c ds_consumer.c
+SRCS =  radar_ingest.c adrad_ingest.c adradInput.c Input.c mtape.c \
+	Rasterize.c StatusWidget.c XDisplay.c ds_consumer.c adradFieldList.c \
+	RadarStatus.c
 
-OBJS = radar_ingest.o mtape.o Input.o Rasterize.o StatusWidget.o
+OBJS =	radar_ingest.o adrad_ingest.o adradInput.o Input.o mtape.o \
+	Rasterize.o StatusWidget.o XDisplay.o ds_consumer.o adradFieldList.o \
+	RadarStatus.o
 
-HDRS = Ethernet.h HouseKeeping.h RadarInfo.h Types.h display.h radar_ingest.h
+HDRS =  Ethernet.h HouseKeeping.h RadarInfo.h Types.h cvrt.h display.h \
+	portable.h radar.h radar_ingest.h radinfo.h raw.h sunrise_head.h \
+	sunrise_time.h xdr.h
 
-APPDEFAULTS = radar_ingest.ad RadarStatus.ad
+APPDEFAULTS = radar_ingest.ad adrad_ingest.ad 
 
 DISTFILES = Imakefile $(SRCS) $(HDRS) $(APPDEFAULTS) \
-	    radar_ingest.state cp4.lr.params cp4.params \
-	    cp4disk.p mhr.params mhrdisk.p
+	    radar_ingest.state cp4.params adrad_ingest.state adrad.params 
 
-/*-----------------------------------------------------------------------*/
-#if BuildRadarIngest && BuildIngest
+NormalProgramTargetNoInstall(radar_ingest,radar_ingest.o mtape.o Rasterize.o
+	StatusWidget.o Input.o, $(DEPLIBS),$(LIBS),$(SYSLIBS))
 
-NormalProgramTargetNoInstall(radar_ingest,
-	$(OBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
+NormalProgramTargetNoInstall(adrad_ingest,adrad_ingest.o Rasterize.o 
+	adradInput.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
-UILoadFileTarget(radar_ingest.lf,radar_ingest.state)
+NormalProgramTarget(adradFieldList,
+	adradFieldList.o adradInput.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
+
+UILoadFileTarget(radar_ingest.lf,adrad_ingest.state)
+
+UILoadFileTarget(adrad_ingest.lf,adrad_ingest.state)
 
 InstallProgramSetUID(radar_ingest,$(BINDIR))
 
+InstallProgramSetUID(adrad_ingest,$(BINDIR))
+
 InstallAppDefaults(radar_ingest)
-InstallAppDefaults(RadarStatus)
 
-TestProgramTarget(ds_consumer,ds_consumer.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
+InstallAppDefaults(adrad_ingest)
 
-NormalProgramTarget(RadarStatus,RadarStatus.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
+NormalProgramTarget(ds_consumer,ds_consumer.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
 LintTarget()
 DependTarget()
-/*-----------------------------------------------------------------------*/
-#else
-OmitBuildRules(radar_ingest)
-#endif
-
 DistfilesTarget($(DISTFILES))
 

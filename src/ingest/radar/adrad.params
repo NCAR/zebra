@@ -1,0 +1,23 @@
+!
+! Parameters to read in ADRAD data.
+!
+set radar_lat 30.6178
+set radar_lon -96.3316
+set x_resolution 460
+set y_resolution 460
+set x_radar 230
+set y_radar 230
+set gmt_offset 5
+set platform "adrad"
+set minimum_sweep 25
+set pixels_per_km 1
+set ui$pager_mode false
+set nframes 2
+set update 20
+source file /scr/stout/austin/zeb/rawdata/adrad/2BE7C3E9.vol
+field 'reflectivity' offset 0
+!field 'velocity' offset 1
+set niceness -19
+threshold offset 0 threshold 45
+set azimuth_fill 0.8
+consumer ds_consumer adrad

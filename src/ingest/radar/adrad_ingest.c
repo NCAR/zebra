@@ -1,6 +1,7 @@
 /*
- * Ingest radar data and rasterize it.
+ * Ingest adrad radar data and rasterize it.
  */
+
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -19,8 +20,11 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: radar_ingest.c,v 2.7 1993-08-18 15:34:47 burghart Exp $";
+/* rewrite for adrad data input by Dan Austin 8/93	*/
 
+static char *rcsid = "$Id: adrad_ingest.c,v 2.1 1993-08-18 15:34:35 burghart Exp $";
+
+/* clean up includes later	*/
 # include <copyright.h>
 # include <errno.h>
 # include <sys/time.h>
@@ -35,10 +39,19 @@ static char *rcsid = "$Id: radar_ingest.c,v 2.7 1993-08-18 15:34:47 burghart Exp
 # include "HouseKeeping.h"
 # include "radar_ingest.h"
 # include "display.h"
+ 
+/* 
+ * Adrad includes for xdr, etc.
+ */
+#include "raw.h"
+#include "portable.h"
+#include "sunrise_head.h"
+#include "cvrt.h"
+#include "xdr.h"
 
 
 /*
- * Define globals here.
+ * Define globals here. !!! check for compatibilty	
  */
 int XRes = 800, YRes = 800;
 int XRadar = 250, YRadar = 400;
@@ -52,25 +65,23 @@ int Niceness = 0;
 int WidgetUpdate = 20;
 int NBeam = 0, NMissed = 0;
 bool Project = TRUE;
-bool MhrMode = FALSE;
-float MhrTop = 21.0;
+
+/* trust internal flags for adrad data	*/
+bool TrustSweep = TRUE;
+bool TrustVol = TRUE;
 
 /*
- * Thresholding.
+ * No Thresholding.
  */
 bool DoThresholding = FALSE;
 int ThrFldOffset;
 unsigned char ThrCounts = 0;
 
-/*
- * Do we trust internal flags?
- */
-bool TrustSweep = FALSE;
-bool TrustVol = FALSE;
-
+/* ???	*/
 struct _ix_desc *ShmDesc = 0;
 int	ImageSet = -1;
 
+/* platform name is adrad	*/
 # define PF_LEN 80
 char PlatformName[PF_LEN];
 
@@ -82,38 +93,34 @@ ScaleInfo Scale[10];
 /*
  * Who consumes our data.
  */
+/* consumer is ds_consumer for the data store	*/
 static char Consumer[200];
 static char *CArgs[20];
 static int NCArg = 0;
 static bool CSet = FALSE;
-static int CPid;		/* It's process ID	*/
+static int CPid = 0;		/* It's process ID	*/
 
 /*
  * Field info.
  */
-# define MFIELD 2
+/* field defines will nedd changing from raw.h	*/
+# define MFIELD 5
 RDest Rd[MFIELD];
 int NField = 0;
 char *Fields[MFIELD];
-
-/*
- * States of the MHR radar.
- */
-typedef struct _MHRState
-{
-	float	ms_Elev;	/* Radar elevation angle */
-	bool	ms_Keep;	/* Is it a keeper?	*/
-} MHRState;
-
-# define MaxMHRState 100
-MHRState MHStates[MaxMHRState];
-int NStates = 0;
-int CurState = -1;
-
+static unsigned char *Image[4];
 
 static int Argc;
 static char **Argv;
+/*
+ * file input stuff
+ */ 
+#define OK 0
+XDR xdrstrm;
+FILE *f;
+struct volume_summary vol;
 
+/* function declarations 	*/
 static int Dispatcher FP ((int, struct ui_command *));
 static void Go FP ((void));
 static void SetupIndirect FP ((void));
@@ -125,23 +132,9 @@ static void SetConsumer FP ((struct ui_command *));
 static void InvokeConsumer FP ((void));
 static int MHandler FP ((Message *));
 static void CheckMessages FP ((void));
+int die(void);
 
-
-
-static unsigned char *Image[4];
-
-die ()
-/*
- * Finish gracefully.
- */
-{
-	ui_finish ();
-	if (ShmDesc)
-		IX_Detach (ShmDesc);
-	exit (0);
-}
-
-
+/* main loop 	*/
 
 main (argc, argv)
 int argc;
@@ -149,12 +142,15 @@ char **argv;
 {
 	SValue v;
 	char loadfile[200];
+	char	ourname[20];
 /*
  * Initialize.
  */
-	msg_connect (MHandler, "Radar Ingest");
+/* set things up to parse args & init the ui file.	*/
+	sprintf (ourname, "Adrad_%x", getpid ());
+	msg_connect (MHandler, ourname);
 	msg_DeathHandler (die);
-	fixdir ("RI_LOAD_FILE", LIBDIR, "radar_ingest.lf", loadfile);
+	fixdir ("RI_LOAD_FILE", LIBDIR, "adrad_ingest.lf", loadfile);
 	if (argc > 1)
 	{
 		ui_init (loadfile, FALSE, TRUE);
@@ -165,8 +161,7 @@ char **argv;
 	else
 		ui_init (loadfile, TRUE, FALSE);
 
-	ui_setup ("radar_ingest", &argc, argv, 0);
-	DefineWidgets ();
+	ui_setup ("adrad_ingest", &argc, argv, 0);
 	SetupIndirect ();
 	ds_Initialize ();
 	Argc = argc;
@@ -174,7 +169,7 @@ char **argv;
 /*
  * Time to go in to UI mode.
  */
-	ui_get_command ("initial", "Radar>", Dispatcher, 0);
+	ui_get_command ("initial", "Adrad>", Dispatcher, 0);
 	die ();
 }
 
@@ -187,6 +182,8 @@ SetupIndirect ()
 /*
  * Create all of the indirect variables which are used to control things.
  */
+/* this all comes in from the file adrad.params	*/
+
 {
 	stbl vtable = usy_g_stbl ("ui$variable_table");
 
@@ -205,19 +202,11 @@ SetupIndirect ()
 	usy_c_indirect (vtable, "niceness", &Niceness, SYMT_INT, 0);
 	usy_c_indirect (vtable, "update", &WidgetUpdate, SYMT_INT, 0);
 	usy_c_indirect (vtable, "project", &Project, SYMT_BOOL, 0);
-	usy_c_indirect (vtable, "mhrmode", &MhrMode, SYMT_BOOL, 0);
-	usy_c_indirect (vtable, "mhrtop", &MhrTop, SYMT_FLOAT, 0);
 /*
- * Thresholding parameters.
+ * Thresholding parameters. No thresholding.
  */
 	usy_c_indirect (vtable, "threshold", &DoThresholding, SYMT_BOOL, 0);
-/*
- * Scan delineation.
- */
-	usy_c_indirect (vtable, "trustsweep", &TrustSweep, SYMT_BOOL, 0);
-	usy_c_indirect (vtable, "trustvol", &TrustVol, SYMT_BOOL, 0);
 }
-
 
 
 
@@ -265,14 +254,6 @@ struct ui_command *cmds;
 	   	SetConsumer (cmds + 1);
 		break;
 	/*
-	 * Mhr states.
-	 */
-	   case RIC_MHRSTATE:
-	   	MHStates[NStates].ms_Elev = UFLOAT (cmds[1]);
-		MHStates[NStates].ms_Keep = UKEY (cmds[2]);
-		NStates++;
-		break;
-	/*
 	 * Time to complain.
 	 */
 	   default:
@@ -294,13 +275,13 @@ struct ui_command *cmds;
  */
 {
 	if (UKEY (*cmds) == RIC_FILE)
+	{
 		FileInput (UPTR (cmds[1]));
+		msg_ELog (EF_INFO, "Ingesting file '%s'", UPTR (cmds[1]));
+	}
 	else
-		NetInput (UPTR (cmds[1]));
+		perror("FileInput");
 }
-
-
-
 
 static void
 NewField (cmds)
@@ -326,8 +307,34 @@ struct ui_command *cmds;
 	NField++;
 }
 
+die ()
+/*
+ * Finish gracefully.
+ */
+{
+	ui_finish ();
+	if (ShmDesc)
+	{
+	/*
+	 * Shut down our consumer (if any)
+	 */
+		if (CPid)
+		{
+			int	status = 0;
 
+			msg_send (IX_GetConsumer (ShmDesc), MT_FINISH,
+				  FALSE, &status, sizeof (status));
+		}
+	/*
+	 * Then detach from the image transfer shared memory
+	 */
+		IX_Detach (ShmDesc);
+	}
 
+	msg_ELog (EF_INFO, "Exiting.");
+	
+	exit (0);
+}
 
 
 static void
@@ -335,6 +342,8 @@ Go ()
 /*
  * Start really rasterizing.
  */
+
+/* this is where most of the changes need to be made	*/
 {
 	Beam beam;
 	Housekeeping *hk;
@@ -354,14 +363,10 @@ Go ()
 		die ();
 	}
 /*
- * Go into window mode, with our popup.
- */	
-	uw_ForceWindowMode ("status", &top, 0);
-/*
  * Set up our shared memory segment.
  */
 	if (! (ShmDesc = IX_Create (0x910425, XRes, YRes, NField, NFrames,
-				Fields)))
+				    Fields)))
 	{
 		msg_ELog (EF_EMERGENCY, "No shm segment");
 		die ();
@@ -370,65 +375,60 @@ Go ()
 	IX_Initialize (ShmDesc, 0xff);
 /*
  * Invoke the consumer to pull stuff out of that segment.
+ * Pause for a bit until the consumer attaches to our image segment.
  */
 	InvokeConsumer ();
+	if (CPid)
+	{
+		char	*consumer = IX_GetConsumer (ShmDesc);
+		
+		while (consumer[0] == '\0')
+		{
+			msg_ELog (EF_DEBUG, "Waiting for consumer attach...");
+			sleep (1);
+		}
+	}
+	
+
 /*
  * If they have asked for a priority change, try to do it.
  */
 	if (Niceness)
 		setpriority (PRIO_PROCESS, 0, Niceness);
 /*
- * Set up fields until there is a command-based way to do it.
+ * Origin setting.
  */
-# ifdef notdef
-	/* MHR z = 0, v = 1 */
-	Rd[0].rd_foffset = 0;	/* Z = 4, v = 2 */
-	Rd[1].rd_foffset = 1;
-# endif
+	cvt_Origin (RadarLat, RadarLon);
+
+/*!!! merge in the beam reading parts of volread for use here	*/
+	/* set the scaling & etc.	*/
 	beam = GetBeam ();
 	hk = beam->b_hk;
 	for (i = 0; i < NField; i++)
 	{
-		Scale[i].s_Scale =
-			hk->parm_info[Rd[i].rd_foffset].pi_scale/100.0;
-		Scale[i].s_Offset =
-			hk->parm_info[Rd[i].rd_foffset].pi_bias/100.0;
-	ui_printf ("%s scale %.2f bias %.2f\n", Fields[i], Scale[i].s_Scale,
-			Scale[i].s_Offset);
+		Scale[i].s_Scale = 1.0;
+		Scale[i].s_Offset = 0.0;
+		msg_ELog (EF_INFO, "%s scale %.2f bias %.2f", Fields[i], 
+			   Scale[i].s_Scale, Scale[i].s_Offset);
 	}
-/*
- * Origin setting.
- */
-	cvt_Origin (RadarLat, RadarLon);
 /*
  * Now plow through the beams.
  */
-/*	InitFake (); */
 	while (1)
 	{
 	/*
 	 * Get another beam.
 	 */
 		if (! (beam = GetBeam ()))
-		{
-			ui_printf ("Get Beam failure!\n");
-			exit (1);
-		}
+			die ();
 	/*
 	 * Rasterize it.
 	 */
-		Rasterize (beam, Rd, 2, TRUE);
-		if ((++nbeam % WidgetUpdate) == 0)
-		{
-			SetStatus (beam->b_hk);
+		Rasterize (beam, Rd, (NField > 1) ? 2 : 1, FALSE);
+		if ((++nbeam % 100) == 0)
 			CheckMessages ();
-		}
 	}
 }
-
-
-
-
 
 void
 OutputSweep (bt, alt, newvol, left, right, up, down, mode)
@@ -443,13 +443,17 @@ int newvol, left, right, up, down, mode;
 	int i;
 	RGrid rg;
 	Location loc;
-	UItime t;
 	char attr[100];
+	static bool	firstsweep = TRUE;
 /*
- * MHR filtering.
+ * Set newvol to true if this is the first sweep, regardless of what
+ * our caller says.
  */
-	if (MhrMode && ! MHR_Filter (alt))
-		return;
+	if (firstsweep)
+	{
+		newvol = TRUE;
+		firstsweep = FALSE;
+	}
 /*
  * Radars tend to record in local time; make the move over to GMT now.
  */
@@ -473,21 +477,13 @@ int newvol, left, right, up, down, mode;
 	strcpy (attr, newvol ? "newfile," : "");
 	strcat (attr, (mode == SM_PPI) ? "radar,ppi" : "radar,sur");
 /*
- * Force time -- we know better than they do.
+ * Ship it out.
  */
-	tl_GetTime (&t);
-	IX_SendFrame (ShmDesc, ImageSet, &t, &rg, &loc, Scale, left, up,
+	msg_ELog (EF_DEBUG, "Sending image...");
+	IX_SendFrame (ShmDesc, ImageSet, bt, &rg, &loc, Scale, left, up,
 			right, down, attr);
 	ImageSet = -1;
-/*
- * Say something, and make the display show what we've done.
- */
-	ui_printf (" Output %s at %d %06d alt %.2f new %c\n", PlatformName,
-		t.ds_yymmdd, t.ds_hhmmss, alt, newvol ? 't' : 'f');
 }
-
-
-
 
 static int
 AzEq (a1, a2, tol)
@@ -499,66 +495,14 @@ float a1, a2, tol;
 	return (diff < tol);
 }
 
-
-
-
-int
-MHR_Filter (alt)
-float alt;
-/*
- * See if we should filter out this stuff.
- */
-{
-	int next = CurState + 1;
-	if (next >= NStates)
-		next = 0;
-/*
- * See if this altitude matches what we are expecting.  If not, try to
- * resynchronize.
- */
-	if (! AzEq (alt, MHStates[next].ms_Elev, 0.2))
-	{
-		msg_ELog (EF_PROBLEM, "MHR Sync problem, alt %.2f, exp %.2f",
-			alt, MHStates[next].ms_Elev);
-		for (next = 0; next < NStates; next++)
-			if (AzEq (alt, MHStates[next].ms_Elev, 0.2))
-				break;
-		if (next >= NStates)
-		{
-			msg_ELog (EF_PROBLEM, "Can't find right state!");
-			CurState = -1;
-		}
-		else
-			CurState = next;
-		return (TRUE);	/* Always keep when resync */
-	}
-/*
- * We got it.  Move to the new state and return the proper keep value.
- */
-	msg_ELog (EF_DEBUG, "State %d, %s", next,
-		MHStates[next].ms_Keep ? "KEEP" : "TOSS");
-	CurState = next;
-	return (MHStates[next].ms_Keep);
-}
-
-
-
-
-
-
-
 int
 BeginSweep ()
 /*
  * Get set to do a new sweep.
  */
 {
+	int i;
 	char s[50];
-# ifdef notdef
-	ui_printf ("Next sweep: ");
-	getchar ();
-# endif
-	UpdateThreshold ();
 /*
  * If we already have a sweep going, we just clear the frames and start over.
  */
@@ -570,18 +514,19 @@ BeginSweep ()
 /*
  * Otherwise we get a new set.
  */
-	if ((ImageSet = IX_GetWriteFrame (ShmDesc, (char **) Image, TRUE)) < 0)
-		return (FALSE);
-	Rd[0].rd_image = Image[0];
-	Rd[1].rd_image = Image[1];
+	while ((ImageSet = IX_GetWriteFrame (ShmDesc, (char **) Image, 
+					     FALSE)) < 0)
+	{
+		msg_ELog (EF_DEBUG, "Waiting for image frame...");
+		sleep (1);
+	}
+
+	for (i = 0; i < NField; i++)
+		Rd[i].rd_image = Image[i];
+
 	/* ClearImages (); */
 	return (TRUE);
 }
-
-
-
-
-
 
 ClearImages ()
 {
@@ -590,10 +535,6 @@ ClearImages ()
 	for (i = 0; i < NField; i++)
 		memset (Image[i], 0xff, XRes*YRes); 
 }
-
-
-
-
 
 static void
 ThreshParams (cmds)
@@ -606,9 +547,6 @@ struct ui_command *cmds;
 	ThrCounts = (unsigned char) cmds[1].uc_v.us_v_int;
 	DoThresholding = TRUE;
 }
-
-
-
 
 
 static void
@@ -664,10 +602,6 @@ InvokeConsumer ()
 		_exit (1);
 	}
 }
-
-
-
-
 
 
 static void

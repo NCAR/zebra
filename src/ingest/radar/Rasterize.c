@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: Rasterize.c,v 2.5 1993-07-01 20:16:05 granger Exp $";
+static char *rcsid = "$Id: Rasterize.c,v 2.6 1993-08-18 15:34:23 burghart Exp $";
 
 # include <defs.h>
 # include <message.h>
@@ -195,10 +195,11 @@ InitFake ()
 
 
 void
-Rasterize (beam, rd, nrd)
+Rasterize (beam, rd, nrd, interleaved)
 Beam beam;
 RDest *rd;
 int nrd;
+int interleaved;
 /*
  * Actually rasterize this beam.
  */
@@ -232,8 +233,24 @@ int nrd;
  * Threshold the data.
  */
 	for (fld = 0; fld < nrd; fld++)
-		Threshold (beam, TBuf[fld], rd[fld].rd_foffset,
-			hk->parm_per_gate);
+	  {
+	    if (interleaved)
+	      Threshold (beam, TBuf[fld], rd[fld].rd_foffset,
+			 hk->parm_per_gate);
+	    else
+	      {
+		/*
+		 * Kluge:  tweak the ThrFldOffset temporarily since we're
+		 * dealing with sequential rather than interleaved data.
+		 */
+		ThrFldOffset *= hk->gates_per_beam * hk->parm_per_gate;
+
+		Threshold (beam, TBuf[fld], rd[fld].rd_foffset * 
+			   hk->gates_per_beam * hk->parm_per_gate, 1);
+
+		ThrFldOffset /= hk->gates_per_beam * hk->parm_per_gate;
+	      }
+	  }
 /*
  * Calculate the rasterization parameters.
  */
