@@ -27,7 +27,7 @@
 # include <message.h>
 # include "DataStore.h"
 
-RCSID ("$Id: dc_Elements.c,v 3.1 1996-11-19 09:15:45 granger Exp $")
+RCSID ("$Id: dc_Elements.c,v 3.2 1996-11-26 22:36:42 granger Exp $")
 
 static const char *DC_ElemTypeNames[] =
 {
@@ -598,6 +598,75 @@ DC_ElemType type;
 		break;
 	}
 	return (ret);
+}
+
+
+
+
+
+void *
+dc_DefaultBadval (type)
+DC_ElemType type;
+/*
+ * Return a pointer to a default bad value for the given element type.
+ */
+{
+	static unsigned char cbv = '\0';
+	static short sbv = (short)CFG_DC_DEFAULT_BADVAL;
+	static int ibv = (int)CFG_DC_DEFAULT_BADVAL;
+	static float fbv = (float)CFG_DC_DEFAULT_BADVAL;
+	static double dbv = (double)CFG_DC_DEFAULT_BADVAL;
+	static LongDouble ldbv = (LongDouble)CFG_DC_DEFAULT_BADVAL;
+
+	switch (type)
+	{
+	   case DCT_Float:
+		return (&fbv);
+		break;
+	   case DCT_Double:
+		return (&dbv);
+		break;
+	   case DCT_LongDouble:
+		return (&ldbv);
+		break;
+	   case DCT_Char:
+		return (&cbv);
+		break;
+	   case DCT_UnsignedChar:
+		return (&cbv);
+		break;
+	   case DCT_ShortInt:
+		return (&sbv);
+		break;
+	   case DCT_UnsignedShort:
+		return (&sbv);
+		break;
+	   case DCT_Integer:
+		return (&ibv);
+		break;
+	   case DCT_UnsignedInt:
+		return (&ibv);
+		break;
+	   case DCT_LongInt:
+		return (&ibv);
+		break;
+	   case DCT_UnsignedLong:
+		return (&ibv);
+		break;
+	   case DCT_String:
+		return (&cbv);
+		break;
+	   case DCT_Boolean:
+		return (&cbv);
+		break;
+	   case DCT_ZebTime:
+		return (NULL);
+		break;
+	   default:
+		return (NULL);
+		break;
+	}
+	return (NULL);
 }
 
 

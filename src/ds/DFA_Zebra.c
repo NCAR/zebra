@@ -35,7 +35,7 @@
 #  include <string.h>
 #endif
 
-RCSID ("$Id: DFA_Zebra.c,v 1.30 1996-11-19 10:57:49 granger Exp $")
+RCSID ("$Id: DFA_Zebra.c,v 1.31 1996-11-26 22:36:33 granger Exp $")
 
 /*
  * There is a conflict with the symbol DataFormat between DFA and the
@@ -536,7 +536,7 @@ DataChunk *dc;
 		tag->zt_Fids[i] = fids[i];
 		strcpy (tag->zt_Fields[i].zf_Name, F_GetName (fids[i]));
 		tag->zt_Fields[i].zf_Format = DF_Float;
-		tag->zt_Fields[i].zf_Badval = dc_GetFloatBadval (dc, fids[i]);
+		tag->zt_Fields[i].zf_Badval = dc_FindFloatBadval (dc, fids[i]);
 		tag->zt_Fields[i].zf_AttrLen = 0;
 		tag->zt_Fields[i].zf_OffAttr = -1;
 	}

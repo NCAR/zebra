@@ -28,7 +28,7 @@
 # include "DataChunkP.h"
 # include <zl_regex.h>
 
-RCSID ("$Id: dc_Process.c,v 3.1 1996-11-19 09:17:14 granger Exp $")
+RCSID ("$Id: dc_Process.c,v 3.2 1996-11-26 22:36:49 granger Exp $")
 
 
 static int NDefaultDetail = 0;
@@ -123,8 +123,10 @@ float target;
 
 		if (dc_Type (dc, fields[i]) != DCT_Float)
 			continue;
-		if ((badval = dc_GetFloatBadval (dc, fields[i])) == target)
+		data = dc_FindFieldBadval (dc, fields[i]);
+		if (! data)	/* no bad value exists for us to convert */
 			continue;
+		badval = *(float *)data;
 		for (j = 0; j < nsample; ++j)
 		{
 			data = (float *)dc_GetMData (dc, j, fields[i], &len);
@@ -134,7 +136,12 @@ float target;
 					data[k] = target;
 			}
 		}
-		dc_SetFieldBadval (dc, fields[i], (void *)&target);
+		/*
+		 * Set the field-specific bad value only if necessary
+		 * to override an existing value.
+		 */
+		if (dc_GetFieldBadval (dc, fields[i]))
+			dc_SetFieldBadval (dc, fields[i], (void *)&target);
 	}
 	/* Make note of the new global bad value in the datachunk */
 	dc_SetBadval (dc, target);

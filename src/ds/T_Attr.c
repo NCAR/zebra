@@ -85,6 +85,7 @@ ZebTime *when;
 	int errors = 0;
 	float badval;
 	char buf[1024];
+	void *ptr;
 
 	Announce ("Testing DataChunk attributes...");
 	dc = dc_CreateDC(DCC_Scalar);
@@ -131,14 +132,14 @@ ZebTime *when;
 	field = F_Lookup ("temp");
 	dc_SetScalarFields (dc, 1, &field);
 	/* before adding field-specific badval, check inheritance */
-	if (*(float *)dc_GetFieldBadval (dc, field) != badval)
+	if (!(ptr = dc_FindFieldBadval (dc, field)) || *(float *)ptr != badval)
 	{	
 		++errors;
 		msg_ELog (EF_PROBLEM, "field badval does not match global");
 	}
 	badval = 2010.0;
 	dc_SetFieldBadval (dc, field, &badval);
-	if (*(float *)dc_GetFieldBadval (dc, field) != badval)
+	if (!(ptr = dc_FindFieldBadval (dc, field)) || *(float *)ptr != badval)
 	{	
 		++errors;
 		msg_ELog (EF_PROBLEM, "field getbadval is not %f", badval);

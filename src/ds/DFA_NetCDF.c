@@ -33,7 +33,7 @@
 # include "dfa.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_NetCDF.c,v 3.57 1996-11-21 23:11:47 granger Exp $")
+RCSID ("$Id: DFA_NetCDF.c,v 3.58 1996-11-26 22:36:28 granger Exp $")
 
 # include <netcdf.h>
 
@@ -43,12 +43,6 @@ RCSID ("$Id: DFA_NetCDF.c,v 3.57 1996-11-21 23:11:47 granger Exp $")
 #ifndef CFG_NC_NO_ALT_UNITS
 #define STORE_ALT_UNITS
 #endif
-
-/*
- * Convert all character attribute arrays to strings when read,
- * adding null-terminators where needed.
- */
-#define CVT_CHAR_TO_STRING
 
 /*
  * Location fields: standard attributes
@@ -69,17 +63,6 @@ RCSID ("$Id: DFA_NetCDF.c,v 3.57 1996-11-21 23:11:47 granger Exp $")
 #define X_LONGNAME	"grid spacing in west->east direction"
 #define Y_LONGNAME	"grid spacing in south->north direction"
 #define Z_LONGNAME	"grid spacing along vertical"
-
-/*
- * Do we try to store, read, apply, and fill bad values?  If we don't fill
- * with bad values, then we fill with zeros.
- */
-# ifndef CFG_NO_BADVALUES
-#   define READ_BADVALUE_ATT
-#   define APPLY_BADVALUE
-#   define FILL_BADVALUE
-#   define STORE_BADVALUE_ATT
-# endif
 
 /*
  * This is our tag structure.
@@ -3212,7 +3195,7 @@ int ndetail;
 
 
 static void 
-dnc_DefineVars(tag, dc, ndim, dims)
+dnc_DefineVars (tag, dc, ndim, dims)
 NCTag *tag;
 DataChunk *dc;
 int ndim;
@@ -3222,9 +3205,7 @@ int *dims;
  * it supply the field attributes from the data chunk.
  */
 {
-#ifdef STORE_BADVALUE_ATT
 	void *badval;
-#endif /* STORE_BADVALUE_ATT */
 	FieldId *fids;
 	int nfield;
 	char *attr;
@@ -3257,9 +3238,9 @@ int *dims;
 					  type, ndim, dims);
 		}
 	/*
-	 * Add the conventional attributes first.  Similarly-named attributes
-	 * in the DataChunk are explicitly blocked from overwriting the values
-	 * from the fields table by the dnc_PutAttribute() function.
+	 * Add the conventional attributes first.  If these attributes have
+	 * been explicitly set in the datachunk, then the datachunk will
+	 * take precedence in dnc_PutAttribute().
 	 */
 		attr = F_GetDesc(fids[var]);
 		(void) ncattput (tag->nc_id, varid, VATT_LONGNAME,
@@ -3267,22 +3248,19 @@ int *dims;
 		attr = F_GetUnits(fids[var]);
 		(void) ncattput (tag->nc_id, varid, VATT_UNITS,
 				NC_CHAR, strlen(attr)+1, attr);
-
-#ifdef STORE_BADVALUE_ATT
 	/*
-	 * Add the missing_value attribute.  This one must be written in
-	 * the same type as the field, so we write it here with the 
-	 * expectation that dnc_PutAttribute() will not store any 
-	 * like-named attribute keys from the DataChunk.
+	 * Add a missing_value attribute for this field, but only if one
+	 * was set specifically for this field, and only if the attribute
+	 * has not already been explicitly set in the datachunk.
 	 */
-		if ((badval = dc_GetFieldBadval (dc, fids[var])))
+		if ((badval = dc_GetFieldBadval (dc, fids[var])) &&
+		    (! dc_GetFieldAttrArray (dc, fids[var], VATT_MISSING,
+					     NULL, NULL)))
 		{
 			(void) ncattput (tag->nc_id, varid, VATT_MISSING,
 					 dnc_NCType (dc_Type (dc, fids[var])),
 					 1, badval);
 		}
-#endif /* STORE_BADVALUE_ATT */
-
 	/* 
 	 * Add the field attributes from the DataChunk,
 	 * passing the tag and varid via global variables.  
@@ -3370,6 +3348,8 @@ DataChunk *dc;
 	char *attr, history[256];
 	struct timeval tv;
 	struct AttArg attarg;
+	void *badval;
+	DC_ElemType type;
 
 	attarg.tag = tag;
 	attarg.varid = NC_GLOBAL;
@@ -3383,29 +3363,22 @@ DataChunk *dc;
 		 */
 		return;
 	}
-#ifdef STORE_BADVALUE_ATT
+	/* 
+	 * Pull out the global bad value, if any, and store it as a
+	 * global attribute.
+	 */
+	if ((badval = dc_GetGlobalBadval (dc, &type)))
 	{
-		void *badval;
-		DC_ElemType type;
-
-		/* 
-		 * Pull out the global bad value, if any, and store it as a
-		 * global attribute.
-		 */
-		if ((badval = dc_GetGlobalBadval (dc, &type)))
-		{
-			ncattput (tag->nc_id, NC_GLOBAL, VATT_MISSING,
-				  dnc_NCType (type), 1, badval);
-		}
+		ncattput (tag->nc_id, NC_GLOBAL, VATT_MISSING,
+			  dnc_NCType (type), 1, badval);
 	}
-#endif
 	attr = ds_PlatformName(dc->dc_Platform);
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_PLATFORM,
 		       NC_CHAR, strlen(attr)+1, attr);
 	sprintf(history,"created by the Zebra DataStore library, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.57 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.58 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 }
@@ -4391,31 +4364,26 @@ NCTag *tag;
 		value = (void *) malloc ((len+1)*nctypelen(gltype));
 		ncattget(tag->nc_id, NC_GLOBAL, key, value);
 	/* 
-	 * Add the attribute.  Try to detect character arrays which are
-	 * intended to be strings.
+	 * Add the attribute.  Convert character arrays to strings
+	 * and NULL-terminate them.
 	 */
-		if (gltype == NC_CHAR && ((char *)value)[len - 1] == '\0')
-			dc_SetGlobalAttrArray (dc, key, DCT_String, 1, value);
-#ifdef CVT_CHAR_TO_STRING
-		else if (gltype == NC_CHAR)
+		if (gltype == NC_CHAR)
 		{
-			((char *)value)[len++] = '\0';
+			if (((char *)value)[len - 1] != '\0')
+				((char *)value)[len++] = '\0';
 			dc_SetGlobalAttrArray (dc, key, DCT_String, 1, value);
 		}
-#endif /* CVT_CHAR_TO_STRING */
 		else
 			dc_SetGlobalAttrArray (dc, key, dnc_ElemType(gltype),
 					       len, value);
-#ifdef READ_BADVALUE_ATT
-		/*
-		 * Look for an explicit global bad value attribute.
-		 */
+	/*
+	 * Look for an explicit global bad value attribute.
+	 */
 		if (! strcmp (key, VATT_MISSING))
 		{
 			dc_SetGlobalBadval (dc, dnc_ElemType(gltype),
 					    value);
 		}
-#endif
 		free(value);
 	}
 	return (nglatt);
@@ -4506,30 +4474,24 @@ int nfield;
 		 * Now just stuff it into the data chunk, doing our best to
 		 * detect character arrays intended to be strings.
 		 */
-			if (ftype == NC_CHAR && ((char *)value)[len-1] == '\0')
-				dc_SetFieldAttrArray (dc, fids[f], key,
-						      DCT_String, 1, value);
-#ifdef CVT_CHAR_TO_STRING
-			else if (ftype == NC_CHAR)
+			if (ftype == NC_CHAR)
 			{
-				((char *)value)[len++] = '\0';
+				if (((char *)value)[len-1] != '\0')
+					((char *)value)[len++] = '\0';
 				dc_SetFieldAttrArray (dc, fids[f], key,
 						      DCT_String, 1, value);
 			}
-#endif /* CVT_CHAR_TO_STRING */
 			else
 				dc_SetFieldAttrArray (dc, fids[f], key,
 					      dnc_ElemType(ftype), len, value);
-#ifdef READ_BADVALUE_ATT
 			/*
 			 * Check for an explicit bad value.
 			 */
 			if (! strcmp (key, VATT_MISSING) &&
-			    dnc_ElemType (ftype) == dc_Type (dc, fids[f]))
+			    (dnc_ElemType (ftype) == dc_Type (dc, fids[f])))
 			{
 				dc_SetFieldBadval (dc, fids[f], value);
 			}
-#endif
 			free(value);
 		}
 	}  /* nfields */

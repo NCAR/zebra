@@ -29,7 +29,7 @@
 # include "DataStore.h"
 # include "DataChunkP.h"
 
-RCSID ("$Id: dc_MetAttr.c,v 3.1 1996-11-19 09:16:16 granger Exp $")
+RCSID ("$Id: dc_MetAttr.c,v 3.2 1996-11-26 22:36:44 granger Exp $")
 
 
 # define ST_FIELDATTR(x)	(2000+(x))
@@ -335,12 +335,11 @@ DataChunk *dc;
  */
 {
 	DC_ElemType type;
-	int nval;
 	void *ptr;
 	
 	if (! dc_ReqSubClass (dc, DCP_MetData, "GetBadval"))
 		return (0);
-	ptr = dcp_GetGlobalAttrArray (dc, PK_BADVAL, &type, &nval);
+	ptr = dcp_GetGlobalAttrArray (dc, PK_BADVAL, &type, NULL);
 	if (! ptr)
 		return ((double) DefaultBadval);
 	switch (type)
@@ -410,13 +409,10 @@ dc_GetFieldBadval (dc, fid)
 DataChunk *dc;
 FieldId fid;
 /*
- * Return a void pointer to this field's badvalue.  If the field's bad value
- * has not been set, check the global bad value.  If the global bad value
- * does not exist or is the wrong type, return NULL.  On any other error,
- * such as incorrect class, return NULL.
+ * Look exclusively for this field's bad value, and return NULL if it
+ * has not been set.
  */
 {
-	int nval;
 	void *ptr;
 	DC_ElemType ftype, type;
 
@@ -429,35 +425,61 @@ FieldId fid;
 			  "attempt to get bad value of unknown field", fid);
 		return (NULL);
 	}
-	ptr = dcp_GetFieldAttrArray (dc, fid, PK_BADVAL, &type, &nval);
-	if (ptr)
-		return (ptr);
-	/* 
-	 * Try for global 
-	 */
-	ptr = dcp_GetGlobalAttrArray (dc, PK_BADVAL, &type, &nval);
-	if (ptr && (type == ftype))
-		return (ptr);
-	else
-		return (NULL);
+	ptr = dcp_GetFieldAttrArray (dc, fid, PK_BADVAL, &type, NULL);
+	if (ptr && (type != ftype))
+	{
+		msg_ELog (EF_PROBLEM, "badval type mismatch: field %d", fid);
+		ptr = NULL;
+	}
+	return (ptr);
 }
 
 
 
+void *
+dc_FindFieldBadval (dc, fid)
+DataChunk *dc;
+FieldId fid;
+/*
+ * Return a void pointer to this field's badvalue.  If the field's bad value
+ * has not been set, check the global bad value.  If the global bad value
+ * does not exist or is the wrong type, return NULL.  On any other error,
+ * such as incorrect class, return NULL.
+ */
+{
+	void *ptr;
+	DC_ElemType ftype, type;
+
+	if ((ptr = dc_GetFieldBadval (dc, fid)) == NULL)
+	{
+		/* 
+		 * Try for global 
+		 */
+		ftype = dc_Type (dc, fid);
+		ptr = dcp_GetGlobalAttrArray (dc, PK_BADVAL, &type, NULL);
+		if (ptr && (type != ftype))
+			ptr = NULL;
+	}
+	return (ptr);
+}
+
+
+
+
 float
-dc_GetFloatBadval (dc, fid)
+dc_FindFloatBadval (dc, fid)
 DataChunk *dc;
 FieldId fid;
 /*
  * Try to get the bad value for this field, but if non-existent or
- * non-float, return the datachunk default.
+ * non-float, return the floating point default.
  */
 {
 	float badval;
 	void *att;
 	DC_ElemType type;
 
-	att = (float *) dc_GetFieldBadval (dc, fid);
+	att = (float *) dc_FindFieldBadval (dc, fid);
 	type = dc_Type (dc, fid);
 	if (att && (type == DCT_Float))
 		badval = *(float *)att;
@@ -467,6 +489,7 @@ FieldId fid;
 		badval = CFG_DC_DEFAULT_BADVAL;
 	return (badval);
 }
+
 
 
 
@@ -499,13 +522,12 @@ DC_ElemType *type;
  * bad value has been set, returns the default floating point bad value.
  */
 {
-	int nval;
 	void *ptr;
 	DC_ElemType t;
 
 	if (! dc_ReqSubClass (dc, DCP_MetData, "GetGlobalBadval"))
 		return (NULL);
-	if ((ptr = dcp_GetGlobalAttrArray (dc, PK_BADVAL, &t, &nval)) && type)
+	if ((ptr = dcp_GetGlobalAttrArray (dc, PK_BADVAL, &t, NULL)) && type)
 		*type = t;
 	return (ptr);
 }

@@ -122,7 +122,7 @@ int nfield;
 	nplat = dc_IRGetNPlatform (dc);
 	for (fld = 0; fld < nfield; ++fld)
 	{
-		float miss = dc_GetFloatBadval (dc, fields[fld]);
+		float miss = dc_FindFloatBadval (dc, fields[fld]);
 
 		if ((miss) != 9990.0 + fld)
 		{
@@ -430,7 +430,7 @@ char *arg;
 		/*
 		 * Make sure the missing field got filled 
 		 */
-		badval = dc_GetFloatBadval (dc, fid);
+		badval = dc_FindFloatBadval (dc, fid);
 		if (badval != -8888.0)
 		{
 			++err;
@@ -466,7 +466,7 @@ char *arg;
 		{
 			float value = dc_GetScalar (dc, 0, fields[fld]);
 
-			badval = dc_GetFloatBadval (dc, fields[fld]);
+			badval = dc_FindFloatBadval (dc, fields[fld]);
 			if (value != badval)
 			{
 				msg_ELog (EF_PROBLEM, 
@@ -478,7 +478,7 @@ char *arg;
 		}
 		Announce ("testing all samples of filled field");
 		fld = nfield - 1;
-		badval = dc_GetFloatBadval (dc, fields[fld]);
+		badval = dc_FindFloatBadval (dc, fields[fld]);
 		for (i = 0; i < dc_GetNSample(dc); ++i)
 		{
 			float value = dc_GetScalar (dc, i, fields[fld]);

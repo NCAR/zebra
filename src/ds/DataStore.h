@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.36 1996-11-21 18:17:55 granger Exp $
+ * $Id: DataStore.h,v 3.37 1996-11-26 22:36:36 granger Exp $
  *
  * Public data store definitions.
  */
@@ -565,9 +565,10 @@ void *		dc_GetGlobalBadval FP((DataChunk *dc, DC_ElemType *type));
 int		dc_SetGlobalBadval FP((DataChunk *dc, DC_ElemType type,
 				       void *badval));
 void *		dc_GetFieldBadval FP((DataChunk *dc, FieldId fid));
+void *		dc_FindFieldBadval FP((DataChunk *dc, FieldId fid));
+float		dc_FindFloatBadval FP((DataChunk *dc, FieldId fid));
 int		dc_SetFieldBadval FP((DataChunk *dc, FieldId fid, 
 				      void *badval));
-float		dc_GetFloatBadval FP((DataChunk *dc, FieldId fid));
 
 int		dc_GetFieldIndex FP((DataChunk *dc, FieldId field));
 int		dc_GetNField FP((DataChunk *));
@@ -618,7 +619,8 @@ const char	*dc_PrintValue FP((void *ptr, DC_ElemType type));
 int		dc_CompareElement FP((DC_Element *e, DC_Element *f, 
 				      DC_ElemType type));
 int		dc_CompareValue FP((void *e, void *f, DC_ElemType type));
-int		dc_ConvertFloat FP ((float *f, void *ptr, DC_ElemType type));
+int		dc_ConvertFloat FP((float *f, void *ptr, DC_ElemType type));
+void *		dc_DefaultBadval FP((DC_ElemType type));
 
 /*
  * Scalar class.
