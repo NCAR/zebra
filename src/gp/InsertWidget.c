@@ -43,9 +43,11 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 
-RCSID("$Id: InsertWidget.c,v 1.9 1995-08-03 20:59:54 corbet Exp $")
+RCSID("$Id: InsertWidget.c,v 1.10 1995-11-19 18:13:31 granger Exp $")
 
+# ifndef PI
 # define PI		3.141592654
+# endif
 # define STRLEN		40
 # define MAXENTRY	20
 # define MAXSUBPLAT	20

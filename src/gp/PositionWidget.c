@@ -37,9 +37,11 @@
 # include "PixelCoord.h"
 # include "GraphProc.h"
 
-RCSID ("$Id: PositionWidget.c,v 1.22 1995-09-23 02:33:09 granger Exp $")
+RCSID ("$Id: PositionWidget.c,v 1.23 1995-11-19 18:13:34 granger Exp $")
 
+# ifndef PI
 # define PI 3.141592654
+# endif
 # define MAXORG 20
 # define KM_TO_NM (0.62137119 * 5280.0 / 6080.0)
 # define KM_TO_MI (0.62137119)

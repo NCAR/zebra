@@ -36,11 +36,13 @@
 # include "PixelCoord.h"
 
 
-RCSID("$Id: Contour.c,v 2.17 1995-10-31 04:07:08 granger Exp $")
+RCSID("$Id: Contour.c,v 2.18 1995-11-19 18:13:28 granger Exp $")
 
 typedef short	cbool;
 
+# ifndef PI
 # define PI		3.141592654
+# endif
 # define RAD_TO_DEG(x)	((x)*57.29577951)
 
 # define IXYPAK(i,j)	(((i) << 16) + (j))

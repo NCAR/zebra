@@ -40,7 +40,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: Skewt.c,v 2.21 1995-09-23 02:34:19 granger Exp $")
+RCSID ("$Id: Skewt.c,v 2.22 1995-11-19 18:13:39 granger Exp $")
 
 /*
  * General definitions
@@ -48,7 +48,9 @@ RCSID ("$Id: Skewt.c,v 2.21 1995-09-23 02:34:19 granger Exp $")
 # define T_K	273.15
 # define DEG_TO_RAD(x)	((x) * 0.017453292)
 # define RAD_TO_DEG(x)	((x) * 57.29577951)
+# ifndef PI
 # define PI	3.141592654
+# endif
 # define BUFLEN	1024
 
 /*

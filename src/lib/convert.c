@@ -23,9 +23,11 @@
 # include "defs.h"
 # include "message.h"
 
-RCSID("$Id: convert.c,v 2.8 1995-04-15 00:21:14 granger Exp $")
+RCSID("$Id: convert.c,v 2.9 1995-11-19 18:14:05 granger Exp $")
 
+# ifndef PI	/* linux defines it */
 # define PI	3.141592654
+# endif
 
 /*
  * Radius of the earth, in km

@@ -29,7 +29,7 @@
 # include <config.h>
 # include <defs.h>
 
-MAKE_RCSID ("$Id: Projection.c,v 2.2 1995-08-28 21:40:54 granger Exp $")
+MAKE_RCSID ("$Id: Projection.c,v 2.3 1995-11-19 18:13:36 granger Exp $")
 
 /*
  * This whole mess can be configured out.
@@ -42,6 +42,11 @@ MAKE_RCSID ("$Id: Projection.c,v 2.2 1995-08-28 21:40:54 granger Exp $")
 
 # ifdef MAP_PROJECTIONS
 /* # define PJ_LIST_H "ProjList.h" doesnt work!! */
+/* Have to undef PI since projects.h defines it and linux/math.h may have
+ * defined it above */
+# ifdef PI
+# undef PI
+# endif
 # include "projects.h"
 /*
  * This "PJ" dude is the magic cookie used by the proj library to describe
