@@ -34,7 +34,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 # include "LayoutControl.h"
-MAKE_RCSID ("$Id: PlotExec.c,v 2.21 1992-12-18 11:20:40 granger Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.22 1992-12-23 21:45:36 granger Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -144,7 +144,7 @@ static	void px_GetAltitude FP ((void));
  * plot function table
  */
 static void _UncompiledFunction() {};
-# define UNCOMPILED_FUNCTION	(&_UncompiledFunction)
+# define UNCOMPILED_FUNCTION	(_UncompiledFunction)
 
 /*
  * External plot table routines
