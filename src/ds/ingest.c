@@ -1,4 +1,4 @@
-/* $Id: ingest.c,v 1.6 1992-11-20 19:21:00 granger Exp $
+/* $Id: ingest.c,v 1.7 1993-05-18 20:43:27 granger Exp $
  *
  * ingest.c --- A common ingest interface and support routines for 
  *		Zeb ingest modules
@@ -79,6 +79,7 @@ short DryRun = 0;		/* -dryrun flag, don't connect to message
 				 * handler or send to DataStore,
 				 * ==> NoEventLogger */
 char *IngestName = "UnNamed!";	/* Message name of ingest module */
+short ShowIngestName = 0;	/* Show ingest name in local log messages */
 short DumpDataChunks = 0;	/* Dump data chunks as ds_Store'd */
 
 /* ------------------------------------------------------------------*/
@@ -123,7 +124,11 @@ va_dcl
 	 */
 	if (IngestLogFlags & flags)
 	{
-		fprintf(stderr,"%c %s: ",note,IngestName);
+		fprintf(stderr,"%c",note);
+		if (ShowIngestName)
+			fprintf(stderr," %s: ",IngestName);
+		else
+			fprintf(stderr,": ");
 		vfprintf(stderr,fmt, args);
 		fprintf(stderr,"\n");
 	}
@@ -207,17 +212,21 @@ IngestUsage()
    fprintf(stderr,"   %-20s Don't connect to other processes, ",
 		  "-dryrun,-dry,-test");
    fprintf(stderr,"e.g. the DataStore\n");
-   fprintf(stderr,"   %-20s Set the messages which get ","-log all|e|p|c|d|i");
+   fprintf(stderr,"   %-20s Set the messages which get ",
+	          "-log all|e|p|c|d|i|v");
    fprintf(stderr,"echoed to the terminal\n");
    fprintf(stderr,"   %-20s The default is emergencies only.\n",spc);
-   fprintf(stderr,"   %-20s    all: all messages\n",spc);
+   fprintf(stderr,"   %-20s    all: all messages; same as -log epcdiv\n",spc);
    fprintf(stderr,"   %-20s    e:   emergencies\n",spc);
    fprintf(stderr,"   %-20s    p:   problems\n",spc);
    fprintf(stderr,"   %-20s    c:   clients\n",spc);
    fprintf(stderr,"   %-20s    d:   debugging\n",spc);
    fprintf(stderr,"   %-20s    i:   information\n",spc);
    fprintf(stderr,"   %-20s    v:   development debugging\n",spc);
-   fprintf(stderr,"   %-20s Show this information\n","-help, -h");
+   fprintf(stderr,
+	   "   %-20s Print the program name in log messages to the terminal\n",
+	   "-name");
+   fprintf(stderr,"   %-20s Show this help information\n","-help, -h");
 }
 
 
@@ -295,6 +304,10 @@ IngestParseOptions(argc, argv, usage)
 		{
 		   SetDryRun();
 		}
+		else if (streq(argv[i],"-name"))
+		{
+			ShowIngestName = 1;
+		}
 		else
 		{
 		   ++i;
@@ -302,7 +315,6 @@ IngestParseOptions(argc, argv, usage)
 		}
 
 		IngestRemoveOptions(argc, argv, i, nargs);
-
 	}
 }
 
