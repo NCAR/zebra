@@ -2,7 +2,7 @@
  * Overlay times widget.  This is where plots can write per-component data
  * details like exact data time, altitude, etc.
  */
-static char *rcsid = "$Id: OverlayTimes.c,v 2.2 1994-04-15 21:26:17 burghart Exp $";
+static char *rcsid = "$Id: OverlayTimes.c,v 2.3 1994-12-09 08:42:54 granger Exp $";
 /*		Copyright (C) 1994 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -25,6 +25,8 @@ static char *rcsid = "$Id: OverlayTimes.c,v 2.2 1994-04-15 21:26:17 burghart Exp
 # include <X11/StringDefs.h>
 # include <X11/Shell.h>
 # include <X11/Xaw/Form.h>
+# include <X11/Xaw/Label.h>
+# include <X11/Xaw/Command.h>
 # include <X11/Xaw/AsciiText.h>
 
 # include <defs.h>
@@ -54,8 +56,19 @@ ot_Init ()
 
 	sprintf (title, "Data times for %s", Ourname);
 	uw_def_widget ("overlay", title, ot_Create, 0, 0);
+	uw_NoHeader ("overlay");
 }
 
+
+
+static void
+ot_Dismiss ()
+/*
+ * Popdown the overlay widget through UI
+ */
+{
+	uw_popdown ("overlay");
+}
 
 
 
@@ -68,8 +81,68 @@ XtAppContext appc;
  * Actually create the overlay status widget.
  */
 {
-	Arg	args[10];
+	Arg	args[15];
 	int	n;
+	char	title[40];
+	Widget	form, w, above;
+/*
+ * We know that UI will create us with a Form widget parent and a TopLevelShell
+ * as a grandparent.  We *need* a resizable shell, so we force it..
+ */
+	n = 0;
+	XtSetArg (args[n], XtNallowShellResize, True); n++;
+	XtSetValues (XtParent(parent), args, n);
+
+	n = 0;
+ 	XtSetArg (args[n], XtNdefaultDistance, 5); n++;
+	XtSetArg (args[n], XtNborderWidth, 0); n++;
+	form = parent;
+	XtSetValues (form, args, n);
+/*
+ * The label which holds our title.
+ */
+	sprintf (title, "Data times for %s", Ourname);
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, NULL); n++;
+	XtSetArg (args[n], XtNfromVert, NULL); n++;
+	XtSetArg (args[n], XtNlabel, title); n++;
+	XtSetArg (args[n], XtNborderWidth, 0); n++;
+	XtSetArg (args[n], XtNbottom, XawChainTop); n++;
+	XtSetArg (args[n], XtNtop, XawChainTop); n++;
+	XtSetArg (args[n], XtNleft, XawChainLeft); n++;
+	XtSetArg (args[n], XtNright, XawChainLeft); n++;
+	w = XtCreateManagedWidget ("overlayLabel", labelWidgetClass,
+		form, args, n);
+	above = w;
+/*
+ * Help button.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, w); n++;
+	XtSetArg (args[n], XtNfromVert, NULL); n++;
+	XtSetArg (args[n], XtNbottom, XawChainTop); n++;
+	XtSetArg (args[n], XtNtop, XawChainTop); n++;
+	XtSetArg (args[n], XtNleft, XawChainLeft); n++;
+	XtSetArg (args[n], XtNright, XawChainLeft); n++;
+	XtSetArg (args[n], XtNlabel, "Help"); n++;
+	w = XtCreateManagedWidget ("overlayHelp", commandWidgetClass, form,
+		args, n);
+	XtAddCallback (w, XtNcallback, HelpCallback, 
+		       (XtPointer)GP_HELP_OVERLAYS);
+/*
+ * Dismiss button.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, w); n++;
+	XtSetArg (args[n], XtNfromVert, NULL); n++;
+	XtSetArg (args[n], XtNlabel, "Dismiss"); n++;
+	XtSetArg (args[n], XtNbottom, XawChainTop); n++;
+	XtSetArg (args[n], XtNtop, XawChainTop); n++;
+	XtSetArg (args[n], XtNleft, XawChainLeft); n++;
+	XtSetArg (args[n], XtNright, XawChainLeft); n++;
+	w = XtCreateManagedWidget ("overlayDismiss", commandWidgetClass, form,
+		args, n);
+	XtAddCallback (w, XtNcallback, ot_Dismiss, 0);
 /*
  * Create an AsciiText widget to hold our info.  The "resizable" resource
  * is a constraint resource available to us because our parent is a Form
@@ -80,21 +153,21 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNeditType, XawtextEdit); n++;
 	XtSetArg (args[n], XtNresize, XawtextResizeBoth); n++;
 	XtSetArg (args[n], XtNresizable, True); n++;
+	XtSetArg (args[n], XtNbottom, XawRubber); n++;
+	XtSetArg (args[n], XtNtop, XawChainTop); n++;
+	XtSetArg (args[n], XtNright, XawRubber); n++;
+	XtSetArg (args[n], XtNleft, XawChainLeft); n++;
+	XtSetArg (args[n], XtNfromHoriz, NULL); n++;
+	XtSetArg (args[n], XtNfromVert, above); n++;
+	XtSetArg (args[n], XtNdisplayCaret, False); n++;
 	OTWidget = XtCreateManagedWidget ("OverlayTimes", asciiTextWidgetClass,
-					  parent, args, n);
-/*
- * We know that UI will create us with a Form widget parent and a TopLevelShell
- * as a grandparent.  We *need* a resizable shell, so we force it..
- */
-	n = 0;
-	XtSetArg (args[n], XtNallowShellResize, True); n++;
-	XtSetValues (XtParent (parent), args, n);
+					  form, args, n);
 /*
  * Put in the current string
  */
 	ot_Update ();
 
-	return (OTWidget);
+	return (form);
 }
 
 

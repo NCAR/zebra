@@ -1,4 +1,4 @@
-! $Id: Graphproc.ad,v 1.16 1994-09-15 21:50:15 corbet Exp $
+! $Id: Graphproc.ad,v 1.17 1994-12-09 08:42:52 granger Exp $
 !
 ! The Graphics process resource file.
 !
@@ -71,18 +71,26 @@ Graphproc.?.form.background:	gray95
 *graphics.cursor:	left_ptr
 *cursor:		left_ptr
 !
-! Stuff for the overlay widget.  This one wants a monospace font.
+! Stuff for the overlay widget.  Needs a monospace font for the table.
 !
-*overlay*font:	-*-lucidatypewriter-medium-r-*-*-14-140-*-*-*-*-*-*
-*overlay.resize:	true
-*overlay*form.resize:	true
-*overlay*allowShellResize:	true
+*overlay.borderWidth:	1
+*overlay.borderColor:	MidnightBlue
+*overlay*Command*font: 	-*-helvetica-medium-r-*-*-*-120-*-*-*-*-*-*
+*overlay*Command*borderColor: red
+*overlay*resize:	true
+*overlay*Form.resize:	true
+*overlay.allowShellResize:	true
 *overlay*background:	gray95
 *overlay*foreground:	black
 *overlay*Command.background: gray90
-*overlay*OverlayStatus.borderColor: MidnightBlue
-*overlay*OverlayStatus.background: gray90
-*overlay*OverlayStatus.foreground: MidnightBlue
+*overlay.form.OverlayTimes.fromVert: overlayLabel
+*overlay*OverlayTimes*borderColor: MidnightBlue
+*overlay*OverlayTimes*background: white
+*overlay*OverlayTimes*foreground: MidnightBlue
+*overlay*OverlayTimes*resizable: True
+*overlay*OverlayTimes*displayCaret: False
+*overlay*OverlayTimes*font: -*-lucidatypewriter-medium-r-*-*-14-140-*-*-*-*-*-*
+*overlay*Text*resizable: True
 !
 ! Data insertion widget.
 !
