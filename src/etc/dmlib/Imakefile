@@ -8,7 +8,7 @@ LFILES = AllXSect ButtonMaps DisplayConfigs ModelAdd RadarAdd \
          rass-add send-wbounds template-menu theight-add theta-add \
          tseries-add tweak-depth-plat xmgr-pipe zoom cfg-tools \
          sk-add-data cap-add ProjectWindows \
-         dm.project dm.init dm.iconbar
+         dm.project dm.init dm.iconbar hardcopy-widget enter-widget
 
 XFILES = makecfgmenu IconBar.sh
 
