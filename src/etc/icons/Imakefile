@@ -1,0 +1,11 @@
+/*
+ * Imakefile for the ETC directory.
+ */
+
+/*
+ * Hell if I'm going to type in all of those damn icon names.
+ */
+
+install::
+	MakeDir ($(LIBDIR)/icons)
+	cp [a-z]* $(LIBDIR)/icons

@@ -1,0 +1,47 @@
+!
+! UI-readable file containing definitions of the fields we usually deal with.
+!
+field	altitude	"altitude"			m
+field	cpres0		"altitude-corrected pressure"	mb
+field	dp		"dewpoint temperature"		"deg c"
+field	ept		"equiv. pot. temperature"	k
+field	fstrength	"electric field strength"	v/m
+field	mr		"mixing ratio"			g/kg
+field	pres		"pressure"			mb
+field	pt		"potential temperature"		k
+field	raina15		"15 minute rain accum."		mm
+field	raina16		"16 minute rain accum."		mm
+field	reflectivity	"radar reflectivity"		dbz
+field	rh		"relative humidity"		"%"
+field	tdry		"ambient temperature"		"deg c"
+field	twet		"wet bulb temperature"		"deg c"
+field	u_wind		"north wind component"		m/s
+field	v_wind		"east wind component"		m/s
+field	velocity	"doppler velocity"		m/s
+field	vt		"virtual temperature"		k
+field	w_wind		"vertical wind component"	m/s
+field	wmax		"max wind"			m/s
+field	left		"left azimuth"			"deg"		
+field	right		"right azimuth"			"deg"	
+field	height		"height"			m
+field	wdir		"wind direction"		deg
+field	wspd		"wind speed"			m/sec
+field	trans		"transponder code"		none
+
+!
+! Aliases exist to make the name of one field the equivalent to another.
+!
+alias	altitude	alt
+alias	reflectivity	dbz
+alias	u_wind	hu
+alias 	v_wind	hv
+alias	w_wind	hw
+alias	u_wind	uwind
+alias 	v_wind	vwind
+alias	w_wind	wwind
+alias	rh	rhum
+alias	pt	theta
+alias	ept	thetae
+alias	vt	tvir
+alias	tdry	temp
+alias	tdry	temperature

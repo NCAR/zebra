@@ -1,0 +1,11 @@
+/*
+ * Imakefile for the ETC directory.
+ */
+# define IHaveSubdirs
+
+SUBDIRS = maps icons helpfiles audio
+
+InstallLibFile (FieldDefs,.,.)
+
+MakeSubdirs($(SUBDIRS))
+DependSubdirs($(SUBDIRS))

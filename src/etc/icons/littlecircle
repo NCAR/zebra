@@ -1,0 +1,6 @@
+#define littlecircle_width 7
+#define littlecircle_height 7
+#define littlecircle_x_hot 3
+#define littlecircle_y_hot 3
+static char littlecircle_bits[] = {
+   0x1c, 0x3e, 0x63, 0x63, 0x63, 0x3e, 0x1c};

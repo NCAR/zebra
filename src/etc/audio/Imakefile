@@ -1,0 +1,7 @@
+/*
+ * Imakefile for the ETC directory.
+ */
+
+AFILES = chord.au click.au ding.au flush.au hallelujah.au intercom.au
+
+InstallLibFile ($(AFILES),audio,..)

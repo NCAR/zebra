@@ -1,0 +1,1090 @@
+2
+000000%000000STORM-FEST Hourly Surface Stations
+49902
+
+/ STORM-FEST STATION LISTING /
+                                     Lat      Lon     Elev
+Zeb ID Name                  State  (Deg)    (Deg)     (M)
+------------------------------------------------------------
+
+SURFACE
+
+aster           Sabetha         KS  39.91    -95.84    410
+
+pam  1          Nebraska City   NE  40.66    -95.86    325
+pam  2          Maryville       MO  40.33    -94.83    296
+pam  3          Princeton       MO  40.42    -93.60    256
+pam  4          Bloomfield      IA  40.73    -92.43    269
+pam  5          Cameron         MO  39.73    -94.27    309
+pam  6          Chillicothe     MO  39.78    -93.50    237
+pam  7          Kirksville      MO  40.09    -92.54    293
+pam  8          Keokuk          IA  40.46    -91.43    202
+pam  9          Grain Valley    MO  39.02    -94.21    257
+pam 10          Marshall        MO  39.10    -93.20    234
+pam 11          Kimberly        MO  39.46    -92.43    263
+pam 12          Hannibal        MO  39.73    -91.45    232
+pam 13          Jacksonville    IL  39.77    -90.24    188
+pam 14          Garnett         KS  38.28    -95.22    302
+pam 15          Butler          MO  38.29    -94.34    264
+pam 16          Clinton         MO  38.36    -93.68    248
+pam 17          Versailles      MO  38.43    -92.87    310
+pam 18          Columbia        MO  38.82    -92.21    271
+pam 19          Montgomery City MO  39.01    -91.42    234
+pam 20          East Alton      IL  38.89    -90.05    165
+pam 21          Taylorville     IL  39.53    -89.32    188
+pam 22          Vandalia        IL  38.99    -89.16    163
+pam 23          Rolla           MO  38.13    -91.76    340
+pam 24          St. Clair       MO  38.37    -90.98    203
+pam 25          Sparta          IL  38.15    -89.70    162
+pam 26          Pittsburg       KS  37.44    -94.73    287
+pam 27          Stockton        MO  37.66    -93.81    317
+pam 28          Lebanon         MO  37.64    -92.65    402
+pam 29          Salem           MO  37.62    -91.61    369
+pam 30          Farmington      MO  37.76    -90.43    280
+pam 31          Miami           OK  36.91    -94.89    245
+pam 32          Monett          MO  36.88    -93.90    436
+pam 33          Ava             MO  36.97    -92.69    385
+pam 34          Mountain View   MO  36.99    -91.72    354
+pam 35          Piedmont        MO  37.12    -90.71    142
+pam 37          Topeka          KS  39.07    -95.63    268
+pam 39          Humboldt        NE  40.0817  -95.9903  326
+pam 40          Powhattan       KS  39.7961  -95.6456  365
+pam 41          Seneca          KS  39.8300  -96.1078  386
+pam 42          Home            KS  39.9283  -96.5139  420
+pam 43          Havensville     KS  39.5503  -96.1272  386
+pam 44          Seneca North    KS  39.9728  -96.0764  370
+pam 45          Centralia       KS  39.6961  -96.1153  412
+pam 46          Axtell          KS  39.8783  -96.2953  427
+pam 47          Woodlawn        KS  39.8136  -95.8622  401
+
+arvada, co      Arvada          CO  39.80   -105.10   1643
+aurora          Aurora          CO  39.77   -104.87   1625
+boulder         Boulder         CO  40.01   -105.25   1628
+briggsdale      Briggsdale      CO  40.65   -104.34   1483
+brighton        Brighton        CO  40.00   -104.80   1518
+byers           Byers           CO  39.74   -104.13   1555
+elbert          Elbert          CO  39.23   -104.63   2146
+erie            Erie            CO  40.05   -105.01   1532
+estes park      Estes Park      CO  40.37   -105.56   2378
+fort colli      Fort Collins    CO  40.59   -105.15   1610
+fort morga      Fort Morganq    CO  40.33   -103.80   1387
+greeley         Greeley         CO  40.42   -104.63   1415
+idaho spri      Idaho Springs   CO  39.68   -105.49   3506
+keenesburg      Keenesburg      CO  40.07   -104.51   1521
+lakewood        Lakewood        CO  39.70   -105.16   1832
+littleton       Littleton       CO  39.57   -104.96   1750
+longmont        Longmont        CO  40.17   -105.16   1534
+loveland        Loveland        CO  40.41   -105.04   1512
+nunn            Nunn            CO  40.80   -104.76   1634
+plattevill      Platteville     CO  40.26   -104.87   1457
+rollinsvil      Rollinsville    CO  39.91   -105.49   2750
+ward            Ward            CO  40.04   -105.54   3049
+
+
+3KM Wichita                     KS  37.75    -97.22    433
+AKO Akron                       CO  40.17   -103.22   1409
+AMA Amarillo                    TX  35.22   -101.71   1099
+BVO Bartlesville                OK  36.76    -96.01    220
+CDS Childress                   TX  34.43   -100.29    595
+CNK Concordia                   KS  39.55    -97.65    452
+CNU Chanute                     KS  37.67    -95.49    308
+COS Colorado Springs            CO  38.81   -104.71   1881
+DDC Dodge City                  KS  37.76    -99.96    790
+DEN Denver                      CO  39.77   -104.88   1626
+DHT Dalhart                     TX  36.02   -102.55   1219
+DMO Sedalia                     MO  38.70    -93.18    277
+EMP Emporia                     KS  38.33    -96.19    370
+FDR Frederick                   OK  34.35    -98.98    383
+FOE Topeka                      KS  38.95    -95.66    329
+GCK Garden City                 KS  37.93   -100.72    879
+GLD Goodland                    KS  39.37   -101.70   1124
+GOK Guthrie                     OK  35.85    -97.42    327
+GRI Grand Island                NE  40.97    -98.31    566
+HLC Hill City                   KS  39.38    -99.83    677
+HSI Hastings                    NE  40.60    -98.43    592
+HUT Hutchinson                  KS  38.07    -97.86    465
+ICT Wichita                     KS  37.65    -97.43    409
+IXD Olathe                      KS  38.83    -94.89    331
+LAA Lamar                       CO  38.07   -102.69   1129
+LHX La Junta                    CO  38.05   -103.51   1285
+LNK Lincoln                     NE  40.85    -96.76    363
+MCI Kansas City                 MO  39.30    -94.72    313
+MCK Mc Cook                     NE  40.21   -100.59    786
+MHK Manhattan                   KS  39.14    -96.67    326
+MKO Muskogee                    OK  35.66    -95.36    186
+MLC Mc Alester                  OK  34.88    -95.78    235
+OJC Olathe                      KS  38.85    -94.74    343
+OKC Oklahoma City               OK  35.39    -97.60    398
+PNC Ponca City                  OK  36.73    -97.10    304
+PPF Parsons                     KS  37.33    -95.51    274
+PUB Pueblo                      CO  38.29   -104.50   1439
+PWA Oklahoma City               OK  35.53    -97.65    396
+RSL Russell                     KS  38.87    -98.81    570
+SGF Springfield                 MO  37.24    -93.39    387
+SLN Salina                      KS  38.79    -97.65    391
+SNY Sidney                      NE  41.10   -102.98   1313
+STJ St Joseph                   MO  39.77    -94.91    249
+SWO Stillwater                  OK  36.16    -97.09    300
+TOP Topeka                      KS  39.07    -95.62    270
+TQE Tekamah                     NE  41.76    -96.18    313
+TUL Tulsa                       OK  36.20    -95.89    206
+WLD Winfield/Ark City           KS  37.17    -97.04    353
+
+DNS Denison                     IA  41.98    -95.38    389
+CSQ Creston                     IA  41.02    -94.36    395
+CWI Clinton                     IA  41.83    -90.33    216
+
+
+ASG Springdale                  AR  36.18    -94.13    412
+FTG Denver (Front Range)        CO  39.79   -104.55   1672
+
+AMW Ames                        IA  41.99    -93.62    283
+DNS Denison                     IA  41.98    -95.38    389
+CSQ Creston                     IA  41.02    -94.36    395
+FOD Fort Dodge                  IA  42.55    -94.18    353
+CWI Clinton                     IA  41.83    -90.33    216
+ADU Audubon                     IA  41.70    -94.92    396
+ATS Artesia                     NM  32.85   -104.47   1081
+SKX Taos                        NM  36.46   -105.67   2161
+CVN Clovis                      NM  34.42   -103.08   1284
+MLE Omaha (Millard)             NE  41.20    -96.11    320
+BIE Beatrice                    NE  40.32    -96.75    402
+FET Fremont                     NE  41.45    -96.51    367
+HDE Holdrege                    NE  40.45    -99.33    705
+LXN Lexington                   NE  40.79    -99.78    734
+OGA Ogallala                    NE  41.12   -101.77    999
+ONL O'Neill                     NE  42.47    -98.68    619
+AUH Aurora                      NE  40.89    -97.99    549
+OLU Columbus                    NE  41.45    -97.35    440
+EAR Kearney                     NE  40.73    -99.00    649
+IKK Greater Kankakee            IL  41.07    -87.85    191
+SQI Sterling/Rock Falls         IL  41.74    -89.67    197
+UIN Quincy                      IL  39.93    -91.20    234
+MVN Mount Vernon                IL  38.32    -88.87    146
+FNL Fort Collins                CO  40.45   -105.02   1529
+GXY Greeley                     CO  40.43   -104.63   1420
+TAD Trinidad                    CO  37.25   -104.33   1756
+OUN Norman (Univ. of Oklahoma)  OK  35.23    -97.47    359
+ADH Ada                         OK  34.81    -96.67    307
+IFO Ardmore                     OK  34.30    -97.02    232
+OK7 Watonga                     OK  35.86    -98.42    468
+SGT Stuttgart                   AR  34.60    -91.57     68
+ARG Walnut Ridge                AR  36.13    -90.62     84
+FLP Flippin                     AR  36.29    -92.59    219
+ROG Rogers                      AR  36.37    -94.11    415
+SLG Siloam Spring               AR  36.19    -94.49    364
+BVX Batesville                  AR  35.73    -91.65    141
+HOO Bentonville                 AR  36.35    -94.22    395
+HYS Hays                        KS  38.85    -99.27    609
+LBL Liberal                     KS  37.05   -100.97    880
+EWK Newton                      KS  38.06    -97.28    467
+GBD Great Bend                  KS  38.35    -98.86    576
+AIZ Kaiser/Lake Ozark           MO  38.10    -92.55    265
+HDN Hayden, Yampa Valley AirportCO  40.50   -107.25   2011
+YKN Yankton                     SD  42.92    -97.38    397
+BKX Brookings                   SD  44.31    -96.81    499
+MTW Manitowoc                   WI  44.13    -87.67    198
+SUE Sturgeon Bay                WI  44.84    -87.42    221
+EAU Eau Claire                  WI  44.87    -91.48    276
+FRM Fairmont                    MN  43.65    -94.42    354
+MML Marshall                    MN  44.45    -95.82    359
+OTG Worthington                 MN  43.65    -95.58    480
+MKT Mankato                     MN  44.22    -93.92    311
+mead            Mead            NE  41.13    -96.50    366
+champion        Champion        NE  40.37   -101.72   1029
+mccook          McCook          NE  40.22   -100.57    792
+dickens         Dickens         NE  41.00   -100.92    945
+arthur          Arthur          NE  41.63   -101.50   1097
+west point      West Point      NE  41.82    -96.80    442
+south cent      South Central   NE  40.52    -98.13    552
+north east      North East      NE  42.37    -96.97    445
+panhandle       Panhandle       NE  41.83   -103.68   1244
+north plat      North Platte    NE  41.07   -100.73    922
+gudmundsen      Gudmundsen's    NE  42.40   -101.43   1049
+sidney          Sidney          NE  41.22   -103.00   1317
+havelock        Havelock        NE  40.83    -96.67    351
+ord             Ord             NE  41.60    -98.93    625
+akron           Akron           CO  40.15   -103.13   1384
+brookings       Brookings       SD  44.30    -96.75    500
+gettysburg      Gettysburg      SD  44.98   -100.27    568
+redfield        Redfield        SD  44.87    -98.38    395
+grant           Grant           NE  40.83   -101.67    975
+ainsworth       Ainsworth       NE  42.55    -99.85    765
+gibbon          Gibbon          NE  40.68    -99.00    625
+gordon          Gordon          NE  42.78   -102.15   1109
+silverthor      Silverthorn     NE  41.52   -102.78   1302
+oacoma          Oacoma          SD  43.78    -99.32    427
+buffalo ca      Buffalo Cap     SD  43.48   -103.32    981
+o'neill         O'Neill         NE  42.45    -98.63    670
+manhattan       Manhattan #1    KS  39.18    -96.57    320
+silver lak      Silver Lake     KS  39.10    -95.83    271
+ottawa          Ottawa          KS  38.60    -95.27    277
+parsons         Parsons         KS  37.37    -95.27    277
+hesston         Hesston         KS  38.18   -97.38    412
+sandyland       Sandyland       KS  37.93    -98.75    564
+garden cit      Garden City     KS  37.98   -100.80    866
+tribune         Tribune         KS  38.45   -101.75   1101
+colby           Colby           KS  39.37   -101.07    966
+hays            Hays            KS  38.87    -99.32    610
+scandia         Scandia         KS  39.78    -97.78    451
+pine bluff      Pine Bluffs     WY  41.18   -104.08   1554
+wheatland       Wheatland       WY  42.07   -104.93   1417
+rising cit      Rising City     NE  41.18    -97.32    375
+lemon           Lemon           SD  45.93   -102.15    792
+tarnov          Tarnov          NE  41.57    -97.55    472
+ames south      Ames Southwe st IA  42.03    -93.73    305
+gilbert         Gilbert         IA  42.03    -93.73    305
+mead turf       Mead Turf Farm  NE  41.15    -96.50    366
+unsta curt      UNSTA Curtis    NE  40.63   -100.50    784
+lexington       Lexington       NE  40.78    -99.73    731
+central ci      Central City    NE  41.10    -98.00    517
+lincoln ia      Lincoln IANR    NE  40.75    -96.68    383
+arapahoe p      Arapahoe Prarie NE  41.37   -101.67   1097
+stratton        Stratton        CO  39.30   -102.50   1390
+sterling        Sterling        CO  40.45   -103.02   1200
+walsh           Walsh           CO  37.27   -102.20   1210
+castana ex      Castana Exp. StaIA  42.03    -95.80    432
+holdrege        Holdrege        NE  40.42    -99.37    707
+alliance w      Alliance West   NE  42.13   -102.85   1213
+alliance n      Alliance North  NE  42.07   -102.85   1213
+beresford       Beresford       SD  43.07    -96.92    381
+elgin           Elgin           NE  41.98    -98.27    619
+sutherland      Sutherland      IA  42.97    -95.48    396
+chariton        Chariton        IA  41.00    -93.27    396
+nashua          Nashua          IA  42.93    -92.55    360
+cottonwood      Cottonwood      SD  43.97   -101.85    722
+nisland         Nisland         SD  44.67   -103.55    722
+minot           Minot           ND  48.18   -101.30    539
+carrington      Carrington      ND  47.48    -99.10    477
+williston       Williston       ND  48.13   -103.73    640
+langdon         Langdon         ND  48.75    -98.32    495
+lippert         Lippert         ND  46.87    -98.92    495
+streeter        Streeter        ND  46.72    -99.45    549
+hettinger       Hettinger       ND  46.00   -102.50    814
+rossville       Rossville       KS  39.10    -95.92    281
+hutchinson      Hutchinson      KS  37.93    -98.02    477
+pawhattan       Powhattan       KS  39.78    -95.80    365
+watertown       Watertown       SD  44.90    -97.13    532
+halsey          Halsey          NE  41.90   -100.32    824
+fargo           Fargo           ND  46.87    -96.80    273
+grand forks     Grand Forks     ND  47.83    -97.08    254
+oakes           Oakes           ND  46.07    -98.08    396
+prosper         Prosper         ND  47.00    -97.10    283
+beatrice        Beatrice        NE  40.25    -96.73    376
+dickens         Dickinson       ND  46.87   -102.80    760
+wyndmere        Wyndmere        ND  46.25    -97.08    322
+crawfordsv      Crawfordsville  IA  41.22    -91.68    216
+gilmore         Gilmore         IA  42.68    -94.42    360
+pierre          Pierre          SD  44.27   -100.00    451
+wichita         Wichita         KS  37.87    -97.50    379
+de soto         De Soto         KS  38.98    -94.93    286
+rockport        Rockport        MO  40.47    -95.87    268
+red cloud       Red Cloud       NE  40.17    -98.87    524
+scottsbluff     Scottsbluff     NE  41.85   -103.68   1208
+shelton         Shelton         NE  40.77    -98.75    614
+
+BND Bondville         (001)     IL  40.05    -88.37    213
+DXS Dixon Springs     (002)     IL  37.45    -88.67    165
+BRS Brownstown        (003)     IL  38.95    -88.95    177
+ORR Orr               (004)     IL  39.80    -90.83    206
+DEK DeKalb            (005)     IL  41.85    -88.85    265
+MNH Monmouth          (006)     IL  40.92    -90.73    229
+SND Sand Farm         (007)     IL  40.17    -90.08    152
+ICC Peoria            (008)     IL  40.70    -89.52    207
+LLC Springfield       (009)     IL  39.52    -89.62    177
+BEL Belleville        (010)     IL  38.52    -89.88    133
+SIU Carbondale        (011)     IL  37.72    -89.23    137
+ONE Olney             (012)     IL  38.73    -88.10    134
+FRE Freeport          (013)     IL  42.28    -89.67    265
+RDL Rend Lake         (014)     IL  38.13    -88.92    130
+SLL Stelle            (015)     IL  40.95    -88.17    213
+WFP Wildlife Park     (018)     IL  40.72    -89.75    186
+SCS St. Charles       (020)     IL  41.90    -88.37    226
+FRF Fairfield         (034)     IL  38.38    -88.38    136
+CMI Champaign         (081)     IL  40.08    -88.23    219
+
+0E4 PAYSON                      AZ  34.23   -111.33   1497
+0V1 CUSTER, COUNTY AP           SD  43.73   -103.62    516
+1K5 ELKHART, AMOS               KS  37.00   -101.88   1105
+1O5 MONTAGUE, YREKA MUNICIPAL APCA  41.73   -122.55    769
+1V1 RIFLE                       CO  39.53   -107.80   1621
+27U SALMON, KSRA RADIO STN      ID  45.18   -113.90   1198
+2C2 LAS CRUCES, WHITE SAND TEST NM  32.38   -106.48   1291
+2WX BUFFALO, AMOS               SD  45.60   -103.55    915
+3B1 GREENVILLE, AMOS            ME  45.47    -69.58    316
+3DU DRUMMOND                    MT  46.67   -113.15   1201
+3HT HARLOWTON                   MT  46.43   -109.83   1261
+3KM WICHITA, JABARA ARPT        KS  37.75    -97.23    433
+3OI LAMONI                      IA  40.62    -93.95    344
+3S2 AURORA, STATE ARPT          OR  45.25   -122.75     59
+3SE SPENCER                     IA  43.17    -95.15    405
+3TH THOMPSON FALLS, POWER HOUSE MT  47.60   -115.37    725
+4BK BROOKINGS, 2 SE             OR  42.03   -124.25     14
+4BL BLANDING                    UT  37.62   -109.48   1841
+4BQ BROADUS                     MT  45.43   -105.40    924
+4CR CORONA, 11 SSW              NM  34.10   -105.68   1981
+4DG DOUGLAS                     WY  42.75   -105.38   1464
+4HV HANKSVILLE                  UT  38.37   -110.72   1313
+4LJ LAMAR                       CO  38.08   -102.62   1105
+4LW LAKEVIEW                    OR  42.18   -120.35   1458
+4MY MORIARITY                   NM  34.98   -106.05   1895
+4SL STAR LAKE, JOHNSON RANCH    NM  35.95   -107.08   2195
+5J0 JOHN DAY, AIRPORT           OR  44.25   -118.95   1125
+75S BURLINGTON, SKAGIT REGIONAL-WA  48.47   -122.42     42
+76S OAK HARBOR, AIR PARK        WA  48.25   -122.67     12
+77M MALTA                       ID  42.30   -113.33   1383
+87Q PT PIEDRAS BLANCAS          CA  35.67   -121.28     27
+8Y8 CRANE LAKE                  MN  48.27    -93.12    341
+9BB WELLS, BASIC                NV  41.10   -114.97   1723
+9V9 CHAMBERLAIN, MUNICIPAL AP   SD  43.77    -99.32    515
+ABE ALLENTOWN, A-B-E INTL AP    PA  40.65    -75.43    116
+ABI ABILENE, MUNICIPAL ARPT     TX  32.42    -99.68    545
+ABQ ALBUQUERQUE, INT'L ARPT     NM  35.05   -106.62   1619
+ABR ABERDEEN, REGIONAL ARPT     SD  45.45    -98.43    400
+ABY ALBANY, DOUGHERTY COUNTY AP GA  31.53    -84.18     63
+ACK NANTUCKET, MEMORIAL AP      MA  41.25    -70.07     14
+ACT WACO, MADISON COOPER ARPT   TX  31.62    -97.22    152
+ACV ARCATA, AIRPORT             CA  40.98   -124.10     68
+ACY ATLANTIC CITY, INTL AP      NJ  39.45    -74.57     36
+ADM ARDMORE, MUNICIPAL AP       OK  34.30    -97.02    240
+ADS DALLAS, ADDISON ARPT        TX  32.97    -96.83    209
+ADW ANDREWS, AFB                MD  38.82    -76.87     86
+AEL ALBERT LEA, MUNICIPAL ARPT  MN  43.68    -93.37    385
+AEX ENGLAND, AFB                LA  31.33    -92.55     27
+AFF USAF ACADEMY, AF            CO  38.97   -104.82   2003
+AFJ WASHINTON, COUNTY AP        PA  40.13    -80.28    361
+AGC PITTSBURGH, ALLEGHENY COUNTYPA  40.35    -79.93    387
+AGR AVON PARK, GUNNERY RANGE    FL  27.65    -81.33     20
+AGS AUGUSTA, BUSH FIELD         GA  33.37    -81.97     45
+AHN ATHENS, MUNICIPAL ARPT      GA  33.95    -83.32    245
+AIA ALLIANCE, MUNICIPAL AP      NE  42.05   -102.80   1235
+AKO AKRON, WASHINGTON CO AP     CO  40.17   -103.22   1421
+ALB ALBANY, COUNTY ARPT         NY  42.75    -73.80     90
+ALI ALICE, INTL AP              TX  27.73    -98.03     54
+ALN ALTON, ST LOUIS REGIONAL AP IL  38.88    -90.05    179
+ALO WATERLOO, MUNICIPAL AP      IA  42.55    -92.40    265
+ALS ALAMOSA, BERGMAN FIELD      CO  37.45   -105.87   2298
+ALW WALLA WALLA, CITY COUNTY AP WA  46.10   -118.28    362
+AMA AMARILLO, INT'L ARPT        TX  35.23   -101.70   1094
+AMG ALMA, BACON COUNTY AP       GA  31.53    -82.52     62
+ANB ANNISTON, CALHOUN CO AP     AL  33.58    -85.85    184
+AND ANDERSON, COUNTY AP         SC  34.50    -82.72    240
+ANE MINNEAPOLIS, ANOKA COUNTY APMN  45.15    -93.22    277
+ANW AINSWORTH, MUNICIPAL AP     NE  42.58    -99.98    788
+AOO ALTOONA, BLAIR COUNTY ARPT  PA  40.30    -78.32    450
+APA ENGLEWOOD, CENTENNIAL AP    CO  39.57   -104.85   1776
+APF NAPLES, AIRPORT             FL  26.15    -81.77      4
+APN ALPENA, PHELPS COLLINS AP   MI  45.07    -83.57    211
+AQQ APALACHICOLA, MUNICIPAL ARPTFL  29.73    -85.03      6
+ART WATERTOWN, AP               NY  44.00    -76.02     97
+ASE ASPEN, PITKIN COUNTY AP     CO  39.22   -106.87   2360
+ASG SPRINGDALE, MUNICIPAL ARPT  AR  36.17    -94.12    413
+ASH NASHUA, BOIRE FIELD         NH  42.78    -71.52     61
+AST ASTORIA, CLATSOP CNTY ARPT  OR  46.15   -123.88      3
+ATL ATLANTA, HARTSFIELD INTL AP GA  33.65    -84.43    338
+ATW APPLETON, OUTAGAMIE COUNTY AWI  44.27    -88.52    263
+ATY WATERTOWN, MUNICIPAL AP     SD  44.92    -97.15    532
+AUG AUGUSTA, AIRPORT            ME  44.32    -69.80    107
+AUO AUBURN, OPELIKA AP          AL  32.62    -85.43    236
+AUS AUSTIN, MUNICIPAL AP        TX  30.28    -97.70    179
+AUW WAUSAU, FAA AIRPORT         WI  44.92    -89.62    365
+AVL ASHEVILLE, REGIONAL ARPT    NC  35.43    -82.55    659
+AVP WILKES-BARRE, SCRANTON AP   PA  41.33    -75.73    292
+AWH WILD HORSE, RESERVOIR       NV  41.67   -115.78   1897
+AXN ALEXANDRIA, FAA AIRPORT     MN  45.87    -95.38    431
+AYS WAYCROSS, WSMO              GA  31.25    -82.40     43
+B23 BATTLE MOUNTAIN, 4 SE       NV  40.62   -116.88   1383
+BBW BROKEN BOW, MUNICIPAL AP    NE  41.43    -99.65    773
+BDL HARTFORD, BRADLEY INT'L ARPTCT  41.93    -72.68     61
+BDR BRIDGEPORT, SIKORSKY MEMORIACT  41.17    -73.13      9
+BEH BENTON HARBOR, ROSS FIELD   MI  42.13    -86.43    191
+BFD BRADFORD, FAA AIRPORT       PA  41.80    -78.63    645
+BFF SCOTTSBLUFF, COUNTY ARPT    NE  41.87   -103.60   1203
+BFL BAKERSFIELD, MEADOWS FIELD  CA  35.42   -119.05    152
+BGM BINGHAMTON, EDWIN A LINK FIENY  42.22    -75.98    493
+BGR BANGOR, AIRPORT             ME  44.80    -68.82     56
+BHB BAR HARBOR, AIRPORT         ME  44.45    -68.37     26
+BHM BIRMINGHAM, MUNICIPAL ARPT  AL  33.57    -86.75    192
+BID BLOCK ISLAND, STATE ARPT    RI  41.17    -71.58     34
+BIH BISHOP, ARPT                CA  37.37   -118.37   1253
+BIL BILLINGS, LOGAN INT'L ARPT  MT  45.80   -108.53   1092
+BIS BISMARCK, WSFO AP           ND  46.77   -100.75    504
+BJC BROOMFIELD, JEFFERSON COUNTYCO  39.90   -105.12   1719
+BJI BEMIDJI, MUNICIPAL AP       MN  47.50    -94.93    425
+BKE BAKER, MUNICIPAL AP         OR  44.83   -117.82   1026
+BKW BECKLEY, RALEIGH CO MEM AP  WV  37.78    -81.12    766
+BLF BLUEFIELD, MERCER CO AP     WV  37.30    -81.22    874
+BLH BLYTHE, 7 W                 CA  33.62   -114.72    118
+BLI BELLINGHAM, INTL AP         WA  48.80   -122.53     45
+BLU BLUE CANYON                 CA  39.28   -120.70   1609
+BNA NASHVILLE, METRO ARPT       TN  36.12    -86.68    181
+BNO BURNS, WSO AP               OR  43.58   -118.95   1263
+BNY BURNEY                      CA  40.88   -121.67    954
+BOI BOISE, AIR TERMINAL         ID  43.57   -116.22    876
+BOS BOSTON, LOGAN INT'L ARPT    MA  42.37    -71.03      5
+BPT PORT ARTHUR, WSO AP         TX  29.95    -94.02      4
+BRL BURLINGTON, MUNICIPAL AP    IA  40.78    -91.12    212
+BRO BROWNSVILLE, INT'L ARPT     TX  25.90    -97.43      6
+BTM BUTTE, BERT MOONEY ARPT     MT  45.95   -112.50   1688
+BTR BATON ROUGE, WSO AP         LA  30.53    -91.13     19
+BTV BURLINGTON, INT'L ARPT      VT  44.47    -73.15    107
+BUF BUFFALO, GREATER BUFFALO INTNY  42.93    -78.73    218
+BUO BEAUMONT, 1 E               CA  33.93   -116.97    792
+BVI BEAVER FALLS                PA  40.77    -80.40    391
+BVO BARTLESVILLE, FRANK PHILLIPSOK  36.75    -96.00   2156
+BWG BOWLING GREEN, FAA AP       KY  36.97    -86.43    162
+BYI BURLEY, FAA AIRPORT         ID  42.53   -113.77   1267
+BYS BICYCLE LAKE, FORT IRWIN AAFCA  35.28   -116.63    716
+BZN BOZEMAN, GALLATIN FIELD     MT  45.78   -111.15   1362
+CAE COLUMBIA, METRO ARPT        SC  33.95    -81.12     75
+CAG CRAIG, CRAIG-MOFFAT CNTY AP CO  40.50   -107.53   1887
+CAK AKRON, AKRON-CANTON REG AP  OH  40.92    -81.43    379
+CAO CLAYTON, MUNICIPAL AIRPARK  NM  36.45   -103.15   1515
+CAR CARIBOU, MUNICIPAL ARPT     ME  46.87    -68.02    192
+CDC CEDAR CITY, FAA AIRPORT     UT  37.70   -113.10   1709
+CDR CHADRON, MUNICIPAL AP       NE  42.83   -103.08   1010
+CDS CHILDRESS, FCWOS AP         TX  34.43   -100.28    594
+CDW FAIRFIELD, ESSEX COUNTY AP  NJ  40.88    -74.28     54
+CEW CRESTVIEW, FAA ARPT         FL  30.78    -86.52     57
+CEZ CORTEZ, MONTEZUMA CO AP     CO  37.30   -108.63   1802
+CGI CAPE GIRARDEAU, MUNICIPAL APMO  37.23    -89.57    103
+CHA CHATTANOOGA, WSO AP         TN  35.03    -85.20    207
+CHH CHATHAM, WSMO               MA  41.67    -69.97     15
+CHS CHARLESTON, WSO AP          SC  32.90    -80.03     14
+CID CEDAR RAPIDS, MUNICIPAL AP  IA  41.88    -91.70    269
+CKL CENTREVILLE, WSMO           AL  32.90    -87.25    138
+CLE CLEVELAND, WSO AP           OH  41.42    -81.87    237
+CLT CHARLOTTE, DOUGLAS INT'L ARPNC  35.22    -80.93    225
+CMH COLUMBUS, WSO AP            OH  40.00    -82.88    248
+CMX HOUGHTON, FAA AIRPORT       MI  47.17    -88.50    327
+CNK CONCORDIA, BLOSSER MUNI AP  KS  39.55    -97.65    448
+CNM CARLSBAD, CAVERN CITY AIR TENM  32.33   -104.27    986
+CNU CHANUTE, FAA AIRPORT        KS  37.67    -95.48    298
+COD CODY, MUNICIPAL AP          WY  44.52   -109.02   1552
+CON CONCORD, MUNICIPAL ARPT     NH  43.20    -71.50    106
+COS COLORADO SPRINGS, MUNICIPAL CO  38.82   -104.72   1857
+COU COLUMBIA, REGIONAL ARPT     MO  38.82    -92.22    272
+CPR CASPER, WSO AP              WY  42.92   -106.47   1622
+CQV COLVILLE, BASIC             WA  48.58   -117.80    914
+CRP CORPUS CHRISTI, INT'L ARPT  TX  27.77    -97.50     17
+CRW CHARLESTON, KANAWHA ARPT    WV  38.37    -81.60    310
+CSG COLUMBUS, METROPOLITAN ARPT GA  32.52    -84.95    137
+CSM CLINTON, SHERMAN AP         OK  35.35    -99.20    595
+CSV CROSSVILLE, FAA AIRPORT     TN  35.95    -85.08    573
+CTB CUT BANK, FAA AIRPORT       MT  48.60   -112.37   1169
+CVG CINCINNATI, GREATER CINCINNAKY  39.05    -84.67    271
+CVS CLOVIS, CANNON AFB          NM  34.38   -103.32   1309
+CXY HARRISBURG, CAPITAL CI AP   PA  40.22    -76.85    103
+DAB DAYTONA BEACH, WSO AP       FL  29.18    -81.05      9
+DAG DAGGETT, FAA AIRPORT        CA  34.87   -116.78    585
+DAL DALLAS, LOVE FIELD          TX  32.85    -96.85    159
+DAY DAYTON, INT'L ARPT          OH  39.90    -84.20    306
+DBQ DUBUQUE, MUNICIPAL AP       IA  42.40    -90.70    321
+DCA WASHINGTON DC, NATIONAL ARPTVA  38.85    -77.03     23
+DDC DODGE CITY, MUNICIPAL AP    KS  37.77    -99.97    786
+DEN DENVER, STAPLETON INT'L AP  CO  39.77   -104.87   1611
+DET DETROIT, CITY AIRPORT       MI  42.42    -83.02    195
+DFW DALLAS/FORT WORTH, REGIONAL TX  32.90    -97.03    167
+DHN DOTHAN, ARPT                AL  31.32    -85.45    108
+DHT DALHART, MUNICIPAL AP       TX  36.02   -102.55   1216
+DIK DICKINSON, FAA AIRPORT      ND  46.80   -102.80    787
+DLH DULUTH, WSO AP              MN  46.83    -92.18    435
+DLN DILLON, ARPT                MT  45.25   -112.55   1589
+DLS DALLESPORT, FCWOS AP        WA  45.62   -121.15     73
+DMN DEMING, MUNICIPAL AP        NM  32.25   -107.70   1312
+DNV DANVILLE, VERMILION CO AP   IL  40.20    -87.60    211
+DRA DESERT ROCK                 NV  36.62   -116.02   1007
+DRO DURANGO, LAPLATA COUNTY AP  CO  37.15   -107.75   2037
+DRT DEL RIO, INT'L ARPT         TX  29.37   -100.92    312
+DSM DES MOINES, INTL AP         IA  41.53    -93.65    294
+DTW DETROIT, METROPOLITAN ARPT  MI  42.23    -83.33    197
+DUG DOUGLAS, FAA AP             AZ  31.47   -109.60   1250
+DUJ DUBOIS, FAA AIRPORT         PA  41.18    -78.90    553
+DVL DEVILS LAKE, MUNICIPAL AP   ND  48.12    -98.90    441
+DVT DEER VALLEY, PHOENIX-DEER VAAZ  33.68   -112.08    451
+DYR DYERSBURG, MUNICIPAL AP     TN  36.02    -89.40    103
+DYS ABILENE, DYESS AFB          TX  32.43    -99.85    544
+E23 TAOS                        NM  36.42   -105.57   2122
+E74 SAFFORD, AGRICULTURAL CENTERAZ  32.82   -109.68    900
+EAT WENATCHEE, PANGBORN FIELD   WA  47.40   -120.20    375
+EAU EAU CLAIRE, FAA AIRPORT     WI  44.87    -91.48    271
+EDW EDWARDS, AFB - UPPER AIR    CA  34.90   -117.92    220
+EED NEEDLES, FAA AIRPORT        CA  34.77   -114.62    278
+EEN KEENE, DILLANT-HOPKINS AP   NH  42.90    -72.27    148
+EGE EAGLE, COUNTY AP            CO  39.65   -106.92   1982
+EKN ELKINS, RANDOLPH CO ARPT    WV  38.88    -79.85    605
+EKO ELKO, MUNICIPAL ARPT        NV  40.83   -115.78   1548
+ELD EL DORADO, GOODWIN FIELD    AR  33.22    -92.80     76
+ELP EL PASO, INT'L ARPT         TX  31.80   -106.40   1198
+ELO ELY, MUNICIPAL ARPT         MN  47.82    -91.83    442
+ELY ELY, YELLAND FIELD          NV  39.28   -114.85   1907
+END ENID, VANCE AFB             OK  36.33    -97.92    121
+ENV WENDOVER, USAF AUXILIARY FIEUT  40.73   -114.03   1291
+EPH EPHRATA, AIRPORT FCWOS      WA  47.32   -119.52    383
+ERI ERIE, INT'L ARPT            PA  42.08    -80.18    223
+ESC ESCANABA, DELTA COUNTY AP   MI  45.73    -87.08    182
+ESF ALEXANDRIA, ESLER FIELD     LA  31.40    -92.30     32
+EST ESTHERVILLE, MUNICIPAL ARPT IA  43.40    -94.75    417
+EUG EUGENE, MAHLON SWEET ARPT   OR  44.12   -123.22    110
+EVV EVANSVILLE, DRESS REGIONAL AIN  38.05    -87.53    121
+EWN NEW BERN, FAA AIRPORT       NC  35.07    -77.05      5
+EWR NEWARK, INT'L ARPT          NJ  40.70    -74.17      9
+FAR FARGO, WSO AP               ND  46.90    -96.80    277
+FAT FRESNO, AIR TERMINAL        CA  36.78   -119.72    100
+FAY FAYETTEVILLE, GRANIS FIELD  NC  35.00    -78.88     58
+FBL FARIBAULT, MUNICIPAL ARPT   MN  44.33    -93.32    323
+FCA KALISPELL, GLACIER PK INT'L MT  48.30   -114.27    907
+FCL FORT COLLINS                CO  40.58   -105.08   1525
+FCM MINNEAPOLIS, FLYING CLOUD APMN  44.83    -93.45    276
+FDY FINDLAY, FAA AIRPORT        OH  41.02    -83.67    244
+FFM FERGUS FALLS, AIRPORT       MN  46.28    -96.15    361
+FFZ MESA, FALCON FIELD          AZ  33.47   -111.73    437
+FLG FLAGSTAFF, PULLIAM ARPT     AZ  35.13   -111.67   2132
+FLO FLORENCE, CITY COUNTY ARPT  SC  34.18    -79.72     46
+FMN FARMINGTON, MUNICIPAL ARPT  NM  36.75   -108.23   1686
+FMY FORT MYERS, FAA/AP          FL  26.58    -81.87      5
+FNL LOVELAND, FT COLLINS-LOVELANCO  40.45   -105.02   1528
+FNT FLINT, BISHOP ARPT          MI  42.97    -83.75    235
+FOE TOPEKA, FORBES FIELD        KS  38.95    -95.67    100
+FPR FT PIERCE, ST LUCIE CNTY INTFL  27.48    -80.37      7
+FRM FAIRMONT, MUNICIPAL AP      MN  43.65    -94.42    353
+FSD SIOUX FALLS, FOSS FIELD     SD  43.57    -96.73    435
+FSM FORT SMITH, MUNICIPAL ARPT  AR  35.33    -94.37    141
+FTW FORT WORTH, MEACHAM FIELD   TX  32.82    -97.35    204
+FWA FORT WAYNE, WSO AP          IN  41.00    -85.20    249
+GAG GAGE, FAA AIRPORT           OK  36.30    -99.77    667
+GBN GILA BEND, AAF              AZ  32.88   -112.72    261
+GCK GADREN CITY, 9 ESE          KS  37.93   -100.72    878
+GEG SPOKANE, INT'L ARPT         WA  47.63   -117.53    719
+GFK GRAND FORKS, FAA AP         ND  47.95    -97.17    258
+GFL GLENS FALLS, AP             NY  43.35    -73.62     98
+GGW GLASGOW, INT'L ARPT         MT  48.22   -106.62    696
+GJT GRAND JUNCTION, WALKER FIELDCO  39.10   -108.55   1472
+GLD GOODLAND, RENNER FIELD      KS  39.37   -101.70   1111
+GNT GRANTS, MILAN MUNI AP       NM  35.17   -107.90   1987
+GNV GAINESVILLE, MUNI ARPT      FL  29.68    -82.27     42
+GRB GREEN BAY, AUSTIN STRAUBEL FWI  44.48    -88.13    211
+GRI GRAND ISLAND, WSO AP        NE  40.97    -98.32    562
+GRR GRAND RAPIDS, KENT CO INT'L MI  42.88    -85.52    249
+GSO GREENSBORO,HIGH POINT, WINSTNC  36.08    -79.95    277
+GSP GREER, GREENV'L-SPARTANBRG ASC  34.90    -82.22    290
+GTF GREAT FALLS, INT'L ARPT     MT  47.48   -111.37   1117
+GUC GUNNISON, 1 N               CO  38.55   -106.92   2338
+GUP GALLUP, SENATOR CLARKE FLD  NM  35.52   -108.78   1971
+GWO GREENWOOD, FAA AIRPORT      MS  33.50    -90.08     47
+GYR GOODYEAR, PHOENIX-LITCHFIELDAZ  33.42   -112.38    295
+HAT CAPE HATTERAS, WSO          NC  35.27    -75.55      8
+HBR HOBART, MUNICIPAL AP        OK  35.00    -99.05    473
+HDN HAYDEN, YAMPA VALLEY ARPT   CO  40.50   -107.25   2012
+HDO HONDO, WSMO AIRPORT         TX  29.35    -99.17    278
+HEZ NATCHEZ, ADAMS COUNTY AP    MS  31.62    -91.28     82
+HFF FORT BRAGG, MACKALL AAF     NC  35.03    -79.50    115
+HGR HAGERSTOWN, REGIONAL AP     MD  39.70    -77.72    215
+HIB HIBBING, FAA AIRPORT        MN  47.38    -92.85    410
+HKY HICKORY, FAA AIRPORT        NC  35.73    -81.38    348
+HLC HILL CITY, 1 NE             KS  39.38    -99.83    670
+HLN HELENA, ARPT                MT  46.60   -112.00   1188
+HMN HOLLOMAN, AFB               NM  32.85   -106.10    380
+HMS HANFORD                     WA  46.57   -119.60    223
+HOB HOBBS, FAA AIRPORT          NM  32.68   -103.20   1114
+HON HURON, REGIONAL ARPT        SD  44.38    -98.22    391
+HOU HOUSTON, FAA AIRPORT        TX  29.65    -95.28     15
+HPN WHITE PLAINS, WESTCHESTER CONY  41.07    -73.72    122
+HQM HOQUIAM, AP                 WA  46.98   -123.93      7
+HRO HARRISON, FAA AIRPORT       AR  36.27    -93.15    418
+HSV HUNTSVILLE, MADISON COUNTY JAL  34.65    -86.77    192
+HTL HOUGHTON LAKE, WSO AP       MI  44.37    -84.68    351
+HTS HUNTINGTON, TRI-STATE ARPT  WV  38.37    -82.55    255
+HUF TERRE HAUTE, HULMAN REGIONALIN  39.45    -87.30    181
+HUL HOULTON, INTL AIRPORT       ME  46.13    -67.78    151
+HUT HUTCHINSON, MUNICIPAL AP    KS  38.07    -97.87    464
+HVR HAVRE, CITY-COUNTY ARPT     MT  48.55   -109.77    787
+IAD WASHINGTON DC, DULLES INT'L VA  38.95    -77.45     94
+IAH HOUSTON, INTERCONTINENTAL APTX  29.97    -95.35     37
+ICT WICHITA, MID-CONTINENT ARPT KS  37.65    -97.43    402
+IDA IDAHO FALLS, FAA AIRPORT    ID  43.52   -112.07   1441
+ILE KILLEEN, MUNICIPAL ARPT     TX  31.08    -97.68    257
+ILG WILMINGTON, GREATER WILMINGTDE  39.67    -75.60     24
+ILM WILMINGTON, NEW HANOVER COUNNC  34.27    -77.90     10
+IND INDIANAPOLIS, INT'L ARPT    IN  39.73    -86.27    241
+INK WINK, FAA AIRPORT           TX  31.78   -103.20    857
+INL INTERNATIONAL FALLS, INT'L AMN  48.57    -93.38    361
+INW WINSLOW, MUNICIPAL ARPT     AZ  35.02   -110.73   1490
+IPT WILLIAMSPORT-LYCOMING, COUNTPA  41.25    -76.92    166
+ISN WILLISTON, WSO              ND  48.18   -103.63    579
+ISP ISLIP, LONG ISL MACARTHUR APNY  40.78    -73.10     26
+JAC JACKSON, JACKSON HOLE AP    43.60   -110.73   1957
+JAN JACKSON, THOMPSON FIELD     MS  32.32    -90.08     90
+JAX JACKSONVILLE, WSO AP        FL  30.50    -81.70      9
+JFK NEW YORK, J F KENNEDY INT'L NY  40.65    -73.78      5
+JKL JACKSON, WSO                KY  37.60    -83.32    413
+JLN JOPLIN, FAA AIRPORT         MO  37.15    -94.50    298
+JMS JAMESTOWN, FAA AIRPORT      ND  46.92    -98.68    454
+JNW NEWPORT                     OR  44.63   -124.05     37
+JST JOHNSTOWN, CAMBRIA COUNTY APPA  40.32    -78.83    695
+JXN JACKSON, REYNOLDS FIELD     MI  42.27    -84.47    306
+LAF WEST LAFAYETTE, PURDUE UNIV IN  40.42    -86.93    182
+LAL LAKELAND                    FL  28.00    -82.05     45
+LAN LANSING, CAPITAL CITY ARPT  MI  42.77    -84.60    266
+LAR LARAMIE, GENERAL BREES FIELDWY  41.32   -105.68   2214
+LAS LAS VEGAS, MCCARRAN INT'L ARNV  36.08   -115.17    664
+LAX LOS ANGELES, INT'L ARPT     CA  33.93   -118.40     32
+LBB LUBBOCK, REGIONAL ARPT      TX  33.65   -101.82    993
+LBF NORTH PLATTE, LEE BIRD FLD  NE  41.13   -100.68    847
+LBL LIBERAL, MUNICIPAL AIRPORT  KS  37.05   -100.97    878
+LCH LAKE CHARLES, WSO AP        LA  30.12    -93.22      5
+LEB LEBANON, REGIONAL AP        43.63    -72.32    173
+LEX LEXINGTON, BLUEGRASS FIELD  KY  38.03    -84.60    302
+LFI LANGLEY, AFB                VA  37.08    -76.35      4
+LFK LUFKIN, ANGELINA CO         TX  31.23    -94.75     85
+LFT LAFAYETTE, FCWOS            LA  30.20    -91.98     11
+LGA NEW YORK, LAGUARDIA ARPT    NY  40.77    -73.90     12
+LGB LONG BEACH, WSCMO           CA  33.82   -118.15     20
+LGD LA GRANDE, MUNICIPAL AP     OR  45.28   -118.00    829
+LHX LA JUNTA, 4 NNE             CO  38.05   -103.52   1277
+LIC LIMON                       CO  39.18   -103.70   1694
+LIT LITTLE ROCK, ADAMS FIELD    AR  34.73    -92.23     84
+LND LANDER, WSO AP              WY  42.82   -108.73   1693
+LNK LINCOLN, MUNICIPAL ARPT     NE  40.85    -96.75    364
+LOL LOVELOCK, FAA AIRPORT       NV  40.07   -118.55   1188
+LOZ LONDON, LONDON-CORBIN AP    KY  37.08    -84.07    362
+LRD LAREDO, INTL AP             TX  27.53    -99.47    172
+LRU LAS CRUCES, MUNICIPAL AP    NM  32.28   -106.92   1357
+LSE LA CROSSE, MUNICIPAL ARPT   WI  43.87    -91.25    200
+LUK CINCINNATI, LUNKEN AIRPORT  OH  39.10    -84.43    149
+LVM LIVINGSTON, FAA AP          MT  45.70   -110.45   1418
+LVS LAS VEGAS, FAA AIRPORT      NM  35.65   -105.15   2092
+LWM LAWRENCE, MUNICIPAL AP      MA  42.72    -71.12     45
+LWS LEWISTON, WSO AP            ID  46.38   -117.02    439
+LWT LEWISTOWN, 2 SW             MT  47.05   -109.45   1263
+LXV LEADVILLE, LAKE COUNTY ARPT CO  39.23   -106.32   3029
+LYH LYNCHBURG, MUNICIPAL ARPT   VA  37.33    -79.20    296
+MAF MIDLAND, WSO AP             TX  31.95   -102.18    872
+MCB MCCOMB, PIKE COUNTY AP      MS  31.23    -90.47    124
+MCE MERCED, MUNICIPAL ARPT      CA  37.28   -120.52     46
+MCI KANSAS CITY, INTL ARPT      MO  39.32    -94.72    297
+MCK MCCOOK                      NE  40.22   -100.58    785
+MCN MACON, LEWIS B WILSON ARPT  GA  32.70    -83.65    110
+MCO ORLANDO, WSO MCCOY          FL  28.45    -81.32     29
+MCW MASON CITY, AP              IA  43.15    -93.33    363
+MDT MIDDLETOWN, HARRISBURG INTL PA  40.20    -76.77    113
+MEI MERIDIAN, KEY FIELD         MS  32.33    -88.75     89
+MEM MEMPHIS, WSCMO AP           TN  35.05    -90.00     82
+MFD MANSFIELD, WSO AP           OH  40.82    -82.52    396
+MFE MC ALLEN, FAA AIRPORT       TX  26.18    -98.23     30
+MFR MEDFORD, JACKSON COUNTY ARPTOR  42.38   -122.88    396
+MGM MONTGOMERY, DANNELLY FIELD  AL  32.30    -86.40     64
+MGW MORGANTOWN, FAA AIRPORT     WV  39.65    -79.92    378
+MHK MANHATTAN, MUNICIPAL AP     KS  39.15    -96.67    318
+MHV MOJAVE, AIRPORT             CA  35.07   -118.15    861
+MIA MIAMI, INT'L ARPT           FL  25.80    -80.30      4
+MIC MINNEAPOLIS, CRYSTAL ARPT   MN  45.07    -93.35     82
+MIV MILLVILLE, FAA AIRPORT      NJ  39.37    -75.07     22
+MKC KANSAS CITY, MUNICIPAL ARPT MO  39.12    -94.60    227
+MKE MILWAUKEE, GENERAL MITCHELL WI  42.95    -87.90    210
+MKG MUSKEGON, COUNTY ARPT       MI  43.17    -86.23    192
+MKL JACKSON, FCWOS AP           TN  35.60    -88.92    131
+MLC MCALESTER, MUNICIPAL AP     OK  34.88    -95.78    231
+MLD MALAD CITY                  ID  42.17   -112.28   1362
+MLS MILES CITY, MUNICIPAL ARPT  MT  46.43   -105.87    801
+MLU MONROE, MUNICIPAL ARPT      LA  32.52    -92.05     23
+MMH MAMMOTH LAKES, MAMMOTH-JUNE CA  37.63   -118.85   2172
+MML MARSHALL, RYAN FIELD        MN  44.45    -95.82    360
+MMO MARSEILLES, WSMO            IL  41.37    -88.62    198
+MOB MOBILE, WSO AIRPORT         AL  30.68    -88.25     68
+MOT MINOT, FAA AIRPORT          ND  48.27   -101.28    522
+MPV MONTPELIER, AP              VT  44.20    -72.57    343
+MQM MONIDA                      MT  44.57   -112.32   2068
+MQT MARQUETTE, COUNTY ARPT      MI  46.53    -87.55    431
+MRB MARTINSBURG, FAA AIRPORT    WV  39.40    -77.98    162
+MSL MUSCLE SHOALS, FAA AIRPORT  AL  34.75    -87.62    164
+MSN MADISON, DANE CO REGIONAL ARWI  43.13    -89.33    262
+MSO MISSOULA, JOHNSON-BELL FLD  MT  46.92   -114.08    976
+MSP MINNEAPOLIS, INT'L ARPT     MN  44.88    -93.22    262
+MSS MASSENA, AP                 NY  44.93    -74.85     65
+MSY NEW ORLEANS, INT'L ARPT     LA  29.98    -90.25      6
+MTC MOUNT CLEMENS, SELFRIDGE ANGMI  42.60    -82.83    179
+MTJ MONTROSE, COUNTY ARPT       CO  38.50   -107.88   1755
+MWA MARION, WILLIAMSON CO AP    IL  37.75    -89.00    143
+MWL MINERAL WELLS, MUNICIPAL AP TX  32.78    -98.07    283
+MWN MOUNT WASHINGTON            NH  44.27    -71.30   1909
+MWS MT WILSON, NO 2             CA  34.23   -118.07   1739
+NBE DALLAS, HENSLEY FLD NAS     TX  32.73    -96.97    149
+NEW NEW ORLEANS, LAKEFRONT AP   LA  30.03    -90.03      3
+NFG CAMP PENDLETON, MCAS        CA  33.30   -117.35     22
+NKX SAN DIEGO, MIRAMAR WSCMO    CA  32.83   -117.12     40
+NMM MERIDIAN, NAAS              MS  32.55    -88.57     84
+NRB MAYPORT, NS                 FL  30.40    -81.42      5
+OFF BELLEVUE, OFFUTT AFB        NE  41.12    -95.92     97
+OFK NORFOLK, WSO AP             NE  41.98    -97.43    471
+OJC OLATHE, JOHNSON COUNTY EXEC KS  38.85    -94.73    339
+OKC OKLAHOMA CITY, WSFO AP      OK  35.40    -97.60    391
+OLM OLYMPIA, ARPT               WA  46.97   -122.90     59
+OMA OMAHA, EPPLEY AIRFIELD      NE  41.30    -95.90    298
+OQU NORTH KINGSTOWN, QUONSET STARI  41.60    -71.40     11
+ORD CHICAGO, O'HARE INTL AP     IL  42.00    -87.88    204
+ORF NORFOLK, INT'L ARPT         VA  36.90    -76.20     13
+ORH WORCESTER, WSO AP           MA  42.27    -71.87    302
+OTH NORTH BEND, FAA AIRPORT     OR  43.42   -124.25      1
+OTM OTTUMWA, INDUSTRIAL AP      IA  41.10    -92.45    256
+OVN OMAHA, WSFO                 NE  41.37    -96.02    398
+P05 PHILIP, 2 N                 SD  44.07   -101.65    683
+PBI WEST PALM BEACH, INT'L ARPT FL  26.68    -80.12      7
+PDT PENDLETON, MUNICIPAL ARPT   OR  45.68   -118.85    459
+PDX PORTLAND, INT'L ARPT        OR  45.60   -122.60      8
+PHL PHILADELPHIA, INT'L ARPT    PA  39.88    -75.25     19
+PHX PHOENIX, WSFO AP            AZ  33.43   -112.02    338
+PIA PEORIA, GREATER PEORIA ARPT IL  40.67    -89.68    205
+PIB LAUREL/HATTIESBURG, PINE BELMS  31.47    -89.33     90
+PIH POCATELLO, MUNICIPAL ARPT   ID  42.92   -112.60   1360
+PIR PIERRE, FAA AIRPORT         SD  44.38   -100.28    526
+PIT PITTSBURGH, GR PITTSBURGH INPA  40.50    -80.22    370
+PKB PARKERSBURG, WOOD COUNTY AP WV  39.35    -81.43    253
+PKD PARK RAPIDS, MUNICIPAL ARPT MN  46.90    -95.07    439
+PLN PELLSTON, EMMET COUNTY AP   MI  45.57    -84.78    218
+PNC PONCA CITY, FAA AIRPORT     OK  36.73    -97.10    304
+PNS PENSACOLA, REGIONAL ARPT    FL  30.47    -87.20     35
+POB FAYETTEVILLE, POPE AFB      NC  35.17    -79.02     60
+POU POUGHKEEPSIE, DUTCHESS CO APNY  41.63    -73.88     47
+PRB PASO ROBLES, MUNICIPAL ARPT CA  35.67   -120.63    243
+PSP PALM SPRINGS                CA  33.83   -116.50    129
+PSX PALACIOS, FAA AIRPORT       TX  28.72    -96.25      4
+PUB PUEBLO, MEMORIAL AP         CO  38.28   -104.52   1420
+PVD PROVIDENCE, T F GREEN STATE RI  41.73    -71.43     18
+PWA OKLAHOMA CITY, WILEY POST AROK  35.53    -97.63    396
+PWM PORTLAND, INT'L JETPORT     ME  43.65    -70.30     14
+RAP RAPID CITY, REGIONAL ARPT   SD  44.05   -103.07    965
+RBD DALLAS, REDBIRD ARPT        TX  32.68    -96.87    209
+RBL RED BLUFF, FSS              CA  40.15   -122.25    104
+RDD REDDING, MUNICIPAL ARPT     CA  40.50   -122.30    156
+RDM REDMOND, ROBERTS FIELD      OR  44.27   -121.15    932
+RDU RALEIGH, RALEIGH-DURHAM ARPTNC  35.87    -78.78    127
+RFD ROCKFORD, WSO AP            IL  42.20    -89.10    223
+RHI RHINELANDER, ONEIDA COUNTY AWI  45.63    -89.45    487
+RHV SAN JOSE, REID-HILLVIEW AP  CA  37.33   -121.82     40
+RIC RICHMOND, R E BYRD INT'L ARPVA  37.50    -77.33     54
+RKD ROCKLAND, KNOX COUNTY AP    ME  44.07    -69.10     17
+RKS ROCK SPRINGS, ARPT          WY  41.60   -109.07   2054
+RME GRIFFISS, AFB               NY  43.23    -75.40    158
+RND RANDOLPH, AFB               TX  29.53    -98.28    231
+RNO RENO, CANNON INT'L ARPT     NV  39.50   -119.78   1341
+ROA ROANOKE, WOODRUM ARPT       VA  37.32    -79.97    364
+ROC ROCHESTER, GREATER ROCHESTERNY  43.13    -77.67    167
+ROW ROSWELL, INDUSTRIAL AIR PARKNM  33.30   -104.53   1113
+RSL RUSSELL, MUNICIPAL ARPT     KS  38.87    -98.82    568
+RST ROCHESTER, WSO AP           MN  43.92    -92.50    392
+RUT RUTLAND, STATE AP           VT  43.53    -72.95    240
+RWF REDWOOD FALLS, MUNI ARPT    MN  44.55    -95.08    312
+RWL RAWLINS, MUNICIPAL AP       WY  41.80   -107.20   2053
+S29 SALIDA                      CO  38.52   -106.02    666
+S80 GRANGEVILLE                 ID  45.92   -116.13   1024
+SAC SACRAMENTO, EXECUTIVE ARPT  CA  38.52   -121.50      6
+SAN SAN DIEGO, LINDBERGH FIELD  CA  32.73   -117.17     10
+SAT SAN ANTONIO, INT'L AP       TX  29.53    -98.47    242
+SAV SAVANNAH, MUNICIPAL ARPT    GA  32.13    -81.20     16
+SBA SANTA BARBARA, FAA ARPT     CA  34.43   -119.83      2
+SBN SOUTH BEND, WSO AP          IN  41.70    -86.32    238
+SBS STEAMBOAT SPRINGS           CO  40.52   -106.87   2097
+SBY SALISBURY, WICOMICO CO AP   MD  38.33    -75.52     15
+SCK STOCKTON, METROPOLITAN AP   CA  37.90   -121.25     11
+SDB SANDBERG, WSMO              CA  34.75   -118.73   1376
+SDF LOUISVILLE, STANDIFORD FIELDKY  38.18    -85.73    147
+SDL SCOTTSDALE, MUNICIPAL AP    AZ  33.62   -111.92    461
+SDY SIDNEY, RICHLAND MUNI AP    MT  47.72   -104.18    605
+SEA SEATTLE, SEATTLE-TACOMA INTLWA  47.45   -122.30    137
+SEE EL CAJON, GILLESPIE FIELD   CA  32.82   -116.97    111
+SEP STEPHENVILLE, WSMO          TX  32.22    -98.18    398
+SFO SAN FRANCISCO, INTERNATIONALCA  37.62   -122.38     27
+SGF SPRINGFIELD, REGIONAL AP    MO  37.23    -93.38    387
+SGU ST GEORGE, MUNICIPAL AP     UT  37.10   -113.60    899
+SHR SHERIDAN, WSO AP            WY  44.77   -106.97   1202
+SHV SHREVEPORT, WSO AP          LA  32.47    -93.82     77
+SIY MONTAGUE, SISKIYOU COUNTY APCA  41.78   -122.47    803
+SJN SAINT JOHNS                 AZ  34.52   -109.38   1747
+SJT SAN ANGELO, MATHIS FIELD    TX  31.37   -100.50    579
+SKX TAOS, MUNI AP               NM  36.45   -105.67   2161
+SLC SALT LAKE CITY, INT'L ARPT  UT  40.78   -111.95   1286
+SLE SALEM, MCNARY FIELD         OR  44.92   -123.00     60
+SLI SLIDELL, WSFO-U/A           LA  30.33    -89.82      2
+SLN SALINA, FAA AIRPORT         KS  38.80    -97.65    384
+SMP STAMPEDE PASS, WSMO         WA  47.28   -121.33   1209
+SMX SANTA MARIA, PUBLIC ARPT    CA  34.90   -120.45     81
+SNS SALINAS, 3 E                CA  36.67   -121.60     21
+SNY SIDNEY, 3 S                 NE  41.10   -102.98   1313
+SOW SHOW LOW, AIRPORT           AZ  34.25   -110.00   1954
+SPS WICHITA FALLS, MUNICIPAL ARPTX  33.97    -98.48    306
+SSF SAN ANTONIO, STINSON FIELD  TX  29.33    -98.48    175
+SSI BRUNSWICK, FAA AIRPORT      GA  31.15    -81.38      4
+STC ST CLOUD, MUNICIPAL ARPT    MN  45.55    -94.07    314
+STL ST LOUIS, LAMBERT INT'L ARPTMO  38.75    -90.37    172
+SUE STURGEON BAY, DOOR CTY CHERRWI  44.92    -87.42    220
+SUS ST LOUIS, SPIRIT OF ST LOUISMO  38.67    -90.65    142
+SUX SIOUX CITY, WSO AP          IA  42.40    -96.38    339
+SXT SEXTON SUMMIT               OR  42.62   -123.37   1170
+SYR SYRACUSE, HANCOCK INT'L ARPTNY  43.12    -76.12    128
+T62 TOOELE, ARMY DEPOT          UT  40.17   -112.20   1538
+TAD TRINIDAD, LAS ANIMAS COUNTY CO  37.25   -104.33   1751
+TBN FORT LEONARD WOOD           MO  37.75    -92.10    335
+TCL TUSCALOOSA, MUNICIPAL AP    AL  33.23    -87.62     51
+TDO TOLEDO                      WA  46.47   -122.83     99
+TEX TELLURIDE, REGIONAL AP      CO  37.95   -107.90   2769
+TLH TALLAHASSEE, WSO AP         FL  30.38    -84.37     17
+TOA TORRANCE, MUNICIPAL ARPT    CA  33.80   -118.33     33
+TOL TOLEDO, EXPRESS ARPT        OH  41.60    -83.80    211
+TOP TOPEKA, MUNICIPAL ARPT      KS  39.07    -95.63    269
+TPA TAMPA, INT'L ARPT           FL  27.97    -82.53     12
+TPH TONOPAH, AIRPORT            NV  38.07   -117.08   1652
+TRI BRISTOL, TRI CITY AIRPORT   TN  36.48    -82.40    475
+TRM THERMAL, FIRE STN 39        CA  33.63   -116.17    -33
+TTD TROUTDALE, SUBSTATION       OR  45.57   -122.40      8
+TUL TULSA, WSO AP               OK  36.20    -95.90    203
+TUP TUPELO, C D LEMONS ARPT     MS  34.27    -88.77    107
+TUS TUCSON, INT'L ARPT          AZ  32.13   -110.93    786
+TVC TRAVERSE CITY, CHERRY CAPITAMI  44.73    -85.58    188
+TVF THIEF RIVER FALLS, MUNICIPALMN  48.07    -96.18    340
+TVL TAHOE VALLEY, FAA AP        CA  38.90   -120.00   1906
+TXK TEXARKANA, FAA AIRPORT      AR  33.45    -94.00    110
+TYS KNOXVILLE, MCGEE TYSON AP   TN  35.82    -83.98    268
+U24 DELTA                       UT  39.33   -112.58   1409
+U78 SODA SPRINGS, AIRPORT       ID  42.65   -111.58    542
+UCA UTICA, FAA AIRPORT          NY  43.15    -75.38    217
+UIL QUILLAYUTE, AIRPORT         WA  47.95   -124.55     54
+UIN QUINCY, FAA AIRPORT         IL  39.93    -91.20    232
+UKI UKIAH, MUNICIPAL AP         CA  39.13   -123.20    191
+VCT VICTORIA, REGIONAL AP       TX  28.85    -96.92     32
+VEL VERNAL, MUNICIPAL AP        UT  40.45   -109.52   1606
+VIH VICHY, ROLLA NAT'L ARPT     MO  38.12    -91.77    350
+VRB VERO BEACH, MUNICIPAL AIRPORFL  27.65    -80.42      7
+VTN VALENTINE, WSO AP           NE  42.87   -100.55    788
+WEY WEST YELLOWSTONE            MT  44.65   -111.10   2029
+WJF LANCASTER, FSS              CA  34.73   -118.22    713
+WMC WINNEMUCCA, WSO AIRPORT     NV  40.90   -117.80   1310
+WRL WORLAND, MUNICIPAL AP       WY  43.97   -107.97   1271
+WVL WATERVILLE, LEFLEUR AP      ME  44.53    -69.67    101
+
+
+centralstatesStations in KS, CO, NE, MO, OK, Alphabetically
+12877
+
+/ SURFACE STATIONS IN CENTRAL STATES /
+
+Surface stations in Kansas, Colorado, Nebraska, Missouri,
+and Oklahoma, listed alphabetically by the station ID
+recognized by Zeb:
+
+Zeb ID Name		     State    Lat       Lon    Alt
+				    (deg)     (deg)    (M)
+----------------------------------------------------------
+1K5 ELKHART, AMOS               KS  37.00   -101.88   1105
+1V1 RIFLE                       CO  39.53   -107.80   1621
+3KM WICHITA, JABARA ARPT        KS  37.75    -97.23    433
+4LJ LAMAR                       CO  38.08   -102.62   1105
+ADH Ada                         OK  34.81    -96.67    307
+ADM ARDMORE, MUNICIPAL AP       OK  34.30    -97.02    240
+AFF USAF ACADEMY, AF            CO  38.97   -104.82   2003
+AIA ALLIANCE, MUNICIPAL AP      NE  42.05   -102.80   1235
+AIZ Kaiser/Lake Ozark           MO  38.10    -92.55    265
+AKO Akron                       CO  40.17   -103.22   1409
+AKO AKRON, WASHINGTON CO AP     CO  40.17   -103.22   1421
+akron           Akron           CO  40.15   -103.13   1384
+alliance n      Alliance North  NE  42.07   -102.85   1213
+alliance w      Alliance West   NE  42.13   -102.85   1213
+ALS ALAMOSA, BERGMAN FIELD      CO  37.45   -105.87   2298
+ANB ANNISTON, CALHOUN CO AP     AL  33.58    -85.85    184
+ANW AINSWORTH, MUNICIPAL AP     NE  42.58    -99.98    788
+APA ENGLEWOOD, CENTENNIAL AP    CO  39.57   -104.85   1776
+arapahoe p      Arapahoe Prarie NE  41.37   -101.67   1097
+arthur          Arthur          NE  41.63   -101.50   1097
+ASE ASPEN, PITKIN COUNTY AP     CO  39.22   -106.87   2360
+AUH Aurora                      NE  40.89    -97.99    549
+BBW BROKEN BOW, MUNICIPAL AP    NE  41.43    -99.65    773
+beatrice        Beatrice        NE  40.25    -96.73    376
+BFF SCOTTSBLUFF, COUNTY ARPT    NE  41.87   -103.60   1203
+BIE Beatrice                    NE  40.32    -96.75    402
+BKW BECKLEY, RALEIGH CO MEM AP  WV  37.78    -81.12    766
+BLF BLUEFIELD, MERCER CO AP     WV  37.30    -81.22    874
+BVO Bartlesville                OK  36.76    -96.01    220
+CAG CRAIG, CRAIG-MOFFAT CNTY AP CO  40.50   -107.53   1887
+CDR CHADRON, MUNICIPAL AP       NE  42.83   -103.08   1010
+central ci      Central City    NE  41.10    -98.00    517
+CEZ CORTEZ, MONTEZUMA CO AP     CO  37.30   -108.63   1802
+champion        Champion        NE  40.37   -101.72   1029
+CNK Concordia                   KS  39.55    -97.65    452
+CNK CONCORDIA, BLOSSER MUNI AP  KS  39.55    -97.65    448
+CNU Chanute                     KS  37.67    -95.49    308
+CNU CHANUTE, FAA AIRPORT        KS  37.67    -95.48    298
+colby           Colby           KS  39.37   -101.07    966
+COS Colorado Springs            CO  38.81   -104.71   1881
+COS COLORADO SPRINGS, MUNICIPAL CO  38.82   -104.72   1857
+COU COLUMBIA, REGIONAL ARPT     MO  38.82    -92.22    272
+CSM CLINTON, SHERMAN AP         OK  35.35    -99.20    595
+DDC Dodge City                  KS  37.76    -99.96    790
+DDC DODGE CITY, MUNICIPAL AP    KS  37.77    -99.97    786
+de soto         De Soto         KS  38.98    -94.93    286
+DEN Denver                      CO  39.77   -104.88   1626
+DEN DENVER, STAPLETON INT'L AP  CO  39.77   -104.87   1611
+dickens         Dickens         NE  41.00   -100.92    945
+DMO Sedalia                     MO  38.70    -93.18    277
+DNV DANVILLE, VERMILION CO AP   IL  40.20    -87.60    211
+DRO DURANGO, LAPLATA COUNTY AP  CO  37.15   -107.75   2037
+EAR Kearney                     NE  40.73    -99.00    649
+EGE EAGLE, COUNTY AP            CO  39.65   -106.92   1982
+EKN ELKINS, RANDOLPH CO ARPT    WV  38.88    -79.85    605
+elgin           Elgin           NE  41.98    -98.27    619
+EMP Emporia                     KS  38.33    -96.19    370
+END ENID, VANCE AFB             OK  36.33    -97.92    121
+EWK Newton                      KS  38.06    -97.28    467
+FCL FORT COLLINS                CO  40.58   -105.08   1525
+FDR Frederick                   OK  34.35    -98.98    383
+FET Fremont                     NE  41.45    -96.51    367
+FNL Fort Collins                CO  40.45   -105.02   1529
+FOE Topeka                      KS  38.95    -95.66    329
+FOE TOPEKA, FORBES FIELD        KS  38.95    -95.67    100
+FTG Denver (Front Range)        CO  39.79   -104.55   1672
+GAG GAGE, FAA AIRPORT           OK  36.30    -99.77    667
+garden cit      Garden City     KS  37.98   -100.80    866
+GBD Great Bend                  KS  38.35    -98.86    576
+GCK GADREN CITY, 9 ESE          KS  37.93   -100.72    878
+GCK Garden City                 KS  37.93   -100.72    879
+gibbon          Gibbon          NE  40.68    -99.00    625
+GLD Goodland                    KS  39.37   -101.70   1124
+GLD GOODLAND, RENNER FIELD      KS  39.37   -101.70   1111
+GOK Guthrie                     OK  35.85    -97.42    327
+gordon          Gordon          NE  42.78   -102.15   1109
+grant           Grant           NE  40.83   -101.67    975
+GRI Grand Island                NE  40.97    -98.31    566
+GRI GRAND ISLAND, WSO AP        NE  40.97    -98.32    562
+GRR GRAND RAPIDS, KENT CO INT'L MI  42.88    -85.52    249
+GUC GUNNISON, 1 N               CO  38.55   -106.92   2338
+gudmundsen      Gudmundsen's    NE  42.40   -101.43   1049
+GXY Greeley                     CO  40.43   -104.63   1420
+halsey          Halsey          NE  41.90   -100.32    824
+havelock        Havelock        NE  40.83    -96.67    351
+hays            Hays            KS  38.87    -99.32    610
+HBR HOBART, MUNICIPAL AP        OK  35.00    -99.05    473
+HDE Holdrege                    NE  40.45    -99.33    705
+HDN HAYDEN, YAMPA VALLEY ARPT   CO  40.50   -107.25   2012
+hesston         Hesston         KS  38.18   -97.38    412
+HLC Hill City                   KS  39.38    -99.83    677
+HLC HILL CITY, 1 NE             KS  39.38    -99.83    670
+holdrege        Holdrege        NE  40.42    -99.37    707
+HSI Hastings                    NE  40.60    -98.43    592
+HUT Hutchinson                  KS  38.07    -97.86    465
+HUT HUTCHINSON, MUNICIPAL AP    KS  38.07    -97.87    464
+hutchinson      Hutchinson      KS  37.93    -98.02    477
+HYS Hays                        KS  38.85    -99.27    609
+ICT Wichita                     KS  37.65    -97.43    409
+ICT WICHITA, MID-CONTINENT ARPT KS  37.65    -97.43    402
+IFO Ardmore                     OK  34.30    -97.02    232
+IXD Olathe                      KS  38.83    -94.89    331
+JLN JOPLIN, FAA AIRPORT         MO  37.15    -94.50    298
+LAA Lamar                       CO  38.07   -102.69   1129
+LBF NORTH PLATTE, LEE BIRD FLD  NE  41.13   -100.68    847
+LBL Liberal                     KS  37.05   -100.97    880
+LBL LIBERAL, MUNICIPAL AIRPORT  KS  37.05   -100.97    878
+lexington       Lexington       NE  40.78    -99.73    731
+LFK LUFKIN, ANGELINA CO         TX  31.23    -94.75     85
+LHX La Junta                    CO  38.05   -103.51   1285
+LHX LA JUNTA, 4 NNE             CO  38.05   -103.52   1277
+LIC LIMON                       CO  39.18   -103.70   1694
+lincoln ia      Lincoln IANR    NE  40.75    -96.68    383
+LNK Lincoln                     NE  40.85    -96.76    363
+LNK LINCOLN, MUNICIPAL ARPT     NE  40.85    -96.75    364
+LXN Lexington                   NE  40.79    -99.78    734
+LXV LEADVILLE, LAKE COUNTY ARPT CO  39.23   -106.32   3029
+manhattan       Manhattan #1    KS  39.18    -96.57    320
+mccook          McCook          NE  40.22   -100.57    792
+MCI Kansas City                 MO  39.30    -94.72    313
+MCI KANSAS CITY, INTL ARPT      MO  39.32    -94.72    297
+MCK Mc Cook                     NE  40.21   -100.59    786
+MCK MCCOOK                      NE  40.22   -100.58    785
+mead            Mead            NE  41.13    -96.50    366
+mead turf       Mead Turf Farm  NE  41.15    -96.50    366
+MHK Manhattan                   KS  39.14    -96.67    326
+MHK MANHATTAN, MUNICIPAL AP     KS  39.15    -96.67    318
+MKC KANSAS CITY, MUNICIPAL ARPT MO  39.12    -94.60    227
+MKO Muskogee                    OK  35.66    -95.36    186
+MLC Mc Alester                  OK  34.88    -95.78    235
+MLC MCALESTER, MUNICIPAL AP     OK  34.88    -95.78    231
+MLE Omaha (Millard)             NE  41.20    -96.11    320
+MSN MADISON, DANE CO REGIONAL ARWI  43.13    -89.33    262
+MTJ MONTROSE, COUNTY ARPT       CO  38.50   -107.88   1755
+MWA MARION, WILLIAMSON CO AP    IL  37.75    -89.00    143
+north east      North East      NE  42.37    -96.97    445
+north plat      North Platte    NE  41.07   -100.73    922
+OFF BELLEVUE, OFFUTT AFB        NE  41.12    -95.92     97
+OFK NORFOLK, WSO AP             NE  41.98    -97.43    471
+OGA Ogallala                    NE  41.12   -101.77    999
+OJC Olathe                      KS  38.85    -94.74    343
+OJC OLATHE, JOHNSON COUNTY EXEC KS  38.85    -94.73    339
+OK7 Watonga                     OK  35.86    -98.42    468
+OKC Oklahoma City               OK  35.39    -97.60    398
+OKC OKLAHOMA CITY, WSFO AP      OK  35.40    -97.60    391
+OLU Columbus                    NE  41.45    -97.35    440
+OMA OMAHA, EPPLEY AIRFIELD      NE  41.30    -95.90    298
+o'neill         O'Neill         NE  42.45    -98.63    670
+ONL O'Neill                     NE  42.47    -98.68    619
+ord             Ord             NE  41.60    -98.93    625
+ottawa          Ottawa          KS  38.60    -95.27    277
+OUN Norman (Univ. of Oklahoma)  OK  35.23    -97.47    359
+OVN OMAHA, WSFO                 NE  41.37    -96.02    398
+pam  1          Nebraska City   NE  40.66    -95.86    325
+pam  9          Grain Valley    MO  39.02    -94.21    257
+pam 19          Montgomery City MO  39.01    -91.42    234
+pam 40          Powhattan       KS  39.7961  -95.6456  365
+pam 41          Seneca          KS  39.8300  -96.1078  386
+panhandle       Panhandle       NE  41.83   -103.68   1244
+parsons         Parsons         KS  37.37    -95.27    277
+pawhattan       Powhattan       KS  39.78    -95.80    365
+PNC Ponca City                  OK  36.73    -97.10    304
+PNC PONCA CITY, FAA AIRPORT     OK  36.73    -97.10    304
+POU POUGHKEEPSIE, DUTCHESS CO APNY  41.63    -73.88     47
+PPF Parsons                     KS  37.33    -95.51    274
+PUB Pueblo                      CO  38.29   -104.50   1439
+PUB PUEBLO, MEMORIAL AP         CO  38.28   -104.52   1420
+PWA Oklahoma City               OK  35.53    -97.65    396
+red cloud       Red Cloud       NE  40.17    -98.87    524
+rising cit      Rising City     NE  41.18    -97.32    375
+rockport        Rockport        MO  40.47    -95.87    268
+rossville       Rossville       KS  39.10    -95.92    281
+RSL Russell                     KS  38.87    -98.81    570
+RSL RUSSELL, MUNICIPAL ARPT     KS  38.87    -98.82    568
+S29 SALIDA                      CO  38.52   -106.02    666
+sandyland       Sandyland       KS  37.93    -98.75    564
+SBS STEAMBOAT SPRINGS           CO  40.52   -106.87   2097
+SBY SALISBURY, WICOMICO CO AP   MD  38.33    -75.52     15
+scandia         Scandia         KS  39.78    -97.78    451
+scottsbluff     Scottsbluff     NE  41.85   -103.68   1208
+SGF Springfield                 MO  37.24    -93.39    387
+SGF SPRINGFIELD, REGIONAL AP    MO  37.23    -93.38    387
+shelton         Shelton         NE  40.77    -98.75    614
+sidney          Sidney          NE  41.22   -103.00   1317
+silver lak      Silver Lake     KS  39.10    -95.83    271
+silverthor      Silverthorn     NE  41.52   -102.78   1302
+SLN Salina                      KS  38.79    -97.65    391
+SLN SALINA, FAA AIRPORT         KS  38.80    -97.65    384
+SNY Sidney                      NE  41.10   -102.98   1313
+SNY SIDNEY, 3 S                 NE  41.10   -102.98   1313
+south cent      South Central   NE  40.52    -98.13    552
+sterling        Sterling        CO  40.45   -103.02   1200
+STJ St Joseph                   MO  39.77    -94.91    249
+stratton        Stratton        CO  39.30   -102.50   1390
+SWO Stillwater                  OK  36.16    -97.09    300
+TAD Trinidad                    CO  37.25   -104.33   1756
+TAD TRINIDAD, LAS ANIMAS COUNTY CO  37.25   -104.33   1751
+tarnov          Tarnov          NE  41.57    -97.55    472
+TBN FORT LEONARD WOOD           MO  37.75    -92.10    335
+TEX TELLURIDE, REGIONAL AP      CO  37.95   -107.90   2769
+TOP Topeka                      KS  39.07    -95.62    270
+TOP TOPEKA, MUNICIPAL ARPT      KS  39.07    -95.63    269
+TQE Tekamah                     NE  41.76    -96.18    313
+tribune         Tribune         KS  38.45   -101.75   1101
+TUL Tulsa                       OK  36.20    -95.89    206
+TUL TULSA, WSO AP               OK  36.20    -95.90    203
+unsta curt      UNSTA Curtis    NE  40.63   -100.50    784
+VIH VICHY, ROLLA NAT'L ARPT     MO  38.12    -91.77    350
+VTN VALENTINE, WSO AP           NE  42.87   -100.55    788
+walsh           Walsh           CO  37.27   -102.20   1210
+west point      West Point      NE  41.82    -96.80    442
+wichita         Wichita         KS  37.87    -97.50    379
+WLD Winfield/Ark City           KS  37.17    -97.04    353
