@@ -1,6 +1,11 @@
 /*
  * Skew-t plotting module
  */
+# include <config.h>
+
+# if C_PT_SKEWT
+
+
 # include <math.h>
 # include <X11/Intrinsic.h>
 # include <ui.h>
@@ -1145,3 +1150,8 @@ int	npts, *ndx700;
 	*dp700 = t_mr (700.0, w) - T_K;
 	return (TRUE);
 }
+
+
+
+
+# endif /* C_PT_SKEWT */
