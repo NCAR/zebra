@@ -1,5 +1,5 @@
 /* 12/88 jc */
-/* $Id: dev_x11.c,v 1.10 1989-10-11 14:01:08 corbet Exp $	*/
+/* $Id: dev_x11.c,v 1.11 1989-10-11 15:04:50 corbet Exp $	*/
 /*
  * Graphics driver for the X window system, version 11.3
  */
@@ -131,15 +131,13 @@ struct device *dev;
 	tag->x_ytgt = -1;
 /*
  * Try to find a pseudocolor visual.  If we succeed, we use it; otherwise
- * it's monochrome city.
+ * it's monochrome city.  We really won't work well with anything but a
+ * 8 bit visual, but if we ask for that the Ardent server freaks.
  */
-# ifdef notdef
 	template.screen = screen;
-	template.depth = 8;
 	template.class = PseudoColor;
 	vlist = XGetVisualInfo (tag->x_display,
-		VisualScreenMask | VisualDepthMask | VisualClassMask, 
-		&template, &nmatch);
+		VisualScreenMask | VisualClassMask, &template, &nmatch);
 	printf ("We have %d visual matches\n", nmatch);
 	tag->x_mono = ! nmatch;
 	if (nmatch)
@@ -154,9 +152,6 @@ struct device *dev;
 	}
 	printf ("Visual is 0x%x\n", tag->x_visual);
  	XFree (vlist);
-# endif
-	tag->x_visual = DefaultVisual (tag->x_display, screen);
-	depth = CopyFromParent;
 /*
  * Create the window to exist on that display.
  */
@@ -364,7 +359,7 @@ int color, ltype, npt, *data;
  * Offset into quadrant 2.
  */
  	for (pt = 0; pt < npt; pt++)
-		xp[pt].x -= tag->x_xres/2;
+		xp[pt].x -= tag->x_xres;
  	XDrawLines (tag->x_display, tag->x_sw[2], tag->x_gc, xp, npt,
 		CoordModeOrigin);
 	if (tag->x_zquad == 2)
@@ -374,7 +369,7 @@ int color, ltype, npt, *data;
  * Offset into quadrant 4.
  */
  	for (pt = 0; pt < npt; pt++)
-		xp[pt].y -= tag->x_yres/2;
+		xp[pt].y -= tag->x_yres;
  	XDrawLines (tag->x_display, tag->x_sw[4], tag->x_gc, xp, npt,
 		CoordModeOrigin);
 	if (tag->x_zquad == 4)
@@ -384,7 +379,7 @@ int color, ltype, npt, *data;
  * Offset into quadrant 3.
  */
 	for (pt = 0; pt < npt; pt++)
-		xp[pt].x += tag->x_xres/2;
+		xp[pt].x += tag->x_xres;
  	XDrawLines (tag->x_display, tag->x_sw[3], tag->x_gc, xp, npt,
 		CoordModeOrigin);
 	if (tag->x_zquad == 3)
