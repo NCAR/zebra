@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.14 1995-05-24 22:07:22 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.15 1995-06-30 15:43:27 granger Exp $"
 
 #define IHaveSubdirs
 #define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
@@ -34,6 +34,8 @@ SRCS  = convmud.c dscopy.c gprotocdf.c mudtocdf.c tao_conv.c \
 
 FSRCS = mudras.F
 
+INCLUDES = $(NETCDFINCLUDES)
+
 HEADERS = mudutil.h fixed-gp.h
 
 OTHERS = mud.id gp.hdr convmud.doc uwtocdf iss.problem netcdf_fixlon
@@ -50,16 +52,17 @@ DISTFILES = Imakefile $(SRCS) $(FSRCS) $(HEADERS) dscopy.state
 all:: $(PROGRAMS)
 
 NormalProgramTarget(dscopy, dscopy.o, $(DEPLIBS),
-		    $(LIBZEBDS) $(LIBS) $(XLIBS), $(SYSLIBS))
+		    $(LIBZEBDS) $(LIBS) $(LIBHDF) $(XLIBS), $(SYSLIBS))
 InstallProgramWithFlags(dscopy,$(BINDIR),-s)
 
 NormalProgramTarget(convmud,convmud.o mudutil.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
 InstallProgramWithFlags(convmud,$(BINDIR),-s)
 
 CIOBJS = cdf_interpolate.o
-CompleteProgramTarget(cdf_interpolate,$(CIOBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
+NormalProgramTarget(cdf_interpolate,$(CIOBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
+InstallProgramWithFlags(cdf_interpolate,$(BINDIR),-s)
 
-TAOLIBS = $(LIBZEBDS) $(LIBS) $(XLIBS)
+TAOLIBS = $(LIBZEBDS) $(LIBS) $(LIBHDF) $(XLIBS)
 NormalProgramTarget(tao_conv, tao_conv.o, $(DEPLIBS), $(TAOLIBS), $(SYSLIBS))
 InstallProgramWithFlags(tao_conv,$(BINDIR),-s)
 

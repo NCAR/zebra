@@ -1,5 +1,5 @@
 XCOMM ---------------------------------------------------------------------
-XCOMM $Id: Imakefile,v 1.4 1995-05-24 22:07:32 granger Exp $ 
+XCOMM $Id: Imakefile,v 1.5 1995-06-30 15:43:38 granger Exp $ 
 XCOMM ---------------------------------------------------------------------
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
@@ -21,8 +21,10 @@ XCOMM ---------------------------------------------------------------------
  */
 
 
-LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBNETCDF) $(LIBRDSS) $(XLIBS) $(FLIBS) 
+LIBS=$(LIBZEBDS) $(LIBZEB) $(LIBNETCDF) $(LIBHDF) $(LIBRDSS) $(XLIBS) $(FLIBS) 
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
+
+INCLUDES = $(NETCDFINCLUDES)
 
 CLIBS = /usr/local/lib/gcc-lib/sparc-sun-sunos4.1.2/2.2/libgcc.a
 
