@@ -22,7 +22,7 @@
 # include <defs.h>
 # include <message.h>
 # include "ds_fields.h"
-MAKE_RCSID ("$Id: Fields.c,v 1.2 1991-12-04 21:57:05 corbet Exp $")
+MAKE_RCSID ("$Id: Fields.c,v 1.3 1992-04-27 22:35:47 corbet Exp $")
 
 
 
@@ -69,7 +69,8 @@ char *name;
 	int type;
 
 	if (! usy_g_symbol (FNameTable, name, &type, &v))
-		return (BadField);
+		return (F_DeclareField (name, name, "unknown"));
+		/* return (BadField); */
 	return (v.us_v_int);
 }
 
@@ -88,7 +89,9 @@ char *name, *desc, *units;
 	SValue v;
 	extern char *strcpy ();
 
-	if ((ind = F_Lookup (name)) == BadField)
+	if (usy_defined (FNameTable, name))
+		ind = F_Lookup (name);
+	else
 		ind = NField++;
 	strcpy (FieldTable[ind].fd_CName, name);
 	strcpy (FieldTable[ind].fd_LongName, desc);
