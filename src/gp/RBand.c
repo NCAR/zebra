@@ -1,7 +1,7 @@
 /*
  * Rubber-band interactive drawing routines.
  */
-static char *rcsid = "$Id: RBand.c,v 2.5 1992-03-26 20:15:00 kris Exp $";
+static char *rcsid = "$Id: RBand.c,v 2.6 1992-05-27 16:45:55 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -27,10 +27,11 @@ static char *rcsid = "$Id: RBand.c,v 2.5 1992-03-26 20:15:00 kris Exp $";
 # include <X11/Xaw/Label.h>
 # include <X11/Xaw/Command.h>
 
-# include "../include/defs.h"
-# include "../include/pd.h"
-# include "../include/message.h"
-# include "../include/DataStore.h"
+# include <defs.h>
+# include <pd.h>
+# include <message.h>
+# include <DataStore.h>
+# include <DataChunk.h>
 # include "GraphProc.h"
 # include "PixelCoord.h"
 
@@ -159,8 +160,6 @@ struct ui_command *cmds;
  * Initialize to do rubber banding
  */
 {
-	Window wjunk;
-	int rx, ry, mask;
 /*
  * Tell the world that we're doing this.
  */
@@ -465,7 +464,7 @@ struct ui_command *cmds;
  * Figure out the color to use when we draw in the segments.
  */
 	if (! pda_Search (Pd, "global", "polyline-color", UPTR (*cmds),
-			color, SYMT_STRING));
+			color, SYMT_STRING))
 		strcpy (color, "white");
 	if (ct_GetColorByName (color, &xc))
 		XSetForeground (Disp, Gcontext, xc.pixel);
@@ -577,7 +576,6 @@ rb_PLDelete ()
  * Delete a point from the polyline.
  */
 {
-	int seg;
 /*
  * If there are no points, there are none to return.
  */
@@ -774,9 +772,10 @@ rb_PLConvert ()
  * the data store.
  */
 {
-	DataObject dobj;
-	BndDesc bnd;
-	int npt = N_PolySeg + 1, pt;
+	DataChunk	*dc;
+	int	 	npt = N_PolySeg + 1, pt;
+	ZebTime		zt;
+	Location	*pts;
 /*
  * If it's empty, what's the point?
  */
@@ -786,38 +785,31 @@ rb_PLConvert ()
 		return;
 	}
 /*
- * Start putting together our data object.
+ * Create the data chunk.
  */
-	dobj.do_id = PolyPlatform;
-	tl_GetTime (&dobj.do_begin);
-	dobj.do_end = dobj.do_begin;
-	dobj.do_org = OrgOutline;
-	dobj.do_npoint = 1;
-	dobj.do_aloc = (Location *) malloc (npt * sizeof (Location));
-	dobj.do_times = (time *) malloc (npt * sizeof (time));
-	dobj.do_desc.d_bnd = &bnd;
-	bnd.bd_npoint = npt;
-	bnd.bd_pid = dobj.do_id;
-	bnd.bd_begin = 0;
-	dobj.do_nfield = 0;
-	dobj.do_flags = 0;
-	dobj.do_badval = 0.0;
+	dc = dc_CreateDC (DCC_Boundary);
+	dc->dc_Platform = PolyPlatform;
 /*
  * Go through and convert each point.
  */
+	pts = (Location *) malloc (npt * sizeof (Location));
 	for (pt = 0; pt < npt; pt++)
 	{
-		dobj.do_times[pt] = dobj.do_begin;
 		cvt_ToLatLon (XUSER (PL[pt].x), YUSER (PL[pt].y), 
-			&dobj.do_aloc[pt].l_lat, &dobj.do_aloc[pt].l_lon);
-		dobj.do_aloc[pt].l_alt = 0;
+			&pts[pt].l_lat, &pts[pt].l_lon);
+		pts[pt].l_alt = 0;
 	}
+/*
+ * Add the boundary.
+ */
+	tl_Time (&zt);
+	dc_BndAdd (dc, &zt, PolyPlatform, pts, npt);   
 /*
  * Store this polyline, then free our dynamic memory.
  */
-	ds_PutData (&dobj, FALSE);
-	free (dobj.do_aloc);
-	free (dobj.do_times);
+	ds_Store (dc, FALSE, NULL, 0);
+	dc_DestroyDC (dc);
+	free (pts);
 }
 
 
@@ -859,7 +851,7 @@ rb_Outline ()
  * Figure out the color to use when we draw in the segments.
  */
 	if (! pda_Search (Pd, "global", "outline-color", NULL, color, 
-			SYMT_STRING));
+			SYMT_STRING))
 		strcpy (color, "white");
 	if (ct_GetColorByName (color, &xc))
 		XSetForeground (Disp, Gcontext, xc.pixel);
@@ -971,7 +963,6 @@ rb_OLDelete ()
  * Delete a point from the outline.
  */
 {
-	int seg;
 /*
  * If there are no points, there are none to return.
  */
@@ -1069,7 +1060,7 @@ rb_Point ()
  * Figure out the color to use when we draw in the point.
  */
 	if (! pda_Search (Pd, "global", "point-color", NULL, color, 
-			SYMT_STRING));
+			SYMT_STRING))
 		strcpy (color, "white");
 	if (ct_GetColorByName (color, &xc))
 		XSetForeground (Disp, Gcontext, xc.pixel);

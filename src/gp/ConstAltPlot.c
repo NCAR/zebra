@@ -30,13 +30,14 @@
 # include <ui_date.h>
 # include <message.h>
 # include <DataStore.h>
+# include <DataChunk.h>
 # include "GC.h"
 # include "GraphProc.h"
 # include "DrawText.h"
 # include "PixelCoord.h"
 # include "EventQueue.h"
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.8 1991-11-27 20:50:50 corbet Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.9 1992-05-27 16:35:53 kris Exp $")
 
 
 /*
@@ -61,13 +62,10 @@ extern int Comp_index;
 extern Pixel White;
 
 static int Ctlimit;
-static char Ctname[40];
 /*
  * Macro for a pointer to x cast into a char *
  */
 # define CPTR(x)	(char *)(&(x))
-
-# define BADVAL	-32768.0
 
 /*
  * Contour plot types
@@ -79,31 +77,18 @@ typedef enum {LineContour, FilledContour} contour_type;
 /*
  * Forwards.
  */
-# ifdef __STDC__
-	void	CAP_FContour (char *, int);
-	void	CAP_Vector (char *, int);
-	void	CAP_Raster (char *, int);
-	void	CAP_LineContour (char *, int);
-	void	CAP_Contour (char *, contour_type, char *, float *, 
-		float *, char *);
-	static float * CAP_ImageGrid (char *, time *, PlatformId, char *,
-		int *, int *, float *, float *, float *, float *, ScaleInfo *,
-		float *);
-	void	CAP_RasterSideAnnot (char *, char *, int, int, int);
-	void	CAP_StaPltSideAnnot (char *, char *, int, int, int);
-# else
-	void	CAP_FContour ();
-	void	CAP_Vector (), CAP_Raster (), CAP_LineContour ();
-	void	CAP_Contour ();
-	static float *CAP_ImageGrid ();
-	void	CAP_RasterSideAnnot ();
-	void	CAP_StaPltSideAnnot ();
-# endif
+void		CAP_FContour FP ((char *, int));
+void		CAP_Vector FP ((char *, int));
+void		CAP_Raster FP ((char *, int));
+void		CAP_LineContour FP ((char *, int));
+void		CAP_Contour FP ((char *, contour_type, char *, float *, 
+			float *, char *));
+static DataChunk *CAP_ImageGrid FP ((char *, ZebTime *, PlatformId, char *, 
+			int *, int *, float *, float *, float *, float *, 
+			float *));
+void		CAP_RasterSideAnnot FP ((char *, char *, int, int, int));
+void		CAP_StaPltSideAnnot FP ((char *, char *, int, int, int));
 
-extern void An_ColorNumber ();
-extern void An_ColorBar ();
-extern void An_ColorVector ();
-extern int An_GetLeft ();
 
 
 void
@@ -127,9 +112,8 @@ Boolean	update;
  * Filled contour CAP plot for the given component
  */
 {
-	float	center, step, bar_height, cval;
-	int	i, left, right, top, bottom;
-	char	string[10], fname[20], ctable[40], data[100];
+	float	center, step;
+	char	fname[20], ctable[40], data[100];
 /*
  * Use the common CAP contouring routine to do a filled contour plot
  */
@@ -168,9 +152,8 @@ Boolean	update;
  * Line contour CAP plot for the given component
  */
 {
-	float	center, step, cval;
-	char	fname[20], string[10], data[100], ctable[40];
-	int	top, bottom, left, right, wheight, i;
+	float	center, step;
+	char	fname[20], data[100], ctable[40];
 	int	tacmatch = 0;
 /* 
  * Use the common CAP contouring routine to do a color line contour plot
@@ -228,10 +211,15 @@ float	*center, *step;
 	float	*rgrid, *grid, x0, x1, y0, y1, alt;
 	int	pix_x0, pix_x1, pix_y0, pix_y1, dolabels, linewidth;
 	int 	labelflag;
-	time	t;
+	ZebTime	zt;
 	Boolean	ok;
 	XColor	black;
 	XRectangle	clip;
+	DataChunk	*dc;
+	int	len;
+	RGrid	rg;
+	Location 	loc;
+	float	badvalue;
 /*
  * Get necessary parameters from the plot description
  */
@@ -297,9 +285,13 @@ float	*center, *step;
  */
 	alt = Alt;
 	/* msg_ELog (EF_INFO, "Get grid at %.2f km", alt); */
-	t = PlotTime;
-	rgrid = ga_GetGrid (&t, platform, fname, &xdim, &ydim, &x0, &y0,
-			&x1, &y1, &alt);
+	zt = PlotTime;
+	if((dc = ga_GetGrid (&zt, platform, fname, &xdim, &ydim, &x0, &y0, &x1, 
+			&y1, &alt)))
+		rgrid = dc_RGGetGrid (dc, 0, F_Lookup (fname), &loc, &rg, &len);
+
+	else 
+		return ;
 	if (Comp_index == 0)
 		Alt = alt;
 	if (! rgrid)
@@ -308,11 +300,15 @@ float	*center, *step;
 		return;
 	}
 /*
+ * Get the badvalue flag.
+ */
+	badvalue = dc_GetBadval (dc);
+/*
  * Kludge: rotate the grid into the right ordering.
  */
 	grid = (float *) malloc (xdim * ydim * sizeof (float));
 	ga_RotateGrid (rgrid, grid, xdim, ydim);
-	free (rgrid);
+	dc_DestroyDC (dc);
 /*
  * Convert the grid limits to pixel values
  */
@@ -334,15 +330,15 @@ float	*center, *step;
 	{
 	    case FilledContour:
 		FC_Init (Colors, Ncolors, Ncolors / 2, black, clip, TRUE, 
-			BADVAL);
+			badvalue);
 		FillContour (Graphics, GWFrame (Graphics), grid, xdim, ydim, 
 			pix_x0, pix_y0, pix_x1, pix_y1, *center, *step);
 		break;
 	    case LineContour:
 		if(! Monocolor)
 			CO_Init (Colors, Ncolors, Ncolors / 2, black, clip, 
-				TRUE, BADVAL);
-		else CO_InitMono (Ctclr, clip, TRUE, BADVAL);
+				TRUE, badvalue);
+		else CO_InitMono (Ctclr, clip, TRUE, badvalue);
 		Contour (Graphics, GWFrame (Graphics), grid, xdim, ydim,
 			pix_x0, pix_y0, pix_x1, pix_y1, *center, *step, 
 			dolabels, linewidth);
@@ -353,7 +349,7 @@ float	*center, *step;
 /*
  * Free the data array
  */
-	lw_TimeStatus (c, &t);
+	lw_TimeStatus (c, &zt);
 	free (grid);
 }
 
@@ -371,22 +367,25 @@ Boolean	update;
 {
 	char	uname[20], vname[20], cname[30], platform[40], annot[120];
 	int	i, j, xdim, ydim;
-	float	*rgrid, *ugrid, *vgrid;
+	float	*rgrid, *ugrid, *vgrid, *qgrid[4];
 	float	vscale, x0, x1, y0, y1, alt;
 	int	pix_x0, pix_x1, pix_y0, pix_y1;
-	int	top, bottom, left, right, xannot, yannot;
 	Boolean	ok;
 	int	tacmatch = 0, grid, linewidth;
 	XColor	color, qcolor;
-	time 	t;
-	PlatformId pid;
-	char	*fields[6];
-	DataObject *dobj;
+	ZebTime zt;
+	PlatformId pid, *platforms;
+	FieldId	fields[6];
 	float	unitlen;
 	char	quadrants[120], *quads[6], quadclr[30], string[10];
 	int	numquads = 0; 
 	int	offset_x[4], offset_y[4];
 	char	data[100];
+	DataChunk	*dc;
+	Location	loc, *locations;
+	int		len, npts;
+	RGrid		rg;
+	float		badvalue;
 /*
  * Do this to satisfy cc.
  */
@@ -443,12 +442,19 @@ Boolean	update;
  * Get the data (pass in plot time, get back actual data time)
  */
 	alt = Alt;
-	t = PlotTime;
+	zt = PlotTime;
 
 	if (grid)
 	{
-		rgrid = ga_GetGrid (&t, platform, uname, &xdim, &ydim, 
-				&x0, &y0, &x1, &y1, &alt);
+	/*
+	 * Get U component.
+	 */
+		if ((dc = ga_GetGrid (&zt, platform, uname, &xdim, &ydim, 
+				&x0, &y0, &x1, &y1, &alt)))
+			rgrid = dc_RGGetGrid (dc, 0, F_Lookup (uname), &loc, 
+				&rg, &len);
+		else
+			return;
 		if (Comp_index == 0)
 			Alt = alt;
 		if (! rgrid)
@@ -458,11 +464,17 @@ Boolean	update;
 		}
 		ugrid = (float *) malloc (xdim * ydim * sizeof (float));
 		ga_RotateGrid (rgrid, ugrid, xdim, ydim);
-		free (rgrid);
-
-		t = PlotTime;
-		rgrid = ga_GetGrid (&t, platform, vname, &xdim, &ydim, 
-				&x0, &y0, &x1, &y1, &alt);
+		dc_DestroyDC (dc);
+	/*
+	 * Get v component.
+	 */
+		zt = PlotTime;
+		if ((dc = ga_GetGrid (&zt, platform, vname, &xdim, &ydim, 
+				&x0, &y0, &x1, &y1, &alt)))
+			rgrid = dc_RGGetGrid (dc, 0, F_Lookup (vname), &loc, 
+				&rg, &len);
+		else
+			return;
 		if (! rgrid)
 		{
 			msg_ELog (EF_PROBLEM, "Unable to get V grid");
@@ -470,7 +482,6 @@ Boolean	update;
 		}
 		vgrid = (float *) malloc (xdim * ydim * sizeof (float));
 		ga_RotateGrid (rgrid, vgrid, xdim, ydim);
-		free (rgrid);
 	/*
 	 * Convert the grid limits to pixel values
 	 */
@@ -479,14 +490,16 @@ Boolean	update;
 	/*
 	 * Draw the vectors
 	 */
+		badvalue = dc_GetBadval (dc);
 		VectorGrid (Graphics, GWFrame (Graphics), Gcontext, ugrid, 
 			vgrid, xdim, ydim, pix_x0, pix_y0, pix_x1, pix_y1, 
-			vscale, BADVAL, color);
+			vscale, badvalue, color);
 	/*
 	 * Free the data arrays
 	 */
 		free (ugrid);
 		free (vgrid);
+		dc_DestroyDC (dc);
 	}
 	else
 	/*
@@ -499,7 +512,7 @@ Boolean	update;
 			return;
 		}
 
-		if (! ds_DataTimes (pid, &PlotTime, 1, DsBefore, &t))
+		if (! ds_DataTimes (pid, &PlotTime, 1, DsBefore, &zt))
 		{
 			msg_ELog(EF_INFO,"No data available at all for '%s'",
 				platform);
@@ -521,16 +534,32 @@ Boolean	update;
 			if (numquads > 4) numquads = 4;
 		}
 
-		fields[0] = uname;
-		fields[1] = vname;
+		fields[0] = F_Lookup (uname);
+		fields[1] = F_Lookup (vname);
 		for (i = 0; i < numquads; i++)
-			fields[i + 2] = quads[i];
-
-		if ((dobj = ds_GetData (pid, fields, 2 + numquads, &t, &t, 
-			Org2dGrid, alt, BADVAL)) == 0)
+			fields[i + 2] = F_Lookup (quads[i]);
+		if (! (dc = ds_Fetch (pid, DCC_IRGrid, &zt, &zt, fields, 
+			2 + numquads, NULL, 0)))
 		{
 			msg_ELog (EF_INFO, "Get failed on '%s'", platform);
 			return;
+		}
+	/*
+	 * Get some info out of the data chunk.
+	 */	
+		npts = dc_IRGetNPlatform (dc);
+		platforms = (PlatformId *) malloc (npts * sizeof (PlatformId));
+		locations = (Location *) malloc (npts * sizeof (Location));
+		dc_IRGetPlatforms (dc, platforms, locations);
+		badvalue = dc_GetBadval (dc);
+	/*
+	 * Get the u and v components, and possibly quadrants.
+	 */
+		ugrid = dc_IRGetGrid (dc, 0, fields[0]);
+		vgrid = dc_IRGetGrid (dc, 0, fields[1]);
+		for (i = 0; i < numquads; i++)
+		{
+			qgrid[i] = dc_IRGetGrid (dc, 0, fields[i + 2]);
 		}
 	/*
 	 * Graphics context stuff.
@@ -539,10 +568,9 @@ Boolean	update;
 	/*
 	 * Draw the vectors.
 	 */
-		for (i = 0; i < dobj->do_desc.d_irgrid.ir_npoint; i++)
+		for (i = 0; i < npts; i++)
 		{
-			cvt_ToXY (dobj->do_desc.d_irgrid.ir_loc[i].l_lat, 
-				dobj->do_desc.d_irgrid.ir_loc[i].l_lon, 
+			cvt_ToXY (locations[i].l_lat, locations[i].l_lon, 
 				&x0, &y0);
 			pix_x0 = XPIX (x0);
 			pix_y0 = YPIX (y0);
@@ -550,12 +578,10 @@ Boolean	update;
 				color.pixel);
 			XSetLineAttributes (XtDisplay (Graphics), Gcontext, 
 				linewidth, LineSolid, CapButt, JoinMiter);
-			if ((dobj->do_data[0][i] != BADVAL) && 
-			    (dobj->do_data[1][i] != BADVAL))
+			if ((ugrid[i] != badvalue) && (vgrid[i] != badvalue))
 				draw_vector (XtDisplay (Graphics),
 				GWFrame (Graphics), Gcontext, pix_x0, pix_y0, 
-				dobj->do_data[0][i], dobj->do_data[1][i], 
-				unitlen);
+				ugrid[i], vgrid[i], unitlen);
 			XSetForeground (XtDisplay (Graphics), Gcontext,
 					qcolor.pixel);
 		/*
@@ -563,9 +589,9 @@ Boolean	update;
 		 */
 			for (j = 0; j < numquads; j++)
 			{
-				if (dobj->do_data[j+2][i] == BADVAL)
+				if (qgrid[j][i] == badvalue)
 					continue;
-				sprintf(string, "%.1f", dobj->do_data[j+2][i]); 
+				sprintf(string, "%.1f", qgrid[j][i]); 
 				DrawText (Graphics, GWFrame (Graphics), 
 					Gcontext, pix_x0 + offset_x[j], 
 					pix_y0 + offset_y[j], string, 0.0, 
@@ -574,6 +600,12 @@ Boolean	update;
 			XSetForeground (XtDisplay (Graphics), Gcontext,
 					color.pixel);
 		}
+	/*
+	 * Free the data.
+	 */
+		free (platforms);
+		free (locations);
+		dc_DestroyDC (dc);
 	}
 	XSetLineAttributes (XtDisplay (Graphics), Gcontext, 0, LineSolid, 
 		CapButt, JoinMiter);
@@ -613,7 +645,7 @@ Boolean	update;
 			for (i = 0; i < 4; i++)
 				if (i < numquads)
 				{
-					strcat (data, dobj->do_fields[i + 2]);
+					strcat (data, quads[i]);
 					strcat (data, " ");
 				}
 				else strcat (data, "null ");
@@ -629,7 +661,7 @@ Boolean	update;
 				strlen (data), 40, FALSE, FALSE);
 		}
 	}
-	lw_TimeStatus (c, &t);
+	lw_TimeStatus (c, &zt);
 }
 
 
@@ -719,10 +751,14 @@ Boolean	update;
 	int	pix_x0, pix_x1, pix_y0, pix_y1, image;
 	XRectangle	clip;
 	XColor	black, xc;
-	time	t;
+	ZebTime	zt;
 	PlatformId pid;
 	DataOrganization org;
 	ScaleInfo scale;
+	DataChunk *dc;
+	Location loc;
+	int	len;
+	RGrid	rg;
 /*
  * Get necessary parameters from the plot description
  */
@@ -802,17 +838,31 @@ Boolean	update;
  * Get the data (pass in plot time, get back actual data time)
  */
 	alt = Alt;
-	t = PlotTime;
+	zt = PlotTime;
 	if (image)
-		grid = CAP_ImageGrid (c, &t, pid, name, &xdim, &ydim, &x0, &y0,
-			&x1, &y1, &scale, &alt);
+	{
+		if ((dc = CAP_ImageGrid (c, &zt, pid, name, &xdim, &ydim,
+ 				&x0, &y0, &x1, &y1, &alt)))
+		{
+			grid = (float *) dc_ImgGetImage (dc, 0, 
+				F_Lookup (name), &loc, &rg, &len, &scale);
+			alt = loc.l_alt;
+		}
+		else
+			return;
+	}
 	else
-		grid = ga_GetGrid (&t, platform, name, &xdim, &ydim, &x0, &y0,
-			&x1, &y1, &alt);
+	{
+		if ((dc = ga_GetGrid (&zt, platform, name, &xdim, &ydim, &x0, 
+				&y0, &x1, &y1, &alt)))
+			grid = dc_RGGetGrid (dc, 0, F_Lookup (name), &loc, 
+				&rg, &len);
+		else
+			return;
+	}
 	if (! grid)
 	{
-		msg_ELog (EF_INFO, "Unable to get grid for %s at %d %d",
-			platform, PlotTime.ds_yymmdd, PlotTime.ds_hhmmss);
+		msg_ELog (EF_INFO, "Unable to get grid for %s.", platform);
 		return;
 	}
 	if (Comp_index == 0)
@@ -839,9 +889,14 @@ Boolean	update;
 	RP_Init (Colors, Ncolors, black, clip, min, max, highlight, hvalue, 
 		xc, hrange);
 	if (image)
+# ifdef SHM
 		RasterImagePlot (Graphics, DrawFrame, grid, xdim,
 			ydim, pix_x0, pix_y0, pix_x1, pix_y1, scale.s_Scale,
 			scale.s_Offset);
+# else
+		RasterXIPlot (Graphics, GWFrame (Graphics), grid, xdim, ydim, 
+			pix_x0, pix_y0, pix_x1, pix_y1, fastloop);
+# endif
 	else if (! newrp)
 		RasterPlot (Graphics, GWFrame (Graphics), grid, xdim, ydim, 
 			pix_x0, pix_y0, pix_x1, pix_y1);
@@ -849,16 +904,16 @@ Boolean	update;
 		RasterXIPlot (Graphics, GWFrame (Graphics), grid, xdim, ydim, 
 			pix_x0, pix_y0, pix_x1, pix_y1, fastloop);
 /*
- * Free the data array
+ * Free the data chunk.
  */
-	free (grid);
+	dc_DestroyDC (dc);
 /*
  * If it's just an update, return now since we don't want
  * to re-annotate
  */
 	if (update)
 		return;
-	lw_TimeStatus (c, &t);
+	lw_TimeStatus (c, &zt);
 /*
  * Top annotation
  */
@@ -968,24 +1023,26 @@ int datalen, begin, space;
 
 
 
-static float *
-CAP_ImageGrid (c, when, pid, field, xdim, ydim, x0, y0, x1, y1, scale, alt)
-char *c, *field;
-time *when;
+static DataChunk *
+CAP_ImageGrid (c, when, pid, field, xdim, ydim, x0, y0, x1, y1, alt)
+char	*c, *field;
+ZebTime *when;
 PlatformId pid;
-int *xdim, *ydim;
-float *x0, *y0, *x1, *y1, *alt;
-ScaleInfo *scale;
+int	*xdim, *ydim;
+float	*x0, *y0, *x1, *y1, *alt;
 /*
  * Fetch an image grid from this platform.
  */
 {
-	time realtime, stimes[60], obstimes[2];
-	DataObject *dobj;
-	RGrid *rg;
-	float *ret, cdiff;
-	Location slocs[60];
-	int nsample, samp, csamp, all = 0, ntime;
+	ZebTime realtime, stimes[60], obstimes[2];
+	RGrid rg;
+	ScaleInfo sc;
+	float cdiff;
+	char *img;
+	Location slocs[60], origin;
+	int nsample, samp, all = 0, ntime, len;
+	DataChunk *dc;
+	FieldId	fid = F_Lookup (field);
 /*
  * Find out when we can really get data.
  */
@@ -995,8 +1052,6 @@ ScaleInfo *scale;
 			ds_PlatformName (pid));
 		return (0);
 	}
-	msg_ELog (EF_DEBUG, "Plot time %d %d -> %d %d", when->ds_yymmdd,
-		when->ds_hhmmss, realtime.ds_yymmdd, realtime.ds_hhmmss);
 /*
  * Unless they have specified that they want all of the heights, we need
  * to find the specific one of interest.
@@ -1019,9 +1074,6 @@ ScaleInfo *scale;
 			msg_ELog (EF_PROBLEM, "Strange...no observations");
 			return (0);
 		}
-		msg_ELog (EF_DEBUG, "Ptime %d, obs %d -- %d", 
-				when->ds_hhmmss, obstimes[0].ds_hhmmss,
-				obstimes[1].ds_hhmmss);
 	/*
 	 * Get the samples from the first volume and see which is closest.
 	 */
@@ -1034,8 +1086,6 @@ ScaleInfo *scale;
 				cdiff = ABS (*alt - slocs[samp].l_alt);
 				realtime = stimes[samp];
 			}
-		msg_ELog (EF_DEBUG, "First, %d, diff %.1f", realtime.ds_hhmmss,
-			cdiff);
 	/*
 	 * If we don't come within a degree, drop back to the previous
 	 * one and try one more time.
@@ -1051,41 +1101,35 @@ ScaleInfo *scale;
 					cdiff = ABS (*alt - slocs[samp].l_alt);
 					realtime = stimes[samp];
 				}
-			msg_ELog (EF_DEBUG, "Second, %d, diff %.1f",
-				realtime.ds_hhmmss, cdiff);
 		}
 	}
 /*
  * Snarf it.
  */
-	if ((dobj = ds_GetData (pid, &field, 1, &realtime, &realtime,
-				OrgImage, *alt, 0)) == 0)
+	if (! (dc = ds_Fetch (pid, DCC_Image, &realtime, &realtime, &fid, 1,
+		NULL, 0)))
 	{
-		msg_ELog (EF_PROBLEM, "Get failed on %s/%s at %d %06d",
-			ds_PlatformName (pid), field, realtime.ds_yymmdd, 
-			realtime.ds_hhmmss);
+		msg_ELog (EF_PROBLEM, "Get failed on %s/%s.", 
+			ds_PlatformName (pid), field);
 		return (0);
 	}
-	*alt = dobj->do_aloc->l_alt;
+/*
+ * Get some info out of the data chunk.
+ */
+	img = dc_ImgGetImage (dc, 0, fid, &origin, &rg, &len, &sc);
 /*
  * Return the various pieces of info.
  */
-	rg = dobj->do_desc.d_img.ri_rg;
-	*xdim = rg->rg_nX;
-	*ydim = rg->rg_nY;
-	cvt_ToXY (dobj->do_aloc->l_lat, dobj->do_aloc->l_lon, x0, y0);
-	*x1 = *x0 + (rg->rg_nX - 1)*rg->rg_Xspacing;
-	*y1 = *y0 + (rg->rg_nY - 1)*rg->rg_Yspacing;
-	*scale = *dobj->do_desc.d_img.ri_scale;
+	*xdim = rg.rg_nX;
+	*ydim = rg.rg_nY;
+	cvt_ToXY (origin.l_lat, origin.l_lon, x0, y0);
+	*x1 = *x0 + (rg.rg_nX - 1) * rg.rg_Xspacing;
+	*y1 = *y0 + (rg.rg_nY - 1) * rg.rg_Yspacing;
 /*
- * Save the pointer to the data, tell DS not to free it, and dump the 
- * data object.  The grid will be freed explicitly later.
+ * Free the data object and return the data chunk.
  */
-	ret = dobj->do_data[0];
-	dobj->do_flags &= ~(DOF_FREEDATA | DOF_FREEALLDATA);
-	ds_FreeDataObject (dobj);
 	*when = realtime;
-	return (ret);
+	return (dc);
 }
 
 

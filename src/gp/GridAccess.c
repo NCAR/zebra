@@ -1,7 +1,6 @@
 /*
  * Basic grid access and transformation routines.
  */
- 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -19,31 +18,27 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-# include "../include/defs.h"
-# include "../include/message.h"
-# include "../include/pd.h"
-# include "../include/DataStore.h"
+# include "defs.h"
+# include "message.h"
+# include "pd.h"
+# include <DataStore.h>
+# include <DataChunk.h>
 # include "GraphProc.h"
 # include "rg_status.h"
-MAKE_RCSID ("$Id: GridAccess.c,v 2.5 1991-12-18 23:00:30 corbet Exp $")
+MAKE_RCSID ("$Id: GridAccess.c,v 2.6 1992-05-27 16:41:38 kris Exp $")
 
 
-
-# define BADVAL	-32768.0
 
 /*
  * Our routines.
  */
-# ifdef __STDC__
-	static bool ga_Regularize (DataObject *);
-	static void ga_RangeLimit (char *, int, float *);
-	static void ga_ImgToGrid (DataObject *);
-	static void ga_ImgToCGrid (DataObject *);
-# else
-	static bool ga_Regularize ();
-	static void ga_RangeLimit ();
-	static void ga_ImgToGrid ();
-	static void ga_ImgToCGrid ();
+DataChunk	*ga_GetGrid FP ((ZebTime *, char *, char *, int *, int *, 
+			float *, float *, float *, float *, float *));
+static bool 	ga_Regularize FP ((DataChunk **, char *));
+static void 	ga_RangeLimit FP ((char *, int, float *, double));
+static void 	ga_ImgToCGrid FP ((DataChunk **, char *));
+# ifdef notdef
+static void 	ga_ImgToGrid FP ((DataObject *));
 # endif
 
 
@@ -86,7 +81,7 @@ int x, y;
 
 bool
 ga_GridBBox (plot_time, platform, x0, y0, x1, y1)
-time	*plot_time;
+ZebTime	*plot_time;
 char 	*platform;
 float	*x0, *y0, *x1, *y1;
 /*
@@ -103,7 +98,7 @@ float	*x0, *y0, *x1, *y1;
 
 bool
 ga_AvailableAlts (plot_time, platform, heights, nh)
-time *plot_time;
+ZebTime *plot_time;
 char *platform;
 float *heights;
 int *nh;
@@ -142,19 +137,23 @@ int *nh;
 
 
 
-float *
+DataChunk *
 ga_GetGrid (plot_time, platform, fname, xdim, ydim, x0, y0, x1, y1, alt)
-time	*plot_time;
+ZebTime	*plot_time;
 char 	*platform, *fname;
 int	*xdim, *ydim;
 float	*x0, *y0, *x1, *y1, *alt;
 {
-	PlatformId pid;
-	DataObject *dobj;
-	RGrid *rg;
-	float *ret;
-	time realtime;
+	PlatformId	pid;
+	DataChunk	*dc;
+	RGrid		rg;
+	float		*ret;
+	ZebTime		realtime;
 	DataOrganization platorg;
+	DataClass	platclass;
+	Location	loc;
+	int 		len;
+	FieldId		fid = F_Lookup (fname);
 /*
  * Look up our platform.
  */
@@ -166,6 +165,22 @@ float	*x0, *y0, *x1, *y1, *alt;
 	platorg = ds_PlatformDataOrg (pid);
 	if (platorg == Org3dGrid)
 		platorg = Org2dGrid;
+	switch (platorg)
+	{
+		case Org3dGrid:
+		case Org2dGrid:
+			platclass = DCC_RGrid;
+			break;
+		case OrgImage:
+			platclass = DCC_Image;
+			break;
+		case OrgIRGrid:
+			platclass = DCC_IRGrid;
+			break;
+		default:
+			msg_ELog (EF_PROBLEM, "ga_GetGrid on bad org");
+			return (0);
+	}
 /*
  * Find out when we can really get data.
  */
@@ -174,33 +189,27 @@ float	*x0, *y0, *x1, *y1, *alt;
 		msg_ELog (EF_INFO, "No data available at all for %s",platform);
 		return (0);
 	}
-# ifdef notdef
-	msg_ELog (EF_DEBUG, "Plot time %d %d -> %d %d", plot_time->ds_yymmdd,
-		plot_time->ds_hhmmss, realtime.ds_yymmdd, realtime.ds_hhmmss);
-# endif
 /*
  * Do a DS get for this data.
  */
-	if ((dobj = ds_GetData (pid, &fname, 1, &realtime, &realtime,
-				platorg, *alt, BADVAL)) == 0)
+	if (! (dc = ds_Fetch (pid, platclass, &realtime, &realtime, &fid, 1, 
+		NULL, 0)))
 	{
-		msg_ELog (EF_PROBLEM, "Get failed on %s/%s at %d %06d",
-			platform, fname, realtime.ds_yymmdd, 
-			realtime.ds_hhmmss);
+		msg_ELog (EF_PROBLEM, "Get failed on %s/%s.", platform, fname);
 		return (0);
 	}
 /*
  * If we need to tweak this data into a grid, do so now.
  */
-	switch (dobj->do_org)
+	switch (platorg)
 	{
 	/*
 	 * IRGrids can be interpolated.
 	 */
 	   case OrgIRGrid:
-		if (! ga_Regularize (dobj))
+		if (! ga_Regularize (&dc, fname))
 		{
-			ds_FreeDataObject (dobj);
+			dc_DestroyDC (dc);
 			return (0);
 		}
 		break;
@@ -208,7 +217,7 @@ float	*x0, *y0, *x1, *y1, *alt;
 	 * Images can be turned into real info.
 	 */
 	   case OrgImage:
-	   	ga_ImgToCGrid (dobj);
+	   	ga_ImgToCGrid (&dc, fname);
 		break;
 	/*
 	 * If it's already a grid, we do nothing; otherwise we bail.
@@ -217,32 +226,32 @@ float	*x0, *y0, *x1, *y1, *alt;
 	   case Org3dGrid:
 	    	break;
 	   default:
-	   	msg_ELog (EF_PROBLEM, "Bad grid data org %d", dobj->do_org);
-		ds_FreeDataObject (dobj);
+	   	msg_ELog (EF_PROBLEM, "Bad grid data org %d", platorg);
+		dc_DestroyDC (dc);
 		return (0);
 	}
 /*
  * Pull out the info and return it.  For now we yank out the data and 
  * assume that it can be freed later.
  */
-	rg = &dobj->do_desc.d_rgrid;
-	*xdim = rg->rg_nX;
-	*ydim = rg->rg_nY;
-	*alt = dobj->do_loc.l_alt;
-	cvt_ToXY (dobj->do_loc.l_lat, dobj->do_loc.l_lon, x0, y0);
-	*x1 = *x0 + (rg->rg_nX - 1)*rg->rg_Xspacing;
-	*y1 = *y0 + (rg->rg_nY - 1)*rg->rg_Yspacing;
-	ret = dobj->do_data[0];
-	dobj->do_flags &= ~DOF_FREEDATA;
-	ds_FreeDataObject (dobj);
+	ret = dc_RGGetGrid (dc, 0, F_Lookup (fname), &loc, &rg, &len);
+	*alt = loc.l_alt;
+	cvt_ToXY (loc.l_lat, loc.l_lon, x0, y0);
+	*xdim = rg.rg_nX;
+	*ydim = rg.rg_nY;
+	*x1 = *x0 + (rg.rg_nX - 1)*rg.rg_Xspacing;
+	*y1 = *y0 + (rg.rg_nY - 1)*rg.rg_Yspacing;
+/*
+ * Return.
+ */
 	*plot_time = realtime;
-	return (ret);
+	return (dc);
 }
 
 
 
 
-
+# ifdef notdef
 static void
 ga_ImgToGrid (dobj)
 DataObject *dobj;
@@ -281,23 +290,40 @@ DataObject *dobj;
 	free (rg);
 	free (sc);
 }
-
+# endif
 
 
 
 static void
-ga_ImgToCGrid (dobj)
-DataObject *dobj;
+ga_ImgToCGrid (dc, field)
+DataChunk	**dc;
+char		*field;
 /*
- * Turn an image format data object into a regular grid with compression.
+ * Turn an image format data chunk into a regular grid with compression.
  */
 {
 # define COMPRESS 4
-	float *grid, *gp, table[256];
-	RGrid *rg = dobj->do_desc.d_img.ri_rg;
-	ScaleInfo *sc = dobj->do_desc.d_img.ri_scale;
-	unsigned char *img = (unsigned char *) dobj->do_data[0];
-	int i, npx = rg->rg_nX/COMPRESS, npy = rg->rg_nY/COMPRESS, x, y;
+	float		*grid, *gp, table[256];
+	RGrid		rg;
+	ScaleInfo	sc;
+	unsigned	char *img;
+	int		i, npx, npy, x, y,len;
+	float		badval;
+	DataChunk	*rdc;
+	FieldId		fid;
+	ZebTime		when;
+	Location	origin;
+/*
+ * Get the bad value.
+ */
+	badval = dc_GetBadval (*dc);
+/*
+ * Get the image from the data chunk.
+ */
+	fid = F_Lookup (field);
+	img = dc_ImgGetImage (*dc, 0, fid, &origin, &rg, &len, &sc);
+	npx = rg.rg_nX/COMPRESS; 
+	npy = rg.rg_nY/COMPRESS;
 /*
  * Allocate a chunk of memory for the grid.
  */
@@ -306,8 +332,8 @@ DataObject *dobj;
  * Go through and calculate the translation table.
  */
 	for (i = 0; i < 256; i++)
-		table[i] = (float) i*sc->s_Scale + sc->s_Offset;
-	table[255] = dobj->do_badval;
+		table[i] = (float) i*sc.s_Scale + sc.s_Offset;
+	table[255] = badval;
 /*
  * Populate the new grid.
  */
@@ -321,7 +347,7 @@ DataObject *dobj;
 				for (xp = 0; xp < COMPRESS; xp++)
 				{
 					unsigned char cv;
-					cv = img[(y*COMPRESS + yp)*rg->rg_nX
+					cv = img[(y*COMPRESS + yp)*rg.rg_nX
 							+ x*COMPRESS + xp];
 					if (cv != 255)
 					{
@@ -336,72 +362,93 @@ DataObject *dobj;
 			if (npa > 0)
 				*gp /= (float) npa;
 			else
-				*gp = dobj->do_badval;
+				*gp = badval;
 		}
 /*
  * Kludge: rotate the grid so it can be rotated again later.
  */
-	free (dobj->do_data[0]);
-	/* ga_RotateGrid (grid, dobj->do_data[0], npy, npx); */
-	dobj->do_data[0] = grid;
+	/* ga_RotateGrid (grid, img, npy, npx); */
 /*
- * Fix up the data object, free old memory, and we're done.
+ * Fix up the data chunk.
  */
-	dobj->do_org = Org2dGrid;
-	rg->rg_nX = npx;
-	rg->rg_nY = npy;
-	rg->rg_Xspacing *= COMPRESS;
-	rg->rg_Yspacing *= COMPRESS;
-	dobj->do_desc.d_rgrid = *rg;
-	dobj->do_loc = dobj->do_aloc[0];
-	free (rg);
-	free (sc);
+	rg.rg_nX = npx;
+	rg.rg_nY = npy;
+	rg.rg_Xspacing *= COMPRESS;
+	rg.rg_Yspacing *= COMPRESS;
+	rdc = dc_CreateDC (DCC_RGrid);
+	rdc->dc_Platform = dc_GetPlat (*dc, 0);
+	dc_GetTime (*dc, 0, &when);
+	dc_RGSetup (rdc, 1, &fid); 
+	dc_SetBadval (rdc, dc_GetBadval (*dc));
+        dc_RGAddGrid (rdc, 0, fid, &origin, &rg, &when, grid, 0);
+/*
+ * Free old memory.
+ */
+	dc_DestroyDC (*dc);
+/*
+ * Return the newly created regular grid.
+ */
+	*dc = rdc;
 }
 
 
 
 
 static bool
-ga_Regularize (dobj)
-DataObject *dobj;
+ga_Regularize (dc, field)
+DataChunk 	**dc;
+char		*field;
 /*
  * Turn an irregular grid into a regular one.
  */
 {
-	int		RGRID (), i, j, status;
-	float		spline_eval (), *grid, *xpos, *ypos, xp, yp;
+	int		RGRID (), i, status;
+	float		*grid, *xpos, *ypos;
 	float		xmin = 9999.0, ymin = 9999.0, *scratch;
 	float		xmax = -9999.0, ymax = -9999.0, badflag, *dp;
-	void		spline ();
 	RGrid		rg;
-	IRGrid		*irg = &dobj->do_desc.d_irgrid;
+	DataChunk	*rdc;
+	int		npoint;
+	PlatformId	*platforms;
+	Location	*locs, location;
+	FieldId		fid;
+	ZebTime		when;
 /*
- * Be really sure this is an irregular one.
+ * Get stuff out of the data chunk...number of points (platforms).
  */
-	if (dobj->do_org != OrgIRGrid)
-	{
-		msg_ELog (EF_PROBLEM, "Attempt to regularize non-IRGrid");
-		return (FALSE);
-	}
+	npoint = dc_IRGetNPlatform (*dc);
+	locs = (Location *) malloc (sizeof (Location) * npoint);
+	platforms = (PlatformId *) malloc (sizeof (PlatformId) * npoint);
+/*
+ * Platform locations.
+ */
+	dc_IRGetPlatforms (*dc, platforms, locs);
+/*
+ * Field id.
+ */
+	fid = F_Lookup (field);
+/*
+ * Data values.
+ */
+	dp = dc_IRGetGrid (*dc, 0, fid);
 /*
  * Wire the dimension of the grid, and get some more memory.
  */
 	rg.rg_nX = rg.rg_nY = 20;			/* XXX */
+	rg.rg_nZ = 1;
 	grid = (float *) malloc (rg.rg_nX * rg.rg_nY * sizeof (float));
 /*
  * Do a pass over the locations, and set everything up.
  */
-	xpos = (float *) malloc (irg->ir_npoint * sizeof (float));
-	ypos = (float *) malloc (irg->ir_npoint * sizeof (float));
-	dp = dobj->do_data[0];
-	for (i = 0; i < irg->ir_npoint; i++)
+	xpos = (float *) malloc (npoint * sizeof (float));
+	ypos = (float *) malloc (npoint * sizeof (float));
+	for (i = 0; i < npoint; i++)
 	{
 	/*
 	 * Turn this location into XY space, and see if it stretches our 
 	 * limits.
 	 */
-	 	cvt_ToXY (irg->ir_loc[i].l_lat, irg->ir_loc[i].l_lon,
-				xpos + i, ypos + i);
+	 	cvt_ToXY (locs[i].l_lat, locs[i].l_lon, xpos + i, ypos + i);
 # ifdef notdef
 	msg_ELog (EF_DEBUG, "Data %d at %d %d, %.2f", i, (int) xpos[i], 
 			(int) ypos[i], dp[i]);
@@ -424,16 +471,17 @@ DataObject *dobj;
 	rg.rg_Xspacing = (xmax - xmin)/(rg.rg_nX + 1);
 	rg.rg_Yspacing = (ymax - ymin)/(rg.rg_nY + 1);
 	cvt_ToLatLon (xmin + rg.rg_Xspacing, ymin + rg.rg_Yspacing,
-		&dobj->do_loc.l_lat, &dobj->do_loc.l_lon);
+		&location.l_lat, &location.l_lon);
 /*
  * Fill the grid with bad value flags
  */
+	badflag = dc_GetBadval (*dc);
 	for (i = 0; i < rg.rg_nX*rg.rg_nY; i++)
-		grid[i] = BADVAL;
+		grid[i] = badflag;
 /*
  * Apply limits.
  */
-	ga_RangeLimit (dobj->do_fields[0], irg->ir_npoint, dobj->do_data[0]);
+	ga_RangeLimit (field, npoint, dp, badflag);
 /*
  * Use RGRID to generate gridded data
  *
@@ -441,13 +489,14 @@ DataObject *dobj;
  * 		one grid width border around the grid, rather than
  * 		the bounds of the grid itself.  What a pain...
  */
-	badflag = BADVAL;
 	scratch = (float *) malloc (rg.rg_nX * rg.rg_nY * sizeof (float));
+
 	msg_ELog (EF_DEBUG,
 		"Call rgrid, %d x %d, np %d, (%.2f %.2f) to (%.2f %.2f)",
-		rg.rg_nX, rg.rg_nY, irg->ir_npoint, xmin, ymin, xmax, ymax);
-	status = do_rgrid_ (grid, &rg.rg_nX, &rg.rg_nY, &irg->ir_npoint,
-		dobj->do_data[0], &badflag, xpos, ypos, &xmin, &ymin, 
+		rg.rg_nX, rg.rg_nY, npoint, xmin, ymin, xmax, ymax);
+
+	status = do_rgrid_ (grid, &rg.rg_nX, &rg.rg_nY, &npoint,
+		dp, &badflag, xpos, ypos, &xmin, &ymin, 
 		&xmax, &ymax, scratch);
 /*
  * Clean up.
@@ -475,14 +524,22 @@ DataObject *dobj;
 			"Unknown status 0x%x returned by RGRID", status);
 	}
 /*
- * Finish fixing up the data object, and return.
+ * Finish fixing up the data chunk, and return.
  */
-	dobj->do_org = Org2dGrid;
-	if (dobj->do_flags & DOF_FREEDATA)
-		free (dobj->do_data[0]);
-	dobj->do_data[0] = grid;
-	dobj->do_flags |= DOF_FREEDATA;
-	dobj->do_desc.d_rgrid = rg;
+	rdc = dc_CreateDC (DCC_RGrid);
+	rdc->dc_Platform = dc_GetPlat (*dc, 0);
+	dc_GetTime (*dc, 0, &when);
+	dc_RGSetup (rdc, 1, &fid); 
+	dc_SetBadval (rdc, dc_GetBadval (*dc));
+	dc_RGAddGrid (rdc, 0, fid, &location, &rg, &when, grid, 0);
+/*
+ * Free up old memory.
+ */
+	dc_DestroyDC (*dc);
+/*
+ * Return the newly created regular grid.
+ */
+	*dc = rdc;
 	return (TRUE);
 }
 
@@ -491,10 +548,10 @@ DataObject *dobj;
 
 
 static void
-ga_RangeLimit (fname, npt, data)
-char *fname;
-int npt;
-float *data;
+ga_RangeLimit (fname, npt, data, badflag)
+char	*fname;
+int	npt;
+float	*data, badflag;
 /*
  * Apply range limits to this data.
  */
@@ -507,9 +564,9 @@ float *data;
 	if (pda_Search (Pd, "global", "range-min", fname, (char *) &limit,
 			SYMT_FLOAT))
 		for (i = 0; i < npt; i++)
-			if (data[i] != BADVAL && data[i] < limit)
+			if (data[i] != badflag && data[i] < limit)
 			{
-				data[i] = BADVAL;
+				data[i] = badflag;
 				nzapped++;
 			}
 /*
@@ -518,9 +575,9 @@ float *data;
 	if (pda_Search (Pd, "global", "range-max", fname, (char *) &limit,
 			SYMT_FLOAT))
 		for (i = 0; i < npt; i++)
-			if (data[i] != BADVAL && data[i] > limit)
+			if (data[i] != badflag && data[i] > limit)
 			{
-				data[i] = BADVAL;
+				data[i] = badflag;
 				nzapped++;
 			}
 	if (nzapped)

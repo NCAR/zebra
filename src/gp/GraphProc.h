@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.12 1992-03-26 20:12:12 kris Exp $ */
+/* $Id: GraphProc.h,v 2.13 1992-05-27 16:37:19 kris Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -44,14 +44,14 @@ extern plot_description Pd, Defaults;
 /*
  * The current plot parameters.
  */
-extern time PlotTime;		/* Time currently shown on the screen	*/
+extern ZebTime PlotTime;	/* Time currently shown on the screen	*/
 extern enum pmode PlotMode;	/* The current plot mode		*/
 extern bool MovieMode;		/* Movie mode?				*/
 /*
  * Post processing stuff.
  */
 extern int PostProcMode;	/* Post processing mode?		*/
-extern time PostProcTime;	/* Post processing mode history time	*/
+extern ZebTime PostProcTime;	/* Post processing mode history time	*/
 /*
  * Needed for opening the FrameFile.
  */
@@ -128,17 +128,19 @@ extern void pc_TriggerGlobal FP ((void));
 
 /* Plot executive modules. */
 extern void px_PlotExec FP ((char *));
-extern void px_GlobalPlot FP ((time *));
-extern void px_FixPlotTime FP ((time *));
+extern void px_GlobalPlot FP ((ZebTime *));
+extern void px_FixPlotTime FP ((ZebTime *));
 extern char *px_FldDesc FP ((char *, char *));
 
 /* Grid access */
-extern bool ga_GridBBox FP ((time *, char *, float *, float *, float *,
+extern bool ga_GridBBox FP ((ZebTime *, char *, float *, float *, float *,
 		float *));
 extern void ga_RotateGrid FP ((float *, float *, int, int));
-extern bool ga_AvailableAlts FP ((time *, char *, float *, int *));
-extern float *ga_GetGrid FP ((time *, char *, char *, int *, int *, float *,
-		float *, float *, float *, float *));
+extern bool ga_AvailableAlts FP ((ZebTime *, char *, float *, int *));
+# ifdef _DATACHUNK_H_
+extern DataChunk *ga_GetGrid FP ((ZebTime *, char *, char *, int *, int *, 
+		float *, float *, float *, float *, float *));
+# endif
 
 /* Frame cache routines */
 extern void fc_InvalidateCache FP ((void));
@@ -146,16 +148,17 @@ extern void fc_UnMarkFrames FP ((void));
 extern void fc_CreateFrameFile FP ((void));
 extern void fc_SetNumFrames FP ((int));
 extern char *fc_GetInfo FP ((int));
-extern void fc_AddFrame FP ((time *, int));
-extern int fc_LookupFrame FP ((time *));
+extern void fc_AddFrame FP ((ZebTime *, int));
+extern int fc_LookupFrame FP ((ZebTime *));
 extern int fc_GetFrame FP ((void));
-extern void fc_MarkFrames FP ((time *, int));
+extern void fc_MarkFrames FP ((ZebTime *, int));
 
 /* Movie control */
 extern void mc_DefMovieWidget FP ((void));
 extern void mc_ParamChange FP ((void));
 extern void mc_PDChange FP ((void));
 extern void mc_Dial FP ((int));
+extern void mc_LoadParams FP ((void));
 
 /* Icons */
 extern void I_DoIcons FP ((void));
@@ -192,8 +195,8 @@ extern void cvt_GetOrigin FP ((float *, float *));
 extern bool cvt_Origin FP ((double, double));
 
 /* Other stuff */
-extern int GetLocation FP ((char *, time *, Location *));
-extern int AgeCheck FP ((char *, time *));
+extern int GetLocation FP ((char *, ZebTime *, Location *));
+extern int AgeCheck FP ((char *, ZebTime *));
 extern long GetSec FP(( time ));
 extern void sync FP ((void));
 extern int  reset_limits FP ((char *, char *, char *));

@@ -1,7 +1,7 @@
 /*
  * Deal with static (or almost static) overlays.
  */
-static char *rcsid = "$Id: Overlay.c,v 2.7 1992-03-13 17:42:41 corbet Exp $";
+static char *rcsid = "$Id: Overlay.c,v 2.8 1992-05-27 16:43:42 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -27,11 +27,12 @@ static char *rcsid = "$Id: Overlay.c,v 2.7 1992-03-13 17:42:41 corbet Exp $";
 # include <X11/Intrinsic.h>
 # include <math.h>
 # include <string.h>
-# include "../include/defs.h"
-# include "../include/pd.h"
-# include "../include/message.h"
-# include "../include/dm.h"
-# include "../include/DataStore.h"
+# include "defs.h"
+# include "pd.h"
+# include "message.h"
+# include "dm.h"
+# include "DataStore.h"
+# include <DataChunk.h>
 # include "GC.h"
 # include "GraphProc.h"
 # include "PixelCoord.h"
@@ -57,8 +58,6 @@ typedef enum
 } LabelOpt;
 
 
-
-# define BADVAL -9999.9
 
 
 /*
@@ -114,62 +113,36 @@ typedef struct _MapPoints
 /*
  * Our internal overlay drawing routines.
  */
-# ifdef __STDC__
-	static void ov_GridBBox (char *, int);
-	static void ov_DrawFeature (char *, int);
-	static void ov_Map (char *, int);
-	static void ov_WBounds (char *, int);
-	static void ov_RangeRings (char *, int);
-	static void ov_Location (char *, int);
-	static void ov_Grid (char *, int);
-	static void ov_AzLimits (char *, int);
-	static bool ov_GetWBounds (char *, char *, float *, float *, float *,
-			float *, float *);
-	static int ov_FindWBReply (struct message *, struct dm_rp_wbounds *);
-	static void ov_Boundary (char *, int);
-	static bool ov_GetBndParams (char *, char *, XColor *, int *, int *,
-			LabelOpt *, char *,float *);
-	static int ov_RRInfo (char *, char *, Location *, float *, float *,
+static void 	ov_GridBBox FP ((char *, int));
+static void 	ov_DrawFeature FP ((char *, int));
+static void 	ov_Map FP ((char *, int));
+static void 	ov_WBounds FP ((char *, int));
+static void 	ov_RangeRings FP ((char *, int));
+static void 	ov_Location FP ((char *, int));
+static void 	ov_Grid FP ((char *, int));
+static void 	ov_AzLimits FP ((char *, int));
+static bool 	ov_GetWBounds FP ((char *, char *, float *, float *, float *,
+			float *, float *));
+static int 	ov_FindWBReply FP ((struct message *, struct dm_rp_wbounds *));
+static void 	ov_Boundary FP ((char *, int));
+static bool 	ov_GetBndParams FP ((char *, char *, XColor *, int *, int *,
+			LabelOpt *, char *,float *));
+static int 	ov_RRInfo FP ((char *, char *, Location *, float *, float *,
 			float *, float *, int *, float *, XColor *, int *,
-			float *);
-	static OvIcon *ov_GetIcon (char *);
-	static int ov_LocSetup (char *, char **, int *, OvIcon **, LabelOpt *,
-					char *, float *);
-	static void	ov_SGSetup (char *, float *, float *, float *, int *,
-					int *, int *, float *, float *);
-	static void 	ov_SolidGrid (int, int, int, int, double, double,
-				double, int, double, double);
-	static void	ov_TicGrid (int, int, int, int, double, double,
-				double, int, int, double, double);
-	static void	ov_LLTicGrid (int, int, int, int, double, double,
-				double, int, int);
-	static MapPoints *ov_LoadMap (char *);
-	static void	ov_DrawMap (const MapPoints *);
-# else
-	static void ov_GridBBox ();
-	static void ov_DrawFeature ();
-	static void ov_Map ();
-	static void ov_WBounds ();
-	static bool ov_GetWBounds ();
-	static void ov_Grid ();
-	static void ov_AzLimits ();
-	static int ov_FindWBReply ();
-	static void ov_Boundary ();
-	static bool ov_GetBndParams ();
-	static void ov_RangeRings ();
-	static void ov_Location ();
-	static int ov_RRInfo ();
-	static OvIcon *ov_GetIcon ();
-	static int ov_LocSetup ();
-	static void	ov_SGSetup ();
-	static void 	ov_SolidGrid ();
-	static void	ov_TicGrid ();
-	static void	ov_LLTicGrid ();
-	static MapPoints *ov_LoadMap ();
-	static void	ov_DrawMap ();
-# endif
-
-
+			float *));
+static OvIcon 	*ov_GetIcon FP ((char *));
+static int 	ov_LocSetup FP ((char *, char **, int *, OvIcon **, LabelOpt *,
+			char *, float *));
+static void	ov_SGSetup FP ((char *, float *, float *, float *, int *,
+			int *, int *, float *, float *));
+static void 	ov_SolidGrid FP ((int, int, int, int, double, double,
+			double, int, double, double));
+static void	ov_TicGrid FP ((int, int, int, int, double, double,
+			double, int, int, double, double));
+static void	ov_LLTicGrid FP ((int, int, int, int, double, double,
+				double, int, int));
+static MapPoints *ov_LoadMap FP ((char *));
+static void	ov_DrawMap FP ((const MapPoints *));
 
 
 /*
@@ -257,16 +230,17 @@ bool update;
  * Do an azimuth limits plot.
  */
 {
-	char color[40], plat[40], alplat[40];
+	char color[40], plat[40];
 	int lwidth, range, pox, poy, lx, ly, rx, ry;
 	unsigned int bbsize;
 	float ox, oy, left, right;
 	XColor xc;
 	PlatformId pid;
 	Location loc;
-	DataObject *dobj;
-	time t;
-	static char *fields[2] = { "left", "right" };
+	DataChunk *dc;
+	time	t;
+	ZebTime zt;
+	FieldId fieldlist[2];
 /*
  * Platform stuff.
  */
@@ -292,6 +266,11 @@ bool update;
 		return;
 	}
 /*
+ * Make the field list.
+ */
+	fieldlist[0] = F_Lookup ("left");
+	fieldlist[1] = F_Lookup ("right");
+/*
  * Color information.
  */
 	if (! pda_Search (Pd, comp, "color", "overlay", color, SYMT_STRING))
@@ -308,12 +287,13 @@ bool update;
 /*
  * Find out when there is something available.
  */
-	if (! ds_DataTimes (pid, &PlotTime, 1, DsBefore, &t))
+	if (! ds_DataTimes (pid, &PlotTime, 1, DsBefore, &zt))
 		return;
 /*
  * Check into age limits.
  */
- 	if (! AgeCheck (comp, &t))
+	TC_ZtToUI (&zt, &t);
+ 	if (! AgeCheck (comp, &zt))
 	{
 		msg_ELog (EF_INFO, "Az limits %s too old %d %d", plat,
 			t.ds_yymmdd, t.ds_hhmmss);
@@ -322,14 +302,17 @@ bool update;
 /*
  * Snarf it.
  */
-	if ((dobj = ds_GetData (pid, fields, 2, &t, &t, OrgScalar, 0, BADVAL))
-				== 0)
+	if (! (dc = ds_Fetch (pid, DCC_Scalar, &zt, &zt, fieldlist, 2, 
+		NULL, 0)))
 	{
 		msg_ELog (EF_PROBLEM, "Get failed on %s", plat);
 		return;
 	}
-	left = *(dobj->do_data[0]);
-	right = *(dobj->do_data[1]);
+/*
+ * Get values of right and left azimuth limits.
+ */
+	left = dc_GetScalar (dc, 0, fieldlist[0]);
+	right = dc_GetScalar (dc, 0, fieldlist[1]);
 /*
  * Figure out end points.
  */
@@ -348,6 +331,10 @@ bool update;
 	XDrawArc (Disp, GWFrame (Graphics), Gcontext, XPIX (ox - range),
 		YPIX (oy + range), bbsize, bbsize,
 		(int) (90 - left)*64, (int) (left - right)*64);
+/*
+ * Free up the data object and chunk.
+ */
+	dc_DestroyDC (dc);
 }
 
 
@@ -426,7 +413,6 @@ bool update;
 	char platform[40], color[40], ptype[40];
 	float x0, y0, x1, y1, alt;
 	int lwidth, px0, py0, px1, py1;
-	GC gcontext;
 	XColor xc;
 	Display *disp = XtDisplay (Graphics);
 	Drawable d = GWFrame (Graphics);
@@ -534,6 +520,7 @@ struct dm_rp_wbounds *repl;
 /*
  * If this is a DM_DIE, the reply may never arrive, so we better just go
  * away.
+ */
  	else if (rp->dmm_type == DM_DIE)
 		GPShutDown ();
 /*
@@ -553,13 +540,13 @@ bool update;
  */
 {
 	char platform[40], color[40];
-	int lwidth, type, i;
+	int lwidth, type;
 	XColor xc;
 	Display *disp = XtDisplay (Graphics);
-	Drawable d = GWFrame (Graphics);
 	struct FList *fl;
 	union usy_value v;
 	Feature *last, *fp;
+	time temptime;
 /*
  * Find our "platform".  (Really the name of the feature of interest).
  */
@@ -592,11 +579,12 @@ bool update;
 		fp = fl->fl_features;
 	else
 	{
+		TC_ZtToUI (&PlotTime, &temptime);
 		last = 0;
 		for (fp = fl->fl_features; fp; fp = fp->f_next)
 			if (fp->f_type == FMarker &&
-				fp->f_when.ds_yymmdd == PlotTime.ds_yymmdd &&
-				fp->f_when.ds_hhmmss <= PlotTime.ds_hhmmss)
+				fp->f_when.ds_yymmdd == temptime.ds_yymmdd &&
+				fp->f_when.ds_hhmmss <= temptime.ds_hhmmss)
 				last = fp;
 		fp = last ? last->f_next : 0;
 	}
@@ -669,12 +657,10 @@ bool update;
  * Put a map overlay onto the screen.
  */
 {
-	char platform[40], color[40], fname[80];
-	float x0, y0, x1, y1;
-	int lwidth, px0, py0, px1, py1;
+	char platform[40], color[40];
+	int lwidth;
 	XColor xc;
 	Display *disp = XtDisplay (Graphics);
-	Drawable d = GWFrame (Graphics);
 	MapPoints *points;
 /*
  * Find our platform -- the map name.
@@ -717,7 +703,7 @@ const MapPoints * points;
  * Draw this map file onto the screen.
  */
 {
-	int npt, pt, xp;
+	int pt, xp;
 	XPoint pts[MAXPLSEG];
 /*
  * Just plow through the file.
@@ -768,7 +754,7 @@ char *name;
  */
 {
 	char fname[200], line[200], c;
-	float lat, lon, x, y;
+	float lat, lon;
 	int type, npt, pt;
 	SValue v;
 	FILE *mapfp;
@@ -789,7 +775,7 @@ char *name;
 	if ((mapfp = fopen (fname, "r")) == NULL)
 	{
 		msg_ELog (EF_PROBLEM, "Unable to open map file %s", fname);
-		return;
+		return (NULL);
 	}
 /*
  * Plow through the points and convert them to XY space.
@@ -984,15 +970,16 @@ int update;
  *	annotation
  */
 {
-	char platform[40], *junk = "junk", label[20], *pnames[40];
+	char platform[40], label[20], *pnames[40];
 	PlatformId pid;
 	int lwidth, pt, npt, closed, nplats, i;
-	time t, target;
-	DataObject *dobj;
+	ZebTime t, target;
+	DataChunk *dc;
 	XPoint *xpts;
 	XColor xc;
 	LabelOpt opt;
 	float x, y, asize;
+	Location *lp;
 
 	target = PlotTime;
 /*
@@ -1033,18 +1020,17 @@ int update;
 	/*
 	 * Snarf it.
 	 */
-		if ((dobj = ds_GetData (pid, &junk, 0, &t, &t, OrgOutline, 
-			0, BADVAL)) == 0)
+		if (! (dc = ds_Fetch (pid, DCC_Boundary, &t, &t, NULL, 0,
+			NULL, 0)))
 		{
 			msg_ELog (EF_PROBLEM, "Get failed on %s boundary", 
 				pnames[i]);
 			return;
 		}
+		lp = dc_BndGet (dc, 0, &npt);
 	/*
 	 * Get set up to draw the thing.
 	 */
-		 /* npt = *dobj->do_desc.d_length; */
-		npt = dobj->do_desc.d_bnd->bd_npoint;
 		xpts = (XPoint *) malloc ((closed ? npt + 1 : npt) * 
 			sizeof (XPoint));
 		XSetForeground (Disp, Gcontext, xc.pixel);
@@ -1055,7 +1041,6 @@ int update;
 	 */
 		for (pt = 0; pt < npt; pt++)
 		{
-			Location *lp = dobj->do_aloc + pt;
 			cvt_ToXY (lp->l_lat, lp->l_lon, &x, &y);
 			xpts[pt].x = XPIX (x);
 			xpts[pt].y = YPIX (y);
@@ -1071,6 +1056,10 @@ int update;
 					pnames[i], 0.0, asize, JustifyCenter, 
 					JustifyBottom);
 			}
+		/*
+		 * Increment the location pointer.
+		 */
+			lp ++;
 		}
 	/*
 	 * Wrap back to the beginning if this is a closed boundary.
@@ -1086,7 +1075,10 @@ int update;
 	}
 	XSetLineAttributes (Disp, Gcontext, 0, LineSolid, CapButt, JoinMiter);
 	free (xpts);
-	ds_FreeDataObject (dobj);
+/*
+ * Free the data chunk.
+ */
+	dc_DestroyDC (dc);
 }
 
 
@@ -1510,7 +1502,7 @@ int update;
  */
 {
 	float xs, ys, theight, xoff, yoff;
-	int top, bottom, left, right, aint, n, solid, tic, ll;
+	int top, bottom, left, right, aint, solid, tic, ll;
 /*
  * Dig out our info.
  */
@@ -1869,6 +1861,7 @@ int	x, y, fg;
 	XFillRectangle (Disp, GWFrame (Graphics), Gcontext, x, y,
 			icon->oi_w, icon->oi_h);
 	ResetGC ();
+	return (TRUE);
 }
 
 # endif
