@@ -37,9 +37,10 @@
 # include "dslib.h"
 # include "dfa.h"
 # include "dsDaemon.h"
+# include "Platforms.h"		/* for dt_SetString */
 # include "byteorder.h"
 
-MAKE_RCSID ("$Id: d_Scan.c,v 1.31 1996-08-21 22:45:39 granger Exp $")
+RCSID ("$Id: d_Scan.c,v 1.32 1996-11-19 09:29:44 granger Exp $")
 
 /*
  * Define this to force changed files to be closed and re-opened by
@@ -58,7 +59,6 @@ static int	FileChanged FP ((Platform *p, DataFile *df,
 static void	CleanChain FP ((Platform *, int));
 static int	LoadCache FP ((Platform *, int));
 static char     *CacheFileName FP((Platform *p, int local, int version));
-static int	MakeDataDir FP ((char *));
 
 static int ScanProto[] =
 {
@@ -143,7 +143,7 @@ bool local, rescan;
 		{
 			p->dp_flags &= ~DPF_DIREXISTS;
 		}
-		else if (! MakeDataDir (dir))
+		else if (! dt_MakeDataDir (dir))
 		{
 			msg_ELog (EF_PROBLEM, 
 				  "Cannot open or create dir %s (plat %s)",
@@ -200,78 +200,6 @@ bool local, rescan;
 
 
 
-int
-CreateDataDir (pi)
-Platform *pi;
-/*
- * Check whether this platform's local data directory exists, and if not
- * try to create it.  If upon exit the directory exists and is accessible,
- * set the platform's DPF_DIREXISTS flag so that we don't try this again.
- */
-{
-	int succeed = 0;
-	int check;
-
-	check = access (pi->dp_dir, R_OK | W_OK | X_OK);
-	if (check == 0)
-	{
-		succeed = 1;
-	}
-	else if (errno == EACCES)
-	{
-		msg_ELog (EF_PROBLEM, "Access denied to path %s", pi->dp_dir);
-	}
-	else if (errno == ENOENT)
-	{
-		if ((succeed = MakeDataDir (pi->dp_dir)) != 0)
-			msg_ELog (EF_INFO, "Created data dir %s (plat %s)",
-				  pi->dp_dir, pi->dp_name);
-		else
-			msg_ELog (EF_PROBLEM, "Cannot create dir %s (plat %s)",
-				  pi->dp_dir, pi->dp_name);
-	}
-	else
-	{
-		msg_ELog (EF_PROBLEM, "access() error %d checking dir %s",
-			  errno, pi->dp_dir);
-	}
-
-	if (succeed)
-	{
-		pi->dp_flags |= DPF_DIREXISTS;
-		pi->dp_flags |= DPF_DIRTY;
-	}
-	return (succeed);
-}
-
-
-
-
-static int
-MakeDataDir (dir)
-char *dir;
-/*
- * Try to make the data directory.
- */
-{
-	char tmp[512];
-	char *slash = dir;
-/*
- * Go through and try to make all of the parent directories.
- */
-	while ((slash = strchr (slash + 1, '/')))
-	{
-		strncpy (tmp, dir, slash - dir);
-		tmp[slash - dir] = '\0';
-		mkdir (tmp, 0777);
-	}
-/*
- * Now try for the whole thing.
- */
-	return (mkdir (dir, 0777) == 0);
-}
-
-
 
 
 static void
@@ -283,7 +211,7 @@ bool local, rescan;
  * Look at this file and see what we think of it.
  */
 {
-	DataFile *df;
+	DataFile *df = NULL;
 	int dfi;
 	int ns;
 	ino_t new_ino;
@@ -718,28 +646,32 @@ int chain;
 
 
 void
-WriteCache (cmd)
-struct ui_command *cmd;
+WriteCache (ufile, onlydirty)
+const char *ufile;
+int onlydirty;
 /*
  * Dump out cache files for all local directores.  (Only those with changes
- * if "onlydirty" is set).
+ * if "onlydirty" is set).  To write a unified cache file, 'ufile' must
+ * point to the file name and 'onlydirty' must be false, else write
+ * platform cache files.
  */
 {
-	int plat, fd, df;
+	int plat, df;
+	int fd = -1;
 	unsigned long version = CacheKey;
 	char *fname;
-	bool onlydirty = FALSE, onefile = FALSE;
+	bool onefile = FALSE;
 /*
  * Do they want a unified file?
  */
-	if (cmd && ! (onlydirty = (cmd->uc_ctype == UTT_KW)) &&
-	    (onefile = (cmd->uc_ctype != UTT_END)))
+	if (ufile && ! onlydirty)
 	{
-		if ((fd = open (UPTR (*cmd), O_WRONLY|O_CREAT|O_TRUNC,
+		onefile = TRUE;
+		if ((fd = open (ufile, O_WRONLY|O_CREAT|O_TRUNC,
 				0664)) < 0)
 		{
 			msg_ELog (EF_PROBLEM, "Error %d opening %s",
-				  errno, UPTR (*cmd));
+				  errno, ufile);
 			return;
 		}
 		write (fd, &version, sizeof (long));
@@ -775,9 +707,6 @@ struct ui_command *cmd;
 					  errno, fname);
 				continue;
 			}
-#ifdef notdef
-			msg_ELog (EF_DEBUG, "Cache %s opened", fname);
-#endif
 			write (fd, &version, sizeof (long));
 		}
 	/*
@@ -868,7 +797,7 @@ int local;
 	 */
 		if (df->df_flags & DFF_PlatMarker)
 		{
-			if ((p = dt_FindPlatform (df->df_name, FALSE)) == NULL)
+			if ((p = dt_FindPlatform (df->df_name)) == NULL)
 				msg_ELog (EF_PROBLEM, "Funky plat %s in cache",
 					  df->df_name);
 			else
@@ -913,7 +842,7 @@ bool version;	/* include the cache key if non-zero */
 	}
 	name[i] = '\0';
 	if (version)
-		sprintf (fname, "%s/%s.%x%s.ds_cache", 
+		sprintf (fname, "%s/%s.%lx%s.ds_cache", 
 				local ? p->dp_dir : p->dp_rdir, name,
 				CacheKey,
 # ifdef LITTLE_ENDIAN
