@@ -42,16 +42,20 @@ int Pid;			/* Our process id		*/
  */
 int BCastSave = 20;	/* How long we save broadcasted data so that we
 			 * can service rebroadcast requests. 		*/
-int BCInitialWait = 2;	/* How long we wait for missing broadcast packets
+int BCInitialWait = 1;	/* How long we wait for missing broadcast packets
 			 * before requesting the first retransmit. 	*/
 int BCRetransWait = 5;	/* How long before we timeout a retransmit	*/
 int BCRetransMax = 2;	/* How many times we will ask for a retransmit
 			 * before we lose our patience			*/
+int BCBurst = 5;	/* How many packets to blast before waiting	*/
+int BCReceive = 0;	/* Receive-only socket				*/
+int Polling = FALSE;	/* Are we polling the broadcast socket?		*/
+
 
 /*
  * The queue of broadcast packets awaiting everything else.
  */
-static DataBCChunk *BCQueue = 0;
+static DataBCChunk *BCQueue = 0, *PollQueue = 0;
 
 /*
  * Stuff for data builds in progress.
@@ -97,6 +101,7 @@ InProgress *IPList = 0;
 	static void ZapIP (InProgress *);
 	static void Timeout (time *, int);
 	static void AskRetrans (InProgress *, int);
+	static void ProcessPolled (void);
 # else
 	static int Incoming ();
 	static void Die ();
@@ -118,6 +123,7 @@ InProgress *IPList = 0;
 	static void ZapIP ();
 	static void Timeout ();
 	static void AskRetrans ();
+	static void ProcessPolled ();
 # endif
 
 /*
@@ -165,6 +171,7 @@ char **argv;
 	usy_c_indirect (vtable, "bcastsave", &BCastSave, SYMT_INT, 0);
 	usy_c_indirect (vtable, "initialwait", &BCInitialWait, SYMT_INT, 0);
 	usy_c_indirect (vtable, "maxretrans", &BCRetransMax, SYMT_INT, 0);
+	usy_c_indirect (vtable, "burst", &BCBurst, SYMT_INT, 0);
 /*
  * Hook into the message system.
  */
@@ -392,6 +399,7 @@ int ns;
 	done.dh_MsgType = NMT_DataDone;
 	done.dh_DataSeq = Seq;
 	SendOut (plat, &done, sizeof (done));
+	ds_FreeDataObject (dobj);
 }
 
 
@@ -470,6 +478,7 @@ int ns;
 	int ntime;
 	static int NFld = -1;
 	static char *FList[MAXFIELD];
+	DataObject *ret;
 /*
  * Allocate a time array, then find the sample times for the new data.
  */
@@ -499,7 +508,10 @@ int ns;
 			int i;
 			ui_nf_printf ("%d Fields: ", NFld);
 			for (i = 0; i < NFld; i++)
+			{
+				FList[i] = usy_string (FList[i]);
 				ui_nf_printf ("%s ", FList[i]);
+			}
 			ui_printf ("\n");
 		}
 	}
@@ -744,11 +756,20 @@ char *data;
 		return (0);
 	}
 /*
+ * If we are currently polling, we just set this one aside.
+ */
+	if (Polling)
+	{
+		DataBCChunk *save = (DataBCChunk *) malloc (CBYTES);
+		memcpy (save, data, len);
+		save->dh_Next = PollQueue;
+		PollQueue = save;
+		return;
+	}
+/*
  * Look for this IP.  If we don't find it, we need to go to some more effort
  * to decide what the hell to do with this thing.
  */
-	msg_ELog (EF_INFO, "BC pkt %d, %d at %d", chunk->dh_Chunk,
-		chunk->dh_Size, chunk->dh_Offset);
 	if (! (ip = FindIP (chunk->dh_DataSeq)))
 	{
 		if (chunk->dh_MsgType != NMT_DataBRetrans)
@@ -774,13 +795,15 @@ char *data;
 		ip->ip_NBCast = 0;
 		ip->ip_NBExpect = chunk->dh_NChunk;
 		ip->ip_DObj->do_data[0] = (float *) malloc(chunk->dh_DataSize);
+	msg_ELog (EF_INFO, "Inc data %d by in %d chunk", chunk->dh_DataSize,
+		chunk->dh_NChunk);
 	}
 /*
  * Mark this packet as arrived, and copy over the stuff.
  */
 	ip->ip_Arrived[chunk->dh_Chunk] = 1;
 	ip->ip_NBCast++;
-	memcpy (chunk->dh_Offset + (char *) ip->ip_DObj->do_data[0], 
+	memcpy (chunk->dh_Offset + ((char *) (ip->ip_DObj->do_data[0])), 
 			chunk->dh_data, chunk->dh_Size);
 /*
  * If everything is done, finish it out.
@@ -789,6 +812,30 @@ char *data;
 		FinishIP (ip);
 }
 
+
+
+
+void
+ProcessPolled ()
+/*
+ * Deal with packets we accumulated while doing other things.
+ */
+{
+	DataBCChunk *chunk;
+
+	while (PollQueue)
+	{
+	/*
+	 * Remove from the queue.
+	 */
+		chunk = PollQueue;
+		PollQueue = chunk->dh_Next;
+	/*
+	 * Dispatch it.
+	 */
+		BCastHandler (0, (char *) chunk, CBYTES);
+	}
+}
 
 
 
@@ -820,8 +867,6 @@ int len;
 /*
  * Otherwise we enqueue it, waiting for the header info to arrive.
  */
-	msg_ELog (EF_INFO, "Enqueue BC seq %d ch %d/%d", chunk->dh_DataSeq,
-		chunk->dh_Chunk, chunk->dh_NChunk);
 	new = (DataBCChunk *) malloc (len);
 	memcpy (new, chunk, len);
 	new->dh_Next = BCQueue;
@@ -919,6 +964,7 @@ int seq;
  * If we don't find our InProgress structure, that can only mean that
  * the data arrived and it was flushed out.  So we can happily just quit.
  */
+	PollBCast (TRUE);
 	if (! ip)
 	{
 		msg_ELog (EF_INFO, "Timeout with no IP on %d", seq);
@@ -945,9 +991,15 @@ int seq;
 	if (ip->ip_NBCast == 0)
 		AskRetrans (ip, 0);
 	else
+	{
 		for (ch = 0; ch < ip->ip_NBExpect; ch++)
+		{
 			if (! ip->ip_Arrived[ch])
 				AskRetrans (ip, ch);
+			PollBCast (FALSE);
+		}
+		ProcessPolled ();
+	}
 /*
  * Schedule a new timer request on this IP.
  */
@@ -967,9 +1019,10 @@ int chunk;
  */
 {
 	DataRetransRq req;
-
+# ifdef BCLOG
 	msg_ELog (EF_INFO, "Beg retrans of seq %d ch %d from '%s'", ip->ip_Seq,
 		chunk, ip->ip_Source);
+# endif
 
 	req.dh_MsgType = NMT_Retransmit;
 	req.dh_DataSeq = ip->ip_Seq;
@@ -1000,8 +1053,10 @@ InProgress *ip;
  * NEWFILE!!!!
  */
 	msg_ELog (EF_INFO, "Store sequence %d", ip->ip_Seq);
+	PollBCast (FALSE);
 	ds_PutData (ip->ip_DObj, FALSE);
 	ZapIP (ip);
+	ProcessPolled ();
 }
 
 

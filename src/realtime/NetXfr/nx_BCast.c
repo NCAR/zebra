@@ -1,8 +1,10 @@
 /*
  * Handling of broadcast stuff.
  */
-static char *rcsid = "$Id: nx_BCast.c,v 1.2 1991-06-06 23:20:42 corbet Exp $";
+static char *rcsid = "$Id: nx_BCast.c,v 1.3 1991-06-08 17:06:47 corbet Exp $";
 
+# include <sys/time.h>
+# include <sys/signal.h>
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -36,17 +38,6 @@ tx_BCast *Tx_Free = 0;		/* The struct lookaside list		*/
 DataBCChunk *Ch_Free = 0;	/* Data chunk lookaside list		*/
 
 /*
- * How much data can we put into one UDP packet?  The UDP spec allows
- * us up to around 8K.  But we know that this data is going over an
- * ethernet for the near future, so, since we are fragmenting the data
- * anyway, we might as well avoid further fragmentation at the IP level.
- *
- * IP header = 20 bytes.  UDP = 8 bytes.
- */
-# define CBYTES (1500 - 28)	/* Space available to us in packet */
-# define MAXDATA (CBYTES - sizeof (DataBCChunk) + 1)	/* Space for data */
-
-/*
  * Bookkeeping for retransmission requests.  This stuff is
  * kept around to avoid rebroadcasting stuff multiple times.
  * Actual retransmissions are only done once a second (at most),
@@ -55,6 +46,8 @@ DataBCChunk *Ch_Free = 0;	/* Data chunk lookaside list		*/
 static DataRetransRq *RetransPending = 0;
 static DataRetransRq *RetransFree = 0;
 static int RetransTreq = -1;		/* Timer request number	*/
+
+static int NCAlloc = 0, NCReuse = 0;
 
 /*
  * Routines.
@@ -65,12 +58,16 @@ static int RetransTreq = -1;		/* Timer request number	*/
 	static tx_BCast *FindBCP (int);
 	static void FlushRetrans (time *, void *);
 	static void ZapBCast (time *, tx_BCast *);
+	static void Delay (void);
+	static void Alarm (void);
 # else
 	static tx_BCast *NewBCast ();
 	static DataBCChunk *GetBCastPacket ();
 	static tx_BCast *FindBCP ();
 	static void FlushRetrans ();
 	static void ZapBCast ();
+	static void Delay ();
+	static void Alarm ();
 # endif
 
 
@@ -114,7 +111,7 @@ int port;
  * Set up to receive bcast info.
  */
 {
-	if (msg_BCSetup (0, port, BCastHandler) < 0)
+	if ((BCReceive = msg_BCSetup (0, port, BCastHandler)) < 0)
 		msg_ELog (EF_PROBLEM, "Unable to setup BCast on port %d",port);
 }
 
@@ -134,7 +131,7 @@ DataObject *dobj;
 	DataBCChunk *chunk, template;
 	DataOffsets offsets;
 	int fld, nchunk;
-	char *cdata = (char *) dobj->do_data;
+	char *cdata = (char *) dobj->do_data[0];
 /*
  * Set up to output this sequence.
  */
@@ -178,6 +175,11 @@ DataObject *dobj;
 		msg_BCast (BCastChannel, chunk, CBYTES);
 		cdata += chunk->dh_Size;
 		template.dh_Offset += chunk->dh_Size;
+	/*
+	 * Maybe delay a bit to allow things to drain out.
+	 */
+		if ((template.dh_Chunk % BCBurst) == 1)
+			Delay ();
 	}
 /*
  * Don't forget the last one.
@@ -247,9 +249,13 @@ int number;
 	{
 		pkt = Ch_Free;
 		Ch_Free = pkt->dh_Next;
+		NCReuse++;
 	}
 	else
+	{
 		pkt = (DataBCChunk *) malloc (CBYTES);
+		NCAlloc++;
+	}
 /*
  * Stuff it into the broadcast block, and we're done.
  */
@@ -292,6 +298,7 @@ tx_BCast *bcp;
 		bcp->txb_Chunks[ch]->dh_Next = Ch_Free;
 		Ch_Free = bcp->txb_Chunks[ch];
 	}
+	free (bcp->txb_Chunks);
 /*
  * Free the structure and we're done.
  */
@@ -328,11 +335,7 @@ DataRetransRq *rq;
  * See also if we can deal with this sequence at all.
  */
 	if (! (bcp = FindBCP (rq->dh_DataSeq)))
-	{
-		msg_ELog (EF_INFO, "Retrans rq on missing seq %d",
-				rq->dh_DataSeq);
 		return;
-	}
 /*
  * OK, add this one to the list.
  */
@@ -405,19 +408,70 @@ void *junk;
 	 	if (bcp = FindBCP (req->dh_DataSeq))
 			msg_BCast (BCastChannel,bcp->txb_Chunks[req->dh_Chunk],
 					 CBYTES);
-		else
-			msg_ELog (EF_INFO, "Cant retrans %d %d",
-				req->dh_DataSeq, req->dh_Chunk);
 	/*
 	 * Free up this entry.
 	 */
 		req->dh_Next = RetransFree;
 		RetransFree = req;
 		nretrans++;
+		if ((nretrans % BCBurst) == 0)
+			Delay ();
 	}
 /*
  * No timer request pending.
  */
 	msg_ELog (EF_INFO, "%d frames retransmitted", nretrans);
 	RetransTreq = -1;
+}
+
+
+
+
+
+void
+Delay ()
+/*
+ * Wait just a bit.
+ */
+{
+	struct itimerval iv;
+
+	sigblock (sigmask (SIGALRM));
+	signal (SIGALRM, Alarm);
+/*
+ * Set up the timer.
+ */
+	timerclear (&iv.it_interval);
+	iv.it_value.tv_sec = 0;
+	iv.it_value.tv_usec = 10000;
+	setitimer (ITIMER_REAL, &iv, 0);
+/*
+ * Now we just wait.
+ */
+	sigpause (0);
+}
+
+
+
+void
+Alarm ()
+{
+	/* yawn */
+}
+
+
+
+void
+PollBCast (process)
+int process;
+/* 
+ * Poll the receive-only socket if need be.
+ */
+{
+	if (BCReceive > 0)
+	{
+		Polling = ! process;
+		msg_PollBCast (BCReceive);
+		Polling = FALSE;
+	}
 }

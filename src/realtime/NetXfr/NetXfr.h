@@ -1,4 +1,4 @@
-/* $Id: NetXfr.h,v 1.4 1991-06-06 23:20:42 corbet Exp $ */
+/* $Id: NetXfr.h,v 1.5 1991-06-08 17:06:47 corbet Exp $ */
 /* 
  * Definitions used for the data store network transfer protocol.
  */
@@ -110,7 +110,18 @@ typedef struct _DataTemplate
  */
 extern int Seq, Pid;
 extern int BCastSave, BCInitialWait, BCRetransWait, BCRetransMax;
-extern int Broadcast;
+extern int Broadcast, BCBurst, BCReceive, Polling;
+
+/*
+ * How much data can we put into one UDP packet?  The UDP spec allows
+ * us up to around 8K.  But we know that this data is going over an
+ * ethernet for the near future, so, since we are fragmenting the data
+ * anyway, we might as well avoid further fragmentation at the IP level.
+ *
+ * IP header = 20 bytes.  UDP = 8 bytes.
+ */
+# define CBYTES (1500 - 28)	/* Space available to us in packet */
+# define MAXDATA (CBYTES - sizeof (DataBCChunk) + 1)	/* Space for data */
 
 
 /*
