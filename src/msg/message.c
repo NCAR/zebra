@@ -37,7 +37,7 @@
 # include "message.h"
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.6 1992-11-17 01:25:15 granger Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.7 1993-03-19 21:01:53 corbet Exp $")
 /*
  * Symbol tables.
  */
@@ -136,6 +136,18 @@ static int S_npipe = 0, S_ndisc = 0, S_NDRead = 0, S_NDWrite = 0;
 
 
 /*
+ * Message tap stuff.
+ */
+struct MTap
+{
+	int	mt_who;		/* Tapper		*/
+	struct msg_mtap mt_tapee;
+	struct MTap *mt_next;	/* Next in chain	*/
+} *Taps = 0;
+
+
+
+/*
  * Forwards.
  */
 struct connection *FindRecipient FP ((char *));
@@ -150,8 +162,10 @@ static void DelayWrite FP ((Connection *, struct iovec *, int, int));
 static void DoDelayedWrite FP ((fd_set *));
 static int TryWrite FP ((Connection *));
 static void ClientQuery FP ((int, Message *));
-
-
+static void Tap FP ((int, Message *));
+void	DoTaps FP ((Message *));
+int	TapperWants FP ((struct MTap *, Message *));
+void	SendTap FP ((struct MTap *, Message *));
 
 
 main ()
@@ -832,6 +846,7 @@ int fd;
  */
 {
 	int clear_group ();
+	struct MTap *mt, *last = Taps;
 
 	S_ndisc++;
 /*
@@ -846,6 +861,32 @@ int fd;
 	else
 		usy_z_symbol (Proc_table, Fd_map[fd]->c_name);
 	usy_traverse (Group_table, clear_group,(int)Fd_map[fd], FALSE);
+/*
+ * Clear out the mtap list too.
+ */
+	if (Taps)
+	{
+		if (Taps->mt_who == fd)
+		{
+			mt = Taps;
+			Taps = mt->mt_next;
+		}
+		else
+			for (mt = Taps->mt_next; mt; mt = mt->mt_next)
+			{
+				if (mt->mt_who == fd)
+				{
+					last->mt_next = mt->mt_next;
+					break;
+				}
+				last = mt;
+			}
+		if (mt)
+			free (mt);
+	}
+/*
+ * Clean up FDs
+ */
 	FD_CLR (fd, &Allfds);
 	free ((char *) Fd_map[fd]);
 	Fd_map[fd] = 0;
@@ -984,6 +1025,12 @@ struct message *msg;
 			break;
 		}
 		/* Else fall through.... */
+	/*
+	 * Message tapping.
+	 */
+	   case MT_MTAP:
+	   	Tap (fd, msg);
+		break;
 	/*
 	 * Most stuff just gets sent through to the destination.
 	 */
@@ -1237,6 +1284,11 @@ struct message *msg;
  */
 	if (! Fd_map[fd]->c_inet)
 	 	strcpy (msg->m_from, Fd_map[fd]->c_name);
+/*
+ * Hand off copies to any eavesdroppers.
+ */
+	if (Taps)
+		DoTaps (msg);
 /*
  * If this is a broadcast, deal with it separately.
  */
@@ -1819,4 +1871,101 @@ struct connection *conp;
  */
 	msg.m_len = 0;
 	send_msg (conp, &msg);
+}
+
+
+
+
+
+static void
+Tap (conn, msg)
+int conn;
+Message *msg;
+/*
+ * Deal with an incoming tap request.
+ */
+{
+	struct MTap *mt = ALLOC (struct MTap);
+/*
+ * Fill in the tap info and add it to the list.
+ */
+	mt->mt_who = conn;
+	mt->mt_tapee = * (struct msg_mtap *) msg->m_data;
+	mt->mt_next = Taps;
+	Taps = mt;
+}
+
+
+
+void
+DoTaps (msg)
+Message *msg;
+/*
+ * Send copies of this message to anybody who wants it.
+ */
+{
+	struct MTap *eavesdropper;
+
+	for (eavesdropper = Taps; eavesdropper; 
+			eavesdropper = eavesdropper->mt_next)
+		if (TapperWants (eavesdropper, msg))
+			SendTap (eavesdropper, msg);
+}
+
+
+
+
+
+int
+TapperWants (who, msg)
+struct MTap *who;
+Message *msg;
+/*
+ * See if this person wants this message.
+ */
+{
+	int i;
+	struct msg_mtap *mt = &who->mt_tapee;
+
+	if (mt->mt_nclient == 0 && mt->mt_nproto == 0)
+		return (TRUE);
+	for (i = 0; i < mt->mt_nproto; i++)
+		if (msg->m_proto == mt->mt_protos[i])
+			return (TRUE);
+	for (i = 0; i < mt->mt_nclient; i++)
+		if (! strcmp (msg->m_to, mt->mt_clients[i]) ||
+		    ! strcmp (msg->m_from, mt->mt_clients[i]))
+		    	return (TRUE);
+	return (FALSE);
+}
+
+
+
+
+void
+SendTap (who, msg)
+struct MTap *who;
+Message *msg;
+/*
+ * Send this message to the indicated eavesdropper.
+ */
+{
+	Message outmsg;
+	struct connection *c = Fd_map[who->mt_who];
+/*
+ * Assemble the outgoing message.
+ */
+	strcpy (outmsg.m_to, c->c_name);
+	strcpy (outmsg.m_from, MSG_MGR_NAME);
+	outmsg.m_proto = MT_MTAP;
+	outmsg.m_flags = 0;
+	outmsg.m_len = sizeof (Message) + msg->m_len;
+	outmsg.m_data = malloc (outmsg.m_len);
+	memcpy (outmsg.m_data, msg, sizeof (Message));
+	memcpy (outmsg.m_data + sizeof (Message), msg->m_data, msg->m_len);
+/*
+ * Ship it out and clean up.
+ */
+	send_msg (c, &outmsg);
+	free (outmsg.m_data);
 }

@@ -1,4 +1,4 @@
-/* $Id: message.h,v 2.9 1993-02-11 22:56:49 martin Exp $ */
+/* $Id: message.h,v 2.10 1993-03-19 21:01:53 corbet Exp $ */
 /*
  * Message protocol types.
  */
@@ -36,6 +36,7 @@
 # define MT_COMMAND	14	/* Command execution protocol		*/
 # define MT_PDMON	15	/* Plot description monitoring		*/
 # define MT_PBOUNDS	16	/* Plot bounds exchange protocol	*/
+# define MT_MTAP	17	/* Message tap				*/
 
 /*
  * Preallocated chunks of protocol numbers for various groups.
@@ -201,6 +202,23 @@ struct msg_elog
  * The name of the event manager.
  */
 # define MSG_MGR_NAME		"Message manager"
+
+/*
+ * Message tap protocol.
+ */
+# define MAX_TAP_CLIENT	5
+# define MAX_TAP_PROTO 5
+
+struct msg_mtap
+{
+	int mt_nclient, mt_nproto;
+	int mt_protos[MAX_TAP_PROTO];
+	char mt_clients[MAX_NAME_LEN][MAX_TAP_CLIENT];
+};
+
+
+
+
 
 /*
  * Message lib routines.
