@@ -1,4 +1,5 @@
 /* 11/84 jc */
+/* $Id: disk.c,v 1.2 1990-01-03 10:00:28 corbet Exp $ */
 /*
  * Disk handling.
  *
@@ -450,7 +451,11 @@ int len;
 # endif
 
 # ifdef UNIX
-	fprintf ((FILE *) r, "%s\n", buf);
+	char cbuf[5000];
+
+	memcpy (cbuf, buf, len);
+	cbuf[len] = 0;
+	fprintf ((FILE *) r, "%s\n", cbuf);
 	return (1);
 # endif
 }
