@@ -19,8 +19,12 @@
  * maintenance or updates for its software.
  */
 
+# if defined(SVR4) || defined(sgi)
+# define USE_STATVFS
+# endif
+
 # include <sys/types.h>
-# ifdef SVR4
+# ifdef USE_STATVFS
 # include <sys/statvfs.h>
 # else
 # include <sys/vfs.h>
@@ -33,7 +37,7 @@
 
 extern "C" {
 	int stat (const char *, struct stat *);
-# ifndef SVR4
+# ifndef USE_STATVFS
 	int statfs (const char *, struct statfs *);
 # endif
 # ifndef __GNUC__
@@ -42,7 +46,7 @@ extern "C" {
 # endif
 };
 
-static char *rcsid = "$Id: DataDir.cc,v 1.6 1995-12-05 20:25:00 corbet Exp $";
+static char *rcsid = "$Id: DataDir.cc,v 1.7 1996-01-04 01:29:49 granger Exp $";
 
 //
 // The data directory class.
@@ -76,7 +80,7 @@ DataDir::FreeSpace ()
 // How much space is free here?
 //
 {
-# ifdef SVR4
+# ifdef USE_STATVFS
 	struct statvfs stbuf;
 	if (statvfs (directory, &stbuf) < 0)
 		return (-1);
