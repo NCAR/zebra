@@ -1,0 +1,36 @@
+# Process this file with autoconf to produce a configure script.
+AC_INIT(LiteClue)
+AM_INIT_AUTOMAKE(LiteClue, 20020624, rdp-support@atd.ucar.edu)
+AC_CONFIG_SRCDIR([LiteClue.c])
+
+# Checks for programs.
+AC_PROG_CC
+
+#
+# X is required
+#
+LIBS="$LIBS -lXaw -lXt -lX11"
+AC_PATH_X
+
+AM_CONDITIONAL(WITH_X, [test x$no_x = x])
+
+if test x$x_libraries != x; then 
+	LDFLAGS="$LDFLAGS -L$x_libraries"
+fi
+
+if test x$x_includes != x; then 
+	INCLUDES="$INCLUDES -I$x_includes"
+fi
+
+# Checks for header files.
+AC_HEADER_STDC
+AC_CHECK_HEADERS([stdlib.h unistd.h])
+
+# Checks for typedefs, structures, and compiler characteristics.
+AC_C_CONST
+
+# Checks for library functions.
+AC_CHECK_FUNCS([memset strdup])
+
+AC_CONFIG_FILES([Makefile])
+AC_OUTPUT
