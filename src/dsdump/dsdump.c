@@ -30,7 +30,7 @@
 # include <DataStore.h>
 # include <Platforms.h>
 
-RCSID ("$Id: dsdump.c,v 3.22 1999-11-01 20:14:18 burghart Exp $")
+RCSID ("$Id: dsdump.c,v 3.23 2000-08-25 05:23:29 granger Exp $")
 
 /*
  * Standalone scanning flag.
@@ -574,7 +574,7 @@ PrintInfo (const DataFile *df, const DumpOptions *opts)
 {
     FieldId fields [DC_MaxField];
     int nfield = DC_MaxField;
-    char abegin[40], aend[20];
+    char abegin[64], aend[64];
     const Platform *p = dt_FindPlatform (df->df_pid);
 
     if (opts->files & LONGFILES)
