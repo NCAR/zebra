@@ -18,15 +18,27 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+# include <stdio.h>
+# include <string.h>
+# include <ctype.h>
+#ifdef SVR4
+# include <unistd.h>
+#endif
+# include <sys/types.h>
+# include <sys/stat.h>
+# include <sys/param.h>
+# include <sys/file.h>
+# include <fcntl.h>
+
 # include <ui_symbol.h>
 # include <ui_error.h>
-# include <ui_date.h>
-# include <ui_expr.h>		/* XXX */
+
 # include <config.h>
 # include "defs.h"
 # include "message.h"
 # include "pd.h"
-MAKE_RCSID ("$Id: pdlib.c,v 1.20 1994-04-27 13:58:31 granger Exp $")
+
+RCSID ("$Id: pdlib.c,v 1.21 1995-04-15 00:42:03 granger Exp $")
 
 struct traverse {
 	int (*func)();		/* Function to call for traverse */
@@ -34,24 +46,46 @@ struct traverse {
 };
 
 
+typedef enum { 
+	PD_NOTOKEN, PD_NEWLINE, PD_END, PD_NAME,
+	PD_COMPONENT, PD_PARAMETER, PD_VALUE, PD_COLON
+} pd_token;
+
+
 /*
- * A counter used to generate unique symbol table names.
+ * Counters used to generate unique symbol table names.
  */
 static int Count = 0;
+static int CompCount = 0;
 
+/*
+ * Externals
+ */
+extern char *zapcase FP ((char *));
 
 /*
  * Forwards.
  */
-static char *pd_CompileComp FP((char *pdname, stbl pd, char *data, char *end));
+static int pd_CompilePD FP ((stbl pd, char *source, char *data, char *end));
+static void pd_Complain FP ((char *msg, char *source, int line, 
+			     char *data, char *end));
+static void pd_Warn FP ((char *msg, char *source, int line, 
+			 char *data, char *end));
+static void pd_Log FP ((int mask, char *msg, char *source, int line,
+			char *data, char *end));
+static char *pd_NextLine FP ((char *data, char *end));
+static char *pd_FindNewline FP ((char *data, char *end));
+static char *pd_GetToken FP ((char *data, char *end, char *name, 
+			      pd_token *token));
+static char *pd_GetValue FP ((char *data, char *end, char *value));
 static void pd_CarveString FP ((char *dest, char *begin, char *end));
-static void pd_Complain FP ((char *msg, char *data));
 static int pd_ForEachComponent FP ((plot_description pd, int (*func)(),
-				int param));
+				    int param));
 static stbl pd_NewPD FP ((char *name));
-static stbl pd_NewComponent FP ((stbl pd, char *pdname, char *compname));
+static stbl pd_NewComponent FP ((stbl pd, char *compname));
 static int pd_ParamFunc FP((char *name, int type, union usy_value *v,
 			    struct traverse *t));
+static void pd_CopyComp FP ((stbl dest, stbl src));
 
 /*
  * Size of temp buffer used for writing raw PD's, eg 40960
@@ -80,17 +114,63 @@ raw_plot_description *raw;
  *	when no longer needed.
  */
 {
-	char *position, *end = raw->rp_data + raw->rp_len - 1;
 	char table[80];
 	stbl pd = pd_NewPD (table);
+	char *end = raw->rp_data + raw->rp_len - 1;
 /*
  * Now compile each component into the PD.
  */
-	for (position = raw->rp_data; position < end;)
-		position = pd_CompileComp (table, pd, position, end);
+	pd_CompilePD (pd, table, raw->rp_data, end);
 /*
  * Return the result.
  */
+	return ((plot_description) pd);
+}
+
+
+
+plot_description
+pd_Read (file)
+char *file;
+/*
+ * Load in a single plot description from a file.  Return the pd if
+ * successful, 0 otherwise.
+ */
+{
+	int fd;
+	raw_plot_description rpd;
+	stbl pd;
+/*
+ * Open the file, and find out how long it is.
+ */
+	if ((fd = open (file, O_RDONLY)) < 0)
+	{
+		msg_ELog (EF_PROBLEM, "could not open '%s'", file);
+		return (0);
+	}
+#if defined(SVR4)
+	rpd.rp_len = lseek (fd, 0, SEEK_END);
+	(void) lseek (fd, 0, SEEK_SET);
+#else
+	rpd.rp_len = lseek (fd, 0, L_XTND);
+	(void) lseek (fd, 0, L_SET);
+#endif
+/*
+ * Just pull it in.
+ */
+	rpd.rp_data = malloc (rpd.rp_len + 1);
+	rpd.rp_data[rpd.rp_len] = '\0';
+	if (read (fd, rpd.rp_data, rpd.rp_len) < rpd.rp_len)
+	{
+		msg_ELog (EF_PROBLEM, "Reading '%s' incomplete...", file);
+	}
+	close (fd);
+/*
+ * Compile and return it.
+ */
+	pd = pd_NewPD (NULL);
+	pd_CompilePD (pd, file, rpd.rp_data, rpd.rp_data + rpd.rp_len - 1);
+	free (rpd.rp_data);
 	return ((plot_description) pd);
 }
 
@@ -133,101 +213,330 @@ char *name;
 
 
 
+static int
+pd_CompilePD (pd, source, data, end)
+stbl pd;
+char *source;
+char *data;
+char *end;
+/*
+ * Compile this pd.  Return non-zero on success, zero on failure.
+ */
+{
+	pd_token token, expect;
+	char *last;	/* points to the line being parsed */
+	int line;
+	char name[256];
+	char param[256];
+	int nparam;	/* count parameters added to a component */
+	int ncomp;
+	char value[1024];
+	stbl comp;
+	union usy_value v;
+	int err;
+
+	line = 1;
+	last = data;
+	comp = NULL;
+	ncomp = 0;
+	expect = PD_NOTOKEN;
+	do {
+		err = 0;
+		data = pd_GetToken (data, end, name, &token);
+
+		if (expect == PD_COLON && expect != token)
+		{
+			pd_Complain ("colon expected following parameter",
+				     source, line, last, end);
+			++err;
+		}
+		else if (token == PD_COLON && expect != PD_COLON)
+		{
+			pd_Complain ("colon not preceded by parameter",
+				     source, line, last, end);
+			++err;
+		}
+		else if (token == PD_COLON)
+		{
+			/*
+			 * The rest of the line should be a value
+			 */
+			data = pd_GetValue (data, end, value);
+			if (! value[0])
+			{
+				pd_Warn ("no parameter value", source,
+					 line, last, end);
+			}
+			v.us_v_ptr = value;
+			usy_s_symbol (comp, param, SYMT_STRING, &v);
+			++nparam;
+			expect = PD_NOTOKEN;
+		}
+		else if (expect == PD_NEWLINE && token != expect)
+		{
+			/* unexpected garbage following component name */
+			pd_Complain ("unexpected text following component",
+				     source, line, last, end);
+			++err;
+		}
+		else if (token == PD_NEWLINE)
+		{
+			++line;
+			last = data;
+			expect = PD_NOTOKEN;
+		}
+		else if (token == PD_COMPONENT)
+		{
+			/*
+			 * Check for empty components
+			 */
+			if (comp && nparam == 0)
+				pd_Complain ("empty component", source, 
+					     line, last, end);
+			/*
+			 * Add the component name to the PD.  The next token
+			 * should be a new line.
+			 */
+			comp = pd_NewComponent (pd, name);
+			++ncomp;
+			nparam = 0;
+			expect = PD_NEWLINE;
+		}
+		else if (token == PD_PARAMETER)
+		{
+			/* can't take parameters without a component first */
+			if (! comp)
+			{
+				pd_Complain (
+				     "component must precede parameter",
+				     source, line, last, end);
+				++err;
+			}
+			else
+			{
+				/* store parameter name and expect a colon */
+				strcpy (param, name);
+				expect = PD_COLON;
+			}
+		}
+		else if (token != PD_END) /* something we weren't expecting */
+		{
+			pd_Complain ("unexpected token", source, line, 
+				     last, end);
+			++err;
+		}
+		if (err)
+		{
+			expect = PD_NOTOKEN;
+			data = pd_NextLine (data, end);
+			last = data;
+			++line;
+		}
+	}
+	while (token != PD_END);
+	if (comp && nparam == 0)
+		pd_Complain ("empty component", source, line, last, end);
+	if (ncomp == 0)
+		pd_Complain ("empty plot description, no components",
+			     source, line, last, end);
+	return (TRUE);
+}
+
+
+
+
+static void
+pd_Complain (msg, source, line, data, end)
+char *msg;
+char *source;
+int line;
+char *data;
+char *end;
+{
+	pd_Log (EF_PROBLEM, msg, source, line, data, end);
+}
+
+
+
+static void
+pd_Warn (msg, source, line, data, end)
+char *msg;
+char *source;
+int line;
+char *data;
+char *end;
+{
+	pd_Log (EF_DEBUG, msg, source, line, data, end);
+}
+
+
+
+static void
+pd_Log (mask, msg, source, line, data, end)
+int mask;
+char *msg;
+char *source;
+int line;
+char *data;
+char *end;
+/*
+ * Gripe about this PD.  Note we can't just strcpy the offending text into
+ * the message buf since it may not be null-terminated.  Argh.
+ */
+{
+#	define BUFLEN 60
+	char tmpbuf[BUFLEN];
+	char *nl;
+
+	if (data + BUFLEN - 1 <= end)
+		end = data + BUFLEN - 1;
+	pd_CarveString (tmpbuf, data, end);
+	if ((nl = strchr (tmpbuf, '\n')))
+		*nl = 0;
+	msg_ELog (mask, "warning: %s at '%s...' in %s:%i ", 
+		  msg, tmpbuf, source, line);
+}
+
+
 
 
 static char *
-pd_CompileComp (pdname, pd, data, end)
-stbl pd;
-char *pdname, *data, *end;
-/*
- * Compile one component of this pd.
- */
+pd_NextLine (data, end)
+char *data;
+char *end;
 {
-	char *nl, *colon, *strchr (), param[100], value[500], clist[200];
-	char line[500];
-	stbl comp;
-	union usy_value v;
-	int type;
-/*
- * First, get the component name out.
- */
-	if (! (nl = strchr (data, '\n')))
-	{
-		pd_Complain ("Missing newline in comp name", data);
-		return (end);
+	pd_token token;
+	char name[256];
+
+	do {
+		data = pd_GetToken (data, end, name, &token);
 	}
-	pd_CarveString (param, data, nl);
-/*
- * If this is a comment line, we just pretend we're done with the component
- * and start over.
- */
-	if (param[0] == '!')
-		return (nl + 1);
-/*
- * Add the component to the PD.
- */
- 	comp = pd_NewComponent (pd, pdname, param);
-/*
- * Carve out each parameter.
- */
-	for (data = nl + 1; data < end && 
-		(*data == '\t' || *data == '!'); data = nl + 1)
-	{
-	/*
-	 * Find the separators.
-	 */
-		if (! (nl = strchr (data, '\n')))
-		{
-			pd_Complain ("Missing newline", data);
-			return (end);
-		}
-		pd_CarveString (line, data, nl);
-	/*
-	 * Maybe this is a comment line.
-	 */
-		if (line[0] == '!')
-			continue;
-	/*
-	 * Nope, pull out the various fields.
-	 */
-		if (! (colon = strchr (line, ':')))
-		{
-			pd_Complain ("Missing colon", line);
-			return (end);
-		}
-		pd_CarveString (value, colon + 1, colon + strlen (colon));
-		pd_CarveString (param, line, colon);
-	/*
-	 * Now just store the value.
-	 */
-		v.us_v_ptr = value;
-		usy_s_symbol (comp, param, SYMT_STRING, &v);
-	}
+	while ((token != PD_END) && (token != PD_NEWLINE));
 	return (data);
 }
 
 
 
 
-
-
-static void
-pd_Complain (msg, data)
-char *msg, *data;
+static char *
+pd_GetToken (data, end, name, token)
+char *data;
+char *end;
+char *name;
+pd_token *token;
 /*
- * Gripe about this PD.
+ * Extract a line and parse it for comments, emptiness, component
+ * name (no colon), or a parameter:value pair.  If a component header,
+ * the component name is copied into name.  If a parameter:value pair,
+ * the parameter is copied into name and the value into 'value'.
+ * On return 'next' indexes the beginning of the next line to read.
  */
 {
-	char tmpbuf[40], *nl, *strchr ();
+#	define NEWLINE(c) ((c)=='\n'||(c)=='\r')
+#	define WHITE(c) (!(NEWLINE(c))&&isspace(c))
+	char *c;
+	char *n;
+/*
+ * Skip whitespace until we reach a token or the end of the data.
+ */
+	c = data;
+	while ((c <= end) && (*c) && WHITE(*c))
+		++c;
+	if ((c > end) || (*c == '\0'))
+	{
+		*token = PD_END;
+		return (c);
+	}
+	switch (*c)
+	{
+	   case ':':
+		*token = PD_COLON; 
+		return (c+1);
+	   case '\n':
+	   case '\r':
+		*token = PD_NEWLINE;
+		return (c+1);
+	   case '!':
+		/* skip the rest of the line, including any newline */
+		c = pd_FindNewline (c, end);
+		if ((c <= end))
+		{
+			*token = PD_NEWLINE;
+			++c;
+		}
+		else
+			*token = PD_END;
+		return (c);
+	   default:
+		/* it's a string which we copy below */
+		break;
+	}
 
-	strncpy (tmpbuf, data, 40);
-	tmpbuf[39] = '\0';
-	if (nl = strchr (tmpbuf, '\n'))
-		*nl = '\0';
-	msg_ELog (EF_PROBLEM, "PD error (%s) at '%s...'", msg, tmpbuf);
+	n = name;
+	while ((c <= end) && (*c) && !isspace(*c) && 
+	       (*c != '!') && (*c != ':'))
+	{
+		*n++ = *c++;
+	}
+	*n = '\0';
+	/*
+	 * Look ahead for the next non-whitespace or newline character, 
+	 * since it indicates what kind of token we have
+	 */
+	while ((c <= end) && *c && WHITE(*c))
+		++c;
+	if ((c > end) || !(*c) || NEWLINE(*c))
+		*token = PD_COMPONENT;
+	else if (*c == ':')
+		*token = PD_PARAMETER;
+	else
+		*token = PD_NAME;
+	return (c);
 }
 
 
+
+static char *
+pd_FindNewline (data, end)
+char *data;
+char *end;
+{
+	char *c = data;
+
+	while ((c <= end) && *c)
+	{
+		if (NEWLINE(*c))
+			return (c);
+		++c;
+	}
+	return (c);
+}
+
+
+
+static char *
+pd_GetValue (data, end, value)
+char *data;
+char *end;
+char *value;
+/*
+ * Values begin at first non-white space and end at the newline, 
+ * end of string, or exclamation point.
+ */
+{
+	char *c;
+
+	c = data;
+	while ((c <= end) && (*c) && ! NEWLINE(*c) && (*c != '!'))
+		++c;
+	pd_CarveString (value, data, c);
+	/*
+	 * If value ended at a comment, we need to skip the comment
+	 */
+	while ((c <= end) && (*c) && ! NEWLINE(*c))
+		++c;
+	return (c);
+}
 
 
 
@@ -241,9 +550,9 @@ char *dest, *begin, *end;
 /*
  * First, trim out leading and trailing white space.
  */
-	for (; begin < end && (*begin == ' ' || *begin == '\t'); begin++)
+	for (; begin < end && (isspace(*begin)); begin++)
 		;
-	for (end--; end > begin && (*end == ' ' || *end == '\t'); end--)
+	for (end--; end > begin && (isspace(*end)); end--)
 		;
 	if (end >= begin)
 	{
@@ -360,7 +669,7 @@ raw_plot_description *rpd;
 
 
 
-
+int
 pd_UnloadParam (name, type, v, rpd)
 char *name;
 int type;
@@ -422,7 +731,7 @@ int param;
 	/*
 	 * Call the function.
 	 */
-		if (retv = (*func) (pd, (stbl) v.us_v_ptr, comps[i], param))
+		if ((retv = (*func) (pd, (stbl) v.us_v_ptr, comps[i], param)))
 			return (retv);
 	}
 	return (0);
@@ -454,7 +763,6 @@ char *comp, *newname;
  */
 {
 	stbl new, comppd, newc;
-	char compl[40], name[80];
 	union usy_value v;
 	int type;
 /*
@@ -470,8 +778,8 @@ char *comp, *newname;
 /*
  * Create the new pd and add the component table.
  */
-	new = pd_NewPD (name);
-	newc = pd_NewComponent (new, name, newname);
+	new = pd_NewPD (NULL);
+	newc = pd_NewComponent (new, newname);
 /*
  * Copy over the stuff.
  */
@@ -488,24 +796,26 @@ char *comp, *newname;
 
 
 static stbl
-pd_NewComponent (pd, pdname, compname)
+pd_NewComponent (pd, compname)
 stbl pd;
-char *pdname, *compname;
+char *compname;
 /*
  * Add a new (empty) component to this PD.
  */
 {
-	char string[200], **comps, *zapcase ();
+	char string[200], **comps;
 	stbl comp;
 	union usy_value v;
 	int type, i;
 /*
  * Create a new stbl to hold the parameters in this component.  The symbol
- * table name is qualified by the plot description name to avoid potential
+ * table name is qualified by a unique component number to avoid potential
  * conflicts in the master table, but is also stored unmunged within that
- * table.
+ * table.  It USED to be qualified by the plot description name, but that
+ * is not necessary and made it difficult to add components when the pd name
+ * was not known.
  */
-	sprintf (string, "%s$%s", pdname, compname);
+	sprintf (string, "comp%i$%s", CompCount++, compname);
 	comp = usy_c_stbl (string);
 	v.us_v_ptr = (char *) comp;
 	usy_s_symbol (pd, compname, SYMT_SYMBOL, &v);
@@ -526,7 +836,7 @@ char *pdname, *compname;
 
 
 
-
+static void
 pd_CopyComp (dest, src)
 stbl dest, src;
 /*
@@ -566,9 +876,9 @@ plot_description pd, new;
  * Add all components of "new" DESTRUCTIVELY onto "pd".
  */
 {
-	static int pd_MergeComp ();
+	static int pd_OverrideComp ();
 
-	pd_ForEachComponent (new, pd_MergeComp, (int) pd);
+	pd_ForEachComponent (new, pd_OverrideComp, (int) pd);
 	usy_z_stbl (new);
 }
 
@@ -576,16 +886,17 @@ plot_description pd, new;
 
 
 static int
-pd_MergeComp (pd, comp, compname, dest)
+pd_OverrideComp (pd, comp, compname, dest)
 stbl pd, comp, dest;
 char *compname;
 /*
- * Merge this component into the destination PD.
+ * Merge this component into the destination PD, in place of any
+ * existing component with the given name.
  */
 {
 	int type, i;
 	union usy_value v;
-	char string[80], **comps, *zapcase ();
+	char **comps;
 /*
  * If this component exists in the table now, get rid of it.
  */
@@ -618,7 +929,6 @@ int position;
 	int ndest, type, i;
 	SValue v;
 	char **srccomps, **dstcomps;
-	extern char *zapcase ();
 /*
  * Get both component lists now.
  */
@@ -677,10 +987,9 @@ char *name;
  * Remove this component from this plot description.
  */
 {
-	stbl comp;
-	int type, nlen = strlen (name), i;
+	int type, i;
 	union usy_value v;
-	char clist[200], *cp, *strchr (), *blank, **comps;
+	char **comps;
 /*
  * Try to find the component first.
  */
@@ -703,96 +1012,6 @@ char *name;
 		comps[i] = comps[i + 1];
 	return (TRUE);
 }
-
-
-
-
-
-
-bool
-pd_Retrieve (pd, comp, param, target, type)
-plot_description pd;
-char *comp, *param, *target;
-int type;
-/*
- * Try to retrieve a parameter from a plot description.
- * Entry:
- *	PD	is the internal plot description.
- *	COMP	is the component in which to look.
- *	PARAM	is the name of the parameter to search for.
- *	TARGET	is the destination of the parameter
- *	TYPE	is the expected data type of the parameter.
- * Exit:
- *	If the parameter is found then:
- *		It is converted to TYPE and stored in TARGET
- *		the return value is TRUE
- *	else
- *		The return value is FALSE.
- */
-{
-	union usy_value v;
-	int t;
-	struct parse_tree *pt;
-/*
- * First, find this component.
- */
- 	if (! usy_g_symbol (pd, comp, &t, &v))
-		return (FALSE);
-/*
- * Now look for the parameter.
- */
-	if (! usy_g_symbol ((stbl) v.us_v_ptr, param, &t, &v))
-		return (FALSE);
-/*
- * If they want a string, give it to them.
- */
-	if (type == SYMT_STRING)
-	{
-		strcpy (target, v.us_v_ptr);
-		return (TRUE);
-	}
-/*
- * Evaluate it.
- */
-	if (! (pt = ue_parse (v.us_v_ptr, 0, FALSE)))
-	{
-		msg_ELog (EF_PROBLEM, "Unparsable %s/%s = %s", comp, param,
-			v.us_v_ptr);
-		return (FALSE);
-	}
-	ue_eval (pt, &v, &t);
-	ue_rel_tree (pt);
-/*
- * If necessary, do the coercion.
- */
-	ERRORCATCH
-		if (type != t)
-			uit_coerce (&v, t, type);
-	ON_ERROR
-		return (FALSE);
-	ENDCATCH
-/*
- * Store the result.
- */
-	switch (type)
-	{
-	   case SYMT_INT:
-		* (int *) target = v.us_v_int;
-		break;
-	   case SYMT_BOOL:
-		* (bool *) target = (bool) v.us_v_int;
-		break;
-	   case SYMT_DATE:
-	   	/* * (date *) target = v.us_v_date; */
-		TC_UIToZt (&v.us_v_date, (ZebTime *) target);
-		break;
-	   case SYMT_FLOAT:
-	   	* (float *) target = v.us_v_float;
-		break;
-	}
-	return (TRUE);
-}
-
 
 
 
@@ -867,8 +1086,8 @@ plot_description pd;
  * Return a new copy of this PD.
  */
 {
-	char name[80], **comps;
-	plot_description new = pd_NewPD (name);
+	char **comps;
+	plot_description new = pd_NewPD (NULL);
 	union usy_value v;
 	int type, i;
 /*
@@ -886,7 +1105,7 @@ plot_description pd;
  */
 	for (i = 0; comps[i]; i++)
 	{
-		stbl newcomp = pd_NewComponent (new, name, comps[i]);
+		stbl newcomp = pd_NewComponent (new, comps[i]);
 		usy_g_symbol (pd, comps[i], &type, &v);
 		pd_CopyComp (newcomp, (stbl) v.us_v_ptr);
 	}
@@ -896,6 +1115,36 @@ plot_description pd;
 	return (new);
 }
 
+
+
+void
+pd_MergeComp (dest, destname, src, srcname)
+plot_description dest;
+char *destname;
+plot_description src;
+char *srcname;
+/*
+ * Copy the parameters from comp1 of the src pd into comp2 of the
+ * dest pd.  Existing parameters in the dest component are overridden.
+ */
+{
+	stbl srccomp, destcomp;
+	union usy_value v;
+	int type;
+
+	if (! usy_g_symbol ((stbl) src, srcname, &type, &v))
+	{
+		msg_ELog (EF_PROBLEM, "Src comp '%s' for merge is missing",
+			  srcname);
+		return;
+	}
+	srccomp = (stbl) v.us_v_ptr;
+	if (! usy_g_symbol ((stbl) dest, destname, &type, &v))
+		destcomp = pd_NewComponent (dest, destname);
+	else
+		destcomp = (stbl) v.us_v_ptr;
+	pd_CopyComp (destcomp, srccomp);
+}
 
 
 
