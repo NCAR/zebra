@@ -33,7 +33,7 @@
 # include <mda.h>
 # include <station.h>
 
-MAKE_RCSID ("$Id: pam_ingest.c,v 2.3 1992-01-24 16:49:36 corbet Exp $")
+MAKE_RCSID ("$Id: pam_ingest.c,v 2.4 1992-03-31 22:45:35 burghart Exp $")
 
 static int incoming FP ((struct message *));
 void	Stations FP ((char *));
@@ -94,6 +94,7 @@ int argc;
 char **argv;
 {
 	time t;
+	char ourname[40];
 /*
  * Basic arg check.
  */
@@ -106,7 +107,8 @@ char **argv;
  * Hook into the world.
  */
 	usy_init ();
-	msg_connect (incoming, "pam_ingest");
+	sprintf (ourname, "%sIngest", argv[1]);
+	msg_connect (incoming, ourname);
 	ds_Initialize ();
 	mda_declare_file ("/data/ppf", MDA_TYPE_DATABASE, MDA_F_PAM,
 		"pam", argv[2]);
@@ -568,7 +570,7 @@ time	begin, end;
 	dsp = Ms;
 	for (sta = 0; sta < Nsta; sta++)
 	{
-		dsp->ds_field = fld_number ("vt");
+		dsp->ds_field = fld_number ("hum2vt");
 		dsp++;
 	}
 /*
