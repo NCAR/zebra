@@ -51,7 +51,7 @@
 # include <config.h>
 # include <DataStore.h>
 
-MAKE_RCSID ("$Id: Archiver.c,v 1.28 1994-10-13 23:08:25 sobol Exp $")
+MAKE_RCSID ("$Id: Archiver.c,v 1.29 1994-11-17 06:57:49 granger Exp $")
 
 /*
  * Issues:
@@ -111,8 +111,13 @@ MAKE_RCSID ("$Id: Archiver.c,v 1.28 1994-10-13 23:08:25 sobol Exp $")
 # define DEF_DEVICEFILE "/dev/nrst8"
 # define DEF_MOUNTNAME "eod0"
 # define DEF_OUTPUTDIR "/eod0"
+# ifdef __STDC__
+# define DEF_TAPELIMIT ((unsigned long) 3500000000ul)
+# define DEF_MINDISK ((unsigned long) 10000ul)
+# else
 # define DEF_TAPELIMIT ((unsigned long) 3500000000)
 # define DEF_MINDISK ((unsigned long) 10000)
+# endif /* __STDC__ */
 
 # define AR_TAPE 1
 # define AR_EOD 2
