@@ -1,5 +1,5 @@
 /*
- * $Id: aline.c,v 3.6 1996-01-10 21:02:48 granger Exp $
+ * $Id: aline.c,v 3.7 1996-01-23 04:53:48 granger Exp $
  *
  * An 'Assembly Line' test driver for the DataStore.
  *
@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <limits.h>
 #include <sys/types.h>
+#include <errno.h>
 #include <time.h>
 #include <sys/wait.h>
 #include <assert.h>
@@ -54,24 +55,43 @@
 # define SRAND(seed) srandom(seed)
 #endif
 
-
 /*
  * If consumers' platform is different from producer's, we'll create a link
  * from producer files to consumer files and tell the daemon to rescan the
- * consumer files to get our updates.
+ * consumer files to get our updates.  This tests the daemon's rescan
+ * ability while files are changing outside its control.  
  */
-#define PRODUCER_PLAT	"t_producer"	/* platform producer writes to 	*/
-#define CONSUMER_PLAT	"t_consumer"	/* platform consumer reads from	*/
-#define INVENTORY	10		/* number to produce		*/
-#define INTERVAL	5		/* seconds between writes	*/
-#define REMOVE_DEST		/* remove consumer file before copying	*/
+char ProducerPlat[64] = "t_producer";	/* platform producer writes to 	*/
+char ConsumerPlat[64] = "t_consumer";	/* platform consumer reads from	*/
+
+static int NConsumers = 2;		/* number of children 		*/
+static int RemoveDest = 1;		/* remove consumer file before copy */
+static int Interval = 5;		/* seconds between writes	*/
+static int FixedInterval = 0;		/* random or fixed interval	*/
+static int Inventory = 10;		/* number to produce		*/
+static int Debug = 0;
+static int Blow = 0;			/* Dump data chunks		*/
+static int LinkPlatforms = 1;	/* link/copy/rescan consumer file updates */
+static int UseZNF = 0;
+/*
+ * If true, all consumers act on producer notifications concurrently, as
+ * opposed to cascading.
+ */
+static int Concurrent = 0;
 
 #define NFIELDS (sizeof(FieldNames)/sizeof(FieldNames[0]))
 
 /* #define MPROF */
 /* #define DEBUGGER */
+#ifdef DEBUGGER
+#undef DEBUGGER
+#endif
+#define NEWFILE 5	/* mod for starting a new file on shared platforms */
 
-#define dc_DumpDC(dc) {}
+#define DumpDC(dc) \
+{ \
+	 if (Blow) dc_DumpDC (dc); \
+}
 
 char *FieldNames[] = {
 	"altitude", "cpres0", "dp", "ept", "mr", "pres",
@@ -84,7 +104,6 @@ char *FieldNames[] = {
 
 FieldId Fields[NFIELDS];
 
-int LinkPlatforms = 0;	/* use links and rescans to get file updates */
 int ConsumerNumber = -1;
 char OurName[50];
 
@@ -112,7 +131,7 @@ struct message *msg;
 
 
 void
-Init(name)
+Init (name)
 char *name;
 {
 	int i;
@@ -134,13 +153,125 @@ char *name;
 	/*
 	 * Otherwise let everyone know we're here
 	 */
-	msg_ELPrintMask (EF_INFO | EF_PROBLEM | EF_EMERGENCY);
+	if (Debug)
+		msg_ELPrintMask (EF_ALL);
+	else
+		msg_ELPrintMask (EF_INFO | EF_PROBLEM | EF_EMERGENCY);
 	msg_ELog (EF_INFO, "Hello from '%s'", name);
 	strcpy (OurName, name);
 	for (i = 0; i < NFIELDS; ++i)
 		Fields[i] = F_Lookup(FieldNames[i]);
 	for (i = NFIELDS; i < NFIELDS+10; ++i)
 		Fields[i] = Fields[0];
+}
+
+
+
+static void
+Usage (prog)
+char *prog;
+{
+	printf ("Usage: %s [options]\n", prog);
+	printf (" -nconsumers <number>   Number of consumer children\n");
+	printf (" -share                 Share the same platform\n");
+	printf (" -znf                   Use ZNF files instead of netCDF\n");
+	printf (" -inventory <number>    Number of samples to produce\n");
+	printf (" -debug                 Verbose debugging output\n");
+	printf (" -blow                  Dump data chunks\n");
+	printf (" -period <seconds>      Fixed delay between productions\n");
+	printf (" -average <seconds>     Average wait between productions\n");
+	printf (" -remove                Remove consumer file (default)\n");
+	printf (" -overwrite             Overwrite file rather than remove\n");
+	printf (" -concurrent            Concurrent consumer access\n");
+	printf (" -help                  This message.\n");
+}
+
+
+static void
+ParseOptions (argc, argv)
+int argc;
+char **argv;
+{
+	int opt;
+	int optlen;
+
+	opt = 0;
+	while (++opt < argc)
+	{
+		optlen = strlen(argv[opt]);
+		if (optlen < 2)
+		{
+			Usage (argv[0]);
+			exit (1);
+		}
+		if (!strncmp(argv[opt], "-help", optlen))
+		{
+			Usage (argv[0]);
+			exit (0);
+		}
+		else if (!strncmp(argv[opt], "-nconsumers", optlen))
+		{
+			if (++opt == argc)
+			{
+				printf ("-nconsumers needs arg\n");
+				Usage (argv[0]);
+				exit (1);
+			}
+			NConsumers = atoi(argv[opt]);
+		}
+		else if (!strncmp(argv[opt], "-share", optlen))
+			LinkPlatforms = 0;
+		else if (!strncmp(argv[opt], "-debug", optlen))
+			Debug = 1;
+		else if (!strncmp(argv[opt], "-blow", optlen))
+			Blow = 1;
+		else if (!strncmp(argv[opt], "-znf", optlen))
+			UseZNF = 1;
+		else if (!strncmp(argv[opt], "-inventory", optlen))
+		{
+			if (++opt == argc)
+			{
+				printf ("-inventory needs arg\n");
+				Usage (argv[0]);
+				exit (1);
+			}
+			Inventory = atoi(argv[opt]);
+		}
+		else if (!strncmp(argv[opt], "-period", optlen))
+		{
+			if (++opt == argc)
+			{
+				printf ("-period needs arg\n");
+				Usage (argv[0]);
+				exit (1);
+			}
+			Interval = atoi(argv[opt]);
+			FixedInterval = 1;
+		}
+		else if (!strncmp(argv[opt], "-average", optlen))
+		{
+			if (++opt == argc)
+			{
+				printf ("-average needs arg\n");
+				Usage (argv[0]);
+				exit (1);
+			}
+			Interval = atoi(argv[opt]);
+			FixedInterval = 0;
+		}
+		else if (!strncmp(argv[opt], "-remove", optlen))
+			RemoveDest = 1;
+		else if (!strncmp(argv[opt], "-overwrite", optlen))
+			RemoveDest = 0;
+		else if (!strncmp(argv[opt], "-concurrent", optlen))
+			Concurrent = 1;
+		else
+		{
+			printf ("unrecognized option: %s\n", argv[opt]);
+			Usage (argv[0]);
+			exit (1);
+		}
+	}
 }
 
 
@@ -158,17 +289,30 @@ main (argc, argv)
 	ZebTime now;
 	char dbg[256];
 	int err = 0;
+	int opt;
 
+#ifdef NoBuffer
+	setvbuf (stdout, NULL, _IONBF, 0);
+	setvbuf (stderr, NULL, _IONBF, 0);
+#endif
 #ifdef MPROF
 	mprof_stop ();
 #endif
-	if (argc >= 2)
-		nconsumers = atoi(argv[1]);
-	else
-		nconsumers = 2;			/* the default */
+	ParseOptions(argc, argv);
+	nconsumers = NConsumers;
 
-	if (strcmp(PRODUCER_PLAT, CONSUMER_PLAT))
-		LinkPlatforms = 1;
+	/*
+	 * Setup platforms based on options
+	 */
+	if (UseZNF)
+	{
+		strcat (ProducerPlat, "_znf");
+		strcat (ConsumerPlat, "_znf");
+	}
+	if (! LinkPlatforms)	/* share same platform */
+	{
+		strcpy (ConsumerPlat, ProducerPlat);
+	}
 
 	/*
 	 * To fork multiple producers/consumers: the parent will be the
@@ -190,7 +334,7 @@ main (argc, argv)
 			ConsumerNumber = i;
 			Init(name);
 #ifdef DEBUGGER
-			sprintf (dbg, "exec xgdb aline %d &", getpid());
+			sprintf(dbg, "exec %s aline %d &", DEBUGGER, getpid());
 			printf ("%s", dbg);
 			system (dbg);
 			sleep (10);
@@ -220,20 +364,20 @@ main (argc, argv)
 
 	/*
 	 * Make sure our platforms are starting out clean.  Remove the
-	 * consumer first in case it just a link to the producer.
+	 * consumer first in case it is just a link to the producer.
 	 */
 	tl_Time (&now);
 	now.zt_MicroSec = 0;
 	msg_ELog (EF_DEBUG, "deleting files from consumer platform '%s'", 
-		  CONSUMER_PLAT);
-	platid = ds_LookupPlatform (CONSUMER_PLAT);
+		  ConsumerPlat);
+	platid = ds_LookupPlatform (ConsumerPlat);
 	ds_DeleteData (platid, &now);
 	if (LinkPlatforms)
 	{
 		msg_ELog (EF_DEBUG, 
 			  "deleting files from producer platform '%s'", 
-			  PRODUCER_PLAT);
-		platid = ds_LookupPlatform (PRODUCER_PLAT);
+			  ProducerPlat);
+		platid = ds_LookupPlatform (ProducerPlat);
 		ds_DeleteData (platid, &now);
 		msg_ELog (EF_DEBUG, 
 			  "using linked platforms and rescans for updates");
@@ -246,14 +390,13 @@ main (argc, argv)
 	 * Produce our inventory, then wait for our children to exit.
 	 */
 #ifdef DEBUGGER
-	sprintf (dbg, "exec xgdb aline %d &", getpid());
+	sprintf (dbg, "exec %s aline %d &", DEBUGGER, getpid());
 	printf ("%s", dbg);
 	system (dbg);
 	sleep (10);
 #endif
 	err = Produce(nconsumers);
-
-	return(0);
+	return(err);
 }
 
 
@@ -263,8 +406,8 @@ int
 Produce(nconsumers)
 int nconsumers;
 /*
- * Create INVENTORY number of samples, writing them to PLATFORM every 
- * INTERVAL seconds.
+ * Create Inventory number of samples, writing them to PLATFORM every 
+ * Interval seconds.
  */
 {
 	DataChunk *dc;
@@ -277,22 +420,25 @@ int nconsumers;
 	int ndetail = 0;
 	char cmd[512];
 	PlatformId destid;
+	int newfile;
 	int err = 0;
+	int delay;
 	
 	details[ndetail++].dd_Name = DD_ZN_APPEND_SAMPLES;
 	details[ndetail].dd_Name = DD_ZN_RESERVE_BLOCK;
-	details[ndetail].dd_V.us_v_int = 150 * INVENTORY;
+	details[ndetail].dd_V.us_v_int = (NConsumers + 1) * Inventory * 64;
 	ndetail++;
 	details[ndetail].dd_Name = DD_ZN_HINT_NSAMPLES;
-	details[ndetail].dd_V.us_v_int = 2 * INVENTORY;
+	details[ndetail].dd_V.us_v_int = 2 * Inventory;
 	ndetail++;
 	
 	dc_CheckClass (FALSE);
-	plat_id = ds_LookupPlatform(PRODUCER_PLAT);
-	destid = ds_LookupPlatform (CONSUMER_PLAT);
+	plat_id = ds_LookupPlatform(ProducerPlat);
+	destid = ds_LookupPlatform (ConsumerPlat);
 	value = 0.0;
-	for (i = 0; i < INVENTORY; ++i)
+	for (i = 0; i < Inventory; ++i)
 	{
+		while (msg_poll(0) != MSG_TIMEOUT) /* clear messages */;
 		tl_Time(&when);
 		when.zt_MicroSec = 0;
 
@@ -308,8 +454,13 @@ int nconsumers;
 		loc.l_alt = i;
 		dc_SetLoc (dc, 0, &loc);
 		dc_SetSampleAttr (dc, 0, "creator", "producer");
-		if (! ds_StoreBlocks (dc, (i == 0)?TRUE:FALSE, 
-				      details, ndetail))
+		/*
+		 * Extra twist: start a new file every 5th sample for
+		 * shared platforms
+		 */
+		newfile = ((i == 0) || 
+			   (!LinkPlatforms && ((i % NEWFILE) == 0)));
+		if (! ds_StoreBlocks (dc, newfile, details, ndetail))
 			++err;
 		dc_DestroyDC (dc);
 
@@ -319,12 +470,16 @@ int nconsumers;
 		 */
 		if (i == 0 && LinkPlatforms)
 		{
-#ifdef REMOVE_DEST
-			sprintf (cmd, "rm -f %s/%s; ", PlatDirectory (destid),
-				 PlatFileName (plat_id));
-#else
-			cmd[0] = '\0';
-#endif
+			/*
+			 * Try to make sure the consumer dir exists first
+			 */
+			mkdir (PlatDirectory (destid), 0775);
+			if (RemoveDest)
+				sprintf (cmd, "rm -f %s/%s; ", 
+					 PlatDirectory (destid),
+					 PlatFileName (plat_id));
+			else
+				cmd[0] = '\0';
 			sprintf (cmd+strlen(cmd), "cp %s/%s ", 
 				 PlatDirectory (plat_id),
 				 PlatFileName (plat_id));
@@ -342,24 +497,64 @@ int nconsumers;
 			msg_ELog (EF_DEBUG, "updating consumer file:");
 			msg_ELog (EF_DEBUG, "  %s", cmd);
 			system (cmd);
+			msg_ELog (EF_DEBUG, "forcing rescan of %s",
+				  ds_PlatformName (destid));
 			ds_ForceRescan (destid, 0);
 		}
 		value = (int)value + 1.0;
-		/* wait INTERVAL seconds on average, +/- INTERVAL/2 */
-		sleep((INTERVAL/2) + rnd(INTERVAL));
+		/* wait Interval seconds on average, +/- Interval/2 */
+		if (FixedInterval)
+			delay = Interval;
+		else
+			delay = (Interval/2) + rnd(Interval);
+		if ((i+1 < Inventory) && (delay > 0))
+			sleep (delay);
 	}
 
 	msg_ELog (EF_INFO, "Producer finished, waiting for consumers");
-	for (i = 0; i < nconsumers; ++i)
+	i = 0;
+	while (i < nconsumers)
 	{
 		int status;
-		wait(&status);
-		if (WIFEXITED(status))
+		int pid;
+
+		pid = wait(&status);
+		if (pid < 0)
+		{
+			if (errno == ECHILD)
+				break;
+			msg_ELog (EF_PROBLEM, "wait() error %d", errno);
+		}
+		else if (WIFEXITED(status))
+		{
+			msg_ELog (EF_INFO, "child %d exited with status %d",
+				  pid, WEXITSTATUS(status));
 			err += WEXITSTATUS(status);
+			++i;
+		}
+		else if (WIFSTOPPED(status))
+		{
+			msg_ELog (EF_PROBLEM, "child %d stopped: signal %d",
+				  pid, WSTOPSIG(status));
+			++i;
+		}
+#ifdef WIFCONTINUED
+		else if (WIFCONTINUED(status))
+		{
+			msg_ELog (EF_INFO, "child %d continued", pid);
+		}
+#endif
 		else if (WIFSIGNALED(status))
 		{
-			msg_ELog (EF_PROBLEM, "child received signal");
+			msg_ELog (EF_PROBLEM, "child %d %s: signal %d",
+				  pid, 
+#ifdef WCOREDUMP
+				  WCOREDUMP(status) ? "dumped core" :
+#endif
+				  "terminated", 
+				  WTERMSIG(status));
 			++err;
+			++i;
 		}
 		else
 		{
@@ -381,7 +576,7 @@ int nconsumers;
 			++err;
 		else
 		{
-			dc_DumpDC(dc);
+			DumpDC(dc);
 			dc_DestroyDC (dc);
 		}
 	}
@@ -395,7 +590,7 @@ int nconsumers;
 			++err;
 		else
 		{
-			dc_DumpDC(dc);
+			DumpDC(dc);
 			dc_DestroyDC (dc);
 		}
 	}
@@ -403,6 +598,7 @@ int nconsumers;
 	 * We've stored all of our chunks, so we're done
 	 */
 	ds_ForceClosure();
+	msg_ELog (EF_INFO, "Producer exiting with status %d", err);
 	return (err);
 }
 
@@ -421,36 +617,60 @@ UpdCode ucode;
  */
 {
 	static const char *CodeNames[] = { "overwrite", "insert", "append" };
-	static nreceived = 0;	/* number of samples processed so far */
+	static int nreceived = 0;/* number of samples processed so far */
+	static int noverwrite = 0;
 	static ZebTime begin = { 0, 0 };
 	static err = 0;		/* our error count and eventual exit value */
         float check, value;	/* to check our data values */
 	DataChunk *dc;
-	char atime[128];
+	char btime[128], atime[128];
 	int fld, i;
 
-	/*
-	 * Ignore notifications which have no new samples.  We only want
-	 * notifications from the producer, in which there are new samples.
-	 */
-	if (nsample == 0)
-		return;
+	if (Concurrent)
+	{
+		/*
+		 * Ignore notifications which have no new samples.  We only
+		 * want notifications from the producer, in which there are
+		 * new samples.
+		 */
+		if (nsample == 0)
+			return;
+	}
+	else
+	{
+		/*
+		 * Act on the producer's appended samples in the order of
+		 * our consumer number.  If we're consumer 0, act on the
+		 * producer's notify.  If we're consumer i, i > 0, act on
+		 * the i'th overwrite notify from the preceding consumer.
+		 */
+		if (nsample == 0)
+			++noverwrite;
+		else
+			noverwrite = 0;
+		if (noverwrite != ConsumerNumber)
+			return;
+	}
 	if (!begin.zt_Sec)
 		begin = *when;
 	TC_EncodeTime (when, TC_Full, atime);
+	TC_EncodeTime (&begin, TC_Full, btime);
 	++nreceived;
 	msg_ELog (EF_DEBUG, "notify #%d at %s, %s %d samples", 
 		  nreceived, atime, CodeNames[ucode], nsample);
+	msg_ELog (EF_DEBUG, "ds_Fetch %d fields from %s to %s",
+		  NFIELDS, btime, atime);
 	dc = ds_Fetch (plat_id, DCC_Scalar, &begin, when, 
 		       Fields, NFIELDS, (dsDetail *)NULL, 0);
 	if (!dc)
 	{
-		msg_ELog (EF_EMERGENCY, "fetch unsuccessful");
+		msg_ELog (EF_PROBLEM, "fetch unsuccessful");
 		++err;
 	}
 	else
 	{
 	    int ndc = dc_GetNSample(dc);
+	    DumpDC (dc);
 	    if (nreceived != ndc)
 	    {
 		msg_ELog (EF_PROBLEM, "got %d samples from fetch, expected %d",
@@ -458,7 +678,7 @@ UpdCode ucode;
 		++err;
 	    }
 	    value = nreceived - ndc;
-	    for (i = 0; i < dc_GetNSample(dc); ++i)
+	    for (i = 0; i < ndc; ++i)
 	    {
 		/*
 		 * Make sure what we got matches what was sent
@@ -477,22 +697,34 @@ UpdCode ucode;
 		}
 		value = (int)value + 1.0;
 	    }
-	    /*
-	     * Add a sample attribute to the most recent sample
-	     */
-	    dc_SetSampleAttr (dc, i - 1, OurName, "consumed");
-	    /*
-	     * Re-store this chunk with the added attribute
-	     */
-	    if (! ds_StoreBlocks (dc, FALSE, NULL, 0))
-		    ++err;
+	    if (i > 0)
+	    {
+		    char name[128];
+		    /*
+		     * Add a sample attribute to the most recent sample
+		     */
+		    dc_SetSampleAttr (dc, i - 1, OurName, "consumed");
+#ifdef notdef
+		    /*
+		     * And a field attribute to the 0th field
+		     */
+		    sprintf (name, "%s_notify%d", OurName, nreceived);
+		    dc_SetFieldAttr (dc, Fields[0], name, atime);
+#endif
+		    /*
+		     * Re-store this chunk with the added attribute
+		     */
+		    DumpDC (dc);
+		    if (! ds_StoreBlocks (dc, FALSE, NULL, 0))
+			    ++err;
+	    }
 	    dc_DestroyDC(dc);
 	}
 
 	/*
 	 * See if we reached our limit
 	 */
-	if (nreceived >= INVENTORY)
+	if (nreceived >= Inventory)
 	{
 		msg_ELog (EF_INFO, "Consumer finished with %d errors.", err);
 		ds_ForceClosure();
@@ -511,7 +743,7 @@ Consume()
 {
 	static PlatformId plat_id;
 
-	plat_id = ds_LookupPlatform(CONSUMER_PLAT);
+	plat_id = ds_LookupPlatform(ConsumerPlat);
 	dc_CheckClass (FALSE);
 	/*
 	 * If we're consuming the same platform as is being produced,
@@ -519,18 +751,11 @@ Consume()
 	 * to keep us in sync.
 	 */
 	ds_RequestNotify (plat_id, 0, ReceiveNotify);
-#ifdef notdef
-	if (LinkPlatforms)
-	{
-		int incr = INTERVAL*INCFRAC/2;
-		tl_RelativeReq (ReqRescan, &plat_id, incr, incr);
-	}
-#endif
 	/*
 	 * If we're not through in a reasonable amount of time, then
 	 * something went wrong.
 	 */
-	alarm (10*INTERVAL*INVENTORY);
+	alarm (2*NConsumers*Interval*Inventory);
 	/*
 	 * Now we let the receiver handle everything.  After receiving
 	 * all of the samples we're expecting, we'll exit.  If we return
