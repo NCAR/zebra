@@ -32,7 +32,7 @@
 # include "znfile.h"
 # include "ds_fields.h"
 
-MAKE_RCSID ("$Id: DFA_Zebra.c,v 1.5 1992-07-23 21:41:11 corbet Exp $");
+MAKE_RCSID ("$Id: DFA_Zebra.c,v 1.6 1992-08-06 16:41:00 corbet Exp $");
 
 
 /*
@@ -92,9 +92,7 @@ static struct CO_Compat
 	{ OrgIRGrid,		DCC_Scalar	},
 	{ OrgTransparent,	DCC_Transparent	},
 	{ OrgScalar,		DCC_Scalar	},
-# ifdef notdef
 	{ OrgScalar,		DCC_Location	},
-# endif
 };
 # define N_COC (sizeof (COCTable)/sizeof (struct CO_Compat))
 
@@ -132,6 +130,7 @@ static void	zn_ReadIRG FP ((znTag *, DataChunk *, int, int, int, double));
 static void	zn_ReadScalar FP ((znTag *, DataChunk *, int, int, int,
 			double));
 static void	zn_ReadTrans FP ((znTag *, DataChunk *, int, int, int));
+static void	zn_ReadLocation FP ((znTag *, DataChunk *, int, int));
 static void	zn_RdRGridOffset FP ((RGrid *, Location *, long *, int *,
 			dsDetail *, int));
 static void	zn_DoBadval FP ((float *, int, double, double));
@@ -1604,6 +1603,10 @@ int ndetail;
 	   	zn_ReadScalar (tag, dc, dcsamp, tbegin, tend, badval);
 		break;
 
+	   case DCC_Location:
+	   	zn_ReadLocation (tag, dc, tbegin, tend);
+		break;
+
 	   case DCC_Transparent:
 	   	zn_ReadTrans (tag, dc, dcsamp, tbegin, tend);
 		break;
@@ -1807,6 +1810,28 @@ int dcsamp, tbegin, tend;
 		free (data);
 }
 
+
+
+
+
+static void
+zn_ReadLocation (tag, dc, tbegin, tend)
+znTag *tag;
+DataChunk *dc;
+int tbegin, tend;
+/*
+ * Pull in location-only data.
+ */
+{
+	int sample;
+/*
+ * Just pull in the locations.
+ */
+	if (ds_IsMobile (dc->dc_Platform))
+		for (sample = tbegin; sample <= tend; sample++)
+			dc_LocAdd (dc, tag->zt_Time + sample,
+				tag->zt_Locs + sample);
+}
 
 
 
