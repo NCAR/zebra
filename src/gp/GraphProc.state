@@ -1,4 +1,4 @@
-! $Id: GraphProc.state,v 1.12 1991-12-04 23:05:51 corbet Exp $
+! $Id: GraphProc.state,v 1.13 1991-12-12 17:40:53 corbet Exp $
 !
 !		Copyright (C) 1987,88,89,90,91 by UCAR
 !	University Corporation for Atmospheric Research
@@ -23,7 +23,7 @@
 define state initial
 	eoftext 'exit'
 	ctable ui$command_table
-	@ /rdss/ui/ui_commands.
+	@ #ui$defs_file
 	input 'run' 1
 		next ust$no_more
 	endinput
