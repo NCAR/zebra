@@ -28,7 +28,7 @@
 # include <time.h>
 # include "GraphProc.h"
 # include "PixelCoord.h"
-MAKE_RCSID ("$Id: Utilities.c,v 2.14 1993-10-22 21:25:31 corbet Exp $")
+MAKE_RCSID ("$Id: Utilities.c,v 2.15 1993-10-27 21:27:42 burghart Exp $")
 
 
 static void ApplyConstOffset FP ((Location *, double, double));
@@ -229,6 +229,10 @@ ResetGC ()
 	XChangeGC (Disp, Gcontext, GCFunction | GCLineWidth | GCLineStyle |
 		GCCapStyle | GCJoinStyle | GCFillStyle | GCSubwindowMode,
 		&vals);
+/*
+ * Don't forget to unclip...
+ */
+	XSetClipMask (Disp, Gcontext, None);
 }
 
 
