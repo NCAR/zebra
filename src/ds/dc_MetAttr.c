@@ -30,7 +30,7 @@
 # include "DataStore.h"
 # include "DataChunkP.h"
 
-RCSID ("$Id: dc_MetAttr.c,v 3.8 1997-02-21 23:38:06 granger Exp $")
+RCSID ("$Id: dc_MetAttr.c,v 3.9 1997-06-17 06:20:50 granger Exp $")
 
 
 /*
@@ -614,8 +614,8 @@ DataChunk *dc;
 DC_ElemType *type;
 /*
  * Return a void pointer to the global badvalue.  If type is non-NULL, returns
- * the type of the badvalue in *type.  Returns NULL on error.  If no global
- * bad value has been set, returns the default floating point bad value.
+ * the type of the badvalue in *type.  Returns NULL on error or if no global
+ * bad value has been set, in which case *type is unchanged.
  */
 {
 	void *ptr;

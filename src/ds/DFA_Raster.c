@@ -19,7 +19,7 @@
 # include "RasterFile.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_Raster.c,v 3.20 1997-06-10 19:01:13 burghart Exp $")
+RCSID ("$Id: DFA_Raster.c,v 3.21 1997-06-17 06:20:48 granger Exp $")
 
 /*
  * This is the tag for an open raster file.
@@ -158,8 +158,8 @@ static int AttrLen;
 static void	drf_WSync FP ((RFTag *));
 static int	drf_WriteImage FP ((RFTag *, DataChunk *, int, RFToc *, int));
 static int	drf_FldOffset FP ((RFTag *, FieldId));
-static void	drf_GetField FP ((const RFTag * const, const RFToc *const,
-			        const int));
+static int	drf_GetField FP ((const RFTag * const, const RFToc *const,
+				  const int));
 # ifdef notdef
 static void	drf_ReadOldToc FP ((RFTag *));
 # endif
@@ -751,24 +751,27 @@ RFToc *toc;
 		TC_ZtToUI (&zt, &toc->rft_Time);
 	}
 /*
-		toc->rft_Rg = *rg;
-		toc->rft_Origin = dobj->do_aloc[begin];
-*/
-/*
  * Now write each field.
  */
 	fids = dc_GetFields (dc, &nfield);
 	for (fld = 0; fld < nfield; fld++)
 	{
 	/*
+	 * See if we know about this field.
+	 */
+	 	if ((dfield = drf_FldOffset (tag, fids[fld])) < 0)
+		{
+			continue;
+		}
+	/*
 	 * Get the data.
 	 */
 		data = dc_ImgGetImage (dc, sample, fids[fld], &toc->rft_Origin,
-				&toc->rft_Rg, &nb, &scale);
+				       &toc->rft_Rg, &nb, &scale);
 	/*
 	 * Compress the data if called for.
 	 */
-		if (hdr->rf_Flags & RFF_COMPRESS)
+		if (data && (hdr->rf_Flags & RFF_COMPRESS))
 		{
 			int junk;
 
@@ -776,10 +779,18 @@ RFToc *toc;
 			RL_Encode (data, Sbuf, nb, NSbuf, &junk, &nb);
 			data = Sbuf;
 		}
-	/*
-	 * Find the offset for this field, move there, and write it.
+	/* 
+	 * If no data, mark the slot empty unless it already holds an image.
 	 */
-	 	dfield = drf_FldOffset (tag, fids[fld]);
+		if (! data)
+		{
+			if (! reuse)
+			{
+				toc->rft_Size[dfield] = 0;
+				toc->rft_Offset[dfield] = 0;
+			}
+			continue;
+		}
 		drf_FindSpace (tag, toc, dfield, nb, reuse);
 		if (write (tag->rt_fd, data, nb) < nb)
 		{
@@ -900,6 +911,7 @@ RFToc *toc;
  */
 {
 	memset (toc, 0, sizeof (RFToc));
+	toc->rft_Rg.rg_nX = toc->rft_Rg.rg_nY = toc->rft_Rg.rg_nZ = 1;
 }
 
 
@@ -911,7 +923,7 @@ drf_FldOffset (tag, fid)
 RFTag *tag;
 FieldId fid;
 /*
- * Find the offset in the file for this field.
+ * Find the offset in the file for this field.  Return -1 if not found.
  */
 {
 	int nf;
@@ -927,7 +939,7 @@ FieldId fid;
  * field to the list of those we know.
  */
 	msg_ELog (EF_PROBLEM, "No RF slot for field %d", fid);
-	return (0);	/* XXX */
+	return (-1);
 }
 
 
@@ -1079,17 +1091,21 @@ int ndetail;
 		for (fld = 0; fld < nfield; fld++)
 		{
 		/*
-		 * Get the data from the file.
+		 * Get the data from the file and dump it into the data chunk.
 		 */
-			if (fieldmap[fld] >= 0)
-				drf_GetField (tag, toc, fieldmap[fld]);
+			if (fieldmap[fld] >= 0 &&
+			    drf_GetField (tag, toc, fieldmap[fld]))
+			{
+				dc_ImgAddImage (dc, dcsamp, fids[fld],
+						&toc->rft_Origin, &toc->rft_Rg,
+						&t_hack, Sbuf, 0);
+			}
 			else
-				continue;
-		/*
-		 * Dump it into the data chunk.
-		 */
-		 	dc_ImgAddImage (dc, dcsamp, fids[fld],&toc->rft_Origin,
-				&toc->rft_Rg, &t_hack, Sbuf, 0);
+			{
+				dc_ImgAddMissing (dc, dcsamp, fids[fld],
+						  &toc->rft_Origin,
+						  &toc->rft_Rg, &t_hack, 0);
+			}
 		}
 	/*
 	 * If dealing with a 0-field case (i.e. DCC_Location), 
@@ -1166,7 +1182,7 @@ DataChunk *dc;
 
 
 
-static void
+static int
 drf_GetField (tag, toc, field)
 const RFTag * const tag;
 const RFToc * const toc;
@@ -1177,6 +1193,9 @@ const int field;
 {
 	int fnb = toc->rft_Rg.rg_nX * toc->rft_Rg.rg_nY;
 	int nb = toc->rft_Size[field];
+
+	if (nb == 0 || toc->rft_Offset[field] == 0)
+		return (0);
 /*
  * Move to the right place in the file.
  */
@@ -1206,6 +1225,7 @@ const int field;
 					errno);
 		RL_Decode (Sbuf, Sbuf + rpos, nb);
 	}
+	return (1);
 }
 
 

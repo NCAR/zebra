@@ -31,7 +31,7 @@
 # include "DataStore.h"
 # include "DataChunkP.h"
 
-RCSID ("$Id: dc_Image.c,v 1.7 1996-12-06 00:40:38 granger Exp $")
+RCSID ("$Id: dc_Image.c,v 1.8 1997-06-17 06:20:49 granger Exp $")
 
 /*
  * Our class-specific AuxData structure types.
@@ -155,12 +155,19 @@ ScaleInfo *scale;
 {
 	ImageDataChunkPart *ip = IP(dc);
 	ScaleInfo *sc;
+	DC_ElemType t;
+	unsigned char bytebv = 0xff;
 	int i;
 /*
  * Checking time.
  */
 	if (! dc_ReqSubClass (dc, DCP_Image, "ImgSetup"))
 		return;
+/*
+ * Set a byte-type default bad value, unless already set.
+ */
+	if (! dc_GetGlobalBadval (dc, &t) || t != DCT_UnsignedChar)
+		dc_SetGlobalBadval (dc, DCT_UnsignedChar, &bytebv);
 /*
  * Do the RGrid setup.  Set all of our types to unsigned char so that the
  * sample size can be correctly calculated by superclasses, and prevent further
