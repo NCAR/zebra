@@ -1,4 +1,4 @@
-/* $Id: gp_cmds.h,v 2.4 1991-12-13 15:37:47 kris Exp $ */
+/* $Id: gp_cmds.h,v 2.5 1992-03-04 22:12:39 kris Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -41,3 +41,4 @@
 # define GPC_FIELD	20
 # define GPC_ALIAS	21
 # define GPC_HELP	22
+# define GPC_USERANNOT	23
