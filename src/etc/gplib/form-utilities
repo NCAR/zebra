@@ -1,0 +1,100 @@
+!
+! Form widget utilities
+! $Id: form-utilities,v 1.1 1996-02-08 16:43:29 burghart Exp $
+!
+
+!
+! Set the text of a form entry based on a boolean plot description parameter:
+!
+!	fu-setenabled <form> <formentry> <component> <param> <default>
+!	fu_setdisabled <form> <formentry> <component> <param> <default>
+!
+! where <form> and <formentry> define the entry whose text is to be changed,
+! <param> is the plot description parameter to check, and <default> is the 
+! default boolean value to use if the plot description parameter is undefined.
+!
+! For fu-setenabled, true maps to "Enabled" and false maps to "Disabled"
+! For fu-setdisabled, true maps to "Disabled" and false maps to "Enabled"
+!
+
+procedure fu-setenabled form string entry string component string \
+	param string default bool
+
+	local state PDParam(component,param)
+	if (state = "(Undefined)")
+		local state "True"
+	endif
+	local state #state
+
+	if (state)
+		formtext #form #entry "Enabled"
+	else
+		formtext #form #entry "Disabled"
+	endif
+endprocedure
+
+procedure fu-setdisabled form string entry string component string \
+	param string default bool
+
+	local state PDParam(component,param)
+	if (state = "(Undefined)")
+		local state "True"
+	endif
+	local state #state
+	if (state)
+		formtext #form #entry "Disabled"
+	else
+		formtext #form #entry "Enabled"
+	endif
+endprocedure
+
+!
+! Apply the text of an "Enabled"/"Disabled" form entry to a plot description 
+! parameter:
+!
+!	fu-applyenabled <form> <formentry> <component> <pd_param>
+!	fu_applydisabled <form> <formentry> <component> <pd_param>
+!
+! For fu-applyenabled, "Enabled" maps to true and "Disabled" maps to false
+! For fu-applydisabled, "Enabled" maps to false and "Disabled" maps to true
+!
+
+procedure fu-applyenabled form string entry string component string \
+	param string
+
+	local state getftext(form,entry)
+
+	if (state = "Enabled")
+		parameter #component #param "True"
+	else
+		parameter #component #param "False"
+	endif
+endprocedure
+
+procedure fu-applydisabled form string entry string component string \
+	param string
+
+	local state getftext(form,entry)
+
+	if (state = "Disabled")
+		parameter #component #param "True"
+	else
+		parameter #component #param "False"
+	endif
+endprocedure
+
+!
+! Toggle the text of an "Enabled"/"Disabled" form entry
+!
+!	fu-toggle-enabled
+!
+
+procedure fu-toggle-enabled
+	local current getftext(ui$form,ui$formentry)
+	if (current = "Enabled")
+		formtext #ui$form #ui$formentry "Disabled"
+	else
+		formtext #ui$form #ui$formentry "Enabled"
+	endif
+endprocedure
+
