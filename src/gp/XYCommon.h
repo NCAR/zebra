@@ -29,7 +29,7 @@ extern void xy_GetScaleInfo FP((plot_description,char*,int,short*));
 extern void xy_SetScaleBounds FP((plot_description,char*,int,int,DataValPtr,
 		DataValPtr));
 extern void xy_GetCurrentScaleBounds FP((plot_description,char*,int,int,
-		DataValPtr,DataValPtr));
+		DataValPtr,DataValPtr,char*));
 
 /* Axis Control routines */
 extern void xy_AdjustAxes FP((plot_description,char*, int,int,int,int));
