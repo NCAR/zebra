@@ -16,6 +16,9 @@ alt=.874  # km
 platform=spol_surface
 
 log=/usr/local/zebra/project/ihop/cam.log
+oldlog=/usr/local/zebra/project/ihop/cam.log.old
+rm -f $oldlog
+mv $log $oldlog
 touch $log
 
 
