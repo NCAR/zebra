@@ -14,7 +14,7 @@
 # include "lib_include:lib_proto.h"
 # endif
 
-static char *rcsid = "$Id: text.c,v 1.7 1990-03-29 15:44:46 corbet Exp $";
+static char *rcsid = "$Id: text.c,v 1.8 1991-12-18 00:14:05 corbet Exp $";
 
 # ifdef BIG_ENDIAN
 #	define SWAP(v) (v)
@@ -344,7 +344,7 @@ int *rastp, width, color, bg;
  */
 {
 	int bit, nword = (width + 31)/32;
-# ifdef SUN
+# ifdef BIG_ENDIAN
 	static char stbl[32] = { 7, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11,
 		10, 9, 8, 23, 22, 21, 20, 19, 18, 17, 16, 31, 30, 29, 28,
 		27, 26, 25, 24 };
@@ -354,7 +354,7 @@ int *rastp, width, color, bg;
 	{
 		int rdata = SWAP (*rastp++), ndo = (width > 32) ? 32 : width;
 		for (bit = 0; bit < ndo; bit++)
-# ifdef SUN
+# ifdef BIG_ENDIAN
 			*dest++ = (rdata & (1 << stbl[bit])) ? color : bg;
 # else
 			*dest++ = (rdata & (1 << (31 - bit))) ? color : bg;
