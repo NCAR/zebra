@@ -38,7 +38,7 @@ extern "C"
 # include "DataDir.h"
 # include "Tape.h"
 # include "plcontainer.h"
-MAKE_RCSID ("$Id: DLoad.cc,v 1.4 1993-02-24 20:05:27 corbet Exp $")
+MAKE_RCSID ("$Id: DLoad.cc,v 1.5 1993-03-24 22:50:34 corbet Exp $")
 
 //
 // Import from main.
@@ -58,6 +58,7 @@ static void FixFName (const char *, const char *, int, char *);
 static int FindNStrip (const char *, const char *);
 static void MoveCDFile (const char *, const char *, int, const char *);
 static int FindFirstFile (const PlatformIndex *index);
+static void InsertSlash (char *string, const int where);
 
 
 
@@ -319,7 +320,7 @@ LoadFromTape (PlatformIndex *index, const char *dev, StatusWindow &sw,
 		cout << "No files selected!\n";
 		return;
 	}
-//	cout << "First file is " << first << ".\n";
+	cout << "First file is " << first << ".\n";
 	if (first)
 		tape.skip (first);
 //
@@ -345,7 +346,7 @@ LoadFromTape (PlatformIndex *index, const char *dev, StatusWindow &sw,
 		ExtractPlat (tp->th_name, plat);
 		if (! FileWanted (plat, tp->th_name, index))
 		{
-//			cout << "Skip " << tp->th_name << ".\n";
+			cout << "Skip " << tp->th_name << ".\n";
 			SkipTarFile (tape, tp);
 			continue;
 		}
@@ -452,9 +453,39 @@ ExtractPlat (const char *file, char *plat)
 			nperiod++;
 	strncpy (plat, begin, end - begin + 1);
 	plat[end - begin + 1] = '\0';
+//
+// Some serious ugliness to make things work for toga/coare.  No more
+// slashes in names!
+//
+	if (! strncmp (plat, "kapinga", 7))
+		InsertSlash (plat, 7);
+	else if (! strncmp (plat, "kavieng", 7))
+		InsertSlash (plat, 7);
+	else if (! strncmp (plat, "nauru", 5) ||
+		 ! strncmp (plat, "manus", 5))
+		InsertSlash (plat, 5);
+	else if (! strncmp (plat, "sci1", 4) ||
+		 ! strncmp (plat, "exp3", 4))
+		InsertSlash (plat, 4);
 }
 
 
+
+
+
+static void
+InsertSlash (char *string, const int where)
+//
+// Put a slash into this string.
+//
+{
+	char kludgebuf[200];
+
+	strncpy (kludgebuf, string, where);
+	strcpy (kludgebuf + where, "/");
+	strcat (kludgebuf, string + where);
+	strcpy (string, kludgebuf);
+}
 
 
 
@@ -522,7 +553,7 @@ ExtractTapeFile (Tape &tape, char *plat, TarHeader *tp)
 	char fname[200], *cp = strrchr (hdr.th_name, '/');
 	strcpy (fname, destdir);
 	strcat (fname, cp);
-//	cout << "Extr " << hdr.th_name << " to " << fname << ".\n";
+	cout << "Extr " << hdr.th_name << " to " << fname << ".\n";
 //
 // Create the file.
 //
