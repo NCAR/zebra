@@ -11,7 +11,7 @@
 
 extern char *malloc ();
 
-static char *rcsid = "$Id: ui_function.c,v 1.8 1992-12-07 17:16:29 corbet Exp $";
+static char *rcsid = "$Id: ui_function.c,v 1.9 1993-02-24 21:00:46 corbet Exp $";
 
 /*
  * These structures represent functions.
@@ -41,7 +41,7 @@ int uf_sqrt (), uf_exp (), uf_defined (), uf_stbl (), uf_concat ();
 int uf_quote (), uf_within ();
 int uf_cos (), uf_sin (), uf_tan (), uf_contains (), uf_substring ();
 int uf_getenv (), uf_noccur (), uf_string ();
-static int uf_strlength ();
+static int uf_strlength (), uf_basename ();
 # ifdef XSUPPORT
 	int uw_GetFText ();
 # endif
@@ -49,6 +49,7 @@ static int uf_strlength ();
 static struct func
 Func_tbl[] =
 {
+  { "basename", 1,	{ SYMT_STRING },		FF_HARD, uf_basename },
   { "concat",	2,	{ SYMT_STRING, SYMT_STRING },	FF_HARD, uf_concat },
   { "concat3",	3,	{ SYMT_STRING, SYMT_STRING, SYMT_STRING},
   							FF_HARD, uf_concat },
@@ -525,4 +526,28 @@ union usy_value	*argv, *retv;
 	i = strlen (argv[0].us_v_ptr);
 	*rett = SYMT_INT;
 	retv->us_v_int = i;
+}
+
+
+
+
+/* ARGSUSED */
+static int
+uf_basename (narg, argv, argt, retv, rett)
+int 	narg, *argt, *rett;
+union usy_value	*argv, *retv;
+/*
+ * basename (path)
+ *
+ * Return "path" with any leading directories removed.
+ */
+{
+	int	i;
+	char *slash, *strrchr ();
+
+	if (slash = strrchr (argv[0].us_v_ptr, '/'))
+		retv->us_v_ptr = usy_string (slash + 1);
+	else
+		retv->us_v_ptr = usy_string (argv[0].us_v_ptr);
+	*rett = SYMT_STRING;
 }
