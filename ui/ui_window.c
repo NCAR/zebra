@@ -27,7 +27,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_window.c,v 1.33 1995-12-08 22:25:17 granger Exp $";
+static char *Rcsid = "$Id: ui_window.c,v 1.34 1996-01-02 02:49:13 granger Exp $";
 
 /*
  * Public variables, declared in ui_window.h
@@ -1670,7 +1670,7 @@ char *name;
 		usy_s_symbol (PixmapTable, name, SYMT_POINTER, &v);
 		return (ret);
 	}
-	return (NULL);
+	return (None);
 }
 
 
