@@ -264,6 +264,7 @@ LoadDerivs( DerivTable *dtable, const char *fname, int quiet )
 	FDparse();
 	fclose (FDin);
 	FDin = 0;
+	msg_ELog (EF_DEBUG, "Loaded derivs file: %s", fname);
     }
     else if (! quiet)
     {
