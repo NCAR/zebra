@@ -257,7 +257,7 @@ $EL = "true";
 if (! $deqfile)
 {
     # Make sure zebra is running; usually it should already be running
-    if (system("ZEB_EVENTLOGGER=\"$EL\" zstart -n -ds -preserve $project"))
+    if (system("ZEB_EVENTLOGGER=\"$EL\" zstart -n -ds -preserve $project </dev/null >/dev/null 2>&1"))
     {
 	die "Failed to start zebra.\n";
     }

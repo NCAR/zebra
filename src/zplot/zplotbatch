@@ -1,6 +1,6 @@
 #! /usr/bin/sh
 #
-# $Id: zplotbatch,v 1.20 2001-06-29 20:56:41 granger Exp $
+# $Id: zplotbatch,v 1.21 2001-08-09 20:50:04 granger Exp $
 #
 # Start a display manager session with a virtual X server and dump
 # images of its plots.
@@ -89,7 +89,7 @@ fi
 # 'unix') to force network socket since unix socket may have failed. (see
 # above.)
 #
-$xvfb $display >/dev/null 2>&1 &
+$xvfb $display </dev/null >/dev/null 2>&1 &
 x=$!
 sleep 5
 DISPLAY=localhost${display}.0 ; export DISPLAY
@@ -97,8 +97,8 @@ DISPLAY=localhost${display}.0 ; export DISPLAY
 # Make sure we have a datastore running; we don't need the event logger
 ZEB_EVENTLOGGER=true ; export ZEB_EVENTLOGGER
 
-echo "-- Checking for datastore session:"
-zstart -n -preserve -ds $ZEB_PROJDIR
+echo "-- Checking for datastore session..."
+zstart -n -preserve -ds $ZEB_PROJDIR </dev/null >/dev/null 2>&1
 sleep 1
 
 # Then start a private display session
