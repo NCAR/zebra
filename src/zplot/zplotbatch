@@ -1,0 +1,187 @@
+#! /bin/sh
+#
+# $Id: zplotbatch,v 1.1.1.1 1997-12-04 18:27:39 granger Exp $
+#
+# Start a display manager session with a virtual X server and dump
+# images of its plots.
+
+echo=
+
+# ---- Site-specific configuration settings ----
+
+host=`uname -n`
+
+# The spool dir is where images are dumped
+spool=/net/sssf3/lake_ice/images
+
+# Default config to dump when none specified on command line
+config="iss1"
+
+# Top zebra directory
+ztop="/net/sssf3/lake_ice/zebra"
+
+# Project directory
+project="$ztop/project/lake_ice"
+
+# Special paths for Xvfb and such.
+PATH=$ztop/bin:/local/X11R6/bin:$PATH
+
+# Only used when file paths are not what were compiled into Xvfb
+#owl="/usr/openwin/lib/X11"
+#owf="$owl/fonts"
+#fp="-fp $owf/misc,$owf/Speedo,$owf/Type1,$owf/75dpi,$owf/100dpi"
+#co="-co $owl/rgb"
+fp=
+co=
+
+# Path to Xvfb
+xvfb="Xvfb $fp $co"
+
+# Display connection to use for virtual X server
+display=":9"
+
+# ---- End site configuration ----
+
+# Get a time
+if [ $# -gt 0 ]; then
+    when=$1
+    shift
+    case $when in
+     *-*-*,*:*) 
+	;;
+     now) 
+	;;
+     *)
+	echo "First argument, if present, must be 'now' or a time."
+	echo "$0 now [config] [window ..]"
+	echo "$0 3-Dec-97,22:06:03 [config] [window ..]"
+	exit 1
+	;;
+    esac
+fi
+
+# Get a config
+if [ $# -gt 0 ]; then
+    config=$1
+    shift
+fi
+
+# Get a window list
+windows=''
+while [ $# -gt 0 ]; do
+    windows="$windows $1"
+    shift
+done
+
+# Should be no arguments left
+if [ $# -gt 0 ]; then
+    echo "Usage: $0 [ {now|<time>} config [window ..]]"
+    exit 1
+fi
+
+PRESERVE_ZEB=1; export PRESERVE_ZEB
+ZEB_DM=$ztop/bin/dm; export ZEB_DM
+
+# Start our private, virtual X display
+
+$xvfb $display &
+x=$!
+sleep 5
+DISPLAY=${display}.0 ; export DISPLAY
+
+# Make sure we have a datastore running; we don't need the event logger
+ZEB_EVENTLOGGER=true ; export ZEB_EVENTLOGGER
+
+echo "-- Checking for datastore session:"
+zstart -n -ds $project
+sleep 5
+
+# Then start a private display session
+# We set the dm name explicitly so that we can query it
+
+DEFAULT_CONFIG=$config
+ZEB_DM_CONFIG="-multiple -name Batch dm.config"
+export DEFAULT_CONFIG ZEB_DM_CONFIG
+echo "-- Starting display manager:"
+zstart -dm -preserve $project &
+sleep 10
+# Wait for dm to connect to datastore, then wait for windows to come up
+if zquery -t 10 Batch ; then true ; else
+    sleep 20
+    if zquery -t 20 Batch ; then true ; else
+	echo "Batch display never connected."
+	exit 1
+    fi
+fi
+sleep 30
+if [ $when = "now" ]; then
+    zrun Batch 'realtime all'
+else
+    zrun Batch 'history all $when'
+fi
+# Wait for windows to take the new time
+sleep 15
+
+# Get a list of the graphics processes appearing in this display
+
+mstatus
+procs=`mstatus | egrep 'group-Batch' | sed -e 's,^.*:,,g' -e 's/,//g'`
+echo "Processes: $procs"
+
+# For each process, tell it to dump its plot
+# Put the image in a subdirectory of spool according to the hour of day
+
+#hour=`date -u '+%H'`
+#day=`date -u '+%d'`
+#month=`date -u '+%m'`
+#year=`date -u '+%y'`
+#min=`date -u '+%M'`
+#base="${year}${month}${day}${hour}${min}.${config}_"
+
+if [ ! -d $spool ]; then
+    mkdir -p $spool
+fi
+# JOSS filenames: YYMMDDHHmm.stationid_plottype.gif (or .jpg, or .txt)
+base=`date -u '+%y%m%d%H%M'`.${config}_
+images=''
+for plot in $procs ; do
+
+    name=`echo $plot | sed -e 's/-Batch.*//'`
+
+    # If we have specific targets, skip this window if it's not one of them
+    if test "$windows" = "" || echo "$windows" | egrep -s "$name"; then
+
+	name="$spool/${base}${name}.gif"
+
+	# Form the gif file name by extracting the plot name from the
+	# process. An alternative is to grep the pd-name from a zquery of
+	# the process, which includes the config name.  For now we can
+	# prepend the config here.
+
+        images="$images $name"
+	$echo zrun $plot "imgdump gif \"$name\""
+
+    fi
+
+done
+# Wait for plots to finish
+$echo sleep 60
+
+# Add the disclaimer to each of the images
+#
+$echo perl5 disclaim.pl $images
+
+# Exit the window manager and kill our virtual X server
+
+zrun Batch 'shutdown'
+sleep 5
+
+#kill `ps -f | grep Xvfb | grep -v grep | awk -e '{ print $1; }'`
+kill $x
+
+# Give the server time to die and clear its socket
+sleep 15
+
+# Pass on the image file names
+echo Images: $images
+

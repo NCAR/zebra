@@ -1,0 +1,62 @@
+#! /usr/local/bin/perl5
+#
+# FTP images to JOSS
+# $Id: ftpplots,v 1.1.1.1 1997-12-04 18:27:39 granger Exp $
+
+#$site="ftp.joss.ucar.edu";
+#$user="anonymous";
+#$pass="granger\@ucar.edu";
+#$dir="/pub/incoming/lakeice";
+
+$site="fog.personal.engin.umich.edu";
+$user="anonymous";
+$pass="granger\@ucar.edu";
+$dir="/pub/lakeice";
+
+require ("ftplib.pl");
+
+&ftp::open($site,$user,$pass) || die;
+&ftp::binary;
+TRY:
+{
+    # print join("\n",&ftp::dir());
+
+    if (! &ftp::cwd($dir))
+    {
+	print "CWD $dir failed: $!";
+	last TRY;
+    }
+
+    print &ftp::pwd(), "\n";
+    foreach $local (@ARGV)
+    {
+	$remote = $local;
+	$remote =~ s,.*/,,g;
+	print "Putting $local to $remote...";
+	if (! &ftp::put ($local,$remote))
+	{
+	    print "$ftp::Error\n";
+	    last TRY;
+	}
+	print "\n";
+    }
+
+}
+
+&ftp::close;
+
+__END__
+
+    # Now remove it, since this is just a test
+    foreach $local (@ARGV)
+    {
+	$remote = $local;
+	$remote =~ s,.*/,,g;
+	print "Removing $remote...";
+	if (! &ftp::delete ($remote))
+	{
+	    print "Delete failed for $f: $!";
+	}
+	print "\n";
+    }
+    

@@ -1,0 +1,8 @@
+#! /bin/csh -f
+#
+if (! $?DATA_DIR) setenv DATA_DIR /net/sssf3/lake_ice
+
+setenv ZEB_TOPDIR /net/sssf3/lake_ice/zebra
+setenv ZEB_PROJDIR /net/sssf3/lake_ice/zebra/project/lake_ice
+setenv PRESERVE_ZEB yes
+

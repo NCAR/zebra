@@ -1,0 +1,198 @@
+#! /usr/local/bin/perl5
+#
+# Sit and wait for notifications on platforms, and send a plot
+# to JOSS for each notification.
+#
+
+# Use an associative array to give the config and window to plot
+# when a given platform is updated.
+
+$debug = 0;
+
+# Top zebra directory
+$ztop="/net/sssf3/lake_ice/zebra";
+$zbin="$ztop/bin";
+
+# Project directory
+$project="$ztop/project/lake_ice";
+
+%Plots = (
+	  "iss1/class", 	"iss1 class",
+	  "iss1/prof915h",	"iss1 prof915h",
+	  "iss1/prof915l",	"iss1 prof915l",
+	  "iss1/rass915",	"iss1 rass",
+	  "iss1/surface_met",	"iss1 surfmet",
+
+	  "iss2/class", 	"iss2 class",
+	  "iss2/prof915h",	"iss2 prof915h",
+	  "iss2/prof915l",	"iss2 prof915l",
+	  "iss2/rass915",	"iss2 rass",
+	  "iss2/surface_met",	"iss2 surfmet",
+
+	  "iss3/class", 	"iss3 class",
+	  "iss3/prof915h",	"iss3 prof915h",
+	  "iss3/prof915l",	"iss3 prof915l",
+	  "iss3/rass915",	"iss3 rass",
+	  "iss3/surface_met",	"iss3 surfmet"
+	  );
+
+$dt = `date -u '+%y%m%d.%H%M'`;
+chop $dt;
+$log="logs/zplotd.$dt.log";
+if ($debug)
+{
+    open(LOG, ">-") || die "$log : $!\n";
+}
+else
+{
+    open(LOG, "> $log") || die "$log : $!\n";
+}
+select LOG;
+$| = 1;
+open(STDOUT, ">& LOG") || die "could not redirect stdout: $!\n";
+open(STDERR, ">& LOG") || die "could not redirect stderr: $!\n";
+print "Log file: $log\n";
+$EL = "EventLogger -n -l epic -f logs/zebra.$dt.log";
+
+# Make sure zebra is running
+if (! $debug)
+{
+    system("ZEB_EVENTLOGGER=\"$EL\" $zbin/zstart -n -ds $project");
+    sleep 10;
+}
+# Now open a dsnotice session and read the output
+if (! $debug)
+{
+    $targets = join(' ',keys(%Plots));
+    print "Opening $zbin/dsnotice $targets ...\n";
+    open (DS, "$zbin/dsnotice $targets 2>&1 |") || die "running dsnotice: $!";
+}
+else
+{
+    print "Opening -\n";
+    open (DS, "-") || die "notify failed: $!";
+}
+
+%Queue = ();
+%Displays = ();
+
+$SIG{'ALRM'} = 'clear';
+
+$timeout = 30;
+while (<DS>)
+{
+	next if /Receiving/;	# Skip start-up line
+
+	# Decipher the line
+	s/^.*Notice-\S+ //g;
+	($platform, $file, $time, $nsample, $what) = split(/\s+/,$_);
+	print "$platform $file $time $nsample $what\n";
+
+	# This latest notify will overwrite any notifications for this
+	# platform already in the queue
+    
+	$Queue{$platform} = join(' ', ($file, $time, $nsample, $what));
+
+	# After adding to the queue, set the alarm to clear the queue
+	# after a suitable timeout with no further notifications.
+
+	alarm($timeout);
+}
+
+# Clear anything left in the queue
+&clear;
+close LOG;
+exit 0;
+
+sub clear
+{
+        alarm(0);
+
+	$dt = `date -u '+%y%m%d.%H%M'`;
+	chop $dt;
+	$plog="logs/plot.$dt.log";
+	open(PLOG, "> $plog") || die "could not open $plog: $!\n";
+	$oldfh = select(PLOG); $| = 1; select($oldfh);
+
+	if ($debug)
+	{
+	    print join("\n",%Queue), "\n";
+	    print join(" ",keys(%Queue)), "\n";
+	}
+
+	# Map the platforms in the queue into an array
+	# of display configs and windows
+	foreach $platform (keys(%Queue))
+	{
+	    ($file, $time, $nsample, $what) = split(/\s+/,$Queue{$platform});
+	    ($config, $window) = split(/\s+/,$Plots{$platform});
+	    print "$platform $file $time $nsample $what --> " .
+		"$config $window\n";
+	    print PLOG "$platform $file $time $nsample $what --> " .
+		"$config $window\n";
+	    if (index($Displays{$config},"$window") < 0)
+	    {
+		$Displays{$config} .= " $window";
+	    }
+	}
+
+	# Finally we can plot each config and its windows
+
+	$images = "";
+	$status="ok";
+	foreach $config (keys %Displays)
+	{
+	    $windows = $Displays{$config};
+	    print "Running: ./batch-plot now $config $windows\n";
+	    if (! open (BP, "./batch-plot now $config $windows 2>&1 |"))
+	    {
+		$status="FAILED";
+		next;
+	    }
+	    while (<BP>)
+	    {
+		print;
+		print PLOG;
+		if (/^Images: (.*)$/)
+		{
+		    $images .= " $1 ";
+		}
+	    }
+	    close BP;
+	    $status = "FAILED" if ($?);
+	}
+
+	print "Running: ftpjoss.pl $images\n";
+	if (!$debug && open (FTP, "ftpjoss.pl $images 2>&1 |"))
+	{
+	    while (<FTP>)
+	    {
+		print;
+		print PLOG;
+	    }
+	    close FTP;
+	    $status = "FAILED" if ($?);
+	}
+	elsif (!$debug)
+	{
+	    $status="FAILED";
+	}
+
+	close PLOG;
+	$cmd = "elm -s \"zplotd $status, log $plog\" " .
+	       " granger <$plog >/dev/null";
+	print "$cmd\n";
+	if (system($cmd))
+	{
+	    print "*** Mail failed! ***\n";
+	}
+	else
+	{
+	    print "--- Done. ---\n";
+	}
+	%Queue = ();
+	%Displays = ();
+}
+
+
+

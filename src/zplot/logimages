@@ -1,0 +1,10 @@
+#! /bin/sh
+#
+# $Id: logimages,v 1.1.1.1 1997-12-04 18:27:39 granger Exp $
+#
+# Simple script to extract the image file names from a batch-plot log
+
+images=`egrep '^Images:' $1 | sed -e 's/Images://g'`
+
+echo $images
+

@@ -1,0 +1,50 @@
+#! /usr/local/bin/perl5
+#
+# Given a list of gif files on the command line, "sign" each one with
+# a data disclaimer in the lower right corner.
+#
+# $Id: disclaim,v 1.1.1.1 1997-12-04 18:27:39 granger Exp $
+
+use GD;
+
+foreach $gif (@ARGV)
+{
+    
+    print "$gif:\n";
+    open (GIF,"< $gif") || die "could not open $gif";
+    $im = newFromGif GD::Image(GIF) || die "creating GD image from $gif";
+    close GIF;
+
+    ($width, $height) = $im->getBounds();
+    print "Bounds: ", $width, " x ", $height , "\n";
+
+    # Allocate colors in the image
+    ($white,$black,$red,$blue,$yellow) = 
+	(
+	 $im->colorAllocate(255, 255, 255),
+	 $im->colorAllocate(0, 0, 0),
+	 $im->colorAllocate(255, 0, 0),
+	 $im->colorAllocate(0,0,255),
+	 $im->colorAllocate(255,250,205)
+	 );
+
+    # $im->transparent($white);	# white color is transparent
+    $im->interlaced(1);		# cool venetian blinds effect
+
+    $x = $width / 3;
+    $y = $height - 20;
+    print "x = $x, y = $y\n";
+    $msg = "Realtime data, not checked for quality";
+    $font = gdLargeFont;
+    $font = gdMediumBoldFont;
+
+    $im->string($font,$x,$y,"$msg",$red);
+#    $im->string(gdSmallFont,150,28,"Goodbye cruel world!",$blue);
+#    $im->stringUp(gdTinyFont,280,250,"I'm climbing the wall!",$black);
+#    $im->charUp(gdMediumBoldFont,280,280,"Q",$black);
+
+    open (GIF,"> $gif") || die "could not open $gif";
+    print GIF $im->gif();
+    close GIF;
+
+}
