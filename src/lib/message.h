@@ -1,4 +1,4 @@
-/* $Id: message.h,v 2.15 1994-01-26 11:24:52 granger Exp $ */
+/* $Id: message.h,v 2.16 1994-05-24 02:37:39 granger Exp $ */
 /*
  * Message protocol types.
  */
@@ -22,6 +22,7 @@
 # ifndef _ZEB_MESSAGE_H_
 # define _ZEB_MESSAGE_H_
 
+# include <defs.h>		/* For const definition */
 # include <config.h>		/* To get CFG_ parameters */
 
 # define MT_MESSAGE	 0	/* Message handler protocol		*/
@@ -261,6 +262,7 @@ void msg_ELog FP (());
 void msg_add_fd FP ((int, int (*handler) ()));
 void msg_delete_fd FP ((int));
 int msg_get_fd FP ((void));
+const char *msg_myname FP((void));
 int msg_await FP ((void));
 int msg_Search FP ((int proto, int (*func) (), void * param));
 void msg_AddProtoHandler FP ((int, int (*) ()));

@@ -18,11 +18,12 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+# include <unistd.h>
 # include <config.h>
 # include <ui_symbol.h>
 # include "defs.h"
 
-MAKE_RCSID("$Id: ConfigVars.c,v 1.5 1994-01-26 11:53:23 granger Exp $")
+MAKE_RCSID("$Id: ConfigVars.c,v 1.6 1994-05-24 02:37:38 granger Exp $")
 
 /*
  * Keep the directories around for queries.
@@ -67,10 +68,25 @@ InitDirVariables ()
 	}
 /*
  * Try to figure out a project directory.  If they haven't given anything
- * explicit, just take the current directory and hope for the best.
+ * explicit, just take the current directory and hope for the best.  If
+ * the project envariable is an absolute path, take it as is.
  */
-	if (envbase = getenv ("ZEB_PROJECT"))
-		sprintf (Projdir, "%s/%s", Basedir, envbase);
+	if ((envbase = getenv ("ZEB_PROJECT")) && envbase[0] == '/')
+	{
+		strcpy (Projdir, envbase);
+	}
+	else if (envbase)
+	{
+		sprintf (Projdir, "%s/project/%s", Basedir, envbase);
+		if (access (Projdir, R_OK | W_OK | X_OK) < 0)
+		{
+			sprintf (Projdir, "%s/%s", Basedir, envbase);
+			if (access (Projdir, R_OK | W_OK | X_OK) < 0)
+			{
+				strcpy (Projdir, ".");
+			}
+		}
+        }
 	else
 		strcpy (Projdir, ".");
 	done = TRUE;
@@ -108,7 +124,11 @@ SetupConfigVariables ()
 	usy_s_symbol (vtable, "c$datadir", SYMT_STRING, &v);
 	v.us_v_ptr = RDSSDIR;
 	usy_s_symbol (vtable, "c$rdssdir", SYMT_STRING, &v);
-	
+/*
+ * Lastly, make our message handler name available
+ */
+	v.us_v_ptr = (char *) msg_myname ();
+	usy_s_symbol (vtable, "c$msgname", SYMT_STRING, &v);
 }
 
 

@@ -29,7 +29,7 @@
 # include "defs.h"
 # include "message.h"
 # ifndef lint
-MAKE_RCSID ("$Id: msg_lib.c,v 2.21 1994-03-19 22:20:21 granger Exp $")
+MAKE_RCSID ("$Id: msg_lib.c,v 2.22 1994-05-24 02:37:41 granger Exp $")
 # endif
 
 /*
@@ -59,7 +59,7 @@ static int Seq = 0;
  * especially log messages, after we've received a SHUTDOWN message.
  */
 static int ShuttingDown = 0;
-static char Identity[ sizeof(struct mh_ident) ];
+static char Identity[ sizeof(struct mh_ident) ] = "unknown";
 
 /*
  * The queue used for holding messages while looking for something specific.
@@ -130,7 +130,7 @@ char *ident;
 	int msg_incoming ();
 	char *getenv (), *sn = getenv ("ZEB_SOCKET");
 /*
- * Presrve our identity
+ * Preserve our identity
  */
 	strcpy (Identity, ident);
 /*
@@ -420,9 +420,6 @@ msg_await ()
 
 
 
-
-
-
 int
 msg_get_fd ()
 /*
@@ -432,6 +429,16 @@ msg_get_fd ()
 	return (Msg_fd);
 }
 
+
+
+const char *
+msg_myname ()
+/*
+ * Return our message name
+ */
+{
+	return (Identity);
+}
 
 
 
