@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 2.36 1997-02-14 17:08:08 granger Exp $ */
+/* $Id: defs.h,v 2.37 1997-04-28 04:42:31 granger Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -34,6 +34,11 @@
  */
 # include <memory.h>
 # include <string.h>
+
+# ifdef __cplusplus
+extern "C"
+{
+# endif
 
 /*
  * A macro to make function prototypes a little easier across both STDC and
@@ -183,5 +188,10 @@ void cvt_ShowOrigin FP ((void));
  * Use more complete rcsid macro from version.h
  */
 # define MAKE_RCSID(id) RCSID(id)
+
+
+# ifdef __cplusplus
+}
+# endif
 
 # endif /* !_zebra_defs_h_ */
