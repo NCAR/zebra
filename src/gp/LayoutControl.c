@@ -1,7 +1,7 @@
 /*
  * Layout Control and Coordinate Transformations
  */
-static char *rcsid = "$Id: LayoutControl.c,v 1.6 1992-10-01 17:48:34 barrett Exp $";
+static char *rcsid = "$Id: LayoutControl.c,v 1.7 1992-10-02 21:59:29 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -98,6 +98,7 @@ DataValRec	UX0, UX1, UY0, UY1;
 float	FX0 = 0.0, FY0 = 0.0, FX1 = 1.0, FY1 = 1.0;
 float	AxisX0[4],AxisX1[4],AxisY0[4],AxisY1[4];
 float	IconX0,IconX1,IconY0,IconY1;
+int	IconSpace;
 float	AnnotateX0,AnnotateX1,AnnotateY0,AnnotateY1;
 float	LegendX0,LegendX1,LegendY0,LegendY1;
 int	AxisSet[] = {0,0,0,0}, LegendSet = 0, IconSet = 0, AnnotateSet = 0;
