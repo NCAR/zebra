@@ -1,5 +1,5 @@
 /*
- * Consume images into the data store.
+ * Consume images from a shared memory image segment into the data store.
  */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: ds_consumer.c,v 2.5 1993-08-18 15:18:15 burghart Exp $";
+static char *rcsid = "$Id: ds_consumer.c,v 2.6 1993-08-18 15:25:27 burghart Exp $";
 
 # include <copyright.h>
 # include <defs.h>
