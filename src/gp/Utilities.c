@@ -21,17 +21,19 @@
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
+# include <X11/XWDFile.h>	/* for ImageDump() */
 # include <math.h>
 # include <defs.h>
 # include <message.h>
 # include <pd.h>
 # include <GraphicsW.h>
 # include <DataStore.h>
+# include <byteorder.h>
 # include <time.h>
 # include "GraphProc.h"
 # include "PixelCoord.h"
 
-MAKE_RCSID ("$Id: Utilities.c,v 2.40 1996-12-11 16:54:33 burghart Exp $")
+MAKE_RCSID ("$Id: Utilities.c,v 2.41 1997-02-15 02:12:56 burghart Exp $")
 
 /*
  * Rules for image dumping.  Indexed by keyword number in GraphProc.state
@@ -766,19 +768,122 @@ char *file;
  * Dump out an image of our screen.
  */
 {
-	char cmd[200], efile[120];
-	date uid;
+    char cmd[200], efile[120], xwdname[80], *wname = dm_MessageName ();
+    date uid;
+    FILE *xwdfile;
+    int imgfmt, i, ncolors;
+    XImage *image;
+    XWindowAttributes win_info;
+    Visual *vis;
+    XWDFileHeader header;
 /*
- * Work up the file name.
+ * Open the temporary xwd format file
  */
-	TC_ZtToUI (&PlotTime, &uid);
-	sprintf (efile, file, uid.ds_yymmdd, uid.ds_hhmmss);
+    sprintf (xwdname, "/tmp/zebra_%s.xwd", wname);
+    if (! (xwdfile = fopen (xwdname, "w+")))
+    {
+	msg_ELog ("Unable to open xwd file %s\n", xwdname);
+	return;
+    }
 /*
- * Do it.
+ * Convert our pixmap to an XImage
  */
-	sprintf (cmd, "xwd -id 0x%x | %s > %s", 
-		 (unsigned int) XtWindow (Graphics), ImgRules[format], efile);
-	system (cmd);
+    imgfmt = ZPixmap;
+    image = XGetImage (Disp, GWGetFrame (Graphics, DisplayFrame), 0, 0, 
+		       GWWidth (Graphics), GWHeight (Graphics), AllPlanes, 
+		       imgfmt);
+/*
+ * Get the window attributes
+ */
+    XGetWindowAttributes (Disp, XtWindow (Graphics), &win_info);
+    vis = win_info.visual;
+    ncolors = vis->map_entries;
+/*
+ * Build the xwd header
+ */
+    header.header_size = (CARD32) SIZEOF (XWDheader) + strlen (wname) + 1;
+    header.file_version = (CARD32) XWD_FILE_VERSION;
+    header.pixmap_format = (CARD32) imgfmt;
+    header.pixmap_depth = (CARD32) image->depth;
+    header.pixmap_width = (CARD32) image->width;
+    header.pixmap_height = (CARD32) image->height;
+    header.xoffset = (CARD32) image->xoffset;
+    header.byte_order = (CARD32) image->byte_order;
+    header.bitmap_unit = (CARD32) image->bitmap_unit;
+    header.bitmap_bit_order = (CARD32) image->bitmap_bit_order;
+    header.bitmap_pad = (CARD32) image->bitmap_pad;
+    header.bits_per_pixel = (CARD32) image->bits_per_pixel;
+    header.bytes_per_line = (CARD32) image->bytes_per_line;
+    header.visual_class = (CARD32) vis->class;
+    header.red_mask = (CARD32) vis->red_mask;
+    header.green_mask = (CARD32) vis->green_mask;
+    header.blue_mask = (CARD32) vis->blue_mask;
+    header.bits_per_rgb = (CARD32) vis->bits_per_rgb;
+    header.colormap_entries = (CARD32) vis->map_entries;
+
+    header.ncolors = ncolors;
+    header.window_width = (CARD32) GWWidth (Graphics);
+    header.window_height = (CARD32) GWHeight (Graphics);
+    header.window_x = 0;
+    header.window_y = 0;
+    header.window_bdrwidth = 0;
+# ifdef LITTLE_ENDIAN
+    _swaplong ((char *) &header, sizeof(header));
+# endif
+/*
+ * Write out the header
+ */
+    fwrite ((char *)&header, SIZEOF (XWDheader), 1, xwdfile);
+    fwrite (wname, strlen (wname) + 1, 1, xwdfile);
+/*
+ * Write the color map
+ */
+    for (i = 0; i < ncolors; i++)
+    {
+	XColor	xc;
+	XWDColor xwdc;
+    /*
+     * Get the XColor for this pixel value
+     */
+	xc.pixel = i;
+	XQueryColor (Disp, win_info.colormap, &xc);
+    /*
+     * Convert it to a XWDColor
+     */
+	xwdc.pixel = xc.pixel;
+	xwdc.red = xc.red;
+	xwdc.green = xc.green;
+	xwdc.blue = xc.blue;
+	xwdc.flags = xc.flags;
+
+# ifdef LITTLE_ENDIAN
+	_swaplong ((char *) &(xwdc.pixel), sizeof(long));
+	_swapshort ((char *) &(xwdc.red), sizeof(short));
+	_swapshort ((char *) &(xwdc.green), sizeof(short));
+	_swapshort ((char *) &(xwdc.blue), sizeof(short));
+# endif
+
+	fwrite ((char *) &xwdc, SIZEOF(XWDColor), 1, xwdfile);
+    }
+/*
+ * Write the image and close the file.  
+ * Image size here assumes ZPixmap format.
+ */  
+    fwrite (image->data, image->bytes_per_line * image->height, 1, xwdfile);
+    fclose (xwdfile);
+    XDestroyImage (image);
+/*
+ * Write in the plot time/date to generate the final file name
+ */
+    TC_ZtToUI (&PlotTime, &uid);
+    sprintf (efile, file, uid.ds_yymmdd, uid.ds_hhmmss);
+/*
+ * Finally use the required system utilities to convert to the requested
+ * format.
+ */
+    sprintf (cmd, "cat %s | %s > %s", xwdname, ImgRules[format], efile);
+    system (cmd);
+    unlink (xwdname);
 }
 
 
