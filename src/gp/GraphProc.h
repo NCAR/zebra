@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.76 2001-11-30 21:29:28 granger Exp $ */
+/* $Id: GraphProc.h,v 2.77 2003-08-06 21:53:46 burghart Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -389,7 +389,8 @@ extern int dispatcher FP ((int junk, struct ui_command *cmds));
 #endif
 extern void parameter FP ((char *comp, char *param, char *value));
 extern int xtEvent FP ((int fd));
-extern int AgeCheck FP ((const char *, const char *, ZebTime *));
+extern int AgeCheck FP ((const char *comp, const char *plat, ZebTime *zt));
+extern int DataAgeOK FP ((const char *comp, int pid));
 extern long GetSec FP(( UItime ));
 extern int  reset_limits FP ((char *, char *, char *));
 extern void eq_ResetAbort FP ((void));

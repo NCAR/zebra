@@ -56,7 +56,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.89 2002-12-04 00:07:28 burghart Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.90 2003-08-06 21:53:46 burghart Exp $")
 
 
 /*
@@ -170,7 +170,6 @@ static void	CAP_StPlotVector FP ((char *c, int pt, ZebTime *zt, int x0,
 				      double unitlen, float *qgrid[4],
 				      QFormat qformats[4], int do_vectors, 
 				      zbool quadstn[4]));
-static zbool	CAP_TimeCheck FP ((char *c, PlatformId pid));
 
 
 
@@ -490,7 +489,7 @@ int *shifted;
 		msg_ELog (EF_PROBLEM, "Unknown platform: %s", platform);
 		return (0);
 	}
-	if (! CAP_TimeCheck (c, pid))
+	if (! DataAgeOK (c, pid))
 		return (0);
 /*
  * Get the data (pass in plot time, get back actual data time)
@@ -1049,7 +1048,7 @@ int nfield, *shifted;
 /*
  * Bail on too old data, if requested
  */
-	if (! CAP_TimeCheck (c, plat))
+	if (! DataAgeOK (c, plat))
 		return (0);
 /*
  * Get the data.
@@ -1887,7 +1886,7 @@ CAP_PlotRaster (char *c, zbool update, char *topannot, char *sideannot,
 /*
  * Bail on too old data, if requested
  */
-	if (! CAP_TimeCheck (c, pid))
+	if (! DataAgeOK (c, pid))
 		return;
 /*
  * Get the data (pass in plot time, get back actual data time)
@@ -2249,63 +2248,6 @@ ZebTime *t;
 
 	ot_Append (string);
 }
-
-
-
-static zbool
-CAP_TimeCheck (c, pid)
-char	*c;
-PlatformId	pid;
-/*
- * Return TRUE if we are showing data of any age, or if time limiting is
- * enabled and available data are new enough to be within the time limit.
- * Otherwise, return FALSE.
- */
-{
-	zbool	limit_data_age;
-	int	seconds;
-	char	string[16];
-	ZebTime	zt;
-/*
- * Data age check enabled?
- */
-	limit_data_age = FALSE;	/* historical default */
-	pda_Search (Pd, c, "limit-data-age", NULL, (char *) &limit_data_age,
-		    SYMT_BOOL);
-	if (! limit_data_age)
-		return (TRUE);
-/*
- * Nearest data time
- */
-	if (! ds_DataTimes (pid, &PlotTime, 1, DsBefore, &zt))
-	{
-		msg_ELog(EF_INFO,"No data available at all for '%s'",
-			 ds_PlatformName (pid));
-		return (FALSE);
-	}
-/*
- * Get the age limit
- */	
-	if (pda_Search (Pd, c, "data-age-limit", ds_PlatformName (pid), 
-			string, SYMT_STRING) ||
-	    pda_Search (Pd, c, "icon-age-limit", ds_PlatformName (pid), 
-			string, SYMT_STRING))
-		seconds = pc_TimeTrigger (string); 
-	else
-		seconds = 0;
-/*
- * Finally, test to see if the data are recent enough
- */	
-	if ((seconds > 0) && (PlotTime.zt_Sec - zt.zt_Sec) > seconds)
-	{
-		msg_ELog (EF_INFO, "%s data too old, not displayed", 
-			  ds_PlatformName (pid));
-		return (FALSE);
-	}
-
-	return (TRUE);
-}
-
 
 
 

@@ -42,7 +42,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: XSection.c,v 2.54 2001-08-31 03:43:45 granger Exp $")
+RCSID ("$Id: XSection.c,v 2.55 2003-08-06 21:53:46 burghart Exp $")
 
 /*
  * General definitions
@@ -194,8 +194,10 @@ static void	xs_PlaneVector FP ((char *, char **, int, char *, char *, char *));
 static void	xs_ZZFillIn FP ((ZZ_DPlane *));
 static void	xs_Background FP ((void));
 static void	xs_ExtendTrace FP ((double, double)); 
-static DPlane	*xs_HDWeighting FP ((char **, int, char *, ZebTime *));
-static DPlane	*xs_Bilinear FP ((char *, char *, ZebTime *));
+static DPlane	*xs_HDWeighting (char *comp, char **pnames, int nplat, 
+				 char *fldname, ZebTime *times);
+static DPlane	*xs_Bilinear (char *comp, char *platform, char *fldname, 
+			      ZebTime *dtime);
 static void     xs_FreeDPlane (DPlane *dp);
 static void	xs_DrawTrace FP ((char *)); 
 static void	xs_AddToLevel FP ((DPlane *, DPlane *, int, double, double, 
@@ -205,13 +207,14 @@ static void	xs_BuildLimits FP ((float *, float *, int, double, double,
 static int	xs_Pos FP ((char *, ZebTime *, float **, float **)); 
 static int	xs_AltIndex FP ((double, float *, int));
 static int	xs_ZIndex FP ((double, int));
-static ZZ_DPlane	*xs_ZZGetData FP ((char **, int, char *));
+static ZZ_DPlane	*xs_ZZGetData (char* comp, char **plats, int nplat, 
+				       char *fldname);
 static ZZ_DPlane	*xs_AllocZZ_DPlane FP ((int, int));
 static void		xs_FreeZZ_DPlane FP ((ZZ_DPlane *));
-static DataChunk	*xs_GetObsDC FP ((char *, char *, ZebTime *, 
-					  DataClass *));
-static DataChunk	*xs_GetGridDC FP ((char *, char *, ZebTime *, 
-					   float *));
+static DataChunk	*xs_GetObsDC (char *comp, char *plat, char *fldname, 
+				      ZebTime *dtime, DataClass *class);
+static DataChunk	*xs_GetGridDC (char *comp, char *plat, char *fldname, 
+				       ZebTime *dtime, float *alts);
 static DataChunk	*xs_NSpaceToRGrid FP ((DataChunk *, FieldId, float *));
 static FieldId	xs_FindCV (DataChunk *dc, const char *dimname);
 
@@ -769,7 +772,7 @@ int	nplat;
 /*
  * Get the filled data plane
  */
-	plane = xs_ZZGetData (pnames, nplat, fldname);
+	plane = xs_ZZGetData (c, pnames, nplat, fldname);
 
 	if (plane->nobs < 2)
 	{
@@ -921,8 +924,8 @@ int	nplat;
 /*
  * Get the filled data planes.  
  */
-	uplane = xs_ZZGetData (pnames, nplat, ufldname);
-	vplane = xs_ZZGetData (uplane->plats, uplane->nobs, vfldname);
+	uplane = xs_ZZGetData (c, pnames, nplat, ufldname);
+	vplane = xs_ZZGetData (c, uplane->plats, uplane->nobs, vfldname);
 
 	if (uplane->nobs != vplane->nobs)
 	{
@@ -1033,9 +1036,7 @@ int	nplat;
 
 
 static ZZ_DPlane *
-xs_ZZGetData (pnames, nplat, fldname)
-char	**pnames, *fldname;
-int	nplat;
+xs_ZZGetData (char *comp, char **pnames, int nplat, char *fldname)
 /*
  * Create and return a zig-zag "pseudo-planar" data plane.  The caller is
  * responsible for calling xs_FreeZZ_DPlane() to destroy the plane.
@@ -1076,7 +1077,8 @@ int	nplat;
 	/*
 	 * Get the data
 	 */
-		if (! (dc = xs_GetObsDC (pnames[p], fldname, &dtime, &class)))
+		if (! (dc = xs_GetObsDC (comp, pnames[p], fldname, &dtime, 
+					 &class)))
 		{
 			TC_EncodeTime (&PlotTime, TC_Full, Scratch);
 			msg_ELog (EF_INFO, "No data for '%s' at %s", pnames[p],
@@ -1397,22 +1399,25 @@ int	nplat;
 	/*
 	 * Get the data
 	 */
-		if (! strcmp(fldname, "normal") || ! strcmp(fldname, "inplane"))  {
-			uplane = xs_Bilinear (pnames[0], ufldname, &dtime);
-			vplane = xs_Bilinear (pnames[0], vfldname, &dtime);
+		if (! strcmp(fldname, "normal") || 
+		    ! strcmp(fldname, "inplane"))  
+		{
+		    uplane = xs_Bilinear (c, pnames[0], ufldname, &dtime);
+		    vplane = xs_Bilinear (c, pnames[0], vfldname, &dtime);
 		}
 		else
-			plane = xs_Bilinear (pnames[0], fldname, &dtime);
+		    plane = xs_Bilinear (c, pnames[0], fldname, &dtime);
 	/*
 	 * Add a line to the overlay times widget
 	 */
-		if (uplane && vplane)  {
-			if (! strcmp(fldname, "normal"))
-		    		ot_AddStatusLine (c, pnames[0], "(normal winds)", 
-					&dtime);
-			else
-				ot_AddStatusLine (c, pnames[0], "(inplane winds)", 
-					&dtime);
+		if (uplane && vplane)  
+		{
+		    if (! strcmp(fldname, "normal"))
+			ot_AddStatusLine (c, pnames[0], 
+					  "(normal winds)", &dtime);
+		    else
+			ot_AddStatusLine (c, pnames[0], 
+					  "(inplane winds)", &dtime);
 		}
 		else if (plane)
 		    ot_AddStatusLine (c, pnames[0], fldname, &dtime);
@@ -1424,12 +1429,16 @@ int	nplat;
 	/*
 	 * Get the data
 	 */
-		if (! strcmp(fldname, "normal") || ! strcmp(fldname, "inplane"))  {
-		    uplane = xs_HDWeighting (pnames, nplat, ufldname, times);
-		    vplane = xs_HDWeighting (pnames, nplat, vfldname, times);
+		if (! strcmp(fldname, "normal") || 
+		    ! strcmp(fldname, "inplane"))  
+		{
+		    uplane = xs_HDWeighting (c, pnames, nplat, ufldname, 
+					     times);
+		    vplane = xs_HDWeighting (c, pnames, nplat, vfldname, 
+					     times);
 		}
 		else
-		    plane = xs_HDWeighting (pnames, nplat, fldname, times);
+		    plane = xs_HDWeighting (c, pnames, nplat, fldname, times);
 	/*
 	 * Annotate with the platforms
 	 */
@@ -1596,10 +1605,10 @@ int	nplat;
 	/*
 	 * Get the data
 	 */
-		uplane = xs_Bilinear (pnames[0], ufldname, &dtime);
-		vplane = xs_Bilinear (pnames[0], vfldname, &dtime);
+		uplane = xs_Bilinear (c, pnames[0], ufldname, &dtime);
+		vplane = xs_Bilinear (c, pnames[0], vfldname, &dtime);
 		if (ProjectVectors)
-			wplane = xs_Bilinear (pnames[0], wfldname, &dtime);
+			wplane = xs_Bilinear (c, pnames[0], wfldname, &dtime);
 	/*
 	 * Add a line to the overlay times widget
 	 */
@@ -1616,10 +1625,10 @@ int	nplat;
 	/*
 	 * Get the data
 	 */
-		uplane = xs_HDWeighting (pnames, nplat, ufldname, times);
-		vplane = xs_HDWeighting (pnames, nplat, vfldname, times);
+		uplane = xs_HDWeighting (c, pnames, nplat, ufldname, times);
+		vplane = xs_HDWeighting (c, pnames, nplat, vfldname, times);
 		if (ProjectVectors)
-			wplane = xs_HDWeighting (pnames, nplat, wfldname, 
+			wplane = xs_HDWeighting (c, pnames, nplat, wfldname, 
 						 times);
 	/*
 	 * Annotate with the platforms
@@ -1723,10 +1732,8 @@ int	nplat;
 
 
 static DPlane *
-xs_HDWeighting (pnames, nplat, fldname, times)
-char	**pnames, *fldname;
-int	nplat;
-ZebTime	*times;
+xs_HDWeighting (char *comp, char **pnames, int nplat, char *fldname, 
+		ZebTime *times)
 /*
  * Create and fill a cross-section array with data from the chosen 
  * soundings, using a horizontal distance weighting scheme.  Return the 
@@ -1819,7 +1826,7 @@ ZebTime	*times;
 	/*
 	 * Get the data
 	 */
-		if (! (dc = xs_GetObsDC (pnames[plat], fldname, &dtime, 
+		if (! (dc = xs_GetObsDC (comp, pnames[plat], fldname, &dtime, 
 					 &class)))
 		{
 			times[plat] = badtime;
@@ -2014,9 +2021,7 @@ xs_FreeDPlane (DPlane *dp)
 
 
 static DPlane *
-xs_Bilinear (platform, fldname, dtime)
-char	*platform, *fldname;
-ZebTime	*dtime;
+xs_Bilinear (char *comp, char *platform, char *fldname, ZebTime *dtime)
 /*
  * Create a cross-section array with data from a cartesian grid, using
  * bilinear interpolation.  It is assumed that the data source will be a
@@ -2040,7 +2045,7 @@ ZebTime	*dtime;
  * bastardization comes in the form of a list of (potentially irregularly
  * spaced) altitudes. 
  */
-	if (! (dc = xs_GetGridDC (platform, fldname, dtime, alts)))
+	if (! (dc = xs_GetGridDC (comp, platform, fldname, dtime, alts)))
 		return (NULL);
 /*
  * Get the info we need from the data chunk
@@ -2817,10 +2822,8 @@ char	*name;
 
 
 static DataChunk *
-xs_GetObsDC (plat, fldname, dtime, class)
-char	*plat, *fldname;
-ZebTime *dtime;
-DataClass	*class;
+xs_GetObsDC (char *comp, char *plat, char *fldname, ZebTime *dtime, 
+	     DataClass *class)
 /*
  * Find an observation from the given platform before the current plot time
  * and within the user-specified maximum time difference.  Return
@@ -2879,6 +2882,11 @@ DataClass	*class;
 		return (NULL);
 	}
 /*
+ * Also check for the newer "limit-data-age" method
+ */
+	if (! AgeCheck (comp, plat, dtime))
+	    return (NULL);
+/*
  * Get the vertical position and field data
  */
 	fieldlist[0] = F_Lookup (Zfld);
@@ -2899,10 +2907,8 @@ DataClass	*class;
 
 
 static DataChunk *
-xs_GetGridDC (plat, fldname, dtime, alts)
-char	*plat, *fldname;
-ZebTime *dtime;
-float	*alts;
+xs_GetGridDC (char *comp, char *plat, char *fldname, ZebTime *dtime, 
+	      float *alts)
 /*
  * Find the 3d grid for the given platform before the current plot time
  * and within the user-specified maximum time difference.  Return
@@ -2920,6 +2926,7 @@ float	*alts;
 	DataClass	dclass;
 	dsDetail	det;
 	Location	loc;
+
 	RGrid		rg;
 	ZebTime		want_time;
 /*
@@ -2954,6 +2961,11 @@ float	*alts;
 		msg_ELog (EF_INFO, "No data recent enough from '%s'", plat);
 		return (NULL);
 	}
+/*
+ * Also check for the newer "limit-data-age" method
+ */
+	if (! AgeCheck (comp, plat, dtime))
+	    return (NULL);
 /*
  * Set the data class based on the platform organization
  */
@@ -3582,9 +3594,6 @@ xs_FindCV (DataChunk *dc, const char *dimname)
     else
 	return (BadField);
 }
-
-
-    
 
 
 

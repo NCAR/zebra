@@ -50,7 +50,7 @@ typedef struct {
         CARD8   pad;
 } U_XWDColor;
 
-RCSID ("$Id: Utilities.c,v 2.60 2001-04-20 08:26:27 granger Exp $")
+RCSID ("$Id: Utilities.c,v 2.61 2003-08-06 21:53:46 burghart Exp $")
 
 /*
  * Rules for image dumping.  Indexed by keyword number in GraphProc.state
@@ -404,39 +404,75 @@ int width;
 
 
 int
-AgeCheck (comp, platform, t)
-const char	*comp, *platform;
+AgeCheck (comp, plat, t)
+const char	*comp, *plat;
 ZebTime	*t;
 /*
- * If this component has an age limit, enforce it.  Return FALSE if the
- * given time is too old, relative to the plot time, or if the check is
- * disabled by an explicit age-limit of zero.
+ * If this component has an age limit, enforce it.  Return FALSE if age
+ * limits are enabled and the given time is too old relative to the plot 
+ * time.
  */
 {
-	char	limit[100];
-	int	seconds;
+	zbool	limit_data_age;
+	int	maxdiff, diff;
+	char	s[128];
 /*
- * Look for the limit.  If none exists, return TRUE.
+ * Data age check enabled?
  */
-	if (! pda_Search (Pd, comp, "age-limit", platform, limit, SYMT_STRING))
+	limit_data_age = FALSE;	/* disabled by default */
+	pda_Search (Pd, comp, "limit-data-age", plat, (char *) &limit_data_age,
+		    SYMT_BOOL);
+	if (! limit_data_age)
 		return (TRUE);
 /*
- * Turn this thing into a useful number.
- */
-	if (! (seconds = pc_TimeTrigger (limit)))
-	{
-		return (FALSE);
-	}
+ * Get the age limit
+ */	
+	if (pda_Search (Pd, comp, "data-age-limit", plat, s, SYMT_STRING))
+	    maxdiff = abs(pc_TimeTrigger (s));
+	else
+	    return (TRUE);
 /*
- * Now see how close we are.
- */
-	return ((PlotTime.zt_Sec - t->zt_Sec) <= seconds);
+ * Finally, test to see if the data are recent enough.  Treat a data
+ * age limit of zero as inifinite (i.e., display data of any age).
+ */	
+	diff = PlotTime.zt_Sec - t->zt_Sec;
+	if (maxdiff && (diff > maxdiff))
+	{
+	    msg_ELog (EF_INFO, 
+		      "%s: data for %s are too old (%ds > %ds), not displayed",
+		      comp, plat, diff, maxdiff);
+	    return (FALSE);
+	}
+	else
+	    return (TRUE);
 }
 
 
 
 
+int
+DataAgeOK (const char* comp, int pid)
+/*
+ * If this component has an age limit, enforce it.  Return FALSE if age
+ * limits are enabled and data for the given platform are too old relative 
+ * to the plot time.
+ */
+{
+    ZebTime zt;
+    const char *platname = ds_PlatformName (pid);
+/*
+ * Nearest data time
+ */
+    if (! ds_DataTimes (pid, &PlotTime, 1, DsBefore, &zt))
+    {
+	msg_ELog(EF_DEBUG, "DataAgeOK: no data before plot time for '%s'", 
+		 platname);
+	return (FALSE);
+    }
+    return (AgeCheck(comp, platname, &zt));
+}
 
+    
 
 
 
