@@ -32,7 +32,7 @@
 
 # include "GRIB.h"
 
-RCSID ("$Id: GRIB.c,v 3.4 1995-11-20 20:22:53 granger Exp $")
+RCSID ("$Id: GRIB.c,v 3.5 1996-04-03 18:18:24 burghart Exp $")
 
 typedef struct s_GRB_DataRepType {
 	int data_type;
@@ -263,6 +263,12 @@ GFpds *pds;
 	    case 2:
 		multiplier = 86400;	/* day */
 		break;
+	/*
+	 * KLUGE: we fix the length of a month at 30 days
+	 */
+	    case 3:
+		multiplier = 86400 * 30;	/* (30 day) month */
+		break;
 	    case 254:
 		multiplier = 1;		/* second */
 		break;
@@ -283,7 +289,6 @@ GFpds	*pds;
  * Return the forecast time (offset), in seconds, from the given PDS.
  */
 {
-	int multiplier = grb_TimeUnits (pds);
 /*
  * XXX: If the generating center is NCAR and the process is MM5, then
  * interpret the "forecast" times as valid times, and all offsets are zero.
@@ -300,7 +305,7 @@ GFpds	*pds;
 	    case 0:
 	    case 2:
 	    case 3:
-		return (multiplier * pds->p1);
+		return (grb_TimeUnits (pds) * pds->p1);
 	    case 1:
 		return (0);
 	/*
@@ -309,7 +314,31 @@ GFpds	*pds;
 	 */
 	    case 4:
 	    case 5:
-		return (multiplier * pds->p2);
+		return (grb_TimeUnits (pds) * pds->p2);
+	/*
+	 * Climatological Mean Value.  See the GRIB documentation for details.
+	 * We just assign the reference time.
+	 */
+	    case 51:
+		return (0);
+	/*
+	 * From the GRIB documentation: "Average of N forecasts (or
+	 * initialized analyses); each product has forcast period of P1 (P1
+	 * = 0 for initialized analyses); products have reference times at
+	 * intervals of P2, beginning at the given reference time."  We'll
+	 * just count it as being at the reference time...
+	 */
+	    case 113:
+	    case 114:
+		return (0);
+	/*
+	 * "Average of N uninitialized analyses, starting at the reference
+	 * time, at intervals of P2."  We'll just count it as being at the
+	 * reference time... 
+	 */
+	    case 123:
+	    case 124:
+		return (0);
 	    default:
 		msg_ELog (EF_PROBLEM, 
 			  "grb_Offset: Can't handle time range ID %d!",
