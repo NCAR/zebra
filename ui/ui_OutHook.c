@@ -10,13 +10,13 @@
 # include <varargs.h>
 # endif
 
-static char *rcsid = "$Id: ui_OutHook.c,v 1.6 1996-02-03 16:35:43 granger Exp $";
+static char *rcsid = "$Id: ui_OutHook.c,v 1.7 1997-05-12 22:24:04 ishikawa Exp $";
 
 /*
  * The routines we use to output normal (ui_printf) text.
  */
 
-#if !defined(hpux) && !defined(sgi) && !defined(SVR4)
+#if !defined(hpux) && !defined(sgi) && !defined(SVR4) && !defined(aix)
 extern int printf ();
 #endif 
 static void errprint ();
