@@ -3,15 +3,6 @@
 !
 
 !
-! The limit proc is easy -- just another one of these dudes calling up
-! center-step
-!
-procedure raster-limit-proc junk string
-	require ctr-step
-	popup center-step
-endprocedure
-
-!
 ! The right button menu.
 !
 define widget raster-right intmenu 'x'
@@ -116,6 +107,85 @@ endprocedure
 
 procedure raster-rep rep string
 	parameter #icon_component representation #rep
+endprocedure
+
+!
+! Custom center/step/nsteps popup
+!
+procedure raster-limit-proc junk string
+	popup raster-center-step
+endprocedure
+
+define widget raster-center-step form 'Center and step adjustment'
+	popup raster-ctr-step-popup
+	noheader
+!
+! title/zeb line.
+!
+	label l1 'Raster center/step/nsteps limits'
+	button help 'Help' command 'help limits'
+	button apply 'Apply' command 'raster-ctr-step-apply'
+	button zap 'Dismiss' color red command 'popdown #ui$form'
+	newline
+!
+! The actual center and step if they want to tweak it.
+!
+	label lcenter 'Center: '
+	blank center '0.0' width 60 
+	label lstep ' Step: '
+	blank step '0.0' width 60
+	label lnstep ' # of Steps:'
+	blank nsteps '11' width 60
+enddef
+
+
+!
+! The popup procedure for the center/step/nsteps form.
+!
+procedure raster-ctr-step-popup
+!
+! Pull some basic info.
+!
+	local f ui$form
+	local rep pd_param(icon_component,'representation','string')
+	if (rep = 'filled-contour')
+		local rep 'contour'
+	endif
+	local field pd_param(icon_component,'field','string')
+	local plat pd_param(icon_component, 'platform', 'string')
+!
+! Pull in the center/step/nstep values.
+!
+	local param concat(field, '-center')
+	local value pd_ParamSearch(icon_component, param, rep, 'string')
+	formtext #f center #value
+	local param concat(field, '-step')
+	local value pd_ParamSearch(icon_component, param, rep, 'string')
+	formtext #f step #value
+	local param concat(field, '-nsteps')
+	local value pd_ParamSearch(icon_component, param, rep, 'string')
+	formtext #f nsteps #value
+endprocedure
+
+
+
+!
+! Apply all the junk they just put in.
+!
+procedure raster-ctr-step-apply
+	parameter global 'plot-hold' 'true'
+	local f ui$form
+	local center getftext(f, 'center')
+	local step getftext(f, 'step')
+	local nsteps getftext(f, 'nsteps')
+	local field pd_param(icon_component, 'field', 'string')
+	local param concat(field, '-center')
+	parameter #icon_component #param #center
+	local param concat(field, '-step')
+	parameter #icon_component #param #step
+	local param concat(field, '-nsteps')
+	parameter #icon_component #param #nsteps
+	parameter global 'plot-hold' 'false'
 endprocedure
 
 require color-table

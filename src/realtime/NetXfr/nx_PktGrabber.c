@@ -32,7 +32,7 @@
 # include "DataStore.h"
 # include "NetXfr.h"
 
-RCSID("$Id: nx_PktGrabber.c,v 3.6 1995-06-29 22:40:06 granger Exp $")
+RCSID("$Id: nx_PktGrabber.c,v 3.7 1995-09-20 20:46:02 burghart Exp $")
 
 /*
  * The header of our shared memory segment.
@@ -303,7 +303,7 @@ Message *msg;
 	    */
 	   case MT_MESSAGE:
 	   	tmpl = (struct mh_template *) msg->m_data;
-		if (tmpl->mh_type == MH_DIE)
+		if (tmpl->mh_type == MH_DIE || tmpl->mh_type == MH_SHUTDOWN)
 			exit (0);
 		else
 			msg_ELog (EF_PROBLEM, "Weird MH msg %d",tmpl->mh_type);

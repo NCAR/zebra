@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: ds_consumer.c,v 2.6 1993-08-18 15:25:27 burghart Exp $";
+static char *rcsid = "$Id: ds_consumer.c,v 2.7 1995-09-20 20:45:42 burghart Exp $";
 
 # include <copyright.h>
 # include <defs.h>
@@ -27,14 +27,17 @@ static char *rcsid = "$Id: ds_consumer.c,v 2.6 1993-08-18 15:25:27 burghart Exp 
 # include <DataStore.h>
 # include <ImageXfr.h>
 
-
+/*
+ * How many fields can we consume?
+ */
+# define MFIELD 8
 
 /*
  * Globals.
  */
 int 	XRes, YRes, NField;
-char	*Fields[MAXFIELD];
-FieldId	Fids[MAXFIELD];
+char	*Fields[MFIELD];
+FieldId	Fids[MFIELD];
 PlatformId 	Plat;
 struct _ix_desc	*ShmDesc;
 
@@ -142,8 +145,8 @@ int set;
 	Location loc;
 	UItime t;
 	ZebTime zt;
-	ScaleInfo scale[MAXFIELD];
-	char *images[4], *attr;
+	ScaleInfo scale[MFIELD];
+	char *images[MFIELD], *attr_string;
 	int xmin, ymin, xmax, ymax, i, offset;
 	static float PrevAlt = -99;
 	DataChunk *dc;
@@ -152,7 +155,7 @@ int set;
  */
 	msg_ELog (EF_DEBUG, "Grabbing frame...");
 	if (! IX_GetReadFrame (ShmDesc, set, images, &t, &rg, &loc, scale,
-			&xmin, &ymin, &xmax, &ymax, &attr))
+			&xmin, &ymin, &xmax, &ymax, &attr_string))
 	{
 		msg_ELog (EF_PROBLEM, "Can't get promised set %d", set);
 		return;
@@ -180,10 +183,14 @@ int set;
 		dc_ImgAddImage (dc, 0, Fids[i], &loc, &rg, &zt,
 				images[i] + offset, 0);
 /*
+ * Add our attributes
+ */
+	dc_SetGlobalAttr (dc, attr_string, "");
+/*
  * Send it, but only if there's something real.
  */
 	if (ymin < ymax)
-		ds_Store (dc, ! strncmp (attr, "newfile", 7), NULL, 0);
+		ds_Store (dc, ! strncmp (attr_string, "newfile", 7), NULL, 0);
 	else
 		msg_ELog (EF_INFO, "Dropping empty image");
 

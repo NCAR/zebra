@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.14 1995-07-06 04:28:38 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.15 1995-09-20 20:45:33 burghart Exp $"
 
 LIBS = $(DFALIBS) $(ZLIBS) $(XLIBS) $(LIBPCAP)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
@@ -50,6 +50,9 @@ NormalProgramTarget(btest, btest.o BeamBuffer.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
 NormalProgramTarget(bdump, bdump.o BeamBuffer.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
+AllTarget(RadarStatus)
+NormalProgramTarget(RadarStatus,RadarStatus.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
+
 AllTarget(adrad_ingest)
 NormalProgramTarget(adrad_ingest,adrad_ingest.o Rasterize.o 
 	adradInput.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
@@ -60,6 +63,13 @@ CompleteProgramTarget(adradFieldList,
 AllTarget(UFIngest)
 NormalProgramTarget(UFIngest,UFIngest.o Rasterize.o 
 	UFInput.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
+
+AllTarget(ds_consumer)
+NormalProgramTarget(ds_consumer,ds_consumer.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
+
+AllTarget(RGridConsumer)
+NormalProgramTarget(RGridConsumer,RGridConsumer.o,$(DEPLIBS),$(LIBS),\
+	$(SYSLIBS))
 
 UILoadFileTarget(radar_ingest.lf,radar_ingest.state)
 
@@ -75,13 +85,13 @@ InstallProgramSetUID(adrad_ingest,$(BINDIR))
 
 InstallProgramSetUID(UFIngest,$(BINDIR))
 
+InstallProgramSetUID(ds_consumer,$(BINDIR))
+
 InstallAppDefaults(radar_ingest)
 
 InstallAppDefaults(adrad_ingest)
 
 InstallAppDefaults(UFIngest)
-
-CompleteProgramTarget(ds_consumer,ds_consumer.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
 LintTarget()
 DependTarget()

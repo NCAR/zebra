@@ -31,7 +31,7 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 
-MAKE_RCSID ("$Id: Utilities.c,v 2.35 1995-08-03 21:00:28 corbet Exp $")
+MAKE_RCSID ("$Id: Utilities.c,v 2.36 1995-09-20 20:45:10 burghart Exp $")
 
 /*
  * Rules for image dumping.  Indexed by keyword number in GraphProc.state
@@ -1027,8 +1027,8 @@ ZebTime		*dtime;
  */
 	if (pda_Search (Pd, c, "radar-space", NULL, (char *) &rspace,
 			SYMT_BOOL) && rspace &&
-			(! pda_Search (Pd, c, "every-sweep",
-				NULL, (char *) &all, SYMT_BOOL)	|| !all))
+	    (! pda_Search (Pd, c, "every-sweep", NULL, (char *) &all, 
+			   SYMT_BOOL) || !all))
 	{
 		char cattr[200], *attr = NULL;
 	/*
@@ -1052,11 +1052,13 @@ ZebTime		*dtime;
 		nsample = ds_GetObsSamples (pid, dtime, stimes, slocs, 60);
 		cdiff = 99.9;
 		for (samp = 0; samp < nsample; samp++)
+		{
 			if (ABS (alt - slocs[samp].l_alt) < cdiff)
 			{
 				cdiff = ABS (alt - slocs[samp].l_alt);
 				*dtime = stimes[samp];
 			}
+		}
 	/*
 	 * If we don't come within a degree, drop back to the previous
 	 * one and try one more time.
@@ -1064,16 +1066,19 @@ ZebTime		*dtime;
 		if (cdiff > 1.0 && ntime > 1)
 		{
 			nsample = ds_GetObsSamples (pid, obstimes + 1, stimes,
-					slocs, 60);
-			for (samp = 0; samp < nsample; samp++)
+						    slocs, 60);
+			for (samp = 0; samp < nsample; samp++) 
+			{
 				if (ABS (alt - slocs[samp].l_alt) < cdiff)
 				{
-				msg_ELog (EF_DEBUG, "Drop back case");
+					msg_ELog (EF_DEBUG, "Drop back case");
 					cdiff = ABS (alt - slocs[samp].l_alt);
 					*dtime = stimes[samp];
 				}
+			}
 		}
 	}
+<<<<<<< Utilities.c
 
 	return (1);
 }
@@ -1129,4 +1134,100 @@ float *latspacing, *lonspacing;
 	*latspacing = lat1 - origin.l_lat;
 	*lonspacing = lon1 - origin.l_lon;
 	return (TRUE);
+||||||| 2.32.2.1
+
+	return (1);
+=======
+	
+	return (1);
+}
+
+
+
+
+bool
+ClosestRHI (c, pid, wanted_azim, dtime, azim)
+char    *c;
+PlatformId      pid;
+double          wanted_azim;    /* in degrees clockwise from north */
+ZebTime         *dtime;
+float           *azim;
+/*
+ * Find an RHI radar sweep for the given platform, from the volume at or
+ * before dtime.  If the "every-sweep" parameter is not in the plot
+ * component or is set explicitly to false, we choose the sweep with the
+ * smallest angular difference from wanted_azim.  If "every-sweep" is present
+ * AND true, then we simply return the sweep closest to dtime.  We return
+ * true if a scan is found, false otherwise. 
+ * 
+ * On successful exit:
+ *      dtime           - holds the time of the sweep found
+ *      azim            - the azimuth of the sweep found, in degrees clockwise
+ *                        from north
+ */
+{
+	ZebTime stimes[60], obstime, wanted_time;
+	int     nsample, samp, ntime;
+	float   diff, mindiff;
+	bool    matchazim, everysweep;
+	Location        slocs[60];
+/*
+ * Find out when we can really get data.
+ */
+	if (! (ntime = ds_GetObsTimes (pid, dtime, &obstime, 1, "rhi")))
+	{
+		msg_ELog (EF_INFO, "ClosestRHI: No RHI data for %s before %s",
+			  ds_PlatformName (pid), TC_AscTime (dtime, TC_Full));
+		return (0);
+	}
+	
+	*dtime = obstime;
+/*
+ * Unless they have specified that they want every sweep, we find the one
+ * with the closest azimuth match.
+ */
+	everysweep = FALSE;
+	pda_Search (Pd, c, "every-sweep", NULL, (char *) &everysweep, 
+		    SYMT_BOOL);
+	
+	matchazim = !everysweep;
+	
+	if (matchazim)
+	{
+	/*
+	 * Get the sweeps from the volume and figure out which is most nearly
+	 * parallel to azimuth.
+	 */
+		if (! (nsample = ds_GetObsSamples (pid, &obstime, stimes, 
+						   slocs, 60)))
+		{
+			msg_ELog (EF_PROBLEM, "ClosestRHI: No observations!");
+			return (0);
+		}
+
+		mindiff = 999.0;
+
+		for (samp = 0; samp < nsample; samp++)
+		{
+		/*
+		 * OK, a reasonably big kluge here.  For RHI sweeps in a raster
+		 * file, the "altitude" is actually the azimuth of the sweep...
+		 */
+			diff = slocs[samp].l_alt - wanted_azim;
+			while (diff > 90.0)
+				diff -= 180.0;
+			while (diff < -90.0)
+				diff += 180.0;
+
+                        if (ABS (diff) < mindiff)
+			{
+				mindiff = ABS (diff);
+				*azim = slocs[samp].l_alt;
+				*dtime = stimes[samp];
+			}
+		}
+	}
+	
+	return (1);
+>>>>>>> /tmp/T4a10010
 }

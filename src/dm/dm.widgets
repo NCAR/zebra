@@ -1,7 +1,7 @@
 !
 ! Display manager widgets.
 !
-! $Id: dm.widgets,v 1.24 1995-04-18 22:18:35 granger Exp $
+! $Id: dm.widgets,v 1.25 1995-09-20 20:39:37 burghart Exp $
 !
 
 define widget SaveConfig form 'Configuration saver'
@@ -299,6 +299,9 @@ procedure sendout comp string target string
 	add #comp #comp #target_win #position
 endprocedure
 
+procedure putc0 comp string
+	sendout #comp 'pick'
+endprocedure
 
 procedure putc1 comp string param string value string
 !

@@ -41,7 +41,7 @@
  */
 int	AltControlComp;
 
-MAKE_RCSID("$Id: AltControl.c,v 2.15 1995-06-09 16:49:57 granger Exp $")
+MAKE_RCSID("$Id: AltControl.c,v 2.16 1995-09-20 20:44:41 burghart Exp $")
 
 # define MAXALT		80	/* Max heights we expect to see		*/
 
@@ -66,6 +66,7 @@ alt_Initialize ()
  * Find the control component
  */
 	alt_GetControlComp ();
+# ifdef notdef
 /*
  * Now set the "altitude" and "altitude-label" parameters if we don't have them
  */
@@ -73,6 +74,7 @@ alt_Initialize ()
 			  SYMT_FLOAT) ||
 	    ! pda_Search (Pd, "global", "altitude-label", NULL, label,
 			  SYMT_STRING))
+# endif
 		alt_SetAlt (0);
 }
 
@@ -85,7 +87,7 @@ alt_GetControlComp ()
 {
 	char altcomp[80], **comps = pd_CompList (Pd);
 	char plat[PlatformListLen];
-	bool control;
+	bool control, disabled;
 	int i;
 /*
  * Algorithm for finding the control component:
@@ -101,7 +103,7 @@ alt_GetControlComp ()
 				break;
 		if (comps[i]) 	/* Disabled? */
 		{
-			bool disabled = FALSE;
+			disabled = FALSE;
 			if (! pda_Search (Pd, comps[i], "disable", NULL, 
 				(char *) &disabled, SYMT_BOOL) || ! disabled)
 			{
@@ -125,7 +127,13 @@ alt_GetControlComp ()
 		if (! pda_Search (Pd, comps[i], "platform", NULL, plat,
 					SYMT_STRING))
 			continue;	/* No plat?? */
-		if (pda_Search (Pd, comps[i], "altitude-control", plat,
+
+		disabled = FALSE;
+		if (pda_Search (Pd, comps[i], "disable", NULL, 
+				(char *) &disabled, SYMT_BOOL) && disabled)
+			continue;
+		
+		if (pda_Search (Pd, comps[i], "altitude-control", NULL,
 				(char *) &control, SYMT_BOOL) && control)
 		{
 			AltControlComp = i;
@@ -170,7 +178,7 @@ int nstep;
  */
 {
 	int nalt, closest = 0, i;
-	bool rspace, have_target;
+	bool rspace, have_target, use_latest = FALSE;
 	float alts[MAXALT], target_alt, dist, temp;
 	char platform[PlatformListLen];
 	char *comma;
@@ -273,6 +281,13 @@ int nstep;
 				  platform);
 			return;
 		}
+	/*
+	 * In real-time "every-sweep" mode (i.e., show the latest sweep mode),
+	 * we'll just be using the last alt in the list.
+	 */
+		use_latest = FALSE;
+		pda_Search (Pd, comps[AltControlComp], "every-sweep", NULL,
+			    (char *) &use_latest, SYMT_BOOL);
 	}
 /*
  * Existing "altitude" becomes a target starting place.  Otherwise, we'll
@@ -283,7 +298,9 @@ int nstep;
 /*
  * Now go through and find the closest one to our target.
  */
-	if (have_target)
+	if (use_latest)
+		closest = nalt - 1;
+	else if (have_target)
 	{
 		closest = 0;
 		dist = ABS (alts[0] - target_alt);
@@ -322,7 +339,7 @@ int nstep;
 	}
 	else
 	{
-		sprintf (scratch, "Elev: %.1f deg", alts[closest]);
+		sprintf (scratch, "%.1f deg", alts[closest]);
 		pd_Store (Pd, "global", "altitude-label", scratch,
 			  SYMT_STRING);
 	}
@@ -373,6 +390,7 @@ float *alts;
 	nalt = ds_GetObsSamples (pid, otimes, stimes, locs, MAXALT);
 	for (i = 0; i < nalt; i++)
 		alts[i] = locs[i].l_alt;
+# ifdef notdef
 /*
  * Now look at the previous observation and get any tilts higher than
  * what we have here.
@@ -385,5 +403,6 @@ float *alts;
 			if (locs[i].l_alt > alts[nalt - 1])
 				alts[nalt++] = locs[i].l_alt;
 	}
+# endif
 	return (nalt);
 }

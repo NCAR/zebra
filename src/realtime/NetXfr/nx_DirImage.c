@@ -26,7 +26,7 @@
 # include <ImageXfr.h>
 # include "NetXfr.h"
 
-RCSID("$Id: nx_DirImage.c,v 3.4 1995-06-29 22:40:01 granger Exp $")
+RCSID("$Id: nx_DirImage.c,v 3.5 1995-09-20 20:46:00 burghart Exp $")
 
 /*
  * We're only set up to deal with one image source for now.  Should
@@ -95,13 +95,29 @@ int set;
 	Location loc;
 	UItime t;
 	ZebTime zt;
+<<<<<<< nx_DirImage.c
 	ScaleInfo scale[2];
 	unsigned char *images[4];
 	char *attr;
+||||||| 3.3.2.1
+	ScaleInfo scale[2];
+	char *images[4], *attr;
+=======
+	ScaleInfo *scale = 0;
+	char **images = 0;
+	char *attr;
+>>>>>>> /tmp/T4a10723
 	int xmin, ymin, xmax, ymax, i, offset;
-	static float PrevAlt = -99;
 	float junk;
 	DataChunk *dc;
+/*
+ * Initialize the first time around
+ */
+	if (! scale)
+	{
+		scale = (ScaleInfo *) malloc (NField * sizeof (ScaleInfo));
+		images = (char **) malloc (NField * sizeof (char *));
+	}
 /*
  * Grab it.
  */
@@ -157,10 +173,9 @@ int set;
  * Send it, but only if there's something real.
  */
 	if (ymin < ymax && xmin < xmax)
-		SendDChunk (dc, PrevAlt > loc.l_alt);
+		SendDChunk (dc, strstr (attr,"newfile"));
 	else
 		msg_ELog (EF_INFO, "Dropping empty image");
-	PrevAlt = loc.l_alt;
 	dc_DestroyDC (dc);
 }
 

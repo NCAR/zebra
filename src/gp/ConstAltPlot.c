@@ -44,7 +44,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.58 1995-09-06 18:13:43 granger Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.59 1995-09-20 20:44:45 burghart Exp $")
 
 
 /*
@@ -2008,10 +2008,17 @@ ZebTime *t;
  * platform, field, altitude, and time.
  */
 {
-	char	string[120];
+	char	string[120], anglabel[16];
+	bool	rspace = FALSE;
+
+	pd_Retrieve (Pd, comp, "radar-space", (char *) &rspace, SYMT_BOOL);
+	if (rspace)
+		sprintf (anglabel, "%.1f deg.", alt);
+		
+
 
 	sprintf (string, "%-14s %-10s %-10s %-14s ", comp, plat, fname,
-		 au_AltLabel (alt, altunits));
+		 rspace ? anglabel : au_AltLabel (alt, altunits));
 	TC_EncodeTime (t, TC_Full, string + strlen (string));
 	strcat (string, "\n");
 

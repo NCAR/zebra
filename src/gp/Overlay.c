@@ -27,7 +27,7 @@
 # include <config.h>
 # include <defs.h>
 
-RCSID("$Id: Overlay.c,v 2.47 1995-08-31 18:02:15 granger Exp $")
+RCSID("$Id: Overlay.c,v 2.48 1995-09-20 20:44:51 burghart Exp $")
 
 # include <pd.h>
 # include <GraphicsW.h>
@@ -86,6 +86,14 @@ typedef enum
 # define LATDEG_TO_KM(lat) (DEG_TO_KM (lat))
 # define KM_TO_LATDEG(ykm) (KM_TO_DEG (ykm))
 # define KM_TO_LONDEG(xkm,olat) (KM_TO_DEG((xkm)/cos(DEG_TO_RAD(olat))))
+<<<<<<< Overlay.c
+||||||| 2.43.2.1
+# define TOLERANCE  (0.0001)
+=======
+# define TOLERANCE  (0.0001)
+# define NM_TO_KM	(1.609344 * 6080.0 / 5280.0)
+# define KM_TO_NM	(0.62137119 * 5280.0 / 6080.0)
+>>>>>>> /tmp/T4a09958
 
 
 typedef enum { FText, FCircle, FMarker } FeatureType;
@@ -152,7 +160,7 @@ static bool 	ov_GetBndParams FP ((char *, char *, XColor *, int *, bool *,
 			LabelOpt *, char *, float *, int *, char *, int *));
 static int 	ov_RRInfo FP ((char *, char *, Location *, float *, float *,
 			float *, float *, int *, float *, XColor *, int *,
-			float *, bool *));
+			float *, bool *, bool *));
 static OvIcon 	*ov_GetIcon FP ((char *));
 static int 	ov_LocSetup FP ((char *, char **, int *, char *, LabelOpt *,
 			char *, bool *, float *, int *));
@@ -1363,7 +1371,7 @@ int update;
  */
 {
 	Location loc;
-	bool dolabels;
+	bool dolabels, do_nm;
 	float ringint, azint, rannot, aannot, maxrange, x, y, az, azoff;
 	float radius, azrad, textrot;
 	int lastring, ring, lwidth, px, py, pradius, farx, fary;
@@ -1374,8 +1382,16 @@ int update;
  */
 	if (! ov_RRInfo (comp, platform, &loc, &ringint, &azint, &rannot,
 			 &aannot, &lastring, &maxrange, &xc, &lwidth, &azoff,
-			 &dolabels))
+			 &dolabels, &do_nm))
 		return;
+/*
+ * Convert the ring interval to km if necessary
+ */
+	if (do_nm)
+	{
+		ringint *= NM_TO_KM;
+		aannot *= NM_TO_KM;
+	}
 /*
  * Set up the graphics context.
  */
@@ -1389,11 +1405,15 @@ int update;
 	prj_Project (loc.l_lat, loc.l_lon, &x, &y);
 	for (ring = 1; ring <= lastring; ring++)
 	{
+		int labelval;
+
 		radius = ring * ringint;
+		labelval = (do_nm ? (int)(radius * KM_TO_NM + 0.5) : 
+			    (int)(radius + 0.5));
 	/*
 	 * Ring
 	 */
-		px = XPIX (x - radius); 
+		px = XPIX (x - radius);
 		py = YPIX (y + radius);
 		pradius = XPIX (x + radius) - XPIX (x);
 		XDrawArc (Disp, GWFrame (Graphics), Gcontext, px, py, 
@@ -1404,7 +1424,7 @@ int update;
 		if (! dolabels)
 			continue;
 
-		sprintf (label, "%d", (int)(radius + 0.5));
+		sprintf (label, "%d%s", labelval, (do_nm ? " NM" : ""));
 		
 		azrad = DEG_TO_RAD (90.0 - rannot);
 		px = XPIX (x + radius * cos (azrad));
@@ -1456,13 +1476,13 @@ int update;
 
 static int
 ov_RRInfo (comp, platform, loc, ringint, azint, rannot, aannot, lastring,
-		maxrange, xc, lwidth, azoff, dolabels)
+		maxrange, xc, lwidth, azoff, dolabels, do_nm)
 char *comp, *platform;
 Location *loc;
 float *ringint, *maxrange, *azint, *rannot, *aannot, *azoff;
 int *lastring, *lwidth;
 XColor *xc;
-bool *dolabels;
+bool *dolabels, *do_nm;
 /*
  * Get all of the parameters which control the plotting of range rings.
  */
@@ -1505,6 +1525,12 @@ bool *dolabels;
  */
 	*dolabels = TRUE;
 	pda_Search (Pd, comp, "do-labels", "range-ring", (char *) dolabels,
+		    SYMT_BOOL);
+/*
+ * Nautical miles instead of km?
+ */
+	*do_nm = FALSE;
+	pda_Search (Pd, comp, "do-nm", "range-ring", (char *) do_nm, 
 		    SYMT_BOOL);
 /*
  * Find out where to annotate.

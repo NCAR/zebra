@@ -21,7 +21,11 @@ endmenu
 !
 ! Right button menu.
 !
-define widget rings-right intmenu 'x'
+set wname 'rings-right'
+if (defined (concat ('ui$widget_table:', wname)))
+	set wname concat('default-',wname)
+endif
+define widget #wname intmenu 'x'
 	title 'Range ring options'
 	line
 	entry '10 km rings' 'parameter #icon_component ring-interval 10' \

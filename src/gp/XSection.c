@@ -43,7 +43,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: XSection.c,v 2.30 1995-08-28 21:42:55 granger Exp $")
+RCSID ("$Id: XSection.c,v 2.31 1995-09-20 20:45:15 burghart Exp $")
 
 /*
  * General definitions
@@ -186,6 +186,8 @@ void	xs_Init FP ((UItime *));
 void	xs_LineContour FP ((char *, int));
 void	xs_FilledContour FP ((char *, int));
 void	xs_Vector FP ((char *, int));
+void	xs_Raster FP ((char *, int));
+void	xs_Track FP ((char *, int));
 static void	xs_Contour FP ((char *, int)); 
 static void	xs_ZZContour FP ((char *, char **, int, char *));
 static void	xs_PlaneContour FP ((char *, char **, int, char *));
@@ -668,7 +670,7 @@ bool	update;
 		pda_Search (Pd, c, "color", "xsect", cname, SYMT_STRING);
 	if (! ct_GetColorByName (cname, &Ccolor))
 	{
-		msg_ELog (EF_PROBLEM, "Can't get arrow color '%s'!", cname);
+		msg_ELog (EF_PROBLEM, "Cannot get arrow color '%s'!", cname);
 		return;
 	}
 
@@ -1959,7 +1961,7 @@ ZebTime	*dtime;
 	if (rg.rg_nX < 2 || rg.rg_nY < 2 || rg.rg_nZ < 2)
 	{
 		msg_ELog (EF_INFO, 
-		  "xs_Bilinear: Can't interpolate from %dx%dx%d %s data",
+		  "xs_Bilinear: Cannot interpolate from %dx%dx%d %s data",
 		  rg.rg_nX, rg.rg_nY, rg.rg_nZ, platform);
 
 		plane = (DPlane *) malloc (sizeof (DPlane));
@@ -2293,7 +2295,7 @@ xs_Background ()
 
 	XSetForeground (XtDisplay (Graphics), Gcontext, White.pixel);
 	XDrawLines (XtDisplay (Graphics), GWFrame (Graphics), Gcontext, pts, 
-		5, CoordModeOrigin);
+		    5, CoordModeOrigin);
 /*
  * Get the lower and upper limits of the vertical axes
  */
@@ -3110,5 +3112,289 @@ float		*alts;
 	free (grid);
 	return (rdc);
 }
+
+
+
+void
+xs_Raster (c, update)
+char	*c;
+bool	update;
+/*
+ * Project a vertical raster image onto our cross-section plane
+ */
+{
+	bool	ok, image, xiraster;
+	int	nplat, nsteps;
+	char	platform[PlatformListLen];
+	char	*pnames[MaxPlatforms], fldname[20], cname[20], hcolor[20];
+	char	param[50], outrange[40], *igrid = 0;
+	float	center, step, step_per_color, hrange, hvalue, alt, *fgrid = 0;
+	float	xleft, xright, yleft, yright, max, min, d_left, d_right;
+	float	bot, top, wanted_azim, azim, hlen, ang;
+	int	hdim, vdim, shifted, highlight;
+	int	pix_x0, pix_x1, pix_y0, pix_y1;
+	FieldId	fid;
+	ZebTime	zt;
+	RGrid	rg;
+	XColor	xc, xoutr;
+	ScaleInfo	scale;
+	XRectangle	clip;
+	Location	loc;
+	PlatformId	pid;
+	DataChunk	*dc;
+	DataOrganization	org;
+/*
+ * Platform
+ */
+	if (Zig_zag)
+	{
+		msg_ELog (EF_INFO, 
+			  "Cannot do raster plot on a zig-zag cross-section");
+		return;
+	}
+	else
+		ok = pda_ReqSearch (Pd, c, "platform", NULL, platform, 
+				    SYMT_STRING);
+/*
+ * Field
+ */
+	ok &= pda_ReqSearch (Pd, c, "field", NULL, fldname, SYMT_STRING);
+/*
+ * Autoscale?
+ */
+	if (pda_Search (Pd, c, "scale-mode", NULL, param, SYMT_STRING))
+		Autoscale = ! strncmp (param, "auto", 4);
+	else
+		Autoscale = FALSE;
+/*
+ * Scale and color table info
+ */
+	if (ok && ! Autoscale)
+	{
+		sprintf (param, "%s-center", fldname);
+		ok &= pda_ReqSearch (Pd, c, param, "raster", (char *) &center, 
+				     SYMT_FLOAT);
+
+		sprintf (param, "%s-step", fldname);
+		ok &= pda_ReqSearch (Pd, c, param, "raster", (char *) &step, 
+				     SYMT_FLOAT);
+
+		nsteps = 11;
+		sprintf (param, "%s-nsteps", fldname);
+		pda_Search (Pd, c, param, "raster", (char *) &nsteps, 
+			    SYMT_INT);
+
+		if (! ok)
+		{
+			msg_ELog (EF_PROBLEM, 
+				  "xs_Raster: forcing autoscaling");
+			ok = Autoscale = TRUE;
+		}
+	}
+		
+	ok &= pda_ReqSearch (Pd, c, "color-table", "raster", cname, 
+			     SYMT_STRING);
+/*
+ * Out of range color?
+ */
+	Do_outrange = TRUE;
+	strcpy (outrange, "black");
+	pda_Search (Pd, c, "out-of-range-color", NULL, outrange, SYMT_STRING);
+
+	if (! strcmp (outrange, "none"))
+		Do_outrange = FALSE;
+	else if (! ct_GetColorByName (outrange, &C_outrange))
+		ct_GetColorByName ("black", &C_outrange);
+/*
+ * Give up if we didn't get all the required parameters
+ */
+	if (! ok)
+		return;
+/*
+ * Load the color table
+ */
+	ct_LoadTable (cname, &Colors, &Ncolors);
+/*
+ * Get our platform
+ */
+	nplat = CommaParse (platform, pnames);
+	if (nplat > 1)
+		msg_ELog (EF_INFO, 
+			  "Only the first platform is used by xs_Raster()");
+/*
+ * Make sure the platform is other than bogus, and get its organization.
+ */
+	if ((pid = ds_LookupPlatform (pnames[0])) == BadPlatform)
+	{
+		msg_ELog (EF_PROBLEM, "xs_Raster: Unknown platform '%s'", 
+			  pnames[0]);
+		return;
+	}
+	if ((org = ds_PlatformDataOrg (pid)) == OrgImage)
+		image = TRUE;
+# ifdef notdef
+	else if (org == Org3dGrid || org == Org2dGrid || org == OrgNSpace)
+		image = FALSE;
+# endif
+	else
+	{
+		msg_ELog (EF_PROBLEM, "xs_Raster: Cannot do raster plot of %s",
+			  pnames[0]);
+		return;
+	}
+/*
+ * Get info for highlighting and area.
+ */
+	highlight = FALSE;
+	sprintf (param, "%s-highlight-range", fldname);
+
+	hrange = 0.0;
+	pda_Search (Pd, c, param, "raster", (char *) &hrange, SYMT_FLOAT);
+	if (hrange != 0.0)
+	{
+		highlight = TRUE;
+
+		strcpy (hcolor, "white");
+		sprintf (param, "%s-highlight-color", fldname);
+		pda_Search (Pd, c, param, "raster", hcolor, SYMT_STRING);
+
+		hvalue = 0.0;
+		sprintf (param, "%s-highlight", fldname);
+		pda_Search (Pd, c, param, "raster", (char *) &hvalue, 
+			    SYMT_FLOAT);
+	}
+/*
+ * Set user coordinates for the graphics
+ */
+	Xlo = 0.0;
+	Xhi = P_len;
+	Ylo = P_bot;
+	Yhi = P_bot + P_hgt;
+/*
+ * Get the data (pass in plot time, get back actual data time)
+ */
+	zt = PlotTime;
+	if (image)
+	{
+		wanted_azim = 90.0 - RAD_TO_DEG (atan2 (Y1-Y0, X1-X0));
+
+		if (! ClosestRHI (c, pid, wanted_azim, &zt, &azim))
+			return;
+
+		fid = F_Lookup (fldname);
+		if (!(dc = ds_Fetch (pid, DCC_Image, &zt, &zt, &fid, 1, 
+				     NULL, 0)))
+			return;
+
+		igrid = dc_ImgGetImage (dc, 0, fid, &loc, &rg, NULL, &scale);
+	/*
+	 * In kluged RHI raster files, x is the horizontal dimension, and y
+	 * is the vertical dimension.
+	 */
+		hdim = rg.rg_nX;
+		vdim = rg.rg_nY;
+		hlen = (rg.rg_nX - 1) * rg.rg_Xspacing;
+
+		cvt_ToXY (loc.l_lat, loc.l_lon, &xleft, &yleft);
+
+
+		ang = DEG_TO_RAD (90.0 - azim);
+		xright = xleft + hlen * cos (ang);
+		yright = yleft + hlen * sin (ang);
+
+		bot = 0.0;
+		top = (rg.rg_nY - 1) * rg.rg_Yspacing;
+	}
+	else
+	/*
+	 * Raster plots only from image data for now
+	 */
+		msg_ELog (EF_PROBLEM, "xs_Raster: How did we get here?!");
+
+	if (!igrid && !fgrid)
+	{
+		msg_ELog (EF_INFO, "xs_Raster: Unable to get grid for %s", 
+			  pnames[0]);
+		dc_DestroyDC (dc);
+		return;
+	}
+/*
+ * Project the endpoints of the raster grid onto our plane
+ */
+	d_left = hypot (xleft-X0, yleft-Y0) *
+		cos (atan2 (yleft-Y0, xleft-X0) - atan2 (Y1-Y0, X1-X0));
+	d_right = hypot (xright-X0, yright-Y0) *
+		cos (atan2 (yright-Y0, xright-X0) - atan2 (Y1-Y0, X1-X0));
+/*
+ * If everything's off the screen, we're done.
+ */
+	if ((d_left < 0 && d_right < 0) || (d_left > P_len && d_right > P_len))
+		return;
+/*
+ * Compute screen coordinates
+ */
+	pix_x0 = XPIX (d_left);
+	pix_x1 = XPIX (d_right);
+	pix_y0 = YPIX (bot);
+	pix_y1 = YPIX (top);
+/*
+ * Clip rectangle
+ */
+	clip.x = F_X0 * GWWidth (Graphics);
+	clip.y = (1.0 - F_Y1) * USABLE_HEIGHT;
+	clip.width = (F_X1 - F_X0) * GWWidth (Graphics);
+	clip.height = (F_Y1 - F_Y0) * USABLE_HEIGHT;
+/*
+ * Draw the raster plot
+ */
+	ct_GetColorByName (hcolor, &xc);
+	max = center + (nsteps/2) * step;
+	min = center - (nsteps/2) * step;
+	RP_Init (Colors, Ncolors, C_outrange, clip, min, max, highlight, hvalue,
+		 xc, hrange);
+	
+	xiraster = TRUE;
+
+	if (image)
+		RasterImagePlot (Graphics, DrawFrame, igrid, hdim, vdim, 
+				 pix_x0, pix_y0, pix_x1, pix_y1, scale.s_Scale,
+				 scale.s_Offset);
+	else if (xiraster)
+		RasterXIPlot (Graphics, GWFrame (Graphics), fgrid, hdim, vdim, 
+			      pix_x0, pix_y0, pix_x1, pix_y1, FALSE);
+	else
+		RasterPlot (Graphics, GWFrame (Graphics), fgrid, hdim, vdim, 
+			    pix_x0, pix_y0, pix_x1, pix_y1);
+/*
+ * Free the data chunk.
+ */
+	dc_DestroyDC (dc);
+/*
+ * Draw the background and set up for side annotation.  At some point, the
+ * color bar should become more like the one in CAP_RasterSideAnnot.
+ */
+	xs_Background ();
+
+	step_per_color = (step * nsteps) / Ncolors;
+	sprintf (Scratch, "%s %s %f %f", fldname, cname, center, 
+		 step_per_color); 
+	An_AddAnnotProc (An_ColorBar, c, Scratch, strlen (Scratch), 75, TRUE, 
+			 FALSE);
+}
+
+
+
+
+void
+xs_Track (c, update)
+char	*c;
+bool	update;
+/*
+ * Project a track onto our cross-section plane
+ */
+{
+	msg_ELog (EF_INFO, "xs_Track: no cross-section tracks yet");
+}
+
 
 # endif  /* C_PT_XSECT */

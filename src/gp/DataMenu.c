@@ -32,7 +32,7 @@
 # include <DataStore.h>
 # include <ui_date.h>
 # include "GraphProc.h"
-MAKE_RCSID ("$Id: DataMenu.c,v 2.14 1995-06-29 23:28:30 granger Exp $")
+MAKE_RCSID ("$Id: DataMenu.c,v 2.15 1995-09-20 20:44:48 burghart Exp $")
 
 
 /*
@@ -352,12 +352,25 @@ ZebTime *t;
 
 /* ARGSUSED */
 static void
-ToRealTime (w, junk1, junk2)
+ToRealTime (w, xwhich, junk)
 Widget w;
-XtPointer junk1, junk2;
+XtPointer xwhich, junk;
 /*
  * Put this window into real time mode.
  */
 {
+	int	which = (int) xwhich;
+	char	cbuf[100], *plat;
+
 	parameter ("global", "plot-mode", "real-time");
+/*
+ * Allow for user-defined stuff when we go into real time mode
+ */
+	plat = EPlats[which];
+	if (pda_Search (Pd, IComp, "real-time-hook", plat, cbuf, SYMT_STRING))
+	{
+		msg_ELog (EF_DEBUG, "Real-time hook: %s", cbuf);
+		ui_perform (cbuf);
+		return;
+	}
 }

@@ -38,7 +38,7 @@
 # include "AxisControl.h"
 # include "ActiveArea.h"
 
-MAKE_RCSID ("$Id: PlotExec.c,v 2.46 1995-08-03 21:00:08 corbet Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.47 1995-09-20 20:44:58 burghart Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -179,6 +179,8 @@ static void _UncompiledFunction () { }
 	extern void	xs_LineContour FP ((char *, int));
 	extern void	xs_FilledContour FP ((char *, int));
 	extern void	xs_Vector FP ((char *, int));
+	extern void	xs_Raster FP ((char *, int));
+	extern void	xs_Track FP ((char *, int));
 # endif
 # if C_PT_TSERIES
 	extern void	ts_Plot ();
@@ -564,7 +566,7 @@ ZebTime	*t;
  * Roll back the plot time to the nearest multiple of the trigger time.
  */
 {
-	char	trigger[40], **comps;
+	char	trigger[PlatformListLen], **comps;
 	int	itrigger, seconds, i;
 	UItime	temptime,latest, avail;
 	ZebTime	ztavail;
@@ -585,47 +587,44 @@ ZebTime	*t;
 			 ((seconds / 60) % 60) * 100 + seconds % 60;
 		/* temptime.ds_yymmdd = temptime.ds_yymmdd; */
 		TC_UIToZt (&temptime, t);
+		return;
 	}
 /*
  * Otherwise we need to look at platform triggers.
  */
-	else
+	comps = pd_CompList (Pd);
+	latest.ds_yymmdd = 800101;	/* pretty early */
+	for (i = 0; comps[i]; i++)
 	{
-		comps = pd_CompList (Pd);
-		latest.ds_yymmdd = 800101;	/* pretty early */
-		for (i = 0; comps[i]; i++)
+	/*
+	 * Get the trigger platform.
+	 */
+		if (! pd_Retrieve (Pd, comps[i], "trigger", trigger,
+				   SYMT_STRING))
+			continue;
+		if (! strcmp (trigger, "platform"))
 		{
-			char platform[PlatformListLen];
-			/*
-			 * Get the trigger platform.
-			 */
-			if (! pd_Retrieve (Pd, comps[i], "trigger", platform,
-					   SYMT_STRING))
+			if (! pda_ReqSearch (Pd, comps[i], "platform",
+					     NULL, trigger, SYMT_STRING))
 				continue;
-			if (! strcmp (platform, "platform"))
-			{
-				if (! pda_ReqSearch (Pd, comps[i], "platform",
-					     NULL, platform, SYMT_STRING))
-					continue;
-			}
-			if ((pid = ds_LookupPlatform(platform)) == BadPlatform)
-				continue;
-			/*
-			 * Find the most recent time.
-			 */
-			if (!ds_DataTimes(pid,&PlotTime,1,DsBefore,&ztavail))
-				continue;
-			TC_ZtToUI (&ztavail, &avail);
-			if (DLE (latest, avail))
-				latest = avail;
 		}
-		/*
-		 * If we found something, we go with it; otherwise keep the
-		 * plot time as it was. 
-		 */
-		if (latest.ds_yymmdd > 800101) 	/* still pretty early */
-			TC_UIToZt (&latest, t);
+		if ((pid = ds_LookupPlatform(trigger)) == BadPlatform)
+			continue;
+	/*
+	 * Find the most recent time.
+	 */
+		if (!ds_DataTimes (pid, &PlotTime, 1, DsBefore, &ztavail))
+			continue;
+		TC_ZtToUI (&ztavail, &avail);
+		if (DLE (latest, avail))
+			latest = avail;
 	}
+/*
+ * If we found something, we go with it; otherwise keep the
+ * plot time as it was. 
+ */
+	if (latest.ds_yymmdd > 800101) 	/* still pretty early */
+		TC_UIToZt (&latest, t);
 }
 
 
@@ -742,11 +741,15 @@ px_Init ()
 	Plot_routines[PT_XSECT][RT_CONTOUR] = xs_LineContour;
 	Plot_routines[PT_XSECT][RT_FCONTOUR] = xs_FilledContour;
 	Plot_routines[PT_XSECT][RT_WIND] = xs_Vector;
+	Plot_routines[PT_XSECT][RT_RASTER] = xs_Raster;
+	Plot_routines[PT_XSECT][RT_TRACK] = xs_Track;
 # else
 	Plot_routines[PT_XSECT][RT_INIT] = UNCOMPILED_FUNCTION;
 	Plot_routines[PT_XSECT][RT_CONTOUR] = UNCOMPILED_FUNCTION;
 	Plot_routines[PT_XSECT][RT_FCONTOUR] = UNCOMPILED_FUNCTION;
 	Plot_routines[PT_XSECT][RT_WIND] = UNCOMPILED_FUNCTION;
+	Plot_routines[PT_XSECT][RT_RASTER] = UNCOMPILED_FUNCTION;
+	Plot_routines[PT_XSECT][RT_TRACK] = UNCOMPILED_FUNCTION;
 # endif
 # if C_PT_TSERIES
 	Plot_routines[PT_TSERIES][RT_TSERIES] = ts_Plot;	

@@ -37,14 +37,20 @@
 # include "PixelCoord.h"
 # include "GraphProc.h"
 
-RCSID ("$Id: PositionWidget.c,v 1.20 1995-08-03 21:00:12 corbet Exp $")
+RCSID ("$Id: PositionWidget.c,v 1.21 1995-09-20 20:45:04 burghart Exp $")
 
 # define PI 3.141592654
 # define MAXORG 20
+# define KM_TO_NM (0.62137119 * 5280.0 / 6080.0)
+# define KM_TO_MI (0.62137119)
+# define NM_TO_FT (6080.0)
 
 static Widget 	PosLabel = NULL, DMSButton, OrgText, OrgLabel;
 static Widget	KNButton;
+
 static char	GPOrigin[40];
+# define NOWHERE	"(none)"
+
 static int 	PWMade = FALSE, DegMinSec = TRUE, DoNm = TRUE;
 static int	CursorX = 0, 
 	        CursorY = 0; 		/* Location of last XQueryPointer  */
@@ -123,6 +129,12 @@ XtAppContext 	actx;
 		}
 	}
 /*
+ * Get our starting origin
+ */
+	strcpy (GPOrigin, NOWHERE);
+	pda_Search (Pd, "global", "getpos-default-origin", NULL, GPOrigin, 
+		    SYMT_STRING);
+/*
  * Make the bitmaps for the left and right arrow buttons.
  */
 	bm_BuildBitmaps (parent);
@@ -172,8 +184,6 @@ XtAppContext 	actx;
 /*
  * The text widget for entering the origin.
  */
-	strcpy (GPOrigin, "(none)");
-
         n = 0;
         XtSetArg (args[n], XtNfromHoriz, DMSButton); n++;
         XtSetArg (args[n], XtNfromVert, PosLabel); n++;
@@ -289,6 +299,7 @@ pw_PosDisplay ()
  */
 {
 	char	string[100], label[300], offstring[50], statusstr[100];
+	char	units[3];
 	int	x, y;
 	float	offset, lat, lon, ox, oy; 
 	double	range, azimuth, subx, suby;
@@ -341,7 +352,7 @@ pw_PosDisplay ()
  */
 	if (! GetLocation (GPOrigin, &PlotTime, &loc))
 	{
-		if (strcmp (GPOrigin, "(none)"))
+		if (strcmp (GPOrigin, NOWHERE))
 		{
 			msg_ELog (EF_PROBLEM, "Unable to locate origin '%s'.",
 				  GPOrigin);
@@ -374,21 +385,37 @@ pw_PosDisplay ()
 	suby = (double) (YUSER(y) - oy);
 
 	range = hypot (subx, suby);
-	if (DoNm)
-		range = range / 6080.0 * (5280.0 * 0.621);
 
+	strcpy (units, "km");
+
+	if (DoNm)
+	{
+		range *= KM_TO_NM;
+		subx *= KM_TO_NM;
+		suby *= KM_TO_NM;
+		strcpy (units, "Nm");
+	}
+		
 	azimuth =  atan2 (suby, subx);
-	azimuth = 90.0 - (azimuth * 180.0 / PI) + offset;
+	azimuth = 90.0 - (azimuth * 180.0 / PI) - offset;
 	if (azimuth < 0.0)
 		azimuth += 360.0;
 
-	sprintf (string, "Az: %.0f  Range: %.0f %s\n\n", azimuth, range, 
-		DoNm ? "Nm" : "km");
+	sprintf (string, "Az: %.0f  Range: %.1f %s\n\n", azimuth, range, 
+		 units);
+	
 	strcat (label, string);
 /*
  * Calculate x and y.
  */
-	sprintf (string, "x: %.1f km  y: %.1f km\n\n", subx, suby);
+	
+	sprintf (string, "x: %.1f %s  y: %.1f %s", subx, units, suby, units);
+	if (DoNm)
+		sprintf (string + strlen (string), 
+			 " (%.0f ft)", suby * NM_TO_FT);
+	
+	sprintf (string + strlen (string), "\n\n");
+
 	strcat (label, string);
 /*
  * Say what its relative to.

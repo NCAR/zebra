@@ -27,7 +27,7 @@
 # include "HouseKeeping.h"
 # include "radar_ingest.h"
 
-MAKE_RCSID ("$Id: cp2.c,v 2.1 1995-04-07 21:05:35 corbet Exp $")
+MAKE_RCSID ("$Id: cp2.c,v 2.2 1995-09-20 20:45:40 burghart Exp $")
 
 
 /*
@@ -78,6 +78,7 @@ static void CP2_SetupPower FP ((Housekeeping *, CP2DerInfo *, ScaleInfo *));
 static void CP2_SetupRefl FP ((Housekeeping *, CP2DerInfo *, ScaleInfo *,
 		int));
 static void CP2_SetupZDR FP ((Housekeeping *, CP2DerInfo *, ScaleInfo *));
+static void CP2_SetupLDR FP ((Housekeeping *, CP2DerInfo *, ScaleInfo *));
 static void CP2_SetupSX FP ((Housekeeping *, CP2DerInfo *, ScaleInfo *));
 static int CP2_FindParam FP ((Housekeeping *, int));
 static float CP2_s_radcon FP ((Housekeeping *));
@@ -179,7 +180,7 @@ ScaleInfo *scale;
 			ABS (hk->avg_xmit_pwr - SvATP) > 5 ||
 			hk->prfx10 != SvPRF)
 	{
-		msg_ELog (EF_INFO, "CP2 parameter change");
+		msg_ELog (EF_DEBUG, "CP2 parameter change");
 		HandleCP2Mess (beam, hk, scale);
 	}
 }
@@ -199,6 +200,7 @@ ScaleInfo *scale;
 {
 	float vscale;
 	int counts;
+	struct dual_pol_mode dpm;
 /*
  * Find the offset to the vel field.
  */
@@ -220,6 +222,13 @@ ScaleInfo *scale;
 	scale->s_Offset = -32.0;
 	vscale = ((float) hk->wavelength)/10000.0 * ((float) hk->prfx10)/10.0 *
 		0.25/127.0;
+/*
+ * The scale is halved when doing dual-polarization stuff, since only the
+ * horizontal pulses are used for velocity.
+ */
+	memcpy (&dpm, &hk->dual_pol_mode, sizeof (short));
+	if (dpm.dual_polar) vscale *= 0.5;
+
 	for (counts = 0; counts < 128; counts++)
 		dip->cd_table[counts] = CP2_EnScale (counts*vscale, scale);
 	for (counts = 128; counts < 256; counts++)
@@ -286,7 +295,7 @@ ScaleInfo *scale;
  */
 	if ((dip->cd_offsets[0] = CP2_FindParam (hk, HSK_PD_ZDR)) < 0)
 	{
-		msg_ELog (EF_PROBLEM, "Can't find ZDR!");
+		msg_ELog (EF_DEBUG, "No ZDR this volume");
 		dip->cd_func = CP2_dp_FillBad;
 		return;
 	}
@@ -301,7 +310,7 @@ ScaleInfo *scale;
  */
 	memcpy (&dpm, &hk->dual_pol_mode, sizeof (short));
 	zrange = 3.0*(1 << dpm.zdr_scale);
-	msg_ELog (EF_INFO, "ZDR range is %.2f", zrange);
+	msg_ELog (EF_DEBUG, "ZDR range is %.2f", zrange);
 	scale->s_Scale = zrange/128.0;
 	scale->s_Offset = -zrange;
 	for (counts = 0; counts < 127; counts++)
@@ -310,6 +319,55 @@ ScaleInfo *scale;
 		dip->cd_table[counts] = CP2_EnScale((counts - 255)*zrange/127.,
 				scale);
 	dip->cd_func = CP2_dp_Lookup;
+}
+
+
+
+
+
+static void
+CP2_SetupLDR (hk, dip, scale)
+Housekeeping *hk;
+CP2DerInfo *dip;
+ScaleInfo *scale;
+/*
+ * Get LDR together.
+ */
+{
+# ifdef notdef
+	float range;
+	int counts;
+	struct dual_pol_mode dpm;
+/*
+ * Find the offset to the LDR field.
+ */
+	if ((dip->cd_offsets[0] = CP2_FindParam (hk, HSK_PD_LDR)) < 0)
+	{
+		msg_ELog (EF_INFO, "No LDR this volume");
+		dip->cd_func = CP2_dp_FillBad;
+		return;
+	}
+/*
+ * Find the threshold field too.
+ */
+	if ((dip->cd_offsets[1] = CP2_FindParam (hk, HSK_PD_PWRCNT)) < 0)
+		ui_printf ("No power for threshold!\n");
+/*
+ * Figure out scaling and make the lookup table.  Assume they've loaded up
+ * a calibration.
+ */
+	memcpy (&dpm, &hk->dual_pol_mode, sizeof (short));
+	range = 3.0*(1 << dpm.ldr_scale);
+	msg_ELog (EF_INFO, "LDR range is %.2f", zrange);
+	scale->s_Scale = range/128.0;
+	scale->s_Offset = -range;
+	for (counts = 0; counts < 127; counts++)
+		dip->cd_table[counts] = CP2_EnScale (counts*range/127.,scale);
+	for (counts = 128; counts < 256; counts++)
+		dip->cd_table[counts] = CP2_EnScale((counts - 255)*range/127.,
+				scale);
+	dip->cd_func = CP2_dp_Lookup;
+# endif
 }
 
 
@@ -344,12 +402,12 @@ int sband;
  * a calibration.
  */
 	scale->s_Scale = 0.4;
-	scale->s_Offset = -20.0;
+	scale->s_Offset = -50.0;
 /*
  * Get a radar constant.
  */
 	radcon = sband ? CP2_s_radcon (hk) : CP2_x_radcon (hk);
-	msg_ELog (EF_INFO, "Radar constant is %.2f", radcon);
+	msg_ELog (EF_DEBUG, "Radar constant is %.2f", radcon);
 /*
  * Now we can create the range correction array.
  */
@@ -403,14 +461,14 @@ Housekeeping *hk;
 {
 /*
  * This bit of awful nastiness gives us something approximating the
- * radar constant.  The 1.5 is from Jing's code, seems to be a kludge
- * shorthand for various losses...
+ * radar constant.  The 2.3 dB and 0.0 dB are bandwidth loss and integration
+ * bias, respectively, for SCMS, from Jon Lutz.
  */
 	return (168.8 + 10.0*log10 (hk->prfx10/10.0) -
 		2.0*hk->sys_gain/10.0 - hk->avg_xmit_pwr/10.0 +
 		20.0*log10 (hk->wavelength/10000.0) -
 		20.0*log10 ((hk->ant_bw/100.0)*(M_PI/180.0)) -
-		10.0*log10 (0.93) + 1.5);
+		10.0*log10 (0.93) + 2.3 + 0.0);
 }
 
 
@@ -426,14 +484,14 @@ Housekeeping *hk;
 {
 /*
  * This bit of awful nastiness gives us something approximating the
- * radar constant.  The 3.0 is from Jing's code, seems to be a kludge
- * shorthand for various losses...
+ * radar constant.  The 2.3 dB and 2.5 dB are the bandwidth loss and
+ * integration bias, respectively, for SCMS, from Jon Lutz.
  */
 	return (168.8 + 10.0*log10 (hk->prf_secondary/10.0) -
 		2.0*hk->sys_gain2/10.0 - hk->atp2/10.0 +
 		20.0*log10 (hk->wavelength2/10000.0) -
 		20.0*log10 ((hk->ant_bw2/100.0)*(M_PI/180.0)) -
-		10.0*log10 (0.93) + 3.0);
+		10.0*log10 (0.93) + 2.3 + 2.5);
 }
 
 
@@ -660,7 +718,7 @@ register unsigned char *dest;
  */
 	for (gate = 0; gate < ngate; gate++)
 	{
-		if (*sdata <= ThrCounts || *xdata <= ThrCounts)
+		if (*sdata <= ThrCounts || *xdata <= SMinusXThresh)
 			*dest++ = 0xff;
 		else
 			*dest++ = CP2_EnScale (SCal[*sdata] + SRangeC[gate] -

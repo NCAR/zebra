@@ -31,6 +31,10 @@ typedef struct s_ENHeader
 	unsigned short en_fperrad;	/* Frames per radial		*/
 	unsigned short en_number;	/* Number of this frame in rad	*/
 	unsigned short en_res[4];	/* Reserved junk		*/
+/*
+ * For CP2, the following two fields refer to byte numbers rather than
+ * gate numbers.
+ */
 	unsigned short en_g_first;	/* First gate			*/
 	unsigned short en_g_last;	/* Last gate			*/
 } ENHeader;

@@ -11,7 +11,7 @@
 # include <message.h>
 # include "BeamBuffer.h"
 
-MAKE_RCSID ("$Id: BeamBuffer.c,v 2.1 1995-06-23 19:39:05 corbet Exp $")
+MAKE_RCSID ("$Id: BeamBuffer.c,v 2.2 1995-09-20 20:45:29 burghart Exp $")
 
 /*
  * The beginning of our SHM segment has one of these.
@@ -38,7 +38,7 @@ static volatile struct BBHeader *Header = 0;
 static unsigned short *Sizes;
 static unsigned char *Beams;
 
-int Shm_ID;
+int Shm_ID = -1;
 char *ShmSegment;
 int Sem_ID;
 
@@ -83,6 +83,11 @@ int key, bsize, nbeam;
  */
 {
 	int size;
+/*
+ * Detach from the old stuff if we already have a segment
+ */
+	if (Shm_ID >= 0)
+		BB_Detach (1);
 /*
  * Figure our segment size and make a segment.
  */

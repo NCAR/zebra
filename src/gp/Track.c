@@ -44,7 +44,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: Track.c,v 2.37 1995-09-14 00:17:16 granger Exp $")
+RCSID ("$Id: Track.c,v 2.38 1995-09-20 20:45:06 burghart Exp $")
 
 # define ARROWANG .2618 /* PI/12 */
 # ifndef M_PI
@@ -59,7 +59,7 @@ static bool tr_CCSetup FP((char *, char *, char *, char *, XColor **,
 static void tr_GetArrowParams FP((char *, char *, float *, int *, bool *,
 		int *, char *, XColor *, char *));
 static bool tr_CTSetup FP((char *, char *, PlatformId *, int *, int *,
-		char *, bool *, char *, bool *, char *));
+		char *, bool *, char *, bool *, bool *, char *));
 static void tr_AnnotTrack FP((char *, char *, char *, int, char *, char *,
 		char *, double, double, double, char *, int));
 static void tr_AnnotTime FP((char *, char *, DataChunk *, Drawable));
@@ -105,13 +105,13 @@ bool update;
 	char a_type[30];
 	int period, nc, lwidth, pid, index;
 	int dskip = 0, i, a_int, numfields = 0, afield;
-	int x0, y0, x1, y1;
-	int samp0;		/* sample at which (x0,y0) last set  */
+	int x0, y0, x1, y1, x00 = -1, y00 = -1;
+	int samp0;		/* sample at which (x0 =,y0) last set  */
 	long vectime;	/* the time, multiple of the arrow interval */
 		        /* a_int, for which last vector arrow drawn */
 	int npt;   	/* number pts read so far, for data-skipping */
 	int a_lwidth, nsamp;
-	bool arrow, showposition, annot_time;
+	bool arrow, showposition, annot_time, positionarrow;
 	bool mono, shifted, a_invert, autoscale;
 	ZebTime begin, zt;
 	float base, incr, a_scale;
@@ -129,7 +129,8 @@ bool update;
  * Pull in our parameters.
  */
 	if (! tr_CTSetup (comp, platform, &pid, &period, &dskip, mtcolor,
-			&mono, ccfield, &showposition, positionicon))
+			  &mono, ccfield, &showposition, &positionarrow,
+			  positionicon))
 		return;
 #ifdef notdef
 	if (update)
@@ -351,7 +352,7 @@ bool update;
 			}
 			XDrawLine (Disp, d, Gcontext, x0, y0, x1, y1); 
 		}
-		x0 = x1; y0 = y1;
+		x00 = x0; x0 = x1; y00 = y0; y0 = y1;
 		fx0 = fx; fy0 = fy;
 		samp0 = i;
 	}
@@ -363,9 +364,32 @@ bool update;
  * If this isn't an update, indicate which end of the track is the front.
  */
 	if ((! update) && showposition && (samp0 >= 0))
-		I_PositionIcon (comp, platform, &zt, positionicon, x0, y0,
-				mono ? xc.pixel : (index >= 0 && index < nc) ? 
-				colors[index].pixel : outrange.pixel);
+	{
+		if (positionarrow)
+		{
+			double theta;
+
+			if (x00 < 0 && y00 < 0)
+			{
+				x00 = 0;
+				y00 = y0 - 1;
+			}
+
+			theta = atan2 ((double)(y00 - y0), (double)(x00 - x0));
+
+			XDrawLine (Disp, d, Gcontext, x0, y0, 
+				   x0 + 15 * cos (theta - 0.26),
+				   y0 + 15 * sin (theta - 0.26));
+			XDrawLine (Disp, d, Gcontext, x0, y0,
+				   x0 + 15 * cos (theta + 0.26),
+				   y0 + 15 * sin (theta + 0.26));
+		}
+		else
+			I_PositionIcon (comp, platform, &zt, positionicon, 
+					x0, y0, mono ? xc.pixel : 
+					(index >= 0 && index < nc) ? 
+					colors[index].pixel : outrange.pixel);
+	}
 /*
  * See about annotating the track with times.  It shouldn't hurt updates
  * since we'll only be plotting new times.
@@ -844,11 +868,11 @@ int *justify;		/* Justification to use for annotation */
 
 static bool
 tr_CTSetup (comp, platform, pid, period, dskip, mtcolor, mono, ccfield,
-	showposition, positionicon)
+	showposition, positionarrow, positionicon)
 char *comp, *platform, *mtcolor, *ccfield, *positionicon;
 PlatformId *pid;
 int *period, *dskip;
-bool *mono, *showposition;
+bool *mono, *showposition, *positionarrow;
 /*
  * Do the basic setup to plot aircraft tracks.
  */
@@ -907,14 +931,18 @@ bool *mono, *showposition;
  * Show the location?
  */
 	if (! tr_GetParam (comp, "show-position", platform, 
-				(char *) showposition, SYMT_BOOL))
+			   (char *) showposition, SYMT_BOOL))
 		*showposition = FALSE;
-	if (*showposition && (! tr_GetParam (comp, "position-icon", platform, 
-			positionicon, SYMT_STRING)))
+	if (*showposition && 
+	    ! tr_GetParam (comp, "do-position-arrow", platform, 
+			   (char *) positionarrow, SYMT_BOOL) &&
+	    ! tr_GetParam (comp, "position-icon", platform, positionicon, 
+			   SYMT_STRING))
 	{
 		msg_ELog (EF_PROBLEM, "Show position, but no icon.");
 		*showposition = FALSE;
 	}
+
 	return (TRUE);
 }
 

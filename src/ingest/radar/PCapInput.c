@@ -21,7 +21,7 @@
 # include "BeamBuffer.h"
 
 
-MAKE_RCSID ("$Id: PCapInput.c,v 2.2 1995-06-23 19:39:14 corbet Exp $")
+MAKE_RCSID ("$Id: PCapInput.c,v 2.3 1995-09-20 20:45:35 burghart Exp $")
 
 /*
  * Ethernet input info.
@@ -130,8 +130,7 @@ Beam beam;
 	beam->b_hk = (Housekeeping *) buf;
 	beam->b_npart = 1;	/* We are reassembling */
 	npart = hdr->en_fperrad;
-	beam->b_gdesc[0].gd_first = hdr->en_g_first;
-	beam->b_gdesc[0].gd_ngate = hdr->en_g_last;
+
 	beam->b_gdesc[0].gd_data = beam->b_hk->sz_hsk*sizeof (short) +
 				(unsigned char *) beam->b_hk;
 /*
@@ -160,7 +159,15 @@ Beam beam;
 	 */
 		memcpy (buf + offset, cont + 1, len - sizeof (*cont));
 		offset += len - sizeof (*cont);
-		beam->b_gdesc[0].gd_ngate = cont->en_g_last;
+	}
+/*
+ * For CP2, we really have byte limits right now instead of gate limits.
+ * Get the gate limits from the housekeeping.
+ */
+	if (beam->b_hk->rs_id == 2)	/* If (CP2) */
+	{
+		beam->b_gdesc[0].gd_first = 1;
+		beam->b_gdesc[0].gd_ngate = beam->b_hk->gates_per_beam;
 	}
 /*
  * Done!

@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: Rasterize.c,v 2.11 1995-06-23 19:39:17 corbet Exp $";
+static char *rcsid = "$Id: Rasterize.c,v 2.12 1995-09-20 20:45:37 burghart Exp $";
 
 # include <defs.h>
 # include <message.h>
@@ -55,9 +55,10 @@ struct RastInfo
  * Intermediate storage for thresholded data.
  */
 # define MAXGATES 4096
-static unsigned char ThreshBuf[4*MAXGATES];
-static unsigned char *TBuf[4] = { ThreshBuf, ThreshBuf + MAXGATES,
-	ThreshBuf + 2*MAXGATES, ThreshBuf + 3*MAXGATES };
+static unsigned char ThreshBuf[6*MAXGATES];
+static unsigned char *TBuf[6] = { ThreshBuf, ThreshBuf + MAXGATES,
+	ThreshBuf + 2*MAXGATES, ThreshBuf + 3*MAXGATES, ThreshBuf + 4*MAXGATES,
+	ThreshBuf + 5*MAXGATES };
 
 /*
  * Info about the sweep we're currently rasterizing
@@ -242,6 +243,14 @@ int interleaved;
 	if (! InSweep)
 		return;
 	NBeam++;
+/*
+ * Special parameter checks for CP2.  We used to do this only at the
+ * beginning of the sweep, but due to blanked sectors during SCMS (and
+ * resultant frequent changes in average transmitted power within a sweep),
+ * we now do it for every beam.
+ */
+	if (RFormat == RF_CP2)
+		CP2_CheckParams (beam, hk, Scale);
 /*
  * Go through and thrash up the data; what actually happens here is format
  * dependent.  Most data is merely thresholded; CP2 needs to be truly
@@ -470,8 +479,6 @@ Beam beam;
 	 * See if a new volume is warranted.
 	 */
 		newvol = NextNewVol || Fixed <= lastfixed;
-		NextNewVol = (ScanMode != hk->scan_mode) ||
-			(TrustVol && hk->vol_count != vol);
 # ifdef notdef
 		msg_ELog (EF_INFO, "MHR ck fix %.2f last %.2f top %.2f",
 			Fixed/CORR_FACT, lastfixed/CORR_FACT, MhrTop);
@@ -481,11 +488,25 @@ Beam beam;
 				lastfixed);
 		else
 # endif
-			if (NBeam > MinSweep)
+			if ((NBeam > MinSweep) ||
+			    (ScanMode == SM_RHI && NBeam > MinRHI))
 		{
+		/*
+		 * See if we're forcing the next sweep written to start a new
+		 * volume.
+		 */
+			if (NextNewVol)
+			{
+				newvol = TRUE;
+				NextNewVol = FALSE;
+			}
+		/*
+		 * Write out the sweep.
+		 */
 			OutputSweep (&BeginTime, Fixed/CORR_FACT,
 			   newvol, MaxLeft, MaxRight, MaxUp, MaxDown,
-			   hk->scan_mode);
+			   ScanMode);
+
 			lastfixed = Fixed;
 			dir = Unknown;
 		/*
@@ -511,13 +532,16 @@ Beam beam;
 	}
 	NBeam = 0;
 /*
+ * Do we want to force the next sweep written to be a new volume?
+ */
+	NextNewVol |= (ScanMode != hk->scan_mode) ||
+		(TrustVol && hk->vol_count != vol);
+/*
  * Remember the info about this sweep, and get started.
  */
 	InSweep = BeginSweep ();
 	if (!InSweep)
 		return;
-	if (RFormat == RF_CP2)
-		CP2_CheckParams (beam, hk, Scale);
 
 	scan++;
 	oldtime = newtime;
@@ -548,12 +572,14 @@ Beam beam;
  */
 	ng = hk->gates_per_beam;
 	gs = hk->gate_spacing;
+# ifdef notdef
 	PixScale = 1000*XRes/(2.0*gs*ng);
+# endif
 /*
  * Reset our max parameters.
  */
 	MaxLeft = MaxRight = XRadar;
-	MaxUp = MaxDown = YRadar;
+	MaxUp = MaxDown = YInvert(YRadar);
 }
 
 
@@ -741,10 +767,10 @@ struct RastInfo *rinfo;
  */
 	if (*vertical)
 		GetVIncrements (pgs, az, sin1, cos1, sin2, cos2, inc1,
-			inc2, rowinc, colinc);
+				inc2, rowinc, colinc);
 	else
 		GetHIncrements (pgs, az, sin1, cos1, sin2, cos2, inc1,
-			inc2, rowinc, colinc);
+				inc2, rowinc, colinc);
 # ifdef SDEBUG
 	printf ("I: %.2f %.2f, r %.2f c %.2f ", *inc1, *inc2, *rowinc,*colinc);
 # endif
@@ -820,7 +846,7 @@ int far;
 			rinfo->ri_minor2 = XRadar +
 					(YRadar - y0)*inc2;
 			CheckMax (bext1, bext2, rinfo->ri_major1,
-				rinfo->ri_major2);
+				  rinfo->ri_major2);
 			if (far)
 				rinfo->ri_gate -=
 				  colinc*(rinfo->ri_minor2 - rinfo->ri_minor1);
@@ -863,7 +889,7 @@ int far;
 			rinfo->ri_minor2 = FYInvert (YRadar +
 					(XRadar - x0)*inc2);
 			CheckMax (rinfo->ri_major1, rinfo->ri_major2,
-				bext1, bext2);
+				  bext1, bext2);
 			if (far)
 				rinfo->ri_gate -=
 				  rowinc*(rinfo->ri_minor2 - rinfo->ri_minor1);

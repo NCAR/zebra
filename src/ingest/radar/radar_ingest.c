@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: radar_ingest.c,v 2.13 1995-06-23 19:39:26 corbet Exp $";
+static char *rcsid = "$Id: radar_ingest.c,v 2.14 1995-09-20 20:45:46 burghart Exp $";
 
 # include <copyright.h>
 # include <errno.h>
@@ -60,6 +60,7 @@ float PixScale = 5.0;		/* Pixels per kilometer		*/
 float RadarLat = 0, RadarLon = 0;
 float ElTolerance = 1.0;	/* Elevation difference tolerance, deg. */
 int MinSweep = 25;
+int MinRHI = 20;
 int GMTOffset = 0;
 int NFrames = 2;		/* How many frames		*/
 int Niceness = 0;
@@ -71,6 +72,7 @@ bool ForceRealTime = TRUE;	/* Force data times to real time?	*/
 float MhrTop = 21.0;
 RadarFormat RFormat = RF_CBAND;		/* The format of our data */
 int Using_BB = FALSE;		/* Doing beam buffering? 	*/
+bool Reinitialize = TRUE;
 
 /*
  * Stuff for forcing a minimum time interval between beams.  Useful when
@@ -91,6 +93,7 @@ static PlatformId LimitPID;
 bool DoThresholding = FALSE;
 int ThrFldOffset;
 unsigned char ThrCounts = 0;
+int SMinusXThresh = 12;	/* Just for CP2 in SCMS */
 
 /*
  * Do we trust internal flags?
@@ -158,25 +161,14 @@ static void DumpRHILimits FP ((float, float));
 static void BeamWait FP ((void));
 static void SetupBeamDelay FP ((void));
 static void WakeUp FP ((int signal));
+static void reset FP ((void));
+void die FP ((void));
 
 
 
-static unsigned char *Image[4];
+static unsigned char *Image[MFIELD];
 
 
-void
-die ()
-/*
- * Finish gracefully.
- */
-{
-	ui_finish ();
-	if (ShmDesc)
-		IX_Detach (ShmDesc);
-	if (Using_BB)
-		BB_Done ();
-	exit (0);
-}
 
 
 
@@ -186,10 +178,12 @@ char **argv;
 {
 	SValue v;
 	char loadfile[200];
+	char ourname[32];
 /*
  * Initialize.
  */
-	msg_connect (MHandler, "Radar Ingest");
+	sprintf (ourname, "RadarIngest_%x", getpid ());
+	msg_connect (MHandler, ourname);
 	msg_DeathHandler (die);
 	fixdir ("RI_LOAD_FILE", GetLibDir(), "radar_ingest.lf", loadfile);
 	if (argc > 1)
@@ -238,6 +232,7 @@ SetupIndirect ()
 	usy_c_indirect (vtable, "el_tolerance", &ElTolerance, SYMT_FLOAT, 0);
 	usy_c_indirect (vtable, "pixels_per_km", &PixScale, SYMT_FLOAT, 0);
 	usy_c_indirect (vtable, "minimum_sweep", &MinSweep, SYMT_INT, 0);
+	usy_c_indirect (vtable, "minimum_rhi", &MinRHI, SYMT_INT, 0);
 	usy_c_indirect (vtable, "gmt_offset", &GMTOffset, SYMT_INT, 0);
 	usy_c_indirect (vtable, "platform", PlatformName, SYMT_STRING, PF_LEN);
 	usy_c_indirect (vtable, "nframes", &NFrames, SYMT_INT, 0);
@@ -247,6 +242,8 @@ SetupIndirect ()
 /* usy_c_indirect (vtable, "mhrmode", &MhrMode, SYMT_BOOL, 0); */
 	usy_c_indirect (vtable, "mhrtop", &MhrTop, SYMT_FLOAT, 0);
 	usy_c_indirect (vtable, "forcerealtime", &ForceRealTime, SYMT_BOOL, 0);
+/* one just for CP2 in SCMS */
+	usy_c_indirect (vtable, "sminusxthresh", &SMinusXThresh, SYMT_INT, 0);
 /*
  * Thresholding parameters.
  */
@@ -411,110 +408,133 @@ Go ()
 {
 	Beam beam;
 	Housekeeping *hk;
-	int i, nbeam = 0;
+	int i, nbeam = 0, pol_mode;
 	Widget top;
 /*
- * Set up our beam input source.
+ * This should end up inside the following loop at some point, but Input.c
+ * provides no means for closing an open input source at this point.
  */
-	signal (SIGINT, die);
 	SetupInput ();
 /*
- * Definition checking.
+ * The big loop
  */
-	if (NField <= 0)
-	{
-		msg_ELog (EF_EMERGENCY, "No fields given");
-		die ();
-	}
-/*
- * Go into window mode, with our popup.
- */	
-	uw_ForceWindowMode ("status", &top, 0);
-/*
- * Set up our shared memory segment.
- */
-	if (! (ShmDesc = IX_Create (0x910425, XRes, YRes, NField, NFrames,
-				Fields)))
-	{
-		msg_ELog (EF_EMERGENCY, "No shm segment");
-		die ();
-	}
-	IX_LockMemory (ShmDesc);
-	IX_Initialize (ShmDesc, 0xff);
-/*
- * Invoke the consumer to pull stuff out of that segment.
- */
-	InvokeConsumer ();
-/*
- * If they have asked for a priority change, try to do it.  Note that this
- * happens *after* the consumer is fired off, so that said consumer has to
- * fend for itself in the priority arena.
- */
-# ifdef BSD
-	if (Niceness)
-		setpriority (PRIO_PROCESS, 0, Niceness);
-# endif
-# if defined(sun) && defined(SVR4)
-/*
- * You would not believe what's required to make this work under Solaris.
- * The good side is that we get a true real time scheduler...
- */
-	if (Niceness)
-		SetRealTime (Niceness);
-# endif
-/*
- * Set up fields until there is a command-based way to do it.
- */
-# ifdef notdef
-	/* MHR z = 0, v = 1 */
-	Rd[0].rd_foffset = 0;	/* Z = 4, v = 2 */
-	Rd[1].rd_foffset = 1;
-# endif
-	beam = GetBeam ();
-	hk = beam->b_hk;
-	if (RFormat == RF_CP2)
-		HandleCP2Mess (beam, hk, Scale);
-	else
-	{
-		for (i = 0; i < NField; i++)
-		{
-			Scale[i].s_Scale =
-				hk->parm_info[Rd[i].rd_foffset].pi_scale/100.0;
-			Scale[i].s_Offset =
-				hk->parm_info[Rd[i].rd_foffset].pi_bias/100.0;
-			ui_printf ("%s scale %.2f bias %.2f\n", Fields[i],
-					Scale[i].s_Scale, Scale[i].s_Offset);
-		}
-	}
-/*
- * Origin setting.
- */
-	cvt_Origin (RadarLat, RadarLon);
-/*
- * Now plow through the beams.
- */
-/*	InitFake (); */
-	SetupBeamDelay ();
-	
 	while (1)
 	{
-		BeamWait ();
+		msg_ELog (EF_INFO, "Initializing...");
+		Reinitialize = FALSE;
 	/*
-	 * Get another beam.
+	 * Set up our beam input source.
 	 */
-		if (! (beam = GetBeam ()))
+		signal (SIGINT, die);
+	/*
+	 * Definition checking.
+	 */
+		if (NField <= 0)
 		{
-			ui_printf ("Get Beam failure!\n");
-			exit (1);
+			msg_ELog (EF_EMERGENCY, "No fields given");
+			die ();
 		}
 	/*
-	 * Rasterize it.
+	 * Go into window mode, with our popup.
+	 */	
+		uw_ForceWindowMode ("status", &top, 0);
+	/*
+	 * Set up our shared memory segment.
 	 */
-		Rasterize (beam, Rd, NField, TRUE);
-		if ((++nbeam % WidgetUpdate) == 0)
+		if (! (ShmDesc = IX_Create (0x910425, XRes, YRes, NField, 
+					    NFrames, Fields)))
 		{
-			SetStatus (beam->b_hk);
-			CheckMessages ();
+			msg_ELog (EF_EMERGENCY, "No shm segment");
+			die ();
+		}
+		IX_LockMemory (ShmDesc);
+		IX_Initialize (ShmDesc, 0xff);
+	/*
+	 * If they have asked for a priority change, try to do it.  Note that 
+	 * this happens *after* the consumer is fired off, so that said 
+	 * consumer has to fend for itself in the priority arena.
+	 */
+# ifdef BSD
+		if (Niceness)
+			setpriority (PRIO_PROCESS, 0, Niceness);
+# endif
+# if defined(sun) && defined(SVR4)
+	/*
+	 * You would not believe what's required to make this work under 
+	 * Solaris.  The good side is that we get a true real time scheduler...
+	 */
+		if (Niceness)
+			SetRealTime (Niceness);
+# endif
+	/*
+	 * Invoke the consumer to pull stuff out of that segment.
+	 */
+		InvokeConsumer ();
+	/*
+	 * Set up fields until there is a command-based way to do it.
+	 */
+# ifdef notdef
+		/* MHR z = 0, v = 1 */
+		Rd[0].rd_foffset = 0; /* Z = 4, v = 2 */
+		Rd[1].rd_foffset = 1;
+# endif
+		beam = GetBeam ();
+		hk = beam->b_hk;
+		if (RFormat == RF_CP2)
+			HandleCP2Mess (beam, hk, Scale);
+		else
+		{
+			for (i = 0; i < NField; i++)
+			{
+				Scale[i].s_Scale =
+					hk->parm_info[Rd[i].rd_foffset].pi_scale/100.0;
+				Scale[i].s_Offset =
+					hk->parm_info[Rd[i].rd_foffset].pi_bias/100.0;
+				ui_printf ("%s scale %.2f bias %.2f\n", 
+					   Fields[i], Scale[i].s_Scale, 
+					   Scale[i].s_Offset);
+			}
+		}
+	/*
+	 * Origin setting.
+	 */
+		cvt_Origin (RadarLat, RadarLon);
+	/*
+	 * Now plow through the beams.
+	 */
+	/*	InitFake (); */
+		SetupBeamDelay ();
+		if (RFormat == RF_CP2)
+			pol_mode = hk->dual_pol_mode;
+	
+		while (! Reinitialize)
+		{
+			BeamWait ();
+		/*
+		 * Get another beam.
+		 */
+			if (! (beam = GetBeam ()))
+			{
+				ui_printf ("Get Beam failure!\n");
+				exit (1);
+			}
+		/*
+		 * Check for mode change
+		 */
+			if (RFormat == RF_CP2 && hk->dual_pol_mode != pol_mode)
+			{
+				pol_mode = hk->dual_pol_mode;
+				HandleCP2Mess (beam, hk, Scale);
+			}
+		/*
+		 * Rasterize it.
+		 */
+			Rasterize (beam, Rd, NField, TRUE);
+			if ((++nbeam % WidgetUpdate) == 0)
+			{
+				SetStatus (beam->b_hk);
+				CheckMessages ();
+			}
 		}
 	}
 }
@@ -577,6 +597,9 @@ int newvol, left, right, up, down, mode;
 	    case SM_SUR:
 		strcat (attr, "radar,sur");
 		break;
+	    default:
+		msg_ELog (EF_INFO, "Dropping mode %d volume", mode);
+		return;
 	}
 /*	strcat (attr, (mode == SM_PPI) ? "radar,ppi" : "radar,sur");*/
 /*
@@ -838,8 +861,19 @@ Message *msg;
 {
 	struct mh_template *tmpl = (struct mh_template *) msg->m_data;
 
-	if (msg->m_proto == MT_MESSAGE && tmpl->mh_type == MH_DIE)
-		die ();
+	switch (msg->m_proto)
+	{
+	    case MT_MESSAGE:
+		if (tmpl->mh_type == MH_DIE)
+			die ();
+		break;
+	    case MT_COMMAND:
+		reset ();
+		Reinitialize = TRUE;
+		ui_perform (msg->m_data);
+		break;
+	}
+		
 	msg_ELog (EF_PROBLEM, "Unknown msg proto %d", msg->m_proto);
 }
 
@@ -981,4 +1015,46 @@ WakeUp (int sig)
 	signal (SIGALRM, WakeUp);
 # endif
 	OKToGetBeam = TRUE;
+}
+
+
+void
+die ()
+/*
+ * Finish gracefully.
+ */
+{
+        reset ();
+        ui_finish ();
+        exit (0);
+}
+
+
+
+void
+reset ()
+/*
+ * Detach and kill stuff in preparation for reinitializing or dying
+ */
+{
+        if (ShmDesc)
+        {
+        /*
+         * Shut down our consumer (if any)
+         */
+                if (CPid)
+                {
+                        int     status = 0;
+
+                        msg_send (IX_GetConsumer (ShmDesc), MT_FINISH,
+                                  FALSE, &status, sizeof (status));
+                }
+        /*
+         * Then detach from the image transfer shared memory
+         */
+                IX_Detach (ShmDesc);
+        }
+
+	if (Using_BB)
+		BB_Done ();
 }

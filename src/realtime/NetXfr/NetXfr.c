@@ -32,7 +32,7 @@
 # include "NetXfr.h"
 
 
-RCSID("$Id: NetXfr.c,v 3.7 1995-06-29 22:39:55 granger Exp $")
+RCSID("$Id: NetXfr.c,v 3.8 1995-09-20 20:45:58 burghart Exp $")
 
 
 /*
@@ -678,7 +678,7 @@ Message *msg;
 	switch (msg->m_proto)
 	{
 	   case MT_MESSAGE:
-		if (tmpl->mh_type == MH_DIE)
+		if (tmpl->mh_type == MH_DIE || tmpl->mh_type == MH_SHUTDOWN)
 			Die ();
 		else
 			msg_ELog (EF_PROBLEM, "Weird MH msg %d",tmpl->mh_type);

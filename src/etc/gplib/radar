@@ -11,7 +11,7 @@ define widget radar-middle intmenu 'radar middle'
 	entry 'Velocity' 'param #icon_component field velocity' \
 		(PDParam (icon_component, 'field') = 'velocity')
 	entry 'Surveillance only mode' 'toggle_sur' \
-		(PDParam ("global", "cp4-filter-attribute") = "sur")
+		(PDParam (icon_component, "filter-attribute") = "sur")
 	entry 'Single fixed angle mode' 'ToggleBoolean every-sweep' \
 		(PDParam (icon_component, "every-sweep") = "false")
 	line
@@ -25,9 +25,6 @@ define widget radar-middle intmenu 'radar middle'
 	submenu 'Color tables' Color-tables
 endmenu
 
-require color-table
-
-
 procedure toggle_sur
 	set param concat(PDParam(icon_component,'platform'), '-filter-attribute')
 	if (PDParam ("global", param) = "sur")
@@ -36,3 +33,14 @@ procedure toggle_sur
 		param global #param "sur"
 	endif
 endprocedure
+
+procedure RadarDataAvailable platform string when string
+	param #icon_component every-sweep false
+	DefaultDataAvail #platform #when
+endprocedure
+
+procedure RadarRealTime
+	param #icon_component every-sweep true
+endprocedure
+
+require color-table

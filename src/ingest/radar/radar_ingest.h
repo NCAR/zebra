@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-/* $Id: radar_ingest.h,v 2.9 1995-06-23 19:39:29 corbet Exp $ */
+/* $Id: radar_ingest.h,v 2.10 1995-09-20 20:45:48 burghart Exp $ */
 
 
 /*
@@ -53,9 +53,11 @@ extern int XRes, YRes;
 extern float AzFill;
 
 /*
- * The shortest sweep that interests us.
+ * The shortest sweep that interests us.  For RHIs, we'll accept anything
+ * bigger than *either* MinSweep or MinRHI.
  */
 extern int MinSweep;
+extern int MinRHI;
 
 /*
  * The offset in hours to GMT from the time recorded by the radars.
@@ -97,7 +99,8 @@ extern float ElTolerance;
  */
 extern bool DoThresholding;		/* Thresholding is enabled	*/
 extern int ThrFldOffset;		/* Offset to threshold field	*/
-unsigned char ThrCounts;		/* Threshold count value	*/
+extern unsigned char ThrCounts;		/* Threshold count value	*/
+extern int SMinusXThresh;
 
 /*
  * Mhr mode -- drop .5's.
