@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.2 1991-09-12 20:27:54 corbet Exp $ */
+/* $Id: GraphProc.h,v 2.3 1991-10-15 18:24:43 kris Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -47,6 +47,7 @@ extern plot_description Pd, Defaults;
 extern time PlotTime;		/* Time currently shown on the screen	*/
 extern enum pmode PlotMode;	/* The current plot mode		*/
 extern bool MovieMode;		/* Movie mode?				*/
+extern int PostProcMode;	/* Post processing mode?		*/
 /*
  * Needed for opening the FrameFile.
  */

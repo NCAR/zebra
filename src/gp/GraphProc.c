@@ -1,7 +1,7 @@
 /*
  * The zeb graphics process.
  */
-static char *rcsid = "$Id: GraphProc.c,v 2.3 1991-09-12 20:27:54 corbet Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 2.4 1991-10-15 18:24:27 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -87,6 +87,7 @@ time	PlotTime;			/* The current plot time.	*/
 enum pmode	PlotMode = NoMode;
 enum wstate	WindowState = DOWN;
 bool	MovieMode = FALSE;
+int	PostProcMode = FALSE;
 Cursor	BusyCursor, NormalCursor;	/* Our cursors			*/
 float	Xlo, Xhi, Ylo, Yhi;
 float	Alt;
