@@ -1,6 +1,6 @@
 /**/#-------------------------------------------------------------------------
 /**/# RDSS Software project build parameters
-/**/# $Id: Project.tmpl,v 1.7 1994-01-24 21:17:42 case Exp $
+/**/# $Id: Project.tmpl,v 1.8 1994-05-27 16:48:44 case Exp $
 /**/#-------------------------------------------------------------------------
 
 /*****************************************************************************
@@ -263,10 +263,21 @@
 #   endif
 #endif
 
+#if SystemV4
+#  ifdef SunArchitecture
+#   define XRunPath -R$(XLIBDIR)
+#  else
+#   define XRunPath
+#  endif
+#else
+#define XRunPath
+#endif
+
 
 #ifndef XLibraries
 #  if (UseXWindows)
-#define XLibraries -L$(XLIBDIR) LoaderLibPrefix -lXaw LoaderLibPrefix -lXmu \
+#define XLibraries XRunPath -L$(XLIBDIR) LoaderLibPrefix -lXaw \
+LoaderLibPrefix -lXmu \
 LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #  else
 #    if (UseOpenWindows && !OldOpenWin)
@@ -276,7 +287,8 @@ $(OPENWINHOME)/lib/libXmu.a \
 -L$(XLIBDIR) LoaderLibPrefix -lXt LoaderLibPrefix -lXext \
 LoaderLibPrefix -lX11
 #       else
-#define XLibraries -L$(XLIBDIR) LoaderLibPrefix -lXaw LoaderLibPrefix -lXmu \
+#define XLibraries XRunPath -L$(XLIBDIR) LoaderLibPrefix -lXaw 
+LoaderLibPrefix -lXmu \
 LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #       endif
 #    else
