@@ -25,13 +25,14 @@
 # include <defs.h>
 # include <message.h>
 
-RCSID ("$Id: zquery.c,v 1.7 1999-03-01 02:04:56 burghart Exp $")
+RCSID ("$Id: zquery.c,v 1.8 2004-07-15 17:24:10 granger Exp $")
 
 #define DEFAULT_DELAY 	0
 
 static int IncMsg FP((struct message *msg));
 static int QResp FP((char *info));
 
+static int QUERY_DONE = 0x02020202;
 
 static void
 usage (argv0)
@@ -81,7 +82,11 @@ char **argv;
  * Hook in and send the query..
  */
 	sprintf (name, "zquery-%i", getpid());
-	msg_connect (IncMsg, name);
+	if (! msg_connect (IncMsg, name))
+	{
+	  printf ("Failed to connect to message manager.\n");
+	  return 1;
+	}
 	query = argv[arg];
 	msg_SendQuery (query, QResp);
 /*
@@ -89,21 +94,21 @@ char **argv;
  */
 	if (! delay)
 	{
-		msg_await ();
-		return (0);
+	  ret = msg_await ();
 	}
-
-	do {
-		ret = msg_poll (delay);
-	}
-	while (ret == 0);
-
-	if (ret == MSG_TIMEOUT)
+	else
 	{
-		printf ("no response from '%s'\n", query);
-		return (1);
+	  do {
+	    ret = msg_poll (delay);
+	  }
+	  while (ret == 0);
+
+	  if (ret == MSG_TIMEOUT)
+	  {
+	    printf ("no response from '%s'\n", query);
+	  }
 	}
-	return (0);
+	return ((ret != QUERY_DONE) ? 1 : 0);
 }
 
 
@@ -116,7 +121,7 @@ struct message *msg;
 	if (msg->m_proto != MT_MESSAGE)
 		return (0);
 	if (msg->m_len == 0)
-		return (1);
+		return (QUERY_DONE);
 	printf ("%s\n", msg->m_data);
 	return (0);
 }

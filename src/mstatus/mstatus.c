@@ -25,11 +25,12 @@
 # include <message.h>
 # include <copyright.h>
 
-RCSID("$Id: mstatus.c,v 2.6 1998-12-17 16:38:28 burghart Exp $")
+RCSID("$Id: mstatus.c,v 2.7 2004-07-15 17:24:34 granger Exp $")
 
 static char Username[128] = { '\0' };
 static int ShowUser = 0;
 
+static int STATUS_OK = 0x01010101;
 
 static void
 usage ()
@@ -49,6 +50,7 @@ char *argv[];
 	char **hosts = NULL;
 	char manager[ 128 ];
 	int i, nhost = 0;
+	int status = 0;
 
 	if (! msg_connect (handler, "Status reporter"))
 		exit (1);
@@ -82,10 +84,11 @@ char *argv[];
 	if (hosts == NULL)
 	{
 		msg_send (MSG_MGR_NAME, MT_MESSAGE, 0, &tm, sizeof (tm));
-		msg_await ();
+		status = msg_await ();
 	}
 	else
 	{
+	        status = STATUS_OK;
 		for (i = 0; i < nhost; ++i)
 		{
 			if (ShowUser)
@@ -94,12 +97,12 @@ char *argv[];
 				printf ("----- %s\n", hosts[i]);
 			sprintf (manager, "%s@%s", MSG_MGR_NAME, hosts[i]);
 			msg_send (manager, MT_MESSAGE, 0, &tm, sizeof (tm));
-			msg_await ();
+			status &= msg_await ();
 		}
 		free (hosts);
 	}
 
-	exit (0);
+	return ((status == STATUS_OK) ? 0 : 1);
 }
 
 
@@ -118,7 +121,7 @@ struct message *msg;
 		return (1);
 	}
 	if (mhs->mh_text[0] == '\0')
-		return (1);
+		return (STATUS_OK);
 	if (! ShowUser)
 		printf ("%s\n", mhs->mh_text);
 	else if (! Username[0])
