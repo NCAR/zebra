@@ -42,6 +42,7 @@ boolean LittleEndian;
  */
 char	Tag[128], LeadId[4], Data[32*1024];
 char	*MapDir, *State;
+FILE	*OutFile;
 
 /*
  * The "themes" by which the USGS map files are divided.
@@ -373,39 +374,69 @@ main (int argc, char *argv[])
      */
     if (WhichMaps & M_STATE)
     {
-	freopen ("state.map", "w", stdout);
+	if (! (OutFile = fopen ("state.map", "w")))
+	{
+	    perror ("Opening state.map");
+	    exit(1);
+	}
 	WriteStates ();
+	fclose (OutFile);
     }
 
     if (WhichMaps & M_COUNTY)
     {
-	freopen ("county.map", "w", stdout);
+	if (! (OutFile = fopen ("county.map", "w")))
+	{
+	    perror ("Opening county.map");
+	    exit(1);
+	}
 	WriteCounties ();
+	fclose (OutFile);
     }
 
     if (WhichMaps & M_FED)
     {
-	freopen ("fed.map", "w", stdout);
+	if (! (OutFile = fopen ("fed.map", "w")))
+	{
+	    perror ("Opening fed.map");
+	    exit(1);
+	}
 	WriteFedAreas ();
+	fclose (OutFile);
     }
 
     if (WhichMaps & M_WATER)
     {
-	freopen ("water.map", "w", stdout);
+	if (! (OutFile = fopen ("water.map", "w")))
+	{
+	    perror ("Opening water.map");
+	    exit(1);
+	}
 	WriteStreams ();
 	WriteWaterBodies ();
+	fclose (OutFile);
     }
 
     if (WhichMaps & M_FILLEDWATER)
     {
-	freopen ("fwater.map", "w", stdout);
+	if (! (OutFile = fopen ("fwater.map", "w")))
+	{
+	    perror ("Opening fwater.map");
+	    exit(1);
+	}
 	WriteFilledWaterBodies ();
+	fclose (OutFile);
     }
 
     if (WhichMaps & M_ROAD)
     {
-	freopen ("road.map", "w", stdout);
+	if (! (OutFile = fopen ("road.map", "w")))
+	{
+	    perror ("Opening road.map");
+	    exit(1);
+	}
 	WriteRoads ();
+	fclose (OutFile);
     }
     
     exit (0);
@@ -1680,17 +1711,17 @@ WritePolyline (LineInfo *line, boolean filled)
 	    maxlat = line->lat[p];
     }
 
-    printf (" %3d %9.3f %9.3f %9.3f %9.3f %s", 2 * line->npts, maxlat, minlat, 
-	    maxlon, minlon, filled ? "FILL" : "");
+    fprintf (OutFile, " %3d %9.3f %9.3f %9.3f %9.3f %s", 2 * line->npts, 
+	     maxlat, minlat, maxlon, minlon, filled ? "FILL" : "");
 
     for (p = 0; p < line->npts; p++)
     {
 	if (! (p % 4))
-	    printf ("\n");
+	    fprintf (OutFile, "\n");
 
-	printf (" %9.3f %9.3f", line->lat[p], line->lon[p]);
+	fprintf (OutFile, " %9.3f %9.3f", line->lat[p], line->lon[p]);
     }
-    printf ("\n");
+    fprintf (OutFile, "\n");
 }    
     
 	
