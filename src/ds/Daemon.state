@@ -1,5 +1,5 @@
 !
-! $Id: Daemon.state,v 2.23 1999-03-01 02:03:29 burghart Exp $
+! $Id: Daemon.state,v 2.24 2000-04-05 22:40:03 burghart Exp $
 !
 ! The data store daemon configuration language.
 !
@@ -601,7 +601,7 @@ define state src-t-or-f
 	input 'true' 1
 		next ust$no_more
 	endinput
-	input 'false' 1
+	input 'false' 0
 		next ust$no_more
 	endinput
 enddef
@@ -609,7 +609,7 @@ enddef
 set ui$initial_state "initial"
 
 procedure ui$init
-	local _id '$Id: Daemon.state,v 2.23 1999-03-01 02:03:29 burghart Exp $'
+	local _id '$Id: Daemon.state,v 2.24 2000-04-05 22:40:03 burghart Exp $'
 
 	start
 	done
