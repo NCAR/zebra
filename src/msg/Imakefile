@@ -1,0 +1,11 @@
+/*
+ * Imakefile for the message daemon
+ */
+
+SRCS = message.c
+OBJS = message.o
+
+LIBS = $(LIBZEB) $(LIBRDSS)
+
+
+NormalProgramTarget(message, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
