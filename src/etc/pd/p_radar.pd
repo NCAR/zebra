@@ -8,9 +8,10 @@ global
 	pd-name:	p_radar
 p_radar
 	platform:	SOMETHING
+	altitude-control:	true
 	field:		reflectivity
 	representation:	raster
-	icon:		cp4
+	icon:		radar
 	color-table:	wild_new
 	every-sweep:	true
 	icon-left-menu:		standard-cap-left-menu
