@@ -39,7 +39,7 @@
 # include "pd.h"
 # include "GraphicsWP.h"
 
-MAKE_RCSID("$Id: GraphicsW.c,v 2.17 1994-09-15 21:50:49 corbet Exp $")
+MAKE_RCSID("$Id: GraphicsW.c,v 2.18 1995-04-15 00:07:10 granger Exp $")
 
 /*
  * The SHM definition just tells us that we can link with the shared
@@ -152,7 +152,7 @@ GraphicsWidget w;
 /*
  * Police the public members and initialize our private members
  */
-	if (request->graphics.frame_count < 0)
+	if ((int)request->graphics.frame_count < 0)
 		w->graphics.frame_count = 0;
 	w->graphics.gc = None;
 	w->graphics.frames = NULL;
@@ -392,7 +392,7 @@ Region		region;
 /*
  *  If the index of the display_frame is no good then return.
  */
-	if(w->graphics.display_frame < 0 || 
+	if((int)w->graphics.display_frame < 0 || 
 		w->graphics.display_frame >= w->graphics.frame_count)
 	{
 		msg_ELog (EF_PROBLEM, "Can't Redraw window.");
@@ -699,11 +699,11 @@ int width, height, depth, index;
 	Display *disp = XtDisplay(w);
 	Pixmap pixmap;
 	int bpl;
-	struct shmid_ds buf;
 	Boolean failure = False;
 /*
  *  Create the shared memory image.
  */
+	w->graphics.shminfo[index].shmseg = (ShmSeg) 0;
 	w->graphics.image[index] = XShmCreateImage(disp, 0, depth, ZPixmap, 0, 
 		w->graphics.shminfo + index, width, height);
 	bpl = w->graphics.image[index]->bytes_per_line;
@@ -735,8 +735,8 @@ int width, height, depth, index;
 		return (None);
 	}
 	w->graphics.shminfo[index].readOnly = False;
-	msg_ELog(EF_DEBUG,"%s shmid %d shmaddr 0x%X readOnly %d shmseg %d",
-		 "shminfo",
+	msg_ELog(EF_DEBUG,"%s shmid %d shmaddr 0x%X readOnly %d shmseg %0x%lx",
+		 "XShmSegmentInfo:",
 		 w->graphics.shminfo[index].shmid,
 		 w->graphics.shminfo[index].shmaddr,
 		 w->graphics.shminfo[index].readOnly,
@@ -868,7 +868,7 @@ unsigned int	frame;
  * Set the current draw frame of 'w' to 'frame'
  */
 {
-	if (frame < 0 || frame >= w->graphics.frame_count)
+	if ((int)frame < 0 || frame >= w->graphics.frame_count)
 	{
 		msg_ELog (EF_DEBUG, "Invalid frame number %d", frame);
 		XtError ("Invalid frame number in GWDrawInFrame");
@@ -885,12 +885,10 @@ unsigned int	frame;
  * Make 'frame' the currently displayed frame for widget 'w'
  */
 {
-	unsigned int	use_buffer;
-
 /*
  * Sanity check
  */
-	if (frame < 0 || frame >= w->graphics.frame_count)
+	if ((int)frame < 0 || frame >= w->graphics.frame_count)
 	{
 		msg_ELog (EF_DEBUG, "Invalid frame number %d", frame);
 		XtError ("Invalid frame number in GWDisplayFrame");
