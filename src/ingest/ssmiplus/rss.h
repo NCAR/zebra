@@ -2,7 +2,7 @@
  * Record structure of SSM/I Antenna Temperature tapes from Remote Sensing 
  * Systems
  *
- * $Id: rss.h,v 1.3 1993-06-21 22:15:15 granger Exp $
+ * $Id: rss.h,v 1.4 1994-11-16 19:30:02 granger Exp $
  */
 /*
  *		Copyright (C) 1993 UCAR
@@ -112,6 +112,7 @@ int decode_rss (
   char *lrec	/* the logical record */
 );
 
+int decode_tb (void);
 
 #ifdef __cplusplus
 }
