@@ -1,6 +1,6 @@
 #! /usr/bin/sh
 #
-# $Id: zplotbatch,v 1.10 1999-10-15 01:46:43 granger Exp $
+# $Id: zplotbatch,v 1.11 1999-10-15 03:17:03 granger Exp $
 #
 # Start a display manager session with a virtual X server and dump
 # images of its plots.
@@ -77,8 +77,6 @@ if [ "x$when" != "x-" ]; then
     exec < $temp
 fi
 
-PRESERVE_ZEB=1; export PRESERVE_ZEB
-
 # Start our private, virtual X display.
 # This may fail if one is already there, in which case we'll use the
 # existing one.  Either way, disable access control so that others can
@@ -94,7 +92,7 @@ xhost +
 ZEB_EVENTLOGGER=true ; export ZEB_EVENTLOGGER
 
 echo "-- Checking for datastore session:"
-zstart -n -ds $ZEB_PROJDIR
+zstart -n -preserve -ds $ZEB_PROJDIR
 sleep 1
 
 # Then start a private display session

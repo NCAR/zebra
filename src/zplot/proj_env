@@ -5,6 +5,11 @@ setenv ZEB_CACHEDIR tmp
 setenv DATA_DIR /net/sssf2/cases99
 setenv ZEB_PROJDIR /net/sssf2/cases99/cases99-iss
 
+# Any displays started on this project should leave the datastore
+# running in the background for other displays and for the plot
+# generation.
+setenv PRESERVE_ZEB 1
+
 # This project uses its own specific socket
 setenv ZEB_SOCKET "/tmp/zebra.cases99-iss"
 
