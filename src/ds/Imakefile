@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.52 1996-12-19 23:35:13 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.53 1996-12-30 20:35:46 granger Exp $"
 
 DEPLIBS=$(LIBZEB)
 LIBMPROF=/dt/granger/libc_mp.a
@@ -233,6 +233,10 @@ ALINE = aline -n 4 $(DEBUG_FLAG) -per 3 -inv $(INVENTORY)
 DSDAEMON = ./dsDaemon $(DEBUG_FLAG)
 APPLE = apple -a -c 2 $(DEBUG_FLAG)
 
+.PHONY: test.session test.aline test.aline.only 
+
+.PHONY: test.close test.apple test.apple.only
+
 test:: test.session test.aline.only test.apple.only test.close
 
 test.aline: test.aline.only test.close
@@ -245,9 +249,7 @@ test.apple: test.apple.only test.close
 	DATA_DIR=$(DATA_DIR); export DATA_DIR; \ 
 
 
-test.session: test.close $(SOCKET)
-
-$(SOCKET): $(ZPROGS) dsDaemon dsDaemon.lf $(DSCONFIG)
+test.session $(SOCKET): $(ZPROGS) dsDaemon dsDaemon.lf $(DSCONFIG)
 	TEST_ENV
 	echo "Starting a zebra test session... ZEB_SOCKET=$$ZEB_SOCKET"; \
 	$(ZSTOP) $(TESTOUT); $(RM) $$ZEB_SOCKET; \
@@ -276,7 +278,7 @@ test.apple.only: apple $(SOCKET) $(DSDUMP)
 	RunTest($(APPLE),"William Tell, arrows away"); \
 	echo "End apple testing."
 
-test.close: $(ZSTOP)
+test.close:
 	TEST_ENV
 	echo "Ending zebra test session..."; \
 	$(ZSTOP) $(TESTOUT); $(RM) $$ZEB_SOCKET
