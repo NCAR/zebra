@@ -15,8 +15,8 @@ field	reflectivity	"radar reflectivity"		dbz
 field	rh		"relative humidity"		"%"
 field	tdry		"ambient temperature"		"deg c"
 field	twet		"wet bulb temperature"		"deg c"
-field	u_wind		"north wind component"		m/s
-field	v_wind		"east wind component"		m/s
+field	u_wind		"U wind component"		m/s
+field	v_wind		"V wind component"		m/s
 field	velocity	"doppler velocity"		m/s
 field	vt		"virtual temperature"		k
 field	w_wind		"vertical wind component"	m/s
