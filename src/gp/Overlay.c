@@ -1,13 +1,14 @@
 /*
  * Deal with static (or almost static) overlays.
  */
-static char *rcsid = "$Id: Overlay.c,v 1.7 1990-11-15 13:47:59 corbet Exp $";
+static char *rcsid = "$Id: Overlay.c,v 1.8 1990-12-14 10:31:34 corbet Exp $";
 
 # include <stdio.h>
 # include <X11/Intrinsic.h>
 # include "../include/defs.h"
 # include "../include/pd.h"
 # include "../include/message.h"
+# include "../include/dm.h"
 # include "GraphProc.h"
 # include "PixelCoord.h"
 # include "DrawText.h"
@@ -21,10 +22,17 @@ static char *rcsid = "$Id: Overlay.c,v 1.7 1990-11-15 13:47:59 corbet Exp $";
 	static void ov_GridBBox (char *, int);
 	static void ov_DrawFeature (char *, int);
 	static void ov_Map (char *, int);
+	static void ov_WBox (char *, int);
+	static bool ov_GetWBox (char *, float *, float *, float *,
+			float *, float *);
+	static int ov_FindWBReply (struct message *, struct dm_rp_wbox *);
 # else
 	static void ov_GridBBox ();
 	static void ov_DrawFeature ();
 	static void ov_Map ();
+	static void ov_WBox ();
+	static bool ov_GetWBox ();
+	static int ov_FindWBReply ();
 # endif
 
 
@@ -39,6 +47,7 @@ static struct overlay_table
 } Ov_table[] =
 {
 	{ "gridbbox",	ov_GridBBox	},
+	{ "wbox",	ov_WBox		},
 	{ "feature",	ov_DrawFeature	},
 	{ "map",	ov_Map	},
 	{ 0, 0}
@@ -175,6 +184,124 @@ bool update;
 }
 
 
+
+
+
+static void
+ov_WBox (comp, update)
+char *comp;
+bool update;
+/*
+ * Draw the bounding box of the window indicated by the platform field.
+ */
+{
+	char platform[40], color[40];
+	float x0, y0, x1, y1, alt;
+	int lwidth, px0, py0, px1, py1;
+	GC gcontext;
+	XColor xc;
+	Display *disp = XtDisplay (Graphics);
+	Drawable d = GWFrame (Graphics);
+/*
+ * Find our platform.
+ */
+	if (! pda_ReqSearch (Pd,comp, "platform", NULL, platform, SYMT_STRING))
+		return;
+/*
+ * Now try to pull in the bounding box.
+ */
+	if (! ov_GetWBox (platform, &x0, &y0, &x1, &y1, &alt))
+	{
+		msg_ELog (EF_INFO, "Unable to load win bbox for %s", platform);
+		return;
+	}
+	px0 = XPIX (x0); py0 = YPIX (y0);
+	px1 = XPIX (x1); py1 = YPIX (y1);
+/*
+ * Color information.
+ */
+	if (! pda_Search (Pd, comp, "color", "overlay", color, SYMT_STRING))
+		strcpy (color, "white");
+/*
+ * Graphics context stuff.
+ */
+	gcontext = XCreateGC (disp, XtWindow (Graphics), 0, NULL);
+	ct_GetColorByName (color, &xc);
+	XSetForeground (disp, gcontext, xc.pixel);
+	if (pda_Search (Pd, comp, "line-width", "overlay", (char *) &lwidth,
+			SYMT_INT))
+		XSetLineAttributes (disp, gcontext, lwidth, LineSolid,
+			CapButt, JoinMiter);
+/*
+ * Just draw.
+ */
+	XDrawLine (disp, d, gcontext, px0, py0, px1, py0);
+	XDrawLine (disp, d, gcontext, px1, py0, px1, py1);
+	XDrawLine (disp, d, gcontext, px1, py1, px0, py1);
+	XDrawLine (disp, d, gcontext, px0, py1, px0, py0);
+/*
+ * Clean up and go home.
+ */
+	XFreeGC (disp, gcontext);
+}
+
+
+
+
+bool
+ov_GetWBox (window, x0, y0, x1, y1, alt)
+char *window;
+float *x0, *y0, *x1, *y1, *alt;
+/*
+ * Get the window parameters.
+ */
+{
+	struct dm_rq_wbox wb;
+	struct dm_rp_wbox repl;
+/*
+ * Fill in and send out request.  Then wait for a reply.
+ */
+	wb.dmm_type = DM_WBOX;
+	strcpy (wb.dmm_window, window);
+	msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &wb, sizeof (wb));
+	msg_Search (MT_DISPLAYMGR, ov_FindWBReply, &repl);
+/*
+ * If it failed, so do we.
+ */
+	if (! repl.dmm_success)
+		return (FALSE);
+/*
+ * Return the info.
+ */
+	*x0 = repl.dmm_x0;
+	*y0 = repl.dmm_y0;
+	*x1 = repl.dmm_x1;
+	*y1 = repl.dmm_y1;
+	*alt = repl.dmm_alt;
+	return (TRUE);
+}
+
+
+
+
+
+static int
+ov_FindWBReply (msg, repl)
+struct message *msg;
+struct dm_rp_wbox *repl;
+/*
+ * Pick through messages until we find the one we need.
+ */
+{
+	struct dm_rp_wbox *rp = (struct dm_rp_wbox *) msg->m_data;
+
+	if (rp->dmm_type == DM_WBOX)
+	{
+		*repl = *rp;
+		return (0);
+	}
+	return (1);
+}
 
 
 
