@@ -27,7 +27,7 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_MetData.c,v 3.5 1993-08-12 18:27:37 granger Exp $")
+MAKE_RCSID ("$Id: dc_MetData.c,v 3.6 1993-11-05 04:36:14 corbet Exp $")
 
 # define SUPERCLASS DCC_Transparent
 
@@ -274,7 +274,7 @@ float badval;
  */
 {
 	FldInfo *finfo;
-	char sbad[20];
+	char sbad[60];
 /*
  * The usual sanity checking.
  */
