@@ -1,0 +1,41 @@
+!
+! An empty template PD for xygraphs.
+!
+global
+	pd-name:	xygraph-template
+	plot-type:	xygraph
+	plot-mode:	history
+	plot-time:	2-aug-91,22
+	xy-data-mode:	series
+	xy-series-span:	168h
+!
+! Spacings.
+!
+	axis-bottom-space:	30
+	axis-top-space:		30
+	axis-left-space:	50
+	axis-right-space:	50
+! 
+! Fonts.
+!
+	xy-axis-b-font-scale:	10
+	xy-axis-t-font-scale:	10
+	xy-axis-l-font-scale:	10
+	xy-axis-r-font-scale:	10
+!
+! This component just draws a grid.
+!
+xy-grid
+	representation:		simple
+	x-field:		time
+	y-field:		nothing
+	axis-bottom:		true
+	axis-left:		false
+	axis-right:		false
+	axis-top:		false
+	icon:			none
+	axis-b-label:		Time
+	axis-b-tic-interval:	10m
+	do-side-annotation:	false
+	platform:		tao/0n110w
+	field-color:		red

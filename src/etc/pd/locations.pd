@@ -1,0 +1,395 @@
+!
+! $Id: locations.pd,v 1.1 1995-04-20 04:46:58 granger Exp $
+!
+! Sort of a "locations database", where we can store locations out of
+! the way for sharing between projects rather than trying to propagate
+! them from one project defaults file to another.  To use a the locations
+! just lift the required component from this pd and drop it into the
+! defaults description.
+!
+
+global
+	pd-name:	locations
+
+idass_iss
+	!
+	! Iss's
+	!
+	saltfork-location:	36.63	-97.57	316.0
+	redrock-location:	36.55	-97.55	322.0
+	!
+	! Rawindsondes
+	!
+	dodge-location:		37.80	-100.0	790.0
+	norman-location:	35.20	-97.40	357.0
+	sgp-location:		36.62	-97.49	315.0
+	topeka-location:	39.10	-95.60	270.0
+	!
+	! Soundings.
+	!
+	kingfisher-location:	35.88	-97.95	325.0
+	kingman-location:	37.67	-98.12	489.5
+	pawhuska-location:	36.67	-96.41	306.6
+
+fest_radar
+	!
+	! Radar locations.
+	!
+	cp3-location:	39.46	-96.05	0.425
+	cp4-location:	39.71	-95.53	0.353
+	mhr-location:	39.88	-104.76	1.604
+	okc-location:	35.33	-97.28	0.383	! Twin Lakes, OK Nexrad
+	fdr-location:	34.36	-98.98	0.396	! Frederick, OK Nexrad
+	cim-location:	35.48	-97.81	0.399	! NSSL Cimarron
+	hot-location:	40.04	-88.28	0.237
+	chill-location:	40.45	-104.64	1.423
+	osk-location:	39.22	-95.25	0.0	! Oskaloosa (aircraft tracks)
+
+!
+! Other FEST locations
+!
+fest
+	!
+	! Aster
+	!
+	aster-location:	39.9069	-95.8419	0.410
+	!
+	! Center of boundary layer array.
+	!
+	array-location:	39.8294	-96.1075	0.0
+
+!
+! CLASS sites
+!
+class
+	slb-location:	42.64	-95.21	0.430	! Storm Lake
+	iow-location:	41.71	-91.61	0.241	! Iowa City
+	ear-location:	40.70	-99.10	0.662	! Kearney
+	3v1-location:	39.24	-102.29	1.286	! Burlington
+	62k-location:	39.83	-96.11	0.384	! Seneca
+	akz-location:	37.05	-97.10	0.377	! Arkansas City
+	irk-location:	40.19	-92.59	0.291	! Kirksville
+	stl-location:	38.64	-90.24	0.161	! Columbia
+	!
+	! NSSL CLASS sites
+	!
+	hys-location:	38.90	-99.32	0.626	! Hays
+	cou-location:	38.82	-92.22	0.268	! Columbia
+	hen-location:	36.38	-92.23	0.175	! Henderson
+	guy-location:	36.70	-101.48	0.939	! Guymon
+
+!
+!NWS Sounding sites
+!
+nws_soundings
+	ABQ-location:	35.02	-106.60	1613	!Albuquerque,NM
+	AMA-location:	35.23	-101.70	1099	!Amarillo,TX
+	DDC-location:	37.77	-99.97	790	!Dodge City,KS
+	DEN-location:	39.75	-104.87	1625	!Denver,CO
+	ELP-location:	31.80	-106.40	1194	!El Paso,TX
+	FSI-location:	34.39	-98.24	360	!Fort Sill
+	GGG-location:	32.38	-94.72	111	!Longview,TX
+	GJT-location:	39.12	-108.53	1475	!Grand Junction,CO
+	GRB-location:	44.48	-88.13	214	!Green Bay,WI
+	HON-location:	44.38	-98.22	393	!Huron,SD
+	LBF-location:	41.13	-100.97	849	!North Platte,NE
+	LIT-location:	34.73	-92.23	78	!Little Rock,AR
+	LND-location:	42.82	-108.73	1695	!Lander,WY
+	MAF-location:	31.95	-102.18	872	!Midland,TX
+	OMA-location:	41.30	-95.90	299	!Omaha, OK
+	OUN-location:	35.23	-97.47	362	!Norman, OK
+	PAH-location:	37.07	-88.77	125	!Paducah, KY
+	PIA-location:	40.67	-89.68	202	!Peoria, IL
+	RAP-location:	44.05	-103.07	966	!Rapid City, SD
+	SEP-location:	32.22	-98.18	402	!Stephenville, TX
+	STC-location:	45.55	-94.07	312	!St. Cloud, MN
+	TOP-location:	39.07	-95.62	270	!Topeka, KS
+	UMN-location:	36.88	-93.90	437	!Monett, MO
+	BIS-location:	46.77	-100.75	506	!Bismark, ND
+	DRA-location:	36.62	-116.02	1009	!Mercury/Desert, NV
+	BOI-location:	43.57	-116.22	874	!Boise, ID
+	ELY-location:	39.28	-114.85	1909	!Ely, NV
+	GEG-location:	47.63	-117.53	721	!Spokane, WA
+	GGW-location:	48.22	-106.62	700	!Glascow,MT
+	GTF-location:	47.48	-111.37	1115	!Great Falls,MT
+	INW-location:	35.02	-110.73	1488	!Winslow,AZ
+	SLC-location:	40.78	-111.97	1288	!Salt Lake City, NV
+	TUS-location:	32.12	-110.93	779	!Tucson, AZ
+	WMC-location:	40.90	-117.80	1322	!Winnemucca, NV
+	MFR-location:	42.37	-122.87	405	!Medford, OR
+	MYF-location:	32.82	-117.13	124	!San Diego, CA
+	OAK-location:	37.73	-122.22	3	!Oakland, CA
+	SLE-location:	44.92	-123.00	61	!Salem, OR
+	UIL-location:	47.95	-124.55	62	!Quillayute, WA
+	VBG-location:	34.71	-120.56	100	!Vandenberg AFB, CA
+	ANN-location:	55.03	-131.57	34	!Annette Island, AK
+	OLM-location:	46.97	-122.90	59	!Olympia,WA
+	CGO-location:	43.80	-123.03	195	!Cottage Grove, OR
+	RDD-location:	40.58	-122.40	177	!Redding,CA
+	ILA-location:	39.15	-122.08	25	!Williams, CA
+	NPS-location:	36.60	-121.89	30	!Monterey, CA
+	PRB-location:	35.67	-120.63	249	!Pasarobles, CA
+	NTD-location:	34.11	-119.11	2	!Point Mugu, CA
+	YXY-location:	60.72	-135.07	703	!Whitehorse, YK
+	YYE-location:	58.83	-122.60	382	!Fort Nelson,BC
+	YSM-location:	60.03	-111.93	203	!Fort Smith, NT
+	YXS-location:	53.88	-122.68	69	!Prince George,BC
+	YZT-location:	50.68	-127.37	22	!Port Hardy, BC
+	WIL-location:	40.04	-88.27	218	!Flatlands, Il
+	WVK-location:	50.23	-119.28	555	!Vernon Bridge, BC
+	WSE-location:	53.55	-114.10	766	!Edmonton/SP, NT
+	YVQ-location:	65.28	-126.80	73	!Norman Wells, NT
+	YEV-location:	68.30	-133.48	68	!Inuvik, NT
+
+!
+!Profiler locations
+!
+profilers
+	AZCN5-location:	36.84	-107.90	1902	!Aztec, NM 
+	BLMM7-location:	36.88	-89.97	130	!Bloomfield MO
+	BLRW3-location:	43.22	-90.53	226	!Blue River WI
+	CNWM7-location:	37.52	-92.70	390	!Conway MO 
+	DQUA4-location:	34.11	-94.29	195	!DeQueen AR 
+	FBYN1-location:	40.09	-97.34	433	!Fairbury NE
+	GDAC2-location:	37.77	-102.17	1155	!Granada CO 
+	HKLO2-location:	35.81	-95.78	212	!Haskell Ok
+	HVLK1-location:	37.65	-99.09	648	!Haviland KS
+	HBRK1-location:	38.30	-97.29	447	!Hillsboro KS
+	JTNT2-location:	33.02	-100.98	707	!Jayton TX
+	NRCM5-location:	38.96	-94.57	244	!Kansas City MO
+	LMNO2-location:	36.69	-97.48	306	!Lamont OK
+	LTHM7-location:	39.58	-94.19	297	!Lathrop MI
+	RWDN1-location:	40.08	-100.65	800	!McCook NE
+	MBWW4-location:	41.90	-106.18	1997	!Medicine Bow WY
+	MRRN1-location:	42.90	-101.69	991	!Merriman NE
+	NLGN1-location:	42.20	-97.79	524	!Neligh NE
+	NDSK1-location:	37.37	-95.63	255	!Neodesha KS
+	OKOM6-location:	34.08	-88.86	125	!Okolona MS
+	PATT2-location:	31.77	-95.71	119	!Palestine TX
+	PLTC2-location:	40.18	-104.72	1524	!Platteville CO
+	PRCO2-location:	34.97	-97.51	331	!Purcell OK
+	SLAI4-location:	41.90	-93.70	315	!Slater IA
+	TCUN5-location:	35.08	-103.61	1241	!Tucumcari NM 
+	VCIO2-location:	36.07	-99.21	648	!Vici OK
+	WSMN5-location:	32.40	-106.34	1224	!White Sands NM
+	WNCI2-location:	39.66	-90.48	170	!Winchester IL
+	WDLM5-location:	44.67	-95.44	319	!Wood Lake MN
+
+!
+! Locations of the STORM-FEST VOR's
+!
+vor
+	vor-adm-location: 34.2115 -97.1680  0.575 ! Ardmore, OK
+	vor-ael-location: 43.8491 -93.3693  0.779 ! Albert Lea, MN
+	vor-alo-location: 42.5565 -92.3988  0.537 ! Waterloo, IA
+	vor-anw-location: 42.5692 -99.9890  1.604 ! Ainsworth, NE
+	vor-anx-location: 39.0954 -94.1286  0.546 ! Napoleon, MO
+	vor-any-location: 37.1589 -98.1704  0.864 ! Anthony, KS
+	vor-bfv-location: 35.2369 -99.2058  1.106 ! Burns Flat, OK
+	vor-bum-location: 38.2721 -94.4880  0.553 ! Butler, MO
+	vor-bvo-location: 36.8342 -96.0181  0.584 ! Bartlesville, OK
+	vor-cbi-location: 38.9717 -92.3649  0.472 ! ?, MO
+	vor-cgi-location: 37.2283 -89.5667  0.104 ! Cape Girardeau, MO
+	vor-cds-location: 34.3690 -100.2886 1.195 ! Childress, TX
+	vor-cid-location: 41.8875 -91.7855  0.541 ! Cedar Rapids, IA
+	vor-cnu-location: 37.6261 -95.5932  0.671 ! Chanute, KS
+	vor-dak-location: 36.0433 -94.1967  0.466 ! Drake, AR
+	vor-dbq-location: 42.4017 -90.7083  0.323 ! Dubuque, IA  
+	vor-ddc-location: 37.8506 -100.0052 1.594 ! Dodge City, KS
+	vor-dgd-location: 37.0234 -92.8767  0.994 ! Dogwood, MO
+	vor-dsm-location: 41.4376 -93.6484  0.584 ! Des Moines, IA
+	vor-ear-location: 40.7250 -99.0050  0.649 ! Kearney, NE
+	vor-emp-location: 38.2911 -96.1378  0.758 ! Emporia, KS
+	vor-end-location: 36.3449 -97.9180  0.813 ! Vance, OK
+	vor-eol-location: 41.4731 -95.6580  0.826 ! ?, IA
+	vor-eos-location: 36.8424 -94.4355  0.743 ! Neosho, MO
+	vor-fod-location: 42.6112 -94.2946  0.715 ! Fort Dodge, IA
+	vor-foe-location: 38.9474 -95.6609  0.648 ! Topeka, KS
+	vor-frm-location: 43.6460 -94.4223  0.721 ! Fairmont, MN
+	vor-fsd-location: 43.6496 -96.7808  0.976 ! Sioux Falls, SD
+	vor-fsm-location: 35.3882 -94.2712  0.267 ! Fort Smith, AR
+	vor-gag-location: 36.3437 -99.8797  1.507 ! Gage, OK
+	vor-gck-location: 37.9190 -100.7246 1.790 ! Garden City, KS
+	vor-gld-location: 39.3883 -101.6917 1.112 ! Goodland, KS
+	vor-gnp-location: 35.9208 -95.9684  0.503 ! Glenpool, OK
+	vor-gri-location: 40.9840 -98.3151  1.143 ! Grand Island, NE
+	vor-gvw-location: 38.8362 -94.5585  0.662 ! Kansas City, MO
+	vor-hbr-location: 34.8665 -99.0630  0.909 ! Hobart, OK
+	vor-hct-location: 40.4541 -100.9231 1.870 ! Hayes Center, NE
+	vor-hlc-location: 39.2587 -100.2254 1.671 ! Hill City, KS
+	vor-hlv-location: 39.1135 -92.1281  0.572 ! Hallsville, MO
+	vor-hot-location: 34.4783 -93.0900  0.162 ! Hot Springs, AR
+	vor-hro-location: 36.3183 -93.2133  0.427 ! Harrison, AR
+	vor-hsi-location: 40.6045 -98.4293  1.212 ! Hastings, NE
+	vor-hut-location: 37.9969 -97.9338  0.951 ! Hutchinson, KS
+	vor-hys-location: 38.8476 -99.2764  1.255 ! Hays, KS
+	vor-iab-location: 37.6187 -97.2626  0.833 ! ?, KS
+	vor-ict-location: 37.7452 -97.5835  0.913 ! Wichita, KS
+	vor-ifi-location: 35.8052 -98.0036  0.691 ! Kingfisher, OK
+	vor-iow-location: 41.5189 -91.6131  0.478 ! Iowa City, IA
+	vor-irk-location: 40.1349 -92.5915  0.615 ! Kirksville, MO
+	vor-irw-location: 35.3585 -97.6089  0.764 ! Will Rogers, OK
+	vor-jef-location: 38.5923 -92.1605  0.342 ! Jefferson City, MO
+	vor-law-location: 34.4967 -98.4133  0.335 ! Lawton, OK
+	vor-lbf-location: 41.0486 -100.7467 1.895 ! North Platte, NE
+	vor-lbl-location: 37.0444 -100.9701 1.796 ! Liberal, KS
+	vor-lit-location: 34.6776 -92.1804  0.149 ! Little Rock, AR
+	vor-lmn-location: 40.5967 -93.9674  0.708 ! Lamonia, IA
+	vor-lnk-location: 40.9238 -96.7417  0.851 ! Lincoln, NE
+	vor-lrf-location: 34.9180 -92.1575  0.217 ! ?, AR
+	vor-lse-location: 43.8762 -91.2559  0.404 ! La Crosse, WI
+	vor-lts-location: 34.6664 -99.2701  0.835 ! ?, OK
+	vor-map-location: 37.5907 -91.7884  0.854 ! ?, MO
+	vor-mcm-location: 39.6540 -92.4820  0.541 ! Macon, MO
+	vor-mcw-location: 43.0948 -93.3297  0.752 ! Mason City, IA
+	vor-mhk-location: 39.1456 -96.6683  0.647 ! Manhattan, KS
+	vor-mkc-location: 39.2794 -94.5912  0.659 ! Kansas City, MO
+	vor-mlc-location: 34.8494 -95.7820  0.510 ! McAlester, OK
+	vor-obh-location: 41.3757 -98.3532  1.249 ! Wolbach, NE
+	vor-odg-location: 36.3737 -97.7878  0.715 ! Woodring, OK
+	vor-odi-location: 43.9124 -91.4675  0.795 ! Nodine, MN
+	vor-off-location: 41.1172 -95.8997  0.602 ! ?, NE
+	vor-ofk-location: 41.9879 -97.4342  0.957 ! Norfolk, NE
+	vor-ojc-location: 38.8408 -94.7367  0.643 ! Olathe, KS
+	vor-olu-location: 41.4500 -97.3406  0.897 ! Columbus, NE
+	vor-oma-location: 41.1673 -95.7364  0.808 ! Omaha, NE
+	vor-onl-location: 42.4705 -98.6866  1.261 ! O'Neill, NE
+	vor-osw-location: 37.1574 -95.2034  0.578 ! Oswego, KS
+	vor-otg-location: 43.6469 -95.5817  0.976 ! Worthington, MN
+	vor-otm-location: 41.0291 -92.3257  0.510 ! Ottumwa, IA
+	vor-pbf-location: 34.2467 -91.9261  0.130 ! Pine Bluff, AR
+	vor-per-location: 36.7465 -97.1598  0.659 ! Pioneer, OK
+	vor-pgo-location: 34.6804 -94.6088  1.678 ! Rich Mountain, OK
+	vor-pwe-location: 40.2004 -96.2060  0.845 ! Pawnee City, NE
+	vor-rst-location: 43.7829 -92.5967  0.857 ! Rochester, MN
+	vor-rty-location: 41.3694 -91.1433  0.334 ! Port City, IA
+	vor-rzc-location: 36.2464 -94.1212  0.826 ! Razorback, AR
+	vor-sgf-location: 37.3559 -93.3339  0.771 ! Springfield, MO
+	vor-shy-location: 38.0406 -92.6025  0.562 ! Sunshine, MO
+	vor-sln-location: 38.8825 -97.6275  0.758 ! Salina, KS
+	vor-spw-location: 43.1622 -95.2008  0.828 ! Spencer, IA
+	vor-stj-location: 39.9606 -94.9250  0.720 ! St. Joseph, MO
+	vor-stl-location: 38.8600 -90.4817  0.137 ! St. Louis, MO
+	vor-sux-location: 42.3445 -96.3233  0.671 ! Sioux City, IA
+	vor-syo-location: 35.3451 -99.6350  1.237 ! Sayre, OK
+	vor-szl-location: 38.7358 -93.5503  0.528 ! Whiteman, MO (SLZ?)
+	vor-tdd-location: 41.9817 -100.7186 1.976 ! Thedford, NE
+	vor-tik-location: 35.4004 -97.3786  0.809 ! ?, OK
+	vor-tko-location: 39.8064 -98.2597  1.168 ! Mankato, KS
+	vor-tnu-location: 41.7838 -93.1088  0.609 ! Newton, IA
+	vor-top-location: 39.1371 -95.5489  0.665 ! Topeka, KS
+	vor-tul-location: 36.1962 -95.7878  0.491 ! Tulsa, OK
+	vor-uin-location: 39.8479 -91.2788  0.441 ! Quincy, IL
+	vor-ukn-location: 43.2801 -91.5372  0.808 ! Waukon, IA
+	vor-vih-location: 38.1540 -91.7066  0.687 ! Rolla/Vichy, MO
+	vor-ykn-location: 42.9184 -97.3846  0.808 ! Yankton, SD
+	vor-adm-azimuth-offset:	-6.9
+	vor-ael-azimuth-offset:	-5.7
+	vor-alo-azimuth-offset:	-3.2
+	vor-anw-azimuth-offset:	-9.1
+	vor-anx-azimuth-offset:	-4.9
+	vor-any-azimuth-offset:	-7.6
+	vor-bfv-azimuth-offset:	-8.1
+	vor-btr-azimuth-offset:	-4.4
+	vor-bum-azimuth-offset:	-5.2
+	vor-bvo-azimuth-offset:	-6.2
+	vor-cbi-azimuth-offset:	-3.6
+	vor-cds-azimuth-offset:	-8.5
+	vor-cgi-azimuth-offset: -4
+	vor-cid-azimuth-offset:	-2.7
+	vor-cnu-azimuth-offset:	-6.0
+	vor-dak-azimuth-offset: -7
+	vor-dbq-azimuth-offset: -4
+	vor-ddc-azimuth-offset:	-8.7
+	vor-dgd-azimuth-offset:	-4.1
+	vor-dsm-azimuth-offset:	-4.3
+	vor-ear-azimuth-offset: -10
+	vor-emp-azimuth-offset:	-6.3
+	vor-end-azimuth-offset:	-7.4
+	vor-eol-azimuth-offset:	-5.9
+	vor-eos-azimuth-offset:	-5.2
+	vor-fod-azimuth-offset:	-4.8
+	vor-foe-azimuth-offset:	-6.0
+	vor-frm-azimuth-offset:	-5.6
+	vor-fsd-azimuth-offset:	-6.8
+	vor-fsm-azimuth-offset:	-5.2
+	vor-gag-azimuth-offset:	-8.5
+	vor-gck-azimuth-offset:	-9.1
+	vor-gld-azimuth-offset: -12
+	vor-gnp-azimuth-offset:	-6.2
+	vor-gri-azimuth-offset:	-7.8
+	vor-gvw-azimuth-offset:	-5.2
+	vor-hbr-azimuth-offset:	-8.0
+	vor-hct-azimuth-offset:	-9.5
+	vor-hlc-azimuth-offset:	-8.9
+	vor-hlv-azimuth-offset:	-3.4
+	vor-hot-azimuth-offset: -4
+	vor-hro-azimuth-offset: -4
+	vor-hsi-azimuth-offset:	-7.9
+	vor-hut-azimuth-offset:	-7.5
+	vor-hys-azimuth-offset:	-8.3
+	vor-iab-azimuth-offset:	-7.0
+	vor-ict-azimuth-offset:	-7.2
+	vor-ifi-azimuth-offset:	-7.4
+	vor-iow-azimuth-offset:	-2.6
+	vor-irk-azimuth-offset:	-3.6
+	vor-irw-azimuth-offset:	-7.2
+	vor-jef-azimuth-offset:	-3.4
+	vor-law-azimuth-offset: -9
+	vor-lbf-azimuth-offset:	-9.4
+	vor-lbl-azimuth-offset:	-9.1
+	vor-lit-azimuth-offset:	-3.8
+	vor-lmn-azimuth-offset:	-4.7
+	vor-lnk-azimuth-offset:	-6.7
+	vor-lrf-azimuth-offset:	-3.8
+	vor-lse-azimuth-offset:	-5.5
+	vor-lts-azimuth-offset:	-8.1
+	vor-map-azimuth-offset:	-3.3
+	vor-mcm-azimuth-offset:	-3.6
+	vor-mcw-azimuth-offset:	-4.1
+	vor-mhk-azimuth-offset:	-6.7
+	vor-mkc-azimuth-offset:	-5.2
+	vor-mlc-azimuth-offset:	-6.1
+	vor-obh-azimuth-offset:	-7.9
+	vor-odg-azimuth-offset:	-7.3
+	vor-odi-azimuth-offset:	-5.6
+	vor-off-azimuth-offset:	-6.1
+	vor-ofk-azimuth-offset:	-7.3
+	vor-ojc-azimuth-offset:	-5.3
+	vor-olu-azimuth-offset:	-7.2
+	vor-oma-azimuth-offset:	-6.0
+	vor-onl-azimuth-offset:	-8.2
+	vor-osw-azimuth-offset:	-5.7
+	vor-otg-azimuth-offset:	-5.9
+	vor-otm-azimuth-offset:	-3.3
+	vor-pbf-azimuth-offset:	-3.7
+	vor-per-azimuth-offset:	-7.0
+	vor-pgo-azimuth-offset:	-5.4
+	vor-pwe-azimuth-offset:	-6.4
+	vor-rst-azimuth-offset:	-5.4
+	vor-rty-azimuth-offset:	-2.3
+	vor-rzc-azimuth-offset:	-5.0
+	vor-sgf-azimuth-offset:	-4.4
+	vor-shy-azimuth-offset:	-3.8
+	vor-sln-azimuth-offset:	-7.3
+	vor-spw-azimuth-offset:	-5.6
+	vor-stj-azimuth-offset:	-5.4
+	vor-stl-azimuth-offset: -5
+	vor-sux-azimuth-offset:	-6.4
+	vor-syo-azimuth-offset:	-8.3
+	vor-szl-azimuth-offset:	-4.5
+	vor-tdd-azimuth-offset:	-9.5
+	vor-tik-azimuth-offset:	-7.1
+	vor-tko-azimuth-offset:	-7.7
+	vor-tnu-azimuth-offset:	-3.9
+	vor-top-azimuth-offset:	-5.9
+	vor-tul-azimuth-offset:	-6.1
+	vor-uin-azimuth-offset:	-2.6
+	vor-ukn-azimuth-offset:	-3.4
+	vor-vih-azimuth-offset:	-3.2
+	vor-ykn-azimuth-offset:	-7.2
+	!
+	! Original VOR locations.
+	!
+	vor-duc-location:	34.3850	-97.9167	0.0	! Duncan 
+	vor-duc-azimuth-offset:	-7.3

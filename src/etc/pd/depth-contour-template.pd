@@ -1,0 +1,22 @@
+global
+	altitude-label:	
+	add-data-command:	new-depth-contour
+	axis-bottom-space:	30
+	axis-left-space:	50
+	axis-right-space:	5
+	axis-top-space:	0
+	pd-name:	depth-contour-template
+	plot-mode:	history
+	plot-time:	18-Feb-93,0:00:00
+	plot-type:	xygraph
+	xy-axis-b-font-scale:	10
+	xy-axis-b-tic-interval:	60m
+	xy-axis-l-font-scale:	10
+	xy-axis-l-tic-interval:	.1
+	xy-axis-r-font-scale:	12
+	xy-axis-r-tic-interval:	0.5
+	xy-axis-t-font-scale:	12
+	xy-data-mode:	series
+	xy-scale-x-mode:	autoscale
+	xy-scale-y-mode:	autoscale
+	xy-series-span:	24h

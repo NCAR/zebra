@@ -1,0 +1,20 @@
+!
+! Template for depth profile windows.
+!
+global
+	add-data-command:	tweak-depth-plat
+	altitude-label:	
+	axis-bottom-space:	40
+	axis-left-space:	50
+	axis-right-space:	50
+	axis-top-space:	30
+	pd-name:	depth-profile-template
+	plot-mode:	history
+	plot-time:	15-Feb-93,0:00:00
+	plot-type:	xygraph
+	xy-axis-b-font-scale:	12
+	xy-axis-l-font-scale:	10
+	xy-axis-r-font-scale:	12
+	xy-axis-t-font-scale:	12
+	xy-data-mode:	snapshot
+!	xy-series-span:	720m
