@@ -1,7 +1,7 @@
 /*
  * Track drawing routines.
  */
-static char *rcsid = "$Id: Track.c,v 1.11 1991-01-24 17:01:35 kris Exp $";
+static char *rcsid = "$Id: Track.c,v 1.12 1991-02-12 21:17:08 corbet Exp $";
 
 
 # include <X11/Intrinsic.h>
@@ -26,8 +26,11 @@ extern Pixel White;	/* XXX */
 # ifdef __STDC__
 	static bool tr_CCSetup (char *, char *, char *, XColor **,
 		int *, float *, float *, XColor *);
+	static void tr_GetArrowParams (char *, char *, float *, int *, int *,
+			int *, XColor *, char *, char *, char *);
 # else
 	static bool tr_CCSetup ();
+	static void tr_GetArrowParams ();
 # endif
 
 # define BADVAL -32768
@@ -40,7 +43,7 @@ bool update;
 {
 	char platform[30], tp[30], ccfield[30], ctable[30];
 	char *fields[5], mtcolor[20], string[40], format[30];
-	char a_interval[30], a_color[30], a_xfield[30], a_yfield[30];
+	char a_xfield[30], a_yfield[30];
 	char a_type[30], tadefcolor[30];
 	int period, dsperiod, x0, y0, x1, y1, nc, lwidth, pid;
 	int dskip = 0, npt = 0, i, top, bottom, left, right, wheight, mid;
@@ -124,48 +127,11 @@ bool update;
  * Read arrow parameters if necessary.
  */
 	arrow = FALSE;
-	tr_GetParam(comp, "arrow", platform, (char *) &arrow, SYMT_BOOL);
+	tr_GetParam (comp, "arrow", platform, (char *) &arrow, SYMT_BOOL);
 	if(arrow)
 	{
-		if(! tr_GetParam(comp, "arrow-scale", platform, 
-				(char *) &a_scale,
-				SYMT_FLOAT))
-			a_scale = 0.007;
-		if(! tr_GetParam(comp, "arrow-line-width", platform, 
-				(char *) &a_lwidth,
-				SYMT_INT))
-			a_lwidth = 1;
-		if(! tr_GetParam(comp, "arrow-invert", platform, 
-				(char *) &a_invert, SYMT_BOOL))
-			a_invert = FALSE;
-		if(! tr_GetParam(comp, "arrow-interval", platform, a_interval,
-				SYMT_STRING))
-			a_int = 10;
-		else if((a_int = pc_TimeTrigger(a_interval))  == 0)
-		{
-			msg_ELog(EF_PROBLEM,"Unparsable arrow interval:
-				'%s'.",a_interval);
-			a_int = 30;
-		}
-		if(! tr_GetParam(comp, "arrow-color", platform, a_color,
-				SYMT_STRING))
-			strcpy(a_color,"white");
-		if(! ct_GetColorByName(a_color,&a_clr))
-		{
-			msg_ELog(EF_PROBLEM,"Can't get arrow color:
-				'%s'.",a_color);
-			strcpy(a_color,"white");
-			ct_GetColorByName(a_color,&a_clr);
-		}
-		if(! tr_GetParam(comp, "arrow-type", platform, a_type,
-				SYMT_STRING))
-			strcpy(a_type,"wind");
-		if(! tr_GetParam(comp, "x-field", platform, a_xfield,
-				SYMT_STRING))
-			strcpy(a_xfield,"u_wind");
-		if(! tr_GetParam(comp, "y-field", platform, a_yfield,
-				SYMT_STRING))
-			strcpy(a_yfield,"v_wind");
+		tr_GetArrowParams (comp, platform, &a_scale, &a_lwidth,
+			&a_invert, &a_int, &a_clr, a_type, a_xfield, a_yfield);
 		fields[1] = a_xfield;
 		fields[2] = a_yfield;
 		numfields = 3;
@@ -205,14 +171,13 @@ bool update;
 /*
  * Get the data.
  */
-	dobj = ds_GetData (pid, fields, numfields, &begin, &PlotTime, OrgScalar,
+	dobj = ds_GetData(pid, fields, numfields, &begin, &PlotTime, OrgScalar,
 		0.0, BADVAL);
 	if (! dobj)
 	{
 		msg_ELog (EF_INFO, "No %s data available", platform);
 		return;
 	}
-	msg_ELog (EF_DEBUG, "Got track data, %d pt", dobj->do_npoint);
 	cvt_ToXY (dobj->do_aloc[0].l_lat, dobj->do_aloc[0].l_lon, &fx, &fy);
 	x0 = XPIX (fx); y0 = YPIX (fy);
 	data = dobj->do_data[0];
@@ -296,8 +261,11 @@ bool update;
 			}
 		}
 	}
-
 	XSetLineAttributes (disp, Gcontext, 0, LineSolid, CapButt, JoinMiter);
+/*
+ * Put in the status line before we lose the data object, then get rid of it.
+ */
+	lw_TimeStatus (comp, &dobj->do_end);
 	ds_FreeDataObject (dobj);
 /*
  * Annotate if necessary.
@@ -455,6 +423,63 @@ float *base, *incr;
 
 
 
+static void
+tr_GetArrowParams (comp, platform, a_scale, a_lwidth, a_invert, a_int, a_clr,
+		a_type, a_xfield, a_yfield)
+char *comp, *platform, *a_type, *a_xfield, *a_yfield;
+float *a_scale;
+int *a_lwidth, *a_invert, *a_int;
+XColor *a_clr;
+/*
+ * Get the parameters that control track arrows.
+ */
+{
+	char a_color[40], a_interval[30];
+/*
+ * Misc params.
+ */
+	if(! tr_GetParam(comp, "arrow-scale", platform, (char *) a_scale,
+			SYMT_FLOAT))
+		*a_scale = 0.007;
+	if(! tr_GetParam(comp, "arrow-line-width", platform, (char *) a_lwidth,
+			SYMT_INT))
+		*a_lwidth = 1;
+	if(! tr_GetParam(comp, "arrow-invert", platform, (char *) a_invert,
+			SYMT_BOOL))
+		*a_invert = FALSE;
+/*
+ * Get and parse the arrow interval.
+ */
+	if(! tr_GetParam(comp, "arrow-interval", platform, a_interval,
+			SYMT_STRING))
+		*a_int = 10;
+	else if((*a_int = pc_TimeTrigger (a_interval)) == 0)
+	{
+		msg_ELog(EF_PROBLEM,"Unparsable arrow interval:
+			'%s'.",a_interval);
+		*a_int = 30;
+	}
+/*
+ * Color information.
+ */
+	if(! tr_GetParam (comp, "arrow-color", platform, a_color, SYMT_STRING))
+		strcpy (a_color, "white");
+	if(! ct_GetColorByName (a_color, a_clr))
+	{
+		msg_ELog (EF_PROBLEM, "Can't get arrow color: '%s'.",a_color);
+		strcpy (a_color, "white");
+		ct_GetColorByName (a_color, a_clr);
+	}
+/*
+ * And what are we actually plotting?
+ */
+	if(! tr_GetParam (comp, "arrow-type", platform, a_type, SYMT_STRING))
+		strcpy (a_type,"wind");
+	if(! tr_GetParam (comp, "x-field", platform, a_xfield, SYMT_STRING))
+		strcpy (a_xfield, "u_wind");
+	if(! tr_GetParam (comp, "y-field", platform, a_yfield, SYMT_STRING))
+		strcpy (a_yfield, "v_wind");
+}
 
 
 
