@@ -20,16 +20,21 @@
  * maintenance or updates for its software.
  */
 # include <string.h>
+# include <stdio.h>
+# include <stdlib.h>
 
-# include "defs.h"
-# include "message.h"
+# include <ui.h>
+# include <defs.h>
+# include <message.h>
+
 # include "DataStore.h"
 # include "dsPrivate.h"
+# include "Platforms.h"
 # include "dsDaemon.h"
 # include "commands.h"
 # include <ui_error.h>
 
-MAKE_RCSID("$Id: d_Config.c,v 2.14 1996-01-23 04:22:58 granger Exp $")
+RCSID("$Id: d_Config.c,v 2.15 1996-11-19 09:25:21 granger Exp $")
 
 /*-----------------------------------------------------------------------
  * Local forwards.
@@ -69,7 +74,7 @@ char *superclass;	/* NULL if not specified */
 /*
  * In case this is an on-the-fly definition, scan the platform directory
  */
-	if (! InitialScan)
+	if (! InitialScan && plat)
 		RescanPlat (plat);
 }
 
@@ -85,7 +90,8 @@ bool platform;		/* Implicit class creation from a platform command? */
  */
 {
 	PlatformClass *pc;
-	char *next_state;
+	static char *next_state;	/* static to avoid gcc warning
+					   "might be clobbered by 'longjmp'" */
 /*
  * Grab a platform table entry for this guy.
  */
@@ -103,18 +109,24 @@ bool platform;		/* Implicit class creation from a platform command? */
 			(long) pc);
 	ENDCATCH
 /*
- * Set any necessary default directory paths.
+ * The rest is pointless unless we got a class structure.
  */
-	dt_FillClassDirs (pc);
-/*
- * Some day we may want to remove this class or somehow flag if its in error.
- * For now there will only be a warning about invalid classes.
- */
-	dt_ValidateClass (pc);
-	if (ParseOnly)
+	if (pc)
 	{
-		dbg_DumpClass (pc);
-		printf ("----->Finished defining class %s\n", name);
+	/*
+	 * Set any necessary default directory paths.
+	 */
+		dt_FillClassDirs (pc, pc_SuperClass (pc));
+	/*
+	 * Some day we may remove this class or flag it if its wrong.
+	 * For now there will only be a warning about invalid classes.
+	 */
+		dt_ValidateClass (pc);
+		if (ParseOnly)
+		{
+			dbg_DumpClass (pc);
+			printf ("----->Finished defining class %s\n", name);
+		}
 	}
 }
 
@@ -159,12 +171,14 @@ struct ui_command *cmds;
 				spcname);
 		parent_class = CTable + parent->dp_class;
 		spc = dt_NewClass (spcname, parent_class->dpc_name);
+		if (! spc)	/* oops, some other time perhaps... */
+			return;
 		spc->dpc_inherit = InheritNone;
 		spc->dpc_instance = InstanceCopyParent;
 		spc->dpc_org = OrgScalar;
 		spc->dpc_flags &= ~DPF_COMPOSITE;
 		spc->dpc_flags |= DPF_SUBPLATFORM;
-		dt_FillClassDirs (spc);
+		dt_FillClassDirs (spc, pc_SuperClass (spc));
 
 		if (ParseOnly)
 		{
@@ -189,6 +203,12 @@ struct ui_command *cmds;
  * Deal with an internal definition for this platform.
  */
 {
+	/*
+	 * Check whether we're just skipping through a bad definition.
+	 */
+	if (! pc)
+		return (TRUE);
+
 	switch (UKEY (*cmds))
 	{
 	/*
@@ -319,9 +339,10 @@ struct ui_command *cmds;
 			dc_AddSubPlats (pc, UPTR(cmds[1]), cmds+2);
 		break;
 	/*
-	 * Comments for this class.  Ignored at present.
+	 * Comments for this class.
 	 */
 	   case DK_COMMENT:
+		dt_SetComment (pc, UPTR(cmds[1]));
 		break;
 	}
 	return (TRUE);
@@ -379,7 +400,7 @@ struct ui_command *cmds;	/* Instance names		*/
 	else
 	{
 		for ( ; cmds->uc_ctype != UTT_END; ++cmds)
-			dt_AddClassSubPlat (pc, spc, UPTR (*cmds));
+			dt_AddClassSubPlat (pc, spc - CTable, UPTR (*cmds));
 	}
 }
 
@@ -408,7 +429,7 @@ struct ui_command *cmds;	/* Instance names		*/
  */
 	for ( ; cmds->uc_ctype != UTT_END; ++cmds)
 	{
-		dt_AddClassSubPlat (pc, spc, UPTR (*cmds));
+		dt_AddClassSubPlat (pc, spc - CTable, UPTR (*cmds));
 	}
 }
 
@@ -455,9 +476,12 @@ struct ui_command *cmds;	/* Name of the instances		*/
  */
 	for ( ; cmds->uc_ctype != UTT_END; cmds++)
 	{
-		Platform *newpl = dt_Instantiate(pc, BadPlatform, UPTR(*cmds));
+		/* Platform *newpl = */
+		dt_Instantiate (pc, BadPlatform, UPTR(*cmds));
+#ifdef notdef
 		if (newpl && ! InitialScan)
 			RescanPlat (newpl);
+#endif
 	}
 }
 
