@@ -35,7 +35,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.10 1994-06-10 21:50:29 burghart Exp $")
+MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.11 1994-06-29 20:24:30 case Exp $")
 
 /*
  * The GRIB product definition section (PDS)
@@ -754,7 +754,7 @@ int		ndetail;
 		    ds_GetDetail ("altitude", details, ndetail, &v));
 	if (onelevel)
 	{
-		float	diff, bestdiff = 99e99;
+		float	diff, bestdiff = 99e9;
 		int	best;
 
 		ztarget = v.us_v_float;
