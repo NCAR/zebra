@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: Input.c,v 2.2 1992-07-31 16:54:31 corbet Exp $";
+static char *rcsid = "$Id: Input.c,v 2.3 1993-12-28 16:21:17 burghart Exp $";
 
 # include <sys/types.h>
 # include <sys/time.h>
@@ -48,8 +48,8 @@ static char InSource[200];
 /*
  * File input stuff.
  */
-# define BUFLEN 32000
-static unsigned char Tbuffer[BUFLEN];
+# define BUFLEN 32768
+static unsigned short Tbuffer[BUFLEN];
 
 /*
  * The beam structure we pass back.
@@ -191,8 +191,7 @@ GetBeam ()
 			return (GetBeam ());
 		}
 		Bst.b_gdesc[0].gd_ngate = Bst.b_hk->gates_per_beam;
-		Bst.b_gdesc[0].gd_data = Tbuffer +
-				Bst.b_hk->sz_hsk*sizeof (short);
+		Bst.b_gdesc[0].gd_data = Tbuffer + Bst.b_hk->sz_hsk;
 		return (&Bst);
 	}
 }
