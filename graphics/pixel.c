@@ -1,4 +1,5 @@
 /* 7/87 jc */
+/* $Id: pixel.c,v 1.2 1989-10-13 11:24:37 corbet Exp $ */
 /*
  * Operations relating to pixel maps are performed here.
  */
@@ -183,15 +184,23 @@ int color, ltype, npt, *ndata;
 
 
 
-gp_update (wstn, pm)
+gp_update (wstn, pm, unconditional)
 struct workstation *wstn;
 struct pixmap *pm;
+int unconditional;
 /*
  * Physically update this pixmap onto the display.
  */
 {
 	struct device *dev = wstn->ws_dev;
 	int blk, nblk;
+/*
+ * If this device does hardware clipping, we better disable it now, or
+ * our stuff might not get out.
+ */
+	if (dev->gd_flags & GDF_HCW)
+		(*dev->gd_set_hcw) (wstn->ws_tag, 0, 0, dev->gd_xres-1,
+			dev->gd_yres - 1);
 /*
  * Step through each block, and see which ones are modified.
  */
@@ -200,7 +209,8 @@ struct pixmap *pm;
 	{
 		int xb, yb;
 
-		if ((! pm->pm_mod[blk]) && (pm->pm_flags & PF_ENTIRE) == 0)
+		if ((! pm->pm_mod[blk]) && (pm->pm_flags & PF_ENTIRE) == 0 &&
+				! unconditional)
 			continue;
 		xb = (blk % pm->pm_nxb) * pm->pm_xb;
 		yb = (blk / pm->pm_nxb) * pm->pm_yb;
