@@ -35,7 +35,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 # include "commands.h"
-MAKE_RCSID ("$Id: Daemon.c,v 3.10 1993-02-17 22:30:01 corbet Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.11 1993-02-24 18:37:18 corbet Exp $")
 
 
 
@@ -683,7 +683,7 @@ Platform *p;
  * Rescan the directory(ies).
  */
 	ScanDirectory (p, TRUE, TRUE);
-	if (p->dp_flags & DPF_REMOTE)
+	if (p->dp_flags & DPF_REMOTE && ! RDirConst)
 		ScanDirectory (p, FALSE, TRUE);
 /*
  * Now get rid of anything that has disappeared.
