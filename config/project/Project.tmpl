@@ -1,6 +1,6 @@
 /**/#-------------------------------------------------------------------------
 /**/# Zeb project build parameters
-/**/# $Id: Project.tmpl,v 1.20 1994-02-01 21:08:05 corbet Exp $
+/**/# $Id: Project.tmpl,v 1.21 1994-02-02 22:29:18 corbet Exp $
 /**/#-------------------------------------------------------------------------
 
 /*****************************************************************************
@@ -188,6 +188,15 @@
 #      define RDSSIncludes -I$(RDSSINCDIR)
 #   endif
 #endif
+
+/*
+ * X include directory.  Do the right thing if they want openwin.
+ */
+# ifndef XIncDir
+#	if UseOpenWindows
+#		define XIncDir /usr/openwin/include
+#	endif
+# endif
 
 #ifndef XIncDir
 #   define XIncDir /**/	/* assume X includes in std search path */
