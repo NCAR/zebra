@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# $Id: sumplot,v 1.17 2004-03-03 07:36:22 granger Exp $
+# $Id: sumplot,v 1.18 2004-03-07 09:15:33 granger Exp $
 #
 # Collect all the images of a given pattern, reduce their size, and
 # put them into a table in the current directory.
@@ -42,7 +42,8 @@ fi
 
 findimages()
 {
-    find $basedir/. -type f -name "${pattern}" | sort
+    find $basedir/. -type f | egrep '\.jpg$|\.png$' | \
+	egrep "${pattern}" | sort
 }
 
 . libsumplot
