@@ -219,7 +219,7 @@ Message *msg;
 		break;
 	   case dpt_R_PlatStruct:
 		dps = (struct dsp_PlatStruct *) dt;
-		printf ("\tPlatStruct (%s)\n", dps->dsp_plat.dp_name);
+		printf ("\tPlatStruct (%s)\n", dps->dsp_plat.cp_name);
 		break;
 
 	   case dpt_GetFileStruct:
