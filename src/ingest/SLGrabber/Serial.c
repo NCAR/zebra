@@ -13,7 +13,7 @@
 # include "Serial.h"
 # include "Options.h"
 
-MAKE_RCSID("$Id: Serial.c,v 2.1 2000-07-19 23:08:46 granger Exp $")
+MAKE_RCSID("$Id: Serial.c,v 2.2 2000-07-21 08:39:28 granger Exp $")
 
 #define DEFAULT_TERM	"/dev/ttya"	/* Default port device	*/
 #define DEFAULT_SPEED	"9600"		/* Default baud rate	*/
@@ -375,9 +375,26 @@ SimulatePort (Connection *conn)
 
 
 
+/*
+ * Open the given connection and return its fd, else -1.
+ * Do not activate any listening or handlers for the connection,
+ * just open the port.  Disconnect (close) any file already open
+ * for the connection.
+ */
+int
+SerialOpen (SerialConnection *sc)
+{
+    Connection *conn = (Connection *) sc;
+
+    SerialDisconnect (sc);
+    GetPort (conn);
+    return (conn->c_Fd);
+}
+
+
+
 static void
-GetPort (conn)
-Connection *conn;
+GetPort (Connection *conn)
 /*
  * Open and tweak the serial port.
  */
@@ -388,6 +405,7 @@ Connection *conn;
 		int n_speed;
 	} Speeds[] =
 	{
+		{ "300",	B300 	},
 		{ "1200",	B1200 	},
 		{ "2400",	B2400 	},
 		{ "9600",	B9600 	},
@@ -412,7 +430,7 @@ Connection *conn;
  */
 	if ((conn->c_Fd = open (conn->c_Port, O_RDWR, 0)) < 0)
 	{
-		perror ("serial line grabber port");
+		perror ("serial line port");
 		msg_ELog (EF_PROBLEM, "Error %d opening %s", errno, 
 			  conn->c_Port);
 		SerialDie ("couldn't open port", 4);
@@ -437,6 +455,9 @@ Connection *conn;
 	tbuf.c_iflag = 0;
 	tbuf.c_oflag = 0;
 	tbuf.c_lflag = 0;
+
+	tbuf.c_cc[VTIME] = 0;
+	tbuf.c_cc[VMIN] = 1;
 /*
  * Store the new parameters.
  */

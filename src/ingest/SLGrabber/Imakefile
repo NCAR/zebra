@@ -15,13 +15,14 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.6 2000-07-19 23:08:46 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.7 2000-07-21 08:39:28 granger Exp $"
 
 LIBS = $(LIBZEB) $(LIBRDSS) $(LIBNETCDF)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
 SRCS = SLGrabber.c Serial.c Options.c
-OBJS = SLGrabber.o Serial.o Options.o
+LIBOBJS = Serial.o Options.o
+OBJS = SLGrabber.o $(LIBOBJS)
 
 HEADERS = SLGrabber.h Serial.h Options.h
 
@@ -33,6 +34,9 @@ InstallProgramWithFlags(SLGrabber,$(BINDIR),-s)
 
 BuildIncludesTop($(HEADERS))
 InstallMultipleFlags($(HEADERS),$(INCDIR),$(INSTINCFLAGS))
+
+NormalLibraryTarget (zserial, $(LIBOBJS))
+InstallLibrary (zserial, $(LIBDIR))
 
 DependTarget()
 LintTarget()

@@ -23,6 +23,7 @@ void SerialUsage ();
 void SerialParseOptions (SerialConnection *, int *argc, char *argv[]);
 SerialConnection *SerialInitialize ();
 void SerialConnect (SerialConnection *, SerialDataHandlerP handler);
+int SerialOpen (SerialConnection *sc);
 void SerialDisconnect (SerialConnection *);
 void SerialDie (const char *msg, int code);
 SerialMode SerialGetMode (SerialConnection *);
