@@ -40,7 +40,7 @@
 # include "PlotPrim.h"
 # include "DrawText.h"
 
-RCSID ("$Id: XYGraph.c,v 1.38 1998-11-20 16:08:59 burghart Exp $")
+RCSID ("$Id: XYGraph.c,v 1.39 2000-11-22 19:27:36 granger Exp $")
 
 /*
  * Prototypes
@@ -316,6 +316,7 @@ zbool	update;
 	    if (! update)
 		    An_TopAnnot (".  ", taColor);
 	}
+	ResetGC();
 /*
  * Free local memory
  */

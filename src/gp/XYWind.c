@@ -38,7 +38,7 @@
 # include "AxisControl.h"
 # include "PlotPrim.h"
 
-RCSID ("$Id: XYWind.c,v 1.36 2000-11-16 22:58:02 granger Exp $")
+RCSID ("$Id: XYWind.c,v 1.37 2000-11-22 19:27:37 granger Exp $")
 
 /*
  * General definitions
@@ -470,6 +470,7 @@ zbool	update;
 
 	    pp_UnClip ();
         }
+	ResetGC ();
 /*
  * Free local memory
  */

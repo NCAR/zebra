@@ -36,7 +36,7 @@
 # include "AxisControl.h"
 # include "PlotPrim.h"
 
-RCSID("$Id: AxisControl.c,v 1.29 1998-10-28 21:21:31 corbet Exp $")
+RCSID("$Id: AxisControl.c,v 1.30 2000-11-22 19:27:36 granger Exp $")
 
 /*
  * Convenient scratch string
@@ -157,6 +157,7 @@ AxisSide	side;
 	ct_GetColorByName ("white", &mainPix);
     }
 
+    ResetGC();
     XSetForeground (Disp, Gcontext, mainPix.pixel);
 /*
  * Compute the RGB values for the grid color (which is just the axis color

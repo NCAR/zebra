@@ -37,7 +37,7 @@
 # include "rg_status.h"
 # include "Contour.h"
 
-RCSID("$Id: XYContour.c,v 1.41 1999-03-01 02:04:34 burghart Exp $")
+RCSID("$Id: XYContour.c,v 1.42 2000-11-22 19:27:36 granger Exp $")
 
 # define GRID(g,i,j,ydim)   (g[((i) * (ydim)) + (j)])
 
@@ -496,6 +496,7 @@ zbool	update;
  * Add a period to the top annotation and draw axes
  */
 	An_TopAnnot (".  ", taColor);
+	ResetGC ();
 	ac_PlotAxes (c);
 /*
  * Free local memory
