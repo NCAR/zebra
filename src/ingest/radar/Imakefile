@@ -15,21 +15,23 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.19 1996-12-10 21:00:32 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.20 1996-12-10 21:27:04 granger Exp $"
 
 LIBS = $(DFALIBS) $(ZLIBS) $(XLIBS)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 DEPLIBS = $(LIBZEBDS) $(LIBZEB)
 
-INCLUDES = $(XINCLUDES)
+INCLUDES = $(XINCLUDES) $(PCAPINCLUDES)
 
 SRCS =  radar_ingest.c adrad_ingest.c adradInput.c Input.c mtape.c \
 	Rasterize.c StatusWidget.c XDisplay.c ds_consumer.c adradFieldList.c \
-	RadarStatus.c UFIngest.c UFInput.c cp2.c
+	RadarStatus.c UFIngest.c UFInput.c cp2.c BeamBuffer.c PCapInput.c \
+	RGridConsumer.c
 
 OBJS =	radar_ingest.o adrad_ingest.o adradInput.o Input.o mtape.o \
 	Rasterize.o StatusWidget.o XDisplay.o ds_consumer.o adradFieldList.o \
-	RadarStatus.o UFIngest.o UFInput.o cp2.o
+	RadarStatus.o UFIngest.o UFInput.o cp2.o BeamBuffer.o PCapInput.o \
+	RGridConsumer.o
 
 HEADERS = BeamBuffer.h
 

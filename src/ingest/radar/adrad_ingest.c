@@ -22,8 +22,7 @@
 
 /* rewrite for adrad data input by Dan Austin 8/93	*/
 
-/* clean up includes later	*/
-# include <copyright.h>
+# include <math.h>
 # include <errno.h>
 # include <sys/time.h>
 # include <sys/resource.h>
@@ -39,7 +38,7 @@
 # include "radar_ingest.h"
 # include "display.h"
  
-RCSID("$Id: adrad_ingest.c,v 2.10 1996-12-10 20:50:49 granger Exp $")
+RCSID("$Id: adrad_ingest.c,v 2.11 1996-12-10 21:27:19 granger Exp $")
 
 /* 
  * Adrad includes for xdr, etc.
@@ -141,7 +140,8 @@ static void SetConsumer FP ((struct ui_command *));
 static void InvokeConsumer FP ((void));
 static int MHandler FP ((Message *));
 static void CheckMessages FP ((void));
-int die FP ((void));
+
+void die FP ((int sig));
 
 /* main loop 	*/
 
@@ -317,7 +317,10 @@ struct ui_command *cmds;
 	NField++;
 }
 
-die ()
+
+void
+die (sig)
+int sig;
 /*
  * Finish gracefully.
  */

@@ -35,7 +35,7 @@
 # include "timer.h"
 # include "RadarInfo.h"
 
-static char *rcsid = "$Id: RadarStatus.c,v 2.5 1995-04-20 07:34:47 granger Exp $";
+static char *rcsid = "$Id: RadarStatus.c,v 2.6 1996-12-10 21:27:07 granger Exp $";
 
 # define PI		3.1415927
 # define DEG_TO_RAD(x)	(((x) * 0.017453293))
@@ -70,6 +70,8 @@ bool DataSeen = FALSE;
 	static void	GrUpdate ();
 # endif
 
+void wm FP ((Widget w, void *a, void *b));
+
 
 main (argc, argv)
 int argc;
@@ -77,7 +79,7 @@ char **argv;
 {
 	Arg args[20];
 	Widget w, label;
-	int xevent (), msg_event (), clearbutton (), wm (), n, bcs;
+	int xevent (), msg_event (), clearbutton (), n, bcs;
 /*
  * Hook into the message system.
  */
@@ -160,8 +162,9 @@ char **argv;
 /*
  * Instead, tell X about the msg connection.
  */
-	XtAppAddInput (Appc, msg_get_fd (), XtInputReadMask, MsgInput, 0);
-	XtAppAddInput (Appc, bcs, XtInputReadMask, MsgBCInput, 0);
+	XtAppAddInput (Appc, msg_get_fd (), (void *)XtInputReadMask, 
+		       MsgInput, 0);
+	XtAppAddInput (Appc, bcs, (void *)XtInputReadMask, MsgBCInput, 0);
 /*
  * A timer event to turn back to "offline" if data drops out.
  */
@@ -366,8 +369,10 @@ int x, y, w, h;
 
 
 
-
-wm ()
+void
+wm (w, a, b)
+Widget w;
+void *a, *b;
 /*
  * Try to change override redirect.
  */

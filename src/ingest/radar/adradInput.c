@@ -18,8 +18,8 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: adradInput.c,v 2.3 1994-04-21 16:24:48 burghart Exp $";
 
+# include <math.h>
 # include <sys/types.h>
 # include <sys/time.h>
 # include <sys/file.h>
@@ -28,6 +28,8 @@ static char *rcsid = "$Id: adradInput.c,v 2.3 1994-04-21 16:24:48 burghart Exp $
 # include <message.h>
 # include "HouseKeeping.h"
 # include "radar_ingest.h"
+
+RCSID("$Id: adradInput.c,v 2.4 1996-12-10 21:27:17 granger Exp $")
 
 /*
  * Adrad includes for xdr, etc.

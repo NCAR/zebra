@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: Rasterize.c,v 2.13 1996-04-19 18:25:11 burghart Exp $";
+# include <math.h>
 
 # include <defs.h>
 # include <message.h>
@@ -27,6 +27,8 @@ static char *rcsid = "$Id: Rasterize.c,v 2.13 1996-04-19 18:25:11 burghart Exp $
 # include <math.h>
 # include "HouseKeeping.h"
 # include "radar_ingest.h"
+
+RCSID("$Id: Rasterize.c,v 2.14 1996-12-10 21:27:11 granger Exp $")
 
 
 static char *Modes[] = { "CAL", "PPI", "COP", "RHI", "??4", "??5", "??6",

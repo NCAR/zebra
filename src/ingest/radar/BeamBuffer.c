@@ -11,7 +11,7 @@
 # include <message.h>
 # include "BeamBuffer.h"
 
-MAKE_RCSID ("$Id: BeamBuffer.c,v 2.2 1995-09-20 20:45:29 burghart Exp $")
+MAKE_RCSID ("$Id: BeamBuffer.c,v 2.3 1996-12-10 21:27:02 granger Exp $")
 
 /*
  * The beginning of our SHM segment has one of these.
@@ -126,7 +126,7 @@ int key, bsize, nbeam;
  * Fix up the other pointers.
  */
 	Sizes = (unsigned short *) (ShmSegment + Header->bbh_Sizes);
-	Beams = ShmSegment + Header->bbh_Beams;
+	Beams = (unsigned char *)ShmSegment + Header->bbh_Beams;
 /*
  * Get a semaphore too.
  */
@@ -221,7 +221,7 @@ int key;
  */
 	Header = (struct BBHeader *) ShmSegment;
 	Sizes = (unsigned short *) (ShmSegment + Header->bbh_Sizes);
-	Beams = ShmSegment + Header->bbh_Beams;
+	Beams = (unsigned char *) ShmSegment + Header->bbh_Beams;
 	if (Header->bbh_Magic != BB_MAGIC)
 	{
 		msg_ELog (EF_PROBLEM, "BB Header magic 0x%x",

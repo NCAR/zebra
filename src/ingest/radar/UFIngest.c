@@ -122,7 +122,8 @@ static void	SetConsumer FP ((struct ui_command *));
 static void	InvokeConsumer FP ((void));
 static int	MHandler FP ((Message *));
 static void	CheckMessages FP ((void));
-int		die FP ((void));
+
+void		die FP ((int));
 
 
 
@@ -297,8 +298,9 @@ struct ui_command *cmds;
 
 
 
-
-die ()
+void
+die (sig)
+int sig;
 /*
  * Finish gracefully.
  */
