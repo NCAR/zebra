@@ -23,6 +23,7 @@
 # include "ui_date.h"
 # include "ui_globals.h"
 
+static char *Rcsid = "$Id: ui_symbol.c,v 1.3 1989-03-10 16:41:28 corbet Exp $";
 
 /*
  * This is the format of a single symbol table entry.
@@ -93,13 +94,8 @@ static char *St_types[] =
  */
 static int S_nlookup = 0;		/* Number of symbol lookups	*/
 static int S_ncoll = 0;			/* Number of hash collisions	*/
-static int S_nstring = 0;		/* usy_string calls		*/
-static int S_relstring = 0;		/* Released strings		*/
-static int S_lenstring = 0;		/* bytes alloc for strings	*/
-static int S_lenrel = 0;		/* Released string len		*/
 static int S_nset = 0;			/* Number of symbol sets	*/
 
-static bool D_string = FALSE;		/* Debug string allocation	*/
 
 usy_init ()
 /*
@@ -112,7 +108,7 @@ usy_init ()
  */
 	M_table = (struct symbol_table *) getvm (sizeof (struct symbol_table));
 	zfill ((char *) M_table, sizeof (struct symbol_table));
-	M_table->st_name = usy_string ("usym$master_table");
+	M_table->st_name = usy_pstring ("usym$master_table");
 /*
  * Create our symbol table to hold externally (user) accessible stuff.
  */
@@ -126,17 +122,11 @@ usy_init ()
  	usy_c_indirect (Stat_table, "s_nlookup", &S_nlookup,
 		SYMT_INT, 0);
  	usy_c_indirect (Stat_table, "s_ncoll", &S_ncoll, SYMT_INT,0);
- 	usy_c_indirect (Stat_table, "s_nstring", &S_nstring,
-		SYMT_INT, 0);
- 	usy_c_indirect (Stat_table, "s_relstring", &S_relstring,
-		SYMT_INT, 0);
- 	usy_c_indirect (Stat_table, "s_lenstring", &S_lenstring,
-		SYMT_INT, 0);
- 	usy_c_indirect (Stat_table, "s_lenrel", &S_lenrel,
-		SYMT_INT, 0);
  	usy_c_indirect (Stat_table, "s_nset", &S_nset, SYMT_INT,0);
-	usy_c_indirect (Ui_variable_table, "ui$dstring", &D_string,
-		SYMT_BOOL, 0);
+/*
+ * Initialize dynamic strings.
+ */
+ 	usy_st_init (Stat_table);
 	return;
 }
 
@@ -170,7 +160,7 @@ char *name;
 		name = xname;
 	}
 	zfill ((char *) table, sizeof (struct symbol_table));
-	table->st_name = zapcase (usy_string (name));
+	table->st_name = zapcase (usy_pstring (name));
 	table->st_nsym = 0;
 /*
  * Put an entry into the master table for this new table.
@@ -268,6 +258,7 @@ char *symbol;
  
  
  
+# ifdef notdef
 
 
 char *
@@ -303,6 +294,7 @@ char *string;
 }
 
 
+# endif
 
 
 struct ste *
@@ -568,7 +560,7 @@ char *symbol;
 	int slot;
 
 	zfill (sp, sizeof (struct ste));
-	sp->ste_sym = zapcase (usy_string (symbol));
+	sp->ste_sym = zapcase (usy_pstring (symbol));
 	slot = HASH (sp->ste_sym);
 	sp->ste_next = table->st_ste[slot];
 	table->st_ste[slot] = sp;
