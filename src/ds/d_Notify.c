@@ -19,6 +19,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+# include <stdio.h>
 # include <string.h>
 
 # include <defs.h>
@@ -26,7 +27,7 @@
 # include "DataStore.h"
 # include "dsPrivate.h"
 
-RCSID("$Id: d_Notify.c,v 3.10 1996-12-03 22:05:22 granger Exp $")
+RCSID("$Id: d_Notify.c,v 3.11 1996-12-06 00:34:29 granger Exp $")
 
 /*
  * Here we take advantage of the knowledge that PlatformID's are simply small
@@ -121,11 +122,11 @@ struct dsp_NotifyRequest *req;
  */
 	if (Copies)
 	{
-		char buf[sizeof (struct dsp_NotifyRequest) + MAX_NAME_LEN + 1];
 		struct dsp_NotifyRequest *copy;
+		char buf[sizeof (struct dsp_NotifyRequest) + MAX_NAME_LEN + 1];
 
 		copy = (struct dsp_NotifyRequest *) buf;
-		*copy = *req;
+		memcpy (copy, req, sizeof(*req));
 		strcpy (((char *) copy) + sizeof (*copy), from);
 		msg_send (CopyProc, MT_DATASTORE, FALSE, copy,
 			  sizeof (*copy) + strlen (from) + 1);
