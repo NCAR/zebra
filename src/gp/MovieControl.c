@@ -1,7 +1,7 @@
 /*
  * Movie control functions.
  */
-static char *rcsid = "$Id: MovieControl.c,v 2.9 1992-11-02 22:06:51 burghart Exp $";
+static char *rcsid = "$Id: MovieControl.c,v 2.10 1992-11-03 16:24:21 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -429,7 +429,7 @@ mc_MovieRun ()
 	PlotMode = History;
 	MovieMode = TRUE;
 	pd_Store (Pd, "global", "plot-mode", "history", SYMT_STRING);
-	pd_Store (Pd, "global", "movie-mode", (char *) &MovieMode, SYMT_INT);
+	pd_Store (Pd, "global", "movie-mode", (char *) &MovieMode, SYMT_BOOL);
 	Eq_AddEvent (PWhenever, eq_ReturnPD, 0, 0, Bounce);
 	mc_UpdateWidgets ();
 /*
