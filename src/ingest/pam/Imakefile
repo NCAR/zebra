@@ -15,19 +15,24 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.1 1992-08-20 13:29:04 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.2 1992-12-10 22:04:23 granger Exp $"
 
 LIBS = $(LIBZEB) $(LIBRDSS) $(LIBNETCDF)
 
-SRCS = pam_ingest.c
-OBJS = pam_ingest.o
+SRCS = pam_ingest.c daypam_ingest.c
+OBJS = pam_ingest.o daypam_ingest.o
 
-DISTFILES = Imakefile pam_ingest.c
+DISTFILES = Imakefile pam_ingest.c daypam_ingest.c
 
 NormalProgramTargetNoInstall(pam_ingest, pam_ingest.o,
 		$(DEPLIBS), $(LIBS) $(LIBUNP) $(XLIBS),$(SYSLIBS))
 
 InstallProgramWithFlags(pam_ingest,$(BINDIR),-s)
+
+NormalProgramTargetNoInstall(daypam_ingest, daypam_ingest.o,
+		$(DEPLIBS), $(LIBS) $(LIBUNP) $(XLIBS),$(SYSLIBS))
+
+InstallProgramWithFlags(daypam_ingest,$(BINDIR),-s)
 
 DependTarget()
 
