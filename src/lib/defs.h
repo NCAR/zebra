@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 2.6 1991-12-05 17:35:25 corbet Exp $ */
+/* $Id: defs.h,v 2.7 1991-12-20 17:46:06 corbet Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -33,6 +33,27 @@ typedef struct date_st time;	/* Different from UI "date" so we can
 enum pmode { NoMode, History, RealTime };
 
 /*
+ * Here is the new zeb time format.  This looks suspiciously like the
+ * BSD timeval structure....
+ */
+typedef struct _ZebTime
+{
+	long	zt_Sec;		/* Seconds since 1/1/70		*/
+	long	zt_MicroSec;	/* Microseconds added to zt_Sec */
+} ZebTime;
+
+/*
+ * Time conversion options.
+ */
+typedef enum 
+{
+	TC_DateOnly,		/* Only the date part		*/
+	TC_TimeOnly,		/* Only the time part		*/
+	TC_Full,		/* The whole works		*/
+	TC_FullUSec,		/* Full with microseconds	*/
+} TimePrintFormat;
+
+/*
  * Locations.
  */
 typedef struct s_Location
@@ -55,32 +76,41 @@ typedef struct s_Location
 /*
  * Functions.
  */
-# ifdef __STDC__
-	char *malloc (unsigned size);
-	char *realloc (void *ptr, unsigned size);
-	void tw_DefTimeWidget (int (*callback) (), char *title);
-	void tw_DialAdjust (int, int);
-	int InterpDTime (char *);
-	void TC_SysToFcc (long, time *);
-	long TC_FccToSys (time *);
-	void	RL_Encode (unsigned char *, unsigned char *, int, int, 
-			int *, int *);
-	void 	RL_Decode (unsigned char *, unsigned char *const, int);
-	int	CommaParse (char *, char **);
-	void	SetupConfigVariables (void);
-# else
-	char *malloc ();
-	char *realloc ();
-	void tw_DefTimeWidget ();
-	void tw_DialAdjust ();
-	int InterpDTime ();
-	void TC_SysToFcc ();
-	long TC_FccToSys ();
-	void	RL_Encode ();
-	void 	RL_Decode ();
-	int	CommaParse ();
-	void	SetupConfigVariables ();
-# endif
+char *	malloc FP ((unsigned size));
+char *	realloc FP ((void *ptr, unsigned size));
+void 	tw_DefTimeWidget FP ((int (*callback) (), char *title));
+void 	tw_DialAdjust FP ((int, int));
+int 	InterpDTime FP ((char *));
+void 	TC_SysToFcc FP ((long, time *));
+long 	TC_FccToSys FP ((time *));
+void	RL_Encode FP ((unsigned char *, unsigned char *, int, int, 
+		int *, int *));
+void 	RL_Decode FP ((unsigned char *, unsigned char *const, int));
+int	CommaParse FP ((char *, char **));
+void	SetupConfigVariables FP ((void));
+
+ /* New time format utilities */
+
+long	TC_ZtToSys FP ((ZebTime *));
+void	TC_SysToZt FP ((long, ZebTime *));
+void	TC_UIToZt FP ((date *, ZebTime *));
+void	TC_ZtToUI FP ((ZebTime *, date *));
+void	TC_EncodeTime FP ((ZebTime *, TimePrintFormat, char *));
+void	TC_ZtSplit FP ((ZebTime *, int *, int *, int *, int *, int *,
+		int *, int *));
+void	TC_ZtAssemble FP ((ZebTime *, int, int, int, int, int, int, int));
+
+/*
+ * Some macros for the new time format.
+ */
+# define TC_Less(t1,t2) 				\
+	(((t1).zt_Sec == (t2).zt_Sec) ? 		\
+		((t1).zt_MicroSec < (t2).zt_Microsec) :	\
+		((t1).zt_Sec < (t2).zt_Sec))
+# define TC_LessEq(t1,t2) 					\
+	(((t1).zt_Sec == (t2).zt_Sec) ? 			\
+		((t1).zt_MicroSec <= (t2).zt_Microsec) :	\
+		((t1).zt_Sec <= (t2).zt_Sec))
 
 
 /*
