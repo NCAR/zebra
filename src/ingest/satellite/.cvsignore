@@ -1,2 +1,10 @@
 Makefile
 GMSIngest
+SatIngest
+gvarIngest
+GriddedGOES
+testSatIngest
+area_dump
+areadump
+SatIngest.lf
+gvarIngest.lf
