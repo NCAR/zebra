@@ -1,0 +1,40 @@
+!
+! Special stuff for cross-section plots
+!
+
+define widget xsect-global-left intmenu 'Cross-section global left menu'
+	title 'Global Options'
+	line
+	submenu 'Height Range' 'xsect-height-range'
+	line
+	entry 'Overlay Times Window...' 'popup overlay'
+	entry 'Movie Controller...' 'popup movie'
+	entry 'Generate Images...' 'popup imagecrank'
+	entry 'Model Forecast Times...' 'popup model'
+	line
+	submenu 'Window Operations' global-window-ops
+	submenu 'Layout Parameters'  global-layout
+	line
+	entry 'Help on this Plot Type' 'plot-type-help'
+endmenu
+
+define widget xsect-height-range intmenu 'height range'
+	title 'Height Ranges'
+	line
+	entry '0-3 km' 'xsect-zrange 0 3'
+	entry '0-6 km' 'xsect-zrange 0 6'
+	entry '0-12 km' 'xsect-zrange 0 12'
+	entry 'Custom' 'i_adjust_global z-limit-proc'
+endmenu
+
+procedure xsect-zrange min string max string
+	parameter #icon_component z-min #min
+	parameter #icon_component z-max #max
+endprocedure
+
+procedure adj_xsect_limits
+	local zmin PDParam("global","z-min")
+	local zmax PDParam("global","z-max")
+	activate doublefloat "global" "z-min" "Bottom (km):" #zmin \
+		"z-max" "Top (km):" #zmax
+endprocedure
