@@ -1,5 +1,5 @@
 /* 10/86 jc */
-/* $Header: /code/cvs/rdss/rdsslibs/ui/ui_token.h,v 1.2 1989-03-16 15:56:05 corbet Exp $ */
+/* $Id: ui_token.h,v 1.3 1989-06-05 16:03:22 corbet Exp $ */
 /*
  * Included info for the tokenizer.
  */
@@ -78,16 +78,16 @@ typedef struct token_context *Tcontext;
  * Function declarations.
  */
 # ifdef __STDC__
-	void ut_zap_token (Tcontext);
-	void ut_finish_line (Tcontext, int);
-	void ut_begin (Tcontext, char *, int);
-	void ut_tok_repl (Tcontext, char *);
+	void ut_zap_token ();
+	void ut_finish_line (int);
+	void ut_begin (char *, int);
+	void ut_tok_repl (char *);
 	int ut_put_msg (char *, int);
-	void ut_reset (Tcontext);
-	void ut_get_token (Tcontext, struct token *);
-	void ut_continue (Tcontext);
-	void ut_complete (Tcontext, char *);
-	void ut_int_string (Tcontext, char *, struct token *);
+	void ut_reset ();
+	void ut_get_token (struct token *);
+	void ut_continue ();
+	void ut_complete (char *);
+	void ut_int_string (char *, struct token *);
 # else
 	void ut_zap_token ();
 	void ut_finish_line ();
