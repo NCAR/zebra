@@ -37,7 +37,9 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.26 1992-12-21 16:24:29 kris Exp $")
+# undef quad 	/* Sun cc header file definition conflicts with variables */
+
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.27 1992-12-22 18:33:43 granger Exp $")
 
 
 /*
@@ -240,7 +242,7 @@ bool	update;
 
 
 
-void
+static void
 CAP_Contour (c, type, fname, center, step, ctable, shifted)
 char	*c, *fname, *ctable;
 contour_type	type;
@@ -1140,7 +1142,7 @@ bool	update;
 	{
 		highlight = TRUE;
 		sprintf (param, "%s-highlight-color", name);
-		if (! pda_Search (Pd, c, param, "raster", CPTR (hcolor), 
+		if (! pda_Search (Pd, c, param, "raster", hcolor, 
 				SYMT_STRING))
 			strcpy (hcolor, "white");
 		sprintf (param, "%s-highlight", name);
@@ -1360,7 +1362,7 @@ float	*x0, *y0, *x1, *y1, *alt;
 	RGrid rg;
 	ScaleInfo sc;
 	float cdiff;
-	char *img;
+	unsigned char *img;
 	Location slocs[60], origin;
 	int nsample, samp, ntime, len;
 	bool all = FALSE;
