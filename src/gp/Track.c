@@ -44,7 +44,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: Track.c,v 2.44 1997-10-23 22:14:01 burghart Exp $")
+RCSID ("$Id: Track.c,v 2.45 1998-05-04 17:01:10 burghart Exp $")
 
 # define ARROWANG .2618 /* PI/12 */
 # ifndef M_PI
@@ -1303,8 +1303,9 @@ int		ndetail;
  * Only one NSpace handler at this point
  */
 	if (1)
-		return (tr_TrajNSpace (pid, fields, numfields, details, 
-				       ndetail));
+	    return (tr_TrajNSpace (pid, fields, numfields, details, ndetail));
+	else
+	    return (0);
 }
 
 

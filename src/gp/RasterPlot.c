@@ -76,7 +76,7 @@
 
 # include "RasterImage.h"
 
-RCSID ("$Id: RasterPlot.c,v 2.34 1998-04-27 21:44:49 corbet Exp $")
+RCSID ("$Id: RasterPlot.c,v 2.35 1998-05-04 17:01:09 burghart Exp $")
 
 # ifdef TIMING
 # include <sys/time.h>
@@ -658,8 +658,8 @@ int		xdim;
 	for (i = 0; i < di->di_h; i++)
 	{
 		Pixel *cp = colgrid + ((int) row) * xdim;
-		unsigned char *ximp = di->di_image + di->di_ioffset +
-			i*di->di_bpl;
+		unsigned char *ximp = (unsigned char*)di->di_image + 
+		    di->di_ioffset + i*di->di_bpl;
 
 		col = (int) (icol * 65536);
 	/*
@@ -855,9 +855,10 @@ RGrid *rg;
 	di = ri_GetDestImage (frame, xlo, yhi, width, height);
 	if (di->di_needswap)
 		RP_FixCMap (cmap, di->di_bdepth);
-	RP_ImageRasterize (di->di_image + di->di_ioffset, width, height,
-			grid, cmap, toprow, leftcol, rowinc, colinc, xd, yd,
-			di->di_bpl - width*di->di_bdepth, di->di_bdepth);
+	RP_ImageRasterize ((unsigned char*)di->di_image + di->di_ioffset, 
+			   width, height, grid, cmap, toprow, leftcol, rowinc, 
+			   colinc, xd, yd, di->di_bpl - width*di->di_bdepth, 
+			   di->di_bdepth);
 	SetClip (0);
 	ri_ShipImage (di);
 	SetClip (1);
@@ -1071,8 +1072,8 @@ RGrid *rg;
  */
 	for (y = y0; y <= y1; y++)
 	{
-		unsigned char *dest = di->di_image + di->di_ioffset +
-			(y - y0)*di->di_bpl;
+		unsigned char *dest = (unsigned char*)di->di_image + 
+		    di->di_ioffset + (y - y0)*di->di_bpl;
 		unsigned int pval;
 		for (x = x0; x <= x1; x++)
 		{

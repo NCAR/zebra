@@ -18,7 +18,7 @@
 # endif
 
 
-RCSID ("$Id: RasterImage.c,v 2.1 1998-04-27 21:44:47 corbet Exp $");
+RCSID ("$Id: RasterImage.c,v 2.2 1998-05-04 17:01:07 burghart Exp $")
 
 /*
  * Forwards.
