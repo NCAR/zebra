@@ -1,7 +1,7 @@
 /*
  * Lightning display routine.
  */
-static char *rcsid = "$Id: Lightning.c,v 2.4 1991-10-31 20:29:23 kris Exp $";
+static char *rcsid = "$Id: Lightning.c,v 2.5 1992-05-27 16:35:19 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -28,17 +28,20 @@ static char *rcsid = "$Id: Lightning.c,v 2.4 1991-10-31 20:29:23 kris Exp $";
 # include <pd.h>
 # include <message.h>
 # include <DataStore.h>
+# include <DataChunk.h>
 # include <ui_date.h>
 # include "GC.h"
 # include "GraphProc.h"
 # include "PixelCoord.h"
 # include "DrawText.h"
-# define BADVAL -32768
 
 extern Pixel	White;
 
-void li_CAPLight ();
-void li_SideAnnot ();
+/*
+ * Forwards.
+ */
+void	li_CAPLight FP ((char *, int));
+void	li_SideAnnot FP ((char *, char *, int, int, int));
 
 void
 li_CAPLight (comp, update)
@@ -46,16 +49,16 @@ char *comp;
 bool update;
 {
 	char	platform[30], step[30], ctable[30];
-	char	**fields, string[40], tadefcolor[30], data[100];
+	char	tadefcolor[30], data[100];
 	int	period, dsperiod, x, y, numcolor, pid, istep;
-	int	i, top, bottom, left, right, numfields, index;
-	time	begin, t;
-	float	fx, fy, cval, sascale, bar_height;
-	Display	*disp = XtDisplay (Graphics);
-	Drawable d = GWFrame (Graphics);
+	int	i, index, nsamp;
+	time	t;
+	ZebTime	begin;
+	float	fx, fy, sascale;
 	XColor	*colors, tadefclr;
-	DataObject *dobj;
-
+	DataChunk	*dc;
+	Location	loc;
+	ZebTime		when;
 /*
  * Get our platform first, since that's what is of interest to us.
  */
@@ -85,11 +88,6 @@ bool update;
 		msg_ELog (EF_PROBLEM, 
 			"Unparsable time-step: '%s'", step);
 		period = 300;
-	}
-	if (PlotTime.ds_yymmdd == 0)
-	{
-		msg_ELog (EF_PROBLEM, "ZERO PLOT TIME?????");
-		return;
 	}
 /*
  * Get the color table.
@@ -127,42 +125,36 @@ bool update;
 	begin = PlotTime;
 	istep = period / 60;
 	period *= numcolor;
-	dsperiod = update ? 15 :
-		(period/3600)*10000 + ((period/60) % 60)*100 + period % 60;
-	pmu_dsub (&begin.ds_yymmdd, &begin.ds_hhmmss, dsperiod);
-/*
- * Set up the field list.
- */
-	numfields = 0;
-	fields = NULL;
+	dsperiod = update ? 15 : period;
+	begin.zt_Sec -= dsperiod;
 /*
  * Get the data.
  */
-	dobj = ds_GetData (pid, fields, numfields, &begin, &PlotTime, 
-		OrgScalar, 0.0, BADVAL);
-	if (! dobj)
+	if (! (dc = ds_Fetch (pid, DCC_Location, &begin, &PlotTime, 
+		NULL, 0, NULL, 0)))
 	{
 		msg_ELog (EF_INFO, "No %s data available", platform);
 		return;
 	}
+	nsamp = dc_GetNSample (dc);
 /*
  * Work through the data.
  */
-	for (i = 0; i < dobj->do_npoint; i++)
+	for (i = 0; i < nsamp; i++)
 	{
-		Location *loc = ds_Where (dobj, i);
+		dc_GetLoc (dc, i, &loc);
 	/*
 	 * Locate this point.
 	 */
-		cvt_ToXY (loc->l_lat, loc->l_lon, &fx, &fy);
+		cvt_ToXY (loc.l_lat, loc.l_lon, &fx, &fy);
 		x = XPIX (fx); 
 		y = YPIX (fy);
 	/*
 	 * Place the icon. 
 	 */
-		t = dobj->do_times[i];
-		index = (int) (((float) TC_FccToSys (&PlotTime) - 
-			(float) TC_FccToSys (&t)) / (float) period * 
+		dc_GetTime (dc, i, &when);
+		index = (int) (((float) PlotTime.zt_Sec - 
+			(float) when.zt_Sec) / (float) period * 
 			(float) (numcolor - 1));
 		if ((index < 0) || (index >= numcolor))
 			index = 0;
@@ -180,15 +172,20 @@ bool update;
 	/*
 	 * Down the side too.
 	 */
-        	sprintf (data, "%s %d %d", ctable, dobj->do_npoint, istep);
+        	sprintf (data, "%s %d %d", ctable, nsamp, istep);
 		An_AddAnnotProc (li_SideAnnot, comp, data, strlen (data),
 			75, TRUE, FALSE);
 	}
 /*
- * Put in the status line before we lose the data object, then get rid of it.
+ * Put in the status line.
  */
-	lw_TimeStatus (comp, &dobj->do_end);
-	ds_FreeDataObject (dobj);
+	dc_GetTime (dc, nsamp - 1, &when);
+	TC_ZtToUI (&when, &t);
+	lw_TimeStatus (comp, &t);
+/*
+ * Free the data.
+ */
+	dc_DestroyDC (dc);
 }
 
 
@@ -202,7 +199,7 @@ int datalen, begin, space;
  */
 {
         char string[40], ctable[40];
-        float max, min, frac, val, used, scale;
+        float scale;
         int i, left, limit, ncolors, bar_height, match;
 	int npoint, istep;
         XColor *colors, xc;

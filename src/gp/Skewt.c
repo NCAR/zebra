@@ -1,7 +1,7 @@
 /*
  * Skew-t plotting module
  */
-static char *rcsid = "$Id: Skewt.c,v 2.4 1991-11-22 20:52:58 kris Exp $";
+static char *rcsid = "$Id: Skewt.c,v 2.5 1992-05-27 16:33:15 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -23,7 +23,6 @@ static char *rcsid = "$Id: Skewt.c,v 2.4 1991-11-22 20:52:58 kris Exp $";
 
 # if C_PT_SKEWT
 
-
 # include <math.h>
 # include <X11/Intrinsic.h>
 # include <ui.h>
@@ -32,6 +31,7 @@ static char *rcsid = "$Id: Skewt.c,v 2.4 1991-11-22 20:52:58 kris Exp $";
 # include <pd.h>
 # include <message.h>
 # include <DataStore.h>
+# include <DataChunk.h>
 # include "derive.h"
 # include "GraphProc.h"
 # include "GC.h"
@@ -44,7 +44,6 @@ static char *rcsid = "$Id: Skewt.c,v 2.4 1991-11-22 20:52:58 kris Exp $";
 # define T_K	273.15
 # define DEG_TO_RAD(x)	((x) * 0.017453292)
 # define RAD_TO_DEG(x)	((x) * 57.29577951)
-# define BADVAL	-999.0
 # define BUFLEN	1024
 
 /*
@@ -72,13 +71,6 @@ static int	Tstep = 10;
 static float	W_scale = 25.0;
 
 /*
- * Forward declarations
- */
-void	sk_Skewt (), sk_Background (), sk_Lift (), sk_Thermo (), sk_Winds ();
-void	sk_Polyline (), sk_DrawText (), sk_Clip (), sk_Surface ();
-int	sk_700mb ();
-
-/*
  * Line style
  */
 typedef enum {L_solid, L_dashed, L_dotted} LineStyle;
@@ -104,6 +96,22 @@ static int	DoFeet = FALSE;
 # define C_DATA(i)	(6 + (i))
 
 
+/*
+ * Forward declarations
+ */
+void		sk_Skewt FP ((char *, int)); 
+static void	sk_Background FP (()); 
+static void	sk_Lift FP ((int, float*, float*, float*, double)); 
+static void	sk_Thermo FP ((float *, float *, float *, int, int, double)); 
+static void	sk_Winds FP ((float *, float *, float*, int, int, int, double));
+static void	sk_Polyline FP ((float *, float*, int, LineStyle, XColor)); 
+static void	sk_DrawText FP ((char *, double, double, double, XColor, double,
+			int, int)); 
+static void	sk_Clip FP ((double, double, double, double)); 
+static void	sk_Surface FP ((float *, float *, float *, int, float*,
+			float *, float *, double));
+static int	sk_700mb FP ((float *, float *, float*, int, double, double,
+			float *, float *, int *, double));
 
 
 void
@@ -114,23 +122,24 @@ bool	update;
  * Draw a skew-t, log p plot based on the given PD component.
  */
 {
-	bool	ok;
-	int	status, i, npts, plat, nplat;
-	char	platforms[80], annot[80], ctname[20], tadefcolor[30];
-	time	ptime;
-	char	*pnames[5];
-	char	*flist[5];
+	bool		ok;
+	int		npts, plat, nplat, n;
+	char		platforms[80], annot[80], ctname[20], tadefcolor[30];
+	time		t;
+	ZebTime		ptime, when;
+	char		*pnames[5];
+	FieldId		flist[5];
 	PlatformId	pid;
-	DataObject	*dobj = NULL;
-	float		*pres, *temp, *dp, *u_wind, *v_wind;
+	float		*pres, *temp, *dp, *u_wind, *v_wind, badvalue;
+	DataChunk	*dc;
 /*
  * Done this way to satisfy cc.
  */
-	flist[0] = "pres";
-	flist[1] = "tdry";
-	flist[2] = "dp";
-	flist[3] = "u_wind";
-	flist[4] = "v_wind";
+	flist[0] = F_Lookup ("pres");
+	flist[1] = F_Lookup ("tdry");
+	flist[2] = F_Lookup ("dp");
+	flist[3] = F_Lookup ("u_wind");
+	flist[4] = F_Lookup ("v_wind");
 /*
  * Get the platform and color table
  */
@@ -239,49 +248,61 @@ bool	update;
 				pnames[plat]);
 			continue;
 		}
-
 		ptime = PlotTime;
-		if (! ds_DataTimes (pid, &ptime, 1, DsBefore, &ptime))
+		if (! ds_GetObsTimes (pid, &ptime, &ptime, 1, NULL))
 		{
-			msg_ELog (EF_INFO, "No data for '%s' at %d %d",
-				pnames[plat], ptime.ds_yymmdd, 
-				ptime.ds_hhmmss);
+			msg_ELog (EF_INFO, "No data for '%s'.", pnames[plat]);
 			continue;
 		}
-		dobj = ds_GetObservation (pid, flist, 5, &ptime, OrgScalar,
-			0.0, BADVAL);
-		if (! dobj)
+		if (! (dc = ds_FetchObs (pid, DCC_Scalar, &ptime, flist, 5, 
+			NULL, 0)))
 		{
-			msg_ELog (EF_PROBLEM, 
-				"Unable to get data for '%s' at %d %06d", 
-				pnames[plat], PlotTime.ds_yymmdd, 
-				PlotTime.ds_hhmmss);
+			msg_ELog (EF_PROBLEM, "Unable to get data for '%s'.", 
+				pnames[plat]);
 			continue;
 		}
+	/*
+	 * Get the data from the chunk.
+	 */
+		badvalue = dc_GetBadval (dc);
+		npts = dc_GetNSample (dc);
+			
+		pres = (float *) malloc (npts * sizeof (float));
+		temp = (float *) malloc (npts * sizeof (float));
+		dp = (float *) malloc (npts * sizeof (float));
+		u_wind = (float *) malloc (npts * sizeof (float));
+		v_wind = (float *) malloc (npts * sizeof (float));
 
-		pres = dobj->do_data[0];
-		temp = dobj->do_data[1];
-		dp = dobj->do_data[2];
-		u_wind = dobj->do_data[3];
-		v_wind = dobj->do_data[4];
-
-		npts = dobj->do_npoint;
+		for (n = 0; n < npts; n++)
+		{
+			pres[n] = dc_GetScalar (dc, n, flist[0]);
+			temp[n] = dc_GetScalar (dc, n, flist[1]);
+			dp[n] = dc_GetScalar (dc, n, flist[2]);
+			u_wind[n] = dc_GetScalar (dc, n, flist[3]);
+			v_wind[n] = dc_GetScalar (dc, n, flist[4]);
+		}
 	/*
 	 * Plot the thermo data and then the winds data
 	 */
-		sk_Thermo (pres, temp, dp, npts, plat);
-		sk_Winds (pres, u_wind, v_wind, npts, plat, nplat);
+		sk_Thermo (pres, temp, dp, npts, plat, badvalue);
+		sk_Winds (pres, u_wind, v_wind, npts, plat, nplat, badvalue);
 	/*
 	 * Fill in the time info.
 	 */
+		dc_GetTime (dc, 0, &when);
+		TC_ZtToUI (&when, &t);
 		sprintf (annot, "%-12s%2d:%02d\n", pnames[plat],
-			dobj->do_begin.ds_hhmmss/10000,
-			(dobj->do_begin.ds_hhmmss/100) % 100);
+			t.ds_hhmmss/10000, (t.ds_hhmmss/100) % 100);
 		lw_OvAddString (annot);
 	/*
-	 * Free the data object
+	 * Free the data.
 	 */
-		ds_FreeDataObject (dobj);
+		free (pres);
+		free (temp);
+		free (dp);
+		free (u_wind);
+		free (v_wind);
+		dc_DestroyDC (dc);
 	}
 /*
  * Add a period to the top annotation
@@ -296,7 +317,7 @@ bool	update;
 
 
 
-void
+static void
 sk_Background ()
 /*
  * Draw the background for a skew T, log p diagram
@@ -562,10 +583,10 @@ sk_Background ()
 
 
 
-void
-sk_Lift (ndata, pres, temp, dp)
+static void
+sk_Lift (ndata, pres, temp, dp, badvalue)
 int	ndata;
-float	*pres, *temp, *dp;
+float	*pres, *temp, *dp, badvalue;
 /*
  * Draw the lines for a lifted parcel for the given pressure, temperature,
  * and dp data
@@ -580,9 +601,9 @@ float	*pres, *temp, *dp;
  * Find the first good point and use it as the surface point
  */
 ERRORCATCH
-	sk_Surface (temp, pres, dp, ndata, &t_sfc, &p_sfc, &dp_sfc);
+	sk_Surface (temp, pres, dp, ndata, &t_sfc, &p_sfc, &dp_sfc, badvalue);
 	sk_700mb (temp, pres, dp, ndata, p_sfc, dp_sfc, &t_700, &dp_700, 
-		&ndx_700);
+		&ndx_700, badvalue);
 ON_ERROR
 	msg_ELog (EF_INFO, "About to return from sk_Lift");
 	ui_epop ();
@@ -733,9 +754,9 @@ ENDCATCH
 
 
 
-void
-sk_Thermo (p, t, d, npts, plot_ndx)
-float	*p, *t, *d;
+static void
+sk_Thermo (p, t, d, npts, plot_ndx, badvalue)
+float	*p, *t, *d, badvalue;
 int	npts, plot_ndx;
 /*
  * Plot the thermo data for the given sounding
@@ -744,7 +765,6 @@ int	npts, plot_ndx;
 	float	*xt, *xd, *yt, *yd;
 	float	y;
 	int	i, good_d = 0, good_t = 0;
-	DataObject	dobjs[3];
 /*
  * Clip
  */
@@ -761,7 +781,7 @@ int	npts, plot_ndx;
  */
 	for (i = 0; i < npts; i++)
 	{
-		if (p[i] == BADVAL)
+		if (p[i] == badvalue)
 			continue;
 		else
 		{
@@ -770,10 +790,10 @@ int	npts, plot_ndx;
 			yd[good_d] = y;
 		}
 
-		if (t[i] != BADVAL)
+		if (t[i] != badvalue)
 			xt[good_t++] = XPOS (t[i], y);
 
-		if (d[i] != BADVAL)
+		if (d[i] != badvalue)
 			xd[good_d++] = XPOS (d[i], y);
 	}
 /*
@@ -784,7 +804,7 @@ int	npts, plot_ndx;
 /*
  * Draw the lifted parcel lines
  */
-	sk_Lift (npts, p, t, d);
+	sk_Lift (npts, p, t, d, badvalue);
 /*
  * Free the allocated space and return
  */
@@ -799,9 +819,9 @@ int	npts, plot_ndx;
 
 
 
-void
-sk_Winds (p, u, v, npts, plot_ndx, nplots)
-float	*p, *u, *v;
+static void
+sk_Winds (p, u, v, npts, plot_ndx, nplots, badvalue)
+float	*p, *u, *v, badvalue;
 int	npts;
 int	plot_ndx, nplots;
 /*
@@ -827,7 +847,7 @@ int	plot_ndx, nplots;
 
 	for (i = 0; i < npts; i++)
 	{
-		if (p[i] == BADVAL || p[i] < Pmin || p[i] > Pmax)
+		if (p[i] == badvalue || p[i] < Pmin || p[i] > Pmax)
 			continue;
 	/*
 	 * Get the starting point
@@ -837,12 +857,12 @@ int	plot_ndx, nplots;
 	/*
 	 * Convert to the overlay coordinates
 	 */
-		if (u[i] != BADVAL)
+		if (u[i] != badvalue)
 			xov[1] = xov[0] + u[i] * xscale;
 		else
 			continue;
 
-		if (v[i] != BADVAL)
+		if (v[i] != badvalue)
 			yov[1] = yov[0] + v[i] * yscale;
 		else
 			continue;
@@ -883,7 +903,7 @@ int	plot_ndx, nplots;
 
 
 
-void
+static void
 sk_DrawText (text, x, y, rot, color_ndx, cheight, hjust, vjust)
 char	*text;
 float	x, y, rot, cheight;
@@ -927,7 +947,7 @@ int	hjust, vjust;
 
 
 
-void
+static void
 sk_Clip (xlo, ylo, xhi, yhi)
 float	xlo, ylo, xhi, yhi;
 /*
@@ -953,7 +973,7 @@ float	xlo, ylo, xhi, yhi;
 
 
 
-void
+static void
 sk_Polyline (x, y, npts, style, color_ndx)
 float		*x, *y;
 int		npts;
@@ -1040,9 +1060,9 @@ XColor		color_ndx;
 
 
 
-void
-sk_Surface (t, p, dp, npts, t_sfc, p_sfc, dp_sfc)
-float	*t, *p, *dp, *t_sfc, *p_sfc, *dp_sfc;
+static void
+sk_Surface (t, p, dp, npts, t_sfc, p_sfc, dp_sfc, badvalue)
+float	*t, *p, *dp, *t_sfc, *p_sfc, *dp_sfc, badvalue;
 int	npts;
 /*
  * Find the surface values.  If the MLI flag is set (i.e., we're using
@@ -1064,7 +1084,7 @@ int	npts;
  * Find the lowest point with good values in all three fields; this
  * will be our surface point.
  */
-	while (t[i] == BADVAL || p[i] == BADVAL || dp[i] == BADVAL)
+	while (t[i] == badvalue || p[i] == badvalue || dp[i] == badvalue)
 		if (++i == npts)
 			ui_error ("No surface point for analysis");
 
@@ -1083,22 +1103,22 @@ int	npts;
  */
 	p_top = *p_sfc - 50.0;
 
-	for (; (p[i] > p_top || p[i] == BADVAL) && i < npts; i++)
+	for (; (p[i] > p_top || p[i] == badvalue) && i < npts; i++)
 	{
 	/*
 	 * Don't try to use bad values
 	 */
-		if (p[i] == BADVAL || dp[i] == BADVAL || t[i] == BADVAL)
+		if (p[i] == badvalue || dp[i] == badvalue || t[i] == badvalue)
 			continue;
 	/*
 	 * Find the mixing ratio and theta and increment our sums
 	 */
-		if (dp[i] != BADVAL)
+		if (dp[i] != badvalue)
 		{
 			mr_sum += w_sat (dp[i] + T_K, p[i]);
 			mr_count++;
 		}
-		if (t[i] != BADVAL)
+		if (t[i] != badvalue)
 		{
 			theta_sum += theta_dry (t[i] + T_K, p[i]);
 			theta_count++;
@@ -1129,9 +1149,9 @@ int	npts;
 
 
 
-int
-sk_700mb (t, p, dp, npts, p_sfc, dp_sfc, temp700, dp700, ndx700)
-float	*t, *p, *dp, p_sfc, dp_sfc, *temp700, *dp700;
+static int
+sk_700mb (p, t, dp, npts, p_sfc, dp_sfc, temp700, dp700, ndx700, badvalue)
+float	*p, *t, *dp, p_sfc, dp_sfc, *temp700, *dp700, badvalue;
 int	npts, *ndx700;
 /*
  * Find the 700 mb temperature, the 700 mb dewpoint corresponding to the
@@ -1146,7 +1166,7 @@ int	npts, *ndx700;
  */
 	for (i = 0; i < npts; i++)
 	{
-		if (p[i] == BADVAL || t[i] == BADVAL)
+		if (p[i] == badvalue || t[i] == badvalue)
 			continue;
 
 		if (p[i] < 700.0)
@@ -1160,7 +1180,7 @@ int	npts, *ndx700;
 /*
  * Make sure we have two good points to interpolate between
  */
-	if (p_prev == BADVAL || i == npts)
+	if (p_prev == badvalue || i == npts)
 		return (FALSE);
 /*
  * Interpolate the 700 mb temperature from the point we just found and the

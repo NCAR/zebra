@@ -1,7 +1,7 @@
 /*
  * Time Series Plotting
  */
-static char *rcsid = "$Id: TimeSeries.c,v 2.5 1992-03-04 22:13:25 kris Exp $";
+static char *rcsid = "$Id: TimeSeries.c,v 2.6 1992-05-27 16:34:36 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -33,6 +33,7 @@ static char *rcsid = "$Id: TimeSeries.c,v 2.5 1992-03-04 22:13:25 kris Exp $";
 # include <pd.h>
 # include <message.h>
 # include <DataStore.h>
+# include <DataChunk.h>
 # include "GC.h"
 # include "GraphProc.h"
 # include "PixelCoord.h"
@@ -42,7 +43,6 @@ static char *rcsid = "$Id: TimeSeries.c,v 2.5 1992-03-04 22:13:25 kris Exp $";
 /*
  * General definitions
  */
-# define BADVAL		-999.0
 # define MAXFLDS	2		/*  Maximum number of fields	*/
 # define STRLEN		80		/*  Generic string length	*/
 # define MAXPLTS	20		/*  Maximum number of platforms	*/
@@ -62,24 +62,24 @@ static float	X0 = 0.0, X1 = 1.0, Y0 = 0.0, Y1 = 1.0;
 /*
  * Pixel limits for the plot
  */
-int	Pix_left, Pix_right, Pix_bottom, Pix_top;
+static int	Pix_left, Pix_right, Pix_bottom, Pix_top;
 
 /*
  * Minimum and Maximum data values and time values.
  */
-float	Minval[MAXFLDS], Maxval[MAXFLDS];
-time_t	TMinval, TMaxval;
+static float	Minval[MAXFLDS], Maxval[MAXFLDS];
+static long	TMinval, TMaxval;
 
 /*
  * Begin and End times, and the fixed PlotTime.
  */
-time	Begin, End, FixPT;
+static ZebTime	Begin, End, FixPT;
 
 /*
  * Save the last data points plotted, used during updates.
  */
-time_t	Save_x[MAXPLTS * MAXFLDS];
-float	Save_y[MAXPLTS * MAXFLDS];
+static long	Save_x[MAXPLTS * MAXFLDS];
+static float	Save_y[MAXPLTS * MAXFLDS];
 
 /*
  * Should time axis be flipped.
@@ -89,26 +89,31 @@ static int	FlipTime;
 /*
  * Save the sa-scale value.
  */
-static float	TSScale;
+static float	TSScale = 0.02;
 
 /*
  * Color array and indices
  */
-XColor	*Colors;
-int	Ncolors;
-XColor	Black;
-XColor	BackColor;
+static XColor	*Colors;
+static int	Ncolors;
+static XColor	Black;
+static XColor	BackColor;
 
 /*
  * Clip and unclip rectangles
  */
-XRectangle	Clip, Unclip;
+static XRectangle	Clip, Unclip;
 
 /*
  * Forward declarations
  */
-void	ts_Plot (), ts_Annotate(), ts_Background (), ts_PutData ();
-void	ts_AnnotTime(), ts_SlideData(), ts_DrawLines();
+void		ts_Plot FP ((char *, int)); 
+static void	ts_Annotate FP ((char *, char **, int, char **, int)); 
+static void	ts_Background FP ((char *, char **, int, float *, float *)); 
+static void	ts_PutData FP ((int, char *, char **, int, char **, int));
+static void	ts_AnnotTime FP ((int)); 
+static void	ts_SlideData FP (()); 
+static void	ts_DrawLines FP ((int, int));
 
 
 void
@@ -208,13 +213,7 @@ bool	update;
 	Begin = FixPT;
 	if((period = pc_TimeTrigger (interval)) == 0)	
 		period = 300;
-	period = (period/3600)*10000 + ((period/60) % 60)*100 + period % 60;
-	msg_ELog (EF_DEBUG, "period %d", period);
-	pmu_dsub (&Begin.ds_yymmdd, &Begin.ds_hhmmss, period);
-	msg_ELog (EF_DEBUG, "Begin time = %d %d", Begin.ds_yymmdd, 
-		Begin.ds_hhmmss);
-	msg_ELog (EF_DEBUG, "FixPT = %d %d", FixPT.ds_yymmdd, 
-		FixPT.ds_hhmmss);
+	Begin.zt_Sec -= period;
 /*
  * If we're updating then slide the old data over to make room for the new.
  */
@@ -231,21 +230,18 @@ bool	update;
 		{
 			Minval[i] = center[i] - ((nstep - 1) / 2) * step[i];
 			Maxval[i] = center[i] + ((nstep - 1) / 2) * step[i];
-			msg_ELog(EF_DEBUG, "Minval %f Maxval %f", Minval[i], 
-				Maxval[i]);
 		}
 	}
 	if (! FlipTime)
 	{
-		TMinval = GetSec (Begin);
-		TMaxval = GetSec (FixPT);
+		TMinval = Begin.zt_Sec;
+		TMaxval = FixPT.zt_Sec;
 	}
 	else
 	{
-		TMinval = GetSec (FixPT);
-		TMaxval = GetSec (Begin);
+		TMinval = FixPT.zt_Sec;
+		TMaxval = Begin.zt_Sec;
 	}
-	msg_ELog(EF_DEBUG, "TMinval %d TMaxval %d", TMinval, TMaxval);
 /*
  * Annotate the time on the horizontal axis of the background.
  */
@@ -280,7 +276,7 @@ bool	update;
 }
 
 
-void
+static void
 ts_Annotate (comp, platforms, nplat, fields, nfld)
 char	*comp, **platforms, **fields;
 int	nplat, nfld;
@@ -351,18 +347,16 @@ int	nplat, nfld;
 }
 
 
-void
+static void
 ts_AnnotTime (update)
 bool	update;
 /*
  *  Annotate the begin and end time on the horizontal axis of the plot.
  */
 {
-	Display	*disp = XtDisplay (Graphics);
+	Display		*disp = XtDisplay (Graphics);
 	Drawable	d = GWFrame (Graphics);
-	char	string[STRLEN];
-	time	temp;
-
+	char		string[STRLEN];
 /*
  * If this is an update blank out the old times.
  */
@@ -377,32 +371,25 @@ bool	update;
 /*
  * Put time on the left side.
  */
-	temp.ds_yymmdd = 0;
 	if (! FlipTime) 
-		temp.ds_hhmmss = Begin.ds_hhmmss;
+		TC_EncodeTime (&Begin, TC_TimeOnly, string);
 	else
-		temp.ds_hhmmss = FixPT.ds_hhmmss;
-	ud_format_date (string, &temp, UDF_FULL);
-	string[0] = ' ';
-	string[1] = ' ';
+		TC_EncodeTime (&FixPT, TC_TimeOnly, string);
 	DrawText (Graphics, d, Gcontext, XPIX (X0), Pix_bottom, string, 
 		0.0, TSScale, JustifyLeft, JustifyTop);
 /*
  * Put time on the right side.
  */
 	if (! FlipTime) 
-		temp.ds_hhmmss = FixPT.ds_hhmmss;
+		TC_EncodeTime (&FixPT, TC_TimeOnly, string);
 	else
-		temp.ds_hhmmss = Begin.ds_hhmmss;
-	ud_format_date (string, &temp, UDF_FULL);
-	string[0] = ' ';
-	string[1] = ' ';
+		TC_EncodeTime (&Begin, TC_TimeOnly, string);
 	DrawText (Graphics, d, Gcontext, XPIX (X1), Pix_bottom, string, 
 		0.0, TSScale, JustifyRight, JustifyTop);
 }
 
 
-void
+static void
 ts_Background (comp, fields, nfld, center, step)
 char	*comp, **fields;
 int	nfld;
@@ -411,11 +398,11 @@ float 	*center, *step;
  * Draw the background.
  */
 {
-	float	tick, tickinc;
-	char	string[STRLEN];	
-	int	i, dolabel;
-	XPoint	pts[5];
-	Display *disp = XtDisplay (Graphics);
+	float		tick, tickinc;
+	char		string[STRLEN];	
+	int		dolabel;
+	XPoint		pts[5];
+	Display		*disp = XtDisplay (Graphics);
 	Drawable	d = GWFrame(Graphics);
 	
 	XSetForeground (disp, Gcontext, BackColor.pixel);
@@ -434,7 +421,6 @@ float 	*center, *step;
  */
 	DrawText (Graphics, d, Gcontext, XPIX (0.5), YPIX (-0.04), "Time", 
 		0.0, TSScale, JustifyCenter, JustifyTop);
-
 /*
  * Label the vertical axis (left). 
  */
@@ -510,7 +496,7 @@ float 	*center, *step;
 }
 
 
-void
+static void
 ts_PutData (update, comp, platforms, nplat, fields, nfld)
 bool	update;
 char	*comp, **platforms, **fields;
@@ -519,33 +505,29 @@ int	nplat, nfld;
  *  Plot the data.
  */
 {
-	char	*fieldlist[MAXFLDS];
-	int	x0, y0, x1, y1, plat, i, j, linewidth, dskip;
-	int	npt = 0;
-	float	fx, fy;
-	Display	*disp = XtDisplay (Graphics);
+	int		x0, y0, x1, y1, plat, i, j, linewidth, dskip, npt = 0;
+	int		numpts;
+	long		t;
+	float		fx, fy, badvalue, v;
+	Display		*disp = XtDisplay (Graphics);
 	Drawable	d = GWFrame (Graphics);
-	DataObject	*dobj;
 	PlatformId	pid;
-	time	begin, plot;
+	DataChunk	*dc;
+	ZebTime		when;
+	FieldId		fieldlist[MAXFLDS];
 /*
  * Get the plot description parameters for plotting data.
  */	
 	if (! pda_Search (Pd, comp, "line-width", "tseries", 
-		(char *) &linewidth, SYMT_INT))
+			(char *) &linewidth, SYMT_INT))
 		linewidth = 0;
 	if (! pda_ReqSearch (Pd, comp, "data-skip", "tseries", (char *) &dskip, 
-		SYMT_INT))
+			SYMT_INT))
 		dskip = 0;
 /*
  * Turn on clipping.
  */
 	XSetClipRectangles (disp, Gcontext, 0, 0, &Clip, 1, Unsorted);
-/*
- * Put together the field list.
- */
-	for (i = 0; i < nfld; i++)
-		fieldlist[i] = fields[i];
 /*
  * Loop through the platforms
  */
@@ -554,23 +536,24 @@ int	nplat, nfld;
 	/*
 	 * Get the ID of this platform
 	 */
-		pid = ds_LookupPlatform (platforms[plat]);
-		if (pid == BadPlatform)
+		if ((pid = ds_LookupPlatform (platforms[plat])) == BadPlatform)
 		{
 			msg_ELog (EF_PROBLEM, "Bad platform '%s'", 
 				platforms[plat]);
 			continue;
 		}
 	/*
+	 * Get field id's.
+	 */
+		for (i = 0; i < nfld; i++)
+			fieldlist[i] = F_Lookup (fields[i]);
+	/*
 	 * Get the data.
 	 */
-		begin = Begin;
-		plot = FixPT;
-		dobj = ds_GetData(pid, fieldlist, nfld, &begin, &plot, 
-			OrgScalar, 0.0, BADVAL);
-		if (! dobj)
+		if (! (dc = ds_Fetch (pid, DCC_Scalar, &Begin, &FixPT,
+			fieldlist, nfld, NULL, 0)))
 		{
-			msg_ELog(EF_PROBLEM,"No %s data available", 
+			msg_ELog (EF_PROBLEM, "No %s data available", 
 				platforms[plat]);
 			continue;
 		}
@@ -590,9 +573,10 @@ int	nplat, nfld;
 			}
 			else
 			{
-				fx = CONVERT (GetSec (Begin), TMinval, 
+				fx = CONVERT (Begin.zt_Sec, TMinval, 
 					TMaxval);
-				fy = CONVERT (dobj->do_data[i][0], Minval[i], 
+				fy = CONVERT (dc_GetScalar (dc, 0, 
+					fieldlist[i]), Minval[i], 
 					Maxval[i]); 
 			}
 			x0 = XPIX (fx); 
@@ -601,25 +585,42 @@ int	nplat, nfld;
 		/* 
 		 * Draw the data.
 		 */
-			for (j = 1; j < dobj->do_npoint; j++)
+			numpts = dc_GetNSample (dc);
+			badvalue = dc_GetBadval (dc);
+			for (j = 1; j < numpts; j++)
 			{
+			/*
+			 * Get the value of the current data point.
+			 */
+				v = dc_GetScalar (dc, j, fieldlist[i]);
+			/*
+			 * If its time to skip or the data is bad, continue.
+			 */
 				if (dskip && (npt++ % dskip) != 0)
 					continue;
-				if (dobj->do_data[i][j] == BADVAL)
+				if (v == badvalue)
 					continue;
-				Save_x[plat * nfld + i] = 
-					GetSec (dobj->do_times[j]);
-				Save_y[plat * nfld + i] = dobj->do_data[i][j];
-				fx = CONVERT (Save_x[plat * nfld + i], 
-					TMinval, TMaxval);
-				fy = CONVERT (dobj->do_data[i][j], Minval[i],
-					Maxval[i]); 
+			/*
+			 * Save the data in case this is the last point.
+			 */
+				dc_GetTime (dc, j, &when);
+				t = TC_ZtToSys (&when);
+				Save_x[plat * nfld + i] = t;
+				Save_y[plat * nfld + i] = v;
+			/*
+			 * Get the point to draw and draw them.
+			 */
+				fx = CONVERT (t, TMinval, TMaxval);
+				fy = CONVERT (v, Minval[i], Maxval[i]); 
 				x1 = XPIX (fx); y1 = YPIX (fy);
 				XDrawLine (disp, d, Gcontext, x0, y0, x1, y1); 
 				x0 = x1; y0 = y1;
 			}
 		}
-		ds_FreeDataObject (dobj);
+	/*
+	 * Free the data chunk.
+	 */
+		dc_DestroyDC (dc);
 	}
 /*
  * Turn off clipping.
@@ -628,13 +629,13 @@ int	nplat, nfld;
 }
 
 
-void
+static void
 ts_SlideData()
 /*
  * On an update slide the old data down to make room for the new data.
  */
 {
-	time_t	beginsec;
+	long	beginsec;
 	Pixmap	temp;
 	Display	*disp = XtDisplay (Graphics);
 /*
@@ -655,13 +656,13 @@ ts_SlideData()
 /*
  * Clear the area.
  */
-	XSetForeground (XtDisplay (Graphics), Gcontext, Black.pixel);
+	XSetForeground (disp, Gcontext, Black.pixel);
 	XFillRectangle (disp, GWFrame (Graphics), Gcontext, Pix_left, Pix_top, 
 		Pix_right - Pix_left, Pix_bottom - Pix_top);
 /*
  * Figure the new data position.
  */
-	beginsec = GetSec (Begin);	
+	beginsec = Begin.zt_Sec;	
 /*
  * Put the data back in its new position.
  */
@@ -685,7 +686,7 @@ ts_SlideData()
 
 
 
-void
+static void
 ts_DrawLines (update, nstep)
 bool	update;
 int	nstep;
@@ -695,12 +696,11 @@ int	nstep;
 {
 	Display	*disp = XtDisplay (Graphics);
 	Drawable	d = GWFrame (Graphics);
-	float	begin_x, tick, tickinc;
-	float	ll;
-	time_t	llinc;
+	float	begin_x, tick, tickinc, ll;
+	long	llinc;
 	XPoint	pts[2];
 	
-	static 	time	lastline;
+	static 	ZebTime	lastline;
 
 	XSetForeground (disp, Gcontext, BackColor.pixel);
 	XSetLineAttributes (disp, Gcontext, 1, LineOnOffDash, CapButt, 
@@ -708,7 +708,7 @@ int	nstep;
 	if (nstep <= 1) 
 		nstep = 2;
 	tickinc = (Y1 - Y0) / (nstep - 1);
-	begin_x = CONVERT (GetSec (Begin), TMinval, TMaxval);
+	begin_x = CONVERT (Begin.zt_Sec, TMinval, TMaxval);
 /*
  * Horizontal lines.
  */
@@ -727,7 +727,7 @@ int	nstep;
  */
 	if (! update)
 		lastline = Begin; 
-	ll = CONVERT (GetSec (lastline), TMinval, TMaxval);
+	ll = CONVERT (lastline.zt_Sec, TMinval, TMaxval);
 	pts[0].y = Pix_bottom;
 	pts[1].y = Pix_top;
 	if (! FlipTime)
@@ -740,12 +740,9 @@ int	nstep;
 				pts[0].x = pts[1].x = XPIX (ll);
 				XDrawLines (disp, d, Gcontext, pts, 2, 
 					CoordModeOrigin);
-				llinc = (time_t) UNCONVERT (tickinc, 0.0, 
+				llinc = (long) UNCONVERT (tickinc, 0.0, 
 					TMaxval - TMinval);
-				llinc = (llinc/3600)*10000 + ((llinc/60) % 60)*
-					100 + llinc % 60;
-				pmu_dadd (&lastline.ds_yymmdd, 
-					&lastline.ds_hhmmss, (int) llinc);
+				lastline.zt_Sec += llinc;
 			}
 	}
 	else
@@ -758,12 +755,9 @@ int	nstep;
 				pts[0].x = pts[1].x = XPIX (ll);
 				XDrawLines (disp, d, Gcontext, pts, 2, 
 					CoordModeOrigin);
-				llinc = (time_t) UNCONVERT (tickinc, 0.0, 
+				llinc = (long) UNCONVERT (tickinc, 0.0, 
 					TMinval - TMaxval);
-				llinc = (llinc/3600)*10000 + 
-					((llinc/60) % 60)* 100 + llinc % 60;
-				pmu_dadd (&lastline.ds_yymmdd, 
-					&lastline.ds_hhmmss, (int) llinc);
+				lastline.zt_Sec+= llinc;
 			}
 	}
 	XSetLineAttributes (disp, Gcontext, 1, LineSolid, CapButt, 
