@@ -32,7 +32,7 @@
 # define MESSAGE_LIBRARY	/* to get netread prototypes */
 # include "message.h"
 
-RCSID ("$Id: msg_lib.c,v 2.28 1995-05-02 23:16:28 granger Exp $")
+RCSID ("$Id: msg_lib.c,v 2.29 1995-05-05 17:42:32 granger Exp $")
 
 /*
  * The array of functions linked with file descriptors.
@@ -512,8 +512,8 @@ msg_await ()
 	 * Wait for something.
 	 */
 		fds = Fd_list;
-		if ((nsel = select (Max_fd + 1, (z_FdSet *)&fds, (z_FdSet *)0,
-				    (z_FdSet *) 0, 0)) < 0)
+		if ((nsel = select (Max_fd + 1, (SelectSet *)&fds, 
+				    (SelectSet *)0, (SelectSet *) 0, 0)) < 0)
 		{
 			if (errno == EINTR) /* gdb attach can cause this */
 				continue;
@@ -727,8 +727,8 @@ int timeout; /* seconds */
 	 * Wait for something.
 	 */
 		fds = Fd_list;
-		if ((nsel = select (Max_fd + 1, (z_FdSet *)&fds, (z_FdSet *) 0,
-				    (z_FdSet *) 0, &delay)) < 0)
+		if ((nsel = select (Max_fd + 1, (SelectSet *)&fds, 
+			    (SelectSet *)0, (SelectSet *)0, &delay)) < 0)
 		{
 			if (errno == EINTR) /* gdb attach can cause this */
 				continue;
@@ -801,8 +801,8 @@ int *protolist;	/* array of protocols to handle */
 	for (;;)
 	{
 		fds = Fd_list;
-		if ((nsel = select (Max_fd + 1, (z_FdSet *)&fds, (z_FdSet *)0,
-				    (z_FdSet *) 0, &delay)) < 0)
+		if ((nsel = select (Max_fd + 1, (SelectSet *)&fds, 
+			    (SelectSet *)0, (SelectSet *)0, &delay)) < 0)
 		{
 			if (errno == EINTR) /* gdb attach can cause this */
 				continue;

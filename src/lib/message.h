@@ -1,4 +1,4 @@
-/* $Id: message.h,v 2.18 1995-05-02 23:14:47 granger Exp $ */
+/* $Id: message.h,v 2.19 1995-05-05 17:42:30 granger Exp $ */
 /*
  * Message protocol types.
  */
@@ -21,6 +21,8 @@
  */
 # ifndef _ZEB_MESSAGE_H_
 # define _ZEB_MESSAGE_H_
+
+# include <sys/types.h>		/* To get fd_set */
 
 # include "defs.h"		/* For const definition */
 # include "config.h"		/* To get CFG_ parameters */
@@ -320,21 +322,22 @@ void cp_SetupCmdProto FP ((void));
 void cp_Exec FP ((char *process, char *command));
 
 /*
+ * For some reason HP-UX uses pointers to int rather than
+ * pointers to fd_set in its select prototype.  This typedef is just
+ * to get the right cast for the compiler in select calls: pointer
+ * to SelectSet.
+ */
+#ifdef hpux
+typedef int SelectSet;
+#else
+typedef fd_set SelectSet;
+#endif
+
+/*
  * The message manager and library reference the netread functions, 
  * but we don't want them to be part of the public interface.
  */
 # if defined(MESSAGE_MANAGER) || defined(MESSAGE_LIBRARY)
-
-/*
- * For some reason HP-UX uses pointers to int rather than
- * pointers to fd_set in its select prototype.  This typedef is just
- * to get the right cast for the compiler.
- */
-#ifdef hpux
-typedef int z_FdSet;
-#else
-typedef fd_set z_FdSet;
-#endif
 
 #define FD_MAP_SIZE 64		/* used for fd map tables */
 
