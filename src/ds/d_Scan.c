@@ -40,7 +40,7 @@
 # include "Platforms.h"		/* for dt_SetString */
 # include "byteorder.h"
 
-RCSID ("$Id: d_Scan.c,v 1.32 1996-11-19 09:29:44 granger Exp $")
+RCSID ("$Id: d_Scan.c,v 1.33 1997-06-10 19:01:17 burghart Exp $")
 
 /*
  * Define this to force changed files to be closed and re-opened by
@@ -843,13 +843,8 @@ bool version;	/* include the cache key if non-zero */
 	name[i] = '\0';
 	if (version)
 		sprintf (fname, "%s/%s.%lx%s.ds_cache", 
-				local ? p->dp_dir : p->dp_rdir, name,
-				CacheKey,
-# ifdef LITTLE_ENDIAN
-				"-l");
-# else
-				"");
-# endif
+			 local ? p->dp_dir : p->dp_rdir, name,
+			 CacheKey, LittleEndian() ? "-l" : "");
 	else
 		sprintf (fname, "%s/%s.ds_cache", 
 			 local ? p->dp_dir : p->dp_rdir, name);

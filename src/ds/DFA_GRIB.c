@@ -39,7 +39,7 @@
 # include "DataFormat.h"
 # include "GRIB.h"
 
-RCSID ("$Id: DFA_GRIB.c,v 3.28 1997-05-30 15:13:36 burghart Exp $")
+RCSID ("$Id: DFA_GRIB.c,v 3.29 1997-06-10 19:01:07 burghart Exp $")
 
 
 /*
@@ -2310,8 +2310,9 @@ double	badval;
  */
 {
 	int	bds_len, sign, mantissa, exponent, n_bits, i, j;
-	int	longbits, firstbit, firstbyte, shift, bfactor, dfactor;
-	unsigned long	bits, mask;
+	int	longbits, shift, bfactor, dfactor;
+	int	firstbit, firstbyte, lastbit, lastbyte, n_bytes;
+	unsigned long	longval, mask;
 	bool	int_data;
 	char	flag, *bds, *bitmap;
 	float	ref, bscale, dscale, *gp;
@@ -2355,8 +2356,7 @@ double	badval;
  */
 	bds_len = tag->gt_grib[which].gd_bds_len;
 
-	bds = (char *) malloc (bds_len + sizeof (bits));
-	memset (bds + bds_len, 0, sizeof (bits));
+	bds = (char *) malloc (bds_len);
 	bds_hdr = (BDShdr *) bds;
 
 	lseek (tag->gt_fd, tag->gt_grib[which].gd_doffset, SEEK_SET);
@@ -2435,7 +2435,7 @@ double	badval;
 	n_bits = bds_hdr->n_bits;
 	longbits = 8 * sizeof (long);
 
-	if (n_bits > longbits - 8)
+	if (n_bits > (longbits - 8))
 	{
 		msg_ELog (EF_EMERGENCY, "Can't unpack GRIB data > %d bits!",
 			  longbits - 8);
@@ -2477,6 +2477,8 @@ double	badval;
 	{
 		for (i = 0; i < nx; i++)
 		{
+		    char *lvp;
+		    int b;
 		/*
 		 * If we have a bitmap, see if this point's bit is set.  If
 		 * not, put in the bad value flag and move on.
@@ -2502,31 +2504,41 @@ double	badval;
 		 * a long.
 		 */
 			firstbit += n_bits;
+			lastbit = firstbit + n_bits - 1;
 			firstbyte = firstbit / 8;
-			shift = longbits - firstbit % 8 - n_bits;
-			if (firstbyte >= bds_len)
+			lastbyte = lastbit / 8;
+			n_bytes = lastbyte - firstbyte + 1;
+			shift = 7 - lastbit % 8;
+
+			if (lastbyte >= bds_len)
 			    msg_ELog (EF_PROBLEM, 
 				      "Bad GRIB unpack, reading beyond BDS!");
-		/*
-		 * Copy from the BDS into a long, starting with the first
-		 * byte with bits of interest to us.  Remember that the
-		 * data in the BDS start at byte 11.
+		/* 
+		 * Copy the required bytes from the BDS into the low-order
+		 * bytes of a long.  Remember that the data in the BDS
+		 * start at byte 11.
 		 */
-			memcpy (&bits, bds + firstbyte + 11, sizeof (long));
-		/*
-		 * Swap the long around on a little-endian machine.
-		 */
-			swap4 (&bits);
+			longval = 0;
+			lvp = (char *)&longval;
+			
+			for (b = 0; b < n_bytes; b++)
+			{
+			    if (LittleEndian())
+				lvp[n_bytes - b - 1] = bds[11 + firstbyte + b];
+			    else
+				lvp[sizeof(long) - n_bytes + b] = 
+				    bds[11 + firstbyte + b];
+			}
 		/*
 		 * Shift the bits of interest to the bottom of our long and
 		 * mask them.
 		 */
-			bits >>= shift;
-			bits &= mask;
+			longval >>= shift;
+			longval &= mask;
 		/*
 		 * Now we just scale and throw it into the grid
 		 */
-			*gp++ = (ref + bits * bscale) * dscale;
+			*gp++ = (ref + longval * bscale) * dscale;
 		}
 	}
 

@@ -28,10 +28,11 @@
 
 # include <defs.h>
 # include <message.h>
+# include <byteorder.h>
 
 # include "GRIB.h"
 
-RCSID ("$Id: GRIB.c,v 3.8 1997-05-30 15:21:33 burghart Exp $")
+RCSID ("$Id: GRIB.c,v 3.9 1997-06-10 19:01:15 burghart Exp $")
 
 typedef struct s_GRB_DataRepType {
 	int data_type;
@@ -62,11 +63,12 @@ unsigned char	*buf;
 	int	i = 0;
 	unsigned char	*cptr = (unsigned char *) &i;
 
-# ifdef LITTLE_ENDIAN
-	cptr[0] = buf[1]; cptr[1] = buf[0];
-# else
-	memcpy (cptr + 2, buf, 2);
-# endif
+	if (LittleEndian())
+	{
+	    cptr[0] = buf[1]; cptr[1] = buf[0];
+	}
+	else
+	    memcpy (cptr + 2, buf, 2);
 
 	return (i);
 }
@@ -90,13 +92,16 @@ unsigned char	*buf;
 /*
  * Extract the two bytes into an int and lose the top bit.
  */
-# ifdef LITTLE_ENDIAN
-	cptr[0] = buf[1]; 
-	cptr[1] = buf[0] & 0x7f;	/* strip the sign bit */
-# else
-	memcpy (cptr + 2, buf, 2);
-	i &= 0x7f;			/* strip the sign bit */
-# endif
+	if (LittleEndian())
+	{
+	    cptr[0] = buf[1]; 
+	    cptr[1] = buf[0] & 0x7f;	/* strip the sign bit */
+	}
+	else
+	{
+	    memcpy (cptr + 2, buf, 2);
+	    i &= 0x7f;			/* strip the sign bit */
+	}
 
 	return (sign * i);
 }
@@ -113,11 +118,12 @@ unsigned char	*buf;
 	int	i = 0;
 	unsigned char	*cptr = (unsigned char *) &i;
 
-# ifdef LITTLE_ENDIAN
-	cptr[0] = buf[2]; cptr[1] = buf[1]; cptr[2] = buf[0];
-# else
-	memcpy (cptr + 1, buf, 3);
-# endif
+	if (LittleEndian())
+	{
+	    cptr[0] = buf[2]; cptr[1] = buf[1]; cptr[2] = buf[0];
+	}
+	else
+	    memcpy (cptr + 1, buf, 3);
 
 	return (i);
 }
@@ -141,13 +147,16 @@ unsigned char	*buf;
 /*
  * Extract the three bytes into an int and lose the top bit.
  */
-# ifdef LITTLE_ENDIAN
-	cptr[0] = buf[3]; cptr[1] = buf[2]; 
-	cptr[2] = buf[0] & 0x7f;	/* drop the sign bit */
-# else
-	memcpy (cptr + 1, buf, 3);
-	i &= 0x7fffff;	/* drop the sign bit */
-# endif
+	if (LittleEndian())
+	{
+	    cptr[0] = buf[3]; cptr[1] = buf[2]; 
+	    cptr[2] = buf[0] & 0x7f;	/* drop the sign bit */
+	}
+	else
+	{
+	    memcpy (cptr + 1, buf, 3);
+	    i &= 0x7fffff;	/* drop the sign bit */
+	}
 /*
  * Multiply in the sign.
  */

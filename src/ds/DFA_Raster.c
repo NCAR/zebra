@@ -19,7 +19,7 @@
 # include "RasterFile.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_Raster.c,v 3.19 1997-05-13 11:07:33 granger Exp $")
+RCSID ("$Id: DFA_Raster.c,v 3.20 1997-06-10 19:01:13 burghart Exp $")
 
 /*
  * This is the tag for an open raster file.
@@ -172,13 +172,11 @@ static void	drf_SyncTimes FP ((RFTag *tag));
 static void	drf_FixOldHeader FP ((RFHeader *));
 static RFToc 	*drf_ReadTOC FP ((RFHeader *, int));
 
-# ifdef LITTLE_ENDIAN
 static void	drf_SwapHeader FP ((RFHeader *));
 static void	drf_SwapTOC FP ((RFToc *, int));
 static void	drf_SwapRG FP ((RGrid *));
 static void	drf_SwapLoc FP ((Location *));
 static void	drf_SwapLArray FP ((long *, int));
-# endif
 
 
 
@@ -242,9 +240,8 @@ bool write;
 /*
  * Swap if need be.
  */
-# ifdef LITTLE_ENDIAN
-	drf_SwapHeader (&tag->rt_hdr);
-# endif
+	if (LittleEndian())
+	    drf_SwapHeader (&tag->rt_hdr);
 /*
  * Look for really ancient files, which should not ought to exist any more.
  */
@@ -318,9 +315,8 @@ RFHeader *hdr;
  */
 	msg_ELog (EF_INFO, "Fixing old raster file header");
 	hdr->rf_Flags = old->rf_Flags;
-# ifdef LITTLE_ENDIAN
-	swap4 (&hdr->rf_Flags);
-# endif
+	if (LittleEndian())
+	    swap4 (&hdr->rf_Flags);
 }
 
 
@@ -415,9 +411,8 @@ int *nsample;
  * You know...this routine never checks the magic flag.  It should really
  * ought to do that.
  */
-# ifdef LITTLE_ENDIAN
-	drf_SwapHeader (&hdr);
-# endif 
+	if (LittleEndian())
+	    drf_SwapHeader (&hdr);
 /*
  * Look for really ancient files, which should not ought to exist any more.
  */
@@ -514,9 +509,9 @@ int fd;
 /*
  * Do we need to swap this thing too??
  */
-# ifdef LITTLE_ENDIAN
-	drf_SwapTOC (toc, hdr->rf_MaxSample);
-# endif
+	if (LittleEndian())
+	    drf_SwapTOC (toc, hdr->rf_MaxSample);
+
 	return (toc);
 }
 
@@ -604,23 +599,23 @@ RFTag *tag;
 /*
  * Put out the header.
  */
-# ifdef LITTLE_ENDIAN
-	drf_SwapHeader (&tag->rt_hdr);
-# endif
+	if (LittleEndian())
+	    drf_SwapHeader (&tag->rt_hdr);
+
 	write (tag->rt_fd, &tag->rt_hdr, sizeof (RFHeader));
-# ifdef LITTLE_ENDIAN
-	drf_SwapHeader (&tag->rt_hdr);
-# endif
+
+	if (LittleEndian())
+	    drf_SwapHeader (&tag->rt_hdr);
 /*
  * Now the TOC.
  */
-# ifdef LITTLE_ENDIAN
-	drf_SwapTOC (tag->rt_toc, tag->rt_hdr.rf_MaxSample);
-# endif
+	if (LittleEndian())
+	    drf_SwapTOC (tag->rt_toc, tag->rt_hdr.rf_MaxSample);
+
 	write (tag->rt_fd, tag->rt_toc,tag->rt_hdr.rf_MaxSample*sizeof(RFToc));
-# ifdef LITTLE_ENDIAN
-	drf_SwapTOC (tag->rt_toc, tag->rt_hdr.rf_MaxSample);
-# endif
+
+	if (LittleEndian())
+	    drf_SwapTOC (tag->rt_toc, tag->rt_hdr.rf_MaxSample);
 /*
  * Update internal array of times with new table of contents
  */
@@ -952,13 +947,14 @@ OpenFile *ofp;
  */
 	lseek (tag->rt_fd, 0, SEEK_SET);
 	read (tag->rt_fd, &tag->rt_hdr, sizeof (RFHeader));
-# ifdef LITTLE_ENDIAN
-	drf_SwapHeader (&tag->rt_hdr);
-# endif
+
+	if (LittleEndian())
+	    drf_SwapHeader (&tag->rt_hdr);
+
 	read (tag->rt_fd, tag->rt_toc, tag->rt_hdr.rf_NSample*sizeof (RFToc));
-# ifdef LITTLE_ENDIAN
-	drf_SwapTOC (tag->rt_toc, tag->rt_hdr.rf_NSample);
-# endif
+
+	if (LittleEndian())
+	    drf_SwapTOC (tag->rt_toc, tag->rt_hdr.rf_NSample);
 /*
  * Update internal copy of times with new TOC enties
  */
@@ -1352,7 +1348,6 @@ int *ntime;
 /*
  * The following is swapping code needed for little-endian machines only.
  */
-# ifdef LITTLE_ENDIAN
 
 static void
 drf_SwapHeader (hdr)
@@ -1447,6 +1442,3 @@ Location *loc;
 	swap4 (&loc->l_lon);
 	swap4 (&loc->l_alt);
 }
-
-
-# endif  /* LITTLE_ENDIAN */
