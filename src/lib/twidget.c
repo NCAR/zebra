@@ -37,7 +37,7 @@
 # include "message.h"
 # include "timer.h"
 
-MAKE_RCSID ("$Id: twidget.c,v 2.11 1993-03-12 23:48:55 granger Exp $")
+MAKE_RCSID ("$Id: twidget.c,v 2.12 1993-03-18 07:01:03 granger Exp $")
 
 
 # define LABELWIDTH	60
@@ -60,7 +60,8 @@ MAKE_RCSID ("$Id: twidget.c,v 2.11 1993-03-12 23:48:55 granger Exp $")
 /*
  * Global stuff
  */
-static Widget Form, Htext, Stext, ControlButton;
+static Widget Form = NULL, Htext = NULL;
+static Widget Stext = NULL, ControlButton = NULL;
 
 /*
  * Histdate is the history date that appears in the window.  Maxdate is
@@ -108,6 +109,29 @@ char	*title;
 	Tw_Callback = callback;
 	uw_def_widget ("time", "Time control", tw_WCreate, 0, 0);
 }
+
+
+
+void
+tw_SetTime (zt)
+ZebTime *zt;
+/*
+ * For setting the time from the outside.  If zt == NULL, the
+ * system time is used (as is the default at definition).
+ */
+{
+	int year, month, day, hour, minute, second;
+
+	if (zt)
+		Histdate = *zt;
+	else
+		tl_Time (&Histdate);
+	TC_ZtSplit (&Histdate, &year, &month, &day, &hour, &minute, &second,0);
+	TC_ZtAssemble (&Histdate, year, month, day, hour, minute, 0, 0);
+	set_dt ();
+	uw_sync ();
+}
+
 
 
 static Widget
@@ -669,6 +693,11 @@ set_dt ()
 	Arg args[2];
 	char dbuf[40], *timestr, *strchr ();
 /*
+ * Make sure we have widgets first
+ */
+	if (! Htext)
+		return;
+/*
  * Format, then split, the date.
  */
 	TC_EncodeTime (&Histdate, TC_Full, dbuf);
@@ -681,6 +710,4 @@ set_dt ()
 	XtSetArg (args[0], XtNstring, Ahistdate);
 	XtSetValues (Htext, args, 1);
 }
-
-
 
