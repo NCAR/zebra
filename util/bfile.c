@@ -1,10 +1,13 @@
 /* 1/88 jc */
-static char *rcsid = "$Id: bfile.c,v 1.8 1990-11-14 09:11:36 burghart Exp $";
+static char *rcsid = "$Id: bfile.c,v 1.9 1991-10-11 17:29:47 case Exp $";
 /*
  * System-dependant binary file stuff.  These routines are needed because
  * the VMS-specific variable-length-record-format file does not exist in
  * other systems, and must be emulated.
  */
+
+#include <stdio.h>
+
 # ifdef NETACCESS
 #	include "netdisk.h"
 # endif
