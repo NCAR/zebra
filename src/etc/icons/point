@@ -3,4 +3,4 @@
 #define point_x_hot 1
 #define point_y_hot 1
 static char point_bits[] = {
-   0x02, 0x07, 0x02};
+   0x00, 0x02, 0x00};
