@@ -18,13 +18,14 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-
-# include "defs.h"
 # include <time.h>
 # include <ctype.h>
 # include <sys/types.h>
+# include <string.h>
 
-MAKE_RCSID ("$Id: TCvt.c,v 2.14 1994-06-29 20:54:59 case Exp $")
+# include "defs.h"
+
+MAKE_RCSID ("$Id: TCvt.c,v 2.15 1995-04-15 00:15:42 granger Exp $")
 
 /*
  * The months of the year.
@@ -39,13 +40,13 @@ static char *Months[] =
 
 void
 TC_SysToFcc (sys, fcc)
-long sys;
+const long sys;
 UItime *fcc;
 /*
  * Convert a system time to an fcc time.
  */
 {
-	struct tm *t = gmtime (&sys);
+	struct tm *t = gmtime ((long *)&sys);
 
 	fcc->ds_yymmdd = t->tm_year*10000 + (t->tm_mon + 1)*100 + t->tm_mday;
 	fcc->ds_hhmmss = t->tm_hour*10000 + t->tm_min*100 + t->tm_sec;
@@ -57,7 +58,7 @@ UItime *fcc;
 
 long
 TC_FccToSys (fcc)
-UItime *fcc;
+const UItime *fcc;
 /*
  * Convert an FCC time into a system time.
  */
@@ -199,7 +200,7 @@ char *dest;
 		break;
 
 	   case TC_FullUSec:	/* Everything plus the microseconds field */
-		sprintf (dest, "%d-%s-%d,%d:%02d:%02d.%06d", t->tm_mday,
+		sprintf (dest, "%d-%s-%d,%d:%02d:%02d.%06li", t->tm_mday,
 			Months[t->tm_mon], t->tm_year, t->tm_hour,
 			t->tm_min, t->tm_sec, zt->zt_MicroSec);
 		break;
@@ -216,6 +217,23 @@ char *dest;
 	}
 }
 
+
+
+const char *
+TC_AscTime (zt, format)
+const ZebTime *zt;
+int format;
+/*
+ * Encodes the time into a string according to format and returns a pointer
+ * to the string.  Like the library asctime() function but without that
+ * annoying trailing newline.  The string is only valid until the next call.
+ */
+{
+	static char dest[128];
+
+	TC_EncodeTime (zt, format, dest);
+	return (dest);
+}
 
 
 
@@ -235,10 +253,6 @@ ZebTime		*zt;
 	int	nfields, year, month, day, hour, minute;
 	float	fsecond;
 	int second, microsec;
-	struct tm	t;
-# if defined(SVR4) || defined(SYSV)
-	char	tz[20];
-# endif
 /*
  * Initialize our pieces and scan the string
  */
