@@ -464,7 +464,7 @@ unsigned int	frame;
  * Set the current draw frame of 'w' to 'frame'
  */
 {
-	if (frame >= w->graphics.frame_count)
+	if (frame < 0 || frame >= w->graphics.frame_count)
 		XtError ("Invalid frame number in GWDrawFrame");
 
 	w->graphics.draw_frame = frame;
@@ -486,7 +486,7 @@ unsigned int	frame;
 /*
  * Sanity check
  */
-	if (frame >= w->graphics.frame_count)
+	if (frame < 0 || frame >= w->graphics.frame_count)
 		XtError ("Invalid frame number in GWDisplayFrame");
 /*
  * OK, this is a legal frame to display
