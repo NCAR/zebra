@@ -9,9 +9,9 @@
 # define JustifyRight		5
 
 # ifdef __STDC__
-	void	DrawText (Widget, Drawable, Pixel, int, int, char *, double, 
+	void	DrawText (Widget, Drawable, GC, int, int, char *, double, 
 			double, int, int);
-	void	DT_StrokeText (Widget, Drawable, Pixel, int, int, char *, 
+	void	DT_StrokeText (Widget, Drawable, GC, int, int, char *, 
 			double, double, int, int);
 	void	DT_TextBox (Widget, Drawable, int, int, char *, double, 
 			double, int, int, int *, int *, int *, int *);
