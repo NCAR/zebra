@@ -1,0 +1,8 @@
+! $Id: truecolor,v 1.1 2000-06-07 20:31:50 granger Exp $
+!
+! Make the parameter table changes for truecolor display depths.
+! Make the change in both project and global defaults tables, just
+! in case globals have not been merged yet or will not be.
+
+pddrop global-defaults truecolor global-defaults defaults
+pddrop global-defaults truecolor defaults defaults

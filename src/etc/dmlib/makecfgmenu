@@ -1,4 +1,4 @@
-#!/usr/local/bin/perl
+#! /bin/env perl
 #
 # Read through the files in the directory given in the first
 # argument, and create menu entries for each one in a dm

@@ -1,0 +1,27 @@
+! $Id: DisplayConfigs,v 1.1 2000-06-07 20:31:49 granger Exp $
+!
+! All of the predefined display configurations live in this file.
+!
+
+
+set default_exec 'gp'
+set default_arg1 'gp.init'
+set gp_exec default_exec
+set clock_exec 'fccclock'
+
+!
+! Generic process classes
+!
+proto Graphic gp gp.init
+proto explicit GPDebug xxgdb gp
+proto fallback Default gp gp.init
+proto Clock fccclock
+proto EventLogger EventLogger
+proto explicit ClockDebug xxgdb clock
+proto explicit Debug xxgdb
+
+!
+! Set the directory path for saved configurations.
+!
+require init-config-path
+

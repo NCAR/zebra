@@ -1,0 +1,92 @@
+!
+! ButtonMaps: read by DM and passed on to graphics processes as they're
+! started.
+!
+
+buttonmap basic
+	local	mb-s-left 'drawbox pushcoord'
+	local	mb-s-right 'ctrmove'
+	local	m	'popup movie'
+	local	r	'movie run'
+	local	s	'movie stop'
+	local	b	'popcoords'
+	local	h	'help'
+endmap
+
+buttonmap radar
+	local	mb-s-left 'drawbox pushcoord'
+	local	mb-s-right 'ctrmove'
+	local	mb-middle 'ChangeXSect'
+	local	mb-s-middle 'AllXSect'
+	local	mb-right 'toggle_radar'
+	local	F1 	'toggle_radar'
+	local	b	'popcoords'
+	local	g	'popup position'
+	local	m	'popup movie'
+	local	p	'polyline l_spotlight'
+	local	r	'movie run'
+	local	s	'movie stop'
+	local	t	'popup overlay'
+	local	F29	'altstep 99'
+	local	F35	'altstep -99'
+	local	Up	'altstep 1'
+	local	Down	'altstep -1'
+	local	u	'altstep 1'
+	local	d	'altstep -1'
+	local	h	'help'
+endmap
+
+buttonmap xyplot
+	local	mb-s-left	'drawbox zoom'
+	local	b	'unzoom'
+	local	m	'popup movie'
+	local	r	'movie run'
+	local	s	'movie stop'
+	local	t	'popup overlay'
+	local	h	'help'
+endmap
+
+buttonmap big
+	local	mb-s-left 'drawbox pushcoord'
+	local	mb-s-right 'ctrmove'
+	local	mb-left	'getposition'
+	local	mb-middle 'ChangeXSect'
+	local	mb-right 'toggle_main'
+	local	F1 	'toggle_main'
+	local	b	'popcoords'
+	local	f	'toggle_satellite'
+	local	g	'popup position'
+	local	m	'popup movie'
+	local	r	'movie run'
+	local	s	'movie stop'
+	local	t	'popup overlay'
+	local	Up	'altstep 1'
+	local	Down	'altstep -1'
+	local	u	'altstep 1'
+	local	d	'altstep -1'
+	local	Left	'DoZoom -3500 1500 -1500 3000'
+	local	F31	'DoZoom -1427 873 -89 1613'
+	local	Right	'DoZoom -1500 100 0 1500'
+	local	F29	'altstep 99'
+	local	F35	'altstep -99'
+	local 	h	'help'
+	local	l	'popup LineWidth'
+	local	z	'popup model'
+endmap
+
+buttonmap sounding
+	local	mb-s-left 'drawbox zoom'
+	local	mb-left 'drawbox pushcoord'
+	local	b	'popcoords'
+	local	m	'popup movie'
+	local	Up	'altstep 1'
+	local	Down	'altstep -1'
+	local	u	'altstep 1'
+	local	d	'altstep -1'
+	local	r	'movie run'
+	local	s	'movie stop'
+	local	t	'popup overlay'
+	dm	c	'toggle_snd'
+	local	h	'help'
+endmap
+

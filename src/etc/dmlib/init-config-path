@@ -1,41 +1,55 @@
 !
-! $Id: init-config-path,v 1.1 1995-04-20 08:16:13 granger Exp $
+! $Id: init-config-path,v 1.2 2000-06-07 20:31:50 granger Exp $
 !
 ! Initialize the config search path and default save directory.  By
 ! default, save configs to a user-specific subdirectory.  That directory is
-! also put first on in the config path so that user-saved configs take
-! precedence.  The value of ZEB_CONFIGS has even higher precedence.
+! also prepended to the config path so that user-saved configs take
+! precedence over library configs.  However, the ZEB_CONFIGS directory,
+! if defined, has even higher precedence.
+!
+! The caller of this module can change ConfigDir (default location to save
+! configurations) if it doesn't like the default of ./dconfig/<username>.
+! If so, you should also prepend that directory to ConfigPath so that
+! saved configurations take precedence over anything else on the path.
+!
+
+set undef "UNDEFINED"
+
+! Put the library directory in the path so we can find a default empty
+! config if not already stored elsewhere on the project display path.
 !
 set ConfigDir "./dconfig"
-set ConfigPath ConfigDir
+set LibConfigPath concat(c$libdir,'/dmlib')
+set ConfigPath concat3(ConfigDir,',',LibConfigPath)
 
-!
-! For now, make everyone share the same time file.  Maybe we should make
-! it read-only so people don't destroy it during the conference.
-!
-set TimeFile './dconfig/Showcases'
-
-!
-! First define the procedure, then actually invoke it
-!
 procedure init-config-path
 
 	local user getenv("USER")
-	if (user = "UNDEFINED")
+	if (user = undef)
 		local user getenv("LOGNAME")
 	endif
-	if (user <> "UNDEFINED")
+	if (user <> undef)
 	  	set UserConfigs concat3(ConfigDir,"/",user)
 	else
-		set UserConfigs "UNDEFINED"
+		set UserConfigs undef
 	endif
 	set ZebraConfigs getenv("ZEB_CONFIGS")
 
-	if (UserConfigs <> "UNDEFINED")
+	! Prepend to the path in reverse order of precedence.
+
+	! Append the home subdirectory for compatibility
+	set home getenv("HOME")
+        if (home <> undef)
+                set ConfigDir concat(home, "/.zeb_configs")
+                set ConfigPath concat3(ConfigDir,',',ConfigPath)
+        endif
+
+	if (UserConfigs <> undef)
 		set ConfigPath concat3(UserConfigs,",",ConfigPath)
 	  	set ConfigDir UserConfigs
 	endif
-	if (ZebraConfigs <> "UNDEFINED")
+
+	if (ZebraConfigs <> undef)
 		set ConfigPath concat3(ZebraConfigs,",",ConfigPath)
 		set ConfigDir ZebraConfigs
 	endif

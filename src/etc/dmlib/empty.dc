@@ -1,0 +1,8 @@
+! $Id: empty.dc,v 1.1 2000-06-07 20:31:50 granger Exp $
+!
+! An empty config just to clear out the screen.
+!
+config empty
+        widget 'iconbar' 1070 5 80 550
+endconfig
+

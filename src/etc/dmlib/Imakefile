@@ -2,9 +2,11 @@
  * DM library modules
  */
 
-LFILES = init-config-path theight-add lineplot-add tseries-add \
-         makecfgmenu tweak-depth-plat ModelAdd profiler-add \
-         xmgr-pipe RadarAdd rass-add zoom theta-add
+LFILES = AllXSect ButtonMaps DisplayConfigs ModelAdd RadarAdd \
+         ResetWindow empty.dc init-config-menu \
+         init-config-path lineplot-add makecfgmenu profiler-add \
+         rass-add send-wbounds template-menu theight-add theta-add \
+         truecolor tseries-add tweak-depth-plat xmgr-pipe zoom
 
 DISTFILES = $(LFILES) Imakefile
 

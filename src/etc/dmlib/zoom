@@ -1,3 +1,9 @@
+! $Id: zoom,v 1.2 2000-06-07 20:31:50 granger Exp $
+!
+! This stuff is mostly historical and no longer required by default.
+! It probably has not been used in a while.
+!
+
 !
 ! Handle zooming out of window menus.
 !
@@ -9,4 +15,14 @@ procedure zoom window string
 		display zoom #window
 	endif
 endprocedure
+
+!
+! Generic linked PD to display one window zoomed.
+!
+config zoom 1
+	window 'humungo' 5 5 1100 850 #gp_exec #default_arg1
+		buttonmap 'big'
+		linkpd 1
+	endwindow
+endconfig
 
