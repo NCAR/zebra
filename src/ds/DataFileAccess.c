@@ -36,7 +36,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-MAKE_RCSID ("$Id: DataFileAccess.c,v 3.19 1994-10-13 22:35:53 sobol Exp $")
+MAKE_RCSID ("$Id: DataFileAccess.c,v 3.20 1994-11-22 00:26:35 granger Exp $")
 
 /*
  * This is the structure which describes a format.
@@ -592,14 +592,29 @@ char *dest;
  */
 {
 	char *slash, *strchr ();
+	int skip = 0;
 /*
  * Get the format-specific code to make up the name, then tweak any 
  * slashes out of it.
  */
 	(*Formats[plat->cp_ftype].f_MakeFileName) (plat->cp_dir,
 				plat->cp_name, t, dest);
+/*
+ * Remove slashes without relying on overlapping args
+ */
+	for (slash = strchr(dest, '/'); slash && *slash; ++slash)
+	{
+		if (*slash == '/')
+			++skip;
+		else
+			*(slash - skip) = *slash;
+	}
+	if (slash)
+		*(slash - skip) = '\0';
+#ifdef notdef
 	while (slash = strchr (dest, '/'))
 		strcpy (slash, slash + 1);
+#endif
 }
 
 
