@@ -1,5 +1,5 @@
 /*
- * $Id: Imakefile,v 1.2 1993-03-24 22:38:55 granger Exp $
+ * $Id: Imakefile,v 1.3 1994-01-26 11:12:45 granger Exp $
  *
  * Basically just install config.h into the include directory,
  * and make sure the necessary files are distributed.
@@ -14,10 +14,12 @@ SUBDIRS = scripts
 
 all::
 
-DISTFILES = Imakefile Project.tmpl README README.imake Xosdefs.h \
-	    Zeb-Imake.doc Zeb.rules config.h scripts
+HEADERS = Xosdefs.h version.h config.h
 
-BuildIncludes(config.h Xosdefs.h,.,.)
+DISTFILES = Imakefile $(HEADERS) Project.tmpl README README.imake \
+	    Zeb-Imake.doc Zeb.rules scripts config.h.dist
+
+BuildIncludes($(HEADERS),.,.)
 
 depend::
 
