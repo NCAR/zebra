@@ -80,6 +80,7 @@ Summarize (ostream &out, BTree<K,T> &t)
 	out << "Pct key slots used: " << s.percentSlots() << "%" << endl;
 }
 
+#define Summarize(a,b)
 
 
 int TestTree (test_tree &tree, int N);
@@ -93,7 +94,7 @@ int main (int argc, char *argv[])
 
 	srand (1000);
 
-	Logger::SetPrototype (NullLogger("logging disabled"));
+	Logger::SetPrototype (NullLogger("logger prototype"));
 
 	cout << "-----------------================----------------" << endl;
 	if (argc > 1)
@@ -106,9 +107,9 @@ int main (int argc, char *argv[])
 	{{
 		test_tree tree(order, sizeof(test_key));
 		tree.Check();
-		tree.Print(cout);
+		if (Debug) tree.Print(cout);
 		err += T_Traversal (tree, 1);
-		tree.Check(1);
+		//tree.Check(1);
 		tree.Erase ();	// Start fresh
 		cout << "Testing tree of order " << tree.Order() 
 		     << " with " << N << " members..." << endl;
@@ -331,6 +332,7 @@ T_Removal (test_tree &tree,
 		if (Debug) tree.Print (cout);
 	}
 	//cout << endl;
+	tree.Check ();
 	if (check_empty && ! tree.Empty ())
 	{
 		cout << "***** Removal: tree not empty. " << endl;
@@ -407,6 +409,7 @@ T_PartialRemoval (test_tree &tree, int n)
 
 	err += T_Removal (tree, keys.begin(), keys.begin()+n, 0);
 	Summarize(cout, tree);
+	if (Debug) tree.Print (cout);
 
 	// Now re-insert everything; some will be overwrites
 	err += T_Insert (tree, keys, values);
@@ -558,7 +561,9 @@ TestTree (test_tree &tree, int N)
 	Summarize(cout, tree);
 	err += T_Traversal (tree);
 
-	//return (err);
+	cout << "Reopening..." << endl;
+	tree.Reopen();
+	err += T_Traversal (tree);
 
 	// Ordered removal
 	cout << "Forward removal... " << endl;
@@ -582,6 +587,10 @@ TestTree (test_tree &tree, int N)
 	err += T_Insert (tree, keys, keys);
 	err += tree.Check ();
 	tree.Erase ();
+
+	cout << "Reopening after Erase()..." << endl;
+	tree.Reopen();
+
 	if (! tree.Empty())
 	{
 		++err;
@@ -603,8 +612,19 @@ TestTree (test_tree &tree, int N)
 	err += T_Insert (tree, keys, keys);
 	err += tree.Check ();
 	Summarize(cout, tree);
+
+	cout << "Reopening..." << endl;
+	tree.Reopen();
+	if (Debug) tree.Print(cout);
+
 	cout << "Removal of half of keys..." << endl;
 	err += T_PartialRemoval (tree, N/2);
+	if (Debug) tree.Print(cout);
+
+	cout << "Reopening..." << endl;
+	tree.Reopen();
+	if (Debug) tree.Print(cout);
+
 	cout << "Random removal..." << endl;
 	err += T_RandomRemoval (tree);
 	err += tree.Check ();
@@ -617,6 +637,9 @@ TestTree (test_tree &tree, int N)
 	err += tree.Check ();
 	Summarize(cout, tree);
 
+	cout << "Reopening..." << endl;
+	tree.Reopen();
+
 	// Test traversal
 	err += T_Traversal (tree);
 
@@ -627,6 +650,9 @@ TestTree (test_tree &tree, int N)
 	err += T_Insert (tree, keys, values);
 	err += tree.Check ();
 	Summarize(cout, tree);
+
+	cout << "Reopening..." << endl;
+	tree.Reopen();
 
 	// Random removal
 	cout << "Random removal... " << endl;
@@ -639,10 +665,14 @@ TestTree (test_tree &tree, int N)
 		srand (time(0)+(i << (2*i)));
 		random_shuffle (keys.begin(), keys.end());
 
+		cout << "Reopening..." << endl;
+		tree.Reopen();
 		cout << "Random insertions... " << i+1 << endl;
 		err += T_Insert (tree, keys, keys);
 		err += tree.Check ();
 		Summarize(cout, tree);
+		cout << "Reopening..." << endl;
+		tree.Reopen();
 		cout << "Partial removal and re-insertion..." << endl;
 		err += T_PartialRemoval (tree, N/2);
 		err += tree.Check ();
