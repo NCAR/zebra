@@ -1,7 +1,7 @@
 /*
  * XY-Wind plotting module
  */
-static char *rcsid = "$Id: XYWind.c,v 1.24 1994-04-15 21:26:56 burghart Exp $";
+static char *rcsid = "$Id: XYWind.c,v 1.25 1994-10-20 17:40:30 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -45,7 +45,7 @@ static char *rcsid = "$Id: XYWind.c,v 1.24 1994-04-15 21:26:56 burghart Exp $";
  * General definitions
  */
 void	xy_Wind FP ((char *, int));
-
+static void xyw_PlotColors FP ((char *, bool *, XColor **, int *, char *));
 
 
 
@@ -58,12 +58,13 @@ bool	update;
  */
 {
 	bool	ok, xauto, yauto, xinvert, yinvert, angle, sideAnnot, doKnot;
+	bool	mono;
 	int	npts[MAX_PLAT], plat, nplat, alen;
 	int	nxfield, nyfield, ncolors, skip, dmode;
 	char	platforms[MAX_PLAT_LEN], *pnames[MAX_PLAT];
 	char	xflds[MAX_PLAT_LEN], yflds[MAX_PLAT_LEN];
 	char	*xfnames[MAX_PLAT], *yfnames[MAX_PLAT];
-	char	windfld1[32], windfld2[32], ctname[32], style[32];
+	char	windfld1[32], windfld2[32], style[32], ctname[32];
 	char	xtype, ytype, csystem[16], annotcontrol[80], barbtype[16];
 	float   cstep, scaleSpeed, vecScale = 0.01;
 	XColor	*colors;
@@ -82,13 +83,17 @@ bool	update;
 	ok &= pda_ReqSearch (Pd, c, "x-field", NULL, xflds, SYMT_STRING);
 	ok &= pda_ReqSearch (Pd, c, "y-field", NULL, yflds, SYMT_STRING);
 	ok &= pda_ReqSearch (Pd, c, "coords", "xy-wind", csystem, SYMT_STRING);
-	ok &= pda_ReqSearch (Pd, c, "color-table", "xy-wind", ctname,
-			     SYMT_STRING);
-
+/*
+ * If something vital is missing bail.
+ */
 	if (! ok)
 		return;
 /*
- * Winds coordinate system
+ * Figure out color stuff.
+ */
+	xyw_PlotColors (c, &mono, &colors, &ncolors, ctname);
+/*
+ * Winds coordinate system.  This should be automatic.
  */
 	if (! strcmp (csystem, "compass"))
 	{
@@ -214,15 +219,6 @@ bool	update;
  */
 	xy_GetPlotColors (c, nplat, NULL, &taColor);
 /*
- * Attempt to load color table 
- */
-	ct_LoadTable (ctname, &colors, &ncolors);
-	if (ncolors < 1)
-	{
-		msg_ELog (EF_PROBLEM, "XY-Contour: color table too small");
-		return;
-	}
-/*
  * Allocate space for pointers to the data arrays and for observation info.
  * Also zero them out or else we get undesirable free() calls below.  I speak
  * from experience.
@@ -316,24 +312,26 @@ bool	update;
 			    An_AddAnnotProc (An_ColorVector, c, annotcontrol,
 					     strlen (annotcontrol) + 1, 30, 
 					     FALSE, FALSE);
-			    sprintf (annotcontrol, "%s %s %f %f", 
-				     "wind-speed:m/sec", ctname, 
-				     cstep * ncolors / 2.0, cstep);
+			    if (! mono)
+				    sprintf (annotcontrol, "%s %s %f %f", 
+						 "wind-speed:m/sec", ctname, 
+						 cstep * ncolors / 2.0, cstep);
 			}
-
-			if (strcmp (style, "barb") == 0)
+			else if (strcmp (style, "barb") == 0)
 			{	
 			    sprintf (annotcontrol, "%s %d %d", barbtype,
 				     taColor,  (int) vecScale);
 			    An_AddAnnotProc (An_BarbLegend, c, annotcontrol,
 					     strlen (annotcontrol) + 1, 100, 
 					     FALSE, FALSE);
-			    sprintf (annotcontrol, "%s%s %s %f %f ",
-				     "wind-speed:", barbtype, ctname,
-				     cstep * ncolors / 2.0, cstep);
+			    if (! mono)
+				    sprintf (annotcontrol, "%s%s %s %f %f ",
+					       "wind-speed:", barbtype, ctname,
+					       cstep * ncolors / 2.0, cstep);
 			}
 
-			An_AddAnnotProc (An_ColorBar, c, annotcontrol, 
+			if (! mono)
+				An_AddAnnotProc (An_ColorBar, c, annotcontrol, 
 					 strlen (annotcontrol) + 1, 75, TRUE, 
 					 FALSE);
 
@@ -459,4 +457,68 @@ bool	update;
 	free (w1data);
 	free (w2data);
 }
+
+
+
+
+static void
+xyw_PlotColors (c, mono, colors, ncolors, ctname)
+char *c;
+bool *mono;
+XColor **colors;
+int *ncolors;
+char *ctname;
+/*
+ * Figure out how we'll be coloring the arrows.
+ */
+{
+	char color[32];
+	static XColor monocolor;	/* XXX */
+/*
+ * See if they want mono or not.
+ */
+	if (! pda_Search (Pd, c, "color-mono", "xy-wind", mono, SYMT_BOOL))
+		*mono = FALSE;
+/*
+ * If they don't want mono, look for a color table.  If we encounter
+ * trouble with that, they get mono anyway.
+ */
+	if (! *mono)
+	{
+		if (! pda_ReqSearch (Pd, c, "color-table", "xy-wind", ctname,
+			     SYMT_STRING))
+		{
+			msg_ELog (EF_PROBLEM, "XYWind color table missing");
+			*mono = TRUE;
+		}
+		else if (! ct_LoadTable (ctname, colors, ncolors))
+		{
+			msg_ELog (EF_PROBLEM, "Unloadable color table %s",
+					ctname);
+			*mono = TRUE;
+		}
+	}
+/*
+ * OK, see what our color situation is now.
+ */
+	if (*mono)
+	{
+		strcpy (color, "white");
+		pda_Search (Pd, c, "color", "xy-wind", color, SYMT_STRING);
+		if (! ct_GetColorByName (color, &monocolor))
+			ct_GetColorByName ("white", &monocolor);
+		*colors = &monocolor; /* XXX */
+		*ncolors = 1;
+	}
+}
+
+
+
+
+
+
+
+
+
+
 # endif /* C_PT_XYGRAPH */
