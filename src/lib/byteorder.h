@@ -1,9 +1,17 @@
-/* $Id: byteorder.h,v 2.6 1997-06-12 19:16:45 burghart Exp $ */
+/* $Id: byteorder.h,v 2.7 1997-12-24 23:35:50 burghart Exp $ */
 /*
  * Byte order testing and swapping functions.  Two's complement is assumed
  * for all signed values.
  */
-# include "defs.h"	/* for "inline" handling only */
+# ifndef _zebra_byteorder_h_
+# define _zebra_byteorder_h_
+
+# ifdef __cplusplus
+extern "C"
+{
+# else
+#   include "defs.h"	/* for "inline" handling only */
+# endif
 
 /*
  * Boolean endianness tests
@@ -94,3 +102,9 @@ BigEndian (void)
 
     return (bytes[0] != 1);
 }
+
+# ifdef __cplusplus
+} // end extern "C"
+# endif
+
+# endif /* !_zebra_byteorder_h_ */
