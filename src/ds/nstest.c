@@ -1,5 +1,5 @@
 /*
- * $Id: nstest.c,v 1.4 1993-08-12 18:58:06 granger Exp $
+ * $Id: nstest.c,v 1.5 1993-09-01 14:35:16 granger Exp $
  */
 
 #include <defs.h>
@@ -17,8 +17,12 @@ struct message *msg;
 	return (0);
 }
 
+/* #define ZNF_TESTING */
 #define SCALAR
 #define BLOCKS
+#define DELETE_OBS	/* test observation deletes */
+/* #define NSPACE */
+/* #define ds_StoreBlocks ds_Store */
 
 static float test_data[10000];
 
@@ -26,6 +30,35 @@ static float test_data[10000];
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/timeb.h>
+
+#include "/zeb/src/ds/dsPrivate.h"
+
+#ifdef notdef
+/*
+ * Test of observation delete kludge
+ */
+void 
+ds_deleteObs (PlatformId pid, ZebTime when)
+{
+
+    /*
+     * when -  The start time of the observation
+     */
+    Platform        plat;
+    DataFile        df;
+    int             dfi;
+
+    ds_LockPlatform (pid);
+    ds_GetPlatStruct (pid, &plat, FALSE);
+    dfi = ds_FindDF (pid, &when, 0);
+    if (dfi >= 0) {
+	ds_GetFileStruct (dfi, &df);
+	unlink (dfa_FilePath (&plat, &df));
+	ds_ForceRescan (pid, FALSE);
+    }
+    ds_UnlockPlatform (pid);
+}
+#endif
 
 
 /*ARGSUSED*/
@@ -46,6 +79,20 @@ main (argc, argv)
 	float *retrieve;
 	PlatformId plat_id;
 
+#ifdef ZNF_TESTING
+	usy_init();
+	F_Init();
+	msg_connect (msg_handler, "ZNF Block Test");
+	ds_Initialize();
+
+	/* Call znf free block testing routine */
+	if (argc < 2)
+		zn_TestFreeBlocks ("test.znf");
+	else
+		zn_TestFreeBlocks (argv[2]);
+	return;
+#endif /* ZNF_TESTING */
+
 	ftime(&tp);
 	when.zt_Sec = tp.time - 3600*24;
 	when.zt_MicroSec = 0;
@@ -55,7 +102,7 @@ main (argc, argv)
 	for (i = 0; i < sizeof(test_data)/sizeof(test_data[0]); ++i)
 		test_data[i] = i;
 
-#if defined(NSPACE) || defined(BLOCKS) || defined(SCALAR)
+#ifndef ZNF_TESTING
 	usy_init();
 	F_Init();
 	msg_connect (msg_handler, "Test");
@@ -73,8 +120,18 @@ main (argc, argv)
 		dsDetail details[1];
 		int ndetail;
 
+#ifdef DELETE_OBS
+		/*
+		 * Here's an idea: use a platform whose maxsamples=1 to
+		 * create a bunch of observations, each of which contains
+		 * only one sample.  Then test out dsdelete and ds_DeleteObs
+		 * on that platform.
+		 */
+		plat_id = ds_LookupPlatform("t_deletes");
+#else
 		plat_id = ds_LookupPlatform("t_scalar");
-
+		msg_ELog (EF_INFO, "t_scalar: 4 fields, 5 samples");
+#endif
 		/*
 		 * First a real simple test
 		 */
@@ -89,8 +146,9 @@ main (argc, argv)
 		dc_SetStaticLoc (dc, &loc);
 		dc_SetGlobalAttr (dc, "zeb_platform", "t_scalar");
 		dc_SetGlobalAttr (dc, "date", "today");
+		begin = when;
 		value = 1.0;
-		for (i = 0; i < 5; ++i)
+		for (i = 0; i < 10; ++i)
 		{
 			for (fld = 0; fld < 4; ++fld, ++value)
 				dc_AddScalar (dc, &when, i, 
@@ -104,7 +162,47 @@ main (argc, argv)
 		dc_SetSampleAttr (dc, 2, "median", "middle");
 		details[0].dd_Name = DD_FORCE_CLOSURE;
 		ndetail = 1;
-		ds_StoreBlocks (dc, TRUE, details, ndetail);
+		ds_StoreBlocks (dc, TRUE, NULL, 0);
+#ifdef DELETE_OBS
+		system("dsdump t_deletes");
+		printf ("Deleting even-second obs with DeleteObs\n");
+		when = begin;
+		for (i = 0; i < 10; ++i)
+		{
+			if (when.zt_Sec % 2 == 0)
+				ds_DeleteObs (plat_id, &when);
+			++when.zt_Sec;
+		}
+		printf ("Finished deleting with DeleteObs\n");
+		system("dsdump t_deletes");	
+		printf ("Trying to do the same deletes again.\n");
+		when = begin;
+		for (i = 0; i < 10; ++i)
+		{
+			if (when.zt_Sec % 2 == 0)
+				ds_DeleteObs (plat_id, &when);
+			++when.zt_Sec;
+		}
+		printf ("Storing the DataChunk again...\n");
+		ds_StoreBlocks (dc, TRUE, NULL, 0);
+		printf ("Test extremes: time earlier than all obs,\n");
+		when.zt_Sec = begin.zt_Sec - 3600*24;
+		ds_DeleteObs (plat_id, &when);
+		printf ("Time later than all obs,\n");
+		when.zt_Sec = begin.zt_Sec + 3600*12;
+		ds_DeleteObs (plat_id, &when);
+		printf ("Using DeleteObs to delete all files...\n");
+		when = begin;
+		for (i = 0; i < 10; ++i)
+		{
+			ds_DeleteObs (plat_id, &when);
+			++when.zt_Sec;
+		}
+		system("dsdump t_deletes");
+		printf ("Done deletes test.  Should be 0 files left.\n");
+		dc_DestroyDC (dc);
+		return (0);
+#endif
 		dc_DestroyDC (dc);
 
 		/*
@@ -114,6 +212,8 @@ main (argc, argv)
 		 * attributes should be deleted on the overwrite, since they 
 		 * won't correspond to the samples with atts here.
 		 */
+		msg_ELog (EF_INFO, 
+		   "t_scalar: 4 fields, 3000 samples, starting 30 secs back");
 		when.zt_Sec -= 30;
 		dc = dc_CreateDC (DCC_Scalar);
 		dc->dc_Platform = plat_id;
@@ -142,14 +242,17 @@ main (argc, argv)
 		dc_SetSampleAttr (dc, 28, "sample_number", "28");
 		dc_SetSampleAttr (dc, 1500, "median", "middle");
 		ds_StoreBlocks (dc, TRUE, details, ndetail);
+		msg_ELog (EF_INFO, 
+		   "t_fixed: storing same datachunk as for t_scalar");
 		dc->dc_Platform = ds_LookupPlatform("t_fixed");
 		ds_StoreBlocks (dc, TRUE, details, ndetail);
 		dc_DestroyDC (dc);
 
 		/*
-		 * As a final test, now overwrite a huge block of the
-		 * previously stored data.
+		 * Now overwrite a huge block of the previously stored data.
 		 */
+		msg_ELog (EF_INFO, 
+		   "t_scalar: 4 fields, 1500 samples, 1500 secs prior to end");
 		when.zt_Sec -= 1500;
 		dc = dc_CreateDC (DCC_Scalar);
 		dc->dc_Platform = plat_id;
@@ -177,9 +280,48 @@ main (argc, argv)
 		dc_SetSampleAttr (dc, 28, "sample_number", "28");
 		dc_SetSampleAttr (dc, 1500, "median", "middle");
 		ds_StoreBlocks (dc, TRUE, details, ndetail);
+		msg_ELog (EF_INFO, 
+		   "t_fixed: same datachunk as for t_scalar above");
 		dc->dc_Platform = ds_LookupPlatform("t_fixed");
 		ds_StoreBlocks (dc, TRUE, details, ndetail);
 		dc_DestroyDC (dc);
+
+
+		/*
+		 * Now overwrite, but only with a subset of the fields
+		 * and in a different order in the DataChunk
+		 */
+		msg_ELog (EF_INFO, 
+		   "t_scalar: 3 fields, 1000 samples, 1250 secs prior to end");
+		when.zt_Sec -= 1250;
+		dc = dc_CreateDC (DCC_Scalar);
+		dc->dc_Platform = plat_id;
+		fids[1] = fids[3];
+		dc_SetScalarFields (dc, 3, fids);
+		dc_SetBadval (dc, -999.0);
+		dc_SetStaticLoc (dc, &loc);
+		dc_SetGlobalAttr (dc, "zeb_platform", "t_scalar");
+		dc_SetGlobalAttr (dc, "date", "today");
+		value = 0.0;
+		for (i = 0; i < 1000; ++i)
+		{
+			char c[2];
+
+			/* c[0] = (i % 10) + '0'; c[1] = '\0'; */
+			for (fld = 0; fld < 3; ++fld, value += 0.1)
+				dc_AddScalar (dc, &when, i, 
+					      fids[fld], &value); 
+			/* dc_SetSampleAttr (dc, i, "ones", c); */
+			++when.zt_Sec;
+			value += 1.0;
+		}
+		ds_StoreBlocks (dc, TRUE, details, ndetail);
+		msg_ELog (EF_INFO, 
+		   "t_fixed: same datachunk as for t_scalar above");
+		dc->dc_Platform = ds_LookupPlatform("t_fixed");
+		ds_StoreBlocks (dc, TRUE, details, ndetail);
+		dc_DestroyDC (dc);
+
 	}
 #endif
 
@@ -197,6 +339,7 @@ main (argc, argv)
 	{	/* simple non-static variable over two dimensions */
 
 		FieldId field, sfield;
+		FieldId fids[2];
 		char *dim_names[2];
 		unsigned long dim_sizes[2];
 
@@ -204,6 +347,8 @@ main (argc, argv)
 		dim_sizes[0] = 50;	dim_sizes[1] = 25;
 		field = F_DeclareField ("curl","Long name","units");
 		sfield = F_DeclareField ("static_curl","Long name","units");
+		fids[0] = field;
+		fids[1] = sfield;
 		dc = dc_CreateDC (DCC_NSpace);
 		dc->dc_Platform = plat_id;
 		dc_NSDefineField (dc, field, 2, dim_names, dim_sizes, FALSE);
@@ -229,8 +374,8 @@ main (argc, argv)
 		T_CompareData(retrieve, test_data+1005, size);
 
 		T_NSGetField(dc, field);
-		T_NSGetAllDimensions(dc, field);
-
+		T_NSGetField(dc, sfield);
+		/* T_NSGetAllDimensions(dc, field); */
 
 		printf("Storing... "); fflush(stdout);
 		ds_Store (dc, TRUE, 0, 0);
@@ -240,9 +385,21 @@ main (argc, argv)
 		/* now try to fetch what we just stored and see what we get */
 		printf("Fetching data....   "); fflush(stdout);
 		dc = ds_Fetch (plat_id, DCC_NSpace, &when, &when,
-			       &field, 1, NULL, 0);
+			       fids, 2, NULL, 0);
 		printf("DataChunk returned by ds_Fetch():\n");
 		dc_DumpDC (dc);
+
+		/* retrieve data and compare */
+		T_NSGetField(dc, field);
+		T_NSGetField(dc, sfield);
+		printf ("Comparing retrieved static data...\n");
+		retrieve = dc_NSGetStatic (dc, sfield, &size);
+		printf ("dc_NSGetStatic() returns size = %lu,", size);
+		T_CompareData(retrieve, test_data, size);
+		printf ("Comparing retrieved dynamic data...\n");
+		retrieve = dc_NSGetSample (dc, 0, field, &size);
+		T_CompareData(retrieve, test_data+1005, size);
+
 		dc_DestroyDC (dc);
         }
 	printf("----------------------------------------------------test3\n");
@@ -334,11 +491,38 @@ main (argc, argv)
 		printf("DataChunk returned by ds_Fetch():\n");
 		dc_DumpDC (dc);
 
-		printf("Storing on platform t_blocks using blocks\n");
-		dc->dc_Platform = ds_LookupPlatform ("t_blocks");
+		/* and re-do the data comparisions -- should be identical */
+		T_NSGetAllDimensions(dc);
+		T_NSGetAllVariables(dc);
+
+		/* re-test some retrieval */
+		printf ("Comparing fetched data with stored data...\n");
+		(void)dc_NSGetSample (dc, 0, wnum_id, &size); /*should fail*/
+		retrieve = dc_NSGetStatic (dc, wnum_id, &size);
+		retrieve = dc_NSGetStatic (dc, wnum_id, NULL);
+		printf ("dc_NSGetStatic(%s) returns size = %lu,", 
+			F_GetName(wnum_id), size);
+		T_CompareData (retrieve, test_data+50, size);
+
+		retrieve = dc_NSGetSample (dc, 0, therm_id, &size);
+		printf("GetSample(0,%s): size=%lu, data=%s\n",
+		       F_GetName(therm_id),size,(retrieve)?"non-NULL":"NULL");
+		retrieve = dc_NSGetSample (dc, 1, mean_rad_id, &size);
+		retrieve = dc_NSGetSample (dc, 1, mean_rad_id, NULL);
+		printf ("dc_NSGetSample(%s) returns size = %lu,", 
+			F_GetName(mean_rad_id), size);
+		T_CompareData (retrieve, test_data+100, size);
+
+		retrieve = dc_NSGetSample (dc, 0, BadField, NULL);
+		printf("GetSample(2,BadField): data=%s\n",
+		       (retrieve)?"non-NULL":"NULL");
+
+		/* try some block storage */
+		printf("Storing on platform t_nsblocks using blocks\n");
+		dc->dc_Platform = ds_LookupPlatform ("t_nsblocks");
 		ds_StoreBlocks (dc, TRUE, 0, 0);
-		printf("Storing on platform scalar without using blocks\n");
-		dc->dc_Platform = ds_LookupPlatform ("t_scalar");
+		printf("Storing on platform t_nsscalar w/o using blocks\n");
+		dc->dc_Platform = ds_LookupPlatform ("t_nsscalar");
 		ds_StoreBlocks (dc, TRUE, 0, 0);
 		dc_DestroyDC (dc);
 	}
@@ -394,9 +578,9 @@ main (argc, argv)
 		end = when;
 		printf ("Done.\nPutSample to 't_nspace' ... "); fflush(stdout);
 		ds_Store (dc, TRUE, 0, 0);
-		printf ("and PutBlock to plat 't_blocks' ... "); 
+		printf ("and PutBlock to plat 't_nsblocks' ... "); 
 		fflush(stdout);
-		dc->dc_Platform = ds_LookupPlatform ("t_blocks");
+		dc->dc_Platform = ds_LookupPlatform ("t_nsblocks");
 		ds_StoreBlocks (dc, TRUE, 0, 0);
 		printf ("Done storing.\n");
 		fields = dc_GetFields (dc, &nfield);
@@ -408,7 +592,7 @@ main (argc, argv)
 			       fields, nfield, NULL, 0);
 		printf("Done.\n");
 		dc_DestroyDC (dc);
-		printf("Fetching from 't_blocks' ..."); fflush(stdout);
+		printf("Fetching from 't_nsblocks' ..."); fflush(stdout);
 		dc = ds_Fetch (plat_id, DCC_NSpace, &begin, &end,
 			       fields, nfield, NULL, 0);
 #endif
