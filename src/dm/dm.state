@@ -1,4 +1,4 @@
-! $Id: dm.state,v 1.24 1994-11-19 00:28:32 burghart Exp $
+! $Id: dm.state,v 1.25 1994-11-20 19:28:16 granger Exp $
 !
 ! Command definition for the display manager.
 !
@@ -53,6 +53,15 @@ define state dm-initial
 	endinput
 	input 'pddir' 16
 		next ust$final_unmunged_string
+	endinput
+	input 'pdshow' 60
+		next ust$final_string
+	endinput
+	input 'pdwrite' 61
+		next dm-pd-name
+	endinput
+	input 'pdstore' 62
+		next dm-pd-storename
 	endinput
 	input 'parameter' 17
 		next dm-param-pd
@@ -119,21 +128,6 @@ define state dm-initial
 	endinput
 	input 'windowlist' 47
 		next ust$final_string
-	endinput
-	input 'showpd' 60
-		next ust$final_string
-	endinput
-	input 'pdshow' 60
-		next ust$final_string
-	endinput
-	input 'writepd' 61
-		next dm-pd-name
-	endinput
-	input 'pdstore' 62
-		next dm-pd-storename
-	endinput
-	input 'storepd' 62
-		next dm-pd-storename
 	endinput
 enddef
 

@@ -23,6 +23,7 @@
 # include <unistd.h>
 # include <varargs.h>
 # include <fcntl.h>
+# include <signal.h>
 # include <X11/Intrinsic.h>
 
 # include <ui.h>
@@ -46,7 +47,7 @@
 static void CallXHelp ();
 static bool UseXHelp = TRUE;
 
-MAKE_RCSID ("$Id: dm.c,v 2.53 1994-11-20 19:11:18 granger Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.54 1994-11-20 19:28:14 granger Exp $")
 
 
 /*
@@ -440,20 +441,20 @@ struct ui_command *cmds;
 	/*
 	 * Write a named plot description to the terminal as ASCII
 	 */
-	   case DMC_SHOWPD:
+	   case DMC_PDSHOW:
 		WritePD (UPTR (cmds[1]), NULL);
 		break;
 	/*
 	 * Write a named plot description to a named file as ASCII
 	 */
-	   case DMC_WRITEPD:
+	   case DMC_PDWRITE:
 		WritePD (UPTR (cmds[1]), UPTR (cmds[2]));
 		break;
 
 	/*
 	 * Write a named plot description using a different name
 	 */
-	   case DMC_STOREPD:
+	   case DMC_PDSTORE:
 		StorePD (UPTR (cmds[1]), UPTR(cmds[2]), UPTR(cmds[3]));
 		break;
 
@@ -936,6 +937,25 @@ void *param;
 
 
 
+static void
+recycle ()
+{
+/*
+ * Finish up ui stuff, and disconnect our ipc connections
+ */
+	alarm (0);
+	signal (SIGALRM, SIG_DFL);
+	ui_printf ("Shutting down and starting over.\n");
+	ui_finish ();
+	XCloseDisplay (Dm_Display);
+	close (msg_get_fd());
+	execvp (Argv[0], Argv);
+	perror ("execvp");
+	exit (1);
+}
+
+
+
 static int
 dm_cycle ()
 /*
@@ -945,25 +965,21 @@ dm_cycle ()
 	struct dm_msg dmsg;
 /*
  * Send a DIE message to all of the graphics processes, and wait for them
- * to finish.
+ * to finish.  If we don't hear from them within 15 seconds, we cycle
+ * anyway.
  */
 	Restart = FALSE;
 	dmsg.dmm_type = DM_DIE;
 	msg_send ("Graphproc", MT_DISPLAYMGR, TRUE, &dmsg, sizeof (dmsg));
 	if (nsymbols (Windows) > 0)
 	{
-		alarm (30);
+		signal (SIGALRM, recycle);
+		alarm (15);
 		msg_Search (MT_MESSAGE, WaitForDeaths, NULL);
 		alarm (0);
 	}
-/*
- * Finish up ui stuff, and disconnect our ipc connections
- */
-	ui_printf ("Shutting down and starting over.\n");
-	ui_finish ();
-	XCloseDisplay (Dm_Display);
-	close (msg_get_fd());
-	return (execvp (Argv[0], Argv));
+	recycle ();
+	return (0);	/* never reached */
 }
 
 
@@ -1142,7 +1158,8 @@ plot_description
 find_pd (name)
 char *name;
 /*
- * Try to find a command-line given plot description.
+ * Try to find a command-line-given plot description (meaning we should
+ * accept window names also).
  */
 {
 	struct cf_window *win = lookup_win (name, TRUE);
