@@ -5,7 +5,7 @@
 /*
  * Line style
  */
-typedef enum {L_solid, L_dashed, L_dotted, L_fat} LineStyle;
+typedef enum {L_solid, L_dashed, L_dotted} LineStyle;
 
 /*
  * Color indices.
@@ -22,7 +22,7 @@ typedef enum {L_solid, L_dashed, L_dotted, L_fat} LineStyle;
  * Routines.
  */
 void	sk_InitPlotLimits ();
-void	sk_Polyline FP ((float *, float*, int, LineStyle, XColor)); 
+void	sk_Polyline FP ((float *, float*, int, LineStyle, int, XColor)); 
 void	sk_DrawText FP ((char *, double, double, double, XColor, double,
 		int, int)); 
 void	sk_Clip FP ((double, double, double, double)); 

@@ -43,7 +43,7 @@
 
 
 
-RCSID ("$Id: ThetaPlot.c,v 2.5 2001-11-27 23:22:56 granger Exp $")
+RCSID ("$Id: ThetaPlot.c,v 2.6 2002-08-15 22:37:55 burghart Exp $")
 
 
 /*
@@ -319,7 +319,7 @@ TP_DrawBox (TPParams *p)
 	x[2] = 1.0; y[2] = 1.0;
 	x[3] = 0.0; y[3] = 1.0;
 	x[4] = 0.0; y[4] = 0.0;
-	sk_Polyline (x, y, 5, L_solid, p->tp_Colors[C_BG1]);
+	sk_Polyline (x, y, 5, L_solid, 0, p->tp_Colors[C_BG1]);
 /*
  * Let's get isobaric.
  */
@@ -331,7 +331,7 @@ TP_DrawBox (TPParams *p)
 	 * Draw the line.
 	 */
 		y[0] = y[1] = YPOS (p, pres);
-		sk_Polyline (x, y, 2, L_solid, p->tp_Colors[C_BG1]);
+		sk_Polyline (x, y, 2, L_solid, 0, p->tp_Colors[C_BG1]);
 	/*
 	 * Annotate.
 	 */
@@ -358,7 +358,7 @@ TP_DrawBox (TPParams *p)
 	 * Draw the line and annotate it.
 	 */
 		x[0] = x[1] = TPOS (p, theta);
-		sk_Polyline (x, y, 2, L_solid, p->tp_Colors[C_BG1]);
+		sk_Polyline (x, y, 2, L_solid, 0, p->tp_Colors[C_BG1]);
 		sprintf (astring, "%d", (int) theta);
 		sk_DrawText (astring, x[0], y[0] - 0.01, 0.0,
 				p->tp_Colors[C_BG1], 0.025, JustifyCenter,
@@ -431,7 +431,7 @@ TP_DrawBox (TPParams *p)
 	 */
 		if (np < 2)
 			continue;
-		sk_Polyline (x, y, np, L_solid, p->tp_Colors[C_BG2]);
+		sk_Polyline (x, y, np, L_solid, 0, p->tp_Colors[C_BG2]);
 		if (pres <= p->tp_PMin)		/* got all the way through */
 		{
 			ax = TPOS (p, theta) - 0.02;
@@ -516,7 +516,7 @@ TP_DrawBox (TPParams *p)
 	 * OK, time to blast out the line.
 	 */
 		if (np > 1)
-			sk_Polyline(x,y, np, L_dashed, p->tp_Colors[C_BG3]);
+			sk_Polyline(x,y, np, L_dashed, 0, p->tp_Colors[C_BG3]);
 	}
 /*
  * And, as if that mess weren't enough, we throw on "saturation mixing
@@ -566,7 +566,8 @@ TP_DrawBox (TPParams *p)
 	 */
 		if (np > 1)
 		{
-			sk_Polyline (x, y, np, L_dotted, p->tp_Colors[C_BG4]);
+			sk_Polyline (x, y, np, L_dotted, 0, 
+				     p->tp_Colors[C_BG4]);
 			if (smr[m] < 5)
 				sprintf (astring, "%.1f", smr[m]);
 			else
@@ -626,7 +627,7 @@ TP_AltitudeScale (TPParams *p)
 	x[0] = x[1] = Xlo / 2.0;
 	y[0] = 0.0;
 	y[1] = 1.0;
-	sk_Polyline (x, y, 2, L_solid, p->tp_Colors[C_WHITE]);
+	sk_Polyline (x, y, 2, L_solid, 0, p->tp_Colors[C_WHITE]);
 
 	x[0] = Xlo / 2.0;
 	x[1] = x[0] - 0.01;
@@ -636,7 +637,7 @@ TP_AltitudeScale (TPParams *p)
 	 * Tick mark
 	 */
 		y[0] = y[1] = YPOS (p, alt_pres[i]);
-		sk_Polyline (x, y, 2, L_solid, p->tp_Colors[C_WHITE]);
+		sk_Polyline (x, y, 2, L_solid, 0, p->tp_Colors[C_WHITE]);
 	/*
 	 * Label
 	 */
@@ -734,7 +735,7 @@ TP_AddTrace (TPParams *p, int np, float *pres, float *theta, float *x,
 		x[i] = TPOS (p, theta[i]);
 		y[i] = YPOS (p, pres[i]);
 	}
-	sk_Polyline (x, y, np, L_fat, color);
+	sk_Polyline (x, y, np, L_solid, 2, color);
 }
 
 
@@ -813,7 +814,7 @@ TP_DoWinds (TPParams *p, DataChunk *dc, FieldId *fids)
 			y[0] = YPOS (p, pres);
 			x[1] = x[0] + u*xscale;
 			y[1] = y[0] + v*yscale;
-			sk_Polyline (x, y, 2, L_solid, color);
+			sk_Polyline (x, y, 2, L_solid, 0, color);
 		}
 	}
 /*
@@ -821,7 +822,7 @@ TP_DoWinds (TPParams *p, DataChunk *dc, FieldId *fids)
  */
 	x[0] = xstart;	x[1] = xstart;
 	y[0] = 0.0;	y[1] = 1.0;
-	sk_Polyline (x, y, 2, L_solid, p->tp_Colors[C_BG2]);
+	sk_Polyline (x, y, 2, L_solid, 0, p->tp_Colors[C_BG2]);
 /*
  * Annotation.
  */
@@ -835,7 +836,7 @@ TP_DoWinds (TPParams *p, DataChunk *dc, FieldId *fids)
 		x[1] = 1 + (Xhi - 1.0)/2;
 		y[0] = -0.06;
 		y[1] = -0.06;
-		sk_Polyline (x, y, 2, L_solid, acolor);
+		sk_Polyline (x, y, 2, L_solid, 0, acolor);
 	}
 /*
  * Barb annotation.

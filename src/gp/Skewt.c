@@ -41,7 +41,7 @@
 # include "Skewt.h"
 
 
-RCSID ("$Id: Skewt.c,v 2.36 2001-04-20 08:26:27 granger Exp $")
+RCSID ("$Id: Skewt.c,v 2.37 2002-08-15 22:37:55 burghart Exp $")
 
 /*
  * General definitions
@@ -80,6 +80,12 @@ static int	Tstep = 10;
  */
 static float	W_scale = 25.0;
 
+
+/*
+ * Line width for drawing
+ */
+static int	LineWidth;
+static int	DataLineWidth;
 
 /*
  * Color array and indices
@@ -208,6 +214,15 @@ zbool	update;
 	skip = 1;
 	pda_Search (Pd, c, "data-skip", "skewt", (char *) &skip, SYMT_INT);
 /*
+ * line width / data line width
+ */
+	LineWidth = 0;
+	pda_Search (Pd, c, "line-width", "skewt", (char*)&LineWidth, SYMT_INT);
+
+	DataLineWidth = LineWidth;
+	pda_Search (Pd, c, "data-line-width", "skewt", (char*)&DataLineWidth, 
+		    SYMT_INT);
+/*
  * Get the color table
  */
 	ct_LoadTable (ctname, &Colors, &Ncolors);
@@ -305,7 +320,7 @@ sk_Background ()
 	x[2] = 1.0; y[2] = 1.0;
 	x[3] = 0.0; y[3] = 1.0;
 	x[4] = 0.0; y[4] = 0.0;
-	sk_Polyline (x, y, 5, L_solid, Colors[C_BG2]);
+	sk_Polyline (x, y, 5, L_solid, LineWidth, Colors[C_BG2]);
 /*
  * Isotherms
  */
@@ -326,7 +341,7 @@ sk_Background ()
 		if (x[1] < 0.0)
 			continue;
 
-		sk_Polyline (x, y, 2, L_solid, Colors[C_BG2]);
+		sk_Polyline (x, y, 2, L_solid, LineWidth, Colors[C_BG2]);
 	/*
 	 * Unclip so we can annotate outside the border
 	 */
@@ -364,7 +379,7 @@ sk_Background ()
 	 */
 		y[0] = y[1] = YPOS (p);
 
-		sk_Polyline (x, y, 2, L_solid, Colors[C_BG2]);
+		sk_Polyline (x, y, 2, L_solid, LineWidth, Colors[C_BG2]);
 	/*
 	 * Annotate along the left side
 	 */
@@ -386,7 +401,7 @@ sk_Background ()
 	x[0] = x[1] = Xlo / 2.0;
 	y[0] = 0.0;
 	y[1] = 1.0;
-	sk_Polyline (x, y, 2, L_solid, Colors[C_BG2]);
+	sk_Polyline (x, y, 2, L_solid, LineWidth, Colors[C_BG2]);
 
 	x[0] = Xlo / 2.0;
 	x[1] = x[0] - 0.01;
@@ -396,7 +411,7 @@ sk_Background ()
 	 * Tick mark
 	 */
 		y[0] = y[1] = YPOS (alt_pres[i]);
-		sk_Polyline (x, y, 2, L_solid, Colors[C_BG2]);
+		sk_Polyline (x, y, 2, L_solid, LineWidth, Colors[C_BG2]);
 	/*
 	 * Label
 	 */
@@ -427,7 +442,7 @@ sk_Background ()
 	/*
 	 * Plot the line and annotate just above the top of the line
 	 */
-		sk_Polyline (x, y, 2, L_dashed, Colors[C_BG2]);
+		sk_Polyline (x, y, 2, L_dashed, LineWidth, Colors[C_BG2]);
 		sprintf (string, "%03.1f", mr[i]);
 		sk_DrawText (string, x[1], y[1] + 0.01, annot_angle, 
 			Colors[C_BG2], 0.02, JustifyLeft, JustifyCenter);
@@ -457,7 +472,7 @@ sk_Background ()
 	/*
 	 * Plot the curve and annotate just above the (Pmin + 100) isobar
 	 */
-		sk_Polyline (x, y, npts, L_dotted, Colors[C_BG3]);
+		sk_Polyline (x, y, npts, L_dotted, LineWidth, Colors[C_BG3]);
 
 		if (x[0] > 0.0 && x[0] < 1.0)
 		{
@@ -492,7 +507,7 @@ sk_Background ()
 	 * Plot the curve and annotate just inside either the left or top
 	 * boundary
 	 */
-		sk_Polyline (x, y, npts, L_dotted, Colors[C_BG4]);
+		sk_Polyline (x, y, npts, L_dotted, LineWidth, Colors[C_BG4]);
 
 		sprintf (string, "%d", (int) (pt + 273));
 
@@ -620,7 +635,7 @@ float	*pres, *temp, *dp, badvalue;
 		npts++;
 	}
 
-	sk_Polyline (x, y, npts, L_dotted, Colors[C_BG1]);
+	sk_Polyline (x, y, npts, L_dotted, LineWidth, Colors[C_BG1]);
 /*
  * Draw the saturated adiabat from the forecasted LCL up
  */
@@ -636,7 +651,7 @@ float	*pres, *temp, *dp, badvalue;
 			npts++;
 		}
 
-		sk_Polyline (x, y, npts, L_dotted, Colors[C_BG1]);
+		sk_Polyline (x, y, npts, L_dotted, LineWidth, Colors[C_BG1]);
 	}
 /*
  * Draw the dry adiabat from the LCL down
@@ -662,7 +677,7 @@ float	*pres, *temp, *dp, badvalue;
 		npts++;
 	}
 
-	sk_Polyline (x, y, npts, L_dotted, Colors[C_BG1]);
+	sk_Polyline (x, y, npts, L_dotted, LineWidth, Colors[C_BG1]);
 /*
  * Draw the dry adiabat from the forecasted LCL down
  */
@@ -689,7 +704,7 @@ float	*pres, *temp, *dp, badvalue;
 			npts++;
 		}
 
-		sk_Polyline (x, y, npts, L_dotted, Colors[C_BG1]);
+		sk_Polyline (x, y, npts, L_dotted, LineWidth, Colors[C_BG1]);
 	}
 /*
  * Draw the saturation mixing ratio line from the surface up to the LCL
@@ -710,7 +725,7 @@ float	*pres, *temp, *dp, badvalue;
 
 	npts = 2;
 
-	sk_Polyline (x, y, npts, L_dotted, Colors[C_BG1]);
+	sk_Polyline (x, y, npts, L_dotted, LineWidth, Colors[C_BG1]);
 /*
  * Done
  */
@@ -943,8 +958,8 @@ zbool    update;
 /*
  * Draw the lines
  */
-	sk_Polyline (xt, yt, good_t, L_solid, color);
-	sk_Polyline (xd, yd, good_d, L_solid, color);
+	sk_Polyline (xt, yt, good_t, L_solid, DataLineWidth, color);
+	sk_Polyline (xd, yd, good_d, L_solid, DataLineWidth, color);
 /*
  * Draw the lifted parcel lines
  */
@@ -1186,7 +1201,7 @@ int	skip;
 		/*
 		 * Draw the wind line
 		 */
-			sk_Polyline (xov, yov, 2, L_solid, color);
+			sk_Polyline (xov, yov, 2, L_solid, LineWidth, color);
 		}
 		else
 		{
@@ -1213,7 +1228,7 @@ int	skip;
 	xov[0] = xstart;	xov[1] = xstart;
 	yov[0] = 0.0;		yov[1] = 1.0;
 
-	sk_Polyline (xov, yov, 2, L_solid, Colors[C_BG2]);
+	sk_Polyline (xov, yov, 2, L_solid, LineWidth, Colors[C_BG2]);
 /*
  * Scaling annotation (draw for the first one only)
  */
@@ -1231,7 +1246,7 @@ int	skip;
 			xov[1] = 1.0 + 0.5 * (Xhi - 1.0);
 			yov[0] = -0.06;
 			yov[1] = -0.06;
-			sk_Polyline (xov, yov, 2, L_solid, tacolor);
+			sk_Polyline (xov, yov, 2, L_solid, LineWidth, tacolor);
 		}
 		else
 		{
@@ -1352,10 +1367,11 @@ float	xlo, ylo, xhi, yhi;
 
 /* now exported -- no static */
 void
-sk_Polyline (x, y, npts, style, color_ndx)
+sk_Polyline (x, y, npts, style, width, color_ndx)
 float		*x, *y;
 int		npts;
 LineStyle	style;
+int		width;
 XColor		color_ndx;
 /*
  * ENTRY:
@@ -1368,7 +1384,7 @@ XColor		color_ndx;
  *	The polyline has been drawn
  */
 {
-	int	i, line_style, width = 0;
+	int	i, line_style;
 	XPoint	*pts;
 	char	dash[2];
 	Pixel	color;
@@ -1395,9 +1411,6 @@ XColor		color_ndx;
 
 	switch (style)
 	{
-	    case L_fat:
-		width = 2;
-	/* fall into... */
 	    case L_solid:
 		line_style = LineSolid;
 		break;
@@ -1413,24 +1426,24 @@ XColor		color_ndx;
 		break;
 	    default:
 		msg_ELog (EF_PROBLEM, "Unknown line style %d in sk_Polyline\n",
-			style);
+			  style);
 		line_style = LineSolid;
 	}
 
 	XSetLineAttributes (XtDisplay (Graphics), Gcontext, width, line_style, 
-		CapButt, JoinMiter);
+			    CapButt, JoinMiter);
 	if (line_style != LineSolid)
 		XSetDashes (XtDisplay (Graphics), Gcontext, 0, dash, 2);
 /*
  * Draw the line
  */
 	XDrawLines (XtDisplay (Graphics), GWFrame (Graphics), Gcontext, pts, 
-		npts, CoordModeOrigin);
+		    npts, CoordModeOrigin);
 /*
  * Make the GC use LineSolid thin lines again
  */
 	XSetLineAttributes (XtDisplay (Graphics), Gcontext, 0, 
-			LineSolid, CapButt, JoinMiter);
+			    LineSolid, CapButt, JoinMiter);
 /*
  * Free the allocated points
  */
