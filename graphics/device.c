@@ -1,5 +1,5 @@
 /* 5/87 jc */
-static char *rcsid = "$Id: device.c,v 1.19 1993-11-02 22:11:41 cook Exp $";
+static char *rcsid = "$Id: device.c,v 1.20 1993-11-03 00:35:09 cook Exp $";
 /*
  * Handle device specifics.
  */
@@ -746,7 +746,7 @@ struct device D_tab[] =
 # ifdef DEV_PSC
 /*
  * PostScript COLOR printer:  1, 2 and 4 window color, grayscale,
- * and monochrome modes,
+ * monochrome, and Level 1 modes,
  */
  	{
 		"psc",
@@ -872,6 +872,8 @@ gd_strcmp (str1, str2)
 char	*str1, *str2;
 /*
  * Perform a case-independent strcmp
+ * If this function has run time problems,
+ * you may need to bump up MAXALT in device.h.
  */
 {
 	int	i = 0;
