@@ -35,7 +35,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.11 1994-06-29 20:24:30 case Exp $")
+MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.12 1994-08-01 20:42:05 granger Exp $")
 
 /*
  * The GRIB product definition section (PDS)
@@ -1164,32 +1164,41 @@ TimeSpec	which;
 /*
  * Find the index to the time
  */
+	ndx = grb_TimeIndex (tag, t, TRUE);
+#ifdef notdef
 	if ((ndx = grb_TimeIndex (tag, t, TRUE)) == -1)
 		return (0);
+#endif
 /*
  * Get as many times as requested (or as many as we have)
  */
-	*dest = tag->gt_grib[ndx].gd_time;
-	tcount = 1;
-	
+	tcount = 0;
 	if (which == DsBefore)
 	{
-		for (--ndx; ndx >= 0 && tcount < n; ndx--)
+		for ( ; ndx >= 0 && tcount < n; ndx--)
 		{
 			if (! TC_Eq (tag->gt_grib[ndx].gd_time, *dest))
 			{
-				*++dest = tag->gt_grib[ndx].gd_time;
+				*dest++ = tag->gt_grib[ndx].gd_time;
 				tcount++;
 			}
 		}
 	}
 	else if (which == DsAfter)
 	{
-		for (++ndx; ndx < tag->gt_ngrids && tcount < n; ndx++)
+	/*
+	 * Most recent times always come first in the times array, so we
+	 * have to make sure to fill the array backwards.
+	 */
+		if (ndx < 0)	/* there was no sample at the target time */
+			ndx = 0;
+		else if (TC_Less (tag->gt_grib[ndx].gd_time, *t))
+			++ndx;
+		for ( ; ndx < tag->gt_ngrids && tcount < n; ndx++)
 		{
 			if (! TC_Eq (tag->gt_grib[ndx].gd_time, *dest))
 			{
-				*++dest = tag->gt_grib[ndx].gd_time;
+				*dest-- = tag->gt_grib[ndx].gd_time;
 				tcount++;
 			}
 		}

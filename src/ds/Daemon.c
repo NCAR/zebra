@@ -39,7 +39,7 @@
 # include "dsDaemon.h"
 # include "commands.h"
 
-MAKE_RCSID ("$Id: Daemon.c,v 3.39 1994-06-29 22:24:15 granger Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.40 1994-08-01 20:42:36 granger Exp $")
 
 
 /*
@@ -1697,54 +1697,55 @@ FindAfter (who, req)
 char *who;
 struct dsp_FindDF *req;
 /*
- * Find the closest data file containing data after the given time.
+ * Find the closest data file containing data after or including the
+ * given time.  If a local file contains the time, use it.  Otherwise,
+ * take the closest file, local or remote, after the time.
  */
 {
-	int dfe = LOCALDATA (PTable[req->dsp_pid]), last = 0, rlast = 0;
+	int dfe = LOCALDATA (PTable[req->dsp_pid]);
+	int last = 0, rlast = 0;
 	struct dsp_R_DFI answer;
 /*
- * Search the local list for the first DFE which does *not* end after
- * the given time.
+ * Search the local list for the first DFE which *begins* before the given
+ * time.
  */
 	for (; dfe; dfe = DFTable[dfe].df_FLink)
 	{
-		if (TC_LessEq (DFTable[dfe].df_end, req->dsp_when))
+		if (TC_LessEq (DFTable[dfe].df_begin, req->dsp_when))
 			break;
 		last = dfe;
 	}
 /*
- * If we didn't find the data locally, see if there's anything in the
- * remote data table.
+ * If we didn't find a local file containing the time, 
+ * see if there's anything in the remote data table.
  */
-	if (! dfe)
+	if (! dfe || TC_Less(DFTable[dfe].df_end, req->dsp_when))
 	{
 		for (dfe = REMOTEDATA (PTable[req->dsp_pid]); dfe;
-					dfe = DFTable[dfe].df_FLink)
+		     dfe = DFTable[dfe].df_FLink)
 		{
-			if (TC_LessEq (DFTable[dfe].df_end, req->dsp_when))
+			if (TC_LessEq (DFTable[dfe].df_begin, req->dsp_when))
 				break;
-			rlast = last;
+			rlast = dfe;
+		}
+	/*
+	 * If we still failed to find a file containing the time, choose
+	 * the closest of the files backwards on the remote and local chains.
+	 */
+		if (! dfe || TC_Less(DFTable[dfe].df_end, req->dsp_when))
+		{
+			if (last && (rlast == 0 ||
+				     TC_LessEq (DFTable[last].df_begin, 
+						DFTable[rlast].df_begin)))
+				dfe = last;
+			else
+				dfe = rlast;
 		}
 	}
 /*
- * If we found a DFE, it is a file *before* the time, so we need to back 
- * up one, if something is there.
- */
-	if (dfe)
-		dfe = DFTable[dfe].df_BLink;
-/*
- * Now we need to pick out what we really send back.
- */
-	if (dfe)
-		answer.dsp_index = dfe;
-	else if (last && (rlast == 0 ||
-		TC_LessEq (DFTable[last].df_begin, DFTable[rlast].df_begin)))
-		answer.dsp_index = last;
-	else
-		answer.dsp_index = (rlast != 0) ? rlast : -1;
-/*
  * Return our answer.
  */
+	answer.dsp_index = (dfe) ? dfe : -1 ;
 	answer.dsp_type = dpt_R_DFIndex;
 	msg_send (who, MT_DATASTORE, FALSE, &answer, sizeof (answer));
 }

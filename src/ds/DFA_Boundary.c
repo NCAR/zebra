@@ -32,7 +32,7 @@
 # include "dslib.h"
 # include "dfa.h"
 # include "BoundaryFile.h"
-MAKE_RCSID ("$Id: DFA_Boundary.c,v 3.7 1994-04-27 08:23:35 granger Exp $")
+MAKE_RCSID ("$Id: DFA_Boundary.c,v 3.8 1994-08-01 20:41:59 granger Exp $")
 
 
 
@@ -490,7 +490,7 @@ ZebTime *zt;
 	UItime t;
 /*
  * Just search back from the end until we find the first entry before the
- * one we went.  There will generally not be all that many boundaries in
+ * one we want.  There will generally not be all that many boundaries in
  * a given file, so we can get away with a dumb search here.  Famous last 
  * words if I ever heard them.
  */
@@ -516,25 +516,34 @@ TimeSpec which;
 	BFTag *tag;
 	struct BFBTable *bt;
 	int toff, i;
+	UItime uit;
 /*
  * Open this file.
  */
 	if (! dfa_OpenFile (dfindex, FALSE, (void *) &tag))
 		return (0);
 	bt = tag->bt_BTable;
+	TC_ZtToUI (t, &uit);
 /*
  * Find the offset to the time, and copy out info.
  */
 	toff = bf_TimeIndex (tag, t);
 	if (which == DsBefore)
+	{
 		for (i = 0; toff >= 0 && i < n; i++)
-			/* *dest++ = tag->bt_BTable[toff--].bt_Time; */
-			TC_UIToZt (&tag->bt_BTable[toff--].bt_Time, dest++);
+			TC_UIToZt (&bt[toff--].bt_Time, dest++);
+	}
 	else if (which == DsAfter)
 	{
-		toff++;
+	/*
+	 * If the time at toff is off the edge or the time just before
+	 * the one we're after, set toff accordingly.
+	 */
+		if (toff < 0)
+			toff = 0;
+		else if (DLT (bt[toff].bt_Time, uit))
+			++toff;
 		for (i = 0; i < n && toff < tag->bt_hdr.bh_NBoundary; i++)
-			/* *dest-- = bt[toff++].bt_Time; */
 			TC_UIToZt (&bt[toff++].bt_Time, dest--);
 	}
 	return (i);

@@ -16,7 +16,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-MAKE_RCSID ("$Id: DFA_Grads.c,v 3.2 1994-06-30 20:14:15 corbet Exp $");
+MAKE_RCSID ("$Id: DFA_Grads.c,v 3.3 1994-08-01 20:42:10 granger Exp $");
 
 
 
@@ -880,9 +880,21 @@ TimeSpec which;
 		break;
 
 	    case DsAfter:
-		sample++;
+		/* 
+		 * Fill times array with more recent times towards front
+		 */
+		if (sample < 0)
+			sample == 0;
+		else
+		{
+			ZebTime samptime;
+
+			dgr_CalcTime (tag, sample, &samptime);
+			if (TC_Less (samptime, *zt))
+				++sample;
+		}
 		for (i = 0; sample < tag->gt_ntime && i < ntime; i++)
-			dgr_CalcTime (tag, sample++, dest++);
+			dgr_CalcTime (tag, sample++, dest--);
 		break;
 
 	    default:

@@ -13,7 +13,7 @@
 # include "dslib.h"
 # include "dfa.h"
 # include "RasterFile.h"
-MAKE_RCSID ("$Id: DFA_Raster.c,v 3.8 1994-04-27 08:23:48 granger Exp $")
+MAKE_RCSID ("$Id: DFA_Raster.c,v 3.9 1994-08-01 20:42:23 granger Exp $")
 
 
 
@@ -960,6 +960,7 @@ TimeSpec which;
 {
 	int begin, i;
 	RFTag *tag;
+	UItime uit;
 /*
  * Open the file, as always.
  */
@@ -968,13 +969,19 @@ TimeSpec which;
 /*
  * Now find the offset to the desired time, and copy out the info.
  */
+	TC_ZtToUI (t, &uit);
 	begin = drf_TimeIndex (tag, t);
 	if (which == DsBefore)
+	{
 		for (i = 0; begin >= 0 && i < ntime; i++)
 			TC_UIToZt (&tag->rt_toc[begin--].rft_Time, dest++);
+	}
 	else if (which == DsAfter)
 	{
-		begin++;
+		if (begin < 0)
+			begin = 0;
+		else if (DLT (tag->rt_toc[begin].rft_Time, uit))
+			++begin;
 		for (i = 0; begin < tag->rt_hdr.rf_NSample && i < ntime; i++)
 			TC_UIToZt (&tag->rt_toc[begin++].rft_Time, dest++);
 	}

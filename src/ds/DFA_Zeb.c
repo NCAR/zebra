@@ -37,7 +37,7 @@
 #endif
 
 # ifndef lint
-MAKE_RCSID ("$Id: DFA_Zeb.c,v 1.22 1994-04-27 08:23:52 granger Exp $")
+MAKE_RCSID ("$Id: DFA_Zeb.c,v 1.23 1994-08-01 20:42:29 granger Exp $")
 # endif
 
 /*
@@ -3597,15 +3597,23 @@ TimeSpec which;
  * Copy out the info.
  */
 	if (which == DsBefore)
+	{
 		for (i = 0; t >= 0 && i < n; i++)
 		{
 			*dest = tag->zt_Time[t];
 			dest++;
 			t--;
 		}
+	}
 	else if (which == DsAfter)
 	{
-		t++;
+	/* 
+	 * Start at first sample when the time is earlier than that
+	 */
+		if (t < 0)
+			t = 0;
+		else if (TC_Less (tag->zt_Time[t], *when))
+			++t;
 		for (i = 0; t < hdr->znh_NSample && i < n; i++)
 		{
 			*dest = tag->zt_Time[t];

@@ -29,7 +29,7 @@
 # include "dslib.h"
 # include "dfa.h"
 #ifndef lint
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.34 1994-06-10 21:56:00 burghart Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.35 1994-08-01 20:42:16 granger Exp $")
 #endif
 
 # include <netcdf.h>
@@ -2475,6 +2475,7 @@ TimeSpec which;
  */
 	if (! dfa_OpenFile (index, FALSE, (void *) &tag))
 		return (0);
+	offset = when->zt_Sec - tag->nc_base + when->zt_MicroSec/1000000.0;
 /*
  * PATCH: since dnc_TimeIndex returns 0 no-matter what when
  * there is only one data point in the file and then there
@@ -2483,12 +2484,10 @@ TimeSpec which;
  */
 	if (tag->nc_ntime == 1)
 	{
-		offset = when->zt_Sec - tag->nc_base +
-				when->zt_MicroSec/1000000.0;
 		if (offset < tag->nc_times[0])
-			t=-1;
+			t = -1;
 		else if (offset >= tag->nc_times[tag->nc_ntime - 1])
-			t = tag->nc_ntime-1;
+			t = tag->nc_ntime - 1;
 	}
 	else
 	    t = dnc_TimeIndex (tag, when);
@@ -2496,6 +2495,7 @@ TimeSpec which;
  * Copy out the info.
  */
 	if (which == DsBefore)
+	{
 		for (i = 0; t >= 0 && i < n; i++)
 		{
 			dest->zt_Sec = tag->nc_base + (int) tag->nc_times[t];
@@ -2504,9 +2504,13 @@ TimeSpec which;
 			dest++;
 			t--;
 		}
+	}
 	else if (which == DsAfter)
 	{
-		t++;
+		if (t < 0)
+			t = 0;
+		else if (tag->nc_times[t] < offset)
+			++t;
 		for (i = 0; t < tag->nc_ntime && i < n; i++)
 		{
 			dest->zt_Sec = tag->nc_base + (int) tag->nc_times[t];
@@ -2591,7 +2595,8 @@ int ndetail;
 	tag->nc_plat = dc->dc_Platform;;
 	tag->nc_buffered = TRUE;
 	tag->nc_altUnits = dc_GetLocAltUnits (dc);
-	tag->nc_alts = 0;	/* argh */
+	tag->nc_alts = NULL;
+	tag->nc_nalts = 0;
 /*
  * Create the time dimension.  If this platform has the "discrete"
  * flag set, or it's an IRGRID organization, then we make time
@@ -2831,7 +2836,7 @@ DataChunk *dc;
 	sprintf(history,"created by Zeb DataStore, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.34 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.35 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 }
@@ -3343,14 +3348,13 @@ long *start;
 /*
  * Write a block of sample times to the tag->nc_times array and to the file
  * identified by tag->nc_id.  Returns the starting indices of the samples
- * in 'start'.  Returns 0 if failure, non-zero if success.  Note that at
- * the moment only the append and overwrite cases are supported; overwrite
- * assumes that the sample times in the block (even if only 1 sample)
- * already coincide exactly with the times in the file.
+ * in 'start'.  Returns 0 if failure, non-zero if success.  Append and
+ * overwrite cases are supported; overwrite assumes that the sample times
+ * in the block (even if only 1 sample) already coincide exactly with the
+ * times in the file.  Insertion requires a lot more juggling.
  *
  * This function replaces the original dnc_FindDest(), which relied on 
- * single-sample changes.
- */
+ * single-sample changes. */
 {
 	int status;
 	float *ftime = NULL;
@@ -3389,6 +3393,14 @@ long *start;
 	   	*start = dnc_TimeIndex (tag, &t);
 		return(TRUE);
 		break;
+	/*
+	 * For insertion, we must create space for the new samples by
+	 * moving everything back.  Essentially, take all of the arrays
+	 * indexed by the record dimension time and write them out
+	 * at a higher index, leaving space for the samples to be inserted.
+	 */
+	   case wc_Insert:
+
 	   default:
 		return(FALSE);
 	}

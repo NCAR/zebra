@@ -1,5 +1,5 @@
 /*
- * $Id: nstest.c,v 1.10 1994-05-19 20:07:49 granger Exp $
+ * $Id: nstest.c,v 1.11 1994-08-01 20:42:41 granger Exp $
  */
 
 /*
@@ -75,23 +75,26 @@ struct message *msg;
 /* #define ZNF_TESTING */
 #endif
 
-#ifdef notdef
 #define TRANSPARENT
 #define SCALAR
 #define GETFIELDS
 #define GRID_BLOCKS
 /* #define DELETE_OBS */	/* test observation deletes */
 #define NSPACE
-#endif
 
 #ifdef notdef
 /* #define DUMMY_FILES */
 #endif
 
+#ifdef notdef
 #define BACKWARDS
 #define COPY_SCALAR
+#endif
 
-#ifdef notdef
+#define DUMMY_FILES
+#define DATA_TIMES
+
+#define COPY_SCALAR
 #define TEST4_STORE
 #define SCALAR_NSPACE
 #define FIELD_TYPES
@@ -99,9 +102,6 @@ struct message *msg;
 #define ATTRIBUTES
 #define NEXUS
 #define RGRID	/* test DC RGrid interface */
-#define DUMMY_FILES
-#define DATA_TIMES
-#endif
 
 #ifdef BACKWARDS
 
@@ -287,77 +287,9 @@ main (argc, argv)
 	T_Deletes (&begin);
 #endif
 
-#ifdef DUMMY_FILES
-{
-#	define NS (60*10)	/* 10 60-sample files */
-	ZebTime reftime;
-	ZebTime times[NS];
-	ZebTime first, next;
-	PlatformId pid;
-	int n;
-	char buf[128];
-
-	ftime(&tp);
-	now.zt_Sec = tp.time - NS;
-	now.zt_MicroSec = 0;
-	first = now;
-	dc = T_SimpleScalarChunk (&now, NS, 4, FALSE, FALSE);
-	pid = ds_LookupPlatform("t_dummy");
-	dc->dc_Platform = pid;
-	ds_StoreBlocks (dc, TRUE, NULL, 0);
-	dc_DestroyDC (dc);
-#   ifdef DATA_TIMES 	/* use the dummy files to test ds_DataTimes */
-	/*
-	 * To test ds_DataTimes, lets pass it now as the reference time,
-	 * and space for all of the times, and make sure we get the right
-	 * times back.  Then try doing smaller sets of times.
-	 */
-	Announce ("--------- Testing ds_DataTimes()...");
-	tl_Time (&now);
-	n = ds_DataTimes (pid, &now, NS, DsBefore, times);
-	if (n != NS)
-		printf ("DataTimes: returning %d times, expecting %d\n",
-			n, NS);
-	printf ("DataTimes: printing all times found:\n");
-	for (i = 0; i < n; ++i) 
-	{
-		TC_EncodeTime (times+i, TC_Full, buf);
-		printf ("%s\n", buf);
-	}
-	printf ("DataTimes: most recent two times:\n");
-	n = ds_DataTimes (pid, &now, 2, DsBefore, times);
-	for (i = 0; i < n; ++i) 
-	{
-		TC_EncodeTime (times+i, TC_Full, buf);
-		printf ("%s\n", buf);
-	}
-	printf ("DataTimes: 2 times before first sample time:\n");
-	n = ds_DataTimes (pid, &first, 2, DsBefore, times);
-	for (i = 0; i < n; ++i) 
-	{
-		TC_EncodeTime (times+i, TC_Full, buf);
-		printf ("%s\n", buf);
-	}
-	printf ("DataTimes: 2 times before first time of second file:\n");
-	next = first;
-	next.zt_Sec += 60;
-	n = ds_DataTimes (pid, &next, 2, DsBefore, times);
-	for (i = 0; i < n; ++i) 
-	{
-		TC_EncodeTime (times+i, TC_Full, buf);
-		printf ("%s\n", buf);
-	}
-	printf ("DataTimes: 5 times before first time of third file:\n");
-	next.zt_Sec += 60;
-	n = ds_DataTimes (pid, &next, 5, DsBefore, times);
-	for (i = 0; i < n; ++i) 
-	{
-		TC_EncodeTime (times+i, TC_Full, buf);
-		printf ("%s\n", buf);
-	}
-	Announce ("------------ DataTimes: done ------------");
-#   endif
-}
+#if defined(DUMMY_FILES) && defined(DATA_TIMES)
+	T_DataTimes ("t_dummy_cdf");
+	T_DataTimes ("t_dummy_znf");
 #endif
 
 #ifdef SCALAR
@@ -466,6 +398,115 @@ main (argc, argv)
 	return(0);
 }
 
+
+
+#ifdef DUMMY_FILES
+#ifdef DATA_TIMES
+static void
+CheckTimes (pid, desc, when, check, which, expect, first)
+PlatformId pid;
+char *desc;	/* description of the test */
+ZebTime *when;	/* target time for DataTimes */
+int check;	/* number of times to check */
+TimeSpec which; /* timespec to pass DataTimes */
+int expect;	/* number of times expected on return */
+long first;	/* beginning of period (secs) expected */
+/*
+ * Call ds_DataTimes using given parameters and test for correct results.
+ */
+{
+	ZebTime times[512];
+	ZebTime test;
+	char buf[256];
+	int n, i;
+
+	n = ds_DataTimes (pid, when, check, which, times);
+
+	TC_EncodeTime (when, TC_Full, buf);
+	printf ("DataTimes: %s\n", desc);
+	printf ("           %d found %s %s\n", n,
+		(which == DsBefore) ? "before" : "after", buf);
+	if (n != expect)
+		printf ("ERROR! DataTimes: %d expected, %d returned\n",
+			expect, n);
+	test.zt_MicroSec = 0;
+	for (i = 0; i < n; ++i) 
+	{
+		TC_EncodeTime (times+i, TC_Full, buf);
+		printf ("%s\n", buf);
+		test.zt_Sec = first + expect - 1 - i;
+		if (! TC_Eq(times[i], test))
+		{
+			TC_EncodeTime (&test, TC_Full, buf);
+			printf ("ERROR! expected time was %s\n", buf);
+		}
+	}
+}
+#endif /* DATA_TIMES */
+
+
+T_DataTimes (platform)
+char *platform;
+{
+	DataChunk *dc;
+	int i,j;
+	ZebTime when, begin, end;
+	ZebTime now, next;
+	struct timeb tp;
+#	define NS (60*5)	/* 5 60-sample files */
+	ZebTime reftime;
+	ZebTime times[NS];
+	ZebTime first, last;
+	PlatformId pid;
+	int n;
+	char buf[128];
+
+	ftime(&tp);
+	first.zt_MicroSec = 0;
+	first.zt_Sec = tp.time;
+	first.zt_Sec -= (first.zt_Sec % 60) + NS;
+	dc = T_SimpleScalarChunk (&first, NS, 4, FALSE, FALSE);
+	pid = ds_LookupPlatform(platform);
+	dc->dc_Platform = pid;
+	dc_GetTime (dc, NS - 1, &last);
+	ds_StoreBlocks (dc, TRUE, NULL, 0);
+	dc_DestroyDC (dc);
+#ifdef DATA_TIMES 	/* use the dummy files to test ds_DataTimes */
+	/*
+	 * To test ds_DataTimes, lets pass it now as the reference time,
+	 * and space for all of the times, and make sure we get the right
+	 * times back.  Then try doing smaller sets of times.
+	 */
+	Announce ("---- Testing ds_DataTimes()...");
+	printf ("DataTimes: platform '%s'\n", platform);
+	tl_Time (&now);
+	CheckTimes (pid, "all times before now", &now, NS, DsBefore,
+		    NS, last.zt_Sec - NS + 1);
+	CheckTimes (pid, "two most recent times", &now, 2, DsBefore,
+		    2, last.zt_Sec - 2 + 1);
+	CheckTimes (pid, "two times before first", &first, 2, DsBefore,
+		    1, first.zt_Sec);
+	next = first;
+	next.zt_Sec += 60;
+	CheckTimes (pid, "three times before 1st time of 2nd file", 
+		    &next, 3, DsBefore, 3, next.zt_Sec - 3 + 1);
+	next.zt_Sec += 60;
+	CheckTimes (pid, "five times before 1st time of 3rd file", 
+		    &next, 5, DsBefore, 5, next.zt_Sec - 5 + 1);
+	next.zt_Sec += 30;
+	CheckTimes (pid, "10 times after middle of 3rd file", 
+		    &next, 10, DsAfter, 10, next.zt_Sec);
+	CheckTimes (pid, "10 times after last time", 
+		    &last, 10, DsAfter, 1, last.zt_Sec);
+	CheckTimes (pid, "120 times after first time", 
+		    &first, 120, DsAfter, 120, first.zt_Sec);
+	next.zt_Sec = 1;
+	CheckTimes (pid, "5 times after prehistoric time", 
+		    &next, 5, DsAfter, 5, first.zt_Sec);
+	Announce ("------------ DataTimes: done ------------");
+#   endif
+}
+#endif
 
 
 
