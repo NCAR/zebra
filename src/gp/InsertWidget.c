@@ -1,7 +1,6 @@
 /*
  * Data insertion widget.
  */
-static char *rcsid = "$Id: InsertWidget.c,v 1.6 1994-11-19 00:35:07 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -37,11 +36,14 @@ static char *rcsid = "$Id: InsertWidget.c,v 1.6 1994-11-19 00:35:07 burghart Exp
 # include <timer.h>
 # include <message.h>
 # include <pd.h>
+# include <GraphicsW.h>
 # include <DataStore.h>
 # include <ui_date.h>
 # include "GraphProc.h"
 # include "PixelCoord.h"
 # include "EventQueue.h"
+
+RCSID("$Id: InsertWidget.c,v 1.7 1995-04-17 22:10:07 granger Exp $")
 
 # define PI		3.141592654
 # define STRLEN		40
@@ -310,7 +312,7 @@ XtAppContext 	actx;
  * Actually create the data insertion widget.
  */
 {
-	Widget	form, left, above, button;
+	Widget	form, left, above;
 	Arg	args[20];
 	ZebTime	zt;
 	int	n;
@@ -2000,6 +2002,7 @@ Widget	parent;
 }
 
 
+#ifdef notdef
 static void
 InitIconMenu (parent)
 Widget	parent;
@@ -2033,6 +2036,7 @@ Widget	parent;
 	}
 	IconNManaged = 0;
 }
+#endif /* notdef */
 
 
 static void
@@ -2294,6 +2298,7 @@ XtPointer	yesno, junk;
 }
 
 
+#ifdef notdef
 static void
 ChangeHour (w, change, junk)
 Widget		w;
@@ -2352,6 +2357,7 @@ XtPointer	change, junk;
 	TC_EncodeTime (&zt, TC_Full, ValidTime);
 	SetTime();
 }
+#endif /* notdef */
 
 
 static void
