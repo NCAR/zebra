@@ -78,6 +78,13 @@ char *platform;
 	first.zt_Sec -= (first.zt_Sec % 60) + NS;
 	dc = T_SimpleScalarChunk (&first, 1, NS, 4, FALSE, FALSE);
 	pid = NeedPlatform (platform);
+	/*
+	 * Make sure there are no residual files from previous tests
+	 * prior to our 'first' time.  Later times will be overwritten
+	 * if necessary. XXX This won't fix the problem in standalone
+	 * tests, since data deletion is not implemented there.
+	 */
+	ds_DeleteData (pid, &first);
 	dc->dc_Platform = pid;
 	dc_GetTime (dc, NS - 1, &last);
 	errors += !ds_StoreBlocks (dc, TRUE, NULL, 0);
