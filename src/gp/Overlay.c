@@ -3,7 +3,7 @@
  */
 #ifndef lint
 static char *rcsid = 
-	"$Id: Overlay.c,v 2.35 1994-07-14 17:22:43 corbet Exp $";
+	"$Id: Overlay.c,v 2.36 1994-10-10 16:38:40 corbet Exp $";
 #endif
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -2146,8 +2146,9 @@ float aint;
 			sprintf (label, "%d' %d\"", (int)(xpos*60)%60,
 					(int) (fabs(xpos)*3600)%60);
 			DrawText (Graphics, frame, Gcontext, xp, 
-				top + theight * GWHeight(Graphics), label, 0.0,
-				theight, JustifyCenter, JustifyTop);
+				(int) (top + theight * GWHeight(Graphics)),
+				 label, 0.0, theight, JustifyCenter,
+				 JustifyTop);
 			yp = top - 1;
 		}
 		XDrawLine (Disp, frame, Gcontext, 

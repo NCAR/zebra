@@ -40,7 +40,7 @@
  */
 int	AltControlComp;
 
-MAKE_RCSID("$Id: AltControl.c,v 2.10 1994-09-20 22:46:43 corbet Exp $")
+MAKE_RCSID("$Id: AltControl.c,v 2.11 1994-10-10 16:38:34 corbet Exp $")
 
 # define MAXALT		80	/* Max heights we expect to see		*/
 
@@ -82,7 +82,7 @@ alt_GetControlComp ()
  * Find the altitude control component of our PD.
  */
 {
-	char altcomp[80], **comps = pd_CompList (Pd), plat[CFG_PLATNAME_LEN];
+	char altcomp[80], **comps = pd_CompList (Pd), plat[CFG_PLATNAME_LEN*2];
 	bool control;
 	int i;
 /*
