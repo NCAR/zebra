@@ -37,7 +37,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.9 1992-05-27 16:35:53 kris Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.10 1992-06-02 20:08:56 corbet Exp $")
 
 
 /*
@@ -371,7 +371,7 @@ Boolean	update;
 	float	vscale, x0, x1, y0, y1, alt;
 	int	pix_x0, pix_x1, pix_y0, pix_y1;
 	Boolean	ok;
-	int	tacmatch = 0, grid, linewidth;
+	int	tacmatch = 0, grid, linewidth, len, npts, degrade;
 	XColor	color, qcolor;
 	ZebTime zt;
 	PlatformId pid, *platforms;
@@ -383,7 +383,6 @@ Boolean	update;
 	char	data[100];
 	DataChunk	*dc;
 	Location	loc, *locations;
-	int		len, npts;
 	RGrid		rg;
 	float		badvalue;
 /*
@@ -421,6 +420,12 @@ Boolean	update;
 	if (! pda_Search (Pd, c, "arrow-color", platform, cname, SYMT_STRING)
 		&& ! pda_Search (Pd, c, "color", platform, cname, SYMT_STRING))
 		strcpy (cname, "white");
+/*
+ * See if they want to degrade the grid.
+ */
+	if (! pda_Search (pd, c, "degrade", platform, (char *) &degrade,
+			SYMT_INT))
+		degrade = 0;
 /*
  * Arrow line width.
  */
@@ -493,7 +498,7 @@ Boolean	update;
 		badvalue = dc_GetBadval (dc);
 		VectorGrid (Graphics, GWFrame (Graphics), Gcontext, ugrid, 
 			vgrid, xdim, ydim, pix_x0, pix_y0, pix_x1, pix_y1, 
-			vscale, badvalue, color);
+			vscale, badvalue, color, 0);
 	/*
 	 * Free the data arrays
 	 */
