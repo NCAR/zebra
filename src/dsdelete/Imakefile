@@ -1,0 +1,11 @@
+/*
+ * Imakefile for the data store dumper
+ */
+
+SRCS = dsdelete.c
+OBJS = dsdelete.o
+
+LIBS = $(LIBZEB) $(LIBRDSS) $(LIBNETCDF)
+
+
+NormalProgramTarget(dsdelete, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))

@@ -1,0 +1,12 @@
+/*
+ * Imakefile for the data store dumper
+ */
+
+SRCS = dsdwidget.c
+OBJS = dsdwidget.o
+
+LIBS = $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
+
+
+NormalProgramTarget(dsdwidget, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+InstallAppDefaults (dsdwidget)
