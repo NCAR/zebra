@@ -1,7 +1,7 @@
 /*
  * The zeb graphics process.
  */
-static char *rcsid = "$Id: GraphProc.c,v 2.7 1991-10-25 17:59:54 kris Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 2.8 1991-10-28 17:21:39 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -28,8 +28,8 @@ static char *rcsid = "$Id: GraphProc.c,v 2.7 1991-10-25 17:59:54 kris Exp $";
 # include <X11/cursorfont.h>
 # include <ui.h>
 # include <fcntl.h>
-# include <config.h>
 
+# include "../include/config.h"
 # include "../include/defs.h"
 # include "../include/message.h"
 # include "../include/dm.h"
@@ -161,6 +161,7 @@ main (argc, argv)
 int argc;
 char **argv;
 {
+	char loadfile[200];
 /*
  * The first argument is always supposed to be our process name.
  */
@@ -176,7 +177,8 @@ char **argv;
 /*
  * Hand off our information to the UI, and initialize things.
  */
-	ui_init ("../lib/graphproc.lf", FALSE, TRUE);
+	fixdir ("GP_LOAD_FILE", LIBDIR, "graphproc.lf", loadfile);
+	ui_init (loadfile, FALSE, TRUE);
 	Argc = argc;  Argv = argv;
 	ui_setup ("Graphproc", &Argc, Argv, (char *) Resources);
 /*

@@ -1,7 +1,7 @@
 /*
  * Deal with static (or almost static) overlays.
  */
-static char *rcsid = "$Id: Overlay.c,v 2.3 1991-09-12 20:27:54 corbet Exp $";
+static char *rcsid = "$Id: Overlay.c,v 2.4 1991-10-28 17:21:39 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -782,7 +782,8 @@ char *name;
 /*
  * Nope.  Try to open up a file.
  */
-	sprintf (fname, "../lib/%s.map", name);
+	fixdir_t ("GP_MAP_DIR", LIBDIR, name, fname, ".map");
+	/* sprintf (fname, "../lib/%s.map", name); */
 	if ((mapfp = fopen (fname, "r")) == NULL)
 	{
 		msg_ELog (EF_PROBLEM, "Unable to open map file %s", fname);
