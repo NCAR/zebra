@@ -10,7 +10,7 @@
 # include "DataStore.h"
 # include "znfile.h"
 
-MAKE_RCSID ("$Id: zfdump.c,v 1.10 1994-04-15 22:28:22 burghart Exp $")
+MAKE_RCSID ("$Id: zfdump.c,v 1.11 1994-06-02 22:55:53 granger Exp $")
 
 extern int optind;
 
@@ -100,8 +100,8 @@ int dump_free, dump_header, dump_all;
 	int fd, t, c, ssps, hdrlen, magic;
 	char atime[30];
 	zn_Header hdr;
-	ZebTime *zt;
-	zn_Sample *sample, *samples;
+	ZebTime *zt = NULL;
+	zn_Sample *sample, *samples = NULL;
 	zn_Field *zflds;
 	zn_Sample *satts = 0;
 	Location *locns = 0;
@@ -161,29 +161,41 @@ int dump_free, dump_header, dump_all;
 /*
  * Pull in tables.
  */
-	zt = (ZebTime *) malloc (hdr.znh_NSample * sizeof (ZebTime));
-	lseek (fd, hdr.znh_OffTime, 0);
-	read (fd, zt, hdr.znh_NSample*sizeof (ZebTime));
+	if (hdr.znh_NSample > 0)
+	{
+		zt = (ZebTime *) malloc (hdr.znh_NSample * sizeof (ZebTime));
+		lseek (fd, hdr.znh_OffTime, 0);
+		read (fd, zt, hdr.znh_NSample*sizeof (ZebTime));
 
-	ssps = ((hdr.znh_Org == OrgFixedScalar) ||
-		(hdr.znh_NField == 0)) ? 1 : hdr.znh_NField;
-	samples = (zn_Sample *) malloc (hdr.znh_NSample * ssps *
-				sizeof (zn_Sample));
-	lseek (fd, hdr.znh_OffSample, 0);
-	read (fd, samples, hdr.znh_NSample * ssps * sizeof (zn_Sample));
-	if (hdr.znh_OffRg >= 0)		/* retrieve rgrid info 	*/
+		ssps = ((hdr.znh_Org == OrgFixedScalar) ||
+			(hdr.znh_NField == 0)) ? 1 : hdr.znh_NField;
+		samples = (zn_Sample *) malloc (hdr.znh_NSample * ssps *
+						sizeof (zn_Sample));
+		lseek (fd, hdr.znh_OffSample, 0);
+		read(fd, samples, hdr.znh_NSample * ssps * sizeof (zn_Sample));
+	}
+/*
+ * Retrieve rgrid info
+ */
+	if (hdr.znh_NSample > 0 && hdr.znh_OffRg >= 0)
 	{
 		lseek (fd, hdr.znh_OffRg, 0);
 		rg = (RGrid *) malloc (hdr.znh_NSample*sizeof (RGrid));
 		read (fd, rg, hdr.znh_NSample*sizeof (RGrid));
 	}
-	if (hdr.znh_OffLoc > 0)		/* retrieve dynamic locns */
+/*
+ * Retrieve dynamic locns
+ */
+	if (hdr.znh_NSample > 0 && hdr.znh_OffLoc > 0)
 	{
 		lseek (fd, hdr.znh_OffLoc, 0);
 		locns = (Location *)malloc(hdr.znh_NSample*sizeof(Location));
 		read (fd, locns, hdr.znh_NSample*sizeof(Location));
 	}
-	if (hdr.znh_OffAttr > 0)	/* get any per sample atts */
+/*
+ * Get any per sample atts
+ */
+	if (hdr.znh_NSample > 0 && hdr.znh_OffAttr > 0)
 	{
 		long slen = hdr.znh_NSample * sizeof(zn_Sample);
 
@@ -214,7 +226,7 @@ int dump_free, dump_header, dump_all;
 /*
  * If header-only option chosen, skip sample dumps
  */
-	if (!dump_header)
+	if (!dump_header && samples)
 	{
 	/*
 	 * Sample dump.
@@ -257,9 +269,12 @@ int dump_free, dump_header, dump_all;
 			sample += ssps;
 		}
 	}
-	free (zt);
-	free (samples);
-	free (zflds);
+	if (zt)
+		free (zt);
+	if (samples)
+		free (samples);
+	if (zflds)
+		free (zflds);
 	if (locns)
 		free (locns);
 	if (rg) 
@@ -324,8 +339,12 @@ zn_Header *hdr;
 	printf ("Fields:\n");
 	flen = (hdr->znh_Version == 1) ? 
 		sizeof (zn_FieldV1) : sizeof (zn_Field);
-
-	zflds = (zn_Field *)malloc(flen);
+/*
+ * Use the current zn_Field size for the internal field array, filling
+ * it in with defaults when the file only has version 1 information.
+ * Read only as much of the structure as exists, according to the version.
+ */
+	zflds = (zn_Field *) malloc (hdr->znh_NField * sizeof (zn_Field));
 	lseek (fd, hdr->znh_OffField, SEEK_SET);
 
 	printf ("   %-15s %10s %5s %10s %10s\n",
