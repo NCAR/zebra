@@ -37,7 +37,7 @@
 # include "ui_date.h"
 # include "AxisControl.h"
 
-RCSID("$Id: AxisControl.c,v 1.23 1995-04-17 21:08:24 granger Exp $")
+RCSID("$Id: AxisControl.c,v 1.24 1995-06-09 16:50:44 granger Exp $")
 
 /*
  * Convenient scratch string
@@ -141,7 +141,7 @@ AxisSide	side;
     int		ticlen, maxHeight, maxWidth, edge, fit = TRUE, inverted;
     int		xloc, yloc, axisSpaceHeight, axisSpaceWidth, emult;
     int		yOrig, xOrig, direction, totalHeight;
-    char	color[32], label[80], ticLabel[20], ticLabel2[20];
+    char	color[32], label[512], ticLabel[20], ticLabel2[20];
     float	ticInterval, fscale, drawGrid, span;
     float	red, green, blue, hue, lightness, sat;
     DataValRec	ticLoc, min, max, val0, val1;
@@ -837,7 +837,18 @@ char *c, side, *label;
  * we would annotate those anyway.
  */
 	if ((fid = F_Declared (Scratch)) != BadField)
-		strcpy (label, F_GetDesc (fid));
+	{
+		/*
+		 * If a units string is not already contained in the description,
+		 * then append one.
+		 */
+		char *units = F_GetUnits (fid);
+		char *desc = F_GetDesc (fid);
+		if (strstr (desc, units))
+			strcpy (label, desc);
+		else
+			sprintf (label, "%s (%s)", desc, units);
+	}
 	else
 		strcpy (label, Scratch);
 }
