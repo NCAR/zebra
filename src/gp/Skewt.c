@@ -145,7 +145,7 @@ bool	update;
  * Build the field list
  */
 	flist[0] = "pres";
-	flist[1] = "tdry";	/* = "temp" */
+	flist[1] = "tdry";	/* "temp" */
 	flist[2] = "dp";
 	flist[3] = "u_wind";
 	flist[4] = "v_wind";
@@ -185,6 +185,15 @@ bool	update;
 
 		dobj = ds_GetObservation (pid, flist, 5, &PlotTime, OrgScalar,
 			0.0, BADVAL);
+
+		if (! dobj)
+		{
+			msg_ELog (EF_PROBLEM, 
+				"Unable to get data for '%s' at %d %06d", 
+				pnames[plat], PlotTime.ds_yymmdd, 
+				PlotTime.ds_hhmmss);
+			continue;
+		}
 
 		pres = dobj->do_data[0];
 		temp = dobj->do_data[1];
