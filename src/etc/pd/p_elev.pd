@@ -18,5 +18,5 @@ p_elev
 	elevation-nsteps:	8
 	elevation-highlight:		-1
 	elevation-highlight-range:	2
-	elevation-highlight-color:	blue3
+	elevation-highlight-color:	blue4
 	limit-proc:	raster-limit-proc
