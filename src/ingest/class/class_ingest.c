@@ -5,7 +5,7 @@
  *	class_ingest file f1 f2 ... fn
  *
  */
-/*		Copyright (C) 1987,88,89,90,91 by UCAR
+/*		Copyright (C) 1987-92 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
  *
@@ -31,7 +31,7 @@
 # include "../include/DataStore.h"
 # include "fields.h"
 
-static char *rcsid = "$Id: class_ingest.c,v 2.1 1991-09-16 21:28:23 burghart Exp $";
+static char *rcsid = "$Id: class_ingest.c,v 2.2 1992-03-31 23:10:39 burghart Exp $";
 
 # ifdef __STDC__
 	static int	incoming (struct message *);
@@ -53,7 +53,8 @@ DataObject Dobj;
 # define BADVAL -9999.0
 
 int 	Npts;
-float	Buf[BUFLEN];
+float	Pres[BUFLEN], QPres[BUFLEN], Buf[BUFLEN];
+int	BadPts[BUFLEN], NBad;
 
 
 
@@ -96,6 +97,8 @@ ERRORCATCH
 
 	if (sscanf (site, "FIXED, %s", plat) == 1)
 		/* do nothing */;
+	if (sscanf (site, "FIXED  %s", plat) == 1)
+		/* do nothing */;
 	else if (strncmp (site, "MOBILE", 6) == 0)
 		strcpy (plat, "mobile");
 	else
@@ -116,6 +119,19 @@ ERRORCATCH
 	Times ();
 	Locations ();
 /*
+ * Get pressure and pressure quality fields to build a data removal
+ * list
+ */
+	snd_get_data (SND, Pres, BUFLEN, fd_num ("pres"), BADVAL);
+	snd_get_data (SND, QPres, BUFLEN, fd_num ("qpres"), BADVAL);
+
+	NBad = 0;
+	for (i = 0; i < Npts; i++)
+		if (Pres[i] == BADVAL || QPres[i] == BADVAL || 
+			Pres[i] == 0.0 || 
+			(QPres[i] > 1.5 && QPres[i] != 77 && QPres[i] != 88))
+			BadPts[NBad++] = i;
+/*
  * Grab each field
  */
 	argc -= 2;
@@ -127,6 +143,12 @@ ERRORCATCH
 	{
 		Dobj.do_fields[f] = usy_string (argv[f]);
 		snd_get_data (SND, Buf, BUFLEN, fd_num (argv[f]), BADVAL);
+	/*
+	 * Remove the bad points
+	 */
+		for (i = 0; i < NBad; i++)
+			Buf[BadPts[i]] = BADVAL;
+
 		Dobj.do_data[f] = (float *) malloc (Npts * sizeof (float));
 		memcpy (Dobj.do_data[f], Buf, Npts * sizeof (float));
 	}
@@ -148,7 +170,7 @@ Times ()
  */
 {
 	time	start, t, snd_time ();
-	int	i, hours, minutes, seconds, delta, neg, snd_get_data ();
+	int	i, hours, minutes, seconds, delta, snd_get_data ();
 /*
  * Get the start time and the time data for the sounding
  */
@@ -166,21 +188,16 @@ Times ()
  */
 	for (i = 0; i < Npts; i++)
 	{
-		neg = Buf[i] < 0;
-		if (neg)
-			Buf[i] = -Buf[i];
-
-		hours = (int)(Buf[i] / 3600);
-		minutes = (int)((Buf[i] - 3600 * hours) / 60);
-		seconds = (int)(Buf[i] - 3600 * hours - 60 * minutes);
-		delta = 10000 * hours + 100 * minutes + seconds;
-
 		t = start;
-		
-		if (neg)
-			pmu_dsub (&t.ds_yymmdd, &t.ds_hhmmss, delta);
-		else
+
+		if (Buf[i] >= 0)
+		{
+			hours = (int)(Buf[i] / 3600);
+			minutes = (int)((Buf[i] - 3600 * hours) / 60);
+			seconds = (int)(Buf[i] - 3600 * hours - 60 * minutes);
+			delta = 10000 * hours + 100 * minutes + seconds;
 			pmu_dadd (&t.ds_yymmdd, &t.ds_hhmmss, delta);
+		}
 
 		Dobj.do_times[i] = t;
 	}
