@@ -26,7 +26,7 @@
 # include "message.h"
 # include "setup.h"
 
-RCSID("$Id: ConfigVars.c,v 1.11 1996-11-19 07:43:12 granger Exp $")
+RCSID("$Id: ConfigVars.c,v 1.12 2000-04-06 19:40:57 burghart Exp $")
 
 /*
  * Keep the directories around for queries.
@@ -78,7 +78,11 @@ InitDirVariables ()
  * explicit, just take the current directory and hope for the best.  If
  * the project envariable is an absolute path, take it as is.
  */
-	if ((envbase = getenv ("ZEB_PROJECT")) && envbase[0] == '/')
+	if (envbase = getenv ("ZEB_PROJDIR"))
+	{
+		strcpy (Projdir, envbase);
+	}
+	else if ((envbase = getenv ("ZEB_PROJECT")) && envbase[0] == '/')
 	{
 		strcpy (Projdir, envbase);
 	}
