@@ -9,6 +9,15 @@
 !
 procedure p_toggle_quadrant field string
 !
+! Check and see if this dude is being called out of a position icon;
+! if so, we really want to ship the result out elsewhere.
+!
+	if (position_icon)
+		local cmd quote(concat4 ('putscalar ',icon_platform,' ',field))
+		dm #cmd
+		return
+	endif
+!
 ! Start by seeing if this field is on display.
 !
 	foreach quad 1 2 3 4
@@ -106,4 +115,22 @@ procedure space-popup
 		local space '50'
 	endif
 	formtext #f space #space
+endprocedure
+
+
+
+define widget send-station-field intmenu 'This is a kludge'
+	title 'Send field to time-series plot'
+	line
+	entry 'Ambient temperature' 'shipout-field tdry'
+	entry 'Dewpoint temperature' 'shipout-field dp'
+	entry 'Relative humidity' 'shipout-field rh'
+	entry 'Mixing ratio' 'shipout-field mr'
+	entry 'Potential temperature' 'shipout-field pt'
+endmenu
+
+
+procedure shipout-field field string
+	local cmd quote(concat4 ('putscalar ',icon_platform,' ',field))
+	dm #cmd
 endprocedure
