@@ -9,7 +9,7 @@
 # include "DataStore.h"
 # include "znfile.h"
 
-MAKE_RCSID ("$Id: zfdump.c,v 1.5 1993-07-07 19:56:40 granger Exp $")
+MAKE_RCSID ("$Id: zfdump.c,v 1.6 1993-08-06 21:01:57 granger Exp $")
 
 extern int optind;
 
@@ -19,6 +19,7 @@ static void DumpSample FP((int fd, zn_Header *hdr, zn_Sample *sample,
 			   RGrid *rg));
 static zn_Field *DumpFields FP((int fd, zn_Header *hdr));
 static void DumpGlobalAttrs FP((int fd, zn_Header *hdr));
+static void ReadFreeNode FP ((int fd, long offset, zn_Free *zf));
 
 void
 Usage(prog)
@@ -120,7 +121,7 @@ int dump_free, dump_header, dump_all;
 /*
  * Start printing.  In every case we print at least the header and the fields.
  */
-	printf ("\n----- ZNF file: %s -----\n", filename);
+	printf ("\n///// ZNF: %s\n", filename);
 	DumpHeader (&hdr);
 	DumpGlobalAttrs (fd, &hdr);
 	zflds = DumpFields (fd, &hdr);
@@ -166,8 +167,11 @@ int dump_free, dump_header, dump_all;
 		printf ("\nFree list:\n");
 		while (foff > 0)
 		{
+			ReadFreeNode (fd, foff, &zf);
+#ifdef notdef
 			lseek (fd, foff, 0);
 			read (fd, &zf, sizeof (zf));
+#endif
 			printf ("\tBlk at %ld, size %d\n", foff, zf.znf_Size);
 			foff = zf.znf_Next;
 		}
@@ -287,8 +291,7 @@ zn_Header *hdr;
 	read (fd, zflds, flen);
 
 	printf ("   %-15s %10s %5s %10s %10s\n",
-		"--Name--------",
-		"--Badval--","-Fmt-","--Scale--","--Offset--");
+		"Name","Badval","Fmt","Scale","Offset");
 	for (i = 0; i < hdr->znh_NField; ++i)
 	{
 		printf ("   %-15s %10.4f ",
@@ -399,4 +402,41 @@ zn_Header *hdr;
 	if (hdr->znh_OffAttr > 0)
 		printf (" Sample attrs at %ld", hdr->znh_OffAttr);
 	printf ("\n");
+}
+
+
+
+static void
+ReadFreeNode (fd, offset, fb)
+int fd;
+long offset;
+zn_Free *fb;
+{
+	long magic;
+
+	lseek (fd, offset, SEEK_SET);
+	read (fd, &magic, sizeof(long));
+	if (magic != ZN_FREE_MAGIC)
+	{
+		if (magic == 0)
+			magic = ZN_FREE_MAGIC;
+		fb->znf_FMagic = ZN_FREE_MAGIC;
+		fb->znf_Next = magic;
+		fb->znf_Size = sizeof(long);
+
+		while (fb->znf_Next == offset + fb->znf_Size)
+		{
+			lseek (fd, fb->znf_Next, SEEK_SET);
+			read (fd, &magic, sizeof(long));
+			if (magic == 0)
+				magic = ZN_FREE_MAGIC;
+			fb->znf_Next = magic;
+			fb->znf_Size += sizeof(long);
+		}
+	}
+	else
+	{
+		lseek (fd, offset, SEEK_SET);
+		read (fd, fb, sizeof(zn_Free));
+	}
 }
