@@ -1,7 +1,7 @@
 !
 ! Display manager widgets.
 !
-! $Id: dm.widgets,v 1.14 1994-06-07 22:33:55 corbet Exp $
+! $Id: dm.widgets,v 1.15 1994-06-29 20:19:48 case Exp $
 !
 
 define widget SaveConfig form 'Configuration saver'
@@ -59,7 +59,7 @@ define widget NewWindow form 'New window'
 	pulldown wtype 'Constant altitude' menu cw_wintypes width 140
 	newline
 	button create 'Create window' command 'DoNewWindow'
-	button zap 'Cancel' command 'popdown #up$form' color red
+	button zap 'Cancel' command 'popdown #ui$form' color red
 	label gripe ' ' width 200 color red
 endform
 
@@ -678,7 +678,7 @@ procedure printer_go
 	if (SystemType = 'bsd')
 		local pcommand '| lpr -P'
 	else
-		local pcommand '| lp -d '  ! trailing space necessary
+		local pcommand '| lp -d'
 	endif
 
 	! Add a little robustness
