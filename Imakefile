@@ -1,6 +1,6 @@
-XCOMM $Id: Imakefile,v 1.20 1994-11-21 23:20:12 granger Exp $
+XCOMM $Id: Imakefile,v 1.21 1995-04-25 20:50:30 granger Exp $
 XCOMM
-XCOMM This is the top-level Imakefile for the Zeb distribution.
+XCOMM This is the top-level Imakefile for the Zebra distribution.
 XCOMM It is modeled after the top-level Imakefile of the MIT X11R5
 XCOMM distribution.
 
@@ -59,7 +59,7 @@ default::
 	@echo "	make includes"
 	@echo "	make depend"
 	@echo "	make install"
-	@echo "If you are installing Zeb for the first time, break"
+	@echo "If you are installing Zebra for the first time, break"
 	@echo "out of this make by typing Ctl-C.  Make sure you have"
 	@echo "read and performed the configuration instructions,"
 	@echo "and then enter the command: 'make World'."
@@ -87,7 +87,7 @@ DistfilesSubdirs($(DISTSUBDIRS))
 XCOMM do not name your log file make.log or MakeOut when you run this ...
 World::
 	@echo ""
-	@echo "Building Zeb"
+	@echo "Building Zebra"
 	@echo "Do not name your log file make.log or MakeOut,"
 	@echo "else it will be erased."
 	@date
@@ -107,12 +107,12 @@ World::
 	@echo ""
 	@date
 	@echo ""
-	@echo "Zeb build complete."
+	@echo "Zebra build complete."
 	@echo ""
 
 Everything::
 	@echo ""
-	@echo "Rebuilding Zeb"
+	@echo "Rebuilding Zebra"
 	@echo ""
 	@date
 	@echo ""
@@ -128,7 +128,7 @@ Everything::
 	@echo ""
 	@date
 	@echo ""
-	@echo "Zeb rebuild complete"
+	@echo "Zebra rebuild complete"
 	@echo ""
 
 /*
@@ -162,8 +162,8 @@ distclean::
  * 	make srcfile SRCNAME=pikes-copy \
  *		SRCSUBDIRS="imake config src/msg"
  */
-TARFILE = zeb-4.0
-SRCFILE = zeb-src
+TARFILE = zebra-4.0
+SRCFILE = zebra-src
 
 tarfile:
 	@echo Making file $(TARFILE).tar.$(ZIPEXT) ; \
@@ -228,7 +228,7 @@ flushlinks::
 	find . -type l -exec rm {} \;
 	find . \( \! \( -type d -o -name Makefile \) \) -print
 
-XCOMM Quick and dirty generation of emacs tags file for whole Zeb source tree
+XCOMM Quick and dirty generation of emacs tags file for Zebra source tree
 etags::
 	$(ETAGS) $(ETAGSFLAGS) `find src -name "*.[ch]" -print`
 
