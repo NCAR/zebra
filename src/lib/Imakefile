@@ -30,16 +30,16 @@ SRCS = alarmwidget.c barb.c Bitmaps.c cmd_proto.c ConfigVars.c convert.c \
 	GraphicsW.c ImageXfr.c LeftRightButtons.c msg_BCast.c msg_lib.c \
 	netread.c Parse.c pdlib.c pdaux.c RLEncode.c \
 	Sound_lib.c TCvt.c TInterp.c timer_lib.c twidget.c vector.c \
-	writev.c FindFile.c regex.c
+	writev.c FindFile.c zl_regex.c
 
 OBJS = alarmwidget.o barb.o Bitmaps.o cmd_proto.o ConfigVars.o convert.o \
 	GraphicsW.o ImageXfr.o LeftRightButtons.o msg_BCast.o msg_lib.o \
 	netread.o Parse.o pdlib.o pdaux.o RLEncode.o Sound_lib.o TCvt.o \
 	TInterp.o timer_lib.o twidget.o vector.o $(WRITEVOBJ) FindFile.o \
-	regex.o
+	zl_regex.o
 
 HEADERS = bitmaps.h copyright.h defs.h GraphicsW.h GraphicsWP.h message.h \
-	pd.h timer.h ImageXfr.h regex.h
+	pd.h timer.h ImageXfr.h zl_regex.h
 
 DISTFILES = $(SRCS) $(HEADERS) Imakefile
 
@@ -63,5 +63,13 @@ tconvert: tconvert.c convert.o $(DEPLIBS)
 
 clean::
 	$(RM) tconvert
+
+re_test: re_test.o
+	$(RM) $@
+	$(CC) -o $@ $(ALLDEFINES) re_test.o zl_regex.o $(LDOPTIONS) \
+			$(LDLIBS) $(SYSLIBS) $(EXTRA_LOAD_FLAGS)
+
+clean::
+	$(RM) re_test
 
 DistfilesTarget($(DISTFILES))
