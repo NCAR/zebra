@@ -3,7 +3,7 @@
  * of pixmap "frames" associated with it.  Zero frames means just write 
  * everything directly to the window.
  */
-static char *rcsid = "$Id: GraphicsW.c,v 2.4 1991-12-07 18:05:07 kris Exp $";
+static char *rcsid = "$Id: GraphicsW.c,v 2.5 1991-12-10 21:20:58 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -165,7 +165,7 @@ XSetWindowAttributes	*attributes;
 			vinfo.visual, *value_mask, attributes);
 	}
 # else
-	XtCreateWindow (w, (unsigned int) InputOutput, vinfo.visual, 
+	XtCreateWindow ((Widget) w, (unsigned int) InputOutput, vinfo.visual, 
 		*value_mask, attributes);
 # endif /* use_XB */
 
@@ -359,7 +359,7 @@ GraphicsWidget	w;
 /*
  * If there is a resize callback routine, then call it.
  */
-	XtCallCallbackList (w, w->graphics.resize_callback, NULL);
+	XtCallCallbackList ((Widget) w, w->graphics.resize_callback, NULL);
 }
 
 
@@ -534,7 +534,8 @@ GWResize (w, width, height)
 GraphicsWidget	w;
 int	width, height;
 {
-	if (XtMakeResizeRequest (w, (Dimension) width, (Dimension) height, 
+	if (XtMakeResizeRequest ((Widget) w, (Dimension) width,
+		(Dimension) height, 
 		(Dimension) NULL, (Dimension) NULL) == XtGeometryYes)
 		Resize (w);
 }
