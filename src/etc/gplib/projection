@@ -1,0 +1,44 @@
+!
+! Stuff to handle the projection feature.
+!
+
+define widget projection intmenu 'projection'
+	title 'Projections'
+	line
+	entry 'Zebra cylindrical (fast)' 'ChangeProj rectangular' \
+		(PDParam('global','projection') = 'zebra' or not pd_defined('global','projection'))
+	line
+	entry 'Albers equal area' 'ChangeProj aea' \
+		(PDParam ('global', 'projection') = 'aea')
+	entry 'Equidistant cylindrical' 'ChangeProj eqc' \
+		(PDParam('global','projection') = 'eqc')
+	entry 'Lambert conformal' 'ChangeProj lcc' \
+		(PDParam('global', 'projection') = 'lcc')
+	entry 'Lambert equal-area conformal' 'ChangeProj leac' \
+		(PDParam('global', 'projection') = 'leac')
+	entry 'Lambert conformal polar' 'ChangeProj lcpolar' \
+		(PDParam('global', 'projection') = 'lcpolar')
+	entry 'Mercator' 'ChangeProj merc' \
+		(PDParam('global', 'projection') = 'merc')
+	entry 'Mollweide' 'ChangeProj moll' \
+		(PDParam ('global', 'projection') = 'moll')
+	entry 'Orthographic' 'ChangeProj ortho' \
+		(PDParam ('global', 'projection') = 'ortho')
+	entry 'Cassini' 'ChangeProj cass' \
+		(PDParam ('global', 'projection') = 'cass')
+	line
+	entry 'Help on projections' 'help hp-projection'
+endmenu
+
+
+
+procedure ChangeProj proj string
+!
+! Tweak the projection.
+!
+	if (PDParam ('global', 'plot-type') <> 'CAP')
+		beep
+	else
+		parameter global projection #proj
+	endif
+endprocedure
