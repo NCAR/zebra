@@ -24,7 +24,7 @@
 # include <ctype.h>
 # include <sys/types.h>
 
-MAKE_RCSID ("$Id: TCvt.c,v 2.13 1994-03-30 17:49:56 granger Exp $")
+MAKE_RCSID ("$Id: TCvt.c,v 2.14 1994-06-29 20:54:59 case Exp $")
 
 /*
  * The months of the year.
@@ -245,7 +245,7 @@ ZebTime		*zt;
 	fsecond = 0.0;
 	year = month = day = hour = minute = 0;
 
-	nfields = sscanf (string, "%d-%3c-%d,%d:%d:%f", &day, &cmonth, &year,
+	nfields = sscanf (string, "%d-%3c-%d,%d:%d:%f", &day, cmonth, &year,
 			  &hour, &minute, &fsecond);
 /*
  * If we didn't make it at least to the year, we failed
