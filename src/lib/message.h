@@ -1,4 +1,4 @@
-/* $Id: message.h,v 2.16 1994-05-24 02:37:39 granger Exp $ */
+/* $Id: message.h,v 2.17 1995-04-15 00:53:23 granger Exp $ */
 /*
  * Message protocol types.
  */
@@ -52,6 +52,8 @@
 # define MT_ISS_BASE	50	/* and 20 for ISS			*/
 	/* Next available: 70 */
 
+# define MT_MAX_PROTO	75	/* Upper limit on number of protocols	*/
+
 /*
  * Return codes for functions called out of msg_Search.  Note that
  * the value for MSG_CONSUMED is something truly funky.  This is because
@@ -86,7 +88,7 @@
 # define MH_SHUTDOWN	-100	/* Server is shutting down		*/
 
 /*
- * Various client-related events, sent to the "Client events" group.
+ * Various client-related events, sent to the MSG_CLIENT_EVENTS group.
  */
 # define MH_CE_CONNECT		1	/* New client connection	*/
 # define MH_CE_DISCONNECT	2	/* Client death			*/
@@ -107,6 +109,11 @@
 # define SERVICE_NAME	"zeb-msg"
 
 # define MAX_NAME_LEN	CFG_MSGNAME_LEN  /* Maximum length of a name, eg 32 */
+
+/*
+ * The type for message handlers
+ */
+typedef int (*ifptr) ();
 
 /*
  * Structures for message handler protocol messages.
@@ -175,6 +182,15 @@ struct mh_pid
 };
 
 /*
+ * For sending stats.
+ */
+struct mh_stats
+{
+	int 	mh_type;	/* == MH_STATS				   */
+	char	mh_text[1];	/* null-terminated, variable-length string */
+};
+
+/*
  * The actual message header structure.
  */
 typedef struct message
@@ -208,9 +224,13 @@ struct msg_elog
 # define EF_CLIENT	0x04		/* Client events		*/
 # define EF_DEBUG	0x08		/* Purely debugging stuff	*/
 # define EF_INFO	0x10		/* Informational message	*/
+# define EF_DEVELOP 	0x20		/* Development, high-volume, and not
+					   meant to be sent to the logger */
+# define EF_ALL		0x3f		/* All events mask		*/
 
 # define EF_SETMASK	0x10000000	/* Set the event mask		*/
 
+# define EVENT_LOGGER_NAME	"Event logger"
 
 /*
  * Message Flags.
@@ -230,6 +250,12 @@ struct msg_elog
  * The name of the event manager.
  */
 # define MSG_MGR_NAME		"Message manager"
+# define MSG_PROTO_VERSION	"V-1.3"
+
+/*
+ * Standard group names recognized by the message manager
+ */
+# define MSG_CLIENT_EVENTS	"Client events"
 
 /*
  * Message tap protocol.
@@ -254,19 +280,26 @@ struct msg_mtap
 int msg_DispatchQueued FP ((void));
 int msg_incoming FP ((int));
 int msg_connect FP ((int (*handler) (), char *));
+void msg_disconnect FP ((void));
 void msg_send FP ((char *, int, int, void *, int));
 void msg_join FP ((char *));
 void msg_quit FP ((char *));
 void msg_log FP ((/* char *, ... */));
-void msg_ELog FP (());
+void msg_ELog FP ((/* int flag, char *s, ... */));
+int msg_ELSendMask FP ((int mask));
+int msg_ELPrintMask FP ((int mask));
 void msg_add_fd FP ((int, int (*handler) ()));
 void msg_delete_fd FP ((int));
 int msg_get_fd FP ((void));
 const char *msg_myname FP((void));
 int msg_await FP ((void));
+int msg_poll FP ((int timeout));
+int msg_PollProto FP ((int timeout, int nproto, int *protolist));
 int msg_Search FP ((int proto, int (*func) (), void * param));
 void msg_AddProtoHandler FP ((int, int (*) ()));
+void msg_Enqueue FP ((Message *msg));
 int msg_QueryClient FP ((char *));
+void msg_DeathHandler FP ((ifptr f));
 /* query protocol */
 void msg_SendQuery FP ((char *, int (*) ()));
 void msg_AnswerQuery FP ((char *, char *));
@@ -281,5 +314,25 @@ void msg_SetQueryHandler FP ((int (*) ()));
 
 void	msg_BCast FP ((int, void *, int));
 int	msg_BCSetup FP ((int, int, int (*) ()));
+int	msg_PollBCast FP ((int fd));
+
+/*
+ * Prototype command proto functions here, since they are also
+ * part of the library.
+ */
+void cp_SetupCmdProto FP ((void));
+void cp_Exec FP ((char *process, char *command));
+
+/*
+ * The message manager and library reference the netread functions, 
+ * but we don't want them to be part of the public interface.
+ */
+# if defined(MESSAGE_MANAGER) || defined(MESSAGE_LIBRARY)
+
+#define FD_MAP_SIZE 64		/* used for fd map tables */
+
+int msg_XX_netread FP ((int fd, char *dest, int len));
+int msg_netread FP ((int fd, char *dest, int len));
+# endif /* MESSAGE_MANAGER || MESSAGE_LIBRARY */
 
 # endif /* ! _ZEB_MESSAGE_H_ */
