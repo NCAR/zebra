@@ -1,4 +1,4 @@
-/* $Id: dm_cmds.h,v 1.6 1990-09-17 10:24:35 corbet Exp $ */
+/* $Id: dm_cmds.h,v 1.7 1990-11-19 08:03:23 corbet Exp $ */
 /*
  * Keyword numbers for displaymgr commands.
  */
@@ -37,3 +37,4 @@
 # define DMC_LINKPD	34
 # define DMC_SHUTDOWN	35
 # define DMC_WIDGET	36
+# define DMC_SOUND	37

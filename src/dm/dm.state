@@ -1,4 +1,4 @@
-! $Id: dm.state,v 1.8 1990-09-20 09:18:28 corbet Exp $
+! $Id: dm.state,v 1.9 1990-11-19 08:03:15 corbet Exp $
 !
 ! Command definition for the display manager.
 !
@@ -63,6 +63,9 @@ define state dm-initial
 	endinput
 	input 'shutdown' 35
 		next ust$no_more
+	endinput
+	input 'sound' 37
+		next ust$final_unmunged_string
 	endinput
 enddef
 

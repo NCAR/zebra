@@ -11,7 +11,7 @@
 # include "dm_cmds.h"
 # include "../include/timer.h"
 
-static char *rcsid = "$Id: dm.c,v 1.12 1990-11-08 09:30:01 corbet Exp $";
+static char *rcsid = "$Id: dm.c,v 1.13 1990-11-19 08:03:02 corbet Exp $";
 
 /*
  * Definitions of globals.
@@ -24,12 +24,19 @@ stbl Bmaps;
 ButtonMap *Default_map;	/* The default button map	*/
 Display *Dm_Display;
 
+/*
+ * Is sound enabled?
+ */
+static int SoundEnabled = FALSE;
+
 # ifdef __STDC__
 	int dm_shutdown (void);
 	static bool ResolveLinks (struct config *, struct ui_command *);
+	void SEChange (char *, int, int, int, SValue *, int, SValue *);
 # else
 	int dm_shutdown (void);
 	static bool ResolveLinks (struct config *, struct ui_command *);
+	void SEChange ();
 # endif
 
 
@@ -42,6 +49,7 @@ char **argv;
 	int is_active (), type[4], pd_param (), pd_defined (), tw_cb ();
 	char loadfile[100];
 	Widget top;
+	stbl vtable;
 /*
  * Hook into the message handler.
  */
@@ -77,8 +85,10 @@ char **argv;
 /*
  * Indirect variables.
  */
-	usy_c_indirect (usy_g_stbl ("ui$variable_table"), "dm$config",
-		Cur_config, SYMT_STRING, MAXNAME);
+	vtable = usy_g_stbl ("ui$variable_table");
+	usy_c_indirect (vtable, "dm$config", Cur_config, SYMT_STRING, MAXNAME);
+	usy_c_indirect (vtable, "soundenabled", &SoundEnabled, SYMT_BOOL, 0);
+	usy_daemon (vtable, "soundenabled", SOP_WRITE, SEChange, 0);
 	tty_watch (msg_get_fd (), msg_incoming);
 # ifdef titan
 /*
@@ -195,6 +205,11 @@ struct ui_command *cmds;
 
 	   case DMC_SHUTDOWN:
 	   	dm_shutdown ();
+		break;
+
+	   case DMC_SOUND:
+		if (SoundEnabled)
+		   	DoSound (UPTR (cmds[1]));
 		break;
 
 	   default:
@@ -1208,4 +1223,24 @@ time *when;
 	prt.tr_time = *when;
 	prt.tr_scale = 1;
 	msg_send ("Timer", MT_TIMER, FALSE, &prt, sizeof (prt));
+}
+
+
+
+
+
+
+void
+SEChange (sym, arg, op, oldtype, oldv, newtype, newv)
+char *sym;
+int arg, op, oldtype, newtype;
+SValue *oldv, *newv;
+/*
+ * The SoundEnabled variable has changed.  Ship off the new value to
+ * the sound generator process.
+ */
+{
+	bool send = newv->us_v_int;
+
+	msg_send ("Sound", MT_SOUND, FALSE, &send, 1);
 }
