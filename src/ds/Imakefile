@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.45 1996-11-19 10:59:21 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.46 1996-11-21 18:20:34 granger Exp $"
 
 DEPLIBS=$(LIBZEB)
 LIBMPROF=/dt/granger/libc_mp.a
@@ -138,14 +138,18 @@ CompleteProgramTarget (GRIBdump, $(GDOBJS), $(LIBZEB), $(LIBZEB), $(LIBMATH))
  */
 #if HasHDF
 TestProgramTarget (hdflook, hdflook.o, /**/, $(LIBHDF), /**/)
+SpecialObjectRule (hdflook.o, hdflook.c, $(HDFINCLUDES))
 #endif
 
 APOBJS = apple.o $(TESTMODS)
 TestProgramTarget (apple, $(APOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 
+#ifdef notdef
 TestProgramTarget (nctime, nctime.o, /*DEPLIBS*/, $(LIBNETCDF), /**/)
 SpecialObjectRule(nctime.o,/**/,$(NETCDFINCLUDES))
+#endif
 
+#ifdef NETCDF31
 NC31DIR = /net/src/data-tools/netcdf-3.1a/gcc-g/include
 NC31LIB = /net/src/data-tools/netcdf-3.1a/gcc-g/lib/libnetcdf.a
 NC24DIR = /net/src/data-tools/netcdf-2.4-beta2/gcc-O/include
@@ -177,45 +181,15 @@ nctime24: nctime.o FORCE
 	mv nctime nctime24
 
 FORCE:
-
-#ifdef notdef /* kludges to compile gprof information */
-NC31DIR = /net/src/data-tools/netcdf-3.1a/sunos-5.4
-NC24DIR = /net/src/data-tools/netcdf-2.4-beta2/sunos-5.4
-
-apple31: $(APOBJS) $(DEPLIBS)
-	rm -f apple DFA_NetCDF.o
-	$(MAKE) apple LIBNETCDF=$(NC31DIR)/libnetcdf.a \
-		      EXTRA_LIBRARIES='-lsocket -lnsl -ldl' \
-		      NETCDFINCLUDES=-I$(NC31DIR)
-	mv apple apple31
-
-nctime31: nctime.o
-	rm -f nctime.o
-	$(MAKE) nctime LIBNETCDF=$(NC31DIR)/libnetcdf.a \
-		      EXTRA_LIBRARIES='-lsocket -lnsl -ldl' \
-		      NETCDFINCLUDES=-I$(NC31DIR)
-	mv nctime nctime31
-
-apple24: $(APOBJS) $(DEPLIBS)
-	rm -f apple DFA_NetCDF.o
-	$(MAKE) apple LIBNETCDF=$(NC24DIR)/lib/libnetcdf.a \
-	              NETCDFINCLUDES=-I$(NC24DIR)/include \
-	              EXTRA_LIBRARIES='-lsocket -lnsl -ldl'
-	mv apple apple24
-
-nctime24: nctime.o
-	rm -f nctime.o
-	$(MAKE) nctime LIBNETCDF=$(NC24DIR)/lib/libnetcdf.a \
-	               NETCDFINCLUDES=-I$(NC24DIR)/include \
-	               EXTRA_LIBRARIES='-lsocket -lnsl -ldl'
-	mv nctime nctime24
 #endif
 
 ALOBJS = aline.o ./libZebDS.a
 TestProgramTarget (aline, $(ALOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 
+#ifdef notdef
 THDFOBJS = T_HDF.o ./libZebDS.a
 TestProgramTarget (testhdf, $(THDFOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+#endif
 
 /*
  * We have to use an explicit test rule since we have to start up
@@ -232,8 +206,9 @@ TIMER = $(TOP)/src/timer/timer
 ZSTOP = $(TOP)/src/zstop/zstop
 DSDUMP = $(TOP)/src/dsdump/dsdump
 #endif
-ZEBPROGS = $(MESSAGE) $(TIMER) $(ZSTOP) $(DSDUMP)
+ZPROGS = $(MESSAGE) $(TIMER) $(ZSTOP) $(DSDUMP)
 TESTPROJ = /net/shared/zebra/project/test
+DSCONFIG = perm.config
 DATA_DIR = $(TESTPROJ)/data
 SOCKET = ./test.socket
 INVENTORY = 10
@@ -246,7 +221,7 @@ TESTOUT = > /dev/null 2>&1
 #endif
 ALINE = aline -nconsumers 4 $(DEBUG_FLAG) -period 4 -inventory $(INVENTORY)
 DSDAEMON = ./dsDaemon $(DEBUG_FLAG)
-APPLE = apple $(DEBUG_FLAG)
+APPLE = apple -a -c 2 $(DEBUG_FLAG)
 
 test:: test.session test.aline.only test.apple.only test.close
 
@@ -260,14 +235,14 @@ test.apple: test.apple.only test.close
 	DATA_DIR=$(DATA_DIR); export DATA_DIR; \ 
 
 
-test.session $(SOCKET): $(ZEBPROGS) dsDaemon dsDaemon.lf nstest.config
+test.session $(SOCKET): $(ZPROGS) dsDaemon dsDaemon.lf $(DSCONFIG)
 	TEST_ENV
 	echo "Starting a zebra test session... ZEB_SOCKET=$$ZEB_SOCKET"; \
 	$(ZSTOP) $(TESTOUT); $(RM) $$ZEB_SOCKET; \
 	set -x; \
 	$(MESSAGE) $(TESTOUT) ; \
 	($(TIMER) $(TESTOUT) &); \
-	($(DSDAEMON) nstest.config $(TESTOUT) &); \
+	($(DSDAEMON) $(DSCONFIG) $(TESTOUT) &); \
 	sleep 5; /* give daemon time to connect */
 
 #ifndef LinuxArchitecture

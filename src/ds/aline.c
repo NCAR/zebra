@@ -1,5 +1,5 @@
 /*
- * $Id: aline.c,v 3.10 1996-11-19 09:09:34 granger Exp $
+ * $Id: aline.c,v 3.11 1996-11-21 18:20:37 granger Exp $
  *
  * An 'Assembly Line' test driver for the DataStore.
  *
@@ -214,7 +214,6 @@ char *name;
 		msg_ELPrintMask (EF_INFO | EF_PROBLEM | EF_EMERGENCY);
 	msg_ELog (EF_INFO, "Hello from '%s'", name);
 	strcpy (OurName, name);
-	DefinePlatforms ();
 	for (i = 0; i < NFIELDS; ++i)
 		Fields[i] = F_Lookup(FieldNames[i]);
 	for (i = NFIELDS; i < NFIELDS+10; ++i)
@@ -233,7 +232,7 @@ char *prog;
 	printf (" -znf                   Use ZNF files instead of netCDF\n");
 	printf (" -inventory <number>    Number of samples to produce\n");
 	printf (" -debug                 Verbose debugging output\n");
-	printf (" -write                 Write platform definitions used\n");
+	printf (" -platforms             Show platform definitions used\n");
 	printf (" -blow                  Dump data chunks\n");
 	printf (" -period <seconds>      Fixed delay between productions\n");
 	printf (" -average <seconds>     Average wait between productions\n");
@@ -285,7 +284,7 @@ char **argv;
 			Debug = 1;
 		else if (!strncmp(argv[opt], "-blow", optlen))
 			Blow = 1;
-		else if (!strncmp(argv[opt], "-write", optlen))
+		else if (!strncmp(argv[opt], "-platforms", optlen))
 			WriteClasses = 1;
 		else if (!strncmp(argv[opt], "-znf", optlen))
 			UseZNF = 1;
@@ -351,6 +350,73 @@ char **argv;
 
 
 
+pid_t
+finish (err_in_out)
+int *err_in_out;
+/*
+ * Wait for a child to terminate.  Return the pid of the finished process
+ * and add its exit status to *err.  If there's an error, return -1.
+ */
+{
+	int status;
+	pid_t pid;
+	int err = 0;
+	int i = 0;
+	
+	while (i < 1)
+	{
+		pid = wait(&status);
+		if (pid < 0)
+		{
+			msg_ELog (EF_PROBLEM, "wait() error %d", errno);
+			++err;
+			if (errno == ECHILD)
+				break;
+		}
+		else if (WIFEXITED(status))
+		{
+			msg_ELog (EF_INFO, "child %d exited with status %d",
+				  pid, WEXITSTATUS(status));
+			err += WEXITSTATUS(status);
+			++i;
+		}
+		else if (WIFSTOPPED(status))
+		{
+			msg_ELog (EF_PROBLEM, "child %d stopped: signal %d",
+				  pid, WSTOPSIG(status));
+			++i;
+		}
+#ifdef WIFCONTINUED
+		else if (WIFCONTINUED(status))
+		{
+			msg_ELog (EF_INFO, "child %d continued", pid);
+		}
+#endif
+		else if (WIFSIGNALED(status))
+		{
+			msg_ELog (EF_PROBLEM, "child %d %s: signal %d",
+				  pid, 
+#ifdef WCOREDUMP
+				  WCOREDUMP(status) ? "dumped core" :
+#endif
+				  "terminated", 
+				  WTERMSIG(status));
+			++err;
+			++i;
+		}
+		else
+		{
+			msg_ELog (EF_PROBLEM, "unknown child state");
+			++err;
+		}
+	}
+	*err_in_out += err;
+	return ((i < 1) ? (pid_t)-1 : pid);
+}
+
+	
+
+
 /*ARGSUSED*/
 int
 main (argc, argv)
@@ -360,6 +426,7 @@ main (argc, argv)
 	int i;
 	char name[20];
 	int nconsumers;
+	int pid;
 	PlatformId platid;
 	ZebTime now;
 #ifdef DEBUGGER
@@ -392,6 +459,27 @@ main (argc, argv)
 	}
 
 	/*
+	 * Fork a process to do the definitions.
+	 */
+	if ((pid = fork()) == 0)
+	{
+		Init ("Websters");
+		DefinePlatforms ();
+		msg_disconnect ();
+		exit (0);
+	}
+	else if (pid < 0)
+	{
+		fprintf (stderr, "fork of platform defn child failed\n");
+		exit (1);
+	}
+	if (finish (&err) < 0)
+	{
+		fprintf (stderr, "platform defn exited abnormally\n");
+		exit (1);
+	}
+
+	/*
 	 * To fork multiple producers/consumers: the parent will be the
 	 * First producer, and it creates the child consumers.
 	 */
@@ -399,7 +487,6 @@ main (argc, argv)
 	i = 0;
 	while (i < nconsumers)
 	{
-		int pid;
 		if ((pid = fork()) == 0)
 		{
 			/*
@@ -440,8 +527,8 @@ main (argc, argv)
 	Init("Producer");
 	if (WriteClasses)
 	{
-		ds_ShowPlatformClass(stdout, ds_LookupClass(NetcdfClass));
-		ds_ShowPlatformClass(stdout, ds_LookupClass(ZebraClass));
+		ds_ShowPlatformClass (stdout, ds_LookupClass(NetcdfClass));
+		ds_ShowPlatformClass (stdout, ds_LookupClass(ZebraClass));
 	}
 
 	/*
@@ -597,52 +684,9 @@ int nconsumers;
 	i = 0;
 	while (i < nconsumers)
 	{
-		int status;
-		int pid;
-
-		pid = wait(&status);
-		if (pid < 0)
-		{
-			if (errno == ECHILD)
-				break;
-			msg_ELog (EF_PROBLEM, "wait() error %d", errno);
-		}
-		else if (WIFEXITED(status))
-		{
-			msg_ELog (EF_INFO, "child %d exited with status %d",
-				  pid, WEXITSTATUS(status));
-			err += WEXITSTATUS(status);
-			++i;
-		}
-		else if (WIFSTOPPED(status))
-		{
-			msg_ELog (EF_PROBLEM, "child %d stopped: signal %d",
-				  pid, WSTOPSIG(status));
-			++i;
-		}
-#ifdef WIFCONTINUED
-		else if (WIFCONTINUED(status))
-		{
-			msg_ELog (EF_INFO, "child %d continued", pid);
-		}
-#endif
-		else if (WIFSIGNALED(status))
-		{
-			msg_ELog (EF_PROBLEM, "child %d %s: signal %d",
-				  pid, 
-#ifdef WCOREDUMP
-				  WCOREDUMP(status) ? "dumped core" :
-#endif
-				  "terminated", 
-				  WTERMSIG(status));
-			++err;
-			++i;
-		}
-		else
-		{
-			msg_ELog (EF_PROBLEM, "unknown child state");
-			++err;
-		}
+		if (finish (&err) < 0)
+			break;
+		++i;
 	}
 	msg_ELog (EF_INFO,
 		  "Consumer children have terminated, %d errors.", err);
