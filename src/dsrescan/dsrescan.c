@@ -18,13 +18,15 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: dsrescan.c,v 1.4 1993-11-30 23:32:59 granger Exp $";
+static char *rcsid = "$Id: dsrescan.c,v 1.5 1994-01-13 00:51:29 granger Exp $";
 
 # include "defs.h"
 # include "message.h"
 # include <copyright.h>
 # include "DataStore.h"
 
+
+#ifdef notdef	/* do we need this if we don't call getenv()? */
 /*
  * The standard C test prevents conflicts with correctly-prototyped GNU C
  * include files, and hopefully any other ANSI C compilers with ANSI-compliant
@@ -33,20 +35,46 @@ static char *rcsid = "$Id: dsrescan.c,v 1.4 1993-11-30 23:32:59 granger Exp $";
 #if ! defined(SVR4) && ! defined (SYSV) && ! defined (__STDC__)
 extern char *getenv FP((char *));
 #endif
+#endif
+
+
+void
+usage (prog)
+char *prog;
+{
+	printf ("Usage: %s -all\n", prog);
+	printf ("Usage: %s regexp [regexp ...]\n", prog);
+	printf ("   Rescan all platforms or only those matching the given");
+	printf ("   regular expressions.\n");
+	printf ("   -all   \tRescan all platforms\n");
+	printf ("Usage: %s [-remote] -file <filename> platform\n", prog);
+	printf ("   Scan a new file in the named platform.\n");
+	printf ("   -remote\tThe file is in the platform's remote dir\n");
+	printf ("   -file  \tSpecify the name of the file\n");
+	printf ("   Options can be abbreviated to any number of letters.\n");
+}
+
+
 
 main (argc, argv)
 int argc;
 char **argv;
 {
 	PlatformId plat;
-	int all = 0;
+	PlatformId *plist;
+	int all = FALSE;
+	int fileonly = FALSE;
+	int remote = FALSE;
 	char pname[50];
+	char *filename;
+	char **platname = NULL;
+	int i, j, p, nplat;
 /*
  * Check args.
  */
-	if (argc != 2)
+	if (argc < 2)
 	{
-		printf ("Usage: %s platform | ALL\n", argv[0]);
+		usage (argv[0]);
 		exit (1);
 	}
 /*
@@ -59,13 +87,76 @@ char **argv;
 /*
  * Figure out the params, then do the dirty work.
  */
-	if (! strcmp (argv[1], "all") || ! strcmp (argv[1], "ALL"))
+	if ((strlen (argv[1]) >= 2)
+	    && !strncmp (argv[1], "-all", strlen(argv[1])))
 		all = TRUE;
-	else if ((plat = ds_LookupPlatform (argv[1])) == BadPlatform)
+	else
 	{
-		printf ("Unknown platform: '%s'\n", argv[1]);
-		exit (1);
+		p = 0;
+		platname = (char **)malloc(argc*sizeof(char *));
+		for (i = 1; i < argc; ++i)
+		{
+			if ((argv[i][0] != '-') || (strlen(argv[i]) < 2))
+				platname[p++] = argv[i];
+			else if (!strncmp(argv[i],"-remote",strlen(argv[i])))
+				remote = TRUE;
+			else if (!strncmp(argv[i],"-file",strlen(argv[i])))
+			{
+				fileonly = TRUE;
+				if (i+1 < argc)
+					filename = argv[++i];
+				else
+				{
+					printf("%s: filename required\n",
+					       argv[0]);
+					usage(argv[0]);
+					exit(2);
+				}
+			}
+		}
 	}
-	ds_ForceRescan (plat, all);
+
+	if (all)
+		ds_ForceRescan (BadPlatform, TRUE);
+	else if (fileonly)
+	{
+		if (p != 1)
+		{
+			printf ("%s for adding file\n", (p < 1) ?
+				"need 1 platform" : "too many platforms");
+			usage (argv[0]);
+			exit(3);
+		}
+		plat = ds_LookupPlatform (platname[0]);
+		if (plat == BadPlatform)
+		{
+			printf ("%s: bad platform\n", platname[0]);
+			usage(argv[0]);
+			exit (4);
+		}
+		ds_ScanFile (plat, filename, remote ? FALSE : TRUE);
+	}
+	else
+	{
+		for (i = 0; i < p; ++i)
+		{
+			plist = ds_SearchPlatforms (platname[i], &nplat, 
+						    FALSE, FALSE);
+			if (plist == NULL)
+				printf ("No matches for '%s'\n",
+					platname[i]);
+			else
+			{
+				for (j = 0; j < nplat; ++j)
+				{
+					ds_ForceRescan (plist[j], FALSE);
+				}
+				free (plist);
+			}
+		}
+	}
+	if (platname)
+		free (platname);
+
 	exit (0);
 }
