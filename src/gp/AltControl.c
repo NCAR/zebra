@@ -41,7 +41,7 @@
  */
 int	AltControlComp;
 
-MAKE_RCSID("$Id: AltControl.c,v 2.23 1997-05-14 00:38:19 granger Exp $")
+MAKE_RCSID("$Id: AltControl.c,v 2.24 1998-09-22 22:04:28 burghart Exp $")
 
 #define MAXALT		80	/* Max heights we expect to see		*/
 
@@ -240,7 +240,7 @@ int nstep;
 	float alts[MAXALT];
 	char platform[PlatformListLen];
 	char *comma;
-	char field[40], **comps = pd_CompList (Pd), scratch[40];
+	char field[80], **comps = pd_CompList (Pd), scratch[40];
 	FieldId fid;
 	PlatformId pid;
 	AltUnitType altunits;
