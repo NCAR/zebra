@@ -20,6 +20,8 @@
  */
 
 # include <stdio.h>
+# include <sys/types.h>
+# include <fcntl.h>
 # include <unistd.h>
 # include <errno.h>
 
@@ -28,7 +30,7 @@
 # include <message.h>
 # include "RasterFile.h"
 
-RCSID("$Id: rfdump.c,v 2.9 1999-10-29 22:41:07 granger Exp $")
+RCSID("$Id: rfdump.c,v 2.10 1999-11-04 17:22:41 granger Exp $")
 
 
 typedef struct s_RFile
