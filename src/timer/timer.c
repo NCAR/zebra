@@ -1,7 +1,8 @@
 /*
  * The timer process.
  */
-static char *rcsid = "$Id: timer.c,v 1.1 1990-04-18 16:03:23 corbet Exp $";
+static char *rcsid = "$Id: timer.c,v 1.2 1990-04-18 16:06:51 corbet Exp $";
+char *Version = "$Revision: 1.2 $ $Date: 1990-04-18 16:06:51 $";
 
 # include <sys/types.h>
 # include <sys/time.h>
@@ -57,7 +58,10 @@ main ()
  */
 	msg_connect (msg_handler, TIMER_PROC_NAME);
 	msg_join ("Client events");
-
+/*
+ * Log a message telling the world we're here.
+ */
+	msg_log ("--- Timer process version %s", Version);
 # ifdef notdef
 /*
  * Arrange for our alarm signal handler.
@@ -569,7 +573,7 @@ char *who;
  */
 	ts->tm_type = TRR_STATUS;
 	CvtSysToFcc (GetTime (), &ts->tm_time);
-	sprintf (cp, "Timer module version %s\n", rcsid);
+	sprintf (cp, "Timer module version %s\n", Version);
 	cp += strlen (cp);
 /*
  * Now add each queue entry.
