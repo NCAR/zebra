@@ -1,4 +1,4 @@
-/* $Id: message.h,v 1.10 1991-05-30 17:40:25 corbet Exp $ */
+/* $Id: message.h,v 1.11 1991-06-06 23:40:45 corbet Exp $ */
 /*
  * Message protocol types.
  */
@@ -25,6 +25,7 @@
 # define MH_STATS	-6	/* Message handler stats.		*/
 # define MH_DIE 	-99	/* Kill the server -- use with care!	*/
 # define MH_SHUTDOWN	-100	/* Server is shutting down		*/
+
 /*
  * Various client-related events, sent to the "Client events" group.
  */
@@ -136,6 +137,7 @@ struct msg_elog
  * The name of the message (unix domain) socket.
  */
 # define UN_SOCKET_NAME		"/tmp/fcc.socket"
+
 /*
  * The name of the event manager.
  */
@@ -170,4 +172,18 @@ struct msg_elog
 	int msg_await ();
 	int msg_Search ();
 	void msg_AddProtoHandler ();
+# endif
+
+
+/*
+ * Network broadcast stuff below.
+ */
+# define MAXBCAST 1500
+
+# ifdef __STDC__
+	void	msg_BCast (int, void *, int);
+	int	msg_BCSetup (int, int, int (*) ());
+# else
+	void	msg_BCast ();
+	int	msg_BCSetup ();
 # endif
