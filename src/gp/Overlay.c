@@ -1,7 +1,7 @@
 /*
  * Deal with static (or almost static) overlays.
  */
-static char *rcsid = "$Id: Overlay.c,v 2.5 1991-11-22 20:53:27 kris Exp $";
+static char *rcsid = "$Id: Overlay.c,v 2.6 1991-12-13 15:37:19 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -684,7 +684,7 @@ bool update;
 /*
  * Color information.
  */
-	if (! pda_Search (Pd, comp, "color", "overlay", color, SYMT_STRING))
+	if (! pda_Search (Pd, comp, "color", "map", color, SYMT_STRING))
 		strcpy (color, "white");
 /*
  * Graphics context stuff.
@@ -1145,14 +1145,14 @@ float *asize;
 /*
  * Labeling
  */
-	if (! pda_Search (Pd, comp, "label", "location", label, SYMT_STRING) ||
+	if (! pda_Search (Pd, comp, "label", "boundary", label, SYMT_STRING) ||
 			! strcmp (label, "platform"))
 		*opt = LabelPlatform;
 	else if (! strcmp (label, "none"))
 		*opt = NoLabel;
 	else
 		*opt = LabelString;
-	if (*opt != NoLabel && ! pda_Search(Pd, comp, "label-size","location", 
+	if (*opt != NoLabel && ! pda_Search(Pd, comp, "label-size","boundary", 
 			(char *) asize, SYMT_FLOAT))
 		*asize = 0.015;
 	return (TRUE);
