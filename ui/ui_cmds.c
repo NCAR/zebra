@@ -12,7 +12,7 @@
 # include "ui_mode.h"
 # include "ui_cstack.h"
 
-static char *Rcsid = "$Id: ui_cmds.c,v 1.11 1992-01-29 21:47:48 corbet Exp $";
+static char *Rcsid = "$Id: ui_cmds.c,v 1.12 1992-01-30 21:08:27 corbet Exp $";
 
 # ifdef VMS
 # define HELPDIR "ui_help:"
@@ -51,8 +51,10 @@ bool local;
 	}
 	else
 	{
+# ifdef notdef
 		if (cmds[1].uc_vptype == SYMT_STRING)
 			uip_dequote (UPTR (cmds[1]));
+# endif
 		usy_s_symbol (dest, cmds->uc_v.us_v_ptr,
 				cmds[1].uc_vptype, &cmds[1].uc_v);
 	}
