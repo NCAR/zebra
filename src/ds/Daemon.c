@@ -32,32 +32,22 @@
 # include <stdio.h>
 # include <unistd.h>
 
-# include <copyright.h>
+# include <ui.h>
 # include <config.h>
 # include <defs.h>
 # include <message.h>
 # include <timer.h>
 # include <zl_regex.h>
+
 # include "DataStore.h"
 # include "dsPrivate.h"
+# include "Platforms.h"
 # include "dslib.h"
 # include "dfa.h"
 # include "dsDaemon.h"
 # include "commands.h"
 
-MAKE_RCSID ("$Id: Daemon.c,v 3.57 1996-08-22 01:38:27 granger Exp $")
-
-
-/*
- * Used to pass search criteria and message structures to the
- * matching function during a symbol table traverse
- */
-struct SearchInfo {
-	struct dsp_PlatformSearch *si_req;
-	struct dsp_PlatformList *si_list;
-	char *si_to;
-};
-
+RCSID ("$Id: Daemon.c,v 3.58 1996-11-19 09:08:18 granger Exp $")
 
 /*
  * Local forwards.
@@ -68,7 +58,7 @@ static void	OverrideSettings FP ((int argc, char **argv));
 static int 	msg_Handler FP ((struct message *));
 static int	ui_Handler FP ((int, struct ui_command *));
 static void	mh_message FP ((struct message *));
-static void	ds_message FP ((char *, struct dsp_Template *));
+static void	ds_message FP ((char *, struct dsp_Template *, int len));
 static void	dp_NewFile FP ((char *, struct dsp_CreateFile *));
 static void	dp_AbortNewFile FP ((struct dsp_AbortNewFile *));
 static void	dp_UpdateFile FP ((char *, struct dsp_UpdateFile *));
@@ -85,6 +75,7 @@ static void	BCSetup FP ((char *, int));
 static void	RemDataGone FP ((struct dsp_BCDataGone *));
 static void 	SendNPlat FP ((char *));
 static void	SendPlatStruct FP ((char *, struct dsp_GetPlatStruct *));
+static void	SendClassStruct FP ((char *, struct dsp_GetPlatStruct *));
 static void	SendPlatformList FP ((char *, struct dsp_PlatformSearch *));
 static int 	MatchPlatform FP ((char *symbol, int type,
 				   union usy_value *value,
@@ -94,12 +85,21 @@ static void	LockPlatform FP ((char *, PlatformId));
 static void	UnlockPlatform FP ((char *, PlatformId, int));
 static void	WriteLock FP ((char *, PlatformId));
 static void	ReleaseWLock FP ((char *, PlatformId, int));
+static void	CleanClientLocks FP ((char *who));
+static int	CleanQueue FP ((Lock **q, char *who));
 static int	AwaitUnlock FP ((Message *, int));
 static Lock	*GetLockEntry FP ((void));
 static void	DoLookup FP ((char *, char *));
+static void	DoClassLookup FP ((char *who, char *name));
 static void	FindDF FP ((char *, struct dsp_FindDF *));
 static void	FindAfter FP ((char *, struct dsp_FindDF *));
 static int	NewRevision FP ((Platform *plat, DataFile *df));
+static void	ClientDefine FP ((char *who, struct dsp_ClassStruct *, int));
+#ifdef notdef
+static void	ClientAddSubplat FP ((PlatClassId id, SubPlatform *sp));
+#endif
+static void	ClientInstance FP ((char *who, PlatClassId cid, char *name,
+				    PlatformId parent));
 
 
 /*
@@ -154,15 +154,8 @@ int DFTableSize = 2000;	/* Data file table size		*/
 int DFTableGrow = 500;	/* Amount to grow by		*/
 
 /*
- * Default data directory.
- */
-char DefDataDir[DDIR_LEN];
-char RemDataDir[DDIR_LEN];
-
-/*
  * Other options
  */
-bool DisableRemote = FALSE;	/* Disable use of remote directories 	*/
 bool StatRevisions = TRUE;	/* Use stat() calls to get revision 
 				   numbers, rather than using a counter	*/
 
@@ -197,6 +190,8 @@ char *prog;
 	printf("   -help       Show this usage message\n");
 	printf("   -parse      Parse config files and exit\n");
 	printf("   -debug      Print log messages\n");
+	printf("   -version    Print version information\n");
+	printf("   -copyright  Print copyright information\n");
 	printf("variables: \n");
 	printf("   name=value  Override config file variable\n");
 	printf("initfile: \n");
@@ -236,6 +231,21 @@ char **argv;
 			usage (argv[0]);
 			exit (0);
 		}
+		else if (Match (argv[i], "-version"))
+		{
+			printf ("%s%s", Z_version(), Z_cppsymbols());
+			printf ("%s", Z_rcsid());
+			printf ("DataStore protocol version: %#0x\n",
+				DSProtocolVersion);
+			printf ("Message protocol version: %s\n",
+				MSG_PROTO_VERSION);
+			exit (0);
+		}
+		else if (Match (argv[i], "-copyright"))
+		{
+			printf ("%s", Z_copyright());
+			exit (0);
+		}
 		/* variable settings and init files handled later */
 	}
 /*
@@ -268,8 +278,7 @@ char **argv;
  * Initialize.
  */
 	vtable = usy_g_stbl ("ui$variable_table");
-	strcpy (DefDataDir, GetDataDir());
-	RemDataDir[0] = '\0';
+	dt_InitDirectories ();
 	usy_c_indirect (vtable, "datadir", DefDataDir, SYMT_STRING, DDIR_LEN);
 	usy_c_indirect (vtable, "remdatadir", RemDataDir, SYMT_STRING,
 			DDIR_LEN);
@@ -284,7 +293,11 @@ char **argv;
 	usy_c_indirect (vtable, "CacheOnExit", &CacheOnExit, SYMT_BOOL, 0);
 	usy_c_indirect (vtable, "DelayDataDirs", &DelayDataDirs, SYMT_BOOL, 0);
 /*
- * Indirects for the tables too.
+ * Make DefaultKeep from Platforms.c accessible.
+ */
+	usy_c_indirect (vtable, "DefaultKeep", &DefaultKeep, SYMT_INT, 0);
+/*
+ * Indirects for the table parameters too.
  */
 	usy_c_indirect (vtable, "PTableSize", &PTableSize, SYMT_INT, 0);
 	usy_c_indirect (vtable, "PTableGrow", &PTableGrow, SYMT_INT, 0);
@@ -295,9 +308,9 @@ char **argv;
 /*
  * Other initialization.
  */
+	F_Init ();
 	dap_Init ();
 	uf_def_function ("freespace", 1, &argt, FreeSpace);
-	F_Init ();
 /*
  * Enter the initial command state, from where the ui$init procedure calls
  * our StartInit() hook.
@@ -406,7 +419,7 @@ FinishInit ()
 /*
  * Perform the file scan to see what is out there.
  */
-	msg_ELog (EF_INFO, "Starting file scan");
+	msg_ELog (EF_INFO, "Starting file scan (%s)", DefDataDir);
 	tl_Time (&t1);
 	DataScan ();
 	tl_Time (&t2);
@@ -452,7 +465,8 @@ struct message *msg;
 	 * The really interesting stuff -- datastore protocol.
 	 */
 	   case MT_DATASTORE:
-	   	ds_message (msg->m_from, (struct dsp_Template *) msg->m_data);
+	   	ds_message (msg->m_from, (struct dsp_Template *) msg->m_data,
+			    msg->m_len);
 		break;
 	}
 	return (0);
@@ -562,7 +576,13 @@ struct ui_command *cmds;
 	 * Write out cache files.
 	 */
 	   case DK_CACHE:
-	   	WriteCache (cmds + 1);
+		/* dirty option overrides unified cache file name */
+		if (cmds[1].uc_ctype == UTT_END)
+			WriteCache (NULL, FALSE);
+		else if (cmds[1].uc_ctype == UTT_KW)
+			WriteCache (NULL, TRUE);
+		else
+			WriteCache (UPTR (cmds[1]), FALSE);
 		break;
 	/*
 	 * Force a rescan
@@ -680,7 +700,6 @@ struct message *msg;
 {
 	struct mh_template *tm = (struct mh_template *) msg->m_data;
 	struct mh_client *client;
-	int i;
 
 	switch (tm->mh_type)
 	{
@@ -689,7 +708,7 @@ struct message *msg;
 	 * Don't write cache files if we haven't finished scanning
 	 */
 		if (! InitialScan && CacheOnExit)
-			WriteCache (0);
+			WriteCache (NULL, FALSE);
 		printf ("%s: normal shutdown\n", msg_myname() );
 		Shutdown ();
 		/* no return */
@@ -702,13 +721,7 @@ struct message *msg;
 		if (client->mh_evtype == MH_CE_DISCONNECT)
 		{
 			dap_Cancel (client->mh_client);
-			for (i = 0; i < NPlatform; i++)
-			{
-				if (PTable[i].dp_RLockQ)
-					UnlockPlatform (client->mh_client,i,0);
-				if (PTable[i].dp_WLockQ)
-					ReleaseWLock (client->mh_client,i,0);
-			}
+			CleanClientLocks (client->mh_client);
 		}
 		break;
 
@@ -722,15 +735,17 @@ struct message *msg;
 
 
 static void
-ds_message (from, dt)
+ds_message (from, dt, len)
 char *from;
 struct dsp_Template *dt;
+int len;
 /*
  * Deal with an incoming data store protocol message.
  */
 {
 	struct dsp_MarkArchived *dma;
 	struct dsp_ProtoVersion dpv;
+	struct dsp_Instance *im;
 
 	switch (dt->dsp_type)
 	{
@@ -833,6 +848,15 @@ struct dsp_Template *dt;
 	   	DoLookup (from, ((struct dsp_PLookup *) dt)->dsp_name);
 		break;
 	/*
+	 * Class lookup.
+	 */
+	   case dpt_LookupClass:
+	   	DoClassLookup (from, ((struct dsp_PLookup *) dt)->dsp_name);
+		break;
+	   case dpt_GetClassStruct:
+	   	SendClassStruct (from, ((struct dsp_GetPlatStruct *) dt));
+		break;
+	/*
 	 * Find a data file based on time.
 	 */
 	   case dpt_FindDF:
@@ -848,6 +872,23 @@ struct dsp_Template *dt;
 	   	dpv.dsp_type = dpt_R_ProtoVersion;
 		dpv.dsp_version = DSProtocolVersion;
 		msg_send (from, MT_DATASTORE, FALSE, &dpv, sizeof (dpv));
+		break;
+	/*
+	 * Definitions and instances
+	 */
+	   case dpt_DefineClass:
+		ClientDefine (from, (struct dsp_ClassStruct *) dt, len);
+		break;
+#ifdef notdef
+	   case dpt_AddSubplat:
+		asp = (struct dsp_AddSubplat *)dt;
+		ClientAddSubplat (asp->dsp_class, &asp->dsp_subplat);
+		break;
+#endif
+	   case dpt_Instantiate:
+		im = (struct dsp_Instance *) dt;
+		ClientInstance (from, im->dsp_class, im->dsp_name, 
+				im->dsp_parent);
 		break;
 	/*
 	 * Chaos.
@@ -885,7 +926,8 @@ struct dsp_CreateFile *request;
  * Make sure the platform directory exists, and if not try to create it.
  * If we can't create it then we must abort the new file.
  */
-	else if (! pi_DirExists (pi) && ! CreateDataDir (pi))
+	else if (! pi_DirExists (pi) && 
+		 ! dt_CreateDataDir (pi_Dir(pi), pi_Name(pi), &pi->dp_flags))
 	{
 		msg_ELog (EF_PROBLEM, "Cannot create %s datadir for new file",
 			  pi->dp_name);
@@ -960,6 +1002,7 @@ struct dsp_UpdateFile *request;
 	Platform *plat = PTable + df->df_platform;
 	int recent;
 	int append = FALSE;
+	int newfile = FALSE;
 	struct dsp_FileStruct ack;
 /*
  * Mark the changes in the datafile entry.  Update the rev count so that
@@ -986,8 +1029,7 @@ struct dsp_UpdateFile *request;
 		    	append = TRUE;
 	}
 /*
- * Get a new revision for the file.  This will be the revision noted by the
- * client in the DFA.
+ * Get a new revision for the file.
  */
 	df->df_rev = NewRevision (plat, df);
 	df->df_nsample += request->dsp_NSamples;
@@ -1005,6 +1047,7 @@ struct dsp_UpdateFile *request;
 	{
 		plat->dp_Tfile = 0;
 		dt_AddToPlatform (plat, df, (bool)request->dsp_Local);
+		newfile = TRUE;
 	}
 /*
  * Where last=TRUE, the client ends up receiving the DFE twice.  Send the
@@ -1012,8 +1055,11 @@ struct dsp_UpdateFile *request;
  * process it before its UpdateAck message.  The other clients won't be
  * affected by receiving the invalidate here rather than after sending
  * the UpdateAck to the client with the write lock.
+ *
+ * And of course, if this is a new file its kind of pointless to invalidate
+ * its cached entries.
  */
-	if (request->dsp_Last)
+	if (request->dsp_Last && !newfile)
 	{
 		CacheInvalidate (df - DFTable);
 	}
@@ -1029,7 +1075,7 @@ struct dsp_UpdateFile *request;
 	if (request->dsp_Last)
 	{
 		dap_Notify (df->df_platform, &df->df_end, plat->dp_NewSamps,
-				plat->dp_OwSamps, append);
+			    plat->dp_OwSamps, append);
 		plat->dp_NewSamps = plat->dp_OwSamps = 0;
 	}
 }
@@ -1112,7 +1158,7 @@ ZebTime *t;
 {
 	int index;
 	Platform *p;
-	DataFile *df;
+	DataFile *df = NULL;
 
 	if (pid < 0 || pid >= NPlatform)
 	{
@@ -1200,7 +1246,7 @@ struct dsp_BCDataGone *dg;
 /*
  * Make sure this is a platform we know about.
  */
-	if ((plat = dt_FindPlatform (dg->dsp_Plat, TRUE)) == 0)
+	if ((plat = dt_FindPlatform (dg->dsp_Plat)) == 0)
 		return;
 /*
  * Construct the file name from our perspective.
@@ -1297,7 +1343,7 @@ struct ui_command *cmds;
 	all = (cmds[0].uc_ctype == UTT_END) || (cmds[0].uc_ctype == UTT_KW);
 	if (! all)
 	{
-		plat = dt_FindPlatform (UPTR (cmds[0]), FALSE);
+		plat = dt_FindPlatform (UPTR (cmds[0]));
 		if (plat)
 			platid = plat - PTable;
 		else
@@ -1365,7 +1411,7 @@ struct ui_command *cmds;
 	tl_Time (&now);
 	if (cmds[1].uc_ctype != UTT_KW)
 	{
-		if (! (p = dt_FindPlatform (UPTR (cmds[1]), FALSE)))
+		if (! (p = dt_FindPlatform (UPTR (cmds[1]))))
 			msg_ELog (EF_PROBLEM, "TRUNCATE on bad platform %s",
 				UPTR (cmds[1]));
 		else
@@ -1455,8 +1501,47 @@ struct dsp_GetPlatStruct *req;
 	struct dsp_PlatStruct answer;
 
 	answer.dsp_type = dpt_R_PlatStruct;
-	dt_ClientPlatform (PTable + req->dsp_pid, &answer.dsp_plat);
+	answer.dsp_pid = req->dsp_pid;
+	if (dt_CheckId (req->dsp_pid))
+	{
+		dt_ClientPlatform (PTable + req->dsp_pid, &answer.dsp_plat);
+		answer.dsp_result = 1;
+	}
+	else
+	{
+		answer.dsp_result = 0;
+	}
 	msg_send (to, MT_DATASTORE, FALSE, &answer, sizeof (answer));
+}
+
+
+
+
+static void
+SendClassStruct (to, req)
+char *to;
+struct dsp_GetPlatStruct *req;
+/*
+ * Answer this platform class structure request.
+ */
+{
+	struct dsp_ClassStruct *answer, am;
+	int len = sizeof (struct dsp_ClassStruct);
+	
+	answer = &am;
+	answer->dsp_result = 0;
+	if (dt_CheckClassId (req->dsp_pid))
+	{
+		PlatformClass *pc = CTable + req->dsp_pid;
+
+		answer = dt_InjectClass (pc, &am, &len);
+		answer->dsp_result = 1;
+	}
+	answer->dsp_type = dpt_R_ClassStruct;
+	answer->dsp_cid = req->dsp_pid;
+	msg_send (to, MT_DATASTORE, FALSE, answer, len);
+	if (answer != &am)
+		free (answer);
 }
 
 
@@ -1471,8 +1556,7 @@ struct dsp_PlatformSearch *req;
  */
 {
 	struct dsp_PlatformList *answer;
-	struct SearchInfo info;
-	char *re_result;
+	int npids;
 	int len;
 /*
  * Create space for all possible matches, but we'll send only as many as we
@@ -1483,42 +1567,36 @@ struct dsp_PlatformSearch *req;
 		(sizeof(PlatformId) * (NPlatform - 1)); 
 	answer = (struct dsp_PlatformList *) malloc (len);
 	answer->dsp_type = dpt_R_PlatformSearch;
-	answer->dsp_npids = 0;
+
+	dt_SearchPlatforms (MatchPlatform, req, answer->dsp_pids, &npids);
+	answer->dsp_npids = npids;
 /*
- * Store the info for the search so that the matching function can use it
+ * Send the structures back if requested
  */
-	info.si_req = req;
-	info.si_list = answer;
-	info.si_to = to;
-/*
- * Prepare our regexp, if there is one.  If there isn't, we match everything
- */
-	re_result = NULL;
-	if (req->dsp_regexp[0])
+	if (req->dsp_sendplats)
 	{
-		re_result = zl_re_comp (req->dsp_regexp);
-		if (re_result)
-			msg_ELog (EF_PROBLEM, "PlatformSearch, '%s': %s",
-				  req->dsp_regexp, re_result);
-	}
-/*
- * Now loop through all of our platforms and test each one, skipping
- * all of the duplicate, parent-qualified subplatform names.
- */
-	if (re_result == NULL)
-	{
-		dt_SearchPlatforms (MatchPlatform, (void *)&info, 
-				    req->dsp_alphabet, /*regexp*/ NULL);
+		struct dsp_PlatStructSearch send;
+		int i;
+
+		for (i = 0; i < npids; ++i)
+		{
+			Platform *plat = PTable + answer->dsp_pids[i];
+			send.dsp_type = dpt_R_PlatStructSearch;
+			dt_ClientPlatform (plat, &send.dsp_plat);
+			send.dsp_pid = answer->dsp_pids[i];
+			msg_send (to, MT_DATASTORE, FALSE, 
+				  &send, sizeof (send));
+		}
 	}
 /*
  * The response has been filled or left empty.  Send it off.
  */
 	len = sizeof (struct dsp_PlatformList);
-	len += (answer->dsp_npids <= 1) ? (0) :
-		(answer->dsp_npids - 1) * sizeof(PlatformId);
+	len += (npids <= 1) ? (0) : (npids - 1) * sizeof(PlatformId);
 	msg_send (to, MT_DATASTORE, FALSE, answer, len);
 	free (answer);
 }
+
 
 
 
@@ -1530,30 +1608,19 @@ union usy_value *value;
 struct SearchInfo *info;
 /*
  * Use the request structure to see if there is a match with this
- * platform.  If we're sending along structures of the matches, then
- * do so here.  At the least we add the ID of a match to the
- * PlatformList answer.
+ * platform.
  */
 {
-	PlatformId *pids;
-	int len;
 	Platform *plat = (Platform *) value->us_v_ptr;
-	struct dsp_PlatformList *answer = info->si_list;
 	struct dsp_PlatformSearch *req = info->si_req;
 /*
- * Always skip subplatform symbols with parent qualifiers in the name,
- * or regular platforms where the symbol does not match the name (meaning
- * the name had slashes without actually being defined as a subplatform).
- * A comparison of length should suffice to match symbol to name.
- * strcmp won't work if the name has upper-case letters in it, since the
- * symbol will be all lower case.
+ * The platform name table contains lots of abbreviated symbols which are
+ * not the fully qualified hierarchical name, but the full hierarchical
+ * name is the only symbol guaranteed to be unique.  So, categorically skip
+ * all those symbols whose lengths do not equal the length of the fully
+ * qualified name.
  */
-	if (pi_Subplatform(plat))
-	{
-		if (strchr (symbol, '/'))
-			return (TRUE);
-	}
-	else if (strlen(plat->dp_name) != strlen(symbol))
+	if (strlen(plat->dp_name) != strlen(symbol))
 		return (TRUE);
 /*
  * Ignore subplatforms if so requested
@@ -1562,39 +1629,24 @@ struct SearchInfo *info;
 		return (TRUE);
 /*
  * If we're looking for subplatforms of a particular parent, ignore
- * all other platforms.
+ * all other platforms.  We don't care whether the platform has the
+ * DPF_SUBPLATFORM flag set, we just care about who the parent is.
  */
-	if ((req->dsp_children) && (! pi_Subplatform(plat)
-	    || (plat->dp_parent != req->dsp_parent)))
+	if ((req->dsp_children) && (plat->dp_parent != req->dsp_parent))
 		return (TRUE);
-
-	pids = answer->dsp_pids;
-	len = strlen(plat->dp_name);
 /*
  * The last remaining check is the regular expression, if there is one
  */
 	if ((req->dsp_regexp[0] == '\0') || (zl_re_exec (plat->dp_name)))
 	{
-		struct dsp_PlatStructSearch send;
-
-		pids[(answer->dsp_npids)++] = (plat - PTable);
-	/*
-	 * Send this structure back if requested
-	 */
-		if (req->dsp_sendplats)
-		{
-			send.dsp_type = dpt_R_PlatStructSearch;
-			dt_ClientPlatform (plat, &send.dsp_plat);
-			send.dsp_pid = plat - PTable;
-			msg_send (info->si_to, MT_DATASTORE, FALSE, 
-				  &send, sizeof (send));
-		}
+		info->si_pids[(info->si_npids)++] = (plat - PTable);
 	}
 /*
  * Done testing this platform
  */
 	return (TRUE);
 }
+
 
 
 
@@ -1645,7 +1697,7 @@ PlatformId which;
  */
 {
 	Lock *lp;
-	Platform *p = PTable + which;
+	Platform *p;
 	struct dsp_PLock answer;
 /*
  * Do some testing for a case we are not prepared to handle.  Multiple locks
@@ -1653,12 +1705,13 @@ PlatformId which;
  * times.  But if the daemon is waiting for an unlock on this platform, 
  * things will hang.
  */
-	if ((which < 0) || (which >= NPlatform))
+	if (! dt_CheckId (which))
 	{
 		msg_ELog (EF_PROBLEM, 
 			  "Read lock attempt for invalid plat id %d", which);
 		return;
 	}
+	p = PTable + which;
 	++ReadLockRequests;
 	msg_ELog (EF_DEBUG, "Read lock on %s by %s", p->dp_name, who);
 	for (lp = p->dp_RLockQ; lp; lp = lp->l_Next)
@@ -1694,22 +1747,24 @@ char *who;
 PlatformId which;
 int expect;
 /*
- * Release a lock on this platform.
+ * Release a lock on this platform.  EXPECT is non-zero if we're expecting to
+ * find and remove one lock for this client.  If EXPECT is zero, we remove
+ * any and all locks owned by this client.
  */
 {
 	Lock *lp, *zap;
-	Platform *p = PTable + which;
+	Platform *p;
 
-	if ((which < 0) || (which >= NPlatform))
+	if (! dt_CheckId (which))
 	{
 		msg_ELog (EF_PROBLEM, 
 			  "Read lock release for invalid plat id %d", which);
 		return;
 	}
-	msg_ELog (EF_DEBUG, "Lock on %s released by %s", p->dp_name, who);
 /*
- * Find the structure for the lock held by this process and remove it.
+ * Find the first lock (of possibly many) held by this process and remove it.
  */
+	p = PTable + which;
 	if ((zap = p->dp_RLockQ) && ! strcmp (zap->l_Owner, who))
 		p->dp_RLockQ = zap->l_Next;
 	else
@@ -1728,11 +1783,17 @@ int expect;
 		zap = lp->l_Next;
 		lp->l_Next = zap->l_Next;
 	}
+	msg_ELog (EF_DEBUG, "Lock on %s released by %s", p->dp_name, who);
 /*
  * Put the zapped entry onto the free list.
  */
 	zap->l_Next = FreeLocks;
 	FreeLocks = zap;
+/*
+ * If necessary, remove the rest of this client's locks.
+ */
+	if (! expect)
+		CleanQueue (&(p->dp_RLockQ), who);
 }
 
 
@@ -1779,11 +1840,22 @@ int junk;
 	   case dpt_GetNPlat:
 	   case dpt_GetPlatStruct:
 	   case dpt_GetFileStruct:
+	   case dpt_PlatformSearch:
 	   case dpt_FindDF:
 	   case dpt_FindAfter:
 	   case dpt_Hello:
 	   case dpt_LookupPlatform:
-	   	ds_message (msg->m_from, dt);
+	   case dpt_LookupClass:
+#ifdef notdef
+	/* These are not allowed because they might cause the platform and
+	 * class tables to move, and the calling routine likely has pointers
+	 * to platform and class entries.
+	 */
+	   case dpt_DefineClass:
+	   case dpt_AddSubplat:
+	   case dpt_Instantiate:
+#endif
+	   	ds_message (msg->m_from, dt, msg->m_len);
 		return (ret);
 
 	   default:
@@ -1802,11 +1874,30 @@ char *who, *plat;
  * Look up this platform for somebody.
  */
 {
-	Platform *p = dt_FindPlatform (plat, FALSE);
+	Platform *p = dt_FindPlatform (plat);
 	struct dsp_PID answer;
 
 	answer.dsp_type = dpt_R_PID;
 	answer.dsp_pid = p ? (p - PTable) : BadPlatform;
+	msg_send (who, MT_DATASTORE, FALSE, &answer, sizeof (answer));
+}
+
+
+
+
+
+static void
+DoClassLookup (who, name)
+char *who, *name;
+/*
+ * Look up this platform class for somebody.
+ */
+{
+	PlatformClass *pc = dt_FindClass (name);
+	struct dsp_PID answer;
+
+	answer.dsp_type = dpt_R_CID;
+	answer.dsp_pid = pc ? (pc - CTable) : BadClass;
 	msg_send (who, MT_DATASTORE, FALSE, &answer, sizeof (answer));
 }
 
@@ -2022,31 +2113,62 @@ char *who;
 PlatformId which;
 int expect;
 /*
- * Release a lock on this platform.
+ * Release a lock on this platform.  EXPECT is non-zero if we're expecting
+ * this client to release the lock which it currently holds.  If EXPECT is
+ * zero, we remove all of this client's locks from the queue.
  */
 {
 	Lock *zap;
 	Platform *p = PTable + which;
+	bool release = TRUE;
 /*
- * Make sure there's a lock and that it's the owner doing the releasing.  
- * (We get called rather indiscriminately when a client disconnect occurs, 
- * so this test is necessary)
+ * Make sure there are locks to release.
  */
-	if (! p->dp_WLockQ || strcmp (p->dp_WLockQ->l_Owner, who))
+	if (! p->dp_WLockQ)
 		return;
 /*
- * Pull the zapped entry off and put it on the free list.
+ * Questions arise if this client does not own the current lock.
  */
-	zap = p->dp_WLockQ;
-	p->dp_WLockQ = zap->l_Next;
-	zap->l_Next = FreeLocks;
-	FreeLocks = zap;
-
-	msg_ELog (EF_DEBUG, "Write lock on %s released by %s",p->dp_name, who);
+	if (strcmp (p->dp_WLockQ->l_Owner, who))
+	{
+		if (expect)	
+			/* can't release a lock this client does not own */
+			return;
+		else
+			/* didn't expect to release the lock so we won't */
+			release = FALSE;
+	}
 /*
- * If there is somebody else waiting for a lock, grant it.
+ * Now do the right thing according to whether we're removing just this 
+ * client's current lock or all of this client's pending locks also.
  */
- 	if (p->dp_WLockQ)
+	if (expect && release)
+	{
+		/*
+		 * Pull the zapped entry off and put it on the free list.
+		 */
+		zap = p->dp_WLockQ;
+		p->dp_WLockQ = zap->l_Next;
+		zap->l_Next = FreeLocks;
+		FreeLocks = zap;
+	}
+	else if (! expect)
+	{
+		/*
+		 * If we're just cleaning dead clients, remove it completely
+		 * from the queue, including the front of the queue if
+		 * necessary.
+		 */
+		CleanQueue (&(p->dp_WLockQ), who);
+	}
+	if (release)
+		msg_ELog (EF_DEBUG, "Write lock on %s released by %s",
+			  p->dp_name, who);
+/*
+ * If we released the currently held lock, and there is somebody else
+ * waiting for a lock, grant it now.
+ */
+ 	if (release && p->dp_WLockQ)
 	{
 		struct dsp_PLock answer;
 		answer.dsp_type = dpt_R_PLockGranted;
@@ -2056,6 +2178,63 @@ int expect;
 		msg_ELog (EF_DEBUG, "Write lock on %s granted to %s",
 			  p->dp_name, p->dp_WLockQ->l_Owner);
 	}
+}
+
+
+
+static void
+CleanClientLocks (who)
+char *who;
+/*
+ * Release all locks for this client, disconnected and presumed dead.
+ */
+{
+	int i;
+
+	for (i = 0; i < NPlatform; i++)
+	{
+		if (PTable[i].dp_RLockQ)
+			UnlockPlatform (who, i, 0);
+		if (PTable[i].dp_WLockQ)
+			ReleaseWLock (who, i, 0);
+	}
+}
+
+
+
+static int
+CleanQueue (q, who)
+Lock **q;
+char *who;
+/*
+ * Returns non-zero if a lock for this client was removed from the queue.
+ */
+{
+	Lock *zap = NULL;
+	Lock *lp;
+
+	lp = *q;
+	while (lp)
+	{
+		if (! strcmp (lp->l_Owner, who))
+		{
+		/*
+		 * Pull this client's entry off and put it on the free list.
+		 */
+			zap = lp;
+			lp = lp->l_Next;
+			*q = lp;
+			zap->l_Next = FreeLocks;
+			FreeLocks = zap;
+			msg_ELog (EF_DEBUG, "Lock removed for %s", who);
+		}
+		else
+		{
+			q = &(lp->l_Next);
+			lp = lp->l_Next;
+		}
+	}
+	return (zap != NULL);
 }
 
 
@@ -2088,3 +2267,76 @@ DataFile *df;
 	}
 	return (rev);
 }
+
+
+/* -----
+ * Handle and respond to client definitions and instances
+ */
+
+static void
+ClientDefine (who, dsp, len)
+char *who;
+struct dsp_ClassStruct *dsp;
+int len;
+{
+	struct dsp_PID answer;
+	PlatformClass *pc;
+
+	answer.dsp_type = dpt_R_PID;
+	answer.dsp_pid = BadClass;
+	/*
+	 * Just get a clean entry in the table.  The superclass id, if any,
+	 * will get set when we extract the class from the message.
+	 * Likewise the client side should have already taken care of any
+	 * derivations from a super class.
+	 */
+	pc = dt_NewClass (dsp->dsp_class.dpc_name, /*superclass*/NULL);
+	if (pc)
+	{
+		PlatformClass *spc = NULL;
+
+		dt_ExtractClass (pc, dsp, len);
+		/*
+		 * Set any necessary default directory paths.
+		 */
+		if ((pc->dpc_superclass != BadClass) && 
+		    dt_CheckClassId (pc->dpc_superclass))
+			spc = (CTable + pc->dpc_superclass);
+		else
+			pc->dpc_superclass = BadClass;
+		dt_FillClassDirs (pc, spc);
+		dt_ValidateClass (pc);
+		answer.dsp_pid = pc - CTable;
+	}
+	msg_send (who, MT_DATASTORE, FALSE, &answer, sizeof (answer));
+}
+
+
+
+
+static void
+ClientInstance (who, cid, name, parent)
+char *who;
+PlatClassId cid;
+char *name;
+PlatformId parent;
+{
+	PlatformClass *pc;
+	PlatformInstance *plat;
+	struct dsp_PID answer;
+
+	answer.dsp_type = dpt_R_PID;
+	answer.dsp_pid = BadPlatform;
+	if (dt_CheckClassId (cid))
+	{
+		pc = CTable + cid;
+		plat = dt_Instantiate (pc, parent, name);
+		answer.dsp_pid = plat - PTable;
+	}
+	else
+	{
+		msg_ELog (EF_PROBLEM, "instance msg: class %d not found", cid);
+	}
+	msg_send (who, MT_DATASTORE, FALSE, &answer, sizeof (answer));
+}
+
