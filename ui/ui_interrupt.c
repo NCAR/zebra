@@ -1,5 +1,5 @@
 /* 2/87 jc */
-/* $Id: ui_interrupt.c,v 1.4 1989-07-27 09:41:27 corbet Exp $ */
+static char *rcsid = "$Id: ui_interrupt.c,v 1.5 1991-02-25 18:44:10 corbet Exp $";
 /*
  * Interrupt handling.
  */
@@ -7,6 +7,7 @@
 # include <signal.h>
 # endif
 # include "ui_param.h"
+# include "ui_globals.h"
 
 /*
  * This array holds addresses of functions to be called in the event
@@ -110,6 +111,7 @@ uii_tstp ()
 {
 	int oldmask;
 
+	tty_kpoff ();
 	tty_return ();	/* Terminal back to normal state */
 	signal (SIGTSTP, SIG_DFL);
 	oldmask = sigsetmask (0);
@@ -118,6 +120,8 @@ uii_tstp ()
 	sigsetmask (oldmask);
 	signal (SIGTSTP, uii_tstp);
 	tty_setup ();
+	if (Keypad_on)
+		tty_kpon ();
 	ut_reline (); ut_do_reline (0);
 }
 
