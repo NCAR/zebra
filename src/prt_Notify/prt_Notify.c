@@ -38,7 +38,7 @@ static void TimeToNotify FP ((ZebTime *, PlatformId));
 /*
  * Keep track of timer events.
  */
-# define MAXPLAT 256
+# define MAXPLAT 1024
 static int TimeEvent[MAXPLAT];
 
 

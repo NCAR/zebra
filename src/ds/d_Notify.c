@@ -19,7 +19,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: d_Notify.c,v 3.1 1992-05-27 17:24:03 corbet Exp $";
+static char *rcsid = "$Id: d_Notify.c,v 3.2 1992-07-08 19:14:51 kris Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -43,7 +43,7 @@ typedef struct s_NRequest
 /*
  * The actual array of these requests.
  */
-# define MAXPLAT 256		/* Should do for now		*/
+# define MAXPLAT 1024		/* Should do for now		*/
 static NRequest *Requests[MAXPLAT];
 
 static NRequest *NRFree = 0;	/* Free lookaside list		*/

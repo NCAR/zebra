@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: NetXfr.c,v 3.1 1992-05-27 17:24:03 corbet Exp $";
+static char *rcsid = "$Id: NetXfr.c,v 3.2 1992-07-08 19:14:26 kris Exp $";
 
 # include <copyright.h>
 # include <defs.h>
@@ -36,7 +36,7 @@ static char *rcsid = "$Id: NetXfr.c,v 3.1 1992-05-27 17:24:03 corbet Exp $";
  * Here's the array of stuff we send to people.
  */
 
-# define MAXPLAT 256
+# define MAXPLAT 1024
 
 typedef struct _DataRecip
 {
