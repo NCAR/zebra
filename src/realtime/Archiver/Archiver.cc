@@ -47,7 +47,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 
-MAKE_RCSID ("$Id: Archiver.cc,v 1.8 1992-04-01 23:53:42 burghart Exp $")
+MAKE_RCSID ("$Id: Archiver.cc,v 1.9 1992-04-23 22:17:59 barrett Exp $")
 
 /*
  * Issues:
@@ -390,6 +390,7 @@ Finish ()
 	char datafile[120];
 	ZebTime	zt;
 	int	year,month,day,hour,minute;
+	int	status = 0;
 	if (DeviceFD < 0)
 	{
 	    switch ( ArchiveMode )
@@ -415,15 +416,17 @@ Finish ()
 		TC_ZtSplit (&zt, &year, &month, &day, &hour, &minute, 0, 0);
 		sprintf( datafile, "%s/%02d%02d%02d.%02d%02d.tar",
 		    OutputDir,year,month,day,hour,minute );
-	        if ((DeviceFD = open (datafile, O_RDWR|O_CREAT)) < 0)
+	        if ((DeviceFD = open (datafile, O_RDWR|O_CREAT,(int)0664)) < 0)
 		{
 		    SetStatus ( TRUE, "Bad file open on EOD" );
+		    msg_ELog (EF_INFO, "Error %d opening %s", errno, datafile);
 		}
 		else
 		{
 		    SaveFiles (TRUE);
+		    close(DeviceFD);
 		}
-		(void)EjectEOD ();
+		status = EjectEOD ();
 	    break;
 	}
 	SetStatus (TRUE, "CROAK");
@@ -619,9 +622,10 @@ ZebTime *zt;
 	    case AR_EOD:
 		sprintf( datafile, "%s/%02d%02d%02d.%02d%02d.tar",
 		    OutputDir,year,month,day,hour,minute );
-		if ((DeviceFD = open (datafile, O_RDWR|O_CREAT)) < 0)
+		if ((DeviceFD = open (datafile, O_RDWR|O_CREAT,(int)0664)) < 0)
 		{
 		    SetStatus ( TRUE, "Bad file open on EOD" );
+		    msg_ELog (EF_INFO, "Error %d opening %s", errno, datafile);
 		}
 	 	else
 		{
