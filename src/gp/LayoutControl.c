@@ -1,7 +1,7 @@
 /*
  * Layout Control and Coordinate Transformations
  */
-static char *rcsid = "$Id: LayoutControl.c,v 1.3 1992-01-10 19:21:47 barrett Exp $";
+static char *rcsid = "$Id: LayoutControl.c,v 1.4 1992-01-29 22:28:26 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -330,7 +330,7 @@ double		incr;
     switch ( d1->type )
     {
 	case 't':
-	    timeSec = ts_GetSec(d1->val.t) - (long)incr;
+	    timeSec = GetSec(d1->val.t) - (long)incr;
 	    lc_GetTime ( &(d1->val.t), timeSec);
 	break;
 	case 'i':
@@ -353,7 +353,7 @@ double		incr;
     switch ( d1->type )
     {
 	case 't':
-	    timeSec = ts_GetSec(d1->val.t) + (long)incr;
+	    timeSec = GetSec(d1->val.t) + (long)incr;
 	    lc_GetTime ( &(d1->val.t), timeSec);
 	break;
 	case 'i':
@@ -376,7 +376,7 @@ DataValPtr	d1,d2;
     switch ( d1->type )
     {
 	case 't':
-	    val = ts_GetSec(d1->val.t) - ts_GetSec(d2->val.t);
+	    val = GetSec(d1->val.t) - GetSec(d2->val.t);
 	break;
 	case 'i':
 	    val = d1->val.i-d2->val.i;
@@ -404,8 +404,8 @@ unsigned short mode;
     {
 	case 't': /* scale the time so as to minimize loss of acuracy */
 	    uy0 = 0.0;
-	    uy1 = (float)(ts_GetSec(UY1.val.t) - ts_GetSec(UY0.val.t));
-	    uy = (float)(ts_GetSec(user_y->val.t) - ts_GetSec(UY0.val.t));
+	    uy1 = (float)(GetSec(UY1.val.t) - GetSec(UY0.val.t));
+	    uy = (float)(GetSec(user_y->val.t) - GetSec(UY0.val.t));
 	break;
 	case 'd':
 	    uy0 = (float)UY0.val.d;
@@ -423,7 +423,7 @@ unsigned short mode;
 	    uy = (float)user_y->val.f;
 	break;
 	default:
-	    fprintf ( stdout, "\rbad coordinate type\n");
+	    fprintf ( stdout, "\rdevY: bad coordinate type\n");
     }
     switch ( CurrentTrans )
     {
@@ -462,8 +462,8 @@ unsigned short mode;
     {
 	case 't': /* scale the time so as to minimize loss of acuracy */
 	    ux0 = 0.0;
-	    ux1 = (float)(ts_GetSec(UX1.val.t) - ts_GetSec(UX0.val.t));
-	    ux = (float)(ts_GetSec(user_x->val.t) - ts_GetSec(UX0.val.t));
+	    ux1 = (float)(GetSec(UX1.val.t) - GetSec(UX0.val.t));
+	    ux = (float)(GetSec(user_x->val.t) - GetSec(UX0.val.t));
 	break;
 	case 'd':
 	    ux0 = (float)UX0.val.d;
@@ -481,7 +481,7 @@ unsigned short mode;
 	    ux = user_x->val.f;
 	break;
 	default:
-	    fprintf ( stdout, "\rbad coordinate type\n");
+	    fprintf ( stdout, "\rdevX: bad coordinate type\n");
     }
     switch ( CurrentTrans )
     {
@@ -526,7 +526,7 @@ unsigned short mode;
     {
 	case 't': /* scale the time so as to minimize loss of acuracy */
 	    ux0 = 0.0;
-	    ux1 = (float)(ts_GetSec(UX1.val.t) - ts_GetSec(UX0.val.t));
+	    ux1 = (float)(GetSec(UX1.val.t) - GetSec(UX0.val.t));
 	break;
 	case 'f':
 	    ux0 = (float)UX0.val.f;
@@ -567,7 +567,7 @@ unsigned short mode;
     switch (user_x.type = UX0.type)
     {
 	case 't': 
-	    timeSec = ts_GetSec(UX0.val.t) + (long)ux;
+	    timeSec = GetSec(UX0.val.t) + (long)ux;
 	    lc_GetTime ( &(user_x.val.t), timeSec);
 	break;
 	case 'f':
@@ -598,7 +598,7 @@ unsigned short mode;
     {
 	case 't': /* scale the time so as to minimize loss of acuracy */
 	    uy0 = 0.0;
-	    uy1 = (float)(ts_GetSec(UY1.val.t) - ts_GetSec(UY0.val.t));
+	    uy1 = (float)(GetSec(UY1.val.t) - GetSec(UY0.val.t));
 	break;
 	case 'f':
 	    uy0 = (float)UY0.val.f;
@@ -639,7 +639,7 @@ unsigned short mode;
     switch (user_y.type = UY0.type)
     {
 	case 't': 
-	    timeSec = ts_GetSec(UY0.val.t) + (time_t)uy;
+	    timeSec = GetSec(UY0.val.t) + (time_t)uy;
 	    lc_GetTime ( &(user_y.val.t), timeSec);
 	break;
 	case 'f':
