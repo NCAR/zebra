@@ -1,6 +1,6 @@
 #! /usr/bin/sh
 #
-# $Id: zplotbatch,v 1.11 1999-10-15 03:17:03 granger Exp $
+# $Id: zplotbatch,v 1.12 1999-10-15 19:09:58 granger Exp $
 #
 # Start a display manager session with a virtual X server and dump
 # images of its plots.
@@ -112,11 +112,8 @@ if zquery -t 600 $DM > /dev/null 2>&1; then true ; else
     echo "$DM display never connected."
     exit 1
 fi
-# Wait for dm initialization after passing the daemon scan
-# sleep 10
 
 images=''
-
 now=`zquery timer | egrep 'Current time' | sed -e 's/^.*is //'`
 echo "Current time: $now"
 
@@ -176,7 +173,7 @@ while read when config windows; do
 
 	    images="$images $name"
 	    (set -x; zrun $plot "imgdump gif \"$name\"" ; set +x ; sleep 5 ; \
-	     zquery -t 30 $plot >/dev/null ; perl5 disclaim.pl $name) &
+	     zquery -t 30 $plot >/dev/null ; disclaim $name) &
 	    queryprocs="$queryprocs $plot"
 
 	fi
@@ -200,10 +197,6 @@ done
 if [ -f "$temp" ]; then
     rm -f $temp
 fi
-
-# Add the disclaimer to each of the images
-#
-# $echo perl5 disclaim.pl $images
 
 # Exit the window manager, give it a little time to shutdown before
 # outrightly killing it
@@ -230,5 +223,4 @@ echo Images: `(for img in $images DONE ; do
 # The shell will automatically 'wait' for its background jobs
 # to finish before exiting, which means all the disclaimers should
 # be done.
-echo "$0: exiting."
 exit 0
