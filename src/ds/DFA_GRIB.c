@@ -33,7 +33,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 
-MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.3 1994-02-25 16:50:30 burghart Exp $")
+MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.4 1994-02-25 22:35:39 burghart Exp $")
 
 /*
  * The GRIB product definition section (PDS)
@@ -1778,11 +1778,14 @@ float	*grid;
 	BDShdr	*bds_hdr;
 /*
  * Allocate space for the BDS, move to the beginning of the BDS in the file 
- * and read it.
+ * and read it.  We allocate some extra space at the end of the BDS, since 
+ * during unpacking we potentially copy (but don't use) a few bytes from past 
+ * the end of the data.
  */
 	bds_len = tag->gt_grib[which].gd_bds_len;
 
-	bds = (char *) malloc (bds_len);
+	bds = (char *) malloc (bds_len + sizeof (bits));
+	memset (bds + bds_len, 0, sizeof (bits));
 	bds_hdr = (BDShdr *) bds;
 
 	lseek (tag->gt_fd, tag->gt_grib[which].gd_doffset, SEEK_SET);
