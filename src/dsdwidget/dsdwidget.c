@@ -323,7 +323,7 @@ CreateDSDWidget ()
  * Check the disk again button.
  */
         n = 0;
-        XtSetArg (args[n], XtNlabel, "Rescan Disk");            n++;
+        XtSetArg (args[n], XtNlabel, "New Data?");		n++;
         XtSetArg (args[n], XtNfromHoriz, NULL);                 n++;
         XtSetArg (args[n], XtNfromVert, NULL);                  n++;
         button = XtCreateManagedWidget ("rsdisk", commandWidgetClass,
