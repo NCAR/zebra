@@ -28,39 +28,58 @@
 # include <sys/types.h>
 # include <sys/stat.h>
 # include <errno.h>
+# include <memory.h>
 
 # include <defs.h>
 # include <message.h>
 
 # include "DataStore.h"
 # include "dsPrivate.h"
+# include "GetList.h"
 # include "dslib.h"
 # include "dfa.h"
 
-MAKE_RCSID ("$Id: DataFormat.c,v 3.1 1995-08-24 22:17:41 granger Exp $")
+RCSID ("$Id: DataFormat.c,v 3.2 1996-11-19 08:56:12 granger Exp $")
 
 /*
- * Include the DataFormat structure and our format table
+ * Include the DataFormat structure definition, and the public and
+ * semi-private prototypes.
  */
 # include "DataFormat.h"
+
+/*
+ * Declarations for pointers to each format's structure.
+ */
+extern DataFormat *netcdfFormat;
+extern DataFormat *boundaryFormat;
+extern DataFormat *rasterFormat;
+extern DataFormat *cmpRasterFormat;
+extern DataFormat *zebraFormat;
+extern DataFormat *gribFormat;
+extern DataFormat *gribSfcFormat;
+extern DataFormat *gradsFormat;
+extern DataFormat *hdfFormat;
 
 /*
  * And here is the format table.  Indexing into this table is done through
  * the FileType enum in dsPrivate.h.
  */
-static struct DataFormat *Formats[] =
+static DataFormat **Formats[] =
 {
-	netcdfFormat,
-	boundaryFormat,
-	rasterFormat,
-	cmpRasterFormat,
-	zebraFormat,
-	gribFormat,
-	gribSfcFormat,
-	gradsFormat
+	&netcdfFormat,
+	&boundaryFormat,
+	&rasterFormat,
+	&cmpRasterFormat,
+	&zebraFormat,
+	&gribFormat,
+	&gribSfcFormat,
+	&gradsFormat,
+	&hdfFormat
 };
 
 static const int NumFormats = (sizeof(Formats)/sizeof(Formats[0]));
+
+#define FMTP(ft) (*(Formats[(ft)]))
 
 /*********************************************************************/
 /*
@@ -69,10 +88,12 @@ static const int NumFormats = (sizeof(Formats)/sizeof(Formats[0]));
 static int MaxOpenFiles = 15;		/* How many we can keep open	*/
 
 static OpenFile *OpenFiles = 0;		/* Open file list head		*/
-static OpenFile *OFFree = 0;		/* lookaside list		*/
 static int OF_Lru = 0;			/* LRU count			*/
 static int OF_NOpen = 0;		/* Number of open files		*/
-
+#ifdef DEBUG
+static int OF_NPurged = 0;		/* Number closed to make room	*/
+static int OF_Reopens = 0;		/* Number files re-opend r/w	*/
+#endif
 
 /*
  * Private routines.
@@ -86,7 +107,9 @@ static void 	dfa_CloseFile FP((OpenFile *));
 static char 	*dfa_GetExt FP((DataFormat *fmt));
 static int	dfa_MatchExt FP((int fmt, char *dot));
 static void	dfa_Deslash FP((char *dest));
-
+static void	dfa_AccessCount FP((OpenFile *ofp));
+static int	dfa_OrgClassCompat FP((DataFormat *fmt, DataOrganization org,
+				       DataClass class));
 
 
 /* ================================================================
@@ -106,9 +129,8 @@ int ndetail;
  * Cause this file to exist, if at all possible.
  */
 {
-	char *tag;
 	DataFile dfe;
-	ClientPlatform p;
+	PlatformId pid;
 	OpenFile *ofp;
 	DataFormat *fmt;
 /*
@@ -117,16 +139,29 @@ int ndetail;
  */
 	dfa_ForceClose (df);
 	ds_GetFileStruct (df, &dfe);
-	ds_GetPlatStruct (dfe.df_platform, &p, FALSE);
-	fmt = Formats[dfe.df_ftype];
+	pid = dfe.df_platform;
+	fmt = FMTP(dfe.df_ftype);
+/*
+ * Make sure the format isn't read-only
+ */
+	if (fmt->f_readonly)
+	{
+		msg_ELog (EF_PROBLEM, "%s format read-only: %s", fmt->f_name,
+			  "cannot create file");
+		return (FALSE);
+	}
 /*
  * Try to open up the file.  If successful, do our accounting and return
  * our success.
  */
 	ofp = dfa_GetOF (fmt, df, &dfe, TRUE);
-	if ((*fmt->f_CreateFile) (ofp, dfa_FilePath (&p, &dfe), &dfe, dc,
+	if ((*fmt->f_CreateFile) (ofp, ds_FilePath (pid, df), &dfe, dc,
 				  details, ndetail))
 	{
+#ifdef DEBUG
+		msg_ELog (EF_DEBUG, "created file #%d, %s", df,
+			  ds_FilePath (pid, df));
+#endif
 		dfa_AddOpenFile (ofp);
 		return (TRUE);
 	}
@@ -197,19 +232,19 @@ FieldId *flist;
 {
 	OpenFile *ofp;
 
-	if ((ofp = dfa_OpenFile (dfile, 0)) && ofp->f_GetFields)
+	if ((ofp = dfa_OpenFile (dfile, 0)) && ofp->of_fmt->f_GetFields)
 	{
 		int sample = dfa_TimeIndex (ofp, t, 0);
 		if (sample < 0)
 			sample = 0;
-		return ((*fmt->f_GetFields) (ofp, sample, nfld, flist));
+		return ((*ofp->of_fmt->f_GetFields)(ofp, sample, nfld, flist));
 	}
 	return (0);
 }
 
 
 
-
+#ifndef NO_GETATTR
 char *
 dfa_GetAttr (dfile, t, len)
 int dfile;
@@ -221,16 +256,15 @@ int *len;
 {
 	OpenFile *ofp;
 	int sample;
-	ZebTime *times;
 
 	if (! (ofp = dfa_OpenFile (dfile, 0)))
-		return (0);
+		return (NULL);
 	if ((sample = dfa_TimeIndex (ofp, t, 0)) < 0)
 		sample = 0;
 	return (ofp->of_fmt->f_GetAttrs ?
-		(*ofp->of_fmt->f_GetAttrs) (dfile, sample, len) : 0);
+		(*ofp->of_fmt->f_GetAttrs) (ofp, sample, len) : NULL);
 }
-
+#endif
 
 
 
@@ -244,9 +278,8 @@ int *nsample;
  * Query the dates on this file.
  */
 {
-	return ((*Formats[type]->f_QueryTime) (name, begin, end, nsample));
+	return ((*FMTP(type)->f_QueryTime) (name, begin, end, nsample));
 }
-
 
 
 
@@ -267,11 +300,11 @@ DataClass class;
 	DataOrganization org;
 
 	ds_GetFileStruct (gl->gl_dfindex, &dfe);
-	fmt = Formats[dfe.df_ftype];
+	fmt = FMTP(dfe.df_ftype);
 /*
  * Check for compatibility of the request, then open the file and pass it on
  */
-	org = ds_PlatformDataOrg (dfe.df_plat);
+	org = ds_PlatformDataOrg (dfe.df_platform);
 	if (! dfa_OrgClassCompat (fmt, org, class))
 	{
 		msg_ELog (EF_PROBLEM, "%s format: class-organization mismatch",
@@ -280,8 +313,8 @@ DataClass class;
 	}
 	if ((ofp = dfa_OpenFile (gl->gl_dfindex, 0)))
 		return ((*ofp->of_fmt->f_Setup) (ofp, fields, nfield, class));
+	return (NULL);
 }
-
 
 
 
@@ -302,39 +335,52 @@ int ndetail;
 	int begin;
 	int end;
 /*
+ * Just to be sure, if end is less than beginning then something really
+ * screwy's going on.
+ */
+	if (TC_Less (gl->gl_end, gl->gl_begin))
+	{
+		msg_ELog (EF_PROBLEM, "getdata on file %i: end < begin",
+			  gl->gl_dfindex);
+		return;
+	}
+/*
  * Open the file.
  */
 	if (! (ofp = dfa_OpenFile (gl->gl_dfindex, 0)))
 		return;
 /*
- * Find the indices of the samples for the range of times we want
+ * Find the indices of the samples for the range of times we want.
+ * Note we take the outside of the range: the first of any duplicate
+ * begin times and the last of any duplicate end times.
  */
 	begin = dfa_TimeIndex (ofp, &gl->gl_begin, 0);
 	end = dfa_TimeIndex (ofp, &gl->gl_end, 1);
-/*
- * If the indices are both less than zero, or identical and not equal
- * to one of the desired times, then we found a gap in which we
- * don't actually have any data.
- */
-	times = dfa_GetTimes (ofp, &ntime);
-	if ((end < 0) || ((begin == end) && 
-			  ! TC_Eq (times[begin], gl->gl_begin) &&
-			  ! TC_Eq (times[end], gl->gl_end)))
+	if (end < 0)	/* the end time precedes first sample in file */
 		return;
+	times = dfa_GetTimes (ofp, &ntime);
 /*
- * Lastly, start at the first sample when it's time is greater than the 
- * begin time.
+ * Use the first sample whose time is greater than or equal to the
+ * begin time.  We may have to skip a series of duplicate times.
  */
-	if (begin < 0)
+	while ((begin < end) &&
+	       (begin < 0 || TC_Less (times[begin], gl->gl_begin)))
 		++begin;
+/*
+ * If the indices identical and not equal to one of the desired times, then
+ * we found a gap in which we don't actually have any data. 
+ */
+	if ((begin == end) && ! TC_Eq (times[begin], gl->gl_begin) &&
+	    ! TC_Eq (times[end], gl->gl_end))
+		return;
 	(*ofp->of_fmt->f_GetData) (ofp, dc, begin, end - begin + 1,
 				   details, ndetail);
 }
 
 
 
-
-int
+#ifdef notdef
+static int
 dfa_PutSample (dfile, dc, sample, wc, details, ndetail)
 int dfile, sample;
 DataChunk *dc;
@@ -349,17 +395,17 @@ int ndetail;
 
 	if (ofp && !(ofp->of_fmt->f_PutSample))
 	{
-		msg_ELog (EF_PROBLEM, "%s format: no PutSample method",
+		msg_ELog (EF_DEBUG, "%s format: no PutSample method",
 			  ofp->of_fmt->f_name);
 	}
 	else if (ofp)
 	{
-		return ((*Formats[dfe.df_ftype].f_PutSample)
-			(dfile, dc, sample, wc, details, ndetail));
+		return ((*ofp->of_fmt->f_PutSample)
+			(ofp, dc, sample, wc, details, ndetail));
 	}
 	return (FALSE);
 }
-
+#endif
 
 
 
@@ -376,50 +422,37 @@ int ndetail;
  * Otherwise call dfa_PutSample() for each sample in the block.
  */
 {
-	int i, result;
-	DataFile dfe;
+	OpenFile *ofp = dfa_OpenFile (dfile, 1);
+	int result, i;
 
-	ds_GetFileStruct (dfile, &dfe);
-	if (Formats[dfe.df_ftype].f_PutBlock)
-		return ((*Formats[dfe.df_ftype].f_PutBlock)
-			(dfile, dc, sample, nsample, wc, details, ndetail));
+	if (!ofp)
+		return (FALSE);
+	if (ofp->of_fmt->f_PutBlock)
+	{
+		return ((*ofp->of_fmt->f_PutBlock)
+			(ofp, dc, sample, nsample, wc, details, ndetail));
+	}
 /*
- * otherwise loop through the samples in the block
+ * If no block method, loop through each sample in the block.
+ * Return FALSE if any of the dfa_PutSample() calls fail.
  */
-	msg_ELog (EF_DEBUG, "%s: no block method, looping over %d samples",
-		  Formats[dfe.df_ftype].f_name, nsample);
+	if (!ofp->of_fmt->f_PutSample)
+	{
+		msg_ELog (EF_PROBLEM, "%s format: no write sample methods",
+			  ofp->of_fmt->f_name);
+		return (FALSE);
+	}
+	msg_ELog (EF_DEVELOP, "%s format: %s (%i)", ofp->of_fmt->f_name,
+		  "no block method; looping over samples", nsample);
 	result = TRUE;
 	for (i = sample; i < sample + nsample; ++i)
-		result &= dfa_PutSample(dfile, dc, i, wc, details, ndetail);
-/*
- * Return FALSE if any of the dfa_PutSample() calls failed
- */
-	return((result)?TRUE:FALSE);
+	{
+		result &= (*ofp->of_fmt->f_PutSample)
+			(ofp, dc, sample, wc, details, ndetail);
+	}
+	return ((result)?TRUE:FALSE);
 }
 
-
-
-
-#ifdef notdef
-int
-dfa_InqNPlat (index)
-int index;
-/*
- * Find out how many platforms are here.
- */
-{
-	DataFile dfe;
-	ds_GetFileStruct (index, &dfe);
-	OpenFile *ofp;
-
-	if ( ! dfa_OpenFile (dfindex, FALSE, (void *) &tag))
-		return (0);
-	ofp = 
-	if (Formats[dfe.df_ftype].f_InqNPlat)
-		return ((*Formats[dfe.df_ftype].f_InqNPlat) (index));
-	return (1);
-}
-#endif
 
 
 
@@ -441,7 +474,7 @@ AltUnitType *altunits;
 	if ((ofp = dfa_OpenFile (index, 0)) &&
 	    (ofp->of_fmt->f_GetAlts))
 	{
-		return ((*Formats[dfe.df_ftype].f_GetAlts)
+		return ((*ofp->of_fmt->f_GetAlts)
 			(ofp, fid, offset, alts, nalts, altunits));
 	}
 	return (FALSE);
@@ -463,7 +496,7 @@ int *times, *ntimes;
 	if ((ofp = dfa_OpenFile (dfindex, 0)) &&
 	    (ofp->of_fmt->f_GetForecastTimes))
 	{
-		return ((*fmt->of_fmt->f_GetForecastTimes)
+		return ((*ofp->of_fmt->f_GetForecastTimes)
 			(ofp, times, ntimes));
 	}
 	return (FALSE);
@@ -473,31 +506,37 @@ int *times, *ntimes;
 
 
 int
-dfa_DataTimes (index, when, which, n, dest)
-int index, n;
-ZebTime *when, *dest;
+dfa_DataTimes (dfindex, when, which, n, dest)
+int dfindex;
+ZebTime *when;
 TimeSpec which;
+int n;
+ZebTime *dest;
 {
-	DataFile dfe;
-	ds_GetFileStruct (index, &dfe);
-	DataFormat *fmt = Formats[dfe.df_ftype];
-/*
- * Get available data times.
- */
-	if (fmt->f_DataTimes)
-		return ((*fmt->f_DataTimes) (ofp, when, which, n, dest));
+	OpenFile *ofp;
+	int count = 0;
+
+	if ((ofp = dfa_OpenFile (dfindex, 0)) &&
+	    (ofp->of_fmt->f_DataTimes))
+	{
+		count = ((*ofp->of_fmt->f_DataTimes)
+			 (ofp, when, which, n, dest));
+	}
 	else
-		return (0);
+	{
+		count = (fmt_DataTimes (ofp, when, which, n, dest));
+	}
+	return (count);
 }
 
 
 
 /* ================================================================
- * Semi-private routines intended for formats only.
+ * Semi-private routines intended for internal DFA and formats only.
  * ================================================================ */
 
 
-static OpenFile *
+OpenFile *
 dfa_OpenFile (dfindex, write)
 int dfindex;
 int write;
@@ -507,13 +546,13 @@ int write;
  * Upon return, TAG contains the tag value.
  */
 {
-	DataFile df;
-	ClientPlatform p;
-	OpenFile *ofp;
+        DataFile df;
+        PlatformId pid;
+        OpenFile *ofp;
 	DataFormat *fmt;
 
-	ds_GetFileStruct (dfindex, &df);
-	fmt = Formats[df.df_ftype];
+        ds_GetFileStruct (dfindex, &df);
+	fmt = FMTP(df.df_ftype);
 /* 
  * Verify they don't want to open a read-only format for writing.
  */
@@ -524,46 +563,85 @@ int write;
 		return (NULL);
 	}
 /*
- * If the file is open, check the revision and access and return the tag.
+ * If the file is open, check the revision and access, and return the pointer.
  */
-	if ((ofp = dfa_FileIsOpen (dfindex)))
-	{
-		if (write && ! ofp->of_write)
-			dfa_CloseFile (ofp);
-		else
-		{
-			if (df.df_rev > ofp->of_dfrev)
-			{
-			/*
-			 * The latest data file entry has a new revision,
-			 * so our open file's tag must be out of date.  Thus
-			 * we must sync the file.
-			 */
-				msg_ELog (EF_DEBUG, "Out of rev file %s",
-					  df.df_name);
+        if ((ofp = dfa_FileIsOpen (dfindex)))
+        {
+                if (write && ! ofp->of_write)
+                {
+#ifdef DEBUG
+			msg_ELog (EF_DEBUG, "re-opening r/o file for r/w: %s",
+				  df.df_name);
+			++OF_Reopens;
+#endif
+                        dfa_CloseFile (ofp);
+                }
+                else if (df.df_rev > ofp->of_dfrev)
+                {
+                /*
+                 * The latest data file entry has a new revision, so our
+                 * open file's tag must be out of date.  Thus sync the file. 
+                 */
+                        msg_ELog (EF_DEBUG, 
+                                  "file #%d (%s) out of sync: %d < %d",
+                                  ofp->of_dfindex, df.df_name, 
+                                  ofp->of_dfrev, df.df_rev);
+#ifdef NCSYNC_FIXED
+			dfa_SyncFile (ofp);
+                        ofp->of_dfrev = df.df_rev;
+			dfa_AccessCount (ofp);
+                        return (ofp);
+#else
+                /*
+                 * close and re-open netCDF files to work around broken ncsync
+                 */
+                        if (df.df_ftype != FTNetCDF)
+                        {
 				dfa_SyncFile (ofp);
 				ofp->of_dfrev = df.df_rev;
-			}
-			return (ofp);
-		}
-	}
+				dfa_AccessCount (ofp);
+				return (ofp);
+                        }
+                        else
+                        {
+                                msg_ELog (EF_DEBUG, "%s(%s #%d) to force sync",
+                                          "ncsync bug: closing netCDF file ",
+                                          df.df_name, ofp->of_dfindex);
+                                dfa_CloseFile (ofp);
+                                /* it will get re-opened below */
+                        }
+#endif
+                }
+                else
+                {
+			dfa_AccessCount (ofp);
+                        return (ofp);
+                }
+        }
 /*
  * Nope, open it now.
  */
-	ds_GetPlatStruct (df.df_platform, &p, FALSE);
+        pid = df.df_platform;
 	ofp = dfa_GetOF (fmt, dfindex, &df, write);
-	if ((*fmt->f_OpenFile) (ofp, dfa_FilePath (&p, &df), &df, write))
+	if ((*fmt->f_OpenFile) (ofp, ds_FilePath (pid, dfindex), &df, write))
 	{
+#ifdef DEBUG
+                msg_ELog (EF_DEBUG, "opened file #%d %s, %s", dfindex,
+                          (write) ? "read-write" : "read-only",
+                          ds_FilePath (pid, dfindex));
+#endif
 		dfa_AddOpenFile (ofp);
-		retv = TRUE;
 	}
-	else
+	else	/* failure */
 	{
+		msg_ELog (EF_PROBLEM, "DFA: could not open file %s",
+			  ds_FilePath (pid, dfindex));
 		dfa_FreeOF (ofp);
-		retv = FALSE;
+		ofp = NULL;
 	}
-	return (retv);
+	return (ofp);
 }
+
 
 
 
@@ -572,7 +650,7 @@ dfa_SyncFile (ofp)
 OpenFile *ofp;
 {
 	if (ofp->of_fmt->f_SyncFile)
-		return ((*ofp->of_fmt->f_SyncFile) (ofp->of_tag));
+		return ((*ofp->of_fmt->f_SyncFile) (ofp));
 	else
 		return (1);
 }
@@ -589,7 +667,7 @@ int *ntime;
 	if (! ofp->of_fmt->f_GetTimes)
 	{
 		msg_ELog (EF_PROBLEM, "%s format: missing GetTimes method",
-			  fmt->f_name);
+			  ofp->of_fmt->f_name);
 		return (NULL);
 	}
 	return ((*ofp->of_fmt->f_GetTimes)(ofp, ntime));
@@ -606,13 +684,13 @@ int last;
  * Find the closest sample time to 'when' without going beyond 'when'.
  * Returns -1 if when precedes all times in the file.  Returns the
  * first time of a group of identical times unless last is non-zero.
+ * If last is non-zero we return the last of a series of identical times.
  */
 {
 #	define MINTIME 25
-	ZebTime *zt;
 	ZebTime *times;
 	int nsample;
-	int step;
+	int step, i;
 	int ret;
 
 	times = dfa_GetTimes (ofp, &nsample);
@@ -654,8 +732,11 @@ int last;
 		ret = 0;
 		for (i = nsample - 2; i >= 0; i--)
 		{
-			if (TC_LessEq (ofp->of_times[i], *when))
+			if (TC_LessEq (times[i], *when))
+			{
 				ret = i;
+				break;
+			}
 		}
 	}
 	else	/* binary search */
@@ -665,9 +746,9 @@ int last;
 		{
 			int mid = (top + bottom)/2;
 
-			if (TC_Eq (*when, ofp->of_times[mid]))
+			if (TC_Eq (*when, times[mid]))
 				ret = mid;
-			else if (TC_Less (ofp->of_times[mid], *when))
+			else if (TC_Less (times[mid], *when))
 				bottom = mid;
 			else
 				top = mid;
@@ -675,7 +756,7 @@ int last;
 		/*
 		 * The time at top is always greater than when, and the
 		 * time at mid != when (else we would have returned), so
-		 * either mid was less than zt, in which case the answer is
+		 * either mid was less than when, in which case the answer is
 		 * bottom (because bottom was set to mid), or bottom < mid
 		 * (and top was set to mid), in which case the answer is
 		 * bottom. 
@@ -689,7 +770,7 @@ int last;
 	 */
 	step = (last) ? 1 : -1;
 	i = ret + step;
-	while (i >= 0 && i < nsample && TC_Eq (times[i], *when))
+	while (i >= 0 && i < nsample && TC_Eq (times[ret], times[i]))
 	{
 		ret += step;
 		i += step;
@@ -699,7 +780,7 @@ int last;
 
 
 /* ====================================================================
- * DataFormat abstract methods for inheritance in the specific methods
+ * DataFormat abstract methods for inheritance in the 'sub-format' methods
  * ==================================================================== */
 
 
@@ -758,15 +839,21 @@ ZebTime *start;
 			++t;
 		}
 	}
+	else
+	{
+		msg_ELog (EF_PROBLEM, "%s datatimes: time spec not supported",
+			  ofp->of_fmt->f_name);
+		return (0);
+	}
 	return ((dest < start) ? (start - dest) : (dest - start));
 }
 
 
 
-void
-fmt_MakeFileName (fmt, plat, t, dest, details, ndetail)
+int
+fmt_MakeFileName (fmt, plat_name, t, dest, details, ndetail)
 DataFormat *fmt;
-ClientPlatform *plat;
+const char *plat_name;
 ZebTime *t;
 char *dest;
 dsDetail *details;
@@ -780,13 +867,33 @@ int ndetail;
  */
 {
 	SValue v;
-	char *ext;
+	char *ext = NULL;
 /*
  * See if we're supposed to use an alternative extension.
  */
-	if (ds_GetDetail (DD_FILE_EXTENSION, details, ndetail, &v))
+	if (ds_GetDetail (DD_FILE_EXT, details, ndetail, &v))
+	{
+		/* let the user know if this is not a recognized extension */
 		ext = v.us_v_ptr;
-	else
+		if (! ext)
+		{
+			msg_ELog (EF_PROBLEM, 
+				  "DD_FILE_EXT detail with no string value");
+		}
+		else if (ext[0] != '.')
+		{
+			msg_ELog (EF_INFO, "%s '%s' %s",
+				  "dfa will not recognize the file extension",
+				  ext, "without a leading period");
+		}
+		else if (!dfa_MatchExt (fmt->f_ftype, ext))
+		{
+			msg_ELog (EF_INFO, "%s '%s' for %s format",
+				  "dfa does not recognize the extension",
+				  ext, fmt->f_name);
+		}
+	}
+	if (! ext)			
 		ext = dfa_GetExt (fmt);
 
 	if (ds_GetDetail (DD_FILE_NAME, details, ndetail, &v))
@@ -800,16 +907,34 @@ int ndetail;
 	else
 	{
 		/*
-		 * Here's where we supply a default, with a possible
+		 * Here's where we supply a default, with a possibly
 		 * modified extension.
 		 */
 		UItime ut;
 
 		TC_ZtToUI (t, &ut);
-		sprintf (dest, "%s.%06ld.%06ld%s", plat->cp_name, 
-			 ut.ds_yymmdd, ut.ds_hhmmss, ext);
+		if (t->zt_MicroSec)	/* need microsecond resolution */
+		{
+			sprintf (dest, "%s.%06ld.%06ld.%06ld%s", plat_name, 
+				 ut.ds_yymmdd, ut.ds_hhmmss, 
+				 t->zt_MicroSec, ext);
+		}
+#ifdef notdef
+		else if ((t->zt_Sec % (24*3600)) == 0)
+		{
+			/* resolution on order of days */
+			sprintf (dest, "%s.%06ld%s", plat_name, 
+				 ut.ds_yymmdd, ext);
+		}
+#endif
+		else
+		{
+			sprintf (dest, "%s.%06ld.%06ld%s", plat_name, 
+				 ut.ds_yymmdd, ut.ds_hhmmss, ext);
+		}
 		dfa_Deslash (dest);
 	}
+	return (0);
 }
 
 
@@ -828,18 +953,28 @@ char *dest;
 dsDetail *details;
 int ndetail;
 {
-	DataFormat *fmt = Formats[plat->cp_ftype];
-
-	if (! fmt->f_MakeFileName)
+	DataFormat *fmt = FMTP(plat->cp_ftype);
+/*
+ * Shouldn't need to make file names for format's we can't write
+ */
+	if (fmt->f_readonly)
 	{
-		msg_ELog (EF_EMERGENCY, 
+		msg_ELog (EF_PROBLEM, "%s format read-only: %s", fmt->f_name,
+			  "cannot make file name");
+		dest[0] = 0;
+	}
+	else if (! fmt->f_MakeFileName)
+	{
+		msg_ELog (EF_PROBLEM, 
 			  "%s format is missing a MakeFileName method",
 			  fmt->f_name);
-		dest[0] = 0;
+		fmt_MakeFileName (fmt, plat->cp_name, t, dest, 
+				  details, ndetail);
 	}
 	else
 	{
-		(*fmt->f_MakeFileName)(fmt, plat, t, dest, details, ndetail);
+		(*fmt->f_MakeFileName)(fmt, plat->cp_name, t, dest, 
+				       details, ndetail);
 	}
 }
 
@@ -871,20 +1006,27 @@ dfa_ForceClosure ()
  */
 {
 	OpenFile *ofp, *next;
+	DataFormat *fmt;
+	int i;
 
 	while (OpenFiles)
 		dfa_CloseFile (OpenFiles);
 	/*
-	 * Free the memory in the OpenFile list as well
+	 * Free the memory in the format lookaside lists as well
 	 */
-	ofp = OFFree;
-	while (ofp)
+	for (i = 0; i < NumFormats; ++i)
 	{
-		next = ofp->of_next;
-		free (ofp);
-		ofp = next;
+		fmt = *Formats[i];
+		ofp = fmt->f_of_free;
+		while (ofp)
+		{
+			next = ofp->of_next;
+			free (ofp);
+			ofp = next;
+		}
+		fmt->f_of_free = NULL;
+		fmt->f_nfree = 0;
 	}
-	OFFree = NULL;
 }
 
 
@@ -900,7 +1042,7 @@ char *name;
 	char *dot;
 
 	dot = strrchr (name, '.');
-	return (dot && dfa_MatchExt (type, dot));
+	return (dot && (dot != name) && dfa_MatchExt (type, dot));
 }
 
 
@@ -913,12 +1055,13 @@ char *file;
  */
 {
 	int fmt;
+	char *dot;
 
-	if (! (cp = strrchr (file, '.')))
+	if (! (dot = strrchr (file, '.')) || (dot == file))
 		return (-1);
 	for (fmt = 0; fmt < NumFormats; fmt++)
 	{
-		if (dfa_MatchExt (fmt, cp))
+		if (dfa_MatchExt (fmt, dot))
 			return (fmt);
 	}
 	return (-1);
@@ -933,15 +1076,17 @@ char *file;
 
 static void
 dfa_AddOpenFile (ofp)
+OpenFile *ofp;
 /* 
  * Add an open file to the list.
  */
 {
 	OpenFile *zap;
 
-	OpenFiles = ofp;
 	ofp->of_next = OpenFiles;
-	ofp->of_lru = OF_Lru++;
+	OpenFiles = ofp;
+	dfa_AccessCount (ofp);
+	++ofp->of_fmt->f_nopened;
 /*
  * If we have exceeded the maximum number of open files, we have to close
  * somebody.
@@ -952,6 +1097,11 @@ dfa_AddOpenFile (ofp)
 		for (ofp = OpenFiles->of_next; ofp; ofp = ofp->of_next)
 			if (ofp->of_lru < zap->of_lru)
 				zap = ofp;
+#ifdef DEBUG
+		++OF_NPurged;
+		msg_ELog (EF_DEBUG, "%s (%d): lru file #%d being purged",
+			  "DFA open limit", MaxOpenFiles, zap->of_dfindex);
+#endif
 		dfa_CloseFile (zap);
 	}
 }
@@ -969,15 +1119,15 @@ DataClass class;
  */
 {
 	int i;
-	struct CO_Compat *coctable = fmt->f_compat;
+	CO_Compat *coctable = fmt->f_compat;
 	int ncoc = fmt->f_ncompat;
 /*
  * If there's no table, just blindly pass the pair through.
  * Otherwise, go through and see if we find the combination in the table.
  */
-	if (!ncompat || !coctable)
+	if (!ncoc || !coctable)
 		return (TRUE);
-	for (i = 0; i < ncompat; ++i)
+	for (i = 0; i < ncoc; ++i)
 	{
 		if (class == coctable[i].c_class && org == coctable[i].c_org)
 			return (TRUE);
@@ -1001,40 +1151,24 @@ int write;
 {
 	OpenFile *ofp;
 
-#ifdef notdef
-	if (OFFree)
+	if (fmt->f_of_free)
 	{
-		ret = OFFree;
-		OFFree = ret->of_next;
+		ofp = fmt->f_of_free;
+		fmt->f_of_free = ofp->of_next;
+		--fmt->f_nfree;
 	}
 	else
-		ret = ALLOC (OpenFile);
-#endif
-	ofp = (OpenFile *) malloc (fmt->f_of_size);
+		ofp = (OpenFile *) malloc (fmt->f_of_size);
 /*
- * Fill in the structure best we can
+ * Initialize the structure as best we can.
  */
-	ofp->of_dfindex = dfindex;
-	ofp->of_dfrev = df->df_rev;
-	ofp->of_dftype = df->df_ftype;
+	memset (ofp, 0, fmt->f_of_size);
 	ofp->of_lru = 0;
+	ofp->of_dfindex = dfindex;
+	ofp->of_next = NULL;
 	ofp->of_write = write;
+	ofp->of_dfrev = df->df_rev;
 	ofp->of_fmt = fmt;
-#ifdef notdef
-	ofp->of_tag = tag;
-#endif
-#ifdef notdef
-/* 
- * Set values to indicate the format has not given us this info.
- */
-	ofp->of_times = NULL;
-	ofp->of_ntime = -1;
-	ofp->of_sloc.l_Lat = -999;
-	ofp->of_sloc.l_Lon = -999;
-	ofp->of_sloc.l_Alt = -999;
-	ofp->of_plats = NULL;
-	ofp->of_nplat = -1;
-#endif
 	return (ofp);
 }
 
@@ -1047,11 +1181,11 @@ OpenFile *ofp;
  * Put an open file structure on the free list
  */
 {
-#ifdef notdef
-	ofp->of_next = OFFree;
-	OFFree = ofp;
-#endif
-	free (ofp);
+	DataFormat *fmt = ofp->of_fmt;
+
+	ofp->of_next = fmt->f_of_free;
+	fmt->f_of_free = ofp;
+	++fmt->f_nfree;
 }
 
 
@@ -1071,11 +1205,6 @@ OpenFile *victim;
  */
 {
 	OpenFile *prev;
-#ifdef notdef
-	DataFile df;
-
-	ds_GetFileStruct (victim->of_dfindex, &df);
-#endif
 /*
  * Find this guy in the open file list and yank him.
  */
@@ -1097,6 +1226,9 @@ OpenFile *victim;
 /*
  * Get the actual file closed.
  */
+#ifdef DEBUG
+	msg_ELog (EF_DEBUG, "closing file #%d", victim->of_dfindex);
+#endif           
 	(*victim->of_fmt->f_CloseFile) (victim);
 	OF_NOpen--;
 	dfa_FreeOF (victim);
@@ -1155,7 +1287,8 @@ static char *
 dfa_GetExt (fmt)
 DataFormat *fmt;
 /*
- * Return the default extension for this format
+ * Return the default extension for this format.  Returned string only
+ * valid until the next call to dfa_GetExt.
  */
 {
 	static char buf[32];
@@ -1176,13 +1309,13 @@ DataFormat *fmt;
 static int
 dfa_MatchExt (fmt, dot)
 int fmt;	/* file format */
-char *dot;	/* file suffix to match agains this format's extensions */
+char *dot;	/* file suffix to match against this format's extensions */
 {
 	char *ext;
 	int dotlen;
 
 	dotlen = strlen(dot);
-	ext = Formats[fmt].f_ext;
+	ext = FMTP(fmt)->f_ext;
 	while (ext)
 	{
 		/* note that the short circuit keeps us from testing
@@ -1198,65 +1331,18 @@ char *dot;	/* file suffix to match agains this format's extensions */
 
 
 
-
-
-#ifdef notdef
+static void
+dfa_AccessCount (ofp)
+OpenFile *ofp;
 /*
- * DataFormat methods are assigned inline functions here which try to use
- * the format-provided method, if any.  Otherwise, the dfa_ method is
- * called.
+ * Increment the access counter for an open file.  Currently
+ * this is just a simple LRU algorithm.  Every public entry point to
+ * the DFA routines first makes sure the file is open, so the access
+ * counts in the open and create methods keep approximate track of the
+ * application's references to a file.
  */
-inline static int
-f_DataTimes (index, when, which, n, dest)
-int index, n;
-ZebTime *when, *dest;
-TimeSpec which;
 {
-	DataFile dfe;
-	ds_GetFileStruct (index, &dfe);
-/*
- * Get available data times.
- */
-	if (Formats[dfe.df_ftype].f_DataTimes)
-		return ((*Formats[dfe.df_ftype].f_DataTimes) (index, when,
-					which, n, dest));
-	else
-		return (dfa_DataTimes (index, when, which, n, dest));
+	ofp->of_lru = OF_Lru++;
 }
 
 
-inline static int
-f_NSample (tag)
-void *tag;
-{
-	DataFile dfe;
-	ds_GetFileStruct (index, &dfe);
-	DataFormat *fmt = Formats + dfe.df_ftype;
-
-	if (fmt->f_NSample)
-		return ((*fmt->f_NSample) (tag));
-	else if (BaseFormat.f_NSample)
-		return ((*BaseFormat.f_NSample) (tag));
-	msg_ELog (EF_PROBLEM, "missing NSample method for filetype %i",
-		  dfe.df_ftype);
-	return (0);
-}
-
-
-
-inline static void
-f_SampleTime (tag, n, zt)
-void *tag;
-int n;
-ZebTime *zt;
-{
-	DataFile dfe;
-	ds_GetFileStruct (index, &dfe);
-	DataFormat *fmt = Formats + dfe.df_ftype;
-
-	if (fmt->f_DataTimes)
-		return ((*fmt->f_DataTimes) (index, when, which, n, dest));
-	else
-		return (dfa_DataTimes (index, when, which, n, dest));
-}
-#endif
