@@ -1,0 +1,18 @@
+/*
+ * Imakefile for the ETC directory.
+ */
+
+DISTFILES = Imakefile startzeb.sh
+DISTSUBDIRS = $(SUBDIRS)
+
+all:: zstart		/* don't want first target to be install */
+
+zstart.script:	zstart.sh
+	sed -e s,##TOPDIRHERE,BaseDir, <zstart.sh >zstart.script
+
+clean::
+	rm -f zstart.script
+
+InstallScript (zstart, $(BINDIR))
+
+DistfilesTarget($(DISTFILES))
