@@ -118,6 +118,7 @@ define widget skewt-right intmenu 'feet/km'
 		(PDParam (icon_component, 'do-feet') <> 'true')
 	line
 	submenu 'Data skip interval' 'skewt-data-skip'
+	submenu 'Time offsets' 'skewt-topannot-offsets'
 endmenu
 
 procedure do-feet-proc value string
@@ -151,5 +152,8 @@ define widget skewt-data-skip intmenu 'skip data points'
 	entry 'Every 30th point' \
 		'parameter #icon_component data-skip "30"' \
 		(PDParam (icon_component,"data-skip") = "30")
+	entry 'Every 50th point' \
+		'parameter #icon_component data-skip "50"' \
+		(PDParam (icon_component,"data-skip") = "50")
 endmenu
 

@@ -17,6 +17,7 @@ skewt
 	icon-right-menu:	skewt-right
 	overlay-mode:		true
 	topannot-left-menu:	skewt-topannot
+	topannot-right-menu:	skewt-topannot-offsets
 	platform:	null
 	representation:	skewt
 	top-annot-active:	true
