@@ -1,7 +1,7 @@
 !
 ! Display manager widgets.
 !
-! $Id: dm.widgets,v 1.32 1999-08-18 16:08:00 burghart Exp $
+! $Id: dm.widgets,v 1.33 2000-04-06 16:29:43 burghart Exp $
 !
 
 define widget SaveConfig form 'Configuration saver'
@@ -338,23 +338,21 @@ procedure sendout comp string target string
 	add #comp #comp #target_win #position
 endprocedure
 
+!
+! Alter 0-4 parameters in an existing pd component and ship it out 
+! to a selected window
+!
 procedure putc0 comp string
 	sendout #comp 'pick'
 endprocedure
 
 procedure putc1 comp string param string value string
-!
-! Just mung in the parameter and ship it out.
-!
 	parameter #comp #comp #param #value
 	sendout #comp 'pick'
 endprocedure
 
 
 procedure putc2 comp string p1 string v1 string p2 string v2 string
-!
-! Just mung in the parameter and ship it out.
-!
 	parameter #comp #comp #p1 #v1
 	parameter #comp #comp #p2 #v2
 	sendout #comp 'pick'
@@ -362,15 +360,19 @@ endprocedure
 
 
 procedure putc3 comp string p1 string v1 string p2 string v2 string p3 string v3 string
-!
-! Just mung in the parameter and ship it out.
-!
 	parameter #comp #comp #p1 #v1
 	parameter #comp #comp #p2 #v2
 	parameter #comp #comp #p3 #v3
 	sendout #comp 'pick'
 endprocedure
 
+procedure putc4 comp string p1 string v1 string p2 string v2 string p3 string v3 string string p4 string v4
+	parameter #comp #comp #p1 #v1
+	parameter #comp #comp #p2 #v2
+	parameter #comp #comp #p3 #v3
+	parameter #comp #comp #p4 #v4
+	sendout #comp 'pick'
+endprocedure
 
 
 !
@@ -990,5 +992,5 @@ procedure AllXSect x0 string y0 string x1 string y1 string
 endprocedure
 
 procedure dm_widgets_id
-	local '$Id: dm.widgets,v 1.32 1999-08-18 16:08:00 burghart Exp $'
+	local '$Id: dm.widgets,v 1.33 2000-04-06 16:29:43 burghart Exp $'
 endprocedure
