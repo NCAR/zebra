@@ -1,7 +1,7 @@
 /*
  * IS variables.
  * 
- * $Id: is_vars.h,v 1.4 1991-12-11 20:40:05 martin Exp $
+ * $Id: is_vars.h,v 1.5 1992-04-28 06:24:28 issadmin Exp $
  */
 /*
  * Copyright (C) 1987,88,89,90,91 by UCAR University Corporation for
@@ -28,7 +28,7 @@
 #define MAX_PROC_ARGS 30
 #define MAX_STTY_ARGS 20
 #define MAX_FILE_NAME 256
-#define MAX_RESTARTS  5
+#define MAX_RESTARTS  1000
 #define LS_BEGIN "ls -1d "
 #define LS_END " 2> /dev/null"
 
