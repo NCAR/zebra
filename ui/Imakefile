@@ -1,5 +1,5 @@
 /* -*- C -*- */
-MFVERSION="$Id: Imakefile,v 1.6 1995-11-19 18:16:14 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.7 1996-02-05 15:09:42 granger Exp $"
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -22,7 +22,11 @@ LOCALLIB = uilib.a
 UI_LF = $(LIBDIR)/ui.lf
 
 #if UseXWindows
-INCLUDES = $(XINCLUDES)
+/*
+ * SunOS cc won't find ./X11/Xfuncproto.h without -I., and we need it since
+ * OpenWindows doesn't have an Xfuncproto.h
+ */
+INCLUDES = $(XINCLUDES) -I.
 LIBS = $(LIBRDSSUTIL) $(XLIBS)
 #else
 INCLUDES =
