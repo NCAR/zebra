@@ -1,5 +1,5 @@
 /*
- * $Id: nstest.c,v 1.16 1995-05-01 20:21:06 granger Exp $
+ * $Id: nstest.c,v 1.17 1995-05-16 21:31:02 granger Exp $
  */
 
 /*
@@ -183,6 +183,7 @@ struct TestPlatform {
 #ifdef DUMMY_FILES
 	{ "t_dummy_cdf" },
 	{ "t_dummy_znf" },
+	{ "t_dummy_single" },
 #endif
 #ifdef FETCH_GAP
 	{ "t_gap_cdf" },
@@ -355,6 +356,7 @@ main (argc, argv)
 #if defined(DUMMY_FILES) && defined(DATA_TIMES)
 	T_DataTimes ("t_dummy_cdf");
 	T_DataTimes ("t_dummy_znf");
+	T_DataTimes ("t_dummy_single");
 #endif
 
 #ifdef SCALAR
