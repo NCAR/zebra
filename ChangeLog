@@ -1,3 +1,28 @@
+Thu Sep  2 02:38:57 1993  Gary Granger  (granger@kodiak)
+
+	* DataStore
+	New API function ds_DeleteObs().  Bug fixes for ds_ForceRescan() and
+	ds_DeleteData().  Improvements to ZNF block overwrites and file growth.
+
+	* dsdelete
+	Allows deletion of specific observations by absolute time.
+
+Thu Aug 26 14:14:14 1993  Jonathan Corbet  (corbet@ale)
+
+	* gp
+	Added MapPath and IconPath (both internal and UI indirect variables)
+	as search paths for icons and maps.  Default value for IconPath is
+	"/zeb/lib/icons,./icons" (/zeb/lib is really the library directory, of
+	course); for MapPath it's "/zeb/lib,./maps".
+
+	* dm
+	Carved out the FindFile routine.
+
+	* zeb library
+	Added the FindFile routine to the zeb library.
+	Useful for digging through a series of directories looking for a
+	file.
+
 Fri Aug 13 13:09:00 1993  Gary Granger  (granger@kodiak)
 
 	* ZNF now has block append and overwrite capability through 
