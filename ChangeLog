@@ -1,3 +1,12 @@
+Tue Jul 11 17:11:41 1995  Gary Granger  <granger@narnia.atd.ucar.edu>
+
+	* rearrange time widget yet again: separate help and quit buttons
+	  into their own bounding box; collect "hot times" interface into
+	  its own bounding box on bottom row of widget; move window
+	  control menu back to its original upper right position; install
+	  accelerators from "remember" button to the text window; label
+	  hot time text window more clearly; update historytime help page
+
 Thu Jun 22 09:48:33 1995  Chris Burghart  <burghart@saaz.atd.ucar.edu>
 
 	* gp: (PlotControl.c) The microseconds portion of PlotTime is now 
