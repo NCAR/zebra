@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 3.11 1993-05-05 15:34:07 corbet Exp $
+ * $Id: dsPrivate.h,v 3.12 1993-05-05 15:39:17 corbet Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -35,24 +35,6 @@ typedef enum {
 	/* ... */
 } FileType;
 
-
-# ifdef notdef
-/*
- * The shared memory header.
- */
-struct ds_ShmHeader
-{
-	int	sm_magic;		/* Magic ID number		*/
-	int	sm_nPlatform;		/* How many platforms		*/
-	int	sm_PTOffset;		/* Offset to platform table	*/
-	int	sm_DTOffset;		/* Offset to the data table	*/
-	int	sm_nDataTable;		/* How many data table entries	*/
-	int	sm_nDTEUsed;		/* How many used		*/
-	int	sm_DTFreeList;		/* First free entry		*/
-};
-# define SHM_MAGIC	0x31293		/* Change for incompatible changes */
-
-# endif
 
 /*
  * The following structure is used to keep track of locks held on platforms
@@ -103,12 +85,6 @@ typedef struct ds_Platform
 /*
  * Macro to return the right data list for a platform.
  */
-# ifdef notdef
-# define LOCALDATA(p) (((p).dp_flags & DPF_SUBPLATFORM) ? \
-		PTable[(p).dp_parent].dp_LocalData : (p).dp_LocalData)
-# define REMOTEDATA(p) (((p).dp_flags & DPF_SUBPLATFORM) ? \
-		PTable[(p).dp_parent].dp_RemoteData : (p).dp_RemoteData)
-# endif
 # define LOCALDATA(p) (ds_DataChain (&(p), 0))
 # define REMOTEDATA(p) (ds_DataChain (&(p), 1))
 
@@ -138,24 +114,6 @@ typedef struct ds_DataFile
 # define DFF_Archived	0x01		/* File has been archived	*/
 # define DFF_Seen	0x02		/* Seen during rescan		*/
 # define DFF_Remote	0x04		/* File in remote list		*/
-
-
-/*
- * The size of the shared memory segment, and the pointer which will locate
- * it in each process.
- */
-# ifdef notdef
-# define SHM_SIZE 65536*12
-char *ShmSegment;
-struct ds_ShmHeader *ShmHeader;
-
-# define DS_KEY 0x072161
-# endif
-/*
- * The semaphores which control the shared memory setup.
- */
-# define S_READ		0	/* The read semaphore	*/
-# define S_WRITE	1	/* The write semaphore	*/
 
 
 /*
