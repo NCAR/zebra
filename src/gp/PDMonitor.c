@@ -23,14 +23,13 @@
 # include <message.h>
 # include <pd.h>
 # include <pdmon.h>
-typedef int Window;	/* XXX avoid X baggage */
 # include <dm.h>
 # include "GraphProc.h"
 # include "EventQueue.h"
 
 
 
-MAKE_RCSID ("$Id: PDMonitor.c,v 1.3 1993-09-27 21:22:32 corbet Exp $")
+MAKE_RCSID ("$Id: PDMonitor.c,v 1.4 1994-05-24 01:01:48 granger Exp $")
 
 
 /*
