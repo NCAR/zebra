@@ -1,4 +1,4 @@
-/* $Id: dm_cmds.h,v 2.3 1992-02-07 21:03:48 corbet Exp $ */
+/* $Id: dm_cmds.h,v 2.4 1992-11-22 22:52:32 corbet Exp $ */
 /*
  * Keyword numbers for displaymgr commands.
  */
@@ -63,3 +63,7 @@
 # define DMC_CFGSAVE	40
 # define DMC_NEWCONFIG	41
 # define DMC_NEWWINDOW	42
+/*
+ * Other stuff.
+ */
+# define DMC_ENTER	43
