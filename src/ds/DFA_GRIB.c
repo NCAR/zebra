@@ -39,7 +39,7 @@
 # include "DataFormat.h"
 # include "GRIB.h"
 
-RCSID ("$Id: DFA_GRIB.c,v 3.31 1997-06-30 21:16:49 ishikawa Exp $")
+RCSID ("$Id: DFA_GRIB.c,v 3.32 1997-08-13 21:21:06 burghart Exp $")
 
 
 /*
@@ -627,7 +627,8 @@ static GFTag	*grb_Open FP ((char *, GFTag *));
 static int	grb_ScanFile FP ((GFTag *));
 static void	grb_DestroyTag FP ((GFTag *));
 static void	grb_ReadRGrid FP ((DataChunk *, GFTag *, GRB_TypeInfo *, int, 
-				   int, int, FieldId, int, float *));
+				   int, int, FieldId, int, float *, int,
+				   AltUnitType));
 static FieldId	grb_Field FP ((GFpds *, ScaleInfo *));
 static void	grb_UnpackBDS FP ((GFTag *, int, float *, int, int, double));
 static void	grb_ResetWind FP ((void));
@@ -1028,8 +1029,7 @@ int		ndetail;
 	{
 		float	diff, bestdiff = 99e9;
 		int	best = -1;
-
-		ztarget = v.us_v_float;
+		float	ztarget = v.us_v_float;
 
 		for (i = 0; i < nalts; i++)
 		{
@@ -1041,14 +1041,15 @@ int		ndetail;
 			}
 		}
 
-		ztarget = alts[best];
+		alts[0] = alts[best];
+		nalts = 1;
 	}
 /*
  * Make the dimension info in the data chunk correct if we haven't done so
  * already.
  */
 	if (! dc_NSDefineIsComplete (dc))
-		grb_DCFinishDefs (dc, grbinfo, onelevel ? 1 : nalts);
+		grb_DCFinishDefs (dc, grbinfo, nalts);
 /*
  * Set the values for the lat and lon coordinate variables.
  */
@@ -1070,7 +1071,7 @@ int		ndetail;
 /*
  * Same for altitude.
  */
-	dc_NSAddStatic (dc, alt_id, (void *) (onelevel ? &ztarget : alts));
+	dc_NSAddStatic (dc, alt_id, (void *) (alts));
 /*
  * Set the badval in the data chunk, either based on the details we're given
  * or by using the default.
@@ -1117,8 +1118,7 @@ int		ndetail;
 		 * "Real" data field
 		 */
 			grb_ReadRGrid (dc, tag, grbinfo, samp, sbegin, send, 
-				       fids[f], offset, 
-				       onelevel ? &ztarget : NULL);
+				       fids[f], offset, alts, nalts, altunits);
 		}
 		
 
@@ -1229,6 +1229,7 @@ AltUnitType	*altunits;
     ZebTime	t;
     AltUnitType units;
 /*
+
  * Find the first usable grid for the chosen field and forecast offset.
  */
     for (i = 0; i < tag->gt_ngrids; i++)
@@ -1327,8 +1328,7 @@ AltUnitType	*altunits;
     if (nalts)
 	*nalts = count;
 /* 
- * Sort into increasing order (internal calls to grb_GetAlts()
- * require this)
+ * Sort into increasing order (internal calls to grb_GetAlts() require this)
  */
     if (alts)
     {
@@ -1808,26 +1808,28 @@ GFTag	*tag;
 
 
 static void
-grb_ReadRGrid (dc, tag, ginfo, samp, sbegin, send, fid, offset, ztarget)
+grb_ReadRGrid (dc, tag, ginfo, samp, sbegin, send, fid, offset, alts, nalts, 
+	       altunits)
 DataChunk	*dc;
 GFTag		*tag;
 GRB_TypeInfo	*ginfo;
 int		samp, sbegin, send;
 FieldId		fid;
 int		offset;
-float		*ztarget;
+float		*alts;
+int		nalts;
+AltUnitType	altunits;
 /*
  * Build a grid of the chosen field, using the GRIB grids between indices
  * sbegin and send inclusive, and stuff it into the data chunk.  The
- * desired forecast offset time in seconds is passed in 'offset'.  If
- * 'ztarget' is non-NULL, then only one horizontal plane is desired, at the
- * given z level.  Otherwise, return all planes.
+ * desired forecast offset time in seconds is passed in 'offset'.  
+ * Return planes for the given altitudes.
  */
 {
     int	nsx, nsy, si, sj, i, j, itemp;
     int	indices[MAXLEVELS], u_indices[MAXLEVELS], v_indices[MAXLEVELS];
     float	zvals[MAXLEVELS], badval = dc_GetBadval (dc), ftemp;
-    int	level, nlevels, ulevels, vlevels, ndx;
+    int		level, gndx;
     float	*sgrid, *sp, *dgrid, *dp, *lats, *lons;
     float	z, di, dj, val0, val1, val2, val3, *fsi, *fsj;
     GFpds	*pds;
@@ -1835,7 +1837,8 @@ float		*ztarget;
     bool	u_or_v;
     FieldId	grid_fid, u_fid, v_fid;
     ScaleInfo	sc;
-    unsigned long	dc_nlevels, nlat, nlon;
+    unsigned long	nlat, nlon;
+    AltUnitType		units;
 /*
  * Are we getting u or v wind?  If so, we actually have to get both.
  */
@@ -1848,14 +1851,18 @@ float		*ztarget;
     lats = (float *) dc_NSGetStatic (dc, F_Lookup ("lat"), &nlat);
     lons = (float *) dc_NSGetStatic (dc, F_Lookup ("lon"), &nlon);
 /*
+ * Initialize our tables of grid indices
+ */
+    for (level = 0; level < nalts; level++)
+	indices[level] = u_indices[level] = v_indices[level] = -1;
+/*
  * Build a list of grids that contain our field and have the right forecast
  * time
  */
-    nlevels = ulevels = vlevels = 0;
-
-    for (ndx = sbegin; ndx <= send; ndx++)
+    for (gndx = sbegin; gndx <= send; gndx++)
     {
-	pds = tag->gt_grib[ndx].gd_pds;
+	int	unfilled;
+	pds = tag->gt_grib[gndx].gd_pds;
     /*
      * Bag this grid now if the type is wrong, the forecast time is wrong,
      * or it's a not a usable level
@@ -1865,103 +1872,46 @@ float		*ztarget;
 	    grb_Offset (pds) != offset)
 	    continue;
     /*
-     * If we just want one level, make sure we get the right one.
-     */
-	z = grb_ZLevel (pds, NULL);
-	if (ztarget && z != *ztarget)
-	    continue;
-    /*
-     * Now check the field
+     * Move on if this grid doesn't have a field we want.
      */
 	grid_fid = grb_Field (pds, NULL);
 
-	if (grid_fid == fid)
-	{
-	    zvals[nlevels] = z;
-	    indices[nlevels++] = ndx;
-	}
+	if (grid_fid != fid  &&
+	    ! (u_or_v && (grid_fid == u_fid) || (grid_fid == v_fid)))
+	    continue;
+    /*
+     * Finally, use this grid iff its altitude is in our list of wanted
+     * alts.
+     */
+	z = grb_ZLevel (pds, &units);
+	if (units != altunits)
+	    continue;
 
-	if (u_or_v)
+	unfilled = 0;	/* to count how many levels remain unfilled */
+
+	for (level = 0; level < nalts; level++)
 	{
-	    if (grid_fid == u_fid)
-		u_indices[ulevels++] = ndx;
-	    else if (grid_fid == v_fid)
-		v_indices[vlevels++] = ndx;
+	    if (z == alts[level])
+	    {
+		if (grid_fid == fid)
+		    indices[level] = gndx;
+
+		if (grid_fid == u_fid)
+		    u_indices[level] = gndx;
+
+		if (grid_fid == v_fid)
+		    v_indices[level] = gndx;
+	    }
+
+	    if (indices[level] < 0 ||
+		(u_or_v && (u_indices[level] < 0 || v_indices[level] < 0)))
+		unfilled++;
 	}
     /*
-     * Semi-kluge: For surface-only access, just take the first "surface"
-     * grid we get.  Some files have both 0m MSL (level type 102) and 
-     * 0m AGL (level type 1) grids for a given field.  We count either one
-     * as a "surface" grid, so we'll just give them whichever one we see
-     * first.
+     * Break out if we have data for all the wanted vertical levels
      */
-	if (tag->gt_sfc_only && nlevels == 1)
+	if (unfilled == 0)
 	    break;
-    }
-/*
- * If we're doing wind, make sure we got the same number of levels for
- * both u and v
- */
-    if (u_or_v && ulevels != vlevels)
-    {
-	msg_ELog (EF_PROBLEM, 
-		  "GRIB u_wind and v_wind levels don't match!");
-	nlevels = 0;
-    }
-/*
- * Make sure we're copacetic with the number of levels defined in the
- * data chunk.
- */
-    dc_NSGetDimension (dc, F_Lookup ("alt"), NULL, &dc_nlevels);
-    if (nlevels && dc_nlevels != nlevels)
-    {
-    /*		msg_ELog (EF_PROBLEM, "*BUG*: GRIB level count mismatch!"); */
-	msg_ELog (EF_INFO, "grb_ReadRGrid: Can't get %s/%s data",
-		  ds_PlatformName (dc->dc_Platform), F_GetName (fid));
-	nlevels = 0;
-    }
-/*
- * If we have no levels, create a grid full of badvals and put that in the
- * data chunk.
- */
-    if (nlevels == 0)
-    {
-	msg_ELog (EF_INFO, "GRIB: No %d hr forecast for %s/%s", 
-		  offset / 3600, ds_PlatformName (dc->dc_Platform), 
-		  F_GetName (fid));
-		
-	time = tag->gt_times[sbegin];
-
-	dc_NSAddSample (dc, &time, samp, fid, DC_FillValues);
-	return;
-    }
-/*
- * Sort the z levels increasing so that we return them in some reasonable order
- */
-    for (level = 1; level < nlevels; level++)
-    {
-	int	sl = level;
-
-	while (sl && zvals[sl] < zvals[sl-1])
-	{
-	    ftemp = zvals[sl-1];
-	    zvals[sl-1] = zvals[sl];
-	    zvals[sl] = ftemp;
-
-	    itemp = indices[sl-1];
-	    indices[sl-1] = indices[sl];
-	    indices[sl] = itemp;
-
-	    itemp = u_indices[sl-1];
-	    u_indices[sl-1] = u_indices[sl];
-	    u_indices[sl] = itemp;
-
-	    itemp = v_indices[sl-1];
-	    v_indices[sl-1] = v_indices[sl];
-	    v_indices[sl] = itemp;
-
-	    sl--;
-	}
     }
 /*
  * Grab some info on the GRIB grid type we're unpacking
@@ -1972,15 +1922,31 @@ float		*ztarget;
  * Allocate space for the source and destination grids
  */
     sgrid = (float *) calloc (nsx * nsy, sizeof (float));
-    dgrid = (float *) malloc (nlat * nlon * nlevels * sizeof (float));
+    dgrid = (float *) malloc (nlat * nlon * nalts * sizeof (float));
 /*
  * Loop through our list of GRIB records, remapping their data into the
  * destination grid.
  */
     dp = dgrid;
 	
-    for (level = 0; level < nlevels; level++)
+    for (level = 0; level < nalts; level++)
     {
+    /*
+     * If no data at this level, stuff in bad values
+     */
+	if (indices[level] < 0 ||
+	    (u_or_v && (u_indices[level] < 0 || v_indices[level] < 0)))
+	{
+	    msg_ELog (EF_INFO, "grb_ReadRGrid: No %s/%s data at %.2f %s",
+		      ds_PlatformName (dc->dc_Platform), F_GetName (fid),
+		      alts[level], au_UnitsName (altunits));
+		      
+	    for (j = 0; j < nlat; j++)
+		for (i = 0; i < nlon; i++)
+		    *dp++ = badval;
+
+	    continue;
+	}
     /*
      * Get the scaling information for our field and unpack the GRIB
      * Binary Data Section into sgrid.
@@ -2068,7 +2034,6 @@ float		*ztarget;
 /*
  * Stuff the grid we just built into the data chunk
  */
-/* time = tag->gt_grib[sbegin].gd_time;*/
     time = tag->gt_times[sbegin];
     dc_NSAddSample (dc, &time, samp, fid, (void *) dgrid);
 /*
