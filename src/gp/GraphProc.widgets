@@ -4,7 +4,7 @@
 ! Most widgets have now been moved out of here, finding their home instead
 ! in the library directory and brought in through the require mechanism.
 !
-! $Id: GraphProc.widgets,v 1.15 1994-10-13 16:04:40 corbet Exp $
+! $Id: GraphProc.widgets,v 1.16 1995-04-17 22:07:31 granger Exp $
 !
 set ui$initial_state 'initial'
 
@@ -19,6 +19,76 @@ procedure ToggleEnable button string
 	else
 		formtext #ui$form #button "Enabled"
 	endif
+endprocedure
+
+!
+! Default left button menu for the global component.
+!
+define widget global-left intmenu 'Global left menu'
+	title 'Global Options'
+	line
+	entry 'Overlay Times Window...' 'popup overlay'
+	entry 'Movie Controller...' 'popup movie'
+	entry 'Generate Images...' 'popup imagecrank'
+	entry 'Position Readout...' 'popup position'
+	entry 'Model Forecast Times...' 'popup model'
+	line
+	submenu 'Change Scale' 'global-scale-menu'
+	submenu 'Set Window Range' global-adjust-limits
+	submenu 'Window Operations' global-window-ops
+endmenu
+
+define widget global-scale-menu intmenu 'scale by factors'
+	title 'Change Scale'
+	line
+	entry 'Expand View by 100%' 'scale-factor 2.0'
+	entry 'Expand View by 50%' 'scale-factor 1.5'
+	entry 'Expand View by 20%' 'scale-factor 1.2'
+	line
+	entry 'Narrow View by 20%' 'scale-factor 0.8'
+	entry 'Narrow View by 50%' 'scale-factor 0.5'
+	entry 'Narrow View by 75%' 'scale-factor 0.25'
+endmenu
+
+define widget global-window-ops intmenu 'window ops'
+	title 'Window Operations'
+	line
+!	entry 'Zoom Window' 'dm concat("require zoom; zoom ",window_name)' 
+	entry 'Reset Window' 'dm "require ResetWindow; ResetWindow"'
+	entry 'Delete Window' 'dm concat("kill ",window_name)'
+endmenu
+
+!
+! The Global Adjust Limits submenu
+!
+define widget global-adjust-limits intmenu "Adjust Global Limits"
+	title 'Set Window Range'
+	line
+	entry 'X Limits' 'i_adjust_global x-limit-proc'
+	entry 'Y Limits' 'i_adjust_global y-limit-proc'
+endmenu
+
+
+procedure scale-factor factor real
+	local xmin pd_param("global","x-min","float")
+	local xmax pd_param("global","x-max","float")
+	local ymin pd_param("global","y-min","float")
+	local ymax pd_param("global","y-max","float")
+
+	local xmin (xmin * factor)
+	local xmax (xmax * factor)
+	local ymin (ymin * factor)
+	local ymax (ymax * factor)
+
+	local sxmin string(xmin)
+	local sxmax string(xmax)
+	local symin string(symin)
+	local symax string(symax)
+
+	parameter global x-min #sxmin
+	parameter global x-max #sxmax
+	parameter global y-min #symin
+	parameter global y-max #symax
 endprocedure
 
 !
@@ -67,12 +137,21 @@ define widget minimal-cap-left-menu intmenu "leftmenu"
 	entry 'Remove' 'i_remove_component'
 endmenu
 
+!
+! Left button menu for xsections
+!
+define widget xsect-left intmenu 'Xsect left menu'
+	title 'Cross-section Options'
+	line
+	entry 'Overlay Times Window...' 'popup overlay'
+endmenu
+
 
 !
 ! Remove a component.
 !
 procedure i_remove_component
-	dm concat4('remove ', ourname, ' ', icon_component)
+	dm concat4('remove ', window_name, ' ', icon_component)
 endprocedure
 
 
@@ -89,6 +168,37 @@ procedure i_adjust procparam string
 	endif
 endprocedure
 
+!
+! Adjust the limits on the global component.
+!
+procedure i_adjust_global procparam string
+	local proc pd_paramsearch(icon_component,procparam,"global","string")
+	if (proc <> "(Undefined)")
+		#proc 
+	else
+		dm "beep"
+	endif
+endprocedure
+
+!
+! The x min max adjuster.
+!
+procedure adj_x_minmax 
+	local xmin pd_paramsearch("global", "x-min", "", "string")
+	local xmax pd_paramsearch("global", "x-max", "", "string")
+	activate doublefloat "global" "x-min" "X Min: " #xmin \
+		"x-max" "X Max: " #xmax
+endprocedure
+
+!
+! The y min max adjuster.
+!
+procedure adj_y_minmax 
+	local ymin pd_paramsearch("global", "y-min", "", "string")
+	local ymax pd_paramsearch("global", "y-max", "", "string")
+	activate doublefloat "global" "y-min" "Y Min: " #ymin \
+		"y-max" "Y Max: " #ymax
+endprocedure
 
 !
 ! The arrow and barb scale adjusters.
@@ -207,6 +317,13 @@ procedure TopAnnotSize size string
 endprocedure
 
 
+!
+! Perhaps universally useful procedure, which hides the fact that
+! its actually the dm which does the work
+!
+procedure beep
+	dm "beep"
+endprocedure
 
 
 !
