@@ -1,7 +1,7 @@
 /*
  * DM variables.
  *
- * $Id: dm_vars.h,v 2.5 1993-02-08 21:37:24 corbet Exp $
+ * $Id: dm_vars.h,v 2.6 1993-02-22 21:15:14 corbet Exp $
  */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -21,10 +21,10 @@
  * maintenance or updates for its software.
  */
 # include <X11/Xlib.h>
-# include "../include/defs.h"
+# include <defs.h>
 # include "dm.h"
-# include "../include/message.h"
-# include "../include/pd.h"
+# include <message.h>
+# include <pd.h>
 
 /*
  * Button map information.
@@ -119,7 +119,14 @@ extern int SleepFor, SleepAfter;
 /*
  * The default window process.
  */
-# define DEFPROG "graphproc"
+# define DEFPROG "gp"
+
+/*
+ * Stuff used for forcing history mode on things.
+ */
+extern int ForceHistory;	/* Do we force the issue? 	*/
+extern int HistoryMode;		/* Are in global history mode	*/
+extern ZebTime HistoryTime;	/* The time for said mode	*/
 
 /*
  * X window system-oriented stuff.  Only compile this in if the routine
@@ -141,7 +148,8 @@ extern int TBSpace;
  * Functions.
  */
 struct cf_window *lookup_win FP ((char *, int));
-void PickWin FP ((char *));
-void SaveConfig FP ((char *));
+void 	PickWin FP ((char *));
+void 	SaveConfig FP ((char *));
 struct config *LookupConfig FP ((char *));
-int FindFile FP ((char *, char *, char *));
+int 	FindFile FP ((char *, char *, char *));
+void	SetTimeMode FP ((char *, int, ZebTime *));

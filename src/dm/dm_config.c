@@ -27,7 +27,7 @@
 # include <ui_error.h>
 # include "dm_vars.h"
 # include "dm_cmds.h"
-MAKE_RCSID ("$Id: dm_config.c,v 1.5 1993-02-18 22:19:25 burghart Exp $")
+MAKE_RCSID ("$Id: dm_config.c,v 1.6 1993-02-22 21:15:14 corbet Exp $")
 
 
 /*
@@ -528,6 +528,11 @@ struct cf_window *win;
  * And the button maps.
  */
 	SendButtonMap (win);
+/*
+ * If we are shoving times down their throats, send the history time too.
+ */
+	if (ForceHistory && HistoryMode)
+		SetTimeMode (win->cfw_name, TRUE, &HistoryTime);
 }
 
 

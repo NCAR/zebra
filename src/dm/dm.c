@@ -33,7 +33,7 @@
 # include <DataStore.h>
 # include <config.h>
 # include <copyright.h>
-MAKE_RCSID ("$Id: dm.c,v 2.21 1993-02-08 21:37:24 corbet Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.22 1993-02-22 21:15:14 corbet Exp $")
 
 
 /*
@@ -67,6 +67,14 @@ int SleepAfter = 4, SleepFor = 1;
  * Do we restart windows which die?
  */
 static bool Restart = TRUE;
+
+/*
+ * History mode control.
+ */
+int ForceHistory = FALSE;
+int HistoryMode = FALSE;
+ZebTime HistoryTime;
+
 
 
 /*
@@ -142,6 +150,7 @@ char **argv;
 	strcpy (ExecPath, GetBinDir ());
 	usy_c_indirect (vtable, "execpath", &ExecPath, SYMT_STRING,
 			ExecPathLen);
+	usy_c_indirect (vtable, "forcehistory", &ForceHistory, SYMT_BOOL, 0);
 	usy_daemon (vtable, "soundenabled", SOP_WRITE, SEChange, 0);
 	tty_watch (msg_get_fd (), (void (*)()) msg_incoming);
 
@@ -992,7 +1001,7 @@ struct ui_command *cmds;
 {
 	bool all = (cmds->uc_ctype == UTT_KW);
 	struct cf_window *dwin;
-	struct dm_history dmh;
+	ZebTime when;
 /*
  * If necessary, look up the window.
  */
@@ -1013,19 +1022,10 @@ struct ui_command *cmds;
 		}
 	}
 /*
- * Put together the message.
+ * Update the masses.
  */
-	dmh.dmm_type = DM_HISTORY;
-	/* dmh.dmm_time = UDATE (cmds[1]); */
-	TC_UIToZt (&UDATE (cmds[1]), &dmh.dmm_time);
-/*
- * Ship it out.
- */
-	if (all)
-		msg_send ("Graphproc", MT_DISPLAYMGR, TRUE, &dmh, sizeof(dmh));
-	else
-		msg_send (dwin->cfw_name, MT_DISPLAYMGR, FALSE, &dmh,
-			sizeof(dmh));
+	TC_UIToZt (&UDATE (cmds[1]), &when);
+	SetTimeMode (all ? 0 : dwin->cfw_name, TRUE, &when);
 }
 
 
@@ -1040,7 +1040,6 @@ struct ui_command *cmds;
 {
 	bool all = (cmds->uc_ctype == UTT_KW);
 	struct cf_window *dwin;
-	struct dm_history dmh;
 /*
  * If necessary, look up the window.
  */
@@ -1059,17 +1058,9 @@ struct ui_command *cmds;
 		}
 	}
 /*
- * Put together the message.
+ * Tweak the mode.
  */
-	dmh.dmm_type = DM_REALTIME;
-/*
- * Ship it out.
- */
-	if (all)
-		msg_send ("Graphproc", MT_DISPLAYMGR, TRUE, &dmh, sizeof(dmh));
-	else
-		msg_send (dwin->cfw_name, MT_DISPLAYMGR, FALSE, &dmh,
-			sizeof(dmh));
+	SetTimeMode (all ? 0 : dwin->cfw_name, FALSE, 0);
 }
 
 
@@ -1082,43 +1073,60 @@ int mode;
 ZebTime *t;
 int control_all;
 {
-	struct dm_history dmh;
 	char winname[40];
 /*
  * See what window(s) to deal with.
+ * (shouldn't we be checking that we picked a real window here??)
  */
 	if (! control_all)
 		PickWin (winname);
 /*
- * Decide what to do.
+ * Now do it.
  */
-	switch (mode)
-	{
-	   case History:
-	   	dmh.dmm_type = DM_HISTORY;
-		dmh.dmm_time = *t;
-		break;
-
-	   case RealTime:
-	   	dmh.dmm_type = DM_REALTIME;
-		break;
-# ifdef notdef
-	   case Movie:
-	   	msg_log ("I can't put *everybody* in movie mode!");
-		return;
-# endif
-	   default:
-	   	msg_ELog (EF_PROBLEM, "Funky mode (%d) in tw_cb", mode);
-		return;
-	}
-/*
- * Now send out the result.
- */
-	if (control_all)
-		msg_send ("Graphproc", MT_DISPLAYMGR, TRUE, &dmh, sizeof (dmh));
-	else
-		msg_send (winname, MT_DISPLAYMGR, FALSE, &dmh, sizeof (dmh));
+	SetTimeMode (control_all ? 0 : winname, mode == History, t);
 }
+
+
+
+
+
+void
+SetTimeMode (who, history, when)
+char *who;
+int history;
+ZebTime *when;
+/*
+ * Send out the time mode to one or more processes.  WHO is the target, 
+ * unless it is null, in which case the time is sent to everybody.  HISTORY
+ * is true if the process is to be put in history mode.  In the HISTORY 
+ * case, WHEN is used as the history time.
+ */
+{
+	struct dm_history dmh;
+/*
+ * Tweak up a message to send out.
+ */
+	if (history)
+	{
+	   	dmh.dmm_type = DM_HISTORY;
+		dmh.dmm_time = *when;
+	}
+	else
+	   	dmh.dmm_type = DM_REALTIME;
+/*
+ * Ship it out.
+ */
+	if (who)
+		msg_send (who, MT_DISPLAYMGR, FALSE, &dmh, sizeof (dmh));
+	else
+		msg_send ("Graphproc", MT_DISPLAYMGR, TRUE, &dmh, sizeof(dmh));
+/*
+ * If this is a global change, then set our recordkeeping variables.
+ */
+	if (! who && (HistoryMode = history))
+		HistoryTime = *when;
+}
+
 
 
 
