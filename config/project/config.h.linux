@@ -49,7 +49,7 @@
 XCOMM -----------------------------------------------------------------------
 XCOMM Definitions from config.h included here.  The definitions here override
 XCOMM the defaults in Project.tmpl.  See ...../zebra/config/project/config.h.
-XCOMM $Id: config.h.linux,v 1.1 2002-06-10 15:39:51 burghart Exp $
+XCOMM $Id: config.h.linux,v 1.2 2003-03-13 16:42:28 burghart Exp $
 XCOMM -----------------------------------------------------------------------
 # endif
 
@@ -328,9 +328,9 @@ XCOMM -----------------------------------------------------------------------
 # define XIncDir /usr/X11R6/include
 #endif
 
-#define NetCDFIncDir /usr/local/include
+/* #define NetCDFIncDir /usr/local/include */
 
-#define UDUnitsIncDir /usr/local/include
+/* #define UDUnitsIncDir /usr/local/include */
 
 /*
  * Zebra can build an interface to HDF (Hierarchical Data Format) satellite
