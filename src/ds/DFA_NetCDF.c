@@ -33,7 +33,7 @@
 # include "dfa.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_NetCDF.c,v 3.62 1998-05-19 16:17:48 burghart Exp $")
+RCSID ("$Id: DFA_NetCDF.c,v 3.63 1998-10-01 16:56:05 corbet Exp $")
 
 # include <netcdf.h>
 
@@ -2916,11 +2916,8 @@ AltUnitType *altunits;
 	if (altunits)
 		*altunits = tag->nc_altUnits;
 	if (alts)
-	{
-		i = 0;
-		while (i < tag->nc_nalts)
-			alts[i] = tag->nc_alts[i++];
-	}
+		for (i = 0; i < tag->nc_nalts; i++)
+			alts[i] = tag->nc_alts[i];
 	return (TRUE);
 }
 
@@ -3384,7 +3381,7 @@ DataChunk *dc;
 	sprintf(history,"created by the Zebra DataStore library, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.62 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.63 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 }
