@@ -48,7 +48,7 @@
 # include "PixelCoord.h"
 # include "LayoutControl.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.27 1993-06-24 20:36:08 barrett Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.28 1993-07-16 16:05:57 corbet Exp $")
 
 /*
  * Default resources.
@@ -291,6 +291,7 @@ finish_setup ()
 	I_init ();		/* Icons			*/
 	lw_InitWidgets ();	/* Limit widgets		*/
 	InitDataMenu ();	/* Data available menu		*/
+	InitFieldMenu ();	/* Field selection		*/
 	pw_InitPos ();		/* Position Widget		*/
 	iw_Initialize ();	/* Data insertion widget	*/
 	aw_InitAnnot ();	/* Annotation widget		*/

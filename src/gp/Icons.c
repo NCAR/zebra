@@ -542,7 +542,7 @@ Cardinal *cardjunk;
 /*
  * Throw it up onto the screen, and let it handle things from here.
  */
-	if (strcmp (menu, "DataAvailable"))
+	if (strcmp (menu, "DataAvailable") && strcmp (menu, "FieldMenu"))
 		uw_IWRealize (menu, Graphics);
 /*
  * Specify the menu name in the MenuButton's menuName resource so that
