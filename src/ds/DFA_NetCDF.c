@@ -33,7 +33,7 @@
 # include "dfa.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_NetCDF.c,v 3.61 1997-11-21 20:36:10 burghart Exp $")
+RCSID ("$Id: DFA_NetCDF.c,v 3.62 1998-05-19 16:17:48 burghart Exp $")
 
 # include <netcdf.h>
 
@@ -3384,7 +3384,7 @@ DataChunk *dc;
 	sprintf(history,"created by the Zebra DataStore library, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.61 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.62 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 }
@@ -4119,12 +4119,16 @@ char *const fld;
  * See if this is an "overhead" field, as opposed to real data.
  */
 {
+/*
+ * While alt, lat, and lon may be a bit annoying in field lists, we should not
+ * hide them from users.  Let somebody higher up do the hiding...
+ */
 	static char *OFields[] =	/* NOTE these are alphabetical */
 	{
-		"alt",
+	    /* "alt",	*/
 		"base_time",
-		"lat",
-		"lon",
+	    /* "lat",	*/
+	    /* "lon",	*/
 		"platform",
 		"time",
 		"time_offset",
