@@ -21,7 +21,7 @@ main(int argc, char* argv[])
     //
     char *myName = argv[0];
 
-    if (argc < 4) 
+    if (argc < 5) 
 	usage(myName);
 
     char *periodString = argv[1];
@@ -30,8 +30,9 @@ main(int argc, char* argv[])
     if (endptr == periodString)
 	usage(myName);
     
-    char *stnListFileName = argv[2];
-    char *fslFileName = argv[3];
+    char* stnListFileName = argv[2];
+    char* baseDir = argv[3];
+    char* fslFileName = argv[4];
 
     //
     // Create the list of stations of interest
@@ -99,7 +100,10 @@ main(int argc, char* argv[])
 	fprintf(stderr, "var error: %s\n", ve.c_str());
 	exit(1);
     }
-
+    //
+    // Set the default dir for the Zebra mesonet files
+    //
+    zebraMesonetOutFile::setDir(baseDir);
     //
     // Now loop through the records in the FSL file and dump the
     // stuff of interest into the Zebra file
@@ -184,8 +188,7 @@ void
 usage(const char* name)
 {
     fprintf(stderr, 
-	    "Usage: %s <data_period_minutes> <station_list_file> <fsl_file>\n",
-	    name);
+	    "Usage: %s <data_period_minutes> <station_list_file> <out_base_dir> <fsl_file>\n", name);
     exit(1);
 }
 

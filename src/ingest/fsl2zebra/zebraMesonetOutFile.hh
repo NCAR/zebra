@@ -26,7 +26,7 @@ public:
 		time <= (endTime + period / 2));
     }
 
-    static void setDir(string dir);
+    inline static void setDir(string dir) { basedir = dir; }
 private:
     static const string DATA_PERIOD_ATT;
     static string basedir;
