@@ -61,11 +61,11 @@ db_Close ()
 
 
 static const char *
-db_Key (const DataFileInfo *dfi, datum *key)
+db_Key (const char *plat, const DataFileInfo *dfi, datum *key)
 {
 	static char buf[512];
 
-	sprintf (buf, "%s/%s", ds_PlatformName (dfi->dfi_Plat), dfi->dfi_Name);
+	sprintf (buf, "%s/%s", plat, dfi->dfi_Name);
 	if (key)
 	{
 		key->dptr = buf;
@@ -77,14 +77,14 @@ db_Key (const DataFileInfo *dfi, datum *key)
 
 
 int
-db_Insert (DataFileInfo *dfi, ZebraTime *zt)
+db_Insert (const char *plat, DataFileInfo *dfi, ZebraTime *zt)
 {
 	Entry e;
 	datum key, value;
 
 	e.dfi = *dfi;
 	e.dump = *zt;
-	db_Key (dfi, &key);
+	db_Key (plat, dfi, &key);
 	value.dptr = (void *)&e;
 	value.dsize = sizeof(Entry);
 	return (dbm_store (File, key, value, DBM_REPLACE));
@@ -115,12 +115,13 @@ db_Value (datum *key, DataFileInfo *dfi, ZebraTime *zt)
 
 
 int
-db_Fetch (const DataFileInfo *in, DataFileInfo *dfi, ZebraTime *zt)
+db_Fetch (const char *plat, const DataFileInfo *in, 
+	  DataFileInfo *dfi, ZebraTime *zt)
 {
 	datum key;
 	datum value;
 
-	db_Key (in, &key);
+	db_Key (plat, in, &key);
 	return (db_Value (&key, dfi, zt));
 }
 

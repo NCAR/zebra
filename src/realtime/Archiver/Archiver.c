@@ -55,7 +55,7 @@
 
 # include "Database.h"
 
-RCSID ("$Id: Archiver.c,v 1.37 1997-05-13 23:04:35 granger Exp $")
+RCSID ("$Id: Archiver.c,v 1.38 1997-06-20 21:02:12 granger Exp $")
 
 /*
  * Issues:
@@ -1488,7 +1488,7 @@ int all;
 	 * Skip this file if already in the database.  Someday this can
 	 * check for number of samples or revision or such.
 	 */
-		if (db_Fetch (&dfi, NULL, NULL) == 0)
+		if (! db_Fetch (ds_PlatformName(dfi.dfi_Plat),&dfi,NULL,NULL))
 			continue;
 	/*
 	 * Fix up the file name
@@ -1804,7 +1804,7 @@ UpdateList ()
 		DataFileInfo dfi;
 
 		ds_GetFileInfo (DumpedFiles[i], &dfi);
-		db_Insert (&dfi, &now);
+		db_Insert (ds_PlatformName (dfi.dfi_Plat), &dfi, &now);
 	}
 	db_Close ();
 /*
