@@ -20,11 +20,11 @@
  * maintenance or updates for its software.
  */
 
-# include <defs.h>
+# include "defs.h"
 # include <config.h>
 # include "message.h"
 
-MAKE_RCSID ("$Id: cmd_proto.c,v 1.2 1994-01-26 11:24:48 granger Exp $")
+MAKE_RCSID ("$Id: cmd_proto.c,v 1.3 1994-01-28 21:31:16 granger Exp $")
 
 
 static int cp_RunCommand FP ((Message *));

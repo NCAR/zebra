@@ -3,7 +3,6 @@
  * of pixmap "frames" associated with it.  Zero frames means just write 
  * everything directly to the window.
  */
-static char *rcsid = "$Id: GraphicsW.c,v 2.13 1994-01-27 16:27:21 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -35,10 +34,12 @@ static char *rcsid = "$Id: GraphicsW.c,v 2.13 1994-01-27 16:27:21 burghart Exp $
 # include <X11/IntrinsicP.h>
 # include <X11/StringDefs.h>
 # include <config.h>		/* to establish dependency on SHM def */
-# include <defs.h>
-# include <message.h>
-# include <pd.h>
+# include "defs.h"
+# include "message.h"
+# include "pd.h"
 # include "GraphicsWP.h"
+
+MAKE_RCSID("$Id: GraphicsW.c,v 2.14 1994-01-28 21:30:54 granger Exp $")
 
 /*
  * The SHM definition just tells us that we can link with the shared

@@ -32,11 +32,11 @@
 
 # include <ui.h>
 # include <ui_date.h>
-# include <defs.h>
-# include <message.h>
-# include <timer.h>
+# include "defs.h"
+# include "message.h"
+# include "timer.h"
 
-MAKE_RCSID ("$Id: alarmwidget.c,v 1.1 1992-04-06 17:59:13 burghart Exp $")
+MAKE_RCSID ("$Id: alarmwidget.c,v 1.2 1994-01-28 21:31:12 granger Exp $")
 
 # define STRLEN 50
 # define STATUSSTR 200

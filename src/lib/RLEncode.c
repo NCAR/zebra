@@ -1,7 +1,6 @@
 /*
  * Run length encoding/decoding stuff.
  */
-static char *rcsid = "$Id: RLEncode.c,v 2.1 1991-09-13 15:01:58 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -20,9 +19,10 @@ static char *rcsid = "$Id: RLEncode.c,v 2.1 1991-09-13 15:01:58 corbet Exp $";
  * maintenance or updates for its software.
  */
 
-# include <defs.h>
-# include <message.h>
+# include "defs.h"
+# include "message.h"
 
+MAKE_RCSID("$Id: RLEncode.c,v 2.2 1994-01-28 21:31:09 granger Exp $")
 
 void
 RL_Encode (data, dest, smax, dmax, sused, ndest)

@@ -1,7 +1,6 @@
 /*
  * Routines to effect image transfer through shared memory.
  */
-static char *rcsid = "$Id: ImageXfr.c,v 2.5 1993-10-25 22:06:35 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -28,9 +27,11 @@ static char *rcsid = "$Id: ImageXfr.c,v 2.5 1993-10-25 22:06:35 corbet Exp $";
 char * shmat ();
 
 # include "defs.h"
-# include <message.h>
+# include "message.h"
 # include <DataStore.h>
 # include "ImageXfr.h"
+
+MAKE_RCSID("$Id: ImageXfr.c,v 2.6 1994-01-28 21:31:02 granger Exp $")
 
 # define MAXATTR	100		/* Max attribute space	*/
 

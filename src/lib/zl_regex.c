@@ -16,7 +16,7 @@
  * maintenance or updates for its software.
  */
 
-# include <defs.h>
+# include "defs.h"
 # include <config.h>
 
 /*
@@ -29,8 +29,7 @@
  */
 # include "zl_regex.h"
 
-static char *rcsid = 
-   "$Id: zl_regex.c,v 2.1 1994-01-05 20:14:32 granger Exp $";
+MAKE_RCSID("$Id: zl_regex.c,v 2.2 1994-01-28 21:31:27 granger Exp $")
 
 /*
  * Provide hooks to the system regular expression routines, confining all of
