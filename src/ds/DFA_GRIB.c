@@ -33,7 +33,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 
-MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.1 1994-02-22 18:38:55 burghart Exp $")
+MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.2 1994-02-24 20:03:08 burghart Exp $")
 
 /*
  * The GRIB product definition section (PDS)
@@ -124,6 +124,36 @@ typedef struct s_GFTag
 	GRIBdesc	*gt_grib;	/* Descriptors for each grid	*/
 } GFTag;
 
+
+/*
+ * For each GRIB type we understand, we keep the following concerning the 
+ * original (source) grid:
+ *
+ *	gg_type:	integer grid type
+ *	gg_snx, gg_sny:	width and height of the GRIB source grid
+ *	gg_ndx_module:	routine for converting from lat/lon to source grid
+ *			indices
+ *	gg_ll_module:	routine for converting from source grid indices to
+ *			lat/lon
+ *
+ * and for the destination grid into which we remap the data, we keep
+ * the following:
+ *
+ *	gg_dnx, gg_dny:		width and height of the destination grid
+ *	gg_dlat, gg_dlon:	lat/lon origin of the destination grid
+ *	gg_dlatstep, gg_dlonstep:	lat and lon step in the dest. grid
+ */
+typedef struct s_GRB_TypeInfo
+{
+	int	gg_type;
+	int	gg_snx, gg_sny;
+	void	(*gg_ndx_module)();
+	void	(*gg_ll_module)();
+	int	gg_dnx, gg_dny;
+	float	gg_dlat, gg_dlon;
+	float	gg_dlatstep, gg_dlonstep;
+} GRB_TypeInfo;
+
 /*
  * One reasonable spherical radius for the earth, in km
  */
@@ -144,11 +174,13 @@ static int	grb_TimeIndex FP ((GFTag *, ZebTime *, int));
 static void	grb_DestroyTag FP ((GFTag *));
 static int	grb_TwoByteInt FP ((char *));
 static int	grb_ThreeByteInt FP ((char *));
-static void	grb_ReadRGrid FP ((DataChunk *, GFTag *, int, int, int, 
-				   FieldId, double, dsDetail *, int));
+static void	grb_ReadRGrid FP ((DataChunk *, GFTag *, GRB_TypeInfo *, int, 
+				   int, int, FieldId, float *, dsDetail *, 
+				   int));
 static FieldId	grb_Field FP ((GFpds *, ScaleInfo *));
 static int	grb_Offset FP ((GFpds *));
-static int	grb_NormalLevel FP ((GFpds *));
+static bool	grb_NormalLevel FP ((GFpds *));
+static float	grb_ZLevel FP ((GFpds *, AltUnitType *));
 static void	grb_105Index FP ((double, double, float *, float *));
 static void	grb_105LatLon FP ((double, double, float *, float *));
 static void	grb_UnpackBDS FP ((GFTag *, int, float *, int, int));
@@ -157,8 +189,8 @@ static void	grb_UnpackWind FP ((GFTag *, FieldId, int, int, float *, int,
 				    int, void (*)(), void (*)()));
 static void	grb_FixWind FP ((float *, float *, int, int, void (*)(), 
 				 void (*)()));
-static int	grb_GetOrigin FP ((float *, float *));
-
+static void	grb_DCInit FP ((DataChunk *, FieldId *, int));
+static void	grb_DCFinishDefs FP ((DataChunk *, GRB_TypeInfo *, int));
 
 /*
  * Field list.  We only include here the fields for which we have
@@ -208,37 +240,12 @@ struct s_GRB_FList
 
 int GRB_FList_len = sizeof (GRB_FList) / sizeof (struct s_GRB_FList);
 	
+
+
 /*
- * GRIB grid types which we can unpack.  (Keep this after the local function
- * prototypes, since we use module names in the table).  
- *
- * For the each type, we keep the following concerning the original (source) 
- * grid:
- *
- *	gg_type:	integer grid type
- *	gg_snx, gg_sny:	width and height of the GRIB source grid
- *	gg_ndx_module:	routine for converting from lat/lon to source grid
- *			indices
- *	gg_ll_module:	routine for converting from source grid indices to
- *			lat/lon
- *
- * and for the destination grid into which we remap the data, we keep
- * the following:
- *
- *	gg_dnx, gg_dny:		width and height of the destination grid
- *	gg_dlat, gg_dlon:	lat/lon origin of the destination grid
- *	gg_dlatstep, gg_dlonstep:	lat and lon step in the dest. grid
+ * Info for GRIB grid types we know how to unpack.
  */
-struct s_GRB_Types
-{
-	int	gg_type;
-	int	gg_snx, gg_sny;
-	void	(*gg_ndx_module)();
-	void	(*gg_ll_module)();
-	int	gg_dnx, gg_dny;
-	float	gg_dlat, gg_dlon;
-	float	gg_dlatstep, gg_dlonstep;
-} GRB_Types[] =
+GRB_TypeInfo GRB_Types[] =
 {
 	/*
 	 * 105: 6889-point (83x83) N. Hemisphere polar stereographic grid
@@ -250,12 +257,12 @@ struct s_GRB_Types
 		  1.0, 1.0 },
 };
 
-int GRB_NTypes = sizeof (GRB_Types) / sizeof (struct s_GRB_Types);
+int GRB_NTypes = sizeof (GRB_Types) / sizeof (GRB_TypeInfo);
 
 /*
  * How many vertical levels can we handle?
  */
-# define MAXLEVELS	30
+# define MAXLEVELS	40
 
 /*
  * Winds info.  Since this stuff takes a while to calculate, we keep track
@@ -432,9 +439,9 @@ DataClass	class;
 /*
  * Do some sanity checking.
  */
-	if (class != DCC_RGrid)
+	if (class != DCC_NSpace)
 	{
-		msg_ELog (EF_PROBLEM, "Non-RGrid fetch from GRIB file");
+		msg_ELog (EF_PROBLEM, "Non-NSpace fetch from GRIB file");
 		return (NULL);
 	}
 /*
@@ -443,11 +450,22 @@ DataClass	class;
 	if (! dfa_OpenFile (gp->gl_dfindex, FALSE, (void *) &tag))
 		return (NULL);
 /*
- * Create and initialize an RGrid data chunk
+ * Create an NSpace data chunk
  */
-	dc = dc_CreateDC (DCC_RGrid);
-	dc_RGSetup (dc, nfield, fields);
-	dc_SetLocAltUnits (dc, AU_mb);	/* force to mb for now */
+	dc = dc_CreateDC (DCC_NSpace);
+/*
+ * Put in preliminary dimension and field definitions.  The real dimension
+ * sizes get set by grb_DCFinishDefs() when the data grab happens.  We have
+ * to do some here, though, because the data chunk is the only source for
+ * field information when the data grab occurs.  Note that dc_GetFields()
+ * will return zero fields for the data chunk in the state we return it,
+ * since the fields aren't actually "defined" for NSpace data chunks until
+ * we call dc_NSDefineComplete(), and that doesn't happen until the call
+ * to grb_DCFinishDefs().  Is that sufficiently confusing?
+ */
+	grb_DCInit (dc, fields, nfield);
+	dc_NSAllowRedefine (dc, TRUE);
+	
 	return (dc);
 }
 
@@ -464,27 +482,113 @@ int		ndetail;
  * Get the data from this GetList entry.
  */
 {
-	int	ndx, firstndx, lastndx, nfield, nsamp, samp, sbegin, send, f;
-	float	*grid, badval;
+	int	ndx, firstndx, lastndx, nfield, samp, sbegin, send, f;
+	int	nalts, gtype, i;
+	float  	badval, ztarget, *lats, *lons, alts[MAXLEVELS];
+	bool	onelevel;
 	SValue	v;
 	GFTag	*tag;
-	FieldId	*fids;
+	FieldId	*fids, lat_id, lon_id, alt_id;
 	ZebTime	stime;
+	GRB_TypeInfo	*grbinfo;
+	AltUnitType	altunits;
 /*
  * Open this file.
  */
 	if (! dfa_OpenFile (gp->gl_dfindex, FALSE, (void *) &tag))
 		return (FALSE);
 /*
- * Get the field list
+ * Get the grid type and get the entry from our types table.  (We use the
+ * first grid in the file, assuming that all grids in the file are of the
+ * same type).
  */
-	fids = dc_GetFields (dc, &nfield);
+	gtype = tag->gt_grib[0].gd_pds->grid_id;
+
+	grbinfo = NULL;
+	for (i = 0; i < GRB_NTypes; i++)
+	{
+		if (GRB_Types[i].gg_type == gtype)
+		{
+			grbinfo = GRB_Types + i;
+			break;
+		}
+	}
+
+	if (! grbinfo)
+	{
+		msg_ELog (EF_PROBLEM, "Cannot unpack GRIB grid type %d\n", 
+			  gtype);
+		grb_CloseFile ((void *) tag);
+		return (FALSE);
+	}
+/*
+ * Get the list of available alts and set the altitude units in our
+ * data chunk.  We assume that we have the same number of levels (alts)
+ * for all fields.
+ */
+	grb_GetAlts (gp->gl_dfindex, alts, &nalts, &altunits);
+	dc_SetLocAltUnits (dc, altunits);
+/*
+ * If they just want one level, find the closest one.
+ */
+	onelevel = ds_GetDetail ("altitude", details, ndetail, &v);
+	if (onelevel)
+	{
+		float	diff, bestdiff = 99e99;
+		int	best;
+
+		ztarget = v.us_v_float;
+
+		for (i = 0; i < nalts; i++)
+		{
+			diff = abs (ztarget - alts[i]);
+			if (diff < bestdiff)
+			{
+				bestdiff = diff;
+				best = i;
+			}
+		}
+
+		ztarget = alts[best];
+	}
+/*
+ * Make the dimension info in the data chunk correct if we haven't done so
+ * already.
+ */
+	if (! dc_NSDefineIsComplete (dc))
+		grb_DCFinishDefs (dc, grbinfo, onelevel ? 1 : nalts);
+/*
+ * Set the values for the lat and lon coordinate variables.
+ */
+	lons = (float *) malloc (grbinfo->gg_dnx * sizeof (float));
+	for (i = 0; i < grbinfo->gg_dnx; i++)
+		lons[i] = grbinfo->gg_dlon + i * grbinfo->gg_dlonstep;
+
+	lon_id = F_Lookup ("lon");
+	dc_NSAddStatic (dc, lon_id, (void *) lons);
+
+	free (lons);
+	
+	lats = (float *) malloc (grbinfo->gg_dny * sizeof (float));
+	for (i = 0; i < grbinfo->gg_dny; i++)
+		lats[i] = grbinfo->gg_dlat + i * grbinfo->gg_dlatstep;
+
+	lat_id = F_Lookup ("lat");
+	dc_NSAddStatic (dc, lat_id, (void *) lats);
+
+	free (lats);
+/*
+ * Same for altitude.
+ */
+	alt_id = F_Lookup ("alt");
+	dc_NSAddStatic (dc, alt_id, (void *) (onelevel ? &ztarget : alts));
 /*
  * Set the badval in the data chunk, either based on the details we're given
  * or by using the default.
  */
 	badval = ds_GetDetail ("badval", details, ndetail, &v) ?
 		v.us_v_float : -9999.0;
+
 	dc_SetBadval (dc, badval);
 /*
  * Find the indices that bound our data search.
@@ -515,11 +619,28 @@ int		ndetail;
 				break;
 		}
 	/*
+	 * Get the field list
+	 */
+		fids = dc_GetFields (dc, &nfield);
+	/*
 	 * Do each field for this sample
 	 */
 		for (f = 0; f < nfield; f++)
-			grb_ReadRGrid (dc, tag, samp, sbegin, send, fids[f], 
-				       badval, details, ndetail);
+		{
+		/*
+		 * Ignore our coordinate variables
+		 */
+			if (fids[f] == lat_id || fids[f] == lon_id ||
+			    fids[f] == alt_id)
+				continue;
+		/*
+		 * "Real" data field
+		 */
+			grb_ReadRGrid (dc, tag, grbinfo, samp, sbegin, send, 
+				       fids[f], onelevel ? &ztarget : NULL,
+				       details, ndetail);
+		}
+		
 
 		samp++;
 	}
@@ -589,7 +710,7 @@ AltUnitType	*altunits;
  * Fill in the rgrid info for this grid file.
  */
 {
-	int	i, offset;
+	int	i, offset, count;
 	FieldId	fid;
 	GFpds	*pds;
 	GFTag	*tag;
@@ -606,10 +727,12 @@ AltUnitType	*altunits;
 	switch (tag->gt_grib[0].gd_pds->level_id)
 	{
 	    case 100:
-		*altunits = AU_mb;	/* millibars */
+		if (altunits)
+			*altunits = AU_mb;	/* millibars */
 		break;
 	    case 103:
-		*altunits = AU_mMSL;	/* meters MSL */
+		if (altunits)
+			*altunits = AU_mMSL;	/* meters MSL */
 		break;
 	    default:
 		msg_ELog (EF_PROBLEM, "Can't deal with GRIB level type %d!",
@@ -624,7 +747,7 @@ AltUnitType	*altunits;
 	offset = grb_Offset (tag->gt_grib[0].gd_pds);
 	t = tag->gt_grib[0].gd_time;
 
-	*nalts = 0;
+	count = 0;
 	for (i = 0; i < tag->gt_ngrids; i++)
 	{
 		if (! TC_Eq (tag->gt_grib[i].gd_time, t))
@@ -636,12 +759,18 @@ AltUnitType	*altunits;
 		pds = tag->gt_grib[i].gd_pds;
 
 		if (fid == grb_Field (pds, NULL) &&
-		    offset == grb_Offset (pds) && grb_NormalLevel (pds))
+		    grb_NormalLevel (pds) && offset == grb_Offset (pds))
 		{
-			alts[(*nalts)++] = (float) 
-				grb_TwoByteInt (&(pds->level_val));
+			if (alts)
+				alts[count++] = (float) 
+					grb_TwoByteInt (&(pds->level_val));
+			else
+				count++;
 		}
 	}
+
+	if (nalts)
+		*nalts = count;
 
 	return (TRUE);
 }
@@ -774,7 +903,7 @@ Location	*locs;
 		{
 			gloc.l_lat = GRB_Types[i].gg_dlat;
 			gloc.l_lon = GRB_Types[i].gg_dlon;
-			gloc.l_alt = 1000.0;
+			gloc.l_alt = 1000.0;	/* BOGUS! */
 			break;
 		}
 	}
@@ -1047,40 +1176,38 @@ char	*buf;
 
 
 static void
-grb_ReadRGrid (dc, tag, samp, sbegin, send, fid, badval, details, ndetail)
+grb_ReadRGrid (dc, tag, ginfo, samp, sbegin, send, fid, ztarget, details, 
+	       ndetail)
 DataChunk	*dc;
 GFTag		*tag;
+GRB_TypeInfo	*ginfo;
 int		samp, sbegin, send, ndetail;
 FieldId		fid;
-double		badval;
+float		*ztarget;
 dsDetail	*details;
 /*
  * Build a grid of the chosen field, using the GRIB grids between indices
- * sbegin and send inclusive, and stuff it into the data chunk.
+ * sbegin and send inclusive, and stuff it into the data chunk.  If 
+ * 'ztarget' is non-NULL, then only one horizontal plane is desired, at the
+ * given z level.  Otherwise, return all planes.
  */
 {
-	int	gtype, offset, nsx, nsy, si, sj, i, j;
+	int	offset, nsx, nsy, si, sj, i, j;
 	int	indices[MAXLEVELS], u_indices[MAXLEVELS], v_indices[MAXLEVELS];
-	int	level, nlevels, ulevels, vlevels, ndx, undx, vndx, onelevel;
-	float	*sgrid, *sp, *dgrid, *dp;
-	float	x, y, origin_lat, origin_lon, lat, lon, latstep, lonstep, zval;
-	float	di, dj, val0, val1, val2, val3;
-	RGrid	rg;
+	float	zvals[MAXLEVELS], badval = dc_GetBadval (dc);
+	int	level, nlevels, ulevels, vlevels, ndx;
+	float	*sgrid, *sp, *dgrid, *dp, *lats, *lons;
+	float	x, y, z, di, dj, val0, val1, val2, val3;
 	GFpds	*pds;
 	ZebTime	time;
-	bool	u_or_v;
+	bool	onelevel, u_or_v;
 	void	(*index_module)(), (*ll_module)();
 	FieldId	grid_fid, u_fid, v_fid;
-	ScaleInfo	sc;
-	Location	llcorner;
 	SValue	v;
+	ScaleInfo	sc;
+	unsigned long	dc_nlevels, nlat, nlon;
 /*
- * Make sure we have an origin for lat/lon <-> x,y conversions.
- */
-	if (! grb_GetOrigin (&origin_lat, &origin_lon))
-		return;
-/*
- * Get the requested forecast offset, in seconds
+ * Get the requested forecast offset, in seconds.
  */
 	offset = ds_GetDetail (DD_FORECAST_OFFSET, details, ndetail, &v) ?
 		v.us_v_int : 0;
@@ -1091,7 +1218,13 @@ dsDetail	*details;
 	v_fid = F_Lookup ("v_wind");
 	u_or_v = (fid == u_fid || fid == v_fid);
 /*
- * Count how many levels we have for this field and offset
+ * Get the lists of lats and lons from the data chunk.
+ */
+	lats = (float *) dc_NSGetStatic (dc, F_Lookup ("lat"), &nlat);
+	lons = (float *) dc_NSGetStatic (dc, F_Lookup ("lon"), &nlon);
+/*
+ * Build a list of grids that contain our field and have the right forecast
+ * time
  */
 	nlevels = ulevels = vlevels = 0;
 
@@ -1102,12 +1235,24 @@ dsDetail	*details;
 	 * Bag this grid now if the forecast time is wrong or it's a
 	 * "special" level
 	 */
-		if (grb_Offset (pds) != offset || ! grb_NormalLevel (pds))
-			break;
+		if (! grb_NormalLevel (pds) || grb_Offset (pds) != offset)
+			continue;
+	/*
+	 * If we just want one level, make sure we get the right one.
+	 */
+		z = grb_ZLevel (pds, NULL);
+		if (ztarget && z != *ztarget)
+			continue;
 	/*
 	 * Now check the field
 	 */
 		grid_fid = grb_Field (pds, NULL);
+
+		if (grid_fid == fid)
+		{
+			zvals[nlevels] = z;
+			indices[nlevels++] = ndx;
+		}
 
 		if (u_or_v)
 		{
@@ -1116,125 +1261,66 @@ dsDetail	*details;
 			else if (grid_fid == v_fid)
 				v_indices[vlevels++] = ndx;
 		}
-		else
-		{
-			if (grid_fid == fid)
-				indices[nlevels++] = ndx;
-		}
 	}
 /*
- * Set the number of good levels if we're doing wind.
+ * If we're doing wind, make sure we got the same number of levels for
+ * both u and v
  */
-	if (u_or_v)
+	if (u_or_v && ulevels != vlevels)
 	{
-		if (ulevels == vlevels)
-			nlevels = ulevels;
-		else
-		{
-			msg_ELog (EF_PROBLEM, 
-			    "GRIB u_wind and v_wind levels don't match!");
-			nlevels = (ulevels < vlevels) ? ulevels : vlevels;
-		}
+		msg_ELog (EF_PROBLEM, 
+			  "GRIB u_wind and v_wind levels don't match!");
+		nlevels = 0;
 	}
 /*
- * If we have no levels, create a (1x1x1) grid with just a badval in it and
- * put that in the data chunk.
+ * Make sure we're copacetic with the number of levels defined in the
+ * data chunk.  This is the verification of the assumption made in 
+ * grb_GetData() that we have the same number of vertical levels for all 
+ * fields.
+ */
+	dc_NSGetDimension (dc, F_Lookup ("alt"), NULL, &dc_nlevels);
+	if (nlevels && dc_nlevels != nlevels)
+	{
+		msg_ELog (EF_PROBLEM, "*BUG*: GRIB level count mismatch!");
+		nlevels = 0;
+	}
+/*
+ * If we have no levels, create a grid full of badvals and put that in the
+ * data chunk.
  */
 	if (nlevels == 0)
 	{
-		float	val = (float) badval;
+		float	*grid;
+		int	gridsize;
+
+		msg_ELog (EF_INFO, "GRIB: No '%s' data for '%s'", 
+			  F_GetName (fid), ds_PlatformName(dc->dc_Platform));
 		
 		time = tag->gt_grib[sbegin].gd_time;
 
-		rg.rg_nX = rg.rg_nY = rg.rg_nZ = 1;
-		rg.rg_Xspacing = rg.rg_Yspacing = rg.rg_Zspacing = 1.0;
-		llcorner.l_lat = llcorner.l_lon = 0.0;
+		gridsize = nlat * nlon * dc_nlevels;
+		grid = (float *) malloc (gridsize * sizeof (float));
 
-		dc_RGAddGrid (dc, samp, fid, &llcorner, &rg, &time, &val, 0);
+		for (i = 0; i < gridsize; i++)
+			grid[i] = badval;
+
+		dc_NSAddSample (dc, &time, samp, fid, grid);
+
+		free (grid);
 		return;
 	}
 /*
- * Are they asking for just one level?
+ * Grab some info on the GRIB grid type we're unpacking
  */
-	if ((onelevel = ds_GetDetail ("altitude", details, ndetail, &v)))
-	{
-		zval = v.us_v_float;
-	/*
-	 * For now, we lie about (hardwire) vertical levels. (We just say it 
-	 * starts at 100 mb and goes by 50 mb steps.)  Choose the appropriate
-	 * level based on the lie.
-	 */
-		if (u_or_v)
-		{
-			u_indices[0] = u_indices[(nint (zval) - 100) / 50];
-			v_indices[0] = v_indices[(nint (zval) - 100) / 50];
-		}
-		else
-			indices[0] = indices[(nint (zval) - 100) / 50];
-
-		nlevels = 1;
-	}
-/*
- * Get the GRIB grid type.  We assume that all the grids in this file are
- * of the same type.
- */
-	gtype = tag->gt_grib[0].gd_pds->grid_id;
-/*
- * Set up based on GRIB grid type.
- */
-	for (i = 0; i < GRB_NTypes; i++)
-	{
-		if (gtype == GRB_Types[i].gg_type)
-		{
-		/*
-		 * Source grid info
-		 */
-			nsx = GRB_Types[i].gg_snx;
-			nsy = GRB_Types[i].gg_sny;
-			index_module = GRB_Types[i].gg_ndx_module;
-			ll_module = GRB_Types[i].gg_ll_module;
-		/*
-		 * Destination grid info
-		 */
-			rg.rg_nX = GRB_Types[i].gg_dnx;
-			rg.rg_nY = GRB_Types[i].gg_dny;
-			rg.rg_nZ = nlevels;
-
-			llcorner.l_lat = GRB_Types[i].gg_dlat;
-			llcorner.l_lon = GRB_Types[i].gg_dlon;
-			latstep = GRB_Types[i].gg_dlatstep;
-			lonstep = GRB_Types[i].gg_dlonstep;
-
-			break;
-		}
-	}
-
-	if (i == GRB_NTypes)
-	{
-		msg_ELog (EF_EMERGENCY, "Cannot unpack GRIB grid type %d\n", 
-			  gtype);
-		return;
-	}
+	nsx = ginfo->gg_snx;	/* source grid width	*/
+	nsy = ginfo->gg_sny;	/* source grid height	*/
+	index_module = ginfo->gg_ndx_module;
+	ll_module = ginfo->gg_ll_module;
 /*
  * Allocate space for the source and destination grids
  */
 	sgrid = (float *) calloc (nsx * nsy, sizeof (float));
-	dgrid = (float *) malloc (rg.rg_nX * rg.rg_nY * rg.rg_nZ * 
-				  sizeof (float));
-/*
- * Since our rgrids are based on x,y rather than lat/lon, we need to bogus up
- * km spacing in the destination grid from our lat/lon spacing.
- */
-	cvt_ToXY (origin_lat, origin_lon + lonstep, &x, &y);
-	rg.rg_Xspacing = x;
-
-	cvt_ToXY (origin_lat + latstep, origin_lon, &x, &y);
-	rg.rg_Yspacing = y;
-/*
- * Lie about (well, hardwire) z spacing for now...
- */
-	llcorner.l_alt = onelevel ? zval : 1000.0;
-	rg.rg_Zspacing = -50.0;
+	dgrid = (float *) malloc (nlat * nlon * nlevels * sizeof (float));
 /*
  * Loop through our list of GRIB records, remapping their data into the
  * destination grid.
@@ -1247,41 +1333,32 @@ dsDetail	*details;
 	 * Get the scaling information for our field and unpack the GRIB
 	 * Binary Data Section into sgrid.
 	 */
+		grb_Field (tag->gt_grib[indices[level]].gd_pds, &sc);
+
 		if (u_or_v)
-		{
-			undx = u_indices[level];
-			vndx = v_indices[level];
-			grb_Field (tag->gt_grib[undx].gd_pds, &sc);
-			grb_UnpackWind (tag, fid, undx, vndx, sgrid, nsx, nsy,
+			grb_UnpackWind (tag, fid, u_indices[level], 
+					v_indices[level], sgrid, nsx, nsy,
 					index_module, ll_module);
-		}
 		else
-		{
-			ndx = indices[level];
-			grb_Field (tag->gt_grib[ndx].gd_pds, &sc);
-			grb_UnpackBDS (tag, ndx, sgrid, nsx, nsy);
-		}
+			grb_UnpackBDS (tag, indices[level], sgrid, nsx, nsy);
 	/*
 	 * Now fill in our destination grid, using a bilinear interpolation
 	 * of data from the source grid
 	 */
-		for (j = 0; j < rg.rg_nY; j++)
+		for (j = 0; j < nlat; j++)
 		{
-			lat = llcorner.l_lat + j * latstep;
-			
-			for (i = 0; i < rg.rg_nX; i++)
+			for (i = 0; i < nlon; i++)
 			{
-				lon = llcorner.l_lon + i * lonstep;
 			/*
 			 * Get the bounding indices in the source array.
 			 * If we're outside the source array, we can get out
 			 * quickly.
 			 */
-				(*index_module)(lat, lon, &x, &y);
+				(*index_module)(lats[j], lons[i], &x, &y);
 
 				if (x < 0 || x > nsx-1 || y < 0 || y > nsy-1)
 				{
-					*dp++ = (float) badval;
+					*dp++ = badval;
 					continue;
 				}
 
@@ -1331,17 +1408,87 @@ dsDetail	*details;
  * Stuff the grid we just built into the data chunk
  */
 	time = tag->gt_grib[sbegin].gd_time;
-	dc_RGAddGrid (dc, samp, fid, &llcorner, &rg, &time, dgrid, 0);
+	dc_NSAddSample (dc, &time, samp, fid, (void *) dgrid);
 /*
- * Free our grids
+ * Free our grids and lat/lon arrays
  */
 	free (sgrid);
 	free (dgrid);
+	free (lats);
+	free (lons);
 }
 
 
 
+
+static void
+grb_DCInit (dc, flds, nfld)
+DataChunk	*dc;
+FieldId	*flds;
+int	nfld;
+/*
+ * Do field and dimension definition for our data chunk.  We set all
+ * dimension sizes to one for now, since we don't know the real sizes.
+ */
+{
+	int	f;
+	FieldId	dims[3], lat_id, lon_id, alt_id;
+/*
+ * Define three coordinate variables for our three dimensions: lat, lon, alt.
+ */
+	lat_id = F_Lookup ("lat");
+	dc_NSDefineDimension (dc, lat_id, 1);
+	dc_NSDefineVariable (dc, lat_id, 1, &lat_id, TRUE);
 	
+	lon_id = F_Lookup ("lon");
+	dc_NSDefineDimension (dc, lon_id, 1);
+	dc_NSDefineVariable (dc, lon_id, 1, &lon_id, TRUE);
+
+	alt_id = F_Lookup ("alt");
+	dc_NSDefineDimension (dc, alt_id, 1);
+	dc_NSDefineVariable (dc, alt_id, 1, &alt_id, TRUE);
+/*
+ * Now define the user's fields using these dimensions
+ */
+	dims[0] = alt_id;
+	dims[1] = lat_id;
+	dims[2] = lon_id;
+
+	for (f = 0; f < nfld; f++)
+		dc_NSDefineVariable (dc, flds[f], 3, dims, FALSE);
+
+	return;
+}
+
+
+
+
+static void
+grb_DCFinishDefs (dc, grbinfo, nalt)
+DataChunk	*dc;
+GRB_TypeInfo	*grbinfo;
+int		nalt;
+/*
+ * Redefine the dimensions of our data chunk now, using the correct sizes.
+ */
+{
+/*
+ * Three dimensions: lat, lon, alt
+ */
+	dc_NSDefineDimension (dc, F_Lookup ("lat"), grbinfo->gg_dny);
+	dc_NSDefineDimension (dc, F_Lookup ("lon"), grbinfo->gg_dnx);
+	dc_NSDefineDimension (dc, F_Lookup ("alt"), nalt);
+/*
+ * Close out definitions.
+ */
+	dc_NSDefineComplete (dc);
+
+	return;
+}
+
+
+
+
 static FieldId
 grb_Field (pds, sc)
 GFpds	*pds;
@@ -1435,7 +1582,8 @@ GFpds	*pds;
 	if (pds->range_id > 1)
 	{
 		msg_ELog (EF_EMERGENCY,
-		    "Can't deal with GRIB range indicator %d! Using zero.");
+		  "Can't deal with GRIB range indicator %d! Using zero.",
+		  pds->range_id);
 		return (0);
 	}
 
@@ -1448,7 +1596,7 @@ GFpds	*pds;
 
 
 
-static int
+static bool
 grb_NormalLevel (pds)
 GFpds	*pds;
 /*
@@ -1460,6 +1608,39 @@ GFpds	*pds;
 	int	l_id = pds->level_id;
 
 	return (l_id == 100 || l_id == 103);
+}
+
+
+
+
+static float
+grb_ZLevel (pds, units)
+GFpds	*pds;
+AltUnitType	*units;
+/*
+ * Return the vertical level from the given PDS.  If 'units' is non-NULL,
+ * return the units type.
+ */
+{
+	int	l_id = pds->level_id;
+
+	switch (l_id)
+	{
+	    case 100:
+		if (units)
+			*units = AU_mb;		/* millibars */
+		break;
+	    case 103:
+		if (units)
+			*units = AU_mMSL;	/* meters MSL */
+		break;
+	    default:
+		msg_ELog (EF_PROBLEM, "Can't deal with GRIB level type %d!",
+			  l_id);
+		return (-1.0);
+	}
+
+	return ((float) grb_TwoByteInt (&(pds->level_val)));
 }
 
 
@@ -1781,49 +1962,6 @@ void	(*index_module)(), (*ll_module)();
 			*v++ = v_true;
 		}
 	}
-}
-
-
-
-
-static int
-grb_GetOrigin (lat, lon)
-float	*lat, *lon;
-/*
- * Get (and set if necessary) the current origin for lat/lon <-> x,y conversion
- */
-{
-	int	type;
-	SValue	latv, lonv;
-	stbl	ui_vtbl = usy_g_stbl ("ui$variable_table");
-/*
- * If the origin is already set, we're done
- */
-	if (cvt_GetOrigin (lat, lon))
-		return (TRUE);
-/*
- * Otherwise, try to set it.  Look for UI variables "origin_lat" and
- * "origin_lon", and use those if they exist.
- */
-	if (! usy_g_symbol (ui_vtbl, "origin_lat", &type, &latv) ||
-	    ! usy_g_symbol (ui_vtbl, "origin_lon", &type, &lonv))
-	{
-		msg_ELog (EF_PROBLEM, 
-			  "origin_lat & origin_lon needed for GRIB access!");
-		return;
-	}
-		
-	*lat = latv.us_v_float;
-	*lon = lonv.us_v_float;
-
-	if (! cvt_Origin (*lat, *lon))
-	{
-		msg_ELog (EF_EMERGENCY,
-		    "Bad origin_lat or _lon, so GRIB access failed!");
-		return (FALSE);
-	}
-
-	return (TRUE);
 }
 
 
