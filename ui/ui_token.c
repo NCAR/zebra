@@ -11,7 +11,7 @@
 # include "ui_tty.h"
 # include "ui_mode.h"
 
-static char *Rcsid = "$Id: ui_token.c,v 1.17 1999-06-25 19:21:02 burghart Exp $";
+static char *Rcsid = "$Id: ui_token.c,v 1.18 2002-07-11 20:38:32 burghart Exp $";
 
 /*
  * For input analysis, all characters are classified into one of the
@@ -335,7 +335,6 @@ bool interact, nokeypad;
 /*
  * Now set up our actual sources.
  */
- 	dsetdef ("[].");
  	if (! batch ())
 	{
 		tty_set ();
@@ -1076,7 +1075,6 @@ bool fatal;
  	src->s_pb = 0;
 	src->s_xp = 0;
 	src->s_type = IST_FILE; /* Do this now, in case it fails */
-	dsetdef ("[].");
 	if ((src->s_lun = (LUN) dview (file)) == 0)
 	{
 		ucs_z_input (FALSE);
