@@ -1,7 +1,7 @@
 /*
  * Time Series Plotting
  */
-static char *rcsid = "$Id: TimeSeries.c,v 2.2 1991-09-12 20:27:54 corbet Exp $";
+static char *rcsid = "$Id: TimeSeries.c,v 2.3 1991-11-04 17:59:42 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -142,12 +142,12 @@ bool	update;
 		SYMT_STRING);
 	for (i = 0; i < nfld; i ++)
 	{
-		sprintf (string, "%s-tseries-center", fnames[i]);
-		ok &= pda_ReqSearch (Pd, c, string, NULL, (char *) &center[i], 
-			SYMT_FLOAT);
-		sprintf (string, "%s-tseries-step", fnames[i]);
-		ok &= pda_ReqSearch (Pd, c, string, NULL, (char *) &step[i], 
-			SYMT_FLOAT);
+		sprintf (string, "%s-center", fnames[i]);
+		ok &= pda_ReqSearch (Pd, c, string, "tseries", 
+			(char *) &center[i], SYMT_FLOAT);
+		sprintf (string, "%s-step", fnames[i]);
+		ok &= pda_ReqSearch (Pd, c, string, "tseries", 
+			(char *) &step[i], SYMT_FLOAT);
 	}
 	ok &= pda_ReqSearch (Pd, c, "nstep", "tseries", (char *) &nstep, 
 		SYMT_INT);

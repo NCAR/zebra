@@ -1,7 +1,7 @@
 /*
  * Vertical cross-sectioning
  */
-static char *rcsid = "$Id: XSection.c,v 2.2 1991-09-12 20:27:54 corbet Exp $";
+static char *rcsid = "$Id: XSection.c,v 2.3 1991-11-04 18:00:23 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -168,6 +168,7 @@ bool	update;
 {
 	bool	ok;
 	char	platforms[120], fldname[20], ctname[20], string[10];
+	char	param[50];
 	int	i, j, dolabels, linewidth, top, bottom, left, right, wheight;
 	float	center, step, cval, bar_height;
 /*
@@ -175,9 +176,11 @@ bool	update;
  */
 	ok = pda_ReqSearch (Pd, c, "platform", NULL, platforms, SYMT_STRING);
 	ok = pda_ReqSearch (Pd, c, "field", NULL, fldname, SYMT_STRING);
-	ok &= pda_ReqSearch (Pd, c, "contour-center", fldname, 
-		(char *) &center, SYMT_FLOAT);
-	ok &= pda_ReqSearch (Pd, c, "contour-step", fldname, (char *) &step, 
+	sprintf (param, "%s-center", fldname);
+	ok &= pda_ReqSearch (Pd, c, param, "contour", (char *) &center, 
+		SYMT_FLOAT);
+	sprintf (param, "%s-step", fldname);
+	ok &= pda_ReqSearch (Pd, c, param, "contour", (char *) &step, 
 		SYMT_FLOAT);
 	ok &= pda_ReqSearch (Pd, c, "color-table", "xsect", ctname, 
 		SYMT_STRING);
