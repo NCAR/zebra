@@ -1,5 +1,5 @@
-37
-000000%000000Welcome to Zeb
+38
+000000%000000/////  Welcome to Zeb
 788
 
 / INTRODUCTION /
@@ -57,9 +57,220 @@ above the row of icon buttons in the help window.  If help
 is requested at a later time, the help window will pop up
 again.
 tablecontentsTable of Contents
-1
+4058
 
-components   Zeb System Components
+/ TABLE OF CONTENTS /
+
+The table of contents contains all of the topics and
+headings within each topic which are available through
+on-line help, except for such topics as sounding and
+surface station listings.  To reach a particular topic,
+click on the <Topics> icon button in the help window to
+pop-up a list of topics, then click on the topic of
+interest.  A specific section of a topic may be found by
+scrolling the text in the help window.  Major section
+headings, those capitalized below, are denoted by '/////'
+in the topic list.  To search for topics by a key word, use
+the pop-up search window by clicking on the <Search> icon
+above (picturing the magnifying glass).
+
+***********************************************************
+
+WELCOME TO ZEB
+
+ 1. Welcome to Zeb
+
+	A. Introduction
+	B. Using help
+
+ 2. Using Zeb's On-line Help
+
+	A. Scrolling help windows
+	B. How help topics are organized
+	C. Quitting help
+
+ 3. Table of Contents
+
+
+ZEB SYSTEM COMPONENTS
+
+ 4. Zeb System Components
+
+	A. Zeb system components
+	B. The icon bar
+	C. The event logger
+	D. Graphics windows
+	E. The time widget
+	F. The display configuration
+
+ 5. The Icon Bar Icons
+
+	A. Icon bar icons
+	B. Help icon
+	C. Zeb icon
+	D. Platform icons 
+
+ 6. Shutting Down Zeb
+
+	A. Shutting down Zeb
+	B. StormFEST CD specifics
+
+ 7. Setting a History Time
+
+	A. Settings a history time
+	B. Using the system time widget
+	C. Using a data available menu
+	D. Using the movie controller
+
+ 8. Changing the Display Configuration
+
+	A. Changing the display configuration
+
+ 9. Editing display configurations
+
+	A. Editing display configurations
+	B. Cloning a configuration
+	C. Adding a new window
+	D. Deleting a window
+	E. Saving a configuration
+
+10. Listing Available Data
+
+	A. The data store widget
+
+11. Managing Local Disk Space
+
+	A. The data store manager
+	B. Loading data from CD
+	C. Removing data from local disk
+
+12. Printing Hardcopies of Windows
+
+	A. The hardcopy widget
+	B. Setting the parameters
+	C. Performing the print
+	D. Exiting the hardcopy widget
+	E. Environment variables
+
+13. A Guide to Zeb Documentation
+
+
+GRAPHICS WINDOWS
+
+14. Graphics Windows
+
+15. Using the Icons in a Graphics Window
+
+	A. Graphics window icons
+
+16. Graphics Window Buttons
+
+	A. Button to command mapping
+
+17. Running Movies
+
+	A. Setting the movie parameters
+	B. Running the movie
+	C. Quitting the movie controller
+
+18. Zooming a Graphics Window
+
+	A. Zooming
+	B. Backing out of a zoomed area
+
+19. Adjusting Limits
+
+	A. Adjusting limits
+	B. Activating limit widgets
+	C. Descriptions of limit widgets
+
+20. Finding the Times for Data in a Plot
+
+	A. The overlay times widget
+
+
+HORIZONTAL PLOTS
+
+21. Horizontal Plots
+
+22. Adding and Removing Data in Horizontal Plots
+
+	A. Data representations
+	B. Adding data
+	C. Removing data
+	D. Disabling and re-enabling data
+
+23. Displaying Coordinates in Horizontal Plots
+
+	A. The get position widget
+	B. Changing coordinate units
+	C. Removing the get position widget
+
+24. Changing the Altitude of a Horizontal Plot
+
+25. Shifting Data in Horizontal Plots
+
+	A. The spatial offset widget
+
+26. Changing the Mesonet Station Density
+
+	A. The spatial filter widget
+
+27. Changing the Interpolation Method for Contour Plots
+
+	A. The interpolation widget
+
+28. Changing Fields in Surface Station Labels
+
+	A. Changing fields in surface station labels
+
+29. Adjusting Aircraft Track Parameters
+
+	A. Aircraft track adjust widget
+
+
+TIME SERIES PLOTS
+
+30. Time Series Plots
+
+	A. The surface station platform selector
+
+31. Quality Control Flag Codes for Soundings
+
+32. Quality Control Flag Codes for Surface Data
+
+
+X-Y GRAPHS
+
+33. X-Y Graphs
+
+	A. X-Y graphs
+	B. Adding data to an X-Y graph
+	C. Changing the time interval
+	D. Changing color and representation
+
+
+CROSS-SECTION PLOTS
+
+34. Cross-Section Plots
+
+	A. Using cross-section plots
+	B. Zig-zag cross-sections
+	C. Planar cross-sections
+	D. Choosing the end points
+
+35. Selecting Platforms for Cross-section Plots
+
+
+SKEW-T PLOTS
+
+36. Skew-T Plots
+
+37. Choosing a Subset of Sounding Sites
+
+
+***********************************************************
+components   /////  Zeb System Components
 5088
 
 / ZEB SYSTEM COMPONENTS /
@@ -967,41 +1178,77 @@ see the file "FileStructure.ps" in the "data/doc"
 directory.
 
 
+graphicswins /////  Graphics Windows
+475
+
+The following topics describe different aspects of using and
+understanding graphics windows in general.  Information on
+specific types of graphic windows, such as horizontal or
+cross-section plots, may be found in separate help topics.
+See "Zeb System Components" for a brief summary of
+graphics windows.
+
+	Using the Icons in a Graphics Window
+
+	Graphics Window Buttons
+
+	Running Movies
+
+	Zooming a Graphics Window
+
+	Adjusting Limits
+
+	Finding the Times for Data in a Plot
+
 icons        Using the Icons in a Graphics Window
-1414
+2257
 
 / GRAPHICS WINDOW ICONS /
 
-The Iconbar is Zeb's 'main menu'.  It allows the user to
-access on-line help, choose the display configuration,
-pop-up various widgets, shut-down Zeb, and add data to
-graphics windows that contain horizontal cross-sections. 
-This help topic reviews how to use the <Platform> (or Data)
-icons that are located in the IconBar (to the right of or
-below the <Zeb> icon).
+The icons at the bottom of each graphics window are used to
+control the contents and the plots of the data being
+displayed in that window.  There is one icon present for
+each data field or overlay.  Each mouse button---left,
+right, and middle---activates a different menu within each
+platform icon.  These menus are often referred to as the
+left-button, middle-button, and right-button pulldown menus.
 
-A new data type or overlay may be added to a horizontal
-cross-section window by using any of the <Platform> icons. 
-Place the cursor on the <Platform> icon, depress the left
-mouse button, select a field from the pulldown menu, and
-release the mouse button.  The cursor will become a
-cross-hair; move it to the target window and click a mouse
-button.  Note that the target window must be a horizontal
-cross-section.
+Every graphics window will always have a <Zeb> icon in the
+lower left corner of the window.  This icon controls
+'global' functions---functions independent of the
+individual platforms being plotted in the window.  The
+left-button menu has entries for setting global limits,
+popping up the Movie and Overlay Times widgets, and
+resetting the window.  <Zeb> icons in horizontal plots (see
+"Horizontal Plots") offer a sub-menu of plot scales, from
+the CP4 domain to the continental U.S., whose entries
+adjust the X and Y limits of the plot.  The "Reset window"
+entry reverts a window to its original layout, as described
+in its original configuration (see "Editing
+Configurations").  The right-button menu usually adjusts
+the color and size of the window's top annotation.  The
+function of the middle-button menu differs among the types
+of plots.  For example in horizontal plots, it selects
+between real-time mode and the history times at which data
+is available from the base component.  However, for X-Y
+Graphs and Time Series Plots the middle-button menu selects
+fields for addition to the window.  In other plot types the
+middle menu may be disabled.
 
-The icons at the bottom of each window are used to control
-the contents of the data present in that window.  There is
-one icon present for each data type and/or overlay.  Each
-mouse button activates a different menu within each
-platform icon.
+The rest of the icons in a graphics window, those to the
+right of the <Zeb> icon, are each associated with a
+specific platform or field and hence are often called
+<Field> or <Platform> icons.  Generally the <Field> icon
+menus on the left button allow users to change plotting
+limits and intervals (see "Adjusting Limits"), remove a
+field, or disable and re-enable a field.  The middle
+buttons usually allows users to change the fields being
+plotted from a specific platform.  For example, a mesonet
+contour of temperature can be changed to a contour of
+dewpoint.  The right button allows modification of
+miscellaneous items such as line width, color, and
+annotation size.
 
-Generally the icon menus on the left button allow users to
-change plotting limits/intervals, remove a field or
-disable/reenable a field.  The middle buttons generally
-allows users to change fields (i.e. change mesonet contours
-from temperature to dewpoint) and the right button
-generally allows modification of line width or other
-miscellaneous information.
 
 buttonmaps   Graphics Window Buttons
 2349
@@ -1372,8 +1619,8 @@ forward through frames and while running a movie.
 To remove the Overlay Times Widget, click on the <Dismiss>
 button at the top of the widget.
 
-CAP          Horizontal Plots
-1015
+CAP          /////  Horizontal Plots
+1155
 
 / HORIZONTAL PLOTS /
 
@@ -1394,15 +1641,21 @@ plot.
 The next several topics cover these specific aspects of
 horizontal plots:
 
+   Adding and Removing Data in Horizontal Plots
+
    Displaying Coordinates in Horizontal Plots
 
-   Changing Altitude in Horizontal Plots
+   Changing the Altitude of a Horizontal Plot
 
    Shifting Data in Horizontal Plots
 
    Changing the Mesonet Station Density
 
    Changing the Interpolation Scheme for Contour Plots
+
+   Changing Fields in Surface Station Labels
+
+   Adjusting Aircraft Track Parameters
 
 Each of these topics can be reached in succession by
 clicking the <Down> icon button in the help window.
@@ -1807,8 +2060,8 @@ To see the effect of parameter adjustments, press the
 the <Dismiss> button.  The <Help> button brings up this
 help topic.
 
-timeseries   Time Series Plots
-2011
+timeseries   /////  Time Series Plots
+2227
 
 / TIME SERIES PLOTS /
 
@@ -1853,6 +2106,15 @@ right-button menu.  Four representations are possible:
 
 A field can be removed by selecting the "Remove" entry from
 the left-button menu of the field icon.
+
+Other topics available about using time series plots
+follow this one:
+
+   Choosing Surface Stations for Time Series Plots
+
+   Quality Control Flag Codes for Soundings
+
+   Quality Control Flag Codes for Surface Data
 
 plat_selectorChoosing Surface Stations for Time Series Plots
 1338
@@ -1925,8 +2187,8 @@ Flag                Definition
                     station or is not applicable
 6                   Estimated Value
 5                   "Glitch"
-xygraph      X-Y Graphs
-1583
+xygraph      /////  X-Y Graphs
+1582
 
 / X-Y GRAPHS /
 
@@ -1969,8 +2231,7 @@ representation of data points will usually be found by
 clicking the right mouse button on the icons at the bottom
 of the graphics window.
 
-
-Cross-sectionCross-section Plots
+Cross-section/////  Cross-Section Plots
 4364
 
 / USING CROSS-SECTION PLOTS /
@@ -2123,7 +2384,7 @@ coordinates, and cities---in a help window, press <List>.
 Finally, when finished with the widget, press <Dismiss> to
 remove the window from the screen.
 
-skewt        Skew-T Plots
+skewt        /////  Skew-T Plots
 1118
 
 / SKEW-T PLOTS /
