@@ -36,7 +36,7 @@
 /**/# -----------------------------------------------------------------------
 /**/# Definitions from config.h included here.  The definitions here override
 /**/# the defaults in Project.tmpl.  See ...../zeb/config/config.h.
-/**/# $Id: config.h-v4.0,v 1.8 1993-06-25 07:51:52 granger Exp $
+/**/# $Id: config.h-v4.0,v 1.9 1993-07-07 15:53:44 burghart Exp $
 /**/# -----------------------------------------------------------------------
 # endif
 
@@ -176,6 +176,7 @@
 # define	BuildP3Ingest		NO
 # define	BuildPamIngest		YES
 # define	BuildProfsIngest	YES
+# define	BuildRAPDataServerIngest NO
 # define	BuildRsgIngest		NO
 # define	BuildSatelliteIngest	NO
 
