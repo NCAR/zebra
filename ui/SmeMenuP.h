@@ -1,5 +1,5 @@
 /*
- * $XConsortium: SmeMenuP.h,v 1.6 89/12/11 15:20:15 kit Exp $
+ * $Id: SmeMenuP.h,v 1.2 1993-04-12 18:37:23 granger Exp $
  *
  * Copyright 1989 Massachusetts Institute of Technology
  *
@@ -82,6 +82,7 @@ typedef struct {
 /* private resources. */
 
     Widget popup;		/* the shell widget for the menu to popup */
+    XtTranslations popup_trans;	/* the popup menu's original translations */
     Boolean up;			/* set if popup popped up */
     Boolean needflip;		/* set if we need to unhighlight. */
     GC norm_gc;			/* normal color gc. */
