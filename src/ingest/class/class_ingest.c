@@ -1,5 +1,5 @@
 /*
- * $Id: class_ingest.c,v 2.17 1995-06-06 21:29:01 corbet Exp $
+ * $Id: class_ingest.c,v 2.18 1997-01-14 17:57:59 granger Exp $
  *
  * Ingest CLASS data into the system.
  *
@@ -32,7 +32,7 @@
 
 #ifndef lint
 MAKE_RCSID(
-   "$Id: class_ingest.c,v 2.17 1995-06-06 21:29:01 corbet Exp $")
+   "$Id: class_ingest.c,v 2.18 1997-01-14 17:57:59 granger Exp $")
 #endif
 
 static void	Usage FP((char *prog_name));
@@ -178,7 +178,30 @@ ERRORCATCH
 
 	GetPlatformName(filename, plat);
 	if (IngestLogFlags & (EF_DEBUG | EF_INFO)) snd_show(&end_cmd);
+/*
+ * If running standalone, provide a default platform definition for this name.
+ */
+	if (ds_IsStandalone() && (ds_LookupPlatform(plat) == BadPlatform))
+	{
+		PlatClassId cid = ds_LookupClass ("CLASS");
 
+		if (cid == BadClass)
+		{
+			PlatClassRef pc = ds_NewClass ("CLASS");
+			IngestLog(EF_DEBUG, "default platform class 'CLASS'");
+			/* relies on DefDataDir from ingest module */
+			ds_AssignClass (pc, OrgScalar, FTNetCDF,
+					TRUE/*mobile*/);
+			ds_SetMaxSample (pc, 10000);
+			ds_SetComment (pc, "standalone CLASS platform ");
+			cid = ds_DefineClass (pc);
+		}
+		/*
+		 * Create a new instance for this platform name.
+		 */
+		IngestLog (EF_DEBUG, "instantiating platform '%s'", plat);
+		ds_DefinePlatform (cid, plat);
+	}
 	if ((Dchunk->dc_Platform = ds_LookupPlatform (plat)) == BadPlatform)
 		ui_error ("Unknown platform: %s", plat);
 	if (DumpDataChunk)
@@ -447,10 +470,10 @@ GetPlatformName (classfile, plat)
 
 	if (! strans)
 	{
-		if ((sscanf (site, "FIXED, %s", plat) == 1) ||
-			(sscanf (site, "FIXED %s", plat) == 1) ||
-			(sscanf (site, "MOBILE, %s", plat) == 1) ||
-			(sscanf (site, "MOBILE %s", plat) == 1))
+		if ((sscanf (site, "fixed, %s", plat) == 1) ||
+			(sscanf (site, "fixed %s", plat) == 1) ||
+			(sscanf (site, "mobile, %s", plat) == 1) ||
+			(sscanf (site, "mobile %s", plat) == 1))
 			/* do nothing */;
 		else
 			strcpy (plat, site);
