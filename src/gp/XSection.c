@@ -42,7 +42,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: XSection.c,v 2.51 2001-04-24 22:49:39 granger Exp $")
+RCSID ("$Id: XSection.c,v 2.52 2001-04-24 23:40:28 granger Exp $")
 
 /*
  * General definitions
@@ -196,6 +196,7 @@ static void	xs_Background FP ((void));
 static void	xs_ExtendTrace FP ((double, double)); 
 static DPlane	*xs_HDWeighting FP ((char **, int, char *, ZebTime *));
 static DPlane	*xs_Bilinear FP ((char *, char *, ZebTime *));
+static void     xs_FreeDPlane (DPlane *dp);
 static void	xs_DrawTrace FP ((char *)); 
 static void	xs_AddToLevel FP ((DPlane *, DPlane *, int, double, double, 
 				   double)); 
@@ -1396,9 +1397,9 @@ int	nplat;
 	 * Add a line to the overlay times widget
 	 */
 		if (uplane && vplane)
-			ot_AddStatusLine (c, pnames[0], "(normal winds)", &dtime);
+		    ot_AddStatusLine (c, pnames[0], "(normal winds)", &dtime);
 		else if (plane)
-			ot_AddStatusLine (c, pnames[0], fldname, &dtime);
+		    ot_AddStatusLine (c, pnames[0], fldname, &dtime);
 	}
 	else
 	{
@@ -1408,11 +1409,11 @@ int	nplat;
 	 * Get the data
 	 */
 		if (! strcmp(fldname, "normal"))  {
-			uplane = xs_HDWeighting (pnames, nplat, ufldname, times);
-			vplane = xs_HDWeighting (pnames, nplat, vfldname, times);
+		    uplane = xs_HDWeighting (pnames, nplat, ufldname, times);
+		    vplane = xs_HDWeighting (pnames, nplat, vfldname, times);
 		}
 		else
-			plane = xs_HDWeighting (pnames, nplat, fldname, times);
+		    plane = xs_HDWeighting (pnames, nplat, fldname, times);
 	/*
 	 * Annotate with the platforms
 	 */
@@ -1446,30 +1447,18 @@ int	nplat;
 		 * Add a line to the overlay times widget, too.
 		 */
 			if (times[i].zt_Sec != 0)
-				if (uplane && vplane)
-					ot_AddStatusLine (c, pnames[i], 
-						"(normal winds)", times + i);
-				else
-					ot_AddStatusLine (c, pnames[i], fldname, 
-						  times + i);
+			    ot_AddStatusLine (c, pnames[i], fldname, 
+					      times + i);
 		}
 		An_TopAnnot (".  ");
 	}
-
-	if (! plane && !(uplane && vplane) )
-		return;
 /*
- * If we have horizontal vector components, project them onto the plane normal
- * to the xsection and store in vplane->data. 
+ * If we have horizontal vector components, compute the normal wind magnitude.
  */
 	if (uplane && vplane)
 	{
-	    DPlane *tmp;
 	    double pangle = atan2 (Y1 - Y0, X1 - X0);
 
-	    /*
-	     * Project the horizontal wind speed onto the vertical plane.
-	     */
 	    for (i = 0; i < uplane->hdim * uplane->vdim; ++i)
 	    {
 		  float u = uplane->data[i];
@@ -1483,9 +1472,17 @@ int	nplat;
 			double theta = pangle - atan2(v, u);
 			vplane->data[i] = sqrt(u*u + v*v) * sin(theta);
 		  }
-		}
+	    }
+	    /*
+	     * From here on the computed plane can be treated like any other
+	     * field plane...
+	     */
+	    plane = vplane;
+	    xs_FreeDPlane (uplane);
 	}
 
+	if (! plane)
+	    return;
 /*
  * Autoscale now if necessary
  */
@@ -1495,12 +1492,8 @@ int	nplat;
 		FieldId fid = F_Lookup (fldname);
 		char *justname = F_GetName (fid);
 
-		if (uplane && vplane)
-			GetRange (vplane->data, vplane->hdim * vplane->vdim, BADVAL, 
-			  	&min, &max);
-		else if (plane)
-			GetRange (plane->data, plane->hdim * plane->vdim, BADVAL, 
-			  	&min, &max);
+		GetRange (plane->data, plane->hdim * plane->vdim, BADVAL, 
+			  &min, &max);
 		CalcCenterStep (min, max, Mono_color ? 8 : Ncolors, 
 				&Contour_center, &Contour_step);
 
@@ -1517,12 +1510,7 @@ int	nplat;
 	{
 		FC_Init (Colors, Ncolors, Ncolors / 2, 
 			 Do_outrange ? &C_outrange : NULL, Clip, TRUE, BADVAL);
-		if (uplane && vplane)
-			FillContour (Graphics, GWFrame (Graphics), vplane->data, 
-			     vplane->hdim, vplane->vdim, Pix_left, Pix_bottom, 
-			     Pix_right, Pix_top, Contour_center, Contour_step);
-		else if (plane)
-			FillContour (Graphics, GWFrame (Graphics), plane->data, 
+		FillContour (Graphics, GWFrame (Graphics), plane->data, 
 			     plane->hdim, plane->vdim, Pix_left, Pix_bottom, 
 			     Pix_right, Pix_top, Contour_center, Contour_step);
 	}
@@ -1535,33 +1523,15 @@ int	nplat;
 				 Do_outrange ? &C_outrange : NULL, Clip, 
 				 TRUE, BADVAL);
 
-		if (uplane && vplane)
-			Contour (Graphics, GWFrame (Graphics), vplane->data, 
-			     vplane->hdim, vplane->vdim, Pix_left, Pix_bottom, 
-			     Pix_right, Pix_top, Contour_center, Contour_step, 
-			     Do_labels, Line_width);
-		else if (plane)
-			Contour (Graphics, GWFrame (Graphics), plane->data, 
-			     plane->hdim, plane->vdim, Pix_left, Pix_bottom, 
-			     Pix_right, Pix_top, Contour_center, Contour_step, 
-			     Do_labels, Line_width);
+		Contour (Graphics, GWFrame (Graphics), plane->data, 
+			 plane->hdim, plane->vdim, Pix_left, Pix_bottom, 
+			 Pix_right, Pix_top, Contour_center, Contour_step, 
+			 Do_labels, Line_width);
 	}
 /*
  * Clean up
  */
-	if (plane)  {
-		free (plane->data);
-		free (plane);
-	}
-	if (uplane)  {
-		free (uplane->data);
-		free (uplane);
-	}
-	if (vplane)  {
-		free (vplane->data);
-		free (vplane);
-	}
-
+	xs_FreeDPlane (plane);
 	return;
 }
 
@@ -1723,22 +1693,9 @@ int	nplat;
 /*
  * Clean up
  */
- 	if (uplane)
-	{
-		free (uplane->data);
-		free (uplane);
-	}
-	if (vplane)
-	{
-		free (vplane->data);
-		free (vplane);
-	}
-	if (wplane)
-	{
-		free (wplane->data);
-		free (wplane);
-	}
-
+	xs_FreeDPlane (uplane);
+	xs_FreeDPlane (vplane);
+	xs_FreeDPlane (wplane);
 	return;
 }
 
@@ -2023,6 +1980,17 @@ ZebTime	*times;
 	return (plane);
 }
 
+
+static void
+xs_FreeDPlane (DPlane *dp)
+{
+    if (dp)
+    {
+	if (dp->data)
+	    free (dp->data);
+	free (dp);
+    }
+}
 
 
 static DPlane *
