@@ -2,11 +2,11 @@
  * GP library files.
  */
 
-LFILES = color-table contour ctr-step grid interp \
-	offsets radar range raster rings simple-color simple-track \
-	station track xytrace skewt xywind location winds active-loc \
-	active-time time-height global projection histogram \
-	form-utilities optimizer thetaplot
+LFILES = active-loc active-time color-table contour ctr-step form-utilities \
+	global grid histogram interp irg_winds iss-cap location offsets \
+	optimizer projection radar range raster rings simple-color \
+	simple-track skewt station thetaplot time-height track winds xytrace \
+	xywind
 
 DISTFILES = $(LFILES) Imakefile
 
