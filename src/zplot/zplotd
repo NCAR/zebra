@@ -368,8 +368,6 @@ sub clear
     }
     elsif (open (FTP, "ftpjoss.pl $images 2>&1 |"))
     {
-	print "Waiting to be sure disclaimers finish...\n";
-	sleep 10;
 	while (<FTP>)
 	{
 	    print;
