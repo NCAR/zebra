@@ -26,12 +26,13 @@
 # include <unistd.h>
 # include <string.h>
 
+# include <copyright.h>
 # include <defs.h>
 # include <message.h>
 
 # include "GRIB.h"
 
-RCSID ("$Id: GRIB.c,v 3.6 1996-11-19 08:47:13 granger Exp $")
+RCSID ("$Id: GRIB.c,v 3.7 1997-05-30 15:13:31 burghart Exp $")
 
 typedef struct s_GRB_DataRepType {
 	int data_type;
@@ -60,10 +61,45 @@ unsigned char	*buf;
  */
 {
 	int	i = 0;
-	char	*cptr = (char *) &i;
+	unsigned char	*cptr = (unsigned char *) &i;
 
+# ifdef LITTLE_ENDIAN
+	cptr[0] = buf[1]; cptr[1] = buf[0];
+# else
 	memcpy (cptr + 2, buf, 2);
+# endif
+
 	return (i);
+}
+
+
+
+int
+grb_TwoByteSignInt (buf)
+unsigned char	*buf;
+/*
+ * Extract the first two bytes of buf into an int and return it.  The
+ * first bit of the two bytes is interpreted as a sign bit.
+ */
+{
+	int	i = 0, sign;
+	unsigned char	*cptr = (unsigned char *) &i;
+/*
+ * Upper bit indicates the sign.
+ */
+	sign = (buf[0] & 0x80) ? -1 : 1;
+/*
+ * Extract the two bytes into an int and lose the top bit.
+ */
+# ifdef LITTLE_ENDIAN
+	cptr[0] = buf[1]; 
+	cptr[1] = buf[0] & 0x7f;	/* strip the sign bit */
+# else
+	memcpy (cptr + 2, buf, 2);
+	i &= 0x7f;			/* strip the sign bit */
+# endif
+
+	return (sign * i);
 }
 
 
@@ -76,9 +112,14 @@ unsigned char	*buf;
  */
 {
 	int	i = 0;
-	char	*cptr = (char *) &i;
+	unsigned char	*cptr = (unsigned char *) &i;
 
+# ifdef LITTLE_ENDIAN
+	cptr[0] = buf[2]; cptr[1] = buf[1]; cptr[2] = buf[0];
+# else
 	memcpy (cptr + 1, buf, 3);
+# endif
+
 	return (i);
 }
 
@@ -88,11 +129,12 @@ int
 grb_ThreeByteSignInt (buf)
 unsigned char	*buf;
 /*
- * Extract the first three bytes of buf into an int and return it.
+ * Extract the first three bytes of buf into an int and return it.  The
+ * first bit of the three bytes is interpreted as a sign bit.
  */
 {
 	int	i = 0, sign;
-	char	*cptr = (char *) &i;
+	unsigned char	*cptr = (unsigned char *) &i;
 /*
  * Upper bit is the sign.
  */
@@ -100,13 +142,17 @@ unsigned char	*buf;
 /*
  * Extract the three bytes into an int and lose the top bit.
  */
+# ifdef LITTLE_ENDIAN
+	cptr[0] = buf[3]; cptr[1] = buf[2]; 
+	cptr[2] = buf[0] & 0x7f;	/* drop the sign bit */
+# else
 	memcpy (cptr + 1, buf, 3);
-	i &= 0x7fffff;
+	i &= 0x7fffff;	/* drop the sign bit */
+# endif
 /*
  * Multiply in the sign.
  */
-	i *= sign;
-	return (i);
+	return (sign * i);
 }
 
 

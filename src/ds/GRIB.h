@@ -1,5 +1,5 @@
 /*
- * $Id: GRIB.h,v 3.4 1997-05-22 23:05:32 burghart Exp $
+ * $Id: GRIB.h,v 3.5 1997-05-30 15:13:33 burghart Exp $
  *
  * GRIB file access structures and utility prototypes.
  */
@@ -39,10 +39,8 @@ typedef struct s_GFpds
 	unsigned char	avg_missing;	/* num. missing when averaging	*/
 	unsigned char	century;	/* century (20 until 1 Jan 2001)*/
 	unsigned char	reserved0;
-	/* 
-	 * We can use short for ds_factor; it falls on an even byte boundary
-	 */
-	short		ds_factor;	/* decimal scale factor		*/
+	unsigned char	ds_factor;	/* decimal scale factor		*/
+	unsigned char	ds_factor1;	/* 2nd byte			*/
 	unsigned char	reserved1;	/* any length of reserved data	*/
 } GFpds;
 
@@ -145,10 +143,8 @@ typedef struct s_BDShdr
 	char		bds_len1;	/* 2nd byte of length		*/
 	char		bds_len2;	/* 3rd byte of length		*/
 	unsigned char	flag_ubits;	/* Flag & number of unused bits	*/
-	/* 
-	 * We can use short for bs_factor; it falls on an even byte boundary
-	 */
-	short		bs_factor;	/* binary scale factor		*/
+	char		bs_factor;	/* binary scale factor		*/
+	char		bs_factor1;	/* 2nd byte			*/
 	char		ref_top;	/* sign & characteristic bits	*/
 					/* of reference value		*/
 	char		ref_mant;	/* mantissa of reference value	*/
@@ -171,6 +167,7 @@ static const double R_Earth = 6367.47;
 extern int grb_FindRecord FP ((int fd, unsigned char *buf));
 extern char *grb_GDSRepName FP ((GFgds *gds));
 extern int grb_TwoByteInt FP ((unsigned char *));
+extern int grb_TwoByteSignInt FP ((unsigned char *));
 extern int grb_ThreeByteInt FP ((unsigned char *));
 extern int grb_ThreeByteSignInt FP ((unsigned char *));
 extern int grb_ReadGDS FP ((int fd, GFgds *gds_ret, int ng));

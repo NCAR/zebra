@@ -30,6 +30,7 @@
 # include <copyright.h>
 # include <defs.h>
 # include <message.h>
+# include <byteorder.h>
 
 # include "DataStore.h"
 # include "dsPrivate.h"
@@ -38,7 +39,7 @@
 # include "DataFormat.h"
 # include "GRIB.h"
 
-RCSID ("$Id: DFA_GRIB.c,v 3.27 1997-05-22 23:14:23 burghart Exp $")
+RCSID ("$Id: DFA_GRIB.c,v 3.28 1997-05-30 15:13:36 burghart Exp $")
 
 
 /*
@@ -2309,7 +2310,7 @@ double	badval;
  */
 {
 	int	bds_len, sign, mantissa, exponent, n_bits, i, j;
-	int	longbits, firstbit, firstbyte, shift;
+	int	longbits, firstbit, firstbyte, shift, bfactor, dfactor;
 	unsigned long	bits, mask;
 	bool	int_data;
 	char	flag, *bds, *bitmap;
@@ -2422,14 +2423,12 @@ double	badval;
  *                                   -D                     E
  * We calculate the decimal scale (10  ) and binary scale (2 ) here.
  *
- * The topmost bit of both ds_factor and bs_factor is reserved for the sign.
- * If the bit is set, the value is negative.
  */
-	sign = (pds->ds_factor & 0x8000) ? -1 : 1;
-	dscale = pow (10.0, (double)(-sign * (pds->ds_factor & 0x7FFF)));
+	dfactor = grb_TwoByteSignInt ((unsigned char *)&(pds->ds_factor));
+	dscale = pow (10.0, -(double)dfactor);
 
-	sign = (bds_hdr->bs_factor & 0x8000) ? -1 : 1;
-	bscale = pow (2.0, (double)(sign * (bds_hdr->bs_factor & 0x7FFF)));
+	bfactor = grb_TwoByteSignInt ((unsigned char *)&(bds_hdr->bs_factor));
+	bscale = pow (2.0, (double)bfactor);
 /*
  * Check the bit count and build a mask with the appropriate number of bits set
  */
@@ -2514,6 +2513,10 @@ double	badval;
 		 * data in the BDS start at byte 11.
 		 */
 			memcpy (&bits, bds + firstbyte + 11, sizeof (long));
+		/*
+		 * Swap the long around on a little-endian machine.
+		 */
+			swap4 (&bits);
 		/*
 		 * Shift the bits of interest to the bottom of our long and
 		 * mask them.
