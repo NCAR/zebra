@@ -1,7 +1,7 @@
 /*
  * Widgets for changing plot limits.
  */
-static char *rcsid = "$Id: LimitWidgets.c,v 2.11 1992-11-02 22:05:41 burghart Exp $";
+static char *rcsid = "$Id: LimitWidgets.c,v 2.12 1993-03-12 22:04:36 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -379,10 +379,21 @@ XtAppContext actx;
 		form, args, n);
 	wq->wq_wdata = (void *) wdata;
 /*
- * The "store global" button.
+ * The help button.
  */
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, NULL); n++;
+	XtSetArg (args[n], XtNfromVert, above); n++;
+	XtSetArg (args[n], XtNlabel, "Help"); n++;
+	w = XtCreateManagedWidget ("help", commandWidgetClass, form,
+		args, n);
+	XtAddCallback (w, XtNcallback, (XtCallbackProc) HelpCallback, 
+		(XtPointer) GP_HELP_LIMITS);
+/*
+ * The "store global" button.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, w); n++;
 	XtSetArg (args[n], XtNfromVert, above); n++;
 	XtSetArg (args[n], XtNlabel, "Store"); n++;
 	w = XtCreateManagedWidget ("store", commandWidgetClass, form,
@@ -469,10 +480,21 @@ XtAppContext actx;
 		form, args, n);
 	wq->wq_wdata = (void *) wdata;
 /*
- * The "store global" button.
+ * The help button.
  */
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, NULL); n++;
+	XtSetArg (args[n], XtNfromVert, above); n++;
+	XtSetArg (args[n], XtNlabel, "Help"); n++;
+	w = XtCreateManagedWidget ("help", commandWidgetClass, form,
+		args, n);
+	XtAddCallback (w, XtNcallback, (XtCallbackProc) HelpCallback, 
+		(XtPointer) GP_HELP_LIMITS);
+/*
+ * The "store global" button.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, w); n++;
 	XtSetArg (args[n], XtNfromVert, above); n++;
 	XtSetArg (args[n], XtNlabel, "Store"); n++;
 	w = XtCreateManagedWidget ("store", commandWidgetClass, form,
@@ -559,10 +581,21 @@ XtAppContext actx;
 		form, args, n);
 	wq->wq_wdata = (void *) wdata;
 /*
- * The "store global" button.
+ * The help button.
  */
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, NULL); n++;
+	XtSetArg (args[n], XtNfromVert, above); n++;
+	XtSetArg (args[n], XtNlabel, "Help"); n++;
+	w = XtCreateManagedWidget ("help", commandWidgetClass, form,
+		args, n);
+	XtAddCallback (w, XtNcallback, (XtCallbackProc) HelpCallback, 
+		(XtPointer) GP_HELP_LIMITS);
+/*
+ * The "store global" button.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, w); n++;
 	XtSetArg (args[n], XtNfromVert, above); n++;
 	XtSetArg (args[n], XtNlabel, "Store"); n++;
 	w = XtCreateManagedWidget ("store", commandWidgetClass, form,
@@ -679,10 +712,21 @@ XtAppContext actx;
 		asciiTextWidgetClass, form, args, n);
 	wq->wq_wdata = (void *) wdata;
 /*
- * The "store global" button.
+ * The help button.
  */
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, NULL); n++;
+	XtSetArg (args[n], XtNfromVert, above); n++;
+	XtSetArg (args[n], XtNlabel, "Help"); n++;
+	w = XtCreateManagedWidget ("help", commandWidgetClass, form,
+		args, n);
+	XtAddCallback (w, XtNcallback, (XtCallbackProc) HelpCallback, 
+		(XtPointer) GP_HELP_LIMITS);
+/*
+ * The "store global" button.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, w); n++;
 	XtSetArg (args[n], XtNfromVert, above); n++;
 	XtSetArg (args[n], XtNlabel, "Store"); n++;
 	w = XtCreateManagedWidget ("store", commandWidgetClass, form,
@@ -799,10 +843,21 @@ XtAppContext actx;
 		asciiTextWidgetClass, form, args, n);
 	wq->wq_wdata = (void *) wdata;
 /*
- * The "store global" button.
+ * The help button.
  */
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, NULL); n++;
+	XtSetArg (args[n], XtNfromVert, above); n++;
+	XtSetArg (args[n], XtNlabel, "Help"); n++;
+	w = XtCreateManagedWidget ("help", commandWidgetClass, form,
+		args, n);
+	XtAddCallback (w, XtNcallback, (XtCallbackProc) HelpCallback, 
+		(XtPointer) GP_HELP_TSERIES);
+/*
+ * The "store global" button.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, w); n++;
 	XtSetArg (args[n], XtNfromVert, above); n++;
 	XtSetArg (args[n], XtNlabel, "Store"); n++;
 	w = XtCreateManagedWidget ("store", commandWidgetClass, form,
