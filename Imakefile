@@ -1,4 +1,4 @@
-XCOMM $Id: Imakefile,v 1.2 1993-04-30 23:09:04 granger Exp $
+XCOMM $Id: Imakefile,v 1.3 1993-05-26 19:11:05 corbet Exp $
 XCOMM
 XCOMM This is the top-level Imakefile for the Zeb distribution.
 XCOMM It is modeled after the top-level Imakefile of the MIT X11R5
@@ -14,9 +14,6 @@ XCOMM distribution.
 #if BuildOptimizer
       OPTIMIZER = Optimizer
 #endif
-#if BuildIngest
-         INGEST = ingest
-#endif
 #if BuildDataUtilities
        DATAUTIL = datautil
 #endif
@@ -28,16 +25,14 @@ XCOMM Note that only the SUBDIRS variable is conditional.  All known
 XCOMM directories and source files will be distributed whether or
 XCOMM not they are configured to be compiled.
 
-        SUBDIRS = config timer msg pd DataStore \
-		  gp dm util lib $(DSMANAGE) \
-		  $(OPTIMIZER) $(INGEST) $(DATAUTIL)
+        SUBDIRS = config src lib 
 
       DISTFILES = Imakefile Makefile.ini README 
        LINKDIRS = dist/zeb/doc dist/zeb/cape
       LINKNAMES = $(TARNAME)/doc $(TARNAME)/cape
-    DISTSUBDIRS = config lib msg timer pd DataStore dsmanage \
+    DISTSUBDIRS = config lib timer pd DataStore dsmanage \
 		  gp dm util datautil Optimizer ingest imake
-     SRCSUBDIRS = config msg timer pd DataStore dsmanage gp dm \
+     SRCSUBDIRS = src config timer pd DataStore dsmanage gp dm \
                   util datautil Optimizer ingest imake
 
 XCOMM From the top-level directory, the default "all" behavior will
@@ -108,7 +103,7 @@ World::
 	$(MAKE) $(MFLAGS) clean
 	$(MAKE) $(MFLAGS) includes
 	$(MAKE) $(MFLAGS) depend
-	$(MAKE) $(MFLAGS) $(WORLDOPTS) install.lib
+/*	$(MAKE) $(MFLAGS) $(WORLDOPTS) install.lib */
 	$(MAKE) $(MFLAGS) $(WORLDOPTS) install
 	@echo ""
 	@date
@@ -128,7 +123,7 @@ Everything::
 	$(MAKE) $(MFLAGS) Makefiles
 	$(MAKE) $(MFLAGS) includes
 	$(MAKE) $(MFLAGS) depend
-	$(MAKE) $(MFLAGS) $(WORLDOPTS) install.lib
+/*	$(MAKE) $(MFLAGS) $(WORLDOPTS) install.lib */
 	$(MAKE) $(MFLAGS) $(WORLDOPTS) install
 	@echo ""
 	@date
