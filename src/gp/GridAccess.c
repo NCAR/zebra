@@ -8,7 +8,7 @@
 # include "GraphProc.h"
 # include "rg_status.h"
 
-static char *rcsid = "$Id: GridAccess.c,v 1.3 1990-12-04 15:11:41 corbet Exp $";
+static char *rcsid = "$Id: GridAccess.c,v 1.4 1990-12-05 10:58:24 corbet Exp $";
 
 
 /*
@@ -781,6 +781,7 @@ float	*x0, *y0, *x1, *y1, *alt;
 	RGrid *rg;
 	float *ret;
 	time realtime;
+# ifdef notdef
 /*
  * If the data store does not recognize our platform, assume mudras.
  */
@@ -792,7 +793,7 @@ float	*x0, *y0, *x1, *y1, *alt;
 		*alt = (float) ialt;
 		return (ret);
 	}
-# ifdef notdef
+# endif
 /*
  * Look up our platform.
  */
@@ -801,7 +802,6 @@ float	*x0, *y0, *x1, *y1, *alt;
 		msg_ELog (EF_PROBLEM, "Bad platform '%s'", platform);
 		return (0);
 	}
-# endif
 /*
  * Find out when we can really get data.
  */
