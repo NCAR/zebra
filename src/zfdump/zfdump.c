@@ -9,7 +9,7 @@
 # include "DataStore.h"
 # include "znfile.h"
 
-MAKE_RCSID ("$Id: zfdump.c,v 1.4 1993-05-18 21:27:46 granger Exp $")
+MAKE_RCSID ("$Id: zfdump.c,v 1.5 1993-07-07 19:56:40 granger Exp $")
 
 extern int optind;
 
@@ -74,7 +74,7 @@ char **argv;
  */
 	for (i = optind; i < argc; ++i)
 	{
-		failure |= DumpFile (argv[i], 
+		failure += DumpFile (argv[i], 
 				     dump_free, dump_header, dump_all);
 	}
 	exit (failure);
@@ -95,7 +95,7 @@ int dump_free, dump_header, dump_all;
 	char atime[30];
 	zn_Header hdr;
 	ZebTime *zt;
-	zn_Sample *sample;
+	zn_Sample *sample, *samples;
 	zn_Field *zflds;
 	zn_Sample *satts = 0;
 	Location *locns = 0;
@@ -132,10 +132,10 @@ int dump_free, dump_header, dump_all;
 	read (fd, zt, hdr.znh_NSample*sizeof (ZebTime));
 
 	ssps = (hdr.znh_Org == OrgFixedScalar) ? 1 : hdr.znh_NField;
-	sample = (zn_Sample *) malloc (hdr.znh_NSample*ssps*
+	samples = (zn_Sample *) malloc (hdr.znh_NSample * ssps *
 				sizeof (zn_Sample));
 	lseek (fd, hdr.znh_OffSample, 0);
-	read (fd, sample, hdr.znh_NSample*ssps*sizeof (zn_Sample));
+	read (fd, samples, hdr.znh_NSample * ssps * sizeof (zn_Sample));
 	if (hdr.znh_OffRg >= 0)		/* retrieve rgrid info 	*/
 	{
 		lseek (fd, hdr.znh_OffRg, 0);
@@ -181,6 +181,7 @@ int dump_free, dump_header, dump_all;
 	/*
 	 * Sample dump.
 	 */
+		sample = samples;
 		for (t = 0; t < hdr.znh_NSample; t++)
 		{
 			TC_EncodeTime (zt + t, TC_Full, atime);
@@ -218,11 +219,14 @@ int dump_free, dump_header, dump_all;
 		}
 	}
 	free (zt);
-	free (sample);
+	free (samples);
+	free (zflds);
 	if (locns)
 		free (locns);
 	if (rg) 
 		free (rg);
+	if (satts)
+		free (satts);
 	return (0);
 }
 
@@ -272,7 +276,8 @@ zn_Header *hdr;
 	long flen;
 	int i;
 
-	if (hdr->znh_NField == 0)
+	if ((hdr->znh_NField == 0) 
+	    /*|| (hdr->znh_Org == OrgTransparent)*/ )
 		return NULL;
 
 	printf ("Fields:\n");
