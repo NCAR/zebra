@@ -33,7 +33,7 @@ Display *W;
 Drawable D;
 GC Gcontext;
 int x, y;	    /* coordinate origin of barb in pixels */
-double angle; 	    /* angle in radians */
+double angle; 	    /* angle in radians (FROM WHICH the wind is blowing) */
 double spd;  	    /* speed of wind */
 int	shaftlen;   /* length in pixels to draw barb shaft */
 /*
@@ -58,23 +58,23 @@ int	shaftlen;   /* length in pixels to draw barb shaft */
 	{
 	    case 0: /* quadrant 4 */
 		flagangle = 2*3.141592654 - angle;
-		dxsign = 1;
-		dysign = 1;
+		dxsign = -1;
+		dysign = -1;
 	    break;
 	    case 1: /* quadrant 1 */
 		flagangle = angle;
-		dxsign = 1;
-		dysign = -1;
+		dxsign = -1;
+		dysign = 1;
 	    break;
 	    case 2: /* quadrant 2 */
 		flagangle = 3.141592654 - angle;
-		dxsign = -1;
-		dysign = -1;
+		dxsign = 1;
+		dysign = 1;
 	    break;
 	    case 3: /* quadrant 3 */
 		flagangle = angle - 3.141592654;
-		dxsign = -1;
-		dysign = 1;
+		dxsign = 1;
+		dysign = -1;
 	    break;
 	}
 	xend = (int)((double)x + DX(shaftlen,angle));
@@ -85,7 +85,7 @@ int	shaftlen;   /* length in pixels to draw barb shaft */
  *  Add the speed flags.
  */
 	barbspd = spd;
-	while ( barbspd >= 100.0 )
+	while ( barbspd >= 97.5 )
 	{
 	    coord[0].x = (int)((double)x + DX(shaftlen,angle));
 	    coord[0].y = (int)((double)y - DY(shaftlen,angle));
@@ -100,7 +100,7 @@ int	shaftlen;   /* length in pixels to draw barb shaft */
 	    shaftlen -= 2;
 	    barbspd -= 100.0;
 	}
-	while ( barbspd >= 50.0 )
+	while ( barbspd >= 47.5 )
 	{
 	    coord[0].x = (int)((double)x + DX(shaftlen,angle));
 	    coord[0].y = (int)((double)y - DY(shaftlen,angle));
