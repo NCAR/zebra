@@ -129,3 +129,15 @@ procedure space-popup
 endprocedure
 
 
+define widget side-annot-scale intmenu 'Side annotation'
+	title 'Annotation Size'
+	line
+	entry 'Small' 'do_side_annot_size 0.02' \
+		(pd_param(icon_component, "sa-scale", "string") = "0.02")
+	entry 'Medium' 'do_side_annot_size 0.025' \
+		(pd_param(icon_component, "sa-scale", "string") = "0.025")
+	entry 'Large' 'do_side_annot_size 0.03' \
+		(pd_param(icon_component, "sa-scale", "string") = "0.03")
+endmenu
+
+
