@@ -9,7 +9,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project auto-build parameters for development compilations
-XCOMM $Id: Build.tmpl,v 1.39 1999-03-23 00:23:12 burghart Exp $
+XCOMM $Id: Build.tmpl,v 1.40 1999-08-12 14:33:18 burghart Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -294,25 +294,20 @@ XCOMM --- Deciding C compiler and options
 #ifdef SGIArchitecture
 # if !UseGcc
 #  define CCompiler cc -n32
-   /* 
-    * The "-woff 85" loader flag suppresses warnings about multiple
-    * vendorShellClass symbols in IRIX Xaw and Xt libraries.  The "-woff
-    * 84" flag suppresses warnings about libraries not used to resolve any
-    * symbols.  We also suppress warning 131 (Multiply defined weak
-    * symbol), since this is a very common warning when using C++
-    * templates.  Finally, The "-rpath" allows us to avoid requiring
-    * everybody to have a LD_LIBRARY_PATH set to run stuff linked to
-    * locally-built shared libraries. 
-    */
-#  define ExtraLoadOptions -Wl,-woff,85 -Wl,-woff,84 -Wl,-woff,131 \
-	-Wl,-rpath,/usr/local/lib StaticLoadOption
-# else
-   /*
-    * There might need to be linker options on the gcc command line if
-    * gcc is using the 6.x ld instead of /usr/lib/old_ld, since the 6.x ld
-    * will report the same warnings as are suppressed above for IRIX cc.
-    */
 # endif
+
+ /* 
+  * The "-woff 85" loader flag suppresses warnings about multiple
+  * vendorShellClass symbols in IRIX Xaw and Xt libraries.  The "-woff
+  * 84" flag suppresses warnings about libraries not used to resolve any
+  * symbols.  We also suppress warning 131 (Multiply defined weak
+  * symbol), since this is a very common warning when using C++
+  * templates.  Finally, The "-rpath" allows us to avoid requiring
+  * everybody to have a LD_LIBRARY_PATH set to run stuff linked to
+  * locally-built shared libraries. 
+  */
+# define ExtraLoadOptions -Wl,-woff,85 -Wl,-woff,84 -Wl,-woff,131 \
+	-Wl,-rpath,/usr/local/lib StaticLoadOption
 #endif
 
 
