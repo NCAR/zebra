@@ -1,5 +1,5 @@
 /* 12/88 jc */
-/* $Id: dev_x11.c,v 1.4 1989-06-29 16:24:14 burghart Exp $	*/
+/* $Id: dev_x11.c,v 1.5 1989-08-07 14:20:01 corbet Exp $	*/
 /*
  * Graphics driver for the X window system, version 11.3
  */
@@ -72,7 +72,9 @@ struct device *dev;
 	struct xtag *tag = (struct xtag *) getvm (sizeof (struct xtag));
 	XSetWindowAttributes attr;
 	XGCValues gcontext;
-	int screen, pv[2], pm;
+	XVisualInfo template, *vlist;
+	int screen, pv[2], pm, nmatch, depth;
+	XEvent ev;
 /*
  * Figure out what our resolution will be.
  */
@@ -93,6 +95,7 @@ struct device *dev;
 		return (GE_BAD_DEVICE);
 	}
 	screen = DefaultScreen (tag->x_display);
+	printf ("Screen is %d\n", screen);
 	tag->x_mono = DefaultDepth (tag->x_display, screen) == 1;
 	tag->x_fg = WhitePixel (tag->x_display, screen);
 	tag->x_bg = BlackPixel (tag->x_display, screen);
@@ -103,16 +106,43 @@ struct device *dev;
 	tag->x_xptr = -1;
 	tag->x_yptr = -1;
 /*
+ * Try to find a pseudocolor visual.  If we succeed, we use it; otherwise
+ * it's monochrome city.
+ */
+# ifdef notdef
+	template.screen = screen;
+	template.depth = 8;
+	template.class = PseudoColor;
+	vlist = XGetVisualInfo (tag->x_display,
+		VisualScreenMask | VisualDepthMask | VisualClassMask, 
+		&template, &nmatch);
+	printf ("We have %d visual matches\n", nmatch);
+	tag->x_mono = ! nmatch;
+	if (nmatch)
+	{
+		tag->x_visual = vlist->visual;
+		depth = 8;
+	}
+	else
+	{
+		tag->x_visual = DefaultVisual (tag->x_display, screen);
+		depth = CopyFromParent;
+	}
+	printf ("Visual is 0x%x\n", tag->x_visual);
+ 	XFree (vlist);
+# endif
+	tag->x_visual = DefaultVisual (tag->x_display, screen);
+	depth = CopyFromParent;
+/*
  * Create the window to exist on that display.
  */
 	attr.background_pixel = 1;
 	attr.border_pixel = tag->x_fg;
-	attr.backing_store = Always;
-	attr.event_mask = ButtonPressMask;
+	attr.backing_store = WhenMapped;
+	attr.event_mask = ButtonPressMask | ExposureMask;
 	tag->x_window = XCreateWindow (tag->x_display,
 		RootWindow (tag->x_display, screen), 10, 10, tag->x_xres, 
-		tag->x_yres, 2, CopyFromParent, CopyFromParent,
-		CopyFromParent,
+		tag->x_yres, 2, depth, InputOutput, tag->x_visual,
 		CWBackPixel|CWBorderPixel|CWBackingStore|CWEventMask, &attr);
 /*
  * Store some properties.
@@ -123,7 +153,6 @@ struct device *dev;
  * Map the window.  (Sync it to get the wmgr mapping process underway.)
  */
  	XMapWindow (tag->x_display, tag->x_window);
-	XSync (tag->x_display, False);
 /*
  * Get the pixmap to save the area covered by the pointer
  */
@@ -173,6 +202,14 @@ struct device *dev;
 	}
 	dev->gd_xres = tag->x_xres;
 	dev->gd_yres = tag->x_yres;
+/*
+ * Clear the window.
+ */
+	printf ("Waiting for expose...\n");
+	XWindowEvent (tag->x_display, tag->x_window, ExposureMask, &ev);
+	printf ("Got it.\n");
+	XClearWindow (tag->x_display, tag->x_window);
+	XSync (tag->x_display, False);
 /*
  * All done.
  */
