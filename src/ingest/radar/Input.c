@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: Input.c,v 2.4 1993-12-28 16:25:03 burghart Exp $";
+static char *rcsid = "$Id: Input.c,v 2.5 1993-12-30 20:29:13 burghart Exp $";
 
 # include <sys/types.h>
 # include <sys/time.h>
@@ -48,7 +48,7 @@ static char InSource[200];
 /*
  * File input stuff.
  */
-# define BUFLEN 32768
+# define BUFLEN 16384
 static unsigned short Tbuffer[BUFLEN];
 
 /*
@@ -150,7 +150,6 @@ SetupInput ()
 				InSource);
 			die ();
 		}
-		Bst.b_hk = (Housekeeping *) Tbuffer;
 		Bst.b_npart = 1;
 		Bst.b_gdesc[0].gd_first = 1;
 	}
@@ -165,7 +164,8 @@ GetBeam ()
  */
 {
 	int len = BUFLEN, status;
-	static char file[200];
+	static char 	file[200];
+	static int	nlog = 0, curlog = 0, logreclen = 0;
 
 	NBeam++;
 /*
@@ -174,25 +174,43 @@ GetBeam ()
 	if (InputType == NetSource)
 		return (GetEtherBeam ());
 /*
- * Files.
+ * Files.  We allow packed beams here.
  */
 	else
 	{
-		mtread_ (&zero, Tbuffer, &len);
-		mtwait_ (&zero, &status, &len);
-		if (status)
+		if (++curlog < nlog)
 		{
-			mtclose_ (&zero);
-			ui_string_prompt ("New file: ", 0, file, "none");
-			if (! strcmp (file, "none"))
-				die ();
-			if (! mtfmnt_ (&zero, file))
-				die ();
-			return (GetBeam ());
+			Bst.b_hk = (Housekeeping *)
+				(Tbuffer + curlog * logreclen);
 		}
+		else
+		{
+			mtread_ (&zero, Tbuffer, &len);
+			mtwait_ (&zero, &status, &len);
+			if (status)
+			{
+				mtclose_ (&zero);
+				ui_string_prompt ("New file: ", 0, file, 
+						  "none");
+
+				if (! strcmp (file, "none"))
+					die ();
+				if (! mtfmnt_ (&zero, file))
+					die ();
+				return (GetBeam ());
+			}
+
+			Bst.b_hk = (Housekeeping *) Tbuffer;
+
+			curlog = 0;
+			nlog = Bst.b_hk->num_log_rcd >> 8;
+			logreclen = Bst.b_hk->sz_cur_log;
+		}
+		
+			
 		Bst.b_gdesc[0].gd_ngate = Bst.b_hk->gates_per_beam;
 		Bst.b_gdesc[0].gd_data = (unsigned char *) 
-			(Tbuffer + Bst.b_hk->sz_hsk);
+			(Tbuffer + curlog * logreclen + Bst.b_hk->sz_hsk);
 		return (&Bst);
 	}
 }
