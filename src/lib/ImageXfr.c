@@ -1,7 +1,7 @@
 /*
  * Routines to effect image transfer through shared memory.
  */
-static char *rcsid = "$Id: ImageXfr.c,v 1.1 1991-04-28 17:36:30 corbet Exp $";
+static char *rcsid = "$Id: ImageXfr.c,v 1.2 1991-07-18 23:05:10 corbet Exp $";
 
 
 # include <sys/types.h>
@@ -389,4 +389,21 @@ ix_desc *desc;
 {
 	if (mlock (desc->id_shmseg, desc->id_len) < 0)
 		msg_ELog (EF_PROBLEM, "Error %d locking shm segment", errno);
+}
+
+
+
+
+void
+IX_Initialize (desc, value)
+ix_desc *desc;
+unsigned char value;
+/*
+ * Initialize the entire segment to the given value.
+ */
+{
+	struct ix_header *hdr = desc->id_hdr;
+
+	memset (desc->id_shmseg + desc->id_desc->sd_Frames[0], value,
+		hdr->ixh_NSet*hdr->ixh_FrPerSet*hdr->ixh_XSize*hdr->ixh_YSize);
 }
