@@ -81,14 +81,18 @@ extern int IconSpace;
 # define USABLE_HEIGHT	(GWHeight (Graphics) - IconSpace)
 
 /*
- * User coordinate to pixel coordinate macros
+ * User coordinate to pixel coordinate macros.  The I- prefixed macros
+ * return an int instead of casting to short.  Some algorithms need
+ * pixel coordinates which don't fit into shorts.
  */
-# define XPIX(ux)	((short) nint ((float)(GWWidth (Graphics)) * \
+# define IXPIX(ux)	(nint ((float)(GWWidth (Graphics)) * \
 	(((ux) - Xlo) / (Xhi - Xlo) * (F_X1 - F_X0) + F_X0)))
 
-# define YPIX(uy)	((short) nint ((float)(USABLE_HEIGHT) * \
+# define IYPIX(uy)	(nint ((float)(USABLE_HEIGHT) * \
 	(1.0 - (((uy) - Ylo) / (Yhi - Ylo) * (F_Y1 - F_Y0) + F_Y0))))
 
+# define XPIX(ux)	((short) IXPIX(ux))
+# define YPIX(uy)	((short) IYPIX(uy))
 
 /*
  * Pixel coordinate to user coordinate macros
