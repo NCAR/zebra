@@ -1,7 +1,7 @@
 /*
  * Raster display a rectangular array
  */
-static char *rcsid = "$Id: RasterPlot.c,v 2.16 1995-05-02 20:34:56 corbet Exp $";
+static char *rcsid = "$Id: RasterPlot.c,v 2.17 1995-06-16 16:19:43 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -407,6 +407,16 @@ bool	fast;
  */
 	width = xhi - xlo + 1;
 	height = ylo - yhi + 1;
+/*
+ * If width or height is < 0, then this picture's outside the window
+ */
+	if (width < 0 || height < 0)
+	{		
+		XFreeGC (disp, gcontext);
+		free (colgrid);
+		msg_ELog (EF_DEBUG, "Raster outside the window not plotted");
+		return;
+	}
 /*
  * Get our ximage and do the rasterization.
  */
