@@ -1,4 +1,4 @@
-MFVERSION="$Id: Makefile.cpp,v 1.5 1991-11-22 20:51:48 kris Exp $"
+MFVERSION="$Id: Makefile.cpp,v 1.6 1991-11-27 21:49:37 corbet Exp $"
 
 # include "../include/config.h"
 
@@ -107,6 +107,9 @@ saber_lib:
 	#setopt ansi
 	#load $(CFLAGS) $(SRCS)
 	#load -Bstatic $(LIBS) /locallib/gcc-gnulib
+
+saber_dsd: saber_lib
+	#load $(CFLAGS) dsdump.c
 
 saber_pn: saber_lib
 	#load $(CFLAGS) prt_Notify.c d_Notify.c
