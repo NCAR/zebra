@@ -1,10 +1,10 @@
 /* 12/88 jc */
-/* $Id: dev_xtitan.c,v 1.6 1990-11-15 11:19:08 burghart Exp $ */
+/* $Id: dev_xtitan.c,v 1.7 1991-11-15 17:26:32 burghart Exp $ */
 /*
  * Graphics driver for the X window system, version 11.3, with Titan 
  * enhancements.
  */
-# include "config.h"
+# include <graphdev.h>
 
 # ifdef DEV_XTITAN
 

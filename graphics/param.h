@@ -1,7 +1,7 @@
 /*
  * Various parameters of interest.
  */
-# include "config.h"
+# include <graphdev.h>
 
 # define NULL 0
 

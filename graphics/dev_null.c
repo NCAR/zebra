@@ -1,7 +1,7 @@
 /*
  * Implement a null device.
  */
-# include "config.h"
+# include <graphdev.h>
 
 # ifdef DEV_NULL
 
