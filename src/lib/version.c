@@ -11,8 +11,9 @@
 
 #include "defs.h"
 
-RCSID("$Id: version.c,v 2.3 2000-12-06 20:55:32 granger Exp $")
+RCSID("$Id: version.c,v 2.4 2002-02-12 23:36:22 granger Exp $")
 
+char V_buffer[512];
 /*
  * Hand edit these lines until it can be done automatically.  One possibility
  * is using the RCS state field, but even that requires running a command

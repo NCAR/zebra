@@ -1,5 +1,5 @@
 /*
- * $Id: version.h,v 2.4 1999-03-01 02:04:46 burghart Exp $
+ * $Id: version.h,v 2.5 2002-02-12 23:36:22 granger Exp $
  *
  * Include various symbols, compilation, and version info into an object
  * file.  We try to take advantage of ANSI C pre-preprocessors as much as
@@ -115,12 +115,8 @@ static const char cppsyms[] = "@(#)$Symbols: __STDC__ defined as 0 $";
 # endif /* ndef __STDC */
 #endif /* __STDC__ */
 
-static const char*
-Z_cppsymbols()
-{
-	static char buf[256];
-	return (V_format (buf,cppsyms,0,0,0));
-}
+extern char V_buffer[];
+#define Z_cppsymbols() V_format(V_buffer,cppsyms,0,0,0)
 
 #endif /* !SABER && !lint */
 
