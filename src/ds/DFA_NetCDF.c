@@ -28,7 +28,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 #ifndef lint
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.24 1993-12-22 18:21:59 corbet Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.25 1993-12-22 21:34:29 corbet Exp $")
 #endif
 
 # include "netcdf.h"
@@ -141,8 +141,7 @@ static int 	dnc_ReadIRGrid FP ((DataChunk *, NCTag *, int, int, FieldId *,
 static int 	dnc_ReadRGrid FP ((DataChunk *, NCTag *, int, int, FieldId *,
 			int, double, dsDetail *, int));
 static int	dnc_ReadNSpace FP((DataChunk *, NCTag *, long,
-				long, FieldId *, long, 
-				double));
+				long, FieldId *, int, double));
 static void	dnc_ReadNSpaceScalar FP((DataChunk *dc, NCTag *tag, 
 			 ZebTime *t, int begin, int nsamp, FieldId *fids, 
 			 int nfield, double badval));
@@ -2312,7 +2311,7 @@ DataChunk *dc;
 	sprintf(history,"created by Zeb DataStore, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.24 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.25 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 }
