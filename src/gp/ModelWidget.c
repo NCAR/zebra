@@ -1,7 +1,7 @@
 /*
  * Movie control functions.
  */
-static char *rcsid = "$Id: ModelWidget.c,v 2.2 1994-04-15 19:54:06 burghart Exp $";
+static char *rcsid = "$Id: ModelWidget.c,v 2.3 1994-05-19 21:04:44 burghart Exp $";
 /*		Copyright (C) 1994 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -93,7 +93,6 @@ static void	mw_GenNFrame FP ((int *));
 static void	mw_Notification FP ((PlatformId, int, ZebTime *));
 static void	mw_Dismiss FP ((Widget, XtPointer, XtPointer));
 static void	mw_ShowFrame FP ((Widget, XtPointer, XtPointer));
-static void	mw_Cursor FP ((Widget, Cursor, int));
 static void	mw_FrameStep FP ((Widget, XEvent *, String *, Cardinal *));
 static void	mw_ValidOrIssue FP ((Widget, XtPointer, XtPointer));
 static void	mw_NewIssueTime FP ((Widget, XtPointer, XtPointer));
@@ -160,7 +159,7 @@ XtAppContext appc;
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, NULL); n++;
 	XtSetArg (args[n], XtNfromVert, NULL); n++;
-	XtSetArg (args[n], XtNwidth, 450); n++;
+	XtSetArg (args[n], XtNwidth, 600); n++;
 	sprintf (string, "Model Handling for %s", Ourname);
 	XtSetArg (args[n], XtNlabel, string); n++;
 	XtSetArg (args[n], XtNborderWidth, 0); n++;
@@ -205,8 +204,7 @@ XtAppContext appc;
 	XtGetValues (WIssueTime, args, n);
 	XtAddCallback (src, XtNcallback, mw_TextChange, 0);
 /*
- * Create a set of radio buttons for NCACHE frames.  We manage them as we need
- * them.
+ * Create a set of radio buttons for NCACHE frames.
  */
 	above = w;
 	w = NULL;
@@ -217,6 +215,8 @@ XtAppContext appc;
 		n = 0;
 		XtSetArg (args[n], XtNfromHoriz, w); n++;
 		XtSetArg (args[n], XtNfromVert, above); n++;
+		XtSetArg (args[n], XtNleft, XawChainLeft); n++;
+		XtSetArg (args[n], XtNright, XawChainLeft); n++;
 		XtSetArg (args[n], XtNwidth, 35); n++;
 		XtSetArg (args[n], XtNresize, False); n++;
 		XtSetArg (args[n], XtNlabel, "XX"); n++;
@@ -228,8 +228,9 @@ XtAppContext appc;
 		XtSetArg (args[n], XtNradioData, i + 1); n++;
 
 		sprintf (string, "FButton%d", i);
-		w = FrameButton[i] = XtCreateWidget (string, toggleWidgetClass,
-						     form, args, n);
+		w = FrameButton[i] = 
+			XtCreateManagedWidget (string, toggleWidgetClass,
+					       form, args, n);
 		XtAddCallback (w, XtNcallback, mw_ShowFrame, (XtPointer) i);
 	}
 /*
@@ -238,7 +239,7 @@ XtAppContext appc;
 	RadioGroup = FrameButton[0];
 /*
  * Sister buttons for the frame buttons to toggle which frames will be used
- * in a loop.  We manage them as we need them.
+ * in a loop.
  */
 	above = w;
 	w = NULL;
@@ -248,6 +249,8 @@ XtAppContext appc;
 		n = 0;
 		XtSetArg (args[n], XtNfromHoriz, w); n++;
 		XtSetArg (args[n], XtNfromVert, above); n++;
+		XtSetArg (args[n], XtNleft, XawChainLeft); n++;
+		XtSetArg (args[n], XtNright, XawChainLeft); n++;
 		XtSetArg (args[n], XtNvertDistance, 0); n++;
 		XtSetArg (args[n], XtNwidth, 35); n++;
 		XtSetArg (args[n], XtNheight, 8); n++;
@@ -256,8 +259,9 @@ XtAppContext appc;
 		XtSetArg (args[n], XtNlabel, " "); n++;
 
 		sprintf (string, "UseButton%d", i);
-		w = UseButton[i] = XtCreateWidget (string, toggleWidgetClass,
-						   form, args, n);
+		w = UseButton[i] = 
+			XtCreateManagedWidget (string, toggleWidgetClass,
+					       form, args, n);
 	}
 /*
  * Toggle to use all/none.
@@ -269,6 +273,8 @@ XtAppContext appc;
 	n = 0;
 	XtSetArg (args[n], XtNfromVert, above); n++;
 	XtSetArg (args[n], XtNvertDistance, 0); n++;
+	XtSetArg (args[n], XtNleft, XawChainLeft); n++;
+	XtSetArg (args[n], XtNright, XawChainLeft); n++;
 	XtSetArg (args[n], XtNwidth, 39); n++;
 	XtSetArg (args[n], XtNheight, 8); n++;
 	XtSetArg (args[n], XtNbitmap, pm); n++;
@@ -399,7 +405,7 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNfromHoriz, w); n++;
 	XtSetArg (args[n], XtNfromVert, above); n++;
 	XtSetArg (args[n], XtNborderWidth, 0); n++;
-	XtSetArg (args[n], XtNwidth, 300); n++;
+	XtSetArg (args[n], XtNwidth, 400); n++;
 	XtSetArg (args[n], XtNresize, False); n++;
 	XtSetArg (args[n], XtNjustify, XtJustifyLeft); n++;
 	w = StatusLabel = XtCreateManagedWidget ("ModelStatus", 
@@ -439,6 +445,11 @@ mw_Update ()
  */
 	if (! WModel)
 		return;
+/*
+ * Busy cursor, since this stuff can take a while...
+ */
+	ChangeCursor (Graphics, BusyCursor);
+	ChangeCursor (WModel, BusyCursor);
 /*
  * Model issue time
  */
@@ -517,6 +528,11 @@ mw_Update ()
  */
 	XawToggleSetCurrent (WValidOrIssue, 
 			     ValidationMode ? (XtPointer)'V' : (XtPointer)'I');
+/*
+ * Return to normal cursors
+ */
+	ChangeCursor (Graphics, None);
+	ChangeCursor (WModel, None);
 }
 
 
@@ -954,6 +970,13 @@ char	*param;
  * A parameter changed.  Deal with it.
  */
 {
+	bool	hold;
+/*
+ * Return if they have us on hold
+ */
+	if (pd_Retrieve (Pd, "global", "plot-hold", (char *) &hold, 
+			 SYMT_BOOL) && hold)
+		return;
 /*
  * Update the widget
  */
@@ -1028,9 +1051,9 @@ XtPointer	cdata, junk;
 /*
  * Replot
  */
-	mw_Cursor (WModel, BusyCursor, TRUE);
+	ChangeCursor (WModel, BusyCursor);
 	px_PlotExec ("global");
-	mw_Cursor (WModel, None, TRUE);
+	ChangeCursor (WModel, None);
 /*
  * Finish up
  */
@@ -1038,44 +1061,6 @@ XtPointer	cdata, junk;
 
 	sprintf (string, "%d hr forecast", Foffsets[DisplayedFrame] / 3600);
 	mw_SetStatus (string);
-}
-
-
-
-
-static void
-mw_Cursor (w, cursor, do_sync)
-Widget	w;
-Cursor	cursor;
-int	do_sync;
-/*
- * Change to the selected cursor in the widget and its children.  If do_sync
- * is true, we force a sync after making the change.
- */
-{
-	int	n, i, numchildren;
-	Arg	args[2];
-	WidgetList	children;
-
-	if (w && XtWindow (w))
-		XDefineCursor (XtDisplay (w), XtWindow (w), cursor);
-/*
- * Recurse through children, if any
- */
-	numchildren = 0;
-
-	n = 0;
-	XtSetArg (args[n], XtNnumChildren, &numchildren); n++;
-	XtSetArg (args[n], XtNchildren, &children); n++;
-	XtGetValues (w, args, n);
-
-	for (i = 0; i < numchildren; i++)
-		mw_Cursor (children[i], cursor, FALSE);
-/*
- * Sync if requested
- */
-	if (do_sync)
-		eq_sync ();
 }
 
 
