@@ -28,7 +28,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 #ifndef lint
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.15 1993-05-04 21:42:11 granger Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.16 1993-05-06 23:24:21 granger Exp $")
 #endif
 
 # include "netcdf.h"
@@ -452,11 +452,19 @@ NCTag *tag;
 
 	if (ncvarget (tag->nc_id, lon, &start, &stop, pos) < 0)
 		msg_ELog (EF_PROBLEM, "Lon get failure %d", ncerr);
+#ifdef notdef	
+	/* 
+	 * With the advent of projects like TOGA-COARE, Zeb has gone global;
+	 * we can no longer assume Zeb is operating in the Western hemisphere
+	 */
 	for (i = 0; i < tag->nc_nPlat; i++)
 		tag->nc_locs[i].l_lon = (pos[i] > 0) ? -pos[i] : pos[i];
+#endif
+	for (i = 0; i < tag->nc_nPlat; i++)
+		tag->nc_locs[i].l_lon = pos[i];
 
 	if (ncvarget (tag->nc_id, alt, &start, &stop, pos) < 0)
-		msg_ELog (EF_PROBLEM, "Lon get failure %d", ncerr);
+		msg_ELog (EF_PROBLEM, "Alt get failure %d", ncerr);
 	for (i = 0; i < tag->nc_nPlat; i++)
 		tag->nc_locs[i].l_alt = pos[i];
 	free (pos);
@@ -2289,7 +2297,7 @@ DataChunk *dc;
 	sprintf(history,"created by Zeb DataStore, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.15 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.16 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 }
