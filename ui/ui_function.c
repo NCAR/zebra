@@ -15,7 +15,7 @@
 extern char *malloc ();
 # endif
 
-static char *rcsid = "$Id: ui_function.c,v 1.11 1997-05-13 21:44:41 ishikawa Exp $";
+static char *rcsid = "$Id: ui_function.c,v 1.12 1997-05-15 18:33:40 granger Exp $";
 
 /*
  * These structures represent functions.
@@ -549,7 +549,7 @@ union usy_value	*argv, *retv;
 	int	i;
 	char *slash;
 
-# indef AIXV3			/* For IBM machines */ 
+# ifndef AIXV3			/* For IBM machines */ 
 	char *strrchr ();
 # endif
 
