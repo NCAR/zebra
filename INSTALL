@@ -1,0 +1,21 @@
+
+This is a bare-bones outline of building zebra, since officially it is not
+supported, but this might be enough to help someone get started.
+
+Building Zebra from source requires the following, as a minimum:
+
+	A recent GNU GCC (C and C++) compiler
+
+	The netcdf and udunits packages from Unidata
+	http://www.unidata.ucar.edu
+
+	X11 and the Athena Widgets library
+
+It is known to build on recent versions of Linux and Solaris and older
+versions of Irix and HP-UX.
+
+Edit config/project/config.h according to the instructions found inside,
+then run make in the top directory:
+
+	make World >& make.zebra &
+
