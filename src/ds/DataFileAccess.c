@@ -34,7 +34,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 # include "dfa.h"
-MAKE_RCSID ("$Id: DataFileAccess.c,v 3.4 1992-09-25 15:45:33 corbet Exp $")
+MAKE_RCSID ("$Id: DataFileAccess.c,v 3.5 1992-11-10 04:19:26 corbet Exp $")
 
 
 
@@ -445,8 +445,15 @@ char *dest;
  * Create a new file name for this platform, and this time.
  */
 {
+	char *slash, *strchr ();
+/*
+ * Get the format-specific code to make up the name, then tweak any 
+ * slashes out of it.
+ */
 	(*Formats[plat->dp_ftype].f_MakeFileName) (plat->dp_dir,
 				plat->dp_name, t, dest);
+	while (slash = strchr (dest, '/'))
+		strcpy (slash, slash + 1);
 }
 
 
