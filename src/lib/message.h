@@ -1,4 +1,4 @@
-/* $Id: message.h,v 2.26 1996-09-06 21:05:25 granger Exp $ */
+/* $Id: message.h,v 2.27 1996-11-19 07:54:48 granger Exp $ */
 /*
  * Message protocol types.
  */
@@ -265,6 +265,11 @@ struct msg_elog
 # endif
 
 /*
+ * The environment variable which overrides our default socket name.
+ */
+# define MSG_SOCKET_VARIABLE	"ZEBRA_SOCKET"
+
+/*
  * The name of the event manager.
  */
 # define MSG_MGR_NAME		"Message manager"
@@ -306,7 +311,7 @@ void msg_join FP ((char *));
 void msg_quit FP ((char *));
 void msg_log FP ((/* char *, ... */));
 void msg_ELog FP ((/* int flag, char *s, ... */));
-int msg_LogCallback FP ((int mask, int (*fn) (), void *arg));
+void msg_LogCallback FP ((int mask, int (*fn) (), void *arg));
 int msg_ELSendMask FP ((int mask));
 int msg_ELPrintMask FP ((int mask));
 void msg_add_fd FP ((int, int (*handler) ()));
@@ -318,6 +323,7 @@ int msg_poll FP ((int timeout));
 int msg_PollProto FP ((int timeout, int nproto, int *protolist));
 int msg_Search FP ((int proto, int (*func) (), void * param));
 void msg_AddProtoHandler FP ((int, int (*) ()));
+ifptr msg_ProtoHandler FP ((int proto));
 void msg_Enqueue FP ((Message *msg));
 int msg_QueryClient FP ((const char *));
 void msg_ListGroup FP ((const char *group));
@@ -344,6 +350,7 @@ int	msg_PollBCast FP ((int fd));
  */
 void cp_SetupCmdProto FP ((void));
 void cp_Exec FP ((char *process, char *command));
+void cp_SetupCmdHandler FP ((int (*fn)(/* char * */)));
 
 /*
  * For some reason HP-UX uses pointers to int rather than
