@@ -1,4 +1,4 @@
-XCOMM $Id: Imakefile,v 1.31 2001-01-17 20:21:09 granger Exp $
+XCOMM $Id: Imakefile,v 1.32 2001-01-18 18:17:06 granger Exp $
 XCOMM
 XCOMM This is the top-level Imakefile for the Zebra distribution.
 XCOMM It is modeled after the top-level Imakefile of the MIT X11R5
@@ -26,7 +26,7 @@ XCOMM Makefile.ini and NOT the Makefile created by imake.  The tarfile
 XCOMM target copies Makefile.ini over Makefile automatically, and
 XCOMM adds Makefile to the distfiles target.
 
-      DISTFILES = Imakefile Makefile.ini /*Makefile*/ ChangeLog
+      DISTFILES = Imakefile Makefile.ini /*Makefile*/ ChangeLog INSTALL
 
 XCOMM From the top-level directory, the default behavior will be the same
 XCOMM as the "Everything" target, i.e. make sure all Makefiles are
@@ -75,6 +75,7 @@ default::
 default:: Everything
 
 StandardSubdirTargets()
+DistfilesTarget($(DISTFILES))
 
 TESTSUBDIRS = src
 
@@ -177,7 +178,7 @@ tarfile:
 		rm -f Makefile ; \
 		cp ../Makefile.ini Makefile \
 	  ) ; \
-	  tar cvhf - $(LINKNAMES) \
+	  tar cvhf - \
 	     `$(MAKE) -s MAKE=$(MAKE) $(MFLAGS) DISTFILES="$(DISTFILES)" \
 		DISTSUBDIRS="$(DISTSUBDIRS)" \
 		DISTCURDIR=$(TARFILE) distfiles` | \
@@ -191,7 +192,8 @@ tarfile:
 
 binary:
 	$(MAKE) $(MFLAGS) MAKE=$(MAKE) tarfile TARFILE=$(TARFILE) \
-	DISTSUBDIRS= TARDEST="$(TARDEST)" DISTFILES="ChangeLog bin lib include"
+	DISTSUBDIRS= TARDEST="$(TARDEST)" \
+	DISTFILES="ChangeLog bin lib include"
 
 source:
 	$(MAKE) $(MFLAGS) MAKE=$(MAKE) tarfile TARFILE=$(TARFILE) \
