@@ -18,6 +18,10 @@ p_radar
 	icon-middle-menu:	radar-middle
 	icon-right-menu:	DataAvailable
 	every-sweep:	true
+	every-volume:	false
 	scale-mode:	auto
 	limit-proc:	raster-limit-proc
 	require:	radar, raster
+	data-available-command:	RadarDataAvailable
+	data-available-times: samples
+	real-time-hook:	RadarRealTime
