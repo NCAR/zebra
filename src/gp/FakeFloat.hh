@@ -21,7 +21,7 @@ public:
 		sv = (BigEndian () ? 0 : 1) + (short *) &iv;
 	};
 
-	FakeFloat (FakeFloat &other)
+	FakeFloat (const FakeFloat &other)
 	{
 		iv = other.iv;
 		sv = (BigEndian () ? 0 : 1) + (short *) &iv;

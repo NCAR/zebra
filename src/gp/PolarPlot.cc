@@ -729,7 +729,7 @@ ScanConverter::SetPixel (int x, int y, unsigned int v)
 {
 	if (x < 0 || x >= sc_Dest->di_w || y < 0 || y >= sc_Dest->di_h)
 		return (FALSE);
-	void *vp = sc_Dest->di_image + sc_Dest->di_ioffset +
+	void *vp = ((char *) sc_Dest->di_image) + sc_Dest->di_ioffset +
 		sc_Dest->di_bpl*y + sc_Dest->di_bdepth*x;
 	switch (sc_Dest->di_bdepth)
 	{
