@@ -28,7 +28,7 @@
 # include <DataChunk.h>
 # include "GraphProc.h"
 # include "rg_status.h"
-MAKE_RCSID ("$Id: GridAccess.c,v 2.30 1998-02-05 23:50:20 burghart Exp $")
+MAKE_RCSID ("$Id: GridAccess.c,v 2.31 1998-02-19 23:53:43 burghart Exp $")
 
 # define DEG_TO_RAD(x)	((x)*0.017453292)
 # define KM_TO_DEG(x)	((x)*0.008982802) /* on a great circle */
@@ -1324,8 +1324,6 @@ AltUnitType altunits;
  * We don't need the data arrays and the data chunks any more.
  */
 
-   free (ugrid);
-   free (vgrid);
    dc_DestroyDC (udc);
    dc_DestroyDC (vdc);
 
