@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: radar_ingest.c,v 2.4 1991-11-22 20:43:53 kris Exp $";
+static char *rcsid = "$Id: radar_ingest.c,v 2.5 1992-07-31 16:54:31 corbet Exp $";
 
 # include <copyright.h>
 # include <errno.h>
@@ -52,6 +52,8 @@ int Niceness = 0;
 int WidgetUpdate = 20;
 int NBeam = 0, NMissed = 0;
 bool Project = TRUE;
+bool MhrMode = FALSE;
+float MhrTop = 21.0;
 
 /*
  * Thresholding.
@@ -59,6 +61,12 @@ bool Project = TRUE;
 bool DoThresholding = FALSE;
 int ThrFldOffset;
 unsigned char ThrCounts = 0;
+
+/*
+ * Do we trust internal flags?
+ */
+bool TrustSweep = FALSE;
+bool TrustVol = FALSE;
 
 struct _ix_desc *ShmDesc = 0;
 int	ImageSet = -1;
@@ -69,7 +77,6 @@ char PlatformName[PF_LEN];
 /*
  * We use this data object to write out finished products.
  */
-static DataObject OutData;
 ScaleInfo Scale[10];
 
 /*
@@ -89,36 +96,35 @@ RDest Rd[MFIELD];
 int NField = 0;
 char *Fields[MFIELD];
 
+/*
+ * States of the MHR radar.
+ */
+typedef struct _MHRState
+{
+	float	ms_Elev;	/* Radar elevation angle */
+	bool	ms_Keep;	/* Is it a keeper?	*/
+} MHRState;
+
+# define MaxMHRState 100
+MHRState MHStates[MaxMHRState];
+int NStates = 0;
+int CurState = -1;
 
 
 static int Argc;
 static char **Argv;
 
-# ifdef __STDC__
-	static int Dispatcher (int, struct ui_command *);
-	static void Go (void);
-	static void SetupIndirect (void);
-	static void ClearFrames (void);
-	static void Source (struct ui_command *);
-	static void NewField (struct ui_command *);
-	static void ThreshParams (struct ui_command *);
-	static void SetConsumer (struct ui_command *);
-	static void InvokeConsumer (void);
-	static int MHandler (Message *);
-	static void CheckMessages (void);
-# else
-	static int Dispatcher ();
-	static void Go ();
-	static void SetupIndirect ();
-	static void ClearFrames ();
-	static void Source ();
-	static void NewField ();
-	static void ThreshParams ();
-	static void SetConsumer ();
-	static void InvokeConsumer ();
-	static int MHandler ();
-	static void CheckMessages ();
-# endif
+static int Dispatcher FP ((int, struct ui_command *));
+static void Go FP ((void));
+static void SetupIndirect FP ((void));
+static void ClearFrames FP ((void));
+static void Source FP ((struct ui_command *));
+static void NewField FP ((struct ui_command *));
+static void ThreshParams FP ((struct ui_command *));
+static void SetConsumer FP ((struct ui_command *));
+static void InvokeConsumer FP ((void));
+static int MHandler FP ((Message *));
+static void CheckMessages FP ((void));
 
 
 
@@ -147,6 +153,7 @@ char **argv;
  * Initialize.
  */
 	msg_connect (MHandler, "Radar Ingest");
+	msg_DeathHandler (die);
 	fixdir ("RI_LOAD_FILE", LIBDIR, "radar_ingest.lf", loadfile);
 	if (argc > 1)
 	{
@@ -198,10 +205,17 @@ SetupIndirect ()
 	usy_c_indirect (vtable, "niceness", &Niceness, SYMT_INT, 0);
 	usy_c_indirect (vtable, "update", &WidgetUpdate, SYMT_INT, 0);
 	usy_c_indirect (vtable, "project", &Project, SYMT_BOOL, 0);
+	usy_c_indirect (vtable, "mhrmode", &MhrMode, SYMT_BOOL, 0);
+	usy_c_indirect (vtable, "mhrtop", &MhrTop, SYMT_FLOAT, 0);
 /*
  * Thresholding parameters.
  */
 	usy_c_indirect (vtable, "threshold", &DoThresholding, SYMT_BOOL, 0);
+/*
+ * Scan delineation.
+ */
+	usy_c_indirect (vtable, "trustsweep", &TrustSweep, SYMT_BOOL, 0);
+	usy_c_indirect (vtable, "trustvol", &TrustVol, SYMT_BOOL, 0);
 }
 
 
@@ -249,6 +263,14 @@ struct ui_command *cmds;
 	 */
 	   case RIC_CONSUMER:
 	   	SetConsumer (cmds + 1);
+		break;
+	/*
+	 * Mhr states.
+	 */
+	   case RIC_MHRSTATE:
+	   	MHStates[NStates].ms_Elev = UFLOAT (cmds[1]);
+		MHStates[NStates].ms_Keep = UKEY (cmds[2]);
+		NStates++;
 		break;
 	/*
 	 * Time to complain.
@@ -424,6 +446,11 @@ int newvol, left, right, up, down, mode;
 	time t;
 	char attr[100];
 /*
+ * MHR filtering.
+ */
+	if (MhrMode && ! MHR_Filter (alt))
+		return;
+/*
  * Radars tend to record in local time; make the move over to GMT now.
  */
 	systime = TC_FccToSys (bt) + GMTOffset*3600;
@@ -443,7 +470,8 @@ int newvol, left, right, up, down, mode;
 /*
  * Figure out attributes.
  */
-	strcpy (attr, (mode == SM_PPI) ? "radar,ppi" : "radar,sur");
+	strcpy (attr, newvol ? "newfile," : "");
+	strcat (attr, (mode == SM_PPI) ? "radar,ppi" : "radar,sur");
 /*
  * Force time -- we know better than they do.
  */
@@ -457,6 +485,63 @@ int newvol, left, right, up, down, mode;
 	ui_printf (" Output %s at %d %06d alt %.2f new %c\n", PlatformName,
 		t.ds_yymmdd, t.ds_hhmmss, alt, newvol ? 't' : 'f');
 }
+
+
+
+
+static int
+AzEq (a1, a2, tol)
+float a1, a2, tol;
+{
+	float diff = a1 - a2;
+	if (diff < 0)
+		diff = -diff;
+	return (diff < tol);
+}
+
+
+
+
+int
+MHR_Filter (alt)
+float alt;
+/*
+ * See if we should filter out this stuff.
+ */
+{
+	int next = CurState + 1;
+	if (next >= NStates)
+		next = 0;
+/*
+ * See if this altitude matches what we are expecting.  If not, try to
+ * resynchronize.
+ */
+	if (! AzEq (alt, MHStates[next].ms_Elev, 0.2))
+	{
+		msg_ELog (EF_PROBLEM, "MHR Sync problem, alt %.2f, exp %.2f",
+			alt, MHStates[next].ms_Elev);
+		for (next = 0; next < NStates; next++)
+			if (AzEq (alt, MHStates[next].ms_Elev, 0.2))
+				break;
+		if (next >= NStates)
+		{
+			msg_ELog (EF_PROBLEM, "Can't find right state!");
+			CurState = -1;
+		}
+		else
+			CurState = next;
+		return (TRUE);	/* Always keep when resync */
+	}
+/*
+ * We got it.  Move to the new state and return the proper keep value.
+ */
+	msg_ELog (EF_DEBUG, "State %d, %s", next,
+		MHStates[next].ms_Keep ? "KEEP" : "TOSS");
+	CurState = next;
+	return (MHStates[next].ms_Keep);
+}
+
+
 
 
 

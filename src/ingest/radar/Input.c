@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: Input.c,v 2.1 1991-09-16 22:15:47 burghart Exp $";
+static char *rcsid = "$Id: Input.c,v 2.2 1992-07-31 16:54:31 corbet Exp $";
 
 # include <sys/types.h>
 # include <sys/time.h>
@@ -221,7 +221,8 @@ OpenEthernet ()
 /*
  * Now hook into our actual interface and put it in promiscuous mode.
  */
-	strcpy (ifr.ifr_name, "le1");
+	/* strcpy (ifr.ifr_name, "le1"); */
+	strcpy (ifr.ifr_name, InSource);
 	if (ioctl (NitDev, NIOCBIND, &ifr) < 0)
 		InCroak ("Interface BIND");
 	if (ioctl (NitDev, NIOCSFLAGS, &flag) < 0)

@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: ds_consumer.c,v 2.3 1991-11-22 20:44:06 kris Exp $";
+static char *rcsid = "$Id: ds_consumer.c,v 2.4 1992-07-31 16:54:31 corbet Exp $";
 
 # include <copyright.h>
 # include <defs.h>
@@ -165,20 +165,22 @@ int set;
 /*
  * Fill in the rest of our data object.
  */
-	msg_ELog (EF_INFO, "Set %d, [%d, %d] to [%d, %d]", set, xmin, ymin,
+	msg_ELog (EF_DEBUG, "Set %d, [%d, %d] to [%d, %d]", set, xmin, ymin,
 				xmax, ymax);
 	OutData.do_begin = OutData.do_end = t;
 	OutData.do_times = &t;
 	OutData.do_desc.d_img.ri_rg = &rg;
 	OutData.do_desc.d_img.ri_scale = scale;
 	OutData.do_aloc = &loc;
+	OutData.do_attr = attr;
 	for (i = 0; i < OutData.do_nfield; i++)
 		OutData.do_data[i] = (float *) (images[i] + offset);
 /*
  * Send it, but only if there's something real.
  */
 	if (ymin < ymax)
-		ds_PutData (&OutData, PrevAlt > loc.l_alt);
+		ds_PutData (&OutData, ! strncmp (attr, "newfile", 7));
+		/* ds_PutData (&OutData, PrevAlt > loc.l_alt); */
 	else
 		msg_ELog (EF_INFO, "Dropping empty image");
 	PrevAlt = loc.l_alt;
@@ -187,7 +189,7 @@ int set;
  */
 	for (i = 0; i < OutData.do_nfield; i++)
 		memset (images[i] + ymin*XRes, 0xff, (ymax - ymin + 1)*XRes);
-	msg_ELog (EF_INFO, "Release set %d", set);
+	msg_ELog (EF_DEBUG, "Release set %d", set);
 	IX_ReleaseFrame (ShmDesc, set);
 }
 

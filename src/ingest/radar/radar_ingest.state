@@ -39,6 +39,24 @@ define state initial
 	input 'consumer' 7
 		next consumer-args
 	endinput
+	input 'mhrstate' 8
+		next mhr-elev
+	endinput
+enddef
+
+define state mhr-elev
+	input real
+		next mhr-keep
+	endinput
+enddef
+
+define state mhr-keep
+	input 'keep' 1
+		next ust$no_more
+	endinput
+	input 'toss' 0
+		next ust$no_more
+	endinput
 enddef
 
 

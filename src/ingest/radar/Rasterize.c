@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: Rasterize.c,v 2.2 1991-11-22 20:44:20 kris Exp $";
+static char *rcsid = "$Id: Rasterize.c,v 2.3 1992-07-31 16:54:31 corbet Exp $";
 
 # include <defs.h>
 # include <message.h>
@@ -75,61 +75,49 @@ static int InSweep = FALSE;
 static int NBeam = 0;		/* Number of beams in this sweep	*/
 
 
-# ifdef __STDC__
-	static void CalcParams (Beam, int *, double *, double *, double *,
-		double *, struct RastInfo *);
-	static float FindIntersection (double, double, double);
-	static void GetHIncrements (double, double, double, double, double,
-		double, double *, double *, double *, double *);
-	static void GetVIncrements (double, double, double, double, double,
-		double, double *, double *, double *, double *);
-	static void GetEndpoints (Beam, int, double, int, double, double,
-		double, double, double, double, struct RastInfo *, int);
-	static void PFillR (struct RastInfo *, double, double, double,
-		double, unsigned char *, unsigned char *);
-	static void PFillC (struct RastInfo *, double, double, double,
-		double, unsigned char *, unsigned char *);
-	static void PFill2R (struct RastInfo *, double, double, double,
-		double, unsigned char *, unsigned char *, unsigned char *,
-		unsigned char *);
-	static void PFill2C (struct RastInfo *, double, double, double,
-		double, unsigned char *, unsigned char *, unsigned char *,
-		unsigned char *);
-	static void Threshold (Beam, unsigned char *, int, int);
-	static void CheckSweep (Beam);
-	static void ScanConvert (struct RastInfo *, int, double, double,
-		double, double, RDest *, int);
-	static void CheckMax (int, int, int, int);
-	static int DirCheck (Direction *, Beam, int, double);
-# else
-	static void CalcParams ();
-	static float FindIntersection ();
-	static void GetHIncrements ();
-	static void GetVIncrements ();
-	static void GetEndpoints ();
-	static void PFillR ();
-	static void PFillC ();
-	static void PFill2R ();
-	static void PFill2C ();
-	static void Threshold ();
-	static void CheckSweep ();
-	static void ScanConvert ();
-	static void CheckMax ();
-	static int DirCheck ();
-# define inline
-# endif
+/*
+ * Local routines.
+ */
+static void CalcParams FP ((Beam, int *, double *, double *, double *,
+	double *, struct RastInfo *));
+static float FindIntersection FP ((double, double, double));
+static void GetHIncrements FP ((double, double, double, double, double,
+	double, double *, double *, double *, double *));
+static void GetVIncrements FP ((double, double, double, double, double,
+	double, double *, double *, double *, double *));
+static void GetEndpoints FP ((Beam, int, double, int, double, double,
+	double, double, double, double, struct RastInfo *, int));
+static void PFillR FP ((struct RastInfo *, double, double, double,
+	double, unsigned char *, unsigned char *));
+static void PFillC FP ((struct RastInfo *, double, double, double,
+	double, unsigned char *, unsigned char *));
+static void PFill2R FP ((struct RastInfo *, double, double, double,
+	double, unsigned char *, unsigned char *, unsigned char *,
+	unsigned char *));
+static void PFill2C FP ((struct RastInfo *, double, double, double,
+	double, unsigned char *, unsigned char *, unsigned char *,
+	unsigned char *));
+static void Threshold FP ((Beam, unsigned char *, int, int));
+static void CheckSweep FP ((Beam));
+static void ScanConvert FP ((struct RastInfo *, int, double, double,
+	double, double, RDest *, int));
+static inline void CheckMax FP ((int, int, int, int));
+static int DirCheck FP ((Direction *, Beam, int, double));
 
+/*
+ * This is used for debugging only.
+ */
 static unsigned char FakeBeam[512];
 
 
-static inline void
+static /* inline */ void
 DSwap (d1, d2)
 double *d1, *d2;
 /*
  * Swap two doubles.
  */
 {
-	register double tmp;
+	double tmp;
 
 	tmp = *d1;
 	*d1 = *d2;
@@ -216,11 +204,19 @@ int nrd;
 	double inc1, inc2, rowinc, colinc;
 	int vertical;
 	static struct RastInfo rinfo[MAXGD];
+	float lastaz;
+	static float slastaz;
 /*
  * Filter out obvious junk.
  */
 	if (! InSweep && hk->scan_mode != SM_PPI && hk->scan_mode != SM_SUR)
 		return;
+	if (hk->minute > 60 || hk->gates_per_beam > 2048 || hk->month > 12)
+	{
+		msg_ELog (EF_INFO, "Dropped funky beam");
+		return;
+	}
+	lastaz = slastaz = hk->azimuth/CORR_FACT;
 /*
  * See if we're at the end of a sweep.
  */
@@ -361,87 +357,125 @@ Beam beam;
 	Housekeeping *hk = beam->b_hk;
 	static int mode = -1, fixed = -1, scan = 0, lastfixed = -999;
 	static int firstbeam, firstaz, firstel, gs, ng;
+	static int sweep, vol;
 	static time begintime;
 	static struct timeval oldtime, newtime;
 	static Direction dir = Unknown;
 /*
  * See if we have entered a new sweep.
  */
+	if (! InSweep)
+		;	/* New sweep by definition */
+	else if (mode != hk->scan_mode)		/* Scan mode change */
+		msg_ELog (EF_DEBUG, "Mode change break");
+	else if (TrustSweep && (hk->sweep_index != sweep || hk->transit))
+		msg_ELog (EF_DEBUG, "Sweep count/transition break");
+	else if (fixed != hk->fixed)		/* Fixed angle change */
+		msg_ELog (EF_DEBUG, "Fixed angle break");
+	else if (ABS (hk->fixed - hk->elevation) > ELTOLERANCE)
+		msg_ELog (EF_DEBUG, "Fixed/real difference break");
+	else if (DirCheck (&dir, beam, hk->log_rec_num - firstbeam,
+			firstaz/CORR_FACT))
+		msg_ELog (EF_DEBUG, "DirCheck break");
+	else if (gs != hk->gate_spacing)
+		msg_ELog (EF_DEBUG, "Gate spacing change break");
+	else if (ng != hk->gates_per_beam)
+		msg_ELog (EF_DEBUG, "Gates per beam change break");
+	else
+		return;	/* Business as usual */
+
+# ifdef notdef	
 	if (! InSweep || mode != hk->scan_mode || fixed != hk->fixed ||
 		ABS (hk->fixed - hk->elevation) > ELTOLERANCE ||
 		DirCheck (&dir, beam, hk->log_rec_num - firstbeam,
 				firstaz/CORR_FACT) ||
 		gs != hk->gate_spacing || ng != hk->gates_per_beam)
+# endif
+/*
+ * If we were currently rasterizing an old sweep, shove it out.
+ */
+	gettimeofday (&newtime, 0);
+	if (InSweep)
 	{
+		bool newvol;
+# ifdef notdef
+		float tdiff = newtime.tv_sec - oldtime.tv_sec;
+		tdiff += (newtime.tv_usec - oldtime.tv_usec)/1000000.0;
+		ui_printf ("%d, v %d ll %6.2f %6.2f F %6.2f m %s ",
+			scan, hk->vol_count, hk->latitude/LAT_CF,
+			hk->longitude/LON_CF,
+			fixed/CORR_FACT, Modes[mode]);
+		ui_printf ("%d b, %.2f s %.1f b/s\n", NBeam, tdiff,
+				NBeam/tdiff);
+# endif
 	/*
-	 * If we were currently rasterizing an old sweep, shove it out.
+	 * See if a new volume is warranted.
 	 */
-		gettimeofday (&newtime, 0);
-		if (InSweep)
-		{
-			float tdiff = newtime.tv_sec - oldtime.tv_sec;
-			tdiff += (newtime.tv_usec - oldtime.tv_usec)/1000000.0;
-			ui_printf ("%d, v %d ll %6.2f %6.2f F %6.2f m %s ",
-				scan, hk->vol_count, hk->latitude/LAT_CF,
-				hk->longitude/LON_CF,
-				fixed/CORR_FACT, Modes[mode]);
-			ui_printf ("%d b, %.2f s %.1f b/s\n",
-				NBeam, tdiff, NBeam/tdiff);
+		newvol = (mode != hk->scan_mode) ||
+			(TrustVol ? hk->vol_count != vol : fixed <= lastfixed);
+# ifdef notdef
+		msg_ELog (EF_INFO, "MHR ck fix %.2f last %.2f top %.2f",
+			fixed/CORR_FACT, lastfixed/CORR_FACT, MhrTop);
+		if (MhrMode && fixed/CORR_FACT < 0.7 &&
+					lastfixed/CORR_FACT < MhrTop)
+			msg_ELog (EF_DEBUG, "Dropping .5 sweep, last %.2f",
+				lastfixed);
+		else
+# endif
 			if (NBeam > MinSweep)
-			{
-				OutputSweep (&begintime, fixed/CORR_FACT,
-				   fixed < lastfixed || mode != hk->scan_mode,
-				   MaxLeft, MaxRight, MaxUp, MaxDown,
-				   hk->scan_mode);
-				lastfixed = fixed;
-				dir = Unknown;
-			}
-		}
-	/*
-	 * If this is not a type of sweep we deal with, bail now.
-	 * 7/18/91 jc (CaPE fix): Throw out anything with a zero elevation,
-	 *	in a simple attempt to filter out obnoxious between-sweep
-	 *	behavior.
-	 */
-		if (hk->scan_mode != SM_SUR && hk->scan_mode != SM_PPI ||
-			 	ABS (hk->elevation - hk->fixed) > ELTOLERANCE
-				|| hk->elevation <= (int) (0.1*CORR_FACT))
 		{
-			InSweep = FALSE;
-			return;
+			OutputSweep (&begintime, fixed/CORR_FACT,
+			   newvol, MaxLeft, MaxRight, MaxUp, MaxDown,
+			   hk->scan_mode);
+			lastfixed = fixed;
+			dir = Unknown;
 		}
-		NBeam = 0;
-	/*
-	 * Remember the info about this sweep, and get started.
-	 */
-		if (! BeginSweep ())
-		{
-			InSweep = FALSE;
-			return;
-		}
-		InSweep = TRUE;
-		scan++;
-		oldtime = newtime;
-		firstbeam = hk->log_rec_num;
-		fixed = hk->fixed;
-		mode = hk->scan_mode;
-		firstaz = hk->azimuth;
-		firstel = hk->elevation;
-		begintime.ds_yymmdd = hk->year*10000 + hk->month*100 + hk->day;
-		begintime.ds_hhmmss = hk->hour*10000 + hk->minute*100 +
-				hk->second;
-	/*
-	 * Come up with a new pixel scaling.
-	 */
-		ng = hk->gates_per_beam;
-		gs = hk->gate_spacing;
-		PixScale = 1000*XRes/(2.0*gs*ng);
-	/*
-	 * Reset our max parameters.
-	 */
-		MaxLeft = MaxRight = XRadar;
-		MaxUp = MaxDown = YRadar;
 	}
+/*
+ * If this is not a type of sweep we deal with, bail now.
+ * 7/18/91 jc (CaPE fix): Throw out anything with a zero elevation,
+ *	in a simple attempt to filter out obnoxious between-sweep
+ *	behavior.
+ */
+	if (hk->scan_mode != SM_SUR && hk->scan_mode != SM_PPI ||
+			ABS (hk->elevation - hk->fixed) > ELTOLERANCE
+			|| hk->elevation <= (int) (0.1*CORR_FACT))
+	{
+		InSweep = FALSE;
+		return;
+	}
+	NBeam = 0;
+/*
+ * Remember the info about this sweep, and get started.
+ */
+	if (! BeginSweep ())
+	{
+		InSweep = FALSE;
+		return;
+	}
+	InSweep = TRUE;
+	scan++;
+	oldtime = newtime;
+	firstbeam = hk->log_rec_num;
+	fixed = hk->fixed;
+	mode = hk->scan_mode;
+	firstaz = hk->azimuth;
+	firstel = hk->elevation;
+	begintime.ds_yymmdd = hk->year*10000 + hk->month*100 + hk->day;
+	begintime.ds_hhmmss = hk->hour*10000 + hk->minute*100 + hk->second;
+	vol = hk->vol_count;
+	sweep = hk->sweep_index;
+/*
+ * Come up with a new pixel scaling.
+ */
+	ng = hk->gates_per_beam;
+	gs = hk->gate_spacing;
+	PixScale = 1000*XRes/(2.0*gs*ng);
+/*
+ * Reset our max parameters.
+ */
+	MaxLeft = MaxRight = XRadar;
+	MaxUp = MaxDown = YRadar;
 }
 
 
@@ -458,20 +492,23 @@ float first;
  */
 {
 	float diff, az = beam->b_hk->azimuth/CORR_FACT;
-	int retv;
+	int retv = FALSE;
 /*
  * Check for non-moving antenna.
  */
 	if (nbeam == 4 && ABS (first - az) < 0.1)
+	{
+		msg_ELog (EF_DEBUG, "DirCheck 4 beam trigger");
 		return (TRUE);
+	}
 /*
  * Find the difference here.
  */
    	diff = az - first;
-	if (diff < 180)
+	if (diff < -180)
 		diff += 360;
 	else if (diff > 180)
-		diff -= 180;
+		diff -= 360;
 /*
  * Now figure out what to do.
  */
@@ -490,9 +527,9 @@ float first;
 		break;
 	}
 	if (retv)
-		printf ("DIRCHECK, dir %d, nb %d, first %.2f, az %.2f, diff %.2f",	
-				dir, nbeam, first,
-				beam->b_hk->azimuth/CORR_FACT, diff);
+		msg_ELog (EF_DEBUG,
+		    "DIRCHECK, dir %d, nb %d, first %.2f, az %.2f, diff %.2f",
+				*dir, nbeam, first, az, diff);
 	return (retv);
 }
 
@@ -532,7 +569,12 @@ struct RastInfo *rinfo;
 	*vertical = (az <= 45.0 || (az > 135.0 && az < 225.0) || az > 315.0);
 	if ((*vertical && az > 90.0 && az < 270.0) ||
 	    (! *vertical && az > 180.0))
-		DSwap (&az1, &az2);
+	{
+		float tmp = az1;
+		az1 = az2;
+		az2 = tmp;
+		/* DSwap (&az1, &az2); */
+	}
 # ifdef SDEBUG
 	printf ("%6.2f [%6.2f--%6.2f] v:%c ", az, az1, az2,
 		*vertical ? 'T' : 'F');

@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-/* $Id: radar_ingest.h,v 2.1 1991-09-16 22:27:38 burghart Exp $ */
+/* $Id: radar_ingest.h,v 2.2 1992-07-31 16:54:31 corbet Exp $ */
 
 
 /*
@@ -72,6 +72,10 @@ typedef struct _RDest
 	unsigned char *rd_image;	/* Image destination	*/
 } RDest;
 
+/*
+ * Do we trust the scan and volume flags?
+ */
+extern bool TrustSweep, TrustVol;
 
 /*
  * The scale factor, in pixels per kilometer.
@@ -90,6 +94,11 @@ extern bool DoThresholding;		/* Thresholding is enabled	*/
 extern int ThrFldOffset;		/* Offset to threshold field	*/
 unsigned char ThrCounts;		/* Threshold count value	*/
 
+/*
+ * Mhr mode -- drop .5's.
+ */
+extern bool MhrMode;
+extern float MhrTop;
 /*
  * Do we do elevation projection?
  */
@@ -121,3 +130,4 @@ extern bool Project;
 # define RIC_FIELD	5
 # define RIC_THRESHOLD	6
 # define RIC_CONSUMER	7
+# define RIC_MHRSTATE	8
