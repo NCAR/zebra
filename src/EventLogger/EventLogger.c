@@ -24,6 +24,8 @@
 # include <unistd.h>
 # include <errno.h>
 # include <ctype.h>
+# include <sys/types.h>
+# include <time.h>
 
 # include <X11/Intrinsic.h>
 # include <X11/Xaw/Form.h>
@@ -47,7 +49,7 @@
 # include <config.h>
 # include <copyright.h>
 
-RCSID ("$Id: EventLogger.c,v 2.40 1999-08-10 23:10:47 burghart Exp $")
+RCSID ("$Id: EventLogger.c,v 2.41 1999-12-03 21:56:36 granger Exp $")
 
 # define LOGNAME "EventLogger"
 
@@ -84,8 +86,8 @@ struct EMMap
 /*
  * Keep things from getting too big.
  */
-# define MAXCHAR	6000	/* This is too big	*/
-# define TRIMCHAR	4000	/* Trim back to this	*/
+# define MAXCHAR	10000	/* This is too big	*/
+# define TRIMCHAR	8000	/* Trim back to this	*/
 
 # define FORTUNE_CMD 	"fortune -s"
 # define FORTUNE_LEN 	512
@@ -227,8 +229,7 @@ static Widget CreateLogSettings FP ((Widget w, Widget top));
 static void CreateMaskMenu FP ((Widget button, char *name, int *maskp));
 static void ChangeMaskCallback FP ((Widget w, XtPointer, XtPointer));
 static void LogMessage FP ((int flag,  char *from,  char *text));
-static char *FormatMessage FP ((int code, char *from_in,
-				char *msg_in));
+static char *FormatMessage (char code, char *from_in, char *msg_in);
 static void AppendToDisplay FP ((char *fmtbuf));
 static void AppendToLogFile FP ((char *fmtbuf));
 static void DoLog FP ((char *from, char *msg));
@@ -1448,7 +1449,125 @@ char *msg;
 }
 
 
+#define FMTLEN 1024
+#define FROMLEN 14
 
+static char *
+AppendMessage (char *fmtbuf, char *text)
+{
+	if (text)
+	{
+		char *cp = fmtbuf + strlen(fmtbuf);
+		char *end = fmtbuf + FMTLEN - 1;
+		if (cp < end)
+			strncpy (cp, text, end - cp);
+		*end = '\0';
+	}
+	return fmtbuf;
+}
+
+
+/*
+ * Given the needed fields for a log message: type, from, and message,
+ * assemble them into a standard string and append to the message buffer.
+ * Include a time stamp, but no trailing newline.
+ */
+static char *
+NewMessage (char *fmtbuf, char code, char *from_in, char *msg)
+{
+	char tmp[128];
+	char from[FROMLEN];
+	ZebTime now;
+
+	TC_SysToZt (time(0), &now);
+	sprintf (tmp, "%c %20s ", code, TC_AscTime (&now, TC_Full));
+	AppendMessage (fmtbuf, tmp);
+	strncpy (from, from_in, FROMLEN-1);
+	from[FROMLEN-1] = '\0';
+	sprintf (tmp, "%-*s ", FROMLEN-1, from);
+	AppendMessage (fmtbuf, tmp);
+	AppendMessage (fmtbuf, msg);
+	return (fmtbuf);
+}
+
+
+
+static char *
+FormatMessage (char code, char *from_in, char *msg_in)
+/*
+ * See if we've seen this message before: if so, print the repeat count
+ * at regular intervals; otherwise reset repeat count and proceed as usual.
+ * Note that repeat_count will always be at least one except for the first
+ * time this function is entered.  Return NULL if this message should
+ * be skipped, else return format buffer with the new log messages.
+ */
+{
+	static char fmtbuf[FMTLEN];
+	static char last_msg[FMTLEN];
+	static char last_from[MSG_MAXNAMELEN];
+	static int repeat_count = 0;
+
+	char repeat_msg[128];
+	char tmp[128];
+
+	/* 
+	 * Only considered a repeat if from the same client.  Messages
+	 * longer then FMTLEN will never appear to repeat because they
+	 * will be truncated when preserved in the last_msg buffer.
+	 */
+	fmtbuf[0] = '\0';
+	repeat_msg[0] = '\0';
+	if ((repeat_count > 0) && 
+	    streq (msg_in, last_msg) && streq (from_in, last_from))
+	{
+		++repeat_count;
+		/*
+		 * This ignores the first 5 repeats and logs them as usual.
+		 * Beyond 5 we report repeats at intervals of 10 until 50.
+		 */
+		if (((repeat_count < 50) && !(repeat_count % 10)) ||
+		    (!(repeat_count % 50)))
+		{
+			sprintf (repeat_msg, ", %d repeats", repeat_count);
+		}
+		else
+		{
+			return NULL;
+		}
+	}
+	else
+	{
+	/*
+	 * If messages were previously being skipped, make a note about the
+	 * final number of repeats.
+	 */
+		if (repeat_count > 5)
+		{
+			NewMessage (fmtbuf, 'R', last_from, last_msg);
+			sprintf (tmp, ", repeated %d times\n", repeat_count);
+			AppendMessage (fmtbuf, tmp);
+		}
+		strncpy (last_msg, msg_in, sizeof(last_msg));
+		last_msg[sizeof(last_msg)-1] = '\0';
+		strncpy (last_from, from_in, sizeof(last_from));
+		last_from[sizeof(last_from)-1] = '\0';
+		repeat_count = 1;
+	}
+	/*
+	 * Now we can assemble the message.
+	 */
+	NewMessage (fmtbuf, code, from_in, msg_in);
+	if (repeat_msg[0])
+		AppendMessage (fmtbuf, repeat_msg);
+	AppendMessage (fmtbuf, "\n");
+	/* Make sure we always end with a newline */
+	strcpy (fmtbuf + FMTLEN - 2, "\n");
+	return fmtbuf;
+}
+
+
+
+#ifdef notdef
 static char *
 FormatMessage (code, from_in, msg_in)
 char code;
@@ -1524,6 +1643,7 @@ char *msg_in;
 
 	return (fmtbuf);
 }
+#endif
 
 
 
