@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.46 1996-11-21 18:20:34 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.47 1996-11-21 22:21:30 granger Exp $"
 
 DEPLIBS=$(LIBZEB)
 LIBMPROF=/dt/granger/libc_mp.a
@@ -185,6 +185,16 @@ FORCE:
 
 ALOBJS = aline.o ./libZebDS.a
 TestProgramTarget (aline, $(ALOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+
+test:: dbgstart
+
+dbgstart: dbgstart.csh
+	$(RM) $@
+	sed -e s,##TOPDIRHERE,BaseDir, < dbgstart.csh > $@
+	chmod +x $@
+
+clean::
+	rm -f dbgstart
 
 #ifdef notdef
 THDFOBJS = T_HDF.o ./libZebDS.a
