@@ -5,8 +5,8 @@
 SRCS = prt_Notify.c
 OBJS = prt_Notify.o
 
-LIBS = $(DFALIBS) $(ZLIBS)
-SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
+LIBS = $(DFALIBS) $(LIBZEBRA)
+SYSLIBS = $(LIBMATH) $(LIBREGEXP)
 
 INCLUDES = -I$(TOP)/src/ds
 

@@ -8,11 +8,11 @@ OBJS = dsdwidget.o xncdump.o
 INCLUDES = $(XINCLUDES)
 DEPLIBS = $(LIBZEBDS) $(LIBZEB)
 LIBS = $(DSLIBS) $(LIBZEB) $(XLIBS)
-SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
+SYSLIBS = $(LIBREGEXP)
 DISTFILES = $(SRCS) Imakefile dsdwidget.ad
 
 CompleteProgramTarget(dsdwidget, dsdwidget.o, $(DEPLIBS), $(LIBS), $(SYSLIBS))
-CompleteProgramTarget(xncdump, xncdump.o, /**/, $(XLIBS), $(LIBMATH))
+CompleteProgramTarget(xncdump, xncdump.o, /**/, $(XLIBS), /**/)
 
 InstallAppDefaults(dsdwidget)
 DistfilesTarget($(DISTFILES))

@@ -4,11 +4,10 @@ OBJS = zmon.o
 
 INCLUDES = $(XINCLUDES)
 LIBS = $(LIBZEB) $(XLIBS)
-SYSLIBS = $(LIBMATH)
 
 DISTFILES = Imakefile $(SRCS)
 
-CompleteProgramTarget(zmon, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+CompleteProgramTarget(zmon, $(OBJS), $(DEPLIBS), $(LIBS), /**/)
 
 DependTarget()
 LintTarget()

@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.57 1997-06-19 20:19:26 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.58 1997-06-22 22:14:45 granger Exp $"
 
 DEPLIBS=$(LIBZEBRA)
 LIBMPROF=/dt/granger/libc_mp.a
@@ -120,12 +120,12 @@ InstallMultipleFlags($(HEADERS),$(INCDIR),$(INSTINCFLAGS))
  * Dump routines.
  */
 RFDOBJS = rfdump.o Raster.o
-CompleteProgramTarget (rfdump,$(RFDOBJS),$(LIBZEBRA),$(LIBZEBRA),$(LIBMATH))
+CompleteProgramTarget (rfdump,$(RFDOBJS),$(LIBZEBRA),$(LIBZEBRA),/**/)
 
-TestProgramTarget (bfdump, bfdump.o, $(LIBZEBRA), $(LIBZEBRA), $(LIBMATH))
+TestProgramTarget (bfdump, bfdump.o, $(LIBZEBRA), $(LIBZEBRA), /**/)
 
 ZFOBJS = zfdump.o Fields.o $(DCOBJS)
-CompleteProgramTarget (zfdump, $(ZFOBJS), $(DEPLIBS), $(LIBZEBRA), $(SYSLIBS))
+CompleteProgramTarget (zfdump, $(ZFOBJS), $(DEPLIBS),$(LIBZEBRA),$(LIBREGEXP))
 
 GDOBJS = GRIBdump.o GRIB.o
 CompleteProgramTarget(GRIBdump,$(GDOBJS),$(LIBZEBRA),$(LIBZEBRA),$(LIBMATH))

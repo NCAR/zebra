@@ -9,7 +9,7 @@ ELISPFILES = pd-utils.el pd-utils19.el
 ECOMPILE = $(EMACS) -batch -f batch-byte-compile
 E19COMPILE = $(EMACS19) -batch -f batch-byte-compile
 
-LIBS = $(LIBZEB) $(LIBRDSS)
+LIBS = $(LIBZEBRA)
 DISTFILES = $(SRCS) $(HEADERS) $(ELISPFILES) Imakefile
 
 /*
