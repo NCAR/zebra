@@ -1,0 +1,154 @@
+!
+! Command definition for the display manager.
+!
+
+define state dm-initial
+	eoftext 'exit'
+	ctable ui$command_table
+	@ /home/corbet/ui/ui_commands.
+	input 'config' 1
+		next ust$final_string
+	endinput
+	input 'display' 2
+		next ust$final_string
+	endinput
+	input 'list' 3
+		next ust$no_more
+	endinput
+	input 'newpd' 8
+		next dm-newpd-win
+	endinput
+	input 'buttonmap' 9
+		next ust$final_unmunged_string
+	endinput
+	input 'exchange' 11
+		next dm-newpd-win
+	endinput
+	input 'beep' 14
+		next ust$no_more
+	endinput
+enddef
+
+
+
+
+define state dm-newpd-win
+	input expression
+		next dm-newpd-pd
+	endinput
+enddef
+
+
+
+define state dm-newpd-pd
+	input expression
+		next ust$no_more
+	endinput
+enddef
+
+
+define state dm-config
+	eoftext 'endconfig'
+	input 'window' 4
+		next dm-window-name
+	endinput
+	input 'endconfig' 5
+		next ust$no_more
+	endinput
+enddef
+
+
+
+define state dm-window-name
+	input string
+!		lowercase
+		next dm-win-x
+	endinput
+enddef
+
+
+
+define state dm-win-x
+	input integer
+		next dm-win-y
+	endinput
+enddef
+
+
+
+define state dm-win-y
+	input integer
+		next dm-win-dx
+	endinput
+enddef
+
+
+
+define state dm-win-dx
+	input integer
+		next dm-win-dy
+	endinput
+enddef
+
+
+
+define state dm-win-dy
+	input integer
+		next dm-win-program
+	endinput
+enddef
+
+
+
+
+define state dm-win-program
+	input EOS
+		done
+	endinput
+	input string
+		next ust$no_more
+	endinput
+enddef
+
+
+
+!
+! Within a "window" block
+!
+define state dm-window
+	eoftext 'endwindow'
+	input 'endwindow' 6
+		next ust$no_more
+	endinput
+	input 'description' 7
+		next ust$final_unmunged_string
+	endinput
+	input 'buttonmap' 9
+		next ust$final_unmunged_string
+	endinput
+enddef
+
+
+
+!
+! buttonmap name
+!	left command
+!	right command 
+!	middle command
+! endmap
+  
+define state dm-in-map
+	eoftext 'endmap'
+	input 'endmap' 10
+		next ust$no_more
+	endinput
+	input 'left' 0
+		next ust$final_unmunged_string
+	endinput
+	input 'middle' 1
+		next ust$final_unmunged_string
+	endinput
+	input 'right' 2
+		next ust$final_unmunged_string
+	endinput
+enddef
