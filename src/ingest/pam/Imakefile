@@ -15,12 +15,12 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.4 1994-01-21 11:49:48 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.5 1994-02-02 01:06:07 granger Exp $"
 
 LIBPAMUTIL = $(RDSSDIR)/pam/util/libpamutil.a
 LIBMDA = $(RDSSDIR)/pam/mda/libmda.a
 LIBUNP = $(RDSSDIR)/pam/cfg/access/libunp.a
-PAMLIBS = $(LIBMDA) $(LIBUNP) $(LIBPAMUTIL)
+PAMLIBS = $(LIBMDA) $(LIBUNP) $(LIBPAMUTIL) $(LIBMDA)
 LIBS = $(LIBZEBDS) $(LIBZEB) $(PAMLIBS) $(LIBRDSS) $(LIBNETCDF)
 
 SRCS = pam_ingest.c daypam_ingest.c
