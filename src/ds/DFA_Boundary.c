@@ -1,7 +1,7 @@
 /*
  * Deal with Boundary-format files.
  */
-static char *rcsid = "$Id: DFA_Boundary.c,v 1.4 1991-06-14 22:17:36 corbet Exp $";
+static char *rcsid = "$Id: DFA_Boundary.c,v 2.0 1991-07-18 22:44:41 corbet Exp $";
 
 # include <sys/types.h>
 # include <errno.h>
@@ -198,7 +198,7 @@ DataObject *dobj;
  */
 	offset = 0;
 	for (sample = 0; sample < begin; sample++)
-		offset += dobj->do_desc.d_length[sample];
+		offset += dobj->do_desc.d_bnd[sample].bd_npoint;
 /*
  * Write each sample.
  */
@@ -206,8 +206,8 @@ DataObject *dobj;
 	{
 		bf_WriteBoundary (tag, dobj->do_aloc + offset, 
 			dobj->do_times + offset,
-			dobj->do_desc.d_length[sample]);
-		offset += dobj->do_desc.d_length[sample];
+			dobj->do_desc.d_bnd[sample].bd_npoint);
+		offset += dobj->do_desc.d_bnd[sample].bd_npoint;
 	}
 /*
  * Synchronize and we're done.
@@ -374,6 +374,7 @@ GetList *gp;
 	int tbegin, tend, sample, pt;
 	Location *lp = gp->gl_locs;
 	time *tp = gp->gl_time;
+	BndDesc *bp = gp->gl_dobj->do_desc.d_bnd + gp->gl_sindex;
 /*
  * Open this file.
  */
@@ -391,6 +392,13 @@ GetList *gp;
 	for (sample = tbegin; sample <= tend; sample++)
 	{
 		struct BFBTable *bt = tag->bt_BTable + sample;
+	/*
+	 * New boundary desc stuff.
+	 */
+		bp->bd_npoint = bt->bt_NPoint;
+		bp->bd_begin = lp - gp->gl_dobj->do_aloc;
+		bp->bd_pid = gp->gl_dobj->do_id;
+		bp++;
 	/*
 	 * Position to the right spot in the file, and grab out the
 	 * location info.
