@@ -1,7 +1,7 @@
 /*
  * UI routines for dealing with the configuration process.
  */
-static char *rcsid = "$Id: d_Config.c,v 1.1 1990-11-02 08:56:20 corbet Exp $";
+static char *rcsid = "$Id: d_Config.c,v 1.2 1991-01-16 22:06:46 corbet Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -43,6 +43,55 @@ char *name;
 }
 
 
+
+
+
+
+void
+dc_SubPlatform (cmds)
+struct ui_command *cmds;
+/*
+ * Define a subplatform.
+ */
+{
+	Platform *parent, *sub;
+/*
+ * Find our parent platform first.
+ */
+	if (! (parent = dt_FindPlatform (UPTR (*cmds), 0)))
+	{
+		msg_ELog (EF_PROBLEM, "Unknown parent platform '%s'",
+				UPTR (*cmds));
+		return;
+	}
+/*
+ * Now it's time to make some children.
+ */
+	for (cmds++; cmds->uc_ctype != UTT_END; cmds++)
+	{
+	/*
+	 * We won't redefine an existing platform.
+	 */
+	 	if (dt_FindPlatform (UPTR (*cmds), TRUE))
+			msg_ELog (EF_PROBLEM, "Subplatform %s already exists",
+				UPTR (*cmds));
+	/*
+	 * Get a new entry, clone the parent, and tweak.
+	 */
+		else
+		{
+			char subname[80];
+			sprintf (subname, "%s/%s", parent->dp_name,
+				UPTR (*cmds));
+		 	sub = dt_NewPlatform (subname);
+			*sub = *parent;
+			strcpy (sub->dp_name, subname);
+			sub->dp_org = OrgScalar;
+			sub->dp_flags |= DPF_SUBPLATFORM;
+			sub->dp_parent = parent - PTable;
+		}
+	}
+}
 
 
 

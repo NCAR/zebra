@@ -1,7 +1,7 @@
 /*
  * This is the main program for the data store daemon.
  */
-static char *rcsid = "$Id: Daemon.c,v 1.1 1990-11-02 08:56:18 corbet Exp $";
+static char *rcsid = "$Id: Daemon.c,v 1.2 1991-01-16 22:06:46 corbet Exp $";
 
 # include <sys/types.h>
 # include <dirent.h>
@@ -114,6 +114,8 @@ struct message *msg;
 
 
 
+
+
 static int
 ui_Handler (junk, cmds)
 int junk;
@@ -131,6 +133,10 @@ struct ui_command *cmds;
 	 */
 	   case DK_PLATFORM:
 		dc_DefPlatform (UPTR (cmds[1]));
+		break;
+
+	   case DK_SUBPLATFORM:
+	   	dc_SubPlatform (cmds + 1);
 		break;
 	/*
 	 * Configuration done -- go operational.
@@ -186,6 +192,11 @@ DataScan ()
 		Platform *p = PTable + plat;
 		DIR *dp = opendir (p->dp_dir);
 		struct dirent *ent;
+	/*
+	 * Don't scan subplatforms.
+	 */
+		if (p->dp_flags & DPF_SUBPLATFORM)
+			continue;
 	/*
 	 * Make sure there really is a directory.
 	 */
@@ -255,7 +266,7 @@ char *file;
 
 
 
-
+# ifdef notdef
 /*
  * Kludgery to make linking to DFA work.
  */
@@ -268,3 +279,5 @@ dsm_ShmUnlock ()
 {
 	msg_ELog (EF_PROBLEM, "BUG: dsm_ShmUnlock called in Daemon");
 }
+
+# endif

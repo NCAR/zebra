@@ -1,10 +1,11 @@
 /*
  * Maintenance of the data tables.
  */
-static char *rcsid = "$Id: d_DataTables.c,v 1.1 1990-10-24 09:41:07 corbet Exp $";
+static char *rcsid = "$Id: d_DataTables.c,v 1.2 1991-01-16 22:06:46 corbet Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
+# include "DataStore.h"
 # include "dsPrivate.h"
 # include "commands.h"
 # include "dsDaemon.h"
@@ -15,6 +16,10 @@ static char *rcsid = "$Id: d_DataTables.c,v 1.1 1990-10-24 09:41:07 corbet Exp $
  */
 static stbl Platforms;
 
+/*
+ * What is the default time period to keep data?
+ */
+static int DefaultKeep = 60;
 
 
 void
@@ -32,6 +37,11 @@ dt_InitTables ()
  * Create the symbol table to hold the platform names.
  */
 	Platforms = usy_c_stbl ("Platforms");
+/*
+ * Make DefaultKeep available.
+ */
+	usy_c_indirect (usy_g_stbl ("ui$variable_table"), "defaultkeep",
+		&DefaultKeep, SYMT_INT, 0);
 }
 
 
@@ -95,12 +105,19 @@ char *name;
  */
 	new = PTable + ShmHeader->sm_nPlatform++;
 	dt_SetNames (name, new);
+	msg_ELog (EF_DEBUG, "New platform '%s' at %d", name,
+		ShmHeader->sm_nPlatform);
 /*
  * Fill it in and return it.
  */
 	strcpy (new->dp_name, name);
 	strcpy (new->dp_class, "");
+	sprintf (new->dp_dir, "%s/%s", DefDataDir, name);
 	new->dp_flags = 0;
+	new->dp_org = OrgUnknown;
+	new->dp_ftype = FTUnknown;
+	new->dp_keep = DefaultKeep;
+	new->dp_LocalData = new->dp_RemoteData = 0;
 	return (new);
 }
 
@@ -121,4 +138,184 @@ int full;
 	if (! usy_g_symbol (Platforms, name, &type, &v))
 		return (0);
 	return ((Platform *) v.us_v_ptr);
+}
+
+
+
+
+void
+dt_FinishTables ()
+/*
+ * Finish the initialization of the data tables, once the platforms have
+ * been added.
+ */
+{
+	int space, i;
+
+	ShmLock ();
+/*
+ * Figure out how much space is left to be converted into file structures.
+ */
+	ShmHeader->sm_DTOffset = ShmHeader->sm_PTOffset +
+				ShmHeader->sm_nPlatform*sizeof (Platform);
+	space = SHM_SIZE - ShmHeader->sm_DTOffset;
+	ShmHeader->sm_nDataTable = space/sizeof (DataFile);
+	msg_ELog (EF_DEBUG, "%d bytes left for %d DataFile entries",
+		space, ShmHeader->sm_nDataTable);
+	DFTable = (DataFile *) (ShmSegment + ShmHeader->sm_DTOffset);
+/*
+ * Go through and build the free list.
+ */
+	ShmHeader->sm_DTFreeList = 1;	/* Waste first	*/
+	for (i = 1; i < ShmHeader->sm_nDataTable; i++)
+	{
+		DFTable[i].df_FLink = i + 1;
+		DFTable[i].df_use = 0;
+	}
+	DFTable[ShmHeader->sm_nDataTable - 1].df_FLink = 0;
+	
+	ShmUnlock ();
+}
+
+
+
+
+
+DataFile *
+dt_NewFile ()
+/*
+ * Return a free data file entry.  NULL if none remain.  Once returned
+ * from dt_NewFile, the entry is "loose", and must be hooked back in with
+ * either dt_FreeDFE() or dt_AddToPlatform (), or it will be lost forever.
+ */
+{
+	DataFile *ret;
+/*
+ * If no entries are free, we have to disappoint them.
+ */
+	if (ShmHeader->sm_DTFreeList == 0)
+	{
+		msg_ELog (EF_PROBLEM, "Out of DataFile entries!");
+		return (0);
+	}
+/*
+ * OK, pull one out.
+ */
+	ShmLock ();
+	ret = DFTable + ShmHeader->sm_DTFreeList;
+	ShmHeader->sm_DTFreeList = ret->df_FLink;
+	ShmUnlock ();
+/*
+ * Give it back to them.
+ */
+	ret->df_FLink = 0;
+	ret->df_rev = 1;
+	return (ret);
+}
+
+
+
+
+
+void
+dt_FreeDFE (df)
+DataFile *df;
+/*
+ * Add this df to the free list.  It is assumed that DF does not exist
+ * in any other lists.
+ */
+{
+	ShmLock ();
+	df->df_FLink = ShmHeader->sm_DTFreeList;
+	ShmHeader->sm_DTFreeList = df - DFTable;
+	ShmUnlock ();
+}
+
+
+
+
+void
+dt_IPAdd (df, link)
+DataFile *df;
+int *link;
+/*
+ * The internal platform add.
+ */
+{
+	DataFile *chain, *last;
+	int index;
+
+	ShmLock ();
+/*
+ * See if, by chance, this is the easy case.
+ */
+	if (! *link)
+	{
+		df->df_FLink = df->df_BLink = 0;
+		*link = df - DFTable;
+		/* msg_ELog (EF_DEBUG, "AF %s, empty", df->df_name); */
+		ShmUnlock ();
+		return;
+	}
+/* 
+ * No such luck.  Scan for the place to put this entry.
+ */
+	for (index = *link; index; index = DFTable[index].df_FLink)
+	{
+		chain = DFTable + index;
+		if (DLT (chain->df_begin, df->df_begin))
+			break;
+		else
+			last = chain;
+	}
+/*
+ * If there is still a chain value, then we insert this entry before.  
+ * Otherwise it goes at the end.
+ */
+	if (index)
+	{
+	/*
+	 * Fix the adjoining links.
+	 */
+		if (df->df_BLink = chain->df_BLink)
+			DFTable[chain->df_BLink].df_FLink = df - DFTable;
+		else
+			*link = df - DFTable;
+		chain->df_BLink = df - DFTable;
+	 	df->df_FLink = chain - DFTable;
+	}
+	else
+	{
+		last->df_FLink = df - DFTable;
+		df->df_BLink = last - DFTable;
+		df->df_FLink = 0;	
+	}
+# ifdef notdef
+	msg_ELog (EF_DEBUG, "AF %s, links %d %d", df->df_name, df->df_FLink,
+		df->df_BLink);
+# endif
+	ShmUnlock ();
+}
+
+
+
+
+
+
+
+void
+dt_AddToPlatform (p, df, local)
+Platform *p;
+DataFile *df;
+bool local;
+/*
+ * Add this data file to the given platform.
+ */
+{
+	df->df_platform = p - PTable;
+	df->df_use++;
+	if (local)
+		dt_IPAdd (df, &p->dp_LocalData);
+	else
+		dt_IPAdd (df, &p->dp_RemoteData);
 }

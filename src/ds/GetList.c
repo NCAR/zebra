@@ -1,7 +1,7 @@
 /*
  * Figure out how to do the data access.
  */
-static char *rcsid = "$Id: GetList.c,v 1.1 1990-11-02 08:56:19 corbet Exp $";
+static char *rcsid = "$Id: GetList.c,v 1.2 1991-01-16 22:06:46 corbet Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -19,14 +19,12 @@ GetList *GList = 0;
 # ifdef __STDC__
 	static GetList	*dgl_GetEntry (void);
 	static void	dgl_ReturnEntry (GetList *);
-	static void	dgl_ReturnList (GetList *);
 	static int	dgl_DoList (int, GetList *);
 	static int	dgl_Overlaps (GetList *, DataFile *);
 	static GetList	*dgl_FixList (GetList *, DataFile *, int *);
 # else
 	static GetList	*dgl_GetEntry ();
 	static void	dgl_ReturnEntry ();
-	static void	dgl_ReturnList ();
 	static int	dgl_DoList ();
 	static int	dgl_Overlaps ();
 	static GetList	*dgl_FixList ();
@@ -50,6 +48,7 @@ dgl_GetEntry ()
 	}
 	else
 		ret = ALLOC (GetList);
+	ret->gl_locs = 0;
 	return (ret);
 }
 
@@ -69,7 +68,7 @@ GetList *gl;
 
 
 
-static void
+void
 dgl_ReturnList (gl)
 GetList *gl;
 /* 
@@ -110,8 +109,8 @@ DataObject *dobj;
  * Now try to satisfy it against the platform lists.
  */
 	dsm_ShmLock ();
-	if (! dgl_DoList (p->dp_LocalData, list))
-		/* dgl_DoList (p->dp_remote, list) */ ;
+	if (! dgl_DoList (LOCALDATA (*p), list))
+		/* dgl_DoList (REMOTEDATA (*p), list) */ ;
 	dsm_ShmUnlock ();
 /*
  * Remove any unsatisfied segments, and return the rest.
@@ -205,12 +204,12 @@ DataFile *dp;
  * it ends after that time.
  */
 	if  (DLT (dp->df_begin, gp->gl_begin))
-		return (DLT (gp->gl_begin, dp->df_end));
+		return (DLE (gp->gl_begin, dp->df_end));
 /*
  * Otherwise overlap iff the data begins before the desired end time.
  */
 	else
-		return (DLT (dp->df_begin, gp->gl_end));
+		return (DLE (dp->df_begin, gp->gl_end));
 }
 
 
@@ -264,6 +263,7 @@ int *complete;
  */
 	new = ALLOC (GetList);
 	*new = *gp;
+	new->gl_next = gp->gl_next;
 	gp->gl_next = new;
 	gp->gl_begin = dp->df_begin;
 /*
@@ -271,5 +271,6 @@ int *complete;
  */
 	new->gl_flags &= ~GLF_SATISFIED;
 	new->gl_end = dp->df_begin;		/* - 1? */
+	pmu_dsub (&new->gl_end.ds_yymmdd, &new->gl_end.ds_hhmmss, 1);
 	return (new);
 }

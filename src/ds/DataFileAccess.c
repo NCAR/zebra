@@ -5,14 +5,13 @@
  * of the data store be format-independent.  We push most of the real work
  * down to the format-specific stuff.
  */
-static char *rcsid = "$Id: DataFileAccess.c,v 1.1 1990-11-02 08:54:45 corbet Exp $";
+static char *rcsid = "$Id: DataFileAccess.c,v 1.2 1991-01-16 22:06:46 corbet Exp $";
 
 
 # include "../include/defs.h"
 # include "../include/message.h"
 # include "DataStore.h"
 # include "dsPrivate.h"
-# include "dsDaemon.h"
 # include "dslib.h"
 # include "dfa.h"
 
@@ -36,7 +35,7 @@ static char *rcsid = "$Id: DataFileAccess.c,v 1.1 1990-11-02 08:54:45 corbet Exp
  *	missing period.  Returns TRUE on success.
  *
  * f_Setup (dlist)
- * AccessList dlist;
+ * GetList *dlist;
  *
  *	Get set up to do a data access.  Modifies the AccessList as needed --
  *	in particular, sets the sample count for each entry.  Should cache
@@ -61,7 +60,35 @@ static char *rcsid = "$Id: DataFileAccess.c,v 1.1 1990-11-02 08:54:45 corbet Exp
  *	Synchronize this file to catch up with updates which have occurred.
  *	Returns TRUE on success.  If this routine is missing, it is assumed
  *	that updates are automatically available.
- *	
+ *
+ * f_InqNPlat (dfindex)
+ *
+ *	Return the number of platforms contained here.
+ *
+ * f_GetData (getlist)
+ * GetList *getlist;
+ *
+ *	Actually get the data called for here.
+ *
+ * f_GetIRGLoc (dfindex, locs)
+ * int dfindex
+ * Location *locs;
+ *
+ *	Copy over the locations for this IRGrid data.
+ *
+ * f_InqRGrid (dfindex, origin, rg)
+ * Location *origin;
+ * RGrid *rg;
+ *
+ *	Return the location and size info for this grid.
+ *
+ * f_DataTimes (index, time, which, n, dest)
+ * int index, n;
+ * time *time, *dest;
+ * TimeSpec which;
+ *
+ * 	Return a list of times for which data is available.
+ *
  */
 
 struct DataFormat
@@ -74,6 +101,11 @@ struct DataFormat
 	int (*f_OpenFile) ();		/* Open a file			*/
 	int (*f_CloseFile) ();		/* Close a file.		*/
 	int (*f_SyncFile) ();		/* Synchronize a file		*/
+	int (*f_InqNPlat) ();		/* Inquire number platforms	*/
+	int (*f_GetData) ();		/* Get the data			*/
+	int (*f_GetIRGLoc) ();		/* Get irgrid locations		*/
+	int (*f_InqRGrid) ();		/* Get RGrid info		*/
+	int (*f_DataTimes) ();		/* Get data times		*/
 };
 
 
@@ -81,7 +113,8 @@ struct DataFormat
  * Function definitions for the format table.
  */
 extern int dnc_QueryTime (), dnc_OpenFile (), dnc_CloseFile ();
-extern int dnc_SyncFile ();
+extern int dnc_SyncFile (), dnc_Setup (), dnc_InqPlat (), dnc_GetData ();
+extern int dnc_GetIRGLoc (), dnc_GetRGrid (), dnc_DataTimes ();
 # define ___ 0
 
 /*
@@ -95,10 +128,15 @@ struct DataFormat Formats[] =
     {
 	"netCDF",	".cdf",
 	dnc_QueryTime,			/* Query times			*/
-	___,				/* No setup yet			*/
+	dnc_Setup,			/* setup			*/
 	dnc_OpenFile,			/* Open				*/
 	dnc_CloseFile,			/* Close			*/
 	dnc_SyncFile,			/* Synchronize			*/
+	dnc_InqPlat,			/* Inquire platforms		*/
+	dnc_GetData,			/* Get the data			*/
+	dnc_GetIRGLoc,			/* Get IRGrid locations		*/
+	dnc_GetRGrid,			/* Get RGrid info		*/
+	dnc_DataTimes,			/* Get data times		*/
     }
 };
 
@@ -174,6 +212,110 @@ time *begin, *end;
 
 
 
+
+void
+dfa_Setup (gl)
+GetList *gl;
+/*
+ * Set up to grab the data described by this GetList entry.
+ */
+{
+	DataFile *dp = DFTable + gl->gl_dfindex;
+	
+	if (dp->df_use != gl->gl_dfuse)
+		msg_ELog (EF_INFO, "File '%s' use change: %d %d", dp->df_name,
+			gl->gl_dfuse, dp->df_use);
+	else
+		(*Formats[dp->df_ftype].f_Setup) (gl);
+}
+
+
+
+
+
+
+void
+dfa_GetData (gl)
+GetList *gl;
+/*
+ * Get the data from this getlist entry.
+ */
+{
+	DataFile *dp = DFTable + gl->gl_dfindex;
+/*
+ * Do the snarf.
+ */
+	(*Formats[dp->df_ftype].f_GetData) (gl);
+/*
+ * For some orgs, get the location info.
+ */
+	if (! gl->gl_next)	/* Kludge: last one only */
+		switch (gl->gl_dobj->do_org)
+		{
+		   case OrgIRGrid:
+		   	(*Formats[dp->df_ftype].f_GetIRGLoc) (gl->gl_dfindex,
+				gl->gl_dobj->do_desc.d_irgrid.ir_loc);
+		}
+}
+
+
+
+
+
+
+int
+dfa_InqNPlat (index)
+int index;
+/*
+ * Find out how many platforms are here.
+ */
+{
+	DataFile *dp = DFTable + index;
+
+	if (Formats[dp->df_ftype].f_InqNPlat)
+		return ((*Formats[dp->df_ftype].f_InqNPlat) (index));
+	return (1);
+}
+
+
+
+
+int
+dfa_InqRGrid (index, origin, rg)
+int index;
+Location *origin;
+RGrid *rg;
+/*
+ * Get the rgrid params.
+ */
+{
+	DataFile *dp = DFTable + index;
+
+	if (Formats[dp->df_ftype].f_InqRGrid)
+		return ((*Formats[dp->df_ftype].f_InqRGrid)
+					(index, origin, rg));
+	return (FALSE);
+}
+
+
+
+
+int
+dfa_DataTimes (index, when, which, n, dest)
+int index, n;
+time *when, *dest;
+TimeSpec which;
+{
+	DataFile *dp = DFTable + index;
+/*
+ * Get available data times.
+ */
+	if (Formats[dp->df_ftype].f_DataTimes)
+		return ((*Formats[dp->df_ftype].f_DataTimes) (index, when,
+					which, n, dest));
+	else
+		return (0);
+}
 
 
 
