@@ -1,7 +1,7 @@
 !
 ! Display manager widgets.
 !
-! $Id: dm.widgets,v 1.10 1993-11-29 22:59:06 corbet Exp $
+! $Id: dm.widgets,v 1.11 1994-01-21 21:51:33 corbet Exp $
 !
 
 define widget SaveConfig form 'Configuration saver'
@@ -449,3 +449,319 @@ procedure PutScalar platform string field string
 	endif
 	ShipScalar #platform #field #target_win
 endprocedure
+
+
+
+
+!
+! The old "print.widget" originating, I think, with the fest cdrom.
+!
+! Define a widget which collects hardcopy parameters, assembles them into
+! a proper command using xwd, xpr, and xwd2ps, and executes the command 
+! with 'shell'
+!
+! The following environemnt variables are checked to set defaults and
+! get paths to executables:
+!
+! ZEB_PRINTER_NAME	-- Default name of printer, "lp" if not set
+! ZEB_PRINTER_DEVICE	-- Default printer device, as it would appear in
+!			   the pulldown menu label: ljet, pjet, ps, etc.
+!			   "ps" if not set
+! ZEB_XWD_PATH		-- Path to xwd.  "xwd" is used if environment
+!			   variable not set.  The xwd program must exist
+!			   somewhere else nothing will work.
+! ZEB_XPR_PATH		-- Path to xpr, else "xpr" is used.  The xpr
+!			   program is not needed if printing PS and
+!			   xwd2ps can be found.  This program is needed
+!			   if printing anything other than PostScript.
+! ZEB_XWD2PS_PATH	-- Path to xwd2ps, else "xwd2ps" is used.  This 
+!			   program is required to print Color PostScript,
+!			   and in fact it is also the best alternative for
+!			   grayscale monochrome.
+!
+! Note that options can be added to any of the program PATH variables, and the 
+! options will be passed to the program.  For example, the PostScript page size
+! used by xwd2ps can be changed with 
+!
+! setenv ZEB_XWD2PS_PATH 'xwd2ps -p A4'
+!
+! See the xwd2ps man page in cd/doc/man for details on all of the options.
+! Also see the xwd(1) and xpr(1) man pages with the X distribution.  This
+! depends on the xwd2ps executable supplied with the CD as that copy contains
+! a bug fix.  Without it windows will not be oriented and scaled correctly.
+!
+
+set default_printer_name getenv("ZEB_PRINTER_NAME")
+if (default_printer_name = "UNDEFINED")
+	set default_printer_name "lp"
+endif
+set default_printer_device getenv("ZEB_PRINTER_DEVICE")
+if (default_printer_device = "UNDEFINED")
+	set default_printer_device "psmono"
+endif
+
+
+define widget hardcopy form "Print Window"
+
+	noheader
+	label title "HARDCOPY WIDGET" width 140 
+	!
+	! Command buttons
+	!
+	button help "Help" command 'help "printer      "'
+	button print "Print" command 'printer_go'
+	button dismiss "Dismiss" command 'popdown #ui$form' color red
+	newline
+	label label_win "Printing:" width 140
+	! menu might be useful if ever want to preselect window names
+	! pulldown win "One Window" menu printer_window_menu width 150
+	button win "One Window" command 'printer_toggle_win' width 150
+	newline
+	button label_name "Printer name:" command printer_toggle_dest width 140
+	blank printer_name #default_printer_name width 150
+	newline
+	label label_device "Device type:" width 140
+	pulldown printer_device #default_printer_device \
+		menu printer_device_menu width 150
+	newline
+	label label_rv "Reverse video:" width 140
+	button rv "On" command 'printer_toggle_rv' width 150
+	newline
+!	label label_orient "Orientation:" width 140
+!	button orient "Portrait" command 'printer_toggle_orient' width 150
+!	newline
+	label label_remove "Remove widget:" width 140
+	button remove "No" command 'printer_toggle_remove' width 150
+	newline
+
+	!
+	! This label will be for showing instructions, hints, and errors
+	!
+	label hints1 "Verify/change settings, then click [Print]." \
+		width 300 
+	newline
+	label hints2 "Be sure the window is not obstructed!" \
+		width 300 
+
+enddef
+
+
+procedure printer_toggle_rv
+
+	if (getftext(ui$form,"rv") = "Off")
+		formtext #ui$form "rv" "On"
+		formtext #ui$form "hints2" \
+			"Black and white will be swapped."
+	else
+		formtext #ui$form "rv" "Off"
+		formtext #ui$form "hints2" \
+			"Black and white will not be swapped."
+	endif
+
+endprocedure
+
+
+! Toggle output destination, printer or file
+!
+procedure printer_toggle_dest
+
+	if (getftext(ui$form,"label_name") = "Printer name:")
+		formtext #ui$form "label_name" "File name:"
+		formtext #ui$form "hints2" \
+			"Output will be sent to specified file."
+	else
+		formtext #ui$form "label_name" "Printer name:"
+		formtext #ui$form "hints2" \
+			"Output will be sent to named printer."
+	endif
+
+endprocedure
+
+
+procedure printer_toggle_remove
+
+	if (getftext(ui$form,"remove") = "No")
+		formtext #ui$form "remove" "Yes"
+		formtext #ui$form "hints2" \
+			"Widget will disappear before printing."
+	else
+		formtext #ui$form "remove" "No"
+		formtext #ui$form "hints2" \
+			"Widget remains on screen while printing."
+	endif
+
+endprocedure
+
+
+procedure printer_toggle_orient
+
+	if (getftext(ui$form,"orient") = "Portrait")
+		formtext #ui$form "orient" "Landscape"
+		formtext #ui$form "hints2" \
+			"Print window with landscape orientation."
+	else
+		formtext #ui$form "orient" "Portrait"
+		formtext #ui$form "hints2" \
+			"Print window with protrait orientation."
+	endif
+
+endprocedure
+
+
+procedure printer_toggle_win
+
+	if (getftext(ui$form,"win") = "One Window")
+		formtext #ui$form "win" "Entire Screen"
+		formtext #ui$form "hints2" \
+			"The entire screen will be printed."
+	else
+		formtext #ui$form "win" "One Window"
+		formtext #ui$form "hints2" \
+			"The window to print will be picked by you."
+	endif
+
+endprocedure
+
+
+define widget printer_window_menu intmenu "Window Selection"
+
+	title "Window Selection"
+	line
+	entry "One Window" "formtext #ui$form window_option 'One Window'"
+	entry "Entire Screen" "formtext #ui$form window_option 'Entire Screen'"
+
+endmenu
+
+
+define widget printer_device_menu intmenu "Printer Device Types"
+
+	title "Device Types"
+	line
+	entry "Color PostScript" \
+	   'pdevice "pscolor" "Color PostScript, using xwd2ps"' \
+	   (getftext(ui$form,"printer_device") = "pscolor")
+	entry "Monochrome PS" \
+	   'pdevice "psmono" "Grayscale PostScript, using xwd2ps"' \
+	   (getftext(ui$form,"printer_device") = "psmono")
+	entry "HP LaserJet" \
+	   'pdevice "ljet" "HP LaserJet, monochrome, needs xpr"' \
+	   (getftext(ui$form,"printer_device") = "ljet")
+	entry "HP PaintJet" \
+	   'pdevice "pjet" "HP PaintJet, color, needs xpr"' \
+	   (getftext(ui$form,"printer_device") = "pjet")
+	entry "HP PaintJet XL" \
+	   'pdevice "pjetxl" "HP PaintJet XL Color Graphics, color"' \
+	   (getftext(ui$form,"printer_device") = "pjetxl")
+	entry "Digital LA100" \
+	   'pdevice "la100" "Digital LA100 selected, needs xpr"' \
+	   (getftext(ui$form,"printer_device") = "la100")
+	entry "Digital LN03" \
+	   'pdevice "ln03" "Digital LN03 selected, needs xpr"' \
+	   (getftext(ui$form,"printer_device") = "ln03")
+	entry "IBM PP3812" \
+	   'pdevice "pp" "IBM PP3812 selected, needs xpr"' \
+	   (getftext(ui$form,"printer_device") = "pp")
+
+endmenu
+
+
+procedure pdevice dev_name string msg string
+
+	local show_msg quote(msg)
+
+	formtext #ui$form "printer_device" #dev_name
+	formtext #ui$form "hints2" #show_msg
+
+endprocedure
+
+
+procedure printer_go
+
+	set device_option getftext(ui$form,"printer_device")
+	set rv_option " "
+	set root_option " "
+	set xwd2ps getenv("ZEB_XWD2PS_PATH")	
+	set xwd getenv("ZEB_XWD_PATH")
+	set xpr getenv("ZEB_XPR_PATH")
+
+	! Add a little robustness
+	if (getftext(ui$form,"printer_name") = "")
+		formtext #ui$form "hints2" \
+			"No destination name specified. Try again."
+		return
+	endif
+
+	if (xwd = "UNDEFINED")
+		set xwd "xwd"
+	endif
+	if (xpr = "UNDEFINED")
+		set xpr "xpr"
+	endif
+
+	if (getftext(ui$form,"win") = "Entire Screen")
+		set root_option " -root "
+		formtext #ui$form "hints1" \
+			"Printing the entire screen, please wait."
+	else
+		formtext #ui$form "hints1" \
+			"Click mouse in window you wish printed."
+	endif
+
+ 	set print_command concat3(xwd,root_option," | ")
+
+	!
+	! If the device is "pscolor", we must try xwd2ps.
+	! If the device is "psmono", we will use xwd2ps since
+	! its being supplied on the CD.
+	! Every other device has to go to xpr.
+	!
+	if ((device_option = "pscolor") or (device_option = "psmono"))
+		if (getftext(ui$form,"rv") = "On")
+			set rv_option " -I "
+		endif
+		if (xwd2ps = "UNDEFINED")
+			set xwd2ps "xwd2ps"
+		endif
+		set print_command concat(print_command,xwd2ps)
+		set print_command concat(print_command,rv_option) 
+		if (device_option = "psmono")
+			set print_command concat(print_command," -m ")
+		endif
+	!
+	! Otherwise we're printing to a non-PS device and must use xpr
+	!
+	else
+		if (getftext(ui$form,"rv") = "On")
+			set rv_option " -rv "
+		endif
+		set print_command concat3(print_command,xpr,rv_option)
+		! Not necessary but we'll keep it for posterity
+		if (device_option = "psmono")
+			set device_option "ps"
+		endif
+		set print_command concat3(print_command," -device ",device_option)
+	endif
+
+	!
+	! Now test destination: either a file or a printer
+	!
+	if (getftext(ui$form,"label_name") = "Printer name:")
+		set print_command concat(print_command," | lpr -P")
+	else
+		set print_command concat(print_command," > ")
+	endif
+	set print_command concat(print_command,getftext(ui$form,"printer_name"))
+	message "Print command: #" print_command
+
+	set show_print_command quote(print_command)
+	formtext #ui$form "hints2" #show_print_command
+	if (getftext(ui$form,"remove") = "Yes")
+		popdown #ui$form
+		shell print_command
+	else
+		shell print_command
+		formtext #ui$form "hints1" "Done. [Print] again or change settings."
+		formtext #ui$form "hints2" "Click [Dismiss] to remove this window."
+	endif
+endprocedure
+
