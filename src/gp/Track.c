@@ -43,7 +43,7 @@
 # include "DrawText.h"
 
 # ifndef lint
-MAKE_RCSID ("$Id: Track.c,v 2.33 1995-04-17 22:17:54 granger Exp $")
+MAKE_RCSID ("$Id: Track.c,v 2.34 1995-06-09 17:10:41 granger Exp $")
 # endif
 
 # define ARROWANG .2618 /* PI/12 */
@@ -117,14 +117,17 @@ bool update;
 	FieldId fields[5];
 	float badvalue;
 	WindInfo wi;
+	char ctime[64];
 /*
  * Pull in our parameters.
  */
 	if (! tr_CTSetup (comp, platform, &pid, &period, &dskip, mtcolor,
 			&mono, ccfield, &showposition, positionicon))
 		return;
+#ifdef notdef
 	if (update)
 		period = period/4;
+#endif
 /*
  * Color code field.
  */
@@ -155,49 +158,50 @@ bool update;
 		numfields += 2;
 	} 
 /*
- * Figure the begin time and fetch data.
+ * Figure the begin time and fetch data.  If updating, only fetch and
+ * plot data since the last plot of this track; otherwise, fetch the
+ * period or the whole observation depending upon the mode.
  */
-	if (period)
+	if (update && pda_Search ( Pd, comp, "data-end-time", NULL, 
+				  (char*) &begin, SYMT_DATE))
 	{
-	  /* time-period type plot */
-
+		/*
+		 * Update: get data since last plot regardless of
+		 * obesrvation or period mode.  If we don't know when
+		 * we last plotted data, skip this and fetch a full
+		 * swath of data.
+		 */
+		msg_ELog (EF_DEBUG, "update in %s mode from %d to %d",
+			  (period) ? "period" : "obs",
+			  begin.zt_Sec, PlotTime.zt_Sec);
+		dc = ds_Fetch (pid, numfields ? DCC_Scalar : DCC_Location,
+			       &begin, &PlotTime, fields, numfields, 0, 0);
+	}
+	/*
+	 * Barring updates we fetch data based on period or observation
+	 */
+	else if (period)	/* time-period type plot */
+	{
 		begin = PlotTime;
 		begin.zt_Sec -= period;
 		dc = ds_Fetch (pid, numfields ? DCC_Scalar : DCC_Location,
 			       &begin, &PlotTime, fields, numfields, 0, 0);
 	}
-	else
+	else			/* observation type plot */
 	{
-	    /* observation type plot */
-		if (update)
+		/* get whole observation */
+		if (!ds_GetObsTimes(pid, &PlotTime, &begin, 1, NULL))
 		{
-			/* update, get data since last plot */
-
-			if (!pda_Search ( Pd, comp, "data-end-time", NULL, 
-					 (char*) &begin, SYMT_DATE))
-				begin = PlotTime;
-
-			msg_ELog(EF_DEBUG,"update in obs mode from %d to %d",
-				 begin.zt_Sec, PlotTime.zt_Sec);
-			dc = ds_Fetch (pid, 
-				       numfields ? DCC_Scalar : DCC_Location,
-				       &begin, &PlotTime, fields, numfields,
-				       0, 0);
+			dc = NULL;
 		}
 		else
 		{
-	      	      /* global, get whole observation */
-			begin = PlotTime;
-	      
-			if (!ds_GetObsTimes(pid, &PlotTime, &begin, 1, NULL)) {
-				dc = NULL;
-			} else {
-				msg_ELog(EF_DEBUG,"global, FetchObs for %d", begin.zt_Sec);
-				dc = ds_FetchObs(pid,
-					numfields ? DCC_Scalar : DCC_Location,
+			msg_ELog (EF_DEBUG, "global, FetchObs for %d", 
+				  begin.zt_Sec);
+			dc = ds_FetchObs(pid,
+					 numfields ? DCC_Scalar : DCC_Location,
 					 &begin, fields, numfields, 0, 0);
-	      }
-	    }
+		}
         }
 /*
  * Well, if we can't get any data, there is no point in going any further
@@ -209,19 +213,16 @@ bool update;
 		return;
 	}
 /*
- * Stash away the data end time for use with updates later.
+ * Remember the begin time in case we don't plot any points here because
+ * of data skips.
  */
+	zt = begin;
 	nsamp = dc_GetNSample (dc);
-	msg_ELog(EF_DEBUG,
-		 "%d points returned in observation mode", nsamp);
-	dc_GetTime (dc, nsamp-1, &zt);
-	      
-	/* remember end of this data span */
-	msg_ELog(EF_DEBUG, "storing zt as data-end-time of %d", zt.zt_Sec);
-	pd_Store (Pd, comp, "data-end-time", (char*) &zt, SYMT_DATE);
-
+	msg_ELog (EF_DEBUG, "track %s: %d points to plot in %s mode", 
+		  comp, nsamp, 
+		  update ? "update" : (period ? "period" : "obs"));
 /*
- * Do some initial loooking over the data.
+ * Do some initial looking over the data.
  */
 	shifted = ApplySpatialOffset (dc, comp, &PlotTime);
 	nsamp = dc_GetNSample (dc);
@@ -237,7 +238,6 @@ bool update;
 		sprintf (param, "%s-step", ccfield);
 		pd_Store (Pd, comp, param, (char *) &step, SYMT_FLOAT);
 	}
-
 /*
  * Fix up the parameters to make coding a little easier.
  */
@@ -267,6 +267,7 @@ bool update;
 		float u, v;		/* vector component values	     */
 		long timenow;		/* time of the current sample	     */
 		float fx, fy;	 /* x,y Cartesian coords of lat/lon location */
+		float fx0, fy0;
 		Location loc;	 	/* lat/lon locn extracted from sample*/
 	/*
 	 * Do skipping if requested.
@@ -277,6 +278,7 @@ bool update;
 	 * Locate this point.  Skip it if either coordinate == badvalue.
 	 */
 		dc_GetLoc (dc, i, &loc);
+		dc_GetTime (dc, i, &zt);
 		if ((loc.l_lat == badvalue) || (loc.l_lon == badvalue))
 			continue;
 		cvt_ToXY (loc.l_lat, loc.l_lon, &fx, &fy);
@@ -289,7 +291,6 @@ bool update;
 	 */
 		if (arrow)
 		{
-			dc_GetTime (dc, i, &zt);
 			timenow = TC_ZtToSys (&zt);
 			if(((timenow % a_int) == 0) || 
 					((vectime + a_int) < timenow))
@@ -309,8 +310,9 @@ bool update;
 		}
 	/*
 	 * Draw the line, if (x0,y0) valid, color coding if requested.
+	 * Don't draw the line if it doesn't intersect the plot region.
 	 */
-		if (samp0 >= 0)
+		if (samp0 >= 0 && Intersects (fx0, fy0, fx, fy))
 		{
 			if (mono)
 				FixForeground (xc.pixel);
@@ -325,8 +327,13 @@ bool update;
 			XDrawLine (Disp, d, Gcontext, x0, y0, x1, y1); 
 		}
 		x0 = x1; y0 = y1;
+		fx0 = fx; fy0 = fy;
 		samp0 = i;
 	}
+	/* remember the last point plotted */
+	TC_EncodeTime (&zt, TC_Full, ctime);
+	msg_ELog (EF_DEBUG, "storing data-end-time: %s", ctime);
+	pd_Store (Pd, comp, "data-end-time", (char*) &zt, SYMT_DATE);
 /*
  * If this isn't an update, indicate which end of the track is the front.
  */
@@ -335,11 +342,11 @@ bool update;
 				mono ? xc.pixel : (index >= 0 && index < nc) ? 
 				colors[index].pixel : outrange.pixel);
 /*
- * If this isn't an update, see about annotating the track with times.
+ * See about annotating the track with times.  It shouldn't hurt updates
+ * since we'll only be plotting new times.
  */
-	annot_time = FALSE;
-	if ((! update) && pda_Search (Pd, comp, "annot-time", "track", 
-		(char *) &annot_time, SYMT_BOOL)) 
+	if (/*(! update) && */ pda_Search (Pd, comp, "annot-time", "track", 
+		(char *) &annot_time, SYMT_BOOL))
 	{
 		if (annot_time)
 			tr_AnnotTime (comp, platform, dc, d);
@@ -475,7 +482,6 @@ Drawable	d;
 			t.zt_Sec -= interval_sec;
 		} 
 	}
-
 }
 
 
@@ -792,14 +798,18 @@ int *justify;		/* Justification to use for annotation */
 		return (0);
 /*
  * Now we've got to determine the rotation.  If we don't have a samp1 to
- * determine the slope, just supply a default.
+ * determine the slope, return failure.
  */
 	if (samp1 >= 0)
 		*rot = tr_FigureRot (fx, fy, fx1, fy1, justify);
 	else
 	{
+		return (0);
+#ifdef notdef
+		/* Supply a default rotation of zero */
 		*rot = 0;
 		*justify = JustifyLeft;
+#endif
 	}
 	return (1);
 }
