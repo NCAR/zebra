@@ -39,7 +39,7 @@
 # include "DataFormat.h"
 # include "GRIB.h"
 
-RCSID ("$Id: DFA_GRIB.c,v 3.45 1999-07-21 17:21:49 burghart Exp $")
+RCSID ("$Id: DFA_GRIB.c,v 3.46 1999-10-21 20:51:34 burghart Exp $")
 
 
 /*
@@ -802,6 +802,7 @@ grb_QueryTime (const char *file, ZebraTime *begin, ZebraTime *end,
 	{
 		msg_ELog (EF_PROBLEM, 
 			  "grb_QueryTime: Can't get first IS from '%s'", file);
+		close (fd);
 		return (FALSE);
 	}
 
