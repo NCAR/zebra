@@ -24,7 +24,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: met_formulas.c,v 1.8 1992-03-18 16:05:19 burghart Exp $";
+static char *rcsid = "$Id: met_formulas.c,v 1.9 1993-07-21 21:51:25 burghart Exp $";
 
 # include <math.h>
 # include "met_formulas.h"
@@ -360,12 +360,66 @@ double
 t_v (t, p, e)
 double	t, p, e;
 /*
- * Calculate the virtual temperature from the temperature, pressure, 
- * and vapor pressure
+ * Calculate the virtual temperature from the temperature (K), pressure (mb), 
+ * and vapor pressure (mb)
  */
 {
 	return (t / (1 - (e / p) * (1 - EPSILON)));
 }
+
+
+
+
+double
+t_wet (t, p, rh)
+double	t, p, rh;
+/*
+ * Calculate wet bulb temperature from temperature (K), pressure (mb), and 
+ * relative humidity (%).
+ * 
+ * This is an iterative solution using notes 3 and 6 of the Herzegh
+ * memo of 18 March 88 and tweaking t_wet until we're close (This seems
+ * like a poor algorithm, but I don't have time to make it better)
+ */
+{
+	float	e_sat, e, e_test, t_w, delta;
+	short	sign;
+/*
+ * Find our vapor pressure
+ */
+	e_sat = e_sw (t);
+	e = rh * 0.01 * e_sat;
+/*
+ * Initialize
+ */
+	e_test = e_sat;
+	t_w = t;
+	delta = 40; /* t_w should be within 80 deg. of t */
+/*
+ * Iterate
+ */
+	while (delta > 0.002)
+	{
+	/*
+	 * Get the next t_w
+	 */
+		sign = ((e_test - e) > 0.0) ? -1 : 1;
+		delta *= 0.5;
+		t_w += sign * delta;
+	/*
+	 * Find the associated vapor pressure
+	 */
+		e_sat = e_sw (t_w);
+		e_test = e_sat - p * (t - t_w) * 0.00066 * 
+				(0.6859 + 0.00115 * (t_w + T_3));
+		
+	}
+/*
+ * Assign the value
+ */
+	return ((double) t_w);
+}
+
 
 
 
