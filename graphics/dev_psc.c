@@ -10,7 +10,7 @@
 # include "device.h"
 # include <stdio.h>
 
-static char *rcsid = "$Id: dev_psc.c,v 1.3 1993-11-03 00:59:55 cook Exp $";
+static char *rcsid = "$Id: dev_psc.c,v 1.4 1994-01-13 21:13:51 burghart Exp $";
 /*
  * The tag structure
  */
@@ -553,14 +553,6 @@ struct psc_tag	*ptp;
 	 */
 		psc_out_s (ptp, "%!PS-Adobe-2.0\n");
 		psc_def_out (ptp);
-	}
-	else
-	{
-		fclose (ptp->pt_file);
-#if 0
-		if (!(ptp->pt_file = fopen (ptp->pt_devname, "w")))
-			ui_error ("Unable to open file '%s'", ptp->pt_devname);
-#endif
 	}
 /*
  * Initialize for the next page
