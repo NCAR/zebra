@@ -23,7 +23,7 @@
 # include <time.h>
 # include <sys/types.h>
 
-MAKE_RCSID ("$Id: TCvt.c,v 2.10 1993-10-22 21:33:47 corbet Exp $");
+MAKE_RCSID ("$Id: TCvt.c,v 2.11 1993-12-21 17:39:17 corbet Exp $")
 
 /*
  * The months of the year.

@@ -29,7 +29,7 @@
 # include "defs.h"
 # include "message.h"
 # ifndef lint
-MAKE_RCSID ("$Id: msg_lib.c,v 2.18 1993-12-04 19:32:07 granger Exp $")
+MAKE_RCSID ("$Id: msg_lib.c,v 2.19 1993-12-21 17:39:20 corbet Exp $")
 # endif
 
 /*
@@ -522,7 +522,7 @@ int fd;
 	/*
 	 * Check for a shutdown message and note it internally
 	 */
-		if (msg->m_proto == MT_MESSAGE)
+		if (msg->m_proto == MT_MESSAGE && msg->m_len > 0)
 		{
 			struct mh_template *tm;
 			tm = (struct mh_template *) msg->m_data;
