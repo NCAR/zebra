@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: dm_pick.c,v 2.1 1991-09-12 01:30:31 corbet Exp $";
+static char *rcsid = "$Id: dm_pick.c,v 2.2 1991-10-11 18:59:46 kris Exp $";
 /*
  * Handle the window picking operation.
  */
@@ -32,7 +32,7 @@ static char *rcsid = "$Id: dm_pick.c,v 2.1 1991-09-12 01:30:31 corbet Exp $";
 struct wpick
 {
 	Window	wp_id;		/* The id of the picked window	*/
-	char	*wp_sym;	/* The symbol to assign the name to. */
+	char	wp_name[40];	/* The window name. */
 };
 
 
@@ -40,10 +40,10 @@ static int dm_CmpPickWin ();
 
 
 void
-PickWin (var)
-char *var;
+PickWin (winname)
+char *winname;
 /*
- * Choose a window and store it into "var".
+ * Choose a window and store its name into "winname".
  */
 {
 	int status, done = False;
@@ -107,8 +107,8 @@ char *var;
 	if (! win)
 		return;
 	wp.wp_id = win;
-	wp.wp_sym = var;
 	usy_traverse (Current, dm_CmpPickWin, (long) &wp, FALSE);
+	strcpy (winname, wp.wp_name);
 }
 
 
@@ -129,10 +129,7 @@ struct wpick *wp;
 	
 	if (! (win->cfw_flags & CF_WIDGET) && wp->wp_id == win->cfw_win)
 	{
-		union usy_value nv;
-		nv.us_v_ptr = win->cfw_name;
-		usy_s_symbol (usy_g_stbl ("ui$variable_table"), wp->wp_sym,
-			SYMT_STRING, &nv);
+		strcpy (wp->wp_name, win->cfw_name);
 		return (FALSE);
 	}
 	return (TRUE);
