@@ -1,5 +1,5 @@
 /**/# ---------------------------------------------------------------------
-/**/# $Id: Imakefile,v 1.3 1992-12-18 05:20:02 granger Exp $ 
+/**/# $Id: Imakefile,v 1.4 1992-12-22 18:08:21 granger Exp $ 
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -41,7 +41,7 @@ OBJS =  TimeSeries.o ColorTable.o EventQueue.o LLEvent.o PlotControl.o \
 	XYWind.o XYCommon.o XYContour.o InsertWidget.o AnnotWidget.o \
 	XYObservation.o GraphProc.o PDMonitor.o
 
-SRCS =  AltControl.c AnnotWidget.c Annotate.c AxisControl.c BndWidget.c \
+SRCS =  AltControl.c AnnotWidget.c Annotate.c AxisControl.c \
 	ColorTable.c ConstAltPlot.c Contour.c DataMenu.c DrawText.c \
 	EventQueue.c FillContour.c FrameCache.c GraphProc.c GraphicsW.c \
 	GridAccess.c Icons.c InsertWidget.c LLEvent.c Label.c \
@@ -60,7 +60,7 @@ HDRS =  AxisControl.h Contour.h DrawText.h EventQueue.h GC.h GraphProc.h \
 FSRCS = cfit.F mudras.f rgrid.F
 
 DISTFILES = Imakefile $(SRCS) $(FSRCS) $(HDRS) \
-	    GraphProc.state Graphproc.ad offset.w
+	    GraphProc.state GraphProc.widgets Graphproc.ad offset.w
 
 HEADERS = GraphicsW.h GraphicsWP.h
 
