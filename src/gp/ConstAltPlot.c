@@ -56,7 +56,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.87 2001-06-19 23:48:28 granger Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.88 2001-12-07 21:00:35 burghart Exp $")
 
 
 /*
@@ -2382,7 +2382,7 @@ CAP_Polar (char *c, int update)
 /*
  * Get ready to do some serious plotting.
  */
-	pc = pol_DisplaySetup (project, tfill, transparent);
+	pc = pol_DisplaySetup (project, tfill, transparent, outrange.pixel);
 	dcp_GetSweepInfo (dc, 0, &swpinfo);
 /*
  * OK, do some serious plotting.
@@ -2404,12 +2404,18 @@ CAP_Polar (char *c, int update)
 			continue;
 	/*
 	 * Color code it.
+	 *
+	 * We have to be careful to check for negative values of fndx here
+	 * before casting to int, since a cast to int often truncates
+	 * toward zero.  This means that a simple cast from the range 
+	 * -1.0 < fndx < 1.0 gives us index 0, and we only want index 0 
+	 * when 0.0 <= fndx < 1.0. 
 	 */
 		for (gate = 0; gate < pb->pb_NGates; gate++)
 		{
-			int cind = (pb->pb_Data[gate] - min)*cmult;
-			ccbuf[gate] = (cind < 0 || cind >= ncolors) ?
-				outrange.pixel : colors[cind].pixel;
+			float fndx = (pb->pb_Data[gate] - min)*cmult;
+			ccbuf[gate] = (fndx < 0 || fndx >= ncolors) ?
+				outrange.pixel : colors[(int)fndx].pixel;
 		}
 # ifdef RDEBUG
 		for (gate = 800; gate < 850; gate++)
@@ -2543,11 +2549,18 @@ CAP_PolarParams (char *c, char *platform, PlatformId *pid, FieldId *fids,
 	if (! pda_Search (Pd, c, "out-of-range-color", platform, cparam,
 			SYMT_STRING))
 		strcpy (cparam, "black");
-	ct_GetColorByName (cparam, outrange);
 /*
  * Transparent background iff they chose "none" as the out-of-range-color
  */
 	*transparent = ! strcmp (cparam, "none");
+/*
+ * Set the out-of-range-color to the requested color, or get a "marker"
+ * color (that we hope is not in the color table) if they want transparency.
+ */
+	if (*transparent)
+	    ct_GetColorByName ("HotPink4", outrange);
+	else
+	    ct_GetColorByName (cparam, outrange);
 /*
  * Are we doing horizontal projection?
  */
