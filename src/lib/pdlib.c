@@ -25,7 +25,7 @@
 # include <defs.h>
 # include <message.h>
 # include "pd.h"
-MAKE_RCSID ("$Id: pdlib.c,v 1.16 1992-10-27 19:34:09 burghart Exp $")
+MAKE_RCSID ("$Id: pdlib.c,v 1.17 1992-11-03 16:18:48 burghart Exp $")
 
 /*
  * A counter used to generate unique symbol table names.
@@ -889,7 +889,7 @@ int type;
 		   	sprintf (kludge, "%d", * (int *) value);
 			break;
 		   case SYMT_BOOL:
-		   	strcpy (kludge, (* (int *) value) ? "True" : "False");
+		   	strcpy (kludge, (* (bool *) value) ? "True" : "False");
 			break;
 		   case SYMT_FLOAT:
 		   	sprintf (kludge, "%.4f", * (float *) value);
