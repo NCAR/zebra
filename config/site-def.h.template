@@ -37,7 +37,7 @@
 /**/# -----------------------------------------------------------------------
 /**/# Definitions from site-def.h included here.  The definitions here override
 /**/# the defaults in Project.tmpl.  
-/**/# $Id: site-def.h.template,v 1.15 1993-09-27 18:21:59 case Exp $
+/**/# $Id: site-def.h.template,v 1.16 1994-01-04 20:44:58 case Exp $
 /**/# -----------------------------------------------------------------------
 # endif
 
@@ -244,12 +244,23 @@
  * SYSTEM LIBRARY PATHS
  * -------------------
  *
- * Define compiler and other paths here.
+ * Define compiler and other paths here.  
  *
  */
 
+/*
+ * Fortran library path.  The default is for Sun FORTRAN SC1.0.1.  
+ * Sun users should modify the path as necessary.
+ *
+ * SGI users should edit the line to read:
+ *        #define Fortran Libraries -lF77
+ *
+ * HP-UX users should edit the line to read:
+ *        #define Fortran Libraries -lf
+ *  
+ */  
 
-# define FortranLibraries -L/usr/lang/SC1.0.1 -lF77 -lV77
+# define FortranLibraries -L/usr/lang/SC1.0.1 -lF77
 
 
 /*
@@ -266,6 +277,8 @@
 /*========================================================================
  * PROGRAM SPECIFIC INFORMATION
  * -------------------
+ *
+ * Consult each package's installation docs for assistance.
  */
 
 /*
@@ -309,6 +322,24 @@
 # define DefDBDir \"/data/ppf\"
 # define DefDBType \"cmf\"
 # define DefDBName \"cmf\"
+
+
+/*
+ * If you are installing REORDER and wish to add the Dorade version,
+ * set this to yes.  Solo must be installed if you wish to use this
+ * option.
+ */
+
+# define BuildDoradeReorder NO
+
+
+/*
+ * Solo/Dorade include path.  Ignore if you are not installing Solo.
+ */
+
+# define SOLOInclude RDSSHome/solo/include 
+# define SOLOBinDir RDSSHome/bin
+# define SOLOLibDir RDSSHome/lib
 
 
 
