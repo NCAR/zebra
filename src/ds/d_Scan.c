@@ -20,6 +20,8 @@
  * maintenance or updates for its software.
  */
 
+# include <sys/types.h>
+# include <sys/stat.h>
 # include <string.h>
 # include <fcntl.h>
 # include <dirent.h>
@@ -30,7 +32,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID ("$Id: d_Scan.c,v 1.16 1994-04-27 10:38:30 granger Exp $")
+MAKE_RCSID ("$Id: d_Scan.c,v 1.17 1994-04-27 16:26:36 corbet Exp $")
 
 
 /*
