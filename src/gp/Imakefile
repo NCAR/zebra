@@ -1,5 +1,6 @@
-/**/# ---------------------------------------------------------------------
-/**/# $Id: Imakefile,v 1.22 1995-05-24 22:08:19 granger Exp $ 
+/* -*- C -*- */
+XCOMM ---------------------------------------------------------------------
+XCOMM $Id: Imakefile,v 1.23 1995-06-29 23:41:50 granger Exp $ 
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -20,7 +21,8 @@
  */
 
 
-LIBS=$(LIBZEBDS) $(LIBZEB) $(LIBNETCDF) $(LIBRDSS) $(XLIBS) $(FLIBS)
+LIBS=$(LIBZEBDS) $(LIBNETCDF) $(LIBHDF) $(LIBZEB) $(LIBRDSS) $(XLIBS) $(FLIBS)
+/* LIBS=$(DFALIBS) $(ZLIBS) $(XLIBS) $(FLIBS) */
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
 /* LIBRDSS = /rdss/ui/uilib.a /locallib/librdssutil.a */
@@ -85,7 +87,7 @@ SRCS =  AltControl.c AnnotWidget.c Annotate.c AxisControl.c \
 
 HDRS =  AxisControl.h Contour.h DrawText.h EventQueue.h GC.h GraphProc.h \
 	ActiveArea.h LLEvent.h Label.h LabelP.h LayoutControl.h PixelCoord.h \
-	PlotPrim.h XYCommon.h derive.h getpagesize.h \
+	PlotPrim.h XYCommon.h ContourP.h derive.h getpagesize.h \
 	gp_cmds.h rg_status.h rgrid.h
 
 FSRCS = cfit.F mudras.f rgrid.F bints.f
