@@ -1,7 +1,7 @@
 //
 // Source: a class holding a large list of files; each file can be retrieved
 // by platform and time.  
-// $Id: Source.hh,v 3.1 1999-03-01 16:32:09 burghart Exp $
+// $Id: Source.hh,v 3.2 1999-03-19 16:19:06 burghart Exp $
 //
 //		Copyright (C) 1998 by UCAR
 //	University Corporation for Atmospheric Research
@@ -98,7 +98,7 @@ public:
 //
 // Name: return the source name
 //
-// BaseDir: return the base directory string
+// RootDir: return the base directory string
 //
 // DataDir: return the data directory for a given platform
 //
@@ -153,7 +153,7 @@ public:
     bool Next( const Platform *p, DataFileCore* dfc = 0 );
     bool Current( const Platform *p, DataFileCore *dfc = 0, ZTime *t = 0 );
     const string& Name( void ) const;
-    const string& BaseDir( void ) const;
+    const string& RootDir( void ) const;
     const string& DataDir( const Platform *p );
     int ConfirmDataDir( const Platform *p );
     void SetPlatDir( const string& platname, const string& dir );
@@ -202,7 +202,7 @@ private:
     PlatFilesMap pflists;
     PlatDirMap optplatdirs;
     string srcname;
-    string basedir;
+    string rootdir;
     int flags;
 //
 // Private methods
@@ -246,9 +246,9 @@ Source::Name( void ) const
 
 
 inline const string&
-Source::BaseDir( void ) const
+Source::RootDir( void ) const
 {
-    return basedir;
+    return rootdir;
 }
 
 

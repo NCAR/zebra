@@ -1,7 +1,7 @@
 /*
  * Daemon Source-related functions.  These are mostly C bindings to the
  * methods of class Source.
- * $Id: d_Source.h,v 3.1 1999-03-01 16:32:10 burghart Exp $
+ * $Id: d_Source.h,v 3.2 1999-03-19 16:19:07 burghart Exp $
  *
  *
  *		Copyright (C) 1998 by UCAR
@@ -52,7 +52,7 @@ typedef void Source;
 /*
  * These are basically C bindings to Source class methods
  */
-Source *src_Open (const char *srcname, const char *basedir, const char *fname);
+Source *src_Open (const char *srcname, const char *rootdir, const char *fname);
 void src_Close (Source *src);
 
 zbool src_First (Source *src, const Platform *p, DataFileCore *dfc);
@@ -76,7 +76,7 @@ void src_SetPlatDir (Source *src, const char *platname, const char *dir);
 int src_NFiles (Source *src, const Platform *p);
 
 const char *src_Name (const Source *src);
-const char *src_BaseDir (const Source *src);
+const char *src_RootDir (const Source *src);
 const char* src_DataDir (Source *src, const Platform *p);
 int src_ConfirmDataDir (Source *src, const Platform *p);
 

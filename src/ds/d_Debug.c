@@ -14,7 +14,7 @@
 # include "commands.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID("$Id: d_Debug.c,v 3.12 1999-03-02 05:09:25 granger Exp $")
+MAKE_RCSID("$Id: d_Debug.c,v 3.13 1999-03-19 16:19:06 burghart Exp $")
 
 static struct flagmask {
 	unsigned short mask;
@@ -303,7 +303,7 @@ char *who;
 		     src_IsFileConst (Srcs + s) ? "FileConst, " : "",
 		     src_RemembersAll (Srcs + s) ? "RememberAll, " : "",
 		     src_DirsAreForced (Srcs + s) ? "ForceDirs, " : "",
-		     src_BaseDir (Srcs + s));
+		     src_RootDir (Srcs + s));
 	}
 	msg_AnswerQuery (who, buf);
 

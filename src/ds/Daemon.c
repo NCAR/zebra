@@ -54,7 +54,7 @@
 # include "dsDaemon.h"
 # include "commands.h"
 
-RCSID ("$Id: Daemon.c,v 3.68 1999-03-02 05:09:24 granger Exp $")
+RCSID ("$Id: Daemon.c,v 3.69 1999-03-19 16:19:04 burghart Exp $")
 
 /*
  * Private SourceId type, for convenience
@@ -427,7 +427,7 @@ FinishInit ()
 	for (s = 0; s < NSrcs; s++)
 	{
 	    msg_ELog (EF_INFO, "Starting file scan for source '%s' (%s)", 
-		      src_Name (Srcs[s]), src_BaseDir (Srcs[s]));
+		      src_Name (Srcs[s]), src_RootDir (Srcs[s]));
 	    DataScan (Srcs[s]);
 	}
 
@@ -1611,7 +1611,7 @@ SendSourceInfo (char *to, struct dsp_GetSrcInfo *request)
 	answer.dsp_success = 1;
 	si->src_Id = srcid;
 	strcpy (si->src_Name, src_Name (src));
-	strcpy (si->src_Dir, src_BaseDir (src));
+	strcpy (si->src_Dir, src_RootDir (src));
 	si->src_ReadOnly = src_IsReadOnly (src);
     }
 

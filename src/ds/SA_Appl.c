@@ -41,7 +41,7 @@
 #include "Appl.h"
 #include "d_Source.h"
 
-RCSID ("$Id: SA_Appl.c,v 3.3 1999-03-01 02:03:35 burghart Exp $")
+RCSID ("$Id: SA_Appl.c,v 3.4 1999-03-19 16:19:05 burghart Exp $")
 
 
 /*
@@ -223,7 +223,7 @@ sa_GetSrcInfo (int srcid, SourceInfo *si)
 
     si->src_Id = 0;
     strcpy (si->src_Name, src_Name (Src));
-    strcpy (si->src_Dir, src_BaseDir (Src));
+    strcpy (si->src_Dir, src_RootDir (Src));
     return (1);
 }
 

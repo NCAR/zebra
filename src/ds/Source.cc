@@ -51,7 +51,7 @@ Source::Source( const char* in_srcname, const char* in_dir,
 		const char* cachename ) :
     bfile( cachename ),
     srcname( in_srcname ),
-    basedir( in_dir ),
+    rootdir( in_dir ),
     flags( 0 )
 {
     int status = bfile.Status();
@@ -352,7 +352,7 @@ Source::DataDir( const Platform *p )
     if (pdir[0] == '/')
 	fullpath = pdir;
     else
-	fullpath = basedir + "/" + pdir;
+	fullpath = rootdir + "/" + pdir;
 
     return (fullpath);
 }

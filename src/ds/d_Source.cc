@@ -33,9 +33,9 @@ extern "C"
 {
 
 Source*
-src_Open (const char *srcname, const char *basedir, const char *fname)
+src_Open (const char *srcname, const char *rootdir, const char *fname)
 {
-    return new Source( srcname, basedir, fname );
+    return new Source( srcname, rootdir, fname );
 }
 
 
@@ -141,9 +141,9 @@ src_Name (const Source *src)
 
 
 const char*
-src_BaseDir (const Source *src)
+src_RootDir (const Source *src)
 {
-    return (src->BaseDir().c_str());
+    return (src->RootDir().c_str());
 }
 
 
