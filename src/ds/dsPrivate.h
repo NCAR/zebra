@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 3.10 1993-05-03 17:21:58 corbet Exp $
+ * $Id: dsPrivate.h,v 3.11 1993-05-05 15:34:07 corbet Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -192,36 +192,37 @@ enum dsp_Types
 	 dpt_R_NewFileFailure,		/* Failed new file		*/
 	dpt_AbortNewFile,		/* Abort new file creation	*/
 	dpt_UpdateFile,			/* Notify of file update	*/
-	dpt_NotifyRequest,		/* Ask for data available notify*/
+	dpt_NotifyRequest,		/* 5: Ask for data available notify*/
 	 dpt_Notify,			/* Data available		*/
 	dpt_CancelNotify,		/* Cancel notifications		*/
 	 dpt_CancelAck,			/* Acknowledge cancel		*/
-	dpt_DeleteData,			/* DANGER remove data		*/
-	dpt_DataGone,			/* Data deletion announcement	*/
+	dpt_DeleteData,			/* DANGER remove data	*/
+	dpt_DataGone,			/* 10: Data deletion announcement*/
 	dpt_CopyNotifyReq,		/* Get copies of notification rq*/
 	dpt_MarkArchived,		/* Mark a file as archived	*/
 	dpt_R_UpdateAck,		/* Acknowledge a file update	*/
 	dpt_Rescan,			/* Force rescan of platform	*/
-	dpt_BCDataGone,			/* Data zapped			*/
+	dpt_BCDataGone,			/* 15: Data zapped		*/
 	/*
 	 * Start additions for non-SHM data store.
 	 */
 	dpt_GetNPlat,			/* Return the number of platforms */
 	 dpt_R_NPlat,			/* the number of platforms	*/
 	dpt_GetPlatStruct,		/* Get a platform structure	*/
-	 dpt_R_PlatStruct,		/* Returned plat struct		*/
-	dpt_GetFileStruct,		/* Get a DFE			*/
+	 dpt_R_PlatStruct,		/* Returned plat struct	*/
+	dpt_GetFileStruct,		/* 20: Get a DFE		*/
 	 dpt_R_FileStruct,
 	dpt_PLock,			/* Lock a platform		*/
 	 dpt_R_PLockGranted,		/* Acknowledge the lock		*/
 	dpt_ReleasePLock,		/* Release platform lock	*/
-	dpt_LookupPlatform,		/* Plat name -> pid translation	*/
+	dpt_LookupPlatform,		/* 25: Plat name -> pid translation*/
 	 dpt_R_PID,			/* Reply 			*/
 	dpt_FindDF,			/* Find DFE based on time	*/
 	 dpt_R_DFIndex,			/* Index of found DF		*/
 	dpt_CacheInvalidate,		/* Invalidate a cache entry	*/
-	dpt_Hello,			/* New client greeting		*/
+	dpt_Hello,			/* 30: New client greeting	*/
 	 dpt_R_ProtoVersion,		/* Protocol version		*/
+	dpt_FindAfter,			/* Find closest DFE after Time	*/
 };
 # define DSP_FLEN	256		/* File name length		*/
 

@@ -33,7 +33,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 # include "commands.h"
-MAKE_RCSID ("$Id: Daemon.c,v 3.15 1993-05-03 17:21:58 corbet Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.16 1993-05-05 15:34:07 corbet Exp $")
 
 
 
@@ -66,6 +66,7 @@ static int	AwaitUnlock FP ((Message *, int));
 static Lock	*GetLockEntry FP ((void));
 static void	DoLookup FP ((char *, char *));
 static void	FindDF FP ((char *, struct dsp_FindDF *));
+static void	FindAfter FP ((char *, struct dsp_FindDF *));
 static int	QueryHandler FP ((char *));
 
 
@@ -549,6 +550,9 @@ struct dsp_Template *dt;
 	 */
 	   case dpt_FindDF:
 	   	FindDF (from, (struct dsp_FindDF *) dt);
+		break;
+	   case dpt_FindAfter:
+	   	FindAfter (from, (struct dsp_FindDF *) dt);
 		break;
 	/*
 	 * Greeting.
@@ -1162,6 +1166,7 @@ int junk;
 	   case dpt_GetPlatStruct:
 	   case dpt_GetFileStruct:
 	   case dpt_FindDF:
+	   case dpt_FindAfter:
 	   case dpt_Hello:
 	   case dpt_LookupPlatform:
 	   	ds_message (msg->m_from, dt);
@@ -1227,6 +1232,67 @@ struct dsp_FindDF *req;
  */
 	answer.dsp_type = dpt_R_DFIndex;
 	answer.dsp_index = (dfe) ? dfe : -1;
+	msg_send (who, MT_DATASTORE, FALSE, &answer, sizeof (answer));
+}
+
+
+
+
+
+
+
+static void
+FindAfter (who, req)
+char *who;
+struct dsp_FindDF *req;
+/*
+ * Find the closest data file containing data after the given time.
+ */
+{
+	int dfe = LOCALDATA (PTable[req->dsp_pid]), last = 0, rlast = 0;
+	struct dsp_R_DFI answer;
+/*
+ * Search the local list for the first DFE which does *not* end after
+ * the given time.
+ */
+	for (; dfe; dfe = DFTable[dfe].df_FLink)
+	{
+		if (TC_LessEq (DFTable[dfe].df_end, req->dsp_when))
+			break;
+		last = dfe;
+	}
+/*
+ * If we didn't find the data locally, see if there's anything in the
+ * remote data table.
+ */
+	if (! dfe)
+		for (dfe = REMOTEDATA (PTable[req->dsp_pid]); dfe;
+					dfe = DFTable[dfe].df_FLink)
+		{
+			if (TC_LessEq (DFTable[dfe].df_end, req->dsp_when))
+				break;
+			rlast = last;
+		}
+/*
+ * If we found a DFE, it is a file *before* the time, so we need to back 
+ * up one, if something is there.
+ */
+	if (dfe)
+		dfe = DFTable[dfe].df_BLink;
+/*
+ * Now we need to pick out what we really send back.
+ */
+	if (dfe)
+		answer.dsp_index = dfe;
+	else if (last && (rlast == 0 ||
+		TC_LessEq (DFTable[last].df_begin, DFTable[rlast].df_begin)))
+		answer.dsp_index = last;
+	else
+		answer.dsp_index = (rlast != 0) ? rlast : -1;
+/*
+ * Return our answer.
+ */
+	answer.dsp_type = dpt_R_DFIndex;
 	msg_send (who, MT_DATASTORE, FALSE, &answer, sizeof (answer));
 }
 

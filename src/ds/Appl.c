@@ -27,7 +27,7 @@
 # define NO_SHM
 #include "dslib.h"
 #ifndef lint
-MAKE_RCSID ("$Id: Appl.c,v 3.9 1993-05-04 22:08:17 granger Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.10 1993-05-05 15:34:07 corbet Exp $")
 #endif
 
 /*
@@ -62,7 +62,7 @@ static void	ds_GreetDaemon FP ((void));
 static int	ds_CheckProtocol FP ((Message *, int));
 static int	ds_FindBlock FP((int dfile, DataChunk *dc, Platform *p,
 				 int sample, WriteCode wc, int *nsample));
-
+static int	ds_FindAfter FP ((PlatformId, ZebTime *));
 /*
  * The application notification table.
  */
@@ -303,6 +303,30 @@ int src;
 
 
 
+static int
+ds_FindAfter (pid, when)
+PlatformId pid;
+ZebTime *when;
+/*
+ * Find the first datafile entry containing data after this time.
+ */
+{
+	struct dsp_FindDF req;
+	int index;
+/*
+ * Just fire off a request to the daemon.
+ */
+ 	req.dsp_type = dpt_FindAfter;
+	req.dsp_pid = pid;
+	req.dsp_when = *when;
+	req.dsp_src = SRC_ALL;
+	ds_SendToDaemon (&req, sizeof (req));
+	msg_Search (MT_DATASTORE, ds_AwaitDF, &index);
+	return (index);
+}
+
+
+
 
 static int
 ds_AwaitDF (msg, index)
@@ -478,42 +502,11 @@ TimeSpec which;
  */
 	   case DsAfter:
 	/*
-	 * Scan down the datafile list until we find the first entry
-	 * which does not end after the time of interest.
+	 * Get positioned.
 	 */
 		ds_LockPlatform (platform);
-		ds_GetPlatStruct (platform, &p, TRUE);
-		for (index = LOCALDATA(p); index;
-					index = dfe.df_FLink)
-		{
-			ds_GetFileStruct (index, &dfe);
-			if (TC_LessEq (dfe.df_end, *when))
-				break;
-			last = index;
-		}
-	/*
-	 * Check the remote table too if need be.
-	 */
-		if (!index)
-			for (index = REMOTEDATA(p); index;
-					     index = dfe.df_FLink)
-			{
-				ds_GetFileStruct (index, &dfe);
-				if (TC_LessEq (dfe.df_end, *when))
-					break;
-				last = index;
-			}
-	/*
-	 * If we are still pointing at an entry, move back forward
-	 * one.  Else start with the last entry in the list.
-	 */
-		if (index)
-			index = dfe.df_BLink;
-		else if (! (index = last))
-		{
-			ds_UnlockPlatform (platform);
+		if ((index = ds_FindAfter (platform, when)) < 0)
 			return (0);
-		}
 	/*
 	 * Now we move forward filling the array.
 	 */
