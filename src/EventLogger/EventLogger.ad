@@ -1,4 +1,4 @@
-! $Id: EventLogger.ad,v 1.1 1992-08-20 05:41:09 granger Exp $
+! $Id: EventLogger.ad,v 1.2 1993-03-19 23:28:21 granger Exp $
 !
 ! Application defaults file for the EventLogger
 ! DO NOT MODIFY this file if this is the library installed copy!!!
@@ -8,6 +8,8 @@
 *Command*font:	-*-helvetica-medium-r-*-*-*-120-*-*-*-*-*-*
 *MenuButton*font:	-*-helvetica-medium-r-*-*-*-120-*-*-*-*-*-*
 *Text*font:	-*-courier-medium-r-*-*-*-100-*-*-*-*-*-*
+*foreground:		MidnightBlue
+*background:		gray90
 *Form.background:	cadet blue
 *Command.background:	midnight blue
 *Command.foreground:	yellow
@@ -18,4 +20,3 @@
 *Scrollbar*foreground:	midnight blue
 *Label.background:	cadet blue
 *Label.foreground:	yellow
-!*background:		gray90
