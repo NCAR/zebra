@@ -1,7 +1,7 @@
 /*
  * ingest.h --- Public protoypes and macros for ingest modules
  *
- * $Id: ingest.h,v 1.10 1994-10-11 16:24:59 corbet Exp $
+ * $Id: ingest.h,v 1.11 1995-03-03 18:27:28 granger Exp $
  *
  * ingest.h --- A common ingest interface and support routines for 
  *		Zeb ingest modules
@@ -99,7 +99,9 @@ extern void IngestRemoveOptions FP((int *argc, char *argv[], int i, int n));
  * output when messages are actually being sent to the EventLogger, such as
  * during normal operations.  This reduces clutter in the EventLogger.
  */
+#ifndef EF_DEVELOP
 #define EF_DEVELOP (0x400)
+#endif
 
 /*
  * Exported flags so that ingest modules can test their debug state
