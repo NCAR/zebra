@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 1.11 1991-06-14 20:54:17 kris Exp $ */
+/* $Id: GraphProc.h,v 1.12 1991-07-01 13:49:28 corbet Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -132,6 +132,7 @@ extern void SetClip (int);
 extern int CommaParse (char *, char **);
 extern void ResetGC (void);
 extern void SetColor (char *, char *, char *, char *);
+extern int AgeCheck (char *, time *);
 # ifdef _XtIntrinsic_h
 	extern bool ct_LoadTable (char *, XColor**, int *);
 	extern void ct_FreeColors (void);
@@ -191,6 +192,7 @@ extern void SetColor (char *, char *, char *, char *);
 	extern int CommaParse ();
 	extern void ResetGC ();
 	extern void SetColor ();
+	extern int AgeCheck ();
 # ifdef _XtIntrinsic_h
 	extern bool ct_LoadTable ();
 	extern void ct_FreeColors ();
