@@ -24,7 +24,7 @@
 # include <message.h>
 # include <DataStore.h>
 
-MAKE_RCSID ("$Id: dscopy.c,v 1.3 1993-03-17 20:10:16 corbet Exp $");
+MAKE_RCSID ("$Id: dscopy.c,v 1.4 1993-03-17 20:55:06 corbet Exp $");
 
 
 # define MAX_TIMES 10000
@@ -49,6 +49,8 @@ FieldId Fids[MAXFLD], RFids[MAXFLD];
 int NField = 0, NRField = 0;
 ZebTime Begin = { 0, 0 }, End = { 0, 0 };
 DataClass Class;	/* Class of data we move. */
+
+int PreserveObs = TRUE;
 
 /*
  * Forwards.
@@ -84,6 +86,8 @@ char **argv;
 	else
 		ui_init (loadfile, TRUE, FALSE);
 	SetupConfigVariables ();
+	usy_c_indirect (usy_g_stbl ("ui$variable_table"), "preserveobs",
+		&PreserveObs, SYMT_BOOL, 0);
 /*
  * Hook into the message system.
  */
@@ -341,7 +345,7 @@ ZebTime *t;
 		ui_printf ("Samp %3d: %.2f\n", samp,
 			dc_GetScalar (dc, 0, Fids[0]));
 # endif
-		ds_Store (dc, samp == 0, 0, 0);
+		ds_Store (dc, PreserveObs && samp == 0, 0, 0);
 		dc_DestroyDC (dc);
 	}
 }
