@@ -25,7 +25,7 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_Attr.c,v 1.2 1992-06-09 19:22:16 corbet Exp $")
+MAKE_RCSID ("$Id: dc_Attr.c,v 1.3 1992-12-09 19:45:42 granger Exp $")
 
 
 /*
@@ -81,9 +81,25 @@ char *key, *value;
  */
 	if ((ade->aa_Used + len) >= ade->aa_Alloc)
 	{
-		int newlen = sizeof (AttrADE) + ade->aa_Alloc*2 - 1;
+	/*
+	 * Make sure we add at least enough space for this attribute, as well
+	 * as some extra space for later additions.  The goal is to make realloc
+	 * infrequent without consuming too much memory... so we're increasing
+	 * the ade->aa_Data array to (len + ade->aa_Alloc*2) bytes, which means
+	 * our new ade structure requires 'newlen' bytes:
+	 */
+		int newlen = sizeof (AttrADE) + len + ade->aa_Alloc*2 - 1;
 		ade = (AttrADE *) realloc (ade, newlen);
-		ade->aa_Alloc *= 2;	/* Assume this will suffice */
+	/*
+	 * Note that the amount allocated (aa_Alloc) is actually 
+	 *    (newlen - sizeof(AttrADE) + 1) = len + ade->aa_Alloc*2
+	 * since the first byte of the data (aa_Data[1]) is part of the
+	 * AttrADE structure and accounted for in sizeof(AttrADE).
+	 * aa_Alloc only measures the size of the char aa_Data[] array.
+	 * It does not include space for the other members of the ade.
+	 */
+		ade->aa_Alloc *= 2;
+		ade->aa_Alloc += len;
 		dc_ChangeADE (dc, ade, class, code, newlen);
 	}
 /*
