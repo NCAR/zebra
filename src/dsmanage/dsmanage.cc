@@ -44,7 +44,7 @@ extern "C" {
 # include "Index.h"
 # include "plcontainer.h"
 
-MAKE_RCSID ("$Id: dsmanage.cc,v 1.3 1993-02-02 19:35:33 corbet Exp $");
+MAKE_RCSID ("$Id: dsmanage.cc,v 1.4 1993-02-24 20:05:27 corbet Exp $");
 
 extern "C" void strcat (char *, const char *);
 extern "C" char *strrchr (const char *, int);
@@ -106,8 +106,8 @@ DSSetup ()
 // Hook into the data store.
 //
 	ds_Initialize ();
-	cout << SHeader->sm_nPlatform << " platforms, " << 
-		SHeader->sm_nDTEUsed << " datafiles defined.\n";
+//	cout << SHeader->sm_nPlatform << " platforms, " << 
+//		SHeader->sm_nDTEUsed << " datafiles defined.\n";
 //
 // Assume that the data directory of the first platform is the directory
 // for all, and save it aside.
@@ -121,7 +121,7 @@ DSSetup ()
 	while ((slash = DDir.index ('/', slash + 1)) >= 0)
 		lastslash = slash;
 	DDir.del (lastslash, DDir.length() - lastslash);
-	cout << "Data dir is '" << DDir << "'.\n";
+//	cout << "Data dir is '" << DDir << "'.\n";
 //
 // Make the platform list.
 //
@@ -154,7 +154,7 @@ MakePlatformList ()
 		delete dp;	// Container copies it
 		ScanFiles (plat);
 	}
-	cout << "PList has " << PList->ncontained () << " entries.\n";
+//	cout << "PList has " << PList->ncontained () << " entries.\n";
 }
 
 
@@ -285,15 +285,14 @@ FEMakeFLabel (char *buf, const dsFile& f)
 
 
 
-
-void
-MakeLocalIndex (const char *fname)
+PlatformIndex *
+MakeDSIndex ()
 //
-// Create an index (in FILE) of the local data store.
+// Create an index of the local data store and return it.
 //
 {
 	int plat, file;
-	PlatformIndex index;
+	PlatformIndex *index = new PlatformIndex;
 //
 // Plow through the platforms.
 //
@@ -310,14 +309,33 @@ MakeLocalIndex (const char *fname)
 				dsf.name (), dsf.size (), 0,
 				&DFTable[dsf.index].df_begin,
 				&DFTable[dsf.index].df_end);
-			index.add (dsp.name (), *indf);
+			index->add (dsp.name (), *indf);
 		}
 	}
+//
+// Return the index and we are done.
+//
+	return (index);
+}
+
+
+
+
+
+
+void
+MakeLocalIndex (const char *fname)
+//
+// Create an index (in FILE) of the local data store.
+//
+{
+	PlatformIndex *index = MakeDSIndex ();
 //
 // Now we have an index; save it to the file, and let the whole thing
 // get destructed.
 //
-	index.save (fname);
+	index->save (fname);
+	delete index;
 }
 
 

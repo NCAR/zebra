@@ -38,11 +38,11 @@ extern "C"
 # include "dsmWindows.h"
 # include "Dialog.h"
 
-static char *rcsid = "$Id: MainWindow.cc,v 1.3 1993-02-23 18:14:01 corbet Exp $";
+static char *rcsid = "$Id: MainWindow.cc,v 1.4 1993-02-24 20:05:27 corbet Exp $";
 //
 // Externs.
 //
-extern void PExamine (Widget, XtPointer, XtPointer);
+extern void DoTBDelete (Widget, XtPointer, XtPointer);
 extern void LoadData (Widget, XtPointer, XtPointer);
 extern void Quit (Widget, XtPointer, XtPointer);
 void DoIndex (Widget, XtPointer, XtPointer);
@@ -89,13 +89,13 @@ dsMainWindow::dsMainWindow (const dsDisplay &disp) :
 // Look at platforms and files.
 //
 	n = 0;
-	XtSetArg (args[n], XtNlabel, "Platform and file maint."); n++;
+	XtSetArg (args[n], XtNlabel, "Disk space cleanup"); n++;
 	XtSetArg (args[n], XtNfromVert, above);			n++;
 	XtSetArg (args[n], XtNfromHoriz, left);			n++;
 	AddConstraints (args, &n);
 	left = XtCreateManagedWidget ("pandfile", commandWidgetClass, dw_form,
 			args, n);
-	XtAddCallback (left, XtNcallback, PExamine, 0);
+	XtAddCallback (left, XtNcallback, DoTBDelete, 0);
 //
 // Load data.
 //

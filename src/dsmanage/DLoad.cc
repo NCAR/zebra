@@ -38,7 +38,7 @@ extern "C"
 # include "DataDir.h"
 # include "Tape.h"
 # include "plcontainer.h"
-MAKE_RCSID ("$Id: DLoad.cc,v 1.3 1993-02-23 18:14:54 corbet Exp $")
+MAKE_RCSID ("$Id: DLoad.cc,v 1.4 1993-02-24 20:05:27 corbet Exp $")
 
 //
 // Import from main.
@@ -87,7 +87,6 @@ DLoad (PlatformIndex *index, int istape, const char * tdev, int files,
 //
 // Tell the daemon to update.
 //
-	ds_ForceRescan (0, TRUE);
 	sleep (5);	// Give daemon some time
 	MakePlatformList ();
 }
@@ -113,6 +112,7 @@ LoadFromCD (PlatformIndex *index, const char *basedir, StatusWindow &sw)
 	for (plat = 0; plat < PList->ncontained (); plat++)
 	{
 		const dsPlatform &p = PList->nth (plat);
+		int nfp = 0;
 	//
 	// If this platform is not selected, we blow it off.
 	//
@@ -126,12 +126,6 @@ LoadFromCD (PlatformIndex *index, const char *basedir, StatusWindow &sw)
 						file = file->next ())
 		{
 		//
-		// status.
-		//
-			if (sw.status (nf, nbyte))
-				return;
-			Disp->sync ();
-		//
 		// Only if it's marked.
 		//
 			if (! file->isMarked ())
@@ -139,13 +133,25 @@ LoadFromCD (PlatformIndex *index, const char *basedir, StatusWindow &sw)
 			if (nstrip < 0)
 				nstrip = FindNStrip (basedir, file->name ());
 		//
+		// status.
+		//
+			if (sw.status (nf, nbyte))
+				return;
+			Disp->sync ();
+		//
 		// OK, pull it over.
 		//
 			MoveCDFile (file->name (), basedir, nstrip, destdir);
 			nf++;
+			nfp++;
 			nbyte += file->size ();
 			Main->UpdateSpace ();
 		}
+	//
+	// If we moved anything, tell the daemon that things have changed.
+	//
+		if (nfp > 0)
+			ds_ForceRescan (p.index, FALSE);
 	}
 }
 
@@ -313,7 +319,7 @@ LoadFromTape (PlatformIndex *index, const char *dev, StatusWindow &sw,
 		cout << "No files selected!\n";
 		return;
 	}
-	cout << "First file is " << first << ".\n";
+//	cout << "First file is " << first << ".\n";
 	if (first)
 		tape.skip (first);
 //
@@ -339,7 +345,7 @@ LoadFromTape (PlatformIndex *index, const char *dev, StatusWindow &sw,
 		ExtractPlat (tp->th_name, plat);
 		if (! FileWanted (plat, tp->th_name, index))
 		{
-			cout << "Skip " << tp->th_name << ".\n";
+//			cout << "Skip " << tp->th_name << ".\n";
 			SkipTarFile (tape, tp);
 			continue;
 		}
@@ -350,6 +356,7 @@ LoadFromTape (PlatformIndex *index, const char *dev, StatusWindow &sw,
 		nf++;
 		Main->UpdateSpace ();
 	}
+	ds_ForceRescan (0, TRUE);
 }
 
 

@@ -43,7 +43,7 @@ extern "C"
 # include "dsmWindows.h"
 # include "plcontainer.h"
 
-static char *rcsid = "$Id: Examiner.cc,v 1.3 1993-02-02 19:35:33 corbet Exp $";
+static char *rcsid = "$Id: Examiner.cc,v 1.4 1993-02-24 20:05:27 corbet Exp $";
 
 //
 // Local forwards.
@@ -54,6 +54,7 @@ void NewFileExaminer (dsPlatform &);
 void dsFEMakeButtons (Widget, dsPlatform &, char *);
 void FEExecuteZap (Widget, XtPointer, XtPointer);
 void GetRidOfFile (dsPlatform &, dsFile &, int);
+void TimeBasedMode (Widget, XtPointer, XtPointer);
 
 extern void PEMakePLabel (char *, const dsPlatform&);
 extern void FEMakeFLabel (char *, const dsFile &);
@@ -91,6 +92,15 @@ dsPEWindow::dsPEWindow (const dsDisplay &disp) :
 	Arg args[10];
 	int n, plat;
 	Widget left, above = corner, vp, vpform;
+//
+// Provide the time-based option.
+//
+	n = 0;
+	XtSetArg (args[n], XtNlabel, "Time-based file cleanup"); n++;
+	XtSetArg (args[n], XtNfromVert, above);			n++;
+	above = XtCreateManagedWidget ("tbase", commandWidgetClass, dw_form,
+			args, n);
+	XtAddCallback (above, XtNcallback, TimeBasedMode, (XtPointer) this);
 //
 // Make the title label for the platform list.
 //
@@ -481,3 +491,17 @@ GetRidOfFile (dsPlatform &plat, dsFile &file, int ind)
 
 
 
+void
+TimeBasedMode (Widget w, XtPointer xfe, XtPointer x2)
+//
+// Go into the time based mode of deletion.
+//
+{
+	dsPEWindow *ex = (dsPEWindow *) xfe;
+	extern void DoTBDelete ();
+
+	cout << "Go into TB mode\n";
+	ex->popdown ();
+	
+	DoTBDelete ();
+}
