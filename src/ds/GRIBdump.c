@@ -271,20 +271,28 @@ GFpds	*pds;
 		return (0);
 	}
 /*
- * For now, we only deal with time range indicators 0 and 1.
+ * Figure out the valid time based on the time range indicator
  */
-	if (pds->range_id > 1)
+	switch (pds->range_id)
 	{
-		fprintf (stderr,
-			 "Can't deal with range indicator %d! Using zero.",
+	    case 0:
+	    case 2:
+	    case 3:
+		return (multiplier * pds->p1);
+	    case 1:
+		return (0);
+	/*
+	 * The accumulation (4) and difference (5) types are considered valid
+	 * at the reference time + p2
+	 */
+	    case 4:
+	    case 5:
+		return (multiplier * pds->p2);
+	    default:
+		fprintf (stderr, "Can't handle time range ID %d!", 
 			 pds->range_id);
 		return (0);
 	}
-
-	if (pds->range_id == 0)
-		return (multiplier * pds->p1);
-	else if (pds->range_id == 1)
-		return (0);
 }
 
 
