@@ -1,3 +1,12 @@
+Thu Aug 31 04:00:42 1995  Gary Granger  <granger@narnia.atd.ucar.edu>
+
+	* datastore: add DelayDataDirs option, which delays creating data
+	  directories until a file needs to be created there
+
+	* datastore: insert a pseudo-unique key in cache file names to
+	  allow different versions and compile configurations to easily
+	  share the same data directory tree
+
 Tue Jul 11 17:11:41 1995  Gary Granger  <granger@narnia.atd.ucar.edu>
 
 	* rearrange time widget yet again: separate help and quit buttons
