@@ -12,7 +12,7 @@
 # include "ui_mode.h"
 # include "ui_cstack.h"
 
-static char *Rcsid = "$Header: /code/cvs/rdss/rdsslibs/ui/ui_cmds.c,v 1.5 1989-03-10 16:19:15 corbet Exp $";
+static char *Rcsid = "$Id: ui_cmds.c,v 1.6 1989-06-05 16:06:52 corbet Exp $";
 
 # ifdef VMS
 # define HELPDIR "ui_help:"
@@ -89,6 +89,14 @@ struct ui_command *cmds;
 	   case UIC_MENU:
 	   	um_define (cmds[1].uc_v.us_v_ptr);
 		break;
+# ifdef XSUPPORT
+	/*
+	 * Widgets.
+	 */
+	   case UIC_WIDGET:
+	   	uw_define (UPTR (cmds[1]), UKEY (cmds[2]), UPTR (cmds[3]));
+		break;
+# endif
 	/*
 	 * Sigh.
 	 */
@@ -521,7 +529,13 @@ struct ui_command *cmds;
 	   case M_MENU:
 	   	um_mode (cmds + 1);
 		return;
-
+	   case M_WINDOW:
+# ifdef XSUPPORT
+	   	uw_mode (cmds + 1);
+# else
+		ui_error ("X support not present in this version");
+# endif
+		return;
 	   default:
 	   	ui_error ("(BUG) Unknown mode: %s", cmds->uc_text);
 	}
