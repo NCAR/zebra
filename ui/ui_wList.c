@@ -1,4 +1,4 @@
-/* $Id: ui_wList.c,v 1.3 1990-04-21 16:41:09 corbet Exp $ */
+/* $Id: ui_wList.c,v 1.4 1990-07-16 15:23:13 corbet Exp $ */
 /*
  * List-widget specific windowing code.
  */
@@ -131,7 +131,6 @@ void (*callback) ();
 	new->lw_flags = 0;
 	new->lw_nmap = 0;
 	new->lw_select = 0;
-	new->lw_flags = 0;
 	new->lw_popup = 0;
 /*
  * Turn the item list into the extended string that uw_lcreate wants.
@@ -185,6 +184,7 @@ uw_list_def ()
 	new->lw_type = WT_LIST;
 	new->lw_create = uw_lcreate;
 	new->lw_destroy = uw_ldestroy;
+	new->lw_flags = 0;
 	new->lw_cb = ui_perform;
 	new->lw_nmap = 0;
 /*
