@@ -1,4 +1,4 @@
-/* $Id: dm.h,v 1.3 1990-07-08 12:59:21 corbet Exp $ */
+/* $Id: dm.h,v 1.4 1991-01-10 09:04:24 corbet Exp $ */
 /*
  * Display manager stuff.
  */
@@ -15,6 +15,7 @@
 # define DM_REALTIME	10	/* Real time mode		*/
 # define DM_EVBIND	11	/* Event binding change		*/
 # define DM_PARCHANGE	12	/* Individual PD parameter change */
+# define DM_WBOX	13	/* Window box request/reply	*/
 
 /*
  * Color table stuff.
@@ -69,6 +70,24 @@ struct dm_event
 	char dmm_data[MAXADATA];	/* The DM data		*/
 };
 
+
+/*
+ * Requests for window boxes.
+ */
+struct dm_rq_wbox
+{
+	int	dmm_type;		/* = DM_WBOX		*/
+	char	dmm_window[MAXADATA];	/* Window name		*/
+};
+
+struct dm_rp_wbox
+{
+	int	dmm_type;		/* = DM_WBOX		*/
+	int	dmm_success;		/* Did it work?		*/
+	float	dmm_x0, dmm_y0;		/* Origin		*/
+	float	dmm_x1, dmm_y1;
+	float	dmm_alt;		/* What the heck?	*/
+};
 
 
 /*

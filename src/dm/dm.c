@@ -11,7 +11,7 @@
 # include "dm_cmds.h"
 # include "../include/timer.h"
 
-static char *rcsid = "$Id: dm.c,v 1.14 1990-12-04 16:06:53 corbet Exp $";
+static char *rcsid = "$Id: dm.c,v 1.15 1991-01-10 09:04:15 corbet Exp $";
 
 /*
  * Definitions of globals.
@@ -36,12 +36,14 @@ static bool Restart = TRUE;
 
 
 # ifdef __STDC__
+	static void do_wbox (char *, struct dm_rq_wbox *);
 	int dm_shutdown (void);
 	static bool ResolveLinks (struct config *, struct ui_command *);
 	void SEChange (char *, int, int, int, SValue *, int, SValue *);
 # else
-	int dm_shutdown (void);
-	static bool ResolveLinks (struct config *, struct ui_command *);
+	static void do_wbox ();
+	int dm_shutdown ();
+	static bool ResolveLinks ();
 	void SEChange ();
 # endif
 
@@ -720,7 +722,13 @@ struct dm_msg *dmsg;
 		rpd.rp_data = dmp->dmm_pdesc;
 		win->cfw_pd = pd_Load (&rpd);
 		break;
-		
+	/*
+	 * Nosy windows checking up on each other's coords.
+	 */
+	   case DM_WBOX:
+	   	do_wbox (from, (struct dm_rq_wbox *) dmsg);
+		break;
+
 	   default:
 	   	msg_ELog (EF_PROBLEM, "Funky DMSG type %d from %s\n",
 			dmsg->dmm_type, from);
@@ -1305,4 +1313,57 @@ SValue *oldv, *newv;
 	bool send = newv->us_v_int;
 
 	msg_send ("Sound", MT_SOUND, FALSE, &send, 1);
+}
+
+
+
+
+
+static void
+do_wbox (from, wb)
+char *from;
+struct dm_rq_wbox *wb;
+/*
+ * Deal with a window box request.
+ */
+{
+	struct cf_window *win = lookup_win (wb->dmm_window, TRUE);
+	struct dm_rp_wbox reply;
+	char ptype[30];
+/*
+ * If this window is not active, we can't do anything.
+ */
+	reply.dmm_type = DM_WBOX;
+	reply.dmm_success = FALSE;
+	if (! win)
+		goto reply;
+/*
+ * For now, we only cope with windows with a CAP plot type.
+ */
+	if (! win->cfw_pd ||
+			! pda_Search (win->cfw_pd, "global", "plot-type", NULL,
+					ptype, SYMT_STRING) ||
+			strcmp (ptype, "CAP"))
+		goto reply;
+/*
+ * Pull out the params.
+ */
+	if (! pda_Search (win->cfw_pd, "global", "x-min", NULL, 
+				(char *) &reply.dmm_x0, SYMT_FLOAT) ||
+		! pda_Search (win->cfw_pd, "global", "x-max", NULL,
+				(char *) &reply.dmm_x1, SYMT_FLOAT) ||
+		! pda_Search (win->cfw_pd, "global", "y-min", NULL,
+				(char *) &reply.dmm_y0, SYMT_FLOAT) ||
+		! pda_Search (win->cfw_pd, "global", "y-max", NULL,
+				(char *) &reply.dmm_y1, SYMT_FLOAT))
+		goto reply;
+	if (! pda_Search (win->cfw_pd, "global", "altitude", NULL,
+				(char *) &reply.dmm_alt, SYMT_FLOAT))
+		reply.dmm_alt = 0;
+/*
+ * Looks like it worked.
+ */
+	reply.dmm_success = TRUE;
+reply:
+	msg_send (from, MT_DISPLAYMGR, FALSE, &reply, sizeof (reply));
 }
