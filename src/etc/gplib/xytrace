@@ -1,7 +1,7 @@
 !
 ! XYGraph[simple] support stuff.
 !
-! $Id: xytrace,v 1.17 2001-07-10 17:36:16 granger Exp $
+! $Id: xytrace,v 1.18 2002-09-18 21:38:03 granger Exp $
 
 require xyaxes
 require annotation
@@ -458,7 +458,7 @@ enddef
 
 procedure xyta-popup
 	local c icon_component
-	local f PDParam(c,'y-field')
+	local f SimpleFieldName(PDParam(c,'y-field'))
 	formtext #ui$form comp #c
 !
 ! Do the time period.
