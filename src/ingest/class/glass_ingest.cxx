@@ -1,5 +1,5 @@
 /* -*- mode: c++; c-basic-offset: 8; -*-
- * $Id: glass_ingest.cxx,v 2.14 2002-04-25 07:32:37 granger Exp $
+ * $Id: glass_ingest.cxx,v 2.15 2002-04-25 21:55:32 granger Exp $
  *
  * Ingest GLASS data into the system.
  *
@@ -74,7 +74,7 @@ extern "C"
 #include <met_formulas.h>
 }
 
-RCSID("$Id: glass_ingest.cxx,v 2.14 2002-04-25 07:32:37 granger Exp $")
+RCSID("$Id: glass_ingest.cxx,v 2.15 2002-04-25 21:55:32 granger Exp $")
 
 #include <ZTime.h>
 #define FC_DEFINE_FIELDS
@@ -339,6 +339,9 @@ struct Sounding
 	F_REDIRECT(temp)
 	F_REDIRECT(rh)
 	F_REDIRECT(tdelta)		
+	F_REDIRECT(wdir)		
+	F_REDIRECT(wspd)		
+	F_REDIRECT(dz)		
 	F_REDIRECT(lat)		
 	F_REDIRECT(lon)		
 	F_REDIRECT(alt)		
@@ -530,6 +533,17 @@ GlassIngest (int argc, char *argv[])
 	dsDetail details[4];
 	int ndetail = 0;
 /*
+ * Build the command-line history before removing any options.
+ **/
+	string history;
+	for (int i = 0; i < argc; ++i)
+	{
+		history += argv[i];
+		history += " ";
+	}
+	history += "\n";
+	history += Z_rcsid();
+/*
  * Get our command-line options, setting appropriate global variables.
  * Only the file name should remain.
  */
@@ -566,6 +580,8 @@ GlassIngest (int argc, char *argv[])
  * Create a new data chunk.
  */
 	Dchunk = CreateSoundingDC(snd);
+	dc_SetGlobalAttr (Dchunk, "history", 
+			  const_cast<char*>(history.c_str()));
 /*
  * Open sounding file, get platform name and check for validity
  */
@@ -1217,6 +1233,18 @@ ReadSamples (DataChunk *dc, char *file, Sounding &snd)
 		when = snd.tlaunch;
 		when += snd.tdelta().value();
 
+		// Translate various other bad values used by Aspen "class
+		// format" output.
+		if (snd.pres() == 9999.0) snd.pres() = BADVAL;
+		if (snd.temp() == 999.0) snd.temp() = BADVAL;
+		if (snd.rh() == 999.0) snd.rh() = BADVAL;
+		if (snd.wdir() == 999.0) snd.wdir() = BADVAL;
+		if (snd.wspd() == 999.0) snd.wspd() = BADVAL;
+		if (snd.dz() == 99.0) snd.dz() = BADVAL;
+		if (snd.lon() == 999.0) snd.lon() = BADVAL;
+		if (snd.lat() == 999.0) snd.lat() = BADVAL;
+		if (snd.alt() == 99999.0) snd.alt() = BADVAL;
+		    
 		if (snd.pres() == BADVAL)
 		{
 #ifdef notdef
@@ -1238,6 +1266,7 @@ ReadSamples (DataChunk *dc, char *file, Sounding &snd)
 		else
 		{
 			dp = cfinput.dp;
+			if (dp == 999.0) dp = BADVAL;
 		}
 
 		// Records with negative tdelta are stored as surface fields.
