@@ -1,7 +1,7 @@
 !
 ! Display manager widgets.
 !
-! $Id: dm.widgets,v 1.35 2000-06-07 22:54:06 granger Exp $
+! $Id: dm.widgets,v 1.36 2000-11-10 22:54:41 granger Exp $
 !
 
 define widget SaveConfig form 'Configuration saver'
@@ -375,67 +375,6 @@ procedure putc4 comp string p1 string v1 string p2 string v2 string p3 string v3
 endprocedure
 
 
-!!! Supplanted by built-in require mechanism.
-!
-! The dm equivalent for the require mechanism.  Tries to read
-! the given file name (usually the command name) in the DmModPath
-! directory.
-!
-!procedure require cmd string
-!
-!	if (not defined (concat ('ui$procedure_table:',cmd)))
-!		local fname concat3(dmmodpath,'/',cmd)
-!		message '	Trying to load #' fname
-!		set delayread 'read'
-!		#delayread #fname
-!	endif
-!
-!endprocedure
-
-
-!
-! Code to connect PutScalar to skewt windows.
-!
-procedure sk-add-data platform string field string target string
-!
-! ISS compatibility: see if we need to append a "/omega" here.
-!
-	if (RealPlatform (concat (platform, '/omega')))
-		local platform concat(platform, '/omega')
-	endif
-!
-! Find the name of the second component (i.e. what we assume is the real
-! data component).  Also check the overlay mode.
-!
-	local comp NthComp(target, 1)
-	local mode PDParam(target,comp,'overlay-mode')
-!
-! If they are not in overlay mode just bash it in directly.  (Direct test
-! on false since true is default)
-!
-	if (mode = 'false')
-		parameter #target #comp platform #platform
-		return
-	endif
-!
-! OK implement overlaying for them.
-!
-	if (nvalue (target, comp, 'platform') >= 3)
-		message 'Too many platforms.  Reset window to initial state.'
-		beep
-	else
-		local explat PDParam(target,comp,'platform')
-		if (explat = 'null')
-		   	local explat platform
-		else
-			local explat concat3(explat, ',', platform)
-		endif
-		parameter #target #comp platform #explat
-	endif
-endprocedure
-
-
-
 procedure ShipScalar platform string field string target_win string
 !
 ! Start by figuring out if there is a special command for adding 
@@ -464,6 +403,7 @@ procedure ShipScalar platform string field string target_win string
 		return
 	endif
 	if (ptype = 'skewt')
+		require sk-add-data
 		sk-add-data #platform #field #target_win
 		return
 	endif
@@ -993,5 +933,5 @@ procedure AllXSect x0 string y0 string x1 string y1 string
 endprocedure
 
 procedure dm_widgets_id
-	local '$Id: dm.widgets,v 1.35 2000-06-07 22:54:06 granger Exp $'
+	local '$Id: dm.widgets,v 1.36 2000-11-10 22:54:41 granger Exp $'
 endprocedure
