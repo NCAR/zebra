@@ -137,6 +137,7 @@ int G_text (overlay ov, int color, int font, double height, int hjust,
 int G_tx_box (overlay ov, int font, double height, int hjust, int vjust,
 	double x, double y, char *text, float *x0, float *y0, float *x1,
 	float *y1);
+int G_untarget (overlay ov);
 void G_update (ws sta);
 int G_viewport (overlay ov, double x0, double y0, double x1, double y1);
 int G_visible (overlay ov, int state);
@@ -162,6 +163,7 @@ int G_target ();
 int G_tex_font ();
 int G_text ();
 int G_tx_box ();
+int G_untarget ();
 void G_update ();
 int G_viewport ();
 int G_visible ();
