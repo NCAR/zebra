@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: ScanOptions.c,v 1.5 1993-10-20 22:46:22 burghart Exp $";
+static char *rcsid = "$Id: ScanOptions.c,v 1.6 1993-10-21 17:59:16 burghart Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -555,7 +555,7 @@ so_CreateDisplayWidget ()
 /*
  * Buttons to change radar displayed and the radar label
  */
-	w = wbuttons = LeftRightButtons (form, so_ChangeRadar);
+	w = wbuttons = LeftRightButtons (form, so_ChangeRadar, NULL);
 
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, w); n++;
@@ -589,7 +589,7 @@ so_CreateDisplayWidget ()
 	XtSetArg (args[n], XtNlabel, "Remove"); n++;
 	w = XtCreateManagedWidget ("remove", commandWidgetClass, form, 
 		args, n);
-	XtAddCallback (w, XtNcallback, so_RemoveDisplay, 0);
+	XtAddCallback (w, XtNcallback, so_RemoveDisplay, (XtPointer) 0);
 /*
  * AsciiText widget to hold the scan info
  */

@@ -1,4 +1,4 @@
-/* $Id: Imakefile,v 1.4 1993-10-20 22:46:17 burghart Exp $ */
+/* $Id: Imakefile,v 1.5 1993-10-21 17:59:11 burghart Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -19,7 +19,7 @@
 
 LIBS=$(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
 
-OBJS = Optimizer.o Bitmaps.o Boundary.o CommandWidget.o GenScan.o \
+OBJS = Optimizer.o Boundary.o CommandWidget.o GenScan.o \
 	MainWidget.o RadarWidget.o ScanOptions.o SendWidget.o
 
 SRCS = $(OBJS:.o=.c)

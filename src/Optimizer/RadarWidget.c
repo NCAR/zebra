@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: RadarWidget.c,v 1.5 1993-10-20 22:46:20 burghart Exp $";
+static char *rcsid = "$Id: RadarWidget.c,v 1.6 1993-10-21 17:59:13 burghart Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -132,7 +132,7 @@ Widget	parent;
 /*
  * Next and prev radar buttons
  */
-	w = WChangeRad = LeftRightButtons (form, rw_ChangeRad);
+	w = WChangeRad = LeftRightButtons (form, rw_ChangeRad, NULL);
 	
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, NULL); n++;
@@ -152,7 +152,7 @@ Widget	parent;
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, w); n++;
 	XtSetArg (args[n], XtNfromVert, NULL); n++;
-	WRadName = XtCreateManagedWidget ("radarLabel", labelWidgetClass,
+	w = WRadName = XtCreateManagedWidget ("radarLabel", labelWidgetClass,
 		form, args, n);
 	XtSetValues (WRadName, ldefaults, nldefs);
 /*
@@ -184,7 +184,7 @@ Widget	parent;
  */
 	w_above = w;
 
-	w = LeftRightButtons (form, rw_ChangeType);
+	w = LeftRightButtons (form, rw_ChangeType, NULL);
 
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, NULL); n++;
@@ -196,7 +196,7 @@ Widget	parent;
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, w); n++;
 	XtSetArg (args[n], XtNfromVert, w_above); n++;
-	WScanType = XtCreateManagedWidget ("stypeLabel", labelWidgetClass,
+	w = WScanType = XtCreateManagedWidget ("stypeLabel", labelWidgetClass,
 		form, args, n);
 	XtSetValues (WScanType, ldefaults, nldefs);
 /*
@@ -204,7 +204,7 @@ Widget	parent;
  */
 	w_above = w;
 
-	w = LeftRightButtons (form, rw_ChangeStatus);
+	w = LeftRightButtons (form, rw_ChangeStatus, NULL);
 
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, NULL); n++;
@@ -216,7 +216,7 @@ Widget	parent;
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, w); n++;
 	XtSetArg (args[n], XtNfromVert, w_above); n++;
-	WStatus = XtCreateManagedWidget ("statusLabel", labelWidgetClass,
+	w = WStatus = XtCreateManagedWidget ("statusLabel", labelWidgetClass,
 		form, args, n);
 	XtSetValues (WStatus, ldefaults, nldefs);
 /*
@@ -224,7 +224,7 @@ Widget	parent;
  */
 	w_above = w;
 
-	w = LeftRightButtons (form, rw_ChangeHits);
+	w = LeftRightButtons (form, rw_ChangeHits, NULL);
 
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, NULL); n++;
@@ -236,7 +236,7 @@ Widget	parent;
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, w); n++;
 	XtSetArg (args[n], XtNfromVert, w_above); n++;
-	WHits = XtCreateManagedWidget ("hitsLabel", labelWidgetClass,
+	w = WHits = XtCreateManagedWidget ("hitsLabel", labelWidgetClass,
 		form, args, n);
 	XtSetValues (WHits, ldefaults, nldefs);
 /*
@@ -244,7 +244,7 @@ Widget	parent;
  */
 	w_above = w;
 
-	w = LeftRightButtons (form, rw_ChangeStep);
+	w = LeftRightButtons (form, rw_ChangeStep, NULL);
 
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, NULL); n++;
@@ -256,7 +256,7 @@ Widget	parent;
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, w); n++;
 	XtSetArg (args[n], XtNfromVert, w_above); n++;
-	WStep = XtCreateManagedWidget ("stepLabel", labelWidgetClass,
+	w = WStep = XtCreateManagedWidget ("stepLabel", labelWidgetClass,
 		form, args, n);
 	XtSetValues (WStep, ldefaults, nldefs);
 /*

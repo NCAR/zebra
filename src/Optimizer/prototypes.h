@@ -1,6 +1,6 @@
 /*
  * Prototypes for public functions
- * $Id: prototypes.h,v 1.2 1991-09-17 16:32:03 burghart Exp $
+ * $Id: prototypes.h,v 1.3 1993-10-21 17:59:18 burghart Exp $
  */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -28,7 +28,6 @@
 	void	bm_BuildBitmaps (Widget);
 	Widget	cw_CWidget (Widget);
 	void	GenScan (Radar *, double, double, double, int);
-	Widget	LeftRightButtons (Widget, void (*)());
 	Widget	mw_MainWidget (Widget);
 	void	opt_Finish (void);
 	Widget	rw_RWidget (Widget);
@@ -41,7 +40,6 @@
 	void	bm_BuildBitmaps ();
 	Widget	cw_CWidget ();
 	void	GenScan ();
-	Widget	LeftRightButtons ();
 	Widget	mw_MainWidget ();
 	void	opt_Finish ();
 	Widget	rw_RWidget ();
