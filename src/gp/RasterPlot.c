@@ -1,7 +1,7 @@
 /*
  * Raster display a rectangular array
  */
-static char *rcsid = "$Id: RasterPlot.c,v 2.4 1992-10-14 21:19:17 burghart Exp $";
+static char *rcsid = "$Id: RasterPlot.c,v 2.5 1992-12-18 08:30:34 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -23,14 +23,30 @@ static char *rcsid = "$Id: RasterPlot.c,v 2.4 1992-10-14 21:19:17 burghart Exp $
 # include <errno.h>
 # include <math.h>
 # include <X11/Intrinsic.h>
-# include "../include/defs.h"
-# include "../include/message.h"
+# include "config.h"		/* dependent on changes in SHM def */
+# include "defs.h"
+# include "message.h"
 # include "GraphicsW.h"
 
 # ifdef TIMING
 # include <sys/time.h>
 # include <sys/resource.h>
 # endif
+
+/*
+ * Shared memory ximages, if we can.
+ */
+# ifdef SHM
+# 	include <sys/ipc.h>
+# 	include <sys/shm.h>
+# 	include <X11/extensions/XShm.h>
+# endif
+
+# ifdef SHM
+static char shmopt[] = "$XShm: Compiled $";
+# else
+static char shmopt[] = "$XShm: NOT Compiled $";
+# endif /* SHM */
 
 /*
  * A macro to reference the data array two dimensionally
@@ -60,10 +76,34 @@ static float	Datamin, Datamax, Datarange;
  */
 static XRectangle	Clip;
 
-/*
- * Forwards.
+
+/*--------------------------------------------------
+ * Public prototypes
  */
-void RP_FPRasterize FP((
+void RasterPlot FP ((Widget w, Drawable d, float *array, 
+		     int xdim, int ydim,
+		     int xlo, int ylo, int xhi, int yhi));
+void RP_Init FP ((XColor *colors, int count, XColor c_outrange,
+		  XRectangle clip, float dmin, float dmax, 
+		  Boolean highlight, float hvalue, XColor hcolor,
+		  float hrange));
+void RasterImagePlot FP ((Widget w, int frame, unsigned char *grid,
+			  int xd, int yd, int xlo, int ylo, int xhi, int yhi,
+			  float scale, float bias));
+void RasterXIPlot FP ((Widget w, Drawable d, float *array, 
+		       int xdim, int ydim, 
+		       int xlo, int ylo, int xhi, int yhi,
+		       bool fast));
+
+# ifdef SHM
+void RP_ZapSHMImage FP ((Widget w));
+# endif
+
+
+/*--------------------------------------------------
+ * Private forwards
+ */
+static void RP_FPRasterize FP((
 	unsigned char *ximp,
 	int width, int height, 
 	unsigned int *colgrid, 
@@ -72,7 +112,7 @@ void RP_FPRasterize FP((
 	int xdim, 
 	int pad));
 
-void RP_IRasterize FP((
+static void RP_IRasterize FP((
 	unsigned char *ximp,
 	int width, int height, 
 	unsigned int *colgrid, 
@@ -82,31 +122,31 @@ void RP_IRasterize FP((
 	int pad));
 
 static XImage *RP_GetXImage FP((Widget, int, int));
-static void RP_ImageRasterize FP((unsigned char *, int, int,
-		unsigned char *, unsigned char *, double, double, double,
-		double, int, int));
 
-/*
- * Shared memory ximages, if we can.
- */
+static void RP_ImageRasterize FP ((unsigned char *ximp,
+				   int width, int height,
+				   unsigned char *grid,
+				   unsigned char *cmap,
+				   float row, float icol, 
+				   float rowinc, float colinc,
+				   int xdim, int pad));
+
 # ifdef SHM
-# include <sys/ipc.h>
-# include <sys/shm.h>
-# include <X11/extensions/XShm.h>
-
-static bool RP_ShmPossible ();
-static XImage *RP_GetSharedXImage ();
+static bool RP_ShmPossible FP ((Display *disp));
+static XImage *RP_GetSharedXImage FP ((Widget w, int width, int height));
 # endif
 
+/*--------------------------------------------------end prototypes--*/
 
 
 
+void
 RasterPlot (w, d, array, xdim, ydim, xlo, ylo, xhi, yhi)
 Widget	w;
-Drawable 	d;
+Drawable d;
 float	*array;
-int	xlo, ylo, xhi, yhi;
 int	xdim, ydim;
+int	xlo, ylo, xhi, yhi;
 /*
  * Draw contours of the rectangular (xdim x ydim) array into widget w.
  * The coordinates (xlo,ylo) and (xhi,yhi) specify the spatial extent of
@@ -210,11 +250,15 @@ int	xdim, ydim;
 void
 RP_Init (colors, count, c_outrange, clip, dmin, dmax, highlight, hvalue, 
 	hcolor, hrange)
+XColor	*colors;
 int	count;
-XColor	*colors, c_outrange, hcolor;
-XRectangle	clip;
+XColor	c_outrange; 
+XRectangle clip;
+float	dmin, dmax;
 Boolean	highlight;
-float	dmin, dmax, hvalue, hrange;
+float	hvalue;
+XColor	hcolor;
+float	hrange;
 /*
  * Initialize colors and data flagging
  *
@@ -248,14 +292,14 @@ float	dmin, dmax, hvalue, hrange;
 
 
 
-
+void
 RasterXIPlot (w, d, array, xdim, ydim, xlo, ylo, xhi, yhi, fast)
 Widget	w;
-Drawable 	d;
+Drawable d;
 float	*array;
-int	xlo, ylo, xhi, yhi;
 int	xdim, ydim;
-bool fast;
+int	xlo, ylo, xhi, yhi;
+bool	fast;
 /*
  * Draw contours of the rectangular (xdim x ydim) array into widget w.
  * The coordinates (xlo,ylo) and (xhi,yhi) specify the spatial extent of
@@ -410,11 +454,12 @@ Display *disp;
 
 void
 RP_FPRasterize (ximp, width, height, colgrid, row, icol, rowinc, colinc,
-	xdim, pad)
-unsigned char *ximp;
-int width, height, xdim, pad;
-unsigned int *colgrid;
-float row, icol, rowinc, colinc;
+		xdim, pad)
+unsigned char	*ximp;
+int 		width, height;
+unsigned int 	*colgrid;
+float 		row, icol, rowinc, colinc;
+int 		xdim, pad;
 /*
  * Do rasterization using the old floating point (Ardent vectorizable) 
  * method.
@@ -533,7 +578,7 @@ Widget w;
 	}
 }
 
-# endif
+# endif /* SHM */
 
 
 
@@ -579,13 +624,14 @@ int width, height;
 
 
 
-void
+static void
 RP_IRasterize (ximp, width, height, colgrid, row, icol, rowinc, colinc,
 	xdim, pad)
-unsigned char *ximp;
-int width, height, xdim, pad;
-unsigned int *colgrid;
-float row, icol, rowinc, colinc;
+unsigned char 	*ximp;
+int 		width, height;
+unsigned int 	*colgrid;
+float 		row, icol, rowinc, colinc;
+int		xdim, pad;
 /*
  * Do rasterization using the new integer-based (Sun-fast) method.
  */
@@ -634,11 +680,11 @@ float row, icol, rowinc, colinc;
 
 void
 RasterImagePlot (w, frame, grid, xd, yd, xlo, ylo, xhi, yhi, scale, bias)
-Widget w;
-int frame;
-unsigned char *grid;
-int xd, yd, xlo, ylo, xhi, yhi;
-float scale, bias;
+Widget		w;
+int 		frame;
+unsigned char 	*grid;
+int 		xd, yd, xlo, ylo, xhi, yhi;
+float 		scale, bias;
 /*
  * Do a raster plot of a raster image.
  */
@@ -751,11 +797,13 @@ float scale, bias;
 
 static void
 RP_ImageRasterize (ximp, width, height, grid, cmap, row, icol, rowinc, colinc,
-	xdim, pad)
-unsigned char *ximp, *cmap;
-int width, height, xdim, pad;
-unsigned char *grid;
-float row, icol, rowinc, colinc;
+		   xdim, pad)
+unsigned char 	*ximp;
+int 		width, height;
+unsigned char 	*grid;
+unsigned char	*cmap;
+float 		row, icol, rowinc, colinc;
+int		xdim, pad;
 /*
  * Do rasterization using the new integer-based (Sun-fast) method.
  */
@@ -791,5 +839,4 @@ float row, icol, rowinc, colinc;
 		ximp += pad;	/* End of raster line padding.	*/
 	}
 }
-
 
