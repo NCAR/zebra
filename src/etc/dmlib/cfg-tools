@@ -1,0 +1,90 @@
+! $Id: cfg-tools,v 1.1 2000-11-10 22:03:25 granger Exp $
+!
+! Define some procedures for flexible configuration editing
+!
+
+!
+! Point to a window and delete it
+!
+procedure point-and-shoot
+	set victim 'none'
+	pickwin victim
+	if (victim <> 'none')
+		message "Killing #" victim
+		kill #victim
+	else
+		beep
+	endif
+endprocedure
+
+!
+! Remove configuration.  Looks for the current configuration in
+! ConfigDir and moves it to the ./removed directory.  
+!
+procedure cfg-remove
+
+	local file concat3(ConfigDir,"/",dm$config)
+	local dest concat3(" ./removed","/",dm$config)
+
+	shell "mkdir ./removed >/dev/null 2>&1"
+	message "#" concat3("mv -f ",file,dest)
+	shell concat3("mv -f ",file,dest)
+	local file concat(file,".dc")
+	local dest concat(dest,".dc")
+	message "#" concat3("mv -f ",file,dest)
+	shell concat3("mv -f ",file,dest)
+	display empty
+
+endprocedure
+
+
+!
+! Used to restore a config by first changing to this one
+!
+config none
+endconfig
+
+!
+! Restore the configuration to its last saved state.  This amounts to
+! switching to the none configuration and back to the current one.
+!
+procedure cfg-restore
+	local original dm$config
+
+	display none
+	display #original
+endprocedure
+
+
+!
+! Create a graphic window, passing the 'rename' option so that we get a
+! unique name instead of failing.
+!
+prototype fallback Graphic gp gp.init
+
+procedure create-window name string pdname string bmap string
+	newgraphic Graphic #name #pdname forcepd buttonmap #bmap rename
+endprocedure
+
+
+!
+! Provide a fallback Clock class in case one not defined elsewhere,
+! and use the class to instantiate a clock window.  We assume the pd
+! whiteclock is already defined.
+!
+prototype fallback Clock fccclock
+
+procedure create-clock
+	newgraphic Clock Clock whiteclock buttonmap default
+endprocedure
+
+
+!
+! Define our place holder procedure, indicating this module has
+! already been loaded
+!
+procedure cfg-tools
+	local nop 0
+	set nop 1
+endprocedure
+
