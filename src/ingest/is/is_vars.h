@@ -1,7 +1,7 @@
 /*
  * IS variables.
  * 
- * $Id: is_vars.h,v 1.8 1992-08-28 23:36:36 barrett Exp $
+ * $Id: is_vars.h,v 1.9 1995-01-07 23:57:32 martin Exp $
  */
 /*
  * Copyright (C) 1987,88,89,90,91 by UCAR University Corporation for
@@ -60,7 +60,11 @@ struct is_config {
 				 * this configuration */
 	char            ingest_file[MAX_FILE_NAME];	/* complet path name of
 							 * file to ingest */
+#ifdef SVR4
+	pid_t           pid;	/* process id of running ingestor */
+#else
 	int             pid;	/* process id of running ingestor */
+#endif
 	char            basename[MAX_FILE_NAME];	/* just the basename of
 							 * the file to ingest */
 	char            rollover;	/* true if an ingester was rerun

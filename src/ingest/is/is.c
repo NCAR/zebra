@@ -1,7 +1,7 @@
 /*
  * Ingest scheduler
  */
-static char    *rcsid = "$Id: is.c,v 1.17 1994-11-17 03:42:24 granger Exp $";
+static char    *rcsid = "$Id: is.c,v 1.18 1995-01-07 23:57:29 martin Exp $";
 
 /*
  * Copyright (C) 1987,88,89,90,91 by UCAR University Corporation for
@@ -83,7 +83,9 @@ main(argc, argv)
 	char            loadfile[100];
 	stbl            vtable;
 	Widget          top;
-	
+#ifdef SVR4
+	struct sigaction act;
+#endif
 
 	/*
 	 * Hook into the message handler.
@@ -150,7 +152,27 @@ main(argc, argv)
 	 * process status
 	 */
 
+/*
+Stevens (pg. 277) specifies the following behaviors for the signal() and sigaction calls:
+
+Functions   Systems    Signal handler     Ability to         Auto restart of interrupted
+                      remains installed   block signals      system calls?
+
+signal()    4.3BSD          Y                  Y                 default
+
+sigaction()  SVR4           Y                  Y                 optional
+
+*/
+
+#ifdef SVR4
+	act.sa_handler = sigchldHandler;
+	sigemptyset(&act.sa_mask);
+	act.sa_flags = 0;
+	act.sa_flags |= SA_RESTART;
+	sigaction(SIGCHLD, &act, (struct sigaction *)0);
+#else
 	signal(SIGCHLD, sigchldHandler);
+#endif
 
 	/*
 	 * Interpret commands.
@@ -359,7 +381,11 @@ start_cfg(name, type, v, all)
 	 */
 
 	int             i;
+#ifdef SVR4
+	pid_t           pid;
+#else
 	int             pid;
+#endif
 	struct is_config *cfg = (struct is_config *) v->us_v_ptr;
 
 	extern int      errno;
@@ -791,11 +817,18 @@ cfg_go(cfg)
 	struct is_config *cfg;
 {
 	int             i;
+#ifdef SVR4
+	pid_t           pid;
+#else
 	int             pid;
+#endif
 
 	static char    *new_args[MAX_PROC_ARGS];
 	extern int      errno;
 	char           *ptr_proc, *ptr_ifile;
+#ifdef SVR4
+	sigset_t 	sig_set;
+#endif
 
 	/*
 	 * this is the most important function in the whole mess. It is
@@ -867,7 +900,12 @@ cfg_go(cfg)
 		 * allow child to take full responsibilty and get all of his
 		 * signals
 		 */
+#ifdef SVR4
+		sigemptyset(&sig_set);
+		sigprocmask(SIG_SETMASK, &sig_set, (sigset_t *)0);
+#else
 		sigsetmask(0);
+#endif
 
 		execv(cfg->process, new_args);
 		printf("Unable to exec %s\n", cfg->process);
@@ -916,12 +954,16 @@ cfg_go(cfg)
 }
 
 
-static int     *exit_status;
+static int     exit_status;
 void
 sigchldHandler()
 {
 
+#ifdef SVR4
+	pid_t           pid;
+#else
 	int             pid;
+#endif
 	int             process_term();
 
 	/*
@@ -961,8 +1003,13 @@ terminating. If it does matche, do the following:
 	int             i;
 	struct is_config *cfg = (struct is_config *) v->us_v_ptr;
 	char           *ptr_proc;
+#ifdef SVR4
+	pid_t           wait_ret;
+	pid_t           pid;
+#else
 	int             wait_ret;
 	int             pid;
+#endif
 	int             wait_err;
 
 	pid = cfg->pid;
@@ -973,17 +1020,24 @@ terminating. If it does matche, do the following:
 	msg_ELog(EF_DEBUG, " calling wait4() for %d", pid);
 
 	if ((wait_ret =
+#ifdef SVR4
+	     waitpid(pid,
+		   &exit_status,
+		   WNOHANG) == pid))
+#else
 	     wait4(pid,
 		   &exit_status,
 		   WNOHANG,
-		   (struct rusage *) 0)) == pid) {
+		   (struct rusage *) 0)) == pid) 
+#endif
+	  {
 
-		msg_ELog(EF_DEBUG, " wait4() found %d", pid);
+		msg_ELog(EF_DEBUG, " found pid %d", pid);
 
 		ptr_proc = last_part(cfg->process, '/');
 
-		if (WIFEXITED(exit_status)) {
 			/* process exited using exit() */
+		if (WIFEXITED(exit_status)) {
 			msg_ELog(EF_INFO,
 				 "%s      [%d]%s has exited with status %d",
 				 name, pid, ptr_proc,
@@ -1007,13 +1061,13 @@ terminating. If it does matche, do the following:
 	} else {
 		if (wait_ret == 0) {
 			msg_ELog(EF_DEBUG,
-				 " wait4() did not find %d",
+				 " did not find pid %d",
 				 pid);
 		} else {
 			wait_err = errno;
 			if (wait_err != ECHILD) {
 				msg_ELog(EF_PROBLEM,
-					 " wait4() returned %d, pid %d, errno is %d:%s",
+					 " wait4() or waitpid returned %d, pid %d, errno is %d:%s",
 					 wait_ret, pid, wait_err,
 					 sys_errlist[wait_err]);
 			} else {
