@@ -35,12 +35,15 @@
 # include <X11/Xaw/Command.h>
 # include <X11/Xaw/Label.h>
 # include <X11/Xaw/MenuButton.h>
-# include <X11/Xaw/SimpleMenu.h>
-# include <X11/Xaw/SmeBSB.h>
-# include <X11/Xaw/SmeLine.h>
 # include <X11/Xaw/Cardinals.h>
 # include <X11/Xaw/Dialog.h>
 # include <X11/Xaw/Toggle.h>
+
+# include <RdssMenu.h>
+# include <SmeMenu.h>
+# include <X11/Xaw/SmeBSB.h>
+# include <X11/Xaw/SmeLine.h>
+
 # include <defs.h>
 # include <zl_symbol.h>
 # include <message.h>
@@ -49,7 +52,7 @@
 # include <config.h>
 # include <copyright.h>
 
-RCSID ("$Id: EventLogger.c,v 2.43 2000-04-11 19:53:00 burghart Exp $")
+RCSID ("$Id: EventLogger.c,v 2.44 2001-11-30 00:45:07 granger Exp $")
 
 # define LOGNAME "EventLogger"
 
@@ -792,7 +795,7 @@ Widget left;
  */
 	n = 0;
 	XtSetArg (args[n], XtNlabel, "Debugging");	n++;
-	ProcMenu = XtCreatePopupShell ("Processes", simpleMenuWidgetClass,
+	ProcMenu = XtCreatePopupShell ("Processes", rdssMenuWidgetClass,
 		Top, args, n);
 /*
  * The actual entries will be created as the connect notifications arrive.
@@ -836,7 +839,7 @@ int deflt;
  */
 	n = 0;
 	XtSetArg (args[n], XtNlabel, "Period");	n++;
-	menu = XtCreatePopupShell ("Timestamps", simpleMenuWidgetClass,
+	menu = XtCreatePopupShell ("Timestamps", rdssMenuWidgetClass,
 				   Top, args, n);
 	XtCreateManagedWidget ("line", smeLineObjectClass, menu, NULL, 0);
 	XtSetArg (args[0], XtNleftMargin, check_width + 7);
@@ -1146,7 +1149,7 @@ int *maskp;	/* Pointer to the mask field which will be changed	*/
 /*
  * Make the pulldown.
  */
-	pulldown = XtCreatePopupShell (name, simpleMenuWidgetClass,
+	pulldown = XtCreatePopupShell (name, rdssMenuWidgetClass,
 				       button, NULL, ZERO);
 	XtSetArg (args[0], XtNmenuName, name);
 	XtSetValues (button, args, (Cardinal)1);

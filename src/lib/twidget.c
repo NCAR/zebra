@@ -33,7 +33,9 @@
 # include <X11/Xaw/Toggle.h>
 # include <X11/Xaw/AsciiText.h>
 # include <X11/Xaw/Cardinals.h>
-# include <X11/Xaw/SimpleMenu.h>
+
+# include <RdssMenu.h>
+# include <SmeMenu.h>
 # include <X11/Xaw/SmeBSB.h>
 # include <X11/Xaw/SmeLine.h>
 
@@ -45,7 +47,7 @@
 # include "bitmaps.h"
 # include "twidget.h"
 
-RCSID ("$Id: twidget.c,v 2.22 2001-01-19 04:51:39 granger Exp $")
+RCSID ("$Id: twidget.c,v 2.23 2001-11-30 00:45:09 granger Exp $")
 
 
 # define LABELWIDTH	65
@@ -1427,7 +1429,7 @@ void (*callback)();
 	narg = 0;
 	XtSetArg (args[narg], XtNlabel, title);	++narg;
 	XtSetArg (args[narg], XtNallowShellResize, True); ++narg;
-	menu = XtCreatePopupShell (name, simpleMenuWidgetClass,
+	menu = XtCreatePopupShell (name, rdssMenuWidgetClass,
 				   parent, args, narg);
 /*
  * First line object
@@ -1469,7 +1471,7 @@ void (*callback)();
 
 	narg = 0;
 	XtSetArg (args[narg], XtNlabel, title);	++narg;
-	menu = XtCreatePopupShell (name, simpleMenuWidgetClass,
+	menu = XtCreatePopupShell (name, rdssMenuWidgetClass,
 				   parent, args, narg);
 /*
  * Line object to separate choices from title
@@ -1531,7 +1533,7 @@ Widget button;		/* the menu button passed to the callbacks */
 
 	narg = 0;
 	XtSetArg (args[narg], XtNlabel, title);	++narg;
-	menu = XtCreatePopupShell (name, simpleMenuWidgetClass,
+	menu = XtCreatePopupShell (name, rdssMenuWidgetClass,
 				   parent, args, narg);
 /*
  * Line between title and first entry.

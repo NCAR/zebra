@@ -3,7 +3,7 @@ SRCS = EventLogger.c
 OBJS = EventLogger.o
 
 INCLUDES = $(XINCLUDES)
-LIBS = $(LIBZEB) $(XLIBS)
+LIBS = $(ZLIBS) $(XLIBS)
 DISTFILES = $(SRCS) Imakefile EventLogger.ad
 SYSLIBS = $(LIBREGEXP)
 

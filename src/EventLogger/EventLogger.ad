@@ -1,4 +1,4 @@
-! $Id: EventLogger.ad,v 1.9 2000-08-30 17:21:57 burghart Exp $
+! $Id: EventLogger.ad,v 1.10 2001-11-30 00:45:07 granger Exp $
 !
 ! Application defaults file for the EventLogger
 ! DO NOT MODIFY this file if this is the library installed copy!!!
@@ -29,6 +29,8 @@
 *MenuButton.background:	midnight blue
 *MenuButton.foreground:	yellow
 *MenuButton.borderColor:	red
+*MenuButton.translations:	#override \n\
+	<BtnDown>:	reset() PositionAndPopupRdssMenu()
 *Scrollbar*foreground:	midnight blue
 *Label.background:	cadet blue
 *Label.foreground:	yellow

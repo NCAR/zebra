@@ -1,4 +1,4 @@
-! $Id: DisplayMgr.ad,v 1.15 2001-01-19 04:55:34 granger Exp $
+! $Id: DisplayMgr.ad,v 1.16 2001-11-30 00:45:08 granger Exp $
 !
 ! Application defaults file for the Display Manager
 !
@@ -57,6 +57,7 @@ dm.time.form.background: gray90
 	<Key>+:		kill-to-end-of-line()insert-char() \n\
 	<Key>.:		kill-to-end-of-line()insert-char()
 *time*hotbar*SimpleMenu*font: -adobe-courier-medium-r-*-*-10-*-*-*-*-*-*-*
+*time*hotbar*RdssMenu*font: -adobe-courier-medium-r-*-*-10-*-*-*-*-*-*-*
 *Form.background: 	cadetblue
 *form.background: 	cadetblue
 dm.iconbar.form.background: cadetblue
@@ -69,14 +70,15 @@ dm.iconbar.form.background: cadetblue
 *iconbar*Form*resizable: False
 *iconbar*MenuButton.foreground:	yellow
 *iconbar*MenuButton.background: MidnightBlue
-*iconbar*MenuButton.translations: \
-	#override \n\
-	<ButtonPress>:	reset() PositionAndPopupRdssMenu()
+*MenuButton.translations: #override \n\
+	<BtnDown>:	reset() PositionAndPopupRdssMenu()
 *iconbar*Box.background: CadetBlue
 *iconbar*Form.background: CadetBlue
 *SimpleMenu*menuLabel.font: -*-helvetica-bold-r-*-*-14-140-*
 *SimpleMenu*font: -*-helvetica-medium-r-*-*-14-140-*
 *SimpleMenu*background: gray95
+*RdssMenu*menuLabel.font: -*-helvetica-bold-r-*-*-14-140-*
+*RdssMenu*font: -*-helvetica-medium-r-*-*-14-140-*
 *RdssMenu*background: gray95
 *SmeMenu*background: gray95
 *UIForm.defaultDistance: 8
@@ -87,3 +89,4 @@ dm.iconbar.form.background: cadetblue
 *UIForm*Label.background: gray95
 *UIForm*MenuButton*borderColor: red
 *UIForm*MenuButton*background: Gray90
+*XcgLiteClue*background: ivory
