@@ -22,7 +22,7 @@
 # include "defs.h"
 # include "message.h"
 
-MAKE_RCSID("$Id: RLEncode.c,v 2.2 1994-01-28 21:31:09 granger Exp $")
+MAKE_RCSID("$Id: RLEncode.c,v 2.3 1995-04-15 00:12:36 granger Exp $")
 
 void
 RL_Encode (data, dest, smax, dmax, sused, ndest)
@@ -43,7 +43,7 @@ int smax, dmax, *sused, *ndest;
  */
 {
 	int count, inlit = FALSE, ninpack = 0, pcount = 0;
-	unsigned char *runbegin, *cdest = dest, *cp;
+	unsigned char *runbegin, *cdest = dest;
 
 	*ndest = dmax;
 	while (ninpack < smax && pcount < dmax)
