@@ -1,7 +1,7 @@
 /*
  * Rubber-band interactive drawing routines.
  */
-static char *rcsid = "$Id: RBand.c,v 2.3 1991-12-06 22:31:21 corbet Exp $";
+static char *rcsid = "$Id: RBand.c,v 2.4 1991-12-07 18:03:00 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -694,7 +694,8 @@ rb_MakePLInstructions ()
 	XtSetArg (args[n], XtNfromVert, label);			n++;
 	abort = XtCreateManagedWidget ("abort", commandWidgetClass,
 			PolyInstructions, args, n);
-	XtAddCallback (abort, XtNcallback, rb_PLAbort, 0);
+	XtAddCallback (abort, XtNcallback, (XtCallbackProc) rb_PLAbort, 
+		(XtPointer) 0);
 }
 
 

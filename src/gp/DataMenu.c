@@ -31,7 +31,7 @@
 # include <DataStore.h>
 # include <ui_date.h>
 # include "GraphProc.h"
-MAKE_RCSID ("$Id: DataMenu.c,v 2.6 1991-12-05 17:26:14 corbet Exp $")
+MAKE_RCSID ("$Id: DataMenu.c,v 2.7 1991-12-07 18:03:13 kris Exp $")
 
 
 /*
@@ -82,7 +82,8 @@ InitDataMenu ()
 	XtSetArg (args[0], XtNlabel, "Data available menu");
 	Menu = XtCreatePopupShell ("DataAvailable", simpleMenuWidgetClass,
 		Top, args, 1);
-	XtAddCallback (Menu, XtNpopupCallback, PopupCallback, Menu);
+	XtAddCallback (Menu, XtNpopupCallback, (XtCallbackProc) PopupCallback, 
+		(XtPointer) Menu);
 	XtCreateManagedWidget ("Line", smeLineObjectClass, Menu, NULL, 0);
 /*
  * Real time mode.
@@ -90,7 +91,8 @@ InitDataMenu ()
 	XtSetArg (args[0], XtNlabel, "Real time mode");
 	rt = XtCreateManagedWidget ("realtime", smeBSBObjectClass, Menu,
 		args, 1);
-	XtAddCallback (rt, XtNcallback, ToRealTime, 0);
+	XtAddCallback (rt, XtNcallback, (XtCallbackProc) ToRealTime, 
+		(XtPointer) 0);
 	XtCreateManagedWidget ("Line", smeLineObjectClass, Menu, NULL, 0);
 /*
  * Create all of the entries, but don't manage them now.
@@ -101,8 +103,8 @@ InitDataMenu ()
 	{
 		Entries[i] = XtCreateWidget ("DAEntry", smeBSBObjectClass,
 			Menu, args, 1);
-		XtAddCallback (Entries[i], XtNcallback, EntryCallback, 
-				(XtPointer) i);
+		XtAddCallback (Entries[i], XtNcallback, 
+			(XtCallbackProc) EntryCallback, (XtPointer) i);
 	}
 	NManaged = 0;
 }
