@@ -6,7 +6,7 @@
 # include "ui_param.h"
 # include "ui_symbol.h"
 
-static char *rcsid = "$Id: ui_types.c,v 1.5 1992-05-06 18:47:10 corbet Exp $";
+static char *rcsid = "$Id: ui_types.c,v 1.6 1992-08-14 22:16:54 corbet Exp $";
 
 /*
  * Month info.
@@ -453,12 +453,16 @@ bool strict;
 {
 	int len = strict ? 4 : strlen (string);
 
- 	if (! strncmp (string, "true", len))
+ 	if (! strncmp (string, "true", len) ||
+		! strncmp (string, "True", len) ||
+		! strncmp (string, "TRUE", len))
 	{
 		v->us_v_int = TRUE;
 		return (TRUE);
 	}
- 	else if (! strncmp (string, "false", len))
+ 	else if (! strncmp (string, "false", len) ||
+		 ! strncmp (string, "False", len) ||
+		 ! strncmp (string, "FALSE", len))
 	{
 		v->us_v_int = FALSE;
 		return (TRUE);
