@@ -1,0 +1,19 @@
+!
+! Support for active ISS locations.
+!
+
+define widget send-iss intmenu 'iss sender'
+	title 'ISS Display'
+	line
+	entry 'Display station in other window' 'iss-select'
+endmenu
+
+
+!
+! Stuff called out of the above
+!
+procedure iss-select
+	local dmcmd quote(concat('TweakISS ', icon_platform))
+	dm #dmcmd
+endprocedure
+

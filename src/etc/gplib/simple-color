@@ -47,6 +47,10 @@ procedure do_simple_color color string
 	if (colortweaker <> "(Undefined)")
 		#colortweaker #color
 	else
-		parameter #icon_component color #color
+		if (icon_component = 'global' or icon_component = 'GLOBAL')
+			parameter global ta-color #color
+		else
+			parameter #icon_component color #color
+		endif
 	endif
 endprocedure

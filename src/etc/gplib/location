@@ -1,0 +1,24 @@
+!
+! Location support.
+!
+require simple-color
+
+define widget location-options intmenu 'label options'
+	title 'Location options'
+	line
+	submenu 'Color' simple-color
+	entry 'Name labels' 'ToggleLabels' \
+		(PDParam (icon_component, 'label') = 'platform')
+	entry 'Time labels' 'ToggleBoolean time-label' \
+		(PDParam (icon_component, 'time-label') = 'true')
+endmenu
+
+
+procedure ToggleLabels
+	local enabled (PDParam (icon_component, "label") <> "none")
+	if (enabled)
+		parameter #icon_component label 'none'
+	else
+		parameter #icon_component label 'platform'
+	endif
+endprocedure
