@@ -1,5 +1,5 @@
 XCOMM -*- C -*-
-XCOMM $Id: Zebra.rules,v 1.1 1995-05-24 23:56:16 granger Exp $
+XCOMM $Id: Zebra.rules,v 1.2 1995-05-25 08:28:33 granger Exp $
 XCOMM
 XCOMM Rules specific to the Zebra project, including some which override
 XCOMM definitions in Imake.rules
@@ -320,9 +320,9 @@ distclean::								@@\
 
 /*
  * Propagate the distfiles and distclean targets to dist subdirectories.
- * Note that we can't use the more standard NamedTargetSubdirs() macro
- * since that macro echoes info that would interfere with the list of files
- * the target is generating.
+ * Note that we can't use the more standard NamedTargetSubdirs() macro for
+ * distfiles since that macro echoes info that would interfere with the
+ * list of files the target is generating.
  *
  * We also need to include targets to make Makefiles in the subdirs for
  * distmakefiles::
@@ -337,6 +337,8 @@ distfiles::								@@\
 		(cd $$i ; \						@@\
 		   $(MAKE) $(MFLAGS) MAKE=$(MAKE) DISTCURDIR=$(DISTCURDIR)/$$i distfiles); \ @@\
 	done								@@\
+									@@\
+NamedTargetSubdirs(distclean,dirs,"cleaning distdirs",/*flags*/,distclean) @@\
 									@@\
 DistMakefileSubdirs(dirs)
 #endif /* DistfilesSubdirs */
@@ -514,19 +516,6 @@ includes::								@@\
 		$(CP) $(BUILDINCTOP)/dstupdir/$(CURRENT_DIR)/$$i .; \ @@\
 	done)
 #endif /* SunArchitecture */
-
-
-/*
- * CleanSubdirs - redefine that in Imake.rules so that the distclean target
- * for subdirs also gets included through Imake.tmpl
- */
-#ifdef CleanSubdirs
-#undef CleanSubdirs
-#endif
-#define CleanSubdirs(dirs) \
-NamedCleanSubdirs(clean,dirs)						@@\
-									@@\
-NamedTargetSubdirs(distclean,dirs,"cleaning distdirs",/*flags*/,distclean)
 
 
 /*
