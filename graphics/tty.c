@@ -9,7 +9,6 @@
 # ifdef UNIX
 # include <sys/file.h>
 # endif
-# include "param.h"
 # include "graphics.h"
 # include "tty.h"
 
