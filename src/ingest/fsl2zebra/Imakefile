@@ -1,0 +1,39 @@
+/*		Copyright (C) 1987,88,89,90,91 by UCAR
+ *	University Corporation for Atmospheric Research
+ *		   All rights reserved
+ *
+ * No part of this work covered by the copyrights herein may be reproduced
+ * or used in any form or by any means -- graphic, electronic, or mechanical,
+ * including photocopying, recording, taping, or information storage and
+ * retrieval systems -- without permission of the copyright owner.
+ * 
+ * This software and any accompanying written materials are provided "as is"
+ * without warranty of any kind.  UCAR expressly disclaims all warranties of
+ * any kind, either express or implied, including but not limited to the
+ * implied warranties of merchantibility and fitness for a particular purpose.
+ * UCAR does not indemnify any infringement of copyright, patent, or trademark
+ * through use or modification of this software.  UCAR does not provide 
+ * maintenance or updates for its software.
+ */
+MFVERSION="$Id: Imakefile,v 1.1 2002-05-28 23:46:28 burghart Exp $"
+
+LIBS = 
+SYSLIBS = -lnetcdf_c++ -lnetcdf $(LIBUDUNITS)
+
+SRCS = fsl2zebra.cc fslMesonetVar.cc outVar.cc zebraMesonetOutFile.cc
+OBJS = fsl2zebra.o fslMesonetVar.o outVar.o zebraMesonetOutFile.o
+
+HDRS = fslMesonetVar.hh outVar.hh zebraMesonetOutFile.hh Station.hh
+
+DISTFILES = Imakefile $(SRCS) $(HDRS)
+
+AllTarget(fsl2zebra)
+CccProgramTarget(fsl2zebra,$(OBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
+InstallProgram(fsl2zebra,$(BINDIR))
+
+DependTarget()
+
+LintTarget()
+
+DistfilesTarget($(DISTFILES))
+
