@@ -60,8 +60,9 @@ EOF
 # running dsrescan when we find them.  cd to the directory on every
 # check, in case iop links in the directory path have changed.
 #
+unalias cd
 while (1)
-    cd $dir
+    cd $dir >/dev/null
     foreach file (`find . -newer $testfile -print`)
 	if ($file == ".") continue;
 	dsrescan -file $file $plat >& /dev/null
