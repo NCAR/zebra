@@ -97,6 +97,7 @@ int		NField = 0, FIndex[MFIELD];
 char		*Fields[MFIELD];
 static unsigned char	*Image[MFIELD];
 RadarFormat RFormat = RF_UF;		/* The format of our data */
+int Using_BB = FALSE;		/* Doing beam buffering? 	*/
 
 /*
  * Prototypes

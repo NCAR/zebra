@@ -18,16 +18,16 @@
 
 # include <pcap.h>
 # include "Ethernet.h"
+# include "BeamBuffer.h"
 
-MAKE_RCSID ("$Id: PCapInput.c,v 2.1 1995-04-07 21:05:26 corbet Exp $")
+
+MAKE_RCSID ("$Id: PCapInput.c,v 2.2 1995-06-23 19:39:14 corbet Exp $")
 
 /*
  * Ethernet input info.
  */
 # define EBUFLEN 10240		/* Max beam len			*/
-# define NEBUF	10		/* Number of beams		*/
-static unsigned char EBuf[NEBUF][EBUFLEN];
-static int CurrBuf = -1;		/* Current  buffer	*/
+static unsigned char EBuf[EBUFLEN];
 static int Recycle = FALSE;
 static ENHeader *OldPacket = 0;	/* Recycled packet 	*/
 static int OldPackLen = 0;	/* Length of this packet */
@@ -116,11 +116,9 @@ Beam beam;
 		hdr->en_g_last);
 */
 /*
- * Select a buffer.
+ * Get a buffer.
  */
-	if (++CurrBuf >= NEBUF)
-		CurrBuf = 0;
-	buf = EBuf[CurrBuf];
+	buf = Using_BB ? BB_GetWriteBuffer () : EBuf;
 /*
  * Copy this packet over (sigh).
  */
@@ -167,6 +165,8 @@ Beam beam;
 /*
  * Done!
  */
+	if (Using_BB)
+		BB_WriteDone (offset);
  	return (beam);
 }
 
@@ -217,13 +217,10 @@ static void
 RecyclePacket (packet, len)
 ENHeader *packet;
 /*
- * See to it that the last packet gets read again.  NOTE that we also
- * recycle the buffer here...
+ * See to it that the last packet gets read again.
  */
 {
 	Recycle = TRUE;
 	OldPacket = packet;
 	OldPackLen = len;
-	if (--CurrBuf < 0)
-		CurrBuf = NEBUF;
 }

@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-/* $Id: radar_ingest.h,v 2.8 1995-04-07 21:05:40 corbet Exp $ */
+/* $Id: radar_ingest.h,v 2.9 1995-06-23 19:39:29 corbet Exp $ */
 
 
 /*
@@ -110,6 +110,11 @@ extern float MhrTop;
 extern bool Project;
 
 /*
+ * Doing beam buffering?
+ */
+extern int Using_BB;
+
+/*
  * Data formats with which we can deal in this driver (see ADRad and UF
  * for others)
  *
@@ -179,3 +184,5 @@ Beam GetEtherBeam FP ((Beam));
 # define RIC_CALIBRATION 10
 # define RIC_PAIR	11
 # define RIC_ENDCAL	12
+# define RIC_BEAMBUF	13
+# define RIC_DUMPRHI	14

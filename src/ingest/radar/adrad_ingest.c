@@ -22,7 +22,7 @@
 
 /* rewrite for adrad data input by Dan Austin 8/93	*/
 
-static char *rcsid = "$Id: adrad_ingest.c,v 2.7 1995-04-07 21:05:34 corbet Exp $";
+static char *rcsid = "$Id: adrad_ingest.c,v 2.8 1995-06-23 19:39:23 corbet Exp $";
 
 /* clean up includes later	*/
 # include <copyright.h>
@@ -125,6 +125,7 @@ float Vu;
 /* 1/10/94 (D.A.) added global for fields 	*/
 char adfields[5]; 
 RadarFormat RFormat = RF_ADRAD;		/* The format of our data */
+int Using_BB = FALSE;		/* Doing beam buffering? 	*/
 
 /* function declarations 	*/
 static int Dispatcher FP ((int, struct ui_command *));

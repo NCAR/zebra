@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: Rasterize.c,v 2.10 1995-04-07 21:05:28 corbet Exp $";
+static char *rcsid = "$Id: Rasterize.c,v 2.11 1995-06-23 19:39:17 corbet Exp $";
 
 # include <defs.h>
 # include <message.h>
@@ -77,6 +77,12 @@ static Direction Dir = Unknown;
  */
 static int InSweep = FALSE;
 static int NBeam = 0;		/* Number of beams in this sweep	*/
+
+/*
+ * Save user's XRadar and YRadar in case we change them for RHIs
+ */
+
+static int PPI_XRadar = 0, PPI_YRadar = 0;
 
 
 /*
@@ -298,6 +304,11 @@ RasterizeDone ()
 	if (NBeam > MinSweep)
 		OutputSweep (&BeginTime, Fixed / CORR_FACT, FALSE, 
 			     MaxLeft, MaxRight, MaxUp, MaxDown, ScanMode);
+/*
+ * Make sure XRadar and YRadar are back to the user settings
+ */
+	XRadar = PPI_XRadar;
+	YRadar = PPI_YRadar;
 }
 
 
@@ -406,6 +417,7 @@ Beam beam;
 	static int sweep, vol;
 	static struct timeval oldtime, newtime;
 	static Direction dir = Unknown;
+	static int NextNewVol = TRUE;
 /*
  * See if we have entered a new sweep.
  */
@@ -457,8 +469,9 @@ Beam beam;
 	/*
 	 * See if a new volume is warranted.
 	 */
-		newvol = (ScanMode != hk->scan_mode) ||
-			(TrustVol ? hk->vol_count != vol : Fixed <= lastfixed);
+		newvol = NextNewVol || Fixed <= lastfixed;
+		NextNewVol = (ScanMode != hk->scan_mode) ||
+			(TrustVol && hk->vol_count != vol);
 # ifdef notdef
 		msg_ELog (EF_INFO, "MHR ck fix %.2f last %.2f top %.2f",
 			Fixed/CORR_FACT, lastfixed/CORR_FACT, MhrTop);
@@ -475,6 +488,11 @@ Beam beam;
 			   hk->scan_mode);
 			lastfixed = Fixed;
 			dir = Unknown;
+		/*
+		 * Make sure XRadar and YRadar are back the to user settings
+		 */
+			XRadar = PPI_XRadar;
+			YRadar = PPI_YRadar;
 		}
 	}
 /*
@@ -512,6 +530,19 @@ Beam beam;
 	BeginTime.ds_hhmmss = hk->hour*10000 + hk->minute*100 + hk->second;
 	vol = hk->vol_count;
 	sweep = hk->sweep_index;
+/*
+ * Save the user's XRadar and YRadar, since we change them for RHIs
+ */
+	if (! PPI_XRadar && ! PPI_YRadar)
+	{
+		PPI_XRadar = XRadar;
+		PPI_YRadar = YRadar;
+	}
+/*
+ * For RHIs, put the radar in the lower left corner.
+ */
+	if (ScanMode == SM_RHI)
+		XRadar = YRadar = 0;
 /*
  * Come up with a new pixel scaling.
  */

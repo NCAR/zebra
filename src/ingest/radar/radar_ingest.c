@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: radar_ingest.c,v 2.12 1995-04-07 21:05:39 corbet Exp $";
+static char *rcsid = "$Id: radar_ingest.c,v 2.13 1995-06-23 19:39:26 corbet Exp $";
 
 # include <copyright.h>
 # include <errno.h>
@@ -47,6 +47,7 @@ static void SetRealTime ();
 # include "HouseKeeping.h"
 # include "radar_ingest.h"
 # include "display.h"
+# include "BeamBuffer.h"
 
 
 /*
@@ -69,6 +70,20 @@ bool Project = TRUE;
 bool ForceRealTime = TRUE;	/* Force data times to real time?	*/
 float MhrTop = 21.0;
 RadarFormat RFormat = RF_CBAND;		/* The format of our data */
+int Using_BB = FALSE;		/* Doing beam buffering? 	*/
+
+/*
+ * Stuff for forcing a minimum time interval between beams.  Useful when
+ * testing off of a tape.
+ */
+float BeamDelay = 0.0;	/* minimum interval in seconds */
+bool OKToGetBeam;
+
+/*
+ * Are we hacking out RHI limits?
+ */
+static bool DumpLimits = FALSE;
+static PlatformId LimitPID;
 
 /*
  * Thresholding.
@@ -139,6 +154,11 @@ static void SetConsumer FP ((struct ui_command *));
 static void InvokeConsumer FP ((void));
 static int MHandler FP ((Message *));
 static void CheckMessages FP ((void));
+static void DumpRHILimits FP ((float, float));
+static void BeamWait FP ((void));
+static void SetupBeamDelay FP ((void));
+static void WakeUp FP ((int signal));
+
 
 
 static unsigned char *Image[4];
@@ -153,6 +173,8 @@ die ()
 	ui_finish ();
 	if (ShmDesc)
 		IX_Detach (ShmDesc);
+	if (Using_BB)
+		BB_Done ();
 	exit (0);
 }
 
@@ -234,6 +256,10 @@ SetupIndirect ()
  */
 	usy_c_indirect (vtable, "trustsweep", &TrustSweep, SYMT_BOOL, 0);
 	usy_c_indirect (vtable, "trustvol", &TrustVol, SYMT_BOOL, 0);
+/*
+ * Beam delay in seconds (for reading from tape)
+ */
+	usy_c_indirect (vtable, "beamdelay", &BeamDelay, SYMT_FLOAT, 0);
 }
 
 
@@ -301,6 +327,23 @@ struct ui_command *cmds;
 	 */
 	    case RIC_CALIBRATION:
 		CP2_LoadCal (cmds[1].uc_v.us_v_int);
+		break;
+	/*
+	 * Beam buffering so that somebody else can snarf the data as well.
+	 */
+	    case RIC_BEAMBUF:
+		if (BB_Setup (UINT (cmds[1]), UINT (cmds[2]), UINT (cmds[3])))
+			Using_BB = TRUE;
+		break;
+	/*
+	 * Dump out RHI limits?
+	 */
+	    case RIC_DUMPRHI:
+		if ((LimitPID = ds_LookupPlatform (UPTR (cmds[1]))) ==
+				BadPlatform)
+			msg_ELog ("Bad RHI limit platform %s", UPTR (cmds[1]));
+		else
+			DumpLimits = TRUE;
 		break;
 	/*
 	 * Time to complain.
@@ -451,8 +494,11 @@ Go ()
  * Now plow through the beams.
  */
 /*	InitFake (); */
+	SetupBeamDelay ();
+	
 	while (1)
 	{
+		BeamWait ();
 	/*
 	 * Get another beam.
 	 */
@@ -492,6 +538,8 @@ int newvol, left, right, up, down, mode;
 	Location loc;
 	UItime t;
 	char attr[100];
+	static float rhileft, rhiright;
+	static int rhivol = FALSE;
 /*
  * MHR filtering.
  */
@@ -538,7 +586,9 @@ int newvol, left, right, up, down, mode;
 		tl_GetTime (&t);
 	else
 		t = *bt;
-
+/*
+ * Ship it out!
+ */
 	IX_SendFrame (ShmDesc, ImageSet, &t, &rg, &loc, Scale, left, up,
 			right, down, attr);
 	ImageSet = -1;
@@ -548,6 +598,24 @@ int newvol, left, right, up, down, mode;
 	ui_printf (" Output %s at %d %06d ang %.2f new %c scale %.2f %.2f\n",
 			PlatformName, t.ds_yymmdd, t.ds_hhmmss, alt,
 			newvol ? 't' : 'f', PixScale, rg.rg_Xspacing);
+/*
+ * Look at maybe dumping out RHI limits.
+ */
+	if (DumpLimits)
+	{
+		if (newvol && rhivol)
+		{
+			DumpRHILimits (rhileft, rhiright);
+			rhivol = FALSE;
+		}
+		if (mode == SM_RHI)
+		{
+			if (newvol)
+				rhileft = alt;
+			rhiright = alt;
+			rhivol = TRUE;
+		}
+	}
 }
 
 
@@ -822,3 +890,95 @@ int priority;
 }
 
 # endif /* solaris */
+
+
+
+
+static void
+DumpRHILimits (left, right)
+float left, right;
+/*
+ * Dump out our RHI limits.
+ */
+{
+	DataChunk *dc;
+	ZebTime when;
+	FieldId fids[2];
+/*
+ * Get our time.  Zap out microsecs because they have no useful
+ * meaning here and seem to cause confusion.
+ */
+	tl_Time (&when);
+	when.zt_MicroSec = 0;
+/*
+ * Fix up a data chunk.
+ */
+	dc = dc_CreateDC (DCC_Scalar);
+	dc->dc_Platform = LimitPID;
+	fids[0] = F_Lookup ("left");
+	fids[1] = F_Lookup ("right");
+	dc_SetScalarFields (dc, 2, fids);
+	dc_AddScalar (dc, &when, 0, fids[0], &left);
+	dc_AddScalar (dc, &when, 0, fids[1], &right);
+/*
+ * Store it, trash it, and we're done.
+ */
+	ds_Store (dc, FALSE, 0, 0);
+	dc_DestroyDC (dc);
+}
+
+
+
+static void
+BeamWait ()
+/*
+ * Wait for our beam interval timer (if any) to expire.
+ */
+{
+	while (! OKToGetBeam)
+		pause ();
+
+	OKToGetBeam = (BeamDelay == 0.0);
+}
+
+
+static void
+SetupBeamDelay ()
+/*
+ * Set up the beam interval timer, if requested.
+ */
+{
+	struct sigaction	sa;
+	struct itimerval	it;
+
+	OKToGetBeam = TRUE;
+	
+	if (BeamDelay == 0.0)
+		return;
+/*
+ * We have a delay time, so start an alarm to go off at the given interval.
+ */
+	signal (SIGALRM, WakeUp);
+	it.it_interval.tv_sec = it.it_value.tv_sec = (int) BeamDelay;
+	it.it_interval.tv_usec = it.it_value.tv_usec = 
+		(int)(BeamDelay * 1000000) % 1000000;
+	
+	setitimer (ITIMER_REAL, &it, NULL);
+}
+
+
+
+static void
+WakeUp (int sig)
+/*
+ * Beam interval timer signal handler
+ */
+{
+# ifdef SVR4
+/*
+ * Reestablish signal handler under SYSV
+ */
+	signal (SIGALRM, WakeUp);
+# endif
+	OKToGetBeam = TRUE;
+}

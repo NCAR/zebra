@@ -15,8 +15,10 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+# ifdef notdef
 # ifdef UINT
 #	undef UINT
+# endif
 # endif
 
 typedef int (*FUNCPTR) ();		/* pointer to a function */
@@ -26,7 +28,7 @@ typedef char TBOOL;
 typedef unsigned char UTINY;
 typedef unsigned char UCHAR;
 typedef unsigned short USHORT;
-typedef unsigned int UINT;
+/* typedef unsigned int UINT; */
 typedef unsigned long ULONG;
 typedef int ARGINT, BOOL, VOID, STATUS;
 typedef unsigned short INSTR;		/* word-alligned instructions */

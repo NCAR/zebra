@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: Input.c,v 2.8 1995-04-07 21:05:24 corbet Exp $";
+static char *rcsid = "$Id: Input.c,v 2.9 1995-06-23 19:39:12 corbet Exp $";
 
 # ifdef notdef
 # include <sys/types.h>
@@ -39,6 +39,7 @@ static char *rcsid = "$Id: Input.c,v 2.8 1995-04-07 21:05:24 corbet Exp $";
 # include <message.h>
 # include "HouseKeeping.h"
 # include "radar_ingest.h"
+# include "BeamBuffer.h"
 /* # include "Ethernet.h" */
 
 static int zero = 0;
@@ -151,6 +152,7 @@ SetupInput ()
 	 */
 	   case FileSource:
                 /* if (! mtfmnt_ (&zero, InSource)) */
+		zero = 1;
 		if (! mtmnt_ (&zero))
 		{
 			msg_ELog (EF_EMERGENCY, "Bogus file source %s",
@@ -219,11 +221,23 @@ GetBeam ()
 			nlog = Bst.b_hk->num_log_rcd >> 8;
 			logreclen = Bst.b_hk->sz_cur_log;
 		}
-		
+	/*
+	 * If we are doing beam buffering, kludge it through now.
+	 */
+		if (Using_BB)
+		{
+			unsigned char *buf = BB_GetWriteBuffer ();
+			memcpy (buf, Bst.b_hk, logreclen);
+			BB_WriteDone (logreclen);
+			Bst.b_hk = (Housekeeping *) buf;
+		}
+	/*
+	 * Finish fixing things up.
+	 */
 		neof = 0;
 		Bst.b_gdesc[0].gd_ngate = Bst.b_hk->gates_per_beam;
-		Bst.b_gdesc[0].gd_data = (unsigned char *) 
-			(Tbuffer + curlog * logreclen + Bst.b_hk->sz_hsk);
+		Bst.b_gdesc[0].gd_data = ((unsigned char *) Bst.b_hk) +
+			Bst.b_hk->sz_hsk;
 		return (&Bst);
 	}
 }

@@ -48,7 +48,30 @@ define state initial
 	input 'calibration' 10
 		next cal-type
 	endinput
+	input 'beambuf' 13
+	      	next bb-key
+	endinput
+	input 'dumprhi' 14
+	        next ust$final_string
+	endinput
 enddef
+
+
+!
+! Beam buffer stuff.
+!
+define state bb-key
+	input integer
+		next bb-bsize
+	endinput
+enddef
+
+define state bb-bsize
+	input integer
+		next ust$final_int
+	endinput
+enddef
+
 
 define state mhr-elev
 	input real
