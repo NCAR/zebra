@@ -18,13 +18,16 @@
  * through use or modification of this software.  UCAR does not provide
  * maintenance or updates for its software.
  */
-/* # include <copyright.h> */
 # include <stdlib.h>	/* for atof */
+# include <math.h>
 # include <stdio.h>
 # include <errno.h>
+# include <sys/stat.h>
+# include <unistd.h>
+
 # include <netcdf.h>
 
-/* $Id: dem2zebra.c,v 1.4 1999-03-01 02:04:48 burghart Exp $ */
+/* $Id: dem2zebra.c,v 1.5 2000-04-03 21:59:24 burghart Exp $ */
 
 struct _Map
 {
@@ -37,6 +40,8 @@ struct _Map
 
 
 void	InitMap (char *fname);
+void	CreateMapFile (char *fname);
+void	OpenMapFile (char *fname);
 void	ProcessFiles (char *fnames[], int nfiles);
 void	ReadHeader (FILE *infile, int *lat_spacing, int *lon_spacing,
 		    int *ssec, int *nsec, int *wsec, int *esec);
@@ -99,30 +104,46 @@ InitMap (char *fname)
  * Open up and initialize our output map file
  */
 {
+    struct stat	sbuf;
+    int		fnlen = strlen (fname), i;
+    char	*fullname = malloc (fnlen + 5);
+/*
+ * Create the filename, appending ".nc" to the name if necessary
+ */
+    strcpy (fullname, fname);
+    if (strcmp (fname + fnlen - 4, ".cdf") && 
+	strcmp (fname + fnlen - 3, ".nc"))
+	strcat (fullname, ".nc");
+/*
+ * Open the file if it already exists, otherwise create it.
+ */
+    if (stat (fullname, &sbuf) < 0 && errno == ENOENT)
+	CreateMapFile (fullname);
+    else
+	OpenMapFile (fullname);
+
+    free (fullname);
+}
+
+
+
+void
+CreateMapFile (char *fname)
+{
     int		ncid, i, time_dim, lat_dim, lon_dim, lat_var, lon_var;
     int		base_var, offset_var, dims[3];
     long	start, count, nlats, nlons;
     long	base;
     double	step, offset;
-    char	*fullname = malloc (strlen (fname) + 3);
     char	attrval[128];
 
-    /*
-     * Open our netCDF output file, appending ".cdf" to the name if necessary
-     */
-    strcpy (fullname, fname);
-    if (! strstr (".cdf", fullname))
-	strcat (fullname, ".cdf");
-
-    if ((ncid = nccreate (fullname, NC_NOCLOBBER)) < 0)
+    if ((ncid = nccreate (fname, NC_NOCLOBBER)) < 0)
     {
-	fprintf (stderr, "Error creating map file %s\n", fullname);
+	fprintf (stderr, "Error creating map file %s\n", fname);
 	exit (1);
     }
     
     Map.nc_id = ncid;
-
-    free (fullname);
 
     /*
      * To match the DEM maps, we use 3 arc second longitude spacing if our
@@ -137,17 +158,17 @@ InitMap (char *fname)
     nlons = (int)((Map.east - Map.west) / Map.lon_spacing + 0.5) + 1;
     nlats = (int)((Map.north - Map.south) / Map.lat_spacing + 0.5) + 1;
     /*
-     * Adjust spacing if necessary to get us below a 750x750 final map
+     * Adjust spacing if necessary to get us below a 1000x1000 final map
      */
-    if (nlons > 750)
+    if (nlons > 1000)
     {
-	Map.lon_spacing *= (1 + nlons / 750);
+	Map.lon_spacing *= (1 + nlons / 1000);
 	nlons = (int)((Map.east - Map.west) / Map.lon_spacing + 0.5) + 1;
     }
     
-    if (nlats > 750)
+    if (nlats > 1000)
     {
-	Map.lat_spacing *= (1 + nlats / 750);
+	Map.lat_spacing *= (1 + nlats / 1000);
 	nlats = (int)((Map.north - Map.south) / Map.lat_spacing + 0.5) + 1;
     }
 
@@ -255,6 +276,114 @@ InitMap (char *fname)
 
 
 void
+OpenMapFile (char *fname)
+{
+    int		ncid, i, lat_dim, lon_dim, lat_var, lon_var;
+    nc_type	nctype;
+    long	start, count, nlats, nlons;
+    long	base;
+    float	val;
+    char	attrval[128];
+
+    if ((ncid = ncopen (fname, NC_WRITE)) < 0)
+    {
+	fprintf (stderr, "Error opening map file %s\n", fname);
+	exit (1);
+    }
+    
+    Map.nc_id = ncid;
+/*
+ * Get the expected dimensions
+ */
+    
+    if ((lat_dim = ncdimid (ncid, "latitude")) < 0)
+    {
+	fprintf (stderr, "Map file has no latitude dimension!\n");
+	exit (1);
+    }
+    ncdiminq (ncid, lat_dim, 0, &nlats);
+
+
+    if ((lon_dim = ncdimid (ncid, "longitude")) < 0)
+    {
+	fprintf (stderr, "Map file has no longitude dimension!\n");
+	exit (1);
+    }
+    ncdiminq (ncid, lon_dim, 0, &nlons);
+/*
+ * Get the lat variable and range
+ */
+    if ((lat_var = ncvarid (ncid, "latitude")) < 0)
+    {
+	fprintf (stderr, "Map file has no latitude variable!\n");
+	exit (1);
+    }
+
+    start = 0;
+    count = 1;
+    ncvarget (ncid, lat_var, &start, &count, &val);
+    Map.south = (int)(rint (val * 3600));	// to seconds
+
+    start = nlats - 1;
+    count = 1;
+    ncvarget (ncid, lat_var, &start, &count, &val);
+    Map.north = (int)(rint (val * 3600));	// to seconds
+
+    Map.lat_spacing = (Map.north - Map.south) / (nlats - 1);
+    if ((Map.south + Map.lat_spacing * (nlats - 1)) != Map.north)
+    {
+	fprintf (stderr, "Unexpected latitude spacing in existing file...\n");
+	exit (1);
+    }
+/*
+ * Get the lon variable and range
+ */
+    if ((lon_var = ncvarid (ncid, "longitude")) < 0)
+    {
+	fprintf (stderr, "Map file has no longitude variable!\n");
+	exit (1);
+    }
+
+    start = 0;
+    count = 1;
+    ncvarget (ncid, lon_var, &start, &count, &val);
+    Map.west = (int)(rint (val * 3600));	// to seconds
+
+    start = nlons - 1;
+    count = 1;
+    ncvarget (ncid, lon_var, &start, &count, &val);
+    Map.east = (int)(rint (val * 3600));	// to seconds
+
+    Map.lon_spacing = (Map.east - Map.west) / (nlons - 1);
+    if ((Map.west + Map.lon_spacing * (nlons - 1)) != Map.east)
+    {
+	fprintf (stderr, "Unexpected longitude spacing in existing file...\n");
+	exit (1);
+    }
+/*
+ * Get the alt variable
+ */
+    if ((Map.alt_var = ncvarid (ncid, "altitude")) < 0)
+    {
+	fprintf (stderr, "Map file has no altitude variable!\n");
+	exit (1);
+    }
+/*
+ * Info
+ */
+    printf ("\n");
+    printf ("Map has lon/lat spacing of %d/%d arc seconds\n", Map.lon_spacing,
+	    Map.lat_spacing);
+    printf ("and a size of %dx%d\n\n", nlons, nlats);
+/*
+ * Done here
+ */
+    return;
+}
+
+
+
+void
 ProcessFiles (char *fnames[], int nfiles)
 {
     int	f, lat_spacing, lon_spacing, ssec, nsec, wsec, esec;
@@ -291,7 +420,7 @@ ProcessFiles (char *fnames[], int nfiles)
 
 	/*
 	 * Start/stop lats & lons, forced to multiples of the output file's
-	 * lat and lon spacings
+	 * lat and lon spacings.  
 	 */
 	lat_start = (ssec < Map.south) ? Map.south : ssec;
 	lat_start = (lat_start / Map.lat_spacing) * Map.lat_spacing;
@@ -307,6 +436,8 @@ ProcessFiles (char *fnames[], int nfiles)
 	
 	lon_stop = (esec > Map.east) ? Map.east : esec;
 	lon_stop = (lon_stop / Map.lon_spacing) * Map.lon_spacing;
+	if (lon_stop > esec)
+	    lon_stop -= Map.lon_spacing;
 
 	if (lon_start > lon_stop)
 	    continue;
@@ -364,7 +495,7 @@ ReadHeader (FILE *infile, int *lat_spacing, int *lon_spacing, int *ssec,
  * all in integer arc seconds.
  */
 {
-    char	buf[1024];
+    char	buf[1024], foo[13];
     double	s, n, w, e, dlon, dlat;
 
     fread (buf, 1, sizeof (buf), infile);
@@ -381,8 +512,17 @@ ReadHeader (FILE *infile, int *lat_spacing, int *lon_spacing, int *ssec,
     *nsec = n;
     *wsec = w;
     *esec = e;
-    
-    sscanf (buf + 816, "%12lf%12lf", &dlon, &dlat);
+/*
+ * More Grr.  GNU changed the scanf parsing rules somewhere along the
+ * way, so in order to maintain portability we now have to split out 
+ * the dlat and dlon values that are jammed together.
+ */
+    foo[12] = '\0';
+    strncpy (foo, buf + 816, 12);
+    sscanf (foo, "%lf", &dlon);
+    strncpy (foo, buf + 828, 12);
+    sscanf (foo, "%lf", &dlat);
+
     *lat_spacing = dlat;
     *lon_spacing = dlon;
 }
