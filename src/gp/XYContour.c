@@ -1,7 +1,7 @@
 /*
  * XY-Contour plotting module
  */
-static char *rcsid = "$Id: XYContour.c,v 1.9 1993-03-24 23:03:37 burghart Exp $";
+static char *rcsid = "$Id: XYContour.c,v 1.10 1993-04-20 20:28:16 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -206,24 +206,28 @@ bool	update;
             sideAnnot = True;
         }
 
-	if ( !pda_Search (Pd,c,"representation-style", "xy-contour",(char *)style, SYMT_STRING))
+	if ( !pda_Search (Pd,c,"representation-style", "xy-contour",
+			  (char *)style, SYMT_STRING))
 	{
 	    strcpy(style, "line" );
 	}
-	if ( !pda_Search (Pd,c,"x-grid", "xy-contour",(char *) &xgridres, SYMT_INT))
+	if ( !pda_Search (Pd,c,"x-grid", "xy-contour",(char *) &xgridres, 
+			  SYMT_INT))
 	{
 		xgridres = 25;
 	}
-	if ( !pda_Search (Pd,c,"y-grid", "xy-contour",(char *) &ygridres, SYMT_INT))
+	if ( !pda_Search (Pd,c,"y-grid", "xy-contour",(char *) &ygridres, 
+			  SYMT_INT))
 	{
 		ygridres = 25;
 	}
-	if ( !pda_Search (Pd,c,"z-step", "xy-contour",(char *) &zstep, SYMT_FLOAT))
+	if ( !pda_Search (Pd,c,"z-step", "xy-contour",(char *) &zstep, 
+			  SYMT_FLOAT))
 	{
 		zstep = 20.0;
 	}
-	if ( !pda_Search(Pd,c,"grid-method", "xy-contour",
-		(char *)gridtype, SYMT_STRING))
+	if ( !pda_Search(Pd,c,"grid-method", "xy-contour",(char *)gridtype, 
+			 SYMT_STRING))
 	{
 		strcpy( gridtype, "raw");
 	}
@@ -362,9 +366,9 @@ bool	update;
 			continue;
 	    }
 
-	    /*
-	     * Set up the field-names for the data retrieval request.
-	     */
+	/*
+	 * Set up the field-names for the data retrieval request.
+	 */
 	    fcount = 0;
 	    if (xtype != 't')
 	    {
@@ -378,72 +382,88 @@ bool	update;
 	    }
 	    zdim = fcount;
 	    fids[fcount] = F_Lookup (fnames[2][plat]); fcount++;
-
-	    /*
-	     *  Determine times of data to request.
-	     */
-            if (xy_AvailableData(pid,&bTimeTarget,&eTimeTarget,&eTimeOld,
-                                &bTimeReq, &eTimeReq))
-            {
-		TC_EncodeTime ( &bTimeTarget, TC_Full, stime1 );
-		TC_EncodeTime ( &eTimeTarget, TC_Full, stime2 );
-                msg_ELog ( EF_DEBUG,
-                   "%s Data request times begin %s end = %s",
-                        c, stime1, stime2 );
-		dc = NULL;
-                dc = ds_Fetch (pid, xyClass, &bTimeTarget, &eTimeTarget, 
-			fids, fcount, NULL, 0);
+	/*
+	 *  Determine times of data to request.
+	 */
+            if (! xy_AvailableData(pid,&bTimeTarget,&eTimeTarget,&eTimeOld,
+				   &bTimeReq, &eTimeReq))
+	    {
+		    TC_EncodeTime (&bTimeTarget, TC_Full, stime1);
+		    TC_EncodeTime (&eTimeTarget, TC_Full, stime2);
+		    msg_ELog (EF_INFO, "No data for '%s' between %s and %s",
+			      pnames[plat], stime1, stime2);
+		    npts = 0;
+		    xdata[plat] = NULL;
+		    ydata[plat] = NULL;
+		    zdata[plat] = NULL;
+		    continue;
 	    }
+
+	    TC_EncodeTime (&bTimeTarget, TC_Full, stime1);
+	    TC_EncodeTime (&eTimeTarget, TC_Full, stime2);
+	    msg_ELog (EF_DEBUG, "%s data request times begin: %s end: %s",
+		      c, stime1, stime2);
+
+	    dc = NULL;
+	    dc = ds_Fetch (pid, xyClass, &bTimeReq, &eTimeReq, fids, fcount,
+			   NULL, 0);
+
 	    if (! dc)
 	    {
-		TC_EncodeTime ( &eTimeReq, TC_Full, stime1 );
-		msg_ELog (EF_INFO, "Unable to get field data for '%s' at %s", 
-			pnames[plat], stime1 );
-		npts = 0;
-	        xdata[plat] = NULL;
-	        ydata[plat] = NULL;
-	        zdata[plat] = NULL;
-		continue;
+		    msg_ELog (EF_INFO, 
+			      "No requested data for '%s' between %s and %s",
+			      pnames[plat], stime1, stime2);
+		    npts = 0;
+		    xdata[plat] = NULL;
+		    ydata[plat] = NULL;
+		    zdata[plat] = NULL;
+		    continue;
 	    }
-	    else
+	/*
+	 * Now that we have a data chunk, update the overlay times widget
+	 */
+	    lw_TimeStatus (c, pnames[plat], &eTimeReq);
+	/*
+	 * Extract the data from the data chunk
+	 */
+	    badvalue = dc_GetBadval (dc);
+	    if ( xyOrg == OrgScalar )
 	    {
-		badvalue = dc_GetBadval (dc);
-	        if ( xyOrg == OrgScalar )
-		{
-			npts = dc_GetNSample (dc);
-			for (n = 0; n < fcount; n++)
-			{
-				data[n] = (float *) malloc (npts * 
-					sizeof (float));
-				for (m = 0; m < npts; m++)
-					data[n][m] = dc_GetScalar (dc, m,
-						fids[n]);
-			}
-		}
-	        else if ( xyOrg == Org1dGrid )
-		{
+		    npts = dc_GetNSample (dc);
+		    for (n = 0; n < fcount; n++)
+		    {
+			    data[n] = (float *) malloc (npts * sizeof (float));
+			    for (m = 0; m < npts; m++)
+				    data[n][m] = dc_GetScalar (dc, m, fids[n]);
+		    }
+	    }
+	    else if ( xyOrg == Org1dGrid )
+	    {
 		    ns = dc_GetNSample (dc);
 		    for (n = 0; n < fcount; n++)
-			for (m = 0; m < ns; m++)
-			{
-			    tempdata = dc_RGGetGrid (dc, m, fids[n],
-					&origin, &rg, &len);
-			    if ( m == 0 )
+			    for (m = 0; m < ns; m++)
 			    {
-			        npts = rg.rg_nX * ns;
-			        data[n] = (float *) malloc (npts * sizeof (float));
+				    tempdata = dc_RGGetGrid (dc, m, fids[n],
+							     &origin, &rg, 
+							     &len);
+				    if ( m == 0 )
+				    {
+					    npts = rg.rg_nX * ns;
+					    data[n] = (float *) 
+						malloc (npts * sizeof (float));
+				    }
+				    memcpy (data[n] + (m*rg.rg_nX), tempdata, 
+					    len);
 			    }
-			    memcpy (data[n] + (m*rg.rg_nX), tempdata, len);
-			}
-		}
-	        xdata[plat] = (DataValPtr)malloc( npts * sizeof(DataValRec));
-	        ydata[plat] = (DataValPtr)malloc( npts * sizeof(DataValRec));
-	        zdata[plat] = (DataValPtr)malloc( npts * sizeof(DataValRec));
 	    }
+	    xdata[plat] = (DataValPtr)malloc( npts * sizeof(DataValRec));
+	    ydata[plat] = (DataValPtr)malloc( npts * sizeof(DataValRec));
+	    zdata[plat] = (DataValPtr)malloc( npts * sizeof(DataValRec));
+
 	    count = 0;
-	    /*
-	     * Extract field data arrays.
-	     */
+	/*
+	 * Extract field data arrays.
+	 */
             msg_ELog ( EF_DEBUG,
                    "X-Y Graph found %d data points for component %s.",npts,c);
 	    for ( ii = 0; ii < npts; ii++ )

@@ -1,7 +1,7 @@
 /*
  * XY-Observation plotting module
  */
-static char *rcsid = "$Id: XYObservation.c,v 1.3 1993-03-24 23:07:38 burghart Exp $";
+static char *rcsid = "$Id: XYObservation.c,v 1.4 1993-04-20 20:29:45 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -320,9 +320,9 @@ bool	update;
 			msg_ELog (EF_PROBLEM, "Bad organization.");
 			continue;
 	    }
-	    /*
-	     * Set up the field-names for the data retrieval request.
-	     */
+	/*
+	 * Set up the field-names for the data retrieval request.
+	 */
 	    fcount = 0;
 	    if ( xtype != 't' )
 	    {
@@ -336,95 +336,114 @@ bool	update;
 	    }
 	    zdim = fcount;
 	    fids[fcount] = F_Lookup(fnames[2][plat]); fcount++;
-	    /*
- 	     * Determine times of data to request.
- 	     */
-	    if (xy_AvailableData(pid,&bTimeTarget,&eTimeTarget,&eTimeOld,
+	/*
+ 	 * Determine times of data to request.
+ 	 */
+	    if (! xy_AvailableData (pid, &bTimeTarget, &eTimeTarget, &eTimeOld,
 				&bTimeReq, &eTimeReq))
 	    {
-		TC_EncodeTime ( &bTimeTarget, TC_Full, stime1 );
-		TC_EncodeTime ( &eTimeTarget, TC_Full, stime2 );
-		msg_ELog ( EF_DEBUG, "%s Data request times begin %s end = %s",
-			c, stime1, stime2 );
-		dc = NULL;
-		if ( dmode == DATA_SNAPSHOT )
-		{
-		    dc = ds_FetchObs (pid, xyClass, &eTimeReq, 
-			fids, fcount, NULL, 0);
-		}
-		else
-		{
-		    dc = ds_Fetch (pid, xyClass, &bTimeReq, &eTimeReq, 
-			fids, fcount, NULL, 0);
-		}
+		    TC_EncodeTime (&bTimeTarget, TC_Full, stime1);
+		    TC_EncodeTime (&eTimeTarget, TC_Full, stime2);
+		    msg_ELog (EF_INFO, "No data for '%s' between %s and %s",
+			      pnames[plat], stime1, stime2);
+		    npts[plat] = 0;
+		    xdata[plat] = NULL;
+		    ydata[plat] = NULL;
+		    zdata[plat] = NULL;
+		    continue;
 	    }
+
+	    TC_EncodeTime (&bTimeTarget, TC_Full, stime1);
+	    TC_EncodeTime (&eTimeTarget, TC_Full, stime2);
+	    msg_ELog (EF_DEBUG, "%s data request times begin: %s end: %s",
+		      c, stime1, stime2 );
+
+	    dc = NULL;
+	    if ( dmode == DATA_SNAPSHOT )
+		    dc = ds_FetchObs (pid, xyClass, &eTimeReq, fids, fcount, 
+				      NULL, 0);
+	    else
+		    dc = ds_Fetch (pid, xyClass, &bTimeReq, &eTimeReq, fids, 
+				   fcount, NULL, 0);
 
 	    if (! dc)
 	    {
-		TC_EncodeTime ( &eTimeReq, TC_Full, stime1 );
-		msg_ELog (EF_PROBLEM, 
-				"Unable to get field data for '%s' at %s", 
-				pnames[plat], stime1 );
-		npts[plat] = 0;
-	        xdata[plat] = NULL;
-	        ydata[plat] = NULL;
-	        zdata[plat] = NULL;
-		continue;
+		    msg_ELog (EF_INFO, 
+			      "No requested data for '%s' between %s and %s",
+			      pnames[plat], stime1, stime2);
+		    npts[plat] = 0;
+		    xdata[plat] = NULL;
+		    ydata[plat] = NULL;
+		    zdata[plat] = NULL;
+		    continue;
 	    }
-	    else
-            {
-		badvalue = dc_GetBadval (dc);
-	        if ( xyOrg == OrgScalar )
-		{
-		    no = ds_GetObsTimes(pid, &eTimeReq, ztimes, MAX_OBS, NULL );
-		    for (i=no-1; i>-1 && ztimes[i].zt_Sec<bTimeReq.zt_Sec; i--)
-		    npts[plat] = dc_GetNSample (dc);
+	/*
+	 * Now that we have a data chunk, update the overlay times widget
+	 */
+	    lw_TimeStatus (c, pnames[plat], &eTimeReq);
+	/*
+	 * Extract the data from the data chunk
+	 */
+	    badvalue = dc_GetBadval (dc);
+	    if ( xyOrg == OrgScalar )
+	    {
+		    no = ds_GetObsTimes (pid, &eTimeReq, ztimes, MAX_OBS, 
+					 NULL);
+		    for (i = no; i > 0 && TC_Less (ztimes[i-1], bTimeReq); i--)
+			    npts[plat] = dc_GetNSample (dc);
+
 		    obs[plat][0].index = 0;
 		    nobs[plat] = 0;
 		    for (n = 0; n < fcount; n++)
 		    {
-			data[n] = (float *)malloc (npts[plat] * sizeof (float));
-			for (m = 0; m < npts[plat]; m++)
-			{
-		    	    dc_GetTime (dc, m, &zt );
-			    if ( i >= 0 && zt.zt_Sec >= ztimes[i].zt_Sec )
+			    data[n] = (float *)malloc (npts[plat] * 
+						       sizeof (float));
+			    for (m = 0; m < npts[plat]; m++)
 			    {
-				obs[plat][nobs[plat]].index = m;
-				nobs[plat]++; i--;
+				    dc_GetTime (dc, m, &zt );
+				    if (i >= 0 && TC_Less (ztimes[i], zt))
+				    {
+					    obs[plat][nobs[plat]].index = m;
+					    nobs[plat]++;
+					    i--;
+				    }
+				    data[n][m] = dc_GetScalar (dc, m, fids[n]);
 			    }
-			    data[n][m] = dc_GetScalar (dc, m, fids[n]);
-			}
 		    }
-		}
-	        else if ( xyOrg == Org1dGrid )
-		{
+	    }
+	    else if ( xyOrg == Org1dGrid )
+	    {
 		    ns = dc_GetNSample (dc);
 		    nobs[plat] = ns;
 		    for (n = 0; n < fcount; n++)
-			for (m = 0; m < ns; m++)
-			{
-				tempdata = dc_RGGetGrid (dc, m, fids[n], 
-					&origin, &rg, &len);
-				if ( m == 0 )
-				{
-		    		    npts[plat] = rg.rg_nX * ns;
-				    data[n] = (float *) malloc (npts[plat] *
-					sizeof (float)); 
-				}
-				obs[plat][m].index = m*rg.rg_nX;
-				memcpy (data[n]+ (m*rg.rg_nX), tempdata, len); 
-			}
-		}
-
-	        xdata[plat] = (DataValPtr)calloc(npts[plat],sizeof(DataValRec));
-	        ydata[plat] = (DataValPtr)calloc(npts[plat],sizeof(DataValRec));
-	        zdata[plat] = (DataValPtr)calloc(npts[plat],sizeof(DataValRec));
+			    for (m = 0; m < ns; m++)
+			    {
+				    tempdata = dc_RGGetGrid (dc, m, fids[n], 
+							     &origin, &rg, 
+							     &len);
+				    if ( m == 0 )
+				    {
+					    npts[plat] = rg.rg_nX * ns;
+					    data[n] = (float *) 
+						    malloc (npts[plat] *
+							    sizeof (float)); 
+				    }
+				    obs[plat][m].index = m*rg.rg_nX;
+				    memcpy (data[n]+ (m*rg.rg_nX), tempdata, 
+					    len); 
+			    }
 	    }
-	    /*
-	     * Extract field data arrays.
-	     */
-	    msg_ELog ( EF_DEBUG, 
-		   "X-Y Observation found %d data points for component %s.",npts[plat],c);
+	    
+	    xdata[plat] = (DataValPtr) calloc (npts[plat], sizeof(DataValRec));
+	    ydata[plat] = (DataValPtr) calloc (npts[plat], sizeof(DataValRec));
+	    zdata[plat] = (DataValPtr) calloc (npts[plat], sizeof(DataValRec));
+
+	/*
+	 * Extract field data arrays.
+	 */
+	    msg_ELog (EF_DEBUG, 
+		      "XY Observation found %d data points for component %s.", 
+		      npts[plat], c);
 	    count = 0;
 	    no = 0;
 	    for ( ii = 0; ii < npts[plat]; ii++ )
