@@ -1,4 +1,4 @@
-MFVERSION="$Id: Imakefile,v 1.3 1993-05-14 21:33:42 corbet Exp $"
+MFVERSION="$Id: Imakefile,v 1.4 1994-10-18 23:23:36 corbet Exp $"
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -22,8 +22,10 @@ LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBNETCDF) $(LIBRDSS) $(XLIBS)
 LIBGCC = "/usr/local/lib/gcc-lib/sparc-sun-sunos4.1.2/2.2/libgcc.a"
 CLIBS = $(LIBGCC)
 
-OBJS= dm.o dm_pd.o dm_ui.o dm_color.o DialBox.o dm_pick.o dm_config.o
-SRCS= dm.c dm_pd.c dm_ui.c dm_color.c DialBox.c dm_pick.c dm_config.c
+OBJS= dm.o dm_pd.o dm_ui.o dm_color.o DialBox.o dm_pick.o dm_config.o \
+      dm_Mosaic.o
+SRCS= dm.c dm_pd.c dm_ui.c dm_color.c DialBox.c dm_pick.c dm_config.c \
+      dm_Mosaic.c
 
 HEADERS = dm.h dm_cmds.h dm_vars.h
 

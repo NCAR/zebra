@@ -1,5 +1,5 @@
 /*
- * The MOCCA display manager.
+ * The zeb display manager.
  */
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
@@ -32,13 +32,21 @@
 # include <DataStore.h>
 # include <config.h>
 # include <copyright.h>
+
+/*
+ * Preserve the xhelp functionality for now.  Since the help calls themselves
+ * will change to the new mosaic URL's, one can't easily switch back and
+ * forth, so I don't know how useful this is.
+ */
 # include <xhelp.h>
+static void CallXHelp ();
+static bool UseXHelp = TRUE;
 
 # include "dm.h"
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm.c,v 2.49 1994-09-15 21:48:55 corbet Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.50 1994-10-18 23:23:38 corbet Exp $")
 
 
 /*
@@ -56,11 +64,11 @@ ButtonMap *Default_map;	/* The default button map	*/
 Display *Dm_Display;
 static Widget Top;
 
-char ConfigDir[200];	/* Default directory for display configs */
-char ConfigPD[200];	/* Where to save plot descriptions	*/
+char ConfigDir[CFG_FILEPATH_LEN]; /* Default directory for display configs */
+char ConfigPD[CFG_FILEPATH_LEN]; /* Where to save plot descriptions	*/
 char ConfigPath[512];	/* Path to search for display configs */
 char CTablePath[512];	/* Where are the color tables?		*/
-
+char HelpPath[CFG_FILEPATH_LEN]; /* Where are the helpfiles */
 
 char ExecPath[ExecPathLen];	/* path for executables */
 int TBSpace = 0;	/* How much to tweak for title bar space. */
@@ -177,9 +185,13 @@ char **argv;
 	usy_c_indirect (vtable, "restart", &Restart, SYMT_BOOL, 0);
 	usy_c_indirect (vtable, "sleepafter", &SleepAfter, SYMT_INT, 0);
 	usy_c_indirect (vtable, "sleepfor", &SleepFor, SYMT_INT, 0);
-	usy_c_indirect (vtable, "configdir", ConfigDir, SYMT_STRING, 200);
-	usy_c_indirect (vtable, "configpd", ConfigPD, SYMT_STRING, 200);
+	usy_c_indirect (vtable, "configdir", ConfigDir, SYMT_STRING,
+			CFG_FILEPATH_LEN);
+	usy_c_indirect (vtable, "configpd", ConfigPD, SYMT_STRING,
+			CFG_FILEPATH_LEN);
 	usy_c_indirect (vtable, "configpath", ConfigPath, SYMT_STRING, 512);
+	usy_c_indirect (vtable, "helppath", HelpPath, SYMT_STRING,
+			CFG_FILEPATH_LEN);
 	usy_c_indirect (vtable, "tbspace", &TBSpace, SYMT_INT, 0);
 	strcpy (ExecPath, GetBinDir ());
 	usy_c_indirect (vtable, "execpath", ExecPath, SYMT_STRING,
@@ -189,6 +201,7 @@ char **argv;
 	sprintf (CTablePath, "%s/colortables", GetLibDir ());
 	usy_c_indirect (vtable, "ctablepath", CTablePath, SYMT_STRING, 512);
 	usy_c_indirect (vtable, "systemtype", SystemType, SYMT_STRING, 12);
+	usy_c_indirect (vtable, "usexhelp", &UseXHelp, SYMT_BOOL, 0);
 /*
  * Watch for incoming messages.
  */
@@ -237,7 +250,7 @@ struct ui_command *cmds;
  * Deal with a display manager command.
  */
 {
-	char winname[40], helpfile[120], topic[40];
+	char winname[40];
 	union usy_value nv;
 
 	switch (UKEY (*cmds))
@@ -380,25 +393,11 @@ struct ui_command *cmds;
 	 * library directory. "intro" topic becomes XHELP_INTRO_ID.
 	 */
 	   case DMC_HELP:
-		fixdir ("ZEB_HELPFILE", GetLibDir (), "zeb.hlp", helpfile);
-		if (cmds[1].uc_ctype == UTT_END)
-			strcpy (topic, XHELP_INTRO_ID);
+	        if (UseXHelp)
+			CallXHelp (cmds);
 		else
-		{
-			if (strcmp(UPTR (cmds[1]), "intro") == 0)
-				strcpy (topic, XHELP_INTRO_ID);
-			else
-				strcpy (topic, UPTR (cmds[1]));
-			strcat (topic, "             ");
-			topic[13] = '\0';
-			if (cmds[2].uc_ctype != UTT_END)
-			{		
-				fixdir ("ZEB_HELPFILE", GetLibDir (), 
-					UPTR (cmds[2]), helpfile);
-			}
-		}
-		XhCallXHelp (Top, helpfile, topic, "Welcome to Zeb");
-		XFlush(Dm_Display);	/* flush Xatoms to xhelp program */
+			dm_MosHelp (cmds[1].uc_ctype == UTT_END ? "index.html"
+				: UPTR (cmds[1]));
 		break;
 	/*
 	 * Do away with a window.
@@ -1602,3 +1601,36 @@ SValue *v;
 	}
 	return (TRUE);
 }
+
+
+
+
+
+static void
+CallXHelp (cmds)
+struct ui_command *cmds;
+/*
+ * Call the xhelp utility.  Old, obsolete, ugly stuff.
+ */
+{
+	char helpfile[120], topic[40];
+
+	fixdir ("ZEB_HELPFILE", GetLibDir (), "zeb.hlp", helpfile);
+	if (cmds[1].uc_ctype == UTT_END)
+		strcpy (topic, XHELP_INTRO_ID);
+	else
+	{
+		if (strcmp(UPTR (cmds[1]), "intro") == 0)
+			strcpy (topic, XHELP_INTRO_ID);
+		else
+			strcpy (topic, UPTR (cmds[1]));
+		strcat (topic, "             ");
+		topic[13] = '\0';
+		if (cmds[2].uc_ctype != UTT_END)
+			fixdir ("ZEB_HELPFILE", GetLibDir (), 
+					UPTR (cmds[2]), helpfile);
+	}
+	XhCallXHelp (Top, helpfile, topic, "Welcome to Zeb");
+	XFlush(Dm_Display);	/* flush Xatoms to xhelp program */
+}
+

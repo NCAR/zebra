@@ -1,7 +1,7 @@
 /*
  * DM variables.
  *
- * $Id: dm_vars.h,v 2.8 1994-05-19 19:59:21 granger Exp $
+ * $Id: dm_vars.h,v 2.9 1994-10-18 23:23:43 corbet Exp $
  */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -99,10 +99,15 @@ extern char Cur_config[MAXNAME];
 /*
  * Configuration directories.
  */
-extern char ConfigDir[200];
-extern char ConfigPD[200];
+extern char ConfigDir[CFG_FILEPATH_LEN];
+extern char ConfigPD[CFG_FILEPATH_LEN];
 extern char ConfigPath[512];
 extern char CTablePath[512];	/* Color tables */
+
+/*
+ * Where to look for help files.
+ */
+extern char HelpPath[CFG_FILEPATH_LEN];
 
 /*
  * The path for executable programs.
@@ -142,5 +147,9 @@ extern Display		*Dm_Display;		/* Our display		*/
  */
 extern int TBSpace;
 
+/*
+ * Functions.
+ */
+extern void dm_MosHelp FP ((char *));
 
 #endif /* !__zeb_dm_vars_h__ */
