@@ -1,6 +1,7 @@
 global
 	 add-data-command         :  rass-add
 	 alt-scale-y-max          :  1.5
+	 alt-scale-y-min          :  0.0
 	 altitude-label           :  
 	 axis-bottom-space        :  50
 	 axis-left-space          :  60
@@ -22,8 +23,9 @@ global
 	 xy-scale-x-mode          :  autoscale
 	 xy-scale-y-mode          :  manual
 	 xy-series-span           :  12h
+	 icon-left-menu           :  vertical-global-left
 	 icon-middle-menu         :  iss-global-rass
-	 require                  :  iss,iss-new
+	 require                  :  time-height,iss-rass
 	 trigger                  :  30m
 	 xy-axis-t-font-scale     :  0.015
 rasspigtails
@@ -35,19 +37,16 @@ rasspigtails
 	 icon                     :  iss-tdry
 	 icon-background          :  black
 	 icon-color               :  green
-	 icon-left-menu           :  minimal-cap-left-menu
-	 icon-middle-menu         :  my-xy-obs
-	 icon-right-menu          :  DataAvailable
+	 icon-left-menu           :  xyobs-left
+	 icon-middle-menu         :  DataAvailable
+	 icon-right-menu          :  xyobs-right
 	 platform                 :  null
 	 representation           :  obs
+	 require		  :  iss-rass
 	 trigger                  :  platform
 	 x-field                  :  time
-	 xyprivate-x-type         :  t
-	 xyprivate-y-max          :  1.5
-	 xyprivate-y-min          :  0.0000
-	 xyprivate-y-type         :  f
 	 y-field                  :  height
-	 z-field                  :  v_temp
+	 z-field                  :  tv
 	 z-justify                :  base
 	 z-scale                  :  0.01
 	 field-color              :  green
@@ -73,4 +72,4 @@ rasscontour
 	 trigger                  :  platform
 	 x-field                  :  time
 	 y-field                  :  height
-	 z-field                  :  v_temp
+	 z-field                  :  tv
