@@ -30,7 +30,7 @@
 # include <DataStore.h>
 # include <Platforms.h>
 
-RCSID ("$Id: dsdump.c,v 3.29 2000-11-21 23:20:11 granger Exp $")
+RCSID ("$Id: dsdump.c,v 3.30 2000-11-28 18:53:06 granger Exp $")
 
 /*
  * Standalone scanning flag.
@@ -57,7 +57,8 @@ static int Alone = 0;
 typedef enum e_platform_att_id
 {
     PA_NONE = 0, PA_NAME, PA_CLASS, PA_SUPERCLASS, PA_CLASSTREE,
-    PA_FILETYPE, PA_ORGANIZATION, PA_MAXSAMPLES, PA_CLASSDIR, PA_DATADIR,
+    PA_FILETYPE, PA_ORGANIZATION, PA_MAXSAMPLES, PA_CLASSDIR, PA_PLATDIR,
+    PA_DATADIR, PA_READDIR, PA_WRITEDIR, 
     PA_PARENT, PA_INHERIT_DIR, PA_INSTANCE_DIR, PA_COMMENT, PA_LASTATT
 } platform_att_id;
 
@@ -65,6 +66,7 @@ typedef struct s_platform_att
 {
     char *pa_name;
     platform_att_id pa_id;
+    char *pa_desc;
 } platform_att;
 
 /*
@@ -73,20 +75,23 @@ typedef struct s_platform_att
  */
 platform_att PlatformAtts[] = 
 {
-    { "none", PA_NONE },
-    { "name", PA_NAME },
-    { "class", PA_CLASS },
-    { "superclass", PA_SUPERCLASS },
-    { "classtree", PA_CLASSTREE },
-    { "filetype", PA_FILETYPE },
-    { "organization", PA_ORGANIZATION },
-    { "maxsamples", PA_MAXSAMPLES },
-    { "classdir", PA_CLASSDIR },
-    { "datadir", PA_DATADIR },
-    { "parent", PA_PARENT },
-    { "inheritdir", PA_INHERIT_DIR },
-    { "instancedir", PA_INSTANCE_DIR },
-    { "comment", PA_COMMENT }
+    { "none", PA_NONE, "none" },
+    { "name", PA_NAME, "platform name" },
+    { "class", PA_CLASS, "class name" },
+    { "superclass", PA_SUPERCLASS, "superclass name, if any" },
+    { "classtree", PA_CLASSTREE, "class hierarchy as directory path" },
+    { "filetype", PA_FILETYPE, "platform filetype" },
+    { "organization", PA_ORGANIZATION, "platform organization" },
+    { "maxsamples", PA_MAXSAMPLES, "platform maxsamples" },
+    { "classdir", PA_CLASSDIR, "platform class directory" },
+    { "platdir", PA_PLATDIR, "platform instance directory" },
+    { "datadir", PA_DATADIR, "data directory for first source found" },
+    { "readdir", PA_READDIR, "data directory for default read source" },
+    { "writedir", PA_WRITEDIR, "data directory for default write source" },
+    { "parent", PA_PARENT, "parent platform instance, if any" },
+    { "inheritdir", PA_INHERIT_DIR, "class inheritdir setting" },
+    { "instancedir", PA_INSTANCE_DIR, "class instancedir setting" },
+    { "comment", PA_COMMENT, "platform comment, if any" }
 };
 
 /*
@@ -145,7 +150,7 @@ const char *
 DumpAtt (const Platform *p, const PlatformClass *pc, 
 	 platform_att_id pa)
 {
-    static char buf[512];
+    static char buf[512 + CFG_FILEPATH_LEN];
 
     PlatformId ppid;
     char name[512];
@@ -202,8 +207,29 @@ DumpAtt (const Platform *p, const PlatformClass *pc,
 	return pi_ClassDir (p);
 	break;
 
-    case PA_DATADIR:
+    case PA_PLATDIR:
 	return pi_SuggestedDir (p);
+	break;
+
+    case PA_DATADIR:
+	if (ds_GetPlatDir (SRC_ALL, pi_Id(p), buf))
+	    return buf;
+	else
+	    return 0;
+	break;
+
+    case PA_READDIR:
+	if (ds_GetPlatDir (SRC_DEFAULT, pi_Id(p), buf))
+	    return buf;
+	else
+	    return 0;
+	break;
+
+    case PA_WRITEDIR:
+	if (ds_GetPlatDir (SRC_DEFAULT_W, pi_Id(p), buf))
+	    return buf;
+	else
+	    return 0;
 	break;
 
     case PA_PARENT:
@@ -322,12 +348,13 @@ char *prog;
     printf("\t-C <classname>\n"
 	   "\t\tLimit platforms to subclasses of this class.\n");
     printf("\t-r '<column1>, <column2>, ...'\n"
-	   "\t\tRow output with the given attributes in each column\n");
+	   "\t\tRow output with the given attributes in each column:\n\n");
     for (i = 1; i < PA_LASTATT; ++i)
     {
-	printf ("\t\t\t%s\n", PlatformAtts[i].pa_name);
+	printf ("\t\t   %-15s %s\n", 
+		PlatformAtts[i].pa_name, PlatformAtts[i].pa_desc);
     }
-    printf("\t\tComments may contain spaces and are unquoted.\n");
+    printf("\n\t\tComments may contain spaces and are unquoted.\n");
     printf("\t\tUnknown or unavailable attributes (not comments) are NA.\n");
     printf("Examples:\n");
     printf("\tAlphabetized list of all platforms:\n\t   %s -a\n", prog);
@@ -495,7 +522,7 @@ NextPlatform (PlatformId pid, DumpOptions *opts)
     if (opts->natts > 0)
     {
 	DumpRow (pid, opts->atts, opts->natts);
-	return;
+	return 1;
     }
     if (! opts->quiet)
 	DumpPlatform (p, opts);
@@ -759,9 +786,13 @@ DumpPlatform (const Platform *p, const DumpOptions *opts)
 	    
 	    if (opts->files <= SHOWFILES)
 	    {
+		char dirbuf[CFG_FILEPATH_LEN];
+		char *sdir = si.src_Dir;
+
+		if (ds_GetPlatDir (src, pid, dirbuf))
+		    sdir = dirbuf;
 		printf (" Data source '%s' (%s): %s\n", 
-			si.src_Name, si.src_ReadOnly ? "ro" : "rw",
-			si.src_Dir);
+			si.src_Name, si.src_ReadOnly ? "ro" : "rw", sdir);
 
 		if (! opts->files)
 		    continue;
