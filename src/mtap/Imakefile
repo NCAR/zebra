@@ -4,7 +4,9 @@ OBJS = mtap.o
 
 LIBS = $(LIBZEB) $(LIBRDSS)
 DISTFILES = $(SRCS) Imakefile
-INCLUDES = -I$(TOP)/src/ds
+DSDIR = $(TOP)/src/ds
+DSINCLUDES = -I$(DSDIR)
+INCLUDES = $(DSINCLUDES)
 
 NormalProgramTarget(mtap, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 DistfilesTarget($(DISTFILES))
