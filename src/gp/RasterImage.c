@@ -2,6 +2,7 @@
  * Low-level image access, hopefully hiding the details of how it's done.
  */
 # include <X11/Intrinsic.h>
+# include <X11/StringDefs.h>
 
 # include <zebra.h>
 # include <message.h>
@@ -18,7 +19,7 @@
 # endif
 
 
-RCSID ("$Id: RasterImage.c,v 2.3 1999-03-01 02:04:28 burghart Exp $");
+RCSID ("$Id: RasterImage.c,v 2.4 1999-08-12 16:56:43 burghart Exp $");
 
 /*
  * Forwards.
@@ -95,8 +96,46 @@ ri_XImageSetup (DestImage *i)
  * Make this one work just using a normal XImage.
  */
 {
+	int ix, iy;
+	XColor xc_bg;
+	Pixel bg;
+	unsigned char *dp;
+
 	i->di_type = RI_XImage;
 	i->di_image = malloc (i->di_w * i->di_h * i->di_bdepth);
+    /*
+     * Fill the image with the background pixel
+     */
+	XtVaGetValues (Graphics, XtNbackground, &xc_bg);
+	bg = xc_bg.pixel;
+	dp = i->di_image;
+
+	for (iy = 0; iy < i->di_h; iy++)
+	{
+	    for (ix = 0; ix < i->di_w; ix++)
+	    {
+		unsigned short *sdp = (unsigned short*) dp;
+		unsigned long *ldp = (unsigned long*) dp;
+		
+		switch (i->di_bdepth)
+		{
+		  case 1:
+		    *dp = bg;
+		    break;
+		  case 2:
+		    *sdp = bg;
+		    break;
+		  case 4:
+		    *ldp = bg;
+		    break;
+		}
+
+		dp += i->di_bdepth;
+	    }
+	}
+    /*
+     * Make the XImage and finish up
+     */
 	i->di_ximage = XCreateImage (XtDisplay (Graphics),
 			DefaultVisual (XtDisplay (Graphics),
 				XScreenNumberOfScreen (XtScreen (Graphics))),
