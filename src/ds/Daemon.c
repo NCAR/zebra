@@ -59,7 +59,7 @@
 # include "dsDaemon.h"
 # include "commands.h"
 
-RCSID ("$Id: Daemon.c,v 3.61 1997-05-13 21:36:51 ishikawa Exp $")
+RCSID ("$Id: Daemon.c,v 3.62 1997-06-17 06:23:29 granger Exp $")
 
 /*
  * Local forwards.
@@ -699,7 +699,26 @@ Shutdown ()
 
 
 
+static void
+FinalCache ()
+/*
+ * If there's a unified cache file set, write
+ * that instead of individual cache files.
+ */
+{
+	int type;
+	union usy_value v;
+	char *file = NULL;
 
+	if (usy_g_symbol (usy_g_stbl ("ui$variable_table"), "cachefile",
+			  &type, &v))
+	{
+		file = v.us_v_ptr;
+	}
+	msg_ELog (EF_DEBUG, "CacheOnExit: writing cache %s",
+		  file ? file : "for each platform");
+	WriteCache (file, /*onlydirty*/ FALSE);
+}
 
 
 
@@ -720,7 +739,9 @@ struct message *msg;
 	 * Don't write cache files if we haven't finished scanning
 	 */
 		if (! InitialScan && CacheOnExit)
-			WriteCache (NULL, FALSE);
+		{
+			FinalCache ();
+		}
 		printf ("%s: normal shutdown\n", msg_myname() );
 		Shutdown ();
 		/* no return */
