@@ -1,7 +1,7 @@
 /*
  * Plot execution module
  */
-static char *rcsid = "$Id: PlotExec.c,v 1.11 1991-01-15 19:29:23 kris Exp $";
+static char *rcsid = "$Id: PlotExec.c,v 1.12 1991-01-22 23:17:24 burghart Exp $";
 
 # include <X11/Intrinsic.h>
 # include <ui.h>
@@ -76,6 +76,11 @@ name_to_num Rt_table[] =
  */
 static void	(*Plot_routines[N_PTYPES][N_RTYPES])();
 static Boolean	Table_built = FALSE;
+
+/*
+ * Our plot type
+ */
+static int	PlotType;
 
 /*
  * Contour plot types
@@ -283,15 +288,18 @@ px_GlobalPlot ()
 		px_AddComponent (comps[i], False);
 	}
 /*
- * Annotate the altitude we eventually got.
+ * On CAPs, annotate the altitude we eventually got.
  */
-	sprintf (datestring, "Alt: %dm", (int) (Alt*1000.0));
+	if (PlotType == PT_CAP)
+	{
+		sprintf (datestring, "Alt: %dm", (int) (Alt*1000.0));
 
-	XSetForeground (XtDisplay (Graphics), Gcontext, White);
-	DrawText (Graphics, GWFrame (Graphics), Gcontext,
-		GWWidth (Graphics) - 10, GWHeight (Graphics) - 10, 
-		datestring, 0.0, TOPANNOTHEIGHT, JustifyRight,
-		JustifyBottom);
+		XSetForeground (XtDisplay (Graphics), Gcontext, White);
+		DrawText (Graphics, GWFrame (Graphics), Gcontext,
+			GWWidth (Graphics) - 10, USABLE_HEIGHT - 10, 
+			datestring, 0.0, TOPANNOTHEIGHT, JustifyRight,
+			JustifyBottom);
+	}
 /*
  * If the altitude has changed, stash it.
  */
@@ -471,7 +479,7 @@ float *x0, *y0, *x1, *y1;
  */
 {
 	int width = (F_X1 - F_X0) * GWWidth (Graphics);
-	int height = (F_Y1 - F_Y0) * GWHeight (Graphics);
+	int height = (F_Y1 - F_Y0) * USABLE_HEIGHT;
 	float hkmp, vkmp;	/* horiz km/pixel, vert too */
 /*
  * Figure out the current scales in both directions.
@@ -549,7 +557,7 @@ Boolean	update;
 			XFillRectangle (XtDisplay (Graphics), 
 				GWFrame (Graphics), Gcontext, left, 
 				(int)(top + i * bar_height), 10, 
-				(int)(bar_height + 1.5));
+				(int)(bar_height + 1));
 		}
 	/*
 	 * Numeric label
@@ -602,7 +610,7 @@ Boolean	update;
 	left += 10;
 	top += 5;
 
-	wheight = GWHeight (Graphics);
+	wheight = USABLE_HEIGHT;
 
 	if(! Monocolor)
 	{
@@ -732,9 +740,9 @@ float	*center, *step;
  * Clip rectangle
  */
 	clip.x = F_X0 * GWWidth (Graphics);
-	clip.y = (1.0 - F_Y1) * GWHeight (Graphics);
+	clip.y = (1.0 - F_Y1) * USABLE_HEIGHT;
 	clip.width = (F_X1 - F_X0) * GWWidth (Graphics);
-	clip.height = (F_Y1 - F_Y0) * GWHeight (Graphics);
+	clip.height = (F_Y1 - F_Y0) * USABLE_HEIGHT;
 /*
  * Draw the contours
  */
@@ -871,16 +879,16 @@ Boolean	update;
 	XSetForeground (XtDisplay (Graphics), Gcontext, White);
 
 	xannot = (left + right) / 2;
-	yannot = top + 0.04 * GWHeight (Graphics);
+	yannot = top + 0.04 * USABLE_HEIGHT;
 	DrawText (Graphics, GWFrame (Graphics), Gcontext, xannot, yannot, 
 		"VECTOR", 0.0, 0.02, JustifyCenter, JustifyBottom);
 
-	yannot += 0.022 * GWHeight (Graphics);
+	yannot += 0.022 * USABLE_HEIGHT;
 	DrawText (Graphics, GWFrame (Graphics), Gcontext, xannot, yannot, 
 		"SCALE", 0.0, 0.02, JustifyCenter, JustifyBottom);
 
 	xannot = left + 0.25 * (right - left);
-	yannot += 0.03 * GWHeight (Graphics);
+	yannot += 0.03 * USABLE_HEIGHT;
 	DrawText (Graphics, GWFrame (Graphics), Gcontext, xannot, yannot,
 		"5.0", 0.0, 0.02, JustifyCenter, JustifyBottom);
 	VG_AnnotVector (xannot, yannot + 4, 0.0, -5.0, White);
@@ -961,9 +969,9 @@ Boolean	update;
  * Clip rectangle
  */
 	clip.x = F_X0 * GWWidth (Graphics);
-	clip.y = (1.0 - F_Y1) * GWHeight (Graphics);
+	clip.y = (1.0 - F_Y1) * USABLE_HEIGHT;
 	clip.width = (F_X1 - F_X0) * GWWidth (Graphics);
-	clip.height = (F_Y1 - F_Y0) * GWHeight (Graphics);
+	clip.height = (F_Y1 - F_Y0) * USABLE_HEIGHT;
 /*
  * Draw the raster plot
  */
@@ -1009,8 +1017,8 @@ Boolean	update;
 		XSetForeground (XtDisplay (Graphics), Gcontext, 
 			Colors[i].pixel);
 		XFillRectangle (XtDisplay (Graphics), GWFrame (Graphics), 
-			Gcontext, left, (int)(top + i * bar_height + 1), 10, 
-			(int) bar_height);
+			Gcontext, left, (int)(top + i * bar_height), 10, 
+			(int)(bar_height + 1));
 	}
 
 	for (i = 0; i < 9; i++)
