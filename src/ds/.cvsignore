@@ -4,3 +4,8 @@ dsDaemon
 *.out
 Makefile
 Makefile.bak
+GRIBdump
+rfdump
+zfdump
+gribdump
+
