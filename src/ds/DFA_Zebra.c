@@ -32,7 +32,7 @@
 # include "znfile.h"
 # include "ds_fields.h"
 
-MAKE_RCSID ("$Id: DFA_Zebra.c,v 1.1 1992-06-10 16:00:00 corbet Exp $");
+MAKE_RCSID ("$Id: DFA_Zebra.c,v 1.2 1992-06-19 14:51:54 corbet Exp $");
 
 
 /*
@@ -46,12 +46,13 @@ typedef struct _znTag
 	int		zt_Write;	/* File open for write access	*/
 	ZebTime		*zt_Time;	/* The time array		*/
 	zn_Sample	*zt_Sample;	/* Sample array			*/
-	FieldId		*zt_Fields;	/* The field array		*/
-	zn_Field	*zt_FNames;	/* Names of the fields		*/
+	FieldId		*zt_Fids;	/* The field array		*/
+	zn_Field	*zt_Fields;	/* Names of the fields		*/
 	PlatformId	*zt_Ids;	/* Station ID's (irgrid)	*/
 	Location	*zt_Locs;	/* Location array		*/
 	zn_Sample	*zt_Attr;	/* Per-sample attribute array	*/
 	char		*zt_GlAttr;	/* Global attribute block	*/
+	RGrid		*zt_Rg;		/* Rgrid desc array		*/
 } znTag;
 
 /*
@@ -63,6 +64,7 @@ typedef struct _znTag
 # define SF_FIELD	0x0008		/* Field array			*/
 # define SF_LOCATION	0x0010		/* Location array		*/
 # define SF_ATTR	0x0020		/* Sample attributes		*/
+# define SF_RGRID	0x0040		/* RGrid array			*/
 
 
 /*
@@ -83,10 +85,10 @@ static struct CO_Compat
 } COCTable [] =
 {
 	{ OrgOutline,		DCC_Boundary	},
-# ifdef notdef
 	{ Org1dGrid,		DCC_RGrid	},
 	{ Org2dGrid,		DCC_RGrid	},
 	{ Org3dGrid,		DCC_RGrid	},
+# ifdef notdef
 	{ OrgIRGrid,		DCC_IRGrid	},
 	{ OrgIRGrid,		DCC_Scalar	},
 	{ OrgScalar,		DCC_Scalar	},
@@ -107,6 +109,9 @@ static void	zn_ExpandTOC FP ((znTag *));
 static void	zn_OpenSlot FP ((znTag *, int));
 static int	zn_WrBoundary FP ((znTag *, DataChunk *, int, zn_Sample *,
 			 WriteCode, int));
+static int	zn_WrGrid FP ((znTag *, DataChunk *, int, int, zn_Sample *, 
+			WriteCode, int *, FieldId *, int));
+static void 	zn_WrLocInfo FP ((znTag *, int, Location *, RGrid *));
 static void	zn_GetFieldIndex FP ((znTag *, FieldId *, int, int *));
 static void	zn_DataWrite FP ((znTag *, void *, int, zn_Sample *,
 			WriteCode));
@@ -114,6 +119,11 @@ static void	zn_OFLoadStations FP ((znTag *));
 static void	zn_PutAttrs FP ((znTag *, int, void *, int));
 static int	zn_OrgClassCompat FP ((DataOrganization, DataClass));
 static void	zn_ReadBoundary FP ((znTag *, DataChunk *, int, int));
+static void	zn_ReadGrid FP ((znTag *, DataChunk *, int, int, int,
+			dsDetail *, int, double));
+static void	zn_RdRGridOffset FP ((RGrid *, Location *, long *, int *,
+			dsDetail *, int));
+static void	zn_DoBadval FP ((float *, int, double, double));
 
 static long	zn_GetFromFree FP ((znTag *, int, long, zn_Free *, long));
 static long	zn_GetSpace FP ((znTag *, int));
@@ -140,6 +150,7 @@ char **rtag;
 	znTag *tag = ALLOC (znTag);
 	zn_Header *hdr = &tag->zt_Hdr;
 	int ssize, asize;
+	bool grid;
 	void *ablock;
 /*
  * Create the file itself before we go anywhere.
@@ -155,11 +166,12 @@ char **rtag;
  * Initialize the file tag.
  */
 	tag->zt_Sync = SF_HEADER;
-	tag->zt_Sample = 0; tag->zt_Fields = 0;
-	tag->zt_FNames = 0; tag->zt_Ids = 0; tag->zt_Locs = 0;
+	tag->zt_Sample = 0; tag->zt_Fids = 0;
+	tag->zt_Fields = 0; tag->zt_Ids = 0; tag->zt_Locs = 0;
 	tag->zt_Write = TRUE;
 	tag->zt_Attr = 0;
 	tag->zt_GlAttr = 0;
+	tag->zt_Rg = 0;
 /*
  * Header initialization.  Once this is done we can start space allocation.
  */
@@ -171,6 +183,7 @@ char **rtag;
 	hdr->znh_OffLoc = -1;
 	hdr->znh_OffGlAttr = hdr->znh_OffAttr = -1;
 	hdr->znh_GlAttrLen = 0;
+	hdr->znh_OffRg = -1;
 /*
  * Allocate the space for the header itself and sync it out.
  */
@@ -195,17 +208,31 @@ char **rtag;
 	hdr->znh_OffSample = zn_GetSpace (tag, ssize);
 	tag->zt_Sync |= SF_SAMPLE;
 /*
+ * Does this file involve grids?
+ */
+	grid = hdr->znh_Org == Org1dGrid || hdr->znh_Org == Org2dGrid ||
+			hdr->znh_Org == Org3dGrid || hdr->znh_Org == OrgImage;
+/*
  * Add other chunks to the file if appropriate.
  */
 	if (dc->dc_Class == DCC_IRGrid)		/* IRGRID station array	*/
 		zn_CFMakeStations (tag, dc);
-	if (ds_IsMobile (dc->dc_Platform))	/* Locations		*/
+	if (grid || ds_IsMobile (dc->dc_Platform)) /* Locations		*/
 	{
 		tag->zt_Locs = (Location *) malloc (ZN_GRAIN*sizeof(Location));
 		hdr->znh_OffLoc = zn_GetSpace (tag, ZN_GRAIN*sizeof(Location));
 	}
 	else
 		dc_GetLoc (dc, 0, &hdr->znh_Loc);
+/*
+ * Grid dimensions.
+ */
+	if (grid)
+	{
+		tag->zt_Rg = (RGrid *) malloc (ZN_GRAIN*sizeof (RGrid));
+		hdr->znh_OffRg = zn_GetSpace (tag, ZN_GRAIN*sizeof (RGrid));
+		tag->zt_Sync |= SF_RGRID;
+	}
 /*
  * Global attributes too.
  */
@@ -239,6 +266,7 @@ DataChunk *dc;
 {
 	int i, nf;
 	FieldId *fids, bfid;
+	float badval = 99999.9;
 /*
  * Make a special case for boundaries.
  */
@@ -249,22 +277,27 @@ DataChunk *dc;
 		nf = 1;
 	}
 	else
+	{
 		fids = dc_GetFields (dc, &nf);
+		badval = dc_GetBadval (dc);
+	}
 /*
  * Put the field array into the tag.
  */
-	tag->zt_Fields = (FieldId *) malloc (nf * sizeof (FieldId));
+	tag->zt_Fids = (FieldId *) malloc (nf * sizeof (FieldId));
 	tag->zt_Sync |= SF_FIELD;
 	tag->zt_Hdr.znh_OffField = zn_GetSpace (tag, nf * sizeof (zn_Field));
 	tag->zt_Hdr.znh_NField = nf;
-	tag->zt_FNames = (zn_Field *) malloc (nf * sizeof (zn_Field));
+	tag->zt_Fields = (zn_Field *) malloc (nf * sizeof (zn_Field));
 /*
  * Go through and fill it all in.
  */
 	for (i = 0; i < nf; i++)
 	{
-		tag->zt_Fields[i] = fids[i];
-		strcpy (tag->zt_FNames[i], F_GetName (fids[i]));
+		tag->zt_Fids[i] = fids[i];
+		strcpy (tag->zt_Fields[i].zf_Name, F_GetName (fids[i]));
+		tag->zt_Fields[i].zf_Format = DF_Float;
+		tag->zt_Fields[i].zf_Badval = badval;
 	}
 }
 
@@ -298,11 +331,14 @@ znTag *tag;
 		zn_PutBlock (tag, hdr->znh_OffLoc, tag->zt_Locs,
 			hdr->znh_NSample*sizeof (Location));
 	if (tag->zt_Sync & SF_FIELD)
-		zn_PutBlock (tag, hdr->znh_OffField, tag->zt_FNames,
+		zn_PutBlock (tag, hdr->znh_OffField, tag->zt_Fields,
 			hdr->znh_NField*sizeof (zn_Field));
 	if (tag->zt_Sync & SF_ATTR)
 		zn_PutBlock (tag, hdr->znh_OffAttr, tag->zt_Attr,
 			hdr->znh_NSample*sizeof (zn_Sample));
+	if (tag->zt_Sync & SF_RGRID)
+		zn_PutBlock (tag, hdr->znh_OffRg, tag->zt_Rg,
+			hdr->znh_NSample*sizeof (RGrid));
 	tag->zt_Sync = 0;
 }
 
@@ -516,8 +552,13 @@ WriteCode wc;
 	{
 	   case OrgOutline:
 	   	zn_WrBoundary (tag, dc, sample, samp, wc, 0);
-		msg_ELog (EF_DEBUG, " Bnd ended up %d at %ld", samp->znf_Size,
-			samp->znf_Offset);
+		break;
+
+	   case Org1dGrid:
+	   case Org2dGrid:
+	   case Org3dGrid:
+	   	zn_WrGrid (tag, dc, fsample, sample, samp, wc, index,
+				fids, nfield);
 		break;
 	}
 /*
@@ -620,7 +661,7 @@ int nfield, *index;
 	for (dcfield = 0; dcfield < nfield; dcfield++)
 	{
 		for (ffield = 0; ffield < hdr->znh_NField; ffield++)
-			if (fids[dcfield] == tag->zt_Fields[ffield])
+			if (fids[dcfield] == tag->zt_Fids[ffield])
 				break;
 		if (ffield < hdr->znh_NField)
 			index[dcfield] = ffield;
@@ -663,7 +704,7 @@ int nfield, *index;
 /*
  * Expand the field name table.
  */
-	tag->zt_FNames = (zn_Field *) realloc (tag->zt_FNames,
+	tag->zt_Fields = (zn_Field *) realloc (tag->zt_Fields,
 				(hdr->znh_NField + nnew)*sizeof (zn_Field));
 	zn_FreeSpace (tag, hdr->znh_OffField,
 				hdr->znh_NField*sizeof (zn_Field));
@@ -675,15 +716,16 @@ int nfield, *index;
 	for (dcfield = 0; dcfield < nfield; dcfield++)
 		if (index[dcfield] < 0)
 		{
-			strcpy (tag->zt_FNames[hdr->znh_NField],
+			strcpy (tag->zt_Fields[hdr->znh_NField].zf_Name,
 					F_GetName (fids[dcfield]));
+			tag->zt_Fields[hdr->znh_NField].zf_Format = DF_Float;
 			index[dcfield] = hdr->znh_NField++;
 		}
 /*
  * Write out the new field name table (sync won't do that) and we are 
  * done.
  */
-	zn_PutBlock (tag, hdr->znh_OffField, tag->zt_FNames,
+	zn_PutBlock (tag, hdr->znh_OffField, tag->zt_Fields,
 					hdr->znh_NField*sizeof (zn_Field));
 }
 
@@ -781,6 +823,17 @@ znTag *tag;
 		tag->zt_Sync |= SF_LOCATION;
 	}
 /*
+ * RGRid arrays, if need be.
+ */
+	if (hdr->znh_OffRg >= 0)
+	{
+		tag->zt_Rg = (RGrid *) realloc (tag->zt_Rg,
+					newns*sizeof (RGrid));
+		zn_FreeSpace (tag, hdr->znh_OffRg, oldns*sizeof (RGrid));
+		hdr->znh_OffRg = zn_GetSpace (tag, newns*sizeof (RGrid));
+		tag->zt_Sync |= SF_RGRID;
+	}
+/*
  * Attributes.
  */
 	if (hdr->znh_OffAttr >= 0)
@@ -795,6 +848,8 @@ znTag *tag;
 	}
 	hdr->znh_NSample++;
 }
+
+
 
 
 
@@ -832,6 +887,15 @@ int sample;
 		tag->zt_Sync |= SF_LOCATION;
 	}
 /*
+ * Same with rgrids.
+ */
+	if (hdr->znh_OffRg >= 0)
+	{
+		bcopy (tag->zt_Rg + sample, tag->zt_Rg + sample + 1,
+			nmove*sizeof (RGrid));
+		tag->zt_Sync |= SF_RGRID;
+	}
+/*
  * If attributes, also them.
  */
 	if (hdr->znh_OffAttr >= 0)
@@ -842,9 +906,40 @@ int sample;
 		tag->zt_Attr[sample].znf_Size = 0;
 		tag->zt_Attr[sample].znf_Offset = 0;
 	}
-/* XXX OTHER TABLES TOO (attr). */
 }
 
+
+
+
+static int
+zn_WrGrid (tag, dc, fsample, dcsample, samp, wc, index, fids, nfield)
+znTag *tag;
+DataChunk *dc;
+int fsample, dcsample, *index, nfield;
+zn_Sample *samp;
+WriteCode wc;
+FieldId *fids;
+/*
+ * Write out a grid sample.
+ */
+{
+	int fld, len;
+	float *data;
+	RGrid rg;
+	Location loc;
+/*
+ * Write out the data for each field.
+ */
+	for (fld = 0; fld < nfield; fld++)
+	{
+		data = dc_RGGetGrid (dc, dcsample, fids[fld], &loc, &rg, &len);
+		zn_DataWrite (tag, data, len, samp + index[fld], wc);
+	}
+/*
+ * Save out the location info.
+ */
+	zn_WrLocInfo (tag, fsample, &loc, &rg);
+}
 
 
 
@@ -869,6 +964,32 @@ WriteCode wc;
 	locs = dc_BndGet (dc, sample, &nloc);
 	zn_DataWrite (tag, locs, nloc*sizeof (Location), samp + index, wc);
 	return (1);
+}
+
+
+
+
+
+
+static void
+zn_WrLocInfo (tag, sample, loc, rg)
+znTag *tag;
+int sample;
+Location *loc;
+RGrid *rg;
+/*
+ * Save this location info in the file.
+ */
+{
+	zn_Header *hdr = (zn_Header *) &tag->zt_Hdr;
+
+	tag->zt_Locs[sample] = *loc;
+	zn_PutBlock (tag, hdr->znh_OffLoc + sample*sizeof (Location), 
+			loc, sizeof (Location));
+
+	tag->zt_Rg[sample] = *rg;
+	zn_PutBlock (tag, hdr->znh_OffRg + sample*sizeof (RGrid), 
+			rg, sizeof (RGrid));
 }
 
 
@@ -938,21 +1059,23 @@ void *ctag;
 /*
  * Now free up all the storage.
  */
-	free (tag->zt_Time);
-	if (tag->zt_Sample)
+	free (tag->zt_Time);		/* Time array -- always there	*/
+	if (tag->zt_Sample)		/* Sample array			*/
 		free (tag->zt_Sample);
-	if (tag->zt_Fields)
+	if (tag->zt_Fids)		/* Field ID's			*/
+		free (tag->zt_Fids);
+	if (tag->zt_Fields)		/* Field descriptions		*/
 		free (tag->zt_Fields);
-	if (tag->zt_FNames)
-		free (tag->zt_FNames);
-	if (tag->zt_Ids)
+	if (tag->zt_Ids)		/* Station ID's			*/
 		free (tag->zt_Ids);
-	if (tag->zt_Locs)
+	if (tag->zt_Locs)		/* Locations			*/
 		free (tag->zt_Locs);
-	if (tag->zt_GlAttr)
+	if (tag->zt_GlAttr)		/* Global attributes		*/
 		free (tag->zt_GlAttr);
-	if (tag->zt_Attr)
+	if (tag->zt_Attr)		/* Sample attributes		*/
 		free (tag->zt_Attr);
+	if (tag->zt_Rg)			/* Rgrid dimensions		*/
+		free (tag->zt_Rg);
 	free (tag);
 	return (0);
 }
@@ -973,9 +1096,11 @@ void **rtag;
 	znTag *tag = ALLOC (znTag);
 	zn_Header *hdr = &tag->zt_Hdr;
 	int nsa, field;
+	bool grid;
 /*
  * Open the file.
  */
+	memset (tag, 0, sizeof (znTag));
 	if ((tag->zt_Fd = open (df->df_name, write ? O_RDWR : O_RDONLY)) < 0)
 	{
 		free (tag);
@@ -996,26 +1121,39 @@ void **rtag;
 /*
  * Pull in the fields and convert them to fids.
  */
-	tag->zt_FNames = (zn_Field *) malloc(hdr->znh_NField*sizeof(zn_Field));
-	zn_GetBlock (tag, hdr->znh_OffField, tag->zt_FNames,
+	tag->zt_Fields = (zn_Field *) malloc(hdr->znh_NField*sizeof(zn_Field));
+	zn_GetBlock (tag, hdr->znh_OffField, tag->zt_Fields,
 				hdr->znh_NField*sizeof (zn_Field));
-	tag->zt_Fields = (FieldId *) malloc (hdr->znh_NField*sizeof (FieldId));
+	tag->zt_Fids = (FieldId *) malloc (hdr->znh_NField*sizeof (FieldId));
 	for (field = 0; field < hdr->znh_NField; field++)
-		tag->zt_Fields[field] = F_Lookup (tag->zt_FNames[field]);
+		tag->zt_Fids[field] = F_Lookup (tag->zt_Fields[field].zf_Name);
 /*
  * If there is a station array, pull it in.
  */
 	if (hdr->znh_Org == OrgIRGrid)
 		zn_OFLoadStations (tag);
 /*
- * Otherwise look to see if there is a location array.  (i.e. irgrids are
- * never mobile.)
+ * Does this file involve grids?
  */
-	if (ds_IsMobile (df->df_platform))
+	grid = hdr->znh_Org == Org1dGrid || hdr->znh_Org == Org2dGrid ||
+			hdr->znh_Org == Org3dGrid || hdr->znh_Org == OrgImage;
+/*
+ * Look for a location array.
+ */
+	if (grid || ds_IsMobile (df->df_platform))
 	{
 		tag->zt_Locs = (Location *) malloc (nsa*sizeof (Location));
 		zn_GetBlock (tag, hdr->znh_OffLoc, tag->zt_Locs,
 				nsa*sizeof (Location));
+	}
+/*
+ * Grid dims.
+ */
+	if (grid)
+	{
+		tag->zt_Rg = (RGrid *) malloc (nsa*sizeof (RGrid));
+		zn_GetBlock (tag, hdr->znh_OffRg, tag->zt_Rg,
+				nsa*sizeof (RGrid));
 	}
 /*
  * If we have global attributes, get them.
@@ -1132,6 +1270,9 @@ void *ctag;
 		if (tag->zt_Attr)
 			tag->zt_Attr = (zn_Sample *) realloc (tag->zt_Attr,
 				nsa*sizeof (zn_Sample));
+		if (tag->zt_Rg)
+			tag->zt_Rg = (RGrid *) realloc (tag->zt_Rg,
+				nsa*sizeof (RGrid));
 	}
 /*
  * If there are new fields we have other stuff to do.
@@ -1141,9 +1282,9 @@ void *ctag;
 		if (oldnsa == hdr->znh_NSampAlloc)
 			tag->zt_Sample = (zn_Sample *) realloc (tag->zt_Sample,
 				nsa*hdr->znh_NField*sizeof (zn_Sample));
-		tag->zt_Fields = (FieldId *) realloc (tag->zt_Fields,
+		tag->zt_Fids = (FieldId *) realloc (tag->zt_Fids,
 				hdr->znh_NField*sizeof (FieldId));
-		tag->zt_FNames = (zn_Field *) realloc (tag->zt_FNames,
+		tag->zt_Fields = (zn_Field *) realloc (tag->zt_Fields,
 				hdr->znh_NField*sizeof (zn_Field));
 	}
 /*
@@ -1158,16 +1299,20 @@ void *ctag;
 	if (tag->zt_Attr)
 		zn_GetBlock (tag, hdr->znh_OffAttr, tag->zt_Attr,
 						nsa*sizeof (zn_Sample));
+	if (tag->zt_Rg)
+		zn_GetBlock (tag, hdr->znh_OffRg, tag->zt_Rg,
+						nsa*sizeof (RGrid));
 /*
  * Deal with fields if necessary.
  */
 	if (hdr->znh_NField != oldnf)
 	{
 		int fld;
-		zn_GetBlock (tag, hdr->znh_OffField, tag->zt_FNames,
+		zn_GetBlock (tag, hdr->znh_OffField, tag->zt_Fields,
 					hdr->znh_NField*sizeof (zn_Field));
 		for (fld = 0; fld < hdr->znh_NField; fld++)
-			tag->zt_Fields[fld] = F_Lookup (tag->zt_FNames[fld]);
+			tag->zt_Fids[fld] = F_Lookup (
+						tag->zt_Fields[fld].zf_Name);
 	}
 	return (TRUE);
 }
@@ -1215,7 +1360,12 @@ DataClass class;
 /*
  * Do class-specific setup.
  */
-
+	switch (class)
+	{
+	   case DCC_RGrid:
+	   	dc_RGSetup (dc, nfield, fields);
+		break;
+	}
 /*
  * Done.
  */
@@ -1294,6 +1444,11 @@ int ndetail;
 	   	zn_ReadBoundary (tag, dc, tbegin, tend);
 		break;
 
+	   case DCC_RGrid:
+	   	zn_ReadGrid (tag, dc, dcsamp, tbegin, tend, details, ndetail,
+				badval);
+		break;
+
 	   default:
 	   	msg_ELog (EF_PROBLEM, "Strange...class %d in GetData",
 				dc->dc_Class);
@@ -1337,7 +1492,7 @@ int tbegin, tend;
  * Find the biggest boundary we need to pull in, and allocate sufficient
  * memory for that.
  */
-	for (samp = tbegin; samp < tend; samp++)
+	for (samp = tbegin; samp <= tend; samp++)
 		if (tag->zt_Sample[samp].znf_Size > max)
 			max = tag->zt_Sample[samp].znf_Size;
 	locs = (Location *) malloc (max);
@@ -1352,6 +1507,172 @@ int tbegin, tend;
 				zs->znf_Size/sizeof (Location));
 	}
 }
+
+
+
+
+
+static void
+zn_ReadGrid (tag, dc, dcsamp, tbegin, tend, details, ndetail, badval)
+znTag *tag;
+DataChunk *dc;
+int dcsamp, tbegin, tend, ndetail;
+dsDetail *details;
+float badval;
+/*
+ * Pull some grids in.
+ */
+{
+	long offset;
+	int size, sample, *index, nfield, fld;
+	FieldId *fids;
+	RGrid rg;
+	Location origin;
+	zn_Sample *zs;
+	zn_Header *hdr = &tag->zt_Hdr;
+	float *data;
+/*
+ * Figure out where our fields are.
+ */
+	fids = dc_GetFields (dc, &nfield);
+	index = (int *) malloc (nfield*sizeof (int));
+	zn_GetFieldIndex (tag, fids, nfield, index);
+	zs = tag->zt_Sample + tbegin*hdr->znh_NField;
+/*
+ * Now pull in the stuff.
+ */
+	for (sample = tbegin; sample <= tend; sample++)
+	{
+	/*
+	 * Consider subsectioning.
+	 */
+		rg = tag->zt_Rg[sample];
+		origin = tag->zt_Locs[sample];
+	 	zn_RdRGridOffset (&rg, &origin, &offset, &size,
+				details, ndetail);
+	/*
+	 * Blast through the fields and get the data.
+	 */
+	 	for (fld = 0; fld < nfield; fld++)
+		{
+		/*
+		 * Make sure the data is here.
+		 */
+			if (zs[fld].znf_Size <= 0)
+				continue;
+		/*
+		 * Set up the data chunk to accept it, then read it in.  The
+		 * two-step process is there to avoid an extra copy of the
+		 * data.
+		 */
+			dc_RGAddGrid (dc, dcsamp, fids[fld], &origin, &rg,
+				tag->zt_Time + sample, (float *) 0, size);
+			data = dc_GetMData (dc, dcsamp, fids[fld], 0);
+			zn_GetBlock (tag, zs[index[fld]].znf_Offset + offset,
+					data, size);
+		/*
+		 * Apply the bad value flag.
+		 */
+		 	zn_DoBadval (data, size/sizeof (float),
+				tag->zt_Fields[index[fld]].zf_Badval, badval);
+		}
+		dcsamp++;
+	}
+	free (index);
+}
+
+
+
+
+
+
+static void
+zn_RdRGridOffset (rg, loc, offset, size, details, ndetail)
+RGrid *rg;
+Location *loc;
+long *offset;
+int *size, ndetail;
+dsDetail *details;
+/*
+ * Figure offsets and sizes 
+ */
+{
+	SValue v;
+	int level;
+/*
+ * If they have not specified an altitude, set params to read the whole
+ * damn thing.
+ */
+	if (! ds_GetDetail ("altitude", details, ndetail, &v))
+	{
+		*offset = 0;
+		*size = rg->rg_nX*rg->rg_nY*rg->rg_nZ*sizeof (float); /*XXX*/
+		return;
+	}
+/*
+ * OK, we need to figure out where they want to read from.
+ */
+	level = (v.us_v_float - loc->l_alt)/rg->rg_Zspacing + 0.5;
+	if (level < 0)
+		level = 0;
+	else if (level >= rg->rg_nZ)
+		level = rg->rg_nZ - 1;
+/*
+ * Set params and we're done.
+ */
+	loc->l_alt += level*rg->rg_Zspacing;
+	rg->rg_nZ = 1;
+	*offset = level*rg->rg_nX*rg->rg_nY*sizeof (float);
+	*size = rg->rg_nX*rg->rg_nY*sizeof (float);
+
+}
+
+
+
+
+
+int
+zn_InqRGrid (dfile, origin, rg)
+int dfile;
+Location *origin;
+RGrid *rg;
+/*
+ * Return the coord info for this grid.
+ */
+{
+	znTag *tag;
+
+	if (! dfa_OpenFile (dfile, FALSE, (void *) &tag))
+		return (0);
+	if (! tag->zt_Locs || ! tag->zt_Rg)
+		return (0);
+	*rg = tag->zt_Rg[0];	/* XXX Best we can do */
+	*origin = tag->zt_Locs[0];
+	return (TRUE);
+}
+
+
+
+
+
+
+static void
+zn_DoBadval (data, len, old, new)
+float *data, old, new;
+int len;
+/*
+ * Apply this many floating-point bad values.
+ */
+{
+	if (old != new)
+	{
+		for (; len > 0; data++, len--)
+			if (*data == old)
+				*data = new;
+	}
+}
+
+
 
 
 
@@ -1484,7 +1805,7 @@ FieldId *fids;
 	*nfield = 0;
 	for (fld = 0; fld < hdr->znh_NField; fld++)
 	{
-		fids[*nfield] = tag->zt_Fields[fld];
+		fids[*nfield] = tag->zt_Fids[fld];
 		(*nfield)++;
 	}
 	return (TRUE);
@@ -1593,7 +1914,7 @@ zn_Free *fb;
  * Pull in a free space block.
  */
 {
-	zn_GetBlock (tag, offset, &fb, sizeof (zn_Free));
+	zn_GetBlock (tag, offset, fb, sizeof (zn_Free));
 	if (fb->znf_FMagic != ZN_FREE_MAGIC)
 		msg_ELog (EF_PROBLEM, "Corrupt free block, off %ld mag 0x%x",
 			offset, fb->znf_FMagic);
@@ -1649,7 +1970,7 @@ int len;
  * Free up a chunk of space in the file.
  */
 {
-	long before = -1, after = -1, free;
+	long before = 0, after = 0, free;
 	zn_Header *hdr = &tag->zt_Hdr;
 	zn_Free fb, afterfb, pfb;
 /*
@@ -1661,7 +1982,7 @@ int len;
 		zn_GetFreeBlock (tag, free, &fb);
 		if ((free + fb.znf_Size) == offset)
 			before = free;
-		else if (offset + len == free)
+		else if ((offset + len) == free)
 			after = free;
 	}
 /*
@@ -1684,6 +2005,7 @@ int len;
 		hdr->znh_Free = offset;
 		hdr->znh_NFree++;
 	}
+	zn_PutBlock (tag, offset, &fb, sizeof (fb));
 /*
  * In either case, we now have a legit free block at "offset" describing
  * our space.  Now, if there is an after block, we need to expand this
@@ -1714,12 +2036,11 @@ int len;
 			pfb.znf_Next = afterfb.znf_Next;
 			zn_PutBlock (tag, free, &pfb, sizeof (pfb));
 		}
-		hdr->znh_NFreeB--;
+		hdr->znh_NFree--;
 	}
 /*
  * All done.  Clean things up and quit.
  */
-	zn_PutBlock (tag, offset, &fb, sizeof (fb));
 	tag->zt_Sync |= SF_HEADER;
 	hdr->znh_NFreeB += len;
 }
