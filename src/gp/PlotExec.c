@@ -1,7 +1,6 @@
 /*
  * Plot execution module
  */
-static char *rcsid = "$Id: PlotExec.c,v 2.5 1991-10-30 21:35:22 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -27,6 +26,7 @@ static char *rcsid = "$Id: PlotExec.c,v 2.5 1991-10-30 21:35:22 barrett Exp $";
 # include <message.h>
 # include <pd.h>
 # include <DataStore.h>
+# include <ds_fields.h>
 # include <ui_date.h>
 # include "GC.h"
 # include "GraphProc.h"
@@ -34,6 +34,7 @@ static char *rcsid = "$Id: PlotExec.c,v 2.5 1991-10-30 21:35:22 barrett Exp $";
 # include "PixelCoord.h"
 # include "EventQueue.h"
 # include "LayoutControl.h"
+MAKE_RCSID ("$Id: PlotExec.c,v 2.6 1991-12-04 23:06:39 corbet Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -764,11 +765,9 @@ char *comp, *fld;
  * Return the description of this field.
  */
 {
-	static char ret[80];
-
-	if (pda_Search (Pd, comp, "desc", fld, ret, SYMT_STRING))
-		return (ret);
-	return (fld);
+	char *ret = F_GetDesc (F_Lookup (fld));
+	
+	return (ret ? ret : fld);
 }
 
 
