@@ -1,4 +1,4 @@
-/* $Id: ui_commands.h,v 1.2 1989-09-25 17:01:20 corbet Exp $ */
+/* $Id: ui_commands.h,v 1.3 1990-03-02 15:58:30 corbet Exp $ */
 /*
  * This file defines all of the command keyword numbers.  It absolutely MUST
  * match the numbers given in the state transition information, or things
@@ -97,6 +97,10 @@
 # define UIC_MAPPING	-72
 # define UIC_ENDMAPPING -73
 # define UIC_HORIZONTAL	-74
+# define UIC_OVERRIDE	-75
+# define UIC_NODECORATE	-76
+# define UIC_ENDMENU	-77
+# define UIC_LINE	-78
 /*
  * Control structure commands have their own range.  The UI dispatcher is
  * counting on this, so don't change things.
