@@ -40,7 +40,7 @@
  */
 int	AltControlComp;
 
-MAKE_RCSID("$Id: AltControl.c,v 2.6 1994-04-15 21:25:34 burghart Exp $")
+MAKE_RCSID("$Id: AltControl.c,v 2.7 1994-05-19 20:56:53 burghart Exp $")
 
 # define MAXALT		80	/* Max heights we expect to see		*/
 
@@ -59,14 +59,17 @@ alt_Initialize ()
  * Set a good initial "altitude" parameter in our PD
  */
 {
+	float	alt;
 /*
  * Find the control component
  */
 	alt_GetControlComp ();
 /*
- * Now set the "altitude" parameter
+ * Now set the "altitude" parameter if we don't have one
  */
-	alt_SetAlt (0);
+	if (! pda_Search (Pd, "global", "altitude", NULL, (char *)&alt, 
+			  SYMT_FLOAT))
+		alt_SetAlt (0);
 }
 
 
@@ -205,10 +208,6 @@ int nstep;
 	 */
 		if ((pid = ds_LookupPlatform (platform)) == BadPlatform)
 		{
-			pd_RemoveParam (Pd, "global", "altitude");
-			pd_Store (Pd, "global", "altitude-label", "?", 
-				  SYMT_STRING);
-			
 			msg_ELog (EF_PROBLEM, "alt_Step: bad platform '%s'",
 				  platform);
 			return;
@@ -221,12 +220,9 @@ int nstep;
 		if (! ds_GetAlts (pid, fid, &PlotTime, ForecastOffset, alts, 
 				  &nalt, &altunits))
 		{
-			pd_RemoveParam (Pd, "global", "altitude");
-			pd_Store (Pd, "global", "altitude-label", "?", 
-				  SYMT_STRING);
-			
-			msg_ELog (EF_DEBUG, "No available alts for %s/%s",
-				  platform, field);
+			msg_ELog (EF_DEBUG, 
+				  "No available alts for %s/%s @ %d h offset",
+				  platform, field, ForecastOffset / 3600);
 			return;
 		}
 	/*
