@@ -260,7 +260,7 @@ typedef struct {
 
 /* defined constants for "parameter descriptors" */
 #define HSK_PD_PWRCNT 0x1008	/* power counts */
-/* #define HSK_PD_NCP  0x6008	/* normalized coherent power */
+/* #define HSK_PD_NCP  0x6008 *//* normalized coherent power */
 #define HSK_PD_XPWR 0x6008	/* X-band power */
 #define HSK_PD_ZDR  0x2008	/* ZDR */
 #define HSK_PD_VEL  0x8008	/* velocity in m/s */

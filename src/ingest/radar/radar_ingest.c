@@ -47,7 +47,7 @@ static void SetRealTime ();
 # include "display.h"
 # include "BeamBuffer.h"
 
-RCSID("$Id: radar_ingest.c,v 2.16 1997-02-03 16:41:07 granger Exp $")
+RCSID("$Id: radar_ingest.c,v 2.17 1998-03-06 17:25:26 burghart Exp $")
 
 /*
  * Define globals here.
@@ -149,6 +149,7 @@ static int Dispatcher FP ((int, struct ui_command *));
 static void Go FP ((void));
 static void SetupIndirect FP ((void));
 static void ClearFrames FP ((void));
+static void ClearImages FP ((void));
 static void Source FP ((struct ui_command *));
 static void NewField FP ((struct ui_command *));
 static void ThreshParams FP ((struct ui_command *));
@@ -337,7 +338,8 @@ struct ui_command *cmds;
 	    case RIC_DUMPRHI:
 		if ((LimitPID = ds_LookupPlatform (UPTR (cmds[1]))) ==
 				BadPlatform)
-			msg_ELog ("Bad RHI limit platform %s", UPTR (cmds[1]));
+			msg_ELog (EF_PROBLEM, "Bad RHI limit platform %s", 
+				  UPTR (cmds[1]));
 		else
 			DumpLimits = TRUE;
 		break;
@@ -741,6 +743,7 @@ BeginSweep ()
 
 
 
+void
 ClearImages ()
 {
 	int i;
@@ -870,10 +873,11 @@ Message *msg;
 		reset ();
 		Reinitialize = TRUE;
 		ui_perform (msg->m_data);
-		break;
+		return (1);
 	}
 		
 	msg_ELog (EF_PROBLEM, "Unknown msg proto %d", msg->m_proto);
+	return (0);
 }
 
 
@@ -928,8 +932,7 @@ int priority;
 
 
 static void
-DumpRHILimits (left, right)
-float left, right;
+DumpRHILimits (float left, float right)
 /*
  * Dump out our RHI limits.
  */
