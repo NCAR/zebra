@@ -41,7 +41,7 @@
 # include "Skewt.h"
 
 
-RCSID ("$Id: Skewt.c,v 2.30 1997-10-16 20:41:39 burghart Exp $")
+RCSID ("$Id: Skewt.c,v 2.31 1998-01-30 16:42:09 burghart Exp $")
 
 /*
  * General definitions
@@ -994,11 +994,12 @@ int	skip;
 {
 	float	xstart, xscale, yscale, xov[2], yov[2], badvalue;
 	float	*pres, *u, *v, wspd, wdir;
-	int	i, nfld, npts, nprev, ipts, shaftlen;
+	int	i, npts, nprev, ipts, shaftlen;
+	bool	have_uv;
 	char	string[40];
-	bool	have_u, have_v, have_uv;
 	ZebTime	ptime;
 	FieldId	flist[3], favail[30];
+	WindInfo	w_info;
 	DataChunk	*dc;
 	PlatformId	pid;
 	dsDetail details[5];
@@ -1032,25 +1033,15 @@ int	skip;
 		return;
 	}
 /*
- * Get u_wind and v_wind if they exist, otherwise get wspd and wdir 
- * and we'll do the derivation.  (The necessity for this will 
- * disappear when the data store has some derivation capability of 
- * its own)
+ * Find out what wind fields we should use.  When done, if w_info.wi_polar
+ * comes back true:
+ *	flist[1] is a wspd field and flist[2] is a wdir field
+ * else
+ * 	flist[1] is a u-wind field and flist[2] is a v-wind field
  */
-	have_u = have_v = FALSE;
-	nfld = sizeof (favail) / sizeof (FieldId); /* max we accept */
-	ds_GetFields (pid, &ptime, &nfld, favail);
-	for (i = 0; i < nfld; i++)
-	{
-		have_u |= (favail[i] == F_Lookup ("u_wind"));
-		have_v |= (favail[i] == F_Lookup ("v_wind"));
-	}
-	
-	have_uv = have_u && have_v;
-
 	flist[0] = F_Lookup ("pres");
-	flist[1] = have_uv ? F_Lookup ("u_wind") : F_Lookup ("wspd");
-	flist[2] = have_uv ? F_Lookup ("v_wind") : F_Lookup ("wdir");
+	FindWindsFields (c, pid, &ptime, flist + 1, &w_info);
+	have_uv = ! w_info.wi_polar;
 /*
  * If this is an update, find out how many points we got last time
  */

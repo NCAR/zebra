@@ -47,7 +47,7 @@ typedef struct {
         CARD8   pad;
 } U_XWDColor;
 
-RCSID ("$Id: Utilities.c,v 2.50 1997-06-10 19:10:46 burghart Exp $")
+RCSID ("$Id: Utilities.c,v 2.51 1998-01-30 16:42:11 burghart Exp $")
 
 /*
  * Rules for image dumping.  Indexed by keyword number in GraphProc.state
@@ -914,23 +914,17 @@ FieldId *field2;
 
 	*field1 = F_Lookup (name1);
 	*field2 = F_Lookup (name2);
-	for (i = 0; i < nfid; i++)
+	if (ds_IsDerivable (pid, *field1, fids, nfid) &&
+	    ds_IsDerivable (pid, *field2, fids, nfid))
 	{
-		if (*field1 == fids[i])
-			f1 = 1;
-		if (*field2 == fids[i])
-			f2 = 1;
-		if (f1 && f2)
-			break;
+	    return (1);
 	}
-	if (! f1 || ! f2)
+	else
 	{
-		msg_ELog (EF_DEBUG, 
-			  "platform %s missing field %s or %s",
-			  ds_PlatformName (pid), name1, name2);
-		return (0);
+	    msg_ELog (EF_DEBUG, "FindWindComps: Plat %s can't yield %s and %s",
+		      ds_PlatformName (pid), name1, name2);
+	    return (0);
 	}
-	return (1);
 }
 
 
