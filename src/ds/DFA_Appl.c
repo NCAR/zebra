@@ -23,6 +23,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <math.h>	/* for HUGE_VAL */
 
 #include <defs.h>
 #include <message.h>
@@ -34,30 +35,40 @@
 #include "dfa.h"
 #include "Appl.h"
 
-RCSID ("$Id: DFA_Appl.c,v 3.10 1997-06-19 20:19:21 granger Exp $")
+RCSID ("$Id: DFA_Appl.c,v 3.11 1997-11-21 18:02:45 burghart Exp $")
 
 /*
  * Local private prototypes.
  */
-static int	ds_DFAMessage FP ((struct message *msg));
-static int      ds_AttrCheck FP ((int, ZebTime *, char *));
-static void     ds_NotifyDaemon FP ((ClientPlatform *, int, DataChunk *, 
-				     int, int, int, int));
-static int 	ds_FindDest FP ((DataChunk *, ClientPlatform *, DataFile *,
-				 int sample, int *dfile, int *dfnext,
-				 WriteCode *, int, ZebTime *));
-static bool	ds_SameDay FP ((ZebTime *, ZebTime *));
-static int	ds_MakeNewFile FP ((DataChunk *, ClientPlatform *, int sample, 
-				    dsDetail *details, int ndetail));
-static int	ds_RequestNewDF FP ((PlatformId, char *, ZebTime *));
-static int	ds_GetNDFResp FP ((struct message *,
-				struct dsp_R_CreateFile *));
-static void	ds_AbortNewDF FP ((PlatformId, int));
-static int	ds_AwaitAck FP ((Message *, int));
-static void 	ds_FProcGetList FP ((DataChunk *, GetList *, dsDetail *, int));
-static void	ds_FindBlock FP((DataFile *dfp, int dfnext, 
-				 DataChunk *dc, ClientPlatform *p,
-				 int sample, WriteCode wc, int *nsample));
+static int	ds_DFAMessage (struct message *msg);
+static int      ds_AttrCheck (int, ZebTime *, char *);
+static void     ds_NotifyDaemon (ClientPlatform *, int, DataChunk *, 
+				 int, int, int, int);
+static int 	ds_FindDest (DataChunk *, ClientPlatform *, DataFile *,
+			     int sample, int *dfile, int *dfnext,
+			     WriteCode *, int, ZebTime *);
+static bool	ds_SameDay (ZebTime *, ZebTime *);
+static int	ds_MakeNewFile (DataChunk *, ClientPlatform *, int sample, 
+				dsDetail *details, int ndetail);
+static int	ds_RequestNewDF (PlatformId, char *, ZebTime *);
+static int	ds_GetNDFResp (struct message *, struct dsp_R_CreateFile *);
+static void	ds_AbortNewDF (PlatformId, int);
+static int	ds_AwaitAck (Message *, int);
+static void 	ds_FProcGetList (DataChunk *, GetList *, dsDetail *, int);
+static void	ds_FindBlock (DataFile *dfp, int dfnext, 
+			      DataChunk *dc, ClientPlatform *p,
+			      int sample, WriteCode wc, int *nsample);
+static DataChunk* Derive (DataChunk *template_dc, GetList *get, 
+			     dsDetail *details, int ndetail);
+static void	DeriveFld (DataChunk *dest_dc, DataChunk *extra_dc, 
+			      FieldId fld, FieldId surrogate, 
+			      DerivMethod deriv);
+static void	DerivationFailure (DataChunk *dest_dc, FieldId fld, 
+				      FieldId surrogate);
+static bool	DerivationCheck (PlatformId pid, GetList *get, 
+				    FieldId *flds, int nflds);
+static bool	FldAvailable (FieldId fld, PlatformId pid, GetList *get, 
+				 bool *is_raw, DerivMethod *return_deriv);
 
 /*
  * This is the fine line dividing the sides of the interface.  Once a program
@@ -78,6 +89,10 @@ static int DFAInstalled = 0;
       msg_AddProtoHandler (MT_DATASTORE, ds_DFAMessage); } \
 }
 
+/* 
+ * max # of fields we can handle from any given file
+ */
+# define MAXRAWFLDS 200
 
 	 
 
@@ -555,21 +570,472 @@ int ndetail;
  * Process the getlist in reverse order.
  */
 {
-	if (gp->gl_next)
-		ds_FProcGetList (dc, gp->gl_next, details, ndetail);
+/*
+ * Recurse down to the end of the list
+ */
+    if (gp->gl_next)
+	ds_FProcGetList (dc, gp->gl_next, details, ndetail);
 #ifdef DEBUG
-	{
-		char btime[80], etime[80];
+    {
+	char btime[80], etime[80];
 		
-		TC_EncodeTime (&gp->gl_begin, TC_Full, btime);
-		TC_EncodeTime (&gp->gl_end, TC_Full, etime);
-		msg_ELog (EF_DEBUG, "getdata file #%d, getlist %s to %s",
-			  gp->gl_dfindex, btime, etime);
-	}
+	TC_EncodeTime (&gp->gl_begin, TC_Full, btime);
+	TC_EncodeTime (&gp->gl_end, TC_Full, etime);
+	msg_ELog (EF_DEBUG, "getdata file #%d, getlist %s to %s",
+		  gp->gl_dfindex, btime, etime);
+    }
 #endif
-	dfa_GetData (dc, gp, details, ndetail);
+/*
+ * Get the data from this getlist entry's data file.
+ */
+    dfa_GetData (dc, gp, details, ndetail);
 }
 
+
+
+
+static DataChunk*
+Derive (DataChunk *template_dc, GetList *gl, dsDetail *details, int ndetail)
+/* 
+ * Build, fill, and return a new datachunk based on the template_dc, using
+ * its fields, the given getlist, and deriving fields where necessary and 
+ * possible.  The template_dc must be of class MetData or one of its 
+ * subclasses.  
+ */
+{
+    int nextraflds, ndestflds, df;
+    FieldId extraflds[MAXRAWFLDS], surrogates[MAXRAWFLDS], *destflds;
+    PlatformId pid = dc_PlatformId (template_dc);
+    DerivMethod *derivs;
+    DataClass class;
+    DataChunk *dest_dc, *extra_dc;
+/*
+ * Get the list of fields we're supposed to return and the datachunk class.
+ */
+    destflds = dc_GetFields (template_dc, &ndestflds);
+    class = dc_ClassId (template_dc);
+/* 
+ * For each destination field:
+ *	o Get a derivation method (if any)
+ *	If we have a derivation method
+ *		o Find the source fields necessary for the derivation (srcflds)
+ *		o Use the first srcfld as a temporary surrogate for the 
+ *		  destination field
+ *		o Add the rest of the srcflds to a list of extra needed 
+ *		  fields (extraflds)
+ */
+    derivs = (DerivMethod*) malloc (ndestflds * sizeof (DerivMethod));
+    
+    nextraflds = 0;
+
+    for (df = 0; df < ndestflds; df++)
+    {
+	FieldId	*srcflds;
+	int sf, nsrcflds;
+	bool is_raw;
+    /*
+     * Get a derivation for this field.  If it's either available raw or
+     * it's underivable, the field will serve as a surrogate for itself and
+     * we can go on to the next.
+     */
+	derivs[df] = (DerivMethod) 0;
+	if (! FldAvailable (destflds[df], pid, gl, &is_raw, &derivs[df]) ||
+	    is_raw)
+	{
+	    surrogates[df] = destflds[df];
+	    continue;
+	}
+    /*
+     * Get the list of source fields required for the derivation
+     */
+	srcflds = ds_DerivNeededFields (derivs[df], &nsrcflds);
+    /* 
+     * We'll use the first field required for the derivation as a temporary
+     * surrogate in the datachunk we have to build.
+     */
+	surrogates[df] = srcflds[0];
+    /*
+     * Add the rest of the fields for this derivation (if any) to our 
+     * complete list of extra needed raw fields, dropping duplicates.
+     */
+	for (sf = 1; sf < nsrcflds; sf++)
+	{
+	/*
+	 * Just continue if this field is already in the list
+	 */
+	    int ef;
+	    for (ef = 0; ef < nextraflds; ef++)
+		if (srcflds[sf] == extraflds[ef])
+		    continue;
+	/*
+	 * Add this field to the end of the list
+	 */
+	    extraflds[nextraflds++] = srcflds[sf];
+	}
+
+	free (srcflds);
+    }
+/*
+ * Set up our return datachunk with the surrogate fields, which will be
+ * overwritten with the derived data later.  Also set up a data chunk for
+ * the extra needed fields
+ */
+    dest_dc = dfa_Setup (gl, surrogates, ndestflds, class);
+
+    extra_dc = nextraflds ? dfa_Setup (gl, extraflds, nextraflds, class) : 0;
+    
+    if (! dest_dc || (nextraflds && ! extra_dc))
+    {
+	msg_ELog (EF_PROBLEM, "Derive: Error setting up datachunks");
+
+	for (df = 0; df < ndestflds; df++)
+	{
+	    if (derivs[df])
+		ds_DestroyDeriv (derivs[df]);
+	}
+
+	free (derivs);
+	
+	return ((DataChunk*) 0);
+    }
+/*
+ * Fill the data chunks
+ */	
+    dc_SetPlatform (dest_dc, pid);
+    ds_FProcGetList (dest_dc, gl, details, ndetail);
+
+    if (extra_dc)
+    {
+	dc_SetPlatform (extra_dc, pid);
+	ds_FProcGetList (extra_dc, gl, details, ndetail);
+    }
+/*
+ * Derive each field that needs deriving, replacing the surrogate fields
+ * with the desired fields.
+ */
+    for (df = 0; df < ndestflds; df++)
+    {
+	if (derivs[df])
+	    DeriveFld (dest_dc, extra_dc, destflds[df], surrogates[df],
+		       derivs[df]);
+    }
+/*
+ * Clean up
+ */
+    for (df = 0; df < ndestflds; df++)
+    {
+	if (derivs[df])
+	    ds_DestroyDeriv (derivs[df]);
+    }
+
+    free (derivs);
+    
+    if (extra_dc)
+	dc_DestroyDC (extra_dc);
+/*
+ * Done
+ */
+    return (dest_dc);
+}
+
+
+
+
+static void
+DeriveFld (DataChunk *dest_dc, DataChunk *extra_dc, FieldId fld, 
+	   FieldId surrogate, DerivMethod deriv)
+/*
+ * Derive field 'fld' from data in dest_dc and extra_dc, using derivation
+ * method 'deriv', and replacing field 'surrogate' in dest_dc.
+ */
+{
+    int nsrcflds, sf, nsample, elemsize, elemcount, samp, firstelem;
+    int uniform, *sampsizes, e;
+    DC_ElemType elemtype;
+    FieldId *srcflds;
+    DataChunk **src_dc;
+    double **dblptrs, *dblresults;
+    char *results;
+    void *badvp;
+    double badval;
+    ZebraTime *samptimes;
+/*
+ * Really, really easy if this is just an alias.  Just rename the field
+ * in the data chunk and we're done!
+ */
+    if (ds_DerivIsAlias (deriv))
+    {
+	char sname[128];
+    /*
+     * Gotta copy one of the full names, since the string returned by 
+     * F_GetFullName() is only valid until the next call, so we can't have
+     * two of them in one msg_ELog() call...
+     */
+	strcpy (sname, F_GetFullName (surrogate));
+	msg_ELog (EF_DEBUG, "Field %s yields %s directly.  Cool!",
+		  sname, F_GetFullName (fld));
+
+	dc_ChangeFld (dest_dc, surrogate, fld);
+	return;
+    }
+
+    msg_ELog (EF_INFO, "Deriving %s", F_GetFullName (fld));
+/*
+ * Get the list of source fields required for the derivation
+ */
+    srcflds = ds_DerivNeededFields (deriv, &nsrcflds);
+/*
+ * How many samples are we deriving?
+ * How big are our destination elements?
+ */
+    nsample = dc_GetNSample (dest_dc);
+    elemtype = dc_Type (dest_dc, surrogate);
+    elemsize = dc_SizeOfType (elemtype);
+/*
+ * We'll continue using surrogate's bad value
+ */
+    if ((badvp = dc_GetFieldBadval (dest_dc, surrogate)) != NULL)
+	dc_ConvertDouble (&badval, badvp, elemtype);
+    else
+	badval = (double) dc_GetBadval (dest_dc);
+/*
+ * Get the size of each destination sample (in elements) and count how many
+ * total elements we're deriving.  Check if the sample size is uniform,
+ * since it can save us time putting data into the data chunk later. 
+ */
+    elemcount = 0;
+    uniform = 1;
+
+    sampsizes = (int*) malloc (nsample * sizeof (int));
+    
+    for (samp = 0; samp < nsample; samp++)
+    {
+	dc_GetMData (dest_dc, samp, surrogate, &(sampsizes[samp]));
+	sampsizes[samp] /= elemsize;
+	elemcount += sampsizes[samp];
+
+	if (samp > 0)
+	    uniform = uniform && (sampsizes[samp] == sampsizes[samp-1]);
+    }
+/*
+ * Find out which dc holds each of our source fields
+ */
+    src_dc = (DataChunk**) malloc (nsrcflds * sizeof (DataChunk*));
+
+    for (sf = 0; sf < nsrcflds; sf++)
+    {
+    /*
+     * Look for this field first in dest_dc, then in extra_dc, and stash
+     * where we find it.
+     */
+	if (dc_GetFieldIndex (dest_dc, srcflds[sf]) >= 0)
+	    src_dc[sf] = dest_dc;
+	else if (extra_dc && dc_GetFieldIndex (extra_dc, srcflds[sf]) >= 0)
+	    src_dc[sf] = extra_dc;
+	else
+	{
+	/*
+	 * Uh-oh, we should've found it but didn't...
+	 */
+	    msg_ELog (EF_PROBLEM, 
+		      "DeriveFld: Expected field %s not found to derive %s",
+		      F_GetFullName (srcflds[sf]), F_GetFullName (fld));
+	    DerivationFailure (dest_dc, fld, surrogate);
+	    free (src_dc);
+	    free (sampsizes);
+	    return;
+	}
+    }
+/*
+ * Allocate a list to hold arrays of doubles for the source data for the
+ * derivation.  Also allocate our sample time array.
+ */
+    dblptrs = (double**) malloc (nsrcflds * sizeof (double*));
+
+    for (sf = 0; sf < nsrcflds; sf++)
+	dblptrs[sf] = (double*) malloc (elemcount * sizeof (double));
+
+    samptimes = (ZebraTime *) malloc (nsample * sizeof (ZebraTime));
+/*
+ * Run through the source data sample-by-sample, moving the data into
+ * contiguous arrays of doubles.
+ */    
+    firstelem = 0;
+
+    for (samp = 0; samp < nsample; samp++)
+    {
+    /*
+     * Save the time of this sample
+     */
+	dc_GetTime (dest_dc, samp, samptimes + samp);
+    /*
+     * Copy the raw data for each source field into arrays of doubles (dblptrs)
+     */
+	for (sf = 0; sf < nsrcflds; sf++)
+	{
+	    int nelems, nbytes, src_elemsize;
+	    DC_ElemType src_type;
+	    DataPtr rawdp;
+	    void *badvp;
+	    double src_bad;
+	/*
+	 * Source data type, size per element, and number of data elements 
+	 * this sample.
+	 */
+	    src_type = dc_Type (src_dc[sf], srcflds[sf]);
+	    src_elemsize = dc_SizeOfType (src_type);
+	    rawdp = dc_GetMData (src_dc[sf], samp, srcflds[sf], &nbytes);
+
+	    nelems = nbytes / src_elemsize;
+	/*
+	 * Get the bad value for this source field, as a double
+	 */
+	    if ((badvp = dc_GetFieldBadval (src_dc[sf], srcflds[sf])) != NULL)
+		dc_ConvertDouble (&src_bad, badvp, src_type);
+	    else
+		src_bad = (double) dc_GetBadval (src_dc[sf]);
+	/* 
+	 * We need sample size uniformity among the fields, since the
+	 * derivations simply work element-by-element.  If this uniformity
+	 * is violated, use a null raw data pointer for the offending
+	 * field. 
+	 */
+	    if (nelems != sampsizes[samp])
+	    {
+		msg_ELog (EF_PROBLEM, 
+			  "DeriveFld: Sample size varies (%d != %d)",
+			  nelems, sampsizes[samp]);
+	    /*
+	     * Fill the field with bad values, clean up, and return
+	     */
+		DerivationFailure (dest_dc, fld, surrogate);
+		free (src_dc);
+		free (samptimes);
+		for (sf = 0; sf < nsrcflds; sf++)
+		    free (dblptrs[sf]);
+		free (dblptrs);
+		free (sampsizes);
+		free (srcflds);
+		return;
+	    }
+	/*
+	 * Put this sample into the double array for this source field.
+	 * (Allocate the double array if this is the first sample)
+	 */
+	    for (e = 0; e < nelems; e++)
+	    {
+		double val;
+
+		if (! dc_ConvertDouble (&val, (char*)rawdp + e * src_elemsize, 
+					src_type) ||
+		    val == src_bad)
+		    dblptrs[sf][firstelem + e] = badval;
+		else
+		    dblptrs[sf][firstelem + e] = val;
+	    }
+
+	}
+
+	firstelem += sampsizes[samp];
+    }
+/*
+ * OK, now we have all the raw needed data in big arrays of doubles.
+ * We can do our derivation.
+ */
+    dblresults = (double *) malloc (elemcount * sizeof (double));
+    ds_DoDerivation (deriv, srcflds, nsrcflds, elemcount, dblptrs, dblresults, 
+		    badval);
+/* 
+ * Convert to surrogate's element type before stashing in the data chunk
+ */
+    results = (char *) malloc (elemcount * elemsize);
+
+    for (e = 0; e < elemcount; e++)
+	dc_LongDoubleToType ((void*)(results + e * elemsize), elemtype,
+			     (LongDouble)(dblresults[e]));
+/*
+ * We can now rename the surrogate field and stash the derived data.  Data
+ * stash can happen as a unit for uniform samples, otherwise must happen 
+ * sample by sample.
+ */
+    dc_ChangeFld (dest_dc, surrogate, fld);
+
+    if (uniform)
+    {
+	if (! dc_AddMData (dest_dc, samptimes, fld, sampsizes[0] * elemsize, 
+			   0, nsample, results))
+	    msg_ELog (EF_PROBLEM, "Error inserting derived data for %s",
+		      F_GetFullName (fld));
+    }
+    else
+    {
+	char *rp = results;
+	
+	for (samp = 0; samp < nsample; samp++)
+	{
+	    if (! dc_AddMData (dest_dc, samptimes + samp, fld, 
+			       sampsizes[samp] * elemsize, samp, 1, rp))
+	    {
+		msg_ELog (EF_PROBLEM, "Error inserting derived data for %s",
+			  F_GetFullName (fld));
+		break;
+	    }
+
+	    rp += sampsizes[samp] * elemsize;
+	}
+    }
+/*
+ * Clean up
+ */
+    free (results);
+    free (dblresults);
+    free (src_dc);
+    free (samptimes);
+    for (sf = 0; sf < nsrcflds; sf++)
+	free (dblptrs[sf]);
+    free (dblptrs);
+    free (sampsizes);
+    free (srcflds);
+/*
+ * We're done!
+ */
+    return;
+}
+
+
+
+
+static void
+DerivationFailure (DataChunk *dest_dc, FieldId fld, FieldId surrogate)
+/*
+ * Rename the 'surrogate' to 'fld' (the field we were trying to derive), and
+ * fill with bad values.
+ */
+{
+    int samp, nsample, sampsize, elemsize;
+
+    msg_ELog (EF_PROBLEM, "Derivation of %s/%s failed",
+	      ds_PlatformName (dc_PlatformId (dest_dc)), F_GetFullName (fld));
+/*
+ * Change 'surrogate' to 'fld'
+ */
+    dc_ChangeFld (dest_dc, surrogate, fld);
+/*
+ * Get the element size and sample count, then fill with bad values a sample
+ * at a time.
+ */
+    elemsize = dc_SizeOfType (dc_Type (dest_dc, fld));
+
+    nsample = dc_GetNSample (dest_dc);
+
+    for (samp = 0; samp < nsample; samp++)
+    {
+	DataPtr where = dc_GetMData (dest_dc, samp, fld, &sampsize);
+	dc_MetFillMissing (dest_dc, fld, where, sampsize / elemsize);
+    }
+
+    return;
+}
 
 
 
@@ -593,6 +1059,7 @@ dsDetail *details;
  *	NFIELD	is the length of that list
  *	DETAILS	is a list of fetch control details
  *	NDETAIL	is the length of that list.
+ * 	ALLOW_DERIVATION is true iff field derivation is to be allowed
  * Exit:
  *	If any data could be found then
  *		The return value is a data chunk containing that data
@@ -600,61 +1067,176 @@ dsDetail *details;
  *		The return value is NULL.
  */
 {
-	DataChunk *dc;
-	GetList *get;
+    DataChunk *return_dc, *base_dc;
+    GetList *get;
 /*
  * Make the get list describing where this data has to come from.
  */
-	InstallDFA;
-	CheckDetails (&details, &ndetail);
-	if (! (get = dgl_MakeGetList (pid, begin, end)))
-	{
-		msg_ELog (EF_DEBUG, "GetList get failure");
-		return (NULL);
-	}
-	if (obs)
-	{
-		DataFile dfe;
+    InstallDFA;
+    CheckDetails (&details, &ndetail);
+    if (! (get = dgl_MakeGetList (pid, begin, end)))
+    {
+	msg_ELog (EF_DEBUG, "GetList get failure");
+	return (NULL);
+    }
+    if (obs)
+    {
+	DataFile dfe;
 
-		ds_GetFileStruct (get->gl_dfindex, &dfe);
-		get->gl_begin = dfe.df_begin;
-		get->gl_end = dfe.df_end;
-	}
+	ds_GetFileStruct (get->gl_dfindex, &dfe);
+	get->gl_begin = dfe.df_begin;
+
+	get->gl_end = dfe.df_end;
+    }
 /*
  * Now it is up to the format driver to get ready and create a data 
  * chunk for us.
  */
-	if (! (dc = dfa_Setup (get, fields, nfield, class)))
-	{
-		msg_ELog (EF_DEBUG, "Setup failure");
-		dgl_ReturnList (get);
-		return (NULL);
-	}
-	dc->dc_Platform = pid;
-/*
- * Pass through the get list, snarfing data for each entry.
- *
- * Hmm...the getlist is returned in the usual reverse-time order, which 
- * was never a problem in the past.  Now we need to reverse things again.
- */
-	ds_FProcGetList (dc, get, details, ndetail);
+    if (! (return_dc = dfa_Setup (get, fields, nfield, class)))
+    {
+	msg_ELog (EF_DEBUG, "Setup failure");
 	dgl_ReturnList (get);
+	return (NULL);
+    }
+    dc_SetPlatform (return_dc, pid);
+/*
+ * Finally, fill the data chunk.  For MetData data chunks, try to derive 
+ * data if possible.
+ */
+    if (dc_IsSubClassOf (class, DCC_MetData) && 
+	DerivationCheck (pid, get, fields, nfield))
+    {
+	DataChunk *template_dc = return_dc;
+
+	return_dc = Derive (template_dc, get, details, ndetail);
+
+	dc_DestroyDC (template_dc);
+    }
+    else
+	ds_FProcGetList (return_dc, get, details, ndetail);
+
+    dgl_ReturnList (get);
 /*
  * It is still possible that there were no times in the file between
  * the requested times, in which case we return null for no data found.
  */
-	if (dc_GetNSample (dc) == 0)
-	{
-		dc_DestroyDC (dc);
-		return (NULL);
-	}
+    if (dc_GetNSample (return_dc) == 0)
+    {
+	dc_DestroyDC (return_dc);
+	return (NULL);
+    }
 /*
  * Finally, process any file-format-independent details, like bad values
  */
-	dc_ProcessDetails (dc, details, ndetail);
-	return (dc);
+    dc_ProcessDetails (return_dc, details, ndetail);
+    return (return_dc);
 }
 
+
+
+static bool
+DerivationCheck (PlatformId pid, GetList *gl, FieldId *flds, int nflds)
+/*
+ * Return true iff one or more of the fields given needs to be and can be
+ * derived, i.e., if the following conditions are met for any of the dc's
+ * fields:
+ *	- it is not available raw from any of the files in the getlist
+ *	- it can be derived from fields available raw from at least one of
+ *	  the files
+ */
+{
+    int f;
+    bool is_raw;
+    FieldId fileflds[MAXRAWFLDS];
+/*
+ * Return true iff any one of the fields is available, but is not raw.
+ */
+    for (f = 0; f < nflds; f++)
+	if (FldAvailable (flds[f], pid, gl, &is_raw, 0) && ! is_raw)
+	    return (1);
+
+    return (0);
+}
+
+    
+
+static bool
+FldAvailable (FieldId fld, PlatformId pid, GetList *gl, bool *is_raw, 
+		 DerivMethod *return_deriv)
+/*
+ * Return true if 'fld' is available raw from one or more of the files
+ * in GetList 'gl' or if it can be derived from data in one or more of the
+ * files.  If 'return_deriv' is non-NULL, return a DerivMethod 
+ * for obtaining the field.  If a DerivMethod is returned, it is the 
+ * caller's responsibility to call F_DestroyDeriv() when finished with it.
+ */
+{
+    int nfflds, ff;
+    FieldId fileflds[MAXRAWFLDS];
+    bool raw;
+    GetList *gp;
+/*
+ * Loop through the get list, seeing if this field is available raw in
+ * any of the files.
+ */
+    *is_raw = 0;
+
+    for (gp = gl; gp; gp = gp->gl_next)
+    {
+    /*
+     * Get the list of available fields in this getlist entry's file
+     */
+	nfflds = MAXRAWFLDS;
+	dfa_GetFields (gp->gl_dfindex, &(gp->gl_begin), &nfflds, fileflds);
+    /*
+     * See if this field is available raw from the data file
+     */
+	for (ff = 0; ff < nfflds; ff++)
+	{
+	    if (fld == fileflds[ff])
+	    {
+	    /*
+	     * This field is available raw!
+	     */
+		*is_raw = 1;
+	    /*
+	     * If a returned derivation is required, create one for 
+	     * deriving the field from itself
+	     */
+		if (return_deriv)
+		    *return_deriv = ds_GetDerivation (pid, fld, &fld, 1);
+		    
+		return (1);
+	    }
+	}
+    }
+/*
+ * Nope, the field is not available raw, so see if it can be derived from 
+ * data in any of the getlist's files.
+ */
+    for (gp = gl; gp; gp = gp->gl_next)
+    {
+    /*
+     * Get the list of available fields in this getlist entry's file
+     */
+	nfflds = MAXRAWFLDS;
+	dfa_GetFields (gp->gl_dfindex, &(gp->gl_begin), &nfflds, fileflds);
+    /* 
+     * Return true if this field is derivable from fields in the data file
+     */
+	if (ds_IsDerivable (pid, fld, fileflds, nfflds))
+	{
+	    if (return_deriv)
+		*return_deriv = ds_GetDerivation (pid, fld, fileflds, nfflds);
+		
+	    return (1);
+	}
+    }
+/*
+ * If we get here, the field is not raw and cannot be derived
+ */
+    return (0);
+}
 
 
 
@@ -792,7 +1374,7 @@ int ndetail;
  * This is a reasonable spot to make sure we have a valid platform
  */
 	InstallDFA;
-	if (dc->dc_Platform == BadPlatform)
+	if (dc_PlatformId (dc) == BadPlatform)
 	{
 		msg_ELog (EF_PROBLEM, "attempting ds_Store of DataChunk %s",
 			  "with bad platform id");
@@ -802,8 +1384,8 @@ int ndetail;
 /*
  * Setup time.
  */
-	ds_WriteLock (dc->dc_Platform);
-	ds_GetPlatStruct (dc->dc_Platform, &p, TRUE);
+	ds_WriteLock (dc_PlatformId (dc));
+	ds_GetPlatStruct (dc_PlatformId (dc), &p, TRUE);
 	if (! Standalone)
 		tl_Time (&curtime);
 	else
@@ -945,7 +1527,7 @@ int ndetail;
 			nnew = now = 0;
 			dfupdate = -1;
 			dfp = NULL;
-			ds_GetPlatStruct (dc->dc_Platform, &p, TRUE);
+			ds_GetPlatStruct (dc_PlatformId (dc), &p, TRUE);
 		}
 
 	} /* while (sample < nsample) */
@@ -960,7 +1542,7 @@ int ndetail;
 /*
  * Release the write lock and we're outta here.
  */
-	ds_FreeWriteLock (dc->dc_Platform);
+	ds_FreeWriteLock (dc_PlatformId (dc));
 	return (ndone == nsample);
 }
 
@@ -1011,7 +1593,7 @@ int *block_size;
  * If overwriting, the maximum number of slots ever possibly available
  * is the number in the file already.
  */
-	ds_LockPlatform (dc->dc_Platform);
+	ds_LockPlatform (dc_PlatformId (dc));
 	if (wc != wc_Overwrite)
 		avail = plat->cp_maxsamp - dfp->df_nsample;
 	else
@@ -1053,7 +1635,7 @@ int *block_size;
 		if (nfuture && TC_Eq(past, future[fut]))
 			--fut;
 	}
-	ds_UnlockPlatform (dc->dc_Platform);
+	ds_UnlockPlatform (dc_PlatformId (dc));
 /*
  * We know that at least one sample remains in the DC and that there is
  * space in the file for at least that sample (ds_FindDest told us).
@@ -1133,7 +1715,7 @@ ZebTime *now;
  * it is, but the fact of the matter is that almost every time we are 
  * appending data and we'll stop at the first DFE.
  */
-	ds_LockPlatform (dc->dc_Platform);
+	ds_LockPlatform (dc_PlatformId (dc));
 	df = ds_DataChain (plat, 0);
 	*dfnext = 0;
 	for (; df; df = dfp->df_FLink)
@@ -1186,7 +1768,7 @@ ZebTime *now;
 	{
 		*wc = wc_Overwrite;
 	}
-	ds_UnlockPlatform (dc->dc_Platform);
+	ds_UnlockPlatform (dc_PlatformId (dc));
 	return (TRUE);
 }
 
@@ -1231,7 +1813,7 @@ int ndetail;
  */
 	dc_GetTime (dc, sample, &when);
 	dfa_MakeFileName (plat, &when, fname, details, ndetail);
-	if ((newdf = ds_RequestNewDF (dc->dc_Platform, fname, &when)) < 0)
+	if ((newdf = ds_RequestNewDF (dc_PlatformId (dc), fname, &when)) < 0)
 		return (-1);
 /*
  * Have DFA get the file made for us.  They use the data object to know which
@@ -1239,7 +1821,7 @@ int ndetail;
  */
 	if (! dfa_CreateFile (newdf, dc, &when, details, ndetail))
 	{
-		ds_AbortNewDF (dc->dc_Platform, newdf);
+		ds_AbortNewDF (dc_PlatformId (dc), newdf);
 		return (-1);
 	}
 	return (newdf);
