@@ -38,7 +38,7 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 # include "DrawText.h"
-MAKE_RCSID ("$Id: Track.c,v 2.14 1992-06-23 15:37:16 kris Exp $")
+MAKE_RCSID ("$Id: Track.c,v 2.15 1992-10-06 15:29:00 corbet Exp $")
 
 # define ARROWANG .2618 /* PI/12 */
 
@@ -53,7 +53,7 @@ static void tr_GetArrowParams FP((char *, char *, float *, int *, int *,
 static bool tr_CTSetup FP((char *, char *, PlatformId *, int *, int *,
 		char *, bool *, char *, int *, char *));
 static void tr_AnnotTrack FP((char *, char *, char *, int, char *, char *,
-		char *, double, double, double, char *));
+		char *, double, double, double, char *, bool));
 # define BADVAL -32768
 
 
@@ -69,7 +69,7 @@ bool update;
 	int dskip = 0, npt = 0, i, a_invert, a_int, numfields = 0, afield;
 	int arrow, a_lwidth, showposition, nfld, nsamp;
 	long timenow, vectime = 0;
-	bool mono; 
+	bool mono, shifted; 
 	ZebTime begin, zt;
 	float *data, fx, fy, base, incr, a_scale, *a_xdata, *a_ydata;
 	float unitlen, center, step;
@@ -128,6 +128,7 @@ bool update;
 		msg_ELog (EF_INFO, "No %s data available", platform);
 		return;
 	}
+	shifted = ApplySpatialOffset (dc, comp, &PlotTime);
 	nsamp = dc_GetNSample (dc);
 /*
  * Convert the first points.
@@ -215,11 +216,8 @@ bool update;
  */
 	if (! update)
 	{
-		date t;
-
 		dc_GetTime (dc, nsamp - 1, &zt);
-		TC_ZtToUI (&zt, &t);
-		lw_TimeStatus (comp, platform, &t);
+		lw_TimeStatus (comp, platform, &zt);
 	}
 	dc_DestroyDC (dc);
 /*
@@ -228,7 +226,7 @@ bool update;
 	if (! update)
 		tr_AnnotTrack (comp, platform, mono ? NULL : ccfield, arrow,
 			a_type, mtcolor, ctable, center, step, unitlen,
-			a_color);
+			mono ? mtcolor : a_color, shifted);
 }
 
 
@@ -238,10 +236,11 @@ bool update;
 
 static void
 tr_AnnotTrack (comp, platform, ccfield, arrow, a_type, mtcolor, ctable,
-	center, step, unitlen, a_color)
+	center, step, unitlen, a_color, shifted)
 char *comp, *platform, *ccfield, *a_type, *mtcolor, *ctable, *a_color;
 int arrow;
 float center, step, unitlen;
+bool shifted;
 /*
  * Annotate the track we have just done.
  */
@@ -290,6 +289,8 @@ float center, step, unitlen;
 			tadefclr.pixel);
 	}
 	An_TopAnnot (" track", tadefclr.pixel);
+	if (shifted)
+		An_TopAnnot (" (SHIFTED)", tadefclr.pixel);
 /*
  * Annotate arrows if necessary.
  */

@@ -1,4 +1,4 @@
-! $Id: GraphProc.state,v 1.16 1992-09-04 20:56:57 burghart Exp $
+! $Id: GraphProc.state,v 1.17 1992-10-06 15:29:00 corbet Exp $
 !
 !		Copyright (C) 1987,88,89,90,91 by UCAR
 !	University Corporation for Atmospheric Research
@@ -415,12 +415,18 @@ enddef
 set ui$bailout false
 
 !
+! Read in offset control widgets too.
+!
+set ui$initial_state "initial"
+read offset.w
+!
 ! The init process to be run at startup.  This throws us immediately
 ! into the graphproc event loop.
 !
-set ui$initial_state "initial"
 procedure ui$init
+	set ui$menu_mark_file '/local/X11R5/include/X11/bitmaps/star' ! XXX
 	while (true)
 		run
 	endwhile
 endprocedure
+

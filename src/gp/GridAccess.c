@@ -25,15 +25,16 @@
 # include <DataChunk.h>
 # include "GraphProc.h"
 # include "rg_status.h"
-MAKE_RCSID ("$Id: GridAccess.c,v 2.8 1992-09-18 15:04:09 corbet Exp $")
+MAKE_RCSID ("$Id: GridAccess.c,v 2.9 1992-10-06 15:29:00 corbet Exp $")
 
 
 
 /*
  * Our routines.
  */
-DataChunk	*ga_GetGrid FP ((ZebTime *, char *, char *, int *, int *, 
-			float *, float *, float *, float *, float *));
+DataChunk	*ga_GetGrid FP ((ZebTime *, char *, char *, char *, int *,
+			int *, float *, float *, float *, float *, float *,
+			int *));
 static bool 	ga_Regularize FP ((DataChunk **, char *));
 static void 	ga_RangeLimit FP ((char *, int, float *, double));
 static void 	ga_ImgToCGrid FP ((DataChunk **, char *));
@@ -138,10 +139,11 @@ int *nh;
 
 
 DataChunk *
-ga_GetGrid (plot_time, platform, fname, xdim, ydim, x0, y0, x1, y1, alt)
+ga_GetGrid (plot_time, comp, platform, fname, xdim, ydim, x0, y0, x1, y1,
+		alt, shift)
 ZebTime	*plot_time;
-char 	*platform, *fname;
-int	*xdim, *ydim;
+char 	*comp, *platform, *fname;
+int	*xdim, *ydim, *shift;
 float	*x0, *y0, *x1, *y1, *alt;
 {
 	PlatformId	pid;
@@ -237,6 +239,11 @@ float	*x0, *y0, *x1, *y1, *alt;
 		dc_DestroyDC (dc);
 		return (0);
 	}
+/*
+ * Apply any needed spatial shift to the data.  We wait this long so that
+ * the above transformations can be done first, and irgrids can be shifted.
+ */
+	*shift = ApplySpatialOffset (dc, comp, plot_time);
 /*
  * Pull out the info and return it.  For now we yank out the data and 
  * assume that it can be freed later.

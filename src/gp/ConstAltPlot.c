@@ -37,7 +37,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.15 1992-09-22 20:12:07 corbet Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.16 1992-10-06 15:29:00 corbet Exp $")
 
 
 /*
@@ -81,11 +81,11 @@ void		CAP_FContour FP ((char *, int));
 void		CAP_Vector FP ((char *, int));
 void		CAP_Raster FP ((char *, int));
 void		CAP_LineContour FP ((char *, int));
-void		CAP_Contour FP ((char *, contour_type, char *, float *, 
-			float *, char *));
+static void	CAP_Contour FP ((char *, contour_type, char *, float *, 
+			float *, char *, int *));
 static DataChunk *CAP_ImageGrid FP ((char *, ZebTime *, PlatformId, char *, 
 			int *, int *, float *, float *, float *, float *, 
-			float *));
+			float *, int *));
 void		CAP_RasterSideAnnot FP ((char *, char *, int, int, int));
 void		CAP_StaPltSideAnnot FP ((char *, char *, int, int, int));
 
@@ -114,10 +114,11 @@ Boolean	update;
 {
 	float	center, step;
 	char	fname[20], ctable[40], data[100];
+	int shift;
 /*
  * Use the common CAP contouring routine to do a filled contour plot
  */
-	CAP_Contour (c, FilledContour, fname, &center, &step, ctable);
+	CAP_Contour (c, FilledContour, fname, &center, &step, ctable, &shift);
 /*
  * If it's just an update, return now since we don't want
  * to re-annotate
@@ -128,8 +129,8 @@ Boolean	update;
  * Top annotation
  */
 	An_TopAnnot (px_FldDesc (c, fname), Tadefclr.pixel);
-	An_TopAnnot (" filled contour", Tadefclr.pixel);
-	An_TopAnnot (".  ", Tadefclr.pixel);
+	An_TopAnnot (shift ? " filled contour (SHIFTED)." : " filled contour.",
+		Tadefclr.pixel);
 /*
  * Side annotation (color bar)
  */
@@ -154,11 +155,11 @@ Boolean	update;
 {
 	float	center, step;
 	char	fname[20], data[100], ctable[40];
-	int	tacmatch = 0;
+	int	tacmatch = 0, shift;
 /* 
  * Use the common CAP contouring routine to do a color line contour plot
  */
-	CAP_Contour (c, LineContour, fname, &center, &step, ctable);
+	CAP_Contour (c, LineContour, fname, &center, &step, ctable, &shift);
 /*
  * If it's just an update, return now since we don't want
  * to re-annotate
@@ -169,16 +170,15 @@ Boolean	update;
  * Top annotation
  */
 	if (pda_Search (Pd, c, "ta-color-match", NULL,
-			(char *) &tacmatch, SYMT_BOOL) && tacmatch && Monocolor)
+			(char *) &tacmatch, SYMT_BOOL) && tacmatch &&Monocolor)
 		An_TopAnnot (px_FldDesc (c, fname), Ctclr.pixel);
 	else 
 		An_TopAnnot (px_FldDesc (c, fname), Tadefclr.pixel);
-	An_TopAnnot (" contour", Tadefclr.pixel);
-	An_TopAnnot (".  ", Tadefclr.pixel);
+	An_TopAnnot (shift ? " contour (SHIFTED)." : " contour.",
+		Tadefclr.pixel);
 /*
  * Side annotation
  */
-
 	if (Sashow)
 	{
 		if (! Monocolor)
@@ -195,10 +195,11 @@ Boolean	update;
 
 
 void
-CAP_Contour (c, type, fname, center, step, ctable)
+CAP_Contour (c, type, fname, center, step, ctable, shifted)
 char	*c, *fname, *ctable;
 contour_type	type;
 float	*center, *step;
+int *shifted;
 /*
  * Execute a CAP contour plot, based on the given plot
  * description, specified component, and contour type.
@@ -264,7 +265,6 @@ float	*center, *step;
 		Ctlimit = 1;
 	Sashow = TRUE;
 	pda_Search(Pd, c, "sa-show", NULL, (char *) &Sashow, SYMT_BOOL);
-
 /*
  * Special stuff for line contours
  */
@@ -286,19 +286,13 @@ float	*center, *step;
 	alt = Alt;
 	/* msg_ELog (EF_INFO, "Get grid at %.2f km", alt); */
 	zt = PlotTime;
-	if((dc = ga_GetGrid (&zt, platform, fname, &xdim, &ydim, &x0, &y0, &x1, 
-			&y1, &alt)))
-		rgrid = dc_RGGetGrid (dc, 0, F_Lookup (fname), &loc, &rg, &len);
+	if(! (dc = ga_GetGrid (&zt, c, platform, fname, &xdim, &ydim, &x0, &y0,
+			&x1, &y1, &alt, shifted)))
+		return;
+	rgrid = dc_RGGetGrid (dc, 0, F_Lookup (fname), &loc, &rg, &len);
 
-	else 
-		return ;
 	if (Comp_index == AltControlComp)
 		Alt = alt;
-	if (! rgrid)
-	{
-		msg_ELog (EF_INFO, "Unable to get grid");
-		return;
-	}
 /*
  * Get the badvalue flag.
  */
@@ -370,7 +364,7 @@ Boolean	update;
 	float	*rgrid, *ugrid, *vgrid, *qgrid[4];
 	float	vscale, x0, x1, y0, y1, alt;
 	int	pix_x0, pix_x1, pix_y0, pix_y1;
-	Boolean	ok;
+	Boolean	ok, shifted;
 	int	tacmatch = 0, grid, linewidth, len, npts, degrade;
 	XColor	color, qcolor;
 	ZebTime zt;
@@ -454,19 +448,12 @@ Boolean	update;
 	/*
 	 * Get U component.
 	 */
-		if ((dc = ga_GetGrid (&zt, platform, uname, &xdim, &ydim, 
-				&x0, &y0, &x1, &y1, &alt)))
-			rgrid = dc_RGGetGrid (dc, 0, F_Lookup (uname), &loc, 
-				&rg, &len);
-		else
+		if (! (dc = ga_GetGrid (&zt, c, platform, uname, &xdim, &ydim, 
+				&x0, &y0, &x1, &y1, &alt, &shifted)))
 			return;
+		rgrid = dc_RGGetGrid (dc, 0, F_Lookup (uname), &loc,&rg, &len);
 		if (Comp_index == AltControlComp)
 			Alt = alt;
-		if (! rgrid)
-		{
-			msg_ELog (EF_INFO, "Unable to get U grid");
-			return;
-		}
 		ugrid = (float *) malloc (xdim * ydim * sizeof (float));
 		ga_RotateGrid (rgrid, ugrid, xdim, ydim);
 		dc_DestroyDC (dc);
@@ -474,17 +461,10 @@ Boolean	update;
 	 * Get v component.
 	 */
 		zt = PlotTime;
-		if ((dc = ga_GetGrid (&zt, platform, vname, &xdim, &ydim, 
-				&x0, &y0, &x1, &y1, &alt)))
-			rgrid = dc_RGGetGrid (dc, 0, F_Lookup (vname), &loc, 
-				&rg, &len);
-		else
+		if (! (dc = ga_GetGrid (&zt, c, platform, vname, &xdim, &ydim, 
+				&x0, &y0, &x1, &y1, &alt, &shifted)))
 			return;
-		if (! rgrid)
-		{
-			msg_ELog (EF_PROBLEM, "Unable to get V grid");
-			return;
-		}
+		rgrid = dc_RGGetGrid (dc, 0, F_Lookup (vname), &loc,&rg, &len);
 		vgrid = (float *) malloc (xdim * ydim * sizeof (float));
 		ga_RotateGrid (rgrid, vgrid, xdim, ydim);
 	/*
@@ -507,22 +487,30 @@ Boolean	update;
 		dc_DestroyDC (dc);
 	}
 	else
-	/*
-	 * Do the ROBOT style winds plot.
-	 */
+/*
+ * Do the ROBOT style winds plot.
+ */
 	{
+	/*
+	 * Get the platform ID.
+	 */
 		if ((pid = ds_LookupPlatform (platform)) == BadPlatform)
 		{
 			msg_ELog (EF_PROBLEM, "Bad platform '%s'", platform);
 			return;
 		}
-
+	/*
+	 * See when there is data available.
+	 */
 		if (! ds_DataTimes (pid, &PlotTime, 1, DsBefore, &zt))
 		{
 			msg_ELog(EF_INFO,"No data available at all for '%s'",
 				platform);
 			return;
 		}
+	/*
+	 * Look up quadrant info.
+	 */
 		if (pd_Retrieve (Pd, c, "quadrants", quadrants, SYMT_STRING))
 		{
 			if (!pd_Retrieve(Pd,c,"quad-color",quadclr,SYMT_STRING))
@@ -538,17 +526,23 @@ Boolean	update;
 			numquads = CommaParse (quadrants, quads);
 			if (numquads > 4) numquads = 4;
 		}
-
+	/*
+	 * Create the field list for our data fetch.
+	 */
 		fields[0] = F_Lookup (uname);
 		fields[1] = F_Lookup (vname);
 		for (i = 0; i < numquads; i++)
 			fields[i + 2] = F_Lookup (quads[i]);
+	/*
+	 * Get the data.
+	 */
 		if (! (dc = ds_Fetch (pid, DCC_IRGrid, &zt, &zt, fields, 
 			2 + numquads, NULL, 0)))
 		{
 			msg_ELog (EF_INFO, "Get failed on '%s'", platform);
 			return;
 		}
+		shifted = ApplySpatialOffset (dc, c, &PlotTime);
 	/*
 	 * Get some info out of the data chunk.
 	 */	
@@ -563,9 +557,7 @@ Boolean	update;
 		ugrid = dc_IRGetGrid (dc, 0, fields[0]);
 		vgrid = dc_IRGetGrid (dc, 0, fields[1]);
 		for (i = 0; i < numquads; i++)
-		{
 			qgrid[i] = dc_IRGetGrid (dc, 0, fields[i + 2]);
-		}
 	/*
 	 * Graphics context stuff.
 	 */
@@ -623,17 +615,19 @@ Boolean	update;
 /*
  * Top annotation
  */
-	sprintf (annot, " plot (%s).  ", platform);
 	if (pda_Search (Pd, c, "ta-color-match", NULL, (char *) &tacmatch,
 			SYMT_BOOL) && tacmatch)
 		An_TopAnnot ("Vector winds", color.pixel);
 	else
 		An_TopAnnot ("Vector winds", Tadefclr.pixel);
+	sprintf (annot, " plot (%s)", platform);
 	An_TopAnnot (annot, Tadefclr.pixel);
+	if (shifted)
+		An_TopAnnot (" (SHIFTED)", Tadefclr.pixel);
+	An_TopAnnot (".", Tadefclr.pixel);
 /*
  * Side annotation (scale vectors)
  */
-
 	if (grid)
 	{
 		sprintf (data, "%s %s %f %f %f", "10m/sec", cname,
@@ -753,7 +747,7 @@ Boolean	update;
 	Boolean	ok, highlight;
 	float	*grid, x0, x1, y0, y1, alt;
 	float	min, max, center, step, hvalue, hrange;
-	int	pix_x0, pix_x1, pix_y0, pix_y1, image;
+	int	pix_x0, pix_x1, pix_y0, pix_y1, image, shifted;
 	XRectangle	clip;
 	XColor	black, xc;
 	ZebTime	zt;
@@ -846,24 +840,19 @@ Boolean	update;
 	zt = PlotTime;
 	if (image)
 	{
-		if ((dc = CAP_ImageGrid (c, &zt, pid, name, &xdim, &ydim,
- 				&x0, &y0, &x1, &y1, &alt)))
-		{
-			grid = (float *) dc_ImgGetImage (dc, 0, 
-				F_Lookup (name), &loc, &rg, &len, &scale);
-			alt = loc.l_alt;
-		}
-		else
+		if (! (dc = CAP_ImageGrid (c, &zt, pid, name, &xdim, &ydim,
+ 				&x0, &y0, &x1, &y1, &alt, &shifted)))
 			return;
+		grid = (float *) dc_ImgGetImage (dc, 0, 
+			F_Lookup (name), &loc, &rg, &len, &scale);
+		alt = loc.l_alt;
 	}
 	else
 	{
-		if ((dc = ga_GetGrid (&zt, platform, name, &xdim, &ydim, &x0, 
-				&y0, &x1, &y1, &alt)))
-			grid = dc_RGGetGrid (dc, 0, F_Lookup (name), &loc, 
-				&rg, &len);
-		else
+		if (! (dc = ga_GetGrid(&zt, c, platform, name, &xdim, &ydim,
+				&x0, &y0, &x1, &y1, &alt, &shifted)))
 			return;
+		grid = dc_RGGetGrid (dc, 0, F_Lookup (name), &loc, &rg, &len);
 	}
 	if (! grid)
 	{
@@ -923,8 +912,7 @@ Boolean	update;
  * Top annotation
  */
 	An_TopAnnot (px_FldDesc (c, name), Tadefclr.pixel);
-	An_TopAnnot (" plot", Tadefclr.pixel);
-	An_TopAnnot (".  ", Tadefclr.pixel);
+	An_TopAnnot (shifted ? " plot (SHIFTED)." : " plot.", Tadefclr.pixel);
 /*
  * Side annotation (color bar)
  */
@@ -1029,11 +1017,11 @@ int datalen, begin, space;
 
 
 static DataChunk *
-CAP_ImageGrid (c, when, pid, field, xdim, ydim, x0, y0, x1, y1, alt)
+CAP_ImageGrid (c, when, pid, field, xdim, ydim, x0, y0, x1, y1, alt, shift)
 char	*c, *field;
 ZebTime *when;
 PlatformId pid;
-int	*xdim, *ydim;
+int	*xdim, *ydim, *shift;
 float	*x0, *y0, *x1, *y1, *alt;
 /*
  * Fetch an image grid from this platform.
@@ -1118,6 +1106,7 @@ float	*x0, *y0, *x1, *y1, *alt;
 			ds_PlatformName (pid), field);
 		return (0);
 	}
+	*shift =  ApplySpatialOffset (dc, c, when);
 /*
  * Get some info out of the data chunk.
  */

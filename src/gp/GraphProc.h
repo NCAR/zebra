@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.17 1992-09-22 20:12:07 corbet Exp $ */
+/* $Id: GraphProc.h,v 2.18 1992-10-06 15:29:00 corbet Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -143,8 +143,8 @@ extern bool ga_GridBBox FP ((ZebTime *, char *, float *, float *, float *,
 extern void ga_RotateGrid FP ((float *, float *, int, int));
 extern bool ga_AvailableAlts FP ((ZebTime *, char *, float *, int *));
 # ifdef _DATACHUNK_H_
-extern DataChunk *ga_GetGrid FP ((ZebTime *, char *, char *, int *, int *, 
-		float *, float *, float *, float *, float *));
+extern DataChunk *ga_GetGrid FP ((ZebTime *, char *, char *, char *, int *,
+		int *, float *, float *, float *, float *, float *, int *));
 # endif
 
 /* Frame cache routines */
@@ -214,6 +214,9 @@ extern int  reset_limits FP ((char *, char *, char *));
 extern void eq_ResetAbort FP ((void));
 extern void eq_ReturnPD FP ((void));
 extern void tr_InitAcWidget ();
+# ifdef _DATACHUNK_H_
+	extern int ApplySpatialOffset (DataChunk *, char *, ZebTime *);
+# endif
 
 /* This stuff contains window system oriented stuff, so is only brought
    in if this module is doing X things. */

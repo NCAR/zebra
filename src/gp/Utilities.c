@@ -20,15 +20,22 @@
  */
 
 # include <X11/Intrinsic.h>
-# include "../include/defs.h"
-# include "../include/message.h"
-# include "../include/pd.h"
+# include <math.h>
+# include <defs.h>
+# include <message.h>
+# include <pd.h>
+# include <DataStore.h>
 # include <time.h>
 # include "GraphProc.h"
 # include "PixelCoord.h"
-MAKE_RCSID ("$Id: Utilities.c,v 2.5 1992-07-02 15:44:00 kris Exp $")
+MAKE_RCSID ("$Id: Utilities.c,v 2.6 1992-10-06 15:29:00 corbet Exp $")
 
 
+static void ApplyConstOffset FP ((Location *, double, double));
+static void ApplyAdvection FP ((Location *, double, double, ZebTime *,
+		ZebTime *));
+
+# define CPTR(x)     (char *)(&(x))
 
 
 
@@ -41,6 +48,7 @@ Location *loc;
  * Find out where this platform is at this time.
  */
 {
+
 	char sloc[80];
 /*
  * The data store routine for finding a location isn't there yet.  We'll
@@ -242,4 +250,141 @@ time    t;
         syst.tm_zone = (char *) 0;
         syst.tm_wday = syst.tm_isdst = syst.tm_yday = 0;
         return (timegm (&syst));
+}
+
+
+
+
+
+
+
+int
+ApplySpatialOffset (dc, comp, ptime)
+DataChunk *dc;
+char *comp;
+ZebTime *ptime;
+/*
+ * Apply a spatial offset, if any, to this data chunk.  Return value is
+ * TRUE iff locations were actually changed.
+ *
+ * PROBLEM: this routine does not currently deal with the complications
+ * 	    involved with irregular grid data chunks, which have a set
+ *	    of per-platform locations, stored separately, with no time
+ *	    dimension.
+ */
+{
+	int enable = FALSE, advect, constant, sample, ns;
+	float xoffset = 0, yoffset = 0, xpos, ypos, advdir, advspeed;
+	char *pname = ds_PlatformName (dc->dc_Platform);
+	Location loc;
+	ZebTime t;
+/*
+ * If none of this is allowed, bail now.
+ */
+	if (! pda_Search (Pd, "global", "enable-spatial-shift", NULL,
+			CPTR (enable), SYMT_BOOL) || ! enable)
+		return (FALSE);
+/*
+ * Look for constant offsets.
+ */
+	pda_Search (Pd, comp, "x-shift", pname, CPTR (xoffset), SYMT_FLOAT);
+	pda_Search (Pd, comp, "y-shift", pname, CPTR (yoffset), SYMT_FLOAT);
+	constant = (xoffset != 0.0) || (yoffset != 0.0);
+/*
+ * And advection parameters.
+ */
+	advect = pda_Search (Pd, comp, "enable-advection", pname, CPTR(enable),
+			SYMT_BOOL) && enable &&
+		 pda_Search (Pd, comp, "advection-speed", NULL, 
+		 	CPTR (advspeed), SYMT_FLOAT) &&
+		 pda_Search (Pd, comp, "advection-direction", NULL,
+		 	CPTR (advdir), SYMT_FLOAT);
+	if (advspeed == 0.0)
+		advect = FALSE;
+/*
+ * If there is no work to do here, quit.
+ */
+	if (! constant && ! advect)
+		return (FALSE);
+	msg_ELog (EF_INFO, "Offsetting comp %s", comp);
+/*
+ * Make a special case for immobile platforms where we can retain the
+ * static location and not incur some extra overhead.
+ */
+	ns = dc_GetNSample (dc);
+# ifdef notdef	/* Causes problems with rgrids */
+	if (! ds_IsMobile (dc->dc_Platform) && ns == 1)
+	{
+		dc_GetLoc (dc, 0, &loc);
+		if (constant)
+			ApplyConstOffset (&loc, xoffset, yoffset);
+		if (advect)
+		{
+			dc_GetTime (dc, 0, &t);
+			ApplyAdvection (&loc, advdir, advspeed, ptime, &t);
+		}
+		dc_SetStaticLoc (dc, &loc);
+		return (TRUE);
+	}
+# endif
+/*
+ * Otherwise we need to go through each sample and shift it.
+ */
+	for (sample = 0; sample < ns; sample++)
+	{
+		dc_GetLoc (dc, sample, &loc);
+		if (constant)
+			ApplyConstOffset (&loc, xoffset, yoffset);
+		if (advect)
+		{
+			dc_GetTime (dc, sample, &t);
+			ApplyAdvection (&loc, advdir, advspeed, ptime, &t);
+		}
+		dc_SetLoc (dc, sample, &loc);
+	}
+	return (TRUE);
+}
+
+
+
+
+static void
+ApplyConstOffset (loc, x, y)
+Location *loc;
+double x, y;
+/*
+ * Apply a constant offset to this location.
+ */
+{
+	float xpos, ypos;
+
+	cvt_ToXY (loc->l_lat, loc->l_lon, &xpos, &ypos);
+	cvt_ToLatLon (xpos + x, ypos + y, &loc->l_lat, &loc->l_lon);
+}
+
+
+
+
+static void
+ApplyAdvection (loc, dir, speed, plottime, datatime)
+Location *loc;
+double dir, speed;
+ZebTime *plottime, *datatime;
+/*
+ * Apply an advective offset.
+ */
+{
+	double distance, xoff, yoff, rdir = dir*M_PI/180.0;
+	int tdiff;
+/*
+ * Figure the time difference, and, from that, the distance covered.
+ */
+	tdiff = plottime->zt_Sec - datatime->zt_Sec;
+	distance = (speed*tdiff)/1000.0;	/* In km */
+	xoff = distance*sin (rdir);
+	yoff = distance*cos (rdir);
+/*
+ * Now apply as in a constant offset.
+ */
+	ApplyConstOffset (loc, xoff, yoff);
 }
