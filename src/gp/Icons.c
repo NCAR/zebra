@@ -550,13 +550,17 @@ Cardinal *cardjunk;
  */
 	XtSetArg (arg, XtNmenuName, menu);
 	XtSetValues (w, &arg, (Cardinal)1 );
+/*
+ * We have to explicitly call the actions from here since attempting to
+ * popup the menu is conditional on whether a menu was found for this
+ * menu for the particular button.  Hence the actions cannot be 
+ * unconditionally called via the <BtnDn> translation.
+ */
+	XtCallActionProc (w, "PositionAndPopupRdssMenu", ev, &menu, 1);
 
 #ifdef notdef
 	XtCallActionProc (w, "XawPositionSimpleMenu", ev, &menu, 1);
 	XtCallActionProc (w, "MenuPopup", ev, &menu, 1);
-#endif
-#ifdef notdef
-	XtCallActionProc (w, "PositionAndPopupRdssMenu", ev, &menu, 1);
 #endif
 }
 
