@@ -43,7 +43,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.63 1996-11-19 07:28:41 granger Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.64 1997-04-11 21:18:29 corbet Exp $")
 
 
 /*
@@ -561,10 +561,10 @@ float *step;	/* scale step */
 	 * Get the parameters.
 	 */
 		sprintf (param, "%s-center", fname);
-		ok &= pda_ReqSearch (Pd, c, param, "contour", (char *) center, 
+		ok &= pda_ReqSearch (Pd, c, param, qual, (char *) center, 
 				     SYMT_FLOAT);
 		sprintf (param, "%s-step", fname);
-		ok &= pda_ReqSearch (Pd, c, param, "contour", (char *) step, 
+		ok &= pda_ReqSearch (Pd, c, param, qual, (char *) step, 
 				     SYMT_FLOAT);
 	/*
 	 * If they blew it, give them a second chance by turning on
@@ -1700,7 +1700,7 @@ bool	update;
 	strcpy (platform, "none");
 	ok = pda_ReqSearch (Pd, c, "platform", NULL, platform, SYMT_STRING);
 	ok &= pda_ReqSearch (Pd, c, "field", NULL, fname, SYMT_STRING);
-	autoscale = CAP_AutoScale (c, "contour", platform, fname, 
+	autoscale = CAP_AutoScale (c, "raster", platform, fname, 
 				   &center, &step);
 	ok &= pda_ReqSearch (Pd, c, "color-table", "raster", ctname, 
 		SYMT_STRING);

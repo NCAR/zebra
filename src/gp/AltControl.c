@@ -41,7 +41,7 @@
  */
 int	AltControlComp;
 
-MAKE_RCSID("$Id: AltControl.c,v 2.19 1997-04-10 13:42:43 granger Exp $")
+MAKE_RCSID("$Id: AltControl.c,v 2.20 1997-04-11 21:18:27 corbet Exp $")
 
 # define MAXALT		80	/* Max heights we expect to see		*/
 
@@ -54,7 +54,7 @@ static int	alt_GetRSAlts FP ((char *, float *));
 static void	alt_SetLabel FP ((char *label));
 /* static int	alt_AlreadyThere FP ((float *, int, double)); */
 static int	alt_GetLatest FP ((char *, float *));
-
+static void	alt_Insert FP ((float *, int *, float));
 
 
 
@@ -385,6 +385,38 @@ float new;
 
 
 
+
+
+static void
+alt_Insert (alts, nalt, new)
+float *alts, new;
+int *nalt;
+/*
+ * Add this altitude to the list, in a sorted manner.  Ugly, linear
+ * check, but this list is always short.
+ */
+{
+	int alt, i;
+
+	if (new > 90.0)
+		return;
+	for (alt = 0; alt < *nalt; alt++)
+		if (alts[alt] > new)
+		{
+			for (i = *nalt; i > alt; i--)
+				alts[i] = alts [i - 1];
+			alts[alt] = new;
+			(*nalt)++;
+			return;
+		}
+	alts[*nalt] = new;
+	(*nalt)++;
+}
+
+
+
+
+
 static int
 alt_GetRSAlts (platform, alts)
 char *platform;
@@ -422,21 +454,20 @@ float *alts;
 	nret = 0;
 	for (i = 0; i < nalt; i++)
 		if (! alt_AlreadyThere (alts, nret, locs[i].l_alt))
-			alts[nret++] = locs[i].l_alt;
-# ifdef notdef
+			alt_Insert (alts, &nret, locs[i].l_alt);
+/*			alts[nret++] = locs[i].l_alt; */
 /*
  * Now look at the previous observation and get any tilts higher than
- * what we have here.  IF REENABLED, USE NRET.
+ * what we have here.
  */
 	if (ntime > 1)
 	{
 		int na = ds_GetObsSamples (pid, otimes + 1, stimes, locs,
 				MAXALT);
 		for (i = 0; i < na; i++)
-			if (locs[i].l_alt > alts[nalt - 1])
-				alts[nalt++] = locs[i].l_alt;
+			if (locs[i].l_alt > alts[nret - 1])
+				alts[nret++] = locs[i].l_alt;
 	}
-# endif
 	return (nret);
 }
 
@@ -498,6 +529,7 @@ float *alts;
 	}
 	return ((i < nalt) ? 1 : 0);
 }
+
 
 
 
