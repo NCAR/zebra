@@ -7,7 +7,7 @@
 # include "ui_globals.h"
 # include "ui_symbol.h"
 
-static char *Rcsid = "$Id: ui_string.c,v 1.3 1989-04-18 15:10:20 corbet Exp $";
+static char *Rcsid = "$Id: ui_string.c,v 1.4 1989-08-10 11:05:13 corbet Exp $";
 /*
  * For small, temporary strings, we maintain some internal lookaside 
  * lists with fixed-size strings.  This way, many malloc/free cycles are
@@ -222,8 +222,8 @@ char *string;
 	}
 	else
 	{
-		relvm (string);
 		S_lenrel += strlen (string) + 1;
+		relvm (string);
 	}
 } 
 
