@@ -1,7 +1,7 @@
 /*
  * Color control / display manager interface code.
  */
-static char *rcsid = "$Id: ColorTable.c,v 2.2 1993-11-09 22:23:16 corbet Exp $";
+static char *rcsid = "$Id: ColorTable.c,v 2.3 1993-11-15 20:00:41 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -201,6 +201,7 @@ char *name;
 	ct->ct_colors = (XColor *) malloc (ct->ct_ncolor * sizeof (XColor));
 	memcpy (ct->ct_colors, repl->dmm_cols, ct->ct_ncolor*sizeof (XColor));
 	ct->ct_alloc = FALSE;
+	free (repl);
 /*
  * Store a symbol table entry.
  */
@@ -222,7 +223,8 @@ ct_GetDMResponse (msg, ctr)
 struct message *msg;
 struct dm_ctable **ctr;
 /*
- * The color table search routine, called out of msg_Search.
+ * The color table search routine, called out of msg_Search.  This guy, on
+ * success, returns a structure which must be freed after use.
  */
 {
 	struct dm_ctable *dmm = (struct dm_ctable *) msg->m_data;
@@ -232,9 +234,20 @@ struct dm_ctable **ctr;
 	if (dmm->dmm_type != DM_TABLE && dmm->dmm_type != DM_NOTABLE)
 		return (1);
 /*
+ * If it's a negative response, we heave a sigh, and, head low, return the
+ * bad news.
+ */
+	if (dmm->dmm_type == DM_NOTABLE)
+	{
+		*ctr = 0;
+		return (0);
+	}
+/*
  * Got it.  Copy out the info and return.
  */
-	*ctr = (dmm->dmm_type == DM_TABLE) ? dmm : 0;
+	/* *ctr = (dmm->dmm_type == DM_TABLE) ? dmm : 0; */
+	*ctr = (struct dm_ctable *) malloc (msg->m_len);
+	memcpy (*ctr, dmm, msg->m_len);
 	return (0);
 }
 
@@ -261,7 +274,7 @@ CTable *ct;
 	for (color = 0; color < ct->ct_ncolor; color++)
 	{
 		if (! XAllocColor (disp, cm, ct->ct_colors + color))
-			msg_log ("Color alloc failure");
+			msg_ELog (EF_PROBLEM, "Color alloc failure");
 		ct_MarkColor (ct->ct_colors[color].pixel);
 	}
 	ct->ct_alloc = TRUE;
