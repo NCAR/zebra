@@ -40,7 +40,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: Skewt.c,v 2.20 1995-09-14 00:17:13 granger Exp $")
+RCSID ("$Id: Skewt.c,v 2.21 1995-09-23 02:34:19 granger Exp $")
 
 /*
  * General definitions
@@ -469,7 +469,7 @@ sk_Background ()
 		if (x[0] > 0.0 && x[0] < 1.0)
 		{
 			annot_angle = 
-				RAD_TO_DEG (atan2 (y[1] - y[0], x[1] - x[0]));
+				RAD_TO_DEG (ATAN2 (y[1] - y[0], x[1] - x[0]));
 			if (annot_angle > 0.0)
 				annot_angle -= 180.0;
 
@@ -1105,10 +1105,10 @@ int	skip;
  * Calculate the x starting position for the wind vectors and the x and y 
  * scaling factors
  */
-	xstart = 1.0 + 
-		(Xhi - 1.0) * (float) (plot_ndx + 0.5) / (float) (nplots);
+#	define WINDSX0 1.1	/* leave space from 1.0 to 1.1 for labels */
+	xstart = WINDSX0 + 
+		(Xhi - WINDSX0) * (float) (plot_ndx + 0.5) / (float) (nplots);
 	xscale = (Xhi - 1.0) / (W_scale * 2 * nplots);
-
 	yscale = fabs (xscale * 
 		(YPIX (1.0) - YPIX (0.0)) / (XPIX (1.0) - XPIX (0.0)));
 /*
@@ -1157,7 +1157,7 @@ int	skip;
 		 * Hacked in barb drawing
 		 */
 			wspd = hypot (u[i], v[i]);
-			wdir = atan2 (-v[i], -u[i]);
+			wdir = ATAN2 (-v[i], -u[i]);
 			XSetForeground (XtDisplay (Graphics), Gcontext, 
 					color.pixel);
 			draw_barb (XtDisplay (Graphics), GWFrame (Graphics), 
