@@ -19,7 +19,7 @@
 # include "RasterFile.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_Raster.c,v 3.16 1996-12-06 00:40:04 granger Exp $")
+RCSID ("$Id: DFA_Raster.c,v 3.17 1997-03-31 22:06:35 corbet Exp $")
 
 /*
  * This is the tag for an open raster file.
@@ -159,13 +159,17 @@ static int	drf_WriteImage FP ((RFTag *, DataChunk *, int, RFToc *, int));
 static int	drf_FldOffset FP ((RFTag *, FieldId));
 static void	drf_GetField FP ((const RFTag * const, const RFToc *const,
 			        const int));
+# ifdef notdef
 static void	drf_ReadOldToc FP ((RFTag *));
+# endif
 static void	drf_ReadAttrs FP ((RFTag *, RFToc *, int, DataChunk *));
 static void	drf_ClearToc FP ((RFHeader *, RFToc *));
 static void	drf_FindSpace FP ((RFTag *, RFToc *, int, int, int));
 static int	drf_ProcAttr FP ((char *, char *));
 static void	drf_WriteAttrs FP ((RFTag *, RFToc *, DataChunk *, int, int));
 static void	drf_SyncTimes FP ((RFTag *tag));
+static void	drf_FixOldHeader FP ((RFHeader *));
+static RFToc 	*drf_ReadTOC FP ((RFHeader *, int));
 
 # ifdef LITTLE_ENDIAN
 static void	drf_SwapHeader FP ((RFHeader *));
@@ -241,10 +245,29 @@ bool write;
 	drf_SwapHeader (&tag->rt_hdr);
 # endif
 /*
- * Check it.
+ * Look for really ancient files, which should not ought to exist any more.
  */
-	if (tag->rt_hdr.rf_Magic != RF_MAGIC &&
-			tag->rt_hdr.rf_Magic != RF_OLDMAGIC)
+	if (tag->rt_hdr.rf_Magic == RF_ANCIENTMAGIC)
+	{
+		msg_ELog (EF_PROBLEM, "Ancient raster file support removed");
+		msg_ELog (EF_PROBLEM, "talk to rdp-support@atd.ucar.edu");
+		close (tag->rt_fd);
+		return (FALSE);
+	}
+/*
+ * If it's an old header, fix up the fields.  Also reposition within the
+ * file to where the TOC lives.
+ */
+	if (tag->rt_hdr.rf_Magic == RF_OLDMAGIC)
+	{
+		drf_FixOldHeader (&tag->rt_hdr);
+		if (lseek (tag->rt_fd, sizeof (OldRFHeader), SEEK_SET) < 0)
+			msg_ELog (EF_PROBLEM, "Old RF toc seek err %d", errno);
+	}
+/*
+ * Otherwise it should identify itself as a current header.
+ */
+	else if (tag->rt_hdr.rf_Magic != RF_MAGIC)
 	{
 		msg_ELog (EF_PROBLEM, "Bad ID in file %s", fname);
 		close (tag->rt_fd);
@@ -253,23 +276,7 @@ bool write;
 /*
  * Now get the table of contents.
  */
-	tag->rt_toc = (RFToc *) malloc(tag->rt_hdr.rf_MaxSample*sizeof(RFToc));
-	if (tag->rt_hdr.rf_Magic == RF_OLDMAGIC)
-	{
-		if (write)
-			msg_ELog (EF_PROBLEM,
-				"WRITE on old format raster file");
-		drf_ReadOldToc (tag);
-	}
-	else
-		read (tag->rt_fd, tag->rt_toc,
-				tag->rt_hdr.rf_MaxSample*sizeof(RFToc));
-/*
- * Do we need to swap this thing too??
- */
-# ifdef LITTLE_ENDIAN
-	drf_SwapTOC (tag->rt_toc, tag->rt_hdr.rf_MaxSample);
-# endif
+	tag->rt_toc = drf_ReadTOC (&tag->rt_hdr, tag->rt_fd);
 /*
  * Make a translated set of fields.
  */
@@ -294,6 +301,34 @@ bool write;
 
 
 
+
+
+
+static void
+drf_FixOldHeader (hdr)
+RFHeader *hdr;
+/*
+ * Fix up an old version header.
+ */
+{
+	OldRFHeader *old = (OldRFHeader *) hdr;
+/*
+ * All we really have to do is to fetch the flags from the right place.
+ */
+	msg_ELog (EF_INFO, "Fixing old raster file header");
+	hdr->rf_Flags = old->rf_Flags;
+# ifdef LITTLE_ENDIAN
+	swap4 (&hdr->rf_Flags);
+# endif
+}
+
+
+
+
+
+
+# ifdef notdef		/* Ancient header support.  Not sure it ever worked */
+
 static void
 drf_ReadOldToc (tag)
 RFTag *tag;
@@ -317,6 +352,8 @@ RFTag *tag;
 		tag->rt_toc[i].rft_AttrLen = tag->rt_toc[i].rft_AttrOffset = 0;
 	}
 }
+
+# endif
 
 
 
@@ -381,16 +418,38 @@ int *nsample;
 	drf_SwapHeader (&hdr);
 # endif 
 /*
+ * Look for really ancient files, which should not ought to exist any more.
+ */
+	if (hdr.rf_Magic == RF_ANCIENTMAGIC)
+	{
+		msg_ELog (EF_PROBLEM, "Ancient raster file support removed");
+		msg_ELog (EF_PROBLEM, "talk to rdp-support@atd.ucar.edu");
+		close (fd);
+		return (FALSE);
+	}
+/*
+ * If it's an old header, fix up the fields.  Also reposition within the
+ * file to where the TOC lives.
+ */
+	if (hdr.rf_Magic == RF_OLDMAGIC)
+	{
+		drf_FixOldHeader (&hdr);
+		if (lseek (fd, sizeof (OldRFHeader), SEEK_SET) < 0)
+			msg_ELog (EF_PROBLEM, "Old RF toc seek err %d", errno);
+	}
+/*
+ * Otherwise it should identify itself as a current header.
+ */
+	else if (hdr.rf_Magic != RF_MAGIC)
+	{
+		msg_ELog (EF_PROBLEM, "Bad ID in file %s", file);
+		close (fd);
+		return (FALSE);
+	}
+/*
  * Now get the table of contents.
  */
-	toc = (RFToc *) malloc (hdr.rf_MaxSample*sizeof(RFToc));
-	read (fd, toc, hdr.rf_MaxSample*sizeof(RFToc));
-/*
- * Do we need to swap this thing too??
- */
-# ifdef LITTLE_ENDIAN
-	drf_SwapTOC (toc, hdr.rf_MaxSample);
-# endif
+	toc = drf_ReadTOC (&hdr, fd);
 /*
  * Return the info, clean up, and we're done.
  */
@@ -401,6 +460,69 @@ int *nsample;
 	close (fd);
 	return (TRUE);
 }
+
+
+
+
+
+
+static RFToc *
+drf_ReadTOC (hdr, fd)
+RFHeader *hdr;
+int fd;
+/*
+ * Read in the table of contents.
+ */
+{
+	RFToc *toc;
+/*
+ * Allocate memory for the TOC.
+ */
+	toc = (RFToc *) malloc (hdr->rf_MaxSample*sizeof(RFToc));
+/*
+ * Now read it in.  How we do that depends on the age of this file.
+ */
+	if (hdr->rf_Magic == RF_OLDMAGIC)
+	{
+		int i, fld;
+		OldRFToc *old = (OldRFToc *)
+			malloc (hdr->rf_MaxSample*sizeof (OldRFToc));
+		if (read (fd, old, hdr->rf_MaxSample*sizeof (OldRFToc)) <
+				hdr->rf_MaxSample*sizeof (OldRFToc))
+			msg_ELog (EF_PROBLEM, "Old raster TOC read error");
+		for (i = 0; i < hdr->rf_MaxSample; i++)
+		{
+			toc[i].rft_Time = old[i].rft_Time;
+			toc[i].rft_Rg = old[i].rft_Rg;
+			toc[i].rft_Origin = old[i].rft_Origin;
+			toc[i].rft_AttrLen = old[i].rft_AttrLen;
+			toc[i].rft_AttrOffset = old[i].rft_AttrOffset;
+			for (fld = 0; fld < hdr->rf_NField; fld++)
+			{
+				toc[i].rft_Offset[fld] =old[i].rft_Offset[fld];
+				toc[i].rft_Size[fld] = old[i].rft_Size[fld];
+			}
+		}
+		free (old);
+	}
+/*
+ * How nice, this is a new file.  All we have to do is read it.
+ */
+	else
+		read (fd, toc, hdr->rf_MaxSample*sizeof(RFToc));
+/*
+ * Do we need to swap this thing too??
+ */
+# ifdef LITTLE_ENDIAN
+	drf_SwapTOC (toc, hdr->rf_MaxSample);
+# endif
+	return (toc);
+}
+
+
+
+
+
 
 
 
@@ -1219,13 +1341,22 @@ RFHeader *hdr;
  * Swap a header to/from native order.
  */
 {
-	int field;
+	int field, nf = hdr->rf_NField;
 	swap4 (&hdr->rf_Magic);
 	swap4 (&hdr->rf_MaxSample);
 	swap4 (&hdr->rf_NSample);
 	swap4 (&hdr->rf_NField);
 	swap4 (&hdr->rf_Flags);
-	for (field = 0; field < MaxRFField; field++)
+/*
+ * Would you believe this loop used to go to rf_NField, without regard to
+ * whether said quantity was swapped or not?  It worked for years.  Until
+ * it broke, of course.  At this point we have no idea of which version of
+ * rf_NField is right, so we take the most reasonable one.
+ */
+	if (nf < 0 || nf > MaxRFField)
+		nf = hdr->rf_NField;	/* Assume we want swapped. */
+	msg_ELog (EF_INFO, "Swapping %d fields", nf);
+	for (field = 0; field < nf; field++)
 	{
 		swap4 (&hdr->rf_Fields[field].rff_Scale.s_Scale);
 		swap4 (&hdr->rf_Fields[field].rff_Scale.s_Offset);

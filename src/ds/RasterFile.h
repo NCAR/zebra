@@ -1,4 +1,4 @@
-/* $Id: RasterFile.h,v 2.2 1993-07-01 20:12:51 granger Exp $ */
+/* $Id: RasterFile.h,v 2.3 1997-03-31 22:06:36 corbet Exp $ */
 
 /*
  * This is the file for FCC native raster files.  Note that these are not
@@ -36,9 +36,11 @@ typedef struct s_RFField
 /*
  * The file header.
  */
-# define RF_MAGIC	0x910714
-# define RF_OLDMAGIC	0x910702
-# define MaxRFField	10		/* Max number of fields	*/
+# define RF_MAGIC	0x970331
+# define RF_OLDMAGIC	0x910714
+# define RF_ANCIENTMAGIC	0x910702	/* no longer supported */
+# define MaxRFField	32		/* Max number of fields	*/
+# define OldMaxRFField	10		/* Max number of fields	*/
 
 typedef struct s_RFHeader
 {
@@ -52,6 +54,21 @@ typedef struct s_RFHeader
 } RFHeader;
 
 # define RFF_COMPRESS	0x0001		/* Images are compressed	*/
+
+/*
+ * The previous version of the header, differing only in the number of
+ * fields handled.
+ */
+typedef struct s_OldRFHeader
+{
+	int	rf_Magic;		/* == RF_MAGIC			*/
+	char	rf_Platform[40];	/* Name of platform stored here */
+	int	rf_MaxSample;		/* Max number of samples	*/
+	int	rf_NSample;		/* How many we have		*/
+	int	rf_NField;		/* How many fields		*/
+	RFField rf_Fields[OldMaxRFField]; /* Fields			*/
+	int	rf_Flags;		/* Flag info			*/
+} OldRFHeader;
 
 /*
  * Immediately after the header comes the table of contents, which is
@@ -68,6 +85,21 @@ typedef struct s_RFToc
 	long	rft_AttrOffset;		/* Where they are		*/
 } RFToc;
 
+
+
+typedef struct s_OldRFToc
+{
+	UItime	rft_Time;		/* Time of this image		*/
+	long	rft_Offset[OldMaxRFField];/* It's place in the file	*/
+	long	rft_Size[OldMaxRFField];/* Length			*/
+	RGrid	rft_Rg;			/* Geometry info		*/
+	Location rft_Origin;		/* Image origin			*/
+	int	rft_AttrLen;		/* Length of attrs		*/
+	long	rft_AttrOffset;		/* Where they are		*/
+} OldRFToc;
+
+
+# ifdef notdef /* ancient */
 typedef struct s_OldRFToc
 {
 	UItime	rft_Time;		/* Time of this image		*/
@@ -76,3 +108,5 @@ typedef struct s_OldRFToc
 	RGrid	rft_Rg;			/* Geometry info		*/
 	Location rft_Origin;		/* Image origin			*/
 } OldRFToc;
+
+# endif
