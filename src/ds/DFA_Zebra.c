@@ -31,15 +31,23 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 # include "dfa.h"
-# include "znfile.h"
-# include "ds_fields.h"
 #ifdef SYS4
 #  include <string.h>
 #endif
 
-# ifndef lint
-MAKE_RCSID ("$Id: DFA_Zebra.c,v 1.28 1996-01-23 04:38:54 granger Exp $")
-# endif
+RCSID ("$Id: DFA_Zebra.c,v 1.29 1996-11-19 08:37:35 granger Exp $")
+
+/*
+ * There is a conflict with the symbol DataFormat between DFA and the
+ * znf header file.  So include the DFA DataFormat declaration and
+ * rename the DataFormat type in znfile.h, since we don't actually
+ * use it here.
+ */
+# include "DataFormat.h"
+
+# define DataFormat ZNF_DataFormat
+# include "znfile.h"
+# undef DataFormat
 
 /*
  * The open file tag.
@@ -74,22 +82,20 @@ typedef struct _znTag
 # define SF_RGRID	0x0040		/* RGrid array			*/
 
 
-/*
- * Used in zn_TimeIndex() -- the minimum time array size before it is
- * worth the effort to set up and execute a binary search.
- */
-# define MINTIME 24
+typedef struct _ZebraOpenFile 
+{
+	OpenFile	open_file;
+	znTag		zn_tag;
+}
+ZebraOpenFile;
 
+#define TAGP(ofp) (&((ZebraOpenFile *)ofp)->zn_tag)
 
 /*
  * The class/organization compatibility table.  If the desired class
  * and the given file organization appear together here, we can do it.
  */
-static struct CO_Compat
-{
-	DataOrganization	c_org;
-	DataClass		c_class;
-} COCTable [] =
+static CO_Compat COCTable[] =
 {
 	{ OrgOutline,		DCC_Boundary	},
 	{ Org1dGrid,		DCC_RGrid	},
@@ -103,7 +109,63 @@ static struct CO_Compat
 	{ OrgFixedScalar,	DCC_Scalar	},
 	{ OrgFixedScalar,	DCC_Location	},
 };
-# define N_COC (sizeof (COCTable)/sizeof (struct CO_Compat))
+
+
+/*
+ * Zebra Native Format methods.
+ */
+P_CreateFile (zn_CreateFile);
+P_QueryTime (zn_QueryTime);
+P_SyncFile (zn_Sync);
+#ifdef notdef
+P_PutSample (zn_PutSample);
+#endif
+P_CloseFile (zn_Close);
+P_OpenFile (zn_Open);
+P_GetData (zn_GetData);
+P_GetObsSamples (zn_GetObsSamples);
+P_GetFields (zn_Fields);
+P_PutBlock (zn_PutSampleBlock);
+P_Setup (zn_Setup);
+P_GetTimes (zn_GetTimes);
+
+/*
+ * Zeb Native Format structure.
+ */
+static DataFormat zebraFormatRec =
+{
+	"Zebra",
+	FTZebra,
+	".znf",
+	COCTable,       		/* org/class compatibility table*/
+	N_COC(COCTable),
+	sizeof(ZebraOpenFile),
+	FALSE,				/* read-only 			*/
+
+	FORMAT_INIT,
+
+	zn_QueryTime,			/* Query times			*/
+	fmt_MakeFileName,
+
+	zn_Setup,			/* setup			*/
+	zn_Open,			/* Open				*/
+	zn_Close,			/* Close			*/
+	zn_Sync,			/* Synchronize			*/
+	zn_GetData,			/* Get the data			*/
+	___,				/* Get altitude info		*/
+	fmt_DataTimes,			/* Get data times		*/
+	___,				/* Get forecast times		*/
+	zn_CreateFile,			/* Create a new file		*/
+	___ /*zn_PutSample*/,		/* Write to file		*/
+	zn_PutSampleBlock,		/* Write block to a file	*/
+	zn_GetObsSamples,		/* Get observation samples	*/
+	zn_Fields,			/* Get fields			*/
+	___,				/* Get Attributes		*/
+	zn_GetTimes			/* Return array of ZebTimes	*/
+};
+
+DataFormat *zebraFormat = (DataFormat *) &zebraFormatRec;
+
 
 
 /*
@@ -112,7 +174,8 @@ static struct CO_Compat
 static void	zn_CFMakeFields FP ((znTag *, DataChunk *));
 static void	zn_WriteSync FP ((znTag *));
 static void	zn_CFMakeStations FP ((znTag *, DataChunk *));
-static int	zn_FindDest FP ((znTag *, ZebTime *, int nsample, WriteCode));
+static int	zn_FindDest FP ((OpenFile *, ZebTime *, int nsample, 
+				 WriteCode));
 static void	zn_ExpandTOC FP ((znTag *, int increase));
 static void	zn_ReallocTOC FP ((znTag *tag, int newns));
 static void	zn_OpenSlot FP ((znTag *, int));
@@ -140,13 +203,11 @@ static void	zn_PutAttrs FP ((znTag *, int, void *, int));
 static void	zn_PutAttrsBlock FP ((znTag *tag, DataChunk *dc,
 				      int fsample, int sample, int nsample));
 #endif
-static int	zn_OrgClassCompat FP ((DataOrganization, DataClass));
 static void	zn_ReadBoundary FP ((znTag *, DataChunk *, int, int));
 static void	zn_ReadGrid FP ((znTag *, DataChunk *, int, int, int,
-			dsDetail *, int, double));
-static void	zn_ReadIRG FP ((znTag *, DataChunk *, int, int, int, double));
-static void	zn_ReadScalar FP ((znTag *, DataChunk *, int, int, int,
-			double));
+				 dsDetail *, int));
+static void	zn_ReadIRG FP ((znTag *, DataChunk *, int, int, int));
+static void	zn_ReadScalar FP ((znTag *, DataChunk *, int, int, int));
 static void	zn_ReadTrans FP ((znTag *, DataChunk *, int, int, int));
 static void	zn_ReadLocation FP ((znTag *, DataChunk *, int, int));
 static void	zn_RdRGridOffset FP ((RGrid *, Location *, long *, int *,
@@ -200,6 +261,7 @@ static void	zn_TruncateFreeBlock FP ((znTag *, long offset, zn_Free *fb));
 static int 	zn_SASize FP ((zn_Header *, int));
 static zn_Sample *zn_FindSampStr FP ((znTag *, int));
 static int	zn_AltUnits FP ((AltUnitType));
+static AltUnitType zn_CvtAltUnits FP ((int zau));
 static void	zn_RdFieldInfo FP ((znTag *));
 static void	zn_WrFieldInfo FP ((znTag *));
 
@@ -243,25 +305,26 @@ int sample;
 
 
 
-int
-zn_CreateFile (fname, df, dc, rtag, details, ndetail)
+static int
+zn_CreateFile (ofp, fname, df, dc, details, ndetail)
+OpenFile *ofp;
 char *fname;
 DataFile *df;
 DataChunk *dc;
-char **rtag;
 dsDetail *details;
 int ndetail;
 /*
- * Create a new zeb native file.
+ * Create a new zebra native file.
  */
 {
-	znTag *tag = ALLOC (znTag);
+	znTag *tag = TAGP (ofp);
 	zn_Header *hdr = &tag->zt_Hdr;
 	int ssize, asize;
-	bool grid, hint;
+	bool grid;
+	bool hint = FALSE;
 	void *ablock;
 	SValue svalue;
-	int res_size, reserved = -1;
+	int res_size = 0, reserved = -1;
 	int grain = ZN_GRAIN;
 /*
  * Create the file itself before we go anywhere.
@@ -270,7 +333,6 @@ int ndetail;
 	{
 		msg_ELog (EF_PROBLEM, "Can't create file %s (%d)",
 			fname, errno);
-		free (tag);
 		return (FALSE);
 	}
 /*
@@ -307,7 +369,6 @@ int ndetail;
 		msg_ELog (EF_PROBLEM, "znf: Can't handle altitude units '%s'",
 			  au_UnitsName (dc_GetLocAltUnits (dc)));
 		close (tag->zt_Fd);
-		free (tag);
 		return (FALSE);
 	}
 /*
@@ -421,7 +482,6 @@ int ndetail;
  * Sync up and we are done.
  */
 	zn_WriteSync (tag);
-	*rtag = (char *) tag;
 	return (TRUE);
 }
 
@@ -439,7 +499,6 @@ DataChunk *dc;
 {
 	int i, nf;
 	FieldId *fids, bfid;
-	float badval = 99999.9;
 /*
  * Make a special case for boundaries. (XXX)
  */
@@ -463,7 +522,6 @@ DataChunk *dc;
 	else
 	{
 		fids = dc_GetFields (dc, &nf);
-		badval = dc_GetBadval (dc);
 	}
 /*
  * Put the field array into the tag.
@@ -481,7 +539,7 @@ DataChunk *dc;
 		tag->zt_Fids[i] = fids[i];
 		strcpy (tag->zt_Fields[i].zf_Name, F_GetName (fids[i]));
 		tag->zt_Fields[i].zf_Format = DF_Float;
-		tag->zt_Fields[i].zf_Badval = badval;
+		tag->zt_Fields[i].zf_Badval = dc_GetFloatBadval (dc, fids[i]);
 		tag->zt_Fields[i].zf_AttrLen = 0;
 		tag->zt_Fields[i].zf_OffAttr = -1;
 	}
@@ -579,10 +637,7 @@ DataChunk *dc;
 
 
 
-
-
-
-int
+static int
 zn_QueryTime (file, begin, end, nsample)
 char *file;
 ZebTime *begin, *end;
@@ -618,91 +673,12 @@ int *nsample;
 
 
 
-
-
-int
-zn_GetIRGLoc (dfindex, locs)
-int dfindex;
-Location *locs;
-/*
- * Get the station locations in this file.
- */
-{
-	znTag *tag;
-/*
- * Make sure the file is open.
- */
-	if (! dfa_OpenFile (dfindex, FALSE, (void *) &tag))
-		return (FALSE);
-	memcpy (locs, tag->zt_Locs, tag->zt_Hdr.znh_NStation*sizeof(Location));
-	return (TRUE);
-}
-
-
-
-
+#ifdef notdef
 static int
-zn_TimeIndex (tag, t)
-znTag *tag;
-ZebTime *t;
-/*
- * Find the offset to the first sample in this file before or at the 
- * given time.
- */
-{
-	int i;
-	zn_Header *hdr = &tag->zt_Hdr;
-/*
- * Check the extreme cases.
- */
-	if (TC_Less (*t, tag->zt_Time[0]))
-		return (-1);
-	else if (TC_LessEq (tag->zt_Time[hdr->znh_NSample - 1], *t))
-		return (hdr->znh_NSample - 1);
-/*
- * Do a search for the time.  For short time arrays, we don't bother
- * with the binary search.
- */
-	if (hdr->znh_NSample < MINTIME)
-	{
-		for (i = hdr->znh_NSample - 1; i >= 0; i--)
-			if (TC_LessEq (tag->zt_Time[i], *t))
-				return (i);
-	}
-/*
- * Longer arrays (and longer can be some thousands) benefit from
- * the binary search.
- */
-	else
-	{
-		int top = hdr->znh_NSample - 1, bottom = 0;
-		while (top > bottom + 1)
-		{
-			int mid = (top + bottom)/2;
-			if (TC_LessEq (tag->zt_Time[mid], *t))
-			{
-				if (TC_Eq (tag->zt_Time[mid], *t))
-					return (mid);
-				bottom = mid;
-			}
-			else
-				top = mid;
-		}
-		return (TC_LessEq (tag->zt_Time[top], *t) ? top : bottom);
-	}
-	return (0); /* never reached -- shuts up saber */
-}
-
-
-
-
-
-
-
-int
-zn_PutSample (dfile, dc, sample, wc, details, ndetail)
-int dfile, sample;
+zn_PutSample (ofp, dc, sample, wc, details, ndetail)
+OpenFile *ofp;
 DataChunk *dc;
+int sample;
 WriteCode wc;
 dsDetail *details;
 int ndetail;
@@ -711,20 +687,14 @@ int ndetail;
  */
 {
 	int fsample, nfield, *index = 0, alen;
-	FieldId *fids;
-	znTag *tag;
+	FieldId *fids = NULL;
+	znTag *tag = TAGP (ofp);
 	ZebTime t;
 	zn_Sample *samp;
-	zn_Header *hdr;
+	zn_Header *hdr = &tag->zt_Hdr;
 	void *ablock;
 	char atime[30];
 	SValue svalue;
-/*
- * Open up the file.
- */
-	if (! dfa_OpenFile (dfile, TRUE, (void *) &tag))
-		return (0);
-	hdr = &tag->zt_Hdr;
 /*
  * Make sure we have altitude unit consistency
  */
@@ -744,22 +714,11 @@ int ndetail;
 			  svalue.us_v_int);
 		zn_ReallocTOC (tag, svalue.us_v_int);
 	}
-#ifdef notdef
-/*
- * Check for any space reservation requests
- */
-	if (ds_GetDetail (DD_ZN_RESERVE_BLOCK, details, ndetail, &svalue) &&
-	    (svalue.us_v_int > 0))
-	{
-		int offset = zn_GetSpace (tag, svalue.us_v_int);
-		zn_FreeSpace (tag, offset, svalue.us_v_int);
-	}
-#endif
 /*
  * Figure out where this sample is to be written.
  */
 	dc_GetTime (dc, sample, &t);
-	fsample = zn_FindDest (tag, &t, /*nsample*/ 1, wc);
+	fsample = zn_FindDest (ofp, &t, /*nsample*/ 1, wc);
 	TC_EncodeTime (&t, TC_TimeOnly, atime);
 	msg_ELog (EF_DEBUG, "znf PutSample, code %d, fsample %d t %s", wc,
 		fsample, atime);
@@ -809,12 +768,12 @@ int ndetail;
 	zn_WriteSync (tag);
 	return (1);
 }
+#endif
 
 
-
-int
-zn_PutSampleBlock (dfile, dc, sample, nsample, wc, details, ndetail)
-int dfile; 
+static int
+zn_PutSampleBlock (ofp, dc, sample, nsample, wc, details, ndetail)
+OpenFile *ofp;
 DataChunk *dc;
 int sample, nsample;
 WriteCode wc;
@@ -851,19 +810,13 @@ int ndetail;
 	int fsample, alen;
 	int i;
 	unsigned long block_size;
-	znTag *tag;
+	znTag *tag = TAGP (ofp);
 	ZebTime t;
 	zn_Sample *samp;
-	zn_Header *hdr;
+	zn_Header *hdr = &tag->zt_Hdr;
 	void *ablock;
 	char atime[30];
 	SValue svalue;
-/*
- * Open up the file.
- */
-	if (! dfa_OpenFile (dfile, TRUE, (void *) &tag))
-		return (0);
-	hdr = &tag->zt_Hdr;
 /*
  * Make sure we have altitude unit consistency
  */
@@ -883,28 +836,16 @@ int ndetail;
 			  svalue.us_v_int);
 		zn_ReallocTOC (tag, svalue.us_v_int);
 	}
-#ifdef notdef
-/*
- * Check for any space reservation requests
- */
-	if (ds_GetDetail (DD_ZN_RESERVE_BLOCK, details, ndetail, &svalue) &&
-	    (svalue.us_v_int > 0))
-	{
-		int offset = zn_GetSpace (tag, svalue.us_v_int);
-		zn_FreeSpace (tag, offset, svalue.us_v_int);
-	}
-#endif
 /*
  * Figure out where the first sample is to be written. zn_FindDest()
  * will automatically adjust the sizes of our sample arrays if needed.
  */
 	dc_GetTime (dc, sample, &t);
-	fsample = zn_FindDest (tag, &t, nsample, wc);
+	fsample = zn_FindDest (ofp, &t, nsample, wc);
 	TC_EncodeTime (&t, TC_TimeOnly, atime);
-	msg_ELog (EF_DEBUG, 
+	msg_ELog (EF_DEVELOP, 
 		  "znf PutBlock, wc %d, %d samples at fsample %d, %s", wc,
 		  nsample, fsample, atime);
-
 /*
  * Check whether this sample is supposed to be appended
  */
@@ -944,7 +885,6 @@ int ndetail;
 		ablock = dc_GetSaAttrBlock (dc, sample+i, &alen);
 		zn_PutAttrs (tag, fsample+i, ablock, alen);
 	}
-
 #ifdef notdef
 	zn_PutAttrsBlock (tag, dc, fsample, sample, nsample);
 #endif
@@ -982,7 +922,7 @@ unsigned long *size;
 	void *block;
 	int *index;
 	unsigned long block_size;
-	FieldId *fids;
+	FieldId *fids = NULL;
 	zn_Sample *samp;
 	int nfield, i, fld;
 	zn_Header *hdr = &tag->zt_Hdr;
@@ -1352,7 +1292,8 @@ int *rsize;
 		{
 			for (fld = 0; fld < nfield; ++fld)
 			{
-				if (samp[ index[fld] ].znf_Size == 0)
+				if ((index[fld] < 0) || 
+				    (samp[ index[fld] ].znf_Size == 0))
 					continue;
 				if ((offset >= 0) && (offset + size == 
 					      samp[ index[fld] ].znf_Offset))
@@ -1578,8 +1519,8 @@ int nfield, *index, create;
 
 
 static int
-zn_FindDest (tag, t, nsample, wc)
-znTag *tag;
+zn_FindDest (ofp, t, nsample, wc)
+OpenFile *ofp;
 ZebTime *t;
 int nsample;
 WriteCode wc;
@@ -1588,6 +1529,7 @@ WriteCode wc;
  * sure there is enough room for 'nsample' samples at that location.
  */
 {
+	znTag *tag = TAGP (ofp);
 	int sample;
 	switch (wc)
 	{
@@ -1604,7 +1546,7 @@ WriteCode wc;
 	 * the nsample-1 unlucky ones after it) and return that.
 	 */
 	   case wc_Overwrite:
-		sample = zn_TimeIndex (tag, t);
+		sample = dfa_TimeIndex (ofp, t, 0);
 		return (sample);
 	/*
 	 * For the insert case, we find the place to do the insertion,
@@ -1613,7 +1555,7 @@ WriteCode wc;
 	 * exist yet.
 	 */
 	   case wc_Insert:
-		sample = zn_TimeIndex (tag, t) + 1;
+		sample = dfa_TimeIndex (ofp, t, 0) + 1;
 		zn_OpenSlot (tag, sample);
 		return (sample);
 	}
@@ -2540,14 +2482,14 @@ WriteCode wc;
 
 
 
-int
-zn_Close (ctag)
-void *ctag;
+static void
+zn_Close (ofp)
+OpenFile *ofp;
 /*
  * Close this file.
  */
 {
-	znTag *tag = (znTag *) ctag;
+	znTag *tag = TAGP (ofp);
 /*
  * Close the file itself.
  */
@@ -2574,25 +2516,22 @@ void *ctag;
 		free (tag->zt_Attr);
 	if (tag->zt_Rg)			/* Rgrid dimensions		*/
 		free (tag->zt_Rg);
-	free (tag);
-	return (0);
 }
 
 
 
 
-
-int
-zn_Open (fname, df, write, rtag)
+static int
+zn_Open (ofp, fname, df, write)
+OpenFile *ofp;
 char *fname;
 DataFile *df;
 bool write;
-void **rtag;
 /*
  * Open an existing data file.
  */
 {
-	znTag *tag = ALLOC (znTag);
+	znTag *tag = TAGP (ofp);
 	zn_Header *hdr = &tag->zt_Hdr;
 	int nsa, field, magic;
 	bool grid;
@@ -2602,7 +2541,6 @@ void **rtag;
 	memset (tag, 0, sizeof (znTag));
 	if ((tag->zt_Fd = open (fname, write ? O_RDWR : O_RDONLY)) < 0)
 	{
-		free (tag);
 		msg_ELog (EF_PROBLEM, "Can't open %s (%d)", fname, errno);
 		return (FALSE);
 	}
@@ -2628,7 +2566,6 @@ void **rtag;
 		msg_ELog (EF_PROBLEM, "znf: Bad magic number %d in %s!",
 			magic, fname);
 		close (tag->zt_Fd);
-		free (tag);
 		return (FALSE);
 	}
 /*
@@ -2714,7 +2651,6 @@ void **rtag;
  */
 	tag->zt_Sync = 0;
 	tag->zt_Write = write;
-	*rtag = (void *) tag;
 	return (TRUE);
 }
 
@@ -2755,35 +2691,14 @@ znTag *tag;
 
 
 
-/*ARGSUSED*/
-int
-zn_MakeFileName (dir, platform, zt, dest)
-char *dir, *platform, *dest;
-ZebTime *zt;
-/*
- * Generate a file name.
- */
-{
-	UItime t;
-
-	TC_ZtToUI (zt, &t);
-	sprintf (dest, "%s.%06ld.%06ld.znf", platform, t.ds_yymmdd,
-		t.ds_hhmmss);
-	return (0);
-}
-
-
-
-
-
-int
-zn_Sync (ctag)
-void *ctag;
+static int
+zn_Sync (ofp)
+OpenFile *ofp;
 /*
  * Synchronize this file with what is on disk.
  */
 {
-	znTag *tag = (znTag *) ctag;
+	znTag *tag = TAGP (ofp);
 	zn_Header *hdr = &tag->zt_Hdr;
 	int oldnsa = hdr->znh_NSampAlloc, oldnf = hdr->znh_NField, nsa;
 	int hdrsize;
@@ -2872,9 +2787,9 @@ void *ctag;
 
 
 
-DataChunk *
-zn_Setup (gp, fields, nfield, class)
-GetList *gp;
+static DataChunk *
+zn_Setup (ofp, fields, nfield, class)
+OpenFile *ofp;
 FieldId *fields;
 int nfield;
 DataClass class;
@@ -2882,23 +2797,9 @@ DataClass class;
  * Get set up to pull out some data.
  */
 {
-	znTag *tag;
+	znTag *tag = TAGP (ofp);
+	zn_Header *hdr = &tag->zt_Hdr;
 	DataChunk *dc;
-	zn_Header *hdr;
-/*
- * Get the file open for starters.
- */
-	if (! dfa_OpenFile (gp->gl_dfindex, FALSE, (void *) &tag))
-		return (NULL);
-	hdr = &tag->zt_Hdr;
-/*
- * Make sure this is a combination we can do.
- */
-	if (! zn_OrgClassCompat (hdr->znh_Org, class))
-	{
-		msg_ELog (EF_PROBLEM, "Class/org mismatch");
-		return (NULL);
-	}
 /*
  * Create the data chunk.
  */
@@ -2914,6 +2815,7 @@ DataClass class;
  */
 	if (hdr->znh_OffLoc < 0)
 		dc_SetStaticLoc (dc, &hdr->znh_Loc);
+	dc_SetLocAltUnits (dc, zn_CvtAltUnits (hdr->znh_AltUnits));
 /*
  * Do class-specific setup.
  */
@@ -2935,6 +2837,14 @@ DataClass class;
 		/* all other classes ok */
 		break;
 	}
+#ifdef notdef
+	/*
+	 * For metdata, add field bad values
+	 */
+	if (dc_IsSubclass (DataClass, DCP_MetData))
+	{
+	}
+#endif
 /*
  * Done.
  */
@@ -2944,57 +2854,32 @@ DataClass class;
 
 
 
-
-
 static int
-zn_OrgClassCompat (org, class)
-DataOrganization org;
-DataClass class;
-/*
- * Return TRUE iff these two are compatible.
- */
-{
-	int i;
-/*
- * Go through and see if we find the combination in the table.
- */
-	for (i = 0; i < N_COC; i++)
-		if (class == COCTable[i].c_class && org == COCTable[i].c_org)
-			return (TRUE);
-	return (FALSE);
-}
-
-
-
-
-
-
-int
-zn_GetData (dc, gp, details, ndetail)
+zn_GetData (ofp, dc, tbegin, nsample, details, ndetail)
+OpenFile *ofp;
 DataChunk *dc;
-GetList *gp;
+int tbegin;
+int nsample;
 dsDetail *details;
 int ndetail;
 /*
  * Extract some data from the file.
  */
 {
-	znTag *tag;
-	float badval;
-	int tbegin, tend, dcsamp = dc_GetNSample (dc), samp;
-	bool metdata = dc_IsSubClassOf (dc->dc_Class, DCC_MetData);
-	int nsample;
-	SValue v;
-/*
- * Get the file open for starters.
- */
-	if (! dfa_OpenFile (gp->gl_dfindex, FALSE, (void *) &tag))
-		return (0);
+	znTag *tag = TAGP (ofp);
+	int tend;
+	int samp;
+	int dcsamp = dc_GetNSample (dc);
 /*
  * Met data stuff
  */
+#ifdef notdef
 	if (metdata)
 	{
+		float badval = 0;
+		bool metdata = dc_IsSubClassOf (dc->dc_Class, DCC_MetData);
+		SValue v;
+
 		badval = dc_GetBadval (dc);
 	/*
 	 * Complain for now if the user requests a bad value flag 
@@ -3009,23 +2894,10 @@ int ndetail;
 			return (0);
 		}
 	}
-/*
- * Get the time indices.
- */
-	tbegin = zn_TimeIndex (tag, &gp->gl_begin);
-	tend = zn_TimeIndex (tag, &gp->gl_end);
-/*
- * Compare the times at the indices with the requested interval and adjust.
- */
-	if (TC_Less (tag->zt_Time[tbegin], gp->gl_begin))
-		++tbegin;
-	if (TC_Less (gp->gl_end, tag->zt_Time[tend]))
-		--tend;
-	if (tbegin > tend)
-		return (FALSE);
-	nsample = tend - tbegin + 1;
-	msg_ELog (EF_DEBUG, "znf GetData (%d) tbegin=%d to tend=%d",
-		  gp->gl_dfindex, tbegin, tend);
+#endif
+	tend = tbegin + nsample - 1;
+	msg_ELog (EF_DEBUG, "znf GetData tbegin=%d to tend=%d",
+		  tbegin, tend);
 /*
  * For all but Boundary class, we create space in our datachunk here.  The
  * Boundary class does it itself because it knows the size of its boundaries.
@@ -3042,16 +2914,15 @@ int ndetail;
 		break;
 
 	   case DCC_RGrid:
-	   	zn_ReadGrid (tag, dc, dcsamp, tbegin, tend, details, ndetail,
-				badval);
+	   	zn_ReadGrid (tag, dc, dcsamp, tbegin, tend, details, ndetail);
 		break;
 
 	   case DCC_IRGrid:
-	   	zn_ReadIRG (tag, dc, dcsamp, tbegin, tend, badval);
+	   	zn_ReadIRG (tag, dc, dcsamp, tbegin, tend);
 		break;
 
 	   case DCC_Scalar:
-	   	zn_ReadScalar (tag, dc, dcsamp, tbegin, tend, badval);
+	   	zn_ReadScalar (tag, dc, dcsamp, tbegin, tend);
 		break;
 
 	   case DCC_Location:
@@ -3132,11 +3003,10 @@ int tbegin, tend;
 
 
 static void
-zn_ReadScalar (tag, dc, dcsamp, tbegin, tend, badval)
+zn_ReadScalar (tag, dc, dcsamp, tbegin, tend)
 znTag *tag;
 DataChunk *dc;
 int dcsamp, tbegin, tend;
-float badval;
 {
 	int sample, *index, nfield, fld, offset = 0, plat;
 	long boffset;
@@ -3145,6 +3015,7 @@ float badval;
 	zn_Sample *zs;
 	zn_Header *hdr = &tag->zt_Hdr;
 	int nsamp = tend - tbegin + 1;
+	float badval = CFG_DC_DEFAULT_BADVAL;
 	float *data = (float *) malloc (nsamp * sizeof (float));
 	float *block = NULL;
 	float *dp, *bp;
@@ -3327,17 +3198,17 @@ int tbegin, tend;
 
 
 static void
-zn_ReadIRG (tag, dc, dcsamp, tbegin, tend, badval)
+zn_ReadIRG (tag, dc, dcsamp, tbegin, tend)
 znTag *tag;
 DataChunk *dc;
 int dcsamp, tbegin, tend;
-float badval;
 /*
  * Pull in some irregular grid data.
  */
 {
 	int sample, *index, nfield, fld;
 	FieldId *fids;
+	float badval = dc_GetBadval (dc);
 	zn_Sample *zs;
 	zn_Header *hdr = &tag->zt_Hdr;
 	float *data = (float *) malloc (hdr->znh_NStation*sizeof (float));
@@ -3399,12 +3270,11 @@ int npoint;
 
 
 static void
-zn_ReadGrid (tag, dc, dcsamp, tbegin, tend, details, ndetail, badval)
+zn_ReadGrid (tag, dc, dcsamp, tbegin, tend, details, ndetail)
 znTag *tag;
 DataChunk *dc;
 int dcsamp, tbegin, tend, ndetail;
 dsDetail *details;
-float badval;
 /*
  * Pull some grids in.
  */
@@ -3413,6 +3283,7 @@ float badval;
 	int size, sample, *index, nfield, fld;
 	FieldId *fids;
 	RGrid rg;
+	float badval = dc_GetBadval (dc);
 	Location origin;
 	zn_Sample *zs;
 	zn_Header *hdr = &tag->zt_Hdr;
@@ -3490,7 +3361,7 @@ dsDetail *details;
  * If they have not specified an altitude, set params to read the whole
  * damn thing.
  */
-	if (! ds_GetDetail ("altitude", details, ndetail, &v))
+	if (! ds_GetDetail (DD_FETCH_ALTITUDE, details, ndetail, &v))
 	{
 		*offset = 0;
 		*size = rg->rg_nX*rg->rg_nY*rg->rg_nZ*sizeof (float); /*XXX*/
@@ -3517,46 +3388,6 @@ dsDetail *details;
 
 
 
-int
-zn_GetAlts (dfile, fid, offset, alts, nalts, altunits)
-int	dfile;
-FieldId	fid;
-int	offset;
-float	*alts;
-int	*nalts;
-AltUnitType	*altunits;
-{
-	return (FALSE);
-}
-
-
-
-
-# ifdef notdef
-int
-zn_InqRGrid (dfile, origin, rg)
-int dfile;
-Location *origin;
-RGrid *rg;
-/*
- * Return the coord info for this grid.
- */
-{
-	znTag *tag;
-
-	if (! dfa_OpenFile (dfile, FALSE, (void *) &tag))
-		return (0);
-	if (! tag->zt_Locs || ! tag->zt_Rg)
-		return (0);
-	*rg = tag->zt_Rg[0];	/* XXX Best we can do */
-	*origin = tag->zt_Locs[0];
-	return (TRUE);
-}
-# endif
-
-
-
-
 
 static void
 zn_DoBadval (data, len, old, new)
@@ -3578,105 +3409,28 @@ int len;
 
 
 
-
-
-int
-zn_InqNPlat (dfindex)
-int dfindex;
-/*
- * Return the number of platforms here.
- */
-{
-	znTag *tag;
-
-	if (! dfa_OpenFile (dfindex, FALSE, (void *) &tag))
-		return (0);
-	return (tag->zt_Hdr.znh_Org == OrgIRGrid ?
-			tag->zt_Hdr.znh_NStation : 1);
-}
-
-
-
-
-
-
-int
-zn_Times (index, when, which, n, dest)
-int index, n;
-ZebTime *when, *dest;
-TimeSpec which;
-/*
- * Find out when data is available.
- */
-{
-	znTag *tag;
-	zn_Header *hdr;
-	int t, i;
-/*
- * Get the file open.
- */
-	if (! dfa_OpenFile (index, FALSE, (void *) &tag))
-		return (0);
-	hdr = &tag->zt_Hdr;
-	t = zn_TimeIndex (tag, when);
-/*
- * Copy out the info.
- */
-	if (which == DsBefore)
-	{
-		for (i = 0; t >= 0 && i < n; i++)
-		{
-			*dest = tag->zt_Time[t];
-			dest++;
-			t--;
-		}
-	}
-	else if (which == DsAfter)
-	{
-	/* 
-	 * Start at first sample when the time is earlier than that
-	 */
-		if (t < 0)
-			t = 0;
-		else if (TC_Less (tag->zt_Time[t], *when))
-			++t;
-		for (i = 0; t < hdr->znh_NSample && i < n; i++)
-		{
-			*dest = tag->zt_Time[t];
-			dest--;
-			t++;
-		}
-	}
-	return (i);
-}
-
-
-
-
-
-int
-zn_GetObsSamples (dfile, times, locs, max)
-int dfile, max;
+static int
+zn_GetObsSamples (ofp, times, locs, max)
+OpenFile *ofp;
 ZebTime *times;
 Location *locs;
+int max;
 /*
  * Return sample info.
  */
 {
-	znTag *tag;
+	znTag *tag = TAGP (ofp);
 	int i;
-/*
- * Open the file.
- */
-	if (! dfa_OpenFile (dfile, FALSE, (void *) &tag))
-		return (0);
 /*
  * Now we blast through and copy out as many as we can.
  */
-	for (i = 0; i < tag->zt_Hdr.znh_NSample && i < max; i++)
+	for (i = 0; (i < tag->zt_Hdr.znh_NSample) && (i < max); i++)
 	{
-		*times++ = tag->zt_Time[i];
-		*locs++ = tag->zt_Locs ? tag->zt_Locs[i] : tag->zt_Hdr.znh_Loc;
+		if (times)
+			*times++ = tag->zt_Time[i];
+		if (locs)
+			*locs++ = tag->zt_Locs ? tag->zt_Locs[i] : 
+				tag->zt_Hdr.znh_Loc;
 	}
 	return (i);
 }
@@ -3685,19 +3439,18 @@ Location *locs;
 
 
 
-
-
-int
-zn_Fields (dfile, t, nfield, fids)
-int dfile, *nfield;
-ZebTime *t;
+static int
+zn_Fields (ofp, sample, nfield, fids)
+OpenFile *ofp;
+int sample;
+int *nfield;
 FieldId *fids;
 /*
  * Return the fields available at this time.
  */
 {
-	znTag *tag;
-	zn_Header *hdr;
+	znTag *tag = TAGP (ofp);
+	zn_Header *hdr = &tag->zt_Hdr;
 	int fld;
 	int max = *nfield;
 /*
@@ -3705,12 +3458,6 @@ FieldId *fids;
  * 	     or (2) just the fields which are present at the given time?
  *	     For now (1) is implemented.
  *
- * Open the file.
- */
-	if (! dfa_OpenFile (dfile, FALSE, (void *) &tag))
-		return (0);
-	hdr = &tag->zt_Hdr;
-/*
  * Copy out the fields, but only as many as asked for.
  */
 	*nfield = 0;
@@ -3723,6 +3470,19 @@ FieldId *fids;
 }
 
 
+
+
+static ZebTime *
+zn_GetTimes (ofp, ntime)
+OpenFile *ofp;
+int *ntime;
+{
+	znTag *tag = TAGP (ofp);
+	zn_Header *hdr = &tag->zt_Hdr;
+
+	*ntime = hdr->znh_NSample;
+	return (tag->zt_Time);
+}
 
 
 
@@ -3966,14 +3726,16 @@ int len;
 		msg_ELog (EF_PROBLEM, "ZN read: error %d", errno);
 	else if (n < len)
 	{
-		char dbg[128];
 
 		msg_ELog (EF_PROBLEM, "ZN read: %s: got %d bytes out of %d",
 			  "unexpected eof", n, len);
 #ifdef DEBUGGER
-		sprintf (dbg, "%s aline %d &", DEBUGGER, getpid());
-		system (dbg);
-		sleep (15);
+		{
+			char dbg[128];
+			sprintf (dbg, "%s aline %d &", DEBUGGER, getpid());
+			system (dbg);
+			sleep (15);
+		}
 #endif
 	}
 }
@@ -4214,6 +3976,30 @@ AltUnitType atype;
 	    
 
 
+static AltUnitType
+zn_CvtAltUnits (zau)
+int zau;
+/*
+ * Convert ZNF internal altitude to an AltUnitType.
+ * Return CFG default if it's a type we don't understand.
+ */
+{
+	switch (zau)
+	{
+	   case ZAU_KMMSL:
+		return (AU_kmMSL);
+	   case ZAU_MMSL:
+		return (AU_mMSL);
+	   case ZAU_MB:
+		return (AU_mb);
+	   default:
+		return (CFG_ALTITUDE_UNITS);
+	}
+}
+
+	    
+
+
 static void
 zn_RdFieldInfo (tag)
 znTag	*tag;
@@ -4280,253 +4066,3 @@ znTag	*tag;
 
 
 
-
-#ifdef notdef
-void
-zn_ReadFreeNode (fd, offset, zf)
-int fd;
-long offset;
-zn_Free *zf;
-/*
- * Public access to free block nodes.  Takes care of any special handling
- * by calling zn_GetFreeBlock()
- */
-{
-	znTag tag;
-
-	tag.zt_Fd = fd;		/* at the moment that's all that's required */
-	zn_GetFreeBlock (&tag, offset, zf);
-}
-#endif
-
-
-
-
-/*
- * Define some test functions.  Compiled only when ZNF_TESTING is defined,
- * and meant to be called from some outside test driver.
- */
-
-#ifdef ZNF_TESTING
-
-/*
- * The first function tests the low level free block algorithms.
- * 
- * Situations we need to test:
- * 	freeing and getting 4-byte free blocks
- *	freeing and getting 4-byte blocks at the magic offset
- *	using blocks which occur at the end of the file to partially fill
- *		a request
- *	truncating file size when large free blocks exist at end of file
- *	
- */
-
-void
-zn_DumpFL (tag, hdr)
-znTag *tag;
-zn_Header *hdr;
-/*
- * Dump out the free list.
- */
-{
-	long block;
-	zn_Free fb;
-	int i = 0;
-
-	ui_printf ("   ffree %ld, nfree %d, nfreeb %d len %ld\n", 
-	   hdr->znh_Free, hdr->znh_NFree, hdr->znh_NFreeB, hdr->znh_Len);
-	for (block = hdr->znh_Free; block > 0; block = fb.znf_Next)
-	{
-		zn_GetFreeBlock (tag, block, &fb);
-		ui_printf ("   %2d at %7ld size %5d next %7ld\n", i++,
-			block, fb.znf_Size, fb.znf_Next);
-	}
-	ui_printf ("\n");
-}
-
-
-
-void
-zn_TestFreeSpace (tag, offset, len)
-znTag *tag;
-long offset;
-int len;
-{
-	ui_printf ("Freeing %6d at %6li ... \n", len, offset);
-	zn_FreeSpace (tag, offset, len);
-	zn_DumpFL (tag, &tag->zt_Hdr);
-}
-
-
-long
-zn_TestGetSpace (tag, len)
-znTag *tag;
-int len;
-{
-	long offset;
-
-	ui_printf ("Getting %6d ... ", len);
-	offset = zn_GetSpace (tag, len);
-	ui_printf (" offset returned: %6li\n", offset);
-	zn_DumpFL (tag, &tag->zt_Hdr);
-	return (offset);
-}
-
-
-
-void
-zn_TestFreeBlocks (fname)
-char *fname;
-{
-	znTag _tag;
-	znTag *tag = &_tag;
-	zn_Header *hdr = &(tag->zt_Hdr);
-	long offsets[20];
-	int i;
-
-	hdr->znh_NFreeB = hdr->znh_NFree = 0;
-	hdr->znh_Free = -1;
-	hdr->znh_Len = sizeof(zn_Header);
-
-	if ((tag->zt_Fd = open (fname, O_RDWR|O_TRUNC|O_CREAT, 0666)) <0)
-	{
-		msg_ELog (EF_PROBLEM, "Can't create file %s (%d)",
-			fname, errno);
-		return;
-	}
-	ui_printf ("ZNF testing: created file '%s'\n", fname);
-/*
- * Initialize the file tag.
- */
-	tag->zt_Sync = SF_HEADER;
-	tag->zt_Sample = 0; tag->zt_Fids = 0;
-	tag->zt_Fields = 0; tag->zt_Ids = 0; tag->zt_Locs = 0;
-	tag->zt_Write = TRUE;
-	tag->zt_Attr = 0;
-	tag->zt_GlAttr = 0;
-	tag->zt_Rg = 0;
-/*
- * Header initialization.
- */
-	hdr->znh_Magic = ZN_MAGIC;
-	hdr->znh_Free = -1;
-	hdr->znh_Len = hdr->znh_NFree = hdr->znh_NFreeB = 0;
-	hdr->znh_NSample = hdr->znh_NField = 0;
-	hdr->znh_Org = OrgScalar;
-	hdr->znh_OffLoc = -1;
-	hdr->znh_OffGlAttr = -1;
-	hdr->znh_OffAttr = -1;
-	hdr->znh_GlAttrLen = 0;
-	hdr->znh_OffRg = -1;
-	hdr->znh_Version = ZN_VERSION;
-	hdr->znh_AltUnits = ZAU_KMMSL;
-/*
- * Allocate the space for the header itself
- */
-	(void) zn_TestGetSpace (tag, sizeof (zn_Header));
-/*
- * Get some 4-byte blocks
- */
-	for (i = 0; i < 5; ++i)
-		offsets[i] = zn_TestGetSpace (tag, 4);
-/*
- * Free the blocks, and watch them coalesce into a big block!
- */
-	for (i = 0; i < 5; ++i)
-		zn_TestFreeSpace (tag, offsets[i], 4);
-/*
- * Truncate the free space by allocating a big block and then
- * freeing it.  The existing space and the big block should merge
- * and the file should be truncated.
- */
-	(void)zn_TestGetSpace (tag, 10000);
-	zn_TestFreeSpace (tag, offsets[0], 10000);
-/*
- * Get some 4-byte blocks
- */
-	for (i = 0; i < 5; ++i)
-		offsets[i] = zn_TestGetSpace (tag, 4);
-/*
- * Free the blocks backwards this time
- */
-	for (i = 4; i >= 0; --i)
-		zn_TestFreeSpace (tag, offsets[i], 4);
-	(void)zn_TestGetSpace (tag, 10000);
-	zn_TestFreeSpace (tag, offsets[0], 10000);
-/*
- * Try the more difficult 8-byte blocks
- */
-	for (i = 0; i < 5; ++i)
-		offsets[i] = zn_TestGetSpace (tag, 8);
-/*
- * Free the blocks backwards
- */
-	for (i = 4; i >= 0; --i)
-		zn_TestFreeSpace (tag, offsets[i], 8);
-/*
- * This should produce a warning about freeing past end of file,
- * but things should still work.
- */
-	(void)zn_TestGetSpace (tag, 10000);
-	zn_TestFreeSpace (tag, offsets[0], 10020);
-	ui_printf ("Resetting NFreeB to 0 to account for freeing past end\n");
-	hdr->znh_NFreeB = 0;
-/*
- * Get a whole bunch of space, parcel it into 12-byte free blocks, then
- * retrieve 8-byte blocks from each of the free blocks.
- */
-	offsets[0] = zn_TestGetSpace (tag, 80);
-	for (i = 0; i < 5; ++i)
-		zn_TestFreeSpace (tag, offsets[0] + (i * 16), 12);
-	for (i = 0; i < 5; ++i)
-		offsets[i+1] = zn_TestGetSpace (tag, 8);
-/*
- * Now grab 4-byte blocks
- */
-	for (i = 0; i < 5; ++i)
-		offsets[6+i] = zn_TestGetSpace (tag, 4);
-/*
- * That leaves one 4-byte at the end of the file, which we want to
- * subsume in a block that won't fit anywhere else.
- */
-	ui_printf ("File length should increase by 36 bytes:\n");
-	offsets[11] = zn_TestGetSpace (tag, 36);
-/*
- * Now we have 116 bytes following the header.  Get 9884 to bring total
- * to 10000, then free it and watch file truncate itself.
- */
-	offsets[12] = zn_TestGetSpace (tag, 9884);
-	zn_TestFreeSpace (tag, offsets[0], 10000);
-	ui_printf ("Should be zero free blocks after last free.\n");
-/*
- * Get a 4-byte block, try to free it as two 2-byte blocks.
- */
-	offsets[0] = zn_TestGetSpace (tag, 4);
-
-	zn_TestFreeSpace (tag, offsets[0], 2);
-	zn_TestFreeSpace (tag, offsets[0]+2, 2);
-/*
- * Test blocks at ZN_FREE_MAGIC offset.
- */
-	ui_printf ("Testing 4-byte blocks near magic offset...\n");
-	offsets[1] = zn_TestGetSpace (tag, ZN_FREE_MAGIC + 256);
-	for (i = 0; i < 5; ++i)
-		zn_TestFreeSpace (tag, ZN_FREE_MAGIC - 24 + (12 * i), 8);
-	for (i = 0; i < 5; ++i)
-		zn_TestFreeSpace (tag, ZN_FREE_MAGIC - 24 +(12*i)+ 8 , 4);
-/*
- * Good sign if we get here without any problems.
- * Free that last block (which should result in truncation), and include
- * the 4-bytes that got left by the 2-byte frees above, then call it quits.
- */
-	zn_TestFreeSpace (tag, ZN_FREE_MAGIC - 24 + 60,
-			  (offsets[1] + ZN_FREE_MAGIC + 256)
-			  - (ZN_FREE_MAGIC - 24 + 60));
-	zn_TestFreeSpace (tag, offsets[0], 
-			  (ZN_FREE_MAGIC - 24) - offsets[1] + 4);
-	ui_printf ("ZNF Free Blocks test completed.\n");
-	ui_printf ("File length should be %d, 0 free bytes and 0 blocks\n",
-		   sizeof(zn_Header));
-}
-
-#endif /* ZNF_TESTING */
