@@ -5,7 +5,7 @@
 # include "config.h"
 
 # ifdef DEV_X11
-static char *rcsid = "$Id: dev_x11.c,v 1.19 1990-05-02 10:03:01 corbet Exp $";
+static char *rcsid = "$Id: dev_x11.c,v 1.20 1990-05-02 10:23:15 corbet Exp $";
 
 # include "graphics.h"
 # include "device.h"
@@ -15,7 +15,7 @@ static char *rcsid = "$Id: dev_x11.c,v 1.19 1990-05-02 10:03:01 corbet Exp $";
 # include <X11/cursorfont.h>
 # include <X11/keysym.h>
 
-char *getvm ();
+char *getvm (), *getenv ();
 
 # define TGT_SIZE	17
 # define MAXFONT	100	/* Max fonts we'll consider		*/
@@ -1193,7 +1193,6 @@ float rot;
  * Ask if we can do text of this size.
  */
 {
-	char *getenv ();
 	struct xtag *tag = (struct xtag *) ctag;
 	int i, closest, cdiff = 9999;
 /*
