@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.1 1992-08-20 13:29:06 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.2 1993-03-24 22:48:23 granger Exp $"
 
 LIBS = $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS) $(FLIBS)
 
@@ -25,14 +25,24 @@ LIBS = $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS) $(FLIBS)
  *!
  */
 
-SRCS = newSatIngest.c festSatIngest.c SatIngest.c
+SRCS = SatIngest.c area_dump.c
+
+OBJS = nvxgoes.o
+
+XCOMM nvxgoes.f contains the definitions of the nvxeas,nvxini,nvxopt, and
+XCOMM    nvxsae routines required by the satellite ingestors
 
 DISTFILES = Imakefile $(SRCS) SatIngest.state area_dump.c big.sat \
-	    cape_sat dir_ingest goes.ini keywords.h sat.init satheader
+	    cape_sat dir_ingest goes.ini keywords.h sat.init satheader \
+	    nvxgoes.f
 
-NormalProgramTarget(newSatIngest,newSatIngest.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
+NormalProgramTarget(SatIngest,SatIngest.o $(OBJS),
+		    $(DEPLIBS),$(LIBS),$(SYSLIBS))
 
-NormalProgramTarget(SatIngest,SatIngest.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
+TestProgramTarget(testSatIngest,testSatIngest.o $(OBJS),
+		    $(DEPLIBS),$(LIBS),$(SYSLIBS))
+
+TestProgramTarget(area_dump,area_dump.o,/**/,/**/,/**/)
 
 UICppLoadFileTarget(SatIngest.lf,SatIngest.state,keywords.h)
 
