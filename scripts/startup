@@ -72,4 +72,11 @@ if ( `hostname` == $ZEBRA_MASTER && $need_extras ) then
     rm -f $bslog
     /zebra/bin/build_selected_links >& $bslog &
 
+    #
+    # Watch for GOES files from the CIDD machine
+    #
+    set goes_watch_log = /tmp/goes_watch.log
+    rm -f $goes_watch_log
+    $ZEBRA_PROJDIR/goes_watch >& $goes_watch_log &
+
 endif
