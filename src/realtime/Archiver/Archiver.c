@@ -39,14 +39,15 @@
 # include <X11/Xaw/Form.h>
 # include <X11/Xaw/Command.h>
 
-# include "../include/defs.h"
-# include "../include/message.h"
-# include "../include/timer.h"
-# include "../include/config.h"
+# include <defs.h>
+# include <message.h>
+# include <timer.h>
+# include <config.h>
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dslib.h"
-MAKE_RCSID ("$Id: Archiver.c,v 1.7 1992-03-18 16:15:46 barrett Exp $")
+
+MAKE_RCSID ("$Id: Archiver.c,v 1.8 1992-04-01 23:53:42 burghart Exp $")
 
 /*
  * Issues:
@@ -82,14 +83,18 @@ char listfile[200];
  * Tape drive information.
  */
 int	TimerEvent;
-int	TapeFD = -1;		/* -1 = no drive	*/
+int	DeviceFD = -1;		/* -1 = no drive	*/
 int	BytesWritten = 0, FilesWritten = 0;
-/*# define DriveName	"/dev/nrst8"*/
+int	FreshTape = TRUE;
+int	TapeLimit = 350000000;	/* Tape size, less a safety margin */
+				/* Default is high density Exabyte */
+
 # define BLOCKSIZE	(16*512)
 
 # define DUMPTIME	2	/* how often, in hours, to dump	*/
-#define AR_TAPE 1
-#define AR_EOD 2
+# define AR_TAPE 1
+# define AR_EOD 2
+
 char	*DriveName = NULL;
 char	*OutputDir = NULL;
 char	*MountName = NULL;
@@ -243,7 +248,7 @@ MountEOD()
     int	status;
     sprintf ( cmd, "eodmount %s /%s", DriveName, MountName );
     status = system(cmd);
-    TapeFD = 0;
+    DeviceFD = 0;
 }
 
 static int
@@ -251,7 +256,7 @@ EjectEOD()
 {
     char cmd[80];
     int	 status;
-    if ( TapeFD >= 0 )
+    if ( DeviceFD >= 0 )
     {
 	sprintf ( cmd, "eodmount -u %s", DriveName );
 	status = system(cmd);
@@ -385,7 +390,7 @@ Finish ()
 	char datafile[120];
 	ZebTime	zt;
 	int	year,month,day,hour,minute;
-	if (TapeFD < 0)
+	if (DeviceFD < 0)
 	{
 	    switch ( ArchiveMode )
 	    {
@@ -402,11 +407,15 @@ Finish ()
 	switch ( ArchiveMode )
 	{
 	    case AR_TAPE:
+		SaveFiles (TRUE);
+		SpinOff ();
+	    break;
+	    case AR_EOD:
 		tl_Time (&zt);
 		TC_ZtSplit (&zt, &year, &month, &day, &hour, &minute, 0, 0);
 		sprintf( datafile, "%s/%02d%02d%02d.%02d%02d.tar",
 		    OutputDir,year,month,day,hour,minute );
-	        if ((TapeFD = open (datafile, O_RDWR|O_CREAT)) < 0)
+	        if ((DeviceFD = open (datafile, O_RDWR|O_CREAT)) < 0)
 		{
 		    SetStatus ( TRUE, "Bad file open on EOD" );
 		}
@@ -415,10 +424,6 @@ Finish ()
 		    SaveFiles (TRUE);
 		}
 		(void)EjectEOD ();
-	    break;
-	    case AR_EOD:
-		SaveFiles (TRUE);
-		SpinOff ();
 	    break;
 	}
 	SetStatus (TRUE, "CROAK");
@@ -440,9 +445,9 @@ ActionButton ()
 	int year, month, day, hour;
 	int status;
 /*
- * If we don't have a tape, we try to get one.
+ * If we don't have a device, we try to get one.
  */
-	if (TapeFD < 0)
+	if (DeviceFD < 0)
 	{
 	    switch ( ArchiveMode )
 	    {
@@ -484,8 +489,8 @@ ActionButton ()
 		case AR_TAPE:
 		    XtSetArg (args[0], XtNlabel, "Take tape");
 		    SpinOff ();
-		    close (TapeFD);
-		    TapeFD = -1;
+		    close (DeviceFD);
+		    DeviceFD = -1;
 		    SetStatus (TRUE, "Awaiting tape");
 		break;
 		case AR_EOD:
@@ -493,7 +498,7 @@ ActionButton ()
 		    if ( !status )
 		    {
 		        XtSetArg (args[0], XtNlabel, "Mount optical disk");
-		        TapeFD = -1;
+		        DeviceFD = -1;
 		        SetStatus (TRUE, "Awaiting optical disk");
 		    }
 		    else
@@ -567,7 +572,7 @@ OpenTapeDevice ()
  * Get the device opened.
  */
 {
-	if ((TapeFD = open (DriveName, O_RDWR)) < 0)
+	if ((DeviceFD = open (DriveName, O_RDWR)) < 0)
 	{
 		msg_ELog (EF_INFO, "Error %d opening %s", errno, DriveName);
 		return (0);
@@ -585,8 +590,7 @@ ZebTime *zt;
  */
 {
 	int status;
-	int year,month,day;
-	int hour,minute,second;
+	int year, month, day, hour, minute, second;
 	char datafile[120];
 	struct statfs buf;
 /*
@@ -596,29 +600,38 @@ ZebTime *zt;
 	switch ( ArchiveMode )
 	{
 	    case AR_TAPE:
-		SaveFiles (hour == 0);
-		if (hour == 0)
+		SaveFiles (hour == 0 && ! FreshTape);
+		if (hour == 0 && ! FreshTape)
 		{
 		    ActionButton ();
 		    SetStatus (TRUE, "Need new day's tape");
+		    FreshTape = TRUE;
 		}
+		else if (BytesWritten > TapeLimit)
+		{
+		    ActionButton ();
+		    SetStatus (TRUE, "Need new tape");
+		    FreshTape = TRUE;
+		}
+		else
+		    FreshTape = FALSE;
 	    break;
 	    case AR_EOD:
 		sprintf( datafile, "%s/%02d%02d%02d.%02d%02d.tar",
 		    OutputDir,year,month,day,hour,minute );
-		if ((TapeFD = open (datafile, O_RDWR|O_CREAT)) < 0)
+		if ((DeviceFD = open (datafile, O_RDWR|O_CREAT)) < 0)
 		{
 		    SetStatus ( TRUE, "Bad file open on EOD" );
 		}
 	 	else
 		{
-		    SaveFiles(0);
-		    close ( TapeFD );
+		    SaveFiles(FALSE);
+		    close ( DeviceFD );
 		    status = statfs(DriveName,&buf);
 		    if ( !status && buf.f_bavail < MinDisk )
 		    {
 			ActionButton ();
-			SetStatus (TRUE, "New new optical disk.");
+			SetStatus (TRUE, "Need new optical disk.");
 		    }
 		}
 	    break;
@@ -638,7 +651,7 @@ int all;
 /*
  * If we have no tape, we do nothing.
  */
-	if (TapeFD < 0)
+	if (DeviceFD < 0)
 		return;
 	strcpy (Tarbuf, "exec tar cfb - 16 ");
 /*
@@ -651,7 +664,9 @@ int all;
 /*
  * Run the tar command to put this all together.
  */
-	if ( strlen(Tarbuf) > 20 )SetStatus (FALSE, "Writing");
+	if ( strlen(Tarbuf) > 20 )
+		SetStatus (FALSE, "Writing");
+
 	if (strlen (Tarbuf) > 20 && RunTar (Tarbuf))
 	{
 	    switch ( ArchiveMode )
@@ -759,11 +774,11 @@ char *cmd;
  */
 	while ((nb = netread (pfp->_file, fbuf, BLOCKSIZE)) > 0)
 	{
-		if (write (TapeFD, fbuf, nb) < nb) /* oh shit! */
+		if (write (DeviceFD, fbuf, nb) < nb) /* oh shit! */
 		{
 			msg_ELog (EF_EMERGENCY, "Archive device write error %d",
 				errno);
-			if ( ArchiveMode == AR_EOD ) close(TapeFD);
+			if ( ArchiveMode == AR_EOD ) close(DeviceFD);
 			ActionButton (); /* Free drive */
 			SetStatus (TRUE, "Device write error!");
 			pclose (pfp);
@@ -924,7 +939,7 @@ WriteEOF ()
 
 	op.mt_op = MTWEOF;
 	op.mt_count = 1;
-	if (ioctl (TapeFD, MTIOCTOP, &op) < 0)
+	if (ioctl (DeviceFD, MTIOCTOP, &op) < 0)
 		perror ("Tape WEOF");
 }
 
@@ -939,13 +954,16 @@ SpinOff ()
 {
 	struct mtop op;
 
-	if (TapeFD < 0)
+	if (DeviceFD < 0)
 		return;
 	op.mt_op = MTOFFL;
 	op.mt_count = 1;
 	SetStatus (FALSE, "Spinning off tape");
-	if (ioctl (TapeFD, MTIOCTOP, &op) < 0)
+	if (ioctl (DeviceFD, MTIOCTOP, &op) < 0)
 		SetStatus (TRUE, "Unable to spin off tape");
+
+	FilesWritten = 0;
+	BytesWritten = 0;
 }
 
 
