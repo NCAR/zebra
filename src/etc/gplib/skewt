@@ -25,6 +25,30 @@ define widget skewt-left intmenu 'Skewt left'
 endmenu
 
 !
+! These are the procedures for the usual limit-proc names given in the
+! defaults pd, and they are relatively ubiquitous for skewt plots, so
+! define them here in case they haven't been included elsewhere.  To
+! override these, someone would have to use a different name and change the
+! limit-proc parameters in defaults.
+!
+procedure adj_temp_minmax comp string
+    local min PDSearch(comp, "temp-minval", "skewt")
+    local max PDSearch(comp, "temp-maxval", "skewt")
+    activate doublefloat #comp \
+	"temp-minval" "Temperature Min: " #min \
+	"temp-maxval" "Temperature Max: " #max
+endprocedure
+
+procedure adj_pres_minmax comp string
+    local min PDSearch(comp, "pres-minval", "skewt")
+    local max PDSearch(comp, "pres-maxval", "skewt")
+    activate doublefloat #comp \
+	"pres-minval" "Pressure Min: " #min \
+	"pres-maxval" "Pressure Max: " #max
+endprocedure
+
+
+!
 ! Menu for top annotation.
 !
 define widget skewt-topannot intmenu 'stuff'
