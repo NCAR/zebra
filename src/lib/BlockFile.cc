@@ -11,7 +11,7 @@
 #include <iomanip.h>
 
 //#include <defs.h>
-//RCSID ("$Id: BlockFile.cc,v 1.10 1998-06-05 19:33:21 granger Exp $");
+//RCSID ("$Id: BlockFile.cc,v 1.11 1998-06-05 20:12:27 granger Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
 #include "BlockFileP.hh"
@@ -324,6 +324,7 @@ BlockFile::WriteSync (int force)
 	journal->writeSync (force);
 	freelist->writeSync (force);
 	header->writeSync (force);
+	fflush (fp);
 	Unlock ();		// No need to do another write sync!
 }
 
