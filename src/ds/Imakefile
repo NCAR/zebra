@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.16 1993-09-14 17:57:46 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.17 1993-11-30 16:53:08 granger Exp $"
 
 LIBMPROF=/dt/granger/libc_mp.a
 SYSLIBS=/* $(LIBMPROF) */
@@ -96,10 +96,12 @@ cc_nstest:: nstest.c $(DSLIBSRCS) $(DCSRCS)
 		$(EXTRA_LIBRARIES)   $(CLIBS)
 	# link
 
+#ifdef notdef	/* original testcenter target now obsolete */
 nstest.tc:  nstest.o $(DSLIBOBJS) $(DCOBJS)  $(DEPLIBS)
 	$(RM) $@
 	$(PROOF) $(CC) -static -o $@  nstest.o $(DSLIBOBJS) $(DCOBJS) \
 		$(LDOPTIONS) $(LIBS) $(LDLIBS)   $(EXTRA_LOAD_FLAGS)
+#endif
 
 CflowTarget (nstest, nstest.c $(DSLIBSRCS) $(DCSRCS), /**/)
 
