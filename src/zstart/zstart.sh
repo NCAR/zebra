@@ -2,7 +2,7 @@
 #
 # This is an attempt at a generalized zebra startup script.
 #
-# $Id: zstart.sh,v 1.16 2002-04-26 21:14:24 burghart Exp $
+# $Id: zstart.sh,v 1.17 2002-05-12 15:55:59 burghart Exp $
 #
 # Here we do basic location of directories, set environment variables,
 # and try to hand things off to a project-specific startup file.
@@ -402,12 +402,26 @@ restart_prompt:
 # there is not a pointer to a remote host, however.
 #
 	if ($?DS_DAEMON_HOST) then
-		echo "Waiting for DS_Daemon on $DS_DAEMON_HOST..."
-		$ZEB_TOPDIR/bin/msg_ping -t 30 DS_Daemon@$DS_DAEMON_HOST
-		if ( $status == 0 ) then
-		    echo "...done"
-		else
-		    echo "Zebra startup on $DS_DAEMON_HOST " \
+		echo "Waiting for DS_Daemon on $DS_DAEMON_HOST. "
+		@ count = 0
+		@ ds_ok = 0
+		while ($count < 8)
+		    $ZEB_TOPDIR/bin/msg_ping \
+			-t 5 DS_Daemon@$DS_DAEMON_HOST >& /dev/null
+
+		    if ( $status == 0 ) then
+			echo "Remote DS is ready."
+			@ ds_ok = 1
+			break
+		    else
+			echo "..still waiting for remote DS.."
+		    endif
+		    @ count++
+		end
+
+		if (! $ds_ok) then
+		    echo "Failed."
+		    echo "Zebra startup on $DS_DAEMON_HOST" \
 			"is taking too long"
 		    exit 1
 		endif
