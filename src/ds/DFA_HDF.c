@@ -79,7 +79,7 @@ static char *hdfopt[2] = { "@(#)$DFA: HDF_INTERFACE Compiled $",
 # include <config.h>
 # include <message.h>
 
-RCSID ("$Id: DFA_HDF.c,v 3.10 1996-11-27 02:21:20 granger Exp $")
+RCSID ("$Id: DFA_HDF.c,v 3.11 1997-08-07 19:51:13 ishikawa Exp $")
 
 # include "DataStore.h"
 # include "dsPrivate.h"
@@ -204,7 +204,8 @@ static DataFormat hdfFormatRec =
 	___,				/* Get observation samples	*/
 	dh_GetFields,			/* Get fields			*/
 	___,				/* Get Attributes		*/
-	dh_GetTimes			/* Get times			*/
+	dh_GetTimes,			/* Get times			*/
+	___                             /* Get the associated files     */
 };
 
 #else /* ! HDF_INTERFACE */
