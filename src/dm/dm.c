@@ -45,7 +45,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm.c,v 2.75 2000-11-29 18:45:28 granger Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.76 2001-01-16 22:27:34 granger Exp $")
 
 /*
  * Pick a help browser.
@@ -1628,14 +1628,27 @@ struct ui_command *cmds;
  * If they gave us a time, use it; otherwise we need to see when the last
  * point is.
  */
-	if (cmds[4].uc_ctype != UTT_END)
-		TC_UIToZt (&UDATE (cmds[6]), &when);
+	if (cmds[6].uc_ctype != UTT_END)
+	{
+	    TC_UIToZt (&UDATE (cmds[6]), &when);
+	    msg_ELog (EF_INFO, "entering %s location at %s",
+		      ds_PlatformName(pid), TC_AscTime (&when, TC_Full));
+	}
 	else
 	{
-		ZebTime now;
-		tl_Time (&now);
-		if (! ds_DataTimes (pid, &now, 1, DsBefore, &when))
-			when = now;
+	    ZebTime now;
+	    tl_Time (&now);
+	    if (ds_DataTimes (pid, &now, 1, DsBefore, &when) != 1)
+	    {
+		when = now;
+		msg_ELog (EF_PROBLEM, "no last point found for %s, using %s",
+			  ds_PlatformName(pid), TC_AscTime (&when, TC_Full));
+	    }
+	    else
+	    {
+		msg_ELog (EF_INFO, "replacing %s location at %s",
+			  ds_PlatformName(pid), TC_AscTime (&when, TC_Full));
+	    }
 	}
 /*
  * Make our data chunk.

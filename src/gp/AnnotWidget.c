@@ -37,7 +37,7 @@
 # include "DrawText.h"
 # include "GraphProc.h"
 
-RCSID("$Id: AnnotWidget.c,v 1.3 1995-08-03 20:59:29 corbet Exp $")
+RCSID("$Id: AnnotWidget.c,v 1.4 2001-01-16 22:27:35 granger Exp $")
 
 # define STRLEN		1000
 
@@ -112,7 +112,7 @@ XtAppContext 	actx;
 	XtSetArg (args[n], XtNtype, XawAsciiString);		n++;
 	XtSetArg (args[n], XtNuseStringInPlace, True);		n++;
 	XtSetArg (args[n], XtNleftMargin, 5);			n++;
-	XtSetArg (args[n], XtNeditType, XawtextAppend);		n++;
+	XtSetArg (args[n], XtNeditType, XawtextEdit);		n++;
 	Text = XtCreateManagedWidget ("usertext", asciiTextWidgetClass,
 		parent, args, n);
 /*

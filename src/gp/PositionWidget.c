@@ -37,7 +37,7 @@
 # include "PixelCoord.h"
 # include "GraphProc.h"
 
-RCSID ("$Id: PositionWidget.c,v 1.23 1995-11-19 18:13:34 granger Exp $")
+RCSID ("$Id: PositionWidget.c,v 1.24 2001-01-16 22:27:36 granger Exp $")
 
 # ifndef PI
 # define PI 3.141592654
@@ -159,6 +159,10 @@ XtAppContext 	actx;
 		"Decimal Deg"); n++;
 	XtSetArg (args[n], XtNfromHoriz, NULL);			n++;
 	XtSetArg (args[n], XtNfromVert, PosLabel);		n++;
+	XtSetArg (args[n], XtNbottom, XtChainBottom); n++;
+	XtSetArg (args[n], XtNtop, XtChainBottom); n++;
+	XtSetArg (args[n], XtNleft, XtChainLeft); n++;
+	XtSetArg (args[n], XtNright, XtChainLeft); n++;
 	DMSButton = XtCreateManagedWidget ("degminsec", commandWidgetClass,
 		parent, args, n);
 	XtAddCallback (DMSButton, XtNcallback, ChangeType, 0);
@@ -169,6 +173,10 @@ XtAppContext 	actx;
 	XtSetArg (args[n], XtNlabel, DoNm ? "Nm" : "km");	n++;
 	XtSetArg (args[n], XtNfromHoriz, NULL);			n++;
 	XtSetArg (args[n], XtNfromVert, DMSButton);		n++;
+	XtSetArg (args[n], XtNbottom, XtChainBottom); n++;
+	XtSetArg (args[n], XtNtop, XtChainBottom); n++;
+	XtSetArg (args[n], XtNleft, XtChainLeft); n++;
+	XtSetArg (args[n], XtNright, XtChainLeft); n++;
 	KNButton = XtCreateManagedWidget ("nmkm", commandWidgetClass,
 		parent, args, n);
 	XtAddCallback (KNButton, XtNcallback, ChangeUnit, 0);
@@ -179,6 +187,10 @@ XtAppContext 	actx;
 	XtSetArg (args[n], XtNlabel, "Help");			n++;
 	XtSetArg (args[n], XtNfromHoriz, KNButton);		n++;
 	XtSetArg (args[n], XtNfromVert, DMSButton);		n++;
+	XtSetArg (args[n], XtNbottom, XtChainBottom); n++;
+	XtSetArg (args[n], XtNtop, XtChainBottom); n++;
+	XtSetArg (args[n], XtNleft, XtChainLeft); n++;
+	XtSetArg (args[n], XtNright, XtChainLeft); n++;
 	hbutton = XtCreateManagedWidget ("help", commandWidgetClass,
 					 parent, args, n);
 	XtAddCallback (hbutton, XtNcallback, HelpCallback, 
@@ -189,6 +201,10 @@ XtAppContext 	actx;
         n = 0;
         XtSetArg (args[n], XtNfromHoriz, DMSButton); n++;
         XtSetArg (args[n], XtNfromVert, PosLabel); n++;
+	XtSetArg (args[n], XtNbottom, XtChainBottom); n++;
+	XtSetArg (args[n], XtNtop, XtChainBottom); n++;
+	XtSetArg (args[n], XtNleft, XtChainLeft); n++;
+	XtSetArg (args[n], XtNright, XtChainLeft); n++;
         XtSetArg (args[n], XtNdisplayPosition, 0); n++;
         XtSetArg (args[n], XtNinsertPosition, 0); n++;
         XtSetArg (args[n], XtNresize, XawtextResizeNever); n++;
@@ -198,7 +214,7 @@ XtAppContext 	actx;
         XtSetArg (args[n], XtNtype, XawAsciiString); n++;
         XtSetArg (args[n], XtNuseStringInPlace, True); n++; 
 	XtSetArg (args[n], XtNleftMargin, 5); n++;
-        XtSetArg (args[n], XtNeditType, XawtextAppend); n++;
+        XtSetArg (args[n], XtNeditType, XawtextEdit); n++;
         OrgText = XtCreateManagedWidget ("origintext", asciiTextWidgetClass,
                 parent, args, n);
 /*
@@ -210,6 +226,10 @@ XtAppContext 	actx;
         XtSetArg (args[n], XtNwidth, 200); n++;
 	XtSetArg (args[n], XtNfromHoriz, DMSButton);		n++;
 	XtSetArg (args[n], XtNfromVert, OrgText);		n++;
+	XtSetArg (args[n], XtNbottom, XtChainBottom); n++;
+	XtSetArg (args[n], XtNtop, XtChainBottom); n++;
+	XtSetArg (args[n], XtNleft, XtChainLeft); n++;
+	XtSetArg (args[n], XtNright, XtChainLeft); n++;
 	OrgLabel = XtCreateManagedWidget ("orglabel", labelWidgetClass,
 		parent, args, n);
 
@@ -341,14 +361,23 @@ pw_PosDisplay ()
 		lonmin = (int)((lon - londeg) * 60);
 		lonsec = (int)((lon - londeg - lonmin / 60.0) * 3600);
 
-		sprintf (string, "Lat: %d %d'%d'' %c  Lon: %d %d'%d'' %c\n\n", 
-			latdeg, latmin, latsec, nsdir, londeg, lonmin, 
-			lonsec, ewdir);
+		sprintf (string,
+			 "Lat: %d %2d'%2d'' %c  Lon: %d %2d'%2d'' %c\n", 
+			 latdeg, latmin, latsec, nsdir, londeg, lonmin, 
+			 lonsec, ewdir);
+		strcat (label, string);
+		sprintf (string, "     %d %5.2f'  %c       %d %5.2f'  %c\n\n", 
+			 latdeg, (lat - latdeg)*60, nsdir, 
+			 londeg, (lon - londeg)*60, ewdir);
+		strcat (label, string);
 	}
 	else
-		sprintf (string, "Lat: %.2f Lon: %.2f\n\n", lat, lon);
+	{
+	    sprintf (string, "Lat: %.2f Lon: %.2f\n\n\n", lat, lon);
+	    strcat (label, string);
+	}
 
-	strcat (label, string);
+
 /*
  * Get the location and the azimuth offset of the origin.
  */

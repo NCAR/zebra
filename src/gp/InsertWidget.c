@@ -45,7 +45,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 
-RCSID("$Id: InsertWidget.c,v 1.15 1998-12-17 17:17:58 burghart Exp $")
+RCSID("$Id: InsertWidget.c,v 1.16 2001-01-16 22:27:35 granger Exp $")
 
 # ifndef PI
 # define PI		3.141592654
@@ -540,7 +540,7 @@ XtAppContext 	actx;
 	XtSetArg (args[n], XtNtype, XawAsciiString);	n++;
 	XtSetArg (args[n], XtNuseStringInPlace, True);	n++;
 	XtSetArg (args[n], XtNleftMargin, 5);		n++;
-	XtSetArg (args[n], XtNeditType, XawtextAppend);	n++;
+	XtSetArg (args[n], XtNeditType, XawtextEdit);	n++;
 	above = TimeText = XtCreateManagedWidget ("time", asciiTextWidgetClass,
 		form, args, n);
 /*

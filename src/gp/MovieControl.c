@@ -46,7 +46,7 @@
 # include "EventQueue.h"
 # include "ActiveArea.h"
 
-RCSID ("$Id: MovieControl.c,v 2.30 1998-12-17 17:18:01 burghart Exp $")
+RCSID ("$Id: MovieControl.c,v 2.31 2001-01-16 22:27:36 granger Exp $")
 
 # define ATSLEN		80	/* Length for AsciiText strings		*/
 # define FLEN 		60	/* Length of a field string		*/
@@ -345,7 +345,7 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNtype, XawAsciiString); n++;
 	XtSetArg (args[n], XtNuseStringInPlace, True); n++;
 	XtSetArg (args[n], XtNleftMargin, 5); n++;
-	XtSetArg (args[n], XtNeditType, XawtextAppend); n++;
+	XtSetArg (args[n], XtNeditType, XawtextEdit); n++;
 	WMovieLen = XtCreateManagedWidget ("movieLen", asciiTextWidgetClass,
 		form, args, n);
 /*
@@ -375,7 +375,7 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNtype, XawAsciiString); n++;
 	XtSetArg (args[n], XtNuseStringInPlace, True); n++;
 	XtSetArg (args[n], XtNleftMargin, 5); n++;
-	XtSetArg (args[n], XtNeditType, XawtextAppend); n++;
+	XtSetArg (args[n], XtNeditType, XawtextEdit); n++;
 	WFskip = XtCreateManagedWidget ("moviefs", asciiTextWidgetClass, form,
 		args, n);
 /*
@@ -417,7 +417,7 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNtype, XawAsciiString); n++;
 	XtSetArg (args[n], XtNuseStringInPlace, True); n++;
 	XtSetArg (args[n], XtNleftMargin, 5); n++;
-	XtSetArg (args[n], XtNeditType, XawtextAppend); n++;
+	XtSetArg (args[n], XtNeditType, XawtextEdit); n++;
 	WEndt = w = XtCreateManagedWidget ("movieendt", asciiTextWidgetClass,
 		form, args, n);
 /*
@@ -445,7 +445,7 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNtype, XawAsciiString); n++;
 	XtSetArg (args[n], XtNuseStringInPlace, True); n++;
 	XtSetArg (args[n], XtNleftMargin, 5); n++;
-	XtSetArg (args[n], XtNeditType, XawtextAppend); n++;
+	XtSetArg (args[n], XtNeditType, XawtextEdit); n++;
 	WFrate = XtCreateManagedWidget ("moviefr", asciiTextWidgetClass, form,
 		args, n);
 /*

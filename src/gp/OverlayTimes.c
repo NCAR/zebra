@@ -33,7 +33,7 @@
 # include <dm.h>
 # include "GraphProc.h"
 
-RCSID("$Id: OverlayTimes.c,v 2.6 1995-06-29 23:29:22 granger Exp $")
+RCSID("$Id: OverlayTimes.c,v 2.7 2001-01-16 22:27:36 granger Exp $")
 
 static Widget	OTWidget = NULL;
 static char	OTString[1024];
@@ -155,9 +155,9 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNeditType, XawtextEdit); n++;
 	XtSetArg (args[n], XtNresize, XawtextResizeBoth); n++;
 	XtSetArg (args[n], XtNresizable, True); n++;
-	XtSetArg (args[n], XtNbottom, XtRubber); n++;
+	XtSetArg (args[n], XtNbottom, XtChainBottom); n++;
 	XtSetArg (args[n], XtNtop, XtChainTop); n++;
-	XtSetArg (args[n], XtNright, XtRubber); n++;
+	XtSetArg (args[n], XtNright, XtChainRight); n++;
 	XtSetArg (args[n], XtNleft, XtChainLeft); n++;
 	XtSetArg (args[n], XtNfromHoriz, NULL); n++;
 	XtSetArg (args[n], XtNfromVert, above); n++;

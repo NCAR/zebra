@@ -1,4 +1,4 @@
-! $Id: Graphproc.ad,v 1.22 2000-12-01 23:13:12 granger Exp $
+! $Id: Graphproc.ad,v 1.23 2001-01-16 22:27:35 granger Exp $
 !
 ! The Graphics process resource file.
 !
@@ -83,12 +83,15 @@ Graphproc.?.form.background:	gray95
 *overlay*Command*font: 	-*-helvetica-medium-r-*-*-*-120-*-*-*-*-*-*
 *overlay*Command*borderColor: red
 *overlay*resize:	true
+*overlay*resizable:	true
 *overlay*Form.resize:	true
 *overlay.allowShellResize:	true
 *overlay*background:	gray95
 *overlay*foreground:	black
 *overlay*Command.background: gray90
 *overlay.form.OverlayTimes.fromVert: overlayLabel
+*overlay*OverlayTimes.width: 650
+*overlay*OverlayTimes.height: 80
 *overlay*OverlayTimes*borderColor: MidnightBlue
 *overlay*OverlayTimes*background: white
 *overlay*OverlayTimes*foreground: MidnightBlue

@@ -19,7 +19,7 @@
 #include "PixelCoord.h"
 #include "GC.h"
 
-RCSID ("$Id: Radar.c,v 2.10 2000-04-10 22:12:02 burghart Exp $")
+RCSID ("$Id: Radar.c,v 2.11 2001-01-16 22:27:36 granger Exp $")
 
 
 static char *ScanNames[] = 
@@ -729,27 +729,32 @@ R_ScanMode *scan;
  * Radar annotation
  */
 
-#define LINESPACE 2
+#define LINESPACE 1
 #define LWIDTH 2
+#define GAP 3
 
 static void
-AnnotLine (char *string, float scale, int *begin, int *space, int *right)
+AnnotLine (char *string, float scale, int left, int *begin, 
+	   int *space, int *right)
 {
 	int used;
-	int left;
 	int sx, sy, ex, ey;
 
-        left = An_GetLeft ();
-        DrawText (Graphics, GWFrame (Graphics), Gcontext, left, *begin,
-		  string, 0.0, scale, JustifyLeft, JustifyTop);
         DT_TextBox (Graphics, GWFrame (Graphics), left, *begin,
 		    string, 0.0, scale, JustifyLeft, JustifyTop,
 		    &sx, &sy, &ex, &ey);
-	used = ABS(ey - sy) + LINESPACE;
-	if (ex > *right)
+	if (*space >= ABS(ey - sy))
+	{
+	    DrawText (Graphics, GWFrame (Graphics), Gcontext, left, *begin,
+		      string, 0.0, scale, JustifyLeft, JustifyTop);
+	    if (ex > *right)
 		*right = ex;
-        *begin += used;
-        *space -= used;
+	    used = ABS(ey - sy) + LINESPACE;
+	    if (*space < used)
+		used = *space;
+	    *begin += used;
+	    *space -= used;
+	}
 }
 
 
@@ -784,34 +789,36 @@ r_Legend (char *comp, char *data, int datalen, int begin, int space)
  * Put in the current platform and scan, followed by angle mode and scan mode.
  */
         left = An_GetLeft ();
-	begin += LWIDTH;	/* leave room for the surrounding rectangle */
+	/* leave room for the surrounding rectangle */
+	left += LWIDTH + GAP;
+	begin += LWIDTH + GAP;
+	space -= LWIDTH + GAP;
 	top = begin;
 	right = 0;
 
         XSetForeground (XtDisplay (Graphics), Gcontext, xc.pixel);
 	sprintf (buf, "Radar: %s", platform);
-	AnnotLine (buf, scale, &begin, &space, &right);
+	AnnotLine (buf, scale, left, &begin, &space, &right);
 
 	sprintf (buf, "Current: %s", r_ScanModeName(current));
-	AnnotLine (buf, scale, &begin, &space, &right);
+	AnnotLine (buf, scale, left, &begin, &space, &right);
 
 	if (hold)
 		XSetForeground (XtDisplay (Graphics), Gcontext, bold.pixel);
 	sprintf (buf, "%s", hold ? "Angle: HOLD" : "Angle: Any");
-	AnnotLine (buf, scale, &begin, &space, &right);
+	AnnotLine (buf, scale, left, &begin, &space, &right);
         XSetForeground (XtDisplay (Graphics), Gcontext, xc.pixel);
 
 	if (scan != R_ANY)
 		XSetForeground (XtDisplay (Graphics), Gcontext, bold.pixel);
 	sprintf (buf, "Scan: %s", r_ScanModeName(scan));
-	AnnotLine (buf, scale, &begin, &space, &right);
+	AnnotLine (buf, scale, left, &begin, &space, &right);
         XSetForeground (XtDisplay (Graphics), Gcontext, xc.pixel);
 /*
  * Surround with a box.
  */
-#	define GAP 4
-	XSetLineAttributes (XtDisplay (Graphics), Gcontext, 2, LineSolid,
-			    CapButt, JoinMiter);
+	XSetLineAttributes (XtDisplay (Graphics), Gcontext, LWIDTH, 
+			    LineSolid, CapButt, JoinMiter);
 	XDrawRectangle (XtDisplay (Graphics), GWFrame (Graphics), Gcontext,
 			left-GAP, top-GAP, (right - left + 2*GAP), 
 			(begin - top + 2*GAP));
