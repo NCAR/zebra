@@ -27,7 +27,7 @@
 #include "dslib.h"
 
 #ifndef lint
-MAKE_RCSID ("$Id: Appl.c,v 3.20 1993-08-17 19:18:32 granger Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.21 1993-09-02 07:58:02 granger Exp $")
 #endif
 
 /*
@@ -272,7 +272,7 @@ int max;
  * enclosing "when".
  */
 {
-	int             dfindex;
+	int dfindex;
 /*
  * Find the data file holding the observation of interest, then pass
  * off the real work to DFA.
@@ -620,6 +620,10 @@ struct message *msg;
 		for (i = 0; i < N_DF_CACHE; i++)
 			if (DFCache[i].df_index == ddg->dsp_file)
 			{
+				msg_ELog (EF_DEBUG,
+				   "DataGone received for %s (%d)",
+				   DFCache[i].df_name,
+				   DFCache[i].df_index);
 				DFCache[i].df_index = -1;
 				break;
 			}
@@ -684,6 +688,29 @@ ZebTime *zaptime;
 }
 
 
+
+
+
+
+void
+ds_DeleteObs (platform, zaptime)
+PlatformId platform;
+ZebTime *zaptime;
+/*
+ * Zap the observation containing the given ZAPTIME
+ */
+{
+	struct dsp_DeleteData del;
+/*
+ * Write lock the platform around the deletion just to be sure.
+ */
+	ds_WriteLock (platform);
+	del.dsp_type = dpt_DeleteObs;
+	del.dsp_plat = platform;
+	del.dsp_when = *zaptime;
+	ds_SendToDaemon (&del, sizeof (del));
+	ds_FreeWLock (platform);
+}
 
 
 
@@ -957,8 +984,8 @@ int ndetail;
 /*
  * Pull some details together.
  */
-	ds_GetPlatStruct (dc->dc_Platform, &p, TRUE);
 	ds_WriteLock (dc->dc_Platform);
+	ds_GetPlatStruct (dc->dc_Platform, &p, TRUE);
 	tl_Time (&curtime);
 /*
  * For now (and maybe forever) we do the writing one sample at a time,
@@ -1077,11 +1104,11 @@ int ndetail;
 	 * as a single block.  The answer is at least one.
 	 */
 		ds_FindBlock (dfile, dfnext, dc, &p, sample, wc, &block_size);
-		msg_ELog(EF_DEBUG | ((block_size >= 25) ? EF_INFO : 0),
-			 "%s block of %i samples",
+		msg_ELog((block_size >= 25) ? EF_INFO : EF_DEBUG,
+			 "%s block of %i samples to %s",
 			 (wc == wc_Append) ? "appending" :
 			 ((wc == wc_Insert) ? "inserting" : 
-			  "overwriting"), block_size);
+			  "overwriting"), block_size, p.dp_name);
 	/*
 	 * Now we write whatever block we found, or if we have just a
 	 * single sample, use dfa_PutSample() instead
@@ -1883,7 +1910,12 @@ DataFile *dfe;
 		 * method would be to use the message sequence number.
 		 */
 			if (DFCache[i].df_rev <=  dfe->df_rev)
+			{
 				DFCache[i] = *dfe;
+				msg_ELog (EF_DEBUG,
+				   "updating client cache for %s (%d)",
+				   dfe->df_name, dfe->df_index);
+			}
 			break;
 		}
 }
