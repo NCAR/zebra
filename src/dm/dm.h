@@ -1,4 +1,4 @@
-/* $Id: dm.h,v 2.5 1993-09-02 19:04:36 granger Exp $ */
+/* $Id: dm.h,v 2.6 1993-11-30 02:07:28 granger Exp $ */
 /*
  * Display manager stuff.
  */
@@ -20,8 +20,8 @@
  * maintenance or updates for its software.
  */
 
-#ifndef _zeb_dm_h_
-#define _zeb_dm_h_
+#ifndef __zeb_dm_h_
+#define __zeb_dm_h_
 
 # define DM_RECONFIG	1	/* Change screen configuration	*/
 # define DM_SUSPEND	2	/* Disappear from screen	*/
@@ -208,4 +208,4 @@ struct dm_dial
 	char dmm_param[PDLEN];	/* The parameter to change		*/
 };
 
-#endif /* _zeb_dm_h_ */
+#endif /* !__zeb_dm_h_ */
