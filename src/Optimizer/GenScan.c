@@ -20,7 +20,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: GenScan.c,v 1.2 1991-09-17 15:58:12 burghart Exp $";
+static char *rcsid = "$Id: GenScan.c,v 1.3 1992-04-09 18:33:29 granger Exp $";
 
 # include "globals.h"
 # include "radar.h"
@@ -50,14 +50,14 @@ static bool	ReportError;
 
 
 void
-GenScan (rad, time, hres, vres, report_error)
+GenScan (rad, ftime, hres, vres, report_error)
 Radar	*rad;
-float	time, hres, vres;
+float	ftime, hres, vres;
 bool	report_error;
 /*
- * Generate a scan for 'rad' which will cover the volume in 'time' seconds
+ * Generate a scan for 'rad' which will cover the volume in 'ftime' seconds
  * with minimum horizontal and vertical resolutions of 'hres' and 'vres'
- * kilometers.  If 'time' is TIME_ASAP, generate the fastest scan that meets
+ * kilometers.  If 'ftime' is TIME_ASAP, generate the fastest scan that meets
  * the spatial resolution requirements.  
  *
  * All appropriate scan values (angle list, number of sweeps, etc.) will be
@@ -154,7 +154,7 @@ bool	report_error;
 /*
  * Find the best scan rate for this radar
  */
-	if (time == TIME_ASAP)
+	if (ftime == TIME_ASAP)
 	{
 	/*
 	 * Use the minimum of the resolution scan rate and optimal scan rate
@@ -167,7 +167,7 @@ bool	report_error;
 	 * Find the scan rate that will match the chosen time
 	 * (The 0.0001 second gets around some round-off problems)
 	 */
-		swptime = time / rad->nsweeps + 0.0001;
+		swptime = ftime / rad->nsweeps + 0.0001;
 		val = swptime * swptime - 8 * width / accel;
 		if (val < 0.0)
 			srate = 99999.9;
@@ -179,7 +179,7 @@ bool	report_error;
  */
 	if (srate > max_srate || srate > res_srate)
 	{
-		if (time == TIME_ASAP || rad->status == MatchSpatial)
+		if (ftime == TIME_ASAP || rad->status == MatchSpatial)
 		/*
 		 * We aren't required to match the time, so just scan as
 		 * fast as possible while maintaining spatial resolution
@@ -191,7 +191,7 @@ bool	report_error;
 		 * We only need to match the time, so degrade the required
 		 * spatial resolution and try again
 		 */
-			GenScan (rad, time, hres + RES_STEP, vres + RES_STEP,
+			GenScan (rad, ftime, hres + RES_STEP, vres + RES_STEP,
 				report_error);
 			return;
 		}
