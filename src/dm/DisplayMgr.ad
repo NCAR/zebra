@@ -1,9 +1,10 @@
-! $Id: DisplayMgr.ad,v 1.8 1994-05-21 05:19:34 granger Exp $
+! $Id: DisplayMgr.ad,v 1.9 1994-06-29 20:21:51 case Exp $
 !
 ! Application defaults file for the Display Manager
 !
 ! Do not modify this file if it is the installed copy in lib/resources!!!
 !
+*font:  *-courier-bold-r-normal--12-*
 *allowShellResize:	True
 *input:		True
 dm.time.form.background: gray90
