@@ -23,6 +23,7 @@
 # include <stream.h>
 # include <unistd.h>
 # include <fcntl.h>
+# include <std/cstring.h>
 extern "C"
 {
 #	include <X11/Intrinsic.h>
@@ -38,7 +39,7 @@ extern "C"
 # include "DataDir.h"
 # include "Tape.h"
 # include "plcontainer.h"
-MAKE_RCSID ("$Id: DLoad.cc,v 1.8 1995-01-26 00:24:37 burghart Exp $")
+MAKE_RCSID ("$Id: DLoad.cc,v 1.9 1995-10-30 21:29:42 corbet Exp $")
 
 //
 // Import from main.
@@ -59,7 +60,7 @@ static int FindNStrip (const char *, const char *);
 static void MoveCDFile (const char *, const char *, int, const char *);
 static int FindFirstFile (const PlatformIndex *index);
 static void InsertSlash (char *string, const int where);
-
+static void FlushTapeBlock ();
 
 
 
@@ -375,7 +376,10 @@ LoadFromTape (PlatformIndex *index, const char *dev, StatusWindow &sw,
 	// Check for the special tar EOF marker.
 	//
 		if (TarEOF (tp))
+		{
+			FlushTapeBlock ();
 			continue;
+		}
 	//
 	// See if this is a file we want or not.  KLUGE: If the first platform
 	// name we extract isn't good, try to build a platform name from the
@@ -436,10 +440,13 @@ TarEOF (TarHeader *tp)
 //
 {
 	int i;
+//
+// There must be a reason why this thing doesn't just look at name[0], but
+// I sure as hell can't tell you what it is.
+//
 	for (i = 0; i < 10; i++)
 		if (tp->th_name[i])
 			return (0);
-	DataLen = 0;		// Flush rest.
 	return (1);
 }
 
@@ -560,12 +567,23 @@ GetTarBlock (Tape &t)
 	TapeBlock += TarBlockSize;
 	if ((TapeBlock - TapeBuffer) >= DataLen)
 	{
-		if ((DataLen = t.getblock (TapeBuffer, BufSize)) < 0)
+		if ((DataLen = t.getblock (TapeBuffer, BufSize)) <= 0)
 			return (DataLen == TS_EOF ? GetTarBlock (t) : 0);
 		TapeBlock = TapeBuffer;
 	}
 	return (TapeBlock);
 }
+
+
+static void
+FlushTapeBlock ()
+//
+// Just dump anything else in memory.
+//
+{
+	DataLen = 0; // will force new read
+}
+
 
 
 

@@ -22,6 +22,7 @@
 # include <stdio.h>
 # include <stream.h>
 # include <unistd.h>
+# include <std/cstring.h>
 extern "C" 
 {
 #	include <X11/Intrinsic.h>
@@ -37,7 +38,7 @@ extern "C"
 # include "dsmWindows.h"
 # include "StatusWin.h"
 
-static char *rcsid = "$Id: StatusWin.cc,v 1.2 1994-10-11 16:25:28 corbet Exp $";
+static char *rcsid = "$Id: StatusWin.cc,v 1.3 1995-10-30 21:29:49 corbet Exp $";
 
 
 //

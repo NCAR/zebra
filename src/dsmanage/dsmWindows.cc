@@ -20,12 +20,16 @@
  */
 # include <stdio.h>
 # include <stream.h>
-# include <memory.h>
+// # include <memory.h>
 # include <unistd.h>
 # include "dsmanage.h"
 # include "container.h"
 # include "DataDir.h"
 
+//
+// Avoid no end of weirdness by including this now.
+//
+# include <std/cstring.h>
 
 extern "C" 
 {
@@ -41,7 +45,7 @@ extern "C"
 }
 
 # include "dsmWindows.h"
-static char *rcsid = "$Id: dsmWindows.cc,v 1.5 1994-11-19 00:31:09 burghart Exp $";
+static char *rcsid = "$Id: dsmWindows.cc,v 1.6 1995-10-30 21:29:52 corbet Exp $";
 //
 // Forwards.
 //

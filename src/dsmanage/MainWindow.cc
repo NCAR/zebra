@@ -19,6 +19,8 @@
  * maintenance or updates for its software.
  */
 
+# include <std/cstring.h>
+
 extern "C" 
 {
 #	include <X11/Intrinsic.h>
@@ -38,7 +40,7 @@ extern "C"
 # include "dsmWindows.h"
 # include "Dialog.h"
 
-static char *rcsid = "$Id: MainWindow.cc,v 1.6 1994-10-11 16:25:26 corbet Exp $";
+static char *rcsid = "$Id: MainWindow.cc,v 1.7 1995-10-30 21:29:48 corbet Exp $";
 //
 // Externs.
 //

@@ -32,6 +32,7 @@ extern "C" {
 #	include <DataStore.h>
 };
 
+# include "BoolKludge.h"
 #include <stdio.h>
 # include <stream.h>
 # include <String.h>
@@ -42,7 +43,7 @@ extern "C" {
 # include "Index.h"
 # include "plcontainer.h"
 
-MAKE_RCSID ("$Id: dsmanage.cc,v 1.7 1994-11-19 00:31:14 burghart Exp $");
+MAKE_RCSID ("$Id: dsmanage.cc,v 1.8 1995-10-30 21:29:54 corbet Exp $");
 
 extern "C" void strcat (char *, const char *);
 extern "C" char *strrchr (const char *, int);

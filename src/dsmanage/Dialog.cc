@@ -20,7 +20,7 @@
  */
 
 # include "dsmanage.h"
-
+# include <std/cstring.h>	// Avoid bummers in Intrinsic.h
 
 extern "C" 
 {
@@ -38,7 +38,7 @@ extern "C"
 # include "dsmWindows.h"
 # include "Dialog.h"
 
-static char *rcsid = "$Id: Dialog.cc,v 1.3 1994-10-11 16:25:19 corbet Exp $";
+static char *rcsid = "$Id: Dialog.cc,v 1.4 1995-10-30 21:29:44 corbet Exp $";
 
 
 dsDialog::dsDialog (char *title, char *prompt, void (*goproc) (char *),
