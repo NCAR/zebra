@@ -445,7 +445,6 @@ int newfile;
  * Send out locations where called for.  Just how many there are is
  * a bit obnoxious to find out when we're dealing with outlines.
  */
-# ifdef notdef
 	if (dobj->do_aloc)
 	{
 		if (dobj->do_org == OrgOutline)
@@ -455,11 +454,10 @@ int newfile;
 				naloc += dobj->do_desc.d_bnd[i].bd_npoint;
 		}
 		else
-# endif
 			naloc = dobj->do_npoint;
 		SendChunk (plat, dobj->do_aloc, DOFFSET (do_aloc),
 			naloc*sizeof (Location), DOF_FREEALOC);
-	/* } */
+	}
 /*
  * Send per-field stuff.
  */
