@@ -20,7 +20,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: ac_status.c,v 1.8 1992-03-31 22:10:09 burghart Exp $";
+static char *rcsid = "$Id: ac_status.c,v 1.9 1992-04-09 18:40:34 granger Exp $";
 
 # include <copyright.h>
 # include <X11/X.h>
@@ -146,8 +146,8 @@ SetupIndirect ()
 {
 	stbl vtable = usy_g_stbl ("ui$variable_table");
 
-	usy_c_indirect (vtable, "ac_platforms", &AcPlatforms, SYMT_STRING, 200);
-	usy_c_indirect (vtable, "ac_ingest_name", &AcIngestName, SYMT_STRING,
+	usy_c_indirect (vtable, "ac_platforms", AcPlatforms, SYMT_STRING, 200);
+	usy_c_indirect (vtable, "ac_ingest_name", AcIngestName, SYMT_STRING,
 		STRLEN);
 }
 
@@ -599,7 +599,7 @@ char	*label;
 
 
 
-void
+static void
 SetStatus (itsat, nplat)
 int	itsat;
 /*
@@ -699,7 +699,7 @@ struct message	*msg;
 
 
 
-void
+static void
 DeltaUpdate (t, junk)
 time	*t;
 int	junk;
