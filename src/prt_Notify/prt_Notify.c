@@ -27,7 +27,7 @@
 # include "DataStore.h"
 # include "dsPrivate.h"
 
-RCSID("$Id: prt_Notify.c,v 3.8 1995-04-20 20:29:18 granger Exp $")
+RCSID("$Id: prt_Notify.c,v 3.9 1996-12-13 18:34:00 granger Exp $")
 
 static int IMessage FP ((struct message *));
 static void NotificationRequest FP ((struct dsp_Template *));
@@ -129,8 +129,6 @@ struct dsp_Template *dmsg;
 {
 	struct dsp_NotifyRequest nrq;
 	char *from;
-
-	nrq = *(struct dsp_NotifyRequest *) dmsg;
 /*
  * If this is a notification request, we first see if there are already
  * requests outstanding for this PID -- if so, there will also be a timer
@@ -138,11 +136,12 @@ struct dsp_Template *dmsg;
  */
 	if (dmsg->dsp_type == dpt_NotifyRequest)
 	{
+		nrq = *(struct dsp_NotifyRequest *) dmsg;
 		if (! dap_IsInterest (nrq.dsp_pid))
 			MakeTimerRequest (nrq.dsp_pid);
-		from = sizeof (nrq) + (char *) dmsg;
+		from = nrq.dsp_who;
 		dap_Request (from, &nrq);
-		msg_ELog (EF_DEBUG, "Notif request for %s from %s",
+		msg_ELog (EF_DEBUG, "Notify request for %s from %s",
 			ds_PlatformName (nrq.dsp_pid), from);
 	}
 /*
@@ -150,7 +149,7 @@ struct dsp_Template *dmsg;
  */
 	else if (dmsg->dsp_type == dpt_CancelNotify)
 	{
-		from = sizeof (*dmsg) + (char *) dmsg;
+		from = ((struct dsp_NotifyCancel *) dmsg)->dsp_who;
 		dap_Cancel (from);
 	}
 }
