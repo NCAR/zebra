@@ -1,8 +1,108 @@
+XCOMM
+XCOMM $Id: Zeb.rules,v 1.2 1992-08-20 13:30:52 granger Exp $
+XCOMM
+XCOMM Rules specific to the Zeb project, including some which override
+XCOMM definitions in Imake.rules
+XCOMM
+
 /*
- * $Id: Zeb.rules,v 1.1 1992-05-11 17:16:27 granger Exp $
+ * This file defines the following rules.  
  *
- * Rules specific to the Zeb project, including some which override
- * definitions in Imake.rules
+ * UILoadFileTarget(loadfile,uisrc)
+ *  -- loadfile is the .lf file to be created, and uisrc is the
+ *     source file which will be 'read' into uic.  The uisrc file is
+ *     read into $(UIC), pager$mode is set to false, and a 
+ *     'save <loadfile> all' is performed.
+ *
+ * UITestLoadFileTarget(loadfile,uisrc)
+ *  -- Same as above, but the loadfile is not named as an all target
+ *     and not installed.  The loadfile must be specifically mentioned
+ *     in the deplibs parameter of TestProgramTarget to be made when
+ *     the test program is being made.
+ *
+ * UICppLoadFileTarget(loadfile,uisrc,depfiles)
+ *  -- uisrc is processed with cpp before being compiled with uic to
+ *     produce loadfile.  depfiles is the list of files, other than
+ *     uisrc, on which uisrc depends (i.e. include files)
+ *
+ * UILoadFileTarget_2(loadfile,uisrc1,istate,uisrc2)
+ *  -- loadfile is a .lf file to be created, uisrc1 and uisrc2 are
+ *     2 files to be read into uic, and istate is the initial
+ *     state to which ui$initial_state will be set.
+ * 
+ * InstallObjectsIntoLibrary(library,objects)
+ *  -- Adds, using $(ARADD), 'objects' to 'library' as an install
+ *     targets and an install.lib target.  
+ *     Typically, ARADD will be 'ar ruv' and library will be $(LIBZEB)
+ *
+ * AddObjectsToLibrary(library,objects)
+ *  -- Alias for InstallObjectsIntoLibrary()
+ * 
+ * TestProgramTarget(program,objects,deplibs,locallibs,syslibs)
+ *  -- Same as NormalProgramTarget, except program will not be
+ *     installed, nor be part of the All target, but a saber
+ *     target will be generated.
+ *
+ * SaberProgramTarget(program,srclist,objlist,locallibs,syslibs)
+ *  -- Redefines the Imake.rules definition to use local conventions
+ *     for Saber, such as #setopt ansi.
+ *
+ * InstallShellScriptDest(program,shell,dest)
+ *  -- Installs 'program.shell' in dest with the name 'program' and
+ *     permissions $(INSTALLPGMFLAGS)
+ *
+ * InstallShellScript(program,shell)
+ *  -- InstallShellScriptDest(program,shell,$(BINDIR))
+ *
+ * NormalProgramTarget(program,objects,deplibs,locallibs,syslibs)
+ *  -- Redefines rule in Imake.rules, adding program to the
+ *     all:: target and generating a saber target.  ALSO generates
+ *     the install target for the program.  The paramters:
+ *	<program>	Name of program to create (the Makefile target)
+ *	<objects>	Objects on which the program depends and which
+ *			should be linked.
+ *	<deplibs>	Local libraries, such as $(LIBZEB), which should
+ *			be listed as dependencies.  Almost always this
+ *			parameter is simple $(DEPLIBS), and the default
+ *			value for DEPLIBS set in Zeb.tmpl is used.
+ *	<locallibs>	Local libraries required, such as LIBZEB,
+ *			LIBNETCDF, LIBRDSS, etc.
+ *	<syslibs>	System libraries, such as -lm, -ltermcap. Usually
+ *			the value of $(SYSLIBS) set in Zeb.tmpl will suffice.
+ *
+ * NormalProgramTargetNoInstall(program,objects,deplibs,locallibs,syslibs)
+ *  -- Same as above without an automatic install target.  An install
+ *     target should be explicitly included in the Imakefile!
+ *
+ * BuildIncludes(headers,dstsubdir,dstupdir)
+ *  -- Redefines the BuildIncludes of Imake.rules.  Uses cp -p rather than
+ *     symbolic links.  The -p option, which hopefully works on most
+ *     systems, preserves the modification time of the file so the copy
+ *     won't force a remake of any file that includes a header file unless the 
+ *     header file has actually changed.  dstsubdir is the subdirectory
+ *     path within the include dir where the file will be put.  E.g.
+ *     for X this is commonly X11, and dstupdir is the path back to
+ *     the topdir, i.e. '..'
+ *     Zeb will most likely always use just BuildIncludes(headers,.,.)
+ *
+ * InstallProgramSetUID(program,dest)
+ *  -- Uses $(INSTUIDFLAGS) to install a program with setuid privileges
+ *
+ * DistfilesTarget(distfiles)
+ *  -- Echoes each of the files in distfiles, prepended with the
+ *     $(CURRENT_DIR) variable (normally the path of the Imakefile's 
+ *     directory relative to the top).  The distfiles are
+ *     dependencies, so the target fails (or the file is automatically
+ *     checked out if its GNU make and an RCS file) if the file
+ *     does not exist.  The distfiles parameter should usually be the
+ *     $(DISTFILES) variable.
+ *
+ * DistfilesSubdirs(subdirs)
+ *  -- Propagate the distfiles target to the subdirectories in the
+ *     subdirs parameter.  A new value of CURRENT_DIR is passed as
+ *     CURRENT_DIR=$(CURRENT_DIR)/$$subdir so that a special top-level
+ *     path can be given, as in the case of making a tar file of a
+ *     whole distribution.
  */
 
 /*
@@ -25,11 +125,11 @@ clean::								@@\
 	$(RM) loadfile
 
 /*
- * For creating .lf files from a .state file, specifying
- * the initial state, and then reading a second ui file.
- * The state argument can be quoted if need be: ex. 'init-state'
+ * Target which creates a .lf file from uisrc, installs it and
+ * cleans it as well.  Unlike target above, 'ui$pager_mode'
+ * is not set
  */
-#define UILoadFileTarget_2(loadfile,state,istate,uisrc)		@@\
+#define UISimpleLoadFileTarget(loadfile,uisrc) 			@@\
 								@@\
 AllTarget(loadfile)						@@\
 								@@\
@@ -37,45 +137,129 @@ InstallNonExec(loadfile,$(LIBDIR))				@@\
 								@@\
 loadfile: uisrc							@@\
 	$(RM) loadfile						@@\
-	echo read state \; \					@@\
-	     set ui$$$initial_state istate \; \			@@\
-	     read uisrc \; \					@@\
-	     set ui$$$pager_mode false \; \			@@\
+	echo 'read uisrc ; save loadfile all ; exit' | $(UIC)	@@\
+								@@\
+clean::								@@\
+	$(RM) loadfile
+
+/*
+ * Same as above but for test programs.  The load file is not
+ * installed and not included in the all target.  Note that this
+ * means an Imakefile should specifically mention a test programs
+ * dependency on a load file.  This can be done with the deplibs
+ * parameter of TestProgramTarget().
+ * Ex: TestProgramTarget(test,test.o,$(DEPLIBS) test.lf,...)
+ */
+#define UITestLoadFileTarget(loadfile,uisrc) 			@@\
+								@@\
+loadfile: uisrc							@@\
+	$(RM) loadfile						@@\
+	echo read uisrc \; \					@@\
+	     set 'ui$$pager_mode' false \; \			@@\
 	     save loadfile all | $(UIC)				@@\
 								@@\
 clean::								@@\
 	$(RM) loadfile
 
 /*
+ * Target which creates a .lf file from uisrc, like UILoadFileTarget()
+ * above, but the src file is first passed through cpp.  The -E 
+ * option is used since it seems to be the most portable, and then
+ * the line number info is removed (any line starting with '#')
+ *
+ * The third parameter, depfiles, is the files which the loadfile
+ * is dependent on, besides the uisrc.  
+ *
+ * $(CLAGS) is included in the CC -E cmd to get -I options to cpp
+ */
+#define UICppLoadFileTarget(loadfile,uisrc,depfiles)		@@\
+								@@\
+AllTarget(loadfile)						@@\
+								@@\
+InstallNonExec(loadfile,$(LIBDIR))				@@\
+								@@\
+loadfile: uisrc depfiles					@@\
+	$(RM) loadfile						@@\
+	$(CC) -E $(CFLAGS) uisrc | sed -e '/^#/d' > uisrc.TMP; \ @@\
+	echo read uisrc.TMP \; \				@@\
+	     set 'ui$$pager_mode' false \; \			@@\
+	     save loadfile all | $(UIC) ; \			@@\
+	rm -f uisrc.TMP						@@\
+								@@\
+clean::								@@\
+	$(RM) loadfile
+
+
+/*
+ * For creating .lf files from a .state (uisrc1) file, specifying
+ * the initial state, and then reading a second ui file (uisrc2).
+ * The state argument can be quoted if need be: ex. 'init-state'
+ */
+#define UILoadFileTarget_2(loadfile,uisrc1,istate,uisrc2)	@@\
+								@@\
+AllTarget(loadfile)						@@\
+								@@\
+InstallNonExec(loadfile,$(LIBDIR))				@@\
+								@@\
+loadfile: uisrc1 uisrc2						@@\
+	$(RM) loadfile						@@\
+	echo "read uisrc1 ; \
+	      set ui\$$initial_state istate ; \
+	      read uisrc2 ; \
+	      set ui\$$pager_mode false ; \
+	      save loadfile all" | $(UIC)			@@\
+								@@\
+clean::								@@\
+	$(RM) loadfile
+
+/*
  * Adds a list of object files to a library on an install target
+ * Objects are remade if newer than the library, and objects are
+ * always re-installed to the library with the FORCE target, since
+ * the library may be newer becuase of objects added from other
+ * directories, while the objects in the library from this 
+ * directory might still be out of date.  That's just one of the
+ * problems with building libraries from multiple source dirs!
+ *
+ * Note that a program install (install::) and a library
+ * install (install.lib::) are now two separate targets---neither
+ * implies the other.  This behavior is necessitated by Zeb.
+ * The developer needs to be able to install stable programs without
+ * automatically installing library objects which may not be stable.
+ * Though an object is more recent than a library, the
+ * developer may not want it installed into the library.
  */
 #define InstallObjectsIntoLibrary(library,objects)		@@\
 								@@\
-install:: library						@@\
+install.lib:: objects 						@@\
+	$(ARADD) library objects				@@\
+	$(RANLIB) library					@@\
 								@@\
-library:: objects						@@\
-	$(ARADD) $@ objects					@@\
-	$(RANLIB) $@
+
+
+#define AddObjectsToLibrary InstallObjectsIntoLibrary
 
 /*
- * Same as ComplexProgramTarget, but the program will not
+ * Same as NormalProgramTarget, but the program will not
  * be installed, nor it will be an 'all' dependency
  */
-#define TestProgramTarget(program)				@@\
-								@@\
-program: $(OBJS) $(DEPLIBS)					@@\
-	RemoveTargetProgram($@)					@@\
-	$(CC) -o $@ $(OBJS) $(LDOPTIONS) $(LOCAL_LIBRARIES) \   @@\
-	   $(LDLIBS) $(EXTRA_LOAD_FLAGS)			@@\
-								@@\
-SaberProgramTarget(program,$(SRCS),$(OBJS),$(LOCAL_LIBRARIES),/**/) @@\
-								@@\
-clean::								@@\
+#ifndef TestProgramTarget
+#define	TestProgramTarget(program,objects,deplibs,locallibs,syslibs)	@@\
+									@@\
+program: objects deplibs						@@\
+	RemoveTargetProgram($@)						@@\
+	$(CC) -o $@ objects $(LDOPTIONS) locallibs $(LDLIBS) syslibs $(EXTRA_LOAD_FLAGS) @@\
+									@@\
+SaberProgramTarget(program,program.c,objects,deplibs locallibs,syslibs) @@\
+									@@\
+clean::									@@\
 	$(RM) program
+#endif /* TestProgramTarget */
 
 
-
-/* This rule overrides the one defined in Imake.rules!!!
+/* This rule overrides the one defined in Imake.rules!!!  The CLIBS
+ * variable can be used to specify which C libraries to use, e.g.
+ * /locallib/gcc-gnulib
  * --------------------------------------------------------------------
  * SaberProgramTarget - generate rules to make Saber-C read in sources and
  * objects.
@@ -84,18 +268,235 @@ clean::								@@\
 #if HasSaberC
 #define SaberProgramTarget(program,srclist,objlist,locallibs,syslibs)	@@\
 Concat(saber_,program):: srclist					@@\
-	# setopt ansi							@@\
-	# load $(ALLDEFINES) srclist locallibs $(SYS_LIBRARIES) $(EXTRA_LIBRARIES) syslibs @@\
-	# link								@@\
+	XCOMM setopt ansi						@@\
+	XCOMM load $(ALLDEFINES) srclist locallibs $(SYS_LIBRARIES) $(EXTRA_LIBRARIES) syslibs $(CLIBS) @@\
+	XCOMM link							@@\
 									@@\
 Concat(osaber_,program):: objlist					@@\
-	# setopt ansi							@@\
-	# load $(ALLDEFINES) objlist locallibs $(SYS_LIBRARIES) $(EXTRA_LIBRARIES) syslibs @@\
-	# link
+	XCOMM setopt ansi						@@\
+	XCOMM load $(ALLDEFINES) objlist locallibs $(SYS_LIBRARIES) $(EXTRA_LIBRARIES) syslibs $(CLIBS) @@\
+	XCOMM link
 
 #else
 #define SaberProgramTarget(program,srclist,objlist,locallibs,syslibs) /**/
 #endif
 #endif
+/*
+ * Now that we've set the SaberProgramTarget that Zeb is going to use
+ * undefine HasSaberC so that we don't get the default saber: and osaber:
+ * targets from Imake.tmpl.  This is a kludge since the more correct 
+ * thing to do would be to just modify Imake.tmpl.  That may yet be done.
+ */
+#undef HasSaberC
+#define HasSaberC NO
+
+
+/*
+ * InstallShellScriptDest -- Install a shell script of the form program.shell
+ * into dest and call it 'program', giving it $(INSTPGMFLAGS)
+ * permissions
+ */
+#define InstallShellScriptDest(program,shell,dest)			@@\
+install:: program.shell							@@\
+	$(INSTALL) -c $(INSTPGMFLAGS) program.shell dest/program
+
+
+/*
+ * InstallShellScript -- performs InstallShellScriptDest using $(BINDIR)
+ * as the dest directory (as in ComplexProgramTarget)
+ */
+#define InstallShellScript(program,shell)				@@\
+InstallShellScriptDest(program,shell,$(BINDIR))
+
+
+/* This overrides the definition in Imake.rules! It adds program to all target
+ * -------------------------------------------------------------------------
+ * NormalProgramTarget - generate rules to compile and link the indicated 
+ * program; since it does not use any default object files, it may be used for
+ * multiple programs in the same Imakefile.  It ALSO adds an install target
+ * for the program.  To omit the install target, use
+ * NormalProgramTargetNoInstall() below.
+ */
+#ifndef NormalProgramTarget
+#define	NormalProgramTarget(program,objects,deplibs,locallibs,syslibs)	@@\
+AllTarget(program)							@@\
+									@@\
+program: objects deplibs						@@\
+	RemoveTargetProgram($@)						@@\
+	$(CC) -o $@ objects $(LDOPTIONS) locallibs $(LDLIBS) syslibs $(EXTRA_LOAD_FLAGS) @@\
+									@@\
+InstallProgram(program,$(BINDIR))					@@\
+									@@\
+SaberProgramTarget(program,program.c,objects,deplibs locallibs,syslibs) @@\
+									@@\
+clean::									@@\
+	$(RM) program
+#endif /* NormalProgramTarget */
+
+
+
+/*
+ * NormalProgramTargetNoInstall -- Same as NormalProgramTarget above,
+ * but an install target is not automatically generated for the target
+ * program.  Don't use this target for test programs, as the program is
+ * still included in the all:: target.  This target is for use when 
+ * a special install rule is needed, such as when installing with flags
+ * or perhaps installing to a directory other than BINDIR.  So don't 
+ * forget to include an install target for this program in the Imakefile!
+ */
+#ifndef NormalProgramTargetNoInstall
+#define	NormalProgramTargetNoInstall(program,objects,deplibs,locallibs,syslibs)	@@\
+AllTarget(program)							@@\
+									@@\
+program: objects deplibs						@@\
+	RemoveTargetProgram($@)						@@\
+	$(CC) -o $@ objects $(LDOPTIONS) locallibs $(LDLIBS) syslibs $(EXTRA_LOAD_FLAGS) @@\
+									@@\
+SaberProgramTarget(program,program.c,objects,deplibs locallibs,syslibs) @@\
+									@@\
+clean::									@@\
+	$(RM) program
+#endif /* NormalProgramTargetNoInstall */
+
+
+/*
+ * InstallProgramSetUID -- Install a program into 'dest' using
+ * the INSTUIDFLAGS variable.  If the user is not 'root', a warning
+ * is issued.
+ */
+#ifndef InstallProgramSetUID
+#define InstallProgramSetUID(program,dest)				@@\
+install:: program							@@\
+	@if [ x$$LOGNAME != xroot ]; then \				@@\
+		echo "WARNING: You should install" program "as root," ; \ @@\
+		echo "         su root and re-do 'make install'"; \ 	@@\
+	fi ; \								@@\
+	set -x; $(INSTALL) -c $(INSTUIDFLAGS) program dest
+#endif
+
+
+/*
+ * Produce a file called prog.flow containing cflow output
+ */
+#ifndef CflowTarget
+#define CflowTarget(prog,objs,locallibs)				@@\
+prog.flow:: objs							@@\
+	rm -f prog.flow							@@\
+	cflow $(ALLDEFINES) objs locallibs >prog.flow
+
+#endif
+
+
+#ifndef BuildIncludes
+#define BuildIncludes(srclist,dstsubdir,dstupdir)			@@\
+includes::								@@\
+	MakeDir($(BUILDINCDIR)/dstsubdir)				@@\
+	@(set -x; cd $(BUILDINCDIR)/dstsubdir; for i in srclist; do \	@@\
+		$(RM) $$i; \						@@\
+		$(CP) -p $(BUILDINCTOP)/dstupdir/$(CURRENT_DIR)/$$i .; \ @@\
+	done)
+#endif /* BuildIncludes */
+
+
+/*
+ * Echo distribution file lists
+ */
+#ifndef DistfilesTarget
+#define DistfilesTarget(files)						@@\
+distfiles:: files							@@\
+	@for f in files ; do \						@@\
+		echo $(CURRENT_DIR)/$$f ; \				@@\
+	done
+#endif
+
+
+/*
+ * Propagate the distfiles target to subdirectories
+ * Note that we can't use the more standard NamedTargetSubdirs() macro
+ * since that macro echoes info that would interfere with the list of files
+ * the target is generating
+ */
+#ifndef DistfilesSubdirs
+#define DistfilesSubdirs(dirs)						@@\
+distfiles::								@@\
+	@case '${MFLAGS}' in *-[ik]*) set +e;; esac; \			@@\
+	for i in dirs ;\						@@\
+	do \								@@\
+		(cd $$i ; \						@@\
+		   $(MAKE) $(MFLAGS) CURRENT_DIR=$(CURRENT_DIR)/$$i distfiles); \ @@\
+	done
+#endif
+
+
+/*
+ * InstallLibSubdirs --
+ * Propagates the install.lib target to subdirectories.
+ * PassCDebugFlags IS passed, likewise is DESTDIR as it is in InstallSubdirs()
+ */
+#ifndef InstallLibSubdirs
+#define InstallLibSubdirs(dirs)						@@\
+NamedTargetSubdirs(install.lib,dirs,"installing libraries",\
+		   PassCDebugFlags DESTDIR='$(DESTDIR)',install.lib)
+#endif /* InstallLibSubdirs */
+
+
+/*
+ * This is just to add the familiar mf target as a Makefile: alias,
+ * and to add blanks for certain targets in case 
+ * the Imakefile does not include them
+ */
+#ifndef MakefileAdditions
+#define MakefileAdditions()						@@\
+mf: Makefile								@@\
+									@@\
+distfiles::								@@\
+									@@\
+depend::								@@\
+									@@\
+install.lib::								@@\
+
+#endif
+
+
+/*
+ * This is almost a direct copy from Imake.rules, except for passing
+ * the MFLAGS variable along with the MAKE command.  This is so that
+ * the value of MAKE can be passed by setting MFLAGS at the command-line
+ * like so:
+ * <make program> MFLAGS='MAKE=<make program>'
+ */
+/*
+ * MakeMakeSubdirs - generate rules to recursively recreate Makefiles as part
+ * of the specified step in the build.  If $(TOP) is set to an absolute path, 
+ * do not prepend the ../ prefix.  This makes running things outside of the 
+ * source tree to be much easier.
+ */
+#ifndef MakeMakeSubdirs
+#define MakeMakeSubdirs(dirs,target)					@@\
+target::								@@\
+	@case '${MFLAGS}' in *-[ik]*) set +e;; esac; \			@@\
+	for i in dirs ;\						@@\
+	do \								@@\
+		echo "making Makefiles in $(CURRENT_DIR)/$$i..."; \	@@\
+		case "$$i" in \						@@\
+		./?*/?*/?*/?*) newtop=../../../../ sub=subsubsubsub;; \	@@\
+		./?*/?*/?*) newtop=../../../ sub=subsubsub;; \		@@\
+		./?*/?*)    newtop=../../ sub=subsub;; \		@@\
+		./?*)       newtop=../ sub=sub;; \			@@\
+		*/?*/?*/?*)    newtop=../../../../ sub=subsubsubsub;; \	@@\
+		*/?*/?*)    newtop=../../../ sub=subsubsub;; \		@@\
+		*/?*)       newtop=../../ sub=subsub;; \		@@\
+		*)	    newtop=../ sub=sub;; \			@@\
+		esac; \							@@\
+		case "$(TOP)" in \					@@\
+		/?*) newtop=  upprefix=  ;; \				@@\
+		*) upprefix=../ ;; \					@@\
+		esac; \							@@\
+		$(MAKE) $(MFLAGS) $${sub}dirMakefiles \			@@\
+		   UPPREFIX=$$upprefix NEWTOP=$$newtop \		@@\
+		   MAKEFILE_SUBDIR=$$i NEW_CURRENT_DIR=$(CURRENT_DIR)/$$i;\ @@\
+	done
+#endif /* MakeMakeSubdirs */
+
 
 
