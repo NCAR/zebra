@@ -1,5 +1,5 @@
 /* 1/87 jc */
-/* $Id: ui_expr.c,v 1.10 1998-02-26 21:18:32 burghart Exp $ */
+/* $Id: ui_expr.c,v 1.11 1998-02-27 14:43:39 burghart Exp $ */
 /*
  * Expression handling.
  */
@@ -378,8 +378,7 @@ char *string;
 
 
 void
-ue_qstring_snarf (quote, string)
-char quote, *string;
+ue_qstring_snarf (char quote, char *string)
 /*
  * Grab up a quoted string.
  */
