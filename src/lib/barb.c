@@ -26,7 +26,7 @@
 # include "defs.h"
 # include "draw.h"
 
-RCSID ("$Id: barb.c,v 1.10 1997-07-01 01:06:28 granger Exp $")
+RCSID ("$Id: barb.c,v 1.11 1997-10-23 15:35:53 burghart Exp $")
 
 # define ARROWANG .2618 /* PI/12 */
 #define DX(len,ang)	((double)len) * cos((double)(ang))
@@ -52,7 +52,7 @@ int	doKnots;
 	int x1,y1,x2,y2;
 	XPoint	coord[5];
 	int	flaglen = shaftlen / 3;
-	float	shaftstep = shaftlen / 10;
+	float	shaftstep = shaftlen / 6;
 	int	quadrant;
 	int	dxsign = 0, dysign = 0;
 	double flagangle = 0.0;
