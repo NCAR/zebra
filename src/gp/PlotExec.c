@@ -1,7 +1,7 @@
 /*
  * Plot execution module
  */
-static char *rcsid = "$Id: PlotExec.c,v 1.20 1991-04-11 23:00:07 corbet Exp $";
+static char *rcsid = "$Id: PlotExec.c,v 1.21 1991-04-12 21:52:57 kris Exp $";
 
 # include <X11/Intrinsic.h>
 # include <ui.h>
@@ -198,11 +198,12 @@ char	*component;
  * Global or update plot?
  */
 	if ((global = strcmp (component, "global") == 0) &&
-		PlotMode == RealTime)
+		(PlotMode == RealTime))
 	/*
 	 * Semi-kludge: roll back the plot time to the last trigger incr.
 	 */
 		px_FixPlotTime (&cachetime);
+	else cachetime = PlotTime;
 /*
  * Three possibilities:
  *
@@ -421,6 +422,7 @@ time *t;
 		seconds -= seconds % itrigger;
 		t->ds_hhmmss = (seconds/3600)*10000 + ((seconds/60) % 60)*100 +
 					seconds % 60;
+		t->ds_yymmdd = PlotTime.ds_yymmdd;
 		return;
 	}
 /*
