@@ -39,7 +39,7 @@
 # include "message.h"
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.21 1994-05-21 07:21:11 granger Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.22 1994-07-15 15:23:06 corbet Exp $")
 /*
  * Symbol tables.
  */
@@ -1916,6 +1916,7 @@ psig ()
  * the dead process will be noted later.
  */
 {
+	signal (SIGPIPE, (void *) psig);
 	S_npipe++;
 }
 
