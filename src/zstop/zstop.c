@@ -1,7 +1,7 @@
 /*
  * Message server zapper.
  */
-static char *rcsid = "$Id: zstop.c,v 1.2 1994-12-03 06:50:00 granger Exp $";
+static char *rcsid = "$Id: zstop.c,v 1.3 1995-02-23 18:35:26 sobol Exp $";
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -57,7 +57,8 @@ char **argv;
 
 
 int
-handler (Message *msg)
+handler (msg)
+Message *msg;
 {
 	struct mh_template *tm = (struct mh_template *) msg->m_data;
 
