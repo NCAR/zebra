@@ -1,5 +1,5 @@
 /* -*- mode: c++; c-basic-offset: 8; -*-
- * $Id: glass_ingest.cxx,v 2.17 2002-10-15 18:20:32 granger Exp $
+ * $Id: glass_ingest.cxx,v 2.18 2002-10-21 23:14:14 granger Exp $
  *
  * Ingest GLASS data into the system.
  *
@@ -57,11 +57,17 @@
 #include <stdio.h>
 #include <math.h>
 #include <string>
-#include <iostream.h>
-#include <fstream.h>
-#include <strstream.h>
 
-// using std::string;
+#include <iostream>
+#include <fstream>
+#include <sstream>
+
+using std::string;
+using std::ostream;
+using std::istream;
+using std::cout;
+using std::cerr;
+using std::endl;
 
 #include <ctype.h>
 #include <defs.h>
@@ -74,7 +80,7 @@ extern "C"
 #include <met_formulas.h>
 }
 
-RCSID("$Id: glass_ingest.cxx,v 2.17 2002-10-15 18:20:32 granger Exp $")
+RCSID("$Id: glass_ingest.cxx,v 2.18 2002-10-21 23:14:14 granger Exp $")
 
 #include <ZTime.h>
 #define FC_DEFINE_FIELDS
@@ -917,7 +923,7 @@ trim (string &s)
 static void
 ReadHeader (DataChunk *dc, char *file, Sounding &snd)
 {
-	ifstream fin (file);
+	std::ifstream fin (file);
 	if (! fin)
 	{
 		throw LibraryException (file);
@@ -1151,7 +1157,7 @@ static void
 ReadSamples (DataChunk *dc, char *file, Sounding &snd)
 {
 	ClassFileRecord cfinput;
-	ifstream fin (file);
+	std::ifstream fin (file);
 	if (! fin)
 	{
 		throw LibraryException (file);
@@ -1177,7 +1183,7 @@ ReadSamples (DataChunk *dc, char *file, Sounding &snd)
 	while (getline (fin, line))
 	{
 		++lino;
-		istrstream ss(line.c_str());
+		std::istringstream ss(line.c_str());
 		try {
 			ReadRecord rr(ss);
 			if (SoundingType == Sounding::GLASS)
