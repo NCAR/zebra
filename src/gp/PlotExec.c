@@ -1,7 +1,7 @@
 /*
  * Plot execution module
  */
-static char *rcsid = "$Id: PlotExec.c,v 1.2 1990-11-14 10:45:11 burghart Exp $";
+static char *rcsid = "$Id: PlotExec.c,v 1.3 1990-11-15 14:19:19 burghart Exp $";
 
 # include <X11/Intrinsic.h>
 # include <ui.h>
@@ -102,7 +102,6 @@ typedef enum {LineContour, FilledContour} contour_type;
 	void	px_CAPContour (char *, contour_type, char *, float *, float *);
 	void	px_AdjustCoords (float *, float *, float *, float *);
 	void	px_FixPlotTime ();
-	Boolean	px_GetParam (char *, char *, char *, char *, int);
 # else
 	float	*px_GetGrid ();
 	int	px_NameToNumber ();
@@ -111,7 +110,6 @@ typedef enum {LineContour, FilledContour} contour_type;
 	void	px_CAPVector (), px_CAPRaster (), px_CAPLineContour ();
 	void	px_CAPContour (), px_AdjustCoords ();
 	void	px_FixPlotTime ();
-	Boolean	px_GetParam ();
 # endif
 
 /*
@@ -1391,23 +1389,5 @@ char *comp, *fld;
 	if (pda_Search (Pd, comp, "desc", fld, ret, SYMT_STRING))
 		return (ret);
 	return (fld);
-}
-
-
-
-
-Boolean
-px_GetParam (comp, param, qual, val, type)
-char	*comp, *param, *qual, *val;
-int	type;
-{
-	Boolean	success;
-
-	if (! (success = pda_Search (Pd, comp, param, qual, val, type)))
-		msg_ELog (EF_PROBLEM,
-			"Missing '%s/%s%s%s' parameter in plot description!", 
-			comp, (qual ? qual : ""), (qual ? "-" : ""), param);
-
-	return (success);
 }
                                                                                  
