@@ -20,7 +20,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: ac_status.c,v 1.5 1991-09-26 18:22:14 gracio Exp $";
+static char *rcsid = "$Id: ac_status.c,v 1.6 1991-11-14 19:17:32 kris Exp $";
 
 # include <copyright.h>
 # include <X11/X.h>
@@ -100,18 +100,20 @@ char	**argv;
 {
 	SValue	v;
 	int	i;
+	char	loadfile[100];
 
 	msg_connect (MsgDispatcher, "Ac_Status");
 
 	msg_ELog (EF_DEBUG, "Ac_Status begins...");
+	fixdir ("ACSLOADFILE", LIBDIR, "ac_status.lf", loadfile);
 	if (argc > 1)
 	{
-		ui_init (strcat(LIBDIR, "/ac_status.lf"), FALSE, TRUE);
+		ui_init (loadfile, FALSE, TRUE);
 		v.us_v_ptr = argv[1];
 		usy_s_symbol (usy_g_stbl ("ui$variable_table"), "commandfile",
 			SYMT_STRING, &v);
 	}
-	else ui_init (strcat(LIBDIR, "/ac_status.lf"), TRUE, FALSE);
+	else ui_init (loadfile, TRUE, FALSE);
 	ui_setup ("acstatus", &argc, argv, NULL);
 
 	ds_Initialize ();	
