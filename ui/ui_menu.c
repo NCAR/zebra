@@ -1,5 +1,5 @@
 /* 12/87 jc */
-/* $Id: ui_menu.c,v 1.2 1989-04-05 14:34:00 corbet Exp $ */
+/* $Id: ui_menu.c,v 1.3 1989-09-25 14:52:15 corbet Exp $ */
 /*
  * Menuing functions are handled here.
  */
@@ -55,7 +55,8 @@ um_init ()
  */
 {
 /*
- * All we need to do is to get going with a clean symbol table.
+ * All we need to do is to get going with a clean symbol table, and a few
+ * indirect variables.
  */
  	if (Menu_table)
 		usy_z_stbl (Menu_table);
@@ -82,7 +83,9 @@ char *name;
 {
 	union usy_value v;
 	int type;
-
+/*
+ * Find this menu in our symbol table.
+ */
  	if (! usy_g_symbol (Menu_table, name, &type, &v))
 		return ((struct menu *) 0);
 /*
@@ -485,7 +488,7 @@ struct ui_command *cmds;
  * Menu mode when running in batch makes absolutely no sense whatsoever.
  */
  	if (! ut_interactive ())
-		ui_error ("Menus in batch mode are ridiculous");
+		ui_error ("Menus in batch mode are ridiculous!");
 /*
  * Look into what menu we want to start with.  We insist that (1) such a
  * menu be provided, or (2) there be something on the stack, or (finally)
