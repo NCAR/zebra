@@ -1,7 +1,7 @@
 /*
  * Rubber-band interactive drawing routines.
  */
-static char *rcsid = "$Id: RBand.c,v 2.4 1991-12-07 18:03:00 kris Exp $";
+static char *rcsid = "$Id: RBand.c,v 2.5 1992-03-26 20:15:00 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -42,6 +42,8 @@ typedef enum
 	RBTBox,
 	RBTLine,
 	RBTPolyLine,
+	RBTOutline,
+	RBTPoint,
 # ifdef notdef		/* not handled yet */
 	RBTCircle,
 	RBTEllipse,
@@ -76,6 +78,18 @@ static enum pmode OldPlotMode;		/* Save plot mode		*/
 "Boundary drawing:  LEFT = enter, MIDDLE = delete, RIGHT = done"
 
 /*
+ * Outline drawing has some additional parameters.
+ */
+#define MaxOutline	100
+XPoint		OL[MaxOutline];
+int		N_OLSeg;
+
+/*
+ * Point picking variables.
+ */
+XPoint		Point;
+
+/*
  * Forwards
  */
 static int rb_MakeGC FP((void));
@@ -96,6 +110,18 @@ static void rb_PLAbort FP((Widget, XtPointer, XtPointer));
 static void rb_PLConvert FP((void));
 static void rb_PLDrawBoundary FP((void));
 
+void rb_Outline FP ((void));
+void rb_Done FP((void));
+static void rb_OLButtonDown FP((XEvent *, char *));
+static void rb_OLStart FP((XEvent *));
+static void rb_OLDelete FP((void));
+static void rb_OLButtonUp FP((XEvent *));
+static void rb_OLDrawBoundary FP((void));
+
+void rb_Point FP ((void));
+static void rb_PointButtonDown FP((XEvent *, char *));
+static void rb_DrawPoint FP((void));
+static void rb_PointButtonUp FP((XEvent *));
 
 
 void
@@ -244,6 +270,7 @@ rb_Draw ()
 		break;
 
 	    case RBTLine:
+	    case RBTOutline:
 	    case RBTPolyLine:
 	    /*
 	     * Draw the line
@@ -251,7 +278,10 @@ rb_Draw ()
 		XDrawLine (Disp, XtWindow (Graphics), RBandGC, RBandX0,
 			RBandY0, RBandX, RBandY);
 		break;
-
+	    case RBTPoint:
+		XDrawPoint (Disp, XtWindow (Graphics), RBandGC, RBandX0,
+			RBandY0);
+		break;
 	    default:
 		msg_ELog (EF_PROBLEM, "Cannot draw rubber band of type %d",
 			RBandType);
@@ -789,3 +819,353 @@ rb_PLConvert ()
 	free (dobj.do_aloc);
 	free (dobj.do_times);
 }
+
+
+
+
+
+/*
+ * Outline drawing.  Similar to Polyline, but different.  Used by
+ * the Data Insertion Widget.
+ */
+void
+rb_Outline ()
+/*
+ * Start off an outline.
+ */
+{
+	char color[40];
+	XColor xc;
+/*
+ * Remember our old plot mode, and move to history.  Cancel timer and
+ * notification events.
+ */
+	OldPlotMode = PlotMode;
+	PlotMode = History;
+	tl_AllCancel ();
+	ds_CancelNotify ();
+/*
+ * Initialize everything.
+ */
+	N_OLSeg = 0;
+	Ue_Override (rb_OLButtonDown, rb_OLButtonUp, rb_Motion);
+	if (! RBandGC)
+		rb_MakeGC ();
+	if (! RBandCursor)
+		RBandCursor = XCreateFontCursor (Disp, XC_center_ptr);
+	RBandType = RBTOutline;
+	XDefineCursor (Disp, XtWindow (Graphics), RBandCursor);
+/*
+ * Figure out the color to use when we draw in the segments.
+ */
+	if (! pda_Search (Pd, "global", "outline-color", NULL, color, 
+			SYMT_STRING));
+		strcpy (color, "white");
+	if (ct_GetColorByName (color, &xc))
+		XSetForeground (Disp, Gcontext, xc.pixel);
+	else
+		msg_ELog (EF_PROBLEM, "Unknown outline color '%s'", color);
+/*
+ * Set up an end of plot handler to redraw the boundary.
+ */
+	px_SetEOPHandler (rb_OLDrawBoundary);
+}
+
+
+
+
+
+static void
+rb_OLButtonDown (event, name)
+XEvent *event;
+char *name;
+/*
+ * Deal with a button down event while we are dealing in outlines.
+ */
+{
+/*
+ * If we are actually drawing a line now, we take this as a desire to
+ * abort this particular line.
+ */
+	if (RBandActive)
+	{
+		rb_Draw ();
+		RBandActive = FALSE;
+		Eq_ReleaseHold ();
+		msg_ELog (EF_DEBUG, "Outline abort");
+		return;
+	}
+/*
+ * Otherwise they want to do something.  Let's see what it is.
+ */
+	if (! strcmp (name, "mb-left"))
+		rb_OLStart (event);
+	else if (! strcmp (name, "mb-middle"))
+		rb_OLDelete ();
+	else if (! strcmp (name, "mb-right"))
+		rb_Done ();
+	else
+		msg_ELog (EF_INFO, "Unknown button event '%s' in OL", name);
+}
+
+
+
+
+
+
+static void
+rb_OLStart (event)
+XEvent *event;
+/*
+ * We are starting a segment of the outline.
+ */
+{
+	XButtonEvent *button = (XButtonEvent *) event;
+/*
+ * Here is where we check for overflow.
+ */
+	if ((N_OLSeg + 1) >= MaxOutline)
+	{
+		msg_ELog (EF_PROBLEM, "Max outline points (%d) exceeded",
+				MaxOutline);
+		return;
+	}
+/*
+ * If this is the first segment, we store the current location in the
+ * outline array and move away a bit.
+ */
+	if (N_OLSeg == 0)
+	{
+		RBandX0 = OL[0].x = button->x;
+		RBandY0 = OL[0].y = button->y;
+		XWarpPointer (Disp, None, None, 0, 0, 0, 0, 30, 30);
+		RBandX = RBandX0 + 30;
+		RBandY = RBandY0 + 30;
+	}
+/*
+ * Otherwise we anchor the line at the last point.
+ */
+	else
+	{
+		RBandX0 = OL[N_OLSeg].x;
+		RBandY0 = OL[N_OLSeg].y;
+		RBandX = button->x;
+		RBandY = button->y;
+	}
+/*
+ * Draw this segment.
+ */
+	rb_Draw ();
+	Eq_HoldProcess ();
+	eq_sync ();
+	RBandActive = TRUE;
+}
+
+
+
+
+
+static void
+rb_OLDelete ()
+/*
+ * Delete a point from the outline.
+ */
+{
+	int seg;
+/*
+ * If there are no points, there are none to return.
+ */
+	if (N_OLSeg <= 0)
+		return;
+	N_OLSeg--;
+/*
+ * Redraw the frame, then redraw the outline on top of it.
+ */
+	GWDisplayFrame (Graphics, DisplayFrame);
+	rb_OLDrawBoundary ();
+}
+
+
+
+static void
+rb_OLDrawBoundary ()
+/*
+ * Draw the current boundary on the screen.
+ */
+{
+	if (N_OLSeg > 0)
+		XDrawLines (Disp, XtWindow (Graphics), Gcontext, OL,
+				N_OLSeg + 1, CoordModeOrigin);
+}
+
+
+
+
+static void
+rb_OLButtonUp (event)
+XEvent *event;
+/*
+ * The button has come up during outline drawing.
+ */
+{
+	XButtonEvent *button = (XButtonEvent *) event;
+/*
+ * If there is no outline active, we do nothing.  This can happen when
+ * the user asks to delete a point.
+ */
+	if (! RBandActive)
+		return;
+/*
+ * Remove the rubberband line.
+ */
+	rb_Draw ();
+/*
+ * Now store the new endpoints and draw the segment "permanently".
+ */
+	N_OLSeg++;
+	OL[N_OLSeg].x = button->x;
+	OL[N_OLSeg].y = button->y;
+	XDrawLine (Disp, XtWindow (Graphics), Gcontext, OL[N_OLSeg - 1].x,
+		OL[N_OLSeg - 1].y, button->x, button->y);
+	RBandActive = FALSE;
+	
+	Eq_ReleaseHold ();
+}
+
+
+
+
+
+/*
+ * Point picking.  Used by the Data Insertion Widget.
+ */
+void
+rb_Point ()
+/*
+ * Start off a point.
+ */
+{
+	char color[40];
+	XColor xc;
+/*
+ * Remember our old plot mode, and move to history.  Cancel timer and
+ * notification events.
+ */
+	OldPlotMode = PlotMode;
+	PlotMode = History;
+	tl_AllCancel ();
+	ds_CancelNotify ();
+/*
+ * Initialize everything.
+ */
+	Ue_Override (rb_PointButtonDown, rb_PointButtonUp, rb_Motion);
+	if (! RBandGC)
+		rb_MakeGC ();
+	if (! RBandCursor)
+		RBandCursor = XCreateFontCursor (Disp, XC_center_ptr);
+	RBandType = RBTPoint;
+	XDefineCursor (Disp, XtWindow (Graphics), RBandCursor);
+/*
+ * Figure out the color to use when we draw in the point.
+ */
+	if (! pda_Search (Pd, "global", "point-color", NULL, color, 
+			SYMT_STRING));
+		strcpy (color, "white");
+	if (ct_GetColorByName (color, &xc))
+		XSetForeground (Disp, Gcontext, xc.pixel);
+	else
+		msg_ELog (EF_PROBLEM, "Unknown point color '%s'", color);
+/*
+ * Set up an end of plot handler to redraw the boundary.
+ */
+	px_SetEOPHandler (rb_DrawPoint);
+}
+
+
+
+
+
+static void
+rb_PointButtonDown (event, name)
+XEvent *event;
+char *name;
+/*
+ * Deal with a button down event while we are dealing in points.
+ */
+{
+/*
+ * Which button.
+ */
+	if (! strcmp (name, "mb-left") || ! strcmp (name, "mb-middle"))
+	{
+		Eq_HoldProcess ();
+		eq_sync ();
+		RBandActive = TRUE;
+	}
+	else if (! strcmp (name, "mb-right"))
+		rb_Done ();
+	else
+		msg_ELog (EF_INFO, "Unknown button event '%s'", name);
+}
+
+
+
+
+
+static void
+rb_DrawPoint ()
+/*
+ * Draw the current point on the screen.
+ */
+{
+	XDrawPoint (Disp, XtWindow (Graphics), RBandGC, RBandX0, RBandY0);
+}
+
+
+
+
+static void
+rb_PointButtonUp (event)
+XEvent *event;
+/*
+ * The button has come up, this is the point.
+ */
+{
+	XButtonEvent *button = (XButtonEvent *) event;
+/*
+ * Save the point.
+ */
+	RBandX0 = Point.x = button->x;
+	RBandY0 = Point.y = button->y;
+/*
+ * Draw it.
+ */
+	rb_Draw ();
+	RBandActive = FALSE;
+	Eq_ReleaseHold ();
+}
+
+
+
+
+void
+rb_Done ()
+/*
+ * All finished with whatever we were doing.
+ */
+{
+/*
+ * Reset everything and allow the world to continue.
+ */
+	Ue_ResetOverride ();
+	px_ClearEOPHandler ();
+	XDefineCursor (Disp, XtWindow (Graphics), NormalCursor);
+/*
+ * Go back to the old plot mode.
+ */
+	PlotMode = OldPlotMode;
+# ifdef notdef
+	pc_PlotHandler ();
+# endif
+}
+
