@@ -1,0 +1,118 @@
+!
+! ISS RASS module
+!
+
+require xytrace
+
+define widget iss-global-rass intmenu 'Global middle menu'
+        title 'Time-Height Rass'
+        line
+        entry 'Adjust Time Span...' 'i_adjust_global xy-series-span'
+        entry 'Set Tic Interval...' \
+                'adjust_tic_interval adj-axis-side time'
+        submenu 'Adjust Vertical Scale' rass-adjust-height
+endmenu
+
+
+procedure adjust_tic_interval sideParam string type string
+	local side pd_paramsearch(icon_component,sideParam,"xy","string")
+	local param concat(concat("axis-",side),"-tic-interval")
+	if ( icon_component = "global" )
+	     local param concat("xy-",param)
+	endif
+	local tint pd_paramsearch(icon_component,param,"xy","string")
+	if ( type = "time" )
+            activate singlestring #icon_component #param  "Tic Interval: " #tint
+	elseif ( type = "float" )
+            activate singlefloat #icon_component #param  "Tic Interval: " #tint
+	endif
+endprocedure
+
+
+define widget rass-adjust-height intmenu 'Adjust Vertical Submenu'
+        title 'Scale Height'
+        line
+        entry '0- 1000 m/agl' 'adjust_height_scale set 0.0 1000.0'
+        entry '0- 2000 m/agl' 'adjust_height_scale set 0.0 2000.0'
+        entry '0- 3000 m/agl' 'adjust_height_scale set 0.0 3000.0'
+        entry '0- 4000 m/agl' 'adjust_height_scale set 0.0 4000.0'
+        entry '0- 5000 m/agl' 'adjust_height_scale set 0.0 5000.0'
+        entry '0- 6000 m/agl' 'adjust_height_scale set 0.0 6000.0'
+        entry '0- 7000 m/agl' 'adjust_height_scale set 0.0 7000.0'
+        entry '0- 8000 m/agl' 'adjust_height_scale set 0.0 8000.0'
+        entry '0- 9000 m/agl' 'adjust_height_scale set 0.0 9000.0'
+        entry '0-10000 m/agl' 'adjust_height_scale set 0.0 10000.0'
+        entry '0-15000 m/agl' 'adjust_height_scale set 0.0 15000.0'
+        entry '0-20000 m/agl' 'adjust_height_scale set 0.0 20000.0'
+        entry 'Manual Adjust...' 'adjust_height_scale get global m/agl'
+endmenu
+
+procedure adjust_height_scale how string proc1 string proc2 string
+!        local alt pd_paramsearch(icon_component, "iss-site-alt", "", "float")
+        if (how = "set")
+            parameter global height-scale-y-min #proc1
+            parameter global height-scale-y-max #proc2
+        else
+            local min pd_param("global", "height-scale-y-min", "string")
+            local max pd_param("global", "height-scale-y-max", "string")
+            activate doublefloat "global" "height-scale-y-min" "Y Min: " #min \
+                "height-scale-y-max" "Y Max: " #max
+        endif
+        local min pd_param("global", "height-scale-y-min", "float")
+        local max pd_param("global", "height-scale-y-max", "float")
+        local minO string((alt) + (min / 1000))
+        local maxO string((alt) + (max / 1000))
+        parameter global alt-scale-y-min #minO
+        parameter global alt-scale-y-max #maxO
+endprocedure
+
+
+define widget xyobs-right intmenu 'x'
+	title 'XYGraph options'
+	line
+	entry 'Platforms & colors...' 'popup xytrace-plats-n-colors'
+	entry 'Other details...' 'popup xytrace-details'
+        entry 'Adjust Observation Scale...' 'adjust_obs_scale'
+	line
+	
+endmenu
+
+define widget xyobs-left intmenu 'x'
+        title 'Overlay Operations'
+	line
+	entry 'Adjust Limits' 'i_adjust limit-proc'
+        line
+        entry 'Raise to top' 'move #icon_component 0'
+        entry 'Move to bottom' 'move #icon_component 1'
+        entry 'Disable/reenable' 'ToggleBoolean "disable"' \
+                (PDParam(icon_component,"disable") = "true")
+        entry 'Remove' 'i_remove_component'
+	line
+	entry 'Platform(s) & color(s)...' 'popup xytrace-plats-n-colors'
+	entry 'Other details...' 'popup xytrace-details'
+        entry 'Adjust Observation Scale...' 'adjust_obs_scale'
+	line
+	
+endmenu
+
+
+define widget my-xy-obs intmenu 'My Generic field-alt profile'
+        title 'XY Observation'
+        line
+        entry 'Line' 'adjust_representation_style line'  (pd_param(icon_component,"representation-style","string") = "line")
+        entry 'Point' 'adjust_representation_style point'  (pd_param(icon_component,"representation-style","string") = "point")
+        entry 'X Mark' 'adjust_representation_style xmark'  (pd_param(icon_component,"representation-style","string") = "xmark")
+        entry 'Cross' 'adjust_representation_style cross'  (pd_param(icon_component,"representation-style","string") = "cross")
+        line
+        entry 'Adjust Observation Scale...' 'adjust_obs_scale'
+        entry 'Grids on/off' 'toggle_grid adj-axis-side'
+        line
+        submenu 'Select Color' select-field-color
+endmenu
+
+procedure adjust_obs_scale
+        local scale pd_paramsearch(icon_component,"z-scale","xy-obs","string")
+        activate singlefloat #icon_component "z-scale" \
+                "Observation scale: " #scale
+endprocedure
+
