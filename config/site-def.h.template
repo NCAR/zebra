@@ -1,8 +1,105 @@
 /*
- * Site-specific configuration options.  Edit as needed.  Consult the 
- * RDSS Libraries Package Installation Manual for more information.
+ * RDSS Libraries configuration parameters.  Edit as needed.  Consult the
+ * RDSS RDSS Libraries Package Installation Manual for more information.
+ *
+ * -------------------------------
+ * In this file you can override any of the default configuration
+ * parameters.  All of the parameters are definition directives for
+ * the C pre-processor, of the form:
+
+#define Symbol <definition>
+
+ * To set a symbol to True or Yes or On, use
+
+#define Symbol YES
+  
+ * To turn a parameter off or disable an option, use
+
+#define Symbol NO
+
+ * Some symbols are not YES or NO but actually directory names or
+ * commands.  If a Symbol is not defined in this file, it will be 
+ * assigned a default definition in the Libraries template file, Project.tmpl, 
+ * in this directory.  Most of the defaults are mentioned in this
+ * file and there are instructions for how to change many of the
+ * configuration parameters.  However, many more parameters exist.
+ * If you think it necessary to change some other parameters, such
+ * as when porting to a new platform, look in the Project.tmpl file 
+ * for all of the available parameters and their defaults.  When in doubt 
+ * try the default first and then adjust it if it doesn't work.
+ * 
  */
 
+/*============================== Don't change anything in this section ==*/
+/*///////////////////////////////////////////////////////////////////////*/
+
+# ifdef MAKING_MAKEFILE
+/**/# -----------------------------------------------------------------------
+/**/# Definitions from config.h included here.  The definitions here override
+/**/# the defaults in Project.tmpl.  
+/**/# $Id: site-def.h.template,v 1.13 1993-05-12 14:58:38 case Exp $
+/**/# -----------------------------------------------------------------------
+# endif
+
+# ifndef YES
+#	define YES 1
+# endif
+# ifndef NO
+#	define NO 0
+# endif
+
+/*///////////////////////////////////////////////////////////////////////*/
+/*=======================================================================*/
+
+
+/*=======================================================================
+ * CHECK THE FOLLOWING DEFINITIONS:
+ *
+ * This section defines the directories in which RDSS Libraries files live.
+ * These are set-up for the default Libraries installation, in which the
+ * top directory (RDSSHome) for the Libraries is /rdss, and the bin, lib and
+ * include directories are /rdss/bin, /rdss/lib and /rdss/include.  If you 
+ * would like to change these, edit the lines below.
+ * 
+ * PLEASE NOTE:
+ * Files will be installed into RDSSLibDir, RDSSBinDir and RDSSIncludeDir
+ * directories.  If you wish to preserve files already stored in these
+ * directories, either move the directories BEFORE building the Libraries or 
+ * specify different directory paths for the symbols below.  If you wish to
+ * overwrite a previous version, you might as well completely erase the
+ * contents of RDSSBinDir so that programs which are no longer used are not
+ * left taking up space.
+ *
+ */
+
+# ifdef MAKING_MAKEFILE	 	
+
+# define RDSSHome	/rdss	
+# define RDSSIncDir     RDSSHome/include
+# define RDSSLibDir	RDSSHome/lib
+# define RDSSBinDir	RDSSHome/bin
+
+# endif /* MAKING_MAKEFILE */
+
+
+
+
+/*========================================================================
+ * WINDOWING OPTIONS
+ * -------------------
+ *
+ * In the following section, you can override any of the configuration
+ * defaults.  In general, here you choose whether you want to compile with
+ * MIT's X Windows, Sun's OpenWindows or Sunview.
+ *
+ * By default, the configuration will link with MIT X11 X libraries in
+ * standard library directories.  You can link with MIT's X and still use
+ * most software under OpenWindows, and vice versa.  The Libraries must know 
+ * if it is being linked with OpenWindows, however, because the build must
+ * adjustments in order to link properly.  
+ *
+ */
+# ifdef MAKING_MAKEFILE
 
 /*
  * If you don't have the MIT X11 distribution, set UseXWindows to No.
@@ -12,86 +109,63 @@
  * Edit XInclude only if your X11 include directory is not in /usr/include.
  * Since /usr/include is automatically searched during the compile process,
  * XInclude is left blank here on purpose.  If you must edit this path,
- * insert a -I before the path name.   
+ * insert a -I before the path name.
  *
- *    Example: 
- *        Your X11 include directory is in: /usr/local/include.   
- *        Edit "define XInclude" to read:
- *        #       define XInclude -I/usr/local/include
+ *    Example:
+ *        Your X11 include directory is in: /usr/local/include.
+ *        Edit "define XIncludes" to read:
+ *        #       define XIncludes -I/usr/local/include
  *
- * You must have MIT X11, OpenWindows or Sunview to get windows support.
- * However, some programs (notably Zeb) do not support Sunview and
- * require either MIT X11 or OpenWindows 3.0 or higher.  Be sure to
- * check the installation manual for accompanying software to determine
- * its requirements.
+ * Either UseXWindows or UseOpenWin should be set to yes to get X windows
+ * support; however, OpenWindows 3.0 or higher is required by some programs
+ * (notably Zeb) to get full windows support.  If you have an earlier
+ * OpenWindows version, set #define OldOpenWin to yes below.
  *
- */ 
- 
-# define UseXWindows Yes
+ * For Zeb users:  to compile Zeb exclusively with OpenWindows, you
+ * must have OpenWindows 3.0, and RDSS must be compiled with
+ * UseOpenWindows defined as Yes and OldOpenWin defined as No.
+ */
+
+# define UseXWindows YES 
 
 # if UseXWindows
-#	define XLibrary -lX11
-#	define XLibraries /usr/lib
-#	define XInclude 
+#       define XLibrary -lX11
+#       define XLibDir /usr/lib 
+#       define XIncDir 
 # endif
 
-
 /*
- * If your release of X is MIT X11 Release 3 or older, set this to Yes. 
+ * If your release of X is MIT X11 Release 3 or older, set this to Yes.
  */
-# define OldX11 No
+# define OldX11 NO
 
 /*
- * If you primarily use OpenWindows, set UseOpenWin to Yes.
+ * If you use OpenWindows, set UseOpenWin to Yes.
  *
  * If your version of OpenWindows is older than OpenWindows 3.0, set
  * OldOpenWin to Yes.
- *
- * For Zeb users:  to compile Zeb exclusively with OpenWindows, you
- * must have OpenWindows 3.0 or higher, and RDSS must be compiled with
- * UseOpenWin defined as Yes and OldOpenWin defined as No.
  */
-# define UseOpenWin No
-# define OldOpenWin No
+# define UseOpenWindows NO 
+# define OldOpenWin     NO 
 
 /*
  * You can change the location of OpenWindow's home directory here:
  */
 # define OpenWinHome /usr/openwin
 
-
 /*
  * If you wish to use Sunview, set this to Yes and
- * edit the graphdev.h file.
+ * edit the graphdev.h file.  Please note that some software may not
+ * support Sunview; check the respective installation manuals for
+ * details.  In all cases, however, either MIT X11 or OpenWindows3.0 or
+ * higher is the recommended windowing system.
  */
-# define UseSunview No
+# define UseSunview NO 
 
 
-/*
- * If you have the netCDF package and want to use it, some software
- * (i.e. robot and suds) can take advantage of it.  Set this to Yes 
- * and edit NetCDF_DESTDIR with the name of the top level directory
- * containing the lib/netcdf libraries and include/netcdf.h files,
- * usually /usr/local.
- *
- * Note that Zeb requires NetCDF, so edit these if you will be installing
- * Zeb.
- * 
- */
-# define UseNetCDF No
-
-# if UseNetCDF
-#	define NetCDF_DESTDIR /usr/local
-# endif
-
-
-/*
- * If you have Makedepend (normally included with the MIT X11 distribution),
- * set this to Yes.
- */
-# define HaveMakeDepend No
-
-/*
+/*========================================================================
+ * COMPILATION OPTIONS
+ * -------------------
  *
  * Decide on a compiler.  Choices are:
  *     gcc - GNU C Compiler
@@ -103,65 +177,141 @@
  *
  */
 
-# define UseGcc No
+# define UseGcc NO
 
 # define CCompiler cc
 
-
 /*
- * Libraries needed to link Fortran code with the C compiler.  Be sure
- * to check your system paths and correct this if necessary, as well as
- * the math library path below.
+ * This section defines a C++ compiler.  It is currently not used by
+ * RDSS Libraries or any software other than Zeb, which uses its own
+ * configuration file. Edit this line only if you are modifying source
+ * code at your site and are including C++ routines  If you defined UseGcc
+ * to YES above, g++ will be used for the C++ compiler.  Otherwise the
+ * default is CC.  To define a different C++ compiler, define
+ * CccCompiler to the name of the compiler.  If the compiler requires
+ * any special library options, define them in CccLibs.  The C debug
+ * flags and options (defined below) will be passed to the C++
+ * compiler as well.  Options specific to the C++ compiler should
+ * be defined in CccOptions.
  */
-# define FortranLibs -L/usr/lang/SC1.0.1 -lF77
+#define CccOptions
 
 /*
- * The math library to use. 
+ * To set debugging flags for the FORTRAN and C compilers' command
+ * lines, define the symbols CDebugFlags and FortDebugFlags.
+ * The default is no debugging.  Note that for most compilers
+ * (gcc is an exception), the -g and -O flags cannot be combined.
+ * On Sun's, a debugging flag will disable optimization.  The FORTRAN
+ * should probably always be optimized, so make sure FortDebugFlags
+ * does not disable optimization by specifying any debug flags.
  */
-# define MathLib /usr/lang/SC1.0.1/libm.a 
-
+# define CDebugFlags -g
+# define FortDebugFlags -g
 
 /*
- * Do we compile things with debugging on?
+ * To change other compiler command line options, such as required by your
+ * compiler (floating point stuff, etc.), or optimization flags, define
+ * CCOptions and FortOptions.  The default is optimization, -O.
  */
-# define CompileDebug Yes
+# define CCOptions -O 
+# define FortOptions -O
 
 
-/*
- * How about optimization?
- */
-# define CompileOptimize Yes
+/*========================================================================
+ * OTHER OPTIONS
+ * -------------------
 
-/*
+ * If you have the netCDF package and want to use it, some software
+ * (i.e. robot and suds) can take advantage of it.  Set this to YES
+ * and edit NetCDF_DESTDIR with the name of the top level directory
+ * containing the lib/netcdf libraries and include/netcdf.h files,
+ * usually /usr/local.
  *
- * Program specific information:
+ * Note that Zeb requires NetCDF, so edit these if you will be installing
+ * Zeb.
+ *
+ */
+# define UseNetCDF NO 
+
+# if UseNetCDF
+#       define NetCDFIncDir /usr/local/include
+#       define NetCDFLibDir /usr/local/lib
+# endif
+
+/*
+ * If you have Makedepend (normally included with the MIT X11 
+ * distribution and OpenWindows 3.0 or higher ),
+ * set this to YES and verify that Makedepend is in your path.
+ */
+# define HaveMakeDepend NO 
+
+
+/*========================================================================
+ * SYSTEM LIBRARY PATHS
+ * -------------------
+ *
+ * Define compiler and other paths here.
  *
  */
 
+
+# define FortranLibraries -L/usr/lang/SC1.0.1 -lF77 -lV77
+
+
 /*
- * The root directory for RDSS stuff, the home of RDSS include files,
- * the RDSS library files and the installation path for executables.
- * These must be set correctly for the software to run and make properly.  
+ * The math library to use
  */
 
-# define RDSSRoot	/rdss
-# define RDSSInclude	/rdss/include
-# define RDSSLibraries  /rdss/lib
-# define RDSSBin        /rdss/bin
+# define MathLibrary /usr/lang/SC1.0.1/libm.a
 
+
+/*
+ * Some of the Library routines require the terminal capability library,
+ * usually /usr/lib/libtermcap.a.  Edit this only if your termcap library
+ * does not live in /usr/lib.
+ */
+
+# define TermcapLibrary -ltermcap
+
+
+/*========================================================================
+ * PROGRAM SPECIFIC INFORMATION
+ * -------------------
+ */
+
+/*
+ * Byte ordering flag.  Do not change this unless you are attempting a
+ * port to another machine.
+ *
+ * /
+
+# define EndianFlag -DBIG_ENDIAN
 
 /*
  * The location for RADAR include files (for Perusal, Editor, Reorder, ToDisk).
- * This should not need editing. 
+ * This should not need editing.
  */
 # define RADARInclude RDSSRoot/radar/h
 
 
 /*
  * If you are installing Robot, set these paths for the default
- * ROBOT database
+ * ROBOT database.  See Robot installation instructions.
  */
 
 # define DefDBDir \"/data/ppf\"
-# define DefDBType \"cmf\"
-# define DefDBName \"cmf\"
+# define DefDBType \"pam\"
+# define DefDBName \"pam\"
+
+
+
+/*========================================================================*/
+# endif /* MAKING_MAKEFILE */
+
+
+
+
+
+
+
+
