@@ -1,5 +1,5 @@
 /*
- * $Id: BTreeFile.hh,v 1.15 2002-09-17 20:00:18 granger Exp $
+ * $Id: BTreeFile.hh,v 1.16 2004-10-22 22:44:49 burghart Exp $
  *
  * BTree subclass which implements persistence using a BlockFile.
  */
@@ -61,6 +61,8 @@ public:
 
 	typedef BTreeFileP::FileStats Stats;
 	typedef BTreeFileP::FileStats FileStats;
+	typedef BTree<K,T> tree_type;
+    
 
 public:
 	/* ----------------
@@ -76,18 +78,18 @@ public:
 	// existing b-tree, it is up to the application to use the correct
 	// template types for the keys and values when opening the tree.
 	//
-	BTreeFile (BlockFile &bf, int order = DEFAULT_ORDER, 
+	BTreeFile (BlockFile &bf, int order = tree_type::DEFAULT_ORDER, 
 		   long sz = sizeof(T), int fix = 0);
 
 	// Just like above except the default blockfile is created for the
 	// given path.
 	//
-	BTreeFile (const char *fname, int order = DEFAULT_ORDER, 
+	BTreeFile (const char *fname, int order = tree_type::DEFAULT_ORDER, 
 		   long sz = sizeof(T), int fix = 0);
 
 	// Constructor for a new btree using a default file name
 	//
-	BTreeFile (int order = DEFAULT_ORDER, 
+	BTreeFile (int order = tree_type::DEFAULT_ORDER, 
 		   long sz = sizeof(T), int fix = 0);
 
 	// Open a b-tree at the given blockfile address of the given
@@ -97,7 +99,7 @@ public:
 	// not already exist.
 	//
 	BTreeFile (BlkOffset addr, BlockFile &bf, 
-		   int order = DEFAULT_ORDER, 
+		   int order = tree_type::DEFAULT_ORDER, 
 		   long sz = sizeof(T), int fix = 0);
 
 	// Retrieve the address for this b-tree in its blockfile.

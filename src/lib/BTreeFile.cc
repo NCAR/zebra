@@ -15,7 +15,7 @@
 //#include <message.h>
 //}
 
-// RCSID ("$Id: BTreeFile.cc,v 1.17 2002-09-17 20:00:18 granger Exp $")
+// RCSID ("$Id: BTreeFile.cc,v 1.18 2004-10-22 22:44:49 burghart Exp $")
 
 #include "Logger.hh"
 #include "Format.hh"
@@ -77,6 +77,8 @@ public:
 protected:
 
 	friend class BTreeFile<K,T>;
+	typedef BTreeNode<K,T> node_type;
+    
 
 	// If there's an overflow block, we keep info about it here.
 	Block overflow;
@@ -200,7 +202,8 @@ BTreeFile<K,T>::Reopen ()
 				    BlockFile::BF_EXCLUSIVE);
 	}
 	attach (Block(), *bf);
-	Init (order, elementSize(), elementFixed());
+	Init (tree_type::Order(), tree_type::elementSize(), 
+	      tree_type::elementFixed());
 	Open (addr);
 }
 
@@ -210,7 +213,7 @@ template <class K, class T>
 void
 BTreeFile<K,T>::Init (int order_, long sz, int fix)
 {
-	Setup (order_, sz, fix);	// Do our superclass setup
+	tree_type::Setup (order_, sz, fix);	// Do our superclass setup
 	key_size = 0;
 	key_size_fixed = 0;
 	node_size = 0;
@@ -231,7 +234,7 @@ BTreeFile<K,T>::OpenHeader ()
 {
 	if (bf->Status() != BlockFile::OK)
 	{
-		++err;
+		++tree_type::err;
 		return;
 	}
 
@@ -248,7 +251,7 @@ BTreeFile<K,T>::OpenHeader ()
 		if (magic != MAGIC)
 		{
 			log.Error ("BlockFile has wrong magic number.");
-			++err;
+			++tree_type::err;
 			return;
 		}
 		log.Info (Format("Reading BTreeFile header at (%u,%u)") %
@@ -278,7 +281,7 @@ BTreeFile<K,T>::Create ()
 {
 	if (bf->Status() != BlockFile::OK)
 	{
-		++err;
+		++tree_type::err;
 		return;
 	}
 	// We're just creating a new tree from scratch.
@@ -300,7 +303,7 @@ BTreeFile<K,T>::Open (BlkOffset addr)
 {
 	if (bf->Status() != BlockFile::OK)
 	{
-		++err;
+		++tree_type::err;
 		return;
 	}
 	bf->ReadLock ();
@@ -308,8 +311,9 @@ BTreeFile<K,T>::Open (BlkOffset addr)
 	readSync ();
 
 	// If we have a root node, it must always be in memory.
-	if (depth != -1)
-		root = get (rootNode, depth);
+	if (tree_type::Depth() != -1)
+		tree_type::root = get(tree_type::rootNode, 
+				      tree_type::Depth());
 	bf->Unlock ();
 }
 
@@ -323,8 +327,8 @@ template <class K, class T>
 void
 BTreeFile<K,T>::Destroy ()
 {
-	Erase ();
-	assert (Empty());
+	tree_type::Erase ();
+	assert (tree_type::Empty());
 	free ();
 	BTree<K,T>::Destroy();
 }
@@ -346,13 +350,13 @@ BTreeFile<K,T>::release ()
 	// Delete any nodes in memory, writing them to disk first if
 	// necessary, leaving the tree empty when our superclass destructor
 	// is called.
-	if (root)
+	if (tree_type::root)
 	{
-		root->sync (1);
-		delete root;
+		tree_type::root->sync (1);
+		delete tree_type::root;
 	}
 	writeSync (1);
-	root = 0;
+	tree_type::root = 0;
 	if (our_bf)
 	{
 		bf->Close ();
@@ -379,19 +383,21 @@ BlockNode<K,T>::findLRU (BlockNode<K,T> *lrunode, BTreeP::Node *parent,
 	++(*n);
 	BlockNode<K,T> *child = 0;
 	BTreeP::Node *down = 0;
-	for (int i = 0; (depth > 0) && (i < nkeys); ++i)
+	int depth_ = node_type::Depth();
+	
+	for (int i = 0; (depth_ > 0) && (i < node_type::nkeys); ++i)
 	{
-		child = (BlockNode<K,T> *)children[i].local;
+		child = (BlockNode<K,T> *)node_type::children[i].local;
 		if (child)
 		{
-			IFD(cout << string(depth*3,' ');
+			IFD(cout << string(depth_*3,' ');
 			    cout << " - Child " << (void*)child;
 			    cout << " in memory, lru:" << child->lru;
 			    cout << endl);
 			/*
 			 * Let this child check its subtree.
 			 */
-			down = &(children[i]);
+			down = &(node_type::children[i]);
 			lrunode = child->findLRU (lrunode, down, lruparent, n);
 		}
 	}
@@ -399,7 +405,7 @@ BlockNode<K,T>::findLRU (BlockNode<K,T> *lrunode, BTreeP::Node *parent,
 	 * We are a leaf or have no children in memory, so we're dangling.
 	 * See if we're the lru so far.
 	 */
-	if (depth == 0 || down == 0)
+	if (depth_ == 0 || down == 0)
 	{
 		if (! lrunode || (this->lru < lrunode->lru))
 		{
@@ -427,9 +433,9 @@ BTreeFile<K,T>::trimCache ()
 	 * at least enough nodes in memory for a depth-first traversal,
 	 * and some extra for recombinations and such.
 	 */
-	if (3*depth >= maxcache)
+	if (3*tree_type::Depth() >= maxcache)
 	{
-		maxcache = 3*depth;
+		maxcache = 3*tree_type::Depth();
 	}
 
 	/*
@@ -445,7 +451,7 @@ BTreeFile<K,T>::trimCache ()
 		// be here.
 		//
 	        BTreeP::Node *parent;
-		that = (BlockNode<K,T> *)rootNode.local;
+		that = (BlockNode<K,T> *)tree_type::rootNode.local;
 		if (that)
 		{	
 			IFD(cout << "Current context: ";
@@ -462,7 +468,7 @@ BTreeFile<K,T>::trimCache ()
 		if (that)
 		{
 			// Force it to disk if dirty and release it
-			current->invalidate (that);
+			tree_type::current->invalidate (that);
 			parent->local = 0;
 			if (that->dirty())
 				that->writeSync (1);
@@ -557,7 +563,7 @@ template <class K, class T>
 void
 BTreeFile<K,T>::leave ()
 {
-	if (/*bf->WriteLockPending() &&*/ lock == 1 && root)
+	if (/*bf->WriteLockPending() &&*/ lock == 1 && tree_type::root)
 	{
 		// Reduce the node cache to its threshold
 		trimCache();
@@ -566,7 +572,7 @@ BTreeFile<K,T>::leave ()
 		// right now is done by a recursive sync() method.  This
 		// is unnecessary when we have exclusive access.
 		if (! bf->Exclusive())
-			root->sync();
+			tree_type::root->sync();
 	}
 	unlock ();
 	bf->Unlock ();
@@ -637,7 +643,7 @@ void
 BTreeFile<K,T>::setKeySize (int ks, int fixed)
 {
 	enterWrite ();
-	if (rootNode.addr == 0)
+	if (tree_type::rootNode.addr == 0)
 	{
 		key_size = ks;
 		key_size_fixed = fixed;
@@ -721,19 +727,19 @@ BlockNode<K,T>::~BlockNode ()
 	--filetree.ncache;
 
 	// Recursively delete our children, but only those currently in memory
-	if (depth > 0)
+	if (node_type::Depth() > 0)
 	{
 		// Traverse and delete the children residing in memory.
-		for (int i = 0; i < nkeys; ++i)
+		for (int i = 0; i < node_type::nkeys; ++i)
 		{
 			BlockNode<K,T> *that = 
-				(BlockNode<K,T> *)children[i].local;
+				(BlockNode<K,T> *)node_type::children[i].local;
 			if (that)
 			{
 				delete that;
 			}
 		}
-		nkeys = 0;
+		node_type::nkeys = 0;
 	}
 	// Superclass frees the rest of this node's memory.
 }
@@ -791,20 +797,20 @@ void
 BlockNode<K,T>::sync (int force)
 {
 	// Sync our children first, then ourself
-	if (depth > 0)
+	if (node_type::Depth() > 0)
 	{
-		for (int i = 0; i < nkeys; ++i)
+		for (int i = 0; i < node_type::nkeys; ++i)
 		{
 			BlockNode<K,T> *child = 
-				(BlockNode<K,T> *)children[i].local;
-			assert (children[i].addr > 0);
+				(BlockNode<K,T> *)node_type::children[i].local;
+			assert (node_type::children[i].addr > 0);
 			if (child)
 			{
 				child->sync (force);
 			}
 		}
 	}
-	assert (thisNode.addr > 0);
+	assert (node_type::thisNode.addr > 0);
 	assert (block.offset > 0 && block.length > 0);
 	if (dirty())
 		writeSync (force);
@@ -915,26 +921,27 @@ BlockNode<K,T>::translate (SerialStream &ss)
 	// persistent state so we can free it all when done with it.
 	TranslateBlock::translate (ss);
 
-	ss << nkeys;
-	for (int i = 0; i < nkeys; ++i)
+	ss << node_type::nkeys;
+	for (int i = 0; i < node_type::nkeys; ++i)
 	{
-		ss << keys[i];
-		if (depth > 0)
+		ss << node_type::keys[i];
+		if (node_type::Depth() > 0)
 		{
-			ss << children[i];
+			ss << node_type::children[i];
 		}
 		else
 		{
-			ss << table[i];
+			ss << node_type::table[i];
 		}
 	}
-	if (depth == 0)
+	if (node_type::Depth() == 0)
 	{
 		// Translate the contents of our serial buffer
-		ss << table[nkeys];
-		sbuf->Reset ();
-		sbuf->Need (table[nkeys].offset);
-		ss.opaque (sbuf->Peek (), table[nkeys].offset);
+		ss << node_type::table[node_type::nkeys];
+		node_type::sbuf->Reset ();
+		int offset = node_type::table[node_type::nkeys].offset;
+		node_type::sbuf->Need (offset);
+		ss.opaque (node_type::sbuf->Peek (), offset);
 	}
 }
 
@@ -955,10 +962,10 @@ BlockNode<K,T>::baseSize (SerialBuffer &wb)
 	SerialCountStream& cs = *wb.countStream();
 	cs << overflow;
 	TranslateBlock::translate (cs);
-	cs << nkeys;
+	cs << node_type::nkeys;
 	long s = cs.Count();
 
-	int maxkeys = maxKeys();
+	int maxkeys = node_type::maxKeys();
 
 	// Make a best guess on the key space we'll need.  If the set
 	// size is zero, get the size from our first key. If not fixed,
@@ -988,14 +995,15 @@ BlockNode<K,T>::leafSize (SerialBuffer &wb)
 	long s = baseSize (wb);
 
 	// Element offset table
-	s += (maxKeys() + 1) * serialCount (wb, table[0]);
+	s += (node_type::maxKeys() + 1) * 
+	     serialCount (wb, node_type::table[0]);
 
 	// Values
 	int fixed = 0;
 	long vlen = filetree.elementSize (&fixed);
 	if (!vlen)
 		vlen = sizeof (T);
-	vlen *= maxKeys();
+	vlen *= node_type::maxKeys();
 	if (! fixed)
 		vlen += vlen / 2;
 	s += vlen;
@@ -1012,7 +1020,8 @@ BlockNode<K,T>::nodeSize (SerialBuffer &wb)
 	long s = baseSize (wb);
 
 	// Children array
-	s += tree.Order() * serialCount (wb, children[0]);
+	s += node_type::tree.Order() * 
+	     serialCount (wb, node_type::children[0]);
 	return (s);
 }
 
