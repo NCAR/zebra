@@ -1,7 +1,6 @@
 /*
  * The new event logger.
  */
-static char *rcsid = "$Id: EventLogger.c,v 2.6 1991-11-22 20:42:18 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -38,6 +37,7 @@ static char *rcsid = "$Id: EventLogger.c,v 2.6 1991-11-22 20:42:18 kris Exp $";
 # include "../include/dm.h"
 # include "../include/config.h"
 # include "copyright.h"
+MAKE_RCSID ("$Id: EventLogger.c,v 2.7 1991-12-05 19:53:19 corbet Exp $")
 
 
 
@@ -73,7 +73,7 @@ struct EMMap
  * Text info.
  */
 static int Buflen = 0;
-static char *Initmsg = "$Id: EventLogger.c,v 2.6 1991-11-22 20:42:18 kris Exp $\n\
+static char *Initmsg = "$Id: EventLogger.c,v 2.7 1991-12-05 19:53:19 corbet Exp $\n\
 Copyright (C) 1991 UCAR, All rights reserved.\n";
 
 /*
@@ -110,11 +110,8 @@ FILE *Log_file = (FILE *) 0;
 
 char *Mother = 0;
 
-# ifdef __STDC__
-	void	SendToMother (struct msg_elog *, char *);
-# else
-	void	SendToMother ();
-# endif
+void	SendToMother FP((struct msg_elog *, char *));
+
 
 
 main (argc, argv)
@@ -123,7 +120,7 @@ char **argv;
 {
 	Arg args[20];
 	Widget w, label;
-	int xevent (), msg_event (), clearbutton (), wm ();
+	int xevent (), msg_event (), clearbutton (), wm (), n;
 	char *fname;
 /*
  * Hook into the message system.
@@ -164,10 +161,12 @@ char **argv;
 /*
  * Create our shell.
  */
-	XtSetArg (args[0], XtNinput, True);
-	XtSetArg (args[1], XtNoverrideRedirect, True);
+	n = 0;
+	XtSetArg (args[n], XtNinput, True);		n++;
+	XtSetArg (args[n], XtNoverrideRedirect, True);	n++;
+	XtSetArg (args[n], XtNallowShellResize, True);	n++;
 	Shell = XtCreatePopupShell ("Event Logger", topLevelShellWidgetClass,
-		Top, args, 2);
+		Top, args, n);
 /*
  * Put a form inside it.
  */
@@ -560,7 +559,7 @@ struct dm_msg *dmsg;
 	 * They might want us to go away entirely.
 	 */
 	   case DM_SUSPEND:
-	   	if (Visible)
+	   	if (Visible && Override)
 		{
 			Visible = FALSE;
 			XtPopdown (Shell);
@@ -585,12 +584,21 @@ int x, y, w, h;
  */
 {
 	Arg args[5];
-
-	XtSetArg (args[0], XtNx, x);
-	XtSetArg (args[1], XtNy, y);
-	XtSetArg (args[2], XtNwidth, w);
-	XtSetArg (args[3], XtNheight, h);
-	XtSetValues (Shell, args, 4);
+	int n;
+/*
+ * For positioning, move the shell.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNx, x);	n++;
+	XtSetArg (args[n], XtNy, y);	n++;
+	XtSetValues (Shell, args, n);
+/*
+ * For sizing, change the form inside the shell.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNwidth, w);	n++;
+	XtSetArg (args[n], XtNheight, h);	n++;
+	XtSetValues (Form, args, n);
 /* 
  * If they can't see us yet, make it so now.
  */
