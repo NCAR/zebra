@@ -47,7 +47,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 
-MAKE_RCSID ("$Id: Archiver.cc,v 1.12 1992-06-29 19:44:41 burghart Exp $")
+MAKE_RCSID ("$Id: Archiver.cc,v 1.13 1992-07-14 19:49:16 corbet Exp $")
 
 /*
  * Issues:
@@ -1090,7 +1090,7 @@ int junk;
 	 * Otherwise send the notification.
 	 */
 	 	if (TC_LessEq (DFTable[dfi].df_end, ftime) &&
-				! DFTable[dfi].df_archived)
+				(DFTable[dfi].df_flags & DFF_Archived) == 0)
 			SendMA (dfi);
 	}
 	return (TRUE);
