@@ -1,0 +1,28 @@
+# Define the set of platforms we watch and the configs and windows
+# needed to plot them.  The first field is the platform, followed
+# by yes or no for whether the platform is an "observational"
+# platform, then the display config and finally the windows in the
+# config which should be dumped.
+#
+# The observation platforms are plotted for each observation rather
+# than only the most recent.
+
+iss1/class		yes	iss1 class
+iss1/prof915l		no	iss1 prof915l
+iss1/rass915		no	iss1 rass
+iss1/surface_met	no	iss1 surfmet surfwind surfrad
+
+iss2/class		yes	iss2 class
+iss2/prof915l		no	iss2 prof915l
+iss2/rass915		no	iss2 rass
+iss2/surface_met	no	iss2 surfmet surfwind surfrad
+
+iss3/class		yes	iss3 class
+iss3/prof915l		no	iss3 prof915l
+iss3/rass915		no	iss3 rass
+iss3/surface_met	no	iss3 surfmet surfwind surfrad
+
+iss4/class		yes	iss4 class
+iss4/prof915l		no	iss4 prof915l
+iss4/rass915		no	iss4 rass
+iss4/surface_met	no	iss4 surfmet surfwind surfrad

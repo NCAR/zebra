@@ -11,5 +11,9 @@ of the scripts here will need to be run with zconfig.
 The proj_env file is an example of a project environment file and contains
 examples of all of the environment variables expected by the scripts here.
 
+The Plots file is an example of the platform plotting parameters expected
+by zplotd.  The file path is set in the PLOT_PLATFORMS variable in
+proj_env.
+
 
 
