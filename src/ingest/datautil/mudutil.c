@@ -25,7 +25,7 @@
 # include <defs.h>
 # include "mudutil.h"
 
-MAKE_RCSID ("$Id: mudutil.c,v 1.1 1991-12-19 22:31:09 kris Exp $");
+MAKE_RCSID ("$Id: mudutil.c,v 1.2 1993-05-10 18:10:15 burghart Exp $");
 
 
 /*
@@ -110,11 +110,19 @@ typedef struct _mudras_goddam_header
 	short	mgh_Fill[207];		/* Fill out the struct		*/
 } MudHdr;
 
-
-
-
 MudHdr Hdr;
 int Fid;
+
+/*
+ * Primary header length and per-level header length, in two byte words.  
+ * These vary depending on which form of MUDRAS we're dealing with.  Set 
+ * them up for CRAY style MUDRAS as a default.
+ */
+static int	HdrLen = 512;
+static int	LvlHdrLen = 12;
+static bool	Cray_mudras = TRUE;
+
+
 
 
 MudOpen (file, t, origin, xi, yi, zi, nfld)
@@ -224,10 +232,11 @@ float *dest, badflag;
 	static short *tmp = 0;
 	static int ntmp = 0;
 	short *tptr;
-	int len = Hdr.mgh_nX*Hdr.mgh_nY, begin, plen;
-	int blkperlev = (len*Hdr.mgh_NField + Hdr.mgh_BlkSize - 1)/Hdr.mgh_BlkSize;
+	int len = Hdr.mgh_nX * Hdr.mgh_nY, begin, plen;
+	int blkperlev = (len * Hdr.mgh_NField + Hdr.mgh_BlkSize - 1) / 
+		Hdr.mgh_BlkSize;
 	const short ibad = Hdr.mgh_BadVal;
-	float scale = 1.0/Hdr.mgh_Fields[field].fi_Scale;
+	float scale = 1.0 / Hdr.mgh_Fields[field].fi_Scale;
 /*
  * Figure out how much temp space we need, and get if if necessary.
  */
@@ -239,32 +248,24 @@ float *dest, badflag;
 		ntmp = len;
 	}
 /*
- * Figure out where this field begins, and read it in.
+ * plen = padded length to calculate how much space is really occupied by
+ * 	  a grid -- for CRAY MUDRAS they pad it out to multiples of 4.
  */
-# ifdef notdef
-	begin = 1 + (level*Hdr.mgh_NField + field)*Hdr.mgh_BlkPerRec;
-	lseek (Fid, begin*Hdr.mgh_BlkSize*sizeof (short), SEEK_SET);
-	begin = 1 + level*blkperlev;
-	lseek (Fid, (begin*Hdr.mgh_BlkSize + field*len)*sizeof (short),
-			SEEK_SET);
-	/* Following works with cinnndy's file, but not others */
-	begin = 524 + (len*Hdr.mgh_NField + Hdr.mgh_NField - 1)*level
-			+ field*len;
-# endif
+	if (Cray_mudras)
+		plen = (len & 0x3) ? (len & ~0x3) + 4 : len;
+	else
+		plen = len;
 /*
- * PLEN = padded length to calculate how much space is really occupied by
- * 	  a grid -- they pad it out to multiples of 4.
- * 
  * Calculate the beginning of this grid.  The components of this ugly thing
  * are:
- *	512	The size of the header, plus a couple of words they throw
- *		in for the hell of it.
- *	(level+1)*12 	There is a header at the beginning of each level.
- *	plen*nfld*level	The data contained in the previous levels.
- *	plen*field	The data in the previous fields.
+ *	HdrLen			The size of the header.
+ *	(level+1)*LvlHdrLen 	There is a header at the beginning of each 
+ *				level.
+ *	plen*nfld*level		The data contained in the previous levels.
+ *	plen*field		The data in the previous fields.
  */
-	plen = (len & 0x3) ? (len & ~0x3) + 4 : len;
-	begin = 512 + (level+1)*12 + plen*(Hdr.mgh_NField*level + field);
+	begin = HdrLen + (level + 1) * LvlHdrLen + 
+		plen * (Hdr.mgh_NField * level + field);
 /*
  * Move to the right place and pull out the data.
  */
@@ -287,6 +288,18 @@ float *dest, badflag;
 }
 
 
+
+void
+CrayMudrasMode (flag)
+bool flag;
+/*
+ * Set whether or not we're using CRAY type MUDRAS.
+ */
+{
+	Cray_mudras = flag;
+	HdrLen = Cray_mudras ? 512 : 510;
+	LvlHdrLen = Cray_mudras ? 12 : 10;
+}
 
 
 # ifdef _SABER_
