@@ -1,49 +1,24 @@
-! $Id: enter-widget,v 1.1 2000-12-05 19:07:37 granger Exp $
+! $Id: enter-widget,v 1.2 2000-12-21 00:04:20 granger Exp $
 !
 ! Definitions for the position entry widget.
 !
 
-define widget enter form "Entry widget"
-	noheader
-!
-! The platform selection line.
-!
-	label l_plat "Platform:"
-	pulldown platform 'n308d' menu 'plats' width 100
-	label space ' ' width 100
-	button exit 'Zap' color red command 'popdown #ui$form'
-	newline
-!
-! Positions here.
-!
-	label l_lat 'Lat:'
-	blank lat_deg '0' width 40
-	blank lat_min '0' width 40
-	label l_lon 'Lon:'
-	blank lon_deg '0' width 40
-	blank lon_min '0' width 40
-	newline
-	label l_alt 'Alt:'
-	blank alt '0.0' width 60
-	pulldown aunits 'kft' menu en_altunits width 50
-	newline
-!
-! Let them put in a time.
-!
-	label l_time 'Time:'
-	blank time 'now' width 200
-	newline
-!
-! Options.
-!
-	button enter 'Enter point' command 'DoEnter false'
-	button overw 'Change last point' command 'DoEnter true'
-	newline
-!
-! And a gripe window.
-!
-	label gripe ' ' width 300 color red
-endform
+
+set lwidth '80'
+
+define widget north_south_menu intmenu 'platforms'
+	title 'North-South'
+	line
+	entry 'North' 'formtext #ui$form northsouth North'
+	entry 'South' 'formtext #ui$form northsouth South'
+endmenu
+
+define widget east_west_menu intmenu 'platforms'
+	title 'East-West'
+	line
+	entry 'East' 'formtext #ui$form eastwest East'
+	entry 'West' 'formtext #ui$form eastwest West'
+endmenu
 
 
 define widget en_altunits intmenu 'Default version'
@@ -60,15 +35,74 @@ procedure en_setaltunits type string
 endprocedure
 
 
+define widget enter form "Entry widget"
+	noheader
+!
+! The platform selection line.
+!
+	label l_plat "Platform:"
+	pulldown platform 'convairmanual' menu 'plats' width 100
+	label space ' ' width 100
+	button exit 'Zap' color red command 'popdown #ui$form'
+	newline
+	label linfo 'Enter decimal degrees plus decimal minutes.'
+	newline
+!
+! Positions here.
+!
+	label l_lat 'Lat:'
+	blank lat_deg '40' width #lwidth
+	label ldeg 'deg'
+	blank lat_min '0' width #lwidth
+	label lmin 'min'
+	pulldown northsouth North menu north_south_menu
+
+	newline
+	label l_lon 'Lon:'
+	blank lon_deg '100' width #lwidth
+	label ldeg2 'deg'
+	blank lon_min '0' width #lwidth
+	label lmin2 'min'
+	pulldown eastwest West menu east_west_menu
+
+	newline
+	label l_alt 'Altitude:'
+	blank alt '0.0' width #lwidth
+	pulldown aunits 'kft' menu en_altunits width 50
+	newline
+!
+! Let them put in a time.
+!
+	label info 'Enter time as "dd-Mon-yyyy,hh:mm[:ss]" or as "now"'
+	newline
+	label l_time 'Time:'
+	blank time 'now' width 200
+	newline
+!
+! Options.
+!
+	button enter 'Enter point' command 'DoEnter false'
+	button overw 'Change last point' command 'DoEnter true'
+	newline
+!
+! And a gripe window.
+!
+	label gripe ' ' width 300 color red
+endform
+
+
 procedure DoEnter overwrite bool
 !
 ! Pull info from the widget.
 !
+!	local plat concat('l_',getftext(ui$form,'platform'))
 	local plat getftext(ui$form,'platform')
 	local lat_deg getftext(ui$form,'lat_deg')
 	local lon_deg getftext(ui$form,'lon_deg')
 	local lat_min getftext(ui$form,'lat_min')
 	local lon_min getftext(ui$form,'lon_min')
+	local eastwest getftext(ui$form,'eastwest')
+	local northsouth getftext(ui$form,'northsouth')
 	local alt getftext(ui$form,'alt')
 	local altunits getftext(ui$form,'aunits')
 !
@@ -84,9 +118,34 @@ procedure DoEnter overwrite bool
 		message #mesg
 		return
 	endif
+
+	local dlon_deg #lon_deg
+	local dlon_min #lon_min
+	local dlat_deg #lat_deg
+	local dlat_min #lat_min
+!
+! the enter command will actually adjust the minutes sign to match the
+! degrees for us, but do it here just to be thorough...
+!
+	if (eastwest = 'West' and dlon_deg > 0)
+		local dlon_deg (0 - dlon_deg)
+	endif
+	if (eastwest = 'West' and dlon_min > 0)
+		local dlon_min (0 - dlon_min)
+	endif
+	if (northsouth = 'South' and dlat_deg > 0)
+		local dlat_deg (0 - dlat_deg)
+	endif
+	if (northsouth = 'South' and dlat_min > 0)
+		local dlat_min (0 - dlat_min)
+	endif
 ! 
 ! Do the entry.
 !
+	local lon_deg string(dlon_deg)
+	local lon_min string(dlon_min)
+	local lat_deg string(dlat_deg)
+	local lat_min string(dlat_min)
 	if (overwrite)
 		enter #plat #lat_deg #lat_min #lon_deg #lon_min #alt
 	else
@@ -95,4 +154,9 @@ procedure DoEnter overwrite bool
 	endif
 endprocedure
 
+define widget plats intmenu 'platforms'
+	title 'Platforms'
+	line
+	entry 'UW Convair-580' 'formtext #ui$form platform convairmanual'
+endmenu
 
