@@ -26,6 +26,7 @@
 #	define NO 0
 # endif
 
+#ifdef notdef
 /*
  * Include the config.h file for Zebra if we're not doing an auto-build.
  * Otherwise read the definitions from Build.tmpl.
@@ -37,10 +38,11 @@
 # define ProjectConfigFile "config.h"
 #endif
 #include ProjectConfigFile
+#endif
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.29 1995-05-05 17:36:18 granger Exp $
+XCOMM $Id: Project.tmpl,v 1.30 1995-05-25 00:19:38 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -57,7 +59,7 @@ XCOMM -----------------------------------------------------------------------
 /* ---------------------------------------------------------------------------
  * Extra system-specific information needed by Zebra.  
  * The man stuff is not used presently, but it might be useful someday...
-////////////////////////////////////////////////////////////////////////////*/
+ * //////////////////////////////////////////////////////////////////////// */
 
 #ifndef ManDirectoryRoot
 #define ManDirectoryRoot /usr/man
@@ -94,7 +96,11 @@ XCOMM -----------------------------------------------------------------------
 #endif
 
 #ifndef ExtraDefines
-#define ExtraDefines	/* project-wide defines go here */
+# if defined(SGIArchitecture) && SystemV
+#  define ExtraDefines -DSVR4
+# else
+#  define ExtraDefines	/* project-wide defines go here */
+# endif
 #endif
 
 #ifndef AutoDefines
@@ -112,10 +118,14 @@ XCOMM -----------------------------------------------------------------------
 
 /* --------------------------------------------------------------------------
  * Zebra's Imake project definitions
-///////////////////////////////////////////////////////////////////////////*/
+ * /////////////////////////////////////////////////////////////////////// */
 
 #ifndef UseInstalled
 #define UseInstalled /* since makedepend is assumed installed */
+#endif
+
+#ifndef UseInstalledZebra
+#define UseInstalledZebra YES
 #endif
 
 #ifndef BuildIncRoot
@@ -180,7 +190,7 @@ XCOMM -----------------------------------------------------------------------
 /* ---------------------------------------------------------------------------
  * User-configurable build settings.  These are just the defaults.  Most of the
  * choices will be made in config.h
-////////////////////////////////////////////////////////////////////////////*/
+ * //////////////////////////////////////////////////////////////////////// */
 
 #ifndef DistributeIngest
 #define DistributeIngest 	YES
@@ -201,16 +211,56 @@ XCOMM -----------------------------------------------------------------------
 #define DistributeXHelp		YES
 #endif
 
+#ifndef UseXWindows
+#define UseXWindows	YES	/* RDSS libraries need to know this */
+#endif
+
 #ifndef UseOpenWindows
 #define UseOpenWindows NO
 #endif
 
 #ifndef OpenWindowsVersion
-#define OpenWindowsVersion 2
+#define OpenWindowsVersion 3
+#endif
+
+/*
+ * If we're supposed to be building the part of RDSS we need, define
+ * symbols appropriately.
+ */
+#ifndef BuildRDSS
+#define BuildRDSS NO
+#endif
+#if BuildRDSS
+# define RDSSDir BaseDir
+# define RDSSIncDir BuildIncRoot
+# define RDSSIncludes /* nothing */
+# define RDSSLibDir $(LIBDIR)
+# if UseInstalledZebra
+#  define RDSSUILibrary $(LIBDIR)/librdssui.a
+#  define RDSSUtilLibrary $(LIBDIR)/librdssutil.a
+# else
+#  define RDSSUILibrary $(TOP)/ui/librdssui.a
+#  define RDSSUtilLibrary $(TOP)/util/librdssutil.a
+# endif
+# define RDSSLibrary $(LIBRDSSUI) $(LIBRDSSUTIL)
+# if UseInstalledZebra
+#  define UicCmd $(BINDIR)/uic
+#  define UibCmd $(BINDIR)/uib
+# else
+#  define UicCmd $(TOP)/ui/uic
+#  define UibCmd $(TOP)/ui/uib
+# endif
+#else
+# define RDSSUILibrary	/* RDSSLibrary symbol will be used instead */
+# define RDSSUtilLibrary /* " */
 #endif
 
 #ifndef UicCmd
 #define UicCmd uic	/* Assumes uic in path */
+#endif
+
+#ifndef UibCmd
+#define UibCmd uib	/* Assumes uib in path */
 #endif
 
 #ifndef RDSSDir
@@ -269,7 +319,7 @@ XCOMM -----------------------------------------------------------------------
 #   endif
 #endif
 
-/*//////////////////////////////////////////////// Libraries //////////////*/
+/* /////////////////////////////////////////////// Libraries ///////////// */
 /*-------------------------------------------------------------------------*/
 
 #ifndef RDSSLibDir
@@ -310,7 +360,7 @@ XCOMM -----------------------------------------------------------------------
  * Solaris requires the -R option for shared libraries or they never get
  * found again when you run the program without LD_LIBRARY_PATH.
  */
-# if defined(XLibDir) && defined(solaris)
+# if defined(XLibDir) && HasLdRunPath
 #	define XRunPath -R$(XLIBDIR)
 # else
 #	define XRunPath /**/
@@ -328,11 +378,7 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #endif
 
-#ifndef UseInstalledZeb
-#   define UseInstalledZeb	YES
-#endif
-
-#if ! UseInstalledZeb
+#if ! UseInstalledZebra
 #ifndef ZebLibrary
 #    define ZebLibrary	 	$(TOP)/src/lib/libZeb.a
 #endif
@@ -372,7 +418,11 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #endif
 
 #ifndef RegexpLibrary
-#define RegexpLibrary	/**/	/* expect it to be in the system libraries */
+#  if SystemV || SystemV4
+#     define RegexpLibrary LoaderLibPrefix -lgen
+#  else
+#     define RegexpLibrary /**/
+#  endif
 #endif
 
 #ifndef TermcapLibrary
@@ -384,14 +434,14 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #endif
 
 #ifndef SystemLibraries
-#   if SystemV || SystemV4
-#      define SystemLibraries LoaderLibPrefix -lgen $(MATHLIB) $(TERMCAPLIB)
-#   else
-#      define SystemLibraries $(MATHLIB) $(TERMCAPLIB)
-#   endif
+#  if SystemV || SystemV4
+#     define SystemLibraries /*LoaderLibPrefix -lgen $(MATHLIB) $(TERMCAPLIB)*/
+#  else
+#     define SystemLibraries /*$(MATHLIB) $(TERMCAPLIB)*/
+#  endif
 #endif
 
-/*////////////////////////////////////////////// Compiler options /////////*/
+/* ///////////////////////////////////////////// Compiler options //////// */
 /*-------------------------------------------------------------------------*/
 #ifndef UseGcc
 #define UseGcc NO	/* we'll have to assume they don't have it */
@@ -406,6 +456,8 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #define CCompiler CcCmd /* CcCmd is the default compiler set in Imake.tmpl */
 #endif
 #endif /* CCompiler */
+
+#ifdef notdef /* -------------- ignored */
 #ifndef DefaultCcc
 #define DefaultCcc CC /* could be set in a system's .cf or site.def file */
                       /* this is a reasonable default for Sun's */
@@ -427,6 +479,8 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #define CccLibs /* who knows ? */
 #endif
 #endif /* CccLibs */
+#endif /* notdef ---------------------- */
+
 #ifndef CCOptions
 #define CCOptions DefaultCCOptions
 #endif
@@ -452,7 +506,7 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #endif /* HPArchitecture */
 #endif /* FortOptions */
 
-/*////////////////////////////////////////////// Miscellaneous ////////////*/
+/* ///////////////////////////////////////////// Miscellaneous /////////// */
 /*-------------------------------------------------------------------------*/
 
 #ifndef HaveEmacs
@@ -468,7 +522,7 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #define Emacs19Path emacs
 #endif
 
-/*/////////////////////////////////// Defaults for build options /////////*/
+/* ////////////////////////////////// Defaults for build options //////// */
 /*------------------------------------------------------------------------*/
 
 #ifndef UseMosaic
@@ -557,12 +611,25 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #define BuildSatelliteingest
 #endif
 
+/*
+ * We must redefine the ImakeSubCmdHelper macro so that our project directory
+ * gets included by imake in the MakeMakeSubdirs() macro.
+ */
+#ifdef ImakeSubCmdHelper
+#undef ImakeSubCmdHelper
+#endif
+#ifdef notdef /* UseInstalled */
+#define ImakeSubCmdHelper $(IMAKE_CMD)
+#else
+#define ImakeSubCmdHelper $$imakeprefix$(IMAKE) -I$$imakeprefix$(PROJECTSRC) \
+          -I$$imakeprefix$(IRULESRC) $(IMAKE_DEFINES) \
+          $(AUTO_DEFINES) -DAutoDefines="$(AUTO_DEFINES)"
+#endif
 
-/**/# -----------------------------------------------------------------------
-/**/# Zeb make variables; coordinated with config.h and the above defaults
-/**/# -----------------------------------------------------------------------
 
-          PATHSEP = /			/* for building filenames */
+XCOMM -----------------------------------------------------------------------
+XCOMM Zebra make variables; coordinated with config.h and the above defaults
+XCOMM -----------------------------------------------------------------------
 
      BUILDINCROOT = BuildIncRoot	/* root of build include directory */
       BUILDINCDIR = $(BUILDINCROOT)	/* where headers put in inc dir */
@@ -574,10 +641,12 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
            BINDIR = BinDir		/* programs */
           INCROOT = IncDir		/* base of where to put header files */
            INCDIR = IncDir		/* The build and install includes  */
-           LIBDIR = LibDir		/* Zeb project library */
+           LIBDIR = LibDir		/* Zebra project library */
           DESTDIR = 
        DISTCURDIR = $(CURRENT_DIR)	/* Default, usually on cmd-line */
+#ifdef notdef /* this line already exists in Imake.tmpl */
         CONFIGDIR = ConfigDir		/* build configuration information */
+#endif
       XAPPLOADDIR = XAppLoadDir         /* Resource file installation dir */
           RDSSDIR = RDSSDir		/* Top of RDSS installation */
       OPENWINHOME = OpenWinHome
@@ -591,20 +660,21 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
         MKDIRHIER = BourneShell $(SCRIPTSRC)/mkdirhier.sh
 
         CONFIGSRC = $(TOP)/config
-          UTILSRC = $(TOP)/util
-        SCRIPTSRC = $(CONFIGSRC)/scripts
+       PROJECTSRC = $(CONFIGSRC)/project
+          UTILSRC = $(CONFIGSRC)/util
+        SCRIPTSRC = $(CONFIGSRC)/util
            DOCSRC = $(TOP)/doc
-         IMAKESRC = $(TOP)/imake
+         IMAKESRC = $(CONFIGSRC)/imake
         DEPENDSRC = DependDir
-   IMAKE_INCLUDES = -I$(NEWTOP)$(CONFIGSRC) -I$(NEWTOP)$(IMAKESRC)
+   IMAKE_INCLUDES = -I$(NEWTOP)$(PROJECTSRC) -I$(NEWTOP)$(IRULESRC)
 
      AUTO_DEFINES = AutoDefines
-         IRULESRC = $(CONFIGDIR)
+         IRULESRC = $(CONFIGSRC)/cf
         IMAKE_CMD = $(NEWTOP)$(IMAKE) $(IMAKE_INCLUDES) $(IMAKE_DEFINES) \
                     $(AUTO_DEFINES) -DAutoDefines="$(AUTO_DEFINES)"
-     ICONFIGFILES = $(CONFIGSRC)/Project.tmpl $(CONFIGSRC)/Zeb.rules \
-                    $(CONFIGSRC)/config.h $(IMAKESRC)/Imake.tmpl \
-                    $(IMAKESRC)/site.def $(IMAKESRC)/Imake.rules
+     ICONFIGFILES = $(PROJECTSRC)/Project.tmpl $(PROJECTSRC)/Zebra.rules \
+                    $(PROJECTSRC)/config.h $(IRULESRC)/Imake.tmpl \
+                    $(IRULESRC)/site.def $(IRULESRC)/Imake.rules
 
 /*
  * Include directories
@@ -629,27 +699,36 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
  * Local Imakefiles use the INCLUDES variable
  */
    EXTRA_INCLUDES = $(XINCLUDES) $(RDSSINCLUDES) \
-		    $(NETCDFINCLUDES) $(CONFIGINCLUDES)
+                    $(NETCDFINCLUDES) $(CONFIGINCLUDES)
+   CXXEXTRA_INCLUDES = $(XINCLUDES) $(RDSSINCLUDES) \
+                       $(NETCDFINCLUDES) $(CONFIGINCLUDES)
 /*
  * We redefine the order of the ALLINCLUDES variable here so that top
  * includes will be first on the compiler command line, but the include
  * path can still be overridden with the INCLUDES variable.  See Imake.tmpl.
  */
-      ALLINCLUDES = $(INCLUDES) $(TOP_INCLUDES) $(EXTRA_INCLUDES) $(STD_INCLUDES)
+      ALLINCLUDES = $(INCLUDES) $(TOP_INCLUDES) $(EXTRA_INCLUDES) \
+                    $(STD_INCLUDES)
 
 /*
  * Project-wide defines in EXTRA_DEFINES.  Client defines in DEFINES.
  * Clients which need to test for shared memory should set 
  * DEFINES = $(SHMDEFINES).  Propagate the auto-definitions to source
- * compilation as well as imake commands.
+ * compilation as well as imake commands.  RDSS_EXTRA_DEFS is for UI and
+ * Util Imakefiles which redefine EXTRA_DEFINES instead of using DEFINES.
  */
     EXTRA_DEFINES = ExtraDefines $(AUTO_DEFINES)
+  RDSS_EXTRA_DEFS = ExtraDefines $(AUTO_DEFINES) -DUNIX
        SHMDEFINES = ShmDefines
      XHELPDEFINES = XHelpDefines
+/*
+ * For RDSS source which needs to know to compile X windows support
+ */
+     XWINDOWSFLAG = -DXSUPPORT
 /* 
  * Default directory paths specified in config.h.  Programs which need
  * these symbols defined in their source should add $(DIRDEFINES) to the
- * DEFINES variable in their Imakefile.  Only the Zeb library should need
+ * DEFINES variable in their Imakefile.  Only the Zebra library should need
  * this; all other programs should use the ConfigVars routines from the
  * library.
  */
@@ -681,28 +760,48 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
           LIBPCAP = PCAPLibrary
             FLIBS = FortranLibraries
           LIBRDSS = RDSSLibrary
+        LIBRDSSUI = RDSSUILibrary
+      LIBRDSSUTIL = RDSSUtilLibrary
+#ifdef notdef
+         RDSSUTIL = $(LIBRDSSUTIL)	/* for RDSS tree compatibility */
+           RDSSUI = $(LIBRDSSUI)	/* for RDSS tree compatibility */
+#endif
      LIBRDSSGRAPH = RDSSGraphics
           LIBSUDS = SudsLibrary
            LIBUNP = PamCfgLibrary
         LIBMCIDAS = MCIDASLibrary
             XLIBS = XLibraries
-          MATHLIB = MathLibrary
-       TERMCAPLIB = TermcapLibrary
+          LIBMATH = MathLibrary
+       LIBTERMCAP = TermcapLibrary
         LIBREGEXP = RegexpLibrary
     SYS_LIBRARIES = SystemLibraries
 
           DEPLIBS = $(LIBZEB)
+          MATHLIB = $(LIBMATH)
+       TERMCAPLIB = $(LIBTERMCAP)
 
+#ifdef notdef	/* should be taken from Imake.tmpl from now on */
 /*
  * Compiler commands and options
  */
                CC = CCompiler
-              C++ = CccCompiler
         CCOPTIONS = CCOptions 
       CDEBUGFLAGS = CDebugFlags
+#endif
+#ifdef notdef
+              C++ = CccCompiler
          C++FLAGS = CccOptions $(CFLAGS)
           C++LIBS = CccLibs /* variable should be explicitly included in */
                             /* targets for c++ progs 			 */
+#endif
+/*
+ * Override some make variables settings in Imake.tmpl.  Set LD_RUN_PATH
+ * to our X libraries if it exists, and don't bother with LDPRELIB since
+ * we already have the X libraries in a link option.
+ */
+         LDPRELIB = 
+       CCENVSETUP = 
+      CXXENVSETUP = 
 /*
  * Only set the Fortran compiler explicitly if a value has been defined.
  * Otherwise we'll default to Make's implicit rule value
@@ -717,15 +816,18 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
           FCFLAGS = $(FORTOPTIONS) $(FORTDEBUGFLAGS)
 
               UIC = UicCmd
+              UIB = UibCmd
             ARADD = ArAdd
      INSTAPPFLAGS = InstAppFlags
 
+#ifdef notdef /* in Imake.tmpl now */
 /*
  * Debugging tools
  */
 /*          PROOF = /net/CenterLine/bin/proof	*/
             PROOF = proof
         PROOFOPTS = /* nothing */
+#endif
 
             EMACS = EmacsPath
           EMACS19 = Emacs19Path
@@ -733,21 +835,29 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 /*
  * Our own implicit rules, such as for C++ files (.cc extension)
  */
+#ifdef SGIArchitecture
+.SUFFIXES:	.cc
+
 .cc.o:
-	$(C++) $(C++FLAGS) -c $<
+	$(CXX) $(CXXFLAGS) -U_SGI_SOURCE -c $<
+#else
+.cc.o:
+	$(CXX) $(CXXFLAGS) -c $<
+#endif
 
 /*
  * HP's f77 groks .F files, but somebody forgot to tell their make about it.
  */
-#ifdef HPArchitecture
+#if defined(HPArchitecture) || defined(SGIArchitecture)
 .SUFFIXES:	.F
 
 .F.o:
 	$(FC) $(FFLAGS) -c $<
-# endif
+#endif
 
 /*
- * Rules specific to the Zeb project.  Some of these override rules
- * in Imake.rules, which is included after the project template (this file).
+ * Rules specific to the Zebra project.  Some of them override rules
+ * in Imake.rules, and so those rules have to be re-defined since 
+ * Imake.rules has already been included at this point.
  */
-#include <Zeb.rules>
+#include <Zebra.rules>
