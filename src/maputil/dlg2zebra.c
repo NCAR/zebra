@@ -1256,9 +1256,14 @@ ReadPolygons (char *fname, char *type, PolygonInfo **polygons, int *maxpolys,
 		 */
 		if (poly_id >= *maxpolys)
 		{
-		    *maxpolys += 256;
+		    int nadd = 256;
+		    int firstnew = *maxpolys;
+		    
+		    *maxpolys += nadd;
 		    *polygons = (PolygonInfo*) 
 			realloc (*polygons, *maxpolys * sizeof (PolygonInfo));
+		    memset ((void*)((*polygons) + firstnew), 0, 
+			    nadd * sizeof (PolygonInfo));
 		}
 
 		if ((poly_id + 1) > *npolys)
