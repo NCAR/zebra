@@ -1,5 +1,5 @@
 /* 12/88 jc */
-/* $Id: dev_x11.c,v 1.2 1989-04-11 16:11:58 corbet Exp $	*/
+/* $Id: dev_x11.c,v 1.3 1989-04-14 11:27:49 corbet Exp $	*/
 /*
  * Graphics driver for the X window system, version 11.3
  */
@@ -32,6 +32,7 @@ struct xtag
 	int	x_xres, x_yres;	/* The resolution of our window	*/
 	int	x_mono;		/* Is this a mono screen?	*/
 	long	x_fg, x_bg;	/* Foreground and background colors */
+	int 	x_base;		/* KLUDGE: color base		*/
 };
 
 
@@ -90,6 +91,7 @@ struct device *dev;
 	tag->x_mono = DefaultDepth (tag->x_display, screen) == 1;
 	tag->x_fg = WhitePixel (tag->x_display, screen);
 	tag->x_bg = BlackPixel (tag->x_display, screen);
+	tag->x_base = 0;
 /*
  * Create the window to exist on that display.
  */
@@ -329,6 +331,8 @@ int ncolor, *base;
 		XAllocColorCells (tag->x_display, tag->x_cmap, True,
 			&pm, 0, pv, ncolor);
 		*base = pv[0];
+		if (! tag->x_base)
+			tag->x_base = *base;
 	}
 	else
 		*base = 0;
@@ -410,6 +414,11 @@ int x, y, xs, ys, size, org;
 	XImage *xi;
 	struct xtag *tag = (struct xtag *) ctag;
 /*
+ * Kludge to allow the restoration of images saved under Sunview.
+ */
+	if (xs > 300 || ys > 300)
+		x11_sv_kludge (data, xs, ys, tag->x_base);
+/*
  * Create the XImage structure.
  */
  	xi = XCreateImage (tag->x_display, tag->x_visual, 8, ZPixmap, 0, data,
@@ -429,5 +438,33 @@ int x, y, xs, ys, size, org;
 
 
 
+
+x11_sv_kludge (data, xs, ys, base)
+register unsigned char *data;
+int xs, ys;
+unsigned int base;
+/*
+ * Offset this data to the base needed for X, if necessary.
+ */
+{
+	register int i, npix = xs*ys;
+/*
+ * Look at up to the first thousand pixels.  If any are below the nominal
+ * base value, assume that we have to offset it.
+ */
+	for (i = 0; i < 1000; i++)
+		if (data[i] < base)
+			break;
+	if (i >= 1000)
+		return;
+	if (getenv ("XBASE"))
+		base = atoi (getenv ("XBASE"));
+	printf ("Found %d at %d -- offsetting by %d\n", data[i], i, base);
+/*
+ * Do it.
+ */
+ 	for (i = 0; i < npix; i++)
+		data[i] = (data[i] == 127) ? 0 : data[i] + base;
+}
 
 # endif /* DEV_X11 */
