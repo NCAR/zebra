@@ -1,7 +1,7 @@
 /*
  * Herein lies all the Constant Altitude Plot code, carved from PlotExec.
  */
-static char *rcsid = "$Id: ConstAltPlot.c,v 1.4 1991-06-14 22:20:21 corbet Exp $";
+static char *rcsid = "$Id: ConstAltPlot.c,v 1.5 1991-06-25 19:23:35 kris Exp $";
 
 # include <X11/Intrinsic.h>
 # include <ui.h>
@@ -72,7 +72,7 @@ typedef enum {LineContour, FilledContour} contour_type;
 	void	CAP_Contour ();
 # endif
 
-
+extern int tr_DrawVector ();
 
 
 void
@@ -402,15 +402,19 @@ Boolean	update;
  */
 {
 	char	uname[20], vname[20], cname[30], platform[40], annot[120];
-	int	xdim, ydim;
+	int	i, xdim, ydim;
 	float	*rgrid, *ugrid, *vgrid;
 	float	vscale, x0, x1, y0, y1, alt;
 	int	pix_x0, pix_x1, pix_y0, pix_y1;
 	int	top, bottom, left, right, xannot, yannot;
 	Boolean	ok;
-	int	tacmatch = 0;
+	int	tacmatch = 0, grid;
 	XColor	color;
 	time 	t;
+	PlatformId pid;
+	char	*fields[2];
+	DataObject *dobj;
+	float	unitlen;
 /*
  * Get necessary parameters from the plot description
  */
@@ -421,6 +425,12 @@ Boolean	update;
 		SYMT_FLOAT);
 	if (! ok)
 		return;
+/*
+ * Should we grid the data.
+ */
+	if (! pda_Search (Pd, c, "grid", NULL, (char *) &grid, SYMT_BOOL))
+		grid = TRUE;
+	msg_ELog (EF_DEBUG, "grid %s", grid ? "true" : "false");
 /*
  * Get annotation information from the plot description
  */
@@ -445,44 +455,93 @@ Boolean	update;
  */
 	alt = Alt;
 	t = PlotTime;
-	rgrid = ga_GetGrid (&t, platform, uname, &xdim, &ydim, &x0, &y0,
-			&x1, &y1, &alt);
-	if (Comp_index == 0)
-		Alt = alt;
-	if (! rgrid)
-	{
-		msg_ELog (EF_PROBLEM, "Unable to get U grid");
-		return;
-	}
-	ugrid = (float *) malloc (xdim * ydim * sizeof (float));
-	ga_RotateGrid (rgrid, ugrid, xdim, ydim);
-	free (rgrid);
 
-	rgrid = ga_GetGrid (&t, platform, vname, &xdim, &ydim, &x0, &y0,
-			&x1, &y1, &alt);
-	if (! rgrid)
+	if (grid)
 	{
-		msg_ELog (EF_PROBLEM, "Unable to get V grid");
-		return;
+		rgrid = ga_GetGrid (&t, platform, uname, &xdim, &ydim, 
+				&x0, &y0, &x1, &y1, &alt);
+		if (Comp_index == 0)
+			Alt = alt;
+		if (! rgrid)
+		{
+			msg_ELog (EF_PROBLEM, "Unable to get U grid");
+			return;
+		}
+		ugrid = (float *) malloc (xdim * ydim * sizeof (float));
+		ga_RotateGrid (rgrid, ugrid, xdim, ydim);
+		free (rgrid);
+
+		rgrid = ga_GetGrid (&t, platform, vname, &xdim, &ydim, 
+				&x0, &y0, &x1, &y1, &alt);
+		if (! rgrid)
+		{
+			msg_ELog (EF_PROBLEM, "Unable to get V grid");
+			return;
+		}
+		vgrid = (float *) malloc (xdim * ydim * sizeof (float));
+		ga_RotateGrid (rgrid, vgrid, xdim, ydim);
+		free (rgrid);
+	/*
+	 * Convert the grid limits to pixel values
+	 */
+		pix_x0 = XPIX (x0);	pix_x1 = XPIX (x1);
+		pix_y0 = YPIX (y0);	pix_y1 = YPIX (y1);
+	/*
+	 * Draw the vectors
+	 */
+		VectorGrid (Graphics, GWFrame (Graphics), ugrid, vgrid, 
+			xdim, ydim, pix_x0, pix_y0, pix_x1, pix_y1, vscale, 
+			BADVAL, color);
+	/*
+	 * Free the data arrays
+	 */
+		free (ugrid);
+		free (vgrid);
 	}
-	vgrid = (float *) malloc (xdim * ydim * sizeof (float));
-	ga_RotateGrid (rgrid, vgrid, xdim, ydim);
-	free (rgrid);
-/*
- * Convert the grid limits to pixel values
- */
-	pix_x0 = XPIX (x0);	pix_x1 = XPIX (x1);
-	pix_y0 = YPIX (y0);	pix_y1 = YPIX (y1);
-/*
- * Draw the vectors
- */
-	VectorGrid (Graphics, GWFrame (Graphics), ugrid, vgrid, xdim, ydim, 
-		pix_x0, pix_y0, pix_x1, pix_y1, vscale, BADVAL, color);
-/*
- * Free the data arrays
- */
-	free (ugrid);
-	free (vgrid);
+	else
+	/*
+	 * Do the ROBOT style winds plot.
+	 */
+	{
+		if ((pid = ds_LookupPlatform (platform)) == BadPlatform)
+		{
+			msg_ELog (EF_PROBLEM, "Bad platform '%s'", platform);
+			return;
+		}
+
+		if (! ds_DataTimes (pid, &PlotTime, 1, DsBefore, &t))
+		{
+			msg_ELog (EF_DEBUG,"No data available at all for '%s'",
+				platform);
+			return;
+		}
+
+		fields[0] = uname;
+		fields[1] = vname;
+		if ((dobj = ds_GetData (pid, fields, 2, &t, &t, Org2dGrid,
+			alt, BADVAL)) == 0)
+		{
+			msg_ELog (EF_PROBLEM, "Get failed on '%s'", platform);
+			return;
+		}
+		unitlen = USABLE_HEIGHT * vscale;
+		XSetForeground (XtDisplay (Graphics), Gcontext, color.pixel);
+		for (i = 0; i < dobj->do_desc.d_irgrid.ir_npoint; i++)
+		{
+			if ((dobj->do_data[0][i] == BADVAL) || 
+			    (dobj->do_data[1][i] == BADVAL))
+				continue;
+			cvt_ToXY (dobj->do_desc.d_irgrid.ir_loc[i].l_lat, 
+				dobj->do_desc.d_irgrid.ir_loc[i].l_lon, 
+				&x0, &y0);
+			pix_x0 = XPIX (x0);
+			pix_y0 = YPIX (y0);
+			tr_DrawVector (pix_x0, pix_y0, dobj->do_data[0][i],
+				dobj->do_data[1][i], unitlen, 
+				XtDisplay (Graphics), GWFrame (Graphics),
+				Gcontext);
+		}
+	}
 /*
  * If it's just an update, return now since we don't want
  * to re-annotate
@@ -516,9 +575,21 @@ Boolean	update;
 	xannot = left;
 	yannot += Sascale * USABLE_HEIGHT;
 	if(tacmatch)
-		VG_AnnotVector (xannot, yannot + 4, 10.0, 0.0, color.pixel);
+		if (grid)
+			VG_AnnotVector (xannot, yannot + 4, 10.0, 0.0, 
+				color.pixel);
+		else
+			tr_DrawVector (xannot, yannot + 4, 10.0, 0.0,
+				unitlen, XtDisplay (Graphics), 
+				GWFrame (Graphics), Gcontext);
 	else
-		VG_AnnotVector (xannot, yannot + 4, 10.0, 0.0, Tadefclr.pixel);
+		if (grid)
+			VG_AnnotVector (xannot, yannot + 4, 10.0, 0.0, 
+				Tadefclr.pixel);
+		else
+			tr_DrawVector (xannot, yannot + 4, 10.0, 0.0,
+				unitlen, XtDisplay (Graphics), 
+				GWFrame (Graphics), Gcontext);
 	lw_TimeStatus (c, &t);
 	An_SAUsed (yannot + 15);
 }
