@@ -1,3 +1,6 @@
+# ifndef _zebra_config_h_	/* protect against multiple inclusion */
+# define _zebra_config_h_
+
 /* -*- C -*-
  *
  * Zebra configuration parameters.
@@ -32,9 +35,6 @@
 /*============================== Don't change anything in this section ==*/
 /*_/////////////////////////////////////////////////////////////////////-*/
 
-# ifndef _zebra_config_h_	/* protect against multiple inclusion */
-# define _zebra_config_h_
-
 /*
  * Required when being included from a source file
  */
@@ -49,7 +49,7 @@
 XCOMM -----------------------------------------------------------------------
 XCOMM Definitions from config.h included here.  The definitions here override
 XCOMM the defaults in Project.tmpl.  See ...../zebra/config/project/config.h.
-XCOMM $Id: config.h.solaris,v 1.2 2002-06-10 15:41:52 burghart Exp $
+XCOMM $Id: config.h.solaris,v 1.3 2002-06-10 15:44:06 burghart Exp $
 XCOMM -----------------------------------------------------------------------
 # endif
 
@@ -57,26 +57,16 @@ XCOMM -----------------------------------------------------------------------
 /*=======================================================================*/
 
 /*
- * Which help browser do you want to use?  If you set UseMosaic to YES,
- * then Mosaic will be used; otherwise the (old) xhelp browser will be
- * used.  Xhelp is almost certain to be removed from future releases, so
- * the use of Mosaic is recommended.  The default definition for UseMosaic
- * is YES.  Use the MOSAIC_COMMAND symbol to define a default path to
- * Mosaic; it can be either an absolute path or an executable name.  If
- * left commented out, zebra looks for Mosaic and xmosaic on your path.  If
- * defined, zebra checks the defined path before trying the other options.
- * The path must be quoted.
+ * Which html browser do you want to use, netscape or Mosaic?  Use the
+ * MOSAIC_COMMAND symbol to define a default path to the browser; it can be
+ * either an absolute path or an executable name.  If commented out, zebra
+ * looks for Mosaic and xmosaic on your path.  If defined, zebra checks the
+ * defined path before trying the other options.  The path must be quoted.
  *
- * MOSAIC_COMMAND may also be set to "netscape" and the right thing will
- * happen.
- *
- * The UseXHelp variable in the display manager can be used to override this
- * definition at run time.
- *
- * Mosaic's distribution conditions do not allow us to distribute the software,
- * but you can get it in binary or source form from ftp.ncsa.uiuc.edu.
+ * Zebra only knows the remote control protocols for Mosaic and netscape.
+ * If MOSAIC_COMMAND includes the text "netscape", then the netscape protocol
+ * will be used.
  */
-# define UseMosaic YES
 # define MOSAIC_COMMAND "netscape"
 
 # ifdef MAKING_MAKEFILE
@@ -101,24 +91,10 @@ XCOMM -----------------------------------------------------------------------
  * are not left taking up space.
  */
 
-# define BaseDir	/zebra
+# define BaseDir	/usr/local/zebra
 # define BinDir		BaseDir/bin
 # define LibDir		BaseDir/lib
 # define IncDir		BaseDir/include
-
-/*
- * If RDSS is already installed on the system elsewhere, define the RDSSDir
- * symbol to the top directory of the RDSS distribution tree.  Otherwise,
- * if you have a Zebra distribution which already includes the needed RDSS
- * libraries, define the symbol BuildRDSS to YES.  If BuildRDSS is YES,
- * ignore all of the other RDSS include and library definitions which are
- * asked for further on in this file. 
- */
-# define BuildRDSS	YES
-
-# if !BuildRDSS
-#  define RDSSDir	/rdss
-# endif
 
 /*
  * If the UseInstalledZebra symbol is YES, Zebra executables will link with
@@ -140,59 +116,15 @@ XCOMM -----------------------------------------------------------------------
  *
    ------------------------------------------------------------------------ */
 
-/*
- * If you're using Mosaic exclusively and do not want to build or install
- * the xhelp utility, define BuildXHelp to NO.  It defaults to NO if
- * UseMosaic is YES and BuildXHelp is not defined.  If you want the default
- * to be Mosaic, but you still want to compile xhelp capability, define
- * BuildXHelp to YES and UseMosaic to YES.  If BuildXHelp is NO, then zebra
- * will always try to use Mosaic no matter what (since xhelp won't be there).
- *
- * If you have Mosaic and will not be using older project configurations
- * such as the StormFEST CD's (which have project-specific info under xhelp),
- * then you may as well define this to NO.
- */
-# define BuildXHelp NO
-
 /* 
  * Do you want to build any of Zebra's ingest modules?  Only recommended
- * for Sun machines, and only if you know that you need them.
+ * for Sun machines, and only if you know that you need them.  This only
+ * has an effect if the ingest directory tree exists under the src/
+ * directory, in which case you should edit config-ingest.h also.
+ * The easiest thing to do would be to leave this as no and then configure
+ * and build the ingest tree separately.
  */
-#define BuildIngest NO
-#define BuildPythonUtils NO
-
-/*
- * Here you can select which individual ingest modules to build.  
- * NONE of these will be built if BuildIngest is NO
- */
-# define	BuildIngestScheduler	YES	/* Sun only	 	*/
-# define	BuildClassIngest	YES
-# define	BuildRadarIngest	YES	/* Sun only, see PCAP below*/
-# define	BuildSLGrabber		YES	/* Sun only		*/
-# define	BuildNowradIngest	YES
-# define	BuildProfsIngest	YES
-# define	BuildSatelliteIngest	YES
-# define	BuildP3Composite	YES
-# define	BuildTOGASlowTape	YES
-# define	BuildSlowTapeIngest	YES
-# define 	BuildTAOIngest		YES
-# define	Build_GMS_ISCCP		YES
-# define	Build_TRMM_SSMI		YES
-# define	Build_TRMM_Rain		YES	/* Sun only		*/
-# define	Build_TRMM_Sonde	YES
-# define	Build_FEST_P3_C130	YES
-# define	BuildPrecipIngest	YES
-# define	BuildDAPIngest		YES
-# define	BuildRAPDataServerIngest YES
-# define	BuildWetnetIngest	YES
-
-/*
- * The PAM ingest programs (pam_ingest and daypam_ingest) require libraries
- * which are compiled within the RDSS source tree.  Do not define this to YES
- * unless your RDSS source tree still contains the compiled mda, pamutil, and
- * unp libraries (i.e., it all built successfully and has not been cleaned).
- */
-# define	BuildPamIngest		NO   /* Requires RDSS compiled tree */
+# define        BuildIngest             NO
 
 /*
  * Set this if you want the ingest-oriented DataStore utilities (these being
@@ -202,15 +134,6 @@ XCOMM -----------------------------------------------------------------------
 # define	BuildRealtimeDataStoreTools	YES
 
 /*
- * The data file utilities are the program for handling various file 
- * and converting files to Zebra's netCDF conventions.  Some examples
- * are gprotocdf and mudtocdf, for GENPRO and MUDRAS, respectively.
- * Unless you know you will need them, you might as well wait and only
- * compile the programs you need when you need them.
- */
-# define	BuildDataUtilities		NO
-
-/*
  * The map utilities allow converting maps from a few different existing
  * formats into a Zebra-usable format.  The forms handled include USGS
  * DLG/SDTS format, CIA World Database II CBD format, and NCAR Graphics map
@@ -218,6 +141,7 @@ XCOMM -----------------------------------------------------------------------
  */
 # define	BuildMapUtilities		YES
 
+#define BuildPythonUtils NO
 
 /* //// That's all of the defintions for choosing pieces to install.///// */
 /* //// Go the next section for other compile configuration options ///// */
@@ -242,9 +166,8 @@ XCOMM -----------------------------------------------------------------------
  * linked with OpenWindows, however, because the build must make some
  * adjustments in order to link properly.  If you have MIT's X
  * distribution, Release 4 or 5, use it.  If you only have OpenWindows,
- * version 2 or 3, then use that (the most recent version possible) and
- * define the UseOpenWindows symbol below to YES and the OpenWindowsVersion
- * symbol to the appropriate version number
+ * then use that (the most recent version possible) and
+ * define the UseOpenWindows symbol below to YES.
  */
 
 /*
@@ -252,16 +175,16 @@ XCOMM -----------------------------------------------------------------------
  * If the home directory of OpenWindows is not the default /usr/openwin,
  * then define OpenWinHome to the correct directory.
  */
-/* # define UseOpenWindows 	NO	*/
-/* # define OpenWinHome		/usr/openwin */
+# define UseOpenWindows 	YES
+# define OpenWinHome		/usr/openwin
 
 /*
- * "Distribution-safe" build for Solaris.  Shared libraries are used, but
- * only those distributed with Solaris.
+ * These are flags which might be useful for gcc.  The first links with
+ * with a static libstdc++ even when shared is the default.  The second
+ * prevents lots of warnings about non-standard X header files.
  */
-# define UseOpenWindows	YES
-# define OpenWinHome	/usr/openwin
 # define ExtraLoadFlags	-nodefaultlibs /usr/local/lib/libstdc++.a -lgcc -lc
+# define XIncludes -idirafter $(XINCDIR)
 
 /*
  * Does your X system support the shared memory extension?  The answer is
@@ -298,15 +221,6 @@ XCOMM -----------------------------------------------------------------------
  */
 # define UseGcc YES
 
-/*
- * Zebra uses the RDSS UI compiler to generate load files for much of its
- * user interface.  If the UI compiler, uic, is not in your path, define
- * the full path of uic, including the executable name, in the symbol
- * UicCmd.  The default value is usually just 'uic'.  If BuildRDSS is true,
- * a default will be chosen based on UseInstalledZebra.
- */
-/* # define UicCmd /rdss/bin/uic */
-
 /* 
  * Zebra compilation now also requires a C++ compiler and (for dsmanage and
  * tapeindex) GNU's libg++.  In turn, libg++ essentially requires that the
@@ -326,11 +240,18 @@ XCOMM -----------------------------------------------------------------------
  * in directory /weird/bin, you need a line below of the form:
  *	# define CplusplusCmd /weird/bin/g++
  *
- * The C debug flags and options (defined further below) will be passed to
- * the C++ compiler as well.
+ * If you want debug flags for the C++ compiler and linker, define the
+ * CplusplusDebugFlags macro accordingly.  The CDebugFlags setting is no
+ * longer included automatically on the C++ command line.
+ *
+ * Caution: Enabling debugging can significantly slow compilation time and
+ * increase library and executable size.  If disk space is critical, you
+ * might want to consider either stripping the binaries after installation
+ * or disabling debugging altogether.
  */
 # define HasCplusplus	YES
 # define CplusplusCmd	g++
+# define CplusplusDebugFlags -g
 
 /*
  * To set debugging flags for the FORTRAN and C compilers' command
@@ -441,15 +362,49 @@ XCOMM -----------------------------------------------------------------------
 /*
  * Zebra can now cope with radar sweepfiles as well.  Unless you have
  * the needed libraries, and you know that you want to use this capability,
- * your best bet is to leave it disabled.
+ * your best bet is to leave it disabled.  If this is enabled, then 
+ * polar plots in the graphics process will also be enabled.  Without
+ * sweepfile support, polar plots are useless and will be automatically
+ * disabled.
  *
  * If enabled, use SweepFileIncDir to say where the dorade library
  * includes live, and SweepFileLibrary to specify the library itself
  * (or SweepFileLibDir to just give the directory).
  */
 # define HasSweepFiles YES
-# define SweepFileIncDir /usr/local/rdss/spol/include
-# define SweepFileLibrary /usr/local/rdss/spol/ddutils/ddmlib.a
+# define SweepFileIncludes -I/usr/local/rdss/include
+# define SweepFileLibrary -L/usr/local/rdss/lib -lddm
+
+/*
+ * Building the radar ingestor now requires the PCAP library from
+ * ftp.ee.lbl.gov.  If you want this module be sure that the symbol
+ * below is set such that the linker will find the library; if you're
+ * not using the radar ingestor (99.9% of all Zebra users), you can ignore
+ * all this.
+ */
+# define PCAPLibrary 	-lpcap
+# define PCAPIncludes 	-I/usr/local/include
+
+/*
+ * The graphics process can be built to do map projections.  Projections
+ * require the proj library, produced by the U.S. Geological Survey, and a
+ * C compiler which supports ANSI prototypes, such as gcc.  The proj library
+ * may be obtained from the ATD FTP site, or from charon.er.usgs.gov.  We
+ * thank Gerald Evenden of USGS for allowing us to use and redistribute
+ * this library.
+ *
+ * To use projections, set MapProjections to YES and ProjLibrary to the
+ * appropriate value. 
+ */
+# define MapProjections YES
+# define ProjLibDir /usr/local/lib
+# define ProjIncDir /usr/local/include
+	
+/*
+ * Examples of command-line options which override the above definitions
+ */
+/* # define ProjLibrary -L/usr/local/proj/lib -lproj */
+/* # define ProjIncludes -I/usr/local/proj/include */
 
 /*
  * During linking, the linker must be told where to find the libraries 
@@ -475,16 +430,11 @@ XCOMM -----------------------------------------------------------------------
  * one.
  */
 
-/* # define XLibDir /local/X11R6/lib */
+/* # define XLibDir /local/X11R5/lib */
 /* # define XLibDir /usr/contrib/mitX11R5/lib */ /* for HPUX */
 
-# if !BuildRDSS
-/* # define RDSSLibDir /rdss/lib */		/* common RDSS installation */
-/* # define RDSSLibDir /usr/local/lib */	/* not needed with gcc */
-# endif
-
-# define NetCDFLibDir /usr/local/lib
-# define UDUnitsLibDir /usr/local/lib
+/* # define NetCDFLibDir /usr/local/lib */	/* not needed with gcc */
+/* # define UDUnitsLibDir /usr/local/lib */	/* not needed with gcc */
 
 /*
  * To specify the whole command-line option for a library use the symbols
@@ -520,493 +470,10 @@ XCOMM -----------------------------------------------------------------------
  *	NetCDFLibrary	-lnetcdf
  *	UDUnitsLibrary	-ludunits
  * 	RDSSLibrary	-lrdssui -lrdssutil
- *
- * The following 2 libraries will probably need to be explicitly
- * defined here, but ONLY if you need them for ingest modules.
- *
- * The SUDS library is only needed for the PAM and CLASS ingest modules.
- *
- *	SudsLibrary	$(RDSSDIR)/suds/libsuds.a
- *
- * The 'PAM configuration library', libunp.a, is only needed by
- * the PAM ingest module.
- *
- *	PamCfgLibrary	-lunp
- *
- * If you don't need to ingest any PAM or CLASS data (which will be the
- * case 99% of the time), you can safely ignore the definition of the
- * two symbols above.
- */
-
-/*
- * This one works if the RDSS source tree is in /rdss and has not been cleaned
- */
-/* # define PamCfgLibrary /rdss/pam/cfg/access/libunp.a */
-
-/*
- * This one is for RDSS libraries installed into /usr/local/lib
- */
-/* # define PamCfgLibrary /usr/local/lib/libunp.a */
-
-/*
- * If you have a nonstandard Fortran compiler (i.e. you "make" won't figure
- * it out automatically) set it here.  (This example for the GNU compiler).
- * If you are compiling under Linux, the appropriate FORTRAN compiler and
- * libraries are given defaults further down in this file, and you don't
- * need to uncomment this definition.
- */
-/* # define FortranCompiler g77 */
-
-/*
- * FORTRAN libraries tend to be very system-specific.  Define this
- * parameter to be the command-line options necessary to link with
- * the FORTRAN libraries on your system.  If not using g77 or Suns,
- * the defaults below are probably fine.  Otherwise, uncomment the
- * g77 example definition below, or choose the correct definition
- * from among the examples for Sun architectures.
- *
- * Fortran libraries are no longer needed to build the graphics process.
- * They are only necessary if building the data utilities or certain
- * ingestors, such as the satellite GOES and GVAR ingestors.
- *
- * Similar to FortranCompiler, FortranLibraries has a default for
- * Linux defined below.
- */
-
-/* G77 -- may also have to give -L if not linking with gcc */
-/* # define FortranLibraries -lf2c */
-
-#ifndef FortranLibraries
-#ifdef SunArchitecture /* SunOS and Solaris */
-
-/* 
- * Change the FortranLibraries definition below if you are not using the 
- * SC4.2 version of the Fortran compiler.
- */
-#ifndef FortranLibraries
-# define FortranLibraries -L/opt/SUNWspro/SC4.2/lib -lF77 -lV77 -lM77 -lsunmath
-#endif
-
-#else
-#ifdef HPArchitecture /* HP-UX */
-
-# define FortranLibraries -lU77 -lf -lisamstub
-
-#else
-#ifdef SGIArchitecture /* IRIX 5.x */
-
-# define FortranLibraries -lF77 -lI77 -U77 -lisam
-
-#else
-#ifdef LinuxArchitecture
-
-# define FortranCompiler g77
-# define FortranLibraries -lf2c
-
-#else 
-#ifdef OSF1Architecture
-# define FortranCompiler f77
-# define FortranLibraries -lfor -lFutil -lUfor -lots
- 
-#else
-#ifdef AIXArchitecture
-
-# define FortranCompiler xlf
-# define FortranLibraries -lxlf -lxlf90
- 
-#endif /* AIX */
-#endif /* OSF */
-#endif /* Linux */
-#endif /* SGI */
-#endif /* !HP */
-#endif /* !Sun */
-#endif /* !FortranLibraries */
-
-/*
- * Some of Zebra's routines require the terminal capability library,
- * usually /usr/lib/libtermcap.a, and the math library, /usr/lib/libm.a.
- * These are the symbols and their defaults:
- *
- *	MathLibrary	-lm
- *	TermcapLibrary	-ltermcap
- *
- * To change these definitions, use your compiler's options for 
- * specifying libraries on the command line, such as -L for 
- * search directories and -l for library names. Linux systems may
- * need -lncurses instead of -ltermcap.
- */
-
-# define MathLibrary	-lm
-# define TermcapLibrary -ltermcap
-
-/*
- * Building the radar ingestor now requires the PCAP library from
- * ftp.ee.lbl.gov.  If you want this module be sure that the symbol
- * below is set such that the linker will find the library; if you're
- * not using the radar ingestor (99.9% of all Zebra users), you can ignore
- * all this.
- */
-# define PCAPLibrary 	-lpcap
-# define PCAPIncludes 	-I/usr/local/include
-
-/*
- * The graphics process can be built to do map projections.  Projections
- * require the proj library, produced by the U.S. Geological Survey, and a
- * C compiler which supports ANSI prototypes, such as gcc.  The proj library
- * may be obtained from the ATD FTP site, or from charon.er.usgs.gov.  We
- * thank Gerald Evenden of USGS for allowing us to use and redistribute
- * this library.
- *
- * To use projections, set MapProjections to YES and ProjLibrary to the
- * appropriate value. 
- */
-# define MapProjections YES
-# define ProjLibDir /usr/local/lib
-# define ProjIncDir /usr/local/include
-	
-/*
- * Examples of command-line options which override the above definitions
- */
-/* # define ProjLibrary -L/usr/local/proj/lib -lproj */
-/* # define ProjIncludes -I/usr/local/proj/include */
-
-/*========================================================================
- * Distribution Options
- *------------------------------------------------------------------------
- * This section of definitions is meant for those who are creating a
- * customized Zebra distribution.  If you are only installing Zebra at your
- * local site, then you are finished configuring Zebra.  Save this file and
- * continue with the installation instructions.  Otherwise, read on.
- *
- * Zebra's Imakefiles contain several built-in features meant for creating
- * and customizing Zebra distribution trees.  In particular, here are some
- * important targets to be familiar with:
- *
- * distfiles::		Echoes to the terminal the path names of all files
- *			which are meant to be distributed in a directory
- *			and all of the subdirectories.  By setting the
- *			DISTCURDIR variable on the command line, all of the
- *			file names printed will be prefixed with the value
- *			of the variable.  See the tarfile: target in the
- *			top-level Imakefile for an example of how this can
- *			be used.
- *
- * distmakefiles::	Makes Makefiles for ALL of the distribution 
- *			directories, not just those which have been "turned
- *			on" to be built.  This is necessary before performing
- *			other dist targets in order to create the Makefile
- *			which the dist targets will operate on.
- *
- * distclean::		Cleans in ALL directories in the distribution.  This
- *			is useful when programs have been compiled
- *			explicitly from within a directory which has been
- *			disabled in the regular distribution tree.  From the
- *			top-level, this target also removes the ./bin and
- *			./lib directories, and cleans in ./imake, so use
- *			it with caution.
- *
- * In addition to the symbols above which control which parts of a 
- * distribution are being compiled, other symbols control which parts
- * belong to the distribution:
- *
- * DistributeIngest	If YES, zebra/src/ingest is expected to be in the
- *			distribution, and all of its files and directories
- *			will be included in any distfiles operations.
- *
- * DistributeOptimzer	If YES, zebra/src/Optimizer is expected to be in the
- *			distribution tree.
- *
- * DistributeDataUtils	YES when the zebra/src/datautil directory is part 
- *			of the distribution.
- *
- * DistributeXHelp	If YES, the makefile in zebra/src tries to build
- *			and install in zebra/src/xhelp.  Otherwise, the
- *			xhelp directory can be removed without harm.  Use
- *			this to build distributions which will always
- *			use the Mosaic help interface.
- *
- * Therefore, if you wanted to create a distribution which did not contain
- * the ingest directory, Optimizer, data utilities, map utilities, or xhelp, 
- * uncomment the following lines:
- */
-
-/* #define DistributeIngest 	NO */
-#define DistributeOptimizer 	YES
-#define BuildOptimizer		YES
-/* #define DistributeDataUtil 	NO */
-/* #define DistributeMapUtil 	NO */
-/* #define DistributeXHelp	NO */
-
-/* Next, update ALL of the distributed Makefiles with 'make distmakefiles'.
- * Now you have two options:
- *
- *	Use the top-level tarfile target to create a distribution tar file,
- *	which will NOT contain ingest, Optimizer, datautils, or xhelp.
- *
- * 	Explicitly remove the ingest, Optimizer, datautils, and xhelp
- * 	directories from your distribution.  As long as the above symbols
- * 	are NO, the Imakefiles will never try to access those directories,
- * 	even for any of the dist* targets.  If using a "pruned"
- * 	distribution tree, make sure the symbols always stay set
- * 	appropriately.
- */
- 
-/* One more symbol is also available: */
-
-/* #define DistributeRealtimeDataStoreTools NO */
-
-/* Any of the distribution symbols which are not defined default to YES.
- * Questions about any of this can go to granger@ncar.ucar.edu
- * Also see the chapter on Imake in the Zebra Developer's Guide.
  */
 
 /*========================================================================*/
 # endif /* MAKING_MAKEFILE */
-
-/*========================================================================
- * Selecting Graphics Process Plot Types
- *------------------------------------------------------------------------
- * The following definitions allow you to configure in or out various
- * pieces of the Zebra graphics process.  There are very few cases in which
- * it is desirable to change any of the following.
- *------------------------------------------------------------------------*/
-/*
- * --- The various plot types ---
- */
-# define C_PT_CAP	YES		/* Constant altitude plots	*/
-# define C_PT_SKEWT	YES		/* Skew T plots			*/
-# define C_PT_XSECT	YES		/* Cross section plots		*/
-# define C_PT_TSERIES	YES		/* Time series plots		*/
-# define C_PT_XYGRAPH	YES		/* XY-Graph plots		*/
-# define C_PT_XYWIND	YES		/* XY-Graph wind plots		*/
-# define C_PT_HISTOGRAM	YES		/* Histograms			*/
-# define C_PT_THETAPLOT	YES		/* Theta plots			*/
-
-/*
- * --- CAP subplots ---
- *
- * Define these YES if you want them.  If C_PT_CAP above is not YES, then
- * ALL of these definitions will be ignored and none of these plots will
- * be built.  Again, it is rare that anyone would want or need to define
- * any of these to NO.
- *
- * The one possible exception is POLAR, which enables the "polar"
- * representation and contours of polar data.  This is probably not useful
- * to the bulk of people out there.  Polar plots currently only work from
- * sweepfile data, so you will need to have enabled sweepfile access as
- * well.
- */
-# if C_PT_CAP
-#	define C_CAP_OVERLAY	YES	/* Overlays			*/
-#	define C_CAP_VECTOR	YES	/* Vector plots			*/
-# 	define C_CAP_LIGHTNING	YES	/* Lightning location		*/
-#	define C_CAP_RASTER	YES	/* Raster plots			*/
-#	define C_CAP_TRACKS	YES	/* Track plots (e.g. aircraft)	*/
-# 	define C_CAP_POLAR	YES	/* Plots of polar data		*/
-# endif
-/*------------------------------------------------------------------------*/
-
-
-/*========================================================================
- * Customization Options
- *------------------------------------------------------------------------
- * Several parameters used throughout the Zebra distribution can be
- * modified by setting them here rather than changing them in all of the
- * include files.  The intention is that certain projects can keep their
- * settings in this file and turn them on by defining a single symbol, like
- * ARM_PROJECT for the ARM project.  All of the symbols defined here have
- * the prefix 'CFG_'.  If a symbol is not defined, then the include files
- * use their own defaults.
- */
-
-/* #define ARM_PROJECT		*/
-/* #define NEXUS_PROJECT	*/
-
-/*------------------------------------------------------------------------
- * //////////////////// Settings for the ARM project /////////////////////
- *------------------------------------------------------------------------*/
-#ifdef ARM_PROJECT
-
-/* 
- * The default altitude units for datachunks and for netCDF files whose alt
- * field does not have a units attribute (or has a blank one).  If the
- * altitude units of a datachunk are not explicitly overridden, this will
- * be the units which are stored in the "units" attribute of the "alt"
- * field in netCDF files.
- */
-#define CFG_ALTITUDE_UNITS	AU_mMSL
-
-#define DistributeIngest 	NO
-#define DistributeOptimizer 	NO
-
-#endif /* ARM_PROJECT */
-/*------------------------------------------------------------------------*/
-
-
-/*------------------------------------------------------------------------
- * //////////////////////// Settings for NEXUS ///////////////////////////
- *------------------------------------------------------------------------*/
-#ifdef NEXUS_PROJECT
-
-#define DistributeIngest 	NO
-#define DistributeOptimizer 	NO
-#define DistributeDataUtil 	NO
-#define DistributeRealtimeDataStoreTools YES
-
-#endif /* NEXUS_PROJECT */
-/*------------------------------------------------------------------------*/
-
-
-/*------------------------------------------------------------------------*/
-/* ------------------ Defaults for compile-time constants ----------------*/
-/*------------------------------------------------------------------------*/
-/* The definitions below will not usually need to be changed, but they are
- * provided here so that they can be conveniently found and changed in
- * single file.  DO NOT EDIT THESE UNLESS YOU KNOW WHAT YOU ARE DOING!  If
- * any of these definitions are unreasonable or downright incorrect, you
- * may not be able to compile or run Zebra.
- **************************************************************************/
-
-/* #define CFG_FULL_YEARS */	/* Use four-digit years in netcdf file names */
-/* #define CFG_WARN_FIELD_NAMES *//* Warn about CDL-illegal field names */
-
-/*
- * If defined, the 'alt' field will not be given a 'units' attribute in
- * netCDF files.
- */
-/* #define CFG_NC_NO_ALT_UNITS */
-
-/*
- * Various string length limits
- */
-#ifndef CFG_PLATNAME_LEN
-#define CFG_PLATNAME_LEN 80	/* Len of platform names		     */
-#endif
-#ifndef CFG_DIMNAME_LEN
-#define CFG_DIMNAME_LEN	32	/* Longest allowable dimension name	     */
-#endif
-#ifndef CFG_PDPARAM_LEN
-#define CFG_PDPARAM_LEN	40	/* Length of parameter names	*/
-#endif
-#ifndef CFG_ASCTIME_LEN
-#define CFG_ASCTIME_LEN	40	/* Length needed for encoded times*/
-#endif
-#ifndef CFG_PLATCLASS_LEN
-#define CFG_PLATCLASS_LEN 80	/* Len of platform class names		     */
-#endif
-#ifndef CFG_FILENAME_LEN
-#define CFG_FILENAME_LEN 32	/* Len of general file names (not full paths)*/
-#endif
-#ifndef CFG_DATAFILE_LEN
-#define CFG_DATAFILE_LEN 50	/* Len of data file names (not full paths)   */
-#endif
-#ifndef CFG_FILEPATH_LEN
-#define CFG_FILEPATH_LEN 256	/* Len of full path filenames		     */
-#endif
-#ifndef CFG_PDNAME_LEN
-#define CFG_PDNAME_LEN	40	/* Len of name of a plot description table   */
-#endif
-#ifndef CFG_MSGNAME_LEN
-#define CFG_MSGNAME_LEN	64	/* Max length of a message client name	     */
-#endif
-#ifndef CFG_MSGEVENT_LEN
-#define CFG_MSGEVENT_LEN 200	/* Length of extended logger event messages  */
-#endif
-#ifndef CFG_FIELD_NAME_LEN
-#define CFG_FIELD_NAME_LEN 40	/* Length of field names		     */
-#endif
-#ifndef CFG_FIELD_LONG_LEN
-#define CFG_FIELD_LONG_LEN 256	/* Length of field description (long name)   */
-#endif
-#ifndef CFG_FIELD_UNITS_LEN
-#define CFG_FIELD_UNITS_LEN 40	/* Length of field units string		     */
-#endif
-#ifndef CFG_SEARCHPATH_LEN
-#define CFG_SEARCHPATH_LEN 512	/* Length of exec search paths and such	     */
-#endif
-
-/*
- * Maximum number of fields (field IDs) in the fields table
- */
-#ifndef CFG_FIELD_MAX_ID
-#define CFG_FIELD_MAX_ID	512
-#endif
-
-/*
- * Maximum number of platforms (including subplatforms)
- */
-#ifndef CFG_MAX_PLATFORMS
-#define CFG_MAX_PLATFORMS 2048
-#endif
-
-/*
- * DataChunk symbols
- */
-#ifndef CFG_DC_MAXFIELD
-#define CFG_DC_MAXFIELD	255	/* Maximum allowable fields in one datachunk */
-#endif
-#ifndef CFG_DC_MF_HASH_SIZE
-#define CFG_DC_MF_HASH_SIZE 256	/* Least power of 2 > (not =) CFG_DC_MAXFIELD*/
-#endif
-#ifndef CFG_DC_MAXDIMN
-#define CFG_DC_MAXDIMN	30	/* Max number of dimensions for NSpace chunk,*/
-                                /* should be less than netCDF limit	     */
-#endif
-#ifndef CFG_DC_DEFAULT_BADVAL
-#define CFG_DC_DEFAULT_BADVAL -99999.	/* Default floating poing bad value  */
-		/* WARNING: Make sure this value contains a decimal point!   */
-#endif
-
-/*
- * Plot desctiption limits
- */
-#ifndef CFG_PD_MAXCOMP
-#define CFG_PD_MAXCOMP	50	/* Maximum # components expected in a PD     */
-#endif
-#ifndef CFG_PD_RAWTEMP
-#define CFG_PD_RAWTEMP	40960	/* Raw temp buffer space for raw PD's	     */
-#endif
-
-/*
- * Message manager limits
- */
-#ifndef CFG_MSG_MAXBCAST
-#define CFG_MSG_MAXBCAST 1500	   /* Maximum length of a broadcast message  */
-#endif
-#ifndef CFG_MSG_DEFAULT_PORT
-#define CFG_MSG_DEFAULT_PORT 1500  /* Default tcp port			     */
-#endif
-#ifndef CFG_MSG_SOCKET_NAME
-#define CFG_MSG_SOCKET_NAME "/tmp/fcc.socket"
-                         /* UNIX domain socket name in file system namespace */
-#endif
-
-/*
- * Display manager limits
- */
-#ifndef CFG_DM_CODELEN
-#define CFG_DM_CODELEN	20	/* Length of a DM event code	*/
-#endif
-#ifndef CFG_DM_MAXADATA
-#define CFG_DM_MAXADATA 128	/* Length of DM action data	*/
-#endif
-
-/*
- * Graphics process limits
- */
-#ifndef CFG_GP_MAX_CONTOURS
-#define CFG_GP_MAX_CONTOURS 50	/* Contour levels allowed without aborting */
-#endif
-
-/*
- * Other parameters
- */
-#ifndef CFG_ALTITUDE_UNITS
-#define CFG_ALTITUDE_UNITS 	AU_kmMSL /* Default units for "alt" field */
-#endif
-/*------------------------------------------------------------------------*/
-
-
 
 /*-//////////////////////////////////////////////////////////////////////-*/
 /*========================================================================
@@ -1016,44 +483,10 @@ XCOMM -----------------------------------------------------------------------
  * ////////         installation instructions...	   ///////////////
  *========================================================================*/
 /*-//////////////////////////////////////////////////////////////////////-*/
+# ifdef MAKING_MAKEFILE
+#include "config-ingest.h"
+# endif /* MAKING_MAKEFILE */
 
-
-
-/*------------------------------------------------------------------------*/
-/*
- * These are always NO -- do not change them!
- */
-# if !C_PT_CAP
-#	define C_CAP_OVERLAY	NO	/* Overlays			*/
-#	define C_CAP_VECTOR	NO	/* Vector plots			*/
-# 	define C_CAP_LIGHTNING	NO	/* Lightning location		*/
-#	define C_CAP_RASTER	NO	/* Raster plots			*/
-#	define C_CAP_TRACKS	NO	/* Track plots			*/
-# 	define C_CAP_POLAR	NO	/* Plots of polar data		*/
-# endif
-
-/*
- * Some parameters for dealing with buffer lengths.
- */
-# define MAX_PLAT_LEN	160	/* Maximum platform len -- remember lists */
-# define MAX_PARAM_LEN	40	/* Length of parameter names		*/
-# define TIME_LEN	40	/* Length needed for encoded times	*/
-
-/* --- Some obsolete configuration symbols put here to be forgotten --- */
-/* --- and to simplify the installation process                     --- */
-
-/*
- * The PD monitor utility is an emacs program which provides interactive
- * run-time editing, checking, and monitoring of graphics processes' plot
- * descriptions.  If you have emacs (not version 19), and wish to compile
- * the emacs lisp code for the PD monitor, define HaveEmacs to YES and make
- * sure EmacsPath points to the emacs program.  The default is NO.  Even if
- * the elisp code is not compiled and installed, the elisp source files
- * will still be installed, so these can be used as is or byte-compiled
- * later.  If you have Emacs 19, the elisp code cannot be batch compiled,
- * so set HaveEmacs to NO. The Emacs 19 lisp file will still be installed.
- */
-# define HaveEmacs NO
-# define EmacsPath emacs
+#include "config-defaults.h"
 
 # endif /* ! _zebra_config_h_ */
