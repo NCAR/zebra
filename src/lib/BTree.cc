@@ -11,11 +11,11 @@ extern "C" {
 #include <message.h>
 }
 
-RCSID ("$Id: BTree.cc,v 1.5 1997-12-17 05:24:07 granger Exp $")
+RCSID ("$Id: BTree.cc,v 1.6 1997-12-24 19:43:17 granger Exp $")
 
 #include "Logger.hh"
-#include "BTree.hh"
 #include "BTreeP.hh"
+#include "HeapFactory.hh"
 
 // XDR_ADDTYPE (tree_base);
 
@@ -186,6 +186,23 @@ int BTree<K,T>::Remove ()
 	if (check) err += Check ();
 	factory->unlock ();
 	return (r);
+}
+
+
+
+
+template <class K, class T>
+BTreeStats
+BTree<K,T>::Statistics ()
+{
+	BTreeStats collect;
+	factory->readLock ();
+	if (! Empty())
+	{
+		root->stats (collect);
+	}
+	factory->unlock ();
+	return (collect);
 }
 
 

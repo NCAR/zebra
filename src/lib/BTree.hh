@@ -1,5 +1,5 @@
 /*
- * $Id: BTree.hh,v 1.3 1997-12-17 03:49:20 granger Exp $
+ * $Id: BTree.hh,v 1.4 1997-12-24 19:43:18 granger Exp $
  *
  * Public BTree class interface.
  */
@@ -7,40 +7,118 @@
 #ifndef _BTree_hh_
 #define _BTree_hh_
 
-// #include <stddef.h>
-// #include <defs.h>
-
-#include "BlockFile.hh"
-#include "Serialize.hh"
-
-// Reference to a node by some remote address and size, else by a pointer
-// to a cached copy in local memory.  In an entire tree, there is only one
-// reference to each node, in its parent.  So that reference might also
-// need to contain the size of the node in the factory address space.
-
-struct Node
+#ifndef _BTreeStats_
+#define _BTreeStats_
+/*
+ * Class to accumulate btree statistics for all of its nodes.
+ */
+struct BTreeStats
 {
-	void *local;		// Memory cache
-	unsigned long addr;	// Persistent address
-
-	Node () : local(0), addr(0) 
+	BTreeStats () :
+		nkeys(0),
+		keysopen(0),
+		nodeused(0),
+		nodealloc(0),
+		elemused(0),
+		elemalloc(0),
+		nbranch(0),
+		nleaves(0),
+		nelements(0),
+		minkeys(0),
+		maxkeys(0)
 	{ }
 
-	void translate (SerialStream &ss)
+	long nkeys;		// Number of keys in use
+	long keysopen;		// Number of key slots unused
+	long nodeused;		// Bytes used by nodes
+	long nodealloc;		// Bytes allocated by nodes
+	long elemused;		// Bytes used in element buffers
+	long elemalloc;		// Bytes allocated for element buffers
+	long nbranch;		// Number of branch nodes
+	long nleaves;		// Number of leaves
+	long nelements;		// Number of elements stored in leaves
+	long minkeys;		// Minimum keys in any node besides root
+	long maxkeys;		// Maximum keys in any node
+
+	// Public methods to derive common statistics
+
+	inline long memoryAlloc ()		// total space allocated
 	{
-		ss << addr;
+		return elemalloc + nodealloc;
+	}
+	inline long memoryUsed ()		// total space used
+	{
+		return elemused + nodeused;
+	}
+	inline long numNodes ()
+	{
+		return nbranch + nleaves;
+	}
+	inline long numLeaves ()
+	{
+		return nleaves;
+	}
+	inline long totalSlots ()		// total number of key slots
+	{
+		return nkeys + keysopen;
+	}
+	inline float averageKeys ()
+	{
+		return (float)nkeys / numNodes();
+	}
+	inline long maxKeys ()
+	{
+		return maxkeys;
+	}
+	inline long minKeys ()
+	{
+		return minkeys;
+	}
+	inline long keysUnused ()
+	{
+		return keysopen;
+	}
+	inline long numKeys ()
+	{
+		return nkeys;
+	}
+	inline long elementsFree ()
+	{
+		return elemalloc - elemused;
+	}
+	inline long numElements ()
+	{
+		return nelements;
+	}
+	// memory usage as a percent of all allocated memory
+	inline float percentMemory ()
+	{
+		return (float)memoryUsed() / (float)memoryAlloc() * 100.0;
+	}
+	// node memory usage as a percent of memory allocated by nodes
+	inline float percentNodeMemory ()
+	{
+		return (float)nodeused / (float)nodealloc * 100.0;
+	}
+	// element buffer usage as a percent of all element buffer space
+	inline float percentElementMemory ()
+	{
+		return (float)elemused / (float)elemalloc * 100.0;
+	}
+	inline float percentSlots ()
+	{
+		return (float)numKeys() / totalSlots() * 100.0;
 	}
 };
+#endif /* _BTreeStats_ */
 
 
-SERIAL_STREAMABLE (Node);
+#include "Factory.hh"
 
 /*
  * Opaque forward references.
  */
 template <class K, class T> class BTreeNode;
-template <class K, class T> class NodeFactory;
-template <class K, class T> class HeapFactory;
 template <class K, class T> struct Shortcut;
 
 /// BTree database access class
@@ -55,15 +133,7 @@ public:
 
 	typedef K key_type;
 	typedef T value_type;
-
-#ifdef notdef
-	// Types which are dependent on the factory being used
-	// The factory itself must be parameterized for Key and value Type
-	typedef F<Key,T> Factory;
-	typedef Factory::node_type Node;
-	typedef Factory::leaf_type Leaf;
-	typedef Factory::Reference Reference;
-#endif
+	typedef BTreeNode<K,T> node_type;
 
 public:
 	static const int DEFAULT_ORDER = 128;
@@ -154,6 +224,8 @@ public:
 		return (Order() - 1);
 	};
 
+	BTreeStats Statistics ();
+
 	/// Print all the nodes of the tree to 'out', indented by depth
 	ostream &Print (ostream &out);
 
@@ -194,7 +266,7 @@ public:
 
 protected:
 
-	NodeFactory<K,T> *factory;	// Reference to our node factory
+	//NodeFactory<K,T> *factory;	// Reference to our node factory
 
 	// Persistent state
 	int depth;
@@ -208,61 +280,24 @@ protected:
 
 	Shortcut<K,T> *current;		// Reference to current key
 
+	/* ---------------- Nodes call into the tree here ---------------- */
+
 	friend BTreeNode<K,T>;
 
 	// Change the root node when growing up or down (could be zero)
-	void setRoot (BTreeNode<K,T> *node);
-};
+	virtual void setRoot (BTreeNode<K,T> *node);
 
-
-#ifdef notdef
-
-	// Node caching info
-
-	int lru_count;		// LRU count for node access
-	int ncache;		// Number of nodes currently in memory
-	BTreeNode *cache;	// Linked list of nodes in memory
-
-	int lru () { return (lru_count++); }
-
-
-	BlkOffset root_node;
-	BlockStore *store;
-
-	/// Read a node from storage
-	BTreeNode *getNode (BlkOffset, int depth, BTreeBranch *parent = 0);
+	// Get a reference to a node
+	virtual node_type *get (BTree<K,T> &tree, Node &, int depth);
 
 	/// Create a new node
-	BTreeNode *newNode (int depth, BTreeBranch *parent = 0);
+	virtual node_type *make (BTree<K,T> &tree, int depth);
 
-#endif
+	/// Delete a node.
+	virtual void destroy (node_type *node);
 
-#ifdef notdef
+};
 
-// More intuitive initialization methods
-
-	/// Create a new b-tree
-	Create (BlockStore &, KeyType, int order = DEFAULT_ORDER);
-
-	/// Open an existing and verify the key type is as expected
-	Open (BlockStore &, KeyType, BlkOffset base);
-
-#endif
-
-#ifdef notdef
-// These are the virtual routines which must be provided by the subclass
-// to handle a specific key type.
-
-	/// Given list of n keys, return index <= key target
-	virtual int Search (const Key *list, int n, const Key *target,
-			    int *i = 0) = 0;
-
-	/// The base class implementation relies on key_size
-	virtual void CopyKey (Key *dest, int n, Key *source)
-	{
-		memcpy ((char *)dest + (n*key_size), source, key_size);
-	}
-#endif
 
 #ifdef notdef
 	/// Return estimated element size in bytes
@@ -279,17 +314,6 @@ protected:
 	{
 		return (key_size);
 	};
-#endif
-
-#ifdef notdef
-
-	/// Return the BlockStore on which the btree nodes are stored.
-
-	BlockStore *Storage ()
-	{ 
-		return (store);
-	};
-
 #endif
 
 #endif /* _BTree_hh_ */

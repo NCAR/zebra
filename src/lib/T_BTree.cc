@@ -46,6 +46,34 @@ private:
 #endif
 
 
+// Report statistics about the given tree
+template <class K, class T>
+Summarize (ostream &out, BTree<K,T> &t)
+{
+	BTreeStats s = t.Statistics ();
+
+	out << "             Depth: " << t.Depth() << endl;
+	out << "Number of elements: " << s.numElements() << endl;
+	out << "   Number of nodes: " << s.numNodes() << endl;
+	out << "    Number of keys: " << s.numKeys() << endl;
+	out << "   Total key slots: " << s.totalSlots() << endl;
+	out << "  Key slots unused: " << s.keysUnused() << endl;
+	out << " Elem slots unused: " 
+	    << (t.MaxKeys()*s.numLeaves() - s.numElements()) << endl;
+	out << " Avg keys per node: " << s.averageKeys() << endl;
+	out << " Max keys per node: " << s.maxKeys() << endl;
+	out << " Min keys per node: " << s.minKeys() << endl;
+	out << "  Memory allocated: " << s.memoryAlloc() << " bytes." << endl;
+	out << "       Memory used: " << s.memoryUsed() << " bytes." << endl;
+	out << "   Pct memory used: " << s.percentMemory() << "%" << endl;
+	out << "  Node memory used: " 
+	    << s.percentNodeMemory() << "%" << endl;
+	out << "Element buffer use: " 
+	    << s.percentElementMemory() << "%" << endl;
+	out << "Pct key slots used: " << s.percentSlots() << "%" << endl;
+}
+
+
 
 int TestTree (test_tree &tree, int N);
 
@@ -54,6 +82,7 @@ int main (int argc, char *argv[])
 	int N = 10;
 	int order = 3;
 
+	cout << "-----------------================----------------" << endl;
 	if (argc > 1)
 		N = atoi(argv[1]);
 	if (argc > 2)
@@ -90,7 +119,7 @@ int main (int argc, char *argv[])
 
 
 
-#if notdef
+#ifdef notdef
 int 
 BigTest (int N = 10, int order = 3) 
 {
@@ -572,6 +601,7 @@ TestTree (test_tree &tree, int N)
 	     << *keys.begin() << " to " << keys.back() << endl;
 	err += T_Insert (tree, keys, keys);
 	err += tree.Check ();
+	Summarize(cout, tree);
 	err += T_Traversal (tree);
 
 	// Ordered removal
@@ -617,6 +647,7 @@ TestTree (test_tree &tree, int N)
 	     << *keys.begin() << " to " << keys.back() << endl;
 	err += T_Insert (tree, keys, keys);
 	err += tree.Check ();
+	Summarize(cout, tree);
 
 	// Test traversal
 	err += T_Traversal (tree);
@@ -627,6 +658,7 @@ TestTree (test_tree &tree, int N)
 	random_shuffle (keys.begin(), keys.end());
 	err += T_Insert (tree, keys, values);
 	err += tree.Check ();
+	Summarize(cout, tree);
 
 	// Random removal
 	cout << "Random removal... " << endl;
@@ -642,6 +674,7 @@ TestTree (test_tree &tree, int N)
 		cout << "Random insertions... " << i+1 << endl;
 		err += T_Insert (tree, keys, keys);
 		err += tree.Check ();
+		Summarize(cout, tree);
 		cout << "Random removal...... " << i+1 << endl;
 		err += T_RandomRemoval (tree);
 		err += tree.Check ();
