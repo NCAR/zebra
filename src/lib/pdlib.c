@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: pdlib.c,v 1.4 1990-09-20 09:14:45 corbet Exp $";
+static char *rcsid = "$Id: pdlib.c,v 1.5 1991-02-13 23:34:08 corbet Exp $";
 /*
  * The plot description library. 
  */
@@ -139,13 +139,20 @@ char *pdname, *data, *end;
 	}
 	pd_CarveString (param, data, nl);
 /*
+ * If this is a comment line, we just pretend we're done with the component
+ * and start over.
+ */
+	if (param[0] == '!')
+		return (nl + 1);
+/*
  * Add the component to the PD.
  */
  	comp = pd_NewComponent (pd, pdname, param);
 /*
  * Carve out each parameter.
  */
-	for (data = nl + 1; data < end && *data == '\t'; data = nl + 1)
+	for (data = nl + 1; data < end && 
+		(*data == '\t' || *data == '!'); data = nl + 1)
 	{
 	/*
 	 * Find the separators.
@@ -156,6 +163,14 @@ char *pdname, *data, *end;
 			return (end);
 		}
 		pd_CarveString (line, data, nl);
+	/*
+	 * Maybe this is a comment line.
+	 */
+		if (line[0] == '!')
+			continue;
+	/*
+	 * Nope, pull out the various fields.
+	 */
 		if (! (colon = strchr (line, ':')))
 		{
 			pd_Complain ("Missing colon", line);
