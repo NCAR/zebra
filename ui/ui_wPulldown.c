@@ -5,7 +5,7 @@
 # ifdef XSUPPORT
 
 
-static char *rcsid = "$Id: ui_wPulldown.c,v 1.17 1995-12-08 22:25:14 granger Exp $";
+static char *rcsid = "$Id: ui_wPulldown.c,v 1.18 1996-02-03 16:36:39 granger Exp $";
 
 # ifndef X11R3		/* This stuff don't work under R3.	*/
 /* 
@@ -608,14 +608,14 @@ XtPointer xpmenu, junk;
 	 * Start with our default bitmap (a star)
 	 */
 		Mb_mark = XCreateBitmapFromData (XtDisplay (Top),
-			XtWindow (menu->mbm_pulldown), star_bits, star_width,
-			star_height);
+			XtWindow (menu->mbm_pulldown), (char *)star_bits, 
+			star_width, star_height);
 		if (! Mb_mark)
 			ui_warning ("Uh-oh!  Failed to make menumark pixmap!");
 	/*
 	 * If the user specified a bitmap file, try for that
 	 */
-		if (strlen (Mb_mark_file) > 0 && 
+		if ((unsigned int) strlen (Mb_mark_file) > (unsigned) 0 && 
 			XReadBitmapFile (XtDisplay (Top), 
 			XtWindow (menu->mbm_pulldown), Mb_mark_file, &w, &h, 
 			&Mb_mark, &xh, &yh) != BitmapSuccess)
@@ -631,7 +631,7 @@ XtPointer xpmenu, junk;
 	if (! SubMenuPixmap)
 	{
 		SubMenuPixmap = XCreateBitmapFromData ( XtDisplay (Top),
-			XtWindow (menu->mbm_pulldown), submenu_bits,
+			XtWindow (menu->mbm_pulldown), (char *)submenu_bits,
 			submenu_width, submenu_height);
 
 		if (! SubMenuPixmap)
