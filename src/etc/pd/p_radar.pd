@@ -21,7 +21,11 @@ p_radar
 	every-volume:	false
 	scale-mode:	auto
 	limit-proc:	raster-limit-proc
-	require:	radar, raster
 	data-available-command:	RadarDataAvailable
-	data-available-times: samples
+	data-available-times:	samples
+	out-of-range-color:	none
+	radar-space:	true
 	real-time-hook:	RadarRealTime
+	require:	radar, raster
+	trigger:	platform
+	trigger-global:	true
