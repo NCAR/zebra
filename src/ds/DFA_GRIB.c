@@ -39,7 +39,7 @@
 # include "DataFormat.h"
 # include "GRIB.h"
 
-RCSID ("$Id: DFA_GRIB.c,v 3.29 1997-06-10 19:01:07 burghart Exp $")
+RCSID ("$Id: DFA_GRIB.c,v 3.30 1997-06-10 23:11:55 burghart Exp $")
 
 
 /*
@@ -59,6 +59,8 @@ typedef struct s_GRIBdesc
 /*
  * Our tag structure for GRIB files.
  */
+typedef struct s_GRB_TypeInfo GRB_TypeInfo;	/* struct defined below */
+
 typedef struct s_GFTag
 {
 	int		gt_tagid;	/* unique local ID		*/
@@ -68,6 +70,7 @@ typedef struct s_GFTag
 	int		gt_maxgrids;	/* how many grids can we hold?	*/
 	GRIBdesc	*gt_grib;	/* Descriptors for each grid	*/
 	ZebTime		*gt_times;	/* Times for each grid		*/
+	GRB_TypeInfo	*gt_ginfo255;	/* grid type 255 info		*/
 } GFTag;
 
 
@@ -357,7 +360,7 @@ static int GRB_FList_len = sizeof (GRB_FList) / sizeof (struct s_GRB_FList);
  *	gg_transform:		pointer to an auxiliary structure used by
  *				types of projections
  */
-typedef struct s_GRB_TypeInfo
+struct s_GRB_TypeInfo
 {
 	int	gg_type;
 	int	gg_snx, gg_sny;
@@ -369,7 +372,7 @@ typedef struct s_GRB_TypeInfo
 	float	gg_dlatstep, gg_dlonstep;
 	float	*gg_dsi, *gg_dsj;
 	void	*gg_transform;
-} GRB_TypeInfo;
+}; /* this struct is typedef'ed above to GRB_TypeInfo */
 
 
 /*
@@ -630,7 +633,7 @@ static void	grb_UnpackWind FP ((GFTag *, int, FieldId, int, int, float *,
 				    GRB_TypeInfo *, double));
 static void	grb_DCFinishDefs FP ((DataChunk *, GRB_TypeInfo *, int));
 static void	grb_InitGInfo FP ((GRB_TypeInfo *));
-static GRB_TypeInfo *grb_GridTypeInfo FP ((GFpds *, GFgds *));
+static GRB_TypeInfo *grb_GridTypeInfo FP ((GFTag *, GFpds *, GFgds *));
 static GRB_TypeInfo *grb_Build255GInfo FP ((GFgds *));
 
 
@@ -950,7 +953,7 @@ int		ndetail;
 		pds = tag->gt_grib[i].gd_pds;
 		gds = tag->gt_grib[i].gd_gds;
 
-		if ((grbinfo = grb_GridTypeInfo (pds, gds)) != NULL &&
+		if ((grbinfo = grb_GridTypeInfo (tag, pds, gds)) != NULL &&
 		    grb_UsableLevel (pds, tag->gt_sfc_only) && 
 		    grb_Field (pds, NULL) == checkfld &&
 		    grb_Offset (pds) == offset)
@@ -1231,7 +1234,7 @@ AltUnitType	*altunits;
 	pds = tag->gt_grib[i].gd_pds;
 	gds = tag->gt_grib[i].gd_gds;
 
-	if ((grbinfo = grb_GridTypeInfo (pds, gds)) != NULL &&
+	if ((grbinfo = grb_GridTypeInfo (tag, pds, gds)) != NULL &&
 	    grb_UsableLevel (pds, tag->gt_sfc_only) && 
 	    grb_Field (pds, NULL) == fid &&
 	    grb_Offset (pds) == offset)
@@ -1461,8 +1464,8 @@ int max;
 	for (i = 0; i < ngrids; i++)
 	{
 		
-		grbinfo = grb_GridTypeInfo (tag->gt_grib[i].gd_pds,
-			 tag->gt_grib[i].gd_gds);
+		grbinfo = grb_GridTypeInfo (tag, tag->gt_grib[i].gd_pds,
+					    tag->gt_grib[i].gd_gds);
 		if (grbinfo)
 		{
 			gloc.l_lat = grbinfo->gg_dlat;
@@ -1782,6 +1785,10 @@ GFTag	*tag;
 			return (FALSE);
 		}
 	}
+/*
+ * Grid type 255 info may be added later, but it starts out empty.
+ */
+	tag->gt_ginfo255 = NULL;
 /*
  * Complain if we exited on anything other than an EOF
  */
@@ -2705,7 +2712,8 @@ double	badval;
 
 
 static GRB_TypeInfo *
-grb_GridTypeInfo (pds, gds)
+grb_GridTypeInfo (tag, pds, gds)
+GFTag	*tag;
 GFpds	*pds;
 GFgds	*gds;
 /*
@@ -2715,19 +2723,17 @@ GFgds	*gds;
 {
 	int	i;
 	GRB_TypeInfo	*grbinfo = NULL;
-	static GRB_TypeInfo	*ginfo255 = NULL;
 /*
- * Special handling for 255 type grids.  We make the (almost certainly 
- * dangerous) assumption that all 255 grids we see will be similar...
- * At some point, different GRB_TypeInfo's should be created, cached, and 
- * accessed based on the GDS.
+ * Special handling for 255 type grids.  We make the assumption that all 
+ * 255 grids in a file will be similar.  Of course, somebody's bound to
+ * violate this assumption at some point...
  */
 	if (pds->grid_id == 255)
 	{
-		if (! ginfo255)
-			ginfo255 = grb_Build255GInfo (gds);
+		if (! tag->gt_ginfo255)
+			tag->gt_ginfo255 = grb_Build255GInfo (gds);
 
-		return (ginfo255);
+		return (tag->gt_ginfo255);
 	}
 /*
  * Otherwise, check our list of types we understand
