@@ -2,7 +2,7 @@
 #
 # This is an attempt at a generalized zebra startup script.
 #
-# $Id: zstart.sh,v 1.9 1996-03-12 21:17:53 granger Exp $
+# $Id: zstart.sh,v 1.10 1996-03-21 19:11:58 granger Exp $
 #
 # Here we do basic location of directories, set environment variables,
 # and try to hand things off to a project-specific startup file.
@@ -232,10 +232,11 @@ ddir_again:
 # option to get the name of the user.
 #
 	set someone=`mstatus -u`
-	if ($status == 0 && $check) then
+	set mstatus=$status
+	if ($mstatus == 0 && $check) then
 	   echo "Zebra session is running."
 	   exit 0
-	else if ($status == 0) then
+	else if ($mstatus == 0) then
 	   echo "User $someone is already running Zebra.  Enter"
 restart_prompt:
 	   echo "  1) to stop the current Zebra session and start over, or"
@@ -321,7 +322,7 @@ start_dm:
 	if ( ! $?DEFAULT_CONFIG ) setenv DEFAULT_CONFIG empty
 	if ( ! $?ZEB_DM_CONFIG ) setenv ZEB_DM_CONFIG dm.config
 	mstatus | grep Displaymgr > /dev/null
-	if ( $status == 0) set multiple="-multiple"
+	if ( $status == 0) set multiple="-multiple -name Dmgr-$$"
 	eval $ZEB_DM $multiple $ZEB_DM_CONFIG
 #
 # Maybe we shut down.
