@@ -28,7 +28,7 @@
 # include <DataChunk.h>
 # include "GraphProc.h"
 # include "rg_status.h"
-MAKE_RCSID ("$Id: GridAccess.c,v 2.31 1998-02-19 23:53:43 burghart Exp $")
+MAKE_RCSID ("$Id: GridAccess.c,v 2.32 1998-03-06 16:35:44 burghart Exp $")
 
 # define DEG_TO_RAD(x)	((x)*0.017453292)
 # define KM_TO_DEG(x)	((x)*0.008982802) /* on a great circle */
@@ -46,8 +46,6 @@ static void 	ga_ImgToCGrid FP ((DataChunk **, FieldId));
 static bool 	ga_DoNSpace FP ((DataChunk **, FieldId));
 static bool 	ga_NSSimpleGrid FP ((DataChunk **, FieldId));
 
-int		ga_NSCoordVariable FP ((DataChunk *dc, const char *name,
- 					FieldId *fid));
 int		ga_NSRegularSpacing FP((DataChunk *dc, FieldId fid,
 					float *rspacing, unsigned long *rnum,
 					float *origin));
@@ -861,43 +859,25 @@ FieldId	fid;
  */
 {
 	DataChunk 	*rdc;
-	int		ndims, is_static, i;
+	int		nflds, ndims, is_static, i;
 	bool		lat_first;
 	int		lat_idx, lon_idx;
 	float		latspacing, lonspacing, spacings[2];
 	float		latorg, lonorg;
-	FieldId		lat_id, lon_id, alt_id, dims[DC_MaxDimension];
-	char 		*dimns[ DC_MaxDimension ];
-	unsigned long	sizes[ DC_MaxDimension ];
-	unsigned long	nlats, nlons;
+	FieldId		lat_id, lon_id, alt_id, *flds;
+	char		*dimns[DC_MaxDimension];
+	unsigned long	nlats, nlons, sizes[DC_MaxDimension];
 	Location	location;
 /*
- * Start by checking the dimensions of our field.  Compare dimension
- * names as id's rather then strings to nullify differences in 
- * capitalization and allow aliases.  This means we first need to make
- * sure lat and lon have been declared.
+ * Nominally, we want "latitude" and "longitude" dimensions.  These id's 
+ * will likely change to id's of real fields that can yield lat and lon.
+ */
+	lat_id = F_Lookup ("latitude");
+	lon_id = F_Lookup ("longitude");
+/*
+ * Start by checking the dimensions of our field.
  */
 	dc_NSGetField (*dc, fid, &ndims, dimns, sizes, &is_static);
-	/* dc_NSGetVariable (*dc, fid, &ndims, dims, &is_static); */
-
-#ifdef notdef
-	if ((lat_id = F_Declared ("latitude")) == BadField)
-		lat_id = F_DeclareField ("latitude", "latitude",
-					 "degrees north");
-	if ((lon_id = F_Declared ("longitude")) == BadField)
-		lon_id = F_DeclareField ("longitude", "longitude",
-					 "degrees east");
-	F_Alias ("latitude", "lat");
-	F_Alias ("longitude", "lon");
-#endif
-	lat_id = F_Declared ("latitude");
-	lon_id = F_Declared ("longitude");
-	if (lat_id == BadField || lon_id == BadField)
-	{
-		msg_ELog (EF_DEBUG, "%s: %s in FieldDefs as expected",
-			  "nspace simple grid", 
-			  "latitude and longitude not defined");
-	}
 
 	lat_idx = lon_idx = -1;
 	lat_first = FALSE;
@@ -907,47 +887,55 @@ FieldId	fid;
 	/*
 	 * lat or lon
 	 */
-		if ((lat_id != BadField && (F_Declared(dimns[i]) == lat_id))
-		    || !strcmp(dimns[i], "lat") ||
-		    !strcmp(dimns[i], "latitude"))
-		{
-			lat_idx = i;
-			lat_first = (lon_idx < 0);
-		}
-		else if ((lon_id != BadField && 
-			  (F_Declared(dimns[i]) == lon_id)) ||
-			 !strcmp(dimns[i], "lon") || 
-			 !strcmp(dimns[i], "longitude"))
-			lon_idx = i;
+	    if (lat_idx < 0 && ! strncasecmp (dimns[i], "lat", 3))
+	    {
+		lat_idx = i;
+		lat_first = (lon_idx < 0);
+	    }
+	    else if (lon_idx < 0 && ! strncasecmp (dimns[i], "lon", 3))
+		lon_idx = i;
 	/*
 	 * or other (make sure its size is exactly one)
 	 */
-		else
-		{
-			if (sizes[i] == 1)
-				continue;
+	    else
+	    {
+		if (sizes[i] == 1)
+		    continue;
+		msg_ELog (EF_DEBUG, "ga_NSSimpleGrid: Barf on dim %s, size %d",
+			  dimns[i], sizes[i]);
 
-			msg_ELog (EF_DEBUG, 
-				  "ga_NSSimpleGrid: Barf on dim %s, size %d",
-				  dimns[i], sizes[i]);
-
-			return (FALSE);
-		}
+		return (FALSE);
+	    }
 	}
 	
 			
 	if ((lat_idx < 0) || (lon_idx < 0))
 	{
-		msg_ELog (EF_DEBUG, "ga_NSSimpleGrid: no lat and/or lon");
+		msg_ELog (EF_DEBUG, "ga_NSSimpleGrid: missing %s",
+			  "lat or lon dimension");
 		return (FALSE);
 	}
 /*
- * Make sure lat and lon are coordinate variables.  We have the names of the
- * lat and lon dimensions, so see if fields exist by the same name.
+ * Since we require coordinate variables, find the fields named the same as
+ * our dimensions.
  */
-	if (!ga_NSCoordVariable (*dc, dimns[lat_idx], &lat_id) ||
-	    !ga_NSCoordVariable (*dc, dimns[lon_idx], &lon_id))
-		return (FALSE);
+	lat_id = lon_id = BadField;
+	
+	flds = dc_GetFields (*dc, &nflds);
+	for (i = 0; i < nflds; i++)
+	{
+	    if (! strcmp (F_GetName (flds[i]), dimns[lat_idx]))
+		lat_id = flds[i];
+	    else if (! strcmp (F_GetName (flds[i]), dimns[lon_idx]))
+		lon_id = flds[i];
+	}
+
+	if (lat_id == BadField || lon_id == BadField)
+	{
+	    msg_ELog (EF_DEBUG, "ga_NSSimpleGrid: missing %s",
+		      "lat or lon coordinate variable");
+	    return (FALSE);
+	}
 /*
  * Check for regular lat and lon spacing
  */
@@ -955,37 +943,25 @@ FieldId	fid;
 	    !ga_NSRegularSpacing (*dc, lon_id, &lonspacing, &nlons, &lonorg))
 		return (FALSE);
 /*
- * Build a location.  If "alt" or "altitude" doesn't exist, set the altitude
- * to zero.
+ * Build a location.  If "altitude" doesn't exist, set the altitude to zero.
  */
 	location.l_lat = latorg;
 	location.l_lon = lonorg;
 
-	alt_id = F_Declared ("alt");
-	if ((alt_id != BadField) && 
-	    dc_NSGetVariable (*dc, alt_id, &ndims, dims, &is_static))
+	alt_id = F_Lookup ("altitude");
+	
+	for (i = 0; i < nflds; i++)
 	{
-		location.l_alt = * (float *) dc_NSGetSample (*dc, 0, alt_id, 
+	    if (F_CanYield (flds[i], alt_id, NULL, NULL))
+	    {
+		location.l_alt = * (float *) dc_NSGetSample (*dc, 0, flds[i], 
 							     NULL);
-	}
-	else 
-	{
-		alt_id = F_Declared ("altitude");
-		if ((alt_id != BadField) &&
-		    dc_NSGetVariable (*dc, alt_id, &ndims, dims, &is_static))
-		{
-			location.l_alt = * (float *) dc_NSGetSample (*dc, 0, 
-								     alt_id, 
-								     NULL);
-		}
-		else
-		{
-			msg_ELog (EF_DEBUG, 
-			  "ga_NSSimpleGrid: No alt variable.  Assuming 0.");
-			location.l_alt = 0.0;
-		}
+		break;
+	    }
 	}
 
+	if (i == nflds)
+	    location.l_alt = 0.0;
 /*
  * It looks like all our requirements have been met.  Let's build an 
  * RGrid data chunk.
@@ -1104,7 +1080,7 @@ bool transpose;
 			for (i = 0; i < nlons; i++)
 				grid[nlons * j + i] = fdata[nlats * i + j];
 
-	if (fdata != nsdata)
+	if (fdata != (float*) nsdata)
 		free (fdata);
 /*
  * Finally, put the grid and time into the new data chunk
@@ -1174,47 +1150,6 @@ float *org;			/* This variables origin*/
 }
 
 
-
-int
-ga_NSCoordVariable (dc, name, fid)
-DataChunk *dc;		/* N-Space chunk we're dealing with 		*/
-const char *name;	/* Name required to be a coordinate variable 	*/
-FieldId *fid;		/* Returned FieldId of coordinate variable 	*/
-/*
- * Verify that this name has a coordinate variable.  Print warning and
- * return FALSE on failure; return TRUE and the FielId on success.
- */
-{
-	FieldId field;
-	int ndims;
-	char *dimns[ DC_MaxDimension ];
-       
-/*
- * First make sure the name is actually a field
- */
-	field = F_Declared (name);
-
-	if (field == BadField)
-	{
-		msg_ELog (EF_PROBLEM, "dimn '%s' is not a field", name);
-		return (FALSE);
-	}
-/*
- * Then make sure we have a single dimension and that the dimension 
- * and field resolve to the same field id
- */
-	if (! dc_NSGetField (dc, field, &ndims, dimns, NULL, NULL) ||
-	    (ndims != 1) || /* strcmp(dimns[0], name) */
-	    (F_Declared (dimns[0]) != field))
-	{
-		msg_ELog (EF_DEBUG, "%s: '%s' not a coordinate variable",
-			  "ga_NSCoordVariable", name);
-		return (FALSE);
-	}
-
-	*fid = field;
-	return (TRUE);
-}
 
 /*============================================================================
  * Functions related to Vorticity and Divergence calculation
@@ -1371,8 +1306,9 @@ AltUnitType altunits;
  * For vorticity :
  *         Derive_Vorticity (adiv, ugrid, vgrid, loc, rg, badvalue, 1.0 ) 
  */  
-int Derive_Vorticity( float *adiv, float *au, float *av, Location *loc, 
-		       RGrid *rg, float badvalue, float afact )
+int
+Derive_Vorticity( float *adiv, float *au, float *av, Location *loc, 
+		  RGrid *rg, float badvalue, float afact )
 {
 double  aa, bb, aux, arad;
 int     offset, offsetm1, offsetp1;
@@ -1456,6 +1392,8 @@ double  *alat, *alon;
 
   free (alat);
   free (alon);
+
+  return (1);
 }
 
 
