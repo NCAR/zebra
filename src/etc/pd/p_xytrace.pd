@@ -1,0 +1,23 @@
+!
+! Add another [set of] xy trace to an xygraph.
+!
+global
+	pd-name:		p_xytrace
+p_xytrace
+	representation:		simple
+	platform:		SOMETHING
+	x-field:		time
+	y-field:		SOMETHING
+	axis-left:		true
+	axis-right:		false
+	axis-bottom:		false
+	axis-top:		false
+	field-color:		red
+	axis-l-grid-intensity:	0
+	axis-r-grid-intensity:	0
+	representation-style:	line
+	require:		xytrace
+	icon:			tseries
+	icon-middle-menu:	FieldMenu
+	icon-right-menu:	xytrace-right
+	field-select-command:	xytrace-field

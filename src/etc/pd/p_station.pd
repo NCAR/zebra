@@ -12,9 +12,13 @@ p_station
 	quad4:		station
 	icon-left-menu:	standard-cap-left-menu
 	icon-middle-menu:	FieldMenu
+	posicon-left-menu:	send-station-field
+	posicon-middle-menu:	FieldMenu
 	field-select-command:	p_toggle_quadrant
 	field-menu-extras:	station|Station Identification
 	icon-right-menu:	p-station-right
 	arrow-scale:		0.01
 	require:		station, simple-color
 	limit-proc:		adj_arrow_scale
+	active-icon:		true
+	do-shape:		true
