@@ -1,7 +1,7 @@
 /*
  * Vertical cross-sectioning
  */
-static char *rcsid = "$Id: XSection.c,v 2.15 1993-12-22 01:17:07 corbet Exp $";
+static char *rcsid = "$Id: XSection.c,v 2.16 1994-01-31 19:36:20 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -1624,6 +1624,24 @@ char	*platform, *fldname;
 	grid_z0 = loc.l_alt;
 
 	sgbad = dc_GetBadval (dc);
+/*
+ * If we don't have enough points for interpolation, just return a 1x1 plane
+ * with a bad flag in it.
+ */
+	if (rg.rg_nX < 2 || rg.rg_nY < 2 || rg.rg_nZ < 2)
+	{
+		msg_ELog (EF_INFO, 
+		  "xs_Bilinear: Can't interpolate from %dx%dx%d %s data\n",
+		  rg.rg_nX, rg.rg_nY, rg.rg_nZ, platform);
+
+		plane = (DPlane *) malloc (sizeof (DPlane));
+		plane->hdim = plane->vdim = 1;
+		plane->data = (float *) malloc (sizeof (float));
+		plane->data[0] = BADVAL;
+
+		dc_DestroyDC (dc);
+		return (plane);
+	}
 /*
  * Use the specified grid size, if any.  Otherwise use x spacing of the source
  * grid as the horizontal spacing for our plane and the z spacing of the source
