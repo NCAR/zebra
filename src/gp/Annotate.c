@@ -27,7 +27,7 @@
 # include "DrawText.h"
 # include "PixelCoord.h"
 # include "GC.h"
-MAKE_RCSID ("$Id: Annotate.c,v 2.9 1992-09-18 18:15:36 corbet Exp $")
+MAKE_RCSID ("$Id: Annotate.c,v 2.10 1992-10-02 21:58:58 barrett Exp $")
 
 /*
  * Graphics context (don't use the global one in GC.h because we don't
@@ -64,6 +64,7 @@ void An_ColorString FP ((char *, char *, int, int, int));
 void An_ColorBar FP ((char *, char *, int, int, int));
 void An_ColorNumber FP ((char *, char *, int, int, int));
 void An_ColorVector FP ((char *, char *, int, int, int));
+void An_ColorScale FP ((char *, char *, int, int, int));
 void An_BarbLegend FP ((char *, char *, int, int, int));
 int An_GetLeft FP ((void));
 void An_GetSideParams FP ((char *, float *, int *));
@@ -522,6 +523,92 @@ int totalUsed, total, moreCount;
 }
 
 
+void 
+An_ColorScale (comp, data, datalen, begin, space)
+char *comp, *data;
+int datalen, begin, space;
+/*
+ * A standard side annotation routine for drawing a (ruler) scale
+ */
+{
+	float	ratio;	    /* The ratio of graph width to actual units */
+	int	graphWidth; /* The graph width in pixels */
+	XColor	xc;
+	int	left,width;
+	int	limit;
+	float	scale;
+	char	color[32];
+	char	label[32];
+	char	field[32];
+	int	nTic, ticPix, pixUnit, i;
+	float	used;
+	int	textlim, x1,x2,y1,y2;
+/*
+ * Get annotation parameters.
+ */
+        An_GetSideParams (comp, &scale, &limit);
+/*
+ * Get Data
+ */
+	sscanf ( data, "%f %d %s %s", &ratio, &graphWidth , color, field);
+/*
+ * Draw the (ruler) scale
+ */
+	left = An_GetLeft();
+	left += 10; /* put in a buffer */
+	width = GWWidth(Graphics) - left;
+	ticPix = pixUnit = (int)(ratio * graphWidth);
+	nTic = width / ticPix;
+	/* 
+	 * decrease the number of ticks below 5 by increments of
+	 * 5 and 10.  This may need to get more sophisticated for
+	 * extreme cases, but hopefully this will suffice for now;
+	 */
+	if ( nTic > 5 ) 
+	{
+	    nTic = nTic / 5 ; 
+	    ticPix = ticPix * 5;
+	    ratio = ratio * 5.0;
+	}
+	if ( nTic > 5 ) 
+	{
+	    nTic = nTic / 2 ; 
+	    ticPix = ticPix * 2;
+	    ratio = ratio * 2.0;
+	}
+
+	ct_GetColorByName("white", &xc);
+        XSetForeground (XtDisplay (Graphics), AnGcontext, xc.pixel);
+	textlim = left-10;
+	for ( i = 0; i <= nTic; i++ )
+	{
+	    sprintf ( label, "%0.01f", 0.0+(float)(i*ticPix)/(float)pixUnit);
+	    DT_TextBox ( Graphics, GWFrame(Graphics), left+(i*ticPix),0,
+		label, 0.0, scale, JustifyCenter, JustifyTop, &x1,&y1,&x2,&y2);
+	    if ( x1 > textlim ) 
+	    {
+                DrawText (Graphics, GWFrame (Graphics), AnGcontext,
+                    left+(i*ticPix), begin+1, label, 0.0, scale, 
+		    JustifyCenter, JustifyTop);
+		textlim = x2;
+	    }
+	    XDrawLine( XtDisplay(Graphics),GWFrame(Graphics), AnGcontext,
+	        left+(i*ticPix), begin + 1+abs(y1-y2)+2, left+(i*ticPix), 
+		begin+1+abs(y1-y2)+5);
+
+	}
+	XDrawLine( XtDisplay(Graphics),GWFrame(Graphics), AnGcontext,
+	    left, begin + 1+abs(y1-y2)+5, 
+	    left+(ticPix*nTic), begin+1+abs(y1-y2)+5);
+	/*
+	 * Draw the scale name
+	 */
+	ct_GetColorByName(color, &xc);
+        XSetForeground (XtDisplay (Graphics), AnGcontext, xc.pixel);
+        DrawText (Graphics, GWFrame (Graphics), AnGcontext,
+             left+(ticPix*nTic/2), begin+1+abs(y1-y2)+7, field, 0.0, scale, 
+	     JustifyCenter, JustifyTop);
+}
 
 void
 An_ColorVector (comp, data, datalen, begin, space)
@@ -566,7 +653,7 @@ An_BarbLegend (comp, data, datalen, begin, space)
 char *comp, *data;
 int datalen, begin, space;
 /*
- * A standard side annotation routine for drawing a colored vector.
+ * A standard side annotation routine for showing barb speed
  */
 {
         int limit, left;
