@@ -22,37 +22,38 @@
 # include "copyright.h"
 # include "defs.h"
 
-MAKE_RCSID("$Id: altunits.c,v 2.2 1994-02-17 17:31:54 burghart Exp $")
+MAKE_RCSID("$Id: altunits.c,v 2.3 1994-02-22 16:57:02 burghart Exp $")
 
 /*
- * The order of strings in the arrays below *must* match the order in
- * the AltUnitType enum declaration.
+ * 
+ * The order of strings in the arrays below *must* match the order of
+ * the AltUnitType enum declaration in defs.h.
  */
-char *Units[] =
+struct _unames
 {
-	"km MSL",	/* AU_kmMSL */
-	"m MSL",	/* AU_mMSL */
-	"mb",		/* AU_mb */
+	char	*shortname;	/* default short name	*/
+	char	*longname;	/* default long name	*/
+	char	*format;	/* print format		*/
+	char	*aliases[5];	/* acceptable aliases	*/
+} Unames[] =
+{
+	/* AU_kmMSL */
+	{"km MSL", "km above MSL", "%.2f", {"km > MSL", "km", ""}},
+	/* AU_mMSL */
+	{"m MSL", "meters above Mean Sea Level", "%.0f", {"m > MSL", "m", ""}},
+	/* AU_mb */
+	{"mb", "millibars", "%.0f", {"mbar", "hPa", ""}},
 };
 
-char *LongUnits[] =
-{
-	"km above MSL",	/* Make these udunits compliant at some point... */
-	"m above MSL",
-	"millibars",
-};
 
-char *Format[] =
-{
-	"%.2f", "%d", "%d"
-};
+int Ntypes = sizeof (Unames) / sizeof (struct _unames);
 
 char	*Unknown = "unknown";
 
 /*
  * Return string for labels we build.
  */
-char	ReturnLabel[40];	/* *should* be long enough... */
+char	ReturnLabel[80];	/* *should* be long enough... */
 
 
 
@@ -60,10 +61,10 @@ char *
 au_UnitsName (atype)
 AltUnitType	atype;
 {
-	if (atype > (sizeof (Units) / sizeof (char *) - 1))
+	if (atype > Ntypes)
 		return (Unknown);
 	else
-		return (Units[atype]);
+		return (Unames[atype].shortname);
 }
 
 
@@ -73,10 +74,10 @@ char *
 au_LongUnitsName (atype)
 AltUnitType	atype;
 {
-	if (atype > (sizeof (LongUnits) / sizeof (char *) - 1))
+	if (atype > Ntypes)
 		return (Unknown);
 	else
-		return (LongUnits[atype]);
+		return (Unames[atype].longname);
 }
 
 
@@ -85,10 +86,10 @@ char *
 au_PrintFormat (atype)
 AltUnitType	atype;
 {
-	if (atype > (sizeof (Format) / sizeof (char *) - 1))
+	if (atype > Ntypes)
 		return (Unknown);
 	else
-		return (Format[atype]);
+		return (Unames[atype].format);
 }
 
 
@@ -134,4 +135,49 @@ AltUnitType	atype;
 }
 
 	
+	
+
+bool
+au_ConvertName (name, atype)
+char	*name;
+AltUnitType	*atype;
+/*
+ * Try to convert the given name into an AltUnitType.  If successful, 
+ * 'atype' is set to the type we found and we return TRUE.  Otherwise,
+ * we return FALSE and 'atype' is untouched.
+ */
+{
+	int	i, a;
+/*
+ * Start by checking against our "standard" short names and long names
+ */
+	for (i = 0; i < Ntypes; i++)
+	{
+		if (! strcmp (name, Unames[i].shortname) || 
+		    ! strcmp (name, Unames[i].longname))
+		{
+			*atype = (AltUnitType) i;
+			return (TRUE);
+		}
+	}
+/*
+ * No luck.  Try the aliases.
+ */
+	for (i = 0; i < Ntypes; i++)
+	{
+		for (a = 0; *Unames[i].aliases[a]; a++)
+		{
+			if (! strcmp (name, Unames[i].aliases[a]))
+			{
+				*atype = (AltUnitType) i;
+				return (TRUE);
+			}
+		}
+	}
+/*
+ * No matches at all
+ */
+	return (FALSE);
+}
+
 	
