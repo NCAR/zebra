@@ -1,8 +1,4 @@
-/*
- * My version of the graphics process, for now -- upper level control
- * and timing stuff.
- */
-static char *rcsid = "$Id: GraphProc.c,v 1.3 1990-06-04 14:25:46 burghart Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 1.4 1990-06-04 15:38:32 corbet Exp $";
 
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
@@ -78,13 +74,6 @@ main (argc, argv)
 int argc;
 char **argv;
 {
-	Arg args[10];
-	static XtActionsRec actions[] =
-	{
-		{ "ue_pointer_event",	Ue_PointerEvent	},
-		{ "ue_key_event",	Ue_KeyEvent	},
-		{ "ue_button_up",	Ue_ButtonUp	},
-	};
 /*
  * The first argument is always supposed to be our process name.
  */
@@ -97,10 +86,40 @@ char **argv;
 	msg_join ("Graphproc");
 	msg_join ("TimeChange");
 /*
- * Get the toolkit going.
+ * Hand off our information to the UI, and initialize things.
  */
-	Top = XtAppInitialize (&Actx, "Graphproc", NULL, ZERO, &argc,
-		argv, Resources, NULL, ZERO);
+	ui_setup ("GraphProc", argc, argv, Resources);
+	ui_init ("/fcc/lib/graphproc.lf", FALSE, TRUE);
+/*
+ * Now we have to go into the UI, and finish our setup later.  This is
+ * essentially a kludge designed to keep UI from trying to open tty
+ * sources to a terminal that doesn't exist (or which should not be
+ * mucked with).
+ */
+	ui_get_command ("initial", "you shouldn't see this", dispatcher, 0);
+	shutdown ();
+}
+
+
+
+
+finish_setup ()
+/*
+ * Finish the rest of the setup, now that the UI has been initialized and
+ * ui$init run.
+ */
+{
+	Arg args[10];
+	static XtActionsRec actions[] =
+	{
+		{ "ue_pointer_event",	Ue_PointerEvent	},
+		{ "ue_key_event",	Ue_KeyEvent	},
+		{ "ue_button_up",	Ue_ButtonUp	},
+	};
+/*
+ * Force a shift into window mode, so we can start with the fun stuff.
+ */
+	uw_ForceWindowMode ((char *) 0, &Top, &Actx);
 	XtAppAddActions (Actx, actions, THREE);
 /*
  * Now create a popup shell to hold the graphics widget that holds
@@ -116,11 +135,6 @@ char **argv;
 	Graphics = XtCreateManagedWidget ("graphics", graphicsWidgetClass,
 		GrShell, NULL, 0);
 /*
- * Initialize the UI.
- */
-	ui_setup ("GraphProc", argc, argv, (char *) 0);
-	ui_init ("/fcc/lib/graphproc.lf", FALSE, TRUE);
-/*
  * Initialize color table and user event stuff
  */
 	ct_Init ();
@@ -134,13 +148,7 @@ char **argv;
  */
 	lle_AddFD (msg_get_fd (), msg_incoming);
 	lle_AddFD (XConnectionNumber (XtDisplay (Top)), xtEvent);
-/*
- * Go into the UI, which should throw us immediately into run mode.
- */
-	ui_get_command ("initial", "you shouldn't see this", dispatcher, 0);
-	shutdown ();
 }
-
 
 
 
@@ -237,6 +245,7 @@ struct ui_command *cmds;
  * The command dispatcher.  Assume it is RUN for now.
  */
 {
+	finish_setup ();
 	lle_MainLoop ();
 	return (0);
 }
