@@ -1,7 +1,7 @@
 /*
  * Plot execution module
  */
-static char *rcsid = "$Id: PlotExec.c,v 1.13 1991-01-24 21:11:48 kris Exp $";
+static char *rcsid = "$Id: PlotExec.c,v 1.14 1991-01-30 20:43:09 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include <ui.h>
@@ -575,7 +575,7 @@ Boolean	update;
 
 		bar_height = (float)(bottom - top) / (float) Ncolors;
 	
-		XSetForeground (XtDisplay (Graphics), Gcontext, Tadefclr.pixel);
+		XSetForeground (XtDisplay (Graphics), Gcontext,Tadefclr.pixel);
 		DrawText (Graphics, GWFrame (Graphics), Gcontext, left, 
 			top, fname, 0.0, Sascale, 
 			JustifyLeft, JustifyCenter);
@@ -765,7 +765,7 @@ float	*center, *step;
  * Get the data (pass in plot time, get back actual data time)
  */
 	alt = Alt;
-	msg_ELog (EF_INFO, "Get grid at %.2f km", alt);
+	/* msg_ELog (EF_INFO, "Get grid at %.2f km", alt); */
 	rgrid = ga_GetGrid (&PlotTime, platform, fname, &xdim, &ydim, &x0, &y0,
 			&x1, &y1, &alt);
 	if (Comp_index == 0)
