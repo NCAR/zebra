@@ -1,7 +1,7 @@
 /*
  * Raster display a rectangular array
  */
-static char *rcsid = "$Id: RasterPlot.c,v 2.3 1992-07-30 19:12:25 granger Exp $";
+static char *rcsid = "$Id: RasterPlot.c,v 2.4 1992-10-14 21:19:17 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -722,9 +722,9 @@ float scale, bias;
 	if (RP_ShmPossible(disp))
 	{
 		destimg = (unsigned char *) GWGetFrameAddr (w, frame);
-		destimg += yhi*GWWidth(w) + xlo;
-		RP_ImageRasterize (destimg, width, height, grid, cmap, row, icol,
-			rowinc, colinc, xd, GWWidth (w) - width);
+		destimg += yhi * GWGetBPL(w, frame) + xlo;
+		RP_ImageRasterize (destimg, width, height, grid, cmap, row, 
+			icol, rowinc, colinc, xd, GWGetBPL (w, frame) - width);
 	}
 	else
 # endif
@@ -732,7 +732,8 @@ float scale, bias;
 		image = RP_GetXImage(w, width, height);
 		RP_ImageRasterize ((unsigned char *)(image->data), 
 				   width, height, grid, cmap, row, icol,
-				   rowinc, colinc, xd, 0);
+				   rowinc, colinc, xd, 
+				   image->bytes_per_line - width);
 		/*
 		 * Now send our local XImage to the server
 	 	 */
