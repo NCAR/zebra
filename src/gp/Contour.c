@@ -36,7 +36,7 @@
 # include "PixelCoord.h"
 
 
-RCSID("$Id: Contour.c,v 2.21 1999-03-01 02:04:21 burghart Exp $")
+RCSID("$Id: Contour.c,v 2.22 2000-04-10 20:22:00 burghart Exp $")
 
 typedef short	cbool;
 
@@ -67,7 +67,7 @@ static int	Iny[] = {  0,  1,  1,  1,  0, -1, -1, -1};
  * Global stuff
  */
 /* # define MAXPTS	2000 */
-# define MAXPTS 4098
+# define MAXPTS 8192
 static cbool	Closed;		/* Closed contour?		*/
 static int	Done[MAXPTS];	/* List of points already done	*/
 static int	Ndone;		/* Number of points in the done list	*/
