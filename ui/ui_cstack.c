@@ -10,6 +10,8 @@
 # include "ui_error.h"
 # include "ui_mode.h"
 
+static char *Rcsid = "$Id: ui_cstack.c,v 1.2 1989-02-14 17:23:28 corbet Exp $";
+
 /*
  * The list of free cs_entry structures.  Whenever we need a new one,
  * we look here first.
