@@ -1,7 +1,4 @@
-// The C++ ZTime interface now completely resides in ZTime.h
-//
-// $Id: ZTime.hh,v 1.4 2000-05-24 19:42:02 granger Exp $
-//
+/* ZTime -*- C++ -*- implementation. */
 /*		Copyright (C) 1987-2000 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -20,4 +17,21 @@
  * maintenance or updates for its software.
  */
 
-#include "ZTime.h"
+# include "ZTime.h"
+# include <iostream.h>
+
+RCSID ("$Id: ZTime.cc,v 2.1 2000-05-24 19:42:02 granger Exp $")
+
+/* ================================================================
+ * So far the lone C++ implementation, put here to avoid including
+ * iostream in ZTime.h.
+ */
+
+inline ostream & 
+operator<< (ostream &out, const ZebraTime &t)
+{
+	out << TC_AscTime (&t, TC_Full);
+	return (out);
+}
+
+
