@@ -115,7 +115,7 @@
 	/* libXmu must be statically linked else symbols will be missed */
 #       define XToolkitLibs -lXaw $(OPENWINHOME)/lib/libXmu.a -lXt -lXext
 #  else
-	define XToolkitLibs      /* Nothing */
+#	define XToolkitLibs      /* Nothing */
 #  endif
 # endif /* ndef XToolkitLibs */
 
