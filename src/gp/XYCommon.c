@@ -1,7 +1,7 @@
 /*
  * Routines common to XY-Type plots
  */
-static char *rcsid = "$Id: XYCommon.c,v 1.22 1994-09-15 21:50:28 corbet Exp $";
+static char *rcsid = "$Id: XYCommon.c,v 1.23 1994-11-01 21:48:29 corbet Exp $";
 /*		Copyright (C) 1993 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -195,9 +195,6 @@ bool *zauto, *invert;
 	{
 		if (strcmp (Scratch, "invert") == 0)
 			*invert = TRUE;
-		else
-			msg_ELog (EF_PROBLEM, "Unknown z scaling style '%s'.",
-					Scratch);
 	}
 }
 
