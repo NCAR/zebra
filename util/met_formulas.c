@@ -6,6 +6,9 @@
  * compiled by Paul Herzegh (18 March 1988 revision).
  *
  * $Log: not supported by cvs2svn $
+ * Revision 1.1  89/03/16  15:12:23  burghart
+ * Initial revision
+ * 
  */
 
 # include <math.h>
@@ -30,7 +33,7 @@
 # define ETBL_MAX	310.0
 # define ETBL_STEP	0.5
 
-static float E_tbl[] = 
+static double E_tbl[] = 
 {
  /* 210.0 */	0.01296,	0.01383,	0.01475,	0.01573,
  /* 212.0 */	0.01677,	0.01787,	0.01904,	0.02027,
@@ -86,28 +89,28 @@ static float E_tbl[] =
 };
 
 
-float
+double
 w_sat (t, p)
-float	t, p;
+double	t, p;
 /*
  * Saturation mixing ratio in g/kg at t (deg. K) and p (mb)
  */
 {
-	float	e = e_w (t);
+	double	e = e_w (t);
 
 	return (1000.0 * EPSILON * e / (p - e));
 }
 
 
-float
+double
 e_w (t)
-float	t;
+double	t;
 /*
  * Saturation vapor pressure in mb at temperature t (in deg. K)
  */
 {
 	int	index;
-	float	frac;
+	double	frac;
 /*
  * Interpolate from the table of vapor pressures if ETBL_MIN < t < ETBL_MAX
  */
@@ -126,9 +129,9 @@ float	t;
 }
 
 
-float
+double
 theta_dry (t, p)
-float	t, p;
+double	t, p;
 /*
  * Potential temperature (deg. K) of dry air at t (deg. K) and p (mb)
  * 
@@ -137,7 +140,7 @@ float	t, p;
  *	theta = t * (1000 / p)
  */
 {
-	float	u, diff, diff2, diff3;
+	double	u, diff, diff2, diff3;
 
 	u = 1000. / p;
 /*
@@ -200,9 +203,9 @@ float	t, p;
 }
 
 	
-float
+double
 lcl_temp (temp, dp)
-float	temp, dp;
+double	temp, dp;
 /*
  * Calculate the temperature (deg. K) of the lifting condensation 
  * level from the surface temp (deg. K) and dewpoint (deg. K)
@@ -215,9 +218,9 @@ float	temp, dp;
 }
 
 
-float
+double
 lcl_pres (temp, dp, pres)
-float	dp, temp, pres;
+double	dp, temp, pres;
 /*
  * Find the pressure (mb) of the lifting condensation level from the 
  * surface dewpoint (deg. K), temperature (deg. K), and pressure (mb).
@@ -225,9 +228,9 @@ float	dp, temp, pres;
  * Adapted from Carl Mohr's RSANAL program.
  */
 {
-	float	w = w_sat (dp, pres);	/* mixing ratio */
-	float	theta = theta_dry (temp, pres);
-	float	plcl = pres, test = 1.0;
+	double	w = w_sat (dp, pres);	/* mixing ratio */
+	double	theta = theta_dry (temp, pres);
+	double	plcl = pres, test = 1.0;
 
 	if (dp > temp)
 		ui_error ("Dewpoint greater than temp. in LCL calculation");
@@ -235,16 +238,16 @@ float	dp, temp, pres;
 	while (test > 0.01 || test < -0.01)
 	{
 		test = t_mr (plcl, w) - theta_to_t (theta, plcl);
-		plcl *= (float) pow (2.0, (0.02 * test));
+		plcl *= pow (2.0, (0.02 * test));
 	}
 
 	return (plcl);
 }
 
 
-float
+double
 t_mr (p, w)
-float	p, w;
+double	p, w;
 /*
  * Calculate the temperature (deg. K) of saturated air at
  * pressure p (in mb) and with mixing ratio w (in g/kg)
@@ -255,16 +258,16 @@ float	p, w;
  * T.
  */
 {
-	float	e = (p * w) / (1000. * EPSILON + w);
+	double	e = (p * w) / (1000. * EPSILON + w);
 	
 	return (T_3 * _A_ / 
 		(_A_ - _B_ + sqrt (square (_B_) + 2 * _A_ * log (E_3 / e))));
 }
 
 
-float
+double
 theta_to_t (theta, p)
-float	theta, p;
+double	theta, p;
 /*
  * Temperature of dry air (deg. K) at potential temperature (deg. K) and p (mb)
  */
@@ -274,30 +277,30 @@ float	theta, p;
 
 
 
-float
+double
 theta_w (t, p)
-float	t, p;
+double	t, p;
 /*
  * Equivalent potential temperature of saturated air at t (deg. K) 
  * and p (mb)
  */
 {
-	float	w = w_sat (t, p);
-	float	theta = theta_dry (t, p);
+	double	w = w_sat (t, p);
+	double	theta = theta_dry (t, p);
 
 	return (theta * exp ((3.376 / t - 0.00254) * w * (1 + 0.00081 * w)));
 }
 
 
-float
+double
 t_sat (ept, p)
-float	ept, p;
+double	ept, p;
 /*
  * Temperature of saturated air (deg. K) with equivalent potential
  * temperature ept (deg. K) and pressure p (mb)
  */
 {
-	float	t_s = T_3, delta = 60.0, x;
+	double	t_s = T_3, delta = 60.0, x;
 
 	x = ept - theta_w (t_s, p);
 
@@ -315,23 +318,23 @@ float	ept, p;
 
 
 
-float
+double
 dewpoint (e)
-float	e;
+double	e;
 /*
  * Calculate the dewpoint from the vapor pressure
  */
 {
-	float	u = log (e / E_3);
+	double	u = log (e / E_3);
 
 	return (237.3 * u / (17.2694 - u) + T_3);
 }
 
 
 
-float
+double
 e_from_dp (dp)
-float	dp;
+double	dp;
 /*
  * Calculate the vapor pressure from the dewpoint
  * (This uses Note 5 from the Herzegh memo, inverted to represent e in
@@ -343,9 +346,9 @@ float	dp;
 
 
 
-float
+double
 t_v (t, p, e)
-float	t, p, e;
+double	t, p, e;
 /*
  * Calculate the virtual temperature from the temperature, pressure, 
  * and vapor pressure
@@ -356,17 +359,17 @@ float	t, p, e;
 
 
 
-float
+double
 square (x)
-float	x;
+double	x;
 {
 	return (x * x);
 }
 
 
-float
+double
 ten_to_the (x)
-float	x;
+double	x;
 {
-	return ((float) pow (10.0, x));
+	return (pow (10.0, x));
 }
