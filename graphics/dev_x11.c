@@ -1,5 +1,5 @@
 /* 12/88 jc */
-/* $Id: dev_x11.c,v 1.12 1989-10-11 15:46:16 corbet Exp $	*/
+/* $Id: dev_x11.c,v 1.13 1989-10-20 14:08:14 corbet Exp $	*/
 /*
  * Graphics driver for the X window system, version 11.3
  */
@@ -103,8 +103,9 @@ struct device *dev;
 		tag->x_xres = tag->x_yres = 700;
 	else if (! strcmp (type, "X11-huge") || ! strcmp (type, "x11-huge"))
 	{
-		tag->x_xres = 900;
+		tag->x_xres = 912;
 		tag->x_yres = 800;
+		dev->gd_xb = 152;
 	}
 	else
 		tag->x_xres = tag->x_yres = 500;
@@ -911,8 +912,13 @@ XImage *read, *write;
 /*
  * Read back this quad.
  */
+# ifdef notdef
 	XGetSubImage (tag->x_display, tag->x_sw[0], x, y, tag->x_xres/2, 
 		tag->x_yres/2, ~0, ZPixmap, read, 0, 0);
+# endif
+	read = XGetImage (tag->x_display, tag->x_sw[0], x, y, tag->x_xres/2,
+		tag->x_yres/2, AllPlanes, ZPixmap);
+	rp = read->data;
 /*
  * Zoom it.
  */
@@ -928,6 +934,7 @@ XImage *read, *write;
  */
  	XPutImage (tag->x_display, tag->x_sw[q], tag->x_tgt_gc, write, 0, 0,
 		0, 0, tag->x_xres, tag->x_yres);
+	XDestroyImage (read);
 }
 
 
@@ -1052,5 +1059,53 @@ XEvent *ev;
 }
 
 
+
+
+
+
+x11_coff (ctag)
+char *ctag;
+/*
+ * Return the color offset.
+ */
+{
+	return (((struct xtag *) ctag)->x_bg);
+}
+
+
+
+
+
+x11_readscreen (ctag, x, y, xs, ys, data)
+char *ctag, *data;
+int x, y, xs, ys;
+/*
+ * Read back a piece of the screen.
+ */
+{
+	struct xtag *tag = (struct xtag *) ctag;
+	XImage *im;
+# ifdef notdef
+/*
+ * Create our Ximage structure.
+ */
+	im = XCreateImage (tag->x_display, tag->x_visual, 8, ZPixmap, 0,
+		data, xs, ys, 8, xs);
+/*
+ * Read back the stuff.
+ */
+	XGetSubImage (tag->x_display, tag->x_window, x, y, xs, ys, AllPlanes,
+			ZPixmap, im, 0, 0);
+# endif
+	im = XGetImage (tag->x_display, tag->x_window, x, y, xs, ys, AllPlanes,
+		ZPixmap);
+/*
+ * Zap the Ximage and return.
+ */
+	/* im->data = (char *) 0; */
+	memcpy (data, im->data, xs*ys);
+	XDestroyImage (im);
+	return (GE_OK);
+}
 
 # endif /* DEV_X11 */
