@@ -1,4 +1,5 @@
 /* 12/87 jc */
+/* $Id: ui_menu.c,v 1.2 1989-04-05 14:34:00 corbet Exp $ */
 /*
  * Menuing functions are handled here.
  */
@@ -412,7 +413,7 @@ union usy_value *v;
  * See if we really want to save this one.
  */
 	if (Save_all == 0 && (mp->m_flags & MF_INIT))
-		return;
+		return (TRUE);
 /*
  * Write out the menu structure.
  */
