@@ -1,7 +1,7 @@
 /*
  * Raster display a rectangular array
  */
-static char *rcsid = "$Id: RasterPlot.c,v 1.3 1990-08-03 10:32:05 corbet Exp $";
+static char *rcsid = "$Id: RasterPlot.c,v 1.4 1990-08-03 16:35:29 corbet Exp $";
 
 # include <errno.h>
 # include <math.h>
@@ -45,6 +45,17 @@ static void RP_FPRasterize (), RP_IRasterize ();
 	static XImage *RP_GetXImage ();
 # endif
 
+/*
+ * Shared memory ximages, if we can.
+ */
+# ifdef SHM
+# include <sys/ipc.h>
+# include <sys/shm.h>
+# include <X11/extensions/XShm.h>
+
+static bool RP_ShmPossible ();
+static XImage *RP_GetSharedXImage ();
+# endif
 
 
 
@@ -203,6 +214,7 @@ bool fast;
 	XImage		*image;
 	GC		gcontext;
 	XGCValues	gcvals;
+	Display		*disp = XtDisplay (w);
 
 # ifdef TIMING
 	int msec;
@@ -215,9 +227,8 @@ bool fast;
 /*
  * Get a graphics context
  */
-	gcontext = XCreateGC (XtDisplay (w), XtWindow (w), 0, &gcvals);
-	XSetClipRectangles (XtDisplay (w), gcontext, 0, 0, &Clip, 1, 
-		Unsorted);
+	gcontext = XCreateGC (disp, XtWindow (w), 0, &gcvals);
+	XSetClipRectangles (disp, gcontext, 0, 0, &Clip, 1, Unsorted);
 /*
  * Find the size of the grid, and allocate temporary space to store the
  * computed colors.
@@ -266,20 +277,32 @@ bool fast;
 /*
  * Get our ximage and do the rasterization.
  */
-	image = RP_GetXImage (w, width, height);
+# ifdef SHM
+	if (RP_ShmPossible (disp))
+		image = RP_GetSharedXImage (w, width, height);
+	else
+# endif
+		image = RP_GetXImage (w, width, height);
+
 	ximp = (unsigned char *) image->data;
 	if (fast)
 		RP_IRasterize (ximp, width, height, colgrid, row, icol,
-			rowinc, colinc, xdim);
+			rowinc, colinc, xdim, image->bytes_per_line - width);
 	else
 		RP_FPRasterize (ximp, width, height, colgrid, row, icol,
-			rowinc, colinc, xdim);
+			rowinc, colinc, xdim, image->bytes_per_line - width);
 /*
  * Now we ship over the image, and deallocate everything.
  */
-	XPutImage (XtDisplay (w), d, gcontext, image, 0, 0, xlo, yhi,
-		width, height);
-	XFreeGC (XtDisplay (w), gcontext);
+# ifdef SHM
+	if (RP_ShmPossible (disp))
+		XShmPutImage (disp, d, gcontext, image, 0, 0,
+			xlo, yhi, width, height, False);
+	else
+# endif
+	XPutImage (disp, d, gcontext, image, 0, 0, xlo, yhi, width, height);
+
+	XFreeGC (disp, gcontext);
 	free (colgrid);
 
 # ifdef TIMING
@@ -294,10 +317,32 @@ bool fast;
 
 
 
+# ifdef SHM
+static bool
+RP_ShmPossible (disp)
+Display *disp;
+/*
+ * Return TRUE iff we can do shared memory.
+ */
+{
+	static bool known = FALSE, possible;
+	int major, minor, sp;
+
+	if (known)
+		return (possible);
+	known = True;
+	possible = XShmQueryVersion (disp, &major, &minor, &sp);
+	msg_ELog (EF_INFO, "Shared memory: %s", possible ? "True" : "False");
+}
+# endif
+
+
+
 static void
-RP_FPRasterize (ximp, width, height, colgrid, row, icol, rowinc, colinc, xdim)
+RP_FPRasterize (ximp, width, height, colgrid, row, icol, rowinc, colinc,
+	xdim, pad)
 unsigned char *ximp;
-int width, height, xdim;
+int width, height, xdim, pad;
 unsigned int *colgrid;
 float row, icol, rowinc, colinc;
 /*
@@ -319,6 +364,7 @@ float row, icol, rowinc, colinc;
 			col += colinc;
 		}
 		row += rowinc;
+		ximp += pad;	/* End of raster line padding.	*/
 	}
 }
 
@@ -328,9 +374,10 @@ float row, icol, rowinc, colinc;
 
 
 static void
-RP_IRasterize (ximp, width, height, colgrid, row, icol, rowinc, colinc, xdim)
+RP_IRasterize (ximp, width, height, colgrid, row, icol, rowinc, colinc,
+	xdim, pad)
 unsigned char *ximp;
-int width, height, xdim;
+int width, height, xdim, pad;
 unsigned int *colgrid;
 float row, icol, rowinc, colinc;
 /*
@@ -365,10 +412,78 @@ float row, icol, rowinc, colinc;
 			col += icolinc;
 		}
 		row += rowinc;
+		ximp += pad;	/* End of raster line padding.	*/
 	}
 }
 
 
+
+
+# ifdef SHM
+
+static XImage *
+RP_GetSharedXImage (w, width, height)
+Widget w;
+int width, height;
+/*
+ * Return a shared-memory XImage with this geometry.
+ */
+{
+	static int XIwidth = -1, XIheight = -1;
+	static XImage *image = 0;
+	static XShmSegmentInfo shminfo;
+	char *xim;
+	Display *disp = XtDisplay (w);
+/*
+ * If the geometry matches, we can just return what we got last time.  This
+ * will be the case most of the time -- only when the window changes will
+ * this change.
+ */
+	if (width == XIwidth && height == XIheight)
+		return (image);
+/*
+ * If there is an existing image, get rid of it.
+ */
+	if (image)
+	{
+		XShmDetach (disp, &shminfo);
+/*		XShmDestroyImage (image); */
+/*		Xfree ((char *) image); */
+	}
+/*
+ * Now get a new one.
+ */
+	xim = malloc (width*height);
+	image = XShmCreateImage (disp, 0, 8, ZPixmap, 0, &shminfo, width,
+			height);
+/*
+ * All of the shmucking around.
+ */
+	msg_ELog (EF_INFO, "SHM width %d, bytes/line %d", width,
+		image->bytes_per_line);
+	shminfo.shmid = shmget (IPC_PRIVATE, image->bytes_per_line*height,
+		IPC_CREAT | 0777);
+	if (shminfo.shmid < 0)
+		msg_ELog (EF_EMERGENCY, "SHM get failure!");
+	shminfo.shmaddr = (char *) shmat (shminfo.shmid, 0, 0);
+	if (shminfo.shmaddr == (char *) -1)
+		msg_ELog (EF_EMERGENCY, "SHM attach failure!");
+/*
+ * Hook everything together.
+ */
+	image->data = shminfo.shmaddr;
+	shminfo.readOnly = False;
+	XShmAttach (disp, &shminfo);
+/*
+ * Save info and return the image.
+ */
+	XIwidth = width;
+	XIheight = height;
+	return (image);
+}
+
+
+# endif
 
 
 
