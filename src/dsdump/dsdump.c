@@ -26,7 +26,7 @@
 # include <copyright.h>
 # include "DataStore.h"
 
-MAKE_RCSID ("$Id: dsdump.c,v 3.12 1994-10-11 16:25:08 corbet Exp $")
+MAKE_RCSID ("$Id: dsdump.c,v 3.13 1995-04-19 14:46:18 granger Exp $")
 
 
 /*
@@ -116,6 +116,7 @@ char *arg;
 
 
 
+int
 main (argc, argv)
 int argc;
 char **argv;
