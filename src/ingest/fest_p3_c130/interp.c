@@ -1,5 +1,5 @@
 /*
- * $Id: interp.c,v 1.2 1992-12-09 23:21:23 granger Exp $
+ * $Id: interp.c,v 1.3 1994-02-01 08:51:59 granger Exp $
  *
  * Fills in missing samples of 1-second frequency by interpolating
  * locations and filling in fields with bad values.
@@ -8,7 +8,7 @@
 
 #include "ingest.h"
 
-MAKE_RCSID("$Id: interp.c,v 1.2 1992-12-09 23:21:23 granger Exp $")
+MAKE_RCSID("$Id: interp.c,v 1.3 1994-02-01 08:51:59 granger Exp $")
 
 /*----------------------------------------------------------------
  * A generic location interpolator for aircraft data.
@@ -31,7 +31,7 @@ InterpolateGap(dc, btime, blocn, etime, elocn, sample)
 	Location *blocn;
 	ZebTime *etime;
 	Location *elocn;
-	int *sample;
+	unsigned long *sample;
 {
 	FieldId *fields;
 	int nfields;
@@ -61,14 +61,14 @@ InterpolateGap(dc, btime, blocn, etime, elocn, sample)
 	when.zt_MicroSec = 0;
 	when.zt_Sec = btime->zt_Sec;
 #	define BEGIN_LOCN(fld) 	(((blocn->fld == badval) || \
-				  (elocn->fld == badval)) ? badval : blocn->fld)
+			  (elocn->fld == badval)) ? badval : blocn->fld)
 	locn.l_lat = BEGIN_LOCN(l_lat);
 	locn.l_lon = BEGIN_LOCN(l_lon);
 	locn.l_alt = BEGIN_LOCN(l_alt);
 	IngestLog(EF_DEBUG,
-		  "%s from %lu to %lu, %i fill-ins, %s %6.5f, %s %6.5f, %s %6.4f",
-		  "Interpolating", btime->zt_Sec, etime->zt_Sec,
-		  ns, "latstep", latstep, "lonstep", lonstep, "altstep", altstep);
+	  "%s from %lu to %lu, %i fill-ins, %s %6.5f, %s %6.5f, %s %6.4f",
+	  "Interpolating", btime->zt_Sec, etime->zt_Sec,
+	  ns, "latstep", latstep, "lonstep", lonstep, "altstep", altstep);
 	for (i = 0; i < ns; ++i)
 	{
 		++(when.zt_Sec);
@@ -77,14 +77,17 @@ InterpolateGap(dc, btime, blocn, etime, elocn, sample)
 			dc_AddScalar(dc, &when, *sample, fields[fld], &badval);
 		}
 
-		locn.l_lat = (locn.l_lat == badval) ? badval : locn.l_lat+latstep;
-		locn.l_lon = (locn.l_lon == badval) ? badval : locn.l_lon+lonstep;
-		locn.l_alt = (locn.l_alt == badval) ? badval : locn.l_alt+altstep;
+		locn.l_lat = (locn.l_lat == badval) ? badval : 
+			locn.l_lat+latstep;
+		locn.l_lon = (locn.l_lon == badval) ? badval : 
+			locn.l_lon+lonstep;
+		locn.l_alt = (locn.l_alt == badval) ? badval : 
+			locn.l_alt+altstep;
 		dc_SetLoc(dc, *sample, &locn);
 
 		TC_EncodeTime(&when, TC_TimeOnly, ctime);
 		IngestLog(EF_DEBUG | ((*sample % 500) ? 0 : EF_INFO),
-			  "%s %5i, %s, %.2f lat, %.2f lon, alt %5.3f km",
+			  "%s %5li, %s, %.2f lat, %.2f lon, alt %5.3f km",
 			  "Interpolated sample",
 			  *sample, ctime, 
 			  locn.l_lat, locn.l_lon, locn.l_alt);

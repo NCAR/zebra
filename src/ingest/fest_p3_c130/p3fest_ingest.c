@@ -1,5 +1,5 @@
 /*
- * $Id: p3fest_ingest.c,v 1.5 1992-12-09 22:58:15 granger Exp $
+ * $Id: p3fest_ingest.c,v 1.6 1994-02-01 08:52:02 granger Exp $
  *
  * Ingest P3 format data files into Zeb using DCC_Scalar class DataChunks.
  * The general program flow is as follows:
@@ -301,7 +301,7 @@ static long SeekFileSize FP((FILE *file));
 static void DumpFields FP((FieldId *fields, int nfields));
 extern void InterpolateGap
 	FP((DataChunk *dc, ZebTime *btime, Location *blocn,
-	    ZebTime *etime, Location *elocn, int *sample));
+	    ZebTime *etime, Location *elocn, unsigned long *sample));
 
 /*-----------------------------------------*/
 
@@ -594,14 +594,15 @@ IngestDataRecord(dc, buf, rtype, rsize, hdr)
 	short rsize;
 	P3_header_t *hdr;
 {
-	static unsigned long sample = 0; /* The number of samples written so far */
+	static unsigned long sample = 0; /* The number of samples written so 
+					    far */
 	static Location lprev = { 0.0, 0.0, 0.0 };
-	static ZebTime tprev = { 0, 0 };		/* Time of previous sample */
+	static ZebTime tprev = { 0, 0 };	/* Time of previous sample */
 	char c_time[30];
 	int i;
 	short int fld;
 	ZebTime	when;				/* The time of this sample */
-	Location locn;				/* The location of this sample */
+	Location locn;				/* The locn of this sample */
 	float value;
 	int eflag;		/* For a time,lat,or lon error, promotes log
 				   messages to a higher priority.  eflag
@@ -622,7 +623,8 @@ IngestDataRecord(dc, buf, rtype, rsize, hdr)
 		+ ((float)buf[LAT_MIN]/(float)P3_FieldDivisors[LAT_MIN])/60.0;
 	locn.l_lon = (float)buf[LON_DEG]/(float)P3_FieldDivisors[LON_DEG]
 		+ ((float)buf[LON_MIN]/(float)P3_FieldDivisors[LON_MIN])/60.0;
-	locn.l_alt = ((float)buf[ALT]/(float)P3_FieldDivisors[ALT])/1000.0; /*km*/
+	locn.l_alt = ((float)buf[ALT]/(float)P3_FieldDivisors[ALT])/1000.0;
+	             /*km*/
 
 	/*
 	 * We'll have to extract the time and add it to the
@@ -659,33 +661,34 @@ IngestDataRecord(dc, buf, rtype, rsize, hdr)
 			{
 				fld = P3_WordToField[P3_ErrorFields[i].word];
 				IngestLog(EF_DEVELOP,
-					  "sample %i, possible error in %s, word #%hu",
-					  sample,
-					  P3_Fields[fld].long_name,
-					  P3_Fields[fld].index);
+				  "sample %i, possible error in %s, word #%hu",
+				  sample,
+				  P3_Fields[fld].long_name,
+				  P3_Fields[fld].index);
 			}
 		}
 
 		if (flags & ERR_ALT)
 			IngestLog(EF_PROBLEM,
-				  "Sample %i, altitude %5.3f (km) may be in error.",
-				  sample, locn.l_alt);
+			  "Sample %i, altitude %5.3f (km) may be in error.",
+			  sample, locn.l_alt);
 		if (flags & ERR_LA)
 			IngestLog(EF_PROBLEM,
-				  "Sample %i, latitude %8.4f (deg) may be in error.",
-				  sample, locn.l_lat);
+			  "Sample %i, latitude %8.4f (deg) may be in error.",
+			  sample, locn.l_lat);
 		if (flags & ERR_LO)
 			IngestLog(EF_PROBLEM,
-				  "Sample %i, longitude %8.4f (deg) may be in error",
-				  sample, locn.l_lon);
+			  "Sample %i, longitude %8.4f (deg) may be in error",
+			  sample, locn.l_lon);
 	}
 
 	/*
-	 * Errors in time will be checked separately, since experience has shown
-	 * that not all time gaps are flagged in the data files (naturally...) and
-	 * so we must do the checking ourselves...
+	 * Errors in time will be checked separately, since experience has
+	 * shown that not all time gaps are flagged in the data files
+	 * (naturally...) and so we must do the checking ourselves...
 	 */
-	if ((flags & ERR_TI) || (tprev.zt_Sec && (when.zt_Sec - tprev.zt_Sec > 1)))
+	if ((flags & ERR_TI) || 
+	    (tprev.zt_Sec && (when.zt_Sec - tprev.zt_Sec > 1)))
 	{
 		IngestLog(EF_PROBLEM,
 			  "Sample %i, time error, checking for a gap...",
@@ -1177,7 +1180,7 @@ DataChunk *
 CreateDataChunk(hdr)
 	P3_header_t *hdr;
 {
-	static char version_info[] = "$RCSfile: p3fest_ingest.c,v $ $Revision: 1.5 $";
+	static char version_info[] = "$RCSfile: p3fest_ingest.c,v $ $Revision: 1.6 $";
 	static int file_part = 0;
 	DataChunk *dc;
 	unsigned int nsamples;

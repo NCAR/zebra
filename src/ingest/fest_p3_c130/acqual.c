@@ -1,5 +1,5 @@
 /*
- * $Id: acqual.c,v 1.3 1992-12-18 12:45:46 granger Exp $
+ * $Id: acqual.c,v 1.4 1994-02-01 08:51:57 granger Exp $
  *
  * A quickly-written (hopefully) program to test aircraft netCDF files.  Tries to
  * verify several criteria:
@@ -154,7 +154,7 @@ GetBadValue(cdfid)
 	int cdfid;
 {
 	nc_type att_type;
-	long att_len;
+	int att_len;
 	char *att_val;
 	int opts;
 
