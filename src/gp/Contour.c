@@ -1,7 +1,7 @@
 /*
  * Contour a rectangular array
  */
-static char *rcsid = "$Id: Contour.c,v 2.8 1994-11-09 00:05:21 corbet Exp $";
+static char *rcsid = "$Id: Contour.c,v 2.9 1994-11-23 18:52:45 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -187,14 +187,14 @@ int	dolabels, linewidth;
 /*
  * Graphics context stuff.
  */
-	if (! Gcontext)
-		Gcontext = XCreateGC (XtDisplay (W), XtWindow (W), 0, NULL);
+	if (! ContourGC)
+		ContourGC = XCreateGC (XtDisplay (W), XtWindow (W), 0, NULL);
 
 	if (linewidth == 1)
 		linewidth = 0;
-	XSetLineAttributes (XtDisplay (W), Gcontext, linewidth, LineSolid, 
+	XSetLineAttributes (XtDisplay (W), ContourGC, linewidth, LineSolid, 
 			    CapButt, JoinMiter);
-	XSetClipRectangles (XtDisplay (W), Gcontext, 0, 0, &Clip, 1, Unsorted);
+	XSetClipRectangles (XtDisplay (W), ContourGC, 0, 0, &Clip, 1, Unsorted);
 /*
  * Sanity test
  */
@@ -231,7 +231,7 @@ int	dolabels, linewidth;
 			Pix = Color_outrange.pixel;
 		}
 
-		XSetForeground (XtDisplay (W), Gcontext, Pix);
+		XSetForeground (XtDisplay (W), ContourGC, Pix);
 	/*
 	 * Labeling stuff
 	 */
@@ -763,7 +763,7 @@ CO_DrawContour ()
  */
 	if (! DoLabels)
 	{
-		XDrawLines (XtDisplay (W), D, Gcontext, Pl, Nplpts, 
+		XDrawLines (XtDisplay (W), D, ContourGC, Pl, Nplpts, 
 			CoordModeOrigin);
 		Nplpts = 0;
 		return;
@@ -808,7 +808,7 @@ CO_DrawContour ()
 			 * the line up to here
 			 */
 				label_now = TRUE;
-				XDrawLines (XtDisplay (W), D, Gcontext,
+				XDrawLines (XtDisplay (W), D, ContourGC,
 					Pl + start, count, CoordModeOrigin);
 
 				dist = 0.0;
@@ -872,7 +872,7 @@ CO_DrawContour ()
 		 * This point is good, write in the label and continue the
 		 * line from just after the label
 		 */
-			DT_StrokeText (W, D, Gcontext, Pl[start].x, 
+			DT_StrokeText (W, D, ContourGC, Pl[start].x, 
 				Pl[start].y, Label, RAD_TO_DEG (angle), 
 				charsize, hjust, JustifyCenter);
 
@@ -902,7 +902,7 @@ CO_DrawContour ()
  */
 	if (count > 1)
 	{
-		XDrawLines (XtDisplay (W), D, Gcontext, Pl + start, 
+		XDrawLines (XtDisplay (W), D, ContourGC, Pl + start, 
 			count, CoordModeOrigin);
 	}
 /*

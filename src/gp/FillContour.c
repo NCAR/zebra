@@ -150,8 +150,8 @@ int	xdim, ydim;
 /*
  * Make sure we have a GC
  */
-	if (! Gcontext)
-		Gcontext = XCreateGC (XtDisplay (W), XtWindow (W), 0, NULL);
+	if (! ContourGC)
+		ContourGC = XCreateGC (XtDisplay (W), XtWindow (W), 0, NULL);
 /*
  * Find contour limits
  */
@@ -188,8 +188,8 @@ int	xdim, ydim;
 		else
 			foreground = Colors[Color_center + cndx].pixel;
 
-		XSetForeground (XtDisplay (W), Gcontext, foreground);
-		XSetClipRectangles (XtDisplay (W), Gcontext, 0, 0, &Clip, 1, 
+		XSetForeground (XtDisplay (W), ContourGC, foreground);
+		XSetClipRectangles (XtDisplay (W), ContourGC, 0, 0, &Clip, 1, 
 			Unsorted);
 	/*
 	 * Loop through the triangles
@@ -415,7 +415,7 @@ float	cval, cstep;
 /*
  * Do the fill
  */
-	XFillPolygon (XtDisplay (W), D, Gcontext, Points, Npt, Convex, 
+	XFillPolygon (XtDisplay (W), D, ContourGC, Points, Npt, Convex, 
 		CoordModeOrigin);
 }
 
