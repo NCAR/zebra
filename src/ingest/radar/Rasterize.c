@@ -28,7 +28,7 @@
 # include "HouseKeeping.h"
 # include "radar_ingest.h"
 
-RCSID("$Id: Rasterize.c,v 2.14 1996-12-10 21:27:11 granger Exp $")
+RCSID("$Id: Rasterize.c,v 2.15 1997-11-14 17:09:40 burghart Exp $")
 
 
 static char *Modes[] = { "CAL", "PPI", "COP", "RHI", "??4", "??5", "??6",
@@ -98,7 +98,7 @@ static void GetHIncrements FP ((double, double, double, double, double,
 	double, double *, double *, double *, double *));
 static void GetVIncrements FP ((double, double, double, double, double,
 	double, double *, double *, double *, double *));
-static void GetEndpoints FP ((Beam, int, double, int, double, double,
+static void GetEndpoints FP ((Beam, int, double, int, double, double, double,
 	double, double, double, double, struct RastInfo *, int));
 static void PFillR FP ((struct RastInfo *, double, double, double,
 	double, unsigned char *, unsigned char *));
@@ -686,10 +686,10 @@ struct RastInfo *rinfo;
  */
 {
 	static float lastaz = -999;
-	float az, az1, az2, ng, ngr, pr0, pgs, adiff;
+	float az, az1, az2, intersect, intersectr, pr0, pgs, adiff;
 	double sin1, cos1, sin2, cos2, sinc, cosc;
 	Housekeeping *hk = beam->b_hk;
-	int far = 0;
+	int ng, far = 0;
 /*
  * Figure out azimuths.  Kludge things here for an RHI if need be.
  */
@@ -753,25 +753,29 @@ struct RastInfo *rinfo;
 		cosc = cos1;
 	}
 /*
+ * Range to the leading edge of gate 0, in pixels.
+ */
+	pr0 = (hk->rhozero1 + 0.001 * hk->rhozero2) * PixScale;
+/*
  * Get the gate spacing info, and turn it into gates/pixel.
  */
-	pr0 = (hk->rhozero1 + hk->rhozero2/1000.0)*PixScale;
 	pgs = 1.0/((hk->gate_spacing/1000.0)*PixScale);
 	if (Project && hk->scan_mode != SM_RHI)
 		pgs /= cos (DegToRad (hk->elevation/CORR_FACT));
-	/* printf ("Gt %5.3f/%5.3f ", pr0, pgs); */
 /*
  * Figure the number of gates until the shortest intersection with an edge
  * of the array.
  */
-	ng = FindIntersection (az1, sin1, cos1);
-	if ((ngr = FindIntersection (az2, sin2, cos2)) < ng)
-		ng = ngr;
-	if ((ng *= pgs) > hk->gates_per_beam) /* Deal with r0? */
+	intersect = FindIntersection (az1, sin1, cos1);
+	if ((intersectr = FindIntersection (az2, sin2, cos2)) < intersect)
+		intersect = intersectr;
+
+	ng = (intersect - pr0) * pgs;
+
+	if (ng > hk->gates_per_beam)
 		ng = hk->gates_per_beam;
-# ifdef SDEBUG
-	printf ("d %6.2f ", ng);
-# endif
+	else if (ng < 0)
+		ng = 0;
 /*
  * Get the increments for rasterization.
  */
@@ -787,8 +791,8 @@ struct RastInfo *rinfo;
 /*
  * Endpoints.
  */
-	GetEndpoints (beam, *vertical, pgs, ng, *colinc, *rowinc, *inc1, *inc2,
-		sinc, cosc, rinfo, far);
+	GetEndpoints (beam, *vertical, pgs, ng, pr0, *colinc, *rowinc, 
+		      *inc1, *inc2, sinc, cosc, rinfo, far);
 # ifdef SDEBUG
 	printf ("\n");
 # endif
@@ -799,11 +803,11 @@ struct RastInfo *rinfo;
 
 
 static void
-GetEndpoints (beam, vertical, pgs, ng, colinc, rowinc, inc1, inc2, sinaz,
-	cosaz, rinfo, far)
+GetEndpoints (beam, vertical, pgs, ng, pr0, colinc, rowinc, inc1, inc2, sinaz,
+	      cosaz, rinfo, far)
 Beam beam;
 int vertical, ng;
-double pgs, inc1, inc2, sinaz, cosaz, rowinc, colinc;
+double pgs, pr0, inc1, inc2, sinaz, cosaz, rowinc, colinc;
 struct RastInfo *rinfo;
 int far;
 /*
@@ -828,9 +832,10 @@ int far;
 		 * Calculate the end points, based on the number of gates
 		 * in this chunk.
 		 */
-			double y0 = YRadar + (gd->gd_first/pgs)*cosaz;
+			double y0 = YRadar + 
+			    (pr0 + gd->gd_first/pgs)*cosaz;
 			double y1 = YRadar +
-				((gd->gd_first + maxg - 1)/pgs)*cosaz;
+				(pr0 + (gd->gd_first + maxg - 1)/pgs)*cosaz;
 			rinfo->ri_gate = gd->gd_first;
 		/*
 		 * Figure the width of the beam at the far (from radar) end,
@@ -869,9 +874,9 @@ int far;
 		/*
 		 * Calculate the end points.
 		 */
-			double x0 = XRadar + (gd->gd_first/pgs)*sinaz;
+			double x0 = XRadar + (pr0 + gd->gd_first/pgs)*sinaz;
 			double x1 = XRadar +
-				((gd->gd_first + maxg - 1)/pgs)*sinaz;
+				(pr0 + (gd->gd_first + maxg - 1)/pgs)*sinaz;
 			rinfo->ri_gate = gd->gd_first;
 		/*
 		 * Figure the width of the beam at the far (from radar) end,
