@@ -1,7 +1,7 @@
 /*
  * Convert a composite surface data file to Zeb data store files. 
  */
-static char *rcsid = "$Id: surf_convert.c,v 1.2 1992-11-25 18:14:26 burghart Exp $";
+static char *rcsid = "$Id: surf_convert.c,v 1.3 1993-03-24 22:25:59 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -74,6 +74,7 @@ struct field_list
 int		Die FP ((void));
 static int	Dispatcher FP ((int, struct ui_command *));
 static void	Go FP ((void));
+static void	StoreSample FP ((ZebTime *));
 static void	NewField FP ((struct ui_command *));
 static void	NewSubplatform FP ((struct ui_command *));
 static bool	CdfToZt FP ((short, char, char, char, char, ZebTime *));
@@ -87,7 +88,9 @@ static void	DoLocals FP ((int));
 /*
  * Global stuff.
  */
+static PlatformId	Pid;		/* Platform id			*/
 static int	NumFields = 0;		/* Number of fields.		*/
+static FieldId	Fids[MAXFIELDS];
 static int	NumFileFields = 0;	/* # of fields from input file	*/
 static int	NumLocalFields = 0;	/* # of calculated fields	*/
 static int	NumSubplats = 0;	/* Number of platforms.		*/
@@ -131,12 +134,17 @@ char	**argv;
 		ui_init (loadfile, TRUE, FALSE);
 
 	msg_connect (Die, "Surf_Convert");
+	msg_ELog (EF_INFO, "Ingesting surface data file '%s'", InputFile);
 	ds_Initialize ();
 /*
  * Time to go into UI mode.
  */
 	ui_get_command ("initial", "Surf>", Dispatcher, 0);
-	Die ();
+	
+	msg_ELog (EF_INFO, "Finished.");
+	ui_finish ();
+
+	exit (0);
 }
 
 
@@ -200,9 +208,6 @@ Go ()
 	float	val, float_val;
 	short	short_val;
 	char	byte_val;
-	DataChunk	*dc;
-	FieldId		fids[MAXFIELDS];
-	PlatformId	pid;
 	ZebTime	zt, last_zt;
 /*
  * Open the input file.
@@ -241,14 +246,14 @@ Go ()
 	/*
 	 * Zeb ID
 	 */
-		fids[i] = F_DeclareField (FieldList[i].fl_zebfield, 
+		Fids[i] = F_DeclareField (FieldList[i].fl_zebfield, 
 			FieldList[i].fl_zebfield, FieldList[i].fl_units);
-		FieldList[i].fl_fid = fids[i];
+		FieldList[i].fl_fid = Fids[i];
 	}
 /*
  * Get the main platform id.
  */
-	if ((pid = ds_LookupPlatform (PlatformName)) == BadPlatform)
+	if ((Pid = ds_LookupPlatform (PlatformName)) == BadPlatform)
 	{
 		msg_ELog (EF_PROBLEM, "No platform '%s' in data store", 
 			PlatformName);
@@ -258,15 +263,14 @@ Go ()
  * How many records in this file?
  */
 	ncdiminq (cdfid, recordid, (char *) 0, &records); 
-/* 
- * Initialize the last zeb time.
- */
-	last_zt.zt_Sec = 0;
-	last_zt.zt_MicroSec = 0;
 /*
  * Initialize the field data.
  */
 	InitFieldData ();
+/*
+ * Initialize last_zt
+ */
+	last_zt.zt_Sec = 0;
 /*
  * Loop through all records, accessing the data.
  */
@@ -305,6 +309,27 @@ Go ()
 				"\nBad time %02d%02d%02d %02d%02d00\n",
 				year, month, day, hour, minute);
 			continue;
+		}
+	/*
+	 * Initialize last_zt if necessary
+	 */
+		if (last_zt.zt_Sec == 0)
+			last_zt = zt;
+	/*
+	 * If we have a time change, we can write out the previous
+	 * sample
+	 */
+		if (! ZtEqual (zt, last_zt))
+		{
+			StoreSample (&last_zt);
+		/*
+ 		 * Fill the data list with bad values
+		 */
+			InitFieldData ();
+		/*
+ 		 * Set last_zt to zt.
+		 */
+			last_zt = zt;
 		}
 	/*
 	 * Grab all requested fields from the file
@@ -373,48 +398,46 @@ Go ()
 	 * Do the locally calculated fields
 	 */
 		DoLocals (plat_index);
-	/*
-	 * Time to start a new data_chunk?
-	 */
-		if (! ZtEqual (zt, last_zt))
-		{
-		/*
- 		 * Set last_zt to zt.
-		 */
-			last_zt.zt_Sec = zt.zt_Sec;
-			last_zt.zt_MicroSec = zt.zt_MicroSec;
-		/*
-		 * Create a new data chunk.
-		 */	
-			dc = dc_CreateDC (DCC_IRGrid);
-			dc->dc_Platform = pid;
-			dc_IRSetup (dc, NumSubplats, SubPids, Locs, NumFields, 
-				fids); 
-			dc_SetBadval (dc, BADVAL);
-		/*
-		 * Store all the grids in the data chunk.
-		 */
-			for (f = 0; f < NumFields; f++)
-				dc_IRAddGrid (dc, &zt, 0, fids[f],
-					FieldList[f].fl_data); 	
-		/*
-		 * Store the data chunk in the data store.
-		 */
-			ds_Store (dc, FALSE, NULL, 0);
-		/*
-		 * Free the data chunk.
-		 */
-			dc_DestroyDC (dc);
-		/*
- 		 * Initialize the platform list.
-		 */
-			InitFieldData ();
-		}
 	}
+/*
+ * Store the last sample
+ */
+	StoreSample (&last_zt);
 /*
  * Close the input file.
  */
 	ncclose (cdfid);
+}
+
+
+
+
+static void
+StoreSample (zt)
+ZebTime	*zt;
+{
+	DataChunk	*dc;
+	int	f;
+/*
+ * Create a new data chunk.
+ */	
+	dc = dc_CreateDC (DCC_IRGrid);
+	dc->dc_Platform = Pid;
+	dc_IRSetup (dc, NumSubplats, SubPids, Locs, NumFields, Fids); 
+	dc_SetBadval (dc, BADVAL);
+/*
+ * Store all the grids in the data chunk.
+ */
+	for (f = 0; f < NumFields; f++)
+		dc_IRAddGrid (dc, zt, 0, Fids[f], FieldList[f].fl_data);
+/*
+ * Store the data chunk in the data store.
+ */
+	ds_Store (dc, FALSE, NULL, 0);
+/*
+ * Free the data chunk.
+ */
+	dc_DestroyDC (dc);
 }
 
 
@@ -558,10 +581,9 @@ int	plat_index;
 	FieldList[fndx++].fl_data[plat_index] = u;
 	FieldList[fndx++].fl_data[plat_index] = v;
 }
+
 		
 	
-
-
 int
 Die ()
 /*
@@ -570,7 +592,7 @@ Die ()
 {
 	msg_ELog (EF_INFO, "Dying.");
 	ui_finish ();
-	exit (0);
+	exit (1);
 }
 
 
