@@ -2,6 +2,8 @@
 /*
  * Special key handling.
  */
+# include <string.h>
+
 # include "ui_tty.h"
 # include "ui.h"
 # include "ui_loadfile.h"
@@ -157,7 +159,7 @@ int lun;
  * Bring in command definitions from the file.
  */
 {
-	char tbuf[400], *bang, *strchr ();
+	char tbuf[400], *bang;
 	union usy_value v;
 
 	for (;;)

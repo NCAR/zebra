@@ -2,11 +2,12 @@
 /*
  * Routines pertaining to types -- identification, interpretation, coercion...
  */
+# include <string.h>
 # include <ctype.h>
 # include "ui_param.h"
 # include "ui_symbol.h"
 
-static char *rcsid = "$Id: ui_types.c,v 1.8 1998-10-28 21:23:04 corbet Exp $";
+static char *rcsid = "$Id: ui_types.c,v 1.9 1999-06-25 19:16:30 burghart Exp $";
 
 /*
  * Month info.
@@ -335,7 +336,7 @@ char *string, *dest, **dte, **time;
  * is a very simple routine, simply splitting things at the imbedded comma.
  */
 {
-	char *comma, *strchr (), *pmu_strend ();
+	char *comma, *pmu_strend ();
 /*
  * Find the comma.
  */

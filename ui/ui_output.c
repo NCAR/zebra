@@ -3,6 +3,8 @@
  * This file contains output-related routines, as (originally) scavenged
  * from ui_token, where they never should have been to begin with.
  */
+# include <string.h>
+
 # include "ui.h"
 # include "ui_globals.h"
 
@@ -153,7 +155,7 @@ char *line;
  * Put this line to the output file.
  */
 {
-	char	*nl, *beg_line = Obuf, *strchr ();
+	char	*nl, *beg_line = Obuf;
 
 	if (! Initialized)
 	{

@@ -1,14 +1,10 @@
 /*
  * This is the symbol table module.
  */
-static char *Rcsid = "$Id: ui_symbol.c,v 1.17 1998-02-26 21:18:45 burghart Exp $";
+static char *Rcsid = "$Id: ui_symbol.c,v 1.18 1999-06-25 19:16:30 burghart Exp $";
 
-# ifdef VMS
 # include <string.h>
-# endif
-# ifdef BSD
-# include <string.h>
-# endif
+
 # if defined(SVR4) || defined(AIXV3)
 # include <libgen.h>
 # endif
@@ -1014,7 +1010,7 @@ char *symbol;
  * symbols with the form table:symbol.
  */
 {
-	char *colon, *strchr ();
+	char *colon;
 	stbl usy_g_stbl ();
 /*
  * If there is no colon in this symbol name, then just return the table
