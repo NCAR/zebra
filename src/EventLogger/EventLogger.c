@@ -1,7 +1,7 @@
 /*
  * The new event logger.
  */
-static char *rcsid = "$Id: EventLogger.c,v 2.3 1991-09-26 18:42:56 gracio Exp $";
+static char *rcsid = "$Id: EventLogger.c,v 2.4 1991-11-19 21:44:21 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -73,7 +73,7 @@ struct EMMap
  * Text info.
  */
 static int Buflen = 0;
-static char *Initmsg = "$Id: EventLogger.c,v 2.3 1991-09-26 18:42:56 gracio Exp $\n\
+static char *Initmsg = "$Id: EventLogger.c,v 2.4 1991-11-19 21:44:21 burghart Exp $\n\
 Copyright (C) 1991 UCAR, All rights reserved.\n";
 
 /*
@@ -98,17 +98,15 @@ static String Resources[] =
 /*
  * Bitmap for our check mark in the menus
  */
-#define check_width 9
-#define check_height 8
-static unsigned char Check_bits[] = {
+#define check_width ((unsigned int) 9)
+#define check_height ((unsigned int) 8)
+_Xconst char Check_bits[] = {
 	0x00, 0x01, 0x80, 0x01, 0xc0, 0x00, 0x60, 0x00,
 	0x31, 0x00, 0x1b, 0x00, 0x0e, 0x00, 0x04, 0x00
 };
 Pixmap Check;
 
-# ifdef LOGFILE
-FILE *Log_file;
-# endif
+FILE *Log_file = (FILE *) 0;
 
 char *Mother = 0;
 
@@ -126,6 +124,7 @@ char **argv;
 	Arg args[20];
 	Widget w, label;
 	int xevent (), msg_event (), clearbutton (), wm ();
+	char *fname;
 /*
  * Hook into the message system.
  */
@@ -134,12 +133,19 @@ char **argv;
 		printf ("Unable to connect to message handler\n");
 		exit (1);
 	}
-# ifdef LOGFILE
 /*
  * Open our log file.
  */
-	Log_file = fopen (strcat(ETCDIR, "/LogFile"), "w");
-# endif
+	if (fname = getenv ("ZEB_LOGFILE"))
+	{
+		Log_file = fopen (fname, "w");
+
+		if (! Log_file)
+			printf ("Error %d opening log file '%s'\n", fname);
+	}
+/*
+ * Get the event mask, if any
+ */
 	if (getenv ("EVENT_MASK"))
 		Emask = atoi (getenv ("EVENT_MASK"));
 /*
@@ -188,7 +194,8 @@ char **argv;
 	XtSetArg (args[4], XtNleft, XtChainLeft);
 	XtSetArg (args[5], XtNright, XtChainLeft);
 	w = XtCreateManagedWidget ("Clear", commandWidgetClass, Form, args, 6);
-	XtAddCallback (w, XtNcallback, clearbutton, 0);
+	XtAddCallback (w, XtNcallback, (XtCallbackProc) clearbutton, 
+		(XtPointer) 0);
 /*
  * The window manager button.
  */
@@ -200,7 +207,7 @@ char **argv;
 	XtSetArg (args[5], XtNright, XtChainLeft);
 	XtSetArg (args[6], XtNlabel, "Ctl: DM");
 	w = Wm = XtCreateManagedWidget("wm",commandWidgetClass, Form, args, 7);
-	XtAddCallback (Wm, XtNcallback, wm, 0);
+	XtAddCallback (Wm, XtNcallback, (XtCallbackProc) wm, (XtPointer) 0);
 /*
  * The filter button.
  */
@@ -279,7 +286,8 @@ Widget w;
 			EMap[i].em_flag & Emask ? Check : None);
 		EMap[i].em_w = w = XtCreateManagedWidget (EMap[i].em_name,
 			smeBSBObjectClass, pulldown, args, 2);
-		XtAddCallback (w, XtNcallback, ev_popup_cb, i);
+		XtAddCallback (w, XtNcallback, (XtCallbackProc) ev_popup_cb, 
+			(XtPointer) i);
 	}
 }
 
@@ -451,10 +459,13 @@ char code, *from, *msg;
  * Format the message to be logged.
  */
 	sprintf (fmtbuf, "%c %-14s%s\n", code, from, msg);
-# ifdef LOGFILE
-	fprintf (Log_file, fmtbuf);
-	fflush (Log_file);
-# endif
+
+	if (Log_file)
+	{
+		fprintf (Log_file, fmtbuf);
+		fflush (Log_file);
+	}
+
 	tb.firstPos = 0;
 	tb.length = strlen (fmtbuf);
 	tb.ptr = fmtbuf;
