@@ -1,0 +1,19 @@
+/*
+ * Imakefile for the network transfer daemon
+ */
+# undef DataDir
+
+SRCS = NetXfr.c nx_BCast.c nx_DirImage.c nx_PktGrabber.c
+OBJS = NetXfr.o nx_BCast.o nx_DirImage.o nx_PktGrabber.o
+
+HEADERS = NetXfr.h
+
+LIBS = $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
+
+
+/*
+ * Now we can get around to the real stuff.
+ */
+ 
+NormalProgramTarget(NetXfr, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+UILoadFileTarget (NetXfr.lf, NetXfr.state)

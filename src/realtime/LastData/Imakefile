@@ -1,0 +1,16 @@
+/*
+ * Imakefile for the last data displayer.
+ */
+# undef DataDir
+
+SRCS = LastData.c
+OBJS = LastData.o
+
+LIBS = $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
+
+
+/*
+ * Now we can get around to the real stuff.
+ */
+ 
+NormalProgramTarget(LastData, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
