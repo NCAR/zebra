@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: ds_consumer.c,v 2.4 1992-07-31 16:54:31 corbet Exp $";
+static char *rcsid = "$Id: ds_consumer.c,v 2.5 1993-08-18 15:18:15 burghart Exp $";
 
 # include <copyright.h>
 # include <defs.h>
@@ -32,27 +32,28 @@ static char *rcsid = "$Id: ds_consumer.c,v 2.4 1992-07-31 16:54:31 corbet Exp $"
 /*
  * Globals.
  */
-static int XRes, YRes, NField;
-static char *Fields[20];
-struct _ix_desc *ShmDesc;
+int 	XRes, YRes, NField;
+char	*Fields[MAXFIELD];
+FieldId	Fids[MAXFIELD];
+PlatformId 	Plat;
+struct _ix_desc	*ShmDesc;
 
-PlatformId Plat;
 
-DataObject OutData;
+static int MDispatcher FP ((struct message *));
 
-# ifdef __STDC__
-	static int MDispatcher (struct message *);
-# else
-	static int MDispatcher ();
-# endif
 
 
 main (argc, argv)
 int argc;
 char **argv;
 {
+	int i;
+	char	ourname[20];
+
 	usy_init ();
-	msg_connect (MDispatcher, "DS Consumer");
+
+	sprintf (ourname, "Consumer_%x", getpid ());
+	msg_connect (MDispatcher, ourname);
 /*
  * Checking.
  */
@@ -64,7 +65,7 @@ char **argv;
 /*
  * Hook into our segment.
  */
-	if (! (ShmDesc = IX_HookIn (0x910425, "DS Consumer", &XRes, &YRes,
+	if (! (ShmDesc = IX_HookIn (0x910425, ourname, &XRes, &YRes,
 				&NField, Fields)))
 	{
 		msg_ELog (EF_EMERGENCY, "NO SHM segment");
@@ -80,18 +81,10 @@ char **argv;
 		exit (1);
 	}
 /*
- * Static data object initialization.
+ * Field list
  */
-	OutData.do_id = Plat;
-	OutData.do_org = OrgImage;
-	OutData.do_npoint = 1;
-	OutData.do_aloc = ALLOC (Location);
-	/* XXXXXXXXX */
-	OutData.do_nfield = 2;
-	OutData.do_fields[0] = "reflectivity";
-	OutData.do_fields[1] = "velocity";
-	/* XXXXXXXXX */
-	OutData.do_flags = 0;
+	for (i = 0; i < NField; i++)
+		Fids[i] = F_Lookup (Fields[i]);
 /*
  * Wait for something.
  */
@@ -113,15 +106,22 @@ struct message *msg;
 
 	switch (msg->m_proto)
 	{
-	   case MT_MESSAGE:
+	    case MT_MESSAGE:
 		if (tmpl->mh_type == MH_DIE)
 		{
 			IX_Detach (ShmDesc);
+			msg_ELog (EF_INFO, 
+				  "Exiting on request from message system.");
 			exit (1);
 		}
 		break;
-
-	   case MT_IMAGEXFR:
+	    case MT_FINISH:
+		IX_Detach (ShmDesc);
+		msg_ELog (EF_INFO, "Exiting on request from '%s'.",
+			  msg->m_from);
+		exit (*(int *)(msg->m_data));
+		break;
+	    case MT_IMAGEXFR:
 	   	DoImage (tmpl->mh_type);
 		break;
 	}
@@ -140,20 +140,25 @@ int set;
 {
 	RGrid rg;
 	Location loc;
-	time t;
-	ScaleInfo scale[2];
+	UItime t;
+	ZebTime zt;
+	ScaleInfo scale[MAXFIELD];
 	char *images[4], *attr;
 	int xmin, ymin, xmax, ymax, i, offset;
 	static float PrevAlt = -99;
+	DataChunk *dc;
 /*
  * Grab it.
  */
+	msg_ELog (EF_DEBUG, "Grabbing frame...");
 	if (! IX_GetReadFrame (ShmDesc, set, images, &t, &rg, &loc, scale,
 			&xmin, &ymin, &xmax, &ymax, &attr))
 	{
 		msg_ELog (EF_PROBLEM, "Can't get promised set %d", set);
 		return;
 	}
+
+	TC_UIToZt (&t, &zt);
 /*
  * Trim out blank data.
  */
@@ -162,33 +167,34 @@ int set;
 	cvt_ToLatLon (0.0, (YRes - ymax)*rg.rg_Yspacing, &loc.l_lat,
 			&loc.l_lon);
 	rg.rg_nY = ymax - ymin + 1;
-/*
- * Fill in the rest of our data object.
- */
+
 	msg_ELog (EF_DEBUG, "Set %d, [%d, %d] to [%d, %d]", set, xmin, ymin,
 				xmax, ymax);
-	OutData.do_begin = OutData.do_end = t;
-	OutData.do_times = &t;
-	OutData.do_desc.d_img.ri_rg = &rg;
-	OutData.do_desc.d_img.ri_scale = scale;
-	OutData.do_aloc = &loc;
-	OutData.do_attr = attr;
-	for (i = 0; i < OutData.do_nfield; i++)
-		OutData.do_data[i] = (float *) (images[i] + offset);
+/*
+ * Fill in the rest of our data chunk.
+ */
+	dc = dc_CreateDC (DCC_Image);
+	dc->dc_Platform = Plat;
+	dc_ImgSetup (dc, NField, Fids, scale);
+	for (i = 0; i < NField; i++)
+		dc_ImgAddImage (dc, 0, Fids[i], &loc, &rg, &zt,
+				images[i] + offset, 0);
 /*
  * Send it, but only if there's something real.
  */
 	if (ymin < ymax)
-		ds_PutData (&OutData, ! strncmp (attr, "newfile", 7));
-		/* ds_PutData (&OutData, PrevAlt > loc.l_alt); */
+		ds_Store (dc, ! strncmp (attr, "newfile", 7), NULL, 0);
 	else
 		msg_ELog (EF_INFO, "Dropping empty image");
+
+	dc_DestroyDC (dc);
 	PrevAlt = loc.l_alt;
 /*
  * Clear and return the frames.
  */
-	for (i = 0; i < OutData.do_nfield; i++)
+	for (i = 0; i < NField; i++)
 		memset (images[i] + ymin*XRes, 0xff, (ymax - ymin + 1)*XRes);
+
 	msg_ELog (EF_DEBUG, "Release set %d", set);
 	IX_ReleaseFrame (ShmDesc, set);
 }
