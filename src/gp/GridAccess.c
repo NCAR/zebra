@@ -8,7 +8,7 @@
 # include "GraphProc.h"
 # include "rg_status.h"
 
-static char *rcsid = "$Id: GridAccess.c,v 1.5 1991-01-30 20:42:35 corbet Exp $";
+static char *rcsid = "$Id: GridAccess.c,v 1.6 1991-02-12 20:56:48 corbet Exp $";
 
 
 # define BADVAL	-32768.0
@@ -184,8 +184,7 @@ float	*x0, *y0, *x1, *y1, *alt;
 	ret = dobj->do_data[0];
 	dobj->do_flags &= ~DOF_FREEDATA;
 	ds_FreeDataObject (dobj);
-	msg_ELog (EF_DEBUG, "Returned grid (%.2f %.2f) t (%.2f %.2f)",
-		*x0, *y0, *x1, *y1);
+	*plot_time = realtime;
 	return (ret);
 }
 
