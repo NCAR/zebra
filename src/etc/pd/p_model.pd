@@ -1,22 +1,28 @@
 !
-! Generic CAP plot description for model data.  Needs to have the platform
-! filled in but otherwise self contained.
+! Generic CAP or cross-section plot description for model data.  Needs to 
+! have the platform and icon filled in.
 !
 global
 	pd-name:	p_model
 p_model
 	platform:	SOMETHING
+	field:		tdry
 	representation:	line-contour
 	color:		cyan
 	color-mono:	true
+	color-table:	gcook16
 	do-labels:	true
+	grid-method:	bilinear
+	icon:		SOMETHING
 	label-blanking:	false
+	line-width:	2
 	icon-left-menu:	standard-cap-left-menu
 	icon-middle-menu:	FieldMenu
 	posicon-middle-menu:	FieldMenu
-	icon-right-menu:	contour-right
+	icon-right-menu:	contour-model-right
 	annot-left-menu:	FieldMenu
 	annot-middle-menu:	FieldMenu
 	scale-mode:		auto
-	require:		contour, simple-color
+	altitude-control:	true
 	active-icon:		true
+	require:		contour, simple-color
