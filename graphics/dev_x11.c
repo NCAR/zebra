@@ -5,7 +5,7 @@
 # include <graphdev.h>
 
 # ifdef DEV_X11
-static char *rcsid = "$Id: dev_x11.c,v 1.22 1991-11-15 20:15:35 oye Exp $";
+static char *rcsid = "$Id: dev_x11.c,v 1.23 1991-12-18 19:54:31 corbet Exp $";
 
 # include "graphics.h"
 # include "device.h"
@@ -194,7 +194,7 @@ struct device *dev;
 	 */
 		attr.backing_store = NotUseful;
 	else
-		attr.backing_store = WhenMapped;
+		attr.backing_store = NotUseful /* WhenMapped */;
 	attr.event_mask = ButtonPressMask | ExposureMask | KeyPressMask;
 	tag->x_window = XCreateWindow (tag->x_display,
 		RootWindow (tag->x_display, screen), 10, 10, tag->x_xres, 
@@ -268,7 +268,8 @@ struct device *dev;
  * Clear the window.
  */
 	XWindowEvent (tag->x_display, tag->x_window, ExposureMask, &ev);
-	XClearWindow (tag->x_display, tag->x_window);
+	x11_clear (tag);
+	/* XClearWindow (tag->x_display, tag->x_window); */
 /*
  * Initialize zoom stuff.
  */
@@ -322,14 +323,18 @@ char *ctag;
  */
 {
 	struct xtag *tag = (struct xtag *) ctag;
-
+/*
+ * Clear the main window.
+ */
 	XClearWindow (tag->x_display, tag->x_window);
+	XSetForeground (tag->x_display, tag->x_tgt_gc, 
+		BlackPixel (tag->x_display, 0));
+	XFillRectangle (tag->x_display, tag->x_sw[0], tag->x_tgt_gc, 0, 0,
+		tag->x_xres, tag->x_yres);
 	tag->x_zoomok = FALSE;
 /*
  * Clear the target pixmap and remember we need to redo it
  */
-	XSetForeground (tag->x_display, tag->x_tgt_gc, 
-		BlackPixel (tag->x_display, 0));
 	XFillRectangle (tag->x_display, tag->x_tgt_pixmap, tag->x_tgt_gc, 
 		0, 0, TGT_SIZE + 2, TGT_SIZE + 2);
 	XSetForeground (tag->x_display, tag->x_tgt_gc, 
@@ -382,6 +387,8 @@ int color, ltype, npt, *data;
  * Do the drawing.  If we are not zoomed, just dump it straight to the
  * screen; otherwise just draw into the pixmap.
  */
+# ifdef notdef
+/*
  	if (! tag->x_zquad)
 	{
 	 	XDrawLines (tag->x_display, tag->x_window, tag->x_gc, xp, npt,
@@ -390,8 +397,15 @@ int color, ltype, npt, *data;
 		relvm (xp);
 		return;
 	}
+*/
+# endif
  	XDrawLines (tag->x_display, tag->x_sw[0], tag->x_gc, xp, npt,
 		CoordModeOrigin);
+	tag->x_zoomok = FALSE;
+	relvm (xp);
+	return;
+
+# ifdef notdef
 /*
  * Go through and double each coordinate and draw into quad 1.
  */
@@ -436,6 +450,7 @@ int color, ltype, npt, *data;
 	 	XDrawLines (tag->x_display, tag->x_window, tag->x_gc, xp, npt,
 			CoordModeOrigin);
 	relvm (xp);
+# endif
 }
 
 
@@ -451,10 +466,19 @@ char *ctag;
 {
 	struct xtag *tag = (struct xtag *) ctag;
 /*
+ * Just dump our relevant quad onto the screen.
+ */
+	x11_clip (ctag, 0, 0, tag->x_xres, tag->x_yres);
+	if (tag->x_zquad)
+		x11_calc_zoom (tag, tag->x_zquad);
+	XCopyArea (tag->x_display, tag->x_sw[tag->x_zquad], tag->x_window,
+		tag->x_gc, 0, 0, tag->x_xres, tag->x_yres, 0, 0);
+/*
  * Draw in the target if it's been placed
  */
 	if (tag->x_xtgt >= 0 && tag->x_ytgt >= 0)
 	{
+# ifdef notdef
 	/*
 	 * Save the portion of the screen which will be overwritten by 
 	 * the target, if necessary
@@ -468,6 +492,7 @@ char *ctag;
 				TGT_SIZE + 2, TGT_SIZE + 2, 0, 0);
 			tag->x_do_pxm = FALSE;
 		}
+# endif
 	/*
 	 * Draw the target
 	 */
@@ -570,6 +595,7 @@ int	x, y;
  */
 {
 	struct xtag *tag = (struct xtag *) ctag;
+# ifdef notdef
 /*
  * Restore the data under the old target location (if there is an old
  * target location)
@@ -579,6 +605,7 @@ int	x, y;
 			tag->x_tgt_gc, 0, 0, TGT_SIZE + 2, TGT_SIZE + 2, 
 			tag->x_xtgt - TGT_SIZE/2 - 1, 
 			tag->x_ytgt - TGT_SIZE/2 - 1);
+# endif
 /*
  * Save the new target location
  */
@@ -603,6 +630,7 @@ char	*ctag;
  */
 {
 	struct xtag *tag = (struct xtag *) ctag;
+# ifdef notdef
 /*
  * Restore the data under the old target location (if there is an old
  * target location)
@@ -612,6 +640,7 @@ char	*ctag;
 			tag->x_tgt_gc, 0, 0, TGT_SIZE + 2, TGT_SIZE + 2, 
 			tag->x_xtgt - TGT_SIZE/2 - 1, 
 			tag->x_ytgt - TGT_SIZE/2 - 1);
+# endif
 /*
  * Negative target location for no target
  */
@@ -780,14 +809,8 @@ int x, y, xs, ys, size, org;
 {
 	XImage *xi;
 	struct xtag *tag = (struct xtag *) ctag;
-# ifdef notdef
-/*
- * Kludge to allow the restoration of images saved under Sunview.
- */
-	if (xs > 300 || ys > 300)
-		x11_sv_kludge (data, xs, ys, tag->x_bg);
-# endif
-	x11_zreset (tag);
+
+/*	x11_zreset (tag); */
 /*
  * Create the XImage structure.
  */
@@ -796,46 +819,17 @@ int x, y, xs, ys, size, org;
 /*
  * Send it to the display.
  */
- 	XPutImage (tag->x_display, tag->x_window, tag->x_gc, xi, 0, 0, 
+ 	XPutImage (tag->x_display, tag->x_sw[0], tag->x_gc, xi, 0, 0, 
 		x, tag->x_yres - (y + ys), xs, ys);
 /*
  * Release the image structure.
  */
  	xi->data = (char *) 0;
 	XDestroyImage (xi);
+	tag->x_zoomok = FALSE;
 }
 
 
-
-
-
-x11_sv_kludge (data, xs, ys, base)
-register unsigned char *data;
-int xs, ys;
-unsigned int base;
-/*
- * Offset this data to the base needed for X, if necessary.
- */
-{
-	register int i, npix = xs*ys;
-/*
- * Look at up to the first thousand pixels.  If any are below the nominal
- * base value, assume that we have to offset it.
- */
-	for (i = 0; i < 1000; i++)
-		if (data[i] < base)
-			break;
-	if (i >= 1000)
-		return;
-	if (getenv ("XBASE"))
-		base = atoi (getenv ("XBASE"));
-	printf ("Found %d at %d -- offsetting by %d\n", data[i], i, base);
-/*
- * Do it.
- */
- 	for (i = 0; i < npix; i++)
-		data[i] = (data[i] == 127) ? 0 : data[i] + base;
-}
 
 
 
@@ -924,12 +918,14 @@ int x0, y0, x1, y1;
 	 * Create the zoomed image, if necessary.
 	 */
 		x11_calc_zoom (tag, tag->x_zquad);
+# ifdef notdef	/* Happens in flush now */
 	/*
 	 * Now send the appropriate window.
 	 */
 	 	XCopyArea (tag->x_display, tag->x_sw[tag->x_zquad],
 			tag->x_window, tag->x_tgt_gc, 0, 0, tag->x_xres,
 			tag->x_yres, 0, 0);
+# endif
 	}
 /*
  * Sync things out.
@@ -962,6 +958,7 @@ XImage *read, *write;
  * Read back this quad.
  */
 # ifdef notdef
+	/* This is probably worth trying again someday */
 	XGetSubImage (tag->x_display, tag->x_sw[0], x, y, tag->x_xres/2, 
 		tag->x_yres/2, ~0, ZPixmap, read, 0, 0);
 	read = XGetImage (tag->x_display, tag->x_sw[0], x, y, tag->x_xres/2,
@@ -1011,8 +1008,10 @@ int q;
  */
 	if (! tag->x_zoomok)
 	{
+# ifdef notdef
 		XCopyArea (tag->x_display, tag->x_window, tag->x_sw[0],
 			tag->x_tgt_gc, 0, 0, tag->x_xres, tag->x_yres, 0, 0);
+# endif
 		for (i = 0; i < 5; i++)
 			tag->x_qdone[i] = FALSE;
 		tag->x_zoomok = TRUE;
@@ -1312,7 +1311,7 @@ float rot;
  * the real bottom, not at the baseline.
  */
 	XSetFont (tag->x_display, tag->x_gc, tag->x_fonts[f]->fid);
-	XDrawString (tag->x_display, tag->x_window, tag->x_gc, x, 
+	XDrawString (tag->x_display, tag->x_sw[0], tag->x_gc, x, 
 		tag->x_yres - y + 1 - tag->x_fonts[f]->descent, text,
 		strlen (text));
 }
