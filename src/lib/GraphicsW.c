@@ -3,7 +3,7 @@
  * of pixmap "frames" associated with it.  Zero frames means just write 
  * everything directly to the window.
  */
-static char *rcsid = "$Id: GraphicsW.c,v 2.6 1992-03-17 22:50:13 barrett Exp $";
+static char *rcsid = "$Id: GraphicsW.c,v 2.7 1992-11-02 22:24:12 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -536,7 +536,7 @@ int	width, height;
 {
 	if (XtMakeResizeRequest ((Widget) w, (Dimension) width,
 		(Dimension) height, 
-		(Dimension) NULL, (Dimension) NULL) == XtGeometryYes)
+		(Dimension *) NULL, (Dimension *) NULL) == XtGeometryYes)
 		Resize (w);
 }
 
