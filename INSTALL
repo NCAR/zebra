@@ -1,0 +1,11 @@
+For a default installation, with files installed under /usr/local,
+the following is all that is necessary:
+
+	$ ./configure
+	$ make
+	$ make install
+
+To install under a directory other than /usr/local, the first line above
+can be changed to:
+
+	$ ./configure --prefix=<dir>
