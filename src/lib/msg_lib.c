@@ -1,9 +1,10 @@
 /*
  * Library routines for the message system.
  */
-static char *rcsid = "$Id: msg_lib.c,v 1.6 1991-04-30 16:22:31 corbet Exp $";
+static char *rcsid = "$Id: msg_lib.c,v 1.7 1991-05-30 17:41:04 corbet Exp $";
 # include <stdio.h>
 # include <varargs.h>
+# include <errno.h>
 # include <sys/types.h>
 # include <sys/socket.h>
 # include <sys/un.h>
@@ -56,11 +57,13 @@ ProtoHandlers[MAXPROTO] = { 0 };
 	static void msg_RemQueue (struct mqueue *);
 	static int msg_SrchAck (struct message *, struct mh_ack *);
 	static int msg_ELHandler (struct message *);
+	static int msg_PingHandler (Message *);
 # else
 	static struct mqueue *msg_NewMq ();
 	static void msg_RemQueue ();
 	static int msg_SrchAck ();
 	static int msg_ELHandler ();
+	static int msg_PingHandler ();
 # endif
 
 /*
@@ -113,7 +116,8 @@ char *ident;
 	if (connect (Msg_fd, (struct sockaddr *) &saddr,
 			sizeof (struct sockaddr_un)) < 0)
 	{
-		perror ("Message server connect");
+		if (errno != ENOENT && errno != ECONNREFUSED)
+			perror ("Message server connect");
 		return (FALSE);
 	}
 /*
@@ -156,7 +160,30 @@ char *ident;
  * Establish the event logger handler, and we're done.
  */
 	msg_AddProtoHandler (MT_ELOG, msg_ELHandler);
+	msg_AddProtoHandler (MT_CPING, msg_PingHandler);
  	return (TRUE);
+}
+
+
+
+
+
+static int
+msg_PingHandler (msg)
+Message *msg;
+/*
+ * Deal with an incoming client ping.
+ */
+{
+/*
+ * All we do is turn the protocol back to MT_PING and ship it back to the
+ * sender.
+ */
+	msg->m_proto = MT_PING;
+	strcpy (msg->m_to, msg->m_from);
+	if (write (Msg_fd, msg, sizeof (Message)) < sizeof (Message))
+		perror ("Message structure write");
+	return (0);
 }
 
 
