@@ -2,11 +2,16 @@
 #
 # This is an attempt at a generalized zebra startup script.
 #
-# $Id: zstart.sh,v 1.10 1996-03-21 19:11:58 granger Exp $
+# $Id: zstart.sh,v 1.11 1999-11-01 21:49:59 granger Exp $
 #
 # Here we do basic location of directories, set environment variables,
 # and try to hand things off to a project-specific startup file.
 #
+
+# Aliasing exit to do fancy logout stuff could really mess things up
+unalias exit
+unset ignoreeof
+unalias rm
 
 #
 # If this user has a zebra resource file, source it immediately.  That
@@ -48,6 +53,7 @@
 	set dmonly=0
 	set dsonly=0
 	set execshell=0
+	set unique=0
 	set check=0
 	set name=""
 	while ($#argv)
@@ -61,6 +67,7 @@ echo "  -shell	Start a shell with the correct runtime environment."
 echo "  -n|-check	Non-interactive.  Fail instead of asking questions."
 echo "		Do nothing if session is already running, else start"
 echo "		one and return zero."
+echo "  -unique  	Generate a unique socket and session name if needed."
 echo "  -session	Set a session name for the message manager."
 echo "  -help		Print a summary of the options."
 			exit 0
@@ -81,16 +88,19 @@ echo "  -help		Print a summary of the options."
 		    case -shell:
 			set execshell=1
 			breaksw
+		    case -u*:
+			set unique=1
+			breaksw
 		    case -check:
 		    case -n:
 			set check=1
 			breaksw
 		    case -s*:
-			set name="-session $argv[2]"
+			set SESSION="$argv[2]"
 			shift
 			breaksw
 		    default:
-		    	set projdir=$argv[1]
+		    	set projdir="$argv[1]"
 			breaksw
 		endsw
 		shift
@@ -138,41 +148,44 @@ again:
 # or replace some settings.  If it does not set a data directory, zstart
 # will prompt the user for one.
 #
-	setenv HOST `uname -n`
 	cd $projdir
+	setenv ZEB_INTERNET
 	if (-f proj_env) source proj_env
 	if (! $?ZEB_PROJDIR) setenv ZEB_PROJDIR "$projdir"
+	if (! $?HOST) setenv HOST `uname -n`
+	if (! $?SESSION) set SESSION="$HOST"
 #
 # If another machine is hosting the datastore, start that session now
 #
 	if (! $?ZEB_ZSTART ) setenv ZEB_ZSTART $ZEB_TOPDIR/bin/zstart
 	if ( $?DS_DAEMON_HOST ) then
-		if ($HOST != $DS_DAEMON_HOST) then
-	 		rsh $DS_DAEMON_HOST $ZEB_ZSTART -ds -n -s \
-				$DS_DAEMON_HOST $ZEB_PROJDIR
+
+		if (! $?DS_DAEMON_SESSION ) then
+			setenv DS_DAEMON_SESSION "$DS_DAEMON_HOST"
+		endif
+		if ($DS_DAEMON_SESSION != $SESSION) then
+
+	 		rsh $DS_DAEMON_HOST $ZEB_ZSTART -ds -n \
+				-s $DS_DAEMON_SESSION $ZEB_PROJDIR
 			if ( $status != 0 ) then
 			  echo "No datastore session on host $DS_DAEMON_HOST."
 		 	  exit 1
 			endif
+			# Clients actually need the session name, 
+			# not the host, in case they're different
+			setenv DS_DAEMON_HOST "$DS_DAEMON_SESSION"
 		else
+			# Check for a datastore-session-specific socket
+			if ($?DS_DAEMON_SOCKET) then
+			    setenv ZEB_SOCKET "$DS_DAEMON_SOCKET"
+			endif
+			setenv ZEB_EVENTLOGGER \
+   "$ZEB_TOPDIR/bin/EventLogger -n -f $ZEB_PROJDIR/${DS_DAEMON_SESSION}.log"
 			unsetenv DS_DAEMON_HOST
+			unsetenv DS_DAEMON_SESSION
+			setenv ZEB_INTERNET "$ZEB_INTERNET -internet"
 		endif
 	endif
-#
-# Make pointers to all of our executables so that somebody can
-# override them (such as in proj_env or .zebra) if desired.
-#
-	if (! $?ZEB_MESSAGE) then
-		set sessions=""
-		if (-f Sessions) set sessions="-file Sessions -internet"
-		setenv ZEB_MESSAGE "$ZEB_TOPDIR/bin/message $name $sessions"
-	endif
-	if (! $?ZEB_EVENTLOGGER) setenv ZEB_EVENTLOGGER \
-					 $ZEB_TOPDIR/bin/EventLogger
-	if (! $?ZEB_TIMER) setenv ZEB_TIMER $ZEB_TOPDIR/bin/timer
-	if (! $?ZEB_DSDAEMON) setenv ZEB_DSDAEMON $ZEB_TOPDIR/bin/dsDaemon
-	if (! $?ZEB_DM) setenv ZEB_DM $ZEB_TOPDIR/bin/dm
-
 # 
 # Jump to the shell exec if nothing else explicitly requested
 #
@@ -236,6 +249,14 @@ ddir_again:
 	if ($mstatus == 0 && $check) then
 	   echo "Zebra session is running."
 	   exit 0
+	else if ($mstatus == 0 && $unique > 0) then
+	    # Its up to us to find a unique socket and session name
+	    set i = 0
+	    while (-e /tmp/zebra.$HOST.$USER.$i)
+		@ i = $i + 1
+	    end
+	    set SESSION=$HOST.$USER.$i
+	    setenv ZEB_SOCKET /tmp/zebra.$SESSION
 	else if ($mstatus == 0) then
 	   echo "User $someone is already running Zebra.  Enter"
 restart_prompt:
@@ -255,15 +276,17 @@ restart_prompt:
 	   	else
 			setenv ZEB_SOCKET /tmp/zeb.$USER.$$
 	   	endif
-		echo "This Zebra session will use the socket $ZEB_SOCKET"
-		echo "Enter 'setenv ZEB_SOCKET $ZEB_SOCKET' at the C-shell"
-		echo "prompt to run Zebra programs from that shell."
 	   else if ("$ans" == "3") then
 		echo "Starting a display manager."
 		goto start_dm
 	   else
 		goto restart_prompt
 	   endif
+	endif
+	if ( $?ZEB_SOCKET ) then
+	    echo "This Zebra session will use the socket $ZEB_SOCKET"
+	    echo "Enter 'setenv ZEB_SOCKET $ZEB_SOCKET' at the C-shell"
+	    echo "prompt to run Zebra programs from that shell."
 	endif
 #
 # Now try to start clean, whether deliberately killing an existing Zebra
@@ -277,20 +300,49 @@ restart_prompt:
 		rm -f $ZEB_SOCKET
 	endif
 #
+# Make pointers to all of our executables so that somebody can
+# override them (such as in proj_env or .zebra) if desired.  We wait
+# until this last possible moment to allow message options to be set
+# above if necessary for unique sockets and such.
+#
+# message is no longer started with -internet just because there is a
+# Sessions file, since datastore client sessions do not need to listen
+# on an internet port.  It is now set explicitly by adding the -internet
+# option to ZEB_INTERNET, which can be also set per session in proj_env.
+# Not using -internet for client sessions allows multiple anonymous (-unique)
+# sessions to run on a single host without explicitly assigning them
+# unique ports in the Sessions file.
+# 
+	if (! $?ZEB_MESSAGE) then
+		set sessions=""
+		set name="-session $SESSION"
+		if (-f Sessions) set sessions="-file Sessions"
+		setenv ZEB_MESSAGE \
+		"$ZEB_TOPDIR/bin/message $name $sessions $ZEB_INTERNET"
+	endif
+	if (! $?ZEB_EVENTLOGGER) setenv ZEB_EVENTLOGGER \
+					 $ZEB_TOPDIR/bin/EventLogger
+	if (! $?ZEB_TIMER) setenv ZEB_TIMER $ZEB_TOPDIR/bin/timer
+	if (! $?ZEB_DSDAEMON) setenv ZEB_DSDAEMON $ZEB_TOPDIR/bin/dsDaemon
+	if (! $?ZEB_DM) setenv ZEB_DM $ZEB_TOPDIR/bin/dm
+
+#
 # Start core processes.  Message is started in foreground now; we'll wait
 # for it to background itself.  Use eval, though, in case someone wants to
 # redefine it (such as to a debugger or testcenter) and use an explicit '&'.
 #
 	echo 'Starting core zebra processes: '
 	echo '	message daemon'
-	eval $ZEB_MESSAGE
+	eval "$ZEB_MESSAGE"
+	sleep 2
 
-	echo -n '	event logger '
-	$ZEB_EVENTLOGGER &
-	sleep 1
+	echo '	event logger '
+	eval "$ZEB_EVENTLOGGER &"
+	sleep 2
 
-	echo -n '	timer '
-	$ZEB_TIMER &
+	echo '	timer '
+	eval "$ZEB_TIMER &"
+	sleep 2
 #
 # Now we need to run the per-project startup file.  Things are running so
 # this file can actually start processes and zebra clients (but none that
@@ -304,13 +356,17 @@ restart_prompt:
 	if ($?DS_DAEMON_HOST) then
 		echo '	(DS Daemon running on' $DS_DAEMON_HOST ')'
 	else
-		$ZEB_DSDAEMON ds.config &
+		echo '	datastore '
+		eval "$ZEB_DSDAEMON ds.config &"
 	endif
 #
 # If they only wanted a baseline datastore running, we quit here
 #
 	if ( $dsonly && $execshell ) goto start_shell
-	if ( $dsonly ) exit 0
+	if ( $dsonly ) then
+		echo "Datastore running..."
+		exit 0
+	endif
 	sleep 5
 
 #
