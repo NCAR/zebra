@@ -1,7 +1,7 @@
 /*
  * XY-Graph plotting module
  */
-static char *rcsid = "$Id: XYGraph.c,v 1.17 1993-06-29 15:37:11 barrett Exp $";
+static char *rcsid = "$Id: XYGraph.c,v 1.18 1993-07-23 16:52:15 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -454,12 +454,11 @@ bool	update;
 			fnames[1][plat], linecolor[plat]);
 		An_AddAnnotProc ( An_ColorString, c, datalabel,
 		    strlen(datalabel)+1,25, FALSE,FALSE);
-# ifdef notdef
+
 		TC_EncodeTime ( &eTimeReq, TC_Full, timelabel );
 		sprintf(datalabel, "   %s %s", timelabel, linecolor[plat]);
 		An_AddAnnotProc ( An_ColorString, c, datalabel,
 		    strlen(datalabel)+1,25, FALSE,FALSE);
-# endif
 	    }
 	}
 /*
