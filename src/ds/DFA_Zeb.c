@@ -32,7 +32,7 @@
 # include "znfile.h"
 # include "ds_fields.h"
 
-MAKE_RCSID ("$Id: DFA_Zeb.c,v 1.12 1993-05-25 07:33:14 granger Exp $");
+MAKE_RCSID ("$Id: DFA_Zeb.c,v 1.13 1993-05-27 22:25:56 corbet Exp $");
 
 
 /*
@@ -1482,6 +1482,9 @@ void *ctag;
 		if (tag->zt_Attr)
 			tag->zt_Attr = (zn_Sample *) realloc (tag->zt_Attr,
 				nsa*sizeof (zn_Sample));
+		else if (hdr->znh_OffAttr)  /* They added attrs! */
+			tag->zt_Attr = (zn_Sample *)
+					malloc (nsa*sizeof (zn_Sample));
 		if (tag->zt_Rg)
 			tag->zt_Rg = (RGrid *) realloc (tag->zt_Rg,
 				nsa*sizeof (RGrid));
