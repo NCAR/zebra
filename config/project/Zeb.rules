@@ -1,5 +1,5 @@
 XCOMM
-XCOMM $Id: Zeb.rules,v 1.5 1993-05-17 20:07:12 granger Exp $
+XCOMM $Id: Zeb.rules,v 1.6 1993-05-26 19:12:20 corbet Exp $
 XCOMM
 XCOMM Rules specific to the Zeb project, including some which override
 XCOMM definitions in Imake.rules
@@ -521,6 +521,15 @@ includes::								@@\
 	done)
 #endif /* BuildIncludes */
 
+#ifndef InstallLibFile
+#define InstallLibFile(srclist,dstsubdir,dstupdir)			@@\
+install::								@@\
+	MakeDir($(LIBDIR)/dstsubdir)					@@\
+	@(set -x; cd $(LIBDIR)/dstsubdir; for i in srclist; do \	@@\
+		$(RM) $$i; \						@@\
+		$(CP) -p $(BUILDINCTOP)/dstupdir/$(CURRENT_DIR)/$$i .; \ @@\
+	done)
+#endif /* BuildIncludes */
 
 /*
  * Echo distribution file lists
