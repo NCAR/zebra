@@ -29,9 +29,8 @@
 # include <sys/un.h>
 # include <sys/uio.h>
 # include <netinet/in.h>
-# include <sys/filio.h>
 # include <signal.h>
-#ifdef SVR4
+#if defined(SVR4) || defined (SYSV)
 # include <sys/file.h>
 #endif
 
@@ -40,7 +39,7 @@
 # include "message.h"
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.12 1993-08-04 17:17:17 granger Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.13 1993-10-22 19:37:23 corbet Exp $")
 /*
  * Symbol tables.
  */
@@ -169,6 +168,9 @@ static void Tap FP ((int, Message *));
 void	DoTaps FP ((Message *));
 int	TapperWants FP ((struct MTap *, Message *));
 void	SendTap FP ((struct MTap *, Message *));
+void	SetNonBlock FP ((int));
+
+
 
 
 main ()
@@ -409,7 +411,7 @@ new_un_connection ()
 /*
  * Mark this thing for nonblocking I/O.
  */
-	fcntl (conn, F_SETFL, FNDELAY);
+	SetNonBlock (conn);
 /*
  * Put together a greeting and send it out.
  */
@@ -471,7 +473,7 @@ NewInConnection ()
 /*
  * Mark this thing for nonblocking I/O.
  */
-	fcntl (conn, F_SETFL, FNDELAY);
+	SetNonBlock (conn);
 /*
  * Put together a greeting and send it out.
  */
@@ -542,8 +544,8 @@ struct message *msgp;
 	}
 	else
 	{
-		deadconn (conp->c_fd);
 		send_log ("Write failed for %s, errno %d",conp->c_name, errno);
+		deadconn (conp->c_fd);
 	}
 }
 
@@ -1425,8 +1427,7 @@ char *host;
 /*
  * Mark this thing for nonblocking I/O.
  */
-	if (fcntl (sock, F_SETFL, FNDELAY) < 0)
-		send_log ("Error %d doing FNDELAY for %s", errno, host);
+	SetNonBlock (sock);
 /*
  * Now we're confident enough to allocate a new connection structure and
  * fill it in.
@@ -1799,6 +1800,7 @@ va_dcl
 	fmt = va_arg (args, char *);
 	vsprintf (mbuf, fmt, args);
 	va_end (args);
+/*	printf ("%s\n", mbuf); */
 /*
  * Now send this message out.
  */
@@ -1976,4 +1978,27 @@ Message *msg;
  */
 	send_msg (c, &outmsg);
 	free (outmsg.m_data);
+}
+
+
+
+void
+SetNonBlock (fd)
+int fd;
+/*
+ * Make this thing do non-blocking I/O.
+ */
+{
+# ifdef hpux
+/*
+ * The HP has, believe it or not, THREE different types of non-blocking I/O,
+ * all of which are subtly different.  FNDELAY creates weirdness, but
+ * FIOSNBIO seems to work the way we expect....
+ */
+	int arg = 1;
+	if (ioctl (fd, FIOSNBIO, &arg) < 0)
+# else
+	if (fcntl (fd, F_SETFL, FNDELAY) < 0)
+# endif
+		send_log ("Error %d doing FNDELAY", errno);
 }
