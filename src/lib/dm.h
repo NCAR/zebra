@@ -1,4 +1,4 @@
-/* $Id: dm.h,v 2.2 1995-05-02 23:16:24 granger Exp $ */
+/* $Id: dm.h,v 2.3 1995-09-27 16:08:33 granger Exp $ */
 /*
  * Display manager public interface.
  */
@@ -90,6 +90,7 @@ struct dm_reconfig
 	int	dmr_x, dmr_y;		/* Window location		*/
 	int	dmr_dx, dmr_dy;		/* Window size			*/
 	char	dmr_name[ CFG_MSGNAME_LEN ];	/* Window name 		*/
+	int	dmr_pdwait;		/* New PD imminent		*/
 };
 
 /*
