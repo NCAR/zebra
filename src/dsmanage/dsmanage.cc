@@ -27,7 +27,7 @@
 #endif
 # include <stdio.h>
 # include <stream.h>
-# include <String.h>
+# include <string>
 
 //
 // Zeb includes.
@@ -46,7 +46,7 @@ extern "C" {
 # include "Index.h"
 # include "plcontainer.h"
 
-MAKE_RCSID ("$Id: dsmanage.cc,v 1.12 1997-06-05 15:47:43 granger Exp $");
+MAKE_RCSID ("$Id: dsmanage.cc,v 1.13 1998-03-02 20:21:15 burghart Exp $");
 
 extern "C" char *strcat (char *, const char *);
 extern "C" char *strrchr (const char *, int);
@@ -61,7 +61,7 @@ plContainer *PList = 0;
 //
 // Other globals.
 //
-String DDir;		// The data directory.
+string DDir;		// The data directory.
 
 //
 // Forwards.
@@ -135,10 +135,10 @@ DSSetup ()
 	DDir = dsi.dsrc_Where;
 
 	int lastslash;
-	int slash = lastslash = DDir.index ('/', 0);
-	while ((slash = DDir.index ('/', slash + 1)) >= 0)
+	int slash = lastslash = DDir.find ('/', 0);
+	while ((slash = DDir.find ('/', slash + 1)) >= 0)
 		lastslash = slash;
-	DDir.del (lastslash, DDir.length() - lastslash);
+	DDir.replace (lastslash, DDir.length() - lastslash, "");
 	cout << "Data dir is '" << DDir << "'.\n";
 //
 // Make the platform list.
@@ -187,7 +187,7 @@ ScanFiles (int ind)
 {
 	int dfindex;
 	dsPlatform *dp = PList->index (ind);
-	String name;
+	string name;
 	DataSrcInfo dsi;
 	DataFileInfo dfi;
 //
@@ -204,10 +204,10 @@ ScanFiles (int ind)
 		/* sprintf (name, "%s/%s", p->dp_dir, d->df_name); */
 	//		name = String (dsi.dsrc_Where) + String ("/") +
 	//			String (dfi.dfi_Name);
-		name = String (dsi.dsrc_Where);
+		name = dsi.dsrc_Where;
 		name += "/";
 		name += dfi.dfi_Name;
-		dsFile *df = new dsFile (name.chars (), dfindex);
+		dsFile *df = new dsFile (name.c_str (), dfindex);
 		dp->files.add (*df);
 		delete df;
 	}
@@ -226,8 +226,8 @@ DDInfo (const char **dir, float *space)
 // Return the data dir info.
 //
 {
-	DataDir dd (DDir.chars ());
-	*dir = DDir.chars ();
+	DataDir dd (DDir.c_str ());
+	*dir = DDir.c_str ();
 	*space = dd.FreeSpace ()/1024000.0;
 }
 
