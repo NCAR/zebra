@@ -1,7 +1,7 @@
 /*
  * Movie control functions.
  */
-static char *rcsid = "$Id: MovieControl.c,v 1.5 1990-09-13 09:45:24 corbet Exp $";
+static char *rcsid = "$Id: MovieControl.c,v 1.6 1990-10-10 13:09:55 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -486,9 +486,8 @@ mc_GenFrames ()
 
 	mc_SetStatus ("Generating frames...");
 /*
- * Make sure there are enough movie frames.  Also invalidate the cache
- * for now.  The latter is really unnecessary, if the cache did LRU
- * replacement.  Soon.
+ * Make sure there are enough movie frames.  If not, allocate some more, and
+ * modify the PD to reflect this.
  */
 	if (FrameCount < Nframes)
 	{
@@ -497,8 +496,8 @@ mc_GenFrames ()
 		XtSetValues (Graphics, args, ONE);
 		pd_Store (Pd, "global", "time-frames", (char *)&Nframes,
 			SYMT_INT);
+		Eq_AddEvent (PWhenever, eq_ReturnPD, 0, 0, Bounce);
 	}
-	/* fc_InvalidateCache (); */
 /*
  * Start the process of generating the frames.  This is done through the
  * event queue, allowing for event processing and stopping the whole process
