@@ -51,7 +51,7 @@
 # include <message.h>
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.43 1996-08-21 22:20:16 granger Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.44 1996-09-05 16:46:40 granger Exp $")
 /*
  * Symbol tables.
  */
@@ -280,6 +280,8 @@ usage ()
 	fprintf (stderr, "where the options can be abbreviated ");
 	fprintf (stderr, "to single characters:\n");
 	fprintf (stderr, " -help      %s", "This usage message\n");
+	fprintf (stderr, " -version   %s", "Print version information\n");
+	fprintf (stderr, " -copyright %s", "Print copyright information\n");
 	fprintf (stderr, " -internet  %s",
 		 "Create an inbound Internet socket, disabled by default\n");
 	fprintf (stderr, " -debug     %s",
@@ -344,6 +346,16 @@ char **argv;
 		else if (! strncmp (argv[i], "-help", optlen))
 		{
 			usage ();
+			exit (0);
+		}
+		else if (! strncmp (argv[i], "-version", optlen))
+		{
+			printf ("%s%s\n", Z_version(), Z_cppsymbols());
+			exit (0);
+		}
+		else if (! strncmp (argv[i], "-copyright", optlen))
+		{
+			printf ("%s", Z_copyright());
 			exit (0);
 		}
 		else if (! strncmp (argv[i], "-internet", optlen))
