@@ -8,7 +8,7 @@
 #include <iomanip.h>
 
 //#include <defs.h>
-//RCSID ("$Id: FreeList.cc,v 1.9 1998-05-28 21:42:12 granger Exp $");
+//RCSID ("$Id: FreeList.cc,v 1.10 1998-06-02 23:22:39 granger Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
 #include "BlockFileP.hh"	// For the private header structure and stuff
@@ -39,6 +39,60 @@ FreeList::~FreeList (void)
 
 
 
+void
+FreeList::Free (BlkOffset offset, BlkSize _length)
+/*
+ * Add a freed block to the list.  If the block can just be appended and/or
+ * prepended to an existing block, do so with a recursive free.
+ */ 
+{
+	BlkSize length = _length;
+	stats.bytesfreed += _length;
+	mark ();
+
+	int i;
+	for (i = 0; i < n; ++i)
+	{
+		if (offset + length == blocks[i].offset)
+		{
+			blocks[i].offset = offset;		/* prepend */
+			blocks[i].length += length;
+		}
+		else if (offset == blocks[i].offset + blocks[i].length)
+		{
+			blocks[i].length += length;		/* append */
+		}
+		else
+			continue;
+
+		// Now we're looking to free a larger, combined block
+		offset = blocks[i].offset;
+		length = blocks[i].length;
+		Remove (i);
+		stats.bytesfreed -= length;
+		Free (offset, length);
+		return;
+	}
+
+	// At this point we have a contiguous, non-adjoining free block
+	// at (offset, length).
+
+	// See if we can recover this free space from the end of the file
+	if (offset + length >= bf->header->bf_length)
+	{
+		bf->recover (offset);
+	}
+	else
+	{
+		// No choice but to add the freed block by itself
+		Add (offset, length);
+	}
+}
+
+
+
+
+#ifdef notdef
 void
 FreeList::Free (BlkOffset offset, BlkSize _length)
 /*
@@ -130,7 +184,7 @@ FreeList::Free (BlkOffset offset, BlkSize _length)
 		// The freed space was absorbed into an existing block
 	}
 }
-
+#endif
 
 
 /*
