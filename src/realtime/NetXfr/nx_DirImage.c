@@ -26,7 +26,7 @@
 # include <ImageXfr.h>
 # include "NetXfr.h"
 
-RCSID("$Id: nx_DirImage.c,v 3.7 1995-09-21 23:51:13 granger Exp $")
+RCSID("$Id: nx_DirImage.c,v 3.8 1996-01-10 19:06:41 granger Exp $")
 
 /*
  * We're only set up to deal with one image source for now.  Should
@@ -96,7 +96,7 @@ int set;
 	UItime t;
 	ZebTime zt;
 	ScaleInfo *scale = 0;
-	char **images = 0;
+	unsigned char **images = 0;
 	char *attr;
 	int xmin, ymin, xmax, ymax, i, offset;
 	float junk;
@@ -107,7 +107,7 @@ int set;
 	if (! scale)
 	{
 		scale = (ScaleInfo *) malloc (NField * sizeof (ScaleInfo));
-		images = (char **) malloc (NField * sizeof (char *));
+		images = (unsigned char **) malloc (NField * sizeof (char *));
 	}
 /*
  * Grab it.
