@@ -55,7 +55,7 @@ extern "C"
 # include "Index.h"
 # include "ZTime.h"
 # include "plcontainer.h"
-MAKE_RCSID ("$Id: LoadData.cc,v 1.16 1999-03-01 02:03:52 burghart Exp $")
+MAKE_RCSID ("$Id: LoadData.cc,v 1.17 1999-08-10 23:04:15 burghart Exp $")
 
 class LoadSelect;
 
@@ -290,7 +290,8 @@ dsSourceSelect (Widget w, XtPointer tbutton, XtPointer junk)
 //
 {
 	Arg args[2];
-	char *defcd = getenv ("ZEB_CDROM") ? getenv ("ZEB_CDROM") : "/cd";
+	const char *defcd = getenv ("ZEB_CDROM") ? 
+	    getenv ("ZEB_CDROM") : "/cd";
 //
 // Set the tape flag.  If it hasn't changed, we can quit.
 //
