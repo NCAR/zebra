@@ -19,11 +19,12 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: SendWidget.c,v 1.3 1991-11-22 20:45:34 kris Exp $";
+static char *rcsid = "$Id: SendWidget.c,v 1.4 1992-04-09 18:36:17 granger Exp $";
 
 # include <stdio.h>
 # include <signal.h>
 # include <time.h>
+# include <sys/timeb.h>		/* needed for ftime call in sw_SendScan */
 # include <setjmp.h>
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -385,6 +386,7 @@ XtPointer	val, junk;
 {
 	int	r = (int) val;
 	int	itime;
+	struct timeb tp;
 	char	fn[20], fullname[40], label[20];
 	Arg	arg;
 /*
@@ -447,7 +449,8 @@ XtPointer	val, junk;
 	msg_ELog (EF_INFO, "Successfully sent %s", fn);
 
 	sprintf (label, "%s ", fn);
-	itime = time (0);
+	ftime(&tp);
+	itime = tp.time;
 	strncat (label, ctime (&itime) + 11, 5);
 	XtSetArg (arg, XtNlabel, label);
 	XtSetValues (WStatus[r], &arg, 1);
