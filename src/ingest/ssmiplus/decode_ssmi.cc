@@ -32,6 +32,28 @@ decode_rss (
 }
 
 
+/*
+ * Convert the antenna temps in the common OUTDAT structure into 
+ * brightness temperatures.  Always returns zero since there is no
+ * way to tell if the conversion is successful.
+ */
+int
+decode_tb (void)
+{
+	int i85ghz = 1;
+
+	/* 
+	 * Call the correct routine from decode.f depending upon the
+	 * satellite number.
+	 */
+	if (C_OUTDAT->isat == 8)
+		fdtb08_ (&i85ghz);
+	else
+		fdtb00_ (&i85ghz);
+	return (0);
+}
+
+
 /* ====================================================================
  * GULP.
  *
@@ -231,7 +253,11 @@ l1bta(L1B_Header *hdr, L1B_DataRec *rec, OUTDAT_BLOCK *od)
 
 } /* l1bta */
 
-
+/*
+ * We don't need the following two routines since we're using the RSS
+ * decode routines through the global common OUTDAT structure.
+ * (But they do compile and should be equivalent to the FORTRAN code.)
+ */
 #ifdef notdef
 
 /* ======================================================================= */
@@ -242,7 +268,8 @@ l1bta(L1B_Header *hdr, L1B_DataRec *rec, OUTDAT_BLOCK *od)
 /*     permission. */
 /* ======================================================================= */
 /* Subroutine */ 
-int decode_fdtb08(integer *i85ghz)
+int
+decode_fdtb08(OUTDAT_BLOCK *od, int i85ghz)
 {
     /* Initialized data */
 
@@ -380,41 +407,37 @@ L30:
 //	ta22v = outdat_1.talo[icel * 5 - 3] * sbias3[icel - 1] - abias[2];
 //	ta37v = outdat_1.talo[icel * 5 - 2] * sbias4[icel - 1] - abias[3];
 //	ta37h = outdat_1.talo[icel * 5 - 1] * sbias5[icel - 1] - abias[4];
-	ta19v = outdat_1.talo[icel - 1][0] * sbias1[icel - 1] - abias[0];
-	ta19h = outdat_1.talo[icel - 1][1] * sbias2[icel - 1] - abias[1];
-	ta22v = outdat_1.talo[icel - 1][2] * sbias3[icel - 1] - abias[2];
-	ta37v = outdat_1.talo[icel - 1][3] * sbias4[icel - 1] - abias[3];
-	ta37h = outdat_1.talo[icel - 1][4] * sbias5[icel - 1] - abias[4];
+	ta19v = od->talo[icel - 1][0] * sbias1[icel - 1] - abias[0];
+	ta19h = od->talo[icel - 1][1] * sbias2[icel - 1] - abias[1];
+	ta22v = od->talo[icel - 1][2] * sbias3[icel - 1] - abias[2];
+	ta37v = od->talo[icel - 1][3] * sbias4[icel - 1] - abias[3];
+	ta37h = od->talo[icel - 1][4] * sbias5[icel - 1] - abias[4];
 
-	outdat_1.talo[icel * 5 - 5] = avv[0] * ta19v + ahv[0] * ta19h + aov[0]
-		;
-	outdat_1.talo[icel * 5 - 4] = ahh[0] * ta19h + avh[0] * ta19v + aoh[0]
-		;
-	outdat_1.talo[icel * 5 - 3] = ta22v * (float)1.01993 + (float)1.994;
-	outdat_1.talo[icel * 5 - 2] = avv[2] * ta37v + ahv[2] * ta37h + aov[2]
-		;
-	outdat_1.talo[icel * 5 - 1] = ahh[2] * ta37h + avh[2] * ta37v + aoh[2]
-		;
+	od->talo[icel - 1][0] = avv[0] * ta19v + ahv[0] * ta19h + aov[0];
+	od->talo[icel - 1][1] = ahh[0] * ta19h + avh[0] * ta19v + aoh[0];
+	od->talo[icel - 1][2] = ta22v * (float)1.01993 + (float)1.994;
+	od->talo[icel - 1][3] = avv[2] * ta37v + ahv[2] * ta37h + aov[2];
+	od->talo[icel - 1][4] = ahh[2] * ta37h + avh[2] * ta37v + aoh[2];
 /* L100: */
     }
 
-    if (*i85ghz == 0) {
+    if (i85ghz == 0) {
 	return 0;
     }
 
     for (icel = 1; icel <= 128; ++icel) {
-	tb85v = avv[3] * outdat_1.atahi[(icel << 1) - 2] + ahv[3] * 
-		outdat_1.atahi[(icel << 1) - 1] + aov[3];
-	tb85h = ahh[3] * outdat_1.atahi[(icel << 1) - 1] + avh[3] * 
-		outdat_1.atahi[(icel << 1) - 2] + aoh[3];
-	outdat_1.atahi[(icel << 1) - 2] = tb85v;
-	outdat_1.atahi[(icel << 1) - 1] = tb85h;
-	tb85v = avv[3] * outdat_1.btahi[(icel << 1) - 2] + ahv[3] * 
-		outdat_1.btahi[(icel << 1) - 1] + aov[3];
-	tb85h = ahh[3] * outdat_1.btahi[(icel << 1) - 1] + avh[3] * 
-		outdat_1.btahi[(icel << 1) - 2] + aoh[3];
-	outdat_1.btahi[(icel << 1) - 2] = tb85v;
-	outdat_1.btahi[(icel << 1) - 1] = tb85h;
+	tb85v = avv[3] * od->atahi[(icel - 1)][0] + ahv[3] * 
+		od->atahi[(icel - 1)][1] + aov[3];
+	tb85h = ahh[3] * od->atahi[(icel - 1)][1] + avh[3] * 
+		od->atahi[(icel - 1)][0] + aoh[3];
+	od->atahi[(icel - 1)][0] = tb85v;
+	od->atahi[(icel - 1)][1] = tb85h;
+	tb85v = avv[3] * od->btahi[(icel - 1)][0] + ahv[3] * 
+		od->btahi[(icel - 1)][1] + aov[3];
+	tb85h = ahh[3] * od->btahi[(icel - 1)][1] + avh[3] * 
+		od->btahi[(icel - 1)][0] + aoh[3];
+	od->btahi[(icel - 1)][0] = tb85v;
+	od->btahi[(icel - 1)][1] = tb85h;
 /* L200: */
     }
     return 0;
@@ -422,8 +445,7 @@ L30:
 
 
 int
-decode_fdtb00(i85ghz)
-integer *i85ghz;
+decode_fdtb00(OUTDAT_BLOCK *od, int i85ghz)
 {
     /* Initialized data */
 
@@ -547,44 +569,54 @@ L10:
 L30:
 
     for (icel = 1; icel <= 64; ++icel) {
-	ta19v = outdat_1.talo[icel * 5 - 5] * sbias1[icel - 1] - abias[0];
-	ta19h = outdat_1.talo[icel * 5 - 4] * sbias2[icel - 1] - abias[1];
-	ta22v = outdat_1.talo[icel * 5 - 3] * sbias3[icel - 1] - abias[2];
-	ta37v = outdat_1.talo[icel * 5 - 2] * sbias4[icel - 1] - abias[3];
-	ta37h = outdat_1.talo[icel * 5 - 1] * sbias5[icel - 1] - abias[4];
+//	ta19v = od->talo[icel * 5 - 5] * sbias1[icel - 1] - abias[0];
+//	ta19h = od->talo[icel * 5 - 4] * sbias2[icel - 1] - abias[1];
+//	ta22v = od->talo[icel * 5 - 3] * sbias3[icel - 1] - abias[2];
+//	ta37v = od->talo[icel * 5 - 2] * sbias4[icel - 1] - abias[3];
+//	ta37h = od->talo[icel * 5 - 1] * sbias5[icel - 1] - abias[4];
+//
+//	od->talo[icel * 5 - 5] = avv[0] * ta19v + ahv[0] * ta19h + aov[0];
+//	od->talo[icel * 5 - 4] = ahh[0] * ta19h + avh[0] * ta19v + aoh[0];
+//	od->talo[icel * 5 - 3] = ta22v * (float)1.01993 + (float)1.994;
+//	od->talo[icel * 5 - 2] = avv[2] * ta37v + ahv[2] * ta37h + aov[2];
+//	od->talo[icel * 5 - 1] = ahh[2] * ta37h + avh[2] * ta37v + aoh[2];
 
-	outdat_1.talo[icel * 5 - 5] = avv[0] * ta19v + ahv[0] * ta19h + aov[0]
-		;
-	outdat_1.talo[icel * 5 - 4] = ahh[0] * ta19h + avh[0] * ta19v + aoh[0]
-		;
-	outdat_1.talo[icel * 5 - 3] = ta22v * (float)1.01993 + (float)1.994;
-	outdat_1.talo[icel * 5 - 2] = avv[2] * ta37v + ahv[2] * ta37h + aov[2]
-		;
-	outdat_1.talo[icel * 5 - 1] = ahh[2] * ta37h + avh[2] * ta37v + aoh[2]
-		;
+	ta19v = od->talo[icel - 1][0] * sbias1[icel - 1] - abias[0];
+	ta19h = od->talo[icel - 1][1] * sbias2[icel - 1] - abias[1];
+	ta22v = od->talo[icel - 1][2] * sbias3[icel - 1] - abias[2];
+	ta37v = od->talo[icel - 1][3] * sbias4[icel - 1] - abias[3];
+	ta37h = od->talo[icel - 1][4] * sbias5[icel - 1] - abias[4];
+
+	od->talo[icel - 1][0] = avv[0] * ta19v + ahv[0] * ta19h + aov[0];
+	od->talo[icel - 1][1] = ahh[0] * ta19h + avh[0] * ta19v + aoh[0];
+	od->talo[icel - 1][2] = ta22v * (float)1.01993 + (float)1.994;
+	od->talo[icel - 1][3] = avv[2] * ta37v + ahv[2] * ta37h + aov[2];
+	od->talo[icel - 1][4] = ahh[2] * ta37h + avh[2] * ta37v + aoh[2];
+
 /* L100: */
     }
 
-    if (*i85ghz == 0) {
+    if (i85ghz == 0) {
 	return 0;
     }
 
     for (icel = 1; icel <= 128; ++icel) {
-	tb85v = avv[3] * outdat_1.atahi[(icel << 1) - 2] + ahv[3] * 
-		outdat_1.atahi[(icel << 1) - 1] + aov[3];
-	tb85h = ahh[3] * outdat_1.atahi[(icel << 1) - 1] + avh[3] * 
-		outdat_1.atahi[(icel << 1) - 2] + aoh[3];
-	outdat_1.atahi[(icel << 1) - 2] = tb85v;
-	outdat_1.atahi[(icel << 1) - 1] = tb85h;
-	tb85v = avv[3] * outdat_1.btahi[(icel << 1) - 2] + ahv[3] * 
-		outdat_1.btahi[(icel << 1) - 1] + aov[3];
-	tb85h = ahh[3] * outdat_1.btahi[(icel << 1) - 1] + avh[3] * 
-		outdat_1.btahi[(icel << 1) - 2] + aoh[3];
-	outdat_1.btahi[(icel << 1) - 2] = tb85v;
-	outdat_1.btahi[(icel << 1) - 1] = tb85h;
+	tb85v = avv[3] * od->atahi[icel - 1][0] + ahv[3] * 
+		od->atahi[icel - 1][1] + aov[3];
+	tb85h = ahh[3] * od->atahi[icel - 1][1] + avh[3] * 
+		od->atahi[icel - 1][0] + aoh[3];
+	od->atahi[(icel - 1)][0] = tb85v;
+	od->atahi[(icel - 1)][1] = tb85h;
+	tb85v = avv[3] * od->btahi[(icel - 1)][0] + ahv[3] * 
+		od->btahi[(icel - 1)][1] + aov[3];
+	tb85h = ahh[3] * od->btahi[(icel - 1)][1] + avh[3] * 
+		od->btahi[(icel - 1)][0] + aoh[3];
+	od->btahi[(icel - 1)][0] = tb85v;
+	od->btahi[(icel - 1)][1] = tb85h;
 /* L200: */
     }
     return 0;
 } /* fdtb00_ */
 
-#endif /* endif */
+#endif
+
