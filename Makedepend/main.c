@@ -273,7 +273,9 @@ main(argc, argv)
 	sigaddset(&sig_act.sa_mask, SIGSEGV);
 	sigaddset(&sig_act.sa_mask, SIGHUP);
 	sigaddset(&sig_act.sa_mask, SIGPIPE);
+#ifndef linux
 	sigaddset(&sig_act.sa_mask, SIGSYS);
+#endif
 #else
 	sig_act.sa_mask = ((1<<(SIGINT -1))
 			   |(1<<(SIGQUIT-1))
@@ -281,8 +283,12 @@ main(argc, argv)
 			   |(1<<(SIGILL-1))
 			   |(1<<(SIGSEGV-1))
 			   |(1<<(SIGHUP-1))
+#ifndef linux
 			   |(1<<(SIGPIPE-1))
 			   |(1<<(SIGSYS-1)));
+#else
+			   |(1<<(SIGPIPE-1));
+#endif
 #endif /* _POSIX_SOURCE */
 	sig_act.sa_flags = 0;
 	sigaction(SIGHUP, &sig_act, (struct sigaction *)0);
@@ -293,7 +299,9 @@ main(argc, argv)
 	sigaction(SIGBUS, &sig_act, (struct sigaction *)0);
 #endif
 	sigaction(SIGSEGV, &sig_act, (struct sigaction *)0);
+#ifndef linux
 	sigaction(SIGSYS, &sig_act, (struct sigaction *)0);
+#endif
 #endif /* USGISH */
 
 	/*
