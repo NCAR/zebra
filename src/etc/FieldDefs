@@ -47,3 +47,5 @@ alias	ept	thetae
 alias	vt	tvir
 alias	tdry	temp
 alias	tdry	temperature
+alias	ws	wspd
+alias	wd	wdir
