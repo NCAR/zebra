@@ -17,7 +17,7 @@
 
 # include "Area.h"
 
-RCSID("$Id: Area.c,v 1.7 2003-01-10 21:45:42 granger Exp $")
+RCSID("$Id: Area.c,v 1.8 2003-01-29 17:19:35 burghart Exp $")
 
 
 static int Mdays[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
@@ -87,8 +87,9 @@ SeekNavBlock (AreaFile *f, AreaImage *area)
 	int s;
 	char nav[4];
 	static char *known[] =
-	{ "DMSP", "GOES", "GRAF", "GVAR", "LAMB", "MERC", "MOLL", "MSAT",
-	  "PS  ", "RADR", "RECT", "SIN ", "TANC", "TIRO", "GMSX", NULL };
+	{ "AIRC", "DMSP", "GMSX", "GOES", "GRAF", "GVAR", "LALO", "LAMB", 
+	  "MERC", "MOLL", "MSAT", "MSG ", "NOWR", "PS  ", "RADR", "RECT", 
+	  "SIN ", "TANC", "TIRO", NULL };
 /*
  * Look for a recognizable nav type to indicate the start of the block.
  */
