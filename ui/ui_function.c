@@ -36,6 +36,7 @@ struct func
 int uf_sqrt (), uf_exp (), uf_defined (), uf_stbl (), uf_concat ();
 int uf_quote ();
 int uf_cos (), uf_sin (), uf_tan (), uf_contains (), uf_substring ();
+int uf_getenv ();
 
 static struct func
 Func_tbl[] =
@@ -44,10 +45,11 @@ Func_tbl[] =
   { "contains",	2,	{ SYMT_STRING, SYMT_STRING },	FF_HARD, uf_contains},
   { "cos",	1,	{ SYMT_FLOAT },			FF_HARD, uf_cos },
   { "defined",	1,	{ SYMT_STRING },		FF_HARD, uf_defined },
-  { "exp",	1,	{ SYMT_FLOAT },			FF_HARD, uf_exp },
-  { "quote",	1,	{ SYMT_STRING },		FF_HARD, uf_quote },
-  { "sin",	1,	{ SYMT_FLOAT },			FF_HARD, uf_sin },
-  { "sqrt",	1,	{ SYMT_FLOAT },			FF_HARD, uf_sqrt },
+  { "exp",	1,	{ SYMT_FLOAT },			FF_HARD, uf_exp     },
+  { "getenv",	1,	{ SYMT_STRING },		FF_HARD, uf_getenv  },
+  { "quote",	1,	{ SYMT_STRING },		FF_HARD, uf_quote   },
+  { "sin",	1,	{ SYMT_FLOAT },			FF_HARD, uf_sin     },
+  { "sqrt",	1,	{ SYMT_FLOAT },			FF_HARD, uf_sqrt    },
   { "substring", 2,	{ SYMT_STRING, SYMT_STRING },	FF_HARD, uf_substring},
   { "symbol_table", 1,	{ SYMT_STRING },		FF_HARD, uf_stbl },
   { "tan",	1,	{ SYMT_FLOAT },			FF_HARD, uf_tan },
@@ -381,4 +383,20 @@ union usy_value *argv, *retv;
 {
 	*rett = SYMT_STRING;
 	retv->us_v_ptr = usy_string (argv->us_v_ptr);
+}
+
+
+uf_getenv (narg, argv, argt, retv, rett)
+int narg, *argt, *rett;
+union usy_value *argv, *retv;
+/*
+ * Quote a value as a single parameter.
+ */
+{
+	char *getenv (), *env;
+	*rett = SYMT_STRING;
+	if (env = getenv (argv->us_v_ptr))
+		retv->us_v_ptr = usy_string (env);
+	else
+		retv->us_v_ptr = usy_string ("UNDEFINED");
 }
