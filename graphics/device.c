@@ -1,5 +1,5 @@
 /* 5/87 jc */
-/* $Id: device.c,v 1.11 1990-01-12 13:58:59 wyngaard Exp $ */
+static char *rcsid = "$Id: device.c,v 1.12 1990-03-29 15:44:09 corbet Exp $";
 /*
  * Handle device specifics.
  */
@@ -11,15 +11,12 @@
 /*
  * Extern definitions for the device table.
  */
-# ifdef DEV_XWIN
-extern int gx_open (), gx_clear (), gx_close (), gx_flush (), gx_color ();
-extern int gx_pl (), gx_casn (), gx_pixel (), gx_target (), gx_check ();
-# endif
 # ifdef DEV_X11
 extern int x11_open (), x11_clear (), x11_close (), x11_flush (), x11_noop ();
 extern int x11_poly (), x11_pick (), x11_target (), x11_casn (), x11_color ();
 extern int x11_pixel (), x11_put_target (), x11_untarget (), x11_clip ();
 extern int x11_vp (), x11_event (), x11_coff (), x11_readscreen ();
+extern int x11_qtext (), x11_text (), x11_tsize ();
 # endif
 # ifdef DEV_XTITAN
 extern int xt_open (), xt_clear (), xt_close (), xt_flush (), xt_noop ();
@@ -36,6 +33,11 @@ extern int tek_open (), tek_clear (), tek_flush (), tek_cmap (), tek_poly ();
 extern int tek_s_init (), tek_s_clear (), tek_s_select (), tek_s_end ();
 extern int tek_s_attr (), tek_close (), tek_pixel (), tek_vp ();
 extern int tek_target (), tek_put_target (), tek_untarget (), tek_flush_nr ();
+extern int tek_tsize (), tek_qtext (); tek_text ();
+# endif
+# ifdef DEV_4010
+extern int t10_open (), t10_clear (), t10_flush (), t10_cmap (), t10_poly ();
+extern int t10_close ();
 # endif
 # ifdef DEV_COMTAL
 extern int zb_open (), zb_close (), zb_pixel (), zb_color (), zb_clear ();
@@ -93,6 +95,8 @@ struct device D_tab[] =
 		nl_ok,			/* Set color table		*/
 		nl_ok,			/* Draw polyline		*/
 		nl_ok,			/* Pixel fill			*/
+		___,			/* (no) query text		*/
+		___,			/* (no) Text size		*/
 		___,			/* Text				*/
 		___,			/* Set clip window		*/
 		nl_ok,			/* Clear screen			*/
@@ -107,48 +111,6 @@ struct device D_tab[] =
 		___,			/* (no) Remove target		*/
 		___,			/* Color assignment		*/
 		___,			/* Exposure checking		*/
-		___,			/* (no) viewport adjustment	*/
-		___,			/* (no) readscreen		*/
-		___,			/* (no) pick			*/
-		___,			/* (no) color offset		*/
-		___,			/* Hardware print screen routine*/
-	},
-# endif
-# ifdef DEV_XWIN
-/*
- * X window system. (10.4)
- */
-	{
-		"x",
-		1, { "xwindow" },
-		GDF_VECTOR | GDF_DEV_COLOR | GDF_PIXEL | GDF_TOP,
-		150,
-		700, 700,		/* Our resolution for now */
-		1.0,			/* Square pixels (X assumption) */
-		100, 100,
-		0,			/* no buttons, for now		*/
-		0,			/* Background color		*/
-		gx_open,		/* The open routine		*/
-		gx_close,		/* close			*/
-		gx_flush,		/* Flush			*/
-		___,			/* (no) flush w/o screen renew	*/
-		gx_color,		/* Set color table		*/
-		gx_pl,			/* Draw polyline		*/
-		gx_pixel,		/* Pixel fill			*/
-		___,			/* Text				*/
-		___,			/* Set clip window		*/
-		gx_clear,		/* Clear screen			*/
-		___,			/* Polygon fill			*/
-		___,			/* (no) Segment init		*/
-		___,			/* (no) Segment clear		*/
-		___,			/* (no) Segment select		*/
-		___,			/* (no) Segment end		*/
-		___,			/* (no) Segment attributes	*/
-		gx_target,		/* Read target			*/
-		___,			/* (no) Put target		*/
-		___,			/* (no) Remove target		*/
-		gx_casn,		/* Color assignment		*/
-		gx_check,		/* Exposure checking		*/
 		___,			/* (no) viewport adjustment	*/
 		___,			/* (no) readscreen		*/
 		___,			/* (no) pick			*/
@@ -175,6 +137,8 @@ struct device D_tab[] =
 		pix_color,		/* Set color table		*/
 		pix_poly,		/* Draw polyline		*/
 		pix_pixel,		/* Pixel fill			*/
+		___,			/* (no) query text		*/
+		___,			/* (no) Text size		*/
 		___,			/* Text				*/
 		___,			/* Set clip window		*/
 		pix_clear,		/* Clear screen			*/
@@ -206,7 +170,7 @@ struct device D_tab[] =
 	{
 		"X11",
 		3, { "X11-huge", "X700", "X500" },
-		GDF_VECTOR | GDF_TOP | GDF_DEV_COLOR | GDF_HCW | GDF_VP,
+		GDF_VECTOR | GDF_TOP | GDF_DEV_COLOR |GDF_HCW|GDF_VP|GDF_TEXT,
 		256,			/* x11_open will modify...	*/
 		500, 500,		/* Our resolution for now */
 		1.0,			/* Square pixels (X assumption) */
@@ -220,7 +184,9 @@ struct device D_tab[] =
 		x11_color,		/* Set color table		*/
 		x11_poly,		/* Draw polyline		*/
 		x11_pixel,		/* Pixel fill			*/
-		___,			/* Text				*/
+		x11_qtext,		/* query text			*/
+		x11_tsize,		/* Text size			*/
+		x11_text,		/* Text				*/
 		x11_clip,		/* Set clip window		*/
 		x11_clear,		/* Clear screen			*/
 		___,			/* Polygon fill			*/
@@ -264,6 +230,8 @@ struct device D_tab[] =
 		xt_color,		/* Set color table		*/
 		xt_poly,		/* Draw polyline		*/
 		xt_pixel,		/* Pixel fill			*/
+		___,			/* (no) query text		*/
+		___,			/* (no) Text size		*/
 		___,			/* Text				*/
 		___,			/* Set clip window		*/
 		xt_clear,		/* Clear screen			*/
@@ -307,6 +275,8 @@ struct device D_tab[] =
 		sv_color,		/* Set color table		*/
 		sv_poly,		/* Draw polyline		*/
 		sv_pixel,		/* Pixel fill			*/
+		___,			/* (no) query text		*/
+		___,			/* (no) Text size		*/
 		___,			/* Text				*/
 		___,			/* Set clip window		*/
 		sv_clear,		/* Clear screen			*/
@@ -345,6 +315,8 @@ struct device D_tab[] =
 		sv_color,		/* Set color table		*/
 		sv_poly,		/* Draw polyline		*/
 		sv_pixel,		/* Pixel fill			*/
+		___,			/* (no) query text		*/
+		___,			/* (no) Text size		*/
 		___,			/* Text				*/
 		___,			/* Set clip window		*/
 		sv_clear,		/* Clear screen			*/
@@ -383,6 +355,8 @@ struct device D_tab[] =
 		sv_color,		/* Set color table		*/
 		sv_poly,		/* Draw polyline		*/
 		sv_pixel,		/* Pixel fill			*/
+		___,			/* (no) query text		*/
+		___,			/* (no) Text size		*/
 		___,			/* Text				*/
 		___,			/* Set clip window		*/
 		sv_clear,		/* Clear screen			*/
@@ -428,6 +402,8 @@ struct device D_tab[] =
 		rm_color_map,		/* Set color table		*/
 		rm_poly,		/* Draw polyline		*/
 		rm_pixel,		/* Pixel fill			*/
+		___,			/* (no) query text		*/
+		___,			/* (no) Text size		*/
 		___,			/* Text				*/
 		rm_hcw,			/* Set clip window		*/
 		rm_clear,		/* Clear screen			*/
@@ -468,6 +444,8 @@ struct device D_tab[] =
 		rm_color_map,		/* Set color table		*/
 		rm_poly,		/* Draw polyline		*/
 		rm_pixel,		/* Pixel fill			*/
+		___,			/* (no) query text		*/
+		___,			/* (no) Text size		*/
 		___,			/* Text				*/
 		rm_hcw,			/* Set clip window		*/
 		rm_clear,		/* Clear screen			*/
@@ -510,6 +488,8 @@ struct device D_tab[] =
 		rm_color_map,		/* Set color table		*/
 		rm_poly,		/* Draw polyline		*/
 		rm_pixel,		/* Pixel fill			*/
+		___,			/* (no) query text		*/
+		___,			/* (no) Text size		*/
 		___,			/* Text				*/
 		rm_hcw,			/* Set clip window		*/
 		rm_clear,		/* Clear screen			*/
@@ -539,7 +519,7 @@ struct device D_tab[] =
  	{
 		"4107",			/* Device type 			*/
 		1, { "tek4107" },
-		GDF_SEGMENT | GDF_VECTOR | GDF_VP,
+		GDF_SEGMENT | GDF_VECTOR | GDF_VP | GDF_TEXT,
 		16,			/* 16 colors			*/
 		640, 480,		/* Our screen resolution	*/
 		1.0,			/* Assume square aspect for now */
@@ -553,7 +533,9 @@ struct device D_tab[] =
 		tek_cmap,		/* Set color table		*/
 		tek_poly,		/* Draw polyline		*/
 		___,			/* Pixel fill			*/
-		___,			/* Text				*/
+		tek_qtext,		/* query text			*/
+		tek_tsize,		/* Text size			*/
+		tek_text,		/* Text				*/
 		___,			/* Set clip window		*/
 		tek_clear,		/* Clear screen			*/
 		___,			/* Polygon fill			*/
@@ -596,6 +578,8 @@ struct device D_tab[] =
 		tek_cmap,		/* Set color table		*/
 		tek_poly,		/* Draw polyline		*/
 		tek_pixel,		/* Pixel fill			*/
+		___,			/* (no) query text		*/
+		___,			/* (no) Text size		*/
 		___,			/* Text				*/
 		___,			/* Set clip window		*/
 		tek_clear,		/* Clear screen			*/
@@ -639,6 +623,8 @@ struct device D_tab[] =
 		zb_color,		/* Set color table		*/
 		___,			/* Draw polyline		*/
 		zb_pixel,		/* Pixel fill			*/
+		___,			/* (no) query text		*/
+		___,			/* (no) Text size		*/
 		___,			/* Text				*/
 		___,			/* Set clip window		*/
 		zb_clear,		/* Clear screen			*/
@@ -682,6 +668,8 @@ struct device D_tab[] =
 		ln_cmap,		/* Set color table		*/
 		ln_poly,		/* Draw polyline		*/
 		___,			/* Pixel fill			*/
+		___,			/* (no) query text		*/
+		___,			/* (no) Text size		*/
 		___,			/* Text				*/
 		___,			/* Set clip window		*/
 		ln_clear,		/* Clear screen			*/
@@ -725,6 +713,8 @@ struct device D_tab[] =
 		ps_cmap,		/* Set color table		*/
 		ps_poly,		/* Draw polyline		*/
 		___,			/* Pixel fill			*/
+		___,			/* (no) query text		*/
+		___,			/* (no) Text size		*/
 		___,			/* Text				*/
 		ps_hcw,			/* Set clip window		*/
 		ps_clear,		/* Clear screen			*/
@@ -744,6 +734,50 @@ struct device D_tab[] =
 		___,			/* (no) pick			*/
 		___,			/* (no) color offset		*/
 		ps_print,		/* Hardware print screen routine*/
+	},
+# endif
+# ifdef DEV_4010
+/*
+ * Tektronix 4010
+ */
+ 	{
+		"4010",			/* Device type 			*/
+		1, { "xterm" },
+		GDF_VECTOR,
+		2,			/* 16 colors			*/
+		4096, 3072,		/* Our screen resolution	*/
+		1.0,			/* Assume square aspect for now */
+		0, 0,			/* Blocks irrelevant		*/
+		0,			/* no buttons, for now		*/
+		0,			/* Background color		*/
+		t10_open,		/* The open routine		*/
+		t10_close,		/* Close			*/
+		t10_flush,		/* Flush			*/
+		___,		/* Flush with no screen renew	*/
+		t10_cmap,		/* Set color table		*/
+		t10_poly,		/* Draw polyline		*/
+		___,			/* Pixel fill			*/
+		___,			/* (no) query text		*/
+		___,			/* (no) Text size		*/
+		___,			/* Text				*/
+		___,			/* Set clip window		*/
+		t10_clear,		/* Clear screen			*/
+		___,			/* Polygon fill			*/
+		___,		/* Segment init			*/
+		___,		/* Segment clear		*/
+		___,		/* Segment select		*/
+		___,		/* Segment end			*/
+		___,		/* Segment attributes		*/
+		___,		/* Target read			*/
+		___,		/* Put target			*/
+		___,		/* Remove target		*/
+		___,			/* (no) color assignment	*/
+		___,			/* (no) exposure checking	*/
+		___,			/* (no) viewport adjustment	*/
+		___,			/* (no) readscreen		*/
+		___,			/* (no) pick			*/
+		___,			/* (no) color offset		*/
+		___,			/* Hardware print screen routine*/
 	},
 # endif
 };
