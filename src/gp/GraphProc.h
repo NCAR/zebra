@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.59 1997-05-14 00:38:20 granger Exp $ */
+/* $Id: GraphProc.h,v 2.60 1997-05-14 16:36:52 ishikawa Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -403,7 +403,7 @@ extern int GetLLSpacings FP ((DataChunk *, float *, float *));
 extern void ov_Feature FP ((struct ui_command *cmds));
 #endif
 
-# if (defined(hpux) || defined(SVR4) || defined (linux)) && !defined (__osf__)
+# if defined(hpux) || defined(SVR4) || defined (linux)
 /* Defined in Utilities.c */
 extern int nint FP ((double x));
 # endif

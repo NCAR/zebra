@@ -47,7 +47,7 @@ typedef struct {
         CARD8   pad;
 } U_XWDColor;
 
-RCSID ("$Id: Utilities.c,v 2.48 1997-05-13 21:33:09 ishikawa Exp $")
+RCSID ("$Id: Utilities.c,v 2.49 1997-05-14 16:36:39 ishikawa Exp $")
 
 /*
  * Rules for image dumping.  Indexed by keyword number in GraphProc.state
@@ -760,8 +760,7 @@ float *min, *max;
 
 
 
-# if (defined(hpux) || defined(SVR4) || defined (linux) || defined(AIXV3)) &&
-!defined(__osf__)
+# if defined(hpux) || defined(SVR4) || defined (linux) || defined(AIXV3)
 int
 nint (x)
 double x;
