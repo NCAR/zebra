@@ -1,9 +1,8 @@
 /* 10/88 jc */
-/* $Id: image.c,v 1.5 1998-02-27 16:00:45 burghart Exp $ */
+/* $Id: image.c,v 1.6 2002-07-11 23:15:37 burghart Exp $ */
 /*
  * Routines related to image save/restore functions. 
  */
-# include <graphdev.h>
 # include "param.h"
 # include "graphics.h"
 # include "workstation.h"

@@ -1,10 +1,6 @@
 /*
  * Implement a null device.
  */
-# include <graphdev.h>
-
-# ifdef DEV_NULL
-
 # include "graphics.h"
 # include "device.h"
 
@@ -24,6 +20,3 @@ int nl_ok ()
 {
 	return (GE_OK);
 }
-
-
-# endif /* DEV_NULL */
