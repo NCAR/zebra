@@ -24,7 +24,7 @@
 
 # ifndef lint
 static char *rcsid = 
-   "$Id: trmm_rain.c,v 1.3 1993-05-20 21:43:24 granger Exp $";
+   "$Id: trmm_rain.c,v 1.4 1993-05-21 23:20:00 granger Exp $";
 # endif
 
 # include <time.h>
@@ -112,6 +112,7 @@ char	**argv;
 	DataChunk *dc, *irdc;
 	int option_ir = 0;
 	FieldId fid;
+	char env[50];
 
 /*
  * Search for the IR option to see if we're supposed to do the IR plat
@@ -146,7 +147,8 @@ char	**argv;
  * know of a better way to do this?  Anyway to set out environment from
  * within the program?
  */
-	putenv ("TZ=Australia/North");
+	sprintf (env, "TZ=%s", TIMEZONE_FILE);
+	putenv (env);
 #ifdef notdef
 	if (!getenv("TZ") || strcmp(getenv("TZ"),TIMEZONE_FILE))
 	{
@@ -195,7 +197,7 @@ char	**argv;
 	 */
 		if (! option_ir)
 		{
-			if (! ds_Store (dc, FALSE, (dsDetail *) 0, 0))
+			if (! ds_StoreBlocks (dc, FALSE, (dsDetail *) 0, 0))
 				IngestLog (EF_EMERGENCY, 
 					   "%s: Failure storing data", 
 					   ds_PlatformName (dc->dc_Platform));
@@ -227,7 +229,7 @@ char	**argv;
 	if (! option_ir)
 		exit (0);
 
-	if (! ds_Store (irdc, FALSE, (dsDetail *) 0, 0))
+	if (! ds_StoreBlocks (irdc, FALSE, (dsDetail *) 0, 0))
 		IngestLog (EF_EMERGENCY, 
 			   "%s: Failure storing data", 
 			   ds_PlatformName (irdc->dc_Platform));
@@ -256,10 +258,12 @@ int *year;
 /*
  * Get the site name, year, and radar-relative azimuth and range from the
  * first line of the file.  We don't use the azimuth and range since we
- * have lat/lon locations below.
+ * have lat/lon locations below.  We have to use the %[] construct because
+ * some files use tabs rather than fixed-length character fields.  This
+ * assumes the site name doesn't have any numbers in it.
  */
-	fscanf (infile, " %39c%d %d %d", sitename, /* (int *) */year, 
-		&azim, &range);
+	fscanf (infile, " %[^0123456789]%d %d %d ", 
+		sitename, /* (int *) */year, &azim, &range);
 /*
  * Find this one in the site list
  */
@@ -353,6 +357,7 @@ int year;
 	int	ndx = 0, prevday = 0, num, jday, hour, minute, second;
 	int	month, mday;
 	float	rate;
+	char	msg[100];
 
 	/* yearsec = YearSeconds(year); */
 	local.tm_sec = 0;
@@ -363,8 +368,8 @@ int year;
 	local.tm_gmtoff = 0;
 	t.zt_MicroSec = 0;
 
-	while ((num = fscanf (infile, "%d %d:%d:%d %f", &jday, &hour, &minute, 
-		       &second, &rate)) == 5)
+	while ((num = fscanf (infile, " %d %d:%d:%d %f ", 
+			      &jday, &hour, &minute, &second, &rate)) == 5)
 	{
 	/*
 	 * Handle year change if necessary
@@ -385,7 +390,8 @@ int year;
 	/*
 	 * Construct a tm structure and use it to convert the file's time
 	 * to UTC using timelocal().  We're assuming that the program is
-	 * running with the correct value for the TZ environ variable.
+	 * running with the correct value for the TZ environ variable,
+	 * set in main().
 	 */
 		ConvertYearDay (year, jday, &month, &mday);
 		local.tm_min = minute;
@@ -399,6 +405,9 @@ int year;
 		dc_AddScalar (dc, &t, ndx++, fid, &rate);
 		if ((ndx % 250) == 0)
 			IngestLog (EF_DEBUG, "%d points read", ndx);
+		TC_EncodeTime (&t, TC_Full, msg);
+		sprintf (msg+strlen(msg)," %f ", rate);
+		IngestLog (EF_DEVELOP, "%s", msg);
 	}
 
 	if (num > 0)
@@ -583,4 +592,3 @@ FieldId *fields;
 	free (blank_grid);
 	free (ir_times);
 }
-
