@@ -16,7 +16,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.7 1997-06-22 23:14:33 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.8 1997-06-28 16:29:12 granger Exp $"
 
 /* #define IHaveSubdirs */
 #define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
@@ -28,11 +28,13 @@ FIPSLIB = fips123/libfips123.a
 
 SUBDIRS = fips123
 
-SRCS = cbd2zebra.c dem2zebra.c dlg2zebra.c drawmap.c map_decimate.c \
-	ncar2zebra.c rect_filter.c sdtsdump.c tablet.c zmap.c
+SRCS = cbd2zebra.c dem2zebra.c dlg2zebra.c map_decimate.c \
+       ncar2zebra.c rect_filter.c sdtsdump.c tablet.c zmap.c
 
-DISTFILES = Imakefile $(SRCS) README DEM_records.txt cbd_world.gif \
-	dlg_sdts.ps.gz
+DISTSRCS = $(SRCS) drawmap.c
+
+DISTFILES = Imakefile $(DISTSRCS) README DEM_records.txt cbd_world.gif \
+            dlg_sdts.ps.gz
 
 DEPEND_DEFINES=$(NETCDFINCLUDES)
 
@@ -58,7 +60,7 @@ CompleteProgramTarget(ncar2zebra,ncar2zebra.o,/**/,/**/,/**/)
 CompleteProgramTarget(rect_filter,rect_filter.o,/**/,/**/,/**/)
 CompleteProgramTarget(sdtsdump,sdtsdump.o,$(FIPSLIB),$(FIPSLIB),)
 
-# ifdef SunArchitecture
+# if defined(SunArchitecture)
 DEPEND_DEFINES=$(NETCDFINCLUDES) $(XINCLUDES)
 
 DRAWOBJS=drawmap.o tablet.o
@@ -66,6 +68,7 @@ DRAWLIBS=$(ZLIBS) $(XLIBS)
 
 CompleteProgramTarget(drawmap,$(DRAWOBJS),$(DEPLIBS),$(DRAWLIBS),$(SYSLIBS))
 SpecialObjectRule(drawmap.o,/**/,$(XINCLUDES))
+CcDependTarget(drawmap.c)
 # endif
 
 DependTarget()
