@@ -35,8 +35,11 @@ int size;
  * Zero fill this area.
  */
 {
+# ifdef notdef
 	for (; size > 0; size--)
 		*stuff++ = 0;
+# endif
+	memset (stuff, 0, size);
 }
 
 
@@ -48,6 +51,9 @@ int	len;
  * big for LIB$MOVC3, or (conceivably) on systems with no such routine.
  */
 {
+# ifdef notdef
 	for (; len > 0; len--)
 		*to++ = *from++;
+# endif
+	memcpy (to, from, len);
 }
