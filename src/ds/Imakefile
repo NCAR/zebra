@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.49 1996-12-03 07:10:20 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.50 1996-12-06 00:33:00 granger Exp $"
 
 DEPLIBS=$(LIBZEB)
 LIBMPROF=/dt/granger/libc_mp.a
@@ -89,7 +89,7 @@ SRCS = $(DSLIBSRCS) $(DCSRCS) $(DSSRCS) $(UTILSRCS)
 
 PRIVATE_HEADERS = BoundaryFile.h DataChunkP.h dslib.h znfile.h \
 		  RasterFile.h commands.h dfa.h dsDaemon.h dsPrivate.h \
-		  GRIB.h Appl.h DataFormat.h Platforms.h apple.h
+		  GRIB.h Appl.h DataFormat.h Platforms.h apple.h GetList.h
 
 HEADERS = DataStore.h DataChunk.h ingest.h fields.h ds_fields.h
 
@@ -271,7 +271,7 @@ test.aline.only: aline $(SOCKET)
 
 test.apple.only: apple $(SOCKET) $(DSDUMP)
 	TEST_ENV
-	RunTest($(APPLE) $(TESTOUT),"William Tell, arrows away"); \
+	RunTest($(APPLE),"William Tell, arrows away"); \
 	echo "End apple testing."
 
 test.close: $(ZSTOP)
