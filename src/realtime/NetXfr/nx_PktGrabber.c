@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: nx_PktGrabber.c,v 3.3 1993-10-26 15:39:48 corbet Exp $";
+static char *rcsid = "$Id: nx_PktGrabber.c,v 3.4 1994-02-02 20:20:48 burghart Exp $";
 
 # include <errno.h>
 # include <sys/types.h>
@@ -52,7 +52,12 @@ struct ShmHeader
  */
 # define NPACKET	1024
 # define PKTSIZE	1500
-static struct ShmHeader * volatile Seg = 0;
+# ifdef __STDC__
+	static struct ShmHeader * volatile Seg = 0;
+# else
+	static struct ShmHeader *Seg = 0;
+# endif
+
 static int ShmId = 0;
 # define SHMKEY 0x910610
 
