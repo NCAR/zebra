@@ -1,5 +1,5 @@
 /*
- * $Id: acqual.c,v 1.1 1992-11-19 02:50:36 granger Exp $
+ * $Id: acqual.c,v 1.2 1992-12-09 23:17:02 granger Exp $
  *
  * A quickly-written (hopefully) program to test aircraft netCDF files.  Tries to
  * verify several criteria:
@@ -18,34 +18,51 @@
  * Read the time_offset, lat, lon, and alt variables from the netCDF file
  * directly into memory, checking each one with the appropriate criteria.
  */
-
+/*
+ * 12/4/92 -- Checks for bad_value_flag (excepts NC_CHAR-type) in global atts
+ *	      and uses it to count the number of bad values found in the data
+ */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <netcdf.h>
 
 #define ABS(x)	(((x)<0)?(-(x)):(x))
 
+#undef DEBUG
+
+#define YES (1)
+#define NO  (0)
 
 typedef struct s_param_t {
 	char *field;
 	float min;
 	float max;
 	float delta;
+	short check_zero;	/* currently not used */
 } param_t;
 
+/*
+ * Parameters are currently set for STORM-FEST region, i.e. NW Quartisphere, US
+ */
 param_t Parameters[] = 
 {
-	{ "lat",  -90.0,  90.0, 0.05 },
-	{ "lon", -180.0, 180.0, 0.05 },
-	{ "alt",    0.0,  20.0, 0.10 }
+	{ "lat",   25.0,  80.0, 0.05, YES },
+	{ "lon", -110.0, -40.0, 0.05, YES },
+	{ "alt",    0.0,  20.0, 0.10,  NO }
 };
 
 #define NUMBER(arr)	((unsigned long)(sizeof(arr)/sizeof(arr[0])))
 
+#define AttBadValue	"bad_value_flag"
 
+void GetBadValue();
 void VerifyTimes();
 void VerifyFloatVariable();
+double atof();
 
+float BadValue;
+short UseBadValue;
 
 void
 Usage(argc, argv)
@@ -104,6 +121,11 @@ main(argc, argv)
 		printf("------------------------------------ %s\n",argv[i]);
 		cdfid = ncopen(argv[i], NC_NOWRITE);
 		
+		/* 
+		 * Set up our bad value handling 
+		 */
+		GetBadValue(cdfid);
+
 		/*
 		 * Now check time offsets
 		 */
@@ -123,6 +145,35 @@ main(argc, argv)
 	 * Done
 	 */
 	return(0);
+}
+
+
+
+void
+GetBadValue(cdfid)
+	int cdfid;
+{
+	nc_type att_type;
+	long att_len;
+	char *att_val;
+
+	UseBadValue = 0;
+	/* 
+	 * Query for the "bad_value_flag" global attribute
+	 */
+	ncattinq(cdfid, NC_GLOBAL, AttBadValue, &att_type, &att_len);
+	if (att_type != NC_CHAR)
+		printf("%s attribute is not of type NC_CHAR, ignoring...\n",
+		       AttBadValue);
+	else
+	{
+		att_val = (char *)malloc(att_len); /* expects \0 to be in att_len */
+		ncattget(cdfid, NC_GLOBAL, AttBadValue, att_val);
+		UseBadValue = 1;
+		BadValue = (float)atof(att_val);
+		printf("Using %s = %f\n", AttBadValue, BadValue);
+		free(att_val);
+	}
 }
 
 
@@ -161,6 +212,11 @@ VerifyTimes(cdfid)
 #ifdef DEBUF
 	printf("	%i offsets to check\n",count);
 #endif
+	if (count == 0)
+	{
+		printf("!!!! NO TIME OFFSETS PRESENT !!!!\n");
+		return;
+	}
 	/*
 	 * Allocate memory and get the samples
 	 */
@@ -176,18 +232,19 @@ VerifyTimes(cdfid)
 	found = 0;
 	for (i = 0; i < count; ++i)
 	{
-		if (t_type = NC_DOUBLE)
+		switch (t_type)
 		{
+		   case NC_DOUBLE:
 			present = *(double *)tptr;
 			tptr += sizeof(double);
-		}
-		else if (t_type = NC_FLOAT)
-		{
-			present = *(float *)tptr;
+			break;
+		   case NC_FLOAT:
+			present = (double)*(float *)tptr;
 			tptr += sizeof(float);
-		}
-		else
+			break;
+		   default:
 			Abort("time_offset is not of type float or double");
+		}
 
 		if (present != past + 1)
 		{
@@ -227,7 +284,7 @@ VerifyFloatVariable(cdfid, var_name, min, max, delta)
 	unsigned long count;
 	unsigned long i;
 	float past;
-	int found;
+	int found, bad_count;
 
 	printf("Verifying variable %s...\n", var_name);
 #ifdef DEBUG
@@ -253,6 +310,11 @@ VerifyFloatVariable(cdfid, var_name, min, max, delta)
 #ifdef DEBUG
 	printf("	%lu values for %s\n", count, var_name);
 #endif
+	if (count == 0)
+	{
+		printf("!!!! VARIABLE %s CONTAINS NO VALUES !!!!\n", var_name);
+		return;
+	}
 	/*
 	 * Allocate memory and get the samples
 	 */
@@ -265,15 +327,23 @@ VerifyFloatVariable(cdfid, var_name, min, max, delta)
 	 */
 	found = 0;
 	past = 0;
+	bad_count = 0;
 	for (i = 0, vptr = vals; i < count; ++i, ++vptr)
 	{
+		if (UseBadValue && (*vptr == BadValue))
+		{
+			++bad_count;
+			past = *vptr;
+			continue;
+		}
 		if ((*vptr > max) || (*vptr < min))
 		{
 			found++;
 			printf("!! At %i, %s = %f is out of range\n",
 			       i, var_name, *vptr);
 		}
-		if ((i) && (ABS(*vptr - past) > delta))
+		if ((i) && ( !UseBadValue || (past != BadValue)) &&
+		    (ABS(*vptr - past) > delta))
 		{
 			found++;
 			printf("!! At %i, %s = %f, delta = %f > %f\n",
@@ -283,8 +353,11 @@ VerifyFloatVariable(cdfid, var_name, min, max, delta)
 	}
 
 	printf("Finished checking %s, ",var_name);
-	if (found)
-		printf("problems found: %i\n", found);
+	if (found || bad_count)
+	{
+		printf("\n\tproblems found: %i\n", found);
+		printf(  "\t    bad values: %i\n",bad_count);
+	}
 	else
 		printf("no problems\n");
 
