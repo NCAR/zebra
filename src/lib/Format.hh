@@ -1,5 +1,5 @@
 /*
- * $Id: Format.hh,v 1.4 1998-05-28 21:41:41 granger Exp $
+ * $Id: Format.hh,v 1.5 1998-08-27 22:37:07 granger Exp $
  * 
  * An interesting, if possibly useful, interface for formatting strings
  * using printf-style format specifiers.
@@ -27,6 +27,14 @@
 
    cout << format.reset().quiet() % 3.0 % 4.0 % 5.0 % "6.0" << endl;
    cout << format("%f %lf %s").quiet() % 1 % 2 % 3.0 << endl;
+
+   We should allow just a simple % as a placeholder to which we stream the
+   next operand:
+
+	"The number % comes before %" % a % (a+1)
+
+   We do not have to know or care about the type of our operand if we're
+   willing to accept the default formatting of the ostream (<<) operator.
 
  */
 
@@ -141,6 +149,8 @@ public:
 		string f = parse_format (temp, &flag); \
 		if (! strchr (F,flag)) \
 			f = error(TYPE_MISMATCH); \
+		if (strchr (F,'s') && t == 0) \
+			f = "<null>"; \
 		sprintf (temp, f.c_str(), t); \
 		buf += temp; \
 		return *this; \
@@ -148,8 +158,8 @@ public:
 
 	PERCENT(int,"idoxX");
 	PERCENT(long,"idoxX");
-	PERCENT(unsigned int,"u");
-	PERCENT(unsigned long,"u");
+	PERCENT(unsigned int,"uoxX");
+	PERCENT(unsigned long,"uoxX");
 	PERCENT(double,"feEgG");
 	PERCENT(char,"c");
 	PERCENT(unsigned char,"c");
@@ -161,6 +171,11 @@ public:
 	operator const char * () const
 	{
 		return (eval()).c_str();
+	}
+
+	operator const string & () const
+	{
+		return eval();
 	}
 
 	/// "Evaluate" the format buffer as filled in so far, which includes
