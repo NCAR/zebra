@@ -34,7 +34,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 # include "LayoutControl.h"
-MAKE_RCSID ("$Id: PlotExec.c,v 2.26 1993-03-18 16:47:17 burghart Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.27 1993-04-09 17:36:09 corbet Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -350,7 +350,7 @@ ZebTime *cachetime;
 {
 	float orig_alt = Alt, tascale;
 	char **comps, datestring[40], rep[30], tadefcolor[30];
-	int i;
+	int i, showsteps = FALSE;
 	Pixel timecolor;
 	time temptime;
 /*
@@ -375,6 +375,12 @@ ZebTime *cachetime;
 		if (! pd_Retrieve (Pd, comps[i], "representation",
 			  rep, SYMT_STRING) || strcmp (rep, "overlay"))
 			Ncomps++;
+/*
+ * See if they want to see each overlay as it is drawn.
+ */
+	if (! pda_Search (Pd, "global", "show-steps", NULL,
+			(char *) &showsteps, SYMT_BOOL))
+		showsteps = FALSE;
 /*
  * Get annotation information
  */
@@ -442,6 +448,8 @@ ZebTime *cachetime;
 	{
 		Comp_index = i;
 		px_AddComponent (comps[i], False);
+		if (showsteps && comps[i + 1])
+			GWDisplayFrame (Graphics, DisplayFrame);
 	}
 
 # if C_PT_CAP
