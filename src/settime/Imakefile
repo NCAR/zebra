@@ -1,0 +1,8 @@
+
+SRCS = settime.c
+OBJS = settime.o
+
+LIBS = $(LIBZEB) $(LIBRDSS)
+
+
+NormalProgramTarget(settime, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))

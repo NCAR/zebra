@@ -1,0 +1,8 @@
+
+SRCS = gettime.c
+OBJS = gettime.o
+
+LIBS = $(LIBZEB) $(LIBRDSS)
+
+
+NormalProgramTarget(gettime, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
