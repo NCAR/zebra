@@ -38,7 +38,7 @@
 # include "AxisControl.h"
 # include "ActiveArea.h"
 
-MAKE_RCSID ("$Id: PlotExec.c,v 2.47 1995-09-20 20:44:58 burghart Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.48 1995-09-21 21:15:53 granger Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -362,7 +362,7 @@ ZebTime *cachetime;
 	int i, showsteps = FALSE;
 	Pixel timecolor;
 	UItime temptime;
-	int active;
+	bool active;
 /*
  * Choose the drawing frame and clear it out
  */
@@ -456,10 +456,15 @@ ZebTime *cachetime;
 	An_DoTopAnnot (datestring, timecolor, active ? "global" : 0,
 		       active ? "time" : 0);
 	An_TopAnnot ("  ", timecolor);
-
-#ifdef notdef
-	An_TopAnnot (datestring, timecolor);
-#endif
+/*
+ * If they want to see the window name in the top annotation, add it now.
+ */
+	if (pda_Search (Pd, "global", "ta-show-name", NULL, (char *)&active,
+			SYMT_BOOL) && active)
+	{
+		sprintf (datestring, "(%s) ", dm_WindowName());
+		An_TopAnnot (datestring, Tadefclr.pixel);
+	}
 /*
  * If there is an initialization routine, call it now.
  */
@@ -501,14 +506,32 @@ ZebTime *cachetime;
 
 
 
+static int
+px_PixelSpace (param, space, pixels)
+char *param;
+float space;
+int pixels;
+/*
+ * Retrieve this layout parameter and convert to pixels as needed.
+ */
+{
+	pda_Search (Pd, "global", param, Pt_table[PlotType].name,
+		    CPTR (space), SYMT_FLOAT);
+	if (space > 1.0)
+		return ((int) space);
+	else
+		return ((int) (space * pixels));
+}
+
+
 
 static int
 px_GetCoords ()
 {
-	bool ok, expand;
-	int axisSpace;
+	bool expand;
 	AxisSide side;
 	char param[32];
+	int pixel_space;
 /*
  * Get CAP-oriented limits if need be.
  */
@@ -518,6 +541,10 @@ px_GetCoords ()
  * Initialize plot altitude
  */
 	alt_Initialize ();
+/*
+ * Reset window layout
+ */
+	lc_Init ();
 # ifdef notdef
 /*
  * Save the origin
@@ -529,22 +556,19 @@ px_GetCoords ()
  * Get layout parameters for use in conjunction with "LayoutControl"
  * routines
  */
-	/* Currently, Icon, Legend and Annotation space are all fixed
-	   to reflect the hard-coded sizes in "PixelCoord.h" */
-	IconSpace = ICONSPACE;
-        pda_Search (Pd, "global", "icon-space", NULL, CPTR (IconSpace),
-		    SYMT_INT);
-
-	lc_SetIconSpace (IconSpace);
-	lc_SetLegendSpace ((int) (0.15 * GWWidth (Graphics)));
-	lc_SetAnnotateSpace ((int) (0.1 * GWHeight (Graphics)));
-
+	lc_SetIconSpace (px_PixelSpace ("icon-space", (float) ICONSPACE, 
+					GWHeight(Graphics)));
+	lc_SetLegendSpace (px_PixelSpace ("sa-space", (float) LEGENDSPACE, 
+					  GWWidth(Graphics)));
+	lc_SetAnnotateSpace (px_PixelSpace ("ta-space", (float) ANNOTATESPACE,
+					    GWHeight(Graphics)));
 	for (side = 0; side < NumSides; side++)
 	{
 		sprintf (param, "axis-%s-space", SIDE_NAME (side));
-		if (pda_Search (Pd, "global", param, NULL, CPTR (axisSpace), 
-				SYMT_INT))
-			lc_SetAxisSpace (side, axisSpace);
+		pixel_space = px_PixelSpace (param, 0.0, 
+			     (side == SideTop || side == SideBottom) ? 
+			     GWHeight(Graphics) : GWWidth(Graphics));
+		lc_SetAxisSpace (side, pixel_space);
 	}
 /*
  * Unless told otherwise, readjust the coordinates so that x == y.
