@@ -1,4 +1,4 @@
-MFVERSION="$Id: Imakefile,v 1.1 1993-05-12 15:21:50 case Exp $"
+MFVERSION="$Id: Imakefile,v 1.2 1993-07-23 19:51:10 case Exp $"
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -19,18 +19,22 @@ MFVERSION="$Id: Imakefile,v 1.1 1993-05-12 15:21:50 case Exp $"
 
 LOCALLIB = uilib.a
 
+#if SystemV4
+LIBS = $(LIBRDSSUTIL) $(XLIBS) -lgen
+#else
 LIBS = $(LIBRDSSUTIL) $(XLIBS)
+#endif
 
-DEPLIBS = $(LOCALLIB) $(LIBRDSSUTIL)
+DEPLIBS = $(LOCALLIB) 
 
 UI_LF = $(LIBDIR)/ui.lf
 
 INCLUDES = $(XINCLUDES)
 
-#if (SystemV)
-EXTRA_DEFINES = -DSYSV $(XWINDOWSFLAG) -DLF=\"$(UI_LF)\" -DSMEMENU -I.
-#else
+#if defined (SunArchitecture) && !SystemV4
 EXTRA_DEFINES = -DBSD $(XWINDOWSFLAG) -DLF=\"$(UI_LF)\" -DSMEMENU -I.
+#else
+EXTRA_DEFINES = $(XWINDOWSFLAG) -DLF=\"$(UI_LF)\" -DSMEMENU -I.
 #endif
 
 BINSRCS = uic.c uib.c
@@ -78,7 +82,7 @@ saber_uic:
 	#load $(CFLAGS) uic.c ui.c ui_w*.c ui.a -Bstatic $(LIBS)
 
 ui.o:
-	$(CC) $(CFLAGS) -DUIDIR=\"$(TOP)\" -c ui.c
+	$(CC) $(CFLAGS) -DUIDIR=\"$(RDSSDIR)\" -c ui.c
 
 LintTarget()
 
