@@ -2,8 +2,10 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.23 1995-01-18 00:52:04 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.24 1995-02-10 01:26:15 granger Exp $"
 
+DEPLIBS=$(LIBZEB) /*$(LIBNETCDF)*/
+/* LIBNETCDF=/net/src/netcdf-2.3.2/libsrc/libnetcdf.a */
 LIBMPROF=/dt/granger/libc_mp.a
 SYSLIBS=/* $(LIBMPROF) */
 LIBS=$(LIBZEB) $(LIBNETCDF) $(LIBRDSS) $(XLIBS)
@@ -12,8 +14,10 @@ LIBS=$(LIBZEB) $(LIBNETCDF) $(LIBRDSS) $(XLIBS)
 LIBGCC=/locallib/gcc-lib/sparc-sun-sunos4.1/2.4.5/libgcc.a
 CLIBS=$(LIBGCC)
 /*PROOF=/net/CenterLine/bin/proof*/
-EXTRA_DEFINES = /* -DDEBUG -DTEST_TIME_UNITS */
 
+DEFINES = /* -DDEBUG -DTEST_TIME_UNITS */
+
+#CCOPTIONS=
 #CCOPTIONS=-pipe -pg
 #CCOPTIONS=-pg
 #LOCAL_LDFLAGS=-static
