@@ -1,7 +1,7 @@
 /*
  * ingest.h --- Public protoypes and macros for ingest modules
  *
- * $Id: ingest.h,v 1.5 1992-11-20 19:20:33 granger Exp $
+ * $Id: ingest.h,v 1.6 1992-11-21 00:13:12 granger Exp $
  *
  * ingest.h --- A common ingest interface and support routines for 
  *		Zeb ingest modules
@@ -109,6 +109,9 @@ extern short DumpDataChunks;
 /* -----------------------------------------------------------------
  * These macros allow ingest modules to set their default debug
  * state within the program, such as during development
+ *
+ * Do not use these anymore.  Use the macros prefixed with Ingest
+ * instead, defined further on.
  */
 #define SetNoMessageHandler() {\
 		NoDataStore = 1; \
@@ -128,6 +131,10 @@ extern short DumpDataChunks;
 		DryRun = 1; \
 		SetNoMessageHandler(); \
 		}
-		
+
+#define IngestSetNoMessageHandler()	SetNoMessageHandler()
+#define IngestSetNoEventLogger()	SetNoEventLogger()
+#define IngestSetNoDataStore()		SetNoDataStore()
+#define IngestSetDryRun()		SetDryRun()
 
 # endif
