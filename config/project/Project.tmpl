@@ -1,6 +1,6 @@
 /**/#-------------------------------------------------------------------------
 /**/# Zeb project build parameters
-/**/# $Id: Project.tmpl,v 1.21 1994-02-02 22:29:18 corbet Exp $
+/**/# $Id: Project.tmpl,v 1.22 1994-02-03 08:25:48 granger Exp $
 /**/#-------------------------------------------------------------------------
 
 /*****************************************************************************
@@ -62,7 +62,8 @@
 #endif
 
 #ifndef HasWritev
-#if defined(SunArchitecture)
+#if defined(SunArchitecture) || defined(HPArchitecture) || \
+    defined(SGIArchitecture)
 #define HasWritev	YES
 #else
 #define HasWritev	NO
