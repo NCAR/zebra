@@ -25,8 +25,7 @@
 
 # include <math.h>
 # include <X11/Intrinsic.h>
-# include <ui.h>
-# include <ui_error.h>
+
 # include <defs.h>
 # include <draw.h>
 # include <pd.h>
@@ -40,7 +39,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: Skewt.c,v 2.26 1996-05-06 22:38:38 granger Exp $")
+RCSID ("$Id: Skewt.c,v 2.27 1996-11-19 07:25:17 granger Exp $")
 
 /*
  * General definitions
@@ -121,7 +120,7 @@ static void	sk_Polyline FP ((float *, float*, int, LineStyle, XColor));
 static void	sk_DrawText FP ((char *, double, double, double, XColor, 
 				 double, int, int)); 
 static void	sk_Clip FP ((double, double, double, double)); 
-static void	sk_Surface FP ((float *, float *, float *, int, float*,
+static int	sk_Surface FP ((float *, float *, float *, int, float*,
 				float *, float *, double));
 static int	sk_700mb FP ((float *, float *, float*, int, double, double,
 			      float *, float *, int *, double));
@@ -594,15 +593,14 @@ float	*pres, *temp, *dp, badvalue;
 /*
  * Find the first good point and use it as the surface point
  */
-ERRORCATCH
-	sk_Surface (temp, pres, dp, ndata, &t_sfc, &p_sfc, &dp_sfc, badvalue);
-	sk_700mb (temp, pres, dp, ndata, p_sfc, dp_sfc, &t_700, &dp_700, 
-		&ndx_700, badvalue);
-ON_ERROR
-	msg_ELog (EF_INFO, "About to return from sk_Lift");
-	ui_epop ();
-	return;
-ENDCATCH
+	if (! sk_Surface (temp, pres, dp, ndata, &t_sfc, 
+			  &p_sfc, &dp_sfc, badvalue) ||
+	    ! sk_700mb (temp, pres, dp, ndata, p_sfc, dp_sfc, &t_700,
+			&dp_700, &ndx_700, badvalue))
+	{
+		msg_ELog (EF_INFO, "skewt failed: returning from sk_Lift");
+		return;
+	}
 
 	t_sfc += T_K;	t_700 += T_K;
 	dp_sfc += T_K;	dp_700 += T_K;
@@ -1430,7 +1428,7 @@ XColor		color_ndx;
 
 
 
-static void
+static int
 sk_Surface (t, p, dp, npts, t_sfc, p_sfc, dp_sfc, badvalue)
 float	*t, *p, *dp, *t_sfc, *p_sfc, *dp_sfc, badvalue;
 int	npts;
@@ -1441,6 +1439,8 @@ int	npts;
  * ratio for the lowest 50 mb of the sounding; the surface temperature
  * returned is the temperature corresponding to the surface pressure and
  * the mean potential temperature for the lowest 50 mb of the sounding.
+ *
+ * Return zero on failure, non-zero on success.
  */
 {
 	int	i = 0, mr_count = 0, theta_count = 0;
@@ -1449,14 +1449,22 @@ int	npts;
  * Sanity check
  */
 	if (npts <= 0)
-		ui_error ("%d points in sounding!", npts);
+	{
+		msg_ELog (EF_PROBLEM, "%d points in sounding!", npts);
+		return (0);
+	}
 /*
  * Find the lowest point with good values in all three fields; this
  * will be our surface point.
  */
 	while (t[i] == badvalue || p[i] == badvalue || dp[i] == badvalue)
+	{
 		if (++i == npts)
-			ui_error ("No surface point for analysis");
+		{
+			msg_ELog (EF_PROBLEM, "No surface point for analysis");
+			return (0);
+		}
+	}
 
 	*t_sfc = t[i];
 	*p_sfc = p[i];
@@ -1466,7 +1474,7 @@ int	npts;
  * If we're not using the modified lifted index, return now
  */
 	if (! Flg_mli)
-		return;
+		return (1);
 # endif
 /*
  * Using MLI.  Average the mixing ratio and theta over the lowest 50 mb
@@ -1498,8 +1506,10 @@ int	npts;
  * Make sure we spanned 50 mb
  */
 	if (i == npts)
-		ui_error ("The sounding does not span 50 mb");
-
+	{
+		msg_ELog (EF_PROBLEM, "The sounding does not span 50 mb");
+		return (0);
+	}
 /*
  * Find the mean mixing ratio, then get the corresponding dewpoint.
  */
@@ -1513,7 +1523,7 @@ int	npts;
 /*
  * Done
  */
-	return;
+	return (1);
 }
 
 
@@ -1527,6 +1537,8 @@ int	npts, *ndx700;
  * Find the 700 mb temperature, the 700 mb dewpoint corresponding to the
  * surface mixing ratio, and the index of the last pressure > 700 mb in 
  * the data arrays.
+ * 
+ * Return zero on failure, non-zero on success.
  */
 {
 	int	i;
