@@ -23,9 +23,46 @@
 # include <message.h>
 # include <copyright.h>
 
-RCSID("$Id: zstop.c,v 1.7 1999-03-01 02:04:56 burghart Exp $")
+RCSID("$Id: zstop.c,v 1.8 1999-11-01 21:30:02 granger Exp $")
 
 static char *argv0;
+
+
+/*
+ * Send the shutdown message to a particular process.
+ */
+static void
+SendShutdown (char *name, int broadcast)
+{
+	struct mh_template tm;
+
+	tm.mh_type = MH_SHUTDOWN;
+	msg_send (name, MT_MESSAGE, broadcast, &tm, sizeof (tm));
+}
+
+
+
+static void
+SendDie ()
+{
+	struct mh_template tm;
+
+	tm.mh_type = MH_DIE;
+	msg_send (MSG_MGR_NAME, MT_MESSAGE, 0, &tm, sizeof (tm));
+}
+
+
+static void
+Usage (char *prog)
+{
+    printf ("Usage: %s [-help]\n", prog);
+    printf ("       %s [-help] [-b group] [client] [...]\n", prog);
+    printf ("If no arguments, send the DIE message to the\n");
+    printf ("message manager.\n");
+    exit (1);
+}
+
+
 
 int
 main (argc, argv)
@@ -33,7 +70,7 @@ int argc;
 char **argv;
 {
 	int handler ();
-	struct mh_template tm;
+	int i;
 
 	if ((argv0 = strrchr(argv[0], '/')) != NULL)
 		++argv0;
@@ -41,18 +78,58 @@ char **argv;
 		argv0 = argv[0];
 	if (! msg_connect (handler, "Grim reaper"))
 		exit (1);
-	tm.mh_type = MH_DIE;
-	msg_send (MSG_MGR_NAME, MT_MESSAGE, 0, &tm, sizeof (tm));
+	
+	/*
+	 * Process the command line arguments.
+	 */
+	i = 1;
+	while (i < argc)
+	{
+	    char *name;
+	    int broadcast;
+	    int len = strlen (argv[i]);
+	    if (len > 1 && strncmp("-help",argv[i],len) == 0)
+	    {
+		Usage (argv0);
+	    }
+	    else if (len > 1 && strncmp("-broadcast",argv[i],len) == 0)
+	    {
+		broadcast = 1;
+		++i;
+		if (! argv[i]) Usage (argv0);
+		name = argv[i];
+		printf ("%s: broadcasting shutdown to group %s\n", 
+			argv0, name);
+	    }
+	    else
+	    {
+		broadcast = 0;
+		name = argv[i];
+		printf ("%s: sending shutdown to client %s\n", argv0, name);
+	    }
+	    ++i;
+	    SendShutdown (name, broadcast);
+	}
+
+	if (argc == 1)
+	{
+	    /* Default is still to just kill the message manager. */
+	    SendDie ();
+	}
 	/* 
-	 * Verify receipt of the death notice instead of rudely exiting
-	 * right away and causing write errors in the handler
+	 * Check for any death notices instead of rudely exiting
+	 * right away and causing write errors in the handler.
 	 */
 	while (msg_poll(5) != MSG_TIMEOUT)
 	{
 		/* wait for a shutdown message or a timeout */
 	}
-	printf ("%s: shutdown message never received.\n", argv0);
-	exit (1);
+	if (argc == 1)
+	{
+	    printf ("%s: shutdown message never received.\n", argv0);
+	    exit (1);
+	}
+	exit (0);
 }
 
 
