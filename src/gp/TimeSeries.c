@@ -1,7 +1,7 @@
 /*
  * Time Series Plotting
  */
-static char *rcsid = "$Id: TimeSeries.c,v 2.4 1992-01-29 22:33:33 barrett Exp $";
+static char *rcsid = "$Id: TimeSeries.c,v 2.5 1992-03-04 22:13:25 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -84,7 +84,12 @@ float	Save_y[MAXPLTS * MAXFLDS];
 /*
  * Should time axis be flipped.
  */
-bool	FlipTime;
+static int	FlipTime;
+
+/*
+ * Save the sa-scale value.
+ */
+static float	TSScale;
 
 /*
  * Color array and indices
@@ -339,6 +344,10 @@ int	nplat, nfld;
 			}
 		}
 	}
+/*
+ * Save sa-scale in a global.
+ */
+	TSScale = sascale;
 }
 
 
@@ -362,7 +371,7 @@ bool	update;
 		XSetForeground (disp, Gcontext, Black.pixel);
 		XFillRectangle (disp, d, Gcontext, Pix_left, Pix_bottom + 1, 
 			Pix_right - Pix_left, 
-			(int) (0.03 * (float) GWHeight (Graphics)));
+			(int) (TSScale * (float) GWHeight (Graphics)));
 	}
 	XSetForeground (disp, Gcontext, BackColor.pixel);
 /*
@@ -377,7 +386,7 @@ bool	update;
 	string[0] = ' ';
 	string[1] = ' ';
 	DrawText (Graphics, d, Gcontext, XPIX (X0), Pix_bottom, string, 
-		0.0, 0.03, JustifyLeft, JustifyTop);
+		0.0, TSScale, JustifyLeft, JustifyTop);
 /*
  * Put time on the right side.
  */
@@ -389,7 +398,7 @@ bool	update;
 	string[0] = ' ';
 	string[1] = ' ';
 	DrawText (Graphics, d, Gcontext, XPIX (X1), Pix_bottom, string, 
-		0.0, 0.03, JustifyRight, JustifyTop);
+		0.0, TSScale, JustifyRight, JustifyTop);
 }
 
 
@@ -424,13 +433,13 @@ float 	*center, *step;
  * Label the horizontal axis.
  */
 	DrawText (Graphics, d, Gcontext, XPIX (0.5), YPIX (-0.04), "Time", 
-		0.0, 0.03, JustifyCenter, JustifyTop);
+		0.0, TSScale, JustifyCenter, JustifyTop);
 
 /*
  * Label the vertical axis (left). 
  */
 	DrawText (Graphics, d, Gcontext, XPIX (-0.04), YPIX (0.5), 
-		px_FldDesc(comp, fields[0]), 90.0, 0.03, JustifyCenter, 
+		px_FldDesc(comp, fields[0]), 90.0, TSScale, JustifyCenter, 
 		JustifyBottom);
 /*
  * Draw ticks on the vertical axis (left).
@@ -455,7 +464,7 @@ float 	*center, *step;
 			sprintf (string, "%d", (int) UNCONVERT(tick, Minval[0],
 				Maxval[0]));
 			DrawText (Graphics, d, Gcontext, XPIX (-0.005), 
-				YPIX (tick), string, 0.0, 0.03, 
+				YPIX (tick), string, 0.0, TSScale, 
 				JustifyRight, JustifyBottom);
 		}
 		dolabel = ! dolabel;
@@ -468,7 +477,7 @@ float 	*center, *step;
  * Label the vertical axis (right). 
  */
 	DrawText (Graphics, d, Gcontext, XPIX (1.04), YPIX (0.5), 
-		px_FldDesc(comp, fields[1]), -90.0, 0.03, 
+		px_FldDesc(comp, fields[1]), -90.0, TSScale, 
 		JustifyCenter, JustifyBottom);
 /*
  * Draw ticks on the vertical axis (right).
@@ -493,7 +502,7 @@ float 	*center, *step;
 			sprintf (string, "%d", (int) UNCONVERT(tick, Minval[1],
 				Maxval[1]));
 			DrawText (Graphics, d, Gcontext, XPIX (1.005), 
-				YPIX (tick), string, 0.0, 0.03, JustifyLeft, 
+				YPIX (tick), string, 0.0, TSScale, JustifyLeft, 
 				JustifyBottom);
 		}
 		dolabel = ! dolabel;
