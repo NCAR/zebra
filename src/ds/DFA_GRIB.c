@@ -39,7 +39,7 @@
 # include "DataFormat.h"
 # include "GRIB.h"
 
-RCSID ("$Id: DFA_GRIB.c,v 3.39 1998-07-31 22:38:12 burghart Exp $")
+RCSID ("$Id: DFA_GRIB.c,v 3.40 1998-09-14 18:54:26 burghart Exp $")
 
 
 /*
@@ -2999,11 +2999,13 @@ GDSLatLon *gds;
 	grbinfo->gg_slatang = grbinfo->gg_slonang = NULL;
 	grbinfo->gg_dsi = grbinfo->gg_dsj = NULL;
 /*
- * Grab grid information
+ * Lat and lon counts
  */
 	nlon = grbinfo->gg_snx = grbinfo->gg_dnx = grb_TwoByteInt (gds->gd_ni);
 	nlat = grbinfo->gg_sny = grbinfo->gg_dny = grb_TwoByteInt (gds->gd_nj);
-
+/*
+ * Lat and lon of first and last points in the data
+ */
 	lat1 = 0.001 * (float) grb_ThreeByteSignInt (gds->gd_lat1);
 	lon1 = 0.001 * (float) grb_ThreeByteSignInt (gds->gd_lon1);
 
@@ -3018,6 +3020,34 @@ GDSLatLon *gds;
 
 	lonstep *= (gds->gd_scanmode & (1<<7)) ? -1 : 1;
 	latstep *= (gds->gd_scanmode & (1<<6)) ? 1 : -1;
+/*
+ * Consistency check
+ */
+	if ((latstep < 0) && (lat1 < lat2))
+	{
+	    float temp;
+
+	    msg_ELog (EF_INFO, "grb_LLGridInfo: %s",
+		      "Latitude scan mode inconsistent with lat1/lat2");
+	    msg_ELog (EF_INFO, "grb_LLGridInfo: Believing scan mode, so %s",
+		      "data may be flipped N <-> S.");
+	    temp = lat1;
+	    lat1 = lat2;
+	    lat2 = temp;
+	}
+
+	if ((lonstep < 0) && (lon1 < lon2))
+	{
+	    float temp;
+
+	    msg_ELog (EF_INFO, "grb_LLGridInfo: %s",
+		      "Longitude scan mode inconsistent with lon1/lon2");
+	    msg_ELog (EF_INFO, "grb_LLGridInfo: Believing scan mode, so %s",
+		      "data may be flipped E <-> W.");
+	    temp = lat1;
+	    lat1 = lat2;
+	    lat2 = temp;
+	}
 /*
  * Define the destination grid info.
  */
