@@ -1,4 +1,4 @@
-MFVERSION="$Id: Makefile.cpp,v 1.3 1991-10-11 15:42:12 martin Exp $"
+MFVERSION="$Id: Makefile.cpp,v 1.4 1991-11-09 05:31:04 martin Exp $"
 
 # ifdef sun
 /*
@@ -10,28 +10,17 @@ LIBS=$(ZEBHOME)/fcc/lib/libfcc.a $(ZEBHOME)/rdss/suds/libsuds.a -lrdss -ltermcap
 # endif
 
 
-BINDIR=../bin
-LIBDIR=../lib
-HDIR=../include
+BINDIR=../../bin
+LIBDIR=../../lib
+HDIR=../../include
 
-all:	is is.lf class_ingest prof_ingest testOrg1dGrid
+all:	is is.lf
 
-install: class_ingest prof_ingest is is.lf
-	install -c class_ingest $(BINDIR)
-	install -c prof_ingest $(BINDIR)
+install:is is.lf
 	install -c is $(BINDIR)
 	install -c is.lf $(BINDIR)
 
 include:
-
-class_ingest:	class_ingest.o
-	$(CC) $(CFLAGS) -o class_ingest class_ingest.o $(LIBS)
-
-prof_ingest:	prof_ingest.o
-	$(CC) $(CFLAGS) -o prof_ingest prof_ingest.o $(LIBS)
-
-testOrg1dGrid: testOrg1dGrid.o
-	$(CC) $(CFLAGS) -o testOrg1dGrid testOrg1dGrid.o $(LIBS)
 
 is:	is.o
 	$(CC) $(CFLAGS) -o is is.o $(LIBS)
@@ -40,7 +29,7 @@ is.lf:	is.state
 	uic < make-lf
 
 clean:
-	rm -f *~ *.o class_ingest prof_ingest testOrg1dGrid Makefile.bak *.BAK core \
+	rm -f *~ *.o Makefile.bak *.BAK core \
 	is is.lf
 
 Makefile: mf
