@@ -24,7 +24,7 @@
 # include "DataStore.h"
 # include "ds_fields.h"
 # include "DataChunk.h"
-MAKE_RCSID ("$Id: ConvertDObj.c,v 1.3 1992-03-18 21:10:23 corbet Exp $")
+MAKE_RCSID ("$Id: ConvertDObj.c,v 1.4 1992-04-02 16:35:43 kris Exp $")
 
 
 static DataChunk *MakeIRGrid FP((DataObject *));
@@ -86,6 +86,10 @@ DataObject *dobj;
 		fids[field] = F_Lookup (dobj->do_fields[field]);
 	dc_IRSetup (dc, irg->ir_npoint, irg->ir_subplats, irg->ir_loc,
 			dobj->do_nfield, fids);
+/*
+ * Set the bad value flag.
+ */
+	dc_SetBadval (dc, dobj->do_badval);
 /*
  * Go through and add each field to the new data chunk.
  */
@@ -151,6 +155,10 @@ DataObject *dobj;
 		fids[field] = F_Lookup (dobj->do_fields[field]);
 	dc_RGSetup (dc, dobj->do_nfield, fids);
 /*
+ * Set the bad value flag.
+ */
+	dc_SetBadval (dc, dobj->do_badval);
+/*
  * Go through and add each grid.
  */
 	TC_UIToZt (dobj->do_times, &zt);
@@ -191,6 +199,10 @@ DataObject *dobj;
 		fids[field] = F_Lookup (dobj->do_fields[field]);
 	if (dobj->do_nfield > 0)
 		dc_SetScalarFields (dc, dobj->do_nfield, fids);
+/*
+ * Set the bad value flag.
+ */
+	dc_SetBadval (dc, dobj->do_badval);
 /*
  * Now we just go through and add the data, one field at a time.
  */
@@ -239,6 +251,10 @@ DataObject *dobj;
 	for (field = 0; field < dobj->do_nfield; field++)
 		fids[field] = F_Lookup (dobj->do_fields[field]);
 	dc_ImgSetup (dc, dobj->do_nfield, fids, dobj->do_desc.d_img.ri_scale);
+/*
+ * Set the bad value flag.
+ */
+	dc_SetBadval (dc, dobj->do_badval);
 /*
  * Go through and add each grid.
  */
