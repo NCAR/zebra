@@ -1,5 +1,5 @@
 /*
- * $Id: BlockFile.hh,v 1.4 1997-12-13 00:24:26 granger Exp $
+ * $Id: BlockFile.hh,v 1.5 1997-12-14 23:50:11 granger Exp $
  *
  * Definition of the BlockFile class, for storing opaque blocks of bytes
  * into a file through a block interface.  The overhead information in the
@@ -62,7 +62,7 @@ public:
 		WRITE_FAILED = 6,
 		READ_FAILED = 7,
 		WRONG_BLOCK_MAGIC = 8,
-		WRONG_APP_MAGIC = 9,
+		WRONG_APP_MAGIC = 9
 	};
 	
 	// Constructors

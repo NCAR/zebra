@@ -2,7 +2,7 @@
  * The auxillary block base class from which BlockFile helper classes
  * can derive common functionality for serialization and syncing.
  *
- * $Id: AuxBlock.hh,v 1.3 1997-12-13 00:24:23 granger Exp $
+ * $Id: AuxBlock.hh,v 1.4 1997-12-14 23:50:10 granger Exp $
  */
 
 #ifndef _AuxBlock_hh_
@@ -107,7 +107,7 @@ private:
 	FreeBlock *blocks; /* The actual array of free blocks */
 
 	void Remove (int);
-	void Add (BlkSize length, BlkSize length);
+	void Add (BlkOffset offset, BlkSize length);
 	void growCache (int num);
 
 };
@@ -128,15 +128,24 @@ class JournalEntry;
 class Journal : virtual public AuxBlock
 {
 public:
-	static const MaxEntries = 256;
-
 	typedef int ChangeType;
+
+#ifdef notdef	// Sun CC can't handle this!
+	static const long MaxEntries = 256;
 
 	static const ChangeType BeginTransaction = 0;
 	static const ChangeType BlockRemoved = 1;
 	static const ChangeType BlockAdded = 2;
 	static const ChangeType BlockChanged = 3;
 	static const ChangeType EndTransaction = 4;
+#endif
+	static const long MaxEntries;
+
+	static const ChangeType BeginTransaction;
+	static const ChangeType BlockRemoved;
+	static const ChangeType BlockAdded;
+	static const ChangeType BlockChanged;
+	static const ChangeType EndTransaction;
 
 	Journal (BlockFile &bf, Block &b, SyncBlock *parent);
 	~Journal ();

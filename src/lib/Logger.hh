@@ -1,5 +1,5 @@
 /*
- * $Id: Logger.hh,v 1.3 1997-12-09 09:29:27 granger Exp $
+ * $Id: Logger.hh,v 1.4 1997-12-14 23:50:15 granger Exp $
  *
  * Class for reporting error and log messages, which can be conveniently
  * subclassed to log messages through different facilities.  A subclass
@@ -16,6 +16,7 @@
 #ifndef _Logger_hh_
 #define _Logger_hh_
 
+#include <stdlib.h>		// For malloc() and free()
 #include <iostream.h>
 #include <strstream.h>
 #include <string.h>		// for strerror()
@@ -50,6 +51,7 @@
 class Logger
 {
 public:
+#ifdef notdef
 	static const int EMERGENCY = 0x01;
 	static const int PROBLEM = 0x02;
 	static const int ERROR = 0x02;
@@ -58,6 +60,15 @@ public:
 	static const int INFO = 0x10;
 	static const int DEVELOP = 0x20;
 	static const int ALL = 0x3f;
+#endif
+	static const int EMERGENCY;
+	static const int PROBLEM;
+	static const int ERROR;
+	static const int CLIENT;
+	static const int DEBUG;
+	static const int INFO;
+	static const int DEVELOP;
+	static const int ALL;
 
 	virtual const char *levelName (int level)
 	{
@@ -122,10 +133,10 @@ public:
 		name = NULL;
 	}
 
-	Logger (const char *name)
+	Logger (const char *_name)
 	{
-		this->name = (char *) malloc (strlen(name) + 1);
-		strcpy (this->name, name);
+		this->name = (char *) malloc (strlen(_name) + 1);
+		strcpy (this->name, _name);
 	}
 
 	virtual ~Logger ()

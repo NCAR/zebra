@@ -1,4 +1,4 @@
-/* $Id: BlockObject.hh,v 1.1 1997-12-13 00:24:30 granger Exp $
+/* $Id: BlockObject.hh,v 1.2 1997-12-14 23:50:12 granger Exp $
  *
  * A set of classes to facilitate object persistence with a BlockFile.
  */
@@ -108,15 +108,16 @@ public:
 
 protected:
 
-	BlockFile &bf;		// The block file we're associated with
+	BlockFile *bf;		// The block file we're associated with
 	Block block;		// Our block in the block file
 	int marked;		// Whether we're dirty or not
 	int changed;		// Changed in blockfile (needs read)
 
-private:
-	SyncBlock () {}
+	SyncBlock () : bf(0), block(), marked(0), changed(0)
+	{ }
 
-	// Not implemented //
+private:
+
 	SyncBlock (const SyncBlock &);
 	SyncBlock &operator= (const SyncBlock &);
 };
@@ -149,7 +150,7 @@ class RefBlock : virtual public SyncBlock
 {
 public:
 	RefBlock (Block &_ref, SyncBlock *_parent = 0) : 
-		ref(_ref), parent(_parent)
+		ref(&_ref), parent(_parent)
 	{
 		cout << "RefBlock constructor" << endl;
 	}
@@ -163,9 +164,9 @@ public:
 	 */
 	virtual int needsRead ()
 	{
-		bool sync = (block.revision < ref.revision);
+		int sync = (block.revision < ref->revision);
 		if (sync)
-			block = ref;
+			block = *ref;
 		return (sync);
 	}
 
@@ -185,7 +186,7 @@ public:
 		if (needsWrite (force))
 		{
 			write ();
-			ref = block;
+			*ref = block;
 			if (parent)
 				parent->mark();
 		}
@@ -196,12 +197,14 @@ public:
 	{ }
 
 protected:
-	Block &ref;
+
+	Block *ref;
 	SyncBlock *parent;
 
-private:
-	RefBlock () {}
+	RefBlock () : ref(0), parent(0)
+	{ }
 
+private:
 	// Not implemented //
 	RefBlock (const RefBlock &);
 	RefBlock &operator= (const RefBlock &);
@@ -226,13 +229,13 @@ public:
 	virtual void write ()
 	{
 		// Encode ourself onto a serial buffer from the block file
-		SerialBuffer *sbuf = bf.writeBuffer (block.length);
+		SerialBuffer *sbuf = bf->writeBuffer (block.length);
 		encode (*sbuf);
 		unsigned long growth = sbuf->Position();
 
 		// Now make sure we have space, then write into it
 		allocate (growth);
-		bf.Write (block.offset, sbuf);
+		bf->Write (block.offset, sbuf);
 	}		
 
 	virtual void read ()
@@ -240,7 +243,7 @@ public:
 		// Read a serial buffer from the block file for our block,
 		// then decode ourselves from it
 		SerialBuffer *sbuf;
-		sbuf = bf.readBuffer (block.offset, block.length);
+		sbuf = bf->readBuffer (block.offset, block.length);
 		decode (*sbuf);
 	}
 

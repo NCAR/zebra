@@ -9,13 +9,23 @@
 
 #include <defs.h>
 
-RCSID ("$Id: Journal.cc,v 1.2 1997-12-13 00:24:34 granger Exp $");
+RCSID ("$Id: Journal.cc,v 1.3 1997-12-14 23:50:14 granger Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
 #include "BlockFileP.hh"	// For the private header structure and stuff
 #include "AuxBlock.hh"
 #include "Logger.hh"
 #include "Format.hh"
+
+
+const long Journal::MaxEntries = 256;
+
+const Journal::ChangeType Journal::BeginTransaction = 0;
+const Journal::ChangeType Journal::BlockRemoved = 1;
+const Journal::ChangeType Journal::BlockAdded = 2;
+const Journal::ChangeType Journal::BlockChanged = 3;
+const Journal::ChangeType Journal::EndTransaction = 4;
+
 
 // Constructor
 
@@ -46,7 +56,7 @@ Journal::Changed (BlkVersion rev, BlkOffset offset, BlkSize length)
 	readSync ();
 
 	int changed;
-	if (rev >= (unsigned long)bf.header->revision || first == last)
+	if (rev >= (unsigned long)bf->header->revision || first == last)
 	{
 		changed = 0;
 	}
@@ -88,7 +98,7 @@ Journal::Record (Journal::ChangeType change, BlkOffset offset, BlkSize length)
 	Block *b = &entries[first].block;
 	b->offset = offset;
 	b->length = length;
-	b->revision = bf.header->revision;
+	b->revision = bf->header->revision;
 	entries[first].change = change;
 	if (first == last)
 	{

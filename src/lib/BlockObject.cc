@@ -6,14 +6,14 @@
 #include <defs.h>
 #undef bool
 
-RCSID("$Id: BlockObject.cc,v 1.1 1997-12-13 00:24:28 granger Exp $")
+RCSID("$Id: BlockObject.cc,v 1.2 1997-12-14 23:50:11 granger Exp $")
 
 #include "BlockFile.hh"
 #include "BlockObject.hh"
 
 
 SyncBlock::SyncBlock (BlockFile &_bf, const Block &exist) :
-	bf(_bf), block(exist)
+	bf(&_bf), block(exist)
 {
 	cout << "SyncBlock constructor" << endl;
 	marked = 0;
@@ -22,7 +22,7 @@ SyncBlock::SyncBlock (BlockFile &_bf, const Block &exist) :
 
 
 SyncBlock::SyncBlock (BlockFile &_bf) :
-	bf(_bf), block()
+	bf(&_bf), block()
 {
 	cout << "SyncBlock constructor" << endl;
 	marked = 0;
@@ -32,7 +32,7 @@ SyncBlock::SyncBlock (BlockFile &_bf) :
 
 
 void
-SyncBlock::mark (int _marked = 1)
+SyncBlock::mark (int _marked)
 {
 	// Increment our revision number on the first change
 	if (clean() && _marked)
@@ -44,7 +44,7 @@ SyncBlock::mark (int _marked = 1)
 
 
 void 
-SyncBlock::writeSync (int force = 0)
+SyncBlock::writeSync (int force)
 {
 	if (needsWrite (force))
 	{
@@ -72,8 +72,8 @@ int
 SyncBlock::needsRead ()
 {
 	if (! changed)
-		changed = bf.Changed (block.revision, block.offset,
-				      block.length);
+		changed = bf->Changed (block.revision, block.offset,
+				       block.length);
 	return (changed);
 }
 
@@ -90,7 +90,7 @@ SyncBlock::needsWrite (int force)
 void 
 SyncBlock::updateRev ()
 {
-	block.revision = bf.Revision ();
+	block.revision = bf->Revision ();
 }
 
 
@@ -101,14 +101,14 @@ SyncBlock::allocate (BlkSize need)
 	if (need > block.length)
 	{
 		if (block.offset)
-			bf.Free (block.offset, block.length);
+			bf->Free (block.offset, block.length);
 #ifdef notdef		
 		// Don't grow on the first allocation, in case we
 		// are an object which will never grow.
 		if (block.length > 0)
 #endif
 			need = grow (need);
-		block.offset = bf.Alloc (need, &block.length);
+		block.offset = bf->Alloc (need, &block.length);
 	}
 }
 

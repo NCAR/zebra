@@ -9,7 +9,7 @@
 
 #include <defs.h>
 
-RCSID ("$Id: FreeList.cc,v 1.4 1997-12-13 00:24:31 granger Exp $");
+RCSID ("$Id: FreeList.cc,v 1.5 1997-12-14 23:50:12 granger Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
 #include "BlockFileP.hh"	// For the private header structure and stuff
@@ -78,9 +78,9 @@ FreeList::Free (BlkOffset offset, BlkSize length)
 	}
 
 	// Now see if we can recover the freed block from the end of the file
-	if (offset + length >= bf.header->bf_length)
+	if (offset + length >= bf->header->bf_length)
 	{
-		bf.recover (offset);
+		bf->recover (offset);
 		// If we merged with an existing block, remove that block,
 		// otherwise we just don't add the freed block
 		if (remove >= 0 && i <= n)
@@ -130,7 +130,7 @@ FreeList::Request (BlkSize length, BlkSize *ret_length)
 
 	if (closest < 0)
 	{
-		ret.offset = bf.append (size);
+		ret.offset = bf->append (size);
 	}
 	else
 	{
@@ -195,10 +195,10 @@ int
 FreeList::encode (SerialBuffer &sbuf)
 {
 	sbuf << n;
-	bf.log->Debug ("Writing free list blocks:");
+	bf->log->Debug ("Writing free list blocks:");
 	for (int i = 0; i < n; ++i)
 	{
-		bf.log->Debug (Printf("   %d bytes @ %d",
+		bf->log->Debug (Printf("   %d bytes @ %d",
 				      blocks[i].length, blocks[i].offset));
 		sbuf << blocks[i];
 	}

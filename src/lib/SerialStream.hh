@@ -1,5 +1,5 @@
 /*
- * $Id: SerialStream.hh,v 1.1 1997-11-24 10:11:09 granger Exp $
+ * $Id: SerialStream.hh,v 1.2 1997-12-14 23:50:15 granger Exp $
  *
  */
 #ifndef _SerialStream_hh_
@@ -167,14 +167,14 @@ public:
 
 	/* Inherit all of the SerialStream methods for primitive types */
 
-	virtual int translate (Serializable &object);
+	int translate (Serializable &object);
 
 	///
 	/** Encode a null-terminated array of characters.
 	    */
-	virtual int translate (char * &s);
+	int translate (char * &s);
 
-	virtual void opaque (void *data, long len);
+	void opaque (void *data, long len);
 
 private:
 	static const char zero[4];
@@ -194,7 +194,7 @@ public:
 
 	/* Inherit all of the SerialStream methods for primitive types */
 
-	virtual int translate (Serializable &object);
+	int translate (Serializable &object);
 
 	///
 	/** Decode a string stored as a null-terminated character array.
@@ -202,9 +202,9 @@ public:
 	    which the object must free.  If non-zero, the string pointer
 	    is reallocated to the desired length.
 	    */
-	virtual int translate (char * &s);
+	int translate (char * &s);
 
-	virtual void opaque (void *data, long len);
+	void opaque (void *data, long len);
 
 };
 

@@ -9,7 +9,7 @@
 #include "BlockFile.hh"
 #include "Logger.hh"
 
-RCSID ("$Id: T_Block.cc,v 1.3 1997-12-13 00:24:38 granger Exp $")
+RCSID ("$Id: T_Block.cc,v 1.4 1997-12-14 23:50:16 granger Exp $")
 
 static int TestStore (char *name);
 
@@ -57,12 +57,13 @@ TestStore (char *name)
 {
 	BlockFile *store = new BlockFile (name);
 
-	const int N = 10;
+#	define N 50
 	const int ndata = 500;
 	unsigned long size = (128 * (N+1)) * sizeof(int);
 	int *data = (int *) malloc (size);
+	int i;
 	size = ndata * sizeof(int);
-	for (int i = 0; i < ndata; ++i)
+	for (i = 0; i < ndata; ++i)
 	{
 		data[i] = ndata - i;
 	}
@@ -73,7 +74,7 @@ TestStore (char *name)
 	memset (data, 0, size);
 
 	store->Read (data, buf, size);
-	for (int i = 0; i < ndata; ++i)
+	for (i = 0; i < ndata; ++i)
 	{
 		assert (data[i] == ndata - i);
 	}
@@ -85,13 +86,13 @@ TestStore (char *name)
 	BlkVersion old;
 	
 	// Allocate several blocks
-	for (int i = 0; i < N; ++i)
+	for (i = 0; i < N; ++i)
 	{
 		blocks[i] = store->Alloc (128 * (i+1), &sizes[i]);
 	}
 
 	// Put data into each block
-	for (int i = 0; i < N; ++i)
+	for (i = 0; i < N; ++i)
 	{
 		for (unsigned j = 0; j < sizes[i]/sizeof(int); ++j)
 		{
@@ -111,7 +112,7 @@ TestStore (char *name)
 	}
 
 	// Verify the data in each block
-	for (int i = 0; i < N; ++i)
+	for (i = 0; i < N; ++i)
 	{
 		old = store->Revision ();
 		store->Read (data, blocks[i], sizes[i]);
@@ -141,7 +142,7 @@ TestStore (char *name)
 	cout << *store;
 
 	// Free half of them
-	for (int i = 0; i < N; i += 2)
+	for (i = 0; i < N; i += 2)
 	{
 		store->Free (blocks[i], sizes[i]);
 	}
@@ -150,7 +151,7 @@ TestStore (char *name)
 	cout << *store;
 
 	// Finally deallocate the rest of the blocks
-	for (int i = 1; i < N; i += 2)
+	for (i = 1; i < N; i += 2)
 	{
 		store->Free (blocks[i], sizes[i]);
 	}
