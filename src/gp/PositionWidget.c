@@ -1,7 +1,7 @@
 /*
  * Widget for getting position of cursor.
  */
-static char *rcsid = "$Id: PositionWidget.c,v 1.16 1994-11-19 00:35:35 burghart Exp $";
+static char *rcsid = "$Id: PositionWidget.c,v 1.17 1995-01-03 22:02:48 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -105,8 +105,29 @@ XtAppContext 	actx;
 {
 	Widget	form, hbutton;
 	Arg	args[20];
+	char	units[16];
 	int	n;
+/*
+ * Determine the distance units we'll start with.  We default to "km", and
+ * will accept "km" or "nm" (any case)
+ */
+	DoNm = FALSE;
 
+	if (pda_Search (Pd, "global", "getpos-default-units", NULL, 
+			units, SYMT_STRING))
+	{
+		if (! strcasecmp (units, "km"))
+			DoNm = FALSE;
+		else if (! strcasecmp (units, "nm"))
+			DoNm = TRUE;
+		else
+		{
+			msg_ELog (EF_PROBLEM, 
+				  "Bad getpos-default-units: '%s', using km",
+				  units);
+			DoNm = FALSE;
+		}
+	}
 /*
  * Make the bitmaps for the left and right arrow buttons.
  */
