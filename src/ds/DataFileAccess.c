@@ -37,7 +37,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-MAKE_RCSID ("$Id: DataFileAccess.c,v 3.22 1995-06-12 23:09:08 granger Exp $")
+MAKE_RCSID ("$Id: DataFileAccess.c,v 3.23 1995-06-29 21:33:00 granger Exp $")
 
 /*
  * This is the structure which describes a format.
@@ -303,6 +303,20 @@ extern int	dgr_CreateFile (), dgr_GetData (), dgr_DataTimes ();
 extern int	dgr_GetObsSamples (), dgr_GetFields (), dgr_GetAlts ();
 extern DataChunk *dgr_Setup ();
 
+/*
+ * HDF format.
+ */
+#ifdef HDF_INTERFACE
+extern int dh_CloseFile (), dh_OpenFile (), dh_SyncFile (), dh_QueryTime ();
+extern int dh_GetData (), dh_DataTimes (), dh_GetFields (), dh_CreateFile ();
+extern int dh_MakeFileName ();
+extern DataChunk *dh_Setup ();
+#endif
+
+/*
+ * To flag unsupported methods or file formats
+ */
+static int dfa_Unsupported ();
 
 # define ___ 0
 
@@ -409,7 +423,7 @@ struct DataFormat Formats[] =
 	drf_GetAttrs,			/* Get Attributes		*/
     },
 /*
- * Zeb Native.
+ * Zebra Native.
  */
     {
 	"Zeb",		".znf",
@@ -504,6 +518,54 @@ struct DataFormat Formats[] =
 	dgr_GetFields,			/* Get fields			*/
 	___,				/* Get Attributes		*/
     },	
+/*
+ * HDF.
+ */
+#ifdef HDF_INTERFACE
+    {
+	"HDF",	".hdf",
+	dh_QueryTime,			/* Query times			*/
+	dh_Setup,			/* setup			*/
+	dh_OpenFile,			/* Open				*/
+	dh_CloseFile,			/* Close			*/
+	dh_SyncFile,			/* Synchronize			*/
+	dfa_Unsupported,		/* Inquire platforms		*/
+	dh_GetData,			/* Get the data			*/
+	___,				/* Get IRGrid locations		*/
+	___,				/* Get altitude info		*/
+	dh_DataTimes,			/* Get data times		*/
+	___,				/* Get forecast times		*/
+	dh_MakeFileName,		/* Make file name		*/
+	dh_CreateFile,			/* Create a new file		*/
+	dfa_Unsupported,		/* Write to file		*/
+	dfa_Unsupported,		/* Write block to a file	*/
+	___,				/* Get observation samples	*/
+	dh_GetFields,			/* Get fields			*/
+	___,				/* Get Attributes		*/
+    },
+#else
+    {
+	"HDF",	".hdf",
+	dfa_Unsupported,		/* Query times			*/
+	(DataChunk *(*)())&dfa_Unsupported,/* Setup			*/
+	dfa_Unsupported,		/* Open				*/
+	dfa_Unsupported,		/* Close			*/
+	dfa_Unsupported,		/* Synchronize			*/
+	___,				/* Inquire platforms		*/
+	dfa_Unsupported,		/* Get the data			*/
+	___,				/* Get IRGrid locations		*/
+	___,				/* Get altitude info		*/
+	dfa_Unsupported,		/* Get data times		*/
+	___,				/* Get forecast times		*/
+	dfa_Unsupported,		/* Make file name		*/
+	dfa_Unsupported,		/* Create a new file		*/
+	dfa_Unsupported,		/* Write to file		*/
+	dfa_Unsupported,		/* Write block to a file	*/
+	___,				/* Get observation samples	*/
+	dfa_Unsupported,		/* Get fields			*/
+	___,				/* Get Attributes		*/
+    },
+#endif
 };
 
 
@@ -931,6 +993,17 @@ int ndetail;
  *********/
 
 
+static int
+dfa_Unsupported ()
+/*
+ * Log a message and return a zero value, being either FALSE, 0, or NULL.
+ */
+{
+	msg_ELog (EF_PROBLEM, "format method not supported: %s",
+		  "either not compiled or not implemented");
+	return (0);
+}
+		  
 
 
 
