@@ -34,7 +34,7 @@
 # include <config.h>
 # include <copyright.h>
 # include <xhelp.h>
-MAKE_RCSID ("$Id: dm.c,v 2.26 1993-03-12 18:05:15 granger Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.27 1993-03-12 21:34:58 granger Exp $")
 
 
 /*
@@ -346,8 +346,8 @@ struct ui_command *cmds;
 				strcpy (topic, XHELP_INTRO_ID);
 			else
 				strcpy (topic, UPTR (cmds[1]));
-			/* strcat (topic, "             "); */
-			/* topic[13] = '\0'; */
+			strcat (topic, "             ");
+			topic[13] = '\0';
 			if (cmds[2].uc_ctype != UTT_END)
 			{		
 				fixdir ("ZEB_HELPFILE", GetLibDir (), 
