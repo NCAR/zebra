@@ -22,7 +22,7 @@
 # include "defs.h"
 # include <sys/types.h>
 # include <sys/time.h>
-MAKE_RCSID ("$Id: TCvt.c,v 2.5 1992-04-23 22:20:04 barrett Exp $");
+MAKE_RCSID ("$Id: TCvt.c,v 2.6 1992-06-22 22:07:22 kris Exp $");
 
 
 /*
@@ -230,7 +230,7 @@ int year, month, day, hour, minute, second, microsec;
 	struct tm t;
 
 	t.tm_year = year;
-	t.tm_mon = month;
+	t.tm_mon = month-1;
 	t.tm_mday = day;
 	t.tm_hour = hour;
 	t.tm_min = minute;
