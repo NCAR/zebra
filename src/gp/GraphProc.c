@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: GraphProc.c,v 1.31 1991-05-07 21:00:06 kris Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 1.32 1991-06-14 20:53:47 kris Exp $";
 
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
@@ -52,6 +52,7 @@ Display	*Disp;				/* Our display			*/
 char 	FrameFilePath[40];		/* Path to FrameFile		*/
 int	FrameFileFlag = 0;		/* True when file should be opened */
 int	FrameCount = 1;			/* Number of frames		*/
+int	MaxFrames;			/* Maximum number of frames	*/	
 int	DisplayFrame = 0;		/* Frame being displayed	*/
 int	DrawFrame = 0;			/* Frame to draw next		*/
 XtAppContext	Actx;			/* The application context	*/

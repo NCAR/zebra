@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 1.10 1991-04-19 17:35:09 kris Exp $ */
+/* $Id: GraphProc.h,v 1.11 1991-06-14 20:54:17 kris Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -35,6 +35,7 @@ extern bool MovieMode;		/* Movie mode?				*/
  */
 extern char FrameFilePath[40];	/* Path to the FrameFile 		*/
 extern int  FrameFileFlag;	/* True when FrameFile should be opened */
+extern int  MaxFrames;		/* Maximun number of frames		*/
 /*
  * Our plot type and user plot limits
  */

@@ -1,7 +1,7 @@
 /*
  * Movie control functions.
  */
-static char *rcsid = "$Id: MovieControl.c,v 1.13 1991-04-19 17:37:20 kris Exp $";
+static char *rcsid = "$Id: MovieControl.c,v 1.14 1991-06-14 20:56:27 kris Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -662,7 +662,7 @@ int minutes;
  * Figure out how many frames we have.
  */
 	Nframes = minutes/TimeSkip + 1;
-	if (Nframes > NCACHE)
+	if (Nframes > MaxFrames)
 	{
 		mc_SetStatus ("Too many frames.");
 		return (FALSE);
