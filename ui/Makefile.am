@@ -48,7 +48,8 @@ CLEANFILES = ui.lf
 #
 # UI loadfile
 #
-ui.lf: ui.state
+ui.lf: ui.state uib
 	$(RM) ui.lf
 	@echo "Making $@"
-	@echo read ui.state\; set 'ui$pager_mode' false\; save ui.lf all | uib
+	@echo read ui.state\; set 'ui$pager_mode' false\; save ui.lf all | \
+		./uib
