@@ -26,7 +26,7 @@
 # include "GraphProc.h"
 # include "ActiveArea.h"
 
-MAKE_RCSID ("$Id: ActiveArea.c,v 2.4 1993-11-09 22:54:05 corbet Exp $")
+MAKE_RCSID ("$Id: ActiveArea.c,v 2.5 1994-02-14 23:20:05 corbet Exp $")
 
 /*
  * List creation parameters.
@@ -141,7 +141,7 @@ int col, slot;
 /*
  * Sometimes we get stuff way out of bounds.
  */
-	if (col < 0 || col >  GWWidth (Graphics)/AA_CWIDTH + 1)
+	if (col < 0 || col >  GWWidth (Graphics)/AA_CWIDTH)
 		return;
 /*
  * Now just remember.
