@@ -1,7 +1,7 @@
 /*
  * Herein lies all the Constant Altitude Plot code, carved from PlotExec.
  */
-static char *rcsid = "$Id: ConstAltPlot.c,v 2.4 1991-10-31 20:28:35 kris Exp $";
+static char *rcsid = "$Id: ConstAltPlot.c,v 2.5 1991-11-04 18:04:34 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -222,7 +222,7 @@ float	*center, *step;
  * description.
  */
 {
-	char	platform[40], ctcolor[40];
+	char	platform[40], ctcolor[40], param[50];
 	int	xdim, ydim;
 	float	*rgrid, *grid, x0, x1, y0, y1, alt;
 	int	pix_x0, pix_x1, pix_y0, pix_y1, dolabels, linewidth;
@@ -236,9 +236,11 @@ float	*center, *step;
  */
 	ok = pda_ReqSearch (Pd, c, "platform", NULL, platform, SYMT_STRING);
 	ok &= pda_ReqSearch (Pd, c, "field", NULL, fname, SYMT_STRING);
-	ok &= pda_ReqSearch (Pd, c, "contour-center", fname, (char *) center, 
+	sprintf (param, "%s-center", fname);
+	ok &= pda_ReqSearch (Pd, c, param, "contour", (char *) center, 
 		SYMT_FLOAT);
-	ok &= pda_ReqSearch (Pd, c, "contour-step", fname, (char *) step, 
+	sprintf (param, "%s-step", fname);
+	ok &= pda_ReqSearch (Pd, c, param, "contour", (char *) step, 
 		SYMT_FLOAT);
 	Monocolor = FALSE;
 	pda_Search(Pd, c, "color-mono", "contour", (char *) &Monocolor,
@@ -671,6 +673,7 @@ Boolean	update;
  */
 {
 	char	name[20], ctname[40], platform[40], data[100], hcolor[40];
+	char	param[50];
 	int	xdim, ydim;
 	int	fastloop, newrp, nsteps;
 	Boolean	ok, highlight;
@@ -689,11 +692,14 @@ Boolean	update;
 	strcpy (name, "none");
 	ok = pda_ReqSearch (Pd, c, "platform", NULL, platform, SYMT_STRING);
 	ok &= pda_ReqSearch (Pd, c, "field", NULL, name, SYMT_STRING);
-	ok &= pda_ReqSearch (Pd, c, "raster-center", name, CPTR (center), 
+	sprintf (param, "%s-center", name);
+	ok &= pda_ReqSearch (Pd, c, param, "raster", CPTR (center), 
 		SYMT_FLOAT);
-	ok &= pda_ReqSearch (Pd, c, "raster-step", name, CPTR (step), 
+	sprintf (param, "%s-step", name);
+	ok &= pda_ReqSearch (Pd, c, param, "raster", CPTR (step), 
 		SYMT_FLOAT);
-	ok &= pda_ReqSearch (Pd, c, "raster-nsteps", name, CPTR (nsteps), 
+	sprintf (param, "%s-nsteps", name);
+	ok &= pda_ReqSearch (Pd, c, param, "raster", CPTR (nsteps), 
 		SYMT_INT);
 	ok &= pda_ReqSearch (Pd, c, "color-table", "raster", ctname, 
 		SYMT_STRING);
@@ -721,15 +727,17 @@ Boolean	update;
  * Get info for highlighting and area.
  */
 	highlight = FALSE;
-	if (pda_Search (Pd, c, "raster-highlight", name, CPTR (hvalue), 
-			SYMT_FLOAT))
+	sprintf (param, "%s-highlight", name);
+	if (pda_Search (Pd, c, param, "raster", CPTR (hvalue), SYMT_FLOAT))
 	{
 		highlight = TRUE;
-		if (! pda_Search (Pd, c, "raster-highlight-color", name, 
-				CPTR (hcolor), SYMT_STRING))
+		sprintf (param, "%s-highlight-color", name);
+		if (! pda_Search (Pd, c, param, "raster", CPTR (hcolor), 
+				SYMT_STRING))
 			strcpy (hcolor, "white");
-		if (! pda_Search (Pd, c, "raster-highlight-range", name, 
-				CPTR (hrange), SYMT_FLOAT))
+		sprintf (param, "%s-highlight-range", name);
+		if (! pda_Search (Pd, c, param, "raster", CPTR (hrange), 
+				SYMT_FLOAT))
 			hrange = 4.0;
 	}
 /*
