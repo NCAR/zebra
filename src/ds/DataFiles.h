@@ -1,5 +1,5 @@
 /*
- * $Id: DataFiles.h,v 3.1 1999-03-01 16:32:07 burghart Exp $
+ * $Id: DataFiles.h,v 3.2 1999-12-17 17:41:26 granger Exp $
  *
  * Application interface to DataStore DataFile abstraction, for both
  * clients and daemon. 
@@ -122,7 +122,7 @@ public:
     ostream& PutTo( ostream& s ) const;
 };
 
-static ostream& 
+inline ostream& 
 operator <<(ostream& s, const DataFile& df)
 {
     return df.PutTo( s );
