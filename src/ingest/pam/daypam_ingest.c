@@ -33,7 +33,7 @@
 # include <mda.h>
 # include <station.h>
 
-MAKE_RCSID ("$Id: daypam_ingest.c,v 1.2 1992-12-02 19:02:45 granger Exp $")
+MAKE_RCSID ("$Id: daypam_ingest.c,v 1.3 1993-03-30 01:42:32 granger Exp $")
 
 static int incoming FP ((struct message *));
 void	Stations FP ((char *));
@@ -41,7 +41,7 @@ void	Fields FP ((int, char **));
 void	DoSnarf FP ((int));
 void	DoRain FP ((int, time, time));
 void	DoPres FP ((int, time, time));
-
+void	CalculateRain FP ((int fndx, int ngrab, float *dp, float *mdp));
 
 /*
  * Types of field "modifications" we can apply
@@ -59,25 +59,25 @@ typedef enum
  */
 struct
 {
-	modtype	mod;	/* Modification to apply		*/
-	field	mfld;	/* id of field needed for mod		*/
-	int	offset;	/* time offset (hhmm) for RainAccum and RainRate */
-	float	refalt;	/* reference altitude for PresCorr	*/
+	modtype	mod;	/* Modification to apply			 */
+	field	mfld;	/* id of field needed for mod			 */
+	int	offset;	/* time offset (mins) for RainAccum and RainRate */
+	float	refalt;	/* reference altitude for PresCorr		 */
 } Mods[40];
 
 
-/*
- * Number of stations
- */
-int	Nsta;
-
-/*
- * Data for interfacing to various packages.
- */
 # define MAX_FIELD 40
 # define MAX_PLAT 100
+# define BADVAL -9999.0
+# define DAYPAMDIR "/home/granger/ppf"
+
+int	Nsta;			/* Number of stations */
+int	Sample;			/* Sample rate in seconds */
+int	Ngrab;			/* Number of samples in a single day */
+
 struct dstream *Ds, *Ms;
-int Sample, Report, Ngrab, Nds, NField;
+int Report;
+int Nds, NField;
 station Mda_plats[MAX_PLAT];
 field Mda_flds[MAX_FIELD];
 float *Data, *Mdata;		/* The data array */
@@ -85,12 +85,7 @@ FieldId ZebFields[MAX_FIELD];
 PlatformId Plat;
 PlatformId SubPlats[MAX_PLAT];
 Location Locs[MAX_PLAT];
-ZebTime Time;
 float *FData[MAX_FIELD];
-
-# define BADVAL -9999.0
-
-
 
 
 main (argc, argv)
@@ -105,6 +100,10 @@ char **argv;
 	if (argc < 5)
 	{
 		printf ("Usage: %s yymmdd platform project fields\n", argv[0]);
+#ifdef notdef
+		printf ("If 'yymmdd' is '-', the date will be retrieved from\n");
+		printf ("the Zeb Timer.\n");
+#endif
 		exit (1);
 	}
 /*
@@ -114,11 +113,23 @@ char **argv;
 	sprintf (ourname, "%sIngest", argv[2]);
 	msg_connect (incoming, ourname);
 	ds_Initialize ();
-	mda_declare_file ("/data/ppf", MDA_TYPE_DATABASE, MDA_F_PAM,
+	mda_declare_file (DAYPAMDIR, MDA_TYPE_DATABASE, MDA_F_PAM,
 		"pam", argv[3]);
+#ifdef notdef
 /*
- * Figure our current time and force an init.
+ * Figure out the time we will use from the command line
+ * and force an init.
  */
+	if (!strcmp(argv[1],"-"))
+	{
+		tl_GetTime (&t);
+	}
+	else
+	{
+		t.ds_yymmdd = atoi(argv[1]);
+		t.ds_hhmmss = 0;
+	}
+#endif
 	tl_GetTime (&t);
 	mda_do_init (t.ds_yymmdd, t.ds_hhmmss, argv[3]);
 /*
@@ -138,6 +149,8 @@ char **argv;
  * Now we go for it.
  */
 	DoSnarf (atoi (argv[1]));
+
+	exit(0);
 }
 
 
@@ -205,6 +218,9 @@ char *plat;
  */
 	Sample /= NTICKSEC; 
 	Report /= NTICKSEC;
+
+	msg_ELog (EF_DEBUG, "Sample: %i secs,  Report: %i secs,  # stations: %i",
+		  Sample, Report, Nsta);
 }
 
 
@@ -293,11 +309,13 @@ char **fields;
 				msg_ELog (EF_PROBLEM, "Bad field '%s'", fname);
 				continue;
 			}
-
 			Mods[fld].offset = ominutes;
+			msg_ELog (EF_DEBUG, "mod field %s: %s, offset %i mins",
+				  fname, 
+				  (Mods[fld].mod == RainAccum)?
+				     "rain rate":"rain accumulation",
+				  ominutes);
 		}
-
-
 	/*
 	 * Deal with corrected pressure (cpres<num>)
 	 */
@@ -306,6 +324,9 @@ char **fields;
 			Mda_flds[NField] = fld_number ("pres");
 			Mods[fld].mod = PresCorr;
 			Mods[fld].refalt = (float) alt;
+			msg_ELog (EF_DEBUG, 
+				  "mod field %s: corrected pressure, ref altitude %f", 
+				  fname, Mods[fld].refalt);
 		}
 	/*
 	 * Otherwise assume it's a normal field
@@ -359,6 +380,8 @@ char **fields;
 		dsp->ds_stride = Nsta;
 		dsp++;
 	}
+	msg_ELog (EF_DEBUG, "samples per day: %i,   # fields: %i",
+		  Ngrab, NField);
 }
 
 
@@ -371,7 +394,8 @@ int	yymmdd;
  * Handle the data snarf for this day.
  */
 {	
-	int	i, fld, samp_mmss = (Sample/60)*100 + Sample % 60;
+	int	i, fld;
+	int	samp_mmss = (Sample/60)*100 + Sample % 60;
 	time	begin, end;
 	ZebTime	*zt;
 	DataChunk *dc;
@@ -460,21 +484,29 @@ time	begin, end;
  * Find the rain accumulation or rate for the fndx'th field
  */
 {
-	/*int	adj = Mods[fndx].offset / 60 * 100 + Mods[fndx].offset % 60;*/
 	int	adj = (Mods[fndx].offset/60)*10000 +(Mods[fndx].offset%60)*100;
-	int	sta, i, do_rate;
-	float	*dp, *mdp, factor;
+	int	samp_mmss = (Sample/60)*100 + Sample % 60;
+	int	nadj;
+	char 	fldname[10];
+	float	*dp;
+	int	sta, i;
 	struct dstream *dsp;
+	time	mid;
+
+	sprintf(fldname,"rain%c%i",(Mods[fndx].mod == RainAccum)?'a':'r',
+		Mods[fndx].offset);
 /*
- * Adjust the begin and end times to the beginning of our delta
- * period
+ * Adjust the begin and end times to the beginning of our delta period
  */
-	msg_ELog (EF_DEBUG, "time: %06d %06d,", begin.ds_yymmdd,
-			begin.ds_hhmmss);
+	msg_ELog (EF_DEBUG, "calculating %s, time: %06d %06d,", 
+		  fldname, begin.ds_yymmdd, begin.ds_hhmmss);
+	mid = begin;
 	pmu_dsub (&begin.ds_yymmdd, &begin.ds_hhmmss, adj);
 	pmu_dsub (&end.ds_yymmdd, &end.ds_hhmmss, adj);
-	msg_ELog (EF_DEBUG, "time - %d: %06d %06d", adj, begin.ds_yymmdd,
-		begin.ds_hhmmss);
+	msg_ELog (EF_DEBUG, "time - %d ==> %06d %06d", adj, 
+		  begin.ds_yymmdd, begin.ds_hhmmss);
+	pmu_dsub (&mid.ds_yymmdd, &mid.ds_hhmmss, samp_mmss);
+	nadj = Mods[fndx].offset * 60 / Sample;
 /*
  * Put the field into the dstreams
  */
@@ -485,9 +517,63 @@ time	begin, end;
 		dsp++;
 	}
 /*
- * Grab the data
+ * We have to fetch the data in two sections.  First fetch
+ * the data which falls on yesterday.  If this fetch causes an error,
+ * we must assume yesterday's data is not available and the corresponding
+ * values for today must be marked bad.  The number of values we'll get
+ * should be the number of samples during the offset period, i.e. 'nadj'
  */
-	mda_fetch (Nsta, Ms, &begin, &end, BADVAL, 0);
+	msg_ELog (EF_DEBUG, "getting %i samples from prev day, up to %06d %06d for %s",
+		  nadj, mid.ds_yymmdd, mid.ds_hhmmss, fldname);
+	dp = FData[fndx];
+	ERRORCATCH
+		mda_fetch (Nsta, Ms, &begin, &mid, BADVAL, 0);
+	        CalculateRain (fndx, nadj, dp, Mdata);
+	ON_ERROR
+		fprintf(stderr,	"*** using bad values for %i %s samples\n",
+			nadj, fldname);
+		msg_ELog (EF_PROBLEM,
+			  "data fetch failed, %s, %06d %06d - %06d %06d, %s",
+			  fldname, begin.ds_yymmdd, begin.ds_hhmmss, 
+			  mid.ds_yymmdd, mid.ds_hhmmss, "using bad values");
+		for (i = 0; i < nadj * Nsta; i++)
+			*dp++ = BADVAL;
+	ENDCATCH
+/*
+ * Now we can grab the rest of the data needed, i.e. all the data from today
+ */
+	msg_ELog (EF_DEBUG, "getting rest of samples, %i, up to %06d %06d, for %s",
+		  Ngrab - nadj, end.ds_yymmdd, end.ds_hhmmss, fldname);
+        mid.ds_yymmdd = end.ds_yymmdd;
+	mid.ds_hhmmss = 0;
+	dp = FData[fndx] + (nadj * Nsta);
+	ERRORCATCH
+		mda_fetch (Nsta, Ms, &mid, &end, BADVAL, 0);
+	        CalculateRain (fndx, Ngrab - nadj, dp, Mdata);
+	ON_ERROR
+		msg_ELog (EF_PROBLEM,
+			  "data fetch failed, %s, %06d %06d - %06d %06d, %s",
+			  fldname, mid.ds_yymmdd, mid.ds_hhmmss, 
+			  end.ds_yymmdd, end.ds_hhmmss, "using bad values");
+		for (i = 0; i < (Ngrab - nadj) * Nsta; i++)
+			*dp++ = BADVAL;
+	ENDCATCH
+}
+
+
+
+
+void
+CalculateRain(fndx, ngrab, dp, mdp)
+	int fndx;	/* Index of field we're calculating */
+	int ngrab;	/* Number of samples in dp[] and mdp[] */
+	float *dp;	/* Pointer to field data where results will be stored */
+	float *mdp;	/* Offset data values */
+{
+	int	do_rate;
+	float	factor;
+	int	i;
+	char	msg[100];
 /*
  * Set up a multiplication factor based on whether we need to convert to
  * rain rate or not
@@ -497,10 +583,7 @@ time	begin, end;
 /*
  * Find the deltas and multiply by the factor from above
  */
-	dp = FData[fndx];
-	mdp = Mdata;
-
-	for (i = 0; i < Nsta * Ngrab; i++)
+	for (i = 0; i < Nsta * ngrab; i++)
 	{
 		if (*dp == BADVAL || *mdp == BADVAL)
 		{
@@ -509,7 +592,7 @@ time	begin, end;
 			continue;
 		}
 
-		msg_ELog (EF_DEBUG, "now: %.1f, then: %.1f, ", *dp, *mdp);
+		sprintf (msg, "now: %5.1f, then: %5.1f, ", *dp, *mdp);
 		*dp = *dp - *mdp++;
 		*dp *= factor;
 	/*
@@ -519,7 +602,7 @@ time	begin, end;
 		if (*dp <= 0.0)
 			*dp = BADVAL;
 		dp++;
-		msg_ELog (EF_DEBUG, "  fixed: %.1f", *(dp-1));
+		msg_ELog (EF_DEBUG, "%s --- fixed: %.1f", msg, *(dp-1));
 	}
 }
 
