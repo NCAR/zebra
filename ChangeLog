@@ -1,3 +1,8 @@
+Tue May 24 03:04:57 1994  Gary Granger  (granger@steam)
+
+	* dm: yanked DM_GEOMETRY method until I figure out why olwm 
+	  never seems to do the same thing twice (#$%^@#!&)
+
 Mon May 23 20:50:35 1994  Gary Granger  (granger@steam)
 
 	* --- Branch_LANTEX changes ---
