@@ -1,5 +1,5 @@
 /* 10/86 jc */
-/* $Header */
+/* $Id: ui.h,v 1.2 1990-04-20 14:13:32 corbet Exp $ */
 
 # ifndef UI_H_SYMBOLS
 # define UI_H_SYMBOLS
@@ -46,5 +46,12 @@ struct ui_command
  */
 int ui_int_prompt ();
 float ui_float_prompt ();
+
+/*
+ * Let the application know if X support is present.
+ */
+# ifdef XSUPPORT
+# define UI_X_SUPPORT
+# endif
 
 # endif
