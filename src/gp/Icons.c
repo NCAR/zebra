@@ -1,7 +1,7 @@
 /*
  * Deal with the icons on the bottom of the window.
  */
-static char *rcsid = "$Id: Icons.c,v 2.21 1994-01-03 22:12:58 corbet Exp $";
+static char *rcsid = "$Id: Icons.c,v 2.22 1994-04-15 21:26:02 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -759,7 +759,7 @@ char *colorcomp;
         	{
 			seconds = pc_TimeTrigger (agelimit); 
 		/*
-		 * Get the latest data time.
+		 * Plot time
 		 */
 			if ((pid = ds_LookupPlatform (platform)) == BadPlatform)
 			{
@@ -770,6 +770,15 @@ char *colorcomp;
 				tl_Time (&timenow); 
 			else
                        		timenow = PlotTime;
+		/*
+		 * Model nastiness: For model data in validation mode, we
+		 * need to tweak the data request time.
+		 */
+			if (ds_IsModelPlatform (pid) && ValidationMode)
+				timenow.zt_Sec -= ForecastOffset;
+		/*
+		 * Get the time for available data
+		 */
                		ntime = ds_DataTimes (pid, &timenow, 1, DsBefore, 
 				&datatime);
 		/*
@@ -777,27 +786,32 @@ char *colorcomp;
 		 */
                		if ((ntime == 0) || ((timenow.zt_Sec - datatime.zt_Sec)					 > seconds))
                		{
-                       		if (pda_Search (Pd, comp, "icon-age-foreground",
-					NULL, color, SYMT_STRING))
+                       		if (pda_Search (Pd, comp, 
+						"icon-age-foreground",
+						NULL, color, SYMT_STRING))
                        		{
                                		ct_GetColorByName (color, &xc);
 					fg = xc.pixel;
                        		}
         			else if (pda_Search (Pd, comp, "icon-color",
-                			platform, color, SYMT_STRING)) 
+						     platform, color, 
+						     SYMT_STRING)) 
 				{
         				ct_GetColorByName (color, &xc);
         				fg = xc.pixel;
 				}
-                       		if (pda_Search (Pd, comp, "icon-age-background",
-                               		NULL, color, SYMT_STRING))
+
+                       		if (pda_Search (Pd, comp, 
+						"icon-age-background",
+						NULL, color, SYMT_STRING))
                        		{
                           		ct_GetColorByName (color, &xc);
 					bg = xc.pixel;
                        		}
         			else if (pda_Search (Pd, comp, 
-					"icon-background", platform, color, 
-					SYMT_STRING))
+						     "icon-background", 
+						     platform, color, 
+						     SYMT_STRING))
 				{
         				ct_GetColorByName (color, &xc);
         				bg = xc.pixel;
@@ -809,13 +823,13 @@ char *colorcomp;
 			else
 			{
         			if (pda_Search (Pd, comp, "icon-color",
-                			platform, color, SYMT_STRING)) 
+						platform, color, SYMT_STRING)) 
 				{
         				ct_GetColorByName (color, &xc);
         				fg = xc.pixel;
 				}
         			if (pda_Search (Pd, comp, "icon-background",
-                         		platform, color, SYMT_STRING))
+						platform, color, SYMT_STRING))
 				{
         				ct_GetColorByName (color, &xc);
         				bg = xc.pixel;

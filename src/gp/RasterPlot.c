@@ -1,7 +1,7 @@
 /*
  * Raster display a rectangular array
  */
-static char *rcsid = "$Id: RasterPlot.c,v 2.11 1993-12-27 17:40:37 corbet Exp $";
+static char *rcsid = "$Id: RasterPlot.c,v 2.12 1994-04-15 21:26:26 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -286,20 +286,20 @@ int	xdim, ydim;
 int	xlo, ylo, xhi, yhi;
 bool	fast;
 /*
- * Draw contours of the rectangular (xdim x ydim) array into widget w.
- * The coordinates (xlo,ylo) and (xhi,yhi) specify the spatial extent of
- * the array in pixel coordinates.
- *
- * (6/20/90 jc) Do the same thing using the XImage interface.
+ * Draw a raster image of rectangular (xdim x ydim) array into widget w.
+ * The coordinates (xlo,ylo) and (xhi,yhi) specify the centers of the
+ * corner elements, in pixel space.  Since they are the centers, we will 
+ * actually plot half a grid width outside of these bounds on each side 
+ * (neglecting clipping, which may reduce this).
  */
 {
 	int		r_color, i, j, width, height;
 	unsigned int	*colgrid, *cgp;
 	float		cscale, *gp;
-	float		row, col, rowinc, colinc, icol, irow;
+	float		leftcol, toprow, rowinc, colinc;
 	int		gridelem;
 	int		outrange = Color_outrange.pixel;
-	unsigned char	*xim, *ximp;
+	unsigned char	*ximp;
 	XImage		*image;
 #ifdef SHM
 	bool		using_shared;
@@ -347,35 +347,50 @@ bool	fast;
 				Colors[r_color].pixel : outrange;
 		}
 	}
-	width = xhi - xlo + 1;
-	height = ylo - yhi + 1;
 /*
- * Figure our offsets into the color array.
+ * Columns per pixel and rows per pixel.  We use (xdim - 1) and (ydim - 1)
+ * here since our pixel limits refer to the *centers* of the edge grid 
+ * elements.
  */
-	row = ydim - 0.5;
-	colinc = ((float) xdim - 1)/((float) width);
-	rowinc = -((float) ydim)/((float) height);
+	colinc = ((float) xdim - 1) / ((float) (xhi - xlo + 1));
+	rowinc = -((float) ydim - 1) / ((float) (ylo - yhi + 1));
+/*
+ * Add half a grid width to our dimensions, so that we plot full squares
+ * on the edges.  Again, this is because our current limits refer to the
+ * centers of the edge grid elements.
+ */
+	xlo -= 0.5 / colinc;
+	xhi += 0.5 / colinc;
+	leftcol = -0.5;	/* column (floating) corresponding to xlo */
+
+	ylo -= 0.5 / rowinc;
+	yhi += 0.5 / rowinc;
+	toprow = (ydim - 1) + 0.5; /* row (floating) corresponding to yhi */
 /*
  * Clip to the window, if appropriate.
  */
 	if (xlo < Clip.x)
 	{
-		icol = (Clip.x - xlo - 1)*colinc;
-		width -= Clip.x - xlo - 1;
+		leftcol += (Clip.x - xlo + 1) * colinc;
 		xlo = Clip.x;
 	}
-	else
-		icol = 0.5;
-	if (width > Clip.width)
-		width = Clip.width;
-	if (ylo > (Clip.y + Clip.height))
-		height -= ylo - (Clip.y + Clip.height);
-	if (height > Clip.height)
+
+	if (xhi > (Clip.x + Clip.width))
+		xhi = Clip.x + Clip.width;
+
+	if (yhi < Clip.y)
 	{
-		row += (height - Clip.height)*rowinc;
-		height = Clip.height;
+		toprow += (Clip.y - yhi + 1) * rowinc;
 		yhi = Clip.y;
 	}
+	
+	if (ylo > (Clip.y + Clip.height))
+		ylo = Clip.y + Clip.height;
+/*
+ * Now we can figure the width and height
+ */
+	width = xhi - xlo + 1;
+	height = ylo - yhi + 1;
 /*
  * Get our ximage and do the rasterization.
  */
@@ -392,10 +407,10 @@ bool	fast;
 
 	ximp = (unsigned char *) image->data;
 	if (fast)
-		RP_IRasterize (ximp, width, height, colgrid, row, icol,
+		RP_IRasterize (ximp, width, height, colgrid, toprow, leftcol,
 			rowinc, colinc, xdim, image->bytes_per_line - width);
 	else
-		RP_FPRasterize (ximp, width, height, colgrid, row, icol,
+		RP_FPRasterize (ximp, width, height, colgrid, toprow, leftcol,
 			rowinc, colinc, xdim, image->bytes_per_line - width);
 /*
  * Now we ship over the image, and deallocate everything.
@@ -441,12 +456,12 @@ int 		xdim, pad;
 
 	for (i = 0; i < height; i++)
 	{
-		unsigned int *cp = colgrid + ((int) row)*xdim;
+		unsigned int *cp = colgrid + (int)(row + 0.5) * xdim;
 
-		col = icol;
+		col = icol + 0.5; /* Add 0.5 to get closest int below */
 		for (j = 0; j < width; j++)
 		{
-			*ximp++ = cp[(int) col];
+			*ximp++ = cp[(int)col];
 			col += colinc;
 		}
 		row += rowinc;
@@ -651,9 +666,9 @@ int		xdim, pad;
  */
 	for (i = 0; i < height; i++)
 	{
-		unsigned int *cp = colgrid + ((int) row)*xdim;
+		unsigned int *cp = colgrid + (int)(row + 0.5) * xdim;
 
-		col = (int) (icol*65536);
+		col = (int) ((icol + 0.5) * 65536);
 		for (j = 0; j < width; j++)
 		{
 			*ximp++ = cp[*s_col];
@@ -682,13 +697,17 @@ unsigned char 	*grid;
 int 		xd, yd, xlo, ylo, xhi, yhi;
 float 		scale, bias;
 /*
- * Do a raster plot of a raster image.
+ * Plot the  (xd x yd) raster image into widget w.
+ * The coordinates (xlo,ylo) and (xhi,yhi) specify the centers of the
+ * corner elements, in pixel space.  Since they are the centers, we will 
+ * actually plot half a grid width outside of these bounds on each side 
+ * (neglecting clipping, which may reduce this).
  */
 {
 	unsigned char *destimg, cmap[256];
 	int c, rcolor, width, height;
 	float cscale = Ncolor/Datarange;
-	float row, col, rowinc, colinc, icol, irow;
+	float toprow, leftcol, rowinc, colinc;
 	GC gcontext;
 	XGCValues gcvals;
 	Display *disp = XtDisplay(w);
@@ -711,42 +730,54 @@ float 		scale, bias;
 	}
 	cmap[255] = Color_outrange.pixel;
 /*
- * Figure our offsets into the color array.  Width and height are screen
- * parameters.  Colinc and rowinc are the number of raster image points to
- * move for every screen pixel we move.
+ * Columns per pixel and rows per pixel.  We use (xd - 1) and (yd - 1)
+ * here since our pixel limits refer to the *centers* of the edge grid 
+ * elements.
  */
-	width = xhi - xlo + 1;
-	height = ylo - yhi + 1;
-	row = 0.5;
-	colinc = ((float) xd - 1)/((float) width);
-	rowinc = ((float) yd)/((float) height);
+	colinc = ((float) xd - 1) / ((float) (xhi - xlo + 1));
+	rowinc = -((float) yd - 1) / ((float) (ylo - yhi + 1));
 /*
- * Get a graphics context
+ * Add half a grid width to our dimensions, so that we plot full squares
+ * on the edges.  Again, this is because our current limits refer to the
+ * centers of the edge grid elements.
  */
-	gcontext = XCreateGC( disp, XtWindow(w), 0, &gcvals);
-	XSetClipRectangles( disp, gcontext, 0, 0, &Clip, 1, Unsorted);
+	xlo -= 0.5 / colinc;
+	xhi += 0.5 / colinc;
+	leftcol = -0.5;	/* column (floating) corresponding to xlo */
 
+	ylo -= 0.5 / rowinc;
+	yhi += 0.5 / rowinc;
+	toprow = (yd - 1) + 0.5; /* row (floating) corresponding to yhi */
 /*
  * Clip to the window, if appropriate.
  */
 	if (xlo < Clip.x)
 	{
-		icol = (Clip.x - xlo - 1)*colinc;
-		width -= Clip.x - xlo - 1;
+		leftcol += (Clip.x - xlo + 1) * colinc;
 		xlo = Clip.x;
 	}
-	else
-		icol = 0.5;
-	if (width + (xlo - Clip.x) > Clip.width)
-		width = Clip.width - (xlo - Clip.x);
+
+	if (xhi > (Clip.x + Clip.width))
+		xhi = Clip.x + Clip.width;
+
 	if (yhi < Clip.y)
 	{
-		row += (Clip.y - yhi)*rowinc;
-		height -= (Clip.y - yhi);
+		toprow += (Clip.y - yhi + 1) * rowinc;
 		yhi = Clip.y;
 	}
-	if (height + (yhi - Clip.y) > Clip.height)
-		height = Clip.height - (yhi - Clip.y);
+	
+	if (ylo > (Clip.y + Clip.height))
+		ylo = Clip.y + Clip.height;
+/*
+ * Now we can figure the width and height
+ */
+	width = xhi - xlo + 1;
+	height = ylo - yhi + 1;
+/*
+ * Get a graphics context
+ */
+	gcontext = XCreateGC( disp, XtWindow(w), 0, &gcvals);
+	XSetClipRectangles( disp, gcontext, 0, 0, &Clip, 1, Unsorted);
 /*
  * Find the image space and start rasterizing.  Also force a sync with 
  * the server; things could happen in the wrong order otherwise.
@@ -765,15 +796,16 @@ float 		scale, bias;
 	{
 		destimg = (unsigned char *) GWGetFrameAddr (w, frame);
 		destimg += yhi * GWGetBPL(w, frame) + xlo;
-		RP_ImageRasterize (destimg, width, height, grid, cmap, row, 
-			icol, rowinc, colinc, xd, GWGetBPL (w, frame) - width);
+		RP_ImageRasterize (destimg, width, height, grid, cmap, toprow, 
+				   leftcol, rowinc, colinc, xd, 
+				   GWGetBPL (w, frame) - width);
 	}
 	else
 # endif
 	{
 		image = RP_GetXImage(w, width, height);
 		RP_ImageRasterize ((unsigned char *)(image->data), 
-				   width, height, grid, cmap, row, icol,
+				   width, height, grid, cmap, toprow, leftcol,
 				   rowinc, colinc, xd, 
 				   image->bytes_per_line - width);
 		/*
@@ -823,9 +855,9 @@ int		xdim, pad;
  */
 	for (i = 0; i < height; i++)
 	{
-		unsigned char *cp = grid + ((int) row)*xdim;
+		unsigned char *cp = grid + (int)(row + 0.5) * xdim;
 
-		col = (int) (icol*65536);
+		col = (int) ((icol + 0.5) * 65536);
 		for (j = 0; j < width; j++)
 		{
 			*ximp++ = cmap[cp[*s_col]];

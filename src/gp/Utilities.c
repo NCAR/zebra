@@ -28,7 +28,7 @@
 # include <time.h>
 # include "GraphProc.h"
 # include "PixelCoord.h"
-MAKE_RCSID ("$Id: Utilities.c,v 2.17 1993-12-03 23:20:57 burghart Exp $")
+MAKE_RCSID ("$Id: Utilities.c,v 2.18 1994-04-15 21:26:35 burghart Exp $")
 
 
 static void ApplyConstOffset FP ((Location *, double, double));
@@ -37,6 +37,14 @@ static void ApplyAdvection FP ((Location *, double, double, ZebTime *,
 
 # define CPTR(x)     (char *)(&(x))
 
+
+#ifndef FINITE		/* See note in Contour.h */
+#if defined(sun) || defined(hpux)
+#define FINITE(x)	(finite((double)(x)))
+#else
+#define FINITE(x)	(!isinf(x) && !isnan(x))
+#endif
+#endif /* def FINITE */
 
 
 int
@@ -515,10 +523,10 @@ int nstep;
 	}
 	*step = ((float) ((int) (nominal + 0.9)))*ordermag;
 /*
- * Now find a nice center.
+ * Now find a nice center that's a multiple of step
  */
-	*center = (top + bottom)/2.0;
-	*center = ((int) (*center/ordermag)) * ordermag;
+	*center = 0.5 * (top + bottom);
+	*center = nint (*center/(*step)) * (*step);
 }
 
 
@@ -599,6 +607,8 @@ int np;
 	{
 		float dv = *data++;
 		if (dv == badval)
+			continue;
+		if (! FINITE(dv))
 			continue;
 		if (dv < *min)
 			*min = dv;

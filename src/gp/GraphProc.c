@@ -48,7 +48,7 @@
 # include "PixelCoord.h"
 # include "LayoutControl.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.39 1994-02-25 02:38:42 granger Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.40 1994-04-15 21:25:50 burghart Exp $")
 
 /*
  * Default resources.
@@ -90,6 +90,8 @@ stbl	Vtable;				/* The variable table		*/
 plot_description	Pd = 0;		/* Current plot description	*/
 plot_description	Defaults = 0;	/* Plot description info	*/
 ZebTime	PlotTime;			/* The current plot time.	*/
+long	ForecastOffset;			/* Forecast offset time (models)*/
+bool	ValidationMode;			/* Validation mode for models?	*/
 int	Event_X, Event_Y;		/* Button event locations	*/
 enum pmode	PlotMode = NoMode;
 enum wstate	WindowState = DOWN;
@@ -179,6 +181,31 @@ GPShutDown ()
 
 
 
+static void
+SetOurname (argc, argv)
+int argc;
+char *argv[];
+/*
+ * Check the first argument for our process name.  The argument will be
+ * of the form 'process-name:init-file'.  If there is no semi-colon, the
+ * argument is assumed to be just the init-file name.  Note that it's
+ * possible that argv[1] will be left as an empty string on return.
+ */
+{
+	char *colon;
+
+	if ((argc > 1) && (colon = strchr(argv[1], ':')) != NULL)
+	{
+		*colon = '\0';
+		strcpy (Ourname, argv[1]);
+		argv[1] = colon+1;
+	}
+	else
+	{
+		strcpy (Ourname, argv[0]);
+	}
+}
+
 
 
 
@@ -188,9 +215,9 @@ char **argv;
 {
 	char loadfile[200];
 /*
- * The first argument is always supposed to be our process name.
+ * Our process name may be embedded in the first command-line option
  */
-	strcpy (Ourname, argv[0]);
+	SetOurname (argc, argv);
 /*
  * Connect to the message handler immediately -- Ardent weirdness
  * requires this.
@@ -260,7 +287,7 @@ finish_setup ()
  * If there is a parameter left on the "command line", it will be the name
  * of an initialization file to read.
  */
-	if (Argc > 1)
+	if ((Argc > 1) && (Argv[1][0] != '\0'))
 	{
 		if (! access (Argv[1], F_OK))
 			strcpy (initfile, Argv[1]);
@@ -268,7 +295,7 @@ finish_setup ()
 			sprintf (initfile, "%s/%s", GetProjDir (), Argv[1]);
 	}
 	else
-		strcpy (initfile, "../gp/Widgets");
+		initfile[0] = '\0';
 	Vtable = usy_g_stbl ("ui$variable_table");
 /*
  * Now create a popup shell to hold the graphics widget that holds
@@ -307,6 +334,7 @@ finish_setup ()
 	Ue_Init ();		/* User event handling		*/
 	I_init ();		/* Icons			*/
 	lw_InitWidgets ();	/* Limit widgets		*/
+	ot_Init ();		/* Overlay times widget		*/
 	InitDataMenu ();	/* Data available menu		*/
 	InitFieldMenu ();	/* Field selection		*/
 	pw_InitPos ();		/* Position Widget		*/
@@ -356,6 +384,7 @@ finish_setup ()
  * More initialization
  */
 	mc_DefMovieWidget ();		/* Movie control		*/
+	mw_DefModelWidget ();		/* Model widget			*/
 	fc_InitFrameCache ();		/* Initialize the frame cache	*/
 	tl_ChangeHandler (NewTime);
 	cp_SetupCmdProto ();		/* Command protocol		*/
@@ -380,10 +409,13 @@ finish_setup ()
 	}
 	sprintf (RequirePath, "%s/gplib", GetLibDir ());
 /*
- * Pull in the widget definition file.
+ * Pull in the init file, if there is one
  */
-	sprintf (perf, "read %s", initfile);
-	ui_perform (perf);
+	if (initfile[0])
+	{
+		sprintf (perf, "read %s", initfile);
+		ui_perform (perf);
+	}
 }
 
 
@@ -530,10 +562,12 @@ struct ui_command *cmds;
 	 */
 	   case GPC_RUN:
 	   	if (first++)
+		{
 			finish_setup ();
+			lle_MainLoop ();
+		}
 		else
 			msg_ELog (EF_PROBLEM, "Somebody typed RUN again");
-		lle_MainLoop ();
 		break;
 	/*
 	 * DM for sending literal commands back to the display manager.
@@ -631,11 +665,9 @@ struct ui_command *cmds;
 		{
 		   	pd_MoveComponent (Pd, UPTR (cmds[1]), UINT (cmds[2]));
 			fc_InvalidateCache ();
-			I_DoIcons ();
-			if (MovieMode)
-				mc_ParamChange (); /* Hope this works */
-			else
-				pc_PlotHandler ();
+			Eq_AddEvent (PDisplay, I_DoIcons, NULL, 0, Bounce);
+			Eq_AddEvent (PDisplay, pc_PlotHandler, NULL, 0, 
+				     Override);
 			Eq_AddEvent (PWhenever, eq_ReturnPD, 0, 0, Override);
 		}
 		break;

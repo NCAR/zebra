@@ -1,5 +1,5 @@
 /**/# ---------------------------------------------------------------------
-/**/# $Id: Imakefile,v 1.17 1994-01-21 11:48:29 granger Exp $ 
+/**/# $Id: Imakefile,v 1.18 1994-04-15 21:26:05 burghart Exp $ 
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -22,6 +22,8 @@
 
 LOCAL_LIBRARIES=$(LIBZEBDS) $(LIBZEB) $(LIBNETCDF) $(LIBRDSS) $(XLIBS) \
 		$(LIBREGEXP) $(FLIBS)
+
+DEPLIBS = $(LIBZEBDS) $(LIBZEB)
 
 /* CLIBS = /usr/local/lib/gcc-lib/sparc-sun-sunos4.1/2.1/libgcc.a */
 CLIBS = /local/lib/gcc-lib/sparc-sun-solaris2/2.4.3/libgcc.a
@@ -53,7 +55,20 @@ OBJS =  TimeSeries.o ColorTable.o EventQueue.o LLEvent.o PlotControl.o \
 	ConstAltPlot.o Utilities.o DataMenu.o $(ALLOCA) \
 	XYGraph.o PlotPrim.o LayoutControl.o AxisControl.o $(LABELOBJS) \
 	XYWind.o XYCommon.o XYContour.o InsertWidget.o AnnotWidget.o \
-	XYObservation.o GraphProc.o PDMonitor.o FieldMenu.o ActiveArea.o
+	XYObservation.o GraphProc.o PDMonitor.o FieldMenu.o ActiveArea.o \
+	ModelWidget.o OverlayTimes.o
+
+COBJS = TimeSeries.o ColorTable.o EventQueue.o LLEvent.o PlotControl.o \
+	PlotExec.o UserEvent.o Contour.o FillContour.o \
+	DrawText.o RasterPlot.o VectorGrid.o derive.o \
+	Lightning.o Track.o GridAccess.o Overlay.o  PositionWidget.o\
+	FrameCache.o MovieControl.o AltControl.o \
+	Icons.o Skewt.o RBand.o Annotate.o XSection.o LimitWidgets.o \
+	ConstAltPlot.o Utilities.o DataMenu.o $(ALLOCA) \
+	XYGraph.o PlotPrim.o LayoutControl.o AxisControl.o $(LABELOBJS) \
+	XYWind.o XYCommon.o XYContour.o InsertWidget.o AnnotWidget.o \
+	XYObservation.o GraphProc.o PDMonitor.o FieldMenu.o ActiveArea.o \
+	ModelWidget.o OverlayTimes.o
 
 SRCS =  AltControl.c AnnotWidget.c Annotate.c AxisControl.c \
 	ColorTable.c ConstAltPlot.c Contour.c DataMenu.c DrawText.c \
@@ -64,7 +79,7 @@ SRCS =  AltControl.c AnnotWidget.c Annotate.c AxisControl.c \
 	RBand.c RasterPlot.c Skewt.c TimeSeries.c Track.c UserEvent.c \
 	Utilities.c VectorGrid.c XSection.c XYCommon.c XYContour.c \
 	XYGraph.c XYObservation.c XYWind.c derive.c  sfont_1.c \
-	PDMonitor.c FieldMenu.c ActiveArea.c 
+	PDMonitor.c FieldMenu.c ActiveArea.c ModelWidget.c OverlayTimes.c
 
 HDRS =  AxisControl.h Contour.h DrawText.h EventQueue.h GC.h GraphProc.h \
 	ActiveArea.h LLEvent.h Label.h LabelP.h LayoutControl.h PixelCoord.h \
@@ -72,6 +87,8 @@ HDRS =  AxisControl.h Contour.h DrawText.h EventQueue.h GC.h GraphProc.h \
 	gp_cmds.h rg_status.h rgrid.h
 
 FSRCS = cfit.F mudras.f rgrid.F bints.f
+
+FOBJS = cfit.o /*mudras.o*/ rgrid.o bints.o
 
 DISTFILES = Imakefile $(SRCS) $(FSRCS) $(HDRS) \
 	    GraphProc.state GraphProc.widgets Graphproc.ad
@@ -100,4 +117,12 @@ DependTarget()
 LintTarget()
 
 DistfilesTarget($(DISTFILES))
+
+fortran.o: $(FOBJS)
+	$(LD) -r -Bstatic -o fortran.o $(FOBJS)
+
+C_GP_LIBRARIES=$(LIBZEBDS) $(LIBZEB) $(LIBNETCDF) $(LIBRDSS) $(XLIBS) \
+		$(LIBREGEXP) fortran.o $(FLIBS)
+
+TestProgramTarget(c_gp,$(COBJS),$(DEPLIBS),$(C_GP_LIBRARIES),/**/)
 

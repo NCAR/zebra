@@ -1,7 +1,7 @@
 /*
  * Routines common to XY-Type plots
  */
-static char *rcsid = "$Id: XYCommon.c,v 1.18 1994-02-02 19:19:17 burghart Exp $";
+static char *rcsid = "$Id: XYCommon.c,v 1.19 1994-04-15 21:26:44 burghart Exp $";
 /*		Copyright (C) 1993 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -60,6 +60,31 @@ void	xy_Init FP ((UItime *));
  */
 extern XColor 	Tadefclr;
 
+/*
+ * Forwards.
+ */
+static void xy_NSpaceVector FP((DataChunk *dc, FieldId *fids, int fcount,
+				int *dcveclen));
+static void xy_NSpaceDimensions FP((char *comp, dsDetail *, int *ndetail));
+static bool xy_BadPoint FP((float *val, int fcount, float *badvals, int nbad));
+static void xy_GetBadPoints FP((char *c, DataChunk *, float *bval, int *nbad));
+static void xy_FillScalarObs FP((PlatformId pid, xyObsInfo *obsinfo, 
+				 ZebTime *btime, ZebTime *etime, 
+				 ZebTime *dvtimes, int npts));
+static void xy_FillVectorObs FP((PlatformId pid, xyObsInfo *obsinfo, 
+				 ZebTime *btime, ZebTime *etime, 
+				 ZebTime *dvtimes, int npts));
+static void xy_SetDataPoint FP((xyDataVector *dvectors, char *dtype, 
+				int ndvec, ZebTime *when, int point,
+				float *val, int *fndx));
+static void xy_InitVectorData FP((xyDataVector *dvectors, char *dtype,
+				  int ndvec, int npoints));
+static bool xy_DataVectorClass FP((PlatformId pid, char *c, 
+				   DataOrganization *org, DataClass *class, 
+				   dsDetail *details, int *ndetail));
+static int xy_SetVectorTypes FP((xyDataVector *dvectors, char *dtype, 
+				 int ndvec, FieldId *fids, int *fndx));
+
 
 
 void
@@ -69,7 +94,7 @@ UItime *t;
  * CAP Plot initialization.
  */
 {
-	lw_OvInit ("COMPONENT      PLATFORM   FIELD       TIME\n");
+	ot_SetString ("COMPONENT      PLATFORM   FIELD       TIME\n");
 }
 
 
@@ -675,13 +700,14 @@ bool	update;
 
 int
 xy_GetDataVectors (pid, btime, etime, single_obs, nskip, dvectors, ndvec, 
-		   obsinfo)
+		   obsinfo, c)
 PlatformId	pid;
 ZebTime		*btime, *etime;
 int		single_obs, nskip;
 xyDataVector	*dvectors;
 int		ndvec;
 xyObsInfo	*obsinfo;
+char 		*c;		/* Plot description component */
 /*
  * Fill in the given array of data vector structures, given the platform
  * name, begin time, end time, whether we should get data in the form of a
@@ -699,14 +725,19 @@ xyObsInfo	*obsinfo;
 {
 	int	i, pt, samp, f, npts, ngood, fcount, *fndx, nobs, ntimes;
 	int	dcpts, dcveclen;
-	float	badvalue, *val, **dcvector = NULL;
+	float	*val, **dcvector = NULL;
 	char	*dtype, stime1[32], stime2[32];
 	FieldId	*fids;
-	ZebTime	time, *dvtimes, obstimes[MAX_DV_OBS];
+	ZebTime	time, *dvtimes;
 	RGrid	rg;
 	DataChunk	*dc;
 	DataClass	xyClass;
 	DataOrganization	xyOrg;
+	dsDetail details[ 2 * DC_MaxDimension ];
+	int ndetail;
+	float 	badvals[20];
+	int	nbadval;
+	bool	ok;
 /*
  * Info message
  */
@@ -727,81 +758,50 @@ xyObsInfo	*obsinfo;
 	fids = (FieldId *) malloc (ndvec * sizeof (FieldId));
 	fndx = (int *) malloc (ndvec * sizeof (int));
 
-	fcount = 0;	/* count of non-time fields */
+	fcount = xy_SetVectorTypes (dvectors, dtype, ndvec, fids, fndx);
 
-	for (i = 0; i < ndvec; i++)
-	{
-		if (! strcmp (dvectors[i].fname, "time"))
-			dtype[i] = 't';
-		else
-		{
-			dtype[i] = 'f';
-			fndx[i] = fcount;
-			fids[fcount++] = F_Lookup (dvectors[i].fname);
-		}
-	}
-
-	if (! fcount)
-	{
+	ok = FALSE;
+	if (fcount == 0)
 		msg_ELog (EF_PROBLEM, "XY: Only time was requested!");
-
-		free (dtype);
-		free (fids);
-		free (fndx);
-
-		return (0);
-	}
 /*
  * Determine the data chunk class we want based on the data 
  * organization for the platform
  */
-	xyOrg = ds_PlatformDataOrg (pid);
-
-	switch (xyOrg)
-	{
-	    case OrgScalar:
-	    case OrgFixedScalar:
-		xyClass = DCC_Scalar;
-		break;
-	    case Org1dGrid:
-		xyClass = DCC_RGrid;
-		break;
-	    default:
+	else if (! xy_DataVectorClass (pid, c, &xyOrg, &xyClass, 
+				       details, &ndetail))
 		msg_ELog (EF_PROBLEM, "XY: Can't use platform %s's data org.", 
 			  ds_PlatformName (pid));
-
-		free (dtype);
-		free (fids);
-		free (fndx);
-
-		return (0);
-	}
+	else
+	{
 /*
  * Get the data chunk
  */
-	dc = NULL;
-	if (single_obs)
-		dc = ds_FetchObs (pid, xyClass, etime, fids, fcount, NULL, 0);
-	else
-		dc = ds_Fetch (pid, xyClass, btime, etime, fids, fcount, 
-			       NULL, 0);
-
-	if (! dc)
-	{
-		msg_ELog (EF_INFO, 
+		dc = NULL;
+		if (single_obs)
+			dc = ds_FetchObs (pid, xyClass, etime, fids, fcount, 
+					  details, ndetail);
+		else
+			dc = ds_Fetch (pid, xyClass, btime, etime, fids, 
+				       fcount, details, ndetail);
+		if (dc == NULL)
+			msg_ELog (EF_INFO, 
 			  "XY: No requested fields for '%s' between %s and %s",
 			  ds_PlatformName (pid), stime1, stime2);
-
+		else
+			ok = TRUE;
+	}
+/*
+ * Abort if any of the above failed
+ */
+	if (! ok)
+	{
 		free (dtype);
 		free (fids);
 		free (fndx);
-
 		return (0);
 	}
-/*
- * Get the bad value flag and figure out how many points we have
- */
-	badvalue = dc_GetBadval (dc);
+
+	xy_GetBadPoints (c, dc, badvals, &nbadval);
 
 	dcpts = dc_GetNSample (dc);
 	if (xyOrg == Org1dGrid)
@@ -814,6 +814,15 @@ xyObsInfo	*obsinfo;
 		dcpts *= dcveclen;
 		dcvector = (float **) malloc (fcount * sizeof (float *));
 	}
+	else if (xyOrg == OrgNSpace)
+	{
+	/*
+	 * Stuff for n-space vectors
+	 */
+		xy_NSpaceVector (dc, fids, fcount, &dcveclen);
+		dcpts *= dcveclen;
+		dcvector = (float **) malloc (fcount * sizeof (float *));
+	}
 /*
  * Allocate an array to hold a few values from the data chunk and another
  * to hold all the times that go into the data vectors
@@ -821,19 +830,9 @@ xyObsInfo	*obsinfo;
 	val = (float *) malloc (fcount * sizeof (float));
 	dvtimes = (ZebTime *) malloc (dcpts * sizeof (ZebTime));
 /*
- * Create the data arrays for each data vector structure and set the data 
- * types
+ * Create the data arrays for each data vector structure and set data types
  */
-	for (i = 0; i < ndvec; i++)
-	{
-		dvectors[i].data = (DataValPtr) 
-			malloc (dcpts * sizeof (DataValRec));
-
-		dvectors[i].min.type = dvectors[i].max.type = dtype[i];
-
-		for (pt = 0; pt < dcpts; pt++)
-			dvectors[i].data[pt].type = dtype[i];
-	}
+	xy_InitVectorData (dvectors, dtype, ndvec, dcpts);
 /*
  * Extract the data from the data chunk into the DataValRec arrays
  */
@@ -866,6 +865,29 @@ xyObsInfo	*obsinfo;
 				val[f] = dcvector[f][pt % dcveclen];
 		}
 	/*
+	 * n-space specific stuff
+	 */
+		if (xyOrg == OrgNSpace)
+		{
+		/*
+		 * Move to the next data chunk vector if necessary
+		 */
+			if (! (pt % dcveclen))
+			{
+				samp = pt / dcveclen;
+				dc_GetTime (dc, samp, &time);
+
+				for (f = 0; f < fcount; f++)
+					dcvector[f] = dc_NSGetSample (dc,
+						      samp, fids[f], NULL);
+			}
+		/*
+		 * Grab the values for this point from the data chunk vectors
+		 */
+			for (f = 0; f < fcount; f++)
+				val[f] = dcvector[f][pt % dcveclen];
+		}
+	/*
 	 * scalar specifics
 	 */
 		else
@@ -876,13 +898,9 @@ xyObsInfo	*obsinfo;
 				val[f] = dc_GetScalar (dc, pt, fids[f]);
 		}
 	/*
-	 * Move on if any data for this point are bad
+	 * Move on if any data for this point are bad or being skipped
 	 */
-		for (f = 0; f < fcount; f++)
-			if (val[f] == badvalue)
-				break;
-
-		if (f < fcount)
+		if (xy_BadPoint (val, fcount, badvals, nbadval))
 			continue;
 	/*
 	 * We have good data, but make sure we only take every (nskip+1)th 
@@ -898,38 +916,7 @@ xyObsInfo	*obsinfo;
 	 */
 		dvtimes[npts] = time;
 
-		for (i = 0; i < ndvec; i++)
-		{
-		/*
-		 * Floating point data
-		 */
-			if (dtype[i] == 'f')
-			{
-			/*
-			 * Put the point into the data vector
-			 */
-				dvectors[i].data[npts].val.f = val[fndx[i]];
-			/*
-			 * Keep track of min and max
-			 */
-				if (! npts)
-				{
-					dvectors[i].min.val.f = val[fndx[i]];
-					dvectors[i].max.val.f = val[fndx[i]];
-				}
-
-				if (val[fndx[i]] < dvectors[i].min.val.f)
-					dvectors[i].min.val.f = val[fndx[i]];
-
-				if (val[fndx[i]] > dvectors[i].max.val.f)
-					dvectors[i].max.val.f = val[fndx[i]];
-			}
-		/*
-		 * or time, which is simpler
-		 */
-			else
-				dvectors[i].data[npts].val.t = time;
-		}
+		xy_SetDataPoint (dvectors,dtype,ndvec,&time,npts,val,fndx);
 	/*
 	 * Increment the point count
 	 */
@@ -945,37 +932,239 @@ xyObsInfo	*obsinfo;
 	free (fndx);
 	free (val);
 
-	if (xyOrg == Org1dGrid)
+	if (xyOrg == Org1dGrid || xyOrg == OrgNSpace)
 		free (dcvector);
 /*
- * If they don't want observation info, we're done
+ * Fill in observation info if needed
  */
-	if (! obsinfo)
-	{
-		free (dvtimes);
-		return (npts);
-	}
-/*
- * If they asked for a single observation, it's still pretty simple
- */
-	if (single_obs)
+	if (obsinfo)
 	{
 	/*
-	 * One observation starting at index 0
+	 * If they asked for a single observation, it's still pretty simple
 	 */
-		obsinfo->nobs = 1;
-		obsinfo->obsndx[0] = 0;
+		if (single_obs)
+		{
+			/*
+			 * One observation starting at index 0
+			 */
+			obsinfo->nobs = 1;
+			obsinfo->obsndx[0] = 0;
+		}
 	/*
-	 * Done
+	 * Otherwise split out based on organization
 	 */
-		free (dvtimes);
-		return (npts);
+		else if (xyOrg == Org1dGrid || xyOrg == OrgNSpace)
+			xy_FillVectorObs (pid, obsinfo, btime, etime, 
+					  dvtimes, npts);
+		else	/* scalar org */
+			xy_FillScalarObs (pid, obsinfo, btime, etime, 
+					  dvtimes, npts);
 	}
+
+	free (dvtimes);
+	return (npts);
+}
+
+
+
+static int
+xy_SetVectorTypes (dvectors, dtype, ndvec, fids, fndx)
+xyDataVector *dvectors;	/* Data vectors, each containing a field name	*/
+char *dtype;		/* Array to hold type of each vector 		*/
+int ndvec;		/* Number of data vectors			*/
+FieldId *fids;		/* Field ids of non-time fiels			*/
+int *fndx;	/* Array to hold mapping from vector to non-time fids	*/
 /*
- * Okay, we need to check times to build the observation info
- *
- * Start out by figuring out how many observations are involved here
+ * Determine the type of each data vector, setting the type in dtype[], and
+ * create a mapping into non-time fields from vector index
  */
+{
+	int i;
+	int fcount;
+
+	fcount = 0;
+	for (i = 0; i < ndvec; i++)
+	{
+		if (! strcmp (dvectors[i].fname, "time"))
+			dtype[i] = 't';
+		else
+		{
+			dtype[i] = 'f';
+			fndx[i] = fcount;
+			fids[fcount++] = F_Lookup (dvectors[i].fname);
+		}
+	}
+	return (fcount);
+}
+
+
+
+static bool
+xy_DataVectorClass (pid, c, org, class, details, ndetail)
+PlatformId pid;
+char *c;
+DataClass *class;
+DataOrganization *org;
+dsDetail *details;
+int *ndetail;
+/*
+ * Determine the organization, class, and details for fetching data.
+ * Return true on success.
+ */
+{
+	*org = ds_PlatformDataOrg (pid);
+	*ndetail = 0;
+	*class = DCC_None;
+
+	switch (*org)
+	{
+	   case OrgScalar:
+	   case OrgFixedScalar:
+		*class = DCC_Scalar;
+		break;
+	   case OrgNSpace:
+		*class = DCC_NSpace;
+	/*
+	 * For n-space, some dimensions may need fixed indices.
+	 */
+		xy_NSpaceDimensions (c, details, ndetail);
+		break;
+	   case Org1dGrid:
+		*class = DCC_RGrid;
+		break;
+	}
+	return ((*class == DCC_None) ? FALSE : TRUE);
+}
+
+
+
+static void
+xy_InitVectorData (dvectors, dtype, ndvec, npoints)
+xyDataVector *dvectors;
+char *dtype;
+int ndvec;
+int npoints;	/* Number of points to create space for */
+{
+	int i, pt;
+
+	for (i = 0; i < ndvec; i++)
+	{
+		dvectors[i].data = (DataValPtr) 
+			malloc (npoints * sizeof (DataValRec));
+
+		dvectors[i].min.type = dvectors[i].max.type = dtype[i];
+
+		for (pt = 0; pt < npoints; pt++)
+			dvectors[i].data[pt].type = dtype[i];
+	}
+}
+
+
+
+static void
+xy_SetDataPoint (dvectors, dtype, ndvec, when, point, val, fndx)
+xyDataVector	*dvectors;	/* Data vectors			*/
+char		*dtype;		/* Type of each data vector	*/
+int		ndvec;		/* Number of data vectors	*/
+ZebTime 	*when;		/* Time of this data point	*/
+int		point;		/* Point to be filled		*/
+float		*val;		/* Values to store in point	*/
+int		*fndx;		/* Mapping from data vector index to index
+				   of field in 'val' array	*/
+/*
+ * Store the array of values into a point of the data vectors,
+ * according to each vector's type.
+ */
+{
+	int i;
+
+	for (i = 0; i < ndvec; i++)
+	{
+	/*
+	 * Floating point data
+	 */
+		if (dtype[i] == 'f')
+		{
+		/*
+		 * Put the point into the data vector
+		 */
+			dvectors[i].data[point].val.f = val[fndx[i]];
+		/*
+		 * Keep track of min and max
+		 */
+			if (point == 0)
+			{
+				dvectors[i].min.val.f = val[fndx[i]];
+				dvectors[i].max.val.f = val[fndx[i]];
+			}
+			else if (val[fndx[i]] < dvectors[i].min.val.f)
+				dvectors[i].min.val.f = val[fndx[i]];
+			else if (val[fndx[i]] > dvectors[i].max.val.f)
+				dvectors[i].max.val.f = val[fndx[i]];
+		}
+	/*
+	 * or time, which is simpler
+	 */
+		else
+			dvectors[i].data[point].val.t = *when;
+	}
+}
+
+
+
+
+static void
+xy_FillVectorObs (pid, obsinfo, btime, etime, dvtimes, npts)
+PlatformId 	pid;
+xyObsInfo	*obsinfo;
+ZebTime 	*btime;
+ZebTime		*etime;
+ZebTime		*dvtimes;
+int		npts;
+/*
+ * For 1dgrid and nspace, we can assume that an "observation" is the vector
+ * which spans the 1dgrid or the one-dimensional nspace variable.  This
+ * means that every time change between points in the vector represents a
+ * new observation.
+ */
+{
+	int i;
+	int nobs;
+	ZebTime last;
+
+	nobs = 1;
+	obsinfo->obsndx[0] = 0;
+	last = dvtimes[0];
+	for (i = 1; i < npts; ++i)
+	{
+		if (! TC_LessEq(dvtimes[i], last))
+		{
+			obsinfo->obsndx[nobs++] = i;
+			last = dvtimes[i];
+		}
+	}
+	obsinfo->nobs = nobs;
+}
+
+
+
+static void
+xy_FillScalarObs (pid, obsinfo, btime, etime, dvtimes, npts)
+PlatformId 	pid;
+xyObsInfo	*obsinfo;
+ZebTime 	*btime;
+ZebTime		*etime;
+ZebTime		*dvtimes;
+int		npts;
+/*
+ * For scalar orgs, we must rely on the file times to distinguish between
+ * "observations".  
+ */
+{
+	int ntimes;
+	ZebTime obstimes[MAX_DV_OBS];
+	int nobs, pt, i;
+
 	ntimes = ds_GetObsTimes (pid, etime, obstimes, MAX_DV_OBS, NULL);
 
 	for (nobs = 0; nobs < ntimes; nobs++)
@@ -1001,7 +1190,156 @@ xyObsInfo	*obsinfo;
 				obsinfo->obsndx[nobs - i - 1] = pt;
 		}
 	}
+}
 
-	free (dvtimes);
-	return (npts);
+
+
+static void
+xy_NSpaceVector (dc, fids, fcount, dcveclen)
+DataChunk *dc;		/* N-Space datachunk */
+FieldId *fids;
+int fcount;
+int *dcveclen;		/* Return the length of the n-space vectors */
+/*
+ * Verify that the fields wanted all have zero dimensions (simple scalar
+ * case) or that they all vary along the same single dimension (all other
+ * dimensions have size one).
+ * Usually one of the fields is the coordinate variable for the dimension,
+ * but that is not necessary.  Then return the length of the vectors, which
+ * is the size of the common dimension.
+ */
+{
+	int veclen;
+	int i, j;
+	char *dnames[ DC_MaxDimension ];
+	unsigned long dsizes[ DC_MaxDimension ];
+	int ndims;
+	char *reqdim;
+	int is_static;
+
+	/*
+	 * If reqdim remains NULL, it means that all of the fields should
+	 * be size one---none of them may vary over any dimension.
+	 */
+	reqdim = NULL;
+	*dcveclen = 1;
+	for (i = 0; i < fcount; ++i)
+	{
+		dc_NSGetField(dc, fids[i], &ndims, dnames, dsizes, &is_static);
+		for (j = 0; j < ndims; ++j)
+		{
+			if (dsizes[j] == 1)
+			        continue;
+			if (i == 0)
+			{
+				reqdim = dnames[j];
+				veclen = dsizes[j];
+			}
+			else if (reqdim && strcmp(reqdim, dnames[j]))
+			{
+				msg_ELog (EF_PROBLEM, 
+				  "%s: field '%s' %s '%s' %s '%s'",
+				  "xy_NSpaceVector", F_GetName (fids[i]), 
+				  "varies along dimension", dnames[j],
+				  "instead of", reqdim);
+				return ;
+			}
+			else if (!reqdim)
+			{
+				msg_ELog (EF_PROBLEM, 
+				  "%s: field '%s' %s '%s' %s",
+				  "xy_NSpaceVector", F_GetName(fids[i]),
+				  "varies along", dnames[j], 
+				  "while other fields do not");
+				return ;
+			}
+		}
+		/*
+		 * If no required dimension was set above, then the
+		 * rest of the fields must have either no dimensions or all
+		 * dimensions of size one.
+		 */
+	}
+	if (reqdim)
+		*dcveclen = veclen;
+}
+
+
+
+static void
+xy_NSpaceDimensions (c, details, ndetail)
+char *c;		/* component to check for 'dimensions' parameter */
+dsDetail *details;	/* array of details to fill			 */
+int *ndetail;		/* return new number of details			 */
+{
+	if (pda_Search(Pd, c, "dimensions", NULL, Scratch, SYMT_STRING))
+	{
+	/*
+	 * Pass on the rest of the work
+	 */
+		dc_NSFixedDetails (Scratch, details, ndetail);
+	}
+}
+
+
+
+static bool
+xy_BadPoint (val, fcount, badvals, nbadval)
+float *val;
+int fcount;
+float *badvals;
+int nbadval;
+/*
+ * Return non-zero if any of the field values at this point match any
+ * of the bad values
+ */
+{
+	int f, i;
+
+	for (f = 0; f < fcount; f++)
+	{
+		for (i = 0; i < nbadval; ++i)
+		{
+			if (val[f] == badvals[i])
+				return (TRUE);
+		}
+	}
+	return (FALSE);
+}
+
+
+
+static void
+xy_GetBadPoints (c, dc, badvals, nbadval)
+char *c;	/* plot component */
+DataChunk *dc;
+float *badvals;
+int *nbadval;
+/*
+ * Thanks to ARM, there may be more than one bad data value, and none of them
+ * may be specified in the data file.  So we have to provide plot parameters.
+ */
+{
+	int nbad, i;
+
+	badvals[0] = dc_GetBadval (dc);
+	nbad = 1;
+	if (pda_Search (Pd, c, "skip-data-points", NULL, Scratch, SYMT_STRING))
+	{
+		char *bv, *comma;
+		bv = Scratch;
+		while (bv[0] && (comma = strchr(bv, ',')) != NULL)
+		{
+			*comma = '\0';
+			badvals[nbad++] = atof(bv);
+			bv = comma + 1;
+		}
+		if (bv[0])
+			badvals[nbad++] = atof(bv);
+	}
+	sprintf (Scratch, "xy vectors skipping data points:");
+	for (i = 0; i < nbad; ++i)
+		sprintf (Scratch+strlen(Scratch), " %f", badvals[i]);
+	msg_ELog (EF_DEBUG, "%s", Scratch);
+	*nbadval = nbad;
 }

@@ -1,7 +1,7 @@
 /*
  * Display two rectangular arrays (u and v) as wind vectors
  */
-static char *rcsid = "$Id: VectorGrid.c,v 2.5 1993-09-20 17:16:09 burghart Exp $";
+static char *rcsid = "$Id: VectorGrid.c,v 2.6 1994-04-15 21:26:38 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -21,61 +21,74 @@ static char *rcsid = "$Id: VectorGrid.c,v 2.5 1993-09-20 17:16:09 burghart Exp $
  */
 # include <math.h>
 # include <X11/Intrinsic.h>
-# include "../include/defs.h"
-# include "../include/message.h"
+# include <defs.h>
+# include <message.h>
+# include <pd.h>
+# include "GraphProc.h"
+# include "PixelCoord.h"
 
 /*
  * Angle in radians between vector and lines for arrow head
  */
 # define ARROWANG	.2618	/* PI / 12 */
 
-
 /*
- * Macros to reference the data arrays two dimensionally
+ * Is x between a and b (inclusive)?
  */
-# define UDATA(i,j)	u_array[(i) * ydim + (j)]
-# define VDATA(i,j)	v_array[(i) * ydim + (j)]
+# define BETWEEN(x,a,b)	((((x)-(a))*((x)-(b))) <= 0)
 
 
 
-VectorGrid (w, d, Gcontext, u_array, v_array, xdim, ydim, xlo, ylo, xhi, yhi, 
-	vlen, bad, color, degrade)
+void
+WindGrid (w, d, Gcontext, u_array, v_array, xdim, ydim, xlo, ylo, xhi, yhi, 
+	  vlen, bad, color, degrade, vector)
 Widget	w;
 Drawable 	d;
 GC	Gcontext;
-float	*u_array, *v_array, bad;
-int	xlo, ylo, xhi, yhi;
-int	xdim, ydim, degrade;
+float	*u_array, *v_array;
+int	xdim, ydim, xlo, ylo, xhi, yhi;
+float	vlen, bad;
 XColor	color;
-float	vlen;
+int	degrade, vector;
 /*
- * Draw wind vectors using the rectangular (xdim x ydim) arrays u_array
- * and v_array into widget w.  The coordinates (xlo,ylo) and (xhi,yhi) 
- * specify the spatial extent of the array with respect to the widget
- * (pixel coordinates). Vlen is the length of a unit vector with respect 
- * to the height of the widget.  Color is the color to use for the vectors.
+ * Draw winds using the rectangular (xdim x ydim) arrays u_array and
+ * v_array into widget w.  The coordinates (xlo,ylo) and (xhi,yhi) specify
+ * the spatial extent of the array with respect to the widget (pixel
+ * coordinates). Vlen is the length of a unit vector (for vectors) or the
+ * shaft length (for barbs) with respect to the height of the widget.
+ * Color is the color to use for the vectors.  If 'vector' is true, we draw
+ * vectors, otherwise barbs.
  */
 {
 	int		dummy, xpos, ypos, i, j;
+	int		pa_left, pa_right, pa_bottom, pa_top, shaftlen;
 	unsigned int	dwidth, dheight, udummy;
 	Window		win;
-	float		xbottom, ybottom, xstep, ystep;
+	float		xbottom, ybottom, xstep, ystep, u, v;
 	float		unitlen;
 	XGCValues	gcvals;
 /*
  * Find the size of the drawable so we can scale the arrows properly
  */
 	XGetGeometry (XtDisplay (w), d, &win, &dummy, &dummy, &dwidth, 
-		&dheight, &udummy, &udummy);
+		      &dheight, &udummy, &udummy);
 /*
- * Find the unit length in pixels
+ * Find the unit length or shaft length in pixels
  */
 	unitlen = dheight * vlen;
+	shaftlen = (int)(dheight * vlen);
 /*
  * Pixels per grid step in each direction
  */
 	xstep = (xdim > 1) ? (float)(xhi - xlo) / (float)(xdim - 1) : 0.0;
 	ystep = (ydim > 1) ? (float)(yhi - ylo) / (float)(ydim - 1) : 0.0;
+/*
+ * Pixel limits of the allowed plotting area of the screen
+ */
+	pa_left = XPIX (Xlo);
+	pa_right = XPIX (Xhi);
+	pa_bottom = YPIX (Ylo);
+	pa_top = YPIX (Yhi);
 /*
  * Loop through the array points
  */
@@ -83,7 +96,7 @@ float	vlen;
 	{
 		gcvals.foreground = color.pixel;
 		Gcontext = XCreateGC (XtDisplay (w), XtWindow (w), 
-			GCForeground, &gcvals);
+				      GCForeground, &gcvals);
 	}
 	else
 		XSetForeground (XtDisplay (w), Gcontext, color.pixel);
@@ -92,6 +105,11 @@ float	vlen;
 	for (i = 0; i < xdim; i++)
 	{
 		xpos = (int)(xlo + i * xstep + 0.5);
+	/*
+	 * Move on if this column of vectors begins outside the plotting area
+	 */
+		if (! BETWEEN (xpos, pa_left, pa_right))
+			continue;
 
 		for (j = 0; j < ydim; j++)
 		{
@@ -100,117 +118,72 @@ float	vlen;
 			if (degrade > 1 && ((i % degrade) || (j % degrade)))
 				continue;
 		/*
-		 * Check for bad values
+		 * Don't plot vectors which start outside the plotting area
 		 */
-			if (UDATA(i,j) != bad && VDATA(i,j) != bad)
-				draw_vector (XtDisplay (w), d, Gcontext, 
-					xpos, ypos, UDATA (i, j), VDATA (i, j),
-					 unitlen);
+			if (! BETWEEN (ypos, pa_bottom, pa_top))
+				continue;
+		/*
+		 * Get our u and v and check for bad values
+		 */
+			u = u_array[i * ydim + j];
+			v = v_array[i * ydim + j];
+
+			if (u == bad || v == bad)
+				continue;
+		/*
+		 * Draw the vector or barb
+		 */
+			if (vector)
+				draw_vector (XtDisplay (w), d, Gcontext, xpos, 
+					     ypos, u, v, unitlen);
+			else
+				draw_barb (XtDisplay (w), d, Gcontext, xpos, 
+					   ypos, atan2 (-v, -u), hypot (u, v),
+					   shaftlen, FALSE);
 		}
 	}
 }
 
 
 
-# ifdef notdef
-
-/*
- * Unit wind length
- */
-static float	Unitlen;
-
-/*
- * Bad value flag
- */
-static int	Badval;
-
-/*
- * Graphics context
- */
-static GC	Gcontext = NULL;
-
-/*
- * The widget and drawable we're using
- */
-static Widget	W;
-static Drawable	D;
-
-/*
- * Forward declarations
- */
-void	VG_DrawVector (), VG_AnnotVector ();
-
-
 void
-VG_DrawVector (x, y, u, v)
-int	x, y;
-float	u, v;
-/*
- * Draw a vector from pixel location (x,y) using the specified floating
- * u and v components.  Scaling of u and v is done here.
- */
+VectorGrid (w, d, Gcontext, u_array, v_array, xdim, ydim, xlo, ylo, xhi, yhi, 
+	    vlen, bad, color, degrade)
+Widget	w;
+Drawable 	d;
+GC	Gcontext;
+float	*u_array, *v_array;
+int	xdim, ydim, xlo, ylo, xhi, yhi;
+float	vlen, bad;
+XColor	color;
+int	degrade;
 {
-	float	dx, dy;
-	int	xend, yend;
-	float	veclen, vecang, ang;
 /*
- * Check for bad values
+ * Just call WindGrid, telling it we want vectors
  */
-	if ((int) u == Badval || (int) v == Badval)
-		return;
-/*
- * Draw the shaft of the vector
- */
-	dx = u * Unitlen;
-	dy = -v * Unitlen;
-
-	xend = (int)(x + dx + 0.5);
-	yend = (int)(y + dy + 0.5);
-
-	XDrawLine (XtDisplay (W), D, Gcontext, x, y, xend, yend);
-/*
- * If the vector has any length, put on the arrow head
- */
-	if (dx != 0 || dy != 0)
-	{
-		vecang = atan2 (v, u);
-		veclen = hypot (u, v);
-
-		ang = vecang + ARROWANG;
-		dx = 0.4 * veclen * Unitlen * cos (ang);
-		dy = -0.4 * veclen * Unitlen * sin (ang);
-
-		XDrawLine (XtDisplay (W), D, Gcontext, xend, yend, 
-			(int)(xend - dx), (int)(yend - dy));
-
-
-		ang = vecang - ARROWANG;
-		dx = 0.4 * veclen * Unitlen * cos (ang);
-		dy = -0.4 * veclen * Unitlen * sin (ang);
-
-		XDrawLine (XtDisplay (W), D, Gcontext, xend, yend, 
-			(int)(xend - dx), (int)(yend - dy));
-	}
+	WindGrid (w, d, Gcontext, u_array, v_array, xdim, ydim, xlo, ylo, xhi,
+		  yhi, vlen, bad, color, degrade, TRUE);
 }
 
 
 
 
 void
-VG_AnnotVector (x, y, u, v, color)
-int	x, y;
-float	u, v;
-Pixel	color;
-/*
- * Draw a vector starting at pixel location (x,y) with
- * the given u and v values and in the specified color.
- * (This routine is provided so that routines that call
- * VectorPlot can draw an annotation vector, it
- * can only be called after VectorPlot)
- */
+BarbGrid (w, d, Gcontext, u_array, v_array, xdim, ydim, xlo, ylo, xhi, yhi, 
+	  vlen, bad, color, degrade)
+Widget	w;
+Drawable 	d;
+GC	Gcontext;
+float	*u_array, *v_array;
+int	xdim, ydim, xlo, ylo, xhi, yhi;
+float	vlen, bad;
+XColor	color;
+int	degrade;
 {
-	XSetForeground (XtDisplay (W), Gcontext, color);
-	VG_DrawVector (x, y, u, v);
+/*
+ * Just call WindGrid, telling it we want barbs
+ */
+	WindGrid (w, d, Gcontext, u_array, v_array, xdim, ydim, xlo, ylo, xhi,
+		  yhi, vlen, bad, color, degrade, FALSE);
 }
 
-# endif

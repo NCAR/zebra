@@ -1,7 +1,7 @@
 /*
  * XY-Observation plotting module
  */
-static char *rcsid = "$Id: XYObservation.c,v 1.11 1994-02-07 21:29:04 burghart Exp $";
+static char *rcsid = "$Id: XYObservation.c,v 1.12 1994-04-15 21:26:54 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -286,20 +286,34 @@ bool	update;
 
 		npts[plat] = xy_GetDataVectors (pid, &bTimeReq, &eTimeReq, 
 						single_obs, 0, dv, 3, 
-						dvObsInfo + plat);
+						dvObsInfo + plat, c);
 	/*
 	 * Update the overlay times widget and set up for side annotation
 	 * (Do it here since eTimeReq may change from platform to platform)
 	 */
 		if (npts[plat] > 0 && ! update)
 		{
-		    lw_TimeStatus (c, pnames[plat], &eTimeReq);
+		    char	fstring[40];
+		    char	dimns[40];
+
+		    sprintf (fstring, "%s/%s", xfnames[nxfield > 1 ? plat : 0],
+			     yfnames[nyfield > 1 ? plat : 0]);
+		    dimns[0] = '\0';
+		    if (pda_Search(Pd, c, "dimensions", NULL, dimns, 
+				   SYMT_STRING))
+			    sprintf (fstring+strlen(fstring), "(%s)", dimns);
+
+		    ot_AddStatusLine (c, pnames[plat], fstring, &eTimeReq);
 
 		    if (sideAnnot)
 		    {
-			sprintf (annotcontrol, "%s-%s:%s %d", pnames[plat], 
+			sprintf (annotcontrol, "%s-%s:%s", pnames[plat], 
 				 xfnames[nxfield > 1 ? plat : 0],
-				 yfnames[nyfield > 1 ? plat : 0], 
+				 yfnames[nyfield > 1 ? plat : 0]);
+			if (dimns[0])
+				sprintf (annotcontrol+strlen(annotcontrol),
+					 "(%s)", dimns);
+			sprintf (annotcontrol+strlen(annotcontrol), " %d",
 				 lcolor[plat]);
 			An_AddAnnotProc (An_ColorString, c, annotcontrol,
 					 strlen (annotcontrol) + 1, 25, FALSE,

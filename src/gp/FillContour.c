@@ -58,6 +58,10 @@
 # include <errno.h>
 # include <math.h>
 # include <X11/Intrinsic.h>
+
+# include <defs.h>
+# include <message.h>
+
 # include "Contour.h"
 
 /*
@@ -137,7 +141,8 @@ int	xdim, ydim;
 	FC_MinMax (&min, &max);
 	if (max == min)
 	{
-		msg_log ("Constant surface in contour, nothing drawn");
+		msg_ELog (EF_INFO, 
+			  "FillContour: Constant surface, nothing drawn");
 		return;
 	}
 /*
@@ -146,19 +151,32 @@ int	xdim, ydim;
 	if (! Gcontext)
 		Gcontext = XCreateGC (XtDisplay (W), XtWindow (W), 0, NULL);
 /*
- * Loop through the contour values
+ * Find contour limits
  */
 	cndx_min = (int) floor ((min - ccenter) / cstep);
 	cndx_max = (int) floor ((max - ccenter) / cstep);
-
+/*
+ * Sanity test
+ */
+	if ((cndx_max - cndx_min + 1) > 50)
+	{
+		msg_ELog (EF_PROBLEM, 
+			  "FillContour: Too many contours (%d), nothing drawn",
+			  cndx_max - cndx_min + 1);
+		return;
+	}
+/*
+ * Loop through the contours
+ */
 	for (cndx = cndx_min; cndx <= cndx_max; cndx++)
 	{
-		cval = ccenter + cndx * cstep;
+		cval = ccenter + cndx * cstep - 0.5 * cstep;
 	/*
 	 * Assign the color and grab a graphics context with this 
 	 * color in the foreground and with the user's clip area
 	 */
-		if (ABS (cndx) > (Ncolor - 1) / 2)
+		if ((Color_center + cndx) < 0 || 
+		    (Color_center + cndx) > Ncolor - 1)
 			foreground = Color_outrange.pixel;
 		else
 			foreground = Colors[Color_center + cndx].pixel;
@@ -201,10 +219,9 @@ float	flagval;
 {
 /*
  * Center color index and number of colors.
- * Make sure Ncolor is odd, so the Color_center is actually at the center
  */
 	Color_center = center;
-	Ncolor = (count % 2) ? count : count - 1;
+	Ncolor = count;
 	Colors = colors;
 /*
  * Color index for out-of-range contours
@@ -239,6 +256,8 @@ float	*min, *max;
 	{
 		if (Use_flag && Z[i] == Badflag)
 			continue;
+		else if (! FINITE(Z[i]))
+			continue;
 		else
 		{
 			*max = Z[i];
@@ -250,7 +269,7 @@ float	*min, *max;
 	if (i == Nx * Ny)
 	{
 		*min = *max = 0.0;
-		msg_log ("No good values in array to be contoured!");
+		msg_ELog (EF_INFO, "FillContour: No good values in array!");
 		return;
 	}
 /*
@@ -259,6 +278,8 @@ float	*min, *max;
 	for (; i < Nx * Ny; i++)
 	{
 		if (Use_flag && Z[i] == Badflag)
+			continue;
+		if (! FINITE(Z[i]))
 			continue;
 		if (Z[i] > *max)
 			*max = Z[i];

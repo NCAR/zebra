@@ -1,7 +1,7 @@
 /*
  * XY-Wind plotting module
  */
-static char *rcsid = "$Id: XYWind.c,v 1.23 1994-02-01 18:36:53 corbet Exp $";
+static char *rcsid = "$Id: XYWind.c,v 1.24 1994-04-15 21:26:56 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -297,14 +297,14 @@ bool	update;
 		dv[3].fname = windfld2;
 
 		npts[plat] = xy_GetDataVectors (pid, &bTimeReq, &eTimeReq, 
-						single_obs, skip, dv, 4, NULL);
+					single_obs, skip, dv, 4, NULL, c);
 	    /*
 	     * Update the overlay times widget and set up for side annotation
 	     * (Do it here since eTimeReq may change from platform to platform)
 	     */
 		if (npts[plat] > 0 && ! update)
 		{
-		    lw_TimeStatus (c, pnames[plat], &eTimeReq);
+		    ot_AddStatusLine (c, pnames[plat], "(winds)", &eTimeReq);
 
 		    if (sideAnnot)
 		    {
@@ -318,9 +318,7 @@ bool	update;
 					     FALSE, FALSE);
 			    sprintf (annotcontrol, "%s %s %f %f", 
 				     "wind-speed:m/sec", ctname, 
-				     ncolors % 2 ? 
-				     (ncolors - 1) * cstep * 0.5 :
-				     ncolors * cstep * 0.5, cstep);
+				     cstep * ncolors / 2.0, cstep);
 			}
 
 			if (strcmp (style, "barb") == 0)
@@ -332,9 +330,7 @@ bool	update;
 					     FALSE, FALSE);
 			    sprintf (annotcontrol, "%s%s %s %f %f ",
 				     "wind-speed:", barbtype, ctname,
-				     ncolors % 2 ? 
-				     (ncolors - 1) * cstep * 0.5 :
-				     ncolors * cstep * 0.5, cstep);
+				     cstep * ncolors / 2.0, cstep);
 			}
 
 			An_AddAnnotProc (An_ColorBar, c, annotcontrol, 

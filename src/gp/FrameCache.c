@@ -31,7 +31,7 @@
 # include "GraphicsW.h"
 # include "ActiveArea.h"
 
-MAKE_RCSID ("$Id: FrameCache.c,v 2.15 1994-02-14 16:29:13 corbet Exp $")
+MAKE_RCSID ("$Id: FrameCache.c,v 2.16 1994-04-15 21:25:48 burghart Exp $")
 
 # define BFLEN		500
 # define FLEN		40
@@ -58,6 +58,7 @@ typedef struct pf_pair
 static struct FrameCache
 {
 	ZebTime	fc_time;	/* The time of this entry		*/
+	int	fc_foffset;	/* forecast offset time			*/
 	char	fc_base[BFLEN];	/* Base field				*/
 	PF_Pair	*fc_pairs;	/* Platform/field pairs.		*/
 	int	fc_numpairs;	/* Number of platform/field pairs.	*/
@@ -253,8 +254,8 @@ int number;
  * Add this frame to the cache.  <number> is the pixmap index of this frame.
  */
 {
-	char **complist, *info;
-	int findex;
+	char **complist, *info, string[16];
+	int findex, foffset;
 /*
  * Sanity checking.
  */
@@ -276,6 +277,12 @@ int number;
 	if (!complist[1])
 		return;
 /*
+ * Forecast offset time
+ */
+	foffset = 0;
+	if (pd_Retrieve (Pd, "global", "forecast-offset", string, SYMT_STRING))
+		foffset = pc_TimeTrigger (string);
+/*
  * Get an empty frame which will correspond to the pixmap <number>.
  */
 	findex = fc_GetFreeFrame();
@@ -288,13 +295,14 @@ int number;
 /*
  * Get overlay time info from the overlay time widget
  */
-	info = lw_Status ();
+	info = ot_GetString ();
 	FCache[findex].fc_info = (char *) malloc (strlen (info) + 1);
 	strcpy (FCache[findex].fc_info, info);
 /*
  * Everything else.
  */
 	FCache[findex].fc_time = *when;
+	FCache[findex].fc_foffset = foffset;
 	FCache[findex].fc_lru = ++Lru;
 	FCache[findex].fc_valid = TRUE;
 	FCache[findex].fc_keep = FALSE;
@@ -465,9 +473,9 @@ char **info_return;
  * pixmap index.  Return the overlay times info too.
  */
 {
-	int	i, pindex, flag, numpairs;
+	int	i, pindex, flag, numpairs, foffset;
 	float	alt;
-	char	**complist, base[BFLEN];
+	char	**complist, string[16], base[BFLEN];
 	PF_Pair	*pairs = NULL;
 /*
  * Get the base field from the PD.
@@ -481,6 +489,12 @@ char **info_return;
 		return (-1);
         fc_GetFrameInfo (complist, base, &numpairs, &pairs, &alt);
 /*
+ * Forecast offset time
+ */
+	foffset = 0;
+	if (pd_Retrieve (Pd, "global", "forecast-offset", string, SYMT_STRING))
+		foffset = pc_TimeTrigger (string);
+/*
  * Now go searching.
  */
 	for (i = 0; i < MaxFrames; i++)
@@ -490,6 +504,7 @@ char **info_return;
 		FCache[i].fc_time.zt_MicroSec == when->zt_MicroSec &&
 		FCache[i].fc_alt >= (alt - 0.1) &&
 		FCache[i].fc_alt <= (alt + 0.1) &&
+		FCache[i].fc_foffset == foffset &&
 		! strcmp (FCache[i].fc_base, base) &&
 		fc_ComparePairs (FCache[i].fc_pairs, FCache[i].fc_numpairs, 
 			pairs, numpairs))
@@ -542,6 +557,62 @@ int	ntime;
  * Go through and mark all frames that match one of these times to be kept.
  */
 {
+	int	frame, t, numpairs, foffset;
+	float	alt;
+	char	string[16], base[BFLEN], **complist = pd_CompList (Pd);
+	PF_Pair	*pairs = NULL;
+/*
+ * Make sure we've got a base component
+ */
+	if (!complist[1])
+		return;
+	fc_GetFrameInfo (complist, base, &numpairs, &pairs, &alt);
+/*
+ * Forecast offset time
+ */
+	foffset = 0;
+	if (pd_Retrieve (Pd, "global", "forecast-offset", string, SYMT_STRING))
+		foffset = pc_TimeTrigger (string);
+/*
+ * Now go through all frames.
+ */
+	for (frame = 0; frame < MaxFrames; frame++)
+	{
+		struct FrameCache *fc = FCache + frame;
+
+		fc->fc_keep = FALSE;
+		for (t = 0; fc->fc_valid && t < ntime; t++)
+		{
+			if (fc->fc_time.zt_Sec == times[t].zt_Sec &&
+			    fc->fc_time.zt_MicroSec == times[t].zt_MicroSec &&
+			    fc->fc_alt >= (alt - 0.1) &&
+			    fc->fc_alt <= (alt + 0.1) &&
+			    fc->fc_foffset == foffset &&
+			    ! strcmp (fc->fc_base, base) &&
+			    fc_ComparePairs (fc->fc_pairs, fc->fc_numpairs,
+				pairs, numpairs))
+			{
+				fc->fc_keep = TRUE;
+				break;
+			}
+		}
+	}
+	if (pairs)
+		free (pairs);
+}
+
+
+
+
+void
+fc_MarkFramesByOffset (offsets, noffsets)
+int	*offsets;
+int	noffsets;
+/*
+ * Go through and mark all frames that match one of these forecast offset
+ * times to be kept.
+ */
+{
 	int	frame, t, numpairs;
 	float	alt;
 	char	base[BFLEN], **complist = pd_CompList (Pd);
@@ -560,15 +631,19 @@ int	ntime;
 		struct FrameCache *fc = FCache + frame;
 
 		fc->fc_keep = FALSE;
-		for (t = 0; fc->fc_valid && t < ntime; t++)
+
+		if (! fc->fc_valid ||
+		    ! TC_Eq (fc->fc_time, PlotTime) ||
+		    fc->fc_alt < (alt - 0.1) || 
+		    fc->fc_alt > (alt + 0.1) ||
+		    strcmp (fc->fc_base, base) ||
+		    ! fc_ComparePairs (fc->fc_pairs, fc->fc_numpairs, 
+				       pairs, numpairs))
+			continue;
+
+		for (t = 0; t < noffsets; t++)
 		{
-			if (fc->fc_time.zt_Sec == times[t].zt_Sec &&
-			    fc->fc_time.zt_MicroSec == times[t].zt_MicroSec &&
-			    fc->fc_alt >= (alt - 0.1) &&
-			    fc->fc_alt <= (alt + 0.1) &&
-			    ! strcmp (fc->fc_base, base) &&
-			    fc_ComparePairs (fc->fc_pairs, fc->fc_numpairs,
-				pairs, numpairs))
+			if (fc->fc_foffset == offsets[t])
 			{
 				fc->fc_keep = TRUE;
 				break;
@@ -896,7 +971,17 @@ int n;
  *  Update the FreePixmaps table whenever the FrameCount changes.
  */
 {
+	static bool	firstcall = TRUE;
 	int i;
+/*
+ * If this is the initial call, set everything to InvalidEntry.
+ */
+	if (firstcall)
+	{
+		firstcall = FALSE;
+		for (i = 0; i < MaxFrames; i++)
+			FreePixmaps[i] = InvalidEntry;
+	}
 /*
  * If we have added new frames enable the pixmaps.
  */

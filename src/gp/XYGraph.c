@@ -1,7 +1,7 @@
 /*
  * XY-Graph plotting module
  */
-static char *rcsid = "$Id: XYGraph.c,v 1.27 1994-02-07 21:29:02 burghart Exp $";
+static char *rcsid = "$Id: XYGraph.c,v 1.28 1994-04-15 21:26:51 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -251,14 +251,24 @@ bool	update;
 		dv[1].fname = yfnames[nyfield > 1 ? plat : 0];
 
 		npts[plat] = xy_GetDataVectors (pid, &bTimeReq, &eTimeReq, 
-						single_obs, 0, dv, 2, NULL);
+						single_obs, 0, dv, 2, NULL, c);
 	/*
 	 * Update the overlay times widget and set up for side annotation
 	 * (Do it here since eTimeReq may change from platform to platform)
 	 */
 		if (npts[plat] > 0 && ! update)
 		{
-			lw_TimeStatus (c, pnames[plat], &eTimeReq);
+			char	fstring[40];
+			char	dimns[40];
+
+			sprintf (fstring, "%s/%s", 
+				 xfnames[nxfield > 1 ? plat : 0],
+				 yfnames[nyfield > 1 ? plat : 0]);
+			if (pda_Search(Pd, c, "dimensions", NULL, dimns, 
+				       SYMT_STRING))
+			    sprintf (fstring+strlen(fstring), "(%s)", dimns);
+
+			ot_AddStatusLine (c, pnames[plat], fstring, &eTimeReq);
 
 			if (sideAnnot)
 				XYG_DoSideAnnotation (c, style, pnames[plat],
@@ -382,12 +392,14 @@ ZebTime *time;
 	float scale = 0.02;
 	int dotime = 0, nline = 2;
 	char label[200], timelabel[32];
+	char dimns[200];
 /*
  * Throw together the basic info.
  */
-	pda_Search (Pd, c, "sa-scale", NULL, (char *) &scale,
-		    SYMT_FLOAT);
-	sprintf (label, "%s|%d|%s|%s : %s", style, color, plat, xfield,yfield);
+	pda_Search (Pd, c, "sa-scale", NULL, (char *) &scale, SYMT_FLOAT);
+	sprintf(label, "%s|%d|%s|%s : %s", style, color, plat, xfield, yfield);
+	if (pda_Search (Pd, c, "dimensions", NULL, dimns, SYMT_STRING))
+		sprintf (label+strlen(label), "(%s)", dimns);
 /*
  * If they want the time put that in too.
  */

@@ -65,6 +65,6 @@ int	xy_AvailableData FP ((PlatformId, ZebTime*, ZebTime*, ZebTime*,
 int	xy_DetermineBounds FP ((char *, int, DataValPtr, DataValPtr, int, 
 				char *, int));
 int	xy_GetDataVectors FP ((PlatformId, ZebTime*, ZebTime*, int, int, 
-			       xyDataVector*, int, xyObsInfo*));
+			       xyDataVector*, int, xyObsInfo*, char *comp));
 
 

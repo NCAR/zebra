@@ -1,7 +1,7 @@
 /*
  * Movie control functions.
  */
-static char *rcsid = "$Id: MovieControl.c,v 2.17 1994-02-10 21:09:21 corbet Exp $";
+static char *rcsid = "$Id: MovieControl.c,v 2.18 1994-04-15 21:26:11 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -94,6 +94,12 @@ static ZebTime 	NotTime;
 static char	EndTime[ATSLEN];
 static int 	CurrentFrame;
 static int 	DisplayedFrame;
+
+/*
+ * If a movie is running, are we the ones controlling it?
+ */
+static bool	MyMovie = FALSE;
+
 /*
  * CurrentFrame is the frame we are supposed to be actually looking at.
  * DisplayedFrame is what we really *are* looking at.  They diverge when
@@ -134,6 +140,7 @@ static ZebTime	mc_FixTime FP ((ZebTime));
 static void	mc_Notification FP ((PlatformId, int, ZebTime *));
 static void	mc_MovieDismiss ();
 static void	mc_ChangeTimeUnits FP ((Widget, XtPointer, XtPointer));
+static void	mc_LoadParams FP ((void));
 
 
 void
@@ -151,7 +158,7 @@ mc_DefMovieWidget ()
 }
 
 
-void
+static void
 mc_LoadParams ()
 /*
  * Load the movie params from the PD.
@@ -508,6 +515,14 @@ mc_MovieRun ()
 	char trigger[200];
 	PlatformId pid;
 /*
+ * If something else has a movie going, then complain.
+ */
+	if (MovieMode && ! MyMovie)
+	{
+		mc_SetStatus ("Another movie is already going...");
+		return;
+	}
+/*
  * Figure out our parameters.
  */
 	Now = FALSE;
@@ -528,6 +543,7 @@ mc_MovieRun ()
 	ds_CancelNotify ();
 	PlotMode = History;
 	MovieMode = TRUE;
+	MyMovie = TRUE;
 	pd_Store (Pd, "global", "plot-mode", "history", SYMT_STRING);
 	pd_Store (Pd, "global", "movie-mode", (char *) &MovieMode, SYMT_BOOL);
 	Eq_AddEvent (PWhenever, eq_ReturnPD, 0, 0, Bounce);
@@ -859,6 +875,7 @@ mc_MovieStop ()
 	if (CurrentFrame >= Nframes)
 		CurrentFrame = Nframes - 1;
 	MovieMode = FALSE;
+	MyMovie = FALSE;
 	PlotMode = History;
 	PlotTime = Mtimes[CurrentFrame];
 	pd_Store(Pd, "global", "plot-time", (char *) &PlotTime, SYMT_DATE);
@@ -889,8 +906,7 @@ mc_ResetFrameCount()
 		/*
 		 * Update the overlay times widget
 		 */
-			lw_OvInit (info);
-			lw_LoadStatus ();
+			ot_SetString (info);
 		}
 		XtSetArg (args[0], XtNframeCount, FrameCount);
 		XtSetValues (Graphics, args, ONE);
@@ -1094,16 +1110,33 @@ XtPointer junk, pct;
 
 
 void
-mc_ParamChange()
+mc_ParamChange (param)
+char	*param;
 /*
- *  What to do if a parameter changes while the movie is running.  The movie 
- *  is still running and it will generate the new frames as it needs them. 
+ * Handle a parameter change.  If the movie is running, we update it and
+ * keep it running.
  */
 {
 /*
- *  Unmark the old frames so they don't hog the pixmaps.  
+ * If it's one of our movie parameters, then reload and return
  */
-	fc_UnMarkFrames();
+	if (! strcmp (param, "frame-rate") ||
+	    ! strcmp (param, "frame-skip") ||
+	    ! strcmp (param, "movie-end-time") ||
+	    ! strcmp (param, "movie-minutes"))
+	{
+		mc_LoadParams ();
+		return;
+	}
+/*
+ * If we're running a movie, mark good frames (if any) and regenerate
+ */
+	if (MovieMode && MyMovie)
+	{
+		fc_UnMarkFrames ();
+		fc_MarkFrames (Mtimes, Nframes);
+		mc_GenFrames ();
+	}
 }
 
 
@@ -1125,7 +1158,7 @@ mc_PDChange()
  *  If Now and our trigger is a platform, then redo the ds_RequestNotify 
  *  because it was cancelled somewhere like the plot handler.
  */
-	if(Now && ! ReGenFrame)
+	if (Now && ! ReGenFrame)
 		if(pda_Search(Pd, "global", "trigger",0,trigger,SYMT_STRING))
 			if((pid = ds_LookupPlatform(trigger)) != BadPlatform)
 				ds_RequestNotify(pid, 0, mc_Notification);

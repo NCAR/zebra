@@ -5,7 +5,7 @@
  * region to hide details of the X coordinate system from individual
  * Plotting routines.
  */
-static char *rcsid = "$Id: PlotPrim.c,v 1.7 1993-12-01 17:21:22 burghart Exp $";
+static char *rcsid = "$Id: PlotPrim.c,v 1.8 1994-04-15 21:26:24 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -236,7 +236,9 @@ float		cstep;
 			radius = sqrt(upt*upt + vpt*vpt);
 		}
 		level = (int)(radius/cstep);
-		XSetForeground (Disp, Gcontext, colors[level % ncolor].pixel);
+		if (level >= ncolor)
+			level = ncolor - 1;
+		XSetForeground (Disp, Gcontext, colors[level].pixel);
 		draw_vector (Disp, GWFrame(Graphics), Gcontext, devX (x + i),
 			     devY (y + i), upt, vpt, scale);
 	}
@@ -315,7 +317,9 @@ int		doKnot;
 	}
 
 	level = doKnot ? (int)((radius/.5148)/cstep): (int)(radius/cstep);
-	XSetForeground (Disp, Gcontext, colors[level % ncolor].pixel);
+	if (level >= ncolor)
+		level = ncolor - 1;
+	XSetForeground (Disp, Gcontext, colors[level].pixel);
 	radians = radians + 3.1415926; /* reverse direction */
 	draw_barb ( Disp, GWFrame(Graphics), Gcontext, devX (x + i), 
 		   devY (y + i), radians, radius, shaftlen, doKnot);

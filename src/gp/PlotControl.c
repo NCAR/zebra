@@ -1,7 +1,7 @@
 /*
  * Window plot control routines.
  */
-static char *rcsid = "$Id: PlotControl.c,v 2.27 1994-01-20 21:15:16 burghart Exp $";
+static char *rcsid = "$Id: PlotControl.c,v 2.28 1994-04-15 21:26:19 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -61,13 +61,12 @@ CoordStack *O_coords = 0;
  * treatment of PD parameter changes.  Someday it should be smarter.
  *
  * The default action when a parameter change comes in is to (1) invalidate
- * the frame cache, (2) (not) wipe out the icon bar, and (3) do a complete 
+ * the frame cache, (2) (not) wipe out the icons, and (3) do a complete 
  * redraw.  These flags can change that.
  */
 # define F_NOINVALIDATE		0x0001	/* Preserve frame cache		*/
 # define F_NOREDRAW		0x0002	/* Do not replot the screen	*/
-# define F_MOVIEUPD		0x0004	/* Update movie parameters	*/
-# define F_ICONS		0x0008	/* Redo the icons		*/
+# define F_ICONS		0x0004	/* Redo the icons		*/
 
 
 /*
@@ -90,16 +89,13 @@ static struct ParamAction PActions[] =
 	{ "altitude",		F_NOINVALIDATE				},
 	{ "disable",		F_ICONS					},
 	{ "field",		F_NOINVALIDATE				},
-	{ "frame-rate",		F_NOREDRAW | F_NOINVALIDATE | F_MOVIEUPD },
-	{ "frame-skip",		F_NOREDRAW | F_NOINVALIDATE | F_MOVIEUPD },
+	{ "forecast-offset",	F_NOINVALIDATE				},
 	{ "icon",		F_NOREDRAW | F_NOINVALIDATE | F_ICONS	},
 	{ "icon-background",	F_NOREDRAW | F_NOINVALIDATE | F_ICONS	},
 	{ "icon-color",		F_NOREDRAW | F_NOINVALIDATE | F_ICONS	},
 	{ "platform",		F_ICONS					},
 	{ "plot-hold",		F_NOINVALIDATE				},
 	{ "plot-mode",		F_ICONS					},
-	{ "movie-end-time",	F_NOREDRAW | F_NOINVALIDATE | F_MOVIEUPD },
-	{ "movie-minutes",	F_NOREDRAW | F_NOINVALIDATE | F_MOVIEUPD },
 	{ "require",		F_NOREDRAW | F_NOINVALIDATE		},
 	{ "trigger",		F_NOINVALIDATE				},
 	{ "xorvalue",		F_NOREDRAW | F_NOINVALIDATE },
@@ -113,7 +109,7 @@ pc_PlotHandler ()
  * Deal with plotting based on plot mode
  */
 {
-	char	pmstring[80];
+	char	string[80];
 	Arg	arg;
 	static bool First = TRUE;
 	bool hold = FALSE;
@@ -133,14 +129,14 @@ pc_PlotHandler ()
  */
 	PlotMode = RealTime;
 
-	if (! pda_Search (Pd, "global", "plot-mode", 0, pmstring, SYMT_STRING))
+	if (! pda_Search (Pd, "global", "plot-mode", 0, string, SYMT_STRING))
 		msg_log ("No plot mode given -- real-time used");
-	else if (! strcmp (pmstring, "real-time"))
+	else if (! strcmp (string, "real-time"))
 		PlotMode = RealTime;
-	else if (! strcmp (pmstring, "history"))
+	else if (! strcmp (string, "history"))
 		PlotMode = History;
 	else
-		msg_log ("Unknown plot mode '%s' -- real-time used", pmstring);
+		msg_log ("Unknown plot mode '%s' -- real-time used", string);
 	msg_ELog(EF_DEBUG, "PlotMode: %s", (PlotMode == History) ? "History" :
 		"RealTime");
 /*
@@ -224,6 +220,19 @@ pc_PlotHandler ()
 	else
 		tl_Time (&PlotTime);
 /*
+ * Look for a forecast offset time for model data
+ */
+	ForecastOffset = 0;
+	if (pda_Search (Pd, "global", "forecast-offset", NULL, string, 
+			SYMT_STRING))
+		ForecastOffset = pc_TimeTrigger (string);
+/*
+ * Get model data *valid* at the plot time rather than issued then?
+ */
+	ValidationMode = FALSE;
+	pda_Search (Pd, "global", "validation-mode", NULL, 
+		    (char *) &ValidationMode, SYMT_BOOL);
+/*
  * If we're in post processing mode assign PostProcTime to something.
  */
 	if ((PostProcMode && (PlotMode == RealTime)) || First)
@@ -249,54 +258,54 @@ char	*param;
  * Deal with a parameter change in the PD
  */
 {
-	struct ParamAction *pa = PActions;
+	int pflags;
+	struct ParamAction *pa;
 /*
- * Try to find this parameter in our table.
+ * Find the flags for this parameter (if any)
  */
-	while (pa->pa_param && strcmp (pa->pa_param, param))
-		pa++;
-/*
- * If we did't find it, take the default action.
- */
-	if (! pa->pa_param)
+	pflags = 0;
+
+	for (pa = PActions; pa->pa_param; pa++)
 	{
-		msg_ELog (EF_DEBUG, "Change '%s' -- no entry", param);
-		ct_FreeColors ();		/* Release all colors	*/
-		fc_InvalidateCache ();  	/* Invalidate cache	*/
-		if(! MovieMode)
+		if (! strcmp (pa->pa_param, param))
 		{
-			pc_PlotHandler ();	/* Schedule an update	*/
-			aa_ResetAreas ();
+			pflags = pa->pa_flags;
+			break;
 		}
-		else
-			mc_ParamChange();
-		return;
 	}
 /*
- * Otherwise do what it says.
+ * Special: If it's "require", set up to do the load.
  */
-	msg_ELog (EF_DEBUG, "Change '%s' -- flags 0x%x", param, pa->pa_flags);
-	if ((pa->pa_flags & F_NOINVALIDATE) == 0)
+	if (! strcmp (param, "require"))
+		Eq_AddEvent (PWhenever, DoRequires, 0, 0, Bounce);
+/*
+ * Release colors and invalidate the cache unless this is a NOINVALIDATE 
+ * parameter
+ */
+	if (! (pflags & F_NOINVALIDATE))
 	{
 		ct_FreeColors ();
 		fc_InvalidateCache ();
 	}
-	if (pa->pa_flags & F_MOVIEUPD)
-		mc_LoadParams ();
-	if (pa->pa_flags & F_ICONS)
-		I_DoIcons ();
-	if (((pa->pa_flags & F_NOREDRAW) == 0) && ! MovieMode)
-	{
-		pc_PlotHandler ();
-		return;
-	}
-	if(MovieMode)
-		mc_ParamChange();
 /*
- * If it's a require, set up to do the load now.
+ * Update icons if necessary
  */
-	if (! strcmp (pa->pa_param, "require"))
-		Eq_AddEvent (PWhenever, DoRequires, 0, 0, Bounce);
+	if (pflags & F_ICONS)
+		I_DoIcons ();
+/*
+ * Let the movie and model widgets know that something changed.
+ */
+	mc_ParamChange (param);
+	mw_ParamChange (param);
+/*
+ * Redraw (or notify the current movie handler) unless it's a NOREDRAW 
+ * parameter
+ */
+	if (! (pflags & F_NOREDRAW) && ! MovieMode)
+	{
+		pc_PlotHandler ();	/* Schedule a plot update */
+		aa_ResetAreas ();
+	}
 }
 
 
@@ -367,7 +376,8 @@ int index;
 }
 
 
-int pc_TimeTrigger (trigger)
+int 
+pc_TimeTrigger (trigger)
 char *trigger;
 /*
  * Try to interpret this trigger condition as a time.

@@ -2,7 +2,7 @@
  * Overlay times widget.  This is where plots can write per-component data
  * details like exact data time, altitude, etc.
  */
-static char *rcsid = "$Id: OverlayTimes.c,v 2.1 1994-03-29 21:05:57 burghart Exp $";
+static char *rcsid = "$Id: OverlayTimes.c,v 2.2 1994-04-15 21:26:17 burghart Exp $";
 /*		Copyright (C) 1994 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -187,4 +187,5 @@ ot_Update ()
 	xtext.format = FMT8BIT;
 
 	XawTextReplace (OTWidget, 0, strlen (current), &xtext);
+	XawTextInvalidate (OTWidget, 0, strlen (OTString) + 1);
 }

@@ -1,7 +1,7 @@
 /*
  * Locaton display routine.
  */
-static char *rcsid = "$Id: Lightning.c,v 2.8 1993-10-14 20:22:03 corbet Exp $";
+static char *rcsid = "$Id: Lightning.c,v 2.9 1994-04-15 21:26:07 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -52,13 +52,11 @@ bool update;
 	char	tadefcolor[30], data[100], temp[50], iconname[40];
 	int	period, dsperiod, x, y, numcolor, pid, istep;
 	int	i, index, nsamp, showicon;
-	UItime	t;
-	ZebTime	begin;
+	ZebTime	begin, when;
 	float	fx, fy, sascale;
 	XColor	*colors, tadefclr;
 	DataChunk	*dc;
 	Location	loc;
-	ZebTime		when;
 /*
  * Get our platform first, since that's what is of interest to us.
  */
@@ -196,8 +194,7 @@ bool update;
  * Put in the status line.
  */
 	dc_GetTime (dc, nsamp - 1, &when);
-	TC_ZtToUI (&when, &t);
-	lw_TimeStatus (comp, platform, &t);
+	ot_AddStatusLine (comp, platform, "(lightning)", &when);
 /*
  * Free the data.
  */

@@ -22,7 +22,7 @@
 # include <config.h>
 # if C_PT_CAP
 
-
+# include <ctype.h>
 # include <X11/Intrinsic.h>
 # include <ui.h>
 # include <defs.h>
@@ -39,7 +39,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.38 1994-02-01 18:01:12 corbet Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.39 1994-04-15 21:25:40 burghart Exp $")
 
 
 /*
@@ -48,6 +48,11 @@ MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.38 1994-02-01 18:01:12 corbet Exp $")
 static XColor	*Colors, Ctclr;
 static int	Ncolors;
 static bool 	Monocolor;
+
+/*
+ * Our plot altitude
+ */
+static float	Alt;
 
 /*
  * Other annotation information.
@@ -89,15 +94,15 @@ typedef struct _StInfo
 
 
 /*----------------------------------------------------------------
- * Forwards.
+ * Prototypes
  */
 void		CAP_FContour FP ((char *, int));
 void		CAP_Vector FP ((char *, int));
 void		CAP_Station FP ((char *, int));
 void		CAP_Raster FP ((char *, int));
 void		CAP_LineContour FP ((char *, int));
-static void	CAP_Contour FP ((char *, contour_type, char *, float *, 
-			float *, char *, int *));
+static void	CAP_Contour FP ((char *, contour_type, char **, char **, 
+				 float *, float *, char **, int *));
 static DataChunk *CAP_ImageGrid FP ((char *, ZebTime *, PlatformId, char *, 
 			int *, int *, float *, float *, float *, float *, 
 			float *, int *));
@@ -108,6 +113,8 @@ static bool 	CAP_VecParams FP ((char *, char *, char *, char *, float *,
 static StInfo	*CAP_StationInfo FP ((DataChunk *, Location *, int));
 static void 	CAP_SpFilter FP ((float *, float *, float *, StInfo *, int,
 			int));
+static void	CAP_AddStatusLine FP ((char *, char *, char *, double, 
+				       AltUnitType, ZebTime *));
 
 
 
@@ -119,7 +126,32 @@ UItime *t;
  * CAP Plot initialization.
  */
 {
-	lw_OvInit ("COMPONENT      PLATFORM   FIELD       TIME\n");
+	char	altlabel[40];
+	float	annotscale;
+/*
+ * Header line for the overlay times widget.
+ */
+	ot_SetString ("COMPONENT      PLATFORM   FIELD");
+	ot_Append ("      ALTITUDE       TIME\n");
+/*
+ * Grab plot altitude from the PD
+ */
+	Alt = -999.0;
+	pd_Retrieve (Pd, "global", "altitude", (char *) &Alt, SYMT_FLOAT);
+/*
+ * Plot altitude annotation
+ */
+	annotscale = TOPANNOTHEIGHT;
+	pd_Retrieve (Pd, "global", "ta-scale", (char *) &annotscale, 
+		     SYMT_FLOAT);
+
+	sprintf (altlabel, "No altitude-label!");
+	pd_Retrieve (Pd, "global", "altitude-label", altlabel, SYMT_STRING);
+
+	XSetForeground (XtDisplay (Graphics), Gcontext,Tadefclr.pixel);
+	DrawText (Graphics, GWFrame (Graphics), Gcontext,
+		GWWidth (Graphics) - 10, GWHeight (Graphics) - 10, 
+		altlabel, 0.0, annotscale, JustifyRight, JustifyBottom);
 }
 
 
@@ -134,12 +166,13 @@ bool	update;
  */
 {
 	float	center, step;
-	char	fname[20], ctable[40], data[100];
+	char	*plat, *fname, *ctable, string[100];
 	int shift;
 /*
  * Use the common CAP contouring routine to do a filled contour plot
  */
-	CAP_Contour (c, FilledContour, fname, &center, &step, ctable, &shift);
+	CAP_Contour (c, FilledContour, &plat, &fname, &center, &step, &ctable,
+		     &shift);
 /*
  * If it's just an update, return now since we don't want
  * to re-annotate
@@ -149,9 +182,11 @@ bool	update;
 /*
  * Top annotation
  */
-	An_TopAnnot (px_FldDesc (c, fname), Tadefclr.pixel);
-	An_TopAnnot (shift ? " filled contour (SHIFTED)." : " filled contour.",
-		Tadefclr.pixel);
+	sprintf (string, "%s %s filled contour%s.  ", plat, px_FldDesc (fname),
+		 shift ? " (SHIFTED)" : "");
+	string[0] = toupper (string[0]);
+
+	An_TopAnnot (string, Tadefclr.pixel);
 /*
  * Side annotation (color bar)
  * (We have to subtract half a step from the center value that goes to 
@@ -160,10 +195,9 @@ bool	update;
  */
 	if (Sashow)
 	{
-		sprintf (data, "%s %s %f %f", fname, ctable, center - step / 2,
-			 step); 
-		An_AddAnnotProc (An_ColorBar, c, data, strlen (data),
-			75, TRUE, FALSE);
+		sprintf (string, "%s %s %f %f", fname, ctable, center, step); 
+		An_AddAnnotProc (An_ColorBar, c, string, strlen (string),
+				 75, TRUE, FALSE);
 	}
 }
 
@@ -179,13 +213,14 @@ bool	update;
  */
 {
 	float	center, step;
-	char	fname[20], data[100], ctable[40];
+	char	*plat, *fname, *ctable, string[100];
 	bool	tacmatch = FALSE;
 	int	shift;
 /* 
  * Use the common CAP contouring routine to do a color line contour plot
  */
-	CAP_Contour (c, LineContour, fname, &center, &step, ctable, &shift);
+	CAP_Contour (c, LineContour, &plat, &fname, &center, &step, &ctable, 
+		     &shift);
 /*
  * If it's just an update, return now since we don't want
  * to re-annotate
@@ -195,13 +230,18 @@ bool	update;
 /*
  * Top annotation
  */
-	if (pda_Search (Pd, c, "ta-color-match", NULL,
-			(char *) &tacmatch, SYMT_BOOL) && tacmatch &&Monocolor)
-		An_TopAnnot (px_FldDesc (c, fname), Ctclr.pixel);
+	sprintf (string, "%s ", plat);
+	string[0] = toupper (string[0]);
+	An_TopAnnot (string, Tadefclr.pixel);
+
+	if (Monocolor && pda_Search (Pd, c, "ta-color-match", NULL, 
+				     CPTR (tacmatch), SYMT_BOOL) && tacmatch)
+		An_TopAnnot (px_FldDesc (fname), Ctclr.pixel);
 	else 
-		An_TopAnnot (px_FldDesc (c, fname), Tadefclr.pixel);
-	An_TopAnnot (shift ? " contour (SHIFTED)." : " contour.",
-		Tadefclr.pixel);
+		An_TopAnnot (px_FldDesc (fname), Tadefclr.pixel);
+
+	An_TopAnnot (shift ? " contour (SHIFTED).  " : " contour.  ",
+		     Tadefclr.pixel);
 /*
  * Side annotation
  */
@@ -209,10 +249,10 @@ bool	update;
 	{
 		if (! Monocolor)
 		{
-			sprintf (data, "%s %s %f %f", fname, ctable, 
-				center, step); 
-			An_AddAnnotProc (An_ColorNumber, c, data, 
-					 strlen (data), 75, TRUE, FALSE);
+			sprintf (string, "%s %s %f %f", fname, ctable, 
+				 center, step); 
+			An_AddAnnotProc (An_ColorNumber, c, string, 
+					 strlen (string), 75, TRUE, FALSE);
 		}
 	}
 }
@@ -221,19 +261,21 @@ bool	update;
 
 
 static void
-CAP_Contour (c, type, fname, center, step, ctable, shifted)
-char	*c, *fname, *ctable;
+CAP_Contour (c, type, rplat, rfldname, center, step, rctable, shifted)
+char	*c, **rplat, **rfldname, **rctable;
 contour_type	type;
 float	*center, *step;
 int *shifted;
 /*
- * Execute a CAP contour plot, based on the given plot
- * description, specified component, and contour type.
- * Return the field name, contour center, and step from the plot
- * description.
+ * Execute a CAP contour plot, based on the given plot description,
+ * specified component, and contour type.  Return the platform name, field
+ * name, contour center and step, color table name, and whether or not the
+ * data were spatially shifted.  The strings returned are all valid until
+ * the next call to CAP_Contour, and should not be modified.
  */
 {
-	char	platform[40], ctcolor[40], param[50];
+	static char	platform[40], fname[40], ctable[40];
+	char	ctcolor[40], param[50];
 	int	xdim, ydim;
 	float	*rgrid, *grid, x0, x1, y0, y1, alt;
 	int	pix_x0, pix_x1, pix_y0, pix_y1, linewidth;
@@ -246,6 +288,13 @@ int *shifted;
 	RGrid	rg;
 	Location 	loc;
 	float	badvalue;
+	AltUnitType	altunits;
+/*
+ * Set up the return strings
+ */
+	*rplat = platform;
+	*rfldname = fname;
+	*rctable = ctable;
 /*
  * Get necessary parameters from the plot description
  */
@@ -289,7 +338,7 @@ int *shifted;
 	else ok &= pda_ReqSearch (Pd, c, "color-table", "contour", ctable, 
 		SYMT_STRING);
 /*
- * Labelling.
+ * Labeling.
  */
 	labelflag = TRUE;
 	pda_Search(Pd, c, "label-blanking", "contour", (char *) &labelflag,
@@ -301,22 +350,24 @@ int *shifted;
 /* 
  * Get annotation information
  */
-	if(! pda_Search(Pd, c, "sa-scale", NULL, (char *) &Sascale,SYMT_FLOAT))
-		Sascale = 0.02;
-	if(! pda_Search(Pd, c, "ct-limit", NULL, (char *) &Ctlimit, SYMT_INT))
-		Ctlimit = 1;
+	Sascale = 0.02;
+	pda_Search (Pd, c, "sa-scale", NULL, (char *) &Sascale, SYMT_FLOAT);
+
+	Ctlimit = 1;
+	pda_Search (Pd, c, "ct-limit", NULL, (char *) &Ctlimit, SYMT_INT);
+
 	Sashow = TRUE;
-	pda_Search(Pd, c, "sa-show", NULL, (char *) &Sashow, SYMT_BOOL);
+	pda_Search (Pd, c, "sa-show", NULL, (char *) &Sashow, SYMT_BOOL);
 /*
  * Special stuff for line contours
  */
-	if (! pda_Search (Pd, c, "do-labels", "contour", (char *) &dolabels,
-		SYMT_BOOL))
-		dolabels = TRUE;
+	dolabels = TRUE;
+	pda_Search (Pd, c, "do-labels", "contour", (char *) &dolabels, 
+		    SYMT_BOOL);
 
-	if (! pda_Search (Pd, c, "line-width", "contour", (char *) &linewidth,
-		SYMT_INT))
-		linewidth = 0;
+	linewidth = 0;
+	pda_Search (Pd, c, "line-width", "contour", (char *) &linewidth,
+		    SYMT_INT);
 /*
  * Grab the color table
  */
@@ -329,16 +380,14 @@ int *shifted;
 	/* msg_ELog (EF_INFO, "Get grid at %.2f km", alt); */
 	zt = PlotTime;
 	if(! (dc = ga_GetGrid (&zt, c, platform, fname, &xdim, &ydim, &x0, &y0,
-			&x1, &y1, &alt, shifted)))
+			       &x1, &y1, &alt, shifted)))
 		return;
 	rgrid = dc_RGGetGrid (dc, 0, F_Lookup (fname), &loc, &rg, &len);
-
-	if (Comp_index == AltControlComp)
-		Alt = alt;
 /*
- * Get the badvalue flag.
+ * Get the badvalue flag and altitude units.
  */
 	badvalue = dc_GetBadval (dc);
+	altunits = dc_GetLocAltUnits (dc);
 /*
  * If we are autoscaling get the scale parameters now.  Stash them back into
  * the PD so they will be found later if wanted.
@@ -357,6 +406,9 @@ int *shifted;
  */
 	grid = (float *) malloc (xdim * ydim * sizeof (float));
 	ga_RotateGrid (rgrid, grid, xdim, ydim);
+/*
+ * Done with the data chunk
+ */
 	dc_DestroyDC (dc);
 /*
  * Convert the grid limits to pixel values
@@ -379,18 +431,20 @@ int *shifted;
 	{
 	    case FilledContour:
 		FC_Init (Colors, Ncolors, Ncolors / 2, black, clip, TRUE, 
-			badvalue);
+			 badvalue);
 		FillContour (Graphics, GWFrame (Graphics), grid, xdim, ydim, 
-			pix_x0, pix_y0, pix_x1, pix_y1, *center, *step);
+			     pix_x0, pix_y0, pix_x1, pix_y1, *center, *step);
 		break;
 	    case LineContour:
 		if(! Monocolor)
 			CO_Init (Colors, Ncolors, Ncolors / 2, black, clip, 
-				TRUE, badvalue);
-		else CO_InitMono (Ctclr, clip, TRUE, badvalue);
+				 TRUE, badvalue);
+		else 
+			CO_InitMono (Ctclr, clip, TRUE, badvalue);
+
 		Contour (Graphics, GWFrame (Graphics), grid, xdim, ydim,
-			pix_x0, pix_y0, pix_x1, pix_y1, *center, *step, 
-			dolabels, linewidth);
+			 pix_x0, pix_y0, pix_x1, pix_y1, *center, *step, 
+			 dolabels, linewidth);
 		break;
 	    default:
 		msg_ELog (EF_PROBLEM, "BUG: bad contour plot type %d", type);
@@ -398,7 +452,7 @@ int *shifted;
 /*
  * Free the data array
  */
-	lw_TimeStatus (c, platform, &zt);
+	CAP_AddStatusLine (c, platform, fname, loc.l_alt, altunits, &zt);
 	free (grid);
 }
 
@@ -684,9 +738,9 @@ bool update;
 	}
 # endif
 /*
- * Finish up the time widget and we are done.
+ * Add to the overlay times widget and we are done.
  */
-	lw_TimeStatus (c, platform, &zt);
+	CAP_AddStatusLine (c, platform, "(station)", 0.0, AU_kmAGL, &zt);
 }
 
 
@@ -859,6 +913,7 @@ bool	update;
 	DataChunk	*dc;
 	Location	loc, *locations;
 	RGrid		rg;
+	AltUnitType	altunits;
 /*
  * Check to see if they have set "grid" to FALSE, in which case they should
  * really be using the station representation.
@@ -896,10 +951,11 @@ bool	update;
 			&x0, &y0, &x1, &y1, &alt, &shifted)))
 		return;
 	rgrid = dc_RGGetGrid (dc, 0, F_Lookup (uname), &loc, &rg, &len);
-	if (Comp_index == AltControlComp)
-		Alt = alt;
+
 	ugrid = (float *) malloc (xdim * ydim * sizeof (float));
 	ga_RotateGrid (rgrid, ugrid, xdim, ydim);
+	badvalue = dc_GetBadval (dc);
+	altunits = dc_GetLocAltUnits (dc);
 	dc_DestroyDC (dc);
 /*
  * Get v component.
@@ -908,9 +964,10 @@ bool	update;
 	if (! (dc = ga_GetGrid (&zt, c, platform, vname, &xdim, &ydim, 
 			&x0, &y0, &x1, &y1, &alt, &shifted)))
 		return;
-	rgrid = dc_RGGetGrid (dc, 0, F_Lookup (vname), &loc,&rg, &len);
+	rgrid = dc_RGGetGrid (dc, 0, F_Lookup (vname), &loc, &rg, &len);
 	vgrid = (float *) malloc (xdim * ydim * sizeof (float));
 	ga_RotateGrid (rgrid, vgrid, xdim, ydim);
+	dc_DestroyDC (dc);
 /*
  * Convert the grid limits to pixel values
  */
@@ -919,7 +976,6 @@ bool	update;
 /*
  * Draw the vectors
  */
-	badvalue = dc_GetBadval (dc);
 	VectorGrid (Graphics, GWFrame (Graphics), Gcontext, ugrid, 
 		vgrid, xdim, ydim, pix_x0, pix_y0, pix_x1, pix_y1, 
 		vscale, badvalue, color, degrade);
@@ -928,7 +984,6 @@ bool	update;
  */
 	free (ugrid);
 	free (vgrid);
-	dc_DestroyDC (dc);
 /*
  * Annotation time.
  */
@@ -962,7 +1017,7 @@ bool	update;
 		 unitlen); 
 	An_AddAnnotProc (An_ColorVector, c, data, strlen (data),
 		40, FALSE, FALSE);
-	lw_TimeStatus (c, platform, &zt);
+	CAP_AddStatusLine (c, platform, "(winds)", loc.l_alt, altunits, &zt);
 }
 
 
@@ -1133,7 +1188,7 @@ bool	update;
  * description, specified conent, and plot time
  */
 {
-	char	name[20], ctname[40], platform[40], data[100], hcolor[40];
+	char	fname[20], ctname[40], platform[40], data[100], hcolor[40];
 	char	param[50], outrange[40];
 	int	xdim, ydim;
 	int	nsteps;
@@ -1153,19 +1208,20 @@ bool	update;
 	Location loc;
 	int	len;
 	RGrid	rg;
+	AltUnitType	altunits;
 /*
  * Get necessary parameters from the plot description
  */
-	strcpy (name, "none");
+	strcpy (fname, "none");
 	ok = pda_ReqSearch (Pd, c, "platform", NULL, platform, SYMT_STRING);
-	ok &= pda_ReqSearch (Pd, c, "field", NULL, name, SYMT_STRING);
-	sprintf (param, "%s-center", name);
+	ok &= pda_ReqSearch (Pd, c, "field", NULL, fname, SYMT_STRING);
+	sprintf (param, "%s-center", fname);
 	ok &= pda_ReqSearch (Pd, c, param, "raster", CPTR (center), 
 		SYMT_FLOAT);
-	sprintf (param, "%s-step", name);
+	sprintf (param, "%s-step", fname);
 	ok &= pda_ReqSearch (Pd, c, param, "raster", CPTR (step), 
 		SYMT_FLOAT);
-	sprintf (param, "%s-nsteps", name);
+	sprintf (param, "%s-nsteps", fname);
 	if (! pda_ReqSearch (Pd, c, param, "raster", CPTR (nsteps), SYMT_INT))
 		nsteps = 11;
 	ok &= pda_ReqSearch (Pd, c, "color-table", "raster", ctname, 
@@ -1191,7 +1247,8 @@ bool	update;
 	}
 	if ((org = ds_PlatformDataOrg (pid)) == OrgImage)
 		image = TRUE;
-	else if (org == Org3dGrid || org == Org2dGrid || org == OrgIRGrid)
+	else if (org == Org3dGrid || org == Org2dGrid || org == OrgIRGrid ||
+		 org == OrgScalar /* for NSpace */)
 		image = FALSE;
 	else
 	{
@@ -1202,16 +1259,16 @@ bool	update;
  * Get info for highlighting and area.
  */
 	highlight = FALSE;
-	sprintf (param, "%s-highlight-range", name);
+	sprintf (param, "%s-highlight-range", fname);
 	if (pda_Search (Pd, c, param, "raster", CPTR (hrange), SYMT_FLOAT)
 		&& (hrange != 0.0))
 	{
 		highlight = TRUE;
-		sprintf (param, "%s-highlight-color", name);
+		sprintf (param, "%s-highlight-color", fname);
 		if (! pda_Search (Pd, c, param, "raster", hcolor, 
 				SYMT_STRING))
 			strcpy (hcolor, "white");
-		sprintf (param, "%s-highlight", name);
+		sprintf (param, "%s-highlight", fname);
 		if (! pda_Search (Pd, c, param, "raster", CPTR (hvalue), 
 				SYMT_FLOAT))
 			hvalue = 0.0;
@@ -1243,27 +1300,28 @@ bool	update;
 	zt = PlotTime;
 	if (image)
 	{
-		if (! (dc = CAP_ImageGrid (c, &zt, pid, name, &xdim, &ydim,
+		if (! (dc = CAP_ImageGrid (c, &zt, pid, fname, &xdim, &ydim,
  				&x0, &y0, &x1, &y1, &alt, &shifted)))
 			return;
-		igrid = dc_ImgGetImage (dc, 0, F_Lookup (name), 
+		igrid = dc_ImgGetImage (dc, 0, F_Lookup (fname), 
 					&loc, &rg, &len, &scale);
-		alt = loc.l_alt;
 	}
 	else
 	{
-		if (! (dc = ga_GetGrid(&zt, c, platform, name, &xdim, &ydim,
+		if (! (dc = ga_GetGrid (&zt, c, platform, fname, &xdim, &ydim,
 				&x0, &y0, &x1, &y1, &alt, &shifted)))
 			return;
-		fgrid = dc_RGGetGrid (dc, 0, F_Lookup (name), &loc, &rg, &len);
+		fgrid = dc_RGGetGrid (dc, 0, F_Lookup (fname), &loc, &rg, 
+				      &len);
 	}
 	if ((image && !igrid) || (!image && !fgrid))
 	{
 		msg_ELog (EF_INFO, "Unable to get grid for %s.", platform);
 		return;
 	}
-	if (Comp_index == AltControlComp)
-		Alt = alt;
+
+	alt = loc.l_alt;
+	altunits = dc_GetLocAltUnits (dc);
 /*
  * Convert the grid limits to pixel coordinates
  */
@@ -1304,20 +1362,22 @@ bool	update;
  */
 	if (update)
 		return;
-	lw_TimeStatus (c, platform, &zt);
+
+	CAP_AddStatusLine (c, platform, fname, alt, altunits, &zt);
 /*
  * Top annotation
  */
-	An_TopAnnot (px_FldDesc (c, name), Tadefclr.pixel);
-	An_TopAnnot (shifted ? " plot (SHIFTED)." : " plot.", Tadefclr.pixel);
+	An_TopAnnot (px_FldDesc (fname), Tadefclr.pixel);
+	An_TopAnnot (shifted ? " plot (SHIFTED).  " : " plot.  ", 
+		     Tadefclr.pixel);
 /*
  * Side annotation (color bar)
  */
 	if (highlight)
-		sprintf (data, "%s %s %f %f %d %d %f %s %f", name, ctname, 
+		sprintf (data, "%s %s %f %f %d %d %f %s %f", fname, ctname, 
 	  	     center, step, nsteps, highlight, hvalue, hcolor, hrange);
 	else
-		sprintf (data, "%s %s %f %f %d %d %f %s %f", name, ctname, 
+		sprintf (data, "%s %s %f %f %d %d %f %s %f", fname, ctname, 
 	  	     center, step, nsteps, highlight, 0.0, "null", 0.0);
 	An_AddAnnotProc (CAP_RasterSideAnnot, c, data, strlen (data), 
 		140, TRUE, FALSE);
@@ -1527,31 +1587,25 @@ float	*x0, *y0, *x1, *y1, *alt;
 
 
 
-
 void
-CAP_Finish (alt)
-float alt;
+CAP_AddStatusLine (comp, plat, fname, alt, altunits, t)
+char	*comp, *plat, *fname;
+double	alt;
+AltUnitType	altunits;
+ZebTime *t;
 /*
- * Finish out CAP plots.
+ * Add a "standard" status line to the overlay times widget with component, 
+ * platform, field, altitude, and time.
  */
 {
-	char string[80];
-	bool deg = FALSE;
-/*
- * Kludge for fake CAP's where altitudes are really radar elevations.
- */
-	if (pd_Retrieve (Pd, "global", "radar-space", (char *) &deg, SYMT_BOOL)
-			&& deg)
-		sprintf (string, "El   %.1f\260", Alt);
-	else
-		sprintf (string, "Alt: %dm", (int) (Alt*1000.0));
+	char	string[120];
 
-	XSetForeground (XtDisplay (Graphics), Gcontext,Tadefclr.pixel);
-	DrawText (Graphics, GWFrame (Graphics), Gcontext,
-		GWWidth (Graphics) - 10, GWHeight (Graphics) - 10, 
-		string, 0.0, TOPANNOTHEIGHT, JustifyRight, JustifyBottom);
+	sprintf (string, "%-14s %-10s %-10s %-14s ", comp, plat, fname,
+		 au_AltLabel (alt, altunits));
+	TC_EncodeTime (t, TC_Full, string + strlen (string));
+	strcat (string, "\n");
+
+	ot_Append (string);
 }
-
-
 
 # endif  /* C_PT_CAP */

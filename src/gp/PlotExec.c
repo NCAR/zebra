@@ -34,7 +34,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 # include "LayoutControl.h"
-MAKE_RCSID ("$Id: PlotExec.c,v 2.37 1994-02-10 21:09:23 corbet Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.38 1994-04-15 21:26:21 burghart Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -77,7 +77,7 @@ name_to_num Pt_table[] =
  */
 # define RT_INIT	0	/* "Initialize" representation	*/
 # define RT_CONTOUR	1
-# define RT_VECTOR	2
+# define RT_WIND	2
 # define RT_RASTER	3
 # define RT_TRACK	4
 # define RT_OVERLAY	5
@@ -86,17 +86,17 @@ name_to_num Pt_table[] =
 # define RT_TSERIES	8
 # define RT_LIGHTNING	9
 # define RT_SIMPLE	10
-# define RT_WIND	11
-# define RT_OBS		12
-# define RT_STATION	13	/* Station plot (not vector any more) 	*/
-# define N_RTYPES	14	/* Increase this as rep. types are added */
+# define RT_OBS		11
+# define RT_STATION	12	/* Station plot (not vector any more) 	*/
+# define N_RTYPES	13	/* Increase this as rep. types are added */
 
 name_to_num Rt_table[] = 
 {
 	{"filled-contour",	RT_FCONTOUR	},
 	{"contour",		RT_CONTOUR	},
 	{"line-contour",	RT_CONTOUR	},
-	{"vector",		RT_VECTOR	},
+	{"wind",		RT_WIND		},
+	{"vector",		RT_WIND		},	/* historical */
 	{"station",		RT_STATION	},
 	{"raster",		RT_RASTER	},
 	{"track",		RT_TRACK	},
@@ -105,9 +105,7 @@ name_to_num Rt_table[] =
 	{"skewt",		RT_SKEWT	},
 	{"tseries",		RT_TSERIES	},
 	{"simple",		RT_SIMPLE	},
-	{"wind",		RT_WIND	},
-	{"contour",		RT_CONTOUR	},
-	{"obs",			RT_OBS	},
+	{"obs",			RT_OBS		},
 	{NULL,			0		}
 };
 
@@ -137,7 +135,6 @@ void	px_Init FP ((void));
 void	px_AddComponent FP ((char *, int));
 void	px_AdjustCoords FP ((float *, float *, float *, float *));
 static bool px_GetCoords FP ((void));
-static	void px_GetAltitude FP ((void));
 
 /*
  * To distinguish between missing capability and uncompiled capability in the
@@ -196,7 +193,6 @@ static void _UncompiledFunction () {};
  */
 static int	Ncomps;
 int	Comp_index;
-int	AltControlComp = 1;	/* Index of altitude control component */
 
 
 /*
@@ -296,8 +292,7 @@ char	*component;
 	/*
 	 * Update the overlay times widget
 	 */
-		lw_OvInit (info);
-		lw_LoadStatus ();
+		ot_SetString (info);
 	}
 /*
  * (2) Global plot not cached.  If you change something here, be aware that
@@ -313,8 +308,6 @@ char	*component;
 		px_GlobalPlot (&cachetime);
 		An_DoSideAnnot ();
 		fc_AddFrame (&cachetime, DisplayFrame);
-		lw_LoadStatus ();
-
 	}
 /*
  * (3) Update plot.
@@ -360,8 +353,8 @@ ZebTime *cachetime;
  * Perform a global update.
  */
 {
-	float orig_alt = Alt, tascale;
-	char **comps, datestring[40], rep[30], tadefcolor[30];
+	float tascale;
+	char **comps, datestring[80], rep[30], tadefcolor[30];
 	int i, showsteps = FALSE;
 	Pixel timecolor;
 	UItime temptime;
@@ -417,7 +410,15 @@ ZebTime *cachetime;
 	An_ResetAnnot (Ncomps);
 	TC_ZtToUI (&PlotTime, &temptime);
 	ud_format_date (datestring, (date *) (&temptime), UDF_FULL);
+/*
+ * Valid time/delta time info for model data
+ */
+	if (ForecastOffset)
+		sprintf (datestring + strlen (datestring), " (%s)", 
+			 px_ModelTimeLabel ());
+
 	strcat (datestring, "  ");
+
 	if (PlotMode == History)
 	{
 	/*
@@ -464,6 +465,7 @@ ZebTime *cachetime;
 			GWDisplayFrame (Graphics, DisplayFrame);
 	}
 
+# ifdef notdef	/* altitude *shouldn't* change during the plot any more */
 # if C_PT_CAP
 /*
  * On CAPs, annotate the altitude we eventually got.
@@ -482,6 +484,7 @@ ZebTime *cachetime;
 			SYMT_FLOAT);
 		Eq_AddEvent (PWhenever, eq_ReturnPD, 0, 0, Override);
 	}
+# endif
 }
 
 
@@ -513,9 +516,9 @@ px_GetCoords ()
 	if (! ok)
 		return (FALSE);
 /*
- * Get the altitude too.  Default it to ground level if all else fails.
+ * Initialize plot altitude
  */
-	px_GetAltitude ();
+	alt_Initialize ();
 /*
  * Save the origin
  */
@@ -625,80 +628,6 @@ ZebTime	*t;
 
 
 
-static void
-px_GetAltitude ()
-/*
- * Return the altitude that this overlay should use, and figure out which
- * component controls it.
- */
-{
-	char altcomp[120], **comps = pd_CompList (Pd), plat[240];
-	bool control;
-	int i;
-/*
- * Start by simply looking up the altitude in the global component.
- */
-	if (! pda_Search (Pd, "global", "altitude", NULL, CPTR (Alt),
-				SYMT_FLOAT))
-		Alt = 0;
-/*
- * Algorithm for finding the control component:
- *
- * (1) See if it is simply specified in the global area.  If so, see 
- *     further that it exists, and is not disabled.
- */
-	if (pda_Search (Pd, "global", "altitude-control", NULL, altcomp,
-			SYMT_STRING))
-	{
-		for (i = 0; comps[i]; i++)
-			if (! strcmp (comps[i], altcomp))
-				break;
-		if (comps[i]) 	/* Disabled? */
-		{
-			bool disabled = FALSE;
-			if (! pda_Search (Pd, comps[i], "disable", NULL, 
-				CPTR (disabled), SYMT_BOOL) || ! disabled)
-			{
-				AltControlComp = i;
-				return;
-			}
-		}
-		else
-			msg_ELog (EF_PROBLEM,
-				"Altitude control comp %s missing", altcomp);
-	}
-/*
- * That didn't work out, so:
- *
- * (2) Search each component for an "altitude control" parameter.  If we 
- *     find it, that component takes over.  "altitude-control" is qualified
- *     by the platform name.
- */
-	for (i = 1; comps[i]; i++)
-	{
-		if (! pda_Search (Pd, comps[i], "platform", NULL, plat,
-					SYMT_STRING))
-			continue;	/* No plat?? */
-		if (pda_Search (Pd, comps[i], "altitude-control", plat,
-				CPTR (control), SYMT_BOOL))
-		{
-			AltControlComp = i;
-			return;
-		}
-	}
-/*
- * (3) Just use the base, like things used to be in the good olde days, as
- *     long as there is a base to use.
- */
-	if (comps[1])
-		AltControlComp = 1;
-	else
-		AltControlComp = 0;
-}
-
-
-
-
 void
 px_AddComponent (c, update)
 char	*c;
@@ -774,9 +703,9 @@ px_Init ()
 	Plot_routines[PT_CAP][RT_STATION] = UNCOMPILED_FUNCTION;
 # endif
 # if C_CAP_VECTOR
-	Plot_routines[PT_CAP][RT_VECTOR] = CAP_Vector;
+	Plot_routines[PT_CAP][RT_WIND] = CAP_Vector;
 # else
-	Plot_routines[PT_CAP][RT_VECTOR] = UNCOMPILED_FUNCTION;
+	Plot_routines[PT_CAP][RT_WIND] = UNCOMPILED_FUNCTION;
 # endif
 # if C_CAP_RASTER
 	Plot_routines[PT_CAP][RT_RASTER] = CAP_Raster;
@@ -809,12 +738,12 @@ px_Init ()
 	Plot_routines[PT_XSECT][RT_INIT] = xs_Init;
 	Plot_routines[PT_XSECT][RT_CONTOUR] = xs_LineContour;
 	Plot_routines[PT_XSECT][RT_FCONTOUR] = xs_FilledContour;
-	Plot_routines[PT_XSECT][RT_VECTOR] = xs_Vector;
+	Plot_routines[PT_XSECT][RT_WIND] = xs_Vector;
 # else
 	Plot_routines[PT_XSECT][RT_INIT] = UNCOMPILED_FUNCTION;
 	Plot_routines[PT_XSECT][RT_CONTOUR] = UNCOMPILED_FUNCTION;
 	Plot_routines[PT_XSECT][RT_FCONTOUR] = UNCOMPILED_FUNCTION;
-	Plot_routines[PT_XSECT][RT_VECTOR] = UNCOMPILED_FUNCTION;
+	Plot_routines[PT_XSECT][RT_WIND] = UNCOMPILED_FUNCTION;
 # endif
 # if C_PT_TSERIES
 	Plot_routines[PT_TSERIES][RT_TSERIES] = ts_Plot;	
@@ -938,8 +867,8 @@ name_to_num	*table;
 
 
 char *
-px_FldDesc (comp, fld)
-char *comp, *fld;
+px_FldDesc (fld)
+char *fld;
 /*
  * Return the description of this field.
  */
@@ -971,4 +900,51 @@ void (*handler) ();
 px_ClearEOPHandler ()
 {
 	EOPHandler = 0;
+}
+
+
+
+		
+char *
+px_ModelTimeLabel ()
+/*
+ * Return a string showing the valid/delta time for model data.  The string
+ * is valid until the next call to this function and should not be modified.
+ */
+{
+	static char	label[40];
+	int	year, month, day, hour, minute, second, usecond;
+	ZebTime	valid;
+/*
+ * Forecast delta
+ */
+	if (ForecastOffset % 3600)
+	{
+	/*
+	 * We need minutes and seconds in the forecast time
+	 */
+		sprintf (label, "%d:%02d:%02d forecast", ForecastOffset / 3600,
+			 (ForecastOffset / 60) % 60, ForecastOffset % 60);
+	}
+	else
+	{
+	/*
+	 * Just need hours
+	 */
+		sprintf (label, "%d h forecast", ForecastOffset / 3600);
+	}
+/*
+ * Valid time
+ */
+	valid = PlotTime;
+	if (! ValidationMode)
+		valid.zt_Sec += ForecastOffset;
+
+	TC_ZtSplit (&valid, &year, &month, &day, &hour, &minute, &second, 
+		    &usecond);
+
+	sprintf (label + strlen (label), ", valid %d/%d %d:%02d", month, day,
+		 hour, minute);
+
+	return (label);
 }

@@ -43,7 +43,7 @@
 # include "DrawText.h"
 
 # ifndef lint
-MAKE_RCSID ("$Id: Track.c,v 2.28 1993-12-22 01:17:02 corbet Exp $")
+MAKE_RCSID ("$Id: Track.c,v 2.29 1994-04-15 21:26:33 burghart Exp $")
 # endif
 
 # define ARROWANG .2618 /* PI/12 */
@@ -347,7 +347,7 @@ bool update;
 	if (! update)
 	{
 		dc_GetTime (dc, nsamp - 1, &zt);
-		lw_TimeStatus (comp, platform, &zt);
+		ot_AddStatusLine (comp, platform, mono ? "" : ccfield, &zt);
 	}
 	dc_DestroyDC (dc);
 /*
@@ -617,8 +617,7 @@ bool shifted;
 	if (ccfield)
 	{
 		An_TopAnnot(" ", tadefclr.pixel);
-		An_TopAnnot (px_FldDesc (comp, ccfield), 
-			tadefclr.pixel);
+		An_TopAnnot (px_FldDesc (ccfield), tadefclr.pixel);
 	}
 	An_TopAnnot (" track", tadefclr.pixel);
 	if (shifted)

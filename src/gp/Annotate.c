@@ -27,7 +27,7 @@
 # include "DrawText.h"
 # include "PixelCoord.h"
 # include "GC.h"
-MAKE_RCSID ("$Id: Annotate.c,v 2.20 1993-12-01 16:47:00 burghart Exp $")
+MAKE_RCSID ("$Id: Annotate.c,v 2.21 1994-04-15 21:25:37 burghart Exp $")
 
 /*
  * Graphics context (don't use the global one in GC.h because we don't
@@ -82,9 +82,14 @@ int nc;
  */
 {
 /*
- * Get the line spacing for the top annotation
+ * Get the line spacing for the top annotation. (If Annot_Scale is > 1, we
+ * assume it's an absolute pixel height, otherwise a scale factor relative
+ * to the window height).
  */
-	Annot_height = (int)(1.2 * Annot_Scale * GWHeight (Graphics));
+	if (Annot_Scale > 1)
+		Annot_height = (int)(1.2 * Annot_Scale);
+	else
+		Annot_height = (int)(1.2 * Annot_Scale * GWHeight (Graphics));
 /*
  * Set the right margin
  */
@@ -870,24 +875,29 @@ int datalen, begin, space;
 	else
 		barHeight = (float) space / (float) ncolors;
 
-	for (i = 0; i < ncolors; i += limit)
+	for (i = ncolors - 1; i >= 0; i -= limit)
 	{
-		XSetForeground (XtDisplay (Graphics), AnGcontext, 
-			colors[ncolors - i - 1].pixel);
-		XFillRectangle (XtDisplay (Graphics), 
-			GWFrame (Graphics), AnGcontext, left, 
-			(int) begin, 10, barHeight);
+		int prec;
 
-/** Andy's change;  don't know if it's necessary. Was (i - ncolors / 2) * step) **/
-/*		cval = center + (i - ncolors/2) * step; */
-		cval = center + (ncolors/2 - i) * step;
-	
-		sprintf (string, "%.1f", cval);
 		XSetForeground (XtDisplay (Graphics), AnGcontext, 
-			xc.pixel);
+				colors[i].pixel);
+		XFillRectangle (XtDisplay (Graphics), GWFrame (Graphics), 
+				AnGcontext, left, (int) begin, 10, barHeight);
+
+		cval = center + (i - ncolors/2) * step;
+	/*
+	 * The precision of the color value should be enough to differentiate
+	 * between each step.
+	 */
+		if ((step < -1.0) || (step > 1.0) || (step == 0.0))
+			prec = 1;
+		else
+			prec = 1 - (int)log10(fabs((double)step));
+		sprintf (string, "%.*f", prec, cval);
+		XSetForeground (XtDisplay (Graphics), AnGcontext, xc.pixel);
 		DrawText (Graphics, GWFrame (Graphics), AnGcontext, 
-			left + 15, (int) (begin + barHeight/3), string,
-			0.0, scale, JustifyLeft, JustifyTop);
+			  left + 15, (int) (begin + barHeight/2), string,
+			  0.0, scale, JustifyLeft, JustifyCenter);
 		begin += barHeight;
 	}
 }

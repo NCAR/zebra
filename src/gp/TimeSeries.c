@@ -1,7 +1,7 @@
 /*
  * Time Series Plotting
  */
-static char *rcsid = "$Id: TimeSeries.c,v 2.13 1993-10-22 21:25:27 corbet Exp $";
+static char *rcsid = "$Id: TimeSeries.c,v 2.14 1994-04-15 21:26:30 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -311,7 +311,7 @@ int	nplat, nfld;
 	An_TopAnnot ("Time series plot of ", taclr.pixel);
 	for (i = 0; i < nfld; i++)
 	{
-		An_TopAnnot (px_FldDesc(comp, fields[i]), taclr.pixel);
+		An_TopAnnot (px_FldDesc (fields[i]), taclr.pixel);
 		if (i < (nfld - 1)) An_TopAnnot (", ", taclr.pixel);
 	}
 	An_TopAnnot (" for platforms: ", taclr.pixel);
@@ -430,7 +430,7 @@ float 	*center, *step;
  * Label the vertical axis (left). 
  */
 	DrawText (Graphics, d, Gcontext, Pix_left - 0.035 * gwidth,
-		0.5 * gheight, px_FldDesc (comp, fields[0]), 90.0, TSScale, 
+		0.5 * gheight, px_FldDesc (fields[0]), 90.0, TSScale, 
 		JustifyCenter, JustifyBottom);
 /*
  * Draw ticks on the vertical axis (left).
@@ -473,7 +473,7 @@ float 	*center, *step;
  * Label the vertical axis (right). 
  */
 	DrawText (Graphics, d, Gcontext, Pix_right + 0.035 * gwidth, 
-		0.5 * gheight, px_FldDesc(comp, fields[1]), -90.0, TSScale, 
+		0.5 * gheight, px_FldDesc (fields[1]), -90.0, TSScale, 
 		JustifyCenter, JustifyBottom);
 /*
  * Draw ticks on the vertical axis (right).

@@ -1,7 +1,7 @@
 /*
  * Vertical cross-sectioning
  */
-static char *rcsid = "$Id: XSection.c,v 2.17 1994-01-31 19:51:22 burghart Exp $";
+static char *rcsid = "$Id: XSection.c,v 2.18 1994-04-15 21:26:41 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -51,6 +51,11 @@ static char *rcsid = "$Id: XSection.c,v 2.17 1994-01-31 19:51:22 burghart Exp $"
 # define BUFLEN	1024
 
 /*
+ * Is a between b and c (inclusive)?
+ */
+# define BETWEEN(a,b,c)	((((a)-(b))*((a)-(c))) <= 0)
+
+/*
  * Scratch string for building annotations, etc.
  */
 static char	Scratch[128];
@@ -91,6 +96,7 @@ typedef struct _zz_dplane
  * The length, height, and bottom of our plane
  */
 float	P_len, P_hgt, P_bot;
+AltUnitType	AltUnits;
 
 /*
  * User-selected grid dimensions (if any)
@@ -109,12 +115,10 @@ static ZebTime	T0;
 static int	Pix_left, Pix_right, Pix_bottom, Pix_top;
 
 /*
- * Altitude or pressure on the vertical scale?
  * Field for vertical scale
  * Use filled contours?
  * "Zig-zag" cross-section?
  */
-static bool	Use_alt = TRUE;
 static char	Zfld[20];
 static bool	Fill_contour;
 static bool	Zig_zag;
@@ -122,9 +126,9 @@ static bool	Zig_zag;
 /*
  * Drawing info
  */
-static float	Contour_center, Contour_step, Vector_scale;
-static int	Line_width;
-static bool	Do_labels;
+static float	Contour_center, Contour_step, Wind_scale;
+static int	Line_width, Degrade;
+static bool	Do_labels, Mono_color, Autoscale, Do_vectors;
 
 /*
  * Maximum acceptable time difference between sounding time and plot time
@@ -142,7 +146,12 @@ static int	Tracelen = 0;
  */
 static XColor	*Colors;
 static int	Ncolors;
-static XColor	White, Black;
+static XColor	White, Black, Ccolor;
+
+/*
+ * Match top annotation color to contour color?
+ */
+static bool	AnnotMatch;
 
 /*
  * Clip and unclip rectangles
@@ -157,27 +166,30 @@ void	xs_LineContour FP ((char *, int));
 void	xs_FilledContour FP ((char *, int));
 void	xs_Vector FP ((char *, int));
 static void	xs_Contour FP ((char *, int)); 
-static void	xs_ZZContour FP ((char **, int, char *));
+static void	xs_ZZContour FP ((char *, char **, int, char *));
 static void	xs_PlaneContour FP ((char *, char **, int, char *));
-static void	xs_ZZVector FP ((char **, int, char *, char *));
+static void	xs_ZZVector FP ((char *, char **, int, char *, char *));
 static void	xs_PlaneVector FP ((char *, char **, int, char *, char *));
 static void	xs_ZZFillIn FP ((ZZ_DPlane *));
 static void	xs_Background FP ((void));
 static void	xs_ExtendTrace FP ((double, double)); 
 static DPlane	*xs_HDWeighting FP ((char **, int, char *, ZebTime *));
-static DPlane	*xs_Bilinear FP ((char *, char *));
+static DPlane	*xs_Bilinear FP ((char *, char *, ZebTime *));
 static void	xs_DrawTrace FP ((char *)); 
 static void	xs_AddToLevel FP ((DPlane *, DPlane *, int, double, double, 
 				   double)); 
 static void	xs_BuildLimits FP ((float *, float *, int, double, double, 
 				    double));
 static int	xs_Pos FP ((char *, ZebTime *, float **, float **)); 
+static int	xs_AltIndex FP ((double, float *, int));
 static int	xs_ZIndex FP ((double, int));
 static ZZ_DPlane	*xs_ZZGetData FP ((char **, int, char *));
 static ZZ_DPlane	*xs_AllocZZ_DPlane FP ((int, int));
 static void		xs_FreeZZ_DPlane FP ((ZZ_DPlane *));
 static DataChunk	*xs_GetObsDC FP ((char *, char *, ZebTime *));
-static DataChunk	*xs_GetGridDC FP ((char *, char *, ZebTime *));
+static DataChunk	*xs_GetGridDC FP ((char *, char *, ZebTime *, 
+					   float *));
+static DataChunk	*xs_NSpaceToRGrid FP ((DataChunk *, FieldId, float *));
 
 
 
@@ -193,24 +205,13 @@ UItime	*t;
 /*
  * Initialize the overlay times widget
  */
-	lw_OvInit ("COMPONENT      PLATFORM   FIELD       TIME\n");
+	ot_SetString ("COMPONENT      PLATFORM   FIELD     TIME\n");
 /*
- * Altitude or pressure z scaling?
+ * Look for user values for vertical limits.  Otherwise later stuff will
+ * set defaults.
  */
-	Use_alt = TRUE;
-	pda_Search (Pd, "global", "by-altitude", "xsect", (char *) &Use_alt, 
-		SYMT_BOOL);
-
-	if (Use_alt)
-		strcpy (Zfld, "alt");
-	else
-		strcpy (Zfld, "pres");
-/*
- * Altitude or pressure limits.  Take the user values if they exist, otherwise
- * default to:  altitude - 0 to 12 km, pressure - 1050 to 200 mb.
- */
-	P_bot = Use_alt ? 0.0 : 1050.0;
-	P_hgt = Use_alt ? 12.0 : -850.0;
+	P_bot = P_hgt = 0.0;
+	AltUnits = AU_kmMSL;
 
 	pda_Search (Pd, "global", "z-min", NULL, (char *) &P_bot, SYMT_FLOAT);
 	if (pda_Search (Pd, "global", "z-max", NULL, (char *) &zmax, 
@@ -304,16 +305,26 @@ xs_LineContour (c, update)
 char	*c;
 bool	update;
 {
-	Fill_contour = FALSE;
+	bool	blank;
 
 	Do_labels = TRUE;
-	pda_Search (Pd, c, "do-labels", "xsect", (char *) &Do_labels, 
+	pda_Search (Pd, c, "do-labels", "contour", (char *) &Do_labels, 
 		    SYMT_BOOL);
 	
 	Line_width = 0;
-	pda_Search (Pd, c, "line-width", "xsect", (char *) &Line_width,
+	pda_Search (Pd, c, "line-width", "contour", (char *) &Line_width,
 		    SYMT_INT);
 
+	Mono_color = FALSE;
+	pda_Search (Pd, c, "color-mono", "contour", (char *) &Mono_color,
+		    SYMT_BOOL);
+
+	blank = TRUE;
+	pda_Search (Pd, c, "label-blanking", "contour", (char *) &blank,
+		    SYMT_BOOL);
+	dt_SetBlankLabel (blank);
+
+	Fill_contour = FALSE;
 	xs_Contour (c, update);
 }
 
@@ -329,6 +340,7 @@ char	*c;
 bool	update;
 {
 	Fill_contour = TRUE;
+	Mono_color = FALSE;
 	xs_Contour (c, update);
 }
 
@@ -345,7 +357,7 @@ bool	update;
 {
 	bool	ok;
 	int	nplat;
-	char	platforms[120], *pnames[MAXPLAT], fldname[20], ctname[20];
+	char	platforms[120], *pnames[MAXPLAT], fldname[20], cname[20];
 	char	param[50];
 /*
  * Platform(s).  Platform must come from the global component for zig-zag
@@ -367,24 +379,59 @@ bool	update;
 		ok = pda_ReqSearch (Pd, c, "platform", NULL, platforms, 
 				    SYMT_STRING);
 /*
- * Get the field, contour limits, and color table
+ * Field
  */
 	ok &= pda_ReqSearch (Pd, c, "field", NULL, fldname, SYMT_STRING);
-	sprintf (param, "%s-center", fldname);
-	ok &= pda_ReqSearch (Pd, c, param, "contour", (char *) &Contour_center,
-		SYMT_FLOAT);
-	sprintf (param, "%s-step", fldname);
-	ok &= pda_ReqSearch (Pd, c, param, "contour", (char *) &Contour_step, 
-		SYMT_FLOAT);
-	ok &= pda_ReqSearch (Pd, c, "color-table", "xsect", ctname, 
-		SYMT_STRING);
+/*
+ * Autoscale?
+ */
+	if (pda_Search (Pd, c, "scale-mode", NULL, param, SYMT_STRING))
+		Autoscale = ! strncmp (param, "auto", 4);
+	else
+		Autoscale = FALSE;
+/*
+ * If not autoscaling, we must have a center and step
+ */
+	if (! Autoscale)
+	{
+		sprintf (param, "%s-center", fldname);
+		ok &= pda_ReqSearch (Pd, c, param, "contour", 
+				     (char *) &Contour_center, SYMT_FLOAT);
 
+		sprintf (param, "%s-step", fldname);
+		ok &= pda_ReqSearch (Pd, c, param, "contour", 
+				     (char *) &Contour_step, SYMT_FLOAT);
+
+	}
+/*
+ * Color or color table
+ */
+	if (Mono_color)
+		ok &= pda_ReqSearch (Pd, c, "color", "contour", cname,
+				     SYMT_STRING);
+	else
+		ok &= pda_ReqSearch (Pd, c, "color-table", "contour", cname, 
+				     SYMT_STRING);
+/*
+ * Match top annotation color to contour color?
+ */
+	AnnotMatch = FALSE;
+
+	if (Mono_color)
+		pda_Search (Pd, c, "ta-color-match", NULL, (char *)&AnnotMatch,
+			    SYMT_BOOL);
+/*
+ * Give up if we didn't get all the required parameters
+ */
 	if (! ok)
 		return;
 /*
  * Load the color table + explicitly get black and white
  */
-	ct_LoadTable (ctname, &Colors, &Ncolors);
+	if (Mono_color)
+		ct_GetColorByName (cname, &Ccolor);
+	else
+		ct_LoadTable (cname, &Colors, &Ncolors);
 
 	ct_GetColorByName ("black", &Black);
 	ct_GetColorByName ("white", &White);
@@ -409,7 +456,7 @@ bool	update;
  * Actually draw the cross-section based on type
  */
 	if (Zig_zag)
-		xs_ZZContour (pnames, nplat, fldname);
+		xs_ZZContour (c, pnames, nplat, fldname);
 	else
 		xs_PlaneContour (c, pnames, nplat, fldname);
 /*
@@ -419,18 +466,14 @@ bool	update;
 
 	if (Fill_contour)
 	{
-		sprintf (Scratch, "%s %s %f %f", fldname, ctname, 
-			 Contour_center - Contour_step / 2, Contour_step); 
-	/*			 
-	 * (We have to subtract half a step from the center value that goes to
-	 * An_ColorBar to make it label things correctly)
-	 */
+		sprintf (Scratch, "%s %s %f %f", fldname, cname, 
+			 Contour_center, Contour_step); 
 		An_AddAnnotProc (An_ColorBar, c, Scratch, strlen (Scratch),
 				 75, TRUE, FALSE);
 	}
-	else
+	else if (! Mono_color)
 	{
-		sprintf (Scratch, "%s %s %f %f", fldname, ctname, 
+		sprintf (Scratch, "%s %s %f %f", fldname, cname, 
 			 Contour_center, Contour_step); 
 		An_AddAnnotProc (An_ColorNumber, c, Scratch, strlen (Scratch), 
 				 75, TRUE, FALSE);
@@ -450,7 +493,7 @@ bool	update;
 {
 	bool	ok;
 	char	platforms[80], ufldname[20], vfldname[20], *pnames[MAXPLAT];
-	char	cname[20];
+	char	cname[20], style[16];
 	int	nplat;
 	float	unitlen;
 /*
@@ -473,12 +516,33 @@ bool	update;
 		ok = pda_ReqSearch (Pd, c, "platform", NULL, platforms, 
 				    SYMT_STRING);
 /*
- * Get the fields and arrow scale factor
+ * Vectors (default) or barbs?
+ */
+	Do_vectors = TRUE;
+	if (pda_Search (Pd, c, "wind-style", NULL, style, SYMT_STRING))
+		Do_vectors = strncmp (style, "barb", 4);
+/*
+ * Degrade factor (every n'th barb or vector)
+ */
+	Degrade = 1;
+	pda_Search (Pd, c, "degrade", NULL, (char *)&Degrade, SYMT_INT);
+/*
+ * Get the fields and arrow or barb scale factor
  */
 	ok &= pda_ReqSearch (Pd, c, "u-field", "xsect", ufldname, SYMT_STRING);
 	ok &= pda_ReqSearch (Pd, c, "v-field", "xsect", vfldname, SYMT_STRING);
-	ok &= pda_ReqSearch (Pd, c, "arrow-scale", "xsect", 
-			     (char *) &Vector_scale, SYMT_FLOAT);
+	if (Do_vectors)
+	{
+		Wind_scale = 0.002;
+		pda_Search (Pd, c, "arrow-scale", "xsect", (char *)&Wind_scale,
+			    SYMT_FLOAT);
+	}
+	else
+	{
+		Wind_scale = 0.06;
+		pda_Search (Pd, c, "barb-scale", "xsect", (char *)&Wind_scale,
+			    SYMT_FLOAT);
+	}
 
 	if (! ok)
 		return;
@@ -488,7 +552,7 @@ bool	update;
 	strcpy (cname, "white");
 	if (! pda_Search (Pd, c, "arrow-color", "xsect", cname, SYMT_STRING))
 		pda_Search (Pd, c, "color", "xsect", cname, SYMT_STRING);
-	if (! ct_GetColorByName (cname, &Colors[0]))
+	if (! ct_GetColorByName (cname, &Ccolor))
 	{
 		msg_ELog (EF_PROBLEM, "Can't get arrow color '%s'!", cname);
 		return;
@@ -519,7 +583,7 @@ bool	update;
  */
 	
 	if (Zig_zag)
-		xs_ZZVector (pnames, nplat, ufldname, vfldname);
+		xs_ZZVector (c, pnames, nplat, ufldname, vfldname);
 	else
 		xs_PlaneVector (c, pnames, nplat, ufldname, vfldname);
 /*
@@ -527,19 +591,28 @@ bool	update;
  */
 	xs_Background ();
 
-	sprintf (Scratch, "%s %d %f %f %f", "10m/s", Colors[0].pixel, 10.0, 
-		 0.0, Vector_scale * USABLE_HEIGHT); 
-	An_AddAnnotProc (An_ColorVector, c, Scratch, strlen (Scratch),
-		40, FALSE, FALSE);
-
+	if (Do_vectors)
+	{
+		sprintf (Scratch, "%s %d %f %f %f", "10m/s", Ccolor.pixel, 
+			 10.0, 0.0, Wind_scale * USABLE_HEIGHT); 
+		An_AddAnnotProc (An_ColorVector, c, Scratch, strlen (Scratch),
+				 40, FALSE, FALSE);
+	}
+	else
+	{
+		sprintf (Scratch, "m/s %d %d", Ccolor.pixel, 
+			 (int)(Wind_scale * USABLE_HEIGHT));
+		An_AddAnnotProc (An_BarbLegend, c, Scratch, strlen (Scratch), 
+				 100, FALSE, FALSE);
+	}
 }
 
 
 
 
 static void
-xs_ZZContour (pnames, nplat, fldname)
-char	**pnames, *fldname;
+xs_ZZContour (c, pnames, nplat, fldname)
+char	*c, **pnames, *fldname;
 int	nplat;
 /*
  * Draw a zig-zag contour plot given the platform string and field name
@@ -550,8 +623,9 @@ int	nplat;
 	int		vdim, diff, p;
 	ZebTime		dtime;
 
-	sprintf (Scratch, "Contour of %s using: ", fldname);
-	An_TopAnnot (Scratch, White.pixel);
+	An_TopAnnot ("Contour of ", White.pixel);
+	An_TopAnnot (fldname, AnnotMatch ? Ccolor.pixel : White.pixel);
+	An_TopAnnot (" using: ", White.pixel);
 /*
  * Get the filled data plane
  */
@@ -562,6 +636,24 @@ int	nplat;
 		msg_ELog (EF_INFO, 
 			  "Nothing drawn (< 2 good soundings)");
 		return;
+	}
+/*
+ * Autoscale now if necessary
+ */
+	if (Autoscale)
+	{
+		float	min, max;
+
+		GetRange (plane->data, plane->nobs * plane->vdim, BADVAL, 
+			  &min, &max);
+		CalcCenterStep (min, max, Mono_color ? 8 : Ncolors, 
+				&Contour_center, &Contour_step);
+
+		sprintf (Scratch, "%s-center", fldname);
+		pd_Store (Pd, c, Scratch, (char *) &Contour_center, 
+			  SYMT_FLOAT);
+		sprintf (Scratch, "%s-step", fldname);
+		pd_Store (Pd, c, Scratch, (char *) &Contour_step, SYMT_FLOAT);
 	}
 /*
  * I want shorter names to get at some pieces of the data plane structure
@@ -582,6 +674,11 @@ int	nplat;
 	for (p = 0; p < plane->nobs; p++)
 	{
 	/*
+	 * Add a line to the overlay times widget
+	 */
+		ot_AddStatusLine (c, plane->plats[p], fldname, 
+				  &(plane->dtime[p]));
+	/*
 	 * Contour between this observation and the next one
 	 */
 		if (p < plane->nobs - 1)
@@ -598,8 +695,13 @@ int	nplat;
 			}
 			else
 			{
-				CO_Init (Colors, Ncolors, Ncolors / 2, Black, 
-					 Clip, TRUE, BADVAL);
+				if (Mono_color)
+					CO_InitMono (Ccolor, Clip, TRUE, 
+						     BADVAL);
+				else
+					CO_Init (Colors, Ncolors, Ncolors / 2,
+						 Black, Clip, TRUE, BADVAL);
+
 				Contour (Graphics, GWFrame (Graphics), 
 					 data + p * vdim, 2, vdim, 
 					 XPIX (dist[p]), Pix_bottom, 
@@ -657,8 +759,8 @@ int	nplat;
 
 
 static void
-xs_ZZVector (pnames, nplat, ufldname, vfldname)
-char	**pnames, *ufldname, *vfldname;
+xs_ZZVector (c, pnames, nplat, ufldname, vfldname)
+char	*c, **pnames, *ufldname, *vfldname;
 int	nplat;
 /*
  * Draw a zig-zag vector plot given the platform string and field names
@@ -669,8 +771,9 @@ int	nplat;
 	int		vdim, diff, p;
 	ZebTime		dtime;
 
-	sprintf (Scratch, "Vectors of (%s,%s) using: ", ufldname, vfldname);
-	An_TopAnnot (Scratch, White.pixel);
+	sprintf (Scratch, "%s of (%s,%s) using: ", 
+		 Do_vectors ? "Vectors" : "Barbs", ufldname, vfldname);
+	An_TopAnnot (Scratch, Ccolor.pixel);
 /*
  * Get the filled data planes.  
  */
@@ -716,14 +819,20 @@ int	nplat;
 	for (p = 0; p < plane->nobs; p++)
 	{
 	/*
+	 * Add a line to the overlay times widget
+	 */
+		ot_AddStatusLine (c, plane->plats[p], "(winds)", 
+				  &(plane->dtime[p]));
+	/*
 	 * Draw the vectors for this observation
 	 */
 		XSetLineAttributes (XtDisplay (Graphics), Gcontext, 
 				    Line_width, LineSolid, CapButt, JoinMiter);
-		VectorGrid (Graphics, GWFrame (Graphics), Gcontext, 
-			    udata + p * vdim, vdata + p * vdim, 1, vdim, 
-			    XPIX (dist[p]), Pix_bottom, XPIX (dist[p]), 
-			    Pix_top, Vector_scale, BADVAL, Colors[0], 1);
+		WindGrid (Graphics, GWFrame (Graphics), Gcontext, 
+			  udata + p * vdim, vdata + p * vdim, 1, vdim, 
+			  XPIX (dist[p]), Pix_bottom, XPIX (dist[p]), 
+			  Pix_top, Wind_scale, BADVAL, Ccolor, Degrade, 
+			  Do_vectors);
 	/*
 	 * Return the line width to the default of zero, since this is a
 	 * shared GC
@@ -1076,11 +1185,13 @@ int	nplat;
 {
 	int	i;
 	DPlane	*plane;
+	ZebTime	dtime;
 /*
  * Annotate
  */
-	sprintf (Scratch, "Contour of %s using: ", fldname);
-	An_TopAnnot (Scratch, White.pixel);
+	An_TopAnnot ("Contour of ", White.pixel);
+	An_TopAnnot (fldname, AnnotMatch ? Ccolor.pixel : White.pixel);
+	An_TopAnnot (" using: ", White.pixel);
 /*
  * Find the gridding method and grab the data
  */
@@ -1103,7 +1214,12 @@ int	nplat;
 	/*
 	 * Get the data
 	 */
-		plane = xs_Bilinear (pnames[0], fldname);
+		plane = xs_Bilinear (pnames[0], fldname, &dtime);
+	/*
+	 * Add a line to the overlay times widget
+	 */
+		if (plane)
+			ot_AddStatusLine (c, pnames[0], fldname, &dtime);
 	}
 	else
 	{
@@ -1142,12 +1258,36 @@ int	nplat;
 			strcat (Scratch + strlen (Scratch) - 3, ")");
 
 			An_TopAnnot (Scratch, White.pixel);
+		/*
+		 * Add a line to the overlay times widget, too.
+		 */
+			if (times[i].zt_Sec != 0)
+				ot_AddStatusLine (c, pnames[i], fldname, 
+						  times + i);
 		}
 		An_TopAnnot (".  ", White.pixel);
 	}
 
 	if (! plane)
 		return;
+/*
+ * Autoscale now if necessary
+ */
+	if (Autoscale)
+	{
+		float	min, max;
+
+		GetRange (plane->data, plane->hdim * plane->vdim, BADVAL, 
+			  &min, &max);
+		CalcCenterStep (min, max, Mono_color ? 8 : Ncolors, 
+				&Contour_center, &Contour_step);
+
+		sprintf (Scratch, "%s-center", fldname);
+		pd_Store (Pd, c, Scratch, (char *) &Contour_center, 
+			  SYMT_FLOAT);
+		sprintf (Scratch, "%s-step", fldname);
+		pd_Store (Pd, c, Scratch, (char *) &Contour_step, SYMT_FLOAT);
+	}
 /*
  * Draw the contours
  */
@@ -1161,8 +1301,12 @@ int	nplat;
 	}
 	else
 	{
-		CO_Init (Colors, Ncolors, Ncolors / 2, Black, Clip, 
-			TRUE, BADVAL);
+		if (Mono_color)
+			CO_InitMono (Ccolor, Clip, TRUE, BADVAL);
+		else
+			CO_Init (Colors, Ncolors, Ncolors / 2, Black, Clip, 
+				 TRUE, BADVAL);
+
 		Contour (Graphics, GWFrame (Graphics), plane->data, 
 			 plane->hdim, plane->vdim, Pix_left, Pix_bottom, 
 			 Pix_right, Pix_top, Contour_center, Contour_step, 
@@ -1186,11 +1330,13 @@ int	nplat;
 {
 	int	i;
 	DPlane	*uplane, *vplane;
+	ZebTime	dtime;
 /*
  * Annotate
  */
-	sprintf (Scratch, "Vectors of (%s,%s) using: ", ufldname, vfldname);
-	An_TopAnnot (Scratch, White.pixel);
+	sprintf (Scratch, "%s of (%s,%s) using: ", 
+		 Do_vectors ? "Vectors" : "Barbs", ufldname, vfldname);
+	An_TopAnnot (Scratch, Ccolor.pixel);
 /*
  * Find the gridding method and grab the data
  */
@@ -1213,8 +1359,13 @@ int	nplat;
 	/*
 	 * Get the data
 	 */
-		uplane = xs_Bilinear (pnames[0], ufldname);
-		vplane = xs_Bilinear (pnames[0], vfldname);
+		uplane = xs_Bilinear (pnames[0], ufldname, &dtime);
+		vplane = xs_Bilinear (pnames[0], vfldname, &dtime);
+	/*
+	 * Add a line to the overlay times widget
+	 */
+		if (uplane && vplane)
+			ot_AddStatusLine (c, pnames[0], "(winds)", &dtime);
 	}
 	else
 	{
@@ -1254,6 +1405,12 @@ int	nplat;
 			strcat (Scratch + strlen (Scratch) - 3, ")");
 
 			An_TopAnnot (Scratch, White.pixel);
+		/*
+		 * Add a line to the overlay times widget, too
+		 */
+			if (times[i].zt_Sec != 0)
+				ot_AddStatusLine (c, pnames[i], "(winds)", 
+						  times + i);
 		}
 		An_TopAnnot (".  ", White.pixel);
 	}
@@ -1274,14 +1431,14 @@ int	nplat;
 		return;
 	}
 /*
- * Draw the vectors
+ * Draw the vectors or barbs
  */
 	XSetLineAttributes (XtDisplay (Graphics), Gcontext, Line_width, 
 			    LineSolid, CapButt, JoinMiter);
-	VectorGrid (Graphics, GWFrame (Graphics), Gcontext, uplane->data, 
-		    vplane->data, uplane->hdim, uplane->vdim, 
-		    Pix_left, Pix_bottom, Pix_right, Pix_top, Vector_scale, 
-		    BADVAL, Colors[0], 1);
+	WindGrid (Graphics, GWFrame (Graphics), Gcontext, uplane->data, 
+		  vplane->data, uplane->hdim, uplane->vdim, Pix_left, 
+		  Pix_bottom, Pix_right, Pix_top, Wind_scale, BADVAL, Ccolor, 
+		  Degrade, Do_vectors);
 /*
  * Return the line width to the default of zero, since this is a
  * shared GC
@@ -1321,9 +1478,30 @@ ZebTime	*times;
 	float	fdata, *xpos = NULL, *ypos = NULL, zpos;
 	float	xhighest, yhighest, zhighest;
 	float	*floor, *ceiling, *f_wgt, *c_wgt;
+	bool	use_alt;
 	ZebTime	dtime, badtime;
 	DataChunk	*dc;
 	DPlane	*plane, *p_wgt;
+/*
+ * Altitude or pressure z scaling?
+ */
+	use_alt = TRUE;
+	pda_Search (Pd, "global", "by-altitude", "xsect", (char *) &use_alt, 
+		SYMT_BOOL);
+
+	if (use_alt)
+		strcpy (Zfld, "alt");
+	else
+		strcpy (Zfld, "pres");
+/*
+ * Set default vertical limits if no limits exist yet.
+ */
+	if (P_hgt == 0.0)
+	{
+		P_bot = use_alt ? 0.0 : 1050.0;
+		P_hgt = use_alt ? 12.0 : -850.0;
+		AltUnits = use_alt ? AU_kmMSL : AU_mb;
+	}
 /*
  * Grid size
  */
@@ -1394,7 +1572,7 @@ ZebTime	*times;
 	/*
 	 * Initialize for keeping track of the highest point
 	 */
-		if (Use_alt)
+		if (use_alt)
 			zhighest = -9999.0;
 		else
 			zhighest = 9999.0;
@@ -1446,8 +1624,8 @@ ZebTime	*times;
 		/*
 		 * Update the ceiling if this point is higher
 		 */
-			if ((Use_alt && zpos > zhighest) ||
-				(!Use_alt && zpos < zhighest))
+			if ((use_alt && zpos > zhighest) ||
+				(!use_alt && zpos < zhighest))
 			{
 				xhighest = xpos[pt];
 				yhighest = ypos[pt];
@@ -1584,46 +1762,66 @@ ZebTime	*times;
 
 
 static DPlane *
-xs_Bilinear (platform, fldname)
+xs_Bilinear (platform, fldname, dtime)
 char	*platform, *fldname;
+ZebTime	*dtime;
 /*
  * Create a cross-section array with data from a cartesian grid, using
  * bilinear interpolation.  It is assumed that the data source will be a
  * 3d cartesian grid.  The DPlane is alloc'ed here and should be free'd by the
- * caller.  Return NULL if there's a problem.
+ * caller.  Return NULL if there's a problem.  We also return a data time if
+ * we create a good grid.
  */
 {
-	int	len, h, v, i, j, k, hdim, vdim;
+	int	len, h, v, i, j, k, hdim, vdim, nalts;
 	float	*sourcegrid, *sgp, sgbad, *pp;
-	float	f_i0, f_istep, f_j0, f_jstep, f_k0, f_kstep, f_i, f_j;
-	float	grid_x0, grid_y0, grid_z0, di, dj, val0, val1, val2, val3;
+	float	f_i0, f_istep, f_j0, f_jstep, f_i, f_j;
+	float	grid_x0, grid_y0, di, dj, z, below, above;
+	float	val0, val1, val2, val3;
+	float	alts[80];	/* should be enough... */
 	RGrid	rg;
 	DPlane	*plane;
-	ZebTime dtime;
 	Location	loc;
 	DataChunk	*dc;
 /*
- * Can't use pressure for the vertical scale for this type of plot
+ * Get the data in the form of a bastardized 3d RGrid data chunk.  The
+ * bastardization comes in the form of a list of (potentially irregularly
+ * spaced) altitudes. 
  */
-	if (! Use_alt)
-	{
-		msg_ELog (EF_PROBLEM, 
-			  "Can't do bilinear plots with pressure vert. scale");
-		return (NULL);
-	}
-/*
- * Get the data
- */
-	if (! (dc = xs_GetGridDC (platform, fldname, &dtime)))
+	if (! (dc = xs_GetGridDC (platform, fldname, dtime, alts)))
 		return (NULL);
 /*
  * Get the info we need from the data chunk
  */
 	sourcegrid = dc_RGGetGrid (dc, 0, F_Lookup (fldname), &loc, &rg, &len);
 	cvt_ToXY (loc.l_lat, loc.l_lon, &grid_x0, &grid_y0);
-	grid_z0 = loc.l_alt;
+
+	nalts = rg.rg_nZ;
 
 	sgbad = dc_GetBadval (dc);
+/*
+ * Set default vertical limits if no limits exist yet.
+ */
+	AltUnits = dc_GetLocAltUnits (dc);
+
+	if (P_hgt == 0.0)
+	{
+		switch (AltUnits)
+		{
+		    case AU_kmMSL:
+			P_bot = 0.0;
+			P_hgt = 12.0;
+			break;
+		    case AU_mMSL:
+			P_bot = 0.0;
+			P_hgt = 12000.0;
+			break;
+		    case AU_mb:
+			P_bot = 1000.0;
+			P_hgt = -900.0;
+			break;
+		}
+	}
 /*
  * If we don't have enough points for interpolation, just return a 1x1 plane
  * with a bad flag in it.
@@ -1644,11 +1842,11 @@ char	*platform, *fldname;
 	}
 /*
  * Use the specified grid size, if any.  Otherwise use x spacing of the source
- * grid as the horizontal spacing for our plane and the z spacing of the source
- * grid as the vertical spacing for the plane.
+ * grid as the horizontal spacing for our plane and just (rather aritrarily)
+ * choose 19 vertical levels;
  */
-	hdim = Hgrid ? Hgrid : (P_len / rg.rg_Xspacing) + 1;
-	vdim = Vgrid ? Vgrid : (P_hgt / rg.rg_Zspacing) + 1;
+	hdim = Hgrid ? Hgrid : abs (P_len / rg.rg_Xspacing) + 1;
+	vdim = Vgrid ? Vgrid : 19;
 /*
  * Allocate the plane structure
  */
@@ -1674,7 +1872,6 @@ char	*platform, *fldname;
  */
 	f_i0 = (X0 - grid_x0) / rg.rg_Xspacing;
 	f_j0 = (Y0 - grid_y0) / rg.rg_Yspacing;
-	f_k0 = (P_bot - grid_z0) / rg.rg_Zspacing;
 
 	if (hdim > 1)
 	{
@@ -1683,8 +1880,6 @@ char	*platform, *fldname;
 	}
 	else
 		f_istep = f_jstep = 0.0;
-
-	f_kstep = 1.0;
 /*
  * h is the horizontal index and v is the vertical index into the vertical 
  * plane we're building.
@@ -1694,7 +1889,8 @@ char	*platform, *fldname;
  */
 	for (v = 0; v < vdim; v++)
 	{
-		k = nint (f_k0 + v * f_kstep);
+		z = P_bot + (v * P_hgt) / (vdim - 1);
+		k = xs_AltIndex (z, alts, nalts);
 
 		for (h = 0; h < hdim; h++)
 		{
@@ -1715,7 +1911,9 @@ char	*platform, *fldname;
 				continue;
 			}
 		/*
-		 * Do a bilinear interpolation using the four source grid
+		 * Do two bilinear interpolations using data from the two
+		 * vertical planes bracketing this point.  For each bilinear 
+		 * interpolation, we use the four source grid 
 		 * points (.) surrounding the plane point (+).  Point 0 is
 		 * at grid position (i,j) and di and dj are fractions of 
 		 * the x and y grid spacing to the plane point, respectively.
@@ -1737,25 +1935,48 @@ char	*platform, *fldname;
 		 */
 			di = f_i - i;
 			dj = f_j - j;
-
+		/* Plane below */	
 			sgp = sourcegrid + k * (rg.rg_nX * rg.rg_nY) + 
 				j * rg.rg_nX + i;
 			val0 = *sgp;
 			val1 = *(sgp + 1);
 			val2 = *(sgp + rg.rg_nX);
 			val3 = *(sgp + rg.rg_nX + 1);
-		/*
-		 * If any of the surrounding grid points are bad, assign
-		 * a bad value, otherwise do the interpolation
-		 */
+
 			if (val0 == sgbad || val1 == sgbad || 
 				val2 == sgbad || val3 == sgbad)	
-				*pp = BADVAL;
+				below = BADVAL;
 			else
-				*pp = 	(1 - di) * (1 - dj) * val0 +
+				below =	(1 - di) * (1 - dj) * val0 +
 					di * (1 - dj) * val1 + 
 					(1 - di) * dj * val2 + 
 					di * dj * val3;
+		/* Plane above */
+			sgp = sourcegrid + (k + 1) * (rg.rg_nX * rg.rg_nY) + 
+				j * rg.rg_nX + i;
+			val0 = *sgp;
+			val1 = *(sgp + 1);
+			val2 = *(sgp + rg.rg_nX);
+			val3 = *(sgp + rg.rg_nX + 1);
+
+			if (val0 == sgbad || val1 == sgbad || 
+				val2 == sgbad || val3 == sgbad)	
+				above = BADVAL;
+			else
+				above =	(1 - di) * (1 - dj) * val0 +
+					di * (1 - dj) * val1 + 
+					(1 - di) * dj * val2 + 
+					di * dj * val3;
+		/*
+		 * Now do a linear interpolation between the values from
+		 * above and below
+		 */
+			if (above == BADVAL || below == BADVAL)
+				*pp++ = BADVAL;
+			else
+				*pp++ = (above * (z - alts[k]) + 
+					 below * (alts[k+1] - z)) / 
+					(alts[k+1] - alts[k]);
 		}
 	}
 /*
@@ -1766,6 +1987,34 @@ char	*platform, *fldname;
 }
 
 
+
+
+static int
+xs_AltIndex (z, alts, nalts)
+double	z;
+float	*alts;
+int	nalts;
+/*
+ * Return the index into alts such that z lies between alts[index] and
+ * alts[index+1].  The alts array must be sorted, but increasing or 
+ * decreasing doesn't matter.  Return -1 if z is not encompassed within
+ * alts.  To avoid slight floating point errors when testing equalities,
+ * we integerize stuff.
+ */
+{
+	int	a, iz = nint (z);
+/*
+ * Quick bailout test
+ */
+	if (! BETWEEN (iz, nint (alts[0]), nint (alts[nalts-1])))
+		return (-1);
+/*
+ * Loop until we find the right spot
+ */
+	for (a = 0; a < nalts - 2; a++)
+		if (BETWEEN (iz, nint (alts[a]), nint (alts[a+1])))
+			return (a);
+}
 
 
 static int
@@ -1899,7 +2148,7 @@ xs_Background ()
  * Draw the background for this cross-section
  */
 {
-	float	tick, tickinc, lolim, hilim;
+	float	tick, tickinc, lolim, hilim, xpos, ypos, lat, lon;
 	int	dolabel;
 	XPoint	pts[5];
 /*
@@ -1974,22 +2223,18 @@ xs_Background ()
 
 			DrawText (Graphics, GWFrame (Graphics), Gcontext, 
 				XPIX (-0.005 * P_len), YPIX (tick), 
-				Scratch, 0.0, 0.02, JustifyRight, 
-				JustifyCenter);
+				Scratch, 0.0, 0.03, JustifyRight, 
+				JustifyBottom);
 		}
 		dolabel = ! dolabel;
 	}
-
-	if (Use_alt)
-		DrawText (Graphics, GWFrame (Graphics), Gcontext, 
-			XPIX (-0.04 * P_len), YPIX (P_bot + 0.5 * P_hgt), 
-			"Altitude (km MSL)", 90.0, 0.02, JustifyCenter, 
-			JustifyBottom);
-	else
-		DrawText (Graphics, GWFrame (Graphics), Gcontext, 
-			XPIX (-0.04 * P_len), YPIX (P_bot + 0.5 * P_hgt), 
-			"Pressure (mb)", 90.0, 0.02, JustifyCenter, 
-			JustifyBottom);
+/*
+ * Vertical scale units
+ */
+	DrawText (Graphics, GWFrame (Graphics), Gcontext, XPIX (-0.04 * P_len),
+		  YPIX (P_bot + 0.5 * P_hgt), 
+		  (char *) au_LongUnitsName (AltUnits), 
+		  90.0, 0.03, JustifyCenter, JustifyBottom);
 /*
  * No horizontal axis labels for zig-zag plots
  */
@@ -2024,19 +2269,22 @@ xs_Background ()
 	 */
 		if (dolabel)
 		{
-			sprintf (Scratch, "(%.1f,%.1f)", 
-				X0 + tick / P_len * (X1 - X0),
-				Y0 + tick / P_len * (Y1 - Y0));
+			xpos = X0 + tick / P_len * (X1 - X0);
+			ypos = Y0 + tick / P_len * (Y1 - Y0);
+
+			cvt_ToLatLon (xpos, ypos, &lat, &lon);
+
+			sprintf (Scratch, "(%.1f/%.1f)", lon, lat);
 
 			DrawText (Graphics, GWFrame (Graphics), Gcontext, 
-				XPIX (tick), YPIX (P_bot - 0.005 * P_hgt), 
-				Scratch, 0.0, 0.02, JustifyCenter, JustifyTop);
+				  XPIX (tick), YPIX (P_bot) + 2, Scratch, 0.0,
+				  0.03, JustifyCenter, JustifyTop);
 		}
 		dolabel = ! dolabel;
 	}
 
 	DrawText (Graphics, GWFrame (Graphics), Gcontext, XPIX (0.5 * P_len), 
-		  YPIX (P_bot - 0.04 * P_hgt), "Position (km)", 0.0, 0.02, 
+		  YPIX (P_bot - 0.04 * P_hgt), "Position (lon/lat)", 0.0, 0.03,
 		  JustifyCenter, JustifyTop);
 }
 
@@ -2382,20 +2630,29 @@ ZebTime *dtime;
 
 
 static DataChunk *
-xs_GetGridDC (plat, fldname, dtime)
+xs_GetGridDC (plat, fldname, dtime, alts)
 char	*plat, *fldname;
 ZebTime *dtime;
+float	*alts;
 /*
  * Find the 3d grid for the given platform before the current plot time
  * and within the user-specified maximum time difference.  Return
- * a good data chunk if this is possible, otherwise return NULL.
- * Return the data time if a real data chunk is returned.
+ * a good data chunk if this is possible, otherwise return NULL.  We
+ * use an RGrid data chunk, but we bastardize it by returning a separate array
+ * of the real, possibly irregularly spaced, altitudes, rather than relying
+ * on a fixed altitude spacing.  Return the data time if a non-NULL data chunk
+ * is returned.
  */
 {
-	int	diff;
+	int	diff, i;
 	FieldId	fld;
 	PlatformId	pid;
 	DataChunk	*dc;
+	DataClass	dclass;
+	dsDetail	det;
+	Location	loc;
+	RGrid		rg;
+	ZebTime		want_time;
 /*
  * Get the ID of this platform
  */
@@ -2408,6 +2665,10 @@ ZebTime *dtime;
 /*
  * Find the closest data time before PlotTime
  */
+	want_time = PlotTime;
+	if (ds_IsModelPlatform (pid) && ValidationMode)
+		want_time.zt_Sec -= ForecastOffset;
+	
 	if (! ds_DataTimes (pid, &PlotTime, 1, DsBefore, dtime))
 	{
 		TC_EncodeTime (&PlotTime, TC_Full, Scratch);
@@ -2418,26 +2679,277 @@ ZebTime *dtime;
  * Make sure the data start time is within the user-specified
  * limit (if any)
  */
-	diff = PlotTime.zt_Sec - dtime->zt_Sec;
+	diff = want_time.zt_Sec - dtime->zt_Sec;
 	if (Maxdiff > 0 && diff > Maxdiff)
 	{
 		msg_ELog (EF_INFO, "No data recent enough from '%s'", plat);
 		return (NULL);
 	}
 /*
+ * Set the data class based on the platform organization
+ */
+	switch (ds_PlatformDataOrg (pid))
+	{
+	    case Org3dGrid:
+		dclass = DCC_RGrid;
+		break;
+	    case OrgScalar:
+		dclass = DCC_NSpace;
+		break;
+	    default:
+		msg_ELog (EF_PROBLEM, "xs_GetGridDC on bad org");
+		return (NULL);
+	}
+/*
+ * Detail for forecast offset time
+ */
+	det.dd_Name = DD_FORECAST_OFFSET;
+	det.dd_V.us_v_int = ForecastOffset;
+/*
  * Get the data
  */
 	fld = F_Lookup (fldname);
 
-	if (! (dc = ds_Fetch (pid, DCC_RGrid, dtime, dtime, &fld, 1, NULL, 0)))
+	if (! (dc = ds_Fetch (pid, dclass, dtime, dtime, &fld, 1, &det, 1)))
 	{
-		TC_EncodeTime (&PlotTime, TC_Full, Scratch);
-		msg_ELog (EF_PROBLEM, "'%s' missing for '%s' at %s", 
-			fldname, plat, Scratch);
+		TC_EncodeTime (&want_time, TC_Full, Scratch);
+		msg_ELog (EF_PROBLEM, 
+			  "xs_GetGridDC: '%s' missing for '%s' at %s", 
+			  fldname, plat, Scratch);
 		return (NULL);
 	}
+/*
+ * If we got a true RGrid data chunk, we just need to build the alts array.
+ * Otherwise, we need to try to make an RGrid data chunk from an NSpace one.
+ */
+	if (dclass == DCC_RGrid)
+	{
+		dc_RGGetGrid (dc, 0, fld, &loc, &rg, NULL);
+
+		for (i = 0; i < rg.rg_nZ; i++)
+			alts[i] = loc.l_alt + i * rg.rg_Zspacing;
+	}
+	if (dclass == DCC_NSpace)
+	{
+		DataChunk	*rdc;
+
+		rdc = xs_NSpaceToRGrid (dc, fld, alts);
+		dc_DestroyDC (dc);
+		dc = rdc;
+	}
+/*
+ * Return our data chunk
+ */
+	return (dc);
+}
+
+
+
+static DataChunk *
+xs_NSpaceToRGrid (dc, fid, alts)
+DataChunk	*dc;
+FieldId		fid;
+float		*alts;
+/*
+ * If we can convert the given NSpace data chunk into a bastardized RGrid
+ * data chunk (with a separate altitude list), return the RGrid data chunk,
+ * otherwise return NULL.  The data chunk must meet the following criteria
+ * for the conversion to work:
+ *
+ *	1) The field must have 'lat', 'lon', and 'alt' as dimensions, and they
+ *	   must be the only dimensions with size > 1.
+ *	2) 'lat', 'lon', and 'alt' are coordinate variables (i.e., variables
+ *	   whose dimension has the same name.
+ *	3) The values in 'lat', 'lon' are regularly spaced.
+ */
+{
+	int	i, ndims, dimorder = 0, is_static;
+	float	*lat, *lon, *dc_alts, latspacing, lonspacing;
+	float	delta, olat, olon, *grid, *nsdata;
+	FieldId	lat_id, lon_id, alt_id, dims[DC_MaxDimension];
+	bool	have_lat, have_lon, have_alt, good_order, alts_regular;
+	RGrid	rg;
+	unsigned long	nlats, nlons, nalts, dimsize;
+	Location	location;
+	DataChunk	*rdc;
+	ZebTime		when;
+/*
+ * Start by checking the dimensions of our field.  'dimorder' is an integer
+ * used to keep track of the ordering of the lat, lon, and alt dimensions,
+ * where alt is assigned value 1, lat is assigned 2, and lon is assigned 3.
+ * Decimal positions are used to store the ordering.  (E.g., if the
+ * dimensions occur in order lat,alt,lon then dimorder will end up 213.)
+ * We use 'dimorder' below when copying data from one data chunk to the other.
+ */
+	dc_NSGetVariable (dc, fid, &ndims, dims, &is_static);
+
+	lat_id = F_Lookup ("lat");
+	lon_id = F_Lookup ("lon");
+	alt_id = F_Lookup ("alt");
+
+	dimorder = 0;
+	
+	for (i = 0; i < ndims; i++)
+	{
+	/*
+	 * Alt, lat, or lon
+	 */
+		if (dims[i] == alt_id)
+			dimorder = dimorder * 10 + 1;
+		else if (dims[i] == lat_id)		
+			dimorder = dimorder * 10 + 2;
+		else if (dims[i] == lon_id)
+			dimorder = dimorder * 10 + 3;
+	/*
+	 * Other dimension (make sure its size is exactly one)
+	 */
+		else
+		{
+			dc_NSGetDimension (dc, dims[i], NULL, &dimsize);
+			if (dimsize != 1)
+			{
+				msg_ELog (EF_PROBLEM, 
+					  "xs_NSpaceToRGrid: dim %s too big",
+					  F_GetName (dims[i]), dimsize);
+				return (NULL);
+			}
+		}
+	}
+/*
+ * Make sure we got all three of alt, lat, and lon
+ */
+	if (dimorder < 100)
+	{
+		msg_ELog (EF_INFO, 
+			  "xs_NSpaceToRGrid: lat, lon, or alt dimn missing");
+		return (NULL);
+	}
+/*
+ * Make sure lat, lon, and alt are coordinate variables
+ */
+	if (! dc_NSGetVariable (dc, lat_id, &ndims, dims, &is_static) ||
+	    (ndims != 1) || (dims[0] != lat_id))
+	{
+		msg_ELog (EF_PROBLEM, 
+			  "xs_NSpaceToRGrid: lat is not a coordinate var");
+		return (NULL);
+	}
+
+	if (! dc_NSGetVariable (dc, lon_id, &ndims, dims, &is_static) ||
+	    (ndims != 1) || (dims[0] != lon_id))
+	{
+		msg_ELog (EF_PROBLEM, 
+			  "xs_NSpaceToRGrid: lon is not a coordinate var");
+		return (NULL);
+	}
+
+	if (! dc_NSGetVariable (dc, alt_id, &ndims, dims, &is_static) ||
+	    (ndims != 1) || (dims[0] != alt_id))
+	{
+		msg_ELog (EF_PROBLEM, 
+			  "xs_NSpaceToRGrid: alt is not a coordinate var");
+		return (NULL);
+	}
+/*
+ * Check for regular lat, lon, and alt spacing
+ */
+	if (dc_Type (dc, lat_id) != DCT_Float || 
+	    dc_Type (dc, lon_id) != DCT_Float ||
+	    dc_Type (dc, alt_id) != DCT_Float)
+	{
+		msg_ELog (EF_PROBLEM, 
+			  "xs_NSpaceToRGrid: non-float lat, lon, or alt");
+		return (NULL);
+	}
+
+	lat = (float *) dc_NSGetSample (dc, 0, lat_id, &nlats);
+	latspacing = lat[1] - lat[0];
+	for (i = 2; i < nlats; i++)
+	{
+		delta = lat[i] - lat[i-1];
+		if (fabs (delta - latspacing) > 0.001)
+		{
+			msg_ELog (EF_PROBLEM, 
+				  "xs_NSpaceToRGrid: Irregular lat step");
+			return (NULL);
+		}
+	}
+	
+	lon = (float *) dc_NSGetSample (dc, 0, lon_id, &nlons);
+	lonspacing = lon[1] - lon[0];
+	for (i = 2; i < nlons; i++)
+	{
+		delta = lon[i] - lon[i-1];
+		if (fabs (delta - lonspacing) > 0.001)
+		{
+			msg_ELog (EF_PROBLEM, 
+				  "xs_NSpaceToRGrid: Irregular lon step");
+			return (NULL);
+		}
+	}
+/*
+ * Get the altitudes and copy them into the user's array.
+ */
+	dc_alts = (float *) dc_NSGetSample (dc, 0, alt_id, &nalts);
+	memcpy (alts, dc_alts, nalts * sizeof (float));
+/*
+ * Our criteria have been met.  Let's build an RGrid data chunk.
+ */
+	rdc = dc_CreateDC (DCC_RGrid);
+        rdc->dc_Platform = dc->dc_Platform;
+
+	dc_RGSetup (rdc, 1, &fid); 
+
+	dc_SetLocAltUnits (rdc, dc_GetLocAltUnits (dc));
+
+	dc_SetBadval (rdc, dc_GetBadval (dc));
+/*
+ * Grid info and location
+ */
+	cvt_GetOrigin (&olat, &olon);
+	cvt_ToXY (olat + fabs (latspacing), olon + fabs (lonspacing),
+		  &rg.rg_Xspacing, &rg.rg_Yspacing);
+
+	rg.rg_Zspacing = 0.0;	/* bastardized RGrid */
+
+	rg.rg_nX = nlons;
+	rg.rg_nY = nlats;
+	rg.rg_nZ = nalts;
+
+	location.l_lat = (latspacing > 0) ? lat[0] : lat[nlats-1];
+	location.l_lon = (lonspacing > 0) ? lon[0] : lon[nlons-1];
+	location.l_alt = alts[0];
+/*
+ * Allocate space for the RGrid data and get a pointer to the NSpace data
+ */
+	grid = (float *) malloc (nlats * nlons * nalts * sizeof (float));
+	nsdata = (float *) dc_NSGetSample (dc, 0, fid, NULL);
+/*
+ * Copy into our new grid.  If the dimension order in the NSpace data chunk
+ * is (alt,lat,lon), then we can just do a memcpy.  Otherwise, it's element
+ * by element since NSpace data are always stored in row major order.
+ */
+	if (dimorder == 123)
+		memcpy ((char *) grid, (char *) nsdata, 
+			nlats * nlons * nalts * sizeof (float));
 	else
-		return (dc);
+	{
+		msg_ELog (EF_PROBLEM, 
+		  "xs_NSpaceToRGrid: NSpace reordering not yet implemented");
+		dc_DestroyDC (rdc);
+		free (grid);
+		return (NULL);
+	}
+/*
+ * Finally, put the grid and time into the new data chunk
+ */		
+	dc_GetTime (dc, 0, &when);
+	dc_RGAddGrid (rdc, 0, fid, &location, &rg, &when, grid, 0);
+/*
+ * Free the space we created and return the newly created regular grid.
+ */
+	free (grid);
+	return (rdc);
 }
 
 # endif  /* C_PT_XSECT */

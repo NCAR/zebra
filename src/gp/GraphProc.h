@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.33 1994-02-25 02:38:45 granger Exp $ */
+/* $Id: GraphProc.h,v 2.34 1994-04-15 21:25:53 burghart Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -55,6 +55,9 @@ extern plot_description Pd, Defaults;
 extern ZebTime PlotTime;	/* Time currently shown on the screen	*/
 extern enum pmode PlotMode;	/* The current plot mode		*/
 extern bool MovieMode;		/* Movie mode?				*/
+extern long ForecastOffset;	/* Forecast offset time (for model data)*/
+extern bool ValidationMode;	/* Use validation mode for model data?	*/
+
 /*
  * Post processing stuff.
  */
@@ -69,22 +72,14 @@ extern int  MaxFrames;		/* Maximun number of frames		*/
 /*
  * Our plot type and user plot limits
  */
-# define Pltype PlotType	/* temp kludge jc */
 extern int	PlotType;
 extern float	Xlo, Xhi, Ylo, Yhi;
-extern float	Alt;		/* CAP plot altitude			*/
-
 /*
  * Search path for icon and map files.
  */
 extern char	IconPath[PathLen];	/* The icon path */
 extern char	MapPath[PathLen];	/* Path for maps */
 
-/*
- * The "altitude control" component -- that which regulates the altitude
- * at which CAP plots are done.
- */
-extern int	AltControlComp;
 /*
  *  Maximum number of frames in the frame cache.
  */
@@ -164,15 +159,17 @@ extern void pc_TriggerGlobal FP ((void));
 extern void px_PlotExec FP ((char *));
 extern void px_GlobalPlot FP ((ZebTime *));
 extern void px_FixPlotTime FP ((ZebTime *));
-extern char *px_FldDesc FP ((char *, char *));
+extern char *px_FldDesc FP ((char *));
+extern char *px_ModelTimeLabel FP ((void));
 
 /* Grid access */
 extern bool ga_GridBBox FP ((ZebTime *, char *, float *, float *, float *,
-		float *));
+			     float *));
 extern void ga_RotateGrid FP ((float *, float *, int, int));
 extern bool ga_AvailableAlts FP ((ZebTime *, char *, float *, int *));
 extern DataChunk *ga_GetGrid FP ((ZebTime *, char *, char *, char *, int *,
-		int *, float *, float *, float *, float *, float *, int *));
+				  int *, float *, float *, float *, float *, 
+				  float *, int *));
 
 /* Frame cache routines */
 extern void fc_InitFrameCache FP ((void));
@@ -188,10 +185,12 @@ extern void fc_MarkFrames FP ((ZebTime *, int));
 
 /* Movie control */
 extern void mc_DefMovieWidget FP ((void));
-extern void mc_ParamChange FP ((void));
+extern void mc_ParamChange FP ((char *));
 extern void mc_PDChange FP ((void));
 extern void mc_Dial FP ((int));
-extern void mc_LoadParams FP ((void));
+
+/* Model widget */
+extern void mw_ParamChange FP ((char *));
 
 /* Icons */
 extern void I_DoIcons FP ((void));
@@ -202,6 +201,10 @@ extern void I_ClearPosIcon FP (());
 extern int ov_PositionIcon FP ((char *, int, int, int));
 extern void I_ActivateArea FP ((int, int, int, int, char *, char *, char *,
 				char *));
+
+/* Altitude control */
+void	alt_Initialize FP ((void));
+void	alt_Step FP ((int));
 
 /* User events */
 extern void Ue_Override FP ((void (*) (), void (*) (), void (*) ()));
@@ -237,6 +240,13 @@ extern void pdm_Init FP ((void));
 extern void pdm_ScheduleUpdate FP ((void));
 extern void pdm_Finish FP ((void));
 
+/* Overlay times widget */
+extern void	ot_Init FP ((void));
+extern void	ot_SetString FP ((char *));
+extern void	ot_Append FP ((char *));
+extern void	ot_AddStatusLine FP ((char *, char *, char *, ZebTime *));
+extern char	*ot_GetString FP ((void));
+
 /* Other stuff */
 extern int GetLocation FP ((char *, ZebTime *, Location *));
 extern int AgeCheck FP ((char *, char *, ZebTime *));
@@ -246,7 +256,6 @@ extern int  reset_limits FP ((char *, char *, char *));
 extern void eq_ResetAbort FP ((void));
 extern void eq_ReturnPD FP ((void));
 extern void tr_InitAcWidget FP ((void));
-extern char *lw_Status FP ((void));
 extern void Require FP ((char *));
 extern void DoRequires FP ((void));
 extern void GetRange FP ((float *, int, double, float *, float *));

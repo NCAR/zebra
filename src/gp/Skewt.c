@@ -1,7 +1,7 @@
 /*
  * Skew-t plotting module
  */
-static char *rcsid = "$Id: Skewt.c,v 2.11 1993-12-30 16:34:28 burghart Exp $";
+static char *rcsid = "$Id: Skewt.c,v 2.12 1994-04-15 21:26:28 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -229,7 +229,7 @@ bool	update;
 	{
 		sk_Background ();
 		An_TopAnnot ("Skew-t plot for ", Tadefclr.pixel);
-		lw_OvInit ("PLATFORM            TIME\n");
+		ot_SetString ("PLATFORM            TIME\n");
 	}
 /*
  * Loop through the platforms
@@ -809,7 +809,7 @@ bool    update;
 	{
 		sprintf (string, "%-19.19s ", pname);
 		TC_EncodeTime (&ptime, TC_Full, string + 20);
-		lw_OvAddString (string);
+		ot_Append (string);
 	}
 	
 /*
@@ -1026,7 +1026,7 @@ int	skip;
 	{
 		sprintf (string, "%-11.11s (winds) ", pname);
 		TC_EncodeTime (&ptime, TC_Full, string + 20);
-		lw_OvAddString (string);
+		ot_Append (string);
 	}
 /*
  * Calculate the x starting position for the wind vectors and the x and y 

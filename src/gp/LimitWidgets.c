@@ -1,7 +1,7 @@
 /*
  * Widgets for changing plot limits.
  */
-static char *rcsid = "$Id: LimitWidgets.c,v 2.15 1993-06-29 15:37:04 barrett Exp $";
+static char *rcsid = "$Id: LimitWidgets.c,v 2.16 1994-04-15 21:26:09 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -121,7 +121,6 @@ static void	lw_SIStore FP ((Widget, WidgetQueue *, XtPointer));
 static Widget	lw_SWCreate FP ((char *, Widget, XtAppContext));
 static void	lw_SWSetup FP ((WidgetQueue *, struct ui_command *));
 static void	lw_SWStore FP ((Widget, WidgetQueue *, XtPointer));
-static Widget	lw_OvCreate FP ((char *, Widget, XtAppContext));
 
 
 static WidgetDesc WTable[N_WIDGET_TYPES] =
@@ -159,12 +158,6 @@ struct DFWData
 };
 
 /*
- * Overlay status widget info.
- */
-static Widget OvLabel = NULL;
-static char OvStatus[1024];
-
-/*
  * Other local routines.
  */
 static void	 lw_Popup FP ((WidgetQueue *));
@@ -172,7 +165,6 @@ static void	 lw_CBPopdown FP ((Widget, WidgetQueue *, XtPointer));
 static void	 lw_Popdown FP ((WidgetQueue *));
 static void	 lw_Setup FP ((WidgetQueue *, int, struct ui_command *));
 static WidgetQueue	 *lw_GetWidget FP ((int));
-static void	 lw_InitOverlay FP ((void));
 static void	 lw_SwCb FP ((Widget, int, int));
 static void	 CopyBackground FP ((Widget soure, Widget dest));
 
@@ -187,7 +179,6 @@ lw_InitWidgets ()
 
 	for (i = 0; i < N_WIDGET_TYPES; i++)
 		FreeQueue[i] = BusyQueue[i] = (WidgetQueue *) 0;
-	lw_InitOverlay ();
 }
 
 
@@ -1322,153 +1313,6 @@ struct ui_command *cmds;
 
 
 
-/************
- * Overlay status widget stuff.  This is a bit of a hack, but it works.
- */
-
-
-static void
-lw_InitOverlay ()
-/*
- * The overlay times widget.
- */
-{
-	uw_def_widget ("overlay", "Plot overlay status", lw_OvCreate, 0, 0);
-	strcpy (OvStatus, "No information.");
-}
-
-
-
-
-static Widget
-lw_OvCreate (junk, parent, actx)
-char *junk;
-Widget parent;
-XtAppContext actx;
-/*
- * Actually create the overlay status widget.
- */
-{
-	Arg args[10];
-	int n;
-/*
- * See what happens if we just make the label directly.
- */
-	n = 0;
-	XtSetArg (args[n], XtNlabel, OvStatus);		n++;
-	XtSetArg (args[n], XtNjustify, XtJustifyLeft);		n++;
-	XtSetArg (args[n], XtNresize, True);			n++;
-	OvLabel = XtCreateManagedWidget ("OverlayStatus", labelWidgetClass,
-		parent, args, n);
-	return (OvLabel);
-}
-
-
-
-
-void
-lw_SetOvLabel (text)
-char *text;
-/*
- * Change the overlay status widget.
- */
-{
-	Arg args[5];
-
-	if (OvLabel)
-	{
-		XtSetArg (args[0], XtNlabel, text);
-		XtSetValues (OvLabel, args, 1);
-	}
-}
-
-
-
-
-
-
-void
-lw_OvInit (s)
-char *s;
-/*
- * Initialize the overlay control widget to this string.
- */
-{
-	strcpy (OvStatus, s);
-}
-
-
-
-void 
-lw_OvAddString (s)
-char *s;
-/*
- * Add this to our status.
- */
-{
-        if ( strlen(OvStatus) + strlen(s) < 1024 )
-	    strcat (OvStatus, s);
-        else
-	    msg_ELog (EF_PROBLEM, "OvAddString: status array overflow");
-	    
-}
-
-
-
-
-void
-lw_LoadStatus ()
-/*
- * Put the status info into the widget.
- */
-{
-	lw_SetOvLabel (OvStatus);
-}
-
-
-
-
-char *
-lw_Status ()
-/*
- * Return the current status string.
- */
-{
-	return (OvStatus);
-}
-
-
-
-
-void
-lw_TimeStatus (comp, plat, t)
-char	*comp, *plat;
-ZebTime *t;
-/*
- * Add a status line.
- */
-{
-	char fld[40];
-        char line[120];
-/*
- * Retrieve all necessary data.
- */
-	if (! pd_Retrieve (Pd, comp, "field", fld, SYMT_STRING) &&
-	    ! pd_Retrieve (Pd, comp, "color-code-field", fld, SYMT_STRING) &&
-	    ! pd_Retrieve (Pd, comp, "arrow-type", fld, SYMT_STRING))
-		strcpy (fld, " ");
-/*
- * Put together the text.
- */
-	sprintf (line, "%-14s %-10s %-10s ", comp, plat, fld);
-	TC_EncodeTime (t, TC_Full, line + strlen (line));
-	strcat (line, "\n");
-        lw_OvAddString( line );
-}
-
-
-
-
 /*
  * Sub-platform selector widget.
  */
@@ -1670,4 +1514,3 @@ int sta, new;
 		}
 	msg_ELog (EF_DEBUG, "In SwCb Sw_RetSta: %s", Sw_RetSta);
 }
-

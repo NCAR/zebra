@@ -18,6 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+# include <math.h>
 # include "defs.h"
 # include "message.h"
 # include "pd.h"
@@ -25,28 +26,30 @@
 # include <DataChunk.h>
 # include "GraphProc.h"
 # include "rg_status.h"
-MAKE_RCSID ("$Id: GridAccess.c,v 2.15 1993-10-26 21:29:40 corbet Exp $")
+MAKE_RCSID ("$Id: GridAccess.c,v 2.16 1994-04-15 21:25:59 burghart Exp $")
 
 
 
 /*
  * Our routines.
  */
-DataChunk	*ga_GetGrid FP ((ZebTime *, char *, char *, char *, int *,
-			int *, float *, float *, float *, float *, float *,
-			int *));
 static bool 	ga_Regularize FP ((DataChunk **, char *, char *, char *));
 static bool 	ga_RgridRegularize FP ((DataChunk **, char *));
 static bool	ga_BarnesRegularize FP ((DataChunk **, char *, char *, char *,
 			int));
 static void 	ga_RangeLimit FP ((char *, int, float *, double));
 static void 	ga_ImgToCGrid FP ((DataChunk **, char *));
-# ifdef notdef
-static void 	ga_ImgToGrid FP ((DataObject *));
-# endif
+static bool 	ga_DoNSpace FP ((DataChunk **, FieldId));
+static bool 	ga_NSSimpleGrid FP ((DataChunk **, FieldId));
 
-
-
+int		ga_NSCoordVariable FP ((DataChunk *dc, const char *name,
+					FieldId *fid));
+int		ga_NSRegularSpacing FP((DataChunk *dc, FieldId fid,
+					float *rspacing, unsigned long *rnum,
+					float *origin));
+DataChunk 	*ga_NSRGrid FP((DataChunk *dc, FieldId fid, Location *location,
+				float latspacing, float lonspacing,
+				int nlats, int nlons, bool transpose));
 
 
 
@@ -99,51 +102,9 @@ float	*x0, *y0, *x1, *y1;
 
 
 
-
-bool
-ga_AvailableAlts (plot_time, platform, heights, nh)
-ZebTime *plot_time;
-char *platform;
-float *heights;
-int *nh;
-/*
- * Obtain the list of available heights for this platform at this time.
- */
-{
-	Location loc;
-	RGrid rg;
-	PlatformId pid;
-	int i;
-/*
- * Make sure this is a real platform.
- */
-	if ((pid = ds_LookupPlatform (platform)) == BadPlatform)
-	{
-		msg_ELog (EF_PROBLEM, "AvailableAlts on bad plat '%s'",
-				platform);
-		return (FALSE);
-	}
-/*
- * Check it out.
- */
-	if (! ds_GetRgridParams (pid, plot_time, &loc, &rg))
-		return (FALSE);
-/*
- * Now calculate the heights.
- */
-	*nh = rg.rg_nZ;
-	for (i = 0; i < rg.rg_nZ; i++)
-		heights[i] = loc.l_alt + i*rg.rg_Zspacing;
-	return (TRUE);
-}
-
-
-
-
-
 DataChunk *
 ga_GetGrid (plot_time, comp, platform, fname, xdim, ydim, x0, y0, x1, y1,
-		alt, shift)
+	    alt, shift)
 ZebTime	*plot_time;
 char 	*comp, *platform, *fname;
 int	*xdim, *ydim, *shift;
@@ -153,13 +114,19 @@ float	*x0, *y0, *x1, *y1, *alt;
 	DataChunk	*dc;
 	RGrid		rg;
 	float		*ret;
-	ZebTime		realtime;
+	ZebTime		dtime;
 	DataOrganization platorg;
 	DataClass	platclass;
 	Location	loc;
-	int 		len, ndet = 0;
-	FieldId		fid = F_Lookup (fname);
-	dsDetail	det;
+	int 		len;
+	char		datestring[32];
+	FieldId		fid;
+	dsDetail	details[5];
+	int		ndet = 0;
+/*
+ * Initialize 'shift' to false, in case we return early
+ */
+	*shift = FALSE;
 /*
  * Look up our platform.
  */
@@ -168,16 +135,15 @@ float	*x0, *y0, *x1, *y1, *alt;
 		msg_ELog (EF_PROBLEM, "Bad platform '%s'", platform);
 		return (0);
 	}
+
 	platorg = ds_PlatformDataOrg (pid);
-# ifdef notdef  /* 6/12/92 jc */
-	if (platorg == Org3dGrid)
-		platorg = Org2dGrid;
-# endif
+
+	fid = F_Lookup (fname);
 	switch (platorg)
 	{
 		case Org3dGrid:
-			det.dd_Name = "altitude";
-			det.dd_V.us_v_float = *alt;
+			details[ndet].dd_Name = "altitude";
+			details[ndet].dd_V.us_v_float = *alt;
 			ndet++;
 			/* Fall into */
 		case Org2dGrid:
@@ -189,23 +155,47 @@ float	*x0, *y0, *x1, *y1, *alt;
 		case OrgIRGrid:
 			platclass = DCC_IRGrid;
 			break;
+		case OrgScalar:	/* <-- historical, should change someday */
+		case OrgNSpace:
+			details[ndet].dd_Name = "altitude";
+			details[ndet].dd_V.us_v_float = *alt;
+			ndet++;
+			platclass = DCC_NSpace;
+			break;
 		default:
 			msg_ELog (EF_PROBLEM, "ga_GetGrid on bad org");
 			return (0);
 	}
 /*
+ * If it's a model platform and validation mode is desired (i.e., we want
+ * model data valid at the plot time rather than issued then), back off
+ * the data request time
+ */
+	dtime = *plot_time;
+
+	if (ds_IsModelPlatform (pid) && ValidationMode)
+		dtime.zt_Sec -= ForecastOffset;
+/*
  * Find out when we can really get data.
  */
-	if (! ds_DataTimes (pid, plot_time, 1, DsBefore, &realtime))
+	if (! ds_DataTimes (pid, &dtime, 1, DsBefore, &dtime))
 	{
-		msg_ELog (EF_INFO, "No data available at all for %s",platform);
-		return (0);
+		TC_EncodeTime (&dtime, TC_Full, datestring);
+		msg_ELog (EF_INFO, "ga_GetGrid: No data for %s at %s", 
+			  platform, datestring);
+		return (NULL);
 	}
 /*
- * Do a DS get for this data.
+ * Set up the forecast offset time detail
  */
-	if (! (dc = ds_Fetch (pid, platclass, &realtime, &realtime, &fid, 1, 
-		&det, ndet)))
+	details[ndet].dd_Name = DD_FORECAST_OFFSET;
+	details[ndet].dd_V.us_v_int = ForecastOffset;
+	ndet++;
+/*
+ * Do a DS fetch for this data.
+ */
+	if (! (dc = ds_Fetch (pid, platclass, &dtime, &dtime, &fid, 1, 
+			      details, ndet)))
 	{
 		msg_ELog (EF_PROBLEM, "Get failed on %s/%s.", platform, fname);
 		return (0);
@@ -232,6 +222,18 @@ float	*x0, *y0, *x1, *y1, *alt;
 	   	ga_ImgToCGrid (&dc, fname);
 		break;
 	/*
+	 * Scalar implies NSpace stuff, and we'll take a shot at making a
+	 * grid from it.
+	 */
+	    case OrgScalar:
+	    case OrgNSpace:
+		if (! ga_DoNSpace (&dc, fid))
+		{
+			dc_DestroyDC (dc);
+			return (0);
+		}
+		break;
+	/*
 	 * If it's already a grid, we do nothing; otherwise we bail.
 	 */
 	   case Org2dGrid:
@@ -252,62 +254,18 @@ float	*x0, *y0, *x1, *y1, *alt;
  * assume that it can be freed later.
  */
 	ret = dc_RGGetGrid (dc, 0, F_Lookup (fname), &loc, &rg, &len);
-	*alt = loc.l_alt;
 	cvt_ToXY (loc.l_lat, loc.l_lon, x0, y0);
 	*xdim = rg.rg_nX;
 	*ydim = rg.rg_nY;
 	*x1 = *x0 + (rg.rg_nX - 1)*rg.rg_Xspacing;
 	*y1 = *y0 + (rg.rg_nY - 1)*rg.rg_Yspacing;
 /*
- * Return.
+ * Return
  */
-	*plot_time = realtime;
+	*plot_time = dtime;
 	return (dc);
 }
 
-
-
-
-# ifdef notdef
-static void
-ga_ImgToGrid (dobj)
-DataObject *dobj;
-/*
- * Turn an image format data object into a regular grid.
- */
-{
-	float *grid, *gp, table[256];
-	RGrid *rg = dobj->do_desc.d_img.ri_rg;
-	ScaleInfo *sc = dobj->do_desc.d_img.ri_scale;
-	unsigned char *img = (unsigned char *) dobj->do_data[0];
-	int i, npt = rg->rg_nX*rg->rg_nY;
-/*
- * Allocate a huge chunk of memory for the grid.
- */
-	gp = grid = (float *) malloc (npt * sizeof (float));
-/*
- * Go through and calculate the translation table.
- */
-	for (i = 0; i < 256; i++)
-		table[i] = (float) i/sc->s_Scale + sc->s_Offset;
-	table[255] = dobj->do_badval;
-/*
- * Populate the new grid.
- */
-	for (i = 0; i < npt; i++)
-		*gp++ = table[*img++];
-/*
- * Fix up the data object, free old memory, and we're done.
- */
-	free (dobj->do_data[0]);
-	dobj->do_data[0] = grid;
-	dobj->do_org = Org2dGrid;
-	dobj->do_desc.d_rgrid = *rg;
-	dobj->do_loc = dobj->do_aloc[0];
-	free (rg);
-	free (sc);
-}
-# endif
 
 
 
@@ -463,6 +421,7 @@ int dobarnes;
 	int nsta, i, ip, nqd = 0, nfilt = 0, fullgrid = 0;
 	float *xpos, *ypos, xmin = 99999.0, xmax = -99999.0, ymin = 99999.0;
 	float ymax = -99999.0, badflag, *grid, *dz, *dzr, radius, rmx, *dp;
+	float xspacing, yspacing, spacing, border;
 	Location *locs, location;
 	FieldId fid;
 	RGrid rg;
@@ -531,20 +490,33 @@ int dobarnes;
 		ymax = Yhi;
 	}
 /*
- * Store some of the new position info.  The rectangular grid is embedded in
- * the irregular grid with a one grid width border on each side.  Also force
- * the spacings to be identical for bints.
+ * Figure out grid spacing, taking into account the fact that we want a
+ * border (specified in grid widths) outside the bounds of the stations.
+ * We force the x and y spacing to be the same since bints requires it.
  */
-	rg.rg_Xspacing = (xmax - xmin)/(rg.rg_nX - 1);
-	rg.rg_Yspacing = (ymax - ymin)/(rg.rg_nY - 1);
-	if (rg.rg_Xspacing > rg.rg_Yspacing)
-		rg.rg_Yspacing = rg.rg_Xspacing;
-	else
-		rg.rg_Xspacing = rg.rg_Yspacing;
-	cvt_ToLatLon (xmin - rg.rg_Xspacing/2.0, ymin - rg.rg_Yspacing/2.0,
-		&location.l_lat, &location.l_lon);
+	border = 0.5;	/* 1/2 grid width border */
+
+	xspacing = (xmax - xmin) / (rg.rg_nX - 1 - (2 * border));
+	yspacing = (ymax - ymin) / (rg.rg_nY - 1 - (2 * border));
+
+	spacing = (xspacing > yspacing) ? xspacing : yspacing;
+	rg.rg_Xspacing = spacing;
+	rg.rg_Yspacing = spacing;
 /*
- * Now that we know our limits, normalize all the points to grid indices.
+ * Adjust our bounds to reflect the border.
+ */
+	xmin -= border * spacing;
+	ymin -= border * spacing;
+
+	xmax = xmin + (rg.rg_nX - 1) * spacing;
+	ymax = ymin + (rg.rg_nY - 1) * spacing;
+/*
+ * Get the lat/lon of the lower left corner of our grid.
+ */
+	cvt_ToLatLon (xmin, ymin, &location.l_lat, &location.l_lon);
+/*
+ * Now that we know our limits, normalize all the points to (Fortran) grid 
+ * indices.
  */
 	for (i = 0; i < nsta; i++)
 	{
@@ -776,3 +748,327 @@ float	*data, badflag;
 	if (nzapped)
 		msg_ELog (EF_INFO, "%d pts range limited", nzapped);
 }
+
+
+
+
+static bool
+ga_DoNSpace (dc, fid)
+DataChunk	**dc;
+FieldId	fid;
+/*
+ * Try to extract a horizontal plane grid from an NSpace data chunk.  Return
+ * TRUE and a new RGrid data chunk if successful, otherwise return FALSE.
+ */
+{
+	if (ga_NSSimpleGrid (dc, fid))
+		return (TRUE);
+	else
+		return (FALSE);
+}
+
+
+
+	
+static bool
+ga_NSSimpleGrid (dc, fid)
+DataChunk	**dc;
+FieldId	fid;
+/*
+ * Try for a simple to handle but very specific case:
+ *	1) our field must have lat and lon as dimensions, and they must be
+ *	   the only dimensions with size > 1.
+ *	2) lat and lon are both coordinate variables (variables whose 
+ *	   dimension has the same name)
+ *	3) the values in lat and lon are regularly spaced, i.e., we already
+ * 	   have a simple two-dimensional grid
+ *	4) variable "alt" exists to give us our vertical position
+ *
+ * If all these criteria are met, create an RGrid data chunk and return TRUE, 
+ * otherwise return FALSE and leave the data chunk untouched.
+ *
+ * Check for dimensions by name rather than FieldId so that file formats
+ * don't have to define every dimension as a FieldId.
+ */
+{
+	DataChunk 	*rdc;
+	int		ndims, is_static, i;
+	bool		lat_first;
+	int		lat_idx, lon_idx;
+	float		latspacing, lonspacing;
+	float		latorg, lonorg;
+	FieldId		lat_id, lon_id, alt_id, dims[DC_MaxDimension];
+	char 		*dimns[ DC_MaxDimension ];
+	unsigned long	sizes[ DC_MaxDimension ];
+	AltUnitType	altunits;
+	unsigned long	dimsize, nlats, nlons;
+	Location	location;
+/*
+ * Start by checking the dimensions of our field
+ */
+	dc_NSGetField (*dc, fid, &ndims, dimns, sizes, &is_static);
+	/* dc_NSGetVariable (*dc, fid, &ndims, dims, &is_static); */
+
+	lat_idx = lon_idx = -1;
+	lat_first = FALSE;
+
+	for (i = 0; i < ndims; i++)
+	{
+	/*
+	 * lat or lon
+	 */
+		if (!strcmp(dimns[i], "lat") ||
+		    !strcmp(dimns[i], "latitude"))
+		{
+			lat_idx = i;
+			lat_first = (lon_idx < 0);
+		}
+		else if (!strcmp(dimns[i], "lon") || 
+			 !strcmp(dimns[i], "longitude"))
+			lon_idx = i;
+	/*
+	 * or other (make sure its size is exactly one)
+	 */
+		else
+		{
+			if (sizes[i] == 1)
+				continue;
+
+			msg_ELog (EF_DEBUG, 
+				  "ga_NSSimpleGrid: Barf on dim %s, size %d",
+				  dimns[i], sizes[i]);
+
+			return (FALSE);
+		}
+	}
+	
+			
+	if ((lat_idx < 0) || (lon_idx < 0))
+	{
+		msg_ELog (EF_DEBUG, "ga_NSSimpleGrid: no lat and/or lon");
+		return (FALSE);
+	}
+/*
+ * Make sure lat and lon are coordinate variables.  We have the names of the
+ * lat and lon dimensions, so see if fields exist by the same name.
+ */
+	if (!ga_NSCoordVariable (*dc, dimns[lat_idx], &lat_id) ||
+	    !ga_NSCoordVariable (*dc, dimns[lon_idx], &lon_id))
+		return (FALSE);
+/*
+ * Check for regular lat and lon spacing
+ */
+	if (!ga_NSRegularSpacing (*dc, lat_id, &latspacing, &nlats, &latorg) ||
+	    !ga_NSRegularSpacing (*dc, lon_id, &lonspacing, &nlons, &lonorg))
+		return (FALSE);
+/*
+ * Build a location.  We must find "alt" or "altitude" for vertical level.
+ */
+	alt_id = F_Declared ("alt");
+	if ((alt_id == BadField) ||
+	    !dc_NSGetVariable (*dc, alt_id, &ndims, dims, &is_static))
+	{
+		alt_id = F_Declared ("altitude");
+		if ((alt_id == BadField) || 
+		    !dc_NSGetVariable (*dc, alt_id, &ndims, dims, &is_static))
+		{
+			msg_ELog (EF_DEBUG, 
+			  "ga_NSSimpleGrid: No 'alt' or 'altitude' variable");
+			return (FALSE);
+		}
+	}
+
+	location.l_lat = latorg;
+	location.l_lon = lonorg;
+	location.l_alt = * (float *) dc_NSGetSample (*dc, 0, alt_id, NULL);
+/*
+ * It looks like all our requirements have been met.  Let's build an 
+ * RGrid data chunk.
+ */
+	rdc = ga_NSRGrid (*dc, fid, &location, latspacing, lonspacing, 
+			  nlats, nlons, lat_first);
+/*
+ * Free up old memory.
+ */
+	dc_DestroyDC (*dc);
+/*
+ * Return the newly created regular grid.
+ */
+	*dc = rdc;
+	return (TRUE);
+}
+
+
+
+
+DataChunk *
+ga_NSRGrid (dc, fid, location, latspacing, lonspacing, nlats, nlons, transpose)
+DataChunk *dc;
+FieldId fid;
+Location *location;
+float latspacing;
+float lonspacing;
+int nlats;
+int nlons;
+bool transpose;
+/*
+ * Use the given n-space datachunk and lat/lon spacing parameters to generate
+ * a kilometer rgrid.  Return the rgrid datachunk.
+ */
+{
+	DataChunk 	*rdc;
+	float 		badflag;
+	float 		olat, olon;
+	float		*nsdata, *grid;
+	RGrid		rg;
+	ZebTime		when;
+	int		i, j;
+
+	rdc = dc_CreateDC (DCC_RGrid);
+        rdc->dc_Platform = dc->dc_Platform;
+
+	dc_RGSetup (rdc, 1, &fid); 
+
+	dc_SetLocAltUnits (rdc, dc_GetLocAltUnits (dc));
+
+	badflag = dc_GetBadval (dc);
+	dc_SetBadval (rdc, badflag);
+/*
+ * Grid info and location
+ */
+	cvt_GetOrigin (&olat, &olon);
+	cvt_ToXY (olat + fabs (latspacing), olon + fabs (lonspacing),
+		  &rg.rg_Xspacing, &rg.rg_Yspacing);
+
+	rg.rg_nX = nlons;
+	rg.rg_nY = nlats;
+	rg.rg_nZ = 1;
+
+	grid = (float *) malloc (nlats * nlons * sizeof (float));
+	nsdata = (float *) dc_NSGetSample (dc, 0, fid, NULL);
+/*
+ * Apply limits
+ */
+/* 
+ * default range limits are somewhat (ahem..) limiting for model data, where
+ * temperatures get awfully cold as you approach 100 mb...
+ */
+# ifdef notdef
+	ga_RangeLimit (F_GetName (fid), nlats * nlons, nsdata, badflag);
+# endif
+/*
+ * Copy into our new grid.  If the "lat" dimension comes before the "lon"
+ * dimension in the NSpace data chunk, we can just do a memcpy.  Otherwise,
+ * it's element by element since NSpace data are always stored in row major
+ * order.
+ */
+	if (transpose)
+		memcpy ((char *) grid, (char *) nsdata, 
+			nlats * nlons * sizeof (float));
+	else
+		for (j = 0; j < nlats; j++)
+			for (i = 0; i < nlons; i++)
+				grid[nlons * j + i] = nsdata[nlats * i + j];
+/*
+ * Finally, put the grid and time into the new data chunk
+ */		
+	dc_GetTime (dc, 0, &when);
+	dc_RGAddGrid (rdc, 0, fid, location, &rg, &when, grid, 0);
+	free (grid);
+
+	return (rdc);
+}
+
+
+
+int
+ga_NSRegularSpacing (dc, fid, rspacing, rnum, org)
+DataChunk *dc;			/* N-Space datachunk 	*/
+FieldId fid;			/* Field to check	*/
+float *rspacing;		/* returned spacing	*/
+unsigned long *rnum;		/* number of values 	*/
+float *org;			/* This variables origin*/
+/*
+ * Requires field to be DCT_Float, then checks that its array of values
+ * in the datachunk is regularly-spaced.  Note that this will usually
+ * only make sense if the field is one-dimensional.  On failure, a 
+ * warning is printed and FALSE is returned.  Otherwise, return TRUE.
+ */
+{
+	unsigned long nvals;
+	float *vals;
+	float delta, spacing;
+	int i;
+
+	if (dc_Type (dc, fid) != DCT_Float)
+	{
+		msg_ELog (EF_DEBUG, "ga_NSSimpleGrid: non-float %s",
+			  F_GetName (fid));
+		return (FALSE);
+	}
+		
+	vals = (float *) dc_NSGetSample (dc, 0, fid, &nvals);
+	if (nvals > 1)
+		spacing = vals[1] - vals[0];
+	else
+		spacing = 0.0;
+	for (i = 2; i < nvals; i++)
+	{
+		delta = vals[i] - vals[i-1];
+		if (fabs (delta - spacing) > 0.001)
+		{
+			msg_ELog (EF_DEBUG, 
+				  "ga_NSSimpleGrid: Irregular %s step",
+				  F_GetName (fid));
+			return (FALSE);
+		}
+	}
+
+	*org = (spacing < 0.0) ? vals[nvals - 1] : vals[0];
+	*rnum = nvals;
+	*rspacing = spacing;
+	return (TRUE);
+}
+
+
+
+int
+ga_NSCoordVariable (dc, name, fid)
+DataChunk *dc;		/* N-Space chunk we're dealing with 		*/
+const char *name;	/* Name required to be a coordinate variable 	*/
+FieldId *fid;		/* Returned FieldId of coordinate variable 	*/
+/*
+ * Verify that this name has a coordinate variable.  Print warning and
+ * return FALSE on failure; return TRUE and the FielId on success.
+ */
+{
+	FieldId field;
+	int ndims;
+	char *dimns[ DC_MaxDimension ];
+       
+/*
+ * First make sure the name is actually a field
+ */
+	field = F_Declared (name);
+
+	if (field == BadField)
+	{
+		msg_ELog (EF_PROBLEM, "dimn '%s' is not a field", name);
+		return (FALSE);
+	}
+/*
+ * Then make sure we have a single dimension and that the dimension matches
+ * the expected name
+ */
+	if (! dc_NSGetField (dc, field, &ndims, dimns, NULL, NULL) ||
+	    (ndims != 1) || strcmp(dimns[0], name))
+	{
+		msg_ELog (EF_DEBUG, "%s: '%s' not a coordinate variable",
+			  "ga_NSCoordVariable", name);
+		return (FALSE);
+	}
+
+	*fid = field;
+	return (TRUE);
+}
+

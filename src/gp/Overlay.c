@@ -3,7 +3,7 @@
  */
 #ifndef lint
 static char *rcsid = 
-	"$Id: Overlay.c,v 2.32 1993-12-22 01:16:57 corbet Exp $";
+	"$Id: Overlay.c,v 2.33 1994-04-15 21:26:14 burghart Exp $";
 #endif
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -1193,7 +1193,7 @@ int update;
 			XDrawLines (Disp, GWFrame (Graphics), Gcontext, xpts, pt,
 					CoordModeOrigin);
 		}
-		lw_TimeStatus (comp, pnames[i], &t);
+		ot_AddStatusLine (comp, pnames[i], " ", &t);
 	/*
 	 * Add an icon if necessary.
 	 */

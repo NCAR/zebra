@@ -1,7 +1,7 @@
 /*
  * Contour a rectangular array
  */
-static char *rcsid = "$Id: Contour.c,v 2.4 1993-09-15 22:58:15 burghart Exp $";
+static char *rcsid = "$Id: Contour.c,v 2.5 1994-04-15 21:25:43 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -191,6 +191,19 @@ int	dolabels, linewidth;
 			    CapButt, JoinMiter);
 	XSetClipRectangles (XtDisplay (W), Gcontext, 0, 0, &Clip, 1, Unsorted);
 /*
+ * Sanity test
+ */
+	if ((cndx_max - cndx_min + 1) > 50)
+	{
+		msg_ELog (EF_PROBLEM, 
+			  "Contour: Too many contours (%d). Nothing drawn.",
+			  cndx_max - cndx_min + 1);
+
+		free (Xpos);
+		free (Ypos);
+		return;
+	}
+/*
  * Loop through the contour values
  */
 	for (cndx = cndx_min; cndx <= cndx_max; cndx++)
@@ -200,12 +213,13 @@ int	dolabels, linewidth;
 	 * Assign the color and grab a graphics context with this
 	 * color in the foreground and with the user's clip rectangle
 	 */
-		if(Monoflag)
+		if (Monoflag)
 			Pix = Color_mono.pixel;
-		else if (ABS (cndx) > (Ncolor - 1) / 2)
-				Pix = Color_outrange.pixel;
-			else
-				Pix = Colors[Color_center + cndx].pixel;
+		else if ((Color_center + cndx) >= 0 &&
+			 (Color_center + cndx) < Ncolor)
+			Pix = Colors[Color_center + cndx].pixel;
+		else
+			Pix = Color_outrange.pixel;
 
 		XSetForeground (XtDisplay (W), Gcontext, Pix);
 	/*
@@ -281,11 +295,10 @@ float	flagval;
 {
 /*
  * Center color index and number of colors.
- * Make sure Ncolor is odd, so the Color_center is actually at the center
  */
 	Monoflag = FALSE;
 	Color_center = center;
-	Ncolor = (count % 2) ? count : count - 1;
+	Ncolor = count;
 	Colors = colors;
 /*
  * Color index for out-of-range contours
@@ -355,6 +368,8 @@ float	*min, *max;
 	{
 		if (Use_flag && Z[i] == Badflag)
 			continue;
+		else if (! FINITE(Z[i]))
+			continue;
 		else
 		{
 			*max = Z[i];
@@ -374,6 +389,8 @@ float	*min, *max;
 	for (; i < Nx * Ny; i++)
 	{
 		if (Use_flag && Z[i] == Badflag)
+			continue;
+		if (! FINITE(Z[i]))
 			continue;
 		if (Z[i] > *max)
 			*max = Z[i];
