@@ -40,7 +40,7 @@
 # include "Platforms.h"		/* for dt_SetString */
 # include "byteorder.h"
 
-RCSID ("$Id: d_Scan.c,v 1.38 2000-06-07 20:29:59 granger Exp $")
+RCSID ("$Id: d_Scan.c,v 1.39 2000-08-22 19:11:32 granger Exp $")
 
 /*
  * Define this to force changed files to be closed and re-opened by
@@ -192,14 +192,13 @@ ScanDirectory (Source *src, const Platform *p, zbool rescan)
     const char *dir = src_DataDir (src, p);
     DIR *dp;
     struct dirent *ent;
+    int i;
+
+    DataFileCore *sfiles = 0;
+    int nsfiles = 0;
 /*
  * Make sure there really is a directory.  If not, we may try to create it,
  * in which case we won't need to scan it or check for cache files.
- *
- * XXX Which is faster: access() directory to make sure it exists, open it
- * first but immediately close it if we don't need it, or the old way of
- * trying to open three cache files before the directory and only then
- * realizing the data directory didn't exist?
  */
     if (! (dp = opendir (dir)))
     {
@@ -208,8 +207,6 @@ ScanDirectory (Source *src, const Platform *p, zbool rescan)
     }
     else
     {
-	DataFileCore *sfiles;
-	int nsfiles, i;
     /*
      * If it's not a forced rescan and the source is "directory constant",
      * we're done.
@@ -219,15 +216,20 @@ ScanDirectory (Source *src, const Platform *p, zbool rescan)
 	    closedir (dp);
 	    return; /* Cache is gospel in this case */
 	}
-    /*
-     * Get the complete list of files currently known in the source, 
-     * sorted by filename.  This is our list of unverified files, and
-     * will be modified as we scan the files in the directory.
-     */
-	sfiles = GetSortedSrcFiles (src, p, &nsfiles);
-    /*
-     * Go through the files in the directory.
-     */
+    }
+/*
+ * Get the complete list of files currently known in the source, 
+ * sorted by filename.  This is our list of unverified files, and
+ * will be modified as we scan the files in the directory.
+ */
+    sfiles = GetSortedSrcFiles (src, p, &nsfiles);
+/*
+ * Go through the files in the directory, if we have a directory.  If the
+ * directory did not exist above, then all the files known in the source
+ * will be unverified and consequently removed from the source.
+ */
+    if (dp)
+    {
 	while ((ent = readdir (dp)))
 	{
 	    ScanFile (ent->d_name, src, p, sfiles, &nsfiles);
@@ -240,24 +242,25 @@ ScanDirectory (Source *src, const Platform *p, zbool rescan)
 		msg_ELog (EF_INFO, "%d files scanned so far", FilesScanned);
 	}
 	closedir (dp);
-    /*
-     * Any files remaining in our unverified file list are no longer in
-     * the directory, so tell the source to forget about them.
-     */
-	for (i = 0; i < nsfiles; i++)
-	{
-	    DataFile df;
-	    
-	    msg_ELog (EF_DEBUG, "File %s disappeared", sfiles[i].dfc_name);
-
-	    BuildDataFile (&df, sfiles + i, src, p);
-	    DataFileGone (&df);
-
-	    src_RemoveFile (src, p, sfiles + i);
-	}
-
-	free (sfiles);
     }
+/*
+ * Any files remaining in our unverified file list are no longer in
+ * the directory, or else there was no directory, so tell the source
+ * to forget about them.
+ */
+    for (i = 0; i < nsfiles; i++)
+    {
+	DataFile df;
+	    
+	msg_ELog (EF_DEBUG, "File %s disappeared", sfiles[i].dfc_name);
+
+	BuildDataFile (&df, sfiles + i, src, p);
+	DataFileGone (&df);
+
+	src_RemoveFile (src, p, sfiles + i);
+    }
+
+    free (sfiles);
 }
 
 
@@ -274,10 +277,10 @@ GetSortedSrcFiles (Source *src, const Platform *p, int *nsfiles)
     int nfiles;
     int n;
 /*
- * Allocate the array
+ * Allocate the array, one greater than needed in case nfiles is 0.
  */ 
     nfiles = src_NFiles (src, p);
-    files = (DataFileCore*) malloc (nfiles * sizeof (DataFileCore));
+    files = (DataFileCore*) malloc ((nfiles+1) * sizeof (DataFileCore));
     n = 0;
 /*
  * Get all of the files from the source for this platform
