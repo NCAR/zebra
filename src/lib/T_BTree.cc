@@ -16,8 +16,10 @@
 #include <RndInt.h>
 #endif
 
-#include "BlockFileP.hh"
-#include "ZTime.hh"
+#include <time.h>	// Need time() to seed srand()
+
+//#include "BlockFileP.hh"
+//#include "ZTime.hh"
 #include "BTree.hh"
 
 #define ZTime long
@@ -25,6 +27,16 @@ typedef BTree<ZTime,long> TimeTree;
 
 typedef long test_key;
 typedef BTree<test_key,test_key> test_tree;
+
+
+#ifdef linux
+extern "C" { int __getfpucw (); }
+
+int __getfpucw ()
+{
+	return 0;
+}
+#endif
 
 
 #ifdef notdef
@@ -77,6 +89,7 @@ Summarize (ostream &out, BTree<K,T> &t)
 
 int TestTree (test_tree &tree, int N);
 
+
 int main (int argc, char *argv[])
 {
 	int N = 10;
@@ -91,7 +104,7 @@ int main (int argc, char *argv[])
 	int err = 0;
 	if (argc > 1)
 	{{
-		test_tree tree(order);
+		test_tree tree(order, sizeof(test_key));
 		cout << "Testing tree of order " << tree.Order() 
 		     << " with " << N << " members..." << endl;
 		err += TestTree (tree, N);
@@ -104,7 +117,7 @@ int main (int argc, char *argv[])
 		N = 5000;
 	for (int o = 3; o < 1000; o *= 3)
 	{
-		test_tree tree(o);
+		test_tree tree(o, sizeof(test_key));
 		
 		cout << "Testing tree of order " << tree.Order() 
 		     << " with " << N << " members..." << endl;
@@ -546,36 +559,36 @@ T_Traversal (test_tree &tree)
 	iv = keys.begin();
 	int step = keys.size() / 10 + 1;
 	cout << " ...stepping forward by " << step << ": ";
-	tree.First ();
-	while (tree.Next (step, &key))
-	{
+	tree.First (&key);
+	do {
 		cout << key << " ";
-		iv += step;
 		if (*iv != key)
 		{
 			cout << "***** Traversal error: expected key "
 			     << *iv << ", got key " << key << endl;
 			++err;
 		}
+		iv += step;
 	}
+	while (tree.Next (step, &key));
 	cout << endl;
 	
 	// Now traverse backwards in increments of 1/13 the size.
 	iv = keys.end() - 1;
 	step = keys.size() / 13 + 1;
 	cout << " ...stepping backwards by " << step << ": ";
-	tree.Last ();
-	while (tree.Prev (step, &key))
-	{
+	tree.Last (&key);
+	do {
 		cout << key << " ";
-		iv -= step;
 		if (*iv != key)
 		{
 			cout << "***** Traversal error: expected key "
 			     << *iv << ", got key " << key << endl;
 			++err;
 		}
+		iv -= step;
 	}
+	while (tree.Prev (step, &key));
 	cout << endl;
 	return err;
 }

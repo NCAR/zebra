@@ -1,5 +1,5 @@
 /*
- * $Id: Buffer.hh,v 1.2 1997-12-17 05:23:20 granger Exp $
+ * $Id: Buffer.hh,v 1.3 1997-12-28 05:57:34 granger Exp $
  * 
  * Simple expandable sequential buffer.
  */
@@ -21,11 +21,11 @@ public:
 
 	/* ----- Constructors ----- */
 
-	/// Create on an existing array of bytes
-	Buffer (void *buf, long len);
+	/// Create on an existing array of bytes, default to no buffer zone
+	Buffer (void *buf, long len, int _zone = 0);
 
 	/// Create a buffer with length at least as long as BUFFER_ZONE
-	Buffer (long len = 0);
+	Buffer (long len = 0, int _zone = BUFFER_ZONE);
 
 	/// Destructor
 	virtual ~Buffer ();

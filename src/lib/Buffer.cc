@@ -10,7 +10,7 @@
 
 #include "Buffer.hh"
 
-RCSID ("$Id: Buffer.cc,v 1.1 1997-11-24 10:26:25 granger Exp $")
+RCSID ("$Id: Buffer.cc,v 1.2 1997-12-28 05:57:33 granger Exp $")
 
 
 const int Buffer::BUFFER_ZONE = 256;
@@ -18,8 +18,8 @@ const int Buffer::BUFFER_ZONE = 256;
 
 /* ----- Constructors ----- */
 
-Buffer::Buffer (long len) : 
-	zone(BUFFER_ZONE), own(1)
+Buffer::Buffer (long len, int _zone) : 
+	zone(_zone), own(1)
 {
 	init ();
 	Need (len);
@@ -30,8 +30,8 @@ Buffer::Buffer (long len) :
 /*
  * Create a buffer on top of existing bytes
  */
-Buffer::Buffer (void *buf, long len) : 
-	zone(0), own(0)
+Buffer::Buffer (void *buf, long len, int _zone) : 
+	zone(_zone), own(0)
 {
 	init ();
 	length = len;

@@ -1,5 +1,5 @@
 /*
- * $Id: BTree.hh,v 1.4 1997-12-24 19:43:18 granger Exp $
+ * $Id: BTree.hh,v 1.5 1997-12-28 05:57:30 granger Exp $
  *
  * Public BTree class interface.
  */
@@ -224,6 +224,16 @@ public:
 		return (Order() - 1);
 	};
 
+	inline int elementFixed ()
+	{
+		return (fixed);
+	};
+
+	inline long elementSize ()
+	{ 
+		return sizes;
+	};
+
 	BTreeStats Statistics ();
 
 	/// Print all the nodes of the tree to 'out', indented by depth
@@ -247,8 +257,8 @@ public:
 
 	/* ----- Public constructors and destructors ----- */
 
-	/// Create a simple empty BTree in memory
-	BTree (int order = DEFAULT_ORDER);
+	/// Create a simple empty BTree
+	BTree (int order = DEFAULT_ORDER, long sz = 0, int fix = 0);
 
 	/// Create an empty, persistent BTree on the given BlockFile
 	//BTree (BlockFile &bf, int order = DEFAULT_ORDER);
@@ -256,7 +266,7 @@ public:
 	/// Restore a BTree from a BlockFile at the given address
 	//BTree (BlockFile &bf, BlkOffset offset);
 
-	~BTree ();
+	virtual ~BTree ();
 
 	void translate (SerialStream &ss);
 
@@ -266,15 +276,18 @@ public:
 
 protected:
 
-	//NodeFactory<K,T> *factory;	// Reference to our node factory
+	NodeFactory<K,T> *factory;	// Reference to our node factory
 
 	// Persistent state
 	int depth;
 	int order;
 	Node rootNode;
-	BTreeNode<K,T> *root;
+	int fixed;			// non-zero for fixed element sizes
+	long sizes;			// sizes of elements, zero if unknown
+	long bufSize;			// Set at construction
 
 	// Transient state
+	BTreeNode<K,T> *root;
 	int check;
 	int err;
 
@@ -288,10 +301,10 @@ protected:
 	virtual void setRoot (BTreeNode<K,T> *node);
 
 	// Get a reference to a node
-	virtual node_type *get (BTree<K,T> &tree, Node &, int depth);
+	virtual node_type *get (Node &, int depth);
 
 	/// Create a new node
-	virtual node_type *make (BTree<K,T> &tree, int depth);
+	virtual node_type *make (int depth);
 
 	/// Delete a node.
 	virtual void destroy (node_type *node);

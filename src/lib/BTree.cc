@@ -11,7 +11,7 @@ extern "C" {
 #include <message.h>
 }
 
-RCSID ("$Id: BTree.cc,v 1.6 1997-12-24 19:43:17 granger Exp $")
+RCSID ("$Id: BTree.cc,v 1.7 1997-12-28 05:57:28 granger Exp $")
 
 #include "Logger.hh"
 #include "BTreeP.hh"
@@ -28,12 +28,14 @@ RCSID ("$Id: BTree.cc,v 1.6 1997-12-24 19:43:17 granger Exp $")
 // const int BTree::DEFAULT_ORDER = 128;
 
 template <class K, class T>
-BTree<K,T>::BTree (int _order) :
+BTree<K,T>::BTree (int _order, long sz = 0, int fix = 0) :
 	factory(new HeapFactory<K,T>()), 
 	// persistent
 	depth(-1),
 	order (_order), 
 	rootNode (),
+	fixed(fix),
+	sizes(sz),
 	// transient
 	root(0), 
 	check(0),
@@ -43,6 +45,13 @@ BTree<K,T>::BTree (int _order) :
 	if (order < 3)
 		order = DEFAULT_ORDER;
 	//factory = new HeapFactory<K,T>();
+
+	// Set our best guess for initial serial buffer size
+	bufSize = sizes * MaxKeys();
+	if (! bufSize)
+	{
+		bufSize = order << 2;
+	}
 }
 
 
@@ -312,6 +321,29 @@ BTree<K,T>::setRoot (BTreeNode<K,T> *node)
 }
 
 
+template <class K, class T>
+BTreeNode<K,T> *
+BTree<K,T>::get (Node &node, int depth)
+{
+	return factory->get (*this, node, depth);
+}
+
+
+template <class K, class T>
+BTreeNode<K,T> *
+BTree<K,T>::make (int depth)
+{
+	return factory->make (*this, depth);
+}
+
+
+template <class K, class T>
+void
+BTree<K,T>::destroy (BTreeNode<K,T> *node)
+{
+	factory->destroy (node);
+}
+
 
 /*================================================================
  * BTreeNode implementation
@@ -337,7 +369,7 @@ BTreeNode<K,T>::BTreeNode (BTree<K,T> &t, int d) : tree(t), depth(d)
 	{
 		table = new Element[tree.MaxKeys()+1];
 		table[0].offset = 0; // Offset for first element insertion
-		sbuf = new SerialBuffer;
+		sbuf = new SerialBuffer (tree.bufSize, 0);
 	}
 }
 

@@ -1,5 +1,5 @@
 /*
- * $Id: XDR.hh,v 1.4 1997-11-24 10:38:56 granger Exp $
+ * $Id: XDR.hh,v 1.5 1997-12-28 05:57:44 granger Exp $
  *
  * C++ interface to the xdr layer.
  */
@@ -39,6 +39,23 @@ typedef XDRTranslator XDRDecoder;
  * pointers to it to the superclass.
  */
 
+
+
+#ifdef linux
+/*
+ * At present there is no xdr_sizeof function on my linux laptop,
+ * so this just lets things compile and mostly work.
+ */
+/// Amount of space required to encode 'data' into XDR
+template <class T>
+unsigned long
+Length (XDRTranslator, const T* data)
+{
+	return (sizeof (*data));
+}
+#endif
+
+
 ///
 /**
   Abstract base class for XDR stream subclasses.
@@ -57,22 +74,39 @@ public:
 	/// Free any allocated memory in a decoded structure.
 	static void Free (XDRTranslator xp, void *data);
 
+#ifndef linux
 	/// Amount of space required to encode 'data' into XDR
 	static inline unsigned long
 	Length (XDRTranslator xp, const void *data)
 	{
 		return (xdr_sizeof ((xdrproc_t)xp, (char *)data));
 	}
+#else
+	// Without xdr_sizeof on linux, just make a wild guess
+	static inline unsigned long
+	Length (XDRTranslator, const void *)
+	{
+		return (256);
+	}
+#endif
 
 	/**
 	  Overloaded CLASS methods for returning the xdr size
 	  of a primitive type.
 	 */
+#ifndef linux
 #define XDR_LENGTH(T) \
 	static unsigned long Length (T & tp) \
 	{ \
 		return (Length ((XDRTranslator)xdr_##T , &tp)); \
 	}
+#else
+#define XDR_LENGTH(T) \
+	static unsigned long Length (T & tp) \
+	{ \
+		return (::Length ((XDRTranslator)xdr_##T , &tp)); \
+	}
+#endif
 
 	XDR_LENGTH(char);
 	XDR_LENGTH(u_char);
