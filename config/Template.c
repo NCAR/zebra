@@ -23,7 +23,7 @@
  */
 # include "site-def.h"
 
-/*
+/* --------------------------------------------------------------------
  * From here are supplied default parameters for things not overridden
  * in the system-specific file.
  */
@@ -60,12 +60,50 @@
 # endif
 
 /*
- * Various system libraries.
+ * Do we have MIT X11 Release 4 or newer?  
  */
+# ifndef UseXWindows
+# define UseXWindows Yes
+# endif	
+
+/*
+ * Do we have X11 Release 3 or older?
+ */
+# ifndef Old_X11
+# define Old_X11 No
+# endif
+
+/*
+ * Do we have netcdf?
+ */
+# ifndef UseNetCDF
+# define UseNetCDF No
+# endif
+
+/* 
+ * Do we have Makedepend?
+ */
+# ifndef HaveMakeDepend
+# define HaveMakeDepend No
+# endif
+
+/*
+ * Do we want to use Sunview?
+ */
+# ifndef UseSunview
+# define UseSunview No
+# endif
+
+/*
+ * Various system libraries. ****************************
+ */
+# ifndef OpenWinHome
+# define OpenWinHome /usr/openwin
+# endif
 
 # ifndef XToolkitLibs		/* What else for Xt appls	*/
-# if UseXWindows
-# define XToolkitLibs -lXaw -lXmu -lXt -lXext
+# if (UseXWindows || UseOpenWin)
+# define XToolkitLibs -lXaw -lXmu -lXt -lXext 
 # else
 # define XToolkitLibs          /* Nothing */
 # endif
@@ -75,11 +113,24 @@
 # define FortranLibs -lF77
 # endif
 
-# if (UseOpenWin && !UseXWindows)         /* OpenWindows paths */ 
-# define XLibrary -lX11
-# define XLibraries /usr/openwin/lib
-# define XInclude -I/usr/openwin/include
+# ifndef MathLib		/* Default math library */
+# define MathLib -lm
 # endif
+
+/*
+ * End of site-def defaults.  Following are derived Makefile macros:
+ * --------------------------------------------------------------------
+ */
+
+# if (UseOpenWin)
+# define XLibrary -lX11
+# define XLibraries $(OPENWINHOME)/lib
+# define XInclude -I$(OPENWINHOME)/include
+# elif (UseXWindows)
+#    ifndef XLibrary
+#       define XLibrary -lX11
+#    endif /* notdef XLibrary */
+# endif /* UseOpenWin */
 
 
 # ifndef XLibrary		/* Set to nothing - defaults elsewhere */
@@ -101,48 +152,13 @@
 # define XLibraryPath           /* Nothing */
 # endif
 
-/*
- * Do we have netcdf?
- */
-# ifndef UseNetCDF
-# define UseNetCDF No
-# endif
-
-/*
- * Do we have MIT X11 Release 4 or newer?  
- */
-
-# ifndef UseXWindows
-# define UseXWindows Yes
-# endif	
-
-/*
- * Do we have X11 Release 3 or older?
- */
-# ifndef Old_X11
-# define Old_X11 No
-# endif
-
-/* 
- * Do we have Makedepend?
- */
-# ifndef HaveMakeDepend
-# define HaveMakeDepend No
-# endif
-
-/*
- * Do we want to use Sunview?
- */
-# ifndef UseSunview
-# define UseSunview No
-# endif
 
 /*
  * Figure out RGB color database.
  *
  */
-# if (UseOpenWin && !UseXWindows)
-# define ColorDB \"/usr/openwin/lib/rgb.txt\"
+# if (UseOpenWin)
+# define ColorDB \"$(OPENWINHOME)/lib/rgb.txt\"
 # elif (UseXWindows)
 # define ColorDB \"XLibraries/X11/rgb.txt\"
 # else
@@ -184,7 +200,7 @@
 # define SunviewFlag   /* Nothing */
 # endif
 
-# if UseXWindows
+# if (UseXWindows || UseOpenWin)
 # define XWindowsFlag -DXSUPPORT
 # else
 # define XWindowsFlag   /* Nothing */
@@ -221,12 +237,10 @@
 # endif
 
 
-
-/*
+/* ----------------------------------------------------------------------
  * Here goes the actual template info which goes into each Makefile.  You
  * shouldn't have to edit this.
  */
-
 
 /**/# DO NOT EDIT -- EDIT Makefile.cpp INSTEAD!
 
@@ -242,6 +256,7 @@ RDSSLIBRARIES = RDSSLibraries
 XLIBRARYPATH = XLibraries
 XLIBRARIES = XLibraryPath
 XINCLUDE = XInclude
+OPENWINHOME = OpenWinHome
 NETCDFFLAG = NetCDFFlag
 NETCDF_DESTDIR = NetCDF_DESTDIR
 NETCDFLIB = NetCDFLib
@@ -273,11 +288,5 @@ mf:
 testmf:
 	@mftest $(MFARCH)
 	
-
-
-
-
-
-
 
 
