@@ -1,7 +1,7 @@
 /*
  * The data store application interface.
  */
-static char *rcsid = "$Id: Appl.c,v 2.0 1991-07-18 22:43:01 corbet Exp $";
+static char *rcsid = "$Id: Appl.c,v 2.1 1991-07-22 19:38:44 corbet Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -232,6 +232,7 @@ char *attr;
  * Parse up the attributes and see if any match.
  */
 	strcpy (copy, dattr);
+	free (dattr);
 	len = CommaParse (copy, pattr);
 	for (i = 0; i < len; i++)
 		if (! strcmp (pattr[i], attr))
