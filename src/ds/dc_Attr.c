@@ -32,7 +32,7 @@
 # include <zl_regex.h> /* System-independent regex functions in Zeb library */
 
 #ifndef lint
-MAKE_RCSID ("$Id: dc_Attr.c,v 1.11 1994-12-03 07:22:50 granger Exp $")
+MAKE_RCSID ("$Id: dc_Attr.c,v 1.12 1995-02-10 01:16:57 granger Exp $")
 #endif
 
 /*--------------------------------------------------------------------
@@ -525,7 +525,7 @@ void *arg;
  */
 	if (pattern)
 	{
-	        if (stat = zl_re_comp (pattern))
+	        if ((stat = zl_re_comp (pattern)))
 		{
 			msg_ELog (EF_PROBLEM,"regexp '%s': %s", pattern, stat);
 			pattern = NULL;
@@ -740,7 +740,7 @@ int *natts;
  */
 	if (pattern)
 	{
-	        if (stat = zl_re_comp (pattern))
+	        if ((stat = zl_re_comp (pattern)))
 		{
 			msg_ELog (EF_PROBLEM,"regexp '%s': %s", pattern, stat);
 			pattern = NULL;

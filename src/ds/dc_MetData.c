@@ -21,6 +21,9 @@
  * maintenance or updates for its software.
  */
 
+# include <string.h>
+# include <memory.h>
+
 # include <defs.h>
 # include <config.h>		/* For CFG_ symbols */
 # include <message.h>
@@ -28,7 +31,7 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_MetData.c,v 3.11 1994-12-03 07:22:52 granger Exp $")
+MAKE_RCSID ("$Id: dc_MetData.c,v 3.12 1995-02-10 01:16:59 granger Exp $")
 
 # define SUPERCLASS DCC_Transparent
 
@@ -64,9 +67,9 @@ const char *DC_ElemTypeNames[] =
 	"unsigned long",
 	"string",
 	"Boolean",
-	"ZebTime"
+	"ZebTime",
+	"void *"
 };
-
 
 const int DC_ElemTypeSizes[] = 
 {
@@ -84,9 +87,12 @@ const int DC_ElemTypeSizes[] =
 	sizeof(unsigned long),
 	sizeof(char *),
 	sizeof(unsigned char),
-	sizeof(ZebTime)
+	sizeof(ZebTime),
+	sizeof(void *)
 };
 
+const int DC_NumTypes = 
+	sizeof (DC_ElemTypeSizes) / sizeof (DC_ElemTypeSizes[0]);
 
 /*
  * If we have non-uniform, non-fixed, non-pre-arranged fields, then the 
@@ -146,10 +152,6 @@ static void	dc_AddNonUniform FP((DataChunk *, FldInfo *, int, ZebTime *,
 static void	dc_AddFixedField FP((DataChunk *dc, FldInfo *finfo, 
 				     int findex, ZebTime *t, int size, 
 				     int start, int nsamp, DataPtr data));
-static int	dc_ArrangeSpace FP((DataChunk *, ZebTime *, int, int, int,
-			FldInfo *));
-static void	dc_CopyData FP((DataChunk *, FldInfo *, int, int, int,
-			DataPtr));
 static void	dc_DumpMD FP((DataChunk *));
 static int	dc_PrintFiAttr FP((char *key, void *value, int nval,
 				   DC_ElemType type, void *arg));
@@ -587,7 +589,6 @@ int *sizes;
 
 
 
-
 void
 dc_ReserveFieldSpace (dc, reserve)
 DataChunk *dc;		/* subclass of DC_MetTypes 	*/
@@ -621,26 +622,6 @@ DC_ElemType type;	/* The type to assign		*/
 
 
 
-inline int
-_dc_SizeOfType (type)
-DC_ElemType type;
-/* 
- * Return size (in bytes) of the element type
- */
-{
-	return (DC_ElemTypeSizes[(int)type]);
-}
-
-
-
-inline const char *
-_dc_TypeName (type)
-DC_ElemType type;
-{
-	return (DC_ElemTypeNames[(int)(type)]);
-}
-
-
 
 DC_ElemType
 dc_Type (dc, fid)
@@ -656,7 +637,7 @@ FieldId fid;
  * The usual sanity checking.
  */
 	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "Type"))
-		return;
+		return (DCT_Unknown);
 /*
  * Grab the field info structure, find the field, and return its type
  */
@@ -664,7 +645,7 @@ FieldId fid;
 						== NULL)
 	{
 		msg_ELog (EF_PROBLEM, "Attempt to get type with no fields");
-		return;
+		return (DCT_Unknown);
 	}
 
 	idx = dc_GetIndex (finfo, fid);
@@ -689,60 +670,20 @@ FieldId fid;
 
 
 
-
-void
-dc_PrintElement (buf, type, elem)
-char *buf;
-DC_ElemType type;
-DC_Element *elem;
-/*
- * Print the value of the element of type 't' into buf
+/* ----------------------------------------------------------------------
+ * Utility routines for converting between elements, void pointers, and
+ * strings.
+ * ----------------------------------------------------------------------
  */
-{
-	switch (type)
-	{
-	   case DCT_Float:
-		break;
-	   case DCT_Double:
-		break;
-	   case DCT_LongDouble:
-		break;
-	   case DCT_Char:
-		sprintf (buf, "%c", elem->dcv_char);
-		break;
-	   case DCT_UnsignedChar:
-		sprintf (buf, "%i", (int)elem->dcv_uchar);
-		break;
-	   case DCT_ShortInt:
-		break;
-	   case DCT_UnsignedShort:
-		break;
-	   case DCT_Integer:
-		break;
-	   case DCT_UnsignedInt:
-		break;
-	   case DCT_LongInt:
-		break;
-	   case DCT_UnsignedLong:
-		break;
-	   case DCT_String:
-		sprintf (buf, "%s", elem->dcv_string);
-		break;
-	   default:
-		strcat (buf, "?");
-		break;
-	};
-}
-
-
-
 void
-dc_AssignElement (e, type, ptr)
+dc_AssignElement (e, ptr, type)
 DC_Element *e;
-DC_ElemType type;
 void *ptr;
+DC_ElemType type;
 /*
- * Dereference a void pointer and store it into the DC_Element
+ * De-reference a void pointer to type and store it into a DC_Element union.
+ * Unknown types are copied opaquely if they fit, otherwise the union is
+ * filled with zeros.
  */
 {
 	switch (type)
@@ -789,101 +730,282 @@ void *ptr;
 	   case DCT_ZebTime:
 		e->dcv_zebtime = *(ZebTime *)ptr;
 		break;
+	   case DCT_VoidPointer:
+		e->dcv_pointer = ptr;
+		break;
+	   case DCT_Element:
+		*e = *(DC_Element *)ptr;
+		break;
 	   default:
-		e->dcv_longdbl = 0.0;
+		if (dc_SizeOfType (type) <= sizeof(*e))
+			memcpy ((void *)e, ptr, dc_SizeOfType (type));
+		else
+			memset ((void *)e, 0, sizeof (*e));
 		break;
 	}
 }
 
 
 
-
-char *
-dc_ElemToString (ptr, type)
+void
+dc_AssignValue (ptr, e, type)
 void *ptr;
+DC_Element *e;
 DC_ElemType type;
-/*
- * Dereference a void pointer, write into a static string, and return
- * the string.  Buffer is only valid until next call.  If the type
- * is a string,
+/* 
+ * Assign an element union containing the given type to space pointed
+ * to by ptr.  Usually ptr is actually a pointer to the type which 
+ * was cast to (void *) when passed into the function.
  */
 {
-	static char buf[128]; /* should hold most numbers (and times), yes? */
-
 	switch (type)
 	{
 	   case DCT_Float:
-		sprintf (buf, "%f", *(float *)ptr);
+		*(float *)ptr = e->dcv_float;
 		break;
 	   case DCT_Double:
-		sprintf (buf, "%lf", *(double *)ptr);
+		*(double *)ptr = e->dcv_double;
 		break;
 	   case DCT_LongDouble:
-		sprintf (buf, "%lf", *(LongDouble *)ptr);
+		*(LongDouble *)ptr = e->dcv_longdbl;
 		break;
 	   case DCT_Char:
-		switch (*(char *)ptr)
-		{
-		   case '\t':
-			sprintf (buf, "\\t");
-			break;
-		   case '\0':
-			sprintf (buf, "\\0");
-			break;
-		   case '\n':
-			sprintf (buf, "\\n");
-			break;
-		   case '\b':
-			sprintf (buf, "\\b");
-			break;
-		   case '\f':
-			sprintf (buf, "\\f");
-			break;
-		   case '\r':
-			sprintf (buf, "\\r");
-			break;
-		   default:
-			sprintf (buf, "%c", *(char *)ptr);
-			break;
-		}
+		*(char *)ptr = e->dcv_char;
 		break;
 	   case DCT_UnsignedChar:
-		sprintf (buf, "%#hx", (unsigned short)*(unsigned char *)ptr);
+		*(unsigned char *)ptr = e->dcv_uchar;
 		break;
 	   case DCT_ShortInt:
-		sprintf (buf, "%hi", *(short *)ptr);
+		*(short *)ptr = e->dcv_shortint;
 		break;
 	   case DCT_UnsignedShort:
-		sprintf (buf, "%hu", *(unsigned short *)ptr);
+		*(unsigned short *)ptr = e->dcv_ushort;
 		break;
 	   case DCT_Integer:
-		sprintf (buf, "%d", *(int *)ptr);
+		*(int *)ptr = e->dcv_int;
 		break;
 	   case DCT_UnsignedInt:
-		sprintf (buf, "%u", *(unsigned int *)ptr);
+		*(unsigned int *)ptr = e->dcv_uint;
 		break;
 	   case DCT_LongInt:
-		sprintf (buf, "%li", *(long int *)ptr);
+		*(long int *)ptr = e->dcv_longint;
 		break;
 	   case DCT_UnsignedLong:
-		sprintf (buf, "%lu", *(unsigned long *)ptr);
+		*(unsigned long *)ptr = e->dcv_ulong;
 		break;
 	   case DCT_String:
-		sprintf (buf, "%s", *(char **)ptr);
+		*(char **)ptr = e->dcv_string;
 		break;
 	   case DCT_Boolean:
-		sprintf (buf, "%s", *(unsigned char *)ptr ? "true" : "false");
+		*(unsigned char *)ptr = e->dcv_boolean;
 		break;
 	   case DCT_ZebTime:
-		TC_EncodeTime ((ZebTime *)ptr, TC_Full, buf);
+		*(ZebTime *)ptr = e->dcv_zebtime;
+		break;
+	   case DCT_VoidPointer:
+		ptr = e->dcv_pointer;
+		break;
+	   case DCT_Element:
+		*(DC_Element *)ptr = *e;
 		break;
 	   default:
-		sprintf (buf, "??");
+		if (dc_SizeOfType (type) <= sizeof(*e))
+			memcpy (ptr, (void *)e, dc_SizeOfType (type));
 		break;
 	}
-	return (buf);
 }
 
+
+
+const char *
+dc_ElemToString (e, type)
+DC_Element *e;
+DC_ElemType type;
+/*
+ * Convert an element to a string, and return the string.  The returned
+ * buffer space is only valid until the next call to this function or to
+ * dc_ValueToString.  If the type is a string, allocate dynamic space if
+ * the string won't fit in static.  If the type is unknown, the byte values
+ * are printed in hex.
+ */
+{
+	static char *dest = NULL;
+	static char buf[128]; 	/* holds all numbers and times, yes? */
+	unsigned char *hex;
+
+	/*
+	 * If we used dynamic memory last time, free it.
+	 */
+	if ((dest != buf) && (dest != NULL))
+		free (dest);
+	dest = buf;		/* default to writing in static memory */
+	switch (type)
+	{
+	   case DCT_Float:
+		sprintf (dest, "%g", e->dcv_float);
+		break;
+	   case DCT_Double:
+		sprintf (dest, "%g", e->dcv_double);
+		break;
+	   case DCT_LongDouble:
+		sprintf (dest, "%Lg", e->dcv_longdbl);
+		break;
+	   case DCT_Char:
+		sprintf (dest, "%c", e->dcv_char);
+		break;
+	   case DCT_UnsignedChar:
+		sprintf (dest, "%#hx", e->dcv_uchar);
+		break;
+	   case DCT_ShortInt:
+		sprintf (dest, "%hi", e->dcv_shortint);
+		break;
+	   case DCT_UnsignedShort:
+		sprintf (dest, "%hu", e->dcv_ushort);
+		break;
+	   case DCT_Integer:
+		sprintf (dest, "%d", e->dcv_int);
+		break;
+	   case DCT_UnsignedInt:
+		sprintf (dest, "%u", e->dcv_uint);
+		break;
+	   case DCT_LongInt:
+		sprintf (dest, "%li", e->dcv_longint);
+		break;
+	   case DCT_UnsignedLong:
+		sprintf (dest, "%lu", e->dcv_ulong);
+		break;
+	   case DCT_String:
+		/*
+		 * Make sure we have enough space for arbitrary strings
+		 */
+		if (strlen(e->dcv_string) >= sizeof(buf))
+			dest = (char *)malloc(strlen(e->dcv_string) + 1);
+		strcpy (dest, e->dcv_string);
+		break;
+	   case DCT_Boolean:
+		sprintf (dest, "%s", (e->dcv_boolean) ? "true" : "false");
+		break;
+	   case DCT_ZebTime:
+		if (e->dcv_zebtime.zt_MicroSec)
+			TC_EncodeTime (&e->dcv_zebtime, TC_FullUSec, dest);
+		else
+			TC_EncodeTime (&e->dcv_zebtime, TC_Full, dest);
+		break;
+	   case DCT_VoidPointer:
+		sprintf (dest, "%#0x", (int) e->dcv_pointer);
+		break;
+	   default:
+		hex = (unsigned char *)e;
+		if (5 * sizeof (*e) >= sizeof(buf))
+			dest = (char *)malloc(5 * sizeof (*e) + 1);
+		dest[0] = '\0';
+		while (hex < (unsigned char *)e + sizeof(*e))
+			sprintf (dest+strlen(dest), "%#0x ", (int)*(hex++));
+		break;
+	}
+	return (dest);
+}
+
+
+
+const char *
+dc_ValueToString (ptr, type)
+void *ptr;
+DC_ElemType type;
+/*
+ * Convert the void pointer to an element union and then to a string.
+ * The return value is identical to dc_ElemToString.
+ */
+{
+	DC_Element e;
+
+	dc_AssignElement (&e, ptr, type);
+	return (dc_ElemToString(&e, type));
+}
+
+
+
+const char *
+dc_PrintElement (e, type)
+DC_Element *e;
+DC_ElemType type;
+/*
+ * Same as dc_ElemToString except special characters are converted to their
+ * escaped sequences.
+ */
+{
+	static char *dest = NULL;
+	static char buf[256];
+	const char *result, *src;
+	char *obj;
+
+	if ((dest != buf) && (dest != NULL))
+		free (dest);
+	dest = buf;		/* default to writing in static memory */
+	result = dc_ElemToString (e, type);
+	/*
+	 * We don't really have anything to do unless the type is
+	 * character or string.
+	 */
+	if (type != DCT_String && type != DCT_Char)
+		return (result);
+	/*
+	 * We'll need, at the most, twice as much space for backslashes
+	 */
+	if (2*strlen(result) >= sizeof(buf))
+		dest = (char *)malloc((2 * strlen(result)) + 1);
+	dest[0] = '\0';
+	src = result;
+	obj = dest;
+	while (*src)
+	{
+		switch (*src)
+		{
+		   case '\t':
+			strcat (obj, "\\t");
+			break;
+		   case '\0':
+			strcat (obj, "\\0");
+			break;
+		   case '\n':
+			strcat (obj, "\\n");
+			break;
+		   case '\b':
+			strcat (obj, "\\b");
+			break;
+		   case '\f':
+			strcat (obj, "\\f");
+			break;
+		   case '\r':
+			strcat (obj, "\\r");
+			break;
+		   default:
+			*obj = *src;
+			--obj;
+		}
+		++src;
+		obj += 2;
+	}
+	*obj = '\0';
+	return (dest);
+}
+
+
+
+const char *
+dc_PrintValue (ptr, type)
+void *ptr;
+DC_ElemType type;
+/*
+ * Same as dc_PrintElement except it first converts a pointer to void
+ * to an element before calling dc_PrintElement
+ */
+{
+	DC_Element e;
+
+	dc_AssignElement (&e, ptr, type);
+	return (dc_PrintElement (&e, type));
+}
 
 
 
@@ -905,7 +1027,7 @@ DataChunk *dc;
 /*
  * Look first for a global attribute.
  */
-	if (abad = dc_GetGlobalAttr (dc, "bad_value_flag"))
+	if ((abad = dc_GetGlobalAttr (dc, "bad_value_flag")))
 	{
 		float fbad;
 		sscanf (abad, "%f", &fbad);
@@ -1442,7 +1564,7 @@ FieldId field;
  * Make sure this one of our subclasses.
  */
 	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "AddMData"))
-		return;
+		return (-1);
 /*
  * Retrieve the field info.
  */
@@ -1450,7 +1572,7 @@ FieldId field;
 						== NULL)
 	{
 		msg_ELog (EF_PROBLEM, "Attempt to add data with no finfo");
-		return;
+		return (-1);
 	}
 /*
  * Use our private method to actually find the field.
@@ -1605,8 +1727,8 @@ int *nval;
 	if (! dc_ReqSubClassOf(dc->dc_Class, DCC_MetData,
 			       "GetFieldAttrArray"))
 		return NULL;
-	if (values = dca_GetAttrArray (dc, DCC_MetData, ST_FIELDATTR(field),
-				       key, type, nval))
+	if ((values = dca_GetAttrArray (dc, DCC_MetData, ST_FIELDATTR(field),
+					key, type, nval)))
 		return (values);
 	return (dc_GetGlobalAttrArray (dc, key, type, nval));
 }
@@ -1681,7 +1803,7 @@ char *key;
 
 	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_MetData, "GetFieldAttr"))
 		return(NULL);
-	if (value = dca_GetAttr (dc, DCC_MetData, ST_FIELDATTR(fid), key))
+	if ((value = dca_GetAttr (dc, DCC_MetData, ST_FIELDATTR(fid), key)))
 		return(value);
 	return (dc_GetGlobalAttr (dc, key));
 }
@@ -1819,7 +1941,8 @@ DataChunk *dc;
 /*
  * Write.
  */
-	printf("METDATA class, %d fields, uniform %s, uniform org %s, size %d\n",
+	printf("%s, %d fields, uniform %s, uniform org %s, size %d\n",
+	       "METDATA class",
 		finfo->fi_NField, finfo->fi_Uniform ? "True" : "False",
 		finfo->fi_UniformOrg ? "True" : "False", finfo->fi_Size);
 	printf("Fields: ");
@@ -1893,7 +2016,7 @@ void *arg;
 	printf (" %s=[", key);
 	for (i = 0; i < nval; ++i)
 	{
-		printf ("%s%s", dc_ElemToString(value, type),
+		printf ("%s%s", dc_PrintValue (value, type),
 			(i == nval - 1) ? "];" : ",");
 		value = (char *)value + dc_SizeOfType (type);
 	}

@@ -18,18 +18,16 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+# include <string.h>
+# include <memory.h>
+
 # include <defs.h>
 # include <message.h>
 # include "DataStore.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-# ifdef notdef
-#ifdef SVR4
-# include <string.h>
-#endif
-# endif
 
-MAKE_RCSID ("$Id: dc_Transp.c,v 1.16 1994-12-03 07:22:55 granger Exp $")
+MAKE_RCSID ("$Id: dc_Transp.c,v 1.17 1995-02-10 01:17:03 granger Exp $")
 
 /*
  * TODO:
@@ -95,6 +93,11 @@ typedef struct _AuxTrans
 
 
 /*
+ * This is the limit imposed by using unsigned short's to count samples
+ */
+const unsigned short MaxSamples = 65535;
+
+/*
  * AuxData codes.
  */
 # define ST_SAMPLES	1	/* Sample locations and sizes.		*/
@@ -151,7 +154,7 @@ DataClass class;
 	tp->at_SampOverhead = 0;
 	tp->at_SampDataSize = 0;
 	tp->at_NextOffset = dc->dc_DataLen;	/* where our data will start */
-	tp->at_LocAltUnits = AU_kmMSL;	/* default to km MSL */
+	tp->at_LocAltUnits = CFG_ALTITUDE_UNITS; /* default to km MSL */
 	dc_AddADE (dc, (DataPtr) tp, DCC_Transparent, ST_SAMPLES,
 			sizeof (AuxTrans), TRUE);
 /*
@@ -553,6 +556,22 @@ char *method;
 		return NULL;
 	}
 /*
+ * If we're at the limit of samples we can count, c'est la vie
+ */
+	if (tp->at_NSample >= MaxSamples)
+	{
+		msg_ELog (EF_PROBLEM, 
+			  "too many samples in datachunk, limit is %hu",
+			  MaxSamples);
+		return (NULL);
+	}
+	else if ((float)tp->at_NSample >= 0.99 * MaxSamples)
+	{
+		msg_ELog (EF_INFO,
+		  "%s: samples 99%% full, %d samples of maximum %hu", 
+		  "transparent class", tp->at_NSample, MaxSamples);
+	}
+/*
  * If our chunk lacks space for another sample, add it now.
  */
 	if (tp->at_NSample + 1 > tp->at_NSampAlloc)
@@ -759,7 +778,7 @@ ZebTime *offsets;
 	int len;
 
 	if (!dc_ReqSubClassOf(dc->dc_Class,DCC_Transparent,"DefineSubSamples"))
-		return ;
+		return NULL;
 	if (! (tp = (AuxTrans *) dc_FindADE (dc, DCC_Transparent, ST_SAMPLES,
 				(int *) 0)))
 	{
@@ -841,7 +860,6 @@ int subsample;
 {
 	AuxTrans *tp;
 	int *indices;
-	int len;
 
 	if (!dc_ReqSubClassOf(dc->dc_Class,DCC_Transparent,"SetSubSample"))
 		return ;
@@ -1124,7 +1142,7 @@ int n;
  */
 {
 	Location *locs;
-	int old, samp;
+	int old;
 /*
  * Get the current list.  If it doesn't exist, there is no work to do.
  */
@@ -1445,7 +1463,7 @@ DataChunk *dc;
  */
 {
 	AuxTrans *tp;
-	int i, len;
+	int i;
 	char atime[40];
 	PlatformId *list;
 /*
@@ -1468,7 +1486,7 @@ DataChunk *dc;
  * Go for it.
  */
 	printf ("TRANSPARENT class, ");
-	printf ("%d samples, %d allocated, next off %d, ",
+	printf ("%d samples, %d allocated, next off %ld, ",
 		tp->at_NSample, tp->at_NSampAlloc, tp->at_NextOffset);
 	printf ("use avg: %s\n", tp->at_HintUseAvgs ? "true" : "false");
 	printf ("Hints: nsamples %d, sample size %d, avg %d, ",
@@ -1511,6 +1529,7 @@ void *arg;
  */
 {
 	int i;
+	DC_Element e;
 
 	if (nval && (type == DCT_String))
 	{
@@ -1520,7 +1539,8 @@ void *arg;
 	printf ("\t\t%s --> ", key);
 	for (i = 0; i < nval; ++i)
 	{
-		printf ("%s%s", dc_ElemToString(value, type),
+		dc_AssignElement (&e, value, type);
+		printf ("%s%s", dc_PrintElement (&e, type),
 			(i == nval - 1) ? "\n" : ", ");
 		value = (char *)value + dc_SizeOfType (type);
 	}
@@ -1595,7 +1615,7 @@ DataChunk *dc;
 				(int *) 0)))
 	{
 		msg_ELog (EF_PROBLEM, "Missing ST_SAMPLES in dchunk!");
-		return;
+		return NULL;
 	}
 /*
  * Find out if any hints available to suggest how many platforms to allocate
@@ -1811,7 +1831,6 @@ int size;
  */
 {
 	AuxTrans *tp;
-	int offset, samp;
 /*
  * Sanity Claus.
  */
@@ -1889,8 +1908,8 @@ int *nval;
 	if (! dc_ReqSubClassOf(dc->dc_Class, DCC_Transparent,
 			       "GetSampleAttrArray"))
 		return NULL;
-	if (values = dca_GetAttrArray (dc, DCC_Transparent, ST_ATTR + sample, 
-				       key, type, nval))
+	if ((values = dca_GetAttrArray (dc, DCC_Transparent, ST_ATTR + sample, 
+					key, type, nval)))
 		return (values);
 	return (dc_GetGlobalAttrArray (dc, key, type, nval));
 }
@@ -1908,7 +1927,7 @@ void *arg;
 {
 	if (! dc_ReqSubClassOf(dc->dc_Class, DCC_Transparent,
 			       "ProcSampleAttrArrays"))
-		return;
+		return (0);
 	return (dca_ProcAttrArrays (dc, DCC_Transparent, ST_ATTR + sample,
 				    pattern, func, arg));
 }
@@ -1922,7 +1941,7 @@ DataChunk *dc;
 int sample;
 {
 	if (! dc_ReqSubClassOf(dc->dc_Class,DCC_Transparent,"GetNSampleAttrs"))
-		return;
+		return (0);
 	return (dca_GetNAttrs (dc, DCC_Transparent, ST_ATTR + sample));
 }
 
@@ -1976,7 +1995,7 @@ char *key;
 
 	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Transparent,"GetSampleAttr"))
 		return(NULL);
-	if (value = dca_GetAttr (dc, DCC_Transparent, ST_ATTR + sample, key))
+	if ((value = dca_GetAttr (dc, DCC_Transparent, ST_ATTR + sample, key)))
 		return (value);
 	return (dc_GetGlobalAttr (dc, key));
 }

@@ -19,13 +19,16 @@
  * maintenance or updates for its software.
  */
 
+# include <string.h>
+# include <memory.h>
+
 # include <defs.h>
 # include <message.h>
 # include "DataStore.h"
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_Scalar.c,v 1.6 1994-01-03 07:18:17 granger Exp $")
+MAKE_RCSID ("$Id: dc_Scalar.c,v 1.7 1995-02-10 01:17:01 granger Exp $")
 
 # define SUPERCLASS DCC_MetData
 
@@ -196,11 +199,11 @@ FieldId field;
 {
 	DC_Element ret;
 
-	ret.dcv_longdbl = 0.0;
+	memset ((char *)&ret, sizeof(ret), 0);
 	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Scalar, "GetScalarElement"))
 		return (ret);
-	dc_AssignElement (&ret, dc_Type(dc, field),
-			  (void *) dc_GetMData (dc, sample, field, NULL));
+	dc_AssignElement (&ret, (void *)dc_GetMData (dc, sample, field, NULL),
+			  dc_Type(dc, field));
 	return (ret);
 }
 
