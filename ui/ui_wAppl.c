@@ -7,7 +7,7 @@
 # include "ui.h"
 # include "ui_window.h"
 
-static char *rcsid = "$Id: ui_wAppl.c,v 1.5 1992-01-30 21:10:58 corbet Exp $";
+static char *rcsid = "$Id: ui_wAppl.c,v 1.6 1993-03-19 23:32:21 granger Exp $";
 
 /*
  * The format of an application widget.
@@ -66,6 +66,30 @@ char *tag;
 	uw_wdef (frame);
 }
 
+
+
+void
+uw_NoHeader (name)
+char *name;
+/*
+ * Set the WF_NOHEADER flag for this application widget.
+ * Widget must have already been defined, and flag change
+ * is not effective unless the widget has not yet been created.
+ */
+{
+	FrameWidget *fw = (FrameWidget *) uw_g_widget (name);
+/*
+ * Sanity checks.
+ */
+	if (! fw)
+		ui_error ("NoHeader call on nonexistent widget '%s'", name);
+	if (fw->fw_type != WT_FRAME)
+		ui_error ("NoHeader call on nonframe widget '%s'", name);
+/*
+ * Flag change
+ */
+	fw->fw_flags |= WF_NOHEADER;
+}	
 
 
 
