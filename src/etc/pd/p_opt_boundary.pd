@@ -1,0 +1,16 @@
+global
+	pd-name:	p_opt_boundary
+p_opt_boundary
+	color:	yellow
+	closed-boundary:	true
+	field:	boundary
+	icon:	boundary
+	icon-left-menu:	minimal-cap-left-menu
+	icon-middle-menu:	simple-color
+	icon-right-menu:	optimizer-boundary-menu
+	line-width:	0
+	platform:	boundary
+	representation:	overlay
+	require:	simple-color, optimizer
+	trigger:	platform
+	trigger-global:	true
