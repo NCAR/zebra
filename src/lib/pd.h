@@ -1,7 +1,7 @@
 /*
  * Plot description related stuff.
  *
- * $Id: pd.h,v 1.9 1992-11-12 17:43:36 burghart Exp $
+ * $Id: pd.h,v 1.10 1993-11-30 02:12:35 granger Exp $
  */
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
@@ -21,6 +21,9 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+
+#ifndef __zeb_pd_h_
+#define __zeb_pd_h_
 
 /*
  * Deal with prototypes in both STDC and non-STDC worlds
@@ -77,3 +80,4 @@ void pd_AddComponent FP((plot_description, plot_description, int));
 void pd_MoveComponent FP((plot_description, char *, int));
 bool pd_CompExists FP((plot_description, char *));
 
+#endif /* !__zeb_pd_h_ */

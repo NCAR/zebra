@@ -19,6 +19,9 @@
  * maintenance or updates for its software.
  */
 
+#ifndef __zeb_imagexfr_h_
+#define __zeb_imagexfr_h_
+
 # ifdef __STDC__
 	struct _ix_desc * IX_HookIn (int, char *, int *, int *, int *,char **);
 	struct _ix_desc * IX_Create (int, int, int, int, int, char **);
@@ -44,3 +47,4 @@
 	char	*IX_GetConsumer ();
 # endif
 
+#endif /* !__zeb_imagexfr_h_ */

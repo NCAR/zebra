@@ -1,4 +1,4 @@
-/* $Id: timer.h,v 2.4 1993-07-01 20:16:42 granger Exp $ */
+/* $Id: timer.h,v 2.5 1993-11-30 02:12:37 granger Exp $ */
 /*
  * Timer module protocol requests and responses.
  */
@@ -19,6 +19,9 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+
+#ifndef __zeb_timer_h_
+#define __zeb_timer_h_
 
 /*
  * Possible client requests.
@@ -155,3 +158,5 @@ int tl_AbsoluteReq FP ((void (*func) (), void *, ZebTime *, int));
 void tl_GetTime FP ((UItime *));
 int tl_AddRelativeEvent FP ((void (*func) (), void *, int, int));
 int tl_AddAbsoluteEvent FP ((void (*func) (), void *, UItime *, int));
+
+#endif /* !__zeb_timer_h_ */

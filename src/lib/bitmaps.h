@@ -1,6 +1,6 @@
 /*
  * bitmaps
- * $Id: bitmaps.h,v 1.1 1991-12-20 19:51:00 kris Exp $
+ * $Id: bitmaps.h,v 1.2 1993-11-30 02:12:31 granger Exp $
  */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -20,4 +20,9 @@
  * maintenance or updates for its software.
  */
 
+#ifndef __zeb_bitmaps_h_
+#define __zeb_bitmaps_h_
+
 extern Pixmap	RightArrow, LeftArrow, ASAPButton;
+
+#endif /* !__zeb_bitmaps_h_ */

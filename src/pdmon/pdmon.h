@@ -1,7 +1,7 @@
 /*
  * Description of the PD monitor protocol.
  */
-/* $Id: pdmon.h,v 1.1 1992-09-15 15:09:08 corbet Exp $ */
+/* $Id: pdmon.h,v 1.2 1993-11-30 02:13:04 granger Exp $ */
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -19,6 +19,9 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+
+#ifndef __zeb_pdmon_h_
+#define __zeb_pdmon_h_
 
 typedef enum
 {
@@ -55,3 +58,5 @@ typedef struct _pdmPD
 	int		pt_Len;		/* Length of the PD	*/
 	char		pt_Pd[1];	/* The actual stuff	*/
 } pdmPD;
+
+#endif /* !__zeb_pdmon_h_ */
