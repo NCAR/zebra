@@ -11,7 +11,7 @@
 # include "dm_cmds.h"
 # include "../include/timer.h"
 
-static char *rcsid = "$Id: dm.c,v 1.8 1990-09-07 09:03:39 corbet Exp $";
+static char *rcsid = "$Id: dm.c,v 1.9 1990-09-11 09:36:43 corbet Exp $";
 
 /*
  * Definitions of globals.
@@ -60,7 +60,7 @@ char **argv;
 	Windows = usy_c_stbl ("Windows");
 	Current = usy_c_stbl ("junk");
 	Bmaps = usy_c_stbl ("ButtonMaps");
-	strcpy (Cur_config, "nothing");
+	strcpy (Cur_config, "(nothing)");
 	dc_Init ();
 /*
  * Create the default default button map.
@@ -304,9 +304,9 @@ struct ui_command *cmds;
 /*
  * If this config is already the current config, we do nothing.
  */
-	sprintf (cfg_sname, "cfg_%s", name);
-	if (! strcmp (cfg_sname, Cur_config))
+	if (! strcmp (name, Cur_config))
 		return;
+	sprintf (cfg_sname, "cfg_%s", name);
 /*
  * Look up this config.
  */
@@ -325,7 +325,7 @@ struct ui_command *cmds;
  * Get a new symbol table for this display config.
  */
 	new_table = usy_c_stbl (cfg_sname);
-	strcpy (Cur_config, cfg_sname);
+	strcpy (Cur_config, name);
 /*
  * Go through and configure every window.
  */
@@ -460,6 +460,7 @@ struct cf_window *win;
  */
 {
 	union usy_value v;
+	int i;
 /*
  * Create the symbol table entry for this process.
  */
@@ -469,6 +470,7 @@ struct cf_window *win;
  * If this is a nongraphic window, we don't create it.  We just ping it, and
  * wait for the hello.
  */
+	win->cfw_args[0] = win->cfw_name;
 	if (win->cfw_nongraph)
 	{
 		struct dm_hello dmh;
@@ -483,9 +485,13 @@ struct cf_window *win;
 	{
 		/* close (0); close (1); close (2); */
 		close (msg_get_fd ());
+# ifdef notdef
 		execlp (win->cfw_prog, /* win->cfw_prog, */ win->cfw_name,
 			(char *) 0);
+# endif
+		execv (win->cfw_prog, win->cfw_args);
 		printf ("Unable to exec '%s'\n", win->cfw_prog);
+		perror (win->cfw_prog);
 		exit (1);
 	}
 }
