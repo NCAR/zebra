@@ -17,6 +17,9 @@
  * The original NEXUS code is ifdef'ed out with the NEXUS symbol.
  *
  * Updates: $Log: not supported by cvs2svn $
+ * Updates: Revision 1.9  1997/05/13 21:38:11  ishikawa
+ * Updates: Replaced symbol aix for AIXV3 for IBM
+ * Updates:
  * Revision 1.8  1997/05/12  22:07:23  ishikawa
  * Added support to IBM machine
  *
@@ -85,13 +88,13 @@
 # include <sys/time.h>
 # endif
 
-#include <sys/errno.h>
+#include <errno.h>
 #include <math.h>
 
-#include "defs.h"		/* Zeb lib includes	 */
-#include "message.h"
-#include "DataStore.h"
-#include "timer.h"
+#include <defs.h>		/* Zeb lib includes	 */
+#include <message.h>
+#include <DataStore.h>
+#include <timer.h>
 
 #ifdef NEXUS
 #include "nexus.h"
@@ -100,7 +103,7 @@
 #define MISSVAL		88888.0	/* NEXUS-specific missing data flags	 */
 #endif /* NEXUS */
 
-MAKE_RCSID("$Id: dsprint.c,v 1.9 1997-05-13 21:38:11 ishikawa Exp $")
+MAKE_RCSID("$Id: dsprint.c,v 1.10 1997-06-22 22:08:18 granger Exp $")
 
 /*************************************************************
  ANSI C function prototypes
@@ -128,8 +131,6 @@ char           *myname;		/* this process name */
 char           *field_param;
 
 char           *time_string = NULL;	/* if sample time is specified */
-
-int             errno;
 
 #if defined(SVR4) || defined(SYSV) || defined(linux)
 # define USE_STRERROR
