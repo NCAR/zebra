@@ -1,0 +1,113 @@
+#!/local/bin/python
+#
+# c130in beginday file
+#
+
+import sys
+import ScalarIngest
+import time
+import string
+import wder
+
+#
+# The field list.
+#
+Fields = { "lat":	("North latitude", "degrees", 3, 9999),
+	   "lon":	("East longitude", "degrees", 4, 9999),
+	   "alt":	("Altitude", "m", 5, 9999),
+	   "pres":	("Pressure", "mb", 8, 9999),
+	   "tdry":	("Temperature", "C", 6, 9999),
+	   "dp":	("Dewpoint temperature", "C", 7, 9999),
+	   "wdir":	("Wind direction", "degrees", 2, 9999),
+	   "wspd":	("Wind speed", "m/s", 1, 9999),
+	   "ozone":	("Ozone concentration", "ppb", 9, 9999),
+	   "thetae":	("Equivalent potential temperature", "K", -1, 0)
+}
+
+LastTime = -1
+
+#
+# Put together a time from what the file gives us.
+#
+def MakeTime (ftime):
+    global Year, Month, Day
+    #
+    # Convert the time to internal.
+    #
+    tsecs = string.atoi (ftime, 10)
+    hours = tsecs/3600
+    minutes = (tsecs/60) % 60
+    seconds = tsecs % 60
+    t = time.mktime (Year, Month, Day, hours, minutes, seconds, 0, 0, 0)
+    t = t + time.timezone
+    #
+    # If we have rolled over a day, adjust.
+    #
+    global LastTime
+    if (tsecs < LastTime):
+	t = t + 24*3600
+	(Year, Month, Day, a, b, c, d, e, f) = time.gmtime (t)
+    LastTime = tsecs
+    return t
+
+
+
+
+#
+# Check args.
+#
+if len (sys.argv) != 3:
+    print "Usage: c130in begin-time file"
+    sys.exit (1)
+#
+# Date stuff.
+#
+Year = string.atoi (sys.argv[1][0:2]) + 1900
+Month = string.atoi (sys.argv[1][2:4])
+Day = string.atoi (sys.argv[1][4:6])
+#
+# Initialize vectors.
+#
+times = [ ]
+data = { }
+for field in Fields.keys ():
+    data[field] = [ ]
+#
+# OK, time to start ingesting.  Open up the file.
+#
+infile = open (sys.argv[2], "r")
+#
+# Go through the file.
+#
+line = string.split (infile.readline ()[:-2], ', ')
+while len (line) > 1:
+    #
+    # Figure out the time.
+    #
+    times.append (MakeTime (line[0]))
+    #
+    # Use DecodeVars to pull out the data, but then we have to tweak most
+    # of them.
+    #
+    ScalarIngest.DecodeVars (line, Fields, data)
+    data['wspd'][-1] = data['wspd'][-1]/10.0
+    data['lat'][-1] = data['lat'][-1]/100.0
+    data['lon'][-1] = data['lon'][-1]/100.0
+    data['tdry'][-1] = data['tdry'][-1]/10.0
+    data['dp'][-1] = data['dp'][-1]/10.0
+    data['pres'][-1] = data['pres'][-1]/10.0
+    data['ozone'][-1] = data['ozone'][-1]/10.0
+    data['thetae'].append (wder.ThetaE (data['tdry'][-1], data['dp'][-1],
+					data['pres'][-1]))
+    #
+    # Next line.
+    #
+    line = string.split (infile.readline ()[:-2], ', ')
+
+#
+# Store.
+#
+ScalarIngest.Init (times[0], "/dt2/fastex/c130", "c130", Fields)
+ScalarIngest.Store (times, data)
+ScalarIngest.Done ()
+infile.close ()

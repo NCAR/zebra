@@ -1,0 +1,206 @@
+#!/usr/local/bin/python
+#
+# Import the g4 dropsondes.
+#
+# g4drop platform files...
+#
+import sys
+import ScalarIngest
+import time
+import string
+import wder
+#
+# Here be the fields we expect
+#
+Fields = { "lat": ("North latitude", "degrees", 12, 99.0),
+	   "lon": ("East longitude", "degrees", 11, 999.0),
+	   "alt": ("Altitude", "km", 13, 99999.0),
+	   "pres": ("Barometric pressure", "mb", 5, 9999.0),
+	   "tdry": ("Ambient temperature", "C", 6, 99.0),
+	   "rh": ("Relative humidity", "%", 7, 999.0),
+	   "wdir": ("Wind direction", "degrees", 8, 999.0),
+	   "wspd": ("Wind speed", "m/s", 9, 999.0),
+	   "w_wind": ("Vertical wind speed", "m/s", 10, 999.0),
+	   "dp": ("Dewpoint temperature", "C", -1, 0),
+	   "thetae": ("Equivalent potential temperature", "K", -1, 0)
+}
+
+#
+# Store a line containing the "A00" record, if we get it.
+#
+AZeroLine = None
+
+#
+# The routine which ingests a Sounding.
+#
+def Ingest (plat, file):
+    #
+    # Open up the input file, and get the begin time out of it.
+    #
+    print "Opening file " + file
+    infile = open (file, "r")
+    begin = ReadHeader (infile)
+    #
+    # Initialize vectors.
+    #
+    times = [ ]
+    data = { }
+    for field in Fields.keys ():
+	data[field] = [ ]
+    #
+    # Plow.
+    #
+    ndrop = 0
+    npoint = 0
+    line = string.split (infile.readline ()[:-1])
+    while len (line) > 0:
+	npoint = npoint + 1
+	#
+	# Filter out stuff that's not good data.
+	#
+#	print ".",
+#	sys.stdout.flush ()
+	if len (line[0]) < 8 or line[0][:7] == 'AVAPS-T' or line[1][0] <> 'S':
+	    if len (line) > 2 and line[1] == 'A00':
+		global AZeroLine
+		AZeroLine = line
+	    line = string.split (infile.readline ()[:-1])
+	    ndrop = ndrop + 1
+	    continue
+	if line[0][:7] != 'AVAPS-D' or len (line) != 15:
+	    print "Funky data line: " + string.join (line)
+	    ndrop = ndrop + 1
+	    line = string.split (infile.readline ()[:-1])
+	    continue
+	#
+	# Decode the data.  Consider dropping this point if the data
+	# aren't interesting.
+	#
+	ScalarIngest.DecodeVars (line, Fields, data)
+#	if CheckData (data):
+	times.append (MakeTime (line[3], line[4]))
+	DoDerivation (data)
+	line = string.split (infile.readline ()[:-1])
+    #
+    # Store the result, and we're done.
+    #
+    if len (times) > 0:
+	CompressTimes (times)
+	KludgeLoc (data)
+	ScalarIngest.Init (times[0], '/dt2/fastex/sounding/' + plat, plat,
+			   Fields)
+	ScalarIngest.Store (times, data)
+	ScalarIngest.Done ()
+    else:
+	print "WARNING: No good data, file not created"
+    infile.close ()
+    print "Done: %d points read, %d dropped.\n" % (npoint, ndrop)
+
+
+
+#
+# Read the header line and pull out the time info.
+#
+def ReadHeader (infile):
+    hline = string.split (infile.readline () [:-1])
+    if hline[0][:7] != 'AVAPS-T':
+	raise 'Funky header line: ' + string.join (hline)
+    return MakeTime (hline[3], hline[4])
+
+#
+# Put together an internal time from the dropsonde file format.
+#
+def MakeTime (day, hour):
+    # (year, month, day, hour, minute, second, wday, jday, dst)
+    #
+    # Mktime wants an integer seconds value.  We have a bit more
+    # precision, so let's use it by adding it to the (float) time
+    # value afterward.  Also add the timezone shift back in, since
+    # mktime returns local time.
+    #
+    t = time.mktime ((1900 + iev (day[0:2]), iev (day[2:4]), iev (day[4:6]),
+			iev (hour[0:2]), iev (hour[2:4]), iev (hour[4:6]),
+			0, 0, 0))
+    return t + iev (hour[6:8]) + time.timezone
+
+#
+# Here is one of the monumental kludges of the century.  Compress the times
+# down substantially, so that the soundings don't overlap from Zebra's point
+# of view.  Sigh.
+#
+def CompressTimes (times):
+    begint = times[0]
+    for i in range (1, len (times)):
+	times[i] = begint + (times[i] - begint)/10.0
+
+#
+# This is up there on the list as well.  The GPS sondes take a while to get
+# their bearings, so the initial location is almost always bad.  If we
+# haven't managed to fill it in yet, do so now.
+#
+def KludgeLoc (data):
+    #
+    # If it's OK, go for it.
+    #
+    if data['lat'][0] != ScalarIngest.BadValue:
+	return
+    #
+    # If we got an 'A00' line, use the location found there.
+    #
+    if AZeroLine <> None:
+	data['lat'][0] = eval (AZeroLine[12])
+	data['lon'][0] = eval (AZeroLine[11])
+    #
+    # Otherwise just look for the first good location and use that.
+    #
+    else:
+	for i in range (1, len (data['lat'])):
+	    if data['lat'][i] != ScalarIngest.BadValue:
+		data['lat'][0] = data['lat'][i]
+		data['lon'][0] = data['lon'][i]
+		return
+#
+# "Eval" chokes on numbers like "08" -- it wants it to be octal.  So
+# I have to substitute in this little hack.  Ugly.
+#
+def iev (v):
+    if v[0] == '0':
+	return eval (v[1:])
+    return eval (v)
+
+#
+# Check to see if this is a good point.
+#
+def CheckData (data):
+    np = len (data['lat'])
+    bv = ScalarIngest.BadValue
+    if data['lat'] == bv and data['lon'] == bv and data['alt'] == bv:
+	for field in data.keys ():
+	    data[field] = data[field][:-1]
+	return None
+    return 1
+
+
+#
+# Derive any needed stuff.
+#
+def DoDerivation (data):
+    temp = data['tdry'][-1]
+    rh = data['rh'][-1]
+    pres = data['pres'][-1]
+    dp = wder.TempHumToDp (temp, rh)
+    data['dp'].append (dp)
+    data['thetae'].append (wder.ThetaE (temp, dp, pres))
+
+#
+# Check args.
+#
+if len (sys.argv) < 3:
+    print "Usage: g4drop platform file..."
+    raise "Invocation error"
+
+#
+# Go through and ingest each file.
+#
+for file in sys.argv[2:]:
+    Ingest (sys.argv[1], file)
