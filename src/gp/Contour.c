@@ -275,6 +275,8 @@ float	*min, *max;
  */
 {
 	int	i;
+
+	*min = *max = Badflag;
 /*
  * Start with the first good value
  */
@@ -292,8 +294,7 @@ float	*min, *max;
 
 	if (i == Nx * Ny)
 	{
-		msg_ELog (EF_PROBLEM,
-			"No good values in array to be contoured!");
+		msg_ELog (EF_INFO, "No good values in array to be contoured!");
 		return;
 	}
 /*
