@@ -78,7 +78,7 @@ static char *hdfopt[2] = { "@(#)$DFA: HDF_INTERFACE Compiled $",
 # include <config.h>
 # include <message.h>
 
-RCSID ("$Id: DFA_HDF.c,v 3.4 1995-07-16 15:43:43 granger Exp $")
+RCSID ("$Id: DFA_HDF.c,v 3.5 1995-09-06 16:32:47 granger Exp $")
 
 #ifdef HDF_TEST
 #define ds_PlatformDataOrg(id) Org2dGrid
@@ -206,6 +206,9 @@ static int dh_LoadFields FP ((Htag *tag));
 static int dh_GetFieldVar FP ((Htag *tag, FieldId fid));
 static int dh_LoadLocation FP ((Htag *tag));
 static int dh_LoadPixel FP ((Htag *tag));
+static int dh_Variable FP ((int32 fid, int32 varid, int32 *vtype_out,
+			    int32 *ndim_out, int32 *dims, int32 *dimsizes,
+			    int32 *natt_out));
 static int dh_OFTimes FP ((Htag *tag));
 static int32 dh_VgroupClass FP ((int32 fid, const char *name));
 static char *dh_GetStringAtt FP ((int fid, int varid, const char *att_name,
@@ -758,6 +761,10 @@ Htag *tag;
 	int vgkey, key;
 	int32 id, vtag;
 	int ntagrefs, i;
+	int32 vtype;
+	int32 ndims, natts;
+	int32 dims[MAX_DIMS];
+	int32 dimsizes[MAX_DIMS];
 /*
  * Free any existing info, for the future case when we might be re-syncing.
  */
@@ -766,7 +773,7 @@ Htag *tag;
 	tag->h_Vids = (int32 *) malloc (FBLK * sizeof (int32));
 /*
  * Pass through the fields.  Attach to the CDF vgroup and collect all
- * vgroups of class "Var".
+ * vgroups of class "Var" which match our purported organization.
  */
 	if ((vgkey = Vattach (tag->h_fid, tag->h_vgid, "r")) == FAIL)
 	{
@@ -790,6 +797,10 @@ Htag *tag;
 		Vgetname (key, vname);
 		Vdetach (key);
 		if (strncmp ("Var", vclass, 3) != 0)
+			continue;
+		dh_Variable (tag->h_fid, id, &vtype, &ndims, 
+			     dims, dimsizes, &natts);
+		if (ndims != 2)		/* must match Image or RGrid org */
 			continue;
 		tag->h_Vids[tag->h_nVar] = id;
 		strcpy (longname, vname);
@@ -1230,7 +1241,7 @@ int32 *natt_out;
 	natt = 0;
 	if ((vgkey = Vattach (fid, varid, "r")) == FAIL)
 	{
-		msg_ELog(EF_PROBLEM,"dh_Inquire: Vattach(%i) failed.",varid);
+		msg_ELog(EF_PROBLEM,"dh_Variable: Vattach(%i) failed.",varid);
 		return (-1);
 	}
 	ntagrefs = Vntagrefs (vgkey);
