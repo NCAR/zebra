@@ -22,7 +22,7 @@ HTMLFILES = color-lables.html components.html cross-section.html \
 	graphic-windows.html graphics-icons.html help.html historytime.html \
 	horizontal-plots.html hp-aircraft.html hp-altitude.html \
 	hp-coords.html hp-data.html hp-meso-fields.html hp-projection.html \
-	iconbar.html \
+	iconbar.html layout.html \
 	index.html interpmethods.html intro.html keys.html limits.html \
 	model-time.html movies.html overlay-time.html \
 	plxsect.html posicons.html printer.html shut-down.html skewt.html \
@@ -41,7 +41,7 @@ GIFFILES = \
 	event.gif hcdevtype.gif hcname.gif hcprint.gif \
 	hcremove.gif hcrevv.gif hcscreen.gif hcwidget.gif \
 	iconbar-help.gif iconbar-over.gif iconbar-sat-gray.gif \
-	iconbar-sat-red.gif \
+	iconbar-sat-red.gif layout.gif \
 	iconbar-sat.gif iconbar-zeb.gif iconbar.gif interpparams.gif \
 	iss-aa-menu.gif iss-marker-active.gif iss-marker.gif la.gif \
 	menu1.gif menu2.gif microboat.gif model-widget-eight.gif \

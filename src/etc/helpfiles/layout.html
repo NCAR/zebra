@@ -1,0 +1,102 @@
+<title>Adjusting the Layout</title>
+<h1>Adjusting the Layout</h1>
+
+<p>A graphics window divides the plot into several regions.  The most obvious
+region is the area which contains the plot of the data themselves.  Other
+regions include the top and side (legend) annotation regions, and the icon
+region across the bottom of the window.  The top annotation typically
+contains the time of the window, whether in history or real-time mode, the
+platforms being plotted, and the representations of those platforms, such
+as contour or raster, track or stations.  The side annotation contains
+legends for the components of the plot, such as wind vector scales, color
+bars, keys to station quadrants, labels for time series traces, and so on.
+Lastly, the icons at the bottom left corner of the window all reside in the
+icon region.</p>
+
+<p>In addition to the icon and annotation areas, the data area is
+surrounded by four rectangles called axis regions: top, bottom, left, and
+right.  These regions provide space for xy-plot axes, horizontal grid
+labels, or buffers between the plot overlays and the borders of the
+window.</p>
+
+<p>The diagram below shows the layout of a graphics window.</p>
+
+<p><img src=layout.gif></p>
+
+<p>Each of the plot regions, except for the data region, is controlled by a
+single plot parameter.  One dimension of the region is always fixed, while
+the other can vary to suit the needs of the particular plot.  For example,
+the icon region always consumes the entire width of the window, but the
+height can be changed.  Likewise, the height of the legend region always
+covers the distance between the top of the icon region and the bottom of
+the top annotation, but the width of the legend space can be changed.  Once
+the sizes of all of the regions have been set, the data region takes all of
+the space left over in the middle of the window.</p>
+
+<p>The layout parameters hold two types of values, fixed or fractional.
+Fixed values specify an exact number of pixels for the variable dimension
+of a region, while fractional values indicate the size of the region as a
+fraction of that dimension of the window.  For example, the legend space
+defaults to 15% of the width of the window.  The top annotation defaults to
+10% of the window height, while the icon space defaults to 50 pixels.  The
+icon space remains 50 pixels high regardless of how the window is resized,
+while the legend and annotation areas will change in proportion to the size
+of the window.  A space parameter of zero disables the region.</P>
+
+<p>In some project configurations, the global icon <img src=zeb-icon.gif>
+in the lower left corner has a menu attached to the middle button which
+controls the layout parameters.  The menu contains submenu entries for each
+of the window regions.  Drag the mouse to the right to open one of the
+parameter submenus, then select a value for that layout parameter.  All of
+the parameter menus offer a similar set of values, both fixed and
+fractional.  Spaces can be changed from 2.5% to 30%, or from 20 pixels to
+160 pixels.  The <em>None</em> option sets the space parameter to zero,
+which effectively removes that region from the plot.</p>
+
+<h2>Horizontal Layouts</h2>
+
+<p>In <a href=horizontal-plots.html>horizontal plots</a>, the default
+layout will almost always suffice.  Usually the left and right axes are
+wide enough to put some aesthetic space around the left and right sides of
+the data region.  The left and bottom axes should also be large enough to
+hold the labels for horizontal and vertical grid lines.  The top annotation
+just provides a default space of 10% of the window height.  If the size of
+the top annotation <em>font</em> (see the right-button menu of the global
+icon) is decreased or increased, the annotation region <em>height</em> can
+be adjusted to accomodate the need for more or less space.</p>
+
+<p>To really maximize the space available for data, the side and top
+annotation regions can be set to <em>None</em>.  Neither will be drawn on
+the window, leaving the rest of the window space available for plots.  Note
+that the <a href=graphics-icons.html>icons</a> will always be drawn, even
+if the icon space parameter is zero, since the window cannot be controlled
+without the icon menus.</P>
+
+<h2>Skew-t Layouts</h2>
+
+<p><a href=skewt.html>Skew-t plots</a> are very specialized and can often
+benefit from customized layout parameters.  A skew-t plot does not use the
+usual legend space at all, so the side annotation region can be disabled to
+allow more space for the skew-t graph and wind vector profiles.  Some
+project configurations will turn off the legend space on skew-t plots by
+default.</p>
+
+
+<h2>XY-Plot Layouts</h2>
+
+<p><a href=xy-graphs.html>XY Graphs</a> naturally make the most use of the
+axis regions.  As platforms and traces are added to an xy plot, the event
+logger may sometimes report warnings about insufficient space in one or
+more of the axis regions.  In this case the layout menu can be used to
+increase the space for the particular axes.</p>
+
+<p>Sometimes the side annotation is not wide enough to hold all of the
+legend for each of the traces, particularly when the platform or field
+names are very long.  In this case the legend space can be widened to make
+room for the longer labels.</p>
+
+<hr>
+<a href=disable.html><img src=la.gif></a>
+<a href=horizontal-plots.html><img src=ra.gif> Next: horizontal plots</a><p>
+<i>Return to <a href=index.html> Zebra Help Index</i></a>
+<h6>$Id: layout.html,v 1.1 1995-09-21 20:24:49 granger Exp $</h6>
