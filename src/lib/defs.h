@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 2.8 1992-03-19 15:56:17 corbet Exp $ */
+/* $Id: defs.h,v 2.9 1992-03-19 22:40:25 corbet Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -23,7 +23,9 @@
 # define _DEFS_H_
 
 # include <ui.h>
-# include <memory.h>
+# if (! defined(__GNUC__) || __GNUC__ < 2)
+# 	include <memory.h>   /* Conflicts with gcc2 builtin */
+# endif
 
 /*
  * FCC-specific defined types.
