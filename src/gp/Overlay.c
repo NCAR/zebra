@@ -1,7 +1,7 @@
 /*
  * Deal with static (or almost static) overlays.
  */
-static char *rcsid = "$Id: Overlay.c,v 1.6 1990-11-15 13:37:28 corbet Exp $";
+static char *rcsid = "$Id: Overlay.c,v 1.7 1990-11-15 13:47:59 corbet Exp $";
 
 # include <stdio.h>
 # include <X11/Intrinsic.h>
@@ -458,7 +458,7 @@ struct ui_command *cmds;
 /*
  * Now parse the internals.
  */
-	ui_subcommand ("in-feature", "Feature>", ov_InFeature, fl);
+	ui_subcommand ("in-feature", "Feature>", ov_InFeature, (int) fl);
 /*
  * Define this feature.
  */
