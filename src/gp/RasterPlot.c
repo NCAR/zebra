@@ -76,7 +76,7 @@
 
 # include "RasterImage.h"
 
-RCSID ("$Id: RasterPlot.c,v 2.35 1998-05-04 17:01:09 burghart Exp $")
+RCSID ("$Id: RasterPlot.c,v 2.36 1998-10-09 16:28:20 burghart Exp $")
 
 # ifdef TIMING
 # include <sys/time.h>
@@ -316,11 +316,20 @@ int	xdim, ydim;
 				FixForeground (HColor.pixel);
 			else
 			{
-				r_color = (int) (cscale * (dval - Datamin));
-				if (r_color >= 0 && r_color < Ncolor)
-					FixForeground (Colors[r_color].pixel);
-				else
-					FixForeground (Color_outrange.pixel);
+			/* 
+			 * We have to be careful to check for negative
+			 * values of fndx here before casting to int, since
+			 * a cast to int often truncates toward zero.  This
+			 * means that a simple cast from the range -1.0 <
+			 * fndx < 1.0 gives us index 0, and we only want
+			 * index 0 when 0.0 <= fndx < 1.0. 
+			 */
+			    float fndx = cscale * (dval - Datamin);
+
+			    if (fndx < 0 || fndx >= Ncolor)
+				FixForeground (Color_outrange.pixel);
+			    else
+				FixForeground (Colors[(int)fndx].pixel);
 			}
 		/*
 		 * Draw a polygon for this point
@@ -589,14 +598,22 @@ bool	fast; /* not used any more */
 		   && (*gp <= (HValue + HRange/2.0)) 
 		   && (*gp >= (HValue - HRange/2.0)))
 		{
-			++gp;
-			*cgp++ = HColor.pixel;
+		    ++gp;
+		    *cgp++ = HColor.pixel;
 		}
 		else
 		{
-			r_color = (int) (cscale * (*gp++ - Datamin));
-			*cgp++ = (r_color >= 0 && r_color < Ncolor) ? 
-				Colors[r_color].pixel : outrange;
+		/* 
+		 * We have to be careful to check for negative values of
+		 * fndx here before casting to int, since a cast to int
+		 * often truncates toward zero.  This means that a simple
+		 * cast from the range -1.0 < fndx < 1.0 gives us index 0,
+		 * and we only want index 0 when 0.0 <= fndx < 1.0. 
+		 */
+		    float fndx = cscale * (*gp++ - Datamin);
+
+		    *cgp++ = (fndx < 0 || fndx >= Ncolor) ? 
+			outrange : Colors[(int)fndx].pixel;
 		}
 	}
 /*
@@ -718,9 +735,17 @@ RP_MakeColorMap (double scale, double bias, Pixel *cmap)
 			cmap[c] = HColor.pixel;
 		else
 		{
-			rcolor = (int) (cscale*(c*scale + bias - Datamin));
-			cmap[c] = (rcolor >= 0 && rcolor < Ncolor) ? 
-				Colors[rcolor].pixel : Color_outrange.pixel;
+		/* 
+		 * We have to be careful to check for negative values of
+		 * fndx here before casting to int, since a cast to int
+		 * often truncates toward zero.  This means that a simple
+		 * cast from the range -1.0 < fndx < 1.0 gives us index 0,
+		 * and we only want index 0 when 0.0 <= fndx < 1.0. 
+		 */
+		    float fndx = cscale*(c*scale + bias - Datamin);
+
+		    cmap[c] = (fndx < 0 || fndx >= Ncolor) ? 
+			Color_outrange.pixel : Colors[(int)fndx].pixel;
 		}
 	}
 	cmap[255] = Color_outrange.pixel;
