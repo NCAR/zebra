@@ -1,3 +1,20 @@
+C		Copyright (C) 1987,88,89,90,91 by UCAR
+C	University Corporation for Atmospheric Research
+C		   All rights reserved
+C
+C No part of this work covered by the copyrights herein may be reproduced
+C or used in any form or by any means -- graphic, electronic, or mechanical,
+C including photocopying, recording, taping, or information storage and
+C retrieval systems -- without permission of the copyright owner.
+C 
+C This software and any accompanying written materials are provided "as is"
+C without warranty of any kind.  UCAR expressly disclaims all warranties of
+C any kind, either express or implied, including but not limited to the
+C implied warranties of merchantibility and fitness for a particular purpose.
+C UCAR does not indemnify any infringement of copyright, patent, or trademark
+C through use or modification of this software.  UCAR does not provide 
+C maintenance or updates for its software.
+C
 # include "rg_status.h"
 
 c
