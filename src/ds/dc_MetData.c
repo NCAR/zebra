@@ -27,7 +27,7 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_MetData.c,v 3.2 1992-07-23 15:23:21 corbet Exp $")
+MAKE_RCSID ("$Id: dc_MetData.c,v 3.3 1992-10-27 18:34:53 granger Exp $")
 
 # define SUPERCLASS DCC_Transparent
 
@@ -132,8 +132,21 @@ FieldId *fields;
  * Allocate and fill in our structure.
  */
 	finfo = ALLOC (FldInfo);
-	finfo->fi_NField = nfield;
-	for (fld = 0; fld < nfield; fld++)
+/*
+ * Don't accept more fields than we can fit in the FldInfo structure
+ */
+	if (nfield > DC_MaxField)
+	{
+		msg_ELog(EF_PROBLEM,
+			"%i is too many fields, max is %i",
+			nfield, DC_MaxField);
+		finfo->fi_NField = DC_MaxField;
+	}
+	else
+	{
+		finfo->fi_NField = nfield;
+	}
+	for (fld = 0; fld < finfo->fi_NField; fld++)
 		finfo->fi_Fields[fld] = fields[fld];
 	finfo->fi_Uniform = FALSE;
 	finfo->fi_Badval = DefaultBadval;
@@ -177,8 +190,22 @@ FieldId *fields;
  * Allocate and fill in our structure.
  */
 	finfo = ALLOC (FldInfo);
-	finfo->fi_NField = nfield;
-	for (fld = 0; fld < nfield; fld++)
+/*
+ * Make sure someone's not trying to overstuff us with fields.
+ * If so, only the first DC_MaxField fields will be accepted.
+ */
+	if (nfield > DC_MaxField)
+	{
+		msg_ELog(EF_PROBLEM,
+			"%i is too many fields, max is %i",
+			nfield, DC_MaxField);
+		finfo->fi_NField = DC_MaxField;
+	}
+	else
+	{
+		finfo->fi_NField = nfield;
+	}
+	for (fld = 0; fld < finfo->fi_NField; fld++)
 		finfo->fi_Fields[fld] = fields[fld];
 	finfo->fi_Uniform = TRUE;
 	finfo->fi_Size = size;
@@ -193,7 +220,6 @@ FieldId *fields;
  */
 	return;
 }
-
 
 
 
