@@ -22,7 +22,8 @@
 # include <errno.h>
 # include <math.h>
 # include <X11/Intrinsic.h>
-# include "config.h"		/* dependent on changes in SHM def */
+
+# include <config.h>
 # include <defs.h>
 # include <pd.h>
 # include <message.h>
@@ -30,7 +31,7 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 
-RCSID ("$Id: RasterPlot.c,v 2.28 1996-03-12 02:28:22 granger Exp $")
+RCSID ("$Id: RasterPlot.c,v 2.29 1996-11-19 07:23:30 granger Exp $")
 
 # ifdef TIMING
 # include <sys/time.h>
@@ -154,7 +155,6 @@ static int RasterLimits FP ((int xdim, int ydim, int *xlo, int *ylo, int *xhi,
 			     float *colinc_out, float *rowinc_out,
 			     float *leftcol_out, float *toprow_out));
 
-/* static bool RP_ShmPossible FP ((Display *disp)); */
 # ifdef SHM
 static XImage *RP_GetSharedXImage FP ((Widget w, int width, int height));
 # endif
@@ -574,7 +574,6 @@ bool	fast; /* not used any more */
  * Now we ship over the image, and deallocate everything.
  */
 # ifdef SHM
-	/* if (GWShmPossible (Graphics)) */
 	if (using_shared)
 		XShmPutImage (disp, d, gcontext, image, 0, 0,
 			      xlo, yhi, width, height, False);
@@ -598,14 +597,13 @@ bool	fast; /* not used any more */
 
 
 
-
 # ifdef SHM
 
 /*
  * This is our Ximage in shared memory.
  */
-static int XIwidth = -1, XIheight = -1;
 static XImage *image = 0;
+static int XIwidth = -1, XIheight = -1;
 static XShmSegmentInfo shminfo;
 static bool shm_failed = FALSE;	/* If we fail once, don't try it again */
 
@@ -690,18 +688,20 @@ int width, height;
 	return (image);
 }
 
+# endif /* SHM */
 
 
 
 
 
 void
-RP_ZapSHMImage (w)
+RP_ZapShmImage (w)
 Widget w;
 /*
  * If there is a shared memory image, get rid of it.
  */
 {
+# ifdef SHM
 	Display *disp = XtDisplay (w);
 
 	if (image)
@@ -712,9 +712,9 @@ Widget w;
 		shmctl (shminfo.shmid, IPC_RMID, 0);
 		image = 0;
 	}
+# endif
 }
 
-# endif /* SHM */
 
 
 
