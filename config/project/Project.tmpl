@@ -1,6 +1,6 @@
 /**/#-------------------------------------------------------------------------
 /**/# Zeb project build parameters
-/**/# $Id: Project.tmpl,v 1.8 1993-06-08 16:38:30 granger Exp $
+/**/# $Id: Project.tmpl,v 1.9 1993-06-25 07:36:21 granger Exp $
 /**/#-------------------------------------------------------------------------
 
 /*****************************************************************************
@@ -88,12 +88,20 @@
 #define BaseDir /zeb
 #endif
 
+#ifndef DataDir
+#define DataDir /zeb/data
+#endif
+
 #ifndef BinDir
 #define BinDir $(TOP)/bin
 #endif
 
 #ifndef LibDir
 #define LibDir $(TOP)/lib
+#endif
+
+#ifndef IncDir
+#define IncDir $(TOP)/include
 #endif
 
 #ifndef ConfigDir
