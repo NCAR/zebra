@@ -1,4 +1,4 @@
-MFVERSION="$Id: Makefile.cpp,v 1.2 1991-10-11 15:37:28 martin Exp $"
+MFVERSION="$Id: Makefile.cpp,v 1.3 1991-10-11 15:42:12 martin Exp $"
 
 # ifdef sun
 /*
@@ -35,8 +35,6 @@ testOrg1dGrid: testOrg1dGrid.o
 
 is:	is.o
 	$(CC) $(CFLAGS) -o is is.o $(LIBS)
-
-is.o:	is.h
 
 is.lf:	is.state
 	uic < make-lf
