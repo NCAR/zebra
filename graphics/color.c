@@ -2,6 +2,7 @@
  * Color management.
  */
 # include <stdio.h>
+# include "config.h"
 # include "color.h"
 # include "graphics.h"
 # include "device.h"
