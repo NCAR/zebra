@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.22 1994-06-28 19:59:06 corbet Exp $"
+MFVERSION="$Id: Imakefile,v 1.23 1995-01-18 00:52:04 granger Exp $"
 
 LIBMPROF=/dt/granger/libc_mp.a
 SYSLIBS=/* $(LIBMPROF) */
@@ -12,7 +12,7 @@ LIBS=$(LIBZEB) $(LIBNETCDF) $(LIBRDSS) $(XLIBS)
 LIBGCC=/locallib/gcc-lib/sparc-sun-sunos4.1/2.4.5/libgcc.a
 CLIBS=$(LIBGCC)
 /*PROOF=/net/CenterLine/bin/proof*/
-#EXTRA_DEFINES = -DDEBUG
+EXTRA_DEFINES = /* -DDEBUG -DTEST_TIME_UNITS */
 
 #CCOPTIONS=-pipe -pg
 #CCOPTIONS=-pg
