@@ -1,0 +1,230 @@
+!
+! Display manager widgets.
+!
+
+define widget SaveConfig form 'Configuration saver'
+	noheader
+	label l1 'Save configuration as: '
+	blank cname variable dm$config width 150 command 'do_cfg_save'
+	button doit 'Do it' command 'do_cfg_save'
+	button cancel 'Cancel' command 'popdown #ui$form' color red
+	newline
+	label l2 'Config directory: '
+	blank configdir variable configdir width 300
+	newline
+	label l3 'PD directory:     '
+	blank configpd variable configpd width 300
+!	newline
+endform
+
+
+procedure do_cfg_save
+	set configdir getftext(ui$form,'configdir')
+	set configpd getftext(ui$form,'configpd')
+	local configname quote(getftext(ui$form,'cname'))
+	
+	cfgsave #configname
+	popdown #ui$form
+endprocedure
+
+
+
+define widget pd-menu intmenu 'PD Templates'
+	title 'Select a Plot Description'
+	line
+	entry 'Search PD Directory' 'pddir /zeb/etc/pd'
+	line
+	entry 'Aircraft'	'formtext #ui$form pdname "aircraft"'
+	entry 'Cape'		'formtext #ui$form pdname "cape"' 
+	entry 'Pam'		'formtext #ui$form pdname "pam"' 
+	entry 'Mesonet'		'formtext #ui$form pdname "mesonet"' 
+	entry 'Overlays'	'formtext #ui$form pdname "overlays"'
+	entry 'Radar'		'formtext #ui$form pdname "radar"' 
+	entry 'Skew-t'		'formtext #ui$form pdname "skewt"'
+	entry 'Time Series'	'formtext #ui$form pdname "tseries"' 
+	entry 'Winds'		'formtext #ui$form pdname "winds"' 
+	entry 'Cross-Sect'	'formtext #ui$form pdname "xsect"' 
+	entry 'Empty'		'formtext #ui$form pdname ""' 
+	entry 'Empty'		'formtext #ui$form pdname ""' 
+	entry 'Empty'		'formtext #ui$form pdname ""' 
+	entry 'Empty'		'formtext #ui$form pdname ""' 
+	entry 'Empty'		'formtext #ui$form pdname ""' 
+endmenu
+
+	
+define widget bmap-menu intmenu 'Button Maps'
+	title 'Select a Button Map'
+	line
+	entry 'Aircraft'	'formtext #ui$form bmap "aircraft"'
+	entry 'Basic'		'formtext #ui$form bmap "basic"' 
+	entry 'Big'		'formtext #ui$form bmap "big"' 
+	entry 'Optimized'	'formtext #ui$form bmap "optimizer"' 
+	entry 'Radar'		'formtext #ui$form bmap "radar"' 
+	entry 'Sounding'	'formtext #ui$form bmap "sounding"'
+endmenu
+
+!
+! Window creation.
+!
+define widget NewWindow form 'Window creation'
+	noheader
+	label l1 'New window name:  '
+	blank wname '--' width 190
+	newline
+	label l2 'Plot description: '
+	blank pdname 'template' width 190
+	newline
+	label l5 'Button map:       '
+	blank bmap 'default' width 190
+	newline
+	label l3 'PD Force?'
+	button forcepd 'no' command 'ToggleFormButton forcepd' width 40
+	newline
+	pulldown pdlist 'Select Plot Description' menu 'pd-menu'
+	newline	
+	pulldown bmaps 'Select Button Map' menu 'bmap-menu'
+	newline 
+	label l4 '    '
+	button doit 'Create window' command 'DoWindowCreate'
+	button cancel 'Cancel' command 'popdown #ui$form' color red
+endform
+
+
+
+procedure ToggleFormButton button string
+	local current getftext(ui$form,button)
+	if (current = 'yes')
+		formtext #ui$form #button 'no'
+	else
+		formtext #ui$form #button 'yes'
+	endif
+endprocedure
+
+
+!
+! Perform the actual window creation.
+!
+procedure DoWindowCreate
+!
+! Get the info out of the form.
+!
+	local name quote(getftext(ui$form,"wname"))
+	local pdname getftext(ui$form,"pdname")
+	local forcepd getftext(ui$form,"forcepd")
+!
+! Get the forcepd flag right.
+!
+	if (forcepd = "yes")
+		local forcepd 'forcepd'
+	else
+		local forcepd ' '
+	endif
+!
+! Create the window.
+!
+	newwindow #name #pdname #forcepd
+	popdown #ui$form
+endprocedure
+
+
+
+define widget newconfig form 'New configs'
+	noheader
+	label l1 'New configuration name: '
+	blank cname 'new' width 150 command 'DoConfigCreate'
+	newline
+	label l2 'Copy from: '
+	blank oldname variable dm$config width 150
+	button doit 'Create config' command 'DoConfigCreate'
+	button cancel 'Cancel' command 'popdown #ui$form' color red
+endform
+
+
+procedure DoConfigCreate
+	local cname getftext(ui$form,'cname')
+	local ccopy getftext(ui$form,'oldname')
+	newconfig #cname #ccopy
+	popdown #ui$form
+endprocedure
+
+
+
+define widget ConfigEdit form 'config edit'
+	noheader
+	label l1 'Configuration editing'
+	button zap 'zap' command 'popdown #ui$form'
+	newline
+	button b1 'New configuration' width 160 command 'popup newconfig'
+	newline
+	button b2 'New window' width 160 command 'popup NewWindow'
+	newline
+	button b3 'Save configuration' width 160 command 'popup SaveConfig'
+endform
+
+
+
+!
+! Definitions for the position entry widget.
+!
+
+define widget enter form "Entry widget"
+	noheader
+!
+! The platform selection line.
+!
+	label l_plat "Platform:"
+	pulldown platform 'n308d' menu 'plats' width 100
+	label space ' ' width 100
+	button exit 'Zap' color red command 'popdown #ui$form'
+	newline
+!
+! Positions here.
+!
+	label l_lat 'Lat:'
+	blank lat_deg '-9' width 40
+	blank lat_min '-25' width 40
+	label l_lon 'Lon:'
+	blank lon_deg '159' width 40
+	blank lon_min '58' width 40
+	label l_alt 'Alt:'
+	blank alt '0.0' width 60
+	newline
+!
+! Let them put in a time.
+!
+	label l_time 'Time:'
+	blank time 'now' width 200
+	newline
+!
+! Options.
+!
+	button enter 'Enter point' command 'DoEnter false'
+	button overw 'Change last point' command 'DoEnter true'
+	newline
+!
+! And a gripe window.
+!
+	label gripe ' ' width 300 color red
+endform
+
+
+procedure DoEnter overwrite bool
+!
+! Pull info from the widget.
+!
+	local plat concat('l_',getftext(ui$form,'platform'))
+	local lat_deg getftext(ui$form,'lat_deg')
+	local lon_deg getftext(ui$form,'lon_deg')
+	local lat_min getftext(ui$form,'lat_min')
+	local lon_min getftext(ui$form,'lon_min')
+	local alt getftext(ui$form,'alt')
+! 
+! Do the entry.
+!
+	if (overwrite)
+		enter #plat #lat_deg #lat_min #lon_deg #lon_min #alt
+	else
+		local when getftext(ui$form,'time')
+		enter #plat #lat_deg #lat_min #lon_deg #lon_min #alt #when
+	endif
+endprocedure
