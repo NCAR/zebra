@@ -1,5 +1,5 @@
 /* 10/86 jc */
-/* $Id: ui_token.h,v 1.5 1998-02-26 21:18:49 burghart Exp $ */
+/* $Id: ui_token.h,v 1.6 1998-02-26 21:48:58 burghart Exp $ */
 /*
  * Included info for the tokenizer.
  */
@@ -93,7 +93,7 @@ typedef struct token_context *Tcontext;
 	void ut_finish_line ();
 	void ut_begin ();
 	void ut_tok_repl ();
-	int ut_put_msg ();
+	void ut_put_msg ();
 	void ut_reset ();
 	void ut_get_token ();
 	void ut_continue ();
