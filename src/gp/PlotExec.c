@@ -1,7 +1,7 @@
 /*
  * Plot execution module
  */
-static char *rcsid = "$Id: PlotExec.c,v 1.10 1991-01-14 23:40:17 kris Exp $";
+static char *rcsid = "$Id: PlotExec.c,v 1.11 1991-01-15 19:29:23 kris Exp $";
 
 # include <X11/Intrinsic.h>
 # include <ui.h>
@@ -651,6 +651,7 @@ float	*center, *step;
 	int	xdim, ydim;
 	float	*rgrid, *grid, x0, x1, y0, y1, alt;
 	int	pix_x0, pix_x1, pix_y0, pix_y1, dolabels, linewidth;
+	int 	labelflag;
 	Boolean	ok;
 	XColor	black;
 	XRectangle	clip;
@@ -680,6 +681,10 @@ float	*center, *step;
 	}
 	else ok &= pda_ReqSearch (Pd, c, "color-table", "contour", ctname, 
 		SYMT_STRING);
+	labelflag = TRUE;
+	pda_Search(Pd, c, "label-blanking", "contour", (char *) &labelflag,
+		SYMT_BOOL);
+	dt_SetBlankLabel(labelflag);
 
 	if (! ok)
 		return;
