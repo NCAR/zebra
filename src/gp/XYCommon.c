@@ -1,8 +1,8 @@
 /*
  * Routines common to XY-Type plots
  */
-static char *rcsid = "$Id: XYCommon.c,v 1.15 1993-10-22 21:25:43 corbet Exp $";
-/*		Copyright (C) 1987,88,89,90,91 by UCAR
+static char *rcsid = "$Id: XYCommon.c,v 1.16 1993-12-01 17:32:16 burghart Exp $";
+/*		Copyright (C) 1993 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
  *
@@ -30,7 +30,6 @@ static char *rcsid = "$Id: XYCommon.c,v 1.15 1993-10-22 21:25:43 corbet Exp $";
 # include <time.h>
 # include <message.h>
 # include <DataStore.h>
-# include "xdr_infinity.h"	/* needed for infinity kluge below */
 # include "derive.h"
 # include "GraphProc.h"
 # include "GC.h"
@@ -38,16 +37,30 @@ static char *rcsid = "$Id: XYCommon.c,v 1.15 1993-10-22 21:25:43 corbet Exp $";
 # include "DrawText.h"
 # include "XYCommon.h"
 
+/* 
+ * One somewhat reasonable definition for infinity in XDR, lifted from 
+ * NetCDF code.  This may not be right on some machines, but it's here
+ * as a kluge anyway, and it won't stop things from compiling anywhere.
+ */
+long xdr_f_infinity = 0x7f800000;
+# define XDR_F_INFINITY (*((float *)&xdr_f_infinity))
+
+/*
+ * Convenient scratch string
+ */
+char	Scratch[200];
+
 /*
  * Our routines.
  */
 void	xy_Init FP ((UItime *));
-void	xy_GetScaleInfo FP ((plot_description, char *, int, short *));
-void	xy_SetScaleBounds FP ((plot_description, char *, int, int, DataValPtr,
-		DataValPtr));
-void	xy_TicInterval FP ((DataValPtr, DataValPtr, DataValPtr));
-void	xy_GetCurrentScaleBounds FP ((plot_description, char *, int, int,
-		DataValPtr, DataValPtr, char *));
+
+/*
+ * Default top annotation color (from PlotExec.c)
+ */
+extern XColor 	Tadefclr;
+
+
 
 void
 xy_Init (t)
@@ -60,499 +73,450 @@ UItime *t;
 }
 
 
+
+
 void
-xy_GetScaleInfo(pd,c,dim,info)
-plot_description	pd;
-char			*c;
-char			dim;
-short			*info; /* return */
+xy_GetScaleModes (c, xauto, xinvert, yauto, yinvert)
+char	*c;
+bool	*xauto, *xinvert, *yauto, *yinvert;
 /*
- * Retrieve the scaling information from the plot-description.
- * pd - the plot-description to search
- * c - the component to search in the plot-description
- * dim - requested dimension. 'x' or 'y'
- * info - the scaling information defined for this dimension including:
- * pd-param: (xy)-scale-<dim>-mode
- *	  mode == AUTO || MANUAL    (default==AUTO)
- * pd-param: (xy)-scale-<dim>-style
- *	  style == INVERT || REGULAR (default==REGULAR)
+ * Retrieve the scaling mode information from the plot-description.
+ * ENTRY:
+ * 	c:	the component to search in the plot-description
+ * EXIT:
+ *	xauto:	autoscale the x axis?
+ *	xinvert:	invert the x axis?
+ *	yauto:	autoscale the y axis?
+ *	yinvert:	invert the y axis?
  *
+ * The default is autoscaling and normal (not inverted) direction
  */
 {
     char	keyword[20];
-    char	string[80];
-    strcpy(keyword, "scale-");
-    keyword[6] = dim;
-    keyword[7] = '\0';
-    strcat(keyword, "-mode");
-    *info = 0;
-    if ( pda_Search (pd, c, keyword, "xy", string, SYMT_STRING))
+/*
+ * Establish defaults
+ */
+    *xauto = *yauto = TRUE;
+    *xinvert = *yinvert = FALSE;
+/*
+ * Look for scale mode ("manual" or "autoscale")
+ */
+    if (pda_Search (Pd, c, "scale-x-mode", "xy", Scratch, SYMT_STRING))
     {
-	if ( strcmp(string,"autoscale")==0)
-	    *info = *info | AUTO;
-	else if ( strcmp(string,"manual")==0)
-	    *info = *info | MANUAL;
-	else	
-	{
+	if (strcmp (Scratch, "manual") == 0)
+	    *xauto = FALSE;
+	else if (strcmp (Scratch, "autoscale") != 0)
     	    msg_ELog (EF_PROBLEM, 
-		"Unknown '%c' scaling mode: %s. Using autoscaling",
-		dim,string);
-	    *info = *info | AUTO;
-	}
+		"Unknown x scaling mode '%s'. Using autoscaling.", Scratch);
     }
-    else
+
+    if (pda_Search (Pd, c, "scale-y-mode", "xy", Scratch, SYMT_STRING))
     {
-	*info = *info | AUTO;
-    }
-    strcpy(keyword, "scale-");
-    keyword[6] = dim;
-    keyword[7] = '\0';
-    strcat(keyword, "-style");
-    if ( pda_Search (pd, c, keyword, "xy", string, SYMT_STRING))
-    {
-	if ( strcmp(string,"invert")==0)
-	    *info = *info | INVERT;
-	else	
+	if (strcmp (Scratch, "manual") == 0)
+	    *yauto = FALSE;
+	else if (strcmp (Scratch, "autoscale") != 0)
     	    msg_ELog (EF_PROBLEM, 
-		"Unknown '%c' scaling style: %s.", dim,string);
+		"Unknown y scaling mode '%s'. Using autoscaling.", Scratch);
+    }
+/*
+ * Scale style
+ */
+    if (pda_Search (Pd, c, "scale-x-style", "xy", Scratch, SYMT_STRING))
+    {
+	if (strcmp (Scratch, "invert") == 0)
+	    *xinvert = TRUE;
+	else
+    	    msg_ELog (EF_PROBLEM, 
+		"Unknown x scaling style '%s'.", Scratch);
+    }
+
+    if (pda_Search (Pd, c, "scale-y-style", "xy", Scratch, SYMT_STRING))
+    {
+	if (strcmp (Scratch, "invert") == 0)
+	    *yinvert = TRUE;
+	else
+    	    msg_ELog (EF_PROBLEM, 
+		"Unknown y scaling style '%s'.", Scratch);
     }
 }
 
+
+
+
 void
-xy_SetScaleBounds(pd,c,dim,dimtype,min,max)
-plot_description	pd;
-char			*c;
-char			dim;
-char			dimtype;
-DataValPtr		min,max;
+xy_SetPrivateScale (c, xmin, xmax, ymin, ymax)
+char		*c;
+DataValPtr	xmin, xmax, ymin, ymax;
 /*
  * For a given dimension, record the current scale min and max bounds
- * in the plot-description.
- * pd - plot-description
+ * for this component.
  * c - component in the plot-description to modify
- * dim - dimension for which bounds are being recorded, ('x' or 'y')
- * dimtype - data type of 'min' and 'max' ( 'f' or 't')
- * min,max - value of minimum scale bound and maximum scale bound
- *           respectively
+ * xmin, xmax, ymin, ymax - current bounds
  */
 {
-    char	minkey[32], maxkey[32], key1[32], key2[32], prefix[16];
-    bool	autoscale;
-    short	info;
-    DataValRec	interval;
+    char	type[2];
+    /*
+     * x bounds
+     */
+    sprintf (type, "%c", xmin->type);
+    pd_Store (Pd, c, "XYPrivate-x-type", type, SYMT_STRING);
 
-    xy_GetScaleInfo(pd,c,dim,&info);
-    autoscale = (info & AUTO);
-
-    strcpy (prefix, autoscale ? "auto-scale" : "scale");
-    sprintf (minkey, "%s-%c-min", prefix, dim);
-    sprintf (maxkey, "%s-%c-max", prefix, dim);
-
-    switch ( dimtype )
+    switch (xmin->type)
     {
 	case 'f':
-            pd_Store(pd,c,maxkey,(char *)&(max->val.f),SYMT_FLOAT);
-            pd_Store(pd,c,minkey,(char *)&(min->val.f),SYMT_FLOAT);
+            pd_Store (Pd, c, "XYPrivate-x-max", (char *) &(xmax->val.f), 
+		      SYMT_FLOAT);
+            pd_Store (Pd, c, "XYPrivate-x-min", (char *) &(xmin->val.f), 
+		      SYMT_FLOAT);
 	break;
 	case 't':
-            pd_Store(pd,c,maxkey,(char *) &(max->val.t),SYMT_DATE);
-            pd_Store(pd,c,minkey,(char *) &(min->val.t),SYMT_DATE);
+            pd_Store (Pd, c, "XYPrivate-x-max", (char *) &(xmax->val.t), 
+		      SYMT_DATE);
+            pd_Store (Pd, c, "XYPrivate-x-min", (char *) &(xmin->val.t), 
+		      SYMT_DATE);
 	break;
     }
-/*
- * If we're not autoscaling, we're done
- */
-    if (! autoscale)
-	return;
-/*
- * Generate and store good tic intervals
- */
-    xy_TicInterval (min, max, &interval);
+    /*
+     * y bounds
+     */
+    sprintf (type, "%c", ymin->type);
+    pd_Store (Pd, c, "XYPrivate-y-type", type, SYMT_STRING);
 
-    if (dim == 'x')
+    switch (ymin->type)
     {
-	strcpy (key1, "axis-b-tic-interval");
-	strcpy (key2, "axis-t-tic-interval");
-    }
-    else
-    {
-	strcpy (key1, "axis-l-tic-interval");
-	strcpy (key2, "axis-r-tic-interval");
-    }
-
-    switch (dimtype)
-    {
-	char	sval[16];
-
 	case 'f':
-	    pd_Store (pd, c, key1, (char *)&(interval.val.f), SYMT_FLOAT);
-	    pd_Store (pd, c, key2, (char *)&(interval.val.f), SYMT_FLOAT);
+            pd_Store (Pd, c, "XYPrivate-y-max", (char *) &(ymax->val.f), 
+		      SYMT_FLOAT);
+            pd_Store (Pd, c, "XYPrivate-y-min", (char *) &(ymin->val.f), 
+		      SYMT_FLOAT);
 	break;
 	case 't':
-	    sprintf (sval, "%ds", interval.val.t.zt_Sec);
-	    pd_Store (pd, c, key1, sval, SYMT_STRING);
-	    pd_Store (pd, c, key2, sval, SYMT_STRING);
+            pd_Store (Pd, c, "XYPrivate-y-max", (char *) &(ymax->val.t), 
+		      SYMT_DATE);
+            pd_Store (Pd, c, "XYPrivate-y-min", (char *) &(ymin->val.t), 
+		      SYMT_DATE);
 	break;
     }
 }
-void
-xy_TicInterval (min, max, interval)
-DataValPtr	min, max, interval;
+
+
+
+
+int
+xy_ManualScale (c, dim, fldname, min, max)
+char		*c;
+char		dim;
+char		*fldname;
+DataValPtr	min, max;
 /*
- * Find a good tic interval, given the min and max
+ * Get the bounds from the plot description for the given component and
+ * dimension (x or y).  The field name 'fldname' is used as a parameter
+ * qualifier if necessary.
  */
 {
-	float	span, tic_inc;
-	int	i, tspan;
+	char	keyword[20];
+	int	ok = TRUE, time;
 /*
- * Array of good time steps and the associated minimum span for each
+ * Are we dealing with time?
  */
-	static struct
-	{
-		int	step, minspan;
-	} timeSteps[] =
-	{
-		{86400,	345600},	/* 1d, 4d */
-		{43200,	172800},	/* 12h, 2d */
-		{21600,	86400},		/* 6h, 1d */
-		{7200,	43200},		/* 2h, 12h */
-		{3600,	21600},		/* 1h, 6h */
-		{1800,	10800},		/* 30m, 3h */
-		{900,	3600},		/* 15m, 1h */
-		{300,	1800},		/* 5m, 30m */
-		{120,	600},		/* 2m, 10m */
-		{60,	300},		/* 1m, 5m */
-		{30,	180},		/* 30s, 3m */
-		{15,	60},		/* 15s, 1m */
-		{5,	30},		/* 5s, 30s */
-		{2,	10},		/* 2s, 10s */
-		{1,	0},		/* 1s for anything smaller than 10s */
-	};
+	time = (strcmp (fldname, "time") == 0);
+
+	if (time)
+		min->type = max->type = 't';
+	else
+		min->type = max->type = 'f';
 /*
- * Handle float and time limits differently
+ * minimum
  */
-	switch (min->type)
-	{
-	/*
-	 * Float values
-	 */
-	    case 'f':
-	    /*
-	     * Find a good interval based on the span
-	     */
-		span = max->val.f - min->val.f;
+	sprintf (keyword, "scale-%c-min", dim);
 
-		tic_inc = pow (10.0, floor (log10 (fabs (span))));
+	if (time)
+		ok &= pda_ReqSearch (Pd, c, keyword, fldname, 
+				    (char *) &(min->val.t), SYMT_DATE);
+	else
+		ok &= pda_ReqSearch (Pd, c, keyword, fldname, 
+				    (char *) &(min->val.f), SYMT_FLOAT);
+/*
+ * maximum
+ */
+	sprintf (keyword, "scale-%c-max", dim);
 
-		if (fabs (span / tic_inc) < 1.5)
-			tic_inc *= 0.1;
-		else if (fabs (span / tic_inc) < 3.0)
-			tic_inc *= 0.2;
-		else if (fabs (span / tic_inc) < 8.0)
-			tic_inc *= 0.5;
-	    /*
-	     * Store the interval we found
-	     */
-		interval->type = 'f';
-		interval->val.f = tic_inc;
+	if (time)
+		ok &= pda_ReqSearch (Pd, c, keyword, fldname,
+				     (char *) &(max->val.t), SYMT_DATE);
+	else
+		ok &= pda_ReqSearch (Pd, c, keyword, fldname,
+				     (char *) &(max->val.f), SYMT_FLOAT);
 
-		break;
-	/*
-	 * Time values
-	 */
-	    case 't':
-	    /*
-	     * Find the appropriate time interval from the table, based on
-	     * the span between min and max
-	     */
-		tspan = max->val.t.zt_Sec - min->val.t.zt_Sec;
-		for (i = 0; tspan < timeSteps[i].minspan; i++)
-			/* nothing */;
-	    /*
-	     * Store the interval we found
-	     */
-		interval->type = 't';
-		interval->val.t.zt_Sec = timeSteps[i].step;
-		interval->val.t.zt_MicroSec = 0;
-
-		break;
-	/*
-	 * Uh-oh.  Can't handle any others
-	 */
-	    default:
-		msg_ELog (EF_PROBLEM, "xy_TicInterval can't handle type '%c'",
-			min->type);
-	}
+	return (ok);
 }
+
+
+
+
 void
-xy_GetCurrentScaleBounds(pd,c,dim,dimtype,min,max,qual)
-plot_description	pd;
+xy_GetPrivateScale (c, xmin, xmax, ymin, ymax)
 char			*c;
-char			dim;
-char			dimtype;
-DataValPtr		min,max;
-char			*qual;
+DataValPtr		xmin, xmax, ymin, ymax;
 /*
- * Find the scale bounds that apply to this component.
- * pd - the plot-description to search
+ * Find the scale bounds that were used when this component was last drawn.
  * c - the component to search
- * dim - the dimension to find ( 'x' or 'y' )
- * dimtype - the data type of the dimension data ( 'f' or 't' )
- * min,max - the (returned) scale min and max bounds respectively.
- *
- * "xy_GetCurrentScaleBounds" will first search the given component, 
- * then if the parameter scale-<dim>-min or scale-<dim>-max is not
- * found, the global component and defaults will be searched respectively
- * with the qualifier "qual" prepended to the parameter name. "qual" should
- * be the field-name.
+ * xmin, xmax, ymin, ymax - previous bounds
  */
 {
-    char	minkey[32];
-    char	maxkey[32];
-    char	prefix[16];
-    short	info;
+    char	type[2];
+    /*
+     * x bounds
+     */
+    pda_Search (Pd, c, "XYPrivate-x-type", NULL, type, SYMT_STRING);
+    xmin->type = xmax->type = type[0];
 
-    xy_GetScaleInfo(pd,c,dim,&info);
-
-    strcpy (prefix, (info & AUTO) ? "auto-scale" : "scale");
-    sprintf (minkey, "%s-%c-min", prefix, dim);
-    sprintf (maxkey, "%s-%c-max", prefix, dim);
-
-    min->type = dimtype;
-    max->type = dimtype;
-    switch ( dimtype )
+    switch (type[0])
     {
 	case 'f':
-            if (!pda_Search(pd,c,maxkey,qual,(char *)&(max->val.f),SYMT_FLOAT)||
-                !pda_Search(pd,c,minkey,qual,(char *)&(min->val.f),SYMT_FLOAT)
-	       )
-	    {
-		min->val.f =  9999.0;
-		max->val.f = -9999.0;
-	    }
-	break;
+	    pda_Search (Pd, c, "XYPrivate-x-max", NULL, 
+			(char *) &(xmax->val.f), SYMT_FLOAT);
+	    pda_Search (Pd, c, "XYPrivate-x-min", NULL, 
+			(char *) &(xmin->val.f), SYMT_FLOAT);
+
+	    break;
 	case 't':
-            if (!pda_Search(pd,c,maxkey,qual, (char *) &(max->val.t), SYMT_DATE) ||
-                !pda_Search(pd,c,minkey,qual, (char *) &(min->val.t), SYMT_DATE)
-	       )
-	    {
-		min->val.t.zt_Sec = 0;
-		min->val.t.zt_MicroSec = 0;
-		max->val.t.zt_Sec = 0;
-		max->val.t.zt_MicroSec = 0;
-	    }
-	break;
-	default:
-	    msg_ELog ( EF_PROBLEM, "Invalid data type: '%c'",dimtype);
-	break;
+            pda_Search (Pd, c, "XYPrivate-x-max", NULL, 
+			(char *) &(xmax->val.t), SYMT_DATE);
+	    pda_Search (Pd, c, "XYPrivate-x-min", NULL, 
+			(char *) &(xmin->val.t), SYMT_DATE);
+
+	    break;
+    }
+    /*
+     * y bounds
+     */
+    pda_Search (Pd, c, "XYPrivate-y-type", NULL, type, SYMT_STRING);
+    ymin->type = ymax->type = type[0];
+
+    switch (type[0])
+    {
+	case 'f':
+	    pda_Search (Pd, c, "XYPrivate-y-max", NULL, 
+			(char *) &(ymax->val.f), SYMT_FLOAT);
+	    pda_Search (Pd, c, "XYPrivate-y-min", NULL, 
+			(char *) &(ymin->val.f), SYMT_FLOAT);
+
+	    break;
+	case 't':
+            pda_Search (Pd, c, "XYPrivate-y-max", NULL, 
+			(char *) &(ymax->val.t), SYMT_DATE);
+	    pda_Search (Pd, c, "XYPrivate-y-min", NULL, 
+			(char *) &(ymin->val.t), SYMT_DATE);
+
+	    break;
     }
 }
 
+
+
+
 void
-xy_SetPrivateDD ( pd, c, btime,etime,npnts)
-plot_description pd;
+xy_SaveDataTimes (c, btime, etime)
 char	*c;
-ZebTime	*btime,*etime;	
-int	*npnts;
+ZebTime	*btime, *etime;	
 /*
- * Store the private data descriptors "data-end-time", "data-begin-time"
- * and "data-ndatapoints".  These are meant to record the current state
- * of the amount and span of data currently displayed on the plot
- * for a given component.  These are "private" in the sense that they
- * are changed regularly by the plot routine and should not be tampered
- * with by "manual" means.
+ * Stash the current begin and end data times
  */
 {
-    if ( btime ) 
-    {
-	pd_Store (pd, c, "data-begin-time", (char*) btime, SYMT_DATE);
-    }
-    if ( etime ) 
-    {
-	pd_Store (pd, c, "data-end-time", (char*) etime, SYMT_DATE);
-    }
-    if ( npnts ) pd_Store (pd, c, "data-ndatapoints",(char*)npnts,SYMT_INT);
+	if (btime) 
+		pd_Store (Pd, c, "XYPrivate-data-begin", (char*) btime, 
+			  SYMT_DATE);
+
+	if (etime) 
+		pd_Store (Pd, c, "XYPrivate-data-end", (char*) etime, 
+			  SYMT_DATE);
 }
 
+
+
+
 void
-xy_GetDataDescriptors( pd,c,update,btime,etime,bold,eold,dmode,ndat)
-plot_description pd;
+xy_GetTimes (c, btime, etime, bold, eold, dmode)
 char	*c;
-bool	update;
-ZebTime	*btime,*etime;	
-ZebTime	*bold,*eold;
+ZebTime	*btime, *etime;	
+ZebTime	*bold, *eold;
 int	*dmode;
-int	*ndat;
 /*
- * Get data descriptors.  "xy_GetDataDescriptors" returns the maximum
- * range of data times that are requested by the plot-description.
- * pd - the plot-description
+ * Get time information.
  * c - the component name
  * update - true if this is an update plot
- * btime,etime - (return) The target data begin and end times needed to
+ * btime, etime - (return) The target data begin and end times needed to
  *	to make the plot completely upto date.
- * bold,eold - (return) The begin and end times of data that already
+ * bold, eold - (return) The begin and end times of data that already
  *	exists on the plot.  if (!update) bold and eold will be set
  * 	to zero.
  */
 {
-    char	span[80];
-    char	mode[80];
     int		spanSec;
     unsigned long spanTime;
-
-    /* 
-     * If snap-shot mode, then use the current PLOT-TIME for begin and
-     * end times.  If series mode, then compute the target begin time at
-     * the appropriate span-offset from PLOT-TIME.
-     */
+/* 
+ * If snap-shot mode, then use the current PLOT-TIME for begin and
+ * end times.  If series mode, then compute the target begin time at
+ * the appropriate span-offset from PLOT-TIME.
+ */
     *etime = PlotTime;
     *btime = PlotTime;
     *dmode = DATA_SNAPSHOT;
-    if(pda_Search (pd, c, "data-mode","xy", (char*)mode,SYMT_STRING))
+    if (pda_Search (Pd, c, "data-mode", "xy", Scratch, SYMT_STRING))
     {
-	if ( strcmp(mode,"series")==0) 
+	if (strcmp (Scratch, "series") == 0)
 	{
 	    *dmode = DATA_SERIES;
-            if(pda_Search (pd, "global", "series-span","xy", 
-			(char*)span,SYMT_STRING))
+            if (pda_Search (Pd, "global", "series-span", "xy", Scratch, 
+			    SYMT_STRING))
     	    {
-		if ( (spanSec = pc_TimeTrigger(span)) == 0 )
-		{
-	    	    msg_ELog (EF_PROBLEM, "Unparseable series span: %s",span);
-		}
+		if ((spanSec = pc_TimeTrigger (Scratch)) == 0)
+	    	    msg_ELog (EF_PROBLEM, "Unparseable series span: %s", 
+			      Scratch);
+
 		btime->zt_Sec = etime->zt_Sec - spanSec;
     	    }
 	}
     }
-    /*
-     * Now check for the private data descriptors
-     */
-    if ( update )
-    {
-        pda_Search ( pd, c, "data-begin-time", NULL, (char*) bold, SYMT_DATE); 
-        pda_Search ( pd, c, "data-end-time", NULL, (char*) eold, SYMT_DATE); 
-        pda_Search ( pd, c, "data-ndatapoints", NULL, (char*) ndat, SYMT_INT); 
-    }
-    else
-    {
-	bold->zt_Sec = 0;
-	bold->zt_MicroSec = 0;
-	eold->zt_Sec = 0;
-	eold->zt_MicroSec = 0;
-	*ndat = 0;
-    }
+/*
+ * Now check for the private data descriptors with the old times
+ */
+    bold->zt_Sec = 0;
+    bold->zt_MicroSec = 0;
+    eold->zt_Sec = 0;
+    eold->zt_MicroSec = 0;
+
+    pda_Search (Pd, c, "XYPrivate-data-begin", NULL, (char*) bold, SYMT_DATE);
+    pda_Search (Pd, c, "XYPrivate-data-end", NULL, (char*) eold, SYMT_DATE);
 }
 
+
+
+
 void
-xy_GetPlotColors(pd,c,nplat,datacolor,topAnnColor)
-plot_description pd;
+xy_GetPlotColors (c, nplat, datacolor, topAnnColor)
 char	*c;
 int	nplat;
-char	*datacolor[MAX_PLAT];
-char	*topAnnColor;
+Pixel	*datacolor;
+Pixel	*topAnnColor;
 /*
  * Get the color names for "ta-color" and "field-color"
- * from the plot description.
- * pd - the plot-description to search
- * c - the component to search
- * nplat - the number of colors expected for "field-color"
- * datacolor - the (returned) list of platform colors.
- * topAnnColor - the (returned) top annotation color
+ * from the plot description and return the pixel values.
+ *	c:	the component to search
+ *	nplat:	the number of colors expected for "field-color"
+ *	datacolor:	the (returned) list of platform colors.
+ *	topAnnColor:	the (returned) top annotation color
  * 
  * If datacolor or topAnnColor is NULL, then that value will not
  * be searched for.
  */
 {
-	char	colors[80];
 	char	*colorlist[MAX_PLAT];
+	Pixel	white = WhitePixelOfScreen (XtScreen (Graphics));
+	XColor	xc;
  	int 	ncol;
 	int	i;
 /*
- * Get color for data from each platform
- */
-	if ( datacolor )
-	{
-	    if ( pda_Search (pd, c, "field-color", NULL,colors, SYMT_STRING))
-	    {
-	        ncol = CommaParse( colors, colorlist);
-	        if ( ncol < nplat )
-	        {
-		    msg_ELog ( EF_INFO, 
-    "%s Not enough field-colors specified, filling in with white.",c);
-	        }
-	        for ( i = 0; i < nplat; i++)
-	        {
-	            if (GWDepth(Graphics) == 1 || i >= ncol )
-		         strcpy(datacolor[i], "white");
-		    else
-		         strcpy(datacolor[i], colorlist[i]);
-	        }
-	    }
-	    else
-	    {
-		msg_ELog ( EF_INFO,
-			"%s: No field-color(s) specified, using white.",c);
-		for ( i = 0; i < nplat; i++ )
-		{
-		    strcpy(datacolor[i], "white");
-		}
-	    }
-	}
-/*
  * Get color for top annotation
  */
-	if ( topAnnColor )
+	if (topAnnColor)
 	{
-	    if (! pda_Search (Pd,"global","ta-color", NULL,
-			topAnnColor,SYMT_STRING))
-		strcpy(topAnnColor, "white");
+		*topAnnColor = white;
+
+		if (pda_Search (Pd, c, "ta-color", NULL, Scratch, SYMT_STRING))
+		{
+			if (ct_GetColorByName (Scratch, &xc))
+				*topAnnColor = xc.pixel;
+			else
+				msg_ELog (EF_PROBLEM, 
+					  "Can't get ta-color '%s'", Scratch);
+		}
+	}
+/*
+ * Get color for data from each platform
+ */
+	if (datacolor)
+	{
+		for (i = 0; i < nplat; i++)
+			datacolor[i] = white;
+
+		if (pda_Search (Pd, c, "field-color", NULL, Scratch, 
+				SYMT_STRING))
+		{
+			ncol = CommaParse (Scratch, colorlist);
+			if (ncol < nplat)
+			{
+				msg_ELog (EF_INFO, 
+					  "%s: Too few field-colors.", c);
+			}
+			else if (ncol > nplat)
+				ncol = nplat;
+
+			for (i = 0; i < ncol; i++)
+			{
+				if (ct_GetColorByName (colorlist[i], &xc))
+					datacolor[i] = xc.pixel;
+				else
+					msg_ELog (EF_PROBLEM, 
+						  "Can't get line color '%s'",
+						  colorlist[i]);
+			}
+		}
+		else
+			msg_ELog (EF_INFO,
+				  "%s: No field-color(s) specified", c);
 	}
 }
 
+
+
+
 int
-xy_AvailableData(pid,bTimeTarget,eTimeTarget,eTimeOld,bTimeReq, eTimeReq)
-PlatformId      pid;
-ZebTime            *bTimeTarget,*eTimeTarget,*eTimeOld;
-ZebTime            *bTimeReq,*eTimeReq;
+xy_AvailableData (pid, bTimeTarget, eTimeTarget, eTimeOld, bTimeReq, eTimeReq)
+PlatformId	pid;
+ZebTime		*bTimeTarget, *eTimeTarget, *eTimeOld;
+ZebTime		*bTimeReq, *eTimeReq;
 /*
  * Find out the maximum begin and end times of actual data available
  * within a requested range.
  * pid - the platform id.
- * bTimeTarget,eTimeTarget - the begin and end times of the requested
+ * bTimeTarget, eTimeTarget - the begin and end times of the requested
  * 	range of data.
  * eTimeOld - the ending time of data already retrieved.
  *	If no data previously exists, the time should be 000000 000000.
- * bTimeReq,eTimeReq - the begin and end times of data available to
+ * bTimeReq, eTimeReq - the begin and end times of data available to
  *	fill the target range.
  * If data is actually available, then return 1 else 0
  */
 {
     int available = 1;
-    char	stime[80];
 
     *eTimeReq = *eTimeOld;
     *bTimeReq = *bTimeTarget;
+
     if (! ds_DataTimes (pid, eTimeTarget, 1, DsBefore, eTimeReq))
     {
-	TC_EncodeTime ( eTimeTarget, TC_Full, stime );
-        msg_ELog (EF_INFO, "No data before %s ", stime );
+	TC_EncodeTime (eTimeTarget, TC_Full, Scratch);
+        msg_ELog (EF_INFO, "No data before %s ", Scratch);
         available = 0;
     }
     /*
      * If no data previously exists, then get the time of the oldest
      * available data within the target range.
      */
-    if ( eTimeOld->zt_Sec == 0  && eTimeOld->zt_MicroSec == 0 )
+    if (eTimeOld->zt_Sec == 0)
     {
         if (! ds_DataTimes (pid, bTimeTarget, 1, DsBefore, bTimeReq))
         {
-	    TC_EncodeTime ( bTimeTarget, TC_Full, stime );
-            msg_ELog (EF_DEBUG, "No data before %s", stime );
+	    TC_EncodeTime (bTimeTarget, TC_Full, Scratch);
+            msg_ELog (EF_INFO, "No data for %s before %s", 
+		      ds_PlatformName (pid), Scratch);
             if (! ds_DataTimes (pid, bTimeTarget, 1, DsAfter, bTimeReq))
             {
-	        TC_EncodeTime ( bTimeTarget, TC_Full, stime );
-                msg_ELog (EF_INFO, "No data after %s", stime );
+	        TC_EncodeTime (bTimeTarget, TC_Full, Scratch);
+                msg_ELog (EF_INFO, "No data for %s after %s", 
+			  ds_PlatformName (pid), Scratch);
                 available = 0;
             }
         }
@@ -560,21 +524,23 @@ ZebTime            *bTimeReq,*eTimeReq;
     else
         *bTimeReq = *eTimeOld;
 
-    if ( available && ( eTimeReq->zt_Sec == bTimeReq->zt_Sec ? 
-    			eTimeReq->zt_MicroSec < bTimeReq->zt_MicroSec :
-    			eTimeReq->zt_Sec < bTimeReq->zt_Sec ) )
+    if (available && TC_Less (*eTimeReq, *bTimeReq))
     {
         available = 0;
-        TC_EncodeTime ( eTimeTarget, TC_Full, stime );
-        msg_ELog (EF_INFO, "No new data for at %s",stime );
+        TC_EncodeTime (eTimeTarget, TC_Full, Scratch);
+        msg_ELog (EF_DEBUG, "No new data for %s at %s", ds_PlatformName (pid), 
+		  Scratch);
     }
     return (available);
 }
 
+
+
+
 void
-xy_GetDataMinMax(haveminmax, min, max, data, npts)
+xy_GetDataMinMax (haveminmax, min, max, data, npts)
 bool   haveminmax;
-DataValPtr      min,max;
+DataValPtr      min, max;
 DataValPtr      data;
 int             npts;
 /*
@@ -593,7 +559,6 @@ int             npts;
    /*
     * Kluge test to bypass infinities in floating data.  We have some
     * files that contain them and they tend to screw up autoscaling...
-    * (XDR_F_INFINITY comes from netcdf.h)
     */
 	if (data[i].type == 'f' && data[i].val.f == XDR_F_INFINITY)
 	{
@@ -612,87 +577,431 @@ int             npts;
    /*
     * Update the min and max based on this point
     */
-        if ( lc_CompareData( &(data[i]), max ) > 0 )
+        if (lc_CompareData (data + i, max) > 0)
                         *max = data[i];
-        if ( lc_CompareData( &(data[i]), min ) < 0 )
+        if (lc_CompareData (data + i, min) < 0)
                         *min = data[i];
    }
 }
 
-void
-xy_AdjustAxes(pd,c,xtype,xrescale,ytype,yrescale )
-plot_description	pd;
-char			*c;
-char			xtype;
-int			xrescale;
-char			ytype;
-int			yrescale;
+
+
+
+int
+xy_DetermineBounds (c, dim, min, max, autoscale, fldname, update)
+char	*c;
+char	dim;
+DataValPtr	min, max;
+bool	autoscale;
+char	*fldname;
+bool	update;
 /*
- * Adjust the plot-description parameters controlling the limits of plotted
- * axes associated with a given component. If for any horizontal axis
- * plotted, xmin or xmax is different from the current axis min and max
- * the axis plot-description parameters will be adjusted to reflect
- * the new values. Similarly, if ymin and ymax are different from the existing
- * left or right axis values, they will also be changed.
- * If any one axis is adjusted, the plot-description will be changed
- * and "xy_AdjustAxes" will return 1, indicating the need for the component
- * axes to be redrawn to reflect the change. If no axes are adjusted,
- * then 0 is returned.
+ * Come up with plot bounds for the 'dim' (x or y) axis of the given
+ * component.  On entry, we are given the actual data min and max for the
+ * axis (or target begin and end for a time axis).  On exit, the correct
+ * bounds are returned.  The return value of the function is TRUE if this
+ * is an update plot and the new bounds necessitate a global replot, FALSE
+ * otherwise.
  */
 {
-    char	datatype;
-    int		computed;
-    
-    if ( ac_PlotAxis ( pd,c,'t') )
-    {
-        computed = ac_QueryAxisState(pd,c,'t',&datatype);
-	computed = 0;
-	if ( datatype == 'n' ) 
+	float	span;
+	char	datatype = min->type;
+	int	triggerglobal;
+/*
+ * First try for manual bounds if they were requested
+ */
+	if (! autoscale && ! xy_ManualScale (c, dim, fldname, min, max))
 	{
-	    ac_UpdateAxisState ( pd,c,'t',&xtype,&computed);
+		autoscale = TRUE;
+		msg_ELog (EF_INFO, "XYGraph: %s: using auto-scaling for %c", 
+			  c, dim);
 	}
-	else if ( xrescale )
+/*
+ * Autoscale bounds if requested, or if we couldn't get manual bounds.  
+ */
+	if (autoscale && datatype == 'f')
 	{
-	    ac_UpdateAxisState ( pd, c, 't',NULL, &computed );
+	/*
+	 * Give ourselves a 5% buffer on either side for floating
+	 * point bounds.
+	 */
+		span = max->val.f - min->val.f;
+		if (! span)
+			span = 1.0;
+
+		min->val.f -= 0.05 * span;
+		max->val.f += 0.05 * span;
 	}
-    }
-    if ( ac_PlotAxis ( pd,c,'b') )
-    {
-        computed = ac_QueryAxisState(pd,c,'b',&datatype);
-	computed = 0;
-	if ( datatype == 'n' ) 
+
+	if (autoscale && datatype == 't' && ! update)
 	{
-	    ac_UpdateAxisState ( pd,c,'b',&xtype,&computed);
+	/*
+	 * Add a 2.5% buffer to the end time on global plots to allow
+	 * some space for update plots.
+	 */
+		max->val.t.zt_Sec += 
+			(max->val.t.zt_Sec - min->val.t.zt_Sec) / 40;
+
+		max->val.t.zt_MicroSec = 0;
 	}
-	else if ( xrescale )
+/* 
+ * Return the previous plot bounds if this is an update plot.  Trigger a
+ * global redraw if the new bounds determined above don't lie within the
+ * old bounds.
+ */
+	if (update)
 	{
-	    ac_UpdateAxisState ( pd, c, 'b',NULL, &computed );
+		DataValRec	oldmin, oldmax, junk;
+
+		if (dim == 'x')
+			xy_GetPrivateScale (c, &oldmin, &oldmax, &junk, &junk);
+		else
+			xy_GetPrivateScale (c, &junk, &junk, &oldmin, &oldmax);
+		
+		triggerglobal = (lc_CompareData (min, &oldmin) < 0) ||
+			(lc_CompareData (max, &oldmax) > 0);
+
+		*min = oldmin;
+		*max = oldmax;
 	}
-    }
-    if ( ac_PlotAxis ( pd,c,'l') )
-    {
-        computed = ac_QueryAxisState(pd,c,'l',&datatype);
-	computed = 0;
-	if ( datatype == 'n' ) 
+	else
+		triggerglobal = FALSE;
+
+	return (triggerglobal);
+}
+
+
+
+
+int
+xy_GetDataVectors (pid, btime, etime, single_obs, nskip, dvectors, ndvec, 
+		   obsinfo)
+PlatformId	pid;
+ZebTime		*btime, *etime;
+int		single_obs, nskip;
+xyDataVector	*dvectors;
+int		ndvec;
+xyObsInfo	*obsinfo;
+/*
+ * Fill in the given array of data vector structures, given the platform
+ * name, begin time, end time, whether we should get data in the form of a
+ * single "observation", and the length of the array.  The field name must be
+ * already set in each data vector in the array.  Space for holding the
+ * data in the data vectors will be malloc'ed here if necessary, and must
+ * be free'd by the caller.  Only every nskip'th good point will be put
+ * into the resultant data vectors.
+ *
+ * If obsinfo is non-NULL, then an xyObsInfo structure describing the 
+ * observation breakdown will be built.
+ *
+ * The number of points in the resultant data vectors will be returned.
+ */
+{
+	int	i, pt, samp, f, npts, ngood, fcount, *fndx, nobs, ntimes;
+	int	dcpts, dcveclen;
+	float	badvalue, *val, **dcvector = NULL;
+	char	*dtype, stime1[32], stime2[32];
+	FieldId	*fids;
+	ZebTime	time, *dvtimes, obstimes[MAX_DV_OBS];
+	RGrid	rg;
+	DataChunk	*dc;
+	DataClass	xyClass;
+	DataOrganization	xyOrg;
+/*
+ * Info message
+ */
+	TC_EncodeTime (btime, TC_Full, stime1);
+	TC_EncodeTime (etime, TC_Full, stime2);
+	msg_ELog (EF_DEBUG, "XY data vector request: '%s' from %s to %s", 
+		  ds_PlatformName (pid), stime1, stime2);
+/*
+ * Initialize the data vectors' data pointers to NULL
+ */
+	for (i = 0; i < ndvec; i++)
+		dvectors[i].data = NULL;
+/*
+ * Data types, field id's, and indices into the field id array for
+ * each data vector
+ */
+	dtype = (char *) malloc (ndvec * sizeof (char));
+	fids = (FieldId *) malloc (ndvec * sizeof (FieldId));
+	fndx = (int *) malloc (ndvec * sizeof (int));
+
+	fcount = 0;	/* count of non-time fields */
+
+	for (i = 0; i < ndvec; i++)
 	{
-	    ac_UpdateAxisState ( pd,c,'l',&ytype,&computed);
+		if (! strcmp (dvectors[i].fname, "time"))
+			dtype[i] = 't';
+		else
+		{
+			dtype[i] = 'f';
+			fndx[i] = fcount;
+			fids[fcount++] = F_Lookup (dvectors[i].fname);
+		}
 	}
-	else if ( yrescale )
+
+	if (! fcount)
 	{
-	    ac_UpdateAxisState ( pd, c, 'l',NULL, &computed );
+		msg_ELog (EF_PROBLEM, "XY: Only time was requested!");
+
+		free (dtype);
+		free (fids);
+		free (fndx);
+
+		return (0);
 	}
-    }
-    if ( ac_PlotAxis ( pd,c,'r') )
-    {
-        computed = ac_QueryAxisState(pd,c,'r',&datatype);
-	computed = 0;
-	if ( datatype == 'n' ) 
+/*
+ * Determine the data chunk class we want based on the data 
+ * organization for the platform
+ */
+	xyOrg = ds_PlatformDataOrg (pid);
+
+	switch (xyOrg)
 	{
-	    ac_UpdateAxisState ( pd,c,'r',&ytype,&computed);
+	    case OrgScalar:
+	    case OrgFixedScalar:
+		xyClass = DCC_Scalar;
+		break;
+	    case Org1dGrid:
+		xyClass = DCC_RGrid;
+		break;
+	    default:
+		msg_ELog (EF_PROBLEM, "XY: Can't use platform %s's data org.", 
+			  ds_PlatformName (pid));
+
+		free (dtype);
+		free (fids);
+		free (fndx);
+
+		return (0);
 	}
-	else if ( yrescale )
+/*
+ * Get the data chunk
+ */
+	dc = NULL;
+	if (single_obs)
+		dc = ds_FetchObs (pid, xyClass, etime, fids, fcount, NULL, 0);
+	else
+		dc = ds_Fetch (pid, xyClass, btime, etime, fids, fcount, 
+			       NULL, 0);
+
+	if (! dc)
 	{
-	    ac_UpdateAxisState ( pd, c, 'r',NULL, &computed );
+		msg_ELog (EF_INFO, 
+			  "XY: No requested fields for '%s' between %s and %s",
+			  ds_PlatformName (pid), stime1, stime2);
+
+		free (dtype);
+		free (fids);
+		free (fndx);
+
+		return (0);
 	}
-    }
+/*
+ * Get the bad value flag and figure out how many points we have
+ */
+	badvalue = dc_GetBadval (dc);
+
+	dcpts = dc_GetNSample (dc);
+	if (xyOrg == Org1dGrid)
+	{
+	/*
+	 * Stuff for dealing with the 1d grids (vectors) from the data chunk
+	 */
+		dc_RGGeometry (dc, 0, NULL, &rg);
+		dcveclen = rg.rg_nX;
+		dcpts *= dcveclen;
+		dcvector = (float **) malloc (fcount * sizeof (float *));
+	}
+/*
+ * Allocate an array to hold a few values from the data chunk and another
+ * to hold all the times that go into the data vectors
+ */
+	val = (float *) malloc (fcount * sizeof (float));
+	dvtimes = (ZebTime *) malloc (dcpts * sizeof (ZebTime));
+/*
+ * Create the data arrays for each data vector structure and set the data 
+ * types
+ */
+	for (i = 0; i < ndvec; i++)
+	{
+		dvectors[i].data = (DataValPtr) 
+			malloc (dcpts * sizeof (DataValRec));
+
+		dvectors[i].min.type = dvectors[i].max.type = dtype[i];
+
+		for (pt = 0; pt < dcpts; pt++)
+			dvectors[i].data[pt].type = dtype[i];
+	}
+/*
+ * Extract the data from the data chunk into the DataValRec arrays
+ */
+	npts = ngood = 0;
+
+	for (pt = 0; pt < dcpts; pt++)
+	{
+	/*
+	 * 1d grid specific stuff
+	 */
+		if (xyOrg == Org1dGrid)
+		{
+		/*
+		 * Move to the next data chunk vector if necessary
+		 */
+			if (! (pt % dcveclen))
+			{
+				samp = pt / dcveclen;
+				dc_GetTime (dc, samp, &time);
+
+				for (f = 0; f < fcount; f++)
+					dcvector[f] = dc_RGGetGrid (dc, samp, 
+							      fids[f], NULL,
+							      NULL, NULL);
+			}
+		/*
+		 * Grab the values for this point from the data chunk vectors
+		 */
+			for (f = 0; f < fcount; f++)
+				val[f] = dcvector[f][pt % dcveclen];
+		}
+	/*
+	 * scalar specifics
+	 */
+		else
+		{
+			dc_GetTime (dc, pt, &time);
+
+			for (f = 0; f < fcount; f++)
+				val[f] = dc_GetScalar (dc, pt, fids[f]);
+		}
+	/*
+	 * Move on if any data for this point are bad
+	 */
+		for (f = 0; f < fcount; f++)
+			if (val[f] == badvalue)
+				break;
+
+		if (f < fcount)
+			continue;
+	/*
+	 * We have good data, but make sure we only take every nskip'th 
+	 * good data point
+	 */
+		if ((ngood++ % nskip) != 0)
+			continue;
+	/*
+	 * OK, we finally have something we really want to put into the
+	 * caller's data vectors.  Put the points into the DataValRec
+	 * arrays and increment the point count.  Also keep track of max
+	 * and min for non-time data.
+	 */
+		dvtimes[npts] = time;
+
+		for (i = 0; i < ndvec; i++)
+		{
+		/*
+		 * Floating point data
+		 */
+			if (dtype[i] == 'f')
+			{
+			/*
+			 * Put the point into the data vector
+			 */
+				dvectors[i].data[npts].val.f = val[fndx[i]];
+			/*
+			 * Keep track of min and max
+			 */
+				if (! npts)
+				{
+					dvectors[i].min.val.f = val[fndx[i]];
+					dvectors[i].max.val.f = val[fndx[i]];
+				}
+
+				if (val[fndx[i]] < dvectors[i].min.val.f)
+					dvectors[i].min.val.f = val[fndx[i]];
+
+				if (val[fndx[i]] > dvectors[i].max.val.f)
+					dvectors[i].max.val.f = val[fndx[i]];
+			}
+		/*
+		 * or time, which is simpler
+		 */
+			else
+				dvectors[i].data[npts].val.t = time;
+		}
+	/*
+	 * Increment the point count
+	 */
+		npts++;
+	}
+/*
+ * Free our local stuff
+ */
+	dc_DestroyDC (dc);
+
+	free (dtype);
+	free (fids);
+	free (fndx);
+	free (val);
+
+	if (xyOrg == Org1dGrid)
+		free (dcvector);
+/*
+ * If they don't want observation info, we're done
+ */
+	if (! obsinfo)
+	{
+		free (dvtimes);
+		return (npts);
+	}
+/*
+ * If they asked for a single observation, it's still pretty simple
+ */
+	if (single_obs)
+	{
+	/*
+	 * One observation starting at index 0
+	 */
+		obsinfo->nobs = 1;
+		obsinfo->obsndx[0] = 0;
+	/*
+	 * Done
+	 */
+		free (dvtimes);
+		return (npts);
+	}
+/*
+ * Okay, we need to check times to build the observation info
+ *
+ * Start out by figuring out how many observations are involved here
+ */
+	ntimes = ds_GetObsTimes (pid, etime, obstimes, MAX_DV_OBS, NULL);
+
+	for (nobs = 0; nobs < ntimes; nobs++)
+		if (TC_LessEq (obstimes[nobs], *btime))
+			break;
+	nobs++;
+	obsinfo->nobs = nobs;
+/*
+ * Now find the index for the start of each observation in the data arrays.
+ * Ugly.
+ */
+	pt = npts - 1;
+
+	for (i = 0; i < nobs; i++)
+	{
+		obsinfo->obsndx[nobs - i - 1] = pt;
+
+		for (; pt >= 0; pt--)
+		{
+			if (TC_Less (dvtimes[pt], obstimes[i]))
+				break;
+			else
+				obsinfo->obsndx[nobs - i - 1] = pt;
+		}
+	}
+
+	free (dvtimes);
+	return (npts);
 }

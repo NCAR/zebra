@@ -24,20 +24,47 @@
 # define MAX_PLAT	10
 # define BADVAL		-999.0
 
-/* Scale control routines */
-extern void xy_GetScaleInfo FP((plot_description,char*,int,short*));
-extern void xy_SetScaleBounds FP((plot_description,char*,int,int,DataValPtr,
-		DataValPtr));
-extern void xy_GetCurrentScaleBounds FP((plot_description,char*,int,int,
-		DataValPtr,DataValPtr,char*));
+/*
+ * Data vector structure for use when calling xy_GetDataVectors()
+ */
+typedef struct _xydatavector
+{
+	char		*fname;		/* field name */
+	DataValPtr	data;		/* data vector */
+	short		npts;		/* length of data vector */
+	DataValRec	min, max;	/* min and max from vector */
+} xyDataVector;
 
-/* Axis Control routines */
-extern void xy_AdjustAxes FP((plot_description,char*, int,int,int,int));
+/*
+ * Observation info structure (each is associated with a data vector
+ * structure)
+ */
+# define MAX_DV_OBS	50
+typedef struct _xyobsinfo
+{
+	short	nobs;			/* number of observations contained */
+	short	obsndx[MAX_DV_OBS];	/* index to each observation */
+} xyObsInfo;
 
-/* Data Control routines */
-extern void xy_SetPrivateDD  FP(( plot_description, char*, ZebTime*,ZebTime*,int*));
-extern void xy_GetDataDescriptors FP(( plot_description,char*,int,ZebTime*,ZebTime*,
-		ZebTime*,ZebTime*,int*,int*));
-extern void xy_GetPlotColors FP((plot_description,char*,int,char*[],char*));
-extern void xy_GetDataMinMax FP((int, DataValPtr, DataValPtr, DataValPtr, int));
-extern int xy_AvailableData FP((PlatformId, ZebTime*,ZebTime*,ZebTime*, ZebTime*,ZebTime*));
+
+/*
+ * Prototypes
+ */
+void	xy_GetScaleModes FP ((char*, bool*, bool*, bool*, bool*));
+void	xy_SetPrivateScale FP ((char*, DataValPtr, DataValPtr, DataValPtr,
+				DataValPtr));
+void	xy_GetPrivateScale FP ((char*, DataValPtr, DataValPtr, DataValPtr,
+				DataValPtr));
+int	xy_ManualScale FP ((char*, int, char*, DataValPtr, DataValPtr));
+void	xy_SaveDataTimes  FP ((char*, ZebTime*, ZebTime*));
+void	xy_GetTimes FP ((char*, ZebTime*, ZebTime*, ZebTime*, ZebTime*, int*));
+void	xy_GetPlotColors FP ((char*, int, Pixel*, Pixel*));
+void	xy_GetDataMinMax FP ((int, DataValPtr, DataValPtr, DataValPtr, int));
+int	xy_AvailableData FP ((PlatformId, ZebTime*, ZebTime*, ZebTime*, 
+			      ZebTime*, ZebTime*));
+int	xy_DetermineBounds FP ((char *, int, DataValPtr, DataValPtr, int, 
+				char *, int));
+int	xy_GetDataVectors FP ((PlatformId, ZebTime*, ZebTime*, int, int, 
+			       xyDataVector*, int, xyObsInfo*));
+
+

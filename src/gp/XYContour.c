@@ -1,8 +1,8 @@
 /*
  * XY-Contour plotting module
  */
-static char *rcsid = "$Id: XYContour.c,v 1.15 1993-10-26 21:29:43 corbet Exp $";
-/*		Copyright (C) 1987,88,89,90,91 by UCAR
+static char *rcsid = "$Id: XYContour.c,v 1.16 1993-12-01 17:32:21 burghart Exp $";
+/*		Copyright (C) 1993 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
  *
@@ -36,7 +36,8 @@ static char *rcsid = "$Id: XYContour.c,v 1.15 1993-10-26 21:29:43 corbet Exp $";
 # include "XYCommon.h"
 # include "AxisControl.h"
 # include "rg_status.h"
-# define GRID(g,i,j,ydim)    (g[((i)*(ydim))+(j)])
+
+# define GRID(g,i,j,ydim)   (g[((i) * (ydim)) + (j)])
 
 /*
  * General definitions
@@ -44,63 +45,33 @@ static char *rcsid = "$Id: XYContour.c,v 1.15 1993-10-26 21:29:43 corbet Exp $";
 
 void	xy_Contour FP ((char *, int));
 
-/*
- * Line style
- */
-typedef enum {L_solid, L_dashed, L_dotted} LineStyle;
 
 typedef struct GridInfo {
     float	*grid;
     float	*scratch;
-    int		xdim,ydim;
+    int		xdim, ydim;
     char	component[80];
     struct GridInfo	*next;
-}GridInfoRec,*GridInfoPtr;
+} GridInfoRec, *GridInfoPtr;
+
 static GridInfoPtr GridInfoList = NULL;
 
 /*
- * Color array and indices
+ * Prototypes
  */
-static XColor 	Tadefclr;
+float	*xy_RGridit FP ((char *, DataValPtr, DataValPtr, int, DataValPtr, 
+			 DataValPtr, int, DataValPtr, DataValPtr, DataValPtr, 
+			 int, double));
+void	gridRandomData FP ((GridInfoPtr, DataValPtr, DataValPtr, DataValPtr,
+			    int, DataValPtr, DataValPtr, DataValPtr,
+			    DataValPtr, double));
+float	*xy_InterpolateLinearOnY FP ((GridInfoPtr, double));
+GridInfoPtr 	getGrid FP ((char *, int, int, double));
 
-/*
- * Forwards
- */
-GridInfoPtr getGrid FP((char *, int, int, int, double));
-
-float *xy_RGridit FP((char *, int, 
-		      DataValPtr, DataValPtr,
-		      int, int,
-		      DataValPtr, DataValPtr, 
-		      int, int,
-		      DataValPtr, DataValPtr, DataValPtr,
-		      int, double));
-
-void gridRandomData FP((
-	GridInfoPtr	ginfo,
-	DataValPtr	xdata,
-	DataValPtr	ydata,
-	DataValPtr	zdata,
-	int		npts,
-	DataValPtr	xmin,
-	DataValPtr	xmax,
-	int	xscalemode,
-	DataValPtr	ymin,
-	DataValPtr	ymax,
-	int	yscalemode,
-	double		badval));
-
-float *xy_InterpolateLinearOnY FP((
-	GridInfoPtr	ginfo,
-	DataValPtr	xmin,
-	DataValPtr	xmax,
-	DataValPtr	ymin,
-	DataValPtr	ymax,
-	double		badval));
 
 
 void
-xy_Contour(c, update)
+xy_Contour (c, update)
 char	*c;
 bool	update;
 /*
@@ -108,683 +79,394 @@ bool	update;
  */
 {
 	bool	ok;
-	int	i, npts, plat, nplat, ii, jj, ns ;
-	int	nxfield,nyfield;
-	int	count;
-	int 	nPlotted=0;
-	char	platforms[MAX_PLAT_LEN], tadefcolor[30];
-	char	ctname[20];
-	char	dataNames[4][MAX_PLAT_LEN];
-	ZebTime	bTimeTarget,eTimeTarget;
-	ZebTime	eTimeReq,bTimeReq;
-	ZebTime	eTimeOld,bTimeOld;
-	long	autoTime;
-	char	*pnames[MAX_PLAT];
-	char	*fnames[4][MAX_PLAT];
-	PlatformId	pid;
-	DataChunk	*dc = NULL;
-	DataClass	xyClass;
-	Location	origin;
-	char		stime1[80],stime2[80];
-	int		n, m, len;
-	RGrid		rg;
-	float		badvalue, *data[MAX_PLAT], *tempdata;
-	FieldId		fids[4];
-	DataOrganization	xyOrg;
-	DataValPtr	*xdata,*ydata;
-	DataValPtr	*zdata;
-	DataValRec	xmin,xmax,ymin,ymax;
-	DataValRec	oldxmin,oldxmax,oldymin,oldymax;
-	int		xrescale=0,yrescale=0;
-	DataValRec	zmin,zmax;
-	char		xtype = 'f',ytype = 'f';
-	unsigned short	xscalemode,yscalemode;
-	int	fcount;
-        int	xdim,ydim;
-	int	saveConfig;
-	int	angle = 0;
-	int	zdim;
-	int	nzfield ;
-	float	vecScale = 0.01;
-	char	style[80];
-	float	zstep;
-	int		xgridres, ygridres=0;
-	char	csystem[32];
-	int	dmode;
-	char	datalabel[MAX_PLAT_LEN];
-        float	ccenter;
-	char	gridtype[80];
-	XColor	*colors;
-	int	ncolors;
-	bool	sideAnnot;
+	int	npts[MAX_PLAT], plat, nplat, angle = 0, ncolors, dmode;
+	int	dolabel = 1, linewidth = 0, nxfield, nyfield, nzfield;
+	int	xgridres, ygridres = 0;
+	float	vecScale = 0.01, zstep, ccenter, *datagrid = NULL;
+	char	platforms[MAX_PLAT_LEN], *pnames[MAX_PLAT];
+	char	xflds[MAX_PLAT_LEN], yflds[MAX_PLAT_LEN], zflds[MAX_PLAT_LEN];
+	char	*xfnames[MAX_PLAT], *yfnames[MAX_PLAT], *zfnames[MAX_PLAT];
+	char	gridtype[20], ctname[24], style[20], annotcontrol[80];
+	char	xtype, ytype, ztype;
+	bool	xauto, yauto, xinvert, yinvert, sideAnnot;
+	Pixel	taColor;
+	XColor	*colors, white;
+	ZebTime	bTimeTarget, eTimeTarget, bTimeReq, eTimeReq;
+	ZebTime	eTimeOld, bTimeOld;
+	xyDataVector	dv[3];
+	DataValPtr	*xdata, *ydata, *zdata;
+	DataValRec	xmin, xmax, ymin, ymax, zmin[MAX_PLAT], zmax[MAX_PLAT];
+	DataValRec	xleft, xright, ybottom, ytop;
+	XRectangle	clip;
+	GridInfoPtr	ginfo;
 /*
- * Contour forces global update.
+ * An update contour plot?  Yeah, right.
  */
-	if ( update )
+	if (update)
 	{
-	    TriggerGlobal=1;
+	    TriggerGlobal = TRUE;
 	    return;
 	}
 /*
- * Get X-Y Contour Required parameters:
- * "platform","x-field", "y-field", "wind-coords", "color-table", "org"
+ * Get required parameters
  */
 	ok = pda_ReqSearch (Pd, c, "platform", NULL, platforms, SYMT_STRING);
-	ok = pda_ReqSearch (Pd,c,"x-field",NULL, (dataNames[0]), SYMT_STRING);
-	ok = pda_ReqSearch (Pd,c,"y-field",NULL, (dataNames[1]), SYMT_STRING);
-	ok = pda_ReqSearch (Pd,c,"z-field",NULL, (dataNames[2]), SYMT_STRING);
+	ok &= pda_ReqSearch (Pd, c, "x-field", NULL, xflds, SYMT_STRING);
+	ok &= pda_ReqSearch (Pd, c, "y-field", NULL, yflds, SYMT_STRING);
+	ok &= pda_ReqSearch (Pd, c, "z-field", NULL, zflds, SYMT_STRING);
+	ok &= pda_ReqSearch (Pd, c, "color-table", "xy-contour", ctname,
+			     SYMT_STRING);
 
-	ok &= pda_ReqSearch (Pd, c, "color-table", "xy-contour",ctname,SYMT_STRING);
-
-	if (! ok) return;
+	if (! ok) 
+		return;
 /*
  * Parse platform and field name information. 
  */
-	nplat = CommaParse (platforms, pnames);
-	nxfield = CommaParse (dataNames[0], fnames[0]);
-	nyfield = CommaParse (dataNames[1], fnames[1]);
-	nzfield = CommaParse (dataNames[2], fnames[2]);
-	if ( nxfield != nplat && nyfield != nplat && nzfield != nplat )
+	if ((nplat = CommaParse (platforms, pnames)) > MAX_PLAT)
 	{
-	    msg_ELog ( EF_PROBLEM, 
-		"X/Y Contour: number of fields of doesn't correspond to number of platforms.");
-	    return;
+		msg_ELog (EF_PROBLEM, "XYContour: %s: too many platforms", c);
+		return;
 	}
-/* for now, only allow max MAX_PLAT platforms */
-	if (nplat > MAX_PLAT)
-		nplat = MAX_PLAT;
+
+	nxfield = CommaParse (xflds, xfnames);
+	nyfield = CommaParse (yflds, yfnames);
+	nzfield = CommaParse (zflds, zfnames);
+	if ((nxfield != nplat && nxfield != 1) ||
+	    (nyfield != nplat && nyfield != 1) ||
+	    (nzfield != nplat && nzfield != 1))
+	{
+		msg_ELog (EF_PROBLEM, "XYContour: %s: bad number of fields", 
+			  c);
+		return;
+	}
 /*
  * Get X-Y Contour optional parameters:
  * "style" - "line" or "filled"
- * "x-grid","y-grid" - the number of grid cells to use in the X and Y dimensions
+ * "x-grid", "y-grid" - the number of grid cells to use in the X and Y 
+ *			dimensions
  * "z-step" - the contour interval.
  * "contour-grid-type" - method of interpolating gridded data
  */
-        if ( !pda_Search (Pd,c,"do-side-annotation", "xy-contour",
-                (char *) &sideAnnot, SYMT_BOOL))
-        {
-            sideAnnot = True;
-        }
+	sideAnnot = True;
+	pda_Search (Pd, c, "do-side-annotation", "xy-contour", 
+		    (char *) &sideAnnot, SYMT_BOOL);
+	
+	strcpy (style, "line");
+	pda_Search (Pd, c, "representation-style", "xy-contour",
+		    (char *) style, SYMT_STRING);
 
-	if ( !pda_Search (Pd,c,"representation-style", "xy-contour",
-			  (char *)style, SYMT_STRING))
+	xgridres = 25;
+	pda_Search (Pd, c, "x-grid", "xy-contour", (char *) &xgridres, 
+		    SYMT_INT);
+
+	ygridres = 25;
+	pda_Search (Pd, c, "y-grid", "xy-contour", (char *) &ygridres, 
+		    SYMT_INT);
+
+	zstep = 20.0;
+	pda_Search (Pd, c, "z-step", "xy-contour", (char *) &zstep, 
+		    SYMT_FLOAT);
+
+	strcpy (gridtype, "raw");
+	pda_Search (Pd, c, "grid-method", "xy-contour", gridtype, SYMT_STRING);
+/*
+ * Data types
+ */
+	xtype = (strcmp (xfnames[0], "time")) ? 'f' : 't';
+	ytype = (strcmp (yfnames[0], "time")) ? 'f' : 't';
+	ztype = (strcmp (zfnames[0], "time")) ? 'f' : 't';
+
+	if (ztype == 't')
 	{
-	    strcpy(style, "line" );
-	}
-	if ( !pda_Search (Pd,c,"x-grid", "xy-contour",(char *) &xgridres, 
-			  SYMT_INT))
-	{
-		xgridres = 25;
-	}
-	if ( !pda_Search (Pd,c,"y-grid", "xy-contour",(char *) &ygridres, 
-			  SYMT_INT))
-	{
-		ygridres = 25;
-	}
-	if ( !pda_Search (Pd,c,"z-step", "xy-contour",(char *) &zstep, 
-			  SYMT_FLOAT))
-	{
-		zstep = 20.0;
-	}
-	if ( !pda_Search(Pd,c,"grid-method", "xy-contour",(char *)gridtype, 
-			 SYMT_STRING))
-	{
-		strcpy( gridtype, "raw");
+		msg_ELog (EF_PROBLEM, 
+			  "XYContour: %s: Can't use time for z-field", c);
+		return;
 	}
 /*
- * Allocate memory for data and attibutes
+ * Get our time bounds
  */
-	xdata = (DataValPtr*)malloc (nplat* sizeof(DataValPtr));
-	ydata = (DataValPtr*)malloc (nplat* sizeof(DataValPtr));
-	zdata = (DataValPtr*)malloc (nplat* sizeof(DataValPtr));
-/*
- * Get Generic plot description information.
- */
-	if ( strcmp( fnames[0][0],"time" ) == 0 )
-	    xtype = 't';
-	if ( strcmp( fnames[1][0],"time" ) == 0 )
-	    ytype = 't';
-	if ( strcmp( fnames[2][0],"time" ) == 0 )
-	{
-	    msg_ELog ( EF_PROBLEM, "X/Y Contour: 'time' is an invalid z-field");
-	    return;
-	}
-        xy_GetScaleInfo(Pd,c,'x',&xscalemode);
-        xy_GetScaleInfo(Pd,c,'y',&yscalemode);
-        xy_GetCurrentScaleBounds(Pd,c,'x',xtype,&oldxmin,&oldxmax,fnames[0][0]);
-        xy_GetCurrentScaleBounds(Pd,c,'y',ytype,&oldymin,&oldymax,fnames[1][0]);
-	xmin = oldxmin;
-	xmax = oldxmax;
-	ymin = oldymin;
-	ymax = oldymax;
-	/* Make sure coordinate system is initialized */
-        lc_SetUserCoord ( &xmin,&xmax,&ymin,&ymax);
-        xy_GetDataDescriptors(Pd, c, update,
-                              &bTimeTarget,&eTimeTarget,
-                              &bTimeOld,&eTimeOld,
-                              &dmode,&nPlotted );
+        xy_GetTimes (c, &bTimeTarget, &eTimeTarget, &bTimeOld, &eTimeOld, 
+		     &dmode);
 
-   /*
-    * Check to see if the current Plot-Time is already beyond
-    * the existing time-scale.
-    */
-        if ( (xscalemode & AUTO) && xtype == 't' )
-        {
-            if ( update )
-            {
-		TC_EncodeTime ( &eTimeTarget, TC_Full, stime1 );
-		TC_EncodeTime ( &(xmax.val.t), TC_Full, stime2 );
-                msg_ELog ( EF_DEBUG,
-                   "%s new Axis EndTime = %s old Axis EndTime = %s",
-                        c, stime1, stime2 );
-                if ( eTimeTarget.zt_Sec > xmax.val.t.zt_Sec )
-                {
-                    TriggerGlobal = 1;
-                }
-            }
-        }
-        if ( (yscalemode & AUTO) && ytype == 't' )
-        {
-            if ( update )
-            {
-                if ( eTimeTarget.zt_Sec > ymax.val.t.zt_Sec )
-                {
-                    TriggerGlobal = 1;
-                }
-            }
-        }
-
-	xy_GetPlotColors(Pd,c,nplat,NULL,tadefcolor);
-
+	bTimeOld.zt_Sec = bTimeOld.zt_MicroSec = 0;
+	eTimeOld.zt_Sec = eTimeOld.zt_MicroSec = 0;
 /*
- **********************************************************
- * X-dependent set-up
- **********************************************************
+ * Allocate memory for pointers to the data arrays
  */
+	xdata = (DataValPtr *) calloc (nplat, sizeof (DataValPtr));
+	ydata = (DataValPtr *) calloc (nplat, sizeof (DataValPtr));
+	zdata = (DataValPtr *) calloc (nplat, sizeof (DataValPtr));
 /*
- * Get X-pixel for colors...
+ * Get top annotation color
  */
-	if (! ct_GetColorByName(tadefcolor, &Tadefclr))
-	{
-	    msg_ELog(EF_PROBLEM, "Can't get X annotation color: '%s'.",
-			tadefcolor);
-	    strcpy(tadefcolor, "white");
-	    ct_GetColorByName(tadefcolor, &Tadefclr);
-	}
+	xy_GetPlotColors (c, nplat, NULL, &taColor);
 /*
  * Attempt to load color table 
  */
 	ct_LoadTable (ctname, &colors, &ncolors);
 	if (ncolors < 1)
 	{
-		msg_ELog(EF_PROBLEM, "XY-Contourcolor table too small");
+		msg_ELog (EF_PROBLEM, "XYContour: %s: color table too small",
+			  c);
 		return;
 	}
 /*
- **********************************************************
- **********************************************************
+ * Initialize data min/max values.
  */
-
-/*
- * Do the plot.
- */
-
-/*
- * Plot the annotation.
- */
-	if (! update)
+	xmin.type = xmax.type = xtype;
+	if (xtype == 'f')
 	{
-	    An_TopAnnot ("X/Y Contour:", Tadefclr.pixel);
-	    An_TopAnnot (c,Tadefclr.pixel);
+		xmin.val.f = 9.99e9;
+		xmax.val.f = -9.99e9;
+	}
+	else
+	{
+		xmin.val.t = bTimeTarget;
+		xmax.val.t = eTimeTarget;
+	}
+
+	ymin.type = ymax.type = ytype;
+	if (ytype == 'f')
+	{
+		ymin.val.f = 9.99e9;
+		ymax.val.f = -9.99e9;
+	}
+	else
+	{
+		ymin.val.t = bTimeTarget;
+		ymax.val.t = eTimeTarget;
 	}
 /*
- * Loop through the platforms
+ * Loop through the platforms and get the data vectors
  */
 	for (plat = 0; plat < nplat; plat++)
 	{
+		bool	single_obs;
+		PlatformId	pid = ds_LookupPlatform (pnames[plat]);
 	/*
-	 * Get the data and determine the coordinate min and max's
+	 * Get and check the platform ID
 	 */
-	    pid = ds_LookupPlatform (pnames[plat]);
-	    if (pid == BadPlatform)
-	    {
-		msg_ELog (EF_PROBLEM, "Bad platform '%s'", pnames[plat]);
-		continue;
-	    }
-            xyOrg = ds_PlatformDataOrg(pid);
-	    switch (xyOrg)
-	    {
-		case OrgScalar:
-		case OrgFixedScalar:
-			xyClass = DCC_Scalar;
-			break;
-		case Org1dGrid:
-			xyClass = DCC_RGrid;
-			break;
-		default:
-			msg_ELog (EF_PROBLEM, "Bad organization.");
-			continue;
-	    }
-
-	/*
-	 * Set up the field-names for the data retrieval request.
-	 */
-	    fcount = 0;
-	    if (xtype != 't')
-	    {
-		xdim = fcount;
-	        fids[fcount] = F_Lookup (fnames[0][plat]); fcount++;
-	    }
-	    if (ytype != 't')
-	    {
-		ydim = fcount;
-	        fids[fcount] = F_Lookup (fnames[1][plat]); fcount++;
-	    }
-	    zdim = fcount;
-	    fids[fcount] = F_Lookup (fnames[2][plat]); fcount++;
-	/*
-	 *  Determine times of data to request.
-	 */
-            if (! xy_AvailableData(pid,&bTimeTarget,&eTimeTarget,&eTimeOld,
-				   &bTimeReq, &eTimeReq))
-	    {
-		    TC_EncodeTime (&bTimeTarget, TC_Full, stime1);
-		    TC_EncodeTime (&eTimeTarget, TC_Full, stime2);
-		    msg_ELog (EF_INFO, "No data for '%s' between %s and %s",
-			      pnames[plat], stime1, stime2);
-		    npts = 0;
-		    xdata[plat] = NULL;
-		    ydata[plat] = NULL;
-		    zdata[plat] = NULL;
-		    continue;
-	    }
-
-	    TC_EncodeTime (&bTimeTarget, TC_Full, stime1);
-	    TC_EncodeTime (&eTimeTarget, TC_Full, stime2);
-	    msg_ELog (EF_DEBUG, "%s data request times begin: %s end: %s",
-		      c, stime1, stime2);
-
-	    dc = NULL;
-	    dc = ds_Fetch (pid, xyClass, &bTimeReq, &eTimeReq, fids, fcount,
-			   NULL, 0);
-
-	    if (! dc)
-	    {
-		    msg_ELog (EF_INFO, 
-			      "No requested data for '%s' between %s and %s",
-			      pnames[plat], stime1, stime2);
-		    npts = 0;
-		    xdata[plat] = NULL;
-		    ydata[plat] = NULL;
-		    zdata[plat] = NULL;
-		    continue;
-	    }
-	/*
-	 * Now that we have a data chunk, update the overlay times widget
-	 */
-	    if (!update) lw_TimeStatus (c, pnames[plat], &eTimeReq);
-	/*
-	 * Extract the data from the data chunk
-	 */
-	    badvalue = dc_GetBadval (dc);
-	    if ( xyOrg == OrgScalar )
-	    {
-		    npts = dc_GetNSample (dc);
-		    for (n = 0; n < fcount; n++)
-		    {
-			    data[n] = (float *) malloc (npts * sizeof (float));
-			    for (m = 0; m < npts; m++)
-				    data[n][m] = dc_GetScalar (dc, m, fids[n]);
-		    }
-	    }
-	    else if ( xyOrg == Org1dGrid )
-	    {
-		    ns = dc_GetNSample (dc);
-		    for (n = 0; n < fcount; n++)
-			    for (m = 0; m < ns; m++)
-			    {
-				    tempdata = dc_RGGetGrid (dc, m, fids[n],
-							     &origin, &rg, 
-							     &len);
-				    if ( m == 0 )
-				    {
-					    npts = rg.rg_nX * ns;
-					    data[n] = (float *) 
-						malloc (npts * sizeof (float));
-				    }
-				    memcpy (data[n] + (m*rg.rg_nX), tempdata, 
-					    len);
-			    }
-	    }
-	    xdata[plat] = (DataValPtr)malloc( npts * sizeof(DataValRec));
-	    ydata[plat] = (DataValPtr)malloc( npts * sizeof(DataValRec));
-	    zdata[plat] = (DataValPtr)malloc( npts * sizeof(DataValRec));
-
-	    count = 0;
-	/*
-	 * Extract field data arrays.
-	 */
-            msg_ELog ( EF_DEBUG,
-                   "X-Y Graph found %d data points for component %s.",npts,c);
-	    for ( ii = 0; ii < npts; ii++ )
-	    {
-		/* skip bad data points */
-		do {
-		    for ( jj = 0; jj < fcount ; jj++)
-		    {
-			if(data[jj][ii] == badvalue)
-			{
-			    ii++; break;
-			}
-		    }
-		} while ( jj < fcount && ii < npts);
-		if ( ii < npts )
+		if (pid == BadPlatform)
 		{
-		  if ( xtype == 't' )
-		  {
-		    dc_GetTime (dc, xyOrg == OrgScalar ? ii : 
-			(int) (ii/rg.rg_nX), &(xdata[plat][count].val.t));
-		    xdata[plat][count].type = 't';
-		  }
-		  else
-		  {
-		    xdata[plat][count].val.f = data[xdim][ii];
-		    xdata[plat][count].type = 'f';
-		  }
-		  if ( ytype == 't' )
-		  {
-		    dc_GetTime (dc, xyOrg == OrgScalar ? ii : 
-			(int) (ii/rg.rg_nX), &(ydata[plat][count].val.t));
-		    ydata[plat][count].type = 't';
-		  }
-		  else
-		  {
-		    ydata[plat][count].val.f = data[ydim][ii];
-		    ydata[plat][count].type = 'f';
-		  }
-		  zdata[plat][count].val.f = data[zdim][ii];
-		  zdata[plat][count].type = 'f';
-		  count++;
+			msg_ELog (EF_PROBLEM, 
+				  "XYContour: %s: Bad platform '%s'", c,
+				  pnames[plat]);
+			continue;
 		}
-	    }
-	    npts = count;
-	    /*
-	     * Calculate autoscaled mins/maxs if necessary.
-	     */
-            if ( (xscalemode & AUTO) && xtype != 't' )
-            {
-                xy_GetDataMinMax(update, &xmin, &xmax, xdata[plat], npts);
-            }
-            if ( (yscalemode & AUTO) && ytype != 't' )
-            {
-                xy_GetDataMinMax(update, &ymin, &ymax, ydata[plat], npts);
-            }
-	    /*
-	     * Free memory.
-	     */
-	    dc_DestroyDC (dc);
-	    for (n = 0; n < fcount; n++)
-		if (data[n])
-			free (data[n]);
+	/*
+	 * Figure out good data request begin and end times
+	 */
+		if (! xy_AvailableData (pid, &bTimeTarget, &eTimeTarget, 
+					&eTimeOld, &bTimeReq, &eTimeReq))
+			continue;
+	/*
+	 * Do we want a single "observation" worth of data?
+	 */
+		single_obs = (dmode == DATA_SNAPSHOT && ! update);
+	/*
+	 * Set the field names in the data vectors, then get the vectors
+	 * filled in.
+	 */
+		dv[0].fname = xfnames[nxfield > 1 ? plat : 0];
+		dv[1].fname = yfnames[nyfield > 1 ? plat : 0];
+		dv[2].fname = zfnames[nzfield > 1 ? plat : 0];
+
+		npts[plat] = xy_GetDataVectors (pid, &bTimeReq, &eTimeReq, 
+						single_obs, 1, dv, 3, NULL);
+	/*
+	 * Keep the pointers to the data and apply the min and max values
+	 */
+		xdata[plat] = dv[0].data;
+		if ((xtype == 'f') && (dv[0].min.val.f < xmin.val.f))
+			xmin = dv[0].min;
+		if ((xtype == 'f') && (dv[0].max.val.f > xmax.val.f))
+			xmax = dv[0].max;
+
+		ydata[plat] = dv[1].data;
+		if ((ytype == 'f') && (dv[1].min.val.f < ymin.val.f))
+			ymin = dv[1].min;
+		if ((ytype == 'f') && (dv[1].max.val.f > ymax.val.f))
+			ymax = dv[1].max;
+
+		zdata[plat] = dv[2].data;
+		zmin[plat] = dv[2].min;
+		zmax[plat] = dv[2].max;
 	}
 /*
- * Now set the current scale bounds.
+ * Get the info on whether we're using autoscaling or inverted scales
  */
-        autoTime = eTimeTarget.zt_Sec +
-                (long)((eTimeTarget.zt_Sec-bTimeTarget.zt_Sec)*0.025);
-        if ( !update )
-        {
-            if ( xscalemode & AUTO)
-            {
-                switch ( xtype )
-                {
-                    case 't':
-			xmax.val.t.zt_Sec = autoTime;
-			xmax.val.t.zt_MicroSec = 0;
-                        xmin.val.t = bTimeTarget;
-                    break;
-                    case 'f':
-                        xmin.val.f -= 5.0;
-                        xmax.val.f += 5.0;
-                    break;
-                }
-            }
-            if ( yscalemode & AUTO)
-            {
-                switch ( ytype )
-                {
-                    case 't':
-			ymax.val.t.zt_Sec = autoTime;
-			ymax.val.t.zt_MicroSec = 0;
-                        ymin.val.t = bTimeTarget;
-                    break;
-                    case 'f':
-                        ymin.val.f -= 5.0;
-                        ymax.val.f += 5.0;
-                    break;
-                }
-            }
-        }
-        if ( xscalemode & AUTO )xy_SetScaleBounds(Pd,c,'x',xtype,&xmin,&xmax);
-        if ( yscalemode & AUTO )xy_SetScaleBounds(Pd,c,'y',ytype,&ymin,&ymax);
-
-        /*
-         * Now check if scale-bounds are different from the axis-bounds
-         * If so, and this is only an update, then trigger a global
-         * redraw so shift is reflected for all components
-         */
-        if ( ((lc_CompareData(&ymin,&oldymin) != 0 ) ||
-              (lc_CompareData(&ymax,&oldymax) != 0 ) )) yrescale = 1;
-        if ( ((lc_CompareData(&xmin,&oldxmin) != 0 ) ||
-              (lc_CompareData(&xmax,&oldxmax) != 0 ) )) xrescale = 1;
-        if ( update && (xrescale || yrescale )) TriggerGlobal = 1;
-        xy_AdjustAxes( Pd,c,xtype,update ? 0 : 1,ytype,update ? 0 : 1);
-
+	xy_GetScaleModes (c, &xauto, &xinvert, &yauto, &yinvert);
 /*
- * Plot the data.
+ * Determine our final plot bounds.  
  */
-        if ( !TriggerGlobal )
-        {
-	    XRectangle	clip;
-	    XColor	Black;
-	    int		dolabel = 1;
-	    int		linewidth = 1;
-	    float	*datagrid = NULL;
-	    GridInfoPtr	ginfo;
-	    int		ii,jj;
+	xy_DetermineBounds (c, 'x', &xmin, &xmax, xauto, xfnames[0], update);
+	xy_DetermineBounds (c, 'y', &ymin, &ymax, yauto, yfnames[0], update);
+/*
+ * Save current bounds for posterity
+ */
+	xy_SetPrivateScale (c, &xmin, &xmax, &ymin, &ymax);
+	xy_SaveDataTimes (c, &bTimeTarget, &eTimeTarget);
+/*
+ * Make the bounds official for coordinate conversion, and get the
+ * (possibly zoomed) bounds back
+ */
+	xleft = (xinvert) ? xmax : xmin;
+	xright = (xinvert) ? xmin : xmax;
+	ybottom = (yinvert) ? ymax : ymin;
+	ytop = (yinvert) ? ymin : ymax;
 
-	    ct_GetColorByName("white",&Black);
-            lc_SetUserCoord ( &xmin,&xmax,&ymin,&ymax);
-            lc_GetUserCoord ( &xmin,&xmax,NULL,NULL, xscalemode);
-            lc_GetUserCoord ( NULL,NULL,&ymin,&ymax, yscalemode);
-	    if ( xscalemode & INVERT )
-	    {
-	        clip.x = devX(&xmax,xscalemode);
-	        clip.width = devX(&xmin,xscalemode) - clip.x;
-	    }
-	    else 
-	    {
-	        clip.x = devX(&xmin,xscalemode);
-	        clip.width = devX(&xmax,xscalemode) - clip.x;
-	    }
-	    if ( yscalemode & INVERT )
-	    {
-	        clip.y = devY(&ymin,yscalemode);
-	        clip.height = devY(&ymax,yscalemode) - clip.y;
-	    }
-	    else
-	    {
-	        clip.y = devY(&ymax,yscalemode);
-	        clip.height = devY(&ymin,yscalemode) - clip.y;
-	    }
-            gp_Clip( &xmin, &ymin,&xmax,&ymax,xscalemode,yscalemode );
-            for (plat = 0; plat < nplat; plat++)
-            {
-                xy_GetDataMinMax(update, &zmin, &zmax, zdata[plat], npts);
-		ccenter = (zmin.val.f + (zmax.val.f - zmin.val.f)*0.5)/zstep;
-		ccenter = ccenter - (int)ccenter > 0.5 ? 
-		    zstep*(float)(int)(ccenter+1.0):
-		    zstep*(float)(int)(ccenter);
+	lc_SetBaseUserCoord (&xleft, &xright, &ybottom, &ytop);
+	lc_GetUserCoord (&xleft, &xright, &ybottom, &ytop);
+/*
+ * Top annotation
+ */
+	An_TopAnnot ("XY Contour:", taColor);
+	An_TopAnnot (c, taColor);
+/*
+ * Do each platform
+ */
+	for (plat = 0; plat < nplat; plat++)
+	{
+		ccenter = zstep * 
+			nint ((zmin[plat].val.f + zmax[plat].val.f) * 
+			      0.5 / zstep);
 	/*
-	 * Add this platform to the annotation
+	 * Update overlay times widget and set up for side annotation
 	 */
-	    if ( sideAnnot && !update)
-	    {
+		lw_TimeStatus (c, pnames[plat], &eTimeReq);
 
-                sprintf (datalabel, "%s%s %s %f %f", 
-			"contour-", fnames[2][plat],ctname, ccenter, zstep);
-                An_AddAnnotProc (An_ColorBar, c, datalabel,
-                                strlen(datalabel)+1, 75, TRUE, FALSE);
-	    }
-		/*
-		 * Call "rgrid" on the data
-		 */
-		if ( strcmp(gridtype,"rgrid") == 0)
-		{
-	            datagrid = (float*)xy_RGridit(c,update, 
-			 &xmin, &xmax, xscalemode,xgridres,
-			 &ymin, &ymax, yscalemode,ygridres,
-			  xdata[plat], ydata[plat], zdata[plat], npts, 
-			  BADVAL );
+		if (sideAnnot)
+		{	
+			sprintf (annotcontrol, "%s%s %s %f %f", "contour-",
+				 zfnames[plat], ctname, ccenter, zstep);
+			An_AddAnnotProc (An_ColorBar, c, annotcontrol,
+					 strlen (annotcontrol) + 1, 75, TRUE,
+					 FALSE);
 		}
-		else if ( strcmp(gridtype,"raw")==0)
+	/*
+	 * Grid the data as requested
+	 */
+		if (strcmp (gridtype, "rgrid") == 0)
 		{
-    	    	    ginfo = (GridInfoPtr)getGrid(c,update,xgridres, 
-				ygridres,BADVAL);
-	    	    gridRandomData(ginfo,
-			xdata[plat],ydata[plat],zdata[plat],npts,
-			&xmin,&xmax,xscalemode,
-			&ymin,&ymax,yscalemode,BADVAL);
-		    datagrid = ginfo->grid;
+			datagrid = xy_RGridit (c, &xleft, &xright, xgridres, 
+					       &ybottom, &ytop, ygridres, 
+					       xdata[plat], ydata[plat], 
+					       zdata[plat], npts[plat], 
+					       BADVAL);
 		}
-		else if ( strcmp(gridtype,"profile-linear")==0)
+		else if (strcmp (gridtype, "raw") == 0)
 		{
-    	    	    ginfo = (GridInfoPtr)getGrid(c,update,xgridres, 
-				ygridres,BADVAL);
-	    	    gridRandomData(ginfo,
-			xdata[plat],ydata[plat],zdata[plat],npts,
-			&xmin,&xmax,xscalemode,
-			&ymin,&ymax,yscalemode,BADVAL);
-		    datagrid = (float*)xy_InterpolateLinearOnY( ginfo, 
-			  &xmin, &xmax, &ymin, &ymax, BADVAL );
-/*
-		    for ( jj= 0; jj < ygridres; jj++)
-		    {
-		       fprintf ( stdout, "\r\n");
-		       for ( ii= 0; ii < xgridres; ii++)
-		       {
-			if ( GRID(ginfo->scratch,ii,jj,ygridres) < 0.0 )
-			    fprintf ( stdout, "*");
-	        	fprintf ( stdout, "%6.2f ",
-			   GRID(datagrid,ii,jj,ygridres) );
-		       }
-		    }
-*/
+			ginfo = getGrid (c, xgridres, ygridres, BADVAL);
+			gridRandomData (ginfo, xdata[plat], ydata[plat], 
+					zdata[plat], npts[plat], &xleft, 
+					&xright, &ybottom, &ytop, BADVAL);
+			datagrid = ginfo->grid;
 		}
-	        if ( strcmp(style, "line" ) == 0 )
+		else if (strcmp (gridtype, "profile-linear") == 0)
+		{
+			ginfo = getGrid (c, xgridres, ygridres, BADVAL);
+			gridRandomData (ginfo, xdata[plat], ydata[plat], 
+					zdata[plat], npts[plat], &xleft, 
+					&xright, &ybottom, &ytop, BADVAL);
+			datagrid = xy_InterpolateLinearOnY (ginfo, BADVAL);
+		}
+	/*
+	 * Clip rectangle for contouring module
+	 */
+		clip.x = FX0 * GWWidth (Graphics);
+		clip.width = (FX1 - FX0) * GWWidth (Graphics);
+		clip.y = (1.0 - FY1) * GWHeight (Graphics);
+		clip.height = (FY1 - FY0) * GWHeight (Graphics);
+	/*
+	 * Do the contours
+	 */
+		ct_GetColorByName ("white", &white);
+
+	        if (strcmp (style, "line") == 0)
 	        {
-		    CO_Init( colors, ncolors, ncolors/2, Black, clip,
-				TRUE, BADVAL );
-		    if ( xscalemode & INVERT )
-		    {
-		      Contour ( Graphics, GWFrame(Graphics), datagrid,
-			xgridres, ygridres, 
-			devX(&xmax,xscalemode),devY(&ymax,yscalemode),
-			devX(&xmin,xscalemode),devY(&ymin,yscalemode),
-			ccenter, zstep, dolabel ,linewidth );
-		    }
-		    else
-		    {
-		      Contour ( Graphics, GWFrame(Graphics), datagrid,
-			xgridres, ygridres, 
-			devX(&xmin,xscalemode),devY(&ymax,yscalemode),
-			devX(&xmax,xscalemode),devY(&ymin,yscalemode),
-			ccenter, zstep, dolabel ,linewidth );
-		    }
+			CO_Init (colors, ncolors, ncolors/2, white, clip, 
+				 TRUE, BADVAL);
+			Contour (Graphics, GWFrame (Graphics), datagrid,
+				 xgridres, ygridres, devX (&xleft), 
+				 devY (&ytop), devX (&xright), devY (&ybottom),
+				 ccenter, zstep, dolabel, linewidth);
 	        }
 		else
 		{
-		    FC_Init( colors, ncolors, ncolors/2, Black, clip,
-				TRUE, BADVAL );
-		    FillContour ( Graphics, GWFrame(Graphics), datagrid,
-			xgridres, ygridres, 
-			devX(&xmin,xscalemode),devY(&ymax,yscalemode),
-			devX(&xmax,xscalemode),devY(&ymin,yscalemode),
-			ccenter, zstep );
+			FC_Init (colors, ncolors, ncolors/2, white, clip, 
+				 TRUE, BADVAL);
+			FillContour (Graphics, GWFrame (Graphics), datagrid,
+				     xgridres, ygridres, devX (&xleft), 
+				     devY (&ytop), devX (&xright), 
+				     devY (&ybottom), ccenter, zstep);
 		}
-            }
-            XSetClipMask(XtDisplay(Graphics), Gcontext, None);
-        }
-
+	}
 /*
- * Add a period to the top annotation
+ * Add a period to the top annotation and draw axes
  */
-	if ( !update )
-	    An_TopAnnot (".  ", Tadefclr.pixel);
-
-        /*
-         * Store the updated data begin and end times.
-         */
-        if (update)
-            xy_SetPrivateDD(Pd,c,NULL, &eTimeReq, &nPlotted);
-        else
-            xy_SetPrivateDD(Pd,c,&bTimeReq, &eTimeReq, &nPlotted);
-
+	An_TopAnnot (".  ", taColor);
+	ac_PlotAxes (c);
 /*
  * Free local memory
  */
-	for ( i = 0; i < nplat; i++)
+	for (plat = 0; plat < nplat; plat++)
 	{
-	    if (xdata[i]) free(xdata[i]);
-	    if (ydata[i]) free(ydata[i]);
-	    if (zdata[i]) free(zdata[i]);
+		if (xdata[plat])
+			free (xdata[plat]);
+		if (ydata[plat])
+			free (ydata[plat]);
+		if (zdata[plat])
+			free (zdata[plat]);
 	}
-	free(xdata); free(ydata); free(zdata);
+	free (xdata);
+	free (ydata);
+	free (zdata);
 }
 
 
+
+
 GridInfoPtr
-getGrid(c,update,xdim, ydim,badval)
+getGrid (c, xdim, ydim, badval)
 char		*c;
-bool		update;
-int		xdim,ydim;
+int		xdim, ydim;
 float		badval;
 {
     GridInfoPtr	gridInfo = NULL; 
-    int			newData = 0;
-    int			i,j;
+    int		newData = 0;
+    int		i, j;
     /*
      * Search for old gridInfo for this component.
      */
-    while ( GridInfoList )
-    {
-	if ( strcmp( c, GridInfoList->component ) == 0 )
-	{
-	    gridInfo = GridInfoList;
-	    break;
-	}
-	GridInfoList = GridInfoList->next;
-    }
-
+    for (gridInfo = GridInfoList; gridInfo; gridInfo = gridInfo->next)
+	if (strcmp (c, gridInfo->component) == 0)
+		break;
     /*
      * Not found so need to allocate new gridInfo
      */
-    if ( !gridInfo ) 
+    if (!gridInfo)
     {
-	gridInfo = (GridInfoPtr)calloc( 1, sizeof(GridInfoRec));
-	gridInfo->next = GridInfoList;
+	gridInfo = (GridInfoPtr) calloc (1, sizeof (GridInfoRec));
 	gridInfo->xdim = gridInfo->ydim = 0;
 	gridInfo->grid = gridInfo->scratch = NULL;
+    /*
+     * Put it at the head of GridInfoList
+     */
+	gridInfo->next = GridInfoList;
+	GridInfoList = gridInfo;
     }
     /*
      * Allocate the grid.
      */
-    if ( xdim != gridInfo->xdim || ydim != gridInfo->ydim )
+    if (xdim != gridInfo->xdim || ydim != gridInfo->ydim)
     {
-	if ( gridInfo->grid ) free(gridInfo->grid);
-	if ( gridInfo->scratch ) free(gridInfo->scratch);
-        gridInfo->grid = (float*)malloc(ydim * xdim * sizeof(float));
-        gridInfo->scratch = (float*)malloc(ydim * xdim * sizeof(float));
+	if (gridInfo->grid)
+		free (gridInfo->grid);
+	if (gridInfo->scratch)
+		free (gridInfo->scratch);
+
+        gridInfo->grid = (float*) malloc (ydim * xdim * sizeof (float));
+        gridInfo->scratch = (float*) malloc (ydim * xdim * sizeof (float));
 	gridInfo->xdim = xdim;
 	gridInfo->ydim = ydim;
 	newData = 1;
@@ -793,364 +475,280 @@ float		badval;
     /*
      * Initialize the grid.
      */
-    if ( !update || newData )
+    for (i = 0; i < xdim; i++)
     {
-        for ( i = 0; i < xdim; i++)
-        {
-            for ( j = 0; j < ydim; j++)
+            for (j = 0; j < ydim; j++)
             {
-	        GRID(gridInfo->grid,i,j,ydim) = badval;
-	        GRID(gridInfo->scratch,i,j,ydim) = 0.0;
+		    GRID (gridInfo->grid, i, j, ydim) = badval;
+		    GRID (gridInfo->scratch, i, j, ydim) = 0.0;
             }
-        }
     }
-    return ( gridInfo );
+    return (gridInfo);
 }
-void
-xy_AddToLevel (plane, pwgt,xdim, ydim, xstep, xmin, xscalemode,iy, xdat, zdat)
-float	*plane;
-float	*pwgt;
-int	xdim,ydim;
-float	xstep;
-DataValPtr	xmin;
-unsigned short	xscalemode;
-int     iy;
-DataValPtr  xdat;
-DataValPtr  zdat;
-/*
- * Apply the point with value zdat located at (xdat,ydat) to the grid
- * at height index iy.  (For time-height plots, xdat should be the time
- * position and ydat should be zero)
- */
-{
-        int     ix,ii,jj;
-        float   x, d, wgt,xflt;
-/*
- * Step through the plane in the x direction at position index iy and use a 
- * weighting scheme to apply the given data point
- */
-	if ( zdat->type != 'f' ) return;
-        for (ix = 0; ix < xdim; ix++)
-        {
-		switch ( xdat->type )
-		{
-		    case 't':
-			xflt = 
-			 (float)((xdat->val.t.zt_Sec+xstep*0.5) - 
-				 xmin->val.t.zt_Sec);
-		    break;
-		    case 'f':
-			xflt = (xdat->val.f+xstep*0.5) - xmin->val.f;
-		    break;
-		}
-		if ( xflt < 0.0 || xflt > xdim * xstep ) continue;
 
-		if ( xscalemode & INVERT )
-		{
-                    x = (xdim-1) - (ix * xstep);
-		}
-		else
-		{
-                    x = ix * xstep;
-		}
-                d = fabs(xflt - x);
-        /*
-         * Use a 1/d^2 weighting scheme, truncated at a weight of 100
-         */
-                if (d < 0.1)
-                        wgt = 100;
-                else
-                        wgt = 1.0 / (d * d);
-        /*
-         * Apply the point
-         */
-                GRID(plane,ix,iy,ydim) = (GRID(plane,ix,iy,ydim) * GRID(pwgt,ix,iy,ydim) + 
-		    zdat->val.f * wgt) / (GRID(pwgt,ix,iy,ydim) + wgt);
-                GRID(pwgt,ix,iy,ydim) = GRID(pwgt,ix,iy,ydim) + wgt;
-        }
-}
+
+
 
 float *
-xy_RGridit( c,update,
-			  xmin, xmax, xscalemode,xdim,
-			  ymin, ymax,yscalemode,ydim,
-			  xdata, ydata, zdata, npts, badval )
+xy_RGridit (c, x0, x1, xdim, y0, y1, ydim, xdata, ydata, zdata, npts, 
+	    badval)
 char		*c;
-bool		update;
-DataValPtr	xmin,xmax;
-unsigned short  xscalemode;
+DataValPtr	x0, x1;
 int		xdim;
-DataValPtr	ymin,ymax;
-unsigned short yscalemode;
+DataValPtr	y0, y1;
 int		ydim;
-DataValPtr	xdata,ydata,zdata;
+DataValPtr	xdata, ydata, zdata;
 int		npts;
 float		badval;
 {
-    int	lxdim,lydim,lnpts;
+    int	lxdim, lydim, lnpts;
     float lbad;
-    int 	i,j,k;
+    int 	i, j, k;
     int		status;
     GridInfoPtr pinfo = NULL;
-    float	*xpos,*ypos,*data;
-    float	fxmin,fxmax, fymin,fymax;
-    pinfo = (GridInfoPtr)getGrid(c,update,xdim, ydim,badval);
-    xpos = (float*)calloc( npts, sizeof(float));
-    ypos = (float*)calloc( npts, sizeof(float));
-    data = (float*)calloc( npts, sizeof(float));
+    float	*xpos, *ypos, *data;
+    float	fx0, fx1, fy0, fy1;
+
+    pinfo = getGrid (c, xdim, ydim, badval);
+    xpos = (float*) calloc (npts, sizeof (float));
+    ypos = (float*) calloc (npts, sizeof (float));
+    data = (float*) calloc (npts, sizeof (float));
     /*
      * Add the data points to the grid.
      */
-    for ( k = 0; k < npts; k++)
+    for (k = 0; k < npts; k++)
     {
-	switch ( ydata[k].type )
+	switch (ydata[k].type)
 	{
 	    case 't':
-		    ypos[k]=(float)(ydata[k].val.t.zt_Sec - ymin->val.t.zt_Sec);
-	    break;
+		    ypos[k]= (float) 
+			    (ydata[k].val.t.zt_Sec - y0->val.t.zt_Sec);
+		    break;
 	    case 'f':
 		    ypos[k] = ydata[k].val.f;
-	    break;
+		    break;
 	}
-	switch ( xdata[k].type )
+	switch (xdata[k].type)
 	{
 	    case 't':
-		    xpos[k]=(float)(xdata[k].val.t.zt_Sec - xmin->val.t.zt_Sec);
-	    break;
+		    xpos[k]= (float) 
+			    (xdata[k].val.t.zt_Sec - x0->val.t.zt_Sec);
+		    break;
 	    case 'f':
 		    xpos[k] = xdata[k].val.f;
-	    break;
+		    break;
 	}
 	data[k] = zdata[k].val.f;
     }
     
-    switch ( xmin->type )
+    switch (x0->type)
     {
 	case 't':
-	    fxmin = 0.0;
-	    fxmax = (float)(xmax->val.t.zt_Sec-xmin->val.t.zt_Sec);
-	break;
+	    fx0 = 0.0;
+	    fx1 = (float) (x1->val.t.zt_Sec - x0->val.t.zt_Sec);
+	    break;
 	case 'f':
-	    fxmin = xmin->val.f;
-	    fxmax = xmax->val.f;
-	break;
+	    fx0 = x0->val.f;
+	    fx1 = x1->val.f;
+	    break;
     }
-    switch ( ymin->type )
+    switch (y0->type)
     {
 	case 't':
-	    fymin = 0.0;
-	    fymax = (float)(ymax->val.t.zt_Sec-ymin->val.t.zt_Sec);
-	break;
+	    fy0 = 0.0;
+	    fy1 = (float) (y1->val.t.zt_Sec - y0->val.t.zt_Sec);
+	    break;
 	case 'f':
-	    fymin = ymin->val.f;
-	    fymax = ymax->val.f;
-	break;
+	    fy0 = y0->val.f;
+	    fy1 = y1->val.f;
+	    break;
     }
     lxdim = xdim;
     lydim = ydim;
     lnpts = npts;
     lbad = badval;
-    status = do_rgrid_ (pinfo->grid, &lxdim, &lydim, &lnpts,
-		     data, &lbad, xpos, ypos, &fxmin, &fymin,
-		     &fxmax, &fymax, pinfo->scratch);
-    switch ( status )
+
+    status = do_rgrid_ (pinfo->grid, &lxdim, &lydim, &lnpts, data, &lbad,
+			xpos, ypos, &fx0, &fy0, &fx1, &fy1, pinfo->scratch);
+    switch (status)
     {
 	case RG_NOTENUFPTS:
-	    msg_ELog ( EF_PROBLEM, 
-	"X/Y Contour: Not enough data points to perform interpolation.");
-	break;
+	    msg_ELog (EF_PROBLEM, "XYContour: Too few points for RGRID.");
+	    break;
 	case RG_COLLINEAR:
-	    msg_ELog ( EF_PROBLEM, 
-	"X/Y Contour: Data points are collinear can't perform interpolation.");
-	break;
+	    msg_ELog (EF_PROBLEM, 
+		      "XYContour: Points passed to RGRID are collinear.");
+	    break;
     }
-    free ( xpos ); free (ypos); free(data);
 
-    return ( pinfo->grid );
+    free (xpos);
+    free (ypos);
+    free (data);
+
+    return (pinfo->grid);
 }
 
+
+
+
 int
-yGridIndex ( ydata, ydim, ystep, ymin, yscalemode )
+yGridIndex (ydata, ydim, ystep, y0)
 DataValPtr	ydata;
 int		ydim;
 float		ystep;
-DataValPtr	ymin;
-unsigned short	yscalemode;
+DataValPtr	y0;
 {
     int index;
-    switch ( ydata->type )
+    switch (ydata->type)
     {
 	case 't':
-	if ( yscalemode & INVERT )
-	{
-	    index = (int)
-	         ((float)((ydata->val.t.zt_Sec+ystep*0.5) - ymin->val.t.zt_Sec)/
-			 ystep);
-	}
-	else
-	{
-	    index = (ydim-1)-(int)
-	          ((float)((ydata->val.t.zt_Sec+ystep*0.5) - ymin->val.t.zt_Sec)/
-			 ystep);
-	}
-	break;
+	    index = (ydim - 1) - (int) ((float) (ydata->val.t.zt_Sec + 
+						 ystep * 0.5 - 
+						 y0->val.t.zt_Sec) / ystep);
+
+	    break;
 	case 'f':
-	if ( yscalemode & INVERT )
-	{
-	    index = (int)(((ydata->val.f+ystep*0.5) - ymin->val.f)/ ystep);
-	}
-	else
-	{
-	    index = (ydim-1)-(int)(((ydata->val.f+ystep*0.5) - ymin->val.f)/ ystep);
-	}
-	break;
+	    index = (ydim - 1) - (int) ((ydata->val.f + ystep * 0.5 - 
+					 y0->val.f) / ystep);
+
+	    break;
     }
-    if ( index < ydim ) 
-	return ( index );
+
+    if (index < ydim) 
+	    return (index);
     else
-	return ( -1 );
+	    return (-1);
 }
+
+
+
+
 int
-xGridIndex ( xdata, xdim, xstep, xmin, xscalemode )
+xGridIndex (xdata, xdim, xstep, x0)
 DataValPtr	xdata;
 int		xdim;
 float		xstep;
-DataValPtr	xmin;
-unsigned short	xscalemode;
+DataValPtr	x0;
 {
     int	index = -1;
-    switch ( xdata->type )
+    switch (xdata->type)
     {
 	case 't':
-	    if ( xscalemode & INVERT )
-	    {
-		index = (xdim-1)-(int)
-	          ((float)((xdata->val.t.zt_Sec+xstep*0.5) - xmin->val.t.zt_Sec)/
-			 xstep);
-	    }
-	    else
-	    {
-		index = (int)
-	          ((float)((xdata->val.t.zt_Sec+xstep*0.5) - xmin->val.t.zt_Sec)/
-			 xstep);
-	    }
-	break;
+	    index = (int) ((float) (xdata->val.t.zt_Sec + xstep * 0.5 - 
+				    x0->val.t.zt_Sec) / xstep);
+
+	    break;
 	case 'f':
-	    if ( xscalemode & INVERT )
-	    {
-		index = (xdim-1)-(int)(((xdata->val.f+xstep*0.5) - xmin->val.f)/ xstep);
-	    }
-	    else
-	    {
-		index = (int)(((xdata->val.f+xstep*0.5) - xmin->val.f)/ xstep);
-	    }
-	break;
+	    index = (int) ((xdata->val.f + xstep * 0.5 - x0->val.f) / xstep);
+
+	    break;
     }
-    if ( index < xdim ) 
-	return ( index );
-    else
-	return ( -1 );
-}
-float
-gridStep ( ddim, dataMin, dataMax )
-int	ddim;
-DataValPtr	dataMin,dataMax;
-{
-    float 	dstep = 0.0;
-    switch ( dataMin->type )
-    {
-	case 't':
-	    dstep = 
-		(float)(dataMax->val.t.zt_Sec - dataMin->val.t.zt_Sec)/
-			 ((float)ddim-1);
-	break;
-	case 'f':
-	    dstep = (dataMax->val.f - dataMin->val.f)/ ((float)ddim-1);
-	break;
-    }
-    return ( dstep );
+
+    if (index < xdim)
+	    return (index);
+    else 
+	    return (-1);
 }
 
+
+
+float
+gridStep (ddim, data0, data1)
+int	ddim;
+DataValPtr	data0, data1;
+{
+    float 	dstep = 0.0;
+    switch (data0->type)
+    {
+	case 't':
+	    dstep = (float) (data1->val.t.zt_Sec - data0->val.t.zt_Sec) /
+			 ((float) ddim-1);
+	    break;
+	case 'f':
+	    dstep = (data1->val.f - data0->val.f) / ((float) ddim-1);
+	    break;
+    }
+    return (dstep);
+}
+
+
+
 void
-gridRandomData(ginfo,xdata,ydata,zdata,npts,xmin,xmax,xscalemode,
-		ymin,ymax,yscalemode,badval)
+gridRandomData (ginfo, xdata, ydata, zdata, npts, x0, x1, y0, y1, 
+		badval)
 GridInfoPtr	ginfo;
-DataValPtr	xdata,ydata,zdata;
+DataValPtr	xdata, ydata, zdata;
 int		npts;
-DataValPtr	xmin,xmax;
-unsigned short	xscalemode;
-DataValPtr	ymin,ymax;
-unsigned short	yscalemode;
+DataValPtr	x0, x1;
+DataValPtr	y0, y1;
 float		badval;
 {
-    float	xstep,ystep;
-    int		ix,iy,k;
-    xstep = gridStep ( ginfo->xdim, xmin, xmax );
-    ystep = gridStep ( ginfo->ydim, ymin, ymax );
+    float	xstep, ystep;
+    int		ix, iy, k;
+    xstep = gridStep (ginfo->xdim, x0, x1);
+    ystep = gridStep (ginfo->ydim, y0, y1);
     /*
      * Add each data point to the correct grid cell. Keep track of how
      * many points are contributing to the cell in "scratch"
      */
-    for ( k = 0; k < npts; k++)
+    for (k = 0; k < npts; k++)
     {
-	ix = xGridIndex ( &(xdata[k]), ginfo->xdim, xstep, xmin, xscalemode );
-	iy = yGridIndex ( &(ydata[k]), ginfo->ydim, ystep, ymin, yscalemode );
-	if ( ix >= 0 && iy >= 0 )
+	ix = xGridIndex (& (xdata[k]), ginfo->xdim, xstep, x0);
+	iy = yGridIndex (& (ydata[k]), ginfo->ydim, ystep, y0);
+	if (ix >= 0 && iy >= 0)
 	{
-	    if ( GRID(ginfo->grid,ix,iy,ginfo->ydim) == badval )
+	    if (GRID (ginfo->grid, ix, iy, ginfo->ydim) == badval)
 	    {
-                GRID(ginfo->grid,ix,iy,ginfo->ydim) = zdata[k].val.f;
-                GRID(ginfo->scratch,ix,iy,ginfo->ydim) = 1.0;
+                GRID (ginfo->grid, ix, iy, ginfo->ydim) = zdata[k].val.f;
+                GRID (ginfo->scratch, ix, iy, ginfo->ydim) = 1.0;
 	    }
 	    else
 	    {
-                GRID(ginfo->grid,ix,iy,ginfo->ydim) += zdata[k].val.f;
-                GRID(ginfo->scratch,ix,iy,ginfo->ydim) += 1.0;
+                GRID (ginfo->grid, ix, iy, ginfo->ydim) += zdata[k].val.f;
+                GRID (ginfo->scratch, ix, iy, ginfo->ydim) += 1.0;
 	    }
 	}
     }
     /*
      * Now average the points at each grid cell.
      */
-    for ( iy = 0; iy < ginfo->ydim; iy++)
+    for (iy = 0; iy < ginfo->ydim; iy++)
     {
-        for ( ix = 0; ix < ginfo->xdim; ix++)
+        for (ix = 0; ix < ginfo->xdim; ix++)
         {
-	    if ( GRID(ginfo->grid,ix,iy,ginfo->ydim) != badval )
+	    if (GRID (ginfo->grid, ix, iy, ginfo->ydim) != badval)
 	    {
-                GRID(ginfo->grid,ix,iy,ginfo->ydim) /= 
-        	    GRID(ginfo->scratch,ix,iy,ginfo->ydim);
-                GRID(ginfo->scratch,ix,iy,ginfo->ydim) = -1.0;
+                GRID (ginfo->grid, ix, iy, ginfo->ydim) /= 
+        	    GRID (ginfo->scratch, ix, iy, ginfo->ydim);
+                GRID (ginfo->scratch, ix, iy, ginfo->ydim) = -1.0;
 	    }
         }
     }
 }
 
 float *
-xy_InterpolateLinearOnY( ginfo, xmin, xmax, ymin, ymax,badval )
+xy_InterpolateLinearOnY (ginfo, badval)
 GridInfoPtr	ginfo;
-DataValPtr	xmin,xmax;
-DataValPtr	ymin,ymax;
 float		badval;
 {
-    int 	iy,ix;
+    int 	iy, ix;
     int		nx;
     float	zstep;
     int		obsid;
     float	dz;
     int		*dataLoc;
 
-    dataLoc = (int*)calloc( ginfo->xdim, sizeof(int));
+    dataLoc = (int*) calloc (ginfo->xdim, sizeof (int));
 
-    for ( iy = 0; iy < ginfo->ydim; iy++)
+    for (iy = 0; iy < ginfo->ydim; iy++)
     {
 	nx = 0;
 	/*
 	 * First find all the observed values at this y-level.
 	 */
-        for ( ix = 0; ix < ginfo->xdim; ix++)
+        for (ix = 0; ix < ginfo->xdim; ix++)
         {
-	    if ( GRID(ginfo->grid,ix,iy,ginfo->ydim) != badval )
+	    if (GRID (ginfo->grid, ix, iy, ginfo->ydim) != badval)
 	    {
 		dataLoc[nx] = ix;
 		nx++;
@@ -1159,20 +757,20 @@ float		badval;
 	/*
 	 * Now interpolate missing values at this y-level.
 	 */
-        for ( obsid = 0; obsid < nx-1; obsid++)
+        for (obsid = 0; obsid < nx-1; obsid++)
         {
-	    dz = GRID(ginfo->grid,dataLoc[obsid+1],iy,ginfo->ydim)-
-		     GRID(ginfo->grid,dataLoc[obsid],iy,ginfo->ydim);
-	    zstep = dz/(dataLoc[obsid+1]-dataLoc[obsid]);
+	    dz = GRID (ginfo->grid, dataLoc[obsid+1], iy, ginfo->ydim) -
+		     GRID (ginfo->grid, dataLoc[obsid], iy, ginfo->ydim);
+	    zstep = dz / (dataLoc[obsid+1] - dataLoc[obsid]);
 
-	    for ( ix = dataLoc[obsid]+1; ix < dataLoc[obsid+1]; ix++)
+	    for (ix = dataLoc[obsid] + 1; ix < dataLoc[obsid+1]; ix++)
 	    {
-		GRID(ginfo->grid,ix,iy,ginfo->ydim) = 
-		     GRID(ginfo->grid,dataLoc[obsid],iy,ginfo->ydim) +
-		   (zstep*(ix - dataLoc[obsid]));
+		GRID (ginfo->grid, ix, iy, ginfo->ydim) = 
+			GRID (ginfo->grid, dataLoc[obsid], iy, ginfo->ydim) +
+				(zstep* (ix - dataLoc[obsid]));
 	    }
 	}
     }
-    free(dataLoc);
-    return ( ginfo->grid );
+    free (dataLoc);
+    return (ginfo->grid);
 }

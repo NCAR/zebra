@@ -1,7 +1,7 @@
 /*
  * XY-Wind plotting module
  */
-static char *rcsid = "$Id: XYWind.c,v 1.19 1993-11-04 19:41:28 burghart Exp $";
+static char *rcsid = "$Id: XYWind.c,v 1.20 1993-12-01 17:32:30 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -39,21 +39,14 @@ static char *rcsid = "$Id: XYWind.c,v 1.19 1993-11-04 19:41:28 burghart Exp $";
 # include "LayoutControl.h"
 # include "XYCommon.h"
 # include "AxisControl.h"
+# include "PlotPrim.h"
 
 /*
  * General definitions
  */
 void	xy_Wind FP ((char *, int));
 
-/*
- * Line style
- */
-typedef enum {L_solid, L_dashed, L_dotted} LineStyle;
 
-/*
- * Color array and indices
- */
-extern XColor 	Tadefclr;
 
 
 void
@@ -64,117 +57,82 @@ bool	update;
  * Draw an xy-graph on the given component
  */
 {
-	bool	ok;
-	int	i, npts, plat, nplat, ii, jj, ns ;
-	int	nxfield,nyfield;
-	int	count;
-	int 	nPlotted=0;
-	char	platforms[MAX_PLAT_LEN], tadefcolor[30];
-	char	ctname[20];
-	float   cstep;           /* interval for each step of color tables */
-	float	scaleSpeed;
+	bool	ok, xauto, yauto, xinvert, yinvert, angle, sideAnnot, doKnot;
+	int	npts[MAX_PLAT], plat, nplat;
+	int	nxfield, nyfield, ncolors, skip, dmode;
+	char	platforms[MAX_PLAT_LEN], *pnames[MAX_PLAT];
+	char	xflds[MAX_PLAT_LEN], yflds[MAX_PLAT_LEN];
+	char	*xfnames[MAX_PLAT], *yfnames[MAX_PLAT];
+	char	windfld1[32], windfld2[32], ctname[32], style[32];
+	char	xtype, ytype, csystem[16], annotcontrol[80], barbtype[16];
+	float   cstep, scaleSpeed, vecScale = 0.01;
 	XColor	*colors;
-	int	ncolors;
-	char	dataNames[4][MAX_PLAT_LEN];
-	FieldId	fids[4];
-	ZebTime	bTimeTarget,eTimeTarget;
-	ZebTime	eTimeReq,bTimeReq;
+	ZebTime	bTimeTarget, eTimeTarget, eTimeReq, bTimeReq;
 	ZebTime	eTimeOld,bTimeOld;
-	char	stime1[TIME_LEN],stime2[TIME_LEN];
-	long	autoTime;
-	char	*pnames[MAX_PLAT];
-	char	*fnames[4][MAX_PLAT];
-	PlatformId	pid;
-	DataChunk	*dc = NULL;
-	DataClass	xyClass;
-	Location	origin;
-	int		n, m, len;
-	float		badvalue, *data[MAX_PLAT], *tempdata;
-	RGrid		rg;
-	DataOrganization	xyOrg;
-	DataValPtr	*xdata,*ydata;
-	DataValPtr	*udata,*vdata;
-	DataValRec	xmin,xmax,ymin,ymax;
-	DataValRec	oldxmin,oldxmax,oldymin,oldymax;
-	int		xrescale=0,yrescale =0;
-	char		xtype = 'f',ytype = 'f';
-	DataValRec	oldmin, oldmax;
-	unsigned short	xscalemode,yscalemode;
-	int	fcount;
-        int	xdim,ydim;
-	int	saveConfig;
-	int	angle = 0;
-	int	udim,vdim;
-	int	nufield, nvfield;
-	float	vecScale = 0.01;
-	int	skip;
-	char	style[80];
-	char	csystem[32];
-	int	dmode;
-	char	datalabel[MAX_PLAT_LEN];
-	bool	sideAnnot;
-        char    barbtype[8];
-        int     doKnot = 0;
+	DataValPtr	*xdata, *ydata, *w1data, *w2data;
+	DataValRec	xmin, xmax, ymin, ymax;
+	DataValRec	xleft, xright, ybottom, ytop;
+	xyDataVector	dv[4];
+	Pixel	taColor;
 /*
  * Get X-Y Winds Required parameters:
  * "platform","x-field", "y-field", "coords", "color-table", "org"
  */
 	ok = pda_ReqSearch (Pd, c, "platform", NULL, platforms, SYMT_STRING);
-	ok = pda_ReqSearch (Pd,c,"x-field",NULL, (char*)(dataNames[0]), SYMT_STRING);
-	ok = pda_ReqSearch (Pd,c,"y-field",NULL, (char*)(dataNames[1]), SYMT_STRING);
+	ok &= pda_ReqSearch (Pd, c, "x-field", NULL, xflds, SYMT_STRING);
+	ok &= pda_ReqSearch (Pd, c, "y-field", NULL, yflds, SYMT_STRING);
+	ok &= pda_ReqSearch (Pd, c, "coords", "xy-wind", csystem, SYMT_STRING);
+	ok &= pda_ReqSearch (Pd, c, "color-table", "xy-wind", ctname,
+			     SYMT_STRING);
 
-	/* The winds coordinate system */
-	ok = pda_ReqSearch (Pd,c,"coords","xy-wind", csystem, SYMT_STRING);
-	if ( strcmp ( csystem , "compass" ) == 0 )
+	if (! ok)
+		return;
+/*
+ * Winds coordinate system
+ */
+	if (! strcmp (csystem, "compass"))
 	{
-	    if( !pda_Search (Pd,c,"wdir-field","xy-wind",(dataNames[2]),
-			     SYMT_STRING) )
-	    {
-		strcpy ( dataNames[2], "wdir");
-	    }
-	    if( !pda_Search (Pd,c,"wspd-field","xy-wind",(dataNames[3]),
-			     SYMT_STRING) )
-	    {
-		strcpy ( dataNames[3], "wspd");
-	    }
-	    angle = 1;
+		strcpy (windfld1, "wdir");
+		pda_Search (Pd, c, "wdir-field", "xy-wind", windfld1, 
+			    SYMT_STRING);
+
+		strcpy (windfld2, "wspd");
+		pda_Search (Pd, c, "wspd-field", "xy-wind", windfld2, 
+			    SYMT_STRING);
+
+		angle = TRUE;
 	}
 	else 
 	{
-	    if( !pda_Search (Pd,c,"u-field","xy-wind",(dataNames[2]),
-			     SYMT_STRING) )
-	    {
-		strcpy ( dataNames[2], "u_wind");
-	    }
-	    if( !pda_Search (Pd,c,"v-field","xy-wind",(dataNames[3]),
-			     SYMT_STRING) )
-	    {
-		strcpy ( dataNames[3], "v_wind");
-	    }
-	    angle = 0;
+		strcpy (windfld1, "u_wind");
+		pda_Search (Pd, c, "u-field", "xy-wind", windfld1, 
+			    SYMT_STRING);
+
+		strcpy (windfld2, "v_wind");
+		pda_Search (Pd, c, "v-field", "xy-wind", windfld2, 
+			    SYMT_STRING);
+
+		angle = FALSE;
 	}
-
-	ok &= pda_ReqSearch (Pd, c, "color-table", "xy-wind",ctname,SYMT_STRING);
-
-	if (! ok) return;
 /*
  * Parse platform and field name information. 
  */
-	nplat = CommaParse (platforms, pnames);
-	nxfield = CommaParse (dataNames[0], fnames[0]);
-	nyfield = CommaParse (dataNames[1], fnames[1]);
-	nufield = CommaParse (dataNames[2], fnames[2]);
-	nvfield = CommaParse (dataNames[3], fnames[3]);
-	if ( nxfield != nplat && nyfield != nplat && 
-	     nufield != nplat && nvfield != nplat)
+	if ((nplat = CommaParse (platforms, pnames)) > MAX_PLAT)
 	{
-	    msg_ELog ( EF_PROBLEM, 
-		"X/Y Wind: number of fields of doesn't correspond to number of platforms.");
-	    return;
+		msg_ELog (EF_PROBLEM, "XYWind: %s: too many platforms", c);
+		return;
 	}
-/* for now, only allow max MAX_PLAT platforms */
-	if (nplat > MAX_PLAT)
-		nplat = MAX_PLAT;
+
+	nxfield = CommaParse (xflds, xfnames);
+	nyfield = CommaParse (yflds, yfnames);
+
+	if ((nxfield != nplat && nxfield != 1) || 
+	    (nyfield != nplat && nyfield != 1))
+	{
+		msg_ELog (EF_PROBLEM, 
+			  "XYWind: %s: bad number of fields.", c);
+		return;
+	}
 /*
  * Get X-Y Winds optional parameters:
  * "vec-scale" - the number of pixels long to make the barb, or the vector
@@ -184,517 +142,306 @@ bool	update;
  * "step" - float, the size of the color table intervale
  * "barb-type" - "m/s" or "knots"
  */
-        if ( !pda_Search (Pd,c,"do-side-annotation", "xy-wind",
-                (char *) &sideAnnot, SYMT_BOOL))
-        {
-            sideAnnot = True;
-        }
+	sideAnnot = TRUE;
+	pda_Search (Pd, c, "do-side-annotation", "xy-wind", 
+		    (char *) &sideAnnot, SYMT_BOOL);
 
-	if ( !pda_Search (Pd,c,"data-skip", "xy-wind",(char *) &skip, SYMT_INT))
+	skip = 5;
+	pda_Search (Pd, c, "data-skip", "xy-wind", (char *) &skip, SYMT_INT);
+
+	strcpy (style, "vector");
+	pda_Search (Pd, c, "representation-style", "xy-wind", style, 
+		    SYMT_STRING);
+
+	if (strcmp (style, "vector") == 0)
 	{
-	    skip = 5;
-	}
-	if ( !pda_Search (Pd,c,"representation-style", "xy-wind",(char *)style, SYMT_STRING))
-	{
-	    strcpy(style, "vector" );
-	}
-	if ( strcmp(style, "vector" )==0)
-	{
-	    if( !pda_Search (Pd,c,"vec-scale", "xy-wind",(char *) &vecScale, 
-			SYMT_FLOAT))
-	    {
-	        vecScale = 5.0;
-	    }
+		vecScale = 5.0;
+		pda_Search (Pd, c, "vec-scale", "xy-wind", (char *) &vecScale, 
+			    SYMT_FLOAT);
 	}
 	else 
 	{
-	    if( !pda_Search (Pd,c,"barb-scale", "xy-wind",(char *) &vecScale, 
-			SYMT_FLOAT))
-	    {
-	        vecScale = 25.0;
-	    }
-            if( !pda_Search (Pd,c,"barb-type", "xy-wind",(char *) barbtype,
-                        SYMT_STRING))
-            {
-                strcpy ( barbtype, "m/s");
-            }
+		vecScale = 25.0;
+		pda_Search (Pd, c, "barb-scale", "xy-wind", (char *) &vecScale,
+			    SYMT_FLOAT);
+
+		strcpy (barbtype, "m/s");
+		pda_Search (Pd, c, "barb-type", "xy-wind", barbtype, 
+			    SYMT_STRING);
+
+		doKnot = strcmp (barbtype, "knots") == 0;
 	}
-	if( !pda_Search (Pd,c,"step", "xy-wind",(char *) &cstep, SYMT_FLOAT))
+
+	cstep = 5.0;
+	pda_Search (Pd, c, "step", "xy-wind", (char *) &cstep, SYMT_FLOAT);
+
+	scaleSpeed = 25.0;
+	pda_Search (Pd, c, "scale-speed", "xy-wind", (char *) &scaleSpeed, 
+		    SYMT_FLOAT);
+/*
+ * data types
+ */
+	xtype = (strcmp (xfnames[0], "time") == 0) ? 't' : 'f';
+	ytype = (strcmp (yfnames[0], "time") == 0) ? 't' : 'f';
+/*
+ * Get our time bounds
+ */
+	xy_GetTimes (c, &bTimeTarget,&eTimeTarget, &bTimeOld, &eTimeOld, 
+		     &dmode);
+
+	if (! update)
 	{
-	  cstep = 5.0;
-	}
-	if( !pda_Search (Pd,c,"scale-speed", "xy-wind",(char *) &scaleSpeed, SYMT_FLOAT))
-	{
-	  scaleSpeed = 25.0;
+		bTimeOld.zt_Sec = bTimeOld.zt_MicroSec = 0;
+		eTimeOld.zt_Sec = eTimeOld.zt_MicroSec = 0;
 	}
 /*
- * Allocate memory for data and attibutes
+ * Top annotation color
  */
-	xdata = (DataValPtr*)malloc (nplat* sizeof(DataValPtr));
-	ydata = (DataValPtr*)malloc (nplat* sizeof(DataValPtr));
-	udata = (DataValPtr*)malloc (nplat* sizeof(DataValPtr));
-	vdata = (DataValPtr*)malloc (nplat* sizeof(DataValPtr));
-/*
- * Initialize local environment.
- */
-	/*lc_SetUserCoord ( 0.0,1.0,0.0,1.0);*/
-/*
- * Get Generic plot description information.
- */
-	if ( strcmp( fnames[0][0],"time" ) == 0 )
-	    xtype = 't';
-	if ( strcmp( fnames[1][0],"time" ) == 0 )
-	    ytype = 't';
-        xy_GetScaleInfo(Pd,c,'x',&xscalemode);
-        xy_GetScaleInfo(Pd,c,'y',&yscalemode);
-        xy_GetCurrentScaleBounds(Pd,c,'x',xtype,&oldxmin,&oldxmax,fnames[0][0]);
-        xy_GetCurrentScaleBounds(Pd,c,'y',ytype,&oldymin,&oldymax,fnames[1][0]);
-	xmin = oldxmin;
-        xmax = oldxmax;
-        ymin = oldymin;
-        ymax = oldymax;
-
-        xy_GetDataDescriptors(Pd, c, update,
-                              &bTimeTarget,&eTimeTarget,
-                              &bTimeOld,&eTimeOld,
-                              &dmode,&nPlotted );
-
-   /*
-    * Check to see if the current Plot-Time is already beyond
-    * the existing time-scale.
-    */
-        if ( (xscalemode & AUTO) && xtype == 't' )
-        {
-            if ( update )
-            {
-		TC_EncodeTime ( &eTimeTarget, TC_Full, stime1 );
-		TC_EncodeTime ( &(xmax.val.t), TC_Full, stime2 );
-                msg_ELog ( EF_DEBUG,
-                   "%s new Axis EndTime = %s old Axis EndTime = %s",
-                        c, stime1, stime2 );
-                if ( eTimeTarget.zt_Sec > xmax.val.t.zt_Sec )
-                {
-                    TriggerGlobal = 1;
-                }
-            }
-        }
-        if ( (yscalemode & AUTO) && ytype == 't' )
-        {
-            if ( update )
-            {
-                if ( eTimeTarget.zt_Sec > ymax.val.t.zt_Sec )
-                {
-                    TriggerGlobal = 1;
-                }
-            }
-        }
-
-	xy_GetPlotColors(Pd,c,nplat,NULL,tadefcolor);
-
-/*
- **********************************************************
- * X-dependent set-up
- **********************************************************
- */
-/*
- * Get X-pixel for colors...
- */
-	if (! ct_GetColorByName(tadefcolor, &Tadefclr))
-	{
-	    msg_ELog(EF_PROBLEM, "Can't get X annotation color: '%s'.",
-			tadefcolor);
-	    strcpy(tadefcolor, "white");
-	    ct_GetColorByName(tadefcolor, &Tadefclr);
-	}
+	xy_GetPlotColors (c, nplat, NULL, &taColor);
 /*
  * Attempt to load color table 
  */
 	ct_LoadTable (ctname, &colors, &ncolors);
 	if (ncolors < 1)
 	{
-		msg_ELog(EF_PROBLEM, "XY-Windcolor table too small");
+		msg_ELog (EF_PROBLEM, "XY-Contour: color table too small");
 		return;
 	}
 /*
- **********************************************************
- **********************************************************
+ * Allocate space for pointers to the data arrays and for observation info
  */
-
+	xdata = (DataValPtr*) malloc (nplat * sizeof(DataValPtr));
+	ydata = (DataValPtr*) malloc (nplat * sizeof(DataValPtr));
+	w1data = (DataValPtr*) malloc (nplat * sizeof(DataValPtr));
+	w2data = (DataValPtr*) malloc (nplat * sizeof(DataValPtr));
 /*
- * Do the plot.
+ * Initialize data min/max values.
  */
-
-/*
- * Plot the top annotation.
- */
-	if (! update)
+	xmin.type = xmax.type = xtype;
+	if (xtype == 'f')
 	{
-	    An_TopAnnot ("X/Y Wind:", Tadefclr.pixel);
-	    An_TopAnnot (c,Tadefclr.pixel);
+		xmin.val.f = 9.99e9;
+		xmax.val.f = -9.99e9;
 	}
-/*
- * Side annotation.
- */
-	if (sideAnnot && !update)
+	else
 	{
-	    if (strcmp (style, "vector") == 0 )
-	    {
-                sprintf (datalabel, "%5.1f%s %d %f %f %f", scaleSpeed,
-			"m/sec", Tadefclr.pixel, scaleSpeed, 0.0, vecScale);
-                An_AddAnnotProc (An_ColorVector, c, datalabel,
-                        strlen (datalabel) + 1, 30, FALSE, FALSE);
-		sprintf (datalabel, "%s %s %f %f", "wind-speed:m/sec",
-                        ctname, 
-		ncolors%2 ?(ncolors*cstep*0.5)-cstep*0.5 :ncolors*cstep*0.5,
-                        cstep);
-	    }
-	    if (strcmp (style, "barb") == 0 )
-	    {	
-                doKnot = strcmp( barbtype, "knots" ) == 0 ? 1 :0;
-                sprintf (datalabel, "%s %d %d", barbtype,
-                                Tadefclr.pixel,  (int)vecScale);
-                An_AddAnnotProc (An_BarbLegend, c, datalabel,
-                                strlen(datalabel)+1, 100, FALSE, FALSE);
-                sprintf (datalabel, "%s%s %s %f %f ",
-                        "wind-speed:",barbtype ,ctname,
-                    ncolors%2 ?(ncolors*cstep*0.5)-cstep*0.5 :ncolors*cstep*0.5,
-                        cstep);
-	    }
-            An_AddAnnotProc (An_ColorBar, c, datalabel, strlen (datalabel) + 1,
-		 75, TRUE, FALSE);
+		xmin.val.t = bTimeTarget;
+		xmax.val.t = eTimeTarget;
 	}
 
+	ymin.type = ymax.type = ytype;
+	if (ytype == 'f')
+	{
+		ymin.val.f = 9.99e9;
+		ymax.val.f = -9.99e9;
+	}
+	else
+	{
+		ymin.val.t = bTimeTarget;
+		ymax.val.t = eTimeTarget;
+	}
 /*
- * Loop through the platforms
+ * Loop through the platforms and get the data vectors
  */
 	for (plat = 0; plat < nplat; plat++)
 	{
-	/*
-	 * Add this platform to the annotation
-	 */
-	    if (sideAnnot && !update)
-	    {
-		sprintf (datalabel, "%s %d", pnames[plat], Tadefclr.pixel);
-		An_AddAnnotProc (An_ColorString, c, datalabel, 
-			strlen (datalabel), 25, FALSE, FALSE);
-	    }
-	/*
-	 * Get the data and determine the coordinate min and max's
-	 */
-	    pid = ds_LookupPlatform (pnames[plat]);
-	    if (pid == BadPlatform)
-	    {
-		msg_ELog (EF_PROBLEM, "Bad platform '%s'", pnames[plat]);
-		continue;
-	    }
-            xyOrg = ds_PlatformDataOrg(pid);
-	    switch (xyOrg)
-	    {
-		case OrgScalar:
-		case OrgFixedScalar:
-			xyClass = DCC_Scalar;
-			break;
-		case Org1dGrid:
-			xyClass = DCC_RGrid;
-			break;
-		default:
-			msg_ELog (EF_PROBLEM, "Bad orgainization.");
-			continue;
-	    }
+		bool	single_obs;
+		PlatformId	pid = ds_LookupPlatform (pnames[plat]);
 
+		npts[plat] = 0;
 	/*
-	 * Set up the field-names for the data retrieval request.
+	 * Check the platform ID
 	 */
-	    fcount = 0;
-	    if (xtype != 't')
-	    {
-		xdim = fcount;
-	        fids[fcount] = F_Lookup (fnames[0][plat]); fcount++;
-	    }
-	    if (ytype != 't')
-	    {
-		ydim = fcount;
-	        fids[fcount] = F_Lookup (fnames[1][plat]); fcount++;
-	    }
-	    udim = fcount;
-	    fids[fcount] = F_Lookup (fnames[2][plat]); fcount++;
-	    vdim = fcount;
-	    fids[fcount] = F_Lookup (fnames[3][plat]); fcount++;
-	/*
-	 *  Determine times of data to request.
-	 */
-            if (! xy_AvailableData (pid, &bTimeTarget, &eTimeTarget, &eTimeOld,
-				   &bTimeReq, &eTimeReq))
-	    {
-		    TC_EncodeTime (&bTimeTarget, TC_Full, stime1);
-		    TC_EncodeTime (&eTimeTarget, TC_Full, stime2);
-		    msg_ELog (EF_INFO, "No data for '%s' between %s and %s",
-			      pnames[plat], stime1, stime2);
-		    npts = 0;
-		    xdata[plat] = NULL;
-		    ydata[plat] = NULL;
-		    udata[plat] = NULL;
-		    vdata[plat] = NULL;
-		    continue;
-	    }
-
-	    TC_EncodeTime (&bTimeTarget, TC_Full, stime1);
-	    TC_EncodeTime (&eTimeTarget, TC_Full, stime2);
-	    msg_ELog (EF_DEBUG, "%s data request times begin: %s end: %s",
-		      c, stime1, stime2);
-
-	    dc = NULL;
-	    dc = ds_Fetch (pid, xyClass, &bTimeReq, &eTimeReq, fids, fcount,
-			   NULL, 0);
-
-	    if (! dc)
-	    {
-		    msg_ELog (EF_INFO, 
-			      "No requested data for '%s' between %s and %s",
-			      pnames[plat], stime1, stime2);
-		    npts = 0;
-		    xdata[plat] = NULL;
-		    ydata[plat] = NULL;
-		    udata[plat] = NULL;
-		    vdata[plat] = NULL;
-		    continue;
-	    }
-	/*
-	 * Now that we have a data chunk, update the overlay times widget
-	 */
-	    if ( !update ) lw_TimeStatus (c, pnames[plat], &eTimeReq);
-	/*
-	 * Extract the data from the data chunk
-	 */
-	    badvalue = dc_GetBadval (dc);
-	    
-	    if ( xyOrg == OrgScalar )
-	    {
-		    npts = dc_GetNSample (dc);
-		    for (n = 0; n < fcount; n++)
-		    {
-			    data[n] = (float *) malloc (npts * sizeof (float));
-			    for (m = 0; m < npts; m++)
-				    data[n][m] = dc_GetScalar (dc, m, fids[n]);
-		    }
-	    }
-	    else if ( xyOrg == Org1dGrid )
-	    {
-		    ns = dc_GetNSample (dc);
-		    for (n = 0; n < fcount; n++)
-		    {
-			    for (m = 0; m < ns; m++)
-			    {
-				    tempdata = dc_RGGetGrid (dc, m, fids[n],
-							     &origin, &rg, 
-							     &len);
-				    if ( m == 0 )
-				    {
-					    npts = rg.rg_nX * ns;
-					    data[n] = (float *)
-						malloc (npts * sizeof (float));
-				    }
-				    memcpy (data[n] + (m*rg.rg_nX), tempdata, 
-					    len);
-			    }
-		    }
-	    }
-	    
-	    xdata[plat] = (DataValPtr) malloc (npts * sizeof(DataValRec));
-	    ydata[plat] = (DataValPtr) malloc (npts * sizeof(DataValRec));
-	    udata[plat] = (DataValPtr) malloc (npts * sizeof(DataValRec));
-	    vdata[plat] = (DataValPtr) malloc (npts * sizeof(DataValRec));
-
-	    count = 0;
-	    /*
-	     * Extract field data arrays.
-	     */
-            msg_ELog ( EF_DEBUG,
-                   "X-Y Graph found %d data points for component %s.",npts,c);
-	    for ( ii = 0; ii < npts; ii++ )
-	    {
-		/* skip bad data points */
-		do {
-		    for ( jj = 0; jj < fcount ; jj++)
-		    {
-			if (data[jj][ii] == badvalue)
-			{
-			    ii++; break;
-			}
-		    }
-		} while ( jj < fcount && ii < npts);
-		if ( ii < npts )
+		if (pid == BadPlatform)
 		{
-		  if ( xtype == 't' )
-		  {
-		    dc_GetTime (dc, xyOrg == OrgScalar ? ii : 
-			(int) (ii/rg.rg_nX), &(xdata[plat][count].val.t));
-		    xdata[plat][count].type = 't';
-		  }
-		  else
-		  {
-		    xdata[plat][count].val.f = data[xdim][ii];
-		    xdata[plat][count].type = 'f';
-		  }
-		  if ( ytype == 't' )
-		  {
-		    dc_GetTime (dc, xyOrg == OrgScalar ? ii : 
-			(int) (ii/rg.rg_nX), &(ydata[plat][count].val.t));
-		    ydata[plat][count].type = 't';
-		  }
-		  else
-		  {
-		    ydata[plat][count].val.f = data[ydim][ii];
-		    ydata[plat][count].type = 'f';
-		  }
-		  udata[plat][count].val.f = data[udim][ii];
-		  vdata[plat][count].val.f = data[vdim][ii];
-		  udata[plat][count].type = 'f';
-		  vdata[plat][count].type = 'f';
-		  count += nPlotted % (skip+1) == 0 ? 1 : 0;
-		  nPlotted++;
+			msg_ELog (EF_PROBLEM, 
+				  "XYGraph: %s: Bad platform '%s'", c, 
+				  pnames[plat]);
+			continue;
 		}
-	    }
-	    npts = count;
-	    /*
-	     * Calculate autoscaled mins/maxs if necessary.
-	     */
-            if ( (xscalemode & AUTO) && xtype != 't' )
-            {
-                xy_GetDataMinMax(update, &xmin, &xmax, xdata[plat], npts);
-            }
-            if ( (yscalemode & AUTO) && ytype != 't' )
-            {
-                xy_GetDataMinMax(update, &ymin, &ymax, ydata[plat], npts);
-            }
-	    /*
-	     * Free memory.
-	     */
-	    dc_DestroyDC (dc);
-	    for (n = 0; n < fcount; n++)
-		if (data[n])
-			free (data[n]);
+	/*
+	 * Figure out good data request begin and end times
+	 */
+		if (! xy_AvailableData (pid, &bTimeTarget, &eTimeTarget, 
+					&eTimeOld, &bTimeReq, &eTimeReq))
+			continue;
+	/*
+	 * Do we want a single "observation" worth of data?
+	 */
+		single_obs = (dmode == DATA_SNAPSHOT && ! update);
+	/*
+	 * Set the field names in the data vectors, then get the vectors
+	 * filled in.
+	 */
+		dv[0].fname = xfnames[nxfield > 1 ? plat : 0];
+		dv[1].fname = yfnames[nyfield > 1 ? plat : 0];
+		dv[2].fname = windfld1;
+		dv[3].fname = windfld2;
+
+		npts[plat] = xy_GetDataVectors (pid, &bTimeReq, &eTimeReq, 
+						single_obs, skip, dv, 4, NULL);
+	/*
+	 * Keep the pointers to the data and apply the min and max values
+	 */
+		xdata[plat] = dv[0].data;
+		if ((xtype == 'f') && (dv[0].min.val.f < xmin.val.f))
+			xmin = dv[0].min;
+		if ((xtype == 'f') && (dv[0].max.val.f > xmax.val.f))
+			xmax = dv[0].max;
+
+		ydata[plat] = dv[1].data;
+		if ((ytype == 'f') && (dv[1].min.val.f < ymin.val.f))
+			ymin = dv[1].min;
+		if ((ytype == 'f') && (dv[1].max.val.f > ymax.val.f))
+			ymax = dv[1].max;
+
+		w1data[plat] = dv[2].data;
+		w2data[plat] = dv[3].data;
 	}
 /*
- * Now set the current scale bounds.
+ * Get the info on whether we're using autoscaling or inverted scales
  */
-        autoTime = eTimeTarget.zt_Sec +
-                (long)((eTimeTarget.zt_Sec-bTimeTarget.zt_Sec)*0.025);
-        if ( !update )
-        {
-            if ( xscalemode & AUTO)
-            {
-                switch ( xtype )
-                {
-                    case 't':
-			xmax.val.t.zt_Sec = autoTime;
-			xmax.val.t.zt_MicroSec = 0;
-                        xmin.val.t = bTimeTarget;
-                    break;
-                    case 'f':
-                        xmin.val.f -= 5.0;
-                        xmax.val.f += 5.0;
-                    break;
-                }
-            }
-            if ( yscalemode & AUTO)
-            {
-                switch ( ytype )
-                {
-                    case 't':
-			ymax.val.t.zt_Sec = autoTime;
-			ymax.val.t.zt_MicroSec = 0;
-                        ymin.val.t = bTimeTarget;
-                    break;
-                    case 'f':
-                        ymin.val.f -= 5.0;
-                        ymax.val.f += 5.0;
-                    break;
-                }
-            }
-        }
-        if ( xscalemode & AUTO ) xy_SetScaleBounds(Pd,c,'x',xtype,&xmin,&xmax);
-        if ( yscalemode & AUTO ) xy_SetScaleBounds(Pd,c,'y',ytype,&ymin,&ymax);
+	xy_GetScaleModes (c, &xauto, &xinvert, &yauto, &yinvert);
+/*
+ * Determine our final plot bounds.  
+ */
+	TriggerGlobal |= xy_DetermineBounds (c, 'x', &xmin, &xmax, xauto, 
+					     xfnames[0], update);
 
-        /*
-         * Now check if scale-bounds are different from the axis-bounds
-         * If so, and this is only an update, then trigger a global
-         * redraw so shift is reflected for all components
-         */
-        if ( ((lc_CompareData(&ymin,&ymax) >= 0 ) ||
-              (lc_CompareData(&xmin,&xmax) >= 0 ) )) 
-        {
-	    msg_ELog ( EF_PROBLEM, 
-	     "Scale max's must be greater than scale min's");
-	    goto errorExit;
-        }
-
-        if ( ((lc_CompareData(&ymin,&oldymin) != 0 ) ||
-              (lc_CompareData(&ymax,&oldymax) != 0 ) )) yrescale = 1;
-        if ( ((lc_CompareData(&xmin,&oldxmin) != 0 ) ||
-              (lc_CompareData(&xmax,&oldxmax) != 0 ) )) xrescale = 1;
-        if ( update && (xrescale || yrescale )) TriggerGlobal = 1;
-        xy_AdjustAxes( Pd,c,xtype,update ? 0 : 1,ytype,update ? 0 : 1);
-
-
+	TriggerGlobal |= xy_DetermineBounds (c, 'y', &ymin, &ymax, yauto, 
+					     yfnames[0], update);
 /*
  * Plot the data.
  */
-        if ( !TriggerGlobal )
+        if (! TriggerGlobal)
         {
-            lc_SetUserCoord ( &xmin,&xmax,&ymin,&ymax);
-            lc_GetUserCoord ( &xmin,&xmax,NULL,NULL,xscalemode);
-            lc_GetUserCoord ( NULL,NULL,&ymin,&ymax,yscalemode);
-            gp_Clip( &xmin, &ymin, &xmax, &ymax, xscalemode,
-	    		yscalemode | FUDGEBOT);
-            msg_ELog ( EF_DEBUG,
-               "X-Y Graph plotting %d data points for component %s.",npts,c);
+	/*
+	 * Save our bounds for posterity
+	 */
+	    xy_SetPrivateScale (c, &xmin, &xmax, &ymin, &ymax);
+	    xy_SaveDataTimes (c, &bTimeTarget, &eTimeTarget);
+	/*
+	 * Make the bounds official for coordinate conversion
+	 */
+	    xleft = (xinvert) ? xmax : xmin;
+	    xright = (xinvert) ? xmin : xmax;
+	    ybottom = (yinvert) ? ymax : ymin;
+	    ytop = (yinvert) ? ymin : ymax;
+
+	    lc_SetBaseUserCoord (&xleft, &xright, &ybottom, &ytop);
+	/*
+	 * Axes and top annotation
+	 */
+	    if (! update)
+	    {
+		    ac_PlotAxes (c);
+
+		    An_TopAnnot ("XYWind:", taColor);
+		    An_TopAnnot (c, taColor);
+	    }
+	/*
+	 * Get our coordinates back, with zooming applied if necessary, then
+	 * set up clipping
+	 */
+            lc_GetUserCoord (&xleft, &xright, &ybottom, &ytop);
+	    pp_Clip (&xleft, &ybottom, &xright, &ytop, FALSE);
+	/*
+	 * For each platform...
+	 */
             for (plat = 0; plat < nplat; plat++)
             {
-	        if ( strcmp(style, "barb" ) == 0 )
-	        {
-	            gp_WindBarb( xdata[plat],ydata[plat],
-			udata[plat],vdata[plat],
-			npts, angle, (int)vecScale, L_solid, 
-			colors,ncolors,cstep,xscalemode,yscalemode,doKnot);
-	        }
+		if (npts[plat] == 0)
+			continue;
+	    /*
+	     * Draw the data
+	     */
+	        if (strcmp(style, "barb" ) == 0)
+		    pp_WindBarb (xdata[plat], ydata[plat], w1data[plat],
+				 w2data[plat], npts[plat], angle, 
+				 (int) vecScale, L_solid, colors, ncolors, 
+				 cstep, doKnot);
 	        else
-	        {
-	            gp_WindVector( xdata[plat],ydata[plat],
-			udata[plat],vdata[plat],
-			npts, angle, (double)vecScale, L_solid, 
-			colors,ncolors,cstep,xscalemode,yscalemode);
-	        }
+	            pp_WindVector (xdata[plat], ydata[plat], w1data[plat],
+				   w2data[plat], npts[plat], angle, 
+				   (double) vecScale, L_solid, colors, 
+				   ncolors, cstep);
+	    /*
+	     * Update the overlay times widget and set up for side annotation
+	     */
+		if (! update)
+		{
+		    lw_TimeStatus (c, pnames[plat], &eTimeReq);
 
+		    if (sideAnnot)
+		    {
+			if (strcmp (style, "vector") == 0)
+			{
+			    sprintf (annotcontrol, "%5.1f%s %d %f %f %f", 
+				     scaleSpeed, "m/sec", taColor, scaleSpeed, 
+				     0.0, vecScale);
+			    An_AddAnnotProc (An_ColorVector, c, annotcontrol,
+					     strlen (annotcontrol) + 1, 30, 
+					     FALSE, FALSE);
+			    sprintf (annotcontrol, "%s %s %f %f", 
+				     "wind-speed:m/sec", ctname, 
+				     ncolors % 2 ? 
+				     (ncolors - 1) * cstep * 0.5 :
+				     ncolors * cstep * 0.5, cstep);
+			}
+
+			if (strcmp (style, "barb") == 0)
+			{	
+			    sprintf (annotcontrol, "%s %d %d", barbtype,
+				     taColor,  (int) vecScale);
+			    An_AddAnnotProc (An_BarbLegend, c, annotcontrol,
+					     strlen (annotcontrol) + 1, 100, 
+					     FALSE, FALSE);
+			    sprintf (annotcontrol, "%s%s %s %f %f ",
+				     "wind-speed:", barbtype, ctname,
+				     ncolors % 2 ? 
+				     (ncolors - 1) * cstep * 0.5 :
+				     ncolors * cstep * 0.5, cstep);
+			}
+
+			An_AddAnnotProc (An_ColorBar, c, annotcontrol, 
+					 strlen (annotcontrol) + 1, 75, TRUE, 
+					 FALSE);
+
+			sprintf (annotcontrol, "%s %d", pnames[plat], taColor);
+			An_AddAnnotProc (An_ColorString, c, annotcontrol, 
+					 strlen (annotcontrol), 25, FALSE, 
+					 FALSE);
+		    }
+		}
             }
-            XSetClipMask(XtDisplay(Graphics), Gcontext, None);
+	/*
+	 * Add a period to the top annotation
+	 */
+	    An_TopAnnot (".  ", taColor);
+
+	    pp_UnClip ();
         }
-
-/*
- * Add a period to the top annotation
- */
-	if ( !update )
-	    An_TopAnnot (".  ", Tadefclr.pixel);
-
-        /*
-         * Store the updated data begin and end times.
-         */
-        if (update)
-            xy_SetPrivateDD(Pd,c,NULL, &eTimeReq, &nPlotted);
-        else
-            xy_SetPrivateDD(Pd,c,&bTimeReq, &eTimeReq, &nPlotted);
-
 /*
  * Free local memory
  */
-errorExit:
-	for ( i = 0; i < nplat; i++)
+	for (plat = 0; plat < nplat; plat++)
 	{
-	    if (xdata[i]) free(xdata[i]);
-	    if (ydata[i]) free(ydata[i]);
-	    if (udata[i]) free(udata[i]);
-	    if (vdata[i]) free(vdata[i]);
+	    if (xdata[plat])
+		    free (xdata[plat]);
+
+	    if (ydata[plat])
+		    free (ydata[plat]);
+
+	    if (w1data[plat])
+		    free (w1data[plat]);
+
+	    if (w2data[plat])
+		    free (w2data[plat]);
 	}
-	free(xdata); free(ydata); free(udata); free(vdata);
+
+	free (xdata);
+	free (ydata);
+	free (w1data);
+	free (w2data);
 }
 # endif /* C_PT_XYGRAPH */
