@@ -28,6 +28,7 @@
 # include <fcntl.h>
 # include <errno.h>
 # include <sys/types.h>
+# include <sys/time.h>
 # include <sys/ioctl.h>
 # include <sys/mtio.h>
 # include <sys/wait.h>
@@ -47,7 +48,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 
-MAKE_RCSID ("$Id: Archiver.c,v 1.13 1992-07-14 19:49:16 corbet Exp $")
+MAKE_RCSID ("$Id: Archiver.c,v 1.14 1992-07-17 22:57:03 granger Exp $")
 
 /*
  * Issues:
@@ -82,7 +83,16 @@ char listfile[200];
 /*
  * Tape drive information.
  */
-int	TimerEvent;
+int	TimerEvent;		/* The absolute, unchangeable write event */
+int 	ResumeEvent = -1;	/* If in suspended status, this is the
+				 * timer event which will resume the tar.
+				 * -1 indicates we're not suspended */
+int	Suspended = FALSE;	/* True when a write has been STOPped */
+int	WriteInProgress = FALSE;/* A tar has been started */
+
+int	Dying = FALSE;		/* Set by Handler() on a MH_SHUTDOWN msg
+				 * during a write */
+
 int	DeviceFD = -1;		/* -1 = no drive	*/
 unsigned long	BytesWritten = 0;
 int	FilesWritten = 0;
@@ -107,7 +117,6 @@ int	StartMinute = 0;
 int	MinDisk = 10000;
 int	ArchiveMode = 0;
 
-
 /*
  * Where the tar command is built.
  */
@@ -116,7 +125,8 @@ static char Tarbuf[65536];
 /*
  * Widget info.
  */
-Widget Top, Form, WStatus, Bytes, Action;
+Widget Top, Form, WStatus, Bytes;
+Widget FinishButton, Action, WriteButton, Wait1, Wait2;
 XtAppContext Appc;
 
 /*
@@ -149,6 +159,11 @@ static void	UpdateMem FP ((void));
 static void	InitArchiver FP ((int, char**));
 static int	EjectEOD FP ((void));
 static void	MountEOD FP ((void));
+static void	WriteNow FP((void));
+static void 	SuspendWrite FP((Widget w, XtPointer call_data));
+static void	TimerResumeWrite FP((ZebTime *zt));
+static void	SetWaitSensitivity FP((int sensitive));
+static void	PollWhileSuspended FP((void));
 
 
 
@@ -184,8 +199,15 @@ char **argv;
  * Go into our dump loop.
  */
 	msg_add_fd (XConnectionNumber (XtDisplay (Top)), xevent);
-	msg_await ();
+/*
+ * msg_await() may return if a handler returns non-zero.  This 
+ * occurrence only means something in the msg_await loop in RunTar,
+ * so we just loop forever here and ignore return values
+ */
+	while (1)
+		msg_await ();
 }
+
 
 void
 InitArchiver (argc, argv)
@@ -221,7 +243,6 @@ char **argv;
 		    sscanf ( (*++argv), "%d", &MinDisk );
 		    argc--;
 		break;
-		case 'i': /* i(nterval) between dumps */
 		case 't': /* t(ime) */
 		    sscanf ( (*++argv), "%d", &DumpInterval );
 		    argc--;
@@ -363,6 +384,7 @@ char **argv;
 	button = XtCreateManagedWidget ("finish", commandWidgetClass, Form,
 			args, n);
 	XtAddCallback (button, XtNcallback, (XtCallbackProc) Finish, 0);
+	FinishButton = button;
 /*
  * A "take/release" button.
  */
@@ -382,17 +404,55 @@ char **argv;
 			args, n);
 	XtAddCallback (Action, XtNcallback, (XtCallbackProc) ActionButton, 0);
 /*
+ * The explicit request for "write now".  While suspended, this button
+ * will read "Resume" rather than "Write Now"
+ */
+	n = 0;
+	XtSetArg(args[n], XtNlabel, "Write Now");	n++;
+	XtSetArg(args[n], XtNfromHoriz, Action);	n++;
+	XtSetArg(args[n], XtNfromVert, above);		n++;
+	button = XtCreateManagedWidget ("write", commandWidgetClass,
+					Form, args, n);
+	XtAddCallback(button, XtNcallback, (XtCallbackProc) WriteNow, 0);
+	WriteButton = button;
+/*
+ * Request suspension of a tar process for 1 minute
+ */
+	n = 0;
+	XtSetArg(args[n], XtNlabel, "Wait 1 Minute");	n++;
+	XtSetArg(args[n], XtNfromHoriz, button);	n++;
+	XtSetArg(args[n], XtNfromVert, above);		n++;
+	button = XtCreateManagedWidget ("suspend", commandWidgetClass,
+					Form, args, n);
+	XtAddCallback(button, XtNcallback, 
+		      (XtCallbackProc) SuspendWrite, (XtPointer)60 /*secs*/);
+	Wait1 = button;
+/*
+ * Request suspension of a tar process for 2 minutes
+ */
+	n = 0;
+	XtSetArg(args[n], XtNlabel, "Wait 2 Minutes");	n++;
+	XtSetArg(args[n], XtNfromHoriz, button);	n++;
+	XtSetArg(args[n], XtNfromVert, above);		n++;
+	button = XtCreateManagedWidget ("suspend", commandWidgetClass,
+					Form, args, n);
+	XtAddCallback(button, XtNcallback, 
+		      (XtCallbackProc) SuspendWrite, (XtPointer)120 /*secs*/);
+	Wait2 = button;
+	SetWaitSensitivity(FALSE);
+/*
  * Status info.
  */
 	n = 0;
-/*	above = Tape; */
+	above = Action;
 	XtSetArg (args[n], XtNlabel, "0 Bytes in 0 files");	n++;
-	XtSetArg (args[n], XtNfromHoriz, Action);		n++;
+	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
 	XtSetArg (args[n], XtNfromVert, above);		n++;
 	Bytes = XtCreateManagedWidget ("bytes", labelWidgetClass, Form,args,n);
 
 	XtRealizeWidget (Top);
 	Sync ();
+
 /*
  * Also look up a couple of pixel colors.
  */
@@ -417,6 +477,14 @@ Finish ()
 	ZebTime	zt;
 	int	year,month,day,hour,minute;
 	int	status = 0;
+
+	/*
+	 * If a write is in progress, we can't finish yet because
+	 * we can't take the tape offline yet.
+	 */
+	if (WriteInProgress)
+		return;
+
 	if (DeviceFD < 0)
 	{
 	    switch ( ArchiveMode )
@@ -473,6 +541,12 @@ ActionButton ()
 	ZebTime current, zt;
 	int year, month, day, hour, min, sec;
 	int status;
+
+/*
+ * If in the middle of a write, ignore this button
+ */
+	if (WriteInProgress)
+		return;
 /*
  * If we don't have a device, we try to get one.
  */
@@ -693,40 +767,88 @@ int all;
  * Pass through the list of stuff and save files to the tape.
  */
 {
+	static int pending = FALSE, pending_all;
+	static int working = FALSE;
 	int plat;
 /*
  * If we have no tape, we do nothing.
  */
 	if (DeviceFD < 0)
 		return;
-	sprintf (Tarbuf, "exec tar cfb - %d ", BFACTOR);
 /*
- * Pass through the platform table and dump things.
+ * If a SaveFiles is already in progress, just set the pending flag
+ * and return
  */
-	SetStatus (FALSE, "Scanning platforms");
-	for (plat = 0; plat < SHeader->sm_nPlatform; plat++)
-		if (! (PTable[plat].dp_flags & DPF_SUBPLATFORM))
-			DumpPlatform (PTable + plat, all);
-/*
- * Run the tar command to put this all together.
- */
-	if ( strlen(Tarbuf) > 20 )
-		SetStatus (FALSE, "Writing");
-
-	if (strlen (Tarbuf) > 20 && RunTar (Tarbuf))
+	if (working)
 	{
-	    switch ( ArchiveMode )
-	    {
-		case AR_TAPE:
-		    WriteEOF ();
-		break;
-		case AR_EOD:
-		break;
-	    }
-		UpdateList ();
+		pending = TRUE;
+		pending_all = pending_all | all;
+		return;
 	}
+	else
+	{
+		working = TRUE;
+		pending = TRUE;
+		pending_all = all;
+	}
+
+/*
+ * As long as we have pending requests, save files
+ */
+	while (pending)
+	{
+		pending = FALSE;
+	/*
+	 * The tar command, less the file names
+	 */
+		sprintf (Tarbuf, "exec tar cfb - %d ", BFACTOR);
+	/*
+	 * Pass through the platform table and dump things.
+	 */
+		SetStatus (FALSE, "Scanning platforms");
+		for (plat = 0; plat < SHeader->sm_nPlatform; plat++)
+			if (! (PTable[plat].dp_flags & DPF_SUBPLATFORM))
+				DumpPlatform (PTable + plat, pending_all);
+	/*
+	 * Run the tar command to put this all together.
+	 */
+		if ( strlen(Tarbuf) > 20 )
+		{
+			SetStatus (FALSE, "Writing");
+			WriteInProgress = TRUE;
+			SetWaitSensitivity(True);
+			XtSetSensitive(FinishButton, False);
+			XtSetSensitive(Action, False);
+		}
+
+		if (strlen (Tarbuf) > 20 && RunTar (Tarbuf))
+		{
+		    switch ( ArchiveMode )
+		    {
+			case AR_TAPE:
+			    WriteEOF ();
+			break;
+			case AR_EOD:
+			break;
+		    }
+		    UpdateList ();
+		}
+		/*
+		 * If we received a death message while writing,
+		 * act on it now
+		 */
+		if (Dying)
+			Die();
+	}
+
 	SetStatus (FALSE, "Sleeping");
+	working = FALSE;
+	WriteInProgress = FALSE;
+	SetWaitSensitivity(False);
+	XtSetSensitive(FinishButton, True);
+	XtSetSensitive(Action, True);
 }
+
 
 
 
@@ -806,6 +928,8 @@ char *cmd;
 	FILE *pfp = popen (cmd, "r");
 	static char fbuf[BLOCKSIZE];
 	int rstatus, nb, tnb = 0;
+	int msg_fd;
+
 /*
  * Be sure we can run tar.
  */
@@ -832,7 +956,16 @@ char *cmd;
 			return (FALSE);
 		}
 		tnb += nb;
+		/*
+		 * Get any X events.  If a suspension is requested, we'll
+		 * catch it here in the Suspended flag
+		 */
 		xevent (0);
+		if (Suspended)		 /* we must poll msg and X until
+					  * the Suspended flag is clear */
+		{
+			PollWhileSuspended();
+		}
 	}
 /*
  * If tar returned OK, so do we.
@@ -864,7 +997,21 @@ Message *msg;
 	   case MT_MESSAGE:
 	   	tmpl = (struct mh_template *) msg->m_data;
 		if (tmpl->mh_type == MH_DIE)
-			Die ();
+		{
+			/*
+			 * We can't die if we're in the middle of a 
+			 * write.  If we are, set a flag that will
+			 * be tested once the writing is finished.
+			 */
+			if (WriteInProgress)
+			{
+				Dying = TRUE;
+			}
+			else
+			{
+				Die ();
+			}
+		}
 		else
 			msg_ELog (EF_PROBLEM, "Weird MH msg %d",tmpl->mh_type);
 		break;
@@ -877,6 +1024,35 @@ Message *msg;
 }
 
 
+
+/*
+ * Poll message fd and X fd and handle any messages as long
+ * as Suspended remains true
+ */
+static void
+PollWhileSuspended()
+{
+	static struct timeval timeout = { 1, 0 };
+	fd_set fdset;
+	int fd = msg_get_fd();
+
+	while (Suspended)
+	{
+		/*
+		 * Poll message 
+		 */
+		FD_ZERO(&fdset);
+		FD_SET(fd, &fdset);
+		if (select(fd+1, &fdset, 0, 0, &timeout) > 0)
+		{
+			msg_incoming(fd);
+		}
+		/*
+		 * Process any xevents
+		 */
+		xevent(0);
+	}
+}
 
 
 
@@ -1033,6 +1209,18 @@ char *s;
 }
 
 
+/*
+ * Set the sensitivity of the wait buttons, since
+ * they only make sense while a write is occurring
+ */
+static void
+SetWaitSensitivity(sensitive)
+	int sensitive;
+{
+	XtSetSensitive(Wait1, sensitive);
+	XtSetSensitive(Wait2, sensitive);
+}
+
 
 
 static void
@@ -1113,3 +1301,91 @@ int index;
 	ma.dsp_FileIndex = index;
 	msg_send ("DS_Daemon", MT_DATASTORE, FALSE, &ma, sizeof (ma));
 }
+
+
+
+
+
+/*
+ * The WriteNow callback.  The user-called equivalent to a timer event.
+ * If a write is currently suspended, this just resumes the current
+ * write instead.
+ */
+static void
+WriteNow()
+{
+	if (Suspended)
+	{
+		/* Reset the suspended flag */
+		Suspended = FALSE;
+
+		/* Restore our button's label */
+		XtVaSetValues(WriteButton, XtNlabel, "Write Now", NULL);
+
+		SetStatus (FALSE, "Writing");
+	}
+	else
+	{
+		/* 
+		 * We're in an X callback, so we must exit X's event
+		 * processing and also start writing.  So register
+		 * a timer event 0 seconds from now which will cause
+		 * TimerSaveFiles to be entered upon return from
+		 * this callback, when mmsg messages are handled
+		 */
+		tl_RelativeReq(TimerSaveFiles, 0, 0, 0);
+	}
+}
+
+
+/*
+ * SuspendWrite() -- If a write is in progress, suspend it and 
+ * register a resume timer event the given number of seconds from now.
+ * If a resume event already existed, it is cancelled first.
+ */
+static void
+SuspendWrite(w, call_data)
+	Widget w;
+	XtPointer call_data;
+{
+	int waitsecs = (int) call_data;
+
+	/*
+	 * Make sure there is a write in progress to suspend
+	 */
+	if (!WriteInProgress)
+		return;
+
+	if (ResumeEvent != -1)
+	{
+		tl_Cancel(ResumeEvent);
+	}
+	ResumeEvent = tl_RelativeReq(TimerResumeWrite, 0,
+				     waitsecs * INCFRAC, 0);
+	/*
+	 * Now set the Suspended flag.  This will be caught by the
+	 * RunTar() loop and reading of the pipe will stop as long
+	 * as Suspended remains true.  This in turn blocks the
+	 * tar process and suspension of the tar is achieved.
+	 */
+	Suspended = TRUE;
+	SetStatus(FALSE, "Write suspended.");
+	XtVaSetValues(WriteButton, XtNlabel, "Resume", NULL);
+}
+
+
+/*
+ * Resume a write from a timer event. If a suspended write still
+ * exists, call WriteNow() to resume.  Otherwise just ignore the
+ * event.
+ */
+/* ARGSUSED */
+static void
+TimerResumeWrite(zt)
+	ZebTime *zt;
+{
+	if (Suspended)
+		WriteNow();
+}
+
+
