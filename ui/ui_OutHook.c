@@ -4,11 +4,18 @@
  */
 # include "ui_param.h"
 
-static char *rcsid = "$Id: ui_OutHook.c,v 1.2 1992-08-11 17:51:22 case Exp $";
+# ifdef __STDC__
+# include <stdarg.h>
+# else
+# include <varargs.h>
+# endif
+
+static char *rcsid = "$Id: ui_OutHook.c,v 1.3 1993-10-04 15:04:09 case Exp $";
 
 /*
  * The routines we use to output normal (ui_printf) text.
  */
+
 extern int printf ();
 static void errprint ();
 
@@ -23,7 +30,6 @@ static vfptr Error_out = errprint;
 static vfptr Error_hook = 0;
 
 
-
 ui_OutputRoutine (normal, nf)
 vfptr normal, nf;
 /*
@@ -33,7 +39,6 @@ vfptr normal, nf;
 	Normal_out = normal;
 	Nf_out = nf;
 }
-
 
 
 
@@ -58,49 +63,121 @@ vfptr hook;
 
 
 
+# ifdef __STDC__
 
 
-ui_printf (fmt, ARGS)
-char *fmt;
-int ARGS;
+/* use the ANSI standard variable args */
+
+ui_printf (char *fmt, ...)
+
 /*
  * Perform a printf() through the user interface I/O.
  */
 {
-	char buf[1000];
-	int nadd;
+        char buf[1000];
+	va_list args;
+
+/*
+ * Encode the output from the variable list
+ */
+	va_start (args, fmt);
+
+
+# else
+
+
+/*
+ * We still need the K&R version for some compilers, unfortunately
+ */ 
+
+ui_printf (va_alist)
+va_dcl
+
+/*
+ * Perform a printf() through the user interface I/O.
+ */
+{
+        char buf[1000];
+        char *fmt;
+        va_list args;
+
+  	va_start (args);
+        fmt = va_arg (args, char *);
+
+# endif /* ifdef __STDC __ */
+
+
 /*
  * Encode the output.
  */
- 	sprintrmt (buf, fmt, SPRINTARGS);
+
+        vsprintf (buf, fmt, args);
+
+
+/*
+ * We're done with the variable list.
+ */
+        va_end (args);
+
+
 /*
  * Output it.
  */
-	(*Normal_out) (buf);
+
+        (*Normal_out) (buf);
+
 }
 
 
 
-ui_nf_printf (fmt, ARGS)
-char *fmt;
-int ARGS;
+# ifdef __STDC__
+
+
+/* use the ANSI standard variable args */
+
+ui_nf_printf (char *fmt, ...)
+
 /*
  * Perform an unflushed printf() through the user interface I/O.
  */
 {
-	char buf[1000];
-	int nadd;
+        char buf[1000];
+        va_list args;
+
+        va_start (args, fmt);
+
+# else
+
+
+/* use K&R for non-ANSI compilers */
+
+ui_nf_printf (va_alist)
+va_dcl
+
+{
+        char buf[1000];
+        char *fmt;
+        va_list (args);
+
+        va_start (args);
+        fmt = va_arg (args, char *);
+
+# endif / *ifdef __STDC__ */
+
+        vsprintf (buf, fmt, args);
+
 /*
- * Encode the output.
+ * We're done with the variable list.
  */
- 	sprintrmt (buf, fmt, SPRINTARGS);
+        va_end (args);
+
 /*
  * Output it.
  */
-	(*Nf_out) (buf);
+
+        (*Nf_out) (buf);
+
 }
-
-
 
 
 
@@ -114,7 +191,6 @@ char *line;
 		(*Error_hook) ();
 	(*Error_out) (line);
 }
-
 
 
 
