@@ -7,6 +7,9 @@ OBJS = prt_Notify.o d_Notify.o
 
 LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF)
 
+all::
+
+install::
 
 #if 0	/* not building this just yet, but do it silently */
 
