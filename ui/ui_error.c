@@ -6,6 +6,7 @@
 # include "ui_param.h"
 # include "ui_globals.h"
 # include "ui_symbol.h"
+# include "ui_token.h"
 
 # ifdef UNIX
 # ifndef SYSV
@@ -13,7 +14,7 @@
 # endif /* SYSV */
 # endif /* UNIX */
 
-static char *rcsid = "$Header: /code/cvs/rdss/rdsslibs/ui/ui_error.c,v 1.2 1989-03-10 16:27:39 corbet Exp $";
+static char *rcsid = "$Header: /code/cvs/rdss/rdsslibs/ui/ui_error.c,v 1.3 1989-03-16 15:44:36 corbet Exp $";
 /*
  * Stack stuff.
  */
@@ -69,7 +70,7 @@ int ARGS;
 	ut_out_lines ();
 	sprintrmt (buf, fmt, SPRINTARGS);
 	sprintf (buf1, Errorbell ? "*** %s\007" : "*** %s", buf);
-	ut_put_msg (buf1);
+	ut_put_msg (buf1, FALSE);
 	ut_drain_ta ();
 /*
  * Return to the command interpreter.
@@ -139,7 +140,7 @@ int ARGS;
 		*bp++ = '\007';
 		*bp++ = '\0';
 	}
-	ut_put_msg (buf1);
+	ut_put_msg (buf1, FALSE);
 	ut_drain_ta ();
 /*
  * Return to the top entry in the error jump stack, if called for.
@@ -167,7 +168,7 @@ int ARGS;
  */
 	sprintrmt (buf, fmt, SPRINTARGS);
 	sprintf (buf1, Errorbell ? "*** %s\007" : "*** %s", buf);
-	ut_put_msg (buf1);
+	ut_put_msg (buf1, FALSE);
 	ut_drain_ta ();
 }
 
@@ -188,7 +189,7 @@ int ARGS;
 	{
 		sprintrmt (buf, fmt, SPRINTARGS);
 		sprintf (buf1, "--> %s", buf);
-		ut_put_msg (buf1);
+		ut_put_msg (buf1, FALSE);
 	}
 /*
  * Jump through the error stack.
@@ -213,7 +214,7 @@ int ARGS;
 
 	sprintrmt (buf, fmt, SPRINTARGS);
 	sprintf (buf1, "*** WARNING: %s", buf);
-	ut_put_msg (buf1);
+	ut_put_msg (buf1, FALSE);
 }
 
 
