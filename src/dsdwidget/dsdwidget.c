@@ -39,7 +39,7 @@
 # include <copyright.h>
 # include "DataStore.h"
 
-RCSID ("$Id: dsdwidget.c,v 1.21 1995-03-04 19:25:18 granger Exp $")
+RCSID ("$Id: dsdwidget.c,v 1.22 1995-04-19 14:46:59 granger Exp $")
 
 
 # define MAXPLAT	1024
@@ -115,7 +115,7 @@ static void
 usage (prog)
 char *prog;
 {
-	printf("Usage: %s [-h][-a][-u][-t <title>][-c <cmd>] [regexp ...] \n",
+	printf("Usage: %s [-h][-a][-u][-t <title>] [regexp ...] \n",
 	       prog);
 	printf("If a regular expression is present, only those platforms\n");
 	printf("whose names match the expression are displayed.  Any\n");
@@ -126,7 +126,9 @@ char *prog;
 	printf("   -a\tAlphabetize the platforms for each matching string.\n");
 	printf("   -u\tDon't alphabetize the platform names.\n");
 	printf("   -t\tSpecify a title for the window.\n");
+#ifdef notdef
 	printf("   -c\tCommand which accepts selected file names.\n");
+#endif
 }
 
 
