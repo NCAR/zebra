@@ -14,6 +14,7 @@ define widget xsect-global-left intmenu 'Cross-section global left menu'
 	line
 	submenu 'Window Operations' global-window-ops
 	submenu 'Layout Parameters'  global-layout
+	submenu 'X-Z Axis Font Size' xsect-scale-size
 	line
 	entry 'Help on this Plot Type' 'plot-type-help'
 endmenu
@@ -38,3 +39,12 @@ procedure adj_xsect_limits
 	activate doublefloat "global" "z-min" "Bottom (km):" #zmin \
 		"z-max" "Top (km):" #zmax
 endprocedure
+
+define widget xsect-scale-size intmenu ''
+	title 'X-Z Axis Font Size'
+	line
+	entry 'Extra small' 'parameter global xsect-annot-height 0.02'
+	entry 'Small' 'parameter global xsect-annot-height 0.03'
+	entry 'Medium' 'parameter global xsect-annot-height 0.04'
+	entry 'Large' 'parameter global xsect-annot-height 0.06'
+endmenu
