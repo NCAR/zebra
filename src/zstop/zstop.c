@@ -1,8 +1,6 @@
 /*
  * Message server zapper.
  */
-static char *rcsid = "$Id: zstop.c,v 1.3 1995-02-23 18:35:26 sobol Exp $";
-
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -24,6 +22,8 @@ static char *rcsid = "$Id: zstop.c,v 1.3 1995-02-23 18:35:26 sobol Exp $";
 # include <defs.h>
 # include <message.h>
 # include <copyright.h>
+
+RCSID("$Id: zstop.c,v 1.4 1995-04-20 08:04:25 granger Exp $")
 
 static char *argv0;
 
