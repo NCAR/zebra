@@ -168,6 +168,10 @@ char *hostname, *service;
  	if (connect (skt, (struct sockaddr *) &addr, sizeof (addr)) < 0)
 	{
 		gmt_perr (": connect");
+
+		if (close (skt) < 0)
+			gmt_perr (": close");
+
 		signal (SIGALRM, oldsig);
 		return (-1);
 	}
