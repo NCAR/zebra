@@ -1,5 +1,5 @@
 XCOMM -*- C -*-
-XCOMM $Id: Zebra.rules,v 1.13 1997-02-21 17:14:18 granger Exp $
+XCOMM $Id: Zebra.rules,v 1.14 1997-03-26 17:02:41 granger Exp $
 XCOMM
 XCOMM Rules specific to the Zebra project, including some which override
 XCOMM definitions in Imake.rules
@@ -511,6 +511,13 @@ CvsIgnoreFile(program)							@@\
  * invoked explicitly.  Multiple 'dependencies' targets can appear in
  * a Makefile; each simply appends its rules to Makefile.dep.
  */
+/*
+ * For some reason xf86.rules defines Depend to depend, and this really
+ * messes up the Depend: target, creating an infinite make loop.
+ */
+#ifdef Depend
+#undef Depend
+#endif
 #define ZebraMakeDepend()						@@\
 									@@\
 depend:: $(MDFILE)							@@\
