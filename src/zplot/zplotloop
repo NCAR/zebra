@@ -1,6 +1,6 @@
 #! /usr/local/bin/perl5
 #
-# $Id: zplotloop,v 1.3 2002-01-15 18:43:05 granger Exp $
+# $Id: zplotloop,v 1.4 2002-03-13 06:31:43 granger Exp $
 #
 # Loop through times by a certain time step collecting from zplotd all the
 # plots which need to be generated, then generate those plots with
@@ -17,6 +17,7 @@ if ($#ARGV < 1)
     print "The begin time can be 'start', which uses the project\n";
     print "start date and the first plot hour.\n";
     print "The end time can be 'now'.\n";
+    print "The end time can be 'end', which uses the project end date.\n";
     print "The plot period in hours defaults to PLOT_PERIOD.\n";
     exit 1;
 }
@@ -46,6 +47,7 @@ sub syszt
 
 
 $project_start_date = "$ENV{'PROJECT_START_DATE'}";
+$project_end_date = "$ENV{'PROJECT_END_DATE'}";
 $plot_hours = "$ENV{'PLOT_HOURS'}";
 if ($begin != 'start')
 {
@@ -65,7 +67,15 @@ else
     $sbegin = &ztsys($project_start_date . "," . "$hours[0]:00");
 }
 $send = time();
-if ($end != 'now')
+if ($end = 'end')
+{
+    if (! $project_end_date)
+    {
+	die "PROJECT_END_DATE must be set to use 'end' as end time.";
+    }
+    $send = &ztsys($project_end_date . "," . "$hours[0]:00");
+}
+elsif ($end != 'now')
 {
     $send = &ztsys($end);
 }
