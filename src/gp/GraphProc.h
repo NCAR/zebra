@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.51 1995-08-03 20:59:43 corbet Exp $ */
+/* $Id: GraphProc.h,v 2.52 1995-09-21 20:15:58 burghart Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -353,6 +353,8 @@ extern void FindCenterStep FP ((DataChunk *, FieldId, int, float *, float *));
 extern int ApplySpatialOffset FP ((DataChunk *, char *, ZebTime *));
 extern bool ImageDataTime FP ((char *c, PlatformId pid, double alt,
 			       ZebTime *dtime));
+extern bool ClosestRHI FP ((char *c, PlatformId pid, double azimuth,
+			    ZebTime *dtime, float *angdiff));
 extern int GetLLSpacings FP ((DataChunk *, float *, float *));
 extern void ov_Feature FP ((struct ui_command *cmds));
 
