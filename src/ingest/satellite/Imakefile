@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.7 1994-01-21 11:50:15 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.8 1994-02-21 20:15:24 granger Exp $"
 
 LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS) \
 	$(LIBMCIDAS) $(FLIBS)
@@ -38,7 +38,7 @@ XCOMM    nvxsae routines required by the satellite ingestors
 DISTFILES = Imakefile $(SRCS) SatIngest.state big.sat \
 	    cape_sat dir_ingest goes.ini gms.ini \
 	    keywords.h sat.init satheader nvxgoes.f \
-	    hackgms.c harp.ini README mcidas_read.c
+	    hackgms.c harp.ini README mcidas_read.c satingest.doc
 
 NormalProgramTarget(SatIngest,SatIngest.o $(OBJS),
 		    $(DEPLIBS),$(LIBS),$(SYSLIBS))
