@@ -96,7 +96,7 @@ extern char *path, *xhelpPath;
 #define COPYRIGHT_MSG  "(C) 1991, Mark Newsome\nAuburn University"
 
 static char rcsid[] =
-	"$Id: xhelp.c,v 1.4 1993-11-30 23:35:56 granger Exp $";
+	"$Id: xhelp.c,v 1.5 1994-06-29 21:02:28 case Exp $";
 
 static String indexButtonStr, searchButtonStr;
 
@@ -257,7 +257,7 @@ static String fallback_resources[] = {
 };
 
 int helpmode=DEVELOPER_MODE;
-Widget toplevel, outerForm, dialog, box, menuForm, iconForm,
+Widget toplevel, outerForm, dialog, menuForm, iconForm,
        file, entry, fileMenu, tempW, quit,
        textFile, titleLabel, edit, editMenu, topBox;
 
