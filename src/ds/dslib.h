@@ -1,5 +1,5 @@
 /*
- * "$Id: dslib.h,v 3.11 1995-02-10 01:22:19 granger Exp $"
+ * "$Id: dslib.h,v 3.12 1995-10-31 02:13:18 granger Exp $"
  * Internal info for the data store application interface library.
  */
 
@@ -23,12 +23,6 @@
 
 #ifndef __zeb_dslib_h_
 #define __zeb_dslib_h_
-
-/*
- * The platform lookup table.
- */
-extern stbl Pf_Names;
-
 
 /*
  * This is the format of the data request list, which is generated as
