@@ -27,18 +27,7 @@
 # include <copyright.h>
 # include <DataStore.h>
 
-RCSID ("$Id: dsrescan.c,v 1.9 1995-06-29 22:34:03 granger Exp $")
-
-#ifdef notdef	/* do we need this if we don't call getenv()? */
-/*
- * The standard C test prevents conflicts with correctly-prototyped GNU C
- * include files, and hopefully any other ANSI C compilers with ANSI-compliant
- * function prototypes.
- */
-#if ! defined(SVR4) && ! defined (SYSV) && ! defined (__STDC__)
-extern char *getenv FP((char *));
-#endif
-#endif
+RCSID ("$Id: dsrescan.c,v 1.10 1996-11-19 07:14:08 granger Exp $")
 
 
 void
@@ -94,7 +83,6 @@ char **argv;
 /*
  * Get initialized.
  */
-	usy_init ();
 	sprintf (pname, "Rescan-%d", getpid ());
 	msg_connect (handler, pname);
 	ds_Initialize ();

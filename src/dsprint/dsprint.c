@@ -17,6 +17,9 @@
  * The original NEXUS code is ifdef'ed out with the NEXUS symbol.
  *
  * Updates: $Log: not supported by cvs2svn $
+ * Updates: Revision 1.6  1996/03/12 02:25:58  granger
+ * Updates: merge Branch_V4_2 branch up to V4_2: see branch log messages
+ * Updates:
  * Revision 1.5.2.1  1996/02/21  23:34:48  granger
  * define USE_STRERROR for SVR4, SYSV, and linux, otherwise use sys_errlist
  *
@@ -85,7 +88,7 @@
 #define MISSVAL		88888.0	/* NEXUS-specific missing data flags	 */
 #endif /* NEXUS */
 
-MAKE_RCSID("$Id: dsprint.c,v 1.6 1996-03-12 02:25:58 granger Exp $")
+MAKE_RCSID("$Id: dsprint.c,v 1.7 1996-11-19 07:13:40 granger Exp $")
 
 /*************************************************************
  ANSI C function prototypes
@@ -217,8 +220,6 @@ char *argv[];
     myname = argv[0];
 
     getopts (argc, argv);
-
-    usy_init ();
 
     if (!msg_connect (MHandler, myname)) {
 	fprintf (stderr,
