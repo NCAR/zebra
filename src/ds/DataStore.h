@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.18 1994-01-26 11:24:26 granger Exp $
+ * $Id: DataStore.h,v 3.19 1994-02-01 07:25:58 granger Exp $
  *
  * Public data store definitions.
  */
@@ -194,15 +194,15 @@ typedef enum _DC_ElemType {
 } DC_ElemType;
 
 #ifdef __STDC__
-typedef long double long_double;
+typedef long double LongDouble;
 #else
-typedef double long_double;
+typedef double LongDouble;
 #endif
 
 typedef union _DC_Element {
 	float 		dcv_float;
 	double 		dcv_double;
-	long_double	dcv_longdbl;
+	LongDouble	dcv_longdbl;
 	char 		dcv_char;
 	unsigned char	dcv_uchar;
 	short 		dcv_shortint;
@@ -219,7 +219,7 @@ extern const int DC_ElemTypeSizes[];
 
 #define dc_TypeName(type) 	(DC_ElemTypeNames[(int)(type)])
 #define dc_SizeOfType(type)	(DC_ElemTypeSizes[(int)(type)])
-#define DC_ElemTypeMaxSize	(sizeof(long_double))
+#define DC_ElemTypeMaxSize	(sizeof(LongDouble))
 
 /*
  * Here is the list of possible data chunk classes.  It is done this way

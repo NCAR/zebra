@@ -28,7 +28,7 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_MetData.c,v 3.8 1994-01-26 11:24:29 granger Exp $")
+MAKE_RCSID ("$Id: dc_MetData.c,v 3.9 1994-02-01 07:26:02 granger Exp $")
 
 # define SUPERCLASS DCC_Transparent
 
@@ -71,7 +71,7 @@ const int DC_ElemTypeSizes[] =
 	0,
 	sizeof(float),
 	sizeof(double),
-	sizeof(long_double),
+	sizeof(LongDouble),
 	sizeof(char),
 	sizeof(unsigned char),
 	sizeof(short int),
@@ -750,7 +750,7 @@ void *ptr;
 		e->dcv_double = *(double *)ptr;
 		break;
 	   case DCT_LongDouble:
-		e->dcv_longdbl = *(long_double *)ptr;
+		e->dcv_longdbl = *(LongDouble *)ptr;
 		break;
 	   case DCT_Char:
 		e->dcv_char = *(char *)ptr;
@@ -809,7 +809,7 @@ DC_ElemType type;
 		sprintf (buf, "%lf", *(double *)ptr);
 		break;
 	   case DCT_LongDouble:
-		sprintf (buf, "%lf", *(long_double *)ptr);
+		sprintf (buf, "%lf", *(LongDouble *)ptr);
 		break;
 	   case DCT_Char:
 		switch (*(char *)ptr)
