@@ -23,9 +23,9 @@
 # include <defs.h>
 # include <message.h>
 
-RCSID ("$Id: zquery.c,v 1.4 1995-05-04 04:38:48 granger Exp $")
+RCSID ("$Id: zquery.c,v 1.5 1995-05-04 07:29:22 granger Exp $")
 
-#define DEFAULT_DELAY 	20
+#define DEFAULT_DELAY 	0
 
 static int IncMsg FP((struct message *msg));
 static int QResp FP((char *info));
@@ -36,6 +36,7 @@ usage (argv0)
 char *argv0;
 {
 	printf ("Usage: %s [-h] [-t timeout] process\n", argv0);
+	printf ("   <timeout> of zero implies indefinite wait (default)\n");
 	exit (1);
 }
 
@@ -82,8 +83,14 @@ char **argv;
 	query = argv[arg];
 	msg_SendQuery (query, QResp);
 /*
- * Now we just wait, but only so long.  We're not infinitely patient.
+ * Now we just wait, but perhaps we're not to be infinitely patient.
  */
+	if (! delay)
+	{
+		msg_await ();
+		return (0);
+	}
+
 	do {
 		ret = msg_poll (delay);
 	}
