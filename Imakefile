@@ -1,0 +1,237 @@
+XCOMM $Id: Imakefile,v 1.1 1993-03-15 18:10:15 granger Exp $
+XCOMM
+XCOMM This is the top-level Imakefile for the Zeb distribution.
+XCOMM It is modeled after the top-level Imakefile of the MIT X11R5
+XCOMM distribution.
+
+#define IHaveSubdirs
+#define PassCDebugFlags
+
+      WORLDOPTS = -k
+     CHECKFNSRC = $(UTILSRC)/checkfn
+        CHECKFN = $(CHECKFNSRC)/checkfn
+
+#if BuildOptimizer
+      OPTIMIZER = Optimizer
+#endif
+#if BuildIngest
+         INGEST = ingest
+#endif
+#if BuildDataUtilities
+       DATAUTIL = datautil
+#endif
+#if BuildDataManager
+       DSMANAGE = dsmanage
+#endif
+
+XCOMM Note that only the SUBDIRS variable is conditional.  All known
+XCOMM directories and source files will be distributed whether or
+XCOMM not they are configured to be compiled.
+
+        SUBDIRS = config timer msg pd DataStore \
+		  gp dm util lib $(DSMANAGE) \
+		  $(OPTIMIZER) $(INGEST) $(DATAUTIL)
+
+      DISTFILES = Imakefile Makefile.ini README 
+       LINKDIRS = dist/zeb/doc dist/zeb/cape
+      LINKNAMES = $(TARNAME)/doc $(TARNAME)/cape
+    DISTSUBDIRS = config lib msg timer pd DataStore dsmanage \
+		  gp dm util datautil Optimizer ingest imake
+     SRCSUBDIRS = config msg timer pd DataStore dsmanage gp dm \
+                  util datautil Optimizer ingest imake
+
+XCOMM From the top-level directory, the default "all" behavior will
+XCOMM be the same as the "Everything" target, i.e. make sure all
+XCOMM Makefiles are up-to-date, do includes, depends, install.lib,
+XCOMM and finally install.  There isn't really a plain "all" target
+XCOMM which does not do installations since building Zeb implies
+XCOMM installing the binaries.  The difference between World and
+XCOMM Everything is that Everything does not do a clean first.
+
+all:: usage
+
+usage::
+	@echo "The default target is 'Everything'."
+	@echo "There are two principle top-level make targets available:"
+	@echo "The 'Everything' or 'all' target performs:"
+	@echo "	make Makefile"
+	@echo "	make Makefiles"
+	@echo "	make includes"
+	@echo "	make depend"
+	@echo "	make install.lib"
+	@echo "	make install"
+	@echo "The 'World' target performs:"
+	@echo "	make Makefile"
+	@echo "	make Makefiles"
+	@echo "	make clean"
+	@echo "	make includes"
+	@echo "	make depend"
+	@echo "	make install.lib"
+	@echo "	make install"
+	@echo "If you are installing Zeb for the first time, break"
+	@echo "out of this make by typing Ctl-C.  Make sure you have"
+	@echo "read and performed the configuration instructions,"
+	@echo "and then enter the command: 'make World'."
+	@echo "If you do not wish to do either of Everything or World,"
+	@echo "you can enter any of the targets Makefile, Makefiles, clean,"
+	@echo "includes, depend, install.lib, or install by specifically"
+	@echo "naming the target on the make command line.  However,"
+	@echo "with some targets you risk compiling with outdated files."
+	@echo "Other targets available:
+	@echo "	make distclean      - clean all subdirectories, as well"
+	@echo "	                      as removing ./bin and ./include"
+	@echo "	make tarfile        - make a tar file of the distribution,"
+	@echo "	                      see Imakefile for info before using"
+	@echo "Press <Return> here to continue with 'make Everything',"
+	@echo "or press <Ctl-C> to abort."
+	@line
+
+all:: Everything
+
+MakeSubdirs($(SUBDIRS))
+DependSubdirs($(SUBDIRS))
+InstallLibSubdirs($(SUBDIRS))
+DistfilesTarget($(DISTFILES))
+DistfilesSubdirs($(DISTSUBDIRS))
+
+XCOMM do not name your log file make.log or MakeOut when you run this ...
+World::
+	@echo ""
+	@echo "Building Zeb"
+	@echo ""
+	@date
+	@echo ""
+	cd $(IMAKESRC); $(MAKE) $(MFLAGS) -f Makefile.ini clean; $(MAKE) $(MFLAGS) -f Makefile.ini BOOTSTRAPCFLAGS="$(BOOTSTRAPCFLAGS)" INCLUDES=-I../config
+	-$(RM) Makefile.bak; $(MV) Makefile Makefile.bak
+	$(MAKE) $(MFLAGS) -f Makefile.bak Makefile
+	$(MAKE) $(MFLAGS) Makefiles
+	$(MAKE) $(MFLAGS) clean
+	$(MAKE) $(MFLAGS) includes
+	$(MAKE) $(MFLAGS) depend
+	$(MAKE) $(MFLAGS) $(WORLDOPTS) install.lib
+	$(MAKE) $(MFLAGS) $(WORLDOPTS) install
+	@echo ""
+	@date
+	@echo ""
+	@echo "Zeb build complete."
+	@echo ""
+
+Everything::
+	@echo ""
+	@echo "Rebuilding Zeb"
+	@echo ""
+	@date
+	@echo ""
+	cd $(IMAKESRC); $(MAKE) $(MFLAGS) -f Makefile.ini BOOTSTRAPCFLAGS="$(BOOTSTRAPCFLAGS)"
+	-$(RM) Makefile.bak; $(MV) Makefile Makefile.bak
+	$(MAKE) $(MFLAGS) -f Makefile.bak Makefile
+	$(MAKE) $(MFLAGS) Makefiles
+	$(MAKE) $(MFLAGS) includes
+	$(MAKE) $(MFLAGS) depend
+	$(MAKE) $(MFLAGS) $(WORLDOPTS) install.lib
+	$(MAKE) $(MFLAGS) $(WORLDOPTS) install
+	@echo ""
+	@date
+	@echo ""
+	@echo "Zeb rebuild complete"
+	@echo ""
+
+/*
+ * Some probably wouldn't want a simple 'make clean' to remove
+ * the ./bin and ./include directories, and since this is the natural
+ * distribution state, I made this the 'distclean' target:
+ */
+distclean::
+	$(RM) -rf ./include ./bin
+	cd $(IMAKESRC); $(MAKE) $(MFLAGS) -f Makefile.ini clean
+
+distclean:: clean
+
+
+/*
+ * This is the top-level rule for generating tar files of the distributed
+ * files.  The list of files to tar is gotten from the distfiles target.
+ * The name of the tarfile can be changed by setting the TARNAME variable
+ * on the command line.  It defaults to zebdist.
+ *
+ * The -s (silent) option is necessary to get GNU make to not print out
+ * its commands for automatically checking for or checking out files.
+ * This option is compatible with Sun's make, but others...?
+ * Since development is being done on Suns, this is not much of a concern.
+ *
+ * The tarfile (aka distfile) target packages the complete distribution,
+ * including config, project, and document directories.
+ * 
+ * The srcfile target is intended for developers who only to
+ * compile the source only.  This tar file will include only what
+ * is necessary to compile and install all of the executables.
+ * To further restrict what is packaged, set the DISTSUBDIRS
+ * variable from the command line, e.g.
+ *
+ * 	make srcfile SRCNAME=pikes-copy \
+ *		SRCSUBDIRS="imake config msg"
+ */
+TARFILE = zeb-1.0
+SRCFILE = zeb-src
+
+tarfile: FORCE
+	@echo Making file $(TARFILE).tar.Z ; \
+	if mkdir $(TARFILE) ; then \
+	  (set -x; \
+	   cd $(TARFILE); for f in $(DISTFILES) $(LINKDIRS) $(DISTSUBDIRS); do \
+		  $(LN) ../$$f . ; \
+	  done) ; \
+	  tar cvhf - $(LINKNAMES) \
+	     `$(MAKE) $(MFLAGS) -s CURRENT_DIR=$(TARFILE) distfiles` | \
+		  compress -c > $(TARFILE).tar.Z ; \
+	  rm -rf $(TARFILE) ; \
+	  echo Done making $(TARFILE).tar.Z ; \
+	else \
+	  echo "Cannot make directory '$(TARFILE)'!  Aborting."; \
+	  false ; \
+	fi
+
+srcfile: FORCE
+	@echo Making file $(SRCFILE).tar.Z ; \
+	if mkdir $(SRCFILE) ; then \
+	  (set -x; \
+	   cd $(SRCFILE); for f in $(DISTFILES) $(SRCSUBDIRS); do \
+		  $(LN) ../$$f . ; \
+	  done) ; \
+	  tar cvhf - \
+	     `$(MAKE) $(MFLAGS) -s CURRENT_DIR=$(SRCFILE) \
+	      DISTSUBDIRS="$(SRCSUBDIRS)" distfiles ` | \
+		  compress -c > $(SRCFILE).tar.Z ; \
+	  rm -rf $(SRCFILE) ; \
+	  echo Done making $(SRCFILE).tar.Z ; \
+	else \
+	  echo "Cannot make directory '$(SRCFILE)'!  Aborting."; \
+	  false ; \
+	fi
+
+FORCE::
+
+/*
+ * Since the mf shortcut turns around and does a depend as well, we'll
+ * more-than-likely want to disable the depend part. Just do the
+ * Makefile part and then quit
+ */
+mf:: Makefile
+	@echo "Skipping the depend part of this target."
+	@echo "Use 'make depend' to perform depend on all subdirectories."
+	@false
+
+/*
+ * This section used for generating distributions will not be useful to most
+ * people.
+ */
+XCOMM check all filenames for length, letters, and content
+checkfilenames::  $(CHECKFNSRC)/checkfn
+	@find . -type d \! -name RCS -exec $(CHECKFNSRC)/find.sh $(CHECKFN) {} \;
+
+XCOMM clean out link tree looking for stuff that should get checked in
+flushlinks::
+	make -k clean
+	find . -type l -exec rm {} \;
+	find . \( \! \( -type d -o -name Makefile \) \) -print
+
