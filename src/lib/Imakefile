@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-/* $Id: Imakefile,v 1.37 2001-01-12 17:12:12 granger Exp $ */
+/* $Id: Imakefile,v 1.38 2001-01-17 20:30:04 granger Exp $ */
 
 #if !HasWritev
 WRITEVOBJ=writev.o
@@ -56,7 +56,7 @@ CCSRCS = BTree.cc BTreeFile.cc BlockFile.cc FreeList.cc Journal.cc XDR.cc \
 	SerialBuffer.cc SerialStream.cc Serializable.cc \
 	T_Block.cc dbf.cc T_BTree.cc ZTime.cc ztime_test.cc
 
-SRCS = $(CSRCS) ($CCSRCS)
+SRCS = $(CSRCS) $(CCSRCS)
 
 /*
  * Source for C++ templates should go here as well as in CCSRCS, with no
