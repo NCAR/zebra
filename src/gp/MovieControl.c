@@ -1,7 +1,7 @@
 /*
  * Movie control functions.
  */
-static char *rcsid = "$Id: MovieControl.c,v 1.10 1991-03-28 18:27:45 kris Exp $";
+static char *rcsid = "$Id: MovieControl.c,v 1.11 1991-04-10 23:07:06 kris Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -23,7 +23,6 @@ static char *rcsid = "$Id: MovieControl.c,v 1.10 1991-03-28 18:27:45 kris Exp $"
 # include <ui_date.h>
 
 # define ATSLEN		80	/* Length for AsciiText strings		*/
-# define MAXFRAME	40      /* Max number of frames in the cache.   */
 # define FLEN 		40	/* Length of a field string		*/
 # define DAPERCENT      .6666	/* Percent of Frame Skip that must have */
 				/* elapsed before newly available data  */
@@ -38,7 +37,7 @@ static Widget 	WEndt, WMinutes, WFrate, WFskip;
 /*
  * The actual movie control parameters.
  */
-static time 	Mtimes[MAXFRAME];	/* The time of each frame	*/
+static time 	Mtimes[NCACHE];	/* The time of each frame	*/
 static int 	MovieSlot = -1;
 static int 	Nframes = 0;		/* Number of frames in the movie*/
 static int 	TimeSkip = 1;		/* Minutes between frames	*/
@@ -648,7 +647,7 @@ int minutes;
  * Figure out how many frames we have.
  */
 	Nframes = minutes/TimeSkip + 1;
-	if (Nframes > MAXFRAME)
+	if (Nframes > NCACHE)
 	{
 		mc_SetStatus ("Too many frames.");
 		return (FALSE);
@@ -753,8 +752,14 @@ mc_ResetFrameCount()
 
 	FrameCount = OldFrameCount;
 	fc_SetNumFrames(FrameCount);
+	DisplayFrame = DrawFrame = fc_LookupFrame(&PlotTime);
+	if(DisplayFrame < 0)
+		DisplayFrame = DrawFrame = 0;
+	GWDrawInFrame(Graphics, DrawFrame);
+	GWDisplayFrame(Graphics, DisplayFrame);
 	XtSetArg (args[0], XtNframeCount, FrameCount);
 	XtSetValues (Graphics, args, ONE);
+	XSync(XtDisplay(Graphics), False);
 	pd_Store (Pd, "global", "time-frames", (char *) &FrameCount, SYMT_INT);
 }
 
