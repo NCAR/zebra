@@ -24,6 +24,9 @@
  * (notably Zeb) to get full windows support.  If you have an earlier 
  * OpenWindows version, set #define OldOpenWin to yes below.  
  *
+ * For Zeb users:  To compile Zeb exclusively with OpenWindows, you
+ * must have OpenWindows 3.0.  So RDSS must be compiled with
+ * UseOpenWin defined as Yes and OldOpenWin defined as No.
  * 
  
 # define UseXWindows Yes
