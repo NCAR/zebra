@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-/* $Id: Imakefile,v 1.15 1995-05-24 22:34:20 granger Exp $ */
+/* $Id: Imakefile,v 1.16 1995-06-29 22:50:36 granger Exp $ */
 
 #if !HasWritev
 WRITEVOBJ=writev.o
@@ -51,7 +51,8 @@ OBJS = alarmwidget.o altunits.o barb.o Bitmaps.o cmd_proto.o cmd_exec.o \
 TESTOBJS = cvt_test.o re_test.o msg_test.o
 
 HEADERS = bitmaps.h copyright.h defs.h GraphicsW.h GraphicsWP.h message.h \
-	pd.h timer.h ImageXfr.h zl_regex.h dm.h twidget.h byteorder.h
+	pd.h timer.h ImageXfr.h zl_regex.h dm.h twidget.h byteorder.h \
+	draw.h
 
 DISTFILES = $(SRCS) writev.c $(HEADERS) Imakefile
 
