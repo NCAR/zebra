@@ -49,7 +49,7 @@
 XCOMM -----------------------------------------------------------------------
 XCOMM Definitions from config.h included here.  The definitions here override
 XCOMM the defaults in Project.tmpl.  See ...../zebra/config/project/config.h.
-XCOMM $Id: config.h.dist,v 1.41 1996-11-19 07:05:10 granger Exp $
+XCOMM $Id: config.h.dist,v 1.42 1996-11-21 23:24:12 granger Exp $
 XCOMM -----------------------------------------------------------------------
 # endif
 
@@ -770,14 +770,6 @@ XCOMM -----------------------------------------------------------------------
  *------------------------------------------------------------------------*/
 #ifdef ARM_PROJECT
 
-#define CFG_PLATNAME_LEN	100
-
-/*
- * If defined, DC field attributes will override the fields table when 
- * writing field attributes to a file.
- */
-#define CFG_NC_DCATTS_OVERRIDE
-
 /*
  * If defined, a bad value attribute is not written to data files for any
  * field, and missing_value attributes in netCDF files are ignored.
@@ -835,7 +827,7 @@ XCOMM -----------------------------------------------------------------------
  * Various string length limits
  */
 #ifndef CFG_PLATNAME_LEN
-#define CFG_PLATNAME_LEN 160	/* Len of platform names		     */
+#define CFG_PLATNAME_LEN 80	/* Len of platform names		     */
 #endif
 #ifndef CFG_DIMNAME_LEN
 #define CFG_DIMNAME_LEN	32	/* Longest allowable dimension name	     */
@@ -848,9 +840,6 @@ XCOMM -----------------------------------------------------------------------
 #endif
 #ifndef CFG_PLATCLASS_LEN
 #define CFG_PLATCLASS_LEN 80	/* Len of platform class names		     */
-#endif
-#ifndef CFG_PLATDIR_LEN
-#define CFG_PLATDIR_LEN	100	/* Len of platform directory path	     */
 #endif
 #ifndef CFG_FILENAME_LEN
 #define CFG_FILENAME_LEN 32	/* Len of general file names (not full paths)*/
