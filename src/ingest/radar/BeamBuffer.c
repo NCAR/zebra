@@ -11,7 +11,19 @@
 # include <message.h>
 # include "BeamBuffer.h"
 
-MAKE_RCSID ("$Id: BeamBuffer.c,v 2.4 1998-10-28 21:22:32 corbet Exp $")
+MAKE_RCSID ("$Id: BeamBuffer.c,v 2.5 1999-03-11 18:28:50 burghart Exp $")
+
+#if defined(__GNU_LIBRARY__) && !defined(_SEM_SEMUN_UNDEFINED)
+/* union semun is defined by including <sys/sem.h> */
+#else
+/* according to X/OPEN we have to define it ourselves */
+    union semun {
+	int val;                    /* value for SETVAL */
+	struct semid_ds *buf;       /* buffer for IPC_STAT, IPC_SET */
+	unsigned short int *array;  /* array for GETALL, SETALL */
+	struct seminfo *__buf;      /* buffer for IPC_INFO */    
+    };
+#endif  
 
 /*
  * The beginning of our SHM segment has one of these.
@@ -154,10 +166,10 @@ int value;
  * Set our semaphore to this value.
  */
 {
-	union semun su;
-	su.val = value;
-	if (semctl (Sem_ID, 0, SETVAL, su))
-		msg_ELog (EF_PROBLEM, "Error %d setting semaphore", errno);
+    union semun su;
+    su.val = value;
+    if (semctl (Sem_ID, 0, SETVAL, su))
+	msg_ELog (EF_PROBLEM, "Error %d setting semaphore", errno);
 }
 
 
