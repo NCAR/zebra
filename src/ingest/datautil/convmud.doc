@@ -1,0 +1,80 @@
+
+		Converting Data to netCDF Format for Zeb
+
+
+	The procedure for converting data in MUDRAS file format into a 
+format usable by Zeb is:
+
+1)  Acquire MUDRAS file.  If the file is on the mass store system,
+    then download the file to a local machine with "nrnet msget".  
+    For example:
+
+	nrnet msget localfile L DF=BI R flnm=msfile
+
+2)  Decide on a platform name.  The dual-Doppler example uses
+    the platform name "ddop".
+
+3)  Make a directory below the usual zeb data directory for this data.
+    The directory should have the same name as the platform name.
+
+4)  Convert the MUDRAS file to netCDF format with the "convmud" command
+    which is included in the Zeb distribution.  The format of this command
+    is:
+
+	convmud mudras-file cdf-file-prefix mudras-field zeb-field ...
+
+    Where:
+
+	mudras-file  
+		Is, strangely enough, your mudras file.
+	cdf-file-prefix  
+		Is the *prefix* to the file created by convmud.  It is 
+		usually something like "/zeb/data/ddop/ddop.".
+		The prefix will be completed with the date and time and
+		a .cdf extension.
+	mudras-field
+		Is the bizarre name of an interesting field in the MUDRAS
+		file.
+	zeb-field
+		Is the name to assign this field in the netCDF file.
+
+    The convmud program accepts any number of field name pairs.  For
+    example:
+
+	convmud 2134.mud /zeb/data/ddop/ddop. "UFIL" u_wind \
+	"VFIL" v_wind "CON1" div "WINT1" w_wind "ZCP4" ref_cp4 "ZCP3" ref_cp3
+
+
+	Note:  It may be necessary to set some environment variables before
+    running the convmud program.  
+	
+	GMT_OFFSET  
+		The number of hours of offset between the time in the
+		MUDRAS file and GMT.  For CaPE data, the value is zero.
+
+	ORIGIN_LAT and ORIGIN_LON
+		Used to override the origin given in the MUDRAS file, 
+		should it happen to be junk for some reason.
+		                    
+5)  Let Zeb's data store know about the new platform.  A file exists in the
+    project directory that is read by the data store daemon and which defines
+    the platform name space.  This file is called ds.config.  Add some lines 
+    like this:
+
+	platform ddop
+		organization	3dgrid
+		filetype	netcdf
+	endplatform
+
+    See the Zeb Configuration Manual for more information on the ds.config
+    file.
+
+6)  Modify plot descriptions, menus etc. to allow display and access of the
+    new data platform.  Generic plot descriptions already exist for the 
+    platform name and fields in the above example.
+
+7)  Restart zeb and go.  
+
+
+	The procedure for converting GENPRO format files to netCDF is
+similar.  Simply use the "gprotocdf" program in place of convmud.

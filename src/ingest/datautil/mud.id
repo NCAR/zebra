@@ -1,0 +1,36 @@
+1-20	(char)	name
+
+32-7	Origin lat/lon
+43-58	(char)
+62	Generating system id ('CX')
+
+65	Some sort of size info ("nblk")
+66	(char)
+
+68	Scale factor
+
+71	(char)
+
+96	NDRF
+
+101	(char)
+
+106	Number of levels
+
+116-127	Date/time
+
+151	(char)
+
+160-69	Axis information
+162	some sort of size
+167	some sort of size
+
+175	Number of fields
+176-300	Field names and scales
+
+302	Landmark count
+303	Landmark count
+
+306-	Landmark names
+
+400	NRFLD
