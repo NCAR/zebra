@@ -1,7 +1,7 @@
 /*
  * Widget for getting position of cursor.
  */
-static char *rcsid = "$Id: PositionWidget.c,v 1.10 1993-03-12 22:04:03 granger Exp $";
+static char *rcsid = "$Id: PositionWidget.c,v 1.11 1993-03-13 08:18:17 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -65,7 +65,9 @@ void ChangeUnit ();
  */
 static XtActionsRec pw_Actions[] =
 {
-	{ "new-origin",		pw_PosDisplay	}
+	{ "new-origin",		pw_PosDisplay	},
+	{ "change-type",	ChangeType	},
+	{ "change-unit",	ChangeUnit	}
 };
 
 
@@ -87,8 +89,8 @@ pw_InitPos ()
  * Tell UI about the position widget, and register our actions
  */
 {
-	uw_def_widget ("position", "Get Position", pw_PosCreate, 0, 0);
 	XtAppAddActions (Actx, pw_Actions, XtNumber(pw_Actions));
+	uw_def_widget ("position", "Get Position", pw_PosCreate, 0, 0);
 }
 
 
@@ -101,7 +103,7 @@ XtAppContext 	actx;
  * Actually create the position widget.
  */
 {
-	Widget	form;
+	Widget	form, hbutton;
 	Arg	args[10];
 	int	n;
 
@@ -148,9 +150,9 @@ XtAppContext 	actx;
 	XtSetArg (args[n], XtNlabel, "Help");			n++;
 	XtSetArg (args[n], XtNfromHoriz, KNButton);		n++;
 	XtSetArg (args[n], XtNfromVert, DMSButton);		n++;
-	KNButton = XtCreateManagedWidget ("help", commandWidgetClass,
-		parent, args, n);
-	XtAddCallback (KNButton, XtNcallback, HelpCallback, 
+	hbutton = XtCreateManagedWidget ("help", commandWidgetClass,
+					 parent, args, n);
+	XtAddCallback (hbutton, XtNcallback, HelpCallback, 
 		       (XtPointer)GP_HELP_GPOSITION);
 /*
  * The text widget for entering the origin.
@@ -184,6 +186,7 @@ XtAppContext 	actx;
 	OrgLabel = XtCreateManagedWidget ("orglabel", labelWidgetClass,
 		parent, args, n);
 
+	XtInstallAllAccelerators (parent, parent);
 	PWMade = TRUE;
 	return (PosLabel);
 }
