@@ -1,0 +1,22 @@
+!
+! Generic CAP plot description for model data.  Needs to have the platform
+! filled in but otherwise self contained.
+!
+global
+	pd-name:	p_model
+p_model
+	platform:	SOMETHING
+	representation:	line-contour
+	color:		cyan
+	color-mono:	true
+	do-labels:	true
+	label-blanking:	false
+	icon-left-menu:	standard-cap-left-menu
+	icon-middle-menu:	FieldMenu
+	posicon-middle-menu:	FieldMenu
+	icon-right-menu:	contour-right
+	annot-left-menu:	FieldMenu
+	annot-middle-menu:	FieldMenu
+	scale-mode:		auto
+	require:		contour, simple-color
+	active-icon:		true
