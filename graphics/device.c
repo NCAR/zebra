@@ -1,5 +1,5 @@
 /* 5/87 jc */
-static char *rcsid = "$Id: device.c,v 1.21 1994-01-19 18:52:10 burghart Exp $";
+static char *rcsid = "$Id: device.c,v 1.22 1994-01-25 16:11:45 burghart Exp $";
 /*
  * Handle device specifics.
  */
@@ -56,9 +56,9 @@ extern int ps_tsize (), ps_text ();
 # endif
 
 # ifdef DEV_PSC
-extern int psc_open (), psc_close (), psc_flush (), psc_poly (), psc_hcw ();
+extern int psc_open (), psc_close (), psc_flush (), psc_poly (), psc_clip ();
 extern int psc_cmap (), psc_clear (), psc_vp (), psc_print (), psc_qtext ();
-extern int psc_tsize (), psc_text (), psc_pixel ();
+extern int psc_tsize (), psc_text (), psc_pixel (), psc_viewport ();
 # endif
 
 # ifdef DEV_SUNVIEW
@@ -757,7 +757,7 @@ struct device D_tab[] =
 		256,			/* 256 colors			*/
 		0, 0,			/* resolution set at open	*/
 		1.0,			/* square pixels		*/
-		32, 32,			/* pixel block size		*/
+	        64, 64,			/* pixel block size		*/
 		0,			/* no buttons, for now		*/
 		0,			/* Background color		*/
 		psc_open,		/* The open routine		*/
@@ -770,7 +770,7 @@ struct device D_tab[] =
 		psc_qtext,		/* query text			*/
 		psc_tsize,		/* Text size			*/
 		psc_text,		/* Text				*/
-		psc_hcw,		/* Set clip window		*/
+		psc_clip,		/* Set clip window		*/
 		psc_clear,		/* Clear screen			*/
 		___,			/* Polygon fill			*/
 		___,			/* (no) Segment init		*/
@@ -783,7 +783,7 @@ struct device D_tab[] =
 		___,			/* (no) Remove target		*/
 		___,			/* (no) color assignment	*/
 		___,			/* (no) exposure checking	*/
-		psc_vp,			/* Viewport adjustment		*/
+		psc_viewport,		/* Viewport adjustment		*/
 		___,			/* (no) readscreen		*/
 		___,			/* (no) pick			*/
 		___,			/* (no) color offset		*/
