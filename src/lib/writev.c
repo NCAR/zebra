@@ -1,4 +1,3 @@
-# ifdef titan
 /*
  * Emulation for (sadly) missing readv and writev routines.
  */
@@ -66,4 +65,3 @@ struct iovec *iov;
 	return (total);
 }
 
-# endif

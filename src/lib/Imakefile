@@ -21,6 +21,7 @@
 
 #if !HasWritev
 WRITEVOBJ=writev.o
+WRITEVSRC=writev.c
 #else
 WRITEVOBJ=
 WRITEVSRC=
@@ -35,7 +36,7 @@ SRCS = alarmwidget.c barb.c Bitmaps.c cmd_proto.c ConfigVars.c convert.c \
 	GraphicsW.c ImageXfr.c LeftRightButtons.c msg_BCast.c msg_lib.c \
 	netread.c Parse.c pdlib.c pdaux.c RLEncode.c \
 	Sound_lib.c TCvt.c TInterp.c timer_lib.c twidget.c vector.c \
-	writev.c FindFile.c zl_regex.c
+	$(WRITEVSRC) FindFile.c zl_regex.c
 
 OBJS = alarmwidget.o barb.o Bitmaps.o cmd_proto.o ConfigVars.o convert.o \
 	GraphicsW.o ImageXfr.o LeftRightButtons.o msg_BCast.o msg_lib.o \
@@ -46,7 +47,7 @@ OBJS = alarmwidget.o barb.o Bitmaps.o cmd_proto.o ConfigVars.o convert.o \
 HEADERS = bitmaps.h copyright.h defs.h GraphicsW.h GraphicsWP.h message.h \
 	pd.h timer.h ImageXfr.h zl_regex.h
 
-DISTFILES = $(SRCS) $(HEADERS) Imakefile
+DISTFILES = $(SRCS) writev.c $(HEADERS) Imakefile
 
 NormalLibraryTarget (Zeb, $(OBJS))
 
