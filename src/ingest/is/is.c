@@ -1,7 +1,7 @@
 /*
  * Ingest scheduler
  */
-static char    *rcsid = "$Id: is.c,v 1.11 1992-07-02 17:52:22 issadmin Exp $";
+static char    *rcsid = "$Id: is.c,v 1.12 1992-07-06 17:29:21 issadmin Exp $";
 
 /*
  * Copyright (C) 1987,88,89,90,91 by UCAR University Corporation for
@@ -30,6 +30,7 @@ static char    *rcsid = "$Id: is.c,v 1.11 1992-07-02 17:52:22 issadmin Exp $";
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <sys/errno.h>
 
 #include <ui.h>
 #include <ui_error.h>
@@ -45,17 +46,21 @@ void            sigchldHandler();
 int             is_shutdown(void);
 char           *substitute(char *, char *, char *);
 char           *last_part(char *, int);
+void            cfg_done(struct is_config *);
 
 #else
 is_shutdown();
 char           *substitute();
 char           *last_part();
+void            cfg_done();
 
 #endif
 
 /*
  * Definitions of globals.
  */
+extern char    *sys_errlist[];
+
 stbl            Configs;	/* will hold all configurations, accesable by
 				 * config name */
 char           *redirect = "none";	/* where to redirect stdout and
@@ -309,7 +314,6 @@ start_cfg(name, type, v, all)
 	struct is_config *cfg = (struct is_config *) v->us_v_ptr;
 
 	extern int      errno;
-	struct proc_entry *this_proc = NEW(struct proc_entry);
 	void            timed_check();
 
 	/*
@@ -390,11 +394,11 @@ stop(name, type, v, all)
 	 * 
 	 */
 	struct is_config *cfg = (struct is_config *) v->us_v_ptr;
-	struct proc_entry *this_proc = cfg->proc;
 
-	for (this_proc = cfg->proc; this_proc; this_proc = this_proc->next) {
-		kill(this_proc->pid, SIGHUP);
-		clean_up_process_list(cfg, this_proc);
+	if (cfg->pid) {
+		kill(cfg->pid, SIGHUP);
+		cfg->pid = 0;
+		cfg->active--;
 	}
 	/* turn off the timer if present */
 	if (cfg->timer) {
@@ -651,13 +655,14 @@ list_cfg(name, type, v, junk)
 		ui_nf_printf("\ttype:\t\t%s\n", "continuous");
 		break;
 	case IS_PTYPE:
-		ui_nf_printf("\ttype:\t\t%s\n", "continuous");
+		ui_nf_printf("\ttype:\t\t%s\n", "periodic");
 		break;
 	}
 	ui_nf_printf("\tplatform:\t%s\n", cfg->platform);
 	ui_nf_printf("\tmovedir:\t%s\n", cfg->movedir);
 	ui_nf_printf("\tdelete:\t\t%c\n", cfg->delete ? 'T' : 'F');
 	ui_nf_printf("\tfilename:\t%s\n", cfg->filename);
+	ui_nf_printf("\tpid:\t\t%d\n", cfg->pid);
 	ui_nf_printf("\tprocess:\t%s", cfg->process);
 	for (i = 1; i < cfg->n_proc_args; i++)
 		ui_nf_printf(" %s", cfg->proc_args[i]);
@@ -680,7 +685,6 @@ cfg_go(cfg)
 
 	static char    *new_args[MAX_PROC_ARGS];
 	extern int      errno;
-	struct proc_entry *this_proc = NEW(struct proc_entry);
 	char           *ptr_proc, *ptr_ifile;
 
 	/*
@@ -767,9 +771,7 @@ cfg_go(cfg)
 			/*
 			 * record the details in cfg
 			 */
-			this_proc->pid = pid;
-			this_proc->next = cfg->proc;
-			cfg->proc = this_proc;
+			cfg->pid = pid;
 			cfg->active++;
 			if ((cfg->type == IS_FTYPE) || (cfg->type == IS_PTYPE))
 				cfg->timer = TRUE;
@@ -803,30 +805,6 @@ cfg_go(cfg)
 	}
 }
 
-clean_up_process_list(cfg, proc)
-	struct is_config *cfg;
-	struct proc_entry *proc;
-{
-	struct proc_entry *this_proc;
-	struct proc_entry *last_proc;
-
-	/* delink an entry in a configuration's process list */
-
-	if (proc == cfg->proc)
-		cfg->proc = cfg->proc->next;
-	else
-		for (this_proc = cfg->proc;
-		     this_proc;
-		     this_proc = this_proc->next) {
-			if (this_proc == proc) {
-				/* got a match */
-				last_proc->next = this_proc->next;
-				free(proc);
-			}
-			last_proc = this_proc;
-		}
-	cfg->active--;
-}
 
 static int     *exit_status;
 void
@@ -837,31 +815,26 @@ sigchldHandler()
 	int             process_term();
 
 	/*
-	 * this handler is called when an ingestor terminates. Get the pid
-	 * and traverse the Configs table to find the matching entry.
-	 * process_term() is called to identify the pid and then deal with
-	 * the termination of this process.
+	 * this handler is called when an ingestor terminates. Traverse the
+	 * Configs table. process_term() is called to check each pid
+	 * associated with ingestors, and then check for the termination of
+	 * this process.
 	 * 
-	 * NOTE: global exit_status is used to transmit the process status to
-	 * process_term(). One could clean this up by having usy_traverse()
-	 * pass a structure containing the pid and the exit status.
 	 */
 
 #ifdef DEBUG
 	ui_printf("\rgot a sigchld\n");
 #endif
 
-	while ((pid =
-		wait3(&exit_status, WNOHANG, (struct rusage *) 0)) > 0) {
-		usy_traverse(Configs, process_term,
-			     pid, FALSE);
-	}
+	usy_traverse(Configs, process_term,
+		     0, FALSE);
 }
 
+
 int
-process_term(name, type, v, pid)
+process_term(name, type, v, junk)
 	char           *name;
-	int             type, pid;
+	int             type, junk;
 	union usy_value *v;
 
 /**
@@ -871,6 +844,98 @@ This function is called by usy_traverse(Configs,...)
 See if the pid matches the Configs entry. If it
 does not match, it is probably the popen process
 terminating. If it does matche, do the following:
+
+**/
+
+{
+	int             i;
+	struct is_config *cfg = (struct is_config *) v->us_v_ptr;
+	char           *ptr_proc;
+	int             wait_ret;
+	int             pid;
+	int             wait_err;
+
+	pid = cfg->pid;
+
+	if (!pid)
+		return (TRUE);
+
+	msg_ELog(EF_DEBUG, " calling wait4() for %d", pid);
+
+	if ((wait_ret =
+	     wait4(pid,
+		   &exit_status,
+		   WNOHANG,
+		   (struct rusage *) 0)) == pid) {
+
+		msg_ELog(EF_DEBUG, " wait4() found %d", pid);
+
+		ptr_proc = last_part(cfg->process, '/');
+
+		if (WIFEXITED(exit_status)) {
+			/* process exited using exit() */
+			msg_ELog(EF_INFO,
+				 "%s      [%d]%s has exited with status %d",
+				 name, pid, ptr_proc,
+				 WEXITSTATUS(exit_status));
+		} else {
+
+			/* processes terminated due to a signal */
+			msg_ELog(EF_INFO,
+			"%s      [%d]%s has has terminated due to signal %d",
+				 name, pid, ptr_proc,
+				 WTERMSIG(exit_status));
+		}
+
+		/*
+		 * now deal with the terminated ingestor, as directed by the
+		 * configuration
+		 */
+
+		cfg_done(cfg);
+
+	} else {
+		if (wait_ret == 0) {
+			msg_ELog(EF_DEBUG,
+				 " wait4() did not find %d",
+				 pid);
+		} else {
+			wait_err = errno;
+			if (wait_err != ECHILD) {
+				msg_ELog(EF_PROBLEM,
+					 " wait4() returned %d, pid %d, errno is %d:%s",
+					 wait_ret, pid, wait_err,
+					 sys_errlist[wait_err]);
+			} else {
+
+				/*
+				 * sometime (I don't know why), a child
+				 * process's signal is not received, and then
+				 * when we do a wait on it, we get an ECHILD
+				 * error. Just assume that the process
+				 * terminated, and handle normally. Put out
+				 * an error message, of course
+				 */
+
+				msg_ELog(EF_PROBLEM,
+					 "ECHILD received for process [%d] %s, treated as normal termination",
+				    cfg->pid, last_part(cfg->process, '/'));
+				cfg_done(cfg);
+
+			}
+
+		}
+	}
+
+
+	return (TRUE);
+}
+
+
+/*************************************************************/
+/**
+
+respond to the termination of an ingestor:
 
 1. clean up the process list entry.
 
@@ -895,111 +960,84 @@ for IS_CTYPE only:
 
 **/
 
+void
+cfg_done(cfg)
+	struct is_config *cfg;
+
 {
-	int             i;
-	struct is_config *cfg = (struct is_config *) v->us_v_ptr;
-	struct proc_entry *this_proc;
 	char           *move_file;
 	int             find_file();
-	char *ptr_proc;
 
-	for (this_proc = cfg->proc; this_proc; this_proc = this_proc->next) {
+	cfg->pid = 0;
+	cfg->active--;
 
-		if (this_proc->pid == pid) {
+	switch (cfg->type) {
 
-			clean_up_process_list(cfg, this_proc);
 
-			ptr_proc = last_part(cfg->process, '/');
+	case IS_FTYPE:
+		/*
+		 * For file type ingestors, and if a move directory has been
+		 * specified, go ahead and move the file . If only delete has
+		 * been specified, merely delete it. Move will be honored
+		 * over delete.
+		 */
+		if (cfg->movedir) {
+			move_file = malloc(strlen(cfg->movedir)
+					   + strlen(cfg->basename)
+					   + 2);
+			strcpy(move_file, cfg->movedir);
 
-			if (WIFEXITED(exit_status)) {
-				/* process exited using exit() */
-				msg_ELog(EF_INFO,
-				 "%s      [%d]%s has exited with status %d",
-					 name, pid, ptr_proc,
-					 WEXITSTATUS(exit_status));
-			} else {
+			if (move_file[strlen(move_file) - 1] != '/')
+				strcat(move_file, "/");
+			strcat(move_file, cfg->basename);
 
-				/* processes terminated due to a signal */
-				msg_ELog(EF_INFO,
-					 "%s      [%d]%s has has terminated due to signal %d",
-					 name, pid, ptr_proc,
-					 WTERMSIG(exit_status));
+			if (rename(cfg->ingest_file, move_file))
+				msg_ELog(EF_PROBLEM, "Error %d Can't move %s\nto %s\n",
+					 errno, cfg->ingest_file, move_file);
+
+		} else if (cfg->delete) {
+			if (unlink(cfg->ingest_file))
+				msg_ELog(EF_PROBLEM, "Error %d Can't unlink %s",
+					 errno, cfg->ingest_file);
+
+		}
+		/*
+		 * look for next file and start ingest if it is there
+		 */
+		if (find_file(cfg)) {
+			/*
+			 * indicate that we are processing files in the
+			 * rollover mode, so that timer doesn't start them as
+			 * well
+			 */
+			cfg->rollover = TRUE;
+			cfg_go(cfg);
+		} else
+			cfg->rollover = FALSE;
+		break;
+
+	case IS_PTYPE:
+		break;
+
+	case IS_CTYPE:
+		/*
+		 * for continuous type ingestors, reshedule them under
+		 * certain conditions
+		 */
+		if (cfg->restart)
+			if (cfg->n_restarts++ < MAX_RESTARTS)
+				cfg_go(cfg);
+			else {
+				msg_ELog(EF_PROBLEM,
+				      "%s has exceeded restart limit of %d",
+					 cfg->name, MAX_RESTARTS);
 			}
-			switch (cfg->type) {
+		break;
 
+	default:
+		break;
+	}			/** switch (cfg->type) **/
 
-			case IS_FTYPE:
-				/*
-				 * For file type ingestors, and if a move
-				 * directory has been specified, go ahead and
-				 * move the file . If only delete has been
-				 * specified, merely delete it. Move will be
-				 * honored over delete.
-				 */
-				if (cfg->movedir) {
-					move_file = malloc(strlen(cfg->movedir)
-						     + strlen(cfg->basename)
-							   + 2);
-					strcpy(move_file, cfg->movedir);
-
-					if (move_file[strlen(move_file) - 1] != '/')
-						strcat(move_file, "/");
-					strcat(move_file, cfg->basename);
-
-					if (rename(cfg->ingest_file, move_file))
-						msg_ELog(EF_PROBLEM, "Error %d Can't move %s\nto %s\n",
-							 errno, cfg->ingest_file, move_file);
-
-				} else if (cfg->delete) {
-					if (unlink(cfg->ingest_file))
-						msg_ELog(EF_PROBLEM, "Error %d Can't unlink %s",
-						   errno, cfg->ingest_file);
-
-				}
-				/*
-				 * look for next file and start ingest if it
-				 * is there
-				 */
-				if (find_file(cfg)) {
-					/*
-					 * indicate that we are processing
-					 * files in the rollover mode, so
-					 * that timer doesn't start them as
-					 * well
-					 */
-					cfg->rollover = TRUE;
-					cfg_go(cfg);
-				} else
-					cfg->rollover = FALSE;
-				break;
-
-			case IS_PTYPE:
-				break;
-
-			case IS_CTYPE:
-				/*
-				 * for continuous type ingestors, reshedule
-				 * them under certain conditions
-				 */
-				if (cfg->restart)
-					if (cfg->n_restarts++ < MAX_RESTARTS)
-						cfg_go(cfg);
-					else {
-						msg_ELog(EF_PROBLEM,
-							 "%s has exceeded restart limit of %d",
-						   cfg->name, MAX_RESTARTS);
-					}
-				break;
-
-			default:
-				break;
-			}	/** switch (cfg->type) **/
-
-		}		/** if (this_proc->pid == pid) **/
-	}			/** for (this_proc = cfg->proc;...) **/
-
-
-	return (TRUE);
 }
 
 void
@@ -1036,7 +1074,7 @@ timed_check(t, cfg)
 		break;
 
 	case IS_FTYPE:
-		if (!cfg->rollover)
+		if (!cfg->rollover && !cfg->active)
 			if (find_file(cfg)) {
 				cfg_go(cfg);
 
@@ -1146,11 +1184,11 @@ find_file(cfg)
 	 * with the fact that is execv's its own processes. Now just close()
 	 * dir_file and ASSUME! that the popen job has terminated.
 	 */
-	/*
-	 * pclose(dir_file);
-	 */
-	fclose(dir_file);
 
+	pclose(dir_file);
+	/***
+		fclose(dir_file);
+	***/
 	free(ls_command);
 
 	if (strlen(cfg->ingest_file)) {
@@ -1198,9 +1236,7 @@ init_cfg(cmds, cfg, name)
 	     i++)
 		cfg->proc_args[i] = NULL;
 	cfg->active = FALSE;
-	cfg->proc = NULL;
-	cfg->active = FALSE;
-	cfg->proc = NULL;
+	cfg->pid = 0;
 	cfg->ingest_file[0] = 0;
 	cfg->timer = FALSE;
 	cfg->timer_slot = -1;
