@@ -17,6 +17,10 @@ $FAIL = "ZPLOTD_FAILED";	# failure string
 
 $image_mail_list = " granger ";
 
+$ENV{'LD_LIBRARY_PATH'} = "/local/X11R6/lib:/usr/local/lib";
+$ENV{'ZEBRA_SOCKET'} = "/tmp/zebra.forestabl";
+$ENV{'ZEB_TOPDIR'} = "/scr/steam/granger/zebra";
+
 # Top zebra directory
 $ztop=$ENV{'ZEB_TOPDIR'};
 $zbin="$ztop/bin";
