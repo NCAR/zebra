@@ -25,7 +25,7 @@
 #include "DataStore.h"
 #include "dsPrivate.h"
 #include "dslib.h"
-MAKE_RCSID ("$Id: Appl.c,v 3.2 1992-06-09 19:17:21 corbet Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.3 1992-06-29 16:46:05 kris Exp $")
 
 
 /*
@@ -50,7 +50,7 @@ static int	ds_AwaitAck FP ((Message *, int));
 /*
  * The application notification table.
  */
-#define MAXPLAT 128
+#define MAXPLAT 1024
 typedef void (*VFunc) ();
 VFunc ApplFuncs[MAXPLAT];
 VFunc CopyFunc = 0;
