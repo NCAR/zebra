@@ -37,7 +37,7 @@
 # include "../include/message.h"
 # include "../include/timer.h"
 
-MAKE_RCSID ("$Id: twidget.c,v 2.7 1991-12-30 20:48:12 corbet Exp $")
+MAKE_RCSID ("$Id: twidget.c,v 2.8 1992-01-27 20:07:05 corbet Exp $")
 
 
 # define LABELWIDTH	60
@@ -115,7 +115,7 @@ int	junk;
 Widget	parent;
 XtAppContext appc;
 {
-	Arg args[10];
+	Arg args[20];
 	Widget form, title, f, left, dayleft, dform, sform, cform;
 	Widget mbutton, dbutton, ybutton, hbutton, minbutton, sbutton;
 	Widget skipbutton;
