@@ -13,7 +13,7 @@
 # include "Serial.h"
 # include "Options.h"
 
-MAKE_RCSID("$Id: Serial.c,v 2.3 2000-07-23 06:32:22 granger Exp $")
+MAKE_RCSID("$Id: Serial.c,v 2.4 2003-07-16 03:52:56 granger Exp $")
 
 #define DEFAULT_TERM	"/dev/ttya"	/* Default port device	*/
 #define DEFAULT_SPEED	"9600"		/* Default baud rate	*/
@@ -409,6 +409,7 @@ GetPort (Connection *conn)
 		{ "300",	B300 	},
 		{ "1200",	B1200 	},
 		{ "2400",	B2400 	},
+		{ "4800",	B4800 	},
 		{ "9600",	B9600 	},
 		{ "19200",	B19200 	},
 		{ 0,		0	},
