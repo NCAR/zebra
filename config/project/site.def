@@ -88,6 +88,18 @@ XCOMM site:  $XConsortium: site.sample,v 1.9 94/04/08 17:02:06 rws Exp $
 #endif
 #endif /* HPArchitecture */
 
+/*
+ * sgi.cf assumes IRIX 5.2 or lower, and so automatically defines
+ * ExtraLibraries as libraries which are not present or needed on 6.2.
+ * Hence we override the definition here.  Unfortunately, this would also
+ * override any definition in config.h, but defining ExtraLibraries in
+ * config.h is unusual.
+ */
+#ifdef SGIArchitecture
+# ifdef ExtraLibraries
+#  undef ExtraLibraries
+# endif
+#endif
 
 /* Assume there is no -lgen regexp library even though the AIX sets SystemV
 */
