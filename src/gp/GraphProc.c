@@ -1,12 +1,13 @@
-static char *rcsid = "$Id: GraphProc.c,v 1.10 1990-07-09 21:34:46 corbet Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 1.11 1990-09-04 08:41:38 corbet Exp $";
 
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
 # include <X11/Shell.h>
-# include <X11/Cardinals.h>
+# include <X11/Xaw/Cardinals.h>
 # include <X11/cursorfont.h>
 # include <ui.h>
+# include <fcntl.h>
 
 # include "gp_cmds.h"
 # include "../include/defs.h"
@@ -169,10 +170,11 @@ finish_setup ()
 	NormalCursor = XCreateFontCursor (XtDisplay (Top), XC_trek);
 	BusyCursor = XCreateFontCursor (XtDisplay (Top), XC_watch);
 /*
- * Initialize color table and user event stuff
+ * Module initializations.
  */
-	ct_Init ();
-	Ue_Init ();
+	ct_Init ();		/* Color tables		*/
+	Ue_Init ();		/* User event handling	*/
+	I_init ();		/* Icons		*/
 /*
  * Tell DM that we're here.
  */
@@ -276,8 +278,26 @@ greet_dm ()
  */
 {
 	struct dm_hello dmh;
-
+	Arg args[10];
+	int i = 0;
+/*
+ * MAJOR KLUDGERY: Realize our graphics widget quickly, so that we will
+ *		   have a window to send back to the display manager.  Then
+ *		   take it off the screen again.  We give it huge coords so
+ *		   that the user hopefully never actually sees it.
+ */
+	XtSetArg (args[i], XtNx, 5000);  i++;
+	XtSetArg (args[i], XtNy, 5000);  i++;
+	XtSetArg (args[i], XtNwidth, 50);  i++;
+	XtSetArg (args[i], XtNheight, 50);  i++;
+	XtSetValues (GrShell, args, i);
+	ChangeState (UP);
+	ChangeState (DOWN);
+/*
+ * Now send the message.
+ */
 	dmh.dmm_type = DM_HELLO;
+	dmh.dmm_win = XtWindow (GrShell);
 	msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &dmh, sizeof (dmh));
 }
 
@@ -292,6 +312,7 @@ struct ui_command *cmds;
  */
 {
 	static bool first = TRUE;
+	extern void mc_MovieRun ();
 	struct dm_event dme;
 
 	switch (UKEY (*cmds))
@@ -312,6 +333,12 @@ struct ui_command *cmds;
 	 */
 	   case GPC_DM:
 		dme.dmm_type = DM_EVENT;
+		if (cmds[1].uc_vptype != SYMT_STRING)
+		{
+			msg_ELog (EF_PROBLEM, "Non-string DM cmd: '%s'",
+				cmds[1].uc_text);
+			break;
+		}
 		strcpy (dme.dmm_data, UPTR (cmds[1]));
 		msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &dme,
 			sizeof (dme));
@@ -341,7 +368,7 @@ struct ui_command *cmds;
 	 */
 	   case GPC_MOVIE:
 	   	if (UKEY (cmds[1]))
-			mc_MovieRun ();
+			Eq_AddEvent (PDisplay, mc_MovieRun, 0, 0, Bounce);
 		else
 			mc_MovieStop ();
 		break;
@@ -622,9 +649,10 @@ struct dm_pdchange *dmp;
  */
 	fc_InvalidateCache ();
 /*
- * Now we need to set up to display the new PD.
+ * Now we need to set up to display the new PD, and also to redo icons.
  */
 	Eq_AddEvent (PDisplay, pc_PlotHandler, 0, 0, Override);
+	Eq_AddEvent (PDisplay, I_DoIcons, 0, 0, Bounce);
 }
 
 
@@ -705,11 +733,21 @@ struct dm_pdchange *dmp;
 {
 	raw_plot_description rpd;
 	plot_description pd;
+	int xxx;
 /*
  * Go ahead and recompile the PD now.
  */
 	rpd.rp_len = dmp->dmm_pdlen;
 	rpd.rp_data = dmp->dmm_pdesc;
+	if (pd_Retrieve (Pd, "global", "dump-defaults", &xxx, SYMT_BOOL))
+	{
+		int fd = open ("/fcc/etc/def.dump",
+			O_CREAT | O_TRUNC | O_WRONLY, 0666);
+		msg_ELog (EF_DEBUG, "Dump %d defaults bytes to %d", rpd.rp_len,
+			fd);
+		write (fd, rpd.rp_data, rpd.rp_len);
+		close (fd);
+	}
 	pd = pd_Load (&rpd);
 	pda_StorePD (pd, "defaults");
 /*
