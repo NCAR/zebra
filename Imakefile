@@ -1,4 +1,4 @@
-XCOMM $Id: Imakefile,v 1.28 1997-02-04 22:37:54 granger Exp $
+XCOMM $Id: Imakefile,v 1.29 1997-11-25 16:25:31 granger Exp $
 XCOMM
 XCOMM This is the top-level Imakefile for the Zebra distribution.
 XCOMM It is modeled after the top-level Imakefile of the MIT X11R5
@@ -192,11 +192,12 @@ tarfile:
 
 binary:
 	$(MAKE) $(MFLAGS) MAKE=$(MAKE) tarfile TARFILE=$(TARFILE) \
-	DISTSUBDIRS= DISTFILES="ChangeLog bin lib include"
+	DISTSUBDIRS= TARDEST="$(TARDEST)" DISTFILES="ChangeLog bin lib include"
 
 source:
 	$(MAKE) $(MFLAGS) MAKE=$(MAKE) tarfile TARFILE=$(TARFILE) \
-	DISTSUBDIRS="$(DISTSUBDIRS)" DISTFILES="$(DISTFILES) Makefile"
+	DISTSUBDIRS="$(DISTSUBDIRS)" TARDEST="$(TARDEST)" \
+	DISTFILES="$(DISTFILES) Makefile"
 
 /*
  * Since the mf shortcut turns around and does a depend as well, we'll
