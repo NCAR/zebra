@@ -1,7 +1,7 @@
 /*
  * Axis control. 
  */
-static char *rcsid = "$Id: AxisControl.c,v 1.11 1992-08-10 18:08:29 barrett Exp $";
+static char *rcsid = "$Id: AxisControl.c,v 1.12 1992-11-03 15:59:27 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -704,7 +704,7 @@ plot_description pd; /* input */
 char    *c;          /* input */
 char	side;
 {
-    int	plot=0;
+    bool plot=FALSE;
     char ptype[32];
     if ( !pda_Search (pd, "global", "plot-type", NULL, ptype,SYMT_STRING)||
 	 strcmp(ptype,"xygraph") != 0)
