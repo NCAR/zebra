@@ -35,7 +35,7 @@
 # include "DrawText.h"
 # include "XYCommon.h"
 
-RCSID("$Id: XYCommon.c,v 1.38 2001-06-19 23:48:31 granger Exp $")
+RCSID("$Id: XYCommon.c,v 1.39 2001-11-27 23:22:56 granger Exp $")
 
 /* 
  * One somewhat reasonable definition for infinity in XDR, lifted from 
@@ -831,7 +831,7 @@ char 		*c;		/* Plot description component */
  * single "observation", and the length of the array.  The field name must be
  * already set in each data vector in the array.  Space for holding the
  * data in the data vectors will be malloc'ed here if necessary, and must
- * be free'd by the caller.  Only every (nskip+1)th good point will be put
+ * be free'd by the caller.  Only every nskip'th good point will be put
  * into the resultant data vectors.
  *
  * If obsinfo is non-NULL, then an xyObsInfo structure describing the 
@@ -1035,10 +1035,11 @@ char 		*c;		/* Plot description component */
 		if (xy_BadPoint (val, fcount, badvals, nbadval))
 			continue;
 	/*
-	 * We have good data, but make sure we only take every (nskip+1)th 
+	 * We have good data, but make sure we only take every nskip'th 
 	 * good data point
 	 */
-		if ((ngood++ % (nskip + 1)) != 0)
+		++ngood;
+		if (nskip != 0 && (((ngood-1) % nskip) != 0))
 			continue;
 	/*
 	 * OK, we finally have something we really want to put into the

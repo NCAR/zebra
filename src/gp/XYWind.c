@@ -38,7 +38,7 @@
 # include "AxisControl.h"
 # include "PlotPrim.h"
 
-RCSID ("$Id: XYWind.c,v 1.40 2001-04-20 08:26:29 granger Exp $")
+RCSID ("$Id: XYWind.c,v 1.41 2001-11-27 23:22:56 granger Exp $")
 
 /*
  * General definitions
@@ -170,7 +170,7 @@ zbool	update;
  * Get X-Y Winds optional parameters:
  * "vec-scale" - the number of pixels long to make the barb, or the vector
  *		scaling factor
- * "data-skip" - skip every "n" data points.
+ * "data-skip" - plot only one of every "n" data points.
  * "style" - "barb" or "vector"
  * "step" - float, the size of the color table intervale
  * "barb-type" - "m/s" or "knots"

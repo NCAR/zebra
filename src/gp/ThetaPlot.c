@@ -43,7 +43,7 @@
 
 
 
-RCSID ("$Id: ThetaPlot.c,v 2.4 1998-10-28 21:22:09 corbet Exp $")
+RCSID ("$Id: ThetaPlot.c,v 2.5 2001-11-27 23:22:56 granger Exp $")
 
 
 /*
@@ -772,7 +772,7 @@ TP_DoWinds (TPParams *p, DataChunk *dc, FieldId *fids)
  * Plot the winds
  */
 	sk_Clip (Xlo, Ylo, Xhi, Yhi);
-	for (pt = 0; pt < npt; pt += p->tp_WSkip + 1)
+	for (pt = 0; pt < npt; pt += (p->tp_WSkip > 0 ? p->tp_WSkip : 1))
 	{
 		float pres, u, v;
 	/*
