@@ -203,4 +203,5 @@ gc_transtable ()
  * Close the file
  */
 	fclose (infile);
+	return (GE_OK);
 }
