@@ -1,4 +1,4 @@
-XCOMM $Id: Imakefile,v 1.4 1996-05-01 20:29:36 granger Exp $
+XCOMM $Id: Imakefile,v 1.5 2001-09-18 22:45:11 granger Exp $
 #if UseCCMakeDepend
 MDEP_DIR = makedepend
 #endif
@@ -24,10 +24,8 @@ InstallNamedProg(makedepend,makedepend,$(BINDIR))
 #endif
 InstallNamedProg(lndir.sh,lndir,$(BINDIR))
 InstallManPage(lndir,$(MANDIR))
-#if SystemV || SystemV4
 InstallNamedProg(bsdinst.sh,bsdinst,$(BINDIR))
 InstallNamedProg(install.sh,install.sh,$(BINDIR))
-#endif
 
 clean::
 	$(RM) $(PROGRAMS)
