@@ -223,14 +223,14 @@ ScanConverter::DoBeam (PolarBeam *pb, void *data, float xr, float yr)
 	// Allocate a temporary data array, copy and swap the data, then
 	// point "data" to the new swapped array.
 	//
-	    int imgsize = sc_Dest->di_bpl * sc_Dest->di_h;
-	    char* newdata = new char[imgsize];
-	    memcpy (newdata, data, imgsize);
+	    int ngates = pb->pb_NGates;
+	    unsigned int* newdata = new unsigned int[ngates];
+	    memcpy (newdata, data, ngates * sizeof (unsigned int));
 
-	    for (int i = 0; i < imgsize; i+= 4)
+	    for (int i = 0; i < ngates; i++)
 		swap4 (newdata + i);
 	    
-	    data = newdata;
+	    data = (void*)newdata;
 	}
 //
 // Do we need to triangle fill on the close end?  If so, be done with it.
