@@ -42,7 +42,7 @@
 XCOMM -----------------------------------------------------------------------
 XCOMM Definitions from config.h included here.  The definitions here override
 XCOMM the defaults in Project.tmpl.  See ...../zeb/config/config.h.
-XCOMM $Id: config.h.dist,v 1.21 1994-11-30 18:02:45 corbet Exp $
+XCOMM $Id: config.h.dist,v 1.22 1994-12-11 16:23:51 corbet Exp $
 XCOMM -----------------------------------------------------------------------
 # endif
 
@@ -245,10 +245,9 @@ XCOMM -----------------------------------------------------------------------
  *	 debugging on the HP.  Either turn off "-g" below, or get the
  *	 special version at jaguar.cs.utah.edu.
  *
- *  SGI: At the time of this writing, the gcc compiler and IRIX 5.x
- *       systems do not support debugging and have other unresolved loader
- *       problems.  If you're compiling on the SGI, use the SGI cc compiler
- *	 and set UseGcc to NO 
+ * SGI:	 GCC works iff (1) you have Irix 5.2 or greater, and (2) you have 
+ *	 gcc 2.6.1 or greater.  Lacking those, use of the native compiler
+ *	 is highly recommended.
  */
 # define UseGcc YES
 
@@ -310,13 +309,8 @@ XCOMM -----------------------------------------------------------------------
  *	  with.  You must also provide the "+ppu" fortran option or you will
  *	  get undefined externals when you link the graphics process.
  *
- *   SGI: DO turn on the K&R option ("-cckr") with the native SGI C compiler
- *        and turn off optimization.  See the example below.  
- *
  */
 # define CCOptions -O
-
-/* # define CCOptions -cckr */		/* SGI version */
 
 # define FortOptions -O
 /* # define FortOptions -O +ppu */	/* HPUX version */
