@@ -52,7 +52,7 @@
 # define MESSAGE_MANAGER	/* define prototypes for netread functions */
 # include <message.h>
 
-RCSID ("$Id: message.c,v 2.58 1999-06-16 16:54:47 burghart Exp $")
+RCSID ("$Id: message.c,v 2.59 1999-06-18 16:36:14 burghart Exp $")
 
 /*
  * Symbol tables.
@@ -2096,13 +2096,16 @@ Message *msg;
 		listgroup (fd, msg);
 		break;
 	/*
-	 * Remote message manager did not find our recipient
+	 * Remote message manager did not find a recipient; route the
+	 * rejection back to the sender
 	 */
 	   case MH_NOTFOUND:
-	   	Fd_map[fd]->c_pid = ((struct mh_pid *) tm)->mh_pid;
-		send_log (EF_PROBLEM, "msg to %s was rejected by %s: %s",
-			  ((struct mh_ident*) tm)->mh_name,  msg->m_from,
-			  "recipient not found");
+		if (! strcmp (msg->m_to, MSG_MGR_NAME))
+		    send_log (EF_DEBUG, "msg to %s rejected by %s: %s",
+			      ((struct mh_ident*) tm)->mh_name,  msg->m_from,
+			      "recipient not found");
+		else
+		    route (fd, msg);
 		break;
 
 	   default:
@@ -2253,7 +2256,7 @@ struct message *msg;
  */
 	at = strrchr (msg->m_from, '@');
 	if (! at || strcmp (conp->c_name, at + 1))
-		send_log (EF_PROBLEM, "INET machine %s thinks its '%s'!", 
+		send_log (EF_PROBLEM, "INET machine %s thinks it's '%s'!", 
 			  conp->c_name, at ? at + 1 : msg->m_from);
 }
 
