@@ -1,7 +1,7 @@
 /*
  * Plot execution module
  */
-static char *rcsid = "$Id: PlotExec.c,v 1.5 1990-11-19 13:44:16 burghart Exp $";
+static char *rcsid = "$Id: PlotExec.c,v 1.6 1990-11-26 15:22:16 burghart Exp $";
 
 # include <X11/Intrinsic.h>
 # include <ui.h>
@@ -113,7 +113,8 @@ typedef enum {LineContour, FilledContour} contour_type;
 /*
  * Other routines.
  */
-extern void	tr_CAPTrack (), ov_CAPOverlay (), sk_Skewt (), xs_XSect ();
+extern void	tr_CAPTrack (), ov_CAPOverlay (), sk_Skewt ();
+extern void	xs_LineContour (), xs_FilledContour ();
 
 # ifdef titan
 #	define do_rgrid DO_RGRID
@@ -428,7 +429,8 @@ px_Init ()
 
 	Plot_routines[PT_SKEWT][RT_SKEWT] = sk_Skewt;
 
-	Plot_routines[PT_XSECT][RT_CONTOUR] = xs_XSect;
+	Plot_routines[PT_XSECT][RT_CONTOUR] = xs_LineContour;
+	Plot_routines[PT_XSECT][RT_FCONTOUR] = xs_FilledContour;
 /*
  * Done
  */
