@@ -30,7 +30,7 @@
 # include <DataStore.h>
 # include <Platforms.h>
 
-RCSID ("$Id: dsdump.c,v 3.23 2000-08-25 05:23:29 granger Exp $")
+RCSID ("$Id: dsdump.c,v 3.24 2000-11-06 21:11:31 granger Exp $")
 
 /*
  * Standalone scanning flag.
@@ -52,23 +52,61 @@ static int Alone = 0;
 #define TC_DIGITS 10
 
 /*
+ * Datastore platform fields which can be dumped in a table.
+ */
+typedef enum e_platform_att_id
+{
+    PA_NONE = 0, PA_NAME, PA_CLASS, PA_SUPERCLASS, PA_CLASSTREE,
+    PA_FILETYPE, PA_ORGANIZATION, PA_MAXSAMPLES, PA_CLASSDIR,
+    PA_INHERIT_DIR, PA_INSTANCE_DIR, PA_COMMENT, PA_LASTATT
+} platform_att_id;
+
+typedef struct s_platform_att 
+{
+    char *pa_name;
+    platform_att_id pa_id;
+} platform_att;
+
+/*
+ * The order of this array corresponds to the enum values above
+ * to simplify lookup.
+ */
+platform_att PlatformAtts[] = 
+{
+    { "none", PA_NONE },
+    { "name", PA_NAME },
+    { "class", PA_CLASS },
+    { "superclass", PA_SUPERCLASS },
+    { "classtree", PA_CLASSTREE },
+    { "filetype", PA_FILETYPE },
+    { "organization", PA_ORGANIZATION },
+    { "maxsamples", PA_MAXSAMPLES },
+    { "classdir", PA_CLASSDIR },
+    { "inheritdir", PA_INHERIT_DIR },
+    { "instancedir", PA_INSTANCE_DIR },
+    { "comment", PA_COMMENT }
+};
+
+/*
  * The global options structure which gets passed around.
  */
 struct dsdump_options
 {
-	zbool sort;
-	zbool subs;
-	zbool tier;
-	int files;
-	zbool names;
-	zbool obs;
-	zbool defn;
-	zbool toc;
-	zbool quiet;	/* skip default output if true */
-	zbool full;	/* full datafile paths if true */
-	int tcf;	/* time formats */
-	ZebraTime since;
-	ZebraTime before;
+    zbool sort;
+    zbool subs;
+    zbool tier;
+    int files;
+    zbool names;
+    zbool obs;
+    zbool defn;
+    zbool toc;
+    zbool quiet;	/* skip default output if true */
+    zbool full;		/* full datafile paths if true */
+    int tcf;		/* time formats */
+    platform_att_id *atts;
+    int natts;
+    ZebraTime since;
+    ZebraTime before;
 };
 
 typedef struct dsdump_options DumpOptions;
@@ -78,19 +116,132 @@ typedef struct dsdump_options DumpOptions;
  */
 DumpOptions Options =
 {
-	FALSE,
-	FALSE,
-	FALSE,
-	SHOWFILES,
-	FALSE,
-	FALSE,		/* only show most recent file */
-	FALSE,		/* don't show class definitions */
-	FALSE,		/* don't dump field list */
-	FALSE,
-	FALSE,
-	TC_Full
+    FALSE,		/* sort */
+    FALSE,		/* subs */
+    FALSE,		/* tier */
+    SHOWFILES,		/* files */
+    FALSE,		/* names */
+    FALSE,		/* only show most recent file */
+    FALSE,		/* don't show class definitions */
+    FALSE,		/* don't dump field list */
+    FALSE,		/* quiet */
+    FALSE,		/* full */
+    TC_Full,		/* tcf, time formats */
+    0, 0		/* default to no table rows */
 };
 	
+
+
+
+const char *
+DumpAtt (const Platform *p, const PlatformClass *pc, 
+	 platform_att_id pa)
+{
+    static char buf[512];
+
+    char name[512];
+    const PlatformClass *spc;
+
+    switch (pa)
+    {
+    case PA_NONE:
+	break;
+
+    case PA_NAME:
+	return (pi_Name (p));
+	break;
+
+    case PA_CLASS:
+	return (pc_Name (pc));
+	break;
+	
+    case PA_SUPERCLASS:
+	spc = pc_SuperClass (pc);
+	if (spc)
+	    return (pc_Name (spc));
+	else
+	    return ("none");
+	break;
+
+    case PA_CLASSTREE:
+	sprintf (buf, "%s", pc_Name (pc));
+	spc = pc_SuperClass (pc);
+	while (spc)
+	{
+	    sprintf (name, "%s/%s", pc_Name (spc), buf);
+	    strcpy (buf, name);
+	    spc = pc_SuperClass (spc);
+	};
+	return buf;
+	break;
+
+    case PA_FILETYPE: 
+	return ds_FTypeName (pi_FileType (p));
+	break;
+
+    case PA_ORGANIZATION: 
+	return ds_OrgName (pi_DataOrg (p));
+	break;
+
+    case PA_MAXSAMPLES: 
+	sprintf (buf, "%i", pi_MaxSamp (p));
+	return buf;
+	break;
+
+    case PA_CLASSDIR:
+	return pi_ClassDir (p);
+	break;
+
+    case PA_INHERIT_DIR:
+	return ds_InheritDirFlagName (pc_InheritDirFlag (pc));
+	break;
+
+    case PA_INSTANCE_DIR:
+	return ds_InstanceDirFlagName (pc_InstanceDirFlag (pc));
+	break;
+
+    case PA_COMMENT:
+	return pc->dpc_comment;
+	break;
+
+    default:
+    }
+    return "unknown";
+}
+
+
+
+
+/*
+ * Given a platform instance and set of attributes to dump, dump
+ * the value of those attributes.
+ */
+int
+DumpRow (PlatformId pid, platform_att_id atts[], int natts)
+{
+    const PlatformClass *pc;
+    const Platform *p = dt_FindPlatform (pid);
+    int cid = ds_PlatformClass (pid);
+    int i;
+
+    if (! p || ! (pc = dt_FindClass (cid)))
+	return (-1);
+
+    printf ("%s ", pi_Name (p));
+    for (i = 0; i < natts; ++i)
+    {
+	const char *att = DumpAtt (p, pc, atts[i]);
+	if (atts[i] == PA_COMMENT)
+	{
+	    printf ("'%s' ", att ? att : "");
+	}
+	else
+	    printf ("%s ", att ? att : "-");
+    }
+    printf ("\n");
+    return 0;
+}
+
 
 /*
  * Local prototypes
@@ -111,56 +262,102 @@ static void
 usage (prog)
 char *prog;
 {
-	printf("Usage: %s -h\n", prog);
-	printf("       %s [options] [-e name] [regexp ...]\n", prog);
-	printf("       %s -i filename [filename ...]\n", prog);
-	printf("Lists all platforms if no regular expressions are given.\n");
-	printf("\t-h\tPrint this usage information\n");
-	printf("\t-a\tAlphabetize list for each regular expression\n");
-	printf("\t-e\tMatch the following name exactly\n");
-	printf("\t-s\tInclude subplatforms in the list\n");
-	printf("\t-c\tShow subplatforms (children) for each platform\n");
-	printf("\t-d\tShow class definitions for each platform\n");
-	printf("\t-q\tQuiet: skip any default output\n");
-	printf("\t-x\tExclude data files from listing\n");
-	printf("\t-n\tList platform names only\n");
-	printf("\t-z\tList only the most recent observation\n");
-	printf("\t-t\tList fields in each observation ('%s')\n",
-	       "table of contents");
-	printf("\t-f\tList filenames only\n");
-	printf("\t-g\tList filenames with their full pathnames\n");
-	printf("\t-l\tList filenames in 'dsnotice' column format\n");
-	/* Save -r for 'realtime' option to assume dsnotice functionality */
-	printf("\t-p '<number> [days|minutes|hours]'\n");
-	printf("\t\tList data within a certain period of the current time,\n");
-	printf("\t\twhere units can be abbreviated and defaults to days.\n");
-	printf("\t-p '<time>'\n");
-	printf("\t\tList files with data since the given time.\n");
-	printf("\t\tA second -p limits the end time of the period.\n");
-	printf("\t-T {full|date|time|micro|digits}\n");
-	printf("\t\tSet the format for printing times.\n");
+    int i;
+    printf("Usage: %s -h\n", prog);
+    printf("       %s [options] [-e name] [regexp ...]\n", prog);
 #ifdef notyet
-	printf("\t-i\tIndependently of the datastore, scan the given\n");
-	printf("\t\tfiles and dump the results as usual.\n");
+    printf("       %s -i filename [filename ...]\n", prog);
 #endif
-	printf("Examples:\n");
-	printf("\tAlphabetized list of all platforms:\n\t   %s -a\n", prog);
-	printf("\tList 'ship' platforms, including subplatforms for each:\n");
-	printf("\t   %s -c '.*ship.*'\n", prog);
-	printf("\tList radars, and the platform exactly named 'base':\n");
-	printf("\t   %s radars -e base\n", prog);
-	printf("\tShow the last two days worth of data for all platforms:\n");
-	printf("\t   %s -p '2 days'\n", prog);
-	printf("\tShow one days worth of data, two days ago:\n");
-	printf("\t   %s -p '2 days' -p '1 day'\n", prog);
-	printf("\tTar the last 6 hours of GOES data\n");
-	printf("\t   tar cf goes.tar `%s -g -p '6 hours' goes`\n", prog);
-	printf("\tList fields in most recent observation of each platform:\n");
-	printf("\t   %s -z -t\n", prog);
+    printf("Lists all platforms if no regular expressions are given.\n");
+    printf("\t-h\tPrint this usage information\n");
+    printf("\t-a\tAlphabetize list for each regular expression\n");
+    printf("\t-e\tMatch the following name exactly\n");
+    printf("\t-s\tInclude subplatforms in the list\n");
+    printf("\t-c\tShow subplatforms (children) for each platform\n");
+    printf("\t-d\tShow class definitions for each platform\n");
+    printf("\t-q\tQuiet: skip any default output\n");
+    printf("\t-x\tExclude data files from listing\n");
+    printf("\t-n\tList platform names only\n");
+    printf("\t-z\tList only the most recent observation\n");
+    printf("\t-t\tList fields in each observation ('%s')\n",
+	   "table of contents");
+    printf("\t-f\tList filenames only\n");
+    printf("\t-g\tList filenames with their full pathnames\n");
+    printf("\t-l\tList filenames in 'dsnotice' column format\n");
+    printf("\t-p '<number> [days|minutes|hours]'\n");
+    printf("\t\tList data within a certain period of the current time,\n");
+    printf("\t\twhere units can be abbreviated and defaults to days.\n");
+    printf("\t-p '<time>'\n");
+    printf("\t\tList files with data since the given time.\n");
+    printf("\t\tA second -p limits the end time of the period.\n");
+    printf("\t-T {full|date|time|micro|digits}\n");
+    printf("\t\tSet the format for printing times.\n");
 #ifdef notyet
-	printf("\tCreate a prelim ds config file from a set of files:\n");
-	printf("\t   %s -i -q -d *.cdf > ds.config\n", prog);
+    printf("\t-i\tIndependently of the datastore, scan the given\n");
+    printf("\t\tfiles and dump the results as usual.\n");
 #endif
+    printf("\t-r '<column1>, <column2>, ...'\n"
+	   "\t\tRow output with the given attributes in each column\n");
+    for (i = 1; i < PA_LASTATT; ++i)
+    {
+	printf ("\t\t\t%s\n", PlatformAtts[i].pa_name);
+    }
+    printf("Examples:\n");
+    printf("\tAlphabetized list of all platforms:\n\t   %s -a\n", prog);
+    printf("\tList 'ship' platforms, including subplatforms for each:\n");
+    printf("\t   %s -c '.*ship.*'\n", prog);
+    printf("\tList radars, and the platform exactly named 'base':\n");
+    printf("\t   %s radars -e base\n", prog);
+    printf("\tShow the last two days worth of data for all platforms:\n");
+    printf("\t   %s -p '2 days'\n", prog);
+    printf("\tShow one days worth of data, two days ago:\n");
+    printf("\t   %s -p '2 days' -p '1 day'\n", prog);
+    printf("\tTar the last 6 hours of GOES data\n");
+    printf("\t   tar cf goes.tar `%s -g -p '6 hours' goes`\n", prog);
+    printf("\tList fields in most recent observation of each platform:\n");
+    printf("\t   %s -z -t\n", prog);
+#ifdef notyet
+    printf("\tCreate a prelim ds config file from a set of files:\n");
+    printf("\t   %s -i -q -d *.cdf > ds.config\n", prog);
+#endif
+}
+
+
+
+void
+ParseAttList (char *arg, DumpOptions *opts)
+{
+    platform_att_id *atts;
+    int natts;
+    char *substrings[256];
+    int n;
+    int i, j;
+
+    n = CommaParse (arg, substrings);
+    if (n <= 0)
+	return;
+    atts = (platform_att_id *) malloc (n * sizeof(platform_att));
+    natts = 0;
+    for (i = 0; i < n; ++i)
+    {
+	for (j = 1; j < PA_LASTATT; ++j)
+	{
+	    if (! strcmp (substrings[i], PlatformAtts[j].pa_name))
+	    {
+		atts[natts++] = PlatformAtts[j].pa_id;
+		break;
+	    }
+	}
+    }
+    if (natts > 0)
+    {
+	opts->atts = atts;
+	opts->natts = natts;
+    }
+    else
+    {
+	free (atts);
+    }
 }
 
 
@@ -263,8 +460,14 @@ NextPlatform (PlatformId pid, DumpOptions *opts)
 	DumpPlatform (p, opts);
     if (opts->defn)
     {
+	int cid = ds_PlatformClass(pid);
 	fprintf (stdout, "\n");
-	ds_ShowPlatformClass (stdout, ds_PlatformClass(pid));
+	if (cid != BadClass)
+	{
+	    ds_ShowPlatformClass (stdout, cid);
+	    fprintf (stdout, "instance %s %s\n", 
+		     ds_ClassName (cid), ds_PlatformName (pid));
+	}
     }
     if (opts->tier)
 	DumpSubplatforms (p);
@@ -274,185 +477,192 @@ NextPlatform (PlatformId pid, DumpOptions *opts)
 
 int
 main (argc, argv)
-int argc;
-char **argv;
+     int argc;
+     char **argv;
 {
-	int i, nplat, total, opt;
-	PlatformId *platforms;
-	PlatformId pid;
-	char *pattern;
-	zbool first, exact;
-	char name[20];
-	int matches;
-	long period = 0;	/* Length of time to show data for */
-	DumpOptions *opts = &Options;
-/*
- * First check for the help option
- */
-	if ((argc > 1) && (!strcmp(argv[1], "-h")))
-	{
-		usage (argv[0]);
-		exit (0);
-	}
+    int i, nplat, total, opt;
+    PlatformId *platforms;
+    PlatformId pid;
+    char *pattern;
+    zbool first, exact;
+    char name[20];
+    int matches;
+    DumpOptions *opts = &Options;
+    /*
+     * First check for the help option
+     */
+    if ((argc > 1) && (!strcmp(argv[1], "-h")))
+    {
+	usage (argv[0]);
+	exit (0);
+    }
 #ifdef notyet
-	else if ((argc > 1) && (!strcmp(argv[1], "-i")))
-	{
-		Alone = 1;
-	}
+    else if ((argc > 1) && (!strcmp(argv[1], "-i")))
+    {
+	Alone = 1;
+    }
 #endif
-	sprintf (name, "DSDump-%d", getpid());
-	if (Alone)
+    sprintf (name, "DSDump-%d", getpid());
+    if (Alone)
+    {
+	msg_connect (0, name);
+	ds_Standalone ();
+    }
+    else if (! msg_connect (msg_handler, name) || (! ds_Initialize ()))
+    {
+	printf("%s: could not connect to DataStore daemon\n",argv[0]);
+	exit (1);
+    }
+    opts->since = ZT_ALPHA;		/* default: show all files */
+    opts->before = ZT_OMEGA;
+    /*
+     * How many platforms?
+     */
+    nplat = total = ds_GetNPlat ();
+    matches = 0;
+    platforms = NULL;
+    /*
+     * Traverse the options, turning on options as encountered
+     */
+    opt = 1;
+    exact = FALSE;
+    first = FALSE;	/* true once we try at least one pattern */
+    do {
+	if ((opt < argc) && (argv[opt][0] == '-'))
 	{
-		msg_connect (0, name);
-		ds_Standalone ();
-	}
-	else if (! msg_connect (msg_handler, name) || (! ds_Initialize ()))
-	{
-		printf("%s: could not connect to DataStore daemon\n",argv[0]);
-		exit (1);
-	}
-	opts->since = ZT_ALPHA;		/* default: show all files */
-	opts->before = ZT_OMEGA;
-/*
- * How many platforms?
- */
-	nplat = total = ds_GetNPlat ();
-	matches = 0;
-	platforms = NULL;
-/*
- * Traverse the options, turning on options as encountered
- */
-	opt = 1;
-	exact = FALSE;
-	first = FALSE;	/* true once we try at least one pattern */
-	do {
-		if ((opt < argc) && (argv[opt][0] == '-'))
+	    if (exact)
+	    {
+		printf ("%s: -e needs platform name\n",
+			argv[0]);
+		exit (2);
+	    }
+	    switch (argv[opt][1])
+	    {
+	    case 's':
+		opts->subs = TRUE;
+		break;
+	    case 'a':
+		opts->sort = TRUE;
+		break;
+	    case 'c':
+		opts->tier = TRUE;
+		break;
+	    case 'd':
+		opts->defn = TRUE;
+		break;
+	    case 'e':
+		exact = TRUE;
+		break;
+	    case 'x':
+		opts->files = NOFILES;
+		break;
+	    case 'n':
+		opts->names = TRUE;
+		break;
+	    case 'z':
+		opts->obs = TRUE;
+		break;
+	    case 't':
+		opts->toc = TRUE;
+		break;
+	    case 'f':
+		opts->files |= ONLYFILES;
+		opts->files &= ~LONGFILES;
+		break;
+	    case 'l':
+		opts->files &= ~ONLYFILES;
+		opts->files |= LONGFILES;
+		break;
+	    case 'g':
+		opts->full = TRUE;
+		break;
+	    case 'p':
+		if (! argv[++opt])
 		{
-			if (exact)
-			{
-				printf ("%s: -e needs platform name\n",
-					argv[0]);
-				exit (2);
-			}
-			switch (argv[opt][1])
-			{
-			   case 's':
-				opts->subs = TRUE;
-				break;
-			   case 'a':
-				opts->sort = TRUE;
-				break;
-			   case 'c':
-				opts->tier = TRUE;
-				break;
-			   case 'd':
-				opts->defn = TRUE;
-				break;
-			   case 'e':
-				exact = TRUE;
-				break;
-			   case 'x':
-				opts->files = NOFILES;
-				break;
-			   case 'n':
-				opts->names = TRUE;
-				break;
-			   case 'z':
-				opts->obs = TRUE;
-				break;
-			   case 't':
-				opts->toc = TRUE;
-				break;
-			   case 'f':
-				opts->files |= ONLYFILES;
-				opts->files &= ~LONGFILES;
-				break;
-			   case 'l':
-				opts->files &= ~ONLYFILES;
-				opts->files |= LONGFILES;
-				break;
-			   case 'g':
-				opts->full = TRUE;
-				break;
-			   case 'p':
-				if (! argv[++opt])
-				{
-					usage (argv[0]);
-					exit (1);
-				}
-				if (TC_Eq (opts->since, ZT_ALPHA))
-				{
-					GetPeriod (argv[opt], &opts->since);
-				}
-				else
-				{
-					GetPeriod (argv[opt], &opts->before);
-				}
-				break;
-			   case 'T':
-				if (! argv[++opt])
-				{
-					usage (argv[0]);
-					exit (1);
-				}
-				GetFormat (argv[opt], &opts->tcf);
-				break;
-			   case 'q':
-				opts->quiet = TRUE;
-				break;
-			   default:
-				printf ("%s: illegal option '%s'\n",
-					argv[0], argv[opt]);
-				usage (argv[0]);
-				exit (1);
-				break;
-			}
+		    usage (argv[0]);
+		    exit (1);
 		}
-		else if (exact)	/* match this name exactly */
+		if (TC_Eq (opts->since, ZT_ALPHA))
 		{
-			pid = ds_LookupPlatform (argv[opt]);
-			if (pid == BadPlatform)
-				printf ("%s: bad platform\n", argv[opt]);
-			else
-			{
-				NextPlatform (pid, opts);
-				++matches;
-			}
-			exact = FALSE;
-			first = TRUE;
+		    GetPeriod (argv[opt], &opts->since);
 		}
 		else
 		{
-			pattern = (opt < argc) ? (argv[opt]) : (NULL);
-			platforms = ds_SearchPlatforms (pattern, &nplat, 
-							opts->sort, 
-							opts->subs);
-			matches += nplat;
-			for (i = 0; i < nplat; i++)
-			{
-				NextPlatform (platforms[i], opts);
-			}
-			if (pattern && (nplat == 0))
-				printf ("No matches for '%s'\n", pattern);
-			if (platforms)
-				free (platforms);
-			first = TRUE;
+		    GetPeriod (argv[opt], &opts->before);
 		}
-		++opt;
+		break;
+	    case 'T':
+		if (! argv[++opt])
+		{
+		    usage (argv[0]);
+		    exit (1);
+		}
+		GetFormat (argv[opt], &opts->tcf);
+		break;
+	    case 'q':
+		opts->quiet = TRUE;
+		break;
+	    case 'r':
+		if (! argv[++opt])
+		{
+		    usage (argv[0]);
+		    exit (1);
+		}
+		ParseAttList (argv[opt], opts);
+		break;
+	    default:
+		printf ("%s: illegal option '%s'\n",
+			argv[0], argv[opt]);
+		usage (argv[0]);
+		exit (1);
+		break;
+	    }
 	}
-	while ((opt < argc) || (! first));
-/*
- * Done.
- */
-	if (opts->files <= SHOWFILES && !opts->quiet)
+	else if (exact)	/* match this name exactly */
 	{
-		printf ("%d platforms, total.\n", total);
-		printf ((matches == 1) ? "\n1 match found.\n" :	
-			((matches) ? "\n%d matches found.\n" :
-			 "\nNo matches found.\n"), matches);
+	    pid = ds_LookupPlatform (argv[opt]);
+	    if (pid == BadPlatform)
+		printf ("%s: bad platform\n", argv[opt]);
+	    else
+	    {
+		NextPlatform (pid, opts);
+		++matches;
+	    }
+	    exact = FALSE;
+	    first = TRUE;
 	}
-	exit (0);
-	return (0);
+	else
+	{
+	    pattern = (opt < argc) ? (argv[opt]) : (NULL);
+	    platforms = ds_SearchPlatforms (pattern, &nplat, 
+					    opts->sort, 
+					    opts->subs);
+	    matches += nplat;
+	    for (i = 0; i < nplat; i++)
+	    {
+		NextPlatform (platforms[i], opts);
+	    }
+	    if (pattern && (nplat == 0))
+		printf ("No matches for '%s'\n", pattern);
+	    if (platforms)
+		free (platforms);
+	    first = TRUE;
+	}
+	++opt;
+    }
+    while ((opt < argc) || (! first));
+    /*
+     * Done.
+     */
+    if (opts->files <= SHOWFILES && !opts->quiet)
+    {
+	printf ("%d platforms, total.\n", total);
+	printf ((matches == 1) ? "\n1 match found.\n" :	
+		((matches) ? "\n%d matches found.\n" :
+		 "\nNo matches found.\n"), matches);
+    }
+    exit (0);
+    return (0);
 }
 
 
@@ -460,10 +670,16 @@ char **argv;
 static void
 DumpPlatform (const Platform *p, const DumpOptions *opts)
 {
-    int i, index;
     PlatformId pid = pi_Id (p);
-    DataFile dfi;
     const char *name;
+/*
+ * If table output requested, that is all we show.
+ */
+    if (opts->natts > 0)
+    {
+	DumpRow (pid, opts->atts, opts->natts);
+	return;
+    }
 /*
  * Add a newline only when not listing only the names, and when listing files
  */
@@ -527,10 +743,9 @@ DumpSubplatforms (const Platform *p)
 {
     const PlatformId *subplats = p->dp_subplats;
     int nsubplats = p->dp_nsubplats;
-    const Platform *sp;
     char buf[256];
     unsigned int buflen;
-    int n, i;
+    int i;
 /*
  * Request a list of subplatforms from the daemon
  */
@@ -645,7 +860,7 @@ PrintTime (char *s, const ZebraTime *zt, const DumpOptions *opts)
 		UItime uid;
 
 		TC_ZtToUI (zt, &uid);
-		sprintf (s, "%08d%04d", uid.ds_yymmdd, uid.ds_hhmmss/100);
+		sprintf (s, "%08ld%04ld", uid.ds_yymmdd, uid.ds_hhmmss/100);
 	}
 	else
 	{
