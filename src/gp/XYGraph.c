@@ -1,7 +1,7 @@
 /*
  * XY-Graph plotting module
  */
-static char *rcsid = "$Id: XYGraph.c,v 1.3 1992-01-02 17:01:49 barrett Exp $";
+static char *rcsid = "$Id: XYGraph.c,v 1.4 1992-01-03 00:28:10 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -101,6 +101,7 @@ bool	update;
 	int	saveConfig;
 	int	dmode ;
 	char	style[80];
+	char	datalabel[80];
 /*
  * Get X-Y Graph Required parameters:
  * "platform","x-field", "y-field", "wind-coords", "color-table", "org"
@@ -242,7 +243,8 @@ bool	update;
  */
 	if (! update)
 	{
-	    An_TopAnnot ("X/Y Graph for ", Tadefclr.pixel);
+	    An_TopAnnot ("X/Y Graph:", Tadefclr.pixel);
+	    An_TopAnnot (c, Tadefclr.pixel);
 	    lw_OvInit ("PLATFORM    TIME\n");
 	}
 /*
@@ -255,12 +257,11 @@ bool	update;
 	 */
 	    if (! update)
 	    {
-		if (plat > 0)
-		    An_TopAnnot (", ", Tadefclr.pixel);
-
-		An_TopAnnot (pnames[plat], lcolor[plat].pixel);
-		An_TopAnnot (":", lcolor[plat].pixel);
-		An_TopAnnot (fnames[0][plat], lcolor[plat].pixel);
+		sprintf(datalabel, "%s-%s:%s %s", 
+			pnames[plat], fnames[0][plat],
+			fnames[1][plat], linecolor[plat]);
+		An_AddAnnotProc ( An_ColorString, c, datalabel,
+		strlen(datalabel)+1,25, FALSE,FALSE);
 	    }
 	/*
 	 * Get the data and determine the coordinate min and max's
