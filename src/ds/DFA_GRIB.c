@@ -35,7 +35,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.14 1994-09-14 15:26:01 burghart Exp $")
+MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.15 1994-10-10 16:45:05 corbet Exp $")
 
 /*
  * The GRIB product definition section (PDS)
@@ -485,7 +485,7 @@ int	*nsample;
 /*
  * Read the rest of the PDS
  */
-	read (fd, (void *)(&pds) + 4, sizeof (GFpds) - 4);
+	read (fd, (char *)(&pds) + 4, sizeof (GFpds) - 4);
 /*
  * Extract the time from the PDS
  */
@@ -1605,7 +1605,7 @@ GFTag	*tag;
 		/*
 		 * Read the rest of the GDS.
 		 */
-			if (read (fd, ((void *)gds) + 4, gds_len - 4) != 
+			if (read (fd, ((char *)gds) + 4, gds_len - 4) != 
 			    gds_len - 4)
 			{
 				msg_ELog (EF_INFO, 
