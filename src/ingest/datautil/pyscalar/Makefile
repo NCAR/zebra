@@ -1,7 +1,7 @@
 #
 # Build the derivation module.
 #
-CFLAGS = -g -I/usr/local/include/Py 
+CFLAGS = -g -I/usr/local/include/python1.5
 MODULES = wdermodule.so ncmodule.so
 
 all:	$(MODULES)
