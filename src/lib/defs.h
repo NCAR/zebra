@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 2.3 1991-11-20 23:25:44 corbet Exp $ */
+/* $Id: defs.h,v 2.4 1991-11-21 21:56:03 corbet Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -93,5 +93,14 @@ typedef struct s_Location
 # define inline
 # endif
 
+/*
+ * Saber-C generates warnings on RCSID's, so we leave them out.
+ */
+# ifdef SABER
+#	define MAKE_RCSID(id)
+# else
+#	define MAKE_RCSID(id) \
+	static char *rcsid = id;
+# endif
 
 # endif /* _DEFS_H_ */
