@@ -48,7 +48,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 
-MAKE_RCSID ("$Id: Archiver.cc,v 1.17 1992-08-10 17:30:54 corbet Exp $")
+MAKE_RCSID ("$Id: Archiver.cc,v 1.18 1992-10-13 04:39:47 granger Exp $")
 
 /*
  * Issues:
@@ -84,7 +84,7 @@ MAKE_RCSID ("$Id: Archiver.cc,v 1.17 1992-08-10 17:30:54 corbet Exp $")
 			   remains set
 	continue reading pipe
 
-	the suspended flag will be rest by either an X event (user presses
+	the suspended flag will be reset by either an X event (user presses
 		a resume event) or a timer message forcing a resume
 
 	the user can explicitly request a write (other than a finish)
@@ -299,6 +299,17 @@ main (argc, argv)
 int argc;
 char **argv;
 {
+	int i;
+/*
+ * Before we do anything, see if the user just wants some
+ * help by checking for the -h option and forgetting any others
+ */
+	for (i = 1; i < argc; ++i)
+		if (strncmp(argv[i],"-h",2) == 0)
+		{
+			Usage(argv[0],1,argv);
+			exit(0);
+		};
 /*
  * Initialize.
  */
@@ -360,15 +371,7 @@ char **argv;
 	 */
 	if (*argc > 1)
 	{
-		/* Check for a help argument */
-		if (strncmp(argv[1], "-h", 2) == 0)
-		{
-			*argc = 1;	/* Ignore any other options */
-		}
-		else
-		{
-			msg_ELog(EF_PROBLEM,"Illegal command-line syntax");
-		}
+		msg_ELog(EF_PROBLEM,"Illegal command-line syntax");
 		Usage(argv[0], *argc, argv);
 		Die();
 	}
@@ -470,10 +473,17 @@ Usage(prog, argc, argv)
 			"-k <kb>", DEF_MINDISK);
 
    fprintf(stderr,"\nDefault values are shown in parentheses.\n");
-   fprintf(stderr,"Standard X Toolkit options are understood,\n");
-   fprintf(stderr,"  and all options can be abbreviated.\n");
-   fprintf(stderr,"%s can also be configured through the resources database\n");
-   fprintf(stderr,"  and/or an application-defaults file.\n");
+   fprintf(stderr,"Standard X Toolkit options are understood %s",
+   		  "and all options can be abbreviated.\n");
+   fprintf(stderr,"The following resources are also available:\n");
+   fprintf(stderr,"   %-20s %-20s %-20s\n","NAME","CLASS","TYPE");
+   for (i = 0; i < XtNumber(AppResources); ++i)
+   {
+      fprintf(stderr,"   %-20s %-20s %-20s\n",
+			AppResources[i].resource_name,
+			AppResources[i].resource_class,
+			AppResources[i].resource_type);
+   }
 }
 
 
