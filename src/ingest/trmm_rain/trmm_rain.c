@@ -24,7 +24,7 @@
 
 # ifndef lint
 static char *rcsid = 
-   "$Id: trmm_rain.c,v 1.5 1993-05-25 06:56:38 granger Exp $";
+   "$Id: trmm_rain.c,v 1.6 1993-06-07 18:54:34 granger Exp $";
 # endif
 
 # include <time.h>
@@ -242,15 +242,20 @@ char	**argv;
 
 	if (DumpDataChunks)
 		dc_DumpDC (irdc);
+	IngestLog (EF_INFO, "Sorting irgrid samples...");
 	dc_SortSamples (irdc);
+	IngestLog (EF_INFO, "Sorting complete.");
 	if (DumpDataChunks)
 		dc_DumpDC (irdc);
 	if (! ds_StoreBlocks (irdc, FALSE, (dsDetail *) 0, 0))
+	{
 		IngestLog (EF_EMERGENCY, 
 			   "%s: Failure storing data", irplat_name);
-	else
-		IngestLog (EF_INFO, "Successful ingest of IR plat '%s'",
-			   irplat_name);
+		exit (5);
+	}
+
+	IngestLog (EF_INFO, "Successful ingest of IR plat '%s'",
+		   irplat_name);
 	exit (0);
 }
 
