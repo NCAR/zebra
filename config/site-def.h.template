@@ -19,6 +19,18 @@
  *        Edit "define XInclude" to read:
  *        #       define XInclude -I/usr/local/include
  *
+ * Either UseXWindows or UseOpenWin should be defined to get windows support.
+ * Defining both will default to OpenWindows libraries.  If you are not
+ * using OpenWindows 3.0, you may have to define XWindowsFlag to nothing,
+ * as follows:
+ *
+ *	  # define XWindowsFlag
+ *
+ * To change the default math library from -lm, use MathLib, as in
+ *
+ *	  # define MathLib /usr/lang/SC1.0/libm.a
+ *							-- or --
+ * 	  # define MathLib -L/usr/local/lib -lm
  */
  
 
