@@ -1,7 +1,7 @@
 /*
  * The MOCCA display manager.
  */
-static char *rcsid = "$Id: dm.c,v 2.6 1991-12-03 21:09:39 corbet Exp $";
+static char *rcsid = "$Id: dm.c,v 2.7 1991-12-17 19:50:27 kris Exp $";
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -28,8 +28,8 @@ static char *rcsid = "$Id: dm.c,v 2.6 1991-12-03 21:09:39 corbet Exp $";
 # include <ui_error.h>
 # include "dm_vars.h"
 # include "dm_cmds.h"
-# include "../include/timer.h"
-# include "../include/config.h"
+# include <timer.h>
+# include <config.h>
 # include <copyright.h>
 
 
@@ -48,6 +48,11 @@ Display *Dm_Display;
  * Is sound enabled?
  */
 static int SoundEnabled = FALSE;
+
+/*
+ * How long and how often to sleep while creating windows.
+ */
+static int SleepAfter = 4, SleepFor = 1;
 
 /*
  * Do we restart windows which die?
@@ -121,6 +126,8 @@ char **argv;
 	usy_c_indirect (vtable, "dm$config", Cur_config, SYMT_STRING, MAXNAME);
 	usy_c_indirect (vtable, "soundenabled", &SoundEnabled, SYMT_BOOL, 0);
 	usy_c_indirect (vtable, "restart", &Restart, SYMT_BOOL, 0);
+	usy_c_indirect (vtable, "sleepafter", &SleepAfter, SYMT_INT, 0);
+	usy_c_indirect (vtable, "sleepfor", &SleepFor, SYMT_INT, 0);
 	usy_daemon (vtable, "soundenabled", SOP_WRITE, SEChange, 0);
 	tty_watch (msg_get_fd (), (void (*)()) msg_incoming);
 # ifdef titan
@@ -490,8 +497,8 @@ struct ui_command *cmds;
 		{
 			msg_ELog (EF_DEBUG, "Create win %s", wp->cfw_name);
 			create_win (wp);
-			if ((win % 4) == 0)
-				sleep (1);
+			if ((win % SleepAfter) == 0)
+				sleep (SleepFor);
 		}
 	/*
 	 * If it does exist, deal with the PD, and send it a new config.
@@ -1423,14 +1430,14 @@ struct dm_rq_wbounds *wb;
 	reply.dmm_type = DM_WBOUNDS;
 	reply.dmm_success = FALSE;
 	if (! win)
-		goto reply;
+		goto sendreply;
 /*
  * Get the plot type
  */
 	if (! win->cfw_pd ||
 		! pda_Search (win->cfw_pd, "global", "plot-type", NULL,
 			reply.dmm_pltype, SYMT_STRING))
-		goto reply;
+		goto sendreply;
 /*
  * Pull out the params based on plot type.
  */
@@ -1468,6 +1475,6 @@ struct dm_rq_wbounds *wb;
 /*
  * Send out the reply.
  */
-reply:
+sendreply:
 	msg_send (from, MT_DISPLAYMGR, FALSE, &reply, sizeof (reply));
 }
