@@ -1,5 +1,5 @@
 /* -*- C -*- */
-MFVERSION="$Id: Imakefile,v 1.13 2001-11-30 00:42:04 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.14 2001-12-03 17:52:56 burghart Exp $"
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -23,6 +23,7 @@ MFVERSION="$Id: Imakefile,v 1.13 2001-11-30 00:42:04 granger Exp $"
 
 SUBDIRS = LiteClue Tabs
 SUBDIRS = LiteClue
+DISTSUBDIRS = $(SUBDIRS)
 
 LOCALLIB = uilib.a
 UI_LF = $(LIBDIR)/ui.lf
@@ -143,6 +144,9 @@ UIBootFileDepsTarget(ui.lf, ui.state, ui_commands $(UIB))
 
 DependTarget()
 
+LiteClue/LiteClue.o: 
+	cd LiteClue && $(MAKE) MAKE=$(MAKE) $(MFLAGS) LiteClue.o
+
 s_uic:
 	#setopt ansi
 	#load $(CFLAGS) uic.c ui.c ui_w*.c ui.a -Bstatic $(LIBS)
@@ -151,5 +155,6 @@ LintTarget()
 
 DistfilesTarget($(DISTFILES))
 
-StandardSubdirTargets()
-
+MakeSubdirs($(SUBDIRS))
+DependSubdirs($(SUBDIRS))
+DistfilesSubdirs($(DISTSUBDIRS))
