@@ -1,7 +1,7 @@
 /*
  * Data store daemon-specific definitions.
  */
-/* $Id: dsDaemon.h,v 3.16 1994-10-11 16:24:49 corbet Exp $ */
+/* $Id: dsDaemon.h,v 3.17 1994-11-29 14:28:18 granger Exp $ */
 /*
  * The platform and data tables, via pointer.
  */
@@ -110,17 +110,15 @@ void InitSharedMemory FP ((void));
  */
 void dt_InitTables FP ((void));
 PlatformClass *dt_NewClass FP((const char *name, const char *superclass));
-PlatformInstance *dt_NewPlatform FP((char *name));
 PlatformInstance *dt_Instantiate FP((PlatformClass *pc, 
-				     PlatformInstance *parent, 
+				     PlatformId parent, 
 				     const char *name));
 void dt_FillClassDirs FP((PlatformClass *pc));
-void dt_DefClassSubPlat FP((PlatformClass *pc, PlatformClass *spc,
+void dt_AddClassSubPlat FP((PlatformClass *pc, PlatformClass *spc,
 			    const char *name));
-void dt_DefSubPlat FP((PlatformInstance *plat, PlatformClass *spc,
+void dt_DefSubPlat FP((PlatformId parent, PlatformClass *spc,
 		       const char *name));
 void dt_EraseClassSubPlats FP((PlatformClass *pc));
-void dt_EraseSubPlats FP((PlatformInstance *plat));
 bool dt_ValidateClass FP((PlatformClass *pc));
 PlatformInstance *dt_FindInstance FP((const char *name));
 Platform *dt_FindPlatform FP ((const char *, int));

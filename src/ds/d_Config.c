@@ -28,12 +28,14 @@
 # include "commands.h"
 # include <ui_error.h>
 
-MAKE_RCSID("$Id: d_Config.c,v 2.10 1994-06-07 22:12:58 corbet Exp $")
+MAKE_RCSID("$Id: d_Config.c,v 2.11 1994-11-29 14:28:14 granger Exp $")
 
 /*-----------------------------------------------------------------------
  * Local forwards.
  */
 static int dc_InPlatformClass FP ((PlatformClass *, struct ui_command *));
+static void dc_AddSubPlats FP ((PlatformClass *pc, char *classname,
+				struct ui_command *cmds));
 
 /*-----------------------------------------------------------------------*/
 
@@ -62,7 +64,7 @@ char *superclass;	/* NULL if not specified */
 /*
  * Finally, instantiate this platform.
  */
-	plat = dt_Instantiate (pc, /*parent*/NULL, name);
+	plat = dt_Instantiate (pc, /*parent*/BadPlatform, name);
 /*
  * In case this is an on-the-fly definition, scan the platform directory
  */
@@ -127,6 +129,7 @@ struct ui_command *cmds;
 {
 	PlatformClass *spc, *parent_class;
 	PlatformInstance *parent;
+	PlatformId ppid;
 	char spcname[512];
 /*
  * Find our parent platform first.
@@ -137,6 +140,7 @@ struct ui_command *cmds;
 			  UPTR (*cmds));
 		return;
 	}
+	ppid = parent - PTable;
 /*
  * Now try to find the subplatform class, else define it now.
  */
@@ -170,7 +174,7 @@ struct ui_command *cmds;
 /*
  * Now pass the work on to the subplats command.
  */
-	dc_DefSubPlats (parent->dp_name, spc->dpc_name, cmds+1);
+	dc_DefSubPlats (pi_Name(PTable + ppid), spc->dpc_name, cmds+1);
 
 }
 
@@ -299,13 +303,13 @@ struct ui_command *cmds;
 	   	pc->dpc_flags |= DPF_SPLIT;
 		break;
 	/*
-	 * Subplats to be created
+	 * Subplat templates to be added.
 	 */
 	   case DK_SUBPLATS:
 		if (cmds[1].uc_ctype == UTT_KW) /* None */
 			dt_EraseClassSubPlats (pc);
 		else
-			dc_DefSubPlats (pc->dpc_name, UPTR(cmds[1]), cmds+2);
+			dc_AddSubPlats (pc, UPTR(cmds[1]), cmds+2);
 		break;
 	/*
 	 * Comments for this class.  Ignored at present.
@@ -330,63 +334,75 @@ struct ui_command *cmds;	/* Instance names		*/
  * as SubPlatform templates.
  */
 {
-	PlatformInstance *plat;
-	PlatformClass *pc;
-	PlatformClass *spc;
-	char	*safetarget;
-/*
- * Make a copy of the target name.  We have to do this because the
- * name we're given is a pointer into the platform or class table, which we 
- * may end up moving (when a resize happens) while we're defining 
- * subplatforms.  Ugly.
- */
-	safetarget = usy_string (target);
+	PlatformId ppid = BadPlatform;
+	PlatformInstance *plat = NULL;
+	PlatformClass *pc = NULL;
+	PlatformClass *spc = NULL;
 /*
  * Find the appropriate platform or class entry for our parent.
  */
-	plat = dt_FindInstance (safetarget);
-	pc = dt_FindClass (safetarget);
+	if ((plat = dt_FindInstance (target)) != NULL)
+		ppid = plat - PTable;
+	else
+		pc = dt_FindClass (target);
 	if (!plat && !pc)
 	{
 		msg_ELog (EF_PROBLEM, "subplats target '%s' not a known %s",
-			  safetarget, "class or instance");
+			  target, "class or instance");
 		return ;
 	}
 	spc = dt_FindClass (classname);
 	if (!spc)
 	{
 		msg_ELog (EF_PROBLEM, "subplats class '%s' for %s unknown",
-			  classname, safetarget);
+			  classname, target);
 		return;
 	}
 /*
- * Do each subplatform in this command line.
+ * Do each subplatform in this command line.  The class pointer is valid 
+ * for all of the instantiations, but the parent platform may move if the
+ * table is expanded.  Therefore we refer to the parent by ID rather than
+ * a pointer.
+ */
+	if (ppid != BadPlatform)
+	{
+		for ( ; cmds->uc_ctype != UTT_END; ++cmds)
+			dt_DefSubPlat (ppid, spc, UPTR (*cmds));
+	}
+	else
+	{
+		for ( ; cmds->uc_ctype != UTT_END; ++cmds)
+			dt_AddClassSubPlat (pc, spc, UPTR (*cmds));
+	}
+}
+
+
+
+static void
+dc_AddSubPlats (pc, classname, cmds)
+PlatformClass *pc;		/* Class to add subplats to	*/
+char *classname;		/* Class of the subplatforms 	*/
+struct ui_command *cmds;	/* Instance names		*/
+/*
+ * Add some SubPlatform templates to a class.
+ */
+{
+	PlatformClass *spc;
+
+	spc = dt_FindClass (classname);
+	if (!spc)
+	{
+		msg_ELog (EF_PROBLEM, "subplats class '%s' for %s unknown",
+			  classname, pc->dpc_name);
+		return;
+	}
+/*
+ * Do each subplatform name on the command line.
  */
 	for ( ; cmds->uc_ctype != UTT_END; ++cmds)
 	{
-		if (plat)
-		{
-			dt_DefSubPlat (plat, spc, UPTR (*cmds));
-		/*
-		 * Grab plat again, since we may have caused a resize of the
-		 * platform table, and hence caused the platform entry to move.
-		 */
-			plat = dt_FindInstance (safetarget);
-		}
-		else
-		{
-			dt_DefClassSubPlat (pc, spc, UPTR (*cmds));
-		/*
-		 * Grab pc again, since we may have caused a resize of the
-		 * class table, and hence caused the class entry to move.
-		 */
-			pc = dt_FindClass (safetarget);
-		}
+		dt_AddClassSubPlat (pc, spc, UPTR (*cmds));
 	}
-/*
- * Release our copy of the target name
- */
-	usy_rel_string (safetarget);
 }
 
 
@@ -402,7 +418,8 @@ struct ui_command *cmds;	/* Name of the instances		*/
 {
 	PlatformClass *pc;
 /*
- * Find the class they are asking for.
+ * Find the class they are asking for.  This pointer is valid through all
+ * of the instantiations since dt_Instantiate does not create any classes.
  */
 	pc = dt_FindClass (classname);
 	if (! pc)
@@ -431,7 +448,7 @@ struct ui_command *cmds;	/* Name of the instances		*/
  */
 	for ( ; cmds->uc_ctype != UTT_END; cmds++)
 	{
-		Platform *newpl = dt_Instantiate (pc, NULL, UPTR(*cmds));
+		Platform *newpl = dt_Instantiate(pc, BadPlatform, UPTR(*cmds));
 		if (newpl && ! InitialScan)
 			RescanPlat (newpl);
 	}
