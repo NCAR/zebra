@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.8 1991-12-18 23:02:55 corbet Exp $ */
+/* $Id: GraphProc.h,v 2.9 1991-12-20 17:49:49 corbet Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -106,159 +106,101 @@ extern int DrawFrame;			/* Frame to draw in		*/
 /*
  * Routines of interest.
  */
+/* Basic graphic utilities */
 extern int SetLWidth FP((char *, char *, char *, int));
 extern void FixLWidth FP((int));
 extern void FixForeground FP((long));
+extern void SetClip FP ((int));
+extern void ResetGC FP ((void));
+extern void SetColor FP ((char *, char *, char *, char *));
 
-# ifdef __STDC__
+/* Plot control modules. */
+extern void pc_CancelPlot FP ((void));
+extern void pc_PlotHandler FP ((void));
+extern void pc_ParamChange FP ((char *));
+extern int pc_TimeTrigger FP ((char *));
+
+/* Plot executive modules. */
+extern void px_PlotExec FP ((char *));
+extern void px_GlobalPlot FP ((time *));
+extern void px_FixPlotTime FP ((time *));
+extern char *px_FldDesc FP ((char *, char *));
+
+/* Grid access */
+extern bool ga_GridBBox FP ((time *, char *, float *, float *, float *,
+		float *));
+extern void ga_RotateGrid FP ((float *, float *, int, int));
+extern bool ga_AvailableAlts FP ((time *, char *, float *, int *));
+extern float *ga_GetGrid FP ((time *, char *, char *, int *, int *, float *,
+		float *, float *, float *, float *));
+
+/* Frame cache routines */
+extern void fc_InvalidateCache FP ((void));
+extern void fc_UnMarkFrames FP ((void));
+extern void fc_CreateFrameFile FP ((void));
+extern void fc_SetNumFrames FP ((int));
+extern char *fc_GetInfo FP ((int));
+extern void fc_AddFrame FP ((time *, int));
+extern int fc_LookupFrame FP ((time *));
+extern int fc_GetFrame FP ((void));
+extern void fc_MarkFrames FP ((time *, int));
+
+/* Movie control */
+extern void mc_DefMovieWidget FP ((void));
+extern void mc_ParamChange FP ((void));
+extern void mc_PDChange FP ((void));
+extern void mc_Dial FP ((int));
+
+/* Icons */
+extern void I_DoIcons FP ((void));
+extern void I_ColorIcons FP ((char *));
+extern int ov_PositionIcon FP ((char *, int, int, int));
+
+/* User events */
+extern void Ue_Override FP ((void (*) (), void (*) (), void (*) ()));
+extern void Ue_ResetOverride FP ((void));
+
+/* Annotation utilities */
+extern void An_AddAnnotProc FP ((void (*) (), char *, char *, int, int,
+		int, int));
+extern void An_DoSideAnnot FP (());
+extern void An_ColorBar FP ((char *, char *, int, int, int));
+extern void An_ColorNumber FP ((char *, char *, int, int, int));
+extern void An_ColorVector FP ((char *, char *, int, int, int));
+extern void An_ColorString FP ((char *, char *, int, int, int));
+extern int An_GetLeft FP (());
+extern void An_GetSideParams FP ((char *, float *, int *));
+extern void An_ResetAnnot FP ((int));
+extern void An_SetScale FP ((double));
+extern void An_AnnotLimits FP ((int *, int *, int *, int *));
+extern void An_SAUsed FP ((int));
+
+/* Coord space transformations */
+extern void cvt_ToXY FP ((double, double, float *, float *));
+extern void cvt_ToLatLon FP ((double, double, float *, float *));
+extern void cvt_GetOrigin FP ((float *, float *));
+extern bool cvt_Origin FP ((double, double));
+
+/* Other stuff */
+extern int GetLocation FP ((char *, time *, Location *));
+extern int AgeCheck FP ((char *, time *));
+extern void sync FP ((void));
+extern int  reset_limits FP ((char *, char *, char *));
+extern void eq_ResetAbort FP ((void));
+extern void eq_ReturnPD FP ((void));
 extern void tr_InitAcWidget ();
-extern void pc_CancelPlot (void);
-extern void pc_PlotHandler (void);
-extern void pc_ParamChange (char *);
-extern void sync (void);
-extern int  reset_limits(char *, char *, char *);
-extern void eq_ResetAbort (void);
-extern void eq_ReturnPD (void);
-extern void px_PlotExec (char *);
-extern int pc_TimeTrigger (char *);
-extern void px_GlobalPlot (time *);
-extern void px_FixPlotTime (time *);
-extern char *af_OpenFile (char *);
-extern char *af_Setup (char *, time *, int, char **);
-extern bool af_NextSample (char *, int *, float *);
-extern void af_ReleaseCtx (char *);
-extern bool af_FieldOK (char *, char *);
-extern float *ga_MudrasGrid (time *, char *, char *, int *, int *, int *, 
-	float *, float *, float *, float *);
-extern bool ga_GridBBox (time *, char *, float *, float *, float *, float *);
-extern void ga_RotateGrid (float *, float *, int, int);
-extern bool ga_AvailableAlts (time *, char *, float *, int *);
-extern void fc_InvalidateCache (void);
-extern void fc_UnMarkFrames (void);
-extern void fc_CreateFrameFile (void);
-extern void fc_SetNumFrames (int);
-extern char *fc_GetInfo (int);
-extern void fc_AddFrame (time *, int);
-extern int fc_LookupFrame (time *);
-extern int fc_GetFrame (void);
-extern void fc_MarkFrames (time *, int);
-extern void mc_DefMovieWidget (void);
-extern void mc_ParamChange (void);
-extern void mc_PDChange (void);
-extern void mc_Dial (int);
-extern char *px_FldDesc (char *, char *);
-extern void I_DoIcons (void);
-extern void I_ColorIcons (char *);
-extern int ov_PositionIcon (char *, int, int, int);
-extern void Ue_Override (void (*) (), void (*) (), void (*) ());
-extern void Ue_ResetOverride (void);
-extern void An_AddAnnotProc (void (*) (), char *, char *, int, int,
-		int, int);
-extern void An_DoSideAnnot ();
-extern void An_ColorBar (char *, char *, int, int, int);
-extern void An_ColorNumber (char *, char *, int, int, int);
-extern void An_ColorVector (char *, char *, int, int, int);
-extern void An_ColorString (char *, char *, int, int, int);
-extern int An_GetLeft ();
-extern void An_GetSideParams (char *, float *, int *);
-extern void An_ResetAnnot (int);
-extern void An_SetScale (double);
-extern void An_AnnotLimits (int *, int *, int *, int *);
-extern void An_SAUsed (int);
-extern float *ga_GetGrid (time *, char *, char *, int *, int *, float *,
-		float *, float *, float *, float *);
-extern void cvt_ToXY (double, double, float *, float *);
-extern void cvt_ToLatLon (double, double, float *, float *);
-extern void cvt_GetOrigin (float *, float *);
-extern bool cvt_Origin (double, double);
-extern int GetLocation (char *, time *, Location *);
-extern void SetClip (int);
-extern void ResetGC (void);
-extern void SetColor (char *, char *, char *, char *);
-extern int AgeCheck (char *, time *);
+
+/* This stuff contains window system oriented stuff, so is only brought
+   in if this module is doing X things. */
 # ifdef _XtIntrinsic_h
-	extern bool ct_LoadTable (char *, XColor**, int *);
-	extern void ct_FreeColors (void);
-	extern void ct_DeleteTable (char *);
-	extern int ct_GetColorByName (char *, XColor *);
-	extern int ct_GetColorByRGB (XColor *);
-	extern void An_TopAnnot (char *, Pixel);
-	extern void An_GetTopParams (XColor *, int *);
-	extern Widget LeftRightButtons (Widget, void *,XtTranslations);
-	extern void draw_vector (Display *, Drawable, GC, int, int,
-		double, double, double);
-# endif
-# else
-	extern void tr_InitAcWidget ();
-	extern void pc_CancelPlot ();
-	extern void pc_PlotHandler ();
-	extern void pc_ParamChange ();
-	extern void sync ();
-	extern int  reset_limits();
-	extern void eq_ResetAbort ();
-	extern void eq_ReturnPD ();
-	extern void px_PlotExec ();
-	extern void px_GlobalPlot();
-	extern void px_FixPlotTime();
-	extern int pc_TimeTrigger ();
-	extern char *af_OpenFile ();
-	extern char *af_Setup ();
-	extern bool af_NextSample ();
-	extern void af_ReleaseCtx ();
-	extern bool af_FieldOK ();
-	extern float *ga_MudrasGrid ();
-	extern void ga_RotateGrid ();
-	extern bool ga_GridBBox ();
-	extern bool ga_AvailableAlts ();
-	extern void fc_InvalidateCache ();
-	extern void fc_UnMarkFrames ();
-	extern void fc_CreateFrameFile ();
-	extern void fc_SetNumFrames ();
-	extern char *fc_GetInfo ();
-	extern void fc_AddFrame ();
-	extern int fc_LookupFrame ();
-	extern int fc_GetFrame ();
-	extern void fc_MarkFrames ();
-	extern void mc_DefMovieWidget ();
-	extern void mc_ParamChange ();
-	extern void mc_PDChange ();
-	extern void mc_Dial ();
-	extern char *px_FldDesc ();
-	extern void I_DoIcons ();
-	extern void I_ColorIcons ();
-	extern int ov_PositionIcon ();
-	extern void Ue_Override ();
-	extern void Ue_ResetOverride ();
-	extern void An_AddAnnotProc ();
-	extern void An_DoSideAnnot ();
-	extern void An_ColorBar ();
-	extern void An_ColorNumber ();
-	extern void An_ColorVector ();
-	extern void An_ColorString ();
-	extern int An_GetLeft ();
-	extern void An_GetSideParams ();
-	extern void An_ResetAnnot ();
-	extern void An_AnnotLimits ();
-	extern void An_SAUsed ();
-	extern float *ga_GetGrid ();
-	extern void cvt_ToXY ();
-	extern void cvt_ToLatLon ();
-	extern void cvt_GetOrigin ();
-	extern bool cvt_Origin ();
-	extern int GetLocation ();
-	extern void SetClip ();
-	extern void ResetGC ();
-	extern void SetColor ();
-	extern int AgeCheck ();
-# ifdef _XtIntrinsic_h
-	extern bool ct_LoadTable ();
-	extern void ct_FreeColors ();
-	extern void ct_DeleteTable ();
-	extern int ct_GetColorByName ();
-	extern int ct_GetColorByRGB ();
-	extern void An_TopAnnot ();
-	extern void An_GetTopParams ();
-	extern Widget LeftRightButtons ();
-	extern void draw_vector ();
-# endif
+	extern bool ct_LoadTable FP ((char *, XColor**, int *));
+	extern void ct_FreeColors FP ((void));
+	extern void ct_DeleteTable FP ((char *));
+	extern int ct_GetColorByName FP ((char *, XColor *));
+	extern int ct_GetColorByRGB FP ((XColor *));
+	extern void An_TopAnnot FP ((char *, Pixel));
+	extern void An_GetTopParams FP ((XColor *, int *));
+	extern Widget LeftRightButtons FP ((Widget, void *,XtTranslations));
+	extern void draw_vector FP ((Display *, Drawable, GC, int, int,
+		double, double, double));
 # endif
