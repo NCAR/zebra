@@ -1,4 +1,4 @@
-/* $Id: message.h,v 2.10 1993-03-19 21:01:53 corbet Exp $ */
+/* $Id: message.h,v 2.11 1993-05-18 04:38:32 granger Exp $ */
 /*
  * Message protocol types.
  */
@@ -19,6 +19,9 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+# ifndef _ZEB_MESSAGE_H_
+# define _ZEB_MESSAGE_H_
+
 # define MT_MESSAGE	 0	/* Message handler protocol		*/
 # define MT_DISPLAYMGR	 1	/* Display manager messages		*/
 # define MT_LOG		 2	/* Event logger				*/
@@ -252,3 +255,5 @@ void msg_SetQueryHandler FP ((int (*) ()));
 
 void	msg_BCast FP ((int, void *, int));
 int	msg_BCSetup FP ((int, int, int (*) ()));
+
+# endif /* ! _ZEB_MESSAGE_H_ */
