@@ -1,7 +1,6 @@
 /*
  * lat,lon <-> x,y conversion utilities
  */
-static char *rcsid = "$Id: convert.c,v 2.7 1994-11-19 00:37:12 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -20,8 +19,11 @@ static char *rcsid = "$Id: convert.c,v 2.7 1994-11-19 00:37:12 burghart Exp $";
  * maintenance or updates for its software.
  */
 # include <math.h>
-# include <defs.h>
-# include <message.h>
+
+# include "defs.h"
+# include "message.h"
+
+RCSID("$Id: convert.c,v 2.8 1995-04-15 00:21:14 granger Exp $")
 
 # define PI	3.141592654
 
@@ -46,7 +48,8 @@ static float	Origin_lat = -99.0, Origin_lon = -99.0;
 
 void
 cvt_ToXY (lat, lon, x, y)
-float	lat, lon, *x, *y;
+double	lat, lon;
+float *x, *y;
 /* 
  * Convert lat and lon (deg) to x and y (km) using equidistant 
  * cylindrical (rectangular) projection
@@ -99,7 +102,8 @@ float	lat, lon, *x, *y;
 
 void
 cvt_ToLatLon (x, y, lat, lon)
-float	x, y, *lat, *lon;
+double	x, y;
+float *lat, *lon;
 /*
  * Convert x and y (km) to lat and lon (deg) using equidistant 
  * cylindrical (rectangular) projection
@@ -163,7 +167,7 @@ float	*lat, *lon;
 
 bool
 cvt_Origin (lat, lon)
-float	lat, lon;
+double	lat, lon;
 /*
  * Use lat,lon (deg) as the reference location for 
  * latitude,longitude <-> x,y conversions
