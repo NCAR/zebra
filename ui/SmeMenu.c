@@ -1,5 +1,5 @@
 #if ( !defined(lint) && !defined(SABER) )
-static char rcsid[] = "$Id: SmeMenu.c,v 1.11 1993-04-12 19:50:35 granger Exp $";
+static char rcsid[] = "$Id: SmeMenu.c,v 1.12 1993-05-26 16:55:51 granger Exp $";
 #endif 
 
 /*
@@ -440,10 +440,10 @@ Highlight(w)
 	}
 /*
  * Should probably get leftMargin resource and use that, or specify
- * this as a unique resource in the SmeMenu widget.  For now, use (x > 40)
- * unless width/2 is less than 40.
+ * this as a unique resource in the SmeMenu widget.  For now, use (x > 60)
+ * unless width/2 is less than 60.
  */
-	wantup = ((x > entry->rectangle.width / 2) || (x > 40)) ? True : False;
+	wantup = ((x > entry->rectangle.width / 2) || (x > 60)) ? True : False;
 /*
  * If we do want it up, and it's not, and there is a menu name, put it up.
  */
