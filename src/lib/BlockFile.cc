@@ -11,7 +11,7 @@
 #include <iomanip.h>
 
 //#include <defs.h>
-//RCSID ("$Id: BlockFile.cc,v 1.8 1998-05-28 21:57:39 granger Exp $");
+//RCSID ("$Id: BlockFile.cc,v 1.9 1998-06-02 23:23:50 granger Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
 #include "BlockFileP.hh"
@@ -182,6 +182,13 @@ BlockFile::Open (const char *path, unsigned long app_magic = 0,
 	return (status);
 }
 
+
+
+const char *
+BlockFile::Path ()
+{
+	return (this->path);
+}
 
 
 

@@ -1,5 +1,5 @@
 /*
- * $Id: BlockFile.hh,v 1.8 1998-05-28 21:57:40 granger Exp $
+ * $Id: BlockFile.hh,v 1.9 1998-06-02 23:23:51 granger Exp $
  *
  * Definition of the BlockFile class, for storing opaque blocks of bytes
  * into a file through a block interface.  The overhead information in the
@@ -91,6 +91,9 @@ public:
 
 	int Status ();
 	int Errno ();
+
+	// Return current file path
+	const char *Path ();
 
 	// Set an application offset in the global header
 	int setHeader (Block &b, unsigned long app_magic = 0);
