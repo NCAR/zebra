@@ -1,6 +1,15 @@
 /*
  * Basic terminal handling.  This is an extremely VMS-dependant module.
  */
+
+/*
+ * The Ardent acts like bsd, but it's really sysv...
+ */
+# ifdef titan
+# undef BSD
+# define SYSV
+# endif
+
 # ifdef VMS
 # include <ssdef.h>
 # include <iodef.h>
