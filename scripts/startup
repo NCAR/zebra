@@ -66,11 +66,13 @@ if ( `hostname` == $ZEBRA_MASTER && $need_extras ) then
     # 
     # Start up building of selected sweepfile links
     #
-    killall build_selected_links
+    # SUPERCEDED by conditional_notify script called by swpfiDist
+    #
+#    killall build_selected_links
     setenv PYTHONUNBUFFERED 1
-    set bslog=/tmp/build_select.log
-    rm -f $bslog
-    /zebra/bin/build_selected_links >& $bslog &
+#    set bslog=/tmp/build_select.log
+#    rm -f $bslog
+#    /zebra/bin/build_selected_links >& $bslog &
 
     #
     # Watch for GOES files from the CIDD machine
