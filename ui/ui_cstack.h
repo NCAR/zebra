@@ -1,5 +1,5 @@
 /* 7/88 jc */
-/* $Header: /code/cvs/rdss/rdsslibs/ui/ui_cstack.h,v 1.1 1989-02-08 13:28:14 corbet Exp $ */
+/* $Id: ui_cstack.h,v 1.2 1989-06-05 16:04:16 corbet Exp $ */
 /*
  * Control stack definitions.
  */
@@ -17,6 +17,7 @@ struct cs_entry
 	struct input_stack *cs_input;	/* The input stack		*/
 	struct csave *cs_csave;	/* Saved command structure		*/
 	struct cs_entry *cs_next;	/* The next entry in the stack	*/
+	struct token_context *cs_tctx;	/* The tokenizer context	*/
 	/*
 	 * The rest of these are used for control structures.
 	 */
