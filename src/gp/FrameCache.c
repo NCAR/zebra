@@ -31,7 +31,7 @@
 # include "GraphicsW.h"
 # include "ActiveArea.h"
 
-MAKE_RCSID ("$Id: FrameCache.c,v 2.16 1994-04-15 21:25:48 burghart Exp $")
+MAKE_RCSID ("$Id: FrameCache.c,v 2.17 1994-07-07 21:39:59 corbet Exp $")
 
 # define BFLEN		500
 # define FLEN		40
@@ -374,7 +374,7 @@ PF_Pair	**fc_pairs;
 	int	numpairs = 0, numblocks = PAIRBLOCK;
 	int	i = 2, j;
 	int	nplats;
-	char	field[FLEN], platform[PLEN];
+	char	field[FLEN], platform[PLEN], rep[PLEN];
 	char	*pnames[PLEN];
 	PF_Pair	*pairs;
 /*
@@ -397,9 +397,18 @@ PF_Pair	**fc_pairs;
 				field, SYMT_STRING) ||
 			pd_Retrieve (Pd, complist[i], "u-field",
 				field, SYMT_STRING));
-		platform[0] = '\0';
-		pd_Retrieve (Pd, complist[i], "platform", platform, 
-			SYMT_STRING);
+	/*
+	 * Kludge of sorts: set platform to "null" for map overlays to
+	 * avoid spurious platform lookups with the daemon.
+	 */
+		if (! strcmp (field, "map"))
+			strcpy (platform, "null");
+		else
+		{
+			platform[0] = '\0';
+			pd_Retrieve (Pd, complist[i], "platform", platform, 
+					SYMT_STRING);
+		}
 	/*
 	 * Loop through platform names, if necessary, storing the pairs.
 	 */
