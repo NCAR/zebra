@@ -1,0 +1,11 @@
+
+NAME
+	prof_convert - convert profiler data in STORM Project Office
+	netCDF format to a Zeb friendly format.
+
+SYNOPSIS
+	prof_convert <input netCDF file> <profiler names file>
+
+DESCRIPTION
+
+FILES
