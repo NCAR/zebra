@@ -39,7 +39,7 @@
 XCOMM -----------------------------------------------------------------------
 XCOMM Definitions from config.h included here.  The definitions here override
 XCOMM the defaults in Project.tmpl.  See ...../zeb/config/config.h.
-XCOMM $Id: config.h.dist,v 1.9 1994-02-03 08:26:19 granger Exp $
+XCOMM $Id: config.h.dist,v 1.10 1994-02-03 18:06:41 burghart Exp $
 XCOMM -----------------------------------------------------------------------
 # endif
 
@@ -230,7 +230,9 @@ XCOMM -----------------------------------------------------------------------
  *    (so don't override it) and any other necessary options
  * If you wish to use a C compiler other than the default,
  * define CCompiler to the C compiler command.  For most systems,
- * the default will be 'cc'.
+ * the default will be 'cc'.  Example: To use "acc" (the Sun ANSI C 
+ * Compiler), use the following:
+ *	# define CCompiler acc
  *
  * HPUX: Either gcc or the default "cc" command will work.  As of this
  * 	 writing, the version of gcc distributed by FSF does not support
@@ -427,21 +429,23 @@ XCOMM -----------------------------------------------------------------------
  * the FORTRAN libraries on your system.
  *
  * Fortran libraries are needed to build the graphics process.  
- *
- * The definition below is for Suns with FORTRAN 1.3 or beyond, assuming
- * you followed the recommended installation for FORTRAN.
  */
 
-/* SunOS 4 (comment or remove this definition if you use a different one) */
+/* 
+ * Default: SunOS 4 with Fortran SC1.x (comment or remove this definition 
+ * if you use a different one)
+ */
 # define FortranLibraries -L/usr/lang/SC1.0.1 -lF77 -lV77
 
-/* SunOS 4 with gcc (or bundled cc) and FORTRAN SC2.0.1,
- * assuming its installed in the standard place, /usr/lang: */
+/*  SunOS 4 with gcc or cc and FORTRAN SC2.x */
 /* # define FortranLibraries \
-   -L/usr/lang/SC2.0.1 -lF77 -lV77 -lansi /usr/lang/SC2.0.1/values-Xa.o */
+  -L/usr/lang/SC2.0.1 -lF77 -lV77 -lM77 -lansi /usr/lang/SC2.0.1/values-Xa.o */
+
+/* SunOS 4 with acc and FORTRAN SC2.x */
+/* # define FortranLibraries -L/usr/lang/SC2.0.1 -lF77 -lV77 -lM77 -lansi */
 
 /* Solaris */
-/* # define FortranLibraries -L/opt/SUNWspro/SC2.0.1 -lF77 -lV77 /* Solaris */
+/* # define FortranLibraries -L/opt/SUNWspro/SC2.0.1 -lF77 -lV77 */
 
 /* HP-UX */
 /* # define FortranLibraries -lU77 -lf -lisamstub */
