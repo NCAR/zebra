@@ -14,5 +14,5 @@ fi
 period=$1
 shift
 
-exec zplotd -time `TZ=GMT+$period date +'%e-%h-%Y,%H:00:00'` `date -u +'%e-%h-%Y,%H:00:00'` $*
+exec zplotd -time `TZ=GMT+$period date +'%d-%h-%Y,%H:00:00'` `date -u +'%d-%h-%Y,%H:00:00'` $*
 
