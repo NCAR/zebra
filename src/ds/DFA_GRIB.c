@@ -35,9 +35,10 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 # include "dfa.h"
+# include "DataFormat.h"
 # include "GRIB.h"
 
-MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.23 1995-11-20 20:22:37 granger Exp $")
+RCSID ("$Id: DFA_GRIB.c,v 3.24 1996-11-19 08:45:44 granger Exp $")
 
 
 /*
@@ -49,7 +50,6 @@ typedef struct s_GRIBdesc
 	GFgds   *gd_gds;	/* Grid description section	*/
 	long	gd_doffset;	/* offset to binary data section*/
 	int	gd_bds_len;	/* binary data section length	*/
-	ZebTime	gd_time;
 } GRIBdesc;
 
 
@@ -64,7 +64,119 @@ typedef struct s_GFTag
 	int		gt_ngrids;	/* grid count			*/
 	int		gt_maxgrids;	/* how many grids can we hold?	*/
 	GRIBdesc	*gt_grib;	/* Descriptors for each grid	*/
+	ZebTime		*gt_times;	/* Times for each grid		*/
 } GFTag;
+
+
+typedef struct _GRIBOpenFile
+{
+	OpenFile 	open_file;
+	GFTag		gf_tag;
+}
+GRIBOpenFile;
+
+#define GFTAGP(ofp) (&((GRIBOpenFile *)(ofp))->gf_tag)
+
+/*
+ * The class/organization compatibility table.  If the desired class
+ * and the given file organization appear together here, we can do it.
+ */
+static CO_Compat COCTable [] =
+{
+	{ OrgNSpace,		DCC_NSpace	},
+	{ Org2dGrid,		DCC_NSpace	},
+	{ Org3dGrid,		DCC_NSpace	},
+};
+
+/*
+ * GRIB format methods (both normal and surface only)
+ */
+P_QueryTime (grb_QueryTime);
+P_GetObsSamples (grb_GetObsSamples);
+P_SyncFile (grb_SyncFile);
+P_CloseFile (grb_CloseFile);
+P_OpenFile (grb_OpenFile);
+P_GetData (grb_GetData);
+P_GetFields (grb_GetFields);
+P_GetAlts (grb_GetAlts);
+P_GetForecastTimes (grb_GetForecastTimes);
+P_Setup (grb_Setup);
+P_GetTimes (grb_GetTimes);
+
+P_OpenFile (grb_SfcOpenFile);
+
+/*
+ * GRIB
+ */
+static DataFormat gribFormatRec =
+{
+	"GRIB",
+	FTGRIB,
+	".grib|.grb",
+	COCTable,       		/* org/class compatibility table*/
+	N_COC(COCTable),
+	sizeof(GRIBOpenFile),
+	TRUE,				/* read-only flag		*/
+
+	FORMAT_INIT,
+
+	grb_QueryTime,			/* Query times			*/
+	___,				/* Make file name		*/
+
+	grb_Setup,			/* setup			*/
+	grb_OpenFile,			/* Open				*/
+	grb_CloseFile,			/* Close			*/
+	grb_SyncFile,			/* Synchronize			*/
+	grb_GetData,			/* Get the data			*/
+	grb_GetAlts,			/* Get altitude info		*/
+	fmt_DataTimes,			/* Get data times		*/
+	grb_GetForecastTimes,		/* Get forecast times		*/
+	___,				/* Create a new file		*/
+	___,				/* Write to file		*/
+	___,				/* Write block to a file	*/
+	grb_GetObsSamples,		/* Get observation samples	*/
+	grb_GetFields,			/* Get fields			*/
+	___,				/* Get Attributes		*/
+	grb_GetTimes			/* Return array of times	*/
+};
+
+DataFormat *gribFormat = (DataFormat *) &gribFormatRec;
+
+
+static DataFormat gribSfcFormatRec =
+{
+	"GRIB_sfc",
+	FTGRIBSfc,
+	".grib|.grb",
+	COCTable,       		/* org/class compatibility table*/
+	N_COC(COCTable),
+	sizeof(GRIBOpenFile),
+	TRUE,				/* read-only flag		*/
+
+	FORMAT_INIT,
+
+	grb_QueryTime,			/* Query times			*/
+	___,				/* Make file name		*/
+
+	grb_Setup,			/* setup			*/
+	grb_SfcOpenFile,		/* Open				*/
+	grb_CloseFile,			/* Close			*/
+	grb_SyncFile,			/* Synchronize			*/
+	grb_GetData,			/* Get the data			*/
+	grb_GetAlts,			/* Get altitude info		*/
+	fmt_DataTimes,			/* Get data times		*/
+	grb_GetForecastTimes,		/* Get forecast times		*/
+	___,				/* Create a new file		*/
+	___,				/* Write to file		*/
+	___,				/* Write block to a file	*/
+	grb_GetObsSamples,		/* Get observation samples	*/
+	grb_GetFields,			/* Get fields			*/
+	___,				/* Get Attributes		*/
+	grb_GetTimes			/* Return array of times	*/
+};
+
+DataFormat *gribSfcFormat = (DataFormat *) &gribSfcFormatRec;
+
 
 /*
  * Model ID's
@@ -458,36 +570,16 @@ int	WindsCount = 0;
 int	U_gridnum[MAXLEVELS], V_gridnum[MAXLEVELS];
 float	*U_data[MAXLEVELS], *V_data[MAXLEVELS];
 
-/*
- * Semi-private prototypes (data format methods)
- */
-int	grb_GetAlts FP ((int dfindex, FieldId fid, int offset, float *alts,
-			 int *nalts, AltUnitType *altunits));
 
 /*
  * Local prototypes
  */
-static GFTag	*grb_Open FP ((char *));
+static GFTag	*grb_Open FP ((char *, GFTag *));
 static int	grb_ScanFile FP ((GFTag *));
-static int	grb_TimeIndex FP ((GFTag *, ZebTime *, int));
 static void	grb_DestroyTag FP ((GFTag *));
 static void	grb_ReadRGrid FP ((DataChunk *, GFTag *, GRB_TypeInfo *, int, 
 				   int, int, FieldId, int, float *));
 static FieldId	grb_Field FP ((GFpds *, ScaleInfo *));
-#ifdef notdef
-static void	grb_105Index FP ((double, double, float *, float *));
-static void	grb_105LatLon FP ((double, double, float *, float *));
-static void	grb_87Index FP ((double, double, float *, float *));
-static void	grb_87LatLon FP ((double, double, float *, float *));
-static void	grb_36Index FP ((double, double, float *, float *));
-static void	grb_36LatLon FP ((double, double, float *, float *));
-static void	grb_27Index FP ((double, double, float *, float *));
-static void	grb_27LatLon FP ((double, double, float *, float *));
-static void	grb_2Index FP ((struct GRB_TypeInfo *, double, double, 
-				float *, float *));
-static void	grb_2LatLon FP ((struct GRB_TypeInfo *, double, double, 
-				 float *, float *));
-#endif
 static void	grb_UnpackBDS FP ((GFTag *, int, float *, int, int));
 static void	grb_ResetWind FP ((void));
 static void	grb_UnpackWind FP ((GFTag *, int, FieldId, int, int, float *, 
@@ -499,7 +591,7 @@ static GRB_TypeInfo *grb_Build255GInfo FP ((GFgds *));
 
 
 
-int
+static int
 grb_QueryTime (file, begin, end, nsample)
 char	*file;
 ZebTime	*begin, *end;
@@ -514,33 +606,33 @@ int	*nsample;
  */
 # ifdef GRIB_SLOWSCAN
 
-	GFTag	*tag;
+	GFTag	tag;
 	int	g;
 /*
  * Get the file tag.
  */
-	if (! (tag = grb_Open (file)))
+	if (! grb_Open (file, &tag))
 		return (FALSE);
 /*
  * Make the (not guaranteed but somewhat reasonable) assumption that the
  * data were written in chronological order.
  */
-	*begin = *end = tag->gt_grib[0].gd_time;
+	*begin = *end = tag.gt_times[0];
 	*nsample = 1;
 
-	for (g = 1; g < tag->gt_ngrids; g++)
+	for (g = 1; g < tag.gt_ngrids; g++)
 	{
-		if (TC_Less (*end, tag->gt_grib[g].gd_time))
+		if (TC_Less (*end, tag.gt_times[g]))
 		{
 			*nsample++;
-			*end = tag->gt_grib[g].gd_time;
+			*end = tag.gt_times[g];
 		}
 	}
 /*
  * Get rid of the tag and return
  */
-	close (tag->gt_fd);
-	grb_DestroyTag (tag);
+	close (tag.gt_fd);
+	grb_DestroyTag (&tag);
 
 	return (TRUE);
 	
@@ -602,118 +694,58 @@ int	*nsample;
 
 
 
-
-void
-grb_MakeFileName (dir, name, zt, string)
-ZebTime	*zt;
-char	*dir, *name, *string;
-/*
- * Generate a new file name.
- */
-{
-	UItime t;
-	
-	TC_ZtToUI (zt, &t);
-	sprintf(string, "%s.%06ld.%06ld.grib", name, t.ds_yymmdd, t.ds_hhmmss);
-}
-
-
-
-
-
-int
-grb_CreateFile (fname, dfile, dc, rtag)
-char	*fname;
-DataFile	*dfile;
-DataChunk	*dc;
-char	**rtag;
-/*
- * Create a new GRIB file.
- */
-{
-	msg_ELog (EF_PROBLEM, "grb_CreateFile: Can't create GRIB files yet!");
-	return (FALSE);
-}
-
-
-
-
-
-
-int
-grb_PutSample (dfile, dc, sample, wc)
-int	dfile, sample;
-DataChunk	*dc;
-WriteCode	wc;
-/*
- * Put data into this file.
- */
-{
-	msg_ELog (EF_PROBLEM, "grb_PutSample: Can't write GRIB files yet!");
-	return (FALSE);
-}
-
-
-
-
-
-int
-grb_OpenFile (fname, dp, write, rtag)
+static int
+grb_OpenFile (of, fname, dp, write)
+OpenFile	*of;
 char	*fname;
 DataFile	*dp;
-bool	write;
-char	**rtag;
+bool		write;
 /*
  * DFA routine to open a file and return a tag.
  */
 {
-	GFTag	*tag;
+	GFTag *tag = GFTAGP(of);
 
-	if (! (tag = grb_Open (fname)))
+	if (! grb_Open (fname, tag))
 		return (FALSE);
 
 	tag->gt_sfc_only = FALSE;
-
-	*rtag = (char *) tag;
 	return (TRUE);
 }
 
 
 
 
-int
-grb_SfcOpenFile (fname, dp, write, rtag)
-char	*fname;
+static int
+grb_SfcOpenFile (of, fname, dp, write)
+OpenFile	*of;
+char		*fname;
 DataFile	*dp;
-bool	write;
-char	**rtag;
+bool		write;
 /*
- * DFA routine to open a file (for access to surface data only) and return 
- * a tag.
+ * DFA routine to open a file (for access to surface data only).
  */
 {
-	GFTag	*tag;
+	GFTag	*tag = GFTAGP(of);
 
-	if (! (tag = grb_Open (fname)))
+	if (! grb_Open (fname, tag))
 		return (FALSE);
 
 	tag->gt_sfc_only = TRUE;
-
-	*rtag = (char *) tag;
 	return (TRUE);
 }
 
 
 
 
-void
-grb_CloseFile (vtag)
-void	*vtag;
+static void
+grb_CloseFile (ofp)
+OpenFile *ofp;
 /*
  * Close this file.
  */
 {
-	GFTag	*tag = (GFTag *) vtag;
+	GFTag	*tag = GFTAGP(ofp);
 
 	close (tag->gt_fd);
 	grb_DestroyTag (tag);
@@ -722,14 +754,14 @@ void	*vtag;
 
 
 
-int
-grb_SyncFile (vtag)
-void	*vtag;
+static int
+grb_SyncFile (ofp)
+OpenFile *ofp;
 /*
  * Catch up with changes in this file.
  */
 {
-	GFTag	*tag = (GFTag *) vtag;
+	GFTag	*tag = GFTAGP(ofp);
 
 	grb_ScanFile (tag);
 	return (TRUE);
@@ -737,10 +769,23 @@ void	*vtag;
 
 
 
+static ZebTime *
+grb_GetTimes (ofp, ntime)
+OpenFile *ofp;
+int *ntime;
+{
+	GFTag *tag = GFTAGP (ofp);
 
-DataChunk *
-grb_Setup (gp, fields, nfield, class)
-GetList	*gp;
+	if (ntime)
+		*ntime = tag->gt_ngrids;
+	return (tag->gt_times);
+}
+
+
+
+static DataChunk *
+grb_Setup (ofp, fields, nfield, class)
+OpenFile *ofp;
 FieldId	*fields;
 int	nfield;
 DataClass	class;
@@ -748,27 +793,13 @@ DataClass	class;
  * Get set up to do this data grab.
  */
 {
-	int	f;
-	GFTag	*tag;
+	int		f;
 	DataChunk	*dc;
 	FieldId	dims[3], lat_id, lon_id, alt_id;
 /*
- * Do some sanity checking.
- */
-	if (class != DCC_NSpace)
-	{
-		msg_ELog (EF_PROBLEM, "Non-NSpace fetch from GRIB file");
-		return (NULL);
-	}
-/*
- * Open this file.
- */
-	if (! dfa_OpenFile (gp->gl_dfindex, FALSE, (void *) &tag))
-		return (NULL);
-/*
  * Create an NSpace data chunk
  */
-	dc = dc_CreateDC (DCC_NSpace);
+	dc = dc_CreateDC (class);
 /*
  * Put in preliminary dimension and field definitions.  The real dimension
  * sizes get set by grb_DCFinishDefs() when the data grab happens.  We have
@@ -814,33 +845,30 @@ DataClass	class;
 
 
 
-int
-grb_GetData (dc, gp, details, ndetail)
+static int
+grb_GetData (of, dc, begin, nsample, details, ndetail)
+OpenFile	*of;
 DataChunk	*dc;
-GetList		*gp;
+int 		begin;
+int 		nsample;
 dsDetail	*details;
 int		ndetail;
 /*
- * Get the data from this GetList entry.
+ * Get the data from these sample indices.
  */
 {
-	int	ndx, firstndx, lastndx, nfield, samp, sbegin, send, f;
+	int	ndx, nfield, samp, sbegin, send, f;
 	int	offset, nalts, test, i;
 	float  	badval, ztarget, *lats, *lons, alts[MAXLEVELS];
 	bool	onelevel;
 	SValue	v;
-	GFTag	*tag;
+	GFTag	*tag = GFTAGP (of);
 	GFpds	*pds;
 	GFgds	*gds;
-	FieldId	fids[5], lat_id, lon_id, alt_id, checkfld;
+	FieldId	fids[5], lat_id, lon_id, alt_id, checkfld = -1;
 	ZebTime	stime;
-	GRB_TypeInfo	*grbinfo;
+	GRB_TypeInfo	*grbinfo = NULL;
 	AltUnitType	altunits;
-/*
- * Open this file.
- */
-	if (! dfa_OpenFile (gp->gl_dfindex, FALSE, (void *) &tag))
-		return (FALSE);
 /*
  * Field IDs for our dimension variables
  */
@@ -929,8 +957,7 @@ int		ndetail;
 	 * Get the alts for this field, and make sure the count matches
 	 * with the other fields we've checked so far
 	 */
-		grb_GetAlts (gp->gl_dfindex, fids[i], offset, alts, &nalts, 
-			     &altunits);
+		grb_GetAlts (of, fids[i], offset, alts, &nalts, &altunits);
 		if (test && nalts != test)
 		{
 			msg_ELog (EF_PROBLEM, 
@@ -951,7 +978,7 @@ int		ndetail;
 	if (onelevel)
 	{
 		float	diff, bestdiff = 99e9;
-		int	best;
+		int	best = -1;
 
 		ztarget = v.us_v_float;
 
@@ -1000,33 +1027,28 @@ int		ndetail;
  * or by using the default.
  */
 	badval = ds_GetDetail ("badval", details, ndetail, &v) ?
-		v.us_v_float : -9999.0;
+		v.us_v_float : CFG_DC_DEFAULT_BADVAL;
 
 	dc_SetBadval (dc, badval);
-/*
- * Find the indices that bound our data search.
- */
-	firstndx = grb_TimeIndex (tag, &gp->gl_begin, TRUE);
-	lastndx = grb_TimeIndex (tag, &gp->gl_end, FALSE);
 /*
  * Do things on a sample by sample basis
  */
 	samp = 0;
 
-	for (sbegin = firstndx; sbegin <= lastndx; sbegin = send + 1)
+	for (sbegin = begin; sbegin < begin + nsample; sbegin = send + 1)
 	{
 	/*
 	 * Time for this sample
 	 */
-		stime = tag->gt_grib[sbegin].gd_time;
+		stime = tag->gt_times[sbegin];
 	/*
 	 * Find the index limits of the next sample
 	 */
 		send = sbegin;
 
-		for (ndx = sbegin + 1; ndx <= lastndx; ndx++)
+		for (ndx = sbegin + 1; ndx < begin + nsample; ndx++)
 		{
-			if (TC_Eq (stime, tag->gt_grib[ndx].gd_time))
+			if (TC_Eq (stime, tag->gt_times[ndx]))
 				send = ndx;
 			else
 				break;
@@ -1136,57 +1158,8 @@ GRB_TypeInfo	*ginfo;
 			
 
 static int
-grb_TimeIndex (tag, zt, first)
-GFTag	*tag;
-ZebTime	*zt;
-int	first;
-/*
- * Find the offset into this file for the first time before or equal to
- * the given time.  If 'first' is true, return the index of the first
- * grid at the time we find.  Otherwise, return the index of the last grid
- * at that time.
- */
-{
-	int	ndx;
-	ZebTime	foundtime;
-/*
- * Search backward through the grids until we find one before the requested
- * time.
- */
-	for (ndx = tag->gt_ngrids - 1; ndx >= 0; ndx--)
-		if (TC_LessEq (tag->gt_grib[ndx].gd_time, *zt))
-			break;
-
-	if (ndx < 0)
-		return (-1);
-/*
- * If they want the last grid for this time, we're there
- */
-	if (! first)
-		return (ndx);
-/*
- * Otherwise, go back so that we return the index of the first grid at
- * the time we just found.  We first try a shortcut, since a lot of files
- * contain only one time anyway.
- */
-	foundtime = tag->gt_grib[ndx].gd_time;
-
-	if (TC_Eq (tag->gt_grib[0].gd_time, foundtime))
-		return (0);
-
-	for (ndx-- ; ndx >= 0; ndx--)
-		if (TC_Less (tag->gt_grib[ndx].gd_time, foundtime))
-			break;
-
-	return (++ndx);
-}
-
-
-
-
-int
-grb_GetAlts (dfindex, fid, offset, alts, nalts, altunits)
-int	dfindex;
+grb_GetAlts (of, fid, offset, alts, nalts, altunits)
+OpenFile *of;
 FieldId	fid;
 int	offset;
 float	*alts;
@@ -1198,18 +1171,13 @@ AltUnitType	*altunits;
  * sorted in increasing order.
  */
 {
+	GFTag	*tag = GFTAGP (of);
 	int	i, count;
 	float	temp;
-	GFpds	*pds;
+	GFpds	*pds = NULL;
 	GFgds	*gds;
-	GFTag	*tag;
-	GRB_TypeInfo	*grbinfo;
+	GRB_TypeInfo	*grbinfo = NULL;
 	ZebTime	t;
-/*
- * Make sure that the file is open.
- */
-	if (! dfa_OpenFile (dfindex, FALSE, (void *) &tag))
-		return (FALSE);
 /*
  * Find the first usable grid for the chosen field and forecast offset.
  */
@@ -1223,7 +1191,7 @@ AltUnitType	*altunits;
 		    grb_Field (pds, NULL) == fid &&
 		    grb_Offset (pds) == offset)
 		{
-			t = tag->gt_grib[i].gd_time;
+			t = tag->gt_times[i];
 			break;
 		}
 	}
@@ -1243,7 +1211,7 @@ AltUnitType	*altunits;
 	count = 0;
 	for (; i < tag->gt_ngrids; i++)
 	{
-		if (! TC_Eq (tag->gt_grib[i].gd_time, t))
+		if (! TC_Eq (tag->gt_times[i], t))
 			break;
 	/*
 	 * Grab the altitude from this grid if it has the same type, field, 
@@ -1296,9 +1264,9 @@ AltUnitType	*altunits;
 
 
 
-int
-grb_GetForecastTimes (dfindex, times, ntimes)
-int	dfindex;
+static int
+grb_GetForecastTimes (of, times, ntimes)
+OpenFile *of;
 int	*times;
 int	*ntimes;
 /*
@@ -1306,14 +1274,9 @@ int	*ntimes;
  * this file.
  */
 {
+	GFTag	*tag = GFTAGP (of);
 	int	count, i, offset, t;
 	GFpds	*pds;
-	GFTag	*tag;
-/*
- * Make sure that the file is open.
- */
-	if (! dfa_OpenFile (dfindex, FALSE, (void *) &tag))
-		return (FALSE);
 /*
  * Ugly linear thing.  Just loop through the grids and insert their offsets
  * into the array if they aren't there already.
@@ -1344,92 +1307,22 @@ int	*ntimes;
 
 
 
-int
-grb_DataTimes (dfindex, t, which, n, dest)
-int	dfindex, n;
-ZebTime	*t, *dest;
-TimeSpec	which;
-/*
- * Return the times for which data is available.
- */
-{
-	GFTag	*tag;
-	int	ndx, tcount;
-/*
- * Open this file.
- */
-	if (! dfa_OpenFile (dfindex, FALSE, (void *) &tag))
-		return (0);
-/*
- * Find the index to the time.  Returns -1 if no times before *t.  Ask for
- * the first grid at a time if we're looking for times before or at that
- * time.  For DsAfter we must have the last grid before or at the time.
- */
-	ndx = grb_TimeIndex (tag, t, /*first*/ (which == DsBefore));
-/*
- * Get as many times as requested (or as many as we have)
- */
-	tcount = 0;
-	if (which == DsBefore)
-	{
-		for ( ; ndx >= 0 && tcount < n; ndx--)
-		{
-			if ((tcount == 0) ||
-			    ! TC_Eq (tag->gt_grib[ndx].gd_time, *(dest-1)))
-			{
-				*dest++ = tag->gt_grib[ndx].gd_time;
-				tcount++;
-			}
-		}
-	}
-	else if (which == DsAfter)
-	{
-	/*
-	 * Most recent times always come first in the times array, so we
-	 * have to make sure to fill the array backwards.
-	 */
-		if (ndx < 0)	/* there was no grid at the target time */
-			ndx = 0;
-		else if (TC_Less (tag->gt_grib[ndx].gd_time, *t))
-			++ndx;
-		for ( ; ndx < tag->gt_ngrids && tcount < n; ndx++)
-		{
-			if ((tcount == 0) ||
-			    ! TC_Eq (tag->gt_grib[ndx].gd_time, *(dest+1)))
-			{
-				*dest-- = tag->gt_grib[ndx].gd_time;
-				tcount++;
-			}
-		}
-	}
-
-	return (tcount);
-}
-
-
-
-
-int
-grb_GetFields (dfindex, t, nfld, flist)
-int	dfindex;
-ZebTime	*t;
-int	*nfld;
+static int
+grb_GetFields (ofp, sample, nfld, flist)
+OpenFile *ofp;
+int sample;
+int *nfld;
 FieldId	*flist;
 /*
- * Return the field list.
+ * Return the field list at this sample.
  */
 {
 	int	i, f;
 	FieldId	fid;
 	GFpds	*pds;
-	GFTag	*tag;
+	GFTag	*tag = GFTAGP (ofp);
 
 	*nfld = 0;
-/*
- * Open this file.
- */
-	if (! dfa_OpenFile (dfindex, FALSE, (void *) &tag))
-		return (FALSE);
 /*
  * Get the fields
  */
@@ -1459,24 +1352,21 @@ FieldId	*flist;
 
 
 
-int
-grb_GetObsSamples (dfile, times, locs, max)
-int	dfile, max;
+static int
+grb_GetObsSamples (ofp, times, locs, max)
+OpenFile *ofp;
 ZebTime	*times;
-Location	*locs;
+Location *locs;
+int max;
 /*
  * Return sample info.
  */
 {
-	GFTag	*tag;
+	GFTag	*tag = GFTAGP (ofp);
 	int	i, ntimes, ngrids;
 	GRB_TypeInfo	*grbinfo;
 	Location	gloc;
-/*
- * Get the file open.
- */
-	if (! dfa_OpenFile (dfile, FALSE, (void *) &tag))
-		return (0);
+
 	ngrids = tag->gt_ngrids;
 /*
  * Find the first grid we know how to unpack and use its type to determine 
@@ -1506,16 +1396,17 @@ Location	*locs;
  * Shortcut:  See if the first and last grid times in the file are the same.
  * If so, we assume all the ones between are the same, too.
  */
-	if (TC_Eq (tag->gt_grib[0].gd_time, tag->gt_grib[ngrids-1].gd_time))
+	if (TC_Eq (tag->gt_times[0], tag->gt_times[ngrids-1]))
 	{
-		times[0] = tag->gt_grib[0].gd_time;
+		times[0] = tag->gt_times[0];
 		locs[0] = gloc;
 		return (1);
 	}
 /*
  * Nope, we have to go through every grid
  */
-	times[0] = tag->gt_grib[0].gd_time;
+	/* times[0] = tag->gt_grib[0].gd_time; */
+	times[0] = tag->gt_times[0];
 	locs[0] = gloc;
 	ntimes = 1;
 
@@ -1524,12 +1415,14 @@ Location	*locs;
 	/*
 	 * Skip this one if it's the same time as the last one
 	 */
-		if (TC_Eq (tag->gt_grib[i].gd_time, times[ntimes-1]))
+		/* if (TC_Eq (tag->gt_grib[i].gd_time, times[ntimes-1])) */
+		if (TC_Eq (tag->gt_times[i], times[ntimes-1]))
 			continue;
 	/*
 	 * We have a new time
 	 */
-		times[ntimes] = tag->gt_grib[i].gd_time;
+		/* times[ntimes] = tag->gt_grib[i].gd_time; */
+		times[ntimes] = tag->gt_times[i];
 		locs[ntimes] = gloc;
 		ntimes++;
 
@@ -1543,13 +1436,13 @@ Location	*locs;
 
 
 static GFTag *
-grb_Open (fname)
+grb_Open (fname, tag)
 char	*fname;
+GFTag	*tag;
 /*
  * Local file open routine
  */
 {
-	GFTag	*tag = (GFTag *) calloc (1, sizeof (GFTag));
 	static int	tagid = 0; /* Unique id for each tag we create */
 /*
  * Try to open the file
@@ -1558,7 +1451,6 @@ char	*fname;
 	{
 		msg_ELog (EF_PROBLEM, "grb_Open: Error %d opening '%s'", 
 			  errno, fname);
-		free (tag);
 		return (NULL);
 	}
 /*
@@ -1594,8 +1486,10 @@ GFTag	*tag;
 		if (tag->gt_grib[i].gd_gds)
 			free (tag->gt_grib[i].gd_gds);
 	}
-	free (tag->gt_grib);
-	free (tag);
+	if (tag->gt_grib)
+		free (tag->gt_grib);
+	if (tag->gt_times)
+		free (tag->gt_times);
 }
 
 
@@ -1625,6 +1519,7 @@ GFTag	*tag;
  * but it's 4 bytes long in Edition 0.
  * An added complication is that sometimes records are separated by 20 blanks.
  */
+	ng = tag->gt_ngrids;
 	while ((status = grb_FindRecord (fd, buf)) > 0)
 	{
 	/*
@@ -1741,6 +1636,8 @@ GFTag	*tag;
 			tag->gt_maxgrids = 100;
 			tag->gt_grib = (GRIBdesc *) malloc (tag->gt_maxgrids *
 							    sizeof (GRIBdesc));
+			tag->gt_times = (ZebTime *) malloc (tag->gt_maxgrids *
+							    sizeof (ZebTime));
 		}
 		else if (ng > tag->gt_maxgrids)
 		{
@@ -1748,6 +1645,9 @@ GFTag	*tag;
 			tag->gt_grib = (GRIBdesc *) 
 				realloc (tag->gt_grib, 
 					 tag->gt_maxgrids * sizeof (GRIBdesc));
+			tag->gt_times = (ZebTime *) 
+				realloc (tag->gt_grib, 
+					 tag->gt_maxgrids * sizeof (ZebTime));
 		}
 
 		tag->gt_grib[ng-1].gd_pds = pds;
@@ -1755,7 +1655,7 @@ GFTag	*tag;
 	/*
 	 * Extract the reference time from the PDS
 	 */
-		grb_ReferenceTime (pds, &(tag->gt_grib[ng-1].gd_time));
+		grb_ReferenceTime (pds, &(tag->gt_times[ng-1]));
 	/*
 	 * Save the position of the Binary Data Section relative to the 
 	 * start of the file, and its length.
@@ -1916,24 +1816,29 @@ float		*ztarget;
  */
 	if (nlevels == 0)
 	{
+#ifdef notdef
 		float	*grid;
 		int	gridsize;
-
+#endif
 		msg_ELog (EF_INFO, "GRIB: No %d hr forecast for %s/%s", 
 			  offset / 3600, ds_PlatformName (dc->dc_Platform), 
 			  F_GetName (fid));
 		
-		time = tag->gt_grib[sbegin].gd_time;
+		/* time = tag->gt_grib[sbegin].gd_time;*/
+		time = tag->gt_times[sbegin];
 
+#ifdef notdef
 		gridsize = nlat * nlon * dc_nlevels;
 		grid = (float *) malloc (gridsize * sizeof (float));
 
 		for (i = 0; i < gridsize; i++)
 			grid[i] = badval;
+#endif
 
-		dc_NSAddSample (dc, &time, samp, fid, grid);
-
+		dc_NSAddSample (dc, &time, samp, fid, DC_FillValues);
+#ifdef notdef
 		free (grid);
+#endif
 		return;
 	}
 /*
@@ -2065,7 +1970,8 @@ float		*ztarget;
 /*
  * Stuff the grid we just built into the data chunk
  */
-	time = tag->gt_grib[sbegin].gd_time;
+	/* time = tag->gt_grib[sbegin].gd_time;*/
+	time = tag->gt_times[sbegin];
 	dc_NSAddSample (dc, &time, samp, fid, (void *) dgrid);
 /*
  * Free our grids and lat/lon arrays
@@ -2115,9 +2021,9 @@ ScaleInfo	*sc;
  */
 {
 	int	i;
-	float	scale, offset;
+	float	scale = 1.0, offset = 0.0;
 	char	fname[8];
-	FieldId	fid;
+	FieldId	fid = -1;
 /*
  * Search through the field table first, to see if we've associated a
  * "real" name with the field.  Fields associated with the particular model
@@ -2210,350 +2116,6 @@ float	*lat, *lon;
 	*lon = idouble * 2.5;
 	*lat = (jdouble * 2.5) - 90.0;
 }
-
-
-
-#ifdef notdef
-static void
-grb_27Index (lat, lon, ifloat, jfloat)
-double	lat, lon;
-float	*ifloat, *jfloat;
-/*
- * Return the (floating point) array indices for a GRIB 27 type grid, given a
- * latitude and longitude.  The formulas used here come from Section 21
- * (Stereographic Projection) of "Map Projections--A Working Manual", USGS
- * Professional Paper 1395.  Variable names have been chosen to correspond to
- * those used in the book, and equation numbers from the book are referenced
- * in the comments.
- */
-{
-	float	x, y, k, psi = DEG_TO_RAD (lat), lambda = DEG_TO_RAD (lon);
-/*
- * Origin lat & long, in radians, and scale factor at the origin for
- * GRIB grid type 27 [4225-point (65x65) N. Hemisphere polar stereographic 
- * grid oriented 80W].  For type 27, the pole is at grid location (33,33), 
- * in Fortran terms, or (32,32) here in the C world.
- */
-	const float	psi1 = 1.047197551;	/* 60.0 deg. north */
-	const float	lambda0 = -1.396263402;	/* 80.0 deg. west */
-	const float	scale = 381;
-	const float	ipole = 32;
-	const float	jpole = 32;
-/*
- * Applying the formulas below to the north pole yields the following x 
- * and y.
- */
-	const float	xpole = 0.0;
-	const float	ypole = 3412.31689;
-/*
- * Formula 21-4
- */
-	k = 2 / (1 + sin (psi1) * sin (psi) + 
-		 cos (psi1) * cos (psi) * cos (lambda - lambda0));
-/*
- * Formulas 21-2 and 21-3
- */
-	x = R_Earth * k * cos (psi) * sin (lambda - lambda0);
-	y = R_Earth * k * (cos (psi1) * sin (psi) - 
-		 sin (psi1) * cos (psi) * cos (lambda - lambda0));
-/*
- * Now turn x and y into grid coordinates based on the north pole, which is
- * the only reference point for which we have grid coordinates.
- */
-	*ifloat = ipole + (x - xpole) / scale;
-	*jfloat = jpole + (y - ypole) / scale;
-}
-
-
-
-
-static void
-grb_27LatLon (idouble, jdouble, lat, lon)
-double	idouble, jdouble;
-float	*lat, *lon;
-/*
- * Turn the (double precision) indices into a GRIB 27 type grid into
- * a latitude and longitude.  The formulas used here come from Section 21
- * (Stereographic Projection) of "Map Projections--A Working Manual", USGS
- * Professional Paper 1395.  Variable names have been chosen to correspond to
- * those used in the book, and equation numbers from the book are referenced
- * in the comments.
- */
-{
-	float	x, y, rho, c, psi, lambda;
-/*
- * Origin lat & long, in radians, and scale factor at the origin for
- * GRIB grid type 27 [4225-point (65x65) N. Hemisphere polar stereographic 
- * grid oriented 80W].  For type 27, the pole is at grid location (33,33), 
- * in Fortran terms, or (32,32) here in the C world.
- */
-	const float	psi1 = 1.047197551;	/* 60.0 deg. north */
-	const float	lambda0 = -1.396263402;	/* 80.0 deg. west */
-	const float	scale = 381;
-	const float	ipole = 32;
-	const float	jpole = 32;
-/*
- * The x and y values below for the pole were calculated given the
- * constants above.
- */
-	const float	xpole = 0.0;
-	const float	ypole = 3412.31689;
-/*
- * First turn our indices into x and y in km.
- */
-	x = (scale * (idouble - ipole)) + xpole;
-	y = (scale * (jdouble - jpole)) + ypole;
-/*
- * Formulas 20-18 and 21-15
- */
-	rho = hypot (x, y);
-	c = 2 * atan ((double)(rho / (2 * R_Earth)));
-/*
- * Formula 20-15
- */
-	lambda = lambda0 + 
-		atan (x * sin (c) / 
-		      (rho * cos (psi1) * cos (c) - y * sin (psi1) * sin (c)));
-/*
- * Formula 20-14
- */
-	psi = asin (cos (c) * sin (psi1) + (y * sin (c) * cos (psi1) / rho));
-/*
- * Now convert to degrees and we're done
- */
-	*lat = RAD_TO_DEG (psi);
-	*lon = RAD_TO_DEG (lambda);
-}
-
-
-
-
-static void
-grb_36Index (lat, lon, ifloat, jfloat)
-double	lat, lon;
-float	*ifloat, *jfloat;
-/*
- * Return the (floating point) array indices for a GRIB 36 type grid, given a
- * latitude and longitude.  The formulas used here come from Section 21
- * (Stereographic Projection) of "Map Projections--A Working Manual", USGS
- * Professional Paper 1395.  Variable names have been chosen to correspond to
- * those used in the book, and equation numbers from the book are referenced
- * in the comments.
- */
-{
-	float	x, y, k, psi = DEG_TO_RAD (lat), lambda = DEG_TO_RAD (lon);
-/*
- * Origin lat & long, in radians, and scale factor at the origin for
- * GRIB grid type 36 [1558-point (41x38) N. Hemisphere polar stereographic 
- * grid oriented 105W].  For type 36, the pole is at grid location (19,42), 
- * in Fortran terms, or (18,41) here in the C world.
- */
-	const float	psi1 = 1.047197551;	/* 60.0 deg. north */
-	const float	lambda0 = -1.832595715;	/* 105.0 deg. west */
-	const float	scale = 190.5;
-	const float	ipole = 18;
-	const float	jpole = 41;
-/*
- * Applying the formulas below to the north pole yields the following x 
- * and y.
- */
-	const float	xpole = 0.0;
-	const float	ypole = 3412.31689;
-/*
- * Formula 21-4
- */
-	k = 2 / (1 + sin (psi1) * sin (psi) + 
-		 cos (psi1) * cos (psi) * cos (lambda - lambda0));
-/*
- * Formulas 21-2 and 21-3
- */
-	x = R_Earth * k * cos (psi) * sin (lambda - lambda0);
-	y = R_Earth * k * (cos (psi1) * sin (psi) - 
-		 sin (psi1) * cos (psi) * cos (lambda - lambda0));
-/*
- * Now turn x and y into grid coordinates based on the north pole, which is
- * the only reference point for which we have grid coordinates.
- */
-	*ifloat = ipole + (x - xpole) / scale;
-	*jfloat = jpole + (y - ypole) / scale;
-}
-
-
-
-
-static void
-grb_36LatLon (idouble, jdouble, lat, lon)
-double	idouble, jdouble;
-float	*lat, *lon;
-/*
- * Turn the (double precision) indices into a GRIB 36 type grid into
- * a latitude and longitude.  The formulas used here come from Section 21
- * (Stereographic Projection) of "Map Projections--A Working Manual", USGS
- * Professional Paper 1395.  Variable names have been chosen to correspond to
- * those used in the book, and equation numbers from the book are referenced
- * in the comments.
- */
-{
-	float	x, y, rho, c, psi, lambda;
-/*
- * Origin lat & long, in radians, and scale factor at the origin for
- * GRIB grid type 36 [1558-point (41x38) N. Hemisphere polar stereographic 
- * grid oriented 105W].  For type 36, the pole is at grid location (19,42), 
- * in Fortran terms, or (18,41) here in the C world.
- */
-	const float	psi1 = 1.047197551;	/* 60.0 deg. north */
-	const float	lambda0 = -1.832595715;	/* 105.0 deg. west */
-	const float	scale = 190.5;
-	const float	ipole = 18;
-	const float	jpole = 41;
-/*
- * The x and y values below for the pole were calculated given the
- * constants above.
- */
-	const float	xpole = 0.0;
-	const float	ypole = 3412.31689;
-/*
- * First turn our indices into x and y in km.
- */
-	x = (scale * (idouble - ipole)) + xpole;
-	y = (scale * (jdouble - jpole)) + ypole;
-/*
- * Formulas 20-18 and 21-15
- */
-	rho = hypot (x, y);
-	c = 2 * atan ((double)(rho / (2 * R_Earth)));
-/*
- * Formula 20-15
- */
-	lambda = lambda0 + 
-		atan (x * sin (c) / 
-		      (rho * cos (psi1) * cos (c) - y * sin (psi1) * sin (c)));
-/*
- * Formula 20-14
- */
-	psi = asin (cos (c) * sin (psi1) + (y * sin (c) * cos (psi1) / rho));
-/*
- * Now convert to degrees and we're done
- */
-	*lat = RAD_TO_DEG (psi);
-	*lon = RAD_TO_DEG (lambda);
-}
-
-
-
-
-static void
-grb_105Index (lat, lon, ifloat, jfloat)
-double	lat, lon;
-float	*ifloat, *jfloat;
-/*
- * Return the (floating point) array indices for a GRIB 105 type grid, given a
- * latitude and longitude.  The formulas used here come from Section 21
- * (Stereographic Projection) of "Map Projections--A Working Manual", USGS
- * Professional Paper 1395.  Variable names have been chosen to correspond to
- * those used in the book, and equation numbers from the book are referenced
- * in the comments.
- */
-{
-	float	x, y, k, psi = DEG_TO_RAD (lat), lambda = DEG_TO_RAD (lon);
-/*
- * Origin lat & long, in radians, and scale factor at the origin for
- * GRIB grid type 105 [6889-point (83x83) N. hemisphere polar stereographic
- * grid oriented 105W].  For type 105, the pole is at grid location 
- * (40.5, 88.5), in Fortran terms, or (39.5, 87.5) here in the C world.
- */
-	const float	psi1 = 1.047197551;	/* 60.0 deg. north */
-	const float	lambda0 = -1.832595715;	/* 105.0 deg. west */
-	const float	scale = 90.75464;
-	const float	ipole = 39.5;
-	const float	jpole = 87.5;
-/*
- * Applying the formulas below to the north pole yields the following x 
- * and y.
- */
-	const float	xpole = 0.0;
-	const float	ypole = 3412.31689;
-/*
- * Formula 21-4
- */
-	k = 2 / (1 + sin (psi1) * sin (psi) + 
-		 cos (psi1) * cos (psi) * cos (lambda - lambda0));
-/*
- * Formulas 21-2 and 21-3
- */
-	x = R_Earth * k * cos (psi) * sin (lambda - lambda0);
-	y = R_Earth * k * (cos (psi1) * sin (psi) - 
-		 sin (psi1) * cos (psi) * cos (lambda - lambda0));
-/*
- * Now turn x and y into grid coordinates based on the north pole, which is
- * the only reference point for which we have grid coordinates.
- */
-	*ifloat = ipole + (x - xpole) / scale;
-	*jfloat = jpole + (y - ypole) / scale;
-}
-
-
-
-
-static void
-grb_105LatLon (idouble, jdouble, lat, lon)
-double	idouble, jdouble;
-float	*lat, *lon;
-/*
- * Turn the (double precision) indices into a GRIB 105 type grid into
- * a latitude and longitude.  The formulas used here come from Section 21
- * (Stereographic Projection) of "Map Projections--A Working Manual", USGS
- * Professional Paper 1395.  Variable names have been chosen to correspond to
- * those used in the book, and equation numbers from the book are referenced
- * in the comments.
- */
-{
-	float	x, y, rho, c, psi, lambda;
-/*
- * Origin lat & long, in radians, and scale factor at the origin for
- * GRIB grid type 105 [6889-point (83x83) N. hemisphere polar stereographic
- * grid oriented 105W].  For type 105, the pole is at grid location 
- * (40.5, 88.5), in Fortran terms, or (39.5, 87.5) here in the C world.
- */
-	const float	psi1 = 1.047197551;	/* 60.0 deg. north */
-	const float	lambda0 = -1.832595715;	/* 105.0 deg. west */
-	const float	scale = 90.75464;
-	const float	ipole = 39.5;
-	const float	jpole = 87.5;
-/*
- * The x and y values below for the pole were calculated given the
- * constants above.
- */
-	const float	xpole = 0.0;
-	const float	ypole = 3412.31689;
-/*
- * First turn our indices into x and y in km.
- */
-	x = (scale * (idouble - ipole)) + xpole;
-	y = (scale * (jdouble - jpole)) + ypole;
-/*
- * Formulas 20-18 and 21-15
- */
-	rho = hypot (x, y);
-	c = 2 * atan ((double)(rho / (2 * R_Earth)));
-/*
- * Formula 20-15
- */
-	lambda = lambda0 + 
-		atan (x * sin (c) / 
-		      (rho * cos (psi1) * cos (c) - y * sin (psi1) * sin (c)));
-/*
- * Formula 20-14
- */
-	psi = asin (cos (c) * sin (psi1) + (y * sin (c) * cos (psi1) / rho));
-/*
- * Now convert to degrees and we're done
- */
-	*lat = RAD_TO_DEG (psi);
-	*lon = RAD_TO_DEG (lambda);
-}
-#endif /* notdef */
-
 
 
 
