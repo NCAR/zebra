@@ -15,10 +15,12 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.22 1999-06-15 16:44:34 burghart Exp $"
+MFVERSION="$Id: Imakefile,v 1.23 1999-11-01 19:59:50 burghart Exp $"
 
 #define IHaveSubdirs
 #define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
+
+all::
 
 ETC = etc
 DSLIB = ds
