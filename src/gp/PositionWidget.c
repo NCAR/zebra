@@ -1,7 +1,7 @@
 /*
  * Widget for getting position of cursor.
  */
-static char *rcsid = "$Id: PositionWidget.c,v 1.8 1993-03-04 04:13:02 granger Exp $";
+static char *rcsid = "$Id: PositionWidget.c,v 1.9 1993-03-11 23:29:49 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -47,25 +47,26 @@ static int	CursorX = 0,
 	        CursorY = 0; 		/* Location of last XQueryPointer  */
 static int	CursorValid = FALSE;	/* X,Y have been set and are valid */
 
-# ifdef __STDC__
-	static void pw_PosPopup ();
-	static void pw_PosPopdown (Widget, int, int);
-	void pw_PosStatus ();
-        static void pw_PosDisplay ();
-	void pw_InitPos();
-	Widget pw_PosCreate (char *, Widget, XtAppContext);
-	void ChangeType ();
-	void ChangeUnit ();
-# else
-	static void pw_PosPopup ();
-	static void pw_PosPopdown ();
-	void pw_PosStatus ();
-        static void pw_PosDisplay ();
-	void pw_InitPos();
-	Widget pw_PosCreate ();
-	void ChangeType ();
-	void ChangeUnit ();
-# endif
+/*
+ * Forward declarations
+ */
+static void pw_PosPopup ();
+static void pw_PosPopdown FP((Widget, int, int));
+void pw_PosStatus ();
+static void pw_PosDisplay ();
+void pw_InitPos();
+Widget pw_PosCreate FP((char *, Widget, XtAppContext));
+void ChangeType ();
+void ChangeUnit ();
+
+
+/*
+ * Actions for the GetPosition widget
+ */
+static XtActionsRec pw_Actions[] =
+{
+	{ "new-origin",		pw_PosDisplay	}
+};
 
 
 static void
@@ -83,10 +84,11 @@ int 	junk1, junk2;
 void
 pw_InitPos ()
 /*
- * Tell UI about the position widget.
+ * Tell UI about the position widget, and register our actions
  */
 {
 	uw_def_widget ("position", "Get Position", pw_PosCreate, 0, 0);
+	XtAppAddActions (Actx, pw_Actions, XtNumber(pw_Actions));
 }
 
 
@@ -254,6 +256,7 @@ void
 pw_PosDisplay ()
 /*
  * Create the position text line and display it in the widget.
+ * Entered via pw_PosStatus() and the new-origin() action.
  */
 {
 	char	string[100], label[300], offstring[50], statusstr[100];
