@@ -1,7 +1,7 @@
 /*
  * Deal with static (or almost static) overlays.
  */
-static char *rcsid = "$Id: Overlay.c,v 2.20 1993-02-05 22:24:25 corbet Exp $";
+static char *rcsid = "$Id: Overlay.c,v 2.21 1993-05-26 19:53:21 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -153,6 +153,8 @@ static void	ov_SGSetup FP ((char *, float *, float *, float *, bool *,
 			int *, bool *, float *, float *));
 static void 	ov_SolidGrid FP ((int, int, int, int, double, double,
 			double, int, double, double));
+static void 	ov_LLSolidGrid FP ((int, int, int, int, double, double,
+				    double, int));
 static void	ov_TicGrid FP ((int, int, int, int, double, double,
 			double, int, int, double, double));
 static void	ov_LLTicGrid FP ((int, int, int, int, double, double,
@@ -1479,7 +1481,44 @@ int update;
 		if (tlabel)
 		{
 			int m, d, h, min, ptm, ptd;
+			bool tlocal = FALSE;
+			int tzoffset = 0;
+			char *tzstr;
 			char lstr[40];
+		/*
+		 * See if this time should be displayed in the location's
+		 * local time.
+		 */
+			(void) pda_Search (Pd, comp, 
+					   "local-time", plist[plat], 
+					   &tlocal,
+					   SYMT_BOOL);
+			if (tlocal)
+			{
+				if (! pda_Search (Pd, comp, "timezone-offset",
+						  plist[plat], 
+						  (char *)&tzoffset,
+						  SYMT_INT))
+				{
+					tzstr = "zulu";
+					msg_ELog(EF_PROBLEM,
+                   "no 'timezone-offset' parameter, though 'local-time' true");
+				}
+				else
+			/*
+			 * Now do time zone adjustment
+			 */
+				{
+				/* 
+				 * Local time is GMT time minus the number
+				 * of minutes west of GMT, which for the 
+				 * eastern hemisphere (just west of date
+				 * line) is negative
+				 */
+					loctime.zt_Sec -= tzoffset * 60;
+					tzstr = "local";
+				}
+			}
 		/*
 		 * Format up the date.  Only put in the month/day portion
 		 * if it differs from the plot time.
@@ -1629,8 +1668,14 @@ int update;
  * Draw the grid.
  */
 	if (solid)
-		ov_SolidGrid (left, right, top, bottom, xs, ys, theight, aint,
-				xoff, yoff);
+	{
+		if (ll)
+			ov_LLSolidGrid (left, right, top, bottom, xs, ys,
+					theight, aint);
+		else
+			ov_SolidGrid (left, right, top, bottom, xs, ys, 
+				      theight, aint, xoff, yoff);
+	}
 	else
 	{
 		if (ll)
@@ -1720,7 +1765,7 @@ float *blat, *blon, xs, ys;
  */
 	cvt_ToLatLon (Xlo, Ylo, blat, blon);
 	iblat = (int) (*blat * 3600.0 + 0.5);
-	iblon = (int) ((-*blon) * 3600 + 0.5);
+	iblon = (int) (*blon * 3600.0 + 0.5);
 	ixs = (int) (xs * 60.0 + 0.5);
 	iys = (int) (ys * 60.0 + 0.5);
 /*
@@ -1733,14 +1778,19 @@ float *blat, *blon, xs, ys;
 		iblat -= iblat % iys;
 		iblat += iys;
 	}
-	iblon -= iblon % ixs;
-	/* iblon += ixs; */
+	if (iblon < 0)
+		iblon += (-iblon) % ixs;
+	else
+	{
+		iblon -= iblon % ixs;
+		iblon += ixs;
+	}
 # ifdef notdef
 	*blat = ((float) iblat + 0.5)/3600.0;
 	*blon = -((float) iblon + 0.5)/3600.0;
 # endif
 	*blat = ((float) iblat)/3600.0;
-	*blon = -((float) iblon)/3600.0;
+	*blon = ((float) iblon)/3600.0;
 }
 
 
@@ -1763,6 +1813,14 @@ float xs, ys, theight;
  */
 	ov_CGFixLL (&blat, &blon, xs, ys);
 	cvt_ToLatLon (Xhi, Yhi, &maxlat, &maxlon);
+/*
+ * NOTE: maxlon will be LESS THAN blon if maxlon is actually across the
+ * Intl Date Line.  We must take this into account and make maxlon positive
+ * by adding a full circle to it, and then subtracting the circle when it's
+ * time to determine the actual longitude label.
+ */
+	if (maxlon < blon)
+		maxlon += 360.0;
 	xs /= 60.0;
 	ys /= 60.0;
 /*
@@ -1807,7 +1865,96 @@ float xs, ys, theight;
 	 */
 		if ((nx++ % aint) == 0)
 		{
-			sprintf (label, "%d", (int) xpos);
+			sprintf (label, "%d", 
+				 (int)((xpos>180)?(xpos-360):(xpos)));
+			DrawText (Graphics, frame, Gcontext, xp, top + 1,
+				  label,0.0,theight,JustifyCenter,JustifyTop);
+			sprintf (label, "%d' %d\"", (int)(-xpos*60)%60,
+					(int) (-xpos*3600)%60);
+			DrawText (Graphics, frame, Gcontext, xp, top + 14,
+				  label,0.0,theight,JustifyCenter,JustifyTop);
+		}
+	}
+}
+
+
+
+
+static void
+ov_LLSolidGrid (left, right, top, bottom, xs, ys, theight, aint)
+int left, right, top, bottom, aint;
+float xs, ys, theight;
+/*
+ * Draw a solid-line lat/lon cartesian grid.
+ */
+{
+	float xpos, ypos, blat, blon, maxlat, maxlon;
+	int xp, yp, nx = 0, ny = 0;
+	int xe, ye;
+	char label[30];
+	Drawable frame = GWFrame (Graphics);
+/*
+ * Figure out where we are.
+ */
+	ov_CGFixLL (&blat, &blon, xs, ys);
+	cvt_ToLatLon (Xhi, Yhi, &maxlat, &maxlon);
+	if (maxlon < blon)
+		maxlon += 360.0;
+	xs /= 60.0;
+	ys /= 60.0;
+/*
+ * Draw all of the horizontal lines and the left annotation
+ */
+	xpos = blon;
+	for (ypos = blat; ypos <= maxlat; ypos += ys)
+	{
+		float xkm, ykm;
+		
+		cvt_ToXY (ypos, xpos, &xkm, &ykm);
+		xp = XPIX (xkm);
+		yp = YPIX (ykm);
+		cvt_ToXY (ypos, maxlon, &xkm, &ykm);
+		xe = XPIX (xkm);
+		ye = YPIX (ykm);
+		XDrawLine (Disp, frame, Gcontext, 
+			   xp, yp, xe, ye);
+		if ((ny++ % aint) == 0)
+		{
+			sprintf (label, "%d  ", (int) ypos);
+			DrawText (Graphics, frame, Gcontext, left - 1,
+				  yp, label, 0.0, theight/1.2,
+				  JustifyRight, JustifyBottom);
+			sprintf (label, "%d' %d\"", (int) (ypos*60)%60,
+				 (int) (ypos*3600)%60);
+			DrawText (Graphics, frame, Gcontext, left - 1,
+				  yp, label, 0.0, theight, JustifyRight,
+				  JustifyTop);
+		}
+	}
+
+	ypos = blat;
+	for (xpos = blon; xpos <= maxlon; xpos += xs)
+	{
+	/*
+	 * Vertical lines
+	 */
+		float xkm, ykm;
+		
+		cvt_ToXY (ypos, xpos, &xkm, &ykm);
+		xp = XPIX (xkm);
+		yp = YPIX (ykm);
+		cvt_ToXY (maxlat, xpos, &xkm, &ykm);
+		xe = XPIX (xkm);
+		ye = YPIX (ykm);
+		XDrawLine (Disp, frame, Gcontext, 
+			   xp, yp, xe, ye);
+	/*
+	 * Bottom annotation.
+	 */
+		if ((nx++ % aint) == 0)
+		{
+			sprintf (label, "%d", 
+				 (int)((xpos>180)?(xpos-360):(xpos)));
 			DrawText (Graphics, frame, Gcontext, xp, top + 1,
 				label, 0.0, theight,JustifyCenter, JustifyTop);
 			sprintf (label, "%d' %d\"", (int)(-xpos*60)%60,
@@ -1818,7 +1965,6 @@ float xs, ys, theight;
 		}
 	}
 }
-
 
 
 
