@@ -1,6 +1,6 @@
 /*
  * Global definitions
- * $Id: globals.h,v 1.2 1991-09-17 16:29:01 burghart Exp $
+ * $Id: globals.h,v 1.3 1992-04-09 18:37:22 granger Exp $
  */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -21,6 +21,7 @@
  */
 
 # include <math.h>
+# include <defs.h>		/* For FP macro needed by message.h */
 # include <message.h>
 # include <ui_param.h>		/* For bool definition */
 
