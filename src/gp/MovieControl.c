@@ -43,7 +43,7 @@
 # include "ActiveArea.h"
 # include <ui_date.h>
 
-RCSID ("$Id: MovieControl.c,v 2.23 1995-06-29 23:29:14 granger Exp $")
+RCSID ("$Id: MovieControl.c,v 2.24 1996-01-25 18:05:13 corbet Exp $")
 
 # define ATSLEN		80	/* Length for AsciiText strings		*/
 # define FLEN 		40	/* Length of a field string		*/
@@ -521,6 +521,21 @@ mc_MovieDismiss ()
  * Popdown the movie controller widget through UI
  */
 {
+/*
+ * Go ahead and stop the movie.  There are situations where it might make
+ * sense to keep things running, but we risk less user confusion this
+ * way.
+ */
+	mc_MovieStop ();
+	mc_SetStatus ("Inactive (real time).");
+/*
+ *  Reset the FrameCount to its value before the movie started.
+ */
+	fc_UnMarkFrames();
+	Eq_AddEvent (PWhenever, mc_ResetFrameCount, 0, 0, Bounce);
+/*
+ * Ah yes, also get rid of the widget.
+ */
 	uw_popdown (MOVIE_NAME);
 }
 
@@ -923,6 +938,10 @@ mc_ResetFrameCount()
 	
 	if(OldFrameCount > 0)
 	{
+	/*
+	 * Sure would be nice if we could move the PlotTime frame down
+	 * to slot zero so it would stay around.  Someday.
+	 */
 		FrameCount = OldFrameCount;
 		fc_SetNumFrames(FrameCount);
 		px_FixPlotTime(&PlotTime);
