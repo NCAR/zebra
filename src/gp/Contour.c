@@ -36,7 +36,7 @@
 # include "PixelCoord.h"
 
 
-RCSID("$Id: Contour.c,v 2.23 2000-10-18 20:34:17 granger Exp $")
+RCSID("$Id: Contour.c,v 2.24 2001-12-13 08:59:49 granger Exp $")
 
 typedef short	cbool;
 
@@ -73,6 +73,7 @@ static int	Done[MAXPTS];	/* List of points already done	*/
 static int	Ndone;		/* Number of points in the done list	*/
 static float	Cval;		/* current contour value	*/
 static int	DoLabels;	/* put labels on contours?	*/
+static int      Nplotted;	/* Total number of points in contour lines. */
 
 /*
  * Projection-related kludgery.
@@ -163,6 +164,7 @@ int	dolabels, linewidth;
 	Ny = ydim;
 	Z = array;
 	DoLabels = dolabels;
+	Nplotted = 0;
 /*
  * Get the width and height of our drawable (they are used in
  * determining how far apart to space contour labels)
@@ -280,6 +282,14 @@ int	dolabels, linewidth;
 	 * Find the contours for this contour value
 	 */
 		CO_DoContours ();
+	}
+/*
+ * Check whether anything was plotted.
+ */
+	if (Nplotted < 10)
+	{
+	    msg_ELog (EF_PROBLEM, "few (%d) contour segments: "
+		      "check interpolation grid resolution", Nplotted);
 	}
 /*
  * Release the allocated space
@@ -822,6 +832,7 @@ CO_DrawContour ()
 		Nplpts = 0;
 		return;
 	}
+	Nplotted += Nplpts - 1;
 /*
  * It's easy if we're not doing labels
  */

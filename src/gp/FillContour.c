@@ -101,6 +101,7 @@ typedef struct
 # define MAXPTS	5
 static XPoint	Points[MAXPTS];
 static int	Npt;
+static int      Nplotted;
 
 /*
  * Pixel location of the lower left corner
@@ -155,6 +156,7 @@ double	ccenter, cstep;
 	Ny = ydim;
 	X0 = xlo;
 	Y0 = ylo;
+	Nplotted = 0;
 /*
  * Calculate increments for each point.
  */
@@ -232,6 +234,15 @@ double	ccenter, cstep;
 			for (tri.k = 0; tri.k < 2; tri.k++)
 				FC_DoContour (tri, cval, cstep);
 	}
+/*
+ * Check whether anything was plotted.
+ */
+	if (Nplotted < 10)
+	{
+	    msg_ELog (EF_PROBLEM, "few (%d) contour polygons, "
+		      "check interpolation grid resolution", Nplotted);
+	}
+
 }
 
 
@@ -518,6 +529,7 @@ double	cval, cstep;
 /*
  * Do the fill
  */
+	++Nplotted;
 	XFillPolygon (XtDisplay (W), D, ContourGC, Points, Npt, Convex, 
 		CoordModeOrigin);
 }
