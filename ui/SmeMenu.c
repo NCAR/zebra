@@ -49,21 +49,25 @@ static char Xrcsid[] = "$XConsortium: SmeMenu.c,v 1.9 89/12/13 15:42:48 kit Exp 
 #include <X11/Xaw/SimpleMenP.h>
 #include "SmeMenuP.h"
 #include <X11/Xaw/Cardinals.h>
+#include "RdssMenu.h"
 
 #define ONE_HUNDRED 100
 
-/*#define DEBUG*/
+#define DEBUG
 
 #ifdef DEBUG
-#define ENTER(msg) ui_printf("SmeMenu: entering %s\n",msg);
-#define EXIT(msg) ui_printf("SmeMenu: exiting %s\n",msg);
+#define ENTER(msg,w) ui_printf("SmeMenu: %s entering %s\n", 	\
+			       (w)?(XtName((Widget)w)):"",msg);
+#define EXIT(msg,w) ui_printf("SmeMenu: %s exiting %s\n",	\
+			       (w)?(XtName((Widget)w)):"",msg);
 #define IFD(cmd) cmd
-#define ACK(msg) ui_printf("SmeMenu: ack %s\n",msg);
+#define ACK(msg,w) ui_printf("SmeMenu: %s ack %s\n",		\
+			       (w)?(XtName((Widget)w)):"",msg);
 #else
-#define ENTER(msg)
-#define EXIT(msg)
+#define ENTER(msg,w)
+#define EXIT(msg,w)
 #define IFD(cmd)
-#define ACK(msg)
+#define ACK(msg,w)
 #endif
 
 #define offset(field) XtOffset(SmeMenuObject, sme_menu.field)
@@ -97,7 +101,6 @@ static XtResource resources[] = {
 /*
  * Semi Public function definitions. 
  */
-
 static void Redisplay(), Destroy(), Initialize(), FlipColors(), Notify();
 static void Highlight(), Unhighlight();
 static void ClassInitialize();
@@ -107,9 +110,10 @@ static XtGeometryResult QueryGeometry();
 /* 
  * Private Function Definitions.
  */
-
 static void GetDefaultSize(), DrawBitmaps(), GetBitmapInfo();
 static void CreateGCs(), DestroyGCs();
+static Widget FindPopup();
+
     
 #define superclass (&smeClassRec)
 SmeMenuClassRec smeMenuClassRec = {
@@ -177,10 +181,10 @@ WidgetClass smeMenuObjectClass = (WidgetClass) &smeMenuClassRec;
 static void 
 ClassInitialize()
 {
-    ENTER("ClassInitialize()")
+    ENTER("ClassInitialize()",0)
     XawInitializeWidgetSet();
     XtAddConverter( XtRString, XtRJustify, XmuCvtStringToJustify, NULL, 0 );
-    EXIT("ClassInitialize()")
+    EXIT("ClassInitialize()",0)
 }
 
 /*      Function Name: Initialize
@@ -198,27 +202,26 @@ Widget request, new;
 {
     SmeMenuObject entry = (SmeMenuObject) new;
 
-    ENTER("Initialize()")
+    ENTER("Initialize()",new)
     if (entry->sme_menu.label == NULL) 
 	entry->sme_menu.label = XtName(new);
     else
 	entry->sme_menu.label = XtNewString( entry->sme_menu.label );
-    IFD(ui_printf("	label: %s\n",entry->sme_menu.label);)
     entry->sme_menu.up = False;
     entry->sme_menu.popup = 0;
     entry->sme_menu.needflip = False;
 
     GetDefaultSize(new, &(entry->rectangle.width), &(entry->rectangle.height));
     CreateGCs(new);
-    EXIT("Initialize()")
+    EXIT("Initialize()",new)
 }
+
 
 /*      Function Name: Destroy
  *      Description: Called at destroy time, cleans up.
  *      Arguments: w - the simple menu widget.
  *      Returns: none.
  */
-
 static void
 Destroy(w)
 Widget w;
@@ -230,6 +233,7 @@ Widget w;
 	XtFree(entry->sme_menu.label);
 }
 
+
 /*      Function Name: Redisplay
  *      Description: Redisplays the contents of the widget.
  *      Arguments: w - the simple menu widget.
@@ -237,7 +241,6 @@ Widget w;
  *                 region - the region the needs to be repainted. 
  *      Returns: none.
  */
-
 /* ARGSUSED */
 static void
 Redisplay(w, event, region)
@@ -309,7 +312,6 @@ Region region;
  *                 new - what the widget will become.
  *      Returns: none
  */
-
 /* ARGSUSED */
 static Boolean
 SetValues(current, request, new)
@@ -405,80 +407,44 @@ XtWidgetGeometry *intended, *return_val;
 }
 
 
-#ifdef notdef
-
-/* ARGSUSED */
-static void
-parent_popdown(w, closure, call_data)
-	Widget w;
-	XtPointer closure;
-	XtPointer call_data;
-{
-	SmeMenuObject entry = (SmeMenuObject) closure;
-
-	/*
-	 * the top level menu has been told to pop down, if there's
-	 * a menu up, tell it to pop down.
-	 */
-	if (entry->sme_menu.up)
-		XtPopdown(entry->sme_menu.popup);
-}
-
-
-/* ARGSUSED */
-static void
-popdown_unhighlight(w, closure, call_data)
-	Widget w;
-	XtPointer closure;
-	XtPointer call_data;
-{
-	SmeMenuObject entry = (SmeMenuObject) closure;
-
-	entry->sme_menu.up = FALSE;
-	if (entry->sme_menu.needflip) {
-		entry->sme_menu.needflip = FALSE;
-		FlipColors((Widget)entry);
-	}
-	if (entry->sme_menu.popup_last_select)
-	   ((SimpleMenuWidget)entry->object.parent)->simple_menu.popup_entry
-		 = (SmeObject)entry;
-}
-#endif /* notdef */
-
 
 static void
 Highlight(w)
 	Widget w;
 {
 	SmeMenuObject entry = (SmeMenuObject) w;
-	extern void RdssPositionMenu();
 	XPoint loc;
 	Window junkW;
-	int x, y, junkI, wantup;
+	int x, y, junkI;
+	Boolean wantup;
 	unsigned int junkU;
 /*
  * Decide whether we want the menu up or not.
+ * Note that the fact that our Highlight method has been called implies that
+ * the pointer is in our entry region, and all we need check for popping up
+ * the sub-menu is the X coordinate of the pointer relative to the X origin
+ * of our entry.
  */
-	ENTER("Highlight()")
+	ENTER("Highlight()",w)
 	if (! XQueryPointer (XtDisplay (XtParent (w)), XtWindow (XtParent (w)),
 			&junkW, &junkW, &junkI, &junkI, &x, &y, &junkU))
+	{
+		EXIT("Highlight(), query pointer failed",w);
 		return;
+	}
 	if (!entry->sme_menu.needflip)
 	{
 		entry->sme_menu.needflip = TRUE;
 		FlipColors(w);
 	}
-#ifdef notdef
-	wantup = (x > (entry->rectangle.width >> 1));
-#endif
 /*
  * Should probably get leftMargin resource and use that, or specify
- * this as a resource in the SmeMenu widget.  For now, use (x > 30)
+ * this as a unique resource in the SmeMenu widget.  For now, use (x > 30)
  * unless width/2 is less than 30.
  */
-	wantup = (x > entry->rectangle.width / 2) || (x > 30);
+	wantup = ((x > entry->rectangle.width / 2) || (x > 30)) ? True : False;
 /*
- * If we do want it up, and it's not, put it up.
+ * If we do want it up, and it's not, and there is a menu name, put it up.
  */
 	if (entry->sme_menu.menu && wantup && !entry->sme_menu.up) 
 	{
@@ -495,34 +461,17 @@ Highlight(w)
 				   &root_x, &root_y);
 		root_x += x;
 		root_y += entry->rectangle.height/2;
-#ifdef notdef
-		root_x += w->core.width >> 1;
-		root_y += w->core.height >> 1;
-
-		x = w->core.x + (w->core.width / 2);
-		y = w->core.y;
-		for (root = w; !XtIsShell(root); ) 
-		{
-			root = XtParent(root);
-			x += root->core.x;
-			y += root->core.y;
-		}
-		if (! ((ShellWidget)root)->shell.popped_up)
-			return;
-#endif
 		/* 
 	 	 * convert the menu name to a widget if we haven't already 
 		 */
 		if (! entry->sme_menu.popup) 
 		{
-			Widget FindPopup();
-
 			entry->sme_menu.popup =
 				FindPopup(XtParent(w), entry->sme_menu.menu);
 			if (! entry->sme_menu.popup) 
 			{
 				entry->sme_menu.menu = NULL;
-				EXIT("Highlight()")
+				EXIT("Highlight()",w)
 				return;
 			}
 
@@ -545,41 +494,29 @@ Highlight(w)
 			XtOverrideTranslations (entry->sme_menu.popup,
 						trans);
 
-#ifdef notdef
-			/* XXX
-			 * modal cascades don't really work and there's a
-			 * good chance the submenu won't be told to popdown
-			 * when the button is released.  So construct our
-			 * own popdown cascade by adding callbacks to both
-			 * our parent and the new popup so we get a chance
-			 * to pop down everything no matter where the button
-			 * is released.  Note that this code is arranged
-			 * so the callbacks are only added once, not every
-			 * time this menu is popped up.
-			 */
-			XtAddCallback(entry->sme_menu.popup, 
-				      XtNpopdownCallback,
-				      popdown_unhighlight, (XtPointer)entry);
-			XtAddCallback(root, XtNpopdownCallback,
-				      parent_popdown, (XtPointer)entry);
-#endif
-
 		}
+		/*
+		 * We now have a popup shell and a place to put it
+		 */
 		loc.x = root_x; loc.y = root_y;
-		entry->sme_menu.up = TRUE;
-		RdssPositionMenu(entry->sme_menu.popup, &loc);
-		XtPopup(entry->sme_menu.popup, XtGrabNonexclusive);
+		entry->sme_menu.up = True;
+		RdssMenuPositionAndPopup(entry->sme_menu.popup, &loc,
+					 XtGrabNonexclusive);
+		IFD(ui_printf("	%s highlight popping up menu %s\n",
+			      XtName(w),XtName((Widget)entry->sme_menu.popup));)
 	}
 /*
  * If it is up, and we don't want that, bring it back down.  Our colors
  * will stay the same though, since we are at least still highlighted.
  */
- 	else if (entry->sme_menu.menu && entry->sme_menu.up && ! wantup)
+ 	else if (entry->sme_menu.up && (!wantup))
 	{
 		XtPopdown (entry->sme_menu.popup);
-		entry->sme_menu.up = FALSE;
+		entry->sme_menu.up = False;
+		IFD(ui_printf("	%s highlight popping down menu %s\n",
+			      XtName(w),XtName((Widget)entry->sme_menu.popup));)
 	}
-	EXIT("Highlight()")
+	EXIT("Highlight(): successful",w)
 }
 
 
@@ -587,6 +524,12 @@ Highlight(w)
 static void
 Unhighlight(w)
 Widget w;
+/*
+ * We expect the parent menu to be smart enough to differentiate
+ * false alarm LeaveWindows and only call this method when it is
+ * absolutely intended that the popup should be popped down and
+ * the entry unhighlighted.
+ */
 {
 	SmeMenuObject entry = (SmeMenuObject) w;
 	Widget popup = entry->sme_menu.popup;
@@ -595,72 +538,38 @@ Widget w;
 	unsigned int junkU;
 	XEvent *event;
 
-	ENTER("Unhighlight()")
-	if (! popup)
+	ENTER("Unhighlight()",w)
+	if (entry->sme_menu.needflip) {
+		entry->sme_menu.needflip = FALSE;
+		FlipColors(w);
+		ACK("	Unhighlight flipped colors",w)
+	}
+
+	if (!popup || !entry->sme_menu.up) /* No popup created or popped up */
 	{
-		if (entry->sme_menu.needflip)
-		{
-			entry->sme_menu.needflip = FALSE;
-			FlipColors (w);
-		}
-		EXIT("Unhighlight(): no popup shell yet")
+		EXIT("Unhighlight(): no popup shell created or popped up",w)
 		return;
 	}
 
 	/*
-	 * We expect the parent menu to be smart enough to differentiate
-	 * false alarm LeaveWindows and only call this when it is
-	 * absolutely intended that the popup should popup down and
-	 * and the entry unhighlight.
-	 */
-
-#ifdef notdef
-	/*
-	 * This unhighlight comes either from a LeaveWindow in the
-	 * parent menu, in which case we ignore it if the pointer
-	 * is in our popup, or it comes from a ButtonRelease.  If its
-	 * a button release, then we want to pop down and propagate
-	 * the popdown and unhighlight actions.
-	 *
-	 * If the pointer is in the popup, and this unhighlight
-	 * came from a LeaveWindow event in our parent,
-	 * we do nothing and count on our parent to call
-	 * SmeMenuPoppedUp() to see if we actually de-activated or not
-	 * before clearing our active entry.
-	 */
-	if (XQueryPointer(XtDisplay(popup), XtWindow(popup), &junkW, &junkW,
-			  &junkI, &junkI, &x, &y, &junkU)) 
-	{
-		if (x >= 0 && x < popup->core.width &&
-		    y >= 0 && y < popup->core.height)
-		{
-			EXIT("Unhighlight(): pointer in popup window")
-			return;
-		}
-	}
-#endif /* notdef */
-
-	if (entry->sme_menu.needflip) {
-		entry->sme_menu.needflip = FALSE;
-		FlipColors(w);
-	}
-
-	/*
-	 * Popdown the menu shell first
-	 */
-	XtPopdown(popup);
-	entry->sme_menu.up = FALSE;
-	IFD(ui_printf("	menu '%s' popped down\n",XtName(popup));)
-
-	/*
 	 * Unhighlight the menu shell by calling its 'unhighlight' action.
-	 * The null event signals an 'absolute' unhighlight.
+	 * The null event must be ignored by the action procedure.
 	 */
-	IFD(ui_printf("	calling popup's unhighlight");)
+	IFD(ui_printf("%s: calling unhighlight for popup '%s'\n",
+		      XtName(w),XtName(popup));)
+	XtCallActionProc (popup, "disable-highlight", (XEvent *)NULL,	
+			  /*params*/ NULL, /*num_params*/ 0);
 	XtCallActionProc (popup, "unhighlight", (XEvent *)NULL,	
 			  /*params*/ NULL, /*num_params*/ 0);
 
-	EXIT("Unhighlight()")
+	/*
+	 * Then popdown the menu shell
+	 */
+	XtPopdown(popup);
+	entry->sme_menu.up = False;
+	IFD(ui_printf("%s: menu '%s' popped down\n",XtName(w),XtName(popup));)
+
+	EXIT("Unhighlight(): done",w)
 }
 
 
@@ -672,7 +581,7 @@ Notify(w)
 {
 	SmeMenuObject entry = (SmeMenuObject) w;
 
-	ACK("Notify called.")
+	ACK("Notify called.",w)
 	if (entry->sme_menu.popup_last_select)
 	   ((SimpleMenuWidget)entry->object.parent)->simple_menu.popup_entry = 
 		(SmeObject)entry;
@@ -691,7 +600,7 @@ Widget w;
 {
     SmeMenuObject entry = (SmeMenuObject) w;
 
-    ACK("flipped colors\n")
+    ACK("flipped colors",w)
     XFillRectangle(XtDisplayOfObject(w), XtWindowOfObject(w),
 		   entry->sme_menu.invert_gc, 0, (int) entry->rectangle.y,
 		   (unsigned int) entry->rectangle.width, 
@@ -924,7 +833,8 @@ void _XawSmeMenuApolloHack ()
  * This is a copy of XtFindPopup, that we can reach.
  */
 
-Widget FindPopup(widget, name)
+static Widget
+FindPopup(widget, name)
     Widget widget;
     String name;
 {
@@ -946,11 +856,22 @@ Widget FindPopup(widget, name)
 Boolean
 SmeMenuPoppedUp (w)
     Widget w;
+/*
+ * Intended to be polled by a Menu shell to be sure that this SmeMenu object
+ * is expecting to be kept current in its parent's entry_set by virtue
+ * of the fact that the SmeMenu object still has a menu popped up.  The entry
+ * should only be unhighlighted when another Sme object in the parent is
+ * highlighted, or a LeaveNotify occurs while no menu is popped up.
+ */
 {
 	SmeMenuObject entry = (SmeMenuObject) w;
 	Widget popup = entry->sme_menu.popup;
 
+	IFD(ui_printf("SmeMenuPoppedUp(): XtIsRealized returns %s\n",
+			(XtIsRealized(popup))?("True"):("False"));)
 	IFD(ui_printf("SmeMenuPoppedUp() returning %s\n",
-			(entry->sme_menu.up)?("TRUE"):("FALSE"));)
+			(entry->sme_menu.up)?("True"):("False"));)
 	return (entry->sme_menu.up);
 }
+
+

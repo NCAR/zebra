@@ -113,7 +113,6 @@ _XFUNCPROTOBEGIN
  *	Arguments: app_con - the appcontext.
  *	Returns: none.
  */
-
 extern void RdssMenuAddGlobalActions(
 #if NeedFunctionPrototypes
     XtAppContext	/* app_con */
@@ -125,7 +124,6 @@ extern void RdssMenuAddGlobalActions(
  *	Arguments: w - the smw widget.
  *	Returns: the currently set entry or NULL if none is set.
  */
-
 extern Widget RdssMenuGetActiveEntry(
 #if NeedFunctionPrototypes
     Widget		/* w */
@@ -137,10 +135,25 @@ extern Widget RdssMenuGetActiveEntry(
  *	Arguments: w - the smw widget.
  *	Returns: none.
  */
-
 extern void RdssMenuClearActiveEntry(
 #if NeedFunctionPrototypes
     Widget		/* w */
+#endif
+);
+
+/*	Function Name: RdssMenuPositionAndPopup
+ *	Description: Positions, moves, and popups menu, warping pointer
+ *		as necessaryonce menu popped up
+ *	Arguments: w - the smw widget.
+ *		   locn - initial suggestion for coordinates of menu
+ *		   grab - kind of grab to use to popup widget
+ *	Returns: none
+ */
+extern void RdssMenuPositionAndPopup(
+#if NeedFunctionPrototypes
+   Widget w,
+   XPoint *locn,
+   XtGrabKind grab
 #endif
 );
 

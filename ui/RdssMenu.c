@@ -50,18 +50,21 @@
 
 #define streq(a, b)        ( strcmp((a), (b)) == 0 )
 
-/*#define DEBUG*/
+#define DEBUG
 
 #ifdef DEBUG
-#define ENTER(msg) ui_printf("RdssMenu: entering %s\n",msg);
-#define EXIT(msg) ui_printf("RdssMenu: exiting %s\n",msg);
+#define ENTER(msg,w) ui_printf("RdssMenu: %s entering %s\n", 	\
+			       (w)?(XtName((Widget)w)):"",msg);
+#define EXIT(msg,w) ui_printf("RdssMenu: %s exiting %s\n",	\
+			       (w)?(XtName((Widget)w)):"",msg);
 #define IFD(cmd) cmd
-#define ACK(msg) ui_printf("RdssMenu: ack %s\n",msg);
+#define ACK(msg,w) ui_printf("RdssMenu: %s ack %s\n",		\
+			       (w)?(XtName((Widget)w)):"",msg);
 #else
-#define ENTER(msg)
-#define EXIT(msg)
+#define ENTER(msg,w)
+#define EXIT(msg,w)
 #define IFD(cmd)
-#define ACK(msg)
+#define ACK(msg,w)
 #endif
 
 #define offset(field) XtOffsetOf(RdssMenuRec, rdss_menu.field)
@@ -107,16 +110,30 @@ static XtResource resources[] = {
 };  
 #undef offset
 
+/*
+ * We want <BtnUp> to cause more recent modal popups to popdown first,
+ * but we also don't want any EnterNotify events caused by submenus
+ * popping down to execute a highlight method.  The disable-highlight() action
+ * sets an internal flag disabling any further highlight actions.  Highlighting
+ * is automatically enabled on popup via a XtNpopupCallback.
+ *
+ * The other method, perhaps more direct, is to insert a call to action
+ * "unmap()" before the "notify()" in the <BtnUp> translation.  The only difference
+ * between this method and the above is the order the menu windows disappear
+ * from the screen.  Unmap() will unmap the window before unhighlighting its
+ * SME children, whereas using "disable-unhighlight" will popdown tree post-order
+ * traversal while ignoring the resulting <EnterNotify> events in the parent
+ * widgets (those further up the modal cascade).
+ */
 static char defaultTranslations[] =
     "<EnterWindow>:     highlight()             \n\
      <LeaveWindow>:     unhighlight()           \n\
      <BtnMotion>:       highlight()             \n\
-     <BtnUp>:           MenuPopdown() notify() unhighlight()"; 
+     <BtnUp>:           disable-highlight() notify() unhighlight() MenuPopdown()";
 
 /*
  * Semi Public function definitions. 
  */
-
 static void Redisplay(), Realize(), Resize(), ChangeManaged();
 static void Initialize(), ClassInitialize(), ClassPartInitialize();
 static Boolean SetValues(), SetValuesHook();
@@ -125,25 +142,28 @@ static XtGeometryResult GeometryManager();
 /*
  * Action Routine Definitions
  */
-
 static void Highlight(), Unhighlight(), Notify(), PositionMenuAction();
+static void DisableHighlight(), EnableHighlight(), Unmap();
 
 /* 
  * Private Function Definitions.
  */
-
 static void MakeSetValuesRequest(), CreateLabel(), Layout();
 static void AddPositionAction(), PositionMenu(), ChangeCursorOnGrab();
 static Dimension GetMenuWidth(), GetMenuHeight();
 static Widget FindMenu();
 static SmeObject GetEventEntry();
 static void MoveMenu();
+static void MoveMenuAndPopup();
 
 static XtActionsRec actionsList[] =
 {
   {"notify",            Notify},
   {"highlight",         Highlight},
   {"unhighlight",       Unhighlight},
+  {"disable-highlight",	DisableHighlight},
+  {"enable-hightlight", EnableHighlight},
+  {"unmap",		Unmap}
 };
  
 static CompositeClassExtensionRec extension_rec = {
@@ -272,30 +292,36 @@ Widget request, new;
 
   smw->rdss_menu.label = NULL;
   smw->rdss_menu.entry_set = NULL;
-  smw->rdss_menu.recursive_set_values = FALSE;
+  smw->rdss_menu.recursive_set_values = False;
 
   if (smw->rdss_menu.label_string != NULL)
       CreateLabel(new);
 
-  smw->rdss_menu.menu_width = TRUE;
+  smw->rdss_menu.menu_width = False;
 
   if (smw->core.width == 0) {
-      smw->rdss_menu.menu_width = FALSE;
+      smw->rdss_menu.menu_width = False;
       smw->core.width = GetMenuWidth(new, NULL);
   }
 
-  smw->rdss_menu.menu_height = TRUE;
+  smw->rdss_menu.menu_height = True;
 
   if (smw->core.height == 0) {
-      smw->rdss_menu.menu_height = FALSE;
+      smw->rdss_menu.menu_height = False;
       smw->core.height = GetMenuHeight(new);
   }
+
+  smw->rdss_menu.highlight_enabled = True;
 
 /*
  * Add a popup_callback routine for changing the cursor.
  */
-  
   XtAddCallback(new, XtNpopupCallback, ChangeCursorOnGrab, NULL);
+/*
+ * And for making sure highlighting enabled.
+ */
+  XtAddCallback(new, XtNpopupCallback, EnableHighlight, NULL);
+
 }
 
 /*      Function Name: Redisplay
@@ -642,20 +668,24 @@ Cardinal * num_params;
     loc.x = event->xbutton.x_root;
     loc.y = event->xbutton.y_root;
     PositionMenu(menu, &loc);
+    MoveMenu(w, (Position) loc.x, (Position) loc.y);
     break;
   case EnterNotify:
   case LeaveNotify:
     loc.x = event->xcrossing.x_root;
     loc.y = event->xcrossing.y_root;
     PositionMenu(menu, &loc);
+    MoveMenu(w, (Position) loc.x, (Position) loc.y);
     break;
   case MotionNotify:
     loc.x = event->xmotion.x_root;
     loc.y = event->xmotion.y_root;
     PositionMenu(menu, &loc);
+    MoveMenu(w, (Position) loc.x, (Position) loc.y);
     break;
   default:
     PositionMenu(menu, NULL);
+    MoveMenu(w, (Position) loc.x, (Position) loc.y);
     break;
   }
 }  
@@ -686,32 +716,38 @@ Cardinal * num_params;
     SmeObject entry = smw->rdss_menu.entry_set;
     SmeObjectClass class;
  
-    ENTER("Unhighlight()")
-    if ( entry == NULL)
+    ENTER("Unhighlight()",w)
+    if ( entry == NULL)		/* meaning no Sme's to unhighlight */
     { 
-	EXIT("Unhighlight(): entry_set is null")
+	EXIT("Unhighlight(): entry_set is null",w)
 	return;
     }
-
-/*
- * Our current entry (entry_set) should disappear (be set to NULL)
- * and unhighlighted if:
- *	1) the entry is anything other than an smeMenuObject
- *		or
- *	2) it is an smeMenuObject, the event is LeaveWindow, and
- *	   the event occurred inside the entry
- *
- * Note that its possible that a SmeMenu object created us and is
- * calling our action artificially with a NULL event.  A NULL
- * event implies unhighlight no matter what.
- */
+    
+    /*
+     * Our current entry (entry_set) should disappear (be set to NULL)
+     * and unhighlighted if:
+     *
+     *	1) the entry is anything other than an smeMenuObject
+     *	2) event is NULL
+     *	3) it is an smeMenuObject, the event is LeaveNotify, and
+     *	   the SmeMenu entry does not have a menu popped up
+     *	   
+     * So basically, if the entry is SmeMenu, the event LeaveNotify,
+     * and the entry has a menu popped up, then we ignore the event
+     * and don't call the entry's unhighlight method.
+     *
+     * Note that its possible that an SmeMenu object created us and is
+     * calling our action artificially with a NULL event.  A NULL
+     * event implies unhighlight no matter what.  Highlight() uses a
+     * NULL event to indicate that we should unhighlight no matter what
+     * becuase entry_set has changed.
+     */
 
     class = (SmeObjectClass) entry->object.widget_class;
 
-    if (((WidgetClass)class != smeMenuObjectClass) || 
+    if (((WidgetClass)class != smeMenuObjectClass) ||
 	(!event) ||
-	(event->type != LeaveNotify) || 
-	(! SmeMenuPoppedUp (w)))
+	(event->type != LeaveNotify) || (! SmeMenuPoppedUp ((Widget)entry)))
     {
 	(class->sme_class.unhighlight) ( (Widget) entry);
 	smw->rdss_menu.entry_set = NULL;
@@ -725,7 +761,7 @@ Cardinal * num_params;
     IFD(ui_printf("	entry_set is now %s\n",
 		(smw->rdss_menu.entry_set)?
 		XtName(smw->rdss_menu.entry_set):("NULL"));)
-    EXIT("Unhighlight()")
+    EXIT("Unhighlight()",w)
 }
 
 
@@ -737,7 +773,6 @@ Cardinal * num_params;
  *                 params, num_params - ** NOT USED **
  *      Returns: none
  */
-
 /* ARGSUSED */
 static void
 Highlight(w, event, params, num_params)
@@ -750,35 +785,55 @@ Cardinal * num_params;
     SmeObject entry;
     SmeObjectClass class;
     
-    ENTER("Highlight()")
+    ENTER("Highlight()",w)
     if ( !XtIsSensitive(w) )
     {
-	EXIT("Highlight(): menu not sensitive")
+	EXIT("Highlight(): menu not sensitive",w)
 	return;
     }
     
+    if ( !smw->rdss_menu.highlight_enabled )
+    {
+	EXIT("Highlight(): disabled",w)
+	return;
+    }
+
     entry = GetEventEntry(w, event);
-    IFD(ui_printf("	event entry is %s\n",
-		(entry)?XtName(entry):"NULL");)
-    IFD(ui_printf("	entry_set is %s\n",
+    IFD(ui_printf("	event entry is %s;   entry_set is %s\n",
+		(entry)?XtName(entry):"NULL",
 		(smw->rdss_menu.entry_set)?
 		XtName(smw->rdss_menu.entry_set):"NULL");)
-    if (entry == smw->rdss_menu.entry_set && (! entry ||
-	    	entry->object.widget_class != smeMenuObjectClass)) return;
+    /*
+     * Ignore highlight actions when the event entry is NULL, or
+     * when the event entry is the current entry_set and entry
+     * is not SmeMenu.  This passes all highlight actions to the
+     * SmeMenu entry so that it can determine whether or not it
+     * wants to pop up a menu.
+     */
+    if ((entry == smw->rdss_menu.entry_set) && 
+	(!entry || (entry->object.widget_class != smeMenuObjectClass)))
+    {
+	    EXIT("Highlight(): not SmeMenu, and entry == entry_set",w)
+	    return;
+    }
 
+    /*
+     * If this is a new entry, unhighlight any previous set entry.  Pass
+     * NULL as the event to force the unhighlight of an active SmeMenu.
+     */
     if (entry != smw->rdss_menu.entry_set)
-	    Unhighlight(w, event, params, num_params);
+	    Unhighlight(w, NULL, params, num_params);
 
     if (entry == NULL) 
     {
-	EXIT("Highlight(): entry is NULL")
+	EXIT("Highlight(): entry is NULL",w)
 	return;
     }
 
     if ( !XtIsSensitive( (Widget) entry)) 
     {
 	smw->rdss_menu.entry_set = NULL;
-	EXIT("Highlight(): entry not sensitive, entry_set set to NULL")
+	EXIT("Highlight(): entry not sensitive, entry_set set to NULL",w)
 	return;
     }
 
@@ -786,7 +841,8 @@ Cardinal * num_params;
     class = (SmeObjectClass) entry->object.widget_class;
 
     (class->sme_class.highlight) ( (Widget) entry);
-    EXIT("Highlight(): entry_set set to entry")
+    IFD(ui_printf("RdssMenu: %s exiting Highlight(): entry_set set to %s\n",
+		  XtName(w),XtName((Widget)entry));)
 }
 
 
@@ -797,8 +853,18 @@ Cardinal * num_params;
  *                 event - the event that caused this action.
  *                 params, num_params - ** NOT USED **
  *      Returns: none
+ *
+ * Theoretically speaking, if this widget is the top of a modal cascade with
+ * an exclusive grab, this action may be called because of a <BtnUp>
+ * event further down the cascade, in which case we don't really want to
+ * trigger a notify.  If entry_set is a SmeMenu, and SmeMenu has a menu
+ * popped up, then we ignore the notify and assume the event occurred further
+ * down the modal tree, or completely outside the tree.  In either of those
+ * cases, no notify occurs.
+ *
+ * Note that it is not enough to see if the event occurred in one of our own
+ * entries, since a sub-menu may be popped up over our active entry.
  */
-
 /* ARGSUSED */
 static void
 Notify(w, event, params, num_params)
@@ -814,8 +880,77 @@ Cardinal * num_params;
     if ( (entry == NULL) || !XtIsSensitive((Widget) entry) ) return;
 
     class = (SmeObjectClass) entry->object.widget_class;
-    (class->sme_class.notify)( (Widget) entry );
+    if (((WidgetClass)class != smeMenuObjectClass) ||
+	!SmeMenuPoppedUp((Widget)entry))
+    {
+	(class->sme_class.notify)( (Widget) entry );
+	IFD(ui_printf("RdssMenu: %s ack Notify(): notify called for %s\n",
+		      XtName(w),XtName((Widget)entry));)
+    }
+    else
+    {
+	IFD(ui_printf("RdssMenu: %s ack Notify(): notify omitted for %s\n",
+		      XtName(w),XtName((Widget)entry));)
+    }
 }
+
+
+/*
+ * Function: Unmap()
+ *
+ * Unmap the menu window.  Principly called to disable further event handling
+ * while popping down an entire modal cascade.  The actual XtPopdown() and
+ * XtRemoveGrab() must still be performed.
+ */
+/* ARGSUSED */
+static void
+Unmap(w, event, params, num_params)
+Widget w;
+XEvent * event;
+String * params;
+Cardinal * num_params;
+{
+     XtUnmapWidget (w);
+}
+
+
+/*
+ * Function: DisableHighlight()
+ *
+ * Disable highlight action.
+ */
+/* ARGSUSED */
+static void
+DisableHighlight(w, event, params, num_params)
+Widget w;
+XEvent * event;
+String * params;
+Cardinal * num_params;
+{
+     RdssMenuWidget smw = (RdssMenuWidget) w;
+
+     smw->rdss_menu.highlight_enabled = False;
+}
+
+
+/*
+ * Function: EnableHighlight()
+ *
+ * Enable highlight action.
+ */
+/* ARGSUSED */
+static void
+EnableHighlight(w, event, params, num_params)
+Widget w;
+XEvent * event;
+String * params;
+Cardinal * num_params;
+{
+     RdssMenuWidget smw = (RdssMenuWidget) w;
+
+     smw->rdss_menu.highlight_enabled = True;
+}
+
 
 
 /************************************************************
@@ -829,7 +964,6 @@ Cardinal * num_params;
  *	Arguments: app_con - the appcontext.
  *	Returns: none.
  */
-
 void
 #if NeedFunctionPrototypes
 RdssMenuAddGlobalActions(XtAppContext app_con)
@@ -848,7 +982,6 @@ XtAppContext app_con;
  *	Arguments: w - the smw widget.
  *	Returns: the currently set entry or NULL if none is set.
  */
-
 Widget
 #if NeedFunctionPrototypes
 RdssMenuGetActiveEntry(Widget w)
@@ -862,12 +995,12 @@ Widget w;
     return( (Widget) smw->rdss_menu.entry_set);
 } 
 
+
 /*	Function Name: RdssMenuClearActiveEntry
  *	Description: Unsets the currently active (set) entry.
  *	Arguments: w - the smw widget.
  *	Returns: none.
  */
-
 void
 #if NeedFunctionPrototypes
 RdssMenuClearActiveEntry(Widget w)
@@ -880,6 +1013,34 @@ Widget w;
 
     smw->rdss_menu.entry_set = NULL;
 } 
+
+
+/*	Function Name: RdssMenuPositionAndPopup
+ *	Description: Positions, moves, and popups menu, warping pointer
+ *		as necessaryonce menu popped up
+ *	Arguments: w - the smw widget.
+ *		   locn - initial suggestion for coordinates of menu
+ *		   grab - kind of grab to use to popup widget
+ *	Returns: *locn modified but not accurate
+ */
+void
+#if NeedFunctionPrototypes
+RdssMenuPositionAndPopup(
+   Widget w,
+   XPoint *locn,
+   XtGrabKind grab)
+#else
+RdssMenuPositionAndPopup(w, locn, grab)
+   Widget w;
+   XPoint *locn;
+   XtGrabKind grab;
+#endif
+{
+    PositionMenu(w, locn);
+    MoveMenuAndPopup(w, (Position)locn->x, (Position)locn->y, grab);
+} 
+
+
 
 /************************************************************
  *
@@ -1061,26 +1222,14 @@ String name;
     return(NULL);
 }
 
-void
-RdssPositionMenu (w, location)
-Widget w;
-XPoint *location;
-/*
- * Externally-reachable position menu call -- for SmeMenu.
- */
-{
-	PositionMenu (w, location);
-}
-
 
 
 /*	Function Name: PositionMenu
  *	Description: Places the menu
  *	Arguments: w - the simple menu widget.
  *                 location - a pointer the the position or NULL.
- *	Returns: none.
+ *	Returns: new location
  */
-
 static void
 PositionMenu(w, location)
 Widget w;
@@ -1111,34 +1260,38 @@ XPoint * location;
     /*
      * The width will not be correct unless it is realized.
      */
-    
     XtRealizeWidget(w);
     
     /*
-     * Given x,y for widget, adjust so that cursor is on default
-     * entry.
+     * Given x,y for optimal origin of popup menu widget, adjust so
+     * that cursor will be on the default
+     * entry, the label, or the first entry.
      */
-    location->x -= (Position) 5;  /* Fixed for user's sanity */
+    location->x -= (Position) 10;  /* Fixed for consistency */
     
     if (smw->rdss_menu.popup_entry == NULL)
-	entry = smw->rdss_menu.label;
+        entry = smw->rdss_menu.label;
     else
 	entry = smw->rdss_menu.popup_entry;
 
     if (entry != NULL)
 	location->y -= entry->rectangle.y + entry->rectangle.height/2;
+    else /* no label, so just move it up enough to put cursor on 1st entry */
+	location->y -= 5;
 
-    MoveMenu(w, (Position) location->x, (Position) location->y);
+   /*
+    * Location specified, but widget not yet moved
+    */
 }
+
 
 /*	Function Name: MoveMenu
  *	Description: Actually moves the menu, may force it to
- *                   to be fully visable if menu_on_screen is TRUE.
+ *                   to be fully visible if menu_on_screen is TRUE.
  *	Arguments: w - the simple menu widget.
  *                 x, y - the current location of the widget.
  *	Returns: none 
  */
-
 static void
 MoveMenu(w, x, y)
 Widget w;
@@ -1174,6 +1327,63 @@ Position x, y;
     XtSetArg(arglist[num_args], XtNx, x+dx); num_args++;
     XtSetArg(arglist[num_args], XtNy, y+dy); num_args++;
     XtSetValues(w, arglist, num_args);
+}
+
+
+/*	Function Name: MoveMenuAndPopup
+ *	Description: Actually moves the menu, may force it to
+ *                   to be fully visible if menu_on_screen is TRUE,
+ *		     pops up menu, and warps pointer if necessary
+ *	Arguments: w - the simple menu widget.
+ *                 x, y - the current location of the widget.
+ *	  	   grab - grab kind for popping up widget.
+ *	Returns: none 
+ */
+static void
+MoveMenuAndPopup(w, x, y, grab)
+Widget w;
+Position x, y;
+XtGrabKind grab;
+{
+    Arg arglist[2];
+    Cardinal num_args = 0;
+    RdssMenuWidget smw = (RdssMenuWidget) w;
+    Position dx = 0, dy = 0;
+    
+    if (smw->rdss_menu.menu_on_screen) 
+    {
+	int width = w->core.width + 2 * w->core.border_width;
+	int height = w->core.height + 2 * w->core.border_width;
+	
+	if (x >= 0) {
+	    int scr_width = WidthOfScreen(XtScreen(w));
+	    if (x + width > scr_width)
+		dx = (scr_width - width) - x;
+	}
+	if (x < 0) 
+	    dx = 0 - x;
+	
+	if (y >= 0) {
+	    int scr_height = HeightOfScreen(XtScreen(w));
+	    if (y + height > scr_height)
+		dy = (scr_height - height) - y;
+	}
+	if (y < 0)
+	    dy = 0 - y;
+    }
+    
+    XtSetArg(arglist[num_args], XtNx, x+dx); num_args++;
+    XtSetArg(arglist[num_args], XtNy, y+dy); num_args++;
+    XtSetValues(w, arglist, num_args);
+
+    /*
+     * Now that we've set the position, pop it up so that we can
+     * warp the pointer into the new popup.  We must assume that the popup
+     * has not been moved far enough left to cause a submenu to
+     * immediately popup when the pointer appears in its entry.
+     */
+    XtPopup (w, grab);
+
     /*
      * We also warp the pointer by the amount we had to move the
      * widget, so that the pointer stays in the place the caller
@@ -1184,7 +1394,12 @@ Position x, y;
 	    XWarpPointer (XtDisplay(w), RootWindowOfScreen(XtScreen(w)), 
 			  None, 0, 0, 0, 0, dx, dy);
     }
+
+    /*
+     * And we're done.
+     */
 }
+
 
 /*	Function Name: ChangeCursorOnGrab
  *	Description: Changes the cursor on the active grab to the one
@@ -1193,7 +1408,6 @@ Position x, y;
  *                 junk, garbage - ** NOT USED **.
  *	Returns: None.
  */
-
 /* ARGSUSED */
 static void
 ChangeCursorOnGrab(w, junk, garbage)
@@ -1213,6 +1427,7 @@ XtPointer junk, garbage;
 			     XtLastTimestampProcessed(XtDisplay(w)));
 }
 
+
 /*      Function Name: MakeSetValuesRequest
  *      Description: Makes a (possibly recursive) call to SetValues,
  *                   I take great pains to not go into an infinite loop.
@@ -1220,7 +1435,6 @@ XtPointer junk, garbage;
  *                 width, height - the size of the ask for.
  *      Returns: none
  */
-
 static void
 MakeSetValuesRequest(w, width, height)
 Widget w;
@@ -1243,12 +1457,12 @@ Dimension width, height;
     smw->rdss_menu.recursive_set_values = FALSE;
 }
 
+
 /*      Function Name: GetMenuWidth
  *      Description: Sets the length of the widest entry in pixels.
  *      Arguments: w - the simple menu widget.
  *      Returns: width of menu.
  */
-
 static Dimension
 GetMenuWidth(w, w_ent)
 Widget w, w_ent;
@@ -1284,12 +1498,12 @@ Widget w, w_ent;
     return(widest);
 }
 
+
 /*      Function Name: GetMenuHeight
  *      Description: Sets the length of the widest entry in pixels.
  *      Arguments: w - the simple menu widget.
  *      Returns: width of menu.
  */
-
 static Dimension
 GetMenuHeight(w)
 Widget w;
@@ -1313,13 +1527,13 @@ Widget w;
     return(height);
 }
 
+
 /*      Function Name: GetEventEntry
  *      Description: Gets an entry given an event that has X and Y coords.
  *      Arguments: w - the simple menu widget.
  *                 event - the event.
  *      Returns: the entry that this point is in.
  */
-
 static SmeObject
 GetEventEntry(w, event)
 Widget w;
@@ -1350,20 +1564,45 @@ XEvent * event;
 	break;
     }
     
-    if ( (x_loc < 0) || (x_loc >= (int)smw->core.width) || (y_loc < 0) ||
-	(y_loc >= (int)smw->core.height) )
+    /*
+     * The inclusion of border width is necessary because we can get motion
+     * events in our border, in which case we still want to know which entry
+     * the pointer is in.
+     */
+    if ((x_loc < 0) || 
+	(x_loc >= (int)smw->core.width + (2 * (int)smw->core.border_width)) || 
+	(y_loc < 0) ||
+	(y_loc >= (int)smw->core.height + (2 * (int)smw->core.border_width)) )
+    {
+	IFD(ui_printf(
+	 "GetEventEntry('%s',x=%i,y=%i) outside menu window (%ix%i), returning NULL\n",
+	 XtName(w), x_loc, y_loc, (int)smw->core.width, (int)smw->core.height);)
 	return(NULL);
-    
+    }
+
     ForAllChildren(smw, entry) {
 	if (!XtIsManaged ((Widget) *entry)) continue;
 
 	if ( ((*entry)->rectangle.y < y_loc) &&
 	    ((*entry)->rectangle.y + (int) (*entry)->rectangle.height > y_loc) )
 	    if ( *entry == smw->rdss_menu.label )
+	    {
+		IFD(ui_printf(
+		   "GetEventEntry('%s',x=%i,y=%i) in label, returning NULL\n",
+		   XtName(w), x_loc, y_loc);)
 		return(NULL);	/* cannot select the label. */
+            }
 	    else
+	    {
+		IFD(ui_printf(
+		   "GetEventEntry('%s',x=%i,y=%i) in entry, returning '%s'\n",
+		   XtName(w), x_loc, y_loc, XtName(*entry));)
 		return(*entry);
+            }
     }
     
+    IFD(ui_printf(
+	   "GetEventEntry('%s',x=%i,y=%i) nowhere, returning NULL\n",
+	   XtName(w), x_loc, y_loc);)
     return(NULL);
 }

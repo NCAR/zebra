@@ -88,6 +88,8 @@ typedef struct _RdssMenuPart {
 
   SmeObject entry_set;		/* The entry that is currently set or
 				   highlighted. */
+  Boolean highlight_enabled;	/* Whether to accept calls to highlight() action */
+
 } RdssMenuPart;
 
 typedef struct _RdssMenuRec {
