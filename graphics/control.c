@@ -1,4 +1,5 @@
 /* 5/87 jc */
+/* $Id: control.c,v 1.6 1989-10-11 14:03:54 corbet Exp $ */
 /*
  * The upper level, control routines for the graphics package.
  */
@@ -13,6 +14,14 @@
 
 
 static int Trace = 0;
+
+/*
+ * Major kludge: Keep a file ID around for code (radar) which might want to
+ * do a select on it...
+ */
+static int Fdesc = -1;
+
+
 
 
 G_open (device, type, wstn, flags)
@@ -1489,4 +1498,27 @@ double	*r, *g, *b;
  */
 {
 	return (gc_name_to_rgb (cname, r, g, b));
+}
+
+
+
+
+
+G_setfd (fd)
+int fd;
+/* 
+ * Set the kludge fd.
+ */
+{
+	Fdesc = fd;
+}
+
+
+
+G_getfd ()
+/*
+ * Return the Fd.
+ */
+{
+	return (Fdesc);
 }
