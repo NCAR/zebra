@@ -9,7 +9,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project auto-build parameters for development compilations
-XCOMM $Id: Build.tmpl,v 1.8 1995-07-09 14:23:18 granger Exp $
+XCOMM $Id: Build.tmpl,v 1.9 1995-08-24 17:35:48 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 #ifndef UseInstalledZebra
@@ -41,6 +41,19 @@ XCOMM -----------------------------------------------------------------------
 # endif
 #endif /* ndef HasHDF */
 #define HDFIncDir /usr/local/include/hdf
+
+/*
+ * Include map projections on systems which have it installed
+ */
+#ifndef MapProjections
+# ifdef SunArchitecture
+#  define MapProjections YES
+#  define ProjLibDir /usr/local/lib
+#  define ProjIncDir /usr/local/include
+# else
+#  define MapProjections NO
+# endif
+#endif
 
 /*
  * To get CVS ignore rules
