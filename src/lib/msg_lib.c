@@ -40,7 +40,7 @@
 # define MESSAGE_LIBRARY	/* to get netread prototypes */
 # include "message.h"
 
-RCSID ("$Id: msg_lib.c,v 2.43 1996-12-03 22:03:01 granger Exp $")
+RCSID ("$Id: msg_lib.c,v 2.44 1996-12-09 17:58:20 granger Exp $")
 
 /*
  * The array of functions linked with file descriptors.
@@ -1904,7 +1904,12 @@ struct msg_elog *el;
 	if ((ShuttingDown && (el->el_flag & SendMask)) || 
 	    (el->el_flag & PrintMask))
 	{
-		printf ("%s: %s\n", Identity, el->el_text); 
+		if (el->el_flag & EF_EMERGENCY)
+			printf ("%s: EMERGENCY: %s\n", Identity, el->el_text); 
+		else if (el->el_flag & EF_PROBLEM)
+			printf ("%s: PROBLEM: %s\n", Identity, el->el_text); 
+		else
+			printf ("%s: %s\n", Identity, el->el_text); 
 	}
 /*
  * Actually send the message only if it's in the send mask, we're not
