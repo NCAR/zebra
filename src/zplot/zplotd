@@ -19,11 +19,6 @@ $FAIL = "ZPLOTD_FAILED";	# failure string
 $image_mail_list = " $ENV{'IMAGE_MAIL_LIST'} ";
 $enable_ftp = $ENV{'PLOT_FTP_ENABLE'};
 
-# Top zebra directory
-$ztop=$ENV{'ZEB_TOPDIR'};
-$zbin="$ztop/bin";
-$ENV{'PATH'} = "$zbin:" . $ENV{'PATH'};
-
 # Project directory
 $project = "$ENV{'ZEB_PROJDIR'}";
 
@@ -63,6 +58,10 @@ close(PLOTS);
 $since = 0;		# Plot only data since a given timestamp
 $notice = 0;		# Plot data as notices received from dsnotice
 $first = 0;		# true when platforms were queued from the cmd-line
+$batchfile = '';        # Batch file to which to write batch plot lines
+$enqfile = '';          # Queue file to which to write platform plot queue
+$deqfile = '';          # Queue file from which plot queue will be read
+$norescan = 0;
 
 # If we we're passed platform names or regular expressions on the
 # command line, just do those
@@ -71,19 +70,28 @@ while ($pattern = shift @ARGV)
     if ($pattern =~ /-h.*/)
     {
 	print "Usage:\n";
-	print "$0 [-debug] [-d<DEBUGLEVEL>] " . 
+	print "$0 [-debug] [-d<DEBUGLEVEL>] [-queue file] [-batch file]" . 
 	    "{-since|-notice|-time} [platforms ...]\n";
-	print "$0 -since [timestampfile]\n";
-	print
+	print "-since [timestampfile]\n";
+	print "\n",
 	    "   Generate new plot images for all platforms with data\n" .
 	    "   more recent than the timestamps in the <timestampfile>.\n";
-	print "$0 -notice [platforms ...]\n";
+	print "-notice [platforms ...]\n";
 	print "   Generate plots on each notify from dsnotice\n";
-	print "$0 -time <begin> <end>\n";
+	print "-time <begin> <end>\n";
 	print
 	    "   Generate plots with the given end time for all platforms\n" .
 	    "   with data between begin and end.\n" . 
 	    "   Times are dd-mon-yyyy,hh:mm:ss\n";
+	print "-enqueue <file>\n" . 
+	    "   Append platform queue to the file and exit.\n";
+	print "   The file is in the format read by zplotbatch.\n";
+	print "-batch <file>\n   Append plot lines to a file and exit.\n";
+	print "-dequeue <file>\n" .
+	    "   Read the plot queue from the given file\n" .
+	    "   as the list of plots to be generated.\n";
+	print "-norescan\n   No datastore rescan.\n";
+	print "\n";
 	print "The debug and platform options are recognized by all\n";
 	print "variations.  If platforms are given, only those platforms\n";
 	print "matching the regexp name from the command line will be\n";
@@ -96,6 +104,31 @@ while ($pattern = shift @ARGV)
 	print "If -since, -notice, nor -time is chosen, the default is to\n";
 	print "read stdin in the format of dsnotice update lines.\n";
 	exit 0;
+    }
+    if ($pattern eq "-dequeue")
+    {
+	$deqfile = shift @ARGV;
+	die "file needed for -dequeue option" unless ($deqfile);
+	die "cannot choose both -dequeue and -enqueue" if ($enqfile);
+	next;
+    }
+    if ($pattern eq "-enqueue")
+    {
+	$enqfile = shift @ARGV;
+	die "file needed for -enqueue option" unless ($enqfile);
+	die "cannot choose both -dequeue and -enqueue" if ($deqfile);
+	next;
+    }
+    if ($pattern eq "-batch")
+    {
+	$batchfile = shift @ARGV;
+	die "file needed for -batch option" unless ($batchfile);
+	next;
+    }
+    if ($pattern eq "-norescan")
+    {
+	$norescan = 1;
+	next;
     }
     if ($pattern eq "-since")
     {
@@ -113,6 +146,8 @@ while ($pattern = shift @ARGV)
 	$fixtime = 1;
 	$fixbegin = shift @ARGV;
 	$fixend = shift @ARGV;
+	die "begin and end time needed for -time" 
+	    unless ($fixbegin && $fixend);
 	next;
     }
     if ($pattern =~ /^-d(\d*)/)
@@ -179,27 +214,34 @@ open(STDOUT, ">& LOG") || die "could not redirect stdout: $!\n";
 open(STDERR, ">& LOG") || die "could not redirect stderr: $!\n";
 print "Log file: $log\n";
 $EL = "true";
-#$EL = "$zbin/EventLogger -n -l epic -f logs/zebra.$dt.log";
+#$EL = "EventLogger -n -l epic -f logs/zebra.$dt.log";
 
-# Make sure zebra is running; usually it should already be running
-if (system("ZEB_EVENTLOGGER=\"$EL\" $zbin/zstart -n -ds -preserve $project"))
+if (! $deqfile)
 {
-    die "Failed to start zebra.\n";
+    # Make sure zebra is running; usually it should already be running
+    if (system("ZEB_EVENTLOGGER=\"$EL\" zstart -n -ds -preserve $project"))
+    {
+	die "Failed to start zebra.\n";
+    }
+    sleep 5;
+
+    # Request a rescan to check for new data files; we shouldn't need to wait
+    # for the rescan to finish, since later queries of the daemon should just
+    # block until the rescan is done.
+
+    $norescan || !system("dsrescan -all") || die "*** dsrescan failed ***";
+    sleep 1;
 }
-sleep 5;
 
-# Request a rescan to check for new data files; we shouldn't need to wait
-# for the rescan to finish, since later queries of the daemon should just
-# block until the rescan is done.
-
-!system("dsrescan -all") || die "*** dsrescan failed ***";
-#sleep 15;
-sleep 1;
-
-$timeout = 30;
+$timeout = 0;
 
 # Open our source for platform and file notices
-if ($since)
+if ($deqfile)
+{
+    # No DS to open and all other platform queue options ignored
+    print "Reading queue from file: $deqfile\n";
+}
+elsif ($since)
 {
     $until = "$since.update";
     # If we're only plotting since a given time, get our platform list from 
@@ -208,23 +250,23 @@ if ($since)
     print "Opening dfsince $since and matching \'$targets\'...\n";
     open (DS, "dfsince $since 2> /dev/null | egrep -e \'$targets\' | ") || 
 	die "dfsince: $!";
-    $timeout = 0;
 }
 elsif ($notice)
 {
     # Open a dsnotice session and read the output
     $targets = join(' ',@Targets);
-    print "Opening $zbin/dsnotice -dir $targets ...\n";
-    open (DS, "$zbin/dsnotice -dir $targets 2>&1 |") || 
+    print "Opening dsnotice -dir $targets ...\n";
+    open (DS, "dsnotice -dir $targets 2>&1 |") || 
 	die "dsnotice: $!";
+    $timeout = 30;
 }
 elsif ($fixtime)
 {
     # Get a list of platforms to plot with data within the given time
     # period.
     $targets = join(' -e ',@Targets);
-    print "Running $zbin/dsdump -l -p $fixbegin -p $fixend -e $targets...\n";
-    open (DS, "$zbin/dsdump -l -p $fixbegin -p $fixend $targets |") ||
+    print "Running dsdump -l -p $fixbegin -p $fixend -e $targets...\n";
+    open (DS, "dsdump -l -p $fixbegin -p $fixend $targets |") ||
 	die "dsdump: $!";
 }
 else
@@ -237,6 +279,11 @@ else
 
 $SIG{'ALRM'} = 'clear';
 
+if (! $deqfile) {
+if ($enqfile)
+{
+    open (QUEUE, ">> $enqfile") || die "$enqfile: $!";
+}
 while (<DS>)
 {
 	next if /Receiving/;	# Skip dsnotice start-up line
@@ -263,7 +310,8 @@ while (<DS>)
 	    if ($Observations{$platform})
 	    {
 		$obs=`dsdump -e $platform | egrep $time | awk '{print \$2;}'`;
-		print "\nobservation: time $time reset to file time $obs"
+		chop $obs;
+		print "\nobservation $time reset to $obs"
 		    if ($debug);
 		$time = $obs;
 	    }
@@ -275,6 +323,10 @@ while (<DS>)
 	    # platform already in the queue
 	    $entry = join(' ', ($platform, $time, $Plots{$platform}));
 	    push (@Queue, $entry);
+	    if ($enqfile)
+	    {
+		print QUEUE $entry, "\n";
+	    }
 
 	    # After adding to the queue, set the alarm to clear the queue
 	    # after a suitable timeout with no further notifications.
@@ -289,6 +341,25 @@ while (<DS>)
 }
 print "Input exhausted.\n" if $debug;
 close DS;
+if ($enqfile)
+{
+    close QUEUE;
+    exit 0;
+}
+}
+else
+{
+    # Read our queue from the given file
+    open (QUEUE, "$deqfile") || die "$deqfile: $!";
+    while (<QUEUE>)
+    {
+	$entry = $_;
+	chop $entry;
+	print "$entry ...queued\n" if ($debug);
+	push (@Queue, $entry);
+    }
+    close QUEUE;
+}
 
 # Clear anything left in the queue
 &clear;
@@ -331,28 +402,52 @@ sub clear
 
     $images = "";
     $status="ok";
-    $batch = "/tmp/zplotd.batch.$$";
+    if ($batchfile)
+    {
+	$batch = $batchfile;
+    }
+    else
+    {
+	$batch = "/tmp/zplotd.batch.$$";
+	unlink($batch);
+    }
     %Configs = ();
+    # Group plots by time and config, with config first so that we
+    # can sort the list by config name and minimize display config
+    # switches in zplotbatch.
     foreach $entry (@Queue)
     {
 	($platform, $time, $config, @window) = split(/\s+/,$entry);
-	$Configs{"$time $config"} .= " " . join(" ",@window) . " ";
+	$value = $Configs{"$config $time"};
+	foreach $w (@window)
+	{
+	    if ("$value" !~ /\b$w\b/)
+	    {
+		$value .= " $w ";
+	    }
+	}
+	$Configs{"$config $time"} = $value;
     }
     print "Opening $batch...\n" if $debug;
-    if (! open (BATCH, "> $batch"))
+    if (! open (BATCH, ">> $batch"))
     {
 	$status="$FAIL $batch: $!";
 	print "$status" if $debug;
 	return 0;
     }
-    foreach $entry (keys(%Configs))
+    foreach $entry (sort(keys(%Configs)))
     {
-	$plot = "$entry " . $Configs{"$entry"};
+	($config, $time) = split(/\s+/,"$entry");
+	$plot = "$time $config " . $Configs{"$entry"};
 	print "$plot\n";
 	print PLOG "$plot\n";
 	print BATCH "$plot\n";
     }
     close BATCH;
+    if ($batchfile)
+    {
+	return 0;
+    }
     print "Running: zplotbatch - < $batch\n";
     if ($debug < $D_NoPlot)
     {
@@ -373,6 +468,11 @@ sub clear
 	}
 	close BP;
 	$status = "$FAIL" if ($?);
+    }
+    if ($batchfile)
+    {
+	print "Appending plots to $batchfile\n";
+	system ("cat $batch >> $batchfile");
     }
     unlink("$batch");
     if (! $enable_ftp)
