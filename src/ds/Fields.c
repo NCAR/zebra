@@ -22,7 +22,7 @@
 # include <defs.h>
 # include <message.h>
 # include "ds_fields.h"
-MAKE_RCSID ("$Id: Fields.c,v 3.5 1993-05-04 21:42:11 granger Exp $")
+MAKE_RCSID ("$Id: Fields.c,v 3.6 1993-07-16 17:02:21 corbet Exp $")
 
 
 
@@ -109,9 +109,14 @@ char *name, *desc, *units;
 	int ind;
 	SValue v;
 	extern char *strcpy ();
-
+/*
+ * Refuse to overwrite existing declarations.  I hope this is the right
+ * thing to do, but it will definitely fix a problem seen with netcdf now,
+ * where existing long descriptions get wiped out.
+ */
 	if (usy_defined (FNameTable, name))
-		ind = F_Lookup (name);
+		return (F_Lookup (name));
+		/* ind = F_Lookup (name); */
 	else
 	{
 		if ((ind = NField++) == MaxFieldID)
