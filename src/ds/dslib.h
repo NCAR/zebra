@@ -1,5 +1,5 @@
 /*
- * "$Id: dslib.h,v 3.10 1994-10-11 16:24:54 corbet Exp $"
+ * "$Id: dslib.h,v 3.11 1995-02-10 01:22:19 granger Exp $"
  * Internal info for the data store application interface library.
  */
 
@@ -37,7 +37,9 @@ extern stbl Pf_Names;
 typedef struct _GetList
 {
 	int	gl_dfindex;		/* Corresponding DF entry	*/
+# ifdef DF_USE
 	int	gl_dfuse;		/* Use count for this entry	*/
+# endif
 	ZebTime	gl_begin;		/* Begin time			*/
 	ZebTime	gl_end;			/* End time			*/
 	int	gl_flags;		/* Flag values			*/
@@ -60,6 +62,7 @@ typedef struct _GetList
  */
 GetList *dgl_MakeGetList FP ((PlatformId, ZebTime *, ZebTime *));
 void	dgl_ReturnList FP ((GetList *));
+void 	dgl_ForceClosure FP ((void));
 
 int	ds_GetDetail FP ((char *, dsDetail *, int, SValue *));
 void	ds_GetFileStruct FP ((int, DataFile *));
