@@ -30,7 +30,7 @@
 # include <DataStore.h>
 # include <Platforms.h>
 
-RCSID ("$Id: dsdump.c,v 3.24 2000-11-06 21:11:31 granger Exp $")
+RCSID ("$Id: dsdump.c,v 3.25 2000-11-06 21:18:17 granger Exp $")
 
 /*
  * Standalone scanning flag.
@@ -227,7 +227,6 @@ DumpRow (PlatformId pid, platform_att_id atts[], int natts)
     if (! p || ! (pc = dt_FindClass (cid)))
 	return (-1);
 
-    printf ("%s ", pi_Name (p));
     for (i = 0; i < natts; ++i)
     {
 	const char *att = DumpAtt (p, pc, atts[i]);
