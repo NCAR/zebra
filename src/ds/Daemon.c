@@ -33,7 +33,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 # include "commands.h"
-MAKE_RCSID ("$Id: Daemon.c,v 3.13 1993-04-26 16:00:50 corbet Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.14 1993-04-28 23:00:57 corbet Exp $")
 
 
 
@@ -1160,6 +1160,9 @@ int junk;
 	   case dpt_GetNPlat:
 	   case dpt_GetPlatStruct:
 	   case dpt_GetFileStruct:
+	   case dpt_FindDF:
+	   case dpt_Hello:
+	   case dpt_LookupPlatform:
 	   	ds_message (msg->m_from, dt);
 		return (ret);
 
