@@ -21,6 +21,7 @@
 # include <unistd.h>
 # include <string.h>
 
+# include <ui.h>
 # include <defs.h>
 # include <message.h>
 # include <timer.h>
@@ -28,7 +29,7 @@
 # include <copyright.h>
 # include <DataStore.h>
 
-RCSID("$Id: dsdelete.c,v 2.12 1995-06-29 22:33:35 granger Exp $")
+RCSID("$Id: dsdelete.c,v 2.13 1996-11-19 07:08:02 granger Exp $")
 
 /*
  * The standard C test prevents conflicts with correctly-prototyped GNU C
