@@ -1,7 +1,7 @@
 /*
  * Vertical cross-sectioning
  */
-static char *rcsid = "$Id: XSection.c,v 2.24 1995-02-24 22:41:52 burghart Exp $";
+static char *rcsid = "$Id: XSection.c,v 2.25 1995-03-20 21:00:32 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -118,10 +118,18 @@ static int	Pix_left, Pix_right, Pix_bottom, Pix_top;
  * Field for vertical scale
  * Use filled contours?
  * "Zig-zag" cross-section?
+ * Horizontal axis labeling
  */
 static char	Zfld[20];
 static bool	Fill_contour;
 static bool	Zig_zag;
+
+typedef enum 
+{
+	Label_LatLon, Label_XY, Label_Length, Label_None
+} LabelType;
+
+LabelType	BottomLabel;
 
 /*
  * Drawing info
@@ -316,7 +324,7 @@ UItime	*t;
 		 Zig_zag ? "Zig-zag" : "Planar");
 	An_TopAnnot (Scratch, White.pixel);
 /*
- * For planar cross sections, get the endpoints
+ * For planar cross sections, get the endpoints and bottom label type
  */
 	if (! Zig_zag)
 	{
@@ -350,6 +358,29 @@ UItime	*t;
 	 * Find the plane length
 	 */
 		P_len = hypot (X1 - X0, Y1 - Y0);
+	/*
+	 * Bottom label type
+	 */
+		BottomLabel = Label_LatLon;
+		if (pda_Search (Pd, "global", "bottom-label-type", NULL, 
+				Scratch, SYMT_STRING))
+		{
+			if (! strcasecmp (Scratch, "latlon"))
+				BottomLabel = Label_LatLon;
+			else if (! strcasecmp (Scratch, "xy"))
+				BottomLabel = Label_XY;
+			else if (! strcasecmp (Scratch, "length"))
+				BottomLabel = Label_Length;
+			else if (! strcasecmp (Scratch, "none"))
+				BottomLabel = Label_None;
+			else
+			{
+				msg_ELog (EF_INFO, 
+				  "Bad bottom-label-type '%s', using 'latlon'",
+				  Scratch);
+				BottomLabel = Label_LatLon;
+			}
+		}
 	}
 }
 
@@ -2228,7 +2259,7 @@ xs_Background ()
  */
 {
 	float	tick, tickinc, lolim, hilim, xpos, ypos, lat, lon;
-	int	dolabel;
+	int	lbltoggle;
 	XPoint	pts[5];
 /*
  * Draw a box
@@ -2273,7 +2304,7 @@ xs_Background ()
 /*
  * Loop to put tick marks and labels on vertical axes
  */
-	dolabel = ((int)(lolim / tickinc) % 2) == 0;
+	lbltoggle = ((int)(lolim / tickinc) % 2) == 0;
 
 	for (tick = lolim; tick <= hilim; tick += tickinc)
 	{
@@ -2293,7 +2324,7 @@ xs_Background ()
 	/*
 	 * Label every other tick
 	 */
-		if (dolabel)
+		if (lbltoggle)
 		{
 			if (tickinc < 1.0)
 				sprintf (Scratch, "%.1f", tick);
@@ -2305,7 +2336,7 @@ xs_Background ()
 				Scratch, 0.0, 0.03, JustifyRight, 
 				JustifyBottom);
 		}
-		dolabel = ! dolabel;
+		lbltoggle = ! lbltoggle;
 	}
 /*
  * Vertical scale units
@@ -2326,7 +2357,7 @@ xs_Background ()
 /*
  * Label the horizontal axes
  */
-	dolabel = TRUE;
+	lbltoggle = TRUE;
 
 	for (tick = 0.0; tick <= 1.005 * P_len; tick += tickinc)
 	{
@@ -2346,24 +2377,52 @@ xs_Background ()
 	/*
 	 * Label every other tick
 	 */
-		if (dolabel)
-		{
-			xpos = X0 + tick / P_len * (X1 - X0);
-			ypos = Y0 + tick / P_len * (Y1 - Y0);
+		lbltoggle = ! lbltoggle;
+		if (lbltoggle)
+			continue;
 
-			cvt_ToLatLon (xpos, ypos, &lat, &lon);
+		xpos = tick / P_len * (X1 - X0);
+		ypos = tick / P_len * (Y1 - Y0);
+
+		switch (BottomLabel)
+		{
+		    case Label_LatLon:
+			cvt_ToLatLon (X0 + xpos, Y0 + ypos, &lat, &lon);
 
 			sprintf (Scratch, "(%.1f/%.1f)", lon, lat);
+			break;
+		    case Label_XY:
+			sprintf (Scratch, "(%.1f,%.1f)", X0 + xpos, Y0 + ypos);
+			break;
+		    case Label_Length:
+			sprintf (Scratch, "%.1f", hypot (xpos, ypos));
+			break;
+		    default:
+			Scratch[0] = '\0';
+		}			
 
-			DrawText (Graphics, GWFrame (Graphics), Gcontext, 
-				  XPIX (tick), YPIX (P_bot) + 2, Scratch, 0.0,
-				  0.03, JustifyCenter, JustifyTop);
-		}
-		dolabel = ! dolabel;
+		DrawText (Graphics, GWFrame (Graphics), Gcontext, 
+			  XPIX (tick), YPIX (P_bot) + 2, Scratch, 0.0,
+			  0.03, JustifyCenter, JustifyTop);
 	}
 
+	switch (BottomLabel)
+	{
+	    case Label_LatLon:
+		sprintf (Scratch, "Position (lon/lat)");
+		break;
+	    case Label_XY:
+		sprintf (Scratch, "Position (x,y) km from origin");
+		break;
+	    case Label_Length:
+		sprintf (Scratch, "Distance in km");
+		break;
+	    default:
+		Scratch[0] = '\0';
+	}			
+
 	DrawText (Graphics, GWFrame (Graphics), Gcontext, XPIX (0.5 * P_len), 
-		  YPIX (P_bot - 0.04 * P_hgt), "Position (lon/lat)", 0.0, 0.03,
+		  YPIX (P_bot - 0.04 * P_hgt), Scratch, 0.0, 0.03, 
 		  JustifyCenter, JustifyTop);
 }
 
