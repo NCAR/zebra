@@ -1,0 +1,143 @@
+! $Id: GraphProc.state,v 1.1 1990-07-08 12:53:28 corbet Exp $
+!
+! State entries for the graphics process.
+!
+define state initial
+	eoftext 'exit'
+	ctable ui$command_table
+	@ /rdss/ui/ui_commands.
+	input 'run' 1
+		next ust$no_more
+	endinput
+	input 'dm' 2
+		next ust$final_unmunged_string
+	endinput
+	input 'parameter' 3
+		next dm-param-comp
+	endinput
+	input 'altstep' 4
+		next ust$final_int
+	endinput
+	input 'feature' 5
+		next ust$final_string
+	endinput
+	input 'movie' 10
+		next movie-state
+	endinput
+enddef
+
+!
+! Movie control.
+!
+define state movie-state
+	input 'run' 1
+		next ust$no_more
+	endinput
+	input 'stop' 0
+		next ust$no_more
+	endinput
+enddef
+
+
+!
+! PARAMETER (from DM).
+!
+define state dm-param-comp
+	input string
+		next dm-param-param
+	endinput
+enddef
+
+define state dm-param-param
+	input string
+		next ust$final_unmunged_string
+	endinput
+enddef
+
+!
+! Stuff for the internals of a "feature" command.
+!
+define state in-feature
+	input 'text' 6
+		next text-lat
+	endinput
+	input 'circle' 7
+		next circ-lat
+	endinput
+	input 'at' 9
+		next ust$final_date
+	endinput
+	input 'endfeature' 8
+		next ust$no_more
+	endinput
+enddef
+
+
+!
+! text LAT LON "STRING" [size n]
+!
+define state text-lat
+	input real
+		next text-lon
+	endinput
+enddef
+
+define state text-lon
+	input real
+		next text-string
+	endinput
+enddef
+
+define state text-string
+	input string
+		next text-opt-size
+	endinput
+enddef
+
+define state text-opt-size
+	input integer
+		next ust$no_more
+	endinput
+	input 'size' 0
+		ignore
+		next ust$final_int
+	endinput
+	input EOS
+		done
+	endinput
+enddef
+
+
+!
+! circle LAT LON RADIUS
+!
+define state circ-lat
+	input real
+		next circ-lon
+	endinput
+enddef
+
+define state circ-lon
+	input real
+		next circ-rad
+	endinput
+enddef
+
+define state circ-rad
+	input real
+		next ust$no_more
+	endinput
+enddef
+
+
+
+!
+! The init process to be run at startup.  This throws us immediately
+! into the graphproc event loop.
+!
+set ui$initial_state "initial"
+procedure ui$init
+	while (true)
+		run
+	endwhile
+endprocedure

@@ -1,0 +1,148 @@
+!
+! Widgets for the graphics process.
+!
+! dm 'message "Reading widgets file"'
+
+define widget field-popup intmenu 'Field control popup'
+	entry 'Relative humidity' 'param base-mesonet field rh'
+	entry 'Dewpoint temperature' 'param base-mesonet field dp'
+	entry 'Pressure' 'param base-mesonet field pres'
+	entry 'Temperature' 'param base-mesonet field tdry'
+endmenu
+
+define widget radar-field intmenu 'radar field'
+	entry 'Reflectivity' 'param radar field reflectivity'
+	entry 'Velocity' 'param radar field velocity'
+endmenu
+
+define widget control intmenu 'Display control'
+	entry 'Base field as contours' \
+		'parameter base-mesonet representation contour' \
+		(pd_param("base-mesonet","representation","string") ="contour")
+	entry '....filled contours' \
+		'parameter base-mesonet representation filled-contour' \
+		(pd_param("base-mesonet","representation","string") ="filled-contour")
+	entry '....rasters' \
+		'parameter base-mesonet representation raster' \
+		(pd_param("base-mesonet","representation","string") ="raster")
+
+	line
+	entry 'Winds overlay' change_winds \
+		pd_defined("winds-mesonet","u-field")
+	entry 'King Air overlay' change_aircraft \
+		pd_defined("aircraft","platform")
+	line 
+	entry 'Monochrome table' 'param global contour-color-table ContourMono' \
+		(pd_param ("global", "contour-color-table", "string") = "ContourMono")
+	entry 'Contour color table' 'param global contour-color-table Contour'\
+		(pd_param ("global","contour-color-table","string") ="Contour")
+	entry 'Rainbow color table' 'param global contour-color-table Rainbow'\
+		(pd_param ("global","contour-color-table","string") ="Rainbow")
+	entry 'Gray scale table' 'param global contour-color-table gray'\
+		(pd_param ("global","contour-color-table","string") ="gray")
+	entry 'Cook16 table' 'param global contour-color-table cook16'\
+		(pd_param ("global","contour-color-table","string") ="cook16")
+endmenu
+
+
+
+define widget big intmenu 'big window control'
+	entry 'Winds overlay' change_winds \
+		pd_defined("winds-mesonet","u-field")
+	entry 'King Air overlay' change_aircraft \
+		pd_defined("aircraft","platform")
+	line 
+	entry 'Cook16 table' 'param global raster-color-table cook16'\
+		(pd_param ("global","raster-color-table","string") ="cook16")
+	entry 'Gray scale table' 'param global raster-color-table gray'\
+		(pd_param ("global","raster-color-table","string") ="gray")
+	entry 'Smooth table' 'param global raster-color-table scook'\
+		(pd_param ("global","raster-color-table","string") ="scook")
+endmenu
+
+
+
+define widget airfield intmenu 'airfield'
+	entry 'Aircraft altitude' 'set_field "hgm"'
+	entry 'Virtual temperature' 'set_field "tvir"'
+	entry 'Relative humidity' 'set_field "rhum"'
+	entry 'Mixing ratio' 'set_field "mr"'
+	entry 'Dewpoint temperature' 'set_field "dpt"'
+endmenu
+
+
+
+procedure set_field name string
+	parameter aircraft color-code-field #name
+endprocedure
+
+
+!
+! Toggle the winds overlay.  For now, we have to ask DM to do it for us,
+! since we don't have this stuff around.
+!
+procedure change_winds
+	if (pd_defined ("winds-mesonet", "u-field"))
+		dm "remove #dm$button_window winds-mesonet"
+	else
+		dm "add winds winds-mesonet #dm$button_window"
+	endif
+endprocedure
+!
+! Similar stuff for the aircraft overlay.
+!
+procedure change_aircraft
+	if (pd_defined ("aircraft", "platform"))
+		dm "remove #dm$button_window aircraft"
+	else
+		dm "add kingair aircraft #dm$button_window"
+	endif
+endprocedure
+
+procedure toggle_radar 
+	if (pd_param ("radar", "field", "string") = "reflectivity")
+		parameter radar field "velocity"
+	else
+		parameter radar field "reflectivity"
+	endif
+endprocedure
+
+!
+! The two circulations at various times.
+!
+feature circ
+	at 17-jul-87,21:30
+	text 39.9194 -104.5842 "C1"
+	circle 39.9194 -104.5842 1.0
+
+	at 17-jul-87,21:45
+	text 39.9331 -104.6019 "C1"
+	circle 39.9331 -104.6019 1
+
+	at 17-jul-87,22:00
+	circle 39.9581 -104.6022 1
+	text 39.9581 -104.6022 "C1"
+	circle 39.8853 -104.5828 1
+	text 39.8853 -104.5828 "C2"
+
+	at 17-jul-87,22:10
+	circle 39.8908 -104.5981 1
+	text 39.8908 -104.5981 "C2"
+
+	at 17-jul-87,22:20
+	! nothing
+endfeature
+
+!
+! Where the radars are.
+!
+feature radars
+	text 39.95 -105.19 "CP2"
+	text 39.7647 -104.8731 "CP3"
+	text 39.7894 -104.5506 "NOAA C"
+	text 39.7639 -104.7328 "NOAA D"
+	text 39.6947 -104.7442 "FL-2"
+	text 39.8772 -104.7631 "UND"
+endfeature
+
+! dm "message Done."
