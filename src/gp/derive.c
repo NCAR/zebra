@@ -5,10 +5,11 @@
  * from the document "Formulation of Output Parameters for PAM II CMF Data"
  * compiled by Paul Herzegh (18 March 1988 revision).
  *
- * $Revision: 1.1 $ $Date: 1990-07-08 12:57:04 $ $Author: corbet $
+ * $Revision: 1.2 $ $Date: 1990-12-14 13:49:01 $ $Author: burghart $
  */
 
 # include <math.h>
+# include <message.h>
 # include "derive.h"
 
 /*
@@ -209,7 +210,8 @@ double	temp, dp;
 {
 	if (dp > temp)
 	{
-		msg_log ("Dewpoint greater than temp. in LCL calculation");
+		msg_ELog (EF_PROBLEM, 
+		    "Dewpoint greater than temp. in LCL temp. calculation");
 		return (0.0);
 	}
 
@@ -233,7 +235,8 @@ double	dp, temp, pres;
 
 	if (dp > temp)
 	{
-		msg_log ("Dewpoint greater than temp. in LCL calculation");
+		msg_ELog (EF_PROBLEM, 
+		    "Dewpoint greater than temp. in LCL pres. calculation");
 		return (0.0);
 	}
 
@@ -274,6 +277,8 @@ double	theta, p;
  * Temperature of dry air (deg. K) at potential temperature (deg. K) and p (mb)
  */
 {
+	if (p < 0.0)
+		msg_ELog (EF_PROBLEM, "Pressure less than zero in theta_to_t");
 	return (theta * pow ((1000.0 / p), -R_D / C_P));
 }
 
