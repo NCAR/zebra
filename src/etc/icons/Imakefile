@@ -16,6 +16,6 @@ install::
 		$(INSTALLICON) $${icon_file} $(LIBDIR)/icons ; \
 	done
 
-DISTFILES = Imakefile [a-z]*
+DISTFILES = Imakefile [0-9a-z]*
 
 DistfilesTarget($(DISTFILES))
