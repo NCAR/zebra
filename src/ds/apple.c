@@ -1,5 +1,5 @@
 /*
- * $Id: apple.c,v 3.8 1996-02-05 15:35:06 granger Exp $
+ * $Id: apple.c,v 3.9 1996-02-06 18:47:16 granger Exp $
  */
 
 /*
@@ -254,6 +254,16 @@ msg_handler (msg)
 struct message *msg;
 {
 	msg_ELog (EF_DEBUG, "Message received");
+	if ((msg->m_proto == MT_MESSAGE) && (msg->m_len > 0))
+	{
+		struct mh_template *tm;
+		tm = (struct mh_template *) msg->m_data;
+		if (tm->mh_type == MH_SHUTDOWN)
+		{
+			msg_ELog (EF_PROBLEM, "message handler shutting down");
+			exit (1);
+		}
+	}
 	return (0);
 }
 
@@ -388,6 +398,10 @@ main (argc, argv)
 	int i;
 	int errors;
 
+	/*
+	 * If we're not done in an hour, something is seriously wrong
+	 */
+	alarm (60*60);
 #ifdef NoBuffer
 	setvbuf (stdout, NULL, _IONBF, 0);
 	setvbuf (stderr, NULL, _IONBF, 0);
@@ -414,6 +428,7 @@ main (argc, argv)
 	errors += T_Transparent ("t_transparent", &begin);
 	if (errors) msg_ELog (EF_PROBLEM,
 			      "%d errors after T_Transparent", errors);
+	while (msg_poll(0) != MSG_TIMEOUT);
 #endif
 
 #ifdef GETFIELDS
@@ -426,12 +441,14 @@ main (argc, argv)
 	errors += T_GetFields (&begin, "t_getfields_znf");
 	if (errors) msg_ELog (EF_PROBLEM,
 			      "%d errors after T_GetFields(znf)", errors);
+	while (msg_poll(0) != MSG_TIMEOUT);
 #endif
 		
 #ifdef DELETE_OBS
 	errors += T_Deletes (&begin);
 	if (errors) msg_ELog (EF_PROBLEM,
 			      "%d errors after T_Deletes", errors);
+	while (msg_poll(0) != MSG_TIMEOUT);
 #endif
 
 #ifdef FETCH_GAP
@@ -441,6 +458,7 @@ main (argc, argv)
 	errors += T_FetchGap (&begin, "t_gap_znf");
 	if (errors) msg_ELog (EF_PROBLEM,
 			      "%d errors after T_FetchGap(znf)", errors);
+	while (msg_poll(0) != MSG_TIMEOUT);
 #endif
 
 #if defined(DUMMY_FILES) && defined(DATA_TIMES)
@@ -450,24 +468,28 @@ main (argc, argv)
 	errors += T_DataTimes ("t_dummy_znf");
 	if (errors) msg_ELog (EF_PROBLEM,
 			      "%d errors after T_DataTimes(znf)", errors);
+	while (msg_poll(0) != MSG_TIMEOUT);
 #endif
 
 #ifdef SCALAR
 	errors += T_Scalar (&begin);
 	if (errors) msg_ELog (EF_PROBLEM,
 			      "%d errors after T_Scalar", errors);
+	while (msg_poll(0) != MSG_TIMEOUT);
 #endif /* SCALAR */
 
 #ifdef NSPACE
 	errors += T_NSpace (&begin);
 	if (errors) msg_ELog (EF_PROBLEM,
 			      "%d errors after T_NSpace", errors);
+	while (msg_poll(0) != MSG_TIMEOUT);
 #endif
 
 #ifdef NSPACE_AERI
 	errors += T_Aeri();
 	if (errors) msg_ELog (EF_PROBLEM,
 			      "%d errors after T_Aeri", errors);
+	while (msg_poll(0) != MSG_TIMEOUT);
 #endif
 
 #ifdef NEXUS
@@ -475,6 +497,7 @@ main (argc, argv)
 	errors += T_Nexus (&begin);
 	if (errors) msg_ELog (EF_PROBLEM,
 			      "%d errors after T_Nexus", errors);
+	while (msg_poll(0) != MSG_TIMEOUT);
 #endif
 
 #ifdef GRID_BLOCKS
@@ -484,54 +507,64 @@ main (argc, argv)
 	errors += T_1DGridStoreBlocks();
 	if (errors) msg_ELog (EF_PROBLEM,
 			      "%d errors after T_1DGridStoreBlocks", errors);
+	while (msg_poll(0) != MSG_TIMEOUT);
 #endif
 
 #ifdef FIELD_TYPES
 	errors += T_FieldTypes (begin);
 	if (errors) msg_ELog (EF_PROBLEM,
 			      "%d errors after T_FieldTypes", errors);
+	while (msg_poll(0) != MSG_TIMEOUT);
 #endif
 
 #ifdef AERI_TYPES
 	errors += T_AeriTypes (begin);
 	if (errors) msg_ELog (EF_PROBLEM,
 			      "%d errors after T_AeriTypes", errors);
+	while (msg_poll(0) != MSG_TIMEOUT);
 #endif
 
 #ifdef SCALAR_NSPACE
 	errors += T_ScalarNSpace (begin);
 	if (errors) msg_ELog (EF_PROBLEM,
 			      "%d errors after T_ScalarNSpace", errors);
+	while (msg_poll(0) != MSG_TIMEOUT);
 #endif
 
 #ifdef ATTRIBUTES
 	errors += T_Attributes (begin);
 	if (errors) msg_ELog (EF_PROBLEM,
 			      "%d errors after T_Attributes", errors);
+	while (msg_poll(0) != MSG_TIMEOUT);
 #endif
 
 #ifdef RGRID
 	errors += T_RGrid (begin);
 	if (errors) msg_ELog (EF_PROBLEM,
 			      "%d errors after T_RGrid", errors);
+	while (msg_poll(0) != MSG_TIMEOUT);
 #endif
 
 #ifdef COPY_SCALAR
         errors += T_CopyScalar (&begin);
 	if (errors) msg_ELog (EF_PROBLEM,
 			      "%d errors after T_CopyScalar", errors);
+	while (msg_poll(0) != MSG_TIMEOUT);
 #endif
 
 #ifdef TIME_UNITS
 	errors += T_TimeUnits (&begin);
 	if (errors) msg_ELog (EF_PROBLEM,
 			      "%d errors after T_TimeUnits", errors);
+	while (msg_poll(0) != MSG_TIMEOUT);
 #endif
 
 	ds_ForceClosure();
+	while (msg_poll(0) != MSG_TIMEOUT);
 	msg_ELog (EF_INFO, "%d errors.", errors);
 	return (errors);
 }
+
 
 
 #ifdef SCALAR
