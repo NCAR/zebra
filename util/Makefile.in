@@ -1,0 +1,111 @@
+# ------------------------------------------------------------------------
+MFVERSION="$Id: Makefile.in,v 1.1 1999-01-04 22:33:36 oye Exp $"
+# ------------------------------------------ Cut 0 -----------------------
+# On some systems there cannot be tabs to the left of macro declarations
+# (IRIX in particular)
+            SHELL = @WHICH_SHELL@
+               CC = @CC@
+               FC = @WHICHFORTRAN@
+              CPP = @CPP@
+          INSTALL = @WHICH_INSTALL@
+           CFLAGS = @CFLAGS@
+           FCFLAGS = @FCFLAGS@
+         X_CFLAGS = @X_CFLAGS@
+      AC_CPPFLAGS = @CPPFLAGS@
+       LOCAL_DEFS = @LOCAL_DEFS@
+             LIBS = @LIBS@
+            FLIBS = @FLIBS@
+           X_LIBS = @X_LIBS@
+        LDOPTIONS = @LDFLAGS@
+     FCSTATICFLAG = @FCSTATICFLAG@
+               AR = ar rsv
+               RM = rm -f
+
+CPPFLAGS = $(AC_CPPFLAGS) $(X_CFLAGS) $(LOCAL_DEFS) $(LOCAL_INCLUDES) $(EXTRA_DEFINES)
+PROGS=""
+PROGLIBS=""
+SUBDIRS=""
+# ------------------------------------------ Cut 1 -----------------------
+# Paths
+           prefix = @prefix@
+      exec_prefix = @exec_prefix@
+           BINDIR = @bindir@
+           LIBDIR = @libdir@
+           INCDIR = @includedir@
+   LOCAL_INCLUDES = @LOCAL_INCLUDES@
+          XLIBDIR = @XLIBDIR@
+           DAPLIB = @DAPLIB@
+          SOLODIR = @SOLODIR@
+       SOLOLIBDIR = @SOLOLIBDIR@
+       SOLOBINDIR = @SOLOBINDIR@
+   REODORADE_LIBS = @REODORADE_LIBS@
+# ------------------------------------------ Cut 2 -----------------------
+
+XLIBS = -L$(XLIBDIR) -lXaw -lXmu -lXt -lXext -lX11
+
+LOCALLIB = librdssutil.a
+
+EXTRA_DEFINES = $(RDSS_EXTRA_DEFS) -DNETACCESS
+
+LIBOBJS = strcpyUC.o bio.o fixdir.o swap4.o vm.o batch.o sprintrmt.o \
+	disk.o cpanic.o bfile.o parsetime.o ntdsk_client.o rtape_lib.o \
+	getgnum.o log_time.o tcpip.o met_formulas.o
+
+C_OBJS = $(LIBOBJS)
+
+SRCS = $(C_OBJS:.o=.c)
+
+PROGLIBS = $(LOCALLIB)
+
+all: $(PROGLIBS)
+
+$(LOCALLIB): $(LIBOBJS)
+	$(RM) $@
+	$(AR) $@ $(LIBOBJS)
+
+# ------------------------------------------ Cut 3 -----------------------
+# Between cuts 3 and 4 there can only be tabs to the left of shell commands
+# on some systems (IRIX in particular)
+
+.c.o:
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $<
+
+install: all
+	@if test -n "$(PROGS)"; then \
+	test -d $(SOLOBINDIR) || mkdir -p $(SOLOBINDIR); \
+	for p in $(PROGS); do \
+		if test -r "$$p"; then \
+		echo install $$p in $(SOLOBINDIR); $(INSTALL) $$p $(SOLOBINDIR); \
+		fi \
+	done \
+	fi
+
+	@if test -n "$(PROGLIBS)"; then \
+	test -d $(SOLOLIBDIR) || mkdir -p $(SOLOLIBDIR); \
+	for p in $(PROGLIBS); do \
+		if test -r "$$p"; then \
+		echo install $$p in $(SOLOLIBDIR); chmod 0644 $$p; cp $$p $(SOLOLIBDIR); \
+		fi \
+	done \
+	fi
+
+	@if test -n "$(SUBDIRS)"; then \
+	for d in $(SUBDIRS); do \
+		if test -d "$$d"; then \
+		(cd $$d; $(MAKE) install) \
+		fi \
+	done \
+	fi
+
+clean:
+	rm -f core *.o *~ $(PROGS) $(PROGLIBS)
+
+depend:
+	rm -f Makefile.old
+	mv Makefile Makefile.old
+	sed -e '/^# DEPEND/,$$d' < Makefile.old > Makefile
+	echo '# DEPEND Marker -- no edits below this line' >> Makefile
+	$(CC) -M $(CFLAGS) $(CPPFLAGS) $(SRCS) >> Makefile
+
+# DEPEND Marker -- no edits below this line
+

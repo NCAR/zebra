@@ -1,0 +1,150 @@
+# ------------------------------------------------------------------------
+MFVERSION="$Id: Makefile.in,v 1.1 1999-01-04 22:36:51 oye Exp $"
+# ------------------------------------------ Cut 0 -----------------------
+# On some systems there cannot be tabs to the left of macro declarations
+# (IRIX in particular)
+            SHELL = @WHICH_SHELL@
+               CC = @CC@
+               FC = @WHICHFORTRAN@
+              CPP = @CPP@
+          INSTALL = @WHICH_INSTALL@
+           CFLAGS = @CFLAGS@
+           FCFLAGS = @FCFLAGS@
+         X_CFLAGS = @X_CFLAGS@
+      AC_CPPFLAGS = @CPPFLAGS@
+       LOCAL_DEFS = @LOCAL_DEFS@
+             LIBS = @LIBS@
+            FLIBS = @FLIBS@
+           X_LIBS = @X_LIBS@
+        LDOPTIONS = @LDFLAGS@
+     FCSTATICFLAG = @FCSTATICFLAG@
+               AR = ar rsv
+               RM = rm -f
+
+CPPFLAGS = $(AC_CPPFLAGS) $(X_CFLAGS) $(LOCAL_DEFS) $(LOCAL_INCLUDES) $(EXTRA_DEFINES)
+PROGS=""
+PROGLIBS=""
+SUBDIRS=""
+# ------------------------------------------ Cut 1 -----------------------
+# Paths
+           prefix = @prefix@
+      exec_prefix = @exec_prefix@
+           BINDIR = @bindir@
+           LIBDIR = @libdir@
+           INCDIR = @includedir@
+   LOCAL_INCLUDES = @LOCAL_INCLUDES@
+          XLIBDIR = @XLIBDIR@
+           DAPLIB = @DAPLIB@
+          SOLODIR = @SOLODIR@
+       SOLOLIBDIR = @SOLOLIBDIR@
+       SOLOBINDIR = @SOLOBINDIR@
+   REODORADE_LIBS = @REODORADE_LIBS@
+# ------------------------------------------ Cut 2 -----------------------
+
+XLIBS = $(X_LIBS) -lXaw -lXmu -lXt -lXext -lX11
+LIBRDSSUTIL = ../ui_util/librdssutil.a
+LOCALLIB = librdssui.a
+UI_LF = $(SOLOLIBDIR)/ui.lf
+
+DEPLIBS = $(LIBRDSSUTIL)
+UIDIR = -DUIDIR=\"$(SOLODIR)\"
+LFDIR = -DLF=\"$(UI_LF)\"
+
+XWINDOWSFLAG = -DXSUPPORT
+MENUDEFINES = -DSMEMENU
+NORMAL_DEFINES = $(UIDIR) $(LFDIR) $(XWINDOWSFLAG) $(MENUDEFINES)
+
+SYSDEFINES = -DSYSV
+
+EXTRA_DEFINES = $(RDSS_EXTRA_DEFS) $(NORMAL_DEFINES) $(SYSDEFINES)
+
+BINSRCS = uic.c uib.c
+
+UIB = ./uib
+
+SMEMENUOBJS= SmeMenu.o RdssMenu.o
+
+LIBOBJS = ui.o ui_bootstrap.o ui_date.o ui_error.o ui_symbol.o \
+	ui_util.o ui_ctable.o ui_state.o ui_expr.o ui_keys.o ui_types.o \
+	ui_token.o ui_prompt.o ui_parser.o ui_menu.o ui_interrupt.o \
+	ui_tty.o ui_cmds.o ui_cstack.o ui_output.o ui_function.o \
+	ui_string.o ui_window.o ui_wPulldown.o ui_wList.o ui_wAppl.o \
+	ui_OutHook.o ui_globals.o ui_wForm.o $(SMEMENUOBJS)
+
+SRCS = $(LIBOBJS:.o=.c) $(BINSRCS)
+
+PROGLIBS = $(LOCALLIB) ui.lf
+
+PROGS = uib uic
+
+all: $(PROGLIBS) $(PROGS)
+
+$(LOCALLIB): $(LIBOBJS)
+	$(RM) $@
+	$(AR) $@ $(LIBOBJS)
+
+ui.lf:  ui.state  ui_commands. uib
+	$(RM) ui.lf
+	echo read  ui.state \; \
+	set 'ui$$pager_mode' false \; \
+	save ui.lf all | $(UIB)
+
+uib: uib.o $(LIBOBJS)
+	$(RM) $@
+	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ uib.o $(LIBOBJS) $(LDOPTIONS) \
+		$(DEPLIBS) $(LDLIBS) $(XLIBS) $(LIBS) $(SYSLIBS) $(EXTRA_LOAD_FLAGS)
+
+uic: uic.o $(LIBOBJS)
+	$(RM) $@
+	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ uic.o $(LIBOBJS) $(LDOPTIONS) \
+		$(DEPLIBS) $(LDLIBS) $(XLIBS) $(LIBS) $(SYSLIBS) $(EXTRA_LOAD_FLAGS)
+
+# ------------------------------------------ Cut 3 -----------------------
+# Between cuts 3 and 4 there can only be tabs to the left of shell commands
+# on some systems (IRIX in particular)
+
+.c.o:
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $<
+
+install: all
+	@if test -n "$(PROGS)"; then \
+	test -d $(SOLOBINDIR) || mkdir -p $(SOLOBINDIR); \
+	for p in $(PROGS); do \
+		if test -r "$$p"; then \
+		echo install $$p in $(SOLOBINDIR); $(INSTALL) $$p $(SOLOBINDIR); \
+		fi \
+	done \
+	fi
+
+	@if test -n "$(PROGLIBS)"; then \
+	test -d $(SOLOLIBDIR) || mkdir -p $(SOLOLIBDIR); \
+	for p in $(PROGLIBS); do \
+		if test -r "$$p"; then \
+		echo install $$p in $(SOLOLIBDIR); chmod 0644 $$p; cp $$p $(SOLOLIBDIR); \
+		fi \
+	done \
+	fi
+
+	@if test -n "$(SUBDIRS)"; then \
+	for d in $(SUBDIRS); do \
+		if test -d "$$d"; then \
+		(cd $$d; $(MAKE) install) \
+		fi \
+	done \
+	fi
+
+clean:
+	rm -f core *.o *~ $(PROGS) $(PROGLIBS)
+
+depend:
+	rm -f Makefile.old
+	mv Makefile Makefile.old
+	sed -e '/^# DEPEND/,$$d' < Makefile.old > Makefile
+	echo '# DEPEND Marker -- no edits below this line' >> Makefile
+	$(CC) -M $(CFLAGS) $(CPPFLAGS) $(SRCS) >> Makefile
+
+# DEPEND Marker -- no edits below this line
+
+# ------------------------------------------ Cut 4 -----------------------
+
+
