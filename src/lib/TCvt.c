@@ -22,7 +22,7 @@
 # include "defs.h"
 # include <sys/types.h>
 # include <sys/time.h>
-MAKE_RCSID ("$Id: TCvt.c,v 2.2 1991-12-20 17:45:44 corbet Exp $");
+MAKE_RCSID ("$Id: TCvt.c,v 2.3 1991-12-28 00:11:28 corbet Exp $");
 
 
 /*
@@ -185,7 +185,7 @@ char *dest;
 		break;
 
 	   case TC_TimeOnly:	/* Time of day only */
-		sprintf (dest, "%%d:%02d:%02d", t->tm_hour, t->tm_min,
+		sprintf (dest, "%d:%02d:%02d", t->tm_hour, t->tm_min,
 				t->tm_sec);
 		break;
 	}
