@@ -27,7 +27,7 @@
 # include "DrawText.h"
 # include "PixelCoord.h"
 # include "GC.h"
-MAKE_RCSID ("$Id: Annotate.c,v 2.14 1993-09-15 18:07:54 burghart Exp $")
+MAKE_RCSID ("$Id: Annotate.c,v 2.15 1993-10-01 21:01:55 burghart Exp $")
 
 /*
  * Graphics context (don't use the global one in GC.h because we don't
@@ -808,20 +808,20 @@ int datalen, begin, space;
  * Draw the numbers.
  */
 	if (limit > 1)
-		barHeight = (float)space / (float)ncolors * ((float)limit - .5);
+		barHeight = (float) space / (float) ncolors * 
+			((float) limit - .5);
 	else
 		barHeight = (float) space / (float) ncolors;
+
         for (i = 0; i < ncolors; i += limit)
         {
-
-/** Andy's change;  don't know if it's necessary. Was (i - ncolors / 2) * step) **/
-                cval = center + (ncolors / 2 - i) * step;
+                cval = center + ((ncolors - 1) / 2 - i) * step;
                 sprintf (string, "%.1f", cval);
                 XSetForeground (XtDisplay (Graphics), AnGcontext,
-                        colors[ncolors - i - 1].pixel);
-                DrawText (Graphics, GWFrame (Graphics), AnGcontext,
-                        left + 15, (int) begin, string,
-                        0.0, scale, JustifyLeft, JustifyTop);
+				colors[ncolors - i - 1].pixel);
+                DrawText (Graphics, GWFrame (Graphics), AnGcontext, left + 15,
+			  (int) begin, string, 0.0, scale, JustifyLeft, 
+			  JustifyTop);
 		begin += barHeight;
         }
 }
@@ -838,8 +838,7 @@ int datalen, begin, space;
 	int i, limit, left, ncolors, match, barHeight;
 	char string[40], ctable[40];
 	XColor xc, *colors;
-
-float scale, center, step, cval, maxval, used;
+	float scale, center, step, cval, maxval, used;
 /*
  * Get top and side annotation plot description parameters.
  */
@@ -864,7 +863,8 @@ float scale, center, step, cval, maxval, used;
  * Draw the bar.
  */
 	if (limit > 1)
-		barHeight = (float)space / (float)ncolors * ((float)limit - .5);
+		barHeight = (float) space / (float) ncolors * 
+			((float) limit - .5);
 	else
 		barHeight = (float) space / (float) ncolors;
 
