@@ -49,7 +49,7 @@
 XCOMM -----------------------------------------------------------------------
 XCOMM Definitions from config.h included here.  The definitions here override
 XCOMM the defaults in Project.tmpl.  See ...../zebra/config/project/config.h.
-XCOMM $Id: config.h.dist,v 1.42 1996-11-21 23:24:12 granger Exp $
+XCOMM $Id: config.h.dist,v 1.43 1996-12-10 21:28:35 granger Exp $
 XCOMM -----------------------------------------------------------------------
 # endif
 
@@ -600,6 +600,7 @@ XCOMM -----------------------------------------------------------------------
  * all this.
  */
 # define PCAPLibrary 	-lpcap
+# define PCAPIncludes 	-I/usr/local/include
 
 /*
  * The graphics process can be built to do map projections.  Projections
