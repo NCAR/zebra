@@ -1,3 +1,15 @@
+Thu Dec  2 15:27:54 1993  Jonathan Corbet  (corbet@ale)
+
+	* Tagging version 4.0beta1
+
+Thu Dec  2 10:15:38 1993  Chris Burghart  (burghart@trenco)
+
+	* In XY plots, moved overlay times widget update and side annotation 
+	  drawing so that they show correct times for each platform.  
+	  Previously, the last platform's end time would be shown for all 
+	  platforms in a given component.
+
+
 Wed Dec  1 10:41:12 1993  Chris Burghart  (burghart@trenco)
 
 	* MAJOR thrashing of the entire set of XY modules.  Just about 
