@@ -27,7 +27,7 @@
 
 # include <netcdf.h>
 
-/* $Id: dem2zebra.c,v 1.8 2002-04-11 20:39:49 burghart Exp $ */
+/* $Id: dem2zebra.c,v 1.9 2003-03-17 22:38:09 burghart Exp $ */
 
 struct _Map
 {
@@ -418,7 +418,8 @@ ProcessFiles (char *fnames[], int nfiles)
 	if (uncompressCommand)
 	{
 	    char command[128];
-	    sprintf (command, "%s %s", uncompressCommand, fnames[f]);
+	    sprintf (command, "%s \"%s\" 2>/dev/null ", uncompressCommand, 
+		     fnames[f]);
 	    if (! (infile = popen (command, "r")))
 	    {
 		perror (command);
