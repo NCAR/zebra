@@ -1,4 +1,4 @@
-XCOMM $Id: Imakefile,v 1.10 1993-11-30 16:14:44 granger Exp $
+XCOMM $Id: Imakefile,v 1.11 1993-11-30 23:29:56 granger Exp $
 XCOMM
 XCOMM This is the top-level Imakefile for the Zeb distribution.
 XCOMM It is modeled after the top-level Imakefile of the MIT X11R5
@@ -19,8 +19,12 @@ XCOMM Note that for distributions, Makefile should be a copy of
 XCOMM Makefile.ini and NOT the Makefile created by imake
 
       DISTFILES = Imakefile Makefile.ini Makefile
+#ifdef notdef
        LINKDIRS = dist/zeb/doc dist/zeb/project
       LINKNAMES = $(TARNAME)/doc $(TARNAME)/project
+#endif
+       LINKDIRS = /* docs and projects will be distributed separately */
+      LINKNAMES = 
 
 XCOMM From the top-level directory, the default "all" behavior will
 XCOMM be the same as the "Everything" target, i.e. make sure all
@@ -178,7 +182,7 @@ tarfile:
 		  $(LN) ../$$f . ; \
 	  done) ; \
 	  tar cvhf - $(LINKNAMES) \
-	     `$(MAKE) $(MFLAGS) -s CURRENT_DIR=$(TARFILE) distfiles` | \
+	     `$(MAKE) $(MFLAGS) -s DISTCURDIR=$(TARFILE) distfiles` | \
 		  compress -c > $(TARFILE).tar.Z ; \
 	  rm -rf $(TARFILE) ; \
 	  echo Done making $(TARFILE).tar.Z ; \
@@ -195,7 +199,7 @@ srcfile:
 		  $(LN) ../$$f . ; \
 	  done) ; \
 	  tar cvhf - \
-	     `$(MAKE) $(MFLAGS) -s CURRENT_DIR=$(SRCFILE) \
+	     `$(MAKE) $(MFLAGS) -s DISTCURDIR=$(SRCFILE) \
 	      DISTSUBDIRS="$(SRCSUBDIRS)" distfiles ` | \
 		  compress -c > $(SRCFILE).tar.Z ; \
 	  rm -rf $(SRCFILE) ; \
