@@ -27,7 +27,7 @@
 # define NO_SHM
 #include "dslib.h"
 #ifndef lint
-MAKE_RCSID ("$Id: Appl.c,v 3.12 1993-05-13 20:30:24 corbet Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.13 1993-05-25 07:06:54 granger Exp $")
 #endif
 
 /*
@@ -463,9 +463,8 @@ TimeSpec which;
  * might really be desired, but so it goes.
  */
 {
-	int ndone = 0, index, last = 0;
+	int ndone = 0, index;
 	DataFile dfe;
-	Platform p;
 /*
  * We don't do it all yet.
  */
@@ -1023,13 +1022,13 @@ int ndetail;
 	nsample = dc_GetNSample (dc);
 	sample = 0;
 	msg_ELog(EF_INFO,
-	   "ds_StoreBlocks: noting all blocks of more than 500 samples...");
-	msg_ELog(EF_DEBUG,
-	   "StoreBlocks: debug, noting blocks of more than 10 samples...");
+	   "ds_StoreBlocks: noting all blocks of 50 or more samples");
 	while (sample < nsample)
 	{
-		bool new = FALSE;
+		bool new;
+
 		now = nnew = 0;
+		new = FALSE;
 	/*
 	 * Find a feasible location for the next sample of the data chunk
 	 */
@@ -1049,20 +1048,24 @@ int ndetail;
 		}
 	/*
 	 * Find out how many samples can be written to this file
-	 * as a single block.  It's possible the answer is one.
+	 * as a single block.  The answer is at least one.
 	 */
 		ds_FindBlock (dfile, dc, &p, sample, wc, &block_size);
-		if (block_size > 500)
+		if (block_size >= 50)
 			msg_ELog(EF_INFO,
-				 "ds_Store() writing block of %i samples",
-				 block_size);
-		if (block_size > 10)
+				 "%s block of %i samples",
+				 (wc == wc_Append) ? "appending" :
+				 ((wc == wc_Insert) ? "inserting" : 
+				  "overwriting"), block_size);
+		if (block_size < 50)
 			msg_ELog(EF_DEBUG,
-				 "ds_Store() writing block of %i samples",
-				 block_size);
+				 "%s block of %i samples",
+				 (wc == wc_Append) ? "appending" :
+				 ((wc == wc_Insert) ? "inserting" : 
+				  "overwriting"), block_size);
 	/*
 	 * Now we write whatever block we found, or if we have just a
-	 * single sample, use dfa_PutSample()
+	 * single sample, use dfa_PutSample() instead
 	 */
 		if (((block_size > 1) &&
 		     (dfa_PutBlock (dfile, dc, sample, block_size, wc))) ||
@@ -1070,36 +1073,33 @@ int ndetail;
 		     (dfa_PutSample (dfile, dc, sample, wc))))
 		{
 		/*
-		 * Keep track of successful puts and notify daemon of them.
+		 * Keep track of successful writes
 		 */
 			ndone += block_size;
 			if (wc == wc_Overwrite)
 				now += block_size;
 			else
 				nnew += block_size;
-			sample += block_size;
+		}
+		/*
+		 * Move on to the rest of the samples no matter what
+		 */
+		sample += block_size;
+
 		/*
 		 * Fill in the daemon on what we have done.  The last sample
 		 * of the block is passed to Notify since its used to set
 		 * the new end time of the file.
 		 */
-			ds_NotifyDaemon (&p, dfile, dc, now, nnew, 
-					 sample - 1,
-					 (sample == nsample));
+		ds_NotifyDaemon (&p, dfile, dc, now, nnew, 
+				 sample - 1,
+				 (sample == nsample));
 		/*
 		 * If we created a new file above, then our platform
 		 * structure has changed and we need a new one
 		 */
-			if (new)
-				ds_GetPlatStruct (dc->dc_Platform, &p, TRUE);
-		}
-		else
-		{
-		/*
-		 * We just have to deal with our failures and carry on
-		 */
-			sample += block_size;
-		}
+		if (new)
+			ds_GetPlatStruct (dc->dc_Platform, &p, TRUE);
 
 	} /* while (sample < nsample) */
 
