@@ -27,7 +27,7 @@
 # include <sys/uio.h>
 # include "../include/defs.h"
 # include "message.h"
-MAKE_RCSID ("$Id: msg_lib.c,v 2.4 1992-02-11 18:24:51 corbet Exp $")
+MAKE_RCSID ("$Id: msg_lib.c,v 2.5 1992-06-20 22:29:33 granger Exp $")
 
 /*
  * The array of functions linked with file descriptors.
@@ -432,7 +432,7 @@ int fd;
  * If there is something waiting in the deferred queue, dispatch it.
  */
 	if (Mq)
-		msg_DispatchQueued ();
+		return(msg_DispatchQueued());
 /*
  * Otherwise read in a message and dispatch that.
  */
@@ -796,6 +796,7 @@ msg_DispatchQueued ()
 		if (ret)
 			return (ret);
 	}
+	return(0);
 }
 
 
