@@ -1,7 +1,7 @@
 /*
  * Data store daemon-specific definitions.
  */
-/* $Id: dsDaemon.h,v 3.17 1994-11-29 14:28:18 granger Exp $ */
+/* $Id: dsDaemon.h,v 3.18 1995-02-10 01:18:34 granger Exp $ */
 /*
  * The platform and data tables, via pointer.
  */
@@ -88,6 +88,16 @@ extern bool CacheOnExit;	/* Write cache on way out?	*/
  * This variable is TRUE only during the initial file scan.
  */
 extern bool InitialScan;	/* True implies first data scan	*/
+
+/*
+ * This variable reflects the number of platforms scanned so far
+ * in the initial scan.  It should be ignored once InitialScan is false.
+ */
+extern int PlatformsScanned;
+
+/*
+ * Some useful timing information 
+ */
 extern time_t LastScan;		/* Time of latest full scan	*/
 extern time_t LastCache;	/* Time to which cache files are up-to-date */
 extern time_t Genesis;		/* Time when daemon started	*/
@@ -123,11 +133,14 @@ bool dt_ValidateClass FP((PlatformClass *pc));
 PlatformInstance *dt_FindInstance FP((const char *name));
 Platform *dt_FindPlatform FP ((const char *, int));
 PlatformClass *dt_FindClass FP((const char *name));
+void dt_ClientPlatform FP((PlatformInstance *pi, ClientPlatform *p));
 void dt_SearchPlatforms FP ((int (*func)(), void *arg, int sort, char *re));
 DataFile *dt_NewFile FP ((void));
-void dt_FreeDFE FP ((DataFile *));
-void dt_AddToPlatform FP ((Platform *, DataFile *, int));
 void dt_RemoveDFE FP ((Platform *, int));
+void dt_CutDFE FP ((PlatformInstance *p, int dfi));
+void dt_FreeDFE FP ((DataFile *));
+void dt_AddToPlatform FP ((Platform *, DataFile *, int local));
+void dt_SortDFE FP ((PlatformInstance *p, DataFile *df, int local));
 int dt_SetString FP((char *dest, const char *src, int maxlen, char *op));
 char *dt_DFEFilePath FP((Platform *pi, DataFile *df));
 
@@ -150,20 +163,22 @@ void dap_Cancel FP ((char *, struct dsp_Template *));
 void dap_Notify FP ((PlatformId, ZebTime *, int, int, int));
 void dap_Copy FP ((char *));
 
+/*
+ * Daemon public routines
+ */
 void ClearLocks FP ((Platform *));
 void CacheInvalidate FP ((int));
-void Shutdown FP ((void));
 void DataFileGone FP ((DataFile *df));
 
 /*
- * Datascan.
+ * Datascan
  */
 void	DataScan FP ((void));
 void	Rescan FP ((PlatformId platid, int all));
 void	WriteCache FP ((struct ui_command *));
 void	ReadCacheFile FP ((char *, int));
 void	RescanPlat FP ((Platform *));
-long	StatRevision FP ((Platform *, DataFile *));
+long	StatRevision FP ((Platform *, DataFile *, ino_t *));
 
 /*
  * Debuggin' routines
