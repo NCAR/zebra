@@ -1,4 +1,11 @@
+Thu Sep 21 16:03:08 1995  Gary Granger  <granger@narnia.atd.ucar.edu>
+
+	* gp: parameters exist and are respected for all layout regions;
+	  layout menu added to gp load file; added layout help topic
+
 Thu Aug 31 04:00:42 1995  Gary Granger  <granger@narnia.atd.ucar.edu>
+
+	* daemon: name=value command line options to override config file
 
 	* datastore: add DelayDataDirs option, which delays creating data
 	  directories until a file needs to be created there
