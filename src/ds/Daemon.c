@@ -39,7 +39,7 @@
 # include "dsDaemon.h"
 # include "commands.h"
 
-MAKE_RCSID ("$Id: Daemon.c,v 3.38 1994-06-28 19:58:59 corbet Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.39 1994-06-29 22:24:15 granger Exp $")
 
 
 /*
@@ -754,7 +754,6 @@ struct dsp_CreateFile *request;
  * Fill in the info and hook it into the platform.
  */
 	ClearLocks (PTable + request->dsp_plat);
-	strcpy (new->df_name, request->dsp_file);
 	strncpy (new->df_name, request->dsp_file, sizeof(new->df_name));
 	new->df_name[sizeof(new->df_name) - 1] = '\0';
 	if (strlen(request->dsp_file) >= sizeof(new->df_name))
@@ -825,7 +824,11 @@ struct dsp_UpdateFile *request;
 		  request->dsp_NSamples, request->dsp_NOverwrite, 
 		  request->dsp_Last);
 	ClearLocks (plat);
-	if (TC_Less (df->df_end, request->dsp_EndTime))
+/*
+ * Since temp files are initialized to the same begin and end times, test
+ * whether the file had samples to begin with also when detecting appends.
+ */
+	if ((df->df_nsample == 0) || TC_Less(df->df_end, request->dsp_EndTime))
 	{
 		df->df_end = request->dsp_EndTime;
 		recent = (request->dsp_Local) ? 
@@ -863,7 +866,7 @@ struct dsp_UpdateFile *request;
  * CacheInvalidate first so that the client sending this FileUpdate will
  * process it before its UpdateAck message.  The other clients won't be
  * affected by receiving the invalidate here rather than after sending
- * the UpdateAck to client with the write lock.
+ * the UpdateAck to the client with the write lock.
  */
 	if (request->dsp_Last)
 	{
@@ -1714,6 +1717,7 @@ struct dsp_FindDF *req;
  * remote data table.
  */
 	if (! dfe)
+	{
 		for (dfe = REMOTEDATA (PTable[req->dsp_pid]); dfe;
 					dfe = DFTable[dfe].df_FLink)
 		{
@@ -1721,6 +1725,7 @@ struct dsp_FindDF *req;
 				break;
 			rlast = last;
 		}
+	}
 /*
  * If we found a DFE, it is a file *before* the time, so we need to back 
  * up one, if something is there.
