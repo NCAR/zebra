@@ -1,4 +1,4 @@
-28
+31
 000000%000000Welcome to Zeb
 795
 
@@ -22,7 +22,7 @@ search facility for finding text references within a single
 topic.  
 
 Click the <Down> icon for more information on using Help... 
-moreonhelp   More Help with Using Help
+moreonhelp   Using Zeb's On-line Help
 1303
 
 / SCROLLING HELP WINDOWS /
@@ -56,454 +56,271 @@ To remove the help window, click on the <Quit> button found
 above the row of icon buttons in the help window.  If help
 is requested at a later time, the help window will pop up
 again.
-buttonmaps   Graphics Window Buttons
-2349
-
-/ BUTTON TO COMMAND MAPPING /
-
-Zeb uses "button-to-command mappings" to map keystrokes and
-mouse button clicks in a graphics window to many of the
-graphics window functions.  To perform one of the actions
-listed in the following table, simply press the indicated
-key or mouse button while the cursor is in the graphics
-window where you wish the action performed.  In the table,
-a letter refers to the key on the keyboard.  LMB indicates
-left mouse button, MMB the middle, and RMB the right. 
-Prepending Shift- to the button name indicates that the
-shift key should be held down while the mouse button is
-pressed.  So Shift-LMB means 'hold the shift key down and
-press the left mouse button.'  Function keys are denoted
-by 'Fn'.
-
-Button or Key		Graphics Window Action
------------------------ ----------------------------------
-	h		Popup this help window.
-        b               Back up from a zoom.
-        g               Popup the GetPosition widget.
-        m               Popup the movie controller.
-        p               Draw a spotlight.
-        r               Run a movie.
-        s               Stop a movie.
-        t               Popup the overlay times widget.
-        u               Move up one step in altitude.
-        d               Move down one step in altitude.
-	l		Popup the line width widget
-
-	LMB		Set this location in the
-                           GetPosition widget.
-
-	Shift-LMB	Zoom area of graphics window.
-
-        MMB		Draw a line on which to base
-                           a vertical cross section.
-
-        RMB, F1		Toggle the radar field between
-                           reflectivity and velocity.
-
-        Up Arrow        Move up one step in altitude.
-
-        Down Arrow      Move down one step in altitude.
-
-        Left Arrow      Zoom to a preset level(large scale).
-
-        Right Arrow     Zoom to a preset level(small scale).
-
-        Page Up         Move to the highest altitude
-                        available.
-
-        Page Down       Move to the lowest altitude
-                        available.
-
-For the STORM-FEST CD distribution, Each key of the middle
-row of the keypad (left and right cursor keys, and the
-center button between them) selects a different scale of
-the STORM-FEST domain:
-
-	Left Arrow	Continental U.S.
-	Center Button	Central and Midwest U.S.
-	Right Arrow	CP4 Radar domain
-movies       Running Movies
-3761
-
-/ SETTING THE MOVIE PARAMETERS /
-
-Movies are chronological sequences of "time frames"
-generated and displayed by the movie controller to create
-animation of graphics window plots.  Movies can be run in
-each of the graphics windows at any time.  First, you must
-popup the movie controller.  You can do this two ways:
-
-	Find the <Zeb> icon in the lower left corner
-	of the graphics window.  Choose the
-        "Popup Movie Controller" entry from the icon menu.
-
-	Or, type 'm' inside the graphics window.
-
-Next, you must set the movie parameters to generate the
-time frames which will comprise the animation sequence. 
-The movie controller provides four parameters for
-adjustment: the duration of the movie, the time of the last
-frame of the movie, the interval between frames, and the
-rate at which the frames are displayed.  The movie duration
-and frame interval are measured in minutes, and the display
-rate is measured in frames/second.  For example, to animate
-satellite images over a five hour period ending at
-"04-mar-1992,21:00:00", skipping one hour between plots and
-displaying five frames every second, the movie controller
-would look like the following:
-
-Movie for [ 300 ] minutes ending at [ 04-mar-1992,21:00:00 ]
-Frames/Second: [ 5   ]  Frame skip: [ 60 ] minutes.
-
-If you are interested in five-minute surface data, you can
-change the frame skip to five minutes.  However, since
-there is a limit to the maximum number of frames in a
-movie, the duration must be reduced as the frequency of the
-frames increases.
-
-There are two options for entering the ending time for a
-movie; 1) type in the time using the format
-"DD-MMM-YYYY,HH:MM", or 2) type the word "now".  Note that
-the year must have four digits, even though elsewhere in
-Zeb the year is displayed with only two digits.  If the
-time is left out, as in "04-mar-1992", or specified as
-"04-mar-1992,0", "00:00" is assumed.  When the ending time
-is specified as "now", the ending time is taken to be the
-current system time (when the graphics window is in
-real-time mode) or as the history time of the graphics
-window (when the graphics window is in history mode).
-
-
-/ RUNNING THE MOVIE /
-
-Once the movie parameters are adjusted, begin the movie by
-pressing the <Run> button next to "Movie control:".  If
-the parameters are all valid, the movie controller will
-begin generating each frame of the movie.  If an error
-occurs, a message will appear on the "Status:" line.
-
-After each of the frames has been generated and stored, the
-movie will run more quickly and smoothly.  The speed of the
-movie will depend upon the "Frames/Second:" parameter.  
-
-The movie can be stopped at any time, even while the
-controller is generating frames, by pressing the <Stop>
-button.  This leaves the graphics window in history mode,
-with a plot time corresponding to the frame at which the
-movie stopped.  The movie can be continued by pressing
-<Run> again.
-
-The scroll bar at the bottom of the movie controller
-provides a convenient method for stepping backward and
-forward through the movie frames.  Holding down the middle
-mouse button inside the scroll bar allows you to scroll
-through frames continuously by moving the mouse left and
-right.  The left mouse button steps backward a single frame
-while the right mouse button steps forward a single frame.
-
-The <Real Time> button puts the graphics window in real
-time mode, taking the plot time from the current system
-time and disactivating the movie controller.  This is
-useful only in real-time applications.
-
-/ QUITING THE MOVIE CONTROLLER /
-
-The movie controller window can be removed by pressing the
-<zap> button at the top of the window.  Removing the movie
-controller leaves the graphics window in the mode and time
-last set by the movie controller.  
-altitude     Changing Altitude in Horizontal Plots
-632
-
-/ CHANGING THE ALTITUDE OF A HORIZONTAL PLOT /
-
-When a Graphics Window is dislaying a horizontal
-(constant-altitude) plot, and its base field contains
-several different altitudes (or elevation angles), it is
-possible to change the altitude of the plot.  The altitude
-(or elevation angle) is displayed in the lower right corner
-of the graphics window.
-
-The following keystrokes may be used to step up and
-down in altitude:
-
-	<Up Arrow>	Move up one step in altitude.
-
-	<Down Arrow>	Move down one step in altitude.
-
-	<Page Up>	Move up to the highest altitude
-			available.
-
-	<Page Down>	Move down to the lowest altitude
-			available.
-zooming      Zooming a Graphics Window
-1338
-
-/ ZOOMING /
-
-Zooming involves enlarging an area of a Graphics Window to
-obtain a more detailed display of the data.  To zoom an
-area of a graphics window, follow these steps:
-
-   1.  Place the cursor in the upper left corner of the
-       area you wish to zoom.
-
-   2.  Press and hold the Shift key and the Left Mouse
-       Button at the same time.
-
-   3.  Without releasing the mouse button, drag the
-       cursor to the lower right corner of the area
-       you wish to zoom.  You will see a box 
-       delineating an area of the window as you move 
-       the mouse.  
-
-   4.  If at any time you wish to cancel the zoom,
-       while still pressing the left mouse button, 
-       simply press the middle or right mouse buttons
-       without releasing the left mouse button.
-       The box will disappear, the zoom will be
-       cancelled, and the mouse buttons can then 
-       be released.
-
-   5.  When the box in the window encloses the area
-       you wish to zoom, let go of the mouse button.
-       The area enclosed by the box will be enlarged
-       to fill the entire graphics window.
-
-
-/ BACKING OUT OF A ZOOMED AREA /
-
-To return to the perspective from which you zoomed an area,
-press 'b'.  You can zoom an area successively any number of
-times; pressing 'b' steps back from each zoomed perspective
-one zoom at a time.
-addrem       Adding and Removing Data in Horizontal Plots
-3407
-
-/ DATA REPRESENTATIONS /
-
-Several types of data may be displayed in a
-constant-altitude (horizontal cross-section) plot using
-different 'representations'.  The 'representation'
-essentially refers to the type of plot used to display the
-data in a graphics window.  Static data, such as lat/lon
-grids, x/y grids, range rings, state boundaries, dual
-doppler lobes, and locations of towns, airports, and
-soundings are all represented as static overlays.  Other
-data, such as radar sweeps, satellite images, surface
-station field contours, and aircraft tracks are represented
-differently.  Radar and satellite images are plotted as
-gridded raster data.  Surface station data can be plotted
-as contours over a regularized grid, or the field
-measurements can be explicitly displayed for each station
-in the irregular grid.  Aircraft tracks are represented as
-track plots.  Any number of data set representations can be
-added to a horizontal plot; likewise, any data set
-representation can be removed from a plot.
-
-/ ADDING DATA /
-
-To add a data representation to a window,
-
-	1.  Place the cursor over the icon in the IconBar
-	    which corresponds to the desired data.
-
-	2.  Press and hold the left mouse button.
-
-	3.  Drag the cursor until the desired platform
-	    data and representation is highlighted.  
-
-	4.  Let go of the mouse button.  The mouse cursor
-	    will become a cross-hair symbol.
-
-	5.  Move the cursor into the graphics window where
-	    the data should be added.
-
-	6.  Click the left mouse button.
-
-Here are some examples:  To add a raster-image
-representation of CP4 velocity data, choose the "velocity"
-item from the "CP4" sub-menu under the <Radar> icon on the
-Icon Bar.  To add P-3 aircraft tracks, select "P-3" from
-the <Aircraft> icon pull-down menu.  For mesonet data,
-several combinations are available under the <Mesonet> icon
-menu, from a filled-contour representation of five-minute
-data to irregular station plots of hourly data.  Note that
-choosing data to add usually involves not only a choice of
-the data platform but also a choice of a particular field
-from that platform.
-
-
-/ REMOVING DATA /
-
-To remove data from a graphics window,
-
-	1.  Place the cursor over the icon in the graphics
-	    window (not the Icon Bar) which corresponds to
-	    the data to be deleted.
-
-	2.  Press and hold the left mouse button.
-
-	3.  Drag the cursor until the "Remove" menu entry
-	    is highlighted.
-
-	4.  Let go of the mouse button.
-
-The data and its icon will be removed from the graphics
-window.
-
-
-/ DISABLING AND RE-ENABLING DATA /
-
-Rather than completely remove a data set from a graphics
-window, you can temporarily disable it instead.  Disabling
-a data field means that the representation of the data will
-not be plotted in the window, but the icon and its current
-configuration will remain attached to the graphics window. 
-This allows the data to be quickly re-plotted using its
-most recent settings when the plot representation is
-re-enabled.  To disable or re-enable a data field, follow
-these steps:
-
-	1.  Place the cursor over the icon in the graphics
-	    window which corresponds to the data.
-
-	2.  Press and hold the left mouse button.
-
-	3.  Drag the cursor until the "Disable/Reenable"
-	    menu entry is highlighted.
-
-	4.  Release the mouse button.
-
-The icon will change color, typically to gray, to indicate
-that this icon's data is no longer being displayed in the
-plot.
-
-getposition  Displaying Coordinates in Horizontal Plots
-3166
-
-/ THE GET POSITION WIDGET /
-
-The Get Position Widget allows the user to click on a point
-in the graphics window and see the location of that point
-in latitude and longitude coordinates.  The Get Position
-widget also reports distances relative to a named origin
-using azimuth and range, and x and y offsets.  The relative
-range can be displayed in either kilometers or nautical
-miles.  There are three steps to using the Get Position
-Widget, popping it up, entering an origin, and picking
-points in the graphics window.
-
-   1.  Pop up the Get Position Widget by typing a 'g'
-       in the graphics window for which you wish to
-       display location coordinates.  To display the
-       lat/lon coordinates for a point in the graphics
-       window, click the left button on the point. 
-       The coordinates will be shown in the Get Position
-       window.  However, the relative coordinates will
-       not be shown if an origin has not yet been
-       specified.
-
-   2.  Enter an origin for the relative measurements.
-       The origin name should be typed into the blank
-       box, second from both the left and the bottom of
-       the window.  For STORM-FEST, the origin can
-       be one of the following locations:
-
-	ops-ctr		Richards-Gebaur Ops Center
-	cp3		CP-3 Radar
-	cp4		CP-4 Radar
-	mhr		Mile-High Radar
-	okc		Twin Lakes, OK Nexrad
-	fdr		Frederick, OK Nexrad
-	cim		NSSL Cimarron
-	hot
-	chill
-	osk		Oskaloosa
-	aster		Aster
-	array		Center of boundary layer
-			array
-		
-       In addition, many of the CLASS, NSSL CLASS,
-       NWS sounding, and profiler site locations
-       are available.  Use the ID name as the
-       origin name.
-
-   3.  To get the location of a point in the graphics
-       window, click the left mouse button on the
-       point.  The coordinates of the point will be
-       displayed in the Get Position window.  If
-       you see the message "Unable to locate origin:
-       xxx", then the origin name could not be found
-       and should be changed.  You can click the left
-       mouse button on as many points as you like;
-       each time the coordinates of the point you
-       clicked will be shown in the Get Position
-       window.  You can also change the origin at
-       any time by typing a new origin name into
-       the origin box.  If you change the origin name
-       and then press return inside the origin text
-       window, the coordinates of the most recently 
-       chosen point will be shown relative to the
-       new origin.
-
-
-/ CHANGING COORDINATE UNITS /
-
-You can change the units and formats which the Get Position
-widget uses to display coordinates.  There are two toggle
-buttons in the lower left corner of the Get Position
-window.  The bottom button toggles the units of the range
-between nautical miles and kilometers.  The other toggle
-button alternates the format of the lat/lon coordinates
-between deg/min/sec and decimal degrees.  Once a point has
-been selected in the graphics window, any unit changes will
-display the coordinates of the point in the new units.
-
-/ REMOVING THE GET POSITION WIDGET /
-
-To remove the Get Position Widget, click on the <Zap> 
-button at the top of the window.
-overlaytimes Finding Data Times for a Plot
-1701
-
-/ THE OVERLAY TIMES WIDGET /
-
-The Graphics Window plots the latest data available with a
-time occurring before the window's plot time, but it does
-not show the actual time of the data used for each platform
-in the plot.  The Overlay Times widget shows this
-information: it displays the time at which the data was
-collected for each data platform represented in the
-graphics window.
-
-The widget may be popped up in two ways.  Either select the
-"Popup overlay times window" entry from the left-button
-menu of the <Zeb> icon (in the lower-left corner of the
-graphics window), or type 't' anywhere inside the graphics
-window.
-
-The Overlay Times window will appear containing a list of
-all of the platforms being plotted in the graphics window,
-except for static overlays like maps, grids, and locations.
-Next to each platform name, the widget displays the time of
-the data which the graphics window is presently plotting. 
-For example, suppose the plot time is
-"3-Mar-1992,14:45:00".  If GOES satellite data is only
-sampled on the half-hour, then the Overlay Times widget
-will display a time of "3-Mar-1992,14:30:01" next to the
-platform name "goes".  This is the time for which the
-satellite image being displayed is valid.  If the 14:30
-image were missing, this information would be reflected in
-the widget by a "goes" platform time of 14:01.  The times
-shown in the Overlay Times window will ALWAYS be correct,
-even if the graphics window is in movie mode.  The overlay
-times will always correspond to the frame currently visible
-in the graphics window, even while stepping backward and
-forward through frames and while running a movie.
-
-To remove the Overlay Times Widget, click on the <Zap>
+shutdown     Shutting Down Zeb
+1211
+
+/ SHUTTING DOWN ZEB /
+
+Stopping the Zeb system entails two steps.  First, you must
+stop the Zeb graphics display.  Move the cursor to the
+<Zeb> icon in the Icon Bar.  Press and hold the left mouse
+button.  Drag the cursor until the entry "Shut down Zeb
+system" is highlighted.  Release the mouse button.
+
+The Icon Bar, the graphics windows, and all associated
+widgets such as the Time widget, the Hardcopy widget,
+and the Movie and Overlay widgets will disappear from
+the screen.
+
+If it is not possible to use the Icon Bar, the graphics
+display may be stopped by typing the following command at
+the display manager prompt:
+
+        DM> exit
+
+In the second step, the rest of the Zeb background
+processes must be stopped.  Type this command at any
+shell prompt, assuming the Zeb executable directory
+is in your path:
+
+	% zebstop
+
+This command stops processes such as the DataStore and
+the EventLogger.
+
+/ STORM-FEST CD SPECIFICS /
+
+If you are using the STORM-FEST CD-ROM distribution of Zeb,
+the script which starts the Zeb system also automatically
+shuts down all of the Zeb processes once the graphics
+display is shut down.  Hence STORM-FEST CD users do not
+need to perform the second step mentioned above.  
+
+components   Zeb System Components
+4969
+
+/ ZEB SYSTEM COMPONENTS /
+
+The entire Zeb system comprises many programs.  The most
+obvious programs are those which display windows on the
+workstation screen.  However, these programs rely on other
+programs for retrieving and storing data, and for passing
+messages between each other.  To aid navigation of the Zeb
+solar system, this help topic describes the display
+components of the system: the Icon Bar, the Event Logger,
+Graphics Windows, and the Time Widget.  Lastly, this topic
+introduces the concept of the Zeb "display configuration",
+which comprises all of the components described here.
+
+/ THE ICON BAR /
+
+The Icon Bar is the "main menu" of the Zeb display.  It
+will be present for ALL display configurations, regardless
+of the number or type of Zeb windows on the screen.  The
+Icon Bar is a box containing several icons, each depicting
+some clue about the use of the Icon.  Usually the icons
+have a blue background and a yellow foreground.  Each icon
+is a button which pops up a menu when pressed.  To choose
+an item from an icon menu, press and hold the left mouse
+button inside the icon.  Once the menu appears, and while
+still holding down the mouse button, drag the selection bar
+to the item you wish to choose and release the mouse
 button.
+
+Some icon menus have sub-menus.  Sub-menu items will have
+an arrow at the left side of the menu.  To open a sub-menu,
+drag the cursor to the far right of the sub-menu name, then
+select a sub-menu item by releasing the mouse button over
+the name of the item.
+
+It is easy to confuse the Icon Bar with the icons in a
+Graphics Window.  Note that only the Icon Bar contains the
+<Help> icon---the icon with the question mark.
+
+See the topic "The Icon Bar Icons" for a description of
+each of the icons in the Icon Bar.
+
+
+/ THE EVENT LOGGER /
+
+The Event Logger is an important part of the Zeb display
+because it provides feedback, information, and error
+messages from all of the other Zeb processes.  Like the
+Icon Bar, the Event Logger will always be on the screen
+regardless of the current configuration.  If Zeb appears to
+be operating incorrectly, or not at all, check for messages
+in the Event Logger.   The message window in the Event
+Logger can be scrolled backward and forward over old
+messages using the scroll bar on the left side of the
+window.
+
+The <Clear> button erases the message window.  The <Ctl:>
+button toggles control of the Event Logger between Zeb's
+display manager and the X server window manager.  If you
+want to move or resize the Event Logger window using the
+window manager, click on the <Ctl:> button until it reads
+"Ctl: WM" (for 'window manager has control').  The <Events>
+and <Debug> menu buttons are used primarily for development
+and real-time operations and should not be used for
+post-processing.
+
+
+/ GRAPHICS WINDOWS /
+
+Graphics windows are the focal processes of the Zeb
+graphics display.  A graphics window is responsible for a
+single plot, allowing the plot description to be modified
+through various pull-down menus, while plotting data from
+multiple platforms using various representations of the
+data.  [See "Add and Removing Data".]  A graphics window
+can only display one type of plot at a time, such as
+horizontal (constant-altitude), time-series, X-Y, skew-t,
+or cross-sections.  Any number of graphics windows may be
+present in a Zeb display configuration, and each can be a
+different type of plot from the others.  See "Changing the
+Display Configuration" and "Editing Display
+Configurations." 
+
+
+/ THE TIME WIDGET /
+
+The Time Widget is the "system time controller."  It can
+control the plot modes and times of all of the graphics
+windows in a configuration, or it can control graphics
+windows individually.  It is a very useful post-processing
+tool, and hence a major component of any Zeb display. 
+However, unlike graphics windows, the event logger, and the
+icon bar, the time widget will not automatically appear in
+a configuration.  It must be explicitly popped up from the
+<Zeb> main menu on the Icon Bar.  See "Setting a History
+Time" for instructions on using the system time widget.
+
+
+/ THE DISPLAY CONFIGURATION /
+
+To conveniently manage all of the possible combinations of
+windows in a Zeb graphics display, Zeb uses "display
+configurations" to remember specific combinations.  A
+display configuration includes the locations and sizes of
+the Icon Bar window, all of the graphics windows, and
+occasionally the Event Logger window.  In addition, it
+includes the plot descriptions in use by each graphics
+window, so that the data and representations and plotting
+parameters of a plot can be precisely re-created at any
+time.  By allowing display components to be managed as
+groups, i.e. as whole display configurations, the Zeb
+display can quickly and easily alternate between different
+personal preferences and different analysis applications. 
+See the topics "Changing the Display Configuration" and
+"Editing Display Configurations" for more information.
+
+
+
+
+
+iconbar      The Icon Bar Icons
+3701
+
+/ THE ICON BAR ICONS /
+
+This topic describes the purpose and function of each of the
+icon menus on the Icon Bar.  In particular, the topic covers
+the Icon Bar for the STORM-FEST CD distribution, but the
+information here will be readily applicable to many of the
+Zeb project configurations.
+
+The Icon Bar performs "global" Zeb functions---functions
+which are useful or applicable to more than one window or
+process in the Zeb display.  Most of the icon menus specify
+platforms and fields for addition to one of the Graphics
+Windows in the display.  Each of Icon Bar icons is
+described below, in the order they occur on the Icon Bar,
+either top-to-bottom or left-to-right.
+
+/ THE HELP ICON /
+
+This icon pictures a question mark and the word "Help". 
+This icon menu provides access to the Zeb on-line help
+facility and help-related services, such as printing
+hardcopies of Zeb docuementation.  Some help topics are
+directly accessible though menu entries, such instructions
+on "Shutting Down Zeb", while other topics can be reached
+by first visiting the "Introduction" topic.  One of the
+menu entries, "Surface Station Listing", pops up a help
+window which lists a subset of the hourly surface stations,
+their Zeb IDs, cities and coordinates.   The two sub-menu
+entries at the bottom generate hardcopies of some of the
+PostScript-format Zeb documents.  See the "Guide to
+Documentation" topic.
+
+/ THE ZEB ICON /
+
+The main Zeb menu is found under the "Zeb" icon of the Icon
+Bar.  This menu starts up several of the important widgets
+in the Zeb display, and also allows convenient switching
+between display configurations.  The first block of the
+menu lists the available display configurations.  The next
+block contains an entry for each of the global Zeb display
+widgets:
+
+  Time ---	Controls the time settings and
+		history modes of all or individual
+		graphics windows in the display.
+		See "Setting a History Time".
+
+  Hardcopy ---	Generates hardcopy plots of one
+		or all of the windows in the 
+		display.  See "Printing Hardcopies".
+
+  Configuration Editing ---
+		Creates new configurations or changes
+		existing ones, and stores the changes
+		for future use.  See the help topic 
+		"Changing Display Configurations".
+
+  Data Store ---
+		Runs the 'dsdwidget' application,
+		which displays the times for
+		which data is available for every
+		platform.  See the "Data Store
+		Widget" help topic.
+
+  Data Store Management	---
+		Runs the 'dsmanage' program, the Zeb
+		disk manager.  The Zeb disk manager 
+		simplifies and oversees the task of
+		managing magnetic disk space by
+		moving data files back and forth
+		between disk and CD or tape.
+
+The "Open Windows mode" entry changes internal parameters
+to help Zeb cooperate with the OpenWindows environment. 
+Lastly, "Shut Down Zeb System" does just that; see the
+"Shutting Down Zeb" help topic for details.
+
+/ THE PLATFORM ICONS /
+
+The rest of the Icon Bar icons direct which fields of which
+platforms to add to a plot in an individual Graphics
+Window.  In general, when an overlay or field is selected
+from an icon menu, you must indicate to which window you
+wish to add the overlay.  After selecting the entry, the
+cursor will change into a crosshair; just click the mouse
+inside the desired window.  If you click the mouse in a
+window which is not a Graphics Window, the action will be
+aborted.  See "Adding and Removing Data ...".
+
+The category of each platform icon should be apparent
+from the icon picture.  Starting from the <Zeb> icon,
+the platform icons represent these platform categories:
+
+	Radar, CP4 velocity or reflectivity
+	NOWRAD
+	Mesonet, 5-min and hourly station data
+	GOES Satellite
+	Aircraft tracks and track data
+	Static overlays
+
 historytime  Setting a History Time
 6174
 
@@ -640,90 +457,19 @@ mode.
 See the help topic "Running Movies" for detailed
 information about operating the movie controller.
 
-icons        Using the Icons in a Graphics Window
-1049
+displayconfigChanging the Display Configuration
+1031
 
-/ GRAPHICS WINDOW ICONS /
+/ CHANGING THE DISPLAY CONFIGURATION /
 
-	The Iconbar is Zeb's main menu and allows the user 
-to choose the type of data to be plotted and the display 
-configuration.  All the available data is represented here. 
-A new data type or overlay may be added to any window by 
-simply using the mouse to pick the desired platform and 
-field from the icon bar, then clicking on the target window. 
-(NOTE: The target window must be a horizontal cross-section.)
+A display configuration refers to the number, size and
+position of windows that make up the Zeb display.  Several
+predefined display configurations have been created and the
+user may switch between configurations whenever necessary. 
+The available configurations are listed in a menu under the
+Zeb icon of the IconBar.
 
-	The icons at the bottom of each window are used to 
-control the contents of the data present in that window.  
-There is one icon present for each data type and/or overlay.
-Each mouse button activates a different menu within each
-platform icon.
-
-Generally the icon menus on the left button allow users to 
-change plotting limits/intervals, remove a field or 
-disable/reenable a field.  The middle buttons generally 
-allows users to change fields (i.e. change mesonet contours 
-from temperature to dewpoint) and the right button generally 
-allows modification of line width or other miscellaneous 
-information.limitwidgets Adjusting Limits
-1196
-Adjusting Limits
-
-	Values that affect the plotting of data, referred to
-as plot limits, may be directly changed using limit widgets.
-Some examples of plot limits are:
-
-	- Center and Step:  Plot limits that map data values
-	  onto colors.
-
-	- Arrow Scale:  Plot limit that determines the 
-	  length of a vector relative to the window size.
-
-	- Time Interval:  Length of time of interest to
-	  the user.  Suffixes: m - minutes, h - hours,
-	   d- days, s - seconds (default)
-
-	- And many more.
-
-	Limit widgets are activated by:
-
-	1.  Click and hold the left mouse button on the 
-	    icon representing the overlay whose limits 
-	    must be adjusted.
-
-	2.  Move the cursor until the
-
-		Adjust Limits
-
-	    menu entry is highlighted.
-
-	3.  If a submenu appears, then select the limit
-	    to be adjusted from the submenu.
-	
-	4.  Release the mouse button.
-
-	At this point a limit widget should have appeared,
-and the values within it may be changed.
-
-	1.  Place the cursor in the yellow text window,
-	    and type the new value.  The previous value
-	    will automatically be deleted.
-	
-	2.  Press Store when the value(s) are correct.
-	    Or, to abandon any changes, click on the
-	    Cancel button.
-displayconfigChanging Display Configurations
-909
-Changing Display Configurations
-
-	A display configuration refers to the number, size
-and position of windows that make up the Zeb display.  
-Several predefined display configurations have been created
-and the user may switch between configurations whenever
-necessary.  The available configurations are listed in a 
-menu under the Zeb icon of the IconBar.
-
-	In order to change to a new configuration:
+	To change to a new configuration:
 
 	1.  Click and hold the left mouse button on the 
 	    Zeb icon of the IconBar.
@@ -735,50 +481,169 @@ menu under the Zeb icon of the IconBar.
 	    menu entry.)  The currently selected display
 	    configuration is denoted by an *.
 
-	3.  Let go of the mouse button.
+	3.  Release the mouse button.
 
-	While the new configuration is being drawn some
-or all of the currently visible windows may disappear.
+While the new configuration is being drawn some or all of
+the currently visible windows may disappear.  See "Editing
+Display Configurations" for information on creating new
+configurations and modifying pre-defined configurations.
 
-shutdown     Ending the Zeb Universe
-1205
 
-/ SHUTTING DOWN ZEB /
 
-Stopping the Zeb system entails two steps.  First, you must
-stop the Zeb graphics display.  Move the cursor to the
-<Zeb> icon in the Icon Bar.  Press and hold the left mouse
-button.  Drag the cursor until the entry "Shut down Zeb
-system" is highlighted.  Release the mouse button.
+editdconfig  Editing Display Configurations
+6742
 
-The Icon Bar, the graphics windows, and all associated
-widgets such as the Time widget, the Hardcopy widget,
-and the Movie and Overlay widgets will disappear from
-the screen.
+/ EDITING DISPLAY CONFIGURATIONS /
 
-If it is not possible to use the Icon Bar, the graphics
-display may be stopped by typing the following command at
-the display manager prompt:
+This topic describes the process of editing a display
+configuration.  New configurations can be created or
+existing configurations can be modified to personal
+preference.  First, change to the display configuration
+which will be modified.  To start a new configuration from
+scratch, change to the 'Emtpy' configuration.  See the help
+topic "Changing Display Configurations" for details on
+setting the display configuration.
 
-        DM> exit
+Next, popup the "Configuration Editing" widget from the
+<Zeb> icon menu on the Icon Bar.  A widget will appear
+containing six buttons.  The <Cancel> button, as always,
+removes the widget from the screen.  All of the
+configuration pop-up widgets will have a <Cancel> button;
+press this button to remove the widget without performing
+any actions.  The <Help> button pops up this help topic. 
+The rest of the buttons function as described in the
+following paragraphs.  Essentially there are four options:
+create a new configuration by copying an existing one, add
+a window to the current configuration, delete a window from
+the current configuration, or save the current
+configuration under a specified name in specified
+directories.  After adding, deleting, moving, and/or
+resizing windows in a new or existing configuration, and
+after configuring the plots in each window as desired, the
+entire display configuration can be saved for future
+reference through the "Save Configuration" mechanism
+described at the end of this topic.
 
-In the second step, the rest of the Zeb background
-processes must be stopped.  Type this command at any
-shell prompt, assuming the Zeb executable directory
-is in your path:
 
-	% zebstop
+/ CLONING A CONFIGURATION /
 
-This command stops processes such as the DataStore and
-the EventLogger.
+The <New Configuration> button pops up a window for
+creating a new configuration by 'cloning' an existing
+configuration.  Two names must be specified in the
+popped-up window: the name of the configuration to create
+and the name of the configuration to clone.  Note that the
+configuration being cloned need not be the configuration
+which is currently displayed.  However, the default clone
+name will always be taken as the name of the current
+configuration.  Once both names have been specified, press
+the <Create Configuration> button.  The new configuration
+will be created and automatically installed as the current
+display configuration.
 
-/ STORM-FEST CD Specifics /
 
-If you are using the STORM-FEST CD-ROM Zeb distribution,
-the script which starts the Zeb system also automatically
-shuts down all of the Zeb processes once the graphics
-display is shut down.  Hence STORM-FEST CD users do not
-need to perform the second step mentioned above.
+/ ADDING A NEW WINDOW /
+
+The <New Window> button pops up a widget for adding a new
+window to the current display configuration.  Several
+parameters may be set through this widget.  The "New window
+name:" field will be the name of the new window.  This name
+must be unique among the other windows in the
+configuration.  The window must also be assigned a plot
+description.  The plot description name can be typed
+directly, inside the "Plot description:" text window, or it
+can be chosen from the pull-down menu under the <Select
+Plot Description> button.  The window also needs a button
+map, specified in the "Button map:" text window or through
+the pull-down menu <Select Button Map>.  The default plot
+description is "template", while the default button map is
+"default".  For horizontal plots, the "big" button map is
+the most commonly used map.  The choice of plot description
+will depend principally on the type of plot desired, such
+as "Mesonet" for a horizontal plot with surface data,
+"Skew-t" for a skew-t plot, "Time Series" for a time-series
+plot, or "Cross-Sect" for a cross-section plot.  Once the
+new window is created with the basic plot type configured,
+new combinations of platforms and overlays can be
+configured through the normal icon menus.  
+
+The last parameter for the new window is "PD Force?"   This
+parameter can be toggled between "yes" and "no".  If "yes",
+a new plot description will always be forced onto the
+window, even if the window already exists.  Otherwise a
+window which already exists will keep its current plot
+description.
+
+Display configurations typically share window names so that
+new windows need not be created for every configuration
+change.  For example, the "Radar" configuration uses four
+windows named "UpperLeft", "UpperRight", "LowerLeft", and
+"LowerRight".  In the "Radar" configuration, the window
+"UpperLeft" is a skew-t plot, whereas in the "Surface Data"
+configuration, "UpperLeft" is a horizontal plot.  Another
+possible naming scheme, however, might include a window
+named "CrossSection" which is present in most display
+configurations and is always a cross-section plot.  Hence
+the necessity of the "Force PD" parameter.  When changing
+to a configuration which uses a window whose name is used
+in the present configuration, the new plot description must
+replace the current one in order for the correct plot-type
+and platform overlays to be installed in the window.
+
+Once all of the parameters have been set as desired, press
+the <Create Window> button to actually create the new
+window.  After the window appears, use the window manager
+to move and resize the window to the desired geometry.  Use
+the Icon Bar and graphics window icons to add, remove, and
+configure the platform plots in the window.
+
+
+/ DELETING A WINDOW /
+
+The <Delete Window> button pops up a window selction
+widget.  The window to be deleted must be specified by
+name.  The name can be entered in the text window next to
+"Window name:" or by selecting the window with the mouse. 
+Mouse selection is only possible if the window is visible
+on the screen.  To use the mouse, press the <Select with
+mouse> button.  When the cursor becomes a cross-hair, click
+the mouse inside the window you wish to delete.  The name
+of the selected window will be entered as the "Window
+name:".  If the selected window was not a valid choice,
+"none" will appear in the text window.  Once the window
+name has been specified, press the <Do it> button to delete
+the window.
+
+
+/ SAVING A CONFIGURATION /
+
+The <Save Configuration> button of the "Configuration
+Editing" widget allows the current configuration to be
+saved to disk so that it can be recalled on later
+invocations of Zeb.  Press the <Save Configuration> button
+to pop-up the "Save Configuration" widget.  In the top text
+window, specify a name for the configuration.  The "Config
+directory:" text window specifies where the display
+configuration files will be stored, while "PD directory:"
+specifies where the plot descriptions for all of the
+windows will be stored.  Ordinarily neither of the
+directory paths will need to change.
+
+To actually save the configuration, press the <Do It>
+button.  The entire state of the current Zeb display,
+including the locations and plot descriptions of all
+of the graphics windows, will be written to disk under
+the given name.  The configuration may be displayed by
+entering the following command at the display manager
+prompt:
+
+DM> pconfig <config-name>
+
+The configuration can be added to the Icon Bar <Zeb> menu
+by editing the file 'IconBar' in the <project> directory.
+dsdwidget    Finding Out What Data Times are Available
+0
+dsmanage     Managing Local Disk Space
+0
 printer      Printing Hardcopies of Windows
 6195
 
@@ -939,200 +804,6 @@ X11 Release 5 distribution, and the 'xwd2ps' program is
 freely distributed software.  See the copyright notices in
 the xwd2ps man(1) page in the directory doc/man in the
 distribution.  
-components   Planets in the Zeb Solar System
-2607
-
-/ ZEB SYSTEM COMPONENTS /
-
-The entire Zeb system comprises many programs.  The most
-obvious programs are those which display windows on the
-workstation screen.  However, these programs rely on other
-programs for retrieving and storing data, and for passing
-messages between each other.  To aid navigation of the Zeb
-solar system, this help topic describes the display
-components of the system: the Icon Bar, the Event Logger,
-Graphics Windows, and the Time Widget.
-
-/ THE ICON BAR /
-
-The Icon Bar is the "main menu" of the Zeb display.  It
-will be present for ALL display configurations, regardless
-of the number or type of Zeb windows on the screen.  The
-Icon Bar is a box containing several icons, each depicting
-some clue about the use of the Icon.  Usually the icons
-have a blue background and a yellow foreground.  Each icon
-is a button which pops up a menu when pressed.  To choose
-an item from an icon menu, press and hold the left mouse
-button inside the icon.  Once the menu appears, and while
-still holding down the mouse button, drag the selection bar
-to the item you wish to choose and release the mouse
-button.
-
-Some icon menus have sub-menus.  Sub-menu items will have
-an arrow at the left side of the menu.  To open a sub-menu,
-drag the cursor to the far right of the sub-menu name, then
-select a sub-menu item by releasing the mouse button over
-the name of the item.
-
-It is easy to confuse the Icon Bar with the icons in a
-Graphics Window.  However, only the Icon Bar contains the
-<Help> icon---the icon with the question mark.
-
-See the topic "The Icon Bar Icons" for a description of
-each of the icons in the Icon Bar.
-
-/ THE EVENT LOGGER /
-
-The Event Logger is an important part of the Zeb display
-because it provides feedback, information, and error
-messages from all of the other Zeb processes.  Like the
-Icon Bar, the Event Logger will always be on the screen
-regardless of the current configuration.  If Zeb appears to
-be operating incorrectly, or not at all, check for messages
-in the Event Logger.   The message window in the Event
-Logger can be scrolled backward and forward over old
-messages using the scroll bar on the left side of the
-window.
-
-The <Clear> button erases the message window.  The <Ctl:>
-button toggles control of the Event Logger between Zeb's
-display manager and the X server window manager.  If you
-want to move or resize the Event Logger window using the
-window manager, click on the <Ctl:> button until it reads
-"Ctl: WM" (for 'window manager has control').  The <Events>
-and <Debug> menu buttons are used primarily for development
-and real-time operations.
-
-xygraph      Using X-Y Graphs
-1268
-
-/ X-Y GRAPHS /
-
-In general, X-Y Graphs allow plotting of any two-
-dimensional data combination.
-
-
-/ ADDING DATA TO AN X-Y GRAPH /
-
-If a particular X-Y Graph allows data from different
-platforms to be added, then this will be done using the
-menu activated by clicking the middle mouse button on the
-Zeb icon in the graphics window.
-
-
-/ CHANGING FIELDS /
-
-Changing fields per se is not usually allowed.  To see data
-from a different field, add it from the Zeb icon.
-
-
-/ CHANGING THE TIME INTERVAL /
-
-If the time interval of an X-Y Graph may be changed, then
-it is done by selecting the Adjust Limits entry in the menu
-activated by clicking the left mouse button on the icons in
-the graphics window.  Traverse the Adjust Limits submenu,
-if necessary, and select Time Interval.  A Limit Widget
-will pop up, that allows the time interval to be changed.
-
-
-/ CHANGING PLATFORMS /
-
-If changing the platform of a component is allowed, then it
-will be done using the menu activated by clicking the
-middle mouse button on the icons in the graphics window.
-
-
-/ CHANGING COLOR AND REPRESENTATION /
-
-If changing the color and the representation of data points
-is allowed, then menus to do this will be found by clicking
-the right mouse button on the icons in the graphics window.
-
-iconbar      The Icon Bar Icons
-2948
-
-/ THE ICON BAR ICONS /
-
-This topic describes the purpose and function of each of the
-icon menus on the Icon Bar.  In particular, the topic covers
-the Icon Bar for the STORM-FEST CD distribution, but the
-information here will be readily applicable to many of the
-Zeb project configurations.
-
-The Icon Bar performs "global" Zeb functions---functions
-which are useful or applicable to more than one window or
-process in the Zeb display.  Most of the icon menus specify
-platforms and fields for addition to one of the Graphics
-Windows in the display.  Each of Icon Bar icons is
-described below, in the order they occur on the Icon Bar,
-either top-to-bottom or left-to-right.
-
-/ THE HELP ICON /
-
-This icon pictures a question mark and the word "Help". 
-The menu for this icon can pop up the Zeb help window with
-information on the topics listed in the menu.  One of the
-menu entries, "Surface Station Listing", pops up a help
-window which lists a subset of the hourly surface stations,
-their Zeb IDs, cities and coordinates.
-
-/ THE ZEB ICON /
-
-The main Zeb menu is found under the "Zeb" icon of the Icon
-Bar.  This menu starts up several of the important widgets
-in the Zeb display, and also allows convenient switching
-between display configurations.  The first block of the
-menu lists the available display configurations.  The next
-block contains an entry for each of the global Zeb display
-widgets:
-
-  Time ---	Controls the time settings and
-		history modes of all or individual
-		graphics windows in the display.
-		See "Setting a History Time".
-
-  Hardcopy ---	Generates hardcopy plots of one
-		or all of the windows in the 
-		display.  See "Printing Hardcopies".
-
-  Configuration Editing ---
-		Creates new configurations or changes
-		existing ones, and stores the changes
-		for future use.  See the help topic 
-		"Changing Display Configurations".
-
-  Data Store ---
-		Runs the 'dsdwidget' application,
-		which displays the times for
-		which data is available for every
-		platform.  See the "Data Store
-		Widget" help topic.
-
-  Data Store Management	---
-		Runs the "dsmanage" program, the Zeb
-		disk manager.  The Zeb disk manager 
-		simplifies and oversees the task of
-		managing magnetic disk space by
-		moving data files back and forth
-		between disk and CD or tape.
-
-The "Open Windows mode" entry changes internal parameters
-to help Zeb cooperate with the OpenWindows environment. 
-Lastly, "Shut Down Zeb System" does just that; see the
-"Ending the Zeb Universe" help topic for details.
-
-/ THE PLATFORM ICONS /
-
-The rest of the Icon Bar icons direct which fields of which
-platforms to add to a plot in an individual Graphics
-Window.  In general, when an overlay is selected from an
-icon menu, you must indicate to which window you wish to
-add the overlay.  After selecting the entry, the cursor
-will change into a crosshair; just click the mouse inside
-the desired window.  If you click the mouse in a window
-which is not a Graphics Window, 
-
 documentationGuide to Zeb Documentation
 3178
 
@@ -1221,10 +892,734 @@ user.ps           The Zeb User's Manual.  Describes how
 user-index.ps     The index for the user's manual.
 
 
+icons        Using the Icons in a Graphics Window
+1050
+
+/ GRAPHICS WINDOW ICONS /
+
+	The Iconbar is Zeb's main menu and allows the user 
+to choose the type of data to be plotted and the display 
+configuration.  All the available data is represented here. 
+A new data type or overlay may be added to any window by 
+simply using the mouse to pick the desired platform and 
+field from the icon bar, then clicking on the target window. 
+(NOTE: The target window must be a horizontal cross-section.)
+
+	The icons at the bottom of each window are used to 
+control the contents of the data present in that window.  
+There is one icon present for each data type and/or overlay.
+Each mouse button activates a different menu within each
+platform icon.
+
+Generally the icon menus on the left button allow users to 
+change plotting limits/intervals, remove a field or 
+disable/reenable a field.  The middle buttons generally 
+allows users to change fields (i.e. change mesonet contours 
+from temperature to dewpoint) and the right button generally 
+allows modification of line width or other miscellaneous 
+information.
+buttonmaps   Graphics Window Buttons
+2349
+
+/ BUTTON TO COMMAND MAPPING /
+
+Zeb uses "button-to-command mappings" to map keystrokes and
+mouse button clicks in a graphics window to many of the
+graphics window functions.  To perform one of the actions
+listed in the following table, simply press the indicated
+key or mouse button while the cursor is in the graphics
+window where you wish the action performed.  In the table,
+a letter refers to the key on the keyboard.  LMB indicates
+left mouse button, MMB the middle, and RMB the right. 
+Prepending Shift- to the button name indicates that the
+shift key should be held down while the mouse button is
+pressed.  So Shift-LMB means 'hold the shift key down and
+press the left mouse button.'  Function keys are denoted
+by 'Fn'.
+
+Button or Key		Graphics Window Action
+----------------------- ----------------------------------
+	h		Popup this help window.
+        b               Back up from a zoom.
+        g               Popup the GetPosition widget.
+        m               Popup the movie controller.
+        p               Draw a spotlight.
+        r               Run a movie.
+        s               Stop a movie.
+        t               Popup the overlay times widget.
+        u               Move up one step in altitude.
+        d               Move down one step in altitude.
+	l		Popup the line width widget
+
+	LMB		Set this location in the
+                           GetPosition widget.
+
+	Shift-LMB	Zoom area of graphics window.
+
+        MMB		Draw a line on which to base
+                           a vertical cross section.
+
+        RMB, F1		Toggle the radar field between
+                           reflectivity and velocity.
+
+        Up Arrow        Move up one step in altitude.
+
+        Down Arrow      Move down one step in altitude.
+
+        Left Arrow      Zoom to a preset level(large scale).
+
+        Right Arrow     Zoom to a preset level(small scale).
+
+        Page Up         Move to the highest altitude
+                        available.
+
+        Page Down       Move to the lowest altitude
+                        available.
+
+For the STORM-FEST CD distribution, Each key of the middle
+row of the keypad (left and right cursor keys, and the
+center button between them) selects a different scale of
+the STORM-FEST domain:
+
+	Left Arrow	Continental U.S.
+	Center Button	Central and Midwest U.S.
+	Right Arrow	CP4 Radar domain
+movies       Running Movies
+3761
+
+/ SETTING THE MOVIE PARAMETERS /
+
+Movies are chronological sequences of "time frames"
+generated and displayed by the movie controller to create
+animation of graphics window plots.  Movies can be run in
+each of the graphics windows at any time.  First, you must
+popup the movie controller.  You can do this two ways:
+
+	Find the <Zeb> icon in the lower left corner
+	of the graphics window.  Choose the
+        "Popup Movie Controller" entry from the icon menu.
+
+	Or, type 'm' inside the graphics window.
+
+Next, you must set the movie parameters to generate the
+time frames which will comprise the animation sequence. 
+The movie controller provides four parameters for
+adjustment: the duration of the movie, the time of the last
+frame of the movie, the interval between frames, and the
+rate at which the frames are displayed.  The movie duration
+and frame interval are measured in minutes, and the display
+rate is measured in frames/second.  For example, to animate
+satellite images over a five hour period ending at
+"04-mar-1992,21:00:00", skipping one hour between plots and
+displaying five frames every second, the movie controller
+would look like the following:
+
+Movie for [ 300 ] minutes ending at [ 04-mar-1992,21:00:00 ]
+Frames/Second: [ 5   ]  Frame skip: [ 60 ] minutes.
+
+If you are interested in five-minute surface data, you can
+change the frame skip to five minutes.  However, since
+there is a limit to the maximum number of frames in a
+movie, the duration must be reduced as the frequency of the
+frames increases.
+
+There are two options for entering the ending time for a
+movie; 1) type in the time using the format
+"DD-MMM-YYYY,HH:MM", or 2) type the word "now".  Note that
+the year must have four digits, even though elsewhere in
+Zeb the year is displayed with only two digits.  If the
+time is left out, as in "04-mar-1992", or specified as
+"04-mar-1992,0", "00:00" is assumed.  When the ending time
+is specified as "now", the ending time is taken to be the
+current system time (when the graphics window is in
+real-time mode) or as the history time of the graphics
+window (when the graphics window is in history mode).
+
+
+/ RUNNING THE MOVIE /
+
+Once the movie parameters are adjusted, begin the movie by
+pressing the <Run> button next to "Movie control:".  If
+the parameters are all valid, the movie controller will
+begin generating each frame of the movie.  If an error
+occurs, a message will appear on the "Status:" line.
+
+After each of the frames has been generated and stored, the
+movie will run more quickly and smoothly.  The speed of the
+movie will depend upon the "Frames/Second:" parameter.  
+
+The movie can be stopped at any time, even while the
+controller is generating frames, by pressing the <Stop>
+button.  This leaves the graphics window in history mode,
+with a plot time corresponding to the frame at which the
+movie stopped.  The movie can be continued by pressing
+<Run> again.
+
+The scroll bar at the bottom of the movie controller
+provides a convenient method for stepping backward and
+forward through the movie frames.  Holding down the middle
+mouse button inside the scroll bar allows you to scroll
+through frames continuously by moving the mouse left and
+right.  The left mouse button steps backward a single frame
+while the right mouse button steps forward a single frame.
+
+The <Real Time> button puts the graphics window in real
+time mode, taking the plot time from the current system
+time and disactivating the movie controller.  This is
+useful only in real-time applications.
+
+/ QUITING THE MOVIE CONTROLLER /
+
+The movie controller window can be removed by pressing the
+<zap> button at the top of the window.  Removing the movie
+controller leaves the graphics window in the mode and time
+last set by the movie controller.  
+zooming      Zooming a Graphics Window
+1338
+
+/ ZOOMING /
+
+Zooming involves enlarging an area of a Graphics Window to
+obtain a more detailed display of the data.  To zoom an
+area of a graphics window, follow these steps:
+
+   1.  Place the cursor in the upper left corner of the
+       area you wish to zoom.
+
+   2.  Press and hold the Shift key and the Left Mouse
+       Button at the same time.
+
+   3.  Without releasing the mouse button, drag the
+       cursor to the lower right corner of the area
+       you wish to zoom.  You will see a box 
+       delineating an area of the window as you move 
+       the mouse.  
+
+   4.  If at any time you wish to cancel the zoom,
+       while still pressing the left mouse button, 
+       simply press the middle or right mouse buttons
+       without releasing the left mouse button.
+       The box will disappear, the zoom will be
+       cancelled, and the mouse buttons can then 
+       be released.
+
+   5.  When the box in the window encloses the area
+       you wish to zoom, let go of the mouse button.
+       The area enclosed by the box will be enlarged
+       to fill the entire graphics window.
+
+
+/ BACKING OUT OF A ZOOMED AREA /
+
+To return to the perspective from which you zoomed an area,
+press 'b'.  You can zoom an area successively any number of
+times; pressing 'b' steps back from each zoomed perspective
+one zoom at a time.
+addrem       Adding and Removing Data in Horizontal Plots
+3407
+
+/ DATA REPRESENTATIONS /
+
+Several types of data may be displayed in a
+constant-altitude (horizontal cross-section) plot using
+different 'representations'.  The 'representation'
+essentially refers to the type of plot used to display the
+data in a graphics window.  Static data, such as lat/lon
+grids, x/y grids, range rings, state boundaries, dual
+doppler lobes, and locations of towns, airports, and
+soundings are all represented as static overlays.  Other
+data, such as radar sweeps, satellite images, surface
+station field contours, and aircraft tracks are represented
+differently.  Radar and satellite images are plotted as
+gridded raster data.  Surface station data can be plotted
+as contours over a regularized grid, or the field
+measurements can be explicitly displayed for each station
+in the irregular grid.  Aircraft tracks are represented as
+track plots.  Any number of data set representations can be
+added to a horizontal plot; likewise, any data set
+representation can be removed from a plot.
+
+/ ADDING DATA /
+
+To add a data representation to a window,
+
+	1.  Place the cursor over the icon in the IconBar
+	    which corresponds to the desired data.
+
+	2.  Press and hold the left mouse button.
+
+	3.  Drag the cursor until the desired platform
+	    data and representation is highlighted.  
+
+	4.  Let go of the mouse button.  The mouse cursor
+	    will become a cross-hair symbol.
+
+	5.  Move the cursor into the graphics window where
+	    the data should be added.
+
+	6.  Click the left mouse button.
+
+Here are some examples:  To add a raster-image
+representation of CP4 velocity data, choose the "velocity"
+item from the "CP4" sub-menu under the <Radar> icon on the
+Icon Bar.  To add P-3 aircraft tracks, select "P-3" from
+the <Aircraft> icon pull-down menu.  For mesonet data,
+several combinations are available under the <Mesonet> icon
+menu, from a filled-contour representation of five-minute
+data to irregular station plots of hourly data.  Note that
+choosing data to add usually involves not only a choice of
+the data platform but also a choice of a particular field
+from that platform.
+
+
+/ REMOVING DATA /
+
+To remove data from a graphics window,
+
+	1.  Place the cursor over the icon in the graphics
+	    window (not the Icon Bar) which corresponds to
+	    the data to be deleted.
+
+	2.  Press and hold the left mouse button.
+
+	3.  Drag the cursor until the "Remove" menu entry
+	    is highlighted.
+
+	4.  Let go of the mouse button.
+
+The data and its icon will be removed from the graphics
+window.
+
+
+/ DISABLING AND RE-ENABLING DATA /
+
+Rather than completely remove a data set from a graphics
+window, you can temporarily disable it instead.  Disabling
+a data field means that the representation of the data will
+not be plotted in the window, but the icon and its current
+configuration will remain attached to the graphics window. 
+This allows the data to be quickly re-plotted using its
+most recent settings when the plot representation is
+re-enabled.  To disable or re-enable a data field, follow
+these steps:
+
+	1.  Place the cursor over the icon in the graphics
+	    window which corresponds to the data.
+
+	2.  Press and hold the left mouse button.
+
+	3.  Drag the cursor until the "Disable/Reenable"
+	    menu entry is highlighted.
+
+	4.  Release the mouse button.
+
+The icon will change color, typically to gray, to indicate
+that this icon's data is no longer being displayed in the
+plot.
+
+limitwidgets Adjusting Limits
+1196
+Adjusting Limits
+
+	Values that affect the plotting of data, referred to
+as plot limits, may be directly changed using limit widgets.
+Some examples of plot limits are:
+
+	- Center and Step:  Plot limits that map data values
+	  onto colors.
+
+	- Arrow Scale:  Plot limit that determines the 
+	  length of a vector relative to the window size.
+
+	- Time Interval:  Length of time of interest to
+	  the user.  Suffixes: m - minutes, h - hours,
+	   d- days, s - seconds (default)
+
+	- And many more.
+
+	Limit widgets are activated by:
+
+	1.  Click and hold the left mouse button on the 
+	    icon representing the overlay whose limits 
+	    must be adjusted.
+
+	2.  Move the cursor until the
+
+		Adjust Limits
+
+	    menu entry is highlighted.
+
+	3.  If a submenu appears, then select the limit
+	    to be adjusted from the submenu.
+	
+	4.  Release the mouse button.
+
+	At this point a limit widget should have appeared,
+and the values within it may be changed.
+
+	1.  Place the cursor in the yellow text window,
+	    and type the new value.  The previous value
+	    will automatically be deleted.
+	
+	2.  Press Store when the value(s) are correct.
+	    Or, to abandon any changes, click on the
+	    Cancel button.
+overlaytimes Finding Data Times for a Plot
+1701
+
+/ THE OVERLAY TIMES WIDGET /
+
+The Graphics Window plots the latest data available with a
+time occurring before the window's plot time, but it does
+not show the actual time of the data used for each platform
+in the plot.  The Overlay Times widget shows this
+information: it displays the time at which the data was
+collected for each data platform represented in the
+graphics window.
+
+The widget may be popped up in two ways.  Either select the
+"Popup overlay times window" entry from the left-button
+menu of the <Zeb> icon (in the lower-left corner of the
+graphics window), or type 't' anywhere inside the graphics
+window.
+
+The Overlay Times window will appear containing a list of
+all of the platforms being plotted in the graphics window,
+except for static overlays like maps, grids, and locations.
+Next to each platform name, the widget displays the time of
+the data which the graphics window is presently plotting. 
+For example, suppose the plot time is
+"3-Mar-1992,14:45:00".  If GOES satellite data is only
+sampled on the half-hour, then the Overlay Times widget
+will display a time of "3-Mar-1992,14:30:01" next to the
+platform name "goes".  This is the time for which the
+satellite image being displayed is valid.  If the 14:30
+image were missing, this information would be reflected in
+the widget by a "goes" platform time of 14:01.  The times
+shown in the Overlay Times window will ALWAYS be correct,
+even if the graphics window is in movie mode.  The overlay
+times will always correspond to the frame currently visible
+in the graphics window, even while stepping backward and
+forward through frames and while running a movie.
+
+To remove the Overlay Times Widget, click on the <Zap>
+button.
+CAP          Constant-Altitude Plots, or Horizontal Cross-sections
+0
+getposition  Displaying Coordinates in Horizontal Plots
+3166
+
+/ THE GET POSITION WIDGET /
+
+The Get Position Widget allows the user to click on a point
+in the graphics window and see the location of that point
+in latitude and longitude coordinates.  The Get Position
+widget also reports distances relative to a named origin
+using azimuth and range, and x and y offsets.  The relative
+range can be displayed in either kilometers or nautical
+miles.  There are three steps to using the Get Position
+Widget, popping it up, entering an origin, and picking
+points in the graphics window.
+
+   1.  Pop up the Get Position Widget by typing a 'g'
+       in the graphics window for which you wish to
+       display location coordinates.  To display the
+       lat/lon coordinates for a point in the graphics
+       window, click the left button on the point. 
+       The coordinates will be shown in the Get Position
+       window.  However, the relative coordinates will
+       not be shown if an origin has not yet been
+       specified.
+
+   2.  Enter an origin for the relative measurements.
+       The origin name should be typed into the blank
+       box, second from both the left and the bottom of
+       the window.  For STORM-FEST, the origin can
+       be one of the following locations:
+
+	ops-ctr		Richards-Gebaur Ops Center
+	cp3		CP-3 Radar
+	cp4		CP-4 Radar
+	mhr		Mile-High Radar
+	okc		Twin Lakes, OK Nexrad
+	fdr		Frederick, OK Nexrad
+	cim		NSSL Cimarron
+	hot
+	chill
+	osk		Oskaloosa
+	aster		Aster
+	array		Center of boundary layer
+			array
+		
+       In addition, many of the CLASS, NSSL CLASS,
+       NWS sounding, and profiler site locations
+       are available.  Use the ID name as the
+       origin name.
+
+   3.  To get the location of a point in the graphics
+       window, click the left mouse button on the
+       point.  The coordinates of the point will be
+       displayed in the Get Position window.  If
+       you see the message "Unable to locate origin:
+       xxx", then the origin name could not be found
+       and should be changed.  You can click the left
+       mouse button on as many points as you like;
+       each time the coordinates of the point you
+       clicked will be shown in the Get Position
+       window.  You can also change the origin at
+       any time by typing a new origin name into
+       the origin box.  If you change the origin name
+       and then press return inside the origin text
+       window, the coordinates of the most recently 
+       chosen point will be shown relative to the
+       new origin.
+
+
+/ CHANGING COORDINATE UNITS /
+
+You can change the units and formats which the Get Position
+widget uses to display coordinates.  There are two toggle
+buttons in the lower left corner of the Get Position
+window.  The bottom button toggles the units of the range
+between nautical miles and kilometers.  The other toggle
+button alternates the format of the lat/lon coordinates
+between deg/min/sec and decimal degrees.  Once a point has
+been selected in the graphics window, any unit changes will
+display the coordinates of the point in the new units.
+
+/ REMOVING THE GET POSITION WIDGET /
+
+To remove the Get Position Widget, click on the <Zap> 
+button at the top of the window.
+altitude     Changing the Altitude of a Horizontal Plot
+632
+
+/ CHANGING THE ALTITUDE OF A HORIZONTAL PLOT /
+
+When a Graphics Window is dislaying a horizontal
+(constant-altitude) plot, and its base field contains
+several different altitudes (or elevation angles), it is
+possible to change the altitude of the plot.  The altitude
+(or elevation angle) is displayed in the lower right corner
+of the graphics window.
+
+The following keystrokes may be used to step up and
+down in altitude:
+
+	<Up Arrow>	Move up one step in altitude.
+
+	<Down Arrow>	Move down one step in altitude.
+
+	<Page Up>	Move up to the highest altitude
+			available.
+
+	<Page Down>	Move down to the lowest altitude
+			available.
+spatialoffsetShifting Data in Horizontal Plots
+1167
+
+/ THE SPATIAL OFFSET WIDGET /
+
+Spatial offsets maybe applied to any data displayed in
+horizontal cross-sections by using the Spatial Offset
+Widget.  Place the cursor in the <Field Icon> button, hold
+down the left mouse button, and select "Spatial Offset
+Option" from the pull-down menu.  A spatial offset may be
+specified either as a pair of X and Y offsets or as a
+directed speed of advection.  If spatial offsets are
+enabled the data will be shifted based on the X offset and
+Y offset values.  These values are entered by placing the
+cursor in the gray box, next to "X offset:" and "Y
+offset:", and typing the offset value in kilometers. To
+display the data using a new pair of offsets, click the
+<Apply> button.  
+
+Advection is specified as a direction and a speed.  The
+actual offset is calculated from the direction, speed, and
+time lapse between the time of the data and the current
+plot time.  If advection is enabled, clicking on <Apply>
+will cause the data to be shifted to the time displayed in
+the graphics window, according to the specified speed and
+direction of advection.  Advection offsets can be useful
+for plotting storm-relative aircraft tracks.
+
+spatialfilterChanging the Mesonet Station Density
+938
+
+/ THE SPATIAL FILTER WIDGET /
+
+The Spatial Filter Widget allows the density of mesonet
+stations in horizontal plots to be defined in pixels.  To
+pop-up the Spatial Filter Widget, move the cursor into the
+Mesonet Icon (in the graphics window), depress the left
+mouse button, and select "Spatial Filter Options".  A widget
+will pop-up that allows you to enable or disable filtering
+and change the filter interval.  If filtering is disabled,
+all mesonet stations are displayed.  If enabled, the filter
+interval specifies the spatial resolution, in pixels, for
+plotting mesonet stations.  For example, if the interval is
+50, Zeb will try to plot a station every 50 pixels.  Each
+station will be plotted in its proper location, but only one
+station will be plotted for each 50-pixel interval in the
+plot.  Because the interval is in pixels, more stations will
+be plotted as the graphics window is zoomed.  (See "Zooming
+a Graphics Window").
+
+interpmethodsChanging the Interpolation Method for Contour Plots
+1602
+
+/ THE INTERPOLATION WIDGET /
+
+The Interpolation Widget is used to define the objective
+analysis scheme for contouring surface mesonet data.  The
+available methods are Barnes, Closest-point, and
+Triangulation.  To pop-up the Interpolation Widget, move
+the cursor to the <Gridded Mesonet Icon>, depress the left
+mouse button, and select "Interpolation" from the pull-down
+menu.  The widget will pop-up.  To change the interpolation
+method, move the cursor to the gray box following
+"Interpolation Method", press the left cursor button, and
+select the method.  If Closest-point or Triangulation are
+selected, the other parameters in the widget will be
+ignored.  The Triangulation method is very slow for large
+data sets, such as the StormFEST data set.  If Barnes
+analysis is selected, the "grid resolution", "radius of
+influence", and "maxfill" parameters will be used in the
+interpolation method.  The grid resolution is the number of
+points in X and in Y to be used in the interpolation; the
+actual spacing is defined by the size of the graphics
+window's real coordinates.  If the graphics window's plot
+covers 100km by 80km, while the X and Y grid resolution is
+set to 21 by 17, then the spacing of the grid, in real
+coordinates, is 5 km by 5 km.  The other parameters, the
+radius of influence and the maximum fill, are both in grid
+units.  'Maximum fill' is the maximum distance between a
+station location and a grid point from which an estimated
+grid value will be extrapolated.  If no data are available
+within 'maximum fill' grid units of a grid point, the point
+is assigned a bad value flag.  
+
 timeseries   Time Series Plots
 24
 
 / TIME SERIES PLOTS /
+
+plat_selectorChoosing Surface Stations for Time Series Plots
+1338
+
+/ THE SURFACE STATION PLATFORM SELECTOR /
+
+Through the platform selection widget, surface and mesonet
+platforms can be chosen by ID name for display in a time
+series plot.  Press the middle mouse button in a mesonet
+field icon in a time-series graphics window.  A pull-down
+menu appears with a top entry of "Select Mesonet Platform".
+Drag the mouse to this entry and release the button.  The
+"Platform Selection" widget will pop up.  Inside the text
+window to the right of "Platform name:", enter the name of
+a mesonet station.  To see a list of stations and their Zeb
+ID names using Zeb's on-line help, press the <List
+Stations> button.  For most of the stations, the ID name in
+the left-most column of the station lists will be
+recognized by the platform selector.  To put a station
+change into effect, press the <Select> button.  Data from
+the named platform will be plotted in the time series
+window in place of the former platform data.  To remove the
+platform selector, press the <Cancel> button.
+
+Other options are available in the middle menu of mesonet
+field icons.  These options display useful information
+through Zeb's on-line help.  The menu entries provide quick
+access to explanations of weather codes, the quality
+control flags used for sounding and surface data, and
+another way to retrieve lists of sounding stations.
+
+qcf_soundingsQuality Control Flag Codes for Soundings
+451
+
+/ QUALITY CONTROL CODES FOR SOUNDINGS /
+--------------------------------------
+99.0 	Unchecked (QC information is `missing.') 
+	(`UNCHECKED')
+
+ 1.0 	Checked, datum seems physically reasonable. 
+	(`GOOD')
+
+ 2.0 	Checked, datum seems questionable on physical basis.
+	(`MAYBE')
+
+ 3.0 	Checked, datum seems to be in error. 
+	(`BAD')
+
+ 4.0 	Checked, datum is interpolated. 
+	(`ESTIMATED')
+
+ 9.0 	Checked, datum was missing in original file. 
+	(`MISSING')
+qcf_surface  Quality Control Flag Codes for Surface Data
+576
+
+/ QUALITY CONTROL CODE FOR SURFACE DATA /
+----------------------------------------
+
+The quality-control flag is a coded value.  Codes and
+definitions are listed briefly here.
+
+Flag                Definition
+0                   Unchecked
+1                   Checked and Good
+2                   Checked and Unlikely (Bad)
+3                   Checked and Questionable (Dubious)
+999.9               Missing Value
+4                   Parameter not measured at this
+                    station or is not applicable
+6                   Estimated Value
+5                   "Glitch"
+xygraph      Using X-Y Graphs
+1268
+
+/ X-Y GRAPHS /
+
+In general, X-Y Graphs allow plotting of any two-
+dimensional data combination.
+
+
+/ ADDING DATA TO AN X-Y GRAPH /
+
+If a particular X-Y Graph allows data from different
+platforms to be added, then this will be done using the
+menu activated by clicking the middle mouse button on the
+Zeb icon in the graphics window.
+
+
+/ CHANGING FIELDS /
+
+Changing fields per se is not usually allowed.  To see data
+from a different field, add it from the Zeb icon.
+
+
+/ CHANGING THE TIME INTERVAL /
+
+If the time interval of an X-Y Graph may be changed, then
+it is done by selecting the Adjust Limits entry in the menu
+activated by clicking the left mouse button on the icons in
+the graphics window.  Traverse the Adjust Limits submenu,
+if necessary, and select Time Interval.  A Limit Widget
+will pop up, that allows the time interval to be changed.
+
+
+/ CHANGING PLATFORMS /
+
+If changing the platform of a component is allowed, then it
+will be done using the menu activated by clicking the
+middle mouse button on the icons in the graphics window.
+
+
+/ CHANGING COLOR AND REPRESENTATION /
+
+If changing the color and the representation of data points
+is allowed, then menus to do this will be found by clicking
+the right mouse button on the icons in the graphics window.
 
 Cross-sectionUsing Cross-section Plots
 2428
@@ -1283,308 +1678,3 @@ creating arbitrary vertical cross-sections from 3D gridded
 data.  The value for each point in the plane is interpolated
 bilinearly from the four surrounding source grid points at
 the same vertical level.
-editdconfig  Editing Display Configurations
-6742
-
-/ EDITING DISPLAY CONFIGURATIONS /
-
-This topic describes the process of editing a display
-configuration.  New configurations can be created or
-existing configurations can be modified to personal
-preference.  First, change to the display configuration
-which will be modified.  To start a new configuration from
-scratch, change to the 'Emtpy' configuration.  See the help
-topic "Changing Display Configurations" for details on
-setting the display configuration.
-
-Next, popup the "Configuration Editing" widget from the
-<Zeb> icon menu on the Icon Bar.  A widget will appear
-containing six buttons.  The <Cancel> button, as always,
-removes the widget from the screen.  All of the
-configuration pop-up widgets will have a <Cancel> button;
-press this button to remove the widget without performing
-any actions.  The <Help> button pops up this help topic. 
-The rest of the buttons function as described in the
-following paragraphs.  Essentially there are four options:
-create a new configuration by copying an existing one, add
-a window to the current configuration, delete a window from
-the current configuration, or save the current
-configuration under a specified name in specified
-directories.  After adding, deleting, moving, and/or
-resizing windows in a new or existing configuration, and
-after configuring the plots in each window as desired, the
-entire display configuration can be saved for future
-reference through the "Save Configuration" mechanism
-described at the end of this topic.
-
-
-/ CLONING A CONFIGURATION /
-
-The <New Configuration> button pops up a window for
-creating a new configuration by 'cloning' an existing
-configuration.  Two names must be specified in the
-popped-up window: the name of the configuration to create
-and the name of the configuration to clone.  Note that the
-configuration being cloned need not be the configuration
-which is currently displayed.  However, the default clone
-name will always be taken as the name of the current
-configuration.  Once both names have been specified, press
-the <Create Configuration> button.  The new configuration
-will be created and automatically installed as the current
-display configuration.
-
-
-/ ADDING A NEW WINDOW /
-
-The <New Window> button pops up a widget for adding a new
-window to the current display configuration.  Several
-parameters may be set through this widget.  The "New window
-name:" field will be the name of the new window.  This name
-must be unique among the other windows in the
-configuration.  The window must also be assigned a plot
-description.  The plot description name can be typed
-directly, inside the "Plot description:" text window, or it
-can be chosen from the pull-down menu under the <Select
-Plot Description> button.  The window also needs a button
-map, specified in the "Button map:" text window or through
-the pull-down menu <Select Button Map>.  The default plot
-description is "template", while the default button map is
-"default".  For horizontal plots, the "big" button map is
-the most commonly used map.  The choice of plot description
-will depend principally on the type of plot desired, such
-as "Mesonet" for a horizontal plot with surface data,
-"Skew-t" for a skew-t plot, "Time Series" for a time-series
-plot, or "Cross-Sect" for a cross-section plot.  Once the
-new window is created with the basic plot type configured,
-new combinations of platforms and overlays can be
-configured through the normal icon menus.  
-
-The last parameter for the new window is "PD Force?"   This
-parameter can be toggled between "yes" and "no".  If "yes",
-a new plot description will always be forced onto the
-window, even if the window already exists.  Otherwise a
-window which already exists will keep its current plot
-description.
-
-Display configurations typically share window names so that
-new windows need not be created for every configuration
-change.  For example, the "Radar" configuration uses four
-windows named "UpperLeft", "UpperRight", "LowerLeft", and
-"LowerRight".  In the "Radar" configuration, the window
-"UpperLeft" is a skew-t plot, whereas in the "Surface Data"
-configuration, "UpperLeft" is a horizontal plot.  Another
-possible naming scheme, however, might include a window
-named "CrossSection" which is present in most display
-configurations and is always a cross-section plot.  Hence
-the necessity of the "Force PD" parameter.  When changing
-to a configuration which uses a window whose name is used
-in the present configuration, the new plot description must
-replace the current one in order for the correct plot-type
-and platform overlays to be installed in the window.
-
-Once all of the parameters have been set as desired, press
-the <Create Window> button to actually create the new
-window.  After the window appears, use the window manager
-to move and resize the window to the desired geometry.  Use
-the Icon Bar and graphics window icons to add, remove, and
-configure the platform plots in the window.
-
-
-/ DELETING A WINDOW /
-
-The <Delete Window> button pops up a window selction
-widget.  The window to be deleted must be specified by
-name.  The name can be entered in the text window next to
-"Window name:" or by selecting the window with the mouse. 
-Mouse selection is only possible if the window is visible
-on the screen.  To use the mouse, press the <Select with
-mouse> button.  When the cursor becomes a cross-hair, click
-the mouse inside the window you wish to delete.  The name
-of the selected window will be entered as the "Window
-name:".  If the selected window was not a valid choice,
-"none" will appear in the text window.  Once the window
-name has been specified, press the <Do it> button to delete
-the window.
-
-
-/ SAVING A CONFIGURATION /
-
-The <Save Configuration> button of the "Configuration
-Editing" widget allows the current configuration to be
-saved to disk so that it can be recalled on later
-invocations of Zeb.  Press the <Save Configuration> button
-to pop-up the "Save Configuration" widget.  In the top text
-window, specify a name for the configuration.  The "Config
-directory:" text window specifies where the display
-configuration files will be stored, while "PD directory:"
-specifies where the plot descriptions for all of the
-windows will be stored.  Ordinarily neither of the
-directory paths will need to change.
-
-To actually save the configuration, press the <Do It>
-button.  The entire state of the current Zeb display,
-including the locations and plot descriptions of all
-of the graphics windows, will be written to disk under
-the given name.  The configuration may be displayed by
-entering the following command at the display manager
-prompt:
-
-DM> pconfig <config-name>
-
-The configuration can be added to the Icon Bar <Zeb> menu
-by editing the file 'IconBar' in the <project> directory.
-spatialfilterChanging the Mesonet Station Density
-938
-
-/ THE SPATIAL FILTER WIDGET /
-
-The Spatial Filter Widget allows the density of mesonet
-stations in horizontal plots to be defined in pixels.  To
-pop-up the Spatial Filter Widget, move the cursor into the
-Mesonet Icon (in the graphics window), depress the left
-mouse button, and select "Spatial Filter Options".  A widget
-will pop-up that allows you to enable or disable filtering
-and change the filter interval.  If filtering is disabled,
-all mesonet stations are displayed.  If enabled, the filter
-interval specifies the spatial resolution, in pixels, for
-plotting mesonet stations.  For example, if the interval is
-50, Zeb will try to plot a station every 50 pixels.  Each
-station will be plotted in its proper location, but only one
-station will be plotted for each 50-pixel interval in the
-plot.  Because the interval is in pixels, more stations will
-be plotted as the graphics window is zoomed.  (See "Zooming
-a Graphics Window").
-
-interpmethodsChanging the Interpolation Method for Contour Plots
-1602
-
-/ THE INTERPOLATION WIDGET /
-
-The Interpolation Widget is used to define the objective
-analysis scheme for contouring surface mesonet data.  The
-available methods are Barnes, Closest-point, and
-Triangulation.  To pop-up the Interpolation Widget, move
-the cursor to the <Gridded Mesonet Icon>, depress the left
-mouse button, and select "Interpolation" from the pull-down
-menu.  The widget will pop-up.  To change the interpolation
-method, move the cursor to the gray box following
-"Interpolation Method", press the left cursor button, and
-select the method.  If Closest-point or Triangulation are
-selected, the other parameters in the widget will be
-ignored.  The Triangulation method is very slow for large
-data sets, such as the StormFEST data set.  If Barnes
-analysis is selected, the "grid resolution", "radius of
-influence", and "maxfill" parameters will be used in the
-interpolation method.  The grid resolution is the number of
-points in X and in Y to be used in the interpolation; the
-actual spacing is defined by the size of the graphics
-window's real coordinates.  If the graphics window's plot
-covers 100km by 80km, while the X and Y grid resolution is
-set to 21 by 17, then the spacing of the grid, in real
-coordinates, is 5 km by 5 km.  The other parameters, the
-radius of influence and the maximum fill, are both in grid
-units.  'Maximum fill' is the maximum distance between a
-station location and a grid point from which an estimated
-grid value will be extrapolated.  If no data are available
-within 'maximum fill' grid units of a grid point, the point
-is assigned a bad value flag.  
-
-spatialoffsetShifting Data in Horizontal Plots
-1167
-
-/ THE SPATIAL OFFSET WIDGET /
-
-Spatial offsets maybe applied to any data displayed in
-horizontal cross-sections by using the Spatial Offset
-Widget.  Place the cursor in the <Field Icon> button, hold
-down the left mouse button, and select "Spatial Offset
-Option" from the pull-down menu.  A spatial offset may be
-specified either as a pair of X and Y offsets or as a
-directed speed of advection.  If spatial offsets are
-enabled the data will be shifted based on the X offset and
-Y offset values.  These values are entered by placing the
-cursor in the gray box, next to "X offset:" and "Y
-offset:", and typing the offset value in kilometers. To
-display the data using a new pair of offsets, click the
-<Apply> button.  
-
-Advection is specified as a direction and a speed.  The
-actual offset is calculated from the direction, speed, and
-time lapse between the time of the data and the current
-plot time.  If advection is enabled, clicking on <Apply>
-will cause the data to be shifted to the time displayed in
-the graphics window, according to the specified speed and
-direction of advection.  Advection offsets can be useful
-for plotting storm-relative aircraft tracks.
-
-qcf_soundingsQuality Control Flag Codes for Soundings
-451
-
-/ QUALITY CONTROL CODES FOR SOUNDINGS /
---------------------------------------
-99.0 	Unchecked (QC information is `missing.') 
-	(`UNCHECKED')
-
- 1.0 	Checked, datum seems physically reasonable. 
-	(`GOOD')
-
- 2.0 	Checked, datum seems questionable on physical basis.
-	(`MAYBE')
-
- 3.0 	Checked, datum seems to be in error. 
-	(`BAD')
-
- 4.0 	Checked, datum is interpolated. 
-	(`ESTIMATED')
-
- 9.0 	Checked, datum was missing in original file. 
-	(`MISSING')
-qcf_surface  Quality Control Flag Codes for Surface Data
-576
-
-/ QUALITY CONTROL CODE FOR SURFACE DATA /
-----------------------------------------
-
-The quality-control flag is a coded value.  Codes and
-definitions are listed briefly here.
-
-Flag                Definition
-0                   Unchecked
-1                   Checked and Good
-2                   Checked and Unlikely (Bad)
-3                   Checked and Questionable (Dubious)
-999.9               Missing Value
-4                   Parameter not measured at this
-                    station or is not applicable
-6                   Estimated Value
-5                   "Glitch"
-plat_selectorChoosing Surface Stations for Time Series Plots
-1338
-
-/ THE SURFACE STATION PLATFORM SELECTOR /
-
-Through the platform selection widget, surface and mesonet
-platforms can be chosen by ID name for display in a time
-series plot.  Press the middle mouse button in a mesonet
-field icon in a time-series graphics window.  A pull-down
-menu appears with a top entry of "Select Mesonet Platform".
-Drag the mouse to this entry and release the button.  The
-"Platform Selection" widget will pop up.  Inside the text
-window to the right of "Platform name:", enter the name of
-a mesonet station.  To see a list of stations and their Zeb
-ID names using Zeb's on-line help, press the <List
-Stations> button.  For most of the stations, the ID name in
-the left-most column of the station lists will be
-recognized by the platform selector.  To put a station
-change into effect, press the <Select> button.  Data from
-the named platform will be plotted in the time series
-window in place of the former platform data.  To remove the
-platform selector, press the <Cancel> button.
-
-Other options are available in the middle menu of mesonet
-field icons.  These options display useful information
-through Zeb's on-line help.  The menu entries provide quick
-access to explanations of weather codes, the quality
-control flags used for sounding and surface data, and
-another way to retrieve lists of sounding stations.
-
