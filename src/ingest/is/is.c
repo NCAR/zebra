@@ -1,7 +1,7 @@
 /*
  * Ingest scheduler
  */
-static char    *rcsid = "$Id: is.c,v 1.7 1991-12-11 20:38:03 martin Exp $";
+static char    *rcsid = "$Id: is.c,v 1.8 1992-01-10 02:41:46 martin Exp $";
 
 /*
  * Copyright (C) 1987,88,89,90,91 by UCAR University Corporation for
@@ -741,6 +741,10 @@ cfg_go(cfg)
 		 * exit before we have had time to record the details in cfg
 		 */
 		sleep(1);
+
+		/* allow child to take full responsibilty and get all of his signals */
+		sigsetmask(0);
+
 		execv(cfg->process, new_args);
 		printf("Unable to exec %s\n", cfg->process);
 		perror(cfg->process);
