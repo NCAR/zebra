@@ -36,7 +36,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-MAKE_RCSID ("$Id: DataFileAccess.c,v 3.20 1994-11-22 00:26:35 granger Exp $")
+MAKE_RCSID ("$Id: DataFileAccess.c,v 3.21 1995-02-10 00:55:07 granger Exp $")
 
 /*
  * This is the structure which describes a format.
@@ -1153,7 +1153,7 @@ void **tag;
 /*
  * If the file is open, check the revision and access and return the tag.
  */
-	if (ofp = dfa_FileIsOpen (dfindex))
+	if ((ofp = dfa_FileIsOpen (dfindex)))
 	{
 		*tag = ofp->of_tag;
 		if (write && ! ofp->of_write)
