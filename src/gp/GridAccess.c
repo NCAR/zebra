@@ -25,7 +25,7 @@
 # include <DataChunk.h>
 # include "GraphProc.h"
 # include "rg_status.h"
-MAKE_RCSID ("$Id: GridAccess.c,v 2.9 1992-10-06 15:29:00 corbet Exp $")
+MAKE_RCSID ("$Id: GridAccess.c,v 2.10 1992-12-09 21:40:23 corbet Exp $")
 
 
 
@@ -35,7 +35,10 @@ MAKE_RCSID ("$Id: GridAccess.c,v 2.9 1992-10-06 15:29:00 corbet Exp $")
 DataChunk	*ga_GetGrid FP ((ZebTime *, char *, char *, char *, int *,
 			int *, float *, float *, float *, float *, float *,
 			int *));
-static bool 	ga_Regularize FP ((DataChunk **, char *));
+static bool 	ga_Regularize FP ((DataChunk **, char *, char *, char *));
+static bool 	ga_RgridRegularize FP ((DataChunk **, char *));
+static bool	ga_BarnesRegularize FP ((DataChunk **, char *, char *, char *,
+			int));
 static void 	ga_RangeLimit FP ((char *, int, float *, double));
 static void 	ga_ImgToCGrid FP ((DataChunk **, char *));
 # ifdef notdef
@@ -216,7 +219,7 @@ float	*x0, *y0, *x1, *y1, *alt;
 	 * IRGrids can be interpolated.
 	 */
 	   case OrgIRGrid:
-		if (! ga_Regularize (&dc, fname))
+		if (! ga_Regularize (&dc, fname, platform, comp))
 		{
 			dc_DestroyDC (dc);
 			return (0);
@@ -410,11 +413,174 @@ char		*field;
 
 
 static bool
-ga_Regularize (dc, field)
+ga_Regularize (dc, field, platform, comp)
 DataChunk 	**dc;
-char		*field;
+char		*field, *platform, *comp;
 /*
  * Turn an irregular grid into a regular one.
+ */
+{
+	char method[80];
+/*
+ * Find out how they want us to do it.
+ */
+	if (! pda_Search (Pd, comp, "grid-method", platform, method,
+		SYMT_STRING) || ! strcmp (method, "rgrid"))
+		return (ga_RgridRegularize (dc, field));
+	else if (! strcmp (method, "barnes"))
+		return ga_BarnesRegularize (dc, field, platform, comp, TRUE);
+	else if (! strcmp (method, "closest-point"))
+		return ga_BarnesRegularize (dc, field, platform, comp, FALSE);
+	else
+	{
+		msg_ELog (EF_PROBLEM, "Bad grid method: %s", method);
+		return (FALSE);
+	}
+	return (TRUE);
+}
+
+
+
+
+
+static bool
+ga_BarnesRegularize (dc, field, platform, comp, dobarnes)
+DataChunk **dc;
+char *field, *platform, *comp;
+int dobarnes;
+/*
+ * Use the BINTS routine to do barnes/closest point interpolation.
+ */
+{
+	int nsta, i, ip, nqd = 0, nfilt = 0;
+	float *xpos, *ypos, xmin = 99999.0, xmax = -99999.0, ymin = 99999.0;
+	float ymax = -99999.0, badflag, *grid, *dz, *dzr, radius, rmx, *dp;
+	Location *locs, location;
+	PlatformId *platforms;
+	FieldId fid;
+	RGrid rg;
+	ZebTime when;
+	DataChunk *rdc;
+/*
+ * Find out what grid resolution they want.
+ */
+	if (! pda_Search (Pd, comp, "x-points", platform,
+				(char *) &rg.rg_nX, SYMT_INT))
+		rg.rg_nX = 20;
+	if (! pda_Search (Pd, comp, "y-points", platform,
+				(char *) &rg.rg_nY, SYMT_INT))
+		rg.rg_nY = 20;
+	rg.rg_nZ = 1;
+	if (! pda_Search (Pd, comp, "radius", platform,
+				(char *) &radius, SYMT_FLOAT))
+		radius = 2.0;
+	if (! pda_Search (Pd, comp, "max-fill", platform, (char *)
+			&rmx, SYMT_FLOAT))
+		rmx = 3.0;
+/*
+ * Get stuff out of the data chunk...number of points (platforms).
+ */
+	nsta = dc_IRGetNPlatform (*dc);
+	locs = (Location *) malloc (sizeof (Location) * nsta);
+	platforms = (PlatformId *) malloc (sizeof (PlatformId) * nsta);
+/*
+ * Platform locations, field ID, and data.
+ */
+	dc_IRGetPlatforms (*dc, platforms, locs);
+	fid = F_Lookup (field);
+	dp = dc_IRGetGrid (*dc, 0, fid);
+	badflag = dc_GetBadval (*dc);
+/*
+ * Do a pass over the locations, and set everything up.
+ */
+	xpos = (float *) malloc (nsta * sizeof (float));
+	ypos = (float *) malloc (nsta * sizeof (float));
+	for (i = 0; i < nsta; i++)
+	{
+	/*
+	 * Turn this location into XY space, and see if it stretches our 
+	 * limits.
+	 */
+	 	cvt_ToXY (locs[i].l_lat, locs[i].l_lon, xpos + i, ypos + i);
+		if (xpos[i] < xmin)
+			xmin = xpos[i];
+		if (xpos[i] > xmax)
+			xmax = xpos[i];
+		if (ypos[i] < ymin)
+			ymin = ypos[i];
+		if (ypos[i] > ymax)
+			ymax = ypos[i];
+	}
+/*
+ * Store some of the new position info.  The rectangular grid is embedded in
+ * the irregular grid with a one grid width border on each side.  Also force
+ * the spacings to be identical for bints.
+ */
+	rg.rg_Xspacing = (xmax - xmin)/(rg.rg_nX - 1);
+	rg.rg_Yspacing = (ymax - ymin)/(rg.rg_nY - 1);
+	if (rg.rg_Xspacing > rg.rg_Yspacing)
+		rg.rg_Yspacing = rg.rg_Xspacing;
+	else
+		rg.rg_Xspacing = rg.rg_Yspacing;
+	cvt_ToLatLon (xmin - rg.rg_Xspacing/2.0, ymin - rg.rg_Yspacing/2.0,
+		&location.l_lat, &location.l_lon);
+/*
+ * Now that we know our limits, normalize all the points to grid indices.
+ */
+	for (i = 0; i < nsta; i++)
+	{
+		xpos[i] = (xpos[i] - xmin)/rg.rg_Xspacing + 1;
+		ypos[i] = (ypos[i] - ymin)/rg.rg_Xspacing + 1;
+	}
+/*
+ * Apply limits.
+ */
+	ga_RangeLimit (field, nsta, dp, badflag);
+/*
+ * Allocate other chunks of memory.
+ */
+	grid = (float *) malloc (rg.rg_nX*rg.rg_nY*sizeof (float));
+	dz = (float *) malloc (nsta*sizeof (float));
+	dzr = (float *) malloc (rg.rg_nX*rg.rg_nY*sizeof (float));
+/*
+ * Call the ugly interpolation routine.
+ */
+	ip = dobarnes ? 2 : 0;
+	bints_ (grid, &rg.rg_nX, &rg.rg_nY, xpos, ypos, dp, dz, dzr, &nsta,
+			&ip, &radius, &rmx, &nqd, &nfilt, &badflag);
+/*
+ * Finish fixing up the data chunk, and return.
+ */
+	rdc = dc_CreateDC (DCC_RGrid);
+	rdc->dc_Platform = dc_GetPlat (*dc, 0);
+	dc_GetTime (*dc, 0, &when);
+	dc_RGSetup (rdc, 1, &fid); 
+	dc_SetBadval (rdc, dc_GetBadval (*dc));
+	dc_RGAddGrid (rdc, 0, fid, &location, &rg, &when, grid, 0);
+/*
+ * Free up old memory.
+ */
+	dc_DestroyDC (*dc);
+	free (grid);
+	free (xpos);
+	free (ypos);
+	free (dz);
+	free (dzr);
+/*
+ * Return the newly created regular grid.
+ */
+	*dc = rdc;
+	return (TRUE);
+}
+
+
+
+static bool
+ga_RgridRegularize (dc, field)
+DataChunk **dc;
+char *field;
+/*
+ * Regularize a grid through use of RGRID.
  */
 {
 	int		RGRID (), i, status;
@@ -464,12 +630,6 @@ char		*field;
 	 * limits.
 	 */
 	 	cvt_ToXY (locs[i].l_lat, locs[i].l_lon, xpos + i, ypos + i);
-# ifdef notdef
-	msg_ELog (EF_DEBUG, "Data %d at %d %d, %.2f", i, (int) xpos[i], 
-			(int) ypos[i], dp[i]);
-		if ((i % 4) == 0)
-			sleep (1);
-# endif
 		if (xpos[i] < xmin)
 			xmin = xpos[i];
 		if (xpos[i] > xmax)
@@ -483,9 +643,9 @@ char		*field;
  * Store some of the new position info.  The rectangular grid is embedded in
  * the irregular grid with a one grid width border on each side.
  */
-	rg.rg_Xspacing = (xmax - xmin)/(rg.rg_nX + 1);
-	rg.rg_Yspacing = (ymax - ymin)/(rg.rg_nY + 1);
-	cvt_ToLatLon (xmin + rg.rg_Xspacing, ymin + rg.rg_Yspacing,
+	rg.rg_Xspacing = (xmax - xmin)/(rg.rg_nX - 1);
+	rg.rg_Yspacing = (ymax - ymin)/(rg.rg_nY - 1);
+	cvt_ToLatLon (xmin - rg.rg_Xspacing/2.0, ymin - rg.rg_Yspacing/2.0,
 		&location.l_lat, &location.l_lon);
 /*
  * Fill the grid with bad value flags
