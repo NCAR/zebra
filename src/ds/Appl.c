@@ -27,7 +27,7 @@
 #include "dslib.h"
 
 #ifndef lint
-MAKE_RCSID ("$Id: Appl.c,v 3.18 1993-08-05 18:16:54 corbet Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.19 1993-08-12 18:19:37 granger Exp $")
 #endif
 
 /*
@@ -1088,10 +1088,7 @@ int ndetail;
 	 * Now we write whatever block we found, or if we have just a
 	 * single sample, use dfa_PutSample() instead
 	 */
-		if (((block_size > 1) &&
-		     (dfa_PutBlock (dfile, dc, sample, block_size, wc))) ||
-		    ((block_size <= 1) &&
-		     (dfa_PutSample (dfile, dc, sample, wc))))
+		if (dfa_PutBlock (dfile, dc, sample, block_size, wc))
 		{
 		/*
 		 * Keep track of successful writes
@@ -1124,6 +1121,14 @@ int ndetail;
 
 	} /* while (sample < nsample) */
 
+	/*
+	 * Close open files and free memory in DFA
+	 */
+	if (ds_GetDetail (DD_FORCE_CLOSURE, details, ndetail, NULL))
+	{
+		msg_ELog (EF_DEBUG, "DFA: forced closure");
+		dfa_ForceClosure ();
+	}
 	ds_FreeWLock (dc->dc_Platform);
 	return (ndone == nsample);
 }
@@ -1587,13 +1592,14 @@ int ndetail;
 SValue *v;
 /*
  * Try to find this detail value in the list, returning TRUE iff it is
- * there.
+ * there.  If V is NULL, the detail value is not returned.
  */
 {
 	for (; ndetail > 0; details++, ndetail--)
 		if (! strcmp (key, details->dd_Name))
 		{
-			*v = details->dd_V;
+			if (v)
+				*v = details->dd_V;
 			return (TRUE);
 		}
 	return (FALSE);
@@ -1764,7 +1770,8 @@ DataSrcInfo *dsi;
 	if (which != 1 || ! (plat.dp_flags & DPF_REMOTE))
 		return (FALSE);
 	strcpy (dsi->dsrc_Name,
-		(remname = getenv ("REMOTE_NAME")) ? remname : "Secondary");
+		((remname = getenv ("REMOTE_NAME")) != NULL) ? 
+		remname : "Secondary");
 	strcpy (dsi->dsrc_Where, plat.dp_rdir);
 	dsi->dsrc_Type = dst_Local;
 	dsi->dsrc_FFile = plat.dp_RemoteData;
@@ -2016,7 +2023,7 @@ int len;
 
 	if (first)
 	{
-		if (dhost = getenv ("DS_DAEMON_HOST"))
+		if ((dhost = getenv ("DS_DAEMON_HOST")) != NULL)
 		{
 			sprintf (group, "DataStore@%s", dhost);
 			msg_join (group);
