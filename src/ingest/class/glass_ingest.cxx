@@ -1,5 +1,5 @@
-/*
- * $Id: glass_ingest.cxx,v 2.4 1999-07-13 00:41:58 granger Exp $
+/* -*- mode: c++; c-basic-offset: 8; -*-
+ * $Id: glass_ingest.cxx,v 2.5 1999-08-05 20:50:51 granger Exp $
  *
  * Ingest GLASS data into the system.
  *
@@ -62,7 +62,7 @@ extern "C"
 #include <met_formulas.h>
 }
 
-RCSID("$Id: glass_ingest.cxx,v 2.4 1999-07-13 00:41:58 granger Exp $")
+RCSID("$Id: glass_ingest.cxx,v 2.5 1999-08-05 20:50:51 granger Exp $")
 
 #include "ZTime.hh"
 #include "FieldClass.h"
@@ -223,6 +223,7 @@ struct GlassFileRecord
 		case GLASS: \
 			return gl->field; break; \
 		case CLASS: \
+		default: \
 			return cl->field; break; \
 		} \
 	}
@@ -497,14 +498,14 @@ GlassIngest (int argc, char *argv[])
 				/* The FieldId's of each field which the
 				 * user has specified on the cmd-line */
 	int nfields;		/* The number of fields to be stored */
-	ZebTime *times;		/* Times for ea. sample in the s'nding file */
-	ZebTime temp;
-	int nsamples;		/* Number of samples, or pts, in the file */
+	//	ZebTime *times;		/* Times for ea. sample in the s'nding file */
+	//	ZebTime temp;
+	//	int nsamples;		/* Number of samples, or pts, in the file */
 	DataChunk *Dchunk;   	/* The DataChunk we'll be building */
-	bool reverse;		/* Reverse samples? */
-	int i;
+	// bool reverse;		/* Reverse samples? */
+	// int i;
 	// static struct ui_command end_cmd = { UTT_END };
-	static char ctime[40];
+	// static char ctime[40];
 /*
  * Get our command-line options, setting appropriate global variables
  * Only the file name and the names of the fields should remain
@@ -841,7 +842,7 @@ static void
 GetPlatformName (const Sounding &snd, char plat[])
 {
 	string site;
-	int i;
+	unsigned int i;
 	SiteTranslation	*strans;
 /*
  * Get the site name and make it lower case
@@ -1116,7 +1117,7 @@ BuildTranslationTable (const char *Tfilename)
  * Read 'tfile' and build a table of site name -> platform name translations
  */
 {
-	int	i;
+	unsigned int	i;
 	char	line[80], *lp, site[40], plat[40];
 	FILE	*tfile;
 	SiteTranslation	*newtrans;
@@ -1282,12 +1283,16 @@ ReadHeader (DataChunk *dc, char *file, Sounding &snd)
 #endif
 		// Now check for expected attributes.
 		int year, mon, day, hour, min, sec;
-		if (left.find("GMT Launch Time") != string::npos &&
-		    sscanf (right.c_str(), "%i, %i, %i, %i:%i:%i",
-			    &year, &mon, &day, &hour, &min, &sec) == 6)
+		if (left.find("GMT Launch Time") != string::npos)
 		{
 			// Found the launch time.
 			snd.launch_time = right;
+			IngestLog (EF_DEBUG, "launch time header found: %s",
+				   right.c_str());
+			int n = sscanf (right.c_str(), "%d, %d, %d, %d:%d:%d",
+					&year, &mon, &day, &hour, &min, &sec);
+			IngestLog ((n == 6) ? EF_DEBUG : EF_PROBLEM, 
+				   "%d fields matched (should be 6)", n);
 
 			// Zero the seconds if they are out of range, since
 			// some D-files have 3-digit seconds for some as
@@ -1296,6 +1301,8 @@ ReadHeader (DataChunk *dc, char *file, Sounding &snd)
 				sec = 0;
 
 			snd.tlaunch.assemble (year, mon, day, hour, min, sec);
+			IngestLog (EF_INFO, "parsed launch time: %s",
+				   snd.tlaunch.ascTime());
 		}
 
 		float eastd, eastm, northd, northm, alt;
@@ -1500,7 +1507,9 @@ ReadSamples (DataChunk *dc, char *file, Sounding &snd)
 		}
 #endif
 	}
-	IngestLog (EF_INFO, "%d bad times or pressure points", badlines);
+	IngestLog (EF_INFO,
+		   "%d bad times or pressure points, %d good samples", 
+		   badlines, dc_GetNSample(dc));
 
 	// If we didn't get anything useful, throw up our hands.
 	if (dc_GetNSample (dc) == 0)
