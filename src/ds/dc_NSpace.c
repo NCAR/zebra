@@ -136,7 +136,7 @@
 #include "DataStore.h"
 #include "DataChunkP.h"
 
-RCSID ("$Id: dc_NSpace.c,v 1.14 1996-11-19 09:49:14 granger Exp $")
+RCSID ("$Id: dc_NSpace.c,v 1.15 1996-11-19 10:57:56 granger Exp $")
 
 /*
  * The DCC_NSpace public interface is included in DataStore.h, along with
@@ -1712,21 +1712,6 @@ FindFieldByID (dc, info, id, routine)
 	NSpaceFldInfo *finfo = GetFldInfo (dc);
 	int i;
 
-#ifdef notdef
-	if (!info)
-		info = GetInfo(dc);
-	finfo = GetFldInfo(dc);
-	if (info->ns_Defined)
-		i = dc_GetFieldIndex (dc, id);
-	else
-	{
-		for (i = 0; i < info->ns_NField; ++i)
-		{
-			if (finfo[i].nsf_Id == id)
-				break;
-		}
-	}
-#endif
 	if ((i = dc_GetFieldIndex (dc, id)) < 0)
 	{
 		char *f = F_GetName (id);
@@ -1770,15 +1755,6 @@ DefineField (dc, info, field, ndims, dim_indices, is_static, routine)
 
 	finfo = GetFldInfo(dc);
 	i = dc_GetFieldIndex (dc, field);
-#ifdef notdef
-	for (i = 0; i < info->ns_NField; ++i)
-	{
-		if (finfo[i].nsf_Id == field)
-			break;				/* match found */
-	}
-
-	if (i < info->ns_NField)
-#endif
 	if (i >= 0)
 	{
 		/*

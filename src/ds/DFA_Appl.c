@@ -33,7 +33,7 @@
 #include "dfa.h"
 #include "Appl.h"
 
-RCSID ("$Id: DFA_Appl.c,v 3.4 1996-11-19 08:29:46 granger Exp $")
+RCSID ("$Id: DFA_Appl.c,v 3.5 1996-11-19 10:57:33 granger Exp $")
 
 /*
  * Local private prototypes.
@@ -575,53 +575,6 @@ dsDetail *details;
 {
 	return (ds_FetchData (pid, class, FALSE, begin, end, fields, nfield, 
 			      details, ndetail));
-#ifdef notdef
-	DataChunk *dc;
-	GetList *get;
-/*
- * Make the get list describing where this data has to come from.
- */
-	InstallDFA;
-	CheckDetails (&details, &ndetail);
-	if (! (get = dgl_MakeGetList (pid, begin, end)))
-	{
-		msg_ELog (EF_DEBUG, "GetList get failure");
-		return (NULL);
-	}
-/*
- * Now it is up to the format driver to get ready and create a data 
- * chunk for us.
- */
-	if (! (dc = dfa_Setup (get, fields, nfield, class)))
-	{
-		msg_ELog (EF_DEBUG, "Setup failure");
-		dgl_ReturnList (get);
-		return (NULL);
-	}
-	dc->dc_Platform = pid;
-/*
- * Pass through the get list, snarfing data for each entry.
- *
- * Hmm...the getlist is returned in the usual reverse-time order, which 
- * was never a problem in the past.  Now we need to reverse things again.
- */
-	ds_FProcGetList (dc, get, details, ndetail);
-	dgl_ReturnList (get);
-/*
- * It is still possible that there were no times in the file between
- * the requested times, in which case we return null for no data found.
- */
-	if (dc_GetNSample (dc) == 0)
-	{
-		dc_DestroyDC (dc);
-		return (NULL);
-	}
-/*
- * Finally, process any file-format-independent details, like bad values
- */
-	dc_ProcessDetails (dc, details, ndetail);
-	return (dc);
-#endif
 }
 
 
@@ -655,52 +608,11 @@ dsDetail *details;
 {
 	return (ds_FetchData (pid, class, TRUE, when, when, fields, nfield, 
 			      details, ndetail));
-#ifdef notdef
-	DataChunk *dc;
-	GetList *get;
-	DataFile dfe;
-/*
- * Make the get list describing where this data has to come from.  Then 
- * expand it to cover the entire file.
- */
-	InstallDFA;
-	CheckDetails (&details, &ndetail);
-	if (! (get = dgl_MakeGetList (pid, when, when)))
-	{
-		msg_ELog (EF_DEBUG, "GetList get failure");
-		return (NULL);
-	}
-	ds_GetFileStruct (get->gl_dfindex, &dfe);
-	get->gl_begin = dfe.df_begin;
-	get->gl_end = dfe.df_end;
-/*
- * Now it is up to the format driver to get ready and create a data 
- * chunk for us.
- */
-	if (! (dc = dfa_Setup (get, fields, nfield, class)))
-	{
-		msg_ELog (EF_DEBUG, "Setup failure");
-		dgl_ReturnList (get);
-		return (NULL);
-	}
-	dc->dc_Platform = pid;
-/*
- * Now just do the snarf.
- */
-	dfa_GetData (dc, get, details, ndetail);
-	dgl_ReturnList (get);
-/*
- * Finally, process any file-format-independent details, like bad values
- */
-	dc_ProcessDetails (dc, details, ndetail);
-	return (dc);
-#endif
 }
 
 
 
 
-#ifdef notdef
 /*
  * WHEREAS, I am lazy and tired of keeping two (2) storage algorithms
  * up-to-date and error free, and I have recently made fixes to
@@ -727,102 +639,11 @@ DataChunk *dc;
 bool newfile;
 dsDetail *details;
 int ndetail;
-/*
- * The storage interface to the data store.
- */
-{
-	int nsample, sample, dfile, nnew = 0, now = 0, ndone = 0;
-	WriteCode wc;
-	ClientPlatform p;
-	int dfnext;
-	ZebTime curtime;
-/*
- * This is a reasonable spot to make sure we have a valid platform
- */
-	if (dc->dc_Platform == BadPlatform)
-	{
-		msg_ELog (EF_PROBLEM, "attempting ds_Store of DataChunk %s",
-			  "with bad platform id");
-		return (FALSE);
-	}
-/*
- * Pull some details together.
- */
-	InstallDFA;
-	ds_WriteLock (dc->dc_Platform);
-	ds_GetPlatStruct (dc->dc_Platform, &p, TRUE);
-	if (! Standalone)
-		tl_Time (&curtime);
-	else
-		TC_SysToZt (time(0), &curtime);
-/*
- * For now (and maybe forever) we do the writing one sample at a time,
- * to ease the process of figuring out what goes where.
- */
-	nsample = dc_GetNSample (dc);
-	for (sample = 0; sample < nsample; sample++)
-	{
-		bool new = FALSE;
-	/*
-	 * Find a feasible location for this data.
-	 */
-		if (! ds_FindDest (dc, &p, sample, &dfile, &dfnext, 
-				   &wc, newfile && (sample == 0), &curtime))
-			continue;	/* Sigh */
-	/*
-	 * If a new file is called for, create it.  Then write the data.
-	 */
-	 	if (wc == wc_NewFile)
-		{
-			if ((dfile = ds_MakeNewFile (dc, &p, sample, 
-						     details, ndetail)) < 0)
-				break;	/* Bail completely */
-			wc = wc_Append; /* Now that the file is around */
-			new = TRUE;
-		}
-	/*
-	 * Now we just shove the sample out.
-	 */
-		if (dfa_PutSample (dfile, dc, sample, wc, details, ndetail))
-		{
-		/*
-		 * Keep track of this.
-		 */
-			ndone++;
-			if (wc == wc_Overwrite)
-				now++;
-			else
-				nnew++;
-		}
-	/*
-	 * Fill in the daemon on what we have done.  If we added a new
-	 * file we need to refresh the platform structure.
-	 */
-	 	ds_NotifyDaemon (&p, dfile, dc, now, nnew, sample, 
-				 sample == (nsample - 1));
-		if (new)
-			ds_GetPlatStruct (dc->dc_Platform, &p, TRUE);
-		now = nnew = 0;
-	}
-/*
- * Done.
- */
-	ds_FreeWriteLock (dc->dc_Platform);
-	return (ndone == nsample);
-}
-#endif /* end of banished, historical, and non-compiled ds_Store */
-
-
-
-bool
-ds_Store (dc, newfile, details, ndetail)
-DataChunk *dc;
-bool newfile;
-dsDetail *details;
-int ndetail;
 {
 	return (ds_StoreBlocks (dc, newfile, details, ndetail));
 }
+
+
 
 
 bool

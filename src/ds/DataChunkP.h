@@ -1,4 +1,4 @@
-/* $Id: DataChunkP.h,v 1.9 1996-11-19 09:00:29 granger Exp $ */
+/* $Id: DataChunkP.h,v 1.10 1996-11-19 10:57:52 granger Exp $ */
 /*
  * Internal data chunk definitions.
  */
@@ -50,37 +50,6 @@ extern RawClass RGridMethods;
 extern RawClass ImageMethods;
 extern RawClass LocationMethods;
 extern RawClass NSpaceMethods;
-
-#ifdef notdef
-typedef struct _RawClass DataClassStruct;
-/*
- * These are the symbols by which applications refer to datachunk classes.
- * They point to the first member of the class structure, so that the
- * ID can be converted to a DataClassP.
- */
-extern DataClassStruct RawMethods;
-extern DataClassStruct TranspMethods;
-extern DataClassStruct BoundaryMethods;
-extern DataClassStruct MetDataMethods;
-extern DataClassStruct ScalarMethods;
-extern DataClassStruct IRGridMethods;
-extern DataClassStruct RGridMethods;
-extern DataClassStruct ImageMethods;
-extern DataClassStruct LocationMethods;
-extern DataClassStruct NSpaceMethods;
-
-#define DCC_None (0)
-#define DCC_Raw (RawMethods.dcm_ClassId)
-#define DCC_Transparent (TranspMethods.dcm_ClassId)
-#define DCC_Boundary (BoundaryMethods.dcm_ClassId)
-#define DCC_MetData (MetDataMethods.dcm_ClassId)
-#define DCC_Scalar (ScalarMethods.dcm_ClassId)
-#define DCC_IRGrid (IRGridMethods.dcm_ClassId)
-#define DCC_RGrid (RGridMethods.dcm_ClassId)
-#define DCC_Image (ImageMethods.dcm_ClassId)
-#define DCC_Location (LocationMethods.dcm_ClassId)
-#define DCC_NSpace (NSpaceMethods.dcm_ClassId)
-#endif
 
 /*
  * Convert a class pointer to the class id

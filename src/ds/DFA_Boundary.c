@@ -35,7 +35,7 @@
 # include "BoundaryFile.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_Boundary.c,v 3.11 1996-11-19 08:35:45 granger Exp $")
+RCSID ("$Id: DFA_Boundary.c,v 3.12 1996-11-19 10:57:35 granger Exp $")
 
 
 /*
@@ -189,9 +189,6 @@ int ndetail;
 {
 	BFTag *tag = BF_TAGP(ofp);
 	PlatformId id = dc->dc_Platform;
-#ifdef notdef
-	ClientPlatform p;
-#endif
 /*
  * Start by trying to create the file.
  */
@@ -199,7 +196,6 @@ int ndetail;
 	{
 		msg_ELog (EF_PROBLEM, "Error %d opening '%s'", errno,
 			fname);
-		/* free (tag); */
 		return (FALSE);
 	}
 /*
@@ -207,10 +203,6 @@ int ndetail;
  */
 	tag->bt_hdr.bh_Magic = BH_MAGIC;
 	strcpy (tag->bt_hdr.bh_Platform, ds_PlatformName (id));
-#ifdef notdef
-	ds_GetPlatStruct (id, &p, FALSE);
-	tag->bt_hdr.bh_MaxBoundary = p.cp_maxsamp;
-#endif
 	tag->bt_hdr.bh_MaxBoundary = ds_MaxSamples (id);
 	tag->bt_hdr.bh_NBoundary = 0;
 /*
@@ -224,7 +216,6 @@ int ndetail;
  * Now synchronize the whole thing and return.
  */
 	bf_ReadSync (ofp);
-	/* *rtag = (char *) tag; */
 	return (TRUE);
 }
 
@@ -362,7 +353,6 @@ int len, sample;
 	bt->bt_NPoint = len;
 	TC_ZtToUI (t, &bt->bt_Time);
 	tag->bt_times[sample] = *t;
-	/* bt->bt_Time = *t; */
 /*
  * Tweak times.
  */
@@ -394,7 +384,6 @@ bool write;
 	if ((tag->bt_fd = open (fname, write ? O_RDWR : O_RDONLY)) < 0)
 	{
 		msg_ELog (EF_PROBLEM, "Error %d opening %s",errno,fname);
-		/* free (tag); */
 		return (FALSE);
 	}
 /*
@@ -406,7 +395,6 @@ bool write;
 		msg_ELog (EF_PROBLEM, "Error %d reading BF hdr on %s", errno,
 			fname);
 		close (tag->bt_fd);
-		/* free (tag); */
 		return (FALSE);
 	}
 	if (tag->bt_hdr.bh_Magic != BH_MAGIC)
@@ -421,7 +409,6 @@ bool write;
 	tag->bt_times = (ZebTime *) 
 		malloc (tag->bt_hdr.bh_MaxBoundary * sizeof (ZebTime));
 	bf_SyncTimes (tag);
-	/* *rtag = (char *) tag; */
 	return (TRUE);
 }
 
@@ -440,7 +427,6 @@ OpenFile *ofp;
 	close (tag->bt_fd);
 	free (tag->bt_BTable);
 	free (tag->bt_times);
-	/* free (tag); */
 }
 
 

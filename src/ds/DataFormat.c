@@ -39,7 +39,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-RCSID ("$Id: DataFormat.c,v 3.2 1996-11-19 08:56:12 granger Exp $")
+RCSID ("$Id: DataFormat.c,v 3.3 1996-11-19 10:57:53 granger Exp $")
 
 /*
  * Include the DataFormat structure definition, and the public and
@@ -379,34 +379,6 @@ int ndetail;
 
 
 
-#ifdef notdef
-static int
-dfa_PutSample (dfile, dc, sample, wc, details, ndetail)
-int dfile, sample;
-DataChunk *dc;
-WriteCode wc;
-dsDetail *details;
-int ndetail;
-/*
- * Add data to this file.
- */
-{
-	OpenFile *ofp = dfa_OpenFile (dfile, 1);
-
-	if (ofp && !(ofp->of_fmt->f_PutSample))
-	{
-		msg_ELog (EF_DEBUG, "%s format: no PutSample method",
-			  ofp->of_fmt->f_name);
-	}
-	else if (ofp)
-	{
-		return ((*ofp->of_fmt->f_PutSample)
-			(ofp, dc, sample, wc, details, ndetail));
-	}
-	return (FALSE);
-}
-#endif
-
 
 
 int
@@ -419,7 +391,7 @@ dsDetail *details;
 int ndetail;
 /*
  * If the file's format has a f_PutBlock() method, call it.
- * Otherwise call dfa_PutSample() for each sample in the block.
+ * Otherwise call the f_PutSample() method for each sample in the block.
  */
 {
 	OpenFile *ofp = dfa_OpenFile (dfile, 1);
@@ -434,7 +406,7 @@ int ndetail;
 	}
 /*
  * If no block method, loop through each sample in the block.
- * Return FALSE if any of the dfa_PutSample() calls fail.
+ * Return FALSE if any of the f_PutSample() calls fail.
  */
 	if (!ofp->of_fmt->f_PutSample)
 	{

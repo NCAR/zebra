@@ -1,5 +1,5 @@
 /*
- * $Id: dfa.h,v 2.5 1996-11-19 09:34:59 granger Exp $
+ * $Id: dfa.h,v 2.6 1996-11-19 10:57:58 granger Exp $
  * Internal DFA declarations.  Requires DataStore.h and dslib.h.
  */
 
@@ -48,7 +48,5 @@ int	dfa_GetObsSamples FP ((int dfile, ZebTime *times,
 			       Location *locs, int max));
 int	dfa_PutBlock FP ((int dfile, DataChunk *dc, int sample, int nsample,
 			  WriteCode wc, dsDetail *details, int ndetail));
-int	dfa_PutSample FP ((int dfile, DataChunk *dc, int sample, WriteCode wc,
-			   dsDetail *details, int ndetail));
 
 #endif /* __zebra_dfa_h_ */

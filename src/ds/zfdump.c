@@ -13,7 +13,7 @@
 # include "DataStore.h"
 # include "znfile.h"
 
-RCSID ("$Id: zfdump.c,v 1.15 1996-11-19 09:22:03 granger Exp $")
+RCSID ("$Id: zfdump.c,v 1.16 1996-11-19 10:57:59 granger Exp $")
 
 extern int optind;
 
@@ -220,10 +220,6 @@ int dump_free, dump_header, dump_all;
 		while (foff > 0)
 		{
 			ReadFreeNode (fd, foff, &zf);
-#ifdef notdef
-			lseek (fd, foff, 0);
-			read (fd, &zf, sizeof (zf));
-#endif
 			printf ("\tBlk at %ld, size %d\n", foff, zf.znf_Size);
 			foff = zf.znf_Next;
 		}

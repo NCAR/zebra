@@ -35,7 +35,7 @@
 #  include <string.h>
 #endif
 
-RCSID ("$Id: DFA_Zebra.c,v 1.29 1996-11-19 08:37:35 granger Exp $")
+RCSID ("$Id: DFA_Zebra.c,v 1.30 1996-11-19 10:57:49 granger Exp $")
 
 /*
  * There is a conflict with the symbol DataFormat between DFA and the
@@ -117,9 +117,6 @@ static CO_Compat COCTable[] =
 P_CreateFile (zn_CreateFile);
 P_QueryTime (zn_QueryTime);
 P_SyncFile (zn_Sync);
-#ifdef notdef
-P_PutSample (zn_PutSample);
-#endif
 P_CloseFile (zn_Close);
 P_OpenFile (zn_Open);
 P_GetData (zn_GetData);
@@ -199,7 +196,7 @@ static void	zn_DataWrite FP ((znTag *, void *, int, zn_Sample *,
 			WriteCode));
 static void	zn_OFLoadStations FP ((znTag *));
 static void	zn_PutAttrs FP ((znTag *, int, void *, int));
-#ifdef notdef
+#ifdef maybe
 static void	zn_PutAttrsBlock FP ((znTag *tag, DataChunk *dc,
 				      int fsample, int sample, int nsample));
 #endif
@@ -589,7 +586,7 @@ znTag *tag;
 		zn_PutBlock (tag, hdr->znh_OffRg, tag->zt_Rg,
 			hdr->znh_NSampAlloc*sizeof (RGrid));
 	tag->zt_Sync = 0;
-#ifdef notdef /* might this be necessary for concurrent reads and writes? */
+#ifdef maybe /* might this be necessary for concurrent reads and writes? */
 	fsync (tag->zt_Fd);
 #endif
 }
@@ -673,102 +670,6 @@ int *nsample;
 
 
 
-#ifdef notdef
-static int
-zn_PutSample (ofp, dc, sample, wc, details, ndetail)
-OpenFile *ofp;
-DataChunk *dc;
-int sample;
-WriteCode wc;
-dsDetail *details;
-int ndetail;
-/*
- * Dump a sample's worth of data into the file.
- */
-{
-	int fsample, nfield, *index = 0, alen;
-	FieldId *fids = NULL;
-	znTag *tag = TAGP (ofp);
-	ZebTime t;
-	zn_Sample *samp;
-	zn_Header *hdr = &tag->zt_Hdr;
-	void *ablock;
-	char atime[30];
-	SValue svalue;
-/*
- * Make sure we have altitude unit consistency
- */
-	if (zn_AltUnits (dc_GetLocAltUnits (dc)) != hdr->znh_AltUnits)
-	{
-		msg_ELog (EF_PROBLEM, 
-			  "zn_PutSample failed: Alt units mismatch");
-		return (0);
-	}
-/*
- * Check for hints about the number of samples we should have alloc'ed
- */
-	if (ds_GetDetail (DD_ZN_HINT_NSAMPLES, details, ndetail, &svalue) &&
-	    (svalue.us_v_int > hdr->znh_NSampAlloc))
-	{
-		msg_ELog (EF_DEBUG, "znf: realloc'ing file for %d samples", 
-			  svalue.us_v_int);
-		zn_ReallocTOC (tag, svalue.us_v_int);
-	}
-/*
- * Figure out where this sample is to be written.
- */
-	dc_GetTime (dc, sample, &t);
-	fsample = zn_FindDest (ofp, &t, /*nsample*/ 1, wc);
-	TC_EncodeTime (&t, TC_TimeOnly, atime);
-	msg_ELog (EF_DEBUG, "znf PutSample, code %d, fsample %d t %s", wc,
-		fsample, atime);
-/*
- * Get our field array into order.
- */
-	if (dc->dc_Class != DCC_Boundary && dc->dc_Class != DCC_Transparent)
-	{
-		fids = dc_GetFields (dc, &nfield);
-		index = (int *) malloc (nfield*sizeof (int));
-		zn_GetFieldIndex (tag, fids, nfield, index, TRUE);
-	}
-/*
- * Check whether this sample is supposed to be appended
- */
-	if (ds_GetDetail (DD_ZN_APPEND_SAMPLES, details, ndetail, NULL))
-		tag->zt_Append = TRUE;
-/*
- * Now get the data out by "looping" over the one sample.
- */
-	zn_LoopBlock (tag, dc, fsample, sample, 1, wc, index, fids, nfield);
-	tag->zt_Append = FALSE;
-/*
- * We also have to add the time to the time array.  We flush the individual
- * time out here rather than dirty up and sync the entire array.
- */
-	tag->zt_Time[fsample] = t;
-	zn_PutBlock (tag, hdr->znh_OffTime + fsample*sizeof (ZebTime),
-			tag->zt_Time + fsample, sizeof (ZebTime));
-/*
- * Save out the sample array.
- */
-	samp = zn_FindSampStr (tag, fsample);
-	zn_PutBlock (tag, hdr->znh_OffSample + zn_SASize (hdr, fsample),
-			samp, zn_SASize (hdr, 1));
-/*
- * If there are sample attributes, save them; otherwise erase any existing
- * ones (ablock == NULL)
- */
-	ablock = dc_GetSaAttrBlock (dc, sample, &alen);
-	zn_PutAttrs (tag, fsample, ablock, alen);
-/*
- * Done.
- */
- 	if (index)
-		free (index);
-	zn_WriteSync (tag);
-	return (1);
-}
-#endif
 
 
 static int
@@ -885,7 +786,7 @@ int ndetail;
 		ablock = dc_GetSaAttrBlock (dc, sample+i, &alen);
 		zn_PutAttrs (tag, fsample+i, ablock, alen);
 	}
-#ifdef notdef
+#ifdef maybe
 	zn_PutAttrsBlock (tag, dc, fsample, sample, nsample);
 #endif
 /*
@@ -1141,7 +1042,7 @@ int nfield;
 
 
 
-#ifdef notdef	/* 
+#ifdef maybe	/* 
 		 * Decommissioned until such time, if any, as someone thinks
 		 * it may provide a real time savings for their purposes.
 		 * Maybe use of this function could be a dsDetail. 
@@ -2837,7 +2738,7 @@ DataClass class;
 		/* all other classes ok */
 		break;
 	}
-#ifdef notdef
+#ifdef notyet
 	/*
 	 * For metdata, add field bad values
 	 */

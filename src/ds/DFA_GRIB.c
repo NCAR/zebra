@@ -38,7 +38,7 @@
 # include "DataFormat.h"
 # include "GRIB.h"
 
-RCSID ("$Id: DFA_GRIB.c,v 3.24 1996-11-19 08:45:44 granger Exp $")
+RCSID ("$Id: DFA_GRIB.c,v 3.25 1996-11-19 10:57:38 granger Exp $")
 
 
 /*
@@ -1816,29 +1816,13 @@ float		*ztarget;
  */
 	if (nlevels == 0)
 	{
-#ifdef notdef
-		float	*grid;
-		int	gridsize;
-#endif
 		msg_ELog (EF_INFO, "GRIB: No %d hr forecast for %s/%s", 
 			  offset / 3600, ds_PlatformName (dc->dc_Platform), 
 			  F_GetName (fid));
 		
-		/* time = tag->gt_grib[sbegin].gd_time;*/
 		time = tag->gt_times[sbegin];
 
-#ifdef notdef
-		gridsize = nlat * nlon * dc_nlevels;
-		grid = (float *) malloc (gridsize * sizeof (float));
-
-		for (i = 0; i < gridsize; i++)
-			grid[i] = badval;
-#endif
-
 		dc_NSAddSample (dc, &time, samp, fid, DC_FillValues);
-#ifdef notdef
-		free (grid);
-#endif
 		return;
 	}
 /*

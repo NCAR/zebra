@@ -18,7 +18,7 @@
 # include "RasterFile.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_Raster.c,v 3.14 1996-11-19 08:36:31 granger Exp $")
+RCSID ("$Id: DFA_Raster.c,v 3.15 1996-11-19 10:57:46 granger Exp $")
 
 /*
  * This is the tag for an open raster file.
@@ -421,9 +421,6 @@ int ndetail;
 	int fld, nfld;
 	PlatformId id = dc->dc_Platform;
 	FieldId *fids;
-#ifdef notdef
-	ClientPlatform p;
-#endif
 /*
  * We gotta create a file before doing much of anything.
  */
@@ -436,10 +433,6 @@ int ndetail;
 /*
  * Start to fill in the header.
  */
-#ifdef notdef
-	ds_GetPlatStruct (id, &p, FALSE);
-	tag->rt_hdr.rf_MaxSample = p.cp_maxsamp;
-#endif
 	tag->rt_hdr.rf_Magic = RF_MAGIC;
 	strcpy (tag->rt_hdr.rf_Platform, ds_PlatformName (id));
 	tag->rt_hdr.rf_MaxSample = ds_MaxSamples (id);

@@ -33,7 +33,7 @@
 # include "dfa.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_NetCDF.c,v 3.55 1996-11-19 08:44:15 granger Exp $")
+RCSID ("$Id: DFA_NetCDF.c,v 3.56 1996-11-19 10:57:42 granger Exp $")
 
 # include <netcdf.h>
 
@@ -141,9 +141,6 @@ P_SyncFile (dnc_SyncFile);
 P_GetData (dnc_GetData);
 P_GetAlts (dnc_GetAlts);
 P_CreateFile (dnc_CreateFile);
-#ifdef notdef
-P_PutSample (dnc_PutSample);
-#endif
 P_PutBlock (dnc_PutBlock);
 P_GetFields (dnc_GetFields);
 P_GetObsSamples (dnc_GetObsSamples);
@@ -160,7 +157,7 @@ static CO_Compat COCTable [] =
 	{ Org2dGrid,		DCC_RGrid	},
 	{ Org3dGrid,		DCC_RGrid	},
 	{ OrgIRGrid,		DCC_IRGrid	},
-#ifdef notdef /* notyet */
+#ifdef notyet
 	{ OrgIRGrid,		DCC_RGrid	},/* 1D profiles from irgrid */
 #endif
 	{ OrgIRGrid,		DCC_Scalar	},
@@ -2490,257 +2487,6 @@ int ndetail;
 
 
 
-#ifdef notdef
-static void
-dnc_ReadNSpaceScalar (dc, tag, begin, nsamp, altindex, details, ndetail)
-DataChunk *dc;
-NCTag *tag;
-int begin, nsamp;
-int altindex;
-dsDetail *details;
-int ndetail;
-/*
- * Retrieve multi-dimensional scalar data from this file and add it to
- * the NSpace datachunk.
- */
-{
-	long start[ MAX_VAR_DIMS ];
-	long count[ MAX_VAR_DIMS ];
-	unsigned long sizes[ DC_MaxDimension ];
-	char *names[ DC_MaxDimension ];
-	void *temp;
-	unsigned long size, tempsize;
-	int elemsize;
-	int field, i;
-	int varid;
-	int sbegin = dc_GetNSample (dc);
-	int dim, ndim, is_static;
-	int altid, dindex;
-	int nfield;
-	FieldId *fids = dc_GetFields (dc, &nfield);
-
-	altid = -1;
-	if (altindex >= 0)
-		altid = F_Lookup ("altitude");
-	/*
-	 * Each field will have different hyperslab coordinates, depending
-	 * on whether or not the field is static, and depending on the
-	 * field's dimensions.  So we'll loop through the fields and handle
-	 * each one entirely separately.
-	 */
-	temp = NULL;
-	tempsize = 0;
-	for (field = 0; field < nfield; ++field)
-	{
-		if ((varid = dnc_GetFieldVar (tag, fids[field])) < 0)
-		{
-			msg_ELog (EF_DEBUG, "netcdf: missing field %d %s", 
-				  fids[field], 
-				  "will be filled with bad values");
-		}
-
-		/*
-		 * Dynamic fields will need these coords for the 1st dimn
-		 */
-		start[0] = begin;
-		count[0] = nsamp;
-		/*
-		 * All other limits get the whole slab, unless it's an
-		 * altitude dimension and we're slicing at an altitude level
-		 */
-		dc_NSGetField (dc, fids[field], &ndim, 
-			       names, sizes, &is_static);
-		size = (is_static) ? 1 : nsamp;
-		dim = (is_static) ? 0 : 1;
-		for (i = 0; i < ndim; ++i, ++dim)
-		{
-			start[dim] = 0;
-			count[dim] = sizes[i];
-			if ((altindex >= 0) && 
-			    (!strcmp (F_GetName(altid), names[i])))
-			{
-				start[dim] = altindex;
-				count[dim] = 1;
-			}
-			else if (dc_NSFixedDimension (details, ndetail,
-						      names[i], &dindex))
-			{
-				start[dim] = dindex;
-				count[dim] = 1;
-			}
-			size *= count[dim];
-		}
-
-		elemsize = dc_SizeOf (dc, fids[field]);
-		if (!temp)
-		{
-			tempsize = size * elemsize;
-			temp = (void *) malloc (tempsize);
-		}
-		else if (size * elemsize > tempsize)
-		{
-			tempsize = size * elemsize;
-			temp = (void *) realloc (temp, tempsize);
-		}
-
-		if ((varid < 0) ||
-		    ncvarget (tag->nc_id, varid, start, count, temp) < 0)
-		{
-			if (varid >= 0)
-				msg_ELog (EF_PROBLEM, 
-				  "dnc_ReadNSpace, error on field %i", 
-				  fids[field]);
-			if (! is_static)
-				dc_NSAddMissing (dc, tag->nc_times + begin,
-						 sbegin, nsamp, fids[field]);
-			else
-				dc_NSFillStatic (dc, fids[field]);
-		}
-		else
-		{
-			/*
-			 * Add the data to the data chunk.
-			 */
-			if (is_static)
-				dc_NSAddStatic (dc, fids[field], temp);
-			else
-				dc_NSAddMultSamples (dc, tag->nc_times + begin,
-					     sbegin, nsamp, fids[field], temp);
-		}
-	}
-	if (temp)
-		free (temp);
-}
-#endif
-
-
-
-#ifdef notdef
-
-static void
-dnc_ReadNSpaceScalar (dc, tag, begin, nsamp, fids, nfield,  
-		      altindex, details, ndetail)
-DataChunk *dc;
-NCTag *tag;
-int begin, nsamp;
-FieldId *fids;
-int nfield;
-int altindex;
-dsDetail *details;
-int ndetail;
-/*
- * Retrieve multi-dimensional scalar data from this file and add it to
- * the NSpace datachunk.
- */
-{
-	long start[ MAX_VAR_DIMS ];
-	long count[ MAX_VAR_DIMS ];
-	unsigned long sizes[ DC_MaxDimension ];
-	char *names[ DC_MaxDimension ];
-	void *temp;
-	unsigned long size, tempsize;
-	int elemsize;
-	int field, i;
-	int varid;
-	int sbegin = dc_GetNSample (dc);
-	int dim, ndim, is_static;
-	int altid, dindex;
-
-	altid = -1;
-	if (altindex >= 0)
-		altid = F_Lookup ("altitude");
-	/*
-	 * Each field will have different hyperslab coordinates, depending
-	 * on whether or not the field is static, and depending on the
-	 * field's dimensions.  So we'll loop through the fields and handle
-	 * each one entirely separately.
-	 */
-	temp = NULL;
-	tempsize = 0;
-	for (field = 0; field < nfield; ++field)
-	{
-		if ((varid = dnc_GetFieldVar (tag, fids[field])) < 0)
-		{
-			msg_ELog (EF_DEBUG, "netcdf: missing field %d %s", 
-				  fids[field], 
-				  "will be filled with bad values");
-		}
-
-		/*
-		 * Dynamic fields will need these coords for the 1st dimn
-		 */
-		start[0] = begin;
-		count[0] = nsamp;
-		/*
-		 * All other limits get the whole slab, unless it's an
-		 * altitude dimension and we're slicing at an altitude level
-		 */
-		dc_NSGetField (dc, fids[field], &ndim, 
-			       names, sizes, &is_static);
-		size = (is_static) ? 1 : nsamp;
-		dim = (is_static) ? 0 : 1;
-		for (i = 0; i < ndim; ++i, ++dim)
-		{
-			start[dim] = 0;
-			count[dim] = sizes[i];
-			if ((altindex >= 0) && 
-			    (!strcmp (F_GetName(altid), names[i])))
-			{
-				start[dim] = altindex;
-				count[dim] = 1;
-			}
-			else if (dc_NSFixedDimension (details, ndetail,
-						      names[i], &dindex))
-			{
-				start[dim] = dindex;
-				count[dim] = 1;
-			}
-			size *= count[dim];
-		}
-
-		elemsize = dc_SizeOf (dc, fids[field]);
-		if (!temp)
-		{
-			tempsize = size * elemsize;
-			temp = (void *) malloc (tempsize);
-		}
-		else if (size * elemsize > tempsize)
-		{
-			tempsize = size * elemsize;
-			temp = (void *) realloc (temp, tempsize);
-		}
-
-		if ((varid < 0) ||
-		    ncvarget (tag->nc_id, varid, start, count, temp) < 0)
-		{
-			if (varid >= 0)
-				msg_ELog (EF_PROBLEM, 
-				  "dnc_ReadNSpace, error on field %i", 
-				  fids[field]);
-			if (! is_static)
-				dc_NSAddMissing (dc, tag->nc_times + begin,
-						 sbegin, nsamp, fids[field]);
-			else
-				dc_NSFillStatic (dc, fids[field]);
-		}
-		else
-		{
-			/*
-			 * Add the data to the data chunk.
-			 */
-			if (is_static)
-				dc_NSAddStatic (dc, fids[field], temp);
-			else
-				dc_NSAddMultSamples (dc, tag->nc_times + begin,
-					     sbegin, nsamp, fids[field], temp);
-		}
-	}
-	if (temp)
-		free (temp);
-}
-#endif
-
-
 
 
 static int
@@ -3105,64 +2851,6 @@ Location *pos;
 }		
 
 
-#ifdef notdef
-	float *ltemp;
-/*
- * Allocate temp space.
- */
-	ltemp = (float *) malloc (count * sizeof(float));
-/*
- * Write latitudes.
- */
-	if ((var = dnc_Varid (tag->nc_id, "lat")) < 0)
-	{
-		dnc_NCError ("No latitude");
-		return;
-	}
-	for (i = 0; i < count; i++)
-		ltemp[i] = pos[i].l_lat;
-	if (ncvarput (tag->nc_id, var, &start, &count, ltemp) < 0)
-	{
-		dnc_NCError ("Latitude put");
-		return;
-	}
-/*
- * Write longitudes.
- */
-	if ((var = dnc_Varid (tag->nc_id, "lon")) < 0)
-	{
-		dnc_NCError ("No longitude");
-		return;
-	}
-	for (i = 0; i < count; i++)
-		ltemp[i] = pos[i].l_lon;
-	if (ncvarput (tag->nc_id, var, &start, &count, ltemp) < 0)
-	{
-		dnc_NCError ("Longitude put");
-		return;
-	}
-/*
- * Write altitudes.
- */
-	if ((var = dnc_Varid (tag->nc_id, "alt")) < 0)
-	{
-		dnc_NCError ("No altitude");
-		return;
-	}
-	for (i = 0; i < count; i++)
-		ltemp[i] = pos[i].l_alt;
-	if (ncvarput (tag->nc_id, var, &start, &count, ltemp) < 0)
-	{
-		dnc_NCError ("Altitude put");
-		return;
-	}
-/*
- * 7/91 jc	Ah, yes, we really outta free up the ltemp array
- * after we're done with it.  Those CAPE folks are getting awful
- * tired of bloated processes sitting around.
- */
-	free (ltemp);
-#endif
 
 
 
@@ -3724,7 +3412,7 @@ DataChunk *dc;
 	sprintf(history,"created by the Zebra DataStore library, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.55 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.56 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 }
@@ -4080,100 +3768,6 @@ int *vlat, *vlon, *valt;
 
 
 
-#ifdef notdef
-static int
-dnc_PutSample (ofp, dc, sample, wc, details, ndetail)
-OpenFile *ofp;
-DataChunk *dc;
-int sample;
-WriteCode wc;
-dsDetail *details;
-int ndetail;
-/*
- * Write one sample from the DC into this file.
- */
-{
-	NCTag *tag = TAGP (ofp);
-	long start[ MAX_VAR_DIMS ], count[ MAX_VAR_DIMS ];
-	int ndim;
-	int vfield, field, nfield;
-	DataPtr data;
-	FieldId *fids;
-	Location loc;
-/*
- * Make sure the altitude units are consistent with what we expect
- */
-	if (dc_GetLocAltUnits (dc) != tag->nc_altUnits)
-	{
-		msg_ELog (EF_PROBLEM, 
-			  "PutSample: Alt units inconsistent.  Write failed.");
-		return (0);
-	}
-/*
- * Figure out where this sample is supposed to go.
- */
-	start[0] = start[1] = start[2] = start[3] = 0;
-	count[0] = count[1] = count[2] = count[3] = 1;
-	if (! dnc_FindTimes (ofp, dc, sample, 1, wc, start))
-		return (0);
-/*
- * Work out coords and data stuff now.
- */
-	dnc_DoWriteCoords (tag, dc, sample, start, count, &ndim);
-/*
- * Time for the humungo write to dump it all into the file.
- */
-	fids = dc_GetFields (dc, &nfield);
-	for (field = 0; field < nfield; field++)
-	{
-	/*
-	 * Find everything.
-	 */
-		if ((vfield = dnc_GetFieldVar (tag, fids[field])) < 0)
-		{
-			msg_ELog (EF_PROBLEM, "PutSample: Can't find fld %s",
-						 F_GetName (fids[field]));
-			continue;
-		}
-		if ((dc->dc_Class == DCC_NSpace) &&
-		    (dc_NSIsStatic (dc, fids[field])))
-			data = dc_NSGetStatic (dc, fids[field], 0);
-		else
-			data = dc_GetMData (dc, sample, fids[field], 0);
-	/*
-	 * Write it to the file, if we got anything
-	 */
-		if (data == NULL)
-		{
-			msg_ELog (EF_PROBLEM, 
-			  "PutSample: no data for fld %s, sample %i",
-				  F_GetName (fids[field]), sample);
-		}
-		else if (dc->dc_Class == DCC_NSpace)
-		{
-			if (dnc_NSpaceVarPut (tag, dc, vfield, fids[field],
-					      start, count, ndim, data) < 0)
-				dnc_NCError ("NSpace data write");
-		}
-		else if (ncvarput (tag->nc_id, vfield, start, count, data) < 0)
-			dnc_NCError ("Data write");
-	}
-/*
- * For mobile platforms, we need to store the location info too.
- */
-	if (ds_IsMobile (tag->nc_plat))
-	{
-		dc_GetLoc (dc, sample, &loc);
-		dnc_PutLocation (tag, start[0], count[0], &loc);
-	}
-/*
- * Synchronize.
- */
-	ncsync (tag->nc_id);
-	return (1);
-}
-#endif
-
 
 
 static int
@@ -4507,105 +4101,6 @@ DataChunk *dc;
 		}
 	}
 }
-
-
-
-#ifdef notdef
-	char *data;		/* A single array we malloc and keep around */
-	                        /* for holding blocks of data for each field*/
-	char *mdata;		/* A field's metdata at a particular sample */
-	unsigned long idata;	/* The number of bytes written into the data*/
-	                        /* array for a particular field.	    */
-	unsigned long mdatasize;/* Size, in bytes, of a field's sample data */
-	unsigned long datasize;	/* Size, in bytes, of the data array.	    */
-
-	datasize = 0;
-	data = NULL;
-	for (field = 0; field < nfield; field++)
-	{
-	/*
-	 * Find everything.  Store each sample for this field
-	 * into one contiguous data array.
-	 */
-		idata = 0;
-		if ((vfield = dnc_GetFieldVar (tag, fids[field])) < 0)
-		{
-			msg_ELog (EF_PROBLEM, "PutBlock: Can't find fld %s",
-				  F_GetName (fids[field]));
-			continue;
-		}
-
-		staticf = ((dc->dc_Class == DCC_NSpace) &&
-			   (dc_NSIsStatic (dc, fids[field])));
-		for (i = 0; i < (staticf ? 1 : nsample); ++i)
-		{
-			if (! staticf)
-			{
-				mdata = (char *)dc_GetMData(dc, sample + i,
-							    fids[field], 
-							    (int *)&mdatasize);
-			}
-			else
-			{
-				mdata = (char *)dc_NSGetStatic (dc, 
-								fids[field], 
-								&mdatasize);
-				mdatasize *= dc_SizeOf (dc, fids[field]);
-			}
-
-			/*
-			 * Abort if we couldn't get data
-			 */
-			if (mdata == NULL)
-			{
-				msg_ELog (EF_PROBLEM, 
-				  "PutBlock: no data for field %s, sample %i",
-				  F_GetName (fids[field]), sample + i);
-				if (data)
-					free (data);
-				return (0);
-			}
-				
-			if (! data)
-			{
-				datasize = nsample * mdatasize;
-				data = (char *) malloc (datasize);
-			}
-			else if (idata + mdatasize > datasize)
-			{
-				datasize += (nsample - i) * mdatasize;
-				data = (char *) realloc (data, datasize);
-			}
-			memcpy (data + idata, mdata, mdatasize);
-			idata += mdatasize;
-		}
-	/*
-	 * Write it to the file.
-	 */
-		if (dc->dc_Class == DCC_NSpace)
-		{
-			if (dnc_NSpaceVarPut (tag, dc, vfield, 
-					      fids[field], start, 
-					      count, ndim, (DataPtr)data) < 0)
-				dnc_NCError ("NSpace data write");
-		}
-		else if (ncvarput (tag->nc_id, vfield, start, count, data) < 0)
-			dnc_NCError ("Data write");
-	}
-	if (data)
-		free(data);
-/*
- * For mobile platforms, we need to store the location info too.
- */
-	if (ds_IsMobile (tag->nc_plat))
-	{
-		locns = (Location *)malloc(nsample * sizeof(Location));
-		for (i = 0; i < nsample; ++i)
-			dc_GetLoc (dc, sample + i, locns + i);
-		dnc_PutLocation (tag, start[0], count[0], locns);
-		free(locns);
-	}
-#endif
 
 
 
