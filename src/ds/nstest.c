@@ -1,5 +1,5 @@
 /*
- * $Id: nstest.c,v 1.13 1994-12-03 07:22:58 granger Exp $
+ * $Id: nstest.c,v 1.14 1995-01-18 00:50:25 granger Exp $
  */
 
 /*
@@ -75,9 +75,12 @@ struct message *msg;
 /* #define ZNF_TESTING */
 #endif
 
-#define ATTRIBUTES
+#define TIME_UNITS
 
 #ifdef notdef
+#define AERI_TYPES
+#define ATTRIBUTES
+#define EXAMPLE_ONLY
 #define TRANSPARENT
 #define SCALAR
 #define GETFIELDS
@@ -89,7 +92,6 @@ struct message *msg;
 #define TEST4_STORE
 #define SCALAR_NSPACE
 #define FIELD_TYPES
-#define AERI_TYPES
 #define ATTRIBUTES
 #define NEXUS
 #define RGRID		/* test DC RGrid interface */
@@ -164,18 +166,24 @@ struct TestPlatform {
 	{ "t_copy_source" },
 	{ "t_copy_dest" },
 #endif
+#ifdef AERI_TYPES
+	{ "t_aeri_types_cdf" },
+	{ "t_aeri_types_znf" },
+#endif
 #ifdef notdef
 	{ "t_virtual" },
 	{ "t_getfields_cdf" },
 	{ "t_getfields_znf" },
 	{ "t_nsvsc_scalar" },
 	{ "t_nsvsc_nspace" },
-	{ "t_aeri_types_cdf" },
-	{ "t_aeri_types_znf" },
 	{ "t_fieldtypes" },
 #endif
 #ifdef ATTRIBUTES
 	{ "t_att_types_cdf" },
+#endif
+#ifdef TIME_UNITS
+	{ "t_time_units" },
+	{ "t_time_units_2" },
 #endif
 };
 
@@ -413,6 +421,10 @@ main (argc, argv)
 
 #ifdef COPY_SCALAR
         T_CopyScalar (&begin);
+#endif
+
+#ifdef TIME_UNITS
+	T_TimeUnits (&begin);
 #endif
 
 	ds_ForceClosure();
@@ -2387,7 +2399,7 @@ ZebTime when;
  */
 {
 #define N_WNUM 65
-#define N_SAMPLE 128
+#define N_SAMPLE 16
 	DataChunk *dc, *ndc;
 	PlatformId plat_id;
 	ZebTime begin = when;
@@ -2470,6 +2482,7 @@ makes the beauty of your eyes glow with irresistable radiance",
 	 * Close out definition and set the non-float field types
 	 */
 	dc_NSDefineComplete (dc);
+	dc_SetBadval (dc, 9999.0);
 	dc_SetType (dc, bitmap_id, DCT_UnsignedChar);
 	dc_SetType (dc, obs_id, DCT_Char);
 	dc_SetType (dc, flags_id, DCT_UnsignedShort);
@@ -2633,6 +2646,7 @@ ZebTime when;
 	dc_AddScalar (dc, &when, 0, field, &data);
 	dc_SetFieldAttr (dc, field, "field_key", "field_value");
 	dc_SetSampleAttr (dc, 0, "sample_key", "sample_value");
+#ifndef EXAMPLE_ONLY
 	printf ("%s dc should include non-string attributes:\n", dash);
 	dc_DumpDC (dc);
 	/*
@@ -2656,6 +2670,7 @@ ZebTime when;
 			printf ("Sample att error: '%s' should equal '%s'\n", 
 				key, value);
 	}
+#endif /* ! EXAMPLE_ONLY */
 	/*
 	 * Add some more typed attributes
 	 */
@@ -2687,6 +2702,7 @@ ZebTime when;
 	 */
 	printf ("%s Storing datachunk to platform '%s'\n", dash, pname);
 	ds_Store (dc, TRUE, 0, 0);
+#ifndef EXAMPLE_ONLY
 	/*
 	 * Now try doing all of them again, which will cause them all to be
 	 * removed and then re-added.
@@ -2833,8 +2849,121 @@ ZebTime when;
 	if (!cptr || strcmp(cptr, cdata))
 		printf ("Field att error: '%s' should be string '%s'\n", 
 			"field_char", cdata);
+#endif /* ! EXAMPLE_ONLY */
 	dc_DestroyDC (dc);
-	Announce ("T_Attributes done.\n");
+	Announce ("T_Attributes done.");
 }
 
 #endif /* ATTRIBUTES */
+
+
+#ifdef TIME_UNITS
+T_StoreTimes (begin, pid, pid2, details, ndetail)
+ZebTime *begin;
+PlatformId pid;
+dsDetail *details;
+int ndetail;
+{
+	DataChunk *dc, *ndc;
+	int nfield = 10;
+	FieldId fields[10];
+	dsDetail fdets[10];
+	int nfdet = 0;
+
+	dc = T_SimpleScalarChunk (begin, 1, 10, 4, FALSE, FALSE);
+	dc->dc_Platform = pid;
+	ds_Store (dc, TRUE, details, ndetail);
+	ds_GetFields (pid, begin, &nfield, fields);
+	fdets[nfdet].dd_Name = DD_FETCH_BADVAL;
+	fdets[nfdet++].dd_V.us_v_float = dc_GetBadval (dc);
+	ndc = ds_FetchObs (pid, DCC_Scalar, begin, fields, nfield, 
+			   fdets, nfdet);
+	ndc->dc_Platform = pid2;
+	ds_Store (ndc, TRUE, details, ndetail);
+	dc_DestroyDC (dc);
+	dc_DestroyDC (ndc);
+}
+
+
+T_TimeUnits (begin)
+ZebTime *begin;
+/*
+ * Just send a bunch of strings to the time units parser and check
+ * the results.
+ */
+{
+	ZebTime zt;
+	char buf[256];
+	dsDetail details[10];
+	int ndetail = 0;
+	char *units[] = {
+		"seconds since 1992-10-8 15:15:42.5 -6:00",
+		"seconds depuis 1992-10-8 15:15:42.5 -6:00",
+		"seconds",
+		" milliseconds ",
+		"hours since 1992-10-8 15:15:42.5 0:00",
+		"seconds since 1992-10-8 15:15:42.5 8",
+		"SECONDS SINCE 1992-10-8 15:15:42.5 8",
+		"seconds ref 1992-10-8 15:15:42.5 800",
+		"seconds ref 1992-10-8 15:15:42.5 830",
+		"seconds @ 1992-10-8 15:15:42.5 8:00",
+		"seconds from 1992-10-8 15:15:42.5 8:30",
+		"seconds after 1992-10-8 15:15:42.5 8:00",
+		"  seconds since 1970-1-1 0:00:00 0:00   ",
+		"seconds since 1994-09-15 06:15:00 0:00",
+		"  ",
+		"seconds since 1994-09-15 06:15:00 zone",
+		"seconds since 1994-09-15 06:15:00",
+		NULL
+	};
+	char **u;
+	int result;
+	PlatformId pid, pid2;
+			
+#ifdef TEST_TIME_UNITS
+	Announce ("--- test of dnc_TimeUnits() -------------");
+	u = units;
+	while (*u)
+	{
+		result = dnc_TimeUnits (&zt, *u);
+		printf ("'%s': %s", *u, (result) ? "true" : "false\n");
+		if (result)
+		{
+			TC_EncodeTime (&zt, TC_FullUSec, buf);
+			printf (", %s\n", buf);
+		}
+		++u;
+	}
+#endif
+
+	/*
+	 * Now that we've tested the units parsing, try creating and reading
+	 * files using different details.  Then fetch the data from each
+	 * time and re-store it in a different platform so the files can
+	 * be compared.
+	 */
+	Announce ("--- testing details of defining and fetching 'time' --");
+	zt = *begin;
+	pid = ds_LookupPlatform ("t_time_units");
+	pid2 = ds_LookupPlatform ("t_time_units_2");
+	T_StoreTimes (&zt, pid, pid2, NULL, 0);
+
+	zt.zt_Sec += 60;
+	details[0].dd_Name = DD_NC_TIME_LONG;
+	T_StoreTimes (&zt, pid, pid2, details, 1);
+
+	zt.zt_Sec += 60;
+	details[0].dd_Name = DD_NC_ONE_TIME;
+	T_StoreTimes (&zt, pid, pid2, details, 1);
+
+	zt.zt_Sec += 60;
+	details[1].dd_Name = DD_NC_TIME_FLOAT;
+	T_StoreTimes (&zt, pid, pid2, details, 2);
+
+	zt.zt_Sec += 60;
+	details[1].dd_Name = DD_NC_TIME_LONG;
+	T_StoreTimes (&zt, pid, pid2, details, 2);
+}	
+
+#endif /* TIME_UNITS */
+
