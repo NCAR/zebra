@@ -23,6 +23,7 @@
 # include <errno.h>
 # include "DerivTable.h"
 # include "DataStore.h"
+
 extern "C"
 {
 #	include <message.h>
@@ -122,7 +123,7 @@ ds_GetDerivation( PlatformId pid, FieldId wantid, FieldId raw_ids[], int nraw )
     Field *raw_flds = new Field[nraw];
     DerivNode *deriv;
     PlatformId parent;
-    const DerivTable *dtables[3];
+    const DerivTable *dtables[4];
     int ntables;
 
     for (int f = 0; f < nraw; f++)
@@ -142,6 +143,7 @@ ds_GetDerivation( PlatformId pid, FieldId wantid, FieldId raw_ids[], int nraw )
     if ((parent = ds_LookupParent( pid )) != BadPlatform)
 	dtables[ntables++] = PlatDerList.Table( parent );
 
+    dtables[ntables++] = &ProjectDerivs;
     dtables[ntables++] = &DefaultDerivs;
 //
 // Look for a viable derivation
@@ -312,12 +314,15 @@ _PlatDerList::Table( PlatformId pid )
 //
     if (! derivs[pid])
     {
+	DataSrcInfo dsi;
 	char fname[128];
 	
 	derivs[pid] = new DerivTable;
     //
-    // Try to load platform-specific derivations from <proj_dir>/derivs/<plat>
-    // if the file exists.  Otherwise we just have an empty DerivTable.
+    // Try to load platform-specific derivations from
+    // <proj_dir>/derivs/<plat_dir> if the file exists.  Otherwise we just
+    // have an empty DerivTable.  If the platform's suggested directory
+    // is a relative path, use that, otherwise use the platform's name.
     //
 	sprintf( fname, "%s/derivs/%s", GetProjDir(), ds_PlatformName( pid ) );
 	LoadDerivs( derivs[pid], fname, 1 );	
