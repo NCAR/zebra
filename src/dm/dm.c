@@ -1,7 +1,7 @@
 /*
  * The MOCCA display manager.
  */
-static char *rcsid = "$Id: dm.c,v 2.1 1991-09-12 01:30:31 corbet Exp $";
+static char *rcsid = "$Id: dm.c,v 2.2 1991-09-12 01:41:44 corbet Exp $";
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -29,6 +29,7 @@ static char *rcsid = "$Id: dm.c,v 2.1 1991-09-12 01:30:31 corbet Exp $";
 # include "dm_vars.h"
 # include "dm_cmds.h"
 # include "../include/timer.h"
+# include <copyright.h>
 
 
 /*
@@ -57,12 +58,12 @@ static bool Restart = TRUE;
 	static void do_wbounds (char *, struct dm_rq_wbounds *);
 	int dm_shutdown (void);
 	static bool ResolveLinks (struct config *, struct ui_command *);
-	void SEChange (char *, int, int, int, SValue *, int, SValue *);
+	int SEChange (char *, int, int, int, SValue *, int, SValue *);
 # else
 	static void do_wbounds ();
 	int dm_shutdown ();
 	static bool ResolveLinks ();
-	void SEChange ();
+	int SEChange ();
 # endif
 
 
@@ -117,7 +118,7 @@ char **argv;
 	usy_c_indirect (vtable, "soundenabled", &SoundEnabled, SYMT_BOOL, 0);
 	usy_c_indirect (vtable, "restart", &Restart, SYMT_BOOL, 0);
 	usy_daemon (vtable, "soundenabled", SOP_WRITE, SEChange, 0);
-	tty_watch (msg_get_fd (), msg_incoming);
+	tty_watch (msg_get_fd (), (void (*)()) msg_incoming);
 # ifdef titan
 /*
  * Hook into the dialbox.
@@ -1342,7 +1343,7 @@ time *when;
 
 
 
-void
+int
 SEChange (sym, arg, op, oldtype, oldv, newtype, newv)
 char *sym;
 int arg, op, oldtype, newtype;
@@ -1355,6 +1356,7 @@ SValue *oldv, *newv;
 	bool send = newv->us_v_int;
 
 	msg_send ("Sound", MT_SOUND, FALSE, &send, 1);
+	return (0);
 }
 
 
