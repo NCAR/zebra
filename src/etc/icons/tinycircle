@@ -1,0 +1,6 @@
+#define tinycircle_width 5
+#define tinycircle_height 5
+#define tinycircle_x_hot 2
+#define tinycircle_y_hot 2
+static unsigned char tinycircle_bits[] = {
+   0x0e, 0x1b, 0x11, 0x1b, 0x0e};
