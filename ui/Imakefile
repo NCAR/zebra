@@ -1,4 +1,4 @@
-MFVERSION="$Id: Imakefile,v 1.2 1993-07-23 19:51:10 case Exp $"
+MFVERSION="$Id: Imakefile,v 1.3 1993-12-28 20:39:31 case Exp $"
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -40,12 +40,14 @@ EXTRA_DEFINES = $(XWINDOWSFLAG) -DLF=\"$(UI_LF)\" -DSMEMENU -I.
 BINSRCS = uic.c uib.c
 
 # if (UseXWindows || (UseOpenWindows && !OldOpenWin))
-   SMEMENUOBJS=SmeMenu.o RdssMenu.o
+SMEMENUOBJS=SmeMenu.o RdssMenu.o
 # else
-   SMEMENUOBJS=
+SMEMENUOBJS=
 # endif
 
-LIBOBJS= $(SMEMENUOBJS) ui.o ui_bootstrap.o ui_date.o ui_error.o ui_symbol.o \
+SMEMENUSRCS= $(SMEMENUOBJS:.o=.c)
+
+LIBOBJS= ui.o ui_bootstrap.o ui_date.o ui_error.o ui_symbol.o \
 	ui_util.o \
 	ui_ctable.o ui_state.o ui_expr.o ui_keys.o ui_types.o ui_token.o \
 	ui_prompt.o ui_parser.o ui_menu.o ui_interrupt.o ui_tty.o ui_cmds.o \
@@ -55,23 +57,32 @@ LIBOBJS= $(SMEMENUOBJS) ui.o ui_bootstrap.o ui_date.o ui_error.o ui_symbol.o \
 
 LIBSRCS = $(LIBOBJS:.o=.c)
 
-SRCS= 	$(BINSRCS) $(LIBSRCS) 
+SRCS= 	$(BINSRCS) $(LIBSRCS) $(SMEMENUSRCS) 
 
-HEADERS = SmeMenu.h RdssMenu.h ui.h ui_symbol.h ui_param.h ui_error.h ui_date.h ui_expr.h 
+HEADERS = SmeMenu.h RdssMenu.h ui.h ui_symbol.h ui_param.h ui_error.h \
+	ui_date.h ui_expr.h
 
-DISTFILES = Imakefile Makefile bootstrap.state ui_commands ui_commands. make-lf menu ui.state $(SRCS) $(HEADERS)
+PRIVATE_HEADERS = star.h submenu.h ui_commands.h ui_cstack.h ui_globals.h \
+	ui_loadfile.h ui_menu.h ui_mode.h ui_state.h ui_token.h \
+	ui_tty.h ui_window.h version.h RdssMenuP.h SmeMenuP.h 
+
+DISTFILES = Imakefile Makefile bootstrap.state ui_commands \
+	ui_commands. make-lf menu ui.state $(SRCS) $(HEADERS) \
+	$(PRIVATE_HEADERS)
+
+AllTarget ($(SMEMENUOBJS))
 
 AllTarget ($(LIBOBJS))
 
-NormalLibraryTarget ($(LOCALLIB), $(LIBOBJS))
+NormalLibraryTarget ($(LOCALLIB), $(SMEMENUOBJS) $(LIBOBJS))
 
-NormalProgramTarget (uib,uib.o $(LIBOBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
+NormalProgramTarget (uib,uib.o $(SMEMENUOBJS) $(LIBOBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
-NormalProgramTarget(uic,uic.o $(LIBOBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
+NormalProgramTarget(uic,uic.o $(SMEMENUOBJS) $(LIBOBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
 UILoadFileTarget_3(ui.lf,ui.state,ui_commands.,make-lf)
 
-InstallObjectsIntoLibrary($(LIBRDSSUI),$(LIBOBJS))
+InstallObjectsIntoLibrary($(LIBRDSSUI),$(SMEMENUOBJS) $(LIBOBJS))
 
 BuildIncludes($(HEADERS),.,.)
 
