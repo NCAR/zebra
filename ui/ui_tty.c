@@ -1,4 +1,4 @@
-/* $Id: ui_tty.c,v 1.5 1989-09-25 14:51:56 corbet Exp $ */
+/* $Id: ui_tty.c,v 1.6 1990-03-02 15:57:14 corbet Exp $ */
 /*
  * Basic terminal handling.  This is an extremely VMS-dependant module.
  */
@@ -7,6 +7,7 @@
  * The Ardent acts like bsd, but it's really sysv...
  */
 # ifdef titan
+# include <sys/types.h>
 # undef BSD
 # define SYSV
 # endif
@@ -32,7 +33,7 @@
 /*
  * Implementation of X watching...currently BSD only.
  */
-# ifdef BSD
+/* # ifdef BSD */
 # ifdef XSUPPORT
 # define MAXFD 10
 static int Nfd = 0;	/* Number of FD's to watch	*/
@@ -40,7 +41,7 @@ typedef void (*void_function_pointer) ();
 static int Fds[MAXFD];
 static void_function_pointer Fd_funcs [MAXFD];
 # endif
-# endif
+/* # endif */
 
 
 # include <ctype.h>
@@ -859,16 +860,21 @@ tty_readch ()
 	{
 		fd_set fset, ret;
 		int width;
+# ifdef titan
+		int tt_sel_ch = 0;
+# else
+		int tt_sel_ch = TT_chan;
+# endif
 
 		FD_ZERO (&ret);
-		while (Nfd > 0 && ! FD_ISSET (TT_chan, &ret))
+		while (Nfd > 0 && ! FD_ISSET (tt_sel_ch, &ret))
 		{
 		/*
 		 * Set up the file descriptor list.
 		 */
 			FD_ZERO (&fset);
-			FD_SET (TT_chan, &fset);
-			width = TT_chan;
+			FD_SET (tt_sel_ch, &fset);
+			width = tt_sel_ch;
 			for (i = 0; i < Nfd; i++)
 			{
 				FD_SET (Fds[i], &fset);
