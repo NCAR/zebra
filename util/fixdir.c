@@ -19,7 +19,7 @@ char *env, *def, *file, *dest;
 	if (file[0] == '/')
 	{
 		strcpy (dest, file);
-		return;
+		return (0);
 	}
 /*
  * If the environment variable translates, use it.
