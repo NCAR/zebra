@@ -24,9 +24,10 @@
 # include <message.h>
 # include <DataStore.h>
 
-MAKE_RCSID ("$Id: dscopy.c,v 1.2 1992-06-19 16:41:19 corbet Exp $");
+MAKE_RCSID ("$Id: dscopy.c,v 1.3 1993-03-17 20:10:16 corbet Exp $");
 
 
+# define MAX_TIMES 10000
 
 /*
  * Keywords.
@@ -44,8 +45,8 @@ MAKE_RCSID ("$Id: dscopy.c,v 1.2 1992-06-19 16:41:19 corbet Exp $");
  */
 # define MAXFLD 40
 PlatformId Source = BadPlatform, Dest = BadPlatform;
-FieldId Fids[MAXFLD];
-int NField = 0;
+FieldId Fids[MAXFLD], RFids[MAXFLD];
+int NField = 0, NRField = 0;
 ZebTime Begin = { 0, 0 }, End = { 0, 0 };
 DataClass Class;	/* Class of data we move. */
 
@@ -132,7 +133,8 @@ struct ui_command *cmds;
 	   case KW_FIELDS:
 		cmds++;
 		for (i = 0; cmds->uc_ctype != UTT_END; i++, cmds++)
-			Fids[NField++] = F_Lookup (UPTR (*cmds));
+			RFids[NRField++] = F_Lookup (UPTR (*cmds));
+		ui_warning ("Field selection doesn't work quite right yet");
 		break;
 
 	   case KW_TIME:
@@ -189,12 +191,14 @@ Go ()
 		ui_error ("No data available for source platform");
 		Die ();
 	}
+# ifdef notdef
 /*
  * Figure out the fields.
  */
 	DoFields (obstimes);
 	if (NField <= 0)
 		ui_error ("No fields!");
+# endif
 /*
  * Figure out the class of data we will be moving.
  */
@@ -253,7 +257,7 @@ ZebTime *t;
 /*
  * If they gave no fields, we do them all.
  */
-	if (NField <= 0)
+	if (NRField <= 0)
 	{
 		NField = MAXFLD;
 		ds_GetFields (Source, t, &NField, Fids);
@@ -299,19 +303,23 @@ ZebTime *t;
  * Copy the observation containing this time.
  */
 {
-	static ZebTime times[1000];
-	Location locs[1000];
-	int nsample, samp;
+	static ZebTime times[MAX_TIMES];
+	Location locs[MAX_TIMES];
+	int nsample, samp, fld;
 	char *sname = ds_PlatformName (Source);
 	DataChunk *dc;
 	char atime[40];
 
 	TC_EncodeTime (t, TC_Full, atime);
-	ui_printf ("Doing obs at %s\n", atime);
+	DoFields (t);
+	ui_nf_printf ("Doing obs at %s, %d fields: ", atime, NField);
+	for (fld = 0; fld < NField; fld++)
+		ui_nf_printf ("%s ", F_GetName (Fids[fld]));
+	ui_printf ("\n");
 /*
  * Get the times available in this observation.
  */
-	nsample = ds_GetObsSamples (Source, t, times, locs, 1000);
+	nsample = ds_GetObsSamples (Source, t, times, locs, MAX_TIMES);
 	/* XXX XXX XXX */
 	if (nsample <= 0)
 	{
@@ -329,6 +337,10 @@ ZebTime *t;
 		dc->dc_Platform = Dest;
 		if (samp == 0)
 			dc_SetGlobalAttr (dc, "copied_from", sname);
+# ifdef notdef
+		ui_printf ("Samp %3d: %.2f\n", samp,
+			dc_GetScalar (dc, 0, Fids[0]));
+# endif
 		ds_Store (dc, samp == 0, 0, 0);
 		dc_DestroyDC (dc);
 	}
