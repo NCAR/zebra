@@ -25,15 +25,14 @@
 
 # include <copyright.h>
 # include <math.h>
-# include "defs.h"
-# include "message.h"
-# include "timer.h"
-# include <DataStore.h>
+
+# include <ingest.h>
+
 # include <ui_error.h>
 # include <mda.h>
 # include <station.h>
 
-MAKE_RCSID ("$Id: pam_ingest.c,v 2.8 1993-07-01 20:15:49 granger Exp $")
+MAKE_RCSID ("$Id: pam_ingest.c,v 2.9 1994-10-26 00:25:14 granger Exp $")
 
 static int incoming FP ((struct message *));
 void	Stations FP ((char *));
@@ -93,6 +92,48 @@ float *FData[MAX_FIELD];
 # define BADVAL -9999.0
 
 
+static void
+usage (prog)
+char *prog;
+{
+	printf ("Usage: %s [options] platform project fields\n", prog);
+	printf ("       %s [options] -cmf file platform project fields\n", 
+		prog);
+	printf ("   -cmf\t\t\tThe CMF file to ingest.\n");
+	IngestUsage ();
+	printf ("NOTE: dryrun mode implies no datastore daemon, but the\n");
+	printf ("      message handler and timer must always be running.\n");
+}
+
+
+static void
+options (argc, argv, cmf)
+int *argc;
+char *argv[];
+char **cmf;
+{
+	int i;
+/*
+ * Check for the cmf option
+ */
+	*cmf = NULL;
+	for (i = 1; i < *argc; ++i)
+	{
+		if (streq("-cmf",argv[i]))
+		{
+			if (i + 1 < *argc)
+				*cmf = argv[i+1];
+			else
+			{
+				printf ("-cmf option needs file name\n");
+				usage (argv[0]);
+				exit (2);
+			}
+			IngestRemoveOptions (argc, argv, i, 2);
+		}
+	}
+}
+
 
 
 main (argc, argv)
@@ -101,28 +142,59 @@ char **argv;
 {
 	UItime t;
 	char ourname[40];
+	char *cmf = NULL;
+	char *project = NULL;
+/*
+ * Check for common ingest args and make sure we have a timer present
+ */
+	IngestParseOptions (&argc, argv, usage);
+	if (DryRun)
+	{
+		printf ("%s: dryrun mode, no datastore running\n", argv[0]);
+		printf ("%s: message and timer must be available\n", argv[0]);
+		DryRun = 0;
+		NoMessageHandler = 0;
+	}
+/*
+ * Now our own options
+ */
+	options (&argc, argv, &cmf);
 /*
  * Basic arg check.
  */
 	if (argc < 4)
 	{
-		printf ("Usage: pam_ingest platform project fields\n");
+		printf ("too few arguments\n");
+		usage (argv[0]);
 		exit (1);
 	}
 /*
  * Hook into the world.
  */
-	usy_init ();
 	sprintf (ourname, "%sIngest", argv[1]);
-	msg_connect (incoming, ourname);
-	ds_Initialize ();
-	mda_declare_file ("/data/ppf", MDA_TYPE_DATABASE, MDA_F_PAM,
-		"pam", argv[2]);
+	IngestInitialize (ourname);
+	msg_AddProtoHandler (MT_TIMER, incoming);
+
+	project = argv[2];
+	if (! cmf)
+	{
+		mda_declare_file ("/data/ppf", MDA_TYPE_DATABASE, MDA_F_PAM,
+				  "pam", project);
+	}
+	else
+	{
+		mda_declare_file (cmf, MDA_TYPE_FILE, MDA_F_CMF,
+				  "pam", project);
+	}
+
 /*
- * Figure our current time and force an init.
+ * Figure our current time and force an init -- only needed for databases
  */
-	tl_GetTime (&t);
-	mda_do_init (t.ds_yymmdd, t.ds_hhmmss, argv[2]);
+	if (! cmf)
+	{
+		tl_GetTime (&t);
+		mda_do_init (t.ds_yymmdd, t.ds_hhmmss, project);
+	}
 /*
  * More initialization.
  */
@@ -170,8 +242,8 @@ char *plat;
 		sprintf (pname, "%s/%s", plat, sta_g_name (slist[sta]));
 		if ((SubPlats[sta] = ds_LookupPlatform (pname)) == BadPlatform)
 		{
-			msg_ELog (EF_PROBLEM, "DS doesn't now station %s",
-				pname);
+			IngestLog (EF_PROBLEM, "DS doesn't now station %s",
+				   pname);
 			continue;
 		}
 	/*
@@ -276,7 +348,7 @@ char **fields;
 				Mods[fld].mod = RainRate;
 				break;
 			    default:
-				msg_ELog (EF_PROBLEM, "Bad field '%s'", fname);
+				IngestLog(EF_PROBLEM, "Bad field '%s'", fname);
 				continue;
 			}
 
@@ -298,7 +370,7 @@ char **fields;
 	 */
 	 	else if (! (Mda_flds[NField] = fld_number (fname)))
 		{
-			msg_ELog (EF_PROBLEM, "Bad field '%s'", fname);
+			IngestLog (EF_PROBLEM, "Bad field '%s'", fname);
 			continue;
 		}
 		NField++;
@@ -364,7 +436,6 @@ SnarfLoop ()
 /*
  * Get our initial time.
  */
-	/* tl_GetTime (&t); */
 	tl_Time (&zt);
 	TC_ZtToUI (&zt, &t);
 	t.ds_hhmmss = rollback (t.ds_hhmmss, Report/60); /* Last full report */
@@ -419,7 +490,7 @@ int junk;
 			break;
 	if (i >= Ngrab*Nds)
 	{
-		msg_ELog (EF_PROBLEM, "No PAM data!");
+		IngestLog (EF_PROBLEM, "No PAM data!");
 		return;
 	}
 /*
@@ -505,12 +576,12 @@ UItime	begin, end;
  * Adjust the begin and end times to the beginning of our delta
  * period
  */
-	msg_ELog (EF_DEBUG, "time: %06d %06d,", begin.ds_yymmdd,
-			begin.ds_hhmmss);
+	IngestLog (EF_DEBUG, "time: %06d %06d,", begin.ds_yymmdd,
+		   begin.ds_hhmmss);
 	pmu_dsub (&begin.ds_yymmdd, &begin.ds_hhmmss, adj);
 	pmu_dsub (&end.ds_yymmdd, &end.ds_hhmmss, adj);
-	msg_ELog (EF_DEBUG, "time - %d: %06d %06d", adj, begin.ds_yymmdd,
-		begin.ds_hhmmss);
+	IngestLog (EF_DEBUG, "time - %d: %06d %06d", adj, begin.ds_yymmdd,
+		   begin.ds_hhmmss);
 /*
  * Put the field into the dstreams
  */
@@ -545,7 +616,7 @@ UItime	begin, end;
 			continue;
 		}
 
-		msg_ELog (EF_DEBUG, "now: %.1f, then: %.1f, ", *dp, *mdp);
+		IngestLog (EF_DEBUG, "now: %.1f, then: %.1f, ", *dp, *mdp);
 		*dp = *dp - *mdp++;
 		*dp *= factor;
 	/*
@@ -555,7 +626,7 @@ UItime	begin, end;
 		if (*dp <= 0.0)
 			*dp = BADVAL;
 		dp++;
-		msg_ELog (EF_DEBUG, "  fixed: %.1f", *(dp-1));
+		IngestLog (EF_DEBUG, "  fixed: %.1f", *(dp-1));
 	}
 }
 
