@@ -1,7 +1,7 @@
 /*
  * Convert a composite surface data file to Zeb data store files. 
  */
-static char *rcsid = "$Id: surf_convert.c,v 1.3 1993-03-24 22:25:59 burghart Exp $";
+static char *rcsid = "$Id: surf_convert.c,v 1.4 1993-08-10 20:09:58 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -86,6 +86,12 @@ static void	SetupLocals FP ((void));
 static void	DoLocals FP ((int));
 
 /*
+ * Sample time, in seconds, for coercing data times.  (If it's less than zero,
+ * just take the times as reported.)
+ */
+static int	Tsamp = -1;
+
+/*
  * Global stuff.
  */
 static PlatformId	Pid;		/* Platform id			*/
@@ -161,27 +167,33 @@ struct ui_command	*cmds;
 	/*
 	 * Time to actually do things.
 	 */
-		case SC_GO:
-			Go ();
-			break;
+	    case SC_GO:
+		Go ();
+		break;
 	/*
 	 * Define a sub-platform.
 	 */
-		case SC_SUBPLATFORM:
-			NewSubplatform (cmds + 1);
-			break;
+	    case SC_SUBPLATFORM:
+		NewSubplatform (cmds + 1);
+		break;
 	/*
 	 * Define a field.
 	 */
-		case SC_FIELD:
-			NewField (cmds + 1);
-			break;
+	    case SC_FIELD:
+		NewField (cmds + 1);
+		break;
+	/*
+	 * Sample time, in seconds.
+	 */
+	    case SC_SAMPLE:
+		Tsamp = UINT (cmds[1]);
+		break;
 	/*
 	 * Complain.
 	 */
-		default:
-			msg_ELog (EF_PROBLEM, "Unknown kw %d", UKEY (*cmds));
-			break;
+	    default:
+		msg_ELog (EF_PROBLEM, "Unknown kw %d", UKEY (*cmds));
+		break;
 	}
 	return (TRUE);
 }
@@ -309,6 +321,19 @@ Go ()
 				"\nBad time %02d%02d%02d %02d%02d00\n",
 				year, month, day, hour, minute);
 			continue;
+		}
+	/*
+	 * "Round" to the nearest sample time if requested
+	 */
+		if (minute > 0 && minute < 45)
+			msg_ELog (EF_INFO, "Unexpected minute: %d", minute);
+
+		if (Tsamp > 0)
+		{
+			int	diff = zt.zt_Sec % Tsamp;
+			zt.zt_Sec -= diff;
+			if (diff > (Tsamp / 2))
+				zt.zt_Sec += Tsamp;
 		}
 	/*
 	 * Initialize last_zt if necessary

@@ -33,6 +33,9 @@ define state initial
 	input 'field' 3
 		next fld-src
 	endinput
+	input 'sample' 4
+		next ust$final_int
+	endinput
 enddef
 
 define state subplat-name
