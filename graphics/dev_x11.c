@@ -1,5 +1,5 @@
 /* 12/88 jc */
-/* $Id: dev_x11.c,v 1.9 1989-09-29 11:19:32 burghart Exp $	*/
+/* $Id: dev_x11.c,v 1.10 1989-10-11 14:01:08 corbet Exp $	*/
 /*
  * Graphics driver for the X window system, version 11.3
  */
@@ -9,9 +9,13 @@
 
 # include "graphics.h"
 # include "device.h"
+# include <stdio.h>
 # include <X11/Xlib.h>
 # include <X11/Xutil.h>
 # include <X11/cursorfont.h>
+# include <X11/keysym.h>
+
+char *getvm ();
 
 # define TGT_SIZE	17
 
@@ -31,6 +35,7 @@ struct xtag
 {
 	Display	*x_display;	/* The display structure	*/
 	Window 	x_window;	/* The window.			*/
+	Pixmap  x_sw[5];	/* Quadrant subwindows		*/
 	GC	x_gc;		/* Graphics context		*/
 	Cursor	x_cursor;	/* The cursor for this window	*/
 	Visual	*x_visual;	/* The visual			*/
@@ -42,6 +47,11 @@ struct xtag
 	GC	x_tgt_gc;	/* Target GC (no clipping)		*/
 	int	x_do_pxm;	/* Do we need to do the target pixmap?	*/
 	Pixmap	x_tgt_pixmap;	/* Pixmap to save data covered by target*/
+	char	*x_zwork;	/* Zoom workspace			*/
+	int	x_zx, x_zy;	/* Zoom origins				*/
+	char	x_zoomok;	/* Zoom is up to date.			*/
+	char	x_zquad;	/* Which quad we are zoomed on		*/
+	char	x_qdone[5];	/* Is this quad done?			*/
 };
 
 
@@ -65,6 +75,11 @@ static struct
 };
 
 
+/*
+ * The table used for zooming.
+ */
+static unsigned short Ztable[256];
+
 
 
 x11_open (device, type, ctag, dev)
@@ -78,7 +93,7 @@ struct device *dev;
 	XSetWindowAttributes attr;
 	XGCValues gcontext;
 	XVisualInfo template, *vlist;
-	int screen, pv[2], pm, nmatch, depth;
+	int screen, pv[2], pm, nmatch, depth, i;
 	XEvent ev;
 /*
  * Figure out what our resolution will be.
@@ -86,6 +101,11 @@ struct device *dev;
  	if (! strcmp (type, "X11") || ! strcmp (type, "X700") ||
 		! strcmp (type, "x11") || ! strcmp (type, "x700"))
 		tag->x_xres = tag->x_yres = 700;
+	else if (! strcmp (type, "X11-huge") || ! strcmp (type, "x11-huge"))
+	{
+		tag->x_xres = 900;
+		tag->x_yres = 800;
+	}
 	else
 		tag->x_xres = tag->x_yres = 500;
 /*
@@ -143,11 +163,18 @@ struct device *dev;
 	attr.background_pixel = BlackPixel (tag->x_display, screen);
 	attr.border_pixel = WhitePixel (tag->x_display, screen);
 	attr.backing_store = WhenMapped;
-	attr.event_mask = ButtonPressMask | ExposureMask;
+	attr.event_mask = ButtonPressMask | ExposureMask | KeyPressMask;
 	tag->x_window = XCreateWindow (tag->x_display,
 		RootWindow (tag->x_display, screen), 10, 10, tag->x_xres, 
 		tag->x_yres, 2, depth, InputOutput, tag->x_visual,
 		CWBackPixel|CWBorderPixel|CWBackingStore|CWEventMask, &attr);
+/*
+ * Create all of the subwindows.
+ */
+	if (! tag->x_mono)
+		for (i = 0; i < 5; i++)
+			tag->x_sw[i] = XCreatePixmap (tag->x_display,
+				tag->x_window, tag->x_xres, tag->x_yres, 8);
 /*
  * Store some properties.
  */
@@ -202,13 +229,22 @@ struct device *dev;
 /*
  * Clear the window.
  */
+	printf ("Waiting for expose..."); fflush (stdout);
 	XWindowEvent (tag->x_display, tag->x_window, ExposureMask, &ev);
 	XClearWindow (tag->x_display, tag->x_window);
-	XSync (tag->x_display, False);
+	printf ("Done.\n");
+/*
+ * Initialize zoom stuff.
+ */
+	tag->x_zwork = 0;
+	tag->x_zoomok = tag->x_zquad = 0;
+	for (i = 0; i < 256; i++)
+		Ztable[i] = i | (i << 8);
 /*
  * All done.
  */
  	*ctag = (char *) tag;
+	G_setfd (XConnectionNumber (tag->x_display));
 	return (GE_OK);
 }
 
@@ -225,6 +261,8 @@ char *ctag;
 	struct xtag *tag = (struct xtag *) ctag;
 
 	XCloseDisplay (tag->x_display);
+	if (tag->x_zwork)
+		relvm (tag->x_zwork);
 	relvm (tag);
 }
 
@@ -241,6 +279,7 @@ char *ctag;
 	struct xtag *tag = (struct xtag *) ctag;
 
 	XClearWindow (tag->x_display, tag->x_window);
+	tag->x_zoomok = FALSE;
 /*
  * Clear the target pixmap and remember we need to redo it
  */
@@ -295,9 +334,61 @@ int color, ltype, npt, *data;
 		xp[pt].y = tag->x_yres - (*data++ + 1);
 	}
 /*
- * Do the drawing.
+ * Do the drawing.  If we are not zoomed, just dump it straight to the
+ * screen; otherwise just draw into the pixmap.
  */
- 	XDrawLines (tag->x_display, tag->x_window, tag->x_gc, xp, npt,
+ 	if (! tag->x_zquad)
+	{
+	 	XDrawLines (tag->x_display, tag->x_window, tag->x_gc, xp, npt,
+			CoordModeOrigin);
+		tag->x_zoomok = FALSE;
+		relvm (xp);
+		return;
+	}
+ 	XDrawLines (tag->x_display, tag->x_sw[0], tag->x_gc, xp, npt,
+		CoordModeOrigin);
+/*
+ * Go through and double each coordinate and draw into quad 1.
+ */
+	for (pt = 0; pt < npt; pt++)
+	{
+		xp[pt].x *= 2;
+		xp[pt].y *= 2;
+	}
+ 	XDrawLines (tag->x_display, tag->x_sw[1], tag->x_gc, xp, npt,
+		CoordModeOrigin);
+	if (tag->x_zquad == 1)
+	 	XDrawLines (tag->x_display, tag->x_window, tag->x_gc, xp, npt,
+			CoordModeOrigin);
+/*
+ * Offset into quadrant 2.
+ */
+ 	for (pt = 0; pt < npt; pt++)
+		xp[pt].x -= tag->x_xres/2;
+ 	XDrawLines (tag->x_display, tag->x_sw[2], tag->x_gc, xp, npt,
+		CoordModeOrigin);
+	if (tag->x_zquad == 2)
+	 	XDrawLines (tag->x_display, tag->x_window, tag->x_gc, xp, npt,
+			CoordModeOrigin);
+/*
+ * Offset into quadrant 4.
+ */
+ 	for (pt = 0; pt < npt; pt++)
+		xp[pt].y -= tag->x_yres/2;
+ 	XDrawLines (tag->x_display, tag->x_sw[4], tag->x_gc, xp, npt,
+		CoordModeOrigin);
+	if (tag->x_zquad == 4)
+	 	XDrawLines (tag->x_display, tag->x_window, tag->x_gc, xp, npt,
+			CoordModeOrigin);
+/*
+ * Offset into quadrant 3.
+ */
+	for (pt = 0; pt < npt; pt++)
+		xp[pt].x += tag->x_xres/2;
+ 	XDrawLines (tag->x_display, tag->x_sw[3], tag->x_gc, xp, npt,
+		CoordModeOrigin);
+	if (tag->x_zquad == 3)
+	 	XDrawLines (tag->x_display, tag->x_window, tag->x_gc, xp, npt,
 			CoordModeOrigin);
 	relvm (xp);
 }
@@ -381,10 +472,30 @@ int *button, *x, *y;
 /*
  * Now wait for an event.
  */
-	XWindowEvent (tag->x_display, tag->x_window, ButtonPressMask, &ev);
+	for (;;)
+	{
+		XWindowEvent (tag->x_display, tag->x_window,
+			ButtonPressMask | KeyPressMask, &ev);
+		if (ev.type == KeyPress)
+			x11_key (tag, &ev);
+		else
+			break;
+	}		
 	*button = ev.xbutton.button - 1;
 	*x = ev.xbutton.x;
 	*y = tag->x_yres - ev.xbutton.y - 1;
+/*
+ * If we are zoomed, we must adjust the coordinates accordingly.
+ */
+ 	if (tag->x_zquad)
+	{
+		*x /= 2;
+		*y /= 2;
+	 	if (tag->x_zquad == 2 || tag->x_zquad == 4)
+			*x += tag->x_xres/2;
+		if (tag->x_zquad < 3)
+			*y += tag->x_yres/2;
+	}
 }
 
 
@@ -613,30 +724,6 @@ float *r, *g, *b;
 
 
 
-# ifdef notdef /* (8/24/89 cb) */
-
-x11_fixcolor (tag)
-struct xtag *tag;
-/* 
- * Fix up our color map so as to cause minimal interference with everybody
- * else.
- */
-{
-	XColor xc[2];
-	int pv[2], pm;
-
-	XAllocColorCells (tag->x_display, tag->x_cmap, True,
-		&pm, 0, pv, 2);
-	xc[0].pixel = 0;
-	xc[0].red = xc[0].green = xc[0].blue = 65535;
-	xc[0].flags = xc[1].flags = DoRed | DoGreen | DoBlue;
-	xc[1].pixel = 1;
-	xc[1].red = xc[1].green = xc[1].blue = 0;
-	XStoreColors (tag->x_display, tag->x_cmap, xc, 2);
-}
-
-# endif
-
 
 
 x11_pixel (ctag, x, y, xs, ys, data, size, org)
@@ -648,11 +735,14 @@ int x, y, xs, ys, size, org;
 {
 	XImage *xi;
 	struct xtag *tag = (struct xtag *) ctag;
+# ifdef notdef
 /*
  * Kludge to allow the restoration of images saved under Sunview.
  */
 	if (xs > 300 || ys > 300)
 		x11_sv_kludge (data, xs, ys, tag->x_bg);
+# endif
+	x11_zreset (tag);
 /*
  * Create the XImage structure.
  */
@@ -723,5 +813,249 @@ int	x0, y0, x1, y1;
 	XSetClipRectangles (tag->x_display, tag->x_gc, 0, 0, &rect, 1, 
 		Unsorted);
 }
+
+
+
+x11_zreset (tag)
+struct xtag *tag;
+/*
+ * Reset our zoom.
+ */
+{
+	if (tag->x_zquad)
+	{
+	 	XCopyArea (tag->x_display, tag->x_sw[0], tag->x_window,
+			tag->x_tgt_gc, 0, 0, tag->x_xres, tag->x_yres, 0, 0);
+		tag->x_zquad = 0;
+	}
+	tag->x_zoomok = FALSE;
+}
+
+
+
+
+x11_vp (ctag, x0, y0, x1, y1)
+char *ctag;
+int x0, y0, x1, y1;
+/*
+ * The change viewport routine -- only set up to do editor/perusal quads
+ * for now.
+ */
+{
+	struct xtag *tag = (struct xtag *) ctag;
+	int whole;
+/*
+ * Mono devices don't do this for now.
+ */
+ 	if (tag->x_mono)
+		return (GE_DEVICE_UNABLE);
+/*
+ * See what sort of zoom is wanted.
+ */
+	whole = (x1 - x0)*3 > tag->x_xres*2 && (y1 - y0)*3 > tag->x_yres*2;
+/*
+ * Whole image.
+ */
+ 	if (whole)
+	{
+		if (tag->x_zquad == 0)
+			return (GE_OK);		/* Not zoomed	*/
+	 	XCopyArea (tag->x_display, tag->x_sw[0], tag->x_window,
+			tag->x_tgt_gc, 0, 0, tag->x_xres, tag->x_yres, 0, 0);
+		tag->x_zquad = 0;
+	}
+/*
+ * Quad.
+ */
+ 	else
+	{
+	/*
+	 * Calculate the quad.
+	 */
+		tag->x_zx = x0 ? tag->x_xres/2 : 0;
+		tag->x_zy = y0 ? 0 : tag->x_yres/2;
+		tag->x_zquad = (tag->x_zx ? 1 : 0) + (tag->x_zy ? 2 : 0) + 1;
+	/*
+	 * Create the zoomed image, if necessary.
+	 */
+		x11_calc_zoom (tag, tag->x_zquad);
+	/*
+	 * Now send the appropriate window.
+	 */
+	 	XCopyArea (tag->x_display, tag->x_sw[tag->x_zquad],
+			tag->x_window, tag->x_tgt_gc, 0, 0, tag->x_xres,
+			tag->x_yres, 0, 0);
+	}
+/*
+ * Sync things out.
+ */
+ 	x11_flush (ctag);
+	return (GE_OK);
+}
+
+
+
+
+x11_do_quad (tag, x, y, q, read, write)
+struct xtag *tag;
+int x, y, q;
+XImage *read, *write;
+/*
+ * Calculate a single quad.
+ */
+{
+	register unsigned char *rp = (unsigned char *)
+		tag->x_zwork + ((3*tag->x_xres)/4)*tag->x_yres;
+	register short *wps = (short *) tag->x_zwork;
+	register int row, col;
+# ifdef __STDC__
+	const int xwidth = tag->x_xres/2, xfull = tag->x_xres;
+# else
+	register int xwidth = tag->x_xres/2, xfull = tag->x_xres;
+# endif
+/*
+ * Read back this quad.
+ */
+	XGetSubImage (tag->x_display, tag->x_sw[0], x, y, tag->x_xres/2, 
+		tag->x_yres/2, ~0, ZPixmap, read, 0, 0);
+/*
+ * Zoom it.
+ */
+	for (row = 0; row < tag->x_yres/2; row++)
+	{
+		for (col = 0; col < xwidth; col++)
+			*wps++ = Ztable[*rp++];
+		memcpy (wps, wps - xwidth, xfull);
+		wps += xwidth;
+	}
+/*
+ * Write it back.
+ */
+ 	XPutImage (tag->x_display, tag->x_sw[q], tag->x_tgt_gc, write, 0, 0,
+		0, 0, tag->x_xres, tag->x_yres);
+}
+
+
+
+
+
+x11_calc_zoom (tag, q)
+struct xtag *tag;
+int q;
+/*
+ * Calculate the zoomed window for this quad, if necessary.
+ */
+{
+	XImage *read, *write;
+	int i;
+/*
+ * If a workspace has not been allocated, do so now.
+ */
+ 	if (! tag->x_zwork)
+		tag->x_zwork = getvm (tag->x_xres * tag->x_yres);
+/*
+ * Save the full screen before we start.
+ */
+	if (! tag->x_zoomok)
+	{
+		XCopyArea (tag->x_display, tag->x_window, tag->x_sw[0],
+			tag->x_tgt_gc, 0, 0, tag->x_xres, tag->x_yres, 0, 0);
+		for (i = 0; i < 5; i++)
+			tag->x_qdone[i] = FALSE;
+		tag->x_zoomok = TRUE;
+	}
+/*
+ * If our quad is already done, we can quit now.
+ */
+ 	if (tag->x_qdone[q])
+		return;
+/*
+ * Create two XImage structures.  The "read" structure points to the last
+ * quarter of our work space, while "write" uses the whole thing.  This
+ * scheme allows quadrants to be zoomed "in place" with only one chunk
+ * of memory.
+ */
+	read = XCreateImage (tag->x_display, tag->x_visual, 8, ZPixmap, 0,
+		tag->x_zwork + ((3*tag->x_xres)/4)*tag->x_yres, tag->x_xres/2,
+		tag->x_yres/2, 8, tag->x_xres/2);
+	write = XCreateImage (tag->x_display, tag->x_visual, 8, ZPixmap, 0,
+		tag->x_zwork, tag->x_xres, tag->x_yres, 8, tag->x_xres);
+/*
+ * Now do the quad of interest.
+ */
+ 	x11_do_quad (tag, (q == 1 || q == 3) ? 0 : tag->x_xres/2,
+		(q < 3) ? 0 : tag->x_yres/2, q, read, write);
+	tag->x_qdone[q] = TRUE;
+/*
+ * All done.  Return our Ximages now.
+ */
+	read->data = write->data = 0;
+	XDestroyImage (read);
+	XDestroyImage (write);
+}
+
+
+
+
+
+x11_event (ctag)
+char *ctag;
+/*
+ * Deal with any events which may have occurred.
+ */
+{
+	struct xtag *tag = (struct xtag *) ctag;
+	XEvent ev;
+	int ret = 0;
+
+	while (XCheckWindowEvent (tag->x_display, tag->x_window, 
+		ExposureMask | KeyPressMask, &ev))
+	{
+		if (ev.type == KeyPress)
+			x11_key (tag, &ev);
+		else if (ev.type == Expose)
+		{
+			/* printf ("Expose reset\n"); */
+			ret = 1;
+		}
+	}
+	return (ret);
+}
+
+
+
+
+x11_key (tag, ev)
+struct xtag *tag;
+XEvent *ev;
+/*
+ * Deal with a key event.
+ */
+{
+	static char string[20] = { 0 };
+	KeySym key;
+
+	XLookupString (ev, string, 20, &key, 0);
+	switch (key)
+	{
+	   case XK_F1:	
+		x11_vp ((char *) tag, 0, 1, 2, 2);
+		break;
+	   case XK_F2:	
+		x11_vp ((char *) tag, 1, 1, 2, 2);
+		break;
+	   case XK_F3:	
+		x11_vp ((char *) tag, 0, 0, 2, 2);
+		break;
+	   case XK_F4:	
+		x11_vp ((char *) tag, 1, 0, 2, 2);
+		break;
+	   case XK_F5:
+		x11_vp ((char *) tag, 0, 0, tag->x_xres, tag->x_yres);
+		break;
+	}
+}
+
+
 
 # endif /* DEV_X11 */
