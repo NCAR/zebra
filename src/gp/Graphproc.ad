@@ -1,4 +1,4 @@
-! $Id: Graphproc.ad,v 1.15 1994-06-29 21:14:41 case Exp $
+! $Id: Graphproc.ad,v 1.16 1994-09-15 21:50:15 corbet Exp $
 !
 ! The Graphics process resource file.
 !
@@ -368,3 +368,11 @@ Graphproc.?.form.background:	gray95
 !
 *LimitForm.stationbox.?.background:	red
 *LimitForm.stationbox.?.foreground:	green
+!
+! Aircraft data usually comes with an insane number of fields, all of which
+! need to fit into one column in the FieldMenu.  So...we go for a microfont
+! and let people complain about it; at least they can see everything.  Also
+! tweak down the vertical space or we waste a lot of height.
+!
+*FieldMenu*DAEntry*font:	-adobe-courier-medium-r-*-*-10-*-*-*-*-*-*-*
+*FieldMenu*DAEntry*vertSpace:	0

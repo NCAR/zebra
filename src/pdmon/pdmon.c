@@ -24,7 +24,7 @@
 # include "pd.h"
 # include "pdmon.h"
 
-MAKE_RCSID ("$Id: pdmon.c,v 1.2 1993-02-25 17:20:21 corbet Exp $")
+MAKE_RCSID ("$Id: pdmon.c,v 1.3 1994-09-15 21:50:57 corbet Exp $")
 
 char *Process;
 
@@ -132,7 +132,7 @@ int fd;
  */
 {
 	char line[100];
-	int len, nread;
+	int len, nread, nfail = 0;
 	char *bp;
 	pdmPD *ppd;
 /*
@@ -160,10 +160,14 @@ int fd;
 		int thisread = read (0, bp, len - nread);
 		if (thisread <= 0)
 		{
-			UnHook ();
-			printf ("Read error\n");
-			exit (1);
+                        if (++nfail > 5)
+                        {
+                                UnHook ();
+                                printf ("Read error\n");
+                                exit (1);
+                        }
 		}
+                nfail = 0;
 		nread += thisread;
 		bp += thisread;
 	}

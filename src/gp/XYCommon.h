@@ -51,6 +51,7 @@ typedef struct _xyobsinfo
  * Prototypes
  */
 void	xy_GetScaleModes FP ((char*, bool*, bool*, bool*, bool*));
+void	xy_GetZModes FP ((char *, bool *, bool *));
 void	xy_SetPrivateScale FP ((char*, DataValPtr, DataValPtr, DataValPtr,
 				DataValPtr));
 void	xy_GetPrivateScale FP ((char*, DataValPtr, DataValPtr, DataValPtr,

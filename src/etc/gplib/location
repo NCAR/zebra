@@ -7,6 +7,7 @@ define widget location-options intmenu 'label options'
 	title 'Location options'
 	line
 	submenu 'Color' simple-color
+	submenu 'Annotation Size' 'label-size-scale'
 	entry 'Name labels' 'ToggleLabels' \
 		(PDParam (icon_component, 'label') = 'platform')
 	entry 'Time labels' 'ToggleBoolean time-label' \
@@ -21,6 +22,21 @@ procedure ToggleLabels
 	else
 		parameter #icon_component label 'platform'
 	endif
+endprocedure
+
+define widget label-size-scale intmenu 'Label size annotation'
+	title 'Annotation Size'
+	line
+	entry 'Small' 'do_label_size 10' \
+		(pd_param(icon_component, "label-size", "string") = "10")
+	entry 'Medium' 'do_label_size 20' \
+		(pd_param(icon_component, "label-size", "string") = "20")
+	entry 'Large' 'do_label_size 30' \
+		(pd_param(icon_component, "label-size", "string") = "30")
+endmenu
+
+procedure do_label_size size string
+        parameter #icon_component label-size #size
 endprocedure
 
 

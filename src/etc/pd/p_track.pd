@@ -7,18 +7,18 @@ global
 p_track
 	representation:	track
 	platform:	SOMETHING
-	time-period:	600s
+	time-period:	60m
 	trigger:	platform
-	color:		red
+	color:		brown
 	line-width:	3
 	field:		alt
 	color-table:	Contour
 	arrow:		true
-	arrow-interval:	5m
+	arrow-interval:	3m
 	x-field:	u_wind
 	y-field:	v_wind
-	arrow-scale:	0.01
-	arrow-color:	red
+	arrow-scale:	0.005
+	arrow-color:	brown
 	sa-scale:	0.025
 	show-position:	true
 	position-icon:	littleplane
@@ -36,5 +36,5 @@ p_track
 	annot-time-color:	red
 	annot-time-scale:	10
 	active-icon:	true
-	posicon-middle-menu:	FieldMenu
+	posicon-left-menu:	FieldMenu
 	posicon-right-menu:	track-right

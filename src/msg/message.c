@@ -39,7 +39,7 @@
 # include "message.h"
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.22 1994-07-15 15:23:06 corbet Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.23 1994-09-15 21:50:53 corbet Exp $")
 /*
  * Symbol tables.
  */
@@ -796,6 +796,15 @@ fd_set *fds;
 	 	if (msg = ReadMessage (fd))
 		{
 			FixAddress (msg->m_to);
+# ifdef DESPERATE
+		if (Fd_map[fd]->c_inet && strchr (msg->m_to, '@'))
+		{
+			FILE *fd = fopen ("/tmp/msgbug", "w+");
+			fprintf (fd, "@ left in net msg.  %s->%s\n",
+					msg->m_from, msg->m_to);
+			fprintf (fd, "Hostname is %s.\n", Hostname);
+		}
+# endif
 			Fd_map[fd]->c_nsend++;
 			Fd_map[fd]->c_bnsend += msg->m_len;
 			dispatch (fd, msg);
@@ -1809,14 +1818,19 @@ struct connection *conp;
 	cl.mh_evtype = MH_CE_DISCONNECT;
 	cl.mh_inet = conp->c_inet;
 /*
- * Send it out over any network connections we may have.
+ * Send it out over any network connections we may have.  KLUDGE: send_msg
+ * appends an @host, which gets messy after a while (trust me on this).  So
+ * we reset the from string each time.
  */
 	strcpy (cl.mh_client, conp->c_name);
 	strcat (cl.mh_client, "@");
 	strcat (cl.mh_client, Hostname);
 	for (i = 4; i < Nfd; i++)
 		if (Fd_map[i] && Fd_map[i]->c_inet)
+		{
 			send_msg (Fd_map[i], &msg);
+			strcpy (msg.m_from, MSG_MGR_NAME);
+		}
 /*
  * Also broadcast it locally, if we're not in the process of shutting down.
  */

@@ -1,7 +1,7 @@
 /*
  * XY-Contour plotting module
  */
-static char *rcsid = "$Id: XYContour.c,v 1.24 1994-05-10 21:42:04 corbet Exp $";
+static char *rcsid = "$Id: XYContour.c,v 1.25 1994-09-15 21:50:32 corbet Exp $";
 /*		Copyright (C) 1993 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -88,7 +88,7 @@ bool	update;
 	char	*xfnames[MAX_PLAT], *yfnames[MAX_PLAT], *zfnames[MAX_PLAT];
 	char	gridtype[20], ctname[24], style[20], annotcontrol[80];
 	char	xtype, ytype, ztype;
-	bool	xauto, yauto, xinvert, yinvert, sideAnnot;
+	bool	xauto, yauto, xinvert, yinvert, sideAnnot, zauto, zinvert;
 	Pixel	taColor;
 	XColor	*colors, white;
 	ZebTime	bTimeTarget, eTimeTarget, bTimeReq, eTimeReq;
@@ -158,7 +158,6 @@ bool	update;
  * "style" - "line" or "filled"
  * "x-grid", "y-grid" - the number of grid cells to use in the X and Y 
  *			dimensions
- * "z-step" - the contour interval.
  * "contour-grid-type" - method of interpolating gridded data
  */
 	sideAnnot = True;
@@ -176,10 +175,6 @@ bool	update;
 	ygridres = 25;
 	pda_Search (Pd, c, "y-grid", "xy-contour", (char *) &ygridres, 
 		    SYMT_INT);
-
-	zstep = 20.0;
-	pda_Search (Pd, c, "z-step", "xy-contour", (char *) &zstep, 
-		    SYMT_FLOAT);
 
 	strcpy (gridtype, "raw");
 	pda_Search (Pd, c, "grid-method", "xy-contour", gridtype, SYMT_STRING);
@@ -318,6 +313,7 @@ bool	update;
  * Get the info on whether we're using autoscaling or inverted scales
  */
 	xy_GetScaleModes (c, &xauto, &xinvert, &yauto, &yinvert);
+	xy_GetZModes (c, &zauto, &zinvert);
 /*
  * Determine our final plot bounds.  
  */
@@ -349,9 +345,33 @@ bool	update;
  */
 	for (plat = 0; plat < nplat; plat++)
 	{
-		ccenter = zstep * 
-			nint ((zmin[plat].val.f + zmax[plat].val.f) * 
-			      0.5 / zstep);
+	/*
+	 * If z is manual get the info now.
+	 */
+		if (! zauto)
+		{
+			zstep = 20.0;
+			pda_Search (Pd, c, "scale-z-step", zfnames[0],
+					(char *) &zstep, SYMT_FLOAT);
+			ccenter = 0.0; /* XXX */
+			pda_Search (Pd, c, "scale-z-center", zfnames[0],
+					(char *) &ccenter, SYMT_FLOAT);
+		}
+	/*
+	 * If we are autoscaling, figure out the bounds.
+	 */
+		if (zauto)
+		{
+			char param[80];
+			CalcCenterStep (zmin[plat].val.f, zmax[plat].val.f,
+					ncolors, &ccenter, &zstep);
+			sprintf (param, "%s-scale-z-center", zfnames[0]);
+			pd_Store (Pd, "global", param, (char *) &ccenter,
+					SYMT_FLOAT);
+			sprintf (param, "%s-scale-z-step", zfnames[0]);
+			pd_Store (Pd, "global", param, (char *) &zstep,
+					SYMT_FLOAT);
+		}
 	/*
 	 * NOW that we have a center value, we can reasonably set up
 	 * for the color bar.

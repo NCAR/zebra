@@ -22,6 +22,7 @@
 # include <config.h>
 # if C_PT_CAP
 
+# include <math.h>
 # include <ctype.h>
 # include <X11/Intrinsic.h>
 # include <ui.h>
@@ -39,7 +40,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.43 1994-06-15 23:23:13 corbet Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.44 1994-09-15 21:50:04 corbet Exp $")
 
 
 /*
@@ -109,23 +110,23 @@ static DataChunk *CAP_ImageGrid FP ((char *, ZebTime *, PlatformId, char *,
 void		CAP_RasterSideAnnot FP ((char *, char *, int, int, int));
 void		CAP_StaPltSideAnnot FP ((char *, char *, int, int, int));
 static bool 	CAP_VecParams FP ((char *, char *, char *, char *, float *,
-			char *, int *, float *, XColor *));
+				   char *, int *, float *, XColor *, bool *));
 static StInfo	*CAP_StationInfo FP ((DataChunk *, Location *, int));
 static void 	CAP_SpFilter FP ((float *, float *, float *, StInfo *, int,
-			int));
+				  int));
 static void	CAP_AddStatusLine FP ((char *, char *, char *, double, 
 				       AltUnitType, ZebTime *));
 static void	CAP_StDoScalar FP ((char *c, DataChunk *dc, char *platform,
 				    FieldId *fields, int nfield,
 				    FieldId quadfields[4], XColor *color,
 				    XColor *qcolor, ZebTime *zt, char *sticon,
-				    int linewidth, float unitlen, 
+				    int linewidth, float unitlen, int, 
 				    bool quadstn[4]));
 static void	CAP_StDoIRGrid FP ((char *c, DataChunk *dc, char *platform,
 				    FieldId *fields, int nfield,
 				    FieldId quadfields[4], XColor *color,
 				    XColor *qcolor, ZebTime *zt, char *sticon,
-				    int linewidth, float unitlen, 
+				    int linewidth, float unitlen, int, 
 				    bool quadstn[4]));
 static DataChunk *CAP_StGetData FP ((char *c, PlatformId plat, FieldId *fields,
 				     int nfield, int *shifted));
@@ -135,7 +136,7 @@ static void	CAP_StPlotVector FP ((char *c, int pt, ZebTime *zt, int x0,
 				      int linewidth, float *ugrid, 
 				      float *vgrid, float badvalue, 
 				      float unitlen, float *qgrid[4],
-				      bool quadstn[4]));
+				      int, bool quadstn[4]));
 
 
 
@@ -328,14 +329,27 @@ int *shifted;
 		autoscale = ! strncmp (param, "auto", 4);
 	else
 		autoscale = FALSE;
-	if (! autoscale)
+	if (ok && ! autoscale)
 	{
+	/*
+	 * Get the parameters.
+	 */
 		sprintf (param, "%s-center", fname);
 		ok &= pda_ReqSearch (Pd, c, param, "contour", (char *) center, 
 				     SYMT_FLOAT);
 		sprintf (param, "%s-step", fname);
 		ok &= pda_ReqSearch (Pd, c, param, "contour", (char *) step, 
 				     SYMT_FLOAT);
+	/*
+	 * If they blew it, give them a second chance by turning on
+	 * autoscaling.
+	 */
+		if (! ok)
+		{
+			msg_ELog (EF_PROBLEM,
+					"Desperately turning on autoscale");
+			ok = autoscale = TRUE;
+		}
 	}
 /*
  * color coding info.
@@ -507,7 +521,7 @@ bool update;
 	PlatformId pid;
 	float vscale, unitlen;
 	int linewidth, shifted, i, nplat;
-	bool	tacmatch, quad = FALSE;
+	bool	tacmatch, quad = FALSE, do_vectors;
 	ZebTime zt;
 	XColor	color, qcolor;
 	bool	quadstn[4];
@@ -519,7 +533,7 @@ bool update;
  * Get necessary parameters from the plot description
  */
 	if (! CAP_VecParams (c, platform, uname, vname, &vscale, cname, 
-			&linewidth, &unitlen, &color))
+			&linewidth, &unitlen, &color, &do_vectors))
 		return;
 /*
  * Initialize quadrant info
@@ -624,11 +638,13 @@ bool update;
 		if (dc->dc_Class == DCC_IRGrid)
 			CAP_StDoIRGrid (c, dc, pnames[i], fields, nfield,
 					quadfields, &color, &qcolor, &zt, 
-					sticon, linewidth, unitlen, quadstn);
+					sticon, linewidth, unitlen, do_vectors,
+					quadstn);
 		else
 			CAP_StDoScalar (c, dc, pnames[i], fields, nfield,
 					quadfields, &color, &qcolor, &zt, 
-					sticon, linewidth, unitlen, quadstn);
+					sticon, linewidth, unitlen, do_vectors,
+					quadstn);
 		dc_DestroyDC (dc);
 	/*
 	 * Overlay times and annotation.
@@ -656,8 +672,9 @@ bool update;
 /*
  * Side annotation.
  */
-	sprintf (data, "%s %d %d %f %d ", "10m/sec", 
-			color.pixel, qcolor.pixel, unitlen, 4 /*numquads*/);
+	sprintf (data, "%s %d %d %f %d ", "10m/sec", color.pixel, qcolor.pixel,
+		 do_vectors ? unitlen : 0, 4 /*numquads*/);
+
 	for (i = 0; i < 4; i++)
 	{
 		if (quadstn[i])
@@ -670,8 +687,9 @@ bool update;
 		else
 			strcat (data, "none ");
 	}
-	An_AddAnnotProc (CAP_StaPltSideAnnot, c, data, 
-			strlen (data), 90, FALSE, FALSE);
+
+	An_AddAnnotProc (CAP_StaPltSideAnnot, c, data, strlen (data), 90, 
+			 FALSE, FALSE);
 }
 
 
@@ -719,8 +737,8 @@ int nsta;
 
 
 static void
-CAP_StPlotVector (c, pt, zt, x0, y0, plat, sticon, color, qcolor,
-		  linewidth, ugrid, vgrid, badvalue, unitlen, qgrid, quadstn)
+CAP_StPlotVector (c, pt, zt, x0, y0, plat, sticon, color, qcolor, linewidth, 
+		  ugrid, vgrid, badvalue, unitlen, qgrid, do_vectors, quadstn)
 char *c;
 int pt;
 ZebTime *zt;
@@ -730,6 +748,7 @@ char *sticon;
 XColor *color, *qcolor;
 int linewidth;
 float *ugrid, *vgrid, badvalue, unitlen, *qgrid[4];
+bool do_vectors;
 bool quadstn[4];
 /*
  * Actually plot some station plot info.
@@ -746,18 +765,28 @@ bool quadstn[4];
 	I_PositionIcon (c, ds_PlatformName (plat), zt, sticon, x0, y0,
 			color->pixel);
 /*
- * Plot the arrow.
+ * Plot the arrow or barb.
  */
 	XSetLineAttributes (XtDisplay (Graphics), Gcontext, 
 			linewidth, LineSolid, CapButt, JoinMiter);
 	if ((ugrid[pt] != badvalue) && (vgrid[pt] != badvalue))
-		draw_vector (XtDisplay (Graphics),
-				GWFrame (Graphics), Gcontext, x0, y0, 
-				ugrid[pt], vgrid[pt], unitlen);
-	XSetForeground (XtDisplay (Graphics), Gcontext, qcolor->pixel);
+	{
+		if (do_vectors)
+			draw_vector (XtDisplay (Graphics), GWFrame (Graphics), 
+				     Gcontext, x0, y0, ugrid[pt], vgrid[pt], 
+				     unitlen);
+		else
+			draw_barb (XtDisplay (Graphics), GWFrame (Graphics),
+				   Gcontext, x0, y0, 
+				   atan2 (-vgrid[pt], -ugrid[pt]), 
+				   hypot (vgrid[pt], ugrid[pt]), 
+				   (int) unitlen, FALSE);
+	}
 /*
  * Do quadrants if necessary.
  */
+	XSetForeground (XtDisplay (Graphics), Gcontext, qcolor->pixel);
+
 	for (j = 0; j < 4; j++)
 	{
 	/*
@@ -843,7 +872,7 @@ int nfield, *shifted;
 
 static void
 CAP_StDoIRGrid (c, dc, platform, fields, nfield, quadfields, color, qcolor, 
-		zt, sticon, linewidth, unitlen, quadstn)
+		zt, sticon, linewidth, unitlen, do_vectors, quadstn)
 char *c;
 DataChunk *dc;
 char *platform;
@@ -855,6 +884,7 @@ ZebTime *zt;
 char *sticon;
 int linewidth;
 float unitlen;
+bool do_vectors;
 bool quadstn[4];
 /*
  * Plot up an IRGrid.
@@ -929,7 +959,7 @@ bool quadstn[4];
 		CAP_StPlotVector (c, i, zt, sinfo[i].si_x, sinfo[i].si_y,
 				  platforms[i], sticon, color, qcolor, 
 				  linewidth, ugrid, vgrid, badvalue, unitlen, 
-				  qgrid, quadstn);
+				  qgrid, do_vectors, quadstn);
 	}
 /*
  * Free the data.
@@ -944,7 +974,7 @@ bool quadstn[4];
 
 static void
 CAP_StDoScalar (c, dc, platform, fields, nfield, quadfields, color, qcolor, 
-		zt, sticon, linewidth, unitlen, quadstn)
+		zt, sticon, linewidth, unitlen, do_vectors, quadstn)
 char *c;
 DataChunk *dc;
 char *platform;
@@ -956,6 +986,7 @@ ZebTime *zt;
 char *sticon;
 int linewidth;
 float unitlen;
+bool do_vectors;
 bool quadstn[4];
 /*
  * Plot up a scalar value
@@ -1000,7 +1031,7 @@ bool quadstn[4];
  */
 	CAP_StPlotVector (c, 0, zt, XPIX (x0), YPIX (y0), dc->dc_Platform,
 			  sticon, color, qcolor, linewidth, &u, &v, badvalue, 
-			  unitlen, qgrid, quadstn);
+			  unitlen, qgrid, do_vectors, quadstn);
 }
 
 
@@ -1128,7 +1159,7 @@ bool	update;
 	float	vscale, x0, x1, y0, y1, alt, badvalue;
 	int	pix_x0, pix_x1, pix_y0, pix_y1, xdim, ydim;
 	int	linewidth, len, degrade, shifted;
-	bool	tacmatch = FALSE, grid = FALSE;
+	bool	tacmatch = FALSE, grid = FALSE, do_vectors;
 	XColor	color;
 	ZebTime zt;
 	DataChunk	*dc;
@@ -1152,7 +1183,7 @@ bool	update;
  * Get necessary parameters from the plot description
  */
 	if (! CAP_VecParams (c, platform, uname, vname, &vscale, cname, 
-			&linewidth, &unitlen, &color))
+			&linewidth, &unitlen, &color, &do_vectors))
 		return;
 /*
  * See if they want to degrade the grid.
@@ -1195,11 +1226,11 @@ bool	update;
 	pix_x0 = XPIX (x0);	pix_x1 = XPIX (x1);
 	pix_y0 = YPIX (y0);	pix_y1 = YPIX (y1);
 /*
- * Draw the vectors
+ * Draw the vectors or barbs
  */
-	VectorGrid (Graphics, GWFrame (Graphics), Gcontext, ugrid, 
-		vgrid, xdim, ydim, pix_x0, pix_y0, pix_x1, pix_y1, 
-		vscale, badvalue, color, degrade);
+	WindGrid (Graphics, GWFrame (Graphics), Gcontext, ugrid, vgrid, xdim, 
+		  ydim, pix_x0, pix_y0, pix_x1, pix_y1, vscale, badvalue, 
+		  color, degrade, do_vectors);
 /*
  * Free the data arrays
  */
@@ -1232,12 +1263,22 @@ bool	update;
 		An_TopAnnot (" (SHIFTED)", Tadefclr.pixel);
 	An_TopAnnot (".", Tadefclr.pixel);
 /*
- * Side annotation (scale vectors)
+ * Side annotation (scale vectors or barbs)
  */
-	sprintf (data, "%s %d %f %f %f", "10m/sec", color.pixel, 10.0, 0.0, 
-		 unitlen); 
-	An_AddAnnotProc (An_ColorVector, c, data, strlen (data),
-		40, FALSE, FALSE);
+	if (do_vectors)
+	{
+		sprintf (data, "%s %d %f %f %f", "10m/s", color.pixel, 10.0, 
+			 0.0, unitlen); 
+		An_AddAnnotProc (An_ColorVector, c, data, strlen (data),
+				 40, FALSE, FALSE);
+	}
+	else
+	{
+		sprintf (data, "m/s %d %d", color.pixel, (int)unitlen);
+		An_AddAnnotProc (An_BarbLegend, c, data, strlen (data), 100, 
+				 FALSE, FALSE);
+	}
+
 	CAP_AddStatusLine (c, platform, "(winds)", loc.l_alt, altunits, &zt);
 }
 
@@ -1247,31 +1288,55 @@ bool	update;
 
 static bool
 CAP_VecParams (c, platform, uname, vname, vscale, cname, linewidth, unitlen,
-	color)
+	       color, do_vectors)
 char *c, *platform, *uname, *vname, *cname;
 float *vscale, *unitlen;
 int *linewidth;
 XColor *color;
+bool *do_vectors;
 /*
  * Get common parameters for vector plots.
  */
 {
+	char style[16];
 	bool ok;
 /*
- * Basics.
+ * Vectors or barbs?
+ */
+	*do_vectors = TRUE;
+	if (pda_Search (Pd, c, "wind-style", NULL, style, SYMT_STRING))
+		*do_vectors = strncmp (style, "barb", 4);
+/*
+ * Required stuff
  */
 	ok = pda_ReqSearch (Pd, c, "platform", NULL, platform, SYMT_STRING);
 	ok &= pda_ReqSearch (Pd, c, "u-field", NULL, uname, SYMT_STRING);
 	ok &= pda_ReqSearch (Pd, c, "v-field", NULL, vname, SYMT_STRING);
-	ok &= pda_ReqSearch (Pd, c, "arrow-scale", NULL, (char *) vscale,
-		SYMT_FLOAT);
-	*unitlen = USABLE_HEIGHT * *vscale;
+
 	if (! ok)
 		return (FALSE);
 /*
+ * Scaling
+ */
+	if (*do_vectors)
+	{
+		*vscale = 0.002;
+		pda_Search (Pd, c, "arrow-scale", "xsect", (char *)vscale,
+			    SYMT_FLOAT);
+	}
+	else
+	{
+		*vscale = 0.06;
+		pda_Search (Pd, c, "barb-scale", "xsect", (char *)vscale,
+			    SYMT_FLOAT);
+	}
+
+	*unitlen = USABLE_HEIGHT * *vscale;
+/*
  * Get annotation information from the plot description
  */
-	if(! pda_Search(Pd, c, "sa-scale", NULL, (char *) &Sascale,SYMT_FLOAT))
+	if(! pda_Search (Pd, c, "sa-scale", NULL, (char *) &Sascale,
+			 SYMT_FLOAT))
 		Sascale = 0.02;
 /*
  * Figure out an arrow color.
@@ -1329,21 +1394,25 @@ int datalen, begin, space;
         sscanf (data, "%s %d %d %f %d %s %s %s %s", string, &vc, &qc, 
 		&unitlen, &numquads, qname[0], qname[1], qname[2], qname[3]);
 /*
- * Put in the vector.
+ * Put in the vector (unless unitlen == 0, implying wind barbs).
  */
-	left = An_GetLeft ();
-	XSetForeground (XtDisplay (Graphics), Gcontext, vc);
-	DrawText (Graphics, GWFrame (Graphics), Gcontext, left, begin, 
-		"10 m/sec", 0.0, scale, JustifyLeft, JustifyTop);
-	used = DT_ApproxHeight (Graphics, scale, 1);
-	begin += used;
-	space -= used;
+	if (unitlen > 0)
+	{
+		left = An_GetLeft ();
 
-	XSetForeground (XtDisplay (Graphics), Gcontext, vc);
-	draw_vector (XtDisplay (Graphics), GWFrame (Graphics), Gcontext,
-		left, begin + 5, 10.0, 0.0, unitlen);
-	begin += 10;
-	space -= 10;
+		XSetForeground (XtDisplay (Graphics), Gcontext, vc);
+
+		DrawText (Graphics, GWFrame (Graphics), Gcontext, left, begin, 
+			  "10 m/sec", 0.0, scale, JustifyLeft, JustifyTop);
+		used = DT_ApproxHeight (Graphics, scale, 1);
+		begin += used;
+		space -= used;
+
+		draw_vector (XtDisplay (Graphics), GWFrame (Graphics), 
+			     Gcontext, left, begin + 5, 10.0, 0.0, unitlen);
+		begin += 10;
+		space -= 10;
+	}
 /*
  * Put in the quadrant annotation.
  */
@@ -1712,7 +1781,7 @@ float	*x0, *y0, *x1, *y1, *alt;
 	float cdiff;
 	Location slocs[60], origin;
 	int nsample, samp, ntime, len;
-	bool all = FALSE;
+	bool all = FALSE, rspace = FALSE;
 	DataChunk *dc;
 	FieldId	fid = F_Lookup (field);
 /*
@@ -1728,8 +1797,10 @@ float	*x0, *y0, *x1, *y1, *alt;
  * Unless they have specified that they want all of the heights, we need
  * to find the specific one of interest.
  */
-	if (! pda_Search (Pd, c, "every-sweep", NULL, (char *) &all, SYMT_BOOL)
-			|| !all || PlotMode == History)
+	if (pda_Search (Pd, c, "radar-space", NULL, (char *) &rspace,
+			SYMT_BOOL) && rspace &&
+			(! pda_Search (Pd, c, "every-sweep",
+				NULL, (char *) &all, SYMT_BOOL)	|| !all))
 	{
 		char cattr[200], *attr = NULL;
 	/*

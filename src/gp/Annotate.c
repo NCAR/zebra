@@ -27,7 +27,7 @@
 # include "DrawText.h"
 # include "PixelCoord.h"
 # include "GC.h"
-MAKE_RCSID ("$Id: Annotate.c,v 2.22 1994-05-09 21:06:28 corbet Exp $")
+MAKE_RCSID ("$Id: Annotate.c,v 2.23 1994-09-15 21:50:01 corbet Exp $")
 
 /*
  * Graphics context (don't use the global one in GC.h because we don't
@@ -1048,5 +1048,130 @@ int datalen, begin, space;
 	for (i = 5; i < nstuff; i++)
 		DrawText (Graphics, GWFrame (Graphics), AnGcontext,
 			  left, begin + cheight*(i - 3),
+			  stuff[i], 0.0, scale, JustifyLeft, JustifyTop);
+}
+
+
+
+
+void
+An_XYZGString (comp, data, datalen, begin, space)
+char *comp, *data;
+int datalen, begin, space;
+/*
+ * A specialized process for annotating XYGraph traces with z fields.
+ *
+ * The data string is expected to be formatted as:
+ *
+ *	style|color|platform[|line...]
+ */
+{
+	int limit, left, cheight, nstuff, i, fxpos, active;
+	int sx, sy, ex, ey;
+	float scale;
+	char *stuff[20];
+	Pixel color;
+/*
+ * Get annotation parameters.
+ */
+	An_GetSideParams (comp, &scale, &limit);
+/*
+ * Pull the info out of the string.
+ */
+	nstuff = ParseLine (data, stuff, '|');
+/*
+ * Initial graphics setup.
+ */
+	color = atoi (stuff[1]);
+	left = An_GetLeft ();
+        XSetForeground (XtDisplay (Graphics), AnGcontext, color);
+	cheight = DT_ApproxHeight (Graphics, scale, 1);
+	begin -= 4; /* XXX */
+/*
+ * First line: symbol and platform name.
+ */
+	if (! strcmp (stuff[0], "line"))
+		XDrawLine (Disp, GWFrame (Graphics), AnGcontext, left,
+			   begin + cheight/2, left + cheight,
+			   begin + cheight/2);
+	else
+		I_PositionIcon (comp, stuff[2], NULL, stuff[0], 
+				left + cheight/2, begin + cheight/2, color);
+	
+        DrawText (Graphics, GWFrame (Graphics), AnGcontext, 
+        	left + cheight + 2, begin, stuff[2], 0.0, scale,
+		JustifyLeft, JustifyTop);
+/*
+ * Make the symbol active.
+ */
+	I_ActivateArea (left, begin, cheight, cheight, "annot", comp,
+			stuff[2], 0);
+/*
+ * X  field.
+ */
+        DrawText (Graphics, GWFrame (Graphics), AnGcontext, left,
+			begin + cheight, stuff[3], 0.0, scale,
+			JustifyLeft, JustifyTop);
+	DT_TextBox (Graphics, GWFrame (Graphics), left,
+			begin + cheight, stuff[3], 0.0, scale,
+			JustifyLeft, JustifyTop, &sx, &sy, &ex, &ey);
+	if (pda_Search (Pd, comp, "x-annot-active", "xy", (char *) &active,
+			SYMT_BOOL) && active)
+		I_ActivateArea (sx - 2, ey + 1, ex - sx + 4, sy - ey + 2,
+				"xfield", comp, stuff[2], 0);
+/*
+ * Throw in the divider text
+ */
+	fxpos = ex;
+        DrawText (Graphics, GWFrame (Graphics), AnGcontext, fxpos,
+			begin + cheight, " : ", 0.0, scale,
+			JustifyLeft, JustifyTop);
+	DT_TextBox (Graphics, GWFrame (Graphics), fxpos,
+			begin + cheight, " : ", 0.0, scale,
+			JustifyLeft, JustifyTop, &sx, &sy, &ex, &ey);
+	fxpos = ex;
+/*
+ * Y field.
+ */
+        DrawText (Graphics, GWFrame (Graphics), AnGcontext, fxpos,
+			begin + cheight, stuff[4], 0.0, scale,
+			JustifyLeft, JustifyTop);
+	DT_TextBox (Graphics, GWFrame (Graphics), fxpos,
+			begin + cheight, stuff[4], 0.0, scale,
+			JustifyLeft, JustifyTop, &sx, &sy, &ex, &ey);
+	if (pda_Search (Pd, comp, "y-annot-active", "xy", (char *) &active,
+			SYMT_BOOL) && active)
+		I_ActivateArea (sx - 2, ey + 1, ex - sx + 4, sy - ey + 2,
+				"yfield", comp, stuff[2], 0);
+/*
+ * Divide again.
+ */
+	fxpos = ex;
+        DrawText (Graphics, GWFrame (Graphics), AnGcontext, fxpos,
+			begin + cheight, " : ", 0.0, scale,
+			JustifyLeft, JustifyTop);
+	DT_TextBox (Graphics, GWFrame (Graphics), fxpos,
+			begin + cheight, " : ", 0.0, scale,
+			JustifyLeft, JustifyTop, &sx, &sy, &ex, &ey);
+	fxpos = ex;
+/*
+ * Z field.
+ */
+        DrawText (Graphics, GWFrame (Graphics), AnGcontext, fxpos,
+			begin + cheight, stuff[5], 0.0, scale,
+			JustifyLeft, JustifyTop);
+	DT_TextBox (Graphics, GWFrame (Graphics), fxpos,
+			begin + cheight, stuff[5], 0.0, scale,
+			JustifyLeft, JustifyTop, &sx, &sy, &ex, &ey);
+	if (pda_Search (Pd, comp, "z-annot-active", "xy", (char *) &active,
+			SYMT_BOOL) && active)
+		I_ActivateArea (sx - 2, ey + 1, ex - sx + 4, sy - ey + 2,
+				"zfield", comp, stuff[2], 0);
+/*
+ * Draw any additional lines.
+ */
+	for (i = 6; i < nstuff; i++)
+		DrawText (Graphics, GWFrame (Graphics), AnGcontext,
+			  left, begin + cheight*(i - 4),
 			  stuff[i], 0.0, scale, JustifyLeft, JustifyTop);
 }

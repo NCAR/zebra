@@ -48,7 +48,7 @@
 # include "PixelCoord.h"
 # include "LayoutControl.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.46 1994-06-29 21:17:42 case Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.47 1994-09-15 21:50:09 corbet Exp $")
 
 /*
  * Default resources.
@@ -1609,7 +1609,22 @@ struct ui_command *cmds;
 		msg_ELog (EF_PROBLEM, "No associated cross-section window");
 		return;
 	}
-
+/*
+ * Hold everything!  If the window is "all", then we have the display
+ * manager broadcast it.
+ */
+	if (! strcmp (win, "all"))
+	{
+		dme.dmm_type = DM_EVENT;
+		sprintf (dme.dmm_data, "AllXSect %.3f %.3f %.3f %.3f",
+				x0, y0, x1, y1);
+		msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &dme,
+				sizeof (dme));
+		return;
+	}
+/*
+ * OK, back to the old program.  Get the component.
+ */
 	if (! pda_Search (Pd, "global", "xsect-component", NULL, comp, 
 		SYMT_STRING))
 	{

@@ -38,7 +38,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm.c,v 2.48 1994-09-14 16:38:44 burghart Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.49 1994-09-15 21:48:55 corbet Exp $")
 
 
 /*
@@ -111,7 +111,8 @@ static void EnterPosition FP ((struct ui_command *));
 static void KillProcess FP ((char *));
 static struct config *TryConfigDir FP ((char *, char *));
 static int RealPlatform FP ((int, SValue *, int *, SValue *, int *));
-
+static void MakeWindowList FP ((char *));
+static int AddToList FP ((char *, int, SValue *, long));
 
 
 
@@ -416,6 +417,12 @@ struct ui_command *cmds;
 	 */
 	   case DMC_WRITEPD:
 		WritePD (UPTR (cmds[1]), UPTR (cmds[2]));
+		break;
+	/*
+	 * They want a list of windows.
+	 */
+	    case DMC_WINDOWLIST:
+		MakeWindowList (UPTR (cmds[1]));
 		break;
 
 	   default:
@@ -1552,4 +1559,46 @@ SValue *argv, *retv;
 {
 	retv->us_v_int = (ds_LookupPlatform (argv->us_v_ptr) != BadPlatform);
 	*rett = SYMT_BOOL;
+}
+
+
+
+
+static void
+MakeWindowList (sym)
+char *sym;
+/*
+ * We getta make a window list.
+ */
+{
+	SValue v;
+	char sbuf[512];
+
+	sbuf[0] = '\0';
+        usy_search (Current, AddToList, (long) sbuf, FALSE, NULL);
+	v.us_v_ptr = sbuf;
+	usy_s_symbol (usy_g_stbl ("ui$variable_table"), sym, SYMT_STRING, &v);
+}
+
+
+
+static int
+AddToList (name, t, v, lsbuf)
+char *name;
+long lsbuf;
+int t;
+SValue *v;
+/*
+ * Add a window (maybe) to the list.
+ */
+{
+	struct cf_window *win = (struct cf_window *) v->us_v_ptr;
+	char *sbuf = (char *) lsbuf;
+
+	if ((win->cfw_flags & (CF_WIDGET|CF_NONGRAPH)) == 0)
+	{
+		strcat (sbuf, " ");
+		strcat (sbuf, name);
+	}
+	return (TRUE);
 }

@@ -40,7 +40,7 @@
  */
 int	AltControlComp;
 
-MAKE_RCSID("$Id: AltControl.c,v 2.8 1994-05-25 14:31:02 burghart Exp $")
+MAKE_RCSID("$Id: AltControl.c,v 2.9 1994-09-15 21:49:58 corbet Exp $")
 
 # define MAXALT		80	/* Max heights we expect to see		*/
 
@@ -169,7 +169,7 @@ int nstep;
 	int nalt, closest = 0, i;
 	bool rspace, have_target;
 	float alts[MAXALT], target_alt, dist, temp;
-	char platform[40], field[40], **comps = pd_CompList (Pd), scratch[40];
+	char platform[512], field[40], **comps = pd_CompList (Pd), scratch[40];
 	FieldId fid;
 	PlatformId pid;
 	AltUnitType altunits;
@@ -199,7 +199,8 @@ int nstep;
  * Radar space?
  */
 	rspace = FALSE;
-	pd_Retrieve (Pd, "global", "radar-space", (char *) &rspace, SYMT_BOOL);
+	pd_Retrieve (Pd, comps[AltControlComp], "radar-space",
+			(char *) &rspace, SYMT_BOOL);
 /*
  * Now, depending on our model of the world, we choose one way or the other
  * to look for the available altitudes.

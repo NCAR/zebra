@@ -31,7 +31,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm_config.c,v 1.15 1994-09-14 16:39:19 burghart Exp $")
+MAKE_RCSID ("$Id: dm_config.c,v 1.16 1994-09-15 21:49:03 corbet Exp $")
 
 
 /*
@@ -695,6 +695,7 @@ struct cf_window *win;
 
 
 
+static void
 send_default (win)
 struct cf_window *win;
 /*

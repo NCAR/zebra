@@ -1,7 +1,7 @@
 /*
  * XY-Observation plotting module
  */
-static char *rcsid = "$Id: XYObservation.c,v 1.13 1994-05-10 21:42:07 corbet Exp $";
+static char *rcsid = "$Id: XYObservation.c,v 1.14 1994-09-15 21:50:35 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -527,14 +527,14 @@ ZebTime *time;
 float zscale;
 {
 	float scale = 0.02;
-	int dotime = 0, nline = 3;
+	int dotime = 0, nline = 2, doscale = 0;
 	char label[200], timelabel[32];
 	char dimns[200];
 /*
  * Main annotation stuff.
  */
 	pda_Search (Pd, c, "sa-scale", NULL, (char *) &scale, SYMT_FLOAT);
-	sprintf(label, "line|%d|%s|%s|%s|%s", color, plat, xfield, yfield,
+	sprintf (label, "line|%d|%s|%s|%s|%s", color, plat, xfield, yfield,
 			zfield);
 	if (pda_Search (Pd, c, "dimensions", NULL, dimns, SYMT_STRING))
 		sprintf (label+strlen(label), "(%s)", dimns);
@@ -557,15 +557,20 @@ float zscale;
 /*
  * Store up the annotation request and we're set.
  */
-	An_AddAnnotProc (An_XYGString, c, label, strlen (label) + 1,
+	An_AddAnnotProc (An_XYZGString, c, label, strlen (label) + 1,
 			 DT_ApproxHeight (Graphics, scale, nline),
 			 FALSE, FALSE);
 /*
- * Throw in the z dimension bar too.
+ * Throw in the z dimension bar too.  (But only if they don't say not to).
  */
-	sprintf (label, "%f %d %d %s", zscale, F_PIX_WIDTH, color, zfield);
-	An_AddAnnotProc (An_ColorScale, c,  label, strlen (label) + 1, 40,
-			FALSE, FALSE);
+	if (! pda_Search (Pd, c, "z-ruler", "xy-obs", (char *) &doscale,
+			SYMT_BOOL) || doscale)
+	{
+		sprintf (label, "%f %d %d %s", zscale, F_PIX_WIDTH, color,
+				zfield);
+		An_AddAnnotProc (An_ColorScale, c,  label, strlen (label) + 1,
+				40, FALSE, FALSE);
+	}
 }
 
 

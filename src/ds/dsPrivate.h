@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 3.24 1994-06-28 19:59:08 corbet Exp $
+ * $Id: dsPrivate.h,v 3.25 1994-09-15 21:49:17 corbet Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -128,7 +128,7 @@ typedef struct ds_PlatformInstance
 	int	*dp_subplats;		/* Indices to subplat instances	*/
 	int	dp_nsubplats;		/* Number of indices (not alloc)*/
 	unsigned short dp_flags;	/* Attribute flags -- see below	*/
-	short	dp_Tfile;		/* Temp file under creation	*/
+	unsigned short dp_Tfile;	/* Temp file under creation	*/
 	unsigned short dp_NewSamps;	/* New samps (not yet notified) */
 	unsigned short dp_OwSamps;	/* Overwritten samps (n.y.n.)	*/
 	Lock	*dp_RLockQ;		/* Read locks held		*/
@@ -197,8 +197,8 @@ typedef struct ds_DataFile
 	ZebTime	df_begin;		/* When the data begins		*/
 	ZebTime	df_end;			/* When it ends			*/
 	long	df_rev;			/* Revision count		*/
-	short	df_FLink;		/* Data table forward link	*/
-	short	df_BLink;		/* Data table backward link	*/
+	unsigned short	df_FLink;	/* Data table forward link	*/
+	unsigned short	df_BLink;	/* Data table backward link	*/
 	unsigned short df_nsample;	/* How many samples in this file */
 	short	df_platform;		/* Platform index		*/
 	short	df_use;			/* Structure use count		*/

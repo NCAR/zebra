@@ -1,7 +1,7 @@
 /*
  * Vertical cross-sectioning
  */
-static char *rcsid = "$Id: XSection.c,v 2.21 1994-05-19 21:11:41 burghart Exp $";
+static char *rcsid = "$Id: XSection.c,v 2.22 1994-09-15 21:50:23 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -188,7 +188,8 @@ static int	xs_ZIndex FP ((double, int));
 static ZZ_DPlane	*xs_ZZGetData FP ((char **, int, char *));
 static ZZ_DPlane	*xs_AllocZZ_DPlane FP ((int, int));
 static void		xs_FreeZZ_DPlane FP ((ZZ_DPlane *));
-static DataChunk	*xs_GetObsDC FP ((char *, char *, ZebTime *));
+static DataChunk	*xs_GetObsDC FP ((char *, char *, ZebTime *, 
+					  DataClass *));
 static DataChunk	*xs_GetGridDC FP ((char *, char *, ZebTime *, 
 					   float *));
 static DataChunk	*xs_NSpaceToRGrid FP ((DataChunk *, FieldId, float *));
@@ -203,6 +204,7 @@ UItime	*t;
  * Initialize for a cross-section plot.
  */
 {
+	bool	use_alt;
 	float	zmax;
 /*
  * Initialize the overlay times widget
@@ -213,12 +215,62 @@ UItime	*t;
  * set defaults.
  */
 	P_bot = P_hgt = 0.0;
-	AltUnits = AU_kmMSL;
 
 	pda_Search (Pd, "global", "z-min", NULL, (char *) &P_bot, SYMT_FLOAT);
 	if (pda_Search (Pd, "global", "z-max", NULL, (char *) &zmax, 
 			SYMT_FLOAT))
 		P_hgt = zmax - P_bot;
+/*
+ * Field for the vertical dimension.  We now try for "z-field" in favor of the 
+ * old "by-altitude".
+ */
+	if (! pda_Search (Pd, "global", "z-field", "xsect", Zfld, SYMT_STRING))
+	{
+		use_alt = TRUE;
+		pda_Search (Pd, "global", "by-altitude", "xsect", 
+			    (char *) &use_alt, SYMT_BOOL);
+
+		strcpy (Zfld, use_alt ? "alt" : "pres");
+	}
+/*
+ * Set some defaults based on the z field
+ */
+	if (! strcmp (Zfld, "alt"))
+	{
+		AltUnits = AU_kmMSL;
+		if (P_hgt == 0.0)
+		{
+			P_bot = 0.0;
+			P_hgt = 12.0;
+		}
+	}
+	else if (! strcmp (Zfld, "depth"))
+	{
+		AltUnits = AU_kmMSL;
+		if (P_hgt == 0.0)
+		{
+			P_bot = -0.6;
+			P_hgt = 0.6;
+		}
+	}
+	else if (! strcmp (Zfld, "pres"))
+	{
+		AltUnits = AU_mb;
+		if (P_hgt == 0.0)
+		{
+			P_bot = 1050.0;
+			P_hgt = -850.0;
+		}
+	}
+	else
+	{
+		AltUnits = AU_kmMSL;	/* really unknown */
+		if (P_hgt = 0.0)
+		{
+			P_bot = 0.0;
+			P_hgt = 10.0;
+		}
+	}
 /*
  * User-specified maximum time difference
  */
@@ -399,7 +451,7 @@ bool	update;
 /*
  * If not autoscaling, we must have a center and step
  */
-	if (! Autoscale)
+	if (ok && ! Autoscale)
 	{
 		sprintf (param, "%s-center", fldname);
 		ok &= pda_ReqSearch (Pd, c, param, "contour", 
@@ -408,7 +460,11 @@ bool	update;
 		sprintf (param, "%s-step", fldname);
 		ok &= pda_ReqSearch (Pd, c, param, "contour", 
 				     (char *) &Contour_step, SYMT_FLOAT);
-
+		if (! ok) /* Give them a second chance */
+		{
+			msg_ELog (EF_PROBLEM, "You get autoscale after all");
+			ok = Autoscale = TRUE;
+		}
 	}
 /*
  * Color or color table
@@ -914,13 +970,16 @@ int	nplat;
  * responsible for calling xs_FreeZZ_DPlane() to destroy the plane.
  */
 {
-	int	p, pt, npts, zndx, zndx_prev, nobs;
+	int	p, pt, npts, zndx, zndx_prev, nobs, incr;
 	int	row, col, vdim, hdim;
-	float	badvalue, fdata, val, val_prev, frac;
+	float	badvalue, fdatum, val, val_prev, frac, *data, *zdata;
 	float	z, zpos, zstep, z_prev;
 	float	loc_x[MAXPLAT], loc_y[MAXPLAT];
 	ZebTime	dtime;
+	FieldId		fid = F_Lookup (fldname), zid = F_Lookup (Zfld);
 	DataChunk	*dc;
+	DataClass	class;
+	RGrid		rginfo;
 	Location	loc;
 	ZZ_DPlane	*plane;
 /*
@@ -946,7 +1005,7 @@ int	nplat;
 	/*
 	 * Get the data
 	 */
-		if (! (dc = xs_GetObsDC (pnames[p], fldname, &dtime)))
+		if (! (dc = xs_GetObsDC (pnames[p], fldname, &dtime, &class)))
 		{
 			TC_EncodeTime (&PlotTime, TC_Full, Scratch);
 			msg_ELog (EF_INFO, "No data for '%s' at %s", pnames[p],
@@ -967,14 +1026,26 @@ int	nplat;
 		plane->bot[col] = 99e6;
 		plane->top[col] = -99e6;
 	/*
-	 * Stash the platform location
-	 */
-		dc_GetLoc (dc, 0, &loc);
-		cvt_ToXY (loc.l_lat, loc.l_lon, &loc_x[col], &loc_y[col]);
-	/*
- 	 * Get some info from the data chunk
-	 */
-		npts = dc_GetNSample (dc);
+ 	 * Get platform location, point count, and bad value from the data 
+	 * chunk
+	 */	
+		if (class == DCC_Scalar)
+		{
+			npts = dc_GetNSample (dc);
+
+			dc_GetLoc (dc, 0, &loc);
+			cvt_ToXY (loc.l_lat, loc.l_lon, &loc_x[col], 
+				  &loc_y[col]);
+		}
+		else if (class == DCC_RGrid)
+		{
+			data = dc_RGGetGrid (dc, 0, fid, &loc, &rginfo, NULL);
+			zdata = dc_RGGetGrid (dc, 0, zid, NULL, NULL, NULL);
+			npts = rginfo.rg_nX * rginfo.rg_nY * rginfo.rg_nZ;
+			cvt_ToXY (loc.l_lat, loc.l_lon, &loc_x[col], 
+				  &loc_y[col]);
+		}
+
 		badvalue = dc_GetBadval (dc);
 	/*
 	 * Loop through the points
@@ -986,10 +1057,18 @@ int	nplat;
 		/*
 		 * Bag this point if the datum or position is bad
 		 */
-			fdata = dc_GetScalar (dc, pt, F_Lookup (fldname));
-			zpos = dc_GetScalar (dc, pt, F_Lookup (Zfld));
+			if (class == DCC_Scalar)
+			{
+				fdatum = dc_GetScalar (dc, pt, fid);
+				zpos = dc_GetScalar (dc, pt, zid);
+			}
+			else
+			{
+				fdatum = data[pt];
+				zpos = zdata[pt];
+			}
 
-			if (fdata == badvalue || zpos == badvalue)
+			if (fdatum == badvalue || zpos == badvalue)
 				continue;
 		/*
 		 * Special treatment for the first good point
@@ -999,7 +1078,7 @@ int	nplat;
 			/*
 			 * Assign the previous point values
 			 */
-				val_prev = fdata;
+				val_prev = fdatum;
 				z_prev = zpos;
 				zndx_prev = xs_ZIndex (zpos, vdim);
 			/*
@@ -1026,12 +1105,14 @@ int	nplat;
 		/*
 		 * Assign values in Plane between this and the previous point
 		 */
-			for (row = zndx_prev; row < zndx && row < vdim; row++)
+			incr = (zndx < zndx_prev) ? -1 : 1;
+			for (row = zndx_prev; row != zndx; row += incr)
 			{
 			/*
 			 * Don't assign anything below the first grid level
+			 * or above the last grid level
 			 */
-				if (row < 0)
+				if (row < 0 || row >= vdim)
 					continue;
 			/*
 			 * Find the height of this grid index and interpolate
@@ -1040,7 +1121,7 @@ int	nplat;
 				z = row * zstep + P_bot;
 				frac = (z - z_prev) / (zpos - z_prev);
 
-				val = val_prev + frac * (fdata - val_prev);
+				val = val_prev + frac * (fdatum - val_prev);
 			/*
 			 * Insert this point into the Plane
 			 */
@@ -1049,7 +1130,7 @@ int	nplat;
 		/*
 		 * Make this the previous point
 		 */
-			val_prev = fdata;
+			val_prev = fdatum;
 			z_prev = zpos;
 			zndx_prev = zndx;
 		}
@@ -1496,27 +1577,10 @@ ZebTime	*times;
 	float	fdata, *xpos = NULL, *ypos = NULL, zpos;
 	float	xhighest, yhighest, zhighest;
 	float	*floor, *ceiling, *f_wgt, *c_wgt;
-	bool	use_alt;
 	ZebTime	dtime, badtime;
-	DataChunk	*dc;
 	DPlane	*plane, *p_wgt;
-/*
- * Altitude or pressure z scaling?
- */
-	use_alt = TRUE;
-	pda_Search (Pd, "global", "by-altitude", "xsect", (char *) &use_alt, 
-		SYMT_BOOL);
-
-	strcpy (Zfld, use_alt ? "alt" : "pres");
-	AltUnits = use_alt ? AU_kmMSL : AU_mb;
-/*
- * Set default vertical limits if no limits exist yet.
- */
-	if (P_hgt == 0.0)
-	{
-		P_bot = use_alt ? 0.0 : 1050.0;
-		P_hgt = use_alt ? 12.0 : -850.0;
-	}
+	DataChunk	*dc;
+	DataClass	class;
 /*
  * Grid size
  */
@@ -1587,14 +1651,12 @@ ZebTime	*times;
 	/*
 	 * Initialize for keeping track of the highest point
 	 */
-		if (use_alt)
-			zhighest = -9999.0;
-		else
-			zhighest = 9999.0;
+		zhighest = (P_hgt > 0) ? -99e9 : 99e9;
 	/*
 	 * Get the data
 	 */
-		if (! (dc = xs_GetObsDC (pnames[plat], fldname, &dtime)))
+		if (! (dc = xs_GetObsDC (pnames[plat], fldname, &dtime, 
+					 &class)))
 		{
 			times[plat] = badtime;
 			continue;
@@ -1639,8 +1701,8 @@ ZebTime	*times;
 		/*
 		 * Update the ceiling if this point is higher
 		 */
-			if ((use_alt && zpos > zhighest) ||
-				(!use_alt && zpos < zhighest))
+			if ((P_hgt > 0 && zpos > zhighest) ||
+				(P_hgt < 0 && zpos < zhighest))
 			{
 				xhighest = xpos[pt];
 				yhighest = ypos[pt];
@@ -1860,7 +1922,7 @@ ZebTime	*dtime;
  * grid as the horizontal spacing for our plane and just (rather aritrarily)
  * choose 19 vertical levels;
  */
-	hdim = Hgrid ? Hgrid : abs (P_len / rg.rg_Xspacing) + 1;
+	hdim = Hgrid ? Hgrid : abs ((int)(P_len / rg.rg_Xspacing)) + 1;
 	vdim = Vgrid ? Vgrid : 19;
 /*
  * Allocate the plane structure
@@ -2364,7 +2426,7 @@ float	**xpp, **ypp;
 	 * Get the data chunk
 	 */
 		if (! (dc = ds_FetchObs (pid, DCC_Scalar, ptime, fieldlist, 2,
-			NULL, 0)))
+					 NULL, 0)))
 			return (FALSE);
 
 		npts = dc_GetNSample (dc); 
@@ -2397,56 +2459,6 @@ float	**xpp, **ypp;
 	 */
 		dc_DestroyDC (dc);
 	}
-# ifdef notdef
-	else if (snd_has_field (sid, f_wspd) && snd_has_field (sid, f_wdir) && 
-		snd_has_field (sid, f_time))
-	{
-	/*
-	 * Derive the (x,y) positions from wind speed, wind direction, 
-	 * and time
-	 */
-		wspd = (float *) malloc (BUFLEN * sizeof (float));
-		wdir = (float *) malloc (BUFLEN * sizeof (float));
-		wtime = (float *) malloc (BUFLEN * sizeof (float));
-
-		npts = snd_get_data (sid, wspd, BUFLEN, f_wspd, BADVAL);
-		snd_get_data (sid, wdir, BUFLEN, f_wdir, BADVAL);
-		snd_get_data (sid, wtime, BUFLEN, f_time, BADVAL);
-
-		xpos[0] = site_x;
-		ypos[0] = site_y;
-
-		ws = wd = t = dt = 0.0;
-
-		for (pt = 0; pt < npts - 1; pt++)
-		{
-			if (wspd[pt] != BADVAL && wdir[pt] != BADVAL)
-			{
-				ws = wspd[pt] * 0.001;	/* km/s */
-				wd = wdir[pt];
-			}
-
-			if (wtime[pt] != BADVAL)
-			{
-				dt = wtime[pt] - t;
-				t = wtime[pt];
-			}
-			else
-				dt = 0.0;
-
-			xpos[pt+1] = xpos[pt] + dt * ws * 
-				cos (DEG_TO_RAD (-90.0 - wd));
-			ypos[pt+1] = ypos[pt] + dt * ws *
-				sin (DEG_TO_RAD (-90.0 - wd));
-		}
-	/*
-	 * Free our data arrays
-	 */
-		free (wspd);
-		free (wdir);
-		free (wtime);
-	}
-# endif
 	else
 	{
 	/*
@@ -2581,9 +2593,10 @@ char	*name;
 
 
 static DataChunk *
-xs_GetObsDC (plat, fldname, dtime)
+xs_GetObsDC (plat, fldname, dtime, class)
 char	*plat, *fldname;
 ZebTime *dtime;
+DataClass	*class;
 /*
  * Find an observation from the given platform before the current plot time
  * and within the user-specified maximum time difference.  Return
@@ -2595,13 +2608,31 @@ ZebTime *dtime;
 	FieldId	fieldlist[2];
 	PlatformId	pid;
 	DataChunk	*dc;
+	DataOrganization	org;
 /*
- * Get the ID of this platform
+ * Get the ID and data organization of this platform
  */
 	pid = ds_LookupPlatform (plat);
 	if (pid == BadPlatform)
 	{
 		msg_ELog (EF_PROBLEM, "Bad platform '%s'", plat);
+		return (NULL);
+	}
+
+	org = ds_PlatformDataOrg (pid);
+
+	switch (org)
+	{
+	   case OrgScalar:
+	   case OrgFixedScalar:
+		*class = DCC_Scalar;
+		break;
+	   case Org1dGrid:
+		*class = DCC_RGrid;
+		break;
+	    default:
+		msg_ELog (EF_PROBLEM, "Cannot handle %s's data organization",
+			  plat);
 		return (NULL);
 	}
 /*
@@ -2624,13 +2655,12 @@ ZebTime *dtime;
 		return (NULL);
 	}
 /*
- * Get the vertical position (altitude or pressure) and field data
+ * Get the vertical position and field data
  */
 	fieldlist[0] = F_Lookup (Zfld);
 	fieldlist[1] = F_Lookup (fldname);
 
-	if (! (dc = ds_FetchObs (pid, DCC_Scalar, dtime, fieldlist, 2,
-		NULL, 0)))
+	if (! (dc = ds_FetchObs (pid, *class, dtime, fieldlist, 2, NULL, 0)))
 	{
 		TC_EncodeTime (&PlotTime, TC_Full, Scratch);
 		msg_ELog (EF_PROBLEM, "'%s' or '%s' missing for '%s' at %s", 
@@ -2708,7 +2738,8 @@ float	*alts;
 	    case Org3dGrid:
 		dclass = DCC_RGrid;
 		break;
-	    case OrgScalar:
+	    case OrgScalar:	/* <-- historical, should go away */
+	    case OrgNSpace:
 		dclass = DCC_NSpace;
 		break;
 	    default:
@@ -2866,6 +2897,18 @@ float		*alts;
 		return (NULL);
 	}
 /*
+ * Make sure our dimensions are all non-zero.  (We can occasionally get 
+ * a 0x0x0 grid from GRIB files...)
+ */
+	dc_NSGetDimension (dc, lat_id, NULL, &nlats);
+	dc_NSGetDimension (dc, lon_id, NULL, &nlons);
+	dc_NSGetDimension (dc, alt_id, NULL, &nalts);
+	if (nlats * nlons * nalts == 0)
+	{
+		msg_ELog (EF_DEBUG, "xs_NSpaceToRGrid: zero size grid");
+		return (NULL);
+	}
+/*
  * Check for regular lat, lon, and alt spacing
  */
 	if (dc_Type (dc, lat_id) != DCT_Float || 
@@ -2892,9 +2935,21 @@ float		*alts;
 	
 	lon = (float *) dc_NSGetSample (dc, 0, lon_id, &nlons);
 	lonspacing = lon[1] - lon[0];
+
+	if (lonspacing < -180.0)
+		lonspacing += 360.0;
+	else if (lonspacing > 180.0)
+		lonspacing -= 360.0;
+	
 	for (i = 2; i < nlons; i++)
 	{
 		delta = lon[i] - lon[i-1];
+
+		if (delta < -180.0)
+			delta += 360.0;
+		else if (delta > 180.0)
+			delta -= 360.0;
+
 		if (fabs (delta - lonspacing) > 0.001)
 		{
 			msg_ELog (EF_PROBLEM, 

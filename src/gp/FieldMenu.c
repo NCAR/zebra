@@ -36,7 +36,7 @@
 # include <DataStore.h>
 # include <ui_date.h>
 # include "GraphProc.h"
-MAKE_RCSID ("$Id: FieldMenu.c,v 2.10 1994-05-20 20:04:25 corbet Exp $")
+MAKE_RCSID ("$Id: FieldMenu.c,v 2.11 1994-09-15 21:50:07 corbet Exp $")
 
 
 /*
@@ -183,12 +183,15 @@ XtPointer junk, junk1;
 	for (i = 0; i < nentry; i++)
 	{
 		char *name = F_GetName (Fields[i]);
+		char *units = F_GetUnits (Fields[i]);
 	/*
 	 * Add the text.
 	 */
 		sprintf (string, "%s", F_GetDesc (Fields[i]));
 		if (strcmp (string, name))
 			sprintf (string + strlen (string), " (%s)", name);
+		if (strcmp (units, "none"))
+			sprintf (string + strlen (string), " (%s)", units);
 		XtSetArg (args[0], XtNlabel, string);
 		XtSetArg (args[1], XtNleftBitmap, 
 			strcmp (field, name) ? None : Star);

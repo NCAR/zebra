@@ -16,7 +16,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-MAKE_RCSID ("$Id: DFA_Grads.c,v 3.3 1994-08-01 20:42:10 granger Exp $");
+MAKE_RCSID ("$Id: DFA_Grads.c,v 3.4 1994-09-15 21:49:13 corbet Exp $");
 
 
 
@@ -130,6 +130,7 @@ bool opendata;
 			if (opendata && ! dgr_OpenData (tag, cfwords[1], file))
 			{
 				dgr_FreeTag (tag);
+				fclose (cfile);
 				return (NULL);
 			}
 		}
@@ -137,6 +138,7 @@ bool opendata;
 			msg_ELog (EF_PROBLEM, "Unrecogized ctl word: %s",
 					cfwords[0]);
 	}
+	fclose (cfile);
 	return (tag);
 }
 
@@ -156,6 +158,7 @@ FILE *fp;
 {
 	int np = atoi (words[1]), level, word;
 	float base, spacing, *levels;
+	char which = words[0][0]; /* Save it now */
 /*
  * Figure out if we're dealing with linear or discrete levels here.
  */
@@ -205,7 +208,7 @@ FILE *fp;
 /*
  * Now we just have to find a place to store all this in the tag.
  */
-	switch (words[0][0])
+	switch (which)
 	{
 	    case 'X':
 		tag->gt_rg.rg_nX = np;
@@ -716,6 +719,7 @@ int ndetail;
 	{
 		float diff, bestdiff = 999999;
 		alttarget = v.us_v_float;
+		level = 0; /* -1 screws us up if no levels */
 		for (i = 0; i < tag->gt_rg.rg_nZ; i++)
 		{
 			diff = fabs (alttarget - tag->gt_zc[i]);

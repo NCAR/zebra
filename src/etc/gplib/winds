@@ -16,6 +16,18 @@ define widget winds-right intmenu ' '
 endmenu
 
 !
+! The right button menu for station plots.
+!
+define widget irg-winds-right intmenu ' '
+	title 'Winds Options'
+	line
+	entry 'Adjust interpolation' 'require interp; popup InterpParams'
+	submenu 'Color' 'simple-color'
+	submenu	'Arrow Line Width' 'linewidth'
+	submenu 'Barbs/Vectors' 'winds-style'
+endmenu
+
+!
 ! Vector/Barb representation
 !
 define widget winds-style intmenu ' '

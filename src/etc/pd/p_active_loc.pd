@@ -8,14 +8,15 @@ p_active_loc
 	platform:	SOMETHING
 	representation:	overlay
 	field:		location
-	color:		white
+	color:		green
 	label-size:	10
 	icon:		radar-loc
 	icon-left-menu:		minimal-cap-left-menu
 	icon-right-menu:	location-options
-	posicon-left-menu:	minimal-cap-left-menu
+!	posicon-left-menu:	minimal-cap-left-menu
 	posicon-right-menu:	location-options
-	posicon-middle-menu:	pa-send-data
+	posicon-middle-menu:	al-send-other-window
+	posicon-left-menu:	al-send-other-window
 	label:		platform
 	active-icon:	true
-	require:	location
+	require:	location,active-loc

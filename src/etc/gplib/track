@@ -77,6 +77,24 @@ endprocedure
 ! pseudo-field.
 !
 procedure track-field-select field string
+!
+! See if they called us out of the position icon.  If so, we really want
+! to be shipping data off to another window.  Shipping out "mono" would be
+! rude, though.
+!
+	if (area_type = 'posicon')
+	   	if (field = 'mono')
+			dm 'beep'
+			return
+		endif
+		local plat PDParam(icon_component, 'platform')
+		local cmd quote(concat4('PutScalar ', plat, ' ', field))
+		dm #cmd
+		return
+	endif
+!
+! OK, we're just changing things locally.  Have at it.
+!
 	if (field = 'mono')
 		local junk pd_removeparam(icon_component,'field')
 	else

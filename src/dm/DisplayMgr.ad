@@ -1,4 +1,4 @@
-! $Id: DisplayMgr.ad,v 1.9 1994-06-29 20:21:51 case Exp $
+! $Id: DisplayMgr.ad,v 1.10 1994-09-15 21:48:46 corbet Exp $
 !
 ! Application defaults file for the Display Manager
 !
@@ -7,8 +7,10 @@
 *font:  *-courier-bold-r-normal--12-*
 *allowShellResize:	True
 *input:		True
+*UIForm*foreground:	black
 dm.time.form.background: gray90
 dm.?.form.Background:	gray95
+*time*foreground: black
 *time.Form.Form.horizDistance:	4
 *time.Form.Form.vertDistance:	5
 *time*Label*font:	-*-helvetica-bold-r-*-*-*-100-*-*-*-*-*-*

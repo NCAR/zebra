@@ -1,4 +1,4 @@
-! $Id: dm.state,v 1.21 1994-05-25 19:52:14 granger Exp $
+! $Id: dm.state,v 1.22 1994-09-15 21:48:57 corbet Exp $
 !
 ! Command definition for the display manager.
 !
@@ -122,6 +122,9 @@ define state dm-initial
 	endinput
 	input 'writepd' 61
 		next dm-pd-file
+	endinput
+	input 'windowlist' 46
+		next ust$final_string
 	endinput
 enddef
 

@@ -1,7 +1,7 @@
 /*
  * Routines common to XY-Type plots
  */
-static char *rcsid = "$Id: XYCommon.c,v 1.21 1994-05-05 16:04:51 corbet Exp $";
+static char *rcsid = "$Id: XYCommon.c,v 1.22 1994-09-15 21:50:28 corbet Exp $";
 /*		Copyright (C) 1993 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -164,6 +164,44 @@ bool	*xauto, *xinvert, *yauto, *yinvert;
 		"Unknown y scaling style '%s'.", Scratch);
     }
 }
+
+
+
+void
+xy_GetZModes (c, zauto, invert)
+char *c;
+bool *zauto, *invert;
+/*
+ * Figure out scaling modes for the Z axis.
+ */
+{
+/*
+ * Autoscale?
+ */
+	*zauto = TRUE;
+	if (pda_Search (Pd, c, "scale-z-mode", "xy", Scratch, SYMT_STRING))
+	{
+		if (strcmp (Scratch, "manual") == 0)
+			*zauto = FALSE;
+		else if (strcmp (Scratch, "autoscale") != 0)
+			msg_ELog (EF_PROBLEM, 
+			       "Unknown z scaling mode '%s'.", Scratch);
+	}
+/*
+ * Flip the axis?
+ */
+	*invert = FALSE;
+	if (pda_Search (Pd, c, "scale-z-style", "xy", Scratch, SYMT_STRING))
+	{
+		if (strcmp (Scratch, "invert") == 0)
+			*invert = TRUE;
+		else
+			msg_ELog (EF_PROBLEM, "Unknown z scaling style '%s'.",
+					Scratch);
+	}
+}
+
+
 
 
 
@@ -523,7 +561,7 @@ ZebTime		*bTimeReq, *eTimeReq;
     if (! ds_DataTimes (pid, eTimeTarget, 1, DsBefore, eTimeReq))
     {
 	TC_EncodeTime (eTimeTarget, TC_Full, Scratch);
-        msg_ELog (EF_INFO, "No data before %s ", Scratch);
+        msg_ELog (EF_DEBUG, "No data before %s ", Scratch);
         available = 0;
     }
     /*
@@ -535,12 +573,12 @@ ZebTime		*bTimeReq, *eTimeReq;
         if (! ds_DataTimes (pid, bTimeTarget, 1, DsBefore, bTimeReq))
         {
 	    TC_EncodeTime (bTimeTarget, TC_Full, Scratch);
-            msg_ELog (EF_INFO, "No data for %s before %s", 
+            msg_ELog (EF_DEBUG, "No data for %s before %s", 
 		      ds_PlatformName (pid), Scratch);
             if (! ds_DataTimes (pid, bTimeTarget, 1, DsAfter, bTimeReq))
             {
 	        TC_EncodeTime (bTimeTarget, TC_Full, Scratch);
-                msg_ELog (EF_INFO, "No data for %s after %s", 
+                msg_ELog (EF_DEBUG, "No data for %s after %s", 
 			  ds_PlatformName (pid), Scratch);
                 available = 0;
             }

@@ -1,7 +1,7 @@
 /*
  * Window plot control routines.
  */
-static char *rcsid = "$Id: PlotControl.c,v 2.30 1994-05-25 14:50:38 burghart Exp $";
+static char *rcsid = "$Id: PlotControl.c,v 2.31 1994-09-15 21:50:17 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -395,6 +395,7 @@ char *trigger;
 		seconds = seconds*10 + *trigger++ - '0';
 /*
  * Insist on, at most, a following "m" or "s".
+ * OK, OK, we'll take "h" or (finally!) "d" too.
  */
 	if (! *trigger || (*trigger == 's' && trigger[1] == '\0'))
 		return (seconds);
@@ -402,6 +403,8 @@ char *trigger;
 		return (seconds*60);
 	else if (trigger[0] == 'h' && trigger[1] == '\0')
 		return (seconds*60*60);
+	else if (trigger[0] == 'd' && trigger[1] == '\0')
+		return (seconds*24*60*60);
 	else
 		return (0);
 }

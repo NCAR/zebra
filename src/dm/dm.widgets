@@ -1,7 +1,7 @@
 !
 ! Display manager widgets.
 !
-! $Id: dm.widgets,v 1.17 1994-08-04 17:55:57 granger Exp $
+! $Id: dm.widgets,v 1.18 1994-09-15 21:49:00 corbet Exp $
 !
 
 define widget SaveConfig form 'Configuration saver'
@@ -338,6 +338,12 @@ procedure ShipScalar platform string field string target_win string
 !
 	local addcmd pd_param(target_win,'global','add-data-command','string')
 	if (addcmd <> '(Undefined)')
+		if (not defined (concat ('ui$procedure_table:',addcmd)))
+			local fname concat3(dmmodpath,'/',addcmd)
+			message 'Trying to load #' fname
+			set delayread 'read'
+			#delayread #fname
+		endif
 		#addcmd #platform #field #target_win
 		return
 	endif
@@ -875,3 +881,21 @@ procedure DoOldWindowCreate
 	popdown #ui$form
 endprocedure
 
+
+!
+! A little tweaker that gets endpoints to all cross section windows.
+!
+procedure AllXSect x0 string y0 string x1 string y1 string
+	windowlist wins
+	foreach window #wins
+		local pt PDParam(window, 'global', 'plot-type')
+		if (pt = 'xsect')
+			local ep1 quote(concat3(x0, ',', y0))
+			local ep2 quote(concat3(x1, ',', y1))
+			parameter #window global plot-hold true
+			parameter #window global left-endpoint #ep1
+			parameter #window global right-endpoint #ep2
+			parameter #window global plot-hold false
+		endif
+	endfor
+endprocedure
