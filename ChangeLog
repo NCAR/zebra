@@ -1,3 +1,24 @@
+Mon Dec 27 14:08:31 1993  Jonathan Corbet  (corbet@ale)
+
+	* Tagging V4.0beta2
+
+Wed Dec 22 11:57:58 1993  Jonathan Corbet  (corbet@ale)
+
+	* Numerous tweaks to make things compile under Solaris despite the
+	  best efforts of the #$#*$!! compiler.  Note that if, in the
+	  future, you see "identifier redeclared" errors for functions,
+	  check for float/double in the prototype...
+
+Mon Dec 13 20:27:14 1993  Gary Granger  (granger@kodiak)
+
+	* Graphics widget can now handle shared memory failures: The
+	  graphics process will work whether shared memory is compiled on
+	  or off, whether the X server supports the extension or not, and
+	  whether the system kernel supports shared memory or not (or even
+	  sufficient shared memory).
+
+	* The GNU regexp library functions were added to the Zeb library.
+
 Thu Dec  2 15:27:54 1993  Jonathan Corbet  (corbet@ale)
 
 	* Tagging version 4.0beta1
