@@ -1,5 +1,5 @@
 
-#include "DFA_Zeb.c"
+#include "DFA_Zebra.c"
 #include "apple.h"
 
 /*

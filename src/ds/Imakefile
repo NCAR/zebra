@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.43 1996-11-19 06:45:22 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.44 1996-11-19 10:21:13 granger Exp $"
 
 DEPLIBS=$(LIBZEB)
 LIBMPROF=/dt/granger/libc_mp.a
@@ -25,9 +25,9 @@ DEFINES = $(DEBUG) -DNCSYNC_FIXED
 DSOBJS = Daemon.o d_DataTables.o d_Config.o d_Scan.o d_Debug.o d_Appl.o
 DSSRCS = Daemon.c d_DataTables.c d_Config.c d_Scan.c d_Debug.c d_Appl.c
 
-DFAOBJS = DataFormat.o DFA_NetCDF.o DFA_Zeb.o DFA_HDF.o DFA_Grads.o \
+DFAOBJS = DataFormat.o DFA_NetCDF.o DFA_Zebra.o DFA_HDF.o DFA_Grads.o \
           DFA_Boundary.o DFA_GRIB.o GRIB.o DFA_Raster.o
-DFASRCS = DataFormat.c DFA_NetCDF.c DFA_Zeb.c DFA_HDF.c DFA_Grads.c \
+DFASRCS = DataFormat.c DFA_NetCDF.c DFA_Zebra.c DFA_HDF.c DFA_Grads.c \
           DFA_Boundary.c DFA_GRIB.c GRIB.c DFA_Raster.c
 
 /* 
@@ -366,7 +366,7 @@ T_DataChunk.o: DataChunk.o apple.h
 T_MetData.o: dc_MetData.o apple.h
 T_NetCDF.o: DFA_NetCDF.o apple.h
 T_Transparent.o: dc_Transp.o apple.h
-T_ZNF.o: DFA_Zeb.o apple.h
+T_ZNF.o: DFA_Zebra.o apple.h
 
 LintTarget()
 
