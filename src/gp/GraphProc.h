@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.20 1992-11-03 22:19:54 burghart Exp $ */
+/* $Id: GraphProc.h,v 2.21 1992-12-22 17:32:53 granger Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -217,7 +217,7 @@ extern void tr_InitAcWidget FP ((void));
 extern char *lw_Status FP ((void));
 
 # ifdef _DATACHUNK_H_
-	extern int ApplySpatialOffset (DataChunk *, char *, ZebTime *);
+	extern int ApplySpatialOffset FP ((DataChunk *, char *, ZebTime *));
 # endif
 
 /* This stuff contains window system oriented stuff, so is only brought
