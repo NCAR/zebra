@@ -35,5 +35,7 @@ typedef struct _OUTDAT {
 extern OUTDAT_BLOCK *C_OUTDAT;
 
 extern "C" void decode_ (int *, int *, int *, int *, char *);
+extern "C" void fdtb08_ (int *i85ghz);
+extern "C" void fdtb00_ (int *i85ghz);
 
 #endif /* _outdat_h_ */
