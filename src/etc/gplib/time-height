@@ -37,6 +37,7 @@ define widget vertical-left intmenu 'x'
 		(PDParam(icon_component,"do-side-annotation") <> "false")
         submenu 'Side annotation size' side-annot-scale
         line
+	entry 'Clone this component...' 'xyaddfield'
         entry 'Raise to top' 'move #icon_component 0'
         entry 'Move to bottom' 'move #icon_component 1'
         entry 'Disable/reenable' 'ToggleBoolean "disable"' \

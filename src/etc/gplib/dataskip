@@ -1,10 +1,39 @@
-! $Id: dataskip,v 1.1 2000-12-01 23:49:32 granger Exp $
+! $Id: dataskip,v 1.2 2001-06-19 22:17:17 granger Exp $
 !
 ! Generic submenu for setting data-skip parameter, known to be shared
-! at least between skewt and xywind.
+! at least between skewt and xywind.  Try to keep the two versions
+! in sync since there will probably always be configurations referring
+! to either menu name.
 !
 
 define widget data-skip-menu intmenu 'skip data points'
+	title 'Data skip interval'
+	line
+	entry 'Plot every point' \
+		'parameter #icon_component data-skip "1"' \
+		(PDParam (icon_component,"data-skip") = "1")
+	entry 'Every 5th point' \
+		'parameter #icon_component data-skip "5"' \
+		(PDParam (icon_component,"data-skip") = "5")
+	entry 'Every 10th point' \
+		'parameter #icon_component data-skip "10"' \
+		(PDParam (icon_component,"data-skip") = "10")
+	entry 'Every 20th point' \
+		'parameter #icon_component data-skip "20"' \
+		(PDParam (icon_component,"data-skip") = "20")
+	entry 'Every 30th point' \
+		'parameter #icon_component data-skip "30"' \
+		(PDParam (icon_component,"data-skip") = "30")
+	entry 'Every 50th point' \
+		'parameter #icon_component data-skip "50"' \
+		(PDParam (icon_component,"data-skip") = "50")
+endmenu
+
+! This is a duplicate of the above, for backwards compatibility with
+! configurations which reference this menu directly by name instead of
+! throught the skewt module menus.
+!
+define widget skewt-data-skip intmenu 'skip data points'
 	title 'Data skip interval'
 	line
 	entry 'Plot every point' \

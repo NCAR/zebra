@@ -36,6 +36,30 @@ contour
 	representation:		contour
 	require:		contour,time-height
 	trigger:		platform
+	x-grid:			40
+	y-grid:			40
 	x-field:		time
 	y-field:		height
 	z-field:		snrw
+obs
+	axis-bottom:		false
+	axis-left:		false
+	color-tweaker:		xytrace-single-color-tweaker
+	icon:  			iss-tdry
+	icon-background:  	black
+	icon-color:  		green
+	icon-left-menu:  	xyobs-left
+	icon-middle-menu:  	FieldMenu param=z-field
+	icon-right-menu:  	DataAvailable
+	platform:  		null
+	representation:  	obs
+	require:	  	xyobs,time-height
+	trigger:  		platform
+	x-field:  		time
+	y-field:  		height
+	z-field:  		tv
+	z-justify:  		base
+	z-scale:  		0.01
+	field-color:  		green
+	max-platform:  		5
+	step:  			5

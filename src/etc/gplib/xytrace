@@ -1,7 +1,7 @@
 !
 ! XYGraph[simple] support stuff.
 !
-! $Id: xytrace,v 1.15 2000-12-05 19:10:25 granger Exp $
+! $Id: xytrace,v 1.16 2001-06-19 22:17:17 granger Exp $
 
 require xyaxes
 require annotation
@@ -559,3 +559,14 @@ procedure xygrid-color-tweaker color string
 	parameter #icon_component axis-r-color #color
 	parameter #icon_component axis-t-color #color
 endprocedure
+
+
+procedure xytrace-single-color-tweaker color string
+    parameter #icon_component field-color #color
+    parameter #icon_component icon-color #color
+    parameter #icon_component color #color
+!   local side pd_paramsearch(icon_component,"adj-axis-side","xy","string")
+!   local param concat(concat( "axis-",side ),"-color")
+!   parameter #icon_component #param #color
+endprocedure
+

@@ -6,8 +6,8 @@ LFILES = active-loc active-time color-table contour ctr-step form-utilities \
 	global grid histogram interp irg_winds iss-cap iss-rass location \
 	offsets optimizer projection radar range raster rings simple-color \
 	simple-track skewt station thetaplot time-height track winds xsect \
-	xytrace xywind xyaxes dataskip coare-fselect time-height-contour \
-	annotation ctrmove
+	xytrace xywind xyaxes xyobs dataskip coare-fselect \
+	time-height-contour annotation ctrmove
 	
 
 DISTFILES = $(LFILES) Imakefile

@@ -1,0 +1,35 @@
+!
+! Menus and widgets for xygraph observation (pigtail) components
+!
+
+require xytrace
+
+define widget xyobs-left intmenu 'x'
+        title 'XY Observation'
+	line
+	entry 'Adjust limits' 'i_adjust limit-proc'
+	entry 'Enable side annotation' \
+		'ToggleBoolean "do-side-annotation"' \
+		(PDParam(icon_component,"do-side-annotation") <> "false")
+        submenu 'Side annotation size' side-annot-scale
+	entry 'Clone this component...' 'xyaddfield'
+        line
+        entry 'Raise to top' 'move #icon_component 0'
+        entry 'Move to bottom' 'move #icon_component 1'
+        entry 'Disable/reenable' 'ToggleBoolean "disable"' \
+                (PDParam(icon_component,"disable") = "true")
+        entry 'Remove' 'i_remove_component'
+	line
+	submenu 'Observation color' 'simple-color'
+	entry 'Observation scale' 'xyobs_adjust_scale'
+	entry 'Observation details...' 'popup xytrace-details'
+	line
+	
+endmenu
+
+procedure xyobs_adjust_scale
+        local scale pd_paramsearch(icon_component,"z-scale","xy-obs","string")
+        activate singlefloat #icon_component "z-scale" \
+                "Observation scale: " #scale
+endprocedure
+
