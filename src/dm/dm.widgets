@@ -1,7 +1,7 @@
 !
 ! Display manager widgets.
 !
-! $Id: dm.widgets,v 1.13 1994-05-09 21:07:11 corbet Exp $
+! $Id: dm.widgets,v 1.14 1994-06-07 22:33:55 corbet Exp $
 !
 
 define widget SaveConfig form 'Configuration saver'
@@ -79,7 +79,7 @@ procedure DoNewWindow
 	local t getftext(ui$form, 'wtype')
 	if (t = 'Constant altitude')
 		set nw_pd 'cap-template'
-		set nw_bmap 'basic'
+		set nw_bmap 'big'
 	elseif (t = 'Time series')
 		set nw_pd 'tseries-template'
 		set nw_bmap 'xyplot'
