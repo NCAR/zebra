@@ -45,7 +45,7 @@
 # include <message.h>
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.34 1995-06-29 22:36:23 granger Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.35 1995-10-03 05:12:40 granger Exp $")
 /*
  * Symbol tables.
  */
@@ -115,7 +115,7 @@ typedef struct connection
 	DWrite	*c_dwrite;		/* The delayed write chain	*/
 	DWrite	*c_dwtail;		/* The end of same		*/
 	int	c_ndwrite;		/* How much dwrite data		*/
-	char	c_griped;		/* Have we griped?		*/
+	int	c_griped;		/* How much have we griped?	*/
 } Connection;
 Connection *MH_conn;		/* Fake connection for local stuff */
 
@@ -1119,14 +1119,23 @@ int niov, nwrote;
 /*
  * Check how much stuff is building up here.
  */
-	if (conp->c_ndwrite > DWGRIPE && ! conp->c_griped)
+	if (conp->c_ndwrite > ((conp->c_griped + 1) * DWGRIPE))
 	{
-		conp->c_griped = TRUE;
-		send_log (EF_PROBLEM, "WARNING: Proc %s not reading messages",
-			  conp->c_name);
+		++conp->c_griped;
+		if (conp->c_ndwrite > DWDROP)
+			send_log (EF_EMERGENCY, 
+				  "DROPPING MESSAGES to %s; %s %d bytes",
+				  conp->c_name, "delayed write queue exceeds",
+				  DWDROP);
+		else
+			send_log (EF_PROBLEM, 
+				  "WARNING %d: Proc %s not reading messages",
+				  conp->c_griped, conp->c_name);
 	}
-	else if (conp->c_ndwrite > DWDROP)
+	if (conp->c_ndwrite > DWDROP)
+	{
 		return;	/* alas */
+	}
 /*
  * Skip past iovecs which were completely written.
  */
@@ -1251,7 +1260,7 @@ fd_set *fds;
 		{
 			FD_CLR (cp->c_fd, &WriteFds);
 			NWriteFd--;
-			cp->c_griped = FALSE;
+			cp->c_griped = 0;
 		}
 	}
 }
@@ -2677,9 +2686,9 @@ char *to;
  */
 	sprintf (text, "unix socket: %s; ", UnSocketName);
 	if (M_in_socket >= 0)
-		sprintf(text+strlen(text), "internet socket on port %d", Port);
+		sprintf(text+strlen(text), "internet socket: port %d", Port);
 	else
-		strcat (text, "internet socket not enabled");
+		strcat (text, "internet socket: not enabled");
 	msg.m_len = sizeof (struct mh_stats) + strlen (text);
 	send_msg (conp, &msg);
 /*
