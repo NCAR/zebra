@@ -275,6 +275,9 @@ time *t;
 	 	for (; ent < nsofar; ent++)
 			if (DLT (Times[ent], dtimes[dt]))
 				break;
+
+		if (ent == MAXENTRY)
+			break;
 	/*
 	 * Move the rest of them forward.
 	 */
