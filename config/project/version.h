@@ -1,5 +1,5 @@
 /*
- * $Id: version.h,v 1.12 1996-09-05 16:39:53 granger Exp $
+ * $Id: version.h,v 1.13 1996-09-19 14:48:36 granger Exp $
  *
  * Include various symbols, compilation, and version info into an object
  * file.  We try to take advantage of ANSI C pre-preprocessors as much as
@@ -86,7 +86,7 @@ static inline const
 #else
 static
 #endif
-char *Z_cppsymbols() { return (cppsyms); }
+char *Z_cppsymbols() { return ((char *)cppsyms); }
 
 #endif /* !SABER && !lint */
 
