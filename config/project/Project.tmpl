@@ -28,7 +28,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.37 1995-08-03 21:01:55 corbet Exp $
+XCOMM $Id: Project.tmpl,v 1.38 1995-08-07 18:59:15 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -755,15 +755,14 @@ XCOMM -----------------------------------------------------------------------
  * Local Imakefiles use the INCLUDES variable
  */
    EXTRA_INCLUDES = $(XINCLUDES) $(RDSSINCLUDES) $(CONFIGINCLUDES)
-   CXXEXTRA_INCLUDES = $(XINCLUDES) $(RDSSINCLUDES) $(CONFIGINCLUDES)
+CXXEXTRA_INCLUDES = $(XINCLUDES) $(RDSSINCLUDES) $(CONFIGINCLUDES)
 /*
  * We redefine the order of the ALLINCLUDES variable here so that top
  * includes will be first on the compiler command line and always take
  * precedence.  The location of the top include files can still be overridden
  * by assigning TOP_INCLUDES on the make command line.  See Imake.tmpl.
  */
-      ALLINCLUDES = $(TOP_INCLUDES) $(INCLUDES) $(EXTRA_INCLUDES) \
-                    $(STD_INCLUDES)
+  ALLINCLUDES = $(TOP_INCLUDES) $(INCLUDES) $(EXTRA_INCLUDES) $(STD_INCLUDES)
 
 /*
  * Project-wide defines in EXTRA_DEFINES.  Client defines in DEFINES.
