@@ -38,6 +38,7 @@
 # include "../include/timer.h"
 
 
+# define LABELWIDTH	60
 /*
  * Date/time button action codes.
  */
@@ -73,12 +74,11 @@ static char TSString[10];
 static int ControlAll = TRUE;
 static int (*Tw_Callback) () = 0;
 
-
 static Widget tw_WCreate ();
 static int tw_WCallback ();
-static void finish_arrow ();
+static void finish_arrow (), datebutton ();
 static void ChangeMonth (), ChangeDay (), ChangeYear (); 
-static void ChangeHour (), ChangeMin (), ChangeSec ();
+static void ChangeHour (), ChangeMin ();
 static void TimeSkip ();
 static void ChangeControl ();
 extern Widget LeftRightButtons ();
@@ -107,17 +107,24 @@ Widget	parent;
 XtAppContext appc;
 {
 	Arg args[10];
-	Widget form, title, f, left, dform, sform, cform;
+	Widget form, title, f, left, dayleft, dform, sform, cform;
 	Widget mbutton, dbutton, ybutton, hbutton, minbutton, sbutton;
 	Widget skipbutton;
 	Widget MonText, DayText, YearText, HMSText;
 	int n;
 	static char *ttrans = "<Btn1Down>,<Btn1Up>: 	set()notify()";
-	XtTranslations ttable;
+	static XtActionsRec actions[] = {
+			{"finishadj", finish_arrow}
+	};
+	static char *atrans = "<Btn1Down>:	set()notify() \n\
+	           	       <Btn1Up>: 	finishadj()unset()";
+	XtTranslations ttable, atable;
 /*
  * Translations.
  */
 	ttable = XtParseTranslationTable (ttrans);
+	XtAppAddActions (appc, actions, 1);
+	atable = XtParseTranslationTable (atrans);
 /*
  * Make the bitmaps for the left and right arrow buttons.
  */
@@ -136,12 +143,38 @@ XtAppContext appc;
 	title = XtCreateManagedWidget ("title", labelWidgetClass, form,
 		args, 3);
 /*
+ * Control one/all windows selection.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNborderWidth, 2);		n++;
+	XtSetArg (args[n], XtNfromHoriz, title);	n++;
+	XtSetArg (args[n], XtNfromVert, NULL);		n++;
+	XtSetArg (args[n], XtNdefaultDistance, 5);	n++;
+	cform = XtCreateManagedWidget ("cform", formWidgetClass, form, args, n);
+
+	n = 0;
+	XtSetArg (args[n], XtNlabel, "Window control:");	n++;
+	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
+	XtSetArg (args[n], XtNfromVert, NULL);		n++;
+	XtSetArg (args[n], XtNborderWidth, 0);		n++;
+	left = XtCreateManagedWidget ("control", labelWidgetClass, 
+		cform, args,n);
+
+	n = 0;
+	XtSetArg (args[n], XtNlabel, ControlAll ? "All" : "One");	n++;
+	XtSetArg (args[n], XtNfromHoriz, left);		n++;
+	XtSetArg (args[n], XtNfromVert, NULL);		n++;
+	XtSetArg (args[n], XtNwidth, 30);		n++;
+	ControlButton = XtCreateManagedWidget ("contbutton", 
+		commandWidgetClass, cform, args,n);
+	XtAddCallback (ControlButton, XtNcallback, ChangeControl, NULL);
+/*
  * Set history date form.
  */
 	n = 0;
 	XtSetArg (args[n], XtNborderWidth, 2);		n++;
 	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
-	XtSetArg (args[n], XtNfromVert, title);		n++;
+	XtSetArg (args[n], XtNfromVert, cform);		n++;
 	XtSetArg (args[n], XtNdefaultDistance, 5);	n++;
 	dform = XtCreateManagedWidget ("dform", formWidgetClass, form, args, 4);
 /*
@@ -151,15 +184,15 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNlabel, "Day" );		n++;
 	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
 	XtSetArg (args[n], XtNfromVert, NULL);		n++;
-	XtSetArg (args[n], XtNwidth, 60);		n++;
+	XtSetArg (args[n], XtNwidth, LABELWIDTH);	n++;
 	XtSetArg (args[n], XtNheight, 20);		n++;
 	left = XtCreateManagedWidget ("dlabel", labelWidgetClass, dform,
 		args, n);
 
-	dbutton = LeftRightButtons (dform, ChangeDay);
+	dbutton = LeftRightButtons (dform, ChangeDay, atable);
 
 	n = 0;
-	XtSetArg (args[n], XtNfromHoriz, left);		n++;
+	XtSetArg (args[n], XtNfromHoriz, left);	n++;
 	XtSetArg (args[n], XtNfromVert, NULL);		n++;
 	XtSetValues (dbutton, args, n);
 
@@ -167,12 +200,12 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNlabel, "Month");		n++;
 	XtSetArg (args[n], XtNfromHoriz, dbutton);	n++;
 	XtSetArg (args[n], XtNfromVert, NULL);		n++;
-	XtSetArg (args[n], XtNwidth, 60);		n++;
+	XtSetArg (args[n], XtNwidth, LABELWIDTH);	n++;
 	XtSetArg (args[n], XtNheight, 20);		n++;
 	left = XtCreateManagedWidget ("mlabel", labelWidgetClass, dform,
 		args, n);
 
-	mbutton = LeftRightButtons (dform, ChangeMonth);
+	mbutton = LeftRightButtons (dform, ChangeMonth, atable);
 
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, left);		n++;
@@ -183,12 +216,12 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNlabel, "Year");		n++;
 	XtSetArg (args[n], XtNfromHoriz, mbutton);	n++;
 	XtSetArg (args[n], XtNfromVert, NULL);		n++;
-	XtSetArg (args[n], XtNwidth, 60);		n++;
+	XtSetArg (args[n], XtNwidth, LABELWIDTH);	n++;
 	XtSetArg (args[n], XtNheight, 20);		n++;
 	left = XtCreateManagedWidget ("ylabel", labelWidgetClass, dform,
 		args, n);
 
-	ybutton = LeftRightButtons (dform, ChangeYear);
+	ybutton = LeftRightButtons (dform, ChangeYear, atable);
 
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, left);		n++;
@@ -201,12 +234,12 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNlabel, "Hours");		n++;
 	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
 	XtSetArg (args[n], XtNfromVert, dbutton);	n++;
-	XtSetArg (args[n], XtNwidth, 60);		n++;
+	XtSetArg (args[n], XtNwidth, LABELWIDTH);	n++;
 	XtSetArg (args[n], XtNheight, 20);		n++;
 	left = XtCreateManagedWidget ("hlabel", labelWidgetClass, dform,
 		args, n);
 
-	hbutton = LeftRightButtons (dform, ChangeHour);
+	hbutton = LeftRightButtons (dform, ChangeHour, atable);
 
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, left);		n++;
@@ -217,12 +250,12 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNlabel, "Minutes" );	n++;
 	XtSetArg (args[n], XtNfromHoriz, hbutton);	n++;
 	XtSetArg (args[n], XtNfromVert, dbutton);	n++;
-	XtSetArg (args[n], XtNwidth, 60);		n++;
+	XtSetArg (args[n], XtNwidth, LABELWIDTH);	n++;
 	XtSetArg (args[n], XtNheight, 20);		n++;
 	left = XtCreateManagedWidget ("minlabel", labelWidgetClass, dform,
 		args, n);
 
-	minbutton = LeftRightButtons (dform, ChangeMin);
+	minbutton = LeftRightButtons (dform, ChangeMin, atable);
 
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, left);		n++;
@@ -232,12 +265,12 @@ XtAppContext appc;
  * Text widget for the history date.
  */
 	n = 0;
-	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
-	XtSetArg (args[n], XtNfromVert, hbutton);	n++;
+	XtSetArg (args[n], XtNfromHoriz, minbutton);	n++;
+	XtSetArg (args[n], XtNfromVert, dbutton);	n++;
 	XtSetArg (args[n], XtNdisplayPosition, 0);	n++;
 	XtSetArg (args[n], XtNinsertPosition, 0);	n++;
 	XtSetArg (args[n], XtNresize, XawtextResizeNever);	n++;
-	XtSetArg (args[n], XtNwidth, 250);		n++;
+	XtSetArg (args[n], XtNwidth, 140);		n++;
 	XtSetArg (args[n], XtNheight, 20);		n++;
 	XtSetArg (args[n], XtNlength, 80);		n++;
 	XtSetArg (args[n], XtNtype, XawAsciiString);	n++;
@@ -250,11 +283,12 @@ XtAppContext appc;
 /*
  * Throw in the plot mode toggle.
  */
-	XtSetArg (args[0], XtNborderWidth, 2);
-	XtSetArg (args[1], XtNfromHoriz, NULL);
-	XtSetArg (args[2], XtNfromVert, dform);
-	XtSetArg (args[3], XtNdefaultDistance, 5);
-	f = XtCreateManagedWidget ("pmform", formWidgetClass, form, args, 4);
+	n = 0;
+	XtSetArg (args[n], XtNborderWidth, 2);		n++;
+	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
+	XtSetArg (args[n], XtNfromVert, dform);		n++;
+	XtSetArg (args[n], XtNdefaultDistance, 5);	n++;
+	f = XtCreateManagedWidget ("pmform", formWidgetClass, form, args, n);
 
 	XtSetArg (args[0], XtNlabel, "Plot mode:");
 	XtSetArg (args[1], XtNfromHoriz, NULL);
@@ -284,13 +318,13 @@ XtAppContext appc;
  */
 	n = 0;
 	XtSetArg (args[n], XtNborderWidth, 2);		n++;
-	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
-	XtSetArg (args[n], XtNfromVert, f);		n++;
+	XtSetArg (args[n], XtNfromHoriz, f);		n++;
+	XtSetArg (args[n], XtNfromVert, dform);		n++;
 	XtSetArg (args[n], XtNdefaultDistance, 5);		n++;
 	sform = XtCreateManagedWidget ("sform", formWidgetClass, form, args, n);
 
 	n = 0;
-	XtSetArg (args[n], XtNlabel, "Skip:");		n++;
+	XtSetArg (args[n], XtNlabel, "Skip");		n++;
 	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
 	XtSetArg (args[n], XtNfromVert, NULL);		n++;
 	XtSetArg (args[n], XtNborderWidth, 0);		n++;
@@ -304,7 +338,7 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNdisplayPosition, 0);	n++;
 	XtSetArg (args[n], XtNinsertPosition, 0);	n++;
 	XtSetArg (args[n], XtNresize, XawtextResizeNever);	n++;
-	XtSetArg (args[n], XtNwidth, 50);		n++;
+	XtSetArg (args[n], XtNwidth, 35);		n++;
 	XtSetArg (args[n], XtNheight, 20);		n++;
 	XtSetArg (args[n], XtNlength, 80);		n++;
 	XtSetArg (args[n], XtNtype, XawAsciiString);	n++;
@@ -316,53 +350,19 @@ XtAppContext appc;
 		sform, args, n);
 
 	n = 0;
-	XtSetArg (args[n], XtNlabel, "minutes.");	n++;
+	XtSetArg (args[n], XtNlabel, "min.");		n++;
 	XtSetArg (args[n], XtNfromHoriz, Stext);	n++;
 	XtSetArg (args[n], XtNfromVert, NULL);		n++;
 	XtSetArg (args[n], XtNborderWidth, 0);		n++;
 	left = XtCreateManagedWidget ("minutes", labelWidgetClass, sform, 
 		args, n);
 
-	skipbutton = LeftRightButtons (sform, TimeSkip);
+	skipbutton = LeftRightButtons (sform, TimeSkip, NULL);
 
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, left);		n++;
 	XtSetArg (args[n], XtNfromVert, NULL);		n++;
 	XtSetValues (skipbutton, args, n);
-/*
- * Control one/all windows selection.
- */
-	n = 0;
-	XtSetArg (args[n], XtNborderWidth, 2);		n++;
-	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
-	XtSetArg (args[n], XtNfromVert, sform);		n++;
-	XtSetArg (args[n], XtNdefaultDistance, 5);		n++;
-	cform = XtCreateManagedWidget ("cform", formWidgetClass, form, args, n);
-
-	n = 0;
-	XtSetArg (args[n], XtNlabel, "Control");	n++;
-	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
-	XtSetArg (args[n], XtNfromVert, NULL);		n++;
-	XtSetArg (args[n], XtNborderWidth, 0);		n++;
-	left = XtCreateManagedWidget ("control", labelWidgetClass, 
-		cform, args,n);
-
-	n = 0;
-	XtSetArg (args[n], XtNlabel, ControlAll ? "All" : "One");	n++;
-	XtSetArg (args[n], XtNfromHoriz, left);		n++;
-	XtSetArg (args[n], XtNfromVert, NULL);		n++;
-	XtSetArg (args[n], XtNwidth, 30);		n++;
-	ControlButton = XtCreateManagedWidget ("contbutton", 
-		commandWidgetClass, cform, args,n);
-	XtAddCallback (ControlButton, XtNcallback, ChangeControl, NULL);
-
-	n = 0;
-	XtSetArg (args[n], XtNlabel, "window(s).");	n++;
-	XtSetArg (args[n], XtNfromHoriz, ControlButton);		n++;
-	XtSetArg (args[n], XtNfromVert, NULL);		n++;
-	XtSetArg (args[n], XtNborderWidth, 0);		n++;
-	left = XtCreateManagedWidget ("windows", labelWidgetClass, 
-		cform, args,n);
 /*
  * See what we get.
  */
@@ -455,17 +455,6 @@ XtPointer change, junk;
 	else datebutton (MINDOWN);
 }
 
-static void
-ChangeSec (w, change, junk)
-Widget w;
-XtPointer change, junk;
-{
-	if ((int) change == 1)
-		datebutton (SECUP);
-	else datebutton (SECDOWN);
-}
-
-
 
 static int
 tw_WCallback (w, mode, value)
@@ -482,12 +471,12 @@ int value;
 
 
 
-int
+static void
 datebutton (code)
 int code;
 {
 	void arrow_timeout ();
-	bool norep = TRUE;
+	bool norep = FALSE;
 /*
  * Cancel if necessary.
  */
