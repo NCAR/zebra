@@ -1,12 +1,12 @@
 #include <stdio.h>
 
-#if defined(sun)
+#if defined(UNDERSCORE)
      void scra_(short *, long *);
 #else
      void scra(short *, long *);
 #endif
 
-#if defined(sun)
+#if defined(UNDERSCORE)
      void scra_(short *fileid, long *off)
 #else
      void scra(short *fileid, long *off)

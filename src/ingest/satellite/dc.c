@@ -1,12 +1,12 @@
 #include <stdio.h>
 
-#if defined(sun)
+#if defined(UNDERSCORE)
       void dc_ (short int *);
 #else
       void dc (short int *);
 #endif
 
-#if defined(sun)
+#if defined(UNDERSCORE)
       void dc_ (short int *fileid)
 #else
       void dc (short int *fileid)

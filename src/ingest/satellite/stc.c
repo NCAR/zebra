@@ -1,10 +1,10 @@
 
-#if defined(sun)
+#if defined(UNDERSCORE)
     void stc_(int * ,unsigned char [], int *);
 #else
     void stc( int *, unsigned char [], int *);
 #endif
-#if defined(sun)
+#if defined(UNDERSCORE)
     void stc_(int *val, unsigned char buf[], int *offset)
 #else
     void stc( int *val, unsigned char buf[], int *offset)

@@ -1,9 +1,9 @@
-#if defined(sun)
+#if defined(UNDERSCORE)
   long int luc_(long int *);
 #else
   long int luc(long int *);
 #endif
-#if defined(sun)
+#if defined(UNDERSCORE)
   long int luc_(long int *index)
 #else
   long int luc(long int *index)

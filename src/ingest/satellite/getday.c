@@ -1,12 +1,12 @@
 #include <time.h>
 
-#if defined(sun)
+#if defined(UNDERSCORE)
   void getday_(int *);
 #else
   void getday(int *);
 #endif
 
-#if defined(sun)
+#if defined(UNDERSCORE)
   void getday_(int *iday)
 #else
   void getday(int *iday)

@@ -1,12 +1,12 @@
 #include <time.h>
 
-#if defined(sun)
+#if defined(UNDERSCORE)
    void gettim_(long int *);
 #else
    void gettim(long int *);
 #endif
 
-#if defined(sun)
+#if defined(UNDERSCORE)
    void gettim_(long int *itime)
 #else
    void gettim(long int *itime)

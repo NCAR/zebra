@@ -1,11 +1,11 @@
 #include <stdio.h>
 
-#if defined(sun)
+#if defined(UNDERSCORE)
       long int leof_(short int *);
 #else
       long int leof(short int *);
 #endif
-#if defined(sun)
+#if defined(UNDERSCORE)
       long int leof_(short int *fileid)
 #else
       long int leof(short int *fileid)

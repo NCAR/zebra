@@ -1,4 +1,4 @@
-#if defined(sun)    
+#if defined(UNDERSCORE)    
     void movbmem_(long *, long *, long *, long *);
     void movbmem_(long *num, long *inaddr, long *outaddr, long *offset)
 #else
@@ -15,5 +15,5 @@
     {
         long int newaddr;
         newaddr = *outaddr + *offset;
-        memcpy(newaddr , *inaddr, *num);
+        memcpy((char *)newaddr , (char *)*inaddr, *num);
     }

@@ -1,13 +1,13 @@
 #include <stdio.h>
 
 
-#if defined(sun)
+#if defined(UNDERSCORE)
     short int dw_ (short int *, long int [], long int *, long int *);
 #else
     short int dw (short int *, long int [], long int *, long int *);
 #endif
 
-#if defined(sun)
+#if defined(UNDERSCORE)
     short int dw_ (short int *fileid, long int ibuf[], long int *nb, long int *retstat)
 #else
     short int dw (short int *fileid, long int ibuf[], long int *nb, long int *retstat)

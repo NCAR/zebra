@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <fcntl.h>
 
-#if defined(sun)
+#if defined(UNDERSCORE)
       iopn_(cfile,length)
 #else
       iopn(cfile,length)

@@ -1,12 +1,12 @@
 
 
-#if defined(sun)
+#if defined(UNDERSCORE)
     long int ic_(unsigned char [], int *);
 #else
     long int ic(unsigned char [] , int *);
 #endif
 
-#if defined(sun)
+#if defined(UNDERSCORE)
     long int ic_(unsigned char buf[], int *offset)
 #else
     long int ic(unsigned char buf[] , int *offset)

@@ -1,12 +1,12 @@
 
-#if defined(sun)
+#if defined(UNDERSCORE)
   void puc_(int *, int *);
 #else
   void puc(int *, int *);
 #endif
 
 
-#if defined(sun)
+#if defined(UNDERSCORE)
   void puc_(int *value, int *index)
 #else
   void puc(int *value, int *index)

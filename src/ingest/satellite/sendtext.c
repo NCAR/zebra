@@ -3,13 +3,13 @@
  */
 # include <message.h>
 
-#if defined(sun)
+#if defined(UNDERSCORE)
   void sendtext_(char *, long  *, long *, short );
 #else
   void sendtext(char * , long *, long *, short );
 #endif
 
-#if defined(sun)
+#if defined(UNDERSCORE)
   void sendtext_(char *ctext, long  *window, long *color, short lentext)
 #else
   void sendtext(char *ctext , long *window, long *color, short lentext)

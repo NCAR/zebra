@@ -19,5 +19,5 @@ C      I IS THE RETURN CODE
        C1=C
        CALL EDEST('Error in '//C1//' system return code is ',L)
        IF(LUC(181).EQ.2) CALL XONOFF('ON')
-       CALL ABORT(0)
+       CALL ABORT()
        END

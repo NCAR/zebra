@@ -1,6 +1,6 @@
 #include <stdio.h>
 
-#if defined(sun)
+#if defined(UNDERSCORE)
    int delfil_ (char [],int );
    void ffiletoc(char [],int );
 #else
@@ -9,7 +9,7 @@
 #endif
           
 
-#if defined(sun)
+#if defined(UNDERSCORE)
    int delfil_ (char file[],int length)
 #else
    int delfil (char file[], int length)
