@@ -1,5 +1,5 @@
 /* 5/87 jc */
-/* $Id: control.c,v 1.7 1989-10-13 11:29:28 corbet Exp $ */
+/* $Id: control.c,v 1.8 1989-11-02 10:22:35 burghart Exp $ */
 /*
  * The upper level, control routines for the graphics package.
  */
@@ -856,7 +856,7 @@ ws cws;
  * Just individually clear each overlay.
  */
  	for (ov = wsta->ws_overlay; ov; ov = ov->ov_next)
-		G_clear (ov);
+		G_clear ((char *) ov);
 	return (GE_OK);
 }
 
@@ -1356,7 +1356,7 @@ float *x0, *y0, *x1, *y1;
  	dx = W_TO_DC (x, ov->ov_x0, ov->ov_x1, dev->gd_xres);
  	dy = W_TO_DC (y, ov->ov_y0, ov->ov_y1, dev->gd_yres);
 	aspect = ov->ov_ws->ws_dev->gd_aspect;
-	gt_get_start (dx, dy, font, scale, hjust, vjust, 0.0, aspect, text, 
+	gt_get_start (dx, dy, font, scale, hjust, vjust, rot, aspect, text, 
 		&sx, &sy, &ex, &ey);
 /*
  * Finally, convert our return values back to overlay coords.  Should a clip
@@ -1475,7 +1475,6 @@ float x0, y0, x1, y1;
 	int dy0 = W_TO_DC (y0, ov->ov_y0, ov->ov_y1, dev->gd_yres);
 	int dx1 = W_TO_DC (x1, ov->ov_x0, ov->ov_x1, dev->gd_xres);
 	int dy1 = W_TO_DC (y1, ov->ov_y0, ov->ov_y1, dev->gd_yres);
-	float tmp;
 
 	if ((dev->gd_flags & GDF_VP) == 0)
 		return (GE_DEVICE_UNABLE);
