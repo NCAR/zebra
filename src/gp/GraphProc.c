@@ -1,7 +1,7 @@
 /*
  * The zeb graphics process.
  */
-static char *rcsid = "$Id: GraphProc.c,v 2.4 1991-10-15 18:24:27 kris Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 2.5 1991-10-17 15:19:08 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -1007,6 +1007,10 @@ time *when;
  * Now reset things.
  */
 	Eq_AddEvent (PDisplay, pc_PlotHandler, 0, 0, Override);
+/*
+ * Send the new pd back to the display manager.
+ */
+	Eq_AddEvent (PWhenever, eq_ReturnPD, 0, 0, Override);
 }
 
 
@@ -1087,6 +1091,10 @@ RealTimeMode ()
  * Now reset things.
  */
 	Eq_AddEvent (PDisplay, pc_PlotHandler, 0, 0, Override);
+/*
+ * Send the new pd back to the display manager.
+ */
+	Eq_AddEvent (PWhenever, eq_ReturnPD, 0, 0, Override);
 }
 
 
