@@ -35,7 +35,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 # include "commands.h"
-MAKE_RCSID ("$Id: Daemon.c,v 3.9 1993-02-08 22:35:10 corbet Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.10 1993-02-17 22:30:01 corbet Exp $")
 
 
 
@@ -120,7 +120,10 @@ char **argv;
  */
 	vtable = usy_g_stbl ("ui$variable_table");
 	strcpy (DefDataDir, DATADIR);
-	usy_c_indirect (vtable, "datadir", DefDataDir, SYMT_STRING, 80);
+	RemDataDir[0] = '\0';
+	usy_c_indirect (vtable, "datadir", DefDataDir, SYMT_STRING, DDIR_LEN);
+	usy_c_indirect (vtable, "remdatadir", RemDataDir, SYMT_STRING,
+			DDIR_LEN);
 	usy_c_indirect (vtable, "DisableRemote", &DisableRemote, SYMT_BOOL, 0);
 	usy_c_indirect (vtable, "LDirConst", &LDirConst, SYMT_BOOL, 0);
 	usy_c_indirect (vtable, "RDirConst", &RDirConst, SYMT_BOOL, 0);

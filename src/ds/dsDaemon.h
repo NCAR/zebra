@@ -1,7 +1,7 @@
 /*
  * Data store daemon-specific definitions.
  */
-/* $Id: dsDaemon.h,v 3.2 1992-07-15 17:14:22 corbet Exp $ */
+/* $Id: dsDaemon.h,v 3.3 1993-02-17 22:30:01 corbet Exp $ */
 /*
  * The platform and data tables, via pointer.
  */
@@ -29,7 +29,9 @@ DataFile *DFTable;
 /*
  * The default data directory.
  */
-char DefDataDir[80];
+# define DDIR_LEN 120
+char DefDataDir[DDIR_LEN];
+char RemDataDir[DDIR_LEN];
 
 
 /*

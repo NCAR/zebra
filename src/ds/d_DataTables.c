@@ -20,14 +20,14 @@
  * maintenance or updates for its software.
  */
 
-
+# include <unistd.h>
 # include "../include/defs.h"
 # include "../include/message.h"
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "commands.h"
 # include "dsDaemon.h"
-MAKE_RCSID("$Id: d_DataTables.c,v 3.5 1992-12-10 18:24:42 corbet Exp $")
+MAKE_RCSID("$Id: d_DataTables.c,v 3.6 1993-02-17 22:30:01 corbet Exp $")
 
 
 /*
@@ -137,6 +137,15 @@ char *name;
 	new->dp_keep = DefaultKeep;
 	new->dp_maxsamp = 60;
 	new->dp_LocalData = new->dp_RemoteData = 0;
+/*
+ * Consider automatically establishing a remote data dir.
+ */
+	if (! DisableRemote || RemDataDir[0] != '\0')
+	{
+		sprintf (new->dp_rdir, "%s/%s", RemDataDir, name);
+		if (! access (new->dp_rdir, X_OK))
+			new->dp_flags |= DPF_REMOTE;
+	}
 	return (new);
 }
 
