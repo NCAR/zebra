@@ -1,7 +1,7 @@
 /*
  * XY-Observation plotting module
  */
-static char *rcsid = "$Id: XYObservation.c,v 1.6 1993-07-29 16:56:27 corbet Exp $";
+static char *rcsid = "$Id: XYObservation.c,v 1.7 1993-11-04 19:41:25 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -517,17 +517,19 @@ bool	update;
 	     */
 	    if ( sideAnnot && npts[plat] > 0 && !update )
 	    {
-		sprintf(datalabel, "%s-%s:%s %s", 
+		sprintf(datalabel, "%s-%s:%s %d", 
 			pnames[plat], fnames[0][plat],
-			fnames[1][plat], linecolor[plat]);
+			fnames[1][plat], lcolor[plat].pixel);
 		An_AddAnnotProc ( An_ColorString, c, datalabel,
 		    strlen(datalabel)+1,25, FALSE,FALSE);
+
 		TC_EncodeTime ( &eTimeReq, TC_Full, timelabel );
-		sprintf(datalabel, "   %s %s", timelabel, linecolor[plat]);
+		sprintf(datalabel, "   %s %d", timelabel, lcolor[plat].pixel);
 		An_AddAnnotProc ( An_ColorString, c, datalabel,
 		    strlen(datalabel)+1,25, FALSE,FALSE);
-		sprintf(datalabel, "%f %d %s %s", 
-		    zScale, F_PIX_WIDTH,linecolor[plat],fnames[2][plat]);
+
+		sprintf(datalabel, "%f %d %d %s", 
+		    zScale, F_PIX_WIDTH,lcolor[plat].pixel,fnames[2][plat]);
 		An_AddAnnotProc ( An_ColorScale, c, 
 		    datalabel, strlen(datalabel)+1,35,FALSE,FALSE);
 	    }

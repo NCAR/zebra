@@ -1,7 +1,7 @@
 /*
  * XY-Wind plotting module
  */
-static char *rcsid = "$Id: XYWind.c,v 1.18 1993-07-29 16:56:30 corbet Exp $";
+static char *rcsid = "$Id: XYWind.c,v 1.19 1993-11-04 19:41:28 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -339,8 +339,8 @@ bool	update;
 	{
 	    if (strcmp (style, "vector") == 0 )
 	    {
-                sprintf (datalabel, "%5.1f%s %s %f %f %f", scaleSpeed,
-			"m/sec", tadefcolor, scaleSpeed, 0.0, vecScale);
+                sprintf (datalabel, "%5.1f%s %d %f %f %f", scaleSpeed,
+			"m/sec", Tadefclr.pixel, scaleSpeed, 0.0, vecScale);
                 An_AddAnnotProc (An_ColorVector, c, datalabel,
                         strlen (datalabel) + 1, 30, FALSE, FALSE);
 		sprintf (datalabel, "%s %s %f %f", "wind-speed:m/sec",
@@ -351,8 +351,8 @@ bool	update;
 	    if (strcmp (style, "barb") == 0 )
 	    {	
                 doKnot = strcmp( barbtype, "knots" ) == 0 ? 1 :0;
-                sprintf (datalabel, "%s %s %d", barbtype,
-                                tadefcolor,  (int)vecScale);
+                sprintf (datalabel, "%s %d %d", barbtype,
+                                Tadefclr.pixel,  (int)vecScale);
                 An_AddAnnotProc (An_BarbLegend, c, datalabel,
                                 strlen(datalabel)+1, 100, FALSE, FALSE);
                 sprintf (datalabel, "%s%s %s %f %f ",
@@ -374,7 +374,7 @@ bool	update;
 	 */
 	    if (sideAnnot && !update)
 	    {
-		sprintf (datalabel, "%s %s", pnames[plat], tadefcolor);
+		sprintf (datalabel, "%s %d", pnames[plat], Tadefclr.pixel);
 		An_AddAnnotProc (An_ColorString, c, datalabel, 
 			strlen (datalabel), 25, FALSE, FALSE);
 	    }

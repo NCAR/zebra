@@ -1,7 +1,7 @@
 /*
  * XY-Graph plotting module
  */
-static char *rcsid = "$Id: XYGraph.c,v 1.21 1993-10-07 16:57:22 corbet Exp $";
+static char *rcsid = "$Id: XYGraph.c,v 1.22 1993-11-04 19:41:22 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -452,7 +452,7 @@ bool	update;
 	     */
 	    if ( sideAnnot && npts[plat] > 0 && !update )
 		    XYG_DoSideAnnotation (c, style, pnames[plat],
-					  linecolor[plat],
+					  lcolor[plat].pixel,
 					  fnames[0][nxfield > 1 ? plat : 0],
 					  fnames[1][nyfield > 1 ? plat : 0],
 					  &eTimeReq);
@@ -584,7 +584,8 @@ bool	update;
 
 
 XYG_DoSideAnnotation (c, style, plat, color, xfield, yfield, time)
-char *c, *style, *plat, *color, *xfield, *yfield;
+char *c, *style, *plat, *xfield, *yfield;
+Pixel color;
 ZebTime *time;
 {
 	float scale = 0.02;
@@ -595,7 +596,7 @@ ZebTime *time;
  */
 	pda_Search (Pd, c, "sa-scale", NULL, (char *) &scale,
 		    SYMT_FLOAT);
-	sprintf (label, "%s|%s|%s|%s : %s", style, color, plat, xfield,yfield);
+	sprintf (label, "%s|%d|%s|%s : %s", style, color, plat, xfield,yfield);
 /*
  * If they want the time put that in too.
  */
