@@ -1,6 +1,6 @@
 /*
  * Widget for changing radar parameters
- * $Id: RadarWidget.c,v 1.1 1991-06-16 17:02:25 burghart Exp $
+ * $Id: RadarWidget.c,v 1.2 1991-07-05 19:53:15 burghart Exp $
  */
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -387,7 +387,7 @@ Widget	parent;
  */
 	n = 0;
 	XtSetArg (args[n], XtNborderWidth, 0); n++;
-	XtSetArg (args[n], XtNlabel, "Enabled Radars"); n++;
+	XtSetArg (args[n], XtNlabel, "Available Radars"); n++;
 	w = XtCreateManagedWidget ("title", labelWidgetClass, form, args, n);
 /*
  * A command widget for each radar
@@ -398,7 +398,7 @@ Widget	parent;
 	{
 		sprintf (name, "toggle%d", r);
 		sprintf (label, "%s %s", Rad[r].name, 
-			Rad[r].enabled ? "*" : " ");
+			Rad[r].enabled ? "" : "(Disabled)");
 
 		n = 0;
 		XtSetArg (args[n], XtNfromVert, w_above); n++;
@@ -837,7 +837,8 @@ XtPointer	val, junk;
 /*
  * Update the widget label
  */
-	sprintf (label, "%s %s", Rad[r].name, Rad[r].enabled ? "*" : " ");
+	sprintf (label, "%s %s", Rad[r].name, 
+		Rad[r].enabled ? "" : "(Disabled)");
 	XtSetArg (arg, XtNlabel, label);
 	XtSetValues (w, &arg, 1);
 /*
