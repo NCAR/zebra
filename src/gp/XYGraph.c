@@ -1,7 +1,7 @@
 /*
  * XY-Graph plotting module
  */
-static char *rcsid = "$Id: XYGraph.c,v 1.25 1993-12-02 17:15:08 burghart Exp $";
+static char *rcsid = "$Id: XYGraph.c,v 1.26 1994-01-19 02:03:31 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -96,12 +96,39 @@ bool	update;
 
 	nxfield = CommaParse (xflds, xfnames);
 	nyfield = CommaParse (yflds, yfnames);
-
-	if ((nxfield != nplat && nxfield != 1) || 
-	    (nyfield != nplat && nyfield != 1))
+/*
+ * Accept a few possible combinations:
+ * 	One field and many platforms plots that field for each platform
+ *	Many fields and one platforms plots each field for that platform
+ *	Many fields and many platforms implies number of each must be equal
+ */
+	if (((nxfield != 1) && (nplat != 1) && (nplat != nxfield)) ||
+	    ((nyfield != 1) && (nplat != 1) && (nplat != nyfield)))
 	{
-		msg_ELog (EF_PROBLEM, "XYGraph: %s: bad number of fields.", c);
+		msg_ELog (EF_PROBLEM, "XYGraph: %s: bad number of fields", c);
 		return;
+	}
+	else if (nxfield != nyfield)
+	{
+		msg_ELog (EF_PROBLEM, 
+			  "XYGraph: %s: number of x and y fields %s", c,
+			  "must be equal");
+		return;
+	}
+	else if ((nplat == 1) && (nxfield > MAX_PLAT))
+	{
+		msg_ELog (EF_PROBLEM, "XYGraph: %s: too many fields", c);
+		return;
+	}
+/*
+ * So if we have one platform and many fields, just copy the platform name
+ * into pnames as if it had come that way from the plot description
+ */
+	if ((nplat == 1) && (nxfield > 1))
+	{
+		for (plat = 1; plat < nxfield; ++plat)
+			pnames[plat] = pnames[0];
+		nplat = nxfield;
 	}
 /*
  *  Get optional "simple" parameters.

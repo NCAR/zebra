@@ -1,7 +1,7 @@
 /*
  * XY-Observation plotting module
  */
-static char *rcsid = "$Id: XYObservation.c,v 1.9 1993-12-02 17:15:11 burghart Exp $";
+static char *rcsid = "$Id: XYObservation.c,v 1.10 1994-01-19 02:03:34 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -112,12 +112,23 @@ bool	update;
 	nyfield = CommaParse (yflds, yfnames);
 	nzfield = CommaParse (zflds, zfnames);
 
-	if ((nxfield != nplat && nxfield != 1) || 
-	    (nyfield != nplat && nyfield != 1) || 
-	    (nzfield != nplat && nzfield != 1))
+	if ((nxfield != nplat && nxfield != 1 && nplat != 1) ||
+	    (nyfield != nplat && nyfield != 1 && nplat != 1) ||
+	    (nzfield != nplat && nzfield != 1 && nplat != 1) ||
+	    (nxfield != nyfield) || (nyfield != nzfield))
 	{
-		msg_ELog (EF_PROBLEM, "XYObs: %s: bad number of fields.", c);
+		msg_ELog (EF_PROBLEM, "XYObs: %s: bad number of fields", 
+			  c);
 		return;
+	}
+/*
+ * If one platform and many fields, replicate the platform name as if we
+ * had that many platforms to begin with
+ */
+	if ((nplat == 1) && (nxfield > 1))
+	{
+		for (plat = 1; plat < nxfield; ++plat)
+			pnames[plat] = pnames[0];
 	}
 /*
  *  Get optional "obs" parameters.

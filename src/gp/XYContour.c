@@ -1,7 +1,7 @@
 /*
  * XY-Contour plotting module
  */
-static char *rcsid = "$Id: XYContour.c,v 1.18 1993-12-02 17:15:04 burghart Exp $";
+static char *rcsid = "$Id: XYContour.c,v 1.19 1994-01-19 02:03:28 granger Exp $";
 /*		Copyright (C) 1993 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -127,17 +127,31 @@ bool	update;
 		msg_ELog (EF_PROBLEM, "XYContour: %s: too many platforms", c);
 		return;
 	}
-
 	nxfield = CommaParse (xflds, xfnames);
 	nyfield = CommaParse (yflds, yfnames);
 	nzfield = CommaParse (zflds, zfnames);
-	if ((nxfield != nplat && nxfield != 1) ||
-	    (nyfield != nplat && nyfield != 1) ||
-	    (nzfield != nplat && nzfield != 1))
+/*
+ * Test for acceptable combinations of numbers of fields and platforms.
+ * Number of fields must be equal, and the number must be equal to 
+ * the number of platforms if greater than one.
+ */
+	if ((nxfield != nplat && nxfield != 1 && nplat != 1) ||
+	    (nyfield != nplat && nyfield != 1 && nplat != 1) ||
+	    (nzfield != nplat && nzfield != 1 && nplat != 1) ||
+	    (nxfield != nyfield) || (nyfield != nzfield))
 	{
 		msg_ELog (EF_PROBLEM, "XYContour: %s: bad number of fields", 
 			  c);
 		return;
+	}
+/*
+ * If one platform and many fields, replicate the platform name as if we
+ * had that many platforms to begin with
+ */
+	if ((nplat == 1) && (nxfield > 1))
+	{
+		for (plat = 1; plat < nxfield; ++plat)
+			pnames[plat] = pnames[0];
 	}
 /*
  * Get X-Y Contour optional parameters:
