@@ -26,7 +26,7 @@
 # include <sys/statvfs.h>
 # include <sys/mount.h>
 # else
-# ifdef aix
+# ifdef AIXV3 
 # include <sys/vfs.h>
 # include <sys/statfs.h>
 # else
@@ -59,7 +59,7 @@
 # include "dsDaemon.h"
 # include "commands.h"
 
-RCSID ("$Id: Daemon.c,v 3.60 1997-05-12 21:47:37 ishikawa Exp $")
+RCSID ("$Id: Daemon.c,v 3.61 1997-05-13 21:36:51 ishikawa Exp $")
 
 /*
  * Local forwards.

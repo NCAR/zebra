@@ -17,6 +17,9 @@
  * The original NEXUS code is ifdef'ed out with the NEXUS symbol.
  *
  * Updates: $Log: not supported by cvs2svn $
+ * Revision 1.8  1997/05/12  22:07:23  ishikawa
+ * Added support to IBM machine
+ *
  * Revision 1.7  1996/11/19  07:13:40  granger
  * eliminate unneeded usy_init call
  *
@@ -76,7 +79,7 @@
 #include <ctype.h>
 #include <sys/types.h>
 
-# ifdef  aix			/* For IBM AIX systems */
+# ifdef  AIXV3			/* For IBM AIX systems */
 # include <time.h>
 # else
 # include <sys/time.h>
@@ -97,7 +100,7 @@
 #define MISSVAL		88888.0	/* NEXUS-specific missing data flags	 */
 #endif /* NEXUS */
 
-MAKE_RCSID("$Id: dsprint.c,v 1.8 1997-05-12 22:07:23 ishikawa Exp $")
+MAKE_RCSID("$Id: dsprint.c,v 1.9 1997-05-13 21:38:11 ishikawa Exp $")
 
 /*************************************************************
  ANSI C function prototypes

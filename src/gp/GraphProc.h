@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.57 1997-05-13 16:25:06 ishikawa Exp $ */
+/* $Id: GraphProc.h,v 2.58 1997-05-13 21:32:28 ishikawa Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -169,7 +169,7 @@ extern int TriggerGlobal;
  * On Sun's && SGI's, we can at least use the finite() function, otherwise
  * we rely on the POSIX __infinity() function.
  */
-#if defined(sun) || defined(sgi) || defined (aix) || defined (__osf__)
+#if defined(sun) || defined(sgi) || defined (AIXV3) || defined (__osf__)
 #define FINITE(x)	(finite((double)(x)))
 #else
 #define FINITE(x)	(!isinf(x) && !isnan(x))
