@@ -1,6 +1,6 @@
 /* -*- C -*- */
 XCOMM ---------------------------------------------------------------------
-XCOMM $Id: Imakefile,v 1.36 1997-05-21 21:09:19 corbet Exp $ 
+XCOMM $Id: Imakefile,v 1.37 1997-06-28 16:31:55 granger Exp $ 
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -111,7 +111,7 @@ ALLFSRCS = cfitf2c.c rgridf2c.c bintsf2c.c cfit.F rgrid.F bints.f
 
 HDRS =  AxisControl.h Contour.h DrawText.h EventQueue.h GC.h GraphProc.h \
 	ActiveArea.h LLEvent.h Label.h LabelP.h LayoutControl.h PixelCoord.h \
-	PlotPrim.h XYCommon.h ContourP.h derive.h getpagesize.h \
+	PlotPrim.h XYCommon.h ContourP.h Skewt.h derive.h getpagesize.h \
 	gp_cmds.h rg_status.h rgrid.h f2c.h
 
 DISTFILES = Imakefile $(SRCS) $(ALLFSRCS) $(HDRS) \
