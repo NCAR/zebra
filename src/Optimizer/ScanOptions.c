@@ -1,7 +1,26 @@
 /*
  * Scan option generation
- * $Id: ScanOptions.c,v 1.1 1991-06-16 17:02:25 burghart Exp $
  */
+/*		Copyright (C) 1987,88,89,90,91 by UCAR
+ *	University Corporation for Atmospheric Research
+ *		   All rights reserved
+ *
+ * No part of this work covered by the copyrights herein may be reproduced
+ * or used in any form or by any means -- graphic, electronic, or mechanical,
+ * including photocopying, recording, taping, or information storage and
+ * retrieval systems -- without permission of the copyright owner.
+ * 
+ * This software and any accompanying written materials are provided "as is"
+ * without warranty of any kind.  UCAR expressly disclaims all warranties of
+ * any kind, either express or implied, including but not limited to the
+ * implied warranties of merchantibility and fitness for a particular purpose.
+ * UCAR does not indemnify any infringement of copyright, patent, or trademark
+ * through use or modification of this software.  UCAR does not provide 
+ * maintenance or updates for its software.
+ */
+
+static char *rcsid = "$Id: ScanOptions.c,v 1.2 1991-09-17 16:16:08 burghart Exp $";
+
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
 # include <X11/Shell.h>
@@ -16,21 +35,9 @@
 # include "prototypes.h"
 
 /*
- * The slow (limiting) radar
- */
-static int	Slowrad;
-
-/*
- * Limits for acceptable options
- */
-# define NO_OPT	-999
-static int	Opt = NO_OPT, MinOpt, MaxOpt;
-
-/*
  * Scan option widget stuff
  */
-static bool	UseWidget = FALSE;
-static Widget	WScanOpts, WOpt[7], WLimitRadar;
+static Widget	WScanOpts, WOpt[7];
 
 /*
  * Display widget stuff
@@ -47,10 +54,10 @@ int	DispRadar = 0;		/* which radar are we showing?		*/
 /*
  * Header string for the option list
  */
-static char	OptionHeader[] = "\n\
-         Volume    Hor. Res.  Ver. Res.\n\
-Option  Scan Time  deg.  km   deg.  km  Sweeps\n\
-------  ---------  ---------  --------- ------";
+static char	OptionHeader[] = "\
+    SLOW    SCAN  HOR. RES.  VER. RES.\n\
+    RADAR   TIME  deg.  km   deg.  km  SWEEPS\n\
+    -----   ----  ---------  --------- ------";
 
 /*
  * Private prototypes
@@ -79,35 +86,40 @@ ScanOptions ()
  * limiting radar
  */
 {
-	int	r, scantime, opt;
+	int	r, itime, opt, slow;
 	float	slowtime, voltime, hres, vres, dis;
-	Radar	slow, temp;
+	Radar	temp;
 	char	string[80];
-	Arg	stringarg;
+	Arg	stringarg, arg;
+	Pixel	color;
 /*
  * Sanity check
  */
 	if (Nradars == 0)
-		ui_error ("No radars to optimize!");
+	{
+		msg_ELog (EF_PROBLEM, "No radars to optimize!");
+		ui_bailout (NULL);
+	}
 /*
  * Put the address of 'string' into an X Toolkit argument
  */
 	XtSetArg (stringarg, XtNlabel, string);
 /*
- * Initialize option limits and clear out the widget labels
+ * Unhighlight the old option
+ */
+	if (Opt != NO_OPT)
+	{
+		XtSetArg (arg, XtNbackground, &color);
+		XtGetValues (WOpt[Opt+3], &arg, 1);
+		XtSetArg (arg, XtNborderColor, color);
+		XtSetValues (WOpt[Opt+3], &arg, 1);
+	}
+/*
+ * Initialize option limits
  */
 	Opt = NO_OPT;
 	MinOpt = 999;
 	MaxOpt = -999;
-
-	if (UseWidget)
-	{
-		for (opt = -3; opt < 4; opt++)
-		{
-			sprintf (string, "%3d  No Scan ", opt);
-			XtSetValues (WOpt[opt+3], &stringarg, 1);
-		}
-	}
 /*
  * Empty the display widget
  */
@@ -123,53 +135,18 @@ ScanOptions ()
 		XtSetValues (WDispText, &arg, 1);
 	}
 /*
- * Find the slow (limiting) radar with status MatchBoth, or use zero if no 
- * radar has MatchBoth status
- */
-	Slowrad = 0;
-	slowtime = 0.0;
-
-	for (r = 0; r < Nradars; r++)
-	{
-		if (! Rad[r].enabled)
-			continue;
-	/*
-	 * Generate the fastest optimal scan and check its time
-	 */
-		GenScan (Rad + r, TIME_ASAP, Hres, Vres, TRUE);
-
-		if (Rad[r].scantime > slowtime && Rad[r].status == MatchBoth)
-		{
-			slowtime = Rad[r].scantime;
-			Slowrad = r;
-		}
-	}
-/*
- * If we're using a fixed time, make sure the slow radar can actually do it
- */
-	if (Vol_time != TIME_ASAP && Rad[Slowrad].scantime > Vol_time &&
-		Rad[Slowrad].status != MatchTime)
-		ui_bailout ("Radar %s cannot scan the volume in %d seconds",
-			Rad[Slowrad].name, (int)(Vol_time + 0.5));
-/*
- * Tell which is the slow radar
- */
-	if (UseWidget)
-	{
-		sprintf (string, "The limiting radar is %s\n", 
-			Rad[Slowrad].name);
-		XtSetValues (WLimitRadar, &stringarg, 1);
-	}
-	else
-	{
-		ui_printf ("The limiting radar is %s\n\n", Rad[Slowrad].name);
-		ui_printf ("%s\n", OptionHeader);
-	}
-/*
- * Generate up to seven scan options
+ * Loop through the options, presenting time/space resolution trade-offs
  */
 	for (opt = -3; opt < 4; opt++)
 	{
+	/*
+	 * Clear out the widget label
+	 */
+		sprintf (string, "%2d  No Scan ", opt);
+		XtSetValues (WOpt[opt+3], &stringarg, 1);
+	/*
+	 * Resolution to use for this option
+	 */
 		hres = Hres + RES_STEP * opt;
 		vres = Vres + RES_STEP * opt;
 	/*
@@ -178,26 +155,53 @@ ScanOptions ()
 		if (hres <= 0.0 || vres <= 0.0)
 			continue;
 	/*
-	 * Make sure all radars can live up to this option.  If any can't,
-	 * just move on to the next option.
+	 * Initialize the slow radar and slow scan time
+	 */
+		slow = 0;
+		slowtime = 0.0;
+	/*
+	 * Error catch so we can skip to the next option if any radar
+	 * can't cut it for this one
 	 */
 		ERRORCATCH
-			slow = Rad[Slowrad];
-			GenScan (&slow, Vol_time, hres, vres, FALSE);
-
+		/*
+		 * Find the slow (limiting) radar with status MatchBoth, 
+		 * or use zero if no radar has MatchBoth status
+		 */
 			for (r = 0; r < Nradars; r++)
 			{
-				if (r == Slowrad || ! Rad[r].enabled)
+				if (! Rad[r].enabled)
 					continue;
+			/*
+			 * Generate the optimal scan and check its time
+			 */
+				GenScan (Rad + r, TIME_ASAP, hres, vres, TRUE);
 
-				temp = Rad[r];
-				GenScan (&temp, slow.scantime, hres, vres, 
-					FALSE);
+				if (Rad[r].scantime > slowtime && 
+					Rad[r].status == MatchBoth)
+				{
+					slowtime = Rad[r].scantime;
+					slow = r;
+				}
 			}
 		ON_ERROR
 			ui_epop ();
 			continue;
 		ENDCATCH
+
+		Slowtime[opt+3] = slowtime;
+	/*
+	 * If we're using a fixed time, make sure the slow radar can 
+	 * actually do it
+	 */
+		if (Vol_time != TIME_ASAP && slowtime > Vol_time &&
+			Rad[slow].status != MatchTime)
+		{
+			msg_ELog (EF_INFO, 
+				"%s cannot scan in %d s for option %d",
+				Rad[slow].name, (int)(Vol_time + 0.5), opt);
+			continue;
+		}
 	/*
 	 * Keep track of the limits of our valid options
 	 */
@@ -206,25 +210,39 @@ ScanOptions ()
 	/*
 	 * Display this scan option
 	 */
-		scantime = (int)(slow.scantime + 0.5);
-		hres = slow.res_horiz;
-		vres = slow.res_vert;
-		dis = slow.rng_back;
+		itime = (int)(slowtime + 0.5);
+		hres = Rad[slow].res_horiz;
+		vres = Rad[slow].res_vert;
+		dis = Rad[slow].rng_back;
 
-		sprintf (string, "%3d    %5d:%02d  %6.2f%5.2f%6.2f%5.2f %4d  ",
-			opt, scantime / 60, scantime % 60, ATAND (hres / dis), 
-			hres, ATAND (vres / dis), vres, slow.nsweeps);
+		sprintf (string, 
+			"%2d %6s  %2d:%02d  %4.2f %4.2f  %4.2f %4.2f  %4d  ",
+			opt, Rad[slow].name, itime / 60, itime % 60, 
+			ATAND (hres / dis), hres, ATAND (vres / dis), vres, 
+			Rad[slow].nsweeps);
 
-		if (UseWidget)
-			XtSetValues (WOpt[opt+3], &stringarg, 1);
-		else
-			ui_printf ("%s\n", string);
+		XtSetValues (WOpt[opt+3], &stringarg, 1);
 	}
-
-	if (! UseWidget)
-		ui_printf ("\n");
 /*
- * This is needed, but I don't know why
+ * Make 0 the current option if possible.  Otherwise, use the lowest
+ * legal option.
+ */
+	Opt = MAX (0, MinOpt);
+	if (MinOpt > MaxOpt)
+		Opt = NO_OPT;
+/*
+ * Highlight the current option
+ */
+	if (Opt != NO_OPT)
+	{
+		XtSetArg (arg, XtNforeground, &color);
+		XtGetValues (WOpt[Opt+3], &arg, 1);
+		XtSetArg (arg, XtNborderColor, color);
+		XtSetValues (WOpt[Opt+3], &arg, 1);
+	}
+/*
+ * Kluge to force a redisplay.  This doesn't work and shouldn't be necessary
+ * anyway.
  */
 	XSync (XtDisplay (WScanOpts), False);
 }
@@ -233,65 +251,69 @@ ScanOptions ()
 
 
 void
-so_Display (cmds)
-struct ui_command	*cmds;
+so_Display (opt)
+int	opt;
 /*
  * Display full information for the chosen scan option
  */
 {
-	int	r, opt = UINT (cmds[0]);
-	int	minutes, seconds;
-	float	scantime, hres, vres;
+	int	r;
 	char	ostring[16];
+	Arg	arg;
+	Pixel	color;
 /*
  * Make sure this is an acceptable option number
  */
 	if (opt < MinOpt || opt > MaxOpt)
-		ui_error ("Legal scan options are %d to %d", MinOpt, MaxOpt);
+	{
+		msg_ELog (EF_PROBLEM, "Legal scan options are %d to %d", 
+			MinOpt, MaxOpt);
+		ui_bailout (NULL);
+	}
 /*
- * Set the global option number
+ * Unhighlight the old option
+ */
+	if (Opt != NO_OPT)
+	{
+		XtSetArg (arg, XtNbackground, &color);
+		XtGetValues (WOpt[Opt+3], &arg, 1);
+		XtSetArg (arg, XtNborderColor, color);
+		XtSetValues (WOpt[Opt+3], &arg, 1);
+	}
+/*
+ * Set the global option number and highlight the new option
  */
 	Opt = opt;
+
+	XtSetArg (arg, XtNforeground, &color);
+	XtGetValues (WOpt[Opt+3], &arg, 1);
+	XtSetArg (arg, XtNborderColor, color);
+	XtSetValues (WOpt[Opt+3], &arg, 1);
 /*
- * Generate the scan for the slow radar first
+ * Show the current display radar
  */
-	hres = Hres + Opt * RES_STEP;
-	vres = Vres + Opt * RES_STEP;
-	GenScan (Rad + Slowrad, Vol_time, hres, vres, TRUE);
-/*
- * If we have a display widget, just show the current display radar, otherwise
- * spit all the radars to the screen
- */
-	if (UseWidget)
+	if (! WDisplay)
+		so_CreateDisplayWidget ();
+
+	sprintf (ostring, "Option %d", Opt);
+	XtSetArg (arg, XtNlabel, ostring);
+	XtSetValues (WDispOption, &arg, 1);
+
+	so_DisplayRadar (DispRadar);
+	XtSetArg (arg, XtNstring, DisplayString);
+	XtSetValues (WDispText, &arg, 1);
+
+	if (! DisplayUp)
 	{
-		Arg	arg;
-
-		if (! WDisplay)
-			so_CreateDisplayWidget ();
-
-		sprintf (ostring, "Option %d", Opt);
-		XtSetArg (arg, XtNlabel, ostring);
-		XtSetValues (WDispOption, &arg, 1);
-
-		so_DisplayRadar (DispRadar);
-		XtSetArg (arg, XtNstring, DisplayString);
-		XtSetValues (WDispText, &arg, 1);
-
-		if (! DisplayUp)
-		{
-			XtPopup (WDisplay, XtGrabNone);
-			DisplayUp = True;
-		}
+		XtPopup (WDisplay, XtGrabNone);
+		DisplayUp = True;
 	}
 	else
-	{
-		for (r = 0; r < Nradars; r++)
-		{
-			ui_printf ("\n%s\n", Rad[r].name);
-			so_DisplayRadar (r);
-			ui_printf (DisplayString);
-		}
-	}
+	/*
+	 * Make sure the display widget is on top.
+	 * Isn't there an Xt function for this?
+	 */
+		XRaiseWindow (XtDisplay (WDisplay), XtWindow (WDisplay));
 }
 
 
@@ -304,7 +326,7 @@ int	r;
  * Display the selected scan for radar r
  */
 {
-	float	scantime, hres, vres;
+	float	hres, vres;
 	int	minutes, seconds, i;
 	char	*s;
 /*
@@ -319,13 +341,13 @@ int	r;
  * Generate the scan for this radar, using the time from the slow radar
  * and resolution based on the option number
  */
-	if (r != Slowrad)
-	{
-		scantime = Rad[Slowrad].scantime;
-		hres = Hres + Opt * RES_STEP;
-		vres = Vres + Opt * RES_STEP;
-		GenScan (Rad + r, scantime, hres, vres, TRUE);
-	}
+	hres = Hres + Opt * RES_STEP;
+	vres = Vres + Opt * RES_STEP;
+	ERRORCATCH
+		GenScan (Rad + r, Slowtime[Opt+3], hres, vres, TRUE);
+	ON_ERROR
+		msg_ELog (EF_PROBLEM, "BUG: Scan should be possible!");
+	ENDCATCH
 /*
  * Write the info into DisplayString
  */
@@ -349,22 +371,75 @@ int	r;
 	s = DisplayString + strlen (DisplayString);
 	sprintf (s, "Bottom Elevation: %.1f   Top Elevation: %.1f\n",
 		Rad[r].el_bottom, Rad[r].el_top);
-
+/*
+ * Angle list
+ */
 	s = DisplayString + strlen (DisplayString);
-	sprintf (s, "Angle List: ");
-
-	for (i = 0; i < Rad[r].nsweeps; i++)
+	if (Rad[r].fix_step)
 	{
-		s = DisplayString + strlen (DisplayString);
+	/*
+	 * Just print the limits and step for a constant step list
+	 */
+		sprintf (s, "Angle List: %.1f to %.1f every %.1f", 
+			Rad[r].anglist[0], 
+			Rad[r].anglist[Rad[r].nsweeps - 1],
+			Rad[r].anglist[1] - Rad[r].anglist[0]);
+	}
+	else
+	{
+		sprintf (s, "Angle List: ");
 
-		if (! (i % 8))
-			sprintf (s++, "\n");
+		for (i = 0; i < Rad[r].nsweeps; i++)
+		{
+			s = DisplayString + strlen (DisplayString);
 
-		sprintf (s, "%.1f ", Rad[r].anglist[i]);
+			if (! (i % 8))
+				sprintf (s++, "\n");
+
+			sprintf (s, "%.1f ", Rad[r].anglist[i]);
+		}
 	}
 
 	s = DisplayString + strlen (DisplayString);
 	sprintf (s, "\n");
+/*
+ * Radio readable parameters, all in one place and in the right order: 
+ * left azimuth, right azimuth, scan rate, bottom elevation, top elevation, 
+ * step, and number of hits
+ */
+	if (Rad[r].fix_step)
+	{
+		float	left, right, bottom, top, step;
+
+		s = DisplayString + strlen (DisplayString);
+		sprintf (s, "\n\nRadio order scan parameters\n");
+
+		if (Rad[r].scantype == RHI)
+		{
+			left = Rad[r].anglist[0];
+			right = Rad[r].anglist[Rad[r].nsweeps - 1];
+			bottom = MAX (Rad[r].min_elev, Rad[r].el_bottom);
+			top = Rad[r].el_top;
+		}
+		else
+		{
+			left = Rad[r].az_left;
+			right = Rad[r].az_right;
+			bottom = Rad[r].anglist[0];
+			top = Rad[r].anglist[Rad[r].nsweeps - 1];
+		}
+
+
+		s = DisplayString + strlen (DisplayString);
+		sprintf (s, "L:%.1f  R:%.1f  V:%.1f  B:%.1f  T:%.1f  ",
+			left, right, Rad[r].scanrate, bottom, top);
+
+		step = Rad[r].anglist[1] - Rad[r].anglist[0];
+
+		s = DisplayString + strlen (DisplayString);
+		sprintf (s, "S:%.1f  H:%d\n", step, Rad[r].hits);
+	}
+
 }
 
 
@@ -381,6 +456,7 @@ Widget	parent;
 	Arg	args[10];
 	Widget	form, w, w_above;
 	char	name[20];
+	Pixel	bg;
 /*
  * A frame to hold the whole thing
  */
@@ -390,25 +466,19 @@ Widget	parent;
 	WScanOpts = form = XtCreateManagedWidget ("optionForm", 
 		formWidgetClass, parent, args, n);
 /*
- * Label widget for limiting radar
- */
-	n = 0;
-	XtSetArg (args[n], XtNborderWidth, 0); n++;
-	XtSetArg (args[n], XtNresizable, True); n++;
-	XtSetArg (args[n], XtNresize, True); n++;
-	w = WLimitRadar = XtCreateManagedWidget ("limRadar", labelWidgetClass,
-		form, args, n);
-/*
  * Label widget for header stuff
  */
-	w_above = w;
-
 	n = 0;
-	XtSetArg (args[n], XtNfromVert, w_above); n++;
+	XtSetArg (args[n], XtNfromVert, NULL); n++;
 	XtSetArg (args[n], XtNborderWidth, 0); n++;
 	XtSetArg (args[n], XtNlabel, OptionHeader); n++;
 	XtSetArg (args[n], XtNjustify, XtJustifyLeft); n++;
 	w = XtCreateManagedWidget ("header", labelWidgetClass, form, args, n);
+/*
+ * Find our background color
+ */
+	XtSetArg (args[0], XtNbackground, &bg);
+	XtGetValues (form, args, 1);
 /*
  * A command widget for each option line
  */
@@ -419,10 +489,12 @@ Widget	parent;
 		sprintf (name, "option%d", i);
 
 		n = 0;
-		XtSetArg (args[n], XtNborderWidth, 0); n++;
+		XtSetArg (args[n], XtNborderWidth, 2); n++;
+		XtSetArg (args[n], XtNborderColor, bg); n++;
+		XtSetArg (args[n], XtNhighlightThickness, 1); n++;
 		XtSetArg (args[n], XtNfromVert, w_above); n++;
-		XtSetArg (args[n], XtNresizable, True); n++;
 		XtSetArg (args[n], XtNresize, True); n++;
+		XtSetArg (args[n], XtNresizable, True); n++;
 		w = WOpt[i+3] = XtCreateManagedWidget (name, 
 			commandWidgetClass, form, args, n);
 
@@ -431,10 +503,8 @@ Widget	parent;
 		w_above = w;
 	}
 /*
- * Acknowledge that we have a widget now and return it
+ * Return the widget
  */
-	UseWidget = TRUE;
-
 	return (form);
 }
 
@@ -472,7 +542,7 @@ so_CreateDisplayWidget ()
 	XtSetArg (args[n], XtNfromHoriz, w); n++;
 	XtSetArg (args[n], XtNfromVert, NULL); n++;
 	XtSetArg (args[n], XtNborderWidth, 0); n++;
-	XtSetArg (args[n], XtNwidth, 100); n++;
+	XtSetArg (args[n], XtNwidth, 120); n++;
 	XtSetArg (args[n], XtNresize, False); n++;
 	XtSetArg (args[n], XtNjustify, XtJustifyLeft); n++;
 	XtSetArg (args[n], XtNlabel, Rad[DispRadar].name); n++;
@@ -485,7 +555,7 @@ so_CreateDisplayWidget ()
 	XtSetArg (args[n], XtNfromHoriz, w); n++;
 	XtSetArg (args[n], XtNfromVert, NULL); n++;
 	XtSetArg (args[n], XtNborderWidth, 0); n++;
-	XtSetArg (args[n], XtNwidth, 100); n++;
+	XtSetArg (args[n], XtNwidth, 120); n++;
 	XtSetArg (args[n], XtNresize, False); n++;
 	XtSetArg (args[n], XtNjustify, XtJustifyLeft); n++;
 	w = WDispOption = XtCreateManagedWidget ("option", labelWidgetClass, 
@@ -507,7 +577,7 @@ so_CreateDisplayWidget ()
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, NULL); n++;
 	XtSetArg (args[n], XtNfromVert, wbuttons); n++;
-	XtSetArg (args[n], XtNwidth, 350); n++;
+	XtSetArg (args[n], XtNwidth, 375); n++;
 	XtSetArg (args[n], XtNheight, 150); n++;
 	XtSetArg (args[n], XtNdisplayCaret, False); n++;
 	XtSetArg (args[n], XtNscrollHorizontal, XawtextScrollWhenNeeded); n++;
@@ -530,16 +600,11 @@ XtPointer	val, junk;
  */
 {
 	int	option = (int) val;
-	struct ui_command	cmd;
-
-	cmd.uc_ctype = UTT_VALUE;
-	cmd.uc_vptype = SYMT_INT;
-	cmd.uc_v.us_v_int = option;
 
 	if (option < MinOpt || option > MaxOpt)
-		ui_printf ("\007");
+		return;
 	else
-		so_Display (&cmd);
+		so_Display (option);
 }
 
 
