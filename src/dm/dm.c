@@ -34,7 +34,7 @@
 # include <config.h>
 # include <copyright.h>
 # include <xhelp.h>
-MAKE_RCSID ("$Id: dm.c,v 2.30 1993-03-19 23:31:22 granger Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.31 1993-04-09 15:42:55 corbet Exp $")
 
 
 /*
@@ -1504,7 +1504,7 @@ char *file, *spath, *dest;
  * Try to find the given file by applying components from the path.
  */
 {
-	char *path, *colon;
+	char *path, *delim;
 	char *strchr ();
 /*
  * Try to find the file as given.
@@ -1518,15 +1518,15 @@ char *file, *spath, *dest;
  * Oops.  No such luck.  Now we try the search path
  * and see if that works any better.
  */
-	for (colon = path = spath; colon; path = colon + 1)
+	for (delim = path = spath; delim; path = delim + 1)
 	{
 	/*
 	 * Build up a new program name from the next path entry.
 	 */
-		if ((colon = strchr (path, ':')) != 0)
+		if ((delim = strchr (path, ',')) != 0)
 		{
-			strncpy (dest, path, colon - path);
-			dest[colon - path] = '\0';
+			strncpy (dest, path, delim - path);
+			dest[delim - path] = '\0';
 		}
 		else
 			strcpy (dest, path);
