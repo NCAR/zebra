@@ -1,5 +1,5 @@
 /*
- * $Id: aline.c,v 3.2 1994-01-03 07:17:47 granger Exp $
+ * $Id: aline.c,v 3.3 1995-01-20 10:47:48 granger Exp $
  *
  * An 'Assembly Line' test driver for the DataStore.
  *
@@ -12,40 +12,61 @@
  * a single-sample scalar datachunk and sends it off.  Then it waits some
  * specific period, and writes another, and so on.  The consumer requests
  * notifications on the platform.  When notifications arrive, it fetches
- * the new data and prints logs some distinguishing info about it. 
+ * the new data and logs some distinguishing info about it. 
  *
  * Multiple consumers are possible.  The number can be specified on the
  * command line.  The default is 2.
+ *
+ * If started with the scan option, the consumer uses a platform whose
+ * data files are links to the producer's data files.  The consumer must tell
+ * the daemon to rescan the linked platform, and then test to make sure
+ * the consumer is kept correctly synchronized with the daemon and the open
+ * file.
  */
-
-#include <config.h>
-#include <defs.h>
-#include <message.h>
-#include "DataStore.h"
-#include "ds_fields.h"
-#include "DataChunkP.h"
 
 #include <stdio.h>
 #include <limits.h>
 #include <sys/types.h>
+#include <sys/time.h>
+#include <sys/timeb.h>
+#include <assert.h>
 
-#define PLATFORM	"t_scalar"	/* platform to use for now	*/
-#define INVENTORY	20		/* number to produce		*/
-#define INTERVAL	3		/* seconds between writes	*/
+#include <config.h>
+#include <defs.h>
+#include <message.h>
+#include <timer.h>
+#include "DataStore.h"
+#include "ds_fields.h"
+#include "DataChunkP.h"
 
+/*
+ * If consumers' platform is different from producer's, we'll create a link
+ * from producer files to consumer files and tell the daemon to rescan the
+ * consumer files to get our updates.
+ */
+#define PRODUCER_PLAT	"t_producer"	/* platform producer writes to 	*/
+#define CONSUMER_PLAT	"t_consumer"	/* platform consumer reads from	*/
+#define INVENTORY	10		/* number to produce		*/
+#define INTERVAL	5		/* seconds between writes	*/
+#define REMOVE_DEST		/* remove consumer file before copying	*/
 
 #define NFIELDS (sizeof(FieldNames)/sizeof(FieldNames[0]))
 
 /* #define MPROF */
+/* #define DEBUGGER */
 
 char *FieldNames[] = {
 	"altitude", "cpres0", "dp", "ept", "mr", "pres",
-	"lat", "lon", "alt", "rh", "tdry", "twet", "u_wind", "v_wind",
+#ifdef ZNF
+	"lat", "lon", "alt", 
+#endif
+	"rh", "tdry", "twet", "u_wind", "v_wind",
 	"wdir", "wspd"
 };
 
 FieldId Fields[NFIELDS];
 
+int LinkPlatforms = 0;	/* use links and rescans to get file updates */
 int ConsumerNumber = -1;
 char OurName[50];
 
@@ -56,6 +77,9 @@ void Produce();
 void Consume();
 void ReceiveNotify FP ((PlatformId plat_id, int param, ZebTime *when,
 			int nsample, UpdCode ucode));
+char *PlatDirectory FP ((PlatformId pid));
+void ReqRescan ();
+char *PlatFileName FP ((PlatformId pid));
 int rnd();
 
 
@@ -111,6 +135,10 @@ main (argc, argv)
 	int i;
 	char name[20];
 	int nconsumers;
+	PlatformId platid;
+	ZebTime now;
+	struct timeb tp;
+	char dbg[256];
 
 #ifdef MPROF
 	mprof_stop ();
@@ -119,14 +147,20 @@ main (argc, argv)
 		nconsumers = atoi(argv[1]);
 	else
 		nconsumers = 2;			/* the default */
+
+	if (strcmp(PRODUCER_PLAT, CONSUMER_PLAT))
+		LinkPlatforms = 1;
+
 	/*
 	 * To fork multiple producers/consumers: the parent will be the
 	 * First producer, and it creates the child consumers.
 	 */
 	printf ("Creating %d consumers...\n", nconsumers);
-	for (i = 0; i < nconsumers; ++i)
+	i = 0;
+	while (i < nconsumers)
 	{
-		if (fork() == 0)
+		int pid;
+		if ((pid = fork()) == 0)
 		{
 			/*
 			 * O.K., we're the child here, so we consume.  And
@@ -136,8 +170,26 @@ main (argc, argv)
 			sprintf (name, "Consumer_%d", i);
 			ConsumerNumber = i;
 			Init(name);
+#ifdef DEBUGGER
+			sprintf (dbg, "exec xgdb aline %d &", getpid());
+			printf ("%s", dbg);
+			system (dbg);
+			sleep (10);
+#endif
 			Consume();		/* shouldn't return */
 			return (0);
+		}
+		else if (pid == -1)
+		{
+			fprintf (stderr, "fork of consumer %d failed", i);
+			--nconsumers;
+		}
+		else
+		{
+			/*
+			 * Parent continues with creating consumers
+			 */
+			++i;
 		}
 	}
 
@@ -147,8 +199,35 @@ main (argc, argv)
 	Init("Producer");
 
 	/*
+	 * Make sure our platforms are starting out clean.  Remove the
+	 * consumer first in case it just a link to the producer.
+	 */
+	ftime(&tp);
+	now.zt_Sec = tp.time;
+	now.zt_MicroSec = 0;
+	printf ("deleting files from consumer platform '%s'\n", CONSUMER_PLAT);
+	platid = ds_LookupPlatform (CONSUMER_PLAT);
+	ds_DeleteData (platid, &now);
+	if (LinkPlatforms)
+	{
+		printf ("deleting files from producer platform '%s'\n", 
+			PRODUCER_PLAT);
+		platid = ds_LookupPlatform (PRODUCER_PLAT);
+		ds_DeleteData (platid, &now);
+		printf ("using linked platforms and rescans for updates\n");
+	}
+	else
+		printf ("producers and consumers using the same platform\n");
+
+	/*
 	 * Produce our inventory, then wait for our children to exit.
 	 */
+#ifdef DEBUGGER
+	sprintf (dbg, "exec xgdb aline %d &", getpid());
+	printf ("%s", dbg);
+	system (dbg);
+	sleep (10);
+#endif
 	Produce(nconsumers);
 
 	return(0);
@@ -173,7 +252,9 @@ int nconsumers;
 	Location loc;
 	dsDetail details[5];
 	int ndetail = 0;
-
+	char cmd[512];
+	PlatformId destid;
+	
 	details[ndetail++].dd_Name = DD_ZN_APPEND_SAMPLES;
 	details[ndetail].dd_Name = DD_ZN_RESERVE_BLOCK;
 	details[ndetail].dd_V.us_v_int = 150 * INVENTORY;
@@ -183,12 +264,13 @@ int nconsumers;
 	ndetail++;
 	
 	dc_CheckClass (FALSE);
-	plat_id = ds_LookupPlatform(PLATFORM);
-
+	plat_id = ds_LookupPlatform(PRODUCER_PLAT);
+	destid = ds_LookupPlatform (CONSUMER_PLAT);
 	value = 0.0;
 	for (i = 0; i < INVENTORY; ++i)
 	{
 		tl_Time(&when);
+		when.zt_MicroSec = 0;
 
 		dc = dc_CreateDC (DCC_Scalar);
 		dc->dc_Platform = plat_id;
@@ -204,18 +286,56 @@ int nconsumers;
 		dc_SetSampleAttr (dc, 0, "creator", "producer");
 		ds_StoreBlocks (dc, (i == 0)?TRUE:FALSE, details, ndetail);
 		dc_DestroyDC (dc);
+
+		/*
+		 * Once we have a file, set-up our command for updating the 
+		 * consumer platform if indirect updates are required
+		 */
+		if (i == 0 && LinkPlatforms)
+		{
+#ifdef REMOVE_DEST
+			sprintf (cmd, "rm -f %s/%s; ", PlatDirectory (destid),
+				 PlatFileName (plat_id));
+#else
+			cmd[0] = '\0';
+#endif
+			sprintf (cmd+strlen(cmd), "cp %s/%s ", 
+				 PlatDirectory (plat_id),
+				 PlatFileName (plat_id));
+			strcat (cmd, PlatDirectory (destid));
+		}
+
+		/*
+		 * Now that our file has changed, update the consumer file
+		 * indirectly if the consumer platform differs from producer's.
+		 * Force the rescan from here, which should generate the 
+		 * update notify in the consumer.
+		 */
+		if (LinkPlatforms)
+		{
+			msg_ELog (EF_DEBUG, "updating consumer file:");
+			msg_ELog (EF_DEBUG, "  %s", cmd);
+			system (cmd);
+			ds_ForceRescan (destid, 0);
+		}
 		value = (int)value + 1.0;
-		sleep(rnd(INTERVAL)+1);		/* wait at least 1 second */
+		/* wait INTERVAL seconds on average, +/- INTERVAL/2 */
+		sleep((INTERVAL/2) + rnd(INTERVAL));
 	}
 
 	msg_ELog (EF_INFO, "Producer finished, waiting for consumers");
 	for (i = 0; i < nconsumers; ++i)
 		wait(0);
 	msg_ELog (EF_INFO, "Consumer children signalled, exiting");
-	printf ("Final state of observation:\n");
+	printf ("Final state of observations:\n");
 	tl_Time (&now);
 	ds_GetObsTimes (plat_id, &now, &when, 1, NULL);
 	dc = ds_FetchObs (plat_id, DCC_Scalar, &when, Fields, NFIELDS,
+			  NULL, 0);
+	dc_DumpDC(dc);
+	dc_DestroyDC (dc);
+	ds_GetObsTimes (destid, &now, &when, 1, NULL);
+	dc = ds_FetchObs (destid, DCC_Scalar, &when, Fields, NFIELDS,
 			  NULL, 0);
 	dc_DumpDC(dc);
 	dc_DestroyDC (dc);
@@ -240,6 +360,7 @@ UpdCode ucode;
  * Fetch the data we have been notified about
  */
 {
+	static const char *CodeNames[] = { "overwrite", "insert", "append" };
 	static nreceived = 0;	/* number of samples processed so far */
 	static ZebTime begin = { 0, 0 };
         float check, value;	/* to check our data values */
@@ -256,15 +377,20 @@ UpdCode ucode;
 	if (!begin.zt_Sec)
 		begin = *when;
 	TC_EncodeTime (when, TC_Full, atime);
-	msg_ELog (EF_DEBUG, "notify #%d, fetching new data at %s", 
-		  nreceived, atime);
+	++nreceived;
+	msg_ELog (EF_DEBUG, "notify #%d at %s, %s %d samples", 
+		  nreceived, atime, CodeNames[ucode], nsample);
 	dc = ds_Fetch (plat_id, DCC_Scalar, &begin, when, 
 		       Fields, NFIELDS, (dsDetail *)NULL, 0);
 	if (!dc)
 		msg_ELog (EF_EMERGENCY, "fetch unsuccessful");
 	else
 	{
-	    value = 0.0;
+	    int ndc = dc_GetNSample(dc);
+	    if (nreceived != ndc)
+		msg_ELog (EF_PROBLEM, "got %d samples from fetch, expected %d",
+			  ndc, nreceived);
+	    value = nreceived - ndc;
 	    for (i = 0; i < dc_GetNSample(dc); ++i)
 	    {
 		/*
@@ -297,7 +423,6 @@ UpdCode ucode;
 	/*
 	 * See if we reached our limit
 	 */
-	++nreceived;
 	if (nreceived >= INVENTORY)
 	{
 		msg_ELog (EF_INFO, "Consumer finished.");
@@ -315,13 +440,23 @@ Consume()
  * Consume all that we can from the given platform
  */
 {
-	PlatformId plat_id;
+	static PlatformId plat_id;
 
-	plat_id = ds_LookupPlatform(PLATFORM);
-
+	plat_id = ds_LookupPlatform(CONSUMER_PLAT);
 	dc_CheckClass (FALSE);
+	/*
+	 * If we're consuming the same platform as is being produced,
+	 * just wait for notifies.  Otherwise we need to schedule rescans
+	 * to keep us in sync.
+	 */
 	ds_RequestNotify (plat_id, 0, ReceiveNotify);
-
+#ifdef notdef
+	if (LinkPlatforms)
+	{
+		int incr = INTERVAL*INCFRAC/2;
+		tl_RelativeReq (ReqRescan, &plat_id, incr, incr);
+	}
+#endif
 	/*
 	 * Now we let the receiver handle everything.  After receiving
 	 * all of the samples we're expecting, we'll exit.
@@ -332,7 +467,7 @@ Consume()
 
 
 int rnd( num )
-   int num;
+int num;
 {
    double ratio;
    double trunc;
@@ -346,4 +481,84 @@ int rnd( num )
    /* printf ("%i\n",result); */
    return result;
 };
+
+
+
+char *
+PlatDirectory (pid)
+PlatformId pid;
+/*
+ * Return a pointer to a platform's directory path.  The string is only
+ * valid until the next call.  Returns NULL if this platform has no
+ * local data source.
+ */
+{
+	int i;
+        PlatformInfo pinfo;
+        static DataSrcInfo dsi;
+
+        ds_LockPlatform (pid);
+        ds_GetPlatInfo (pid, &pinfo);
+        /*
+         * Find the first local data source
+         */
+        for (i = 0; i < pinfo.pl_NDataSrc; i++)
+        {
+                ds_GetDataSource (pid, i, &dsi);
+                if (dsi.dsrc_Type == dst_Local)
+                        break;
+        }
+        ds_UnlockPlatform (pid);
+        if (i < pinfo.pl_NDataSrc)
+                return (dsi.dsrc_Where);
+        else
+                return (NULL);
+}               
+
+
+
+void
+ReqRescan (zt, param)
+ZebTime *zt;
+void *param;
+/*
+ * Get the daemon to rescan for new consumer data
+ */
+{
+	char buf[128];
+	PlatformId pid = *(PlatformId *)param;
+	TC_EncodeTime (zt, TC_Full, buf);
+	msg_ELog (EF_DEBUG, "%s: requesting rescan", buf);
+	ds_ForceRescan (pid, 0);
+}
+
+
+
+char *
+PlatFileName (pid)
+PlatformId pid;
+{
+        PlatformInfo pinfo;
+        DataSrcInfo dsi;
+        static DataFileInfo dfi;
+        int i, findex;
+	char *name = NULL;
+
+        ds_LockPlatform (pid);
+        ds_GetPlatInfo (pid, &pinfo);
+        for (i = 0; i < pinfo.pl_NDataSrc; i++)
+        {
+                ds_GetDataSource (pid, i, &dsi);
+                if ((dsi.dsrc_Type == dst_Local) &&
+		    (dsi.dsrc_FFile > 0))
+                        break;
+        }
+	if (i < pinfo.pl_NDataSrc)
+	{
+		ds_GetFileInfo (dsi.dsrc_FFile, &dfi);
+		name = dfi.dfi_Name;
+	}
+        ds_UnlockPlatform (pid);
+	return (name);
+}
 
