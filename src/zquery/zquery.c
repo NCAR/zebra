@@ -19,47 +19,93 @@
  * maintenance or updates for its software.
  */
 
+# include <stdio.h>
 # include <defs.h>
 # include <message.h>
 
-MAKE_RCSID ("$Id: zquery.c,v 1.3 1994-11-17 06:47:28 granger Exp $")
+RCSID ("$Id: zquery.c,v 1.4 1995-05-04 04:38:48 granger Exp $")
+
+#define DEFAULT_DELAY 	20
+
+static int IncMsg FP((struct message *msg));
+static int QResp FP((char *info));
 
 
-int IncMsg (), QResp ();
+static void
+usage (argv0)
+char *argv0;
+{
+	printf ("Usage: %s [-h] [-t timeout] process\n", argv0);
+	exit (1);
+}
 
 
+int
 main (argc, argv)
 int argc;
 char **argv;
 {
+	int ret;
+	int arg;
+	int delay = DEFAULT_DELAY;
+	char name[MAX_NAME_LEN];
+	char *query;
 /*
- * Make sure they gave us a recipient.
+ * Check for a couple options
  */
-	if (argc != 2)
+	arg = 1;
+	while (arg < argc)
 	{
-		printf ("Usage: %s process\n", argv[0]);
-		exit (1);
+		if (! strcmp (argv[arg], "-t"))
+		{
+			if (arg+1 < argc)
+				delay = atoi (argv[++arg]);
+			else
+				usage (argv[0]);
+		}
+		else if (! strcmp (argv[arg], "-h"))
+			usage (argv[0]);
+		else
+			break;
+		++arg;
 	}
+/*
+ * Make sure they left us a recipient.
+ */
+	if (arg + 1 != argc)
+		usage (argv[0]);
 /*
  * Hook in and send the query..
  */
-	msg_connect (IncMsg, "zquery");
-	msg_SendQuery (argv[1], QResp);
+	sprintf (name, "zquery-%i", getpid());
+	msg_connect (IncMsg, name);
+	query = argv[arg];
+	msg_SendQuery (query, QResp);
 /*
- * Now we just wait.
+ * Now we just wait, but only so long.  We're not infinitely patient.
  */
-	msg_await ();
+	do {
+		ret = msg_poll (delay);
+	}
+	while (ret == 0);
+
+	if (ret == MSG_TIMEOUT)
+	{
+		printf ("no response from '%s'\n", query);
+		return (1);
+	}
+	return (0);
 }
 
 
 
 
-int
+static int
 IncMsg (msg)
 struct message *msg;
 {
 	if (msg->m_proto != MT_MESSAGE)
-		return;
+		return (0);
 	if (msg->m_len == 0)
 		return (1);
 	printf ("%s\n", msg->m_data);
@@ -70,7 +116,7 @@ struct message *msg;
 
 
 
-int
+static int
 QResp (info)
 char *info;
 /*
@@ -80,4 +126,5 @@ char *info;
 	if (! info)
 		exit (0);
 	printf ("%s\n", info);
+	return (0);
 }
