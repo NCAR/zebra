@@ -436,7 +436,12 @@ Highlight(w)
 	if (! XQueryPointer (XtDisplay (XtParent (w)), XtWindow (XtParent (w)),
 			&junkW, &junkW, &junkI, &junkI, &x, &y, &junkU))
 		return;
-	wantup = x > ((2*entry->rectangle.width)/3);
+	if (!entry->sme_menu.needflip)
+	{
+		entry->sme_menu.needflip = TRUE;
+		FlipColors(w);
+	}
+	wantup = (x > (entry->rectangle.width >> 1));
 /*
  * If we do want it up, and it's not, put it up.
  */
@@ -476,17 +481,16 @@ Highlight(w)
 			 * so the callbacks are only added once, not every
 			 * time this menu is popped up.
 			 */
-			XtAddCallback(entry->sme_menu.popup, XtNpopdownCallback,
+			XtAddCallback(entry->sme_menu.popup, 
+				      XtNpopdownCallback,
 				      popdown_unhighlight, (XtPointer)entry);
 			XtAddCallback(root, XtNpopdownCallback,
 				      parent_popdown, (XtPointer)entry);
 		}
 		entry->sme_menu.up = TRUE;
-		entry->sme_menu.needflip = TRUE;
 		loc.x = x; loc.y = y;
 		RdssPositionMenu(entry->sme_menu.popup, &loc);
 		XtPopup(entry->sme_menu.popup, XtGrabNonexclusive);
-		FlipColors(w);
 	}
 /*
  * If it is up, and we don't want that, bring it back down.
@@ -509,7 +513,14 @@ Unhighlight(w)
 	unsigned int junkU;
 
 	if (! popup)
+	{
+		if (entry->sme_menu.needflip)
+		{
+			entry->sme_menu.needflip = FALSE;
+			FlipColors (w);
+		}
 		return;
+	}
 
 	/* if the pointer is in the popup, do nothing */
 	if (XQueryPointer(XtDisplay(popup), XtWindow(popup), &junkW, &junkW,
@@ -534,8 +545,8 @@ Notify(w)
 	SmeMenuObject entry = (SmeMenuObject) w;
 
 	if (entry->sme_menu.popup_last_select)
-		((SimpleMenuWidget)entry->object.parent)->simple_menu.popup_entry = 
-				(SmeObject)entry;
+	   ((SimpleMenuWidget)entry->object.parent)->simple_menu.popup_entry = 
+		(SmeObject)entry;
 }
     
 /*      Function Name: FlipColors
@@ -799,3 +810,13 @@ Widget FindPopup(widget, name)
     return NULL;
 }
 
+
+Boolean
+SmeMenuPoppedUp (w)
+    Widget w;
+{
+	SmeMenuObject entry = (SmeMenuObject) w;
+	Widget popup = entry->sme_menu.popup;
+
+	return (entry->sme_menu.up);
+}
