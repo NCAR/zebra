@@ -1,7 +1,7 @@
 /*
  * Widgets for changing plot limits.
  */
-static char *rcsid = "$Id: LimitWidgets.c,v 2.12 1993-03-12 22:04:36 granger Exp $";
+static char *rcsid = "$Id: LimitWidgets.c,v 2.13 1993-03-19 19:59:16 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -173,6 +173,7 @@ static void	 lw_Setup FP ((WidgetQueue *, int, struct ui_command *));
 static WidgetQueue	 *lw_GetWidget FP ((int));
 static void	 lw_InitOverlay FP ((void));
 static void	 lw_SwCb FP ((Widget, int, int));
+static void	 CopyBackground FP ((Widget soure, Widget dest));
 
 
 void
@@ -262,6 +263,7 @@ int type;
  * Make it known to UI.
  */
 	uw_def_widget (ret->wq_name, "", wd->wd_create, 0, (char *) ret);
+	uw_NoHeader (ret->wq_name);
 # ifdef notdef
 	uw_ForceOverride (ret->wq_name);
 # endif
@@ -327,6 +329,28 @@ WidgetQueue *w;
 }
 
 
+
+static void
+CopyBackground(source,dest)
+Widget source;
+Widget dest;
+/*
+ * Copies the background color of the source widget to the dest widget
+ */
+{
+	Pixel color;
+	Arg arg;
+
+	XtSetArg (arg, XtNbackground, &color);
+	XtGetValues (source, &arg, (Cardinal)1);
+
+	XtSetArg (arg, XtNbackground, color);
+	XtSetValues (dest, &arg, (Cardinal)1);
+}
+
+
+
+
 static Widget
 lw_SSCreate (tag, parent, actx)
 char *tag;
@@ -349,6 +373,10 @@ XtAppContext actx;
 	XtSetArg (args[n], XtNborderWidth, 0); n++;
 	form = XtCreateManagedWidget ("SingleString", formWidgetClass, parent,
 		args, n);
+/*
+ * Give our parent the same background, since we'll be its only child
+ */
+	CopyBackground(form, parent);
 /*
  * The label to describe this string.
  */
@@ -451,6 +479,10 @@ XtAppContext actx;
 	form = XtCreateManagedWidget ("SingleInt", formWidgetClass, parent,
 		args, n);
 /*
+ * Give our parent the same background, since we'll be its only child
+ */
+	CopyBackground(form, parent);
+/*
  * The label to describe this string.
  */
 	n = 0;
@@ -552,6 +584,10 @@ XtAppContext actx;
 	form = XtCreateManagedWidget ("SingleFloat", formWidgetClass, parent,
 		args, n);
 /*
+ * Give our parent the same background, since we'll be its only child
+ */
+	CopyBackground(form, parent);
+/*
  * The label to describe this floating point quantity.
  */
 	n = 0;
@@ -652,6 +688,10 @@ XtAppContext actx;
 	XtSetArg (args[n], XtNborderWidth, 0); n++;
 	form = XtCreateManagedWidget ("DoubleFloat", formWidgetClass, parent,
 		args, n);
+/*
+ * Give our parent the same background, since we'll be its only child
+ */
+	CopyBackground(form, parent);
 /*
  * The label to describe the first floating point quantity.
  */
@@ -783,6 +823,10 @@ XtAppContext actx;
 	XtSetArg (args[n], XtNborderWidth, 0); n++;
 	form = XtCreateManagedWidget ("TimeSeries", formWidgetClass, parent,
 		args, n);
+/*
+ * Give our parent the same background, since we'll be its only child
+ */
+	CopyBackground(form, parent);
 /*
  * The label to describe the first floating point quantity.
  */
