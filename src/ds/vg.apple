@@ -1,0 +1,9 @@
+#! /bin/sh -x
+
+tests='-a'
+tests=' aerifetch aeristore classderivations derivations '
+exec valgrind \
+   --num-callers=20 --suppressions=vg.supp \
+   -v --error-limit=no --leak-check=yes --gdb-attach=no \
+   apple -d -v -c 2 $tests  > vg.apple.log 2>&1
+

@@ -1,0 +1,64 @@
+# Format of this file is:
+# {
+#     name_of_suppression
+#     kind: one of Param Value1 Value2 Value4 Value8
+#                   Free Addr1 Addr2 Addr4 Addr8
+#                   Cond (previously known as Value0)
+#     (if Param: name of system call param, if Free: name of free-ing fn)
+#     caller0 name, or /name/of/so/file.so
+#     caller1 name, or ditto
+#     (optionally: caller2 name)
+#     (optionally: caller3 name)
+# }
+
+# I've yet to figure out why strtolower triggers a warning...
+{
+	strtolower/Value4/libc
+	Value4
+	obj:/lib/libc-2.2.5.so
+	fun:strtolower
+}
+
+{
+	strtolower/Cond/libc
+	Cond
+	obj:/lib/libc-2.2.5.so
+	fun:strtolower
+}
+
+{
+	strtolower/Cond/DFA_NetCDF.c
+	Cond
+	fun:strtolower
+}
+
+# Lots of warnings in netcdf yet to be investigated
+{
+	libnetcdf
+	Cond
+	obj:*libnetcdf.so*
+}
+
+{
+	ncio_px_get/Cond
+	Cond
+	fun:ncio_px_get
+}
+
+{
+	ncx_getn_text/Value1
+	Free
+	fun:*
+	fun:ncx_getn_text
+}
+
+# Likewise not investigated, but presumably just message structures being
+# written without having been completely filled in.
+{
+	msg_write
+	Param
+	write(buf)
+	obj:/lib/libc-2.2.5.so
+	fun:msg_write
+}
+
