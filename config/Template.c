@@ -35,13 +35,9 @@
 # define UseGcc No
 # endif
 
-# ifndef CCompiler	/* Decide which compiler here			*/
-# if UseGcc
-# define CCompiler gcc
-# else
+# ifndef CCompiler         /* Default to "cc".                     */
 # define CCompiler cc
 # endif
-# endif /* CCompiler */
 
 
 /*
@@ -131,6 +127,14 @@
  * End of site-def defaults.  Following are derived Makefile macros:
  * --------------------------------------------------------------------
  */
+
+/* 
+ * A command for installing include files which avoids overwriting .h
+ * files with the exact thing, saving much recompilation.
+ */
+# define HInstall(dotH) \
+        sh -c "if cmp -s dotH $(INCLUDEDIR)/dotH; then true; else install -c -m 0444 dotH $(INCLUDEDIR); fi"
+
 
 # if (UseOpenWin && !UseXWindows)  
 # define XLibrary -lX11
@@ -236,13 +240,9 @@
 
 # if CompileDebug
 # define StdCFlags -I$(INCLUDEDIR) -g OptCFlag OtherCFlags
+# define StdFFlags -I$(INCLUDEDIR) -g OtherFFlags
 # else
 # define StdCFlags -I$(INCLUDEDIR) OptCFlag OtherCFlags
-# endif
-
-# if CompileDebug
-# define StdFFlags -I$(INCLUDEDIR) -g OtherFFlags 
-# else
 # define StdFFlags -I$(INCLUDEDIR) OtherFFlags
 # endif
 
@@ -292,7 +292,7 @@ Makefile:	mf
 
 mf:
 	mv Makefile Makefile~
-	cc -I. -I$(TOP)/config -E $(TOP)/config/Template.c | grep -v '^# [0-9]' | cat -s >> Makefile
+	cpp -I. -I$(TOP)/config -E $(TOP)/config/Template.c | grep -v '^# [0-9]' | cat -s >> Makefile
 	make depend
 
 testmf:
