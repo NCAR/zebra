@@ -13,7 +13,7 @@
 # include "commands.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID("$Id: d_Debug.c,v 3.8 1996-11-19 09:27:11 granger Exp $")
+MAKE_RCSID("$Id: d_Debug.c,v 3.9 1996-11-25 21:29:42 granger Exp $")
 
 #ifdef ORGANIZATIONS
 typedef enum {
@@ -383,8 +383,7 @@ char *who;
 	sprintf (buf, "Zebra data store daemon, proto %08x, cache key %08lx",
 		 DSProtocolVersion, CacheKey);
 	msg_AnswerQuery (who, buf);
-	sprintf (buf, "%s", 
-	 "$Id: d_Debug.c,v 3.8 1996-11-19 09:27:11 granger Exp $");
+	sprintf (buf, "%s", V_version());
 	msg_AnswerQuery (who, buf);
 
 	dbg_EncodeElapsed ("Up since ", &Genesis, &now, buf);
