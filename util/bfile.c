@@ -1,5 +1,5 @@
 /* 1/88 jc */
-static char *rcsid = "$Id: bfile.c,v 1.5 1990-05-15 10:28:40 corbet Exp $";
+static char *rcsid = "$Id: bfile.c,v 1.6 1990-05-17 14:56:02 corbet Exp $";
 /*
  * System-dependant binary file stuff.  These routines are needed because
  * the VMS-specific variable-length-record-format file does not exist in
@@ -35,7 +35,7 @@ char *file;
 #   ifdef NETACCESS
 	return (fd < 0 ? 0 : lun_assign (fd, LUN_LOCAL));
 #   else
-	return (fd < 0 ? 0 : fd));
+	return (fd < 0 ? 0 : fd);
 #   endif
 
 # else
