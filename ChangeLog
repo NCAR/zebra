@@ -1,3 +1,11 @@
+2000-12-08  Gary Granger  <granger@ale.atd.ucar.edu>
+
+	* The enter-widget and hardcopy-widget have been taken out of the
+	  dm.widgets load file and put in their own modules.  Older
+	  projects which need them will need to explicitly require them,
+	  such as in dm.config or in the iconbar commands which pop them
+	  up.
+
 2000-12-05  Gary Granger  <granger@ale.atd.ucar.edu>
 
 	* Moved the gp ui require function to the library and use it in dm
