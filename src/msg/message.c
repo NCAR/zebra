@@ -39,7 +39,7 @@
 # include "message.h"
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.16 1994-05-03 16:34:24 corbet Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.17 1994-05-03 17:35:34 corbet Exp $")
 /*
  * Symbol tables.
  */
@@ -173,6 +173,9 @@ int	TapperWants FP ((struct MTap *, Message *));
 void	SendTap FP ((struct MTap *, Message *));
 void	SetNonBlock FP ((int));
 void	ReallyDie FP ((void));
+void	GetInetPort FP ((void));
+
+
 
 
 
@@ -214,6 +217,11 @@ char **argv;
 		exit (1);
 	}
 	strcpy (Hostname, host);
+/*
+ * Get our inet port.  Do so even if we are not opening a listening
+ * socket, since we may want to connect outbound.
+ */
+	GetInetPort ();
 /*
  * Set up our select stuff.
  */
@@ -318,16 +326,13 @@ MakeUnixSocket ()
 
 
 
-
-
-MakeInetSocket ()
+void
+GetInetPort ()
 /*
- * Create our internet domain socket.
+ * Find out which port to use for inet connections.
  */
 {
 	struct servent *service;
-	struct sockaddr_in saddr;
-	int ntry = 0;
 /*
  * Try to look up our port number.
  */
@@ -336,6 +341,20 @@ MakeInetSocket ()
 				SERVICE_NAME);
 	else
 		Port = service->s_port;
+}
+
+
+
+
+
+
+MakeInetSocket ()
+/*
+ * Create our internet domain socket.
+ */
+{
+	struct sockaddr_in saddr;
+	int ntry = 0;
 /*
  * Get our socket.  Failures here are nonfatal, since we can, in some way,
  * get by without internet connectivity.
@@ -1823,6 +1842,8 @@ va_dcl
  	if (Dying || ! usy_g_symbol (Proc_table, "Event logger", &type, &v))
 		return;
 	conp = (struct connection *) v.us_v_ptr;
+	if (! strcmp (conp->c_name, "Event logger"))
+		return;	/* Event logger croaking */
 /*
  * Format the message.
  */
