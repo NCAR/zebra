@@ -1,7 +1,7 @@
 /*
  * Library routines for the message system.
  */
-static char *rcsid = "$Id: msg_lib.c,v 1.3 1990-07-08 13:02:22 corbet Exp $";
+static char *rcsid = "$Id: msg_lib.c,v 1.4 1990-08-01 17:03:15 corbet Exp $";
 # include <stdio.h>
 # include <varargs.h>
 # include <sys/types.h>
@@ -51,6 +51,10 @@ static struct mqueue
 	static void msg_RemQueue ();
 # endif
 
+/*
+ * How much data we write at once.
+ */
+# define DCHUNK 512
 
 /*
  * Ardent doesn't provide writev!  Berkeley my ass...
@@ -103,7 +107,7 @@ char *ident;
 /*
  * Get the greeting message.
  */
-	read (Msg_fd, &msg, sizeof (struct message));
+	msg_netread (Msg_fd, &msg, sizeof (struct message));
 	if (msg.m_proto != MT_MESSAGE || msg.m_len != sizeof (greet))
 	{
 		printf ("Funky greeting from message server: %d\n",
@@ -111,7 +115,7 @@ char *ident;
 		close (Msg_fd);
 		return (FALSE);
 	}
-	read (Msg_fd, &greet, sizeof (greet));
+	msg_netread (Msg_fd, &greet, sizeof (greet));
 /*
  * Send our Ident packet.
  */
@@ -167,7 +171,7 @@ struct message *msg;
  */
  	if (! writev (Msg_fd, iov, 2))
 		return (FALSE);
-	if (read (Msg_fd, &ret, sizeof (struct message)) <= 0)
+	if (msg_netread (Msg_fd, &ret, sizeof (struct message)) <= 0)
 		return (FALSE);
 /*
  * Make sure we got an ACK.
@@ -177,7 +181,7 @@ struct message *msg;
 		printf ("Got %d when expecting ACK!\n", ret.m_len);
 		return (FALSE);
 	}
-	read (Msg_fd, &ack, sizeof (ack));
+	msg_netread (Msg_fd, &ack, sizeof (ack));
 
 	return (TRUE);
 }
@@ -292,15 +296,15 @@ int fd;
 /*
  * Read in the message, and possibly any extra text.
  */
- 	if (read (Msg_fd, &msg, sizeof (struct message)) <= 0)
+ 	if (msg_netread (Msg_fd, &msg, sizeof (struct message)) <= 0)
 	{
-		printf ("Message handler disconnect\n");
+		perror ("Message handler disconnect");
 		if (Death_handler)
 			(*Death_handler) ();
 		return (0);
 	}
 	if (msg.m_len > 0)
-		read (Msg_fd, data, msg.m_len);
+		msg_netread (Msg_fd, data, msg.m_len);
 	msg.m_data = data;
 	
 	return (&msg);
@@ -447,7 +451,7 @@ int type, broadcast, datalen;
  */
 {
 	struct message msg;
-	struct iovec iov[2];
+	int nsent = 0;
 /*
  * Put together the message structure.
  */
@@ -457,17 +461,22 @@ int type, broadcast, datalen;
 	msg.m_seq = Seq++;
 	msg.m_len = datalen;
 /*
- * Put together the iovec.
+ * Send the message structure.
  */
- 	iov[0].iov_base = (caddr_t) &msg;
-	iov[0].iov_len = sizeof (struct message);
-	iov[1].iov_base = data;
-	iov[1].iov_len = msg.m_len;
+	if (write (Msg_fd, &msg, sizeof (struct message)) <
+			sizeof (struct message))
+		perror ("Message structure write");
 /*
- * Do it.
+ * Now send the data, in chunks.
  */
- 	if (writev (Msg_fd, iov, 2) <= 0)
-		perror ("Message write");
+	while (nsent < datalen)
+	{
+		int len = ((datalen - nsent) > DCHUNK) ? DCHUNK : 
+				(datalen - nsent);
+		if (write (Msg_fd, data + nsent, len) < len)
+			perror ("Message data write");
+		nsent += len;
+	}
 }
 
 
