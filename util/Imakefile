@@ -1,3 +1,4 @@
+/* -*- C -*- */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -15,13 +16,13 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.3 1993-12-28 20:49:08 case Exp $"
+MFVERSION="$Id: Imakefile,v 1.4 1995-05-24 22:49:35 granger Exp $"
 
 #define PassCDebugFlags /* 'CDEBUGFLAGS=$(CDEBUGFLAGS)' */
 
 LOCALLIB = libutil.a
 
-EXTRA_DEFINES = -DNETACCESS
+EXTRA_DEFINES = $(RDSS_EXTRA_DEFS) -DNETACCESS
 
 LIBOBJS = strcpyUC.o bio.o fixdir.o swap4.o vm.o batch.o sprintrmt.o \
 	  disk.o cpanic.o bfile.o parsetime.o ntdsk_client.o rtape_lib.o \
@@ -34,13 +35,24 @@ SRCS =  $(LIBSRCS)
 
 HEADERS = met_formulas.h
 
-PRIVATE_HEADERS = netdisk.h tzfile.h version.h
+PRIVATE_HEADERS = netdisk.h
 
-DISTFILES = Imakefile Makefile $(LIBSRCS) $(HEADERS) $(PRIVATE_HEADERS) 
+DISTFILES = Imakefile $(LIBSRCS) $(HEADERS) $(PRIVATE_HEADERS) 
 
-NormalLibraryTarget ($(LOCALLIB), $(LIBOBJS))
+/*
+ * When RDSS moves to R6 imake, this ifdef can be removed.
+ */
+#ifdef ProjectZebra
 
+NormalLibraryTarget(rdssutil,$(LIBOBJS))
+InstallLibrary(rdssutil,$(LIBDIR))
+
+#else /* ProjectRDSSLibs */
+
+NormalLibraryTarget($(LOCALLIB),$(LIBOBJS))
 InstallObjectsIntoLibrary($(LIBRDSSUTIL),$(LIBOBJS))
+
+#endif /* ProjectZebra */
 
 BuildIncludes($(HEADERS),.,.)
 
