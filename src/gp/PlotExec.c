@@ -1,7 +1,7 @@
 /*
  * Plot execution module
  */
-static char *rcsid = "$Id: PlotExec.c,v 2.3 1991-09-12 20:27:54 corbet Exp $";
+static char *rcsid = "$Id: PlotExec.c,v 2.4 1991-10-25 18:03:42 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -271,7 +271,10 @@ char	*component;
  * (2) Global plot not cached.
  */
 	else if (global)
+	{
 		px_GlobalPlot (&cachetime);
+		An_DoSideAnnot ();
+	}
 /*
  * (3) Update plot.
  */
