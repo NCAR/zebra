@@ -32,6 +32,17 @@ static readonly char size[4] = { 16,	12,	-9,	-16 };
 
 /*  Stroke Tables  */
 
+static readonly char ascii_027[ 28] = { 10, '\027',  -4,   13,	/* degrees */
+	   0,  10,
+	   0,  13,
+	   3,  16,
+	   6,  16,
+	   9,  13,
+	   9,  10,
+	   6,   7,
+	   3,   7,
+	   0,  10,
+	-128,   0};
 static readonly char ascii_040[  6] = {  1, '\040',  -8,   8,	/*   */
 	-128,   0};
 static readonly char ascii_041[ 34] = { 15, '\041',  -5,   5,	/* ! */
@@ -2464,7 +2475,7 @@ globaldef readonly
 # endif
 char *Gt_sf_0[128] = {
 	size, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 0, ascii_027, 0, 0, 0, 0, 0, 0, 0, 0, 
 	ascii_040, ascii_041, ascii_042, ascii_043,
 	ascii_044, ascii_045, ascii_046, ascii_047,
 	ascii_050, ascii_051, ascii_052, ascii_053,

@@ -1,4 +1,4 @@
-/* $Id: sfont_1.c,v 1.2 1989-08-07 14:30:55 corbet Exp $ */
+/* $Id: sfont_1.c,v 1.3 1989-11-22 10:27:01 burghart Exp $ */
 /*
  *  GKL_SF2 - GKS Stroke Font 2
  *
@@ -40,6 +40,17 @@ static readonly char size[4] = { 16,	12,	-9,	-16 };
 
 /*  Stroke Tables  */
 
+static readonly char ascii_027[ 24] = { 10, '\027',  -7,   16,	/* degrees */
+	   0,  10,
+	   0,  13,
+	   3,  16,
+	   6,  16,
+	   9,  13,
+	   9,  10,
+	   6,   7,
+	   3,   7,
+	   0,  10,
+	-128,   0};
 static readonly char ascii_040[  6] = {  1, '\040',  -9,   9,	/*   */
 	-128,   0};
 static readonly char ascii_041[ 28] = { 12, '\041',  -5,   7,	/* ! */
@@ -1665,7 +1676,7 @@ globaldef readonly
 # endif
 char *Gt_sf_1[128] = {
 	size, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 0, ascii_027, 0, 0, 0, 0, 0, 0, 0, 0, 
 	ascii_040, ascii_041, ascii_042, ascii_043,
 	ascii_044, ascii_045, ascii_046, ascii_047,
 	ascii_050, ascii_051, ascii_052, ascii_053,
