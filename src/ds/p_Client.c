@@ -190,6 +190,37 @@ dt_ClientPlatStruct (int pid, const char *name)
 
 
 
+static void
+dt_ClientFillSubplats (Platform *p)
+/*
+ * This platform needs its local array of subplatforms filled.
+ * Ask the daemon to give us the list with a subplatform search.
+ */
+{
+    int i;
+    int npid = 0;
+    PlatformId *pids;
+
+    /* 
+     * We could check for consistency here between the number of subplats
+     * the parent platform thinks it should have and the number sent by
+     * the daemon, but we give the daemon absolute authority instead.
+     */
+    p->dp_subplats = 0;
+    p->dp_nsubplats = 0;
+    pids = ds_LookupSubplatforms (p->dp_id, &npid);
+
+    if (pids)
+    {
+	for (i = 0; i < npid; ++i)
+	    dt_AddSubPlat (p, pids[i]);
+	free (pids);
+    }
+}
+
+
+
+
 static int
 dt_AwaitPlat (msg, p)
 Message *msg;
@@ -234,6 +265,10 @@ Platform **p;
 		{
 			*p = (Platform *) malloc (sizeof (Platform));
 			**p = ans->dsp_plat;
+			if ((*p)->dp_nsubplats > 0)
+			{
+			    dt_ClientFillSubplats (*p);
+			}
 		}
 		else
 			*p = NULL;
