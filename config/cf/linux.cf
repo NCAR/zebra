@@ -7,9 +7,11 @@ XCOMM platform:  $XConsortium: linux.cf,v 1.11 95/01/23 18:32:03 kaleb Exp $
 #define OSTeenyVersion		0
 
 #ifndef UseElfFormat
-#define UseElfFormat		NO
+#  define UseElfFormat		NO
 #endif
-#define HasGcc			YES
+#ifndef HasGcc
+#  define HasGcc		YES
+#endif
 #define HasGcc2			YES
 #define HasGcc2ForCplusplus	YES
 #define GccUsesGas		YES
