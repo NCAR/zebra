@@ -22,7 +22,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: Archiver.c,v 1.2 1991-09-25 22:15:39 burghart Exp $";
+static char *rcsid = "$Id: Archiver.c,v 1.3 1991-09-26 15:38:27 gracio Exp $";
 
 # include <copyright.h>
 # include <stdio.h>
@@ -41,6 +41,7 @@ static char *rcsid = "$Id: Archiver.c,v 1.2 1991-09-25 22:15:39 burghart Exp $";
 # include "../include/defs.h"
 # include "../include/message.h"
 # include "../include/timer.h"
+# include "../include/config.h"
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dslib.h"
@@ -56,7 +57,7 @@ static char *rcsid = "$Id: Archiver.c,v 1.2 1991-09-25 22:15:39 burghart Exp $";
  *
  * The scheme:
  
- 	cd to /fcc/data
+ 	cd to $ZEBHOME/fcc/data
 	Figure out files dumped some other time
 	open tape drive (position?)
 	do forever:
@@ -73,7 +74,7 @@ static char *rcsid = "$Id: Archiver.c,v 1.2 1991-09-25 22:15:39 burghart Exp $";
  * the latest data which has been written.
  */
 stbl	DumpedTable;
-# define LISTFILE	"/fcc/data/DumpedFiles"
+char listfile[200];	
 
 /*
  * Tape drive information.
@@ -147,7 +148,7 @@ char **argv;
  */
 	MakeWidget (&argc, argv);
 
-	chdir ("/fcc/data");
+	chdir (DATADIR);
 	LoadFileList ();
 	SetStatus ("Awaiting tape");
 # ifdef notdef
@@ -344,8 +345,9 @@ LoadFileList ()
 /*
  * Open up the file.
  */
+	sprintf (listfile, "%s/DumpedFiles", DATADIR);
 	DumpedTable = usy_c_stbl ("DumpedTable");
-	if ((fp = fopen (LISTFILE, "r")) == NULL)
+	if ((fp = fopen (listfile, "r")) == NULL)
 	{
 		msg_ELog (EF_INFO, "No dumped file list");
 		return;
@@ -582,9 +584,10 @@ UpdateList ()
 /*
  * Open up the file.
  */
-	if ((fp = fopen (LISTFILE, "w")) == NULL)
+	sprintf (listfile, "%s/DumpedFiles", DATADIR);
+	if ((fp = fopen (listfile, "w")) == NULL)
 	{
-		msg_ELog (EF_PROBLEM, "Unable to open %s", LISTFILE);
+		msg_ELog (EF_PROBLEM, "Unable to open %s", listfile);
 		return;
 	}
 /*
