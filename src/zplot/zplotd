@@ -31,7 +31,7 @@ $project=".";
 	  "iss1/class", 	"iss1 class",
 	  "iss1/prof915h",	"iss1 prof915l",
 	  "iss1/rass915",	"iss1 rass",
-	  "iss1/surface_met",	"iss1 surfmet surfwind surfrad",
+	  "iss1/surface_met",	"iss1 surfmet surfwind surfrad"
 	  );
 
 @Queue = ();
@@ -115,18 +115,26 @@ print "Log file: $log\n";
 $EL = "true";
 #$EL = "$zbin/EventLogger -n -l epic -f logs/zebra.$dt.log";
 
-# Make sure zebra is running
+# Make sure zebra is running; usually it should already be running
 if (system("ZEB_TOPDIR=\"$ztop\" ZEB_EVENTLOGGER=\"$EL\" $zbin/zstart -n -ds -preserve -data /net/sssf2/forestabl $project"))
 {
     die "Failed to start zebra.\n";
 }
 sleep 5;
 
+# Request a rescan to check for new data files; we shouldn't need to wait
+# for the rescan to finish, since later queries of the daemon should just
+# block until the rescan is done.
+
+!system("dsrescan -all") || print "*** dsrescan failed ***";
+sleep 15;
+
 $timeout = 30;
 
 # Open our source for platform and file notices
 if ($since)
 {
+    $until = "$since.update";
     # If we're only plotting since a given time, get our platform list from 
     # the dfsince script.
     print "Opening dfsince $since ...\n";
@@ -190,6 +198,9 @@ close DS;
 # Clear anything left in the queue
 &clear;
 
+# Now we can update the times to which we've plotted
+# move $until into $since
+
 # Make sure we exit, even if it means aborting a hang
 $SIG{'ALRM'} = 'exit';
 alarm(30);
@@ -204,117 +215,123 @@ exit 0;
 
 sub clear
 {
-        alarm(0);
-	print "Clearing queue...\n" if $debug;
+    $result = 1;
+    alarm(0);
+    print "Clearing queue...\n" if $debug;
 
-	if ($#Queue < 0)
+    if ($#Queue < 0)
+    {
+	print "clear: No platforms in queue.\n";
+	return 1;
+    }
+
+    $dt = `date -u '+%y%m%d.%H%M'`;
+    chop $dt;
+    $plog="logs/plot.$dt.log";
+    open(PLOG, "> $plog") || die "could not open $plog: $!\n";
+    $oldfh = select(PLOG); $| = 1; select($oldfh);
+
+    # Map the platforms in the queue into an array
+    # of display configs and windows
+    #foreach $entry (@Queue)
+    #{
+    #   ($platform, $time) = split(/\s+/,$entry);
+    #    ($config, @window) = split(/\s+/,$Plots{$platform});
+    #    print "$platform $time --> " .
+    #	"$config " . join(" ",@window) . "\n";
+    #    print PLOG "$platform $time --> " .
+    #	"$config " . join(" ",@window) . "\n";
+    #    foreach $w (@window)
+    #    {
+    #	if (index($Displays{$config},"$w") < 0)
+    #	{
+    #	    $Displays{$config} .= " $w ";
+    #	}
+    #    }
+    #}
+
+    # Finally we can plot each config and its windows
+    # Open batch-plot and pipe our plot entries to it
+
+    $images = "";
+    $status="ok";
+    $batch = "/tmp/zplotd.batch.$$";
+    print "Opening $batch...\n" if $debug;
+    if (! open (BATCH, "> $batch"))
+    {
+	$status="FAILED $batch: $!";
+	print "$status" if $debug;
+	return 0;
+    }
+    foreach $entry (@Queue)
+    {
+	($platform, $time, $config, @window) = split(/\s+/,$entry);
+	$plot = "$time $config " . join(" ",@window);
+	print "$plot\n";
+	print PLOG "$plot\n";
+	print BATCH "$plot\n";
+    }
+    close BATCH;
+    print "Running: sh -x ./batch-plot - < $batch\n";
+    if ($debug < $D_NoPlot)
+    {
+	if (! open (BP, "sh -x ./batch-plot - < $batch 2>&1 |"))
 	{
-	    print "clear: No platforms in queue.\n";
-	    return;
-	}
-
-	$dt = `date -u '+%y%m%d.%H%M'`;
-	chop $dt;
-	$plog="logs/plot.$dt.log";
-	open(PLOG, "> $plog") || die "could not open $plog: $!\n";
-	$oldfh = select(PLOG); $| = 1; select($oldfh);
-
-	# Map the platforms in the queue into an array
-	# of display configs and windows
-	#foreach $entry (@Queue)
-	#{
-	#   ($platform, $time) = split(/\s+/,$entry);
-	#    ($config, @window) = split(/\s+/,$Plots{$platform});
-	#    print "$platform $time --> " .
-	#	"$config " . join(" ",@window) . "\n";
-	#    print PLOG "$platform $time --> " .
-	#	"$config " . join(" ",@window) . "\n";
-	#    foreach $w (@window)
-	#    {
-	#	if (index($Displays{$config},"$w") < 0)
-	#	{
-	#	    $Displays{$config} .= " $w ";
-	#	}
-	#    }
-	#}
-
-	# Finally we can plot each config and its windows
-	# Open batch-plot and pipe our plot entries to it
-
-	$images = "";
-	$status="ok";
-	$batch = "/tmp/zplotd.batch.$$";
-	print "Opening $batch...\n" if $debug;
-	if (! open (BATCH, "> $batch"))
-	{
-	    $status="FAILED $batch: $!";
+	    $status="FAILED batch-plot: $!";
 	    print "$status" if $debug;
-	    return;
+	    return 0;
 	}
-	foreach $entry (@Queue)
+	while (<BP>)
 	{
-	    ($platform, $time, $config, @window) = split(/\s+/,$entry);
-	    $plot = "$time $config " . join(" ",@window);
-	    print "$plot\n";
-	    print PLOG "$plot\n";
-	    print BATCH "$plot\n";
-	}
-	close BATCH;
-	print "Running: sh -x ./batch-plot - < $batch\n";
-	if ($debug < $D_NoPlot)
-	{
-	    if (! open (BP, "sh -x ./batch-plot - < $batch 2>&1 |"))
+	    print;
+	    print PLOG;
+	    if (/^Images: (.*)$/)
 	    {
-		$status="FAILED batch-plot: $!";
-		print "$status" if $debug;
-		return;
+		$images .= " $1 ";
 	    }
-	    while (<BP>)
-	    {
-		print;
-		print PLOG;
-		if (/^Images: (.*)$/)
-		{
-		    $images .= " $1 ";
-		}
-	    }
-	    close BP;
-	    $status = "plot FAILED" if ($?);
 	}
-	unlink("$batch");
-	print "Running: ftpjoss.pl $images\n" unless ($D_NoFtp);
-	if ($D_NoFtp)
-	{ }
-	elsif (open (FTP, "ftpjoss.pl $images 2>&1 |"))
+	close BP;
+	$status = "plot FAILED" if ($?);
+    }
+    unlink("$batch");
+    print "Running: ftpjoss.pl $images\n" unless ($D_NoFtp);
+    if ($D_NoFtp)
+    { }
+    elsif (open (FTP, "ftpjoss.pl $images 2>&1 |"))
+    {
+	while (<FTP>)
 	{
-	    while (<FTP>)
-	    {
-		print;
-		print PLOG;
-	    }
-	    close FTP;
-	    $status = "FAILED" if ($?);
+	    print;
+	    print PLOG;
 	}
-	else
-	{
-	    $status="ftp FAILED";
+	close FTP;
+	if ($?) {
+	    $status = "FAILED";
+	    $result = 0;
 	}
+    }
+    else
+    {
+	$status="ftp FAILED";
+	$result = 0;
+    }
 
-	close PLOG;
-	$cmd = "elm -s \"zplotd $status, log $plog\" " .
-	       " granger <$plog >/dev/null";
-	print "$cmd\n";
-	if ($debug < $D_NoEmail && system($cmd))
-	{
-	    print "*** Mail failed! ***\n";
-	}
-	else
-	{
-	    print "--- Done. ---\n";
-	}
-	@Queue = ();
-	%Pending = ();
-	%Displays = ();
+    close PLOG;
+    $cmd = "elm -s \"zplotd $status, log $plog\" " .
+	" granger <$plog >/dev/null";
+    print "$cmd\n";
+    if ($debug < $D_NoEmail && system($cmd))
+    {
+	print "*** Mail failed! ***\n";
+    }
+    else
+    {
+	print "--- Done. ---\n";
+    }
+    @Queue = ();
+    %Pending = ();
+    %Displays = ();
+    return $result;
 }
 
 
