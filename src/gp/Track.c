@@ -1,7 +1,7 @@
 /*
  * Track drawing routines.
  */
-static char *rcsid = "$Id: Track.c,v 1.7 1990-12-04 15:12:30 corbet Exp $";
+static char *rcsid = "$Id: Track.c,v 1.8 1990-12-04 21:30:05 corbet Exp $";
 
 
 # include <X11/Intrinsic.h>
@@ -36,7 +36,7 @@ char *comp;
 bool update;
 {
 	char platform[30], tp[30], ccfield[30], ctable[30];
-	char *fields[5], mtcolor[20], string[40];
+	char *fields[5], mtcolor[20], string[40], format[30];
 	int period, dsperiod, x0, y0, x1, y1, nc, lwidth, pid;
 	int dskip = 0, npt = 0, i, top, bottom, left, right, wheight, mid;
 	bool mono;
@@ -214,7 +214,13 @@ bool update;
 			string, 0.0, 0.02, JustifyLeft, JustifyTop);
 		top += (int)(1.2 * 0.02 * wheight);
 	/*
-	 * Numbers too.
+	 * See if there is a special printf format for this field.
+	 */
+		if (! pda_Search (Pd, comp, "annotation-format", ccfield,
+					format, SYMT_STRING))
+			strcpy (format, "%.1f");
+	/*
+	 * Then put in the annotation.
 	 */
 		cval = base + incr/2.0;
 		for (i = 0; i <= nc; i++)
@@ -223,7 +229,7 @@ bool update;
 		 * Numeric label
 		 */
 			cval += incr;
-			sprintf (string, "%.1f", cval);
+			sprintf (string, format, cval);
 			DrawText (Graphics, GWFrame (Graphics),
 				colors[i].pixel, EVEN(i) ? left : mid, top,
 				string, 0.0, 0.02, JustifyLeft, JustifyTop);
