@@ -24,58 +24,61 @@
 # include <defs.h>
 # include <message.h>
 # include "DataStore.h"
-# include "ds_fields.h"
-# include "DataChunk.h"
 # include "DataChunkP.h"
 
-RCSID ("$Id: dc_Scalar.c,v 1.9 1996-09-19 03:56:40 granger Exp $")
-
-# define SUPERCLASS DCC_MetData
-
-/*
- * Our class-specific AuxData structure types.
- */
-# define ST_FLDINFO	1
+RCSID ("$Id: dc_Scalar.c,v 1.10 1996-11-19 09:50:41 granger Exp $")
 
 
 /*
  * Local routines.
  */
-static DataChunk *dc_ScCreate FP((DataClass));
+static DataChunk *sc_Create FP((DataChunk *));
 
-RawDCClass ScalarMethods =
+/*
+ * Scalar datachunks have no instance information.
+ */
+typedef struct _ScalarDataChunk
 {
-	"Scalar",
+	RawDataChunkPart	rawpart;
+	TranspDataChunkPart	transpart;
+	MetDataChunkPart	metpart;
+	ScalarDataChunkPart	scalarpart;
+} ScalarDataChunk;
+
+# define SUPERCLASS ((DataClassP)&MetDataMethods)
+
+
+RawClass ScalarMethods =
+{
+	DCID_Scalar,		/* Class id */
+	"Scalar",		/* Class name */
 	SUPERCLASS,		/* Superclass			*/
 	3,			/* Depth, Raw = 0		*/
-	dc_ScCreate,
-	InheritMethod,		/* No special destroy		*/
-	0,			/* Add??			*/
+	sc_Create,
+	0,			/* No special destroy		*/
+	0,			/* Add				*/
 	0,			/* Dump				*/
+
+	0,			/* No ADEs to serialize		*/
+	0,
+
+	sizeof (ScalarDataChunk)
 };
 
 
+DataClassP DCP_Scalar = (DataClassP)&ScalarMethods;
 
 
 
 static DataChunk *
-dc_ScCreate (class)
-DataClass class;
+sc_Create (dc)
+DataChunk *dc;
 /*
- * Create a chunk of this class.
+ * We have nothing to initialize.
  */
 {
-	DataChunk *dc;
-/*
- * The usual.  Make a superclass chunk and tweak it to look like us.  We don't
- * add any field info here, because we don't know it yet.
- */
-	dc = DC_ClassCreate (SUPERCLASS);
-	dc->dc_Class = class;
 	return (dc);
 }
-
-
 
 
 
@@ -88,21 +91,22 @@ FieldId *fields;
  * Set the given list as the field list for this scalar data chunk.
  */
 {
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Scalar, "SetScalarFields"))
+	if (! dc_ReqSubClass (dc, DCP_Scalar, "SetScalarFields"))
 		return;
 /*
  * Our parent class knows enough to set the sample size hints, and we don't
  * have any per-sample overhead to add.  Scalar organization dictates only 1
  * element per field per sample.
  */
-	dc_SetupUniformOrg (dc, 0, nfield, fields, 1);
+	dc_SetupFields (dc, nfield, fields);
+	dc_SetUniformOrg (dc, 1);
 }
 
 
 
 
 
-void
+DataPtr
 dc_AddScalar (dc, t, sample, field, value)
 DataChunk *dc;
 ZebTime *t;
@@ -113,16 +117,17 @@ void *value;
  * Add this scalar datum to the data chunk.
  */
 {
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Scalar, "AddScalar"))
-		return;
-	dc_AddMData (dc, t, field, dc_SizeOf (dc, field), sample, 1, value);
+	if (! dc_ReqSubClass (dc, DCP_Scalar, "AddScalar"))
+		return (NULL);
+	return (dc_AddMData (dc, t, field, dc_SizeOf (dc, field), 
+			     sample, 1, value));
 }
 
 
 
 
 
-void
+DataPtr
 dc_AddMultScalar (dc, t, begin, nsample, field, values)
 DataChunk *dc;
 ZebTime *t;
@@ -133,16 +138,34 @@ void *values;
  * Add a set of values to this data chunk.
  */
 {
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Scalar, "AddScalar"))
-		return;
+	if (! dc_ReqSubClass (dc, DCP_Scalar, "AddScalar"))
+		return (NULL);
 /*
  * We let MetData take care of hinting to our superclasses.
  */
-	dc_AddMData(dc, t, field, dc_SizeOf(dc,field), begin, nsample, values);
+	return (dc_AddMData(dc, t, field, dc_SizeOf(dc,field), 
+			    begin, nsample, values));
 }
 
 
-static void dc_ConvertFloat FP ((float *f, void *ptr, DC_ElemType type));
+
+
+void
+dc_AddScalarMissing (dc, t, begin, nsample, field)
+DataChunk *dc;
+ZebTime *t;
+int begin, nsample;
+FieldId field;
+/*
+ * Add missing values to this data chunk.
+ */
+{
+	if (! dc_ReqSubClass (dc, DCP_Scalar, "AddScalarMissing"))
+		return;
+	dc_FillMissing (dc, t, field, dc_SizeOf(dc,field), begin, nsample);
+}
+
+
 
 
 float
@@ -158,12 +181,12 @@ FieldId field;
 	DC_ElemType type;
 	void *ptr;
 	float ret;
+	int idx;
 
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Scalar, "GetScalar"))
-		return (0.0);
 	if (! (ptr = (void *) dc_GetMData (dc, sample, field, NULL)))
 		return (dc_GetBadval (dc));
-	type = dc_Type (dc, field);
+	idx = dc_GetFieldIndex (dc, field);
+	type = dc_IndexType (dc, idx);
 	/*
 	 * Try to avoid some overhead by casting the most common types
 	 */
@@ -194,7 +217,7 @@ FieldId field;
  * Get a pointer to a scalar value in this DC.
  */
 {
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Scalar, "GetScalarData"))
+	if (! dc_ReqSubClass (dc, DCP_Scalar, "GetScalarData"))
 		return (NULL);
 	return ((void *) dc_GetMData (dc, sample, field, NULL));
 }
@@ -213,89 +236,8 @@ FieldId field;
 {
 	DC_Element ret;
 
-	memset ((char *)&ret, sizeof(ret), 0);
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Scalar, "GetScalarElement"))
-		return (ret);
 	dc_AssignElement (&ret, (void *)dc_GetMData (dc, sample, field, NULL),
-			  dc_Type(dc, field));
+			  dc_Type (dc, field));
 	return (ret);
 }
-
-
-
-/*
- * Add this here for patch purposes.  In later releases it should appear
- * with the other routines in the element interface.  For convenience,
- * this could be changed to convert to long double and all other
- * conversions can just convert from long double to their desired target.
- */
-static void
-dc_ConvertFloat (f, ptr, type)
-float *f;
-void *ptr;
-DC_ElemType type;
-/*
- * De-reference a void pointer to type, cast it to float and store it.
- */
-{
-	switch (type)
-	{
-	   case DCT_Float:
-		*f = *(float *)ptr;
-		break;
-	   case DCT_Double:
-		*f = (float) *(double *)ptr;
-		break;
-	   case DCT_LongDouble:
-		*f = (float) *(LongDouble *)ptr;
-		break;
-	   case DCT_Char:
-		*f = (float) *(char *)ptr;
-		break;
-	   case DCT_UnsignedChar:
-		*f = (float) *(unsigned char *)ptr;
-		break;
-	   case DCT_ShortInt:
-		*f = (float) *(short *)ptr;
-		break;
-	   case DCT_UnsignedShort:
-		*f = (float) *(unsigned short *)ptr;
-		break;
-	   case DCT_Integer:
-		*f = (float) *(int *)ptr;
-		break;
-	   case DCT_UnsignedInt:
-		*f = (float) *(unsigned int *)ptr;
-		break;
-	   case DCT_LongInt:
-		*f = (float) *(long int *)ptr;
-		break;
-	   case DCT_UnsignedLong:
-		*f = (float) *(unsigned long *)ptr;
-		break;
-#ifdef notdef	/* would this be atof() or byte->float? */
-	   case DCT_String:
-		*f = *(char **)ptr;
-		break;
-#endif
-	   case DCT_Boolean:
-		*f = (float) *(unsigned char *)ptr;
-		break;
-	   case DCT_ZebTime:
-		*f = (float) (((ZebTime *)ptr)->zt_Sec);
-		break;
-#ifdef notdef
-	   case DCT_VoidPointer:
-		*f = (float) ptr;
-	        break;
-	   case DCT_Element:
-		*e = *(DC_Element *)ptr;
-		break;
-#endif
-	   default:
-		*f = 0;
-		break;
-	}
-}
-
 
