@@ -27,7 +27,7 @@ NavMethods;
 #ifdef UNDERSCORE
 #define fname(base) base ## _
 #else
-#define fname(base)
+#define fname(base) base
 #endif
 
 #define NAV_PROTO(methods,name,base) \
