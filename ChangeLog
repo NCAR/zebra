@@ -1,3 +1,14 @@
+Thu Jan 19 11:53:39 1995  Gary Granger  <granger@narnia.atd.ucar.edu>
+
+	* config symbols for field name and units string lengths, and
+	  for maximum field id in fields table; ARM project settings
+
+	* alternative time formats in netcdf files: accept either
+	  time_offset or time variables, of types double, float, or long;
+	  reference time for 'time' variable contained in units attribute
+	  using udunits syntax; any alternative can be chosen at file
+	  creation using details
+
 Sat Dec  3 00:24:57 1994  Gary Granger  <granger@narnia.atd.ucar.edu>
 
 	* ds: V4-0-patches merged up to patchlevel 3: convert netcdf
