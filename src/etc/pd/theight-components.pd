@@ -11,7 +11,7 @@ winds
 	color:			cyan
 	data-skip:              0
 	icon:                   iss-prof
-	icon-left-menu:         minimal-cap-left-menu
+	icon-left-menu:         vertical-left
 	icon-middle-menu:       time-height-winds
 	icon-right-menu:        DataAvailable
 	platform:               null
@@ -28,7 +28,7 @@ contour
 	color-table:		Contour
 	do-side-annotation:	true
 	icon:			iss-contour
-	icon-left-menu:		medium-cap-left-menu
+	icon-left-menu:		vertical-left
 	icon-middle-menu:	FieldMenu param=z-field
 	icon-right-menu:	contour-right
 	limit-proc:		thc-climits

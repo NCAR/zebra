@@ -37,7 +37,7 @@ grid
 	icon:			grid
 	icon-left-menu:		minimal-cap-left-menu
 	icon-middle-menu:	simple-color
-	icon-right-menu:	xyaxes-time-menu
+	icon-right-menu:	xyaxis-time-height-menu
 	require:		xytrace
 	color-tweaker:		xygrid-color-tweaker
 	platform:		null

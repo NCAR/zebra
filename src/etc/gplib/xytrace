@@ -1,7 +1,7 @@
 !
 ! XYGraph[simple] support stuff.
 !
-! $Id: xytrace,v 1.14 2000-12-01 23:49:32 granger Exp $
+! $Id: xytrace,v 1.15 2000-12-05 19:10:25 granger Exp $
 
 require xyaxes
 require annotation
@@ -39,6 +39,9 @@ define widget xytrace-left intmenu 'x'
         title 'XY Trace'
 	line
 	entry 'Adjust limits' 'i_adjust limit-proc'
+	entry 'Enable side annotation' \
+		'ToggleBoolean "do-side-annotation"' \
+		(PDParam(icon_component,"do-side-annotation") <> "false")
         submenu 'Side annotation size' side-annot-scale
 	entry 'Clone this component...' 'xyaddfield'
         line
@@ -509,7 +512,7 @@ endprocedure
 ! Call our add method with this component's platform value
 !
 procedure unused-xyaddfield
-	# shipscalar platform field window_name
+	! shipscalar platform field window_name
 	local platform PDParam(icon_component,"platform")
 	local field PDParam(icon_component,"y-field")
 	local dmcmd concat4("ShipScalar ",platform," ",field)
@@ -518,7 +521,7 @@ procedure unused-xyaddfield
 endprocedure
 
 procedure xyaddfield
-	# add window_name icon_component window_name
+	! add window_name icon_component window_name
 	local dmcmd concat4("add ",window_name," ",icon_component)
 	local dmcmd quote(concat3(dmcmd," ",window_name))
 	dm #dmcmd

@@ -4,7 +4,6 @@
 
 require form-utilities
 require xytrace
-require time-height-add
 
 ! Historically this was here, so may as well include it
 !
@@ -28,6 +27,23 @@ define widget vertical-global-left intmenu 'Global left menu'
 	line
 	entry 'Help on this Plot Type' 'plot-type-help'
 endmenu
+
+
+define widget vertical-left intmenu 'x'
+        title 'Time-height component'
+	line
+	entry 'Enable side annotation' \
+		'ToggleBoolean "do-side-annotation"' \
+		(PDParam(icon_component,"do-side-annotation") <> "false")
+        submenu 'Side annotation size' side-annot-scale
+        line
+        entry 'Raise to top' 'move #icon_component 0'
+        entry 'Move to bottom' 'move #icon_component 1'
+        entry 'Disable/reenable' 'ToggleBoolean "disable"' \
+                (PDParam(icon_component,"disable") = "true")
+        entry 'Remove' 'i_remove_component'
+endmenu
+
 
 
 !
