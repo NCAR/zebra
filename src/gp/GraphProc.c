@@ -48,7 +48,7 @@
 # include "PixelCoord.h"
 # include "LayoutControl.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.30 1993-09-27 21:22:26 corbet Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.31 1993-09-27 21:47:57 corbet Exp $")
 
 /*
  * Default resources.
@@ -369,7 +369,7 @@ finish_setup ()
 		strcat (MapPath, ",");
 		strcat (MapPath, getenv ("GP_MAP_DIR"));
 	}
-	sprintf (RequirePath, "%s/gp", GetLibDir ());
+	sprintf (RequirePath, "%s/gplib", GetLibDir ());
 /*
  * Pull in the widget definition file.
  */
