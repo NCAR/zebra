@@ -1,5 +1,6 @@
-/*
- * Zeb configuration parameters.
+/* -*- C -*-
+ *
+ * Zebra configuration parameters.
  * -------------------------------
  * In this file you can override any of the default configuration
  * parameters.  All of the parameters are definition directives for
@@ -15,18 +16,17 @@
 
 #define Symbol NO
 
- * Some symbols are not YES or NO but actually directory names or
- * commands.  If a Symbol is not defined in this file, it will be 
- * assigned a default definition in the Zeb template file, Zeb.tmpl, 
- * in this directory.  Most of the defaults are mentioned in this
- * file and there are instructions for how to change many of the
- * configuration parameters.  However, many more parameters exist.
- * If you think it necessary to change some other parameters, such
- * as when porting to a new platform, look in the Zeb.tmpl file 
- * for all of the available parameters and their defaults.  Also
- * see Zeb-Imake.doc in this directory.  When in doubt about a 
- * parameter, try the default first and then adjust it if it doesn't
- *  work.
+ * Some symbols are not YES or NO but actually directory names or commands.
+ * If a Symbol is not defined in this file, it will be assigned a default
+ * definition in the Zebra template file, Zeb.tmpl, in this directory.
+ * Most of the defaults are mentioned in this file and there are
+ * instructions for how to change many of the configuration parameters.
+ * However, many more parameters exist.  If you think it necessary to
+ * change some other parameters, such as when porting to a new platform,
+ * look in the Zeb.tmpl file for all of the available parameters and their
+ * defaults.  Also see Zeb-Imake.doc in this directory.  When in doubt
+ * about a parameter, try the default first and then adjust it if it
+ * doesn't work.
  */
 
 /*============================== Don't change anything in this section ==*/
@@ -35,17 +35,9 @@
 # ifndef _zeb_config_h_		/* protect against multiple inclusion */
 # define _zeb_config_h_
 
-# ifdef MAKING_MAKEFILE
-# ifndef XCOMM
-# define XCOMM #
-# endif
-XCOMM -----------------------------------------------------------------------
-XCOMM Definitions from config.h included here.  The definitions here override
-XCOMM the defaults in Project.tmpl.  See ...../zeb/config/config.h.
-XCOMM $Id: config.h.dist,v 1.25 1995-04-13 20:50:36 corbet Exp $
-XCOMM -----------------------------------------------------------------------
-# endif
-
+/*
+ * Required when being included from a source file
+ */
 # ifndef YES
 #	define YES 1
 # endif
@@ -53,14 +45,27 @@ XCOMM -----------------------------------------------------------------------
 #	define NO 0
 # endif
 
+# ifdef MAKING_MAKEFILE
+XCOMM -----------------------------------------------------------------------
+XCOMM Definitions from config.h included here.  The definitions here override
+XCOMM the defaults in Project.tmpl.  See ...../zeb/config/config.h.
+XCOMM $Id: config.h.dist,v 1.26 1995-04-14 23:58:29 granger Exp $
+XCOMM -----------------------------------------------------------------------
+# endif
+
 /*_/////////////////////////////////////////////////////////////////////-*/
 /*=======================================================================*/
 
 /*
- * Which help browser do you want to use?  If you set UseMosaic to YES, then
- * Mosaic will be used; otherwise the (old) xhelp browser will be used.
- * Xhelp is almost certain to be removed from future releases, so the use
- * of Mosaic is recommended.
+ * Which help browser do you want to use?  If you set UseMosaic to YES,
+ * then Mosaic will be used; otherwise the (old) xhelp browser will be
+ * used.  Xhelp is almost certain to be removed from future releases, so
+ * the use of Mosaic is recommended.  The default definition for UseMosaic
+ * is YES.  Use the MOSAIC_COMMAND symbol to define a default path to
+ * Mosaic; it can be either an absolute path or an executable name.  If
+ * left commented out, zebra looks for Mosaic and xmosaic on your path.  If
+ * defined, zebra checks the defined path before trying the other options.
+ * The path must be quoted.
  *
  * The UseXHelp variable in the display manager can be used to override this
  * definition at run time.
@@ -69,27 +74,40 @@ XCOMM -----------------------------------------------------------------------
  * but you can get it in binary or source form from ftp.ncsa.uiuc.edu.
  */
 # define UseMosaic YES
+/* # define MOSAIC_COMMAND "Mosaic" */
 
+/*
+ * If you're using Mosaic exclusively and do not want to build or install
+ * the xhelp utility, define BuildXHelp to NO.  It defaults to NO if
+ * UseMosaic is YES and BuildXHelp is not defined.  If you want the default
+ * to be Mosaic, but you still want to compile xhelp capability, define
+ * BuildXHelp to YES and UseMosaic to YES.  If BuildXHelp is NO, then zebra
+ * will always try to use Mosaic no matter what (since xhelp won't be there).
+ *
+ * If you have Mosaic and will not be using older project configurations
+ * such as the StormFEST CD's (which have project-specific info under xhelp),
+ * then you may as well define this to NO.
+ */
+# define BuildXHelp YES
 
 # ifdef MAKING_MAKEFILE
 /*=======================================================================
  * CHECK THE FOLLOWING DEFINITIONS:
  * 
- * This section defines the directories in which ZEB files live.  These are
- * set-up for a default Zeb installation under /zeb, with the bin and lib
- * directories in /zeb/bin and /zeb/lib.  If you would like to change the
- * destination for Zeb, edit the definitions below.  The definitions should
- * be absolute paths and they should NOT be enclosed in quotes.
+ * This section defines the directories in which Zebra files live.  These
+ * are set-up for a default Zebra installation under /zeb, with the bin and
+ * lib directories in /zeb/bin and /zeb/lib.  If you would like to change
+ * the destination for Zebra, edit the definitions below.  The definitions
+ * should be absolute paths and they should NOT be enclosed in quotes.
  * 
  * PLEASE NOTE:
  * Files will be installed into the LibDir, BinDir, and BaseDir/include
  * directories.  If you wish to preserve files already stored in these
- * directories, either move the directories BEFORE building Zeb or specify
- * different directory paths for the symbols below.  If you wish to
- * overwrite a previous version of Zeb, you might as well completely erase
- * the contents of BinDir so that programs which are no longer used are not
- * left taking up space.
- */
+ * directories, either move the directories BEFORE building Zebra or
+ * specify different directory paths for the symbols below.  If you wish to
+ * overwrite a previous version of Zebra, you might as well completely
+ * erase the contents of BinDir so that programs which are no longer used
+ * are not left taking up space.  */
 
 # define BaseDir	/zeb
 # define BinDir		BaseDir/bin
@@ -98,7 +116,7 @@ XCOMM -----------------------------------------------------------------------
 # define RDSSDir	/rdss
 
 /*
- * If the UseInstalledZeb symbol is YES, Zeb executables will link with
+ * If the UseInstalledZeb symbol is YES, Zebra executables will link with
  * the installed libraries instead of the libraries built in the source 
  * directories.  Sometimes it is more convenient to link with the source.
  * If you don't understand or don't care about the difference, leave this
@@ -109,7 +127,7 @@ XCOMM -----------------------------------------------------------------------
 /*=======================================================================*/
 
 /* =========================================================================
- * The following definitions determine which parts of the Zeb system will
+ * The following definitions determine which parts of the Zebra system will
  * be compiled and installed in the build process.
  *
  * 	YES --- The capability WILL be compiled into the system.
@@ -118,8 +136,8 @@ XCOMM -----------------------------------------------------------------------
    ------------------------------------------------------------------------ */
 
 /* 
- * Do you want to build any of Zeb's ingest modules?  Only recommended for
- * Sun machines, and only if you know that you need them.
+ * Do you want to build any of Zebra's ingest modules?  Only recommended
+ * for Sun machines, and only if you know that you need them.
  */
 #define BuildIngest NO
 
@@ -174,7 +192,7 @@ XCOMM -----------------------------------------------------------------------
 
 /*
  * The data file utilities are the program for handling various file 
- * and converting files to Zeb's netCDF conventions.  Some examples
+ * and converting files to Zebra's netCDF conventions.  Some examples
  * are gprotocdf and mudtocdf, for GENPRO and MUDRAS, respectively.
  * Unless you know you will need them, you might as well wait and only
  * compile the programs you need when you need them.
@@ -195,19 +213,18 @@ XCOMM -----------------------------------------------------------------------
  * MIT's X Windows or Sun's OpenWindows, and whether you want to use Sun's
  * C compiler, cc, or GNU C, gcc, or some other C compiler.  Other
  * parameters indicate the availability of certain capabilities utilized by
- * Zeb, such as the X Shared Memory extension.
+ * Zebra, such as the X Shared Memory extension.
  *
  * By default, the configuration will attempt to compile with your systems
  * default C compiler and link with X libraries from /usr/lib or any other
  * standard library directories.  You can link with MIT's X and still use
- * Zeb under OpenWindows, and vice versa.  Zeb must know if it is being
+ * Zebra under OpenWindows, and vice versa.  Zebra must know if it is being
  * linked with OpenWindows, however, because the build must make some
  * adjustments in order to link properly.  If you have MIT's X
  * distribution, Release 4 or 5, use it.  If you only have OpenWindows,
  * version 2 or 3, then use that (the most recent version possible) and
  * define the UseOpenWindows symbol below to YES and the OpenWindowsVersion
  * symbol to the appropriate version number
- *
  */
 
 /*
@@ -266,10 +283,10 @@ XCOMM -----------------------------------------------------------------------
 # define EmacsPath emacs
 
 /*
- * Zeb uses the RDSS UI compiler to generate load files for much of its
- * user interface.  If the UI compiler, uic, is not in your path,
- * define the full path of uic, including the executable name, in the
- * symbol UicCmd.  The default value is just 'uic'.
+ * Zebra uses the RDSS UI compiler to generate load files for much of its
+ * user interface.  If the UI compiler, uic, is not in your path, define
+ * the full path of uic, including the executable name, in the symbol
+ * UicCmd.  The default value is just 'uic'.
  */
 /* # define UicCmd /rdss/bin/uic */
 
@@ -312,14 +329,18 @@ XCOMM -----------------------------------------------------------------------
  */
 # define CCOptions -O
 
+#ifdef HPArchitecture
+# define FortOptions -O +ppu
+#else
 # define FortOptions -O
+#endif
 /* # define FortOptions -O +ppu */	/* HPUX version */
 
 /*
- * During compilation, Zeb's source files must be able to find lots
+ * During compilation, Zebra's source files must be able to find lots
  * of include files.  By default, your compiler should check the
  * standard include directories like /usr/include.  If the header files
- * for any package that Zeb requires are not in some standard location,
+ * for any package that Zebra requires are not in some standard location,
  * the correct directories need to be defined here.  Note that even if
  * an include directory is in a compiler's default path, it may not be
  * in makedepend's. If in doubt, try the defaults first.
@@ -339,13 +360,17 @@ XCOMM -----------------------------------------------------------------------
  * compilers will not.
  */
 
+#ifdef HPArchitecture
+# define XIncDir /usr/contrib/mitX11R5/include	/* HP-UX version */
+#else
 /* # define XIncDir /local/X11R5/include */
-/* # define XIncDir /usr/contrib/mitX11R5/include */  /* HPUX version */
+#endif
+
 #define NetCDFIncDir /usr/local/include
 
 /*
  * During linking, the linker must be told where to find the libraries 
- * for the various packages which Zeb requires.  The locations of these
+ * for the various packages which Zebra requires.  The locations of these
  * libraries can be defined in the following parameters.  All of these
  * default to empty, meaning that the libraries will be found in the
  * system's default library search path.  If any of these are defined, then
@@ -466,6 +491,11 @@ XCOMM -----------------------------------------------------------------------
  * so it really does have to point explicitly at SC3.0...*/
 /* # define FortranLibraries -L/opt/SUNWspro/SC2.0.1 -lF77 -lV77 */
 /* # define FortranLibraries -L/opt/SUNWspro/SC3.0/lib -lF77 -lV77 -lsunmath */
+/*
+ * Solaris, SC3.0.1, for some reason (for some programs) now requires M77
+ */
+/* # define FortranLibraries -L/opt/SUNWspro/SC3.0.1/lib \
+		-lF77 -lV77 -lM77 -lsunmath */
 
 /* HP-UX */
 /* # define FortranLibraries -lU77 -lf -lisamstub */
@@ -477,7 +507,7 @@ XCOMM -----------------------------------------------------------------------
 /* # define FortranLibraries -lf2c */
 
 /*
- * Some of Zeb's routines require the terminal capability library,
+ * Some of Zebra's routines require the terminal capability library,
  * usually /usr/lib/libtermcap.a, and the math library, /usr/lib/libm.a.
  * These are the symbols and their defaults:
  *
@@ -505,12 +535,12 @@ XCOMM -----------------------------------------------------------------------
  * Distribution Options
  *------------------------------------------------------------------------
  * This section of definitions is meant for those who are creating a
- * customized Zeb distribution.  If you are only installing Zeb at your
- * local site, then you are finished configuring Zeb.  Save this file and
+ * customized Zebra distribution.  If you are only installing Zebra at your
+ * local site, then you are finished configuring Zebra.  Save this file and
  * continue with the installation instructions.  Otherwise, read on.
  *
- * Zeb's Imakefiles contain several built-in features meant for creating
- * and customizing Zeb distribution trees.  In particular, here are some
+ * Zebra's Imakefiles contain several built-in features meant for creating
+ * and customizing Zebra distribution trees.  In particular, here are some
  * important targets to be familiar with:
  *
  * distfiles::		Echoes to the terminal the path names of all files
@@ -550,26 +580,34 @@ XCOMM -----------------------------------------------------------------------
  * DistributeDataUtils	YES when the zeb/src/datautil directory is part 
  *			of the distribution.
  *
+ * DistributeXHelp	If YES, the makefile in zeb/src tries to build
+ *			and install in zeb/src/xhelp.  Otherwise, the
+ *			xhelp directory can be removed without harm.  Use
+ *			this to build distributions which will always
+ *			use the Mosaic help interface.
+ *
  * Therefore, if you wanted to create a distribution which did not contain
- * the ingest directory, Optimizer, or the data utilities, uncomment the
+ * the ingest directory, Optimizer, data utilities, or xhelp, uncomment the
  * following lines:
  */
 
 /* #define DistributeIngest 	NO */
 /* #define DistributeOptimizer 	NO */
 /* #define DistributeDataUtil 	NO */
+/* #define DistributeXHelp	NO */
 
 /* Next, update ALL of the distributed Makefiles with 'make distmakefiles'.
  * Now you have two options:
  *
  *	Use the top-level tarfile target to create a distribution tar file,
- *	which will NOT contain ingest, Optimizer, or datautils.
+ *	which will NOT contain ingest, Optimizer, datautils, or xhelp.
  *
- *	Explicitly remove the ingest, Optimizer, and datautils directories
- *	from your distribution.  As long as the above symbols are NO, the
- *	Imakefiles will never try to access those directories, even for
- *	any of the dist* targets.  If using a "pruned" distribution tree,
- * 	make sure the symbols alway stay set appropriately.
+ * 	Explicitly remove the ingest, Optimizer, datautils, and xhelp
+ * 	directories from your distribution.  As long as the above symbols
+ * 	are NO, the Imakefiles will never try to access those directories,
+ * 	even for any of the dist* targets.  If using a "pruned"
+ * 	distribution tree, make sure the symbols always stay set
+ * 	appropriately.
  */
  
 /* Two more symbols are also available: */
@@ -588,8 +626,8 @@ XCOMM -----------------------------------------------------------------------
 /*========================================================================
  * Selecting Graphics Process Plot Types
  *------------------------------------------------------------------------
- * The following definitions allow you to configure in or out various 
- * pieces of the zeb graphics process.  There are very few cases in which 
+ * The following definitions allow you to configure in or out various
+ * pieces of the Zebra graphics process.  There are very few cases in which
  * it is desirable to change any of the following.
  *------------------------------------------------------------------------*/
 /*
@@ -623,13 +661,13 @@ XCOMM -----------------------------------------------------------------------
 /*========================================================================
  * Customization Options
  *------------------------------------------------------------------------
- * Several parameters used throughout the Zeb distribution can be modified
- * by setting them here rather than changing them in all of the include 
- * files.  The intention is that certain projects can keep their settings
- * in this file and turn them on by defining a single symbol, like ARM_PROJECT
- * for the ARM project.  All of the symbols defined here have the prefix
- * 'CFG_'.  If a symbol is not defined, then the include files use their
- * own defaults.
+ * Several parameters used throughout the Zebra distribution can be
+ * modified by setting them here rather than changing them in all of the
+ * include files.  The intention is that certain projects can keep their
+ * settings in this file and turn them on by defining a single symbol, like
+ * ARM_PROJECT for the ARM project.  All of the symbols defined here have
+ * the prefix 'CFG_'.  If a symbol is not defined, then the include files
+ * use their own defaults.
  */
 
 /* #define ARM_PROJECT		*/
@@ -701,10 +739,10 @@ XCOMM -----------------------------------------------------------------------
 /* ------------------ Defaults for compile-time constants ----------------*/
 /*------------------------------------------------------------------------*/
 /* The definitions below will not usually need to be changed, but they are
- * provided here so that they can be conveniently found and changed in 
- * single file.  DO NOT EDIT THESE UNLESS YOU KNOW WHAT YOU ARE DOING!
- * If any of these definitions are unreasonable or downright incorrect,
- * you may not be able to compile or run Zeb.
+ * provided here so that they can be conveniently found and changed in
+ * single file.  DO NOT EDIT THESE UNLESS YOU KNOW WHAT YOU ARE DOING!  If
+ * any of these definitions are unreasonable or downright incorrect, you
+ * may not be able to compile or run Zebra.
  **************************************************************************/
 
 /*
@@ -760,6 +798,9 @@ XCOMM -----------------------------------------------------------------------
 #endif
 #ifndef CFG_FIELD_UNITS_LEN
 #define CFG_FIELD_UNITS_LEN 20	/* Length of field units string		     */
+#endif
+#ifndef CFG_SEARCHPATH_LEN
+#define CFG_SEARCHPATH_LEN 512	/* Length of exec search paths and such	     */
 #endif
 
 /*
@@ -839,7 +880,7 @@ XCOMM -----------------------------------------------------------------------
 
 /*-//////////////////////////////////////////////////////////////////////-*/
 /*========================================================================
- * ////////     You are now finished configuring Zeb!      ///////////////
+ * ////////    You are now finished configuring Zebra!     ///////////////
  * ////////           DO NOT EDIT ANY FURTHER!	           ///////////////
  * ////////     Save this file and continue with the	   ///////////////
  * ////////         installation instructions...	   ///////////////
@@ -861,60 +902,26 @@ XCOMM -----------------------------------------------------------------------
 # endif
 
 /*
- * Set some defaults
- */
-#ifndef DistributeIngest
-#define DistributeIngest 	YES
-#endif
-#ifndef DistributeOptimizer
-#define DistributeOptimizer 	YES
-#endif
-#ifndef DistributeDataUtil
-#define DistributeDataUtil 	YES
-#endif
-#ifndef DistributeRealtimeDataStoreTools
-#define DistributeRealtimeDataStoreTools YES
-#endif
-#ifndef DistributeDataManager
-#define DistributeDataManager	YES
-#endif
-
-/*
  * Some parameters for dealing with buffer lengths.
  */
 # define MAX_PLAT_LEN	160	/* Maximum platform len -- remember lists */
 # define MAX_PARAM_LEN	40	/* Length of parameter names		*/
 # define TIME_LEN	40	/* Length needed for encoded times	*/
 
-/* 
- * Do you want to build the Scan optimizer?  Must be no for the moment.
- */
-#define BuildOptimizer NO
-
 /*
- * The following will not compile at all, and so are forced to NO
- * here outside of the public eye.
+ * If we're not installing xhelp, then zebra programs need to be told
+ * not to look for it or include the xhelp header file.
  */
-# define	BuildRadarLimits	NO	/* still DataObject 	*/
-# define 	BuildNatsIngest		NO	/* still DataObject 	*/
-# define	BuildP3Ingest		NO	/* still DataObject 	*/
-# define	BuildAircraftIngest	NO	/* doesn't build anywhere */
-# define	BuildFMIngest		NO	/* still DataObject	*/
-# define 	BuildLLPIngest		NO	/* still DataObject	*/
+#ifndef BuildXHelp
+#if UseMosaic
+#define BuildXHelp NO
+#else
+#define BuildXHelp YES
+#endif /* UseMosaic */
+#endif
 
-#ifndef MAKING_MAKEFILE
-
-#   define ZEBDIR	BASEDIR
-#   define FCCDIR	BASEDIR
-
-/*
- * For backwards compatibility, in case these symbols are still
- * referenced somewhere...
- */
-#define RT_DS_TOOLS BuildRealtimeDataStoreTools
-#define BUILD_OPTIMIZER BuildOptimizer
-#define BUILD_INGEST BuildIngest
-
-#endif /* MAKING_MAKEFILE */
+# if BuildXHelp
+# 	define SUPPORT_XHELP
+# endif
 
 # endif /* ! _zeb_config_h_ */
