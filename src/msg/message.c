@@ -51,7 +51,7 @@
 # define MESSAGE_MANAGER	/* define prototypes for netread functions */
 # include <message.h>
 
-RCSID ("$Id: message.c,v 2.49 1997-01-21 18:20:27 granger Exp $")
+RCSID ("$Id: message.c,v 2.50 1997-02-14 07:33:22 granger Exp $")
 
 /*
  * Symbol tables.
@@ -144,7 +144,7 @@ static int Nfd;
 /*
  * Who are we?
  */
-char Hostname[40];
+char Hostname[MAX_NAME_LEN];
 
 /*
  * Our very own host table for connecting to hosts (possibly ourself) using
@@ -961,6 +961,7 @@ Connection *conp;
 	msg.m_seq = EMask;
 	greet.mh_type = MH_GREETING;
 	strcpy (greet.mh_version, MSG_PROTO_VERSION);
+	strcpy (greet.mh_session, Hostname);
 	send_msg (conp, &msg);
 }
 
