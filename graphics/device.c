@@ -1,5 +1,5 @@
 /* 5/87 jc */
-/* $Id: device.c,v 1.7 1989-09-18 13:54:22 corbet Exp $ */
+/* $Id: device.c,v 1.8 1989-09-29 11:16:14 burghart Exp $ */
 /*
  * Handle device specifics.
  */
@@ -18,7 +18,7 @@ extern int gx_pl (), gx_casn (), gx_pixel (), gx_target (), gx_check ();
 # ifdef DEV_X11
 extern int x11_open (), x11_clear (), x11_close (), x11_flush (), x11_noop ();
 extern int x11_poly (), x11_pick (), x11_target (), x11_casn (), x11_color ();
-extern int x11_pixel (), x11_put_target (), x11_clip ();
+extern int x11_pixel (), x11_put_target (), x11_untarget (), x11_clip ();
 # endif
 # ifdef DEV_XTITAN
 extern int xt_open (), xt_clear (), xt_close (), xt_flush (), xt_noop ();
@@ -28,13 +28,13 @@ extern int xt_pixel (), xt_put_target (), xt_vp (), xt_readscreen ();
 # ifdef DEV_RAMTEK
 extern int rm_open (), rm_clear (), rm_flush (), rm_poly (), rm_color_map ();
 extern int rm_close (), rm_hcw (), rm_pixel (), rm_target (), rm_vp ();
-extern int rm_put_target ();
+extern int rm_put_target (), rm_untarget ();
 # endif
 # ifdef DEV_4107
 extern int tek_open (), tek_clear (), tek_flush (), tek_cmap (), tek_poly ();
 extern int tek_s_init (), tek_s_clear (), tek_s_select (), tek_s_end ();
 extern int tek_s_attr (), tek_close (), tek_pixel (), tek_vp ();
-extern int tek_target (), tek_put_target (), tek_flush_nr ();
+extern int tek_target (), tek_put_target (), tek_untarget (), tek_flush_nr ();
 # endif
 # ifdef DEV_COMTAL
 extern int zb_open (), zb_close (), zb_pixel (), zb_color (), zb_clear ();
@@ -98,6 +98,7 @@ struct device D_tab[] =
 		___,			/* (no) Segment attributes	*/
 		___,			/* Read target			*/
 		___,			/* (no) Put target		*/
+		___,			/* (no) Remove target		*/
 		___,			/* Color assignment		*/
 		___,			/* Exposure checking		*/
 		___,			/* (no) viewport adjustment	*/
@@ -137,6 +138,7 @@ struct device D_tab[] =
 		___,			/* (no) Segment attributes	*/
 		gx_target,		/* Read target			*/
 		___,			/* (no) Put target		*/
+		___,			/* (no) Remove target		*/
 		gx_casn,		/* Color assignment		*/
 		gx_check,		/* Exposure checking		*/
 		___,			/* (no) viewport adjustment	*/
@@ -174,6 +176,7 @@ struct device D_tab[] =
 		___,			/* (no) Segment attributes	*/
 		___,		/* Read target			*/
 		___,			/* (no) Put target		*/
+		___,			/* (no) Remove target		*/
 		___,		/* Color assignment		*/
 		___,		/* Exposure checking		*/
 		___,		/* (no)	viewport adjustment	*/
@@ -215,7 +218,8 @@ struct device D_tab[] =
 		___,			/* (no) Segment end		*/
 		___,			/* (no) Segment attributes	*/
 		x11_target,		/* Read target			*/
-		x11_put_target,		/* (no) Put target		*/
+		x11_put_target,		/* Put target			*/
+		x11_untarget,		/* Remove target		*/
 		x11_casn,		/* Color assignment		*/
 		___,		/* Exposure checking		*/
 		___,		/* (no)	viewport adjustment	*/
@@ -257,6 +261,7 @@ struct device D_tab[] =
 		___,			/* (no) Segment attributes	*/
 		xt_target,		/* Read target			*/
 		xt_put_target,		/* (no) Put target		*/
+		___,			/* (no) Remove target		*/
 		___,			/* Color assignment		*/
 		xt_event,		/* Event handling		*/
 		xt_vp,			/* (no)	viewport adjustment	*/
@@ -297,6 +302,7 @@ struct device D_tab[] =
 		___,			/* (no) Segment attributes	*/
 		sv_target,		/* Read target			*/
 		___,			/* (no) Put target		*/
+		___,			/* (no) Remove target		*/
 		___,		/* Color assignment		*/
 		___,		/* Exposure checking		*/
 		sv_vp,		/* (no)	viewport adjustment	*/
@@ -332,6 +338,7 @@ struct device D_tab[] =
 		___,			/* (no) Segment attributes	*/
 		sv_target,		/* Read target			*/
 		___,			/* (no) Put target		*/
+		___,			/* (no) Remove target		*/
 		___,		/* Color assignment		*/
 		___,		/* Exposure checking		*/
 		sv_vp,		/* (no)	viewport adjustment	*/
@@ -367,6 +374,7 @@ struct device D_tab[] =
 		___,			/* (no) Segment attributes	*/
 		sv_target,		/* Read target			*/
 		___,			/* (no) Put target		*/
+		___,			/* (no) Remove target		*/
 		___,		/* Color assignment		*/
 		___,		/* Exposure checking		*/
 		sv_vp,		/* (no)	viewport adjustment	*/
@@ -409,6 +417,7 @@ struct device D_tab[] =
 		___,			/* (no) Segment attributes	*/
 		rm_target,		/* Read target			*/
 		rm_put_target,		/* Put target			*/
+		rm_untarget,		/* Remove target		*/
 		___,			/* (no) color assignment	*/
 		___,			/* (no) exposure checking	*/
 		rm_vp,			/* Viewport adjustment		*/
@@ -446,6 +455,7 @@ struct device D_tab[] =
 		___,			/* (no) Segment attributes	*/
 		rm_target,		/* Read target			*/
 		rm_put_target,		/* Put target			*/
+		rm_untarget,		/* Remove target		*/
 		___,			/* (no) color assignment	*/
 		___,			/* (no) exposure checking	*/
 		rm_vp,			/* Viewport adjustment		*/
@@ -485,6 +495,7 @@ struct device D_tab[] =
 		___,			/* (no) Segment attributes	*/
 		rm_target,		/* Read target			*/
 		rm_put_target,		/* Put target			*/
+		rm_untarget,		/* Remove target		*/
 		___,			/* (no) color assignment	*/
 		___,			/* (no) exposure checking	*/
 		rm_vp,			/* Viewport adjustment		*/
@@ -525,6 +536,7 @@ struct device D_tab[] =
 		tek_s_attr,		/* Segment attributes		*/
 		tek_target,		/* Target read			*/
 		tek_put_target,		/* Put target			*/
+		tek_untarget,		/* Remove target		*/
 		___,			/* (no) color assignment	*/
 		___,			/* (no) exposure checking	*/
 		tek_vp,			/* (no) viewport adjustment	*/
@@ -564,7 +576,8 @@ struct device D_tab[] =
 		___,			/* (no) Segment end		*/
 		___,			/* (no) Segment attributes	*/
 		tek_target,		/* Target read			*/
-		tek_put_target,	/* Put target			*/
+		tek_put_target,		/* Put target			*/
+		tek_untarget,		/* Remove target		*/
 		___,			/* (no) color assignment	*/
 		___,			/* (no) exposure checking	*/
 		tek_vp,			/* (no) viewport adjustment	*/
@@ -605,6 +618,7 @@ struct device D_tab[] =
 		___,			/* Segment attributes		*/
 		zb_target,		/* Target read (not yet)	*/
 		zb_put_target,		/* Put target (not yet)		*/
+		___,			/* (no) Remove target		*/
 		___,			/* (no) color assignment	*/
 		___,			/* (no) exposure checking	*/
 		___,			/* (no) viewport adjustment	*/
@@ -645,6 +659,7 @@ struct device D_tab[] =
 		___,			/* (no) Segment attributes	*/
 		___,			/* Read target			*/
 		___,			/* Put target			*/
+		___,			/* (no) Remove target		*/
 		___,			/* (no) color assignment	*/
 		___,			/* (no) exposure checking	*/
 		___,			/* Viewport adjustment		*/
