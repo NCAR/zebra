@@ -15,6 +15,7 @@
 # include <defs.h>
 # include <message.h>
 # include <timer.h>
+# include <config.h>
 # include "DataStore.h"
 # include "dsPrivate.h"
 
@@ -222,12 +223,15 @@ DoPlatforms ()
  */
 {
 	time now;
-	FILE *cfile = fopen ("/fcc/lib/LastData.config", "r");
+	FILE *cfile; 
 	char line[80], *cp, *strchr ();
+	char config_file[200];
 	int yellow, red;
 /*
  * Make sure we have a config.
  */
+	sprintf (config_file, "%s/LastData.config", LIBDIR);
+	cfile = fopen (config_file, "r");
 	if (cfile == NULL)
 	{
 		msg_ELog (EF_PROBLEM, "No config file");
