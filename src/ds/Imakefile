@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.44 1996-11-19 10:21:13 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.45 1996-11-19 10:59:21 granger Exp $"
 
 DEPLIBS=$(LIBZEB)
 LIBMPROF=/dt/granger/libc_mp.a
@@ -17,7 +17,7 @@ DEBUGGER = xgdb
 #ifdef DebugFlag
 DEBUG = -DDEBUG -DNoBuffer -DDEBUGGER="\"$(DEBUGGER)\""
 #endif
-DEFINES = $(DEBUG) -DNCSYNC_FIXED
+DEFINES = $(DEBUG) /* -DNCSYNC_FIXED */
 
 /* 
  * DSOBJS, DSSRCS = Daemon-specific object modules 
@@ -93,8 +93,10 @@ PRIVATE_HEADERS = BoundaryFile.h DataChunkP.h dslib.h znfile.h \
 
 HEADERS = DataStore.h DataChunk.h ingest.h fields.h ds_fields.h
 
+DSCONFIGS = perm.config aline.config apple.config
+
 DISTFILES = Imakefile $(SRCS) $(PRIVATE_HEADERS) $(TESTSRCS) \
-            $(HEADERS) Daemon.state apple.config hdflook.c
+            $(HEADERS) Daemon.state hdflook.c $(DSCONFIGS) dbgstart
 
 DEPEND_DEFINES=$(HDFDEFINES) $(HDFINCLUDES) $(NETCDFINCLUDES) $(RDSSINCLUDES)
 
