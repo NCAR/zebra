@@ -65,7 +65,7 @@ extern "C" {
 # include "Database.h"
 # include "Archiver.h"
 
-RCSID ("$Id: Archiver.cc,v 1.48 2001-01-31 00:26:09 granger Exp $")
+RCSID ("$Id: Archiver.cc,v 1.49 2001-01-31 00:36:02 granger Exp $")
 
 /*
  * Issues:
@@ -1745,6 +1745,8 @@ MountJaz()
     }
     else
     {
+	msg_ELog (EF_INFO, "output dir exists, proceeding normally (%s)",
+		  OutputDir);
 	status = 0;
     }
 #endif
