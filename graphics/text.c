@@ -13,7 +13,11 @@
 # include "lib_include:lib_proto.h"
 # endif
 
-
+# ifdef BIG_ENDIAN
+#	define SWAP(v) (v)
+# else
+#	define SWAP(v) swap4 (v)
+# endif
 
 /*
  * A font directory entry.  (For TeX fonts)
@@ -307,7 +311,7 @@ int *rastp, width, color, bg;
 
 	for (; nword > 0; nword--)
 	{
-		int rdata = swap4 (*rastp++), ndo = (width > 32) ? 32 : width;
+		int rdata = SWAP (*rastp++), ndo = (width > 32) ? 32 : width;
 		for (bit = 0; bit < ndo; bit++)
 # ifdef VMS
 			*dest++ = (rdata & (1 << (31 - bit))) ? color : bg;
@@ -514,14 +518,14 @@ char *file;
 	len = len/4 - 1;
 	for (ip = (int *) data; ip[len] == 0; len--)
 		;
-	F_table[fontno].f_fdir = (struct font_dir *) (ip + swap4 (ip[len-1]));
+	F_table[fontno].f_fdir = (struct font_dir *) (ip + SWAP (ip[len-1]));
 /*
  * Now go through and swap all of the data in the font directory, since
  * we will be referring to it often.
  */
 	ifont = (int *) F_table[fontno].f_fdir;
 	for (i = 0; i < 512; i++)
-		ifont[i] = swap4 (ifont[i]);
+		ifont[i] = SWAP (ifont[i]);
 # ifdef notdef
 	for (i = 'a'; i < 'm'; i++)
 	{
@@ -544,35 +548,6 @@ char *file;
 
 
 
-
-
-# ifdef VMS
-int
-swap4 (v)
-int v;
-/*
- * Return v, with the 4 bytes swapped into VAX order.
- */
-{
-	char *cp = (char *) &v, swap[4];
-	int *ip;
-
-	swap[0] = cp[3];
-	swap[1] = cp[2];
-	swap[2] = cp[1];
-	swap[3] = cp[0];
-	ip = (int *) swap;
-	return (*ip);
-}
-# else
-
-int
-swap4 (v)
-int v;
-{
-	return (v);
-}
-# endif
 
 
 
