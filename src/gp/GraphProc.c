@@ -2,7 +2,7 @@
  * My version of the graphics process, for now -- upper level control
  * and timing stuff.
  */
-static char *rcsid = "$Id: GraphProc.c,v 1.2 1990-05-14 10:30:03 corbet Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 1.3 1990-06-04 14:25:46 burghart Exp $";
 
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
@@ -47,17 +47,16 @@ char Ourname[40];	/* What is our process name?	*/
  */
 Widget Top;				/* The top level widget		*/
 Widget Graphics, GrShell;		/* The graphics widget		*/
+int FrameCount = 1;			/* Number of frames		*/
+int DisplayFrame = 0;			/* Frame being displayed	*/
+int DrawFrame = 0;			/* Frame to draw next		*/
 XtAppContext Actx;			/* The application context	*/
 bool Abort = FALSE;			/* Has the current plot been stopped*/
 plot_description Pd = 0, Defaults = 0;	/* Plot description info	*/
 time PlotTime;				/* The current plot time.	*/
-XFontStruct	*Afontstruct;		/* temporary			*/
-XColor		*Colors;		/* color array (temporary)	*/
-int		Ncolors;		/* number of colors (temporary)	*/
 enum pmode PlotMode = RealTime;
 enum wstate WindowState = DOWN;
-
-GC	Agc = NULL;
+bool NewPD = FALSE;
 
 /*
  * Forward routine definitions.
@@ -71,7 +70,7 @@ extern void Ue_PointerEvent (), Ue_ButtonUp (), Ue_KeyEvent ();
 /*
  * Routines called through the event queue mechanism.
  */
-void eq_reconfig (), eq_sync (), eq_DoPlot ();
+void eq_reconfig (), eq_sync ();
 
 
 
@@ -96,6 +95,7 @@ char **argv;
  */
 	msg_connect (msg_handler, Ourname);
 	msg_join ("Graphproc");
+	msg_join ("TimeChange");
 /*
  * Get the toolkit going.
  */
@@ -113,27 +113,17 @@ char **argv;
 /*
  * Inside this shell goes the graphics widget itself.
  */
-	XtSetArg (args[0], XtNframeCount, 8);	/* From gtest */
-	XtSetArg (args[1], XtNwidth, 500);
-	XtSetArg (args[2], XtNheight, 500);
-	XtSetArg (args[3], XtNinput, True);
 	Graphics = XtCreateManagedWidget ("graphics", graphicsWidgetClass,
-		GrShell, args, 4);
-/*
- * Find a font. (Temporary stuff for now)
- */
-	Afontstruct = XLoadQueryFont (XtDisplay (Top), 
-			"-*-helvetica-medium-o-*-*-14-*-*-*-*-*-*-*");
+		GrShell, NULL, 0);
 /*
  * Initialize the UI.
  */
 	ui_setup ("GraphProc", argc, argv, (char *) 0);
 	ui_init ("/fcc/lib/graphproc.lf", FALSE, TRUE);
 /*
- * Get some colors (temporary)
+ * Initialize color table and user event stuff
  */
 	ct_Init ();
-	ct_LoadTable ("contour1", &Colors, &Ncolors);
 	Ue_Init ();
 /*
  * Tell DM that we're here.
@@ -197,7 +187,7 @@ struct message *msg;
 	  * Timer.
 	  */
 	    case MT_TIMER:
-	    	tl_DispatchEvent ((struct tm_time *) msg->m_data);
+		tm_message ((struct tm_time *) msg->m_data);
 		break;
 	}
 	return (0);
@@ -287,7 +277,7 @@ struct dm_msg *dmsg;
 	 * Load a new plot description.
 	 */
 	   case DM_PDCHANGE:
-	   	NewPD ((struct dm_pdchange *) dmsg);
+	   	ChangePD ((struct dm_pdchange *) dmsg);
 		break;
 	/*
 	 * History mode.
@@ -305,7 +295,7 @@ struct dm_msg *dmsg;
 	 * Default table.
 	 */
 	   case DM_DEFAULTS:
-		NewDefaults ((struct dm_pdchange *) dmsg);
+		ChangeDefaults ((struct dm_pdchange *) dmsg);
 		break;
 	/*
 	 * Change of event bindings.
@@ -322,6 +312,30 @@ struct dm_msg *dmsg;
 	}
 }
 
+
+
+
+tm_message (te)
+struct tm_time	*te;
+/*
+ * Deal with a timer message
+ */
+{
+	switch (te->tm_type)
+	{
+	/*
+	 * We deal with a time change here
+	 */
+	    case TRR_TCHANGE:
+	   	NewTime ((struct tm_tchange *) te);
+		break;
+	/*
+	 * Other messages can be handled by the timer lib event dispatcher
+	 */
+	    default:
+	    	tl_DispatchEvent (te);
+	}
+}
 
 
 
@@ -358,7 +372,7 @@ int len;
  * Force a redisplay.
  */
 	if (Pd)
-		Eq_AddEvent (PDisplay, eq_DoPlot, 0, 0, Override);
+		Eq_AddEvent (PDisplay, px_PlotExec, "global", 7, Override);
 	/* ...... */
 }
 
@@ -422,7 +436,7 @@ eq_ResetAbort ()
 
 
 
-NewPD (dmp)
+ChangePD (dmp)
 struct dm_pdchange *dmp;
 /*
  * A new plot description has arrived.
@@ -431,12 +445,13 @@ struct dm_pdchange *dmp;
 	raw_plot_description rpd;
 /*
  * If we have an old plot description, get rid of it.  Also cancel any
- * pending plot activity.
+ * pending plot activity and free the colors we were using.
  */
 	if (Pd)
 	{
 		pd_Release (Pd);
 		pc_CancelPlot ();
+		ct_FreeColors ();
 	}
 /*
  * Go ahead and recompile the PD now.
@@ -445,16 +460,20 @@ struct dm_pdchange *dmp;
 	rpd.rp_data = dmp->dmm_pdesc;
 	Pd = pd_Load (&rpd);
 /*
+ * We need to get the plot mode when we next execute the plot handler
+ */
+	NewPD = TRUE;
+/*
  * Now we need to set up to display the new PD.
  */
-	Eq_AddEvent (PDisplay, pc_SetUp, 0, 0, Override);
+	Eq_AddEvent (PDisplay, pc_PlotHandler, 0, 0, Override);
 }
 
 
 
 
 
-NewDefaults (dmp)
+ChangeDefaults (dmp)
 struct dm_pdchange *dmp;
 /*
  * A new defaults table has arrived.
@@ -470,9 +489,15 @@ struct dm_pdchange *dmp;
 	pd = pd_Load (&rpd);
 	pda_StorePD (pd, "defaults");
 /*
- * What should we do about redisplay?????  Who knows what could have changed
- * in this situation?
+ * We need to get the plot mode when we next execute the plot handler
  */
+	NewPD = TRUE;
+/*
+ * Redisplay with reinitialization of timer stuff, since anything could 
+ * have changed.  (Maybe this can be made smarter in the future?)
+ */
+	if (Pd)
+		Eq_AddEvent (PDisplay, pc_PlotHandler, 0, 0, Override);
 }
 
 
@@ -507,7 +532,7 @@ struct dm_history *dmh;
  */
 	PlotTime = dmh->dmm_time;
 	PlotMode = History;
-	Eq_AddEvent (PDisplay, eq_DoPlot, 0, 0, Override);
+	Eq_AddEvent (PDisplay, pc_PlotHandler, 0, 0, Override);
 }
 
 
@@ -526,11 +551,17 @@ RealTimeMode ()
 		msg_log ("Real-time mode requested with no plot description!");
 		return;
 	}
+
+	msg_log ("Real-time mode");
 /*
  * If we're already in real time mode, do nothing.
  */
 	if (PlotMode == RealTime)
 		return;
+/*
+ * Cancel anything going now
+ */
+	pc_CancelPlot ();
 /*
  * Switch modes and start plotting.
  */
@@ -538,18 +569,34 @@ RealTimeMode ()
 	if (WindowState == UP)
 		pc_SetUpTriggers ();
 	tl_GetTime (&PlotTime);
-	Eq_AddEvent (PDisplay, eq_DoPlot, 0, 0, Override);
+	
+	Eq_AddEvent (PDisplay, pc_PlotHandler, 0, 0, Override);
 }
 
 
 
 
-void
-eq_DoPlot ()
+NewTime (tch)
+struct tm_change	*tch;
+/*
+ * Deal with a change in ``current'' time
+ */
 {
-	pc_SetUp ();
-	GWClearFrame (Graphics, 0);
-	px_PlotExec ("global");
-	GWDisplayFrame (Graphics, 0);
-	sync ();
+/*
+ * If we're not in real-time mode, we don't care
+ */
+	if (PlotMode != RealTime)
+		return;
+/*
+ * Cancel anything going now
+ */
+	pc_CancelPlot ();
+/*
+ * Reestablish triggers and do the plot
+ */
+	if (WindowState == UP)
+		pc_SetUpTriggers ();
+	tl_GetTime (&PlotTime);
+	
+	Eq_AddEvent (PDisplay, pc_PlotHandler, 0, 0, Override);
 }
