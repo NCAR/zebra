@@ -30,6 +30,12 @@ typedef struct _RFTag
 } RFTag;
 
 
+/*
+ * Scratch buffer used for compression/decompression.
+ */
+static unsigned char *Sbuf = 0;
+static int NSbuf = 0;
+
 
 
 /*
@@ -42,6 +48,7 @@ typedef struct _RFTag
 	static int	drf_FldOffset (RFHeader *, char *);
 	static int	drf_TimeIndex (const RFTag *, const time *);
 	static void	drf_GetField (const RFTag *, const RFToc *,int,char *);
+	static void	drf_ReadOldToc (RFTag *);
 # else
 	static void	drf_WSync ();
 	static int	drf_FindOffset ();
@@ -49,7 +56,28 @@ typedef struct _RFTag
 	static int	drf_FldOffset ();
 	static int	drf_TimeIndex ();
 	static void	drf_GetField ();
+	static void	drf_ReadOldToc ();
 # endif
+
+
+
+
+static void
+GetScratch (size)
+int size;
+/*
+ * Make sure our scratch space is at least this big.
+ */
+{
+	if (NSbuf >= size)
+		return;
+	if (NSbuf > 0)
+		free (Sbuf);
+	Sbuf = (unsigned char *) malloc (size);
+	NSbuf = size;
+}
+
+
 
 
 
@@ -88,7 +116,8 @@ void **rtag;
 /*
  * Check it.
  */
-	if (tag->rt_hdr.rf_Magic != RF_MAGIC)
+	if (tag->rt_hdr.rf_Magic != RF_MAGIC &&
+			tag->rt_hdr.rf_Magic != RF_OLDMAGIC)
 	{
 		msg_ELog (EF_PROBLEM, "Bad ID in file %s", dp->df_name);
 		close (tag->rt_fd);
@@ -99,13 +128,51 @@ void **rtag;
  * Now get the table of contents.
  */
 	tag->rt_toc = (RFToc *) malloc(tag->rt_hdr.rf_MaxSample*sizeof(RFToc));
-	read (tag->rt_fd, tag->rt_toc, tag->rt_hdr.rf_MaxSample*sizeof(RFToc));
+	if (tag->rt_hdr.rf_Magic == RF_OLDMAGIC)
+	{
+		if (write)
+			msg_ELog (EF_PROBLEM,
+				"WRITE on old format raster file");
+		drf_ReadOldToc (tag);
+	}
+	else
+		read (tag->rt_fd, tag->rt_toc,
+				tag->rt_hdr.rf_MaxSample*sizeof(RFToc));
 /*
  * Good enough.  Return the tag info and we're done.
  */
 	*rtag = (void *) tag;
 	return (TRUE);
 }
+
+
+
+
+
+static void
+drf_ReadOldToc (tag)
+RFTag *tag;
+/*
+ * Read in and convert an old format TOC into a new one.
+ */
+{
+	int i;
+	RFHeader *hdr = &tag->rt_hdr;
+	OldRFToc *old = (OldRFToc *)malloc(hdr->rf_MaxSample*sizeof(OldRFToc));
+/*
+ * Read in the old TOC.
+ */
+	read (tag->rt_fd, old, hdr->rf_MaxSample * sizeof (OldRFToc));
+/*
+ * Now pass through and process it.
+ */
+	for (i = 0; i < hdr->rf_MaxSample; i++)
+	{
+		*(OldRFToc *)(tag->rt_toc + i) = old[i];	/* XXX */
+		tag->rt_toc[i].rft_AttrLen = tag->rt_toc[i].rft_AttrOffset = 0;
+	}
+}
+
 
 
 
@@ -221,6 +288,7 @@ void **rtag;
 	strcpy (tag->rt_hdr.rf_Platform, PTable[dobj->do_id].dp_name);
 	tag->rt_hdr.rf_MaxSample = PTable[dobj->do_id].dp_maxsamp;
 	tag->rt_hdr.rf_NSample = 0;
+	tag->rt_hdr.rf_Flags = (dp->df_ftype == FTCmpRaster) ? RFF_COMPRESS :0;
 /*
  * Fill in the fields info.
  */
@@ -282,6 +350,14 @@ int begin, end;
 		return (FALSE);
 	hdr = &tag->rt_hdr;
 /*
+ * No writing old format files.
+ */
+	if (tag->rt_hdr.rf_Magic == RF_OLDMAGIC)
+	{
+		msg_ELog (EF_PROBLEM, "I won't write old file");
+		return (FALSE);
+	}
+/*
  * Make sure they are not trying to overwrite us.
  */
 	if ((hdr->rf_NSample + end - begin + 1) > hdr->rf_MaxSample)
@@ -340,38 +416,49 @@ int begin, offset;
 	RFToc *toc;
 	RGrid *rg = dobj->do_desc.d_img.ri_rg + begin;
 	int nb, fld, dfield;
+	unsigned char *data;
 /*
  * Allocate a new TOC entry.
  */
 	toc = tag->rt_toc + hdr->rf_NSample++;
 	toc->rft_Time = dobj->do_times[begin];
-	toc->rft_Offset = lseek (tag->rt_fd, 0, SEEK_END);
 	toc->rft_Rg = *rg;
 	toc->rft_Origin = dobj->do_aloc[begin];
 /*
  * Now write each field.
  */
-	nb = rg->rg_nX * rg->rg_nY;
 	for (fld = 0; fld < dobj->do_nfield; fld++)
 	{
+		data = (unsigned char *) (dobj->do_data[fld] + offset);
+	/*
+	 * Compress the data if called for.
+	 */
+		nb = rg->rg_nX * rg->rg_nY;
+		if (hdr->rf_Flags & RFF_COMPRESS)
+		{
+			int junk;
+
+			GetScratch (nb);
+			RL_Encode (data, Sbuf, nb, NSbuf, &junk, &nb);
+			data = Sbuf;
+		}
 	/*
 	 * Find the offset for this field, move there, and write it.
 	 */
 	 	dfield = drf_FldOffset (hdr, dobj->do_fields[fld]);
-		lseek (tag->rt_fd, toc->rft_Offset + nb*dfield, SEEK_SET);
-		write (tag->rt_fd, dobj->do_data[fld] + offset, nb);
+		toc->rft_Offset[dfield] = lseek (tag->rt_fd, 0, SEEK_END);
+		toc->rft_Size[dfield] = nb;
+		if (write (tag->rt_fd, data, nb) < nb)
+			msg_ELog (EF_PROBLEM, "Error %d writing image", errno);
 	}
 /*
- * Kludge: if some fields at the end of the list were not present in this
- *	   data object, the file will be too short.  Fill it out now.
+ * Write out the attribute table if there is one.
  */
-	if (lseek (tag->rt_fd, 0, SEEK_END) <
-				toc->rft_Offset + hdr->rf_NField*nb - 1)
+	if (dobj->do_attr)
 	{
-		msg_ELog (EF_PROBLEM, "RF file extend required");
-		lseek (tag->rt_fd, toc->rft_Offset + hdr->rf_NField*nb - 1,
-				SEEK_SET);
-		write (tag->rt_fd, hdr, 1);
+		toc->rft_AttrLen = strlen (dobj->do_attr) + 1;
+		toc->rft_AttrOffset = lseek (tag->rt_fd, 0, SEEK_END);
+		write (tag->rt_fd, dobj->do_attr, toc->rft_AttrLen);
 	}
 	return (offset + nb);
 }
@@ -580,11 +667,31 @@ char * const dest;
  * Pull in this field.
  */
 {
-	int nb = toc->rft_Rg.rg_nX * toc->rft_Rg.rg_nY;
+/*	int nb = toc->rft_Rg.rg_nX * toc->rft_Rg.rg_nY; */
+	int nb = toc->rft_Size[field];
 
-	lseek (tag->rt_fd, toc->rft_Offset + field*nb, SEEK_SET);
-	if (read (tag->rt_fd, dest, nb) != nb)
-		msg_ELog (EF_PROBLEM, "Read error %d on rast file", errno);
+/*	lseek (tag->rt_fd, toc->rft_Offset + field*nb, SEEK_SET); */
+	lseek (tag->rt_fd, toc->rft_Offset[field], SEEK_SET);
+/*
+ * Without compression, we read straight into the destination array.
+ */
+	if ((tag->rt_hdr.rf_Flags & RFF_COMPRESS) == 0)
+	{
+		if (read (tag->rt_fd, dest, nb) != nb)
+			msg_ELog (EF_PROBLEM, "Read error %d on rast file",
+					errno);
+	}
+/*
+ * Otherwise we read into Sbuf and decompress into our destination.
+ */
+	else
+	{
+		GetScratch (nb);
+		if (read (tag->rt_fd, Sbuf, nb) != nb)
+			msg_ELog (EF_PROBLEM, "Read error %d on rast file",
+					errno);
+		RL_Decode ((unsigned char *) dest, Sbuf, nb);
+	}
 }
 
 
@@ -611,8 +718,15 @@ TimeSpec which;
  * Now find the offset to the desired time, and copy out the info.
  */
 	begin = drf_TimeIndex (tag, t);
-	for (i = 0; begin >= 0 && i < ntime; i++)
-		*dest++ = tag->rt_toc[begin--].rft_Time;
+	if (which == DsBefore)
+		for (i = 0; begin >= 0 && i < ntime; i++)
+			*dest++ = tag->rt_toc[begin--].rft_Time;
+	else if (which == DsAfter)
+	{
+		begin++;
+		for (i = 0; begin < tag->rt_hdr.rf_NSample; i++)
+			*dest++ = tag->rt_toc[begin++].rft_Time;
+	}
 	return (i);
 }
 
@@ -677,4 +791,37 @@ char **flist;
 	for (f = 0; f < hdr->rf_NField; f++)
 		flist[f] = hdr->rf_Fields[f].rff_Name;
 	return (*nfld);
+}
+
+
+
+
+
+char *
+drf_GetAttrs (dfile, t, len)
+int dfile, *len;
+time *t;
+/*
+ * Pull out the attributes, if any.
+ */
+{
+	RFTag *tag;
+	int tindex;
+	char *ret;
+/*
+ * Open the file and find our time.
+ */
+	if (! dfa_OpenFile (dfile, FALSE, (void *) &tag))
+		return (0);
+	tindex = drf_TimeIndex (tag, t);
+/*
+ * Just pull out the attribute table if there is one.
+ */
+	if ((*len = tag->rt_toc[tindex].rft_AttrLen) <= 0)
+		return (0);
+	ret = malloc (*len);
+	lseek (tag->rt_fd, tag->rt_toc[tindex].rft_AttrOffset, SEEK_SET);
+	if (read (tag->rt_fd, ret, *len) < *len)
+		msg_ELog (EF_PROBLEM, "Error %d reading attributes", errno);
+	return (ret);
 }
