@@ -27,7 +27,8 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_Scalar.c,v 1.8 1995-11-20 20:23:00 granger Exp $")
+
+RCSID ("$Id: dc_Scalar.c,v 1.9 1996-09-19 03:56:40 granger Exp $")
 
 # define SUPERCLASS DCC_MetData
 
@@ -141,6 +142,7 @@ void *values;
 }
 
 
+static void dc_ConvertFloat FP ((float *f, void *ptr, DC_ElemType type));
 
 
 float
@@ -149,22 +151,35 @@ DataChunk *dc;
 int sample;
 FieldId field;
 /*
- * Get a scalar value back from this DC.  Assumes the field is type DCT_Float.
+ * Get a scalar value back from this DC.  If the field is type not DCT_Float,
+ * do our best to convert it.
  */
 {
-	float *ret;
+	DC_ElemType type;
+	void *ptr;
+	float ret;
 
 	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Scalar, "GetScalar"))
 		return (0.0);
-	if (dc_Type (dc, field) != DCT_Float)
-	{
-		msg_ELog (EF_PROBLEM, 
-			  "cannot use GetScalar to get non-float data");
-		return (0.0);
-	}
-	if (! (ret = (float *) dc_GetMData (dc, sample, field, NULL)))
+	if (! (ptr = (void *) dc_GetMData (dc, sample, field, NULL)))
 		return (dc_GetBadval (dc));
-	return (*ret);
+	type = dc_Type (dc, field);
+	/*
+	 * Try to avoid some overhead by casting the most common types
+	 */
+	if (type == DCT_Float)
+	{
+		return (*(float *)ptr);
+	}
+	else if (type == DCT_Double)
+	{
+		return ((float)*(double *)ptr);
+	}
+	/*
+	 * We've been stuck with converting a non-float to float...
+	 */
+	dc_ConvertFloat (&ret, ptr, type);
+	return (ret);
 }
 
 
@@ -205,4 +220,82 @@ FieldId field;
 			  dc_Type(dc, field));
 	return (ret);
 }
+
+
+
+/*
+ * Add this here for patch purposes.  In later releases it should appear
+ * with the other routines in the element interface.  For convenience,
+ * this could be changed to convert to long double and all other
+ * conversions can just convert from long double to their desired target.
+ */
+static void
+dc_ConvertFloat (f, ptr, type)
+float *f;
+void *ptr;
+DC_ElemType type;
+/*
+ * De-reference a void pointer to type, cast it to float and store it.
+ */
+{
+	switch (type)
+	{
+	   case DCT_Float:
+		*f = *(float *)ptr;
+		break;
+	   case DCT_Double:
+		*f = (float) *(double *)ptr;
+		break;
+	   case DCT_LongDouble:
+		*f = (float) *(LongDouble *)ptr;
+		break;
+	   case DCT_Char:
+		*f = (float) *(char *)ptr;
+		break;
+	   case DCT_UnsignedChar:
+		*f = (float) *(unsigned char *)ptr;
+		break;
+	   case DCT_ShortInt:
+		*f = (float) *(short *)ptr;
+		break;
+	   case DCT_UnsignedShort:
+		*f = (float) *(unsigned short *)ptr;
+		break;
+	   case DCT_Integer:
+		*f = (float) *(int *)ptr;
+		break;
+	   case DCT_UnsignedInt:
+		*f = (float) *(unsigned int *)ptr;
+		break;
+	   case DCT_LongInt:
+		*f = (float) *(long int *)ptr;
+		break;
+	   case DCT_UnsignedLong:
+		*f = (float) *(unsigned long *)ptr;
+		break;
+#ifdef notdef	/* would this be atof() or byte->float? */
+	   case DCT_String:
+		*f = *(char **)ptr;
+		break;
+#endif
+	   case DCT_Boolean:
+		*f = (float) *(unsigned char *)ptr;
+		break;
+	   case DCT_ZebTime:
+		*f = (float) (((ZebTime *)ptr)->zt_Sec);
+		break;
+#ifdef notdef
+	   case DCT_VoidPointer:
+		*f = (float) ptr;
+	        break;
+	   case DCT_Element:
+		*e = *(DC_Element *)ptr;
+		break;
+#endif
+	   default:
+		*f = 0;
+		break;
+	}
+}
+
 

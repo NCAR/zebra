@@ -1,5 +1,5 @@
 /*
- * $Id: nstest.c,v 1.19 1995-08-31 09:50:09 granger Exp $
+ * $Id: nstest.c,v 1.20 1996-09-19 03:56:43 granger Exp $
  */
 
 /*
@@ -252,9 +252,7 @@ InitializePlatforms()
 	struct timeb tp;
 
 	Announce ("initializing data, erasing platforms");
-	ftime(&tp);
-	now.zt_Sec = tp.time;
-	now.zt_MicroSec = 0;
+	tl_Time (&now);
 	for (i = 0; i < NUM_PLATFORMS; ++i)
 	{
 		platid = ds_LookupPlatform (TestPlatforms[i].name);
@@ -533,9 +531,8 @@ char *platform;
 	int n;
 	char buf[128];
 
-	ftime(&tp);
+	tl_Time (&first);
 	first.zt_MicroSec = 0;
-	first.zt_Sec = tp.time;
 	first.zt_Sec -= (first.zt_Sec % 60) + NS;
 	dc = T_SimpleScalarChunk (&first, 1, NS, 4, FALSE, FALSE);
 	pid = ds_LookupPlatform(platform);
@@ -812,7 +809,7 @@ ZebTime when;
 	FieldId fields[20];
 	DC_ElemType types[20];
 	int nfield = DCT_String - 1;	/* exclude String and Unknown */
-	int i;
+	int i, f;
 	DataChunk *dc;
 	ZebTime begin = when;
 	static Location loc = { 40.0, -160.0, 5280.0 };
@@ -850,6 +847,19 @@ ZebTime when;
 	for (i = 2; i < 10; ++i, ++when.zt_Sec)
 		T_AddTypedScalarSample (dc, when, i, fields);
 	dc_DumpDC (dc);
+	/*
+	 * Check that non-float fields can be retrieved as floats
+	 */
+	Announce ("Retrieving non-floats as floats:");
+	for (f = 0; f < nfield; ++f)
+	{
+		printf ("%s: ", F_GetName (fields[f]));
+		for (i = 0; i < 10; ++i)
+		{
+			printf ("%g, ", dc_GetScalar (dc, i, fields[f]));
+		}
+		printf ("\n");
+	}
 	fflush (stdout);
 
 	Announce ("ds_Store()'ing the typed DataChunk to t_fieldtypes");
