@@ -27,7 +27,7 @@
 #include "dslib.h"
 
 #ifndef lint
-MAKE_RCSID ("$Id: Appl.c,v 3.28 1994-04-26 19:31:08 corbet Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.29 1994-04-26 19:55:41 corbet Exp $")
 #endif
 
 /*
@@ -635,9 +635,11 @@ FieldId *flist;
 /*
  * Find a file entry to look at.
  */
-	*nfld = 0;
 	if ((dfindex = ds_FindDF (plat, t, SRC_ALL)) < 0)
+	{
+		*nfld = 0;
 		return (0);
+	}
 /*
  * Have the format driver actually look.
  */
