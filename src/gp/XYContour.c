@@ -1,7 +1,7 @@
 /*
  * XY-Contour plotting module
  */
-static char *rcsid = "$Id: XYContour.c,v 1.6 1992-08-10 18:08:05 barrett Exp $";
+static char *rcsid = "$Id: XYContour.c,v 1.7 1992-10-01 17:49:12 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -253,6 +253,8 @@ bool	update;
 	xmax = oldxmax;
 	ymin = oldymin;
 	ymax = oldymax;
+	/* Make sure coordinate system is initialized */
+        lc_SetUserCoord ( &xmin,&xmax,&ymin,&ymax);
         xy_GetDataDescriptors(Pd, c, update,
                               &bTimeTarget,&eTimeTarget,
                               &bTimeOld,&eTimeOld,
