@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.43 1994-11-19 00:34:55 burghart Exp $ */
+/* $Id: GraphProc.h,v 2.44 1994-12-09 08:38:08 granger Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -144,6 +144,7 @@ extern int TriggerGlobal;
  * elsewhere.
  */
 # define GP_HELP_MOVIE		"movies"
+# define GP_HELP_MODEL		"model-time"
 # define GP_HELP_OVERLAYS	"overlaytimes"
 # define GP_HELP_LIMITS		"limitwidgets"
 # define GP_HELP_XYGRAPHS	"xygraph"

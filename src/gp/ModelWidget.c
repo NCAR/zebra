@@ -1,7 +1,7 @@
 /*
  * Movie control functions.
  */
-static char *rcsid = "$Id: ModelWidget.c,v 2.5 1994-11-19 00:35:17 burghart Exp $";
+static char *rcsid = "$Id: ModelWidget.c,v 2.6 1994-12-09 08:38:46 granger Exp $";
 /*		Copyright (C) 1994 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -425,6 +425,17 @@ XtAppContext appc;
 	w = StatusLabel = XtCreateManagedWidget ("ModelStatus", 
 						 labelWidgetClass, form, 
 						 args, n);
+/*
+ * Help button.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, w); n++;
+	XtSetArg (args[n], XtNfromVert, above); n++;
+	XtSetArg (args[n], XtNlabel, "Help"); n++;
+	w = XtCreateManagedWidget ("modelHelp", commandWidgetClass, form,
+				   args, n);
+	XtAddCallback (w, XtNcallback, HelpCallback, 
+		       (XtPointer)GP_HELP_MODEL);
 /*
  * Dismiss button.
  */
