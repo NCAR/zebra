@@ -19,25 +19,21 @@
  * maintenance or updates for its software.
  */
 
+#include <unistd.h>
+#include <stdio.h>
 #include <string.h>
 
 #include <defs.h>
+#include <zl_symbol.h>
 #include <message.h>
 #include <timer.h>
 #include "DataStore.h"
 #include "dsPrivate.h"
+#include "Platforms.h"
 #include "dslib.h"
 #include "Appl.h"
 
-RCSID ("$Id: Appl.c,v 3.44 1996-08-30 18:58:43 granger Exp $")
-
-/*
- * Platform search lists
- */
-typedef struct _PlatformList {
-	PlatformId *pl_pids;
-	int pl_npids;
-} PlatformList;
+RCSID ("$Id: Appl.c,v 3.45 1996-11-19 08:24:17 granger Exp $")
 
 /*
  * Notification callbacks are void functions
@@ -47,20 +43,21 @@ typedef void (*VFunc) ();
 /*
  * Local private prototypes.
  */
-static void     ds_InitPFTable FP ((void));
+static void     ds_InitPFCaches FP ((void));
 static void     ds_DispatchNotify FP ((struct dsp_Notify *));
 static int	ds_AwaitNPlat FP ((Message *, int *));
-static int	ds_AwaitPlat FP ((Message *, ClientPlatform *));
+static int	ds_AwaitPlat FP ((Message *, struct dsp_GetPlatStruct *req));
+static int	ds_AwaitClass FP ((Message *, struct dsp_GetPlatStruct *req));
 static int	ds_AwaitPlatformList FP ((Message *msg, PlatformList *));
-static void	ds_CachePlatform FP ((PlatformId pid, ClientPlatform *plat));
 static int	ds_AwaitFile FP ((Message *, DataFile *));
+static void	ds_PurgeFile FP ((int dfindex));
 static int	ds_AwaitGrant FP ((Message *, int));
-static int	ds_AwaitPID FP ((Message *, PlatformId *));
 static void	ds_SendSearch FP((char *regexp, int sort, int subs,
-				  int sendplats));
+				  int sendplats, PlatformList *pl));
 static int	ds_AwaitDF FP ((Message *, int *));
 static int	ds_GreetDaemon FP ((void));
 static int	ds_CheckProtocol FP ((Message *, int *));
+
 
 /*
  * The application notification table.
@@ -69,16 +66,20 @@ static VFunc ApplFuncs[MAXPLAT];
 static VFunc CopyFunc = 0;
 
 /*
- * Platform structure caching.
+ * Platform and class structure caching.
  */
 static ClientPlatform *PlatStructs[MAXPLAT] = { 0 };
+static PlatformClass *ClassStructs[MAXPLAT] = { 0 };
+
 
 /*
  * Data file entry cache structure.  The cache is intended to be small, 
- * fast and cheap...
+ * fast and cheap... but dynamic according to different client needs,
+ * so that it can grow at least as large as the maximum for open files
+ * but within limits.
  */
-# define N_DF_CACHE 10
-static DataFile DFCache[N_DF_CACHE];
+static DataFile *DFCache = NULL;
+static int DFCacheSize = 0;
 static int DFZap = 0;	/* Next entry to zap	*/
 
 /*
@@ -90,15 +91,50 @@ static int DFZap = 0;	/* Next entry to zap	*/
 static int LockCount = 0;
 
 /*
- * How far in the future we are willing to accept data.  Public so that
+ * How far in the future we are willing to accept data.  Public only so that
  * DFA_Appl.c has access.
  */
 int MaxFuture = 3600;	/* One hour into future	*/
 
 /*
- * The platform lookup table.
+ * The platform lookup tables.
  */
-static stbl Pf_Names;
+static stbl Pf_Names = NULL;
+static stbl Pc_Names = NULL;
+
+/*
+ * True if we are running standalone, with no daemon or timer to help us.
+ * Public so that DFA_Appl.c and SA_Appl.c routines have access.  As long
+ * as ds_Standalone is not called, SA_Appl.c will not be linked and this
+ * value will not change.
+ */
+int Standalone = 0;
+
+/*
+ * The structure which holds pointers to alternate method implementations,
+ * such as for standalone mode.
+ */
+DS_Methods DSM = { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
+
+
+
+void
+ds_InitAPI ()
+{
+	int i;
+
+	zl_usy_init ();	/* ok to call this, even if application
+			   already has */
+/*
+ * Set up the platform lookup tables and caches.
+ */
+	ds_InitPFCaches ();
+	for (i = 0; i < MAXPLAT; i++)
+		ApplFuncs[i] = 0;
+	dt_InitDirectories ();
+	F_Init ();
+}
+
 
 
 
@@ -108,132 +144,127 @@ ds_Initialize()
  * Hook into the data store.
  */
 {
-	int i;
-/*
- * Set up the platform lookup table.
- */
-	ds_InitPFTable();
-	for (i = 0; i < MAXPLAT; i++)
-		ApplFuncs[i] = 0;
-	usy_c_indirect (usy_g_stbl ("ui$variable_table"), "maxfuture",
-			&MaxFuture, SYMT_INT, 0);
+	Standalone = 0;
+	ds_InitAPI ();
 /*
  * Join the data store group.
  */
 	msg_join("DataStore");
-	F_Init ();
 	msg_AddProtoHandler(MT_DATASTORE, ds_DSMessage);
-/*
- * Initialize the datafile cache.
- */
-	for (i = 0; i < N_DF_CACHE; i++)
-		DFCache[i].df_index = -1;
-/*
- * Say hi to the daemon.
- */
 	return (! ds_GreetDaemon ());
 }
 
 
 
 
+int
+ds_IsStandalone ()
+/*
+ * Return our standalone state.  Zero if not standalone, non-zero otherwise.
+ */
+{
+	return (Standalone);
+}
+
+
+
+
+const char *
+ds_ProtoVersion ()
+{
+	static char buf[32];
+	sprintf (buf, "%#0x", DSProtocolVersion);
+	return (buf);
+}
+
+
+
+
+PlatClassId
+ds_PlatformClass (pid)
+PlatformId pid;
+{
+	ClientPlatform *cp;
+
+	if ((cp = ds_GetPlatStruct (pid, NULL, FALSE)))
+		return (cp->cp_class);
+	else
+		return (BadClass);
+}
+
+
+
+int
+ds_SetDataDir (dir)
+const char *dir;
+/*
+ * Return non-zero if the string did not fit
+ */
+{
+	return (dt_SetString (DefDataDir, dir, sizeof(DefDataDir), 
+			      "setting default data directory"));
+}
+
+
+
+int
+ds_SetRemoteDataDir (dir)
+const char *dir;
+/*
+ * Return non-zero if the string did not fit
+ */
+{
+	return (dt_SetString (RemDataDir, dir, sizeof(DefDataDir), 
+			      "setting default data directory"));
+}
+
+
+
+void
+ds_DisableRemote (flag)
+int flag;
+/*
+ * Disable remote directories iff flag is nonzero.
+ */
+{
+	DisableRemote = flag;
+}
+
+
+
 
 static void
-ds_InitPFTable ()
+ds_GetPlatformList (search, pl)
+struct dsp_PlatformSearch *search;
+PlatformList *pl;
 /*
- * Create the platform lookup table.
+ * Actually build the list, either by requesting from the daemon or
+ * with an alternative method function.
  */
 {
-/*
- * Create the table itself.
- */
-	Pf_Names = usy_c_stbl ("Platform_names");
-}
-
-
-
-
-
-
-PlatformId
-ds_LookupPlatform(name)
-char *name;
-/*
- * Find this platform.
- */
-{
-	int             type;
-	SValue          v;
-	PlatformId pid;
-	struct dsp_PLookup req;
-/*
- * If we already know about this platform just send back the ID.
- */
-	if (usy_g_symbol (Pf_Names, name, &type, &v))
-		return (v.us_v_int);
-/*
- * It can't be a valid platform if the name won't fit into the request.
- */
-	if (strlen(name) >= sizeof(req.dsp_name))
-		return (BadPlatform);
-/*
- * Otherwise we need to ask mom.
- */
-	req.dsp_type = dpt_LookupPlatform;
-	strcpy (req.dsp_name, name);
-	ds_SendToDaemon (&req, sizeof (req));
-	msg_Search (MT_DATASTORE, ds_AwaitPID, &pid);
-/*
- * Remember this for next time.  We don't stash failures on the theory
- * that someday we will have dynamic platform creation and a name that
- * fails once could succeed later.
- */
-	if (pid != BadPlatform)
+	pl->pl_npids = 0;
+	pl->pl_pids = NULL;
+	if (DSM.dsm_SearchPlatforms)
 	{
-		v.us_v_int = pid;
-		usy_s_symbol (Pf_Names, name, SYMT_INT, &v);
-		/* PlatNames[pid] = usy_pstring (name);*/
+		(*DSM.dsm_SearchPlatforms)(search, pl);
 	}
-	return (pid);
-}
-
-
-
-
-
-static int
-ds_AwaitPID (msg, pid)
-Message *msg;
-PlatformId *pid;
-/*
- * Wait for the platform lookup to return.
- */
-{
-	struct dsp_PID *dp = (struct dsp_PID *) msg->m_data;
-
-	if (dp->dsp_type == dpt_R_PID)
+	else
 	{
-		*pid = dp->dsp_pid;
-		return (0);
+		ds_SendToDaemon (search, sizeof(struct dsp_PlatformSearch));
+		msg_Search (MT_DATASTORE, ds_AwaitPlatformList, pl);
 	}
-	return (1);
 }
 
 
 
-/* -----------------------------------------------------------------
- * NOTE: The search functions below are not officially part of the 
- * application interface.  Only the standard daemon clients use them
- * at present.  These functions may change, and there is no gaurantee
- * that the changes will be backwards compatible.
- */
 
 static void
-ds_SendSearch (regexp, sort, subs, sendplats)
+ds_SendSearch (regexp, sort, subs, sendplats, pl)
 char *regexp;
 bool sort;
 bool subs;
 bool sendplats;	/* True if we want to receive platform structures as well */
+PlatformList *pl;
 /*
  * Send off a search request to the daemon
  */
@@ -250,8 +281,9 @@ bool sendplats;	/* True if we want to receive platform structures as well */
 		strcpy(search.dsp_regexp, regexp);
 	else
 		search.dsp_regexp[0] = '\0';
-	ds_SendToDaemon (&search, sizeof (search));
+	ds_GetPlatformList (&search, pl);
 }
+
 
 
 
@@ -268,14 +300,14 @@ bool subs;
 {
 	PlatformList pl;
 
-	ds_SendSearch (regexp, sort, subs, FALSE);
-	msg_Search (MT_DATASTORE, ds_AwaitPlatformList, &pl);
+	ds_SendSearch (regexp, sort, subs, FALSE, &pl);
 	*nplats = pl.pl_npids;
 /*
  * If no platform ids returned, then pl_pids will be NULL
  */
 	return (pl.pl_pids);
 }
+
 
 
 
@@ -292,11 +324,11 @@ bool subs;
 {
 	PlatformList pl;
 
-	ds_SendSearch (regexp, sort, subs, TRUE);
-	msg_Search (MT_DATASTORE, ds_AwaitPlatformList, &pl);
+	ds_SendSearch (regexp, sort, subs, TRUE, &pl);
 	*nplats = pl.pl_npids;
 	return (pl.pl_pids);
 }
+
 
 
 
@@ -320,14 +352,12 @@ int *nsubplat;
 	search.dsp_alphabet = FALSE;
 	search.dsp_sendplats = FALSE;
 	search.dsp_regexp[0] = '\0';
-	ds_SendToDaemon (&search, sizeof (search));
-/*
- * Now wait for the response
- */
-	msg_Search (MT_DATASTORE, ds_AwaitPlatformList, &pl);
+
+	ds_GetPlatformList (&search, &pl);
 	*nsubplat = pl.pl_npids;
 	return (pl.pl_pids);
 }
+
 
 
 
@@ -368,7 +398,7 @@ PlatformList *pl;
 		ds_CachePlatform (pss->dsp_pid, &(pss->dsp_plat));
 		return (MSG_CONSUMED);
 	   case dpt_CacheInvalidate:
-	   	ds_DSMessage (msg);
+	   	(msg_ProtoHandler (MT_DATASTORE)) (msg);
 		return (MSG_CONSUMED);
 	   default:
 	   	return (MSG_ENQUEUE);
@@ -379,25 +409,37 @@ PlatformList *pl;
 
 
 char *
-ds_PlatformName(id)
+ds_PlatformName (id)
 PlatformId id;
 /*
  * Get back the name for this platform.
  */
 {
-	static char *badmsg = "(BadPlatformID)";
-	if ((id == BadPlatform) || (id < 0) || (id >= MAXPLAT))
-		return (badmsg);
-	if (! PlatStructs[id])
-	{
-		int n = ds_GetNPlat ();
-		ClientPlatform p;
+	static const char *badmsg = "(BadPlatformID)";
+	ClientPlatform *cp;
 
-		if (id >= n)
-			return (badmsg);
-		ds_GetPlatStruct (id, &p, FALSE);
-	}
-	return (PlatStructs[id]->cp_name);
+	if ((cp = ds_GetPlatStruct (id, NULL, FALSE)))
+		return (cp->cp_name);
+	return ((char *)badmsg);
+}
+
+
+
+
+const char *
+ds_ClassName (id)
+PlatClassId id;
+/*
+ * Give back the name for this platform class.  Return null if the id
+ * is invalid.
+ */
+{
+	static const char *badmsg = "(BadClassID)";
+	const PlatformClass *pc;
+
+	if ((pc = ds_GetClassStruct (id, NULL)))
+		return (pc->dpc_name);
+	return (badmsg);
 }
 
 
@@ -409,27 +451,58 @@ PlatformId id;
  * Return TRUE iff this is a mobile platform.
  */
 {
-	ClientPlatform p;
-	ds_GetPlatStruct (id, &p, FALSE);
-	return (p.cp_flags & DPF_MOBILE);
+	const ClientPlatform *p;
+	p = ds_GetPlatStruct (id, NULL, FALSE);
+	return ((p) ? (p->cp_flags & DPF_MOBILE) : FALSE);
 }
 
 
 
 
 
-bool
+int
 ds_IsModelPlatform(id)
 PlatformId id;
 /*
  * Return TRUE iff this is a model platform.
  */
 {
-	ClientPlatform p;
-	ds_GetPlatStruct (id, &p, FALSE);
-	return ((p.cp_flags & DPF_MODEL) != 0);
+	const ClientPlatform *p;
+	p = ds_GetPlatStruct (id, NULL, FALSE);
+	return ((p) ? (p->cp_flags & DPF_MODEL) : FALSE);
 }
 
+
+
+int
+ds_MaxSamples (id)
+PlatformId id;
+{
+	const ClientPlatform *p;
+	p = ds_GetPlatStruct (id, NULL, FALSE);
+	return ((p) ? (p->cp_maxsamp) : 0);
+}
+
+
+char *
+ds_FilePath (pid, dfid)
+PlatformId pid;
+int dfid;
+/*
+ * The returned string contains the path to this file.  The string is in
+ * static memory and will be overwritten by subsequent calls to ds_FilePath()
+ */
+{
+	static char fname[1024];
+	DataFile df;
+	ClientPlatform p;
+
+	ds_GetFileStruct (dfid, &df);
+	ds_GetPlatStruct (pid, &p, FALSE);
+	sprintf (fname, "%s/%s", (df.df_flags & DFF_Remote) ?
+		p.cp_rdir : p.cp_dir, df.df_name);
+	return (fname);
+}
 
 
 
@@ -447,6 +520,8 @@ int src;
 /*
  * Just fire off a request to the daemon.
  */
+	if (DSM.dsm_FindBefore)
+		return ((*DSM.dsm_FindBefore) (pid, when, src));
  	req.dsp_type = dpt_FindDF;
 	req.dsp_pid = pid;
 	req.dsp_when = *when;
@@ -487,6 +562,8 @@ const ZebTime *when;
 /*
  * Just fire off a request to the daemon.
  */
+	if (DSM.dsm_FindAfter)
+		return ((*DSM.dsm_FindAfter) (pid, when));
  	req.dsp_type = dpt_FindAfter;
 	req.dsp_pid = pid;
 	req.dsp_when = *when;
@@ -516,7 +593,32 @@ int *index;
 	}
 	return (MSG_ENQUEUE);
 }
+
 		
+
+
+int
+ds_DataChain (p, which)
+ClientPlatform *p;
+int which;
+/*
+ * Return the beginning of the appropriate data chain.
+ */
+{
+	ClientPlatform parent;
+/*
+ * If this is a subplatform we refer ourselves to the parent instead.
+ */
+	if (p->cp_flags & DPF_SUBPLATFORM)
+	{
+		ds_GetPlatStruct (p->cp_parent, &parent, TRUE);
+		p = &parent;
+	}
+/*
+ * Now just return what they want.
+ */
+	return (which == 0 ? p->cp_LocalData : p->cp_RemoteData);
+}
 
 
 
@@ -549,7 +651,6 @@ struct message *msg;
 {
 	struct dsp_Template *dt = (struct dsp_Template *) msg->m_data;
 	struct dsp_DataGone *ddg;
-	int i;
 
 	switch (dt->dsp_type)
 	{
@@ -559,24 +660,15 @@ struct message *msg;
 		 * Either the file was closed by the DFA handler or a close
 		 * is not necessary because we never could have opened it.
 		 */
+#ifdef DEBUG
+		msg_ELog (EF_DEBUG,
+			  "DataGone received for %d", ddg->dsp_file);
+#endif /* DEBUG */
 		/* dfa_ForceClose (ddg->dsp_file); */
 		/*
 		 * All we need to do here is invalidate any cache entry
 		 */
-		for (i = 0; i < N_DF_CACHE; i++)
-		{
-			if (DFCache[i].df_index == ddg->dsp_file)
-			{
-#ifdef DEBUG
-				msg_ELog (EF_DEBUG,
-				   "DataGone received for %s (%d)",
-				   DFCache[i].df_name,
-				   DFCache[i].df_index);
-#endif /* DEBUG */
-				DFCache[i].df_index = -1;
-				break;
-			}
-		}
+		ds_PurgeFile (ddg->dsp_file);
 		break;
 	/*
 	 * An application notification has arrived.  Dispatch it back
@@ -628,12 +720,17 @@ ZebTime *zaptime;
 /*
  * Write lock the platform around the deletion just to be sure.
  */
+	if (DSM.dsm_DeleteData)
+	{
+		(*DSM.dsm_DeleteData)(platform, zaptime);
+		return;
+	}
 	ds_WriteLock (platform);
 	del.dsp_type = dpt_DeleteData;
 	del.dsp_plat = platform;
 	del.dsp_when = *zaptime;
 	ds_SendToDaemon (&del, sizeof (del));
-	ds_FreeWLock (platform);
+	ds_FreeWriteLock (platform);
 }
 
 
@@ -653,12 +750,17 @@ ZebTime *zaptime;
 /*
  * Write lock the platform around the deletion just to be sure.
  */
+	if (DSM.dsm_DeleteObs)
+	{
+		(*DSM.dsm_DeleteObs)(platform, zaptime);
+		return;
+	}
 	ds_WriteLock (platform);
 	del.dsp_type = dpt_DeleteObs;
 	del.dsp_plat = platform;
 	del.dsp_when = *zaptime;
 	ds_SendToDaemon (&del, sizeof (del));
-	ds_FreeWLock (platform);
+	ds_FreeWriteLock (platform);
 }
 
 
@@ -674,6 +776,8 @@ int all;
 {
 	struct dsp_Rescan req;
 
+	if (Standalone)
+		return;
 	req.dsp_type = dpt_Rescan;
 	req.dsp_pid = platform;
 	req.dsp_all = all;
@@ -687,7 +791,7 @@ int all;
 
 
 void
-ds_RequestNotify(platform, param, func)
+ds_RequestNotify (platform, param, func)
 PlatformId platform;
 int param;
 void (*func) ();
@@ -699,6 +803,8 @@ void (*func) ();
 /*
  * Fill in our request and send it off.
  */
+	if (Standalone)
+		return;
 	req.dsp_type = dpt_NotifyRequest;
 	req.dsp_pid = platform;
 	req.dsp_param = param;
@@ -723,6 +829,8 @@ ds_CancelNotify()
 	struct dsp_Template req;
 	int             i;
 
+	if (Standalone)
+		return;
 	req.dsp_type = dpt_CancelNotify;
 	ds_SendToDaemon (&req, sizeof (req));
 	for (i = 0; i < MAXPLAT; i++)
@@ -760,36 +868,12 @@ void (*handler) ();
 {
 	struct dsp_Template req;
 
+	if (Standalone)
+		return;
 	req.dsp_type = dpt_CopyNotifyReq;
 	ds_SendToDaemon (&req, sizeof(req));
 	CopyFunc = handler;
 }
-
-
-
-
-
-int
-ds_GetDetail (key, details, ndetail, v)
-char *key;
-dsDetail *details;
-int ndetail;
-SValue *v;
-/*
- * Try to find this detail value in the list, returning TRUE iff it is
- * there.  If V is NULL, the detail value is not returned.
- */
-{
-	for (; ndetail > 0; details++, ndetail--)
-		if (! strcmp (key, details->dd_Name))
-		{
-			if (v)
-				*v = details->dd_V;
-			return (TRUE);
-		}
-	return (FALSE);
-}
-
 
 
 
@@ -802,6 +886,9 @@ ds_GetNPlat ()
 {
 	struct dsp_Template req;
 	int nplat;
+
+        if (DSM.dsm_NPlat)
+                return ((*DSM.dsm_NPlat)());
 /*
  * Send off the request to the daemon.
  */
@@ -863,47 +950,120 @@ PlatformInfo *pinfo;
 }
 
 
+/*-----------------------------------------------------------------------*/
+/* Platform structure, class, and name caches */
+
+#ifdef APPL_STATS
+static int ClassNameHits = 0;
+static int ClassNameMisses = 0;
+static int PlatNameHits = 0;
+static int PlatNameMisses = 0;
+static int PlatHits = 0;
+static int PlatMisses = 0;
+static int PlatRefresh = 0;	/* i.e., a miss or refresh is true */
+static int ClassHits = 0;
+static int ClassMisses = 0;
+#endif
+
+static void
+ds_InitPFCaches ()
+/*
+ * Create the platform caches.
+ */
+{
+	int i;
+/*
+ * Create the tables.
+ */
+	Pf_Names = usy_c_stbl ("Platform_names");
+	Pc_Names = usy_c_stbl ("Platform_classes");
+/*
+ * Initialize the cache arrays. 
+ */
+	for (i = 0; i < MAXPLAT; ++i)
+	{
+		PlatStructs[i] = NULL;
+		ClassStructs[i] = NULL;
+	}
+}
 
 
-void
+
+static ClientPlatform *
+ds_PlatCached (pid)
+PlatformId pid;
+{
+	ClientPlatform *cp = NULL;
+
+	if (pid >= 0 && pid < MAXPLAT)
+		cp = PlatStructs[pid];
+	return (cp);
+}
+
+
+
+void *
+ds_PlatTable ()
+{
+	if (! Pf_Names)
+		ds_InitPFCaches ();
+	return ((void *)Pf_Names);
+}
+
+
+
+ClientPlatform *
 ds_GetPlatStruct (pid, plat, refresh)
 PlatformId pid;
 ClientPlatform *plat;
-bool refresh;
+int refresh;
 /*
  * Get the platform structure for this PID.  Only re-fetch a cached struct
- * if the "refresh" flag is true.
+ * if the "refresh" flag is true.  Return NULL if the platform cannot be
+ * found or the id is invalid.  Otherwise return a read-only pointer to the
+ * cached structure.  If plat is non-NULL, copy the structure into *plat.
  */
 {
-	struct dsp_GetPlatStruct req;
+	ClientPlatform *cp;
 /*
  * See if we have it cached and that is sufficient.
  */
-	if (PlatStructs[pid] && ! refresh)
+	if (pid < 0 || pid >= MAXPLAT)
+		cp = NULL;
+	else if ((! (cp = ds_PlatCached(pid)) || refresh) && ! Standalone)
 	{
-		*plat = *PlatStructs[pid];
-		return;
+		struct dsp_GetPlatStruct req;
+		/*
+		 * Send off the request and wait for an answer.
+		 */
+#ifdef APPL_STATS
+		if (! cp)
+			++PlatMisses;
+		else
+			++PlatRefresh;
+#endif
+		req.dsp_type = dpt_GetPlatStruct;
+		req.dsp_pid = pid;
+		ds_SendToDaemon (&req, sizeof (req));
+		msg_Search (MT_DATASTORE, ds_AwaitPlat, &req);
+		cp = PlatStructs[pid];
 	}
-/*
- * Send off the request and wait for an answer.
- */
- 	req.dsp_type = dpt_GetPlatStruct;
-	req.dsp_pid = pid;
-	ds_SendToDaemon ( &req, sizeof (req));
-	msg_Search (MT_DATASTORE, ds_AwaitPlat, plat);
-/*
- * Cache the result.
- */
-	ds_CachePlatform (pid, plat);
+#ifdef APPL_STATS
+	else if (cp)
+		++PlatHits;
+#endif
+	if (plat && cp)
+		*plat = *cp;
+	return (cp);
 }
 
 
 
 
 static int
-ds_AwaitPlat (msg, p)
+ds_AwaitPlat (msg, req)
 Message *msg;
-ClientPlatform *p;
+struct dsp_GetPlatStruct *req;
 /*
  * See if this is our platform structure.
  */
@@ -912,7 +1072,7 @@ ClientPlatform *p;
 
 	if (tmpl->dsp_type == dpt_R_PlatStruct)
 	{
-		struct dsp_PlatStruct *dps = (struct dsp_PlatStruct *) tmpl;
+		struct dsp_PlatStruct *ans;
 	/*
 	 * Sanity check
 	 */
@@ -928,10 +1088,22 @@ ClientPlatform *p;
 
 			exit (1);
 		}
-	/*
-	 * Give them what we got
-	 */
-		*p = dps->dsp_plat;
+		/*
+		 * Doublecheck IDs for grins, because we can
+		 */
+		ans = (struct dsp_PlatStruct *) msg->m_data;
+		if (req->dsp_pid != ans->dsp_pid)
+		{
+			msg_ELog (EF_PROBLEM, "%s %d after requesting %d",
+				  "Got platform", ans->dsp_pid, req->dsp_pid);
+		}
+		else if (ans->dsp_result)
+		{
+		/*
+		 * Cache a positive result.
+		 */
+			ds_CachePlatform (ans->dsp_pid, &ans->dsp_plat);
+		}
 		return (0);
 	}
 	return (1);
@@ -939,15 +1111,346 @@ ClientPlatform *p;
 
 
 
-static void
+
+void
 ds_CachePlatform (pid, plat)
 PlatformId pid;
 ClientPlatform *plat;
 {
 	if (! PlatStructs[pid])
+	{
 		PlatStructs[pid] = ALLOC (ClientPlatform);
-	*PlatStructs[pid] = *plat;
+		/*
+		 * When we first cache a platform, cache its names as well.
+		 */
+		ds_CacheName (plat->cp_name, pid);
+	}
+/*
+ * Make sure someone's not updating the cache from the cache...
+ */
+	if (PlatStructs[pid] != plat)
+		*PlatStructs[pid] = *plat;
 }
+
+
+
+
+void
+ds_CacheName (name, pid)
+const char *name;
+PlatformId pid;
+/*
+ * Enter this name and associated hierarchical names into the lookup table.
+ */
+{
+	SValue v;
+	const char *cp;
+
+	if (! Pf_Names)
+		ds_InitPFCaches ();
+/*
+ * We don't stash failures since we allow dynamic platform creation.  A
+ * name that fails once could succeed later, or perhaps was not meant to
+ * succeed at all because of an error.
+ */
+	if (pid != BadPlatform)
+	{
+		v.us_v_int = pid;
+		cp = name;
+		do
+		{
+			usy_s_symbol (Pf_Names, (char *)cp, SYMT_INT, &v);
+			if ((cp = (const char *) strchr (cp, '/')) != 0)
+				cp++;
+		}
+		while (cp);
+	}
+}
+
+
+
+const PlatformClass *
+ds_GetClassStruct (cid, plat)
+PlatClassId cid;
+PlatformClass *plat;
+/*
+ * Get the class structure for this class ID.  At this point classes are
+ * immutable, so there is no 'refresh' flag.  Return NULL if the class
+ * cannot be found or the id is invalid.  Otherwise return a read-only 
+ * pointer to the cached structure.  If plat is non-NULL, copy the class
+ * structure into *plat.
+ */
+{
+	PlatformClass *pc;
+/*
+ * See if we have it cached.
+ */
+	if (cid < 0 || cid >= MAXPLAT)
+		pc = NULL;
+	else if ((! (pc = ClassStructs[cid])) && ! Standalone)
+	{
+		struct dsp_GetPlatStruct req;
+		/*
+		 * Send off the request and wait for an answer.
+		 */
+		req.dsp_type = dpt_GetClassStruct;
+		req.dsp_pid = cid;
+		ds_SendToDaemon (&req, sizeof (req));
+		msg_Search (MT_DATASTORE, ds_AwaitClass, &req);
+		pc = ClassStructs[cid];
+#ifdef APPL_STATS
+		++ClassMisses;
+#endif
+	}
+#ifdef APPL_STATS
+	else if (pc)
+		++ClassHits;
+#endif
+	if (plat && pc)
+		*plat = *pc;
+	return (pc);
+}
+
+
+
+
+static int
+ds_AwaitClass (msg, req)
+Message *msg;
+struct dsp_GetPlatStruct *req;
+/*
+ * See if this is our platform class structure.
+ */
+{
+	struct dsp_Template *tmpl = (struct dsp_Template *) msg->m_data;
+
+	if (tmpl->dsp_type == dpt_R_ClassStruct)
+	{
+		struct dsp_ClassStruct *dsp;
+	/*
+	 * Sanity check: however, we only know there's a problem when the
+	 * recieved length is less than our expected minimum.
+	 */
+		if (msg->m_len < sizeof (struct dsp_ClassStruct))
+		{
+			msg_ELog (EF_EMERGENCY, 
+				  "Class structure size mismatch (%d > %d)!",
+				  sizeof (struct dsp_PlatStruct), msg->m_len);
+			msg_ELog (EF_EMERGENCY, 
+			  "Make sure dsDaemon and I are compiled with the");
+			msg_ELog (EF_EMERGENCY,
+			  "same value of CFG_PLATNAME_LEN in config.h");
+
+			exit (1);
+		}
+	/*
+	 * Doublecheck IDs for grins, and because we can
+	 */
+		dsp = (struct dsp_ClassStruct *) msg->m_data;
+		if (req->dsp_pid != dsp->dsp_cid)
+		{
+			msg_ELog (EF_PROBLEM, "%s %d after requesting %d",
+				  "Got class", dsp->dsp_cid, req->dsp_pid);
+		}
+		else if (dsp->dsp_result)
+		{
+			PlatformClass pc;
+		/*
+		 * Extract and cache a positive result.
+		 */
+			dt_ExtractClass (&pc, dsp, msg->m_len);
+			ds_CacheClass (dsp->dsp_cid, &pc);
+			dt_EraseClass (&pc);
+		}
+		return (0);
+	}
+	return (1);
+}
+
+
+
+
+void
+ds_CacheClass (cid, pc)
+PlatClassId cid;
+PlatformClass *pc;
+/*
+ * Cache a platform class.  An existing cache is erased before updating
+ * with a new one.
+ */
+{
+	PlatformClass *dest;
+
+	if (cid < 0 || cid > MAXPLAT)
+		return;
+	/*
+	 * Someone may not know that they updated the cache in place.
+	 */
+	if (pc == ClassStructs[cid])
+		return;
+	if ((dest = ClassStructs[cid]) != NULL)
+	{
+		dt_EraseClass (dest);
+	}
+	else
+	{
+		dest = ALLOC (PlatformClass);
+		ClassStructs[cid] = dest;
+		/*
+		 * Once we know the structure we should remember the name too.
+		 */
+		ds_CacheClassName (pc->dpc_name, cid);
+	}
+	dt_CopyClass (dest, pc);
+}
+
+
+
+void
+ds_CacheClassName (name, cid)
+const char *name;
+PlatClassId cid;
+{
+	SValue v;
+
+	if (! Pc_Names)
+		ds_InitPFCaches ();
+/*
+ * We don't stash failures since we allow dynamic platform creation.
+ * A name that fails once could succeed later, or is a name that wasn't
+ * meant to succeed in the first place.
+ */
+	if (cid != BadClass)
+	{
+		v.us_v_int = cid;
+		usy_s_symbol (Pc_Names, (char *)name, SYMT_INT, &v);
+	}
+}
+
+
+
+
+PlatformId
+ds_LookupPlatform(name)
+const char *name;
+/*
+ * Find this platform.
+ */
+{
+	int             type;
+	SValue          v;
+	PlatformId pid;
+	struct dsp_PLookup req;
+/*
+ * If we already know about this platform just send back the ID.
+ */
+	if (Pf_Names && usy_g_symbol (Pf_Names, (char *)name, &type, &v))
+	{
+#ifdef APPL_STATS
+		++PlatNameHits;
+#endif
+		return (v.us_v_int);
+	}
+#ifdef APPL_STATS
+	++PlatNameMisses;
+#endif
+/*
+ * It can't be a valid platform if the name won't fit into the request.
+ */
+	if (strlen((char *)name) >= sizeof(req.dsp_name))
+		return (BadPlatform);
+/*
+ * If we're standalone and we don't know about it, not much we can do
+ */
+	if (Standalone)
+		return (BadPlatform);
+/*
+ * Otherwise we need to ask mom.
+ */
+	req.dsp_type = dpt_LookupPlatform;
+	strcpy (req.dsp_name, (char *)name);
+	ds_SendToDaemon (&req, sizeof (req));
+	msg_Search (MT_DATASTORE, ds_AwaitPID, &pid);
+/*
+ * Remember this for next time.
+ */
+	ds_CacheName (name, pid);
+	return (pid);
+}
+
+
+
+PlatClassId
+ds_LookupClass (name)
+const char *name;
+/*
+ * Find this platform class.
+ */
+{
+	int             type;
+	SValue          v;
+	PlatClassId	cid;
+	struct dsp_PLookup req;
+/*
+ * If we already know about this class just send back the ID.
+ */
+	if (Pc_Names && usy_g_symbol (Pc_Names, (char *)name, &type, &v))
+	{
+#ifdef APPL_STATS
+		++ClassNameHits;
+#endif
+		return (v.us_v_int);
+	}
+#ifdef APPL_STATS
+	++ClassNameMisses;
+#endif
+/*
+ * It can't be a valid class if the name won't fit into the request.
+ */
+	if (strlen((char *)name) >= sizeof(req.dsp_name))
+		return (BadClass);
+/*
+ * If we're standalone and we don't know about it, not much we can do.
+ */
+	if (Standalone)
+		return (BadClass);
+/*
+ * Otherwise we need to ask mom.
+ */
+	req.dsp_type = dpt_LookupClass;
+	strcpy (req.dsp_name, (char *)name);
+	ds_SendToDaemon (&req, sizeof (req));
+	msg_Search (MT_DATASTORE, ds_AwaitPID, &cid);
+/*
+ * Remember this for next time.
+ */
+	ds_CacheClassName (name, cid);
+	return (cid);
+}
+
+
+
+int
+ds_AwaitPID (msg, pid)
+Message *msg;
+PlatformId *pid;
+/*
+ * Wait for the platform lookup to return.
+ */
+{
+	struct dsp_PID *dp = (struct dsp_PID *) msg->m_data;
+
+	if ((dp->dsp_type == dpt_R_PID) || (dp->dsp_type == dpt_R_CID))
+	{
+		*pid = dp->dsp_pid;
+		return (0);
+	}
+	return (1);
+}
+
+
+
+/*=======================================================================*/
 
 
 
@@ -1021,26 +1524,42 @@ DataFileInfo *dfi;
 
 
 
+/*  ------------------------------------------- DataFile cache access --- */
 
-void
+#ifdef APPL_STATS
+static int DFC_Hits = 0;
+static int DFC_Misses = 0;
+static int DFC_In = 0;		/* DataFiles copied into cache */
+static int DFC_Out = 0;		/* DataFiles removed from cache to make room */
+static int DFC_Updated = 0;	/* DataFiles updated in place */
+static int DFC_Loops = 0;	/* Loops looped in SearchCache */
+#endif
+
+
+
+int
 ds_GetFileStruct (index, df)
 int index;
 DataFile *df;
 /*
- * Get the file structure for this index.
+ * Get the file structure for this index.  Return nonzero iff successful.
  */
 {
 	struct dsp_GetFileStruct req;
-	int i;
+	DataFile *cdf;
 /*
  * See if we have this one in the cache.
  */
-	for (i = 0; i < N_DF_CACHE; i++)
-		if (DFCache[i].df_index == index)
-		{
-			*df = DFCache[i];
-			return;
-		}
+	if ((cdf = ds_SearchCache (index)))
+	{
+		*df = *cdf;
+		return (1);
+	}
+/*
+ * If standalone and not in the cache, we don't have it
+ */
+	if (Standalone)
+		return (0);
 /*
  * Send off the request and wait for an answer.
  */
@@ -1048,6 +1567,7 @@ DataFile *df;
 	req.dsp_index = index;
 	ds_SendToDaemon ( &req, sizeof (req));
 	msg_Search (MT_DATASTORE, ds_AwaitFile, df);
+	return (1);
 }
 
 
@@ -1086,9 +1606,8 @@ DataFile *df;
 	/*
 	 * Stash what we got
 	 */
-		DFCache[DFZap++] = *df = dfs->dsp_file;
-		if (DFZap >= N_DF_CACHE)
-			DFZap = 0;
+		*df = dfs->dsp_file;
+		ds_CacheFile (df);
 		return (0);
 	}
 	return (1);
@@ -1096,41 +1615,160 @@ DataFile *df;
 
 
 
+DataFile *
+ds_SearchCache (dfi)
+int dfi;
+/*
+ * Return a pointer to the actual cached data file, if present, and NULL
+ * otherwise.  If we're standalone, chances are the file index less one is
+ * also the cache index.
+ */
+{
+	int i;
+
+	if (Standalone && DFCache[dfi - 1].df_index == dfi)
+	{
+		return (DFCache + dfi - 1);
+	}
+	for (i = 0; i < DFCacheSize; i++)
+	{
+		if (DFCache[i].df_index == dfi)
+		{
+#ifdef APPL_STATS
+			++DFC_Hits;
+			DFC_Loops += i;
+#endif
+			return (DFCache + i);
+		}
+	}
+#ifdef APPL_STATS
+	++DFC_Misses;
+	DFC_Loops += i;
+#endif
+	return (NULL);
+}
+
+
+
+static void
+ds_PurgeFile (dfindex)
+int dfindex;
+/*
+ * Remove this cache entry, if present, without replacing it.
+ */
+{
+	DataFile *df;
+
+	if ((df = ds_SearchCache (dfindex)))
+	{
+		df->df_index = -1;
+	}
+}
+
+
+
+void
+ds_CreateFileCache (size)
+int size;
+{
+	if (! DFCache)
+	{
+		int i;
+
+		DFCacheSize = size;
+		DFCache = (DataFile *) malloc (DFCacheSize * sizeof(DataFile));
+		if (! DFCache)
+		{
+			msg_ELog (EF_EMERGENCY, 
+				  "cannot allocate datafile cache");
+			DFCacheSize = 0;
+			return;
+		}
+		for (i = 0; i < DFCacheSize; ++i)
+			DFCache[i].df_index = -1;
+	}
+}
+
+
+
+DataFile *
+ds_CacheFile (dfe)
+DataFile *dfe;
+/*
+ * Initialize the cache if necessary, then cache this datafile structure. 
+ * If dfe is NULL, just return the location the file would have been
+ * cached, and expect the caller to set the index appropriately to indicate
+ * the entry is being used.
+ */
+{
+	DataFile *dfp;
+
+	if (! DFCache)
+	{
+		ds_CreateFileCache (MAX_DF_CACHE);
+	}
+	if (DFZap >= DFCacheSize)
+		return (NULL);
+#ifdef APPL_STATS
+	if (DFCache[DFZap].df_index != -1)
+		++DFC_Out;
+	++DFC_In;
+#endif
+	dfp = &(DFCache[DFZap++]);
+	if (dfe)
+		*dfp = *dfe;
+	if (DFZap >= DFCacheSize)
+	{
+		DFZap = 0;
+		if (Standalone)
+		{
+			msg_ELog (EF_INFO, "%s (%d entries): %s",
+				  "datafile cache full", DFCacheSize,
+				  "circling to overwrite old entries");
+		}
+	}
+	return (dfp);
+}
+
+
 
 void
 ds_ZapCache (dfe)
 DataFile *dfe;
 /*
- * Deal with an invalidated cache entry.
+ * Replace an invalidated cache entry with a fresh copy.
  */
 {
-	int i;
+	DataFile *df = ds_SearchCache (dfe->df_index);
 
-	for (i = 0; i < N_DF_CACHE; i++)
-		if (DFCache[i].df_index == dfe->df_index)
-		{
+	if (df)
+	{
 		/*
 		 * We only want to update the cache if this dfe is in fact
 		 * more recent than the one in the cache.  It could be that
 		 * the cache entry is newer by virtue of an update ack and
 		 * the fact that the invalidate message may have been
 		 * sitting in a queue for a while.  This is only a
-		 * safeguard, and may not be failsafe. XXX.  A perhaps better
-		 * method would be to use the message sequence number.
+		 * safeguard, and may not be failsafe. XXX.  Perhaps a
+		 * better method would be to use the message sequence
+		 * number.
 		 */
-			if (DFCache[i].df_rev <=  dfe->df_rev)
-			{
-				DFCache[i] = *dfe;
+		if (df->df_rev <= dfe->df_rev)
+		{
+			*df = *dfe;
+#ifdef APPL_STATS
+			++DFC_Updated;
+#endif
 #ifdef DEBUG
-				msg_ELog (EF_DEBUG,
-				   "updating client cache for %s (%d)",
-				   dfe->df_name, dfe->df_index);
+			msg_ELog (EF_DEBUG,
+				  "updating client cache for %s (%d)",
+				  dfe->df_name, dfe->df_index);
 #endif /* DEBUG */
-			}
-			break;
 		}
+	}
 }
 
+/* --------------------------------------------------------------------- */
 
 
 
@@ -1148,6 +1786,11 @@ PlatformId plat;
  */
 	if (LockCount++)
 		return;
+	if (Standalone)
+	{
+		++LockCount;
+		return;
+	}
 /*
  * Send off the lock request, and wait for the answer saying that we
  * got it.
@@ -1168,6 +1811,9 @@ PlatformId plat;
  */
 {
 	struct dsp_PLock req;
+
+	if (Standalone)
+		return;
 /*
  * Send off the lock request, and wait for the answer saying that we
  * got it.
@@ -1205,7 +1851,7 @@ int junk;
 	{
 	   case dpt_DataGone:	/* Could be dangerous, this one? */
 	   case dpt_CacheInvalidate:
-	   	ds_DSMessage (msg);
+	   	(msg_ProtoHandler (MT_DATASTORE)) (msg);
 		return (MSG_CONSUMED);
 	   default:
 	   	return (MSG_ENQUEUE);
@@ -1224,7 +1870,7 @@ PlatformId plat;
 {
 	struct dsp_PLock req;
 
-	if (--LockCount)
+	if (--LockCount || Standalone)
 		return;	/* not yet */
 	req.dsp_type = dpt_ReleasePLock;
 	req.dsp_pid = plat;
@@ -1234,7 +1880,7 @@ PlatformId plat;
 
 
 void
-ds_FreeWLock (plat)
+ds_FreeWriteLock (plat)
 PlatformId plat;
 /*
  * Release the lock on this platform.
@@ -1242,6 +1888,8 @@ PlatformId plat;
 {
 	struct dsp_PLock req;
 
+	if (Standalone)
+		return;
 	req.dsp_type = dpt_ReleaseWLock;
 	req.dsp_pid = plat;
 	ds_SendToDaemon (&req, sizeof (req));
@@ -1263,6 +1911,11 @@ int len;
 	static int first = TRUE;
 	char *dhost, group[80];
 
+	if (Standalone)
+	{
+		msg_ELog (EF_PROBLEM, "Can't send to daemon while standalone");
+		return;
+	}
 	if (first)
 	{
 		if ((dhost = getenv ("DS_DAEMON_HOST")) != NULL)
@@ -1338,6 +1991,8 @@ int dfi;
 {
 	struct dsp_MarkArchived ma;
 
+	if (Standalone)
+		return;
 	ma.dsp_type = dpt_MarkArchived;
 	ma.dsp_FileIndex = dfi;
 	ds_SendToDaemon (&ma, sizeof (ma));
@@ -1345,11 +2000,11 @@ int dfi;
 	
 
 
-
 void
 ds_FreeCache ()
 /*
- * Free the platform cache.
+ * Free the platform, class, and file caches.
+ * Destroy the class and platform name tables.
  */
 {
 	int i;
@@ -1361,5 +2016,29 @@ ds_FreeCache ()
 			free (PlatStructs[i]);
 			PlatStructs[i] = NULL;
 		}
+		if (ClassStructs[i])
+		{
+			dt_EraseClass (ClassStructs[i]);
+			free (ClassStructs[i]);
+			ClassStructs[i] = NULL;
+		}
+	}
+	if (DFCache)
+	{
+		free (DFCache);
+		DFCache = NULL;
+		DFCacheSize = 0;
+	}
+	if (Pf_Names)
+	{
+		zl_z_stbl (Pf_Names);
+		Pf_Names = NULL;
+	}
+	if (Pc_Names)
+	{
+		zl_z_stbl (Pc_Names);
+		Pc_Names = NULL;
 	}
 }
+
+
