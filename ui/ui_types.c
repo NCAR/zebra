@@ -6,6 +6,7 @@
 # include "ui_param.h"
 # include "ui_symbol.h"
 
+static char *rcsid = "$Id: ui_types.c,v 1.3 1990-05-13 11:10:41 corbet Exp $";
 
 /*
  * Month info.
