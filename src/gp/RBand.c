@@ -1,7 +1,7 @@
 /*
  * Rubber-band interactive drawing routines.
  */
-static char *rcsid = "$Id: RBand.c,v 1.1 1990-09-17 10:22:18 corbet Exp $";
+static char *rcsid = "$Id: RBand.c,v 1.2 1990-11-16 14:07:52 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include "../include/defs.h"
@@ -89,7 +89,8 @@ rb_MakeGC ()
 		gcv.foreground = 1;
 	else
 	{
-		if (! pda_Search (Pd, "global", "xorvalue", NULL,&fg,SYMT_INT))
+		if (! pda_Search (Pd, "global", "xorvalue", NULL,
+					(char *) &fg, SYMT_INT))
 			fg = 0x1F;
 		gcv.foreground = fg;
 	}
