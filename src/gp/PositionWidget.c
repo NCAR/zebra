@@ -1,7 +1,7 @@
 /*
  * Widget for getting position of cursor.
  */
-static char *rcsid = "$Id: PositionWidget.c,v 1.9 1993-03-11 23:29:49 granger Exp $";
+static char *rcsid = "$Id: PositionWidget.c,v 1.10 1993-03-12 22:04:03 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -141,6 +141,17 @@ XtAppContext 	actx;
 	KNButton = XtCreateManagedWidget ("nmkm", commandWidgetClass,
 		parent, args, n);
 	XtAddCallback (KNButton, XtNcallback, ChangeUnit, 0);
+/*
+ * Add the help mechanism
+ */
+	n = 0;
+	XtSetArg (args[n], XtNlabel, "Help");			n++;
+	XtSetArg (args[n], XtNfromHoriz, KNButton);		n++;
+	XtSetArg (args[n], XtNfromVert, DMSButton);		n++;
+	KNButton = XtCreateManagedWidget ("help", commandWidgetClass,
+		parent, args, n);
+	XtAddCallback (KNButton, XtNcallback, HelpCallback, 
+		       (XtPointer)GP_HELP_GPOSITION);
 /*
  * The text widget for entering the origin.
  */
