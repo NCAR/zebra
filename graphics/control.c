@@ -546,6 +546,21 @@ int color, font, hjust, vjust;
 float height, x, y;
 char *text;
 /*
+ * Do a G_write with a rotation of zero
+ */
+{
+	G_write (cov, color, font, height, hjust, vjust, x, y, 0.0, text);
+}
+
+
+
+
+G_write (cov, color, font, height, hjust, vjust, x, y, rot, text)
+overlay cov;
+int color, font, hjust, vjust;
+float height, x, y, rot;
+char *text;
+/*
  * Write some text into an overlay.
  * Entry:
  *	COV	is an overlay ID.
@@ -555,19 +570,23 @@ char *text;
  *	HJUST	is the horizontal justification, being LEFT, RIGHT, or CENTER.
  *	VJUST	is the vertical justification, being TOP, BOTTOM, or CENTER.
  *	X, Y	is where to position the text.
+ *	ROT	is the rotation in degrees counterclockwise from horizontal
  *	TEXT	is the actual text to write.
  * Exit:
  *	The text has been written into the overlay.
  */
 {
 	struct overlay *ov = (struct overlay *) cov;
-	int dx, dy, extra[4], pixheight, ex, ey, ftype = gt_font_type (font);
-	float scale;
+	int dx, dy, extra[5], pixheight, ex, ey, ftype = gt_font_type (font);
+	float scale, aspect;
 /*
  * Make sure our device can handle this operation.
  */
  	if (ftype == GFT_PIXEL &&
 		(ov->ov_ws->ws_dev->gd_flags & GDF_PIXEL) == 0)
+		return (GE_DEVICE_UNABLE);
+
+	if (ftype == GFT_PIXEL && rot != 0.0)
 		return (GE_DEVICE_UNABLE);
 /*
  * Come up with the scale factor to be applied to the font.
@@ -580,14 +599,16 @@ char *text;
  */
  	dx = W_TO_DC (x, ov->ov_x0, ov->ov_x1, ov->ov_ws->ws_dev->gd_xres);
  	dy = W_TO_DC (y, ov->ov_y0, ov->ov_y1, ov->ov_ws->ws_dev->gd_yres);
-	gt_get_start (dx, dy, font, scale, hjust, vjust, text,
+	aspect = ov->ov_ws->ws_dev->gd_aspect;
+	gt_get_start (dx, dy, font, scale, hjust, vjust, rot, aspect, text,
 		extra + GOP_T_X, extra + GOP_T_Y, &ex, &ey);
 /*
  * If this is a pixmap overlay, we simply write it into the map now.
  */
  	if (ov->ov_flags & OVF_PIXMAP)
 		gt_do_text (ov->ov_ws, ov, color, extra[GOP_T_X], 
-			extra[GOP_T_Y], font, (int) (100 * scale), text,FALSE);
+			extra[GOP_T_Y], font, (int) (100 * scale), rot, 
+			text, FALSE);
 /*
  * We try to avoid software clipping at all cost, since a text string of
  * moderate size can easily turn into hundreds of polyline operations.  So,
@@ -602,12 +623,14 @@ char *text;
 	{
 	 	extra[GOP_T_FONT] = font;
 		extra[GOP_T_SCALE] = (int) (100 * scale);
-		gop_add_op (GOP_TEXT, color, extra, 4, ov, strlen (text) + 1,
+		extra[GOP_T_ROT] = (int) (100 * rot);
+		gop_add_op (GOP_TEXT, color, extra, 5, ov, strlen (text) + 1,
 			text, FALSE);
 	}
 	else
 		gt_do_text (ov->ov_ws, ov, color, extra[GOP_T_X], 
-			extra[GOP_T_Y], font, (int) (100 * scale), text,FALSE);
+			extra[GOP_T_Y], font, (int) (100 * scale), rot, 
+			text, FALSE);
 	ov->ov_flags |= OVF_MODIFIED;
 	ov->ov_flags &= ~OVF_EMPTY;
 	return (GE_OK);
@@ -1263,6 +1286,23 @@ float height, x, y;
 char *text;
 float *x0, *y0, *x1, *y1;
 /*
+ * Just call G_wr_box with a rotation of 0.0
+ */
+{
+	G_wr_box (cov, font, height, hjust, vjust, x, y, 0.0, text, 
+		x0, y0, x1, y1);
+}
+
+
+
+
+G_wr_box (cov, font, height, hjust, vjust, x, y, rot, text, x0, y0, x1, y1)
+overlay cov;
+int font, hjust, vjust;
+float height, x, y, rot;
+char *text;
+float *x0, *y0, *x1, *y1;
+/*
  * Return the bounds of a box containing this graphical text.
  * Entry:
  *	COV	is an overlay ID.
@@ -1279,7 +1319,7 @@ float *x0, *y0, *x1, *y1;
 	struct overlay *ov = (struct overlay *) cov;
 	struct device *dev = ov->ov_ws->ws_dev;
 	int dx, dy, pixheight, ex, ey, ftype = gt_font_type (font), sx, sy;
-	float scale;
+	float scale, aspect;
 /*
  * Make sure our device can handle this operation.  We do this even though
  * the text is not really being written, since returning a dimension makes
@@ -1298,19 +1338,20 @@ float *x0, *y0, *x1, *y1;
  */
  	dx = W_TO_DC (x, ov->ov_x0, ov->ov_x1, dev->gd_xres);
  	dy = W_TO_DC (y, ov->ov_y0, ov->ov_y1, dev->gd_yres);
-	gt_get_start (dx, dy, font, scale, hjust, vjust, text,
+	aspect = ov->ov_ws->ws_dev->gd_aspect;
+	gt_get_start (dx, dy, font, scale, hjust, vjust, 0.0, aspect, text, 
 		&sx, &sy, &ex, &ey);
 /*
  * Finally, convert our return values back to overlay coords.  Should a clip
  * window be applied?
  */
- 	*x0 = (((float) sx) * (ov->ov_x1 - ov->ov_x0))/((float) dev->gd_xres)
-			+ ov->ov_x0;
- 	*y0 = (((float) sy) * (ov->ov_y1 - ov->ov_y0))/((float) dev->gd_yres)
-			+ ov->ov_y0;
  	*x1 = (((float) ex) * (ov->ov_x1 - ov->ov_x0))/((float) dev->gd_xres)
 			+ ov->ov_x0;
  	*y1 = (((float) ey) * (ov->ov_y1 - ov->ov_y0))/((float) dev->gd_yres)
+			+ ov->ov_y0;
+ 	*x0 = (((float) sx) * (ov->ov_x1 - ov->ov_x0))/((float) dev->gd_xres)
+			+ ov->ov_x0;
+ 	*y0 = (((float) sy) * (ov->ov_y1 - ov->ov_y0))/((float) dev->gd_yres)
 			+ ov->ov_y0;
 	return (GE_OK);
 }
