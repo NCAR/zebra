@@ -1,7 +1,7 @@
 /*
  * Ingest radar data and rasterize it.
  */
-static char *rcsid = "$Id: radar_ingest.c,v 1.2 1991-04-28 17:38:15 corbet Exp $";
+static char *rcsid = "$Id: radar_ingest.c,v 1.3 1991-06-12 22:42:20 corbet Exp $";
 
 # include <errno.h>
 # include <sys/time.h>
@@ -31,7 +31,14 @@ int NFrames = 2;		/* How many frames		*/
 int Niceness = 0;
 int WidgetUpdate = 20;
 int NBeam = 0, NMissed = 0;
+bool Project = TRUE;
 
+/*
+ * Thresholding.
+ */
+bool DoThresholding = FALSE;
+int ThrFldOffset;
+unsigned char ThrCounts = 0;
 
 struct _ix_desc *ShmDesc = 0;
 int	ImageSet = -1;
@@ -44,6 +51,15 @@ char PlatformName[PF_LEN];
  */
 static DataObject OutData;
 ScaleInfo Scale[10];
+
+/*
+ * Who consumes our data.
+ */
+static char Consumer[200];
+static char *CArgs[20];
+static int NCArg = 0;
+static bool CSet = FALSE;
+static int CPid;		/* It's process ID	*/
 
 /*
  * Field info.
@@ -65,6 +81,11 @@ static char **Argv;
 	static void ClearFrames (void);
 	static void Source (struct ui_command *);
 	static void NewField (struct ui_command *);
+	static void ThreshParams (struct ui_command *);
+	static void SetConsumer (struct ui_command *);
+	static void InvokeConsumer (void);
+	static int MHandler (Message *);
+	static void CheckMessages (void);
 # else
 	static int Dispatcher ();
 	static void Go ();
@@ -72,6 +93,11 @@ static char **Argv;
 	static void ClearFrames ();
 	static void Source ();
 	static void NewField ();
+	static void ThreshParams ();
+	static void SetConsumer ();
+	static void InvokeConsumer ();
+	static int MHandler ();
+	static void CheckMessages ();
 # endif
 
 
@@ -95,11 +121,21 @@ main (argc, argv)
 int argc;
 char **argv;
 {
+	SValue v;
 /*
  * Initialize.
  */
-	msg_connect (die, "Radar Ingest");
-	ui_init ("/fcc/lib/radar_ingest.lf", TRUE, TRUE);
+	msg_connect (MHandler, "Radar Ingest");
+	if (argc > 1)
+	{
+		ui_init ("/fcc/lib/radar_ingest.lf", FALSE, TRUE);
+		v.us_v_ptr = argv[1];
+		usy_s_symbol (usy_g_stbl ("ui$variable_table"), "commandfile",
+				SYMT_STRING, &v);
+	}
+	else
+		ui_init ("/fcc/lib/radar_ingest.lf", TRUE, FALSE);
+
 	ui_setup ("radar_ingest", &argc, argv, 0);
 	DefineWidgets ();
 	SetupIndirect ();
@@ -139,6 +175,11 @@ SetupIndirect ()
 	usy_c_indirect (vtable, "nframes", &NFrames, SYMT_INT, 0);
 	usy_c_indirect (vtable, "niceness", &Niceness, SYMT_INT, 0);
 	usy_c_indirect (vtable, "update", &WidgetUpdate, SYMT_INT, 0);
+	usy_c_indirect (vtable, "project", &Project, SYMT_BOOL, 0);
+/*
+ * Thresholding parameters.
+ */
+	usy_c_indirect (vtable, "threshold", &DoThresholding, SYMT_BOOL, 0);
 }
 
 
@@ -174,6 +215,18 @@ struct ui_command *cmds;
 	 */
 	   case RIC_FIELD:
 	   	NewField (cmds + 1);
+		break;
+	/*
+	 * Thresholding.
+	 */
+	   case RIC_THRESHOLD:
+	   	ThreshParams (cmds + 1);
+		break;
+	/*
+	 * Consumption, conspicuous or otherwise.
+	 */
+	   case RIC_CONSUMER:
+	   	SetConsumer (cmds + 1);
 		break;
 	/*
 	 * Time to complain.
@@ -242,6 +295,7 @@ Go ()
 	Beam beam;
 	Housekeeping *hk;
 	int i, nbeam = 0;
+	Widget top;
 /*
  * Set up our beam input source.
  */
@@ -256,6 +310,10 @@ Go ()
 		die ();
 	}
 /*
+ * Go into window mode, with our popup.
+ */	
+	uw_ForceWindowMode ("status", &top, 0);
+/*
  * Set up our shared memory segment.
  */
 	if (! (ShmDesc = IX_Create (0x910425, XRes, YRes, NField, NFrames,
@@ -265,6 +323,11 @@ Go ()
 		die ();
 	}
 	IX_LockMemory (ShmDesc);
+	IX_Initialize (ShmDesc, 0xff);
+/*
+ * Invoke the consumer to pull stuff out of that segment.
+ */
+	InvokeConsumer ();
 /*
  * If they have asked for a priority change, try to do it.
  */
@@ -312,7 +375,10 @@ Go ()
 	 */
 		Rasterize (beam, Rd, 2);
 		if ((++nbeam % WidgetUpdate) == 0)
+		{
 			SetStatus (beam->b_hk);
+			CheckMessages ();
+		}
 	}
 }
 
@@ -350,8 +416,8 @@ int newvol;
 	cvt_ToLatLon (-XRadar/PixScale, -YRadar/PixScale, &loc.l_lat,
 			&loc.l_lon);
 	loc.l_alt = alt;
-	IX_SendFrame (ShmDesc, ImageSet, bt, &rg, &loc, Scale, 0, 0, XRes,
-			YRes);
+	IX_SendFrame (ShmDesc, ImageSet, bt, &rg, &loc, Scale, 0, 0, XRes - 1,
+			YRes - 1);
 	ImageSet = -1;
 /*
  * Say something, and make the display show what we've done.
@@ -370,6 +436,12 @@ BeginSweep ()
  * Get set to do a new sweep.
  */
 {
+	char s[50];
+# ifdef notdef
+	ui_printf ("Next sweep: ");
+	getchar ();
+# endif
+	UpdateThreshold ();
 /*
  * If we already have a sweep going, we just clear the frames and start over.
  */
@@ -400,4 +472,120 @@ ClearImages ()
 
 	for (i = 0; i < NField; i++)
 		memset (Image[i], 0xff, XRes*YRes); 
+}
+
+
+
+
+
+static void
+ThreshParams (cmds)
+struct ui_command *cmds;
+/*
+ * Turn on thresholding.
+ */
+{
+	ThrFldOffset = cmds[0].uc_v.us_v_int;
+	ThrCounts = (unsigned char) cmds[1].uc_v.us_v_int;
+	DoThresholding = TRUE;
+}
+
+
+
+
+
+static void
+SetConsumer (cmds)
+struct ui_command *cmds;
+/*
+ * Set our consumer.
+ */
+{
+	int arg;
+
+	CSet = TRUE;
+/*
+ * The first arg is always the program itself.
+ */
+	strcpy (Consumer, UPTR (*cmds));
+	CArgs[0] = Consumer;
+/*
+ * Go through and do the rest of the args.
+ */
+	for (NCArg = 1; cmds[NCArg].uc_ctype != UTT_END; NCArg++)
+		CArgs[NCArg] = usy_string (UPTR (cmds[NCArg]));
+	CArgs[NCArg] = 0;
+}
+
+
+
+
+static void
+InvokeConsumer ()
+/*
+ * Execute the consumer process.
+ */
+{
+/*
+ * If there is no consumer, let's hope they plan to fire one off themselves.
+ */
+	if (! CSet)
+	{
+		ui_warning ("No consumer process given");
+		return;
+	}
+/*
+ * Create the new process, then try to exec the consumer program in the
+ * child.
+ */
+	if ((CPid = vfork ()) == 0)
+	{
+		execvp (Consumer, CArgs);
+		/* What??? We're still here? */
+		msg_ELog (EF_EMERGENCY, "Exec of consumer %s failed err %d",
+				Consumer, errno);
+		_exit (1);
+	}
+}
+
+
+
+
+
+
+static void
+CheckMessages ()
+/*
+ * Drain our incoming message queue.
+ */
+{
+	int fd = msg_get_fd ();
+	fd_set fds;
+	static struct timeval tv = { 0, 0 };
+/*
+ * While something is pending on the message socket, dispatch it.
+ */
+	for (;;)
+	{
+		FD_ZERO (&fds);
+		FD_SET (fd, &fds);
+		if (select (fd + 1, &fds, 0, 0, &tv) <= 0)
+			return;
+		msg_incoming (fd);
+	}
+}
+
+
+
+MHandler (msg)
+Message *msg;
+/*
+ * Deal with messages.
+ */
+{
+	struct mh_template *tmpl = (struct mh_template *) msg->m_data;
+
+	if (msg->m_proto == MT_MESSAGE && tmpl->mh_type == MH_DIE)
+		die ();
+	msg_ELog (EF_PROBLEM, "Unknown msg proto %d", msg->m_proto);
 }
