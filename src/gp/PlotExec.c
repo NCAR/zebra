@@ -1,7 +1,7 @@
 /*
  * Plot execution module
  */
-static char *rcsid = "$Id: PlotExec.c,v 1.15 1991-02-07 22:55:13 corbet Exp $";
+static char *rcsid = "$Id: PlotExec.c,v 1.16 1991-02-12 21:17:42 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include <ui.h>
@@ -48,14 +48,15 @@ name_to_num Pt_table[] =
 /*
  * Plot types and a string <--> representation type table
  */
-# define RT_FCONTOUR	0
+# define RT_INIT	0	/* "Initialize" representation	*/
 # define RT_CONTOUR	1
 # define RT_VECTOR	2
 # define RT_RASTER	3
 # define RT_TRACK	4
 # define RT_OVERLAY	5
 # define RT_SKEWT	6
-# define N_RTYPES	7	/* Increase this as rep. types are added */
+# define RT_FCONTOUR	7
+# define N_RTYPES	8	/* Increase this as rep. types are added */
 
 name_to_num Rt_table[] = 
 {
@@ -93,6 +94,7 @@ static int	PlotType;
 	void	CAP_Vector (char *, int);
 	void	CAP_Raster (char *, int);
 	void	CAP_LineContour (char *, int);
+	void	CAP_Init (time *);
 	void	px_AdjustCoords (float *, float *, float *, float *);
 	void	px_FixPlotTime ();
 	static bool px_GetCoords (void);
@@ -101,6 +103,7 @@ static int	PlotType;
 	int	px_NameToNumber ();
 	void	px_Init (), px_AddComponent (), CAP_FContour ();
 	void	CAP_Vector (), CAP_Raster (), CAP_LineContour ();
+	void	CAP_Init ();
 	void	px_AdjustCoords ();
 	void	px_FixPlotTime ();
 	static bool px_GetCoords ();
@@ -289,6 +292,11 @@ px_GlobalPlot ()
 	strcat (datestring, "  ");
 	An_TopAnnot (datestring, Tadefclr.pixel);
 /*
+ * If there is an initialization routine, call it now.
+ */
+	if (Plot_routines[PlotType][RT_INIT])
+		(*Plot_routines[PlotType][RT_INIT]) (&PlotTime);
+/*
  * Run through the plot components (start at 1 to skip the
  * global component)
  */
@@ -323,6 +331,7 @@ px_GlobalPlot ()
  * Add this one to the cache.
  */
 	fc_AddFrame (&PlotTime, DisplayFrame);
+	lw_LoadStatus ();
 }
 
 
@@ -459,6 +468,8 @@ px_Init ()
 /*
  * Put in the entries that exist
  */
+	Plot_routines[PT_CAP][RT_INIT] = CAP_Init;
+
 	Plot_routines[PT_CAP][RT_FCONTOUR] = CAP_FContour;
 	Plot_routines[PT_CAP][RT_CONTOUR] = CAP_LineContour;
 	Plot_routines[PT_CAP][RT_VECTOR] = CAP_Vector;
