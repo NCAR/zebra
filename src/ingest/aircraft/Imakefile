@@ -15,9 +15,9 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.4 1995-09-20 16:56:13 burghart Exp $"
+MFVERSION="$Id: Imakefile,v 1.5 1998-09-10 21:54:01 burghart Exp $"
 
-LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(LIBREGEXP)
+LIBS = $(DFALIBS) $(ZLIBS)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP)
 
 OBJS = ac_ingest.o
@@ -28,9 +28,9 @@ SRCS = ac_ingest.c ac_status.c
 DISTFILES = Imakefile $(SRCS) ac_ingest.h ac_ingest.params ac_ingest.state \
 	    ac_status.state status.params test.params transfile
 
-NormalProgramTarget(ac_ingest,$(OBJS),$(DEPLIBS),$(LIBS) $(XLIBS),$(SYSLIBS))
+CccProgramTarget(ac_ingest,$(OBJS),$(DEPLIBS),$(LIBS) $(XLIBS),$(SYSLIBS))
 
-NormalProgramTarget(ac_status,$(OBJS2),$(DEPLIBS),$(LIBS) $(XLIBS),$(SYSLIBS))
+CccProgramTarget(ac_status,$(OBJS2),$(DEPLIBS),$(LIBS) $(XLIBS),$(SYSLIBS))
 
 UILoadFileTarget(ac_ingest.lf,ac_ingest.state)
 

@@ -19,35 +19,50 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: ac_ingest.c,v 1.8 1995-09-20 16:56:15 burghart Exp $";
+static char *rcsid = "$Id: ac_ingest.c,v 1.9 1998-09-10 21:54:01 burghart Exp $";
 
 # include <copyright.h>
 # include <errno.h>
 # include <math.h>
 # include <fcntl.h>
-# include <sgtty.h>
 # include <sys/time.h>
 # include <sys/types.h>
 # include <sys/resource.h>
 # include <signal.h>
 # include <string.h>
 
+# ifdef linux
+# include <termios.h>
+# endif
+
+# ifdef SUNOS5
+# include <termio.h>
+# endif
+
+# ifndef SUNOS5
+# include <unistd.h>
+# endif
+
 # include <config.h>
 # include "ac_ingest.h"
+# include "ratshex.h"
 
+/*# include <sgtty.h>*/
 
 OurAc	AircraftList[MAXOURS];
 int	NumAc = 0;
 
-static int	Dispatcher (), ResetFd (), ProcessData (), CheckValues ();
-static int	SeemsBad (), RawAlign (), AlignPacket ();
-static int	SetBaudRate (), ReadChars (), IsOurs ();
-static int	GetRawPacket (); 
-int		DoData ();
+static int	Dispatcher (), ProcessData (), CheckValues ();
+static int	SetBaudRate (), IsOurs ();
+static int	GetAcPacket (); 
+int 		DoData ();
+static Packet   RATS2packet ();
 static void	Go (), SetupIndirect (), Dial (), StoreData(); 
 static void	CvtData (), CvtToLatLon ();
 static int	AddTrans (), ChangeTrans (), DelTrans ();
 static void	GetOurAircraft (), StartPhonyData (), MakePhonyData ();
+static void  	doOsLoad();
+static void  	writeRats();
 
 MsgDispatcher (msg)
 struct message	*msg;
@@ -125,6 +140,11 @@ Die ()
 		exit (0);
 	}
 /*
+ * Send the kill command to the black box.
+ */
+	writeRats (Shut_Down, 1);
+	sleep (2);
+/*
  * Write out the transponder codes we're using.
  */
 	fptr = fopen ("transfile", "w");
@@ -133,25 +153,17 @@ Die ()
 			AircraftList[i].transponder);
 	fclose (fptr);
 /*
- * Send the kill command to the black box.
- */
-  	n_written = write (Fd, Command, 1);
-  	sleep(2);
-	write (Fd, Kill, 1);
-  	n_written = write (Fd, endcmd, 1);
-	sleep (2);
-/*
  * Clean out junk.
  */
-	read (Fd, buf, 500);
+	/* read (Fd, buf, 500);*/
 /*
  * Hang up the modem.
  */
 	sleep (2);
 	n_written = write (Fd, "+++", 3);
 	sleep (2);
-	n_written = write (Fd, "at h0", 5);
-  	n_written = write (Fd, endcmd, 1);
+	writeRats ("at h0", 5);
+
 	close (Fd);
 	ui_finish ();
 	exit (0);
@@ -191,7 +203,7 @@ char	**argv;
 	Dc = dc_CreateDC (DCC_MetData);
 
 	Fid = F_Lookup ("transponder");
-	dc_SetupUniformFields (Dc, 1, 1, &Fid, sizeof (int));
+	dc_SetupFields (Dc, 1, &Fid);
 	dc_SetBadval (Dc, BADVAL);
 	dc_SetFieldTypes (Dc, 1, &Fid, &type_int);
 /*
@@ -285,8 +297,7 @@ char	*data;
 	}
 	if (i >= NumAc)
 	{
-		msg_ELog (EF_PROBLEM, "Can't find platform %s to change.",
-			temp[0]);
+		msg_ELog (EF_PROBLEM, "Can't find platform %s to change.", temp[0]);
 		return (FALSE);
 	}
 	return (TRUE);
@@ -399,7 +410,8 @@ Dial ()
  */
 {
 	int	n_written, n_read;
-	char	endcmd[2];
+	Packet bogus;
+	int	junk;
 	char	buf[BUFLEN];
 /*
  * Open the black box file.
@@ -418,26 +430,24 @@ Dial ()
 		msg_ELog (EF_EMERGENCY, "Error setting baud to %d.", BaudRate);
 		Die ();
 	}
+
+#ifdef DIAL
 /*
  * Write ate0 
  */
-	endcmd[0] = 0x0d;
-	n_written = write (Fd, "at e", 4);
-  	n_written = write (Fd, endcmd, 1);
+	writeRats ("at e", 4);
 	sleep (2);
 	n_read = read (Fd, buf, BUFLEN);
 /*
  * Write atv0 
  */
-	n_written = write (Fd, "at v", 4);
-  	n_written = write (Fd, endcmd, 1);
+	writeRats ("at v", 4);
 	sleep (2);
 	n_read = read (Fd, buf, BUFLEN);
 /*
  * Dial the black box.
  */
-	n_written = write (Fd, DialOut, strlen (DialOut));
-  	n_written = write (Fd, endcmd, 1);
+	writeRats (DialOut, strlen (DialOut));
 	sleep (2);
 /*
  * Read back the ok.
@@ -477,24 +487,32 @@ Dial ()
 			break;
 	}
 	sleep(2);
-  	n_written = write (Fd, Command, 1);
-	msg_ELog (EF_DEBUG, "wrote command %d", n_written);
-  	sleep(2);
-	
-  	n_written = write (Fd, Kill, 1);
-	msg_ELog (EF_DEBUG, "wrote kill %d", n_written);
-  	n_written = write (Fd, endcmd, 1);
-	msg_ELog (EF_DEBUG, "wrote endcmd %d", n_written);
-  	sleep(2);
+#endif
+	/* sometimes helps to shut down the system first */
+  	/* writeRats (Shut_Down, 1);*/
 
-  	n_written = write (Fd, Startup, strlen (Startup));
-	msg_ELog (EF_DEBUG, "wrote startup %d", n_written);
-  	n_written = write (Fd, endcmd, 1);
-	msg_ELog (EF_DEBUG, "wrote endcmd %d", n_written);
-  	sleep(2);
+	/* tcflush (Fd, TCIOFLUSH);
+	sleep (2);*/
 
-  	n_written = write (Fd, SendAll, 1);
-	msg_ELog (EF_DEBUG, "wrote sendall %d", n_written);
+  	writeRats (Start_Up, 8);
+	msg_ELog (EF_DEBUG, "wrote startup %s", Start_Up );
+
+	read (Fd, buf, BUFLEN);
+
+	sleep (2);
+
+#ifndef TEST
+ 	writeRats (Send_All, 1);
+    msg_ELog (EF_INFO, "wrote send all tracks %s", Send_All);
+
+  	sleep(2);
+#else
+    /* for debugging purposes */
+	writeRats ("1", 1);
+	writeRats ("3", 1);
+	sleep (1);
+#endif
+
 
 	msg_ELog (EF_INFO, "Connected.");
 }
@@ -526,56 +544,23 @@ DoData ()
 	Ac_Data	aircraft;
 	int	size;
 
-	if ((size = GetRawPacket (&packet)) > 0)
+	if ((size = GetAcPacket (&packet)) > 0)
 	{
 	/*
 	 * Test for our transponder codes and store data.
 	 */
-		if (ProcessData (&packet))
-		{
-			CvtData (&packet, &aircraft);
-			msg_ELog (EF_DEBUG, "transponder %o", 
-				aircraft.transponder);
-			msg_ELog (EF_DEBUG, "altitude %f", aircraft.altitude);
-			msg_ELog (EF_DEBUG, "latitude %f", aircraft.latitude);
-			msg_ELog (EF_DEBUG, "longitude %f", aircraft.longitude);
-			StoreData (aircraft);
-		}
+	    if (ProcessData (&packet))
+	    {
+		CvtData (&packet, &aircraft);
+		msg_ELog (EF_DEBUG, "transponder %o", 
+			  aircraft.transponder);
+		msg_ELog (EF_DEBUG, "altitude %f", aircraft.altitude);
+		msg_ELog (EF_DEBUG, "latitude %f", aircraft.latitude);
+		msg_ELog (EF_DEBUG, "longitude %f", aircraft.longitude);
+		StoreData (aircraft);
+	    }
 	}
-/*
- * If the data is bad, align it.
- */
-	if (size == -1) 
-	{
-		if (! RawAlign (&packet))
-		{
-			if (! (Fd = ResetFd (Fd, BlackBox, BaudRate)))
-			{
-				msg_ELog (EF_EMERGENCY, 
-					"Can't reset black box.");
-			}
-		}
-		else if (ProcessData (&packet))
-		{
-			CvtData (&packet, &aircraft);
-			msg_ELog (EF_DEBUG, "transponder %o", 
-				aircraft.transponder);
-			msg_ELog (EF_DEBUG, "altitude %f", aircraft.altitude);
-			msg_ELog (EF_DEBUG, "latitude %f", aircraft.latitude);
-			msg_ELog (EF_DEBUG, "longitude %f", aircraft.longitude);
-			StoreData (aircraft);
-		}
-	}
-/*
- * If there was an error reading, try to reset the black box.
- */
-	if (size == -2)
-	{
-		if (! (Fd = ResetFd (Fd, BlackBox, BaudRate)))
-		{
-			msg_ELog (EF_EMERGENCY, "Can't reset black box.");
-		}
-	}
+		
 	return (0);
 }
 
@@ -715,70 +700,23 @@ float	x, y, *lat, *lon;
 
 
 static int 
-ProcessData (ptr)
-char	*ptr;
+ProcessData (data)
+Packet	*data;
 /*
  * The input ptr is a valid aircraft packet.  If it is one
  * of our aircraft then process it and return TRUE otherwise return FALSE.
  */
 {
-	Packet		*p;
-	unsigned short	raw_range, raw_az, raw_trans;
-	short		raw_alt;
-  
-	p = (Packet *) ptr;
-/*
- * Process the transponder code.
- */
-	raw_trans = 
-	  (p->transponder & 0x1000) >> 12 | (p->transponder & 0x0800) >> 10 |
-	  (p->transponder & 0x0400) >>  8 | (p->transponder & 0x0200) >>  6 |
-	  (p->transponder & 0x0100) >>  4 | (p->transponder & 0x0040) >>  1 |
-	  (p->transponder & 0x0020) <<  1 | (p->transponder & 0x0010) <<  3 |
-	  (p->transponder & 0x0008) <<  5 | (p->transponder & 0x0004) <<  7 |
-	  (p->transponder & 0x0002) <<  9 | (p->transponder & 0x0001) << 11;
-
-	msg_ELog (EF_DEBUG, "raw_trans = %o", raw_trans);
+	msg_ELog (EF_DEBUG, "raw_trans = %o", data->transponder);
 /*
  * If this is one of our aircraft then process the rest of the data.
  */
-	if (IsOurs (raw_trans))
+	if (IsOurs (data->transponder))
 	{
-		raw_range = 
-		  (p->range & 0x0800) >> 11 |
-		  (p->range & 0x0400) >>  9 | (p->range & 0x0200) >>  7 |
-		  (p->range & 0x0100) >>  5 | (p->range & 0x0040) >>  2 |
-		  (p->range & 0x0020)       | (p->range & 0x0010) <<  2 |
-		  (p->range & 0x0008) <<  4 | (p->range & 0x0004) <<  6 |
-		  (p->range & 0x0002) <<  8 | (p->range & 0x0001) << 10;
+		msg_ELog (EF_DEBUG, "raw_range = %d", data->range);
+		msg_ELog (EF_DEBUG, "raw_az = %d", data->azimuth);
+		msg_ELog (EF_DEBUG, "raw_alt = %d", data->altitude);
 
-		raw_az = 
-		  (p->azimuth & 0x1000) >> 12 | (p->azimuth & 0x0800) >> 10 |
-		  (p->azimuth & 0x0400) >>  8 | (p->azimuth & 0x0200) >>  6 |
-		  (p->azimuth & 0x0100) >>  4 | (p->azimuth & 0x0040) >>  1 |
-		  (p->azimuth & 0x0020) <<  1 | (p->azimuth & 0x0010) <<  3 |
-		  (p->azimuth & 0x0008) <<  5 | (p->azimuth & 0x0004) <<  7 |
-		  (p->azimuth & 0x0002) <<  9 | (p->azimuth & 0x0001) << 11;
-
-		raw_alt = 
-		  (p->altitude & 0x1000) >> 12 | (p->altitude & 0x0800) >> 10 |
-		  (p->altitude & 0x0400) >>  8 | (p->altitude & 0x0200) >>  6 |
-		  (p->altitude & 0x0100) >>  4 | (p->altitude & 0x0040) >>  1 |
-		  (p->altitude & 0x0020) <<  1 | (p->altitude & 0x0010) <<  3 |
-		  (p->altitude & 0x0008) <<  5 | (p->altitude & 0x0004) <<  7 |
-		  (p->altitude & 0x0002) <<  9;
-
-		if (p->altitude & 0x0001)	/* sign bit is on */
-			raw_alt = -raw_alt;
-
-		msg_ELog (EF_DEBUG, "raw_range = %d", raw_range);
-		msg_ELog (EF_DEBUG, "raw_az = %d", raw_az);
-		msg_ELog (EF_DEBUG, "raw_alt = %d", raw_alt);
-
-		p->transponder = raw_trans;
-		p->range = raw_range;
-		p->azimuth = raw_az;
-		p->altitude = raw_alt;
 		return (TRUE);
 	}
 	else return (FALSE);
@@ -812,197 +750,94 @@ short	trans;
 	return (FALSE);
 }
 
-
 static int 
-RawAlign (buf)
-char	*buf;
-/*
- * Align the incoming data from Fd into a packet.  Return FALSE for error 
- * else return TRUE.
- */
-{
-  int i;
-  
-	for (i = 0; i < A_FEW; i++)
-		if (AlignPacket (buf)) return (TRUE);
-	msg_ELog (EF_PROBLEM, "Can't align data.");
-	return (FALSE);
-}
+GetAcPacket (acPacket)
+Packet *acPacket;
 
-
-static int 
-GetRawPacket (buf)
-char	*buf;
 /*
  * Read the next raw ac packet and return it.
- * Return # of chars read in else -1 for bad data or -2 for error reading.
- */
-{
-	int	i;
-  
-	i = ReadChars (Fd, buf, sizeof (Packet));
-	if (i <= 0)
-	{
-		msg_ELog (EF_DEBUG, "Error reading data.");
-		return (-2);	
-	}
-	if (SeemsBad ((Packet *) buf))
-	{
-		msg_ELog (EF_DEBUG, "Data seems bad, need to re-align.");
-		return (-1);
-	}
-	return (i);
-}
-
-
-static int 
-AlignPacket (buf)
-char 	*buf;
-/*
- * Align the packet. Return FALSE for error, TRUE for a good packet.
- */
-{
-	char	buffer[BUFLEN], buffer2[BUFLEN];
-	int	at = -1;
-	int	i, j, p_len = sizeof (Packet);
- 
-/*
- * Read in the packet and find the start of good data.
- */ 
-	do 
-	{
-		for (i = 0; i < p_len; i++)
-			buffer[i] = 0;
-		i = ReadChars (Fd, buffer, p_len);
-		if (i <= 0) return (FALSE);
-  
-		for (i = 0; i < p_len; i++)
-		/* 
-		 * If first three bits are 100, found packet start.
-		 */
-			if ((buffer[i] & 0xE0) == 0x80)  
-			{
-				at = i;
-				break;
-			}
-	} 
-	while (at == -1);
-/* 
- * Copy the "good" part of the buffer to the output packet.
- */
-	for (i = at, j = 0; i < p_len; i++, j++)
-		buffer2[j] = buffer[i];
-  
-/*
- * Get the last part of the packet. 
- */
-	if (at != 0)
-	{
-		if ((i = ReadChars(Fd, &buffer2[p_len - at], at)) < 0)
-		{
-			msg_ELog (EF_DEBUG, "Error reading data (%d).",
-				errno);
-			return (FALSE);
-		}
-	}
-	strcpy (buf, buffer2);
-	if (SeemsBad ((Packet *) buf)) return (FALSE);
-	else return (TRUE);
-}
-
-
-static int 
-ReadChars (fd, buf, n)
-int	fd;
-int	n;
-char	buf[];
-/*
  * Keep reading chars till n of them get into buf, return # read in.
  */
 {
 	int	i, j, k;
-  
-	i = n;
-	for (j = 0; j < n; )
-	{
-		if ((k = read (fd, &buf[j], i)) < 0)
+	char *ptr;
+	char buffer[500];
+	char c;
+
+	ptr = buffer;
+	for (;;)
+ 	{
+		i = read (Fd, &c, 1);
+/*
+ *      Eat "?" prompt, as we process everything ourselves.  We
+ *      guarantee that good info is passed.
+ */
+		if (c == '?')
+			continue;
+
+/*
+ *      Eat noise.
+ */
+		if (c == 0177)
+            continue;
+
+/*
+ *      Eat "{", which is a noise signal.
+ */
+		if (c == '{')
+			continue;
+/*
+ *      Eat '\n' and key on '\r'
+ */
+		if (c == '\n')
+			continue;
+
+		if (c != '\r')
+			*ptr++ = c;
+		else
 		{
-			msg_ELog (EF_DEBUG, "Error reading (%d).", errno);
-			return (0);
+			*ptr++ = (char) NULL;
+			msg_ELog (EF_DEBUG, "RATS output %s", buffer);
+
+#ifdef TEST
+			writeRats ("3", 1);
+			sleep (1);
+#endif
+			if (strncmp(buffer,"Invalid command",15) == 0)
+			{
+				msg_ELog (EF_PROBLEM, "RATS program not running, shutting down software");
+				doOsLoad();
+				return(-1);
+			}
+			if (strlen(buffer) == 12)
+			{
+				*acPacket = RATS2packet (buffer);
+				return (12);
+			}
+			else if (strncmp (buffer,"exception:",10) == 0 ||
+					strncmp( buffer, "Illegal Opcode", 9 ) == 0 )
+			{
+				msg_ELog (EF_PROBLEM, ("RATS fault detected, reloading the os "));
+				doOsLoad();
+				return (-1);             
+			}
+			else
+			{
+				/* get rid of the first 12 characters */
+				j = strlen(buffer);
+
+				if (j >= 24)
+				{
+					j -= 12;
+					*acPacket = RATS2packet(&buffer[j]);
+					return (12);
+				}
+
+			}
+			return (-1);
 		}
-		if (k <= 0) break;
-		j += k;
-		i -= k;
 	}
-	return (j);
 }
-
-
-static int 
-SeemsBad (p)
-Packet	*p;
-/*
- * Return TRUE if this seems like it aint no packet.
- */
-{
-	char	*c = (char *) p;
-/*
- * Verify that all bytes have correct id bits set. 
- */
-	if (((c[0] & 0xE0) != 0x80) || /* first three bits should be 100 */
-    	    ((c[1] & 0x80) != 0x00) || /* first bit should be 0 */
-     	    ((c[2] & 0xE0) != 0xC0) || /* first three bits should be 110 */
-     	    ((c[3] & 0x80) != 0x00) || /* first bit should be 0 */
-     	    ((c[4] & 0xE0) != 0xA0) || /* first three bits should be 101 */
-     	    ((c[5] & 0x80) != 0x00) || /* first bit should be 0 */
-     	    ((c[6] & 0xE0) != 0xE0) || /* first three bits should be 111 */
-     	    ((c[7] & 0x80) != 0x00))   /* first bit should be 0 */
-	{
-		return (TRUE);
-	}
-	return (FALSE);
-}
-
-
-static int 
-ResetFd (fd, name, baud)
-int	fd;
-char	*name;
-int	baud;
-/*
- * Open the given file at the given baud rate.  Return the new fd
- * if successful, else return FALSE.
- */
-{
-	int	i, j, newfd;
-# ifdef notdef
-	msg_ELog (EF_DEBUG, "Resetting %s fd %d baud %d.", name, fd, baud);
-
-	close (fd);
-
-	newfd = open (name, O_RDWR );
-	if (newfd <= 0 )
-	{
-		msg_ELog (EF_DEBUG, "Error opening port %s (%d).",
-			 name, errno);
-		newfd = -1;
-	}
-	else if (! SetBaudRate (newfd, baud)) 
-	{
-		close (newfd);
-		newfd = -1;
-	}
-	if (newfd >= 0) 
-	{
-		Dial ();
-		msg_add_fd (newfd, DoData);
-		return (newfd);
-	}
-	else return (FALSE);
-# endif
-}
-
-
 
 static int 
 SetBaudRate (fd, baud)
@@ -1012,39 +847,125 @@ int	fd, baud;
  * return TRUE or FALSE.
  */
 {
-	struct  sgttyb tbuf;
-  
-	tbuf.sg_flags = RAW;
-	switch (baud)
-	{
-		case 300:
-			tbuf.sg_ispeed = B300;
-			tbuf.sg_ospeed = B300;
-			break;
-		case 1200:
-			tbuf.sg_ispeed = B1200;
-			tbuf.sg_ospeed = B1200;
-			break;
-		case 2400:
-			tbuf.sg_ispeed = B2400;
-			tbuf.sg_ospeed = B2400;
-			break;
-		case 4800:
-			tbuf.sg_ispeed = B4800;
-			tbuf.sg_ospeed = B4800;
-			break;
-		case 9600:
-			tbuf.sg_ispeed = B9600;
-			tbuf.sg_ospeed = B9600;
-			break;
-		default:
-			return (FALSE);
-	}
-	if (ioctl (fd, TIOCSETP, &tbuf) != 0)
+#ifdef SUNOS4
+    struct  sgttyb tbuf;
+
+	if (ioctl(Fd, TIOCGETP, (char *) &tbuf) < 0)
 	{
 		msg_ELog (EF_DEBUG, "ioctl error (%d)", errno);
 		return (FALSE);
 	}
+
+	tbuf.sg_flags |= RAW;
+	tbuf.sg_flags &= ~ECHO;
+#endif
+
+#ifdef linux
+	struct  termios temp_mode;
+
+	/*ioctl (Fd, TCGETS, &temp_mode);*/
+	tcgetattr (Fd, &temp_mode);
+	/* doesn't work :(
+    	cfmakeraw (&temp_mode); */
+
+    	temp_mode.c_iflag &= ~(IGNBRK | BRKINT | IGNPAR | PARMRK |
+                    INPCK | ISTRIP | INLCR | IGNCR | ICRNL |
+                    IXON | IXOFF | IUCLC | IXANY | IMAXBEL);
+
+    	temp_mode.c_oflag &= ~(OPOST  | ONLCR);
+    	temp_mode.c_lflag &= ~(ISIG | ICANON | XCASE | ECHO | ECHONL | ECHOPRT);
+    	temp_mode.c_lflag |= (IEXTEN | ECHOE | ECHOK | ECHOCTL | ECHOKE);
+    
+		temp_mode.c_cc[VMIN] = 1;
+    	temp_mode.c_cc[VTIME] = 0;
+#endif
+
+#ifdef SUNOS5
+	struct  termio temp_mode;
+
+	tcgetattr (Fd, &temp_mode);
+
+    	temp_mode.c_iflag = 0;
+    	temp_mode.c_oflag &= ~OPOST;
+    
+    	temp_mode.c_iflag &= ~(ISIG | ICANON | ECHO | XCASE);
+
+    	temp_mode.c_cflag &= ~(CSIZE | PARENB);
+    	temp_mode.c_cflag |= CS8; 
+	temp_mode.c_cc[VMIN] = 1;
+    	temp_mode.c_cc[VTIME] = 1; 
+#endif
+
+	switch (baud)
+	{
+	   case 300:  
+#ifdef SUNOS4
+          	tbuf.sg_ispeed = B300;
+	  	tbuf.sg_ospeed = B300;
+#else
+	  	cfsetospeed (&temp_mode, B300);
+	  	cfsetispeed (&temp_mode, B300);
+#endif
+	   	break;
+	   case 1200:
+
+#ifdef SUNOS4
+		tbuf.sg_ispeed = B1200;
+		tbuf.sg_ospeed = B1200;
+#else
+		cfsetospeed (&temp_mode, B1200);
+		cfsetispeed (&temp_mode, B1200);
+#endif
+		break;
+
+	   case 2400:
+
+#ifdef SUNOS4
+		tbuf.sg_ispeed = B2400;
+		tbuf.sg_ospeed = B2400;
+#else
+		cfsetospeed (&temp_mode, B2400);
+		cfsetispeed (&temp_mode, B2400);
+#endif
+		break;
+
+	   case 4800:
+
+#ifdef SUNOS4
+		tbuf.sg_ispeed = B4800;
+		tbuf.sg_ospeed = B4800;
+#else
+		cfsetospeed (&temp_mode, B4800);
+		cfsetispeed (&temp_mode, B4800);
+#endif
+
+		break;
+	   case 9600:
+
+#ifdef SUNOS4
+		tbuf.sg_ispeed = B9600;
+		tbuf.sg_ospeed = B9600;
+#else
+		cfsetospeed (&temp_mode, B9600);
+		cfsetispeed (&temp_mode, B9600);       
+#endif
+            	break;
+	   default:
+		return (FALSE);
+	}
+#ifdef SUNOS4
+	if (ioctl (Fd, TIOCSETP, &tbuf) < 0)
+	{
+		msg_ELog (EF_DEBUG, "ioctl error (%d)", errno);
+		return (FALSE);
+	}
+#else
+	if (tcsetattr (Fd, TCSANOW, &temp_mode) != 0)
+	{
+		msg_ELog (EF_DEBUG, "tcsetattr error (%d)", errno);
+		return (FALSE);
+	}
+#endif
 	else return (TRUE);
 }
 
@@ -1105,3 +1026,103 @@ MakePhonyData ()
 	StoreData (newpoint);
 }
 
+static Packet
+RATS2packet (buf)
+char *buf;
+{
+    Packet  acPacket;
+	int range, azimuth, transponder, altitude;
+
+	range = azimuth = transponder = altitude = 0;
+
+	sscanf (buf, "%3x%3x%3x%3x",&range,&azimuth,&transponder,&altitude);
+	acPacket.range = (short) range;
+	acPacket.azimuth = (short) azimuth;
+	acPacket.transponder = (short) transponder;
+	acPacket.altitude = (short) altitude;
+
+	return (acPacket);
+}    
+
+static void
+doOsLoad()
+{
+    	char **os_ptr;
+	static int max_fault = 0;
+	char    endcmd[2];
+	int     n_written;
+	char    buf[BUFLEN];
+
+	msg_ELog (EF_DEBUG, "calling OS_LOAD...");
+
+	max_fault++;
+
+	if ( max_fault >= MAX_FAULT )
+	{
+		msg_ELog (EF_EMERGENCY, "Error, Too many faults detected. Shutting down software.");
+		Die ();
+	}
+
+	os_ptr = rats_os;
+
+	msg_ELog (EF_INFO, "Rats software is being reloaded.");
+
+	writeRats ("LO", 2);
+
+	while (os_ptr[0] != (char) NULL )
+	{
+		n_written = write (Fd, *os_ptr, strlen(os_ptr[0]));
+		if (n_written != strlen(os_ptr[0]))
+		{
+
+			Die();
+		}
+
+		usleep (50000);
+		*os_ptr++;
+	}
+	/*writeRats ("", 1);*/  /* required! */
+
+	tcflush (Fd, TCIOFLUSH);
+
+	/* sometimes the "box is hung up, a break sometimes fixes it */
+	tcsendbreak (Fd, 0);
+
+	sleep (2);
+
+	msg_ELog (EF_DEBUG, "OS_LOAD complete");
+	msg_ELog (EF_INFO, "Rats software is being restarted.");
+
+	writeRats (Start_Up, 8);
+	msg_ELog (EF_INFO, "wrote startup %s\n", Start_Up);
+
+	read (Fd, buf, BUFLEN);	
+	sleep (2);
+
+#ifndef TEST
+	writeRats (Send_All, 1);
+	msg_ELog (EF_INFO, "wrote send all tracks %s\n", Send_All);
+#else
+	writeRats ("3",1);
+	sleep (1);
+#endif
+}   
+
+static void
+writeRats (char *instruction, int size)
+{
+    char    endcmd[2];
+
+	endcmd[0] = 0x0d;
+
+	if (write (Fd, instruction, size) != size)
+	{
+		msg_ELog (EF_EMERGENCY, "Error writing %s to tty port, shutting down", instruction);
+		Die();
+	}
+	if (write (Fd, endcmd, 1) != 1)
+	{
+		msg_ELog (EF_EMERGENCY, "Error writing endcmd  to tty port, shutting down"); 
+		Die();
+	}
+}  

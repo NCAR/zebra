@@ -25,9 +25,11 @@
 # define BADVAL -32768
 # define BUFLEN	1000
 # define MAXOURS 50
+# define MAX_FAULT 5
 # define KM_PER_NM (6080.0 / (5280.0 * 0.621))
 # define M_PER_FT 0.30480
 # define A_FEW 20
+
 # define PI 3.141592654
 # define R_EARTH 6372.0
 
@@ -68,10 +70,15 @@ typedef struct ourac
  * Global stuff for the aircraft black box ingest module.
  */
 char	BlackBox[STRLEN], DialOut[STRLEN], OurAircraft[BUFLEN];
-char	*Command = "1";
-char	*Startup = "g f20000";
-char	*Kill = "6";
-char	*SendAll = "2";
+
+/* RATS box -> requesting selected beacon codes only */
+char	*Cmd = "1";
+
+/* RATS box uses "GO 10000" for startup */
+/* char	*Start_Up = "g f20000";*/
+char	*Start_Up = "GO 10000";
+char	*Shut_Down = "6";
+char	*Send_All = "2";
 char	Ac_Platform[STRLEN];
 int	BaudRate; 
 float	RangeRes, AzimuthRes;
