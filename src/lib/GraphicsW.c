@@ -1,3 +1,10 @@
+/*
+ * The graphics widget; a composite widget which has a user-specified number
+ * of pixmap "frames" associated with it.  Zero frames means just write 
+ * everything directly to the window.
+ *
+ * $Id: GraphicsW.c,v 1.5 1991-01-16 22:08:43 burghart Exp $
+ */
 # include <stdio.h>
 # include <X11/IntrinsicP.h>
 # include <X11/StringDefs.h>
@@ -135,8 +142,11 @@ XSetWindowAttributes	*attributes;
 /*
  * Allocate the pixmaps for the frames and clear them out
  */
-	w->graphics.frames = (Pixmap *) 
-		XtMalloc (w->graphics.frame_count * sizeof (Pixmap));
+	if (w->graphics.frame_count > 0)
+		w->graphics.frames = (Pixmap *) 
+			XtMalloc (w->graphics.frame_count * sizeof (Pixmap));
+	else
+		w->graphics.frames = NULL;
 
 	XSetForeground (XtDisplay (w), w->graphics.gc, 
 		w->core.background_pixel);
@@ -182,7 +192,8 @@ GraphicsWidget	w;
 		XFreePixmap (XtDisplay (w), w->graphics.frames[i]);
 
 	XtFree ((char *) w->composite.children);
-	XtFree ((char *) w->graphics.frames);
+	if (w->graphics.frames)
+		XtFree ((char *) w->graphics.frames);
 }
 
 
@@ -196,7 +207,11 @@ Region		region;
 	GraphicsPart	gp;
 
 	gp = w->graphics;
-
+/*
+ * If we don't have any frames, we have nothing from which to redraw
+ */
+	if (gp.frame_count < 1)
+		return;
 # ifdef use_XB
 /*
  * Make sure the current XB draw buffer is the same as the display buffer
@@ -222,7 +237,7 @@ GraphicsWidget	w;
 	int		i;
 	int		have_frames = (w->graphics.frames != NULL);
 /*
- * If we don't have frames yet, just return 
+ * If we don't have frames, just return 
  */
 	if (! have_frames)
 		return;
@@ -261,33 +276,48 @@ GraphicsWidget	current, request, new;
 	int	i;
 	int	oldcount = current->graphics.frame_count;
 	int	newcount = new->graphics.frame_count;
+	Pixel	oldbg = current->core.background_pixel;
+	Pixel	newbg = new->core.background_pixel;
 /*
- * Return now if the frame count didn't change
+ * Return now if the frame count and background color didn't change
  */
-	if (oldcount == newcount)
+	if (oldcount == newcount && oldbg == newbg)
 		return (False);
 /*
- * Release excess pixmaps (if any)
+ * Deal with background color change if necessary
  */
-	for (i = newcount; i < oldcount; i++)
-		XFreePixmap (XtDisplay (new), new->graphics.frames[i]);
+	if (oldbg != newbg)
+		GWClearFrame (new, ClearAll);
 /*
- * Reallocate the space for the pixmap array and create pixmaps
- * if necessary 
+ * Deal with frame count change if necessary
  */
-	new->graphics.frames = (Pixmap *) XtRealloc (new->graphics.frames, 
-		new->graphics.frame_count * sizeof (Pixmap));
+	if (oldcount != newcount)
+	{
+	/*
+	 * Release excess pixmaps (if any)
+	 */
+		for (i = newcount; i < oldcount; i++)
+			XFreePixmap (XtDisplay (new), new->graphics.frames[i]);
+	/*
+	 * Reallocate the space for the pixmap array and create pixmaps
+	 * if necessary 
+	 */
+		new->graphics.frames = (Pixmap *) 
+			XtRealloc (new->graphics.frames, 
+			newcount * sizeof (Pixmap));
 
-	for (i = oldcount; i < newcount; i++)
-		new->graphics.frames[i] = XCreatePixmap (XtDisplay (new),
-			XtWindow (new), new->core.width, new->core.height,
-			new->core.depth);
-# ifdef notdef
-/*
- * Clear out all of the pixmaps
- */
-	GWClearFrame (new, ClearAll);
-# endif
+		for (i = oldcount; i < newcount; i++)
+		{
+			new->graphics.frames[i] = 
+				XCreatePixmap (XtDisplay (new), XtWindow (new),
+				new->core.width, new->core.height, 
+				new->core.depth);
+
+			XFillRectangle (XtDisplay (new), 
+				new->graphics.frames[i], new->graphics.gc, 
+				0, 0, new->core.width, new->core.height);
+		}
+	}
 
 	return (False);
 }
@@ -347,7 +377,10 @@ GraphicsWidget	w;
  * Return the pixmap for the current draw frame
  */
 {
-	return (w->graphics.frames[w->graphics.draw_frame]);
+	if (w->graphics.frame_count > 0)
+		return (w->graphics.frames[w->graphics.draw_frame]);
+	else
+		return ((Pixmap) w->core.window);
 }
 
 
@@ -409,19 +442,28 @@ int		frame;
 
 	XSetForeground (XtDisplay (w), w->graphics.gc, 
 		w->core.background_pixel);
-
-	if (frame == ClearAll)
+/*
+ * If we have no frames, clear the window
+ */
+	if (w->graphics.frame_count < 1)
+		XFillRectangle (XtDisplay (w), w->core.window, w->graphics.gc, 
+			0, 0, w->core.width, w->core.height);
+/*
+ * Clear all frames?
+ */
+	else if (frame == ClearAll)
 	{
 		for (i = 0; i < w->graphics.frame_count; i++)
 			XFillRectangle (XtDisplay (w), w->graphics.frames[i], 
 				w->graphics.gc, 0, 0, w->core.width, 
 				w->core.height);
 	}
+/*
+ * Just clear the one frame
+ */
 	else
-	{
 		XFillRectangle (XtDisplay (w), w->graphics.frames[frame],
 			w->graphics.gc, 0, 0, w->core.width, w->core.height);
-	}
 }
 
 
@@ -457,6 +499,11 @@ unsigned int	frame;
  */
 	if (frame < 0 || frame >= w->graphics.frame_count)
 		XtError ("Invalid frame number in GWDisplayFrame");
+/*
+ * If we don't have any frames, just return now
+ */
+	if (w->graphics.frame_count < 1)
+		return;
 /*
  * OK, this is a legal frame to display
  */
