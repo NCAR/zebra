@@ -35,7 +35,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.9 1994-05-25 14:55:49 burghart Exp $")
+MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.10 1994-06-10 21:50:29 burghart Exp $")
 
 /*
  * The GRIB product definition section (PDS)
@@ -1013,19 +1013,7 @@ AltUnitType	*altunits;
 	if (! dfa_OpenFile (dfindex, FALSE, (void *) &tag))
 		return (FALSE);
 /*
- * Simple if the file is open for surface data only
- */
-	if (tag->gt_sfc_only)
-	{
-		alts[0] = 0.0;
-		*altunits = AU_mAGL;
-		*nalts = 1;
-		return (TRUE);
-	}
-/*
- * Find the first usable grid for the chosen field and forecast offset, 
- * then count the grids matching that field, offset, and time, building the
- * altitude array as we go.
+ * Find the first usable grid for the chosen field and forecast offset.
  */
 	for (i = 0; i < tag->gt_ngrids; i++)
 	{
@@ -1040,7 +1028,19 @@ AltUnitType	*altunits;
 			break;
 		}
 	}
-
+/*
+ * Simple if the file is open for surface data only
+ */
+	if (tag->gt_sfc_only)
+	{
+		alts[0] = grb_ZLevel (pds, altunits);
+		*nalts = 1;
+		return (TRUE);
+	}
+/*
+ * Count the grids matching the field, offset, and time, building the
+ * altitude array as we go.
+ */
 	count = 0;
 	for (; i < tag->gt_ngrids; i++)
 	{
@@ -1661,6 +1661,15 @@ float		*ztarget;
 			else if (grid_fid == v_fid)
 				v_indices[vlevels++] = ndx;
 		}
+	/*
+	 * Semi-kluge: For surface-only access, just take the first "surface"
+	 * grid we get.  Some files have both 0m MSL (level type 102) and 
+	 * 0m AGL (level type 1) grids for a given field.  We count either one
+	 * as a "surface" grid, so we'll just give them whichever one we see
+	 * first.
+	 */
+		if (tag->gt_sfc_only && nlevels == 1)
+			break;
 	}
 /*
  * If we're doing wind, make sure we got the same number of levels for
