@@ -11,7 +11,7 @@
 # include "dm_cmds.h"
 # include "../include/timer.h"
 
-static char *rcsid = "$Id: dm.c,v 1.6 1990-07-09 10:37:18 corbet Exp $";
+static char *rcsid = "$Id: dm.c,v 1.7 1990-08-30 16:35:49 corbet Exp $";
 
 /*
  * Definitions of globals.
@@ -180,6 +180,10 @@ struct ui_command *cmds;
 
 	   case DMC_TIME:
 	   	SetTime (&UDATE (cmds[1]));
+		break;
+
+	   case DMC_PICKWIN:
+	   	PickWin (UPTR (cmds[1]));
 		break;
 
 	   default:
@@ -506,12 +510,13 @@ struct dm_msg *dmsg;
 	 */
 	   case DM_HELLO:
 		dmh = (struct dm_hello *) dmsg;   	
-		if (! (win = lookup_win (from, FALSE)))
+		if (! (win = lookup_win (from, TRUE)))
 		{
 			msg_ELog (EF_PROBLEM, "Funky hello from '%s'", from);
 			return;
 		}
-		msg_ELog (EF_DEBUG, "Hello received from '%s'", from);
+		msg_ELog (EF_DEBUG, "Hello received from '%s' win %x", from,
+			dmh->dmm_win);
 		win->cfw_win = dmh->dmm_win;
 		config_win (win);
 		send_default (win);

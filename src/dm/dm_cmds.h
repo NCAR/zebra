@@ -1,4 +1,4 @@
-/* $Id: dm_cmds.h,v 1.3 1990-07-08 12:59:22 corbet Exp $ */
+/* $Id: dm_cmds.h,v 1.4 1990-08-30 16:35:35 corbet Exp $ */
 /*
  * Keyword numbers for displaymgr commands.
  */
@@ -33,3 +33,4 @@
 # define DMC_NONGRAPHIC 30
 # define DMC_FORCEPD	31
 # define DMC_TIME	32
+# define DMC_PICKWIN	33
