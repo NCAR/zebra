@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.9 1993-05-04 21:42:11 granger Exp $
+ * $Id: DataStore.h,v 3.10 1993-05-25 07:04:52 granger Exp $
  *
  * Public data store definitions.
  */
@@ -223,6 +223,7 @@ void		dc_AddSample FP((DataChunk *, ZebTime *, DataPtr, int));
 void		dc_SetPlat FP((DataChunk *, int, PlatformId));
 PlatformId	dc_GetPlat FP((DataChunk *, int));
 bool		dc_GetTime FP((DataChunk *, int, ZebTime *));
+void		dc_SortSamples FP((DataChunk *dc));
 void		dc_AdjustSample FP((DataChunk *, int, int));
 void		dc_SetStaticLoc FP((DataChunk *, Location *));
 void		dc_SetLoc FP((DataChunk *, int, Location *));
@@ -275,6 +276,9 @@ void		dc_IRSetup FP((DataChunk *, int, PlatformId *, Location *,
 			int, FieldId *));
 void		dc_IRAddGrid FP((DataChunk *, ZebTime *, int, FieldId,
 			float *));
+void		dc_IRAddScalarDC FP((DataChunk *irgrid_dc, 
+				     DataChunk *scalar_dc, int sample,
+				     int nsample, int nfield, FieldId *fids));
 int		dc_IRGetNPlatform FP((DataChunk *));
 void		dc_IRGetPlatforms FP((DataChunk *, PlatformId *, Location *));
 float 		*dc_IRGetGrid FP((DataChunk *, int, FieldId));
