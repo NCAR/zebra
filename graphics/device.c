@@ -1,5 +1,5 @@
 /* 5/87 jc */
-static char *rcsid = "$Id: device.c,v 1.13 1990-03-30 14:30:04 corbet Exp $";
+static char *rcsid = "$Id: device.c,v 1.14 1990-04-05 14:23:26 corbet Exp $";
 /*
  * Handle device specifics.
  */
@@ -51,7 +51,8 @@ extern int ln_flush ();
 
 # ifdef DEV_PS
 extern int ps_open (), ps_close (), ps_flush (), ps_poly (), ps_hcw ();
-extern int ps_cmap (), ps_clear (), ps_vp (), ps_print ();
+extern int ps_cmap (), ps_clear (), ps_vp (), ps_print (), ps_qtext ();
+extern int ps_tsize (), ps_text ();
 # endif
 
 # ifdef DEV_SUNVIEW
@@ -699,7 +700,7 @@ struct device D_tab[] =
  	{
 		"ps",
 		3, { "ps1", "ps2", "ps4"},
-		GDF_VECTOR | GDF_HARDCOPY | GDF_MONO | GDF_HCW | GDF_VP,
+		GDF_VECTOR | GDF_HARDCOPY | GDF_MONO | GDF_HCW|GDF_VP|GDF_TEXT,
 		2,			/* 2 colors			*/
 		2250, 3000,		/* Our screen resolution	*/
 		1.0,			/* Assume square aspect for now */
@@ -713,9 +714,9 @@ struct device D_tab[] =
 		ps_cmap,		/* Set color table		*/
 		ps_poly,		/* Draw polyline		*/
 		___,			/* Pixel fill			*/
-		___,			/* (no) query text		*/
-		___,			/* (no) Text size		*/
-		___,			/* Text				*/
+		ps_qtext,		/* query text			*/
+		ps_tsize,		/* Text size			*/
+		ps_text,		/* Text				*/
 		ps_hcw,			/* Set clip window		*/
 		ps_clear,		/* Clear screen			*/
 		___,			/* Polygon fill			*/

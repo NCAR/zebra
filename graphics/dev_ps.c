@@ -10,7 +10,7 @@
 # include "device.h"
 # include <stdio.h>
 
-static char *rcsid = "$Id: dev_ps.c,v 1.1 1990-04-05 10:58:15 corbet Exp $";
+static char *rcsid = "$Id: dev_ps.c,v 1.2 1990-04-05 14:23:41 corbet Exp $";
 /*
  * The tag structure
  */
@@ -35,6 +35,7 @@ struct ps_tag
 	int	pt_winfilled;	/* Are any windows filled?	*/
 	int	pt_cx0, pt_cx1, /* User's clip window		*/
 		pt_cy0, pt_cy1;
+	int	pt_pixsize;	/* Current font pixel size	*/
 };
 
 /*
@@ -73,6 +74,14 @@ static char *Ps_ltype[] =
 };
 
 
+/*
+ * Kludge aspect ratio for courier text.
+ */
+static float Faspect = 0.6;
+# define DESC 4
+
+
+
 
 ps_open (device, type, tag, dev)
 char *device, *type, **tag;
@@ -80,6 +89,8 @@ struct device *dev;
 {
 	struct ps_tag *ptp = (struct ps_tag *) malloc (sizeof (struct ps_tag));
 	char command[80];
+	char *getenv ();
+	double atof();
 
 # ifdef UNIX
 	if (strchr (device, '/'))
@@ -129,6 +140,12 @@ struct device *dev;
 /*
  * Return the info
  */
+	ptp->pt_pixsize = -1;
+	if (getenv ("PSASPECT"))
+	{
+		Faspect = atof (getenv ("PSASPECT"));
+		printf ("FP aspect ratio: %.2f", Faspect);
+	}
 	*tag = (char *) ptp;
 	return (GE_OK);
 }
@@ -438,22 +455,25 @@ char *str;
  * Put a C string in the output buffer
  */
 {
-	ps_chk_buf (ptp);
-	while (*str)
-		*ptp->pt_bufp++ = *str++;
+	int len = strlen (str);
+
+	ps_chk_buf (ptp, len);
+	memcpy (ptp->pt_bufp, str, len);
+	ptp->pt_bufp += len;
 }
 
 
 
 
 
-ps_chk_buf (ptp)
+ps_chk_buf (ptp, len)
 struct ps_tag *ptp;
+int len;
 /*
  * Check the output buffer to see if we need to do a flush
  */
 {
-	if (ptp->pt_bufp - ptp->pt_buf > DBUFLEN - 100)
+	if (ptp->pt_bufp - ptp->pt_buf > (DBUFLEN - len))
 		ps_buf_out (ptp);
 }
 
@@ -475,5 +495,86 @@ struct ps_tag *ptp;
  */
 	ptp->pt_bufp = ptp->pt_buf;
 }
+
+
+
+
+/*
+ * Dev text routines.
+ */
+
+int
+ps_qtext (ctag, pixsize, rot)
+char *ctag;
+int pixsize;
+float rot;
+{
+	return (rot == 0.0);	/* Lazy!	*/
+}
+
+
+ps_tsize (ctag, pixsize, rot, text, width, height, desc)
+char *ctag, *text;
+int pixsize, *width, *height, *desc;
+float rot;
+/*
+ * The text size routine.
+ */
+{
+	*height = pixsize;	/* you want it, you get it	*/
+	*width = (int) (((float) pixsize*strlen (text)) * Faspect);
+	*desc = pixsize/DESC;	/* ??? */
+}
+
+
+
+ps_text (ctag, x, y, color, pixsize, rot, text)
+char *ctag, *text;
+int x, y, color, pixsize;
+float rot;
+/*
+ * The hardware text routine.
+ */
+{
+	struct ps_tag *tag = (struct ps_tag *) ctag;
+	char cbuf[200], *cp;
+	int len = strlen (text), i;
+/*
+ * Initialize if necessary.
+ */
+	if (! tag->pt_winset)
+		ps_set_win (tag);
+/*
+ * If we don't have the desired font loaded, do it now.  This could be smarter.
+ */
+	if (pixsize != tag->pt_pixsize)
+	{
+		sprintf (cbuf, "/Courier findfont %d scalefont setfont ",
+			pixsize);
+		ps_out_s (tag, cbuf);
+		tag->pt_pixsize = pixsize;
+	}
+/*
+ * Move to the desired location.
+ */
+	sprintf (cbuf, "%d %d m ", x, y + pixsize/DESC);
+	ps_out_s (tag, cbuf);
+/*
+ * Now move the string over, taking care to escape certain characters.
+ */
+	cbuf[0] = '(';
+	cp = cbuf + 1;
+	for (i = 0; i < len; i++)
+	{
+		if (text[i] == '(' || text[i] == ')' || text[i] == '\\') 
+			*cp++ = '\\';
+		*cp++ = text[i];
+	}
+	*cp++ = ')';
+	*cp = '\0';
+	ps_out_s (tag, cbuf);
+	ps_out_s (tag, " show\n");
+}
+			
 
 # endif /* DEV_PS */
