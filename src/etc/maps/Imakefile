@@ -5,6 +5,6 @@
 MAPS = cape.map cape_aircraft.map cape_ddop.map cape_llpnet.map \
 	cape_roads.map cinde.map coare-ifa.map coare.map fest_array.map \
 	harp.map nowrad.map raps_now_region.map stormfest.map \
-	stormfest_lobes.map wisp.map wisp91.map
+	stormfest_lobes.map trmm.map wisp.map wisp91.map
 
 InstallLibFile ($(MAPS),.,.)
