@@ -29,7 +29,7 @@
 # include <config.h>
 # include <defs.h>
 
-RCSID("$Id: Overlay.c,v 2.56 1996-12-30 15:21:07 burghart Exp $")
+RCSID("$Id: Overlay.c,v 2.57 1997-01-03 17:13:44 granger Exp $")
 
 # include <pd.h>
 # include <GraphicsW.h>
@@ -809,7 +809,10 @@ const MapPoints * points;
 
 
 static void
-ov_FillPolygon (float *x, float *y, int npts)
+ov_FillPolygon (x, y, npts)
+float *x;
+float *y;
+int npts;
 {
     static XPoint	*poly = 0;
     static int		polysize = 0;
