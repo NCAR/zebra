@@ -39,7 +39,7 @@ extern "C"
 # include "DataDir.h"
 # include "Tape.h"
 # include "plcontainer.h"
-MAKE_RCSID ("$Id: DLoad.cc,v 1.11 1996-01-02 21:20:15 granger Exp $")
+MAKE_RCSID ("$Id: DLoad.cc,v 1.12 1996-10-03 18:36:05 corbet Exp $")
 
 //
 // Import from main.
@@ -229,7 +229,7 @@ MoveCDFile (const char *fname, const char *base, int nstrip, const char *dest)
 //
 {
 	char realname[200];
-	const int BSIZE = 4096;
+	const int BSIZE = 16*4096;
 	static char cbuf[BSIZE];
 	int ifd, ofd, nread;
 //
