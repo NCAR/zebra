@@ -48,7 +48,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 
-MAKE_RCSID ("$Id: Archiver.c,v 1.14 1992-07-17 22:57:03 granger Exp $")
+MAKE_RCSID ("$Id: Archiver.c,v 1.15 1992-07-17 23:00:37 granger Exp $")
 
 /*
  * Issues:
@@ -72,6 +72,26 @@ MAKE_RCSID ("$Id: Archiver.c,v 1.14 1992-07-17 22:57:03 granger Exp $")
 			write to device
 		mark files dumped
  */
+/*------------------------------------------------------------------------*/
+
+# define BFACTOR	64	/* Blocking factor for the tar command */
+# define BLOCKSIZE	(BFACTOR*512)
+
+# define DEF_DUMPINTERVAL 120	/* how often, in minutes, to dump	*/
+# define DEF_DEVICEFILE "/dev/nrst8"
+# define DEF_MOUNTNAME "eod0"
+# define DEF_OUTPUTDIR "/eod0"
+# define DEF_TAPELIMIT 3500000000
+# define DEF_MINDISK 10000
+
+# define AR_TAPE 1
+# define AR_EOD 2
+
+# define MAX_WAITBUTTONS 5
+
+/*------------------------------------------------------------------------
+ * GLOBAL VARIABLES and FLAGS
+ */
 
 /*
  * This table contains an entry for each platform that we dump, indicating
@@ -80,91 +100,159 @@ MAKE_RCSID ("$Id: Archiver.c,v 1.14 1992-07-17 22:57:03 granger Exp $")
 stbl	DumpedTable;
 char listfile[200];	
 
-/*
- * Tape drive information.
- */
-int	TimerEvent;		/* The absolute, unchangeable write event */
+int	TimerEvent;		/* The absolute, regular write event */
 int 	ResumeEvent = -1;	/* If in suspended status, this is the
 				 * timer event which will resume the tar.
 				 * -1 indicates we're not suspended */
-int	Suspended = FALSE;	/* True when a write has been STOPped */
+int	RemainingEvent = -1;	/* The event which slowly counts down the
+				 * the time remaining in a suspension */
+int	Suspended = FALSE;	/* True when a write has been stopped */
 int	WriteInProgress = FALSE;/* A tar has been started */
 
 int	Dying = FALSE;		/* Set by Handler() on a MH_SHUTDOWN msg
 				 * during a write */
 
 int	DeviceFD = -1;		/* -1 = no drive	*/
+
 unsigned long	BytesWritten = 0;
+
 int	FilesWritten = 0;
 int	FreshTape = TRUE;
-int	ZeroZFree = TRUE;
-unsigned long	TapeLimit = 3500000000;	/* in bytes.			   */	
-				/* Tape size, less a safety margin */
-				/* Default is high density Exabyte */
 
-# define BFACTOR	64	/* Blocking factor for the tar command */
-# define BLOCKSIZE	(BFACTOR*512)
-
-# define DUMPINTERVAL	120	/* how often, in minutes, to dump	*/
-# define AR_TAPE 1
-# define AR_EOD 2
-
-char	*DriveName = NULL;
-char	*OutputDir = NULL;
-char	*MountName = NULL;
-int	DumpInterval = DUMPINTERVAL;
-int	StartMinute = 0;
-int	MinDisk = 10000;
-int	ArchiveMode = 0;
-
-/*
- * Where the tar command is built.
- */
-static char Tarbuf[65536];
+static char Tarbuf[65536]; 	/* Where the tar command is built.  */
 
 /*
  * Widget info.
  */
 Widget Top, Form, WStatus, Bytes;
-Widget FinishButton, Action, WriteButton, Wait1, Wait2;
+Widget FinishButton, Action, WriteButton;
+Widget WaitButtons[MAX_WAITBUTTONS+1];
 XtAppContext Appc;
 
-/*
- * Colors for the status widget.
+Pixel RedPix, WhitePix; 	/* Colors for the status widget. */
+/*------------------------------------------------------------------------*/
+
+
+/*---------------------------------------------------------------------
+ * Global options which can be set by the user from the command line or
+ * the resources database
  */
-Pixel RedPix, WhitePix;
 
+	unsigned long TapeLimit;/* Tape size (bytes), less a safety margin */
+				/* Default is high density Exabyte */
+	String	DriveName;	/* TAPE mode: tape drive device */
+	String	OutputDir;	/* EOD mode: output directory */
+	String	MountName;	/* EOD mode: opt disk mount point */
+	int	DumpInterval;	/* Minutes between dumps */
+	int	StartMinute;	/* Hour offset at which dumps start */
+	int	MinDisk;	/* EOD mode: minimum disk size */
+	String  ModeString;	/* cmd-line option "eod" or "tape" */
+	int	ArchiveMode;	/* AR_TAPE or AR_EOD mode */
+	Boolean	ZeroZFree;	/* Free tape at 0z */
+	String	WaitTimes;	/* Delay button times, "n1,n2,n3,..." */
 
-static int	Handler FP ((Message *));
-static void	LoadFileList FP ((void));
-static void	SaveFiles FP ((int));
-static void	TimerSaveFiles FP ((ZebTime *));
-static void	DumpPlatform FP ((Platform *, int));
-static int	RunTar FP ((char *));
-static int	OpenTapeDevice FP ((void));
+/*
+ * The offset of each of these is zero since we want to store the
+ * values directly into the global variable rather than into a single
+ * structure
+ */
+static XtResource AppResources[] = {
+   { "tapeLimit", "TapeLimit", XtRInt, sizeof(int) /* == sizeof(long) */,
+      0, XtRImmediate, (XtPointer)DEF_TAPELIMIT },
+   { "driveName", "DriveName", XtRString, sizeof(String),
+      0, XtRString, DEF_DEVICEFILE },
+   { "outputDir", "OutputDir", XtRString, sizeof(String),
+      0, XtRString, DEF_OUTPUTDIR },
+   { "mountName", "MountName", XtRString, sizeof(String),
+      0, XtRString, DEF_MOUNTNAME },
+   { "dumpInterval", "DumpInterval", XtRInt, sizeof(int),
+      0, XtRImmediate, (XtPointer)DEF_DUMPINTERVAL },
+   { "startMinute", "StartMinute", XtRInt, sizeof(int),
+      0, XtRImmediate, (XtPointer)0 },
+   { "minDisk", "MinDisk", XtRInt, sizeof(int),
+      0, XtRImmediate, (XtPointer)DEF_MINDISK },
+   { "mode", "Mode", XtRString, sizeof(String),
+      0, XtRImmediate, "tape" },
+   { "zeroZFree", "ZeroZFree", XtRBoolean, sizeof(Boolean),
+      0, XtRImmediate, (XtPointer)True },
+   { "waitTimes", "WaitTimes", XtRString, sizeof(String),
+      0, XtRString, "1,2,5" }
+};
+
+static XtPointer OptionBase[] = {
+   &TapeLimit, &DriveName, &OutputDir, &MountName,
+   &DumpInterval, &StartMinute, &MinDisk, &ModeString,
+   &ZeroZFree, &WaitTimes };
+
+/*
+ * For loading these resource from the command line:
+ */
+static XrmOptionDescRec Options[] = {
+   {"-device",	".driveName",	XrmoptionSepArg, 	NULL},
+   {"-v",	".driveName",	XrmoptionSepArg,	NULL},
+   {"-f",	".driveName",	XrmoptionSepArg,	NULL},
+   {"-output",	".outputDir",	XrmoptionSepArg,	NULL},
+   {"-mode",	".mode",	XrmoptionSepArg,	NULL},
+   {"-z",	".zeroZFree",	XrmoptionSepArg,	NULL},
+   {"-start",	".startMinute", XrmoptionSepArg,	NULL},
+   {"-time",	".dumpInterval",XrmoptionSepArg,	NULL},
+   {"-interval",".dumpInterval",XrmoptionSepArg,	NULL},
+   {"-k",	".minDisk",	XrmoptionSepArg,	NULL},
+   {"-n",	".mountName",	XrmoptionSepArg,	NULL},
+   {"-tapelimit",".tapeLimit",	XrmoptionSepArg,	NULL},
+   {"-wait",	".waitTimes",	XrmoptionSepArg,	NULL}
+};
+
+/*---------------------------------------------------------------------*/
+
+/*-- initialization --*/
+static void	InitArchiver FP ((int *, char**));
+static void	MakeWidget FP ((int *, char **));
+static void	CreateWaitButtons FP ((String times, Widget parent,
+			Widget left, Widget above));
+static void	Usage FP((char *prog, int argc, char *argv[]));
 static void	Die FP ((void));
-static void	UpdateList FP ((void));
-static int	WriteFileDate FP ((char *, int, SValue *, FILE *));
-static void	WriteEOF FP ((void));
+
+/*-- socket i/o handlers --*/
+static int	Handler FP ((Message *));
+static int	xevent FP ((int));
+static void	Sync FP ((void));
+static void	PollWhileSuspended FP((void));
+
+/*-- Xt callbacks --*/
 static void	Finish FP ((void));
 static void	ActionButton FP ((void));
-static void	SpinOff FP ((void));
+static void	WriteNow FP((void));
+static void 	SuspendWrite FP((Widget w, XtPointer call_data));
+
+/*-- Xt convenience fns --*/
 static void	SetStatus FP ((int, char *));
-static int	xevent FP ((int));
-static void	MakeWidget FP ((int *, char **));
-static void	Sync FP ((void));
+static void	SetWaitSensitivity FP((int sensitive));
+
+/*-- low-level device i/o --*/
+static int	OpenTapeDevice FP ((void));
+static void	WriteEOF FP ((void));
+static void	SpinOff FP ((void));
+static int	EjectEOD FP ((void));
+static void	MountEOD FP ((void));
+
+/*-- Timer event handlers --*/
+static void	TimerSaveFiles FP ((ZebTime *));
+static void	TimerResumeWrite FP((ZebTime *zt));
+static void	TimerRemaining FP((ZebTime *zt, void *cdata));
+
+/*-- high-level write and datastore interaction */
+static void	LoadFileList FP ((void));
+static void	SaveFiles FP ((int));
+static void	DumpPlatform FP ((Platform *, int));
+static int	RunTar FP ((char *));
+static void	UpdateList FP ((void));
+static int	WriteFileDate FP ((char *, int, SValue *, FILE *));
 static void	SendMA FP ((int));
 static int	TellDaemon FP ((char *, int, SValue *, int));
 static void	UpdateMem FP ((void));
-static void	InitArchiver FP ((int, char**));
-static int	EjectEOD FP ((void));
-static void	MountEOD FP ((void));
-static void	WriteNow FP((void));
-static void 	SuspendWrite FP((Widget w, XtPointer call_data));
-static void	TimerResumeWrite FP((ZebTime *zt));
-static void	SetWaitSensitivity FP((int sensitive));
-static void	PollWhileSuspended FP((void));
 
+/*---------------------------------------------------------------------*/
 
 
 main (argc, argv)
@@ -176,16 +264,20 @@ char **argv;
  */
 	usy_init ();
 	msg_connect (Handler, "Archiver");
+#ifdef notdef
 	ds_Initialize ();
-	InitArchiver(argc,argv);
+#endif
+	InitArchiver(&argc,argv);
 /*
  * Window sys initialization.
  */
 	MakeWidget (&argc, argv);
 
+#ifdef notdef
 	chdir (DATADIR);
 	LoadFileList ();
 	UpdateMem ();
+#endif
 	switch (ArchiveMode)
 	{
 	    case AR_TAPE:
@@ -209,84 +301,124 @@ char **argv;
 }
 
 
-void
+static void
 InitArchiver (argc, argv)
-int argc;
+int *argc;
 char **argv;
 {
-    static char defaultDeviceFile[] = "/dev/nrst8";
-    static char defaultMountName[] = "eod0";
-    static char defaultOutputDir[] = "/eod0";
-    MountName = defaultMountName;
-    OutputDir = defaultOutputDir;
-    DriveName = defaultDeviceFile;
-    ArchiveMode = AR_TAPE;
-    while ((--argc) > 0 )
-    {
-	if ( (*++argv)[0] == '-' )
-	{
-	    switch ( (*argv)[1] )
-	    {
-		case 'v': /* device name */
-		    DriveName = (*++argv);
-		    argc--;
-		break;
-		case 'o': /* output directory */
-		    OutputDir = (*++argv);
-		    argc--;
-		break;
-		case 'n': /* optical disk mount name */
-		    MountName = (*++argv);
-		    argc--;
-		break;
-		case 'k': /* min required disk size in k-bytes */
-		    sscanf ( (*++argv), "%d", &MinDisk );
-		    argc--;
-		break;
-		case 't': /* t(ime) */
-		    sscanf ( (*++argv), "%d", &DumpInterval );
-		    argc--;
-		break;
-		case 's': /* s(tart) minute */
-		    sscanf ((*++argv), "%d", &StartMinute);
-		    if (StartMinute > 60)
-		    {
-			msg_ELog (EF_PROBLEM, "Bad start minute %d, using 0", 
-				StartMinute);
-			StartMinute = 0;
-		    }
-		    argc--;
-		break;
-		case 'm': /* m(ode) */
-		    ++argv;
-		    if ( strcmp ( (*argv), "tape") == 0 )
-			ArchiveMode = AR_TAPE;
-		    else if ( strcmp ( (*argv), "eod") == 0 )
-			ArchiveMode = AR_EOD;
-		    argc--;
-		break;
-		case 'z':	/* Free tape at 0Z? */
-			++argv;
-			if (strcmp (*argv, "no") == 0)
-				ZeroZFree = FALSE;
-			else
-				ZeroZFree = TRUE;
-			--argc;
-			msg_ELog (EF_DEBUG, "Free tape on 0Z: %s.", ZeroZFree?
-				"true" : "false");
-		break;
-	    }
-	}
-    }
-    msg_ELog (EF_INFO, "Archiver: device: %s, dump interval: %d, start: %d",
-	DriveName, DumpInterval, StartMinute);
-    if ( ArchiveMode == AR_EOD )
-    {
-    msg_ELog (EF_INFO, "Archiver: dump files to directory: %s",OutputDir);
-    msg_ELog (EF_INFO, "Archiver: minimum optical disk to dump: %d kb",MinDisk);
-    }
+	int i;
 
+	/*
+	 * Initialize X and the Toolkit, get our toplevel shell and AppContext,
+	 * and get our application options from the resource database
+	 */
+	Top = XtAppInitialize (&Appc, "Archiver", 
+		Options, XtNumber(Options),
+		argc, argv,
+		NULL, NULL, 0);
+	
+	/*
+	 * If any args are left, there was an error on the command line
+	 */
+	if (*argc > 1)
+	{
+		msg_ELog(EF_PROBLEM,"Illegal command-line syntax");
+		Usage(argv[0], *argc, argv);
+		Die();
+	}
+
+	/*
+	 * Now retrieve each of our global options from the rm database
+	 */
+	for (i = 0; i < XtNumber(AppResources); ++i)
+	{
+	   XtGetApplicationResources(Top, OptionBase[i], 
+			&AppResources[i], 1, NULL, 0);
+	}
+
+	/*
+	 * Now do some error checking and feedback for the user
+	 */
+	if (StartMinute > 60)
+	{
+		msg_ELog (EF_PROBLEM, "Bad start minute %d, using 0", 
+			StartMinute);
+		StartMinute = 0;
+	}
+	if ( strcmp ( ModeString, "tape") == 0 )
+		ArchiveMode = AR_TAPE;
+	else if ( strcmp ( ModeString, "eod") == 0 )
+		ArchiveMode = AR_EOD;
+	else
+	{
+		msg_ELog(EF_PROBLEM,"Unknown archive mode %s",ModeString);
+		Usage(argv[0], *argc, argv);
+		Die();
+	}
+	msg_ELog (EF_DEBUG, "Free tape on 0Z: %s.", ZeroZFree?
+		"true" : "false");
+
+	msg_ELog (EF_INFO, "dump interval: %d, start: %d",
+		DumpInterval, StartMinute);
+	if ( ArchiveMode == AR_EOD )
+	{
+		msg_ELog (EF_INFO, "Optical disk mode");
+		msg_ELog (EF_INFO, 
+			"device: %s, mount name: %s, dump files to directory: %s",
+			DriveName, MountName, OutputDir);
+		msg_ELog (EF_INFO, 
+			"minimum optical disk to dump: %d kb",MinDisk);
+	}
+	else
+	{
+		msg_ELog (EF_INFO, "Tape drive mode");
+		msg_ELog (EF_INFO, "device name: %s, tapelimit: %lu",
+			DriveName, TapeLimit);
+	}
 }
+
+
+/*
+ * Explain all of the command line options of Archiver
+ */
+static void
+Usage(prog, argc, argv)
+	char *prog;
+	int argc;
+	char **argv;
+{
+   fprintf(stderr,"Usage: %s [options], where options are the following:\n",
+			prog);
+   fprintf(stderr,"   %-20s Archive mode: optical disk or tape (tape)\n",
+			"-mode eod|tape");
+   fprintf(stderr,"   %-20s Device name (%s)\n",
+			"-device,-v,-f <dev>",DEF_DEVICEFILE);
+   fprintf(stderr,"   %-20s Starting hour offset, 0-60 minutes. (0)\n",
+			"-start <min>");
+   fprintf(stderr,"   %-20s Dump interval in minutes (%d)\n",
+			"-t,-interval <min>",DEF_DUMPINTERVAL);
+   fprintf(stderr,"   %-20s Free device at 0z (yes)\n","-z yes|no");
+   fprintf(stderr,"   %-20s Delay button times (1,2,5)\n","-wait n1,n2,...");
+   fprintf(stderr,"   %-20s Show this information\n","-h,-help");
+
+   fprintf(stderr,"\nTape mode:\n");
+   fprintf(stderr,"   %-20s Tape storage limit, minus safety margin (%lu)\n",
+			"-tapelimit <bytes>",DEF_TAPELIMIT);
+
+   fprintf(stderr,"\nOptical disk mode:\n");
+   fprintf(stderr,"   %-20s Optical disk output directory (%s)\n",
+			"-output <dir>",DEF_OUTPUTDIR);
+   fprintf(stderr,"   %-20s Optical disk mount name (%s)\n",
+			"-n <name>",DEF_MOUNTNAME);
+   fprintf(stderr,"   %-20s Minimum required disk size in kilobytes (%d)\n",
+			"-k <kb>", DEF_MINDISK);
+
+   fprintf(stderr,"\nDefault values are shown in parentheses.\n");
+   fprintf(stderr,"Standard X Toolkit options are understood,\n");
+   fprintf(stderr,"and all options can be abbreviated.\n");
+}
+
+
 
 static void
 MountEOD()
@@ -297,6 +429,7 @@ MountEOD()
     status = system(cmd);
     DeviceFD = 0;
 }
+
 
 static int
 EjectEOD()
@@ -335,25 +468,20 @@ int fd;
 
 
 
-
-
 static void
 MakeWidget (argc, argv)
 int *argc;
 char **argv;
 /*
- * Put together the control widget.
+ * Put together the control widget.  The Top widget shell should already
+ * have been set in InitArchiver()
  */
 {
 	Arg args[5];
 	int n;
 	Widget w, above, button;
 	XColor screen, exact;
-/*
- * Hook into the window system.
- */
-	Top = XtAppInitialize (&Appc, "Archiver", NULL, 0, argc, argv,
-		NULL, NULL, 0);
+
 /*
  * The inevitable form.
  */
@@ -415,31 +543,10 @@ char **argv;
 					Form, args, n);
 	XtAddCallback(button, XtNcallback, (XtCallbackProc) WriteNow, 0);
 	WriteButton = button;
-/*
- * Request suspension of a tar process for 1 minute
- */
-	n = 0;
-	XtSetArg(args[n], XtNlabel, "Wait 1 Minute");	n++;
-	XtSetArg(args[n], XtNfromHoriz, button);	n++;
-	XtSetArg(args[n], XtNfromVert, above);		n++;
-	button = XtCreateManagedWidget ("suspend", commandWidgetClass,
-					Form, args, n);
-	XtAddCallback(button, XtNcallback, 
-		      (XtCallbackProc) SuspendWrite, (XtPointer)60 /*secs*/);
-	Wait1 = button;
-/*
- * Request suspension of a tar process for 2 minutes
- */
-	n = 0;
-	XtSetArg(args[n], XtNlabel, "Wait 2 Minutes");	n++;
-	XtSetArg(args[n], XtNfromHoriz, button);	n++;
-	XtSetArg(args[n], XtNfromVert, above);		n++;
-	button = XtCreateManagedWidget ("suspend", commandWidgetClass,
-					Form, args, n);
-	XtAddCallback(button, XtNcallback, 
-		      (XtCallbackProc) SuspendWrite, (XtPointer)120 /*secs*/);
-	Wait2 = button;
-	SetWaitSensitivity(FALSE);
+
+	CreateWaitButtons(WaitTimes, Form, button, above);
+	SetWaitSensitivity(False);
+
 /*
  * Status info.
  */
@@ -464,6 +571,49 @@ char **argv;
 	WhitePix = screen.pixel;
 }
 
+
+/*
+ * Create the wait buttons as specified in the string 'times'
+ * The global WaitButtons array will be NULL terminated when done
+ */
+static void
+CreateWaitButtons(times, parent, left, above)
+	String times;
+	Widget parent;
+	Widget left, above;
+{
+	Arg args[5];
+	int n,i;
+	int ntimes;
+	char *scan = times;
+	int delays[MAX_WAITBUTTONS];
+	char buf[30];
+
+	ntimes = 0;
+	while (*scan && (sscanf(scan,"%i",&delays[ntimes]) == 1))
+	{
+		++ntimes;
+		if ((scan = strchr(scan,',')) == NULL)
+			break;
+		++scan;		/* skip the comma */
+	}
+
+	for (i = 0; i < ntimes; ++i)
+	{
+		n = 0;
+		sprintf(buf, "Wait %d min", delays[i]);
+		XtSetArg(args[n], XtNlabel, buf);		n++;
+		XtSetArg(args[n], XtNfromHoriz, left);		n++;
+		XtSetArg(args[n], XtNfromVert, above);		n++;
+		WaitButtons[i] = XtCreateManagedWidget ("suspend", 
+					commandWidgetClass,
+					parent, args, n);
+		XtAddCallback(WaitButtons[i], XtNcallback, 
+		      (XtCallbackProc) SuspendWrite, (XtPointer)delays[i]);
+		left = WaitButtons[i];
+	}
+	WaitButtons[ntimes] = NULL;
+}
 
 
 
@@ -1215,10 +1365,12 @@ char *s;
  */
 static void
 SetWaitSensitivity(sensitive)
-	int sensitive;
+	Boolean sensitive;
 {
-	XtSetSensitive(Wait1, sensitive);
-	XtSetSensitive(Wait2, sensitive);
+	Widget *buttons = WaitButtons;
+
+	while (*buttons)
+		XtSetSensitive(*buttons++, sensitive);
 }
 
 
@@ -1314,8 +1466,22 @@ int index;
 static void
 WriteNow()
 {
-	if (Suspended)
+	if (Suspended)	/* Resume from a suspended state */
 	{
+		/*
+		 * Remove any pending timer events
+		 */
+		if (ResumeEvent != -1)
+		{
+			tl_Cancel(ResumeEvent);
+			ResumeEvent = -1;
+		}
+		if (RemainingEvent != -1)
+		{
+			tl_Cancel(RemainingEvent);
+			RemainingEvent = -1;
+		}
+
 		/* Reset the suspended flag */
 		Suspended = FALSE;
 
@@ -1331,7 +1497,7 @@ WriteNow()
 		 * processing and also start writing.  So register
 		 * a timer event 0 seconds from now which will cause
 		 * TimerSaveFiles to be entered upon return from
-		 * this callback, when mmsg messages are handled
+		 * this callback, when Message messages are handled
 		 */
 		tl_RelativeReq(TimerSaveFiles, 0, 0, 0);
 	}
@@ -1349,6 +1515,13 @@ SuspendWrite(w, call_data)
 	XtPointer call_data;
 {
 	int waitsecs = (int) call_data;
+	ZebTime now;
+	static ZebTime ends;		/* Time this suspension ends */
+					/* Must be static since the
+					 * TimerRemaining function accesses
+					 * it through the tl_RelativeReq
+					 * data varibale */
+	char buf[100];			/* status scratch area */
 
 	/*
 	 * Make sure there is a write in progress to suspend
@@ -1356,12 +1529,37 @@ SuspendWrite(w, call_data)
 	if (!WriteInProgress)
 		return;
 
+	/*
+	 * Cancel any existing timer resume events and start another
+	 */
 	if (ResumeEvent != -1)
 	{
 		tl_Cancel(ResumeEvent);
 	}
 	ResumeEvent = tl_RelativeReq(TimerResumeWrite, 0,
 				     waitsecs * INCFRAC, 0);
+
+	/*
+	 * Figure out the time this suspension will time out so
+	 * that we can count down to it.  This value will remain the
+	 * same (so that TimerRemaining can access it) until 
+	 * another suspension delay is triggered
+	 */
+	tl_Time(&now);
+	ends.zt_MicroSec = 0;
+	ends.zt_Sec = now.zt_Sec + waitsecs;
+
+	/*
+	 * Now register the relative timer event which will count
+	 * down to the end time every 10 seconds and show the value
+	 * in the status label. The first call will be ASAP
+	 */
+	if (RemainingEvent != -1)
+	{
+		tl_Cancel(RemainingEvent);
+	}
+	RemainingEvent = tl_RelativeReq(TimerRemaining, &ends, 0, 10);
+
 	/*
 	 * Now set the Suspended flag.  This will be caught by the
 	 * RunTar() loop and reading of the pipe will stop as long
@@ -1369,15 +1567,55 @@ SuspendWrite(w, call_data)
 	 * tar process and suspension of the tar is achieved.
 	 */
 	Suspended = TRUE;
-	SetStatus(FALSE, "Write suspended.");
+	sprintf(buf,"Write suspended for %i seconds",waitsecs);
+	SetStatus(FALSE, buf);
 	XtVaSetValues(WriteButton, XtNlabel, "Resume", NULL);
+}
+
+
+/*
+ * Given the ending time in *cdata, calculate the time remaining from
+ * now and show this time in the status label
+ */
+static void
+TimerRemaining(zt, cdata)
+	ZebTime *zt;
+	void *cdata;
+{
+	ZebTime *ends = (ZebTime *)cdata;   /* Time we're counting till */
+	long seconds;			    /* Calculated seconds remaining */
+	char buf[50];
+
+	/*
+	 * Make sure the suspension hasn't ended, if so
+	 * we should cancel this timer and do nothing
+	 */
+	if (!Suspended)
+	{
+		tl_Cancel(RemainingEvent);
+		RemainingEvent = -1;
+		return;
+	}
+
+	/*
+	 * Otherwise calculate (approximate) seconds left
+	 */
+	seconds = ends->zt_Sec - zt->zt_Sec;
+
+	/*
+	 * Display this value in the status label
+	 */
+	sprintf(buf,"Write suspended.  Time remaining: %li:%02li", 
+		seconds/60, seconds % 60);
+	SetStatus(FALSE,buf);
 }
 
 
 /*
  * Resume a write from a timer event. If a suspended write still
  * exists, call WriteNow() to resume.  Otherwise just ignore the
- * event.
+ * event; it could be a case of this msg being in the queue before
+ * a manual WriteNow() could cancel it
  */
 /* ARGSUSED */
 static void
