@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 2.2 1991-09-26 22:43:21 gracio Exp $
+ * $Id: DataStore.h,v 2.3 1991-11-07 22:21:21 corbet Exp $
  *
  * Public data store definitions.
  */
@@ -103,7 +103,7 @@ typedef union _Dunion
 {
 	IRGrid	d_irgrid;
 	RGrid	d_rgrid;
-	/* int	*d_length;		/* Outline length		*/
+	/* int	*d_length; */
 	RastImg d_img;			/* Image description		*/
 	BndDesc	*d_bnd;			/* Boundary description		*/
 } Dunion;
@@ -155,7 +155,6 @@ typedef enum
 	DsCenter
 } TimeSpec;
 
-/* # define ds_FreeDataObject ds_RealFreeDataObject	/* for now */
 # ifdef __STDC__
 	int		ds_Initialize (void);
 	PlatformId	ds_LookupPlatform (char *);
