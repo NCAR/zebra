@@ -1,7 +1,7 @@
 !
 ! Display manager widgets.
 !
-! $Id: dm.widgets,v 1.25 1995-09-20 20:39:37 burghart Exp $
+! $Id: dm.widgets,v 1.26 1995-09-22 19:15:58 burghart Exp $
 !
 
 define widget SaveConfig form 'Configuration saver'
@@ -86,6 +86,15 @@ procedure DoNewWindow
 	elseif (t = 'Skew-t')
 		set nw_pd 'skewt-template'
 		set nw_bmap 'sounding'
+	elseif (t = 'Time-height profile')
+		set nw_pd 'time-height-template'
+		set nw_bmap 'xyplot'
+	elseif (t = 'RASS profile')
+		set nw_pd 'rass-template'
+		set nw_bmap 'xyplot'
+	elseif (t = 'Line Plot')
+		set nw_pd 'lineplot-template'
+		set nw_bmap 'xyplot'
 !
 ! Hmm...let's see if somebody else knows about it.
 !
