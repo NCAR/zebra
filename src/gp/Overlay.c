@@ -3,7 +3,7 @@
  */
 #ifndef lint
 static char *rcsid = 
-	"$Id: Overlay.c,v 2.33 1994-04-15 21:26:14 burghart Exp $";
+	"$Id: Overlay.c,v 2.34 1994-05-24 01:00:12 granger Exp $";
 #endif
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -1599,12 +1599,12 @@ int update;
 			 * Now do time zone adjustment
 			 */
 				/* 
-				 * Local time is GMT time minus the number
-				 * of minutes west of GMT, which for the 
-				 * eastern hemisphere (just west of date
-				 * line) is negative
+				 * Local time is GMT time plus the timezones
+				 * offset in minutes from GMT (i.e., minutes
+				 * east of Greenwich).  So eastern hemisphere
+				 * has positive offsets.
 				 */
-				loctime.zt_Sec -= tzoffset * 60;
+				loctime.zt_Sec += tzoffset * 60;
 				tzstr = "loc";
 			}
 		/*
