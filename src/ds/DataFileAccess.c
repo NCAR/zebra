@@ -35,7 +35,7 @@
 # define NO_SHM
 # include "dslib.h"
 # include "dfa.h"
-MAKE_RCSID ("$Id: DataFileAccess.c,v 3.11 1993-08-12 17:48:18 granger Exp $")
+MAKE_RCSID ("$Id: DataFileAccess.c,v 3.12 1993-09-02 08:13:53 granger Exp $")
 
 
 void	dfa_AddOpenFile FP ((int, DataFile *, int, void *));
@@ -669,6 +669,8 @@ WriteCode wc;
 /*
  * otherwise loop through the samples in the block
  */
+	msg_ELog (EF_DEBUG, "%s: no block method, looping over %d samples",
+		  Formats[dfe.df_ftype].f_name, nsample);
 	result = TRUE;
 	for (i = sample; i < sample + nsample; ++i)
 		result &= dfa_PutSample(dfile, dc, i, wc);
