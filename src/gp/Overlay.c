@@ -1,7 +1,7 @@
 /*
  * Deal with static (or almost static) overlays.
  */
-static char *rcsid = "$Id";
+static char *rcsid = "$Id: Overlay.c,v 1.2 1990-06-22 11:38:10 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include "../include/defs.h"
