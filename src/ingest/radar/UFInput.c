@@ -35,6 +35,7 @@ int	Nbeam = 0;
 int	Fd;
 char	*InSource;
 char	TapeSource = FALSE;
+bool	CheckTrailer;
 
 /*
  * The beam structure we pass back.
@@ -47,14 +48,17 @@ char		*Databuf;
 
 
 void 
-FileInput (file)
+FileInput (file, check_trailer)
 char	*file;
+bool	check_trailer;
 /*
- * Make a note of file input.
+ * Make a note of file input.  If check_trailer is true, we verify that the
+ * trailing record length in each record is correct.
  */
 {
 	InSource = (char *) malloc (strlen (file) + 1);
 	TapeSource = FALSE;
+	CheckTrailer = check_trailer;
 	strcpy (InSource, file);
 }
 
@@ -188,7 +192,7 @@ ScaleInfo	*scale;
 			die ();
 		}
 
-		if (rec_len != rec_len2)
+		if (CheckTrailer && rec_len != rec_len2)
 		{
 			msg_ELog (EF_EMERGENCY, 
 			  "rec_len mismatch: %d vs. %d (at %dth record)",
@@ -241,16 +245,39 @@ ScaleInfo	*scale;
 
 	Hk.sweep_index = raw_rec[9];
 	Hk.vol_count = raw_rec[6];
+/*
+ * KLUGE: Force the signs of the minute and second components of lat and lon
+ * to be the same as the degree components.  For McTEX, we're being given 
+ * latitude in the form -11 degrees +45 minutes +51.12 seconds, instead of
+ * -11 degrees -45 minutes -51.12 seconds...
+ */
+	if (raw_rec[18] < 0)
+	{
+		if (raw_rec[19] > 0)
+			raw_rec[19] *= -1;
 
+		if (raw_rec[20] > 0)
+			raw_rec[20] *= -1;
+	}
+
+	if (raw_rec[21] < 0)
+	{
+		if (raw_rec[22] > 0)
+			raw_rec[22] *= -1;
+
+		if (raw_rec[23] > 0)
+			raw_rec[23] *= -1;
+	}
+	
 	latdeg = (raw_rec[18] + raw_rec[19] / 60.0 + 
 		  (raw_rec[20] / 64.0) / 3600.0);
 	londeg = (raw_rec[21] + raw_rec[22] / 60.0 + 
 		  (raw_rec[23] / 64.0) / 3600.0);
 /*
- * KLUGE: We use the normal DEG_TO_BIN conversion here, since LAT_CF and 
- * LON_CF only yield unambiguous values from 0-90 and 0-180, and we need 
- * southern and hemispheres...  The recipient of this beam must be careful
- * to use the right value in unpacking these.
+ * NOTE: We use the normal DEG_TO_BIN conversion here, since LAT_CF and
+ * LON_CF only yield unambiguous values from 0-90 and 0-180, and we need
+ * southern and western hemispheres...  The recipient of this beam must be
+ * careful to use the right value in unpacking these. 
  */
 	Hk.latitude = latdeg * DEG_TO_BIN;
 	Hk.longitude = londeg * DEG_TO_BIN;
