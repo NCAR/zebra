@@ -2,7 +2,7 @@
  * Overlay times widget.  This is where plots can write per-component data
  * details like exact data time, altitude, etc.
  */
-static char *rcsid = "$Id: OverlayTimes.c,v 2.3 1994-12-09 08:42:54 granger Exp $";
+static char *rcsid = "$Id: OverlayTimes.c,v 2.4 1994-12-11 16:21:17 corbet Exp $";
 /*		Copyright (C) 1994 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -107,10 +107,10 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNfromVert, NULL); n++;
 	XtSetArg (args[n], XtNlabel, title); n++;
 	XtSetArg (args[n], XtNborderWidth, 0); n++;
-	XtSetArg (args[n], XtNbottom, XawChainTop); n++;
-	XtSetArg (args[n], XtNtop, XawChainTop); n++;
-	XtSetArg (args[n], XtNleft, XawChainLeft); n++;
-	XtSetArg (args[n], XtNright, XawChainLeft); n++;
+	XtSetArg (args[n], XtNbottom, XtChainTop); n++;
+	XtSetArg (args[n], XtNtop, XtChainTop); n++;
+	XtSetArg (args[n], XtNleft, XtChainLeft); n++;
+	XtSetArg (args[n], XtNright, XtChainLeft); n++;
 	w = XtCreateManagedWidget ("overlayLabel", labelWidgetClass,
 		form, args, n);
 	above = w;
@@ -120,10 +120,10 @@ XtAppContext appc;
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, w); n++;
 	XtSetArg (args[n], XtNfromVert, NULL); n++;
-	XtSetArg (args[n], XtNbottom, XawChainTop); n++;
-	XtSetArg (args[n], XtNtop, XawChainTop); n++;
-	XtSetArg (args[n], XtNleft, XawChainLeft); n++;
-	XtSetArg (args[n], XtNright, XawChainLeft); n++;
+	XtSetArg (args[n], XtNbottom, XtChainTop); n++;
+	XtSetArg (args[n], XtNtop, XtChainTop); n++;
+	XtSetArg (args[n], XtNleft, XtChainLeft); n++;
+	XtSetArg (args[n], XtNright, XtChainLeft); n++;
 	XtSetArg (args[n], XtNlabel, "Help"); n++;
 	w = XtCreateManagedWidget ("overlayHelp", commandWidgetClass, form,
 		args, n);
@@ -136,10 +136,10 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNfromHoriz, w); n++;
 	XtSetArg (args[n], XtNfromVert, NULL); n++;
 	XtSetArg (args[n], XtNlabel, "Dismiss"); n++;
-	XtSetArg (args[n], XtNbottom, XawChainTop); n++;
-	XtSetArg (args[n], XtNtop, XawChainTop); n++;
-	XtSetArg (args[n], XtNleft, XawChainLeft); n++;
-	XtSetArg (args[n], XtNright, XawChainLeft); n++;
+	XtSetArg (args[n], XtNbottom, XtChainTop); n++;
+	XtSetArg (args[n], XtNtop, XtChainTop); n++;
+	XtSetArg (args[n], XtNleft, XtChainLeft); n++;
+	XtSetArg (args[n], XtNright, XtChainLeft); n++;
 	w = XtCreateManagedWidget ("overlayDismiss", commandWidgetClass, form,
 		args, n);
 	XtAddCallback (w, XtNcallback, ot_Dismiss, 0);
@@ -153,10 +153,10 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNeditType, XawtextEdit); n++;
 	XtSetArg (args[n], XtNresize, XawtextResizeBoth); n++;
 	XtSetArg (args[n], XtNresizable, True); n++;
-	XtSetArg (args[n], XtNbottom, XawRubber); n++;
-	XtSetArg (args[n], XtNtop, XawChainTop); n++;
-	XtSetArg (args[n], XtNright, XawRubber); n++;
-	XtSetArg (args[n], XtNleft, XawChainLeft); n++;
+	XtSetArg (args[n], XtNbottom, XtRubber); n++;
+	XtSetArg (args[n], XtNtop, XtChainTop); n++;
+	XtSetArg (args[n], XtNright, XtRubber); n++;
+	XtSetArg (args[n], XtNleft, XtChainLeft); n++;
 	XtSetArg (args[n], XtNfromHoriz, NULL); n++;
 	XtSetArg (args[n], XtNfromVert, above); n++;
 	XtSetArg (args[n], XtNdisplayCaret, False); n++;

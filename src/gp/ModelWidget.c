@@ -1,7 +1,7 @@
 /*
  * Movie control functions.
  */
-static char *rcsid = "$Id: ModelWidget.c,v 2.6 1994-12-09 08:38:46 granger Exp $";
+static char *rcsid = "$Id: ModelWidget.c,v 2.7 1994-12-11 16:21:15 corbet Exp $";
 /*		Copyright (C) 1994 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -229,8 +229,8 @@ XtAppContext appc;
 		n = 0;
 		XtSetArg (args[n], XtNfromHoriz, w); n++;
 		XtSetArg (args[n], XtNfromVert, above); n++;
-		XtSetArg (args[n], XtNleft, XawChainLeft); n++;
-		XtSetArg (args[n], XtNright, XawChainLeft); n++;
+		XtSetArg (args[n], XtNleft, XtChainLeft); n++;
+		XtSetArg (args[n], XtNright, XtChainLeft); n++;
 		XtSetArg (args[n], XtNwidth, 35); n++;
 		XtSetArg (args[n], XtNresize, False); n++;
 		XtSetArg (args[n], XtNlabel, "XX"); n++;
@@ -264,8 +264,8 @@ XtAppContext appc;
 		n = 0;
 		XtSetArg (args[n], XtNfromHoriz, w); n++;
 		XtSetArg (args[n], XtNfromVert, above); n++;
-		XtSetArg (args[n], XtNleft, XawChainLeft); n++;
-		XtSetArg (args[n], XtNright, XawChainLeft); n++;
+		XtSetArg (args[n], XtNleft, XtChainLeft); n++;
+		XtSetArg (args[n], XtNright, XtChainLeft); n++;
 		XtSetArg (args[n], XtNvertDistance, 0); n++;
 		XtSetArg (args[n], XtNwidth, 35); n++;
 		XtSetArg (args[n], XtNheight, 8); n++;
@@ -288,8 +288,8 @@ XtAppContext appc;
 	n = 0;
 	XtSetArg (args[n], XtNfromVert, above); n++;
 	XtSetArg (args[n], XtNvertDistance, 0); n++;
-	XtSetArg (args[n], XtNleft, XawChainLeft); n++;
-	XtSetArg (args[n], XtNright, XawChainLeft); n++;
+	XtSetArg (args[n], XtNleft, XtChainLeft); n++;
+	XtSetArg (args[n], XtNright, XtChainLeft); n++;
 	XtSetArg (args[n], XtNwidth, 39); n++;
 	XtSetArg (args[n], XtNheight, 8); n++;
 	XtSetArg (args[n], XtNbitmap, pm); n++;
