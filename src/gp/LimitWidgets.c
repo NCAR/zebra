@@ -1,7 +1,7 @@
 /*
  * Widgets for changing plot limits.
  */
-static char *rcsid = "$Id: LimitWidgets.c,v 1.5 1991-06-14 22:35:28 kris Exp $";
+static char *rcsid = "$Id: LimitWidgets.c,v 1.6 1991-07-01 13:43:50 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -336,7 +336,7 @@ XtAppContext actx;
 	XtSetArg (args[n], XtNlength, 40); n++;
 	XtSetArg (args[n], XtNstring, wdata->d_vstring); n++;
 	XtSetArg (args[n], XtNleftMargin, 5); n++;
-	XtSetArg (args[n], XtNeditType, XawtextAppend); n++;
+	XtSetArg (args[n], XtNeditType, XawtextEdit); n++;
 	wdata->d_value = XtCreateManagedWidget ("SSValue",asciiTextWidgetClass,
 		form, args, n);
 	wq->wq_wdata = (void *) wdata;
@@ -416,14 +416,14 @@ XtAppContext actx;
 	XtSetArg (args[n], XtNdisplayPosition, 0); n++;
 	XtSetArg (args[n], XtNinsertPosition, 0); n++;
 	XtSetArg (args[n], XtNresize, XawtextResizeNever); n++;
-	XtSetArg (args[n], XtNwidth, 40); n++;
+	XtSetArg (args[n], XtNwidth, 60); n++;
 	XtSetArg (args[n], XtNheight, 20); n++;
 	XtSetArg (args[n], XtNtype, XawAsciiString); n++;
 	XtSetArg (args[n], XtNuseStringInPlace, True); n++;
 	XtSetArg (args[n], XtNlength, 40); n++;
 	XtSetArg (args[n], XtNstring, wdata->d_vstring); n++;
 	XtSetArg (args[n], XtNleftMargin, 5); n++;
-	XtSetArg (args[n], XtNeditType, XawtextAppend); n++;
+	XtSetArg (args[n], XtNeditType, XawtextEdit); n++;
 	wdata->d_value = XtCreateManagedWidget ("SIValue",asciiTextWidgetClass,
 		form, args, n);
 	wq->wq_wdata = (void *) wdata;
@@ -503,14 +503,14 @@ XtAppContext actx;
 	XtSetArg (args[n], XtNdisplayPosition, 0); n++;
 	XtSetArg (args[n], XtNinsertPosition, 0); n++;
 	XtSetArg (args[n], XtNresize, XawtextResizeNever); n++;
-	XtSetArg (args[n], XtNwidth, 40); n++;
+	XtSetArg (args[n], XtNwidth, 60); n++;
 	XtSetArg (args[n], XtNheight, 20); n++;
 	XtSetArg (args[n], XtNtype, XawAsciiString); n++;
 	XtSetArg (args[n], XtNuseStringInPlace, True); n++;
 	XtSetArg (args[n], XtNlength, 40); n++;
 	XtSetArg (args[n], XtNstring, wdata->d_vstring); n++;
 	XtSetArg (args[n], XtNleftMargin, 5); n++;
-	XtSetArg (args[n], XtNeditType, XawtextAppend); n++;
+	XtSetArg (args[n], XtNeditType, XawtextEdit); n++;
 	wdata->d_value = XtCreateManagedWidget ("SFValue",asciiTextWidgetClass,
 		form, args, n);
 	wq->wq_wdata = (void *) wdata;
@@ -591,14 +591,14 @@ XtAppContext actx;
 	XtSetArg (args[n], XtNdisplayPosition, 0); n++;
 	XtSetArg (args[n], XtNinsertPosition, 0); n++;
 	XtSetArg (args[n], XtNresize, XawtextResizeNever); n++;
-	XtSetArg (args[n], XtNwidth, 40); n++;
+	XtSetArg (args[n], XtNwidth, 60); n++;
 	XtSetArg (args[n], XtNheight, 20); n++;
 	XtSetArg (args[n], XtNtype, XawAsciiString); n++;
 	XtSetArg (args[n], XtNuseStringInPlace, True); n++;
 	XtSetArg (args[n], XtNlength, 40); n++;
 	XtSetArg (args[n], XtNstring, wdata->d_vstring[0]); n++;
 	XtSetArg (args[n], XtNleftMargin, 5); n++;
-	XtSetArg (args[n], XtNeditType, XawtextAppend); n++;
+	XtSetArg (args[n], XtNeditType, XawtextEdit); n++;
 	wdata->d_value[0] = XtCreateManagedWidget ("DFValue1",
 		asciiTextWidgetClass, form, args, n);
 /*
@@ -620,14 +620,14 @@ XtAppContext actx;
 	XtSetArg (args[n], XtNdisplayPosition, 0); n++;
 	XtSetArg (args[n], XtNinsertPosition, 0); n++;
 	XtSetArg (args[n], XtNresize, XawtextResizeNever); n++;
-	XtSetArg (args[n], XtNwidth, 40); n++;
+	XtSetArg (args[n], XtNwidth, 60); n++;
 	XtSetArg (args[n], XtNheight, 20); n++;
 	XtSetArg (args[n], XtNtype, XawAsciiString); n++;
 	XtSetArg (args[n], XtNuseStringInPlace, True); n++;
 	XtSetArg (args[n], XtNlength, 40); n++;
 	XtSetArg (args[n], XtNstring, wdata->d_vstring[1]); n++;
 	XtSetArg (args[n], XtNleftMargin, 5); n++;
-	XtSetArg (args[n], XtNeditType, XawtextAppend); n++;
+	XtSetArg (args[n], XtNeditType, XawtextEdit); n++;
 	above = wdata->d_value[1] = XtCreateManagedWidget ("DFValue2",
 		asciiTextWidgetClass, form, args, n);
 	wq->wq_wdata = (void *) wdata;
@@ -708,14 +708,14 @@ XtAppContext actx;
 	XtSetArg (args[n], XtNdisplayPosition, 0); n++;
 	XtSetArg (args[n], XtNinsertPosition, 0); n++;
 	XtSetArg (args[n], XtNresize, XawtextResizeNever); n++;
-	XtSetArg (args[n], XtNwidth, 40); n++;
+	XtSetArg (args[n], XtNwidth, 60); n++;
 	XtSetArg (args[n], XtNheight, 20); n++;
 	XtSetArg (args[n], XtNtype, XawAsciiString); n++;
 	XtSetArg (args[n], XtNuseStringInPlace, True); n++;
 	XtSetArg (args[n], XtNlength, 40); n++;
 	XtSetArg (args[n], XtNstring, wdata->d_vstring[0]); n++;
 	XtSetArg (args[n], XtNleftMargin, 5); n++;
-	XtSetArg (args[n], XtNeditType, XawtextAppend); n++;
+	XtSetArg (args[n], XtNeditType, XawtextEdit); n++;
 	wdata->d_value[0] = XtCreateManagedWidget ("TSValue1",
 		asciiTextWidgetClass, form, args, n);
 /*
@@ -737,14 +737,14 @@ XtAppContext actx;
 	XtSetArg (args[n], XtNdisplayPosition, 0); n++;
 	XtSetArg (args[n], XtNinsertPosition, 0); n++;
 	XtSetArg (args[n], XtNresize, XawtextResizeNever); n++;
-	XtSetArg (args[n], XtNwidth, 40); n++;
+	XtSetArg (args[n], XtNwidth, 60); n++;
 	XtSetArg (args[n], XtNheight, 20); n++;
 	XtSetArg (args[n], XtNtype, XawAsciiString); n++;
 	XtSetArg (args[n], XtNuseStringInPlace, True); n++;
 	XtSetArg (args[n], XtNlength, 40); n++;
 	XtSetArg (args[n], XtNstring, wdata->d_vstring[1]); n++;
 	XtSetArg (args[n], XtNleftMargin, 5); n++;
-	XtSetArg (args[n], XtNeditType, XawtextAppend); n++;
+	XtSetArg (args[n], XtNeditType, XawtextEdit); n++;
 	above = wdata->d_value[1] = XtCreateManagedWidget ("TSValue2",
 		asciiTextWidgetClass, form, args, n);
 	wq->wq_wdata = (void *) wdata;
@@ -1322,8 +1322,9 @@ time *t;
 	    ! pd_Retrieve (Pd, comp, "color-code-field", fld, SYMT_STRING) &&
 	    ! pd_Retrieve (Pd, comp, "arrow-type", fld, SYMT_STRING))
 		strcpy (fld, " ");
-	sprintf (cp, "%-15s%-11s%-12s%2d:%02d\n", comp, plat, fld,
-		t->ds_hhmmss/10000, (t->ds_hhmmss/100) % 100);
+	sprintf (cp, "%-15s%-11s%-12s%2d:%02d:%02d\n", comp, plat, fld,
+		t->ds_hhmmss/10000, (t->ds_hhmmss/100) % 100,
+		t->ds_hhmmss % 100);
 }
 
 
