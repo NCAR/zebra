@@ -76,8 +76,9 @@
 /*
  * Space reserved for icons, and resultant usable plot height, both in pixels
  */
+extern int IconSpace;
 # define ICONSPACE	50
-# define USABLE_HEIGHT	(GWHeight (Graphics) - ICONSPACE)
+# define USABLE_HEIGHT	(GWHeight (Graphics) - IconSpace)
 
 /*
  * User coordinate to pixel coordinate macros
