@@ -1,7 +1,6 @@
 /*
  * Layout Control and Coordinate Transformations
  */
-static char *rcsid = "$Id: LayoutControl.c,v 1.10 1993-12-01 17:00:10 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -25,12 +24,15 @@ static char *rcsid = "$Id: LayoutControl.c,v 1.10 1993-12-01 17:00:10 burghart E
 # include <ui_error.h>
 # include <defs.h>
 # include <pd.h>
+# include <GraphicsW.h>
 # include <message.h>
 # include <DataStore.h>
 # include <time.h>
 # include "derive.h"
 # include "GraphProc.h"
 # include "LayoutControl.h"
+
+RCSID("$Id: LayoutControl.c,v 1.11 1995-04-17 22:10:32 granger Exp $")
 
 /*
  * This set of routines maintains the division of the (NDC) coordinate
@@ -490,7 +492,6 @@ DataValPtr	bottom, top;
 char dim;
 {
    float	ftop, fbottom;
-   DataValRec   utop, ubottom;
    float	adjbottom, adjtop;
    ScaleStack   *zsBottom, *zsTop;
 
@@ -678,7 +679,6 @@ lc_DecrData (d1,incr)
 DataValPtr	d1;
 double		incr;
 {
-    time_t	timeSec;
     switch (d1->type)
     {
 	case 't':
@@ -704,7 +704,6 @@ lc_IncrData (d1, incr)
 DataValPtr	d1;
 double		incr;
 {
-    time_t	timeSec;
     switch (d1->type)
     {
 	case 't':

@@ -1,7 +1,6 @@
 /*
  * Widgets for changing plot limits.
  */
-static char *rcsid = "$Id: LimitWidgets.c,v 2.19 1994-11-19 00:35:12 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -38,6 +37,7 @@ static char *rcsid = "$Id: LimitWidgets.c,v 2.19 1994-11-19 00:35:12 burghart Ex
 # include <pd.h>
 # include "GraphProc.h"
 
+RCSID("$Id: LimitWidgets.c,v 2.20 1995-04-17 22:10:48 granger Exp $")
 
 /*
  * Station widget static data.
@@ -275,8 +275,6 @@ WidgetQueue *w;
  * Put this one on the screen.
  */
 {
-	Arg	args[2];
-	int	n = 0;
 	int width,height;
 	int swidth,sheight;
 	Window wjunk;
