@@ -13,7 +13,7 @@
 //#include <message.h>
 //}
 
-// RCSID ("$Id: BTreeFile.cc,v 1.1 1998-05-15 19:36:38 granger Exp $")
+// RCSID ("$Id: BTreeFile.cc,v 1.2 1998-05-15 21:47:21 granger Exp $")
 
 #include "Logger.hh"
 #include "Format.hh"
@@ -37,7 +37,7 @@ BTreeFile<K,T>::BTreeFile (BlockFile &_bf, int order, long sz, int fix) :
 	our_bf(0),
 	node_size(0),
 	leaf_size(0),
-	log(new Logger("BTreeFile"))
+	log(Logger::For("BTreeFile"))
 {
 	//BlockFactory<K,T> *f = new BlockFactory<K,T> (_bf, *this);
 	Setup (order, sz, fix/*, new BlockFactory<K,T> (_bf, *this)*/);
@@ -66,7 +66,7 @@ BTreeFile<K,T>::BTreeFile (int order, long sz, int fix) :
 	our_bf(1),
 	node_size(0),
 	leaf_size(0),
-	log(new Logger("BTreeFile"))
+	log(Logger::For("BTreeFile"))
 {
 	log->Info (" - Constructing BtreeFile - ");
 	//BlockFactory<K,T> *f = new BlockFactory<K,T> (*bf, *this);

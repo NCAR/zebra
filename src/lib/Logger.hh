@@ -1,5 +1,5 @@
 /*
- * $Id: Logger.hh,v 1.5 1998-05-15 19:36:58 granger Exp $
+ * $Id: Logger.hh,v 1.6 1998-05-15 21:47:25 granger Exp $
  *
  * Class for reporting error and log messages, which can be conveniently
  * subclassed to log messages through different facilities.  A subclass
@@ -51,6 +51,8 @@
 class Logger
 {
 public:
+	/* ---------------- Class members ---------------- */
+
 	static const int EMERGENCY;
 	static const int PROBLEM;
 	static const int ERROR;
@@ -60,7 +62,12 @@ public:
 	static const int DEVELOP;
 	static const int ALL;
 
-	virtual const char *levelName (int level)
+	static Logger *For (const char *name = 0);
+	static void SetPrototype (const Logger & proto);
+
+	/* ---------------- Instance methods ---------------- */
+
+	virtual const char *levelName (int level) const
 	{
 		if (level & EMERGENCY)
 			return ("Emergency");
@@ -118,15 +125,28 @@ public:
 		Problem (buf.str());
 	}
 
-	Logger ()
+	Logger (const char *_name = 0) : name (0)
 	{
-		name = NULL;
+		Name (_name);
 	}
 
-	Logger (const char *_name)
+		Logger (const Logger &log) : name (0)
 	{
-		this->name = (char *) malloc (strlen(_name) + 1);
-		strcpy (this->name, _name);
+		Name (log.name);
+	}
+		
+	Logger& operator= (const Logger &log)
+	{
+		Name (log.name);
+	}
+
+	/*
+	 * Prototype pattern: Subclasses override this to return a logger
+	 * of their particular class.
+	 */
+	virtual Logger *Clone (const char *_name = 0) const
+	{
+		return new Logger (_name);
 	}
 
 	virtual ~Logger ()
@@ -142,6 +162,23 @@ public:
 protected:
 	char *name;
 
+	void Name (const char *_name)
+	{
+		if (this->name)
+		{
+			free (this->name);
+			this->name = 0;
+		}
+		if (_name)
+		{
+			this->name = (char *) malloc (strlen(_name) + 1);
+			strcpy (this->name, _name);
+		}
+	}
+
+private:
+
+	static Logger *prototype = 0;
 };
 
 
@@ -159,9 +196,16 @@ Logger &operator<< (Logger &log, T &t)
 
 class NullLogger : public Logger
 {
-	virtual void Log (int /*levels*/, const char *)
-	{
+public:
+	NullLogger (const char *name = 0) : Logger (name)
+	{ }
 
+	virtual void Log (int /*levels*/, const char *)
+	{ }
+
+	virtual Logger *Clone (const char *name) const
+	{
+		return new NullLogger (name);
 	}
 };
 

@@ -8,7 +8,7 @@
 #include <iomanip.h>
 
 //#include <defs.h>
-//RCSID ("$Id: BlockFile.cc,v 1.6 1998-05-15 19:36:45 granger Exp $");
+//RCSID ("$Id: BlockFile.cc,v 1.7 1998-05-15 21:47:22 granger Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
 #include "BlockFileP.hh"
@@ -52,8 +52,7 @@ void BlockFile::init ()
 	header = 0;
 	freelist = 0;
 	journal = 0;
-	//log = new NullLogger;
-	log = new Logger("BlockFile");
+	log = Logger::For ("BlockFile");
 	rbuf = new SerialBuffer;
 	wbuf = new SerialBuffer;
 
