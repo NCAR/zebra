@@ -36,6 +36,8 @@ usage (const char *prog)
 		 "[-t] [-a|-x] [-r <km>] [-o <mapfile>]");
 	fprintf (stderr, "   -h   Print this usage information.\n");
 	fprintf (stderr, "   -t   Time each mapfile read, except '-'.\n");
+	fprintf (stderr, "   -d   Print debug messages (polylines).\n");
+	fprintf (stderr, "   -v   Print development messages (all points).\n");
 	fprintf (stderr, "   -r   Reduce output to <km> resolution.\n");
 	fprintf (stderr, "   -a   Convert mapfiles to ASCII format.\n");
 	fprintf (stderr, "   -x   Convert mapfiles to XDR binary format.\n");
@@ -72,11 +74,12 @@ main (int argc, char *argv[])
 	float reduce = 0.0;
 	MapFile *out = NULL;
 	MapFile *in = NULL;
+	int mask;
 
 	msg_connect (0, "");
-	/* msg_ELPrintMask (EF_INFO | EF_PROBLEM | EF_EMERGENCY); */
+	msg_ELPrintMask ((mask = msg_ELPrintMask (0)));
 
-	while ((c = getopt(argc, argv, "htaxo:r:")) != EOF)
+	while ((c = getopt(argc, argv, "htdvaxo:r:")) != EOF)
 	{
 		switch (c) 
 		{
@@ -86,6 +89,13 @@ main (int argc, char *argv[])
 			break;
 		case 't':
 			profile = 1;
+			break;
+		case 'v':
+			mask |= EF_DEVELOP;
+			/* fall through */
+		case 'd':
+			mask |= EF_DEBUG;
+			msg_ELPrintMask (mask);
 			break;
 		case 'a':
 			fmt = MF_ASCII;
