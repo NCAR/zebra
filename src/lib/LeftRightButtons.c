@@ -1,7 +1,7 @@
 /*
  * Left-right button widget
  */
-static char *rcsid = "$Id: LeftRightButtons.c,v 1.2 1991-10-11 18:58:33 kris Exp $";
+static char *rcsid = "$Id: LeftRightButtons.c,v 1.3 1991-10-15 22:24:16 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -29,9 +29,10 @@ static char *rcsid = "$Id: LeftRightButtons.c,v 1.2 1991-10-11 18:58:33 kris Exp
 
 
 Widget
-LeftRightButtons (parent, callback)
+LeftRightButtons (parent, callback, ttable)
 Widget	parent;
 void	(*callback)();
+XtTranslations ttable;
 /*
  * Create a pair of buttons with left and right pointing arrows.  The
  * callback function is assigned to both buttons and is called with -1 for
@@ -62,6 +63,8 @@ void	(*callback)();
 	XtSetArg (args[n], XtNinternalWidth, 2); n++;
 	left = XtCreateManagedWidget ("leftbutton", commandWidgetClass, 
 		holder, args, n);
+	if (ttable != NULL)
+		XtOverrideTranslations (left, ttable);
 	XtAddCallback (left, XtNcallback, callback, -1);
 
 	n = 0;
@@ -72,6 +75,8 @@ void	(*callback)();
 	XtSetArg (args[n], XtNinternalWidth, 2); n++;
 	right = XtCreateManagedWidget ("rightbutton", commandWidgetClass, 
 		holder, args, n);
+	if (ttable != NULL)
+		XtOverrideTranslations (right, ttable);
 	XtAddCallback (right, XtNcallback, callback, 1);
 
 	return (holder);
