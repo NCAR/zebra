@@ -45,6 +45,7 @@
 # define CARTRIDGE "/dev/ncartM"
 
 # include <sys/types.h>
+# include <sys/fcntl.h>
 # include <sys/file.h>
 # include <sys/mtio.h>
 # include <stdio.h>
@@ -126,16 +127,16 @@ mt_backspace (unit, nskip)
 {
     long int back;
     
-    if( lseek (Fds[unit], 0, L_INCR) < 8 ) /* at BOT */
+    if( lseek (Fds[unit], 0, SEEK_CUR) < 8 ) /* at BOT */
 	 return;
 
     for (; nskip > 0; nskip--){	/* record size at beginning and end */
-	lseek (Fds[unit], -sizeof(back), L_INCR);
+	lseek (Fds[unit], -sizeof(back), SEEK_CUR);
 	read (Fds[unit], &back, sizeof(back));
 # ifdef ultrix
 	back = swap32( back );
 # endif
-	if( lseek (Fds[unit], -(back+2*sizeof(back)), L_INCR) < 8 )
+	if( lseek (Fds[unit], -(back+2*sizeof(back)), SEEK_CUR) < 8 )
 	     return;
     }
 }
@@ -432,7 +433,7 @@ mtskpf_ (unit, nskip)
 		    return;
 		}
 		lseek (Fds[*unit],
-		       (off_t) recl + sizeof (recl), L_INCR);
+		       (off_t) recl + sizeof (recl), SEEK_CUR);
 		if( recl == 0 )
 		     break;
 	    }
@@ -446,10 +447,10 @@ mtskpf_ (unit, nskip)
 	Status[*unit] = 0;
 	n = -(*nskip);
 	for( f=1; f <= n; f++ ) {
-	    if( lseek (Fds[*unit], 0, L_INCR) < 8 ) /* at BOT */
+	    if( lseek (Fds[*unit], 0, SEEK_CUR) < 8 ) /* at BOT */
 		 return;
 	    for(;;) {
-		lseek (Fds[*unit], -sizeof(back), L_INCR);
+		lseek (Fds[*unit], -sizeof(back), SEEK_CUR);
 		read (Fds[*unit], &back, sizeof(back));
 # ifdef ultrix
 		back = swap32( back );
@@ -460,7 +461,7 @@ mtskpf_ (unit, nskip)
 		if( back == 0 && f == n ) 
 		     return;
 
-		if( lseek (Fds[*unit], -(back+2*sizeof(back)), L_INCR) < 8 )
+		if( lseek (Fds[*unit], -(back+2*sizeof(back)), SEEK_CUR) < 8 )
 		     return;
 
 		if( back == 0 )	/* EOF! */
@@ -503,7 +504,7 @@ mtspce_ (unit, nskip)
 		      recl = swap32( recl );
 # endif
 		      lseek (Fds[*unit],
-			     (off_t) recl + sizeof (recl), L_INCR);
+			     (off_t) recl + sizeof (recl), SEEK_CUR);
 		      Status[*unit] = recl ? 0 : TS_EOF;
 		      if( recl == 0 )
 			   return;
