@@ -25,15 +25,15 @@
 
 # include <copyright.h>
 # include <math.h>
-# include "../include/defs.h"
-# include "../include/message.h"
-# include "../include/timer.h"
+# include "defs.h"
+# include "message.h"
+# include "timer.h"
 # include <DataStore.h>
 # include <ui_error.h>
 # include <mda.h>
 # include <station.h>
 
-MAKE_RCSID ("$Id: daypam_ingest.c,v 1.1 1992-11-10 19:21:57 burghart Exp $")
+MAKE_RCSID ("$Id: daypam_ingest.c,v 1.2 1992-12-02 19:02:45 granger Exp $")
 
 static int incoming FP ((struct message *));
 void	Stations FP ((char *));
