@@ -107,6 +107,8 @@
  **                                                                          **
  **    Mark Newsome                                                          **
  **    January 1991, September 1991                                          **
+ **
+ **    $Id: xhelp.h,v 1.2 1993-03-12 20:28:19 granger Exp $
  ******************************************************************************/
 
 #include <stdio.h>
@@ -157,7 +159,8 @@ int XhCallXHelp(w,helpfilename, topicId, topicName)
              XHELP_FILE, XA_STRING, 8, PropModeReplace, (unsigned char *)name,
              strlen(name));
    } else { /** XHELP is not around, let's wake it up **/
-         sprintf(cmdstr,"xhelp %s %s %s & \n",
+	 /* arguments must be quoted because ID length is important! */
+         sprintf(cmdstr,"xhelp '%s' '%s' '%s' & \n",
                helpfilename,topicId,topicName); /** invoke xhelp in USER mode **/
          result=system(cmdstr);
          if (result)
