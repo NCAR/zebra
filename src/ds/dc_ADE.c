@@ -423,35 +423,43 @@ dc_CopyADE (target, dc)
 DataChunk *target;
 DataChunk *dc;
 /*
- * Copy all AuxData entries from one chunk to the other using dc_AddADE.
+ * Copy all AuxData entries from one chunk to the other.
  * If the source ADEs are not meant to augment target ADEs, then first call
  * dc_ClearADE or dc_DestroyADE according to whether the target chunk's
  * ADEs should be freed normally or just erased.
  */
 {
-	DataClassP class = dc->dc_ClassP;
+    DataClassP class = dc->dc_ClassP;
 
-	while (class)
-	{
-		AuxDataChain src;
-		int j;
-
-		for (j = 0; j < ADE_HASH_SIZE; ++j)
-		{
-			src = dc->dc_AuxData[class->dcm_Depth][j];
-			while (src)
-			{
-				DataPtr data = (DataPtr) malloc (src->dca_Len);
-				memcpy (data, src->dca_Data, src->dca_Len);
-				dc_AddADE (target, data, class,
-					   src->dca_SubType, src->dca_Len,
-					   src->dca_Free);
-				src = src->dca_Next;
-			}
-		}
-		class = dc_Super (class);
-	}
+    while (class)
+    {
+	dc_CopyClassADE (target, dc, class);
+	class = dc_Super (class);
+    }
 }
 
 
 
+void
+dc_CopyClassADE (DataChunk *dest, DataChunk *src, DataClassP classp)
+/*
+ * Copy all AuxData entries belonging to the given class from the
+ * src chunk to the dest chunk using dc_AddADE.
+ */
+{
+    AuxDataChain adc;
+    int j;
+
+    for (j = 0; j < ADE_HASH_SIZE; ++j)
+    {
+	adc = src->dc_AuxData[classp->dcm_Depth][j];
+	while (adc)
+	{
+	    DataPtr data = (DataPtr) malloc (adc->dca_Len);
+	    memcpy (data, adc->dca_Data, adc->dca_Len);
+	    dc_AddADE (dest, data, classp, adc->dca_SubType, adc->dca_Len,
+		       adc->dca_Free);
+	    adc = adc->dca_Next;
+	}
+    }
+}
