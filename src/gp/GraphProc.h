@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.23 1993-07-01 20:14:23 granger Exp $ */
+/* $Id: GraphProc.h,v 2.24 1993-08-26 20:18:26 corbet Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -65,6 +65,13 @@ extern int  MaxFrames;		/* Maximun number of frames		*/
 extern int	PlotType;
 extern float	Xlo, Xhi, Ylo, Yhi;
 extern float	Alt;		/* CAP plot altitude			*/
+
+/*
+ * Search path for icon and map files.
+ */
+# define PathLen	120
+extern char	IconPath[PathLen];	/* The icon path */
+extern char	MapPath[PathLen];	/* Path for maps */
 
 /*
  * The "altitude control" component -- that which regulates the altitude

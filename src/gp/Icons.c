@@ -1,7 +1,7 @@
 /*
  * Deal with the icons on the bottom of the window.
  */
-static char *rcsid = "$Id: Icons.c,v 2.15 1993-08-04 17:16:36 granger Exp $";
+static char *rcsid = "$Id: Icons.c,v 2.16 1993-08-26 20:18:30 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -379,11 +379,10 @@ int *fg, *bg, disable;
 /*
  * Otherwise we gotta go dig it up.
  */
-	sprintf (fname, "%s/icons/%s", GetLibDir (), iname);
-	if (XReadBitmapFile (disp, root, fname, &w, &h, &pmap, &xh, &yh) !=
-		BitmapSuccess)
+	if (! FindFile (iname, IconPath, fname) || XReadBitmapFile (disp,
+		 root, fname, &w, &h, &pmap, &xh, &yh) != BitmapSuccess)
 	{
-		msg_ELog (EF_PROBLEM, "Unable to read icon file '%s'", fname);
+		msg_ELog (EF_PROBLEM, "Unable to load icon  '%s'", iname);
 		return (0);
 	}
 /*

@@ -3,7 +3,7 @@
  */
 #ifndef lint
 static char *rcsid = 
-	"$Id: Overlay.c,v 2.23 1993-07-01 20:14:34 granger Exp $";
+	"$Id: Overlay.c,v 2.24 1993-08-26 20:18:34 corbet Exp $";
 #endif
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -824,11 +824,13 @@ char *name;
 /*
  * Nope.  Try to open up a file.
  */
-	fixdir_t ("GP_MAP_DIR", GetLibDir (), name, fname, ".map");
-	/* sprintf (fname, "../lib/%s.map", name); */
-	if ((mapfp = fopen (fname, "r")) == NULL)
+/*	fixdir_t ("GP_MAP_DIR", GetLibDir (), name, fname, ".map"); */
+	strcpy (line, name);
+	strcat (line, ".map");
+	if (! FindFile (line, MapPath, fname) ||
+	    ((mapfp = fopen (fname, "r")) == NULL))
 	{
-		msg_ELog (EF_PROBLEM, "Unable to open map file %s", fname);
+		msg_ELog (EF_PROBLEM, "Unable to open map %s", name);
 		return (NULL);
 	}
 /*

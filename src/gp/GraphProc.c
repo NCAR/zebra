@@ -48,7 +48,7 @@
 # include "PixelCoord.h"
 # include "LayoutControl.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.28 1993-07-16 16:05:57 corbet Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.29 1993-08-26 20:18:22 corbet Exp $")
 
 /*
  * Default resources.
@@ -107,6 +107,12 @@ ZebTime	PostProcTime;
  * Definition of the global graphics context in GC.h
  */
 GC	Gcontext;
+
+/*
+ * The icon and map paths.
+ */
+char IconPath[PathLen];
+char MapPath[PathLen];
 
 /*
  * Saved versions of the "command line" parameters.
@@ -337,6 +343,18 @@ finish_setup ()
  */
 	usy_c_indirect (Vtable, "ourname", Ourname, SYMT_STRING, 40);
 	usy_c_indirect (Vtable, "holdprocess", &HoldProcess, SYMT_BOOL, 0);
+	usy_c_indirect (Vtable, "iconpath", IconPath, SYMT_STRING, PathLen);
+	usy_c_indirect (Vtable, "mappath", MapPath, SYMT_STRING, PathLen);
+/*
+ * Default values for the path variables.
+ */
+	sprintf (IconPath, "%s/icons,./icons", GetLibDir ());
+	sprintf (MapPath, "%s,./maps", GetLibDir ());
+	if (getenv ("GP_MAP_DIR"))
+	{
+		strcat (MapPath, ",");
+		strcat (MapPath, getenv ("GP_MAP_DIR"));
+	}		
 /*
  * Pull in the widget definition file.
  */
@@ -787,12 +805,6 @@ int len;
  */
 	if (schanged)
 		fc_InvalidateCache ();
-/*
- * Force the window to the bottom.
- */
-# ifdef notdef
-	XLowerWindow (XtDisplay (Top), XtWindow (GrShell));
-# endif
 /*
  * Force a redisplay.
  */
