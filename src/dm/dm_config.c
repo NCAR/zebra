@@ -35,7 +35,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm_config.c,v 1.23 1995-05-24 00:13:48 granger Exp $")
+MAKE_RCSID ("$Id: dm_config.c,v 1.24 1995-06-29 21:26:23 granger Exp $")
 
 /*
  * Exported variables
@@ -94,9 +94,9 @@ static void dg_AssignWindow FP ((Process *proc, struct cf_window *wp));
 static void dg_DisplayWidget FP ((struct cf_window *wp));
 static int dg_DisplayProcess FP ((struct cf_window *wp));
 static int dg_DisplayGraphic FP ((struct config *cfg, 
-				  struct cf_window *wp, bool force));
+				  struct cf_window *wp, int force));
 static bool dg_DisplayWindow FP ((struct config *cfg, 
-				  struct cf_window *wp, bool force));
+				  struct cf_window *wp, int force));
 static void dg_SyncStates FP ((void));
 static Process *dg_FindExisting FP ((ProcessClass *pc, struct config *cfg, 
 				     struct cf_window *wp, char *name));
@@ -206,10 +206,10 @@ int update;	/* do an update if nonzero */
 		{
 			if (! (pc = dp_LookupClass (wp->cfw_pcname)))
 				continue;
-			fprintf (fp, "prototype fallback %s %s",
+			fprintf (fp, "prototype fallback '%s' %s",
 				 pc->pc_name, pc->pc_exec);
 			for (i = 1; i < pc->pc_argc; i++)
-				fprintf (fp, " %s", pc->pc_argv[i]);
+				fprintf (fp, " '%s'", pc->pc_argv[i]);
 			fprintf (fp, "\n");
 		}
 	}
@@ -240,7 +240,7 @@ int update;	/* do an update if nonzero */
 		fprintf (fp, "'%s'\n", wp->cfw_pcname);
 	/*
 	 * If this is a graphic window, note plot description and button map
-	 * info; otherwise we mark it nongraphic.
+	 * info; otherwise we leave the process as nongraphic.
 	 */
 		if (IsGraphic (wp))
 		{
@@ -1061,7 +1061,7 @@ static int
 dg_DisplayGraphic (cfg, wp, force)
 struct config *cfg;
 struct cf_window *wp;
-bool force;
+int force;
 /*
  * Set this graphic window up to be displayed, which means finding it a
  * process and tinkering with its pd.  Return non-zero if we must create a
@@ -1230,7 +1230,7 @@ static bool
 dg_DisplayWindow (cfg, wp, force)
 struct config *cfg;
 struct cf_window *wp;
-bool force;
+int force;
 /*
  * Get this window onto the screen.  Existing processes need to be
  * sent their new config, while new processes will get their config
@@ -1461,7 +1461,7 @@ void
 dg_SyncWindow (cfg, newwin, force)
 struct config *cfg;
 struct cf_window *newwin;
-bool force;	/* force the exec of a new process */
+int force;	/* force the exec of a new process */
 /*
  * Realize this window in the current config.  Mark processes in use in the
  * current config as ASSIGNED, then display the window, and then sync the
@@ -2066,6 +2066,8 @@ char *who;
 /*
  * Respond to the query request with info about all known processes,
  * their state, their attached windows, and info about the windows.
+ * If who is NULL, then the query is from the command line and we
+ * just write the response to the terminal.
  */
 {
 	char buf[256];
@@ -2075,9 +2077,12 @@ char *who;
 	ProcessClass *pc;
 	Process **pp;
 	Process *proc;
+#	define ANSWER(str) { \
+	if (who) msg_AnswerQuery (who, str); \
+	else ui_printf ("%s\n", str); }
 
 	ppc = dp_ClassList (0);
-	msg_AnswerQuery (who, "// Classes");
+	ANSWER ("// Classes");
 	while ((pc = *ppc++))
 	{
 		sprintf (buf, "%-20s %2i members (%s:",
@@ -2089,10 +2094,10 @@ char *who;
 		}
 		strcat (buf, ") ");
 		strcat (buf, (pc->pc_xargs) ? "[- dm args] " : "[+ dm args] ");
-		msg_AnswerQuery (who, buf);
+		ANSWER (buf);
 	}
 
-	msg_AnswerQuery (who, "// Processes");
+	ANSWER ("// Processes");
 	pp = dp_ProcessList (0);
 	while ((proc = *pp++))
 	{
@@ -2127,9 +2132,10 @@ char *who;
 					 (g->g_tmpforce) ? "tmpforce" : "");
 			}
 		}
-		msg_AnswerQuery (who, buf);
+		ANSWER (buf);
 	}
-	msg_FinishQuery (who);
+	if (who)
+		msg_FinishQuery (who);
 	return (0);
 }
 

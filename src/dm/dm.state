@@ -1,4 +1,4 @@
-! $Id: dm.state,v 1.27 1995-05-24 21:47:32 granger Exp $
+! $Id: dm.state,v 1.28 1995-06-29 21:26:17 granger Exp $
 !
 ! Command definition for the display manager.
 !
@@ -146,6 +146,9 @@ define state initial
 	endinput
 	input 'proto' 84
 		next dm-proto-key-or-class
+	endinput
+	input 'query' 90
+		next ust$no_more
 	endinput
 enddef
 
