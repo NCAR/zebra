@@ -1,7 +1,7 @@
 !
 ! Display manager widgets.
 !
-! $Id: dm.widgets,v 1.34 2000-04-06 16:33:58 burghart Exp $
+! $Id: dm.widgets,v 1.35 2000-06-07 22:54:06 granger Exp $
 !
 
 define widget SaveConfig form 'Configuration saver'
@@ -375,21 +375,22 @@ procedure putc4 comp string p1 string v1 string p2 string v2 string p3 string v3
 endprocedure
 
 
+!!! Supplanted by built-in require mechanism.
 !
 ! The dm equivalent for the require mechanism.  Tries to read
 ! the given file name (usually the command name) in the DmModPath
 ! directory.
 !
-procedure require cmd string
-
-	if (not defined (concat ('ui$procedure_table:',cmd)))
-		local fname concat3(dmmodpath,'/',cmd)
-		message '	Trying to load #' fname
-		set delayread 'read'
-		#delayread #fname
-	endif
-
-endprocedure
+!procedure require cmd string
+!
+!	if (not defined (concat ('ui$procedure_table:',cmd)))
+!		local fname concat3(dmmodpath,'/',cmd)
+!		message '	Trying to load #' fname
+!		set delayread 'read'
+!		#delayread #fname
+!	endif
+!
+!endprocedure
 
 
 !
@@ -992,5 +993,5 @@ procedure AllXSect x0 string y0 string x1 string y1 string
 endprocedure
 
 procedure dm_widgets_id
-	local '$Id: dm.widgets,v 1.34 2000-04-06 16:33:58 burghart Exp $'
+	local '$Id: dm.widgets,v 1.35 2000-06-07 22:54:06 granger Exp $'
 endprocedure
