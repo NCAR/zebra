@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: Boundary.c,v 1.2 1991-09-17 14:44:21 burghart Exp $";
+static char *rcsid = "$Id: Boundary.c,v 1.3 1991-09-17 17:03:17 burghart Exp $";
 
 # include <math.h>
 # include <defs.h>
@@ -134,7 +134,7 @@ PlatformId	pid;
 		return (FALSE);
 	}
 
-	npts = dobj->do_desc.d_length[0];
+	npts = dobj->do_desc.d_bnd->bd_npoint;
 /*
  * Build the lat and lon arrays
  */
