@@ -3,8 +3,8 @@
  */
 
 LFILES = active-loc active-time color-table contour ctr-step form-utilities \
-	global grid histogram interp irg_winds iss-cap location offsets \
-	optimizer projection radar range raster rings simple-color \
+	global grid histogram interp irg_winds iss-cap iss-rass location \
+	offsets optimizer projection radar range raster rings simple-color \
 	simple-track skewt station thetaplot time-height track winds xsect \
 	xytrace xywind
 
