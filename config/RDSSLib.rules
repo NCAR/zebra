@@ -1,5 +1,5 @@
 XCOMM
-XCOMM $Id: RDSSLib.rules,v 1.2 1993-07-23 19:27:44 case Exp $
+XCOMM $Id: RDSSLib.rules,v 1.3 1994-01-04 20:47:53 case Exp $
 XCOMM
 XCOMM Rules specific to the RDSS Libraries project, including some which
 XCOMM override definitions in Imake.rules
@@ -44,6 +44,9 @@ XCOMM
  *     target and an install.lib target.  
  *     Typically, ARADD will be 'ar ruv' and library will be $(LIBRDSS)
  *
+ * InstallObjectsIntoLibrary1(library,objects,libname)
+ *  -- Same as above, but also adds an install.libname target 
+ * 
  * NormalLibraryTarget (library,objects)
  * --- Adds to a local library used for local development.
  *
@@ -319,6 +322,29 @@ install.lib:: objects						@@\
 	$(ARADD) library objects				@@\
 	$(RANLIB) library					@@\
 								@@\
+
+/*
+ * does what InstallObjectsIntoLibrary but adds an
+ * install.libname target for individual libraries.  Assumes
+ * the destination directory already exists  
+ *
+ */
+
+#define InstallObjectsIntoLibrary1(library,objects,libname)	@@\
+								@@\
+install:: objects						@@\
+        $(ARADD) library objects				@@\
+	$(RANLIB) library					@@\
+								@@\
+install.lib:: objects						@@\
+	$(ARADD) library objects				@@\
+	$(RANLIB) library					@@\
+								@@\
+install.libname:: objects					@@\
+	$(ARADD) library objects				@@\
+	$(RANLIB) library					@@\
+			
+
 
 /*
  * Adds a list of object files to a local library.  Uses an all 
