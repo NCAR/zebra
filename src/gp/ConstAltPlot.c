@@ -1,7 +1,6 @@
 /*
  * Herein lies all the Constant Altitude Plot code, carved from PlotExec.
  */
-static char *rcsid = "$Id: ConstAltPlot.c,v 2.7 1991-11-22 20:56:28 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -37,6 +36,7 @@ static char *rcsid = "$Id: ConstAltPlot.c,v 2.7 1991-11-22 20:56:28 kris Exp $";
 # include "PixelCoord.h"
 # include "EventQueue.h"
 
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.8 1991-11-27 20:50:50 corbet Exp $")
 
 
 /*
@@ -460,6 +460,7 @@ Boolean	update;
 		ga_RotateGrid (rgrid, ugrid, xdim, ydim);
 		free (rgrid);
 
+		t = PlotTime;
 		rgrid = ga_GetGrid (&t, platform, vname, &xdim, &ydim, 
 				&x0, &y0, &x1, &y1, &alt);
 		if (! rgrid)
