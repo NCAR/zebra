@@ -30,7 +30,7 @@
 # include "DrawText.h"
 # include "PixelCoord.h"
 # include "GC.h"
-MAKE_RCSID ("$Id: Annotate.c,v 2.30 1997-10-23 22:13:55 burghart Exp $")
+MAKE_RCSID ("$Id: Annotate.c,v 2.31 1998-09-22 22:28:22 burghart Exp $")
 
 /*
  * Graphics context (don't use the global one in GC.h because we don't
@@ -590,7 +590,7 @@ int datalen, begin, space;
 /*
  * Get Data
  */
-	sscanf (data, "%f %d %li %s", &ratio, &graphWidth , &color, field);
+	sscanf (data, "%f|%d|%li|%[^|]", &ratio, &graphWidth , &color, field);
 /*
  * Draw the (ruler) scale
  */
@@ -672,7 +672,7 @@ int datalen, begin, space;
 /*
  * Get data.
  */
-        sscanf (data, "%s %li %f %f %f", units, &color, &u, &v, &unitlen);
+        sscanf (data, "%[^|]|%li|%f|%f|%f", units, &color, &u, &v, &unitlen);
 	sprintf (string, "%.0f %s", (float)(hypot (u, v)), units);
 /*
  * Draw the string.
@@ -713,7 +713,7 @@ int datalen, begin, space;
 /*
  * Get data.
  */
-        sscanf (data, "%s %li %d", string, &color, &unitlen);
+        sscanf (data, "%s|%li|%d", string, &color, &unitlen);
 /*
  * Draw the string.
  */
@@ -790,12 +790,9 @@ int datalen, begin, space;
  */
 	An_GetSideParams (comp, &scale, &limit);
 /*
- * Get data.
- * Changed 3/5 jc -- some annotation strings have spaces in them!  So we look
- * 		     for the last one as designating the color
+ * The data string should be of the form <string>|<color>
  */
-	/* sscanf (data, "%s %s", string, color); */
-	if (! (sp = strrchr (data, ' ')))
+	if (! (sp = strrchr (data, '|')))
 	{
 		msg_ELog (EF_PROBLEM, "Trashed annot string: %s", data);
 		return;
@@ -832,7 +829,7 @@ int datalen, begin, space;
 /*
  * Get the data.
  */
-        sscanf (data, "%s %s %f %f", string, ctable, &center, &step);
+        sscanf (data, "%[^|]|%[^|]|%f|%f", string, ctable, &center, &step);
         ct_LoadTable (ctable, &colors, &ncolors);
 /*
  * Put in the string.
@@ -887,7 +884,7 @@ int datalen, begin, space;
 /*
  * Get the data.
  */
-	sscanf (data, "%s %s %f %f", string, ctable, &center, &step);
+	sscanf (data, "%[^|]|%[^|]|%f|%f", string, ctable, &center, &step);
 	ct_LoadTable (ctable, &colors, &ncolors);
 /*
  * Put in the string.

@@ -44,7 +44,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: Track.c,v 2.45 1998-05-04 17:01:10 burghart Exp $")
+RCSID ("$Id: Track.c,v 2.46 1998-09-22 22:28:29 burghart Exp $")
 
 # define ARROWANG .2618 /* PI/12 */
 # ifndef M_PI
@@ -300,12 +300,17 @@ TrackParams *tparams;
  */
 	if (tparams->tp_AutoScale && ! tparams->tp_Mono)
 	{
+		FieldId fid = F_Lookup (tparams->tp_CCField);
+		char *justname = F_GetName (fid);
+
 		FindCenterStep (dc, tparams->tp_Fields[0], tparams->tp_NColor,
 				&tparams->tp_Center, &tparams->tp_Step);
-		sprintf (param, "%s-center", tparams->tp_CCField);
+
+		sprintf (param, "%s-center", justname);
 		pd_Store (Pd, comp, param, (char *) &tparams->tp_Center,
 				SYMT_FLOAT);
-		sprintf (param, "%s-step", tparams->tp_CCField);
+
+		sprintf (param, "%s-step", justname);
 		pd_Store (Pd, comp, param, (char *) &tparams->tp_Step,
 				SYMT_FLOAT);
 	}
@@ -810,13 +815,13 @@ TrackParams *tparams;
 	if (tparams->tp_Mono)
 	{
 		ct_GetColorByName (tparams->tp_MTColor, &xc);
-		sprintf (datastr, "%s %li", platform, xc.pixel);
+		sprintf (datastr, "%s|%li", platform, xc.pixel);
 		An_AddAnnotProc (An_ColorString, comp, datastr,
 			strlen (datastr), 25, FALSE, FALSE);
 	}
 	else
 	{
-		sprintf (datastr, "%s %s %f %f", tparams->tp_CCField,
+		sprintf (datastr, "%s|%s|%f|%f", tparams->tp_CCField,
 				tparams->tp_CTable, tparams->tp_Center, 
 				tparams->tp_Step);
 		An_AddAnnotProc (An_ColorBar, comp, datastr,
@@ -830,14 +835,14 @@ TrackParams *tparams;
 	{
 		if (tparams->tp_Barb)
 		{
-			sprintf (datastr, "m/s %li %d", taclr.pixel,
+			sprintf (datastr, "m/s|%li|%d", taclr.pixel,
 					tparams->tp_ShaftLen);
 			An_AddAnnotProc (An_BarbLegend, comp, datastr,
 					strlen (datastr), 100, FALSE, FALSE);
 		}
 		else
 		{
-			sprintf (datastr, "%s %li %f %f %f", "m/s", 
+			sprintf (datastr, "%s|%li|%f|%f|%f", "m/s", 
 				taclr.pixel, 10.0, 0.0, tparams->tp_UnitLen);
 			An_AddAnnotProc (An_ColorVector, comp, datastr,
 				strlen (datastr), 30, FALSE, FALSE);
@@ -1173,8 +1178,11 @@ TrackParams *tparams;
  */
 	if (! tparams->tp_AutoScale)
 	{
-		sprintf (param1, "%s-center", tparams->tp_CCField);
-		sprintf (param2, "%s-step", tparams->tp_CCField);
+		FieldId fid = F_Lookup (tparams->tp_CCField);
+		char *justname = F_GetName (fid);
+
+		sprintf (param1, "%s-center", justname);
+		sprintf (param2, "%s-step", justname);
 		if (! pda_ReqSearch (Pd, comp, param1, "track",
 				(char *) &tparams->tp_Center, SYMT_FLOAT) ||
 		    ! pda_ReqSearch (Pd, comp, param2, "track",

@@ -43,7 +43,7 @@
 # include <DataStore.h>
 # include "GraphProc.h"
 
-RCSID ("$Id: FieldMenu.c,v 2.18 1997-05-13 11:24:17 granger Exp $")
+RCSID ("$Id: FieldMenu.c,v 2.19 1998-09-22 22:28:26 burghart Exp $")
 
 /*
  * Stuff for the SME menu.
@@ -140,7 +140,7 @@ XtPointer xwhich, junk;
 /*
  * See which field name we should use.
  */
-	fname = (which < (NManaged - NExtra)) ? F_GetName (Fields[which]) :
+	fname = (which < (NManaged - NExtra)) ? F_GetFullName (Fields[which]) :
 		PExtras[which + NExtra - NManaged];
 /*
  * Here we just put together the command and go.  Start by searching for

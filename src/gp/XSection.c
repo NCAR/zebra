@@ -42,7 +42,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: XSection.c,v 2.40 1997-11-21 19:59:19 burghart Exp $")
+RCSID ("$Id: XSection.c,v 2.41 1998-09-22 22:28:32 burghart Exp $")
 
 /*
  * General definitions
@@ -460,8 +460,9 @@ bool	update;
 	bool	ok;
 	int	nplat;
 	char	platforms[PlatformListLen];
-	char	*pnames[MaxPlatforms], fldname[40], cname[20];
-	char	param[50], outrange[40];
+	char	*pnames[MaxPlatforms], fldname[80], cname[20];
+	char	param[50], outrange[40], justname[40];
+	FieldId	fid;
 /*
  * Platform(s).  Platform must come from the global component for zig-zag
  * plots so we don't have plots with different endpoints overlaying each
@@ -485,6 +486,8 @@ bool	update;
  * Field
  */
 	ok &= pda_ReqSearch (Pd, c, "field", NULL, fldname, SYMT_STRING);
+	fid = F_Lookup (fldname);
+	strcpy (justname, F_GetName (fid));
 /*
  * Autoscale?
  */
@@ -497,11 +500,11 @@ bool	update;
  */
 	if (ok && ! Autoscale)
 	{
-		sprintf (param, "%s-center", fldname);
+		sprintf (param, "%s-center", justname);
 		ok &= pda_ReqSearch (Pd, c, param, "contour", 
 				     (char *) &Contour_center, SYMT_FLOAT);
 
-		sprintf (param, "%s-step", fldname);
+		sprintf (param, "%s-step", justname);
 		ok &= pda_ReqSearch (Pd, c, param, "contour", 
 				     (char *) &Contour_step, SYMT_FLOAT);
 		if (! ok) /* Give them a second chance */
@@ -581,14 +584,14 @@ bool	update;
 
 	if (Fill_contour)
 	{
-		sprintf (Scratch, "%s %s %f %f", fldname, cname, 
+		sprintf (Scratch, "%s|%s|%f|%f", fldname, cname, 
 			 Contour_center, Contour_step); 
 		An_AddAnnotProc (An_ColorBar, c, Scratch, strlen (Scratch),
 				 75, TRUE, FALSE);
 	}
 	else if (! Mono_color)
 	{
-		sprintf (Scratch, "%s %s %f %f", fldname, cname, 
+		sprintf (Scratch, "%s|%s|%f|%f", fldname, cname, 
 			 Contour_center, Contour_step); 
 		An_AddAnnotProc (An_ColorNumber, c, Scratch, strlen (Scratch), 
 				 75, TRUE, FALSE);
@@ -708,14 +711,14 @@ bool	update;
 
 	if (Do_vectors)
 	{
-		sprintf (Scratch, "%s %li %f %f %f", "m/s", Ccolor.pixel, 
+		sprintf (Scratch, "m/s|%li|%f|%f|%f", Ccolor.pixel, 
 			 10.0, 0.0, Wind_scale * USABLE_HEIGHT); 
 		An_AddAnnotProc (An_ColorVector, c, Scratch, strlen (Scratch),
 				 40, FALSE, FALSE);
 	}
 	else
 	{
-		sprintf (Scratch, "m/s %li %d", Ccolor.pixel, 
+		sprintf (Scratch, "m/s|%li|%d", Ccolor.pixel, 
 			 (int)(Wind_scale * USABLE_HEIGHT));
 		An_AddAnnotProc (An_BarbLegend, c, Scratch, strlen (Scratch), 
 				 100, FALSE, FALSE);
@@ -739,7 +742,8 @@ int	nplat;
 	ZebTime		dtime;
 
 	An_TopAnnot ("Contour of ", White.pixel);
-	An_TopAnnot (fldname, AnnotMatch ? Ccolor.pixel : White.pixel);
+	An_TopAnnot (px_FldDesc (fldname), 
+		     AnnotMatch ? Ccolor.pixel : White.pixel);
 	An_TopAnnot (" using: ", White.pixel);
 /*
  * Get the filled data plane
@@ -758,16 +762,18 @@ int	nplat;
 	if (Autoscale)
 	{
 		float	min, max;
+		FieldId fid = F_Lookup (fldname);
+		char *justname = F_GetName (fid);
 
 		GetRange (plane->data, plane->nobs * plane->vdim, BADVAL, 
 			  &min, &max);
 		CalcCenterStep (min, max, Mono_color ? 8 : Ncolors, 
 				&Contour_center, &Contour_step);
 
-		sprintf (Scratch, "%s-center", fldname);
+		sprintf (Scratch, "%s-center", justname);
 		pd_Store (Pd, c, Scratch, (char *) &Contour_center, 
 			  SYMT_FLOAT);
-		sprintf (Scratch, "%s-step", fldname);
+		sprintf (Scratch, "%s-step", justname);
 		pd_Store (Pd, c, Scratch, (char *) &Contour_step, SYMT_FLOAT);
 	}
 /*
@@ -1332,7 +1338,8 @@ int	nplat;
  * Annotate
  */
 	An_TopAnnot ("Contour of ", White.pixel);
-	An_TopAnnot (fldname, AnnotMatch ? Ccolor.pixel : White.pixel);
+	An_TopAnnot (px_FldDesc (fldname), 
+		     AnnotMatch ? Ccolor.pixel : White.pixel);
 	An_TopAnnot (" using: ", White.pixel);
 /*
  * Find the gridding method and grab the data
@@ -1418,16 +1425,18 @@ int	nplat;
 	if (Autoscale)
 	{
 		float	min, max;
+		FieldId fid = F_Lookup (fldname);
+		char *justname = F_GetName (fid);
 
 		GetRange (plane->data, plane->hdim * plane->vdim, BADVAL, 
 			  &min, &max);
 		CalcCenterStep (min, max, Mono_color ? 8 : Ncolors, 
 				&Contour_center, &Contour_step);
 
-		sprintf (Scratch, "%s-center", fldname);
+		sprintf (Scratch, "%s-center", justname);
 		pd_Store (Pd, c, Scratch, (char *) &Contour_center, 
 			  SYMT_FLOAT);
-		sprintf (Scratch, "%s-step", fldname);
+		sprintf (Scratch, "%s-step", justname);
 		pd_Store (Pd, c, Scratch, (char *) &Contour_step, SYMT_FLOAT);
 	}
 /*
@@ -3133,7 +3142,8 @@ bool	update;
 	bool	ok, image, xiraster;
 	int	nplat, nsteps;
 	char	platform[PlatformListLen];
-	char	*pnames[MaxPlatforms], fldname[20], cname[20], hcolor[20];
+	char	*pnames[MaxPlatforms], fldname[80], cname[20], hcolor[20];
+	char	justname[40];
 	char	param[50], outrange[40];
 	unsigned char *igrid = 0;
 	float	center, step, step_per_color, hrange, hvalue, alt;
@@ -3165,9 +3175,12 @@ bool	update;
 		ok = pda_ReqSearch (Pd, c, "platform", NULL, platform, 
 				    SYMT_STRING);
 /*
- * Field
+ * Get the chosen field, turn it into a FieldId, then get just the name
+ * portion
  */
 	ok &= pda_ReqSearch (Pd, c, "field", NULL, fldname, SYMT_STRING);
+	fid = F_Lookup (fldname);
+	strcpy (justname, F_GetName (fid));
 /*
  * Autoscale?
  */
@@ -3180,16 +3193,16 @@ bool	update;
  */
 	if (ok && ! Autoscale)
 	{
-		sprintf (param, "%s-center", fldname);
+		sprintf (param, "%s-center", justname);
 		ok &= pda_ReqSearch (Pd, c, param, "raster", (char *) &center, 
 				     SYMT_FLOAT);
 
-		sprintf (param, "%s-step", fldname);
+		sprintf (param, "%s-step", justname);
 		ok &= pda_ReqSearch (Pd, c, param, "raster", (char *) &step, 
 				     SYMT_FLOAT);
 
 		nsteps = 11;
-		sprintf (param, "%s-nsteps", fldname);
+		sprintf (param, "%s-nsteps", justname);
 		pda_Search (Pd, c, param, "raster", (char *) &nsteps, 
 			    SYMT_INT);
 
@@ -3255,7 +3268,7 @@ bool	update;
  * Get info for highlighting and area.
  */
 	highlight = FALSE;
-	sprintf (param, "%s-highlight-range", fldname);
+	sprintf (param, "%s-highlight-range", justname);
 
 	hrange = 0.0;
 	pda_Search (Pd, c, param, "raster", (char *) &hrange, SYMT_FLOAT);
@@ -3264,11 +3277,11 @@ bool	update;
 		highlight = TRUE;
 
 		strcpy (hcolor, "white");
-		sprintf (param, "%s-highlight-color", fldname);
+		sprintf (param, "%s-highlight-color", justname);
 		pda_Search (Pd, c, param, "raster", hcolor, SYMT_STRING);
 
 		hvalue = 0.0;
-		sprintf (param, "%s-highlight", fldname);
+		sprintf (param, "%s-highlight", justname);
 		pda_Search (Pd, c, param, "raster", (char *) &hvalue, 
 			    SYMT_FLOAT);
 	}
@@ -3290,7 +3303,6 @@ bool	update;
 		if (! ClosestRHI (c, pid, wanted_azim, &zt, &azim))
 			return;
 
-		fid = F_Lookup (fldname);
 		if (!(dc = ds_Fetch (pid, DCC_Image, &zt, &zt, &fid, 1, 
 				     NULL, 0)))
 			return;
@@ -3394,7 +3406,7 @@ bool	update;
 	xs_Background ();
 
 	step_per_color = (step * nsteps) / Ncolors;
-	sprintf (Scratch, "%s %s %f %f", fldname, cname, center, 
+	sprintf (Scratch, "%s|%s|%f|%f", fldname, cname, center, 
 		 step_per_color); 
 	An_AddAnnotProc (An_ColorBar, c, Scratch, strlen (Scratch), 75, TRUE, 
 			 FALSE);

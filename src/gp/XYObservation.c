@@ -40,7 +40,7 @@
 # include "DrawText.h"
 # include "PlotPrim.h"
 
-RCSID ("$Id: XYObservation.c,v 1.22 1998-02-26 19:54:01 granger Exp $")
+RCSID ("$Id: XYObservation.c,v 1.23 1998-09-22 22:28:35 burghart Exp $")
 
 /*
  * Enum to tell how we anchor z values
@@ -568,7 +568,7 @@ float zscale;
 	if (! pda_Search (Pd, c, "z-ruler", "xy-obs", (char *) &doscale,
 			SYMT_BOOL) || doscale)
 	{
-		sprintf (label, "%f %d %li %s", zscale, F_PIX_WIDTH, color,
+		sprintf (label, "%f|%d|%li|%s", zscale, F_PIX_WIDTH, color,
 				zfield);
 		An_AddAnnotProc (An_ColorScale, c,  label, strlen (label) + 1,
 				40, FALSE, FALSE);

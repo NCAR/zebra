@@ -37,7 +37,7 @@
 # include "rg_status.h"
 # include "Contour.h"
 
-RCSID("$Id: XYContour.c,v 1.37 1997-10-16 20:41:44 burghart Exp $")
+RCSID("$Id: XYContour.c,v 1.38 1998-09-22 22:28:34 burghart Exp $")
 
 # define GRID(g,i,j,ydim)   (g[((i) * (ydim)) + (j)])
 
@@ -375,16 +375,18 @@ bool	update;
  */
 	for (plat = 0; plat < (oneplot ? 1 : nplat); plat++)
 	{
+		FieldId fid = F_Lookup (zfnames[0]);
+		char *z0justname = F_GetName (fid);
 	/*
 	 * If z is manual get the info now.
 	 */
 		if (! zauto)
 		{
 			zstep = 20.0;
-			pda_Search (Pd, c, "scale-z-step", zfnames[0],
+			pda_Search (Pd, c, "scale-z-step", z0justname,
 					(char *) &zstep, SYMT_FLOAT);
 			ccenter = 0.0; /* XXX */
-			pda_Search (Pd, c, "scale-z-center", zfnames[0],
+			pda_Search (Pd, c, "scale-z-center", z0justname,
 					(char *) &ccenter, SYMT_FLOAT);
 		}
 	/*
@@ -396,10 +398,10 @@ bool	update;
 			CalcCenterStep (zmin[plat].val.f, zmax[plat].val.f,
 					(ncolors == 1) ? 10 : ncolors,
 					&ccenter, &zstep);
-			sprintf (param, "%s-scale-z-center", zfnames[0]);
+			sprintf (param, "%s-scale-z-center", z0justname);
 			pd_Store (Pd, "global", param, (char *) &ccenter,
 					SYMT_FLOAT);
-			sprintf (param, "%s-scale-z-step", zfnames[0]);
+			sprintf (param, "%s-scale-z-step", z0justname);
 			pd_Store (Pd, "global", param, (char *) &zstep,
 					SYMT_FLOAT);
 		}
@@ -409,7 +411,7 @@ bool	update;
 	 */
 		if (sideAnnot && ncolors > 1)
 		{	
-			sprintf (annotcontrol, "%s %s %f %f", zfnames[plat],
+			sprintf (annotcontrol, "%s|%s|%f|%f", zfnames[plat],
 				 ctname, ccenter, zstep);
 			An_AddAnnotProc (An_ColorBar, c, annotcontrol,
 					strlen (annotcontrol) + 1, 75,

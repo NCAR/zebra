@@ -38,7 +38,7 @@
 # include "AxisControl.h"
 # include "PlotPrim.h"
 
-RCSID ("$Id: XYWind.c,v 1.31 1997-10-23 22:14:07 burghart Exp $")
+RCSID ("$Id: XYWind.c,v 1.32 1998-09-22 22:28:36 burghart Exp $")
 
 /*
  * General definitions
@@ -305,27 +305,27 @@ bool	update;
 		    {
 			if (strcmp (style, "vector") == 0)
 			{
-			    sprintf (annotcontrol, "%s %li %f %f %f", "m/s", 
+			    sprintf (annotcontrol, "%s|%li|%f|%f|%f", "m/s", 
 				     taColor, scaleSpeed, 0.0, vecScale);
 			    An_AddAnnotProc (An_ColorVector, c, annotcontrol,
 					     strlen (annotcontrol) + 1, 30, 
 					     FALSE, FALSE);
 			    if (! mono)
-				    sprintf (annotcontrol, "%s %s %f %f", 
-						 "wind-speed:m/sec", ctname, 
-						 cstep * ncolors / 2.0, cstep);
+				    sprintf (annotcontrol, "%s|%s|%f|%f", 
+					     "wind-speed: m/s", ctname, 
+					     cstep * ncolors / 2.0, cstep);
 			}
 			else if (strcmp (style, "barb") == 0)
 			{	
-			    sprintf (annotcontrol, "%s %li %d", barbtype,
+			    sprintf (annotcontrol, "%s|%li|%d", barbtype,
 				     taColor,  (int) vecScale);
 			    An_AddAnnotProc (An_BarbLegend, c, annotcontrol,
 					     strlen (annotcontrol) + 1, 100, 
 					     FALSE, FALSE);
 			    if (! mono)
-				    sprintf (annotcontrol, "%s%s %s %f %f ",
-					       "wind-speed:", barbtype, ctname,
-					       cstep * ncolors / 2.0, cstep);
+				    sprintf (annotcontrol, "%s%s|%s|%f|%f ",
+					     "wind-speed: ", barbtype, ctname,
+					     cstep * ncolors / 2.0, cstep);
 			}
 
 			if (! mono)
@@ -333,7 +333,7 @@ bool	update;
 					 strlen (annotcontrol) + 1, 75, TRUE, 
 					 FALSE);
 
-			sprintf(annotcontrol, "%s %li", pnames[plat], taColor);
+			sprintf(annotcontrol, "%s|%li", pnames[plat], taColor);
 			An_AddAnnotProc (An_ColorString, c, annotcontrol, 
 					 strlen (annotcontrol), 25, FALSE, 
 					 FALSE);
