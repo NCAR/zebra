@@ -37,7 +37,7 @@
 /**/# -----------------------------------------------------------------------
 /**/# Definitions from site-def.h included here.  The definitions here override
 /**/# the defaults in Project.tmpl.  
-/**/# $Id: site-def.h.template,v 1.32 1997-09-10 21:57:38 case Exp $
+/**/# $Id: site-def.h.template,v 1.33 1997-09-16 15:05:39 case Exp $
 /**/# -----------------------------------------------------------------------
 # endif
 
@@ -102,8 +102,13 @@
 # ifdef MAKING_MAKEFILE
 
 /*
- * If you don't have the MIT X11 distribution, set UseXWindows to NO.
- * If you have X11 and your X11 libraries aren't in /usr/lib, edit define
+ * Either UseXWindows or UseOpenWindows should be set to YES to get X
+ * windows support (NOT both).
+ *
+ * If you do not have the MIT X11 distribution (i.e., you are using
+ * Sun's OpenWindows), set UseXWindows to NO.
+ *
+ * If you have MIT X11 and your X11 libraries aren't in /usr/lib, edit define
  * XLibDir with the proper path.
  *
  * Edit XIncDir only if your X11 include directory is not in /usr/include.
@@ -116,21 +121,18 @@
  *        Edit "define XIncDir" to read:
  *        #       define XIncDir -I/usr/local/include
  *
- * Either UseXWindows or UseOpenWin should be set to YES to get X windows
- * support (not both).  OpenWindows users should note that Version 3.0 or higher is needed 
- * by some programs (notably Zeb) to get full windows support.  If you have an earlier
- * OpenWindows version, set #define OldOpenWin to YES below. 
  *
  * For Zeb users:  to compile Zeb exclusively with OpenWindows, you
  * must have OpenWindows 3.0 or higher, and RDSS must be compiled with
  * UseOpenWindows defined as YES and OldOpenWin defined as NO.
  *
- * For Solo users: X11R5 is required for all installations.  OpenWindows
- * versions running on SunOS 4.1.x will not work because they are based on
- * X11R4.
+ * For Solo users: X11R5 or higher is required for all installations.  
+ * OpenWindows versions running on SunOS 4.1.x will not work because they
+ * are based on X11R4.
  *
- * If in doubt about the compatibility of your window system, consult the individual software
- * requirements or one of the contact names listed in the RDSS Libraries Installation Guide.   
+ * If in doubt about the compatibility of your window system, consult 
+ * the individual software requirements or one of the contact names 
+ * listed in the RDSS Libraries Installation Guide.   
  */
 
 # define UseXWindows YES 
@@ -147,7 +149,7 @@
 # define OldX11 NO
 
 /*
- * If you use OpenWindows, set UseOpenWin to YES.
+ * If you use OpenWindows, set UseOpenWindows to YES.
  *
  * If your version of OpenWindows is older than OpenWindows 3.0, set
  * OldOpenWin to YES.
@@ -346,7 +348,10 @@
 /*
  * Byte ordering flag.  Do not change this unless you are installing
  * SOLO on a linux machine or attempting a port to another system
- * which has "little endian" byte ordering.
+ * which has "little endian" byte ordering.  Linux users should
+ * modify the line to read:
+ *
+ *      # define EndianFlag -DLITTLE_ENDIAN
  *
  */
 
@@ -384,9 +389,11 @@
 
 
 /*
- * If you are installing Solo and REORDER and wish to add the Dorade 
- * capability to REORDER, set this to yes.  Solo must be installed before
- * REORDER if you use this option.
+ * If you are installing Solo and REORDER on non-Linux systems ONLY and 
+ * wish to add the Dorade capability to REORDER, set this to YES.  Solo
+ * must be installed before REORDER if you use this option.
+ *  
+ *
  */
 
 # define BuildDoradeReorder NO
