@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.56 1997-05-13 11:24:19 granger Exp $ */
+/* $Id: GraphProc.h,v 2.57 1997-05-13 16:25:06 ishikawa Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -169,7 +169,7 @@ extern int TriggerGlobal;
  * On Sun's && SGI's, we can at least use the finite() function, otherwise
  * we rely on the POSIX __infinity() function.
  */
-#if defined(sun) || defined(sgi)
+#if defined(sun) || defined(sgi) || defined (aix) || defined (__osf__)
 #define FINITE(x)	(finite((double)(x)))
 #else
 #define FINITE(x)	(!isinf(x) && !isnan(x))
@@ -402,7 +402,7 @@ extern int GetLLSpacings FP ((DataChunk *, float *, float *));
 extern void ov_Feature FP ((struct ui_command *cmds));
 #endif
 
-# if defined(hpux) || defined(SVR4) || defined (linux)
+# if (defined(hpux) || defined(SVR4) || defined (linux)) && !defined (__osf__)
 /* Defined in Utilities.c */
 extern int nint FP ((double x));
 # endif

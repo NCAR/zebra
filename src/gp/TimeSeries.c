@@ -40,7 +40,7 @@
 # include "DrawText.h"
 # include "EventQueue.h"
 
-RCSID("$Id: TimeSeries.c,v 2.18 1996-11-19 07:29:10 granger Exp $")
+RCSID("$Id: TimeSeries.c,v 2.19 1997-05-13 16:27:32 ishikawa Exp $")
 
 /*
  * General definitions
@@ -824,7 +824,7 @@ long	*step;
 	long	span;
 	short	i, nstep;
 	struct tm	*tm;
-#if defined(SVR4) || defined(SYSV)
+#if defined(SVR4) || defined(SYSV) || defined (__osf__)
 	char tz[20];
 	struct tm zt;
 #endif
@@ -841,7 +841,7 @@ long	*step;
 
 	tm = gmtime (&(first->zt_Sec));
 	tm->tm_hour = tm->tm_min = tm->tm_sec = 0;
-#if defined(SVR4) || defined(SYSV)
+#if defined(SVR4) || defined(SYSV) || defined (__osf__)
         strcpy (tz, "TZ=GMT");
         putenv (tz);
 #ifdef notdef
