@@ -45,7 +45,7 @@ define widget highlight form 'Highlight'
 	label r 'range:'
 	blank range 'range' width 60
 	label c 'color:'
-	button highlight-color 'color' command hl-color width 80
+	pulldown highlight-color 'color' width 80 menu form-color-menu
 	newline
 	label clue 'Set range to 0 to disable highlighting'
 enddef
@@ -97,14 +97,6 @@ procedure hl-apply
 	local color getftext(f, 'highlight-color')
 	local param concat(field, '-highlight-color')
 	parameter #c #param #color
-endprocedure
-
-
-procedure hl-color
-	set fcParent ui$form
-	set fcField 'highlight-color'
-	require form-color
-	popup form-color
 endprocedure
 
 procedure raster-rep rep string
