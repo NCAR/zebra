@@ -1,9 +1,10 @@
 /*
  * This is the main program for the data store daemon.
  */
-static char *rcsid = "$Id: Daemon.c,v 1.5 1991-06-14 22:17:36 corbet Exp $";
+static char *rcsid = "$Id: Daemon.c,v 2.0 1991-07-18 22:49:02 corbet Exp $";
 
 # include <sys/types.h>
+# include <sys/vfs.h>
 # include <dirent.h>
 # include <errno.h>
 # include "../config/config.h"
@@ -25,7 +26,8 @@ static char *rcsid = "$Id: Daemon.c,v 1.5 1991-06-14 22:17:36 corbet Exp $";
 	static int ui_Handler (int, struct ui_command *);
 	void Shutdown (void);
 	static void DataScan (void);
-	static void ScanFile (Platform *, char *);
+	static void ScanDirectory (Platform *, int);
+	static void ScanFile (Platform *, char *, char *, int);
 	static void mh_message (struct message *);
 	static void ds_message (char *, struct dsp_Template *);
 	static void dp_NewFile (char *, struct dsp_CreateFile *);
@@ -36,11 +38,16 @@ static char *rcsid = "$Id: Daemon.c,v 1.5 1991-06-14 22:17:36 corbet Exp $";
 	static void SetUpEvery (struct ui_command *);
 	static void ExecEvery (time *, int);
 	static void Truncate (struct ui_command *);
+	static int FreeSpace (int, SValue *, int *, SValue *, int *);
+	static int BCHandler (int, char *, int);
+	static void BCSetup (char *, int);
+	static void RemDataGone (struct dsp_BCDataGone *);
 # else
 	static int msg_Handler ();
 	static int ui_Handler ();
 	void Shutdown ();
 	static void DataScan ();
+	static void ScanDirectory ();
 	static void ScanFile ();
 	static void mh_message ();
 	static void ds_message ();
@@ -52,8 +59,16 @@ static char *rcsid = "$Id: Daemon.c,v 1.5 1991-06-14 22:17:36 corbet Exp $";
 	static void SetUpEvery ();
 	static void ExecEvery ();
 	static void Truncate ();
+	static int FreeSpace ();
+	static int BCHandler ();
+	static void BCSetup ();
+	static void RemDataGone ();
 # endif
 
+/*
+ * Broadcast stuff.
+ */
+static int BCastSocket = -1;
 
 /*
  * Our data structure for the EVERY command.
@@ -63,6 +78,7 @@ int NEvery = 0;
 char *ECmds[MAXEVERY];
 
 
+int DisableRemote = FALSE;
 
 
 
@@ -72,6 +88,7 @@ int argc;
 char **argv;
 {
 	char loadfile[80];
+	int argt = SYMT_STRING;
 /*
  * Hook into the message system.
  */
@@ -89,9 +106,12 @@ char **argv;
 	strcpy (DefDataDir, DATADIR);
 	usy_c_indirect (usy_g_stbl ("ui$variable_table"), "datadir",
 		DefDataDir, SYMT_STRING, 80);
+	usy_c_indirect (usy_g_stbl ("ui$variable_table"), "DisableRemote",
+		&DisableRemote, SYMT_BOOL, 0);
 	InitSharedMemory ();
 	dt_InitTables ();
 	dap_Init ();
+	uf_def_function ("freespace", 1, &argt, FreeSpace);
 /*
  * Set up the init file.
  */
@@ -214,6 +234,18 @@ struct ui_command *cmds;
 	   case DK_TRUNCATE:
 	   	Truncate (cmds + 1);
 		break;
+	/*
+	 * See if we're supposed to monitor a UDP port.
+	 */
+	   case DK_RECEIVE:
+	   	msg_BCSetup (0, UINT (cmds[1]), BCHandler);
+		break;
+	/*
+	 * Maybe we're suppose to create broadcasts.
+	 */
+	   case DK_BROADCAST:
+	   	BCSetup (UPTR (cmds[1]), UINT (cmds[2]));
+		break;
 
 	   default:
 	   	msg_ELog (EF_PROBLEM, "Unknown Daemon kw: %d", UKEY (*cmds));
@@ -221,6 +253,75 @@ struct ui_command *cmds;
 	}
 	return (TRUE);
 }
+
+
+
+
+static void
+BCSetup (addr, port)
+char *addr;
+int port;
+/*
+ * Get set up to broadcast our changes to the world.
+ */
+{
+	int a, b, c, d;
+	int ipaddr;
+/*
+ * Figure out params.
+ */
+	if (sscanf (addr, "%d.%d.%d.%d", &a, &b, &c, &d) != 4)
+	{
+		msg_ELog (EF_EMERGENCY, "Bad broadcast addr '%s'", addr);
+		exit (1);
+	}
+	ipaddr = d + (c << 8) + (b << 16) + (a << 24);
+/*
+ * Set things up.
+ */
+	if ((BCastSocket = msg_BCSetup (ipaddr, port, BCHandler)) < 0)
+		msg_ELog (EF_PROBLEM, "Bc setup fail on addr %s port %d",
+				addr, port);
+}
+
+
+
+
+static int
+BCHandler (s, data, len)
+int s, len;
+char *data;
+/*
+ * Deal with an incoming broadcast packet.
+ */
+{
+	struct dsp_Template *tmpl;
+/*
+ * If we are broadcasting ourselves, we assume this is our packet
+ * coming back, and we ignore it.
+ */
+	if (BCastSocket > 0)
+		return (TRUE);
+/*
+ * Look at what we got.
+ */
+	tmpl = (struct dsp_Template *) data;
+	switch (tmpl->dsp_type)
+	{
+	/*
+	 * Some remote data has gone away.
+	 */
+	   case dpt_BCDataGone:
+	   	RemDataGone ((struct dsp_BCDataGone *) tmpl);
+		break;
+
+	   default:
+	   	msg_ELog (EF_PROBLEM, "Unknown BCast DPT %d", tmpl->dsp_type);
+		break;
+	}
+	return (TRUE);
+}
+
 
 
 
@@ -257,30 +358,49 @@ DataScan ()
 	for (plat = 0; plat < ShmHeader->sm_nPlatform; plat++)
 	{
 		Platform *p = PTable + plat;
-		DIR *dp = opendir (p->dp_dir);
-		struct dirent *ent;
 	/*
 	 * Don't scan subplatforms.
 	 */
 		if (p->dp_flags & DPF_SUBPLATFORM)
 			continue;
 	/*
-	 * Make sure there really is a directory.
+	 * Scan the local directory, and the local one if it exists.
 	 */
-		if (! dp)
-		{
-			msg_ELog (EF_PROBLEM,
-				"Data dir %s (plat %s) nonexistent", p->dp_dir,
-				p->dp_name);
-			continue;
-		}
-	/*
-	 * Go through the files.
-	 */
-	 	while (ent = readdir (dp))
-			ScanFile (p, ent->d_name);
-		closedir (dp);
+		ScanDirectory (p, TRUE);
+		if (p->dp_flags & DPF_REMOTE)
+			ScanDirectory (p, FALSE);
 	}
+}
+
+
+
+
+static void
+ScanDirectory (p, local)
+Platform *p;
+bool local;
+/*
+ * Scan a directory for this platform.
+ */
+{
+	char *dir = local ? p->dp_dir : p->dp_rdir;
+	DIR *dp = opendir (dir);
+	struct dirent *ent;
+/*
+ * Make sure there really is a directory.
+ */
+	if (! dp)
+	{
+		msg_ELog (EF_PROBLEM,
+			"Data dir %s (plat %s) nonexistent", dir, p->dp_name);
+		return;
+	}
+/*
+ * Go through the files.
+ */
+	while (ent = readdir (dp))
+		ScanFile (p, dir, ent->d_name, local);
+	closedir (dp);
 }
 
 
@@ -288,9 +408,10 @@ DataScan ()
 
 
 static void
-ScanFile (p, file)
+ScanFile (p, dir, file, local)
 Platform *p;
-char *file;
+char *file, *dir;
+bool local;
 /*
  * Look at this file and see what we think of it.
  */
@@ -308,7 +429,7 @@ char *file;
  */
 	if (! (df = dt_NewFile ()))
 		return;	/* bummer */
-	sprintf (df->df_name, "%s/%s", p->dp_dir, file);
+	sprintf (df->df_name, "%s/%s", dir, file);
 /*
  * Find the times for this file.
  */
@@ -320,14 +441,15 @@ char *file;
 		return;
 	}
 	df->df_nsample = ns;
-	msg_ELog (EF_DEBUG, "File '%s', %d %d to %d ns %d", file,
+	msg_ELog (EF_DEBUG, "%c File '%s', %d %d to %d ns %d",
+		local ? 'L' : 'C', file,
 		df->df_begin.ds_yymmdd, df->df_begin.ds_hhmmss,
 		df->df_end.ds_hhmmss, df->df_nsample);
 /*
  * Finish the fillin and add it to this platform's list.
  */
 	df->df_ftype = p->dp_ftype;
-	dt_AddToPlatform (p, df, TRUE);
+	dt_AddToPlatform (p, df, local);
 }
 
 
@@ -611,6 +733,50 @@ int sub;
 
 
 
+static void
+RemDataGone (dg)
+struct dsp_BCDataGone *dg;
+/*
+ * A remotely accessible data file has gone away.
+ */
+{
+	Platform *plat;
+	char fname[200];
+	int dfindex;
+	DataFile *df;
+/*
+ * Make sure this is a platform we know about.
+ */
+	if ((plat = dt_FindPlatform (dg->dsp_Plat, TRUE)) == 0)
+		return;
+/*
+ * Construct the file name from our perspective.
+ */
+	sprintf (fname, "%s/%s", plat->dp_rdir, dg->dsp_File);
+	for (dfindex = REMOTEDATA (*plat); dfindex;
+			dfindex = DFTable[dfindex].df_FLink)
+		if (! strcmp (fname, DFTable[dfindex].df_name))
+			break;
+	if (! dfindex)
+	{
+		msg_ELog (EF_INFO, "BCDataGone on nonex file '%s'", fname);
+		return;
+	}
+/*
+ * Now we get rid of it.
+ */
+	df = DFTable + dfindex;
+	if (df->df_BLink)
+		DFTable[df->df_BLink].df_FLink = df->df_FLink;
+	if (df->df_FLink)
+		DFTable[df->df_FLink].df_BLink = df->df_BLink;
+	ZapDF (df);
+}
+
+
+
+
+
 
 static void
 ZapDF (df)
@@ -626,6 +792,18 @@ DataFile *df;
 	dg.dsp_type = dpt_DataGone;
 	dg.dsp_file = df - DFTable;
 	msg_send ("DataStore", MT_DATASTORE, TRUE, &dg, sizeof (dg));
+/*
+ * If we are broadcasting to other worlds, we do that too.
+ */
+	if (BCastSocket > 0)
+	{
+		struct dsp_BCDataGone dg;
+		dg.dsp_type = dpt_BCDataGone;
+		strcpy (dg.dsp_Plat, PTable[df->df_platform].dp_name);
+		strcpy (dg.dsp_File, df->df_name + 
+			strlen (PTable[df->df_platform].dp_dir) + 1);
+		msg_BCast (BCastSocket, &dg, sizeof (dg));
+	}
 /*
  * Make sure we have the file closed, then delete it and it's datafile
  * entry.
@@ -707,4 +885,28 @@ struct ui_command *cmds;
 		if (! (PTable[plat].dp_flags & DPF_SUBPLATFORM))
 			dp_DeleteData (PTable + plat,
 				seconds > 0 ? seconds : PTable[plat].dp_keep);
+}
+
+
+
+
+static int
+FreeSpace (narg, argv, argt, rv, rt)
+int narg, *argt, *rt;
+union usy_value *argv, *rv;
+/*
+ * [Command line function] return the amount of the disk that is free.
+ */
+{
+	struct statfs sfs;
+/*
+ * Stat the file system.
+ */
+	if (statfs (argv->us_v_ptr, &sfs))
+		msg_ELog (EF_PROBLEM, "Statfs failed, errno %d", errno);
+/*
+ * Calculate the return value.
+ */
+	rv->us_v_int = sfs.f_bavail;
+	*rt = SYMT_INT;
 }
