@@ -36,7 +36,7 @@
 /**/# -----------------------------------------------------------------------
 /**/# Definitions from config.h included here.  The definitions here override
 /**/# the defaults in Project.tmpl.  See ...../zeb/config/config.h.
-/**/# $Id: config.h-v4.0,v 1.11 1993-08-19 15:21:14 burghart Exp $
+/**/# $Id: config.h-v4.0,v 1.12 1993-10-26 21:42:46 corbet Exp $
 /**/# -----------------------------------------------------------------------
 # endif
 
@@ -155,7 +155,8 @@
 # endif
 
 /* 
- * Do you want to build any of Zeb's ingest modules?
+ * Do you want to build any of Zeb's ingest modules?  Only recommended for
+ * Sun machines, and only if you know that you need them.
  */
 #define BuildIngest NO
 
@@ -165,10 +166,10 @@
  */
 # define	BuildIngestScheduler	YES
 # define	BuildClassIngest	YES
-# define	BuildRadarIngest	YES
+# define	BuildRadarIngest	YES	/* Sun only */
 # define	BuildRadarLimits	NO
 # define	BuildSLGrabber		YES
-# define	BuildAircraftIngest	NO
+# define	BuildAircraftIngest	NO	/* doesn't build anywhere */
 # define	BuildFMIngest		NO
 # define 	BuildLLPIngest		NO
 # define 	BuildNatsIngest		NO
@@ -259,8 +260,8 @@
 
 /*
  * Does your X system support the shared memory extension?  The answer is
- * YES for MIT X, release 4 or greater, or for Openwin 2.0 or above.  If
- * unsure, run "xdpyinfo" and look for a line indicating the MIT-SHM
+ * YES for MIT X, release 4 or greater, for Openwin 2.0 or above, and for
+ * HPUX.  If unsure, run "xdpyinfo" and look for a line indicating the MIT-SHM
  * extension.
  */
 # define XSharedMemory YES
@@ -275,6 +276,11 @@
  * If you wish to use a C compiler other than the default,
  * define CCompiler to the C compiler command.  For most systems,
  * the default will be 'cc'.
+ *
+ * HPUX: Either gcc or the default "cc" command will work.  As of this
+ * 	 writing, the version of gcc distributed by FSF does not support
+ *	 debugging on the HP.  Either turn off "-g" below, or get the
+ *	 special version at jaguar.cs.utah.edu.
  */
 # define UseGcc YES
 
@@ -299,6 +305,7 @@
  * On Sun's, a debugging flag will disable optimization.  The FORTRAN
  * should probably always be optimized, so make sure FortDebugFlags
  * does not disable optimization by specifying any debug flags.
+ *
  */
 # define CDebugFlags -g
 # define FortDebugFlags -g
@@ -307,9 +314,15 @@
  * To change other compiler command line options, such as required by your
  * compiler (floating point stuff, etc.), or optimization flags, define
  * CCOptions and FortOptions.  The default is optimization, -O.
+ *
+ * HPUX: Do NOT turn on the ANSI ("-Aa") option with the HP native compiler,
+ *	 or you will encounter more weirdness than you ever wished to deal
+ *	 with.  You must also provide the "+ppu" fortran option or you will
+ *	 get undefined externals when you link the graphics process.
  */
 # define CCOptions -O
 # define FortOptions -O
+/* # define FortOptions -O +ppu */	/* HPUX version */
 
 /*
  * During compilation, Zeb's source files must be able to find lots
@@ -330,9 +343,13 @@
  *			   is empty (use system's default include directories).
  *	RDSSIncDir	-- RDSS include files.  The default is RDSSDir/include.
  *			   If not defined above, RDSSDir is /rdss.
+ *
+ * Note that gcc will search /usr/local/include by default, most other
+ * compilers will not.
  */
 
 /* # define XIncDir /local/X11R5/include */
+/* # define XIncDir /usr/contrib/mitX11R5/include */  /* HPUX version */
 #define NetCDFIncDir /usr/local/include
 
 /*
@@ -362,7 +379,10 @@
  * next section for more details and more of the available 'Library' symbols.
  */
 
-# define XLibDir /local/X11R5/lib
+/* # define XLibDir /local/X11R5/lib */
+/* # define RDSSLibDir /usr/local/lib */	/* non-gcc */
+/* # define NetCDFLibDir /usr/local/lib */	/* non-gcc */
+/* # define XLibDir /usr/contrib/mitX11R5/lib */ /* for HPUX */
 
 /*
  * If you need to define the actual command-line option for specifying
@@ -409,7 +429,9 @@
  * you followed the recommended installation for FORTRAN.
  */
 
-# define FortranLibraries -L/usr/lang/SC1.0.1 -lF77 -lV77
+# define FortranLibraries -L/usr/lang/SC1.0.1 -lF77 -lV77	/* Sun */
+/* # define FortranLibraries -lU77 -lf -lisamstub */	/* HPUX version */
+
 
 /*
  * Some of Zeb's routines require the terminal capability library,
