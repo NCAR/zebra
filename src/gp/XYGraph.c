@@ -1,7 +1,7 @@
 /*
  * XY-Graph plotting module
  */
-static char *rcsid = "$Id: XYGraph.c,v 1.2 1991-10-30 21:35:47 barrett Exp $";
+static char *rcsid = "$Id: XYGraph.c,v 1.3 1992-01-02 17:01:49 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -30,6 +30,7 @@ static char *rcsid = "$Id: XYGraph.c,v 1.2 1991-10-30 21:35:47 barrett Exp $";
 # include <ui_error.h>
 # include <defs.h>
 # include <pd.h>
+# include <time.h>
 # include <message.h>
 # include <DataStore.h>
 # include "derive.h"
@@ -42,14 +43,9 @@ static char *rcsid = "$Id: XYGraph.c,v 1.2 1991-10-30 21:35:47 barrett Exp $";
  * General definitions
  */
 # define BADVAL		-999.0
-# define AUTO_XMAX	(1<<0)
-# define AUTO_YMAX	(1<<1)
-# define AUTO_XMIN	(1<<2)
-# define AUTO_YMIN	(1<<3)
-# define ROUNDIT(x)	((int)(x + 0.5))
+# define MAX_PLAT	10
 
-extern int TransConfig;
-void	xy_Graph();
+extern void xy_Graph();
 
 /*
  * Line style
@@ -65,7 +61,7 @@ extern XColor 	Tadefclr;
 
 
 void
-xy_Graph (c, update)
+xy_Graph(c, update)
 char	*c;
 bool	update;
 /*
@@ -73,252 +69,173 @@ bool	update;
  */
 {
 	bool	ok;
-	int	axid;
-	int	status, i, npts, plat, nplat,ii;
+	int	status, i,  plat, nplat,ii,jj;
+	int	npts = 0;
 	int	nxfield,nyfield;
 	int	count;
-	char	platforms[80], annot[80], tadefcolor[30];
+	int 	nPlotted;
+	char	platforms[80], tadefcolor[30];
 	char	ctname[20];
 	char	dataNames[2][80];
 	char	*flist[2];
-	time	ptime;
-	char	*pnames[10];
-	char	*fnames[2][10];
+	time    eTimeTarget,bTimeTarget,bTimeOld,eTimeOld;
+	time    eTimeReq,bTimeReq;
+	int	change;
+	int	fudge;
+	long	autoTime;
+	char	*pnames[MAX_PLAT];
+	char	*fnames[2][MAX_PLAT];
 	PlatformId	pid;
 	DataObject	*dobj = NULL;
 	XColor	*lcolor;
-	char	xlabel[80],ylabel[80];
+	char	*linecolor[MAX_PLAT];
 	DataOrganization	xyOrg;
-	float	xmin,xmax,ymin,ymax;
-	char	attrs[80];
-	char	*attrlist[10];
-	float	**xdata,**ydata;
- 	int 	nattr;
-	unsigned short	autoscale;
-	float	xbox[5],ybox[5];
-	int	axisTic, axisLoc;
-	int	axisNticks;
-	char	axisColor[20];
+	DataValPtr	*xdata,*ydata;
+	DataValRec	xmin,xmax,ymin,ymax;
+	DataValRec	oldmin,oldmax;
+	unsigned short	xscalemode,yscalemode;
+	char	xtype = 'f', ytype = 'f';
+	int	fcount;
+        int	xdim,ydim;
 	int	plotAxis[4];
-	float	axisFontScale;
-	XRectangle	r;
-	int	transConfig;
 	int	saveConfig;
+	int	dmode ;
+	char	style[80];
 /*
- * Get the platform and color table
+ * Get X-Y Graph Required parameters:
+ * "platform","x-field", "y-field", "wind-coords", "color-table", "org"
  */
 	ok = pda_ReqSearch (Pd, c, "platform", NULL, platforms, SYMT_STRING);
-	ok &= pda_ReqSearch (Pd, c, "x-field", NULL, &(dataNames[0]), SYMT_STRING);
-	ok &= pda_ReqSearch (Pd, c, "y-field", NULL, &(dataNames[1]), SYMT_STRING);
-	ok &= pda_ReqSearch (Pd, c, "org", NULL, (char*)&xyOrg, SYMT_INT);
-/* kludge for now to determine data organization type */
-	if ( xyOrg == 3 ) 
-	   xyOrg = OrgScalar;
-	else if ( xyOrg == 1 ) 
-	   xyOrg = Org1dGrid;
-	ok &= pda_ReqSearch (Pd, c, "color-table", NULL,ctname,SYMT_STRING);
+	ok = pda_ReqSearch (Pd,c,"x-field",NULL, &(dataNames[0]), SYMT_STRING);
+	ok = pda_ReqSearch (Pd,c,"y-field",NULL, &(dataNames[1]), SYMT_STRING);
+	ok = pda_ReqSearch (Pd, c, "color-table", NULL,ctname,SYMT_STRING);
 
 	if (! ok) return;
 /*
- * Initialize user-coordinate system
- */
-	lc_SetUserCoord ( 0.0,1.0,0.0,1.0);
-/*
- * Break apart the platform names.
+ * Parse platform and field name information. 
  */
 	nplat = CommaParse (platforms, pnames);
-/*
- * Break apart the field names.
- */
 	nxfield = CommaParse (dataNames[0], fnames[0]);
 	nyfield = CommaParse (dataNames[1], fnames[1]);
-	if ( nxfield != nplat && nyfield != nplat )
+	if ( nxfield != nplat && nyfield != nplat  )
 	{
 	    msg_ELog ( EF_PROBLEM, 
-		"X/Y Graph: x/y fields of plot-description don't correspond to number of platforms.");
+		"X/Y Graph: number of fields of doesn't correspond to number of platforms.");
 	    return;
 	}
-/* for now, only allow max 5 platforms */
-	if (nplat > 5)
-		nplat = 5;
+/* for now, only allow max MAX_PLAT platforms */
+	if (nplat > MAX_PLAT)
+		nplat = MAX_PLAT;
 /*
- * Allocate space for data and attributes associated with each platform
+ *  Get optional "simple" parameters.
+ *  "style" - "point" or "line"
  */
-	lcolor = (XColor*)malloc ( nplat* sizeof(XColor));
-	xdata = (float**)malloc (nplat* sizeof(float*));
-	ydata = (float**)malloc (nplat* sizeof(float*));
-/*
- * Look for transformation directives
- */
-	saveConfig = TransConfig;
-	TransConfig = 0;
-	if ( pda_Search (Pd, c, "log-x", "trans", 
-		(char *) &transConfig, SYMT_INT))
-	{
-	    TransConfig = TransConfig | ( transConfig ? INVERT_X : 0 );
-	}
-	if ( pda_Search (Pd, c, "log-y", "trans", 
-		(char *) &transConfig, SYMT_INT))
-	{
-	    TransConfig = TransConfig | ( transConfig ? INVERT_Y : 0 );
-	}
-	if ( pda_Search (Pd, c, "invert-x", "trans", 
-		(char *) &transConfig, SYMT_INT))
-	{
-	    TransConfig = TransConfig | ( transConfig ? INVERT_X : 0 );
-	}
-	if ( pda_Search (Pd, c, "invert-y", "trans", 
-		(char *) &transConfig, SYMT_INT))
-	{
-	    TransConfig = TransConfig | ( transConfig ? INVERT_Y : 0 );
-	}
+        if ( !pda_Search (Pd,c,"representation-style", NULL,
+		(char *) &style, SYMT_STRING))
+        {
+            strcpy(style, "line" );
+        }
 
 /*
- * Look for axis plotting directives.
+ * Allocate memory for data and attibutes
  */
-	if ( !pda_Search (Pd, c, "axis-bottom", NULL, 
-		(char *) &(plotAxis[AXIS_BOTTOM]), SYMT_INT))
-	{
-	    plotAxis[AXIS_BOTTOM] = 1;
-	}
-
-	if ( !pda_Search (Pd, c, "axis-top", NULL, 
-		(char *) &(plotAxis[AXIS_TOP]), SYMT_INT))
-	{
-	    plotAxis[AXIS_TOP] = 0;
-	}
-
-	if ( !pda_Search (Pd, c, "axis-left", NULL, 
-		(char *) &(plotAxis[AXIS_LEFT]), SYMT_INT))
-	{
-	    plotAxis[AXIS_LEFT] = 1;
-	}
-
-	if ( !pda_Search (Pd, c, "axis-right", NULL, 
-		(char *) &(plotAxis[AXIS_RIGHT]), SYMT_INT))
-	{
-	    plotAxis[AXIS_RIGHT] = 0;
-	}
-
+	lcolor = (XColor*)calloc ( nplat, sizeof(XColor));
+	xdata = (DataValPtr*)calloc (nplat, sizeof(DataValPtr));
+	ydata = (DataValPtr*)calloc (nplat, sizeof(DataValPtr));
 /*
- * Look for axis attributes
+ * Initialize local environment.
  */
-	
-	if (! pda_Search (Pd, c, "axis-line-pos", "xygraph", (char *) &axisLoc, 
-		SYMT_INT))
-	{
-	    axisLoc = 0;
-	}
-	if (! pda_Search (Pd, c, "axis-tic-len", "xygraph", (char *) &axisTic, 
-		SYMT_INT))
-	{
-	    axisTic = 5;
-	}
-	if (! pda_Search (Pd, c, "axis-color", "xygraph", axisColor, 
-		SYMT_STRING) || GWDepth(Graphics) == 1 )
-	{
-	    strcpy (axisColor, "white");
-	}
-	if (! pda_Search (Pd, c, "axis-nticks", "xygraph", (char *) &axisNticks,
-		SYMT_INT))
-	{
-	    axisNticks = 10;
-	}
-	if (! pda_Search (Pd, c, "axis-font-scale", "xygraph", 
-		(char *) &axisFontScale, SYMT_FLOAT))
-	{
-	    axisFontScale = 0.025;
-	}
-	if (! pda_Search (Pd, c, "x-label", "xygraph", xlabel, 
-		SYMT_STRING))
-	{
-	    strcpy ( xlabel, fnames[0][0] );
-	    for ( i = 1; i < nplat; i++)
-	        strcat ( xlabel, fnames[0][i] );
-	}
-	if (! pda_Search (Pd, c, "y-label", "xygraph", ylabel, 
-		SYMT_STRING))
-	{
-	    strcpy ( ylabel, fnames[1][0] );
-	    for ( i = 1; i < nplat; i++)
-	        strcat ( ylabel, fnames[1][i] );
-	}
-
+/* lc_SetUserCoord ( 0.0,1.0,0.0,1.0);*/
 /*
- * Look for data limits; otherwise set-up for auto scaling
+ * Get Generic plot description information.
  */
-	autoscale = 0;
-	if (! pda_Search (Pd, c, "x-max", NULL, (char *) &xmax, 
-		SYMT_FLOAT))
-		autoscale = autoscale | AUTO_XMAX;
-	if (! pda_Search (Pd, c, "x-min", NULL, (char *) &xmin, 
-		SYMT_FLOAT))
-		autoscale = autoscale | AUTO_XMIN;
-	if (! pda_Search (Pd, c, "y-max", NULL, (char *) &ymax, 
-		SYMT_FLOAT))
-	{
-		autoscale = autoscale | AUTO_YMAX;
-	}
-	if (! pda_Search (Pd, c, "y-min", NULL, (char *) &ymin, 
-		SYMT_FLOAT))
-	{
-		autoscale = autoscale | AUTO_YMIN;
-	}
+	if ( strcmp( fnames[0][0],"time" ) == 0 )
+	    xtype = 't';
+	if ( strcmp( fnames[1][0],"time" ) == 0 )
+	    ytype = 't';
+	xy_GetScaleMode(Pd,c,'x',&xscalemode);
+	xy_GetScaleMode(Pd,c,'y',&yscalemode);
+	xy_GetCurrentScaleBounds(Pd,c,'x',xtype,&xmin,&xmax);
+	xy_GetCurrentScaleBounds(Pd,c,'y',ytype,&ymin,&ymax);
+	xy_GetComponentAxes(Pd,c,plotAxis);
+        xy_GetDataDescriptors(Pd, c, update, 
+			      &bTimeTarget,&eTimeTarget, 
+			      &bTimeOld,&eTimeOld,
+			      &dmode );
 
-/*
- * Get line color for data from each platform
- */
-	if ( pda_Search (Pd, c, "line-color", NULL, attrs, 
-		SYMT_STRING))
+   /*
+    * Check to see if the current Plot-Time is already beyond
+    * the existing time-scale.
+    */
+	if ( (xscalemode & AUTO) && xtype == 't' )
 	{
-	    nattr = CommaParse( attrs, attrlist);
-	    if ( nattr < nplat )
+	    if ( update )
 	    {
-		msg_ELog ( EF_INFO, 
-		    "Not enough line-colors specified, using white.");
-	    }
-	    for ( i = 0; i < nplat && i < nattr; i++)
-	    {
-		if ( GWDepth(Graphics) == 1 )
+		msg_ELog ( EF_DEBUG, 
+		   "%s new Axis EndTime = %d %d old Axis EndTime = %d %d",
+			c,
+			eTimeTarget.ds_yymmdd,eTimeTarget.ds_hhmmss,
+			xmax.val.t.ds_yymmdd,xmax.val.t.ds_hhmmss);
+		if ( ts_GetSec(eTimeTarget) > ts_GetSec((xmax.val.t)) )
 		{
-			ct_GetColorByName("white", &(lcolor[i]));
+		    TriggerGlobal = 1;
 		}
-		else if (! ct_GetColorByName(attrlist[i], &(lcolor[i])))
-		{
-			msg_ELog(EF_PROBLEM, "Can't get default color: '%s'.",
-				attrlist[i]);
-			ct_GetColorByName("white", &(lcolor[i]));
-	        }
-		
 	    }
-	    for ( i = nattr; i < nplat; i++)
+	}
+	if ( (yscalemode & AUTO) && ytype == 't' )
+	{
+	    if ( update )
 	    {
+		if ( ts_GetSec(eTimeTarget) > ts_GetSec((ymax.val.t)) )
+		{
+		    TriggerGlobal = 1;
+		}
+	    }
+	}
+	for ( i = 0; i < nplat; i++)
+	    linecolor[i] = (char*)calloc(64,sizeof(char));
+	xy_GetPlotAttr(Pd,c,nplat,linecolor,tadefcolor);
+/*
+ **********************************************************
+ * X-dependent set-up
+ **********************************************************
+ */
+/*
+ * Get X-pixel for colors...
+ */
+	for ( i =0 ; i < nplat; i++)
+	{
+	    if(! ct_GetColorByName(linecolor[i], &(lcolor[i])))
+	    {
+		msg_ELog(EF_PROBLEM, "Can't get X line color: '%s'.",
+				linecolor[i]);
 		ct_GetColorByName("white", &(lcolor[i]));
 	    }
 	}
-
-	if (! pda_Search (Pd, "global", "ta-color", NULL, tadefcolor, 
-		SYMT_STRING))
-		strcpy(tadefcolor, "white");
 	if (! ct_GetColorByName(tadefcolor, &Tadefclr))
 	{
-		msg_ELog(EF_PROBLEM, "Can't get default color: '%s'.",
+	    msg_ELog(EF_PROBLEM, "Can't get X annotation color: '%s'.",
 			tadefcolor);
-		strcpy(tadefcolor, "white");
-		ct_GetColorByName(tadefcolor, &Tadefclr);
+	    strcpy(tadefcolor, "white");
+	    ct_GetColorByName(tadefcolor, &Tadefclr);
 	}
 /*
- * Attempt to load color table only if Pseudo-color device
+ * Attempt to load color table 
  */
-	if ( GWDepth(Graphics) == 8 )
+	ct_LoadTable (ctname, &Colors, &Ncolors);
+	if (Ncolors < 1)
 	{
-	    ct_LoadTable (ctname, &Colors, &Ncolors);
-	    if (Ncolors < 8)
-	    {
 		msg_ELog(EF_PROBLEM, "XY-Graph color table too small");
 		return;
-	    }
 	}
+/*
+ **********************************************************
+ **********************************************************
+ */
+
+/*
+ * Do the plot.
+ */
 
 /*
  * Plot the annotation.
@@ -354,165 +271,274 @@ bool	update;
 		msg_ELog (EF_PROBLEM, "Bad platform '%s'", pnames[plat]);
 		continue;
 	    }
+	    xyOrg = ds_PlatformDataOrg(pid);
 
-	    ptime = PlotTime;
-	    if (! ds_DataTimes (pid, &ptime, 1, DsBefore, &ptime))
+	    /*
+	     * Set up the field-names for the data retrieval request.
+	     */
+	    fcount = 0;
+	    if ( xtype != 't' )
 	    {
-		msg_ELog (EF_INFO, "No data for '%s' at %d %d",
-				pnames[plat], ptime.ds_yymmdd, 
-				ptime.ds_hhmmss);
-		continue;
+		xdim = fcount;
+	        flist[fcount] = fnames[0][plat]; fcount++;
 	    }
-	    flist[0] = fnames[0][plat];
-	    flist[1] = fnames[1][plat];
-	    dobj =ds_GetObservation (pid, flist, 2, &ptime, xyOrg,
-			0.0, BADVAL);
+	    if ( ytype != 't' )
+	    {
+		ydim = fcount;
+	        flist[fcount] = fnames[1][plat]; fcount++;
+	    }
+	    /*
+ 	     * Determine times of data to request.
+ 	     */
+	    if (xy_AvailableData(pid,bTimeTarget,eTimeTarget,eTimeOld,
+				&bTimeReq, &eTimeReq))
+	    {
+		msg_ELog ( EF_DEBUG, 
+		   "%s Data request times begin %d %d end = %d %d",
+			c,
+			bTimeTarget.ds_yymmdd,bTimeTarget.ds_hhmmss,
+			eTimeTarget.ds_yymmdd,eTimeTarget.ds_hhmmss);
+		if ( dmode == DATA_SNAPSHOT )
+		{
+                    dobj =ds_GetObservation (pid, flist, fcount, &eTimeReq, 
+			xyOrg, 0.0, BADVAL);
+		}
+		else
+		{
+	            dobj = ds_GetData (pid, flist, fcount,&bTimeReq,&eTimeReq, 
+			xyOrg, 0.0, BADVAL);
+		}
+	    }
+
 	    if (! dobj)
 	    {
-			msg_ELog (EF_PROBLEM, 
-				"Unable to get x-field for '%s' at %d %06d", 
-				pnames[plat], PlotTime.ds_yymmdd, 
-				PlotTime.ds_hhmmss);
-			continue;
+		msg_ELog (EF_PROBLEM, 
+				"Unable to get field data for '%s' at %d %06d", 
+				pnames[plat], eTimeReq.ds_yymmdd, 
+			eTimeReq.ds_hhmmss);
+		npts = 0;
+	        xdata[plat] = NULL;
+	        ydata[plat] = NULL;
+		continue;
 	    }
-
-	    if ( xyOrg == OrgScalar )
+	    else
+            {
+	        if ( xyOrg == OrgScalar )
 		    npts = dobj->do_npoint;
-	    else if ( xyOrg == Org1dGrid )
-		    npts = dobj->do_desc.d_rgrid.rg_nX;
+	        else if ( xyOrg == Org1dGrid )
+		    npts = dobj->do_desc.d_rgrid.rg_nX * dobj->do_npoint;
 
-	    xdata[plat] = (float*)malloc( npts* sizeof(float));
-	    ydata[plat] = (float*)malloc( npts* sizeof(float));
+	        xdata[plat] = (DataValPtr)calloc( npts , sizeof(DataValRec));
+	        ydata[plat] = (DataValPtr)calloc( npts , sizeof(DataValRec));
+	    }
 	    count = 0;
+	    /*
+	     * Extract field data arrays.
+	     */
+	    msg_ELog ( EF_DEBUG, 
+		   "X-Y Graph found %d data points for component %s.",npts,c);
 	    for ( ii = 0; ii < npts; ii++ )
 	    {
-		if ( dobj->do_data[0][ii] != BADVAL &&
-		         dobj->do_data[1][ii] != BADVAL )
+		/* search for next good data point. */
+		do {
+		    for ( jj = 0; jj < fcount ; jj++)
+		    {
+			if(dobj->do_data[jj][ii] == BADVAL)
+			{
+			    ii++; break;
+			}
+		    }
+		} while ( jj < fcount && ii < npts);
+		if ( ii < npts )
 		{
-		    xdata[plat][count] = dobj->do_data[0][ii];
-		    ydata[plat][count] = dobj->do_data[1][ii];
-		    count++;
+		  if ( xtype == 't' )
+		  {
+		    xdata[plat][count].val.t = dobj->do_times[xyOrg==OrgScalar?
+			       ii : (int)(ii/dobj->do_desc.d_rgrid.rg_nX)];
+		    xdata[plat][count].type = 't';
+		  }
+		  else
+		  {
+		    xdata[plat][count].val.f = dobj->do_data[xdim][ii];
+		    xdata[plat][count].type = 'f';
+		  }
+		  if ( ytype == 't' )
+		  {
+		    ydata[plat][count].val.t = dobj->do_times[xyOrg==OrgScalar?
+			       ii : (int)(ii/dobj->do_desc.d_rgrid.rg_nX)];
+		    ydata[plat][count].type = 't';
+		  }
+		  else
+		  {
+		    ydata[plat][count].val.f = dobj->do_data[ydim][ii];
+		    ydata[plat][count].type = 'f';
+		  }
+		  count += 1;
 		}
 	    }
 	    npts = count;
-	    if ( (autoscale & AUTO_XMAX) && plat == 0)
-		    	    xmax = xdata[plat][0];
-	    if ( (autoscale & AUTO_YMAX) && plat == 0)
-		    	    ymax = ydata[plat][0];
-	    if ( (autoscale & AUTO_XMIN) && plat == 0)
-		    	    xmin = xdata[plat][0];
-	    if ( (autoscale & AUTO_YMIN) && plat == 0)
-		    	    ymin = ydata[plat][0];
-
-	    for ( ii = 0; ii < npts && autoscale; ii++ )
+	    /*
+	     * Calculate autoscaled mins/maxs if necessary.
+	     */
+	    if ( (xscalemode & AUTO) && xtype != 't' )
 	    {
-		    if ( autoscale & AUTO_XMAX )
-		        xmax = xdata[plat][ii] > xmax ? xdata[plat][ii]: xmax;
-		    if ( autoscale & AUTO_YMAX )
-		        ymax = ydata[plat][ii] > ymax ? ydata[plat][ii]: ymax;
-		    if ( autoscale & AUTO_XMIN )
-		        xmin = xdata[plat][ii] < xmin ? xdata[plat][ii]: xmin;
-		    if ( autoscale & AUTO_YMIN )
-		        ymin = ydata[plat][ii] < ymin ? ydata[plat][ii]: ymin;
-	    }
+	        xy_GetDataMinMax(update, &xmin, &xmax, xdata[plat], npts);
+            }
+	    if ( (yscalemode & AUTO) && ytype != 't' )
+	    {
+	        xy_GetDataMinMax(update, &ymin, &ymax, ydata[plat], npts);
+            }
 	    ds_FreeDataObject (dobj);
 	}
 /*
- * Now set the coordinate system and plot data and axis.
+ * Now set the current scale bounds.
  */
+	fudge = 300;
+	autoTime = ts_GetSec(eTimeTarget) + 
+		(long)((ts_GetSec(eTimeTarget)-ts_GetSec(bTimeTarget))*0.025);
+	if ( !update )
+	{
+	    if ( xscalemode & AUTO)
+	    {
+		switch ( xtype )
+		{
+		    case 't':
+		        lc_GetTime( &(xmax.val.t), autoTime);
+		        xmin.val.t = bTimeTarget;
+		    break;
+		    case 'f':
+			xmin.val.f -= 5.0;
+			xmax.val.f += 5.0;
+		    break;
+		}
+	    }
+	    if ( yscalemode & AUTO)
+	    {
+		switch ( ytype )
+		{
+		    case 't':
+		        lc_GetTime( &(ymax.val.t), autoTime);
+		        ymin.val.t = bTimeTarget;
+		    break;
+		    case 'f':
+			ymin.val.f -= 5.0;
+			ymax.val.f += 5.0;
+		    break;
+		}
+	    }
+	}
+	xy_SetScaleBounds(Pd,c,'x',xtype,&xmin,&xmax);
+	xy_SetScaleBounds(Pd,c,'y',ytype,&ymin,&ymax);
+
+	/*
+	 * Now check if scale-bounds are different from the axis-bounds
+	 */
+	if ( plotAxis[AXIS_TOP] )
+	{
+	    status = ac_AxisState( Pd,c,'t',xtype,&oldmin, &oldmax);
+	    if ( !status ||
+		 lc_CompareData(&oldmin,&xmin) != 0 ||
+	         lc_CompareData(&oldmax,&xmax) != 0 )
+	    {
+		ac_UpdateAxisState(Pd,c,'t',xtype,&xmin,&xmax);
+	        if ( update ) TriggerGlobal = 1;
+	    }
+	}
 	if ( plotAxis[AXIS_BOTTOM] )
 	{
-	    if ( (axid = ac_AxisId ( AXIS_BOTTOM,c)) < 0 )
+	    status = ac_AxisState( Pd,c,'b',xtype,&oldmin, &oldmax);
+	    if ( !status ||
+		 lc_CompareData(&oldmin,&xmin) != 0 ||
+	         lc_CompareData(&oldmax,&xmax) != 0 )
 	    {
-	        ac_AddAxis ( AXIS_BOTTOM,c, axisTic,axisNticks, xmin,xmax,
-			xlabel, axisFontScale, TransConfig & INVERT_X);
+		ac_UpdateAxisState(Pd,c,'b',xtype,&xmin,&xmax);
+	        if ( update ) TriggerGlobal = 1;
 	    }
-	    else if ( autoscale & AUTO_XMAX )
-	    {
-	        ac_ChangeAxisMax( AXIS_BOTTOM, axid, xmax );
-	    }
-	    else if ( autoscale & AUTO_XMIN )
-	    {
-	        ac_ChangeAxisMin( AXIS_BOTTOM, axid, xmin );
-	    }
-	    if ( !update ) ac_TouchAxis ( AXIS_BOTTOM,axid);
 	}
 	if ( plotAxis[AXIS_LEFT] )
 	{
-	    if ( (axid = ac_AxisId ( AXIS_LEFT,c)) < 0 )
+	    status = ac_AxisState( Pd,c,'l',ytype,&oldmin, &oldmax);
+	    if ( !status ||
+		 lc_CompareData(&oldmin,&ymin) != 0 ||
+	         lc_CompareData(&oldmax,&ymax) != 0 )
 	    {
-	        ac_AddAxis ( AXIS_LEFT,c, axisTic,axisNticks, ymin,ymax,
-			ylabel, axisFontScale, TransConfig & INVERT_Y);
+		ac_UpdateAxisState(Pd,c,'l',ytype,&ymin,&ymax);
+	        if ( update ) TriggerGlobal = 1;
 	    }
-	    else if ( autoscale & AUTO_YMAX )
-	    {
-	        ac_ChangeAxisMax( AXIS_LEFT, axid, ymax );
-	    }
-	    else if ( autoscale & AUTO_YMIN )
-	    {
-	        ac_ChangeAxisMin( AXIS_LEFT, axid, ymin );
-	    }
-	    if ( !update ) ac_TouchAxis ( AXIS_LEFT,axid);
 	}
-	if ( plotAxis[AXIS_TOP] )
-	{
-	    if ( (axid = ac_AxisId ( AXIS_TOP,c)) < 0 )
-	    {
-	        ac_AddAxis ( AXIS_TOP,c, axisTic,axisNticks, xmin,xmax,
-			xlabel, axisFontScale, TransConfig & INVERT_X);
-	    }
-	    else if ( autoscale & AUTO_XMAX )
-	    {
-	        ac_ChangeAxisMax( AXIS_TOP, axid, xmax );
-	    }
-	    else if ( autoscale & AUTO_XMIN )
-	    {
-	        ac_ChangeAxisMin( AXIS_TOP, axid, xmin );
-	    }
-	    if ( !update ) ac_TouchAxis ( AXIS_TOP,axid);
-	}
-
 	if ( plotAxis[AXIS_RIGHT] )
 	{
-	    if ( (axid = ac_AxisId ( AXIS_RIGHT,c)) < 0 )
+	    status = ac_AxisState( Pd,c,'r',ytype,&oldmin, &oldmax);
+	    if ( !status ||
+		 lc_CompareData(&oldmin,&ymin) != 0 ||
+	         lc_CompareData(&oldmax,&ymax) != 0 )
 	    {
-	        ac_AddAxis ( AXIS_RIGHT,c, axisTic,axisNticks, ymin,ymax,
-			ylabel, axisFontScale, TransConfig & INVERT_Y);
+		ac_UpdateAxisState(Pd,c,'r',ytype,&ymin,&ymax);
+	        if ( update ) TriggerGlobal = 1;
 	    }
-	    else if ( autoscale & AUTO_YMAX )
-	    {
-	        ac_ChangeAxisMax( AXIS_RIGHT, axid, ymax );
-	    }
-	    else if ( autoscale & AUTO_YMIN )
-	    {
-	        ac_ChangeAxisMin( AXIS_RIGHT, axid, ymin );
-	    }
-	    if ( !update ) ac_TouchAxis ( AXIS_RIGHT,axid);
 	}
 
-	lc_SetUserCoord ( xmin,xmax,ymin,ymax);
 /*
  * Plot the data.
  */
-	gp_Clip( xmin, ymin,xmax,ymax );
-	for (plat = 0; plat < nplat; plat++)
+	if ( !TriggerGlobal )
 	{
-	    gp_Pline( xdata[plat],ydata[plat],npts,L_solid, 
-			  lcolor[plat].pixel);
+	    lc_SetUserCoord ( &xmin,&xmax,&ymin,&ymax);
+	    gp_Clip( &xmin, &ymin,&xmax,&ymax, xscalemode, yscalemode );
+	    msg_ELog ( EF_DEBUG, 
+	       "X-Y Graph plotting %d data points for component %s.",npts,c);
+	    for (plat = 0; plat < nplat; plat++)
+	    {
+		if ( strcmp(style,"point")==0)
+		{
+                    if ( npts > 0 )
+		        gp_Points( xdata[plat],ydata[plat],npts,
+                          lcolor[plat], xscalemode, yscalemode);
+	            else
+		    {
+	    	        msg_ELog ( EF_INFO, 
+       				"X-Y Graph: zero plottable points for %s.",c);
+		    }
+		}
+		else
+		{
+                    if ( npts > 1 )
+		        gp_Pline( xdata[plat],ydata[plat],npts,L_solid,
+                          lcolor[plat], xscalemode, yscalemode);
+	            else
+		    {
+	    	        msg_ELog ( EF_INFO, 
+       "X-Y Graph less than 2 data points for component %s, not plotted.",c);
+		    }
+		}
 
+	    }
+	    XSetClipMask(XtDisplay(Graphics), Gcontext, None);
 	}
-	XSetClipMask(XtDisplay(Graphics), Gcontext, None);
 /*
  * Add a period to the top annotation
  */
 	if ( !update )
 	    An_TopAnnot (".  ", Tadefclr.pixel);
+
+	/*
+	 * Store the updated data begin and end times.
+	 */
+	if (update)
+	    xy_SetPrivateDD(Pd,c,NULL, &eTimeReq, &nPlotted);
+	else
+	    xy_SetPrivateDD(Pd,c,&bTimeReq, &eTimeReq, &nPlotted);
+	
+
 /*
  * Free local memory
-	free(lcolor); free(xdata); free(ydata);
  */
-	ac_DisplayAxes();
-	TransConfig = saveConfig;
+	for ( i = 0; i < nplat; i++)
+	{
+	    if ( xdata[i] ) free(xdata[i]); 
+	    if ( ydata[i] ) free(ydata[i]);
+	    free(linecolor[i]);
+	}
+	free(lcolor); free(xdata); free(ydata); 
 }
-
 # endif /* C_PT_XYGRAPH */
