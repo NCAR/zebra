@@ -1,7 +1,7 @@
 /*
  * Widgets for changing plot limits.
  */
-static char *rcsid = "$Id: LimitWidgets.c,v 2.16 1994-04-15 21:26:09 burghart Exp $";
+static char *rcsid = "$Id: LimitWidgets.c,v 2.17 1994-06-29 21:26:53 case Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -393,7 +393,6 @@ XtAppContext actx;
 	XtSetArg (args[n], XtNinsertPosition, 0); n++;
 	XtSetArg (args[n], XtNresize, XawtextResizeNever); n++;
 	XtSetArg (args[n], XtNwidth, 40); n++;
-	XtSetArg (args[n], XtNheight, 20); n++;
 	XtSetArg (args[n], XtNtype, XawAsciiString); n++;
 	XtSetArg (args[n], XtNuseStringInPlace, True); n++;
 	XtSetArg (args[n], XtNlength, 40); n++;
@@ -490,7 +489,6 @@ XtAppContext actx;
 	XtSetArg (args[n], XtNinsertPosition, 0); n++;
 	XtSetArg (args[n], XtNresize, XawtextResizeNever); n++;
 	XtSetArg (args[n], XtNwidth, 60); n++;
-	XtSetArg (args[n], XtNheight, 20); n++;
 	XtSetArg (args[n], XtNtype, XawAsciiString); n++;
 	XtSetArg (args[n], XtNuseStringInPlace, True); n++;
 	XtSetArg (args[n], XtNlength, 40); n++;
@@ -600,7 +598,6 @@ XtAppContext actx;
 	XtSetArg (args[n], XtNinsertPosition, 0); n++;
 	XtSetArg (args[n], XtNresize, XawtextResizeNever); n++;
 	XtSetArg (args[n], XtNwidth, 60); n++;
-	XtSetArg (args[n], XtNheight, 20); n++;
 	XtSetArg (args[n], XtNtype, XawAsciiString); n++;
 	XtSetArg (args[n], XtNuseStringInPlace, True); n++;
 	XtSetArg (args[n], XtNlength, 40); n++;
@@ -711,7 +708,6 @@ XtAppContext actx;
 	XtSetArg (args[n], XtNinsertPosition, 0); n++;
 	XtSetArg (args[n], XtNresize, XawtextResizeNever); n++;
 	XtSetArg (args[n], XtNwidth, 60); n++;
-	XtSetArg (args[n], XtNheight, 20); n++;
 	XtSetArg (args[n], XtNtype, XawAsciiString); n++;
 	XtSetArg (args[n], XtNuseStringInPlace, True); n++;
 	XtSetArg (args[n], XtNlength, 40); n++;
@@ -740,7 +736,6 @@ XtAppContext actx;
 	XtSetArg (args[n], XtNinsertPosition, 0); n++;
 	XtSetArg (args[n], XtNresize, XawtextResizeNever); n++;
 	XtSetArg (args[n], XtNwidth, 60); n++;
-	XtSetArg (args[n], XtNheight, 20); n++;
 	XtSetArg (args[n], XtNtype, XawAsciiString); n++;
 	XtSetArg (args[n], XtNuseStringInPlace, True); n++;
 	XtSetArg (args[n], XtNlength, 40); n++;
@@ -851,7 +846,6 @@ XtAppContext actx;
 	XtSetArg (args[n], XtNinsertPosition, 0); n++;
 	XtSetArg (args[n], XtNresize, XawtextResizeNever); n++;
 	XtSetArg (args[n], XtNwidth, 60); n++;
-	XtSetArg (args[n], XtNheight, 20); n++;
 	XtSetArg (args[n], XtNtype, XawAsciiString); n++;
 	XtSetArg (args[n], XtNuseStringInPlace, True); n++;
 	XtSetArg (args[n], XtNlength, 40); n++;
@@ -880,7 +874,6 @@ XtAppContext actx;
 	XtSetArg (args[n], XtNinsertPosition, 0); n++;
 	XtSetArg (args[n], XtNresize, XawtextResizeNever); n++;
 	XtSetArg (args[n], XtNwidth, 60); n++;
-	XtSetArg (args[n], XtNheight, 20); n++;
 	XtSetArg (args[n], XtNtype, XawAsciiString); n++;
 	XtSetArg (args[n], XtNuseStringInPlace, True); n++;
 	XtSetArg (args[n], XtNlength, 40); n++;
