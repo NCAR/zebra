@@ -8,11 +8,14 @@
  * Usage: map_decimate <km_filter>
  */
 
-/* $Id: map_decimate.c,v 1.1 1997-01-06 18:29:03 burghart Exp $ */
+/* $Id: map_decimate.c,v 1.2 1997-02-10 20:25:58 granger Exp $ */
 
 # include <stdio.h>
 # include <stdlib.h>
 # include <math.h>
+
+# include <defs.h>
+# include <map.h>
 
 # define DEG_TO_RAD(x)	((x)*0.017453292)
 
@@ -25,15 +28,16 @@ float	MinKm;	/* Minimum travel distance between retained points */
 
 
 
-
+int
 main (int argc, char **argv)
 {
-    char	line[128], detail[40];
+    int		flags;
     int		npts, i, nwrite;
     float	north, south, east, west, traversed;
     float	latprev = 0.0, lonprev = 0.0;
     float	*lon = 0, *lat = 0, *outlon = 0, *outlat = 0;
     int	maxpts = 0;
+    MapFile *mf, *out;
     
     if (argc != 2)
     {
@@ -44,21 +48,19 @@ main (int argc, char **argv)
     MinKm = atof (argv[1]);
 
     /*
-     * Read from stdin, filtering the input line segments
+     * Read from stdin, filtering the input line segments, and write stdout.
      */
-    while (gets (line))
+    if (! (mf = MapRead ("-")) || ! (out = MapWrite ("-", MapGetFormat(mf))))
+
+    {
+	    fprintf (stderr, "failed to open standard input and output!\n");
+	    exit (1);
+    }
+    while (MapReadHeader (mf, &npts, &south, &west, &north, &east, &flags))
     {
 	int	ok;
 
-	/*
-	 * Get the info from the header line
-	 */
-	sprintf (detail, "");
-	sscanf (line, "%d %f %f %f %f %s", &npts, &north, &south, &east, &west,
-		detail);
-	
 	npts /= 2;
-
 	/*
 	 * Make sure we have enough point space
 	 */
@@ -75,9 +77,7 @@ main (int argc, char **argv)
 	 * Read all the points
 	 */
 	for (i = 0; i < npts; i++)
-	    scanf ("%f %f", lat + i, lon + i);
-
-	gets (line);	/* get rid of the final trailing end-of-line */
+	    MapReadPoint (mf, lat + i, lon + i);
 
 	/*
 	 * Filter the points and write them out again.  We automatically
@@ -117,15 +117,12 @@ main (int argc, char **argv)
 	/*
 	 * Write out the truncated polyline
 	 */
-	printf ("%4d %9.3f %9.3f %9.3f %9.3f %s", nwrite * 2, north, south,
-		east, west, detail);
-
+	MapWriteHeader (out, nwrite*2, &south, &west, &north, &east, flags);
 	for (i = 0; i < nwrite; i++)
 	{
-	    if (! (i % 4))
-		printf ("\n");
-	    printf (" %9.3f %9.3f", outlat[i], outlon[i]);
+	    MapWritePoint (out, outlat+i, outlon+i);
 	}
-	printf ("\n");
     }
+    MapClose (mf);
+    MapClose (out);
 }
