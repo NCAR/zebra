@@ -1,7 +1,7 @@
 /*
  * Data store daemon-specific definitions.
  */
-/* $Id: dsDaemon.h,v 3.21 1995-08-31 09:49:06 granger Exp $ */
+/* $Id: dsDaemon.h,v 3.22 1996-01-23 04:24:29 granger Exp $ */
 /*
  * The platform and data tables, via pointer.
  */
@@ -70,6 +70,7 @@ extern bool StatRevisions;
  * A global debug flag and some statistics variables
  */
 extern bool Debug;
+extern bool ParseOnly;
 
 extern int InvalidatesSent;	/* Number of CacheInvalidate broadcasts */
 extern int ReadLockRequests;
