@@ -49,6 +49,7 @@
 # include <sys/file.h>
 # include <sys/mtio.h>
 # include <stdio.h>
+# include <unistd.h>
 
 static char *MTdev=NULL;
 
