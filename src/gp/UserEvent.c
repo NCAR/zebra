@@ -1,7 +1,7 @@
 /*
  * Deal with user-originated events.
  */
-static char *rcsid = "$Id: UserEvent.c,v 2.6 1994-02-14 22:47:33 burghart Exp $";
+static char *rcsid = "$Id: UserEvent.c,v 2.7 1994-06-07 22:10:59 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -28,7 +28,7 @@ static char *rcsid = "$Id: UserEvent.c,v 2.6 1994-02-14 22:47:33 burghart Exp $"
 # include "GraphProc.h"
 # include "EventQueue.h"
 # include "ActiveArea.h"
-
+# include "PixelCoord.h"
 
 
 /*
@@ -239,11 +239,16 @@ char *data;
 {
 	struct dm_event dme;
 	XButtonEvent *button = (XButtonEvent *) event;
+	SValue v;
 /*
  * Stash aside the location of this event.
  */
 	Event_X = button->x;
+	v.us_v_float = XUSER (button->x);
+	usy_s_symbol (Vtable, "buttonx", SYMT_FLOAT, &v);
 	Event_Y = button->y;
+	v.us_v_float = YUSER (button->y);
+	usy_s_symbol (Vtable, "buttony", SYMT_FLOAT, &v);
 /*
  * Then execute the command.
  */
