@@ -1,7 +1,7 @@
 /*
  * Contour a rectangular array
  */
-static char *rcsid = "$Id: Contour.c,v 2.7 1994-05-02 20:20:10 burghart Exp $";
+static char *rcsid = "$Id: Contour.c,v 2.8 1994-11-09 00:05:21 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -164,6 +164,8 @@ int	dolabels, linewidth;
 	{
 		msg_ELog (EF_INFO,
 			"Constant surface in contour, nothing drawn");
+		free (Xpos);
+		free (Ypos);
 		return;
 	}
 /*
