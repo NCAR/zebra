@@ -4,8 +4,8 @@
  * The coordinates are defined as shown in the diagram below:
  *
  *		0		      Gwidth
- *		|_______________________|
- *	      0-|	       (fx1,fy1)|
+ *	       _|_______________________|
+ *	      0 |	       (fx1,fy1)|
  *		|	 __________/	|
  *		|	|	  /|	|
  *		|	| (ux1,uy1)|	|
@@ -19,7 +19,9 @@
  *		|			|
  *		|			|
  *		|			|
- *      Gheight-|_______________________|
+ *		|_______________________|
+ *		|			| \_ ICONSPACE buffer for icons
+ *      Gheight_|_______________________| /
  *
  *
  *
@@ -31,12 +33,13 @@
  *	The smaller box is represented by two sets of coordinates:
  *	
  *	The "f" coordinates are fractional values representing the 
- *	subwindow relative to the entire drawable.  The "f" coordinates 
- *	range from (0.0,0.0) at the LOWER LEFT corner to (1.0,1.0) at 
- *	the upper right corner of the drawable.  Note that the origin 
- *	is different from the origin of the X pixel coordinates.  In 
- *	the diagram above, (fx0,fy0) would be about (0.3,0.4) and 
- *	(fx1,fy1) would be about (0.8,0.9).
+ *	subwindow relative to the entire drawable (less the lowest 
+ *	ICONSPACE pixels, which are reserved for putting up icons).  
+ *	The "f" coordinates range from (0.0,0.0) at the LOWER LEFT 
+ *	corner to (1.0,1.0) at the upper right corner of the drawable.  
+ *	Note that the origin is different from the origin of the X 
+ *	pixel coordinates.  In the diagram above, (fx0,fy0) would be 
+ *	about (0.3,0.4) and (fx1,fy1) would be about (0.8,0.9).
  *
  *	The "u" coordinates are the user coordinates to use for
  *	the subwindow.  The user coordinates of the lower left
@@ -53,15 +56,27 @@
 # define F_Y0 0.05
 # define F_Y1 0.85
 
+/*
+ * Space reserved for icons, and resultant usable plot height, both in pixels
+ */
+# define ICONSPACE	50
+# define USABLE_HEIGHT	(GWHeight (Graphics) - ICONSPACE)
+
+/*
+ * User coordinate to pixel coordinate macros
+ */
 # define XPIX(ux)	(short)(0.5 + (float)(GWWidth (Graphics)) * \
 	(((ux) - Xlo) / (Xhi - Xlo) * (F_X1 - F_X0) + F_X0))
 
-# define YPIX(uy)	(short)(0.5 + (float)(GWHeight (Graphics)) * \
+# define YPIX(uy)	(short)(0.5 + (float)(USABLE_HEIGHT) * \
 	(1.0 - (((uy) - Ylo) / (Yhi - Ylo) * (F_Y1 - F_Y0) + F_Y0)))
 
+
+/*
+ * Pixel coordinate to user coordinate macros
+ */
 # define XUSER(xp)	((((xp)/(float)GWWidth(Graphics)) - F_X0) * \
 				(Xhi - Xlo)/(F_X1 - F_X0) + Xlo) 
 
-# define YINVERT(yp)	(GWHeight (Graphics) - (yp) - 1)
-# define YUSER(yp)	(((YINVERT(yp)/(float)GWHeight(Graphics)) - F_Y0) * \
-				(Yhi - Ylo)/(F_Y1 - F_Y0) + Ylo)
+# define YUSER(yp)	(((USABLE_HEIGHT-(yp)-1) / (float)(USABLE_HEIGHT) - \
+				F_Y0) * (Yhi - Ylo)/(F_Y1 - F_Y0) + Ylo)
