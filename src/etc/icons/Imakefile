@@ -10,7 +10,7 @@ all::
 
 install::
 	MakeDir ($(LIBDIR)/icons)
-	$(CP) [a-z]* $(LIBDIR)/icons
+	$(INSTALL) [a-z]* $(LIBDIR)/icons
 
 DISTFILES = Imakefile [a-z]*
 
