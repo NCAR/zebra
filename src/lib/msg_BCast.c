@@ -1,7 +1,7 @@
 /*
  * Network broadcast code.
  */
-static char *rcsid = "$Id: msg_BCast.c,v 2.2 1991-11-21 21:37:08 kris Exp $";
+static char *rcsid = "$Id: msg_BCast.c,v 2.3 1991-11-22 20:41:12 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -50,9 +50,9 @@ static BCConn Connections[MAXCONN];
 
 
 # ifdef __STDC__
-	static int	msg_BCHandler (int);
+	int	msg_BCHandler (int);
 # else
-	static int	msg_BCHandler ();
+	int	msg_BCHandler ();
 # endif
 
 
@@ -132,7 +132,7 @@ void *data;
 
 
 
-static int
+int
 msg_BCHandler (fd)
 int fd;
 /*
