@@ -26,9 +26,9 @@ def main():
     # and these are the project-specific extra directories (usually
     # extra Zebra platforms)
     #
-    extraDirs = ['ncgrids', 'radar_composite', 'goes_1km', 'goes_4km', 'p3', 
-	'kingair', 'dc8', 'mesonet', 'particles8', 'particles8/pdesc',
-	'refract_storm']
+    extraDirs = ['sweepfiles/forRefract', 'ncgrids', 'radar_composite', 
+	'goes_1km', 'goes_4km', 'p3', 'kingair', 'dc8', 'mesonet_15', 
+	'particles8', 'particles8/pdesc', 'refract_storm']
 
     #
     # Verify that we got no args
