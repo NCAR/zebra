@@ -49,7 +49,7 @@
 XCOMM -----------------------------------------------------------------------
 XCOMM Definitions from config.h included here.  The definitions here override
 XCOMM the defaults in Project.tmpl.  See ...../zebra/config/project/config.h.
-XCOMM $Id: config.h.dist,v 1.53 1997-10-09 20:34:08 ishikawa Exp $
+XCOMM $Id: config.h.dist,v 1.54 1997-10-16 22:58:51 burghart Exp $
 XCOMM -----------------------------------------------------------------------
 # endif
 
@@ -201,15 +201,6 @@ XCOMM -----------------------------------------------------------------------
 # define	BuildRealtimeDataStoreTools	YES
 
 /*
- * The data manager utilities are the programs dsmanage and tapeindex.
- * These are extremely useful in most environments, but not absolutely
- * necessary.  These programs require GNU's C++ compiler (g++), so if you 
- * do not have GNU's C++ compiler, define this to NO.  See further on in 
- * this file for information about specifying the C++ compiler.
- */
-# define	BuildDataManager		YES
-
-/*
  * The data file utilities are the program for handling various file 
  * and converting files to Zebra's netCDF conventions.  Some examples
  * are gprotocdf and mudtocdf, for GENPRO and MUDRAS, respectively.
@@ -220,11 +211,9 @@ XCOMM -----------------------------------------------------------------------
 
 /*
  * The map utilities allow converting maps from a few different existing
- * formats into a Zebra-usable format.  An ANSI-compliant C compiler (just
- * about anything but Sun's cc) is required to build these utilities.  The
- * forms handled include USGS DLG/SDTS format, CIA World Database II CBD
- * format, and NCAR Graphics map format.  A couple of Zebra map "massaging"
- * utilities are also provided. 
+ * formats into a Zebra-usable format.  The forms handled include USGS
+ * DLG/SDTS format, CIA World Database II CBD format, and NCAR Graphics map
+ * format.  A couple of Zebra map "massaging" utilities are also provided. 
  */
 # define	BuildMapUtilities		NO
 
@@ -275,10 +264,14 @@ XCOMM -----------------------------------------------------------------------
 
 /*
  * Compiler information:
+ *
+ * An ANSI-compliant C compiler is required.
+ *
  * If you have gcc (GNU C), we recommend that you use it.
  * If you wish to use gcc, simply define UseGcc to YES.
  *  - This setting automatically sets the CCompiler command
  *    (so don't override it) and any other necessary options
+ *
  * If you wish to use a C compiler other than the default,
  * define CCompiler to the C compiler command.  For most systems,
  * the default will be 'cc'.  Example: To use "acc" (the Sun ANSI C 
@@ -305,25 +298,33 @@ XCOMM -----------------------------------------------------------------------
  */
 /* # define UicCmd /rdss/bin/uic */
 
-/*
- * If you wish to compile dsmanage and tapeindex, you need to specify a C++
- * compiler, like Sun's CC or GNU's g++.  If you defined UseGcc to YES
- * above, g++ will be used for the C++ compiler.  Otherwise the default is
- * CC.  To define a different C++ compiler, define CplusplusCmd to the name
- * of the compiler.  If the compiler requires any special library options,
- * define them in CplusplusSpecialOptions.  The C debug flags and options
- * (defined below) will be passed to the C++ compiler as well.  Options
- * specific to the C++ compiler should be defined in CplusplusOptions. 
- * At the moment, the only C++ code in this distribution is in the dsmanage
- * and tapeindex programs, and so far those programs only compile under the
- * GNU g++ compiler.
+/* 
+ * Zebra compilation now also requires a C++ compiler and (for dsmanage and
+ * tapeindex) GNU's libg++.  In turn, libg++ essentially requires that the
+ * C++ compiler be GNU's g++. (Known reasons are: use of the "#include_next"
+ * preprocessor directive, and assumption of "bool" as a built-in type.)
+ * Hence: we use g++ and libg++.  Period.
+ *
+ * In general, defaults generated for finding g++ and libg++ will suffice.
+ * In some instances, however, one or more of the following variables may 
+ * need to be #defined below:
+ *
+ *	CplusplusCmd			path to g++, if other than just "g++"
+ * 	CplusplusOptions		options specific to the C++ compiler
+ *	CplusplusSpecialOptions		special library options for C++
+ *
+ * E.g., if your g++ compiler is not in your normal execution path, and lives
+ * in directory /weird/bin, you need a line below of the form:
+ *	# define CplusplusCmd /weird/bin/g++
+ *
+ * The C debug flags and options (defined further below) will be passed to
+ * the C++ compiler as well.
  */
-/*
-#define HasCplusplus YES
-#define CplusplusCmd CC
-#define CplusplusOptions
-#define CplusplusSpecialOptions
-*/
+# define HasCplusplus	YES
+# define CplusplusCmd	g++
+# ifdef SGIArchitecture		/* -ansi needed for IRIX */
+#	define CplusplusOptions -ansi
+# endif
 
 /*
  * To set debugging flags for the FORTRAN and C compilers' command
@@ -384,6 +385,9 @@ XCOMM -----------------------------------------------------------------------
  *			   is empty (use system's default include directories).
  *	RDSSIncDir	-- RDSS include files.  The default is RDSSDir/include.
  *			   If not defined above, RDSSDir is /rdss.
+ *	UDUnitsIncDir	-- Header file location for udunits.  The default is 
+ *			   /usr/local/include, the standard install directory
+ *			   for udunits.h.
  *
  * Note that gcc will search /usr/local/include by default, most other
  * compilers and makedepend will not.  Even if using gcc, go ahead and 
@@ -397,6 +401,8 @@ XCOMM -----------------------------------------------------------------------
 #endif
 
 #define NetCDFIncDir /usr/local/include
+
+#define UDUnitsIncDir /usr/local/include
 
 /*
  * Zebra can build an interface to HDF (Hierarchical Data Format) satellite
@@ -441,6 +447,7 @@ XCOMM -----------------------------------------------------------------------
  *	RDSSLibDir	-- RDSS Library directory.  IF NOT INSTALLED IN
  *			   /usr/local/lib OR /usr/lib, DEFINE A DIRECTORY
  *			   BELOW.
+ *	UDUnitsLibDir	-- Location of the udunits library.
  *
  * WARNING: If any of the following libraries are in /usr/lib and you are
  * building on a Sun, DO NOT specify /usr/lib explicitly.  Otherwise you
@@ -458,11 +465,12 @@ XCOMM -----------------------------------------------------------------------
 # endif
 
 /* # define NetCDFLibDir /usr/local/lib */	/* not needed with gcc */
+/* # define UDUnitsLibDir /usr/local/lib */	/* not needed with gcc */
 
 /*
  * To specify the whole command-line option for a library use the symbols
- * XLibraries, NetCDFLibrary, RDSSLibrary.  For example, to use a 
- * version of RDSS which has a different name, use 
+ * XLibraries, NetCDFLibrary, UDUnitsLibrary, RDSSLibrary.  For example, to 
+ * use a version of RDSS which has a different name, use 
  *
  * #define RDSSLibrary -L/usr/local/lib -lrdssui2 -lrdssutil2
  *
@@ -486,11 +494,12 @@ XCOMM -----------------------------------------------------------------------
  * name of the library: e.g. -L<libdir> -l<libname>.  The default is
  * listed to the right of each of the parameter names.
  *
- * For these 3 libraries, it is unlikely that the defaults will not be
+ * For these 4 libraries, it is unlikely that the defaults will not be
  * sufficient:
  *
  *	XLibraries	-lXaw -lXmu -lXt -lXext -lX11
  *	NetCDFLibrary	-lnetcdf
+ *	UDUnitsLibrary	-ludunits
  * 	RDSSLibrary	-lrdssui -lrdssutil
  *
  * The following 2 libraries will probably need to be explicitly
@@ -756,10 +765,9 @@ XCOMM -----------------------------------------------------------------------
  * 	appropriately.
  */
  
-/* Two more symbols are also available: */
+/* One more symbol is also available: */
 
 /* #define DistributeRealtimeDataStoreTools NO */
-/* #define DistributeDataManager NO */
 
 /* Any of the distribution symbols which are not defined default to YES.
  * Questions about any of this can go to granger@ncar.ucar.edu
@@ -851,7 +859,6 @@ XCOMM -----------------------------------------------------------------------
 #define DistributeOptimizer 	NO
 #define DistributeDataUtil 	NO
 #define DistributeRealtimeDataStoreTools YES
-#define DistributeDataManager NO
 
 #endif /* NEXUS_PROJECT */
 /*------------------------------------------------------------------------*/
