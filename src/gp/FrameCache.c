@@ -1,7 +1,7 @@
 /*
  * Frame cache maintenance.
  */
-static char *rcsid = "$Id: FrameCache.c,v 1.8 1991-04-10 23:08:25 kris Exp $";
+static char *rcsid = "$Id: FrameCache.c,v 1.9 1991-04-12 21:55:53 kris Exp $";
 # include <X11/Intrinsic.h>
 # include <errno.h>
 # include <fcntl.h>
@@ -12,10 +12,10 @@ static char *rcsid = "$Id: FrameCache.c,v 1.8 1991-04-10 23:08:25 kris Exp $";
 # include "GraphProc.h"
 # include "GraphicsW.h"
 
-# define BFLEN 40
+# define BFLEN 120
 # define FLEN 200
 # define OLEN 1024
-# define PMODE 0777
+# define PMODE 0666
 # define InvalidEntry	-1
 # define FREE -2
 
@@ -92,7 +92,8 @@ fc_InvalidateCache ()
 	{
 		if(FrameFile >= 0)
 			close(FrameFile);
-		if((FrameFile = open(FileName, O_RDWR | O_CREAT, PMODE)) < 0)
+		if((FrameFile = open(FileName, O_RDWR | O_CREAT |O_TRUNC, 
+			PMODE)) < 0)
 			msg_ELog(EF_PROBLEM, "Can't open %s (%d).", FileName, 
 				errno);
 	}
@@ -109,7 +110,8 @@ void fc_CreateFrameFile()
 		sprintf(FileName, "%s/%s%dFrameFile", FrameFilePath, Ourname,
 			getpid());
 		msg_ELog(EF_DEBUG, "FrameFile:  %s.", FileName);
-		if((FrameFile = open(FileName, O_RDWR | O_CREAT, PMODE)) < 0)
+		if((FrameFile = open(FileName, O_RDWR | O_CREAT | O_TRUNC, 
+			PMODE)) < 0)
 			msg_ELog(EF_PROBLEM, "Can't open %s (%d).", FileName, 
 				errno);
 	}
@@ -149,7 +151,6 @@ int number;
 /*
  * Add the info.
  */
-	FCache[findex].fc_time = *when;
 	complist = pd_CompList (Pd);
 	FCache[findex].fc_base[0] = '\0';
 	(void) (pd_Retrieve (Pd, complist[1], "field", FCache[findex].fc_base,
@@ -180,6 +181,7 @@ int number;
 		strcat(FCache[findex].fc_fields, field);
 		i++;
 	}
+	FCache[findex].fc_time = *when;
 	FCache[findex].fc_lru = ++Lru;
 	FCache[findex].fc_valid = TRUE;
 	FCache[findex].fc_keep = FALSE;
@@ -191,7 +193,8 @@ int number;
 		when->ds_hhmmss/10000, (when->ds_hhmmss/100)%100);  
 	msg_ELog (EF_DEBUG, "Cache %d, fld '%s' alt %.2f at %d %d, lru %d,
 		index %d", findex, FCache[findex].fc_base, 
-		FCache[findex].fc_alt, when->ds_yymmdd, when->ds_hhmmss, 
+		FCache[findex].fc_alt, FCache[findex].fc_time.ds_yymmdd, 
+		FCache[findex].fc_time.ds_hhmmss, 
 		FCache[findex].fc_lru, number);
 	msg_ELog(EF_DEBUG, "fields: (%s)", FCache[findex].fc_fields);
 }
