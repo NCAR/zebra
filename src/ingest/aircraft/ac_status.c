@@ -2,7 +2,7 @@
  * Aircraft ingest from FAA black box status widget and transponder code
  * changer.
  */
-/*		Copyright (C) 1987,88,89,90,91 by UCAR
+/*		Copyright (C) 1987-92 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
  *
@@ -20,7 +20,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: ac_status.c,v 1.7 1991-11-22 20:43:31 kris Exp $";
+static char *rcsid = "$Id: ac_status.c,v 1.8 1992-03-31 22:10:09 burghart Exp $";
 
 # include <copyright.h>
 # include <X11/X.h>
@@ -37,7 +37,8 @@ static char *rcsid = "$Id: ac_status.c,v 1.7 1991-11-22 20:43:31 kris Exp $";
 # include <config.h>
 # include "ac_ingest.h"
 
-# define ATSLEN		80	/* Length for AsciiText strings.	*/
+# define ATSLEN	80	/* Length for AsciiText strings.	*/
+# define MAXAC	20	/* How many aircraft can we handle	*/
 
 static char	New_Trans[ATSLEN];
 static bool	DoFeet = TRUE;
@@ -50,6 +51,7 @@ static Ac_Data	Aircraft;
 static time	Delta, AcTime, SaveTime[MAXOURS];
 static char	TitleStr[200], StatusStr[MAXOURS][200], AcIngestName[STRLEN];
 static char	AcPlatforms[200];
+static char	LabelString[MAXOURS * 200];
 static Widget	Top;
 XtAppContext	Actx;
 
@@ -73,6 +75,7 @@ XtAppContext	Appc;
 	static void ChangeAlt ();
 	static void ClearStatus ();
 	int MsgDispatcher (struct message *);
+	static void DeltaUpdate (time *, int);
 # else
 	static Widget MakeStatusWidget ();
 	static void StatusWindow ();
@@ -91,6 +94,7 @@ XtAppContext	Appc;
 	static void ChangeAlt ();
 	static void ClearStatus ();
 	int MsgDispatcher ();
+	static void DeltaUpdate ();
 # endif
 
 
@@ -105,7 +109,9 @@ char	**argv;
 	msg_connect (MsgDispatcher, "Ac_Status");
 
 	msg_ELog (EF_DEBUG, "Ac_Status begins...");
+
 	fixdir ("ACSLOADFILE", LIBDIR, "ac_status.lf", loadfile);
+
 	if (argc > 1)
 	{
 		ui_init (loadfile, FALSE, TRUE);
@@ -113,7 +119,9 @@ char	**argv;
 		usy_s_symbol (usy_g_stbl ("ui$variable_table"), "commandfile",
 			SYMT_STRING, &v);
 	}
-	else ui_init (loadfile, TRUE, FALSE);
+	else
+		ui_init (loadfile, TRUE, FALSE);
+
 	ui_setup ("acstatus", &argc, argv, NULL);
 
 	ds_Initialize ();	
@@ -147,11 +155,12 @@ SetupIndirect ()
 static void
 SetupNotify ()
 /*
- * Arrange for data notifications for all aircraft platforms.
+ * Arrange for data notifications for all aircraft platforms and for
+ * an update alarm every 5 seconds
  */
 {
 	PlatformId	pid;
-	char		platforms[200], *pnames[20];
+	char		platforms[200], *pnames[MAXAC];
 	int		i, nplat;
 
 	strcpy (platforms, AcPlatforms);
@@ -169,6 +178,8 @@ SetupNotify ()
 			pnames[i]);
 		ds_RequestNotify (pid, 0, Notification);
 	}
+
+	tl_AddRelativeEvent (DeltaUpdate, (void *) 0, 100, 100);
 }
 
 
@@ -182,14 +193,15 @@ time		*t;
  */
 {
 	DataObject	*dobj;
-	char		*fields[1], platforms[200], *pnames[20];
+	char		*fields[1], platforms[200], *pnames[MAXAC];
 	int		i, itsat = -1, numfields, nplat;
+	time		curtime;
 
 	strcpy (Platform, ds_PlatformName (pid));
 	msg_ELog (EF_DEBUG, "Data available on %s at %d %d.", Platform,
 		t->ds_yymmdd, t->ds_hhmmss);
 /*
- * Make sure its a platform we're still interested in.
+ * Make sure it's a platform we're still interested in.
  */
 	strcpy (platforms, AcPlatforms);
 	nplat = CommaParse (platforms, pnames);
@@ -206,7 +218,8 @@ time		*t;
 	if ((itsat >= 0) && (itsat < nplat))
 	{
 		AcTime = *t;
-		ud_sub_date (&AcTime, &SaveTime[itsat], &Delta);
+		tl_GetTime (&curtime);
+		ud_sub_date (&curtime, &AcTime, &Delta);
 		SaveTime[itsat] = AcTime;
 		fields[0] = "trans";
 		numfields = 1;
@@ -217,12 +230,13 @@ time		*t;
 			return;
 		}
 		if (DoFeet)
-			Aircraft.altitude = dobj->do_aloc->l_alt * 1000.0 / 
-				M_PER_FT;
-		else Aircraft.altitude = dobj->do_aloc->l_alt;
+			Aircraft.altitude = dobj->do_aloc->l_alt / M_PER_FT;
+		else 
+			Aircraft.altitude = dobj->do_aloc->l_alt;
 		Aircraft.latitude = dobj->do_aloc->l_lat;
 		Aircraft.longitude = dobj->do_aloc->l_lon;
 		Aircraft.transponder = (int) dobj->do_data[0][0];
+		ds_FreeDataObject (dobj);
 		SetStatus(itsat, nplat);
 	}
 }
@@ -254,14 +268,14 @@ Go ()
  * Popup the widget.  Begin dealing with X events and/or data notifications.
  */
 {
-	Display	*Disp;
+	Display	*disp;
 	int	fd;
 
 	uw_def_widget ("acstatus", "acstatus", MakeStatusWidget, 0, 0);
 	uw_ForceWindowMode ("acstatus", &Top, &Actx);
 
-	Disp = XtDisplay (Top);
-	fd = XConnectionNumber (Disp);
+	disp = XtDisplay (Top);
+	fd = XConnectionNumber (disp);
 
 	SetupNotify ();
 
@@ -323,14 +337,27 @@ Widget	parent;
 	Arg	args[15];
 	int	n;
 /*
+ * The Quit button.
+ */
+        n = 0;
+        XtSetArg (args[n], XtNlabel, "Quit");           n++;
+        XtSetArg (args[n], XtNfromHoriz, NULL);         n++;
+        XtSetArg (args[n], XtNfromVert, NULL);          n++;
+        above = XtCreateManagedWidget ("Quit", commandWidgetClass,
+                parent, args, n);
+        XtAddCallback (above, XtNcallback, (XtCallbackProc) Die, 0);
+/*
  * The status title.
  */
-	sprintf (TitleStr, "%-11s%-6s%-12s%-12s%-12s%-7s%7s\n", "Platform",
-		"Trans", "Altitude", "Latitude", "Longitude", "Time", "Delta"); 
+	sprintf (TitleStr, "%-9s%-8s%-12s%-8s%-8s%-10s%-10s\n", "Platform",
+		"Trans", "Altitude", "Lat", "Lon", "Time", "Delta");
+
 	n = 0;
+        XtSetArg (args[n], XtNfromHoriz, NULL);         n++;
+        XtSetArg (args[n], XtNfromVert, above);         n++;
 	XtSetArg (args[n], XtNlabel, TitleStr);		n++;
 	XtSetArg (args[n], XtNjustify, XtJustifyLeft);	n++;
-	XtSetArg (args[n], XtNwidth, 480);		n++;
+	XtSetArg (args[n], XtNwidth, 470);		n++;
 	XtSetArg (args[n], XtNresize, True);		n++;
 	above = XtCreateManagedWidget ("AcStatusL", labelWidgetClass, 
 		parent, args, n);
@@ -348,13 +375,13 @@ Widget	parent;
 	above = StatusLabel = XtCreateManagedWidget ("AcStatusT", 
 		labelWidgetClass, parent, args, n);
 /*
- * Feet vs. Km buttom.
+ * Feet vs. M buttom.
  */
 	n = 0;
-	XtSetArg (args[n], XtNlabel, DoFeet ? "Ft" : "Km");	n++;
+	XtSetArg (args[n], XtNlabel, DoFeet ? "Ft" : "M");	n++;
 	XtSetArg (args[n], XtNfromHoriz, NULL);			n++;
 	XtSetArg (args[n], XtNfromVert, above);			n++;
-	AltButton = XtCreateManagedWidget ("FtKm", commandWidgetClass, 
+	AltButton = XtCreateManagedWidget ("FtM", commandWidgetClass, 
 		parent, args, n);
 	XtAddCallback (AltButton, XtNcallback, ChangeAlt, 0);	
 /*
@@ -435,7 +462,7 @@ ChangeAlt ()
 	Arg	args[2];
 
 	DoFeet = ! DoFeet;
-	XtSetArg (args[0], XtNlabel, DoFeet ? "Ft" : "Km");
+	XtSetArg (args[0], XtNlabel, DoFeet ? "Ft" : "M");
 	XtSetValues (AltButton, args, 1);
 }
 
@@ -462,7 +489,7 @@ Add_Trans()
  */
 {
 	PlatformId	pid;
-	char		*pname[5], temptrans[ATSLEN], sendstr[STRLEN];
+	char		*pname[MAXAC], temptrans[ATSLEN], sendstr[STRLEN];
 	int		i, pnum;
 /*
  * Check if the entry is ok.
@@ -495,7 +522,7 @@ Change_Trans ()
  */
 {
 	PlatformId	pid;
-	char		*pname[5], temptrans[ATSLEN];
+	char		*pname[MAXAC], temptrans[ATSLEN];
 	char		sendstr[STRLEN];
 	int		i, pnum;
 /*
@@ -528,7 +555,7 @@ Del_Trans ()
  */
 {
 	PlatformId	pid;
-	char		*pname[5], temptrans[ATSLEN];
+	char		*pname[MAXAC], temptrans[ATSLEN];
 	char		sendstr[STRLEN];
 	int		i, itsat = -1, pnum;
 
@@ -572,30 +599,30 @@ char	*label;
 
 
 
-static void
+void
 SetStatus (itsat, nplat)
 int	itsat;
 /*
  * Set the status widget.
  */
 {
-	char	string[200], sendstr[MAXOURS * 200];
+	char	string[200];
 	int	i;
 
 	if (! SWMade)
 		return;
 
-	sprintf(string,"%-11s%6o%12.2f%12.2f%12.2f%3d:%02d:%02d%3d:%02d:%02d\n",
+	sprintf(string,"%-9s%6o%10.0f%8.2f%8.2f%4d:%02d:%02d%4d:%02d:%02d\n",
 		Platform, Aircraft.transponder, Aircraft.altitude, 
 		Aircraft.latitude, Aircraft.longitude, 
 		AcTime.ds_hhmmss/10000, (AcTime.ds_hhmmss/100) % 100,
 		AcTime.ds_hhmmss % 100, Delta.ds_hhmmss/10000,
 		(Delta.ds_hhmmss/100) % 100, Delta.ds_hhmmss % 100);
 	strncpy (StatusStr[itsat], string, strlen (string));
-	sendstr[0] = '\0';
+	LabelString[0] = '\0';
 	for (i = 0; i < nplat; i++)
-		strcat (sendstr, StatusStr[i]);
-	SetLabel (StatusLabel, sendstr);
+		strcat (LabelString, StatusStr[i]);
+	SetLabel (StatusLabel, LabelString);
 	DoXevent ();
 }
 
@@ -669,3 +696,40 @@ struct message	*msg;
 	return (0);
 }
 
+
+
+
+void
+DeltaUpdate (t, junk)
+time	*t;
+int	junk;
+/*
+ * Update the delta times
+ */
+{
+	int	i;
+	time	curtime, delta;
+
+	tl_GetTime (&curtime);
+/*
+ * Update the delta for all of the interesting platforms
+ */
+	LabelString[0] = '\0';
+
+	for (i = 0; i < MAXOURS; i++)
+	{
+		if (! *StatusStr[i])
+			continue;
+
+		ud_sub_date (&curtime, &SaveTime[i], &delta);
+
+		sprintf (StatusStr[i] + 51, "%4d:%02d:%02d\n",
+			delta.ds_hhmmss/10000, (delta.ds_hhmmss/100) % 100, 
+			delta.ds_hhmmss % 100);
+
+		strcat (LabelString, StatusStr[i]);
+	}
+
+	SetLabel (StatusLabel, LabelString);
+	DoXevent ();
+}
