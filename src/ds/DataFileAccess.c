@@ -31,7 +31,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 # include "dfa.h"
-MAKE_RCSID ("$Id: DataFileAccess.c,v 3.1 1992-05-27 17:24:03 corbet Exp $")
+MAKE_RCSID ("$Id: DataFileAccess.c,v 3.2 1992-06-19 16:20:05 corbet Exp $")
 
 
 
@@ -214,7 +214,7 @@ extern int dnc_QueryTime (), dnc_OpenFile (), dnc_CloseFile ();
 extern int dnc_SyncFile (), dnc_InqPlat (), dnc_GetData ();
 extern int dnc_GetIRGLoc (), dnc_GetRGrid (), dnc_DataTimes ();
 extern int dnc_MakeFileName (), dnc_CreateFile (), dnc_PutSample ();
-extern int dnc_GetFields ();
+extern int dnc_GetFields (), dnc_GetObsSamples ();
 extern DataChunk *dnc_Setup ();
 
 extern int bf_QueryTime (), bf_MakeFileName (), bf_CreateFile ();
@@ -229,6 +229,17 @@ extern int drf_GetData (), drf_DataTimes (), drf_GetObsSamples ();
 extern int drf_GetFields ();
 extern char *drf_GetAttrs ();
 extern DataChunk *drf_Setup ();
+
+/*
+ * Zeb Native Format.
+ */
+extern int	zn_CreateFile (), zn_QueryTime (), zn_GetIRGLoc (), zn_Sync ();
+extern int	zn_PutSample (), zn_Close (), zn_Open (), zn_MakeFileName ();
+extern int	zn_GetData (), zn_InqNPlat (), zn_Times ();
+extern int	zn_GetObsSamples (), zn_Fields (), zn_InqRGrid ();
+extern DataChunk *zn_Setup ();
+
+
 # define ___ 0
 
 /*
@@ -255,7 +266,7 @@ struct DataFormat Formats[] =
 	dnc_MakeFileName,		/* Make file name		*/
 	dnc_CreateFile,			/* Create a new file		*/
 	dnc_PutSample,			/* Write to file		*/
-	___,				/* Get observation samples	*/
+	dnc_GetObsSamples,		/* Get observation samples	*/
 	dnc_GetFields,			/* Get fields			*/
 	___,				/* Get Attributes		*/
     },
@@ -315,8 +326,29 @@ struct DataFormat Formats[] =
 	drf_GetObsSamples,		/* Get observation samples	*/
 	drf_GetFields,			/* Get fields			*/
 	drf_GetAttrs,			/* Get Attributes		*/
+    },
+/*
+ * Zeb Native.
+ */
+    {
+	"Zeb",		".znf",
+	zn_QueryTime,			/* Query times			*/
+	zn_Setup,			/* setup			*/
+	zn_Open,			/* Open				*/
+	zn_Close,			/* Close			*/
+	zn_Sync,			/* Synchronize			*/
+	zn_InqNPlat,			/* Inquire platforms		*/
+	zn_GetData,			/* Get the data			*/
+	zn_GetIRGLoc,			/* Get IRGrid locations		*/
+	zn_InqRGrid,			/* Get RGrid info		*/
+	zn_Times,			/* Get data times		*/
+	zn_MakeFileName,		/* Make file name		*/
+	zn_CreateFile,			/* Create a new file		*/
+	zn_PutSample,			/* Write to file		*/
+	zn_GetObsSamples,		/* Get observation samples	*/
+	zn_Fields,			/* Get fields			*/
+	___,				/* Get Attributes		*/
     }
-
 };
 
 
@@ -833,7 +865,7 @@ void **tag;
 			dfa_CloseFile (ofp);
 		else
 		{
-			if (dp->df_rev != ofp->of_rev)
+			if (dp->df_rev > ofp->of_rev)
 			{
 				msg_ELog (EF_DEBUG, "Out of rev file %s",
 					dp->df_name);

@@ -31,7 +31,7 @@
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dslib.h"
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.2 1992-06-09 20:30:33 burghart Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.3 1992-06-19 16:20:05 corbet Exp $")
 
 # include "netcdf.h"
 
@@ -2260,4 +2260,35 @@ FieldId *flist;
 		(*nfld)++;
 	}
 	return (TRUE);
+}
+
+
+
+
+
+int
+dnc_GetObsSamples (dfile, times, locs, max)
+int dfile, max;
+ZebTime *times;
+Location *locs;
+/*
+ * Return sample info.
+ */
+{
+	NCTag *tag;
+	int i;
+/*
+ * Get the file open.
+ */
+	if (!dfa_OpenFile (dfile, FALSE, (void *) &tag))
+		return (0);
+
+	for (i = 0; i < tag->nc_ntime && i < max; i++)
+	{
+		times->zt_Sec = tag->nc_base + (int) tag->nc_times[i];
+		times->zt_MicroSec = 1000000*(tag->nc_times[i] -
+					aint (tag->nc_times[i]));
+		times++;
+		*locs++ = (tag->nc_locs) ? tag->nc_locs[i] : tag->nc_sloc;
+	}
 }
