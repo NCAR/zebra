@@ -1,5 +1,5 @@
 /*
- * $Id: nstest.c,v 1.3 1993-08-12 18:29:52 granger Exp $
+ * $Id: nstest.c,v 1.4 1993-08-12 18:58:06 granger Exp $
  */
 
 #include <defs.h>
@@ -503,7 +503,7 @@ main (argc, argv)
 		}
 
 		/* test field limit with DefineField */
-v		dc_NSDefineField(dc, fid, 0, 0, 0, 0);
+		dc_NSDefineField(dc, fid, 0, 0, 0, 0);
 
 		/* test dimn limit with DefineField by redefining field */
 		dc_NSDefineField(dc, F_Lookup("field1"), 1, 
