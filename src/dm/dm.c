@@ -43,7 +43,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm.c,v 2.62 1995-05-08 19:26:20 granger Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.63 1995-05-24 21:47:28 granger Exp $")
 
 
 /*
@@ -262,7 +262,7 @@ char *msgname;
 		 * in test mode.
 		 */
 		if (TestMode)
-			sprintf (buf+strlen(buf), "-%d", getpid());
+			sprintf (buf+strlen(buf), "-%li", (long)getpid());
 	}
 	if (! SingletonMode)
 	{
@@ -386,7 +386,7 @@ char *argv[];
  * Interpret commands.
  */
 	Argv = argv;
-	ui_get_command ("dm-initial", "DM>", dm_dispatcher, 0);
+	ui_get_command ("initial", "DM>", dm_dispatcher, 0);
 	dm_shutdown ();
 	return (0);
 }

@@ -1,4 +1,4 @@
-! $Id: dm.state,v 1.26 1995-04-18 22:18:33 granger Exp $
+! $Id: dm.state,v 1.27 1995-05-24 21:47:32 granger Exp $
 !
 ! Command definition for the display manager.
 !
@@ -20,7 +20,7 @@
 ! maintenance or updates for its software.
 !
 
-define state dm-initial
+define state initial
 	eoftext 'exit'
 	ctable ui$command_table
 	@ #ui$defs_file
@@ -930,3 +930,5 @@ define state pd-value
 	endinput
 enddef
 
+set ui$initial_state "initial"
+read dm.widgets

@@ -1,4 +1,4 @@
-MFVERSION="$Id: Imakefile,v 1.6 1995-05-05 17:37:38 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.7 1995-05-24 21:47:25 granger Exp $"
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -18,6 +18,7 @@ MFVERSION="$Id: Imakefile,v 1.6 1995-05-05 17:37:38 granger Exp $"
  */
 
 LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBNETCDF) $(LIBRDSS) $(XLIBS)
+SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
 LIBGCC = "/usr/local/lib/gcc-lib/sparc-sun-sunos4.1.2/2.2/libgcc.a"
 CLIBS = $(LIBGCC)
@@ -33,9 +34,9 @@ DEFINES = $(XHELPDEFINES)
 
 DISTFILES = Imakefile $(SRCS) $(HEADERS) dm.widgets dm.state DisplayMgr.ad
 
-NormalProgramTarget(dm,$(OBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
+CompleteProgramTarget(dm,$(OBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
-UILoadFileTarget_2(dm.lf,dm.state,'dm-initial',dm.widgets)
+UILoadFileDepsTarget(dm.lf, dm.state, dm.widgets)
 
 InstallAppDefaults(DisplayMgr)
 
