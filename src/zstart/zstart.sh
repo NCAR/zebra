@@ -2,7 +2,7 @@
 #
 # This is an attempt at a generalized zebra startup script.
 #
-# $Id: zstart.sh,v 1.17 2002-05-12 15:55:59 burghart Exp $
+# $Id: zstart.sh,v 1.18 2002-05-22 19:41:27 burghart Exp $
 #
 # Here we do basic location of directories, set environment variables,
 # and try to hand things off to a project-specific startup file.
@@ -123,6 +123,12 @@ echo "To see the project options, this _may_ work: $0 <project> help"
 			set SESSION="$argv[2]"
 			shift
 			breaksw
+		    case -realtime:
+			# set an environment variable that can be used to
+			# to test for "realtime" use, whatever that might
+			# mean...
+			setenv ZEBRA_REALTIME 1
+			breaksw
 		    default:
 		        if (! $?projdir) then
 			    set projdir="$argv[1]"
@@ -187,6 +193,9 @@ again:
 # If another machine is hosting the datastore, start that session now
 #
 	if (! $?ZEB_ZSTART ) setenv ZEB_ZSTART $ZEB_TOPDIR/bin/zstart
+
+	if ($?ZEBRA_REALTIME) setenv ZEB_ZSTART "$ZEB_ZSTART -realtime"
+
 	if ( $?DS_DAEMON_HOST ) then
 
 		echo "Using DS_DAEMON_HOST $DS_DAEMON_HOST"
