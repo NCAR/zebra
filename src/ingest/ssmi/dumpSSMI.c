@@ -21,7 +21,8 @@
  */
 
 # ifndef lint
-	static char *rcsid = "$Id: dumpSSMI.c,v 1.1 1993-05-18 06:51:05 granger Exp $";
+static char *rcsid = 
+	"$Id: dumpSSMI.c,v 1.2 1993-06-07 18:35:10 granger Exp $";
 # endif
 
 # include <time.h>
@@ -103,6 +104,8 @@ char	**argv;
 		for (i = 0; i < Nlog; i++)
 			dump_lrec (Lrec + i);
 	}
+
+	exit (0);
 }
 
 
