@@ -44,7 +44,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: Track.c,v 2.52 2001-06-19 23:48:30 granger Exp $")
+RCSID ("$Id: Track.c,v 2.53 2001-08-31 04:20:59 granger Exp $")
 
 # define ARROWANG .2618 /* PI/12 */
 # ifndef M_PI
@@ -334,7 +334,7 @@ TrackParams *tparams;
 	tparams->tp_LWidth = SetLWidth (comp, "line-width", pname, 0);
 	tparams->tp_UnitLen = GWHeight (Graphics)*tparams->tp_ArrowScale;
 /*
- * Now work through the data.
+ * Now work through the data.  Draw the lines first.
  */
 	tparams->tp_Vectime = 0;
 	npt = 0;
@@ -342,8 +342,6 @@ TrackParams *tparams;
 	samp0 = -1;
 	for (i = 0; i < nsamp; i++)
 	{
-		float u, v; /* vector component values	     */
-		long timenow; /* time of the current sample	     */
 		float fx, fy; /* x,y Cartesian coords of lat/lon */
 		Location loc; /* lat/lon locn extracted from sample*/
 	/*
@@ -362,11 +360,6 @@ TrackParams *tparams;
 			continue;
 		prj_Project (loc.l_lat, loc.l_lon, &fx, &fy);
 		x1 = XPIX (fx); y1 = YPIX (fy);
-	/*
-	 * Draw arrows if necessary.
-	 */
-		if (tparams->tp_DoArrows)
-			tr_DrawArrow (d, dc, i, wi, x1, y1, tparams);
 	/*
 	 * Draw the line, if (x0,y0) valid, color coding if requested.
 	 * Don't draw the line if it doesn't intersect the plot region.
@@ -390,6 +383,40 @@ TrackParams *tparams;
 		x00 = x0; x0 = x1; y00 = y0; y0 = y1;
 		fx0 = fx; fy0 = fy;
 		samp0 = i;
+	}
+/*
+ * Work through the data again and this time draw the vectors, if
+ * necessary.  Leave x00, y00, x0, y0, index, fx0, fy0, and samp0 as
+ * they were at the end of the line drawing loop, since those will be
+ * needed to draw the position icon and arrow and are not needed to
+ * draw the arrows.
+ */
+	tparams->tp_Vectime = 0;
+	npt = 0;
+	for (i = 0; (tparams->tp_DoArrows) && (i < nsamp); i++)
+	{
+		float fx, fy; /* x,y Cartesian coords of lat/lon */
+		Location loc; /* lat/lon locn extracted from sample*/
+	/*
+	 * Do skipping if requested.
+	 */
+		if ((tparams->tp_DSkip) && ((npt++ % tparams->tp_DSkip) != 0))
+			continue;
+	/*
+	 * Locate this point.  Skip it if either coordinate ==
+	 * badvalue. 
+	 */
+		dc_GetLoc (dc, i, &loc);
+		dc_GetTime (dc, i, &zt);
+		if ((loc.l_lat == tparams->tp_BadValue) ||
+				(loc.l_lon == tparams->tp_BadValue))
+			continue;
+		prj_Project (loc.l_lat, loc.l_lon, &fx, &fy);
+		x1 = XPIX (fx); y1 = YPIX (fy);
+	/*
+	 * Draw arrows.
+	 */
+		tr_DrawArrow (d, dc, i, wi, x1, y1, tparams);
 	}
 /*
  * remember the last point plotted
@@ -1323,7 +1350,7 @@ int		ndetail;
 	Location	loc;
 	DataChunk	*dc_ns, *dc;
 	DataClass	class;
-	ZebTime		dtime, samptime, *times;
+	ZebTime		dtime, *times;
 	FieldId		*ourfields, latfld, lonfld, presfld, fofld;
 /*
  * Find the closest time for which we have data
