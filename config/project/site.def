@@ -101,11 +101,11 @@ XCOMM site:  $XConsortium: site.sample,v 1.9 94/04/08 17:02:06 rws Exp $
 # endif
 #endif
 
-/* Assume there is no -lgen regexp library even though the AIX sets SystemV
+/* IBM's regexp library is located in the Programmers Workbench 
 */
 #ifdef AIXArchitecture
 # ifndef RegexpLibrary
-# define RegexpLibrary /**/
+# define RegexpLibrary -PW 
 # endif
 # endif /* AIXArchitecture */
 
