@@ -28,7 +28,7 @@
 # include <time.h>
 # include "GraphProc.h"
 # include "PixelCoord.h"
-MAKE_RCSID ("$Id: Utilities.c,v 2.15 1993-10-27 21:27:42 burghart Exp $")
+MAKE_RCSID ("$Id: Utilities.c,v 2.16 1993-11-12 22:52:42 corbet Exp $")
 
 
 static void ApplyConstOffset FP ((Location *, double, double));
@@ -150,7 +150,7 @@ Location *loc;
 	}
 	if (! ds_DataTimes (pid, when, 1, DsBefore, actual))
 	{
-		msg_ELog (EF_INFO, "No position info for %s", platform);
+		msg_ELog (EF_DEBUG, "No position info for %s", platform);
 		return (FALSE);
 	}
 /*
