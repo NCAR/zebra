@@ -1,6 +1,6 @@
 #! /usr/bin/sh
 #
-# $Id: zplotbatch,v 1.9 1999-10-13 05:41:11 granger Exp $
+# $Id: zplotbatch,v 1.10 1999-10-15 01:46:43 granger Exp $
 #
 # Start a display manager session with a virtual X server and dump
 # images of its plots.
@@ -212,7 +212,6 @@ fi
 (set -x; zrun $DM 'shutdown')
 sleep 10
 kill $dm
-# sleep 15
 
 # We'd kill our virtual X server, but another batch-plot may be using it
 # kill $x
@@ -223,10 +222,15 @@ kill $dm
 #    # Give the server time to die and clear its socket
 #fi
 
-# Pass on the image file names
-echo Images: `echo $images | sort`
+# Pass on the image file names in sorted order
+echo Images: `(for img in $images DONE ; do
+		if [ $img != "DONE" ]; then
+		    echo $img
+		fi
+	       done) | sort`
 
-# echo "$0: waiting..."
-# wait
+# The shell will automatically 'wait' for its background jobs
+# to finish before exiting, which means all the disclaimers should
+# be done.
 echo "$0: exiting."
 exit 0
