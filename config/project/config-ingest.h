@@ -1,6 +1,6 @@
 
 XCOMM ================================================================
-XCOMM $Id: config-ingest.h,v 1.1 2001-01-17 23:21:17 granger Exp $
+XCOMM $Id: config-ingest.h,v 1.2 2001-01-17 23:23:41 granger Exp $
 XCOMM Definitions from config-ingest.h.
 XCOMM ================================================================
 
@@ -15,7 +15,7 @@ XCOMM ================================================================
 /*
  * Here you can select which individual ingest modules to build.  
  */
-# define	BuildIngestScheduler	YES	/* Sun only	 	*/
+# define	BuildIngestScheduler	NO	/* Sun only	 	*/
 # define	BuildClassIngest	NO
 # define	BuildRadarIngest	NO	/* Sun only, see PCAP below*/
 # define	BuildSLGrabber		NO	/* Sun only		*/
