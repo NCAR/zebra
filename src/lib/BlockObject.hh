@@ -1,4 +1,4 @@
-/* $Id: BlockObject.hh,v 1.2 1997-12-14 23:50:12 granger Exp $
+/* $Id: BlockObject.hh,v 1.3 1997-12-17 03:45:55 granger Exp $
  *
  * A set of classes to facilitate object persistence with a BlockFile.
  */
@@ -29,6 +29,16 @@ public:
 		length(block.length), 
 		revision(block.revision)
 	{ }
+
+	// Assignment operator
+	Block &operator= (const Block &block)
+	{
+		// self-assignment ok
+		offset = block.offset;
+		length = block.length;
+		revision = block.revision;
+		return *this;
+	}
 
 	inline void translate (SerialStream &ss)
 	{
@@ -64,6 +74,10 @@ public:
 	SyncBlock (BlockFile &_bf);
 	SyncBlock (BlockFile &_bf, const Block &exist);
 
+	///
+	/** Attach a new block to this object */
+	virtual void attach (const Block &exist);
+
 	/// 
 	/** Write this block to disk if its changed or if 'force' non-zero
 	    */
@@ -80,6 +94,9 @@ public:
 
 	virtual void updateRev ();
 
+	// Indicate the block and/or its size and location have changed
+	virtual void newRev () { }
+
 	// Write ourself to our block
 	virtual void write () = 0;
 
@@ -89,7 +106,20 @@ public:
 	// How much space to allocate for this block in the block file
 	virtual void allocate (BlkSize need);
 
+	// Free this block's space in the block file
+	virtual void free ();
+
 	virtual BlkSize grow (BlkSize needed);
+
+	// Read lock this block, which also syncs it
+	virtual void readLock ();
+
+	// Write lock this block, which syncs it and
+	// causes a write sync when unlocked
+	virtual void writeLock ();
+
+	// Unlock this block
+	virtual void unlock ();
 
 	/// 
 	/** Set the mark on this block.  Use mark() to mark it as changed
@@ -112,6 +142,8 @@ protected:
 	Block block;		// Our block in the block file
 	int marked;		// Whether we're dirty or not
 	int changed;		// Changed in blockfile (needs read)
+	int lock;		// Lock count
+	int writelock;		// writeSync pending
 
 	SyncBlock () : bf(0), block(), marked(0), changed(0)
 	{ }
@@ -164,10 +196,10 @@ public:
 	 */
 	virtual int needsRead ()
 	{
-		int sync = (block.revision < ref->revision);
-		if (sync)
+		changed |= (block.revision < ref->revision);
+		if (changed)
 			block = *ref;
-		return (sync);
+		return (changed);
 	}
 
 	/*
@@ -181,16 +213,13 @@ public:
 	 * Lastly, when we've changed we need to pass on the change to
 	 * the parent reference.
 	 */
-	virtual void writeSync (int force = 0)
+	virtual void newRev ()
 	{
-		if (needsWrite (force))
-		{
-			write ();
-			*ref = block;
-			if (parent)
-				parent->mark();
-		}
-		mark (0);
+		// Our revision, and possibly location,
+		// have changed.  Update the reference.
+		*ref = block;
+		if (parent)
+			parent->mark();
 	}
 
 	virtual ~RefBlock () 
@@ -229,12 +258,15 @@ public:
 	virtual void write ()
 	{
 		// Encode ourself onto a serial buffer from the block file
+		// Be careful to size and allocate before encoding, in
+		// case the object changes (e.g., FreeList) when allocated
 		SerialBuffer *sbuf = bf->writeBuffer (block.length);
-		encode (*sbuf);
-		unsigned long growth = sbuf->Position();
+		unsigned long growth = size (*sbuf);
+		sbuf->Need (growth);
 
 		// Now make sure we have space, then write into it
 		allocate (growth);
+		encode (*sbuf);
 		bf->Write (block.offset, sbuf);
 	}		
 

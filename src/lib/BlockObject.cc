@@ -6,7 +6,7 @@
 #include <defs.h>
 #undef bool
 
-RCSID("$Id: BlockObject.cc,v 1.2 1997-12-14 23:50:11 granger Exp $")
+RCSID("$Id: BlockObject.cc,v 1.3 1997-12-17 03:45:53 granger Exp $")
 
 #include "BlockFile.hh"
 #include "BlockObject.hh"
@@ -16,8 +16,16 @@ SyncBlock::SyncBlock (BlockFile &_bf, const Block &exist) :
 	bf(&_bf), block(exist)
 {
 	cout << "SyncBlock constructor" << endl;
+	block.revision = 0;	// we have no revision in memory yet
 	marked = 0;
 	changed = 0;
+	lock = 0;
+	writelock = 0;
+
+	// If the given block has not been allocated, we're dirty
+	// because we don't yet exist in the file
+	if (block.offset == 0 && block.length == 0)
+		mark ();
 }
 
 
@@ -27,6 +35,18 @@ SyncBlock::SyncBlock (BlockFile &_bf) :
 	cout << "SyncBlock constructor" << endl;
 	marked = 0;
 	changed = 0;
+	lock = 0;
+	writelock = 0;
+}
+
+
+
+void
+SyncBlock::attach (const Block &exist)
+{
+	block = exist;
+	newRev ();
+	block.revision = 0;	// still need to read the new block
 }
 
 
@@ -38,7 +58,6 @@ SyncBlock::mark (int _marked)
 	if (clean() && _marked)
 		++block.revision;
 	this->marked = _marked;
-	this->changed = _marked;
 }
 
 
@@ -50,6 +69,7 @@ SyncBlock::writeSync (int force)
 	{
 		write ();
 	}
+	newRev ();
 	mark (0);
 }
 
@@ -61,9 +81,10 @@ SyncBlock::readSync ()
 	if (needsRead ())
 	{
 		read ();
-		updateRev ();
-		mark (0);
+		changed = 0;
 	}
+	updateRev ();
+	mark (0);
 }
 
 
@@ -71,9 +92,8 @@ SyncBlock::readSync ()
 int
 SyncBlock::needsRead ()
 {
-	if (! changed)
-		changed = bf->Changed (block.revision, block.offset,
-				       block.length);
+	changed = (changed || bf->Changed (block.revision, block.offset,
+					   block.length));
 	return (changed);
 }
 
@@ -102,14 +122,21 @@ SyncBlock::allocate (BlkSize need)
 	{
 		if (block.offset)
 			bf->Free (block.offset, block.length);
-#ifdef notdef		
-		// Don't grow on the first allocation, in case we
-		// are an object which will never grow.
-		if (block.length > 0)
-#endif
-			need = grow (need);
+		need = grow (need);
 		block.offset = bf->Alloc (need, &block.length);
 	}
+}
+
+
+
+void
+SyncBlock::free ()
+{
+	if (block.offset)
+	{
+		bf->Free (block.offset, block.length);
+	}
+	attach (Block());
 }
 
 
@@ -123,6 +150,45 @@ SyncBlock::grow (BlkSize needed)
 	npages += (npages >> 1);
 	return (npages << 8);
 }
+
+
+
+void
+SyncBlock::readLock ()
+{
+	if (lock++ == 0)
+	{
+		bf->ReadLock ();
+		readSync ();
+	}
+}
+
+
+
+void
+SyncBlock::writeLock ()
+{
+	if (lock++ == 0)
+	{
+		bf->WriteLock ();
+		readSync ();
+	}
+	writelock = 1;
+}
+
+
+
+void
+SyncBlock::unlock ()
+{
+	if (lock == 1 && writelock)
+	{
+		writeSync ();
+		writelock = 0;
+	}
+	--lock;
+}
+
 
 
 
