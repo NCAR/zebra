@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.12 1995-06-23 19:59:25 burghart Exp $"
+MFVERSION="$Id: Imakefile,v 1.13 1995-06-23 20:10:17 burghart Exp $"
 
 LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS) $(LIBPCAP)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
@@ -46,11 +46,9 @@ NormalProgramTarget(radar_ingest,radar_ingest.o mtape.o Rasterize.o
 	StatusWidget.o Input.o cp2.o PCapInput.o BeamBuffer.o, \
 	$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
-NormalProgramTargetNoInstall(btest, btest.o BeamBuffer.o,$(DEPLIBS), \
-	$(LIBS),$(SYSLIBS))
+NormalProgramTarget(btest, btest.o BeamBuffer.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
-NormalProgramTargetNoInstall(bdump, bdump.o BeamBuffer.o,$(DEPLIBS), \
-	$(LIBS),$(SYSLIBS))
+NormalProgramTarget(bdump, bdump.o BeamBuffer.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
 AllTarget(adrad_ingest)
 NormalProgramTarget(adrad_ingest,adrad_ingest.o Rasterize.o 
