@@ -33,7 +33,7 @@
 #include "dslib.h"
 #include "Appl.h"
 
-RCSID ("$Id: Appl.c,v 3.48 1997-01-14 17:47:51 granger Exp $")
+RCSID ("$Id: Appl.c,v 3.49 1997-11-21 18:09:27 burghart Exp $")
 
 /*
  * Notification callbacks are void functions
@@ -172,6 +172,10 @@ ds_InitAPI ()
 	F_Reset ();
 	for (i = 0; i < MAXPLAT; i++)
 		ApplFuncs[i] = 0;
+/*
+ * Field derivation init
+ */
+	ds_DerivInit();
 /*
  * Set up the platform lookup tables and caches.
  */
@@ -373,6 +377,23 @@ bool subs;
 	return (pl.pl_pids);
 }
 
+
+
+
+PlatformId
+ds_LookupParent (pid)
+PlatformId pid;
+/*
+ * Return pid's parent (BadPlatform if pid is not a subplatform).
+ */
+{
+	ClientPlatform *cp;
+
+	if ((cp = ds_GetPlatStruct (pid, NULL, FALSE)))
+		return (cp->cp_parent);
+
+	return (BadPlatform);
+}
 
 
 
