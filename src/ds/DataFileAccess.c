@@ -28,13 +28,13 @@
 # include <sys/stat.h>
 # include <errno.h>
 
-# include "../include/defs.h"
-# include "../include/message.h"
+# include "defs.h"
+# include "message.h"
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dslib.h"
 # include "dfa.h"
-MAKE_RCSID ("$Id: DataFileAccess.c,v 3.5 1992-11-10 04:19:26 corbet Exp $")
+MAKE_RCSID ("$Id: DataFileAccess.c,v 3.6 1992-11-19 00:17:33 granger Exp $")
 
 
 
