@@ -10,7 +10,7 @@
 # include "ui_error.h"
 # include "ui_mode.h"
 
-static char *Rcsid = "$Id: ui_cstack.c,v 1.2 1989-02-14 17:23:28 corbet Exp $";
+static char *Rcsid = "$Id: ui_cstack.c,v 1.3 1989-06-05 14:11:10 corbet Exp $";
 
 /*
  * The list of free cs_entry structures.  Whenever we need a new one,
@@ -28,7 +28,7 @@ static char *Cs_types[] =
 
 static char *Modes[] =
 {
-	"???", "Menu", "Command", "NONE", 0
+	"???", "Menu", "Command", "NONE", "Window", 0
 };
 
 
@@ -258,6 +258,7 @@ bool cleanup;
  */
 {
 	struct input_stack *old;
+	struct pb *pbp;
 	bool err = FALSE;
 
 	if (! Cs->cs_input)
@@ -289,9 +290,15 @@ bool cleanup;
  	else if (old->s_type == IST_CSAVE)
 		ucs_rel_csave (old->s_csave);
 /*
- * CLEAR OUT PB STRUCTURES TOO!!!!!!!!!!
+ * Clear out any remaining pushback structures.
  */
-
+	for (pbp = old->s_pb; pbp;)
+	{
+		register struct pb *zap = pbp;
+		pbp = pbp->pb_next;
+		usy_rel_string (zap->pb_text);
+		relvm (zap);
+	}
 /*
  * Unlink the structure from the cstack and release it.
  */
