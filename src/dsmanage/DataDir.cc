@@ -42,7 +42,7 @@ extern "C" {
 # endif
 };
 
-static char *rcsid = "$Id: DataDir.cc,v 1.4 1994-01-10 20:46:42 corbet Exp $";
+static char *rcsid = "$Id: DataDir.cc,v 1.5 1994-02-01 20:43:44 corbet Exp $";
 
 //
 // The data directory class.
@@ -70,7 +70,8 @@ DataDir::~DataDir ()
 
 
 
-int DataDir::FreeSpace ()
+int
+DataDir::FreeSpace ()
 //
 // How much space is free here?
 //
@@ -78,12 +79,14 @@ int DataDir::FreeSpace ()
 # ifdef SVR4
 	struct statvfs stbuf;
 	if (statvfs (directory, &stbuf) < 0)
+		return (-1);
+	return (stbuf.f_frsize*stbuf.f_bavail);
 # else
 	struct statfs stbuf;
 	if (statfs (directory, &stbuf) < 0)
-# endif
 		return (-1);
 	return (stbuf.f_bsize*stbuf.f_bavail);
+# endif
 }
 
 

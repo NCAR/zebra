@@ -48,7 +48,7 @@ extern "C"
 # include "Index.h"
 # include "ZTime.h"
 # include "plcontainer.h"
-MAKE_RCSID ("$Id: LoadData.cc,v 1.6 1993-11-03 23:34:28 corbet Exp $")
+MAKE_RCSID ("$Id: LoadData.cc,v 1.7 1994-02-01 20:43:47 corbet Exp $")
 
 class LoadSelect;
 
@@ -269,6 +269,7 @@ dsSourceSelect (Widget w, XtPointer tbutton, XtPointer junk)
 //
 {
 	Arg args[2];
+	char *defcd = getenv ("ZEB_CDROM") ? getenv ("ZEB_CDROM") : "/cd";
 //
 // Set the tape flag.  If it hasn't changed, we can quit.
 //
@@ -283,7 +284,7 @@ dsSourceSelect (Widget w, XtPointer tbutton, XtPointer junk)
 			"Tape device:" : "CD Directory:");
 	XtSetValues (dsLdSrcWidget->devprompt, args, 1);
 	XtSetArg (args[0], XtNstring,
-			dsLdSrcWidget->tape ? "/dev/rst8" : "/cd");
+			dsLdSrcWidget->tape ? "/dev/rst8" : defcd);
 	XtSetValues (dsLdSrcWidget->file, args, 1);
 //
 // Index sensitivity
