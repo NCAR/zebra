@@ -32,7 +32,7 @@
 # include "dslib.h"
 # include "dfa.h"
 #ifndef lint
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.44 1995-04-17 22:53:32 granger Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.45 1995-04-18 22:21:34 granger Exp $")
 #endif
 
 #include <netcdf.h>
@@ -640,6 +640,11 @@ NCTag **rtag;
 			dnc_CloseFile (tag);
 			return (FALSE);
 		}
+	}
+	else
+	{
+		msg_ELog (EF_PROBLEM, "netcdf altitude variable not found: %s",
+			  "ignoring altitudes");
 	}
 /*
  * The rest of the setup is organization-specific.
@@ -3647,7 +3652,7 @@ DataChunk *dc;
 	sprintf(history,"created by Zeb DataStore, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.44 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.45 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 #endif /* TEST_TIME_UNITS */
