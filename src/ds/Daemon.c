@@ -45,7 +45,7 @@
 # include "dsDaemon.h"
 # include "commands.h"
 
-MAKE_RCSID ("$Id: Daemon.c,v 3.53 1995-08-31 09:58:07 granger Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.54 1995-08-31 19:09:36 granger Exp $")
 
 
 /*
@@ -169,6 +169,9 @@ int ReadLockRequests = 0;
 int WriteLockRequests = 0;
 
 
+static int Argc;
+static char **Argv;
+
 
 static inline int
 Match(arg,opt)
@@ -178,6 +181,20 @@ char *opt;
 	int len = strlen(arg);
 
 	return (len > 1 && strncmp(arg, opt, len) == 0);
+}
+
+
+static void
+usage (prog)
+char *prog;
+{
+	printf("usage: %s [options] [variables] initfile\n", prog);
+	printf("options: [can be abbreviated]\n");
+	printf("   -help       Show this usage message\n");
+	printf("   -parse      Parse config file and exit\n");
+	printf("   -debug      Dump platform debug info\n");
+	printf("variables: \n");
+	printf("   name=value  Override config file variable\n");
 }
 
 
@@ -192,6 +209,30 @@ char **argv;
 	int argt = SYMT_STRING;
 	stbl vtable;
 	int i;
+/*
+ * Set up the init file and other command-line options
+ */
+	initfile = NULL;
+	Argc = argc;
+	Argv = argv;
+	for (i = 1; i < argc; ++i)
+	{
+		if (Match (argv[i], "-debug"))
+			Debug = TRUE;
+		else if (Match (argv[i], "-parse"))
+			ParseOnly = TRUE;
+		else if (Match (argv[i], "-help"))
+		{
+			usage (argv[0]);
+			exit (0);
+		}
+		else if (strchr (argv[i], '='))
+			/* variable settings handled later */ ;
+		else if (initfile)
+			printf ("%s: argument %s ignored\n", argv[0], argv[i]);
+		else
+			initfile = argv[i];
+	}
 /*
  * Hook into the message system.
  */
@@ -246,32 +287,16 @@ char **argv;
 /*
  * Other initialization.
  */
-/*	InitSharedMemory (); */
-/*	dt_InitTables (); */	/* Allow setting table sizes in config file */
+#ifdef notdef
+	InitSharedMemory ();
+	dt_InitTables ();	/* Allow setting table sizes in config file */
+#endif
 	dap_Init ();
 	uf_def_function ("freespace", 1, &argt, FreeSpace);
 	F_Init ();
 /*
- * Set up the init file and other command-line options
+ * Start reading commands.
  */
-	initfile = NULL;
-	for (i = 1; i < argc; ++i)
-	{
-		if (Match (argv[i], "-debug"))
-			Debug = TRUE;
-		else if (Match (argv[i], "-parse"))
-			ParseOnly = TRUE;
-		else if (Match (argv[i], "-help"))
-		{
-			printf ("usage: %s [-parse][-debug][-help] initfile\n",
-				argv[0]);
-			exit (0);
-		}
-		else if (initfile)
-			printf ("%s: argument %s ignored\n", argv[0], argv[i]);
-		else
-			initfile = argv[i];
-	}
 	if (initfile)
 	{
 		SValue v;
@@ -279,9 +304,6 @@ char **argv;
 		usy_s_symbol (usy_g_stbl ("ui$variable_table"),
 			      "initfile", SYMT_STRING, &v);
 	}
-/*
- * Start reading commands.
- */
 	if (Debug)
 		printf ("Reading command file %s\n", initfile);
 	ui_get_command ("initial", "dsd>", ui_Handler, 0);
@@ -290,6 +312,32 @@ char **argv;
 	return (0);
 }
 
+
+
+static void
+OverrideSettings (argc, argv)
+int argc;
+char **argv;
+/*
+ * Translate non-option args of the form name=value into 'set name value'
+ * UI commands and perform them.
+ */
+{
+	int i;
+	char *eq;
+	char cmd[512];
+
+	for (i = 1; i < argc; ++i)
+	{
+		if ((argv[i][0] != '-') && ((eq = strchr(argv[i], '='))))
+		{
+			*eq++ = '\0';
+			sprintf (cmd, "set %s %s", argv[i], eq);
+			printf ("%s\n", cmd);
+			ui_perform (cmd);
+		}
+	}
+}
 
 
 
@@ -302,6 +350,10 @@ FinishInit ()
 	ZebTime t1, t2;
 	int type;
 	SValue v;
+/*
+ * Override config file variables with any cmd-line settings
+ */
+	OverrideSettings (Argc, Argv);
 /*
  * Keep track of when we start.
  */
