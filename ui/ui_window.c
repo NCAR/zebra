@@ -1,5 +1,4 @@
 /* 3/89 jc */
-/* $Id: ui_window.c,v 1.1 1989-10-25 16:18:24 corbet Exp $ */
 
 # ifdef XSUPPORT
 /* 
@@ -10,14 +9,25 @@
 # include <X11/cursorfont.h>
 # include <X11/Intrinsic.h>
 # include <X11/Cardinals.h>
-# include <X11/Command.h>
 # include <X11/StringDefs.h>
-# include <X11/Box.h>
 # include <X11/Shell.h>
+# ifdef X11R3
+# include <X11/Box.h>
+# include <X11/Command.h>
 # include <X11/List.h>
 # include <X11/Form.h>
 # include <X11/Label.h>
 # include <X11/VPaned.h>
+# define XawListHighlight XtListHighlight
+# define XawListUnhighlight XtListUnhighlight
+# else
+# include <X11/Xaw/Box.h>
+# include <X11/Xaw/Command.h>
+# include <X11/Xaw/List.h>
+# include <X11/Xaw/Form.h>
+# include <X11/Xaw/Label.h>
+# include <X11/Xaw/VPaned.h>
+# endif
 
 # include "ui.h"
 # include "ui_param.h"
@@ -28,7 +38,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_window.c,v 1.1 1989-10-25 16:18:24 corbet Exp $";
+static char *Rcsid = "$Id: ui_window.c,v 1.2 1990-02-06 16:13:00 corbet Exp $";
 
 static bool Initialized = FALSE;
 static bool Active = FALSE;	/* Is window mode active??	*/
@@ -82,6 +92,7 @@ struct gen_widget
 	struct gen_widget *gw_next;	/* The next widget in the chain */
 	void (*gw_create)();	/* The routine to create this thing	*/
 	void (*gw_popup) ();	/* Routine to be called on popups	*/
+	void (*gw_destroy) ();	/* The destroy method			*/
 	struct frame_widget *gw_frame;	/* The associated frame		*/
 	Widget gw_w;		/* The actual X widget			*/
 };
@@ -95,6 +106,7 @@ struct frame_widget
 	struct gen_widget *fw_next;	/* Next widget in the chain	*/
 	void (*fw_create)();	/* The routine to create this thing	*/
 	void (*fw_popup) ();	/* Popup routine			*/
+	void (*fw_destroy) ();	/* The destroy method			*/
 	struct frame_widget *fw_frame;	/* The associated frame		*/
 	Widget fw_w;		/* The actual popup widget structure	*/
 	/* -- end of gen_widget stuff */
@@ -102,6 +114,8 @@ struct frame_widget
 	char fw_title[MAXTITLE];/* The title of this widget		*/
 	int fw_flags;		/* Status flags				*/
 	int fw_nchild;		/* Number of children widgets		*/
+	int fw_x, fw_y;		/* Override position			*/
+	int fw_width, fw_height;/* Override size			*/
 	Widget fw_vp;		/* The internal vpaned widget		*/
 	Widget fw_form;		/* The internal form widget		*/
 	Widget fw_bottom;	/* Last widget on the stack.		*/
@@ -114,6 +128,8 @@ struct frame_widget
 # define WF_CREATED	0x0002	/* The X widget has been created	*/
 # define WF_POPPED	0x0004	/* This widget is actually displayed	*/
 # define WF_INIT	0x0008	/* Was this widget created during init? */
+# define WF_OVERRIDE	0x0010	/* This is an OVERRIDE widget		*/
+# define WF_NODEC	0x0020	/* Do not decorate this widget		*/
 
 
 
@@ -126,6 +142,7 @@ struct list_widget
 	struct gen_widget *lw_next;	/* Next widget in the chain	*/
 	void (*lw_create)();	/* The routine to create this thing	*/
 	void (*lw_popup) ();	/* Popup routine			*/
+	void (*lw_destroy) ();	/* The destroy method			*/
 	struct frame_widget *lw_frame;	/* The associated frame		*/
 	Widget lw_list;		/* The actual list widget		*/
 	/* -- end of gen_widget stuff */
@@ -223,8 +240,12 @@ struct ui_command *cmds;
  */
 	if (! Initialized)
 	{
+# ifdef notdef
 		Top = XtInitialize ("UI", "UI", NULL, 0, &one, argv);
 		Appc = XtWidgetToApplicationContext (Top);
+# endif
+		Top = XtAppInitialize (&Appc, "UI", NULL, ZERO, &one, argv,
+			NULL, NULL, ZERO);
 		Labelfont = XLoadQueryFont (XtDisplay (Top), Title_font_name);
 		Zapcursor = XCreateFontCursor (XtDisplay (Top), XC_pirate);
 		Initialized = TRUE;
@@ -378,11 +399,11 @@ char *strings;
 
 
 
-uw_define (name, type, title)
-char *name;
-int type;
-char *title;
+uw_define (cmds)
+struct ui_command *cmds;
 {
+	char *name = UPTR (cmds[0]), *title = UPTR (cmds[2]);
+	int type = UINT (cmds[1]);
 	struct gen_widget *gw;
 	struct frame_widget *frame;
 /*
@@ -435,14 +456,11 @@ struct frame_widget *frame;
 	struct frame_widget *old;
 	union usy_value v;
 /*
- * If the widget already exists, deal with the changes "the right way".
+ * If the widget already exists, get rid of it.  Sometime it would be nice
+ * to do this better.
  */
 	if (old = (struct frame_widget *) uw_g_widget (frame->fw_name))
-	{
-		/* uw_lnew (old, new); */
-		ui_error ("I haven't implemented redefinition yet!");
-		return;
-	}
+		uw_zap_widget (old);
 /*
  * Define the new widget.
  */
@@ -538,7 +556,7 @@ void (*callback) ();
 {
 	struct list_widget *new;
 	struct frame_widget *frame;
-	void uw_lcreate ();
+	void uw_lcreate (), uw_ldestroy ();
 	char *cp;
 	int i, len;
 /*
@@ -549,6 +567,7 @@ void (*callback) ();
 	new->lw_cb = callback;
 	new->lw_type = WT_LIST;
 	new->lw_create = uw_lcreate;
+	new->lw_destroy = uw_ldestroy;
 	new->lw_flags = 0;
 	new->lw_nmap = 0;
 	new->lw_select = 0;
@@ -597,7 +616,7 @@ uw_list_def ()
  */
 	struct list_widget *new;
 	int uw_in_list ();
-	void uw_lcreate (), ui_perform ();
+	void uw_lcreate (), ui_perform (), uw_ldestroy ();
 /*
  * Make a new list widget structure.
  */
@@ -605,6 +624,7 @@ uw_list_def ()
 	new->lw_cbdata = 0;
 	new->lw_type = WT_LIST;
 	new->lw_create = uw_lcreate;
+	new->lw_destroy = uw_ldestroy;
 	new->lw_cb = ui_perform;
 	new->lw_nmap = 0;
 /*
@@ -881,7 +901,11 @@ char *item;
  */
 {
 	union usy_value v;
+# ifdef X11R3
 	XtListReturnStruct *ritem = (XtListReturnStruct *) item;
+# else
+	XawListReturnStruct *ritem = (XawListReturnStruct *) item;
+# endif
 /*
  * Set up the "selection" variable.
  */
@@ -891,7 +915,7 @@ char *item;
  * Set the selector variable, if appropriate.
  */
 	if (lw->lw_flags & LWF_SELECTOR && ! lw->lw_nmap)
-		uw_setselector (lw->lw_select, ritem->index);
+		uw_setselector (lw->lw_select, ritem->list_index);
 /*
  * Perform the callback.
  */
@@ -904,7 +928,7 @@ char *item;
  	if (lw->lw_flags & LWF_SELECTOR)
 		uw_lselect (lw);
 	else
-	 	XtListUnhighlight (lw->lw_list);
+	 	XawListUnhighlight (lw->lw_list);
 }
 
 
@@ -1013,7 +1037,6 @@ struct frame_widget *w;
 	for (gw = w->fw_next; gw; gw = gw->gw_next)
 		if (gw->gw_create)
 			uw_cchild (w, gw);
-		/*	(*gw->gw_create) (gw, w->fw_vp); */
 	w->fw_flags |= WF_CREATED;
 }
 
@@ -1165,7 +1188,8 @@ uw_sync ()
  * Sync up with the server.
  */
 {
-	XSync (XtDisplay (Top), False);
+	if (Initialized)
+		XSync (XtDisplay (Top), False);
 }
 
 
@@ -1180,7 +1204,7 @@ uw_cm_def ()
  */
 	struct list_widget *new;
 	int uw_in_cmenu (), i;
-	void uw_lcreate (), ui_perform ();
+	void uw_lcreate (), ui_perform (), uw_ldestroy ();
 	struct cmenu_temp cm;
 	char *cp, *ip;
 /*
@@ -1190,6 +1214,7 @@ uw_cm_def ()
 	new->lw_cbdata = 0;
 	new->lw_type = WT_CMENU;
 	new->lw_create = uw_lcreate;
+	new->lw_destroy = uw_ldestroy;
 	new->lw_cb = ui_perform;
 	new->lw_flags = 0;
 /*
@@ -1340,7 +1365,11 @@ char *item;
  */
 {
 	union usy_value v;
+# ifdef X11R3
 	XtListReturnStruct *ritem = (XtListReturnStruct *) item;
+# else
+	XawListReturnStruct *ritem = (XawListReturnStruct *) item;
+# endif
 /*
  * Set up the "selection" variable.
  */
@@ -1350,12 +1379,12 @@ char *item;
  * Set the selector variable, if appropriate.
  */
 	if (lw->lw_flags & LWF_SELECTOR && ! lw->lw_nmap)
-		uw_setselector (lw->lw_select, ritem->index);
+		uw_setselector (lw->lw_select, ritem->list_index);
 /*
  * Perform the callback.
  */
 	ERRORCATCH
-		(*lw->lw_cb) (lw->lw_cptr[ritem->index]);
+		(*lw->lw_cb) (lw->lw_cptr[ritem->list_index]);
 	ENDCATCH
 /*
  * Deal with highlighting.
@@ -1363,7 +1392,7 @@ char *item;
  	if (lw->lw_flags & LWF_SELECTOR)
 		uw_lselect (lw);
 	else
-	 	XtListUnhighlight (lw->lw_list);
+	 	XawListUnhighlight (lw->lw_list);
 }
 
 
@@ -1401,7 +1430,7 @@ struct list_widget *lw;
  */
 	if (! usy_g_symbol (Ui_variable_table, lw->lw_select, &type, &v))
 	{
-	 	XtListUnhighlight (lw->lw_list);
+	 	XawListUnhighlight (lw->lw_list);
 		return;
 	}
 /*
@@ -1459,9 +1488,9 @@ union usy_value *v;
  * Actually do something with the widget.
  */
 	if (index < 0 || index >= lw->lw_nitem)
-		XtListUnhighlight (lw->lw_list);
+		XawListUnhighlight (lw->lw_list);
 	else
-		XtListHighlight (lw->lw_list, index);
+		XawListHighlight (lw->lw_list, index);
 }
 
 
@@ -1711,7 +1740,7 @@ int lun;
 {
 	struct list_widget *lw;
 	char ctmp[500];
-	void ui_perform ();
+	void ui_perform (), uw_ldestroy ();
 /*
  * Allocate a new list widget structure, and read the old one from the file.
  */
@@ -1721,8 +1750,9 @@ int lun;
  * Fill in the function pointers, since they may have changed.
  */
 	lw->lw_create = uw_lcreate;
+	lw->lw_destroy = uw_ldestroy;
 	lw->lw_cb = ui_perform;
-	lw->lw_flags &= ~(WF_CREATED | WF_POPPED);
+	/* lw->lw_flags &= ~(WF_CREATED | WF_POPPED); */
 /*
  * Get the command, and the selector if there is one.
  */
@@ -1791,7 +1821,7 @@ int lun;
 {
 	struct list_widget *lw;
 	char ctmp[500], *cp;
-	void ui_perform ();
+	void ui_perform (), uw_ldestroy ();
 	int i;
 /*
  * Allocate and read a new structure.
@@ -1802,8 +1832,9 @@ int lun;
  * Fix up the function pointers, since they may have changed.
  */
 	lw->lw_create = uw_lcreate;
+	lw->lw_destroy = uw_ldestroy;
 	lw->lw_cb = ui_perform;
-	lw->lw_flags &= ~(WF_CREATED | WF_POPPED);
+	/* lw->lw_flags &= ~(WF_CREATED | WF_POPPED); */
 /*
  * Get the selector if there is one.
  */
@@ -1837,6 +1868,98 @@ int lun;
 		uw_l_map (lun, lw);
 	return ((struct gen_widget *) lw);
 }
+
+
+
+
+
+
+uw_zap_widget (frame)
+struct frame_widget *frame;
+/*
+ * Cause this widget to cease to exist.
+ * Entry:
+ *	FRAME	is the frame structure.
+ * Exit:
+ *	The widget is history.
+ */
+{
+	struct gen_widget *zap, *next;
+/*
+ * First, go through and zap each child of this frame.
+ */
+	next = frame->fw_next;
+	for (zap = next; zap; zap = next)
+	{
+		next = zap->gw_next;
+		(*zap->gw_destroy) (zap, frame->fw_flags & WF_CREATED);
+	}
+/*
+ * Clean up the frame widgets.
+ */
+	if (frame->fw_flags & WF_CREATED)
+	{
+	 	XtDestroyWidget (frame->fw_form);
+		XtDestroyWidget (frame->fw_w);
+	}
+/*
+ * Undefine this name and get rid of the frame.
+ */
+	usy_z_symbol (Widget_table, frame->fw_name);
+	relvm (frame);
+/*
+ * Sync up, so that any deleted widgets disappear from the screen.
+ */
+	uw_sync ();
+}
+
+
+
+
+
+
+void
+uw_ldestroy (gw, realized)
+struct gen_widget *gw;
+bool realized;
+/*
+ * Get rid of this list widget.
+ */
+{
+	struct list_widget *lw = (struct list_widget *) gw;
+/*
+ * If this widget was realized, we must get rid of the associated X 
+ * data structures.
+ */
+	if (realized)
+		XtDestroyWidget (lw->lw_list);
+/*
+ * Widgets with selectors need to have the daemon disabled.
+ */
+	if (lw->lw_flags & LWF_SELECTOR && realized)
+		usy_z_daemon (Ui_variable_table, lw->lw_select, SOP_WRITE,
+			uw_ldaemon, (char *) lw);
+/*
+ * Go through and release memory.
+ */
+ 	if (lw->lw_flags & LWF_SELECTOR)
+		usy_rel_string (lw->lw_select);
+	relvm (lw->lw_items);
+	if (lw->lw_nmap)
+		relvm (lw->lw_map);
+	relvm (lw->lw_cbdata);
+/*
+ * CMENU's have some extra junk.
+ */
+ 	if (lw->lw_type == WT_CMENU)
+		relvm (lw->lw_cptr);
+/*
+ * Finally, get rid of the structure itself.
+ */
+	relvm (lw);
+}
+
+
 
 
 # endif /* XSUPPORT */
