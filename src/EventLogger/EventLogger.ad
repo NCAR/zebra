@@ -1,13 +1,25 @@
-! $Id: EventLogger.ad,v 1.4 1993-09-13 23:38:40 granger Exp $
+! $Id: EventLogger.ad,v 1.5 1994-05-21 05:16:44 granger Exp $
 !
 ! Application defaults file for the EventLogger
 ! DO NOT MODIFY this file if this is the library installed copy!!!
 !
+*eventlogger.geometry:	-10-10
+*text.width:		600
+*text.height:		175
+*allowShellResize:	True
+*resizable:		True
 *borderWidth: 1
 *Toggle*font:	-*-helvetica-medium-r-*-*-*-120-*-*-*-*-*-*
 *Command*font:	-*-helvetica-medium-r-*-*-*-120-*-*-*-*-*-*
 *MenuButton*font:	-*-helvetica-medium-r-*-*-*-120-*-*-*-*-*-*
-*Text*font:	-*-courier-medium-r-*-*-*-100-*-*-*-*-*-*
+*text*font:	-*-courier-medium-r-*-*-*-100-*-*-*-*-*-*
+*text*left:		chainLeft
+*text*right:		chainRight
+*text*top:		chainTop
+*text*bottom:		chainBottom
+*text*horizDistance:	3
+*text*vertDistance:	3
+*text.resizable:	false
 *foreground:		MidnightBlue
 *background:		gray90
 *Form.background:	cadet blue
@@ -27,7 +39,6 @@
 !
 *logpopup*logdialog.label:	Log File Settings
 *logpopup*logdialog.label.width:	260
-!*logpopup*logdialog.icon:	/zeb/gary/cvs/EventLogger/scroll.bm
 *logpopup*logdialog.dismiss.label:	Dismiss
 *logpopup*logdialog.value.width:	300
 *logpopup*logdialog.mask.label:		Events ->

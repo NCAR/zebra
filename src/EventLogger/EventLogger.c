@@ -35,14 +35,14 @@
 # include <X11/Xaw/Cardinals.h>
 # include <X11/Xaw/Dialog.h>
 # include <X11/Xaw/Toggle.h>
-# include "defs.h"
-# include "message.h"
-# include "timer.h"
-# include "dm.h"
-# include "config.h"
-# include "copyright.h"
+# include <defs.h>
+# include <message.h>
+# include <timer.h>
+# include <dm.h>
+# include <config.h>
+# include <copyright.h>
 # ifndef lint
-MAKE_RCSID ("$Id: EventLogger.c,v 2.23 1994-01-03 08:09:02 granger Exp $")
+MAKE_RCSID ("$Id: EventLogger.c,v 2.24 1994-05-21 05:16:45 granger Exp $")
 # endif
 
 # define EL_NAME "EventLogger"
@@ -94,7 +94,7 @@ static int FortuneWait = FORTUNE_WAIT;	/* secs idle time between fortunes */
  */
 static int Buflen = 0;
 static char *Initmsg = 
-"$Id: EventLogger.c,v 2.23 1994-01-03 08:09:02 granger Exp $\nCopyright (C)\
+"$Id: EventLogger.c,v 2.24 1994-05-21 05:16:45 granger Exp $\nCopyright (C)\
  1991 UCAR, All rights reserved.\n";
 
 /*
@@ -196,6 +196,7 @@ int	PassDebug FP ((int,  char *));
 int 	xevent (), msg_event ();
 static void sync ();
 static void CreateEventLogger FP ((void));
+static void SendGeometry FP((struct dm_msg *dmm));
 static Widget MakeTimestampButton FP ((Widget left, int default_period));
 static void TimestampSetup FP ((int period));
 static void Timestamp FP ((ZebTime *t, void *param));
@@ -507,7 +508,9 @@ char **argv;
 	if (Windows)
 	{
 		msg_add_fd (XConnectionNumber (XtDisplay (Shell)), xevent);
-		reconfig (625, 600, 500, 150);
+		/* reconfig (625, 600, 500, 150); */
+		XtPopup (Shell, XtGrabNone);
+		Visible = TRUE;
 	}
 /*
  * Log a message about our log file, if there is one
@@ -585,7 +588,8 @@ CreateEventLogger()
 	XtSetArg (args[n], XtNoverrideRedirect, 
 		  (Override) ? True : False);		n++;
 	XtSetArg (args[n], XtNallowShellResize, True);	n++;
-	Shell = XtCreatePopupShell ("Event Logger", topLevelShellWidgetClass,
+	XtSetArg (args[n], XtNtitle, "Event Logger");	n++;
+	Shell = XtCreatePopupShell ("eventlogger", topLevelShellWidgetClass,
 		Top, args, n);
 /*
  * Put a form inside it.
@@ -664,19 +668,14 @@ CreateEventLogger()
 /*
  * Now the big, hairy, text widget.
  */
-	XtSetArg (args[0], XtNresize, XawtextResizeNever);
+	XtSetArg (args[0], XtNstring, Initmsg);
 	XtSetArg (args[1], XtNfromHoriz, NULL);
 	XtSetArg (args[2], XtNfromVert, label);
 	XtSetArg (args[3], XtNtype, XawAsciiString);
 	XtSetArg (args[4], XtNeditType, XawtextRead);
 	XtSetArg (args[5], XtNscrollVertical, XawtextScrollAlways);
-	XtSetArg (args[6], XtNtop, XtChainTop);
-	XtSetArg (args[7], XtNstring, Initmsg);
-	XtSetArg (args[8], XtNleft, XtChainLeft);
-	XtSetArg (args[9], XtNbottom, XtChainBottom);
-	XtSetArg (args[10], XtNright, XtChainRight);
 	Text = XtCreateManagedWidget ("text", asciiTextWidgetClass, Form,
-		args, 11);
+		args, 6);
 	XawTextDisplayCaret (Text, False);
 	Buflen = strlen (Initmsg);
 }
@@ -1193,7 +1192,8 @@ struct message *msg;
  */	
 	else if (msg->m_proto != MT_MESSAGE)
 	{
-		sprintf (mb, "Unexpected protocol %d", msg->m_proto);
+		sprintf (mb, "Unexpected protocol %d from %s", 
+			 msg->m_proto, msg->m_from);
 		LogMessage (EF_PROBLEM, "EventLogger", mb);
 	}
 	else switch (client->mh_type)
@@ -1531,6 +1531,12 @@ struct dm_msg *dmsg;
 				dmsg->dmm_dy);
 		break;
 	/*
+	 * Geometry request.
+	 */
+	   case DM_GEOMETRY:
+		SendGeometry (dmsg);
+		break;
+	/*
 	 * They might want us to go away entirely.
 	 */
 	   case DM_SUSPEND:
@@ -1556,6 +1562,35 @@ struct dm_msg *dmsg;
 
 
 
+static void
+SendGeometry (dmm)
+struct dm_msg *dmm;
+{
+	struct dm_msg reply;
+	Dimension width, height;
+	Position x, y;
+	Arg args[5];
+	int n;
+
+	reply.dmm_type = DM_R_GEOMETRY;
+
+	n = 0;
+	XtSetArg (args[n], XtNx, (XtArgVal)&x);	n++;
+	XtSetArg (args[n], XtNy, (XtArgVal)&y);	n++;
+	XtSetArg (args[n], XtNwidth, (XtArgVal)&width);	n++;
+	XtSetArg (args[n], XtNheight, (XtArgVal)&height); n++;
+	XtGetValues (Shell, args, n);
+	reply.dmm_x = x;
+	reply.dmm_y = y;
+	reply.dmm_dx = width;
+	reply.dmm_dy = height;
+
+	msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &reply, sizeof (reply));
+}
+
+
+
+
 
 
 reconfig (x, y, w, h)
@@ -1566,13 +1601,14 @@ int x, y, w, h;
 {
 	Arg args[5];
 	int n;
-/*
- * For positioning, move the shell.
+/* 
+ * If they can't see us, make it so now.
  */
-	n = 0;
-	XtSetArg (args[n], XtNx, x);	n++;
-	XtSetArg (args[n], XtNy, y);	n++;
-	XtSetValues (Shell, args, n);
+	if (! Visible)
+	{
+		XtPopup (Shell, XtGrabNone);
+		Visible = TRUE;
+	}
 /*
  * For sizing, change the form inside the shell.
  */
@@ -1580,14 +1616,13 @@ int x, y, w, h;
 	XtSetArg (args[n], XtNwidth, w);	n++;
 	XtSetArg (args[n], XtNheight, h);	n++;
 	XtSetValues (Form, args, n);
-/* 
- * If they can't see us yet, make it so now.
+/*
+ * For positioning, move the shell.
  */
-	if (! Visible)
-	{
-		XtPopup (Shell, XtGrabNone);
-		Visible = TRUE;
-	}
+	n = 0;
+	XtSetArg (args[n], XtNx, x);	n++;
+	XtSetArg (args[n], XtNy, y);	n++;
+	XtSetValues (Shell, args, n);
 	sync ();
 }
 
