@@ -40,7 +40,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-RCSID ("$Id: DataFormat.c,v 3.8 1998-10-28 21:20:51 corbet Exp $")
+RCSID ("$Id: DataFormat.c,v 3.9 1998-10-29 20:58:00 burghart Exp $")
 
 /*
  * Include the DataFormat structure definition, and the public and
@@ -939,7 +939,7 @@ int ndetail;
 		c += strlen(c);
 		if (fullyear)
 		{
-			sprintf (c, ".%04d%02d%02d", year+1900, mo, day);
+			sprintf (c, ".%04d%02d%02d", year, mo, day);
 		}
 		else 
 		{
