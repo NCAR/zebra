@@ -1,3 +1,64 @@
+Wed May 11 17:45:05 1994  Gary Granger  (granger@kodiak)
+
+	* ds: Platform class and instance hierarchies added.  Primitive
+	  debugging options.  More stats in query responses.
+
+	* dm: Define plot descriptions with dm commands.  Configs saved
+	  as a single file, complete with plot descriptions.  Includes new
+	  'showpd' command.
+
+Mon May  9 16:42:08 1994  Jonathan Corbet  (corbet@ale)
+
+	* dm: Replaced the obnoxious old "new window" widget with a
+	  simpler one.  "Popup OldNewWindow" to get the old version.
+
+	* gp: Added the option to activate the field names in xygraph 
+	  (simple) side annotation.
+
+	  Fixed an ugly bug in XYContour which would produce a color bar
+	  on the side with random numbers.
+
+Tue May  3 10:34:32 1994  Jonathan Corbet  (corbet@ale)
+
+	* message: will no longer create and listen on an internet socket
+	  unless the -i flag is present.
+
+Tue Apr 26 14:23:08 1994  Jonathan Corbet  (corbet@ale)
+
+	* gp: fixed a problem with the field menu when used from annot
+	  active areas.
+
+	* DFA_NetCDF.c: fixed a nasty free(random) bug.  Chalk up another
+	  one for testcenter
+
+Fri Mar 18 09:42:56 1994  Jonathan Corbet  (corbet@ale)
+
+	* dm.c: Reset tbspace back to 0 by default.  My other change was
+	  rather ill-advised.
+
+Fri Mar  4 14:30:48 1994  Jonathan Corbet  (corbet@ale)
+
+        * Fixed an unitialized variable problem in dsDaemon that would
+	  cause lots of ugly garbage on the screen on exit, occasionally.
+
+Mon Feb 14 09:29:49 1994  Jonathan Corbet  (corbet@ale)
+
+	* ActiveArea.c Fixed a silly off-by-one error that was causing
+	  unsightly core dumps.
+
+	* FrameCache.c: Thrashed up and cleaned the code; no functionality
+	  change.
+
+Thu Feb 10 14:08:45 1994  Jonathan Corbet  (corbet@ale)
+
+	* AxisControl.c: fix a couple of XDrawLine calls which were trying
+	  to pass floating-point coordinates.
+
+        * There is some confusion about what should be done in
+	  px_GlobalPlot and what belongs elsewhere.  I have moved some
+	  stuff around so that the right thing happens in the right order.
+	  This code needs some review in the future...
+
 Thu Feb  3 14:45:32 1994  Jonathan Corbet  (corbet@steam)
 
 	* Tagging version V4.0.
