@@ -17,7 +17,7 @@
 # include "ui_expr.h"
 # include "ui_error.h"
 
-static char *Rcsid = "$Id: ui_parser.c,v 1.9 1992-01-30 21:10:32 corbet Exp $";
+static char *Rcsid = "$Id: ui_parser.c,v 1.10 1995-12-08 22:25:10 granger Exp $";
 
 void ui_error ();
 char *zapcase ();
@@ -669,7 +669,7 @@ char *cp;
 {
 	if (*cp == '\'' || *cp == '\"')
 	{
-		char *quote = strchr (cp + 1, *cp);
+		char *quote = (char *)strchr (cp + 1, *cp);
 		if (! quote)
 			ui_error ("Missing close quote");
 		if (quote[1] == '\0')

@@ -5,7 +5,7 @@
 # ifdef XSUPPORT
 
 
-static char *rcsid = "$Id: ui_wPulldown.c,v 1.16 1994-11-01 02:57:49 case Exp $";
+static char *rcsid = "$Id: ui_wPulldown.c,v 1.17 1995-12-08 22:25:14 granger Exp $";
 
 # ifndef X11R3		/* This stuff don't work under R3.	*/
 /* 
@@ -70,9 +70,9 @@ struct menubar_widget
 
 typedef enum {
 	CommandEntry,
-	LineEntry,
+	LineEntry
 # ifdef SMEMENU
-	MenuEntry,
+	, MenuEntry
 # endif
 } EntryType;
 

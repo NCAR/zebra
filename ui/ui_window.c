@@ -27,7 +27,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_window.c,v 1.32 1995-05-20 06:48:02 granger Exp $";
+static char *Rcsid = "$Id: ui_window.c,v 1.33 1995-12-08 22:25:17 granger Exp $";
 
 /*
  * Public variables, declared in ui_window.h
@@ -892,7 +892,7 @@ Widget form;
 	XtSetArg (args[n], XtNfromVert, NULL);			n++;
 	XtSetArg (args[n], XtNcursor, Zapcursor);		n++;
 	zap = XtCreateManagedWidget ("zap", commandWidgetClass, header,args,n);
-	XtAddCallback (zap, XtNcallback, uw_zapbutton, frame);
+	XtAddCallback (zap, XtNcallback, (XtCallbackProc)uw_zapbutton, frame);
 /*
  * Done.
  */

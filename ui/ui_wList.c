@@ -3,7 +3,7 @@
  */
 
 # ifdef XSUPPORT
-static char *rcsid = "$Id: ui_wList.c,v 1.7 1992-01-30 21:10:58 corbet Exp $";
+static char *rcsid = "$Id: ui_wList.c,v 1.8 1995-12-08 22:25:12 granger Exp $";
 /* 
  * Window system code.
  */
@@ -376,8 +376,8 @@ Widget parent;
  */
 	w->lw_list = XtCreateWidget ("list", listWidgetClass, parent,
 			listargs, 5);
-	XtAddCallback (w->lw_list, XtNcallback,
-		w->lw_type == WT_LIST ? uw_lcb : uw_cmcb, w);
+	XtAddCallback (w->lw_list, XtNcallback, (XtCallbackProc)
+		(w->lw_type == WT_LIST ? uw_lcb : uw_cmcb), w);
 /*
  * If there is a selector variable, set up a watcher for it.
  */
