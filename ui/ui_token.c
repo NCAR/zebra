@@ -11,7 +11,7 @@
 # include "ui_tty.h"
 # include "ui_mode.h"
 
-static char *Rcsid = "$Id: ui_token.c,v 1.5 1989-06-05 16:02:55 corbet Exp $";
+static char *Rcsid = "$Id: ui_token.c,v 1.6 1989-07-12 09:24:23 corbet Exp $";
 
 /*
  * For input analysis, all characters are classified into one of the
@@ -1104,8 +1104,9 @@ ut_breakout ()
  * recovery routine.
  */
 {
-	while (Cs->cs_input && Cs->cs_input->s_type != IST_TTY)
-		ucs_z_input (TRUE);
+	if (Bailout)
+		while (Cs->cs_input && Cs->cs_input->s_type != IST_TTY)
+			ucs_z_input (TRUE);
 	ut_drain_ta ();
 }
 
