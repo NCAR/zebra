@@ -1,11 +1,14 @@
-XCOMM $XConsortium: sv4Lib.rules,v 1.14 94/04/09 12:00:10 rws Exp $
+XCOMM $XConsortium: osfLib.rules,v 1.9 94/01/18 14:58:49 rws Exp $
 
 /*
- * SVR4 shared library rules
+ * OSF/1 shared library rules
  */
 
 #ifndef HasSharedLibraries
 #define HasSharedLibraries YES
+#endif
+#ifndef SeparateSharedCompile
+#define SeparateSharedCompile NO
 #endif
 #ifndef SharedDataSeparation
 #define SharedDataSeparation NO
@@ -17,24 +20,17 @@ XCOMM $XConsortium: sv4Lib.rules,v 1.14 94/04/09 12:00:10 rws Exp $
 #define SharedLibraryDef /**/
 #endif
 #ifndef ShLibIncludeFile
-#define ShLibIncludeFile <sv4Lib.tmpl>
+#define ShLibIncludeFile <osfLib.tmpl>
 #endif
 #ifndef SharedLibraryLoadFlags
-#define SharedLibraryLoadFlags -G -z text
+#if ModernOSF1
+#define SharedLibraryLoadFlags -shared -no_archive -rpath $(USRLIBDIR)
+#else
+#define SharedLibraryLoadFlags -shared -no_archive
+#endif
 #endif
 #ifndef PositionIndependentCFlags
-#if HasGcc2
-#define PositionIndependentCFlags -fpic
-#else
-#define PositionIndependentCFlags -K PIC
-#endif
-#endif
-#ifndef PositionIndependentCplusplusFlags
-#if HasGcc2ForCplusplus
-#define PositionIndependentCplusplusFlags -fpic
-#else
-#define PositionIndependentCplusplusFlags -K PIC
-#endif
+#define PositionIndependentCFlags /**/
 #endif
 
 /*
@@ -57,6 +53,18 @@ install:: Concat(lib,libname.so.rev) 					@@\
 #define	InstallSharedLibraryData(libname,rev,dest)
 #endif /* InstallSharedLibraryData */
 
+#ifndef PackageName(libname)
+#if ModernOSF1
+#define PackageName(libname) /**/
+#else
+#define PackageName(libname) -package libname
+#endif
+#endif
+#if ThreadedX && ModernOSF1
+#define BaseShLibReqs -lc_r -lc
+#else
+#define BaseShLibReqs -lc
+#endif
 
 /*
  * SharedLibraryTarget - generate rules to create a shared library;
@@ -64,12 +72,13 @@ install:: Concat(lib,libname.so.rev) 					@@\
  * the library gone for long periods.
  */
 #ifndef SharedLibraryTarget
+#if SeparateSharedCompile
 #define SharedLibraryTarget(libname,rev,solist,down,up)			@@\
 AllTarget(Concat(lib,libname.so.rev))					@@\
 									@@\
 Concat(lib,libname.so.rev):  solist					@@\
 	$(RM) $@~							@@\
-	(cd down; $(CCENVSETUP) $(LD) -o up/$@~ $(SHLIBLDFLAGS) -h $@ solist $(REQUIREDLIBS))		@@\
+	(cd down; $(LD) -o up/$@~ $(SHLIBLDFLAGS) PackageName($@) -soname $@ solist $(REQUIREDLIBS) BaseShLibReqs) @@\
 	$(RM) $@ 							@@\
 	$(MV) $@~ $@							@@\
 	$(RM) Concat(lib,libname.so)					@@\
@@ -79,7 +88,23 @@ Concat(lib,libname.so.rev):  solist					@@\
 									@@\
 clean::									@@\
 	$(RM) Concat(lib,libname.so.rev) Concat(lib,libname.so)
-
+#else
+#define SharedLibraryTarget(libname,rev,solist,down,up)			@@\
+AllTarget(Concat(lib,libname.so.rev))					@@\
+									@@\
+Concat(lib,libname.so.rev):  solist					@@\
+	$(RM) $@~							@@\
+	$(LD) -o $@~ $(SHLIBLDFLAGS) PackageName($@) -soname $@ solist $(REQUIREDLIBS) BaseShLibReqs @@\
+	$(RM) $@ 							@@\
+	$(MV) $@~ $@							@@\
+	$(RM) Concat(lib,libname.so)					@@\
+	$(LN) $@ Concat(lib,libname.so)					@@\
+	LinkBuildLibrary($@)						@@\
+	LinkBuildLibrary(Concat(lib,libname.so))			@@\
+									@@\
+clean::									@@\
+	$(RM) Concat(lib,libname.so.rev) Concat(lib,libname.so)
+#endif /* SeparateSharedCompile */
 #endif /* SharedLibraryTarget */
 
 /*

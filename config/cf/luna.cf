@@ -1,4 +1,4 @@
-XCOMM platform:  $XConsortium: luna.cf,v 1.16 91/08/26 11:23:34 rws Exp $
+XCOMM platform:  $XConsortium: luna.cf,v 1.30 94/04/01 19:59:08 kaleb Exp $
 /*
  *	Please set the values for OSMajorVerion and OSMinorVersion
  *	before making makefiles.	 
@@ -16,34 +16,36 @@ XCOMM platform:  $XConsortium: luna.cf,v 1.16 91/08/26 11:23:34 rws Exp $
 #define DirFailPrefix -
 # endif
 #else  /* Mc88000Architecture */
-#define OSName            Mach 2.5 Vers 1.13
-#define OSMajorVersion    1
-#define OSMinorVersion    13
+#define OSName            Mach 2.5 Vers 2.00.1
+#define OSMajorVersion    2
+#define OSMinorVersion    0
+#define OSTeenyVersion    1
 #endif
 XCOMM operating system:  OSName
 
 #define HasBsearch		NO
-#define HasSaberC		NO
 #define HasVoidSignalReturn	NO
 #define HasGcc			YES
+#define HasCThreads		YES
+#define Malloc0ReturnsNull	HasCThreads    /* -lthreads fails, -lc works */
+#define XawI18nDefines		-DHAS_WCHAR_H -DHAS_ISW_FUNCS
 
+#define ThreadsLibraries -lthreads -lmach
 
 #define PrimaryScreenResolution 100
+#define	BuildXKB	YES
 
 #ifdef Mc68000Architecture
 #ifdef	luna2
-#define StandardDefines         -DXML
 #if ((OSMajorVersion <= 1) && (OSMinorVersion < 40))
-#define ServerOSDefines -DUNUSE_DRV_TIME -DUNUSE_SIGIO_SIGNAL 
+#define ServerExtraDefines -DUNUSE_DRV_TIME -DUNUSE_SIGIO_SIGNAL 
 #endif
 #else	/* luna1 */
 #if ((OSMajorVersion <= 1) && (OSMinorVersion <= 60))
-#define StandardDefines         -Dluna -Duniosb -DXML
-#else
-#define StandardDefines         -DXML
+#define StandardDefines         -Dluna -Duniosb
 #endif
 #if ((OSMajorVersion < 2) || ((OSMajorVersion == 2) && (OSMinorVersion < 1)))
-#define ServerOSDefines -DUNUSE_DRV_TIME -DUNUSE_SIGIO_SIGNAL 
+#define ServerExtraDefines -DUNUSE_DRV_TIME -DUNUSE_SIGIO_SIGNAL 
 #endif
 #endif	/* luna2 */
 #if HasGcc
@@ -57,15 +59,19 @@ XCOMM operating system:  OSName
 
 
 #ifdef Mc88000Architecture
-#define StandardDefines         -DXML
 #if ((OSMajorVersion <= 1) && (OSMinorVersion <= 12))
-#define ServerOSDefines -DUNUSE_DRV_TIME -DUNUSE_SIGIO_SIGNAL 
+#define ServerExtraDefines -DUNUSE_DRV_TIME -DUNUSE_SIGIO_SIGNAL 
 #endif
 #define HasNdbm			YES
-#ifdef HasGcc
+#define ExtraLibraries		-li18n
+#if HasGcc
 #define CcCmd                   gcc -fstrength-reduce
+#define PreIncDir		/usr/local/lib/gcc/gcc-include
 #define OptimizedCDebugFlags    -O2 /* -traditional */
+#else
+#define PreIncDir		/usr/lib/ccom/include
 #endif
+#define PostIncDir		/usr/mach/include
 #endif
 
 #ifdef Mc68000Architecture
@@ -77,4 +83,8 @@ XCOMM operating system:  OSName
 #ifdef Mc88000Architecture
 #define BuildPexExt		NO
 #define XlunaServer 		YES
+#endif
+
+#if ((OSMajorVersion >= 2) && (OSMinorVersion >= 0) && (OSTeenyVersion >= 1))
+#define HasWChar32              YES
 #endif

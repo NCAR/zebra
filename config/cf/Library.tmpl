@@ -4,10 +4,34 @@
  *
  * Before including this, you must set the following boolean variables:
  * DoNormalLib, DoSharedLib, DoDebugLib, DoProfileLib
+ *
+ * To get automatic generation of standard rules, also set the variables:
+ * LibName, SoRev, HasSharedData, and optionally HugeLibrary and IncSubdir
  */
 
-XCOMM $XConsortium: Library.tmpl,v 1.11 91/07/27 13:10:13 rws Exp $
+XCOMM $XConsortium: Library.tmpl,v 1.32 94/05/14 15:10:41 rws Exp $
 
+#ifndef LibraryCplusplusOptions
+#if DoSharedLib && defined(SharedLibraryCplusplusOptions)
+#define LibraryCplusplusOptions SharedLibraryCplusplusOptions
+#else
+#define LibraryCplusplusOptions DefaultCplusplusOptions
+#endif
+#endif
+#ifndef LibraryDefines
+#define LibraryDefines StandardDefines
+#endif
+#ifndef LibraryCDebugFlags
+#define LibraryCDebugFlags DefaultCDebugFlags
+#endif
+#ifndef LibraryCplusplusDebugFlags
+#define LibraryCplusplusDebugFlags DefaultCplusplusDebugFlags
+#endif
+#ifndef SeparateSharedCompile
+#define SeparateSharedCompile YES
+#endif
+
+#ifndef CplusplusSource
 #ifndef LibraryCcCmd
 #if DoSharedLib && defined(SharedLibraryCcCmd)
 #define LibraryCcCmd SharedLibraryCcCmd
@@ -22,27 +46,40 @@ XCOMM $XConsortium: Library.tmpl,v 1.11 91/07/27 13:10:13 rws Exp $
 #define LibraryCCOptions DefaultCCOptions
 #endif
 #endif
-#ifndef LibraryDefines
-#define LibraryDefines StandardDefines
-#endif
-#ifndef LibraryCDebugFlags
-#define LibraryCDebugFlags OptimizedCDebugFlags
-#endif
-#ifndef AvoidNullMakeCommand
-#define AvoidNullMakeCommand NO
-#endif
-#if AvoidNullMakeCommand
-_NULLCMD_ = @ echo -n
-#endif
 
          CC = LibraryCcCmd
   CCOPTIONS = LibraryCCOptions
 STD_DEFINES = LibraryDefines
 CDEBUGFLAGS = LibraryCDebugFlags
+#else
+#ifndef LibraryCplusplusCmd
+#if DoSharedLib && defined(SharedLibraryCplusplusCmd)
+#define LibraryCplusplusCmd SharedLibraryCplusplusCmd
+#else
+#define LibraryCplusplusCmd CplusplusCmd
+#endif
+#endif
+#ifndef LibraryCplusplusOptions
+#if DoSharedLib && defined(SharedLibraryCplusplusOptions)
+#define LibraryCplusplusOptions SharedLibraryCplusplusOptions
+#else
+#define LibraryCplusplusOptions DefaultCplusplusOptions
+#endif
+#endif
+
+          CXX = LibraryCplusplusCmd
+   CXXOPTIONS = LibraryCplusplusOptions
+  STD_DEFINES = LibraryDefines
+CXXDEBUGFLAGS = LibraryCplusplusDebugFlags
+#endif
 
 #if DoDebugLib
 #define _DebuggedLibMkdir() LibMkdir(debugger)
+#ifndef CplusplusSource
 #define _DebuggedObjCompile(options) DebuggedLibObjCompile(options)
+#else
+#define _DebuggedObjCompile(options) DebuggedLibObjCplusplusCompile(options)
+#endif
 #define _DebuggedCleanDir() LibCleanDir(debugger)
 #else
 #define _DebuggedLibMkdir() $(_NULLCMD_)
@@ -52,7 +89,11 @@ CDEBUGFLAGS = LibraryCDebugFlags
 
 #if DoProfileLib
 #define _ProfiledLibMkdir() LibMkdir(profiled)
+#ifndef CplusplusSource
 #define _ProfiledObjCompile(options) ProfiledLibObjCompile(options)
+#else
+#define _ProfiledObjCompile(options) ProfiledLibObjCplusplusCompile(options)
+#endif
 #define _ProfiledCleanDir() LibCleanDir(profiled)
 #else
 #define _ProfiledLibMkdir() $(_NULLCMD_)
@@ -60,20 +101,55 @@ CDEBUGFLAGS = LibraryCDebugFlags
 #define _ProfiledCleanDir() $(_NULLCMD_)
 #endif
 
-#if DoSharedLib && DoNormalLib
-#define _SharedLibMkdir() LibMkdir(shared)
-#define _SharedObjCompile(options) SharedLibObjCompile(options)
-#define _SharedCleanDir() LibCleanDir(shared)
+#if !DoNormalLib
+#define _NormalLibMkdir() $(_NULLCMD_)
+#define _NormalObjCompile(options) $(_NULLCMD_)
+#define _NormalCleanDir() $(_NULLCMD_)
 #else
-#define _SharedLibMkdir() $(_NULLCMD_)
-#define _SharedObjCompile(options) $(_NULLCMD_)
-#define _SharedCleanDir() $(_NULLCMD_)
+#if DoSharedLib && SeparateSharedCompile
+#define _NormalLibMkdir() LibMkdir(unshared)
+#ifndef CplusplusSource
+#define _NormalObjCompile(options) UnsharedLibObjCompile(options)
+#else
+#define _NormalObjCompile(options) UnsharedLibObjCplusplusCompile(options)
+#endif
+#define _NormalCleanDir() LibCleanDir(unshared)
+#else
+#define _NormalLibMkdir() $(_NULLCMD_)
+#ifndef CplusplusSource
+#define _NormalObjCompile(options) NormalLibObjCompile(options)
+#else
+#define _NormalObjCompile(options) NormalLibObjCplusplusCompile(options)
+#endif
+#define _NormalCleanDir() $(_NULLCMD_)
+#endif
 #endif
 
-#if DoSharedLib && !DoNormalLib
-#define _NormalObjCompile(options) NormalSharedLibObjCompile(options)
+#if !DoSharedLib || (DoNormalLib && !SeparateSharedCompile)
+#define _SharedObjCompile(options) $(_NULLCMD_)
 #else
-#define _NormalObjCompile(options) NormalLibObjCompile(options)
+#if SeparateSharedCompile
+#ifndef CplusplusSource
+#define _SharedObjCompile(options) NormalSharedLibObjCompile(options)
+#else
+#define _SharedObjCompile(options) NormalSharedLibObjCplusplusCompile(options)
+#endif
+#else
+#ifndef CplusplusSource
+#define _SharedObjCompile(options) NormalLibObjCompile(options)
+#else
+#define _SharedObjCompile(options) NormalLibObjCplusplusCompile(options)
+#endif
+#endif
+#endif
+
+#ifndef CplusplusSource
+#define SRCsuf c
+#else
+#define SRCsuf CCsuf
+#ifdef SunArchitecture
+.SUFFIXES: .CCsuf
+#endif
 #endif
 
 #ifndef LibraryObjectRule
@@ -81,18 +157,23 @@ CDEBUGFLAGS = LibraryCDebugFlags
 all::									@@\
 	_DebuggedLibMkdir()						@@\
 	_ProfiledLibMkdir()						@@\
-	_SharedLibMkdir()						@@\
+	_NormalLibMkdir()						@@\
 									@@\
-.c.o:									@@\
+includes::								@@\
+	_DebuggedLibMkdir()						@@\
+	_ProfiledLibMkdir()						@@\
+	_NormalLibMkdir()						@@\
+									@@\
+.SRCsuf.Osuf:								@@\
 	_DebuggedObjCompile($(_NOOP_))					@@\
 	_ProfiledObjCompile($(_NOOP_))					@@\
-	_SharedObjCompile($(_NOOP_))					@@\
 	_NormalObjCompile($(_NOOP_))					@@\
+	_SharedObjCompile($(_NOOP_))					@@\
 									@@\
 clean::									@@\
 	_DebuggedCleanDir()						@@\
 	_ProfiledCleanDir()						@@\
-	_SharedCleanDir()						@@\
+	_NormalCleanDir()						@@\
 
 #endif /* LibraryObjectRule */
 
@@ -101,7 +182,83 @@ clean::									@@\
 objs: depends								@@\
 	_DebuggedObjCompile(options)					@@\
 	_ProfiledObjCompile(options)					@@\
-	_SharedObjCompile(options)					@@\
 	_NormalObjCompile(options)					@@\
+	_SharedObjCompile(options)					@@\
 
 #endif /* SpecialLibObjectRule */
+
+#ifndef SpecialCLibObjectRule
+#define SpecialCLibObjectRule(basename,depends,options)			@@\
+SpecialLibObjectRule(basename.Osuf,basename.SRCsuf depends,options)	@@\
+									@@\
+basename.i: basename.SRCsuf depends					@@\
+	CPPOnlyCompile(basename.SRCsuf,options)				@@\
+									@@\
+CenterLoadTarget(debug_src,basename.SRCsuf,NullParameter,$(ALLDEFINES) options)
+#endif /* SpecialCLibObjectRule */
+
+#ifndef SpecialCplusplusLibObjectRule
+#define SpecialCplusplusLibObjectRule(basename,depends,options)		@@\
+SpecialLibObjectRule(basename.Osuf,basename.SRCsuf depends,options)	@@\
+									@@\
+CenterLoadTarget(debug_src,basename.SRCsuf,NullParameter,$(ALLDEFINES) options)
+#endif /* SpecialCplusplusLibObjectRule */
+
+#ifdef LibName
+
+LIBNAME = LibName
+
+LibraryObjectRule()
+
+#undef _LinkBuildLibrary
+#define _LinkBuildLibrary(lib) LinkBuildLibrary(lib)
+
+#if DoSharedLib
+SharedLibraryTarget($(LIBNAME),$(SoRev),$(OBJS),.,.)
+InstallSharedLibrary($(LIBNAME),$(SoRev),$(SHLIBDIR))
+#if HasSharedData
+SharedLibraryDataTarget($(LIBNAME),$(SoRev),$(UNSHAREDOBJS))
+InstallSharedLibraryData($(LIBNAME),$(SoRev),$(SHLIBDIR))
+#endif
+#endif
+#if DoNormalLib
+#if HugeLibrary
+#if DoSharedLib && SeparateSharedCompile
+UnsharedLibraryTarget3($(LIBNAME),$(OBJS1),$(OBJS2),$(OBJS3),unshared,..)
+#else
+NormalLibraryTarget3($(LIBNAME),$(OBJS1),$(OBJS2),$(OBJS3))
+#endif
+#else
+#if DoSharedLib && SeparateSharedCompile
+UnsharedLibraryTarget($(LIBNAME),$(OBJS),unshared,..)
+#else
+NormalLibraryTarget($(LIBNAME),$(OBJS))
+#endif
+#endif
+InstallLibrary($(LIBNAME),$(USRLIBDIR))
+#endif
+#if DoProfileLib
+ProfiledLibraryTarget($(LIBNAME),$(OBJS))
+InstallLibrary($(LIBNAME)_p,$(USRLIBDIR))
+#endif
+#if DoDebugLib
+DebuggedLibraryTarget($(LIBNAME),$(OBJS))
+InstallLibrary($(LIBNAME)_d,$(USRLIBDIR))
+#endif
+
+LintLibraryTarget($(LIBNAME),$(SRCS))
+InstallLintLibrary($(LIBNAME),$(LINTLIBDIR))
+#ifdef IncSubdir
+BuildIncludes($(HEADERS),IncSubdir,..)
+InstallMultipleFlags($(HEADERS),$(INCDIR)/IncSubdir,$(INSTINCFLAGS))
+#else
+#ifndef CplusplusSource
+#if !defined(LibHeaders) || LibHeaders
+BuildIncludesTop($(HEADERS))
+InstallMultipleFlags($(HEADERS),$(INCDIR),$(INSTINCFLAGS))
+#endif
+#endif
+#endif
+
+NormalLintTarget($(SRCS))
+#endif

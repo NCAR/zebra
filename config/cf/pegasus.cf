@@ -1,11 +1,10 @@
-XCOMM platform:  $XConsortium: pegasus.cf,v 1.32 91/07/30 11:34:24 rws Exp $
+XCOMM platform:  $XConsortium: pegasus.cf,v 1.36 94/02/10 12:16:24 rws Exp $
 
 #define OSName             UTek 4.0
 XCOMM operating system:  OSName
 #define OSMajorVersion     4
 #define OSMinorVersion     0
 
-#define HasSaberC	   YES		/* a useful program to buy... */
 #define HasNdbm		   YES
 #define HasVoidSignalReturn NO
 
@@ -17,9 +16,11 @@ XCOMM operating system:  OSName
 #define CcCmd gcc -ansi -fstrength-reduce -fpcc-struct-return -Dmc68000 -Dtektronix -Dutek -Dunix -Dm68k
 #endif
 
-#define XtekServer YES
+#define BuildServer NO
+/* #define XtekServer YES */
 
-#define ServerOSDefines   -DM4310 -DM4317
+#define ServerExtraDefines   -DM4310 -DM4317
+#define ServerOSDefines -DDDXTIME
 #define FontFilters BDFTOSNFFILT SHELLPATH
 #define PrimaryScreenResolution 95
 

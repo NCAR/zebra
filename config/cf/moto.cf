@@ -1,4 +1,4 @@
-XCOMM platform:  $XConsortium: moto.cf,v 1.10 91/08/15 12:05:30 rws Exp $
+XCOMM platform:  $XConsortium: moto.cf,v 1.14 94/04/05 18:19:38 converse Exp $
 
 #if defined(MotoR3Architecture)
 
@@ -10,10 +10,7 @@ XCOMM platform:  $XConsortium: moto.cf,v 1.10 91/08/15 12:05:30 rws Exp $
 #define BootstrapCFlags		-DSYSV -DMOTOROLA
 #define StandardDefines		-DSYSV -DUSG -DMOTOROLA
 #define Malloc0ReturnsNull	YES
-#define LnCmd			ln -s
-#define HasSockets		YES
 #define BuildServer		NO
-#define MotifBC			YES
 #define UseCCMakeDepend		YES
 #define OptimizedCDebugFlags	/* -O */
 
@@ -25,24 +22,22 @@ XCOMM platform:  $XConsortium: moto.cf,v 1.10 91/08/15 12:05:30 rws Exp $
 
 #if defined(MotoR4Architecture)
 
-#define OSName			Motorola R40V1 
+#define OSName			Motorola R40V4
 #define OSMajorVersion		4
-#define OSMinorVersion		1
+#define OSMinorVersion		4
 
 #define SystemV4		YES
 #define BootstrapCFlags		-DSVR4 -DMOTOROLA
 #define StandardDefines         -DSVR4 -DMOTOROLA
-#define HasSockets		YES
 #define BuildServer		NO
-#define MotifBC                 YES
 
 #define CppCmd                  /usr/ccs/lib/cpp
 #define LdCmd                   /usr/ccs/bin/ld
 #define LexCmd                  /usr/ccs/bin/lex
 #define MakeCmd                 /usr/ccs/bin/make
 #define YaccCmd                 /usr/ccs/bin/yacc
-#define CcCmd                   /bin/cc          /* a front-end to gcc/CI5 */
-#define DefaultCCOptions        -Xc
+#define CcCmd                   /bin/cc     /* a front-end to gcc/CI5 */
+#define DefaultCCOptions                    /* -Xc  no longer needed */
 
 #include <sv4Lib.rules>
 

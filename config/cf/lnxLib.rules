@@ -1,5 +1,4 @@
 XCOMM $XConsortium: lnxLib.rules,v 1.8 95/01/16 21:11:00 kaleb Exp $
-XCOMM $XFree86: xc/config/cf/lnxLib.rules,v 3.11 1995/01/28 15:40:25 dawes Exp $
 
 /*
  * Linux shared library rules (DLL & ELF versions)
@@ -110,7 +109,7 @@ clean::									@@\
 #define SharedLibraryLoadFlags /**/
 #endif
 #ifndef PositionIndependentCFlags
-#define PositionIndependentCFlags -B/usr/bin/jump
+#define PositionIndependentCFlags -B/usr/dll/jump/
 #endif
 
 /*
@@ -137,7 +136,7 @@ clean::									@@\
  *  JUMP_FUNCS_Xfoo = $(JUMP_ROOT_Xfoo)/jump_funcs	<see DLL docs>
  *  JUMP_IGNORE_Xfoo = $(JUMP_ROOT_Xfoo)/jump_ignore	<see DLL docs>
  *  JUMP_EXPORT_Xfoo = $(JUMP_DIR_Xfoo)/jump.vars	<exported symbols>
- *  JUMP_IMPORT_Xfoo = $(JUMP_EXPORT_Xbar)		<imported symbols>
+ *  JUMP_IMPORT_Xfoo = $(JUMP_DIR_Xbar)			<imported symbols>
  *  JUMP_ADDRESS_Xfoo = 0xXXXXXXXX			<fill in with address>
  *  JUMP_JUMPTABLESIZE_Xfoo = 0x4000			<adjust if necessary>
  *  JUMP_GOTSIZE_Xfoo = 4096				<adjust if necessary>

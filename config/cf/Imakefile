@@ -1,52 +1,92 @@
-/*
- * $XConsortium: Imakefile,v 1.14 91/12/02 11:24:14 rws Exp $
- * 
- * This is used to recreate imake.  Makefile.ini is used to generate imake
- * the first time.
- */
+XCOMM $XConsortium: Imakefile,v 1.32 94/04/09 21:46:51 rws Exp $
 
-DEPLIBS = 
-HEADERS = imakemdep.h 
-CFFILES = $(HEADERS) *.rules *.tmpl site.def *.bac *.cf
-CPP_PROGRAM = CppCmd
-INCLUDES = -I$(BUILDINCDIR)
-DEFINES = $(SIGNAL_DEFINES) $(BOOTSTRAPCFLAGS) -DCPP_PROGRAM=\"$(CPP_PROGRAM)\"
-
-#ifdef MacIIArchitecture
-XBSDLIB = /**/
+#ifdef LocalConfigFiles
+LOCALFILES = LocalConfigFiles
 #endif
 
-#undef ImakeDependency
-#define ImakeDependency(dummy) @@\
-Makefile::  imake
-
-SimpleProgramTarget(imake)
-
-#ifdef notdef				/* removed for Zeb distribution */
-BuildIncludes($(HEADERS),config,..)
-
-InstallMultipleDestFlags(install,$(CFFILES),$(CONFIGDIR),$(INSTDATFLAGS))
+#ifdef notdef
+DEFFILES = \
+site.def
 #endif
 
-depend::
+RULEFILES = \
+Imake.rules \
+Win32.rules \
+hpLib.rules \
+bsdLib.rules \
+ibmLib.rules \
+lnxLib.rules \
+necLib.rules \
+noop.rules \
+oldlib.rules \
+osfLib.rules \
+sgiLib.rules \
+sunLib.rules \
+sv4Lib.rules \
+xf86.rules
 
-clean::
-	$(RM) ccimake
+TMPLFILES = \
+Imake.tmpl \
+Fresco.tmpl \
+Ixx.tmpl \
+bsdLib.tmpl \
+lnxLib.tmpl \
+Library.tmpl \
+Server.tmpl \
+Threads.tmpl \
+WinLib.tmpl \
+hpLib.tmpl \
+ibmLib.tmpl \
+necLib.tmpl \
+osfLib.tmpl \
+sunLib.tmpl \
+sv4Lib.tmpl
 
-/*
- * Zeb additions
- */
+CFFILES = \
+Imake.cf \
+Amoeba.cf \
+DGUX.cf \
+Mips.cf \
+NetBSD.cf \
+FreeBSD.cf \
+Oki.cf \
+Win32.cf \
+apollo.cf \
+bsd.cf \
+bsdi.cf \
+convex.cf \
+cray.cf \
+fujitsu.cf \
+generic.cf \
+hp.cf \
+ibm.cf \
+linux.cf \
+luna.cf \
+macII.cf \
+moto.cf \
+ncr.cf \
+nec.cf \
+osf1.cf \
+pegasus.cf \
+rtcchack.bac \
+sequent.cf \
+sgi.cf \
+sony.cf \
+sun.cf \
+svr4.cf \
+ultrix.cf \
+usl.cf \
+x386.cf \
+xfree86.cf
 
-DISTFILES = DGUX.cf Imake.rules Imake.tmpl Imakefile Library.tmpl \
-            Makefile.ini Mips.cf README Server.tmpl apollo.cf \
-            att.cf bsd.cf ccimake.c convex.cf cray.cf generic.cf hp.cf ibm.cf \
-            ibmLib.rules ibmLib.tmpl imake.c imake.man imakemdep.h luna.cf \
-            macII.cf moto.cf noop.rules oldlib.rules pegasus.cf rtcchack.bac \
-            sgi.cf sgiLib.rules site.def sony.cf sun.cf sunLib.rules \
-            sunLib.tmpl sv4Lib.rules sv4Lib.tmpl ultrix.cf x386.cf \
-            Xosdefs.h
+INSTFILES = $(RULEFILES) $(TMPLFILES) $(DEFFILES) $(CFFILES) $(LOCALFILES)
 
+DISTFILES = $(INSTFILES) Imakefile README site.sample
+
+all::
+
+#ifdef notdef
+InstallMultipleDestFlags(install,$(INSTFILES),$(CONFIGDIR),$(INSTDATFLAGS))
+#endif
 
 DistfilesTarget($(DISTFILES))
-
-

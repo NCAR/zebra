@@ -1,9 +1,10 @@
-XCOMM platform:  $XConsortium: ibm.cf,v 1.29 91/07/28 22:39:58 rws Exp $
+XCOMM platform:  $XConsortium: ibm.cf,v 1.52 94/06/04 16:44:25 rws Exp $
 
 #ifdef RsArchitecture
-#define OSName		AIX 3.1.5
+#define OSName		AIX 3.2.5
 #define OSMajorVersion	3
-#define OSMinorVersion	1
+#define OSMinorVersion	2
+#define OSTeenyVersion	5
 #else
 #ifdef RtArchitecture
 #ifdef AIXArchitecture
@@ -19,23 +20,78 @@ XCOMM platform:  $XConsortium: ibm.cf,v 1.29 91/07/28 22:39:58 rws Exp $
 #define OSName		AIX 1.2.1
 #define OSMajorVersion	1
 #define OSMinorVersion	2
+#define OSTeenyVersion	1
 #endif
 #endif
 XCOMM operating system:  OSName
 
 #ifdef RsArchitecture
 
-#define ProjectRoot		/usr/local
+#if OSMajorVersion > 3 || (OSMajorVersion == 3 && OSMinorVersion >= 2)
+#define HasBSD44Sockets		YES
+/*
+ * If you do not have threads support installed, put
+ * #define HasPosixThreads NO
+ * in the BeforeVendorCF section of your site.def.
+ */
+#if !defined(HasPosixThreads) && (OSMajorVersion > 3 || (OSMajorVersion == 3 && (OSMinorVersion > 2 || (OSMinorVersion == 2 && OSTeenyVersion > 4))))
+#define HasPosixThreads		YES
+#endif
+#if HasPosixThreads
+#define SystemMTDefines -D_THREAD_SAFE
+#define ThreadedX		YES
+#define ThreadsLibraries -lpthreads -lc_r
+#endif
+#endif
+
+#define CcCmd xlc
+
+/*
+ * For IBM platforms, we must define both the location of the compiler
+ * and the location of its standard C++ library.  The library location
+ * is needed to resolve dependent library symbols when we build our own
+ * C++ shared libraries like libFresco
+ */
+
+#ifndef CplusplusCmd
+#define CplusplusCmd xlC
+#endif
+#ifndef CplusplusLibC
+#define CplusplusLibC /usr/lpp/xlC/lib/libC.a
+#endif
+#ifndef CplusplusDependIncludes
+#define CplusplusDependIncludes -I/usr/lpp/xlC/include
+#endif
+
+/*
+ * IBM's xlC refuses to compile files unless their names end in ".C".
+ * As an alternative to this fix, one could edit /etc/xlC.cfg
+ * to change the suffix accepted by the compiler, but we prefer not 
+ * requiring users to reconfigure their C++ compilers to make them work.
+ * We also have to override the default SUFFIXES to defeat the use of
+ * the builtin .C -> .o file, which doesn't use the right flags.
+ */
+
+.SUFFIXES:
+.SUFFIXES: .o .c .y .l .s .sh .h .f .Y .L .cxx
+
+#define NormalLibObjCplusplusCompile(options) test -r $*.C || $(LN) $*.CCsuf $*.C @@\
+	$(CXX) -c $(CXXFLAGS) options $*.C
+
+#define SpecialCplusplusObjectRule(baseobj,basedep,options)		@@\
+baseobj.Osuf:	basedep.CCsuf						@@\
+	test -r basedep.C || $(LN) basedep.CCsuf basedep.C		@@\
+	$(CXX) -c $(CXXFLAGS) options basedep.C
+
 
 #define SystemV			YES
-#define LnCmd			ln -s
-#define HasSockets		YES
 #define LdCombineFlags		-r
 #define ExecableScripts		YES
 #define Malloc0ReturnsNull	YES
 #define CppCmd			/usr/lpp/X11/Xamples/util/cpp/cpp
-#define StandardDefines         -DSYSV -DAIXV3
+#define StandardDefines         -DSYSV -DAIXV3 -D_ALL_SOURCE
 #define ExpandManNames		YES
+#define ExtensionOSDefines -DXTESTEXT1
 #define XibmServer 		YES
 #define ibmIncludeSKYWAY	YES
 #define OPERATING_SYSTEM 	AIX /* directory name under server/ddx/ibm/ */
@@ -56,8 +112,6 @@ XCOMM operating system:  OSName
 
 #ifdef AIXArchitecture
 #define SystemV YES
-#define LnCmd ln -s
-#define HasSockets YES
 #ifdef RtArchitecture
 #define BootstrapCFlags -Daix
 #define OSDefines -DAIX -DAIXrt -DNO_FUNCTION_PROTOTYPES -DIBM_OS_HAS_HFT
@@ -224,7 +278,7 @@ XCOMM operating system:  OSName
  * define this as you like for server compilation 
  * affected: all makefiles in .../X11/server
  */
-#define ServerOSDefines  cppdefs -DNOSTDHDRS OSDefines
+#define ServerExtraDefines  cppdefs -DNOSTDHDRS OSDefines
 
 
 #define FontOSDefines StandardDefines

@@ -1,5 +1,4 @@
 XCOMM $XConsortium: xfree86.cf,v 1.9 95/01/25 16:42:40 kaleb Exp $
-XCOMM $XFree86: xc/config/cf/xfree86.cf,v 3.48 1995/01/28 15:40:38 dawes Exp $
 /*
  * This configuration file contains all of the configuration
  * information for the XFree86 based X Servers.
@@ -154,48 +153,16 @@ XCOMM $XFree86: xc/config/cf/xfree86.cf,v 3.48 1995/01/28 15:40:38 dawes Exp $
 # define XF86W32Drivers		et4000w32
 #endif
 
-/*
- * PEX doesn't work for 1-bit and 4-bit servers
- */
 #ifndef BuildPexExt
 #define BuildPexExt		XF86AccelServer || XF86SVGAServer
 #endif
 
-/*
- * XIE doesn't work for our 1-bit and 4-bit servers
- */
 #ifndef BuildXIE
 #define BuildXIE		XF86AccelServer || XF86SVGAServer
 #endif
 
 /*
- * Build the ExtraExtension lib even when not including the extra extensions
- * in the servers
- */
-#ifndef BuildExtraExtensionLibrary
-#define BuildExtraExtensionLibrary	YES
-#endif
-
-/*
- * Turn Fresco off by default.  It requires gcc 2.6.0 or later, and this
- * is unreliable in may ways on i386 platforms.
- */
-#ifndef BuildFresco
-#define BuildFresco	NO
-#endif
-
-/*
- * Build xterm with Internationalisation support by default.
- */
-#ifndef XtermWithI18N
-#define XtermWithI18N	YES
-#endif
-
-/*
  * By default, build all of the fonts.
- */
-/*
- * These four don't do anything (yet)
  */
 #ifndef Build75Dpi
 #define Build75Dpi	YES
@@ -216,10 +183,6 @@ XCOMM $XFree86: xc/config/cf/xfree86.cf,v 3.48 1995/01/28 15:40:38 dawes Exp $
 
 #ifndef InstallXcmsTxt
 #define InstallXcmsTxt		YES
-#endif
-
-#ifndef StripInstalledPrograms
-#define StripInstalledPrograms	YES
 #endif
 
 #ifndef HasLinuxDoc
@@ -326,10 +289,6 @@ XF86HWLIB  = $(XF86HWSRC)/libxf86_hw.a
 XF86LIBS   = $(XF86INIT) $(XF86CONFIG) $(XF86COMLIB) $(XF86HWLIB) $(XF86OSLIB)
 XF86MLIBS  = $(XF86MINIT) $(XF86CONFIG) $(XF86COMLIB) $(XF86HWLIB) $(XF86OSLIB)
 
-/*
- * Installed location of XFree86 documentation
- */
-
         XFREE86DOCDIR = $(LIBDIR)/doc
       XFREE86PSDOCDIR = $(XFREE86DOCDIR)/PostScript
     XFREE86HTMLDOCDIR = $(XFREE86DOCDIR)/html
@@ -341,10 +300,6 @@ XFREE86JAPANESEDOCDIR = $(XFREE86DOCDIR)/Japanese
 
 #ifndef AsmDefines
 #define AsmDefines /**/
-#endif
-
-#ifndef OtherIConfigFiles
-#define OtherIConfigFiles $(IRULESRC)/xfree86.cf $(IRULESRC)/xf86.rules
 #endif
 
 #ifndef XFree86Version
@@ -363,9 +318,6 @@ XFREE86JAPANESEDOCDIR = $(XFREE86DOCDIR)/Japanese
 #define UseRgbTxt	YES
 #endif
 
-#ifndef ManSuffix
-#define ManSuffix	1
-#endif
 
 /*
  * GNU Compiler stuff
@@ -382,15 +334,10 @@ XFREE86JAPANESEDOCDIR = $(XFREE86DOCDIR)/Japanese
 
 #if HasGcc
 #ifndef DefaultCCOptions
-#if UseInstalled
-#define DefaultCCOptions -ansi
+#if defined(SunArchitecture) && defined(i386Architecture)
+#define DefaultCCOptions -DNO_ASM
 #else
-#define DefaultCCOptions -ansi -pedantic
-#endif
-#endif
-#if UseInstalled
-#ifndef UseGccMakeDepend
-#define UseGccMakeDepend YES
+#define DefaultCCOptions -ansi  -DNO_ASM
 #endif
 #endif
 #endif

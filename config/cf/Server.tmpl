@@ -3,9 +3,9 @@
  * that Imakefiles in the server subtree will need.
  */
 
-XCOMM $XConsortium: Server.tmpl,v 1.5 91/05/06 19:00:26 rws Exp $
+XCOMM $XConsortium: Server.tmpl,v 1.13 94/04/08 16:59:46 rws Exp $
 
-#define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)' 'CC=$(CC)' 'CCOPTIONS=$(CCOPTIONS)'
+#define PassCDebugFlags CDEBUGFLAGS="$(CDEBUGFLAGS)" LDSTRIPFLAGS="$(LDSTRIPFLAGS)"
 
 #ifndef ServerCcCmd
 #define ServerCcCmd CcCmd
@@ -17,12 +17,33 @@ XCOMM $XConsortium: Server.tmpl,v 1.5 91/05/06 19:00:26 rws Exp $
 #define ServerDefines StandardDefines
 #endif
 #ifndef ServerCDebugFlags
-#define ServerCDebugFlags OptimizedCDebugFlags
+#define ServerCDebugFlags DefaultCDebugFlags
 #endif
+#ifndef DoThreadedServer
+#define DoThreadedServer NO
+#endif
+#ifndef InstallServerSetUID
+#define InstallServerSetUID NO
+#endif
+
+/*
+ * SetUIDServerTarget - compile, link, and relink a setuid server
+ */
+#ifndef SetUIDServerTarget
+#if InstallServerSetUID
+#define	SetUIDServerTarget(server,subdirs,objects,libs,syslibs)		@@\
+ServerTargetWithFlags(server,subdirs,objects,libs,syslibs,$(INSTUIDFLAGS))
+#else
+#define	SetUIDServerTarget ServerTarget
+#endif
+#endif /* SetUIDServerTarget */
 
          CC = ServerCcCmd
   CCOPTIONS = ServerCCOptions
-STD_DEFINES = ServerDefines
+#if DoThreadedServer
+SERVER_THREAD_DEFINES = XThreadsDefines ThreadTypeDefines
+#endif
+STD_DEFINES = ServerDefines $(SERVER_THREAD_DEFINES)
 CDEBUGFLAGS = ServerCDebugFlags
 EXT_DEFINES = ExtensionDefines
 

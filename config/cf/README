@@ -1,21 +1,33 @@
+$XConsortium: README,v 1.37 94/04/18 17:13:36 gildea Exp $
+
 The easiest way to write an Imakefile is to find another one that does
 something similar and copy/modify it!
 
 Imake.tmpl provides defaults for the following variables:
 
+	AlternateIncRoot	compiler needs -I to find project includes
+	AlternateUsrLibDir	linker needs -L to find project libraries
 	ArCmd			command used to create libraries
+	ArCmdBase		program name part of ArCmd
+	ArAddCmd		flags to have ArCmdBase add files to a library
+	ArExtCmd		flags to have ArCmdBase extract files
 	AsCmd			command used to run assembler
 	BootstrapCFlags		missing cpp symbols needed to get started
 	BourneShell		command used to run Bourne Shell
+	CCsuf			suffix that C++ source files have
 	CURDIR			current directory relative to top of sources
 	CcCmd			command to run C compiler
 	CompressCmd		command to run compress program
 	ConstructMFLAGS		System V option to set MFLAGS make variable
 	CpCmd			command to copy one file to another
+	CplusplusCmd		command to run C++ compiler
+	CplusplusYaccCmd	command to produce C++ source from yacc source
 	CppCmd			command to run C preprocessor
+	CrossCompiling		cross compiling? (not fully supported)
 	DebuggableCDebugFlags	C compiler -I's and -D's to turn on debug info
 	DefaultCCOptions	default special C compiler options
 	DefaultCDebugFlags	debug/optimize flags for programs
+	DefaultUsrBin		program directory used even if PATH not set
 	DependFlags		extra makedepend flags
 	DoRanlibCmd		boolean for system uses ranlib
 	EqnCmd			command used for eqn
@@ -24,21 +36,36 @@ Imake.tmpl provides defaults for the following variables:
 	ExtraFilesToClean	extra files to remove on make clean
 	ExtraLibraries		system-specific libraries need to link
 	ExtraLoadFlags		system-specific loader flags
+	FileManSuffix		man suffix for file format pages
 	FilesToClean		files to delete in make clean
 	FortranCmd		command to run Fortran compiler
 	FortranDebugFlags	flags for Fortran debug info
 	FortranFlags		Fortran compiler flags
+	HasBSD44Sockets		boolean for system has BSD4.4 sockets
 	HasBsearch		boolean for libc has bsearch()
+	HasCenterLineC		boolean for system has CenterLine C compiler
+	HasCenterLineCplusplus	boolean for system has CenterLine C++ compiler
+	HasCodeCenter		boolean for system has CodeCenter
+	HasCplusplus		system has a C++ compiler?
+	HasDECnet		system has DECnet?
 	HasFortran		boolean for system has Fortran compiler
-	HasGcc			boolean for system has GNU C compiler
+	HasGcc			boolean for system has GNU gcc compiler
+	HasGcc2			boolean for system has GNU gcc 2.x compiler
+	HasGcc2ForCplusplus	use gcc 2 for C++ programs?
+	HasKrb5			system has Kerberos version 5 support?
 	HasLargeTmp		boolean for system has /tmp space
 	HasNdbm			boolean for system has ndbm routines
+	HasPoll			use poll() syscall?
+	HasPurify		boolean for system has Purify
 	HasPutenv		boolean for libc has putenv()
-	HasSaberC		boolean for system has Saber C
 	HasSecureRPC		boolean for Sun Secure RPC
+	HasSentinel		boolean for system has Sentinel available
 	HasSharedLibraries	boolean for system has shared libraries
 	HasShm			boolean for System V shared memory
 	HasSockets		boolean for system has BSD sockets
+	HasStreams		use STREAMS I/O interface?
+	HasSymLinks		boolean for system has symbolic links
+	HasTestCenter		boolean for system has TestCenter
 	HasVFork		boolean for system has vfork()
 	HasVoidSignalReturn	boolean for POSIX signal() procs
 	IncRoot			parent of X11 include directory
@@ -51,8 +78,13 @@ Imake.tmpl provides defaults for the following variables:
 	InstPgmFlags		install flags for normal programs
 	InstUidFlags		install flags for xterm to chown /dev/ptys
 	InstallCmd		command to install files
+	IxxCmd			IDL to C++ command
+	Krb5Includes		where to include Kerberos header files from
+	Krb5Libraries		where to load Kerberos libraries from
 	LdCmd			command to run loader
 	LdCombineFlags		flags for incremental loading
+	LexCmd			command to run lex
+	LexLib			library for programs using lex output
 	LintCmd			command to run lint
 	LintLibFlag		flags to generate lint libraries
 	LintOpts		lint options to control strictness
@@ -62,6 +94,8 @@ Imake.tmpl provides defaults for the following variables:
 	MacroIncludeFile	<MacroFile>
 	MakeCmd			command to run make
 	Malloc0ReturnsNull	boolean for malloc(0) == NULL
+	MathLibrary		library for programs using C math functions
+	MsMacros		macro flag for TroffCmd, normally "-ms"
 	MvCmd			command to rename a file
 	NdbmDefines		-D's to turn on use of ndbm routines
 	NeedConstPrototoypes	whether const is supported
@@ -70,6 +104,7 @@ Imake.tmpl provides defaults for the following variables:
 	NeedVarargsPrototypes	whether varargs prototypes are supported
 	NeedWidePrototypes	whether or not to widen function prototypes
 	NoOpCDebugFlags		C compiler flags to not debug or optimize
+	NoRConst		YES if const for structs of funcs is bad
 	OSMajorVersion		major version number of operating system
 	OSMinorVersion		minor version number of operating system
 	OptimizedCDebugFlags	C compiler flags to turn on optimization
@@ -77,6 +112,7 @@ Imake.tmpl provides defaults for the following variables:
 	RanlibCmd		command to clean up libraries
 	RanlibInstFlags		flags to ranlib after copying
 	RmCmd			command to delete files
+	ShLibDir		directory in which to install shared libraries
 	StandardCppDefines	-D's for running cpp
 	StandardDefines		-D's for running C compiler
 	StandardIncludes	-I's for running C compiler
@@ -90,36 +126,47 @@ Imake.tmpl provides defaults for the following variables:
 	UNCOMPRESSPATH		command to run uncompress
 	UnalignedReferencesAllowed	boolean for unaligned copies ok
 	UsrLibDir		directory in which to install libraries
+	YaccCmd			command to run yacc
 
 Project.tmpl provides defaults for the following variables:
 
 	AdmDir			directory containing system log files
 	AllocateLocalDefines	-D's to turn on alloca()
 	BDFTOSNFFILT		command to run bdftosnf
-	BaseExtensionDefines	univeral extensions to use
+	BaseExtensionDefines	universal extensions to use
 	BinDir			directory in which to install programs
-	BuildFontServer		boolean for building font server
-	BuildFonts		boolean for building pcf fonts
+	BuildFontServer		build font server
+	BuildFonts		build pcf fonts
+	BuildFresco		build Fresco
 	BuildIncRoot		relative path to location of headers in build
 	BuildIncTop		path from build includes directory to top
-	BuildPex		boolean for building all PEX-related code
-	BuildPexClients		boolean for buildiing PEX clients/demos
-	BuildPexExt		boolean for building PEX extension
-	BuildServer		boolean for building X server
-	BuildXInputExt		boolean for building X Input extension
-	BuildXInputLib		boolean for building X Input library
+	BuildPex		build all PEX-related code
+	BuildPexClients		boolean for building PEX clients/demos
+	BuildPexExt		build PEX extension
+	BuildServer		build X server
+	BuildXIE		build X Image Extension
+	BuildDIS		build Document Imaging Subset of XIE
+	BuildXInputExt		build X Input extension
+	BuildXInputLib		build X Input library
+	BuildXKB		build X Keyboard Extension?
 	ConfigDir		install directory for config files
 	ConnectionFlags		-D's for supported transports
 	ContribDir		location of user-contributed sources
-	DebugLibX		boolean for compiling libX11_g.a .o's
-	DebugLibXArchive	boolean for building libX11_g.a
-	DebugLibXau		boolean for building libXau_g
-	DebugLibXaw		boolean for building libXaw_g
-	DebugLibXdmcp		boolean for building libXdmcp_g
-	DebugLibXext		boolean for building libXext_g
-	DebugLibXmu		boolean for building libXmu_g
-	DebugLibXt		boolean for building libXt_g
-	DebugOldLibX		boolean for building liboldX_g
+	DebugLibFS		build libFS_d.a
+	DebugLibICE		build libICE_d.a
+	DebugLibPex		build libPEX5_d.a
+	DebugLibSM		build libSM_d.a
+	DebugLibX11		build libX11_d.a
+	DebugLibXau		build libXau_d.a
+	DebugLibXaw		build libXaw_d.a
+	DebugLibXdmcp		build libXdmcp_d.a
+	DebugLibXext		build libXext_d.a
+	DebugLibXi		build libXi_d.a
+	DebugLibXie		build libXie_d.a
+	DebugLibXmu		build libXmu_d.a
+	DebugLibXt		build libXt_d.a
+	DebugLibXtst		build libXtst_d.a
+	DebugOldX		build liboldX_d.a
 	DefaultFSConfigFile	default font server config file
 	DefaultFontPath		default server font path
 	DefaultRGBDatabase	default server rgb color database
@@ -128,7 +175,6 @@ Project.tmpl provides defaults for the following variables:
 	DefaultUserPath		default user xdm PATH environment variable
 	DependCmd		command to run makedepend
 	DependDir		build directory containing makedepend program
-	DoInstallExtensionsIntoXlib	merge -lXext into -lX11 (shunned)
 	ExtensionDefines	-D's for universal extensions
 	ExtensionOSDefines	-D's for additional extensions
 	FontCompilerFlags	flags for bdftosnf
@@ -143,7 +189,7 @@ Project.tmpl provides defaults for the following variables:
 	InstallLibManPages	boolean for installing library man pages
 	InstallXdmConfig	boolean for installing xdm config files
 	InstallXinitConfig	boolean for installing xinit config files
-	LibDir			directory in which to install X11 data files
+	LibDir			directory in which to install X11 support files
 	LibManSuffix		man suffix for library pages
 	LibmanDir		directory in which to install library man pages
 	LintlibDir		directory in which to install lint libs
@@ -154,16 +200,22 @@ Project.tmpl provides defaults for the following variables:
 	ManSuffix		man suffix for programs
 	NeedDefaultDepLibs	boolean for enabling default DEPLIBS
 	NlsDir			directory in which to install nls files
-	NormalLibPhigs		boolean for building libphigs.a
-	NormalLibX		boolean for building libX11.a
-	NormalLibXau		boolean for building libXau.a
-	NormalLibXaw		boolean for building libXaw.a
-	NormalLibXdmcp		boolean for building libXdmcp.a
-	NormalLibXext		boolean for building libXext.a
-	NormalLibXinput		boolean for building libXi.a
-	NormalLibXmu		boolean for building libXmu.a
-	NormalLibXt		boolean for building libXt.a
-	NormalOldLibX		boolean for building liboldX.a
+	NormalLibFS		build libFS.a
+	NormalLibICE		build libICE.a
+	NormalLibPex		build libPEX5.a
+	NormalLibPhigs		build libphigs.a
+	NormalLibSM		build libSM.a
+	NormalLibX11		build libX11.a
+	NormalLibXau		build libXau.a
+	NormalLibXaw		build libXaw.a
+	NormalLibXdmcp		build libXdmcp.a
+	NormalLibXext		build libXext.a
+	NormalLibXi		build libXi.a
+	NormalLibXie		build libXie.a
+	NormalLibXmu		build libXmu.a
+	NormalLibXt		build libXt.a
+	NormalLibXtst		build libXtst.a
+	NormalOldX		build liboldX.a
 	OsNameDefines		beats me
 	PexApiDir		PEX include file location
 	PexCCOptions		special options for building PEX library
@@ -174,34 +226,47 @@ Project.tmpl provides defaults for the following variables:
 	PexShmIPC		boolean for using shared memory in phigsmon
 	PhigsInclude		include directory for phigs clients
 	PrimaryScreenResolution	resolution of default server screen
-	ProfileLibX		boolean for compiling -p Xlib
-	ProfileLibXArchive	boolean for building libX11_p
-	ProfileLibXau		boolean for buidling libXau_p
-	ProfileLibXaw		boolean for building libXaw_p
-	ProfileLibXdmcp		boolean for building libXdmcp_p
-	ProfileLibXext		boolean for building libXext_p
-	ProfileLibXmu		boolean for building libXmu_p
-	ProfileLibXt		boolean for building libXt_p
-	ProfileOldLibX		boolean for building liboldX_p
+	ProfileLibFS		build libFS_p.a
+	ProfileLibICE		build libICE_p.a
+	ProfileLibPex		build libPEX5_p.a
+	ProfileLibSM		build libSM_p.a
+	ProfileLibX11		build libX11_p.a
+	ProfileLibXau		build libXau_p.a
+	ProfileLibXaw		build libXaw_p.a
+	ProfileLibXdmcp		build libXdmcp_p.a
+	ProfileLibXext		build libXext_p.a
+	ProfileLibXi		build libXi_p.a
+	ProfileLibXie		build libXie_p.a
+	ProfileLibXmu		build libXmu_p.a
+	ProfileLibXt		build libXt_p.a
+	ProfileLibXtst		build libXtst_p.a
+	ProfileOldX		build liboldX_p.a
 	ProjectX		version indicating this is the X Window System
 	RemoveTargetProgramByMoving	boolean for rm -f that doesn't
 	SHELLPATH		-D for /bin/sh
 	ServerDefines		complete -D's for server
 	ServerExtraDefines	special -D's for server
 	ServerOSDefines		OS -D's for server
-	SharedLibPhigs		boolean for making sharable libphigs
-	SharedLibX		boolean for making sharable libX11
-	SharedLibXau		boolean for making sharable libXau
-	SharedLibXaw		boolean for making sharable libXaw
-	SharedLibXdmcp		boolean for making sharable libXdmcp
-	SharedLibXext		boolean for making sharable libXext
-	SharedLibXinput		boolean for making sharable libXi
-	SharedLibXmu		boolean for making sharable libXmu
-	SharedLibXt		boolean for making sharable libXt
-	SharedOldLibX		boolean for making sharable liboldX
+	SharedLibFS		boolean for making sharable libFS.so
+	SharedLibICE		boolean for making sharable libICE.so
+	SharedLibPex		boolean for making sharable libPEX5.so
+	SharedLibPhigs		boolean for making sharable libphigs.so
+	SharedLibSM		boolean for making sharable libSM.so
+	SharedLibX11		boolean for making sharable libX11.so
+	SharedLibXau		boolean for making sharable libXau.so
+	SharedLibXaw		boolean for making sharable libXaw.so
+	SharedLibXdmcp		boolean for making sharable libXdmcp.so
+	SharedLibXext		boolean for making sharable libXext.so
+	SharedLibXi		boolean for making sharable libXi.so
+	SharedLibXie		boolean for making sharable libXie.so
+	SharedLibXmu		boolean for making sharable libXmu.so
+	SharedLibXt		boolean for making sharable libXt.so
+	SharedLibXtst		boolean for making sharable libXtst.so
+	SharedOldX		boolean for making sharable liboldX.so
 	ShmDefines		MIT-SHM define
 	TwmDir			directory in which to install twm config files
 	UseCCMakeDepend		boolean for using alternate makedepend script
+	UseRgbTxt		use rgb.txt file as is instead of DBM-compiled
 	XAppLoadDir		directory in which to install app defaults
 	XFileSearchPathBase	base file search path
 	XFileSearchPathDefault	default path to search for app defaults files
@@ -217,13 +282,18 @@ Project.tmpl provides defaults for the following variables:
 	XtWarningPrefix		leading text in XtWarning()msg, same as above
 	ZBDFTOSNFFILT		-D to run uncompress and bdftosnf
 
+
 Library.tmpl provides defaults for the following variables:
 
 	AvoidNullMakeCommand	for makes that spout about $(_NULLCMD_)
 	LibraryCCOptions	special C compiler options for libraries
 	LibraryCDebugFlags	library debug/optimize flags to override defs
 	LibraryCcCmd		command to run C compiler in libraries
+	LibraryCplusplusOptions special C++ options for libraries
+	LibraryCplusplusDebugFlags  library debug/optimize flags for C++
+	LibraryCplusplusCmd	command to run C++ compiler in libraries
 	LibraryDefines		-D's for libraries
+	SeparateSharedCompile	shared and unshared libs use same binaries?
 
 
 Server.tmpl provides defaults for the following variables:
@@ -232,6 +302,13 @@ Server.tmpl provides defaults for the following variables:
 	ServerCcCmd		command to run C compiler in server
 	ServerCDebugFlags	server debug/opt compiler flags
 	ServerDefines		server standard -D's
+	InstallServerSetUID	does this system need X server suid to root?
+
+
+Threads.tmpl provides defaults for the following variables:
+
+	LocalThreads		whether to enable multi-threading support
+	LocalThreadsDefines	-D flags needed in this directory
 
 
 An <os>Lib.rules file provides defaults for the following variables:
@@ -242,17 +319,57 @@ An <os>Lib.rules file provides defaults for the following variables:
 	SharedLibraryDef	-D's for defining which kind of shared lib
 	ShLibIncludeFile	location of the <os>Lib.tmpl file
 	SharedLibraryLoadFlags	loader flags when making the library
-	PositionIndependentCFlags PIC compiler flags
+	PositionIndependentCFlags 		PIC compiler flags for C
+	PositionIndependentCplusplusFlags	PIC compiler flags for C++
 
+	  Note: PositionIndependentCplusplusFlags is only required if the 
+	  C and C++ compilers use different flags to build PIC code.  The
+	  default configuration will try to use PositionIndependentCFlags 
+	  for both C and C++ compiles.
 
 An <os>Lib.tmpl file provides defaults for the following variables:
 
-	SharedOldXRev		version number for shared liboldX
-	SharedXauRev		version number for shared libXau
-	SharedXawRev		version number for shared libXaw
-	SharedXdmcpRev		version number for shared libXdmcp
-	SharedXextRev		version number for shared libXext
-	SharedXinputRev		version number for shared libXi
-	SharedXlibRev		version number for shared libX11
-	SharedXmuRev		version number for shared libXmu
-	SharedXtRev		version number for shared libXt
+	SharedFSReqs		required libs for libFS.so
+	SharedFSRev		version number for libFS.so
+	SharedICEReqs		required libs for libICE.so
+	SharedICERev		version number for libICE.so
+	SharedOldXReqs		required libs for liboldX.so
+	SharedOldXRev		version number for liboldX.so
+	SharedPexReqs		required libs for libPEX5.so
+	SharedPexRev		version number for libPEX5.so
+	SharedSMReqs		required libs for libSM.so
+	SharedSMRev		version number for libSM.so
+	SharedX11Reqs		required libs for libX11.so
+	SharedX11Rev		version number for libX11.so
+	SharedXauReqs		required libs for libXau.so
+	SharedXauRev		version number for libXau.so
+	SharedXawReqs		required libs for libXaw.so
+	SharedXawRev		version number for libXaw.so
+	SharedXdmcpReqs		required libs for libXdmcp.so
+	SharedXdmcpRev		version number for libXdmcp.so
+	SharedXextReqs		required libs for libXext.so
+	SharedXextRev		version number for libXext.so
+	SharedXiReqs		required libs for libXi.so
+	SharedXiRev		version number for libXi.so
+	SharedXieReqs		required libs for libXie.so
+	SharedXieRev		version number for libXie.so
+	SharedXmuReqs		required libs for libXmu.so
+	SharedXmuRev		version number for libXmu.so
+	SharedXtReqs		required libs for libXt.so
+	SharedXtRev		version number for libXt.so
+	SharedXtstReqs		required libs for libXtst.so
+	SharedXtstRev		version number for libXtst.so
+
+The following variables are used by some part of the tree:
+
+	AckToolset		programs/Xserver/hw/xfree86
+	BuildChooser		build the xdm chooser program?
+	SharedLibXdmGreet	use xdm shared dynamic greeter library?
+	LatexCmd		command to run LaTeX on a document
+	DvipsCmd		command to turn .dvi file into PostScript
+	MotifBC			using Motif 1.1.1, 1.1.2, or 1.1.3?
+	GetValuesBC		compat GetValues behavior for broken apps?
+	NeedBerklib		application needs libXbsd?
+	SvgaConfig		default SVGA configuration
+	HasGetReturnAddress	util/memleak
+	HasShadowPasswd		system has getspnam() function
