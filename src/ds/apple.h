@@ -6,6 +6,8 @@
  * Global variables to adjust the test output and behavior
  */
 extern int DiffDataChunks;
+/* Avoid a conflict with the same symbol in the ingest library. */
+#define DumpDataChunks apple_DumpDataChunks
 extern int DumpDataChunks;
 extern int Debug;
 extern int Verbose;
