@@ -1,5 +1,3 @@
-message 'Reading state definitions'
 read ui.state
-message 'Saving the whole mess'
 vset ui$pager_mode false
 save ui.lf all
