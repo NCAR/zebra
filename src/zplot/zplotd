@@ -27,17 +27,17 @@ $project="$ztop/project/lake_ice";
 	  "iss1/class", 	"iss1 class",
 	  "iss1/prof915l",	"iss1 prof915l",
 	  "iss1/rass915",	"iss1 rass",
-	  "iss1/surface_met",	"iss1 surfmet",
+	  "iss1/surface_met",	"iss1 surfmet surfwind",
 
 	  "iss2/class", 	"iss2 class",
 	  "iss2/prof915l",	"iss2 prof915l",
 	  "iss2/rass915",	"iss2 rass",
-	  "iss2/surface_met",	"iss2 surfmet",
+	  "iss2/surface_met",	"iss2 surfmet surfwind",
 
 	  "iss3/class", 	"iss3 class",
 	  "iss3/prof915l",	"iss3 prof915l",
 	  "iss3/rass915",	"iss3 rass",
-	  "iss3/surface_met",	"iss3 surfmet",
+	  "iss3/surface_met",	"iss3 surfmet surfwind",
 
 	  "bea",       		"class-bea class",
 	  "bel",       		"class-bel class",
@@ -165,7 +165,7 @@ while (<DS>)
 
 	# Remove any elog verbosity
 	s/^.*Notice-\S+ //g;
-	# Decipher the line; the gap is for the directory
+	# Decipher the line
 	($platform, $file, $dir, $time, $nsample) = split(/\s+/,$_);
 	print "$platform $file $time $nsample";
 
@@ -226,14 +226,17 @@ sub clear
 	foreach $platform (@keys)
 	{
 	    ($file, $time, $nsample, $what) = split(/\s+/,$Queue{$platform});
-	    ($config, $window) = split(/\s+/,$Plots{$platform});
+	    ($config, @window) = split(/\s+/,$Plots{$platform});
 	    print "$platform $file $time $nsample $what --> " .
-		"$config $window\n";
+		"$config " . join(" ",@window) . "\n";
 	    print PLOG "$platform $file $time $nsample $what --> " .
-		"$config $window\n";
-	    if (index($Displays{$config},"$window") < 0)
+		"$config " . join(" ",@window) . "\n";
+	    foreach $w (@window)
 	    {
-		$Displays{$config} .= " $window";
+		if (index($Displays{$config},"$w") < 0)
+		{
+		    $Displays{$config} .= " $w ";
+		}
 	    }
 	}
 	undef @keys;
