@@ -16,7 +16,9 @@ XCOMM platform:  $XConsortium: x386.cf,v 1.7 91/08/16 19:30:10 gildea Exp $
 #define X386Server		YES
 #define ExtensionOSDefines	-DXTESTEXT1
 #define MotifBC	        	YES
-
+#ifdef linux
+# define InstallCmd		/usr/bin/install
+# endif
 /*****************************************************************************
  *                        Do not change anything below                       *
  *****************************************************************************/

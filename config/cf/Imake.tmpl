@@ -245,6 +245,15 @@ XCOMM
 # define ConvexArchitecture
 #endif
 
+# ifdef linux
+# define MacroIncludeFile <linux.cf>
+# define MacroFile linux.cf
+# undef linux
+# define LinuxArchitecture
+# define i386Architecture
+# endif
+
+
 #ifndef MacroIncludeFile
 XCOMM WARNING:  Imake.tmpl not configured; guessing at definitions!!!
 XCOMM This might mean that BOOTSTRAPCFLAGS was not set when building imake.

@@ -9,14 +9,14 @@ XCOMM platform:  $XConsortium: sun.cf,v 1.71 91/12/20 11:18:34 rws Exp
 #define i386Architecture
 #endif
 
-#ifdef solaris	/* ------------- Solaris 2.0 configuration -------------- */
+#ifdef SVR4	/* ------------- Solaris 2.0 configuration -------------- */
 
 #define OSName            SunOS 5.0
 XCOMM operating system:  OSName
 #define OSMajorVersion    5
 #define OSMinorVersion    0
 
-#define BootstrapCFlags -Dsparc -Dsun -Dsolaris
+#define BootstrapCFlags -Dsparc -Dsun -DSVR4
 
 #ifdef CppCmd
 #undef CppCmd

@@ -1,0 +1,13 @@
+XCOMM $XFree86: xc/config/cf/xf86.tmpl,v 3.0 1994/12/25 12:12:25 dawes Exp $
+
+#if XF86LinkKit
+   IMAKE_DEFINES = -DXF86LinkKit=1
+       IMAKE_CMD = $(IMAKE) -DUseInstalled -I$(TOP) -I$(IRULESRC) \
+		   $(IMAKE_DEFINES)
+
+
+#undef ImakeSubCmdHelper
+#define ImakeSubCmdHelper $(IMAKE) -DUseInstalled -I$$imaketop \
+			  -I$(IRULESRC) $(IMAKE_DEFINES)
+
+#endif
