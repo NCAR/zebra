@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 3.5 1992-08-10 17:30:54 corbet Exp $
+ * $Id: dsPrivate.h,v 3.6 1992-11-16 21:11:12 granger Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -66,14 +66,14 @@ typedef struct ds_Platform
 	int	dp_parent;		/* Hierarchy backpointer	*/
 	DataOrganization dp_org;	/* Native data organization	*/
 	FileType dp_ftype;		/* File type			*/
-	short	dp_keep;		/* Minimum data keep		*/
-	short	dp_maxsamp;		/* Maximum file samples		*/
+	unsigned short dp_keep;		/* Minimum data keep		*/
+	unsigned short dp_maxsamp;	/* Maximum file samples		*/
 	int	dp_LocalData;		/* The local data table		*/
 	int	dp_RemoteData;		/* The remote data table	*/
 	short	dp_flags;		/* Attribute flags -- see below	*/
 	short	dp_Tfile;		/* Temp file under creation	*/
-	short	dp_NewSamps;		/* New samps (not yet notified) */
-	short	dp_OwSamps;		/* Overwritten samps (n.y.n.)	*/
+	unsigned short dp_NewSamps;	/* New samps (not yet notified) */
+	unsigned short dp_OwSamps;	/* Overwritten samps (n.y.n.)	*/
 } Platform;
 
 # define DPF_MOBILE	0x0001		/* Does this platform move?	*/
@@ -104,7 +104,7 @@ typedef struct ds_DataFile
 	long	df_rev;			/* Revision count		*/
 	short	df_FLink;		/* Data table forward link	*/
 	short	df_BLink;		/* Data table backward link	*/
-	short	df_nsample;		/* How many samples in this file */
+	unsigned short df_nsample;	/* How many samples in this file */
 	short	df_platform;		/* Platform index		*/
 	short	df_use;			/* Structure use count		*/
 	char	df_flags;		/* File flags			*/
