@@ -1,5 +1,5 @@
 /* -*- mode: c++; c-basic-offset: 8; -*-
- * $Id: glass_ingest.cxx,v 2.15 2002-04-25 21:55:32 granger Exp $
+ * $Id: glass_ingest.cxx,v 2.16 2002-04-27 04:38:48 granger Exp $
  *
  * Ingest GLASS data into the system.
  *
@@ -74,7 +74,7 @@ extern "C"
 #include <met_formulas.h>
 }
 
-RCSID("$Id: glass_ingest.cxx,v 2.15 2002-04-25 21:55:32 granger Exp $")
+RCSID("$Id: glass_ingest.cxx,v 2.16 2002-04-27 04:38:48 granger Exp $")
 
 #include <ZTime.h>
 #define FC_DEFINE_FIELDS
@@ -153,8 +153,8 @@ DefineField(F_rh, "rh", FT_RH, "%", "relative humidity")
 DefineField(F_wdir, "wdir", FT_WDir, "degrees", "wind direction")
 DefineField(F_wspd, "wspd", FT_WSpd, "m/s", "wind speed")
 DefineField(F_dz, "dz", "", "m/s", "ascent rate")
-DefineField(F_lon, "lon", "", "degrees_north", "longitude")
-DefineField(F_lat, "lat", "", "degrees_east", "latitude")
+DefineField(F_lon, "lon", "", "degrees", "east longitude")
+DefineField(F_lat, "lat", "", "degrees", "north latitude")
 DefineField(F_alt, "alt", "", "m", "altitude above MSL")
 DefineField(F_sa, "sa", "", "1", "GPS satellites")
 
@@ -165,8 +165,8 @@ DefineField(F_srh, "srh", FT_RH, "%", "surface relative humidity")
 DefineField(F_swdir, "swdir", FT_WDir, "degrees", "surface wind direction")
 DefineField(F_swspd, "swspd", FT_WSpd, "m/s", "surface wind speed")
 DefineField(F_sdz, "sdz", "", "m/s", "pre-launch ascent rate")
-DefineField(F_slon, "slon", "", "degrees_north", "pre-launch longitude")
-DefineField(F_slat, "slat", "", "degrees_east", "pre-launch latitude")
+DefineField(F_slon, "slon", "", "degrees", "pre-launch east longitude")
+DefineField(F_slat, "slat", "", "degrees", "pre-launch north latitude")
 DefineField(F_salt, "salt", "", "m", "pre-launch altitude above MSL")
 DefineField(F_ssa, "ssa", "", "1", "pre-launch GPS satellites")
 
