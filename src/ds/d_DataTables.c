@@ -27,7 +27,7 @@
 # include "dsPrivate.h"
 # include "commands.h"
 # include "dsDaemon.h"
-MAKE_RCSID("$Id: d_DataTables.c,v 3.3 1992-08-10 17:30:54 corbet Exp $")
+MAKE_RCSID("$Id: d_DataTables.c,v 3.4 1992-11-14 06:45:17 granger Exp $")
 
 
 /*
@@ -211,6 +211,7 @@ dt_NewFile ()
  */
 {
 	DataFile *ret;
+	int avail;
 /*
  * If no entries are free, we have to disappoint them.
  */
@@ -219,10 +220,21 @@ dt_NewFile ()
 		msg_ELog (EF_PROBLEM, "Out of DataFile entries!");
 		return (0);
 	}
+
+	ShmLock ();
+/*
+ * Issue warnings if the space for data file entries gets dangerously low. 
+ */
+	avail = ShmHeader->sm_nDataTable - ShmHeader->sm_nDTEUsed;
+	if (avail < 5)
+		msg_ELog (EF_PROBLEM,
+		  "Warning: Only %i DataFile entries remaining!",avail);
+	else if ((avail <= 30) && (avail % 10 == 0))
+		msg_ELog (EF_INFO,
+			  "%i DataFile entries remaining.",avail);
 /*
  * OK, pull one out.
  */
-	ShmLock ();
 	ret = DFTable + ShmHeader->sm_DTFreeList;
 	ShmHeader->sm_DTFreeList = ret->df_FLink;
 	ShmUnlock ();
