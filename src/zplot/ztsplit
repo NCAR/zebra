@@ -1,6 +1,6 @@
 #! /usr/local/bin/perl5
 #
-# $Id: ztsplit,v 1.1 1997-12-23 09:22:14 granger Exp $
+# $Id: ztsplit,v 1.2 1999-03-01 23:42:02 granger Exp $
 #
 # Split zebra times into yy mm dd hour min sec
 #
@@ -26,8 +26,9 @@ if ($#ARGV != 0)
     exit 1;
 }
 
-($day, $mon, $year, $hour, $min, $sec) =
-    $ARGV[0] =~ /(\d+)-(\w+)-(\d+),(\d+):(\d+):(\d+)/;
+$sec = 0;
+($day, $mon, $year, $hour, $min) =
+    $ARGV[0] =~ /(\d+)-(\w+)-(\d+),(\d+):(\d+)/;
 
 #print "$mon\n";
 $month = `echo $mon | tr 'A-Z' 'a-z'`;
