@@ -19,14 +19,14 @@
 # define ATSLEN		80	/* Length for AsciiText strings.	*/
 
 static char	New_Trans[ATSLEN];
-static bool	DoFeet = TRUE, DoVOR = FALSE;
+static bool	DoFeet = TRUE;
 
 static bool	SWMade = FALSE;
 static Widget	PosButton, AltButton, StatusLabel, TransLabel, TransText;
 static Widget	ClrButton;
 static char	Platform[STRLEN];
 static Ac_Data	Aircraft;
-static time	AcTime;
+static time	Delta, AcTime, SaveTime[MAXOURS];
 static char	TitleStr[200], StatusStr[MAXOURS][200], AcIngestName[STRLEN];
 static char	AcPlatforms[200];
 static Widget	Top;
@@ -50,7 +50,6 @@ XtAppContext	Appc;
 	static void Go ();
 	static int DoXevent ();
 	static void ChangeAlt ();
-	static void ChangePos ();
 	static void ClearStatus ();
 	int MsgDispatcher (struct message *);
 # else
@@ -69,7 +68,6 @@ XtAppContext	Appc;
 	static void Go ();
 	static int DoXevent ();
 	static void ChangeAlt ();
-	static void ChangePos ();
 	static void ClearStatus ();
 	int MsgDispatcher ();
 # endif
@@ -80,6 +78,7 @@ int	argc;
 char	**argv;
 {
 	SValue	v;
+	int	i;
 
 	msg_connect (MsgDispatcher, "Ac_Status");
 
@@ -96,6 +95,9 @@ char	**argv;
 
 	ds_Initialize ();	
 	SetupIndirect ();
+	
+	for (i = 0; i < MAXOURS; i++)
+		SaveTime[i].ds_yymmdd = SaveTime[i].ds_hhmmss = 0;
 
 	signal (SIGINT, Die);
 	signal (SIGTERM, Die);
@@ -176,11 +178,13 @@ time		*t;
 		}
 	msg_ELog (EF_DEBUG, "itsat = %d", itsat);
 /*
- * If it is then set the status label.
+ * If it is then set the status label and save the time for future use.
  */
 	if ((itsat >= 0) && (itsat < nplat))
 	{
 		AcTime = *t;
+		ud_sub_date (&AcTime, &SaveTime[itsat], &Delta);
+		SaveTime[itsat] = AcTime;
 		fields[0] = "trans";
 		numfields = 1;
 		if ((dobj = ds_GetData (pid, fields, numfields, t, t, 
@@ -298,12 +302,12 @@ Widget	parent;
 /*
  * The status title.
  */
-	sprintf (TitleStr, "%-11s%-6s%-12s%-12s%-12s%-5s\n", "Platform",
-		"Trans", "Altitude", "Latitude", "Longitude", "Time"); 
+	sprintf (TitleStr, "%-11s%-6s%-12s%-12s%-12s%-7s%7s\n", "Platform",
+		"Trans", "Altitude", "Latitude", "Longitude", "Time", "Delta"); 
 	n = 0;
 	XtSetArg (args[n], XtNlabel, TitleStr);		n++;
 	XtSetArg (args[n], XtNjustify, XtJustifyLeft);	n++;
-	XtSetArg (args[n], XtNwidth, 410);		n++;
+	XtSetArg (args[n], XtNwidth, 480);		n++;
 	XtSetArg (args[n], XtNresize, True);		n++;
 	above = XtCreateManagedWidget ("AcStatusL", labelWidgetClass, 
 		parent, args, n);
@@ -315,7 +319,7 @@ Widget	parent;
 	XtSetArg (args[n], XtNfromVert, above);		n++;
 	XtSetArg (args[n], XtNlabel, StatusStr);	n++;
 	XtSetArg (args[n], XtNjustify, XtJustifyLeft);	n++;
-	XtSetArg (args[n], XtNwidth, 410);		n++;
+	XtSetArg (args[n], XtNwidth, 480);		n++;
 	XtSetArg (args[n], XtNheight, 80);		n++;
 	XtSetArg (args[n], XtNresize, True);		n++;
 	above = StatusLabel = XtCreateManagedWidget ("AcStatusT", 
@@ -346,7 +350,7 @@ Widget	parent;
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
 	XtSetArg (args[n], XtNfromVert, above);		n++;
-	XtSetArg (args[n], XtNwidth, 410);		n++;
+	XtSetArg (args[n], XtNwidth, 480);		n++;
 	XtSetArg (args[n], XtNjustify, XtJustifyLeft);	n++;
 	XtSetArg (args[n], XtNlabel, "Enter:  platform,transponder");	n++;
 	above = TransLabel = XtCreateManagedWidget ("AcTransL", 
@@ -361,7 +365,7 @@ Widget	parent;
 	XtSetArg (args[n], XtNinsertPosition, 0);	n++;
 	XtSetArg (args[n], XtNlength, ATSLEN);		n++;
 	XtSetArg (args[n], XtNresize, XawtextResizeNever);	n++;
-	XtSetArg (args[n], XtNwidth, 410);		n++;
+	XtSetArg (args[n], XtNwidth, 480);		n++;
 	XtSetArg (args[n], XtNheight, 20);		n++;
 	XtSetArg (args[n], XtNstring, New_Trans);	n++;
 	XtSetArg (args[n], XtNtype, XawAsciiString);	n++;
@@ -424,20 +428,6 @@ ClearStatus ()
 	for (i = 0; i < MAXOURS; i++)
 		StatusStr[i][0] = '\0';
 	SetLabel (StatusLabel, "");
-}
-
-
-static void
-ChangePos ()
-/*
- * Change position status display between lat/lon and VOR.
- */
-{
-	Arg	args[2];
-
-	DoVOR = ! DoVOR;
-	XtSetArg (args[0], XtNlabel, DoVOR ? "VOR" : "Lat/Lon");
-	XtSetValues (PosButton, args, 1);
 }
 
 
@@ -572,11 +562,12 @@ int	itsat;
 	if (! SWMade)
 		return;
 
-	sprintf (string, "%-11s%-6o%-12.2f%-12.2f%-12.2f %2d:%02d:%02d\n", 
+	sprintf(string,"%-11s%6o%12.2f%12.2f%12.2f%3d:%02d:%02d%3d:%02d:%02d\n",
 		Platform, Aircraft.transponder, Aircraft.altitude, 
 		Aircraft.latitude, Aircraft.longitude, 
 		AcTime.ds_hhmmss/10000, (AcTime.ds_hhmmss/100) % 100,
-		AcTime.ds_hhmmss % 100);
+		AcTime.ds_hhmmss % 100, Delta.ds_hhmmss/10000,
+		(Delta.ds_hhmmss/100) % 100, Delta.ds_hhmmss % 100);
 	strncpy (StatusStr[itsat], string, strlen (string));
 	sendstr[0] = '\0';
 	for (i = 0; i < nplat; i++)
