@@ -1,6 +1,6 @@
 /**/#-------------------------------------------------------------------------
 /**/# RDSS Software project build parameters
-/**/# $Id: Project.tmpl,v 1.9 1994-05-27 20:28:43 case Exp $
+/**/# $Id: Project.tmpl,v 1.10 1994-11-01 03:03:34 case Exp $
 /**/#-------------------------------------------------------------------------
 
 /*****************************************************************************
@@ -287,7 +287,7 @@ $(OPENWINHOME)/lib/libXmu.a \
 -L$(XLIBDIR) LoaderLibPrefix -lXt LoaderLibPrefix -lXext \
 LoaderLibPrefix -lX11
 #       else
-#define XLibraries XRunPath -L$(XLIBDIR) LoaderLibPrefix -lXaw 
+#define XLibraries XRunPath -L$(XLIBDIR) LoaderLibPrefix -lXaw \
 LoaderLibPrefix -lXmu \
 LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #       endif
@@ -330,11 +330,7 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #endif
 
 #ifndef TermcapLibrary
-#if defined(SunArchitecture) && SystemV4
-#define TermcapLibrary -L/usr/ccs/lib -ltermcap
-#else 
 #define TermcapLibrary LoaderLibPrefix -ltermcap
-#endif
 #endif
 
 #ifndef MathLibrary
