@@ -4,7 +4,7 @@
 
 #include <defs.h>
 
-RCSID ("$Id: SerialStream.cc,v 1.3 1998-03-04 17:13:55 granger Exp $")
+RCSID ("$Id: SerialStream.cc,v 1.4 1998-03-16 20:49:21 granger Exp $")
 
 #include "SerialStream.hh"
 #include "SerialBuffer.hh"
@@ -14,6 +14,7 @@ RCSID ("$Id: SerialStream.cc,v 1.3 1998-03-04 17:13:55 granger Exp $")
  * ---- SerialStream base class ----
  */
 
+#ifdef notdef
 int
 SerialStream::translate (void *data, xdr_translator xp)
 {
@@ -22,7 +23,7 @@ SerialStream::translate (void *data, xdr_translator xp)
 	sbuf->Seek (xdrs->getpos());
 	return (0);
 }
-
+#endif
 
 #define SS_METHOD(T) \
 int SerialStream::translate (T &tp) \
@@ -32,18 +33,6 @@ int SerialStream::translate (T &tp) \
 	  sbuf->Seek (xdrs->getpos()); \
 	  return (0); \
 }
-
-#ifdef notdef
-int SerialStream::translate (char &tp)
-{
-	  xdrs->setpos (sbuf->Position());
-	  *xdrs << &tp;
-	  sbuf->Seek (xdrs->getpos());
-	  return (0);
-}
-
-// SS_METHOD(char);
-#endif
 
 SS_METHOD(char);
 SS_METHOD(u_char);
@@ -102,7 +91,7 @@ SerialEncodeStream::SerialEncodeStream (SerialBuffer &buf) :
 
 
 int
-SerialEncodeStream::translate (char * &s)
+SerialEncodeStream::cstring (char *s, long /*max*/)
 {
 	// Write the string into the buffer, with null
 	// characters to round out to a multiple of 4 bytes.
@@ -115,7 +104,6 @@ SerialEncodeStream::translate (char * &s)
 		int len = strlen (s);
 		int pad = 4 - (len % 4);
 		len += pad;
-		//((SerialStream *)this)->translate (len);
 		*this << len;
 		sbuf->Write (s, len-pad);
 		sbuf->Write (zero, pad);
@@ -123,7 +111,6 @@ SerialEncodeStream::translate (char * &s)
 	else
 	{
 		int len = 0;
-		//((SerialStream *)this)->translate (len);
 		*this << len;
 	}
 	return (0);
@@ -160,29 +147,17 @@ SerialDecodeStream::SerialDecodeStream (SerialBuffer &buf) :
 
 
 int
-SerialDecodeStream::translate (char * &s)
+SerialDecodeStream::cstring (char *s, long max)
 {
 	int len;
 
 	*this >> len;
-	if (s && !len)
-	{
-		free (s);
-		s = NULL;
-	}
-	else if (s)
-	{
-		s = (char *) realloc (s, len);
-	}
-	else if (len)
-	{
-		s = (char *) malloc (len);
-	}
-
-	if (len)
-	{
-		sbuf->Read (s, len);
-	}
+	int end = (len <= max) ? len : max;
+	sbuf->Read (s, end);
+	if (len > max)
+		sbuf->Skip (len - max);
+	if (end > 0)
+		s[end-1] = '\0';
 	return (0);
 }
 
@@ -238,6 +213,7 @@ SIZE_TRANSLATE(double);
 
 #undef SIZE_TRANSLATE
 
+#ifdef notdef
 /*
  * Generic size translator given an XDR routine
  */
@@ -247,19 +223,19 @@ SerialCountStream::translate (void *data, xdr_translator xp)
 	count += XDRStream::Length (xp, data);
 	return (0);
 }
-
+#endif
 
 
 int
-SerialCountStream::translate (char * &s)
+SerialCountStream::cstring (char *s, long /*max*/)
 {
-	int len;
+	int len = 0;
 	*this << len;		// Size of int length flag
 	if (s)			// Size of padded string if non-NULL
 	{
 		len = strlen (s); 
-		count += len;
-		count += 4 - (len % 4);
+		Add (len);
+		Add (4 - (len % 4));
 	}
 	return (0);
 }

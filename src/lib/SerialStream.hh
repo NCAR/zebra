@@ -1,11 +1,9 @@
 /*
- * $Id: SerialStream.hh,v 1.3 1998-03-04 17:13:56 granger Exp $
+ * $Id: SerialStream.hh,v 1.4 1998-03-16 20:49:22 granger Exp $
  *
  */
 #ifndef _SerialStream_hh_
 #define _SerialStream_hh_
-
-//#include "Serializable.hh"
 
 class Serializable;
 class SerialBuffer;
@@ -31,7 +29,7 @@ class XDR;
 class SerialStream
 {
 public:
-	typedef int (*xdr_translator)(XDR *, void *);
+	// typedef int (*xdr_translator)(XDR *, void *);
 
 	///
 	/** The constructor requires a reference to the SerialBuffer
@@ -64,6 +62,7 @@ public:
 
 #undef SS_TRANSLATE
 
+#ifdef notdef
 	///
 	/** Types which have a xdr translation procedure can use this
 	    method.  The SERIAL_XDR_OPERATOR(Type, XDRTranslator) macro
@@ -71,14 +70,18 @@ public:
 	    the given type and XDR routine.
 	    */
 	virtual int translate (void *data, xdr_translator xp);
+#endif
 
 	virtual int translate (Serializable &object) = 0;
 
 	///
-	/** A default method for translating strings must be implemented
-	    by subclasses.
+	/** A default method for translating strings must be implemented by
+	    subclasses.  's' points to the character array in memory, and
+	    'maxlen' is the maximum length of the array, including the
+	    space for the null terminator.  (Maximum *string* length is
+	    len-1).
 	    */
-	virtual int translate (char * &s) = 0;
+	virtual int cstring (char *s, long maxlen) = 0;
 	
 	/* Add binary stream operators << and >> for every type for which
 	 * there is a translate method.
@@ -98,7 +101,6 @@ public:
 	SS_OPERATOR(float);
 	SS_OPERATOR(double);
 
-	SS_OPERATOR(char *);
 	SS_OPERATOR(Serializable);
 
 #undef SS_OPERATOR
@@ -130,6 +132,7 @@ protected:
 };
 
 
+#ifdef notdef
 #define SERIAL_XDR_OPERATOR(T, XP) \
 inline SerialStream &operator<< (SerialStream &ss, T &tp) \
 { \
@@ -141,6 +144,7 @@ inline SerialStream &operator>> (SerialStream &ss, T &tp) \
 	ss.translate ((void *)&tp, (SerialStream::xdr_translator)XP); \
 	return (ss); \
 }
+#endif
 
 /*
  * Emulate "translatability" by defining serial stream operators on a class
@@ -176,9 +180,13 @@ public:
 	int translate (Serializable &object);
 
 	///
-	/** Encode a null-terminated array of characters.
-	    */
-	int translate (char * &s);
+	/** Encode a null-terminated fixed-length array of characters. */
+	inline int cstring (char *s)
+	{
+		cstring (s, 0);
+	}
+
+	virtual int cstring (char *s, long /*maxlen*/);
 
 	void opaque (void *data, long len);
 
@@ -203,12 +211,8 @@ public:
 	int translate (Serializable &object);
 
 	///
-	/** Decode a string stored as a null-terminated character array.
-	    and skip any padding.  The string is allocated into memory
-	    which the object must free.  If non-zero, the string pointer
-	    is reallocated to the desired length.
-	    */
-	int translate (char * &s);
+	/** Decode a null-terminated string into a fixed-length array. */
+	virtual int cstring (char *s, long maxlen);
 
 	void opaque (void *data, long len);
 
@@ -268,10 +272,19 @@ public:
 
 	virtual void opaque (void *data, long len);
 
-	virtual int translate (char * &s);
+	/* We don't really need the max length, so provide a convenient
+	   method to use directly on this stream type, which just calls
+	   the virtual method with a meaningless max length. */
+	inline int cstring (char *s)
+	{
+		cstring (s, 0);
+	}
+
+	virtual int cstring (char *s, long /*maxlen*/);
 
 	virtual int translate (Serializable &object);
 
+#ifdef notdef
 	///
 	/** Override the translate() method for unknown types
 	    and use the given XDR procedure to get the length.
@@ -280,6 +293,7 @@ public:
 	    stream.
 	    */
 	virtual int translate (void *data, xdr_translator xp);
+#endif
 
 protected:
 
@@ -356,82 +370,6 @@ inline SerialStream & operator<< (SerialStream &ss, T &object)
 	object.translate (ss);
 	return (ss);
 }
-#endif
-
-
-#ifdef notdef
-	// This is just a shortcut for translate(Serializable &object)
-	// when object is Translatable and inherits the defaults.
-	/// 
-	/** Recursively call the translate() method of a Translatable
-	    object on this stream.
-	    */
-	virtual int translate (Translatable &object)
-	{
-		object.translate (*this);
-		return (0);
-	}
-	SerialStream &operator<< (Translatable &object)
-	{
-		translate (object); return (*this);
-	}
-	SerialStream &operator>> (Translatable &object)
-	{
-		translate (object); return (*this);
-	}
-#endif
-
-#ifdef notdef
-	virtual int translate (Serializable *object) = 0;
-
-	virtual int translate (Serializable &object)
-	{
-		return (translate (&object));
-	}
-
-	SerialStream &operator<< (Serializable &object)
-	{
-		translate (&object); return (*this);
-	}
-	SerialStream &operator>> (Serializable &object)
-	{
-		translate (&object); return (*this);
-	}
-	SerialStream &operator<< (Serializable *object)
-	{
-		translate (object); return (*this);
-	}
-	SerialStream &operator>> (Serializable *object)
-	{
-		translate (object); return (*this);
-	}
-#endif
-
-#ifdef notdef
-#define SS_METHOD(T) \
-	virtual int translate (T *tp); \
-	virtual int translate (T &tp) { return translate (&tp); } \
-	SerialStream &operator<< (T &tp) { translate (&tp); return (*this); } \
-	SerialStream &operator>> (T &tp) { translate (&tp); return (*this); } \
-	SerialStream &operator<< (T *tp) { translate (tp); return (*this); } \
-	SerialStream &operator>> (T *tp) { translate (tp); return (*this); }
-
-	virtual int translate (char &tp);
-	SerialStream &operator<< (char &tp) { translate (tp); return (*this); }
-	SerialStream &operator>> (char &tp) { translate (tp); return (*this); }
-
-	// SS_METHOD(char);
-#endif
-
-
-#ifdef notdef
-	virtual int translate (char &tp)
-	{
-		  count += XDRStream::Length (tp);
-		  return (0);
-	};
-
-	// SIZE_TRANSLATE(char);
 #endif
 
 
