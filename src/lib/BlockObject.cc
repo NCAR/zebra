@@ -6,7 +6,7 @@
 //#include <defs.h>
 //#undef bool
 //
-//RCSID("$Id: BlockObject.cc,v 1.8 1998-06-05 19:35:24 granger Exp $")
+//RCSID("$Id: BlockObject.cc,v 1.9 1998-08-27 22:40:42 granger Exp $")
 
 #include "BlockFile.hh"
 #include "BlockObject.hh"
@@ -180,8 +180,6 @@ SyncBlock::allocate (BlkSize need)
 {
 	if (need > block.length)
 	{
-		if (block.offset)
-			bf->Free (block.offset, block.length);
 		need = grow (need);
 		//
 		// If the object does not want its block to grow any larger,
@@ -189,6 +187,8 @@ SyncBlock::allocate (BlkSize need)
 		//
 		if (need > block.length)
 		{
+			if (block.offset)
+				bf->Free (block.offset, block.length);
 			block.offset = bf->Alloc (need, &block.length);
 
 			// After allocating, we will never want to trigger
@@ -220,7 +220,7 @@ SyncBlock::grow (BlkSize needed)
 {
 	// Default growth algorithm, round to the nearest 256 bytes, then
 	// add on half as many 256-byte blocks.
-	long npages = (needed >> 8) + 1;
+	long npages = ((needed-1) >> 8) + 1;
 	npages += (npages >> 1);
 	return (npages << 8);
 }
