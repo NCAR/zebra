@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.35 1996-01-12 23:03:00 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.36 1996-01-23 04:49:43 granger Exp $"
 
 DEPLIBS=$(LIBZEB) /*$(LIBNETCDF)*/
 /* LIBNETCDF=/net/src/netcdf-2.3.2/libsrc/libnetcdf.a */
@@ -17,7 +17,10 @@ CLIBS=$(LIBGCC)
 INCLUDES = $(HDFINCLUDES) $(NETCDFINCLUDES)
 
 /* DEFINES = -DHDF_TEST -DHDF_INTERFACE */	/* for HDF testing */
-/* DEBUG = -DDEBUG */
+DEBUGGER = xgdb
+#ifdef DebugFlag
+DEBUG = -DDEBUG -DNoBuffer -DDEBUGGER="\"$(DEBUGGER)\""
+#endif
 DEFINES = $(HDFDEFINES) $(DEBUG) /* -DTEST_TIME_UNITS */
 
 #CCOPTIONS=
@@ -72,7 +75,7 @@ PRIVATE_HEADERS = BoundaryFile.h DataChunkP.h dslib.h znfile.h \
 HEADERS = DataStore.h DataChunk.h ingest.h fields.h ds_fields.h
 
 DISTFILES = Imakefile $(SRCS) $(TESTSRCS) $(PRIVATE_HEADERS) \
-            $(HEADERS) Daemon.state
+            $(HEADERS) Daemon.state nstest.config
 
 DMNOBJS = $(DSOBJS) $(DSLIBOBJS) $(DCOBJS)
 CompleteProgramTarget(dsDaemon, $(DMNOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
@@ -132,34 +135,87 @@ TestProgramTarget (aline, $(ALOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
  * We have to use an explicit test rule since we have to start up
  * a zebra session, and we're dependent on multiple programs.
  */
+#if UseInstalledZebra
 ZEBPROGS = $(BINDIR)/message $(BINDIR)/timer $(BINDIR)/zstop $(BINDIR)/dsdump
+#else
+ZEBPROGS = $(TOP)/src/msg/message $(TOP)/src/timer/timer \
+	   $(TOP)/src/zstop/zstop $(TOP)/src/dsdump/dsdump
+#endif
 TESTPROJ = /net/shared/zebra/project/test
-/* TESTOUT = > /dev/null 2>&1 */
-TESTOUT =
+DATA_DIR = $(TESTPROJ)/data
 SOCKET = ./test.socket
+INVENTORY = 10
+#ifdef DebugFlag
+DEBUG_FLAG = -debug /* -blow */
+TESTOUT =
+#else
+DEBUG_FLAG =
+TESTOUT = > /dev/null 2>&1
+#endif
+ALINE = aline -nconsumers 5 $(DEBUG_FLAG) -period 2 -inventory $(INVENTORY)
+DSDAEMON = ./dsDaemon $(DEBUG_FLAG)
+APPLE = apple $(DEBUG_FLAG)
 
-test:: $(ZEBPROGS) dsDaemon aline apple nstest.config
-	-@ZEB_SOCKET=$(SOCKET); export ZEB_SOCKET; \
+test:: test.aline.only test.apple.only test.close
+
+test.aline: test.aline.only test.close
+
+test.apple: test.apple.only test.close
+
+#define TEST_ENV \
+	-@ZEB_SOCKET=$(SOCKET); export ZEB_SOCKET; \ @@\
+	DSDUMP=$(BINDIR)/dsdump; export DSDUMP; \ @@\
+	DATA_DIR=$(DATA_DIR); export DATA_DIR; \ 
+
+test.session $(SOCKET): $(ZEBPROGS) dsDaemon nstest.config
+	TEST_ENV
+	echo "Starting a zebra test session... ZEB_SOCKET=$$ZEB_SOCKET"; \
 	$(BINDIR)/zstop; rm -f $$ZEB_SOCKET; \
-	DSDUMP=$(BINDIR)/dsdump; export DSDUMP; \
-	DATA_DIR=$(TESTPROJ)/data; export DATA_DIR; \
-	echo "Starting a zebra session... ZEB_SOCKET=$$ZEB_SOCKET"; \
-	set -x; message /* -d */ ; (timer &); (dsDaemon nstest.config &); \
-	sleep 5; /* give daemon time to connect */ \
-	set +x; echo "Assembly line testing with 'aline'..."; \
-	if aline 4 $(TESTOUT); \
-		then echo "Passed."; \
-	else \
-		echo "FAILED."; \
-	fi; \
-	echo "Running 'apple', arrows away..."; \
-	if apple $(TESTOUT); \
-		then echo "Passed."; \
-	else \
-		echo "FAILED."; \
-	fi; \
-	$(BINDIR)/zstop
+	set -x; message /* -d */ ; (timer &); ($(DSDAEMON) nstest.config &); \
+	sleep 5; /* give daemon time to connect */
 
+test.aline.only: aline $(SOCKET)
+	TEST_ENV
+	echo "Assembly line testing with 'aline'..."; \
+	set +x; \
+	echo " -- Shared netCDF platform" ; \
+	if $(ALINE) -share $(TESTOUT); \
+		then echo "Passed."; \
+	else \
+		echo "FAILED."; \
+	fi; \
+	echo " -- Linked netCDF platforms (files removed)" ; \
+	if $(ALINE) -remove $(TESTOUT); \
+		then echo "Passed."; \
+	else \
+		echo "FAILED."; \
+	fi; \
+	echo " -- Shared ZNF platform" ; \
+	if $(ALINE) -znf -share $(TESTOUT); \
+		then echo "Passed."; \
+	else \
+		echo "FAILED."; \
+	fi; \
+	echo " -- Linked ZNF platforms (files removed)" ; \
+	if $(ALINE) -znf -remove $(TESTOUT); \
+		then echo "Passed."; \
+	else \
+		echo "FAILED."; \
+	fi
+
+test.apple.only: apple $(SOCKET)
+	TEST_ENV
+	echo "Running 'apple', arrows away..."; \
+	if $(APPLE) $(TESTOUT); \
+		then echo "Passed."; \
+	else \
+		echo "FAILED."; \
+	fi
+
+test.close: $(BINDIR)/zstop
+	TEST_ENV
+	echo "Ending zebra test session..."; \
+	$(BINDIR)/zstop; rm -f $$ZEB_SOCKET
 
 /*
  * Saber stuff.  This is a bit complicated, depending on what you are
