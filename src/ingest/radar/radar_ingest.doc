@@ -253,9 +253,9 @@ check_trailer
 Example Command File
 --------------------
 
-Here's an example radar_ingest command file for post processing, reading CP4
-data from tape '/dev/nexa0', with a 900 x 900 image size, radar at the center,
-and 6 pixels per km (yielding a 150km x 150km image):
+Here's an example radar_ingest command file, reading CP4 data from tape
+'/dev/nexa0', with a 900 x 900 image size, radar at the center, and 6 pixels
+per km (yielding a 150km x 150km image):
 
 	source file /dev/nexa0
 	field reflectivity offset 0
