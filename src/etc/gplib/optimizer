@@ -1,0 +1,20 @@
+! Menu for optimizer boundary components which includes entry for entering
+! another boundary.
+!
+! $Id: optimizer,v 1.1 1997-04-29 03:52:14 granger Exp $
+!
+
+define widget optimizer-boundary-menu intmenu 'optimizer boundary menu'
+	title 'Optimizer Boundary'
+	line
+	submenu 'Line Width' 'linewidth'
+	entry 'Enter boundary' 'opt_enter_boundary'
+endmenu
+
+
+procedure opt_enter_boundary
+	local plat pdparam(icon_component,"platform")
+	polyline #plat
+endprocedure
+
+
