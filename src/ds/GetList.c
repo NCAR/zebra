@@ -19,7 +19,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: GetList.c,v 3.5 1993-05-06 17:10:22 corbet Exp $";
+static char *rcsid = "$Id: GetList.c,v 3.6 1993-09-30 18:24:48 granger Exp $";
 
 # include "defs.h"
 # include "message.h"
@@ -76,6 +76,25 @@ GetList *gl;
 	GList = gl;
 }
 
+
+
+void 
+dgl_ForceClosure()
+/*
+ * Release our free chain
+ */
+{
+	GetList *gl, *next;
+
+	gl = GList;
+	while (gl)
+	{
+		next = gl->gl_next;
+		free (gl);
+		gl = next;
+	}
+	GList = NULL;
+}
 
 
 
