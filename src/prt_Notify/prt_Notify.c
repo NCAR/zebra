@@ -167,8 +167,9 @@ PlatformId pid;
  * from this platform.
  */
 {
-	ZebTime t, now;
+	ZebTime t[2], now;
 	char *pname = ds_PlatformName (pid);
+	int ntime;
 /*
  * If there is already a timer event on this PID, we assume we don't need
  * to make another one.
@@ -177,14 +178,16 @@ PlatformId pid;
 		return;
 /*
  * Find out what our time is now, and when the next data shows up.
+ * If the most recent data time is now, then we've nothing to wait for.
  */
 	tl_Time (&now);
-	if (! ds_DataTimes (pid, &now, 1, DsAfter, &t))
+	ntime = ds_DataTimes (pid, &now, 2, DsAfter, t);
+	if ((ntime == 0) || TC_Eq(t[0], now))
 		return;
 /*
  * Set up our request for that time.
  */
-	TimeEvent[pid] = tl_AbsoluteReq (TimeToNotify, (void *) pid, &t, 0);
+	TimeEvent[pid] = tl_AbsoluteReq (TimeToNotify, (void *) pid, &t[0], 0);
 }
 
 
