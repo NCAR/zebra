@@ -1,0 +1,13 @@
+! $Id: radar_ingest.ad,v 1.1 1992-08-20 06:43:24 granger Exp $
+!
+! radar_ingest application defaults file
+! Do Not Modify if this is the library-isntalled copy
+! See ingest/radar directory
+!
+*input:			True
+*CountUp.font:		-*-symbol-*-*-*-*-*-120-*-*-*-*-*-*
+*CountDown.font:	-*-symbol-*-*-*-*-*-120-*-*-*-*-*-*
+*Label.borderColor:	cadet blue
+*Command.borderColor:	red
+*background:		gray90
+*ThrTitle.left:	ChainLeft

@@ -1,0 +1,15 @@
+! $Id: RadarStatus.ad,v 1.1 1992-08-20 06:42:14 granger Exp $
+! 
+! RadarStatus application defaults file
+! Do Not Modify if this is the library-installed copy
+! See ingest/radar directory
+!
+*datelabel.height:	15
+*datelabel.width:	150
+*wm.height:		14
+*second.height:		15
+*second.width:		230
+!*Label.background:	gray70
+*Command.background:	gray70
+*Command.borderColor:	red
+*background:		gray90

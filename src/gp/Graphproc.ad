@@ -1,0 +1,355 @@
+! $Id: Graphproc.ad,v 1.1 1992-08-20 06:45:42 granger Exp $
+!
+! The Graphics process resource file.
+!
+!
+! Don't change these first couple of lines.  They make things like
+! menus and the movie controller work right.
+!
+*SimpleMenu*overrideRedirect:	True
+*movie*overrideRedirect:	False
+*movie*transient:		False
+*overlay*overrideRedirect:	False
+*overlay*transient:		False
+*position*overrideRedirect:	False
+*position*transient:		False
+*insert*overrideRedirect:	False
+*insert*transient:		False
+*annotate*overrideRedirect:	False
+*annotate*transient:		False
+!
+! Changing these lines affects the type of window the graphics process
+! runs in as well as the limit widgets.
+!
+*overrideRedirect:	False
+*transient:		True
+*UIForm*overrideRedirect:	False
+*UIForm*transient:		False
+!
+*grshell.Graphics.icon.translations:	#override \n\
+	<EnterWindow>:		highlight() \n\
+	<LeaveWindow>:		reset() \n\
+	<BtnDown>:		IconMenuPopup()
+*SimpleMenu*menuLabel.font: -*-helvetica-bold-r-*-*-14-140-*
+*DataAvailable*DAEntry.font:	-*-lucidatypewriter-medium-r-*-*-14-140-*-*-*-*-*-*
+*SimpleMenu*font: -*-helvetica-medium-r-*-*-14-140-*
+*MenuButton*borderColor:	gray60
+*MenuButton*foreground:		black
+*MenuButton*background:		gray80
+*grshell.Graphics.translations: #override \n\
+	Shift<Btn1Down>:	ue_pointer_event(mb-s-left) \n\
+	Shift<Btn2Down>:	ue_pointer_event(mb-s-middle) \n\
+	Shift<Btn3Down>:	ue_pointer_event(mb-s-right) \n\
+	Ctrl<Btn1Down>:	ue_pointer_event(mb-c-left) \n\
+	Ctrl<Btn2Down>:	ue_pointer_event(mb-c-middle) \n\
+	Ctrl<Btn3Down>:	ue_pointer_event(mb-c-right) \n\
+	<BtnUp>:	ue_button_up() \n\
+	<Btn1Down>:	ue_pointer_event(mb-left) \n\
+	<Btn2Down>:	ue_pointer_event(mb-middle) \n\
+	<Btn3Down>:	ue_pointer_event(mb-right) \n\
+	<BtnMotion>:	ue_motion() \n\
+	<Key>:		ue_key_event()
+*xgrshell.Graphics.translations: #augment \n\
+	<Key>:		ue_key_event()
+*graphics.Cursor:	left_ptr
+*graphics.cursor:	left_ptr
+*cursor:		left_ptr
+!*grshell.borderWidth:	2
+!
+! Stuff for the overlay widget.  This one wants a monospace font.
+!
+*overlay*font:	-*-lucidatypewriter-medium-r-*-*-14-140-*-*-*-*-*-*
+*overlay.resize:	true
+*overlay*form.resize:	true
+*overlay*allowShellResize:	true
+!
+! Data insertion widget.
+!
+*insert*background:		gray90
+*insert*Command*borderColor:	red
+*insert*Text*borderColor:	yellow
+*insert*MenuButton*borderColor:	orange
+!
+! UIForm stuff.
+!
+*UIForm*Text*translations: #override \n\
+	<Key>Delete:	end-of-line()delete-previous-character() \n\
+	Ctrl<Key>u:	beginning-of-line()kill-to-end-of-line()
+*UIForm.defaultDistance: 8
+*UIForm*Text*background: gray90
+*UIForm*Command*borderColor: red
+*UIForm*Command*background: Gray90
+*UIForm.background: gray95
+*UIForm*Label.background: gray95
+!
+! Polyline instructions.
+!
+*PLInstructions.background:	forest green
+*PLInstructions.borderWidth:	1
+*PLInstructions.borderColor:	green
+*PLInstructions.label.borderWidth:	0
+*PLInstructions.label.background:	green
+*PLInstructions.abort.background:	red
+*PLInstructions.abort.foreground:	white
+!
+! Movie widget resources.
+!
+*movie*Command*font: 	-*-helvetica-medium-r-*-*-*-120-*-*-*-*-*-*
+*movieStatus*font: 	-*-helvetica-medium-r-*-*-*-120-*-*-*-*-*-*
+*movieform*Text.translations: #override \n\
+	<Key>Return:	no-op(RingBell) \n\
+	<Key>Delete:	end-of-line()delete-previous-character() \n\
+	Ctrl<Key>u:	beginning-of-line()kill-to-end-of-line()
+!
+! Color widgets.
+!
+*simple-color*background:	Midnight Blue
+*simple-color*red.foreground:	red
+*simple-color*lavender.foreground:	lavender
+*simple-color*magenta.foreground:	magenta
+*simple-color*orchid.foreground:	MediumOrchid
+*simple-color*sky.foreground:	DeepSkyBlue
+*simple-color*gray.foreground:	DarkSlateGray1
+*simple-color*spring.foreground:	SpringGreen1
+*simple-color*blue.foreground:	blue
+*simple-color*cyan.foreground:	cyan
+*simple-color*green.foreground:	green
+*simple-color*khaki.foreground:	khaki
+*simple-color*yellow.foreground:	yellow
+*simple-color*tan.foreground:	tan
+*simple-color*brown.foreground:	brown
+*simple-color*orange.foreground:	orange
+*simple-color*pink.foreground:	DeepPink
+*simple-color*violet.foreground:	violet
+*simple-color*olive.foreground:	DarkOliveGreen1
+*simple-color*foreground:	white
+*simple-gray*10-Percent.foreground:	gray10
+*simple-gray*20-Percent.foreground:	gray20
+*simple-gray*30-Percent.foreground:	gray30
+*simple-gray*40-Percent.foreground:	gray40
+*simple-gray*50-Percent.foreground:	gray50
+*simple-gray*60-Percent.foreground:	gray60
+*simple-gray*70-Percent.foreground:	gray70
+*simple-gray*80-Percent.foreground:	gray80
+*simple-gray*90-Percent.foreground:	gray90
+*simple-gray*background:		Midnight Blue
+*arrow-color*background:	black
+*arrow-color*red.foreground:	red
+*arrow-color*lavender.foreground:	lavender
+*arrow-color*gray.foreground:	gray60
+*arrow-color*blue.foreground:	blue
+*arrow-color*cyan.foreground:	cyan
+*arrow-color*green.foreground:	green
+*arrow-color*khaki.foreground:	khaki
+*arrow-color*yellow.foreground:	yellow
+*arrow-color*tan.foreground:	tan
+*arrow-color*brown.foreground:	brown
+*arrow-color*orange.foreground:	orange
+*arrow-color*pink.foreground:	HotPink
+*arrow-color*violet.foreground:	violet
+*arrow-color*foreground:	white
+*top-annot-color*background:	black
+*top-annot-color*red.foreground:	red
+*top-annot-color*lavender.foreground:	lavender
+*top-annot-color*gray.foreground:	gray60
+*top-annot-color*blue.foreground:	blue
+*top-annot-color*cyan.foreground:	cyan
+*top-annot-color*green.foreground:	green
+*top-annot-color*khaki.foreground:	khaki
+*top-annot-color*yellow.foreground:	yellow
+*top-annot-color*tan.foreground:	tan
+*top-annot-color*brown.foreground:	brown
+*top-annot-color*orange.foreground:	orange
+*top-annot-color*pink.foreground:	HotPink
+*top-annot-color*violet.foreground:	violet
+*top-annot-color*foreground:	white
+*contour-color*background:	Midnight Blue
+*contour-color*red.foreground:	red
+*contour-color*lavender.foreground:	lavender
+*contour-color*gray.foreground:	gray60
+*contour-color*blue.foreground:	blue
+*contour-color*cyan.foreground:	cyan
+*contour-color*green.foreground:	green
+*contour-color*khaki.foreground:	khaki
+*contour-color*yellow.foreground:	yellow
+*contour-color*tan.foreground:	tan
+*contour-color*brown.foreground:	brown
+*contour-color*orange.foreground:	orange
+*contour-color*pink.foreground:	HotPink
+*contour-color*violet.foreground:	violet
+*contour-color*foreground:	white
+*quadrant-color*background:	Midnight Blue
+*quadrant-color*red.foreground:	red
+*quadrant-color*lavender.foreground:	lavender
+*quadrant-color*gray.foreground:	gray60
+*quadrant-color*blue.foreground:	blue
+*quadrant-color*cyan.foreground:	cyan
+*quadrant-color*green.foreground:	green
+*quadrant-color*khaki.foreground:	khaki
+*quadrant-color*yellow.foreground:	yellow
+*quadrant-color*tan.foreground:	tan
+*quadrant-color*brown.foreground:	brown
+*quadrant-color*orange.foreground:	orange
+*quadrant-color*pink.foreground:	HotPink
+*quadrant-color*violet.foreground:	violet
+*quadrant-color*foreground:	white
+!
+! SingleFloat widget coloring
+!
+*SingleFloat.background:		light gray
+*SingleFloat.cancel.background:		red
+*SingleFloat.cancel.foreground:		black
+*SingleFloat.SFLabel.background:	light gray
+*SingleFloat.SFLabel.foreground:	black
+*SingleFloat.store.background:		green
+*SingleFloat.store.foreground:		black
+*SingleFloat.SFValue.background:	yellow
+*SingleFloat.SFValue.translations: #override \n\
+	<Key>Delete:	end-of-line()delete-previous-character() \n\
+	<Key>Return:	no-op() \n\
+	<Key>Linefeed:	no-op()	\n\
+	<Key>0:		kill-to-end-of-line()insert-char() \n\
+	<Key>1:		kill-to-end-of-line()insert-char() \n\
+	<Key>2:		kill-to-end-of-line()insert-char() \n\
+	<Key>3:		kill-to-end-of-line()insert-char() \n\
+	<Key>4:		kill-to-end-of-line()insert-char() \n\
+	<Key>5:		kill-to-end-of-line()insert-char() \n\
+	<Key>6:		kill-to-end-of-line()insert-char() \n\
+	<Key>7:		kill-to-end-of-line()insert-char() \n\
+	<Key>8:		kill-to-end-of-line()insert-char() \n\
+	<Key>9:		kill-to-end-of-line()insert-char() \n\
+	<Key>-:		kill-to-end-of-line()insert-char() \n\
+	<Key>+:		kill-to-end-of-line()insert-char() \n\
+	<Key>.:		kill-to-end-of-line()insert-char() \n\
+	<Key>:		no-op()
+!
+! DoubleFloat widget coloring
+!
+*DoubleFloat.background:		light gray
+*DoubleFloat.DFLabel1.background:	light gray
+*DoubleFloat.DFLabel1.foreground:	black
+*DoubleFloat.DFLabel2.background:	light gray
+*DoubleFloat.DFLabel2.foreground:	black
+*DoubleFloat.DFValue1.background:	yellow
+*DoubleFloat.DFValue2.background:	yellow
+*DoubleFloat.cancel.background:		red
+*DoubleFloat.cancel.foreground:		black
+*DoubleFloat.store.background:		green
+*DoubleFloat.store.foreground:		black
+*DoubleFloat.Text.translations: #override \n\
+	<Key>Delete:	end-of-line()delete-previous-character() \n\
+	<Key>Return:	no-op() \n\
+	<Key>Linefeed:	no-op()	\n\
+	<Key>0:		kill-to-end-of-line()insert-char() \n\
+	<Key>1:		kill-to-end-of-line()insert-char() \n\
+	<Key>2:		kill-to-end-of-line()insert-char() \n\
+	<Key>3:		kill-to-end-of-line()insert-char() \n\
+	<Key>4:		kill-to-end-of-line()insert-char() \n\
+	<Key>5:		kill-to-end-of-line()insert-char() \n\
+	<Key>6:		kill-to-end-of-line()insert-char() \n\
+	<Key>7:		kill-to-end-of-line()insert-char() \n\
+	<Key>8:		kill-to-end-of-line()insert-char() \n\
+	<Key>9:		kill-to-end-of-line()insert-char() \n\
+	<Key>-:		kill-to-end-of-line()insert-char() \n\
+	<Key>+:		kill-to-end-of-line()insert-char() \n\
+	<Key>.:		kill-to-end-of-line()insert-char() \n\
+	<Key>:		no-op()
+!
+! SingleString widget coloring
+!
+*SingleString.background:		light gray
+*SingleString.cancel.background:	red
+*SingleString.cancel.foreground:	black
+*SingleString.SSLabel.background:	light gray
+*SingleString.SSLabel.foreground:	black
+*SingleString.store.background:		green
+*SingleString.store.foreground:		black
+*SingleString.SSValue.background:	yellow
+*SingleString.Text.translations: #override \n\
+	<Key>Delete:	end-of-line()delete-previous-character() \n\
+	<Key>Return:	no-op() \n\
+	<Key>Linefeed:	no-op()	\n\
+	<Key>0:		kill-to-end-of-line()insert-char() \n\
+	<Key>1:		kill-to-end-of-line()insert-char() \n\
+	<Key>2:		kill-to-end-of-line()insert-char() \n\
+	<Key>3:		kill-to-end-of-line()insert-char() \n\
+	<Key>4:		kill-to-end-of-line()insert-char() \n\
+	<Key>5:		kill-to-end-of-line()insert-char() \n\
+	<Key>6:		kill-to-end-of-line()insert-char() \n\
+	<Key>7:		kill-to-end-of-line()insert-char() \n\
+	<Key>8:		kill-to-end-of-line()insert-char() \n\
+	<Key>9:		kill-to-end-of-line()insert-char() \n\
+	<Key>-:		kill-to-end-of-line()insert-char() \n\
+	<Key>+:		kill-to-end-of-line()insert-char() \n\
+	<Key>.:		kill-to-end-of-line()insert-char()
+!
+! SingleInt widget coloring
+!
+*SingleInt.background:		light gray
+*SingleInt.cancel.background:	red
+*SingleInt.cancel.foreground:	black
+*SingleInt.SILabel.background:	light gray
+*SingleInt.SILabel.foreground:	black
+*SingleInt.store.background:		green
+*SingleInt.store.foreground:		black
+*SingleInt.SIValue.background:	yellow
+*SingleInt.Text.translations: #override \n\
+	<Key>Delete:	end-of-line()delete-previous-character() \n\
+	<Key>Return:	no-op() \n\
+	<Key>Linefeed:	no-op()	\n\
+	<Key>0:		kill-to-end-of-line()insert-char() \n\
+	<Key>1:		kill-to-end-of-line()insert-char() \n\
+	<Key>2:		kill-to-end-of-line()insert-char() \n\
+	<Key>3:		kill-to-end-of-line()insert-char() \n\
+	<Key>4:		kill-to-end-of-line()insert-char() \n\
+	<Key>5:		kill-to-end-of-line()insert-char() \n\
+	<Key>6:		kill-to-end-of-line()insert-char() \n\
+	<Key>7:		kill-to-end-of-line()insert-char() \n\
+	<Key>8:		kill-to-end-of-line()insert-char() \n\
+	<Key>9:		kill-to-end-of-line()insert-char() \n\
+	<Key>-:		kill-to-end-of-line()insert-char() \n\
+	<Key>+:		kill-to-end-of-line()insert-char() \n\
+	<Key>:		no-op()
+!
+! TimeSeries widget coloring
+!
+*TimeSeries.background:		light gray
+*TimeSeries.TSLabel1.background:	light gray
+*TimeSeries.TSLabel1.foreground:	black
+*TimeSeries.TSLabel2.background:	light gray
+*TimeSeries.TSLabel2.foreground:	black
+*TimeSeries.TSValue1.background:	yellow
+*TimeSeries.TSValue2.background:	yellow
+*TimeSeries.cancel.background:		red
+*TimeSeries.cancel.foreground:		black
+*TimeSeries.store.background:		green
+*TimeSeries.store.foreground:		black
+*TimeSeries.Text.translations: #override \n\
+	<Key>Delete:	end-of-line()delete-previous-character() \n\
+	<Key>Return:	no-op() \n\
+	<Key>Linefeed:	no-op()	\n\
+	<Key>0:		kill-to-end-of-line()insert-char() \n\
+	<Key>1:		kill-to-end-of-line()insert-char() \n\
+	<Key>2:		kill-to-end-of-line()insert-char() \n\
+	<Key>3:		kill-to-end-of-line()insert-char() \n\
+	<Key>4:		kill-to-end-of-line()insert-char() \n\
+	<Key>5:		kill-to-end-of-line()insert-char() \n\
+	<Key>6:		kill-to-end-of-line()insert-char() \n\
+	<Key>7:		kill-to-end-of-line()insert-char() \n\
+	<Key>8:		kill-to-end-of-line()insert-char() \n\
+	<Key>9:		kill-to-end-of-line()insert-char() \n\
+	<Key>-:		kill-to-end-of-line()insert-char() \n\
+	<Key>+:		kill-to-end-of-line()insert-char() \n\
+	<Key>.:		kill-to-end-of-line()insert-char() \n\
+	<Key>:		no-op()
+!
+! StationWidget widget coloring
+!
+*stationform.background:		light gray
+*stationform.cancel.background:		red
+*stationform.cancel.foreground:		black
+*stationform.store.background:		green
+*stationform.store.foreground:		black
+*stationform.stationbox.background:	light gray
+*stationform.stationbox.?.background:	red
+*stationform.stationbox.?.foreground:	green
