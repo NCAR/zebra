@@ -11,7 +11,7 @@
 # include "dm_cmds.h"
 # include "../include/timer.h"
 
-static char *rcsid = "$Id: dm.c,v 1.15 1991-01-10 09:04:15 corbet Exp $";
+static char *rcsid = "$Id: dm.c,v 1.16 1991-01-10 22:43:20 burghart Exp $";
 
 /*
  * Definitions of globals.
@@ -36,12 +36,12 @@ static bool Restart = TRUE;
 
 
 # ifdef __STDC__
-	static void do_wbox (char *, struct dm_rq_wbox *);
+	static void do_wbounds (char *, struct dm_rq_wbounds *);
 	int dm_shutdown (void);
 	static bool ResolveLinks (struct config *, struct ui_command *);
 	void SEChange (char *, int, int, int, SValue *, int, SValue *);
 # else
-	static void do_wbox ();
+	static void do_wbounds ();
 	int dm_shutdown ();
 	static bool ResolveLinks ();
 	void SEChange ();
@@ -725,8 +725,8 @@ struct dm_msg *dmsg;
 	/*
 	 * Nosy windows checking up on each other's coords.
 	 */
-	   case DM_WBOX:
-	   	do_wbox (from, (struct dm_rq_wbox *) dmsg);
+	   case DM_WBOUNDS:
+	   	do_wbounds (from, (struct dm_rq_wbounds *) dmsg);
 		break;
 
 	   default:
@@ -1320,50 +1320,68 @@ SValue *oldv, *newv;
 
 
 static void
-do_wbox (from, wb)
+do_wbounds (from, wb)
 char *from;
-struct dm_rq_wbox *wb;
+struct dm_rq_wbounds *wb;
 /*
- * Deal with a window box request.
+ * Deal with a window bounds request.
  */
 {
+	bool ok;
+	char string[40];
 	struct cf_window *win = lookup_win (wb->dmm_window, TRUE);
-	struct dm_rp_wbox reply;
-	char ptype[30];
+	struct dm_rp_wbounds reply;
 /*
  * If this window is not active, we can't do anything.
  */
-	reply.dmm_type = DM_WBOX;
+	reply.dmm_type = DM_WBOUNDS;
 	reply.dmm_success = FALSE;
 	if (! win)
 		goto reply;
 /*
- * For now, we only cope with windows with a CAP plot type.
+ * Get the plot type
  */
 	if (! win->cfw_pd ||
-			! pda_Search (win->cfw_pd, "global", "plot-type", NULL,
-					ptype, SYMT_STRING) ||
-			strcmp (ptype, "CAP"))
+		! pda_Search (win->cfw_pd, "global", "plot-type", NULL,
+			reply.dmm_pltype, SYMT_STRING))
 		goto reply;
 /*
- * Pull out the params.
+ * Pull out the params based on plot type.
  */
-	if (! pda_Search (win->cfw_pd, "global", "x-min", NULL, 
-				(char *) &reply.dmm_x0, SYMT_FLOAT) ||
-		! pda_Search (win->cfw_pd, "global", "x-max", NULL,
-				(char *) &reply.dmm_x1, SYMT_FLOAT) ||
-		! pda_Search (win->cfw_pd, "global", "y-min", NULL,
-				(char *) &reply.dmm_y0, SYMT_FLOAT) ||
-		! pda_Search (win->cfw_pd, "global", "y-max", NULL,
-				(char *) &reply.dmm_y1, SYMT_FLOAT))
-		goto reply;
+	if (! strcmp (reply.dmm_pltype, "CAP"))
+	{
+		ok = pda_Search (win->cfw_pd, "global", "x-min", NULL, 
+			(char *) &reply.dmm_x0, SYMT_FLOAT);
+		ok &= pda_Search (win->cfw_pd, "global", "x-max", NULL,
+			(char *) &reply.dmm_x1, SYMT_FLOAT);
+		ok &= pda_Search (win->cfw_pd, "global", "y-min", NULL,
+			(char *) &reply.dmm_y0, SYMT_FLOAT);
+		ok &= pda_Search (win->cfw_pd, "global", "y-max", NULL,
+			(char *) &reply.dmm_y1, SYMT_FLOAT);
+
+		reply.dmm_success = ok;
+	}
+	else if (! strcmp (reply.dmm_pltype, "xsect"))
+	{
+		ok = pda_Search (win->cfw_pd, "global", "left-endpoint", 
+			NULL, string, SYMT_STRING);
+		sscanf (string, "%f, %f", &reply.dmm_x0, &reply.dmm_y0);
+
+		ok &= pda_Search (win->cfw_pd, "global", "right-endpoint", 
+			NULL, string, SYMT_STRING);
+		sscanf (string, "%f, %f", &reply.dmm_x1, &reply.dmm_y1);
+
+		reply.dmm_success = ok;
+	}
+/*
+ * Get altitude if it's there
+ */
 	if (! pda_Search (win->cfw_pd, "global", "altitude", NULL,
 				(char *) &reply.dmm_alt, SYMT_FLOAT))
 		reply.dmm_alt = 0;
 /*
- * Looks like it worked.
+ * Send out the reply.
  */
-	reply.dmm_success = TRUE;
 reply:
 	msg_send (from, MT_DISPLAYMGR, FALSE, &reply, sizeof (reply));
 }
