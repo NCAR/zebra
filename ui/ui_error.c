@@ -14,11 +14,9 @@
 # include <string.h>
 # include "ui_symbol.h"
 
-# define longjmp _longjmp
-
 
 static char *rcsid =
-   "$Id: ui_error.c,v 1.18 1999-06-25 19:21:00 burghart Exp $";
+   "$Id: ui_error.c,v 1.19 2000-02-14 22:50:00 burghart Exp $";
 /*
  * Stack stuff.
  */
