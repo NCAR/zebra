@@ -2,7 +2,7 @@
  * My version of the graphics process, for now -- upper level control
  * and timing stuff.
  */
-static char *rcsid = "$Id: GraphProc.c,v 1.1 1990-05-07 16:08:04 corbet Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 1.2 1990-05-14 10:30:03 corbet Exp $";
 
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
@@ -65,7 +65,9 @@ GC	Agc = NULL;
 int msg_handler ();
 int dispatcher ();
 int xtEvent ();
+static void DMButton ();
 
+extern void Ue_PointerEvent (), Ue_ButtonUp (), Ue_KeyEvent ();
 /*
  * Routines called through the event queue mechanism.
  */
@@ -78,6 +80,12 @@ int argc;
 char **argv;
 {
 	Arg args[10];
+	static XtActionsRec actions[] =
+	{
+		{ "ue_pointer_event",	Ue_PointerEvent	},
+		{ "ue_key_event",	Ue_KeyEvent	},
+		{ "ue_button_up",	Ue_ButtonUp	},
+	};
 /*
  * The first argument is always supposed to be our process name.
  */
@@ -93,6 +101,7 @@ char **argv;
  */
 	Top = XtAppInitialize (&Actx, "Graphproc", NULL, ZERO, &argc,
 		argv, Resources, NULL, ZERO);
+	XtAppAddActions (Actx, actions, THREE);
 /*
  * Now create a popup shell to hold the graphics widget that holds
  * our output.
@@ -107,23 +116,25 @@ char **argv;
 	XtSetArg (args[0], XtNframeCount, 8);	/* From gtest */
 	XtSetArg (args[1], XtNwidth, 500);
 	XtSetArg (args[2], XtNheight, 500);
+	XtSetArg (args[3], XtNinput, True);
 	Graphics = XtCreateManagedWidget ("graphics", graphicsWidgetClass,
-		GrShell, args, 3);
+		GrShell, args, 4);
 /*
  * Find a font. (Temporary stuff for now)
  */
 	Afontstruct = XLoadQueryFont (XtDisplay (Top), 
 			"-*-helvetica-medium-o-*-*-14-*-*-*-*-*-*-*");
 /*
- * Get some colors (temporary)
- */
-	usy_init ();
-	ct_Init ();
-	ct_LoadTable ("contour1", &Colors, &Ncolors);
-/*
  * Initialize the UI.
  */
+	ui_setup ("GraphProc", argc, argv, (char *) 0);
 	ui_init ("/fcc/lib/graphproc.lf", FALSE, TRUE);
+/*
+ * Get some colors (temporary)
+ */
+	ct_Init ();
+	ct_LoadTable ("contour1", &Colors, &Ncolors);
+	Ue_Init ();
 /*
  * Tell DM that we're here.
  */
@@ -295,6 +306,12 @@ struct dm_msg *dmsg;
 	 */
 	   case DM_DEFAULTS:
 		NewDefaults ((struct dm_pdchange *) dmsg);
+		break;
+	/*
+	 * Change of event bindings.
+	 */
+	   case DM_EVBIND:
+	   	Ue_NewBinding ((struct dm_ebchange *) dmsg);
 		break;
 	/*
 	 * ???
