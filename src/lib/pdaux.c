@@ -1,8 +1,9 @@
-/* $Id: pdaux.c,v 1.3 1990-09-04 08:39:24 corbet Exp $ */
+/* $Id: pdaux.c,v 1.4 1990-09-04 16:46:22 burghart Exp $ */
 /*
  * Auxilliary library routines for plot descriptions.
  */
 # include <ui_symbol.h>
+# include "message.h"
 # include "pd.h"
 
 
@@ -116,4 +117,27 @@ int type;
  * Nope.
  */
 	return (FALSE);
+}
+
+
+
+
+bool
+pda_ReqSearch (pd, comp, param, qual, dest, type)
+plot_description	pd;
+char	*comp, *param, *qual, *dest;
+int	type;
+/*
+ * Search for a required parameter from the plot description.  If it
+ * doesn't exist, log a message.
+ */
+{
+	bool	success;
+
+	if (! (success = pda_Search (pd, comp, param, qual, dest, type)))
+		msg_ELog (EF_PROBLEM,
+			"Required parameter '%s/%s%s%s' missing!", 
+			comp, (qual ? qual : ""), (qual ? "-" : ""), param);
+
+	return (success);
 }
