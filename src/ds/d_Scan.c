@@ -38,8 +38,13 @@
 # include "dfa.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID ("$Id: d_Scan.c,v 1.27 1995-08-31 09:49:04 granger Exp $")
+MAKE_RCSID ("$Id: d_Scan.c,v 1.28 1996-01-23 04:35:32 granger Exp $")
 
+/*
+ * Define this to force changed files to be closed and re-opened by
+ * datastore clients rather than sync'ed.
+ */
+/* #define FORCE_CLOSE_SYNC */
 
 /*
  * Local stuff.
@@ -299,12 +304,21 @@ bool local, rescan;
 		 * If we're not using stat(), inodes aren't set, so we'll
 		 * be conservative and close and re-open the file.
 		 */
+#ifndef FORCE_CLOSE_SYNC
 		if (new_ino || !StatRevisions)
+#else
+		if (1)
+#endif
 		{
 			/* Uh-oh, the old file is history */
 			msg_ELog (EF_DEBUG, "File %s: changed, %s, %s",
-				  file, (StatRevisions) ? 
+				  file, 
+#ifndef FORCE_CLOSE_SYNC
+				  (StatRevisions) ? 
 				  "new inode" : "inodes disabled",
+#else
+				  "syncs fail",
+#endif
 				  "removing datafile entry");
 			/* tell clients to close the file */
 			DataFileGone (df);
@@ -519,7 +533,11 @@ ino_t *new_ino;
  * changed as well, indicating a new file and not just a changed one,
  * return the new inode in *new_ino, else set *new_ino to 0.
  * If StatRevisions is false, dfe inodes have not been set, so *new_ino 
- * is set to zero.
+ * is set to zero.  
+ *
+ * If the df rev number has leaped forward because of multiple changes at
+ * the same mtime, we won't catch them unless the stat() mtime is now
+ * greater than the "warped" rev number.
  */
 {
 	ino_t inode;
@@ -532,7 +550,7 @@ ino_t *new_ino;
 	if (StatRevisions)
 	{
 		*new_ino = (inode != df->df_inode) ? (inode) : 0;
-		return ((rev != df->df_rev) || (*new_ino));
+		return ((rev > df->df_rev) || (*new_ino));
 	}
 	/*
 	 * Otherwise, compare the stat revision to the time of the last scan.
@@ -648,6 +666,10 @@ ino_t *inode;
 	}
 	if (inode)
 		*inode = sbuf.st_ino;
+#ifdef DEBUG
+	msg_ELog (EF_DEBUG, "stat file #%d: rev %d inode %d", df->df_index,
+		  sbuf.st_mtime, sbuf.st_ino);
+#endif
 	return (sbuf.st_mtime);
 }
 
