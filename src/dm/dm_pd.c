@@ -37,7 +37,7 @@
 # include <pd.h>
 # include <message.h>
 
-RCSID("$Id: dm_pd.c,v 2.9 1995-10-31 02:23:54 granger Exp $")
+RCSID("$Id: dm_pd.c,v 2.10 1997-05-12 21:40:35 ishikawa Exp $")
 
 static void pddirfile FP ((char *file));
 
@@ -149,7 +149,7 @@ char *dir;
 /*
  * Move there.
  */
-#if defined(SVR4) || defined(SYSV)
+#if defined(SVR4) || defined(SYSV) || defined (--osf__)
 	getcwd (wd,(size_t)(MAXPATHLEN));
 #else
 	getwd (wd);
