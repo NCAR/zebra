@@ -12,7 +12,7 @@
 # include "ui_mode.h"
 # include "ui_cstack.h"
 
-static char *Rcsid = "$Id: ui_cmds.c,v 1.9 1990-02-06 11:07:59 corbet Exp $";
+static char *Rcsid = "$Id: ui_cmds.c,v 1.10 1990-04-26 12:11:14 corbet Exp $";
 
 # ifdef VMS
 # define HELPDIR "ui_help:"
@@ -26,13 +26,20 @@ static char *Rcsid = "$Id: ui_cmds.c,v 1.9 1990-02-06 11:07:59 corbet Exp $";
 # define HELPDIR "nowhere"	/* No interactive help on batch systems! */
 # endif
 
-ui_set (cmds)
+ui_set (cmds, local)
 struct ui_command *cmds;
+bool local;
 /*
- * Handle a preliminary version of the SET command.
+ * Handle the SET command.
  */
 {
 	union usy_value v;
+	stbl dest = Ui_variable_table;
+/*
+ * If this is a LOCAL variable, find the table for it.
+ */
+	if (local && Cs->cs_arg_table)
+		dest = Cs->cs_arg_table;
 /*
  * Set something to a boolean value.  That value is TRUE unless the user
  * has given us something else.
@@ -40,14 +47,13 @@ struct ui_command *cmds;
 	if (cmds[1].uc_ctype == UTT_END)
 	{
 		v.us_v_int = TRUE;
-		usy_s_symbol (Ui_variable_table, cmds->uc_v.us_v_ptr,
-				SYMT_BOOL, &v);
+		usy_s_symbol (dest, cmds->uc_v.us_v_ptr, SYMT_BOOL, &v);
 	}
 	else
 	{
 		if (cmds[1].uc_vptype == SYMT_STRING)
 			uip_dequote (UPTR (cmds[1]));
-		usy_s_symbol (Ui_variable_table, cmds->uc_v.us_v_ptr,
+		usy_s_symbol (dest, cmds->uc_v.us_v_ptr,
 				cmds[1].uc_vptype, &cmds[1].uc_v);
 	}
 }
