@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.32 1995-11-19 17:24:43 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.33 1995-12-04 09:57:11 granger Exp $"
 
 DEPLIBS=$(LIBZEB) /*$(LIBNETCDF)*/
 /* LIBNETCDF=/net/src/netcdf-2.3.2/libsrc/libnetcdf.a */
@@ -106,7 +106,9 @@ NSOBJS = nstest.o $(DSLIBOBJS) $(DCOBJS)
 TestProgramTarget (nstest, $(NSOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 #endif
 
+#if HasHDF
 TestProgramTarget (hdflook, hdflook.o, /**/, $(LIBHDF), /**/)
+#endif
 
 APOBJS = apple.o $(DSLIBOBJS) $(DCOBJS)
 TestProgramTarget (apple, $(APOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
