@@ -3,7 +3,7 @@
  * of pixmap "frames" associated with it.  Zero frames means just write 
  * everything directly to the window.
  *
- * $Id: GraphicsW.c,v 1.7 1991-03-28 18:22:36 kris Exp $
+ * $Id: GraphicsW.c,v 1.8 1991-04-10 23:06:13 kris Exp $
  */
 # include <stdio.h>
 # include <errno.h>
@@ -266,7 +266,9 @@ Region		region;
  */
 	if(gp.display_frame < 0 || gp.display_frame >= gp.frame_count)
 	{
-		msg_ELog (EF_PROBLEM, "Invalid frame number in Redraw");
+		msg_ELog (EF_PROBLEM, "Can't Redraw window.");
+		msg_ELog (EF_DEBUG, "Invalid frame number (%d) in Redraw.",
+			gp.display_frame);
 		return;
 	}
 # ifdef use_XB
@@ -341,7 +343,7 @@ GraphicsWidget	current, request, new;
  * Deal with a call from XtSetValues ()
  */
 {
-	int	i, display_frame;
+	int	i;
 	int	oldcount = current->graphics.frame_count;
 	int	newcount = request->graphics.frame_count;
 	Pixel	oldbg = current->core.background_pixel;
@@ -415,10 +417,6 @@ GraphicsWidget	current, request, new;
 				new->graphics.frames[i], new->graphics.gc, 
 				0, 0, new->core.width, new->core.height);
 		}
-		display_frame = fc_LookupFrame(&PlotTime);
-		if(display_frame < 0)
-			new->graphics.display_frame = 0;
-		else new->graphics.display_frame = display_frame;
 	}
 	return (False);
 }
@@ -566,7 +564,7 @@ unsigned int	frame;
 {
 	if (frame < 0 || frame >= w->graphics.frame_count)
 	{
-		msg_ELog (EF_DEBUG,"Invalid frame number %d", frame);
+		msg_ELog (EF_DEBUG, "Invalid frame number %d", frame);
 		XtError ("Invalid frame number in GWDrawInFrame");
 	}
 	w->graphics.draw_frame = frame;
@@ -587,8 +585,10 @@ unsigned int	frame;
  * Sanity check
  */
 	if (frame < 0 || frame >= w->graphics.frame_count)
+	{
+		msg_ELog (EF_DEBUG, "Invalid frame number %d", frame);
 		XtError ("Invalid frame number in GWDisplayFrame");
-
+	}
 /*
  * If we don't have any frames, just return now
  */
