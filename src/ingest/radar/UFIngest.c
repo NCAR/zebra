@@ -54,6 +54,7 @@ int	NFrames = 2;		/* How many frames		*/
 int	Niceness = 0;
 int	NBeam = 0;
 bool	Project = TRUE;
+bool	CheckTrailLen = TRUE;	/* verify trailing reclen in file sources? */
 
 /*
  * We should be able to trust sweep and volume flags in UF data
@@ -179,6 +180,8 @@ SetupIndirect ()
 	usy_c_indirect (vtable, "niceness", &Niceness, SYMT_INT, 0);
 	usy_c_indirect (vtable, "project", &Project, SYMT_BOOL, 0);
 	usy_c_indirect (vtable, "threshold", &DoThresholding, SYMT_BOOL, 0);
+	usy_c_indirect (vtable, "trustvol", &TrustVol, SYMT_BOOL, 0);
+	usy_c_indirect (vtable, "check_trailer", &CheckTrailLen, SYMT_BOOL, 0);
 }
 
 
@@ -246,7 +249,7 @@ struct ui_command *cmds;
 {
 	if (UKEY (*cmds) == RIC_FILE)
 	{
-		FileInput (UPTR (cmds[1]));
+		FileInput (UPTR (cmds[1]), CheckTrailLen);
 		msg_ELog (EF_INFO, "Ingesting file '%s'", UPTR (cmds[1]));
 	}
 	else if (UKEY (*cmds) == RIC_TAPE)
