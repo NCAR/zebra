@@ -1,7 +1,7 @@
 /*
  * Plot execution module
  */
-static char *rcsid = "$Id: PlotExec.c,v 1.7 1990-12-04 15:14:05 corbet Exp $";
+static char *rcsid = "$Id: PlotExec.c,v 1.8 1990-12-14 10:32:11 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include <ui.h>
@@ -95,12 +95,16 @@ typedef enum {LineContour, FilledContour} contour_type;
 	void	px_CAPContour (char *, contour_type, char *, float *, float *);
 	void	px_AdjustCoords (float *, float *, float *, float *);
 	void	px_FixPlotTime ();
+	static bool px_GetCoords (void);
+	static void px_GlobalPlot (void);
 # else
 	int	px_NameToNumber ();
 	void	px_Init (), px_AddComponent (), px_CAPFContour ();
 	void	px_CAPVector (), px_CAPRaster (), px_CAPLineContour ();
 	void	px_CAPContour (), px_AdjustCoords ();
 	void	px_FixPlotTime ();
+	static bool px_GetCoords ();
+	static void px_GlobalPlot ();
 # endif
 
 /*
@@ -142,10 +146,9 @@ char	*component;
  * Execute the given component of the plot description
  */
 {
-	char	**comps, datestring[40], plt[30], rep[30];
-	float	lat, lon, orig_alt;
-	int	i, expand;
-	Boolean	ok, cvt_Origin (), global;
+	char	plt[30];
+	int	i;
+	Boolean	global;
 /*
  * Check now for an abort condition
  */
@@ -174,44 +177,11 @@ char	*component;
  */
 	if (!pda_ReqSearch (Pd, "global", "plot-type", NULL, plt, SYMT_STRING))
 		return;
-
 	PlotType = px_NameToNumber (plt, Pt_table);
 /*
- * Get the origin and plot limits
+ * Figure out coords.
  */
-	ok = pda_ReqSearch (Pd, "global", "origin-lat", NULL, CPTR (lat), 
-		SYMT_FLOAT);
-	ok &= pda_ReqSearch (Pd, "global", "origin-lon", NULL, CPTR (lon), 
-		SYMT_FLOAT);
-	ok &= pda_ReqSearch (Pd, "global", "x-min", NULL, CPTR (Xlo), 
-		SYMT_FLOAT);
-	ok &= pda_ReqSearch (Pd, "global", "x-max", NULL, CPTR (Xhi), 
-		SYMT_FLOAT);
-	ok &= pda_ReqSearch (Pd, "global", "y-min", NULL, CPTR (Ylo), 
-		SYMT_FLOAT);
-	ok &= pda_ReqSearch (Pd, "global", "y-max", NULL, CPTR (Yhi), 
-		SYMT_FLOAT);
-	if (! ok)
-		return;
-/*
- * Get the altitude too.  Default it to ground level if all else fails.
- */
-	if (! pda_Search (Pd, "global", "altitude", NULL, CPTR (Alt),
-				SYMT_FLOAT))
-		Alt = 0;
-	if (Alt > 10)	/* Assume no space stations -- must be in meters */
-		Alt /= 1000.0;
-	orig_alt = Alt;
-/*
- * Unless told otherwise, readjust the coordinates so that x == y.
- */
-	if (! pda_Search (Pd, "global", "expand", NULL, (char *) &expand,
-			SYMT_BOOL) || expand == FALSE)
-		px_AdjustCoords (&Xlo, &Ylo, &Xhi, &Yhi);
-/*
- * Save the origin
- */
-	if (! cvt_Origin (lat, lon))
+	if (! px_GetCoords ())
 		return;
 /*
  * Global or update plot?
@@ -240,77 +210,12 @@ char	*component;
  * (2) Global plot not cached.
  */
 	else if (global)
-	{
-	/*
-	 * Choose the drawing frame and clear it out
-	 */
-		DrawFrame = fc_GetFrame ();
-		GWDrawInFrame (Graphics, DrawFrame);
-		GWClearFrame (Graphics, DrawFrame);
-		DisplayFrame = DrawFrame;
-	/*
-	 * Get the component list
-	 */
-		comps = pd_CompList (Pd);
-	/*
-	 * Count the components
-	 * (7/90 jc) Don't count overlay components.  The use of this count
-	 * 	     currently is only to parcel out side annotation space,
-	 *	     and the overlays don't want it.
-	 */
-	 	Ncomps = 0;
-		for (i = 1; comps[i]; i++)
-			if (! pd_Retrieve (Pd, comps[i], "representation",
-				  rep, SYMT_STRING) || strcmp (rep, "overlay"))
-				Ncomps++;
-	/*
-	 * Annotate with the date and time
-	 */
-		An_ResetAnnot (Ncomps);
-		ud_format_date (datestring, (date *)(&PlotTime), UDF_FULL);
-		strcat (datestring, "  ");
-		An_TopAnnot (datestring, White);
-	/*
-	 * Run through the plot components (start at 1 to skip the
-	 * global component)
-	 */
-		for (i = 1; comps[i]; i++)
-		{
-			Comp_index = i - 1;
-			px_AddComponent (comps[i], False);
-		}
-	/*
-	 * Annotate the altitude we eventually got.
-	 */
-		sprintf (datestring, "Alt: %dm", (int) (Alt*1000.0));
-		DrawText (Graphics, GWFrame (Graphics), White,
-			GWWidth (Graphics) - 10, GWHeight (Graphics) - 10, 
-			datestring, 0.0, TOPANNOTHEIGHT, JustifyRight,
-			JustifyBottom);
-	/*
-	 * If the altitude has changed, stash it.
-	 */
-		if (Alt != orig_alt)
-		{
-			pd_Store (Pd, "global", "altitude", CPTR (Alt),
-				SYMT_FLOAT);
-			Eq_AddEvent (PWhenever, eq_ReturnPD, 0, 0, Override);
-		}
-	/*
-	 * Add this one to the cache.
-	 */
-		fc_AddFrame (&PlotTime, DisplayFrame);
-	}
+		px_GlobalPlot ();
 /*
  * (3) Update plot.
  */
 	else
-	{
-	/*
-	 * Update plot and synchronize
-	 */
 		px_AddComponent (component, True);
-	}
 /*
  * Display the frame
  */
@@ -321,6 +226,129 @@ char	*component;
  */
 	XDefineCursor (XtDisplay (Top), XtWindow (Graphics), NormalCursor);
 	XSync (XtDisplay (Top), False);
+}
+
+
+
+
+
+
+static void
+px_GlobalPlot ()
+/*
+ * Perform a global update.
+ */
+{
+	float orig_alt;
+	char **comps, datestring[40], rep[30];
+	int i;
+/*
+ * Choose the drawing frame and clear it out
+ */
+	DrawFrame = fc_GetFrame ();
+	GWDrawInFrame (Graphics, DrawFrame);
+	GWClearFrame (Graphics, DrawFrame);
+	DisplayFrame = DrawFrame;
+/*
+ * Get the component list
+ */
+	comps = pd_CompList (Pd);
+/*
+ * Count the components
+ * (7/90 jc) Don't count overlay components.  The use of this count
+ * 	     currently is only to parcel out side annotation space,
+ *	     and the overlays don't want it.
+ */
+	Ncomps = 0;
+	for (i = 1; comps[i]; i++)
+		if (! pd_Retrieve (Pd, comps[i], "representation",
+			  rep, SYMT_STRING) || strcmp (rep, "overlay"))
+			Ncomps++;
+/*
+ * Annotate with the date and time
+ */
+	An_ResetAnnot (Ncomps);
+	ud_format_date (datestring, (date *)(&PlotTime), UDF_FULL);
+	strcat (datestring, "  ");
+	An_TopAnnot (datestring, White);
+/*
+ * Run through the plot components (start at 1 to skip the
+ * global component)
+ */
+	for (i = 1; comps[i]; i++)
+	{
+		Comp_index = i - 1;
+		px_AddComponent (comps[i], False);
+	}
+/*
+ * Annotate the altitude we eventually got.
+ */
+	sprintf (datestring, "Alt: %dm", (int) (Alt*1000.0));
+	DrawText (Graphics, GWFrame (Graphics), White,
+		GWWidth (Graphics) - 10, GWHeight (Graphics) - 10, 
+		datestring, 0.0, TOPANNOTHEIGHT, JustifyRight,
+		JustifyBottom);
+/*
+ * If the altitude has changed, stash it.
+ */
+	if (Alt != orig_alt)
+	{
+		pd_Store (Pd, "global", "altitude", CPTR (Alt),
+			SYMT_FLOAT);
+		Eq_AddEvent (PWhenever, eq_ReturnPD, 0, 0, Override);
+	}
+/*
+ * Add this one to the cache.
+ */
+	fc_AddFrame (&PlotTime, DisplayFrame);
+}
+
+
+
+
+static bool
+px_GetCoords ()
+{
+	bool ok, cvt_Origin ();
+	int expand;
+	float lat, lon;
+/*
+ * Get the origin and plot limits
+ */
+	ok = pda_ReqSearch (Pd, "global", "origin-lat", NULL, CPTR (lat), 
+		SYMT_FLOAT);
+	ok &= pda_ReqSearch (Pd, "global", "origin-lon", NULL, CPTR (lon), 
+		SYMT_FLOAT);
+	ok &= pda_ReqSearch (Pd, "global", "x-min", NULL, CPTR (Xlo), 
+		SYMT_FLOAT);
+	ok &= pda_ReqSearch (Pd, "global", "x-max", NULL, CPTR (Xhi), 
+		SYMT_FLOAT);
+	ok &= pda_ReqSearch (Pd, "global", "y-min", NULL, CPTR (Ylo), 
+		SYMT_FLOAT);
+	ok &= pda_ReqSearch (Pd, "global", "y-max", NULL, CPTR (Yhi), 
+		SYMT_FLOAT);
+	if (! ok)
+		return (FALSE);
+/*
+ * Get the altitude too.  Default it to ground level if all else fails.
+ */
+	if (! pda_Search (Pd, "global", "altitude", NULL, CPTR (Alt),
+				SYMT_FLOAT))
+		Alt = 0;
+	if (Alt > 10)	/* Assume no space stations -- must be in meters */
+		Alt /= 1000.0;
+/*
+ * Unless told otherwise, readjust the coordinates so that x == y.
+ */
+	if (! pda_Search (Pd, "global", "expand", NULL, (char *) &expand,
+			SYMT_BOOL) || expand == FALSE)
+		px_AdjustCoords (&Xlo, &Ylo, &Xhi, &Yhi);
+/*
+ * Save the origin
+ */
+	if (! cvt_Origin (lat, lon))
+		return (FALSE);
+	return (TRUE);
 }
 
 
