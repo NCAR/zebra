@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.24 1994-12-03 07:22:48 granger Exp $
+ * $Id: DataStore.h,v 3.25 1995-01-18 00:54:18 granger Exp $
  *
  * Public data store definitions.
  */
@@ -107,12 +107,20 @@ typedef struct _dsDetail
  */
 /* 
  * These identifiers, if found in a detail list, specify the type of the
- * time_offset variable in netCDF files, either NC_FLOAT or NC_DOUBLE.
- * The SValue of the detail is ignored.  The appearance of both in the
- * same detail list is undefined.
+ * time_offset variable in netCDF files, either NC_FLOAT, NC_DOUBLE, or
+ * NC_LONG.  The SValue of the detail is ignored.  The appearance of both
+ * in the same detail list is undefined.
  */
 # define DD_NC_TIME_FLOAT	"dd_time_float" 
 # define DD_NC_TIME_DOUBLE	"dd_time_double"
+# define DD_NC_TIME_LONG	"dd_time_long"
+/*
+ * This detail only has effect on creation. It directs the netCDF driver to
+ * create a single time variable 'time', whose units attribute contains the
+ * base time rather than a separate variable.  The type of 'time' defaults
+ * to double but can be changed with any of the details above.
+ */
+# define DD_NC_ONE_TIME		"dd_nc_one_time"
 
 #ifdef notdef	/* removed in favor of direct calls to ds_ForceClosure() */
 /*
@@ -163,6 +171,18 @@ typedef struct _dsDetail
  */
 # define DD_FIX_DIMENSION	"dd_fix_dimension"
 # define DD_FIX_INDEX		"dd_fix_index"
+
+/* 
+ * Choose the bad value to use when fetching data.  Pass the value in the
+ * floating point member.
+ */
+# define DD_FETCH_BADVAL	"badval"
+
+/*
+ * Choose the altitude to slice from a 3-D grid.  Pass the altitude, in the
+ * same units as in the file, in the floating point member of the symbol value.
+ */
+# define DD_FETCH_ALTITUDE	"altitude"
 
 /*
  * DataChunks -- the new "data object" format.
