@@ -1,4 +1,4 @@
-/* $Id: message.h,v 2.32 1997-06-05 15:54:50 granger Exp $ */
+/* $Id: message.h,v 2.33 1997-08-04 20:03:30 burghart Exp $ */
 /*
  * Message protocol types.
  */
@@ -21,6 +21,11 @@
  */
 # ifndef _ZEBRA_MESSAGE_H_
 # define _ZEBRA_MESSAGE_H_
+
+# ifdef __cplusplus
+extern "C" {
+# endif /* __cplusplus */
+    
 
 # ifdef AIXV3
 # include <sys/select.h>	/* For IBM/AIX machines */ 
@@ -321,7 +326,11 @@ void msg_send FP ((char *, int, int, void *, int));
 void msg_join FP ((char *));
 void msg_quit FP ((char *));
 void msg_log FP ((/* char *, ... */));
+# ifdef __cplusplus
+void msg_ELog (int flag, char *s ...);
+# else
 void msg_ELog FP ((/* int flag, char *s, ... */));
+# endif /* __cplusplus */
 void msg_LogCallback FP ((int mask, int (*fn) (), void *arg));
 int msg_ELSendMask FP ((int mask));
 int msg_ELPrintMask FP ((int mask));
@@ -385,5 +394,9 @@ int msg_netread FP ((int fd, char *dest, int len));
 #define MSG_MAX_DATALEN 50000	/* prohibit excessively large messages */
 
 # endif /* MESSAGE_MANAGER || MESSAGE_LIBRARY */
+
+# ifdef __cplusplus
+} /* end of extern "C" */
+# endif /* __cplusplus */
 
 # endif /* ! _ZEBRA_MESSAGE_H_ */
