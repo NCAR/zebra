@@ -1,10 +1,13 @@
 /*
  * The graphics process event/processing queue system.
  */
-static char *rcsid = "$Id: EventQueue.c,v 1.2 1990-11-09 16:34:17 corbet Exp $";
+static char *rcsid = "$Id: EventQueue.c,v 1.3 1991-02-20 18:26:05 corbet Exp $";
 
+# include <X11/Intrinsic.h>
+# include <X11/StringDefs.h>
 # include "../include/defs.h"
 # include "../include/pd.h"
+# include "../include/message.h"
 # include "GraphProc.h"
 # include "EventQueue.h"
 
@@ -34,16 +37,26 @@ static struct pq_entry *P_tails[3];
 static struct pq_entry *P_free = 0;	/* pqe free list		*/
 
 /*
+ * If HoldProcess is nonzero, only stuff at the PUrgent level will be
+ * done.
+ */
+static int HoldProcess = 0;
+static Pixel OldBorder;		/* For when we change it		*/
+
+
+/*
  * Forward routine definitions.
  */
 # ifdef __STDC__
 static struct pq_entry *Eq_NewEntry (void (*proc) (), char *data, int len);
 static void Eq_RemoveEntry (EQpriority pri, struct pq_entry *pqe);
 static void Eq_FreeEntry (struct pq_entry *pqe);
+static void Eq_RestoreBorder (void);
 # else
 static struct pq_entry *Eq_NewEntry ();
 static void Eq_RemoveEntry ();
 static void Eq_FreeEntry ();
+static void Eq_RestoreBorder ();
 # endif
 
 
@@ -249,4 +262,79 @@ Eq_Execute ()
 		return (1);
 	}
 	return (0);
+}
+
+
+
+
+void
+Eq_HoldProcess ()
+/*
+ * Put all but the most urgent stuff on hold.
+ */
+{
+	Arg args[2];
+	XColor xc;
+
+	if (++HoldProcess == 1)
+	{
+		XtSetArg (args[0], XtNborderColor, &OldBorder);
+		XtGetValues (GrShell, args, 1);
+		ct_GetColorByName ("red", &xc);
+		XtSetArg (args[0], XtNborderColor, xc.pixel);
+		XtSetValues (GrShell, args, 1);
+	}
+}
+
+
+
+void
+Eq_ReleaseHold ()
+/*
+ * Release a process hold that had been in effect.
+ */
+{
+	if (HoldProcess > 0)
+	{
+		if (--HoldProcess == 0)
+			Eq_RestoreBorder ();
+	}
+	else
+		msg_ELog (EF_PROBLEM, "Decrement on zero HoldProcess");
+}
+
+
+
+void
+Eq_BreakHold ()
+/*
+ * Break out of a hold process forcibly.
+ */
+{
+/*
+ * If there is a hold in effect, cancel it.  Also cancel any user event
+ * override that may be in effect.
+ */
+	if (HoldProcess)
+	{
+		msg_ELog (EF_INFO, "HoldProcess (%d) broken", HoldProcess);
+		HoldProcess = 0;
+		Ue_ResetOverride ();
+		Eq_RestoreBorder ();
+	}
+}
+
+
+
+
+static void
+Eq_RestoreBorder ()
+/*
+ * Put the border color back.
+ */
+{
+	Arg args[2];
+
+	XtSetArg  (args[0], XtNborderColor, OldBorder);
+	XtSetValues (GrShell, args, 1);
 }
