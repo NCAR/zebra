@@ -533,7 +533,7 @@ int x, y;
  */
 	chan = rm_channel (tag->rm_dev);
 /*
- * Read back the info.
+ * Send the cursor movement command
  */
 	command[0] = RM_I_WCSP + tag->rm_cursor;
 	command[1] = x;
@@ -542,6 +542,35 @@ int x, y;
 		iosb, 0, 0, command, 6, 0, 0, 0, 0);
 	if (s_error (status))
 		ui_error ("RAMTEK cursor put error %d", status);
+	rm_done (chan);
+}
+
+
+
+
+rm_untarget (ctag)
+char *ctag;
+/*
+ * Remove the target
+ */
+{
+	struct rm_tag *tag = (struct rm_tag *) ctag;
+	short iosb[4], command[3];
+	int status, chan;
+/*
+ * Get a channel to the device.
+ */
+	chan = rm_channel (tag->rm_dev);
+/*
+ * Put the cursor at 0,0 and make it invisible
+ */
+	command[0] = RM_I_WCSP + tag->rm_cursor;
+	command[1] = 0;
+	command[2] = 0;
+	status = sys$qiow (Ef, chan, IO$_WRITEVBLK | IO$M_MOUNT | IO$M_DMOUNT,
+		iosb, 0, 0, command, 6, 0, 0, 0, 0);
+	if (s_error (status))
+		ui_error ("RAMTEK cursor remove error %d", status);
 	rm_done (chan);
 }
 
