@@ -1,7 +1,7 @@
 !
 ! XYGraph[simple] support stuff.
 !
-! $Id: xytrace,v 1.5 1994-10-28 20:04:37 corbet Exp $
+! $Id: xytrace,v 1.6 1995-04-19 14:59:06 granger Exp $
 
 define widget xysideannot intmenu ' '
 	title 'Side annotation size'
@@ -66,7 +66,7 @@ procedure xytrace-remove
 ! component.
 !
 	if (plats = icon_platform)
-		local dmcmd quote(concat4('remove ', ourname, ' ', icon_component))
+		local dmcmd quote(concat4('remove ', window_name, ' ', icon_component))
 		dm #dmcmd
 		return
 	endif
@@ -87,6 +87,7 @@ define widget xy-an-left intmenu 'x'
 	title 'XY Trace options'
 	line
 	entry 'Remove this trace' 'xytrace-remove'
+	entry 'Pipe trace to ACE/gr' 'xytrace-acegr'
 endmenu
 
 
@@ -214,3 +215,26 @@ endprocedure
 procedure xyaddfield
 	dm 'TSNewField'	! delegate
 endprocedure
+
+
+!
+! Build an xmgrpipe command with this trace
+!
+procedure xytrace-acegr
+
+	local begin PDParam(icon_component,"xyprivate-data-begin")
+	local end PDParam(icon_component,"xyprivate-data-end")
+!	local platform PDParam(icon_component,"platform")
+	local field PDParam(icon_component,"y-field")
+	dm "require xmgr-pipe"
+	local cmd concat4("'xmgr-pipe ", begin, " ", end)
+	local cmd concat3(cmd, " ", icon_platform)
+	local cmd concat4(cmd, " ", field, " '")
+!
+! Now pass it on to dm
+!
+	dm #cmd
+
+endprocedure
+
+
