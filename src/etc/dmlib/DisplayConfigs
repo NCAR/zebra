@@ -1,4 +1,4 @@
-! $Id: DisplayConfigs,v 1.1 2000-06-07 20:31:49 granger Exp $
+! $Id: DisplayConfigs,v 1.2 2000-06-12 22:53:47 granger Exp $
 !
 ! All of the predefined display configurations live in this file.
 !
@@ -13,12 +13,18 @@ set clock_exec 'fccclock'
 ! Generic process classes
 !
 proto Graphic gp gp.init
-proto explicit GPDebug xxgdb gp
 proto fallback Default gp gp.init
+proto explicit GPDebug /bin/env ddd gp
+proto explicit dddgp /bin/env ddd gp
+proto explicit xxgdbgp /bin/env xxgdb gp
+proto explicit gdbgp /bin/env xterm -e gdb gp
 proto Clock fccclock
 proto EventLogger EventLogger
-proto explicit ClockDebug xxgdb clock
-proto explicit Debug xxgdb
+proto explicit ClockDebug /bin/env ddd clock
+proto explicit Debugger /bin/env ddd
+proto explicit ddd /bin/env ddd
+proto explicit xxgdb /bin/env xxgdb
+proto explicit gdb /bin/env xterm -e gdb
 
 !
 ! Set the directory path for saved configurations.
