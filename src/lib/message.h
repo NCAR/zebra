@@ -1,4 +1,4 @@
-/* $Id: message.h,v 2.5 1992-08-06 22:22:14 corbet Exp $ */
+/* $Id: message.h,v 2.6 1992-09-15 14:56:43 corbet Exp $ */
 /*
  * Message protocol types.
  */
@@ -34,6 +34,7 @@
 # define MT_SLDATA	12	/* Serial line data grabber		*/
 # define MT_QUERY	13	/* General status query protocol	*/
 # define MT_COMMAND	14	/* Command execution protocol		*/
+# define MT_PDMON	15	/* Plot description monitoring		*/
 
 /*
  * Preallocated chunks of protocol numbers for various groups.
