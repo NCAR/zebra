@@ -34,7 +34,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 # include "dfa.h"
-MAKE_RCSID ("$Id: DataFileAccess.c,v 3.3 1992-08-10 17:30:54 corbet Exp $")
+MAKE_RCSID ("$Id: DataFileAccess.c,v 3.4 1992-09-25 15:45:33 corbet Exp $")
 
 
 
@@ -391,6 +391,29 @@ static int OF_NOpen = 0;		/* Number of open files		*/
 	static OpenFile *dfa_GetOF ();
 	static void 	dfa_CloseFile ();
 # endif
+
+
+
+
+int
+dfa_FindFormat (file)
+char *file;
+/*
+ * Get the format of this file.
+ */
+{
+	int fmt;
+	char *cp, *strrchr ();
+
+	if (! (cp = strrchr (file, '.')))
+		return (-1);
+	for (fmt = 0; fmt <= sizeof(Formats)/sizeof(struct DataFormat); fmt++)
+		if (! strcmp (cp, Formats[fmt].f_ext))
+			return (fmt);
+	return (-1);
+}
+
+
 
 
 
