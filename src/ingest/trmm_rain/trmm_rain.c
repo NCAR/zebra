@@ -24,7 +24,7 @@
 
 # ifndef lint
 static char *rcsid = 
-   "$Id: trmm_rain.c,v 1.4 1993-05-21 23:20:00 granger Exp $";
+   "$Id: trmm_rain.c,v 1.5 1993-05-25 06:56:38 granger Exp $";
 # endif
 
 # include <time.h>
@@ -37,13 +37,13 @@ static char *rcsid =
 
 # define BADVAL	-9999.0
 
-#define ds_PlatformName(a) "platname"
+# define PlatformName(pid) ((NoDataStore)?"platname":ds_PlatformName(pid))
 
 /*
  * Table of sites
  */
 #define TIMEZONE_FILE 	"Australia/North"
-#define NUM_SITES 	(sizeof(Sites)/sizeof(Sites[0]))
+#define NUM_SITES 	((sizeof(Sites)/sizeof(Sites[0])) - 1)
 struct _sites
 {
 	char	name[5];
@@ -77,25 +77,35 @@ struct _sites
 	{"", "", 0.0000, 0.0000}
 };
 
+/*
+ * The number of the month to limit our ingestion to, 1..12
+ */
+int Month = 0;
 
 static DataChunk *InitScalarDC FP ((FILE *infile, FieldId fid, int *year));
 static DataChunk *InitIRGridDC FP ((char *irplat_name, FieldId fid));
 static void	GrabData FP ((FILE *infile, DataChunk *dc, FieldId, int year));
-static time_t	YearSeconds FP ((int));
 static void	ConvertYearDay FP((int year, int yday, int *month, int *mday));
+#ifdef notdef /* functions no longer used */
+static time_t	YearSeconds FP ((int));
 static void	dc_IRAddScalarDC FP((DataChunk *irgrid_dc, 
 				     DataChunk *scalar_dc,
 				     int sample, int nsamples,
 				     int nfield, FieldId *fields));
+#endif
 
 
 static void
 Usage (prog)
 char *prog;
 {
-	printf ("Usage: %s [ingest options] [-ir <name>] file ...\n", prog);
+	printf ("Usage: %s [ingest options] ", prog);
+	printf ("[-ir <name>] [-m <month>] file ...\n");
 	printf ("   -ir\tIngest to irregular platform <name> rather than\n");
 	printf ("      \tindividually as scalar time series.\n");
+	printf ("   -m \tIngest data for this month only, where <month>");
+	printf (" is in the range 1..12, (local time).\n");
+	printf ("      \tRecommended when using -ir with large datasets.\n");
 	IngestUsage ();
 }
 	
@@ -113,7 +123,6 @@ char	**argv;
 	int option_ir = 0;
 	FieldId fid;
 	char env[50];
-
 /*
  * Search for the IR option to see if we're supposed to do the IR plat
  * rather than individual scalars.
@@ -124,6 +133,17 @@ char	**argv;
 		{
 			option_ir = 1;
 			irplat_name = argv[i+1];
+			IngestRemoveOptions(&argc, argv, i, 2);
+		}
+		else if (!strcmp(argv[i],"-m") && (i + 1 < argc))
+		{
+			Month = atoi(argv[i+1]);
+			if ((Month < 1) || (Month > 12))
+			{
+				printf ("%s: bad month number\n", argv[0]);
+				Usage (argv[0]);
+				exit (1);
+			}
 			IngestRemoveOptions(&argc, argv, i, 2);
 		}
 		else
@@ -143,20 +163,10 @@ char	**argv;
 	}
 /*
  * Since we must convert from Darwin local to GMT, we require the TZ
- * environment variable to be set to TIMEZONE_FILE.  Anyone
- * know of a better way to do this?  Anyway to set out environment from
- * within the program?
+ * environment variable to be set to TIMEZONE_FILE.
  */
 	sprintf (env, "TZ=%s", TIMEZONE_FILE);
 	putenv (env);
-#ifdef notdef
-	if (!getenv("TZ") || strcmp(getenv("TZ"),TIMEZONE_FILE))
-	{
-		printf ("%s: environment variable 'TZ' must be set to '%s'\n",
-			argv[0], TIMEZONE_FILE);
-		exit (2);
-	}
-#endif
 /*
  * Now we can set the timezone for our process
  */
@@ -166,6 +176,7 @@ char	**argv;
  * our irgrid data chunk, before we start barreling through the files.
  */
 	IngestInitialize ("TRMM_Rain");
+	IngestLog (EF_INFO, "Using '%s' as timezone of local times", env);
 	fid = F_DeclareField ("rainr", "Rain gauge rates", "mm/hr");
 	if (option_ir)
 		irdc = InitIRGridDC (irplat_name, fid);
@@ -200,7 +211,7 @@ char	**argv;
 			if (! ds_StoreBlocks (dc, FALSE, (dsDetail *) 0, 0))
 				IngestLog (EF_EMERGENCY, 
 					   "%s: Failure storing data", 
-					   ds_PlatformName (dc->dc_Platform));
+					   PlatformName (dc->dc_Platform));
 			else
 				IngestLog (EF_INFO, "File %s ingested",
 					   argv[i]);
@@ -212,8 +223,8 @@ char	**argv;
 				   irplat_name);
 			dc_IRAddScalarDC (irdc, dc, 0, 0, 0, 0);
 			IngestLog (EF_INFO,
-				   "File %s added to IR plat '%s'",
-				   argv[i], irplat_name);
+		   "File %s merged into IR plat '%s'; now %i samples in DC",
+		   argv[i], irplat_name, dc_GetNSample(irdc));
 		}
 	/*
 	 * Either way we're done with the file and the scalar DC
@@ -223,19 +234,23 @@ char	**argv;
 		++i;
 	}
 /*
- * If we're not doing the IR option, we're done.  Otherwise we must 
- * store the IR dc, then we're done.
+ * If we're not doing the IR option, we're done.  Otherwise we must sort
+ * the IR dc to avoid any insert cases, store the IR dc, and then we're done.
  */
 	if (! option_ir)
 		exit (0);
 
+	if (DumpDataChunks)
+		dc_DumpDC (irdc);
+	dc_SortSamples (irdc);
+	if (DumpDataChunks)
+		dc_DumpDC (irdc);
 	if (! ds_StoreBlocks (irdc, FALSE, (dsDetail *) 0, 0))
 		IngestLog (EF_EMERGENCY, 
-			   "%s: Failure storing data", 
-			   ds_PlatformName (irdc->dc_Platform));
+			   "%s: Failure storing data", irplat_name);
 	else
-		IngestLog (EF_INFO, "Successful ingestion of IR plat %s",
-			   ds_PlatformName (irdc->dc_Platform));
+		IngestLog (EF_INFO, "Successful ingest of IR plat '%s'",
+			   irplat_name);
 	exit (0);
 }
 
@@ -333,6 +348,13 @@ FieldId fid;
 		locs[s].l_lon = Sites[s].lon;
 		locs[s].l_alt = 0.00;
 		pids[s] = ds_LookupPlatform (Sites[s].platname);
+		if (pids[s] == BadPlatform)
+		{
+			IngestLog (EF_EMERGENCY,
+			   "site '%s', plat '%s', bad sub-platform for IRGRID",
+			   Sites[s].name, Sites[s].platname);
+			exit (1);
+		}
 	}
 	dc_IRSetup (dc, NUM_SITES, pids, locs, 1, &fid);
 	dc_SetBadval (dc, BADVAL);
@@ -368,6 +390,14 @@ int year;
 	local.tm_gmtoff = 0;
 	t.zt_MicroSec = 0;
 
+	/*
+	 * Note to user whether we're limiting data to a particular month
+	 */
+	if (Month)
+	{
+		IngestLog (EF_INFO, "Limiting data to month #%d", Month);
+	}
+
 	while ((num = fscanf (infile, " %d %d:%d:%d %f ", 
 			      &jday, &hour, &minute, &second, &rate)) == 5)
 	{
@@ -387,13 +417,18 @@ int year;
 	 * the email is correct.  Anybody know the timezone of Darwin?
 	 * XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 	 */
+		ConvertYearDay (year, jday, &month, &mday);
+	/*
+	 * Skip this point if not in the month we want
+	 */
+		if (Month && (month != Month))
+			continue;
 	/*
 	 * Construct a tm structure and use it to convert the file's time
 	 * to UTC using timelocal().  We're assuming that the program is
 	 * running with the correct value for the TZ environ variable,
 	 * set in main().
 	 */
-		ConvertYearDay (year, jday, &month, &mday);
 		local.tm_min = minute;
 		local.tm_hour = hour;
 		local.tm_mday = mday;
@@ -460,6 +495,7 @@ YearSeconds (year)
 
 
 
+#ifdef notdef /* moved to dc_IRGrid.c */
 static void
 dc_IRAddScalarDC (irgrid_dc, scalar_dc, sample, nsample, nfield, fields)
 DataChunk *irgrid_dc;
@@ -477,7 +513,7 @@ FieldId *fields;
  * When a new sample is being created---either inserted, appended, or
  * prepended---fill it in with bad values first.  Otherwise, just change
  * the data value of the Scalar chunk's platform in the sample.  For now,
- * try to take advantage of non-chronological times.
+ * take advantage of the fact that samples can be non-chronological.
  */
 {
 	FieldId *fids;
@@ -559,7 +595,7 @@ FieldId *fields;
 			}
 			if (s < ir_nsample)	/* found a sample */
 			{
-				ir_data = dc_IRGetGrid (irgrid_dc, i, fids[f]);
+				ir_data = dc_IRGetGrid (irgrid_dc, s, fids[f]);
 			}
 			else			/* no sample, use bad values */
 			{
@@ -592,3 +628,4 @@ FieldId *fields;
 	free (blank_grid);
 	free (ir_times);
 }
+#endif
