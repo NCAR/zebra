@@ -24,7 +24,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: met_formulas.c,v 1.10 1997-02-10 22:17:53 burghart Exp $";
+static char *rcsid = "$Id: met_formulas.c,v 1.11 1997-10-16 20:17:02 burghart Exp $";
 
 # include <math.h>
 # include "met_formulas.h"
@@ -226,6 +226,9 @@ double	temp, dp;
  * level from the surface temp (deg. K) and dewpoint (deg. K)
  */
 {
+	if (dp > temp)
+	    return (0.0);	/* error */
+	
 	return (1. / (1. / (dp - 56.) + log (temp / dp) / 800.) + 56.);
 }
 
@@ -244,6 +247,9 @@ double	dp, temp, pres;
 	double	theta = theta_dry (temp, pres);
 	double	plcl = pres, test = 1.0;
 
+	if (dp > temp)
+	    return (0.0);	/* error */
+	
 	while (test > 0.01 || test < -0.01)
 	{
 		test = t_mr (plcl, w) - theta_to_t (theta, plcl);
