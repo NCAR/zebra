@@ -23,10 +23,12 @@
 # include <defs.h>
 # include <message.h>
 # include <pd.h>
+# include <GraphicsW.h>
+
 # include "GraphProc.h"
 # include "ActiveArea.h"
 
-MAKE_RCSID ("$Id: ActiveArea.c,v 2.5 1994-02-14 23:20:05 corbet Exp $")
+MAKE_RCSID ("$Id: ActiveArea.c,v 2.6 1995-04-17 21:06:29 granger Exp $")
 
 /*
  * List creation parameters.
@@ -228,21 +230,43 @@ aa_Which (x, y)
 int x, y;
 /*
  * Find out which area, if any, lies under the given coordinates.
+ * Rather than take the first, take the one who's center is closest
+ * to the pointer.
  */
 {
-	int i, col;
+#	define AA_ABS(a) ((a)<0?(-(a)):(a))
+#	define AA_METRIC(ax,ay,px,py) \
+	(AA_ABS((px)-(ax))+AA_ABS((py)-(ay)))
+	int i;
 	AAColumn *cp;
-
+	const ActiveArea *aa;
+	const ActiveArea *closest;
+	int metric, dist;
+	int cx, cy;
+		
 	if (! CurrentAreas)
 		return (NULL);
 	cp = CurrentAreas->al_columns + x/AA_CWIDTH;
-	for (i = 0; i < cp->ac_nentry; i++)
-	{
-		const ActiveArea *aa = CurrentAreas->al_areas +
-			cp->ac_entries[i];
+	if (! cp->ac_nentry)
+		return (NULL);
+	closest = NULL;
+	i = 0;
+	do {
+		aa = CurrentAreas->al_areas + cp->ac_entries[i];
 		if (aa->aa_x <= x && (aa->aa_x + aa->aa_width) >= x &&
 		    aa->aa_y <= y && (aa->aa_y + aa->aa_height) >= y)
-			return ((ActiveArea *) aa); /* Cast to rm const */
+		{
+			cx = aa->aa_x + (aa->aa_width / 2);
+			cy = aa->aa_y + (aa->aa_height / 2);
+			metric = AA_METRIC(cx,cy,x,y);
+			if (! closest || (metric < dist))
+			{
+				closest = aa;
+				dist = metric;
+			}
+		}
 	}
-	return (NULL);
+	while (++i < cp->ac_nentry);
+
+	return ((ActiveArea *)closest);		/* Cast to rm const */
 }
