@@ -1,5 +1,5 @@
 /* 10/85 jc */
-/* $Header: /code/cvs/rdss/rdsslibs/ui/ui_error.h,v 1.1 1989-02-08 13:28:15 corbet Exp $ */
+/* $Id: ui_error.h,v 1.2 1990-09-11 16:16:05 corbet Exp $ */
 
 # ifndef UI_ERROR_SYMBOLS
 # define UI_ERROR_SYMBOLS
@@ -25,4 +25,12 @@
 
 # define RESIGNAL	ui_eresignal ();
 
+/*
+ * Function prototypes.  Some of these won't be right until the varargs
+ * stuff is cleaned up.
+ */
+# ifdef __STDC__
+	int ui_epush (jmp_buf);
+	int ui_epop (void);
+	int ui_eresignal (void);
 # endif
