@@ -1,18 +1,17 @@
 !
 ! Fancy generic plot description intended to work with filled or line 
-! contours.  Uses line contours by default.  Platform and field need to be
-! filled in.
+! contours.  Uses line contours by default.  Platform, icon, and field need 
+! to be filled in.
 !
 global
 	pd-name:		p_contour
 p_contour
-	platform:		mesonet
+	platform:		CHANGEME
+	icon:			CHANGEME
+	field:			CHANGEME
 	representation:		contour
-	field:			tdry
 	icon-left-menu:		standard-cap-left-menu
 	icon-middle-menu:	FieldMenu
-!	field-select-command:	ContourFieldSelect
-!	field-menu-extras:	mono|Monochrome contours
 	icon-right-menu:	contour-right
 	require:		contour, simple-color
 	scale-mode:		auto
