@@ -41,7 +41,7 @@
 # include "Skewt.h"
 
 
-RCSID ("$Id: Skewt.c,v 2.33 1999-03-01 02:04:29 burghart Exp $")
+RCSID ("$Id: Skewt.c,v 2.34 2000-11-10 22:53:56 granger Exp $")
 
 /*
  * General definitions
@@ -747,7 +747,8 @@ zbool    update;
 {
 	float	*xt, *xd, *yt, *yd, *pres, *temp, *dp, badvalue;
 	float	y;
-	int	i, npts, nprev, good_d = 0, good_t = 0, antime = 0, nflds;
+	int	i, npts, nprev, good_d = 0, good_t = 0, nflds;
+	int	anloc = FALSE, antime = FALSE;
 	char	string[60];
 	FieldId	flist[3], *platflds;
 	ZebTime	ptime;
@@ -756,6 +757,20 @@ zbool    update;
 	Pixel tacolor = Tacmatch ? color.pixel : Tadefclr.pixel;
 	dsDetail details[5];
 	int ndetail = 0;
+/*
+ * Add this platform to the annotation first, so that if there's a problem
+ * it can still be removed through its active menu (if enabled).
+ */
+        if (! update)
+	{
+	    int active = FALSE;
+	/*
+	 * Do they want it active?
+	 */
+	    pda_Search (Pd, c, "top-annot-active", "skewt",
+			(char *) &active, SYMT_BOOL);
+	    An_DoTopAnnot (pname, tacolor, active ? c : 0, pname);
+	}
 /*
  * Get the platform id and obtain a good data time
  */
@@ -820,26 +835,16 @@ zbool    update;
 	}
 	if (ndetail)
 		dc_SetBadval (dc, badvalue);
-/*
- * Add this platform to the annotation
- */
-        if (! update)
+	if (! update)
 	{
-		int active = FALSE, anloc = FALSE;
 	/*
-	 * Do they want it active?
-	 */
-		pda_Search (Pd, c, "top-annot-active", "skewt",
-				(char *) &active, SYMT_BOOL);
-		An_DoTopAnnot (pname, tacolor, active ? c : 0, pname);
-	/*
-	 * See if they want any additional stuff added in.
+	 * See if they want any additional top annotation added in.
 	 */
 		if (! pda_Search (Pd, c, "annot-time", "skewt", 
 				  (char *) &antime, SYMT_BOOL))
 			antime = TRUE;
 		if (! pda_Search (Pd, c, "annot-location", "skewt",
-				(char *) &anloc, SYMT_BOOL))
+				  (char *) &anloc, SYMT_BOOL))
 			anloc = FALSE;
 		if (antime || anloc)
 			An_TopAnnot (" (", tacolor);
