@@ -34,7 +34,7 @@
 # include <config.h>
 # include <copyright.h>
 # include <xhelp.h>
-MAKE_RCSID ("$Id: dm.c,v 2.24 1993-03-02 20:05:08 corbet Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.25 1993-03-02 20:13:29 granger Exp $")
 
 
 /*
@@ -342,6 +342,7 @@ struct ui_command *cmds;
 			/* topic[13] = '\0'; */
 		}
 		XhCallXHelp (Top, helpfile, topic, "Welcome to Zeb");
+		XFlush(Dm_Display);	/* flush Xatoms to xhelp program */
 		break;
 	   	
 	   default:
