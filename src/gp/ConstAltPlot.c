@@ -56,7 +56,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.84 2000-08-16 22:54:36 burghart Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.85 2001-04-20 05:04:55 granger Exp $")
 
 
 /*
@@ -75,7 +75,6 @@ static float	Alt;
  * Other annotation information.
  */
 static float	Sascale;
-static zbool	Sashow;
 
 /*
  * Non-modular kludgery to make things work for now, until something better
@@ -85,7 +84,6 @@ extern XColor Tadefclr;		/* Kludge, for now	*/
 extern int Comp_index;
 extern Pixel White;
 
-static int Ctlimit;
 /*
  * Macro for a pointer to x cast into a char *
  */
@@ -230,14 +228,13 @@ ZebTime *t;
 void
 CAP_Parameters (char *c)
 {
+    /* 
+     * This is a parameter overload, since the only place the sa-scale
+     * value is used in this module is for the station quadrant text, which
+     * is not side annotation.  Perhaps this should be moved there some day.
+     */
 	Sascale = 0.02;
 	pda_Search (Pd, c, "sa-scale", NULL, (char *) &Sascale, SYMT_FLOAT);
-
-	Ctlimit = 1;
-	pda_Search (Pd, c, "ct-limit", NULL, (char *) &Ctlimit, SYMT_INT);
-
-	Sashow = TRUE;
-	pda_Search (Pd, c, "sa-show", NULL, (char *) &Sashow, SYMT_BOOL);
 }
 
 
@@ -276,7 +273,7 @@ zbool	update;
 /*
  * If there's no side annotation we can go have a beer now.
  */
-	if (! Sashow)
+	if (! An_SaShow (c, NULL))
 		return;
 /*
  * Sigh, no beer for the weary.  Figure out how much space we really need,
@@ -347,7 +344,7 @@ zbool	update;
 /*
  * Side annotation
  */
-	if (Sashow && ! Monocolor)
+	if (An_SaShow (c, NULL) && ! Monocolor)
 	{
 		float scale;
 		int lim, lheight, space;
@@ -471,16 +468,6 @@ int *shifted;
  * Get annotation information
  */
 	CAP_Parameters (c);
-#ifdef notdef
-	Sascale = 0.02;
-	pda_Search (Pd, c, "sa-scale", NULL, (char *) &Sascale, SYMT_FLOAT);
-
-	Ctlimit = 1;
-	pda_Search (Pd, c, "ct-limit", NULL, (char *) &Ctlimit, SYMT_INT);
-
-	Sashow = TRUE;
-	pda_Search (Pd, c, "sa-show", NULL, (char *) &Sashow, SYMT_BOOL);
-#endif
 /*
  * Special stuff for line contours
  */
@@ -1589,11 +1576,6 @@ zbool *do_vectors;
  * Required stuff
  */
 	ok = pda_ReqSearch (Pd, c, "platform", NULL, platform, SYMT_STRING);
-#ifdef notdef
-	ok &= pda_ReqSearch (Pd, c, "u-field", NULL, uname, SYMT_STRING);
-	ok &= pda_ReqSearch (Pd, c, "v-field", NULL, vname, SYMT_STRING);
-#endif
-
 	if (! ok)
 		return (FALSE);
 /*
@@ -1617,11 +1599,6 @@ zbool *do_vectors;
  * Get annotation information from the plot description
  */
 	CAP_Parameters (c);
-#ifdef notdef
-	if(! pda_Search (Pd, c, "sa-scale", NULL, (char *) &Sascale,
-			 SYMT_FLOAT))
-		Sascale = 0.02;
-#endif
 /*
  * Figure out an arrow color.
  */
@@ -1867,12 +1844,6 @@ CAP_PlotRaster (char *c, zbool update, char *topannot, char *sideannot)
 				SYMT_FLOAT))
 			hvalue = 0.0;
 	}
-#ifdef notdef
-	if(! pda_Search(Pd, c, "sa-scale", NULL, (char *) &Sascale,SYMT_FLOAT))
-		Sascale = 0.02;
-	if(! pda_Search(Pd, c, "ct-limit", NULL, (char *) &Ctlimit, SYMT_INT))
-		Ctlimit = 1;
-#endif
 /*
  * Rasterization control.  This determines whether we use the polygon fill
  * (slow) or fancy integer (fast) method of rasterization.  The new-raster
@@ -2066,7 +2037,7 @@ CAP_Raster (char *c, zbool update)
  */
 	if (topannot[0])
 		An_TopAnnot (topannot, Tadefclr.pixel);
-	if (Sashow && sideannot[0])
+	if (sideannot[0])
 	{
 		An_AddAnnotProc (CAP_RasterSideAnnot, c, sideannot,
 				 strlen (sideannot), 

@@ -40,7 +40,7 @@
 # include "DrawText.h"
 # include "PlotPrim.h"
 
-RCSID ("$Id: XYObservation.c,v 1.27 2000-07-13 20:41:27 granger Exp $")
+RCSID ("$Id: XYObservation.c,v 1.28 2001-04-20 05:04:56 granger Exp $")
 
 /*
  * Enum to tell how we anchor z values
@@ -69,7 +69,7 @@ zbool	update;
  * Draw an xy-graph on the given component
  */
 {
-	zbool	ok, doLine, annotLoc, sideAnnot;
+	zbool	ok, doLine, annotLoc;
 	zbool	xauto, yauto, xinvert, yinvert;
 	int	plat, nplat, npts[MAX_PLAT], dmode, ob, nobs;
 	int	nxfield, nyfield, nzfield, obsStart, obsEnd, obsLen;
@@ -138,10 +138,6 @@ zbool	update;
 	strcpy (style, "line");
 	pda_Search (Pd, c, "representation-style", "xy-obs", style, 
 		    SYMT_STRING);
-
-	sideAnnot = TRUE;
-	pda_Search (Pd, c, "do-side-annotation", "xy-obs", (char *) &sideAnnot,
-		    SYMT_BOOL);
 
 	zScale = 0.001;
 	pda_Search (Pd, c, "z-scale", "xy-obs", (char *) &zScale, SYMT_FLOAT);
@@ -306,7 +302,7 @@ zbool	update;
 
 		    ot_AddStatusLine (c, pnames[plat], fstring, &eTimeReq);
 
-		    if (sideAnnot)
+		    if (An_SaShow (c, "xy-obs"))
 			    XYO_DoSideAnnotation (c, pnames[plat],
 					    lcolor[plat], 
 					    xfnames[nxfield > 1 ? plat : 0],
@@ -527,14 +523,14 @@ Pixel color;
 ZebTime *time;
 float zscale;
 {
-	float scale = 0.02;
 	int dotime = 0, nline = 2, doscale = 0;
 	char label[200], timelabel[32];
 	char dimns[200];
+	float scale;
 /*
  * Main annotation stuff.
  */
-	pda_Search (Pd, c, "sa-scale", NULL, (char *) &scale, SYMT_FLOAT);
+	An_GetSideParams (c, &scale, NULL);
 	sprintf (label, "line|%li|%s|%s|%s|%s", color, plat, xfield, yfield,
 			zfield);
 	if (pda_Search (Pd, c, "dimensions", NULL, dimns, SYMT_STRING))

@@ -42,7 +42,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: XSection.c,v 2.47 2000-12-18 23:57:32 granger Exp $")
+RCSID ("$Id: XSection.c,v 2.48 2001-04-20 05:04:55 granger Exp $")
 
 /*
  * General definitions
@@ -468,7 +468,7 @@ zbool	update;
  * Draw a cross-section contour plot based on the given PD component.
  */
 {
-	zbool	ok, sashow;
+	zbool	ok;
 	int	nplat;
 	char	platforms[PlatformListLen];
 	char	*pnames[MaxPlatforms], fldname[80], cname[20];
@@ -594,24 +594,19 @@ zbool	update;
  */
 	xs_Background ();
 
-	sashow = TRUE;
-	pda_Search (Pd, c, "sa-show", NULL, (char *) &sashow, SYMT_BOOL);
-	if (sashow)
+	if (Fill_contour)
 	{
-	    if (Fill_contour)
-	    {
-		sprintf (Scratch, "%s|%s|%f|%f", fldname, cname, 
-			 Contour_center, Contour_step); 
-		An_AddAnnotProc (An_ColorBar, c, Scratch, strlen (Scratch),
-				 75, TRUE, FALSE);
-	    }
-	    else if (! Mono_color)
-	    {
-		sprintf (Scratch, "%s|%s|%f|%f", fldname, cname, 
-			 Contour_center, Contour_step); 
-		An_AddAnnotProc (An_ColorNumber, c, Scratch, strlen (Scratch), 
-				 75, TRUE, FALSE);
-	    }
+	    sprintf (Scratch, "%s|%s|%f|%f", fldname, cname, 
+		     Contour_center, Contour_step); 
+	    An_AddAnnotProc (An_ColorBar, c, Scratch, strlen (Scratch),
+			     75, TRUE, FALSE);
+	}
+	else if (! Mono_color)
+	{
+	    sprintf (Scratch, "%s|%s|%f|%f", fldname, cname, 
+		     Contour_center, Contour_step); 
+	    An_AddAnnotProc (An_ColorNumber, c, Scratch, strlen (Scratch), 
+			     75, TRUE, FALSE);
 	}
 }
 
@@ -631,7 +626,6 @@ zbool	update;
 	char	ufldname[40], vfldname[40], wfldname[40], *pnames[MaxPlatforms];
 	char	cname[20], style[16];
 	int	nplat;
-	zbool	sashow;
 /*
  * Platform(s).  Platform must come from the global component for zig-zag
  * plots so we don't have plots with different endpoints overlaying each
@@ -736,24 +730,19 @@ zbool	update;
  */
 	xs_Background ();
 
-	sashow = TRUE;
-	pda_Search (Pd, c, "sa-show", NULL, (char *) &sashow, SYMT_BOOL);
-	if (sashow)
+	if (Do_vectors)
 	{
-	    if (Do_vectors)
-	    {
-		sprintf (Scratch, "m/s|%li|%f|%f|%f", Ccolor.pixel, 
-			 10.0, 0.0, Wind_scale * USABLE_HEIGHT); 
-		An_AddAnnotProc (An_ColorVector, c, Scratch, strlen (Scratch),
-				 40, FALSE, FALSE);
-	    }
-	    else
-	    {
-		sprintf (Scratch, "m/s|%li|%d", Ccolor.pixel, 
-			 (int)(Wind_scale * USABLE_HEIGHT));
-		An_AddAnnotProc (An_BarbLegend, c, Scratch, strlen (Scratch), 
-				 100, FALSE, FALSE);
-	    }
+	    sprintf (Scratch, "m/s|%li|%f|%f|%f", Ccolor.pixel, 
+		     10.0, 0.0, Wind_scale * USABLE_HEIGHT); 
+	    An_AddAnnotProc (An_ColorVector, c, Scratch, strlen (Scratch),
+			     40, FALSE, FALSE);
+	}
+	else
+	{
+	    sprintf (Scratch, "m/s|%li|%d", Ccolor.pixel, 
+		     (int)(Wind_scale * USABLE_HEIGHT));
+	    An_AddAnnotProc (An_BarbLegend, c, Scratch, strlen (Scratch), 
+			     100, FALSE, FALSE);
 	}
 }
 
@@ -3219,7 +3208,6 @@ zbool	update;
 	float	bot, top, wanted_azim, azim, hlen, ang;
 	int	hdim, vdim, shifted, highlight;
 	int	pix_x0, pix_x1, pix_y0, pix_y1;
-	zbool	sashow;
 	FieldId	fid;
 	ZebTime	zt;
 	RGrid	rg;
@@ -3473,16 +3461,11 @@ zbool	update;
  */
 	xs_Background ();
 
-	sashow = TRUE;
-	pda_Search (Pd, c, "sa-show", NULL, (char *) &sashow, SYMT_BOOL);
-	if (sashow)
-	{
-	    step_per_color = (step * nsteps) / Ncolors;
-	    sprintf (Scratch, "%s|%s|%f|%f", fldname, cname, center, 
-		     step_per_color); 
-	    An_AddAnnotProc (An_ColorBar, c, Scratch, strlen (Scratch), 75, 
-			     TRUE, FALSE);
-	}
+	step_per_color = (step * nsteps) / Ncolors;
+	sprintf (Scratch, "%s|%s|%f|%f", fldname, cname, center, 
+		 step_per_color); 
+	An_AddAnnotProc (An_ColorBar, c, Scratch, strlen (Scratch), 75, 
+			 TRUE, FALSE);
 }
 
 

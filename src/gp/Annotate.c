@@ -30,7 +30,7 @@
 # include "DrawText.h"
 # include "PixelCoord.h"
 # include "GC.h"
-MAKE_RCSID ("$Id: Annotate.c,v 2.36 2000-10-18 20:34:16 granger Exp $")
+MAKE_RCSID ("$Id: Annotate.c,v 2.37 2001-04-20 05:04:54 granger Exp $")
 
 /*
  * Graphics context (don't use the global one in GC.h because we don't
@@ -330,6 +330,27 @@ int y, x1, x2;
 }
 
 
+int
+An_SaShow (char *comp, char *qual)
+{
+	zbool sashow = TRUE;
+/*
+ * For backwards compatibility we honor both sa-show and the xygraph
+ * parameter, but sa-show takes precedence.  The only difference is that
+ * do-side-annotation is no longer qualified with the xygraph
+ * representation type.  That must be handled by an explicit call rather
+ * than automatically in An_AddAnnotProc().
+ */
+	if (! pda_Search (Pd, comp, "sa-show", qual, (char *) &sashow, 
+			  SYMT_BOOL))
+	{
+	    pda_Search (Pd, comp, "do-side-annotation", qual,
+			(char *) &sashow, SYMT_BOOL);
+	}	    
+	return sashow;
+}
+
+
 /*
  * New side annotation data structures and routines.
  */
@@ -363,8 +384,18 @@ int more, optional;
  */
 {
 	AnnotInfo *entry, *lastentry, *temp;
+/*
+ * If side annotation has been disabled in this component, then ignore this
+ * procedure.  
+ */
+	if (! An_SaShow (comp, NULL))
+	{
+	    msg_ELog (EF_DEBUG, "Skipping sa procedure for comp %s (disabled)",
+		      comp);
+	    return;
+	}
 
-	msg_ELog (EF_DEBUG, "Adding procedure for comp %s", comp);
+	msg_ELog (EF_DEBUG, "Adding sa procedure for comp %s", comp);
 	msg_ELog (EF_DEBUG, "%s %d %d %d %d", data, datalen, minspace,
 		more, optional);
 /*
@@ -946,9 +977,11 @@ int *limit;
  * Get all side annotation parameters from the plot description.
  */
 {
-	if(! pda_Search(Pd, comp, "sa-scale", NULL, (char *)scale, SYMT_FLOAT))
+	if(scale && 
+	   ! pda_Search(Pd, comp, "sa-scale", NULL, (char *)scale, SYMT_FLOAT))
 		*scale = 0.02;
-	if(! pda_Search(Pd, comp, "ct-limit", NULL, (char *)limit, SYMT_INT))
+	if(limit &&
+	   ! pda_Search(Pd, comp, "ct-limit", NULL, (char *)limit, SYMT_INT))
 		*limit = 1;
 }
 

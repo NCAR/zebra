@@ -44,7 +44,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: Track.c,v 2.49 1999-11-01 20:46:28 burghart Exp $")
+RCSID ("$Id: Track.c,v 2.50 2001-04-20 05:04:55 granger Exp $")
 
 # define ARROWANG .2618 /* PI/12 */
 # ifndef M_PI
@@ -756,7 +756,6 @@ TrackParams *tparams;
 	char tadefcolor[30], datastr[100];
 	XColor tadefclr, taclr, xc;
 	zbool tacmatch = FALSE;
-	float sascale;
 /*
  * Read in annotation information.
  */
@@ -779,12 +778,6 @@ TrackParams *tparams;
 		taclr = tparams->tp_ArrowColor;
 	else
 		taclr = tadefclr;
-/*
- * And scaling for side annotation.
- */
-	if (! tr_GetParam (comp, "sa-scale", platform, (char *) &sascale,
-		SYMT_FLOAT))
-		sascale = 0.02;
 /*
  * Annotate along the top.
  */

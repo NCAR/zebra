@@ -40,7 +40,7 @@
 # include "PlotPrim.h"
 # include "DrawText.h"
 
-RCSID ("$Id: XYGraph.c,v 1.39 2000-11-22 19:27:36 granger Exp $")
+RCSID ("$Id: XYGraph.c,v 1.40 2001-04-20 05:04:56 granger Exp $")
 
 /*
  * Prototypes
@@ -49,7 +49,7 @@ void 		xy_Graph FP ((char *, int));
 static void	XYG_DoSideAnnotation FP ((char*, char*, char*, Pixel, char*,
 					  char*, ZebTime*));
 static int xy_CheckFieldPlat FP ((int, int, int *, char **));
-static void xy_GetGraphParams FP ((char *, char *, int *, int *));
+static void xy_GetGraphParams FP ((char *, char *, int *));
 
 
 void
@@ -61,7 +61,7 @@ zbool	update;
  */
 {
 	zbool	ok;
-	int	sideAnnot, doLine;
+	int	doLine;
 	int	plat, nplat, npts[MAX_PLAT];
 	int	nxfield, nyfield, dmode;
 	char	platforms[PlatformListLen], *pnames[MaxPlatforms];
@@ -106,7 +106,7 @@ zbool	update;
 /*
  * Get basic graphics parameters.
  */
-	xy_GetGraphParams (c, style, &sideAnnot, &doLine);
+	xy_GetGraphParams (c, style, &doLine);
 /*
  * data types ('t'ime or 'f'loat)
  */
@@ -216,12 +216,14 @@ zbool	update;
 
 			ot_AddStatusLine (c, pnames[plat], fstring, &eTimeReq);
 
-			if (sideAnnot)
+			if (An_SaShow (c, "xy-simple"))
+			{
 				XYG_DoSideAnnotation (c, style, pnames[plat],
 					      lcolor[plat],
 					      xfnames[nxfield > 1 ? plat : 0],
 					      yfnames[nyfield > 1 ? plat : 0],
 					      &eTimeReq);
+			}
 		}
 	/*
 	 * If we got some data, tweak min and max.
@@ -342,14 +344,14 @@ char *c, *style, *plat, *xfield, *yfield;
 Pixel color;
 ZebTime *time;
 {
-	float scale = 0.02;
 	int dotime = 0, nline = 2;
 	char label[200], timelabel[32];
 	char dimns[200];
+	float scale;
 /*
  * Throw together the basic info.
  */
-	pda_Search (Pd, c, "sa-scale", NULL, (char *) &scale, SYMT_FLOAT);
+	An_GetSideParams (c, &scale, NULL);
 	sprintf(label, "%s|%li|%s|%s|%s", style, color, plat, xfield, yfield);
 	if (pda_Search (Pd, c, "dimensions", NULL, dimns, SYMT_STRING))
 		sprintf (label+strlen(label), "(%s)", dimns);
@@ -432,9 +434,9 @@ char **pnames;
 
 
 static void
-xy_GetGraphParams (c, style, sideAnnot, doLine)
+xy_GetGraphParams (c, style, doLine)
 char *c, *style;
-int *sideAnnot, *doLine;
+int *doLine;
 /*
  * Get basic graphics parameters.
  */
@@ -442,15 +444,10 @@ int *sideAnnot, *doLine;
 /*
  *  Get optional "simple" parameters.
  *	representation-style:	"point", "line", "cross", "xmark", or "icon"
- *	do-side-annotation:	true or false
  */
 	strcpy (style, "line");
 	pda_Search (Pd, c, "representation-style", "xy-simple", style, 
 		    SYMT_STRING);
-
-	*sideAnnot = True;
-	pda_Search (Pd, c, "do-side-annotation", "xy-simple", 
-		    (char *) sideAnnot, SYMT_BOOL);
 /*
  * Get the icon to use for non-line representations.  The old special cases
  * of "point", "cross", and "xmark" just use an icon of the same name.

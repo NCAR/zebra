@@ -37,7 +37,7 @@
 # include "rg_status.h"
 # include "Contour.h"
 
-RCSID("$Id: XYContour.c,v 1.42 2000-11-22 19:27:36 granger Exp $")
+RCSID("$Id: XYContour.c,v 1.43 2001-04-20 05:04:56 granger Exp $")
 
 # define GRID(g,i,j,ydim)   (g[((i) * (ydim)) + (j)])
 
@@ -96,7 +96,7 @@ zbool	update;
 	char	*xfnames[MaxFields], *yfnames[MaxFields], *zfnames[MaxFields];
 	char	gridtype[20], ctname[24], style[20], annotcontrol[80];
 	char	xtype, ytype, ztype;
-	zbool	xauto, yauto, xinvert, yinvert, sideAnnot, zauto, zinvert;
+	zbool	xauto, yauto, xinvert, yinvert, zauto, zinvert;
 	Pixel	taColor;
 	XColor	*colors, white;
 	ZebTime	bTimeTarget, eTimeTarget, bTimeReq, eTimeReq;
@@ -128,9 +128,6 @@ zbool	update;
  *			dimensions
  * "contour-grid-type" - method of interpolating gridded data
  */
-	sideAnnot = True;
-	pda_Search (Pd, c, "do-side-annotation", "xy-contour", 
-		    (char *) &sideAnnot, SYMT_BOOL);
 /*
  * New scheme for contour styles: take the old "representation-style"
  * if it's there (backwards compatibility); otherwise look at the
@@ -420,7 +417,7 @@ zbool	update;
 	 * NOW that we have a center value, we can reasonably set up
 	 * for the color bar.
 	 */
-		if (sideAnnot && ncolors > 1)
+		if (An_SaShow (c, "xy-contour") && ncolors > 1)
 		{	
 			sprintf (annotcontrol, "%s|%s|%f|%f", zfnames[plat],
 				 ctname, ccenter, zstep);

@@ -38,7 +38,7 @@
 # include "AxisControl.h"
 # include "PlotPrim.h"
 
-RCSID ("$Id: XYWind.c,v 1.38 2000-11-29 18:46:23 granger Exp $")
+RCSID ("$Id: XYWind.c,v 1.39 2001-04-20 05:04:56 granger Exp $")
 
 /*
  * General definitions
@@ -56,7 +56,7 @@ zbool	update;
  * Draw an xy-graph on the given component
  */
 {
-	zbool	ok, xauto, yauto, xinvert, yinvert, angle, sideAnnot, doKnot;
+	zbool	ok, xauto, yauto, xinvert, yinvert, angle, doKnot;
 	zbool	mono;
 	int	npts[MAX_PLAT], plat, nplat, alen;
 	int	nxfield, nyfield, ncolors, skip, dmode;
@@ -175,10 +175,6 @@ zbool	update;
  * "step" - float, the size of the color table intervale
  * "barb-type" - "m/s" or "knots"
  */
-	sideAnnot = TRUE;
-	pda_Search (Pd, c, "do-side-annotation", "xy-wind", 
-		    (char *) &sideAnnot, SYMT_BOOL);
-
 	skip = 5;
 	pda_Search (Pd, c, "data-skip", "xy-wind", (char *) &skip, SYMT_INT);
 
@@ -323,7 +319,7 @@ zbool	update;
 		{
 		    ot_AddStatusLine (c, pnames[plat], "(winds)", &eTimeReq);
 
-		    if (sideAnnot)
+		    if (An_SaShow (c, "xy-wind"))
 		    {
 			if (strcmp (style, "vector") == 0)
 			{

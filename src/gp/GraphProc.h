@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.71 2000-12-01 23:13:12 granger Exp $ */
+/* $Id: GraphProc.h,v 2.72 2001-04-20 05:04:55 granger Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -307,6 +307,7 @@ extern void Ue_NewBinding FP((struct dm_ebchange *dmsg));
 /* Annotation utilities */
 extern void An_AddAnnotProc FP ((void (*) (), char *, char *, int, int,
 		int, int));
+extern int An_SaShow FP((char *comp, char *qual));
 extern void An_DoSideAnnot FP (());
 extern void An_ColorBar FP ((char *, char *, int, int, int));
 extern void An_ColorNumber FP ((char *, char *, int, int, int));
