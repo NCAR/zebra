@@ -1,7 +1,7 @@
 //
 // Source: a class holding a large list of files; each file can be retrieved
 // by platform and time.  
-// $Id: Source.hh,v 3.3 2001-08-24 22:23:11 granger Exp $
+// $Id: Source.hh,v 3.4 2001-10-11 16:34:20 burghart Exp $
 //
 //		Copyright (C) 1998 by UCAR
 //	University Corporation for Atmospheric Research
@@ -46,7 +46,6 @@ typedef BTreeFile<ZTime,DataFileCore> PlatFileList;
 // the bootstrap block) of our block file.
 //
 typedef BTreeFile<std::string,BlkOffset> OffsetTree;
-
 
 //
 // The Source class
@@ -169,6 +168,8 @@ public:
     bool RemembersAll( void ) const;
     void SetForceDirs( bool force );
     bool DirsAreForced( void ) const;
+    bool IsGood( void ) const;
+    class Error {};
 
 private:
 //
@@ -335,5 +336,10 @@ Source::SetFlag( unsigned int flag, bool state )
 	flags &= ~flag;
 }
 
+inline bool
+Source::IsGood( void ) const
+{
+    return (poffsets != 0);
+}
 
 # endif // ndef _zebra_Source_hh_

@@ -74,7 +74,7 @@ Source::Source( const char* in_srcname, const char* in_dir,
 // tree should be at the "application block" of the block file, so we don't
 // give a block address.
 //
-// Other status values make us exit...
+// Other status values make us throw an error...
 //
     switch (status)
     {
@@ -84,12 +84,12 @@ Source::Source( const char* in_srcname, const char* in_dir,
       case BlockFile::COULD_NOT_OPEN:
 	msg_ELog( EF_EMERGENCY, "Could not open cache %s for source '%s'",
 		  cachename, in_srcname );
-	exit( 1 );
+	throw Error();
       default:
 	msg_ELog( EF_EMERGENCY, 
 		  "Error BlockFile::%d opening cache %s for source '%s'",
 		  status, cachename, in_srcname );
-	exit( 1 );
+	throw Error();
     }
 }
 
@@ -126,6 +126,9 @@ Source::~Source( void )
 bool
 Source::AddPlatform( const Platform *p )
 {
+    if (! IsGood())
+	return 0;
+
     string pname = pi_Name( p );
 
     if (poffsets->Find( pname ))
@@ -148,6 +151,9 @@ Source::AddPlatform( const Platform *p )
 bool
 Source::RemovePlatform( const Platform *p )
 {
+    if (! IsGood())
+	return 0;
+
     PlatformId pid = pi_Id( p );
     string pname = pi_Name( p );
 //
@@ -180,6 +186,9 @@ Source::AddFile( const Platform *p, const DataFileCore& dfc )
 // is already here).
 //
 {
+    if (! IsGood())
+	return 0;
+
     PlatFileList *pfl = GetPlatFileList( p );
 
     if (pfl->Find( dfc.dfc_begin ))
@@ -200,6 +209,9 @@ Source::UpdateFile( const Platform *p, const DataFileCore& dfc )
 // Add or replace a file.
 //
 {
+    if (! IsGood())
+	return 0;
+
     PlatFileList *pfl = GetPlatFileList( p );
 
     if (pfl->Find( dfc.dfc_begin ))
@@ -214,6 +226,9 @@ Source::UpdateFile( const Platform *p, const DataFileCore& dfc )
 bool
 Source::RemoveFile( const Platform *p, const DataFileCore& dfc )
 {
+    if (! IsGood())
+	return 0;
+
     PlatFileList *pfl = GetPlatFileList( p );
     if (! pfl->Find( dfc.dfc_begin ))
     {
@@ -236,6 +251,8 @@ Source::RemoveFile( const Platform *p, const DataFileCore& dfc )
 bool
 Source::FindBefore( const Platform *p, const ZTime& zt, DataFileCore* dfc )
 {
+    if (! IsGood())
+	return 0;
 //
 // We key our list by begin time, and Find returns the first key at or
 // after the desired key.  Hence, we take what we get if Find gets an exact
@@ -255,6 +272,8 @@ Source::FindBefore( const Platform *p, const ZTime& zt, DataFileCore* dfc )
 bool
 Source::FindAfter( const Platform *p, const ZTime& zt, DataFileCore* dfc )
 {
+    if (! IsGood())
+	return 0;
 //
 // We key our list by begin time, and Find returns the first key at or
 // after the desired key.  Hence, we just take what we get if Find
@@ -274,6 +293,9 @@ Source::FindAfter( const Platform *p, const ZTime& zt, DataFileCore* dfc )
 bool
 Source::FindExact( const Platform *p, const ZTime& zt, DataFileCore* dfc )
 {
+    if (! IsGood())
+	return 0;
+
     PlatFileList *pfl = GetPlatFileList( p );
     return( pfl->Find( zt, dfc ) );
 }
@@ -283,6 +305,9 @@ Source::FindExact( const Platform *p, const ZTime& zt, DataFileCore* dfc )
 bool
 Source::First( const Platform *p, DataFileCore* dfc )
 {
+    if (! IsGood())
+	return 0;
+
     PlatFileList *pfl = GetPlatFileList( p );
     return( pfl->First( 0, dfc ) );
 }
@@ -292,6 +317,9 @@ Source::First( const Platform *p, DataFileCore* dfc )
 bool
 Source::Last( const Platform *p, DataFileCore* dfc )
 {
+    if (! IsGood())
+	return 0;
+
     PlatFileList *pfl = GetPlatFileList( p );
     return( pfl->Last( 0, dfc ) );
 }
@@ -301,6 +329,9 @@ Source::Last( const Platform *p, DataFileCore* dfc )
 bool
 Source::Prev( const Platform *p, DataFileCore* dfc )
 {
+    if (! IsGood())
+	return 0;
+
     PlatFileList *pfl = GetPlatFileList( p );
     return( pfl->Prev( 0, dfc ) );
 }
@@ -310,6 +341,9 @@ Source::Prev( const Platform *p, DataFileCore* dfc )
 bool
 Source::Next( const Platform *p, DataFileCore* dfc )
 {
+    if (! IsGood())
+	return 0;
+
     PlatFileList *pfl = GetPlatFileList( p );
     return( pfl->Next( 0, dfc ) );
 }
@@ -319,6 +353,9 @@ Source::Next( const Platform *p, DataFileCore* dfc )
 bool
 Source::Current( const Platform *p, DataFileCore* dfc, ZTime *t )
 {
+    if (! IsGood())
+	return 0;
+
     PlatFileList *pfl = GetPlatFileList( p );
     return( pfl->Current( t, dfc ) );
 }
@@ -334,6 +371,12 @@ Source::DataDir( const Platform *p )
 //
 {
     static string fullpath;
+
+    if (! IsGood())
+    {
+	fullpath = "<no dir>";
+	return (fullpath);
+    }
 //
 // First get either the optional user-fixed platform directory from our list,
 // or just use the platform's suggested directory.
@@ -366,6 +409,9 @@ Source::ConfirmDataDir( const Platform *p )
 // try to create it.
 //
 {
+    if (! IsGood())
+	return 0;
+
     const char* dir = DataDir( p ).c_str();
     
     if (access( dir, R_OK | W_OK | X_OK ) == 0)
@@ -415,7 +461,8 @@ Source::SetPlatDir( const string& platname, const string& dir )
 // Set a directory overriding the default for the given platform
 //
 {
-    optplatdirs[platname] = dir;
+    if (IsGood())
+	optplatdirs[platname] = dir;
 }
 
 
@@ -427,6 +474,9 @@ Source::NFiles( const Platform *p )
 // How many files do we know about for the given platform?
 //
 {
+    if (! IsGood())
+	return 0;
+
     PlatFileList *pfl = GetPlatFileList( p );
     int nfiles = 0;
     bool ok;
