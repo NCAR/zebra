@@ -1,36 +1,61 @@
 /*
  * The new event logger.
  */
-
+# include <stdio.h>
 # include <X11/Intrinsic.h>
 # include <X11/Xaw/Form.h>
 # include <X11/Shell.h>
 # include <X11/StringDefs.h>
 # include <X11/Xaw/AsciiText.h>
 # include <X11/Xaw/Command.h>
+# include <X11/Xaw/Label.h>
+# include <X11/Xaw/MenuButton.h>
+# include <X11/Xaw/SimpleMenu.h>
+# include <X11/Xaw/SmeBSB.h>
+# include <X11/Xaw/SmeLine.h>
+# include <X11/Cardinals.h>
 # include "defs.h"
-# include <../include/message.h>
+# include "../include/message.h"
+# include "../include/dm.h"
+
 
 
 /*
- * Where the logging info lives.
+ * Event mask info.
  */
-# define LBUFSIZE 10000
-char Logbuf[LBUFSIZE];
-char *Lp = Logbuf;
+int Emask = EF_EMERGENCY | EF_PROBLEM | EF_INFO;
+
+struct EMMap
+{
+	int	em_flag;
+	char	*em_name;
+	char	em_code;
+	Widget	em_w;
+} EMap[] =
+{
+	{ EF_EMERGENCY,		"Emergencies",	'E', 0	},
+	{ EF_PROBLEM,		"Problems",	'P', 0	},
+	{ EF_CLIENT,		"Client events", 'C', 0	},
+	{ EF_INFO,		"Informational", 'I', 0	},
+	{ EF_DEBUG,		"Debugging",	'D', 0	},
+	{ 0, 0, 0, 0}
+};
+
 
 
 /*
  * Text info.
  */
 static int Buflen = 0;
-static char *Initmsg = "$Id: EventLogger.c,v 1.1 1990-06-14 15:41:19 corbet Exp $\n";
+static char *Initmsg = "$Id: EventLogger.c,v 1.2 1990-07-08 13:06:10 corbet Exp $\n";
 
 /*
  * Our widgets.
  */
-Widget Top, Text, Shell, Form;
+Widget Top, Text, Shell, Form, Wm;
 XtAppContext Appc;
+bool Visible = FALSE;
+bool Override = TRUE;
 
 
 
@@ -39,9 +64,25 @@ static String Resources[] =
 	"	*input:		True",
 	"	*Label*font:	-*-helvetica-bold-r-*-*-*-120-*-*-*-*-*-*",
 	"	*Toggle*font:	-*-helvetica-medium-r-*-*-*-120-*-*-*-*-*-*",
-	"	*Text*font:	-*-helvetica-medium-r-*-*-*-120-*-*-*-*-*-*",
+	"	*Text*font:	-*-times-medium-r-*-*-*-120-*-*-*-*-*-*",
 	0
 };
+
+/*
+ * Bitmap for our check mark in the menus
+ */
+#define check_width 9
+#define check_height 8
+static unsigned char Check_bits[] = {
+	0x00, 0x01, 0x80, 0x01, 0xc0, 0x00, 0x60, 0x00,
+	0x31, 0x00, 0x1b, 0x00, 0x0e, 0x00, 0x04, 0x00
+};
+Pixmap Check;
+
+# ifdef LOGFILE
+FILE *Log_file;
+# endif
+
 
 
 main (argc, argv)
@@ -49,53 +90,8 @@ int argc;
 char **argv;
 {
 	Arg args[20];
-	Widget w;
-	int xevent (), msg_event ();
-/*
- * Get set up with the toolkit.
- */
-	Top = XtAppInitialize (&Appc, "EventLogger", NULL, 0, &argc, argv,
-		Resources, NULL, 0);
-/*
- * Create our shell.
- */
-	XtSetArg (args[0], XtNinput, True);
-	XtSetArg (args[1], XtNoverrideRedirect, False);
-	Shell = XtCreatePopupShell ("EventLogger", topLevelShellWidgetClass,
-		Top, args, 2);
-/*
- * Put a form inside it.
- */
-	Form = XtCreateManagedWidget ("form", formWidgetClass, Shell, args, 0);
-/*
- * Add the clear button.
- */
-	XtSetArg (args[0], XtNfromHoriz, NULL);
-	XtSetArg (args[1], XtNfromVert, NULL);
-	XtSetArg (args[2], XtNtop, XtChainTop);
-	XtSetArg (args[3], XtNbottom, XtChainTop);
-	XtSetArg (args[4], XtNleft, XtChainLeft);
-	XtSetArg (args[5], XtNright, XtChainLeft);
-	w = XtCreateManagedWidget ("Clear", commandWidgetClass, Form, args, 6);
-/*
- * Now the big, hairy, text widget.
- */
-	strcpy (Logbuf, "This is some exciting\nLog buffer stuff\n");
-	XtSetArg (args[0], XtNresize, XawtextResizeNever);
-	XtSetArg (args[1], XtNfromHoriz, NULL);
-	XtSetArg (args[2], XtNfromVert, w);
-	XtSetArg (args[3], XtNtype, XawAsciiString);
-	XtSetArg (args[4], XtNeditType, XawtextAppend);
-	XtSetArg (args[5], XtNscrollVertical, XawtextScrollAlways);
-	XtSetArg (args[6], XtNtop, XtChainTop);
-	XtSetArg (args[7], XtNstring, Initmsg);
-	Text = XtCreateManagedWidget ("text", asciiTextWidgetClass, Form,
-		args, 8);
-	Buflen = strlen (Initmsg);
-/*
- * Fire it up.
- */
-	/* XtRealizeWidget (Shell); */
+	Widget w, label;
+	int xevent (), msg_event (), clearbutton (), wm ();
 /*
  * Hook into the message system.
  */
@@ -104,6 +100,96 @@ char **argv;
 		printf ("Unable to connect to message handler\n");
 		exit (1);
 	}
+# ifdef LOGFILE
+/*
+ * Open our log file.
+ */
+	Log_file = fopen ("/fcc/etc/LogFile", "w");
+# endif
+/*
+ * Get set up with the toolkit.
+ */
+	Top = XtAppInitialize (&Appc, "EventLogger", NULL, 0, &argc, argv,
+		Resources, NULL, 0);
+	Check = XCreateBitmapFromData (XtDisplay (Top),
+		RootWindowOfScreen (XtScreen (Top)), Check_bits,
+		check_width, check_height);
+/*
+ * Create our shell.
+ */
+	XtSetArg (args[0], XtNinput, True);
+	XtSetArg (args[1], XtNoverrideRedirect, True);
+	Shell = XtCreatePopupShell ("Event Logger", topLevelShellWidgetClass,
+		Top, args, 2);
+/*
+ * Put a form inside it.
+ */
+	Form = XtCreateManagedWidget ("form", formWidgetClass, Shell, args, 0);
+/*
+ * The label.
+ */
+	XtSetArg (args[0], XtNfromHoriz, NULL);
+	XtSetArg (args[1], XtNfromVert, NULL);
+	XtSetArg (args[2], XtNlabel, "Event Logger: ");
+	XtSetArg (args[3], XtNborderWidth, 0);
+	XtSetArg (args[4], XtNtop, XtChainTop);
+	XtSetArg (args[5], XtNbottom, XtChainTop);
+	XtSetArg (args[6], XtNleft, XtChainLeft);
+	XtSetArg (args[7], XtNright, XtChainLeft);
+	label = XtCreateManagedWidget ("label", labelWidgetClass, Form,args,8);
+/*
+ * Add the clear button.
+ */
+	XtSetArg (args[0], XtNfromHoriz, label);
+	XtSetArg (args[1], XtNfromVert, NULL);
+	XtSetArg (args[2], XtNtop, XtChainTop);
+	XtSetArg (args[3], XtNbottom, XtChainTop);
+	XtSetArg (args[4], XtNleft, XtChainLeft);
+	XtSetArg (args[5], XtNright, XtChainLeft);
+	w = XtCreateManagedWidget ("Clear", commandWidgetClass, Form, args, 6);
+	XtAddCallback (w, XtNcallback, clearbutton, 0);
+/*
+ * The window manager button.
+ */
+	XtSetArg (args[0], XtNfromHoriz, w);
+	XtSetArg (args[1], XtNfromVert, NULL);
+	XtSetArg (args[2], XtNtop, XtChainTop);
+	XtSetArg (args[3], XtNbottom, XtChainTop);
+	XtSetArg (args[4], XtNleft, XtChainLeft);
+	XtSetArg (args[5], XtNright, XtChainLeft);
+	XtSetArg (args[6], XtNlabel, "Ctl: DM");
+	w = Wm = XtCreateManagedWidget("wm",commandWidgetClass, Form, args, 7);
+	XtAddCallback (Wm, XtNcallback, wm, 0);
+/*
+ * The filter button.
+ */
+	XtSetArg (args[0], XtNfromHoriz, w);
+	XtSetArg (args[1], XtNfromVert, NULL);
+	XtSetArg (args[2], XtNtop, XtChainTop);
+	XtSetArg (args[3], XtNbottom, XtChainTop);
+	XtSetArg (args[4], XtNleft, XtChainLeft);
+	XtSetArg (args[5], XtNright, XtChainLeft);
+	XtSetArg (args[6], XtNmenuName, "EventMasks");
+	w = XtCreateManagedWidget ("Events ->", menuButtonWidgetClass,
+		Form, args, 7);
+	add_popup (w);
+/*
+ * Now the big, hairy, text widget.
+ */
+	XtSetArg (args[0], XtNresize, XawtextResizeNever);
+	XtSetArg (args[1], XtNfromHoriz, NULL);
+	XtSetArg (args[2], XtNfromVert, label);
+	XtSetArg (args[3], XtNtype, XawAsciiString);
+	XtSetArg (args[4], XtNeditType, XawtextRead);
+	XtSetArg (args[5], XtNscrollVertical, XawtextScrollAlways);
+	XtSetArg (args[6], XtNtop, XtChainTop);
+	XtSetArg (args[7], XtNstring, Initmsg);
+	XtSetArg (args[8], XtNleft, XtChainLeft);
+	XtSetArg (args[9], XtNbottom, XtChainBottom);
+	XtSetArg (args[10], XtNright, XtChainRight);
+	Text = XtCreateManagedWidget ("text", asciiTextWidgetClass, Form,
+		args, 11);
+	Buflen = strlen (Initmsg);
 /*
  * Join the client event and event logger groups.
  */
@@ -116,12 +202,103 @@ char **argv;
 /*
  * Now we just wait.
  */
-	XtPopup (Shell, XtGrabNone);
+	reconfig (625, 600, 500, 150);
 	sync ();
-	xevent (0);
+	xevent ();
 	msg_await ();
 }
 
+
+
+
+
+
+add_popup (w)
+Widget w;
+/*
+ * Add the event popup to this widget.
+ */
+{
+	Widget pulldown, sme;
+	int i, ev_popup_cb ();
+# ifdef titan
+	int ev_SetChecks ();
+# endif
+	Arg args[2];
+/*
+ * Make the pulldown.
+ */
+	pulldown = XtCreatePopupShell ("EventMasks", simpleMenuWidgetClass,
+		Top, NULL, ZERO);
+/*
+ * Add the entries.  In Ardent land, we can not set the bitmap in at 
+ * creation time, for whatever reason.
+ */
+	XtSetArg (args[0], XtNleftMargin, check_width + 7);
+	for (i = 0; EMap[i].em_flag; i++)
+	{
+#ifdef titan
+		XtSetArg (args[1], XtNleftBitmap, None);
+# else
+		XtSetArg (args[1], XtNleftBitmap,
+			EMap[i].em_flag & Emask ? Check : None);
+# endif
+		EMap[i].em_w = w = XtCreateManagedWidget (EMap[i].em_name,
+			smeBSBObjectClass, pulldown, args, 2);
+		XtAddCallback (w, XtNcallback, ev_popup_cb, i);
+	}
+# ifdef titan
+/*
+ * Throw in the callback to set the checks.
+ */
+	XtAddCallback (pulldown, XtNpopupCallback, ev_SetChecks, pulldown);
+# endif
+}
+
+
+
+# ifdef titan
+
+ev_SetChecks (w, junk1, junk2)
+Widget w;
+XtPointer junk1, junk2;
+/*
+ * Set all of the checkmarks on the items.
+ */
+{
+	Arg args[2];
+	int i;
+/*
+ * Tweak the bitmaps.
+ */
+	XtSetArg (args[0], XtNleftBitmap, Check);
+	for (i = 0; EMap[i].em_flag; i++)
+		if (EMap[i].em_flag & Emask)
+			XtSetValues (EMap[i].em_w, args, 1);
+}
+
+# endif
+
+
+ev_popup_cb (w, index, junk)
+Widget w;
+int index, junk;
+/*
+ * Deal with the event popup.
+ */
+{
+	Arg args[2];
+/*
+ * Tweak the event mask bit.
+ */
+	Emask ^= EMap[index].em_flag;
+/*
+ * Modify the menu accordingly.
+ */
+	XtSetArg (args[0], XtNleftBitmap,
+			EMap[index].em_flag & Emask ? Check : None);
+	XtSetValues (EMap[index].em_w, args, 1);
+}
 
 
 
@@ -163,9 +340,34 @@ struct message *msg;
  */
 	if (msg->m_proto == MT_LOG)
 	{
-		sprintf (mb, "[%s]\t%s", msg->m_from, msg->m_data);
-		do_log (mb);
-		return;
+		do_log ('-', msg->m_from, msg->m_data);
+		return (0);
+	}
+/*
+ * Maybe it's a display manager message.
+ */
+	else if (msg->m_proto == MT_DISPLAYMGR)
+	{
+		dm_msg (msg->m_data);
+		return (0);
+	}
+/*
+ * If it's an extended message, do something with it.
+ */
+	else if (msg->m_proto == MT_ELOG)
+	{
+		struct msg_elog *el = (struct msg_elog *) msg->m_data;
+		int i;
+		char code = '?';
+
+		if (Emask & el->el_flag || Emask == 0)
+		{
+			for (i = 0; EMap[i].em_flag; i++)
+				if (EMap[i].em_flag & el->el_flag)
+					code = EMap[i].em_code;
+			do_log (code, msg->m_from, el->el_text);
+		}
+		return (0);
 	}
 /*
  * Everything else is assumed to be a message handler event.
@@ -176,69 +378,82 @@ struct message *msg;
 	   	switch (client->mh_evtype)
 		{
 		   case MH_CE_CONNECT:
-		   	sprintf (mb,"[%s]\tConnect on %d", client->mh_client,
-				msg->m_seq);
+		   	sprintf (mb,"Connect on %d", msg->m_seq);
 			break;
 		   case MH_CE_DISCONNECT:
-		   	sprintf (mb,"[%s]\tDisconnect on %d", client->mh_client,
-				msg->m_seq);
+		   	sprintf (mb,"Disconnect on %d", msg->m_seq);
 			break;
 		   case MH_CE_JOIN:
-		   	sprintf (mb,"[%s]\tGroup %s joined on %d",
-				client->mh_client, client->mh_group,
-				msg->m_seq);
+		   	sprintf (mb,"Group %s joined on %d",
+				client->mh_group, msg->m_seq);
 			break;
 		}
-		do_log (mb);
+		if (Emask & EF_CLIENT || Emask == 0)
+			do_log ('C', client->mh_client, mb);
 		break;
 	   case MH_SHUTDOWN:
 	   	printf ("MESSAGE SERVER SHUTDOWN!\n");
 		break;
 	   default:
-	   	printf ("Unknown message type %d\n", client->mh_type);
+	   	sprintf (mb, "Strange message type: %d %d", msg->m_proto,
+			client->mh_type);
+	   	do_log ('P', "EventLogger", mb);
+		break;
 	}
+	return (0);
 }
 
 
 
 
 
-do_log (msg)
-char *msg;
+do_log (code, from, msg)
+char code, *from, *msg;
 {
-	int curpos = Lp - Logbuf;
 	Arg args[10];
 	XawTextBlock tb;
+	static char fmtbuf[300];
 /*
- * Add the stuff to our buffer.
+ * Format the message to be logged.
  */
-	printf ("%s\n", msg);
-# ifdef notdef
-	strcpy (Lp, msg);
-	Lp += strlen (Lp);
-	*Lp++ = '\n';
-	*Lp = '\0';
-/*
- * Tell Xt about it.
- */
-	XtSetArg (args[0], XtNlength, Lp - Logbuf);
-	XtSetArg (args[1], XtNstring, Logbuf);
-	XtSetArg (args[2], XtNinsertPosition, Lp - Logbuf - 1);
-	XtSetValues (Text, args, 3);
-	/* XawTextInvalidate (Text, curpos ? curpos - 1 : 0, Lp - Logbuf); */
-	XawTextDisplay (Text);
-	sync ();
+	sprintf (fmtbuf, "%c %-14s%s\n", code, from, msg);
+# ifdef LOGFILE
+	fprintf (Log_file, fmtbuf);
+	fflush (Log_file);
 # endif
-	strcat (msg, "\n");	/* XXX */
 	tb.firstPos = 0;
-	tb.length = strlen (msg);
-	tb.ptr = msg;
+	tb.length = strlen (fmtbuf);
+	tb.ptr = fmtbuf;
 	tb.format = FMT8BIT;
+/*
+ * Add it to the buffer.  Turn on editing only for long enough to do this
+ * operation.
+ */
+	XtSetArg (args[0], XtNeditType, XawtextAppend);
+	XtSetValues (Text, args, 1);
 	XawTextReplace (Text, Buflen, Buflen, &tb);
+	XtSetArg (args[0], XtNeditType, XawtextRead);
+	XtSetValues (Text, args, 1);
 	XawTextDisplay (Text);
 	sync ();
-	Buflen += strlen (msg);
+	Buflen += strlen (fmtbuf);
 	XawTextSetInsertionPoint (Text, Buflen);
+}
+
+
+
+
+clearbutton ()
+/*
+ * Clear the window.
+ */
+{
+	Arg args[2];
+
+	XtSetArg (args[0], XtNstring, "");
+	XtSetValues (Text, args, 1);
+	XawTextDisplay (Text);
+	Buflen = 0;
 }
 
 
@@ -250,4 +465,120 @@ sync ()
  */
 {
 	XSync (XtDisplay (Top), False);
+}
+
+
+
+
+
+
+dm_msg (dmsg)
+struct dm_msg *dmsg;
+/*
+ * Deal with a DM message.
+ */
+{
+	struct dm_hello reply;
+/*
+ * See what we got.
+ */
+	switch (dmsg->dmm_type)
+	{
+	/*
+	 * Maybe it's a DM scoping us out.
+	 */
+	   case DM_HELLO:
+	   	reply.dmm_type = DM_HELLO;
+		msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &reply, 
+			sizeof (reply));
+		break;
+	/*
+	 * Maybe it's a reconfig.
+	 */
+	   case DM_RECONFIG:
+		if (Override)
+		   	reconfig (dmsg->dmm_x, dmsg->dmm_y, dmsg->dmm_dx,
+				dmsg->dmm_dy);
+		break;
+	/*
+	 * They might want us to go away entirely.
+	 */
+	   case DM_SUSPEND:
+	   	if (Visible)
+		{
+			Visible = FALSE;
+			XtPopdown (Shell);
+		}
+		break;
+ 
+	   default:
+	   	do_log ('P', "DM", "Funky DM message");
+	}
+}
+
+
+
+
+
+
+
+reconfig (x, y, w, h)
+int x, y, w, h;
+/*
+ * Reconfigure the window.
+ */
+{
+	Arg args[5];
+
+	XtSetArg (args[0], XtNx, x);
+	XtSetArg (args[1], XtNy, y);
+	XtSetArg (args[2], XtNwidth, w);
+	XtSetArg (args[3], XtNheight, h);
+	XtSetValues (Shell, args, 4);
+/* 
+ * If they can't see us yet, make it so now.
+ */
+	if (! Visible)
+	{
+		XtPopup (Shell, XtGrabNone);
+		Visible = TRUE;
+	}
+	sync ();
+}
+
+
+
+
+
+
+wm ()
+/*
+ * Try to change override redirect.
+ */
+{
+	Arg args[2];
+/*
+ * If the window is up, take it down.
+ */
+	if (Visible)
+		XtPopdown (Shell);
+/*
+ * Set the parameter.
+ */
+	Override = ! Override;
+	XtSetArg (args[0], XtNoverrideRedirect, Override);
+	XtSetValues (Shell, args, 1);
+/*
+ * Set the label on the command widget too.
+ */
+	if (Override)
+		XtSetArg (args[0], XtNlabel, "Ctl: DM");
+	else
+		XtSetArg (args[0], XtNlabel, "Ctl: WM");
+	XtSetValues (Wm, args, 1);
+/*
+ * Put the window back if it was before.
+ */
+	if (Visible)
+		XtPopup (Shell, XtGrabNone);
 }

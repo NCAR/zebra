@@ -1,7 +1,7 @@
 /*
  * Access routines for the timer module.
  */
-static char *rcsid = "$Id: timer_lib.c,v 1.1 1990-04-26 16:25:44 corbet Exp $";
+static char *rcsid = "$Id: timer_lib.c,v 1.2 1990-07-08 13:04:16 corbet Exp $";
 
 # include "../include/defs.h"
 # include "timer.h"
@@ -65,7 +65,7 @@ int delay, incr;
 		;
 	if (i >= MAXEVENT)
 	{
-		msg_log ("Out of event slots");
+		msg_ELog (EF_EMERGENCY, "Out of event slots");
 		return (-1);
 	}
 /*
@@ -116,7 +116,7 @@ int incr;
 		;
 	if (i >= MAXEVENT)
 	{
-		msg_log ("Out of event slots");
+		msg_ELog (EF_EMERGENCY, "Out of event slots");
 		return (-1);
 	}
 /*
@@ -157,7 +157,8 @@ struct tm_time *te;
 		break;
 
 	   default:
-	   	msg_log ("BUG: Funky timer resp type %d in tl_DispatchEvent",
+	   	msg_ELog (EF_PROBLEM,
+			"BUG: Funky timer resp type %d in tl_DispatchEvent",
 			te->tm_type);
 	}
 }
@@ -175,7 +176,7 @@ struct tm_alarm *te;
  */
 	if (slot < 0 || slot >= MAXEVENT || Events[slot].te_status == Empty)
 	{
-		msg_log ("Funky param in alarm event: %d", slot);
+		msg_ELog (EF_PROBLEM, "Funky param in alarm event: %d", slot);
 		return;
 	}
 /*
@@ -227,7 +228,7 @@ int slot;
  */
 	if (slot < 0 || slot >= MAXEVENT || Events[slot].te_status != Active)
 	{
-		msg_log ("Funky param in tl_Cancel: %d", slot);
+		msg_ELog (EF_PROBLEM, "Funky param in tl_Cancel: %d", slot);
 		return;
 	}
 /*
@@ -257,7 +258,7 @@ struct tm_alarm *te;
  */
 	if (slot < 0 || slot >= MAXEVENT || Events[slot].te_status !=Cancelled)
 	{
-		msg_log ("Funky param in cancel ACK: %d", slot);
+		msg_ELog (EF_PROBLEM, "Funky param in cancel ACK: %d", slot);
 		return;
 	}
 /*

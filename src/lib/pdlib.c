@@ -1,6 +1,6 @@
-static char *rcsid = "$Id: pdlib.c,v 1.2 1990-05-31 10:57:10 corbet Exp $";
+static char *rcsid = "$Id: pdlib.c,v 1.3 1990-07-08 13:00:58 corbet Exp $";
 /*
- * The plot description library.
+ * The plot description library. 
  */
 # include <ui_symbol.h>
 # include <ui_error.h>
@@ -190,7 +190,7 @@ char *msg, *data;
 	tmpbuf[39] = '\0';
 	if (nl = strchr (tmpbuf, '\n'))
 		*nl = '\0';
-	msg_log ("PD error (%s) at '%s...'", msg, tmpbuf);
+	msg_ELog (EF_PROBLEM, "PD error (%s) at '%s...'", msg, tmpbuf);
 }
 
 
@@ -324,7 +324,7 @@ raw_plot_description *rpd;
 {
 	char outbuf[300];
 
-	sprintf (outbuf, "\t%-24s:\t%s\n", name, v->us_v_ptr);
+	sprintf (outbuf, "\t%s:\t%s\n", name, v->us_v_ptr);
 	strcat (rpd->rp_data, outbuf);
 	return (TRUE);
 }
@@ -366,7 +366,8 @@ int param;
 	 */
 		if (! usy_g_symbol ((stbl) pd, comps[i], &type, &v))
 		{
-			msg_log ("BUG Missing comp '%s' in pd", comps[i]);
+			msg_ELog (EF_PROBLEM, "BUG Missing comp '%s' in pd",
+				comps[i]);
 			continue;
 		}
 	/*
@@ -412,7 +413,8 @@ char *comp;
  */
 	if (! usy_g_symbol (pd, comp, &type, &v))
 	{
-		msg_log ("pd_ReadComponent on bad comp '%s'\n", comp);
+		msg_ELog (EF_PROBLEM, "pd_ReadComponent on bad comp '%s'\n",
+			comp);
 		return (0);
 	}
 	comppd = (stbl) v.us_v_ptr;
@@ -621,7 +623,6 @@ int type;
 	union usy_value v;
 	int t;
 	struct parse_tree *pt;
-/*	msg_log ("R: %s/%s", comp, param); */
 /*
  * First, find this component.
  */
@@ -645,7 +646,8 @@ int type;
  */
 	if (! (pt = ue_parse (v.us_v_ptr, 0, FALSE)))
 	{
-		msg_log ("Unparsable %s/%s = %s", comp, param, v.us_v_ptr);
+		msg_ELog (EF_PROBLEM, "Unparsable %s/%s = %s", comp, param,
+			v.us_v_ptr);
 		return (FALSE);
 	}
 	ue_eval (pt, &v, &t);
@@ -765,7 +767,8 @@ int type;
  */
 	if (! usy_g_symbol (pd, comp, &t, &v))
 	{
-		msg_log ("Store attempted on missing comp '%s'", comp);
+		msg_ELog (EF_PROBLEM, "Store attempted on missing comp '%s'",
+			comp);
 		return;
 	}
 	comppd = (stbl) v.us_v_ptr;

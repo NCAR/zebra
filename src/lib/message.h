@@ -1,9 +1,12 @@
+/* $Id: message.h,v 1.2 1990-07-08 13:02:16 corbet Exp $ */
 /*
  * Message protocol types.
  */
 # define MT_MESSAGE	0	/* Message handler protocol		*/
 # define MT_DISPLAYMGR	1	/* Display manager messages		*/
 # define MT_LOG		2	/* Event logger				*/
+# define MT_TIMER	3	/* Timer				*/
+# define MT_ELOG	4	/* Extended event logger		*/
 /*
  * Message handler protocol message types.
  */
@@ -88,6 +91,27 @@ struct message
 };
 
 /*
+ * The extended event log protocol.
+ */
+# define MAXETEXT 200
+struct msg_elog
+{
+	int	el_flag;		/* Flags -- see below	*/
+	char	el_text[MAXETEXT];	/* Message text		*/
+};
+
+/*
+ * Flags controlling which messages are printed when.
+ */
+# define EF_EMERGENCY	0x01		/* Print always			*/
+# define EF_PROBLEM	0x02		/* Indicates a problem		*/
+# define EF_CLIENT	0x04		/* Client events		*/
+# define EF_DEBUG	0x08		/* Purely debugging stuff	*/
+# define EF_INFO	0x10		/* Informational message	*/
+
+
+
+/*
  * Flags.
  */
 # define MF_BROADCAST	0x0001	/* Broadcast message	*/
@@ -95,8 +119,37 @@ struct message
 /*
  * The name of the message (unix domain) socket.
  */
-# define UN_SOCKET_NAME		"/home/corbet/mocca/message.socket"
+# define UN_SOCKET_NAME		"../lib/message.socket"
 /*
  * The name of the event manager.
  */
 # define MSG_MGR_NAME		"Message manager"
+
+/*
+ * Message lib routines.
+ */
+# ifdef __STDC__
+	int msg_DispatchQueued (void);
+	int msg_incoming (int);
+	int msg_connect (int (*handler) (), char *);
+	void msg_send (char *, int, int, void *, int);
+	void msg_join (char *);
+	void msg_log (/* char *, ... */);
+	void msg_ELog ();
+	void msg_add_fd (int, int (*handler) ());
+	int msg_get_fd (void);
+	int msg_await (void);
+	int msg_Search (int proto, int (*func) (), void * param);
+# else
+	int msg_DispatchQueued ();
+	int msg_incoming ();
+	int msg_connect ();
+	void msg_send ();
+	void msg_join ();
+	void msg_log ();
+	void msg_ELog ();
+	void msg_add_fd ();
+	int msg_get_fd ();
+	int msg_await ();
+	int msg_Search ();
+# endif

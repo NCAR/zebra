@@ -1,7 +1,7 @@
 /*
  * Plot description related stuff.
  *
- * $Id: pd.h,v 1.1 1990-03-27 13:45:33 corbet Exp $
+ * $Id: pd.h,v 1.2 1990-07-08 13:00:51 corbet Exp $
  */
 
 /*
@@ -40,6 +40,8 @@ typedef void *plot_description;
 	plot_description pd_CopyPD (plot_description pd);
 	void pd_Store (plot_description pd, char *comp, char *param,
 		char *value, int type);
+	int pd_RemoveComp (plot_description pd, char *name);
+	plot_description pd_ReadComponent (plot_description pd, char *comp);
 # else
 	plot_description pd_Load ();
 	raw_plot_description *pd_Unload ();
@@ -53,4 +55,6 @@ typedef void *plot_description;
 	bool pda_Search ();
 	plot_description pd_CopyPD ();
 	void pd_Store ();
+	int pd_RemoveComp ();
+	plot_description pd_ReadComponent ();
 # endif

@@ -1,7 +1,7 @@
 /*
  * The message handler.
  */
-/* $Id: message.c,v 1.1 1990-03-19 11:29:46 corbet Exp $ */
+/* $Id: message.c,v 1.2 1990-07-08 13:02:12 corbet Exp $ */
 # include <stdio.h>
 # include <varargs.h>
 # include <errno.h>
@@ -12,6 +12,7 @@
 # ifndef titan
 # include <sys/filio.h>
 # endif
+# include <signal.h>
 
 # include "message.h"
 # include <ui_symbol.h>
@@ -64,6 +65,14 @@ static int Fd_count[64] = { 0 };
 static int Nfd;
 
 
+/*
+ * Ardent doesn't provide writev!  Berkeley my ass...
+ */
+# ifdef titan
+# define writev fcc_writev
+# endif
+
+
 
 main ()
 {
@@ -71,6 +80,7 @@ main ()
 	int conn, nb;
 	char msg[120];
 	fd_set fds;
+	int psig ();
 	
 	/* Nfd = getdtablesize (); */
 /*
@@ -79,6 +89,7 @@ main ()
 	usy_init ();
 	Proc_table = usy_c_stbl ("Process_table");
 	Group_table = usy_c_stbl ("Group_table");
+	signal (SIGPIPE, psig);
 /*
  * Create our master socket.
  */
@@ -105,6 +116,7 @@ main ()
  	listen (M_un_socket, 5);
 	FD_ZERO (&Allfds);
 	FD_SET (M_un_socket, &Allfds);
+/*	printf ("Master message socket: %d\n", M_un_socket); */
 /*
  * Now it's loop time.
  */
@@ -122,6 +134,8 @@ main ()
 			perror ("Select");
 			exit (1);	/* XXX */
 		}
+	 	listen (M_un_socket, 5);	/* XXXX?? */
+		/* printf ("Sel done, nsel %d\r\n", nsel); */
 	/*
 	 * If it's from our master socket, accept a new connection.
 	 */
@@ -157,6 +171,7 @@ new_un_connection ()
  */
 	int conn = accept (M_un_socket, (struct sockaddr *) 0,
 			(int *) 0);
+	/* printf ("Accepted connection %d\n", conn); */
 	if (conn < 0)
 	{
 		perror ("Accept error on UNIX socket");
@@ -222,9 +237,9 @@ struct message *msgp;
  */
 	if (writev (conp->c_fd, iov, 2) < 0)
 	{
+		deadconn (conp->c_fd);
 		send_log ("Write failed for %s, errno %d", conp->c_name,
 			errno);
-		deadconn (conp->c_fd);
 	}
 }
 
@@ -244,7 +259,7 @@ fd_set *fds;
  */
 {
 	struct message msg;
-	char data[2048];	/* XXX */
+	char data[4096];	/* XXX */
 	int fd, nb;
 /*
  * Pass through the list of file descriptors.
@@ -264,7 +279,7 @@ fd_set *fds;
 	/*
 	 * If we get nothing, the connection has been broken.
 	 */
-		if (nb == 0)
+		if (nb <= 0)
 		{
 			deadconn (fd);
 			continue;
@@ -396,7 +411,6 @@ struct message *msg;
 		 * If they want us to die, we'll go along with it...
 		 */
 		   case MH_DIE:
-		   	printf ("Goodbye, cruel world.\n");
 		   	die ();
 			break;
 		/*
@@ -789,4 +803,17 @@ va_dcl
 	msg.m_len = len;
 	msg.m_data = mbuf;
 	send_msg (conp, &msg);
+}
+
+
+
+
+
+psig ()
+/*
+ * Cope with pipe signals.  We don't have to actually *do* anything, since
+ * the dead process will be noted later.
+ */
+{
+	send_log ("Pipe signal received");
 }

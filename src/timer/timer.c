@@ -1,8 +1,8 @@
 /*
  * The timer process.
  */
-static char *rcsid = "$Id: timer.c,v 1.4 1990-05-07 11:32:34 corbet Exp $";
-char *Version = "$Revision: 1.4 $ $Date: 1990-05-07 11:32:34 $";
+static char *rcsid = "$Id: timer.c,v 1.5 1990-07-08 13:04:11 corbet Exp $";
+char *Version = "$Revision: 1.5 $ $Date: 1990-07-08 13:04:11 $";
 
 # include <sys/types.h>
 # include <sys/time.h>
@@ -68,7 +68,7 @@ main ()
 /*
  * Log a message telling the world we're here.
  */
-	msg_log ("--- Timer process version %s", Version);
+	msg_ELog (EF_INFO, "--- Timer process version %s", Version);
 /*
  * Now just wait for things to happen.
  */
@@ -88,7 +88,7 @@ main ()
 	 */
 		if ((nsel = select (mfd + 1, &fds, 0, 0, &timeout)) < 0)
 		{
-			msg_log ("Select error %d", errno);
+			msg_ELog (EF_EMERGENCY, "Select error %d", errno);
 			exit (1);
 		}
 	/*
@@ -128,7 +128,8 @@ struct message *msg;
 		else if (tm->mh_type == MH_CLIENT)
 			client_event ((struct mh_client *) tm);
 		else
-			msg_log("Unknown MESSAGE proto type: %d", tm->mh_type);
+			msg_ELog (EF_PROBLEM, "Unknown MESSAGE proto type: %d",
+				tm->mh_type);
 		break;
 	}
 	return (0);
@@ -244,7 +245,8 @@ struct tm_req *tr;
 		break;
 
 	   default:
-	   	msg_log ("Unknown TR: %d from %s\n", tr->tr_type, who);
+	   	msg_ELog (EF_PROBLEM, "Unknown TR: %d from %s\n",
+			tr->tr_type, who);
 		break;
 	}
 }
@@ -659,14 +661,14 @@ struct tm_prt *prt;
 	if (TLT (now, &newtime))
 	{
 		T_offset = oldoffset;
-		msg_log ("*** Attempt to run PRT in the future");
+		msg_ELog (EF_EMERGENCY,"*** Attempt to run PRT in the future");
 		return;
 	}
 /*
  * Set the new offset, and inform the world.
  */
 	T_offset = now->tv_sec - newtime.tv_sec;
-	msg_log ("Pseudo RT mode: time %d %d, (%d sec)",
+	msg_ELog (EF_INFO, "Pseudo RT mode: time %d %d, (%d sec)",
 		prt->tr_time.ds_yymmdd, prt->tr_time.ds_hhmmss, T_offset);
 	TimeChangeBc ();
 }

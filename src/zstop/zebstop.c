@@ -18,6 +18,5 @@ main ()
 
 handler ()
 {
-	printf ("Huh?  Handler called\n");
 	return (0);
 }

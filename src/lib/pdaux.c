@@ -1,4 +1,4 @@
-/* $Id: pdaux.c,v 1.1 1990-03-27 13:45:37 corbet Exp $ */
+/* $Id: pdaux.c,v 1.2 1990-07-08 13:00:54 corbet Exp $ */
 /*
  * Auxilliary library routines for plot descriptions.
  */

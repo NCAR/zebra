@@ -1,7 +1,7 @@
 /*
  * Library routines for the message system.
  */
-static char *rcsid = "$Id: msg_lib.c,v 1.2 1990-06-04 14:09:05 corbet Exp $";
+static char *rcsid = "$Id: msg_lib.c,v 1.3 1990-07-08 13:02:22 corbet Exp $";
 # include <stdio.h>
 # include <varargs.h>
 # include <sys/types.h>
@@ -17,6 +17,7 @@ static char *rcsid = "$Id: msg_lib.c,v 1.2 1990-06-04 14:09:05 corbet Exp $";
 typedef int (*ifptr) ();
 static ifptr Fd_funcs[64] = { 0 };
 static ifptr Msg_handler;	/* Kludge */
+static ifptr Death_handler = 0;
 
 /*
  * The permanent list of file descriptors.
@@ -238,7 +239,8 @@ msg_await ()
 	 * Wait for something.
 	 */
 		fds = Fd_list;
-		nsel = select (Max_fd + 1, &fds, 0, 0, 0);
+		if ((nsel = select (Max_fd + 1, &fds, 0, 0, 0)) < 0)
+			return (-1);
 	/*
 	 * Now dispatch the events.
 	 */
@@ -270,6 +272,13 @@ msg_get_fd ()
 
 
 
+msg_DeathHandler (f)
+ifptr f;
+{
+	Death_handler = f;
+}
+
+
 struct message *
 msg_read (fd)
 int fd;
@@ -279,13 +288,15 @@ int fd;
  */
 {
 	static struct message msg;
-	static char data[2048];	/* XXX */
+	static char data[4096];	/* XXX */
 /*
  * Read in the message, and possibly any extra text.
  */
  	if (read (Msg_fd, &msg, sizeof (struct message)) <= 0)
 	{
 		printf ("Message handler disconnect\n");
+		if (Death_handler)
+			(*Death_handler) ();
 		return (0);
 	}
 	if (msg.m_len > 0)
@@ -386,11 +397,14 @@ void *param;
 /*
  * We finally got out.  Add this stuff to the end of the message queue.
  */
-	if (! Mq)
-		Mq = queue;
-	else
-		Mq_tail->mq_next = queue;
-	Mq_tail = tail;
+ 	if (queue)
+	{
+		if (! Mq)
+			Mq = queue;
+		else
+			Mq_tail->mq_next = queue;
+		Mq_tail = tail;
+	}
 }
 
 
@@ -484,6 +498,34 @@ va_dcl
  * Send it to the event logger.
  */
 	msg_send ("Event logger", MT_LOG, 0, mbuf, strlen (mbuf) + 1);
+}
+
+
+
+
+
+void
+msg_ELog (flags, va_alist)
+va_dcl
+/*
+ * Extended message logging.
+ */
+{
+	struct msg_elog el;
+	va_list args;
+	char *fmt;
+/*
+ * Print up our message.
+ */
+	va_start (args);
+	fmt = va_arg (args, char *);
+	vsprintf (el.el_text, fmt, args);
+	va_end (args);
+/*
+ * Send it.
+ */
+	el.el_flag = flags;
+	msg_send ("Event logger", MT_ELOG, 0, &el, sizeof (el));
 }
 
 
