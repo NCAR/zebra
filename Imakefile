@@ -1,4 +1,4 @@
-XCOMM $Id: Imakefile,v 1.15 1994-02-07 20:31:13 granger Exp $
+XCOMM $Id: Imakefile,v 1.16 1994-02-25 03:02:21 granger Exp $
 XCOMM
 XCOMM This is the top-level Imakefile for the Zeb distribution.
 XCOMM It is modeled after the top-level Imakefile of the MIT X11R5
@@ -14,6 +14,9 @@ XCOMM distribution.
         SUBDIRS = config src
     DISTSUBDIRS = config imake src
      SRCSUBDIRS = config imake src
+
+          ETAGS = etags
+     ETAGSFLAGS = -T
 
 XCOMM Note that for distributions, Makefile should be a copy of 
 XCOMM Makefile.ini and NOT the Makefile created by imake.  The tarfile
@@ -224,4 +227,8 @@ flushlinks::
 	make -k clean
 	find . -type l -exec rm {} \;
 	find . \( \! \( -type d -o -name Makefile \) \) -print
+
+XCOMM Quick and dirty generation of emacs tags file for whole Zeb source tree
+etags::
+	$(ETAGS) $(ETAGSFLAGS) `find src -name "*.[ch]" -print`
 
