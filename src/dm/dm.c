@@ -34,7 +34,7 @@
 # include <config.h>
 # include <copyright.h>
 # include <xhelp.h>
-MAKE_RCSID ("$Id: dm.c,v 2.35 1993-10-14 20:12:15 corbet Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.36 1993-10-21 20:10:02 corbet Exp $")
 
 
 /*
@@ -394,7 +394,7 @@ struct message *msg;
 	 * Display manager stuff.
 	 */
 	   case MT_DISPLAYMGR:
-	   	dm_message (msg->m_from, (struct dm_msg *) msg->m_data);
+	   	dmgr_message (msg->m_from, (struct dm_msg *) msg->m_data);
 		return;
 	/*
 	 * Stuff from the message handler itself.
@@ -658,11 +658,13 @@ char *name;
 
 
 
-dm_message (from, dmsg)
+dmgr_message (from, dmsg)
 char *from;
 struct dm_msg *dmsg;
 /*
  * Deal with a display manager message.
+ *
+ * The former "dm_message" but HP had their own designs on that name
  */
 {
 	struct dm_hello *dmh;

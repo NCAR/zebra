@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: dm_pd.c,v 2.3 1993-08-04 17:15:22 granger Exp $";
+static char *rcsid = "$Id: dm_pd.c,v 2.4 1993-10-21 20:10:05 corbet Exp $";
 /*
  * Plot description related routines.
  */
@@ -103,7 +103,7 @@ char *dir;
 /*
  * Move there.
  */
-#ifdef SVR4
+#if defined(SVR4) || defined(SYSV)
 	getcwd (wd,(size_t)(MAXPATHLEN+1));
 #else
 	getwd (wd);
