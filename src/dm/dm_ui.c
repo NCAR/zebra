@@ -62,7 +62,7 @@ struct ui_command *cmds;
  */
 {
 	struct cf_window *win;
-	int in_window ();
+	int in_window (), arg;
 
 	switch (UKEY (*cmds))
 	{
@@ -71,6 +71,9 @@ struct ui_command *cmds;
 	 * values, then go off to get the specifics.
 	 */
 	   case DMC_WINDOW:
+	   /*
+	    * Get a new window structure and initialize it.
+	    */
 		win = cfg->c_wins + cfg->c_nwin;
 		strcpy (win->cfw_name, UPTR (cmds[1]));
 		win->cfw_linkpar = 0;
@@ -83,7 +86,17 @@ struct ui_command *cmds;
 		win->cfw_pd = 0;
 		strcpy (win->cfw_prog, cmds[6].uc_ctype == UTT_END ?
 			DEFPROG : UPTR (cmds[6]));
+		cmds += (cmds[6].uc_ctype == UTT_END) ? 5 : 6;
 		strcpy (win->cfw_desc, "(undefined)");
+	   /*
+	    * Soak up the args.
+	    */
+	    	for (arg = 1; cmds[arg].uc_ctype != UTT_END; arg++)
+			win->cfw_args[arg] = usy_string (UPTR (cmds[arg]));
+		win->cfw_args[arg] = (char *) 0;
+	   /*
+	    * Now get the rest of the stuff for this window.
+	    */
 		cfg->c_nwin++;
 		ui_subcommand ("dm-window", "Window>", in_window, win);
 		break;

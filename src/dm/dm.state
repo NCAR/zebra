@@ -1,4 +1,4 @@
-! $Id: dm.state,v 1.5 1990-09-07 09:04:23 corbet Exp $
+! $Id: dm.state,v 1.6 1990-09-11 09:38:50 corbet Exp $
 !
 ! Command definition for the display manager.
 !
@@ -143,7 +143,17 @@ define state dm-win-program
 		done
 	endinput
 	input string
-		next ust$no_more
+		next dm-win-args
+	endinput
+enddef
+
+
+define state dm-win-args
+	input EOS
+		done
+	endinput
+	input string
+		next dm-win-args
 	endinput
 enddef
 

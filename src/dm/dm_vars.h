@@ -1,7 +1,7 @@
 /*
  * DM variables.
  *
- * $Id: dm_vars.h,v 1.3 1990-09-07 09:05:51 corbet Exp $
+ * $Id: dm_vars.h,v 1.4 1990-09-11 09:39:11 corbet Exp $
  */
 # include <X11/Xlib.h>
 # include "../include/defs.h"
@@ -30,9 +30,11 @@ extern ButtonMap *Default_map;	/* The default button map	*/
  * A configuration.
  */
 # define MAXPROG	80
+# define MAXARG		10
 struct cf_window
 {
 	char	cfw_name[MAXNAME];	/* The name of this window	*/
+	char	*cfw_args[MAXARG];	/* Arguments for exec		*/
 	Window	cfw_win;		/* It's X window		*/
 	int	cfw_x, cfw_y;		/* The location of the window	*/
 	int	cfw_dx, cfw_dy;		/* The size of the window	*/
