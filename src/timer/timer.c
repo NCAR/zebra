@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-char *Version = "$Revision: 2.9 $ $Date: 1995-06-29 22:38:22 $";
+char *Version = "$Revision: 2.10 $ $Date: 1996-03-12 21:35:26 $";
 
 # include <sys/types.h>
 # include <sys/time.h>
@@ -30,7 +30,7 @@ char *Version = "$Revision: 2.9 $ $Date: 1995-06-29 22:38:22 $";
 # include <message.h>
 # include <timer.h>
 
-MAKE_RCSID ("$Id: timer.c,v 2.9 1995-06-29 22:38:22 granger Exp $")
+MAKE_RCSID ("$Id: timer.c,v 2.10 1996-03-12 21:35:26 granger Exp $")
 
 /*
  * The timer queue is made up of these sorts of entries.
@@ -172,7 +172,7 @@ struct message *msg;
 	 */
 	   case MT_MESSAGE:
 	   	if (tm->mh_type == MH_SHUTDOWN)
-			exit (1);
+			exit (0);
 		else if (tm->mh_type == MH_CLIENT)
 			client_event ((struct mh_client *) tm);
 		else
@@ -269,7 +269,7 @@ struct mh_client *ce;
 {
 /*
  * The only thing we are really interested in is client disconnects -- at
- * which point we go and delete all of there requests.
+ * which point we go and delete all of their requests.
  */
 	if (ce->mh_evtype == MH_CE_DISCONNECT)
 		ZapRequests (ce->mh_client, FALSE, 0, TRUE);
@@ -563,7 +563,7 @@ int all;
 {
 	struct tq_entry *tp, *last;
 /*
- * Clean anything of the head of the queue first.
+ * Clean anything off the head of the queue first.
  */
 	while (Tq && ! strcmp (Tq->tqe_proc, who) &&
 		(all || Tq->tqe_param == param))
