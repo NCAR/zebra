@@ -28,8 +28,10 @@
 # include <DataChunk.h>
 # include "GraphProc.h"
 # include "rg_status.h"
-MAKE_RCSID ("$Id: GridAccess.c,v 2.26 1995-06-29 23:44:46 granger Exp $")
+MAKE_RCSID ("$Id: GridAccess.c,v 2.27 1995-08-03 20:59:48 corbet Exp $")
 
+# define DEG_TO_RAD(x)	((x)*0.017453292)
+# define KM_TO_DEG(x)	((x)*0.008982802) /* on a great circle */
 
 
 /*
@@ -52,6 +54,8 @@ int		ga_NSRegularSpacing FP((DataChunk *dc, FieldId fid,
 DataChunk 	*ga_NSRGrid FP((DataChunk *dc, FieldId fid, Location *location,
 				double latspacing, double lonspacing,
 				int nlats, int nlons, int transpose));
+static void	ga_StoreSpacings FP ((DataChunk *, float, float));
+
 
 
 
@@ -278,7 +282,7 @@ float	*x0, *y0, *x1, *y1, *alt;
  * assume that it can be freed later.
  */
 	ret = dc_RGGetGrid (dc, 0, F_Lookup (fname), &loc, &rg, &len);
-	cvt_ToXY (loc.l_lat, loc.l_lon, x0, y0);
+	prj_Project (loc.l_lat, loc.l_lon, x0, y0);
 	*xdim = rg.rg_nX;
 	*ydim = rg.rg_nY;
 	*x1 = *x0 + (rg.rg_nX - 1)*rg.rg_Xspacing;
@@ -302,12 +306,12 @@ char		*field;
  */
 {
 # define COMPRESS 4
-	float		*grid, *gp, table[256];
+	float		*grid, *gp, table[256], olat, olon;
 	RGrid		rg;
 	ScaleInfo	sc;
 	unsigned	char *img;
 	int		i, npx, npy, x, y,len;
-	float		badval;
+	float		badval, lonstep, latstep;
 	DataChunk	*rdc;
 	FieldId		fid;
 	ZebTime		when;
@@ -364,10 +368,6 @@ char		*field;
 				*gp = badval;
 		}
 /*
- * Kludge: rotate the grid so it can be rotated again later.
- */
-	/* ga_RotateGrid (grid, img, npy, npx); */
-/*
  * Fix up the data chunk.
  */
 	rg.rg_nX = npx;
@@ -381,6 +381,14 @@ char		*field;
 	dc_RGSetup (rdc, 1, &fid); 
 	dc_SetBadval (rdc, dc_GetBadval (*dc));
         dc_RGAddGrid (rdc, 0, fid, &origin, &rg, &when, grid, 0);
+/*
+ * Figure what the original lat/lon spacings must have been and stash
+ * them.
+ */
+	cvt_GetOrigin (&olat, &olon);
+	lonstep = KM_TO_DEG (rg.rg_Xspacing/cos (DEG_TO_RAD (olat)));
+	latstep = KM_TO_DEG (rg.rg_Yspacing);
+	ga_StoreSpacings (rdc, latstep, lonstep);
 /*
  * Free old memory.
  */
@@ -445,7 +453,7 @@ int dobarnes;
 	int nsta, i, ip, nqd = 0, nfilt = 0, fullgrid = 0;
 	float *xpos, *ypos, xmin = 99999.0, xmax = -99999.0, ymin = 99999.0;
 	float ymax = -99999.0, badflag, *grid, *dz, *dzr, radius, rmx, *dp;
-	float xspacing, yspacing, spacing, border;
+	float xspacing, yspacing, spacing, border, lats, lons, olat, olon;
 	Location *locs, location;
 	FieldId fid;
 	RGrid rg;
@@ -494,8 +502,20 @@ int dobarnes;
 	/*
 	 * Turn this location into XY space, and see if it stretches our 
 	 * limits.
+	 *
+	 * Here is something truly tragic...  using projection to place
+	 * the points creates truly confused plots, since the grid will
+	 * be projected a second time when we plot things.  So we stay
+	 * with the old cvt_ routines here.  What we really need to be doing
+	 * is to grid in lat/lon space.  In a sense, that *is* what we are
+	 * doing, if we are careful about it.
+	 *
+	 * Another nice alternative would be to be able to grid in XY space
+	 * and get everybody downstream to recognize an already-projected
+	 * grid, but that's harder.
 	 */
-	 	cvt_ToXY (locs[i].l_lat, locs[i].l_lon, xpos + i, ypos + i);
+/*	prj_Project (locs[i].l_lat, locs[i].l_lon, xpos + i, ypos + i);*/
+		cvt_ToXY (locs[i].l_lat, locs[i].l_lon, xpos + i, ypos + i);
 		if (xpos[i] < xmin)
 			xmin = xpos[i];
 		if (xpos[i] > xmax)
@@ -539,7 +559,7 @@ int dobarnes;
 /*
  * Get the lat/lon of the lower left corner of our grid.
  */
-	cvt_ToLatLon (xmin, ymin, &location.l_lat, &location.l_lon);
+	cvt_ToLatLon (xmin, ymin, &location.l_lat, &location.l_lon); 
 /*
  * Now that we know our limits, normalize all the points to (Fortran) grid 
  * indices.
@@ -574,6 +594,12 @@ int dobarnes;
 	dc_RGSetup (rdc, 1, &fid); 
 	dc_SetBadval (rdc, dc_GetBadval (*dc));
 	dc_RGAddGrid (rdc, 0, fid, &location, &rg, &when, grid, 0);
+/*
+ * Reverse engineer our lat/lon spacings in case projection is being done.
+ */
+	cvt_GetOrigin (&olat, &olon);
+	cvt_ToLatLon (spacing, spacing, &lats, &lons);
+	ga_StoreSpacings (rdc, lats - olat, lons - olon);
 /*
  * Free up old memory.
  */
@@ -645,7 +671,8 @@ char *field;
 	{
 	/*
 	 * Turn this location into XY space, and see if it stretches our 
-	 * limits.
+	 * limits.  See comment in ga_BarnesRegularize about use of the
+	 * cvt_ routines.
 	 */
 	 	cvt_ToXY (locs[i].l_lat, locs[i].l_lon, xpos + i, ypos + i);
 		if (xpos[i] < xmin)
@@ -823,7 +850,7 @@ FieldId	fid;
 	int		ndims, is_static, i;
 	bool		lat_first;
 	int		lat_idx, lon_idx;
-	float		latspacing, lonspacing;
+	float		latspacing, lonspacing, spacings[2];
 	float		latorg, lonorg;
 	FieldId		lat_id, lon_id, alt_id, dims[DC_MaxDimension];
 	char 		*dimns[ DC_MaxDimension ];
@@ -952,6 +979,11 @@ FieldId	fid;
 	rdc = ga_NSRGrid (*dc, fid, &location, latspacing, lonspacing, 
 			  nlats, nlons, lat_first);
 /*
+ * Stash the spacings into the data chunk.  You never know who might want
+ * them.
+ */
+	ga_StoreSpacings (rdc, latspacing, lonspacing);
+/*
  * Free up old memory.
  */
 	dc_DestroyDC (*dc);
@@ -961,6 +993,25 @@ FieldId	fid;
 	*dc = rdc;
 	return (TRUE);
 }
+
+
+
+
+static void
+ga_StoreSpacings (dc, latspacing, lonspacing)
+DataChunk *dc;
+float latspacing, lonspacing;
+/*
+ * Store these values into this data chunk.
+ */
+{
+	float spacings[2];
+
+	spacings[0] = latspacing;
+	spacings[1] = lonspacing;
+	dc_SetGlobalAttrArray (dc, ATTR_LATLON, DCT_Float, 2, spacings);
+}
+
 
 
 
@@ -1003,8 +1054,8 @@ bool transpose;
 /*
  * Grid info and location
  */
-	cvt_GetOrigin (&olat, &olon);
-	cvt_ToXY (olat + fabs (latspacing), olon + fabs (lonspacing),
+	prj_GetOrigin (&olat, &olon);
+	prj_Project (olat + fabs (latspacing), olon + fabs (lonspacing),
 		  &rg.rg_Xspacing, &rg.rg_Yspacing);
 
 	rg.rg_nX = nlons;

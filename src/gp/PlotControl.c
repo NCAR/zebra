@@ -34,7 +34,7 @@
 # include "PixelCoord.h"
 # include "ActiveArea.h"
 
-RCSID("$Id: PlotControl.c,v 2.36 1995-07-24 20:09:43 granger Exp $")
+RCSID("$Id: PlotControl.c,v 2.37 1995-08-03 21:00:05 corbet Exp $")
 
 int		pc_TimeTrigger FP ((char *));
 void		pc_TriggerGlobal FP (());
@@ -655,11 +655,11 @@ struct ui_command *cmds;
 	{
 		usy_g_symbol (Vtable, "boxx0", &type, &v); 
 		x0 = XUSER(v.us_v_int);
-		usy_g_symbol (Vtable, "boxy0", &type, &v); 
+		usy_g_symbol (Vtable, "boxy1", &type, &v); 
 		y0 = YUSER(v.us_v_int);
 		usy_g_symbol (Vtable, "boxx1", &type, &v); 
 		x1 = XUSER(v.us_v_int);
-		usy_g_symbol (Vtable, "boxy1", &type, &v); 
+		usy_g_symbol (Vtable, "boxy0", &type, &v); 
 		y1 = YUSER(v.us_v_int);
 	}
 /*

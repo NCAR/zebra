@@ -44,7 +44,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.55 1995-07-16 15:18:31 granger Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.56 1995-08-03 20:59:33 corbet Exp $")
 
 
 /*
@@ -146,7 +146,6 @@ static void	CAP_StPlotVector FP ((char *c, int pt, ZebTime *zt, int x0,
 				      int, bool quadstn[4]));
 
 
-
 void
 CAP_Init (t)
 UItime *t;
@@ -154,7 +153,7 @@ UItime *t;
  * CAP Plot initialization.
  */
 {
-	char	altlabel[40];
+	char	altlabel[40], prjlabel[80];
 	float	annotscale;
 /*
  * Header line for the overlay times widget.
@@ -167,20 +166,40 @@ UItime *t;
 	Alt = -999.0;
 	pd_Retrieve (Pd, "global", "altitude", (char *) &Alt, SYMT_FLOAT);
 /*
- * Plot altitude annotation
+ * Get the info we need to do annotation.
  */
 	annotscale = TOPANNOTHEIGHT;
 	pd_Retrieve (Pd, "global", "ta-scale", (char *) &annotscale, 
 		     SYMT_FLOAT);
-
+	XSetForeground (XtDisplay (Graphics), Gcontext,Tadefclr.pixel);
+/*
+ * Throw in the altitude label.
+ */
 	sprintf (altlabel, " ");
 	pd_Retrieve (Pd, "global", "altitude-label", altlabel, SYMT_STRING);
-
-	XSetForeground (XtDisplay (Graphics), Gcontext,Tadefclr.pixel);
 	DrawText (Graphics, GWFrame (Graphics), Gcontext,
 		GWWidth (Graphics) - 10, GWHeight (Graphics) - 10, 
 		altlabel, 0.0, annotscale, JustifyRight, JustifyBottom);
+# ifdef MAP_PROJECTIONS
+/*
+ * Tell them about the projection in use.  I require "projection" because
+ * it doesn't make much sense to activate the annotation without it.  This
+ * is maybe the first such explicit require, and creates a dependency on
+ * the libraries from within the code.  I hope that is the right way of
+ * going about it.
+ */
+	sprintf (prjlabel, "%s projection: ", prj_GetProjName ());
+	An_DoTopAnnot (prjlabel, Tadefclr.pixel, "global", "proj");
+	Require ("projection");
+# endif
 }
+
+
+
+
+
+
+
 
 
 
@@ -306,7 +325,7 @@ int *shifted;
 	static char	fname[40], ctable[40], outrange[40];
 	char	ctcolor[40], param[50];
 	int	xdim, ydim;
-	float	*rgrid, *grid, x0, x1, y0, y1, alt;
+	float	*rgrid, *grid, x0, x1, y0, y1, alt, lats, lons;
 	int	pix_x0, pix_x1, pix_y0, pix_y1, linewidth;
 	int	do_outrange;
 	bool	labelflag, dolabels, ok, autoscale;
@@ -433,6 +452,12 @@ int *shifted;
 		pd_Store (Pd, c, param, (char *) step, SYMT_FLOAT);
 	}
 /*
+ * If we are doing a fancy projection, get the original lat/lon info
+ * so that we can pass it through.
+ */
+	if (prj_FancyProjection ())
+		GetLLSpacings (dc, &lats, &lons);
+/*
  * Kludge: rotate the grid into the right ordering.
  */
 	grid = (float *) malloc (xdim * ydim * sizeof (float));
@@ -462,6 +487,8 @@ int *shifted;
 		FC_Init (Colors, Ncolors, Ncolors / 2, 
 			 do_outrange ? &c_outrange : NULL, clip, TRUE, 
 			 badvalue);
+		if (prj_FancyProjection ())
+			FC_ProjSetup (&loc, lats, lons);
 		FillContour (Graphics, GWFrame (Graphics), grid, xdim, ydim, 
 			     pix_x0, pix_y0, pix_x1, pix_y1, *center, *step);
 		break;
@@ -472,7 +499,8 @@ int *shifted;
 				 TRUE, badvalue);
 		else 
 			CO_InitMono (Ctclr, clip, TRUE, badvalue);
-
+		if (prj_FancyProjection ())
+			CO_ProjSetup (&loc, lats, lons);
 		Contour (Graphics, GWFrame (Graphics), grid, xdim, ydim,
 			 pix_x0, pix_y0, pix_x1, pix_y1, *center, *step, 
 			 dolabels, linewidth);
@@ -611,10 +639,6 @@ bool update;
 /*
  * Create the field list for our data fetch.
  */
-# ifdef notdef
-	fields[0] = F_Lookup (uname);
-	fields[1] = F_Lookup (vname);
-# endif
 	nfield = 2;
 	for (i = 0; i < 4; i++)
 	{
@@ -767,7 +791,7 @@ int nsta;
 	/*
 	 * Convert the location of this station into pixel space.
 	 */
-		cvt_ToXY (locs[sta].l_lat, locs[sta].l_lon, &x0, &y0);
+		prj_Project (locs[sta].l_lat, locs[sta].l_lon, &x0, &y0);
 		if (x0 < Xlo || x0 > Xhi || y0 < Ylo || y0 > Yhi)
 			sinfo[sta].si_excl = TRUE;
 		else
@@ -1068,7 +1092,7 @@ WindInfo *wi;
  */	
 	badvalue = dc_GetBadval (dc);
 	dc_GetLoc (dc, 0, &loc);
-	cvt_ToXY (loc.l_lat, loc.l_lon, &x0, &y0);
+	prj_Project (loc.l_lat, loc.l_lon, &x0, &y0);
 /*
  * Get the u and v components, and possibly quadrants.
  */
@@ -1218,14 +1242,14 @@ bool	update;
 	char	cname[30], annot[120];
 	char 	platform[PlatformListLen];
 	char	data[100];
-	float	*rgrid, *ugrid, *vgrid, unitlen;
+	float	*rgrid, *ugrid, *vgrid, unitlen, lats, lons;
 	float	vscale, x0, x1, y0, y1, alt, badvalue;
 	int	pix_x0, pix_x1, pix_y0, pix_y1, xdim, ydim;
 	int	linewidth, len, degrade, shifted, i;
-	bool	tacmatch = FALSE, grid = FALSE, do_vectors;
+	bool	tacmatch = FALSE, grid = FALSE, do_vectors, proj;
 	XColor	color;
 	ZebTime zt;
-	DataChunk	*dc;
+	DataChunk	*udc, *vdc;
 	Location	loc;
 	RGrid		rg;
 	AltUnitType	altunits;
@@ -1234,7 +1258,8 @@ bool	update;
 	PlatformId	pid;
 /*
  * Check to see if they have set "grid" to FALSE, in which case they should
- * really be using the station representation.
+ * really be using the station representation.  I wonder if we still need
+ * this...backward compatibility is such fun...
  */
 	if (pda_Search (Pd, c, "grid", NULL, (char *) &grid, SYMT_BOOL) &&
 			! grid)
@@ -1260,62 +1285,92 @@ bool	update;
 			SYMT_INT))
 		degrade = 0;
 /*
- * Get the data (pass in plot time, get back actual data time)
+ * Setup.
  */
 	alt = Alt;
 	zt = PlotTime;
+	proj = prj_FancyProjection ();
 /*
- * Get U component.
+ * Get U component.  Also pull out spacings if need be for projection.
+ * If we are projecting, we do NOT rotate the grids into column-major
+ * order...I was starting over, so why require the extra work?
+ *
+ * There is a fair amount of thrashing here to preserve the old "WindGrid"
+ * call when possible, on the theory that it is faster.  This merits a
+ * serious check, maybe the following can be cleaned up substantially by
+ * just using the projection-aware routine all the time.
  */
-	if (! (dc = ga_GetGrid (&zt, c, platform, F_GetName(winds[0]), 
+	if (! (udc = ga_GetGrid (&zt, c, platform, F_GetName(winds[0]), 
 			&xdim, &ydim, &x0, &y0, &x1, &y1, &alt, &shifted)))
 		return;
-	rgrid = (float *)dc_RGGetGrid(dc, 0, winds[0], &loc, &rg, &len);
-
-	ugrid = (float *) malloc (xdim * ydim * sizeof (float));
-	ga_RotateGrid (rgrid, ugrid, xdim, ydim);
-	badvalue = dc_GetBadval (dc);
-	altunits = dc_GetLocAltUnits (dc);
-	dc_DestroyDC (dc);
+	if (proj)
+	{
+		ugrid = dc_RGGetGrid (udc, 0, winds[0], &loc, &rg, &len);
+		GetLLSpacings (udc, &lats, &lons);
+	}
+	else
+	{
+		rgrid = (float *)dc_RGGetGrid(udc,0,winds[0], &loc, &rg, &len);
+		ugrid = (float *) malloc (xdim * ydim * sizeof (float));
+		ga_RotateGrid (rgrid, ugrid, xdim, ydim);
+	}
+	badvalue = dc_GetBadval (udc);
+	altunits = dc_GetLocAltUnits (udc);
 /*
  * Get v component.
  */
 	zt = PlotTime;
-	if (! (dc = ga_GetGrid (&zt, c, platform, F_GetName(winds[1]), 
+	if (! (vdc = ga_GetGrid (&zt, c, platform, F_GetName(winds[1]), 
 			&xdim, &ydim, &x0, &y0, &x1, &y1, &alt, &shifted)))
 		return;
-	rgrid = (float *)dc_RGGetGrid(dc, 0, winds[1], &loc, &rg, &len);
-	vgrid = (float *) malloc (xdim * ydim * sizeof (float));
-	ga_RotateGrid (rgrid, vgrid, xdim, ydim);
-	dc_DestroyDC (dc);
+	if (proj)
+		vgrid = (float *)dc_RGGetGrid(vdc, 0, winds[1], &loc,&rg,&len);
+	else
+	{
+		rgrid = (float *)dc_RGGetGrid(vdc, 0, winds[1], &loc,&rg,&len);
+		vgrid = (float *) malloc (xdim * ydim * sizeof (float));
+		ga_RotateGrid (rgrid, vgrid, xdim, ydim);
+	}
 /*
  * Convert the winds to rectangular components
  */
 	for (i = 0; i < xdim * ydim; ++i)
 		GetWindData (&wi, ugrid + i, vgrid + i, badvalue);
 /*
- * Convert the grid limits to pixel values
+ * If we are projecting, plot the slower way.
  */
-	pix_x0 = XPIX (x0);	pix_x1 = XPIX (x1);
-	pix_y0 = YPIX (y0);	pix_y1 = YPIX (y1);
+	if (proj)
+		WindProjGrid (ugrid, vgrid, xdim, ydim, &loc, lats, lons,
+				vscale, badvalue, color.pixel, degrade,
+				do_vectors);
 /*
- * Draw the vectors or barbs
+ * Otherwise do it in pixel space.
  */
-	WindGrid (Graphics, GWFrame (Graphics), Gcontext, ugrid, vgrid, xdim, 
-		  ydim, pix_x0, pix_y0, pix_x1, pix_y1, vscale, badvalue, 
-		  color, degrade, do_vectors);
+	else
+	{
+	/*
+	 * Convert the grid limits to pixel values
+	 */
+		pix_x0 = XPIX (x0);	pix_x1 = XPIX (x1);
+		pix_y0 = YPIX (y0);	pix_y1 = YPIX (y1);
+	/*
+	 * Draw the vectors or barbs
+	 */
+		WindGrid (Graphics, GWFrame (Graphics), Gcontext, ugrid,
+				vgrid, xdim, ydim, pix_x0, pix_y0, pix_x1,
+				pix_y1, vscale, badvalue, color, degrade,
+				do_vectors);
+	/*
+	 * Free the data arrays
+	 */
+		free (ugrid);
+		free (vgrid);
+	}
 /*
- * Free the data arrays
+ * We don't need the data chunks any more.
  */
-	free (ugrid);
-	free (vgrid);
-/*
- * Annotation time.
- */
-# ifdef notdef
-	XSetLineAttributes (XtDisplay (Graphics), Gcontext, 0, LineSolid, 
-		CapButt, JoinMiter);
-# endif
+	dc_DestroyDC (udc);
+	dc_DestroyDC (vdc);
 /*
  * If it's just an update, return now since we don't want
  * to re-annotate
@@ -1559,9 +1614,9 @@ bool	update;
 	char	fname[20], ctname[40], data[100], hcolor[40];
 	char 	platform[PlatformListLen];
 	char	param[50], outrange[40];
-	int	xdim, ydim;
+	int	xdim, ydim, slow;
 	int	nsteps;
-	bool	ok, highlight, fastloop, newrp, autoscale;
+	bool	ok, highlight, fastloop, autoscale;
 	float	*fgrid;			/* Floating point grid	*/
 	unsigned char *igrid;		/* Image grid		*/
 	float	x0, x1, y0, y1, alt;
@@ -1645,14 +1700,26 @@ bool	update;
 	if(! pda_Search(Pd, c, "ct-limit", NULL, (char *) &Ctlimit, SYMT_INT))
 		Ctlimit = 1;
 /*
- * Rasterization control.
+ * Rasterization control.  This determines whether we use the polygon fill
+ * (slow) or fancy integer (fast) method of rasterization.  The new-raster
+ * and fast-raster parameters no longer mean anything; you have to explicitly
+ * say slow-raster to get the slow method.
+ *
+ * ...unless, of course, you are using map projections, in which case only
+ * the slow method will work.  Someday when we decide we want to do rotated
+ * grids, slow will be required for that too.
+ *
+ * We may eventually want a size test here like image rasterize has to
+ * cruise through to fast rasterization even when projecting when the grid
+ * is not big enough to make it worthwhile.
  */
-	if (! pda_Search (Pd, c, "new-raster", NULL, (char *) &newrp,
-		SYMT_BOOL))
-		newrp = TRUE;
-	if (! pda_Search (Pd, c, "fast-raster", NULL, (char *) &fastloop,
-		SYMT_BOOL))
-		fastloop = FALSE;
+	slow = FALSE;
+	(void) pda_Search (Pd, c, "slow-raster", NULL, (char *) &slow,
+			SYMT_BOOL);
+	if (prj_FancyProjection ())
+		slow = TRUE;
+	msg_ELog (EF_DEBUG, "%s: using %s rasterization", c, slow ? "SLOW" :
+			"FAST");
 /*
  * Field number and color table
  */
@@ -1687,6 +1754,7 @@ bool	update;
 	if ((image && !igrid) || (!image && !fgrid))
 	{
 		msg_ELog (EF_INFO, "Unable to get grid for %s.", platform);
+		dc_DestroyDC (dc);	/* Ahem! */
 		return;
 	}
 
@@ -1726,10 +1794,9 @@ bool	update;
 	if (image)
 		RasterImagePlot (Graphics, DrawFrame, igrid, xdim,
 			ydim, pix_x0, pix_y0, pix_x1, pix_y1, scale.s_Scale,
-			scale.s_Offset);
-	else if (! newrp)
-		RasterPlot (Graphics, GWFrame (Graphics), fgrid, xdim, ydim, 
-			pix_x0, pix_y0, pix_x1, pix_y1);
+			scale.s_Offset, &loc, &rg);
+	else if (slow)
+		RasterPlot (dc, &loc, fgrid, xdim, ydim);
 	else
 		RasterXIPlot (Graphics, GWFrame (Graphics), fgrid, xdim, ydim, 
 			pix_x0, pix_y0, pix_x1, pix_y1, fastloop);
@@ -1914,7 +1981,7 @@ float	*x0, *y0, *x1, *y1, *alt;
  */
 	*xdim = rg.rg_nX;
 	*ydim = rg.rg_nY;
-	cvt_ToXY (origin.l_lat, origin.l_lon, x0, y0);
+	prj_Project (origin.l_lat, origin.l_lon, x0, y0);
 	*x1 = *x0 + (rg.rg_nX - 1) * rg.rg_Xspacing;
 	*y1 = *y0 + (rg.rg_nY - 1) * rg.rg_Yspacing;
 /*

@@ -1,6 +1,6 @@
 /* -*- C -*- */
 XCOMM ---------------------------------------------------------------------
-XCOMM $Id: Imakefile,v 1.24 1995-07-06 04:27:27 granger Exp $ 
+XCOMM $Id: Imakefile,v 1.25 1995-08-03 20:59:51 corbet Exp $ 
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -21,8 +21,9 @@ XCOMM $Id: Imakefile,v 1.24 1995-07-06 04:27:27 granger Exp $
  */
 
 
-LIBS = $(DFALIBS) $(ZLIBS) $(XLIBS) $(FLIBS)
+LIBS = $(DFALIBS) $(ZLIBS) $(XLIBS) $(FLIBS) $(LIBPROJ)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
+
 
 /* LIBRDSS = /rdss/ui/uilib.a /locallib/librdssutil.a */
 DEPLIBS = $(LIBZEBDS) $(LIBZEB) /* $(LIBRDSS) */
@@ -39,7 +40,12 @@ CLIBS = /local/lib/gcc-lib/sparc-sun-solaris2/2.4.3/libgcc.a
 /*
  * Need to know whether we can try shared memory
  */
-DEFINES = $(SHMDEFINES) /* -DXDEBUG */
+# if MapProjections
+   MAPDEFINE=-DMAP_PROJECTIONS
+# else
+   MAPDEFINE=
+# endif
+DEFINES = $(SHMDEFINES) $(MAPDEFINE) /* -DXDEBUG */
 
 # if defined(HPArchitecture) && (! UseGcc)
    ALLOCA=alloca.o
@@ -58,7 +64,7 @@ OBJS =  TimeSeries.o ColorTable.o EventQueue.o LLEvent.o PlotControl.o \
 	XYGraph.o PlotPrim.o LayoutControl.o AxisControl.o $(LABELOBJS) \
 	XYWind.o XYCommon.o XYContour.o InsertWidget.o AnnotWidget.o \
 	XYObservation.o GraphProc.o PDMonitor.o FieldMenu.o ActiveArea.o \
-	ModelWidget.o OverlayTimes.o
+	ModelWidget.o OverlayTimes.o Projection.o Ov_Grid.o
 
 COBJS = TimeSeries.o ColorTable.o EventQueue.o LLEvent.o PlotControl.o \
 	PlotExec.o UserEvent.o Contour.o FillContour.o \
@@ -70,7 +76,7 @@ COBJS = TimeSeries.o ColorTable.o EventQueue.o LLEvent.o PlotControl.o \
 	XYGraph.o PlotPrim.o LayoutControl.o AxisControl.o $(LABELOBJS) \
 	XYWind.o XYCommon.o XYContour.o InsertWidget.o AnnotWidget.o \
 	XYObservation.o GraphProc.o PDMonitor.o FieldMenu.o ActiveArea.o \
-	ModelWidget.o OverlayTimes.o
+	ModelWidget.o OverlayTimes.o Projection.o Ov_Grid.o
 
 SRCS =  AltControl.c AnnotWidget.c Annotate.c AxisControl.c \
 	ColorTable.c ConstAltPlot.c Contour.c DataMenu.c DrawText.c \
@@ -82,7 +88,7 @@ SRCS =  AltControl.c AnnotWidget.c Annotate.c AxisControl.c \
 	Utilities.c VectorGrid.c XSection.c XYCommon.c XYContour.c \
 	XYGraph.c XYObservation.c XYWind.c derive.c  sfont_1.c \
 	PDMonitor.c FieldMenu.c ActiveArea.c ModelWidget.c OverlayTimes.c \
-	alloca.c
+	alloca.c Projection.c Ov_Grid.c
 
 HDRS =  AxisControl.h Contour.h DrawText.h EventQueue.h GC.h GraphProc.h \
 	ActiveArea.h LLEvent.h Label.h LabelP.h LayoutControl.h PixelCoord.h \

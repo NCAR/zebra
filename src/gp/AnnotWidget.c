@@ -37,7 +37,7 @@
 # include "DrawText.h"
 # include "GraphProc.h"
 
-RCSID("$Id: AnnotWidget.c,v 1.2 1995-04-17 21:07:40 granger Exp $")
+RCSID("$Id: AnnotWidget.c,v 1.3 1995-08-03 20:59:29 corbet Exp $")
 
 # define STRLEN		1000
 
@@ -222,7 +222,7 @@ aw_SetLoc ()
 /*
  * Calculate the lat/lon
  */
-	cvt_ToLatLon (XUSER(x), YUSER(y), &lat, &lon);
+	prj_Reverse (XUSER(x), YUSER(y), &lat, &lon);
 	sprintf (string, "Annotating at - Lat:  %.2f Lon:  %.2f\n\n", lat, lon);
 /*
  * Set the LocLabel.

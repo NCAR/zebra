@@ -43,7 +43,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: XSection.c,v 2.28 1995-06-29 23:34:46 granger Exp $")
+RCSID ("$Id: XSection.c,v 2.29 1995-08-03 21:00:35 corbet Exp $")
 
 /*
  * General definitions
@@ -1077,7 +1077,7 @@ int	nplat;
 			npts = dc_GetNSample (dc);
 
 			dc_GetLoc (dc, 0, &loc);
-			cvt_ToXY (loc.l_lat, loc.l_lon, &loc_x[col], 
+			prj_Project (loc.l_lat, loc.l_lon, &loc_x[col], 
 				  &loc_y[col]);
 		}
 		else if (class == DCC_RGrid)
@@ -1085,7 +1085,7 @@ int	nplat;
 			data = dc_RGGetGrid (dc, 0, fid, &loc, &rginfo, NULL);
 			zdata = dc_RGGetGrid (dc, 0, zid, NULL, NULL, NULL);
 			npts = rginfo.rg_nX * rginfo.rg_nY * rginfo.rg_nZ;
-			cvt_ToXY (loc.l_lat, loc.l_lon, &loc_x[col], 
+			prj_Project (loc.l_lat, loc.l_lon, &loc_x[col], 
 				  &loc_y[col]);
 		}
 
@@ -1914,7 +1914,7 @@ ZebTime	*dtime;
  * Get the info we need from the data chunk
  */
 	sourcegrid = dc_RGGetGrid (dc, 0, F_Lookup (fldname), &loc, &rg, &len);
-	cvt_ToXY (loc.l_lat, loc.l_lon, &grid_x0, &grid_y0);
+	prj_Project (loc.l_lat, loc.l_lon, &grid_x0, &grid_y0);
 
 	nalts = rg.rg_nZ;
 
@@ -2408,7 +2408,7 @@ xs_Background ()
 		switch (BottomLabel)
 		{
 		    case Label_LatLon:
-			cvt_ToLatLon (X0 + xpos, Y0 + ypos, &lat, &lon);
+			prj_Reverse (X0 + xpos, Y0 + ypos, &lat, &lon);
 
 			sprintf (Scratch, "(%.1f/%.1f)", lon, lat);
 			break;
@@ -2516,7 +2516,7 @@ float	**xpp, **ypp;
 	/*
 	 * Get the (x,y) site location
 	 */
-		cvt_ToXY (loc.l_lat, loc.l_lon, &site_x, &site_y);
+		prj_Project (loc.l_lat, loc.l_lon, &site_x, &site_y);
 	/*
 	 * Allocate the x and y position arrays
 	 */
@@ -2534,7 +2534,7 @@ float	**xpp, **ypp;
 			if (lat == badvalue || lon == badvalue)
 				xpos[pt] = ypos[pt] = badvalue;
 			else
-				cvt_ToXY (lat, lon, &(xpos[pt]), &(ypos[pt]));
+				prj_Project (lat, lon, &(xpos[pt]), &(ypos[pt]));
 		}
 	/*
 	 * Free the data chunk
@@ -2558,7 +2558,7 @@ float	**xpp, **ypp;
 	 * Grab the location and the number of points
 	 */
 		dc_GetLoc (dc, 0, &loc);
-		cvt_ToXY (loc.l_lat, loc.l_lon, &site_x, &site_y);
+		prj_Project (loc.l_lat, loc.l_lon, &site_x, &site_y);
 
 		npts = dc_GetNSample (dc);
 	/*
@@ -3065,8 +3065,8 @@ float		*alts;
 /*
  * Grid info and location
  */
-	cvt_GetOrigin (&olat, &olon);
-	cvt_ToXY (olat + fabs (latspacing), olon + fabs (lonspacing),
+	prj_GetOrigin (&olat, &olon);
+	prj_Project (olat + fabs (latspacing), olon + fabs (lonspacing),
 		  &rg.rg_Xspacing, &rg.rg_Yspacing);
 
 	rg.rg_Zspacing = 0.0;	/* bastardized RGrid */

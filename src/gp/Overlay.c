@@ -22,7 +22,7 @@
 # include <config.h>
 # include <defs.h>
 
-RCSID("$Id: Overlay.c,v 2.44 1995-06-29 23:29:19 granger Exp $")
+RCSID("$Id: Overlay.c,v 2.45 1995-08-03 21:00:02 corbet Exp $")
 
 /* 
  * Since the annotate widget uses ov_PositionIcon, and the annotate widget is
@@ -97,13 +97,6 @@ typedef enum
 # define DEFAULT_TEXT_SIZE 0.02
 
 /*
- * Useful macros
- */
-#define WidthPixPerInch(screen) \
-	WidthOfScreen(screen)/(WidthMMOfScreen(screen)/25.4)
-#define HeightPixPerInch(screen) \
-	(HeightOfScreen(screen)/(HeightMMOfScreen(screen)/25.4))
-/*
  * Modulus operation which is always positive given any a and some b > 0
  */
 #define FMOD(a,b)   ( ((a)>=0) ? (fmod((a),(b))) \
@@ -116,7 +109,6 @@ typedef enum
 # define LATDEG_TO_KM(lat) (DEG_TO_KM (lat))
 # define KM_TO_LATDEG(ykm) (KM_TO_DEG (ykm))
 # define KM_TO_LONDEG(xkm,olat) (KM_TO_DEG((xkm)/cos(DEG_TO_RAD(olat))))
-# define TOLERANCE  (0.0001)
 
 
 typedef enum { FText, FCircle, FMarker } FeatureType;
@@ -156,6 +148,7 @@ static stbl MapTable = 0;
 typedef struct _MapPoints
 {
 	int mp_npt;		/* Number of points in this segment. 	*/
+	int mp_pkey;		/* Projection key			*/
 	float *mp_x, *mp_y;	/* The points themselves		*/
 	struct _MapPoints *mp_next;	/* Next entry in chain		*/
 } MapPoints;
@@ -172,7 +165,7 @@ static void 	ov_Map FP ((char *, int));
 static void 	ov_WBounds FP ((char *, int));
 static void 	ov_RangeRings FP ((char *, int));
 static void 	ov_Location FP ((char *, int));
-static void 	ov_Grid FP ((char *, int));
+void 	ov_Grid FP ((char *, int));	/* moved to Ov_Grid.c */
 static void 	ov_AzLimits FP ((char *, int));
 static bool 	ov_GetWBounds FP ((char *, char *, float *, float *, float *,
 			float *, float *));
@@ -186,18 +179,9 @@ static int 	ov_RRInfo FP ((char *, char *, Location *, float *, float *,
 static OvIcon 	*ov_GetIcon FP ((char *));
 static int 	ov_LocSetup FP ((char *, char **, int *, char *, LabelOpt *,
 			char *, bool *, float *, int *));
-static void	ov_SGSetup FP ((char *, float *, float *, float *, bool *,
-			int *, bool *, float *, float *));
-static void 	ov_SolidGrid FP ((int, int, int, int, double, double,
-			double, double, double, double));
-static void 	ov_LLSolidGrid FP ((int, int, int, int, double, double,
-				    double, double));
-static void	ov_TicGrid FP ((int, int, int, int, double, double,
-			double, double, int, double, double));
-static void	ov_LLTicGrid FP ((int, int, int, int, double, double,
-				double, double, int));
 static MapPoints *ov_LoadMap FP ((char *));
 static void	ov_DrawMap FP ((const MapPoints *));
+static void	ov_ZapMap FP ((MapPoints *));
 static int ov_InFeature ();
 
 
@@ -227,52 +211,6 @@ static struct overlay_table
 
 
 
-/*
- * Return the next greater float which is a multiple of the given interval
- */
-#ifdef notdef
-#define FloatTrunc(v, interval) (((v) < 0) ? \
-				 (-(interval) * (int)((-(v))/(interval))) : \
-				 ((interval) * ((int)((v)/(interval) + 1))))
-#endif
-
-static inline int
-Round (x)
-float x;
-{
-	return ((x<0) ? -(int)(-x+0.5) : (int)(x+0.5));
-}
-
-
-static inline int 
-DegreesInterval (deg, iv)
-float deg;
-float iv;
-{
-/*
- * Convert and round to seconds and compare as ints
- */
-	return ((Round (deg * 3600) % Round (iv * 3600)) == 0);
-}
-	
-
-static inline float
-FloatTrunc (v, interval)
-float v, interval;
-{
-	float ret;
-
-	if (v < 0)
-	{
-		ret = interval * (int) ((-v)/interval);
-		return (-ret);
-	}
-	else
-	{
-		ret = interval * (int) (v/interval);
-		return ( (ret >= interval) ? (ret) : (ret + interval) );
-	}
-}
 
 
 
@@ -406,7 +344,7 @@ bool update;
 /*
  * Figure out end points.
  */
-	cvt_ToXY (loc.l_lat, loc.l_lon, &ox, &oy);
+	prj_Project (loc.l_lat, loc.l_lon, &ox, &oy);
 	pox = XPIX (ox);  poy = YPIX (oy);
 	lx = XPIX (ox + range*sin (left*M_PI/180.0));
 	ly = YPIX (oy + range*cos (left*M_PI/180.0));
@@ -713,7 +651,7 @@ Feature *fp;
 /*
  * Turn our location into something we can use.
  */
-	cvt_ToXY (fp->f_lat, fp->f_lon, &x, &y);
+	prj_Project (fp->f_lat, fp->f_lon, &x, &y);
 /*
  * Now just do some drawing.
  */
@@ -884,7 +822,7 @@ char *name;
  */
 {
 	char fname[200], line[200];
-	int c;
+	int c, pkey = prj_ProjKey ();
 	float lat, lon;
 	int type, npt, pt;
 	SValue v;
@@ -892,16 +830,25 @@ char *name;
 	MapPoints *mp, *list;
 /*
  * Make sure the symbol table exists.  If so, see if we've already done
- * this one.
+ * this one.  If we have, make sure the projection matches what we are
+ * doing now.
+ *
+ * NOTE that this code catches a change in projection, but not a change
+ * 	in origin.  We need to fix that.
  */
 	if (! MapTable)
 		MapTable = usy_c_stbl ("MapTable");
 	else if (usy_g_symbol (MapTable, name, &type, &v))
-		return ((MapPoints *) v.us_v_ptr);
+	{
+		mp = (MapPoints *) v.us_v_ptr;
+		if (mp->mp_pkey == pkey)
+			return (mp);
+		ov_ZapMap (mp);
+		usy_z_symbol (MapTable, name);
+	}
 /*
  * Nope.  Try to open up a file.
  */
-/*	fixdir_t ("GP_MAP_DIR", GetLibDir (), name, fname, ".map"); */
 	strcpy (line, name);
 	strcat (line, ".map");
 	if (! FindFile (line, MapPath, fname) ||
@@ -939,6 +886,7 @@ char *name;
 		mp->mp_x = (float *) malloc (npt*sizeof (float));
 		mp->mp_y = (float *) malloc (npt*sizeof (float));
 		mp->mp_npt = npt;
+		mp->mp_pkey = pkey;
 		mp->mp_next = list;
 		list = mp;
 	/*
@@ -950,7 +898,7 @@ char *name;
 		 * Read the stuff and convert it to our space.
 		 */
 		 	fscanf (mapfp, "%f %f", &lat, &lon);
-			cvt_ToXY (lat, lon, mp->mp_x + pt, mp->mp_y + pt);
+			prj_Project (lat, lon, mp->mp_x + pt, mp->mp_y + pt);
 		}
 	/*
 	 * Eat a newline if need be.
@@ -970,6 +918,24 @@ char *name;
 
 
 
+static void
+ov_ZapMap (mp)
+MapPoints *mp;
+/*
+ * Clean out these structures and start over.
+ */
+{
+	while (mp)
+	{
+		MapPoints *zap = mp;
+		mp = zap->mp_next;
+		free (zap->mp_x);
+		free (zap->mp_y);
+		free (zap);
+	}
+}
+
+			
 
 
 
@@ -1216,7 +1182,7 @@ int update;
 			     (lp->l_lon == penup_pt)))
 				skip = 1;
 			else
-				cvt_ToXY (lp->l_lat, lp->l_lon, &x, &y);
+				prj_Project (lp->l_lat, lp->l_lon, &x, &y);
 		/*
 		 * Break the line if penup point detected or the next segment
 		 * does not intersect the plot region
@@ -1237,6 +1203,10 @@ int update;
 				lp++;
 				continue;
 			}
+		/*
+		 * Otherwise we convert lat/lon to x,y and hold it in xpts[]
+		 */
+			prj_Project (lp->l_lat, lp->l_lon, &x, &y);
 			xpts[pt].x = XPIX (x);
 			xpts[pt].y = YPIX (y);
 		/*
@@ -1300,7 +1270,7 @@ int update;
 				   lat, lon, pnames[i]);
 				c.l_lat = (float) atof (lat);
 				c.l_lon = (float) atof (lon);
-				cvt_ToXY (c.l_lat, c.l_lon, &x, &y);
+				prj_Project (c.l_lat, c.l_lon, &x, &y);
 				ix = XPIX (x);
 				iy = YPIX (y);
 			}
@@ -1439,7 +1409,7 @@ int update;
 /*
  * Draw the rings and range labels.
  */
-	cvt_ToXY (loc.l_lat, loc.l_lon, &x, &y);
+	prj_Project (loc.l_lat, loc.l_lon, &x, &y);
 	for (ring = 1; ring <= lastring; ring++)
 	{
 		radius = ring * ringint;
@@ -1632,7 +1602,7 @@ int update;
 	 * Convert to pixel space, then offset to put the hot spot of
 	 * the icon there.
 	 */
-		cvt_ToXY (loc.l_lat, loc.l_lon, &x, &y);
+		prj_Project (loc.l_lat, loc.l_lon, &x, &y);
 		px = XPIX (x);
 		py = YPIX (y);
 		I_PositionIcon (comp, plist[plat], &loctime, icon, px, py, fg);
@@ -1816,506 +1786,6 @@ int *fg;
 
 
 
-/*ARGSUSED*/
-static void
-ov_Grid (comp, update)
-char *comp;
-int update;
-/*
- * Draw a grid overlay, either solid or tic'ed, in either lat/lon or km coords.
- * Annotate on multiples of a multiple of the interval, taking care not to
- * crowd them.
- */
-{
-	float xs, ys, theight, xoff, yoff;
-	int top, bottom, left, right, tic;
-	bool solid, ll;
-	float xskm, uxs;
-	float aint;
-/*
- * Dig out our info.
- */
-	ov_SGSetup (comp, &xs, &ys, &theight, &solid, &tic, &ll, &xoff, &yoff);
-/*
- * Set the pixel limits of the grid according to the current user km limits
- */
-	bottom = YPIX (Yhi) - 10;
-	top = YPIX (Ylo) - 12;
-	left = XPIX (Xlo);
-	right = XPIX (Xhi);
-/* 
- * If this is a lat/lon grid, the x/y-spacing parameters are interpreted as
- * minutes.  If this is a km grid, they are in kilometers.  The calculation
- * of aint is different for each type of grid.  We want no more than one
- * label per inch.  If x/y-spacing is less than one per inch, label every
- * x/y-spacing interval.
- */
-	if (ll)			/* set xskm to xs in km rather than minutes */
-
-		xskm = DEG_TO_KM(xs/60.0);
-	else
-		xskm = xs;
-/* 
- * xskm is in km, so things not too difficult now.  Find number of km in 
- * 0.8 inches of screen, and use this to space the annotation on a multiple
- * of the x-spacing (in km).
- */
-	uxs = 0.8*WidthPixPerInch(XtScreen(Graphics));
-	uxs = XUSER( uxs + XPIX(0.0) );
-
-	if (xskm > uxs)	/* x-spacing large enough to not crowd text */
-		aint = xskm;
-	else		/* take first multiple of xskm greater than uxs */
-		aint = FloatTrunc (uxs, xskm);
-/*
- * Now convert aint to degrees for lat/lon case
- */
-	if (ll)
-		aint = KM_TO_DEG(aint);
-/*
- * Draw the grid.  Each routine should write annotation when the x or y
- * coordinate, in either km or degrees, is a multiple of aint.
- */
-	if (solid)
-	{
-		if (ll)
-			ov_LLSolidGrid (left, right, top, bottom, xs, ys,
-					theight, aint);
-		else
-			ov_SolidGrid (left, right, top, bottom, xs, ys, 
-				      theight, aint, xoff, yoff);
-	}
-	else
-	{
-		if (ll)
-			ov_LLTicGrid (left, right, top, bottom, xs, ys,
-				theight, aint, tic);
-		else
-			ov_TicGrid (left, right, top, bottom, xs, ys, theight,
-				aint, tic, xoff, yoff);
-	}
-}
-
-
-
-
-
-static void
-ov_TicGrid (left, right, top, bottom, xs, ys, theight, aint, ticwidth, 
-		xoff, yoff)
-int left, right, top, bottom, ticwidth;
-float xs, ys, theight, xoff, yoff;
-float aint;
-/*
- * Draw a tic-style cartesian grid.
- */
-{
-	float xpos, ypos;	/* the current km coords, including offset */
-	int xp, yp;		/* the pixel locations of a tic */
-	int nx = 0;
-	char label[30];
-	Drawable frame = GWFrame (Graphics);
-/*
- * Pass along the rows.  Start as far left as possible on a multiple of xs,
- * but greater than (Xlo + xoff)
- */
- 	for (xpos = FloatTrunc (Xlo + xoff, xs); xpos <= Xhi+xoff; xpos += xs)
-	{
-		if ((xp = XPIX (xpos - xoff)) < left)
-			continue;
-	/*
-	 * And down the columns.
-	 */
-	 	for (ypos = FloatTrunc (Ylo + yoff, ys); ypos <= Yhi + yoff;
-				ypos += ys)
-		{
-			if ((yp = YPIX (ypos - yoff)) > top)
-				continue;
-		/*
-		 * Draw the tic marks.
-		 */
-			XDrawLine (Disp, frame, Gcontext, xp - ticwidth, yp,
-					xp + ticwidth, yp);
-			XDrawLine (Disp, frame, Gcontext, xp, yp - ticwidth,
-					xp, yp + ticwidth);
-		/*
-		 * Annotate if this is the first time through and the coord
-		 * falls on a multiple of aint
-		 */
-			if ((nx == 0) && (fabs(fmod(ypos,aint)) < TOLERANCE))
-			{
-				sprintf (label, "%.1f", ypos);
-				DrawText (Graphics, frame, Gcontext, left - 1,
-					yp, label, 0.0, theight, JustifyRight,
-					JustifyCenter);
-			}
-		}
-	/*
-	 * Bottom annotation.
-	 */
-		if (fabs(fmod(xpos,aint)) < TOLERANCE)
-		{
-			sprintf (label, "%.1f", xpos);
-			DrawText (Graphics, frame, Gcontext, xp, top + 1,
-				label, 0.0, theight,JustifyCenter, JustifyTop);
-		}
-	}
-}
-
-
-
-
-static void
-ov_SolidGrid (left, right, top, bottom, xs, ys, theight, aint, xoff, yoff)
-int left, right, top, bottom;
-float xs, ys, theight, xoff, yoff;
-float aint;
-/*
- * Draw a solid grid.
- */
-{
-	char label[30];
-	float pos;
-	Drawable frame = GWFrame (Graphics);
-/*
- * Draw the vertical lines.
- */
-	for (pos = FloatTrunc (Xlo + xoff, xs); pos <= Xhi + xoff; pos += xs)
-	{
-		if (XPIX (pos - xoff) < left)
-			continue;
-		XDrawLine (Disp, frame, Gcontext, XPIX (pos - xoff), top,
-				XPIX (pos - xoff), bottom);
-		if (fabs(fmod(pos,aint)) < TOLERANCE)
-		{
-			sprintf (label, "%.1f", pos);
-			DrawText (Graphics, frame, Gcontext, XPIX (pos - xoff),
-				top + 1, label, 0.0, theight,
-				JustifyCenter, JustifyTop);
-		}
-	}
-/*
- * And horizontal.
- */
-	for (pos = FloatTrunc (Ylo + yoff, ys); pos <= Yhi + yoff; pos += ys)
-	{
-		if (YPIX (pos - yoff) > top)
-			continue;
-		XDrawLine (Disp, frame, Gcontext, left, YPIX (pos - yoff),
-				right, YPIX (pos - yoff));
-		if (fabs(fmod(pos,aint)) < TOLERANCE)
-		{
-			sprintf (label, "%.1f", pos);
-			DrawText (Graphics, frame, Gcontext, left - 1,
-				YPIX (pos - yoff), label, 0.0, theight,
-				JustifyRight, JustifyCenter);
-		}
-	}
-}
-
-
-
-
-static void
-ov_CGFixLL (blat, blon, xs, ys)
-float *blat, *blon, xs, ys;
-/*
- * Fix these values up to nice increments.
- */
-{
-	int iblat, iblon, ixs, iys;
-/*
- * Put everything into easy integer increments.
- */
-	cvt_ToLatLon (Xlo, Ylo, blat, blon);
-	iblat = Round (*blat * 3600.0);
-	iblon = Round (*blon * 3600.0);
-	ixs = Round (xs * 60.0);
-	iys = Round (ys * 60.0);
-/*
- * Now truncate things accordingly.  Longitude set to 1st multiple of ixs
- * greater than iblon, since labels are on left.
- */
-	if (iblat < 0)
-		iblat += (-iblat) % iys;
-	else
-	{
-		iblat -= iblat % iys;
-		iblat += iys;
-	}
-	if (iblon < 0)
-		iblon += (-iblon) % ixs;
-	else
-	{
-		iblon -= iblon % ixs;
-		iblon += ixs;
-	}
-	*blat = ((float) iblat)/3600.0;
-	*blon = ((float) iblon)/3600.0;
-}
-
-
-
-
-static void
-ov_LLTicGrid (left, right, top, bottom, xs, ys, theight, aint, ticwidth)
-int left, right, top, bottom, ticwidth;
-float xs, ys, theight;
-float aint;
-/*
- * Draw a tic-style lat/lon cartesian grid.
- */
-{
-	float xpos, ypos, blat, blon, maxlat, maxlon;
-	int xp, yp, nx;
-	char label[30];
-	Drawable frame = GWFrame (Graphics);
-/*
- * Figure out where we are.
- */
-	ov_CGFixLL (&blat, &blon, xs, ys);
-	cvt_ToLatLon (Xhi, Yhi, &maxlat, &maxlon);
-/*
- * NOTE: maxlon will be more than 90 degrees LESS THAN blon if maxlon is
- * actually across the Intl Date Line.  We must take this into account and
- * make maxlon positive by adding a full circle to it, and then subtracting
- * the circle when it's time to determine the actual longitude label.  
- * Requiring a 90 degree difference avoids situations where maxlon < blon
- * because of precision errors.
- */
-	if (maxlon + 90.0 < blon)
-		maxlon += 360.0;
-	xs /= 60.0;			/* convert minutes to degrees */
-	ys /= 60.0;
-/*
- * Pass along the rows.
- */
-	nx = 0;
-	xp = 0;
-	for (xpos = blon; xpos <= maxlon; xpos += xs)
-	{
-	/*
-	 * And down the columns.
-	 */
-		for (ypos = blat; ypos <= maxlat; ypos += ys)
-		{
-			float xkm, ykm;
-			cvt_ToXY (ypos, xpos, &xkm, &ykm);
-			xp = XPIX (xkm);
-			yp = YPIX (ykm);
-			if (yp > top)
-				continue;
-		/*
-		 * Draw the tic marks.
-		 */
-			XDrawLine (Disp, frame, Gcontext, xp - ticwidth, yp,
-					xp + ticwidth, yp);
-			XDrawLine (Disp, frame, Gcontext, xp, yp - ticwidth,
-					xp, yp + ticwidth);
-		/*
-		 * Annotate if this is the first time through.
-		 */
-			if (!nx && (DegreesInterval (ypos,aint)))
-			{
-				sprintf (label, "%d  ", Round(ypos*60)/60);
-				DrawText (Graphics, frame, Gcontext, left - 1,
-					  yp, label, 0.0, theight, 
-					  JustifyRight, JustifyBottom);
-				sprintf (label, "%d' %d\"", 
-					 Round(fabs(ypos)*60)%60,
-					 Round(fabs(ypos)*3600)%60);
-				DrawText (Graphics, frame, Gcontext, left - 1,
-					  yp, label, 0.0, theight, 
-					  JustifyRight, JustifyTop);
-			}
-		}
-	/*
-	 * Bottom annotation.
-	 */
-		if (DegreesInterval (xpos,aint))
-		{
-			sprintf (label, "%d", 
-				 Round(((xpos>180)?(xpos-360):(xpos))*60)/60);
-			DrawText (Graphics, frame, Gcontext, xp, top + 1,
-				  label,0.0,theight,JustifyCenter,JustifyTop);
-			sprintf (label, "%d' %d\"", Round(fabs(xpos)*60)%60,
-				 Round(fabs(xpos)*3600)%60);
-			DrawText (Graphics, frame, Gcontext, xp, top + 14,
-				  label,0.0,theight,JustifyCenter,JustifyTop);
-		}
-		nx++;
-	}
-}
-
-
-
-
-static void
-ov_LLSolidGrid (left, right, top, bottom, xs, ys, theight, aint)
-int left, right, top, bottom;
-float xs, ys, theight;
-float aint;
-/*
- * Draw a solid-line lat/lon cartesian grid.
- */
-{
-	float xpos, ypos, blat, blon;
-	float maxlat, maxlon;
-	float minlat, minlon;
-	int xp, yp;
-	int xe, ye;
-	char label[30];
-	Drawable frame = GWFrame (Graphics);
-/*
- * Figure out where we are.
- */
-	ov_CGFixLL (&blat, &blon, xs, ys);
-	cvt_ToLatLon (Xlo, Ylo, &minlat, &minlon);
-	cvt_ToLatLon (Xhi, Yhi, &maxlat, &maxlon);
-	if (maxlon + 90.0 < blon)		/* see note in LLTicGrid */
-		maxlon += 360.0;
-	xs /= 60.0;
-	ys /= 60.0;
-/*
- * Draw all of the horizontal lines and the left annotation
- */
-	xpos = minlon;
-	for (ypos = blat; ypos <= maxlat; ypos += ys)
-	{
-		float xkm, ykm;
-		
-		cvt_ToXY (ypos, xpos, &xkm, &ykm);
-		xp = XPIX (xkm);
-		yp = YPIX (ykm);
-		if (yp > top - 1)
-			continue;
-		cvt_ToXY (ypos, maxlon, &xkm, &ykm);
-		xe = XPIX (xkm);
-		ye = YPIX (ykm);
-		if (DegreesInterval (ypos,aint))
-		{
-			sprintf (label, "%d  ", Round(ypos*60)/60);
-			DrawText (Graphics, frame, Gcontext, left - 1,
-				  yp, label, 0.0, theight/1.2,
-				  JustifyRight, JustifyBottom);
-			sprintf (label, "%d' %d\"", Round(fabs(ypos)*60)%60,
-				 Round(fabs(ypos)*3600)%60);
-			DrawText (Graphics, frame, Gcontext, left - 1,
-				  yp, label, 0.0, theight, JustifyRight,
-				  JustifyTop);
-		}
-		XDrawLine (Disp, frame, Gcontext, 
-			   xp, yp, xe, ye);
-	}
-
-	ypos = minlat;
-	for (xpos = blon; xpos <= maxlon; xpos += xs)
-	{
-	/*
-	 * Vertical lines
-	 */
-		float xkm, ykm;
-		
-		cvt_ToXY (ypos, xpos, &xkm, &ykm);
-		xp = XPIX (xkm);
-		yp = YPIX (ykm);
-		cvt_ToXY (maxlat, xpos, &xkm, &ykm);
-		xe = XPIX (xkm);
-		ye = YPIX (ykm);
-	/*
-	 * Bottom annotation.  Adjust end point to allow text to fit.
-	 */
-		if (DegreesInterval (xpos,aint))
-		{
-			sprintf (label, "%d", 
-				 Round(((xpos>180)?(xpos-360):(xpos))*60)/60);
-			DrawText (Graphics, frame, Gcontext, xp, top + 1,
-				  label, 0.0, theight,JustifyCenter, 
-				  JustifyTop);
-			sprintf (label, "%d' %d\"", Round(fabs(xpos)*60)%60,
-				 Round(fabs(xpos)*3600)%60);
-			DrawText (Graphics, frame, Gcontext, xp, 
-				  (int) (top + theight * GWHeight(Graphics)),
-				  label, 0.0, theight, JustifyCenter,
-				  JustifyTop);
-			yp = top - 1;
-		}
-		XDrawLine (Disp, frame, Gcontext, xp, yp, xe, ye);
-	}
-}
-
-
-
-
-
-static void
-ov_SGSetup (comp, xs, ys, theight, solid, ticwidth, ll, xoff, yoff)
-char *comp;
-float *xs, *ys;
-float *theight, *xoff, *yoff;
-int *ticwidth;
-bool *solid, *ll;
-/*
- * Get everything set up to draw a grid.
- */
-{
-	int lwidth;
-	Location loc;
-	char origin[80];
-/*
- * Find our spacings.
- */
-	if (! pda_Search (Pd, comp, "x-spacing", "grid", (char *) xs,
-			SYMT_FLOAT))
-		*xs = 10.0;
-	if (! pda_Search (Pd, comp, "y-spacing", "grid", (char *) ys,
-			SYMT_FLOAT))
-		*ys = 10.0;
-/*
- * Go ahead and set the line drawing parameters.
- */
-	SetColor (comp, "color", "grid", "gray60");
-	if (! pda_Search (Pd, comp, "line-width", "grid", (char *) &lwidth,
-			SYMT_INT))
-		lwidth = 0;
-	XSetLineAttributes (Disp, Gcontext, lwidth, LineSolid, CapButt,
-			JoinMiter);
-/*
- * Text height.
- */
-	if (! pda_Search (Pd, comp, "annot-height", "grid", (char *) theight,
-			SYMT_FLOAT))
-		*theight = 0.02;
-/*
- * Solidness.
- */
-	if (! pda_Search(Pd, comp, "solid", "grid", (char *) solid, SYMT_BOOL))
-		*solid = FALSE;
-	if (! pda_Search (Pd, comp, "tic-width", "grid", (char *) ticwidth,
-			SYMT_INT))
-		*ticwidth = 8;
-/*
- * Do we do this in lat/lon?
- */
-	*ll = 0;
-	if (! pda_Search (Pd, comp, "lat-lon", "grid", (char *) ll, SYMT_BOOL))
-		*ll = FALSE;
-/*
- * See if we should displace the origin.
- */
-	*xoff = *yoff = 0.0;
-	if (pda_Search (Pd, comp, "origin", "grid", origin, SYMT_STRING))
-	{
-		if (GetLocation (origin, &PlotTime, &loc))
-		{
-			cvt_ToXY (loc.l_lat, loc.l_lon, xoff, yoff);
-			*xoff = - *xoff;
-			*yoff = - *yoff;
-		}
-		else
-			msg_ELog (EF_PROBLEM, "Bad origin '%s'", origin);
-	}
-}
 
 
 

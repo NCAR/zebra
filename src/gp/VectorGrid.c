@@ -29,7 +29,7 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 
-RCSID ("$Id: VectorGrid.c,v 2.8 1995-06-29 23:29:58 granger Exp $")
+RCSID ("$Id: VectorGrid.c,v 2.9 1995-08-03 21:00:31 corbet Exp $")
 
 /*
  * Angle in radians between vector and lines for arrow head
@@ -44,11 +44,11 @@ RCSID ("$Id: VectorGrid.c,v 2.8 1995-06-29 23:29:58 granger Exp $")
 
 
 void
-WindGrid (w, d, Gcontext, u_array, v_array, xdim, ydim, xlo, ylo, xhi, yhi, 
+WindGrid (w, d, gc, u_array, v_array, xdim, ydim, xlo, ylo, xhi, yhi, 
 	  vlen, bad, color, degrade, vector)
 Widget	w;
 Drawable 	d;
-GC	Gcontext;
+GC	gc;
 float	*u_array, *v_array;
 int	xdim, ydim, xlo, ylo, xhi, yhi;
 double	vlen, bad;
@@ -66,21 +66,14 @@ int	degrade, vector;
 {
 	int		dummy, xpos, ypos, i, j;
 	int		pa_left, pa_right, pa_bottom, pa_top, shaftlen;
-	unsigned int	dwidth, dheight, udummy;
 	Window		win;
 	float		xstep, ystep, u, v;
 	float		unitlen;
-	XGCValues	gcvals;
-/*
- * Find the size of the drawable so we can scale the arrows properly
- */
-	XGetGeometry (XtDisplay (w), d, &win, &dummy, &dummy, &dwidth, 
-		      &dheight, &udummy, &udummy);
 /*
  * Find the unit length or shaft length in pixels
  */
-	unitlen = dheight * vlen;
-	shaftlen = (int)(dheight * vlen);
+	unitlen = GWHeight (Graphics)*vlen;
+	shaftlen = (int)(GWHeight (Graphics)*vlen);
 /*
  * Pixels per grid step in each direction
  */
@@ -96,15 +89,7 @@ int	degrade, vector;
 /*
  * Loop through the array points
  */
-	if (Gcontext == NULL)
-	{
-		gcvals.foreground = color.pixel;
-		Gcontext = XCreateGC (XtDisplay (w), XtWindow (w), 
-				      GCForeground, &gcvals);
-	}
-	else
-		XSetForeground (XtDisplay (w), Gcontext, color.pixel);
-	
+	XSetForeground (XtDisplay (w), gc, color.pixel);
 
 	for (i = 0; i < xdim; i++)
 	{
@@ -138,10 +123,10 @@ int	degrade, vector;
 		 * Draw the vector or barb
 		 */
 			if (vector)
-				draw_vector (XtDisplay (w), d, Gcontext, xpos, 
+				draw_vector (XtDisplay (w), d, gc, xpos, 
 					     ypos, u, v, unitlen);
 			else
-				draw_barb (XtDisplay (w), d, Gcontext, xpos, 
+				draw_barb (XtDisplay (w), d, gc, xpos, 
 					   ypos, atan2 (-v, -u), hypot (u, v),
 					   shaftlen, FALSE);
 		}
@@ -150,12 +135,113 @@ int	degrade, vector;
 
 
 
+
 void
-VectorGrid (w, d, Gcontext, u_array, v_array, xdim, ydim, xlo, ylo, xhi, yhi, 
+WindProjGrid (u_array, v_array, xdim, ydim, origin, lats, lons, vscale,
+		badvalue, color, degrade, vector)
+float *u_array, *v_array;
+int xdim, ydim, degrade, vector;
+Location *origin;
+float lats, lons, vscale, badvalue;
+Pixel color;
+/*
+ * Handle vector grid plotting in situations where projection is in
+ * use.  This routine will work for all (CAP) grids regardless of projection,
+ * but is slower.  XSections need the above (pixel-based) version.
+ *
+ * This function differs from WindGrid in a number of ways, in the hopes
+ * of doing things better.  In particular, no GC is passed in, and the
+ * array stays in row-major order.
+ *
+ * Entry:
+ *	u_array, v_array are the winds arrays.
+ *	xdim, ydim are the dimensions of those arrays
+ *	origin is the grid origin
+ *	lats, lons are the original latitude/longitude spacing of the grids
+ *	vscale is the vector scale to use in plotting
+ *	badvalue is the bad value flag
+ *	color is the PIXEL value (not XColor as above) to use
+ *	degrade is the thinning to use, if any
+ *	vector is TRUE iff the data are to be plotted as vectors (otherwise
+ *		they get barbs)
+ * Exit:
+ *	A heroic effort has been made to plot the data.
+ */
+{
+	int x, y, shaftlen, pa_left, pa_right, pa_top, pa_bottom;
+	float unitlen, ux, uy;
+	Drawable d = GWFrame (Graphics);
+/*
+ * Find the unit length or shaft length in pixels
+ */
+	unitlen = GWHeight (Graphics)*vscale;
+	shaftlen = (int)(GWHeight (Graphics)*vscale);
+/*
+ * Pixel limits of the allowed plotting area of the screen.  We do the
+ * clipping ourselves because we want to clip the entire vector/barb or not
+ * depending on whether its base falls within the clip area.
+ */
+	pa_left = XPIX (Xlo);
+	pa_right = XPIX (Xhi);
+	pa_bottom = YPIX (Ylo);
+	pa_top = YPIX (Yhi);
+/*
+ * Get the color right.
+ */
+	XSetForeground (Disp, Gcontext, color);
+/*
+ * Time to start plotting.
+ */
+	for (y = 0; y < ydim; y++)
+	{
+		float lat = origin->l_lat + y*lats;
+		for (x = 0; x < xdim; x++)
+		{
+			int px, py;
+			float u = *u_array++, v = *v_array++;
+		/*
+		 * So where the hell are we?
+		 */
+			prj_Project (lat, origin->l_lon + x*lons, &ux, &uy);
+			px = XPIX (ux);
+			py = YPIX (uy);
+		/*
+		 * If we're out of bounds, bail.  Also bail for bad flags.
+		 */
+			if (! BETWEEN (px, pa_left, pa_right) ||
+					! BETWEEN (py, pa_bottom, pa_top) ||
+					u == badvalue || v == badvalue)
+				continue;
+		/*
+		 * Plot this one.
+		 */
+			if (vector)
+				draw_vector (Disp, d, Gcontext, px, py, u, v,
+						unitlen);
+			else
+				draw_barb (Disp, d, Gcontext, px, py,
+						atan2 (-u, -v), hypot (u, v),
+						shaftlen, FALSE);
+		}
+	}
+}
+
+
+
+
+
+
+
+# ifdef notdef
+/*
+ * As far as I can tell, nobody calls these dudes.....
+ */
+void
+VectorGrid (w, d, gc, u_array, v_array, xdim, ydim, xlo, ylo, xhi, yhi, 
 	    vlen, bad, color, degrade)
 Widget	w;
 Drawable 	d;
-GC	Gcontext;
+GC	gc;
 float	*u_array, *v_array;
 int	xdim, ydim, xlo, ylo, xhi, yhi;
 float	vlen, bad;
@@ -165,7 +251,7 @@ int	degrade;
 /*
  * Just call WindGrid, telling it we want vectors
  */
-	WindGrid (w, d, Gcontext, u_array, v_array, xdim, ydim, xlo, ylo, xhi,
+	WindGrid (w, d, gc, u_array, v_array, xdim, ydim, xlo, ylo, xhi,
 		  yhi, vlen, bad, color, degrade, TRUE);
 }
 
@@ -173,11 +259,11 @@ int	degrade;
 
 
 void
-BarbGrid (w, d, Gcontext, u_array, v_array, xdim, ydim, xlo, ylo, xhi, yhi, 
+BarbGrid (w, d, gc, u_array, v_array, xdim, ydim, xlo, ylo, xhi, yhi, 
 	  vlen, bad, color, degrade)
 Widget	w;
 Drawable 	d;
-GC	Gcontext;
+GC	gc;
 float	*u_array, *v_array;
 int	xdim, ydim, xlo, ylo, xhi, yhi;
 float	vlen, bad;
@@ -187,7 +273,7 @@ int	degrade;
 /*
  * Just call WindGrid, telling it we want barbs
  */
-	WindGrid (w, d, Gcontext, u_array, v_array, xdim, ydim, xlo, ylo, xhi,
+	WindGrid (w, d, gc, u_array, v_array, xdim, ydim, xlo, ylo, xhi,
 		  yhi, vlen, bad, color, degrade, FALSE);
 }
-
+# endif /* notdef */

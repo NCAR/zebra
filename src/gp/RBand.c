@@ -36,7 +36,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 
-RCSID("$Id: RBand.c,v 2.12 1995-06-29 23:29:43 granger Exp $")
+RCSID("$Id: RBand.c,v 2.13 1995-08-03 21:00:18 corbet Exp $")
 
 /*
  * Types of things we can rubber band
@@ -101,6 +101,7 @@ static void rb_Init FP((struct ui_command *));
 static void rb_Draw FP((void));
 static void rb_ButtonUp FP((XEvent *));
 static void rb_ButtonDown FP((XEvent *, char *));
+static void rb_GetBoxCoords FP ((int *, int *, int *, int *));
 static void rb_Motion FP((int, int));
 static void rb_PLButtonDown FP((XEvent *, char *));
 static void rb_PLStart FP((XEvent *));
@@ -254,21 +255,14 @@ rb_Draw ()
  * Draw the current object on the screen.
  */
 {
-	int	x, y;
+	int	x, y, width, height;
 
 	switch (RBandType)
 	{
 	    case RBTBox:
-	    /*
-	     * Strange things seem to happen if we draw boxes with negative
-	     * dimensions.  Rearrange the coords if necessary to only draw
-	     * with positive coords.
-	     */
-		x = (RBandX > RBandX0) ? RBandX0 : RBandX;
-		y = (RBandY > RBandY0) ? RBandY0 : RBandY;
-
+		rb_GetBoxCoords (&x, &y, &width, &height);
 		XDrawRectangle (Disp, XtWindow (Graphics), RBandGC, x, y,
-			ABS (RBandX - RBandX0), ABS (RBandY - RBandY0));
+			width, height);
 		break;
 
 	    case RBTLine:
@@ -288,6 +282,44 @@ rb_Draw ()
 		msg_ELog (EF_PROBLEM, "Cannot draw rubber band of type %d",
 			RBandType);
 	}
+}
+
+
+
+
+
+static void
+rb_GetBoxCoords (x, y, width, height)
+int *x, *y, *width, *height;
+/*
+ * Generate proper coordinates for the box.
+ */
+{
+	float aspect = ((float) GWHeight (Graphics))/GWWidth (Graphics);
+	float w, h;
+/*
+ * Strange things seem to happen if we draw boxes with negative
+ * dimensions.  Rearrange the coords if necessary to only draw
+ * with positive coords.
+ */
+	*x = (RBandX > RBandX0) ? RBandX0 : RBandX;
+	*y = (RBandY > RBandY0) ? RBandY0 : RBandY;
+	w = ABS (RBandX - RBandX0);
+	h = ABS (RBandY - RBandY0);
+/*
+ * Force the aspect ratio of the box to match that of the window.  
+ * Also take care to tweak the aspect ratio by the area of the window that
+ * we actually plot.
+ */
+	aspect *= (F_Y1 - F_Y0)/(F_X1 - F_X0);
+	if (w == 0)
+		w = 1; /* No unsightly core dumps, please */
+	if (h/w > aspect)
+		w = h/aspect;
+	else
+		h = w*aspect;
+	*width = (int) w;
+	*height = (int) h;
 }
 
 
@@ -327,6 +359,7 @@ XEvent *event;
  */
 {
 	SValue v;
+	int x, y, w, h;
 /*
  * Pull the object from the screen.
  */
@@ -352,14 +385,15 @@ XEvent *event;
 	    /*
 	     * Save the box corners in the variable table
 	     */
-		v.us_v_int = RBandX > RBandX0 ? RBandX0 : RBandX;
+		rb_GetBoxCoords (&x, &y, &w, &h);
+		v.us_v_int = x;
 		usy_s_symbol (Vtable, "boxx0", SYMT_INT, &v);
-		v.us_v_int = RBandX > RBandX0 ? RBandX : RBandX0;
+		v.us_v_int = x + w;
 		usy_s_symbol (Vtable, "boxx1", SYMT_INT, &v);
 
-		v.us_v_int = RBandY > RBandY0 ? RBandY0 : RBandY;
+		v.us_v_int = y;
 		usy_s_symbol (Vtable, "boxy0", SYMT_INT, &v);
-		v.us_v_int = RBandY > RBandY0 ? RBandY : RBandY0;
+		v.us_v_int = y + h;
 		usy_s_symbol (Vtable, "boxy1", SYMT_INT, &v);
 
 		break;
@@ -794,7 +828,7 @@ rb_PLConvert ()
 	pts = (Location *) malloc (npt * sizeof (Location));
 	for (pt = 0; pt < npt; pt++)
 	{
-		cvt_ToLatLon (XUSER (PL[pt].x), YUSER (PL[pt].y), 
+		prj_Reverse (XUSER (PL[pt].x), YUSER (PL[pt].y), 
 			&pts[pt].l_lat, &pts[pt].l_lon);
 		pts[pt].l_alt = 0;
 	}

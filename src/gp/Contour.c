@@ -32,8 +32,10 @@
 # include "Contour.h"
 # include "ContourP.h"
 # include "DrawText.h"
+# include "PixelCoord.h"
 
-RCSID("$Id: Contour.c,v 2.12 1995-07-10 06:44:04 granger Exp $")
+
+RCSID("$Id: Contour.c,v 2.13 1995-08-03 20:59:37 corbet Exp $")
 
 typedef short	cbool;
 
@@ -69,6 +71,12 @@ static float	Cval;		/* current contour value	*/
 static int	DoLabels;	/* put labels on contours?	*/
 
 /*
+ * Projection-related kludgery.
+ */
+static int Projecting = FALSE;	/* Fancy projection in use?	*/
+static float LatSpacing, LonSpacing;
+static Location Origin;
+/*
  * The polyline
  */
 static int	Nplpts;
@@ -95,8 +103,13 @@ static int	Monoflag;
 /*
  * Forward declarations
  */
-void	CO_MinMax (), CO_DoContours (), CO_DrawContour ();
-void	CO_FollowContour (), CO_FirstPoint (), CO_AddPoint ();
+static void	CO_MinMax FP ((float *, float *));
+static void	CO_DoContours FP ((void));
+static void	CO_DrawContour FP ((void));
+static void	CO_FollowContour FP ((int, int, int));
+static void	CO_FirstPoint FP ((float, float));
+static void	CO_AddPoint FP ((float, float));
+static void	CO_FindXYLoc FP ((int, int, int, int, float *, float *));
 
 /*
  * The size of our drawable
@@ -152,20 +165,6 @@ int	dolabels, linewidth;
 	XGetGeometry (XtDisplay (W), D, &win, &dummy, &dummy, &Dwidth, 
 		&Dheight, &udummy, &udummy);
 /*
- * Build arrays for index -> location lookups
- */
-	Xinc = (float)(xhi - xlo) / (Nx - 1);
-	Yinc = (float)(yhi - ylo) / (Ny - 1);
-
-	Xpos = (float *) malloc (Nx * sizeof (float));
-	Ypos = (float *) malloc (Ny * sizeof (float));
-
-	for (i = 0; i < Nx; i++)
-		Xpos[i] = xlo + Xinc * i;
-
-	for (i = 0; i < Ny; i++)
-		Ypos[i] = ylo + Yinc * i;
-/*
  * Traverse the array to find the min and max
  */
 	CO_MinMax (&min, &max);
@@ -173,8 +172,6 @@ int	dolabels, linewidth;
 	{
 		msg_ELog (EF_INFO,
 			"Constant surface in contour, nothing drawn");
-		free (Xpos);
-		free (Ypos);
 		return;
 	}
 /*
@@ -203,7 +200,7 @@ int	dolabels, linewidth;
 		linewidth = 0;
 	XSetLineAttributes (XtDisplay (W), ContourGC, linewidth, LineSolid, 
 			    CapButt, JoinMiter);
-	XSetClipRectangles(XtDisplay (W), ContourGC, 0, 0, &Clip, 1, Unsorted);
+	XSetClipRectangles (XtDisplay (W), ContourGC, 0, 0, &Clip, 1,Unsorted);
 /*
  * Sanity test
  */
@@ -213,9 +210,23 @@ int	dolabels, linewidth;
 			  "Contour: %s (%d). Limit is %d. Nothing drawn.",
 			  "Too many contours", cndx_max - cndx_min + 1, 
 			  CFG_GP_MAX_CONTOURS);
-		free (Xpos);
-		free (Ypos);
 		return;
+	}
+/*
+ * Build arrays for index -> location lookups
+ */
+	if (! Projecting)
+	{
+		Xinc = (float)(xhi - xlo) / (Nx - 1);
+		Yinc = (float)(yhi - ylo) / (Ny - 1);
+		
+		Xpos = (float *) malloc (Nx * sizeof (float));
+		Ypos = (float *) malloc (Ny * sizeof (float));
+
+		for (i = 0; i < Nx; i++)
+			Xpos[i] = xlo + Xinc * i;
+		for (i = 0; i < Ny; i++)
+			Ypos[i] = ylo + Yinc * i;
 	}
 /*
  * Loop through the contour values
@@ -285,8 +296,11 @@ int	dolabels, linewidth;
 /*
  * Release the allocated space
  */
-	free (Xpos);
-	free (Ypos);
+	if (! Projecting)
+	{
+		free (Xpos);
+		free (Ypos);
+	}
 }
 
 
@@ -313,6 +327,7 @@ double	flagval;
  * FLAGVAL	the bad value used to identify flagged data
  */
 {
+	Projecting = FALSE;	/* One can always hope */
 /*
  * Center color index and number of colors.
  */
@@ -358,6 +373,7 @@ double	flagval;
  * FLAGVAL	the bad value used to identify flagged data
  */
 {
+	Projecting = FALSE;	/* One can always hope */
 /*
  * Set the monochrome flag to true and save the color.
  */
@@ -378,6 +394,25 @@ double	flagval;
 
 
 void
+CO_ProjSetup (origin, lats, lons)
+Location *origin;
+float lats, lons;
+/*
+ * We're doing projection, so get set up to do it.  This guy needs to
+ * be called after one of the CO_*Init functions.
+ */
+{
+	Projecting = TRUE;
+	Origin = *origin;
+	LatSpacing = lats;
+	LonSpacing = lons;
+}
+
+
+
+
+
+static void
 CO_MinMax (min, max)
 float	*min, *max;
 /*
@@ -430,7 +465,7 @@ float	*min, *max;
 
 
 
-void
+static void
 CO_DoContours ()
 /*
  * Contour the array.
@@ -533,7 +568,7 @@ CO_DoContours ()
 
 
 
-void
+static void
 CO_FollowContour (ix, iy, iseg)
 int	ix, iy, iseg;
 /*
@@ -565,21 +600,7 @@ int	ix, iy, iseg;
 /*
  * Get the first point
  */
-	if (idx != 0)
-	{
-		y = Ypos[iy];
-		x = Xpos[ix] + 
-			Xinc * idx * 
-			FRAC (ZVAL (ix, iy), ZVAL (ix + idx, iy));
-	}
-	else
-	{
-		x = Xpos[ix];
-		y = Ypos[iy] +
-			Yinc * idy * 
-			FRAC (ZVAL (ix, iy), ZVAL (ix, iy + idy));
-	}
-
+	CO_FindXYLoc (ix, iy, idx, idy, &x, &y);
 	CO_FirstPoint (x, y);
 	first = TRUE;
 /*
@@ -622,7 +643,7 @@ int	ix, iy, iseg;
 				ix = ix2;
 				iy = iy2;
 			}
-			else if ((iseg / 2 * 2) == iseg)
+			else if ((iseg % 2) == 0)
 				break;
 		}
 	/*
@@ -659,21 +680,10 @@ int	ix, iy, iseg;
 	/*
 	 * Find the (x,y) location of the point
 	 */
-		if (idx != 0)
-		{
-			y = Ypos[iy];
-			x = Xpos[ix] + 
-				Xinc * idx * 
-				FRAC (ZVAL (ix, iy), ZVAL (ix + idx, iy));
-		}
-		else
-		{
-			x = Xpos[ix];
-			y = Ypos[iy] +
-				Yinc * idy * 
-				FRAC (ZVAL (ix, iy), ZVAL (ix, iy + idy));
-		}
-
+		CO_FindXYLoc (ix, iy, idx, idy, &x, &y);
+	/*
+	 * Dump out an old contour if need be, then save this new point.
+	 */
 		if (draw)
 		{
 			if (! drawprev)
@@ -709,7 +719,64 @@ int	ix, iy, iseg;
 
 
 
-void
+
+static void
+CO_FindXYLoc (ix, iy, idx, idy, x, y)
+int ix, iy, idx, idy;
+float *x, *y;
+/*
+ * Turn this set of indices and offsets into a pixel location.
+ */
+{
+/*
+ * This calculation seems a little strange, in that it would appear to
+ * ignore the diagonal cases when both of id[xy] are nonzero.  Only the
+ * "even" cases (with one of them zero) are actually used to draw
+ * contours, however.
+ *
+ * If projection is in use, we have to do this the slow way.
+ */
+	if (Projecting)
+	{
+		float lat = Origin.l_lat + iy*LatSpacing;
+		float lon = Origin.l_lon + ix*LonSpacing;
+		if (idx != 0)
+			prj_Project (lat, lon + idx*LonSpacing*
+				 FRAC(ZVAL(ix, iy), ZVAL(ix+idx, iy)), x, y);
+		else
+			prj_Project (lat + idy*LatSpacing*
+				 FRAC(ZVAL(ix, iy), ZVAL(ix, iy+idy)), lon,
+				 x, y);
+		*x = XPIX (*x);
+		*y = YPIX (*y);
+	}
+/*
+ * The non-projecting case uses the constant, predefined positions.
+ */
+	else
+	{
+		if (idx != 0)
+		{
+			*y = Ypos[iy];
+			*x = Xpos[ix] + 
+				 Xinc * idx * 
+				 FRAC (ZVAL (ix, iy), ZVAL (ix + idx, iy));
+		}
+		else
+		{
+			*x = Xpos[ix];
+			*y = Ypos[iy] +
+				 Yinc * idy * 
+				 FRAC (ZVAL (ix, iy), ZVAL (ix, iy + idy));
+		}
+	}
+}
+
+
+
+
+
+static void
 CO_FirstPoint (x, y)
 float	x, y;
 /*
@@ -723,7 +790,7 @@ float	x, y;
 
 
 
-void
+static void
 CO_AddPoint (x, y)
 float	x, y;
 /*
@@ -748,7 +815,7 @@ float	x, y;
 
 
 
-void
+static void
 CO_DrawContour ()
 /*
  * Draw the contour polyline which has been built

@@ -38,7 +38,7 @@
 # include "AxisControl.h"
 # include "ActiveArea.h"
 
-MAKE_RCSID ("$Id: PlotExec.c,v 2.45 1995-06-29 23:29:31 granger Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.46 1995-08-03 21:00:08 corbet Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -138,7 +138,7 @@ char *	px_NumberToName FP ((int, name_to_num *));
 void	px_Init FP ((void));
 void	px_AddComponent FP ((char *, int));
 void	px_AdjustCoords FP ((float *, float *, float *, float *));
-static bool px_GetCoords FP ((void));
+static int px_GetCoords FP ((void));
 
 /*
  * To distinguish between missing capability and uncompiled capability in the
@@ -500,40 +500,29 @@ ZebTime *cachetime;
 
 
 
-static bool
+static int
 px_GetCoords ()
 {
 	bool ok, expand;
-	float lat, lon;
 	int axisSpace;
 	AxisSide side;
 	char param[32];
 /*
- * Get the origin and plot limits
+ * Get CAP-oriented limits if need be.
  */
-	ok = pda_ReqSearch (Pd, "global", "origin-lat", NULL, CPTR (lat), 
-		SYMT_FLOAT);
-	ok &= pda_ReqSearch (Pd, "global", "origin-lon", NULL, CPTR (lon), 
-		SYMT_FLOAT);
-	ok &= pda_ReqSearch (Pd, "global", "x-min", NULL, CPTR (Xlo), 
-		SYMT_FLOAT);
-	ok &= pda_ReqSearch (Pd, "global", "x-max", NULL, CPTR (Xhi), 
-		SYMT_FLOAT);
-	ok &= pda_ReqSearch (Pd, "global", "y-min", NULL, CPTR (Ylo), 
-		SYMT_FLOAT);
-	ok &= pda_ReqSearch (Pd, "global", "y-max", NULL, CPTR (Yhi), 
-		SYMT_FLOAT);
-	if (! ok)
+	if ((PlotType == PT_CAP || PlotType == PT_XSECT) && ! prj_Setup ())
 		return (FALSE);
 /*
  * Initialize plot altitude
  */
 	alt_Initialize ();
+# ifdef notdef
 /*
  * Save the origin
  */
 	if (! cvt_Origin (lat, lon))
 		return (FALSE);
+# endif
 /*
  * Get layout parameters for use in conjunction with "LayoutControl"
  * routines

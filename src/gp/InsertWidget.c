@@ -43,7 +43,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 
-RCSID("$Id: InsertWidget.c,v 1.8 1995-06-29 23:28:50 granger Exp $")
+RCSID("$Id: InsertWidget.c,v 1.9 1995-08-03 20:59:54 corbet Exp $")
 
 # define PI		3.141592654
 # define STRLEN		40
@@ -1094,7 +1094,7 @@ YesInsertLine ()
 						sizeof (Location));
 			    for (i = 0; i < N_OLSeg + 1; i++)
 			    {
-				cvt_ToLatLon (XUSER (OL[i].x), YUSER (OL[i].y),
+				prj_Reverse (XUSER (OL[i].x), YUSER (OL[i].y),
 					&pts[i].l_lat, &pts[i].l_lon);
 				pts[i].l_alt = 0;	
 			    }
@@ -1114,7 +1114,7 @@ YesInsertLine ()
 			 */
 			    if (Point.x != -9999 || Point.y != -9999)
 			    {
-			    	cvt_ToLatLon (XUSER (Point.x), YUSER (Point.y),
+			    	prj_Reverse (XUSER (Point.x), YUSER (Point.y),
 					&center.l_lat, &center.l_lon);
 
 			    	sprintf (temp, "%.2f", center.l_lat); 
@@ -1272,7 +1272,7 @@ YesInsertLoc ()
 					break;
 				    }
 				    cvt_Origin (origin.l_lat, origin.l_lon);
-				    cvt_ToLatLon (XUSER (atof (LocLatX)),
+				    prj_Reverse (XUSER (atof (LocLatX)),
 					YUSER (atof (LocLonY)), 
 					&DataLocation.l_lat, 
 					&DataLocation.l_lon);
@@ -1295,7 +1295,7 @@ YesInsertLoc ()
 			 * Get the data out of the picked point.
 			 */
 				SetHelp ("Location entered by pointer.");
-			    	cvt_ToLatLon (XUSER (Point.x), YUSER (Point.y),
+			    	prj_Reverse (XUSER (Point.x), YUSER (Point.y),
 					&DataLocation.l_lat, 
 					&DataLocation.l_lon);
 				DataLocation.l_alt = 0.0;
@@ -1537,7 +1537,7 @@ YesChangeLine ()
                                                 sizeof (Location));
                             for (i = 0; i < N_OLSeg + 1; i++)
                             {
-                                cvt_ToLatLon (XUSER (OL[i].x), YUSER (OL[i].y),
+                                prj_Reverse (XUSER (OL[i].x), YUSER (OL[i].y),
                                         &pts[i].l_lat, &pts[i].l_lon);
                                 pts[i].l_alt = 0;
                             }
@@ -1557,7 +1557,7 @@ YesChangeLine ()
                          */
                             if (Point.x != -9999 || Point.y != -9999)
                             {
-                                cvt_ToLatLon (XUSER (Point.x), YUSER (Point.y),
+                                prj_Reverse (XUSER (Point.x), YUSER (Point.y),
                                         &center.l_lat, &center.l_lon);
 
                                 sprintf (temp, "%.2f", center.l_lat);
@@ -1746,7 +1746,7 @@ YesChangeLoc ()
                                         break;
                                     }
                                     cvt_Origin (origin.l_lat, origin.l_lon);
-                                    cvt_ToLatLon (XUSER (atof (LocLatX)),
+                                    prj_Reverse (XUSER (atof (LocLatX)),
                                         YUSER (atof (LocLonY)), 
                                         &DataLocation.l_lat, 
                                         &DataLocation.l_lon);
@@ -1769,7 +1769,7 @@ YesChangeLoc ()
                          * Get the data out of the picked point.
                          */
                                 SetHelp ("Location entered by pointer.");
-                                cvt_ToLatLon (XUSER (Point.x), YUSER (Point.y),
+                                prj_Reverse (XUSER (Point.x), YUSER (Point.y),
                                         &DataLocation.l_lat, 
                                         &DataLocation.l_lon);
                                 DataLocation.l_alt = 0.0;

@@ -37,7 +37,7 @@
 # include "PixelCoord.h"
 # include "GraphProc.h"
 
-RCSID ("$Id: PositionWidget.c,v 1.19 1995-06-29 23:29:40 granger Exp $")
+RCSID ("$Id: PositionWidget.c,v 1.20 1995-08-03 21:00:12 corbet Exp $")
 
 # define PI 3.141592654
 # define MAXORG 20
@@ -75,18 +75,6 @@ static XtActionsRec pw_Actions[] =
 };
 
 
-#ifdef notdef /* not used */
-static void
-pw_PosPopdown (w, junk1, junk2)
-Widget 	w; 
-int 	junk1, junk2;
-/*
- * Pop down this widget.
- */
-{
-	uw_popdown ("position");
-}
-#endif
 
 
 void
@@ -320,7 +308,7 @@ pw_PosDisplay ()
 /*
  * Calculate the lat/lon
  */
-	cvt_ToLatLon (XUSER(x), YUSER(y), &lat, &lon);
+	prj_Reverse (XUSER(x), YUSER(y), &lat, &lon);
 	if (DegMinSec)
 	{
 		int	latdeg, latmin, latsec, londeg, lonmin, lonsec;
@@ -381,7 +369,7 @@ pw_PosDisplay ()
 /*
  * Calculate range and azimuth
  */
-	cvt_ToXY (loc.l_lat, loc.l_lon, &ox, &oy);
+	prj_Project (loc.l_lat, loc.l_lon, &ox, &oy);
 	subx = (double) (XUSER(x) - ox);
 	suby = (double) (YUSER(y) - oy);
 

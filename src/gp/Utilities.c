@@ -31,7 +31,7 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 
-MAKE_RCSID ("$Id: Utilities.c,v 2.34 1995-07-16 15:12:30 granger Exp $")
+MAKE_RCSID ("$Id: Utilities.c,v 2.35 1995-08-03 21:00:28 corbet Exp $")
 
 /*
  * Rules for image dumping.  Indexed by keyword number in GraphProc.state
@@ -522,8 +522,8 @@ double x, y;
 {
 	float xpos, ypos;
 
-	cvt_ToXY (loc->l_lat, loc->l_lon, &xpos, &ypos);
-	cvt_ToLatLon (xpos + x, ypos + y, &loc->l_lat, &loc->l_lon);
+	prj_Project (loc->l_lat, loc->l_lon, &xpos, &ypos);
+	prj_Reverse (xpos + x, ypos + y, &loc->l_lat, &loc->l_lon);
 }
 
 
@@ -1076,4 +1076,57 @@ ZebTime		*dtime;
 	}
 
 	return (1);
+}
+
+
+
+
+int
+GetLLSpacings (dc, latspacing, lonspacing)
+DataChunk *dc;
+float *latspacing, *lonspacing;
+/*
+ * Attempt to get the spacings from this grid DC.
+ */
+{
+	float *spacings, lat1, lon1, x0, y0;
+	FieldId *fids;
+	int nv;
+	DC_ElemType type;
+	Location origin;
+	RGrid rg;
+/*
+ * If it's not an rgrid, we don't even try.
+ */
+	if (! dc_IsSubClassOf (dc_Class (dc), DCC_RGrid))
+	{
+		msg_ELog (EF_PROBLEM, "GetLLSpacings on non-rgrid DC");
+		return (FALSE);
+	}
+/*
+ * Look for our special attribute.
+ */
+	spacings = (float *) dc_GetGlobalAttrArray (dc, ATTR_LATLON, &type,
+			&nv);
+	if (spacings)
+	{
+		*latspacing = spacings[0];
+		*lonspacing = spacings[1];
+		return (TRUE);
+	}
+/*
+ * Nope, no such luck.  Just calculate our best guess and return that.  Start
+ * by extracting the required info from the data chunk.
+ */
+	fids = dc_GetFields (dc, NULL);
+	(void) dc_RGGetGrid (dc, 0, fids[0], &origin, &rg, NULL);
+/*
+ * Project the origin and one cell away in each direction, and take the
+ * difference as the spacing.
+ */
+	prj_Project (origin.l_lat, origin.l_lon, &x0, &y0);
+	prj_Reverse (x0 + rg.rg_Xspacing, y0 + rg.rg_Yspacing, &lat1, &lon1);
+	*latspacing = lat1 - origin.l_lat;
+	*lonspacing = lon1 - origin.l_lon;
+	return (TRUE);
 }

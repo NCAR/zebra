@@ -36,7 +36,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID("$Id: Lightning.c,v 2.10 1995-06-29 23:29:06 granger Exp $")
+RCSID("$Id: Lightning.c,v 2.11 1995-08-03 20:59:56 corbet Exp $")
 
 extern Pixel	White;
 
@@ -158,7 +158,7 @@ bool update;
 	/*
 	 * Locate this point.
 	 */
-		cvt_ToXY (loc.l_lat, loc.l_lon, &fx, &fy);
+		prj_Project (loc.l_lat, loc.l_lon, &fx, &fy);
 		x = XPIX (fx); 
 		y = YPIX (fy);
 	/*

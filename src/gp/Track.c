@@ -44,7 +44,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: Track.c,v 2.35 1995-06-29 23:29:53 granger Exp $")
+RCSID ("$Id: Track.c,v 2.36 1995-08-03 21:00:24 corbet Exp $")
 
 # define ARROWANG .2618 /* PI/12 */
 # ifndef M_PI
@@ -286,7 +286,7 @@ bool update;
 		dc_GetTime (dc, i, &zt);
 		if ((loc.l_lat == badvalue) || (loc.l_lon == badvalue))
 			continue;
-		cvt_ToXY (loc.l_lat, loc.l_lon, &fx, &fy);
+		prj_Project (loc.l_lat, loc.l_lon, &fx, &fy);
 		x1 = XPIX (fx); y1 = YPIX (fy);
 	/*
 	 * Draw arrows if necessary.  Get the time of the sample, and see
@@ -774,9 +774,9 @@ int *justify;		/* Justification to use for annotation */
 	if (samp0 >= 0)
 	{
 		dc_GetTime (dc, samp0, &t0);
-		cvt_ToXY (loc0.l_lat, loc0.l_lon, &fx0, &fy0);
+		prj_Project (loc0.l_lat, loc0.l_lon, &fx0, &fy0);
 		if (samp1 >= 0)
-			cvt_ToXY (loc1.l_lat, loc1.l_lon, &fx1, &fy1);
+			prj_Project (loc1.l_lat, loc1.l_lon, &fx1, &fy1);
 	/*
 	 * If the time of the given sample equals the desired annot time,
 	 * we use the sample's location

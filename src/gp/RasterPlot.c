@@ -28,8 +28,9 @@
 # include <message.h>
 # include <GraphicsW.h>
 # include "GraphProc.h"
+# include "PixelCoord.h"
 
-RCSID ("$Id: RasterPlot.c,v 2.20 1995-07-21 18:07:05 granger Exp $")
+RCSID ("$Id: RasterPlot.c,v 2.21 1995-08-03 21:00:21 corbet Exp $")
 
 # ifdef TIMING
 # include <sys/time.h>
@@ -50,11 +51,6 @@ static char *shmopt[2] = { "$XShm: Compiled $", (char *)shmopt };
 # else
 static char *shmopt[2] = { "$XShm: NOT Compiled $", (char *)shmopt };
 # endif /* SHM */
-
-/*
- * A macro to reference the data array two dimensionally
- */
-# define DATA(i,j)	array[(i) * ydim + (j)]
 
 /*
  * Color stuff
@@ -78,6 +74,15 @@ static float	Datamin, Datamax, Datarange;
  * Clipping rectangle
  */
 static XRectangle	Clip;
+
+/*
+ * Useful macros.
+ */
+# define MIN(x, y) (((x) < (y)) ? (x) : (y))
+# define MAX(x, y) (((x) > (y)) ? (x) : (y))
+# define WRAPLON(l) (((l) > 180.0) ? ((l) - 360) : (l))
+# define DEG_TO_RAD(x)	((x)*0.017453292)
+# define KM_TO_DEG(x)	((x)*0.008982802) /* on a great circle */
 
 /*
  * Kludgery of sorts: some of the raster code uses "fake floats" -- 32-bit
@@ -132,6 +137,14 @@ static void RP_ImageRasterize FP ((unsigned char *ximp,
 				   double rowinc, double colinc,
 				   int xdim, int ydim, int pad));
 
+static void RP_MakeColorMap FP ((float, float, unsigned char *));
+# ifdef MAP_PROJECTIONS
+static void RP_SlowImagePlot FP ((Widget, int, unsigned char *, float, float,
+		Location *, RGrid *, unsigned char *));
+# endif
+static void RP_FindLimits FP ((Location *, float, int, float, int, int*,
+		int *, int *, int *));
+
 static int RasterLimits FP ((int xdim, int ydim, int *xlo, int *ylo, int *xhi, 
 			     int *yhi, int *width_out, int *height_out,
 			     float *colinc_out, float *rowinc_out,
@@ -146,26 +159,42 @@ static XImage *RP_GetSharedXImage FP ((Widget w, int width, int height));
 
 
 
-void
-RasterPlot (w, d, array, xdim, ydim, xlo, ylo, xhi, yhi)
-Widget	w;
-Drawable d;
-float	*array;
-int	xdim, ydim;
-int	xlo, ylo, xhi, yhi;
+static void
+RP_LLToXPoint (lat, lon, xp)
+float lat, lon;
+XPoint *xp;
 /*
- * Draw contours of the rectangular (xdim x ydim) array into widget w.
- * The coordinates (xlo,ylo) and (xhi,yhi) specify the spatial extent of
- * the array in pixel coordinates.
+ * Convert a lat/lon into an xpoint structure.
  */
 {
-	int		dummy, r_color, xpos, ypos, i, j;
-	unsigned int	dwidth, dheight, udummy;
-	Window		win;
-	float		y0, yinc, fypos, cscale;
-	int		eheight, ewidth;
-	GC		gcontext;
-	XGCValues	gcvals;
+	float ux, uy;
+
+	prj_Project (lat, lon, &ux, &uy);
+	xp->x = XPIX (ux);
+	xp->y = YPIX (uy);
+}
+
+
+
+void
+RasterPlot (dc, origin, array, xdim, ydim)
+DataChunk *dc;
+Location *origin;
+float	*array;
+int	xdim, ydim;
+/*
+ * Draw contours of the rectangular (xdim x ydim) array into widget w.
+ *
+ * 7/95 jc:	This routine has been completely rethrashed to do projection,
+ *		meaning that it is even slower than before.  Since nobody
+ *		used it before, that is OK, I suppose.  Eventually we will
+ *		be able to deal with rotated grids here too.
+ */
+{
+	Drawable d = GWFrame (Graphics);
+	int		r_color, i, j;
+	float		y0, cscale, lats, lons, xpos, ypos, badval;
+	XPoint 	points[4];
 
 # ifdef TIMING
 	int msec;
@@ -176,72 +205,74 @@ int	xlo, ylo, xhi, yhi;
 			(ru.ru_stime.tv_sec + ru.ru_utime.tv_sec)*1000);
 # endif
 /*
- * Find the size of the drawable
+ * setup stuff.
  */
-	XGetGeometry (XtDisplay (w), d, &win, &dummy, &dummy, &dwidth, 
-		&dheight, &udummy, &udummy);
-/*
- * Get a graphics context
- */
-	gcontext = XCreateGC (XtDisplay (w), XtWindow (w), 0, &gcvals);
-	XSetClipRectangles (XtDisplay (w), gcontext, 0, 0, &Clip, 1, 
-		Unsorted);
-/*
- * Find out the height and width for one element
- */
-	ewidth = (int)(fabs ((float)(xhi - xlo) / (float)(xdim - 1)) + 1.0);
-	eheight = (int)(fabs ((float)(yhi - ylo) / (float)(ydim - 1)) + 1.0);
+	badval = dc_GetBadval (dc);
+	GetLLSpacings (dc, &lats, &lons);
+	SetClip (FALSE);
 /*
  * Figure some quantities to take stuff out of the loop.
  */
-	y0 = ylo + 0.5 / (float)(ydim - 1) * (yhi - ylo) + 0.5;
-	yinc = (yhi - ylo) / (float)(ydim - 1);
+	y0 = origin->l_lat - 0.5*lats;
 	cscale = Ncolor/Datarange;
 /*
  * Loop through the array points
  */
 	for (i = 0; i < xdim; i++)
 	{
-		xpos = (int)(xlo + (i - 0.5) / (float)(xdim - 1) * 
-			(xhi - xlo) + 0.5);
-
-		fypos = y0 - yinc;
+		float ux, uy;
+	/*
+	 * Get the position of the left side of the column, and project the
+	 * bottom two points.
+	 */
+		xpos = origin->l_lon + (i - 0.5)*lons;
+		RP_LLToXPoint (y0, xpos, points + 2);
+		RP_LLToXPoint (y0, xpos + lons, points + 3);
+	/*
+	 * Now we move up the column making polygons.
+	 */
+		ypos = y0;
 		for (j = 0; j < ydim; j++)
 		{
-			ypos = (int) (fypos += yinc);
+		/*	float dval = array[i*ydim + j]; */
+			float dval = array[i + j*xdim];
+		/*
+		 * Shift down the two lower corners, and figure the two
+		 * new upper corners.  Swap them so that we describe the
+		 * right path around the polygon.
+		 */
+			ypos += lats;
+			points[1] = points[2];
+			points[0] = points[3];
+			RP_LLToXPoint (ypos, xpos, points + 2);
+			RP_LLToXPoint (ypos, xpos + lons, points + 3);
+		/*
+		 * If this is a bad point just drop it.
+		 */
+			if (dval == badval)
+				continue;
 		/*
 		 * Find the correct color and get a graphics context
 		 * with the color in the foreground
 		 */
-			if (Highlight 
-			   && (DATA (j, i) <= (HValue + HRange/2.0))
-			   && (DATA (j, i) >= (HValue - HRange/2.0)))
-				XSetForeground (XtDisplay (w), gcontext, 
-					HColor.pixel);
+			if (Highlight && (dval <= (HValue + HRange/2.0))
+				      && (dval >= (HValue - HRange/2.0)))
+				FixForeground (HColor.pixel);
 			else
 			{
-				r_color = (int) (cscale * (DATA (j, i) - 
-					Datamin));
-
+				r_color = (int) (cscale * (dval - Datamin));
 				if (r_color >= 0 && r_color < Ncolor)
-					XSetForeground (XtDisplay (w), 
-					   gcontext, Colors[r_color].pixel);
+					FixForeground (Colors[r_color].pixel);
 				else
-					XSetForeground (XtDisplay (w), 
-					   gcontext, Color_outrange.pixel);
+					FixForeground (Color_outrange.pixel);
 			}
 		/*
-		 * Draw a rectangle for this point
+		 * Draw a polygon for this point
 		 */
-			XFillRectangle (XtDisplay (w), d, gcontext, xpos,
-				ypos, ewidth, eheight);
+			XFillPolygon (Disp, d, Gcontext, points, 4, Convex,
+					CoordModeOrigin);
 		}
 	}
-/*
- * Free the GC
- */
-	XFreeGC (XtDisplay (w), gcontext);
-
 # ifdef TIMING
 	getrusage (RUSAGE_SELF, &ru);
 	msec += (ru.ru_stime.tv_usec + ru.ru_utime.tv_usec)/1000 +
@@ -450,7 +481,7 @@ Drawable d;
 float	*array;
 int	xdim, ydim;
 int	xlo, ylo, xhi, yhi;
-bool	fast;
+bool	fast; /* not used any more */
 /*
  * Draw a raster image of rectangular (xdim x ydim) array into widget w.
  * The coordinates (xlo,ylo) and (xhi,yhi) specify the centers of the
@@ -534,11 +565,7 @@ bool	fast;
 		image = RP_GetXImage (w, width, height);
 
 	ximp = (unsigned char *) image->data;
-	if (fast)
-		RP_IRasterize (ximp, width, height, colgrid, toprow, leftcol,
-		   rowinc, colinc, xdim, ydim, image->bytes_per_line - width);
-	else
-		RP_FPRasterize (ximp, width, height, colgrid, toprow, leftcol,
+	RP_IRasterize (ximp, width, height, colgrid, toprow, leftcol,
 		   rowinc, colinc, xdim, ydim, image->bytes_per_line - width);
 /*
  * Now we ship over the image, and deallocate everything.
@@ -563,57 +590,6 @@ bool	fast;
 # endif
 }
 
-
-
-
-static void
-RP_FPRasterize (ximp, width, height, colgrid, row, icol, rowinc, colinc,
-		xdim, ydim, pad)
-unsigned char	*ximp;
-int 		width, height;
-unsigned int 	*colgrid;
-float 		row, icol, rowinc, colinc;
-int 		xdim, ydim, pad;
-/*
- * Do rasterization using the old floating point (Ardent vectorizable) 
- * method.
- */
-{
-	int i, j;
-	float col;
-
-#ifdef DEBUG
-	msg_ELog (EF_INFO, "entering FPRasterize");
-#endif
-	for (i = 0; i < height; i++)
-	{
-		unsigned int *cp = colgrid + ((int) row) * xdim;
-#ifdef DEBUG
-		/*
-		 * It is very possible that the last (bottom) row will be
-		 * slightly less than zero due to precision errors.  But
-		 * fortunately such coords will still trunc to zero, so it's
-		 * not really a problem. 
-		 */
-		if (row < 0 || (int)row >= ydim)
-			msg_ELog (EF_PROBLEM, "FPRaster: row %f out of bounds",
-				  row);
-#endif
-		col = icol;
-		for (j = 0; j < width - 1; j++)
-		{
-			*ximp++ = cp[(int)col];
-			col += colinc;
-		}
-		*ximp++ = cp[(int)col];
-		row += rowinc;
-		ximp += pad;	/* End of raster line padding.	*/
-	}
-#ifdef DEBUG
-	if (height && (int)col >= xdim)
-		msg_ELog (EF_PROBLEM, "FPRaster: col %f out of bounds", col);
-#endif
-}
 
 
 
@@ -836,12 +812,14 @@ int		xdim, ydim, pad;
 
 
 void
-RasterImagePlot (w, frame, grid, xd, yd, xlo, ylo, xhi, yhi, scale, bias)
+RasterImagePlot (w, frame, grid, xd, yd, xlo, ylo, xhi, yhi, scale, bias,
+		loc, rg)
 Widget		w;
-int 		frame;
 unsigned char 	*grid;
-int 		xd, yd, xlo, ylo, xhi, yhi;
+int 		frame, xd, yd, xlo, ylo, xhi, yhi;
 float 		scale, bias;
+Location *loc;
+RGrid *rg;
 /*
  * Plot the  (xd x yd) raster image into widget w.
  * The coordinates (xlo,ylo) and (xhi,yhi) specify the centers of the
@@ -851,14 +829,28 @@ float 		scale, bias;
  */
 {
 	unsigned char *destimg, cmap[256];
-	int c, rcolor, width, height;
-	float cscale = Ncolor/Datarange;
-	float toprow, leftcol, bottomrow, rightcol;
-	float rowinc, colinc;
+	int width, height;
+	float toprow, leftcol, rowinc, colinc, bottomrow, rightcol;
 	GC gcontext;
 	XGCValues gcvals;
 	Display *disp = XtDisplay(w);
 	XImage *image;
+/*
+ * Go through and make the color map.
+ */
+	RP_MakeColorMap (scale, bias, cmap);
+
+# ifdef MAP_PROJECTIONS
+/*
+ * Kludgery.  If (1) we are using a fancy map projection, and (2) this is
+ * 	      a "big" image, go off and do it the slow way.
+ */
+	if (prj_FancyProjection () && (rg->rg_Xspacing*rg->rg_nX) > 1000)
+	{
+		RP_SlowImagePlot (w, frame, grid, scale, bias, loc, rg, cmap);
+		return;
+	}
+# endif
 /*
  * Columns per pixel and rows per pixel.  We use (xd - 1) and (yd - 1)
  * here since our pixel limits refer to the *centers* of the edge grid 
@@ -931,33 +923,10 @@ float 		scale, bias;
 	if (fabs(rowinc) < 0.00001 || fabs(colinc) < 0.00001)
 		return;
 /*
- * Go through and make the color map.
- */
-	for (c = 0; c <= 254; c++)
-	{
-		if (Highlight 
-		   && ((c*scale + bias) <= (HValue + HRange/2.0)) 
-		   && ((c*scale + bias) >= (HValue - HRange/2.0)))
-			cmap[c] = HColor.pixel;
-		else
-		{
-			rcolor = (int) (cscale*(c*scale + bias - Datamin));
-			cmap[c] = (rcolor >= 0 && rcolor < Ncolor) ? 
-				Colors[rcolor].pixel : Color_outrange.pixel;
-		}
-	}
-	cmap[255] = Color_outrange.pixel;
-/*
- * Get a graphics context
- */
-	gcontext = XCreateGC( disp, XtWindow(w), 0, &gcvals);
-	XSetClipRectangles( disp, gcontext, 0, 0, &Clip, 1, Unsorted);
-/*
  * Find the image space and start rasterizing.  Also force a sync with 
  * the server; things could happen in the wrong order otherwise.
  */
 	eq_sync ();
-
 # ifdef SHM
 	/*
 	 * The raster image will be written directly to the 
@@ -977,22 +946,63 @@ float 		scale, bias;
 	else
 # endif
 	{
+	/*
+	 * Get a graphics context
+	 */
+		gcontext = XCreateGC( disp, XtWindow(w), 0, &gcvals);
+		XSetClipRectangles( disp, gcontext, 0, 0, &Clip, 1, Unsorted);
+	/*
+	 * Get an XImage, fill it, and stuff it in.
+	 */
 		image = RP_GetXImage(w, width, height);
 		RP_ImageRasterize ((unsigned char *)(image->data), 
 				   width, height, grid, cmap, toprow, leftcol,
 				   rowinc, colinc, xd, yd,
 				   image->bytes_per_line - width);
-		/*
-		 * Now send our local XImage to the server
-	 	 */
+	/*
+	 * Now send our local XImage to the server
+	 */
 		XPutImage(disp, GWFrame(w), gcontext, image, 0, 0,
 			  xlo, yhi, width, height);
+		XFreeGC(disp, gcontext);
 	}
-	XFreeGC(disp, gcontext);
 /*
  * Done!
  */
 }
+
+
+
+
+
+static void
+RP_MakeColorMap (scale, bias, cmap)
+float scale, bias;
+unsigned char *cmap;
+/*
+ * Create the data->color map.
+ */
+{
+	int c, rcolor;
+	float cscale = Ncolor/Datarange;
+
+	for (c = 0; c <= 254; c++)
+	{
+		if (Highlight 
+		   && ((c*scale + bias) <= (HValue + HRange/2.0)) 
+		   && ((c*scale + bias) >= (HValue - HRange/2.0)))
+			cmap[c] = HColor.pixel;
+		else
+		{
+			rcolor = (int) (cscale*(c*scale + bias - Datamin));
+			cmap[c] = (rcolor >= 0 && rcolor < Ncolor) ? 
+				Colors[rcolor].pixel : Color_outrange.pixel;
+		}
+	}
+	cmap[255] = Color_outrange.pixel;
+}
+
+
 
 
 
@@ -1051,4 +1061,283 @@ int		xdim, ydim, pad;
 		msg_ELog (EF_PROBLEM, "Image: col %f out of bounds",*s_col);
 #endif
 }
+
+
+
+# ifdef MAP_PROJECTIONS
+
+static void
+RP_SlowImagePlot (w, frame, grid, scale, bias, loc, rg, cmap)
+Widget w;
+int frame;
+unsigned char *cmap, *grid;
+float scale, bias;
+Location *loc;
+RGrid *rg;
+/*
+ * Deal with image plotting the slow way -- needed when map projections
+ * are in use.
+ */
+{
+	float olat, olon, latstep, lonstep, lat, lon;
+	int shm, nx = rg->rg_nX, ny = rg->rg_nY, yoff, xp, yp;
+	int x0 = 9999, y0 = 9999, x1 = -9999, y1 = -9999, x, y, lwidth;
+	GC gcontext;
+	unsigned char *destimg;
+	Display *disp = XtDisplay(w);
+	Location gloc;
+	XImage *image;
+	XGCValues gcvals;
+/*
+ * Get our origin, and try to work back to the original lat/lon spacing.
+ */
+	cvt_GetOrigin (&olat, &olon);
+	lonstep = KM_TO_DEG (rg->rg_Xspacing/cos (DEG_TO_RAD (olat)));
+	latstep = KM_TO_DEG (rg->rg_Yspacing);
+	msg_ELog (EF_DEBUG, "Slowplot, spacings %.2f %.2f", latstep, lonstep);
+# ifdef notdef
+/*
+ * The origin attached to the grid was generated from the old projection.
+ * Let's make a new one.
+ */
+	londelt = olon - loc->l_lon;
+	if (londelt < -180.0)
+		londelt += 360.0;
+	xdelt = (int) (londelt/lonstep + 0.5);
+	ydelt = (int) ((olat - loc->l_lat)/latstep + 0.5);
+	gloc.l_lon = olon + xdelt*lonstep;
+# endif
+/*
+ * Figure where the corners of the grid are now.  We need to look at all
+ * four, since they could be in surprising places.
+ */
+	RP_FindLimits (loc, lonstep, rg->rg_nX, latstep, rg->rg_nY, &x0, &y0,
+			&x1, &y1);
+	if (x0 < Clip.x)
+		x0 = Clip.x;
+	if (x1 > (Clip.x + Clip.width))
+		x1 = Clip.x + Clip.width;
+	if (y0 < Clip.y)
+		y0 = Clip.y;
+	if (y1 > (Clip.y + Clip.height))
+		y1 = Clip.y + Clip.height;
+/*
+ * Figure out where we're drawing.
+ */
+	eq_sync ();
+# ifdef SHM
+	/*
+	 * The raster image will be written directly to the 
+	 * server's memory through the Graphics Widget's shared memory,
+	 * unless shared memory is not possible... in which case we
+	 * must create a local image, process our data, and then
+	 * send the image to the server.
+	 */
+	if (GWFrameShared (Graphics, frame))
+	{
+		destimg = (unsigned char *) GWGetFrameAddr (w, frame);
+		lwidth = GWGetBPL (w, frame);
+		shm = TRUE;
+		yoff = 0;
+	}
+	else
+# endif
+	{
+		gcontext = XCreateGC (disp, XtWindow(w), 0, &gcvals);
+		XSetClipRectangles (disp, gcontext, 0, 0, &Clip, 1, Unsorted);
+		image = RP_GetXImage(w, x1 - x0 + 1, y1 - y0 + 1);
+		destimg = (unsigned char *) image->data;
+		lwidth = image->bytes_per_line;
+		shm = FALSE;
+		yoff = y0;
+	}
+/*
+ * Now we plow through the pixels, reverse map each one, and assign the
+ * proper data point.  Ugly.
+ */
+	for (y = y0; y <= y1; y++)
+	{
+		unsigned char *dest = destimg +  (y - yoff)*lwidth + x0;
+		for (x = x0; x <= x1; x++)
+		{
+			prj_Reverse (XUSER (x), YUSER (y), &lat, &lon);
+			if (loc->l_lon > 0 && lon < 0)
+				lon += 360;
+			xp = (lon - loc->l_lon)/lonstep + 0.5;
+			yp = (lat - loc->l_lat)/latstep + 0.5;
+			*dest++ = (xp > 0 && xp < nx && yp > 0 && yp < ny) ?
+				 cmap[grid[(ny - yp - 1)*nx + xp]] : cmap[255];
+		}
+	}
+/*
+ * Time for some additional fun.  Since latitude lines are no longer
+ * necessarily straight, we could actually have a good chunk of data
+ * above and/or below the area we just plotted.  To reverse map the whole
+ * screen to get it would be a severely slow bummer.  Instead we explore
+ * our way up and down from the edges until we run completely off the data.
+ * We should really do the same for the sides, but that is a rarer and
+ * smaller problem -- for now.
+ */
+	for (y = y1 + 1; y < Clip.y + Clip.height; y++)
+	{
+		int indata = FALSE;
+		unsigned char *dest = destimg +  (y - yoff)*lwidth + x0;
+		for (x = x0; x <= x1; x++)
+		{
+			prj_Reverse (XUSER (x), YUSER (y), &lat, &lon);
+			if (loc->l_lon > 0 && lon < 0)
+				lon += 360;
+			xp = (lon - loc->l_lon)/lonstep + 0.5;
+			yp = (lat - loc->l_lat)/latstep + 0.5;
+			if (xp > 0 && xp < nx && yp > 0 && yp < ny)
+			{
+				*dest++ = cmap[grid[(ny - yp - 1)*nx + xp]];
+				indata = TRUE;
+			}
+			else
+				*dest++ = cmap[255];
+		}
+		if (! indata)	/* We're out */
+			break;
+	}
+/*
+ * Do it all again above.
+ */
+	for (y = y0 - 1; y >= Clip.y; y--)
+	{
+		int indata = FALSE;
+		unsigned char *dest = destimg +  (y - yoff)*lwidth + x0;
+		for (x = x0; x <= x1; x++)
+		{
+			prj_Reverse (XUSER (x), YUSER (y), &lat, &lon);
+			if (loc->l_lon > 0 && lon < 0)
+				lon += 360;
+			xp = (lon - loc->l_lon)/lonstep + 0.5;
+			yp = (lat - loc->l_lat)/latstep + 0.5;
+			if (xp > 0 && xp < nx && yp > 0 && yp < ny)
+			{
+				*dest++ = cmap[grid[(ny - yp - 1)*nx + xp]];
+				indata = TRUE;
+			}
+			else
+				*dest++ = cmap[255];
+		}
+		if (! indata)	/* We're out */
+			break;
+	}
+/*
+ * If we doing things with an XImage we need to ship it out.
+ */
+	if (! shm)
+	{
+		XPutImage(disp, GWFrame(w), gcontext, image, 0, 0,
+			  x0, y0, x1 - x0 + 1, y1 - y0 + 1);
+		XFreeGC(disp, gcontext);
+	}
+}
+# endif /* MAP_PROJECTIONS */
+
+
+
+
+
+
+static void
+RP_FindLimits (loc, lonstep, nx, latstep, ny, x0, y0, x1, y1)
+Location *loc;
+float lonstep, latstep;
+int nx, ny, *x0, *y0, *x1, *y1;
+/*
+ * Figure out the area of the window covered by this grid.  This does not
+ * yet work right.
+ */
+{
+	int x, y;
+	float xk, yk;
+
+	prj_Project (loc->l_lat, loc->l_lon, &xk, &yk);
+	x = XPIX (xk); y = YPIX (yk);
+	*x0 = MIN (*x0, x);	*x1 = MAX (*x1, x);
+	*y0 = MIN (*y0, y);	*y1 = MAX (*y1, y);
+
+	prj_Project (loc->l_lat, WRAPLON (loc->l_lon + nx*lonstep), &xk, &yk);
+	x = XPIX (xk); y = YPIX (yk);
+	*x0 = MIN (*x0, x);	*x1 = MAX (*x1, x);
+	*y0 = MIN (*y0, y);	*y1 = MAX (*y1, y);
+
+	prj_Project (loc->l_lat + ny*latstep, loc->l_lon, &xk, &yk);
+	x = XPIX (xk); y = YPIX (yk);
+	*x0 = MIN (*x0, x);	*x1 = MAX (*x1, x);
+	*y0 = MIN (*y0, y);	*y1 = MAX (*y1, y);
+
+	prj_Project (loc->l_lat + ny*latstep,
+			WRAPLON (loc->l_lon + nx*lonstep), &xk, &yk);
+	x = XPIX (xk); y = YPIX (yk);
+	*x0 = MIN (*x0, x);	*x1 = MAX (*x1, x);
+	*y0 = MIN (*y0, y);	*y1 = MAX (*y1, y);
+}
+
+
+
+
+
+# ifdef notdef
+/*
+ * No real need for this, for now.  Someday maybe we'll want it again
+ * so I'll stash it here.
+ */
+
+static void
+RP_FPRasterize (ximp, width, height, colgrid, row, icol, rowinc, colinc,
+		xdim, ydim, pad)
+unsigned char	*ximp;
+int 		width, height;
+unsigned int 	*colgrid;
+float 		row, icol, rowinc, colinc;
+int 		xdim, ydim, pad;
+/*
+ * Do rasterization using the old floating point (Ardent vectorizable) 
+ * method.
+ */
+{
+	int i, j;
+	float col;
+
+#ifdef DEBUG
+	msg_ELog (EF_INFO, "entering FPRasterize");
+#endif
+	for (i = 0; i < height; i++)
+	{
+		unsigned int *cp = colgrid + ((int) row) * xdim;
+#ifdef DEBUG
+		/*
+		 * It is very possible that the last (bottom) row will be
+		 * slightly less than zero due to precision errors.  But
+		 * fortunately such coords will still trunc to zero, so it's
+		 * not really a problem. 
+		 */
+		if (row < 0 || (int)row >= ydim)
+			msg_ELog (EF_PROBLEM, "FPRaster: row %f out of bounds",
+				  row);
+#endif
+		col = icol;
+		for (j = 0; j < width - 1; j++)
+		{
+			*ximp++ = cp[(int)col];
+			col += colinc;
+		}
+		*ximp++ = cp[(int)col];
+		row += rowinc;
+		ximp += pad;	/* End of raster line padding.	*/
+	}
+#ifdef DEBUG
+	if (height && (int)col >= xdim)
+		msg_ELog (EF_PROBLEM, "FPRaster: col %f out of bounds", col);
+#endif
+}
+
+
+# endif
+
+
 

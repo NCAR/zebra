@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.50 1995-07-24 20:08:33 granger Exp $ */
+/* $Id: GraphProc.h,v 2.51 1995-08-03 20:59:43 corbet Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -167,6 +167,12 @@ extern int TriggerGlobal;
 #endif
 
 /*
+ * The attribute used to store original lat/lon spacing into data chunks
+ * for when it's needed for projections.
+ */
+# define ATTR_LATLON "original_lat_lon_spacing"
+
+/*
  * Routines of interest.
  */
 /* Basic graphic utilities */
@@ -250,9 +256,19 @@ extern int ov_PositionIcon FP ((char *, int, int, int));
 extern void I_ActivateArea FP ((int, int, int, int, char *, char *, char *,
 				char *));
 
+/* Projections. */
+extern int	prj_Setup FP ((void));
+extern int	prj_Project FP ((double, double, float *, float *));
+extern int	prj_Reverse FP ((double, double, float *, float *));
+extern void	prj_GetOrigin FP ((float *, float *));
+extern int	prj_ProjKey FP ((void));
+extern int	prj_FancyProjection FP ((void));
+extern char *	prj_GetProjName FP ((void));
+
+
 /* Altitude control */
-void	alt_Initialize FP ((void));
-void	alt_Step FP ((int));
+extern void	alt_Initialize FP ((void));
+extern void	alt_Step FP ((int));
 
 /* User events */
 extern void Ue_Override FP ((void (*) (), void (*) (), void (*) ()));
@@ -337,6 +353,7 @@ extern void FindCenterStep FP ((DataChunk *, FieldId, int, float *, float *));
 extern int ApplySpatialOffset FP ((DataChunk *, char *, ZebTime *));
 extern bool ImageDataTime FP ((char *c, PlatformId pid, double alt,
 			       ZebTime *dtime));
+extern int GetLLSpacings FP ((DataChunk *, float *, float *));
 extern void ov_Feature FP ((struct ui_command *cmds));
 
 # if defined(hpux) || defined(SVR4) || defined (linux)
@@ -377,25 +394,37 @@ extern void GetWindData FP ((WindInfo *, float *, float *, double));
 				 int ydim, int xlo, int ylo, int xhi, int yhi, 
 				 double vlen, double bad, XColor color, 
 				 int degrade, int vector));
+	extern void WindProjGrid FP ((float *, float *, int, int, Location *,
+			double, double, double, double, Pixel, int, int));
 	extern Pixmap I_GetPMap FP ((char *, int *, int *, int *, int *));
 	extern void I_RepositionMenu FP ((Widget w));
 	extern void I_RedirectButton FP ((Window win, XEvent *ev));
 
-	void RasterPlot FP ((Widget w, Drawable d, float *array, 
-		     int xdim, int ydim,
-		     int xlo, int ylo, int xhi, int yhi));
+	void RasterPlot FP ((DataChunk *, Location *, float *, int, int));
 	void RP_Init FP ((XColor *colors, int count, XColor c_outrange,
 		  XRectangle clip, double dmin, double dmax, 
 		  int highlight, double hvalue, XColor hcolor,
 		  double hrange));
 	void RasterImagePlot FP ((Widget w, int frame, unsigned char *grid,
 			  int xd, int yd, int xlo, int ylo, int xhi, int yhi,
-			  double scale, double bias));
+			  double scale, double bias, Location *, RGrid *));
 	void RasterXIPlot FP ((Widget w, Drawable d, float *array, 
 		       int xdim, int ydim, 
 		       int xlo, int ylo, int xhi, int yhi,
 		       int fast));
 	void ChangeCursor FP ((Widget w, Cursor cursor));
+/* Contouring. */
+	extern void	CO_Init FP ((XColor *, int, int, XColor *, XRectangle,
+				int, double));
+	extern void	CO_InitMono FP ((XColor, XRectangle, int, double));
+	extern void	Contour FP ((Widget, Drawable, float *, int, int,
+				int, int, int, int, double, double, int, int));
+	extern void	CO_ProjSetup FP ((Location *, double, double));
+	extern void 	FillContour FP ((Widget, Drawable, float *, int, int,
+				int, int, int, int, double, double));
+	extern void	FC_Init FP ((XColor *, int, int, XColor *, XRectangle,
+				int, double));
+	extern void	FC_ProjSetup FP ((Location *, double, double));
 # ifdef SHM
 	void RP_ZapSHMImage FP ((Widget w));
 # endif /* SHM */

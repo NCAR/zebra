@@ -64,7 +64,7 @@
 # include <message.h>
 # include <pd.h>
 # include "GraphProc.h"
-
+# include "PixelCoord.h"
 # include "Contour.h"
 # include "ContourP.h"
 
@@ -107,9 +107,19 @@ static int	Npt;
 int	X0, Y0;
 
 /*
+ * Projection information -- only used if we should be projecting this
+ * data in a fancy way.
+ */
+static bool	Projecting = FALSE;
+static Location Origin;
+static float	LatSpacing, LonSpacing;
+
+/*
  * Forward declarations
  */
-void	FC_MinMax (), FC_DoContour (), FC_AddPoint ();
+static void	FC_MinMax FP ((float *, float *));
+static void	FC_DoContour FP ((triangle, float, float));
+static void	FC_AddPoint FP ((float, float));
 
 
 
@@ -144,7 +154,7 @@ double	ccenter, cstep;
 	X0 = xlo;
 	Y0 = ylo;
 /*
- * Build arrays of pixel locations for each array point
+ * Calculate increments for each point.
  */
 	Xinc = (float)(xhi - xlo) / (Nx - 1);
 	Yinc = (float)(yhi - ylo) / (Ny - 1);
@@ -236,6 +246,7 @@ double	flagval;
  * FLAGVAL	the bad value used to identify flagged data
  */
 {
+	Projecting = FALSE;
 /*
  * Center color index and number of colors.
  */
@@ -267,6 +278,25 @@ double	flagval;
 
 
 void
+FC_ProjSetup (origin, lats, lons)
+Location *origin;
+float lats, lons;
+/*
+ * Set up to do projection.  Call this guy ONLY for CAP plots when projection
+ * is in use, and ALWAYS after the call to FC_Init().
+ */
+{
+	Projecting = TRUE;
+	Origin = *origin;
+	LatSpacing = lats;
+	LonSpacing = lons;
+}
+
+
+
+
+
+static void
 FC_MinMax (min, max)
 float	*min, *max;
 /*
@@ -318,7 +348,7 @@ float	*min, *max;
 
 
 
-void
+static void
 FC_DoContour (tri, cval, cstep)
 triangle	tri;
 float	cval, cstep;
@@ -434,14 +464,35 @@ float	cval, cstep;
 
 
 
-void
+static void
 FC_AddPoint (x, y)
 float	x, y;
 /*
  * Add a point to the polygon vertex list
  */
 {
-	Points[Npt].x = (short)(X0 + x * Xinc + 0.5);
-	Points[Npt].y = (short)(Y0 + y * Yinc + 0.5);
+/*
+ * If we are projecting, do that here.
+ */
+	if (Projecting)
+	{
+		float xp, yp;
+# ifdef whoknows
+		prj_Project (Origin.l_lat + (y - 0.5)*LatSpacing,
+				Origin.l_lon + (x - 0.5)*LonSpacing, &xp, &yp);
+# endif
+		prj_Project (Origin.l_lat + y*LatSpacing,
+				Origin.l_lon + x*LonSpacing, &xp, &yp);
+		Points[Npt].x = XPIX (xp);
+		Points[Npt].y = YPIX (yp);
+	}
+/*
+ * Otherwise we do things the same old way.
+ */
+	else
+	{
+		Points[Npt].x = (short)(X0 + x * Xinc + 0.5);
+		Points[Npt].y = (short)(Y0 + y * Yinc + 0.5);
+	}
 	Npt++;
 }
