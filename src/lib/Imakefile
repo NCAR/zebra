@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-/* $Id: Imakefile,v 1.29 1999-03-01 02:04:42 burghart Exp $ */
+/* $Id: Imakefile,v 1.30 1999-03-05 21:49:35 granger Exp $ */
 
 #if !HasWritev
 WRITEVOBJ=writev.o
@@ -117,6 +117,8 @@ PHEADERS = setup.h BlockFileP.hh
 DISTFILES = $(SRCS) writev.c $(HEADERS) Imakefile $(PHEADERS) $(SOURCES.x)
 
 NormalLibraryTarget (Zebra, $(OBJS))
+
+$(OBJS): $(RPCTARGETS)
 
 SpecialObjectRule($(XUIOBJS),/**/,$(XINCLUDES) $(RDSSINCLUDES))
 SpecialObjectRule($(XOBJS),/**/,$(XINCLUDES))
