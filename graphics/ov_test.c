@@ -8,6 +8,7 @@ main ()
 	char c, *cp, *pair;
 	ws sta;
 	overlay ov, ov1;
+	int cbase;
 	float x[100], y[100], step;
 	float red[9] =   { 0.0, .99, 0.0, 0.0, .99, 0.0, .99, 0.5, .99 };
 	float green[9] = { 0.0, 0.0, .99, 0.0, .99, .99, 0.0, 0.5, .99 };
@@ -17,12 +18,13 @@ main ()
  * Get the display set up.
  */
 /*	G_open ("rma0", "rm9460", &sta); */
-	G_open ("TT", "4107", &sta);
+	G_open ("screen", "x700", &sta, 0);
 	ov = G_new_overlay (sta, 100);
 	ov1 = G_new_overlay (sta, 200);
 	G_set_coords (ov, -640.0, -512.0, 640.0, 512.0);
 	G_set_coords (ov1, -640.0, -512.0, 640.0, 512.0);
-	G_set_color_map (sta, 9, red, green, blue);
+	G_get_color (sta, 13, &cbase);
+	G_set_color_map (sta, cbase, 9, red, green, blue);
 /*
  * Draw the origin.
  */

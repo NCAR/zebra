@@ -1,5 +1,5 @@
 /* 5/87 jc */
-/* $Id: oplist.c,v 1.4 1998-02-27 16:00:48 burghart Exp $ */
+/* $Id: oplist.c,v 1.5 2002-07-11 23:13:28 burghart Exp $ */
 /*
  * Handle operations lists.
  */
@@ -360,7 +360,7 @@ struct overlay *ov;
 	    */
 	   case GOP_POLYLINE:
 	   	gp_pl (ov, data->op_color, data->op_extra[GOP_PL_LTYPE],
-			data->op_npt/(sizeof (int) * 2), data->op_data);
+			data->op_npt/(sizeof (int) * 2), (int*)data->op_data);
 		break;
 	   /*
 	    * Text.

@@ -13,7 +13,7 @@
 # include "workstation.h"
 # include "pixel.h"
 
-static char *rcsid = "$Id: control.c,v 1.17 1998-02-27 16:00:30 burghart Exp $";
+static char *rcsid = "$Id: control.c,v 1.18 2002-07-11 23:13:28 burghart Exp $";
 static int Trace = 0;
 
 /*
@@ -911,7 +911,7 @@ char *csta;
  * Free up all the memory.
  */
  	while (wsta->ws_overlay)
-		G_zap_overlay (wsta->ws_overlay);
+		G_zap_overlay ((overlay)(wsta->ws_overlay));
 	if (wsta->ws_pmap)
 		gp_remove (wsta->ws_pmap);
 	gc_close (wsta);

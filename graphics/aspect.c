@@ -1,6 +1,7 @@
 /*
  * Test module.
  */
+# include <stdlib.h>
 # include "param.h"
 # include "graphics.h"
 # include "pixel.h"
@@ -20,7 +21,7 @@ main ()
 	float green[256] = { 0.0, 0.0, .99, 0.0, .99, .99, 0.0, 0.4, .99 };
 	float blue[256] =  { 0.0, 0.0, 0.0, .99, 0.0, .99, .99, 0.4, .99 };
 	int color = 1, pat = 0, nc, np = 0, font = 1, i, status, font1;
-	int italic, sserif, roman, xres, yres;
+	int cbase, italic, sserif, roman, xres, yres;
 	pixel_map pm;
 
 	for (i = 9; i < 256; i++)
@@ -34,13 +35,15 @@ main ()
 /*
  * Get the display set up.
  */
-	if ((status = G_open ("devname", getenv ("DEVTYPE"), &sta)) != GE_OK)
+	if ((status = G_open ("devname", getenv ("DEVTYPE"), &sta, 0)) != 
+	    GE_OK)
 	{
 		printf ("Workstation open failure: %s\n", G_messages[status]);
 		exit (1);
 	}
 	ov = G_new_overlay (sta, 100);
-	G_set_color_map (sta, 9, red, green, blue);
+	G_get_color (sta, 13, &cbase);
+	G_set_color_map (sta, cbase, 9, red, green, blue);
 /*
  * Set our coordinates to get actual pixel addresses.
  */
