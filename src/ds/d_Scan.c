@@ -29,7 +29,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID ("$Id: d_Scan.c,v 1.6 1993-11-02 20:34:52 corbet Exp $");
+MAKE_RCSID ("$Id: d_Scan.c,v 1.7 1993-11-23 23:19:00 corbet Exp $");
 
 
 /*
@@ -410,11 +410,11 @@ struct ui_command *cmd;
 {
 	int plat, fd, df, version = DSProtocolVersion;
 	char fname[300];
-	bool onlydirty, onefile;
+	bool onlydirty = FALSE, onefile;
 /*
- * See just what they had in mind here.
+ * Do they want a unified file?
  */
-	if (! (onlydirty = (cmd->uc_ctype == UTT_KW)) &&
+	if (cmd && ! (onlydirty = (cmd->uc_ctype == UTT_KW)) &&
 	    (onefile = (cmd->uc_ctype != UTT_END)))
 	{
 		if ((fd = open (UPTR (*cmd), O_WRONLY|O_CREAT|O_TRUNC,
