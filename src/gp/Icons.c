@@ -8,6 +8,7 @@ static char *rcsid = "$id$";
 # include <X11/Xaw/MenuButton.h>
 # include <X11/Xaw/SimpleMenu.h>
 # include <X11/Xaw/Label.h>	/* For now */
+# include <X11/Command.h>
 # include "../include/defs.h"
 # include "../include/pd.h"
 # include "../include/message.h"
@@ -192,7 +193,9 @@ I_DoIcons ()
 	 * If this component has a platform, we use it to qualify the menu
 	 * searches.
 	 */
-	 	if (pd_Retrieve (Pd, comps[comp], "platform", platform,
+		if (comp == 0)
+			strcpy (qual = platform, "global");
+	 	else if (pd_Retrieve (Pd, comps[comp], "platform", platform,
 				SYMT_STRING))
 			qual = platform;
 	/*
