@@ -62,6 +62,7 @@ C       I*2 VARIABLES: ID,NAMF
 C
       INTEGER*2 ID,NAMF
       INTEGER*2 IDVAX, idcray
+      INTEGER*2 IBL
 C                          
       CHARACTER*(*) NAMFIL,NUSSCI,NUSSUB,NUSVOL
 C
@@ -80,6 +81,7 @@ C
       DATA IYES/'Y'/
 C
       NST=0
+      IBL=0
 C
 C  LOCATE REQUESTED VOLUME 
 C
@@ -300,7 +302,6 @@ C
      X            (IB(19),NAMSCI),(IB(95),NAMSUB),
      X            (IB(201),NAMVOL),(IB(109),LCTIME),
      X            (IB(101),LCDATE)
-      LOGICAL YES,NO
       DATA ITTDUM/0/
       DATA LNMDEF/'CEDUSR.MUD'/
       DATA INFO/'CD','GN','.0','IN','TA','CT',' ',' ',' ',' ' /
@@ -847,7 +848,7 @@ C                 3, OUTPUT FILE
 C
       CHARACTER*40 INP,INPSAV,IDEF,LMENTS(6)
       CHARACTER NTYP(3)*6,PEXT*4,IBL*1,ISC*1
-      LOGICAL YES,NO
+      LOGICAL NO
       DATA NTYP/' INPUT','  EDIT','OUTPUT'/
       DATA PEXT,IBL,ISC/'.MUD',' ',';'/
    10 CONTINUE
