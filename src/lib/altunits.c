@@ -22,7 +22,7 @@
 # include "copyright.h"
 # include "defs.h"
 
-MAKE_RCSID("$Id: altunits.c,v 2.4 1994-03-19 22:19:32 granger Exp $")
+MAKE_RCSID("$Id: altunits.c,v 2.5 1994-03-29 20:22:51 burghart Exp $")
 
 /*
  * 
@@ -43,6 +43,12 @@ static const struct _unames
 	/* AU_mMSL */
 	{"m MSL", "meters above Mean Sea Level", "%.0f", 
 	 {"m > MSL", "m", "meters", ""}},
+	/* AU_kmAGL */
+	{"km AGL", "km AGL", "%.2f", 
+	 {"km > AGL", ""}},
+	/* AU_mAGL */
+	{"m AGL", "meters AGL", "%.0f", 
+	 {"m > AGL", ""}},
 	/* AU_mb */
 	{"mb", "millibars", "%.0f", 
 	 {"mbar", "hPa", "millibar", ""}},

@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 2.23 1994-03-19 22:19:33 granger Exp $ */
+/* $Id: defs.h,v 2.24 1994-03-29 20:23:07 burghart Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -97,6 +97,8 @@ typedef enum
 {
 	AU_kmMSL,	/* km MSL */
 	AU_mMSL,	/* m MSL */
+	AU_kmAGL,	/* km AGL */
+	AU_mAGL,	/* m AGL */
 	AU_mb,		/* mb (pressure altitude) */
 } AltUnitType;
 
