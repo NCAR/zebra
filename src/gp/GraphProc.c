@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: GraphProc.c,v 1.30 1991-04-12 21:51:45 kris Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 1.31 1991-05-07 21:00:06 kris Exp $";
 
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
@@ -189,6 +189,7 @@ finish_setup ()
 		{ "ue_motion",		Ue_MotionEvent	},
 	};
 	int type[5], pd_defined (), pd_param (), pd_paramsearch();
+	int substr_remove();
 	char *initfile, perf[80];
 /*
  * Force a shift into window mode, so we can start with the fun stuff.
@@ -255,6 +256,7 @@ finish_setup ()
 	uf_def_function ("pd_param", 3, type, pd_param);
 	uf_def_function ("pd_paramsearch", 4, type, pd_paramsearch);
 	uf_def_function ("pd_defined", 2, type, pd_defined);
+	uf_def_function ("substr_remove", 2, type, substr_remove);
 /*
  * Redirect UI output.
  */
@@ -1142,7 +1144,6 @@ union usy_value *argv, *retv;
 {
 	char tmp[500];
 	int type = uit_int_type (argv[3].us_v_ptr);
-	plot_description defpd;
 
 	*rett = SYMT_STRING;
 	if (! Pd)
@@ -1159,6 +1160,37 @@ union usy_value *argv, *retv;
 		*rett = type;
 		memcpy (retv, tmp, sizeof (date));	/* XXX */
 	}
+}
+
+
+substr_remove (narg, argv, argt, retv, rett)
+int 	narg, *argt, *rett;
+union usy_value	*argv, *retv;
+/*
+ * Command line function to remove a substring from a string.
+ *
+ *	substr_remove (string, substring)
+ *
+ *	where the string is a list of items separated by commas.
+ */
+{
+	int	nstr, i;
+	char	*string[30], *tmp;
+	
+	tmp = (char *) malloc (500 * sizeof (char));
+	nstr = CommaParse (argv[0].us_v_ptr, string);
+	tmp[0] = '\0';
+	for (i = 0; i < nstr; i ++)
+	{
+		if (strcmp (string[i], argv[1].us_v_ptr) == 0)
+			continue;
+		if (strlen (tmp) > 0)
+			tmp = strcat (tmp, ",");
+		tmp = strcat (tmp, string[i]);
+	}
+	*rett = SYMT_STRING;
+	retv->us_v_ptr = usy_string (tmp);
+	free (tmp);
 }
 	
 
