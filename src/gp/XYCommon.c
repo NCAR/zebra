@@ -36,7 +36,7 @@
 # include "DrawText.h"
 # include "XYCommon.h"
 
-RCSID("$Id: XYCommon.c,v 1.26 1995-05-05 22:46:28 granger Exp $")
+RCSID("$Id: XYCommon.c,v 1.27 1995-06-09 17:14:01 granger Exp $")
 
 /* 
  * One somewhat reasonable definition for infinity in XDR, lifted from 
@@ -566,10 +566,11 @@ ZebTime		*bTimeReq, *eTimeReq;
      */
     if (eTimeOld->zt_Sec == 0)
     {
-        if (! ds_DataTimes (pid, bTimeTarget, 1, DsBefore, bTimeReq))
+        if (! ds_DataTimes (pid, bTimeTarget, 1, DsBefore, bTimeReq) ||
+	    TC_Less (*bTimeReq, *bTimeTarget))
         {
 	    TC_EncodeTime (bTimeTarget, TC_Full, Scratch);
-            msg_ELog (EF_DEBUG, "No data for %s before %s", 
+            msg_ELog (EF_DEBUG, "No data for %s at %s, checking after...", 
 		      ds_PlatformName (pid), Scratch);
             if (! ds_DataTimes (pid, bTimeTarget, 1, DsAfter, bTimeReq))
             {
