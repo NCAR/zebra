@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.14 1992-06-24 20:44:30 kris Exp $ */
+/* $Id: GraphProc.h,v 2.15 1992-07-22 16:18:54 kris Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -143,6 +143,7 @@ extern DataChunk *ga_GetGrid FP ((ZebTime *, char *, char *, int *, int *,
 # endif
 
 /* Frame cache routines */
+extern void fc_InitFrameCache FP ((void));
 extern void fc_InvalidateCache FP ((void));
 extern void fc_UnMarkFrames FP ((void));
 extern void fc_CreateFrameFile FP ((void));
