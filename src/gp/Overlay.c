@@ -3,7 +3,7 @@
  */
 #ifndef lint
 static char *rcsid = 
-	"$Id: Overlay.c,v 2.39 1994-11-19 00:35:27 burghart Exp $";
+	"$Id: Overlay.c,v 2.40 1995-04-17 22:12:13 granger Exp $";
 #endif
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -530,7 +530,7 @@ float *x0, *y0, *x1, *y1, *alt;
  */
 	wb.dmm_type = DM_WBOUNDS;
 	strcpy (wb.dmm_window, window);
-	msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &wb, sizeof (wb));
+	dm_Send (&wb, sizeof (wb));
 	msg_Search (MT_DISPLAYMGR, ov_FindWBReply, &repl);
 /*
  * If it failed, so do we.
