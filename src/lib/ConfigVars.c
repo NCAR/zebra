@@ -22,23 +22,20 @@
 # include <string.h>
 
 # include <config.h>
-# include <ui_symbol.h>
 # include "defs.h"
 # include "message.h"
+# include "setup.h"
 
-MAKE_RCSID("$Id: ConfigVars.c,v 1.10 1995-06-12 22:52:42 granger Exp $")
+RCSID("$Id: ConfigVars.c,v 1.11 1996-11-19 07:43:12 granger Exp $")
 
 /*
  * Keep the directories around for queries.
  */
-# define DIRLENGTH 128
-static char Basedir[DIRLENGTH], Bindir[DIRLENGTH], Libdir[DIRLENGTH];
-static char Projdir[DIRLENGTH], Datadir[DIRLENGTH];
+char Basedir[DIRLENGTH], Bindir[DIRLENGTH], Libdir[DIRLENGTH];
+char Projdir[DIRLENGTH], Datadir[DIRLENGTH];
 
 
-
-
-static void
+void
 InitDirVariables ()
 /*
  * Initialize the relocatable directory variables, if not yet done.
@@ -101,46 +98,6 @@ InitDirVariables ()
 		strcpy (Projdir, ".");
 	done = TRUE;
 }
-
-
-
-
-void
-SetupConfigVariables ()
-/*
- * Set up the configuration variables.  You must have called ui_init first.
- */
-{
-	stbl vtable = usy_g_stbl ("ui$variable_table");
-	SValue v;
-	
-	InitDirVariables ();
-/*
- * Now set the variables.
- */
-	v.us_v_ptr = Basedir;
-	usy_s_symbol (vtable, "c$basedir", SYMT_STRING, &v);
-	v.us_v_ptr = Libdir;
-	usy_s_symbol (vtable, "c$libdir", SYMT_STRING, &v);
-	v.us_v_ptr = Bindir;
-	usy_s_symbol (vtable, "c$bindir", SYMT_STRING, &v);
-	v.us_v_ptr = Projdir;
-	usy_s_symbol (vtable, "c$projdir", SYMT_STRING, &v);
-/*
- * Data dir is separate.  RDSS doesn't change, I don't think.
- */
-	v.us_v_ptr = Datadir;
-	usy_s_symbol (vtable, "c$datadir", SYMT_STRING, &v);
-	v.us_v_ptr = RDSSDIR;
-	usy_s_symbol (vtable, "c$rdssdir", SYMT_STRING, &v);
-/*
- * Lastly, make our message handler name available
- */
-	v.us_v_ptr = (char *) msg_myname ();
-	usy_s_symbol (vtable, "c$msgname", SYMT_STRING, &v);
-}
-
-
 
 
 
