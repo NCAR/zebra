@@ -1,0 +1,231 @@
+		Field Names and Derivations in Zebra
+		====================================
+
+Field Names
+===========
+
+Field names in Zebra now have a  richer syntax.  The old single name still 
+works, e.g., "tdry".  There are now three extra qualifiers that can be 
+attached to a name, though.  A fully qualified field name looks like:
+
+	name[type][units][description]
+
+where 'type' is a generic field type (explained later), "units" are the field's
+units in a form acceptable to udunits, and "description" is the description 
+or long name for the field.
+
+Any of the pieces may be left empty, and trailing empty pieces may be dropped.
+The following are all legal field names:
+
+	tdry
+	tdry[][][]
+	tdry[T][degC]
+	tdry[T][degC][temperature]
+	tdry[][][temperature]
+	[T][degC]
+
+Note that two fields are equivalent if and only if all of their pieces 
+are equivalent.  In the list above, only the first two specifications are
+equivalent.
+
+Generic Field Type
+==================
+
+Zebra now uses the concept of a generic field type.  The generic field type is
+an identifier intended to be common for fields that have the same type of
+data.  For instance, an aircraft may report two temperature fields, t_nose 
+and t_tail, but both of them represent an ambient temperature, which for Zebra
+uses the generic field type "T".  Complete field names for these two fields
+might look like this:
+
+	t_nose[T][degC][nose temperature]
+	t_tail[T][degC][tail temperature]
+
+Here are the generic field types used in the predefined derivations in /zebra/lib/Derivations:
+
+	T	- temperature
+	P	- pressure
+	rh	- relative humidity
+	uwind	- u (eastward) component of wind
+	vwind	- v (northward) component of wind
+	wspd	- wind speed
+	wdir	- direction from which wind is blowing, clockwise from north
+	T_d	- dewpoint temperature
+	T_wet	- wet bulb temperature
+	T_v	- virtual temperature
+	T_L	- temperature of the lifting condensation level
+	theta	- potential temperature
+	theta_e	- equivalent potential temperature
+	e	- vapor pressure
+	e_sw	- saturation vapor pressure
+	w	- mixing ratio
+	L_c	- latent heat of condensation
+
+The generic field types serve at least a couple of useful purposes.  First, 
+they allow field derivation definitions to be written in a more generic
+fashion, independent of field names.  Similarly, they allow fields to be
+specified as generics in plot descriptions without having to know the exact 
+name of a field for a given platform.
+
+
+Field Derivation Definitions
+============================
+
+Field derivation formulas can be written by users, and will be automatically
+applied where possible when data are requested.  Common meteorological
+derivations exist in the file /zebra/lib/Derivations, and further derivations
+will be read from files <project>/derivs/defaults and
+<project>/derivs/<platform> if these files exist.  Derivations in the latter
+file(s), which are named by platform, apply *only* to the platform named.
+
+Derivation files consist of derivation formulas interspersed with C-style
+comments.  A derivation formula is written in the form:
+
+	<field> = <formula>;
+
+where <field> is the field to be derived, and <formula> is an algebraic 
+expression of fields, functions, and operators defining the derivation.
+The standard algebraic operators are available: +, -, /, *.  In addition,
+some functions are provided:
+
+	ln(x)		- natural log of x
+	exp(x,y)	- e^x
+	sqrt(x)		- sqaure root of x
+	sin(x)		- sine of x (x in radians)
+	cos(x)		- cosine of x (x in radians)
+	atan2(x,y)	- arctangent of y/x, in the range -pi to pi
+	pow(x,y)	- x^y
+	t_wet(t,p,rh)	- wet bulb temperature in K, given temperature in K,				  pressure in hPa, and relative humidity in percent
+	e_sw(t)		- saturation vapor pressure in hPa, given temperature
+			  in K
+
+The latter two functions are just fast shortcuts for a couple of derivations
+that can be very slow.
+
+
+Definition of "can yield"
+=========================
+
+Field A can yield field B if:
+
+	o the name of A is the same as the name of B -or- B has no name
+		AND
+	o the generic type of A is the same as the generic type of B -or-
+	  B has no generic type
+		AND
+	o the description of A is the same as the description of B -or- 
+	  B has no description
+		AND
+	o the units of A are the same as the units of B -or- the units of 
+	  A can be converted to the units of B by the udunits package -or-
+	  B has no units
+
+Hence, any of the following can yield "[T][degC]":
+
+	tdry[T][degC]
+	[T][K]
+	temp[T][degF][Fahrenheit temperature]
+
+while the following cannot:
+
+	T[][degC]
+	tdry[T][][temperature with unknown units]
+
+
+Data Requests
+=============
+
+Given the above definition, the following is the procedure for handling a
+data request for field F from platform P:
+
+o If F is a pending field in a higher level of the recursion, then 
+  return that it is unavailable.  See below for recursive requests.
+
+o Otherwise, if one of the raw fields from P can yield F, return that.
+
+o Otherwise, for each derived field D in the project's platform-specific
+  derivations for P (if any):
+	o If D cannot yield F, continue to the next D
+	o Add D to the list of pending fields.
+	o Make data requests for each field required to derive D (i.e., 
+	  all fields that show up on the right side of D's derivation 
+	  definition).  
+	o Remove D from the list of pending fields.
+	o If all required fields were available then perform the derivation
+	  and return D, otherwise continue to the next D.
+
+o If nothing was returned, repeat the above with the project's default 
+  derivations (if any).
+
+o If nothing was returned, repeat the above with the global default 
+  derivations.
+
+o Otherwise, return that the field is unavailable.
+
+
+Or in pseudo-code:
+
+
+    field_list Pending;
+
+    GetData (platform P, field F)
+    {
+    /*
+     * If this field is already pending, we fail here
+     */
+	if (F is in Pending)
+	    return 0;
+    /*
+     * Look for this field among the raw fields from the platform
+     */
+	field_list RList = raw fields of P;
+	foreach (field Rf in RList)
+	{
+	    if (Rf can yield F)
+		return data for Rf;
+	}
+    /*
+     * Loop through our derivation lists
+     */
+	foreach (derivation_list Dlist in [platform_derivation_list 
+	                                   project_derivation_list
+                                           global_derivation_list])
+        {
+        /*
+         * Loop through the derivations in this list
+	 */
+	    foreach (derivation D in Dlist)
+	    {
+		field Df = result field of D;
+
+		if (Df cannot yield F)
+		    continue;
+
+		add Df to Pending;
+
+		field_list Required = required fields for D;
+		boolean Fail = FALSE;
+	    
+		foreach (field Rf in Required)
+		{
+		    if (! GetData (P, Rf))
+		    {
+			Fail = TRUE;
+			break;
+		    }
+		}
+
+		remove Df from Pending;
+	    
+		if (Fail)
+		    continue;
+		else
+		    perform derivation D and return results;
+	    }
+	}
+	
+	return 0;
+    }
+
+
+                
