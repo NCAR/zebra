@@ -1,4 +1,4 @@
-XCOMM $Id: Imakefile,v 1.14 1994-02-03 02:39:42 granger Exp $
+XCOMM $Id: Imakefile,v 1.15 1994-02-07 20:31:13 granger Exp $
 XCOMM
 XCOMM This is the top-level Imakefile for the Zeb distribution.
 XCOMM It is modeled after the top-level Imakefile of the MIT X11R5
@@ -90,9 +90,10 @@ World::
 	@date
 	@echo ""
 	cd $(IMAKESRC); \
-		$(MAKE) MAKE=$(MAKE) $(MFLAGS) clean; \
-		$(MAKE) MAKE=$(MAKE) $(MFLAGS) INCLUDES=-I../config \
-		BOOTSTRAPCFLAGS="$(BOOTSTRAPCFLAGS)" CC="$(CC)"
+		$(MAKE) -f Makefile.ini MAKE=$(MAKE) $(MFLAGS) clean; \
+		$(MAKE) -f Makefile.ini MAKE=$(MAKE) $(MFLAGS) \
+			INCLUDES=-I../config \
+			BOOTSTRAPCFLAGS="$(BOOTSTRAPCFLAGS)" CC="$(CC)"
 	-$(RM) Makefile.bak; $(MV) Makefile Makefile.bak
 	$(MAKE) MAKE=$(MAKE) $(MFLAGS) -f Makefile.bak Makefile
 	$(MAKE) MAKE=$(MAKE) $(MFLAGS) Makefiles
