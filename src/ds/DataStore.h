@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.27 1995-04-17 22:34:24 granger Exp $
+ * $Id: DataStore.h,v 3.28 1995-04-20 14:21:19 granger Exp $
  *
  * Public data store definitions.
  */
@@ -249,48 +249,20 @@ typedef union _DC_Element {
 	void *		dcv_pointer;
 } DC_Element;
 
+#define dc_SizeOfType(type) \
+((((int)(type) >= 0) && ((int)(type) < DC_NumTypes)) ? \
+DC_ElemTypeSizes[(int)(type)] : 0)
+
+#define dc_TypeName(type) \
+((const char *) \
+((((int)(type) >= 0) && ((int)(type) < DC_NumTypes)) ? \
+DC_ElemTypeNames[(int)(type)] : "invalid"))
+
+#define DC_ElemTypeMaxSize	(sizeof(union _DC_Element))
+
 extern const char *DC_ElemTypeNames[];
 extern const int DC_ElemTypeSizes[];
 extern const int DC_NumTypes;
-
-#ifdef __cplusplus
-inline int
-dc_SizeOfType (DC_ElemType type)
-#else
-static inline int
-dc_SizeOfType (type)
-DC_ElemType type;
-#endif
-/* 
- * Return size (in bytes) of the element type
- */
-{
-	int i = (int) type;
-
-	if ((i >= 0) && (i < DC_NumTypes))
-		return (DC_ElemTypeSizes[i]);
-	else
-		return (0);
-}
-
-#ifdef __cplusplus
-inline const char *
-dc_TypeName (DC_ElemType type)
-#else
-static inline const char *
-dc_TypeName (type)
-DC_ElemType type;
-#endif
-{
-	int i = (int) type;
-
-	if ((i >= 0) && (i < DC_NumTypes))
-		return (DC_ElemTypeNames[i]);
-	else
-		return ("invalid");
-}
-
-#define DC_ElemTypeMaxSize	(sizeof(union _DC_Element))
 
 /*
  * Here is the list of possible data chunk classes.  It is done this way
