@@ -37,7 +37,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.11 1992-06-04 20:40:03 kris Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.12 1992-06-23 15:37:39 kris Exp $")
 
 
 /*
@@ -349,7 +349,7 @@ float	*center, *step;
 /*
  * Free the data array
  */
-	lw_TimeStatus (c, &zt);
+	lw_TimeStatus (c, platform, &zt);
 	free (grid);
 }
 
@@ -666,7 +666,7 @@ Boolean	update;
 				strlen (data), 40, FALSE, FALSE);
 		}
 	}
-	lw_TimeStatus (c, &zt);
+	lw_TimeStatus (c, platform, &zt);
 }
 
 
@@ -918,7 +918,7 @@ Boolean	update;
  */
 	if (update)
 		return;
-	lw_TimeStatus (c, &zt);
+	lw_TimeStatus (c, platform, &zt);
 /*
  * Top annotation
  */

@@ -38,7 +38,7 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 # include "DrawText.h"
-MAKE_RCSID ("$Id: Track.c,v 2.13 1992-05-27 17:26:55 corbet Exp $")
+MAKE_RCSID ("$Id: Track.c,v 2.14 1992-06-23 15:37:16 kris Exp $")
 
 # define ARROWANG .2618 /* PI/12 */
 
@@ -219,7 +219,7 @@ bool update;
 
 		dc_GetTime (dc, nsamp - 1, &zt);
 		TC_ZtToUI (&zt, &t);
-		lw_TimeStatus (comp, &t);
+		lw_TimeStatus (comp, platform, &t);
 	}
 	dc_DestroyDC (dc);
 /*
