@@ -28,7 +28,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.38 1995-08-07 18:59:15 granger Exp $
+XCOMM $Id: Project.tmpl,v 1.39 1996-01-02 21:24:00 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -891,10 +891,10 @@ CXXEXTRA_INCLUDES = $(XINCLUDES) $(RDSSINCLUDES) $(CONFIGINCLUDES)
 .SUFFIXES:	.cc
 
 .cc.o:
-	$(CXX) $(CXXFLAGS) -U_SGI_SOURCE -c $<
+	$(CXX) $(CXXFLAGS) $(DEFINES) -U_SGI_SOURCE -c $<
 #else
 .cc.o:
-	$(CXX) $(CXXFLAGS) -c $<
+	$(CXX) $(CXXFLAGS) $(DEFINES) -c $<
 #endif
 
 /*
