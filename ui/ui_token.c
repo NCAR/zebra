@@ -11,7 +11,7 @@
 # include "ui_tty.h"
 # include "ui_mode.h"
 
-static char *Rcsid = "$Id: ui_token.c,v 1.11 1990-04-06 10:45:45 corbet Exp $";
+static char *Rcsid = "$Id: ui_token.c,v 1.12 1990-04-06 11:14:10 corbet Exp $";
 
 /*
  * For input analysis, all characters are classified into one of the
@@ -1490,7 +1490,7 @@ struct token_context *ctx;
 	char pb[2];
 
 	pb[0] = ch;
-	pg[1] = '\0';
+	pb[1] = '\0';
 	ut_pushback (pb, 0);
 	ut_endt (' ', flags, tok, class, ctx);
 }
