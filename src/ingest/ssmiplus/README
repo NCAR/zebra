@@ -1,22 +1,32 @@
 
-The tape contains 4 tar files.  Each extracts into a single directory:
+There are six SSMI platforms, all with the prefix "ssmi_": 
 
-	ssmi_s2		platform data directories
-	ssmi_s4
-	ssmi_s5
-
-	config		README (this file), display config files,
-			and ingestor source
-
-There are three platforms, all with the prefix "ssmi_": 
+Antenna temperatures only:
 
 	ssmi_s2		Satellite 'craft id' 2 aka F-8
 	ssmi_s4		Satellite 'craft id' 4 aka F-10
 	ssmi_s5		Satellite 'craft id' 5 aka F-11
 
+Brightness temperatures and rainfall rates:
+
+	ssmi_s2_tb	Satellite 'craft id' 2 aka F-8
+	ssmi_s4_tb	Satellite 'craft id' 4 aka F-10
+	ssmi_s5_tb	Satellite 'craft id' 5 aka F-11
+
+The data is taken from the Marshall Space Flight Center Distributed
+Acitve Archive Center (MSFC DAAC).
+
+MSFC DAAC User Services Office
+email: msfcuser@microwave.msfc.nasa.gov
+phonce: 205-544-6329
+fax: 205-544-5147
+
 The original data files were named Sx.*, where 'x' was the craft id as
-above.  For each satellite, only the antenna temperatures are calculated,
-corresponding to each of the 7 channels of the microwave imager:
+above, using the NESDIS level 1b format.  Only satellite scans within the
+general TOGA COARE region were included in the files.
+
+For each satellite, temperatures are calculated for each of the 7
+channels of the microwave imager:
 
 	'Low' frequencies, A scans only, 64 cells per scan:
 	-----
@@ -31,27 +41,51 @@ corresponding to each of the 7 channels of the microwave imager:
 	ta85v
 	ta85h
 
-Neither the surface-type index nor the brightness temperatures were
-calculated.  They could be calculated later if necessary.  At this point I
-am quite willing to do without trying to add the calculations.
+Likewise the low-frequency brightness temperatures fields are named
 
-I've included the source for the ingestor in case something needs to be
-re-ingested.  The ingestor works by compiling consecutive scans into one
-set, verifying that the scans are close to each other in time.  The lat/lon
+	tb19v, tb19h, tb22v, tb37v, tb37h
+
+and the high-frequency brightness temperatures:
+
+	tb85v, tb85h
+
+Rainfall rates, field 'rr', are derived using Liu and Curry 1992:
+JGR,97,9959-9974.
+
+RR=5.5e-3*(TB19H-TB85H+88)**1.6, if TB37V-TB37H<38 and TB19H-TB85H+88>0
+  =0                             else
+
+RR is the rainrate in mm/hr, and the TB variables are the brightness
+temperatures in Kelvin for the 85GHz, 37GHz and 19GHz channels.  H and V
+indicate the Horizontal and Vertical polarizations.  The algorithm only
+works over the ocean surface, but no distinction of surface type is made
+when calculating RR.  Consequently, an outlandish value for rainrate
+usually indicates either one of the temperatures is bad or that the cell is
+located over land.  Since the calculation of rainrate depends upon
+low-frequency temperatures, the rainrate is only calculated on the 64-cell
+low-frequency grid of the A scans, yielding a resolution of about 25 km by
+25 km.
+
+The SSMI ingestor works by compiling consecutive scans into one set,
+verifying that the scans are close to each other in time.  The lat/lon
 location of each cell of each scan is converted to coordinates on a km grid
-whose origin is the origin of the coare CAP plots.  A grid is designed
-according to the range of the scan cells and the resolution parameter.
-Since the high and low frequencies have different coverage, two different
-mappings are generated for mapping scan cells into grid points.  A grid
-point receives the closest cell within a specific radius.  For each of the
-high- and low- mappings, the cell temperature values are filled into the
-grid.  Grid points which did not fall into the range of the mapping are
+whose origin is 9.42 degrees south latitude and 159.97 degrees east
+longitude (the origin of the coare CAP plots).  A grid is designed
+according to the range of the scan cells and the Resolution parameter (12.5
+km).  Since the high and low frequencies have different coverage, two
+different mappings are generated for mapping scan cells coordinates into
+kilometer grid points.  A grid point receives the closest cell within a
+specific radius.  (The Radius parameter used for this dataset is 50 km.)
+For each of the high- and low- mappings, the cell temperature values are
+filled into the grid.  The mapping does not include any interpretation or
+analysis.  Grid points which do not fall into the range of the mapping are
 filled with zero.  The scale and offset for compressing the temperatures
-(K) into bytes are 1 and 100, respectively.  So fill values will show up as
-temperatures of 100 K.  As long as the center and step of the raster plot
-do not include 100 K, the raster plots will give a good representation of
-the satellite scans.  Because of the radius limit, a series of bad scans
-will appear broken up.
+(K) into bytes are 1 and 100, respectively.  So fill values will uncompress
+temperatures of 100 K.  As long as the center and step of a raster plot do
+not include 100 K, the raster plots will give a good representation of the
+satellite scans (though the black fill areas in the rectangular images will
+still cover any plots beneath the image).  Because of the radius limit, a
+series of bad scans will appear broken up.
 
 The parameters used to ingest this dataset, taken directly from the tcl
 script:
@@ -59,44 +93,35 @@ script:
 set Format level1b			;# "rss", "level1b", or "1b"
 set Resolution 12.5			;# kilometers
 set MinScans 32				;# min number of scans to make an image
-set DisableLimits true			;# take everything
+set DisableLimits true			;# take every scan in the file
 set Radius 50.0				;# kilometers
 Origin -9.42 159.97 			;# use the same origin for all images
-SetFields 	ta19v ta19h ta22v ta37v ta37h ta85v ta85h
 
-The 85 GHz channels on F-8 are frequently bad and so the raster plots will
+The 85 GHz channels on F-8 are frequently bad and so raster plots will
 show up as a solid color.  Even though all of the images are created with
 12.5 km resolution, only the 85 GHz channels are actually sampled at that
 resolution.  The low-frequency cells are about 25 km apart.
 
-I've played around with plotting all three satellite platforms at once.
-The effect looks pretty good, but it would be really cool if raster plots
-supported transparency.  Maybe we should add a 'fill-byte' or
-'transparent-byte' parameter to raster plots for setting the GC clip-mask,
-or use OR for the logical function?  Wouldn't that be neat!
+Configuration notes:
 
-Configuration changes:
+There is a module file, 'ssmi', in the modules directory, and a generic
+ssmi plot component, 'tc_ssmi', in the pd directory.  The module file only
+contains a field menu, and the plot description is similar to p_raster
+except for setting the middle menu to the field menu in the 'ssmi' module
+file.  The IconBar includes three submenus under the satellite icon menu,
+one for each satellite.  Each submenu selects one of the fields for one of
+the three satellites.  Icons for each of the satellite names are in the
+'icons' directory.
 
-There is a module file, 'ssmi', to add to the modules directory, and a
-generic ssmi plot component, 'p_ssmi', to add to the pd directory.  The
-module file only contains a field menu, and the plot description is similar
-to p_raster except for setting the middle menu to the module menu.  The
-IconBar includes three submenus for the satellite icon menu.  Each submenu
-selects one of the fields for one of the three satellites.  I added an icon
-for each of the satellite names in the icons directory.
+The defaults pd (pd/defaults.pd) contains some generic center-step defaults
+for each of the fields.  These are not tailored to each specific frequency
+or polarization, consequently some of the plots may show up with gaps from
+out-of-range values.
 
-The defaults pd contains some generic center-step defaults for each of the
-fields.  These are not tailored to each specific field, consequently some
-of the plots show up with gaps from out-of-range values.
+A simple display configuration is in dconfig/ssmi.dc.  Enter 'display ssmi'
+at the dm> prompt to see it.
 
-A quick display configuration is in ssmi.dc.
-
-All of the stuff on tape is also under stout:/sfcd/ssmi.  The config
-directory is also in stout:/sfcd/ssmi/config.tar.gz.
-
-In the ingestor source directory, config/ssmi_ingest, the script which
-processed the data files is ssmi.tcl.
-
-P.S. Thank Dick for the tapes; I stole them from his office.
-
-P.P.S Sorry this took so long.
+The source for the ingestor can be found in zeb/src/ingest/ssmiplus in the
+Zeb source distribution.  This is the README file from that directory.  The
+directory also contains an example of a script used to process the data
+files, called ssmi.tcl.

@@ -24,9 +24,17 @@ set DisableLimits true			;# take everything
 #
 # Specify which fields to calculate and ingest
 #
-SetFields 	ta19v ta19h ta22v ta37v ta37h ta85v ta85h
+#SetFields 	ta19v ta19h ta22v ta37v ta37h ta85v ta85h
 
-#		tb19v tb19h tb22v tb37v tb37h tb85v tb85h sfcidx
+#
+# We had to split ta and tb into separate platforms because of the 
+# hard-coded ten-field limit in raster files.  Arghhhh!!!  #@#$%#@!
+#
+SetFields 	tb19v tb19h tb22v tb37v tb37h tb85v tb85h rr
+
+#Someday:
+#AddField sfcidx
+
 #ListFields	;# return list containing field names
 #AddField <field>
 #DeleteField <field>
@@ -67,41 +75,57 @@ proc Ingest {plat files} \
 # split up the processing load based on the name we were invoked under
 #
 
-set dir "/net/tcw/data/ssmi"
+set dir "/net/sfcd/ssmi/raw"
 
 if {$Ourname == "test"} \
 {
-	set Platform ssmi_s2
-	ProcessFile S2.D93001.S0555.intoga
-	ProcessFile "S2.D92306.S0535.intoga"
-	ProcessFile "S2.D92306.S1705.intoga"
-	set Platform ssmi_s4
-	Ingest ssmi_s4 [glob $dir/S4.D92364.S0945.intoga*]
-	set Platform ssmi_s5
-	ProcessFile "S5.D92306.S0440.intoga"
-	ProcessFile "S5.D92306.S0645.intoga"
-	ProcessFile "S5.D92306.S1650.intoga"
+	set Platform ssmi_s2_tb
+	Ingest $Platform [glob $dir/f8/S2.D93001.S0555.intoga*]
+	Ingest $Platform [glob $dir/f8/S2.D92306.*.intoga*]
+	set Platform ssmi_s4_tb
+	Ingest $Platform [glob $dir/f10/S4.D9236?.S*.intoga*]
+	set Platform ssmi_s5_tb
+	Ingest $Platform [glob $dir/f11/S5.D92306.*.intoga*]
+	exit 0
+}
+
+
+if {$Ourname == "ssmi_s2"} \
+{
+	puts "Using instructions for $Ourname..."
+	Ingest ssmi_s2_tb [glob $dir/f8/S2.*]
 	exit 0
 }
 
 if {$Ourname == "ssmi_s4"} \
 {
-	puts "Using instructions for ssmi_s4..."
-	Ingest ssmi_s4 [glob $dir/S4.D93*]
+	puts "Using instructions for $Ourname..."
+#	Ingest ssmi_s4_tb [glob $dir/f10/S4.*]
+	Ingest ssmi_s4_tb [glob "$dir/f10/S4.D923\[23456\]*"]
+	Ingest ssmi_s4_tb [glob $dir/f10/S4.D93*]
+	exit 0
+}
+
+if {$Ourname == "ssmi_s5"} \
+{
+	puts "Using instructions for $Ourname..."
+#	Ingest ssmi_s5_tb [glob $dir/f11/S5.*]
+	Ingest ssmi_s5_tb [glob "$dir/f11/S5.D923\[23456\]*"]
+	Ingest ssmi_s5_tb [glob $dir/f11/S5.D93*]
 	exit 0
 }
 
 if {$Ourname == "ssmi_s5_92"} \
 {
-	puts "Using instructions for ssmi_s5_92..."
-	Ingest ssmi_s5 [glob $dir/S5.D92*]
+	puts "Using instructions for $Ourname..."
+	Ingest ssmi_s5_tb [glob $dir/f11/S5.D92*]
 	exit 0
 }
 
 if {$Ourname == "ssmi_s5_93"} \
 {
-	puts "Using instructions for ssmi_s5_93..."
-	Ingest ssmi_s5 [glob $dir/S5.D93*]
+	puts "Using instructions for $Ourname..."
+	Ingest ssmi_s5_tb [glob $dir/f11/S5.D93*]
 	exit 0
 }
 

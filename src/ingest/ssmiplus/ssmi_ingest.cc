@@ -27,9 +27,11 @@
 
 #ifndef lint
 static char *rcsid = 
-	"$Id: ssmi_ingest.cc,v 1.5 1993-10-22 22:48:44 granger Exp $";
+	"$Id: ssmi_ingest.cc,v 1.6 1994-11-16 19:37:52 granger Exp $";
 #endif
 
+#include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include <math.h>
 #include <errno.h>
@@ -76,10 +78,12 @@ inline int StoreBlocks(DataChunk *dc, bool newfile,
 static void SetupFields ();
 static int ProcessRecords (SSMI_Source *source, ABScan *abscan);
 static DataChunk *CreateDC ();
-static void IngestSquare (SquareScan& square, int *nimages);
-static void IngestImage (SquareScan *ss);
-static void BuildImage (SquareScan *ss, DataChunk *dc);
+static void IngestSquares (SquareScan& ta, SquareScan& tb, int *nimages);
+static void IngestImage (SquareScan *ta, SquareScan *tb);
+static void BuildImage (SquareScan *ta, SquareScan *tb, DataChunk *dc);
 static void Log (const int flags, const ABScan *abscan, const int nrec);
+static void FillRainRate (GridMap *gm, unsigned char *image, RGrid *info,
+			  SquareScan *tb, ScaleInfo *scale);
 
 inline double TC_Sub (const ZebTime& a, const ZebTime& b)	// a - b
 {
@@ -119,33 +123,40 @@ struct SSMI_Field {
 	char *long_name;
 	char *units;
 	Channel channel;
+	TempType temp;
 };
 
 SSMI_Field SSMIFields[] = {	// this holds the list we can choose from
-	/*
-	 * List the low-frequency fields first.
-	 */
-	{ "ta19v", "Antenna temperature, 19 GHz, v-pol", "Kelvin", ch19v },
-	{ "ta19h", "Antenna temperature, 19 GHz, h-pol", "Kelvin", ch19h },
-	{ "ta22v", "Antenna temperature, 22 GHz, v-pol", "Kelvin", ch22v },
-	{ "ta37v", "Antenna temperature, 37 GHz, v-pol", "Kelvin", ch37v },
-	{ "ta37h", "Antenna temperature, 37 GHz, h-pol", "Kelvin", ch37h },
-	{ "tb19v", "Brightness temperature, 19 GHz, v-pol", "Kelvin", ch19v },
-	{ "tb19h", "Brightness temperature, 19 GHz, h-pol", "Kelvin", ch19h },
-	{ "tb22v", "Brightness temperature, 22 GHz, v-pol", "Kelvin", ch22v },
-	{ "tb37v", "Brightness temperature, 37 GHz, v-pol", "Kelvin", ch37v },
-	{ "tb37h", "Brightness temperature, 37 GHz, h-pol", "Kelvin", ch37h },
-	/*
-	 * High-frequency next
-	 */
-	{ "ta85v", "Antenna temperature, 85 GHz, v-pol", "Kelvin", ch85v },
-	{ "ta85h", "Antenna temperature, 85 GHz, h-pol", "Kelvin", ch85h },
-	{ "tb85v", "Brightness temperature, 85 GHz, v-pol", "Kelvin", ch85v },
-	{ "tb85h", "Brightness temperature, 85 GHz, h-pol", "Kelvin", ch85h },
-	/*
-	 * Surface indices last
-	 */
-	{ "sfcidx", "Surface-type index", "none", sfcidx }
+/*
+ * List the low-frequency fields first.
+ */
+{ "ta19v", "Antenna temperature, 19 GHz, v-pol", "Kelvin", ch19v, TA },
+{ "ta19h", "Antenna temperature, 19 GHz, h-pol", "Kelvin", ch19h, TA },
+{ "ta22v", "Antenna temperature, 22 GHz, v-pol", "Kelvin", ch22v, TA },
+{ "ta37v", "Antenna temperature, 37 GHz, v-pol", "Kelvin", ch37v, TA },
+{ "ta37h", "Antenna temperature, 37 GHz, h-pol", "Kelvin", ch37h, TA },
+{ "tb19v", "Brightness temperature, 19 GHz, v-pol", "Kelvin", ch19v, TB },
+{ "tb19h", "Brightness temperature, 19 GHz, h-pol", "Kelvin", ch19h, TB },
+{ "tb22v", "Brightness temperature, 22 GHz, v-pol", "Kelvin", ch22v, TB },
+{ "tb37v", "Brightness temperature, 37 GHz, v-pol", "Kelvin", ch37v, TB },
+{ "tb37h", "Brightness temperature, 37 GHz, h-pol", "Kelvin", ch37h, TB },
+/*
+ * High-frequency next
+ */
+{ "ta85v", "Antenna temperature, 85 GHz, v-pol", "Kelvin", ch85v, TA },
+{ "ta85h", "Antenna temperature, 85 GHz, h-pol", "Kelvin", ch85h, TA },
+{ "tb85v", "Brightness temperature, 85 GHz, v-pol", "Kelvin", ch85v, TB },
+{ "tb85h", "Brightness temperature, 85 GHz, h-pol", "Kelvin", ch85h, TB },
+/*
+ * Surface index
+ */
+{ "sfcidx", "Surface-type index", "none", sfcidx, NOT_TEMPERATURE },
+/*
+ * Derived rainfall rate; depends on low-frequency channels so the best
+ * we can get is low-frequency channel resolution, since only the A scans
+ * have every high and low frequency channel at each cell.
+ */
+{ "rr", "Rainfall rate", "mm/hr", ch19h, NOT_TEMPERATURE }
 };
 const int MAX_FIELDS = (sizeof(SSMIFields)/sizeof(SSMIFields[0]));
 
@@ -155,7 +166,7 @@ SSMI_Field Fields[ MAX_FIELDS ];	// this holds the list we're ingesting
 FieldId Fids[ MAX_FIELDS ];
 int NumFields = 0;
 
-ScaleInfo SSMIScales[ MAX_FIELDS ] = /* real value = data/s_Scale + s_Offset */
+ScaleInfo SSMIScales[ MAX_FIELDS ] = /* real value = byte*s_Scale + s_Offset */
 {
 	{ 1.0, 100.0 },	/* Assuming antenna temps (K) from 100 to 356 */
 	{ 1.0, 100.0 },
@@ -171,7 +182,8 @@ ScaleInfo SSMIScales[ MAX_FIELDS ] = /* real value = data/s_Scale + s_Offset */
 	{ 1.0, 100.0 },
 	{ 1.0, 100.0 },
 	{ 1.0, 100.0 },
-	{ 1.0, 0.0 }   	/* The surface-type index */
+	{ 1.0, 0.0 },  	/* The surface-type index */
+	{ 0.3, 0.0 }  	/* Rainfall rate in mm/hr */
 };
 
 ScaleInfo Scales[ MAX_FIELDS ];
@@ -533,8 +545,8 @@ Usage (char *prog)
 	printf ("   -rss implies Remote Sensing Systems format (default)\n");
 	printf ("   -1b implies MSFC DAAC level 1b file format\n");
 	printf ("   <plat> is the name of a platform, ");
-	printf ("   -N <name> sets <name> as the message handler handle\n");
 	printf ("default: '%s'\n", PLATFORM);
+	printf ("   -N <name> sets <name> as the message handler handle\n");
 	printf ("   <file> is a file to echo valid logical records to;\n");
 	printf ("      -o is ignored when using level 1b format\n");
 	printf ("   <dev>, if not a valid tape device or level 1b file, \n");
@@ -749,9 +761,13 @@ ProcessRecords (SSMI_Source *source, ABScan *abscan)
  * Read one logical record after another, combining scan pairs into
  * into SquareScan's and converting the squares into RGrid DataChunk's.
  * Returns number data records read or an error < 0.
+ *
+ * Use two squares, one for antenna temperatures and one for brightness
+ * temperatures.
  */
 {
-	SquareScan square;	// The scan square we are building
+	SquareScan ta;		// The scan square we are building
+	SquareScan tb;		// The square with brightness temperatures
 	
 	ZebTime prev;		// Time of previous scan
 	ZebTime next;		// Time of the next scan to process
@@ -763,7 +779,7 @@ ProcessRecords (SSMI_Source *source, ABScan *abscan)
 	int nimages = 0;	// Number images ingested so far
 	int reuse = 0;		// Re-use the scan we read last loop around
 /*
- * Now start reading scan pairs.  For each scan pair, if its within
+ * Now start reading scan pairs.  For each scan pair, if it's within
  * the region we're focusing on, add it to the square scan set.  Once
  * the square scan is full or the scan pairs jump either in location or
  * time, convert the square scan to an image and store it.
@@ -863,20 +879,26 @@ ProcessRecords (SSMI_Source *source, ABScan *abscan)
 				nbad++;		 // couldn't convert
 				continue;
 			}
-                        square.AddOutdat (C_OUTDAT);
+                        ta.AddOutdat (C_OUTDAT);
+			/*
+			 * Now that C_OUTDAT contains antenna temps, use it
+			 * to calculate brightness temps
+			 */
+			decode_tb ();
+			tb.AddOutdat (C_OUTDAT);
 
 			/*
 			 * As long as we're getting scans inbounds,
 			 * and our square is not full,
 			 * keep reading and keep adding to the square
 			 */
-			if (square.NumScans() < SQ_MAX_SCANS)
+			if (ta.NumScans() < SQ_MAX_SCANS)
 			{
 				continue;
 			}
 				
 			IngestLog (EF_INFO, "%s, ingesting %d scans so far",
-				   "square full", square.NumScans());
+				   "square full", ta.NumScans());
 		}
 		else
 		{
@@ -887,7 +909,12 @@ ProcessRecords (SSMI_Source *source, ABScan *abscan)
 		/*
 		 * Try to ingest what we've got so far
 		 */
-		IngestSquare (square, &nimages);
+		IngestSquares (ta, tb, &nimages);
+
+		/* Clear out scans */
+		IngestLog (EF_DEBUG, "clearing scans");
+		ta.Clear ();
+		tb.Clear ();
 
 	} /* while MoreScans() */
 
@@ -903,7 +930,7 @@ ProcessRecords (SSMI_Source *source, ABScan *abscan)
 	/*
 	 * Ingest anything left in our square after reading all the records
 	 */
-	IngestSquare (square, &nimages);
+	IngestSquares (ta, tb, &nimages);
 
 	IngestLog(EF_INFO, "Read %i records, %d bad scans, created %i images", 
 		  nrecs, nbad, nimages);
@@ -913,16 +940,17 @@ ProcessRecords (SSMI_Source *source, ABScan *abscan)
 
 
 static void
-IngestSquare (SquareScan& square, int *nimages)
+IngestSquares (SquareScan& ta, SquareScan& tb, int *nimages)
 {
 	/*
-	 * Its time to build an image from the scans in our square.
+	 * It's time to build an image from the scans in our squares.
 	 * Of course, squares with few scans are useless, possibly
-	 * mostly out of bounds, and ignored.
+	 * mostly out of bounds, and ignored.  Both squares are assumed
+	 * to contain the same number of scans.
 	 */
-	if (square.NumScans() >= MinScans)
+	if (ta.NumScans() >= MinScans)
 	{
-		IngestImage (&square);
+		IngestImage (&ta, &tb);
 		++(*nimages);
 		IngestLog (EF_DEBUG, "image square ingested");
 	}
@@ -930,12 +958,8 @@ IngestSquare (SquareScan& square, int *nimages)
 	{
 		IngestLog (EF_PROBLEM, 
 			   "only %d scans, image not built",
-			   square.NumScans());
+			   ta.NumScans());
 	}
-
-	/* Clear out scans */
-	IngestLog (EF_DEBUG, "clearing scans");
-	square.Clear ();
 }
 
 
@@ -961,10 +985,10 @@ Log (const int flags, const ABScan *abscan, const int nrec)
 static DataChunk *
 CreateDC ()
 {
-DataChunk 	*dc;
+	DataChunk *dc;
 /*
  * Create the data chunk and put in the platform ID, field IDs, and
- * the bad value flag (even though its never used)
+ * the bad value flag (even though it's never used)
  */
 	dc = dc_CreateDC (DCC_Image);
 	if (!dc)
@@ -986,7 +1010,7 @@ DataChunk 	*dc;
 
 
 static void
-IngestImage (SquareScan *ss)
+IngestImage (SquareScan *ta, SquareScan *tb)
 /*
  * Build an image out of this SquareScan, add it to a DataChunk,
  * and ingest the DataChunk.
@@ -998,8 +1022,8 @@ IngestImage (SquareScan *ss)
 	if (dc == NULL)
 		return;
 	IngestLog (EF_INFO, "Building an image from %d scans...", 
-		   ss->NumScans());
-	BuildImage (ss, dc);
+		   ta->NumScans());
+	BuildImage (ta, tb, dc);
 	ds_Store (dc, TRUE, NULL, 0);
 	dc_DestroyDC (dc);
 }
@@ -1007,12 +1031,15 @@ IngestImage (SquareScan *ss)
 
 
 static void
-BuildImage (SquareScan *ss, DataChunk *dc)
+BuildImage (SquareScan *ta, SquareScan *tb, DataChunk *dc)
 /*
  * Create grid maps, fill a grid of values, and add it to the DataChunk.
  * The grid mapping will be different between the low-frequency and
  * hi-frequency channels: lo-freq channels have only 64 values per scan,
  * every other scan.
+ *
+ * We add different fields to the datachunk depending upon whether this
+ * square contains antenna temperatures or brightness
  */
 {
 	GridMap logm;	/* Grid map used for lo-freq			  */
@@ -1029,13 +1056,14 @@ BuildImage (SquareScan *ss, DataChunk *dc)
 	/*
 	 * Establish an order for our scans
 	 */
-	ss->Order ();
+	ta->Order ();
+	tb->Order ();
 
 	sample = dc_GetNSample(dc);
-	ss->ZebTime (&zt);
+	ta->ZebTime (&zt);
 	zt.zt_Sec += zt.zt_MicroSec / 1000000;
 	zt.zt_MicroSec = 0;	// don't really need microsecond accuracy
-	ss->Origin (&origin);
+	ta->Origin (&origin);
 
 	/*
 	 * Establish the origin for converting lat/lon to kilometer
@@ -1048,57 +1076,169 @@ BuildImage (SquareScan *ss, DataChunk *dc)
 	 * Apparently all fields have to have the same geometry,
 	 * so we'll have to ingest lo-freq data in a higher res than
 	 * actually exists.
+	 *
+	 * We assume we can use the same geometry for both ta and tb grids.
 	 */
-	ss->GridInfo (Resolution, &info, cvt_origin);
+	ta->GridInfo (Resolution, &info, cvt_origin);
 
 	/*
 	 * Allocate space for the grid values.  This memory is used for
 	 * all channels.
 	 */
-	image = (unsigned char *)
-		malloc(info.rg_nX * info.rg_nY * sizeof(unsigned char));
+	int image_len = info.rg_nX * info.rg_nY * sizeof(unsigned char);
+	image = (unsigned char *) malloc (image_len);
 
 	/*
 	 * Loop through our fields and use the correct map, lo- or high-
-	 * frequency for each.  Build a map if not built already.
+	 * frequency, for each.  Build a map if not built already.  Brightness
+	 * temperatures must come from the tb square.  Use the same grid
+	 * map for both temperature squares, since the cell locations in 
+	 * each will be identical.
 	 */
 	IngestLog (EF_DEBUG, "Filling %d fields", NumFields);
 	for (i = 0; i < NumFields; ++i)
 	{
 		Channel ch = Fields[i].channel;
+		TempType temp = Fields[i].temp;
 		
 		if (High (ch))
 			gm = &higm;
-		else if (Low (ch))
+		else // (Low (ch))
 			gm = &logm;
-		else
-			continue;
 		if (!gm->Built())
 		{
 			gm->SetFillRadius ((float)Radius);
 			gm->SetCvtOrigin (cvt_origin);
-			gm->BuildMap (ss, &info, ch);
+			gm->BuildMap (ta, &info, ch);
 		}
-		gm->FillImageGrid (image, ss, ch, Scales + i, '\0');
+		if (ch == sfcidx || temp == TA)
+			gm->FillImageGrid (image, ta, ch, Scales + i, '\0');
+		else if (temp == TB)
+			gm->FillImageGrid (image, tb, ch, Scales + i, '\0');
+		else if (! strcmp (Fields[i].name, "rr"))
+			FillRainRate (gm, image, &info, tb, Scales + i);
+		else
+			memset (image, 0, image_len); 	// unknown field?
 		dc_ImgAddImage (dc, sample, Fids[i],
-				&origin, &info, &zt, image, /*len*/ 0);
+				&origin, &info, &zt, image, image_len);
 	}
 
 	if (logm.Built())
 	{
 		IngestLog (EF_DEVELOP, "Low-frequency grid stats:");
-		logm.ReportStats (ss);
+		logm.ReportStats (ta);
 		logm.FreeGridMap ();
 	}
 	if (higm.Built())
 	{
 		IngestLog (EF_DEVELOP, "High-frequency grid stats:");
-		higm.ReportStats (ss);
+		higm.ReportStats (ta);
 		higm.FreeGridMap ();
 	}
 
 	free (image);
 	IngestLog (EF_INFO, "Finished building and adding the image.");
+}
+
+
+/* 
+ * Now calculate rainfall rate from the brightness temperatures.
+ * 
+ * From Shuyi Chen:
+ * > RR=5.5e-3*(TB19H-TB85H+88)**1.6, if TB37V-TB37H<38 and TB19H-TB85H+88>0
+ * >   =0                             else
+ * >
+ * > RR is the rainrate in mm/hr, 
+ * > TBs are brightness temperatures in K for 85GHz, 37GHz and 19GHz channels. 
+ * > H and V indicate the Horizontal and Vertical polarizations.
+ * >
+ * > This is from an algorithm by Liu and Curry 1992: JGR,97,9959-9974. 
+ * > The algorithm only works over the ocean surface!!
+ *  
+ * Unfortunately, the MSFC DAAC tapes do not have the surface index 
+ * calculations like the Wentz RSS tapes, so we can't limit the computation
+ * to water surfaces.  Oh well.
+ */
+static void
+FillRainRate (GridMap *gm, unsigned char *image, RGrid *info,
+	      SquareScan *tb, ScaleInfo *scale)
+{
+	int ix, iy;
+	int scan, cell;
+	const unsigned char fill_byte = 255;
+	double max = 0, avg = 0;
+	int npt = 0;
+
+	for (iy = 0; iy < info->rg_nY; ++iy)
+	{
+		for (ix = 0; ix < info->rg_nX; ++ix)
+		{
+			int row = (info->rg_nY - 1 - iy);
+		/*
+		 * Note that we should be using the low resolution grid
+		 * map since this field is initialized as a low-frequency
+		 * channel.  This means every (ix, iy) of our grid will
+		 * map to a (scan, cell) coordinate in one of the 64
+		 * low-channel cells of an A-scan.
+		 */
+			gm->GridToCell (ix, iy, &scan, &cell);
+		/*
+		 * If we have no mapping at this grid point, fill in the
+		 * image cell with the fill value.
+		 */
+			if (scan < 0 || cell < 0)
+			{
+				image[ row * info->rg_nX + ix ] = 
+					(unsigned char) fill_byte;
+				continue;
+			}
+		/*
+		 * The grid is stored with Y (or row) beginning at the top
+		 * and increasing downwards, the row must be flipped from
+		 * the value used in the GridMap
+		 */
+			double tb37v = tb->CellValue (scan, cell, ch37v);
+			double tb37h = tb->CellValue (scan, cell, ch37h);
+			double tb19h = tb->CellValue (scan, cell, ch19h);
+			double tb85h = tb->CellValue (scan, cell, ch85h);
+			double a = (tb19h - tb85h + 88);
+			if ((tb37v - tb37h < 38) && (a > 0))
+			{
+				unsigned char byte;
+				double rr = 5.5e-3 * pow (a, (double)1.6);
+				if (rr > max)
+					max = rr;
+				avg += rr;
+				++npt;
+			/*
+			 * Whatever doesn't fit into the scale is probably
+			 * bad data or over land and should be set to 255
+			 * anyway.
+			 */
+				rr = (rr - scale->s_Offset) / scale->s_Scale;
+				if (rr > 255.0)
+				{
+				   IngestLog(EF_DEBUG,"rainrate overflow: %lf",
+					     rr);
+				   byte = 255;
+				}
+				else
+				   byte = (unsigned char) rr;
+				image[ row * info->rg_nX + ix ] = byte;
+			}
+			else
+			{
+				image[ row * info->rg_nX + ix ] = '\0';
+			}
+		}
+	}
+	avg = (npt) ? avg/npt : 0;
+	IngestLog (EF_DEVELOP, 
+		   "%s: %.2lf mm/hr, byte %i; %s: %.2lf mm/hr, byte %i",
+		   "rainrate max",
+		   max, (int)((max - scale->s_Offset) / scale->s_Scale), 
+		   "rainrate avg",
+		   avg, (int)((avg - scale->s_Offset) / scale->s_Scale));
 }
 
 
