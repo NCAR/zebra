@@ -6,7 +6,7 @@ LFILES = AllXSect ButtonMaps DisplayConfigs ModelAdd RadarAdd \
          ResetWindow empty.dc init-config-menu \
          init-config-path lineplot-add makecfgmenu profiler-add \
          rass-add send-wbounds template-menu theight-add theta-add \
-         tseries-add tweak-depth-plat xmgr-pipe zoom
+         tseries-add tweak-depth-plat xmgr-pipe zoom cfg-tools
 
 DISTFILES = $(LFILES) Imakefile
 
