@@ -47,7 +47,7 @@
 # include "LayoutControl.h"
 # include "LLEvent.h"
 
-RCSID ("$Id: GraphProc.c,v 2.66 1998-04-27 21:44:41 corbet Exp $")
+RCSID ("$Id: GraphProc.c,v 2.67 1998-10-08 20:53:40 burghart Exp $")
 
 /*
  * Default resources.
@@ -152,6 +152,7 @@ static void NewTime FP ((ZebTime *));
 static int AnswerQuery FP ((char *));
 static void SendGeometry FP((struct dm_msg *dmm));
 static int RealPlatform FP ((int, SValue *, int *, SValue *, int *));
+static int SimpleFieldName FP ((int, SValue *, int *, SValue *, int *));
 static void Enqueue FP ((EQpriority, char *));
 static int dmgr_message ();
 static void gp_sync FP ((void));
@@ -257,7 +258,7 @@ char *argv[];
 
 
 
-void
+int
 main (argc, argv)
 int argc;
 char **argv;
@@ -443,6 +444,7 @@ finish_setup ()
 	uf_def_function ("realplatform", 1, type, RealPlatform);
 	uf_def_function ("listposition", 2, type, ListPosition);
 	uf_def_function ("replstring", 3, type, ReplString);
+	uf_def_function ("simplefieldname", 1, type, SimpleFieldName);
 /*
  * Couple more CLF's with non-string parameters
  */
@@ -1899,6 +1901,36 @@ SValue *argv, *retv;
 	retv->us_v_int = (ds_LookupPlatform (argv->us_v_ptr) != BadPlatform);
 	*rett = SYMT_BOOL;
 	return (0);
+}
+
+
+
+int
+SimpleFieldName (narg, argv, argt, retv, rett)
+int narg, *argt, *rett;
+SValue *argv, *retv;
+/*
+ * The "SimpleFieldName()" command line function -- strip out just the name
+ * portion of a field description string.  Our one arg is a potentially
+ * full-blown field string like "temp[T][degC][ambient temperature]".
+ * We return just the name portion; in the example case above, "temp".
+ */
+{
+    FieldId f = F_Lookup (argv->us_v_ptr);
+    char justname[64];
+/*
+ * First try the field name.  If that's empty, take the type.
+ */
+    strcpy (justname, F_GetName (f));
+    if (! strlen (justname))
+	strcpy (justname, F_GetTypeName (f));
+/*
+ * Set up our return value and we're done
+ */
+    *rett = SYMT_STRING;
+    retv->us_v_ptr = usy_string (justname);
+
+    return (0);
 }
 
 
