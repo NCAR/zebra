@@ -1,7 +1,6 @@
 /*
  * Simple time iterpretation.
  */
-static char *rcsid = "$Id: TInterp.c,v 2.1 1991-09-13 15:01:58 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -22,6 +21,9 @@ static char *rcsid = "$Id: TInterp.c,v 2.1 1991-09-13 15:01:58 corbet Exp $";
 
 # include <ctype.h>
 
+# include "defs.h"
+
+RCSID("$Id: TInterp.c,v 2.2 1995-04-15 00:16:01 granger Exp $")
 
 
 int InterpDTime (trigger)
