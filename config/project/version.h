@@ -14,8 +14,6 @@
 
 #if __STDC__
 
-#define str(x) # x
-
 static char cppsyms[] = "@(#)$Symbols: "
 " __STDC__ "
 #ifdef _POSIX_SOURCE
@@ -134,14 +132,14 @@ static const char rcs_author[] = id ;
  */
 
 #ifdef notdef
-RCSID("$Id: version.h,v 1.1 1994-01-26 10:45:49 granger Exp $")
+RCSID("$Id: version.h,v 1.2 1994-01-26 12:37:29 granger Exp $")
 #endif
 
 #if !defined(lint) && !defined(LINT) && !defined(SABER)
 
 #if __STDC__
 static const char V_sccsid[4] = { '@', '(', '#', ')' };
-static const char V_rcs_id[] = "@(#)$Id: version.h,v 1.1 1994-01-26 10:45:49 granger Exp $";
+static const char V_rcs_id[] = "@(#)$Id: version.h,v 1.2 1994-01-26 12:37:29 granger Exp $";
 static const char V_compileid[] = 
 	"@(#)" "$Included: " __FILE__ " on " __DATE__ " at " __TIME__ " $";
 #endif /* __STDC__ */
