@@ -1,7 +1,7 @@
 /*
  * Layout Control and Coordinate Transformations
  */
-static char *rcsid = "$Id: LayoutControl.c,v 1.2 1992-01-02 17:04:27 barrett Exp $";
+static char *rcsid = "$Id: LayoutControl.c,v 1.3 1992-01-10 19:21:47 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -372,7 +372,7 @@ int
 lc_CompareData( d1,d2 )
 DataValPtr	d1,d2;
 {
-    int	val;
+    int	val =0;
     switch ( d1->type )
     {
 	case 't':
@@ -382,15 +382,15 @@ DataValPtr	d1,d2;
 	    val = d1->val.i-d2->val.i;
 	break;
 	case 'f':
-	    val = (d1->val.f-d2->val.f)< 0.0 ? -1 : 0;
-	    val = (d1->val.f-d2->val.f)> 0.0 ? 1 : 0;
+	    val = d1->val.f > d2->val.f ? 1 : 
+	          d1->val.f < d2->val.f ? -1 : 0;
 	break;
 	case 'd':
-	    val = (d1->val.d-d2->val.d)< 0.0 ? -1 : 0;
-	    val = (d1->val.d-d2->val.d)> 0.0 ? 1 : 0;
+	    val = d1->val.d > d2->val.d ? 1 : 
+	          d1->val.d < d2->val.d ? -1 : 0;
 	break;
     }
-    return val;
+    return (val);
 }
 
 int 
