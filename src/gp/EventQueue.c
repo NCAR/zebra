@@ -1,7 +1,7 @@
 /*
  * The graphics process event/processing queue system.
  */
-static char *rcsid = "$Id: EventQueue.c,v 2.1 1991-09-12 20:27:54 corbet Exp $";
+static char *rcsid = "$Id: EventQueue.c,v 2.2 1992-07-30 21:25:48 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -108,6 +108,8 @@ EQoverride override;
 		for (ent = P_queue[pri]; ent; ent = ent->pqe_next)
 			if (ent->pqe_proc == proc)
 				return;
+        else if ( override == OverrideQ )
+                Eq_ZapQProc ( pri, proc, data, len );
 /*
  * Get a new queue entry and fill it in.
  */
@@ -123,6 +125,37 @@ EQoverride override;
 	pqe->pqe_next = 0;
 }
 
+void
+Eq_ZapQProc (pri, proc, data, len)
+EQpriority pri;
+void (*proc) ();
+void    *data;
+int     len;
+/*
+ * Get rid of all entries involving this proc and data.
+ */
+{
+        struct pq_entry *ent;
+        int i;
+
+        for (ent = P_queue[pri]; ent; )
+        {
+                if (ent->pqe_proc == proc)
+                {
+                    for ( i = 0;
+                  i < len && ((char*)data)[i]==ent->pqe_data[i];
+                          i++);
+                    if ( i == len )
+                    {
+                        struct pq_entry *zap = ent;
+                        ent = ent->pqe_next;
+                        Eq_RemoveEntry (pri, zap);
+                    }
+                }
+                else
+                        ent = ent->pqe_next;
+        }
+}
 
 
 
