@@ -16,7 +16,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.2 1997-01-06 18:26:22 burghart Exp $"
+MFVERSION="$Id: Imakefile,v 1.3 1997-01-06 20:57:39 granger Exp $"
 
 #define IHaveSubdirs
 #define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
@@ -33,6 +33,8 @@ SRCS = cbd2zebra.c dem2zebra.c dlg2zebra.c drawmap.c map_decimate.c \
 DISTFILES = Imakefile $(SRCS) README DEM_records.txt cbd_world.gif \
 	dlg_sdts.ps.gz
 
+DEPEND_DEFINES=$(NETCDFINCLUDES)
+
 /*
  * Make the FIPS123 library now, since we'll need it for later targets
  */
@@ -45,8 +47,10 @@ CompleteProgramTarget(cbd2zebra,cbd2zebra.o,,,)
 CompleteProgramTarget(dem2zebra,dem2zebra.o,,$(LIBNETCDF),$(SYSLIBS))
 CompleteProgramTarget(dlg2zebra,dlg2zebra.o,$(FIPSLIB),$(FIPSLIB),)
 # ifdef SunArchitecture
-	CompleteProgramTarget(drawmap,drawmap.o tablet.o,$(DEPLIBS),
-			      $(LIBS) $(XLIBS),$(SYSLIBS))
+DEPEND_DEFINES=$(NETCDFINCLUDES) $(XINCLUDES)
+DOBJS=drawmap.o tablet.o
+CompleteProgramTarget(drawmap,$(DOBJS),$(DEPLIBS),$(LIBS) $(XLIBS),$(SYSLIBS))
+SpecialObjectRule(drawmap.o,/**/,$(XINCLUDES))
 # endif
 CompleteProgramTarget(map_decimate,map_decimate.o,,,$(SYSLIBS))
 CompleteProgramTarget(ncar2zebra,ncar2zebra.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
