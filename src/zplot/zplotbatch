@@ -1,6 +1,6 @@
 #! /usr/bin/sh
 #
-# $Id: zplotbatch,v 1.19 2001-02-03 19:42:00 granger Exp $
+# $Id: zplotbatch,v 1.20 2001-06-29 20:56:41 granger Exp $
 #
 # Start a display manager session with a virtual X server and dump
 # images of its plots.
@@ -8,8 +8,14 @@
 # Set to 'echo' to debug rather than actually dump images
 echo=
 
-# Path to Xvfb
-xvfb="Xvfb"
+# Path to Xvfb, -pn allows server to start even when all sockets (eg unix
+# socket) cannot be setup for listening.  unix socket fails when another
+# Xserver has already created /tmp/.X11-unix directory.  Disable access
+# control with -ac so that others can connect to it no matter who starts
+# it.  (ie, it may have been started a while ago as a different user, but
+# we'll use that same one anyway.)
+#
+xvfb="Xvfb -pn -ac"
 
 if [ x$BATCH_IMAGE_SPOOL = x ]; then
     echo "Batch image spool directory not set: BATCH_IMAGE_SPOOL"
@@ -19,7 +25,8 @@ fi
 
 spool="$BATCH_IMAGE_SPOOL"
 
-# Display connection to use for virtual X server
+# Display connection to use for virtual X server.
+#
 display=":9"
 
 # Get a time
@@ -77,16 +84,15 @@ if [ "x$when" != "x-" ]; then
     exec < $temp
 fi
 
-# Start our private, virtual X display.
-# This may fail if one is already there, in which case we'll use the
-# existing one.  Either way, disable access control so that others can
-# connect to it no matter who starts it.
-
+# Start our private, virtual X display.  This may fail if one is already
+# there, in which case we'll use the existing one.  Use 'localhost' (not
+# 'unix') to force network socket since unix socket may have failed. (see
+# above.)
+#
 $xvfb $display >/dev/null 2>&1 &
 x=$!
 sleep 5
-DISPLAY=unix${display}.0 ; export DISPLAY
-xhost +
+DISPLAY=localhost${display}.0 ; export DISPLAY
 
 # Make sure we have a datastore running; we don't need the event logger
 ZEB_EVENTLOGGER=true ; export ZEB_EVENTLOGGER
