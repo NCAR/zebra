@@ -32,7 +32,7 @@ extern "C"
 # include "Index.h"
 # include "ZTime.h"
 
-MAKE_RCSID ("$Id: Index.cc,v 1.7 1995-10-30 21:29:45 corbet Exp $");
+MAKE_RCSID ("$Id: Index.cc,v 1.8 1996-01-02 21:20:18 granger Exp $");
 
 //
 // Internal structures
@@ -572,5 +572,5 @@ PlatformIndex::files (const char *plat) const
 {
 	PlatInfo *pi = findPlat (plat);
 
-	return (pi ? pi->pi_files : NULL);
+	return (pi ? pi->pi_files : (IndexFile *) NULL );
 }

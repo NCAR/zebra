@@ -39,7 +39,7 @@ extern "C"
 # include "DataDir.h"
 # include "Tape.h"
 # include "plcontainer.h"
-MAKE_RCSID ("$Id: DLoad.cc,v 1.10 1995-12-05 20:24:58 corbet Exp $")
+MAKE_RCSID ("$Id: DLoad.cc,v 1.11 1996-01-02 21:20:15 granger Exp $")
 
 //
 // Import from main.
@@ -480,7 +480,7 @@ ExtractPlat (const char *file, char *plat)
 // Pull out the platform name.
 //
 {
-	char *begin, *end;
+	const char *begin, *end;
 //
 // This is all made much more complicated by the bizarre naming
 // scheme that was chosen for the RAPS project.

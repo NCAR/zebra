@@ -47,7 +47,7 @@ extern "C"
 # include "Tape.h"
 
 
-RCSID ("$Id: TapeIndex.cc,v 1.8 1995-07-06 05:07:00 granger Exp $")
+RCSID ("$Id: TapeIndex.cc,v 1.9 1996-01-02 21:20:20 granger Exp $")
 
 
 //
@@ -372,7 +372,7 @@ ExtractPlat (const char *file, char *plat)
 // Pull out the platform name.
 //
 {
-	char *begin, *end;
+	const char *begin, *end;
 //
 // This is all made much more complicated by the bizarre naming
 // scheme that was chosen for the RAPS project.
