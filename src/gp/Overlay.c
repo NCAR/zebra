@@ -1,7 +1,10 @@
 /*
  * Deal with static (or almost static) overlays.
  */
-static char *rcsid = "$Id: Overlay.c,v 2.1 1991-08-07 20:13:44 corbet Exp $";
+static char *rcsid = "$Id: Overlay.c,v 2.2 1991-09-12 19:29:55 corbet Exp $";
+
+# include <config.h>
+# if C_CAP_OVERLAY
 
 # include <stdio.h>
 # include <X11/Intrinsic.h>
@@ -1276,36 +1279,6 @@ XColor *xc;
 
 
 
-ov_PositionIcon (name, x, y, fg)
-char	*name;
-int	x, y, fg;
-{
-	OvIcon	*icon;
-	Display	*Disp = XtDisplay (Graphics);
-	XGCValues vals;
-
-	SetClip (TRUE);
-	icon = ov_GetIcon (name);
-	if (icon == NULL)
-	{
-		msg_ELog (EF_PROBLEM, "Can't get icon %s.", name);
-		return (FALSE);
-	}
-	x -= icon->oi_xh;
-	y -= icon->oi_yh;
-
-	vals.foreground = fg;
-	vals.fill_style = FillStippled;
-	vals.stipple = icon->oi_pixmap;
-	XChangeGC (Disp, Gcontext, GCForeground|GCFillStyle|GCStipple,
-			&vals);
-	XSetTSOrigin (Disp, Gcontext, x, y);
-	XFillRectangle (Disp, GWFrame (Graphics), Gcontext, x, y,
-			icon->oi_w, icon->oi_h);
-	ResetGC ();
-}
-
-
 
 static void
 ov_Location (comp, update)
@@ -1837,3 +1810,43 @@ int *solid, *ticwidth, *ll;
 			msg_ELog (EF_PROBLEM, "Bad origin '%s'", origin);
 	}
 }
+
+
+
+# endif		/* C_C_CAP_OVERLAY */
+
+
+/*
+ * This routine is special, and should be here even without overlays.
+ */
+# if (C_CAP_OVERLAY || C_CAP_VECTOR || C_CAP_LIGHTNING)
+ov_PositionIcon (name, x, y, fg)
+char	*name;
+int	x, y, fg;
+{
+	OvIcon	*icon;
+	Display	*Disp = XtDisplay (Graphics);
+	XGCValues vals;
+
+	SetClip (TRUE);
+	icon = ov_GetIcon (name);
+	if (icon == NULL)
+	{
+		msg_ELog (EF_PROBLEM, "Can't get icon %s.", name);
+		return (FALSE);
+	}
+	x -= icon->oi_xh;
+	y -= icon->oi_yh;
+
+	vals.foreground = fg;
+	vals.fill_style = FillStippled;
+	vals.stipple = icon->oi_pixmap;
+	XChangeGC (Disp, Gcontext, GCForeground|GCFillStyle|GCStipple,
+			&vals);
+	XSetTSOrigin (Disp, Gcontext, x, y);
+	XFillRectangle (Disp, GWFrame (Graphics), Gcontext, x, y,
+			icon->oi_w, icon->oi_h);
+	ResetGC ();
+}
+
+# endif
