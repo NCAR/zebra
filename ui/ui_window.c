@@ -27,7 +27,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_window.c,v 1.27 1993-03-09 22:00:43 granger Exp $";
+static char *Rcsid = "$Id: ui_window.c,v 1.28 1993-03-10 22:14:25 granger Exp $";
 
 static bool Initialized = FALSE;
 static bool Active = FALSE;	/* Is window mode active??	*/
@@ -614,8 +614,9 @@ char *name, *geom;
 	{
 		if (! geom)
 		{
-			XRaiseWindow(XtDisplay(frame->fw_w),
-				     XtWindow(frame->fw_w));
+			XRaiseWindow (XtDisplay(frame->fw_w),
+				      XtWindow(frame->fw_w));
+			uw_sync ();
 			return;
 		}
 		else
