@@ -1,4 +1,4 @@
-static char *Copyright =
+char *Copyright =
 "		Copyright (C) 1987,88,89,90,91 by UCAR\n\
 	University Corporation for Atmospheric Research\n\
 		   All rights reserved\n\
