@@ -1,4 +1,4 @@
-/* $Id: gp_cmds.h,v 2.9 2000-04-10 20:54:02 burghart Exp $ */
+/* $Id: gp_cmds.h,v 2.10 2000-12-01 23:13:12 granger Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -48,4 +48,5 @@
 # define GPC_ENQUEUE	27
 # define GPC_IMGDUMP	28
 # define GPC_SHELL	29
+# define GPC_SELECTFIELD 30
 

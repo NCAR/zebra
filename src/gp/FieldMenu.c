@@ -21,6 +21,8 @@
  * maintenance or updates for its software.
  */
 # include <string.h>
+
+
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
 # include <X11/Xaw/SimpleMenu.h>
@@ -42,33 +44,55 @@
 # include <ds_fields.h>
 # include <DataStore.h>
 # include "GraphProc.h"
+# include "FieldMenu.h"
 
-RCSID ("$Id: FieldMenu.c,v 2.23 2000-08-25 20:12:53 burghart Exp $")
+RCSID ("$Id: FieldMenu.c,v 2.24 2000-12-01 23:13:11 granger Exp $")
 
 /*
- * Stuff for the SME menu.
+ * Establish a single interface style for dynamic field selection
+ * widgets and menus.  The specification follows the form of a 
+ * comma-separated list of key=value pairs, so that parameters can be
+ * easily added and only those relevant need to be specified.  This
+ * specification line is parsed before popping up the FieldMenu or the
+ * field selection shell.
+ *
+ * Here are the parameters so far:
+ *
+ * param	The field parameter to change, default is 'field'
+ * extras	The extras string, which maintains its original format
+ *		of 'field pseudo-name|menu entry label,...'
+ * command      Field selection command which overrides the default action
+ *		using any specified 'fp' value.
+ * title	The title to use for the menu, else its 'Select <param>'
+ *
+ * The same spec string can be used for both the FieldMenu(<spec>)
+ * call from an icon menu and for the selectfield ui command.
  */
-# define MAXENTRY 200
-static Widget Menu, Entries[MAXENTRY];
-static char Platform[PlatformListLen];	/* Platform of interest	*/
-static FieldId Fields[MAXENTRY];
-static int NManaged, NField, NExtra;
-static char Extras[256], *PExtras[20];
+
+
+/*
+ * Stuff for the SME FieldMenu.
+ */
+# define MAXMENU 50	/* maximum entries allowed in the popup field menu */
+static Widget Menu, Entries[MAXMENU];
+static int NManaged;
+static fm_Context FieldMenuContext;
+
+static struct fm_Callback FieldMenuCallbacks[FM_MAXENTRY];
 
 static stbl VTable;
 
-static char IComp[60];
-
-static void EntryCallback FP ((Widget, XtPointer, XtPointer));
+static void InitFieldMenu ();
 static void PopupCallback FP ((Widget, XtPointer, XtPointer));
-static int SetupFields FP ((void));
 static int Funky FP ((char *));
+
 /*
  * Field chooser stuff.
  */
 static void InitFChooser FP ((void));
 static Widget FC_Create FP ((char *, Widget, XtAppContext));
-static void FC_Callback FP ((Widget, XtPointer, XtPointer));
+static void fm_EntryCallback FP ((Widget, XtPointer, XtPointer));
+static void fm_PopupSelector (Widget w, XtPointer xfield, XtPointer junk);
 
 /*
  * XXX Ugly snarfed out of ui_wPulldown.c.
@@ -82,16 +106,113 @@ static unsigned char Star_bits[] = {
 static Pixmap Star;
 
 
+static void
+fm_ParseMenuSpec (fm_Context *fmc, const char *inspec)
+{
+    char spec[256];
+    char *parms[32];
+    char *values[32];
+    int nparms;
+    int ngood;
+    int i;
+
+    /* preserve the input string before parsing it */
+    strcpy (spec, inspec);
+    nparms = CommaParse (spec, parms);
+
+    /* loop through the parms splitting name and value, skipping
+       any without an equal sign */
+    ngood = 0;
+    for (i = 0; i < nparms; ++i)
+    {
+	char *cp = strchr (parms[i], '=');
+	if (cp)
+	{
+	    *cp = '\0';
+	    values[ngood] = cp + 1;
+	    parms[ngood] = parms[i];
+	    ++ngood;
+	}
+    }
+    nparms = ngood;
+
+    /* now we can actually act on the parameters */
+    for (i = 0; i < nparms; ++i)
+    {
+	if (strncmp (parms[i], "param", 5) == 0)
+	{
+	    strcpy (fmc->fparam, values[i]);
+	}
+	else if (strcmp (parms[i], "title") == 0)
+	{
+	    strcpy (fmc->title, values[i]);
+	}
+	else if (strncmp (parms[i], "extras", 5) == 0)
+	{
+	    strcpy (fmc->extras, values[i]);
+	}
+	else if (strncmp (parms[i], "command", 3) == 0)
+	{
+	    strcpy (fmc->fsc, values[i]);
+	}
+    }
+}
+
+
+/*
+ * Parse a menu string and check whether it's one of our menus.  Store
+ * the spec parameters in case the menu gets popped up, and return the
+ * canonical menu name which should be used to pop up the menu.
+ */
+char *
+fm_SetupFieldMenu (char *spec)
+{
+    if (strncmp (spec, "FieldMenu", 9))
+	return 0;
+    if (fm_GetContext (&FieldMenuContext, spec+9))
+	return "FieldMenu";
+    return 0;
+}
+
+
+
+
 void
+fm_Init ()
+{
+    VTable = usy_g_stbl ("ui$variable_table");
+    InitFieldMenu ();
+/*
+ * Also initialize the file chooser.
+ */
+    InitFChooser ();
+}
+
+
+
+static void
+fm_InitBitmaps ()
+{
+    /*
+     * If we don't have the star pixmap, get it now.
+     */
+    if (! Star)
+	Star = XCreateBitmapFromData (Disp, XtWindow (Graphics), 
+				      (const char *)Star_bits, 
+				      Star_width, Star_height);
+}
+
+
+
+static void
 InitFieldMenu ()
 /*
  * Get the field menu set up.
  */
 {
-	Arg args[2];
+	Arg args[5];
 	int i, n;
-
-	VTable = usy_g_stbl ("ui$variable_table");
+	Widget sme;
 /*
  * Create a shell for the thing.
  */
@@ -102,63 +223,126 @@ InitFieldMenu ()
 		(XtPointer) Menu);
 	XtCreateManagedWidget ("Line", smeLineObjectClass, Menu, NULL, 0);
 /*
+ * Always have an entry to popup the field selector on the current context.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNlabel, "Field Selector..."); ++n;
+	sme = XtCreateManagedWidget ("popupfs", smeBSBObjectClass,
+				     Menu, args, n);
+	XtAddCallback (sme, XtNcallback, fm_PopupSelector, 0);
+	XtCreateManagedWidget ("Line", smeLineObjectClass, Menu, NULL, 0);
+/*
  * Create all of the entries, but don't manage them now.
  */
 	n = 0;
 	XtSetArg (args[0], XtNlabel, "(nuttin)");	n++;
 	XtSetArg (args[1], XtNleftMargin, 20);		n++;
-	for (i = 0; i < MAXENTRY; i++)
+	for (i = 0; i < MAXMENU; i++)
 	{
 		Entries[i] = XtCreateWidget ("DAEntry", smeBSBObjectClass,
-			Menu, args, n);
-		XtAddCallback (Entries[i], XtNcallback, 
-			(XtCallbackProc) EntryCallback, (XtPointer)(long) i);
+					     Menu, args, n);
 	}
 	NManaged = 0;
-/*
- * Also initialize the file chooser.
- */
-	InitFChooser ();
 }
 
 
 
-
-
-
-/* ARGSUSED */
-static void
-EntryCallback (w, xwhich, junk)
-Widget w;
-XtPointer xwhich, junk;
-/*
- * One of the entries has been selected.
- */
+int
+fm_NumEntries (fm_Context *fmc)
 {
-	long which = (long) xwhich;
-	char cbuf[512], *fname;
-/*
- * See which field name we should use.
- */
-	fname = (which < (NManaged - NExtra)) ? F_GetFullName (Fields[which]) :
-		PExtras[which + NExtra - NManaged];
-/*
- * Here we just put together the command and go.  Start by searching for
- * a command to execute.
- */
-	if (! pda_Search (Pd, IComp, "field-select-command", Platform, 
-			cbuf, SYMT_STRING))
-	{
-		parameter (IComp, "field", fname);
-		return;
-	}
-/*
- * Now format the rest of the command with the field.
- */
-	sprintf (cbuf + strlen (cbuf), " '%s'", fname);
+    return fmc->nfield + fmc->nextra;
+}
 
-	msg_ELog (EF_DEBUG, "FMenu cmd '%s'", cbuf);
-	ui_perform (cbuf);
+
+
+/*
+ * Given a context and a list of entry widgets, set the labels and
+ * callbacks for each.  Return the number of entries setup.
+ */
+static int
+fm_SetupEntries (fm_Context *fmc, struct fm_Callback *callbacks,
+		 XtCallbackProc callback, 
+		 Widget *entries, int maxentry)
+{
+    Arg args[10];
+    int i;
+    FieldId *fields = fmc->fields;
+    char cbuf[256];
+    int nentry;
+
+    fm_InitBitmaps ();
+    /*
+     * Go through and make the labels for each one.
+     */
+    fmc->fentry = 0;
+    nentry = 0;
+    for (i = 0; (i < fmc->nfield) && (i < maxentry - fmc->nextra); i++)
+    {
+	char *name = F_GetName (fields[i]);
+	char *fullname = F_GetFullName (fields[i]);
+	char *units = F_GetUnits (fields[i]);
+	int fld_is_displayed = 
+	    ! strcmp (fmc->fcurrent, name) ||
+	    ! strcmp (fmc->fcurrent, fullname);
+	/*
+	 * Add the text.
+	 */
+	strncpy (cbuf, F_GetDesc (fields[i]), 60);
+	cbuf[60] = 0;
+	if (strcmp (cbuf, name))
+	    sprintf (cbuf + strlen (cbuf), " (%s)", name);
+	if (strcmp (units, "none"))
+	    sprintf (cbuf + strlen (cbuf), " (%s)", units);
+	XtSetArg (args[0], XtNlabel, cbuf);
+	XtSetArg (args[1], XtNleftBitmap, None);
+	if (!fmc->fentry && fld_is_displayed)
+	{
+	    XtSetArg (args[1], XtNleftBitmap, Star);
+	    fmc->fentry = entries[i];
+	}
+	XtSetValues (entries[i], args, 2);
+
+	callbacks[i].fid = fields[i];
+	callbacks[i].extra = 0;
+	callbacks[i].refdata = 0;
+	callbacks[i].fm_context = fmc;
+	callbacks[i].i = i;
+	XtRemoveAllCallbacks (entries[i], XtNcallback);
+	XtAddCallback (entries[i], XtNcallback, callback,
+		       (XtPointer) (callbacks + i));
+	++nentry;
+    }
+    /*
+     * Setup the extra entires
+     */
+    for (i = 0; i < fmc->nextra; i++)
+    {
+	char *bar = strchr (fmc->pextras[i], '|');
+	/*
+	 * Set up the entry text.
+	 */
+	if (bar)
+	{
+	    *bar++ = '\0';
+	    sprintf (cbuf, "%s (%s)", bar, fmc->pextras[i]);
+	}
+	else
+	    strcpy (cbuf, fmc->pextras[i]);
+	XtSetArg (args[0], XtNlabel, cbuf);
+	XtSetArg (args[1], XtNleftBitmap, None);
+	XtSetValues (entries[nentry], args, 2);
+
+	callbacks[nentry].fid = BadField;
+	callbacks[nentry].extra = fmc->pextras[i];
+	callbacks[nentry].refdata = 0;
+	callbacks[nentry].i = nentry;
+	callbacks[nentry].fm_context = fmc;
+	XtRemoveAllCallbacks (entries[nentry], XtNcallback);
+	XtAddCallback (entries[nentry], XtNcallback, callback,
+		       (XtPointer) (callbacks + nentry));
+	++nentry;
+    }
+    return nentry;
 }
 
 
@@ -175,165 +359,178 @@ XtPointer junk, junk1;
  * size and location to fit on the screen.
  */
 {
-	int nentry, i, type;
-	Arg args[2];
-	char string[256], field[FieldListLen];
-	SValue v;
-/*
- * Get the platforms set.
- */
-	NField = nentry = SetupFields ();
-/*
- * If we don't have the star pixmap, get it now.
- */
-	if (! Star)
-		Star = XCreateBitmapFromData (Disp, XtWindow (Menu), 
-		      (const char *)Star_bits, Star_width, Star_height);
-	pd_Retrieve (Pd, IComp, "field", field, SYMT_STRING);
-/*
- * If they have additional junk to add, find out about it now.
- */
-	NExtra = 0;
-	usy_g_symbol (Vtable, "area_type", &type, &v);
-	sprintf (string, "%s-field-menu-extras", v.us_v_ptr);
-	if (pda_Search (Pd, IComp, string, Platform, Extras, SYMT_STRING) ||
-	    pda_Search (Pd, IComp, "field-menu-extras", Platform, Extras,
-			SYMT_STRING))
-	{
-		NExtra = ParseFieldList (Extras, PExtras);
-	}
+    Arg args[5];
+    int n;
+    int nentry;
+    fm_Context *fmc = &FieldMenuContext;
+
+    n = 0;
+    XtSetArg (args[n], XtNlabel, fmc->title); n++;
+    XtSetValues (Menu, args, n);
 /*
  * Go through and make the labels for each one.
  */
-	for (i = 0; (i < nentry) && (i < MAXENTRY - NExtra); i++)
-	{
-		char *name = F_GetName (Fields[i]);
-		char *fullname = F_GetFullName (Fields[i]);
-		char *units = F_GetUnits (Fields[i]);
-		int fld_is_displayed = 
-		    ! strcmp (field, name) || ! strcmp (field, fullname);
-	/*
-	 * Add the text.
-	 */
-		strncpy (string, F_GetDesc (Fields[i]), 60);
-		string[60] = 0;
-		if (strcmp (string, name))
-			sprintf (string + strlen (string), " (%s)", name);
-		if (strcmp (units, "none"))
-			sprintf (string + strlen (string), " (%s)", units);
-		XtSetArg (args[0], XtNlabel, string);
-		XtSetArg (args[1], XtNleftBitmap, 
-			  fld_is_displayed ? Star : None);
-		XtSetValues (Entries[i], args, 2);
-	/*
-	 * If this one isn't managed yet, make it so now.
-	 */
-	 	if (i >= NManaged)
-		{
-			XtManageChild (Entries[i]);
-			NManaged++;
-		}
-	}
-	nentry = i; 	/* in case we were cut off by MAXENTRY */
+    nentry = fm_SetupEntries (fmc, FieldMenuCallbacks, fm_EntryCallback,
+			      Entries, MAXMENU);
 /*
- * Add the extra entires
+ * Manage any that were not managed before, or clean out extras if need be.
  */
-	for (i = 0; i < NExtra; i++)
-	{
-		char *bar = strchr (PExtras[i], '|');
-		/*
-		 * Set up the entry text.
-		 */
-		if (bar)
-		{
-			*bar++ = '\0';
-			sprintf (string, "%s (%s)", bar, PExtras[i]);
-		}
-		else
-			strcpy (string, PExtras[i]);
-		XtSetArg (args[0], XtNlabel, string);
-		XtSetArg (args[1], XtNleftBitmap, None);
-		XtSetValues (Entries[i + nentry], args, 2);
-		/*
-		 * If this one isn't managed yet, make it so now.
-		 */
-		if ((i + nentry) >= NManaged)
-		{
-			XtManageChild (Entries[i + nentry]);
-			NManaged++;
-		}
-	}
-	nentry += NExtra;
-/*
- * Clean out extras if need be.
- */
- 	for (i = nentry; i < NManaged; i++)
-		XtUnmanageChild (Entries[i]);
-	NManaged = nentry;
+    if (nentry > NManaged)
+    {
+	XtManageChildren (Entries + NManaged, nentry - NManaged);
+    }
+    else if (NManaged > nentry)
+    {
+	XtUnmanageChildren (Entries + nentry, NManaged - nentry);
+    }
+    NManaged = nentry;
 /*
  * Re-position the pop-up shell now that our size is correct.
  */
-	I_RepositionMenu (w);
+    I_RepositionMenu (w);
 }
 
 
 
-static int
-SetupFields ()
+
+int
+fm_GetContext (fm_Context *fmc, char *spec)
 /*
  * Figure out what should appear in this menu where.
+ * Return non-zero if successful.
  */
 {
 	SValue v;
-	int type, nfield = MAXENTRY;
+	int type;
 	PlatformId pid;
 	char *comma;
+	char buf[256];
+
+/*
+ * Initialization.
+ */
+	fmc->nfield = 0;
+	strcpy (fmc->platform, "null");
+	fmc->extras[0] = '\0';
+	fmc->nextra = 0;
+	strcpy (fmc->icomp, "unknown");
+	strcpy (fmc->area_type, "unknown");
+	strcpy (fmc->icon_platform, "unknown");
+	fmc->fsc[0] = '\0';
+	fmc->title[0] = '\0';
+	strcpy (fmc->fparam, "field");
+	strcpy (fmc->fcurrent, "unknown");
+	fmc->fentry = 0;
 /*
  * See which is our component and platform.
  */
 	if (! usy_g_symbol (VTable, "icon_component", &type, &v))
-		return (Funky ("no icon component"));
-	strcpy (IComp, v.us_v_ptr);
+	{
+		Funky ("no icon component");
+		return 0;
+	}
+	strcpy (fmc->icomp, v.us_v_ptr);
 /*
  * Assume that if our area type is not "icon" we need to see what our
  * real platform should be.
  */
 	usy_g_symbol (VTable, "area_type", &type, &v);
-	if (! strcmp (v.us_v_ptr, "icon"))
+	strcpy (fmc->area_type, v.us_v_ptr);
+	if (! strcmp (fmc->area_type, "icon"))
 	{
-		if (! pd_Retrieve (Pd, IComp, "platform", Platform,
-				SYMT_STRING))
-			return (Funky ("No platform!"));
+		if (! pd_Retrieve (Pd, fmc->icomp, "platform", fmc->platform,
+				   SYMT_STRING))
+		{
+		    Funky ("No platform!");
+		    return 0;
+		}
 	}
 	else
 	{
 		usy_g_symbol (VTable, "icon_platform", &type, &v);
-		strcpy (Platform, v.us_v_ptr);
+		strcpy (fmc->icon_platform, v.us_v_ptr);
+		strcpy (fmc->platform, v.us_v_ptr);
 	/*
 	 * XXX: If we're running in the station plot annotation area, it
 	 * 	has "quadN" kludged into the platform field.  Kludge our
 	 *	way back to the real platform.  Ugly.
 	 */
-		if (! strncmp (Platform, "quad", 4) && Platform[5] == '\0')
-			pd_Retrieve (Pd, IComp, "platform", Platform,
-					SYMT_STRING);
+		if (! strncmp (fmc->platform, "quad", 4) && 
+		    fmc->platform[5] == '\0')
+			pd_Retrieve (Pd, fmc->icomp, "platform", 
+				     fmc->platform, SYMT_STRING);
 	}
 /*
  * If we are dealing with a comma-separated list of platforms, just
  * use the first.  This may not be the ideal behavior, but then, what is?
  */
-	if ((comma = strchr (Platform, ',')))
+	if ((comma = strchr (fmc->platform, ',')))
 		*comma = '\0';
+/*
+ * If they have additional junk to add, find out about it now.
+ */
+	sprintf (buf, "%s-field-menu-extras", fmc->area_type);
+	if (! pda_Search (Pd, fmc->icomp, buf, fmc->platform, 
+			  fmc->extras, SYMT_STRING))
+	{
+	    pda_Search (Pd, fmc->icomp, "field-menu-extras", 
+			fmc->platform, fmc->extras, SYMT_STRING);
+	}
+/*
+ * Look for an explicit command to perform.
+ */
+	pda_Search (Pd, fmc->icomp, "field-select-command", 
+		    fmc->platform, fmc->fsc, SYMT_STRING);
+/*
+ * Now load the spec string, if any, so that parameters there will override
+ * any retrieved above.
+ */
+	if (spec)
+	{
+	    fm_ParseMenuSpec (fmc, spec);
+	}
+	fmc->nextra = ParseFieldList (fmc->extras, fmc->pextras);
+	if (! fmc->title[0])
+	    sprintf (fmc->title, "Select %s", fmc->fparam);
+/*
+ * Find out what the current field is.
+ */
+	if (fmc->fparam[0])
+	    pd_Retrieve (Pd, fmc->icomp, fmc->fparam, fmc->fcurrent, 
+			 SYMT_STRING);
 /*
  * Query the fields that are available.
  */
-	if ((pid = ds_LookupPlatform (Platform)) == BadPlatform)
-		return (Funky ("Bad platform name"));
-	ds_GetFields (pid, &PlotTime, &nfield, Fields);
-	return (nfield);
+	if ((pid = ds_LookupPlatform (fmc->platform)) == BadPlatform)
+	{
+	    Funky ("Bad platform name");
+	    return 0;
+	}
+	fmc->nfield = MAXFIELD;
+	ds_GetFields (pid, &PlotTime, &fmc->nfield, fmc->fields);
+	return (1);
 }
 
 
+
+/*
+ * Basically, just make sure the UI variables queried to get this context
+ * are restored.
+ */
+void
+fm_StoreContext (fm_Context *fmc)
+{
+    SValue v;
+
+    v.us_v_ptr = fmc->icomp;
+    usy_s_symbol (VTable, "icon_component", SYMT_STRING, &v);
+    v.us_v_ptr = fmc->area_type;
+    usy_s_symbol (VTable, "area_type", SYMT_STRING, &v);
+    v.us_v_int = ! strcmp (fmc->area_type, "posicon");
+    usy_s_symbol (VTable, "position_icon", SYMT_BOOL, &v);
+    v.us_v_ptr = fmc->icon_platform;
+    usy_s_symbol (VTable, "icon_platform", SYMT_STRING, &v);
+}
 
 
 
@@ -373,7 +570,9 @@ InitFChooser ()
 
 
 
-
+/*
+ * UI app widget creation routine for Field Chooser
+ */
 static Widget
 FC_Create (junk, parent, appc)
 char *junk;
@@ -383,23 +582,44 @@ XtAppContext appc;
  * Create the field chooser.
  */
 {
-	Arg args[15];
-	int n, field;
-	Widget vp, vpform, above;
-
-	NField = SetupFields ();
+    Arg args[15];
+    int n;
+    fm_Context *fmc = &FieldMenuContext;
 /*
  * We know that UI will create us with a Form widget parent and a TopLevelShell
  * as a grandparent.  We *need* a resizable shell, so we force it..
  */
-	n = 0;
-	XtSetArg (args[n], XtNallowShellResize, True); n++;
-	XtSetValues (XtParent(parent), args, n);
+    n = 0;
+    XtSetArg (args[n], XtNallowShellResize, True); n++;
+    XtSetValues (XtParent(parent), args, n);
 
-	n = 0;
- 	XtSetArg (args[n], XtNdefaultDistance, 5); n++;
-	XtSetArg (args[n], XtNborderWidth, 0); n++;
-	XtSetValues (parent, args, n);
+    n = 0;
+    XtSetArg (args[n], XtNdefaultDistance, 5); n++;
+    XtSetArg (args[n], XtNborderWidth, 0); n++;
+    XtSetValues (parent, args, n);
+
+    fm_GetContext (fmc, 0);
+    return fm_CreateFieldChooser (fmc, parent, 
+				  fm_EntryCallback, NULL, FieldMenuCallbacks);
+}
+		
+		
+
+
+Widget
+fm_CreateFieldChooser (fm_Context *fmc, Widget parent, 
+		       XtCallbackProc callback, void *refdata,
+		       struct fm_Callback *callbacks)
+/*
+ * Create the field chooser.
+ */
+{
+	Arg args[15];
+	int n;
+	int i, nentry;
+	Widget vp, vpform, above;
+	Widget entries[FM_MAXENTRY];
+	char name[15];
 /*
  * Make a viewport to hold all the buttons.
  */
@@ -407,45 +627,37 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNallowVert, True);			n++;
 	XtSetArg (args[n], XtNheight, 300);			n++;
 	XtSetArg (args[n], XtNwidth, 450);			n++;
-/*	XtSetArg (args[n], XtNfromVert, above);			n++; */
 	vp = XtCreateManagedWidget ("pvp", viewportWidgetClass, parent,
-			args, n);
+				    args, n);
 	vpform = XtCreateManagedWidget ("pform", formWidgetClass, vp, 0, 0);
 /*
- * Lotsa buttons.
+ * Create all the buttons, but defer the bulk of the setup.
  */
 	above = NULL;
-	for (field = 0; field < NField; field++)
+	nentry = fm_NumEntries (fmc);
+	for (i = 0; i < nentry; ++i)
 	{
-		char *name = F_GetName (Fields[field]);
-		char *units = F_GetUnits (Fields[field]);
-		char string[120];
+	    	sprintf (name, "entry%i", i);
 	/*
-	 * Format up the label.
-	 */
-		strncpy (string, F_GetDesc (Fields[field]), 60);
-		string[60] = 0;
-		if (strcmp (string, name))
-			sprintf (string + strlen (string), " (%s)", name);
-		if (strcmp (units, "none"))
-			sprintf (string + strlen (string), " (%s)", units);
-	/*
-	 * Put together the args and make the button.
+	 * Put together the args to make the button.
 	 */
 		n = 0;
-		XtSetArg (args[n], XtNlabel, string);		n++;
 		XtSetArg (args[n], XtNfromVert, above);		n++;
 		XtSetArg (args[n], XtNwidth, 300);		n++;
 		XtSetArg (args[n], XtNjustify, XtJustifyLeft);	n++;
 		XtSetArg (args[n], XtNborderWidth, 0);		n++;
-		above = XtCreateManagedWidget (name, commandWidgetClass,
-				vpform, args, n);
-		XtAddCallback (above, XtNcallback, FC_Callback,
-				(XtPointer) name);
+		entries[i] = XtCreateManagedWidget (name, commandWidgetClass,
+						    vpform, args, n);
+		above = entries[i];
 	}
+	nentry = fm_SetupEntries (fmc, callbacks, callback, entries, nentry);
 /*
- * Done.
+ * Now add the refdata to the callbacks.
  */
+	for (i = 0; i < nentry; ++i)
+	{
+	    callbacks[i].refdata = refdata;
+	}
 	return (vp);
 }
 		
@@ -453,29 +665,76 @@ XtAppContext appc;
 
 
 
-static void
-FC_Callback (w, xfield, junk)
-Widget w;
-XtPointer xfield, junk;
+void
+fm_SelectField (fm_Context *fmc, char *field)
 /*
  * They have punched a button.
  */
 {
-	char *field = (char *) xfield, cbuf[512];
+	char cbuf[512];
 /*
  * Look and see if there is a command to execute.  If not, just set the
  * field name and be done with it.
  */
-	if (! pda_Search (Pd, IComp, "field-select-command", Platform, 
-			  cbuf, SYMT_STRING))
-		parameter (IComp, "field", field);
+	if (! fmc->fsc[0])
+	{
+	    parameter (fmc->icomp, fmc->fparam, field);
+	}
 /*
- * OK, format up the command and set it loose.
+ * OK, format up the command and set it loose.  This expects that the
+ * caller has already setup the context for the command as necessary.
  */
 	else
 	{
-	    sprintf (cbuf + strlen (cbuf), " '%s'", field);
-	    msg_ELog (EF_DEBUG, "FChooser cmd '%s'", cbuf);
+	    sprintf (cbuf, "%s '%s'", fmc->fsc, field);
+	    msg_ELog (EF_DEBUG, "running field-select-command: '%s'", cbuf);
 	    ui_perform (cbuf);
 	}
+}
+
+
+
+static void
+fm_EntryCallback (w, xfield, junk)
+Widget w;
+XtPointer xfield, junk;
+{
+    struct fm_Callback *cb = (struct fm_Callback *) xfield;
+    fm_Context *fmc = cb->fm_context;
+    char *field = (cb->extra ? cb->extra : F_GetFullName (cb->fid));
+
+    fm_SelectEntry (fmc, w);
+    fm_SelectField (fmc, field);
+}
+
+
+
+static void
+fm_PopupSelector (w, xfield, junk)
+Widget w;
+XtPointer xfield, junk;
+{
+    fs_CreateWithContext (&FieldMenuContext);
+}
+
+
+
+void
+fm_SelectEntry (fm_Context *fmc, Widget w)
+{
+    Arg args[5];
+
+    if (fmc->fentry)
+    {
+	XtSetArg (args[0], XtNleftBitmap, None);
+	XtSetValues ((Widget)fmc->fentry, args, 1);
+	fmc->fentry = 0;
+    }
+	
+    if (w)
+    {
+	XtSetArg (args[0], XtNleftBitmap, Star);
+	XtSetValues (w, args, 1);
+	fmc->fentry = w;
+    }
 }

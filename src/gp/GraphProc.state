@@ -1,4 +1,4 @@
-! $Id: GraphProc.state,v 1.27 2000-04-10 20:36:28 burghart Exp $
+! $Id: GraphProc.state,v 1.28 2000-12-01 23:13:12 granger Exp $
 !
 !		Copyright (C) 1987,88,89,90,91 by UCAR
 !	University Corporation for Atmospheric Research
@@ -99,6 +99,9 @@ define state initial
 	endinput
 	input 'shell' 29
 		next shell-expr
+	endinput
+	input 'selectfield' 30
+		next menu-spec-opt
 	endinput
 enddef
 
@@ -482,6 +485,15 @@ define state shell-expr
 	endinput
 enddef
 
+define state menu-spec-opt
+	input string
+		next ust$no_more
+	endinput
+	input EOS
+		done
+	endinput
+enddef
+
 !
 ! Read in control widgets too.
 !
@@ -492,7 +504,7 @@ read GraphProc.widgets
 ! into the graphproc event loop.
 !
 procedure ui$init
-	local _id '$Id: GraphProc.state,v 1.27 2000-04-10 20:36:28 burghart Exp $'
+	local _id '$Id: GraphProc.state,v 1.28 2000-12-01 23:13:12 granger Exp $'
 	!
 	! Don't die just because we hit something undefined
 	!

@@ -38,9 +38,10 @@
 # include <DataStore.h>
 # include <GraphicsW.h>
 
-RCSID("$Id: Icons.c,v 2.31 2000-11-16 22:55:05 granger Exp $")
+RCSID("$Id: Icons.c,v 2.32 2000-12-01 23:13:12 granger Exp $")
 
 # include "GraphProc.h"
+# include "FieldMenu.h"
 # include "ActiveArea.h"
 
 
@@ -278,13 +279,18 @@ XEvent *ev;
 /*
  * Throw it up onto the screen, and let it handle things from here.
  */
-	if (strcmp (menu, "DataAvailable") && strcmp (menu, "FieldMenu"))
-		uw_IWRealize (menu, Graphics);
+	mp = menu;
+	if (strcmp (menu, "DataAvailable") &&
+	    !(mp = fm_SetupFieldMenu (menu)))
+	{
+	    mp = menu;
+	    uw_IWRealize (menu, Graphics);
+	}
 /*
  * Specify the menu name in the MenuButton's menuName resource so that
  * further actions can find it
  */
-	XtSetArg (arg, XtNmenuName, menu);
+	XtSetArg (arg, XtNmenuName, mp);
 	XtSetValues (Graphics, &arg, (Cardinal)1 );
 /*
  * We have to explicitly call the actions from here since attempting to
@@ -629,6 +635,7 @@ Cardinal *cardjunk;
  */
 {
 	char *menu;
+	char *mp;
 	struct IconList *ilp;
 	union usy_value v;
 	Arg arg;
@@ -677,15 +684,20 @@ Cardinal *cardjunk;
 /*
  * Throw it up onto the screen, and let it handle things from here.
  */
+	mp = menu;
 	ERRORCATCH
-	if (strcmp (menu, "DataAvailable") && strcmp (menu, "FieldMenu"))
-		uw_IWRealize (menu, Graphics);
+        if (strcmp (menu, "DataAvailable") &&
+	    !(mp = fm_SetupFieldMenu (menu)))
+	{
+	    mp = menu;
+	    uw_IWRealize (menu, Graphics);
+	}
 	ENDCATCH
 /*
  * Specify the menu name in the MenuButton's menuName resource so that
  * further actions can find it
  */
-	XtSetArg (arg, XtNmenuName, menu);
+	XtSetArg (arg, XtNmenuName, mp);
 	XtSetValues (w, &arg, (Cardinal)1 );
 /*
  * We have to explicitly call the actions from here since attempting to
@@ -693,12 +705,7 @@ Cardinal *cardjunk;
  * particular button.  Hence the actions cannot be unconditionally called
  * via the <BtnDn> translation.
  */
-	XtCallActionProc (w, "PositionAndPopupRdssMenu", ev, &menu, 1);
-
-#ifdef notdef
-	XtCallActionProc (w, "XawPositionSimpleMenu", ev, &menu, 1);
-	XtCallActionProc (w, "MenuPopup", ev, &menu, 1);
-#endif
+	XtCallActionProc (w, "PositionAndPopupRdssMenu", ev, &mp, 1);
 }
 
 

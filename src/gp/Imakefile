@@ -1,6 +1,6 @@
 /* -*- C -*- */
 XCOMM ---------------------------------------------------------------------
-XCOMM $Id: Imakefile,v 1.42 1999-03-01 02:04:25 burghart Exp $ 
+XCOMM $Id: Imakefile,v 1.43 2000-12-01 23:13:12 granger Exp $ 
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -27,7 +27,7 @@ LIBS = $(DFALIBS) $(ZLIBS) $(LIBPROJ) $(XLIBS) $(DORADELIB)
 #endif
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
-INCLUDES = $(XINCLUDES)
+INCLUDES = $(XINCLUDES) $(RDSSINCLUDES)
 
 DEPLIBS = $(LIBZEBDS) $(LIBZEB) 
 
@@ -74,6 +74,9 @@ COBJS = ActiveArea.o $(ALLOCA) AltControl.o Annotate.o AnnotWidget.o \
 	VectorGrid.o XSection.o XYCommon.o XYContour.o XYGraph.o \
 	XYObservation.o XYWind.o PolarPlot.o
 
+CXXOBJS = FieldSelect.o
+
+#ifdef notdef
 /*
  * Objects requiring UI header files.
  */
@@ -84,6 +87,7 @@ UIOBJS = DataMenu.o FieldMenu.o GraphProc.o Icons.o InsertWidget.o \
 UISRCS = DataMenu.c FieldMenu.c GraphProc.c Icons.c InsertWidget.c \
 	 LimitWidgets.c MovieControl.c Overlay.c PlotControl.c \
 	 PlotExec.c RBand.c UserEvent.c
+#endif
 
 #ifdef UseFORTRAN
 FOBJS = $(FOBJDIR)rgrid.o $(FOBJDIR)bints.o $(FOBJDIR)cfit.o
@@ -91,7 +95,7 @@ FOBJS = $(FOBJDIR)rgrid.o $(FOBJDIR)bints.o $(FOBJDIR)cfit.o
 FOBJS = rgridf2c.o bintsf2c.o cfitf2c.o
 #endif
 
-OBJS =	$(COBJS) $(FOBJS)
+OBJS =	$(COBJS) $(CXXOBJS) $(FOBJS)
 
 SRCS =  ActiveArea.c alloca.c AltControl.c  Annotate.c AnnotWidget.c \
 	AxisControl.c ColorTable.c ConstAltPlot.c Contour.c \
@@ -104,6 +108,8 @@ SRCS =  ActiveArea.c alloca.c AltControl.c  Annotate.c AnnotWidget.c \
 	Skewt.c TimeSeries.c Track.c UserEvent.c Utilities.c Radar.c \
 	VectorGrid.c XSection.c XYCommon.c XYContour.c XYGraph.c \
 	XYObservation.c XYWind.c sfont_1.c ThetaPlot.c RasterImage.c
+
+SRCS_CXX = FieldSelect.cc
 
 #ifdef UseFORTRAN
 FSRCS = cfit.F rgrid.F bints.f
@@ -118,12 +124,12 @@ HDRS =  AxisControl.h Contour.h DrawText.h EventQueue.h GC.h GraphProc.h \
 	PlotPrim.h XYCommon.h ContourP.h Skewt.h getpagesize.h gp_cmds.h \
 	rg_status.h rgrid.h f2c.h
 
-DISTFILES = Imakefile $(SRCS) $(ALLFSRCS) $(HDRS) \
+DISTFILES = Imakefile $(SRCS) $(SRCS_CXX) $(ALLFSRCS) $(HDRS) \
 	    GraphProc.state GraphProc.widgets Graphproc.ad
 
 CccProgramTarget(gp, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 
-SpecialObjectRule($(UIOBJS),$(UISRCS),$(RDSSINCLUDES))
+/* SpecialObjectRule($(UIOBJS),$(UISRCS),$(RDSSINCLUDES)) */
 SpecialObjectRule(RasterPlot.o,RasterPlot.c,$(SHMDEFINES) $(MAPDEFINE))
 SpecialObjectRule(RasterImage.o,RasterImage.c,$(SHMDEFINES) $(MAPDEFINE))
 
@@ -135,6 +141,8 @@ SpecialObjectRule(Projection.o,Projection.c,$(MAPDEFINE) $(PROJINCLUDES))
 UILoadFileDepsTarget(graphproc.lf, GraphProc.state, GraphProc.widgets)
 
 InstallAppDefaults(Graphproc)
+
+CccDependTarget($(SRCS_CXX))
 
 TestProgramTarget(gtest,$(OBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
 

@@ -46,8 +46,9 @@
 # include "PixelCoord.h"
 # include "LayoutControl.h"
 # include "LLEvent.h"
+# include "FieldMenu.h"
 
-RCSID ("$Id: GraphProc.c,v 2.73 2000-11-08 23:47:02 granger Exp $")
+RCSID ("$Id: GraphProc.c,v 2.74 2000-12-01 23:13:12 granger Exp $")
 
 /*
  * Default resources.
@@ -404,7 +405,7 @@ finish_setup ()
 	lw_InitWidgets ();	/* Limit widgets		*/
 	ot_Init ();		/* Overlay times widget		*/
 	InitDataMenu ();	/* Data available menu		*/
-	InitFieldMenu ();	/* Field selection		*/
+	fm_Init ();		/* Field selection		*/
 	pw_InitPos ();		/* Position Widget		*/
 	iw_Initialize ();	/* Data insertion widget	*/
 	aw_InitAnnot ();	/* Annotation widget		*/
@@ -809,6 +810,12 @@ struct ui_command *cmds;
 			msg_ELog (EF_PROBLEM, "Non-string shell command");
 		else
 			system (UPTR (cmds[1]));
+		break;
+        /*
+	 * selectfield
+	 */
+	    case GPC_SELECTFIELD:
+		fs_Create (cmds);
 		break;
 	/*
 	 * "Should never happen"

@@ -1,4 +1,4 @@
-! $Id: Graphproc.ad,v 1.21 2000-11-21 23:11:19 granger Exp $
+! $Id: Graphproc.ad,v 1.22 2000-12-01 23:13:12 granger Exp $
 !
 ! The Graphics process resource file.
 !
@@ -435,3 +435,30 @@ Graphproc.?.form.background:	gray95
 !
 *FieldMenu*DAEntry*font:	-adobe-courier-medium-r-*-*-10-*-*-*-*-*-*-*
 *FieldMenu*DAEntry*vertSpace:	0
+!
+! FieldSelect resources
+!
+*FieldSelect*setfield.accelerators: #override \n\
+	<KeyPress>Return:	set() \n\
+	<KeyRelease>Return:	notify()unset() \n\
+	<LeaveNotify>:		unset()
+*FieldSelect*textfield.translations: #override 	\n\
+	<Key>Linefeed:	no-op()			\n\
+	Ctrl<Key>U:	beginning-of-line()kill-to-end-of-line()
+*FieldSelect*textfield.accelerators:\
+ 	#override				\n\
+	<Key>Linefeed:		no-op()			\n\
+	<Key>Delete:		delete-previous-character() \n\
+	<Key>BackSpace:		delete-previous-character() \n\
+	<KeyPress>Right:	forward-character()	\n\
+	<KeyPress>Left:		backward-character()	\n\
+	Ctrl<Key>U:		beginning-of-line()kill-to-end-of-line() \n\
+	<KeyPress>:		insert-char()
+*FieldSelect*background:		gray95
+*FieldSelect*foreground:		black
+*FieldSelect*Command.borderColor:	red
+*FieldSelect*Command.background:	gray90
+*FieldSelect*Text*background:	gray90
+*FieldSelect.borderWidth:		1
+*FieldSelect.borderColor:		MidnightBlue
+*FieldSelect*Label.background:	gray95

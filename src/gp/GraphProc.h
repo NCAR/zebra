@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.70 2000-11-08 23:47:02 granger Exp $ */
+/* $Id: GraphProc.h,v 2.71 2000-12-01 23:13:12 granger Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -342,7 +342,6 @@ extern void lw_ActivateWidget FP ((int type, struct ui_command *cmds));
 #endif
 
 /* Init functions */
-extern void InitFieldMenu FP ((void));
 extern void InitDataMenu FP ((void));
 extern void iw_Initialize FP ((void));
 
