@@ -42,7 +42,7 @@
 # include <config.h>
 # include <copyright.h>
 # ifndef lint
-MAKE_RCSID ("$Id: EventLogger.c,v 2.29 1995-04-20 08:22:36 granger Exp $")
+MAKE_RCSID ("$Id: EventLogger.c,v 2.30 1995-05-16 20:48:36 granger Exp $")
 # endif
 
 # define LOGNAME "EventLogger"
@@ -94,7 +94,7 @@ static int FortuneWait = FORTUNE_WAIT;	/* secs idle time between fortunes */
  */
 static int Buflen = 0;
 static char *Initmsg = 
-"$Id: EventLogger.c,v 2.29 1995-04-20 08:22:36 granger Exp $\nCopyright (C)\
+"$Id: EventLogger.c,v 2.30 1995-05-16 20:48:36 granger Exp $\nCopyright (C)\
  1991 UCAR, All rights reserved.\n";
 
 /*
@@ -174,7 +174,7 @@ FILE *Log_file = (FILE *) 0;	/* File being logged to 		*/
 char Log_path[320];		/* File path of log file		*/
 bool Log_enabled = FALSE;	/* Whether actively logging to the file	*/
 int Log_mask = DEFAULT_MASK;	/* Event mask for the log file		*/
-
+bool Echo = FALSE;		/* Echo log messages to stdout		*/
 bool Windows = TRUE;		/* Create X Window display		*/
 
 /*
@@ -226,12 +226,13 @@ static void Wait FP ((void));
 
 #define USAGE \
 "EventLogger [-h]\n\
-EventLogger [-n|-o|-w] [-j secs] [-f logfile] [-m eventmask] [-l filemask]\
+EventLogger [options] [-j secs] [-f logfile] [-m eventmask] [-l filemask]\
  [mom]\n\
    -h\tPrint this usage message\n\
    -j\tLog a fortune once in a while (0 defaults to 5 minutes)\n\
      \tThe fortune command must be in your path.\n\
    -n\tNon-windowed, non-interactive EventLogger\n\
+   -e\tEcho log messages to stdout\n\
    -o\tOverride redirect---give display manager control\n\
    -w\tNo override redirect---gives window manager control\n\
    -f\tSpecify a file to which log messages will be written\n\
@@ -349,6 +350,9 @@ char *argv[];
 			break;
 		   case 'o':
 			Override = True;
+			break;
+		   case 'e':
+			Echo = True;
 			break;
 		   case 'w':
 			Override = False;
@@ -1412,9 +1416,14 @@ char *fmtbuf;
  * Actually append the text to the log file
  */
 {
+	if (Echo)
+	{
+		fprintf (stdout, "%s", fmtbuf);
+		fflush (stdout);
+	}
 	if (Log_file && Log_enabled)
 	{
-		fprintf (Log_file, fmtbuf);
+		fprintf (Log_file, "%s", fmtbuf);
 		fflush (Log_file);
 	}
 }
