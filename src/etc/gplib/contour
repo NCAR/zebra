@@ -14,8 +14,9 @@ define widget contour-right intmenu 'contour right'
 	entry 'Color-coded contours' 'ToggleBoolean color-mono' \
 		(PDParam(icon_component,'color-mono') <> 'true')
 	submenu 'Contour color (when mono)' 'simple-color'
+	submenu 'Color table (when coded)' 'con-ctables'
 	submenu 'Line width' linewidth
-	entry 'Interpolation method...' 'require interp; popup InterpParams'
+	entry 'Interpolation...' 'require interp; popup InterpParams'
 	entry 'Adjust range limits...' 'require range; popup range-limits'
 endmenu
 
@@ -61,6 +62,32 @@ define widget contour-label-options intmenu 'label options'
 	entry 'Blank data under labels' 'ToggleBoolean label-blanking' \
 		(PDParam(icon_component,'label-blanking') <> 'false')
 endmenu
+
+
+
+define widget con-ctables intmenu 'color tables'
+	title 'Contour color tables'
+	line
+	entry 'All white' 'con-setctable AllWhite' \
+		(PDParam(icon_component, 'color-table') = 'AllWhite')
+	entry 'Contour' 'con-setctable Contour' \
+		(PDParam(icon_component, 'color-table') = 'Contour')
+	entry 'Rainbow' 'con-setctable Rainbow' \
+		(PDParam(icon_component, 'color-table') = 'Rainbow')
+	entry 'Reverse Rainbow' 'con-setctable RevRainbow' \
+		(PDParam(icon_component, 'color-table') = 'RevRainbow')
+	entry 'Red/Blue' 'con-setctable RedBlue' \
+		(PDParam(icon_component, 'color-table') = 'RedBlue')
+	entry '3-step red/yellow/blue' 'con-setctable SmallRainbow' \
+		(PDParam(icon_component, 'color-table') = 'SmallRainbow')
+endmenu
+
+
+procedure con-setctable table string
+	parameter #icon_component color-table #table
+endprocedure
+
+
 
 !
 ! A procedure to put up the center/step adjuster.

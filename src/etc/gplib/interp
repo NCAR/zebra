@@ -1,5 +1,5 @@
 !
-! A nifty widget for tweaking irgrid gridding params.
+! A nifty widget for tweaking irgrid/xygraph gridding params.
 !
 define widget InterpParams form "Surface interpolation parameters"
 	popup IPSetup
@@ -48,11 +48,47 @@ define widget int-methods intmenu 'interp methods'
 	entry 'Closest point' 'IPSetMethod closest-point'
 endmenu
 
+define widget xy-int-methods intmenu 'x'
+       	title 'XYGraph interpolation methods'
+	line
+	entry 'Profile-linear' 'IPSetMethod profile-linear'
+	entry 'Closest point' 'IPSetMethod raw'
+!	entry 'Triangulation (RGRID) (Not recommended)' 'IPSetMethod rgrid'
+endmenu
+
 define widget int-grid-params intmenu 'params'
 	title 'Interpolation parameters'
 	line
 	entry 'Popup interpolation parameters widget' 'popup InterpParams'
 endmenu
+
+
+!
+! Setup for xygraphs.
+!
+procedure IPXYSetup f string
+   	formtext #f l0 'XYGraph interpolation parameters'
+	formmenu #f method xy-int-methods
+	formtext #f radius 'n/a'
+	formtext #f fill 'n/a'
+	local method PDSearch(icon_component, 'grid-method', 'xy-contour')
+	if (method <> '(Undefined)')
+		formtext #f method #method
+	else
+		formtext #f method 'profile-linear'
+	endif
+	local gx PDSearch(icon_component,'x-grid','xy-contour')
+	if (gx <> '(Undefined)')
+		formtext #f gx #gx
+	endif
+	local gy PDSearch(icon_component,'y-grid','xy-contour')
+	if (gy <> '(Undefined)')
+		formtext #f gy #gy
+	endif
+endprocedure
+
+
+
 !
 ! The popup procedure.
 !
@@ -60,12 +96,24 @@ procedure IPSetup
 	local f ui$form
 	local plat pd_param(icon_component,'platform','string')
 	formtext #f comp #icon_component
-
-	local method pd_paramsearch(icon_component,'grid-method',platform,'string')
+	local xygraph (PDParam('global','plot-type') = 'xygraph')
+!
+! If we really have an xygraph, do it separately.
+!
+	if (xygraph)
+		IPXYSetup #f
+		return
+	endif
+!
+! OK, CAP-type stuff here.
+!
+	local method PDSearch(icon_component, 'grid-method', platform)
 	if (method <> '(Undefined)')
 		formtext #f method #method
 	endif
-
+!
+! Other parameters.
+!
 	local gx pd_paramsearch(icon_component,'x-points',platform,'string')
 	if (gx <> '(Undefined)')
 		formtext #f gx #gx
@@ -85,6 +133,8 @@ procedure IPSetup
 endprocedure
 
 
+
+
 !
 ! Apply changes.
 !
@@ -95,13 +145,18 @@ procedure IPApply
 	parameter #c 'grid-method' #method
 
 	local gx getftext(f,'gx')
-	parameter #c 'x-points' #gx
 	local gy getftext(f,'gy')
-	parameter #c 'y-points' #gy
-	local radius getftext(f,'radius')
-	parameter #c 'radius' #radius
-	local fill getftext(f,'fill')
-	parameter #c 'max-fill' #fill
+	if (PDParam ('global', 'plot-type') <> 'xygraph')
+		parameter #c 'x-points' #gx
+		parameter #c 'y-points' #gy
+		local radius getftext(f,'radius')
+		parameter #c 'radius' #radius
+		local fill getftext(f,'fill')
+		parameter #c 'max-fill' #fill
+	else
+		parameter #c 'x-grid' #gx
+		parameter #c 'y-grid' #gy
+	endif
 endprocedure
 
 
