@@ -1,4 +1,4 @@
-/* $Id: ui_param.h,v 1.12 1998-03-03 00:15:34 burghart Exp $ */
+/* $Id: ui_param.h,v 1.13 1998-12-17 16:41:26 burghart Exp $ */
 /*
  * Basic UI parameters.
  */
@@ -47,6 +47,7 @@
 
 # ifdef UNIX
 # include <stdio.h>
+# include <string.h>
 # endif
 
 /*
