@@ -1,7 +1,7 @@
 /*
  * XY-Graph plotting module
  */
-static char *rcsid = "$Id: XYGraph.c,v 1.31 1994-11-19 00:36:11 burghart Exp $";
+static char *rcsid = "$Id: XYGraph.c,v 1.32 1995-05-02 20:34:58 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -48,7 +48,8 @@ static char *rcsid = "$Id: XYGraph.c,v 1.31 1994-11-19 00:36:11 burghart Exp $";
 void 		xy_Graph FP ((char *, int));
 static void	XYG_DoSideAnnotation FP ((char*, char*, char*, Pixel, char*,
 					  char*, ZebTime*));
-
+static int xy_CheckFieldPlat FP ((int, int, int *, char **));
+static void xy_GetGraphParams FP ((char *, char *, int *, int *));
 
 
 void
@@ -59,7 +60,8 @@ bool	update;
  * Draw an xy graph based on the given component
  */
 {
-	bool	ok, sideAnnot, doLine;
+	bool	ok;
+	int	sideAnnot, doLine;
 	int	plat, nplat, npts[MAX_PLAT];
 	int	nxfield, nyfield, dmode;
 	char	platforms[PlatformListLen], *pnames[MaxPlatforms];
@@ -97,71 +99,14 @@ bool	update;
 	nxfield = CommaParse (xflds, xfnames);
 	nyfield = CommaParse (yflds, yfnames);
 /*
- * Accept a few possible combinations:
- * 	One field and many platforms plots that field for each platform
- *	Many fields and one platforms plots each field for that platform
- *	Many fields and many platforms implies number of each must be equal
+ * Check out field/plat combinations.
  */
-	if (((nxfield != 1) && (nplat != 1) && (nplat != nxfield)) ||
-	    ((nyfield != 1) && (nplat != 1) && (nplat != nyfield)))
-	{
-		msg_ELog (EF_PROBLEM, "XYGraph: %s: bad number of fields", c);
+	if (! xy_CheckFieldPlat (nxfield, nyfield, &nplat, pnames))
 		return;
-	}
-	else if (nxfield != nyfield)
-	{
-		msg_ELog (EF_PROBLEM, 
-			  "XYGraph: %s: number of x and y fields %s", c,
-			  "must be equal");
-		return;
-	}
-	else if ((nplat == 1) && (nxfield > MAX_PLAT))
-	{
-		msg_ELog (EF_PROBLEM, "XYGraph: %s: too many fields", c);
-		return;
-	}
 /*
- * So if we have one platform and many fields, just copy the platform name
- * into pnames as if it had come that way from the plot description
+ * Get basic graphics parameters.
  */
-	if ((nplat == 1) && (nxfield > 1))
-	{
-		for (plat = 1; plat < nxfield; ++plat)
-			pnames[plat] = pnames[0];
-		nplat = nxfield;
-	}
-/*
- *  Get optional "simple" parameters.
- *	representation-style:	"point", "line", "cross", "xmark", or "icon"
- *	do-side-annotation:	true or false
- */
-	strcpy (style, "line");
-	pda_Search (Pd, c, "representation-style", "xy-simple", style, 
-		    SYMT_STRING);
-
-	sideAnnot = True;
-	pda_Search (Pd, c, "do-side-annotation", "xy-simple", 
-		    (char *) &sideAnnot, SYMT_BOOL);
-/*
- * Get the icon to use for non-line representations.  The old special cases
- * of "point", "cross", and "xmark" just use an icon of the same name.
- * Otherwise, we look for the "point-icon" parameter in the plot description
- * (defaulting to "cross").
- */
-	doLine = ! strcmp (style, "line");
-
-	if (! doLine && strcmp (style, "point") != 0 && 
-	    strcmp (style, "cross") != 0 && strcmp (style, "xmark") != 0)
-	{
-		if (strcmp (style, "icon") != 0)
-			msg_ELog (EF_INFO, 
-				  "XYGraph: %s: bad style '%s', using 'icon'",
-				  c, style);
-
-		strcpy (style, "cross");
-		pda_Search (Pd, c, "point-icon", "xy-simple", style, 
-			    SYMT_STRING);
-	}
+	xy_GetGraphParams (c, style, &sideAnnot, &doLine);
 /*
  * data types ('t'ime or 'f'loat)
  */
@@ -220,7 +165,8 @@ bool	update;
 	for (plat = 0; plat < nplat; plat++)
 	{
 		bool	single_obs;
-		PlatformId	pid = ds_LookupPlatform (pnames[plat]);
+
+		pid = ds_LookupPlatform (pnames[plat]);
 
 		npts[plat] = 0;
 	/*
@@ -278,19 +224,24 @@ bool	update;
 					      &eTimeReq);
 		}
 	/*
-	 * Keep the pointers to the data and apply the min and max values
+	 * If we got some data, tweak min and max.
+	 */
+		if (npts[plat] > 0)
+		{
+			if ((xtype == 'f') && (dv[0].min.val.f < xmin.val.f))
+				xmin = dv[0].min;
+			if ((xtype == 'f') && (dv[0].max.val.f > xmax.val.f))
+				xmax = dv[0].max;
+			if ((ytype == 'f') && (dv[1].min.val.f < ymin.val.f))
+				ymin = dv[1].min;
+			if ((ytype == 'f') && (dv[1].max.val.f > ymax.val.f))
+				ymax = dv[1].max;
+		}
+	/*
+	 * Keep the pointers to the data, even if there aren't any...
 	 */
 		xdata[plat] = dv[0].data;
-		if ((xtype == 'f') && (dv[0].min.val.f < xmin.val.f))
-			xmin = dv[0].min;
-		if ((xtype == 'f') && (dv[0].max.val.f > xmax.val.f))
-			xmax = dv[0].max;
-
 		ydata[plat] = dv[1].data;
-		if ((ytype == 'f') && (dv[1].min.val.f < ymin.val.f))
-			ymin = dv[1].min;
-		if ((ytype == 'f') && (dv[1].max.val.f > ymax.val.f))
-			ymax = dv[1].max;
 	}
 /*
  * Get the info on whether we're using autoscaling or inverted scales
@@ -426,4 +377,97 @@ ZebTime *time;
 
 
 
+
+static int
+xy_CheckFieldPlat (nxfield, nyfield, np, pnames)
+int nxfield, nyfield, *np;
+char **pnames;
+/*
+ * Check out the platform/field combinations and see that we can
+ * handle them.
+ */
+{
+	int plat, nplat = *np;
+/*
+ * Accept a few possible combinations:
+ * 	One field and many platforms plots that field for each platform
+ *	Many fields and one platforms plots each field for that platform
+ *	Many fields and many platforms implies number of each must be equal
+ */
+	if (((nxfield != 1) && (nplat != 1) && (nplat != nxfield)) ||
+	    ((nyfield != 1) && (nplat != 1) && (nplat != nyfield)))
+	{
+		msg_ELog (EF_PROBLEM, "XYGraph: bad number of fields");
+		return (FALSE);
+	}
+	else if (nxfield != nyfield)
+	{
+		msg_ELog (EF_PROBLEM, 
+			  "XYGraph: number of x and y fields %s",
+			  "must be equal");
+		return (FALSE);
+	}
+	else if ((nplat == 1) && (nxfield > MAX_PLAT))
+	{
+		msg_ELog (EF_PROBLEM, "XYGraph: too many fields");
+		return (FALSE);
+	}
+/*
+ * So if we have one platform and many fields, just copy the platform name
+ * into pnames as if it had come that way from the plot description
+ */
+	if ((nplat == 1) && (nxfield > 1))
+	{
+		for (plat = 1; plat < nxfield; ++plat)
+			pnames[plat] = pnames[0];
+		*np = nxfield;
+	}
+	return (TRUE);
+}
+
+
+
+
+
+static void
+xy_GetGraphParams (c, style, sideAnnot, doLine)
+char *c, *style;
+int *sideAnnot, *doLine;
+/*
+ * Get basic graphics parameters.
+ */
+{
+/*
+ *  Get optional "simple" parameters.
+ *	representation-style:	"point", "line", "cross", "xmark", or "icon"
+ *	do-side-annotation:	true or false
+ */
+	strcpy (style, "line");
+	pda_Search (Pd, c, "representation-style", "xy-simple", style, 
+		    SYMT_STRING);
+
+	*sideAnnot = True;
+	pda_Search (Pd, c, "do-side-annotation", "xy-simple", 
+		    (char *) sideAnnot, SYMT_BOOL);
+/*
+ * Get the icon to use for non-line representations.  The old special cases
+ * of "point", "cross", and "xmark" just use an icon of the same name.
+ * Otherwise, we look for the "point-icon" parameter in the plot description
+ * (defaulting to "cross").
+ */
+	*doLine = ! strcmp (style, "line");
+
+	if (! *doLine && strcmp (style, "point") != 0 && 
+	    strcmp (style, "cross") != 0 && strcmp (style, "xmark") != 0)
+	{
+		if (strcmp (style, "icon") != 0)
+			msg_ELog (EF_INFO, 
+				  "XYGraph: %s: bad style '%s', using 'icon'",
+				  c, style);
+
+		strcpy (style, "cross");
+		pda_Search (Pd, c, "point-icon", "xy-simple", style, 
+			    SYMT_STRING);
+	}
+}
 # endif /* C_PT_XYGRAPH */

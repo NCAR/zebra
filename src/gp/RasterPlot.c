@@ -1,7 +1,7 @@
 /*
  * Raster display a rectangular array
  */
-static char *rcsid = "$Id: RasterPlot.c,v 2.15 1995-05-01 16:07:20 corbet Exp $";
+static char *rcsid = "$Id: RasterPlot.c,v 2.16 1995-05-02 20:34:56 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -380,7 +380,8 @@ bool	fast;
 
 	ylo -= 0.5 / rowinc;
 	yhi += 0.5 / rowinc;
-	toprow = (ydim - 1) + 0.5; /* row (floating) corresponding to yhi */
+/*	toprow = (ydim - 1) + 0.5; /* row (floating) corresponding to yhi */
+	toprow = ydim + rowinc;
 /*
  * Clip to the window, if appropriate.
  */
@@ -471,7 +472,7 @@ int 		xdim, pad;
 
 	for (i = 0; i < height; i++)
 	{
-		unsigned int *cp = colgrid + (int)(row + 0.5) * xdim;
+		unsigned int *cp = colgrid + ((int) row) * xdim;
 
 		col = icol + 0.5; /* Add 0.5 to get closest int below */
 		for (j = 0; j < width; j++)
@@ -681,7 +682,7 @@ int		xdim, pad;
  */
 	for (i = 0; i < height; i++)
 	{
-		unsigned int *cp = colgrid + (int)(row + 0.5) * xdim;
+		unsigned int *cp = colgrid + ((int) row) * xdim;
 
 		col = (int) ((icol + 0.5) * 65536);
 		for (j = 0; j < width; j++)
