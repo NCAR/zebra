@@ -4,7 +4,7 @@
 #define IHaveSubdirs
 #define PassCDebugFlags /*nothing*/
 
-SUBDIRS = maps icons helpfiles audio
+SUBDIRS = maps icons helpfiles audio pd gplib
 DISTFILES = Imakefile FieldDefs
 DISTSUBDIRS = $(SUBDIRS)
 
