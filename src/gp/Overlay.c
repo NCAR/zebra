@@ -1,7 +1,7 @@
 /*
  * Deal with static (or almost static) overlays.
  */
-static char *rcsid = "$Id: Overlay.c,v 2.12 1992-10-12 22:56:21 kris Exp $";
+static char *rcsid = "$Id: Overlay.c,v 2.13 1992-10-19 17:30:00 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -1900,6 +1900,7 @@ int *solid, *ticwidth, *ll;
 /*
  * Solidness.
  */
+	*solid = 0;
 	if (! pda_Search(Pd, comp, "solid", "grid", (char *) solid, SYMT_BOOL))
 		*solid = FALSE;
 	if (! pda_Search (Pd, comp, "tic-width", "grid", (char *) ticwidth,
@@ -1908,6 +1909,7 @@ int *solid, *ticwidth, *ll;
 /*
  * Do we do this in lat/lon?
  */
+	*ll = 0;
 	if (! pda_Search (Pd, comp, "lat-lon", "grid", (char *) ll, SYMT_BOOL))
 		*ll = FALSE;
 /*
