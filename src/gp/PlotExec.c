@@ -34,7 +34,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 # include "LayoutControl.h"
-MAKE_RCSID ("$Id: PlotExec.c,v 2.39 1994-05-19 21:08:28 burghart Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.40 1994-06-29 21:04:07 case Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -119,7 +119,7 @@ static Boolean	Table_built = FALSE;
 /*
  * Our plot type
  */
-static int	PlotType;
+static int	PlotType = -1;
 
 /*
  * The end of plot handler, if any.
