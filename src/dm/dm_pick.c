@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: dm_pick.c,v 2.5 1993-03-09 19:09:24 granger Exp $";
+static char *rcsid = "$Id: dm_pick.c,v 2.6 1993-03-18 07:08:59 granger Exp $";
 /*
  * Handle the window picking operation.
  */
@@ -23,11 +23,6 @@ static char *rcsid = "$Id: dm_pick.c,v 2.5 1993-03-09 19:09:24 granger Exp $";
 # include <X11/Xlib.h>
 # include <X11/Xutil.h>
 # include <X11/cursorfont.h>
-
-/*
- * The string returned by PickWin() when an invalid window is chosen
- */
-# define DM_PICKWIN_DEFAULT	"none"
 
 /*
  * This structure is used to communicate through usy_traverse.
@@ -107,8 +102,8 @@ char *winname;
 /*
  * Establish a default answer, in case our search fails
  */
-	strcpy (wp.wp_name, DM_PICKWIN_DEFAULT);
-	strcpy (winname, DM_PICKWIN_DEFAULT);
+	strcpy (wp.wp_name, DM_PICKWIN_NONE);
+	strcpy (winname, DM_PICKWIN_NONE);
 	/* 
 	 * Make sure the window chosen was not the root window,
 	 * in which case there is no subwindow and we just return.
