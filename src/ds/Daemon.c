@@ -41,7 +41,7 @@
 # include "commands.h"
 # include "zl_regex.h"
 
-MAKE_RCSID ("$Id: Daemon.c,v 3.33 1994-01-19 01:35:20 granger Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.34 1994-01-31 20:14:57 granger Exp $")
 
 
 /*
@@ -1415,7 +1415,7 @@ PlatformId which;
  * times.  But if the daemon is waiting for an unlock on this platform, 
  * things will hang.
  */
-	if ((which < 0) || (which > NPlatform))
+	if ((which < 0) || (which >= NPlatform))
 	{
 		msg_ELog (EF_PROBLEM, 
 			  "Read lock attempt for invalid plat id %d", which);
@@ -1461,7 +1461,7 @@ int expect;
 	Lock *lp, *zap;
 	Platform *p = PTable + which;
 
-	if ((which < 0) || (which > NPlatform))
+	if ((which < 0) || (which >= NPlatform))
 	{
 		msg_ELog (EF_PROBLEM, 
 			  "Read lock release for invalid plat id %d", which);
