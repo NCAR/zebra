@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 2.29 1995-05-02 23:16:22 granger Exp $ */
+/* $Id: defs.h,v 2.30 1995-06-29 23:08:35 granger Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -24,28 +24,29 @@
 
 # include <ui.h>
 # include <stdlib.h>
-# if (! defined(__GNUC__) || __GNUC__ < 2)
+
+/*
+ * If a source file needs memory prototypes, make it include string.h itself.
+ */
+#ifdef notdef
+# if (! defined(__GNUC__) || __GNUC__ < 2) && ! __STDC__
 # 	include <memory.h>   /* Conflicts with gcc2 builtin */
 # endif
+#endif
 
 /*
  * A macro to make function prototypes a little easier across both STDC and
  * non-STDC implementations.
  */
-# ifdef __STDC__
+# if __STDC__
 #  define FP(stuff) stuff
 # else
 #  define FP(stuff) ()
-# endif
-/*
- * Set up inline and const so that we can use them.
- */
-# ifndef __STDC__
-# define const
+#  define const
 # endif
 
-# ifndef __GNUC__
-# define inline
+# if ! __GNUC__ && ! __cplusplus
+#  define inline
 # endif
 
 # include <version.h>
@@ -216,7 +217,7 @@ void cvt_ShowOrigin FP ((void));
 	((d1).ds_yymmdd == (d2).ds_yymmdd && (d1).ds_hhmmss <= (d2).ds_hhmmss))
 
 /*
- * Use more complete macro from version.h
+ * Use more complete rcsid macro from version.h
  */
 # define MAKE_RCSID(id) RCSID(id)
 
