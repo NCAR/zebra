@@ -20,7 +20,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: Daemon.c,v 2.2 1991-11-04 18:04:55 corbet Exp $";
+static char *rcsid = "$Id: Daemon.c,v 2.3 1991-12-17 19:52:01 kris Exp $";
 
 # include <sys/types.h>
 # include <sys/vfs.h>
@@ -120,6 +120,7 @@ char **argv;
  */
 	fixdir_t ("DSDLOADFILE", LIBDIR, "dsDaemon.lf", loadfile, ".lf");
 	ui_init (loadfile, FALSE, TRUE);
+	SetupConfigVariables ();
 /*
  * Initialize.
  */
