@@ -1,4 +1,4 @@
-/* $Id: ingest.c,v 1.3 1992-07-03 18:43:13 granger Exp $
+/* $Id: ingest.c,v 1.4 1992-07-22 14:53:55 granger Exp $
  *
  * ingest.c --- A common ingest interface and support routines for 
  *		Zeb ingest modules
@@ -36,6 +36,7 @@
  */
 #undef ds_Store
 #undef ds_LookupPlatform
+#undef ds_DeleteData
 
 #ifndef lint
 MAKE_RCSID("$Id")
@@ -48,6 +49,7 @@ MAKE_RCSID("$Id")
 bool _Ingest_ds_Store FP((DataChunk *dc, bool newfile, 
 			  dsDetail *details, int ndetail));
 PlatformId _Ingest_ds_LookupPlatform FP((char *name));
+void _Ingest_ds_DeleteData FP((PlatformId platform, int leave));
 void IngestLog ();
 void IngestUsage ();
 void RemoveOptions FP((int *argc, char *argv[], int i, int n));
@@ -74,7 +76,8 @@ short NoMessageHandler = 0;
 short DryRun = 0;		/* -dryrun flag, don't connect to message
 				 * handler or send to DataStore,
 				 * ==> NoEventLogger */
-char *IngestName;		/* Message name of ingest module */
+char *IngestName = "UnNamed!";	/* Message name of ingest module */
+short DumpDataChunks = 0;	/* Dump data chunks as ds_Store'd */
 
 /* ------------------------------------------------------------------*/
 
@@ -92,6 +95,20 @@ va_dcl
 	struct msg_elog *el;
 	static char cbuf[1024];
 	char *fmt;
+	char note; 	/* Signifies what type of message being logged */
+
+	if (flags & EF_EMERGENCY)
+		note = 'E';
+	else if (flags & EF_PROBLEM)
+		note = 'P';
+	else if (flags & EF_CLIENT)
+		note = 'C';
+	else if (flags & EF_INFO)
+		note = 'I';
+	else if (flags & EF_DEBUG)
+		note = 'D';
+	else
+		note = '-';
 
 	va_start(args);
 	fmt = va_arg(args, char *);
@@ -101,7 +118,7 @@ va_dcl
  */
 	if (IngestLogFlags & flags)
 	{
-		fprintf(stderr,"%s: ",IngestName);
+		fprintf(stderr,"%c %s: ",note,IngestName);
 		vfprintf(stderr,fmt, args);
 		fprintf(stderr,"\n");
 	}
@@ -168,20 +185,24 @@ struct message *msg;
 void
 IngestUsage()
 {
-   fprintf(stderr,"   -noel		Don't send to EventLogger\n");
-   fprintf(stderr,
-      "   -dryrun,-dry,-test	Don't connect to other processes, ");
-   fprintf(stderr,			"nor send to the DataStore\n");
-   fprintf(stderr,"   -log all|e|p|c|d|i	Set the messages which get ");
-   fprintf(stderr,			"echoed to the terminal\n");
-   fprintf(stderr,"			The default is emergencies only.\n");
-   fprintf(stderr,"			   all: all messages\n");
-   fprintf(stderr,"			   e:   emergencies\n");
-   fprintf(stderr,"			   p:   problems\n");
-   fprintf(stderr,"			   c:   clients\n");
-   fprintf(stderr,"			   d:   debugging\n");
-   fprintf(stderr,"			   i:   information\n");
-   fprintf(stderr,"   -help, -h		Show this information\n");
+   const char spc[] = " ";
+
+   fprintf(stderr,"Ingest Options:\n");
+   fprintf(stderr,"   %-20s Dump data chunks when stored\n","-blow,-chunks");
+   fprintf(stderr,"   %-20s Don't send to EventLogger\n","-noel");
+   fprintf(stderr,"   %-20s Don't connect to other processes, ",
+		  "-dryrun,-dry,-test");
+   fprintf(stderr,"e.g. the DataStore\n");
+   fprintf(stderr,"   %-20s Set the messages which get ","-log all|e|p|c|d|i");
+   fprintf(stderr,"echoed to the terminal\n");
+   fprintf(stderr,"   %-20s The default is emergencies only.\n",spc);
+   fprintf(stderr,"   %-20s    all: all messages\n",spc);
+   fprintf(stderr,"   %-20s    e:   emergencies\n",spc);
+   fprintf(stderr,"   %-20s    p:   problems\n",spc);
+   fprintf(stderr,"   %-20s    c:   clients\n",spc);
+   fprintf(stderr,"   %-20s    d:   debugging\n",spc);
+   fprintf(stderr,"   %-20s    i:   information\n",spc);
+   fprintf(stderr,"   %-20s Show this information\n","-help, -h");
 }
 
 
@@ -244,6 +265,11 @@ IngestParseOptions(argc, argv, usage)
 		else if (streq(argv[i],"-noel"))
 		{
 		   SetNoEventLogger();
+		}
+		else if (streq(argv[i],"-chunks") ||
+			 streq(argv[i],"-blow"))
+		{
+			DumpDataChunks = 1;
 		}
 		else if (streq(argv[i],"-dryrun") ||
 			 streq(argv[i],"-dry") ||
@@ -324,6 +350,8 @@ _Ingest_ds_Store (dc, newfile, details, ndetail)
 	bool ret;
 	static short called_once = 0;
 
+	if (DumpDataChunks)
+		dc_DumpDC(dc);
 	if (NoDataStore)
 	{
 		if (!called_once)
@@ -369,5 +397,28 @@ _Ingest_ds_LookupPlatform (name)
 		return(ds_LookupPlatform(name));
 }
 
+
+
+void
+_Ingest_ds_DeleteData(platform, leave)
+	PlatformId platform;
+	int leave;	/* seconds of data to leave */
+{
+	static short called_once = 0;
+	if (NoDataStore)
+	{
+		if (!called_once) 
+		{
+			++called_once;
+			IngestLog(EF_INFO, 
+		   	   "DryRun: Calls to ds_DeleteData being ignored");
+		}
+	}
+	else
+	{
+		ds_DeleteData(platform, leave);
+	}
+	return;
+}
 
 
