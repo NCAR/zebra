@@ -26,7 +26,7 @@
 # include <DataChunk.h>
 # include "GraphProc.h"
 # include "rg_status.h"
-MAKE_RCSID ("$Id: GridAccess.c,v 2.23 1995-04-07 22:25:14 burghart Exp $")
+MAKE_RCSID ("$Id: GridAccess.c,v 2.24 1995-04-13 16:06:45 corbet Exp $")
 
 
 
@@ -665,7 +665,7 @@ char *field;
 	msg_ELog (EF_DEBUG,
 		"Call rgrid, %d x %d, np %d, (%.2f %.2f) to (%.2f %.2f)",
 		rg.rg_nX, rg.rg_nY, npoint, xmin, ymin, xmax, ymax);
-	status = do_rgrid_ (grid, &rg.rg_nX, &rg.rg_nY, &npoint, dp, &badflag,
+	status = dorgrid_ (grid, &rg.rg_nX, &rg.rg_nY, &npoint, dp, &badflag,
 			 xpos, ypos, &xmin, &ymin, &xmax, &ymax, scratch);
 /*
  * Clean up.

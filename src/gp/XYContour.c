@@ -1,7 +1,7 @@
 /*
  * XY-Contour plotting module
  */
-static char *rcsid = "$Id: XYContour.c,v 1.30 1994-11-29 18:00:27 granger Exp $";
+static char *rcsid = "$Id: XYContour.c,v 1.31 1995-04-13 16:06:48 corbet Exp $";
 /*		Copyright (C) 1993 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -588,7 +588,7 @@ float		badval;
     lnpts = npts;
     lbad = badval;
 
-    status = do_rgrid_ (pinfo->grid, &lxdim, &lydim, &lnpts, data, &lbad,
+    status = dorgrid_ (pinfo->grid, &lxdim, &lydim, &lnpts, data, &lbad,
 			xpos, ypos, &fx0, &fy0, &fx1, &fy1, pinfo->scratch);
     switch (status)
     {

@@ -41,7 +41,7 @@ c		--OR--
 c	A status other than RG_OK is returned and the grid is unchanged.
 c	Possible status values are in rg_status.h
 c
-	integer function do_rgrid (grid, xdim, ydim, npts, rawdata, 
+	integer function dorgrid (grid, xdim, ydim, npts, rawdata, 
      +		badflag, xloc, yloc, xlo, ylo, xhi, yhi, scratch)
 
 # include "rgrid.h"
@@ -52,9 +52,9 @@ c
 	real	xlo, ylo, xhi, yhi
 	real	scratch(xdim,ydim)
 
-	integer	i, status, del
+	integer	i, status
 	real	xin(21,MAXSTN)
-	logical	dotri
+	logical	dotri, del
 c
 c If the number of points, x-dimension, or y-dimension changed
 c we need to triangulate again
@@ -90,7 +90,7 @@ c	Is this a good point?  We have to triangulate again if
 c	the deleted status of the point changed.
 c
 		del = rawdata(i) .eq. badflag
-		dotri = dotri .or. (del .ne. DELETED(i))
+		dotri = dotri .or. (del .neqv. DELETED(i))
 		DELETED(i) = del
  10	continue
 c
@@ -102,7 +102,7 @@ c Calculate spacing information and statistics
 c
 	call stats (status)
 	if (status .ne. RG_OK) then
-		do_rgrid = status
+		dorgrid = status
 		return
 	endif
 c
@@ -120,7 +120,7 @@ c
 c Actually fill in the grid
 c
 	call approx (rawdata, grid, scratch, 1, xin, index)
-	do_rgrid = RG_OK
+	dorgrid = RG_OK
 	return
 	end
 
