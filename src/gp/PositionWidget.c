@@ -1,7 +1,7 @@
 /*
  * Widget for getting position of cursor.
  */
-static char *rcsid = "$Id: PositionWidget.c,v 1.5 1991-11-26 23:42:15 kris Exp $";
+static char *rcsid = "$Id: PositionWidget.c,v 1.6 1992-03-13 17:44:15 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -38,11 +38,11 @@ static char *rcsid = "$Id: PositionWidget.c,v 1.5 1991-11-26 23:42:15 kris Exp $
 # define PI 3.141592654
 # define MAXORG 20
 
-static Widget 	PosLabel = NULL, DMSButton, OrgButton, OrgLabel;
+static Widget 	PosLabel = NULL, DMSButton, OrgText, OrgLabel;
 static Widget	KNButton;
+static char	GPOrigin[40];
 static int 	PWMade = FALSE, DegMinSec = TRUE, DoNm = TRUE;
-static char 	Origins[MAXORG*20], *ONames[MAXORG];
-static int 	NOrg, OIndex = 0;
+static int 	NOrg;
 
 # ifdef __STDC__
 	static void pw_PosPopup ();
@@ -52,7 +52,6 @@ static int 	NOrg, OIndex = 0;
 	Widget pw_PosCreate (char *, Widget, XtAppContext);
 	void ChangeType ();
 	void ChangeUnit ();
-	static void ChangeOrg (Widget, XtPointer, XtPointer);
 # else
 	static void pw_PosPopup ();
 	static void pw_PosPopdown ();
@@ -61,7 +60,6 @@ static int 	NOrg, OIndex = 0;
 	Widget pw_PosCreate ();
 	void ChangeType ();
 	void ChangeUnit ();
-	static void ChangeOrg ();
 # endif
 
 
@@ -105,16 +103,6 @@ XtAppContext 	actx;
  */
 	bm_BuildBitmaps (parent);
 /*
- * Find out what the possible origins are.
- */
-	if (! pda_Search (Pd, "global", "pos-origin", NULL, Origins, 
-		SYMT_STRING))
-	{
-		msg_ELog (EF_PROBLEM, "No origin list.");
-		return;
-	}
-	NOrg = CommaParse (Origins, ONames);
-/*
  * The text window which displays position.
  */
 	n = 0;
@@ -147,22 +135,34 @@ XtAppContext 	actx;
 		parent, args, n);
 	XtAddCallback (KNButton, XtNcallback, ChangeUnit, 0);
 /*
- * The button to switch origins.
+ * The text widget for entering the origin.
  */
-	OrgButton = LeftRightButtons (parent, ChangeOrg, NULL);
+	strcpy (GPOrigin, "");
 
-	n = 0;
-	XtSetArg (args[n], XtNfromHoriz, DMSButton);	n++;
-	XtSetArg (args[n], XtNfromVert, PosLabel);	n++;
-	XtSetValues (OrgButton, args, n);
+        n = 0;
+        XtSetArg (args[n], XtNfromHoriz, DMSButton); n++;
+        XtSetArg (args[n], XtNfromVert, PosLabel); n++;
+        XtSetArg (args[n], XtNdisplayPosition, 0); n++;
+        XtSetArg (args[n], XtNinsertPosition, 0); n++;
+        XtSetArg (args[n], XtNresize, XawtextResizeNever); n++;
+        XtSetArg (args[n], XtNlength, 40); n++;
+        XtSetArg (args[n], XtNwidth, 70); n++;
+        XtSetArg (args[n], XtNheight, 20); n++;
+        XtSetArg (args[n], XtNstring, GPOrigin); n++;
+        XtSetArg (args[n], XtNtype, XawAsciiString); n++;
+        XtSetArg (args[n], XtNuseStringInPlace, True); n++; XtSetArg (args[n], XtNleftMargin, 5); n++;
+        XtSetArg (args[n], XtNeditType, XawtextAppend); n++;
+        OrgText = XtCreateManagedWidget ("origintext", asciiTextWidgetClass,
+                parent, args, n);
 /*
- * The origin label.
+ * The status line.
  */
 	n = 0;
-	XtSetArg (args[n], XtNborderWidth, 0);		n++;
-	XtSetArg (args[n], XtNlabel, ONames[OIndex]);	n++;
-	XtSetArg (args[n], XtNfromHoriz, OrgButton);	n++;
-	XtSetArg (args[n], XtNfromVert, PosLabel);	n++;
+	XtSetArg (args[n], XtNborderWidth, 1);			n++;
+	XtSetArg (args[n], XtNlabel, "Enter an origin.");	n++;
+        XtSetArg (args[n], XtNwidth, 200); n++;
+	XtSetArg (args[n], XtNfromHoriz, DMSButton);		n++;
+	XtSetArg (args[n], XtNfromVert, OrgText);		n++;
 	OrgLabel = XtCreateManagedWidget ("orglabel", labelWidgetClass,
 		parent, args, n);
 
@@ -172,21 +172,13 @@ XtAppContext 	actx;
 
 
 static void
-ChangeOrg (w, change, junk)
-Widget 		w;
-XtPointer	change, junk;
-/*
- * Change the origin for a range azimuth display.
- */
+SetStatus (string)
+char *string;
 {
-	Arg	args[2];
-	int	delta = (int) change;
+	Arg arg;
 
-	OIndex = (OIndex + delta) % NOrg;
-	if (OIndex < 0)
-		OIndex += NOrg;
-	XtSetArg (args[0], XtNlabel, ONames[OIndex]);
-	XtSetValues (OrgLabel, args, 1);
+	XtSetArg (arg, XtNlabel, string);
+	XtSetValues (OrgLabel, &arg, 1);
 }
 
 
@@ -225,7 +217,7 @@ pw_PosStatus ()
  * Create the position text line and display it in the widget.
  */
 {
-	char	string[100], label[300], offstring[50];
+	char	string[100], label[300], offstring[50], statusstr[100];
 	Window	wjunk;
 	int	junk, x, y;
 	float	offset, lat, lon, ox, oy; 
@@ -277,13 +269,20 @@ pw_PosStatus ()
 /*
  * Get the location and the azimuth offset of the origin.
  */
-	if (! GetLocation (ONames[OIndex], &PlotTime, &loc))
+	if (! GetLocation (GPOrigin, &PlotTime, &loc))
 	{
-		msg_ELog (EF_PROBLEM, "Unable to locate origin %s.",
-			ONames[OIndex]);
+		msg_ELog (EF_PROBLEM, "Unable to locate origin '%s'.",
+			GPOrigin);
+		sprintf (statusstr, "Unable to locate origin: '%s.'", GPOrigin);
+		SetStatus (statusstr);
 		return;
 	}
-	sprintf (offstring, "%s-azimuth-offset", ONames[OIndex]);
+	sprintf (statusstr, "Origin set to: %s.", GPOrigin);
+	SetStatus (statusstr);
+/*
+ * Get the azimuth offset.
+ */
+	sprintf (offstring, "%s-azimuth-offset", GPOrigin);
 	if (! pda_Search (Pd, "global", offstring, NULL, 
 		(char *) &offset, SYMT_FLOAT))
 		offset = 0.0;			
@@ -314,7 +313,7 @@ pw_PosStatus ()
 /*
  * Say what its relative to.
  */
-	sprintf (string, "Relative to %s", ONames[OIndex]);
+	sprintf (string, "Relative to %s", GPOrigin);
 	strcat (label, string);
 
 	XtSetArg (args[0], XtNlabel, label);
