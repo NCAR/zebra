@@ -40,14 +40,18 @@
 # include "dm_cmds.h"
 
 /*
- * Preserve the xhelp functionality for now.  Since the help calls themselves
- * will change to the new mosaic URL's, one can't easily switch back and
- * forth, so I don't know how useful this is.
+ * Pick a help browser.
  */
 static void CallXHelp ();
-static bool UseXHelp = TRUE;
+static bool UseXHelp =
+# if UseMosaic
+			FALSE;
+# else
+			TRUE;
+# endif
 
-MAKE_RCSID ("$Id: dm.c,v 2.57 1994-11-23 16:29:49 burghart Exp $")
+
+MAKE_RCSID ("$Id: dm.c,v 2.58 1994-11-30 17:57:38 corbet Exp $")
 
 
 /*
@@ -225,7 +229,10 @@ char *argv[];
 	ConfigDir[0] = '\0';
 	ConfigPD[0] = '\0';
 	ConfigPath[0] = '\0';
-
+/*
+ * Give them a default helppath.
+ */
+	sprintf (HelpPath, "%s/help,%s/help", GetProjDir (), GetLibDir ());
 # ifdef titan
 /*
  * Hook into the dialbox.
@@ -1779,9 +1786,17 @@ struct ui_command *cmds;
  * Call the xhelp utility.  Old, obsolete, ugly stuff.
  */
 {
-	char helpfile[120], topic[40];
-
-	fixdir ("ZEB_HELPFILE", GetLibDir (), "zeb.hlp", helpfile);
+	char helpfile[120], topic[40], helpdir[120];
+/*
+ * Kludge up a help directory.  Should probably do something with
+ * HelpPath, but this is old stuff anyway...
+ */
+	strcpy (helpdir, GetLibDir ());
+	strcat (helpdir, "/help");
+/*
+ * Now fire things off.
+ */
+	fixdir ("ZEB_HELPFILE", helpdir, "zeb.hlp", helpfile);
 	if (cmds[1].uc_ctype == UTT_END)
 		strcpy (topic, XHELP_INTRO_ID);
 	else
