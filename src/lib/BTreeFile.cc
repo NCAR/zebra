@@ -1,6 +1,8 @@
 /*
  * Implementation of BTreeFile methods.
  */
+#ifndef BTREEFILE_IMPLEMENTATION
+#define BTREEFILE_IMPLEMENTATION
 
 #include <stddef.h>
 #include <stdlib.h>
@@ -13,16 +15,77 @@
 //#include <message.h>
 //}
 
-// RCSID ("$Id: BTreeFile.cc,v 1.6 1998-08-27 22:51:46 granger Exp $")
+// RCSID ("$Id: BTreeFile.cc,v 1.7 1998-09-01 05:17:45 granger Exp $")
 
 #include "Logger.hh"
 #include "Format.hh"
 #include "BTreeFile.hh"
-#include "BlockFactory.hh"
 
-#include "Serialize.hh"
+/*
+ * Need the BTree implementation.
+ */
+#include "BTree.cc"
 
-SERIAL_STREAMABLE (Node);
+/*
+ * Inherit the BTreeNode and SyncBlock functionality for our BlockFile node.
+ */
+template <class K, class T>
+class BlockNode : virtual public BTreeNode<K,T>, virtual public TranslateBlock
+{
+public:
+	BlockNode (BlockFile &bf, BTreeFile<K,T> &t, int depth) :
+		SyncBlock (bf), 
+		BTreeNode<K,T> (t, depth),
+		overflow (),
+		filetree (t)
+	{ }
+
+	virtual ~BlockNode ();
+
+	virtual void sync ();
+
+	// Pass btree node virtual methods on to the block file
+	virtual void mark ()
+	{
+		SyncBlock::mark ();
+	}
+
+	// We implement our own read and write methods for SyncBlock.
+	virtual void read ();
+
+	virtual void write ();
+
+	// Add to the base class free() functionality to free our overflow.
+	virtual void free ();
+
+	// As well as the translate() method for serialization.
+	virtual void translate (SerialStream &ss);
+
+	long nodeSize (SerialBuffer &wb);
+	long leafSize (SerialBuffer &wb);
+
+	// No sense in adding growth since our size is fixed by the btree.
+	virtual BlkSize grow (BlkSize needed)
+	{
+		return needed;
+	}
+
+	virtual void prune ();
+
+protected:
+
+	friend BTreeFile<K,T>;
+
+	// If there's an overflow block, we keep info about it here.
+	Block overflow;
+
+	// To keep a typesafe reference to our tree, which is actually
+	// a subclass of BTree.
+	BTreeFile<K,T>& filetree;
+
+	long baseSize (SerialBuffer &wb);
+};
+
 
 
 template <class K, class T>
@@ -214,69 +277,15 @@ BTreeFile<K,T>::Open (BlkOffset addr)
 		++err;
 		return;
 	}
+	bf->ReadLock ();
 	attach (Block(addr));
 	readSync ();
 
 	// If we have a root node, it must always be in memory.
 	if (depth != -1)
 		root = get (rootNode, depth);
-}
-
-
-#ifdef notdef
-	key_size(0),
-	value_size(sz),
-	key_size_fixed(0),
-	value_size_fixed(fix),
-	node_size(0),
-	leaf_size(0),
-	log(Logger::For("BTreeFile"))
-{
-	log->Info (" - Constructing BtreeFile - ");
-	//BlockFactory<K,T> *f = new BlockFactory<K,T> (*bf, *this);
-	Setup (order, sz, fix/*, new BlockFactory<K,T> (*bf, *this)*/);
-	bf->WriteLock ();
-	writeSync (1);
-	bf->setHeader (this->block, MAGIC);
 	bf->Unlock ();
 }
-#endif
-
-
-#ifdef notdef
-template <class K, class T>
-BTree<K,T>::BTree (BlockFile &bf, int _order) :
-	factory (new BlockFactory (bf, *this)),
-	// persistent
-	depth(-1),
-	order (_order), 
-	root(), 
-	// transient
-	check(0),
-	err(0),
-	current (new Shortcut<K,T>)
-{ }
-
-
-
-template <class K, class T>
-BTree<K,T>::BTree (BlockFile &bf, BlkOffset offset) :
-	factory (new BlockFactory (bf, offset, *this)),
-	// persistent
-	depth(-1),
-	order (_order), 
-	root(), 
-	// transient
-	check(0),
-	err(0),
-	current (new Shortcut<K,T>)
-{
-	if (rootNode.addr)
-	{
-		root = factory->get (*this, rootNode, depth);
-	}
-}
-#endif
 
 
 
@@ -369,24 +378,6 @@ BTreeFile<K,T>::make (int depth)
 	return (made);
 }
 
-
-#ifdef notdef
-/*
- * When releasing a btree from a file, we want to leave the block 
- * nodes in the file but delete all the nodes in memory.
- */
-template <class K, class T>
-void
-BTreeFile<K,T>::release ()
-{
-	// Delete all nodes in memory, which we do by deleting the root
-	if (root)
-		delete root;
-	bf->Close ();
-	if (our_bf)
-		delete bf;
-}
-#endif
 
 
 template <class K, class T>
@@ -624,13 +615,6 @@ BlockNode<K,T>::write ()
 	// Get enough space to translate the whole node.
 	wb->Need (len);
 
-	// If we have not been allocated yet, we need to get our fixed
-	// length and allocate at least that much.
-	if (! block.length)
-	{
-		allocate (nspace);
-	}
-
 	// Determine whether we need overflow space, and if so allocate or
 	// reallocate our overflow block as necessary.
 	if (len > nspace && (len - nspace > overflow.length))
@@ -682,7 +666,6 @@ BlockNode<K,T>::read ()
 		rb->Need (overflow.length);
 		bf->Read (rb->Peek (), overflow.offset, overflow.length);
 	}
-
 	rb->Reset ();
 	translate (ds);
 }
@@ -802,4 +785,6 @@ BlockNode<K,T>::nodeSize (SerialBuffer &wb)
 	return (s);
 }
 
+
+#endif /*BTREEFILE_IMPLEMENTATION*/
 

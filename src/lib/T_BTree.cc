@@ -17,14 +17,12 @@
 #endif
 
 #include <time.h>	// Need time() to seed srand()
+#include <string>
 
 #include "SerialZTime.hh"
-#include "BTree.hh"
-#include "BTreeStats.hh"
-#include <string>
 #include "Logger.hh"
-
-#include "BTreeFile.hh"
+#include "BTreeFile.cc"
+#include "BTreeStats.hh"
 
 typedef BTreeFile<ZTime,ZTime> TimeTree;
 typedef BTreeFile<string,string> StringTree;
@@ -107,9 +105,9 @@ int main (int argc, char *argv[])
 	if (argc > 2)
 	{{
 		test_tree tree(order, sizeof(test_key));
+		err += T_Traversal (tree, 1);
 		tree.Check();
 		if (Debug) tree.Print(cout);
-		err += T_Traversal (tree, 1);
 		//tree.Check(1);
 		tree.Erase ();	// Start fresh
 		cout << "Testing tree of order " << tree.Order() 
