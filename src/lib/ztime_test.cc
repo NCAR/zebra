@@ -77,10 +77,10 @@ main (int, char *argv[])
     errors += check (cond.c_str(), (one == two), __LINE__);
 
     // Test normalization.  These should all be equal.
-    ZTime norm (seconds+2, 500000);
+    ZTime norm ((long)seconds+2, 500000);
     ZTime t1 = ZTime((long)seconds, 2500000);
     TEST(t1 == norm);
-    ZTime t2 = ZTime(seconds+3, -500000);
+    ZTime t2 = ZTime((long)seconds+3, -500000);
     TEST(t2 == norm);
 
     // Try our hand at decoding.
