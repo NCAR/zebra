@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: Optimizer.c,v 1.4 1991-09-26 16:41:17 gracio Exp $";
+static char *rcsid = "$Id: Optimizer.c,v 1.5 1991-09-26 16:51:54 gracio Exp $";
 
 # include <copyright.h>
 # include <ctype.h>
@@ -334,7 +334,7 @@ char	*cfg;
 	strcpy (fname, cfg);
 	if (access (fname, R_OK) != 0)
 	{
-		sprintf (fname, "%s/optimizer/%s", FCCDIR, cfg);
+		sprintf (fname, "%s/Optimizer/%s", FCCDIR, cfg);
 		if (access (fname, R_OK) != 0)
 		{
 			msg_ELog (EF_PROBLEM, "Cannot open '%s' config file!",
