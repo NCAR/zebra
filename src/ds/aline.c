@@ -1,5 +1,5 @@
 /*
- * $Id: aline.c,v 3.3 1995-01-20 10:47:48 granger Exp $
+ * $Id: aline.c,v 3.4 1995-11-19 16:16:44 granger Exp $
  *
  * An 'Assembly Line' test driver for the DataStore.
  *
@@ -29,6 +29,7 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/timeb.h>
+#include <sys/wait.h>
 #include <assert.h>
 
 #include <config.h>
@@ -55,6 +56,8 @@
 /* #define MPROF */
 /* #define DEBUGGER */
 
+#define dc_DumpDC(dc) {}
+
 char *FieldNames[] = {
 	"altitude", "cpres0", "dp", "ept", "mr", "pres",
 #ifdef ZNF
@@ -73,7 +76,7 @@ char OurName[50];
 /*
  * Forwards
  */
-void Produce();
+int Produce();
 void Consume();
 void ReceiveNotify FP ((PlatformId plat_id, int param, ZebTime *when,
 			int nsample, UpdCode ucode));
@@ -116,6 +119,7 @@ char *name;
 	/*
 	 * Otherwise let everyone know we're here
 	 */
+	msg_ELPrintMask (EF_INFO | EF_PROBLEM | EF_EMERGENCY);
 	msg_ELog (EF_INFO, "Hello from '%s'", name);
 	strcpy (OurName, name);
 	for (i = 0; i < NFIELDS; ++i)
@@ -139,6 +143,7 @@ main (argc, argv)
 	ZebTime now;
 	struct timeb tp;
 	char dbg[256];
+	int err = 0;
 
 #ifdef MPROF
 	mprof_stop ();
@@ -181,8 +186,9 @@ main (argc, argv)
 		}
 		else if (pid == -1)
 		{
-			fprintf (stderr, "fork of consumer %d failed", i);
+			msg_ELog (EF_PROBLEM, "fork of consumer %d failed", i);
 			--nconsumers;
+			++err;
 		}
 		else
 		{
@@ -205,19 +211,23 @@ main (argc, argv)
 	ftime(&tp);
 	now.zt_Sec = tp.time;
 	now.zt_MicroSec = 0;
-	printf ("deleting files from consumer platform '%s'\n", CONSUMER_PLAT);
+	msg_ELog (EF_DEBUG, "deleting files from consumer platform '%s'", 
+		  CONSUMER_PLAT);
 	platid = ds_LookupPlatform (CONSUMER_PLAT);
 	ds_DeleteData (platid, &now);
 	if (LinkPlatforms)
 	{
-		printf ("deleting files from producer platform '%s'\n", 
-			PRODUCER_PLAT);
+		msg_ELog (EF_DEBUG, 
+			  "deleting files from producer platform '%s'", 
+			  PRODUCER_PLAT);
 		platid = ds_LookupPlatform (PRODUCER_PLAT);
 		ds_DeleteData (platid, &now);
-		printf ("using linked platforms and rescans for updates\n");
+		msg_ELog (EF_DEBUG, 
+			  "using linked platforms and rescans for updates");
 	}
 	else
-		printf ("producers and consumers using the same platform\n");
+		msg_ELog (EF_DEBUG, 
+			  "producers and consumers using the same platform");
 
 	/*
 	 * Produce our inventory, then wait for our children to exit.
@@ -228,7 +238,7 @@ main (argc, argv)
 	system (dbg);
 	sleep (10);
 #endif
-	Produce(nconsumers);
+	err = Produce(nconsumers);
 
 	return(0);
 }
@@ -236,7 +246,7 @@ main (argc, argv)
 
 
 
-void
+int
 Produce(nconsumers)
 int nconsumers;
 /*
@@ -254,6 +264,7 @@ int nconsumers;
 	int ndetail = 0;
 	char cmd[512];
 	PlatformId destid;
+	int err = 0;
 	
 	details[ndetail++].dd_Name = DD_ZN_APPEND_SAMPLES;
 	details[ndetail].dd_Name = DD_ZN_RESERVE_BLOCK;
@@ -284,7 +295,9 @@ int nconsumers;
 		loc.l_alt = i;
 		dc_SetLoc (dc, 0, &loc);
 		dc_SetSampleAttr (dc, 0, "creator", "producer");
-		ds_StoreBlocks (dc, (i == 0)?TRUE:FALSE, details, ndetail);
+		if (! ds_StoreBlocks (dc, (i == 0)?TRUE:FALSE, 
+				      details, ndetail))
+			++err;
 		dc_DestroyDC (dc);
 
 		/*
@@ -325,25 +338,59 @@ int nconsumers;
 
 	msg_ELog (EF_INFO, "Producer finished, waiting for consumers");
 	for (i = 0; i < nconsumers; ++i)
-		wait(0);
-	msg_ELog (EF_INFO, "Consumer children signalled, exiting");
-	printf ("Final state of observations:\n");
+	{
+		int status;
+		wait(&status);
+		if (WIFEXITED(status))
+			err += WEXITSTATUS(status);
+		else if (WIFSIGNALED(status))
+		{
+			msg_ELog (EF_PROBLEM, "child received signal");
+			++err;
+		}
+		else
+		{
+			msg_ELog (EF_PROBLEM, "unknown child state");
+			++err;
+		}
+	}
+	msg_ELog (EF_INFO,
+		  "Consumer children have terminated, %d errors.", err);
+	msg_ELog (EF_DEBUG, "Final state of observations:");
 	tl_Time (&now);
-	ds_GetObsTimes (plat_id, &now, &when, 1, NULL);
-	dc = ds_FetchObs (plat_id, DCC_Scalar, &when, Fields, NFIELDS,
-			  NULL, 0);
-	dc_DumpDC(dc);
-	dc_DestroyDC (dc);
-	ds_GetObsTimes (destid, &now, &when, 1, NULL);
-	dc = ds_FetchObs (destid, DCC_Scalar, &when, Fields, NFIELDS,
-			  NULL, 0);
-	dc_DumpDC(dc);
-	dc_DestroyDC (dc);
-
+	if (ds_GetObsTimes (plat_id, &now, &when, 1, NULL) != 1)
+		++err;
+	else
+	{
+		dc = ds_FetchObs (plat_id, DCC_Scalar, &when, Fields, 
+				  NFIELDS, NULL, 0);
+		if (! dc)
+			++err;
+		else
+		{
+			dc_DumpDC(dc);
+			dc_DestroyDC (dc);
+		}
+	}
+	if (ds_GetObsTimes (destid, &now, &when, 1, NULL) != 1)
+		++err;
+	else
+	{
+		dc = ds_FetchObs (destid, DCC_Scalar, &when, Fields, 
+				  NFIELDS, NULL, 0);
+		if (! dc)
+			++err;
+		else
+		{
+			dc_DumpDC(dc);
+			dc_DestroyDC (dc);
+		}
+	}
 	/*
 	 * We've stored all of our chunks, so we're done
 	 */
 	ds_ForceClosure();
+	return (err);
 }
 
 
@@ -363,6 +410,7 @@ UpdCode ucode;
 	static const char *CodeNames[] = { "overwrite", "insert", "append" };
 	static nreceived = 0;	/* number of samples processed so far */
 	static ZebTime begin = { 0, 0 };
+	static err = 0;		/* our error count and eventual exit value */
         float check, value;	/* to check our data values */
 	DataChunk *dc;
 	char atime[128];
@@ -383,13 +431,19 @@ UpdCode ucode;
 	dc = ds_Fetch (plat_id, DCC_Scalar, &begin, when, 
 		       Fields, NFIELDS, (dsDetail *)NULL, 0);
 	if (!dc)
+	{
 		msg_ELog (EF_EMERGENCY, "fetch unsuccessful");
+		++err;
+	}
 	else
 	{
 	    int ndc = dc_GetNSample(dc);
 	    if (nreceived != ndc)
+	    {
 		msg_ELog (EF_PROBLEM, "got %d samples from fetch, expected %d",
 			  ndc, nreceived);
+		++err;
+	    }
 	    value = nreceived - ndc;
 	    for (i = 0; i < dc_GetNSample(dc); ++i)
 	    {
@@ -404,6 +458,7 @@ UpdCode ucode;
 				msg_ELog (EF_PROBLEM,
 				   "%s, sample %d, fid %d",
 				   "Data comparison failed", i, Fields[fld]);
+				++err;
 				break;
 			}
 		}
@@ -416,7 +471,8 @@ UpdCode ucode;
 	    /*
 	     * Re-store this chunk with the added attribute
 	     */
-	    ds_StoreBlocks (dc, FALSE, NULL, 0);
+	    if (! ds_StoreBlocks (dc, FALSE, NULL, 0))
+		    ++err;
 	    dc_DestroyDC(dc);
 	}
 
@@ -425,9 +481,9 @@ UpdCode ucode;
 	 */
 	if (nreceived >= INVENTORY)
 	{
-		msg_ELog (EF_INFO, "Consumer finished.");
+		msg_ELog (EF_INFO, "Consumer finished with %d errors.", err);
 		ds_ForceClosure();
-		exit (0);
+		exit (err);
 	}
 }
 
@@ -458,10 +514,17 @@ Consume()
 	}
 #endif
 	/*
+	 * If we're not through in a reasonable amount of time, then
+	 * something went wrong.
+	 */
+	alarm (10*INTERVAL*INVENTORY);
+	/*
 	 * Now we let the receiver handle everything.  After receiving
-	 * all of the samples we're expecting, we'll exit.
+	 * all of the samples we're expecting, we'll exit.  If we return
+	 * from msg_await, then something went wrong there.
 	 */
 	msg_await();
+	exit (1);
 }
 
 

@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.30 1995-07-06 10:21:23 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.31 1995-11-19 16:16:42 granger Exp $"
 
 DEPLIBS=$(LIBZEB) /*$(LIBNETCDF)*/
 /* LIBNETCDF=/net/src/netcdf-2.3.2/libsrc/libnetcdf.a */
@@ -101,25 +101,60 @@ CompleteProgramTarget (GRIBdump, $(GDOBJS), $(LIBZEB), $(LIBZEB), $(LIBMATH))
 /*
  * Test routines.
  */
+#ifdef notdef
 NSOBJS = nstest.o $(DSLIBOBJS) $(DCOBJS)
 TestProgramTarget (nstest, $(NSOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+#endif
 
 TestProgramTarget (hdflook, hdflook.o, /**/, $(LIBHDF), /**/)
 
 APOBJS = apple.o $(DSLIBOBJS) $(DCOBJS)
 TestProgramTarget (apple, $(APOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 
+#ifdef notdef
 cc_nstest:: nstest.c $(DSLIBSRCS) $(DCSRCS)
 	# setopt ansi
 	# load $(ALLDEFINES) nstest.c  $(DSLIBSRCS) $(DCSRCS) \
 		$(DEPLIBS) $(LIBS) $(SYS_LIBRARIES)  \
 		$(EXTRA_LIBRARIES)   $(CLIBS)
 	# link
+#endif
 
 CflowTarget (nstest, nstest.c $(DSLIBSRCS) $(DCSRCS), /**/)
 
 ALOBJS = aline.o $(DSLIBOBJS) $(DCOBJS)
 TestProgramTarget (aline, $(ALOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+
+/*
+ * We have to use an explicit test rule since we have to start up
+ * a zebra session, and we're dependent on multiple programs.
+ */
+ZEBPROGS = $(BINDIR)/message $(BINDIR)/timer $(BINDIR)/zstop $(BINDIR)/dsdump
+TESTPROJ = /net/shared/zebra/project/test
+TESTOUT = > /dev/null 2>&1
+
+test:: $(ZEBPROGS) dsDaemon aline apple nstest.config
+	-@ZEB_SOCKET=./test.socket; export ZEB_SOCKET; \
+	$(BINDIR)/zstop; rm -f $$ZEB_SOCKET; \
+	DSDUMP=$(BINDIR)/dsdump; export DSDUMP; \
+	DATA_DIR=$(TESTPROJ)/data; export DATA_DIR; \
+	echo "Starting a zebra session... ZEB_SOCKET=$$ZEB_SOCKET"; \
+	set -x; message /* -d */ ; (timer &); (dsDaemon nstest.config &); \
+	sleep 5; /* give daemon time to connect */ \
+	set +x; echo "Assembly line testing with 'aline'..."; \
+	if aline 4 $(TESTOUT); \
+		then echo "Passed."; \
+	else \
+		echo "FAILED."; \
+	fi; \
+	echo "Running 'apple', arrows away..."; \
+	if apple $(TESTOUT); \
+		then echo "Passed."; \
+	else \
+		echo "FAILED."; \
+	fi; \
+	$(BINDIR)/zstop
+
 
 /*
  * Saber stuff.  This is a bit complicated, depending on what you are

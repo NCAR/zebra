@@ -1,5 +1,5 @@
 /*
- * $Id: apple.c,v 3.1 1995-05-24 02:10:19 granger Exp $
+ * $Id: apple.c,v 3.2 1995-11-19 16:16:46 granger Exp $
  */
 
 /*
@@ -36,37 +36,21 @@ values.  The compare method calls the superclasses of the datachunk classes
 from raw down to the class and returns with a list of diff messages, if
 any.
 
-Built-in test mode: which does things like omit history and creation date
-info from netcdf files.  In test mode, have error log messages come back to
-application, or to some routine which can match them against what was
-expected.  Low-level development messages, like defining variables and
-dimns in n-space might not be logged unless test mode enabled.
+At some point, it would be nice to construct a ds.config file from here
+given what test we want to make, and then fork() and exec() a dsDaemon
+on the config file ourselves.  Keep the "t_" prefix convention for all test
+platforms.
 
-Perhaps a verify mode, where each call to a class method calls the opposite
-call to make sure the modifications succeeded correctly.  E.g. SetFields
-immediately calls GetFields and compares.
+Allow dynamic platform definitions through the ds protocol, define exactly
+the set of needed test platforms on the fly.  A generic ds.config file, or
+possibly none at all, will suffice.
 
-Diffs might be useful for editing data chunks and keeping a history of the
-changes, perhaps even undo info.
+Bind the test functions to Tcl commands.  Each call to a Tcl command 
+registers the desire to run that test, then on 'begin', the ds.config is
+generated and the test routines are run.  Could we then pipe some output
+to 'expect'?
 
-If more than one process could receive event messages, the test program
-could drive the data store and parse the event messages being logged.
-
- * At some point, it would be nice to construct a ds.config file from here
- * given what test we want to make, and then fork() and exec() a dsDaemon
- * on the config file ourselves.  Keep the "t_" prefix convention for all test
- * platforms.
- *
- * Bind the test functions to Tcl commands.  Each call to a Tcl command 
- * registers the desire to run that test, then on 'begin', the ds.config is
- * generated and the test routines are run.  Could we then pipe some output
- * to 'expect'?
- *
-
-Perhaps use the ingest library to log messages to both stdout and
-event logger...
-
- * See ~granger/zeb/ds-tests.notes */
+ *********/
 
 /* #define MARK */
 /*
@@ -98,7 +82,41 @@ event logger...
 #include "DataChunkP.h"
 
 #define EXPECT(N) \
-	msg_ELog (EF_INFO, "Expect %d problem(s):", N)
+{ \
+	  int _mask; \
+	  msg_ELog (EF_DEBUG, "Expect %d problem(s):", N); \
+	  _mask = msg_ELPrintMask(0); \
+	  msg_ELPrintMask (_mask & ~EF_PROBLEM)
+
+#define SEEN \
+	  msg_ELPrintMask (_mask); \
+}
+
+/*
+ * Skip all of the dumps unless we're really gluttons for painstaking
+ * investigation.
+ */
+#define dc_DumpDC(dc) {}
+
+/*
+ * More functions that are not yet on the main line.
+ */
+#define ds_IntDetail(key,value,det,ndet) \
+{ \
+	  int i = (ndet); \
+	  ((det)[i]).dd_Name = (key); \
+	  ((det)[i]).dd_V.us_v_int = (value); \
+}
+#define ds_SetDetail(key,det,ndet) \
+{ \
+	  ((det)[(ndet)]).dd_Name = (key); \
+}
+#define ds_FloatDetail(key,val,det,ndet) \
+{ \
+	  int i = (ndet); \
+	  ((det)[i]).dd_Name = (key); \
+	  ((det)[i]).dd_V.us_v_float = (val); \
+}
 
 /*
  * Each test routine looks up its required platforms, and if not defined
@@ -112,9 +130,14 @@ event logger...
  * Some higher mechanism will pick which tests to run.
  */
 
-#define ATTRIBUTES
+/*
+ * DataChunk diffs not yet supported in the main tree
+ */
+/* #define DIFF_DATACHUNKS */
 
-#ifdef notdef
+#define GRID_BLOCKS
+#define FETCH_GAP
+
 #define TIME_UNITS
 /* #define EXAMPLE_ONLY */
 #define NSPACE_AERI
@@ -122,7 +145,6 @@ event logger...
 #define TRANSPARENT
 #define SCALAR
 #define GETFIELDS
-#define GRID_BLOCKS
 #define DELETE_OBS	/* test observation deletes */
 #define NSPACE
 #define COPY_SCALAR
@@ -135,8 +157,8 @@ event logger...
 #define RGRID		/* test DC RGrid interface */
 #define DUMMY_FILES
 #define DATA_TIMES
-#define FETCH_GAP
-#endif
+
+#define PRINT_MASK	(EF_INFO | EF_EMERGENCY | EF_PROBLEM)
 
 struct TestField {
 	char *name;
@@ -156,13 +178,16 @@ struct TestField {
 
 struct TestPlatform {
 	char *name;
+#ifdef FILETYPES
 	FileType ftype;
+#endif
 	DataOrganization org;
 	int maxsamples;
 	bool mobile;
 	PlatformId platid;
 } TestPlatforms[] = 
 {
+#ifdef FILETYPES
 	{ "t_dummy_cdf", FTNetCDF, OrgScalar, 60, FALSE },
 	{ "t_dummy_znf", FTZeb, OrgScalar, 60, FALSE },
 	{ "t_gap_cdf", FTNetCDF, OrgScalar, 60, FALSE },
@@ -174,6 +199,19 @@ struct TestPlatform {
 	{ "t_test6", FTNetCDF, OrgNSpace, 1000, FALSE },
 	{ "t_copy_source", FTZeb, OrgScalar, 1000, TRUE },
 	{ "t_copy_dest", FTNetCDF, OrgScalar, 1000, TRUE },
+#else
+	{ "t_dummy_cdf", OrgScalar, 60, FALSE },
+	{ "t_dummy_znf", OrgScalar, 60, FALSE },
+	{ "t_gap_cdf", OrgScalar, 60, FALSE },
+	{ "t_gap_znf", OrgScalar, 60, FALSE },
+	{ "t_deletes", OrgScalar, 1, FALSE },
+	{ "t_nspace", OrgNSpace, 1000, FALSE },
+	{ "t_nsscalar", OrgNSpace, 1000, FALSE },
+	{ "t_nsblocks", OrgNSpace, 1000, FALSE },
+	{ "t_test6", OrgNSpace, 1000, FALSE },
+	{ "t_copy_source", OrgScalar, 1000, TRUE },
+	{ "t_copy_dest", OrgScalar, 1000, TRUE },
+#endif
 	{ "t_aeri_types_cdf" },
 	{ "t_aeri_types_znf" },
 	{ "t_virtual" },
@@ -207,7 +245,7 @@ int
 msg_handler (msg)
 struct message *msg;
 {
-	msg_ELog (EF_INFO, "Message received");
+	msg_ELog (EF_DEBUG, "Message received");
 	return (0);
 }
 
@@ -223,6 +261,7 @@ char *header;
 }
 
 
+
 static PlatformId
 NeedPlatform (name)
 char *name;
@@ -233,11 +272,11 @@ char *name;
  */
 {
 	PlatformId pid;
-	PlatformDef def;
 	int i;
 
 	if ((pid = ds_LookupPlatform (name)) != BadPlatform)
 		return (pid);	/* already have it */
+#ifdef notdef
 	/*
 	 * Otherwise we need to find it and define it 
 	 */
@@ -252,13 +291,17 @@ char *name;
 		return (BadPlatform);
 	}
 	msg_ELog (EF_DEBUG, "needed platform '%s' being defined", name);
-	ds_DefaultPlat (&def);
-	def.pl_Org = TestPlatforms[i].org;
-	def.pl_Filetype = TestPlatforms[i].ftype;
-	def.pl_Mobile = TestPlatforms[i].mobile;
-	def.pl_Maxsamp = TestPlatforms[i].maxsamples;
-	pid = ds_DefinePlatform (&def, name);
+	{
+		PlatformDef def;
+		ds_DefaultPlat (&def);
+		def.pl_Org = TestPlatforms[i].org;
+		def.pl_Filetype = TestPlatforms[i].ftype;
+		def.pl_Mobile = TestPlatforms[i].mobile;
+		def.pl_Maxsamp = TestPlatforms[i].maxsamples;
+		pid = ds_DefinePlatform (&def, name);
+	}
 	TestPlatforms[i].platid = pid;
+#endif
 	return (pid);
 }
 
@@ -272,7 +315,7 @@ InitializePlatforms()
 	ZebTime now;
 	struct timeb tp;
 
-	Announce ("initializing data, erasing platforms");
+	msg_ELog (EF_DEBUG, "initializing data, erasing platforms");
 	ftime(&tp);
 	now.zt_Sec = tp.time;
 	now.zt_MicroSec = 0;
@@ -310,13 +353,17 @@ Initialize()
  * Skip the platform definitions and leave it for the individual test
  * routines to make sure the needed platforms have been defined. 
  */
-	if (!msg_connect (msg_handler, "Test") ||
+	if (!msg_connect (msg_handler, "Will-Tell") ||
 	    !ds_Initialize())
 	{
 		msg_ELog (EF_EMERGENCY, "Cannot connect nor initialize DS!");
 		exit(1);
 	}
-	msg_ELPrintMask (EF_ALL);
+/*
+ * Try to limit our output to what's important
+ */
+	msg_ELPrintMask (PRINT_MASK);
+	msg_ELSendMask (0);
 	InitializePlatforms();
 }
 
@@ -348,6 +395,8 @@ main (argc, argv)
 
 #ifdef TRANSPARENT
 	errors += T_Transparent ("t_transparent", &begin);
+	if (errors) msg_ELog (EF_PROBLEM,
+			      "%d errors after T_Transparent", errors);
 #endif
 
 #ifdef GETFIELDS
@@ -355,71 +404,111 @@ main (argc, argv)
 	 * Test ds_GetFields() for ZNF and netCDF
 	 */
 	errors += T_GetFields (&begin, "t_getfields_cdf");
+	if (errors) msg_ELog (EF_PROBLEM,
+			      "%d errors after T_GetFields(cdf)", errors);
 	errors += T_GetFields (&begin, "t_getfields_znf");
+	if (errors) msg_ELog (EF_PROBLEM,
+			      "%d errors after T_GetFields(znf)", errors);
 #endif
 		
 #ifdef DELETE_OBS
 	errors += T_Deletes (&begin);
+	if (errors) msg_ELog (EF_PROBLEM,
+			      "%d errors after T_Deletes", errors);
 #endif
 
 #ifdef FETCH_GAP
 	errors += T_FetchGap (&begin, "t_gap_cdf");
+	if (errors) msg_ELog (EF_PROBLEM,
+			      "%d errors after T_FetchGap(cdf)", errors);
 	errors += T_FetchGap (&begin, "t_gap_znf");
+	if (errors) msg_ELog (EF_PROBLEM,
+			      "%d errors after T_FetchGap(znf)", errors);
 #endif
 
 #if defined(DUMMY_FILES) && defined(DATA_TIMES)
 	errors += T_DataTimes ("t_dummy_cdf");
+	if (errors) msg_ELog (EF_PROBLEM,
+			      "%d errors after T_DataTimes(cdf)", errors);
 	errors += T_DataTimes ("t_dummy_znf");
+	if (errors) msg_ELog (EF_PROBLEM,
+			      "%d errors after T_DataTimes(znf)", errors);
 #endif
 
 #ifdef SCALAR
 	errors += T_Scalar (&begin);
+	if (errors) msg_ELog (EF_PROBLEM,
+			      "%d errors after T_Scalar", errors);
 #endif /* SCALAR */
 
 #ifdef NSPACE
 	errors += T_NSpace (&begin);
+	if (errors) msg_ELog (EF_PROBLEM,
+			      "%d errors after T_NSpace", errors);
 #endif
 
 #ifdef NSPACE_AERI
 	errors += T_Aeri();
+	if (errors) msg_ELog (EF_PROBLEM,
+			      "%d errors after T_Aeri", errors);
 #endif
 
 #ifdef NEXUS
 	/* test nexus-specific considerations, such as big, block overwrites */
 	errors += T_Nexus (&begin);
+	if (errors) msg_ELog (EF_PROBLEM,
+			      "%d errors after T_Nexus", errors);
 #endif
 
 #ifdef GRID_BLOCKS
 	errors += T_IRGridStoreBlocks();
+	if (errors) msg_ELog (EF_PROBLEM,
+			      "%d errors after T_IRGridStoreBlocks", errors);
 	errors += T_1DGridStoreBlocks();
+	if (errors) msg_ELog (EF_PROBLEM,
+			      "%d errors after T_1DGridStoreBlocks", errors);
 #endif
 
 #ifdef FIELD_TYPES
 	errors += T_FieldTypes (begin);
+	if (errors) msg_ELog (EF_PROBLEM,
+			      "%d errors after T_FieldTypes", errors);
 #endif
 
 #ifdef AERI_TYPES
 	errors += T_AeriTypes (begin);
+	if (errors) msg_ELog (EF_PROBLEM,
+			      "%d errors after T_AeriTypes", errors);
 #endif
 
 #ifdef SCALAR_NSPACE
 	errors += T_ScalarNSpace (begin);
+	if (errors) msg_ELog (EF_PROBLEM,
+			      "%d errors after T_ScalarNSpace", errors);
 #endif
 
 #ifdef ATTRIBUTES
 	errors += T_Attributes (begin);
+	if (errors) msg_ELog (EF_PROBLEM,
+			      "%d errors after T_Attributes", errors);
 #endif
 
 #ifdef RGRID
 	errors += T_RGrid (begin);
+	if (errors) msg_ELog (EF_PROBLEM,
+			      "%d errors after T_RGrid", errors);
 #endif
 
 #ifdef COPY_SCALAR
         errors += T_CopyScalar (&begin);
+	if (errors) msg_ELog (EF_PROBLEM,
+			      "%d errors after T_CopyScalar", errors);
 #endif
 
 #ifdef TIME_UNITS
 	errors += T_TimeUnits (&begin);
+	if (errors) msg_ELog (EF_PROBLEM,
+			      "%d errors after T_TimeUnits", errors);
 #endif
 
 	ds_ForceClosure();
@@ -444,12 +533,14 @@ ZebTime *begin;
 	float *retrieve;
 	PlatformId plat_id;
 	PlatformId t_delete_id;
+	int err = 0;
 
-	Announce ("t_scalar: 4 fields, 10 samples, mobile, attributes");
+	msg_ELog (EF_DEBUG, 
+		  "t_scalar: 4 fields, 10 samples, mobile, attributes");
 	dc = T_SimpleScalarChunk (begin, 1, 10, 4, TRUE, TRUE);
 	plat_id = NeedPlatform("t_scalar");
 	dc->dc_Platform = plat_id;
-	ds_StoreBlocks (dc, TRUE, NULL, 0);
+	err += ! ds_StoreBlocks (dc, TRUE, NULL, 0);
 	dc_DestroyDC (dc);
 
 	/*
@@ -459,36 +550,38 @@ ZebTime *begin;
 	 * attributes should be deleted on the overwrite, since they 
 	 * won't correspond to the samples with atts here.
 	 */
-	Announce("t_scalar: 4 fields, 3000 samples, starting 30 secs back");
+	msg_ELog (EF_DEBUG, 
+		  "t_scalar: 4 fields, 3000 samples, starting 30 secs back");
 	when.zt_Sec -= 30;
 	dc = T_SimpleScalarChunk (&when, 1, 3000, 4, TRUE, TRUE);
 	dc->dc_Platform = plat_id;
-	ds_StoreBlocks (dc, TRUE, NULL, 0);
-	msg_ELog (EF_INFO, 
-		  "t_fixed: storing same datachunk as for t_scalar");
+	err += !ds_StoreBlocks (dc, TRUE, NULL, 0);
+	msg_ELog (EF_DEBUG, "t_fixed: storing same datachunk as for t_scalar");
 	dc->dc_Platform = NeedPlatform("t_fixed");
-	ds_StoreBlocks (dc, TRUE, NULL, 0);
+	err += !ds_StoreBlocks (dc, TRUE, NULL, 0);
 	dc_DestroyDC (dc);
 	when.zt_Sec += 3000;
 
 	/*
 	 * Now overwrite a huge block of the previously stored data.
 	 */
-	Announce("t_scalar: 4 fields, 1500 samples, 1500 secs prior to end");
+	msg_ELog (EF_DEBUG, 
+		  "t_scalar: 4 fields, 1500 samples, 1500 secs prior to end");
 	when.zt_Sec -= 1500;
 	dc = T_SimpleScalarChunk (&when, 1, 1500, 4, TRUE, TRUE);
 	dc->dc_Platform = plat_id;
-	ds_StoreBlocks (dc, TRUE, NULL, 0);
-	Announce("t_fixed: same datachunk as for t_scalar above");
+	err += !ds_StoreBlocks (dc, TRUE, NULL, 0);
+	msg_ELog (EF_DEBUG, "t_fixed: same datachunk as for t_scalar above");
 	dc->dc_Platform = NeedPlatform("t_fixed");
-	ds_StoreBlocks (dc, TRUE, NULL, 0);
+	err += !ds_StoreBlocks (dc, TRUE, NULL, 0);
 	dc_DestroyDC (dc);
 	when.zt_Sec += 1500;
 
 	/*
 	 * Now overwrite, but only with a subset of the fields
 	 */
-	Announce("t_scalar: 3 fields, 1000 samples, 1250 secs prior to end");
+	msg_ELog (EF_DEBUG, 
+		  "t_scalar: 3 fields, 1000 samples, 1250 secs prior to end");
 	when.zt_Sec -= 1250;
 	dc = T_SimpleScalarChunk (&when, 1, 1000, 3, TRUE, TRUE);
 	dc->dc_Platform = plat_id;
@@ -498,13 +591,13 @@ ZebTime *begin;
 		TestFields[1] = TestFields[3];
 		TestFields[3] = tf;
 	}
-	ds_StoreBlocks (dc, TRUE, NULL, 0);
-	Announce("t_fixed: same datachunk as for t_scalar above");
+	err += !ds_StoreBlocks (dc, TRUE, NULL, 0);
+	msg_ELog (EF_DEBUG, "t_fixed: same datachunk as for t_scalar above");
 	dc->dc_Platform = NeedPlatform("t_fixed");
-	ds_StoreBlocks (dc, TRUE, NULL, 0);
+	err += !ds_StoreBlocks (dc, TRUE, NULL, 0);
 	dc_DestroyDC (dc);
 	when.zt_Sec += 1000;
-	return (0);
+	return (err);
 }
 #endif /* SCALAR */
 
@@ -533,12 +626,12 @@ long first;	/* beginning of period (secs) expected */
 
 	n = ds_DataTimes (pid, when, check, which, times);
 	TC_EncodeTime (when, TC_Full, buf);
-	msg_ELog (EF_INFO, "DataTimes: %s", desc);
-	msg_ELog (EF_INFO, "           %d found %s %s", n,
-		(which == DsBefore) ? "before" : "after", buf);
+	msg_ELog (EF_DEBUG, "DataTimes: %s", desc);
+	msg_ELog (EF_DEBUG, "           %d found %s %s", n,
+		  (which == DsBefore) ? "before" : "after", buf);
 	if (n != expect)
 	{
-		msg_ELog (EF_PROBLEM, "DataTimes: %d expected, %d returned\n",
+		msg_ELog (EF_PROBLEM, "DataTimes: %d expected, %d returned",
 			  expect, n);
 		++errors;
 	}
@@ -546,7 +639,7 @@ long first;	/* beginning of period (secs) expected */
 	for (i = 0; i < n; ++i) 
 	{
 		TC_EncodeTime (times+i, TC_Full, buf);
-		msg_ELog (EF_DEBUG, "%s", buf);
+		msg_ELog (EF_DEVELOP, "%s", buf);
 		test.zt_Sec = first + expect - 1 - i;
 		if (! TC_Eq(times[i], test))
 		{
@@ -585,7 +678,7 @@ char *platform;
 	pid = NeedPlatform (platform);
 	dc->dc_Platform = pid;
 	dc_GetTime (dc, NS - 1, &last);
-	ds_StoreBlocks (dc, TRUE, NULL, 0);
+	errors += !ds_StoreBlocks (dc, TRUE, NULL, 0);
 	dc_DestroyDC (dc);
 #ifdef DATA_TIMES 	/* use the dummy files to test ds_DataTimes */
 	/*
@@ -593,8 +686,8 @@ char *platform;
 	 * and space for all of the times, and make sure we get the right
 	 * times back.  Then try doing smaller sets of times.
 	 */
-	Announce ("---- Testing ds_DataTimes()...");
-	msg_ELog ("DataTimes: platform '%s'", platform);
+	Announce ("Testing ds_DataTimes()...");
+	msg_ELog (EF_DEBUG, "DataTimes: platform '%s'", platform);
 	tl_Time (&now);
 	errors += CheckTimes (pid, "all times before now", &now, NS, DsBefore,
 			      NS, last.zt_Sec - NS + 1);
@@ -619,7 +712,6 @@ char *platform;
 	next.zt_Sec = 1;
 	errors += CheckTimes (pid, "5 times after prehistoric time", 
 		    &next, 5, DsAfter, 5, first.zt_Sec);
-	Announce ("------------ DataTimes: done ------------");
 #   endif
 	return (errors);
 }
@@ -647,14 +739,14 @@ char *plat;
 	dc = T_SimpleScalarChunk (begin, 30, 10, 4, FALSE, FALSE);
 	pid = NeedPlatform(plat);
 	dc->dc_Platform = pid;
-	ds_StoreBlocks (dc, TRUE, NULL, 0);
+	errors += !ds_StoreBlocks (dc, TRUE, NULL, 0);
 	dc_DestroyDC (dc);
 	/*
 	 * Now fetch an interval within the data file but which does not
 	 * contain any times in the file.  The result should be NULL.
 	 */
 	when.zt_Sec += 15;		/* halfway between samples */
-	ds_GetFields (pid, &when, &nfield, fields);
+	errors += !ds_GetFields (pid, &when, &nfield, fields);
 	dc = ds_Fetch (pid, DCC_Scalar, &when, &when, fields, nfield, NULL, 0);
 	if (dc)
 	{
@@ -690,7 +782,7 @@ char *plat;
 		if (ns != 4)
 		{
 			msg_ELog(EF_PROBLEM, "FetchGap: dc has %d samples %s",
-				 dc_GetNSample (dc), "instead of 4");
+				 ns, "instead of 4");
 			++errors;
 		}
 		dc_DestroyDC (dc);
@@ -737,9 +829,9 @@ char *plat;
 		if (ns != 10)
 		{
 			msg_ELog (EF_PROBLEM, "FetchGap: dc has %d samples %s",
-				  dc_GetNSample (dc), "instead of 10");
+				  ns, "instead of 10");
+			++errors;
 		}
-		++errors;
 		dc_DestroyDC (dc);
 	}
 	else
@@ -747,7 +839,6 @@ char *plat;
 		++errors;
 		msg_ELog (EF_PROBLEM, "FetchGap: fetch 320 sec returned null");
 	}
-	Announce ("FetchGap: test completed.");
 	return (errors);
 }
 #endif	/* FETCH_GAP */
@@ -766,58 +857,68 @@ ZebTime begin;
 	int i, f;
 	char *sc_plat = "t_nsvsc_scalar";
 	char *ns_plat = "t_nsvsc_nspace";
+	int err = 0;
 #	define NUMS 1000
 
 	dc_CheckClass (FALSE);
 
 	MARK(scbld);
-	Announce ("t_nsvsc_scalar: 8 fields, mobile, attributes");
+	msg_ELog (EF_DEBUG, "t_nsvsc_scalar: 8 fields, mobile, attributes");
 	dc = T_SimpleScalarChunk (&begin, 1, NUMS, 8, TRUE, TRUE);
 	plat_id = NeedPlatform(sc_plat);
 	dc->dc_Platform = plat_id;
 	MARK(scsto);
-	ds_StoreBlocks (dc, TRUE, NULL, 0);
+	err += !ds_StoreBlocks (dc, TRUE, NULL, 0);
 	dc_DestroyDC (dc);
-	msg_ELog (EF_INFO, "fetching the entire observation from '%s'", 
+	msg_ELog (EF_DEVELOP, "fetching the entire observation from '%s'", 
 		  sc_plat);
 	nfield = 10;
-	ds_GetFields (plat_id, &begin, &nfield, fields);
+	err += !ds_GetFields (plat_id, &begin, &nfield, fields);
 	MARK(scfet);
 	dc = ds_FetchObs (plat_id, DCC_Scalar, &begin, 
 			  fields, nfield, NULL, 0);
-	msg_ELog (EF_INFO, "Done.");
+	msg_ELog (EF_DEBUG, "Done.");
 	MARK(scacc);
-	for (i = 0; i < NUMS; ++i)
-		for (f = 0; f < nfield; ++f)
-			value = dc_GetScalar (dc, i, fields[f]);
-	dc_DumpDC (dc);
-	dc_DestroyDC(dc);
+	if (dc)
+	{
+		for (i = 0; i < NUMS; ++i)
+			for (f = 0; f < nfield; ++f)
+				value = dc_GetScalar (dc, i, fields[f]);
+		dc_DumpDC (dc);
+		dc_DestroyDC(dc);
+	}
+	else
+		++err;
 
 	MARK(nsbld);
-	Announce ("t_nsvsc_nspace: 8 fields, mobile, attributes");
+	msg_ELog (EF_DEBUG, "t_nsvsc_nspace: 8 fields, mobile, attributes");
 	dc = T_ScalarNSpaceChunk (&begin, NUMS, 8, TRUE, TRUE);
 	plat_id = NeedPlatform(ns_plat);
 	dc->dc_Platform = plat_id;
 	MARK(nssto);
-	ds_StoreBlocks (dc, TRUE, NULL, 0);
+	err += !ds_StoreBlocks (dc, TRUE, NULL, 0);
 	dc_DestroyDC (dc);
-	msg_ELog (EF_INFO, "fetching the entire observation from '%s'...", 
+	msg_ELog (EF_DEBUG, "fetching the entire observation from '%s'...", 
 		  ns_plat);
 	nfield = 10;
-	ds_GetFields (plat_id, &begin, &nfield, fields);
+	err += !ds_GetFields (plat_id, &begin, &nfield, fields);
 	MARK(nsfet);
 	dc = ds_FetchObs (plat_id, DCC_NSpace, &begin, 
 			  fields, nfield, NULL, 0);
 	MARK(nsacc);
-	msg_ELog (EF_INFO, "Done.");
-	for (i = 0; i < NUMS; ++i)
-		for (f = 0; f < nfield; ++f)
-			value = *(float *)dc_NSGetSample (dc, i, fields[f], 0);
-	dc_DumpDC (dc);
-	dc_DestroyDC(dc);
-
+	msg_ELog (EF_DEBUG, "Done.");
+	if (dc)
+	{
+		for (i = 0; i < NUMS; ++i)
+			for (f = 0; f < nfield; ++f)
+				err += !dc_NSGetSample (dc, i, fields[f], 0);
+		dc_DumpDC (dc);
+		dc_DestroyDC(dc);
+	}
+	else 
+		++err;
 	dc_CheckClass (TRUE);
-	return (0);
+	return (err);
 }
 
 
@@ -883,11 +984,12 @@ ZebTime when;
 	ZebTime begin = when;
 	static Location loc = { 40.0, -160.0, 5280.0 };
 	PlatformId plat_id = NeedPlatform ("t_fieldtypes");
+	int err = 0;
 
-	Announce ("------------ Testing field types interfaces ---------");
+	Announce ("Testing field types interfaces");
 	for (i = 1; i < nfield+1; ++i)
 	{
-		msg_ELog (EF_DEBUG, "type name: %s, size %d", 
+		msg_ELog (EF_DEVELOP, "type name: %s, size %d", 
 			  dc_TypeName(i), dc_SizeOfType(i));
 		fields[i-1] = F_DeclareField ((char *)dc_TypeName(i),
 					    "Typed field","none");
@@ -910,8 +1012,9 @@ ZebTime when;
 	dc_DumpDC (dc);
 	++when.zt_Sec;
 	T_AddTypedScalarSample (dc, when, 1, fields);
-	printf ("nsamples allocated should now be 10, \n");
-	printf ("space for 8 samples between NextOffset and DataLen:\n");
+	msg_ELog (EF_DEBUG, "nsamples allocated should now be 10, ");
+	msg_ELog (EF_DEBUG, 
+		  "space for 8 samples between NextOffset and DataLen:");
 	++when.zt_Sec;
 	dc_DumpDC (dc);
 	for (i = 2; i < 10; ++i, ++when.zt_Sec)
@@ -919,14 +1022,20 @@ ZebTime when;
 	dc_DumpDC (dc);
 	fflush (stdout);
 
-	Announce ("ds_Store()'ing the typed DataChunk to t_fieldtypes");
-	ds_Store (dc, TRUE, 0, 0);
+	msg_ELog (EF_DEBUG, 
+		  "ds_Store()'ing the typed DataChunk to t_fieldtypes");
+	err += !ds_Store (dc, TRUE, 0, 0);
 	dc_DestroyDC (dc);
-	Announce ("Fetching the typed scalar observation");
+	msg_ELog (EF_DEBUG, "Fetching the typed scalar observation");
 	dc = ds_FetchObs (plat_id, DCC_Scalar, &begin, fields, nfield, 0, 0);
-	dc_DumpDC (dc);
-	dc_DestroyDC (dc);
-	return (0);
+	if (dc)
+	{
+		dc_DumpDC (dc);
+		dc_DestroyDC (dc);
+	}
+	else
+		++err;
+	return (err);
 }
 #endif /* FIELD_TYPES */
 
@@ -943,11 +1052,13 @@ PlatformId platid;
 	DataChunk *dc;
 	int i;
 	char attval[128];
+	int err = 0;
 
-	Announce("simulating dedit read and overwrite with sample attributes");
-	ds_GetFields (platid, &begin, &nfield, fields);
+	Announce("dedit read and overwrite simulation...");
+	err += !ds_GetFields (platid, &begin, &nfield, fields);
 	dc = ds_FetchObs (platid, DCC_Scalar, &begin, fields, nfield, NULL, 0);
-
+	if (! dc)
+		return (++err);
 	/*
 	 * Add some sample attributes
 	 */
@@ -967,16 +1078,20 @@ PlatformId platid;
 	 * Now do the fetch/store cycle several times to make sure it
 	 * doesn't mess up the reserve space
 	 */
-	Announce ("performing repeated fetch/store cycles");
+	msg_ELog (EF_DEBUG, "performing repeated fetch/store cycles");
 	for (i = 0; i < 50; ++i)
 	{
 		dc = ds_FetchObs (platid, DCC_Scalar, &begin, fields, 
 				  nfield, NULL, 0);
-		ds_StoreBlocks (dc, FALSE, 0, 0);
-		dc_DestroyDC(dc);
+		if (dc)
+		{
+			ds_StoreBlocks (dc, FALSE, 0, 0);
+			dc_DestroyDC(dc);
+		}
+		else
+			++err;
 	}
-	Announce ("t_dedit done.");
-	return (0);
+	return (err);
 }
 
 
@@ -1046,9 +1161,10 @@ ZebTime *begin;
 	dc_CheckClass (FALSE);
 
 	/* now begin creating a single sample DataChunk and storing it */
+	Announce ("Nexus simulation...");
 	sprintf (buf, "creating '%s' observation of 500 samples, 1 at a time",
-		pname);
-	Announce (buf);
+		 pname);
+	msg_ELog (EF_DEBUG, buf);
 	for (i = 0; i < 500; ++i)
 	{
 		dc = dc_CreateDC (DCC_Scalar);
@@ -1077,13 +1193,13 @@ ZebTime *begin;
 			ds_IntDetail (DD_ZN_RESERVE_BLOCK, 100*50, details,
 				      ndetail++);
 #endif /* !BACKWARDS */
-			ds_StoreBlocks (dc, TRUE, details, ndetail);
+			errors += !ds_StoreBlocks (dc, TRUE, details, ndetail);
 #if !defined(BACKWARDS)
 			ndetail -= 2;
 #endif /* !BACKWARDS */
 		}
 		else
-			ds_StoreBlocks (dc, FALSE, details, ndetail);
+			errors += !ds_StoreBlocks(dc, FALSE, details, ndetail);
 		dc_DestroyDC(dc);
 		loc.l_alt += 5.0;
 		when.zt_Sec += 4;
@@ -1096,14 +1212,18 @@ ZebTime *begin;
 	}
 
 	/* now have a file of 500 samples, try to fetch the whole thing */
-	printf ("fetching the entire observation from '%s'...\n", pname);
+	msg_ELog (EF_DEBUG, 
+		  "fetching the entire observation from '%s'...", pname);
 	dc = ds_FetchObs (plat_id, DCC_Scalar, begin, fields, n, NULL, 0);
+	if (!dc)
+		return (++errors);
 	dc_DumpDC (dc);
 	/* now store it all back, overwriting what's already there; this
 	 * is so that we can verify the fetch through what's in the file */
-	printf ("overwriting observation with fetched datachunk... \n");
-	ds_StoreBlocks (dc, FALSE, details, ndetail);
-	printf ("Done.\n");
+	msg_ELog (EF_DEBUG, 
+		  "overwriting observation with fetched datachunk...");
+	errors += !ds_StoreBlocks (dc, FALSE, details, ndetail);
+	msg_ELog (EF_DEBUG, "Done.");
 	dc_DestroyDC(dc);
 	return (errors);
 }
@@ -1156,6 +1276,7 @@ ZebTime *begin;
 	dsDetail details[5];
 	int ndetail;
 	char buf[128];
+	int err = 0;
 
 	Announce ("Copying one datachunk to another, adding one field");
 	plat_id = NeedPlatform(pname);
@@ -1189,7 +1310,7 @@ ZebTime *begin;
 
 	/* now begin creating a single sample DataChunk and storing it */
 	sprintf (buf, "creating '%s' observation of 1000 samples", pname);
-	Announce (buf);
+	msg_ELog (EF_DEBUG, buf);
 	dc = dc_CreateDC (DCC_Scalar);
 	dc->dc_Platform = plat_id;
 	dc_SetScalarFields (dc, n, fields);
@@ -1206,17 +1327,22 @@ ZebTime *begin;
 		loc.l_alt += 5.0;
 		when.zt_Sec += 5;
 	}
-	ds_StoreBlocks (dc, TRUE, details, ndetail);
+	err += !ds_StoreBlocks (dc, TRUE, details, ndetail);
 	dc_DestroyDC(dc);
 
 	/* now have a file of 500 samples, try to fetch the whole thing */
-	printf ("fetching the entire observation from '%s'...\n", pname);
+	msg_ELog (EF_DEBUG, "fetching the entire observation from '%s'...",
+		  pname);
 	dc = ds_FetchObs (plat_id, DCC_Scalar, begin, fields, n, NULL, 0);
+	if (!dc)
+		return (++err);
 	dc_DumpDC (dc);
 
 	/* now create our second dc, and go through the hassle of adding
 	 * that one more field to it and copying attributes and data */
-	printf ("creating our copy dc for '%s', adding field 'avg'\n", pdest);
+	msg_ELog (EF_DEBUG, 
+		  "creating our copy dc for '%s', adding field 'avg'", 
+		  pdest);
 	newdc = dc_CreateDC (DCC_Scalar);
 	newdc->dc_Platform = NeedPlatform (pdest);
 
@@ -1235,7 +1361,7 @@ ZebTime *begin;
 	 * Last but not least, copy all of the data, including locations.
 	 */
 	dc_DumpDC (newdc);
-	printf ("copying data from src dc to dest dc...\n");
+	msg_ELog (EF_DEBUG, "copying data from src dc to dest dc...");
 	for (i = 0; i < 1000; ++i)
 	{
 		dc_GetTime (dc, i, &when);
@@ -1251,12 +1377,12 @@ ZebTime *begin;
 		dc_SetLoc (newdc, i, &loc);
 	}
 	dc_DumpDC (newdc);
-	printf ("storing the new datachunk to '%s'\n", pdest);
-	ds_StoreBlocks (newdc, TRUE, details, ndetail);
+	msg_ELog (EF_DEBUG, "storing the new datachunk to '%s'", pdest);
+	err += !ds_StoreBlocks (newdc, TRUE, details, ndetail);
 	dc_DestroyDC(newdc);
 	dc_DestroyDC(dc);
-	Announce ("Done with DataChunk copy test.");
-	return (0);
+	msg_ELog (EF_DEBUG, "Done with DataChunk copy test.");
+	return (err);
 }
 #endif /* COPY_SCALAR */
 
@@ -1282,17 +1408,17 @@ ZebTime *now;
 	plat_id = NeedPlatform("t_nspace");
 	Announce("Testing NSpace interface and storage");
 
-	Announce("------------------- test1 ------------------------");
+	msg_ELog (EF_DEBUG, "---- test1 ------");
 	{	/* an empty NSpace data chunk */
 		
 		dc = dc_CreateDC (DCC_NSpace);
 		dc->dc_Platform = plat_id;
 		dc_DumpDC (dc);
 		dc_SetStaticLoc (dc, &loc);
-		ds_Store (dc, TRUE, 0, 0);
+		errors += !ds_Store (dc, TRUE, 0, 0);
 		dc_DestroyDC (dc);
 	}
-	Announce("-------------------- test2 -----------------------");
+	msg_ELog (EF_DEBUG, "----- test2 ------");
 	{	/* simple non-static variable over two dimensions */
 
 		FieldId field, sfield;
@@ -1314,9 +1440,11 @@ ZebTime *now;
 
 		EXPECT(1);
 		dc_NSAddSample (dc, &when, 0, sfield, test_data+1000);
+		SEEN;
 		dc_NSAddSample (dc, &when, 0, field, test_data+1000);
 		EXPECT(1);
 		dc_NSAddStatic (dc, field, test_data);
+		SEEN;
 		dc_NSAddStatic (dc, sfield, test_data);
 		dc_SetSampleAttr (dc, 0, "test_key", "test_value");
 		dc_SetSampleAttr (dc, 0, "test_key2", "test_value2");
@@ -1327,72 +1455,96 @@ ZebTime *now;
 		dc_DumpDC (dc);
 
 		/* retrieve data and compare */
-		printf ("retrieving static data with GetStatic...");
+		msg_ELog (EF_DEVELOP, 
+			  "retrieving static data with GetStatic...");
 		retrieve = dc_NSGetStatic (dc, sfield, &size);
 		errors += T_CompareData(retrieve, test_data, size);
-		printf ("retrieving static data with GetSample(1)...");
+		msg_ELog (EF_DEVELOP, 
+			  "retrieving static data with GetSample(1)...");
 		retrieve = dc_NSGetSample (dc, 1, sfield, &size);
 		errors += T_CompareData(retrieve, test_data, size);
-		EXPECT(1);
-		printf ("retrieving static data with GetSample(100)...");
+		msg_ELog (EF_DEVELOP, 
+			  "retrieving static data with GetSample(100)...");
+		EXPECT(1); /* there is no sample 100 */
 		retrieve = dc_NSGetSample (dc, 100, sfield, &size);
-		errors += T_CompareData(retrieve, test_data, size);
+		/* errors += T_CompareData(retrieve, test_data, size); */
+		SEEN;
 		retrieve = dc_NSGetSample (dc, 1, field, &size);
-		printf ("dc_NSGetSample(%s) returns size = %lu,", 
-			F_GetName(field), size);
+		msg_ELog (EF_DEVELOP,
+			  "dc_NSGetSample(%s) returns size = %lu,", 
+			  F_GetName(field), size);
 		errors += T_CompareData(retrieve, test_data+1005, size);
 
 		T_NSGetField(dc, field);
 		T_NSGetField(dc, sfield);
 		/* T_NSGetAllDimensions(dc, field); */
 
-		printf("Storing... "); fflush(stdout);
+		msg_ELog (EF_DEBUG, "Storing... "); fflush(stdout);
 		dc_SetStaticLoc (dc, &loc);
-		ds_Store (dc, TRUE, 0, 0);
-		printf("Destroying... ");
+		errors += !ds_Store (dc, TRUE, 0, 0);
+		msg_ELog (EF_DEBUG, "Destroying...");
 		dc_DestroyDC (dc);
 
 		/* now try to fetch what we just stored and see what we get */
-		printf("Fetching data....   "); fflush(stdout);
+		msg_ELog (EF_DEBUG, "Fetching data....   "); fflush(stdout);
 		dc = ds_Fetch (plat_id, DCC_NSpace, &when, &when,
 			       fids, 2, NULL, 0);
-		printf("DataChunk returned by ds_Fetch():\n");
-		dc_DumpDC (dc);
-
-		/* retrieve data and compare */
-		T_NSGetField(dc, field);
-		T_NSGetField(dc, sfield);
-		printf ("Comparing retrieved dynamic data...\n");
-		retrieve = dc_NSGetSample (dc, 0, field, &size);
-		errors += T_CompareData(retrieve, test_data+1005, size);
-		printf ("Comparing retrieved static data...\n");
-		retrieve = dc_NSGetStatic (dc, sfield, &size);
-		printf ("dc_NSGetStatic() returns size = %lu,", size);
-		errors += T_CompareData(retrieve, test_data, size);
-		dc_DestroyDC (dc);
+		if (! dc)
+			++errors;
+		else
+		{
+			msg_ELog (EF_DEBUG,
+				  "DataChunk returned by ds_Fetch():");
+			dc_DumpDC (dc);
+			/* retrieve data and compare */
+			T_NSGetField(dc, field);
+			T_NSGetField(dc, sfield);
+			msg_ELog (EF_DEVELOP,
+				  "Comparing retrieved dynamic data...");
+			retrieve = dc_NSGetSample (dc, 0, field, &size);
+			errors += T_CompareData(retrieve,test_data+1005, size);
+			msg_ELog (EF_DEVELOP,
+				  "Comparing retrieved static data...");
+			retrieve = dc_NSGetStatic (dc, sfield, &size);
+			msg_ELog (EF_DEVELOP, 
+			  "dc_NSGetStatic() returns size = %lu,", size);
+			errors += T_CompareData(retrieve, test_data, size);
+			dc_DestroyDC (dc);
+		}
 
 		/* now try again but with fields in reverse order */
-		printf("Fetching data, fields reversed...  "); fflush(stdout);
+		msg_ELog (EF_DEBUG, "Fetching data, fields reversed...  ");
+		fflush(stdout);
 		fids[0] = sfield;
 		fids[1] = field;
 		dc = ds_Fetch (plat_id, DCC_NSpace, &when, &when,
 			       fids, 2, NULL, 0);
-		printf("DataChunk returned by ds_Fetch():\n");
-		dc_DumpDC (dc);
-
-		/* retrieve data and compare */
-		T_NSGetField(dc, field);
-		T_NSGetField(dc, sfield);
-		printf ("Comparing retrieved dynamic data...\n");
-		retrieve = dc_NSGetSample (dc, 0, field, &size);
-		errors += T_CompareData(retrieve, test_data+1005, size);
-		printf ("Comparing retrieved static data...\n");
-		retrieve = dc_NSGetStatic (dc, sfield, &size);
-		printf ("dc_NSGetStatic() returns size = %lu,", size);
-		errors += T_CompareData(retrieve, test_data, size);
-		dc_DestroyDC (dc);
+		if (! dc)
+			++errors;
+		else
+		{
+			msg_ELog (EF_DEVELOP,
+				  "DataChunk returned by ds_Fetch():");
+			dc_DumpDC (dc);
+			
+			/* retrieve data and compare */
+			T_NSGetField(dc, field);
+			T_NSGetField(dc, sfield);
+			msg_ELog (EF_DEVELOP,
+				  "Comparing retrieved dynamic data...");
+			retrieve = dc_NSGetSample (dc, 0, field, &size);
+			errors += T_CompareData(retrieve,test_data+1005, size);
+			msg_ELog (EF_DEVELOP, 
+				  "Comparing retrieved static data...");
+			retrieve = dc_NSGetStatic (dc, sfield, &size);
+			msg_ELog (EF_DEVELOP, 
+				  "dc_NSGetStatic() returns size = %lu,", 
+				  size);
+			errors += T_CompareData(retrieve, test_data, size);
+			dc_DestroyDC (dc);
+		}
         }
-	Announce("------------------ test3 -----------------");
+	msg_ELog (EF_DEBUG, "------ test3 ------");
 	{	/* ARM SOW example using explicit dimn defs with field ids */
 
 		FieldId wnum_id, therm_id;
@@ -1433,7 +1585,7 @@ ZebTime *now;
 		EXPECT(2);
 		dc_NSAddStatic (dc, mean_rad_id, test_data+50);
 		dc_NSAddSample (dc, &begin, 0, wnum_id, test_data);
-		EXPECT(0);
+		SEEN;
 		dc_NSAddSample (dc, &begin, 0, therm_id, test_data);
 		dc_NSAddSample (dc, &begin, 0, mean_rad_id, test_data);
 		dc_NSAddSample (dc, &begin, 0, sd_rad_id, test_data);
@@ -1441,7 +1593,7 @@ ZebTime *now;
 		/* store it, then add more data, and store again later  */
 		/* with newfile flag FALSE				*/
 		dc_SetStaticLoc (dc, &loc);
-		ds_Store (dc, TRUE, 0, 0);
+		errors += !ds_Store (dc, TRUE, 0, 0);
 		++end.zt_Sec;
 		dc_NSAddSample (dc, &end, 1, therm_id, test_data+100);
 		dc_NSAddSample (dc, &end, 1, mean_rad_id, test_data+100);
@@ -1449,80 +1601,96 @@ ZebTime *now;
 		dc_DumpDC (dc);
 
 		/* test some retrieval */
-		EXPECT(0);
 		(void)dc_NSGetSample (dc, 0, wnum_id, &size); /*should pass*/
 		retrieve = dc_NSGetStatic (dc, wnum_id, &size);
 		retrieve = dc_NSGetStatic (dc, wnum_id, NULL);
-		printf ("dc_NSGetStatic(%s) returns size = %lu,", 
-			F_GetName(wnum_id), size);
+		msg_ELog (EF_DEVELOP,
+			  "dc_NSGetStatic(%s) returns size = %lu,", 
+			  F_GetName(wnum_id), size);
 		errors += T_CompareData (retrieve, test_data+50, size);
 
 		retrieve = dc_NSGetSample (dc, 0, therm_id, &size);
-		printf("GetSample(0,%s): size=%lu, data=%s\n",
-		       F_GetName(therm_id),size,(retrieve)?"non-NULL":"NULL");
+		msg_ELog (EF_DEVELOP, "GetSample(0,%s): size=%lu, data=%s",
+		  F_GetName(therm_id),size,(retrieve)?"non-NULL":"NULL");
 		retrieve = dc_NSGetSample (dc, 1, mean_rad_id, &size);
 		retrieve = dc_NSGetSample (dc, 1, mean_rad_id, NULL);
-		printf ("dc_NSGetSample(%s) returns size = %lu,", 
-			F_GetName(mean_rad_id), size);
+		msg_ELog (EF_DEVELOP,
+			  "dc_NSGetSample(%s) returns size = %lu,", 
+			  F_GetName(mean_rad_id), size);
 		errors += T_CompareData (retrieve, test_data+100, size);
 
 		EXPECT(1);
 		retrieve = dc_NSGetSample (dc, 0, BadField, NULL);
-		printf("GetSample(2,BadField): data=%s\n",
-		       (retrieve)?"non-NULL":"NULL");
+		SEEN;
+		msg_ELog (EF_DEVELOP, "GetSample(2,BadField): data=%s",
+			  (retrieve)?"non-NULL":"NULL");
 
-		ds_Store (dc, FALSE, 0, 0);
+		errors += !ds_Store (dc, FALSE, 0, 0);
 		fields = dc_GetFields (dc, &nfield);
 
 		/* now try to fetch what we just stored and see what we get */
-		printf("Fetching data (detail: badval=999 .... "); 
+		msg_ELog (EF_DEBUG, 
+			  "Fetching data (detail: badval=999 .... "); 
 		fflush(stdout);
 		ds_FloatDetail (DD_FETCH_BADVAL, 999.0, &dsd, 0);
 		ndc = ds_Fetch (plat_id, DCC_NSpace, &begin, &end,
 				fields, nfield, &dsd, 1);
 		dc_DestroyDC (dc);
 		dc = ndc;
-		printf("DataChunk returned by ds_Fetch():\n");
-		dc_DumpDC (dc);
-
-		/* and re-do the data comparisions -- should be identical */
-		T_NSGetAllDimensions(dc);
-		T_NSGetAllVariables(dc);
-
-		/* re-test some retrieval */
-		printf ("Comparing fetched data with stored data...\n");
-		EXPECT(0);
-		(void)dc_NSGetSample (dc, 0, wnum_id, &size); /*should pass*/
-		retrieve = dc_NSGetStatic (dc, wnum_id, &size);
-		retrieve = dc_NSGetStatic (dc, wnum_id, NULL);
-		printf ("dc_NSGetStatic(%s) returns size = %lu,", 
-			F_GetName(wnum_id), size);
-		errors += T_CompareData (retrieve, test_data+50, size);
-
-		retrieve = dc_NSGetSample (dc, 0, therm_id, &size);
-		printf("GetSample(0,%s): size=%lu, data=%s\n",
-		       F_GetName(therm_id),size,(retrieve)?"non-NULL":"NULL");
-		retrieve = dc_NSGetSample (dc, 1, mean_rad_id, &size);
-		retrieve = dc_NSGetSample (dc, 1, mean_rad_id, NULL);
-		printf ("dc_NSGetSample(%s) returns size = %lu,", 
-			F_GetName(mean_rad_id), size);
-		errors += T_CompareData (retrieve, test_data+100, size);
-
-		EXPECT(1);
-		retrieve = dc_NSGetSample (dc, 0, BadField, NULL);
-		printf("GetSample(2,BadField): data=%s\n",
-		       (retrieve)?"non-NULL":"NULL");
-
-		/* try some block storage */
-		printf("Storing on platform t_nsblocks using blocks\n");
-		dc->dc_Platform = NeedPlatform ("t_nsblocks");
-		ds_StoreBlocks (dc, TRUE, 0, 0);
-		printf("Storing on platform t_nsscalar w/o using blocks\n");
-		dc->dc_Platform = NeedPlatform ("t_nsscalar");
-		ds_StoreBlocks (dc, TRUE, 0, 0);
-		dc_DestroyDC (dc);
+		if (! dc)
+			++errors;
+		else
+		{
+			msg_ELog (EF_DEVELOP,
+				  "DataChunk returned by ds_Fetch():");
+			dc_DumpDC (dc);
+			
+			/* re-do the data comparisions, should be identical */
+			T_NSGetAllDimensions(dc);
+			T_NSGetAllVariables(dc);
+			
+			/* re-test some retrieval */
+			msg_ELog (EF_DEVELOP, 
+			  "Comparing fetched data with stored data...");
+			dc_NSGetSample (dc, 0, wnum_id, &size); /*should pass*/
+			retrieve = dc_NSGetStatic (dc, wnum_id, &size);
+			retrieve = dc_NSGetStatic (dc, wnum_id, NULL);
+			msg_ELog (EF_DEVELOP,
+				  "dc_NSGetStatic(%s) returns size = %lu,", 
+				  F_GetName(wnum_id), size);
+			errors += T_CompareData (retrieve, test_data+50, size);
+			
+			retrieve = dc_NSGetSample (dc, 0, therm_id, &size);
+			msg_ELog (EF_DEVELOP,
+				  "GetSample(0,%s): size=%lu, data=%s",
+				  F_GetName(therm_id),size,
+				  (retrieve)?"non-NULL":"NULL");
+			retrieve = dc_NSGetSample (dc, 1, mean_rad_id, &size);
+			retrieve = dc_NSGetSample (dc, 1, mean_rad_id, NULL);
+			msg_ELog (EF_DEVELOP,
+				  "dc_NSGetSample(%s) returns size = %lu,", 
+				  F_GetName(mean_rad_id), size);
+			errors += T_CompareData(retrieve, test_data+100, size);
+			
+			EXPECT(1);
+			retrieve = dc_NSGetSample (dc, 0, BadField, NULL);
+			SEEN;
+			msg_ELog (EF_DEVELOP, "GetSample(2,BadField): data=%s",
+				  (retrieve)?"non-NULL":"NULL");
+			
+			/* try some block storage */
+			msg_ELog (EF_DEBUG, 
+			  "Storing on platform t_nsblocks using blocks");
+			dc->dc_Platform = NeedPlatform ("t_nsblocks");
+			ds_StoreBlocks (dc, TRUE, 0, 0);
+			msg_ELog (EF_DEBUG, 
+			  "Storing on platform t_nsscalar w/o using blocks");
+			dc->dc_Platform = NeedPlatform ("t_nsscalar");
+			ds_StoreBlocks (dc, TRUE, 0, 0);
+			dc_DestroyDC (dc);
+		}
 	}
-	Announce("------------------ test4 -------------------");
+	msg_ELog (EF_DEBUG, "------ test4 ------");
 	{	/* ARM SOW example with implicit dimn defs */
 
 		FieldId mean_rad_id, sd_rad_id, wnum_id, therm_id;
@@ -1558,7 +1726,7 @@ ZebTime *now;
 
 #ifdef TEST4_STORE
 		/* Add lots of data and try to push some limits */
-		printf ("Adding 500 samples to datachunk... "); 
+		msg_ELog (EF_DEBUG, "Adding 500 samples to datachunk... "); 
 		fflush(stdout);
 		when.zt_Sec += 60;
 		begin = when;
@@ -1574,51 +1742,50 @@ ZebTime *now;
 		}
 		end = when;
 		--end.zt_Sec;
-		printf ("Done.\nPutSample to 't_nspace' ... "); fflush(stdout);
-		ds_Store (dc, TRUE, 0, 0);
-		printf ("and PutBlock to plat 't_nsblocks' ... "); 
-		fflush(stdout);
+		msg_ELog (EF_DEBUG, "PutSample to 't_nspace' ... ");
+		errors += !ds_Store (dc, TRUE, 0, 0);
+		msg_ELog (EF_DEBUG, "and PutBlock to plat 't_nsblocks' ... "); 
 		dc->dc_Platform = NeedPlatform ("t_nsblocks");
-		ds_StoreBlocks (dc, TRUE, 0, 0);
-		printf ("Done storing.\n");
+		errors += !ds_StoreBlocks (dc, TRUE, 0, 0);
 
 		/* now try to fetch what we just stored and see what we get */
 		/* remember to keep the dc around which is holds the fields */
 		fields = dc_GetFields (dc, &nfield);
-		printf("Fetching from '%s' ....   \n", 
-		       ds_PlatformName(plat_id));
+		msg_ELog (EF_DEBUG, "Fetching from '%s' ....  ", 
+			  ds_PlatformName(plat_id));
 		ndc = ds_Fetch (plat_id, DCC_NSpace, &begin, &end,
 				fields, nfield, NULL, 0);
 		/* compare the data we retrieved */
-		for (i = 0; i < 500; i+=100)
+		errors += (ndc == NULL);
+		for (i = 0; ndc && i < 500; i+=100)
 		{
-			printf ("Sample %d: ", i);
+			msg_ELog (EF_DEVELOP, "Sample %d: ", i);
 			retrieve = dc_NSGetSample (ndc, i, fields[0], &size);
 			errors += T_CompareData (retrieve, test_data+i, size);
 			retrieve = dc_NSGetSample (ndc, i, fields[2], &size);
 			errors += T_CompareData (retrieve, test_data+i, size);
 		}
-		dc_DestroyDC (ndc);
-		printf("Done.\n");
-		printf("Fetching from 't_nsblocks' ...\n");
+		if (ndc) dc_DestroyDC (ndc);
+		msg_ELog (EF_DEBUG, "Fetching from 't_nsblocks' ...");
 		ndc = ds_Fetch (NeedPlatform("t_nsblocks"), 
 				DCC_NSpace, &begin, &end,
 				fields, nfield, NULL, 0);
 		/* compare the data we retrieved */
-		for (i = 0; i < 500; i+=75)
+		errors += (ndc == NULL);
+		for (i = 0; ndc && i < 500; i+=75)
 		{
-			printf ("Sample %d: ", i);
+			msg_ELog (EF_DEVELOP, "Sample %d: ", i);
 			retrieve = dc_NSGetSample (ndc, i, fields[0], &size);
 			errors += T_CompareData (retrieve, test_data+i, size);
 			retrieve = dc_NSGetSample (ndc, i, fields[2], &size);
 			errors += T_CompareData (retrieve, test_data+i, size);
 		}
-		dc_DestroyDC (ndc);
+		if (ndc) dc_DestroyDC (ndc);
 #endif
-		printf("Done.\n");
+		msg_ELog (EF_DEBUG, "Done.");
 		dc_DestroyDC (dc);
 	}
-	Announce("------------------ test5 -----------------");
+	msg_ELog (EF_DEBUG, "----- test5 -----");
 	{	/* silly stuff */
 
 		FieldId fid, did;
@@ -1640,41 +1807,44 @@ ZebTime *now;
 		/* define a variable whose dimensions do not exist */
 		EXPECT(1);
 		dc_NSDefineVariable (dc, fid, 1, &did, TRUE);
+		SEEN;
 
 		/* try defining a dimension with a long name */
 		EXPECT(2);  	/* 2 dimn names too long */
 		dc_NSDefineField(dc, fid, 4, dimname, dimsize, FALSE);
+		SEEN;
 		dc_DumpDC (dc);
 		
 		/* now try redefining a dimension */
 		EXPECT(3); /* 1 too long, 1 for redefined, 1 for new id */
 		dc_NSDefineDimension(dc, did, dimsize[2]);
+		SEEN;
 		dc_DumpDC (dc);
 
 		/* redefine a variable */
 		EXPECT(2); /* 1 to redefine field, 1 for change in dimns */
 		dc_NSDefineVariable(dc, fid, 1, &did, TRUE);
+		SEEN;
 		/* re-define 'tests' to be dynamic but suppress the warning */
-		EXPECT(0);
 		dc_NSAllowRedefine (dc, TRUE);
 		dc_NSDefineVariable (dc, fid, 1, &did, FALSE);
 		dc_DumpDC (dc);
 
-		EXPECT(0);
 		/* test completion */
-		printf("dc_NSDefineIsComplete() returns %s\n",
-		       dc_NSDefineIsComplete(dc) ? "True" : "False");
+		msg_ELog (EF_DEVELOP, "dc_NSDefineIsComplete() returns %s",
+			  dc_NSDefineIsComplete(dc) ? "True" : "False");
 
 		/* force completion */
 		dc_NSDefineComplete(dc);
-		printf("%s, dc_NSDefineIsComplete() returns %s\n",
-		       "After dc_NSDefineComplete()",
-		       dc_NSDefineIsComplete(dc) ? "True" : "False");
+		msg_ELog (EF_DEVELOP, "%s, dc_NSDefineIsComplete() returns %s",
+			  "After dc_NSDefineComplete()",
+			  dc_NSDefineIsComplete(dc) ? "True" : "False");
 
 		EXPECT(2);
 		/* try more definition after completion */
 		dc_NSDefineDimension(dc, did, dimsize[2]);
 		dc_NSDefineVariable(dc, fid, 1, &did, TRUE);
+		SEEN;
 
 		/* quick addition of data just to create a file */
 		when.zt_Sec += 60;
@@ -1682,10 +1852,10 @@ ZebTime *now;
 		dc_NSAddSample (dc, &when, 0, fid, test_data+2000);
 		
 		dc_DumpDC (dc);
-		ds_StoreBlocks (dc, TRUE, 0, 0);
+		errors += !ds_StoreBlocks (dc, TRUE, 0, 0);
 		dc_DestroyDC (dc);
 	}
-	Announce("------------------- test6 -------------------");
+	msg_ELog (EF_DEBUG, "----- test6 ------");
 	{	/* push limits of number of dims and fields in a chunk */
 
 		char name[ 10 ];
@@ -1700,33 +1870,54 @@ ZebTime *now;
 		/* test dimn limit */
 		for (i = 0; i < DC_MaxDimension + 2; ++i)
 		{
-			if (i == DC_MaxDimension)
-			{ EXPECT(2); }
-			sprintf (name, "dimn%i", i);
-			did = F_DeclareField(name, "Dimension", "none");
-			size = i;
-			dc_NSDefineDimension(dc, did, size);
+			if (i >= DC_MaxDimension)
+			{ 
+				EXPECT(2);
+				sprintf (name, "dimn%i", i);
+				did = F_DeclareField(name, "Dimension","none");
+				size = i;
+				dc_NSDefineDimension(dc, did, size);
+				SEEN;
+			}
+			else
+			{
+				sprintf (name, "dimn%i", i);
+				did = F_DeclareField(name, "Dimension","none");
+				size = i;
+				dc_NSDefineDimension(dc, did, size);
+			}
 		}
 
 		/* test field limit */
 		did = F_Lookup("dimn12");
 		for (i = 0; i < DC_MaxField + 2; ++i)
 		{
-			if (i == DC_MaxField)
-			{ EXPECT(2); }
-			sprintf (name, "field%i", i);
-			fid = F_DeclareField(name, "Field", "units");
-			dc_NSDefineVariable(dc, fid, 1, &did, i % 2);
+			if (i >= DC_MaxField)
+			{ 
+				EXPECT(2);
+				sprintf (name, "field%i", i);
+				fid = F_DeclareField(name, "Field", "units");
+				dc_NSDefineVariable(dc, fid, 1, &did, i % 2);
+				SEEN;
+			}
+			else
+			{
+				sprintf (name, "field%i", i);
+				fid = F_DeclareField(name, "Field", "units");
+				dc_NSDefineVariable(dc, fid, 1, &did, i % 2);
+			}
 		}
 
 		EXPECT(1);
 		/* test field limit with DefineField */
 		dc_NSDefineField(dc, fid, 0, 0, 0, 0);
+		SEEN;
 
 		EXPECT(2); /* 1 for dimn limit, 1 for aborted field defn */
 		/* test dimn limit with DefineField by redefining field */
 		dc_NSDefineField(dc, F_Lookup("field1"), 1, 
 				 &namep, &size, TRUE);
+		SEEN;
 
 		/* dc_DumpDC (dc); */
 
@@ -1734,10 +1925,10 @@ ZebTime *now;
 		dc_NSDefineComplete (dc);
 		/* dc_DumpDC (dc); */
 
-		ds_Store (dc, TRUE, 0, 0);
+		errors += !ds_Store (dc, TRUE, 0, 0);
 		dc_DestroyDC (dc);
 	}
-	Announce("-------------------- test7 -----------------------");
+	msg_ELog (EF_DEBUG, "----- test7 ------");
 	{
 
 		FieldId field, sfield;
@@ -1757,7 +1948,8 @@ ZebTime *now;
 		dc_NSDefineField (dc, fids[2], 2, dim_names, dim_sizes, FALSE);
 		dc_NSDefineComplete (dc);
 		dc_NSAddSample (dc, &when, 0, fids[0], test_data);
-		printf ("dynamic fields of same sizes, should be UNIFORM:\n");
+		msg_ELog (EF_DEVELOP, 
+			  "dynamic fields of same sizes, should be UNIFORM:");
 		dc_DumpDC (dc);
 		dc_DestroyDC (dc);
 	}
@@ -1945,7 +2137,7 @@ bool addatts;		/* per-sample atts only 	*/
 	char *data, *src;
 	ZebTime when;
 	static Location loc = { 1.0, 2.0, 4.0 };
-	int errors;
+	int errors = 0;
 
 	when = *start;
 	for (i = 0; i < nsample; ++i)
@@ -1980,8 +2172,9 @@ T_Aeri()
 	DataChunk *dc;
 	int n, i;
 	unsigned long len;
+	int err = 0;
 
-	Announce("----------- aeri -----------");
+	Announce("AERI typed field test");
 	n = 0;
 	fields[n] = F_Lookup("lat"); ++n;
 	fields[n] = F_Lookup("lon"); ++n;
@@ -2001,18 +2194,18 @@ T_Aeri()
 
 	/* find out the time of the data */
 	tl_Time (&begin);
-	ds_GetObsTimes (pid, &begin, &when, 1, NULL);
+	if (! ds_GetObsTimes (pid, &begin, &when, 1, NULL))
+		return (++err);
 
 	/* fetch a DC from the aeri platform and dump its data */
-	printf("Fetching %s data....   ", pname); fflush(stdout);
-	dc = ds_FetchObs (pid, DCC_NSpace, &when,
-			  fields, n, NULL, 0);
+	msg_ELog (EF_DEBUG, "Fetching %s data....   ", pname);
+	dc = ds_FetchObs (pid, DCC_NSpace, &when, fields, n, NULL, 0);
 	if (! dc)
 	{
 		msg_ELog (EF_PROBLEM, "could not fetch '%s' data", pname);
-		return (1);
+		return (++err);
 	}
-	printf("DataChunk returned by ds_Fetch():\n");
+	msg_ELog (EF_DEVELOP, "DataChunk returned by ds_Fetch():");
 	dc_DumpDC (dc);
 
 	for (i = 0; i < n; ++i)
@@ -2029,17 +2222,17 @@ T_Aeri()
 	T_DumpData (retrieve, 12, len, "wnum2");
 
 	retrieve = dc_NSGetStatic (dc, F_Lookup("lat"), &len);
-	printf ("Lat = %.2f, ", *retrieve);
+	msg_ELog (EF_DEVELOP, "Lat = %.2f, ", *retrieve);
 	retrieve = dc_NSGetStatic (dc, F_Lookup("lon"), &len);
-	printf ("Lon = %.2f, ", *retrieve);
+	msg_ELog (EF_DEVELOP, "Lon = %.2f, ", *retrieve);
 	retrieve = dc_NSGetStatic (dc, F_Lookup("alt"), &len);
-	printf ("Alt = %.2f\n", *retrieve);
+	msg_ELog (EF_DEVELOP, "Alt = %.2f", *retrieve);
 
 	retrieve = dc_NSGetSample (dc, 0, 
 				   F_Lookup("thermistor0"), &len);
 	T_DumpData (retrieve, 5, len, "thermistor0");
 	dc_DestroyDC(dc);
-	return (0);
+	return (err);
 }
 #endif /* NSPACE_AERI */
 
@@ -2060,7 +2253,7 @@ char *plat;
 	/*
 	 * Quick test of ds_GetFields()
 	 */
-	sprintf (buf, "testing ds_GetFields() for platform '%s'", plat);
+	sprintf (buf, "Testing ds_GetFields() for platform '%s'", plat);
 	Announce (buf);
 	dc = T_SimpleScalarChunk (start, 1, 10, 4, FALSE, FALSE);
 	dc->dc_Platform = NeedPlatform(plat);
@@ -2135,13 +2328,13 @@ ZebTime *now;
 	static Location loc = { 40.0, -160.0, 5280.0 };
 	int errors = 0;
 
-	sprintf(buf,"storing transparent datachunk to platform '%s'",platform);
+	sprintf(buf,"Testing transparent datachunks on '%s'",platform);
 	Announce (buf);
 	dc = dc_CreateDC (DCC_Transparent);
 	dc->dc_Platform = NeedPlatform (platform);
 	dc_SetStaticLoc (dc, &loc);
 	dc_AddSample (dc, &when, data, strlen(data)+1);
-	ds_StoreBlocks (dc, TRUE, NULL, 0);
+	errors += !ds_StoreBlocks (dc, TRUE, NULL, 0);
 	dc_DestroyDC(dc);
 
 	/* Now get a much larger one and overwrite the first sample above */
@@ -2149,9 +2342,9 @@ ZebTime *now;
 	dc->dc_Platform = NeedPlatform (platform);
 	dc_SetStaticLoc (dc, &loc);
 	errors += T_TransparentAdd (dc, &when, 100, TRUE, atts);
-	ds_StoreBlocks (dc, TRUE, NULL, 0);
-	ds_Store (dc, TRUE, NULL, 0);
-	ds_StoreBlocks (dc, TRUE, NULL, 0);
+	errors += !ds_StoreBlocks (dc, TRUE, NULL, 0);
+	errors += !ds_Store (dc, TRUE, NULL, 0);
+	errors += !ds_StoreBlocks (dc, TRUE, NULL, 0);
 	dc_DestroyDC(dc);
 
 	/* Now try it with some hints set */
@@ -2168,7 +2361,7 @@ ZebTime *now;
 	dc_HintMoreSamples (dc, 50, FALSE);
 	errors += T_TransparentAdd (dc, &when, 50, TRUE, atts);
 	when.zt_Sec += 50;
-	ds_StoreBlocks (dc, TRUE, NULL, 0);
+	errors += !ds_StoreBlocks (dc, TRUE, NULL, 0);
 	dc_DestroyDC (dc);
 	return (errors);
 }
@@ -2189,7 +2382,7 @@ ZebTime *start;
 	DataChunk *dc;
 	ZebTime when, begin = *start;
 	int i;
-	char dsdump[256];
+	char *dsdump;
 	char cmd[256];
 	int errors = 0;
 
@@ -2197,17 +2390,22 @@ ZebTime *start;
 	dc = T_SimpleScalarChunk (&begin, 1, 10, 4, TRUE, TRUE);
 	t_delete_id = NeedPlatform("t_deletes");
 	dc->dc_Platform = t_delete_id;
-	ds_StoreBlocks (dc, TRUE, NULL, 0);
-	if (getenv("ZEB_TOPDIR"))
-		sprintf (dsdump, "%s/bin/dsdump", getenv("ZEB_TOPDIR"));
+	errors += !ds_StoreBlocks (dc, TRUE, NULL, 0);
+	dsdump = (char *)getenv("DSDUMP");
+	if (! dsdump)
+	{
+		msg_ELog (EF_PROBLEM, 
+			  "DSDUMP not defined; dumps not performed");
+	}
 	else
-		strcpy (dsdump, "dsdump");
-	sprintf (cmd, "%s t_deletes", dsdump);
-	system(cmd);
-	fflush (stdout);
-	fflush (stderr);
+	{
+		sprintf (cmd, "%s t_deletes > /dev/null 2>&1", dsdump);
+		system(cmd);
+		fflush (stdout);
+		fflush (stderr);
+	}
 
-	Announce ("Deleting even-second obs with DeleteObs");
+	msg_ELog (EF_DEBUG, "Deleting even-second obs with DeleteObs");
 	when = begin;
 	for (i = 0; i < 10; ++i)
 	{
@@ -2215,13 +2413,16 @@ ZebTime *start;
 			ds_DeleteObs (t_delete_id, &when);
 		++when.zt_Sec;
 	}
-	Announce ("Finished deleting with DeleteObs\n");
-	fflush (stdout);
-	fflush (stderr);
-	system(cmd);	
-	fflush (stdout);
-	fflush (stderr);
-	Announce ("Trying to do the same deletes again");
+	msg_ELog (EF_DEBUG, "Finished deleting with DeleteObs\n");
+	if (dsdump)
+	{
+		fflush (stdout);
+		fflush (stderr);
+		system(cmd);	
+		fflush (stdout);
+		fflush (stderr);
+	}
+	msg_ELog (EF_DEBUG, "Trying to do the same deletes again");
 	when = begin;
 	for (i = 0; i < 10; ++i)
 	{
@@ -2229,27 +2430,31 @@ ZebTime *start;
 			ds_DeleteObs (t_delete_id, &when);
 		++when.zt_Sec;
 	}
-	Announce ("Storing the DataChunk again...");
-	ds_StoreBlocks (dc, TRUE, NULL, 0);
-	Announce ("Test extremes: time earlier than all obs,");
+	msg_ELog (EF_DEBUG, "Storing the DataChunk again...");
+	errors += !ds_StoreBlocks (dc, TRUE, NULL, 0);
+	msg_ELog (EF_DEBUG, "Test extremes: time earlier than all obs,");
 	when.zt_Sec = begin.zt_Sec - 3600*24;
 	ds_DeleteObs (t_delete_id, &when);
-	Announce ("Time later than all obs,");
+	msg_ELog (EF_DEBUG, "Time later than all obs,");
 	when.zt_Sec = begin.zt_Sec + 3600*12;
 	ds_DeleteObs (t_delete_id, &when);
-	Announce ("Using DeleteObs to delete all files...");
+	msg_ELog (EF_DEBUG, "Using DeleteObs to delete all files...");
 	when = begin;
 	for (i = 0; i < 10; ++i)
 	{
 		ds_DeleteObs (t_delete_id, &when);
 		++when.zt_Sec;
 	}
-	fflush (stdout);
-	fflush (stderr);
-	system(cmd);
-	fflush (stdout);
-	fflush (stderr);
-	printf("Done deletes test.  Should be 0 files left in 't_deletes'.\n");
+	if (dsdump)
+	{
+		fflush (stdout);
+		fflush (stderr);
+		system(cmd);	
+		fflush (stdout);
+		fflush (stderr);
+	}
+	msg_ELog (EF_DEBUG, "Done deletes test.");
+	msg_ELog (EF_DEBUG, "Should be 0 files left in 't_deletes'.");
 	dc_DestroyDC (dc);
 	return (errors);
 }
@@ -2264,9 +2469,11 @@ int size;
 	int i;
 
 	fflush (stdout);
+	if (!src1 || !src2)
+		return (1);
 	for (i = 0; i < size; ++i)
 		if (src1[i] != src2[i]) break;
-	msg_ELog ((i < size) ? EF_PROBLEM : EF_DEBUG, "  %s at %i\n",
+	msg_ELog ((i < size) ? EF_PROBLEM : EF_DEVELOP, "  %s at %i",
 		  (i < size) ? "failed" : "succeeded", i);
 	return ((i < size) ? 1 : 0);
 }
@@ -2280,6 +2487,7 @@ int n;
 int len;
 char *fname;
 {
+#ifndef dc_DumpDC	/* means we're not dumping data */
 	int i, j;
 
 	printf ("First %d '%s' values (len = %d):\n", n, fname, len);
@@ -2290,6 +2498,7 @@ char *fname;
 	     (i < n) && (j < len); ++i, ++j)
 		printf ("%9.2f%c", retrieve[j], (i+1)%7?' ':'\n');
 	printf ("\n");
+#endif
 }
 
 
@@ -2303,16 +2512,17 @@ FieldId field;
 	char *names[ DC_MaxDimension ];
 	unsigned long sizes[ DC_MaxDimension ];
 	int rndim, rstatic;
+	char buf[1024];
 	
 	/* test dc_NSGetField */
 	(void)dc_NSGetField(dc, field, &rndim, names, sizes,
 			    &rstatic);
-	printf("dc_NSGetField(%s:id %i): %i dims, %s static, ( ",
-	       F_GetName(field), field, rndim,
-	       (rstatic) ? "is" : "not");
+	sprintf (buf, "dc_NSGetField(%s:id %i): %i dims, %s static, ( ",
+		 F_GetName(field), field, rndim, (rstatic) ? "is" : "not");
 	for (i = 0; i < rndim; ++i)
-		printf("%s=%lu ",names[i],sizes[i]);
-	printf(")\n");
+		sprintf (buf+strlen(buf), "%s=%lu ",names[i],sizes[i]);
+	sprintf (buf+strlen(buf),")\n");
+	msg_ELog (EF_DEVELOP, "%s", buf);
 	return (0);
 }
 
@@ -2331,14 +2541,16 @@ DataChunk *dc;
 	unsigned long size;
 
 	ndim = dc_NSGetAllDimensions(dc, names, ids, sizes);
-	printf ("dc_NSGetAllDimensions() returns %i dimensions:\n", 
-		ndim);
+	msg_ELog (EF_DEVELOP,
+		  "dc_NSGetAllDimensions() returns %i dimensions:", ndim);
 	for (i = 0; i < ndim; ++i)
 	{
-		printf("   %-30s %-5i %10lu\n",names[i],ids[i],sizes[i]);
+		msg_ELog (EF_DEVELOP, "   %-30s %-5i %10lu",
+			  names[i],ids[i],sizes[i]);
 		dc_NSGetDimension (dc, ids[i], &name, &size);
-		printf("   NSGetDimension(%s): id %i, size = %lu\n",
-		       name, ids[i], size);
+		msg_ELog (EF_DEVELOP,
+			  "   NSGetDimension(%s): id %i, size = %lu",
+			  name, ids[i], size);
 	}
 	return (0);
 }
@@ -2354,26 +2566,30 @@ DataChunk *dc;
 	FieldId rids[ DC_MaxDimension + DC_MaxField ];
 	int ndims[ DC_MaxDimension ];
 	int nvar, rndim, rstatic;
+	char buf[1024];
 
 	nvar = dc_NSGetAllVariables(dc, ids, ndims);
-	printf ("dc_NSGetAllVariables() returns %i variables:\n", 
-		nvar);
+	msg_ELog (EF_DEVELOP, "dc_NSGetAllVariables() returns %i variables:", 
+		  nvar);
 	for (i = 0; i < nvar; ++i)
 	{
-		printf("   id: %-3i   ndims: %-5i", ids[i], ndims[i]);
-		printf("   NSIsStatic(): %s\n",
-		       (dc_NSIsStatic(dc, ids[i])) ? "True" : "False");
+		msg_ELog (EF_DEVELOP, "   id: %-3i   ndims: %-5i", 
+			  ids[i], ndims[i]);
+		msg_ELog (EF_DEVELOP, "   NSIsStatic(): %s",
+			  (dc_NSIsStatic(dc, ids[i])) ? "True" : "False");
 		dc_NSGetVariable(dc, ids[i], &rndim, rids, &rstatic);
-		printf("   dc_NSGetVariable(%s: id %i): %i dims, %s static, ",
-		       F_GetName(ids[i]), ids[i], rndim, (rstatic)?"is":"not");
-		printf("  ( ");
+		msg_ELog (EF_DEVELOP, 
+		  "   dc_NSGetVariable(%s: id %i): %i dims, %s static, ",
+		  F_GetName(ids[i]), ids[i], rndim, (rstatic)?"is":"not");
+		sprintf (buf, "  ( ");
 		for (j = 0; j < rndim; ++j)
 		{
-			printf(" %s:id %i, ",
+			sprintf (buf+strlen(buf), " %s:id %i, ",
 			       (rids[j] != BadField)?(F_GetName(rids[j])):
 			       (""), rids[j]);
 		}
-		printf(")\n");
+		sprintf (buf+strlen(buf), ")");
+		msg_ELog (EF_DEVELOP, "%s", buf);
 	}
 	return (0);
 }
@@ -2387,6 +2603,7 @@ T_1DGridStoreBlocks()
 	ZebTime when;
 	int nfield;
 	FieldId fields[5];
+	int err = 0;
 
 	/*
 	 * All we want to do is fetch a datachunk from some known
@@ -2401,21 +2618,21 @@ T_1DGridStoreBlocks()
 	fields[4] = F_Lookup("v_wind");
 	nfield = 5;
 	TC_ZtAssemble (&when, 92, 12, 2, 18, 47, 41, 0);
-	printf("Fetching observation from kapinga/prof915h... ");
-	fflush(stdout);
+	Announce ("Fetching observation from kapinga/prof915h... ");
 	dc = ds_FetchObs (src_id, DCC_RGrid, &when, fields, nfield, 0, 0);
-	printf("Done\n");
-	printf("PutBlock to 't_1dgrid_cdf' and 't_1dgrid_znf'... "); 
+	if (! dc)
+		return (++err);
+	msg_ELog (EF_DEBUG,
+		  "PutBlock to 't_1dgrid_cdf' and 't_1dgrid_znf'... "); 
 	fflush(stdout);
 	dest_id = NeedPlatform ("t_1dgrid_cdf");
 	dc->dc_Platform = dest_id;
-	ds_StoreBlocks (dc, TRUE, 0, 0);
+	err += !ds_StoreBlocks (dc, TRUE, 0, 0);
 	dest_id = NeedPlatform ("t_1dgrid_znf");
 	dc->dc_Platform = dest_id;
-	ds_StoreBlocks (dc, TRUE, 0, 0);
+	err += !ds_StoreBlocks (dc, TRUE, 0, 0);
 	dc_DestroyDC (dc);
-	printf("Done.\n");
-	return (0);
+	return (err);
 }
 
 
@@ -2428,6 +2645,7 @@ T_IRGridStoreBlocks()
 	ZebTime begin, end;
 	int nfield;
 	FieldId fields[5];
+	int err = 0;
 
 	/*
 	 * Fetch some IRGrid data and store it using StoreBlocks
@@ -2441,22 +2659,29 @@ T_IRGridStoreBlocks()
 	TC_ZtAssemble (&begin, 92, 3, 10, 0, 0, 0, 0);
 	end = begin;
 	end.zt_Sec += 3600*24;
-	printf("Fetching one day from 't_mesonet'... ");
-	fflush(stdout);
+	Announce ("Fetching one day from 't_mesonet'... ");
 	dc = ds_Fetch (src_id, DCC_IRGrid, &begin, &end, 
 		       fields, nfield, 0, 0);
-	printf("Done\n");
-	printf("PutBlock to 't_irgrid_cdf' and 't_irgrid_znf'... "); 
-	fflush(stdout);
-	dest_id = NeedPlatform ("t_irgrid_cdf");
-	dc->dc_Platform = dest_id;
-	ds_StoreBlocks (dc, TRUE, 0, 0);
-	dest_id = NeedPlatform ("t_irgrid_znf");
-	dc->dc_Platform = dest_id;
-	ds_StoreBlocks (dc, TRUE, 0, 0);
+	if (! dc)
+		return (++err);
+	dest_id = ds_LookupPlatform ("t_irgrid_cdf");
+	if (dest_id != BadPlatform)
+	{
+		msg_ELog (EF_DEBUG, "PutBlock to 't_irgrid_cdf'...");
+		fflush(stdout);
+		dc->dc_Platform = dest_id;
+		err += !ds_StoreBlocks (dc, TRUE, 0, 0);
+	}
+	dest_id = ds_LookupPlatform ("t_irgrid_znf");
+	if (dest_id != BadPlatform)
+	{
+		msg_ELog (EF_DEBUG, "PutBlock to 't_irgrid_znf'..."); 
+		fflush(stdout);
+		dc->dc_Platform = dest_id;
+		err += !ds_StoreBlocks (dc, TRUE, 0, 0);
+	}
 	dc_DestroyDC (dc);
-	printf("Done.\n");
-	return (0);
+	return (err);
 }
 
 
@@ -2475,6 +2700,7 @@ ZebTime begin;
 	int nsample = 5;
 	int nfield = 3;
 	RGrid rgrid;
+	int err = 0;
 
 	loc.l_lat = 40.0; loc.l_lon = -160.0; loc.l_alt = 5280.0;
 	dc = dc_CreateDC (DCC_RGrid);
@@ -2510,7 +2736,7 @@ ZebTime begin;
 	dc_SetSampleAttr (dc, i-1, "key", "last sample");
 	dc_DumpDC (dc);
 	dc_DestroyDC (dc);
-	return (0);
+	return (err);
 }
 
 
@@ -2524,6 +2750,7 @@ T_ZnfBlocks ()
 	zn_TestFreeBlocks ("test.znf");
 	fflush (stdout);
 	fflush (stderr);
+	return (0);
 }
 #endif
 
@@ -2573,8 +2800,9 @@ makes the beauty of your eyes glow with irresistable radiance",
 "'twas brillig in the frothy toves...",
 "Oregon: 50 million gallons of water and no place to go on a Saturday" };
 	static Location loc = { 40.0, -160.0, 5280.0 };
+	int err = 0;
 
-	Announce ("------ Testing a typed AERI NSpace DataChunk ------");
+	Announce ("Testing a typed AERI NSpace DataChunk");
 	dc = dc_CreateDC (DCC_NSpace);
 	plat_id = NeedPlatform ("t_aeri_types_cdf");
 	dc->dc_Platform = plat_id;
@@ -2644,7 +2872,7 @@ makes the beauty of your eyes glow with irresistable radiance",
 	for (i = 0; i < N_WNUM; ++i)
 		mean_rads[i] = (double)i/1000.0;
 	dc_HintNSamples (dc, N_SAMPLE, TRUE);
-	Announce ("Adding sample data...");
+	msg_ELog (EF_DEBUG, "Adding sample data...");
 	for (i = 0; i < N_SAMPLE; ++i)
 	{
 		float therm = (float)i;
@@ -2662,15 +2890,20 @@ makes the beauty of your eyes glow with irresistable radiance",
 	 * And finally store and destroy
 	 */
 	dc_DumpDC (dc);
-	Announce ("Storing and destroying.");
-	ds_StoreBlocks (dc, TRUE, 0, 0);
+	msg_ELog (EF_DEBUG, "Storing and destroying.");
+	err += !ds_StoreBlocks (dc, TRUE, 0, 0);
 	dc_DestroyDC (dc);
-	Announce ("Fetching...");
+	msg_ELog (EF_DEBUG, "Fetching...");
 	ds_GetFields (plat_id, &when, &nfield, fields);
 	dc = ds_FetchObs (plat_id, DCC_NSpace, &begin, fields, nfield, 0, 0);
-	dc_DumpDC (dc);
-	dc_DestroyDC (dc);
-	Announce ("AERI typed NSpace test done.");
+	if (!dc)
+		++err;
+	else
+	{
+		dc_DumpDC (dc);
+		dc_DestroyDC (dc);
+	}
+	msg_ELog (EF_DEBUG, "AERI typed NSpace test done.");
 	free (mean_rads);
 	return (0);
 }
@@ -2749,8 +2982,9 @@ ZebTime when;
 	char *dash = "=>=>=>=>=>=>";
 	char diffs[2048];
 	int errors = 0;
+	char buf[1024];
 
-	Announce ("------- testing DataChunk attributes ------------");
+	Announce ("Testing DataChunk attributes...");
 	dc = dc_CreateDC(DCC_Scalar);
 	dc->dc_Platform = plat;
 	dc_SetStaticLoc (dc, &loc);
@@ -2770,26 +3004,28 @@ ZebTime when;
 	EXPECT(1);
 	dc_SetGlobalAttrArray (dc, "global_string", DCT_String,
 			       2, "this is a global attribute string");
+	SEEN;
 	/*
 	 * Get the typed arrays added above
 	 */
-	printf ("%s Double attribute: ", dash);
+	sprintf (buf, "%s Double attribute: ", dash);
 	dget = (double *)dc_GetGlobalAttrArray (dc, "global_doubles", 
 						&type, &nval);
-	for (i = 0; i < nval; ++i) printf (" %lf ", dget[i]);
-	printf ("\n");
-	printf ("%s Short attribute: ", dash);
+	for (i = 0; i < nval; ++i) sprintf (buf+strlen(buf), " %lf ", dget[i]);
+	msg_ELog (EF_DEVELOP, "%s", buf);
+	sprintf (buf, "%s Short attribute: ", dash);
 	sget = (short *)dc_GetGlobalAttrArray (dc, "global_shorts", 
 					       &type, &nval);
-	for (i = 0; i < nval; ++i) printf (" %hd ", sget[i]);
-	printf ("\n");
+	for (i = 0; i < nval; ++i) sprintf (buf+strlen(buf), " %hd ", sget[i]);
+	msg_ELog (EF_DEVELOP, "%s", buf);
 	field = F_Lookup ("temp");
 	dc_SetScalarFields (dc, 1, &field);
 	dc_AddScalar (dc, &when, 0, field, &data);
 	dc_SetFieldAttr (dc, field, "field_key", "field_value");
 	dc_SetSampleAttr (dc, 0, "sample_key", "sample_value");
 #ifndef EXAMPLE_ONLY
-	printf ("%s dc should include non-string attributes:\n", dash);
+	msg_ELog (EF_DEVELOP, "%s dc should include non-string attributes:", 
+		  dash);
 	dc_DumpDC (dc);
 	/*
 	 * Now really crank out some attributes
@@ -2854,22 +3090,31 @@ ZebTime when;
 	/*
 	 * Store this datachunk and see what we get in the file
 	 */
-	msg_ELog (EF_INFO, "%s Storing datachunk to platform '%s'", 
+	msg_ELog (EF_DEBUG, "%s Storing datachunk to platform '%s'", 
 		  dash, pname);
-	ds_Store (dc, TRUE, 0, 0);
+	errors += !ds_Store (dc, TRUE, 0, 0);
 #ifndef EXAMPLE_ONLY
+#ifdef DIFF_DATACHUNKS
 	i = dc_CmpGlobalAttr (dc, dc, diffs, sizeof(diffs));
-	msg_ELog (EF_INFO, "%d differences between same chunk", i);
-	printf ("%s\n", diffs);
+	msg_ELog (EF_DEBUG, "%d differences between same chunk", i);
+	err += (i != 0);
+	msg_ELog (EF_DEVELOP, "%s", diffs);
 	/*
 	 * A quick fetch to check the diffs before hacking away
 	 */
-	ds_GetFields (plat, &when, &nfield, fields);
+	errors += !ds_GetFields (plat, &when, &nfield, fields);
 	dc2 = ds_FetchObs (plat, DCC_Scalar, &when, fields, nfield, NULL, 0);
-	i = dc_CmpGlobalAttr (dc, dc2, diffs, sizeof(diffs));
-	msg_ELog (EF_INFO, "%d differences between stored and fetched", i);
-	printf ("%s\n", diffs);
-	dc_DestroyDC (dc2);
+	if (! dc2)
+		++err;
+	else
+	{
+		i = dc_CmpGlobalAttr (dc, dc2, diffs, sizeof(diffs));
+		msg_ELog (EF_DEBUG,
+			  "%d differences between stored and fetched", i);
+		msg_ELog (EF_DEBUG, "%s", diffs);
+		dc_DestroyDC (dc2);
+	}
+#endif /* DIFF_DATACHUNKS */
 	/*
 	 * Now try doing all of them again, which will cause them all to be
 	 * removed and then re-added.
@@ -2934,7 +3179,7 @@ ZebTime when;
 				  key, value);
 		}
 	}
-	msg_ELog (EF_INFO, "%s Deleting the even keys...", dash);
+	msg_ELog (EF_DEBUG, "%s Deleting the even keys...", dash);
 	for (i = 0; i < 50; i += 2)
 	{
 		sprintf (key, "key_%d", i);
@@ -2943,7 +3188,7 @@ ZebTime when;
 		sprintf (key, "sample_key_%d", i);
 		dc_RemoveSampleAttr (dc, 0, key);
 	}
-	msg_ELog (EF_INFO, "%s Making sure they're gone...", dash);
+	msg_ELog (EF_DEBUG, "%s Making sure they're gone...", dash);
 	for (i = 0; i < 50; i += 2)
 	{
 		sprintf (key, "key_%d", i);
@@ -2977,7 +3222,7 @@ ZebTime when;
 	/*
 	 * Test retrieval of an attribute list
 	 */
-	msg_ELog (EF_INFO, "%s retrieving a key/value list for field atts", 
+	msg_ELog (EF_DEBUG, "%s retrieving a key/value list for field atts", 
 		  dash);
 	keys = dc_GetFieldAttrList(dc, field, NULL, &values, &natts);
 	if (natts != dc_GetNFieldAttrs (dc, field))
@@ -2986,39 +3231,47 @@ ZebTime when;
 		msg_ELog (EF_PROBLEM, "getlist returns %d natts != getn %d",
 			  natts, dc_GetNFieldAttrs (dc, field));
 	}
+	buf[0] = '\0';
 	for (i = 0; i < natts; ++i)
 	{
 		dc_GetFieldAttrArray (dc, field, keys[i], &type, &nval);
-		printf ("   %s=%s:%d%c", keys[i], (type != DCT_String) ?
-			dc_ElemToString(values[i], type) : (char *)values[i],
-			nval, (i+1)%3 ? ' ':'\n');
+		sprintf (buf+strlen(buf),
+			 "   %s=%s:%d%c", keys[i], (type != DCT_String) ?
+			 dc_ElemToString(values[i], type) : (char *)values[i],
+			 nval, (i+1)%3 ? ' ':'\n');
 	}
-	printf ("\n");
-	printf ("%s keys matching the pattern 'key_.[12345]':\n", dash);
+	msg_ELog (EF_DEVELOP, "%s", buf);
+	msg_ELog (EF_DEVELOP, 
+		  "%s keys matching the pattern 'key_.[12345]':", dash);
 	keys = dc_GetFieldAttrList(dc, field, "key_.[12345]",
 				   &values, &natts);
+	buf[0] = '\0';
 	for (i = 0; i < natts; ++i)
 	{
 		dc_GetFieldAttrArray (dc, field, keys[i], &type, &nval);
-		printf ("   %s=%s:%d%c", keys[i], (type != DCT_String) ?
-			dc_ElemToString(values[i], type) : (char *)values[i],
-			nval, (i+1)%3 ? ' ':'\n');
+		sprintf (buf+strlen(buf),
+			 "   %s=%s:%d%c", keys[i], (type != DCT_String) ?
+			 dc_ElemToString(values[i], type) : (char *)values[i],
+			 nval, (i+1)%3 ? ' ':'\n');
 	}
-	printf ("\n");
+	msg_ELog (EF_DEVELOP, "%s", buf);
 	/*
 	 * Get a keys list
 	 */
 	keys = dc_GetGlobalAttrKeys(dc, &natts);
-	printf ("%s using dc_GetGlobalAttrKeys, %d atts, (getn=%d):\n", 
-		dash, natts, dc_GetNGlobalAttrs (dc));
+	msg_ELog (EF_DEVELOP, 
+		  "%s using dc_GetGlobalAttrKeys, %d atts, (getn=%d):", 
+		  dash, natts, dc_GetNGlobalAttrs (dc));
+	buf[0] = '\0';
 	for (i = 0; i < natts; ++i)
-		printf ("   %s%c", keys[i], (i+1)%5 ? ' ':'\n');
-	printf ("\n");
+		sprintf (buf+strlen(buf),
+			 "   %s%c", keys[i], (i+1)%5 ? ' ':'\n');
+	msg_ELog (EF_DEVELOP, "%s", buf);
 
 	/*
 	 * Now for a clincher: process each attribute list to remove each key
 	 */
-	msg_ELog (EF_INFO, "%s trying to remove all attributes...", dash);
+	msg_ELog (EF_DEBUG, "%s trying to remove all attributes...", dash);
 	ad.dc = dc;
 	ad.sample = 0;
 	ad.field = field;
@@ -3029,12 +3282,13 @@ ZebTime when;
 	ad.which = Field;
 	dc_ProcFieldAttrArrays (dc, field, NULL, T_RemoveAttr, (void *)&ad);
 	dc_DumpDC (dc);
-	msg_ELog (EF_INFO, "%s Attributes with zero values and empty strings:",
+	msg_ELog (EF_DEBUG,
+		  "%s Attributes with zero values and empty strings:",
 		  dash);
 	dc_SetGlobalAttrArray (dc, "global_flag", 0, 0, NULL);
 	dc_SetGlobalAttr (dc, "global_empty", "");
 	dc_DumpDC (dc);
-	msg_ELog (EF_INFO, "%s Deleting empty- and zero-valued global atts",
+	msg_ELog (EF_DEBUG, "%s Deleting empty- and zero-valued global atts",
 		  dash);
 	ad.which = Global;
 	dc_ProcessAttrArrays (dc, NULL, T_RemoveAttr, (void *)&ad);
@@ -3043,43 +3297,55 @@ ZebTime when;
 	 * Fetch the previously stored file, hopefully including all of the
 	 * typed attributes, and dump it
 	 */
-	msg_ELog (EF_INFO, "%s Fetching the attributes from '%s'", 
+	msg_ELog (EF_DEBUG, "%s Fetching the attributes from '%s'", 
 		  dash, pname);
-	ds_GetFields (plat, &when, &nfield, fields);
+	errors += !ds_GetFields (plat, &when, &nfield, fields);
 	dc2 = ds_FetchObs (plat, DCC_Scalar, &when, 
 			  fields, nfield, NULL, 0);
-	dc_DumpDC (dc2);
-	/*
-	 * Diff the global attributes
-	 */
-	i = dc_CmpGlobalAttr (dc, dc2, diffs, sizeof(diffs));
-	msg_ELog (EF_INFO, "CmpGlobalAttr reports %d differences", i);
-	printf ("%s\n", diffs);
-	dc_DestroyDC (dc);
-	dc = dc2;
-	/*
-	 * Test that the character arrays came back as strings
-	 */
-	msg_ELog (EF_INFO, "%s verifying char arrays converted to strings", 
-		  dash);
-	cptr = dc_GetGlobalAttr(dc, "global_char");
-	if (!cptr || strcmp(cptr, cdata))
-	{
+	if (!dc2)
 		++errors;
-		msg_ELog (EF_PROBLEM, 
+	else
+	{
+		dc_DumpDC (dc2);
+#ifdef DIFF_DATACHUNKS
+		/*
+		 * Diff the global attributes
+		 */
+		i = dc_CmpGlobalAttr (dc, dc2, diffs, sizeof(diffs));
+		msg_ELog (EF_DEBUG, "CmpGlobalAttr reports %d differences", i);
+		msg_ELog (EF_DEVELOP, "%s", diffs);
+#endif
+		dc_DestroyDC (dc);
+
+		dc = dc2;
+		/*
+		 * Test that the character arrays came back as strings
+		 */
+		msg_ELog (EF_DEBUG,
+			  "%s verifying char arrays converted to strings", 
+			  dash);
+		cptr = dc_GetGlobalAttr(dc, "global_char");
+		if (!cptr || strcmp(cptr, cdata))
+		{
+			++errors;
+			msg_ELog (EF_PROBLEM, 
 			  "Global att error: '%s' should be string '%s'", 
 			  "global_char", cdata);
+		}
+		cptr = dc_GetFieldAttr(dc, field, "field_char");
+		if (!cptr || strcmp(cptr, cdata))
+		{
+			++errors;
+			msg_ELog (EF_PROBLEM, 
+				  "Field att '%s' should be string '%s'", 
+				  "field_char", cdata);
+		}
+		dc_DestroyDC (dc);
 	}
-	cptr = dc_GetFieldAttr(dc, field, "field_char");
-	if (!cptr || strcmp(cptr, cdata))
-	{
-		++errors;
-		msg_ELog (EF_PROBLEM, "Field att '%s' should be string '%s'", 
-			  "field_char", cdata);
-	}
-#endif /* ! EXAMPLE_ONLY */
+#else
 	dc_DestroyDC (dc);
-	Announce ("T_Attributes done.");
+#endif /* ! EXAMPLE_ONLY */
+	msg_ELog (EF_DEBUG, "T_Attributes done.");
 	return (errors);
 }
 
@@ -3098,19 +3364,25 @@ int ndetail;
 	FieldId fields[10];
 	dsDetail fdets[10];
 	int nfdet = 0;
+	int err = 0;
 
 	dc = T_SimpleScalarChunk (begin, 1, 10, 4, FALSE, FALSE);
 	dc->dc_Platform = pid;
-	ds_Store (dc, TRUE, details, ndetail);
-	ds_GetFields (pid, begin, &nfield, fields);
+	err += !ds_Store (dc, TRUE, details, ndetail);
+	err += !ds_GetFields (pid, begin, &nfield, fields);
 	ds_FloatDetail (DD_FETCH_BADVAL, dc_GetBadval (dc), fdets, nfdet++);
 	ndc = ds_FetchObs (pid, DCC_Scalar, begin, fields, nfield, 
 			   fdets, nfdet);
-	ndc->dc_Platform = pid2;
-	ds_Store (ndc, TRUE, details, ndetail);
+	if (!ndc)
+		++err;
+	else
+	{
+		ndc->dc_Platform = pid2;
+		err += !ds_Store (ndc, TRUE, details, ndetail);
+		dc_DestroyDC (ndc);
+	}
 	dc_DestroyDC (dc);
-	dc_DestroyDC (ndc);
-	return (0);
+	return (err);
 }
 
 
@@ -3150,16 +3422,17 @@ ZebTime *begin;
 	PlatformId pid, pid2;
 			
 #ifdef TEST_TIME_UNITS
-	Announce ("--- test of dnc_TimeUnits() -------------");
+	msg_ELog (EF_DEBUG, "Testing dnc_TimeUnits()");
 	u = units;
 	while (*u)
 	{
 		result = dnc_TimeUnits (&zt, *u);
-		printf ("'%s': %s", *u, (result) ? "true" : "false\n");
+		msg_ELog (EF_DEVELOP, 
+			  "'%s': %s", *u, (result) ? "true" : "false");
 		if (result)
 		{
 			TC_EncodeTime (&zt, TC_FullUSec, buf);
-			printf (", %s\n", buf);
+			msg_ELog (EF_DEVELOP, "  %s", buf);
 		}
 		++u;
 	}
@@ -3171,7 +3444,7 @@ ZebTime *begin;
 	 * time and re-store it in a different platform so the files can
 	 * be compared.
 	 */
-	Announce ("--- testing details of defining and fetching 'time' --");
+	msg_ELog (EF_DEBUG, "testing details of defining and fetching 'time'");
 	zt = *begin;
 	pid = NeedPlatform ("t_time_units");
 	pid2 = NeedPlatform ("t_time_units_2");
