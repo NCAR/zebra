@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 2.35 1997-02-10 20:18:08 granger Exp $ */
+/* $Id: defs.h,v 2.36 1997-02-14 17:08:08 granger Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -27,6 +27,13 @@
  */
 # include <stdio.h>
 # include <stdlib.h>
+
+/*
+ * Apparently if string.h gets included before memory.h on Solaris,
+ * especially when including rpc.h, we get conflicting prototypes.
+ */
+# include <memory.h>
+# include <string.h>
 
 /*
  * A macro to make function prototypes a little easier across both STDC and
