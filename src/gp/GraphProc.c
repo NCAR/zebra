@@ -47,7 +47,7 @@
 # include "LayoutControl.h"
 # include "LLEvent.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.54 1995-06-29 23:44:38 granger Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.55 1995-07-24 20:07:31 granger Exp $")
 
 /*
  * Default resources.
@@ -73,7 +73,7 @@ Display	*Disp;				/* Our display			*/
 char 	FrameFilePath[PathLen];		/* Path to FrameFile		*/
 int	FrameFileFlag = 0;		/* True when file should be opened */
 int	FrameCount = 1;			/* Number of frames		*/
-int	MaxFrames;			/* Maximum number of frames	*/	
+int	MaxFrames = 0;			/* Maximum number of frames	*/
 int	DisplayFrame = 0;		/* Frame being displayed	*/
 int	DrawFrame = 0;			/* Frame to draw next		*/
 XtAppContext	Actx;			/* The application context	*/
