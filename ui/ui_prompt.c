@@ -14,7 +14,7 @@
 # include "ui_commands.h"
 # include "ui_expr.h"
 
-static char *Rcsid = "$Id: ui_prompt.c,v 1.2 1989-03-16 15:47:14 corbet Exp $";
+static char *Rcsid = "$Id: ui_prompt.c,v 1.3 1989-04-20 15:21:42 corbet Exp $";
 
 void ui_pr_cc ();	/* Keyboard interrupt handler.	*/
 struct token_context Ctx;
@@ -510,7 +510,8 @@ char *prompt, *helpfile, *state, *def;
 	/*
 	 * See if we can match a keyword.
 	 */
-	 	if (! uip_kw_match (ste, &tok, &ambig, &action, &kwnum, FALSE))
+	 	if (! uip_kw_match (&Ctx, ste, &tok, &ambig, &action, &kwnum,
+				FALSE))
 		{
 			ui_ns_error ("Unknown input '%s' -- hit '?' for help",
 				tok.tk_string);
