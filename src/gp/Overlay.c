@@ -27,7 +27,7 @@
 # include <config.h>
 # include <defs.h>
 
-RCSID("$Id: Overlay.c,v 2.53 1995-10-12 16:41:31 corbet Exp $")
+RCSID("$Id: Overlay.c,v 2.54 1995-10-31 04:07:17 granger Exp $")
 
 # include <pd.h>
 # include <GraphicsW.h>
@@ -160,7 +160,7 @@ static OvIcon 	*ov_GetIcon FP ((char *));
 static int 	ov_LocSetup FP ((char *, char **, int *, char *, LabelOpt *,
 			char *, bool *, float *, int *, PlatformId **, int *));
 static void	ov_LocPlot FP ((char *, char *, Location *, ZebTime *, char *,
-			int, LabelOpt, char *, float, int));
+			int, LabelOpt, char *, double, int));
 static MapPoints *ov_LoadMap FP ((char *));
 static void	ov_DrawMap FP ((const MapPoints *));
 static void	ov_ZapMap FP ((MapPoints *));
@@ -1664,7 +1664,7 @@ Location *loc;
 ZebTime *loctime;
 int fg, tlabel;
 LabelOpt opt;
-float asize;
+double asize;
 /*
  * Actually plot a location.
  */

@@ -28,7 +28,7 @@
 # include <DataChunk.h>
 # include "GraphProc.h"
 # include "rg_status.h"
-MAKE_RCSID ("$Id: GridAccess.c,v 2.27 1995-08-03 20:59:48 corbet Exp $")
+MAKE_RCSID ("$Id: GridAccess.c,v 2.28 1995-10-31 04:07:12 granger Exp $")
 
 # define DEG_TO_RAD(x)	((x)*0.017453292)
 # define KM_TO_DEG(x)	((x)*0.008982802) /* on a great circle */
@@ -54,8 +54,9 @@ int		ga_NSRegularSpacing FP((DataChunk *dc, FieldId fid,
 DataChunk 	*ga_NSRGrid FP((DataChunk *dc, FieldId fid, Location *location,
 				double latspacing, double lonspacing,
 				int nlats, int nlons, int transpose));
+#ifdef notdef
 static void	ga_StoreSpacings FP ((DataChunk *, float, float));
-
+#endif
 
 
 
@@ -292,6 +293,24 @@ float	*x0, *y0, *x1, *y1, *alt;
  */
 	*plot_time = dtime;
 	return (dc);
+}
+
+
+
+
+static void
+ga_StoreSpacings (dc, latspacing, lonspacing)
+DataChunk *dc;
+float latspacing, lonspacing;
+/*
+ * Store these values into this data chunk.
+ */
+{
+	float spacings[2];
+
+	spacings[0] = latspacing;
+	spacings[1] = lonspacing;
+	dc_SetGlobalAttrArray (dc, ATTR_LATLON, DCT_Float, 2, spacings);
 }
 
 
@@ -993,25 +1012,6 @@ FieldId	fid;
 	*dc = rdc;
 	return (TRUE);
 }
-
-
-
-
-static void
-ga_StoreSpacings (dc, latspacing, lonspacing)
-DataChunk *dc;
-float latspacing, lonspacing;
-/*
- * Store these values into this data chunk.
- */
-{
-	float spacings[2];
-
-	spacings[0] = latspacing;
-	spacings[1] = lonspacing;
-	dc_SetGlobalAttrArray (dc, ATTR_LATLON, DCT_Float, 2, spacings);
-}
-
 
 
 

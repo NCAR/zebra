@@ -119,9 +119,10 @@ static float	LatSpacing, LonSpacing;
  * Forward declarations
  */
 static void	FC_MinMax FP ((float *, float *));
-static void	FC_DoContour FP ((triangle, float, float));
+static void	FC_DoContour FP ((triangle, double, double));
+#ifdef notdef
 static void	FC_AddPoint FP ((float, float));
-
+#endif
 
 
 void
@@ -350,9 +351,45 @@ float	*min, *max;
 
 
 static void
+FC_AddPoint (x, y)
+float	x, y;
+/*
+ * Add a point to the polygon vertex list
+ */
+{
+/*
+ * If we are projecting, do that here.
+ */
+	if (Projecting)
+	{
+		float xp, yp;
+# ifdef whoknows
+		prj_Project (Origin.l_lat + (y - 0.5)*LatSpacing,
+				Origin.l_lon + (x - 0.5)*LonSpacing, &xp, &yp);
+# endif
+		prj_Project (Origin.l_lat + y*LatSpacing,
+				Origin.l_lon + x*LonSpacing, &xp, &yp);
+		Points[Npt].x = XPIX (xp);
+		Points[Npt].y = YPIX (yp);
+	}
+/*
+ * Otherwise we do things the same old way.
+ */
+	else
+	{
+		Points[Npt].x = (short)(X0 + x * Xinc + 0.5);
+		Points[Npt].y = (short)(Y0 + y * Yinc + 0.5);
+	}
+	Npt++;
+}
+
+
+
+
+static void
 FC_DoContour (tri, cval, cstep)
 triangle	tri;
-float	cval, cstep;
+double	cval, cstep;
 /*
  * Do a contour fill in this triangle for the given contour value
  */
@@ -465,37 +502,3 @@ float	cval, cstep;
 }
 
 
-
-
-static void
-FC_AddPoint (x, y)
-float	x, y;
-/*
- * Add a point to the polygon vertex list
- */
-{
-/*
- * If we are projecting, do that here.
- */
-	if (Projecting)
-	{
-		float xp, yp;
-# ifdef whoknows
-		prj_Project (Origin.l_lat + (y - 0.5)*LatSpacing,
-				Origin.l_lon + (x - 0.5)*LonSpacing, &xp, &yp);
-# endif
-		prj_Project (Origin.l_lat + y*LatSpacing,
-				Origin.l_lon + x*LonSpacing, &xp, &yp);
-		Points[Npt].x = XPIX (xp);
-		Points[Npt].y = YPIX (yp);
-	}
-/*
- * Otherwise we do things the same old way.
- */
-	else
-	{
-		Points[Npt].x = (short)(X0 + x * Xinc + 0.5);
-		Points[Npt].y = (short)(Y0 + y * Yinc + 0.5);
-	}
-	Npt++;
-}

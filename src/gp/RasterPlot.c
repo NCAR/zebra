@@ -30,7 +30,7 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 
-RCSID ("$Id: RasterPlot.c,v 2.25 1995-09-21 21:10:36 burghart Exp $")
+RCSID ("$Id: RasterPlot.c,v 2.26 1995-10-31 04:07:19 granger Exp $")
 
 # ifdef TIMING
 # include <sys/time.h>
@@ -136,14 +136,18 @@ static void RP_ImageRasterize FP ((unsigned char *ximp,
 				   double row, double icol, 
 				   double rowinc, double colinc,
 				   int xdim, int ydim, int pad));
-
+# ifdef notdef
 static void RP_MakeColorMap FP ((float, float, unsigned char *));
+# endif
+
 # ifdef MAP_PROJECTIONS
 static void RP_SlowImagePlot FP ((Widget, int, unsigned char *, float, float,
 		Location *, RGrid *, unsigned char *));
-# endif
+# ifdef notdef
 static void RP_FindLimits FP ((Location *, float, int, float, int, int*,
 		int *, int *, int *));
+# endif
+# endif /* MAP_PROJECTIONS */
 
 static int RasterLimits FP ((int xdim, int ydim, int *xlo, int *ylo, int *xhi, 
 			     int *yhi, int *width_out, int *height_out,
@@ -803,6 +807,36 @@ int		xdim, ydim, pad;
 
 
 
+static void
+RP_MakeColorMap (scale, bias, cmap)
+float scale, bias;
+unsigned char *cmap;
+/*
+ * Create the data->color map.
+ */
+{
+	int c, rcolor;
+	float cscale = Ncolor/Datarange;
+
+	for (c = 0; c <= 254; c++)
+	{
+		if (Highlight 
+		   && ((c*scale + bias) <= (HValue + HRange/2.0)) 
+		   && ((c*scale + bias) >= (HValue - HRange/2.0)))
+			cmap[c] = HColor.pixel;
+		else
+		{
+			rcolor = (int) (cscale*(c*scale + bias - Datamin));
+			cmap[c] = (rcolor >= 0 && rcolor < Ncolor) ? 
+				Colors[rcolor].pixel : Color_outrange.pixel;
+		}
+	}
+	cmap[255] = Color_outrange.pixel;
+}
+
+
+
+
 /*-----------------------------------------------------------------
  * The following routines do raster plots of data that already
  * have an Image organization.  If shared memory is supported and
@@ -975,38 +1009,6 @@ RGrid *rg;
 
 
 static void
-RP_MakeColorMap (scale, bias, cmap)
-float scale, bias;
-unsigned char *cmap;
-/*
- * Create the data->color map.
- */
-{
-	int c, rcolor;
-	float cscale = Ncolor/Datarange;
-
-	for (c = 0; c <= 254; c++)
-	{
-		if (Highlight 
-		   && ((c*scale + bias) <= (HValue + HRange/2.0)) 
-		   && ((c*scale + bias) >= (HValue - HRange/2.0)))
-			cmap[c] = HColor.pixel;
-		else
-		{
-			rcolor = (int) (cscale*(c*scale + bias - Datamin));
-			cmap[c] = (rcolor >= 0 && rcolor < Ncolor) ? 
-				Colors[rcolor].pixel : Color_outrange.pixel;
-		}
-	}
-	cmap[255] = Color_outrange.pixel;
-}
-
-
-
-
-
-
-static void
 RP_ImageRasterize (ximp, width, height, grid, cmap, row, icol, rowinc, colinc,
 		   xdim, ydim, pad)
 unsigned char 	*ximp;
@@ -1064,6 +1066,44 @@ int		xdim, ydim, pad;
 
 
 # ifdef MAP_PROJECTIONS
+
+
+static void
+RP_FindLimits (loc, lonstep, nx, latstep, ny, x0, y0, x1, y1)
+Location *loc;
+float lonstep, latstep;
+int nx, ny, *x0, *y0, *x1, *y1;
+/*
+ * Figure out the area of the window covered by this grid.  This does not
+ * yet work right.
+ */
+{
+	int x, y;
+	float xk, yk;
+
+	prj_Project (loc->l_lat, loc->l_lon, &xk, &yk);
+	x = XPIX (xk); y = YPIX (yk);
+	*x0 = RPMIN (*x0, x);	*x1 = RPMAX (*x1, x);
+	*y0 = RPMIN (*y0, y);	*y1 = RPMAX (*y1, y);
+
+	prj_Project (loc->l_lat, WRAPLON (loc->l_lon + nx*lonstep), &xk, &yk);
+	x = XPIX (xk); y = YPIX (yk);
+	*x0 = RPMIN (*x0, x);	*x1 = RPMAX (*x1, x);
+	*y0 = RPMIN (*y0, y);	*y1 = RPMAX (*y1, y);
+
+	prj_Project (loc->l_lat + ny*latstep, loc->l_lon, &xk, &yk);
+	x = XPIX (xk); y = YPIX (yk);
+	*x0 = RPMIN (*x0, x);	*x1 = RPMAX (*x1, x);
+	*y0 = RPMIN (*y0, y);	*y1 = RPMAX (*y1, y);
+
+	prj_Project (loc->l_lat + ny*latstep,
+			WRAPLON (loc->l_lon + nx*lonstep), &xk, &yk);
+	x = XPIX (xk); y = YPIX (yk);
+	*x0 = RPMIN (*x0, x);	*x1 = RPMAX (*x1, x);
+	*y0 = RPMIN (*y0, y);	*y1 = RPMAX (*y1, y);
+}
+
+
 
 static void
 RP_SlowImagePlot (w, frame, grid, scale, bias, loc, rg, cmap)
@@ -1235,46 +1275,6 @@ RGrid *rg;
 	}
 }
 # endif /* MAP_PROJECTIONS */
-
-
-
-
-
-
-static void
-RP_FindLimits (loc, lonstep, nx, latstep, ny, x0, y0, x1, y1)
-Location *loc;
-float lonstep, latstep;
-int nx, ny, *x0, *y0, *x1, *y1;
-/*
- * Figure out the area of the window covered by this grid.  This does not
- * yet work right.
- */
-{
-	int x, y;
-	float xk, yk;
-
-	prj_Project (loc->l_lat, loc->l_lon, &xk, &yk);
-	x = XPIX (xk); y = YPIX (yk);
-	*x0 = RPMIN (*x0, x);	*x1 = RPMAX (*x1, x);
-	*y0 = RPMIN (*y0, y);	*y1 = RPMAX (*y1, y);
-
-	prj_Project (loc->l_lat, WRAPLON (loc->l_lon + nx*lonstep), &xk, &yk);
-	x = XPIX (xk); y = YPIX (yk);
-	*x0 = RPMIN (*x0, x);	*x1 = RPMAX (*x1, x);
-	*y0 = RPMIN (*y0, y);	*y1 = RPMAX (*y1, y);
-
-	prj_Project (loc->l_lat + ny*latstep, loc->l_lon, &xk, &yk);
-	x = XPIX (xk); y = YPIX (yk);
-	*x0 = RPMIN (*x0, x);	*x1 = RPMAX (*x1, x);
-	*y0 = RPMIN (*y0, y);	*y1 = RPMAX (*y1, y);
-
-	prj_Project (loc->l_lat + ny*latstep,
-			WRAPLON (loc->l_lon + nx*lonstep), &xk, &yk);
-	x = XPIX (xk); y = YPIX (yk);
-	*x0 = RPMIN (*x0, x);	*x1 = RPMAX (*x1, x);
-	*y0 = RPMIN (*y0, y);	*y1 = RPMAX (*y1, y);
-}
 
 
 

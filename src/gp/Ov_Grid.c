@@ -33,7 +33,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-MAKE_RCSID ("$Id: Ov_Grid.c,v 2.4 1995-09-29 20:03:14 burghart Exp $")
+MAKE_RCSID ("$Id: Ov_Grid.c,v 2.5 1995-10-31 04:07:14 granger Exp $")
 
 /*
  * Some macros.  I'm not sure they are all used here.
@@ -56,7 +56,7 @@ MAKE_RCSID ("$Id: Ov_Grid.c,v 2.4 1995-09-29 20:03:14 burghart Exp $")
 
 
 static void	ov_CGFixLL FP ((float *, float *, float *, float *, float *,
-			float *, float, float));
+			float *, double, double));
 static void	ov_SGSetup FP ((char *, float *, float *, float *, bool *,
 			int *, bool *, float *, float *));
 static void 	ov_SolidGrid FP ((int, int, int, int, double, double,
@@ -67,8 +67,10 @@ static void	ov_TicGrid FP ((int, int, int, int, double, double,
 			double, double, int, double, double));
 static void	ov_LLTicGrid FP ((int, int, int, int, double, double,
 				double, double, int));
+# ifdef notdef
 static void	ov_LLCurve FP ((float, float, float, float, int, int,
 			int *, int *));
+# endif
 
 /*
  * A couple of useful number crunchers.
@@ -339,11 +341,88 @@ float aint;
 
 
 
+static void
+ov_LLCurve (lat1, lon1, lat2, lon2, nseg, ypmax, fx, fy)
+float lat1, lat2, lon1, lon2;
+int nseg, ypmax, *fx, *fy;
+/*
+ * Draw a curved lat/lon line.
+ */
+{
+# ifdef MAP_PROJECTIONS
+	float latinc, loninc;
+	XPoint points[MAXSEG];
+	float xk, yk;
+	int seg, npt = 0, first = TRUE;
+/*
+ * Figure segments and increments.
+ */
+	if (nseg > MAXSEG)
+		nseg = MAXSEG;
+	latinc = (lat2 - lat1)/(nseg - 1);
+	loninc = (lon2 - lon1)/(nseg - 1); /* works cuz of maxlon correction */
+/*
+ * Calculate some end points.
+ */
+# ifdef notdef
+	prj_Project (lat1, lon1, &xk, &yk);
+	points[0].x = XPIX (xk);
+	points[0].y = YPIX (yk);
+# endif
+	for (seg = 0; seg < nseg; seg++)
+	{
+		int prjok = prj_Project (lat1, lon1, &xk, &yk);
+	/*
+	 * Clip things on the bottom, even though regular clipping will be
+	 * in effect.  One reason to do this is to remember where we drew
+	 * the first real point.
+	 */
+		if (! prjok || YPIX (yk) > ypmax)
+		{
+			if (npt > 1)
+				XDrawLines (Disp, GWFrame (Graphics), Gcontext,
+						points, npt, CoordModeOrigin);
+			npt = 0;
+		}
+	/*
+	 * OK we are drawing this one.  Remember the first point if
+	 * applicable.
+	 */
+		else 
+		{
+			if (first)
+			{
+				*fx = XPIX (xk);
+				*fy = YPIX (yk);
+				first = FALSE;
+			}
+			points[npt].x = XPIX (xk);
+			points[npt++].y = YPIX (yk);
+		}
+	/*
+	 * Move on.
+	 */
+		lat1 += latinc;
+		if ((lon1 += loninc) > 180.0)
+			lon1 -= 360.0;
+	}
+/*
+ * Draw and we're done.
+ */
+	SetClip (FALSE);
+	XDrawLines (Disp, GWFrame (Graphics), Gcontext, points, npt,
+			CoordModeOrigin);
+	SetClip (TRUE);
+# endif /* MAP_PROJECTIONS */
+}
+
+
 
 
 static void
 ov_CGFixLL (minlat, minlon, maxlat, maxlon, blat, blon, xs, ys)
-float *minlat, *minlon, *maxlat, *maxlon, *blat, *blon, xs, ys;
+float *minlat, *minlon, *maxlat, *maxlon, *blat, *blon;
+double xs, ys;
 /*
  * Fix these values up to nice increments.
  */
@@ -660,86 +739,6 @@ float aint;
 			SetClip (FALSE);
 		}
 	}
-}
-
-
-
-
-
-
-static void
-ov_LLCurve (lat1, lon1, lat2, lon2, nseg, ypmax, fx, fy)
-float lat1, lat2, lon1, lon2;
-int nseg, ypmax, *fx, *fy;
-/*
- * Draw a curved lat/lon line.
- */
-{
-# ifdef MAP_PROJECTIONS
-	float latinc, loninc;
-	XPoint points[MAXSEG];
-	float xk, yk;
-	int seg, npt = 0, first = TRUE;
-/*
- * Figure segments and increments.
- */
-	if (nseg > MAXSEG)
-		nseg = MAXSEG;
-	latinc = (lat2 - lat1)/(nseg - 1);
-	loninc = (lon2 - lon1)/(nseg - 1); /* works cuz of maxlon correction */
-/*
- * Calculate some end points.
- */
-# ifdef notdef
-	prj_Project (lat1, lon1, &xk, &yk);
-	points[0].x = XPIX (xk);
-	points[0].y = YPIX (yk);
-# endif
-	for (seg = 0; seg < nseg; seg++)
-	{
-		int prjok = prj_Project (lat1, lon1, &xk, &yk);
-	/*
-	 * Clip things on the bottom, even though regular clipping will be
-	 * in effect.  One reason to do this is to remember where we drew
-	 * the first real point.
-	 */
-		if (! prjok || YPIX (yk) > ypmax)
-		{
-			if (npt > 1)
-				XDrawLines (Disp, GWFrame (Graphics), Gcontext,
-						points, npt, CoordModeOrigin);
-			npt = 0;
-		}
-	/*
-	 * OK we are drawing this one.  Remember the first point if
-	 * applicable.
-	 */
-		else 
-		{
-			if (first)
-			{
-				*fx = XPIX (xk);
-				*fy = YPIX (yk);
-				first = FALSE;
-			}
-			points[npt].x = XPIX (xk);
-			points[npt++].y = YPIX (yk);
-		}
-	/*
-	 * Move on.
-	 */
-		lat1 += latinc;
-		if ((lon1 += loninc) > 180.0)
-			lon1 -= 360.0;
-	}
-/*
- * Draw and we're done.
- */
-	SetClip (FALSE);
-	XDrawLines (Disp, GWFrame (Graphics), Gcontext, points, npt,
-			CoordModeOrigin);
-	SetClip (TRUE);
-# endif /* MAP_PROJECTIONS */
 }
 
 

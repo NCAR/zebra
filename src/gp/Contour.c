@@ -36,7 +36,7 @@
 # include "PixelCoord.h"
 
 
-RCSID("$Id: Contour.c,v 2.16 1995-09-23 02:33:03 granger Exp $")
+RCSID("$Id: Contour.c,v 2.17 1995-10-31 04:07:08 granger Exp $")
 
 typedef short	cbool;
 
@@ -108,8 +108,10 @@ static void	CO_MinMax FP ((float *, float *));
 static void	CO_DoContours FP ((void));
 static void	CO_DrawContour FP ((void));
 static void	CO_FollowContour FP ((int, int, int));
+#ifdef notdef
 static void	CO_FirstPoint FP ((float, float));
 static void	CO_AddPoint FP ((float, float));
+#endif
 static void	CO_FindXYLoc FP ((int, int, int, int, float *, float *));
 
 /*
@@ -570,6 +572,45 @@ CO_DoContours ()
 
 
 static void
+CO_FirstPoint (x, y)
+float	x, y;
+/*
+ * Start a new polyline
+ */
+{
+	Nplpts = 1;
+	Pl[0].x = (int)(x + 0.5);
+	Pl[0].y = (int)(y + 0.5);
+}
+
+
+
+static void
+CO_AddPoint (x, y)
+float	x, y;
+/*
+ * Add a point to the polyline
+ */
+{
+	XPoint	lastpt;
+
+	if (Nplpts == MAXPTS)
+	{
+		lastpt = Pl[Nplpts-1];
+		CO_DrawContour ();
+		Pl[0] = lastpt;
+		Nplpts = 1;
+	}
+
+	Pl[Nplpts].x = (int)(x + 0.5);
+	Pl[Nplpts].y = (int)(y + 0.5);
+	Nplpts++;
+}
+
+
+
+
+static void
 CO_FollowContour (ix, iy, iseg)
 int	ix, iy, iseg;
 /*
@@ -772,46 +813,6 @@ float *x, *y;
 				 FRAC (ZVAL (ix, iy), ZVAL (ix, iy + idy));
 		}
 	}
-}
-
-
-
-
-
-static void
-CO_FirstPoint (x, y)
-float	x, y;
-/*
- * Start a new polyline
- */
-{
-	Nplpts = 1;
-	Pl[0].x = (int)(x + 0.5);
-	Pl[0].y = (int)(y + 0.5);
-}
-
-
-
-static void
-CO_AddPoint (x, y)
-float	x, y;
-/*
- * Add a point to the polyline
- */
-{
-	XPoint	lastpt;
-
-	if (Nplpts == MAXPTS)
-	{
-		lastpt = Pl[Nplpts-1];
-		CO_DrawContour ();
-		Pl[0] = lastpt;
-		Nplpts = 1;
-	}
-
-	Pl[Nplpts].x = (int)(x + 0.5);
-	Pl[Nplpts].y = (int)(y + 0.5);
-	Nplpts++;
 }
 
 
