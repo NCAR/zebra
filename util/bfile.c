@@ -1,5 +1,5 @@
 /* 1/88 jc */
-/* $Id: bfile.c,v 1.3 1990-03-22 16:54:11 corbet Exp $ */
+static char *rcsid = "$Id: bfile.c,v 1.4 1990-05-11 13:36:55 corbet Exp $";
 /*
  * System-dependant binary file stuff.  These routines are needed because
  * the VMS-specific variable-length-record-format file does not exist in
@@ -188,3 +188,66 @@ char *buf;
 	dput (fd, buf, len);
 # endif
 }
+
+
+
+
+bfrfa (r, rfa)
+int r;
+short rfa[3];
+/*
+ * Return the RFA of the last disk operation in RFA.
+ */
+{
+# ifdef VMS
+	drfa (r, rfa);
+# endif
+
+# ifdef UNIX
+	int fd;
+	long *temp = (long *) rfa;
+
+#   ifdef NETACCESS
+	if (lun_type (r) == LUN_NTDSK_DISK)
+	{
+		cli_drfa (lun_lookup (r), rfa);
+		return;
+	}
+	else
+		fd = lun_lookup (r);
+#   endif
+	*temp = tell (fd);
+# endif
+}
+
+
+
+
+bffind (r, rfa)
+int r;
+short rfa[3];
+/*
+ * Position to the record indicated by the RFA.
+ */
+{
+# ifdef VMS
+	dfind (r, rfa);
+# endif
+
+# ifdef UNIX
+	int fd = r;
+
+#   ifdef NETACCESS
+	if (lun_type (r) == LUN_NTDSK_DISK)
+	{
+		cli_dfind (lun_lookup (r), rfa);
+		return;
+	}
+	else
+		fd = lun_lookup (r);
+#   endif
+	if (lseek (fd, *(long *) rfa, 0) == -1)
+		printf ("\nImproper seek\n");
+# endif
+}
+
