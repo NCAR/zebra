@@ -37,7 +37,7 @@
 # include "PolarPlot.h"
 # endif
 
-MAKE_RCSID ("$Id: GridAccess.c,v 2.36 1999-03-01 02:04:24 burghart Exp $")
+MAKE_RCSID ("$Id: GridAccess.c,v 2.37 2000-04-10 20:52:17 burghart Exp $")
 
 # define DEG_TO_RAD(x)	((x)*0.017453292)
 # define KM_TO_DEG(x)	((x)*0.008982802) /* on a great circle */
@@ -507,6 +507,8 @@ ga_MkRastDest (DataChunk *dc, FieldId fid, int gratio, int project,
  * kilometer (the 1.4 is a rough sqrt(2)).
  */
 	pb = dcp_GetBeam (dc, 0, 0, fid, BadField, 0, 0);
+	if (! pb)
+	    return;	/* Oops */
 	gatesPerKm = 2/pb->pb_GateSpacing;
 	origin->l_alt = pb->pb_FixedAngle;
 	dcp_FreeBeam (pb);
