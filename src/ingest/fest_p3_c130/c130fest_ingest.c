@@ -1,5 +1,5 @@
 /*
- * $Id: c130fest_ingest.c,v 1.2 1992-11-19 01:40:53 granger Exp $
+ * $Id: c130fest_ingest.c,v 1.3 1992-11-19 02:15:43 granger Exp $
  *
  * Ingest ASCII data files for the U of Washington's C-130 Convair.
  * As far as I can determine from the files, they follow this format:
@@ -53,6 +53,7 @@
 
 #define AttFlightDate		"flight_date"
 #define AttFlightNumber		"flight_number"
+#define AttIngestVersion	"ingest_version"
 
 #define Abs(x)			((x>0)?(x):(-(x)))
 #define Min(x,y)		(((x)<(y))?(x):(y))
@@ -298,6 +299,7 @@ CreateDataChunk(in, nfields, flight_date)
 	int *nfields;
 	ZebTime *flight_date;
 {
+	static char version_info[] = "$RCSfile: c130fest_ingest.c,v $ $Revision: 1.3 $";
 	char *buf;
 	int num_fields;
 	int flight_no;
@@ -353,8 +355,13 @@ CreateDataChunk(in, nfields, flight_date)
 		  flight_no, att_val);
 	sprintf(att_val, "%i", flight_no);
 	dc_SetGlobalAttr(dc, AttFlightNumber, att_val);
+	dc_SetGlobalAttr(dc, AttIngestVersion, version_info);
 
 	*nfields = num_fields - NREQ_FIELDS;	/* Don't include time or locn */
+
+#ifdef DEBUG
+	dc_DumpDC(dc);
+#endif
 	return(dc);
 }
 

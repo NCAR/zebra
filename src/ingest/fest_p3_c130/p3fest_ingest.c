@@ -1,5 +1,5 @@
 /*
- * $Id: p3fest_ingest.c,v 1.3 1992-11-19 01:39:25 granger Exp $
+ * $Id: p3fest_ingest.c,v 1.4 1992-11-19 02:15:20 granger Exp $
  *
  * Ingest P3 format data files into Zeb using DCC_Scalar class DataChunks.
  * The general program flow is as follows:
@@ -79,6 +79,7 @@
 #define AttAircraftNumber	"aircraft_number"
 #define AttFlightBeginTime	"flight_begin_time"
 #define AttFlightEndTime	"flight_end_time"
+#define AttIngestVersion	"ingest_version"
 
 #define NUMBER(arr)	((unsigned long)(sizeof(arr)/sizeof(arr[0])))
 #define Abs(x)		(((x)>0)?(x):(-(x)))
@@ -305,11 +306,11 @@ Usage(prog)
 	char *prog;
 {
 	fprintf(stderr,
-		"Usage: %s [ingest options] { -m[enu] | <datafile> }\n",prog);
+		"Usage: %s [ingest options] { -m[enus] | <datafile> }\n",prog);
 	fprintf(stderr,
 		"   If <datafile> is '-', the data will be read from stdin\n");
 	fprintf(stderr,
-		"   -menu		Write out GP menus for P-3 fields\n");
+		"   -menus		Write out GP menus for P-3 fields\n");
 	IngestUsage();
 }
 
@@ -1137,6 +1138,7 @@ DataChunk *
 CreateDataChunk(hdr)
 	P3_header_t *hdr;
 {
+	static char version_info[] = "$RCSfile: p3fest_ingest.c,v $ $Revision: 1.4 $";
 	DataChunk *dc;
 	unsigned int nsamples;
 	int hours, minutes;
@@ -1171,6 +1173,7 @@ CreateDataChunk(hdr)
 	sprintf(attr,"%hu", hdr->p3header.aircraft);
 	dc_SetGlobalAttr(dc, AttAircraftNumber, attr);
 	IngestLog(EF_INFO,"%30s %s","Aircraft number:",attr);
+	dc_SetGlobalAttr(dc, AttIngestVersion, version_info);
 
 	/*
 	 * Initialize the scalar parts of the datachunk.
@@ -1194,6 +1197,10 @@ CreateDataChunk(hdr)
 	 * won't be used 
 	 */
 	dc_SetBadval(dc, BADVAL_DEFAULT);
+
+#ifdef DEBUG
+	dc_DumpDC(dc);
+#endif
 
 	return(dc);
 }
