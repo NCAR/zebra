@@ -7,3 +7,5 @@ adradFieldList
 radar_ingest.lf
 adrad_ingest.lf
 UFIngest.lf
+RGridConsumer
+RadarStatus
