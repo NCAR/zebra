@@ -29,7 +29,7 @@
 # include <time.h>
 # include "GraphProc.h"
 # include "PixelCoord.h"
-MAKE_RCSID ("$Id: Utilities.c,v 2.22 1994-05-20 20:04:31 corbet Exp $")
+MAKE_RCSID ("$Id: Utilities.c,v 2.23 1994-05-24 02:42:37 granger Exp $")
 
 /*
  * Rules for image dumping.  Indexed by keyword number in GraphProc.state
@@ -629,7 +629,7 @@ int np;
 
 
 
-# ifdef hpux
+# if defined(hpux) || defined(SVR4)
 int
 nint (x)
 double x;
