@@ -14,6 +14,7 @@
 # include "lib_include:lib_proto.h"
 # endif
 
+static char *rcsid = "$Id: dev_4107.c,v 1.5 1990-03-29 15:44:58 corbet Exp $";
 
 /*
  * Defines.
@@ -24,6 +25,7 @@
 # define FIXUP
 # define XRES 640
 # define YRES 480
+# define CHASPECT	0.625	/* Character aspect ratio	*/
 
 /*
  * Unpacking info
@@ -265,6 +267,82 @@ int color, ltype, npt, *data;
  */
 	gtty_out (tag->tek_tty, "\037");	/* US */
 }
+
+
+
+
+tek_qtext (ctag, height, rot)
+char *ctag;
+int height;
+float rot;
+/*
+ * The query text routine.
+ */
+{
+	return (rot == 0.0);	/* This will change	*/
+}
+
+
+
+
+
+tek_tsize (ctag, pixsize, rot, text, width, height, desc)
+char *ctag, *text;
+int pixsize, *width, *height, *desc;
+float rot;
+/*
+ * The text size routine.
+ */
+{
+	*height = pixsize;	/* you want it, you get it	*/
+	*width = (int) (((float) pixsize*strlen (text)) * CHASPECT);
+	*desc = 0;	/* ??? */
+}
+
+
+
+
+
+
+tek_text (ctag, x, y, color, pixsize, rot, text)
+char *ctag, *text;
+int x, y, color, pixsize;
+float rot;
+/*
+ * The hardware text routine.
+ */
+{
+	struct tek_tag *tag = (struct tek_tag *) ctag;
+	int width = (int) (((float) pixsize)*CHASPECT);
+/*
+ * Set the text color.
+ */
+	gtty_out (tag->tek_tty, "\033MT");
+	tek_int (color, tag->tek_tty);
+/*
+ * get the size right.
+ */
+	gtty_out (tag->tek_tty, "\033MQ2");	/* Stroke text */
+	gtty_out (tag->tek_tty, "\033MC");	/* set graphtext size */
+	tek_int	(width, tag->tek_tty);
+	tek_int ((int) (((float) pixsize)*0.9), tag->tek_tty);
+	tek_int (0, tag->tek_tty);
+/*
+ * Do rotation (!)
+ */
+
+/*
+ * Now send the text.
+ */
+	gtty_out (tag->tek_tty, "\033LF");	/* MOVE */
+	tek_xy (x, y, tag->tek_tty);
+	gtty_out (tag->tek_tty, "\033LT");	/* TEXT */
+	tek_int (strlen (text), tag->tek_tty);
+	gtty_out (tag->tek_tty, text);
+}
+
+
+
 
 
 

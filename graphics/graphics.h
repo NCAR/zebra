@@ -1,4 +1,5 @@
 /* 5/87 jc */
+/* $Id: graphics.h,v 1.4 1990-03-29 15:45:06 corbet Exp $ */
 /*
  * Include file for external graphics users.
  */
@@ -35,12 +36,14 @@ typedef char *image_file;
 # define GTF_STROKE	0	/* Nice stroke font	*/
 # define GTF_MINSTROKE	1	/* Minimal stroke font	*/
 # define GTF_MINPIXEL	2	/* Minimal pixel font	*/
+# define GTF_DEV	3	/* Built in fonts	*/
 
 /*
  * Character font types.
  */
 # define GFT_PIXEL	0	/* Pixel-mapped font	*/
 # define GFT_STROKE	1	/* vector stroke font	*/
+# define GFT_DEV	2	/* Hardware font	*/
 
 /*
  * Inquiry types.

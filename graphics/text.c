@@ -14,6 +14,8 @@
 # include "lib_include:lib_proto.h"
 # endif
 
+static char *rcsid = "$Id: text.c,v 1.7 1990-03-29 15:44:46 corbet Exp $";
+
 # ifdef BIG_ENDIAN
 #	define SWAP(v) (v)
 # else
@@ -55,24 +57,26 @@ static struct font
 } F_table[MAXFONT] = 
 {
 /*
- * The old GKS stroke font.
+ * The old GKS stroke fonts.
  */
 	{	GFT_STROKE,	Gt_sf_0,	___,	___	},
 	{	GFT_STROKE,	Gt_sf_1,	___,	___	},
 	{	GFT_PIXEL,	___,	Pf0_rasters,   Pf0_dir  },
+	{	GFT_DEV,	___,		___,	___	},
 };
 
-static int N_font = 3;
+static int N_font = 4;
 
 
 
 
 
 gt_get_start (x, y, font, scale, hjust, vjust, rot, aspect, text, 
-	sx, sy, ex, ey)
+	sx, sy, ex, ey, dev, tag)
 int x, y, font, hjust, vjust, *sx, *sy, *ex, *ey;
 float scale, rot, aspect;
-char *text;
+char *text, *tag;
+struct device *dev;
 /*
  * Figure out the start point for a line of text.
  * Entry:
@@ -102,6 +106,12 @@ char *text;
 	{
 		scale = 1.0;	/* Pixel fonts aren't scalable */
 		gt_pix_dim (font, text, &width, &cheight, &desc);
+	}
+	else if (F_table[font].f_type == GFT_DEV)
+	{
+		(*dev->gd_tsize) (tag, (int) scale, rot, text, &width,
+				&cheight, &desc);
+		scale = 1;
 	}
 	else
 	{
@@ -198,10 +208,21 @@ float	rot;
  * Actually perform a text operation.
  */
 {
-	if (F_table[font].f_type == GFT_STROKE)
+	switch (F_table[font].f_type)
+	{
+	   case GFT_STROKE:
 		gt_stroke (wstn, ov, color, x, y, font, scale, rot, text, dev);
-	else
+		break;
+	   case GFT_DEV:
+	   	if (! dev)
+			c_panic ("DEV graphics call not to device");
+	   	(*wstn->ws_dev->gd_text) (wstn->ws_tag, x, y, color,
+			scale/100, rot, text);
+		break;
+	   case GFT_PIXEL:
 		gt_pixel (wstn, ov, color, x, y, font, text, dev);
+		break;
+	}
 }
 
 
@@ -516,6 +537,8 @@ int font;
 		cp = F_table[font].f_data[0];
 	 	return (cp[0] - cp[3]);
 	}
+	else if (F_table[font].f_type == GFT_DEV)
+		return (1);
 	else
 		return (F_table[font].f_fdir['('].fd_pheight);
 }

@@ -1,11 +1,11 @@
 /* 12/88 jc */
-/* $Id: dev_x11.c,v 1.15 1990-02-08 10:40:15 burghart Exp $	*/
 /*
  * Graphics driver for the X window system, version 11.3
  */
 # include "config.h"
 
 # ifdef DEV_X11
+static char *rcsid = "$Id: dev_x11.c,v 1.16 1990-03-29 15:44:50 corbet Exp $";
 
 # include "graphics.h"
 # include "device.h"
@@ -18,6 +18,11 @@
 char *getvm ();
 
 # define TGT_SIZE	17
+# define MAXFONT	100	/* Max fonts we'll consider		*/
+/*
+ * The default font pattern.
+ */
+# define FONTPAT "-*-helvetica-medium-r-*-*-*-*-*-*-*-*-*-*";
 
 # define ABS(x)		((x) < 0 ? -(x) : x)
 
@@ -52,6 +57,11 @@ struct xtag
 	char	x_zoomok;	/* Zoom is up to date.			*/
 	char	x_zquad;	/* Which quad we are zoomed on		*/
 	char	x_qdone[5];	/* Is this quad done?			*/
+	XFontStruct *x_fonts[MAXFONT];/* Already loaded fonts		*/
+	int	x_fmap[MAXFONT];/* Pixsize -> font map			*/
+	char 	**x_fnames;	/* Font names				*/
+	XFontStruct *x_fst;	/* Font info				*/
+	int	x_nfont;	/* Actual # of fonts			*/
 };
 
 
@@ -155,7 +165,7 @@ struct device *dev;
 	{
 		tag->x_visual = vlist->visual;
 		depth = vlist->depth;
-		XFree (vlist);
+		XFree ((char *) vlist);
 	}
 	else
 	{
@@ -251,6 +261,12 @@ struct device *dev;
 	tag->x_zoomok = tag->x_zquad = 0;
 	for (i = 0; i < 256; i++)
 		Ztable[i] = i | (i << 8);
+/*
+ * Initialize fonts.
+ */
+	for (i = 0; i < MAXFONT; i++)
+		tag->x_fonts[i] = 0;
+	tag->x_fnames = 0;
 /*
  * All done.
  */
@@ -1054,7 +1070,7 @@ XEvent *ev;
 	static char string[20] = { 0 };
 	KeySym key;
 
-	XLookupString (ev, string, 20, &key, 0);
+	XLookupString ((XKeyEvent *) ev, string, 20, &key, 0);
 	switch (key)
 	{
 	   case XK_F1:	
@@ -1155,5 +1171,137 @@ int x, y, xs, ys;
 		XDestroyImage (im);
 	}
 }
+
+
+
+
+
+int
+x11_qtext (ctag, pixsize, rot)
+char *ctag;
+int pixsize;
+float rot;
+/*
+ * Ask if we can do text of this size.
+ */
+{
+	char *getenv ();
+	struct xtag *tag = (struct xtag *) ctag;
+	int i, closest, cdiff = 9999;
+/*
+ * Don't try anything outlandish.
+ */
+	if (pixsize < 0 || pixsize >= MAXFONT || rot != 0.0)
+		return (FALSE);
+/*
+ * If we haven't looked up our fonts yet, do so now.
+ */
+	if (! tag->x_fnames)
+	{
+		char *pat = getenv ("XFONTPATTERN") ? getenv ("XFONTPATTERN") :
+				FONTPAT;
+		tag->x_fnames = XListFontsWithInfo (tag->x_display, pat,
+			MAXFONT, &tag->x_nfont, &tag->x_fst);
+	}
+/*
+ * Go through and find the closest one.
+ */
+	for (i = 0; i < tag->x_nfont; i++)
+	{
+		int diff = ABS (tag->x_fst[i].ascent - pixsize);
+		if (diff == 0)
+		{
+			closest = i;
+			cdiff = 0;
+			break;
+		}
+		else if (diff < cdiff)
+		{
+			closest = i;
+			cdiff = diff;
+		}
+	}
+/*
+ * If we aren't close, give up.
+ */
+	if (cdiff > 4)
+		return (FALSE);
+/*
+ * Otherwise, go ahead and load the font, since we'll probably use it.
+ */
+	if (! tag->x_fonts[closest])
+		tag->x_fonts[closest] = XLoadQueryFont (tag->x_display,
+			tag->x_fnames[closest]);
+	tag->x_fmap[pixsize] = closest;
+	return (TRUE);
+}
+
+
+
+
+
+x11_tsize (ctag, pixsize, rot, text, width, height, desc)
+char *ctag, *text;
+int pixsize, *width, *height, *desc;
+float rot;
+/*
+ * Return the bounding box for this text.
+ */
+{
+	int dir;
+	XCharStruct xc;
+	XFontStruct *xfp;
+	struct xtag *tag = (struct xtag *) ctag;
+/*
+ * Do the query.
+ */
+	if (! tag->x_fmap[pixsize])
+		c_panic ("No font for pixsize %d", pixsize);
+	xfp = tag->x_fonts[tag->x_fmap[pixsize]];
+	XTextExtents (xfp, text, strlen (text), &dir, height, desc, &xc);
+/*
+ * Now return our info.
+ */
+	*height += *desc;
+	*width = xc.width;
+}
+
+
+
+
+
+x11_text (ctag, x, y, color, pixsize, rot, text)
+char *ctag, *text;
+int x, y, color, pixsize;
+float rot;
+/*
+ * The hardware text routine.
+ */
+{
+	struct xtag *tag = (struct xtag *) ctag;
+	int f;
+/*
+ * They should always have asked us first.
+ */
+	if (! (f = tag->x_fmap[pixsize]))
+		c_panic ("No font for pixsize %d", pixsize);
+/*
+ * For color displays, fill in the color value.
+ */
+ 	if (! tag->x_mono)
+		XSetForeground (tag->x_display, tag->x_gc, color);
+/*
+ * Do it.  We throw in the descent, since graphics expects us to draw at
+ * the real bottom, not at the baseline.
+ */
+	XSetFont (tag->x_display, tag->x_gc, tag->x_fonts[f]->fid);
+	XDrawString (tag->x_display, tag->x_window, tag->x_gc, x, 
+		tag->x_yres - y + 1 - tag->x_fonts[f]->descent, text,
+		strlen (text));
+}
+
+
+
+
 
 # endif /* DEV_X11 */

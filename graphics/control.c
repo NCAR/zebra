@@ -1,5 +1,5 @@
 /* 5/87 jc */
-/* $Id: control.c,v 1.10 1990-03-29 10:51:01 wyngaard Exp $ */
+
 /*
  * The upper level, control routines for the graphics package.
  */
@@ -12,7 +12,7 @@
 # include "workstation.h"
 # include "pixel.h"
 
-
+static char *rcsid = "$Id: control.c,v 1.11 1990-03-29 15:44:31 corbet Exp $";
 static int Trace = 0;
 
 /*
@@ -598,6 +598,7 @@ char *text;
  */
 {
 	struct overlay *ov = (struct overlay *) cov;
+	struct device *dev = ov->ov_ws->ws_dev;
 	int dx, dy, extra[5], pixheight, ex, ey, ftype = gt_font_type (font);
 	float scale, aspect;
 /*
@@ -616,13 +617,26 @@ char *text;
 		ov->ov_ws->ws_dev->gd_yres);
 	scale = ((float) pixheight) / ((float) gt_f_height (font));
 /*
+ * If they want device text, and we can't do it for whatever reason, switch
+ * them to stroke.
+ */
+	if (ftype == GFT_DEV &&
+		((ov->ov_flags & OVF_PIXMAP) || ! (dev->gd_flags & GDF_TEXT) ||
+		! (*dev->gd_qtext) (ov->ov_ws->ws_tag, pixheight, rot)))
+	{
+		font = (pixheight > 10) ? GTF_STROKE : GTF_MINSTROKE;
+		ftype = GFT_STROKE;
+		scale = ((float) pixheight) / ((float) gt_f_height (font));
+	}
+/*
  * Figure out the start position.
  */
  	dx = W_TO_DC (x, ov->ov_x0, ov->ov_x1, ov->ov_ws->ws_dev->gd_xres);
  	dy = W_TO_DC (y, ov->ov_y0, ov->ov_y1, ov->ov_ws->ws_dev->gd_yres);
 	aspect = ov->ov_ws->ws_dev->gd_aspect;
 	gt_get_start (dx, dy, font, scale, hjust, vjust, rot, aspect, text,
-		extra + GOP_T_X, extra + GOP_T_Y, &ex, &ey);
+		extra + GOP_T_X, extra + GOP_T_Y, &ex, &ey, ov->ov_ws->ws_dev,
+		ov->ov_ws->ws_tag);
 /*
  * If this is a pixmap overlay, we simply write it into the map now.
  */
@@ -639,6 +653,7 @@ char *text;
  * [Check this clip test again -- should I not also check the origin points?]
  */
 	else if (ftype == GFT_PIXEL||(ov->ov_ws->ws_dev->gd_flags & GDF_HCW) ||
+		 ftype == GFT_DEV || 
 		(ex >= ov->ov_cx0 && ex <= ov->ov_cx1 && ey >= ov->ov_cy0 &&
 		 ey <= ov->ov_cy1))
 	{
@@ -1363,6 +1378,18 @@ float *x0, *y0, *x1, *y1;
 		(dev->gd_flags & GDF_PIXEL) == 0)
 		return (GE_DEVICE_UNABLE);
 /*
+ * If they want device text, and we can't do it for whatever reason, switch
+ * them to stroke.
+ */
+	if (ftype == GFT_DEV &&
+		((ov->ov_flags & OVF_PIXMAP) || ! (dev->gd_flags & GDF_TEXT) ||
+		! (*dev->gd_qtext) (ov->ov_ws->ws_tag, pixheight, rot)))
+	{
+		font = (pixheight > 10) ? GTF_STROKE : GTF_MINSTROKE;
+		ftype = GFT_STROKE;
+		scale = ((float) pixheight) / ((float) gt_f_height (font));
+	}
+/*
  * Come up with the scale factor to be applied to the font.
  */
  	pixheight = W_TO_DC (height, 0.0, ov->ov_y1 - ov->ov_y0, dev->gd_yres);
@@ -1374,7 +1401,7 @@ float *x0, *y0, *x1, *y1;
  	dy = W_TO_DC (y, ov->ov_y0, ov->ov_y1, dev->gd_yres);
 	aspect = ov->ov_ws->ws_dev->gd_aspect;
 	gt_get_start (dx, dy, font, scale, hjust, vjust, rot, aspect, text, 
-		&sx, &sy, &ex, &ey);
+		&sx, &sy, &ex, &ey, dev, ov->ov_ws->ws_tag);
 /*
  * Finally, convert our return values back to overlay coords.  Should a clip
  * window be applied?
