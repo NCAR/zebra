@@ -1,4 +1,4 @@
-XCOMM $Id: Imakefile,v 1.13 1994-01-26 11:09:19 granger Exp $
+XCOMM $Id: Imakefile,v 1.14 1994-02-03 02:39:42 granger Exp $
 XCOMM
 XCOMM This is the top-level Imakefile for the Zeb distribution.
 XCOMM It is modeled after the top-level Imakefile of the MIT X11R5
@@ -63,9 +63,8 @@ usage::
 	@echo "naming the target on the make command line.  However,"
 	@echo "with some targets you risk compiling with outdated files."
 	@echo "Other targets available:
-	@echo "	make distclean      - clean all subdirectories, even ./imake,"
-	@echo "	                      as well as remove ./bin, ./lib, and"
-	@echo "			      ./include"
+	@echo "	make distclean      - clean all subdirectories, even ./imake"
+	@echo "			      and ./include"
 	@echo "	make tarfile        - make a tar file of the distribution,"
 	@echo "	                      see Imakefile for info before using"
 	@echo "Press <Return> here to continue with 'make Everything',"
@@ -78,18 +77,6 @@ all:: Everything
 			    /* be installed before executables built	   */
 DependSubdirs($(SUBDIRS))
 /*InstallLibSubdirs($(SUBDIRS))*/ 		/* Not used at the moment  */
-
-#ifdef notdef		/* new distfiles strategy should make this obsolete*/
-/*
- * Ordinarily imake/ doesn't get Makefiles:: targets, so explicitly make 
- * sure that it does here.  It needs an imake-generated Makefile for 
- * distfiles:: to work.
- */
-Makefiles::
-	$(MAKE) MAKE=$(MAKE) $(MFLAGS) subdirMakefiles \
-		UPPREFIX=../ NEWTOP=../ \
-		MAKEFILE_SUBDIR=imake NEW_CURRENT_DIR=$(CURRENT_DIR)/imake
-#endif
 
 DistfilesTarget($(DISTFILES))
 DistfilesSubdirs($(DISTSUBDIRS))
@@ -142,11 +129,11 @@ Everything::
 
 /*
  * Some probably wouldn't want a simple 'make clean' to remove
- * the ./bin, ./lib, and ./include directories, and since this is the natural
+ * the ./include directory, and since this is the natural
  * distribution state, this is called the 'distclean' target:
  */
 distclean::
-	$(RM) -rf $(TOP)/include $(TOP)/bin $(TOP)/lib
+	$(RM) -rf $(TOP)/include
 
 /*
  * This is the top-level rule for generating tar files of the distributed
