@@ -1,7 +1,7 @@
 /*
  * Widgets for changing plot limits.
  */
-static char *rcsid = "$Id: LimitWidgets.c,v 1.4 1991-05-07 20:59:11 kris Exp $";
+static char *rcsid = "$Id: LimitWidgets.c,v 1.5 1991-06-14 22:35:28 kris Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -12,12 +12,26 @@ static char *rcsid = "$Id: LimitWidgets.c,v 1.4 1991-05-07 20:59:11 kris Exp $";
 # include <X11/Xaw/Cardinals.h>
 # include <X11/Xaw/AsciiText.h>
 # include <X11/Xaw/Scrollbar.h>
+# include <X11/Xaw/Box.h>
+# include <X11/Xaw/Toggle.h>
 
 # include "../include/defs.h"
 # include "../include/message.h"
 # include "../include/pd.h"
 # include "GraphProc.h"
 
+
+/*
+ * Station widget static data.
+ */
+# define MAXSTA 50
+
+static int Sw_Nsta;			/* Number of stations		*/
+static Widget Sw_Swidgets[MAXSTA];	/* Per-station toggles		*/
+static bool Sw_Sset[MAXSTA];		/* Is this station selected?	*/
+static char Sw_RetSta[10*MAXSTA];	/* What we return		*/
+static char SavePlat[200];
+static int Sw_NRetSta = 0;		/* Number of selected stations	*/
 
 /*
  * The types of widgets we know.
@@ -28,8 +42,9 @@ typedef enum {
 	SingleStringWidget = 2,
 	TimeSeriesWidget = 3,
 	SingleIntWidget = 4,
+	StationWidget = 5,
 } WidgetType;
-# define N_WIDGET_TYPES 5	/* Keep this updated!	*/
+# define N_WIDGET_TYPES 6	/* Keep this updated!	*/
 
 typedef char ParamStr[32];
 
@@ -85,6 +100,9 @@ typedef struct _WidgetDesc_
 	static Widget lw_SICreate (char *, Widget, XtAppContext);
 	static void lw_SISetup (WidgetQueue *, struct ui_command *);
 	static void lw_SIStore (Widget, WidgetQueue *, XtPointer);
+	static Widget lw_SWCreate (char *, Widget, XtAppContext);
+	static void lw_SWSetup (WidgetQueue *, struct ui_command *);
+	static void lw_SWStore (Widget, WidgetQueue *, XtPointer);
 	static Widget lw_OvCreate (char *, Widget, XtAppContext);
 # endif
 
@@ -102,6 +120,8 @@ static WidgetDesc WTable[N_WIDGET_TYPES] =
 	  lw_TSSetup,		0},
 	{ "SingleInt",		SingleIntWidget,	lw_SICreate,
 	  lw_SISetup,		0},
+	{ "StationWidget",	StationWidget,		lw_SWCreate,
+	  lw_SWSetup,		0},
 };
 
 
@@ -139,6 +159,7 @@ static char OvStatus[1024];
 	static void lw_Setup (WidgetQueue *, int, struct ui_command *);
 	static WidgetQueue *lw_GetWidget (int);
 	static void lw_InitOverlay ();
+	static void lw_SwCb ();
 # endif
 
 
@@ -173,6 +194,13 @@ struct ui_command *cmds;
  * Get a widget.
  */
 	w = lw_GetWidget (type);
+
+	if (type == StationWidget)
+	{
+		pda_Search (Pd, UPTR(cmds[0]), "num-stations", NULL, 
+			(char *) &Sw_Nsta, SYMT_INT);
+		msg_ELog (EF_DEBUG, "Setting Sw_Nsta to %d", Sw_Nsta);
+	}
 /*
  * Put it on the screen.  We do this first because we have to guarantee that
  * it exists before it can be configured.
@@ -1300,4 +1328,159 @@ time *t;
 
 
 
+
+/*
+ * Mesonet station selector widget.
+ */
+
+static Widget
+lw_SWCreate (tag, parent, appc)
+char *		tag;
+Widget		parent;
+XtAppContext	appc;
+/*
+ * Create the station widget.
+ */
+{
+	Widget form, box, w;
+	Arg args[10];
+	int sta, n;
+	char name[30];
+	WidgetQueue *wq = (WidgetQueue *) tag;
+/*
+ * Create the form widget to hold everything.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNdefaultDistance, 5);	n++;
+	XtSetArg (args[n], XtNborderWidth, 0);		n++;
+	form = XtCreateWidget ("stationform", formWidgetClass, parent,
+		args, n);
+/*
+ * Make a box to hold the stations.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
+	XtSetArg (args[n], XtNfromVert, NULL);		n++;
+	XtSetArg (args[n], XtNwidth, 400);		n++;
+	box = XtCreateManagedWidget ("stationbox", boxWidgetClass, form,
+		args, n);
+/*
+ * Now add each station to the box.
+ */
+	for (sta = 0; sta < Sw_Nsta; sta++)
+	{
+		sprintf (name, "%d", sta + 1);
+		msg_ELog (EF_DEBUG, "Making station %s", name);
+		XtSetArg (args[0], XtNlabel, name);
+		Sw_Swidgets[sta] = XtCreateManagedWidget (name,
+			toggleWidgetClass, box, args, 1);
+		XtAddCallback (Sw_Swidgets[sta], XtNcallback, lw_SwCb, sta);
+		Sw_Sset[sta] = FALSE;
+	}
+/*
+ * Store and Cancel buttons.
+ */
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
+	XtSetArg (args[n], XtNfromVert, box);		n++;
+	XtSetArg (args[n], XtNlabel, "Store");		n++;
+	w = XtCreateManagedWidget ("store", commandWidgetClass, form,
+		args, n);
+	XtAddCallback (w, XtNcallback, lw_SWStore, wq);
+
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, w);		n++;
+	XtSetArg (args[n], XtNfromVert, box);		n++;
+	XtSetArg (args[n], XtNlabel, "Cancel");		n++;
+	w = XtCreateManagedWidget ("cancel", commandWidgetClass, form,
+		args, n);
+	XtAddCallback (w, XtNcallback, lw_CBPopdown, wq);
+
+	return (form);
+}
+
+
+static void
+lw_SWSetup (wq, cmds)
+WidgetQueue	*wq;
+struct ui_command	*cmds;
+/*
+ * Set up the station widget.
+ */
+{
+	char	platforms[200], *pnames[30];
+	int	i, sta, nump;
+	Arg	args[2];
+/*
+ * Save the other platforms.
+ */
+	pd_Retrieve (Pd, wq->wq_comp, "platform", platforms, SYMT_STRING);
+	nump = CommaParse (platforms, pnames);
+	SavePlat[0] = '\0';
+	for (i = 0; i < nump; i++)
+	{
+		msg_ELog (EF_DEBUG, "compare %s", pnames[i]);
+		if (strncmp (pnames[i], "mesonet", 7) != 0)
+		{
+			strcat (SavePlat, pnames[i]);
+			strcat (SavePlat, ",");
+		}
+		else
+		{
+			pnames[i] += 8;
+			msg_ELog (EF_DEBUG, "number %s", pnames[i]);
+			sta = atoi (pnames[i]);
+			msg_ELog (EF_DEBUG, "Station %d is already set.",
+				--sta);
+			XtSetArg (args[0], XtNstate, True);
+			XtSetValues (Sw_Swidgets[sta], args, 1);
+			Sw_Sset[sta] = TRUE;
+		}
+	}
+	msg_ELog (EF_DEBUG, "save platforms %s", SavePlat);
+	
+}
+
+
+static void
+lw_SWStore (w, wq, junk)
+Widget	w;
+WidgetQueue	*wq;
+XtPointer	junk;
+/*
+ * Store the return stations string (Sw_RetSta).
+ */
+{
+	struct SFWData *wd = (struct SFWData *) wq->wq_wdata;
+
+	parameter (wq->wq_comp, "platform", strcat (SavePlat, Sw_RetSta));
+	lw_Popdown (wq);	
+}
+
+
+static void
+lw_SwCb (w, sta, new)
+Widget w;
+int sta;
+int new;
+/*
+ * The station widget callback.  Creates the return stations string.
+ */
+{
+	int	i;
+	char	name[30];
+	
+	Sw_Sset[sta] = new;
+	Sw_RetSta[0] = '\0';
+	Sw_NRetSta = 0;
+	for (i = 0; i < Sw_Nsta; i++)
+		if (Sw_Sset[i])
+		{
+			sprintf (name, "mesonet/%d", i + 1);
+			strcat (Sw_RetSta, name);
+			strcat (Sw_RetSta, ",");
+			Sw_NRetSta++;
+		}
+	msg_ELog (EF_DEBUG, "In SwCb Sw_RetSta: %s", Sw_RetSta);
+}
 
