@@ -25,7 +25,7 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_IRGrid.c,v 3.1 1992-05-27 17:24:03 corbet Exp $")
+MAKE_RCSID ("$Id: dc_IRGrid.c,v 3.2 1993-05-25 07:08:31 granger Exp $")
 
 # define SUPERCLASS DCC_MetData
 
@@ -228,6 +228,158 @@ float *data;
 }
 
 
+
+void
+dc_IRAddScalarDC (irgrid_dc, scalar_dc, sample, nsample, nfield, fields)
+DataChunk *irgrid_dc;
+DataChunk *scalar_dc;
+int sample;
+int nsample;
+int nfield;
+FieldId *fields;
+/*
+ * adds a Scalar chunk of data to an irgrid chunk, taking nsample's of data
+ * beginning at sample, using nfield fields whose ids are listed in
+ * 'fields'.  NULL 'fields' or zero 'nfield' implies use all those that
+ * exist in the IRGrid DC.  Zero 'nsample' implies take them all.
+ *
+ * When a new sample is being created---either inserted, appended, or
+ * prepended---fill it in with bad values first.  Otherwise, just change
+ * the data value of the Scalar chunk's platform in the sample.  For now,
+ * take advantage of the fact that samples can be non-chronological.
+ *
+ * This is a memory- and processing- intensive function, so use it 
+ * sparingly and don't have any expectations of efficiency or speed.
+ * This could be made alot faster by putting class-private info in 
+ * 'private' header files, including this info in a dc_Utilities.c file,
+ * and writing this routine to take advantage of the internals of the
+ * transparent, metdata, scalar, and irgrid classes.  But for now...
+ */
+{
+	FieldId *fids;
+	ZebTime sc_zt;
+	int i, f, d, s;
+	int ir_nsample;
+	PlatformId *platforms;
+	int nplat;
+	float badval;
+	float *blank_grid;
+	float *ir_data;
+	ZebTime *ir_times;
+	float sc_data;
+	int sc_plat_idx;	/* index of scalar plat into irgrid list */
+
+	if (! dc_ReqSubClassOf (irgrid_dc->dc_Class, 
+				DCC_IRGrid, "IRAddScalarDC") ||
+	    ! dc_ReqSubClassOf (scalar_dc->dc_Class,
+				DCC_Scalar, "IRAddScalarDC"))
+		return;
+/*
+ * Set up the list of samples and fields to use.
+ */
+	if (nsample == 0)	/* default to the whole thing */
+	{
+		sample = 0;
+		nsample = dc_GetNSample (scalar_dc);
+	}
+	fids = fields;
+	if (fids == NULL || nfield == 0)
+	{
+		fids = dc_GetFields (scalar_dc, &nfield);
+	}
+/*
+ * Get some information about the irgrid we're storing to
+ */
+	ir_nsample = dc_GetNSample (irgrid_dc);
+	nplat = dc_IRGetNPlatform (irgrid_dc);
+	platforms = (PlatformId *)malloc(nplat * sizeof(PlatformId));
+	dc_IRGetPlatforms (irgrid_dc, platforms, NULL);
+	badval = dc_GetBadval (irgrid_dc);
+/*
+ * Find the scalar platform in the list of irgrid platforms
+ */
+	for (i = 0; i < nplat; ++i)
+	{
+		if (platforms[i] == scalar_dc->dc_Platform)
+			break;
+	}
+	if (i < nplat)
+		sc_plat_idx = i;
+	else
+	{
+		/* scalar platform not in IRGrid, abandon efforts */
+		msg_ELog (EF_PROBLEM, 
+			  "%s: scalar platform '%s' not in irgrid for '%s'",
+			  "IRAddScalarDC", 
+			  ds_PlatformName (scalar_dc->dc_Platform),
+			  ds_PlatformName (irgrid_dc->dc_Platform));
+		free (platforms);
+		return;
+	}
+/*
+ * Set up a 'blank' irgrid sample full of bad values.
+ */
+	blank_grid = (float *)malloc(nplat * sizeof(float));
+	for (d = 0; d < nplat; ++d)
+		blank_grid[d] = badval;
+/*
+ * Construct a list of times from the irgrid chunk so that we don't
+ * have to query the chunk in each loop.
+ */
+	ir_times = (ZebTime *)malloc (sizeof(ZebTime)*(nsample + ir_nsample));
+	for (i = 0; i < ir_nsample; ++i)
+		dc_GetTime (irgrid_dc, i, ir_times+i);
+/*
+ * For each field in the field list, and then for each sample, extract
+ * the data.  Try to retrieve a sample from the irgrid for the same time
+ * and the same field, and then merge the data.
+ */
+	for (f = 0; f < nfield; ++f)
+	{
+		for (i = sample; i < sample + nsample; ++i)
+		{
+			dc_GetTime (scalar_dc, i, &sc_zt);
+			sc_data = dc_GetScalar (scalar_dc, i, fids[f]);
+			for (s = 0; s < ir_nsample; ++s)
+			{
+				if (TC_Eq(ir_times[s], sc_zt))
+					break;
+			}
+			if (s < ir_nsample)	/* found a sample */
+			{
+				ir_data = dc_IRGetGrid (irgrid_dc, s, fids[f]);
+			}
+			else			/* no sample, use bad values */
+			{
+				ir_data = blank_grid;
+			}
+		/*
+		 * Now we have a grid to modify according to what platform
+		 * we're trying to add
+		 */
+			ir_data[sc_plat_idx] = sc_data;
+		/*
+		 * If this was a new grid, we need to add it back to the ir_dc
+		 */
+			if (ir_data == blank_grid)
+			{
+				ir_times[ir_nsample] = sc_zt;
+				dc_IRAddGrid (irgrid_dc, &sc_zt,
+					      ir_nsample++, fids[f],
+					      ir_data);
+				blank_grid[sc_plat_idx] = badval;
+			}
+		/*
+		 * Otherwise we're done and we can move on to the next
+		 * sample from the scalar chunk.
+		 */
+		}
+	}
+
+	free (platforms);					
+	free (blank_grid);
+	free (ir_times);
+}
 
 
 
