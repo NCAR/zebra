@@ -11,7 +11,7 @@
 #	define ALLOC_FLAG	0x25544024
 #	define error(s) (((s) & 0x1) == 0)
 # endif
-# include <malloc.h>
+# include <stdlib.h>
 
 
 char *
