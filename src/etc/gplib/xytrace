@@ -1,7 +1,7 @@
 !
 ! XYGraph[simple] support stuff.
 !
-! $Id: xytrace,v 1.16 2001-06-19 22:17:17 granger Exp $
+! $Id: xytrace,v 1.17 2001-07-10 17:36:16 granger Exp $
 
 require xyaxes
 require annotation
@@ -179,23 +179,12 @@ endprocedure
 define widget xylinewidth intmenu 'xy line width'
 	title 'Line Widths'
 	line
-	entry 'Thin' 'parameter #icon_component line-width 0' 
-	entry 'Medium' 'parameter #icon_component line-width 2'
-	entry 'Thick' 'parameter #icon_component line-width 3'
-	entry 'Extra Thick' 'parameter #icon_component line-width 6'
+	entry 'Thin' 'formtext #ui$form #ui$formentry "Thin"'
+	entry 'Medium' 'formtext #ui$form #ui$formentry "Medium"'
+	entry 'Thick' 'formtext #ui$form #ui$formentry "Thick"'
+	entry 'Thickest' 'formtext #ui$form #ui$formentry "Thickest"'
 endmenu
 
-
-define widget unused-xylinewidth intmenu 'xy line width'
-	title 'Line Width'
-	line
-	entry '0' 'formtext #ui$form #ui$formentry 0'
-	entry '1' 'formtext #ui$form #ui$formentry 1'
-	entry '2' 'formtext #ui$form #ui$formentry 2'
-	entry '3' 'formtext #ui$form #ui$formentry 3'
-	entry '4' 'formtext #ui$form #ui$formentry 4'
-	entry '5' 'formtext #ui$form #ui$formentry 5'
-endmenu
 
 !
 ! Form widget for other plot details
@@ -224,7 +213,7 @@ define widget xytrace-details form ' '
 ! Line width
 !
 	label wlabel 'Line width:' width #one_w
-	pulldown linewidth 'Set Line Width' width #one_w menu xylinewidth
+	pulldown linewidth 'Unchanged' width #one_w menu xylinewidth
 	newline
 !
 ! Annotation times
@@ -268,13 +257,22 @@ procedure xyt-det-popup
 		formtext #f repstyle #rep
 	endif
 !
-! Line width
+! Line width; try to match the current line width with one of our
+! menu options, else leave the "unchanged" value in the pulldown menu label.
 !
 	local linewidth PDParam(icon_component,'line-width')
-	if (linewidth = PUNDEF)
+	if (linewidth = PUNDEF or linewidth = "0")
 		local linewidth "Thin"
+	elseif (linewidth = "2")
+		local linewidth "Medium"
+	elseif (linewidth = "3")
+		local linewidth "Thick"
+	elseif (linewidth = "6")
+		local linewidth "Thickest"
+	else
+		local linewidth 'Unchanged'
 	endif
-!	formtext #f linewidth #linewidth
+	formtext #f linewidth #linewidth
 !
 ! Times in annotation?
 !
@@ -308,7 +306,20 @@ procedure xyt-det-apply
 ! line width
 !
 	local linewidth getftext(f,'linewidth')
-	parameter #icon_component line-width #linewidth
+	if (linewidth = "Thin")
+		local linewidth "0"
+	elseif (linewidth = "Medium")
+		local linewidth "2"
+	elseif (linewidth = "Thick")
+		local linewidth "3"
+	elseif (linewidth = "Thickest")
+		local linewidth "6"
+	else
+		local linewidth 'Unchanged'
+	endif
+	if (linewidth <> 'Unchanged')
+		parameter #icon_component line-width #linewidth
+	endif
 !
 ! Times in annotation?
 !
