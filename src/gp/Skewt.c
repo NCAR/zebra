@@ -4,6 +4,7 @@
 # include <math.h>
 # include <X11/Intrinsic.h>
 # include <ui.h>
+# include <ui_error.h>
 # include <defs.h>
 # include <pd.h>
 # include <message.h>
@@ -547,9 +548,15 @@ float	*pres, *temp, *dp;
 /*
  * Find the first good point and use it as the surface point
  */
+ERRORCATCH
 	sk_Surface (temp, pres, dp, ndata, &t_sfc, &p_sfc, &dp_sfc);
 	sk_700mb (temp, pres, dp, ndata, p_sfc, dp_sfc, &t_700, &dp_700, 
 		&ndx_700);
+ON_ERROR
+	msg_ELog (EF_INFO, "About to return from sk_Lift");
+	ui_epop ();
+	return;
+ENDCATCH
 
 	t_sfc += T_K;	t_700 += T_K;
 	dp_sfc += T_K;	dp_700 += T_K;
@@ -1017,6 +1024,11 @@ int	npts;
 {
 	int	i = 0, mr_count = 0, theta_count = 0;
 	float	mr_sum = 0.0, mr, theta_sum = 0.0, theta, p_top;
+/*
+ * Sanity check
+ */
+	if (npts <= 0)
+		ui_error ("%d points in sounding!", npts);
 /*
  * Find the lowest point with good values in all three fields; this
  * will be our surface point.
