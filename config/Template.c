@@ -109,15 +109,16 @@
 # endif
 
 # ifndef XToolkitLibs		/* What else for Xt appls	*/
-# if (UseXWindows || UseOpenWin)
-# ifdef OldOpenWin
-#   define XToolkitLibs
-# else
-#   define XToolkitLibs -lXaw -lXmu -lXt -lXext 
-# else
-# define XToolkitLibs          /* Nothing */
-# endif
-# endif
+#  if (UseXWindows || UseOpenWin)
+#    ifdef OldOpenWin
+#       define XToolkitLibs
+#    else
+#       define XToolkitLibs -lXaw -lXmu -lXt -lXext 
+#    endif /* OldOpenWin */
+#  else
+#    define XToolkitLibs          /* Nothing */
+#  endif
+# endif /* ndef XToolkitLibs */
 
 # ifndef FortranLibs		/* Fortran libs when linking in C	*/
 # define FortranLibs -lF77
