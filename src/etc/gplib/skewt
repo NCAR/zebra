@@ -24,16 +24,42 @@ define widget skewt-left intmenu 'Skewt left'
 	entry 'Remove' 'i_remove_component'
 endmenu
 
+!
+! Menu for top annotation.
+!
+define widget skewt-topannot intmenu 'stuff'
+	title 'Skew-t platforms'
+	line
+	entry 'Remove this platform' 'skewt-remove'
+endmenu
+
+procedure skewt-remove 
+	local plats PDParam(icon_component,'platform')
+!
+! If we are the only platform we really want to substitute "null".  Kludge.
+!
+	if (plats = icon_platform)
+	   	parameter #icon_component platform null
+		return
+	endif
+!
+! Nope, there are others.  Just clean this one out.
+!
+	local pos ListPosition(icon_platform, plats)
+	local plats quote(RmElement(plats,pos))
+	parameter #icon_component platform #plats
+endprocedure
+
 
 
 !
 ! Toggle between ft and km.
 !
 define widget feet-km intmenu 'feet/km'
-	title 'Feet/Kilometers'
+	title 'Altitude units'
 	line
-	entry 'Ft' 'do-feet-proc true'
-	entry 'Km' 'do-feet-proc false'
+	entry 'Feet' 'do-feet-proc true'
+	entry 'Kilometers' 'do-feet-proc false'
 endmenu
 
 procedure do-feet-proc value string

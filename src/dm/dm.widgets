@@ -1,7 +1,7 @@
 !
 ! Display manager widgets.
 !
-! $Id: dm.widgets,v 1.18 1994-09-15 21:49:00 corbet Exp $
+! $Id: dm.widgets,v 1.19 1994-10-12 22:57:43 corbet Exp $
 !
 
 define widget SaveConfig form 'Configuration saver'
@@ -456,7 +456,17 @@ procedure sk-add-data platform string field string target string
 ! data component) and tweak it.
 !
 	local comp NthComp(target, 1)
-	parameter #target #comp platform #platform
+	if (nvalue (target, comp, 'platform') >= 3)
+		beep
+	else
+		local explat PDParam(target,comp,'platform')
+		if (explat = 'null')
+		   	local explat platform
+		else
+			local explat concat3(explat, ',', platform)
+		endif
+		parameter #target #comp platform #explat
+	endif
 endprocedure
 
 

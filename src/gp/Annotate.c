@@ -27,7 +27,7 @@
 # include "DrawText.h"
 # include "PixelCoord.h"
 # include "GC.h"
-MAKE_RCSID ("$Id: Annotate.c,v 2.23 1994-09-15 21:50:01 corbet Exp $")
+MAKE_RCSID ("$Id: Annotate.c,v 2.24 1994-10-12 22:58:04 corbet Exp $")
 
 /*
  * Graphics context (don't use the global one in GC.h because we don't
@@ -125,13 +125,30 @@ float scale;
 
 void
 An_TopAnnot (string, color)
-char	*string;
-Pixel	color;
+char *string;
+Pixel color;
 /*
- * Add the string to the top annotation using the given color
+ * Older interface.
  */
 {
-	int	i, brk, slen, swidth, dummy;
+	An_DoTopAnnot (string, color, 0, 0);
+}
+
+
+
+
+void
+An_DoTopAnnot (string, color, comp, plat)
+char	*string;
+Pixel	color;
+char *comp, *plat;
+/*
+ * Add the string to the top annotation using the given color.  If "comp"
+ * and "plat" are provided, the annotation is made active using these
+ * parameters.
+ */
+{
+	int	i, brk, slen, swidth, dummy, sx, sy, ex, ey;
 	char	*cstring;
 
 	slen = strlen (string);
@@ -164,14 +181,14 @@ Pixel	color;
 		 * TopAnnot the string up to the newline
 		 */
 			cstring[i] = '\0';
-			An_TopAnnot (cstring, color);
+			An_DoTopAnnot (cstring, color, comp, plat);
 		/*
 		 * Move the annotation location to start a new line
 		 * and call An_TopAnnot for the remainder of the string
 		 */
 			Annot_ypos += Annot_height;
 			Annot_xpos = Annot_lmargin;
-			An_TopAnnot (cstring + i + 1, color);
+			An_DoTopAnnot (cstring + i + 1, color, comp, plat);
 		/*
 		 * We're done
 		 */
@@ -183,9 +200,10 @@ Pixel	color;
  * Make sure the string will fit on the current line.  Break at
  * a space if necessary
  */
-	DT_TextBox (Graphics, GWFrame (Graphics), 0, 0, cstring, 0.0, 
-		Annot_Scale, JustifyLeft, JustifyTop, &dummy, &dummy, 
-		&swidth, &dummy);
+	DT_TextBox (Graphics, GWFrame (Graphics), Annot_xpos, Annot_ypos,
+			cstring, 0.0, Annot_Scale, JustifyLeft, JustifyTop,
+			&sx, &sy, &ex, &ey);
+	swidth = ex - Annot_xpos;
 
 	brk = slen;
 
@@ -198,9 +216,10 @@ Pixel	color;
 	/*
 	 * Get the new string width
 	 */
-		DT_TextBox (Graphics, GWFrame (Graphics), 0, 0, cstring, 0.0, 
-			Annot_Scale, JustifyLeft, JustifyTop, &dummy, 
-			&dummy, &swidth, &dummy);
+		DT_TextBox (Graphics, GWFrame (Graphics), Annot_xpos,
+				Annot_ypos, cstring, 0.0, Annot_Scale,
+				JustifyLeft, JustifyTop, &sx, &sy, &ex, &ey);
+		swidth = ex - Annot_xpos;
 	}
 /*
  * If we're at the left margin and the break position is at zero, 
@@ -228,6 +247,12 @@ Pixel	color;
 		JustifyTop);
 	Annot_xpos += swidth;
 /*
+ * If they want this thing activated, go for it.
+ */
+	if (comp)
+		I_ActivateArea (sx - 2, ey + 2, ex - sx + 4, sy - ey + 3,
+				"topannot", comp, plat, 0);
+/*
  * If we have to break, move down to the next line and call TopAnnot with
  * the remainder of the string
  */
@@ -235,7 +260,7 @@ Pixel	color;
 	{
 		Annot_ypos += Annot_height;
 		Annot_xpos = Annot_lmargin;
-		An_TopAnnot (string + brk, color);
+		An_DoTopAnnot (string + brk, color, comp, plat);
 	}
 /*
  * Free up the string copy

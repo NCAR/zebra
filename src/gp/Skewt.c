@@ -1,7 +1,7 @@
 /*
  * Skew-t plotting module
  */
-static char *rcsid = "$Id: Skewt.c,v 2.14 1994-10-11 16:26:31 corbet Exp $";
+static char *rcsid = "$Id: Skewt.c,v 2.15 1994-10-12 22:58:09 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -724,17 +724,13 @@ bool    update;
 {
 	float	*xt, *xd, *yt, *yd, *pres, *temp, *dp, badvalue;
 	float	y;
-	int	i, npts, nprev, good_d = 0, good_t = 0;
+	int	i, npts, nprev, good_d = 0, good_t = 0, antime = 0;
 	char	string[40];
 	FieldId	flist[3];
 	ZebTime	ptime;
 	PlatformId	pid;
 	DataChunk	*dc;
-/*
- * Add this platform to the annotation
- */
-        if (! update) 
-		An_TopAnnot (pname, Tacmatch ? color.pixel : Tadefclr.pixel);
+	Pixel tacolor = Tacmatch ? color.pixel : Tadefclr.pixel;
 /*
  * Get the platform id and obtain a good data time
  */
@@ -775,6 +771,28 @@ bool    update;
 	{
 		msg_ELog (EF_PROBLEM, "Unable to get data for '%s'.", pname);
 		return;
+	}
+/*
+ * Add this platform to the annotation
+ */
+        if (! update)
+	{
+		int active = FALSE;
+		pda_Search (Pd, c, "top-annot-active", "skewt",
+				(char *) &active, SYMT_BOOL);
+		An_DoTopAnnot (pname, tacolor, active ? c : 0, pname);
+	}
+/*
+ * See if they want to hear about the time.
+ */
+	if (! pda_Search (Pd, c, "annot-time", "skewt", (char *) &antime,
+			SYMT_BOOL) || antime)
+	{
+		char atime[40];
+		TC_EncodeTime (&ptime, TC_Full, atime + 2);
+		atime[0] = ' '; atime[1] = '(';
+		strcat (atime, ")");
+		An_TopAnnot (atime, tacolor);
 	}
 /*
  * Find the number of points in the observation, and stash it away

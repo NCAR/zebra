@@ -11,7 +11,9 @@ skewt
 	icon-left-menu:		skewt-left
 	icon-middle-menu:	DataAvailable
 	icon-right-menu:	feet-km
+	topannot-left-menu:	skewt-topannot
 	platform:	null
 	representation:	skewt
+	top-annot-active:	true
 	trigger:	platform
 	require:	skewt

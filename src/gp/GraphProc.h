@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.41 1994-10-11 16:26:10 corbet Exp $ */
+/* $Id: GraphProc.h,v 2.42 1994-10-12 22:58:06 corbet Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -294,6 +294,7 @@ extern void GetWindData FP ((FieldId *, float *, float *, double));
 	extern int ct_GetColorByName FP ((char *, XColor *));
 	extern int ct_GetColorByRGB FP ((XColor *));
 	extern void An_TopAnnot FP ((char *, Pixel));
+	extern void An_DoTopAnnot FP ((char *, Pixel, char *, char *));
 	extern void An_GetTopParams FP ((XColor *, int *));
 	extern Widget LeftRightButtons FP ((Widget, void *,XtTranslations));
 	extern void draw_vector FP ((Display *, Drawable, GC, int, int,
