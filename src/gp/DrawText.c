@@ -32,6 +32,11 @@ static short		Fndx[MAXFONTHEIGHT];
 static GC		Local_gc = (GC) 0;
 
 /*
+ * Label blanking flag.
+ */
+static int BlankLabel = TRUE;
+
+/*
  * Forward declarations
  */
 # ifdef __STDC__
@@ -172,6 +177,12 @@ int	*width, *hoffset, *voffset;
 }
 
 
+dt_SetBlankLabel(flag)
+int flag;
+{
+	BlankLabel = flag;
+}
+
 
 
 void
@@ -242,29 +253,33 @@ float	rot, scale;
 	if (! Local_gc)
 		Local_gc = XCreateGC (XtDisplay (w), d, 0, NULL);
 /*
- * Make a black box where the text will be written
+ * Make a black box where the text will be written if the BlankLabel
+ * flag has been set to true.
  */
-	box[0].x = (int)(xpos + 0.5);
-	box[0].y = (int)(ypos + 0.5);
+	if(BlankLabel)
+	{
+		box[0].x = (int)(xpos + 0.5);
+		box[0].y = (int)(ypos + 0.5);
 
-	box[1].x = (int)(xpos + 0.5 + pixscale * textwidth * cos_rot);
-	box[1].y = (int)(ypos + 0.5 - pixscale * textwidth * sin_rot);
+		box[1].x = (int)(xpos + 0.5 + pixscale * textwidth * cos_rot);
+		box[1].y = (int)(ypos + 0.5 - pixscale * textwidth * sin_rot);
 
-	box[2].x = (int)(xpos + 0.5 + 
+		box[2].x = (int)(xpos + 0.5 + 
 		pixscale * (textwidth * cos_rot - textheight * sin_rot));
-	box[2].y = (int)(ypos + 0.5 - 
+		box[2].y = (int)(ypos + 0.5 - 
 		pixscale * (textwidth * sin_rot + textheight * cos_rot));
 
-	box[3].x = (int)(xpos + 0.5 - pixscale * textheight * sin_rot);
-	box[3].y = (int)(ypos + 0.5 - pixscale * textheight * cos_rot);
+		box[3].x = (int)(xpos + 0.5 - pixscale * textheight * sin_rot);
+		box[3].y = (int)(ypos + 0.5 - pixscale * textheight * cos_rot);
 
 
-	XCopyGC (XtDisplay (w), gc, ALL_BITS, Local_gc);
-	XSetForeground (XtDisplay (w), Local_gc, 
-		BlackPixelOfScreen (XtScreen (w)));
+		XCopyGC (XtDisplay (w), gc, ALL_BITS, Local_gc);
+		XSetForeground (XtDisplay (w), Local_gc, 
+			BlackPixelOfScreen (XtScreen (w)));
 
-	XFillPolygon (XtDisplay (w), d, Local_gc, box, 4, Convex, 
-		CoordModeOrigin);
+		XFillPolygon (XtDisplay (w), d, Local_gc, box, 4, Convex, 
+			CoordModeOrigin);
+	}
 /*
  * Now step through each character
  */
