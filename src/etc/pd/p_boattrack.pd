@@ -1,19 +1,19 @@
 !
-! The "gnarly-track" component, with arrows, color-coding, and the
-! ginsu knife too.
+! The simple boat track component
+! $Id: p_boattrack.pd,v 1.1 1994-10-25 20:08:01 corbet Exp $
 !
 global
-	pd-name:	p_track
-p_track
+	pd-name:	p_boattrack
+p_boattrack
 	representation:	track
 	platform:	SOMETHING
-	time-period:	60m
+	time-period:	180m
 	trigger:	platform
+	mono:		true
 	color:		brown
 	line-width:	3
-	field:		alt
 	color-table:	Contour
-	arrow:		true
+	arrow:		false
 	arrow-interval:	3m
 	x-field:	u_wind
 	y-field:	v_wind
@@ -21,14 +21,14 @@ p_track
 	arrow-color:	brown
 	sa-scale:	0.025
 	show-position:	true
-	position-icon:	littleplane
+	position-icon:	microboat
 	scale-mode:	auto
 	icon-left-menu:		standard-cap-left-menu
 	icon-middle-menu:	FieldMenu
 	field-menu-extras:	mono|Monochrome track (no field)
 	field-select-command:	track-field-select
 	icon-right-menu:	track-right
-	icon:		littleplane
+	icon:		microboat
 	require:	simple-color, track
 	limit-proc:	gnarly-track-adjust
 	annot-time:	false
@@ -36,5 +36,5 @@ p_track
 	annot-time-color:	red
 	annot-time-scale:	10
 	active-icon:	true
-	posicon-middle-menu:	FieldMenu
+	posicon-left-menu:	FieldMenu
 	posicon-right-menu:	track-right

@@ -9,7 +9,7 @@ p_station
 	representation:	station
 	u-field:	u_wind
 	v-field:	v_wind
-	quad4:		station
+!	quad4:		station
 	icon-left-menu:	standard-cap-left-menu
 	icon-middle-menu:	FieldMenu
 	posicon-middle-menu:	FieldMenu
@@ -20,7 +20,7 @@ p_station
 	annot-left-menu:	FieldMenu
 	annot-middle-menu:	FieldMenu
 	arrow-scale:		0.01
-	require:		station, simple-color
+	require:		station,simple-color
 	limit-proc:		adj_arrow_scale
 	active-icon:		true
 	do-shape:		true

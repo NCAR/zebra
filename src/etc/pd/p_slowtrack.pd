@@ -2,12 +2,16 @@
 ! The "gnarly-track" component, with arrows, color-coding, and the
 ! ginsu knife too.
 !
+! Now it's not just for aircraft any more.
+!
+! $Id: p_slowtrack.pd,v 1.1 1994-10-25 20:08:03 corbet Exp $
+!
 global
-	pd-name:	p_track
-p_track
+	pd-name:	p_slowtrack
+p_slowtrack
 	representation:	track
 	platform:	SOMETHING
-	time-period:	60m
+	time-period:	1d
 	trigger:	platform
 	color:		brown
 	line-width:	3
@@ -21,14 +25,14 @@ p_track
 	arrow-color:	brown
 	sa-scale:	0.025
 	show-position:	true
-	position-icon:	littleplane
+	position-icon:	boat
 	scale-mode:	auto
 	icon-left-menu:		standard-cap-left-menu
 	icon-middle-menu:	FieldMenu
 	field-menu-extras:	mono|Monochrome track (no field)
 	field-select-command:	track-field-select
 	icon-right-menu:	track-right
-	icon:		littleplane
+	icon:		boat
 	require:	simple-color, track
 	limit-proc:	gnarly-track-adjust
 	annot-time:	false
