@@ -35,7 +35,7 @@
 #include "dfa.h"
 #include "Appl.h"
 
-RCSID ("$Id: DFA_Appl.c,v 3.11 1997-11-21 18:02:45 burghart Exp $")
+RCSID ("$Id: DFA_Appl.c,v 3.12 1998-01-29 17:52:08 burghart Exp $")
 
 /*
  * Local private prototypes.
@@ -58,17 +58,17 @@ static void 	ds_FProcGetList (DataChunk *, GetList *, dsDetail *, int);
 static void	ds_FindBlock (DataFile *dfp, int dfnext, 
 			      DataChunk *dc, ClientPlatform *p,
 			      int sample, WriteCode wc, int *nsample);
-static DataChunk* Derive (DataChunk *template_dc, GetList *get, 
-			     dsDetail *details, int ndetail);
+static DataChunk* Derive (PlatformId pid, DataClass class, GetList *get, 
+			  FieldId *flds, int nflds, dsDetail *details, 
+			  int ndetail);
 static void	DeriveFld (DataChunk *dest_dc, DataChunk *extra_dc, 
-			      FieldId fld, FieldId surrogate, 
-			      DerivMethod deriv);
+			   FieldId fld, FieldId surrogate, DerivMethod deriv);
 static void	DerivationFailure (DataChunk *dest_dc, FieldId fld, 
-				      FieldId surrogate);
-static bool	DerivationCheck (PlatformId pid, GetList *get, 
-				    FieldId *flds, int nflds);
+				   FieldId surrogate);
+static bool	DerivationCheck (PlatformId pid, DataClass class, 
+				 GetList *get, FieldId *flds, int nflds);
 static bool	FldAvailable (FieldId fld, PlatformId pid, GetList *get, 
-				 bool *is_raw, DerivMethod *return_deriv);
+			      bool *is_raw, DerivMethod *return_deriv);
 
 /*
  * This is the fine line dividing the sides of the interface.  Once a program
@@ -480,7 +480,11 @@ AltUnitType *altunits;
  * Get the heights for this time, field, and forecast offset.
  */
 {
-	int	dfindex;
+	int dfindex;
+	GetList	gl;
+	bool is_raw;
+	DerivMethod deriv;
+	FieldId check_fid = fid;
 /*
  * Now find a datafile entry we can use.
  */
@@ -488,9 +492,43 @@ AltUnitType *altunits;
 	if ((dfindex = ds_FindDF (pid, when, SRC_ALL)) < 0)
 		return (FALSE);
 /*
+ * Check for availability (including derivation if necessary) of the 
+ * chosen field.
+ *
+ * KLUGE: we build a fake GetList (with the datafile we found above
+ * as its only entry) to call FldAvailable().
+ */
+	gl.gl_dfindex = dfindex;
+	gl.gl_begin = *when;
+	gl.gl_end = *when;
+	gl.gl_flags = 0;
+	gl.gl_next = (GetList*) 0;
+
+	if (! FldAvailable (fid, pid, &gl, &is_raw, &deriv))
+	{
+	    msg_ELog (EF_DEBUG, 
+		      "ds_GetAlts: Field %s/%s unavailable; no alts returned.",
+		      ds_PlatformName (pid), F_GetFullName (fid));
+	    return (FALSE);
+	}
+/*
+ * If the field has to be derived, we return alts for the first of the 
+ * raw source fields that will be used for the derivation.
+ */
+	if (! is_raw)
+	{
+	    FieldId *srcflds;
+	    int nsrcflds;
+	    
+	    srcflds = ds_DerivNeededFields (deriv, &nsrcflds);
+	    check_fid = srcflds[0];
+	    free (srcflds);
+	}
+/*
  * Get the rest from the format-specific code.
  */
-	return (dfa_GetAlts (dfindex, fid, offset, alts, nalts, altunits));
+	return (dfa_GetAlts (dfindex, check_fid, offset, alts, nalts, 
+			     altunits));
 }
 
 
@@ -595,25 +633,18 @@ int ndetail;
 
 
 static DataChunk*
-Derive (DataChunk *template_dc, GetList *gl, dsDetail *details, int ndetail)
+Derive (PlatformId pid, DataClass class, GetList *gl, FieldId *destflds, 
+	int ndestflds, dsDetail *details, int ndetail)
 /* 
- * Build, fill, and return a new datachunk based on the template_dc, using
- * its fields, the given getlist, and deriving fields where necessary and 
- * possible.  The template_dc must be of class MetData or one of its 
- * subclasses.  
+ * Build, fill, and return a new datachunk based on the given class,
+ * getlist, and fields, and deriving fields where necessary and possible.
+ * The given class must be MetData or one of its subclasses. 
  */
 {
-    int nextraflds, ndestflds, df;
-    FieldId extraflds[MAXRAWFLDS], surrogates[MAXRAWFLDS], *destflds;
-    PlatformId pid = dc_PlatformId (template_dc);
+    int nextraflds, df;
+    FieldId extraflds[MAXRAWFLDS], surrogates[MAXRAWFLDS];
     DerivMethod *derivs;
-    DataClass class;
     DataChunk *dest_dc, *extra_dc;
-/*
- * Get the list of fields we're supposed to return and the datachunk class.
- */
-    destflds = dc_GetFields (template_dc, &ndestflds);
-    class = dc_ClassId (template_dc);
 /* 
  * For each destination field:
  *	o Get a derivation method (if any)
@@ -1089,33 +1120,37 @@ dsDetail *details;
 	get->gl_end = dfe.df_end;
     }
 /*
- * Now it is up to the format driver to get ready and create a data 
- * chunk for us.
+ * Pass the work off to Derive() if we're building a MetData datachunk
+ * and at least one of the fields needs derivation.
  */
-    if (! (return_dc = dfa_Setup (get, fields, nfield, class)))
+    if (DerivationCheck (pid, class, get, fields, nfield))
     {
-	msg_ELog (EF_DEBUG, "Setup failure");
-	dgl_ReturnList (get);
-	return (NULL);
+	return_dc = Derive (pid, class, get, fields, nfield, details, ndetail);
     }
-    dc_SetPlatform (return_dc, pid);
 /*
- * Finally, fill the data chunk.  For MetData data chunks, try to derive 
- * data if possible.
+ * Otherwise, we just use the old non-derivation method...
  */
-    if (dc_IsSubClassOf (class, DCC_MetData) && 
-	DerivationCheck (pid, get, fields, nfield))
-    {
-	DataChunk *template_dc = return_dc;
-
-	return_dc = Derive (template_dc, get, details, ndetail);
-
-	dc_DestroyDC (template_dc);
-    }
     else
+    {
+    /*
+     * Now it is up to the format driver to get ready and create a data 
+     * chunk for us.
+     */
+	if (! (return_dc = dfa_Setup (get, fields, nfield, class)))
+	{
+	    msg_ELog (EF_DEBUG, "Setup failure");
+	    dgl_ReturnList (get);
+	    return (NULL);
+	}
+	dc_SetPlatform (return_dc, pid);
+    /*
+     * Finally, fill the data chunk.  For MetData data chunks, try to derive 
+     * data if possible.
+     */
 	ds_FProcGetList (return_dc, get, details, ndetail);
-
-    dgl_ReturnList (get);
+	dgl_ReturnList (get);
+    }
+    
 /*
  * It is still possible that there were no times in the file between
  * the requested times, in which case we return null for no data found.
@@ -1135,11 +1170,12 @@ dsDetail *details;
 
 
 static bool
-DerivationCheck (PlatformId pid, GetList *gl, FieldId *flds, int nflds)
-/*
- * Return true iff one or more of the fields given needs to be and can be
- * derived, i.e., if the following conditions are met for any of the dc's
- * fields:
+DerivationCheck (PlatformId pid, DataClass class, GetList *gl, FieldId *flds, 
+		 int nflds)
+/* 
+ * Return true iff the DataClass is MetData or one of its subclasses, and
+ * one or more of the fields given needs to be and can be derived, i.e., if
+ * the following conditions are met for any of the dc's fields:
  *	- it is not available raw from any of the files in the getlist
  *	- it can be derived from fields available raw from at least one of
  *	  the files
@@ -1148,6 +1184,11 @@ DerivationCheck (PlatformId pid, GetList *gl, FieldId *flds, int nflds)
     int f;
     bool is_raw;
     FieldId fileflds[MAXRAWFLDS];
+/*
+ * Derivation is only an option for MetData datachunks
+ */
+    if (! dc_IsSubClassOf (class, DCC_MetData))
+	return (0);
 /*
  * Return true iff any one of the fields is available, but is not raw.
  */
