@@ -39,7 +39,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.37 1993-12-27 17:40:32 corbet Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.38 1994-02-01 18:01:12 corbet Exp $")
 
 
 /*
@@ -654,8 +654,10 @@ bool update;
 /*
  * Side annotation.
  */
+# ifdef notdef
 	if (numquads > 0)
 	{
+# endif
 		sprintf (data, "%s %d %d %f %d ", "10m/sec", 
 			color.pixel, qcolor.pixel, unitlen, numquads);
 		for (i = 0; i < 4; i++)
@@ -670,6 +672,7 @@ bool update;
 				strcat (data, "none ");
 		An_AddAnnotProc (CAP_StaPltSideAnnot, c, data, 
 			strlen (data), 90, FALSE, FALSE);
+# ifdef notdef
 	}
 	else
 	{
@@ -679,6 +682,7 @@ bool update;
 		An_AddAnnotProc (CAP_StaPltSideAnnot, c, data, 
 			strlen (data), 40, FALSE, FALSE);
 	}
+# endif
 /*
  * Finish up the time widget and we are done.
  */
@@ -1069,14 +1073,18 @@ int datalen, begin, space;
  */
 	XSetForeground (XtDisplay (Graphics), Gcontext, qc);
 	middle = (left + GWWidth (Graphics))/2;
+# ifdef notdef
 	if (numquads > 0)
 	{
+# endif
 		XDrawLine (XtDisplay (Graphics), GWFrame (Graphics), Gcontext, 
 			middle, begin + 10, middle, begin + 55);
 		XDrawLine (XtDisplay (Graphics), GWFrame (Graphics), Gcontext, 
 			   left + 10, begin + 30, GWWidth (Graphics) - 10,
 			   begin + 30);
+# ifdef notdef
 	}
+# endif
 /*
  * Put in the actual strings, and activate the areas.  For now I will keep
  * using the ugly hardwired constants, but it would be nice to fix that
