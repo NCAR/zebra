@@ -1,7 +1,7 @@
 /*
  * Raster display a rectangular array
  */
-static char *rcsid = "$Id: RasterPlot.c,v 2.13 1994-04-22 17:55:32 burghart Exp $";
+static char *rcsid = "$Id: RasterPlot.c,v 2.14 1995-04-17 22:17:03 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -293,7 +293,7 @@ bool	fast;
  * (neglecting clipping, which may reduce this).
  */
 {
-	int		r_color, i, j, width, height;
+	int		r_color, i, width, height;
 	unsigned int	*colgrid, *cgp;
 	float		cscale, *gp;
 	float		leftcol, toprow, rowinc, colinc;
