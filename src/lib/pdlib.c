@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: pdlib.c,v 1.6 1991-03-21 18:19:28 corbet Exp $";
+static char *rcsid = "$Id: pdlib.c,v 1.7 1991-07-02 15:43:40 corbet Exp $";
 /*
  * The plot description library. 
  */
@@ -412,9 +412,9 @@ raw_plot_description *rpd;
 
 
 plot_description
-pd_ReadComponent (pd, comp)
+pd_ReadComponent (pd, comp, newname)
 plot_description pd;
-char *comp;
+char *comp, *newname;
 /*
  * Pull out this component as a separate plot description.
  */
@@ -437,7 +437,7 @@ char *comp;
  * Create the new pd and add the component table.
  */
 	new = pd_NewPD (name);
-	newc = pd_NewComponent (new, name, comp);
+	newc = pd_NewComponent (new, name, newname);
 /*
  * Copy over the stuff.
  */
@@ -876,6 +876,40 @@ int type;
 }
 
 
+void
+pd_RemoveParam (pd, comp, param)
+plot_description pd;
+char *comp, *param;
+/*
+ * Remove a parameter from this PD.
+ * Entry:
+ *	PD	is the plot description
+ *	COMP	is the name of the component to remove from.
+ *	PARAM	is the name of the parameter to remove.
+ * Exit:
+ *	The value has been remove.
+ */
+{
+	stbl comppd;
+	int t;
+	union usy_value v;
+/*
+ * Find the component.
+ */
+	if (! usy_g_symbol (pd, comp, &t, &v))
+	{
+		msg_ELog (EF_PROBLEM, "Remove attempted on missing comp '%s'",
+			comp);
+		return;
+	}
+	comppd = (stbl) v.us_v_ptr;
+/*
+ * Now simply remove the value.
+ */
+	usy_z_symbol (comppd, param);
+}
+
+
 
 
 void
@@ -925,4 +959,19 @@ int newpos;
 		for (i = oldpos; i < newpos; i++)
 			comps[i] = comps[i + 1];
 	comps[newpos] = scomp;
+}
+
+
+
+
+
+bool
+pd_CompExists (pd, comp)
+plot_description pd;
+char *comp;
+/*
+ * Return TRUE if this component exists here.
+ */
+{
+	return (usy_defined ((stbl) pd, comp));
 }
