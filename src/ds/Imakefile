@@ -2,16 +2,16 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.54 1997-01-09 23:03:07 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.55 1997-01-14 22:09:30 granger Exp $"
 
-DEPLIBS=$(LIBZEB)
+DEPLIBS=$(LIBZEBRA)
 LIBMPROF=/dt/granger/libc_mp.a
 /* SYSLIBS= $(LIBMPROF) */
 
 DMNSYSLIBS=$(LIBREGEXP) $(LIBMATH) $(LIBTERMCAP)
-DMNLIBS=$(LIBZEB) $(LIBRDSS) $(XLIBS) $(LIBNETCDF) $(LIBHDF)
+DMNLIBS=$(LIBZEBRA) $(LIBRDSS) $(XLIBS) $(LIBNETCDF) $(LIBHDF)
 SYSLIBS=$(LIBREGEXP) $(LIBMATH)
-LIBS=$(LIBZEB) $(LIBNETCDF) $(LIBHDF)
+LIBS=$(LIBZEBRA) $(LIBNETCDF) $(LIBHDF)
 
 DEBUGGER = xgdb
 #ifdef DebugFlag
@@ -80,7 +80,7 @@ TESTOBJS = T_NSpace.o T_Scalar.o T_Grids.o T_Attr.o T_Transparent.o \
  * The complete set of modules for linking test programs.  Some test
  * objects supercede the normal library objects, so order is important.
  */
-TESTMODS = $(TESTOBJS) ./libZebDS.a
+TESTMODS = $(TESTOBJS) ./libZebraDS.a
 
 /*
  * All of the sources in this directory, for the make depend.
@@ -110,12 +110,15 @@ UILoadFileTarget(dsDaemon.lf,Daemon.state)
 /*
  * Make the library.
  */
-NormalLibraryTarget (ZebDS, $(DSLIBOBJS) $(DCOBJS))
+NormalLibraryTarget (ZebraDS, $(DSLIBOBJS) $(DCOBJS))
 SpecialObjectRule(ingest.o,ingest.c ingest.h,$(RDSSINCLUDES))
 SpecialObjectRule(DFA_NetCDF.o T_NetCDF.o,DFA_NetCDF.c,$(NETCDFINCLUDES))
 SpecialObjectRule(DFA_HDF.o T_HDF.o,DFA_HDF.c,$(HDFDEFINES) $(HDFINCLUDES))
 
-InstallLibrary (ZebDS, $(LIBDIR))
+InstallLibrary (ZebraDS, $(LIBDIR))
+
+install::
+	(cd $(LIBDIR); $(RM) libZebDS.a; $(LN) libZebraDS.a libZebDS.a)
 
 BuildIncludesTop($(HEADERS))
 InstallMultipleFlags($(HEADERS),$(INCDIR),$(INSTINCFLAGS))
@@ -123,15 +126,15 @@ InstallMultipleFlags($(HEADERS),$(INCDIR),$(INSTINCFLAGS))
 /*
  * Dump routines.
  */
-CompleteProgramTarget (rfdump, rfdump.o, $(LIBZEB), $(LIBZEB), $(LIBMATH))
+CompleteProgramTarget (rfdump, rfdump.o, $(LIBZEBRA), $(LIBZEBRA), $(LIBMATH))
 
-TestProgramTarget (bfdump, bfdump.o, $(LIBZEB), $(LIBZEB), $(LIBMATH))
+TestProgramTarget (bfdump, bfdump.o, $(LIBZEBRA), $(LIBZEBRA), $(LIBMATH))
 
 ZFOBJS = zfdump.o Fields.o $(DCOBJS)
-CompleteProgramTarget (zfdump, $(ZFOBJS), $(DEPLIBS), $(LIBZEB), $(SYSLIBS))
+CompleteProgramTarget (zfdump, $(ZFOBJS), $(DEPLIBS), $(LIBZEBRA), $(SYSLIBS))
 
 GDOBJS = GRIBdump.o GRIB.o
-CompleteProgramTarget (GRIBdump, $(GDOBJS), $(LIBZEB), $(LIBZEB), $(LIBMATH))
+CompleteProgramTarget(GRIBdump,$(GDOBJS),$(LIBZEBRA),$(LIBZEBRA),$(LIBMATH))
 
 /*
  * Test routines.
@@ -183,7 +186,7 @@ nctime24: nctime.o FORCE
 FORCE:
 #endif
 
-ALOBJS = aline.o ./libZebDS.a
+ALOBJS = aline.o ./libZebraDS.a
 TestProgramTarget (aline, $(ALOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 
 test:: dbgstart
@@ -197,7 +200,7 @@ clean::
 	rm -f dbgstart
 
 #ifdef notdef
-THDFOBJS = T_HDF.o ./libZebDS.a
+THDFOBJS = T_HDF.o ./libZebraDS.a
 TestProgramTarget (testhdf, $(THDFOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 #endif
 
@@ -244,15 +247,15 @@ test.aline: test.aline.only test.close
 test.apple: test.apple.only test.close
 
 #define TEST_ENV \
-	-@ZEB_SOCKET=$(SOCKET); export ZEB_SOCKET; \ @@\
+	-@ZEBRA_SOCKET=$(SOCKET); export ZEBRA_SOCKET; \ @@\
 	DSDUMP=$(DSDUMP); export DSDUMP; \ @@\
 	DATA_DIR=$(DATA_DIR); export DATA_DIR; \ 
 
 
 test.session $(SOCKET): $(ZPROGS) dsDaemon dsDaemon.lf $(DSCONFIG)
 	TEST_ENV
-	echo "Starting a zebra test session... ZEB_SOCKET=$$ZEB_SOCKET"; \
-	$(ZSTOP) $(TESTOUT); $(RM) $$ZEB_SOCKET; \
+	echo "Starting a zebra test session... ZEBRA_SOCKET=$$ZEBRA_SOCKET"; \
+	$(ZSTOP) $(TESTOUT); $(RM) $$ZEBRA_SOCKET; \
 	set -x; \
 	HOST=`uname -n` $(MESSAGE) $(TESTOUT) ; \
 	($(TIMER) $(TESTOUT) &); \
@@ -281,7 +284,7 @@ test.apple.only: apple $(SOCKET) $(DSDUMP)
 test.close:
 	TEST_ENV
 	echo "Ending zebra test session..."; \
-	$(ZSTOP) $(TESTOUT); $(RM) $$ZEB_SOCKET
+	$(ZSTOP) $(TESTOUT); $(RM) $$ZEBRA_SOCKET
 
 clean::
 	$(RM) $(SOCKET)
