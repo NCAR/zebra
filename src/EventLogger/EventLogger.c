@@ -46,7 +46,7 @@
 # include <config.h>
 # include <copyright.h>
 
-RCSID ("$Id: EventLogger.c,v 2.33 1995-09-10 16:45:52 granger Exp $")
+RCSID ("$Id: EventLogger.c,v 2.34 1996-08-16 20:45:09 granger Exp $")
 
 # define LOGNAME "EventLogger"
 
@@ -61,7 +61,7 @@ RCSID ("$Id: EventLogger.c,v 2.33 1995-09-10 16:45:52 granger Exp $")
  */
 #define DEFAULT_MASK (EF_EMERGENCY | EF_PROBLEM | EF_INFO)
 
-int Emask = DEFAULT_MASK;		/* All the events we need 	*/
+int Emask = 0;				/* All the events we need 	*/
 int Display_mask = DEFAULT_MASK;	/* Event mask for the display 	*/
 
 struct EMMap
@@ -97,7 +97,7 @@ static int FortuneWait = FORTUNE_WAIT;	/* secs idle time between fortunes */
  */
 static int Buflen = 0;
 static char *Initmsg = 
-"$Id: EventLogger.c,v 2.33 1995-09-10 16:45:52 granger Exp $\nCopyright (C)\
+"$Id: EventLogger.c,v 2.34 1996-08-16 20:45:09 granger Exp $\nCopyright (C)\
  1991 UCAR, All rights reserved.\n";
 
 /*
@@ -179,6 +179,8 @@ bool Log_enabled = FALSE;	/* Whether actively logging to the file	*/
 int Log_mask = DEFAULT_MASK;	/* Event mask for the log file		*/
 bool Echo = FALSE;		/* Echo log messages to stdout		*/
 bool Windows = TRUE;		/* Create X Window display		*/
+#define MAX_SESSIONS 5		/* Names of sessions to join		*/
+char *Session[MAX_SESSIONS+1] = { NULL };
 
 /*
  * Is there somebody out there interested in our problems?  If so, this
@@ -194,11 +196,14 @@ Widget	MakeDbgButton FP ((Widget));
 void	NewProc FP ((char *));
 void	DeadProc FP ((char *));
 void	ToggleProc FP ((Widget, XtPointer, XtPointer));
-static void BroadcastEMask FP ((void));
-static void SendEMask FP ((char *who));
+static void ChangeMask FP ((int op));
+static void SendEverybody FP ((int flag));
+static void BroadcastEMask FP ((int op));
+static void SendEMask FP ((char *who, int op));
 int	SendDbgMask FP ((char *, int, SValue *, long));
 int	PassDebug FP ((int,  char *));
 static void dm_msg FP ((struct dm_msg *dmsg));
+static void quitbutton FP ((void));
 static void clearbutton FP ((void));
 static void reconfig FP ((int x, int y, int w, int h));
 static void wm FP ((void));
@@ -236,17 +241,18 @@ static int msg_event FP((struct message *msg));
 "EventLogger [-h]\n\
 EventLogger [options] [-j secs] [-f logfile] [-m eventmask] [-l filemask]\
  [mom]\n\
-   -h\tPrint this usage message\n\
-   -j\tLog a fortune once in a while (0 defaults to 5 minutes)\n\
-     \tThe fortune command must be in your path.\n\
-   -n\tNon-windowed, non-interactive EventLogger\n\
-   -e\tEcho log messages to stdout\n\
-   -o\tOverride redirect---give display manager control\n\
-   -w\tNo override redirect---gives window manager control\n\
-   -f\tSpecify a file to which log messages will be written\n\
-   -m\tSpecify the event mask for the EventLogger display\n\
-   -l\tSpecify the event mask for the log file\n\
-   mom\tThe name of a process to echo emergencies and problems to\n\
+   -h\t\tPrint this usage message\n\
+   -j\t\tLog a fortune once in a while (0 defaults to 5 minutes)\n\
+     \t\tThe fortune command must be in your path.\n\
+   -n\t\tNon-windowed, non-interactive EventLogger\n\
+   -e\t\tEcho log file messages to stdout\n\
+   -o\t\tOverride redirect---give display manager control\n\
+   -w\t\tNo override redirect---gives window manager control\n\
+   -f\t\tSpecify a file to which log messages will be written\n\
+   -m\t\tSpecify the event mask for the EventLogger display\n\
+   -l\t\tSpecify the event mask for the log file\n\
+   -s name\tJoin this session and report its events (experimental)\n\
+   mom\t\tThe name of a process to echo emergencies and problems to\n\
 Environment variables are checked if the equivalent option above\n\
 is not present:\n\
    ZEB_LOGFILE	The name of the log file.\n\
@@ -316,6 +322,7 @@ char *argv[];
 	int i, j;
 	int opt;
 	char c;
+	int s = 0;	/* session count */
 
 	Log_path[0] = '\0';
 	i = 1;
@@ -330,7 +337,7 @@ char *argv[];
 			++i;
 			continue;
 		}
-		if (strchr ("jfml", c))
+		if (strchr ("jfmls", c))
 		{
 			opt = 1;
 			if (i+1 < argc)
@@ -380,6 +387,17 @@ char *argv[];
 				Log_mask = StringToMask (optarg);
 			lmask_set = TRUE;
 			break;
+		   case 's':
+			if (s < MAX_SESSIONS)
+			{
+				Session[s++] = optarg;
+				Session[s] = NULL;
+			}
+			else
+			{
+				printf ("%s: limit is %d\n",
+					"Too many sessions", MAX_SESSIONS);
+			}
 		}
 		/*
 		 * Now finally remove the option
@@ -427,8 +445,6 @@ char *argv[];
 #endif
 	TSSecs = DEFAULT_PERIOD;
 
-	Emask = Log_mask | Display_mask;
-
 	/*
 	 * Open the log file if we got one.
 	 */
@@ -463,6 +479,38 @@ CreateBitmaps()
 
 
 
+static void
+JoinGroups ()
+/*
+ * Join the client events and event logger groups.
+ */
+{
+	int s = 0;
+	char buf[128];
+
+	msg_join (MSG_CLIENT_EVENTS);
+	while (Session[s])
+	{
+		sprintf (buf, "%s@%s", EVENT_LOGGER_GROUP, Session[s]);
+		msg_join (buf);
+#ifdef notdef
+		/* 
+		 * Message manager automatically relays client events to
+		 * internet sessions, so joining the local group is enough.
+		 */
+		sprintf (buf, "%s@%s", MSG_CLIENT_EVENTS, Session[s]);
+		msg_join (buf);
+#endif
+		s++;
+	}
+	if (! Session[0])
+	{
+		msg_join (EVENT_LOGGER_GROUP);
+	}
+}
+
+
+
 int
 main (argc, argv)
 int argc;
@@ -482,6 +530,8 @@ char **argv;
 				       &argc, argv, Resources, NULL, 0);
 		CreateBitmaps();
 	}
+	else
+		Display_mask = 0;
 /*
  * If there's one argument left, it's somebody to send problems to.
  */
@@ -499,24 +549,23 @@ char **argv;
 	usy_init ();
 	ProcTable = usy_c_stbl ("ProcTable");
 /*
- * Hook into the message system.
+ * Hook into the message system. Disable the default ELOG proto handler.
  */
-	if (! msg_connect (msg_event, EVENT_LOGGER_NAME))
+	sprintf (buf, "%s-%i", EVENT_LOGGER_NAME, (int) getpid());
+	if (! msg_connect (msg_event, buf))
 	{
 		printf ("%s: unable to connect to message handler\n", argv[0]);
 		exit (1);
 	}
+	msg_AddProtoHandler (MT_ELOG, NULL);
+	JoinGroups ();
+	ChangeMask (EF_ORMASK);
 /*
  * Create the EventLogger toplevel shell and widgets
  */
 	if (Windows)
 		CreateEventLogger();
 	AppendToLogFile (Initmsg);
-/*
- * Join the client event and event logger groups.
- */
-	msg_join (MSG_CLIENT_EVENTS);
-	msg_join (EVENT_LOGGER_NAME);
 /*
  * Tell msglib about our X connection.
  */
@@ -621,11 +670,23 @@ CreateEventLogger()
 	XtSetArg (args[5], XtNbottom, XtChainTop);
 	XtSetArg (args[6], XtNleft, XtChainLeft);
 	XtSetArg (args[7], XtNright, XtChainLeft);
-	label = XtCreateManagedWidget ("label", labelWidgetClass, Form,args,8);
+	label = XtCreateManagedWidget ("label", labelWidgetClass,Form,args,8);
+/*
+ * Add the quit button.
+ */
+	XtSetArg (args[0], XtNfromHoriz, label);
+	XtSetArg (args[1], XtNfromVert, NULL);
+	XtSetArg (args[2], XtNtop, XtChainTop);
+	XtSetArg (args[3], XtNbottom, XtChainTop);
+	XtSetArg (args[4], XtNleft, XtChainLeft);
+	XtSetArg (args[5], XtNright, XtChainLeft);
+	w = XtCreateManagedWidget ("Quit", commandWidgetClass, Form, args, 6);
+	XtAddCallback (w, XtNcallback, (XtCallbackProc) quitbutton, 
+		(XtPointer) 0);
 /*
  * Add the clear button.
  */
-	XtSetArg (args[0], XtNfromHoriz, label);
+	XtSetArg (args[0], XtNfromHoriz, w);
 	XtSetArg (args[1], XtNfromVert, NULL);
 	XtSetArg (args[2], XtNtop, XtChainTop);
 	XtSetArg (args[3], XtNbottom, XtChainTop);
@@ -975,6 +1036,7 @@ Widget toggle;		/* The widget which displays our state */
 	XtSetArg (arg, XtNlabel, "Disabled");
 	XtSetValues (toggle, &arg, (Cardinal)1);
 	LogMessage (EF_DEBUG, LOGNAME, "File logging disabled.");
+	ChangeMask (EF_SETMASK);
 }
 
 
@@ -1013,6 +1075,7 @@ XtPointer call_data;
 		XtSetArg (arg, XtNlabel, "Enabled");
 		XtSetValues (w, &arg, (Cardinal)1);
 		LogMessage (EF_DEBUG, LOGNAME, "File logging enabled.");
+		ChangeMask (EF_SETMASK);
 		return;
 	}
 
@@ -1056,6 +1119,7 @@ XtPointer call_data;
 	sprintf (buf, "File logging %s.", 
 		 (Log_enabled) ? "enabled" : "disabled");
 	LogMessage (EF_DEBUG, LOGNAME, buf);
+	ChangeMask (EF_SETMASK);
 }
 
 
@@ -1136,10 +1200,9 @@ XtPointer call_data;
 		  EMap[i].em_flag & (*mask) ? Check : None);
 	XtSetValues (w, args, (Cardinal)1);
 /*
- * Update the global mask and broadcast it.
+ * Update the global mask and broadcast the new setting.
  */
-	Emask |= (*mask);
-	BroadcastEMask ();
+	ChangeMask (EF_SETMASK);
 }
 
 
@@ -1194,13 +1257,21 @@ struct message *msg;
 			dm_msg ((struct dm_msg *) msg->m_data);
 	}
 /*
- * If it's an extended message, do something with it.
+ * If it's an extended log message, do something with it.  We only accept
+ * control messages broadcast to our group, or regular log messages.  I.e.,
+ * we ignore control messages sent to everybody because we expect it to
+ * be followed with a message explicitly to any event loggers.
  */
 	else if (msg->m_proto == MT_ELOG)
 	{
 		struct msg_elog *el = (struct msg_elog *) msg->m_data;
 
-		LogMessage (el->el_flag, msg->m_from, el->el_text);
+		if (! (el->el_flag & (EF_SETMASK | EF_ORMASK)) ||
+		    ((msg->m_flags & MF_BROADCAST) && 
+		     !strcmp(msg->m_to, EVENT_LOGGER_GROUP)))
+		{
+			LogMessage (el->el_flag, msg->m_from, el->el_text);
+		}
 	}
 /*
  * Everything else is assumed to be a message handler event.
@@ -1270,11 +1341,22 @@ char *text;
 	int i;
 	char code;
 	char *msg;
-
 /*
- * If somebody's tweaking the event mask, we'll ignore it.
+ * If someone's setting the mask and it does not include our own mask, we
+ * need to broadcast our bits.
  */
 	if (flag & EF_SETMASK)
+	{
+		if ((flag | Emask) != flag)
+			BroadcastEMask (EF_ORMASK);
+		else
+			usy_search (ProcTable, SendDbgMask, 0, FALSE, 0);
+		return;
+	}
+/*
+ * If somebody's adding their bits to event masks, we'll ignore it.
+ */
+	if (flag & EF_ORMASK)
 		return;
 /*
  * If this is in our mask, we log it.  Assume flags are in order of
@@ -1296,7 +1378,7 @@ char *text;
 	if (Mother && (flag & (EF_PROBLEM | EF_EMERGENCY)))
 		SendToMother (code, from, text);
 /*
- * If we need to log this message, format it
+ * If we need to log this message, format it first then do so
  */
 	if ((Emask & flag) || Emask == 0 ||
 	    PassDebug (flag, from))
@@ -1304,27 +1386,15 @@ char *text;
 		msg = FormatMessage (code, from, text);
 		if (!msg)
 			return;
+	/*
+	 * Now find out what gets this message and send it along
+	 */
+		if ((flag & Log_mask) || PassDebug (flag, from))
+			AppendToLogFile (msg);
+		if (Windows && ((flag & Display_mask) || 
+				PassDebug (flag, from)))
+			AppendToDisplay (msg);
 	}
-/*
- * Otherwise assume that somebody is out of sync with the
- * event mask, and we send it out to the world.
- */
-	else
-	{
-# ifdef notdef
-		static int nsend = 0;
-		if ((nsend++ % 15) == 0)
-			BroadcastEMask ();
-# endif
-		return;
-	}
-/*
- * Now find out what gets this message and send it along
- */
-	if ((flag & Log_mask) || PassDebug (flag, from))
-		AppendToLogFile (msg);
-	if (Windows && ((flag & Display_mask) || PassDebug (flag, from)))
-		AppendToDisplay (msg);
 }
 
 
@@ -1500,6 +1570,24 @@ char *fmtbuf;
 	XawTextEnableRedisplay (Text);
 	xevent ();
 }
+
+
+
+
+static void
+quitbutton ()
+/*
+ * Quit the event logger.  Broadcast a SETMASK of zero in case we're the
+ * last of the loggers.
+ */
+{
+	int flag = EF_SETMASK;
+	Emask = 0;
+	SendEverybody (flag);
+	msg_disconnect ();
+	exit (0);
+}
+
 
 
 
@@ -1725,19 +1813,76 @@ wm ()
 
 
 
+static void
+ChangeMask (op)
+int op;
+/*
+ * Update the global emask according to current display and file masks.
+ */
+{
+	int mask = (Windows ? Display_mask : 0) | 
+		((Log_enabled || Echo) ? Log_mask : 0);
+	if (mask != Emask)
+	{
+		Emask = mask;
+		BroadcastEMask (op);
+	}
+}
+
+
 
 static void
-BroadcastEMask ()
+SendEverybody (flag)
+int flag;
+/*
+ * Broadcast out the default mask to everybody.  When setting the mask,
+ * follow it with a specific message to event loggers, since some may be
+ * across the net and will not receive everybody broadcasts, but they may
+ * still need to update the new mask setting with OR masks.
+ */
+{
+	if (! Session[0])
+	{
+		msg_send (MSG_EVERYBODY, MT_ELOG, TRUE, &flag, sizeof (flag));
+		if (flag & EF_SETMASK)
+		{
+			msg_send (EVENT_LOGGER_GROUP, MT_ELOG, TRUE, &flag, 
+				  sizeof (flag));
+		}
+	}
+	else
+	{
+		int s = 0;
+		char buf[128];
+		while (Session[s])
+		{
+			sprintf (buf, "%s@%s", MSG_EVERYBODY, Session[s]);
+			msg_send (buf, MT_ELOG, TRUE, &flag, sizeof (flag));
+			if (flag & EF_SETMASK)
+			{
+				sprintf (buf, "%s@%s", EVENT_LOGGER_GROUP,
+					 Session[s]);
+				msg_send (buf, MT_ELOG, TRUE, &flag, 
+					  sizeof (flag));
+			}
+			s++;
+		}
+	}
+}
+
+
+
+static void
+BroadcastEMask (op)
+int op;	/* either EF_SETMASK or EF_ORMASK */
 /*
  * Broadcast the event mask to the world.
  */
 {
 	int flag;
-/*
- * Broadcast out the default mask to everybody.
- */
-	flag = Emask | EF_SETMASK;
-	msg_send ("Everybody", MT_ELOG, TRUE, &flag, sizeof (flag));
+
+	flag = Emask | op;
+	SendEverybody (flag);
 /*
  * Now go through and fix up any processes for which debugging has been
  * requested.
@@ -1748,10 +1893,11 @@ BroadcastEMask ()
 
 
 static void
-SendEMask (who)
+SendEMask (who, op)
 char *who;
+int op;
 /*
- * Send the event mask to a particular process.
+ * Update the event mask of a particular process.
  */
 {
 	int flag;
@@ -1759,7 +1905,7 @@ char *who;
 	SValue v;
 	ProcInfo *pinfo;
 
-	flag = Emask | EF_SETMASK;
+	flag = Emask | op;
 	if (usy_g_symbol (ProcTable, who, &type, &v))
 	{
 		pinfo = (ProcInfo *) v.us_v_ptr;
@@ -1781,10 +1927,11 @@ int type;
 SValue *v;
 long junk;
 /*
- * Maybe send out a debug-enabled event mask to this process.
+ * Maybe send out a debug-enabled event mask to this process.  Since we're
+ * just adding bits to existing masks, use EF_ORMASK.
  */
 {
-	int flag = Emask | EF_SETMASK | EF_DEBUG;
+	int flag = EF_ORMASK | EF_DEBUG;
 	ProcInfo *pinfo = (ProcInfo *) v->us_v_ptr;
 
 	if (pinfo->pi_enabled)
@@ -1866,9 +2013,9 @@ char *name;
 #endif
 	}		
 /*
- * Finally, let this process know its event mask 
+ * Finally, let this process know what messages we want from it.
  */
-	SendEMask (pinfo->pi_name);
+	SendEMask (pinfo->pi_name, EF_ORMASK);
 }
 
 
@@ -1942,9 +2089,28 @@ XtPointer proc, xpinfo;
 	XtSetArg (args[0], XtNleftBitmap, pinfo->pi_enabled ? Check : None);
 	XtSetValues (w, args, 1);
 /*
- * Tweak this process's event mask.
+ * If we're setting the debug bit, just send it directly as an OR mask.
  */
-	SendEMask (pinfo->pi_name);
+	if (pinfo->pi_enabled)
+	{
+		int flag = EF_ORMASK | EF_DEBUG;
+		msg_send (proc, MT_ELOG, FALSE, &flag, sizeof (flag));
+	}
+/*
+ * Otherwise, we're resetting the debug bit.  Send a SETMASK to the process
+ * and to the event logger group.  The other event loggers will respond by
+ * sending out OR's for their masks and debug bits.  We could just broadcast
+ * the SETMASK, but this method will save us sending messages to the 
+ * processes whose masks we aren't changing.  Note we don't call ChangeMask
+ * because a per-process debug flag does not affect our global mask.
+ */
+	else
+	{
+		int flag = Emask | EF_SETMASK;
+		msg_send (proc, MT_ELOG, FALSE, &flag, sizeof (flag));
+		msg_send (EVENT_LOGGER_GROUP, MT_ELOG, TRUE, &flag, 
+			  sizeof (flag));
+	}
 }
 
 
