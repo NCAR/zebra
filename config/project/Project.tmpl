@@ -39,7 +39,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.58 1997-06-22 22:05:35 granger Exp $
+XCOMM $Id: Project.tmpl,v 1.59 1997-07-01 23:57:03 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -278,10 +278,10 @@ XCOMM -----------------------------------------------------------------------
 #  if UseInstalledZebra
 #   define UicCmd $(BINDIR)/uic
 #  else
-#   define UicCmd $(TOP)/ui/uic
+#   define UicCmd LOADFILE=$(TOP)/ui/ui.lf $(TOP)/ui/uic
 #  endif
 # else
-#  define UicCmd uic	/* Assumes uic in path */
+#  define UicCmd uic	/* Assumes uic in path and loadfile in built-in path */
 # endif
 #endif
 
