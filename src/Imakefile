@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.1 1993-05-26 19:22:52 corbet Exp $"
+MFVERSION="$Id: Imakefile,v 1.2 1993-06-16 15:33:20 granger Exp $"
 
 #define IHaveSubdirs
 #define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
@@ -42,20 +42,26 @@ MFVERSION="$Id: Imakefile,v 1.1 1993-05-26 19:22:52 corbet Exp $"
        DATAUTIL = datautil
 #endif
 
+#if BuildDataManager
+       DSMANAGE = dsmanage
+#endif
+
 /*
  * "lib" and "ds" must come first, in that order.  Thereafter it's
  * alphabetical but really doesn't matter.
  */
 SUBDIRS = lib ds \
-	$(DATAUTIL) dm dsdelete dsdump dsdwidget dsmanage dsrescan \
+	$(DATAUTIL) dm dsdelete dsdump dsdwidget $(DSMANAGE) dsrescan \
 	etc EventLogger fccclock gettime gp $(INGEST) \
 	msg msg_ping mstatus mtap $(OPTIMIZER) pdmon $(REALTIME) \
 	settime Sound timer tweakcolor xhelp zebstop zmon zquery zrun
 
 
 DISTFILES = Imakefile
-DISTSUBDIRS = dsdelete dsdump dsdwidget dsmanage dsrescan \
-	msg msg_ping mstatus mtap lib $(REALTIME) timer zebstop zquery zrun
+DISTSUBDIRS = lib ds datautil dm dsdelete dsdump dsdwidget dsmanage dsrescan \
+	etc EventLogger fccclock gettime gp $(INGEST) \
+	msg msg_ping mstatus mtap $(OPTIMIZER) pdmon $(REALTIME) \
+	settime Sound timer tweakcolor xhelp zebstop zmon zquery zrun
 
 MakeSubdirs($(SUBDIRS))
 DependSubdirs($(SUBDIRS))
