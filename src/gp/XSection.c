@@ -1,7 +1,7 @@
 /*
  * Vertical cross-sectioning
  */
-static char *rcsid = "$Id: XSection.c,v 2.10 1993-07-15 15:05:34 burghart Exp $";
+static char *rcsid = "$Id: XSection.c,v 2.11 1993-07-15 16:12:07 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -24,6 +24,7 @@ static char *rcsid = "$Id: XSection.c,v 2.10 1993-07-15 15:05:34 burghart Exp $"
 
 # if C_PT_XSECT
 
+# include <alloca.h>
 # include <math.h>
 # include <ctype.h>
 # include <X11/Intrinsic.h>
@@ -1105,7 +1106,16 @@ char	*platform, *fldname;
  * Get the data
  */
 	if (! (dc = xs_GetGridDC (platform, fldname, &dtime)))
+	{
+	/*
+	 * Return if we fail.  Make sure to allocate *something* for Plane,
+	 * since our caller will be free'ing it.
+	 */
+		Hdim = Vdim = 1;
+		Plane = (float *) malloc (sizeof (float));
+		*Plane = BADVAL;
 		return;
+	}
 /*
  * Get the info we need from the data chunk
  */
