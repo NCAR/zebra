@@ -1,4 +1,4 @@
-/* $Id: message.h,v 1.6 1991-01-17 22:49:28 corbet Exp $ */
+/* $Id: message.h,v 1.7 1991-01-29 16:51:01 corbet Exp $ */
 /*
  * Message protocol types.
  */
@@ -144,6 +144,7 @@ struct msg_elog
 	int msg_get_fd (void);
 	int msg_await (void);
 	int msg_Search (int proto, int (*func) (), void * param);
+	void msg_AddProtoHandler (int, int (*) ());
 # else
 	int msg_DispatchQueued ();
 	int msg_incoming ();
@@ -156,4 +157,5 @@ struct msg_elog
 	int msg_get_fd ();
 	int msg_await ();
 	int msg_Search ();
+	void msg_AddProtoHandler ();
 # endif

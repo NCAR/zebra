@@ -1,7 +1,7 @@
 /*
  * Library routines for the message system.
  */
-static char *rcsid = "$Id: msg_lib.c,v 1.4 1990-08-01 17:03:15 corbet Exp $";
+static char *rcsid = "$Id: msg_lib.c,v 1.5 1991-01-29 16:51:01 corbet Exp $";
 # include <stdio.h>
 # include <varargs.h>
 # include <sys/types.h>
@@ -39,6 +39,14 @@ static struct mqueue
 	struct message mq_msg;		/* The actual message		*/
 	struct mqueue *mq_next;		/* Next queue entry		*/
 } *Mq = 0, *Mq_free = 0, *Mq_tail;
+
+
+/*
+ * The list of protocol-specific handlers.
+ */
+# define MAXPROTO 20	/* Should last for a while	*/
+static ifptr 
+ProtoHandlers[MAXPROTO] = { 0 };
 
 /*
  * Forward routines.
@@ -143,6 +151,20 @@ char *ident;
  	return (TRUE);
 }
 
+
+
+
+void
+msg_AddProtoHandler (proto, handler)
+int proto;
+ifptr handler;
+/*
+ * Add a protocol-specific handler.
+ */
+{
+	if (proto >= 0 && proto < MAXPROTO)
+		ProtoHandlers[proto] = handler;
+}
 
 
 
@@ -333,7 +355,11 @@ int fd;
 	{
 		if (! (msg = msg_read (fd)))
 			return (1);
-		return ((*Msg_handler) (msg));
+		if (msg->m_proto >= 0 && msg->m_proto < MAXPROTO &&
+				ProtoHandlers[msg->m_proto])
+			return ((*ProtoHandlers[msg->m_proto]) (msg));
+		else
+			return ((*Msg_handler) (msg));
 	}
 }
 
@@ -641,7 +667,11 @@ msg_DispatchQueued ()
 
 	while (Mq)
 	{
-		ret = (*Msg_handler) (&Mq->mq_msg);
+		if (Mq->mq_msg.m_proto >= 0 && Mq->mq_msg.m_proto < MAXPROTO &&
+				ProtoHandlers[Mq->mq_msg.m_proto])
+			ret =(*ProtoHandlers[Mq->mq_msg.m_proto])(&Mq->mq_msg);
+		else
+			ret = (*Msg_handler) (&Mq->mq_msg);
 		msg_RemQueue (Mq);
 		if (ret)
 			return (ret);
