@@ -33,7 +33,7 @@
 # include "dfa.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_NetCDF.c,v 3.72 2002-04-25 07:38:33 granger Exp $")
+RCSID ("$Id: DFA_NetCDF.c,v 3.73 2002-04-25 21:58:58 granger Exp $")
 
 # include <netcdf.h>
 
@@ -3394,11 +3394,18 @@ int *dims;
 		(void) ncattput (tag->nc_id, varid, VATT_FTYPE,
 				NC_CHAR, strlen(attr)+1, attr);
 	/*
-	 * Add a missing_value attribute for this field, but only if one
-	 * was set specifically for this field, and only if the attribute
-	 * has not already been explicitly set in the datachunk.
-	 */
-		if ((badval = dc_GetFieldBadval (dc, fids[var])) &&
+	 * Add the missing_value attribute for this field, but only if the
+	 * attribute has not already been explicitly set in the datachunk.
+	 * dc_FindFieldBadval() will return the field-specific bad value,
+	 * if any, otherwise the global bad value, if any.  In Zebra's
+	 * interpretation of a global missing_value, fields without a
+	 * setting inherit the global value.  The netcdf convention is that
+	 * all variables have their own missing_value attribute, so in
+	 * effect we're explicitly doing the inheritance here to conform to
+	 * convention.  When read, Zebra will just accept the per-field
+	 * missing values, even though they may all be the same.
+	 **/
+		if ((badval = dc_FindFieldBadval (dc, fids[var])) &&
 		    (! dc_GetFieldAttrArray (dc, fids[var], VATT_MISSING,
 					     NULL, NULL)))
 		{
@@ -3490,8 +3497,8 @@ DataChunk *dc;
  * was given different values in different datachunks?
  */
 {
-	char history[256];
 	const char *attr;
+	char* history = 0;
 	struct timeval tv;
 	struct AttArg attarg;
 	void *badval;
@@ -3521,12 +3528,25 @@ DataChunk *dc;
 	attr = ds_PlatformName(dc->dc_Platform);
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_PLATFORM,
 		       NC_CHAR, strlen(attr)+1, attr);
-	sprintf(history,"created by the Zebra DataStore library, ");
+
+	attr = dc_GetGlobalAttr (dc, GATT_HISTORY);
+	if (attr)
+	{
+	    history = (char*) malloc (strlen(attr) + 256);
+	    strcpy (history, attr);
+	}
+	else
+	{
+	    history = (char*) malloc (256);
+	    history[0] = '\0';
+	}
+	strcat (history, "Created by the Zebra DataStore library, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.72 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.73 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
+	free (history);
 }
 
 
