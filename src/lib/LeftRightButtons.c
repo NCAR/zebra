@@ -1,7 +1,6 @@
 /*
  * Left-right button widget
  */
-static char *rcsid = "$Id: LeftRightButtons.c,v 1.3 1991-10-15 22:24:16 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -23,7 +22,9 @@ static char *rcsid = "$Id: LeftRightButtons.c,v 1.3 1991-10-15 22:24:16 kris Exp
 # include <X11/StringDefs.h>
 # include <X11/Xaw/Form.h>
 # include <X11/Xaw/Command.h>
+# include <defs.h>
 # include "bitmaps.h"
+MAKE_RCSID ("$Id: LeftRightButtons.c,v 1.4 1991-12-05 19:56:59 corbet Exp $")
 
 
 
@@ -65,7 +66,7 @@ XtTranslations ttable;
 		holder, args, n);
 	if (ttable != NULL)
 		XtOverrideTranslations (left, ttable);
-	XtAddCallback (left, XtNcallback, callback, -1);
+	XtAddCallback (left, XtNcallback, callback, (XtPointer) -1);
 
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, left); n++;
@@ -77,7 +78,7 @@ XtTranslations ttable;
 		holder, args, n);
 	if (ttable != NULL)
 		XtOverrideTranslations (right, ttable);
-	XtAddCallback (right, XtNcallback, callback, 1);
+	XtAddCallback (right, XtNcallback, callback, (XtPointer) 1);
 
 	return (holder);
 }
