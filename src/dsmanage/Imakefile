@@ -10,7 +10,7 @@ HEADERS = DataDir.h Dialog.h Index.h STable.h StatusWin.h Tape.h ZTime.h \
 	container.h dsmWindows.h dsmanage.h
 
 DSMLIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS) -lg++
-TILIBS = $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) -lg++
+TILIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) -lg++
 
 OBJS = dsmanage.o dsmWindows.o DataDir.o Index.o MainWindow.o Dialog.o \
 	LoadData.o StatusWin.o DLoad.o Tape.o TBCleanup.o
