@@ -27,7 +27,7 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_MetData.c,v 3.1 1992-05-27 17:24:03 corbet Exp $")
+MAKE_RCSID ("$Id: dc_MetData.c,v 3.2 1992-07-23 15:23:21 corbet Exp $")
 
 # define SUPERCLASS DCC_Transparent
 
@@ -262,8 +262,10 @@ float badval;
 		return;
 	}
 	finfo->fi_Badval = badval;
+# ifdef notdef
 	if (dc_GetNSample (dc) > 0)
 		msg_ELog (EF_PROBLEM, "Bad value flag set on non-empty DC");
+# endif
 /*
  * Also store it as a global attribute.
  */
