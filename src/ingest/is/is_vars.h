@@ -1,7 +1,7 @@
 /*
  * IS variables.
  * 
- * $Id: is_vars.h,v 1.1 1991-10-11 15:29:56 martin Exp $
+ * $Id: is_vars.h,v 1.2 1991-10-11 15:41:46 martin Exp $
  */
 /*
  * Copyright (C) 1987,88,89,90,91 by UCAR University Corporation for
@@ -24,7 +24,6 @@
 #include "defs.h"
 #include "message.h"
 #include "timer.h"
-#include "is.h"
 
 #define MAX_PROC_ARGS 30
 #define MAX_STTY_ARGS 20
