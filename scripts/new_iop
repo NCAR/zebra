@@ -1,0 +1,55 @@
+#!/usr/bin/python
+import sys,os,os.path,time
+# make a new iop directory
+
+def safeunlink(filename):
+    """ remove a link w/o throwning an execption if it does not exist """
+#    print 'unlinking %s' % filename
+    try:
+        os.unlink(filename)
+    except OSError:
+        pass
+
+def main():
+    iopDir = '/scr/data/iops'
+    spolLink = 'spol'
+    subsetDir = '/scr/data/iop_subsets'
+    subsetLink = 'spol_subset'
+
+    stdList = ['particles', 'particles/pdesc', 'precip.basic', 'precip.hourly', 'precip.storm',
+	'rain', 'rain/basic', 'rain/hourly','rain/storm',  'spol', 'sweepfiles']
+
+#    UsageStr = 'name_of_iop'
+    if len(sys.argv) != 1:
+	print 'usage: %s ' % sys.argv[0]
+	sys.exit(-1)
+
+    iop = time.strftime('iop_%Y_%m_%d_%H00', time.gmtime(time.time()))
+    newDir = os.path.join(iopDir, iop)
+    theLink = os.path.join(os.path.basename(iopDir), iop)
+    if os.path.exists(newDir):
+	print 'ERROR - %s already exists!' % newDir
+	sys.exit(-2)
+    os.mkdir(newDir)
+
+    for d in stdList:
+	os.mkdir(os.path.join(newDir, d))
+
+    os.chdir('/scr/data')
+    safeunlink(spolLink)
+    os.symlink(theLink, spolLink)
+
+# create subset directory
+    newDir = os.path.join(subsetDir, iop)
+    theLink = os.path.join(os.path.basename(subsetDir), iop)
+    if os.path.exists(newDir):
+	print 'ERROR - %s already exists!' % newDir
+	sys.exit(-2)
+    os.mkdir(newDir)
+    safeunlink(subsetLink)
+    os.symlink(theLink, subsetLink)
+
+if __name__ == '__main__':
+    main()
+
+

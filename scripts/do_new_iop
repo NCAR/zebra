@@ -1,0 +1,4 @@
+#!/bin/sh
+# stop zebra processes
+/usr/local/spol/bin/kill_all
+new_iop

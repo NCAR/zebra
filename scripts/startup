@@ -64,7 +64,7 @@ if ($new_zebra) then
     sleep 2
 
     /bin/mv -f $rainlog $rainlog.save > /dev/null
-    /usr/local/spol/ops/bin/startboth >& $rainlog
+    /usr/local/spol/bin/startboth >& $rainlog
     /bin/mv -f $hyidlog $hyidlog.save > /dev/null
     /usr/local/spol/bin/starthyid < /dev/null >& $hyidlog &
 endif

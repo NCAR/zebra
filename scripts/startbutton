@@ -104,13 +104,13 @@ class Main (Frame):
 	os.system('/usr/local/zebra/bin/zstop &')
 
     def kill_all(self):
-	os.system('/usr/local/zebra/bin/kill_all &')
+	os.system('/usr/local/spol/bin/kill_all &')
 
     def reset_rain(self):
 	os.system('/usr/local/spol/bin/reset_rain &')
 
     def new_iop(self):
-	os.system('/usr/local//zebra/bin/do_new_iop &')
+	os.system('/usr/local/zebra/bin/do_new_iop &')
 
     def select_archive(self):
 	os.system('/usr/local/zebra/bin/zebra_data_select &')
