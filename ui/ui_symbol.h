@@ -1,4 +1,4 @@
-/* $Id: ui_symbol.h,v 1.3 1989-07-12 09:43:07 corbet Exp $ */
+/* $Id: ui_symbol.h,v 1.4 1990-09-19 08:50:24 corbet Exp $ */
 /*
  * Global declarations for the symbol table module.
  */
@@ -21,13 +21,13 @@
 /*
  * this union type is used to pass symbol values around.
  */
-union usy_value
+typedef union usy_value
 {
 	int us_v_int;		/* Integer symbol value		*/
 	float	us_v_float;	/* Floating point value		*/
 	date	us_v_date;	/* Date value			*/
 	char	*us_v_ptr;	/* Everything else		*/
-};
+} SValue;
 
 /*
  * Symbol operations.
@@ -44,10 +44,36 @@ typedef char *stbl;
 /*
  * Symbol table routines.
  */
-int usy_g_symbol ();
-bool usy_defined ();
-char *usy_string (), *usy_pstring ();
-stbl usy_g_stbl ();
-stbl usy_c_stbl ();
+# ifdef __STDC__
+	void usy_init (void);
+	stbl usy_c_stbl (char *);
+	int usy_z_stbl (stbl);
+	int usy_z_symbol (stbl, char *);
+	int usy_g_symbol (stbl, char *, int *, SValue *);
+	bool usy_defined (stbl, char *);
+	int usy_s_symbol (stbl, char *, int, SValue *);
+	int usy_dump_table (stbl);
+	stbl usy_g_stbl (char *);
+	int usy_c_indirect (stbl, char *, void *, int, int);
+	int usy_traverse (stbl, int (*)(), long, int);
+	int usy_search (stbl, int (*)(), long, int, char *);
+	int usy_daemon (stbl, char *, int, int (*)(), char *);
+	int usy_z_daemon (stbl, char *, int, int (*)(), char *);
+# else
+	void usy_init ();
+	stbl usy_c_stbl ();
+	int usy_z_stbl ();
+	int usy_z_symbol ();
+	int usy_g_symbol ();
+	bool usy_defined ();
+	int usy_s_symbol ();
+	int usy_dump_table ();
+	stbl usy_g_stbl ();
+	int usy_c_indirect ();
+	int usy_traverse ();
+	int usy_search ();
+	int usy_daemon ();
+	int usy_z_daemon ();
+# endif
 
 # endif

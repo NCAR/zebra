@@ -1,5 +1,5 @@
 /* 10/85 jc */
-/* $Id: ui_error.h,v 1.2 1990-09-11 16:16:05 corbet Exp $ */
+/* $Id: ui_error.h,v 1.3 1990-09-19 08:50:19 corbet Exp $ */
 
 # ifndef UI_ERROR_SYMBOLS
 # define UI_ERROR_SYMBOLS
@@ -33,4 +33,5 @@
 	int ui_epush (jmp_buf);
 	int ui_epop (void);
 	int ui_eresignal (void);
+# endif
 # endif
