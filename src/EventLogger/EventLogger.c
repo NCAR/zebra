@@ -42,7 +42,7 @@
 # include "config.h"
 # include "copyright.h"
 # ifndef lint
-MAKE_RCSID ("$Id: EventLogger.c,v 2.20 1993-10-22 22:26:54 granger Exp $")
+MAKE_RCSID ("$Id: EventLogger.c,v 2.21 1993-11-05 21:45:45 granger Exp $")
 # endif
 
 # define EL_NAME "EventLogger"
@@ -94,7 +94,7 @@ static int FortuneWait = FORTUNE_WAIT;	/* secs idle time between fortunes */
  */
 static int Buflen = 0;
 static char *Initmsg = 
-"$Id: EventLogger.c,v 2.20 1993-10-22 22:26:54 granger Exp $\nCopyright (C)\
+"$Id: EventLogger.c,v 2.21 1993-11-05 21:45:45 granger Exp $\nCopyright (C)\
  1991 UCAR, All rights reserved.\n";
 
 /*
@@ -144,7 +144,7 @@ static String Resources[] =
  */
 #define check_width ((unsigned int) 9)
 #define check_height ((unsigned int) 8)
-const char Check_bits[] = {
+static const unsigned char Check_bits[] = {
 	0x00, 0x01, 0x80, 0x01, 0xc0, 0x00, 0x60, 0x00,
 	0x31, 0x00, 0x1b, 0x00, 0x0e, 0x00, 0x04, 0x00
 };
@@ -155,7 +155,7 @@ Pixmap Check;
  */
 #define scroll_width 32
 #define scroll_height 32
-static char scroll_bits[] = {
+static const unsigned char scroll_bits[] = {
    0x00, 0xe0, 0x01, 0x00, 0x00, 0x10, 0x1f, 0x00, 0x00, 0x08, 0xe0, 0x01,
    0x00, 0x08, 0x00, 0x1e, 0x00, 0x08, 0x00, 0x38, 0x00, 0x10, 0x00, 0x44,
    0x00, 0xe0, 0x00, 0x82, 0x00, 0x40, 0x07, 0x82, 0x00, 0x20, 0x78, 0x82,
