@@ -656,6 +656,25 @@ int x, y;
 
 
 
+tek_untarget (ctag)
+char	*ctag;
+/*
+ * Remove the target
+ */
+{
+	struct tek_tag *tag = (struct tek_tag *) ctag;
+/*
+ * Make segment 0 (crosshair cursor) invisible and do a renew
+ * to insure that the invisibility takes place now
+ */
+	gtty_out (tag->tek_tty, "\033SV00");
+	gtty_out (tag->tek_tty, "\033KN0");
+	gtty_flush (tag->tek_tty);
+}
+
+
+
+
 tek_vp (ctag, x0, y0, x1, y1)
 char *ctag;
 int x0, y0, x1, y1;
