@@ -42,6 +42,13 @@ define state initial
 	input 'dirimage' 7
 		next ust$final_string
 	endinput
+	! field name description units
+	input 'field' 8
+		next field-name
+	endinput
+	input 'alias' 9
+		next alias-old
+	endinput
 enddef
 
 !
@@ -111,6 +118,26 @@ define state send-plats
 	endinput
 	input EOS
 		done
+	endinput
+enddef
+
+
+
+define state field-name
+	input string
+		next field-description
+	endinput
+enddef
+
+define state field-description
+	input string
+		next ust$final_unmunged_string
+	endinput
+enddef
+
+define state alias-old
+	input string
+		next ust$final_string
 	endinput
 enddef
 
