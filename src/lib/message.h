@@ -1,4 +1,4 @@
-/* $Id: message.h,v 2.13 1993-08-16 19:59:16 burghart Exp $ */
+/* $Id: message.h,v 2.14 1993-10-22 21:30:08 granger Exp $ */
 /*
  * Message protocol types.
  */
@@ -58,6 +58,12 @@
 # define MSG_DONE	0	/* All finished				*/
 # define MSG_ENQUEUE	1	/* Enqueue message for later		*/
 # define MSG_CONSUMED	-334455	/* Message eaten, but keep searching	*/
+
+/*
+ * Value returned by msg_poll() on timeout.
+ * -1 for now for backwards compatibility.
+ */
+# define MSG_TIMEOUT	-1
 
 /*
  * Message handler protocol message types.
