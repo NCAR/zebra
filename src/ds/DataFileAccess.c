@@ -34,7 +34,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 # include "dfa.h"
-MAKE_RCSID ("$Id: DataFileAccess.c,v 3.6 1992-11-19 00:17:33 granger Exp $")
+MAKE_RCSID ("$Id: DataFileAccess.c,v 3.7 1993-01-10 08:18:45 burghart Exp $")
 
 
 
@@ -407,7 +407,7 @@ char *file;
 
 	if (! (cp = strrchr (file, '.')))
 		return (-1);
-	for (fmt = 0; fmt <= sizeof(Formats)/sizeof(struct DataFormat); fmt++)
+	for (fmt = 0; fmt < sizeof(Formats)/sizeof(struct DataFormat); fmt++)
 		if (! strcmp (cp, Formats[fmt].f_ext))
 			return (fmt);
 	return (-1);
