@@ -21,7 +21,7 @@ extern "C"
 #	include <fcntl.h>
 #	include <sys/types.h>
 #	include <sys/ioctl.h>
-#	include <sys/mtio.h>
+#	include "zl_mtio.h"
 }
 
 //
