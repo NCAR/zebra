@@ -1,4 +1,4 @@
-/* $Id: actrack.c,v 1.2 2000-12-14 00:30:56 granger Exp $ */
+/* $Id: actrack.c,v 1.3 2001-01-08 17:17:33 granger Exp $ */
 
 /*
  * Ingest track locations from the command line.
@@ -22,7 +22,7 @@
 #define BADVALUE	-99999.0
 
 MAKE_RCSID(
-   "$Id: actrack.c,v 1.2 2000-12-14 00:30:56 granger Exp $")
+   "$Id: actrack.c,v 1.3 2001-01-08 17:17:33 granger Exp $")
 
 
 struct Options
@@ -72,9 +72,12 @@ Usage (char *prog)
 {
     printf ("Usage: %s <platform> <lat> <lon> <alt> [time]\n",prog);
     printf ("   %s -help\n",prog);
-    printf ("   %s <platform> -vor <name> <azimuth> <range> <alt> [time]\n");
-    printf ("            Enter vor-relative coordinates instead of lat/lon");
-    printf ("            See vor -help for units");
+    printf ("   %s -input\n",prog);
+    printf ("        Read data from stdin in command-line format.\n");
+    printf ("   %s <platform> -vor <name> <azimuth> <range> <alt> [time]\n",
+	    prog);
+    printf ("        Enter vor-relative coordinates instead of lat/lon\n");
+    printf ("        See vor -help for units\n");
     printf ("Where the default field units are as follows:\n");
     printf ("   lat      degrees North\n");
     printf ("   lon      degrees East\n");
