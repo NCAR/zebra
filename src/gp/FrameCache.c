@@ -1,7 +1,7 @@
 /*
  * Frame cache maintenance.
  */
-static char *rcsid = "$Id: FrameCache.c,v 1.5 1991-03-18 18:27:44 kris Exp $";
+static char *rcsid = "$Id: FrameCache.c,v 1.6 1991-03-28 18:23:16 kris Exp $";
 # include <X11/Intrinsic.h>
 # include <errno.h>
 # include <ui.h>
@@ -26,7 +26,7 @@ static struct FrameCache
 {
 	time	fc_time;	/* The time of this entry		*/
 	char	fc_base[BFLEN];	/* Base field				*/
-	char	*fc_fields[FLEN]; /* Other fields			*/
+	char	fc_fields[FLEN]; /* Other fields			*/
 	float	fc_alt;		/* Altitude (for now) of this frame	*/
 	int	fc_lru;		/* LRU counter				*/
 	bool	fc_keep;	/* Save this frame if possible.		*/
@@ -157,25 +157,28 @@ int number;
  */
 	FCache[findex].fc_time = *when;
 	complist = pd_CompList (Pd);
+	FCache[findex].fc_base[0] = '\0';
 	(void) (pd_Retrieve (Pd, complist[1], "field", FCache[findex].fc_base,
 			SYMT_STRING) ||
 		pd_Retrieve (Pd, complist[1], "color-code-field",
 			FCache[findex].fc_base, SYMT_STRING) ||
 		pd_Retrieve (Pd, complist[1], "u-field",
 			FCache[findex].fc_base, SYMT_STRING));
+	FCache[findex].fc_alt = 0.0;
 	pd_Retrieve (Pd, "global", "altitude", (char *) &FCache[findex].fc_alt,
 		SYMT_FLOAT);
-	pd_Retrieve (Pd, complist[1], "platform", platform, SYMT_STRING);
-	strcpy(FCache[findex].fc_fields, "");
+	FCache[findex].fc_fields[0] = '\0';
 	i = 2;
 	while(complist[i])
 	{
+		field[0] = '\0';
 		(void) (pd_Retrieve (Pd, complist[i], "field", field,
 				SYMT_STRING) ||
 			pd_Retrieve (Pd, complist[i], "color-code-field",
 				field, SYMT_STRING) ||
 			pd_Retrieve (Pd, complist[i], "u-field",
 				field, SYMT_STRING));
+		platform[0] = '\0';
 		pd_Retrieve (Pd, complist[i], "platform", platform, 
 			SYMT_STRING);
 
@@ -183,7 +186,6 @@ int number;
 		strcat(FCache[findex].fc_fields, field);
 		i++;
 	}
-	msg_ELog(EF_DEBUG, "fields: (%s)", FCache[findex].fc_fields);
 	FCache[findex].fc_lru = ++Lru;
 	FCache[findex].fc_valid = TRUE;
 	FCache[findex].fc_keep = FALSE;
@@ -194,9 +196,10 @@ int number;
 		complist[1], platform, FCache[findex].fc_base, 
 		when->ds_hhmmss/10000, (when->ds_hhmmss/100)%100);  
 	msg_ELog (EF_DEBUG, "Cache %d, fld '%s' alt %.2f at %d %d, lru %d,
-		index %d", findex, FCache[number].fc_base, 
-		FCache[number].fc_alt, when->ds_yymmdd, when->ds_hhmmss, 
-		FCache[number].fc_lru, number);
+		index %d", findex, FCache[findex].fc_base, 
+		FCache[findex].fc_alt, when->ds_yymmdd, when->ds_hhmmss, 
+		FCache[findex].fc_lru, number);
+	msg_ELog(EF_DEBUG, "fields: (%s)", FCache[findex].fc_fields);
 }
 
 
@@ -216,24 +219,27 @@ time *when;
 /*
  * Get the base field from the PD.
  */
+	base[0] = '\0';
 	complist = pd_CompList (Pd);
 	(void) (pd_Retrieve (Pd, complist[1], "field", base, SYMT_STRING) ||
 		pd_Retrieve (Pd, complist[1], "color-code-field", base,
 				SYMT_STRING) ||
 		pd_Retrieve (Pd, complist[1], "u-field", base, SYMT_STRING));
-	strcpy(fieldlist, "");
 /*
  * Get the other fields from the PD.
  */
+	fieldlist[0] = '\0';
 	i = 2;
 	while(complist[i])
 	{
+		field[0] = '\0';
 		(void) (pd_Retrieve (Pd, complist[i], "field", field,
 				SYMT_STRING) ||
 			pd_Retrieve (Pd, complist[i], "color-code-field",
 				field, SYMT_STRING) ||
 			pd_Retrieve (Pd, complist[i], "u-field",
 				field, SYMT_STRING));
+		platform[0] = '\0';
 		pd_Retrieve (Pd, complist[i], "platform", platform, 
 			SYMT_STRING);
 
@@ -241,6 +247,7 @@ time *when;
 		strcat(fieldlist, field);
 		i++;
 	}
+	alt = 0.0;
 	pd_Retrieve (Pd, "global", "altitude", (char *) &alt, SYMT_FLOAT);
 /*
  * Now go searching.
@@ -286,16 +293,41 @@ int ntime;
  * Go through and mark all frames that match one of these times to be kept.
  */
 {
-	int frame, t;
+	int frame, t, i;
 	float alt;
 	char base[BFLEN], **complist = pd_CompList (Pd);
+	char field[BFLEN], platform[BFLEN], fieldlist[FLEN];
 /*
  * Get the current base field, and only mark those which match.
  */
+	base[0] = '\0';
 	(void) (pd_Retrieve (Pd, complist[1], "field", base, SYMT_STRING) ||
 		pd_Retrieve (Pd, complist[1], "color-code-field", base,
 				SYMT_STRING) ||
 		pd_Retrieve (Pd, complist[1], "u-field", base, SYMT_STRING));
+/*
+ *  Get the other fields fromthe PD.
+ */
+	fieldlist[0] = '\0';
+	i = 2;
+	while(complist[i])
+	{
+		field[0] = '\0';
+		(void) (pd_Retrieve (Pd, complist[i], "field", field,
+				SYMT_STRING) ||
+			pd_Retrieve (Pd, complist[i], "color-code-field",
+				field, SYMT_STRING) ||
+			pd_Retrieve (Pd, complist[i], "u-field",
+				field, SYMT_STRING));
+		platform[0] = '\0';
+		pd_Retrieve (Pd, complist[i], "platform", platform, 
+			SYMT_STRING);
+
+		strcat(fieldlist, platform);
+		strcat(fieldlist, field);
+		i++;
+	}
+	alt = 0.0;
 	pd_Retrieve (Pd, "global", "altitude", (char *) &alt, SYMT_FLOAT);
 /*
  * Now go through all frames.
@@ -308,7 +340,9 @@ int ntime;
 		for (t = 0; fc->fc_valid && t < ntime; t++)
 			if (fc->fc_time.ds_yymmdd == times[t].ds_yymmdd &&
 			    fc->fc_time.ds_hhmmss == times[t].ds_hhmmss &&
-			    fc->fc_alt == alt && ! strcmp (fc->fc_base, base))
+			    fc->fc_alt == alt && 
+			    ! strcmp (fc->fc_base, base) &&
+			    ! strcmp (fc->fc_fields, fieldlist))
 			{
 				fc->fc_keep = TRUE;
 				break;
