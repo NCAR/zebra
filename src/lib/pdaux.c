@@ -1,4 +1,4 @@
-/* $Id: pdaux.c,v 1.8 1993-04-16 17:11:14 burghart Exp $ */
+/* $Id: pdaux.c,v 1.9 1993-06-17 20:50:03 corbet Exp $ */
 /*
  * Auxilliary library routines for plot descriptions.
  */
@@ -138,6 +138,8 @@ int type;
  */
 	if (!found && (defpd = pda_GetPD ("defaults")))
 		found = pd_Retrieve (defpd, "defaults", qparam, dest, type);
+	if (! found && defpd)
+		found = pd_Retrieve (defpd, "defaults", param, dest, type);
 /*
  * Free any malloc'ed memory and vamoose with our answer.
  */
