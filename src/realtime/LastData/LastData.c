@@ -71,7 +71,7 @@ XtAppContext Appc;
 	static void CreateWidget (void);
 	static void Die (void);
 	static int MsgHandler (Message *);
-	static void DoPlatforms ();
+	static void DoPlatforms (char *);
 	static void AddPlatform (char *, int, int, time *);
 	static void TogglePlat (Widget, int, int);
 	static void GetColors (void);
@@ -125,7 +125,7 @@ char **argv;
 /*
  * Add our platforms.
  */
-	DoPlatforms ();
+	DoPlatforms (argv[1]);
 /*
  * Our polling interrupt.
  */
@@ -250,7 +250,8 @@ Message *msg;
 
 
 static void
-DoPlatforms ()
+DoPlatforms (config_file)
+char *config_file;
 /*
  * Add all the platforms.
  */
@@ -258,12 +259,13 @@ DoPlatforms ()
 	time now;
 	FILE *cfile; 
 	char line[80], *cp, *strchr ();
-	char config_file[200];
 	int yellow, red;
 /*
  * Make sure we have a config.
  */
+# ifdef notdef
 	sprintf (config_file, "%s/LastData.config", LIBDIR);
+# endif
 	cfile = fopen (config_file, "r");
 	if (cfile == NULL)
 	{
