@@ -41,7 +41,7 @@
 # include "Skewt.h"
 
 
-RCSID ("$Id: Skewt.c,v 2.34 2000-11-10 22:53:56 granger Exp $")
+RCSID ("$Id: Skewt.c,v 2.35 2000-11-16 22:56:34 granger Exp $")
 
 /*
  * General definitions
@@ -807,14 +807,20 @@ zbool    update;
 	flist[1] = BadField;
 	flist[2] = F_Lookup ("dp");
 
-	platflds = (FieldId *) malloc (50 * sizeof (FieldId));
-	nflds = 50;
+	nflds = 200;
+	platflds = (FieldId *) malloc (nflds * sizeof (FieldId));
 	ds_GetFields (pid, &ptime, &nflds, platflds);
 	for (i = 0; i < nflds; i++)
 		if (! strcmp (F_GetName (platflds[i]), "temp") ||
 		    ! strcmp (F_GetName (platflds[i]), "tdry"))
 			flist[1] = platflds[i];
 	free (platflds);
+	if (flist[1] == BadField)
+	{
+	    msg_ELog (EF_PROBLEM, "no temp or tdry field found in %s",
+		      pname);
+	    return;
+	}
 /*
  * Check for a request for a particular bad value
  */
