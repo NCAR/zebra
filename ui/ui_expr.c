@@ -1,5 +1,5 @@
 /* 1/87 jc */
-/* $Id: ui_expr.c,v 1.6 1990-03-05 16:07:29 corbet Exp $ */
+/* $Id: ui_expr.c,v 1.7 1990-03-27 10:50:29 corbet Exp $ */
 /*
  * Expression handling.
  */
@@ -1371,7 +1371,7 @@ union usy_value *v;
  * 7/15/88	Arg tables are now procedure-invocation-specific, and
  *		live on the cstack.
  */
-	if ((Cs->cs_arg_table == 0 || ! usy_g_symbol (Cs->cs_arg_table,
+	if ((!Cs || Cs->cs_arg_table == 0 || ! usy_g_symbol (Cs->cs_arg_table,
 					tree->pt_v.us_v_ptr, type, v)) &&
 	 	! usy_g_symbol(Ui_variable_table, tree->pt_v.us_v_ptr,type, v))
 	{
