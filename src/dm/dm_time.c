@@ -6,6 +6,7 @@
 # include <string.h>
 # include <errno.h>
 
+# include <ui.h>
 # include <config.h>
 # include <defs.h>
 # include <twidget.h>
@@ -15,7 +16,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-RCSID ("$Id: dm_time.c,v 2.8 1996-03-12 06:45:33 granger Exp $")
+RCSID ("$Id: dm_time.c,v 2.9 1996-11-19 07:07:18 granger Exp $")
 
 #define TIME_FILE_LEN CFG_FILEPATH_LEN
 

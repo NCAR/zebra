@@ -11,6 +11,7 @@
 # include <string.h>
 # include <ctype.h>
 
+# include <ui.h>
 # include <defs.h>
 # include <message.h>
 # include <dm.h>

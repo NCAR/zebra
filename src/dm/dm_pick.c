@@ -23,11 +23,12 @@
 # include <X11/Xutil.h>
 # include <X11/cursorfont.h>
 
+# include <ui.h>
 # include <defs.h>
 # include <dm.h>
 # include "dm_vars.h"
 
-RCSID("$Id: dm_pick.c,v 2.14 1996-02-05 23:33:37 granger Exp $")
+RCSID("$Id: dm_pick.c,v 2.15 1996-11-19 07:07:17 granger Exp $")
 
 /*
  * This structure is used to communicate through usy_traverse.

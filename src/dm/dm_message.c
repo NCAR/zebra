@@ -7,10 +7,11 @@
 # include <string.h>
 # include <stdio.h>
 
+# include <ui.h>
 # include <defs.h>
 # include <message.h>
 
-RCSID ("$Id: dm_message.c,v 2.1 1995-04-18 22:18:44 granger Exp $")
+RCSID ("$Id: dm_message.c,v 2.2 1996-11-19 07:07:15 granger Exp $")
 
 # include <dm.h>
 # include "dm_vars.h"
