@@ -19,21 +19,26 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: Optimizer.c,v 1.7 1995-03-09 16:48:57 burghart Exp $";
-
 # include <copyright.h>
 # include <ctype.h>
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
 # include <unistd.h>
+
 # include <ui.h>
 # include <ui_date.h>
 # include <ui_error.h>
 # include <config.h>
+# include <defs.h>
+# include <message.h>
+# include <DataStore.h>
+
 # include "globals.h"
 # include "radar.h"
 # include "keywords.h"
 # include "prototypes.h"
+
+RCSID ("$Id: Optimizer.c,v 1.8 1997-04-29 03:51:14 granger Exp $")
 
 /*
  * Declare global variables here
@@ -50,42 +55,32 @@ float	Slowtime[7];
 
 XtAppContext	Appc;
 
-
+#ifdef notdef
 /*
  * Pointers to routines to handle each command (stored by keyword number)
  */
 static void	(*Cmd_routine[MAXKW+1])();
+#endif
 
 /*
  * Private prototypes
  */
-# ifdef __STDC__
-	static int	opt_Dispatch (int, struct ui_command *);
-	static void	opt_CmdInit (void);
-	static void	opt_DumpCmd (struct ui_command *);
-	void	opt_LoadConfig (char *);
-	int	opt_XEvent (int);
-	void	opt_VolInfo (struct ui_command *);
-	int	opt_Message (struct message *);
-	static void	opt_ReportError (char *);
-	static void	opt_Print (char *);
-	void	opt_Usage (void);
-# else
-	static int	opt_Dispatch ();
-	static void	opt_CmdInit ();
-	static void	opt_DumpCmd ();
-	int	opt_XEvent ();
-	void	opt_LoadConfig ();
-	void	opt_VolInfo ();
-	int	opt_Message ();
-	static void	opt_ReportError ();
-	static void	opt_Print ();
-	void	opt_Usage ();
-# endif
+#ifdef notdef
+static int	opt_Dispatch (int, struct ui_command *);
+static void	opt_CmdInit (void);
+static void	opt_DumpCmd (struct ui_command *);
+#endif
+void	opt_LoadConfig FP((char *));
+int	opt_XEvent FP((int));
+void	opt_VolInfo FP((struct ui_command *));
+int	opt_Message FP((struct message *));
+static void	opt_ReportError FP((char *));
+static void	opt_Print FP((char *));
+void	opt_Usage FP((void));
 
 
 
-
+int
 main (argc, argv)
 int	argc;
 char	**argv;
@@ -140,7 +135,7 @@ char	**argv;
 			exit (1);
 		}
 
-		msg_DeathHandler (opt_Finish);
+		msg_DeathHandler ((int (*)())opt_Finish);
 	/*
 	 * Deal with UI error output so it goes to event logger
 	 */
@@ -373,8 +368,7 @@ char	*cfg;
 	/*
 	 * Radar name
 	 */
-		status = (int) fgets (r.name, RNAMELEN, cfile);
-		if (status == NULL)
+		if (! (status = (fgets (r.name, RNAMELEN, cfile) != NULL)))
 			break;
 
 		if (strlen (r.name) == 1)
@@ -668,7 +662,7 @@ char	*line;
 	start = tbuf;
 
 	strcpy (tbuf, line);
-	while (nl = strchr (start, '\n'))
+	while ((nl = strchr (start, '\n')))
 	{
 		*nl = '\0';
 		if (strlen (start) > 0)

@@ -3,9 +3,10 @@
 		-------------------------------------------
 
 
-NOTE: The assumption is made below that you have a Zebra source distribution 
-in the /zebra directory.  Modify directory references is you have your Zebra 
-source elsewhere.
+NOTE: The assumption is made below that you have a Zebra source
+distribution in the /zebra directory, and the binary directory installed in
+/zebra/bin.  Modify directory references is you have your Zebra source
+elsewhere.
 
 
 1) Check your /zebra/config/config.h file and make sure that you have enabled
@@ -16,6 +17,7 @@ source elsewhere.
 2) Build Optimizer:
 
 	$ cd /zebra/src/Optimizer
+	$ /zebra/bin/zmkmf ../.. src/Optimizer
 	$ make install
 
 Now go to your project-specific configuration directory.
@@ -34,7 +36,7 @@ Now go to your project-specific configuration directory.
 3) Generally, optimizer boundaries are entered via a Zebra graphics process 
    by drawing an outline on the screen.  The graphics process command to 
    enable drawing and save the result under platform "boundary" is "polyline 
-   boundary".  Generally, this command is bound to a specific key in the
+   boundary".  This command can be bound to a specific key in the
    graphics process' button map.  I like to use "o" for "Optimizer":
 
 	buttonmap example
@@ -45,41 +47,39 @@ Now go to your project-specific configuration directory.
 		.
 	endmap
 
-4) It is useful to have the graphics process being used for optimizing keep
-   the current boundary displayed.  To do this, add the component shown to the 
-   graphics process' plot description:
+   The command can also be run from the icon menu for the optimizer
+   boundary overlay component, described in the next step.  You do not need
+   to change the buttonmap if you do the next step instead.
 
-	c_opt_boundary
-		closed-boundary:	true
-		color:	white
-		field:	boundary
-		icon:	boundary
-		icon-middle-menu:	simple-color
-		label:	opt_bdry
-		line-width:	2
-		platform:	boundary
-		representation:	overlay
-		trigger:	boundary
-		trigger-global:	true
-		require:	simple-color
+4) It is useful to have the graphics process being used for optimizing keep
+   the current boundary displayed.  Add the following entry to one of the
+   menus in the IconBar file, usually the "overlay" menu:
+
+	entry 'Optimizer Boundary' 'putc1 p_opt_boundary platform boundary'
+
+   The boundary overlay can then be added to a radar window by selecting
+   this menu entry.  [Restart Zebra to get the modified IconBar menu.]
 
 Finally, run everything.
 
-1) Start Zebra normally, making sure the graphics process modified above
-   is being displayed.
+1) Start Zebra normally and pick a display configuration with a radar window.
 
 2) Execute the Optimizer, giving it the radar parameters file that was created
    earlier:
 
 	/zebra/bin/Optimizer /myprojdir/my.params &
 
-3) Enter a boundary via the graphics process (initiated by the "o" key if
-   using the button map shown above).
+3) Add the optimizer boundary overlay to a radar window using the IconBar.
 
-4) Play with the controls in the Optimizer window.
+4) Enter a boundary via the graphics process.  If you added 'o' to the
+   button map, as mentioned above, you can press 'o' in the radar window.
+   If you added the boundary with the IconBar menu entry above, you can
+   select the 'Enter boundary' entry from the right menu of the optimizer
+   boundary component icon.
 
-Repeat 3) and 4) as much as desired.
+5) Play with the controls in the Optimizer window.
 
+Repeat 4) and 5) as much as desired.
 
 
 

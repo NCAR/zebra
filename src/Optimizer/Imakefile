@@ -1,4 +1,5 @@
-/* $Id: Imakefile,v 1.8 1995-07-06 04:26:43 granger Exp $ */
+/* -*- C -*- */
+/* $Id: Imakefile,v 1.9 1997-04-29 03:51:13 granger Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -27,7 +28,7 @@ SRCS = $(OBJS:.o=.c)
 
 HEADERS = bitmaps.h globals.h keywords.h prototypes.h radar.h
 
-OTHERS = cape cinde config_format.doc Optimizer.ad
+OTHERS = cape cinde Optimizer.ad
 
 DISTFILES = Imakefile $(SRCS) $(HEADERS) Optimizer.state $(OTHERS)
 
@@ -38,20 +39,15 @@ CompleteProgramTarget(Optimizer, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 InstallAppDefaults(Optimizer)
 
 /*
- * Note how normal make targets can be added as shortcuts, as here,
- * since the UICppLoadFileTarget() macro will create the dependencies
- * and rules for the Optimizer.lf target, and lf will just point to
- * that target
- */
-lf:	Optimizer.lf
-
-/*
  * This target generates Optimizer.lf from Optimizer.state, much
  * like UILoadFileTarget(), except that Optimizer.state is first
  * processed with cpp.  The third parameter is the dependencies
  * of the UI state file
  */
 UICppLoadFileTarget(Optimizer.lf,Optimizer.state,keywords.h)
+
+/* Shortcut */
+lf:	Optimizer.lf
 
 DependTarget()
 

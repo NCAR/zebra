@@ -19,14 +19,17 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: Boundary.c,v 1.6 1993-10-20 22:46:11 burghart Exp $";
-
 # include <math.h>
+
+# include <ui.h>
 # include <defs.h>
+# include <timer.h>
 # include <DataStore.h>
 # include "globals.h"
 # include "prototypes.h"
 # include "radar.h"
+
+RCSID ("$Id: Boundary.c,v 1.7 1997-04-29 03:51:11 granger Exp $")
 
 /*
  * Radius of the earth, in km
@@ -53,7 +56,6 @@ bnd_InitBoundary ()
  */
 {
 	PlatformId	pid;
-	float		*lat, *lon;
 	bool		have_boundary = FALSE;
 /*
  * Get the platform ID for "boundary"
@@ -298,7 +300,7 @@ float	d1, az1, d0, az0;
  * radar to the volume.
  */
 {
-	float	diff, test, theta, d, theta0, theta1, closest, furthest;
+	float	diff, test, theta, d, closest, furthest;
 	bool	clockwise;
 /*
  * See if it's a clockwise or counterclockwise change from azprev to az

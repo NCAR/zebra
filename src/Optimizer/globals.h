@@ -1,6 +1,6 @@
 /*
  * Global definitions
- * $Id: globals.h,v 1.3 1992-04-09 18:37:22 granger Exp $
+ * $Id: globals.h,v 1.4 1997-04-29 03:51:18 granger Exp $
  */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -21,14 +21,16 @@
  */
 
 # include <math.h>
+# include <ui.h>		/* To supercede UI replacements in defs.h */
 # include <defs.h>		/* For FP macro needed by message.h */
 # include <message.h>
-# include <ui_param.h>		/* For bool definition */
 
 /*
  * Trig stuff and convenience functions
  */
+#ifndef PI
 # define PI	3.141592654
+#endif
 # define DEG_TO_RAD(x)	((x)*0.017453292)
 # define RAD_TO_DEG(x)	((x)*57.29577951)
 
@@ -69,15 +71,21 @@ extern float	Vol_time;
  * Current option and option limits
  */
 # define NO_OPT	-999
-int	Opt;
-int	MinOpt, MaxOpt;
+extern int Opt;
+extern int MinOpt, MaxOpt;
 
 /*
  * The slow volume scan time for each option
  */
-float	Slowtime[];
+extern float	Slowtime[];
 
 /*
  * Step to use for generating alternate resolutions
  */
 # define RES_STEP	0.02
+
+/*
+ * Prototypes
+ */
+void bnd_InitBoundary FP((void));
+

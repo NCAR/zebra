@@ -19,8 +19,6 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: RadarWidget.c,v 1.7 1995-03-09 16:49:01 burghart Exp $";
-
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
 # include <X11/Xaw/Form.h>
@@ -28,10 +26,13 @@ static char *rcsid = "$Id: RadarWidget.c,v 1.7 1995-03-09 16:49:01 burghart Exp 
 # include <X11/Xaw/Label.h>
 # include <X11/Xaw/AsciiText.h>
 
+# include <ui.h>
 # include <defs.h>
 
 # include "prototypes.h"
 # include "radar.h"
+
+RCSID ("$Id: RadarWidget.c,v 1.8 1997-04-29 03:51:15 granger Exp $")
 
 /*
  * Which radar are we dealing with?
@@ -117,7 +118,7 @@ Widget	parent;
  */
 {
 	Widget	form, w, w_above, msrlabel;
-	int	n, width, height, nldefs;
+	int	n, nldefs;
 	Arg	args[20], ldefaults[10];
 	XtCallbackRec	cblist[2];
 /*
@@ -587,7 +588,6 @@ XtPointer	change, junk;
  * Callback to change the scan type
  */
 {
-	char	string[20];
 	int	delta = (int) change, type, ntypes = (int) N_STYPES;
 /*
  * We're changing something, so disable the radar buttons
@@ -619,7 +619,6 @@ XtPointer	change, junk;
  * Callback to change the radar's status
  */
 {
-	char	string[50];
 	int	delta = (int) change, status, nstat = (int) N_STATUS;
 /*
  * We're changing something, so disable the radar buttons
@@ -718,7 +717,6 @@ XtPointer	junk1, junk2;
  * Callback to signal a text change
  */
 {
-	Arg	arg;
 /*
  * We're changing something, so disable the radar buttons
  */
@@ -736,8 +734,6 @@ bool	s;
  * sensitive state of the "Execute" and "Discard" buttons to '!s'.
  */
 {
-	Arg	arg;
-
 	s ? XtMapWidget (WChangeRad) : XtUnmapWidget (WChangeRad);
 
 	XtSetSensitive (WExecute, !s);

@@ -19,8 +19,6 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: ScanOptions.c,v 1.6 1993-10-21 17:59:16 burghart Exp $";
-
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
 # include <X11/Shell.h>
@@ -31,8 +29,11 @@ static char *rcsid = "$Id: ScanOptions.c,v 1.6 1993-10-21 17:59:16 burghart Exp 
 
 # include <ui.h>
 # include <ui_error.h>
+# include <defs.h>
 # include "globals.h"
 # include "prototypes.h"
+
+RCSID("$Id: ScanOptions.c,v 1.7 1997-04-29 03:51:16 granger Exp $")
 
 /*
  * Scan option widget stuff
@@ -87,8 +88,7 @@ ScanOptions ()
  */
 {
 	int	r, itime, opt, slow;
-	float	slowtime, voltime, hres, vres, dis;
-	Radar	temp;
+	float	slowtime, hres, vres, dis;
 	char	string[80], empty[] = "";
 	Arg	stringarg, arg, emptyarg;
 	Pixel	color;
@@ -275,7 +275,6 @@ int	opt;
  * Display full information for the chosen scan option
  */
 {
-	int	r;
 	char	ostring[16];
 	Arg	arg;
 	Pixel	color;
@@ -536,7 +535,7 @@ so_CreateDisplayWidget ()
  * Build a widget for displaying the selected scan
  */
 {
-	int	i, n;
+	int	n;
 	Arg	args[15];
 	Widget	form, w, wbuttons;
 /*
@@ -555,7 +554,7 @@ so_CreateDisplayWidget ()
 /*
  * Buttons to change radar displayed and the radar label
  */
-	w = wbuttons = LeftRightButtons (form, so_ChangeRadar, NULL);
+	w = wbuttons = (Widget) LeftRightButtons (form, so_ChangeRadar, NULL);
 
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, w); n++;
@@ -603,6 +602,7 @@ so_CreateDisplayWidget ()
 	XtSetArg (args[n], XtNscrollVertical, XawtextScrollWhenNeeded); n++;
 	WDispText = XtCreateManagedWidget ("display", asciiTextWidgetClass, 
 		form, args, n);
+	return (WDisplay);
 }
 
 
@@ -636,7 +636,6 @@ XtPointer	val, junk;
  */
 {
 	int	change = (int) val;
-	int	n;
 	Arg	arg;
 /*
  * Get the number of the new radar to display

@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: CommandWidget.c,v 1.4 1993-10-20 22:46:15 burghart Exp $";
+static char *rcsid = "$Id: CommandWidget.c,v 1.5 1997-04-29 03:51:12 granger Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -36,7 +36,7 @@ static char *rcsid = "$Id: CommandWidget.c,v 1.4 1993-10-20 22:46:15 burghart Ex
 /*
  * global widgets
  */
-static Widget	WExit, WExecute, WDiscard, WHres, WVres, WHsep, WVsep;
+static Widget	WExecute, WDiscard, WHres, WVres, WHsep, WVsep;
 static Widget	WBot, WTop, WTime, WAsap;
 
 /*

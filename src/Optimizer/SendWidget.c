@@ -19,9 +19,9 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: SendWidget.c,v 1.6 1995-03-09 16:49:04 burghart Exp $";
-
 # include <stdio.h>
+# include <stdlib.h>
+# include <unistd.h>
 # include <signal.h>
 # include <time.h>
 # include <sys/time.h>
@@ -36,6 +36,8 @@ static char *rcsid = "$Id: SendWidget.c,v 1.6 1995-03-09 16:49:04 burghart Exp $
 # include "globals.h"
 # include "prototypes.h"
 # include "radar.h"
+
+RCSID("$Id: SendWidget.c,v 1.7 1997-04-29 03:51:17 granger Exp $")
 
 /*
  * Private prototypes
@@ -252,9 +254,7 @@ XtPointer	val, junk;
  */
 	int	r = (int) val;
 	int	in_sockets[2], out_sockets[2], status, done;
-	char	label[20];
 	char	speed[10];
-	Arg	arg;
 /*
  * Open two pipes and create a fork for starting up a kermit
  */
