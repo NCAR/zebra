@@ -1,4 +1,3 @@
-static char *rcsid = "$Id: dm_pick.c,v 2.10 1994-12-05 23:33:53 sobol Exp $";
 /*
  * Handle the window picking operation.
  */
@@ -19,11 +18,15 @@ static char *rcsid = "$Id: dm_pick.c,v 2.10 1994-12-05 23:33:53 sobol Exp $";
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-# include "dm.h"
-# include "dm_vars.h"
 # include <X11/Xlib.h>
 # include <X11/Xutil.h>
 # include <X11/cursorfont.h>
+
+# include <defs.h>
+# include <dm.h>
+# include "dm_vars.h"
+
+RCSID("$Id: dm_pick.c,v 2.11 1995-04-18 22:18:46 granger Exp $")
 
 /*
  * This structure is used to communicate through usy_traverse.
@@ -143,20 +146,21 @@ struct wpick *wp;
  */
 {
 	struct cf_window *win = (struct cf_window *) v->us_v_ptr;
+	Process *proc = win->cfw_process;
 	Window root, parent, *children = NULL;
 	unsigned int nchild = 0;
 	
-	if (! (win->cfw_flags & CF_WIDGET) && (win->cfw_win != 0))
+	if (! (IsWidget (win)) && (proc->p_win != 0))
 	{
 		msg_ELog (EF_DEBUG, "Window name = %s", win->cfw_name);
-		msg_ELog (EF_DEBUG, "Window id = %X", win->cfw_win);
+		msg_ELog (EF_DEBUG, "Window id = %X", proc->p_win);
 	/*
 	 * We used to check for the shell being in override redirect mode, 
 	 * i.e it has NOT been reparented, but this seems not to be necessary.
 	 * Do compare the picked window with the windows we know about.
 	 */
 		msg_ELog (EF_DEBUG, "OR case");
-		if (wp->wp_id == win->cfw_win)
+		if (wp->wp_id == proc->p_win)
 		{
 			strcpy (wp->wp_name, win->cfw_name);
 			wp->wp_found = TRUE;
@@ -167,7 +171,7 @@ struct wpick *wp;
 	 * Compare the picked window with the parent window of the windows 
 	 * we know about.
 	 */
-		XQueryTree (Dm_Display, win->cfw_win, &root, &parent, 
+		XQueryTree (Dm_Display, proc->p_win, &root, &parent, 
 			&children, &nchild);
 		msg_ELog (EF_DEBUG, "NOR, parent is 0x%x", parent);
 	/*

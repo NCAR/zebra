@@ -1,7 +1,7 @@
 !
 ! Display manager widgets.
 !
-! $Id: dm.widgets,v 1.23 1994-12-08 23:31:43 granger Exp $
+! $Id: dm.widgets,v 1.24 1995-04-18 22:18:35 granger Exp $
 !
 
 define widget SaveConfig form 'Configuration saver'
@@ -331,117 +331,20 @@ endprocedure
 
 
 
-
-
-
-procedure ShipScalar platform string field string target_win string
 !
-! Start by figuring out if there is a special command for adding 
-! to this window.  If there is, we just pass control off there and
-! forget about it.
+! The dm equivalent for the require mechanism.  Tries to read
+! the given file name (usually the command name) in the DmModPath
+! directory.
 !
-	local addcmd pd_param(target_win,'global','add-data-command','string')
-	if (addcmd <> '(Undefined)')
-		if (not defined (concat ('ui$procedure_table:',addcmd)))
-			local fname concat3(dmmodpath,'/',addcmd)
-			message 'Trying to load #' fname
-			set delayread 'read'
-			#delayread #fname
-		endif
-		#addcmd #platform #field #target_win
-		return
+procedure require cmd string
+
+	if (not defined (concat ('ui$procedure_table:',cmd)))
+		local fname concat3(dmmodpath,'/',cmd)
+		message '	Trying to load #' fname
+		set delayread 'read'
+		#delayread #fname
 	endif
-!
-! Now figure out what sort of window this is.
-! If it's a CAP plot, send it out as a track (for now)
-!
-	local ptype pd_param(target_win, 'global', 'plot-type', 'string')
-	if (ptype = 'CAP')
-		parameter p_track p_track platform #platform
-		parameter p_track p_track field #field
-		sendout p_track #target_win
-		return
-	endif
-!
-! If it's NOT an xygraph, we don't know what to do.
-!
-	if (ptype <> 'xygraph')
-		message 'I can not cope with rep "#"' ptype
-		beep
-		return
-	endif
-!
-! OK.  Next step is to figure out if there is already a component out there
-! which is displaying this field.
-!
-	local comps pd_complist(target_win)
-	local found false
-	local leftaxis true
-	local ntrace 0
-	foreach comp #comps
-		local leftaxis (not leftaxis)
-		if (comp <> 'global' and not found)
-			local flds pd_param(target_win,comp,'y-field','string')
-			if (flds = field)
-				local ourcomp comp
-				local found true
-			endif
-		endif
-		local ntrace (ntrace + nvalue(target_win, comp, 'platform'))
-	endfor
-!
-! If we found it, just add this info to it.
-!
-	if (found)
-		parameter #target_win global plot-hold true
-		local plats pd_param(target_win, ourcomp, 'platform', 'string')
-		local plats quote(concat3(plats, ',', platform))
-		parameter #target_win #ourcomp platform #plats
-		local clrs pd_param(target_win,ourcomp,'field-color','string')
-		local fcolor NthColor('xygraph', ntrace - 1)
-		local clrs quote(concat3(clrs, ',', fcolor))
-		parameter #target_win #ourcomp field-color #clrs
-		parameter #target_win global plot-hold false
-!
-! Otherwise we need to add a new component.
-	else
-		parameter p_xytrace p_xytrace platform #platform
-		parameter p_xytrace p_xytrace y-field #field
-		if (leftaxis)
-			parameter p_xytrace p_xytrace axis-left true
-			parameter p_xytrace p_xytrace axis-right false
-		else
-			parameter p_xytrace p_xytrace axis-left false
-			parameter p_xytrace p_xytrace axis-right true
-		endif
-		if (ntrace > 1)
-			parameter p_xytrace p_xytrace axis-l-grid-intensity 0
-		else
-			parameter p_xytrace p_xytrace axis-l-grid-intensity 0.7
-		endif
-		local fcolor NthColor('xygraph', ntrace - 1)
-		parameter p_xytrace p_xytrace 'field-color' #fcolor
-		add p_xytrace p_xytrace #target_win
-	endif
-endprocedure
 
-
-
-
-!
-! Try to figure out what to do with a scalar field.
-!
-procedure PutScalar platform string field string
-!
-! Start by finding a window.
-!
-	set target_win "none"
-	pickwin target_win
-	if (target_win = "none")	! They picked root or something
-		beep
-		return
-	endif
-	ShipScalar #platform #field #target_win
 endprocedure
 
 
@@ -484,6 +387,123 @@ procedure sk-add-data platform string field string target string
 		endif
 		parameter #target #comp platform #explat
 	endif
+endprocedure
+
+
+
+procedure ShipScalar platform string field string target_win string
+!
+! Start by figuring out if there is a special command for adding 
+! to this window.  If there is, we just pass control off there and
+! forget about it.
+!
+	local ptype PDParam(target_win, 'global', 'plot-type')
+	local addcmd PDParam(target_win, 'global', 'add-data-command')
+	if (addcmd = '(Undefined)')
+		local qual concat(ptype,'-add-data-command')
+		local addcmd PDParam('defaults','defaults',qual)
+	endif
+	if (addcmd <> '(Undefined)')
+		require #addcmd
+		#addcmd #platform #field #target_win
+		return
+	endif
+!
+! Now figure out what sort of window this is.
+! If it's a CAP plot, send it out as a track (for now)
+!
+	if (ptype = 'CAP')
+		parameter p_track p_track platform #platform
+		parameter p_track p_track field #field
+		sendout p_track #target_win
+		return
+	endif
+	if (ptype = 'skewt')
+		sk-add-data #platform #field #target_win
+		return
+	endif
+!
+! If it's NOT an xygraph, we don't know what to do.
+!
+	if (ptype <> 'xygraph')
+		message 'I can not cope with plot-type "#"' ptype
+		beep
+		return
+	endif
+!
+! OK.  Next step is to figure out if there is already a component out there
+! which is displaying this field.
+!
+	local comps pd_complist(target_win)
+	local found false
+	local leftaxis true
+	local ntrace 0
+	foreach comp #comps
+		local leftaxis (not leftaxis)
+		if (comp <> 'global' and not found)
+			local flds pd_param(target_win,comp,'y-field','string')
+			if (flds = field)
+				local ourcomp comp
+				local found true
+			endif
+		endif
+		local ntrace (ntrace + nvalue(target_win, comp, 'platform'))
+	endfor
+!
+! If we found it, just add this info to it.
+!
+	if (found)
+		parameter #target_win global plot-hold true
+		local plats pd_param(target_win, ourcomp, 'platform', 'string')
+		local plats quote(concat3(plats, ',', platform))
+		parameter #target_win #ourcomp platform #plats
+		local clrs pd_param(target_win,ourcomp,'field-color','string')
+		local fcolor NthColor('xygraph', ntrace - 1)
+		local clrs quote(concat3(clrs, ',', fcolor))
+		parameter #target_win #ourcomp field-color #clrs
+		parameter #target_win global plot-hold false
+!
+! Otherwise we need to add a new component.
+!
+	else
+		set ntrace (ntrace + 1)
+		parameter p_xytrace p_xytrace platform #platform
+		parameter p_xytrace p_xytrace y-field #field
+		if (leftaxis)
+			parameter p_xytrace p_xytrace axis-left true
+			parameter p_xytrace p_xytrace axis-right false
+		else
+			parameter p_xytrace p_xytrace axis-left false
+			parameter p_xytrace p_xytrace axis-right true
+		endif
+		if (ntrace > 1)
+			parameter p_xytrace p_xytrace axis-l-grid-intensity 0
+		else
+			parameter p_xytrace p_xytrace axis-l-grid-intensity 0.7
+		endif
+		local fcolor NthColor('xygraph', ntrace - 1)
+		parameter p_xytrace p_xytrace 'field-color' #fcolor
+		add p_xytrace p_xytrace #target_win
+	endif
+endprocedure
+
+
+
+
+!
+! Try to figure out what to do with a scalar field.
+!
+procedure PutScalar platform string field string
+!
+! Start by finding a window.
+!
+	set target_win "none"
+	pickwin target_win
+	if (target_win = "none")	! They picked root or something
+		beep
+		return
+	endif
+	ShipScalar #platform #field #target_win
 endprocedure
 
 

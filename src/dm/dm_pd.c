@@ -1,4 +1,3 @@
-static char *rcsid = "$Id: dm_pd.c,v 2.6 1995-01-23 17:25:01 corbet Exp $";
 /*
  * Plot description related routines.
  */
@@ -30,12 +29,16 @@ static char *rcsid = "$Id: dm_pd.c,v 2.6 1995-01-23 17:25:01 corbet Exp $";
 
 # include <ui_symbol.h>
 # include <ui_error.h>
-# include <pd.h>
 #ifdef SVR4
 # include <unistd.h>
 #endif
 
+# include <defs.h>
+# include <pd.h>
 
+RCSID("$Id: dm_pd.c,v 2.7 1995-04-18 22:18:45 granger Exp $")
+
+static void pddirfile FP ((char *file));
 
 plot_description
 pdread (file)
@@ -44,38 +47,17 @@ char *file;
  * Load in a single plot description from a file.
  */
 {
-	int fd;
-	raw_plot_description rpd;
-	char *malloc ();
-/*
- * Open the file, and find out how long it is.
- */
-	if ((fd = open (file, O_RDONLY)) < 0)
-		ui_error ("Unable to open '%s'\n", file);
-#if defined(SVR4)
-	rpd.rp_len = lseek (fd, 0, SEEK_END);
-	(void) lseek (fd, 0, SEEK_SET);
-#else
-	rpd.rp_len = lseek (fd, 0, L_XTND);
-	(void) lseek (fd, 0, L_SET);
-#endif
-/*
- * Just pull it in.
- */
-	rpd.rp_data = malloc (rpd.rp_len + 1);
-	rpd.rp_data[rpd.rp_len] = '\0';
-	if (read (fd, rpd.rp_data, rpd.rp_len) < rpd.rp_len)
-		ui_warning ("Read incomplete...");
-	close (fd);
-/*
- * Compile it.
- */
-	return (pd_Load (&rpd));
+	plot_description pd;
+
+	pd = pd_Read (file);
+	if (! pd)
+		ui_error ("Unable to load '%s'\n", file);
+	return (pd);
 }
 
 
 
-
+void
 pdload (file, name)
 char *file, *name;
 /*
@@ -148,7 +130,7 @@ char *path;
 
 
 
-
+void
 pddir (dir)
 char *dir;
 /*
@@ -157,7 +139,7 @@ char *dir;
 {
 	DIR *dp = opendir (dir);
 	struct dirent *ent;
-	char *dot, *strrchr (), *getcwd (), wd[MAXPATHLEN];
+	char *dot, *getcwd (), wd[MAXPATHLEN];
 /*
  * Make sure we have a directory.
  */
@@ -175,7 +157,7 @@ char *dir;
 /*
  * Now read through it.
  */
-	while (ent = readdir (dp))
+	while ((ent = readdir (dp)))
 	{
 		if (! (dot = strrchr (ent->d_name, '.')) || strcmp(dot, ".pd"))
 			continue;
@@ -191,7 +173,7 @@ char *dir;
 
 
 
-
+static void
 pddirfile (file)
 char *file;
 /*
@@ -218,10 +200,10 @@ char *file;
 	if (! pd_Retrieve (pd, "global", "pd-name", name, SYMT_STRING) &&
 	    ! pd_Retrieve (pd, "defaults", "pd-name", name, SYMT_STRING))
 	{
-		char *dot, *strrchr ();
+		char *dot;
 
 		strcpy (name, file);
-		if (dot = strrchr (file, '.'))
+		if ((dot = strrchr (file, '.')))
 			*dot = '\0';
 	}
 /*

@@ -24,6 +24,7 @@
 # include <varargs.h>
 # include <fcntl.h>
 # include <signal.h>
+# include <errno.h>
 # include <X11/Intrinsic.h>
 
 # include <ui.h>
@@ -33,15 +34,22 @@
 # include <DataStore.h>
 # include <config.h>
 # include <copyright.h>
-# include <xhelp.h>
 
-# include "dm.h"
+#ifdef SUPPORT_XHELP
+# include <xhelp.h>
+#endif
+
+# include <dm.h>
 # include "dm_vars.h"
 # include "dm_cmds.h"
+
+MAKE_RCSID ("$Id: dm.c,v 2.59 1995-04-18 22:18:31 granger Exp $")
+
 
 /*
  * Pick a help browser.
  */
+#ifdef SUPPORT_XHELP
 static void CallXHelp ();
 static bool UseXHelp =
 # if UseMosaic
@@ -49,20 +57,27 @@ static bool UseXHelp =
 # else
 			TRUE;
 # endif
-
-
-MAKE_RCSID ("$Id: dm.c,v 2.58 1994-11-30 17:57:38 corbet Exp $")
-
+#endif /* SUPPORT_XHELP */
 
 /*
  * Definitions of globals.
  */
-stbl Configs;
-stbl Windows;
-stbl Current;
-char Cur_config[MAXNAME];
 stbl Bmaps;
 ButtonMap *Default_map;	/* The default button map	*/
+
+/*
+ * Non-zero when we've entered test mode, which prevets the actual
+ * forking of processes and sending messages to windows.  Instead,
+ * respond to message queries and print the messages that would
+ * have been sent.
+ */
+int TestMode = 0;
+
+/*
+ * Our unique group name for graphics processes
+ */
+char GroupName[ CFG_MSGNAME_LEN ] = { '\0' };
+
 /*
  * Top level widget and display.
  */
@@ -70,35 +85,15 @@ Display *Dm_Display;
 static Widget Top;
 char **Argv;		/* Save our args for a potential exec */
 
-char ConfigDir[CFG_FILEPATH_LEN]; /* Default directory for display configs */
-char ConfigPD[CFG_FILEPATH_LEN];  /* Where to save plot descriptions	*/
-char ConfigPath[512];	/* Path to search for display configs */
-char CTablePath[512];	/* Where are the color tables?		*/
-char HelpPath[CFG_FILEPATH_LEN]; /* Where are the helpfiles */
-
-char ExecPath[ExecPathLen];	/* path for executables */
-int TBSpace = 0;	/* How much to tweak for title bar space. */
 /*
  * Is sound enabled?
  */
-static int SoundEnabled = FALSE;
-
-/*
- * How long and how often to sleep while creating windows.
- */
-int SleepAfter = 4, SleepFor = 1;
+static bool SoundEnabled = FALSE;
 
 /*
  * Do we restart windows which die?
  */
 static bool Restart = TRUE;
-
-/*
- * History mode control.
- */
-int ForceHistory = FALSE;
-int HistoryMode = FALSE;
-ZebTime HistoryTime;
 
 /*
  * What kind of computer is this, anyway?
@@ -115,42 +110,169 @@ char SystemType[12] =
 /*
  * Forward routines.
  */
-static void do_wbounds FP ((char *, struct dm_rq_wbounds *));
-int dm_shutdown FP ((void));
+static void do_wbounds FP ((struct cf_window *, struct dm_rq_wbounds *));
 int SEChange FP ((char *, int, int, int, SValue *, int, SValue *));
-static void ForceRestart FP ((char *));
+static void ForceRestart FP ((struct cf_window *, char *pcname));
+static void dmgr_message FP ((char *from, struct dm_msg *dmsg));
 static int dm_dispatcher FP ((int, struct ui_command *));
 static int dm_msg_handler FP ((Message *));
+static void mh_message FP ((struct message *msg));
 static void EnterPosition FP ((struct ui_command *));
-static void KillProcess FP ((char *));
+static void KillWindow FP ((char *));
 static void RestartWin FP ((struct cf_window *win));
 static void ProcessDeath FP ((char *client));
-static struct config *TryConfigDir FP ((char *, char *));
+static int dm_shutdown FP ((void));
 static int dm_cycle FP ((void));
 static int WaitForDeaths FP ((struct message *msg, void *param));
-int nsymbols FP ((stbl table));
-static int count_one FP ((char *symbol, int type, union usy_value *, int arg));
 static int RealPlatform FP ((int, SValue *, int *, SValue *, int *));
 static void MakeWindowList FP ((char *));
+static void MakeDefaultMap FP ((void));
+static void FreeButtonMaps FP ((void));
+static int FreeBM FP ((char *name, int type, union usy_value *v, int));
 static int AddToList FP ((char *, int, SValue *, long));
+static void newpd FP ((char *window, char *pdesc));
+static void send_param FP ((struct cf_window *win, char *comp, char *param,
+			    char *value));
+static void exchange FP ((char *cwin1, char *cwin2));
+static void parameter FP ((char *name, char *comp, char *param, char *value));
+static void z_remove FP ((char *pdn, char *comp));
+static void add FP ((char *pdn, char *comp, char *dest, int position));
+static void exec_button FP ((struct cf_window *win, struct dm_event *dme));
 
 
 
+static void
+usage (prog)
+char *prog;
+{
+	printf ("usage: %s [-name <name>] [-test] [-help]\n", prog);
+	printf ("where <name> is the message handle to use, and\n");
+	printf ("      -test enters test mode\n");
+	printf ("      -help shows this message\n");
+	printf ("options can be abbreviated to any length\n");
+}
 
+
+static char *
+Setup (argc, argv, msgname)
+int argc;
+char *argv[];
+char *msgname;
+/*
+ * Parse the arg list for recognized options, and return a pointer
+ * to the init file.
+ */
+{
+	char buf[256];
+	char display[256];
+	int i = 1;
+	char *config;
+
+	buf[0] = 0;
+	config = 0;
+	while (i < argc)
+	{
+		int optlen = strlen (argv[i]);
+		if (argv[i][0] != '-' || optlen < 2)
+		{
+			if (config)
+			{
+				printf ("specify only one config file\n");
+				usage (argv[0]);
+				exit (9);
+			}
+			config = argv[i];
+		}
+		else if (! strncmp (argv[i], "-name", optlen))
+		{
+			if (++i < argc)
+				strcpy (buf, argv[i]);
+			else
+			{
+				printf ("-name option needs argument\n");
+				usage (argv[0]);
+				exit (2);
+			}
+		}
+		else if (! strncmp (argv[i], "-test", optlen))
+		{
+			TestMode = 1;
+		}
+		else if (! strncmp (argv[i], "-help", optlen))
+		{
+			usage (argv[0]);
+			exit (0);
+		}
+		else
+		{
+			printf ("unrecognized option: %s\n", argv[i]);
+			usage (argv[0]);
+			exit (1);
+		}
+		++i;
+	}
+	if (! buf[0])
+	{
+		char *number, *period;
+
+		if (getenv ("DISPLAY"))
+			strcpy (display, getenv ("DISPLAY"));
+		else if (getenv ("HOST"))
+			sprintf (display, "%s:0.0", getenv ("HOST"));
+		else
+			strcpy (display, "unix:0.0");
+		/*
+		 * Message mgr tables don't like :'s or long names
+		 * so replace : with - and shorten host names.
+		 */
+		if ((number = strchr (display, ':')))
+			*number++ = 0;
+		if ((period = strchr (display, '.')))
+			*period = 0;
+		sprintf (buf, "%s-%s", display[0] ? display : "unix", 
+			 number ? number : "0.0");
+		/*
+		 * Don't clutter the name with a pid unless we're running
+		 * in test mode.
+		 */
+		if (TestMode)
+			sprintf (buf+strlen(buf), "-%d", getpid());
+	}
+	strcpy (msgname, buf);
+	sprintf (GroupName, "group-%s", msgname);
+	return (config);
+}
+
+
+int
 main (argc, argv)
 int argc;
 char *argv[];
 {
 	int msg_incoming ();
-	int type[4], tw_cb ();
+	int type[4];
 	char loadfile[100];
+	char *initfile;
 	stbl vtable;
+	char msgname[CFG_MSGNAME_LEN];
+/*
+ * Read options from the command line and set our message name
+ */
+	initfile = Setup (argc, argv, msgname);
 /*
  * Hook into the message handler.
  */
-	msg_connect (dm_msg_handler, "Displaymgr");
+	if (! msg_connect (dm_msg_handler, msgname))
+	{
+		fprintf (stderr, "%s: could not connect to message manager\n",
+			 argv[0]);
+		exit (1);
+	}
+	if (TestMode)
+		msg_ELPrintMask (EF_ALL);
 	msg_DeathHandler (dm_shutdown);
-	msg_join ("Client events");
+	msg_SetQueryHandler (dg_Query);
+	msg_join (MSG_CLIENT_EVENTS);
 /*
  * Get the interface set up.
  */
@@ -159,20 +281,12 @@ char *argv[];
 	ui_setup ("DisplayMgr", &argc, argv, (char *) 0);
 	SetupConfigVariables ();
 	cp_SetupCmdProto ();
-	ds_Initialize ();
-/*
- * Create our symbol tables.
- */
-	Configs = usy_c_stbl ("Configurations");
-	Windows = usy_c_stbl ("Windows");
-	Current = usy_c_stbl ("junk");
-	Bmaps = usy_c_stbl ("ButtonMaps");
-	strcpy (Cur_config, "(nothing)");
-	dc_Init ();
-/*
- * Create the default default button map.
- */
-	MakeDefaultMap ();
+	if (! TestMode)
+		ds_Initialize ();
+#ifdef notyet
+	else
+		ds_Standalone ();
+#endif
 /*
  * Command line functions.
  */
@@ -186,7 +300,6 @@ char *argv[];
 	uf_def_function ("nvalue", 3, type, nvalue);
 	uf_def_function ("realplatform", 1, type, RealPlatform);
 	type[1] = SYMT_INT;
-	uf_def_function ("nthcolor", 2, type, NthColor);
 	uf_def_function ("nthcomp", 2, type, NthComponent);
 /*
  * Indirect variables.
@@ -195,44 +308,28 @@ char *argv[];
 	usy_c_indirect (vtable, "dm$config", Cur_config, SYMT_STRING, MAXNAME);
 	usy_c_indirect (vtable, "soundenabled", &SoundEnabled, SYMT_BOOL, 0);
 	usy_c_indirect (vtable, "restart", &Restart, SYMT_BOOL, 0);
-	usy_c_indirect (vtable, "sleepafter", &SleepAfter, SYMT_INT, 0);
-	usy_c_indirect (vtable, "sleepfor", &SleepFor, SYMT_INT, 0);
-	usy_c_indirect (vtable, "configdir", ConfigDir, SYMT_STRING, 
-			CFG_FILEPATH_LEN);
-	usy_c_indirect (vtable, "configpd", ConfigPD, SYMT_STRING, 
-			CFG_FILEPATH_LEN);
-	usy_c_indirect (vtable, "configpath", ConfigPath, SYMT_STRING, 512);
-	usy_c_indirect (vtable, "helppath", HelpPath, SYMT_STRING,
-			CFG_FILEPATH_LEN);
-	usy_c_indirect (vtable, "tbspace", &TBSpace, SYMT_INT, 0);
-	strcpy (ExecPath, GetBinDir ());
-	usy_c_indirect (vtable, "execpath", ExecPath, SYMT_STRING,
-			ExecPathLen);
-	usy_c_indirect (vtable, "forcehistory", &ForceHistory, SYMT_BOOL, 0);
 	usy_daemon (vtable, "soundenabled", SOP_WRITE, SEChange, 0);
-	sprintf (CTablePath, "%s/colortables", GetLibDir ());
-	usy_c_indirect (vtable, "ctablepath", CTablePath, SYMT_STRING, 512);
 	usy_c_indirect (vtable, "systemtype", SystemType, SYMT_STRING, 12);
+#ifdef SUPPORT_XHELP
 	usy_c_indirect (vtable, "usexhelp", &UseXHelp, SYMT_BOOL, 0);
+#endif
+/*
+ * Create our symbol tables.
+ */
+	Bmaps = usy_c_stbl ("ButtonMaps");
+	dt_Init ();	/* time handling */
+	dc_Init ();	/* color tables */
+	dp_Init ();	/* processes */
+	dg_Init ();	/* configurations */
+	dm_Init ();	/* help */
+/*
+ * Create the default button map.
+ */
+	MakeDefaultMap ();
 /*
  * Watch for incoming messages.
  */
 	tty_watch (msg_get_fd (), (void (*)()) msg_incoming);
-/*
- * Can't figure out why these were in here.  Leaving them for now...
- *	strcpy (ConfigDir, ".");
- *	strcpy (ConfigPD, ".");
- */
-/*
- * They should at least be initialized, and I can't see where else it's done
- */
-	ConfigDir[0] = '\0';
-	ConfigPD[0] = '\0';
-	ConfigPath[0] = '\0';
-/*
- * Give them a default helppath.
- */
-	sprintf (HelpPath, "%s/help,%s/help", GetProjDir (), GetLibDir ());
 # ifdef titan
 /*
  * Hook into the dialbox.
@@ -247,16 +344,15 @@ char *argv[];
 /*
  * If a file appears on the command line, open it.
  */
-	if (argc > 1)
-		ut_open_file (argv[1], TRUE);
+	if (initfile)
+		ut_open_file (initfile, TRUE);
 /*
  * Interpret commands.
  */
-	tw_DefTimeWidget (tw_cb, "System Time Control");
-	aw_DefAlarmWidget ();
 	Argv = argv;
 	ui_get_command ("dm-initial", "DM>", dm_dispatcher, 0);
 	dm_shutdown ();
+	return (0);
 }
 
 
@@ -270,8 +366,9 @@ struct ui_command *cmds;
  * Deal with a display manager command.
  */
 {
-	char winname[40], helpfile[120], topic[40];
+	char winname[40];
 	union usy_value nv;
+	struct cf_window *win;
 
 	switch (UKEY (*cmds))
 	{
@@ -286,11 +383,11 @@ struct ui_command *cmds;
 		break;
 
 	   case DMC_DISPLAY:
-	   	display (cmds + 1);
+	   	dg_Display (cmds + 1);
 		break;
 
 	   case DMC_LIST:
-	   	list (cmds[1].uc_ctype == UTT_END ? NULL : UPTR (cmds[1]));
+	   	dg_List (cmds[1].uc_ctype == UTT_END ? NULL : UPTR (cmds[1]));
 		break;
 
 	   case DMC_NEWPD:
@@ -344,11 +441,11 @@ struct ui_command *cmds;
 		break;
 
 	   case DMC_HISTORY:
-	   	history (cmds + 1);
+	   	dt_History (cmds + 1);
 		break;
 
 	   case DMC_REALTIME:
-	   	realtime (cmds + 1);
+	   	dt_Realtime (cmds + 1);
 		break;
 
 	   case DMC_COLORTABLE:
@@ -362,7 +459,7 @@ struct ui_command *cmds;
 		break;
 
 	   case DMC_TIME:
-	   	SetTime (&UDATE (cmds[1]));
+	   	dt_SetTime (&UDATE (cmds[1]));
 		break;
 
 	   case DMC_PICKWIN:
@@ -398,33 +495,45 @@ struct ui_command *cmds;
 		break;
 
 	   case DMC_RESTART:
-	   	ForceRestart (UPTR (cmds[1]));
+		win = dg_CurrentWindow (UPTR (cmds[1]));
+		if (! win)
+			ui_error ("%s not in current config", UPTR(cmds[1]));
+		if (cmds[2].uc_ctype != UTT_END)
+			ForceRestart (win, UPTR (cmds[2]));
+		else
+			ForceRestart (win, NULL);
 		break;
 	/*
 	 * Saving of configurations.
 	 */
 	   case DMC_CFGSAVE:
-		SaveConfig (Cur_config, cmds[1].uc_ctype == UTT_END ?
-			    Cur_config : UPTR (cmds[1]), /*update*/ TRUE);
+		dg_SaveConfig (Cur_config, cmds[1].uc_ctype == UTT_END ?
+			       Cur_config : UPTR (cmds[1]), /*update*/ TRUE);
 		break;
 	/*
 	 * With one arg, re-save the config by the given name.  The optional
 	 * second arg is for saving the named config with a different name.
 	 */
 	   case DMC_CFGCONVERT:
-		SaveConfig (UPTR (cmds[1]), cmds[2].uc_ctype == UTT_END ?
-			    UPTR (cmds[1]) : UPTR (cmds[2]), /*update*/ FALSE);
+		dg_SaveConfig (UPTR (cmds[1]), cmds[2].uc_ctype == UTT_END ?
+			       UPTR(cmds[1]) : UPTR(cmds[2]), /*update*/FALSE);
 		break;
 	/*
-	 * New windows and configs.
+	 * New windows, configs, and process prototypes.
 	 */
 	   case DMC_NEWCONFIG:
-	   	NewConfig (UPTR (cmds[1]), cmds[2].uc_ctype == UTT_END ?
+	   	dg_PutConfigAs (UPTR (cmds[1]), cmds[2].uc_ctype == UTT_END ?
 				"template" : UPTR (cmds[2]));
 		break;
 
 	   case DMC_NEWWINDOW:
-	   	NewWindow (cmds + 1);
+	   	dg_PutNewWindow (DEFAULT_PROCESS, cmds + 1);
+		break;
+	   case DMC_NEWGRAPHIC:
+	   	dg_PutNewWindow (UPTR(cmds[1]), cmds + 2);
+		break;
+	   case DMC_PROTOTYPE:
+		Prototype (cmds + 1);
 		break;
 	/*
 	 * Position entry.
@@ -433,17 +542,14 @@ struct ui_command *cmds;
 	   	EnterPosition (cmds + 1);
 		break;
 	/*
-	 * Fire up xhelp: help [topic] [help-file]
-	 * If no topic or help-file, intro of default help file used
-	 * If only topic specified, default help file used
-	 * If a non-default help file is specified, the topic must
-	 * be specified as well.  The file will be looked for in the 
-	 * library directory. "intro" topic becomes XHELP_INTRO_ID.
+	 * Call for help.
 	 */
 	   case DMC_HELP:
+#ifdef SUPPORT_XHELP
 	        if (UseXHelp)
 			CallXHelp (cmds);
 		else
+#endif
 			dm_MosHelp (cmds[1].uc_ctype == UTT_END ? "index.html"
 				: UPTR (cmds[1]));
 		break;
@@ -451,7 +557,7 @@ struct ui_command *cmds;
 	 * Do away with a window.
 	 */
 	   case DMC_KILL:
-	   	KillProcess (UPTR (cmds[1]));
+	   	KillWindow (UPTR (cmds[1]));
 		break;
 	/*
 	 * Write a named plot description to the terminal as ASCII
@@ -465,14 +571,33 @@ struct ui_command *cmds;
 	   case DMC_PDWRITE:
 		WritePD (UPTR (cmds[1]), UPTR (cmds[2]));
 		break;
-
 	/*
-	 * Write a named plot description using a different name
+	 * Write a named plot description (or window) using a different name
 	 */
 	   case DMC_PDSTORE:
 		StorePD (UPTR (cmds[1]), UPTR(cmds[2]), UPTR(cmds[3]));
 		break;
-
+	/*
+	 * Copy a named plot description (or window) into a new one
+	 */
+	   case DMC_PDCOPY:
+		CopyPD (UPTR (cmds[1]), UPTR (cmds[2]));
+		break;
+	/*
+	 * Lift a component from a named plot description (or window) and
+	 * copy it into a new component description with the given name.
+	 */
+	   case DMC_PDLIFT:
+		CopyComp (UPTR (cmds[1]), UPTR (cmds[2]), UPTR (cmds[3]));
+		break;
+	/*
+	 * Drop a component from one named plot description (or window) and
+	 * into a second component of another named plot description.
+	 */
+	   case DMC_PDDROP:
+		MergeComp (UPTR (cmds[1]), UPTR (cmds[2]), 
+			   UPTR (cmds[3]), UPTR (cmds[3]));
+		break;
 	/*
 	 * They want a list of windows.
 	 */
@@ -503,7 +628,7 @@ struct message *msg;
 	 */
 	   case MT_DISPLAYMGR:
 	   	dmgr_message (msg->m_from, (struct dm_msg *) msg->m_data);
-		return;
+		return (0);
 	/*
 	 * Stuff from the message handler itself.
 	 */
@@ -522,12 +647,13 @@ struct message *msg;
 	   default:
 	   	msg_ELog (EF_PROBLEM, "Funky message type %d in DM",
 			msg->m_proto);
-	};
+	}
+	return (0);
 }
 
 
 
-
+static void
 mh_message (msg)
 struct message *msg;
 /*
@@ -541,6 +667,7 @@ struct message *msg;
 	{
 	   case MH_SHUTDOWN:
 	   	ui_printf ("Message handler shutdown -- I quit!\n");
+		dm_ExitHelp ();
 		ui_finish ();
 		exit (1);
 	/*
@@ -562,8 +689,9 @@ struct message *msg;
 
 
 static void
-ForceRestart (window)
-char *window;
+ForceRestart (win, pcname)
+struct cf_window *win;
+char *pcname;
 /*
  * Force this window to quit and restart.
  */
@@ -574,59 +702,49 @@ char *window;
  * should take care of the rest.
  */
 	dmsg.dmm_type = DM_DIE;
-	msg_send (window, MT_DISPLAYMGR, FALSE, &dmsg, sizeof (dmsg));
+	dmsg_SendWindow (win, &dmsg, sizeof (dmsg));
+/*
+ * When it comes time to restart its process, we may want a different class
+ */
+	if (pcname)
+	{
+		strcpy (win->cfw_pcname, pcname);
+	}
 }
 
 
 
 
 static void
-KillProcess (who)
+KillWindow (who)
 char *who;
 /*
  * Terminate this poor process who is just trying to do his job make pictures
  * feed his child processes and all that stuff.
  */
 {
-	struct cf_window *win = lookup_win (who, TRUE);
-	struct config *cfg = LookupConfig (Cur_config);
-	int i;
-/*
- * Needs to be an on-screen window.
- */
+	struct cf_window *win = dg_CurrentWindow (who);
+	struct config *cfg = dg_LookupConfig (Cur_config);
+
 	if (! win)
 	{
-		msg_ELog (EF_PROBLEM, "(Kill) process %s nonexistent", who);
-		return;
+	/*
+	 * Needs to be an on-screen window.
+	 */	
+		msg_ELog (EF_PROBLEM, "(Kill) window %s nonexistent", who);
 	}
-/*
- * Send it the restart message so that it goes away.
- */
-	ForceRestart (who);
-	usy_z_symbol (Current, who);	/* So it won't really restart */
-/*
- * If other configurations want this window, they'll have to restart it.
- */
-	usy_z_symbol (Windows, who);
-/*
- * Pass through the configuration and find this window.
- */
-	for (i = 0; i < cfg->c_nwin; i++)
-		if (! strcmp (cfg->c_wins[i].cfw_name, who))
-			break;
-	if (i >= cfg->c_nwin) /* "can't ever happen" */
+	else
 	{
-		msg_ELog (EF_PROBLEM, "Window %s not in current config", who);
-		return;
+	/*
+	 * Send it the restart message so that it goes away, but remove it
+	 * from the current configuration so that it won't really restart.
+	 * When ProcessDeath gets called, the process will have no window
+	 * and its death will be ignored.
+	 */
+		ForceRestart (win, NULL);
+		usy_z_symbol (Current, who);
+		dg_DeleteWindow (cfg, win);
 	}
-/*
- * Get rid of the window.  At this point, it is not clear what we should
- * do about the plot description.  If the same PD is referenced in other
- * invocations of this window, problems could result.  So we just drop it.
- */
-	--cfg->c_nwin;
-	for (; i < cfg->c_nwin; i++)
-		cfg->c_wins[i] = cfg->c_wins[i + 1];
 }
 
 
@@ -635,28 +753,78 @@ static void
 ProcessDeath (client)
 char *client;
 /*
- * Deal with the fact that this client has died.
+ * A process has died.  If it was active, we may need to restart it.  If it
+ * was not active, we need to delete all record of it.  If we have never
+ * heard of this process, we are coldly indifferent to its death.
  */
 {
-	struct cf_window *win = lookup_win (client, TRUE);
-/*
- * If this was a currently active window, let us simply restart it now,
- * unless restarts have been turned off.
- */
-	if (win && Restart)
+#	define MAX_DEATHS 10
+	struct config *cfg;
+	struct cf_window *win;
+	Process *proc;
+	int active;
+
+	if (! (proc = dp_LookupProcess (client)))
+		return;
+	win = proc->p_cfw;
+	active = (proc->p_state == P_ACTIVE);
+	/*
+	 * Delete the process that died.
+	 * If the process was assigned a window, see if we should 'restart'
+	 * the window by assigning it a new process.  A process without a 
+	 * window gets dropped like a hot potato.  
+	 */
+	dp_DeleteProcess (proc);
+	if (! win)
 	{
-		if (++win->cfw_ncroak < 10)
-			RestartWin (win);
-		else
-			msg_ELog (EF_PROBLEM,
-				"Win %s dies too often -- I give up", client);
+		/*
+		 * This could be the result of a 'kill', so it's not 
+		 * necessarily an error, but it deserves recognition.
+		 */
+		msg_ELog (EF_INFO, "Process %s exited without a window",
+			  client);
+		return;
 	}
-/*
- * Otherwise, if this is an existing window, but not in the current config,
- * we need to just mark it as being dead.
- */
-	else if ((win) || (win = lookup_win (client, FALSE)))
-		usy_z_symbol (Windows, client);
+
+	++win->cfw_ncroak;
+	if (active && Restart && win->cfw_ncroak < MAX_DEATHS)
+	{
+		msg_ELog (EF_PROBLEM, 
+			  "Win '%s' died -- restarting", win->cfw_name);
+		RestartWin (win);
+	}
+	else
+	{
+		/*
+		 * We are not restarting the process; the window is doomed.
+		 * Delete the process and remove the window from the 
+		 * current configuration.
+		 */
+		if (active && Restart)
+		{
+			msg_ELog (EF_PROBLEM,
+			  "Process %s: window %s died %d times -- I give up", 
+			  client, win->cfw_name, MAX_DEATHS);
+		}
+		else
+		{
+			msg_ELog (EF_INFO,
+				  "Process %s: [window %s] deceased, %s",
+				  client, win->cfw_name,
+				  (active) ? "and restarts disabled" :
+				  "but was not active");
+		}
+		/*
+		 * Need to map the window to its config so that we can
+		 * delete the window from the config.
+		 */
+		if (win && ((cfg = dg_FindOwner (win))))
+		{
+			if (cfg == dg_LookupConfig (Cur_config))
+				usy_z_symbol (Current, win->cfw_name);
+			dg_DeleteWindow (cfg, win);
+		}
+	}
 }
 
 
@@ -669,127 +837,17 @@ struct cf_window *win;
  * Give this window a new lease on life.
  */
 {
-	msg_ELog (EF_PROBLEM, "Win '%s' died -- restarting", win->cfw_name);
-	win->cfw_tmpforce = TRUE;
-	create_win (win);
+	struct config *cfg = dg_FindOwner (win);
+
+	if (IsGraphic (win))
+		win->cfw_graphic->g_tmpforce = TRUE;
+	dg_SyncWindow (cfg, win);
 }
 	
 
 
 
-struct cf_window *
-lookup_win (name, curonly)
-char *name;
-bool curonly;
-/*
- * Find the saved entry for this window, if it exists.
- */
-{
-	int type;
-	union usy_value v;
-/*
- * Look it up in our symbol table.
- */
-	if (usy_g_symbol (Current, name, &type, &v))
-		return ((struct cf_window *) v.us_v_ptr);
-	if (curonly || ! usy_g_symbol (Windows, name, &type, &v))
-		return (FALSE);
-	return ((struct cf_window *) v.us_v_ptr);
-}
-
-
-
-
-
-struct config *
-LookupConfig (name)
-char *name;
-/*
- * Try to find a configuration by this name.
- */
-{
-	int type, ndir, i;
-	SValue v;
-	char path[512], *dirs[32];
-	struct config *ret;
-/*
- * Look up this config in the configs table.
- */
- 	if (usy_g_symbol (Configs, name, &type, &v))
-		return ((struct config *) v.us_v_ptr);
-/*
- * OK, not there.  Let's try ConfigDir first.
- */
-	if ((ret = TryConfigDir (ConfigDir, name)))
-		return (ret);
-/*
- * Still no go.  Now we plow through ConfigPath and see if we have any
- * more luck there.
- */
- 	if (usy_g_symbol (usy_g_stbl ("ui$variable_table"), "configpath",
-			&type, &v))
-	{
-		strcpy (path, v.us_v_ptr);
-		ndir = CommaParse (path, dirs);
-		for (i = 0; i < ndir; i++)
-			if ((ret = TryConfigDir (dirs[i], name)))
-				return (ret);
-	}
-	ui_error ("Unknown configuration: %s", name);
-	return (NULL);
-}
-
-
-
-
-
-static struct config *
-TryConfigDir (dir, name)
-char *dir, *name;
-/*
- * See if we can't pull this configuration in out of the current directory.
- */
-{
-	char fname[200];
-	int type;
-	SValue v;
-/*
- * Make up a "read" command and try to run it.
- */
-	sprintf (fname, "read %s/%s%s", dir, name, SAVED_EXT);
-	if (access (fname + 5, F_OK) == 0)
-	{
-		ui_perform (fname);
-		if (usy_g_symbol (Configs, name, &type, &v))
-		{
-			msg_ELog(EF_DEBUG, "Found config %s in %s",name,fname);
-			return ((struct config *) v.us_v_ptr);
-		}
-	}
-/*
- * Failing that, try again without the extension.
- */
-	sprintf (fname, "read %s/%s", dir, name);
-	if (access (fname + 5, F_OK) == 0)
-	{
-		ui_perform (fname);
-		if (usy_g_symbol (Configs, name, &type, &v))
-		{
-			msg_ELog(EF_DEBUG, "Found config %s in %s",name,fname);
-			return ((struct config *) v.us_v_ptr);
-		}
-	}
-/*
- * No go.
- */
-	return (NULL);
-}
-
-
-
-
-
-
+static void
 dmgr_message (from, dmsg)
 char *from;
 struct dm_msg *dmsg;
@@ -802,8 +860,40 @@ struct dm_msg *dmsg;
 	struct dm_hello *dmh;
 	struct dm_pdchange *dmp;
 	struct cf_window *win;
+	struct cf_graphic *g;
 	raw_plot_description rpd;
-
+	Process *proc;
+/*
+ * We only expect messages from active processes, i.e. processes realizing
+ * windows in the current configuration.
+ */
+	proc = dp_LookupProcess (from);
+	if (! proc)
+	{
+		msg_ELog (EF_PROBLEM, 
+		  "whoa! dm message (type %d) from an unknown process %s", 
+		  dmsg->dmm_type, from);
+		return;
+	}
+	if (! proc->p_cfw)
+	{
+		msg_ELog (EF_PROBLEM, 
+		  "process '%s' sent me a message (type %d) %s",
+		  proc->p_name, dmsg->dmm_type, "when it has no window");
+		return;
+	}
+	win = proc->p_cfw;
+	if (! proc->p_state == P_ACTIVE)
+	{
+		msg_ELog (EF_PROBLEM, 
+			  "msg %d from process '%s', window '%s': %s",
+			  dmsg->dmm_type, proc->p_name, win->cfw_name,
+			  "that process is not active in current config");
+		return;
+	}
+/*
+ * Now we know we have a process and its window from the current configuration
+ */
 	switch (dmsg->dmm_type)
 	{
 	/*
@@ -812,15 +902,11 @@ struct dm_msg *dmsg;
 	 */
 	   case DM_HELLO:
 		dmh = (struct dm_hello *) dmsg;   	
-		if (! (win = lookup_win (from, TRUE)))
-		{
-			msg_ELog (EF_PROBLEM, "Funky hello from '%s'", from);
-			return;
-		}
-		msg_ELog (EF_DEBUG, "Hello received from '%s' win %x", from,
+		msg_ELog (EF_DEBUG, "%s window '%s', process %s, win %#0lx",
+			  "Hello received from", win->cfw_name, from, 
 			  dmh->dmm_win);
-		win->cfw_win = dmh->dmm_win;
-		config_win (win);
+		proc->p_win = dmh->dmm_win;
+		dg_ConfigWindow (win);
 		break;
 	/*
 	 * A client sending along its window ID after its already said
@@ -828,69 +914,67 @@ struct dm_msg *dmsg;
 	 */
 	   case DM_WINDOW:
 		dmh = (struct dm_hello *) dmsg;   	
-		if (! (win = lookup_win (from, TRUE)))
-		{
-			msg_ELog(EF_PROBLEM,"Weird: window id from '%s'",from);
-			return;
-		}
-		msg_ELog (EF_DEBUG, "Window ID received from '%s' win %x", 
-			  from, dmh->dmm_win);
-		win->cfw_win = dmh->dmm_win;
+		msg_ELog (EF_DEBUG, "%s from process '%s': %#0lx, %s %s", 
+			  "Window ID received", from, dmh->dmm_win, 
+			  "window named", win->cfw_name);
+		proc->p_win = dmh->dmm_win;
 		break;
 	/*
 	 * A button report
 	 */
 	   case DM_EVENT:
-		exec_button (from, (struct dm_event *) dmsg);
+		exec_button (win, (struct dm_event *) dmsg);
 		break;
 	/*
 	 * A color table request.
 	 */
 	   case DM_R_CTABLE:
-		if (! (win = lookup_win (from, TRUE)))
-		{
-			msg_ELog (EF_PROBLEM, "Funky CTR from '%s'", from);
-			return;
-		}
-		dc_TableRequest ((struct dm_ctr *) dmsg, win->cfw_name);
+		dc_TableRequest ((struct dm_ctr *) dmsg, from);
 		break;
 	/*
 	 * A graphics process has had the temerity to change its own
 	 * plot description.  Now we have to scramble to keep up with it.
 	 */
 	   case DM_PDCHANGE:
-		if (! (win = lookup_win (from, TRUE)))
-		{
-			msg_ELog(EF_PROBLEM, "Funky PDCHANGE from '%s'", from);
-			return;
-		}
 		msg_ELog (EF_DEBUG, "New PD from %s", from);
-		pd_Release (win->cfw_pd);
+		g = win->cfw_graphic;
+		pd_Release (g->g_pd);
 		dmp = (struct dm_pdchange *) dmsg;
 		rpd.rp_len = dmp->dmm_pdlen;
 		rpd.rp_data = dmp->dmm_pdesc;
-		win->cfw_pd = pd_Load (&rpd);
+		g->g_pd = pd_Load (&rpd);
 		/* The dreaded "zoom bug" squashed at last */
-		if (win->cfw_linkpar && win->cfw_linksrc)
-			win->cfw_linksrc->cfw_pd = win->cfw_pd;
+		if (g->g_linkpar && g->g_linksrc)
+			g->g_linksrc->cfw_graphic->g_pd = g->g_pd;
 		break;
 	/*
 	 * Nosy windows checking up on each other's coords.
 	 */
 	   case DM_WBOUNDS:
-	   	do_wbounds (from, (struct dm_rq_wbounds *) dmsg);
+	   	do_wbounds (win, (struct dm_rq_wbounds *) dmsg);
 		break;
 
 	   default:
-	   	msg_ELog (EF_PROBLEM, "Funky DMSG type %d from %s\n",
-			  dmsg->dmm_type, from);
+	   	msg_ELog (EF_PROBLEM, "%s: type %d from '%s', window '%s'\n",
+			  "Unknown DMSG", dmsg->dmm_type, from, win->cfw_name);
 	}
 }
 
 
 
+void
+ReleaseMemory ()
+{
+	FreeButtonMaps ();
+	dc_FreeTables ();
+	dg_FreeConfigs ();
+	dp_FreeAll ();
+	pda_ReleaseAll ();
+}
 
 
+
+static int
 dm_shutdown ()
 /*
  * Shutdown the display manager.
@@ -901,12 +985,19 @@ dm_shutdown ()
  * Send a DIE message to all of the graphics processes.
  */
 	dmsg.dmm_type = DM_DIE;
-	msg_send ("Graphproc", MT_DISPLAYMGR, TRUE, &dmsg, sizeof (dmsg));
+	dmsg_Broadcast (GroupName, &dmsg, sizeof(dmsg));
+	dm_ExitHelp ();
+/*
+ * Free up all known memory allocations so that leaks can be
+ * detected.
+ */
+	ReleaseMemory ();
 /*
  * Now finish up here and quit.
  */
 	ui_finish ();
 	exit (1);
+	return (0);	/* for lint's sake */
 }
 
 
@@ -936,12 +1027,15 @@ void *param;
 		if (client->mh_evtype == MH_CE_DISCONNECT)
 		{
 			client = (struct mh_client *) msg->m_data;
+#ifdef notdef
 			usy_z_symbol (Windows, client->mh_client);
-			ui_printf ("Client '%s' finished.\n");
+#endif
+			ui_printf ("Client '%s' finished.\n", 
+				   client->mh_client);
 		/*
 		 * If our table is now empty, our search is now over.
 		 */
-			if (nsymbols (Windows) == 0)
+			if (dp_NGraphic() == 0)
 				return (MSG_DONE);
 		}
 		break;
@@ -983,9 +1077,10 @@ dm_cycle ()
  * anyway.
  */
 	Restart = FALSE;
+	dm_ExitHelp ();
 	dmsg.dmm_type = DM_DIE;
-	msg_send ("Graphproc", MT_DISPLAYMGR, TRUE, &dmsg, sizeof (dmsg));
-	if (nsymbols (Windows) > 0)
+	dmsg_Broadcast (GroupName, &dmsg, sizeof(dmsg));
+	if (dp_NGraphic() > 0)
 	{
 		signal (SIGALRM, recycle);
 		alarm (15);
@@ -998,41 +1093,16 @@ dm_cycle ()
 
 
 
-static int
-count_one (symbol, type, value, arg)
-char *symbol;
-int type; 
-union usy_value *value;
-int arg;
-{
-	*(int *)arg += 1;
-	return (TRUE);
-}
-
-
-
-int
-nsymbols (table)
-stbl table;
-{
-	int count;
-
-	count = 0;
-	usy_traverse (table, count_one, (int)&count, FALSE);
-	return (count);
-}
-
-
-
+static void
 newpd (window, pdesc)
 char *window, *pdesc;
 /*
  * Change the plot description for this window.
  */
 {
-	struct cf_window *win = lookup_win (window, TRUE);
+	struct cf_window *win = dg_CurrentWindow (window);
+	struct cf_graphic *g;
 	plot_description pd;
-	struct dm_pdchange dmp;
 /*
  * Only mapped windows, for now.
  */
@@ -1054,46 +1124,37 @@ char *window, *pdesc;
 /*
  * If the window had an old one, return it.
  */
-	if (win->cfw_pd)
-		pd_Release (win->cfw_pd);
+	dg_ReleasePD (win);
+	g = win->cfw_graphic;
 /*
- * Store the new info, and send it to the graphproc.
+ * Store the new info, and send it to the graphics process.
  */
-	strcpy (win->cfw_desc, pdesc);
-	win->cfw_pd = pd_CopyPD (pd);
-	send_pd (win);
+	strcpy (g->g_desc, pdesc);
+	g->g_pd = pd_CopyPD (pd);
+	dg_SendPD (win);
 /*
  * If we are shoving times down their throats, send the history time too.
  */
-	if (ForceHistory && HistoryMode)
-		SetTimeMode (win->cfw_name, TRUE, &HistoryTime);
+	dt_SendTime (win);
 }
 
 
 
-exec_button (from, dme)
-char *from;
+static void
+exec_button (win, dme)
+struct cf_window *win;
 struct dm_event *dme;
 /*
  * Execute a button event.
  */
 {
-	struct cf_window *win = lookup_win (from, TRUE);
 	union usy_value v;
-/*
- * Only windows on the screen should be sending events.
- */
-	if (! win)
-	{
-		msg_ELog (EF_PROBLEM, "Funky button from '%s'", from);
-		return;
-	}
 /*
  * Set up the symbols, and exec the command.
  */
-	v.us_v_ptr = from;
+	v.us_v_ptr = win->cfw_name;
 	usy_s_symbol (usy_g_stbl ("ui$variable_table"), "dm$button_window",
-		SYMT_STRING, &v);
+		      SYMT_STRING, &v);
 	ui_perform (dme->dmm_data);
 }
 
@@ -1101,15 +1162,16 @@ struct dm_event *dme;
 
 
 
-
+static void
 exchange (cwin1, cwin2)
 char *cwin1, *cwin2;
 /*
  * Exchange plot descriptions between these two windows.
  */
 {
-	struct cf_window *win1 = lookup_win (cwin1, TRUE);
-	struct cf_window *win2 = lookup_win (cwin2, TRUE);
+	struct cf_window *win1 = dg_CurrentWindow (cwin1);
+	struct cf_window *win2 = dg_CurrentWindow (cwin2);
+	struct cf_graphic *g1, *g2;
 	char *tmp;
 	plot_description tpd;
 /*
@@ -1122,49 +1184,21 @@ char *cwin1, *cwin2;
 /*
  * Now set the pd's accordingly.
  */
-	tmp = usy_string (win1->cfw_desc);
-	tpd = win1->cfw_pd;
-	strcpy (win1->cfw_desc, win2->cfw_desc);
-	win1->cfw_pd = win2->cfw_pd;
-	strcpy (win2->cfw_desc, tmp);
-	win2->cfw_pd = tpd;
+	g1 = win1->cfw_graphic;
+	g2 = win2->cfw_graphic;
+	tmp = usy_string (g1->g_desc);
+	tpd = g1->g_pd;
+	strcpy (g1->g_desc, g2->g_desc);
+	g1->g_pd = g2->g_pd;
+	strcpy (g2->g_desc, tmp);
+	g2->g_pd = tpd;
 	usy_rel_string (tmp);
 /*
  * Tell the graphprocs about it.
  */
-	send_pd (win1);
-	send_pd (win2);
+	dg_SendPD (win1);
+	dg_SendPD (win2);
 }
-
-
-
-
-
-send_pd (win)
-struct cf_window *win;
-/*
- * Send this window it's PD.
- */
-{
-	struct dm_pdchange *dmp;
-	raw_plot_description *rpd = pd_Unload (win->cfw_pd);
-	int len = sizeof (struct dm_pdchange) + rpd->rp_len;
-/*
- * Allocate a sufficiently big pdchange structure.
- */
-	dmp = (struct dm_pdchange *) malloc (len);
-/*
- * Move over the stuff.
- */
-	dmp->dmm_type = DM_PDCHANGE;
-	dmp->dmm_pdlen = rpd->rp_len;
-	memcpy (dmp->dmm_pdesc, rpd->rp_data, rpd->rp_len);
-	msg_send (win->cfw_name, MT_DISPLAYMGR, FALSE, dmp, len);
-
-	pd_RPDRelease (rpd);
-	free (dmp);
-}
-
 
 
 
@@ -1176,21 +1210,22 @@ char *name;
  * accept window names also).
  */
 {
-	struct cf_window *win = lookup_win (name, TRUE);
+	struct cf_window *win = dg_CurrentWindow (name);
 /*
  * If we get a window, we return its plot description.
- */
-	if (win)
-		return (win->cfw_pd);
-/*
  * Otherwise we try for a direct PD name.
  */
-	return (pda_GetPD (name));
+	if (! win)
+		return (pda_GetPD (name));
+	else if (! win->cfw_graphic)
+		return (0);
+	else
+		return (win->cfw_graphic->g_pd);
 }
 
 
 
-
+static void
 parameter (name, comp, param, value)
 char *name, *comp, *param, *value;
 /*
@@ -1198,7 +1233,7 @@ char *name, *comp, *param, *value;
  */
 {
 	plot_description pd = find_pd (name);
-	struct cf_window *win = lookup_win (name, TRUE);
+	struct cf_window *win = dg_CurrentWindow (name);
 /*
  * Sanity check.
  */
@@ -1218,7 +1253,7 @@ char *name, *comp, *param, *value;
 
 
 
-
+static void
 send_param (win, comp, param, value)
 struct cf_window *win;
 char *comp, *param, *value;
@@ -1232,20 +1267,20 @@ char *comp, *param, *value;
 	strcpy (dmp.dmm_comp, comp);
 	strcpy (dmp.dmm_param, param);
 	strcpy (dmp.dmm_value, value);
-	msg_send (win->cfw_name, MT_DISPLAYMGR, FALSE, &dmp, sizeof (dmp));
+	dmsg_SendWindow (win, &dmp, sizeof (dmp));
 }
 
 
 
 
-
+static void
 z_remove (pdn, comp)
 char *pdn, *comp;
 /*
  * Remove this component from this window.
  */
 {
-	struct cf_window *win = lookup_win (pdn, TRUE);
+	struct cf_window *win = dg_CurrentWindow (pdn);
 /*
  * Make sure the window is active.
  */
@@ -1258,14 +1293,14 @@ char *pdn, *comp;
 /*
  * Do the zap.
  */
-	if (pd_RemoveComp (win->cfw_pd, comp))
-		send_pd (win);
+	if (win->cfw_graphic && pd_RemoveComp (win->cfw_graphic->g_pd, comp))
+		dg_SendPD (win);
 }
 
 
 
 
-
+static void
 add (pdn, comp, dest, position)
 char *pdn, *comp, *dest;
 int position;
@@ -1274,7 +1309,7 @@ int position;
  */
 {
 	plot_description pd = find_pd (pdn), pdcomp;
-	struct cf_window *dwin = lookup_win (dest, TRUE);
+	struct cf_window *dwin = dg_CurrentWindow (dest);
 	char newname[40];
 	int i;
 /*
@@ -1295,7 +1330,7 @@ int position;
  * wipe out one that already exists.
  */
 	strcpy (newname, comp);
-	for (i = 0; pd_CompExists (dwin->cfw_pd, newname); i++)
+	for (i = 0; pd_CompExists (dwin->cfw_graphic->g_pd, newname); i++)
 		sprintf (newname, "%s.%d", comp, i);
 /*
  * Pull out the component.  If it fails, ReadComponent will gripe, so
@@ -1307,172 +1342,14 @@ int position;
  * Add it to the destination.
  */
 /*	pd_Merge (dwin->cfw_pd, pdcomp); */
-	pd_AddComponent (dwin->cfw_pd, pdcomp, position);
-	send_pd (dwin);
+	pd_AddComponent (dwin->cfw_graphic->g_pd, pdcomp, position);
+	dg_SendPD (dwin);
 }
 
 
 
 
-
-
-history (cmds)
-struct ui_command *cmds;
-/*
- * Throw one or more windows into history mode.
- */
-{
-	bool all = (cmds->uc_ctype == UTT_KW);
-	struct cf_window *dwin;
-	ZebTime when;
-/*
- * If necessary, look up the window.
- */
-	if (! all)
-	{
-		if (cmds->uc_vptype != SYMT_STRING)
-		{
-			msg_ELog (EF_PROBLEM,
-				"HISTORY error -- win name must be string");
-			return;
-		}
-		dwin = lookup_win (UPTR (*cmds), TRUE);
-		if (! dwin)
-		{
-			msg_ELog(EF_PROBLEM, "HISTORY on unavailable win '%s'",
-				UPTR (*cmds));
-			return;
-		}
-	}
-/*
- * Update the masses.
- */
-	if (cmds[1].uc_vptype != SYMT_DATE)
-	{
-		msg_ELog (EF_PROBLEM,
-			"HISTORY error -- time must be a date expression");
-		return;
-	}
-	TC_UIToZt (&UDATE (cmds[1]), &when);
-	SetTimeMode (all ? 0 : dwin->cfw_name, TRUE, &when);
-/*
- * If this is a global change, update the time widget as well.
- */
-	if (all)
-		tw_SetTime (&when);
-}
-
-
-
-
-
-realtime (cmds)
-struct ui_command *cmds;
-/*
- * Throw one or more windows into real time mode.
- */
-{
-	bool all = (cmds->uc_ctype == UTT_KW);
-	struct cf_window *dwin;
-/*
- * If necessary, look up the window.
- */
-	if (! all)
-	{
-		if (cmds->uc_vptype != SYMT_STRING)
-		{
-			msg_log ("RT error -- win name must be string");
-			return;
-		}
-		dwin = lookup_win (UPTR (*cmds), TRUE);
-		if (! dwin)
-		{
-			msg_log ("RT on unavailable win '%s'", UPTR (*cmds));
-			return;
-		}
-	}
-/*
- * Tweak the mode.
- */
-	SetTimeMode (all ? 0 : dwin->cfw_name, FALSE, 0);
-/*
- * It is debatable whether the time widget should be made to reflect the
- * real-time system time, as it is when setting a history.  For now we
- * assume the user will want to keep the history time to go back to later.
- */
-}
-
-
-
-
-
-int
-tw_cb (mode, t, control_all)
-int mode;
-ZebTime *t;
-int control_all;
-{
-	char winname[40];
-/*
- * See what window(s) to deal with.
- */
-	if (! control_all && ! PickWin (winname))
-	{
-		msg_ELog (EF_PROBLEM,
-			  "Invalid window chosen for time widget. Ignoring.");
-		return (0);
-	}
-/*
- * Now do it.
- */
-	SetTimeMode (control_all ? 0 : winname, mode == History, t);
-}
-
-
-
-
-
-void
-SetTimeMode (who, history, when)
-char *who;
-int history;
-ZebTime *when;
-/*
- * Send out the time mode to one or more processes.  WHO is the target, 
- * unless it is null, in which case the time is sent to everybody.  HISTORY
- * is true if the process is to be put in history mode.  In the HISTORY 
- * case, WHEN is used as the history time.
- */
-{
-	struct dm_history dmh;
-/*
- * Tweak up a message to send out.
- */
-	if (history)
-	{
-	   	dmh.dmm_type = DM_HISTORY;
-		dmh.dmm_time = *when;
-	}
-	else
-	   	dmh.dmm_type = DM_REALTIME;
-/*
- * Ship it out.
- */
-	if (who)
-		msg_send (who, MT_DISPLAYMGR, FALSE, &dmh, sizeof (dmh));
-	else
-		msg_send ("Graphproc", MT_DISPLAYMGR, TRUE, &dmh, sizeof(dmh));
-/*
- * If this is a global change, then set our recordkeeping variables.
- */
-	if (! who && (HistoryMode = history))
-		HistoryTime = *when;
-}
-
-
-
-
-
+static void
 MakeDefaultMap ()
 /*
  * Create the default default button map, just in case they don't redefine
@@ -1505,70 +1382,28 @@ MakeDefaultMap ()
 
 
 
-
-
-
-SendButtonMap (win)
-struct cf_window *win;
-/*
- * Send the button map to this window.
- */
+static void
+FreeButtonMaps ()
 {
-	static struct dm_ebchange *ebc = 0;
-	ButtonMap *map = win->cfw_bmap;
-/*
- * Make sure everything's cool.
- */
-	if (! map)
-	{
-		msg_ELog(EF_INFO,"Window %s has no button map", win->cfw_name);
-		return;
-	}
-/*
- * If we haven't allocated our binding change structure yet, do it now.  We
- * just get the biggest we could need and keep it, since this could be 
- * happening fairly often.
- */
-	if (! ebc)
-		ebc = (struct dm_ebchange *)
-			malloc (sizeof (struct dm_ebchange) +
-				MAXBINDING*sizeof (struct dm_evbind));
-/*
- * Copy over the information into one place.
- */
-	ebc->dmm_type = DM_EVBIND;
-	ebc->dmm_nbind = map->db_nentry;
-	memcpy (ebc->dmm_bindings, map->db_bindings, 
-		map->db_nentry * sizeof (struct dm_evbind));
-/*
- * Ship it out.
- */
-	msg_send (win->cfw_name, MT_DISPLAYMGR, FALSE, ebc,
-		sizeof (struct dm_ebchange) +
-		(map->db_nentry - 1)*(sizeof (struct dm_evbind)));
+	usy_traverse (Bmaps, FreeBM, 0, FALSE);
+	usy_z_stbl (Bmaps);
+	Bmaps = 0;
 }
 
 
 
-
-
-SetTime (when)
-UItime *when;
-/*
- * Force pseudo real time mode at this time.
- */
+static int
+FreeBM (name, type, v, param)
+char *name;
+int type;
+union usy_value *v;
+int param;
 {
-	struct tm_prt prt;
-	
-	prt.tr_type = TR_PRT;
-	/* prt.tr_time = *when; */
-	TC_UIToZt (when, &prt.tr_time);
-	prt.tr_scale = 1;
-	msg_send ("Timer", MT_TIMER, FALSE, &prt, sizeof (prt));
+	ButtonMap *map = (ButtonMap *) v->us_v_ptr;
+	free (map);
+	usy_z_symbol (Bmaps, name);
+	return (TRUE);
 }
-
-
-
 
 
 
@@ -1584,7 +1419,7 @@ SValue *oldv, *newv;
 {
 	bool send = newv->us_v_int;
 
-	msg_send ("Sound", MT_SOUND, FALSE, &send, 1);
+	dmsg_SendSound (&send, 1);
 	return (0);
 }
 
@@ -1594,7 +1429,7 @@ SValue *oldv, *newv;
 
 static void
 do_wbounds (from, wb)
-char *from;
+struct cf_window *from;
 struct dm_rq_wbounds *wb;
 /*
  * Deal with a window bounds request.
@@ -1602,45 +1437,46 @@ struct dm_rq_wbounds *wb;
 {
 	bool ok;
 	char string[40];
-	struct cf_window *win = lookup_win (wb->dmm_window, TRUE);
+	struct cf_window *win = dg_CurrentWindow (wb->dmm_window);
+	struct cf_graphic *g;
 	struct dm_rp_wbounds reply;
 /*
  * If this window is not active, we can't do anything.
  */
 	reply.dmm_type = DM_WBOUNDS;
 	reply.dmm_success = FALSE;
-	if (! win)
+	if (! win || ! win->cfw_graphic)
 		goto sendreply;
 /*
  * Get the plot type
  */
-	if (! win->cfw_pd ||
-		! pda_Search (win->cfw_pd, "global", "plot-type", NULL,
-			reply.dmm_pltype, SYMT_STRING))
+	g = win->cfw_graphic;
+	if (! g->g_pd || ! pda_Search (g->g_pd, "global", "plot-type", NULL,
+				       reply.dmm_pltype, SYMT_STRING))
 		goto sendreply;
 /*
  * Pull out the params based on plot type.
  */
 	if (! strcmp (reply.dmm_pltype, "CAP"))
 	{
-		ok = pda_Search (win->cfw_pd, "global", "x-min", NULL, 
+		ok = pda_Search (g->g_pd, "global", "x-min", NULL, 
 			(char *) &reply.dmm_x0, SYMT_FLOAT);
-		ok &= pda_Search (win->cfw_pd, "global", "x-max", NULL,
+		ok &= pda_Search (g->g_pd, "global", "x-max", NULL,
 			(char *) &reply.dmm_x1, SYMT_FLOAT);
-		ok &= pda_Search (win->cfw_pd, "global", "y-min", NULL,
+		ok &= pda_Search (g->g_pd, "global", "y-min", NULL,
 			(char *) &reply.dmm_y0, SYMT_FLOAT);
-		ok &= pda_Search (win->cfw_pd, "global", "y-max", NULL,
+		ok &= pda_Search (g->g_pd, "global", "y-max", NULL,
 			(char *) &reply.dmm_y1, SYMT_FLOAT);
 
 		reply.dmm_success = ok;
 	}
 	else if (! strcmp (reply.dmm_pltype, "xsect"))
 	{
-		ok = pda_Search (win->cfw_pd, "global", "left-endpoint", 
+		ok = pda_Search (g->g_pd, "global", "left-endpoint", 
 			NULL, string, SYMT_STRING);
 		sscanf (string, "%f, %f", &reply.dmm_x0, &reply.dmm_y0);
 
-		ok &= pda_Search (win->cfw_pd, "global", "right-endpoint", 
+		ok &= pda_Search (g->g_pd, "global", "right-endpoint", 
 			NULL, string, SYMT_STRING);
 		sscanf (string, "%f, %f", &reply.dmm_x1, &reply.dmm_y1);
 
@@ -1649,14 +1485,14 @@ struct dm_rq_wbounds *wb;
 /*
  * Get altitude if it's there
  */
-	if (! pda_Search (win->cfw_pd, "global", "altitude", NULL,
+	if (! pda_Search (g->g_pd, "global", "altitude", NULL,
 				(char *) &reply.dmm_alt, SYMT_FLOAT))
 		reply.dmm_alt = 0;
 /*
  * Send out the reply.
  */
 sendreply:
-	msg_send (from, MT_DISPLAYMGR, FALSE, &reply, sizeof (reply));
+	dmsg_SendWindow (from, &reply, sizeof (reply));
 }
 
 
@@ -1731,6 +1567,7 @@ SValue *argv, *retv;
 {
 	retv->us_v_int = (ds_LookupPlatform (argv->us_v_ptr) != BadPlatform);
 	*rett = SYMT_BOOL;
+	return (0);
 }
 
 
@@ -1740,7 +1577,7 @@ static void
 MakeWindowList (sym)
 char *sym;
 /*
- * We getta make a window list.
+ * We getta make a list of graphic windows.
  */
 {
 	SValue v;
@@ -1761,13 +1598,13 @@ long lsbuf;
 int t;
 SValue *v;
 /*
- * Add a window (maybe) to the list.
+ * Add a graphic window to the list.
  */
 {
 	struct cf_window *win = (struct cf_window *) v->us_v_ptr;
 	char *sbuf = (char *) lsbuf;
 
-	if ((win->cfw_flags & (CF_WIDGET|CF_NONGRAPH)) == 0)
+	if (IsGraphic (win))
 	{
 		strcat (sbuf, " ");
 		strcat (sbuf, name);
@@ -1778,12 +1615,19 @@ SValue *v;
 
 
 
-
+#ifdef SUPPORT_XHELP
 static void
 CallXHelp (cmds)
 struct ui_command *cmds;
 /*
- * Call the xhelp utility.  Old, obsolete, ugly stuff.
+ * Fire up xhelp: help [topic] [help-file]
+ * If no topic or help-file, intro of default help file used
+ * If only topic specified, default help file used
+ * If a non-default help file is specified, the topic must
+ * be specified as well.  The file will be looked for in the 
+ * library directory. "intro" topic becomes XHELP_INTRO_ID.
+ *
+ * Old, obsolete stuff.
  */
 {
 	char helpfile[120], topic[40], helpdir[120];
@@ -1814,3 +1658,5 @@ struct ui_command *cmds;
 	XhCallXHelp (Top, helpfile, topic, "Welcome to Zeb");
 	XFlush(Dm_Display);	/* flush Xatoms to xhelp program */
 }
+#endif /* SUPPORT_XHELP */
+

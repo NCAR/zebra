@@ -1,7 +1,6 @@
 /*
  * Color table routines.
  */
-static char *rcsid = "$Id: dm_color.c,v 2.7 1994-05-19 19:59:15 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -24,15 +23,18 @@ static char *rcsid = "$Id: dm_color.c,v 2.7 1994-05-19 19:59:15 granger Exp $";
 # include <ui.h>
 # include <ui_error.h>
 # include <defs.h>
-# include "dm.h"
+# include <dm.h>
 # include "dm_cmds.h"
 # include "dm_vars.h"
 
+RCSID("$Id: dm_color.c,v 2.8 1995-04-18 22:18:40 granger Exp $")
 
 /*
  * The symbol table used to hold color tables.
  */
 static stbl Ct_table = 0;
+
+static char CTablePath[CFG_SEARCHPATH_LEN];/* Where are the color tables? */
 
 /*
  * The internal format of a color table.
@@ -52,6 +54,8 @@ typedef struct color_table
 static CTable *dc_LookupTable FP ((char *));
 static int dc_InTable FP ((CTable *, struct ui_command *));
 static void dm_TRNak FP ((struct dm_ctr *, char *));
+static int dc_RemoveTable FP ((char *name, int type, union usy_value *v, int));
+static int NthColor FP ((int, SValue *, int *, SValue *, int *));
 
 
 
@@ -76,7 +80,16 @@ dc_Init ()
  * Initialize the color table module.
  */
 {
+	int type[4];
+	stbl vtable = usy_g_stbl ("ui$variable_table");
+
 	Ct_table = usy_c_stbl ("color_tables");
+	sprintf (CTablePath, "%s/colortables", GetLibDir ());
+	usy_c_indirect (vtable, "ctablepath", CTablePath, SYMT_STRING, 
+			CFG_SEARCHPATH_LEN);
+	type[0] = SYMT_STRING;
+	type[1] = SYMT_INT;
+	uf_def_function ("nthcolor", 2, type, NthColor);
 }
 
 
@@ -217,7 +230,7 @@ char *name;
 
 
 
-int
+static int
 NthColor (narg, argv, argt, retv, rett)
 int narg, *argt, *rett;
 SValue *argv, *retv;
@@ -262,7 +275,7 @@ SValue *argv, *retv;
 void
 dc_TableRequest (ctr, proc)
 struct dm_ctr *ctr;
-char *proc;
+char *proc;	/* name of the process (not the window) making the request */
 /*
  * Deal with a color table request.
  */
@@ -294,7 +307,7 @@ char *proc;
  * Send it.
  */
 	msg_ELog (EF_DEBUG, "Color table %s -> %s", ctr->dmm_table, proc);
-	msg_send (proc, MT_DISPLAYMGR, FALSE, repl, length);
+	dmsg_SendProcess (proc, repl, length);
 	free (repl);
 }
 
@@ -315,5 +328,39 @@ char *proc;
 		ctr->dmm_table, proc);
 	repl.dmm_type = DM_NOTABLE;
 	strcpy (repl.dmm_table, ctr->dmm_table);
-	msg_send (proc, MT_DISPLAYMGR, FALSE, &repl, sizeof (repl));
+	dmsg_SendProcess (proc, &repl, sizeof (repl));
 }
+
+
+
+static int
+dc_RemoveTable (name, type, v, param)
+char *name;
+int type;
+union usy_value *v;
+int param;
+{
+	CTable *ct = (CTable *) v->us_v_ptr;
+
+	if (ct->ct_colors)
+		free (ct->ct_colors);
+	free (ct);
+	usy_z_symbol (Ct_table, name);
+	return (TRUE);
+}
+
+
+
+void
+dc_FreeTables ()
+/*
+ * Free all of our color tables and the symbol table itself
+ */
+{
+	usy_traverse (Ct_table, dc_RemoveTable, 0, FALSE);
+	usy_z_stbl (Ct_table);
+	Ct_table = 0;
+}
+
+
+

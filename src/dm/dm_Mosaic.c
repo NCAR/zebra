@@ -1,6 +1,7 @@
 /*
  * Provide help using Mosaic.
  */
+# include <unistd.h>
 # include <sys/types.h>
 # include <sys/wait.h>
 # include <stdio.h>
@@ -11,7 +12,7 @@
 
 # include <defs.h>
 # include <message.h>
-# include "dm.h"
+# include <dm.h>
 # include "dm_vars.h"
 
 # define URL_LEN (2 * CFG_FILEPATH_LEN)
@@ -25,6 +26,35 @@ static int dm_FindURL FP ((char *, char *));
 static void dm_StartMosaic FP ((char *));
 static void dm_TweakMosaic FP ((char *));
 
+/*
+ * The temporary file through which we send commands to Mosaic.
+ * Try to keep track of it and remove it when finished.
+ */
+static char TFile[ CFG_FILEPATH_LEN ] = { '\0' };
+
+static char HelpPath[CFG_SEARCHPATH_LEN]; /* Where are the helpfiles */
+static char MosaicPath[CFG_FILEPATH_LEN]; /* Mosaic executable */
+
+
+void
+dm_Init ()
+{
+	stbl vtable = usy_g_stbl ("ui$variable_table");
+
+	usy_c_indirect (vtable, "helppath", HelpPath, SYMT_STRING,
+			CFG_SEARCHPATH_LEN);
+#ifdef MOSAIC_COMMAND
+	strcpy (MosaicPath, MOSAIC_COMMAND);
+#else
+	MosaicPath[0] = '\0';
+#endif
+	usy_c_indirect (vtable, "mosaicpath", MosaicPath, SYMT_STRING, 
+			CFG_FILEPATH_LEN);
+/*
+ * Give them a default helppath which includes a project subdirectory
+ */
+	sprintf (HelpPath, "%s/help,%s/help", GetProjDir (), GetLibDir ());
+}
 
 
 void
@@ -64,6 +94,21 @@ char *url;
 
 
 
+void
+dm_ExitHelp ()
+/*
+ * We could either kill Mosaic here if the user so desired it, or
+ * just leave it running.  At the very least we clean up our temp file.
+ */
+{
+	if (TFile[0])
+	{
+		unlink (TFile);
+		TFile[0] = '\0';
+	}
+	MosPid = -1;
+}
+
 
 
 static int
@@ -93,7 +138,7 @@ char *url, *realurl;
 	while ((c >= temp) && isspace(*c))
 		c--;
 	*(++c) = '\0';
-	if (sharp = strchr (temp, '#'))
+	if ((sharp = strchr (temp, '#')) != NULL)
 	{
 		*sharp = '\0';
 		strcpy (section, sharp + 1);
@@ -134,7 +179,14 @@ char *url;
  */
 {
 	int i;
-
+/*
+ * Remove any existing temp file in case we're restarting
+ */
+	if (TFile[0])
+	{
+		unlink (TFile);
+		TFile[0] = '\0';
+	}
 	if ((MosPid = fork ()) == 0)
 	{
 		char *args[10];
@@ -150,9 +202,14 @@ char *url;
 		args[i++] = "-home";
 		args[i++] = url;
 		args[i] = 0;
+		if (MosaicPath[0])
+		{
+			execvp (MosaicPath, args);
+			fprintf (stderr, "could not exec '%s'\n", MosaicPath);
+		}
 		execvp ("Mosaic", args);
 		execvp ("xmosaic", args);
-		fprintf (stderr, "Exec of Mosaic failed!\n");
+		fprintf (stderr, "Exec of Mosaic and xmosaic failed!\n");
 		_exit (1);
 	}
 }
@@ -172,14 +229,15 @@ char *url;
  */
 {
 	FILE *cfile;
-	char fname[80];
 /*
- * Create the control file.
+ * Create the control file if necessary.
  */
-	sprintf (fname, "/tmp/Mosaic.%d", MosPid);
-	if ((cfile = fopen (fname, "w")) == NULL)
+	if (! TFile[0])
+		sprintf (TFile, "/tmp/Mosaic.%d", MosPid);
+	if ((cfile = fopen (TFile, "w")) == NULL)
 	{
-		msg_ELog (EF_PROBLEM, "Unable to open %s", fname);
+		msg_ELog (EF_PROBLEM, "Unable to open %s", TFile);
+		TFile[0] = '\0';
 		return;
 	}
 	fprintf (cfile, "goto\n%s\n", url);

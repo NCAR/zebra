@@ -1,4 +1,4 @@
-! $Id: dm.state,v 1.25 1994-11-20 19:28:16 granger Exp $
+! $Id: dm.state,v 1.26 1995-04-18 22:18:33 granger Exp $
 !
 ! Command definition for the display manager.
 !
@@ -63,6 +63,15 @@ define state dm-initial
 	input 'pdstore' 62
 		next dm-pd-storename
 	endinput
+	input 'pdcopy' 63
+		next dm-pd-copyname
+	endinput
+	input 'pdlift' 64
+		next dm-pd-liftname
+	endinput
+	input 'pddrop' 65
+		next dm-drop-name
+	endinput
 	input 'parameter' 17
 		next dm-param-pd
 	endinput
@@ -100,7 +109,7 @@ define state dm-initial
 		next dm-shell-cmd
 	endinput
 	input 'restart' 39
-		next ust$final_string
+		next dm-restart-win
 	endinput
 	input 'cfgsave' 40
 		next dm-opt-name
@@ -113,6 +122,9 @@ define state dm-initial
 	endinput
 	input 'newwindow' 42
 		next dm-newwin-name
+	endinput
+	input 'newgraphic' 88
+		next dm-newgraphic-class
 	endinput
 	input 'enter' 43
 		next dm-enter-plat
@@ -128,6 +140,12 @@ define state dm-initial
 	endinput
 	input 'windowlist' 47
 		next ust$final_string
+	endinput
+	input 'prototype' 84
+		next dm-proto-key-or-class
+	endinput
+	input 'proto' 84
+		next dm-proto-key-or-class
 	endinput
 enddef
 
@@ -165,13 +183,22 @@ define state dm-newpd-pd
 enddef
 
 
+!----------------
+! Config definition
+!
 define state dm-config
 	eoftext 'endconfig'
 	input 'window' 4
 		next dm-window-name
 	endinput
+	input 'graphic' 81
+		next dm-cfw-name
+	endinput
 	input 'widget' 36
 		next dm-widget-name
+	endinput
+	input 'process' 83
+		next dm-cfw-name
 	endinput
 	input 'endconfig' 5
 		next ust$no_more
@@ -179,10 +206,12 @@ define state dm-config
 enddef
 
 
+!----------------
+!The old window definition
+!
 
 define state dm-window-name
 	input string
-!		lowercase
 		next dm-win-x
 	endinput
 enddef
@@ -220,8 +249,6 @@ define state dm-win-dy
 enddef
 
 
-
-
 define state dm-win-program
 	input EOS
 		done
@@ -242,13 +269,107 @@ define state dm-win-args
 enddef
 
 
+!----------------
+! The graphic and process definitions
+!
+
+define state dm-cfw-name
+	input string
+		next dm-cfw-x
+	endinput
+enddef
+
+define state dm-cfw-x
+	input integer
+		next dm-cfw-y
+	endinput
+enddef
+
+define state dm-cfw-y
+	input integer
+		next dm-cfw-dx
+	endinput
+enddef
+
+define state dm-cfw-dx
+	input integer
+		next dm-cfw-dy
+	endinput
+enddef
+
+define state dm-cfw-dy
+	input integer
+		next dm-cfw-pclass
+	endinput
+enddef
+
+define state dm-cfw-pclass
+	input EOS
+		done
+	endinput
+	input string
+		next ust$no_more
+	endinput
+enddef
+
+
+
+!----------------
+! prototype [explicit] [fallback] [replace] class exec [args ...]
+!
+define state dm-proto-key-or-class
+	input 'explicit' 85
+		next dm-proto-key-or-class
+	endinput
+	input 'fallback' 86
+		next dm-proto-key-or-class
+	endinput
+	input 'replace' 87
+		next dm-proto-key-or-class
+	endinput
+	input string
+		next dm-proto-exec
+	endinput
+enddef
+
+
+define state dm-proto-exec
+	input string
+		next dm-win-args
+	endinput
+enddef
+
 
 !
-! Within a "window" block
+! restart window [process-class]
+!
+define state dm-restart-win
+	input string
+		next dm-restart-class
+	endinput
+enddef
+
+define state dm-restart-class
+	input EOS
+		done
+	endinput
+	input string
+		next ust$no_more
+	endinput
+enddef
+		
+
+
+!
+! Within a "window" block, which is actually synonymous with 
+! a "graphic" window rather than just any class of window.
 !
 define state dm-window
 	eoftext 'endwindow'
 	input 'endwindow' 6
+		next ust$no_more
+	endinput
+	input 'endgraphic' 82
 		next ust$no_more
 	endinput
 	input 'description' 7
@@ -300,7 +421,7 @@ define state dm-key-name
 enddef
 
 
-
+!
 ! A file followed by a pd name
 !
 define state dm-pd-file
@@ -309,6 +430,7 @@ define state dm-pd-file
 	endinput
 enddef
 
+!
 ! A pd name followed by a file
 !
 define state dm-pd-name
@@ -317,6 +439,7 @@ define state dm-pd-name
 	endinput
 enddef
 
+!
 ! A pd name, name to store the pd as, and the file to store to
 !
 define state dm-pd-storename
@@ -325,6 +448,50 @@ define state dm-pd-storename
 	endinput
 enddef
 
+!
+! A pd name followed by a copy name
+!
+define state dm-pd-copyname
+	input string
+		next ust$final_string
+	endinput
+enddef
+
+!
+! A pd name followed by a component name followed by the copy name
+!
+define state dm-pd-liftname
+	input string
+		next dm-pd-liftcomp
+	endinput
+enddef
+
+define state dm-pd-liftcomp
+	input string
+		next ust$final_string
+	endinput
+enddef
+
+!
+! pddrop <src> <comp1> <dest> <comp2>
+!
+define state dm-drop-name
+	input string
+		next dm-drop-comp
+	endinput
+enddef
+
+define state dm-drop-comp
+	input string
+		next dm-drop-dest
+	endinput
+enddef
+
+define state dm-drop-dest
+	input string
+		next ust$final_string
+	endinput
+enddef
 
 !
 ! PARAMETER
@@ -566,7 +733,11 @@ define state dm-shell-cmd
 enddef
 
 
-
+define state dm-newgraphic-class
+	input string
+		next dm-newwin-name
+	endinput
+enddef
 
 define state dm-newwin-name
 	input string

@@ -1,7 +1,6 @@
 /*
  * Deal with the titan dial box.
  */
-static char *rcsid = "$Id: DialBox.c,v 2.1 1991-09-12 01:30:31 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -22,13 +21,15 @@ static char *rcsid = "$Id: DialBox.c,v 2.1 1991-09-12 01:30:31 corbet Exp $";
 
 # ifdef titan
 
-# include <defs.h>
-# include "dm_vars.h"
 # include <stropts.h>
 # include <fcntl.h>
 # include <machine/gin.h>
 # include <errno.h>
 
+# include <defs.h>
+# include "dm_vars.h"
+
+RCSID("$Id: DialBox.c,v 2.2 1995-04-18 22:18:27 granger Exp $")
 
 /*
  * Local data.

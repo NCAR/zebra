@@ -1,4 +1,4 @@
-/* $Id: dm_cmds.h,v 2.12 1994-11-20 19:28:18 granger Exp $ */
+/* $Id: dm_cmds.h,v 2.13 1995-04-18 22:18:39 granger Exp $ */
 /*
  * Keyword numbers for displaymgr commands.
  */
@@ -81,13 +81,28 @@
 # define DMC_GLOBAL	53
 # define DMC_ENDPD	54
 /*
- * Feedback
+ * Plot description utilities and feedback
  */
 # define DMC_PDSHOW	60
 # define DMC_PDWRITE	61
 # define DMC_PDSTORE	62
+# define DMC_PDCOPY	63
+# define DMC_PDLIFT	64
+# define DMC_PDDROP	65
 /*
  * More newwindow optional keywords
  */
 # define DMC_RENAME	70
 # define DMC_REUSE	71
+/*
+ * Commands for dealing with process and window classes
+ */
+# define DMC_GRAPHIC	81	/* specify a graphic window in a config */
+# define DMC_ENDGRAPHIC 82
+# define DMC_PROCESS	83	/* specify a process window in a config */
+# define DMC_PROTOTYPE	84	/* define a process class */
+# define DMC_EXPLICIT	85	/* proto keyword for no implicit args */
+# define DMC_FALLBACK	86	/* do not override existing definition */
+# define DMC_REPLACE	87	/* redefine a process class, the default */
+# define DMC_NEWGRAPHIC	88	/* add a graphic window to current config */
+

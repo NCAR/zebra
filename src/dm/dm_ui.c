@@ -24,11 +24,11 @@
 # include <ui.h>
 # include <ui_error.h>
 # include <defs.h>
-# include "dm.h"
+# include <dm.h>
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm_ui.c,v 2.11 1994-11-20 19:26:19 granger Exp $")
+MAKE_RCSID ("$Id: dm_ui.c,v 2.12 1995-04-18 22:18:52 granger Exp $")
 
 
 static int in_pd FP((raw_plot_description *rpd, struct ui_command *cmds));
@@ -45,15 +45,13 @@ struct ui_command *cmds;
  * Define a new configuration.
  */
 {
-	struct config *cfg = NEW (struct config);
-	union usy_value v;
+	struct config *cfg;
 /*
- * Initialize our new configuration structure.
+ * Get a new, clean configuration structure.
  */
-	strcpy (cfg->c_name, UPTR (*cmds));
-	cfg->c_nwin = 0;
+	cfg = dg_NewConfig (UPTR (*cmds));
 /*
- * Link counts.
+ * Figure link counts.
  */
 	if (cmds[1].uc_ctype == UTT_END)
 		cfg->c_nlink = 0;
@@ -73,8 +71,7 @@ struct ui_command *cmds;
 /*
  * Define the new configuration.
  */
-	v.us_v_ptr = (char *) cfg;
-	usy_s_symbol (Configs, UPTR (*cmds), SYMT_POINTER, &v);
+	dg_TableAdd (cfg);
 }
 
 
@@ -89,75 +86,85 @@ struct ui_command *cmds;
  */
 {
 	struct cf_window *win;
-	int arg;
+	char *exec;
+	int narg;
+	char *args[ MAXARG ]; /* XXX */
+	ProcessClass *pc;
+	WinClass wc = W_Unknown;
+	int key;
 
-	switch (UKEY (*cmds))
-	{
 	/*
-	 * Add a new window.  Create the structure, add some default 
-	 * values, then go off to get the specifics.
+	 * Determine our window class based on the command type
 	 */
+	switch ((key = UKEY (*cmds)))
+	{
 	   case DMC_WINDOW:
-	   /*
-	    * Get a new window structure and initialize it.
-	    */
-		win = cfg->c_wins + cfg->c_nwin;
-		strcpy (win->cfw_name, UPTR (cmds[1]));
-		win->cfw_win = 0;
-		win->cfw_linkpar = 0;
-		win->cfw_linksrc = 0;
-		win->cfw_x = UINT (cmds[2]);
-		win->cfw_y = UINT (cmds[3]);
-		win->cfw_dx = UINT (cmds[4]);
-		win->cfw_dy = UINT (cmds[5]);
-		win->cfw_bmap = Default_map;
-		win->cfw_nongraph = win->cfw_forcepd = FALSE;
-		win->cfw_pd = 0;
-		win->cfw_ncroak = win->cfw_flags = 0;
-		strcpy (win->cfw_prog, cmds[6].uc_ctype == UTT_END ?
-			DEFPROG : UPTR (cmds[6]));
-		cmds += (cmds[6].uc_ctype == UTT_END) ? 5 : 6;
-		strcpy (win->cfw_desc, "(undefined)");
-	   /*
-	    * Soak up the args.
-	    */
-	    	for (arg = 1; cmds[arg].uc_ctype != UTT_END; arg++)
-			win->cfw_args[arg] = usy_string (UPTR (cmds[arg]));
-		win->cfw_args[arg] = (char *) 0;
-	   /*
-	    * Now get the rest of the stuff for this window.
-	    */
-		cfg->c_nwin++;
-		ui_subcommand ("dm-window", "Window>", in_window, (long) win);
+	   case DMC_GRAPHIC:
+		wc = W_Graphic;
 		break;
-	/* 
-	 * Maybe it's a widget.
-	 */
+	   case DMC_PROCESS:
+		wc = W_NonGraphic;
+		break;
 	   case DMC_WIDGET:
-		win = cfg->c_wins + cfg->c_nwin;
-		strcpy (win->cfw_name, UPTR (cmds[1]));
-		strcpy (win->cfw_prog, "popup");
-		strcpy (win->cfw_desc, "n/a");
-		win->cfw_win = 0;
-		win->cfw_linkpar = 0;
-		win->cfw_linksrc = 0;
-		win->cfw_nongraph = win->cfw_forcepd = FALSE;
-		win->cfw_pd = 0;
-		win->cfw_bmap = Default_map;
-		win->cfw_x = UINT (cmds[2]);
-		win->cfw_y = UINT (cmds[3]);
-		win->cfw_dx = UINT (cmds[4]);
-		win->cfw_dy = UINT (cmds[5]);
-		win->cfw_ncroak = 0;
-		win->cfw_flags = CF_WIDGET;
-		cfg->c_nwin++;
+		wc = W_Widget;
 		break;
-	   
-	   case DMC_ENDCONFIG:
+	   case DMC_ENDCONFIG:		/* time to go... */
 	   	return (FALSE);
-
 	   default:
 	   	ui_error ("(BUG): Unknown keyword: %d\n", UKEY (*cmds));
+	}
+	/*
+	 * Now we can make a new configuration window and store the
+	 * info common to all windows.
+	 */
+	win = dg_NewWindow (cfg, wc, UPTR (cmds[1]));
+	win->cfw_x = UINT (cmds[2]);
+	win->cfw_y = UINT (cmds[3]);
+	win->cfw_dx = UINT (cmds[4]);
+	win->cfw_dy = UINT (cmds[5]);
+	/*
+	 * If its a widget we're done, otherwise we need to grab
+	 * either a process class or an argument list.
+	 */
+	if (wc == W_Widget)
+		return (TRUE);
+	cmds += 6;
+	if (key == DMC_WINDOW)
+	{
+		exec = (cmds->uc_ctype == UTT_END) ?
+			DEFAULT_EXEC : UPTR (*cmds++);
+		/*
+		 * Soak up the args and try to match them to an existing class.
+		 * Note that this args list does not include an argv[0].  Arg
+		 * matching and class defn expect just such an arg list.
+		 */
+		for (narg = 0; cmds[narg].uc_ctype != UTT_END; narg++)
+			args[narg] = UPTR (cmds[narg]);
+		args[narg] = (char *) 0;
+		pc = dp_MatchArgs (exec, narg, args);
+		/*
+		 * If no class matched, define one using the window name
+		 */
+		if (! pc)
+			pc = dp_DefineClass (win->cfw_name, exec, args, 0);
+		strcpy (win->cfw_pcname, pc->pc_name);
+	}
+	else
+	{
+		/*
+		 * The last command token will be a process class
+		 */
+		if (cmds->uc_ctype == UTT_END)
+			strcpy (win->cfw_pcname, DEFAULT_PROCESS);
+		else
+			strcpy (win->cfw_pcname, UPTR (*cmds));
+	}
+	/*
+	 * If this is a graphic window we need more information.
+	 */
+	if (wc == W_Graphic)
+	{
+		ui_subcommand ("dm-window", "Graphic>", in_window, (long)win);
 	}
 	return (TRUE);
 }
@@ -176,12 +183,26 @@ struct ui_command *cmds;
 {
 	int type;
 	union usy_value v;
+	struct cf_graphic *g = win->cfw_graphic;
 
+	if (UKEY (*cmds) == DMC_ENDWINDOW || UKEY (*cmds) == DMC_ENDGRAPHIC)
+	   	return (FALSE);
+/*
+ * If we've been told we're nongraphic, everything else is irrelevant
+ */
+	if (! g)
+	{
+		ui_warning ("irrelevant keyword for nongraphic window");
+		return (TRUE);
+	}
+/*
+ * The rest of the keywords are only for graphic windows
+ */
 	switch (UKEY (*cmds))
 	{
 	   case DMC_DESCRIPTION:
-	   	strcpy (win->cfw_desc, UPTR (cmds[1]));
-		if (win->cfw_linkpar)
+		strcpy (g->g_desc, UPTR (cmds[1]));
+		if (g->g_linkpar)
 			ui_warning ("LINKPD overrides DESCRIPTION");
 		break;
 
@@ -189,28 +210,30 @@ struct ui_command *cmds;
 		if (UINT (cmds[1]) <= 0 || UINT (cmds[1]) > 10)
 			ui_cl_error (TRUE, cmds[1].uc_col,
 				"Preposterous link count");
-	   	if (! strcmp (win->cfw_desc, "(undefined"))
+	   	if (strcmp (g->g_desc, "(undefined)"))
 			ui_warning ("LINKPD overrides DESCRIPTION");
-		win->cfw_linkpar = UINT (cmds[1]);
-		sprintf (win->cfw_desc, "dm$link%02d", win->cfw_linkpar);
+		g->g_linkpar = UINT (cmds[1]);
+		sprintf (g->g_desc, "dm$link%02d", g->g_linkpar);
 		break;
 
 	   case DMC_BUTTONMAP:
 	   	if (! usy_g_symbol (Bmaps, UPTR (cmds[1]), &type, &v))
 			ui_cl_error (TRUE, UCOL (cmds[1]),
 				"Unknown button map: '%s'", UPTR (cmds[1]));
-		win->cfw_bmap = (ButtonMap *) v.us_v_ptr;
+		g->g_bmap = (ButtonMap *) v.us_v_ptr;
 		break;
 
-	   case DMC_ENDWINDOW:
-	   	return (FALSE);
-
 	   case DMC_NONGRAPHIC:
-	   	win->cfw_nongraph = TRUE;
+		/*
+		 * Damn.  Our original assumption has been reversed.
+		 */
+	   	win->cfw_class = W_NonGraphic;
+		free (win->cfw_graphic);
+		win->cfw_graphic = g = NULL;
 		break;
 
 	   case DMC_FORCEPD:
-	   	win->cfw_forcepd = TRUE;
+	   	g->g_forcepd = TRUE;
 		break;
 
 	   default:
@@ -244,9 +267,14 @@ struct ui_command *cmds;
 		ui_subcommand ("dm-description", "PD>", in_pd, (long) &rpd);
 	ON_ERROR
 		if (rpd.rp_len)
-			relvm (rpd.rp_data);
+			free (rpd.rp_data);
 		RESIGNAL;
 	ENDCATCH
+/*
+ * Make sure we got something
+ */
+	if (! rpd.rp_len)
+		return;
 /*
  * Try to compile the raw plot description
  */
@@ -285,13 +313,17 @@ struct ui_command *cmds;
 	{
 		ui_warning ("could not assign a name to plot description");
 		pd_Release (pd);
-		return ;
 	}
-/*
- * Finally, store the new plot description
- */
-	pd_Store (pd, "global", "pd-name", pdname, SYMT_STRING);
-	pda_StorePD (pd, pdname);
+	else
+	{
+		/*
+		 * Finally, we can store the new plot description
+		 */
+		pd_Store (pd, "global", "pd-name", pdname, SYMT_STRING);
+		pda_StorePD (pd, pdname);
+	}
+	free (rpd.rp_data);
+	return ;
 }
 
 
@@ -370,6 +402,49 @@ struct ui_command *cmds;
 
 
 void
+Prototype (cmds)
+struct ui_command *cmds;
+/*
+ * Extract the args from the command list and define a process class
+ */
+{
+	int explicit;
+	int override;
+	char *name;
+	char *exec;
+	int narg;
+	char *args[MAXARG];
+
+	override = 1;	/* the defaults */
+	explicit = 0;
+	while (cmds->uc_ctype == UTT_KW)
+	{
+		switch (UKEY (*cmds))
+		{
+		case DMC_EXPLICIT:
+			explicit = 1;
+			break;
+		case DMC_REPLACE:
+			override = 1;
+			break;
+		case DMC_FALLBACK:
+			override = 0;
+			break;
+		}
+		++cmds;
+	}
+	name = UPTR (*cmds++);
+	exec = UPTR (*cmds++);
+	for (narg = 0; cmds[narg].uc_ctype != UTT_END; narg++)
+		args[narg] = UPTR (cmds[narg]);
+	args[narg] = (char *) 0;
+	if (override || (! dp_LookupClass (name)))
+		dp_DefineClass (name, exec, args, explicit);
+}
+
+
+
+void
 WritePD (name, filename)
 char *name;	/* Name of the plot description to list 	*/
 char *filename;	/* file to write or dir path, NULL for stdout	*/
@@ -410,71 +485,92 @@ char *filename;	/* file to write or dir path, NULL for stdout	*/
 
 
 void
-list (name)
-char *name;
+CopyPD (name, copyname)
+char *name;	/* Name of the source plot description (or window) */
+char *copyname;	/* Name of the dest plot description		   */
+{
+	plot_description pd, copy;
+
+	pd = find_pd (name);
+	if (! pd)
+	{
+		ui_error ("unknown plot description: '%s'\n", name);
+		return;
+	}
+	copy = pd_CopyPD (pd);
+	pd_Store (copy, "global", "pd-name", copyname, SYMT_STRING);
+	pda_StorePD (copy, copyname);
+}
+
+
+
+void
+CopyComp (pdname, comp, copyname)
+char *pdname;	/* Name of the source plot description (or window) */
+char *comp;	/* Name of the source component			   */
+char *copyname;	/* Name of the dest component description	   */
 /*
- * List out the known configs, or a single config if name is non-NULL.
+ * We try to read a global component from the source pd in addition to the
+ * named component.  If that fails we just store the single component
+ * under its new name.
  */
 {
-	struct config *cfg;
-	SValue v;
-	int type;
+	plot_description pd, copy, global;
 
-	if (name)
+	pd = find_pd (pdname);
+	if (! pd)
 	{
-		if (! (cfg = LookupConfig (name)))
-		{
-			ui_error ("could not find config '%s'", name);
-		}
-		else
-		{
-			if (usy_g_symbol (Configs, name, &type, &v))
-				(void) list_cfg (name, type, &v, 0);
-		}
+		ui_error ("unknown plot description: '%s'\n", pdname);
+		return;
+	}
+	copy = pd_ReadComponent (pd, comp, copyname);
+	if (! copy)
+	{
+		ui_error ("source component '%s' not found; could not copy",
+			  comp);
+		return;
+	}
+	global = pd_ReadComponent (pd, "global", "global");
+	if (global)
+	{
+		/*
+		 * Once we add a component to another plot description, it
+		 * becomes part of that pd (rather than being copied) and 
+		 * should not released.  I learned that the hard way.
+		 */
+		pd_AddComponent (global, copy, 1);
+		pd_Store (global, "global", "pd-name", copyname, SYMT_STRING);
 	}
 	else
-	{
-		usy_traverse (Configs, list_cfg, 0, FALSE);
-	}
+		global = copy;
+	pda_StorePD (global, copyname);
 }
 
 
 
-int
-list_cfg (name, type, v, junk)
-char *name;
-int type;
-union usy_value *v;
-int junk;
-/*
- * List out a single configuration.
- */
+void
+MergeComp (pdname, comp, destname, destcomp)
+char *pdname;	/* Name of the source plot description (or window) */
+char *comp;	/* Name of the source component			   */
+char *destname;	/* Name of the dest plot description		   */
+char *destcomp; /* Name of the dest component			   */
 {
-	int i;
-	struct config *cfg = (struct config *) v->us_v_ptr;
+	plot_description pd, dest;
 
-	ui_nf_printf ("Config '%s':\n", name);
-	for (i = 0; i < cfg->c_nwin; i++)
+	pd = find_pd (pdname);
+	if (! pd)
 	{
-		struct cf_window *win = cfg->c_wins + i;
-
-		ui_nf_printf ("\tWin '%s':\tat (%d, %d) size %dx%d, ",
-			win->cfw_name, win->cfw_x, win->cfw_y, win->cfw_dx,
-			win->cfw_dy);
-		if (win->cfw_flags & CF_WIDGET)
-			ui_nf_printf ("popup %s\n", win->cfw_name);
-		else
-			ui_nf_printf ("id %i, prog %s\n", 
-				      win->cfw_win, win->cfw_prog);
-		if (win->cfw_nongraph || (win->cfw_flags & CF_WIDGET))
-			ui_nf_printf ("\t\tPD: Nongraphic.\n");
-		else
-			ui_nf_printf ("\t\tPD: %s\n", win->cfw_desc);
+		ui_error ("unknown plot description: '%s'\n", pdname);
+		return;
 	}
-	ui_printf ("\n");
-	return (TRUE);
+	dest = find_pd (destname);
+	if (! dest)
+	{
+		ui_error ("unknown plot description: '%s'\n", destname);
+		return;
+	}
+	pd_MergeComp (dest, destcomp, pd, comp);
 }
-
 
 
 
@@ -486,7 +582,7 @@ char *name;
  */
 {
 	union usy_value v;
-	int type, i;
+	int type;
 	ButtonMap *map;
 /*
  * Try to look up the table and see if it already exists.
@@ -728,13 +824,20 @@ SValue *argv, *retv;
  * The "pdesc" command line function.
  */
 {
-	struct cf_window *win = lookup_win (argv->us_v_ptr, TRUE);
+	struct cf_window *win = dg_CurrentWindow (argv->us_v_ptr);
 	
  	*rett = SYMT_STRING;
-	retv->us_v_ptr = win ? (win->cfw_nongraph ? 
-				usy_string ("NONGRAPHIC") :
-				usy_string (win->cfw_desc)) :
-			usy_string ("INACTIVE");
+	if (IsGraphic (win))
+	{
+		if (win->cfw_process && win->cfw_process->p_state == P_ACTIVE)
+			retv->us_v_ptr = usy_string (win->cfw_graphic->g_desc);
+		else
+			retv->us_v_ptr = usy_string ("INACTIVE");
+	}
+	else
+	{
+		retv->us_v_ptr = usy_string ("NONGRAPHIC");
+	}
 	return (0);
 }
 
@@ -750,12 +853,12 @@ SValue *argv, *retv;
  * is currently active.
  */
 {
-	struct cf_window *win = lookup_win (argv->us_v_ptr, TRUE);
+	struct cf_window *win = dg_CurrentWindow (argv->us_v_ptr);
 /*
  * Return the value.
  */
  	*rett = SYMT_BOOL;
-	retv->us_v_int = win != 0;
+	retv->us_v_int = (win != 0);
 	return (0);
 }
 
@@ -770,9 +873,9 @@ char *name;
  * Complain about this window.
  */
 {
-	ui_error (lookup_win (name, FALSE) ? 
-		"Window '%s' is not currently active" :
-		"Window '%s' does not exist", name);
+	ui_error (dg_AnyWindow (name) ? 
+		  "Window '%s' is not currently active" :
+		  "Window '%s' does not exist", name);
 }
 
 

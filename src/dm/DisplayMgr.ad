@@ -1,4 +1,4 @@
-! $Id: DisplayMgr.ad,v 1.10 1994-09-15 21:48:46 corbet Exp $
+! $Id: DisplayMgr.ad,v 1.11 1995-04-18 22:18:28 granger Exp $
 !
 ! Application defaults file for the Display Manager
 !
@@ -6,10 +6,11 @@
 !
 *font:  *-courier-bold-r-normal--12-*
 *allowShellResize:	True
+*winGravity:	10
 *input:		True
 *UIForm*foreground:	black
-dm.time.form.background: gray90
 dm.?.form.Background:	gray95
+dm.time.form.background: gray90
 *time*foreground: black
 *time.Form.Form.horizDistance:	4
 *time.Form.Form.vertDistance:	5
@@ -17,17 +18,23 @@ dm.?.form.Background:	gray95
 *time*Toggle*font:	-*-helvetica-medium-r-*-*-*-100-*-*-*-*-*-*
 *time*Text*font:	-*-helvetica-medium-r-*-*-*-100-*-*-*-*-*-*
 *time*Command*font:	-*-helvetica-medium-r-*-*-*-100-*-*-*-*-*-*
+*time*MenuButton*font:	-*-helvetica-medium-r-*-*-*-100-*-*-*-*-*-*
 *time*title*font:	-*-helvetica-bold-r-*-*-*-160-*-*-*-*-*-*
 *time*arrow*font:	-*-symbol-*-*-*-*-*-100-*-*-*-*-*-*
 *time*Text*height:	12	
 *time*title*borderWidth: 0
 *time*background:	gray90
 *time*Command.borderColor:	red
+*time*MenuButton.borderColor:	red
 *time*Text.borderColor:		yellow
 *time*Toggle.borderColor:	red
-*time*Text.translations: #override \n\
+*time*hotlabel.translations: #override \n\
 	<Key>Delete:	end-of-line()delete-previous-character() \n\
 	<Key>Return:	no-op() \n\
+	<Key>Linefeed:	no-op()
+*time*entertime.translations: #override \n\
+	<Key>Delete:	end-of-line()delete-previous-character() \n\
+	<Key>Return:	enter-time() \n\
 	<Key>Linefeed:	no-op()	\n\
 	<Key>0:		kill-to-end-of-line()insert-char() \n\
 	<Key>1:		kill-to-end-of-line()insert-char() \n\
@@ -41,8 +48,7 @@ dm.?.form.Background:	gray95
 	<Key>9:		kill-to-end-of-line()insert-char() \n\
 	<Key>-:		kill-to-end-of-line()insert-char() \n\
 	<Key>+:		kill-to-end-of-line()insert-char() \n\
-	<Key>.:		kill-to-end-of-line()insert-char() \n\
-	<Key>:		no-op()
+	<Key>.:		kill-to-end-of-line()insert-char()
 *Form.background: 	cadetblue
 *form.background: 	cadetblue
 dm.iconbar.form.background: cadetblue
