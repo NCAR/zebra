@@ -1,7 +1,7 @@
 /*
  * Skew-t plotting module
  */
-static char *rcsid = "$Id: AxisControl.c,v 1.5 1992-01-10 18:54:07 barrett Exp $";
+static char *rcsid = "$Id: AxisControl.c,v 1.6 1992-01-29 22:29:36 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -36,245 +36,88 @@ static char *rcsid = "$Id: AxisControl.c,v 1.5 1992-01-10 18:54:07 barrett Exp $
 # include "LayoutControl.h"
 # include "DrawText.h"
 # include "ui_date.h"
+# include "AxisControl.h"
+
 
 /*
- * General definitions
+ *  Static functions -- function prototypes
  */
+static void ac_GetAxisDescriptors FP(( plot_description, char*, int, int,
+                       int*, int*,int*, int*,
+                       int*, float*,DataValPtr,float*, char*, char*,float*));
+static void ac_SetPrivateAxisDescriptors FP(( plot_description, char*, int,
+                int,  int*, DataValPtr,int*,int*,int*, float*));
+static void ac_FormatLabel FP(( DataValPtr, char*[], int*, int ));
+static void ac_ComputeAxisDescriptors FP(( plot_description, char*, int, int ));
+static int ac_DrawAxis FP((plot_description,char*,int,int,int));
 
-# define BADVAL		-999.0
-# define AUTO_XMAX	(1<<0)
-# define AUTO_YMAX	(1<<1)
-# define AUTO_XMIN	(1<<2)
-# define AUTO_YMIN	(1<<3)
-# define ROUNDIT(x)	((long)(x + 0.5))
-
-extern XColor   Tadefclr;
-typedef enum {L_solid, L_dashed, L_dotted} LineStyle;
-
-
-# define MAX_AXIS  5
-
-typedef struct _AxisInfo
-{
-    char	*component;
-    int		computed;
-    char	datatype;
-} AxisInfoRec;
-static int FitAxes = 0;
-
-static AxisInfoRec AxisInfoList[4][5];
-# ifdef __STDC__
-    extern int ac_DisplayAxes( );
+int 
+ac_DisplayAxes ()
 /*
-    static int ac_AxisId( char, char* );
-    static int ac_NewAxisId( char, char* );
-    static int ac_AxisSide( char );
-    static int ac_AddAxis( char, char*, char );
-    static void ac_FormatLabel( DataValPtr, char*[], int*, int );
-    static void ac_ComputeAxisDescriptors( plot_description, char*, char, char );
-    static int ac_DrawAxis(plot_description,char*,char,char,unsigned short);
-    extern int ac_AxisState(plot_description,char*,char,char,DataValPtr,DataValPtr );
-    extern void ac_UpdateAxisState(plot_description,char*,char, char,DataValPtr, DataValPtr );
-*/
-# else
-    extern int ac_DisplayAxes();
-    static int ac_AxisId();
-    static int ac_NewAxisId();
-    static int ac_AxisSide();
-    static int ac_AddAxis();
-    static void ac_FormatLabel();
-    static void ac_ComputeAxisDescriptors();
-    static int ac_DrawAxis();
-    extern int ac_AxisState();
-    extern void ac_UpdateAxisState();
-# endif
-
-int ac_DisplayAxes ()
+ * Display all axes of plot, fitting into allocated space on each side.
+ */
 {
-    int i,h;
+    int 		ic,i,h;
+    int			ok;
     char		side;
+    int 	        fitAxes = 0;
     int			nextoffset = 0;
     unsigned short	scalemode = 0;
     static int		oldHeight = 0;
+    static int		oldncomps = 0;
+    int		        ncomps = 0;
     int			currentHeight = GWHeight(Graphics);
-
+    char		**comps;
+    int			computed;
+    char		datatype;
     /*
-     *  If the Graphics widget has been resized, that the axes need to
+     * Get list of components and count them.
+     */
+    comps = pd_CompList(Pd);
+    for ( ic = 1; comps[ic]; ic++);
+    ncomps = ic-1;
+    /*
+     *  Compute the axes: i.e. determine font-size and tic-base.
+     *
+     *  If the Graphics widget has been resized, then the axes need to
      *  re-computed and re-fitted as the fontscale is dependent upon 
      *  the size of the Graphics widget.
+     *  Also, if there have been components added or deleted, the
+     *  axes need to be fitted.
      */
-    if ( currentHeight != oldHeight ) FitAxes = 1;
-    for ( i = 0; i < MAX_AXIS; i++ )
+    if ( currentHeight != oldHeight || ncomps != oldncomps) fitAxes = 1;
+    for ( i = 0; i < 4; i++)
     {
-	for ( h=0; h < 4;h++)
-	{
-	    if ( AxisInfoList[h][i].component && 
-		(!(AxisInfoList[h][i].computed)||
-		oldHeight != currentHeight))
-	    {
-			side = h == AXIS_BOTTOM ? 'b' :
-			       h == AXIS_LEFT ? 'l' :
-			       h == AXIS_TOP ? 't' :
-			       h == AXIS_RIGHT ? 'r':'n',
-		ac_ComputeAxisDescriptors(Pd, AxisInfoList[h][i].component,
-			side,
-			AxisInfoList[h][i].datatype);
-		AxisInfoList[h][i].computed = 1;
-	    }
-	}
-    }
-    for ( h=0; h < 4;h++)
-    {
+	side = i == AXIS_BOTTOM ? 'b' :
+		i == AXIS_LEFT ? 'l' :
+		i == AXIS_RIGHT ? 'r' :
+		i == AXIS_TOP ? 't' : 'n' ;
 	nextoffset = 0;
-        for ( i = 0; i < MAX_AXIS; i++ )
-	{
-	    if ( AxisInfoList[h][i].component )
-	    {
-		xy_GetScaleMode(Pd,AxisInfoList[h][i].component,
-				h == AXIS_BOTTOM || h == AXIS_TOP ? 'x' :
-				h == AXIS_LEFT || h == AXIS_RIGHT ? 'y' : 'n',
-				&scalemode);
-		if ( FitAxes )
+        for ( ic = 1; comps[ic]; ic++ )
+        {
+            if ( ac_PlotAxis( Pd, comps[ic], side ) )
+            {
+	        computed = ac_QueryAxisState(Pd,comps[ic],side,&datatype);
+	        if ( !computed || oldHeight != currentHeight )
+	        {
+		    ac_ComputeAxisDescriptors(Pd, comps[ic], side, datatype);
+		    computed = 1;
+		    ac_UpdateAxisState(Pd,comps[ic],side, NULL, &computed );
+	        }
+	        xy_GetScaleInfo(Pd,comps[ic],side, &scalemode);
+		if ( fitAxes )
 		{
-		    xy_SetPrivateAxisDescriptors(Pd,
-			AxisInfoList[h][i].component,
-			side = h == AXIS_BOTTOM ? 'b' :
-			       h == AXIS_LEFT ? 'l' :
-			       h == AXIS_TOP ? 't' :
-			       h == AXIS_RIGHT ? 'r':'n',
-			AxisInfoList[h][i].datatype,
-			&nextoffset,NULL,NULL,NULL, NULL,NULL);
+		    ac_SetPrivateAxisDescriptors(Pd, comps[ic],side, datatype,
+			 &nextoffset,NULL,NULL,NULL, NULL,NULL);
 		}
-	    	nextoffset = ac_DrawAxis(Pd,AxisInfoList[h][i].component,
-			side = h == AXIS_BOTTOM ? 'b' :
-			       h == AXIS_LEFT ? 'l' :
-			       h == AXIS_TOP ? 't' :
-			       h == AXIS_RIGHT ? 'r':'n',
-		AxisInfoList[h][i].datatype,scalemode);
-	    }
-	}
+	    	nextoffset = ac_DrawAxis(Pd,comps[ic],side, datatype,scalemode);
+            }
+        }
     }
-    FitAxes = 0;
     oldHeight = GWHeight(Graphics);
-}
-static int
-ac_AxisId( side, cName )
-char    side;
-char	*cName;
-{
-    int id = -1;
-    int i;
-    if ( cName )
-    {
-	for ( i = 0; i < MAX_AXIS; i++)
-	{
-	    if ( AxisInfoList[ac_AxisSide(side)][i].component &&
-	(strcmp(AxisInfoList[ac_AxisSide(side)][i].component, cName) == 0))
-		break;
-	}
-	if ( i < MAX_AXIS )
-	    id = i;
-    }
-    return ( id );
-}
-static int
-ac_NewAxisId ( side, cName )
-char	side;
-char	*cName;
-{
-    int id = -1;
-    int i;
-    static init = 1;
-    if ( init )
-    {
-	init = 0;
-	for ( i = 0; i < MAX_AXIS; i++)
-	{
-	    AxisInfoList[AXIS_BOTTOM][i].component = NULL;
-	    AxisInfoList[AXIS_LEFT][i].component = NULL;
-	    AxisInfoList[AXIS_RIGHT][i].component = NULL;
-	    AxisInfoList[AXIS_TOP][i].component = NULL;
-	    AxisInfoList[AXIS_BOTTOM][i].computed = 0;
-	    AxisInfoList[AXIS_LEFT][i].computed = 0;
-	    AxisInfoList[AXIS_RIGHT][i].computed = 0;
-	    AxisInfoList[AXIS_TOP][i].computed = 0;
-	}
-    }
-    if ( cName )
-    {
-	for ( i = 0; i < MAX_AXIS; i++)
-	{
-	    if ( AxisInfoList[ac_AxisSide(side)][i].component &&
-	 (strcmp(AxisInfoList[ac_AxisSide(side)][i].component, cName) == 0))
-		break;
-	}
-	if ( i < MAX_AXIS )
-	{
-	    msg_ELog( EF_PROBLEM, 
-	    "Axis already exists for component %s", cName);
-	}
-	else
-	{
-	    for ( i = 0; i < MAX_AXIS && AxisInfoList[ac_AxisSide(side)][i].component; i++);
-	    if ( i < MAX_AXIS )
-		id = i;
-	}
-    }
-    return ( id );
+    oldncomps = ncomps;
 }
 
-static int
-ac_AxisSide(side)
-char	side;
-{
-    int iside;
-    switch ( side )
-    {
-	case 'b':
-	    iside = AXIS_BOTTOM;
-	break;
-	case 't':
-	    iside = AXIS_TOP;
-	break;
-	case 'l':
-	    iside = AXIS_LEFT;
-	break;
-	case 'r':
-	    iside = AXIS_RIGHT;
-	break;
-	default:
-	    iside = -1;
-	break;
-    }
-    return (iside);
-}
-
-
-static int
-ac_AddAxis ( side, cName, dtype )
-char	side;
-char	*cName;
-char	dtype;
-{
-	int id;
-/*
- * Make sure the id is less than the maximum number allowed
- */
-    id = ac_NewAxisId ( side, cName );
-    if ( id < 0 )
-    {
-	msg_ELog( EF_PROBLEM, 
-	    "Invalid component name for Axis Control.");
-	return(0);
-    }
-    AxisInfoList[ac_AxisSide(side)][id].component = 
-		(char*)malloc ( (strlen(cName)+1)*sizeof(char));
-    strcpy ( AxisInfoList[ac_AxisSide(side)][id].component, cName );
-    AxisInfoList[ac_AxisSide(side)][id].computed = 0;
-    AxisInfoList[ac_AxisSide(side)][id].datatype = dtype;
-    FitAxes = 1;
-    return(id);
-}
 
 static void
 ac_FormatLabel( d1, string, nlab, dim )
@@ -332,14 +175,20 @@ char			datatype;
     int		maxDim = 80;
     int		kk,x1,y1,x2,y2;
     long	iVal,iBase;
+    float	drawGrid;
+    int		nint;
 
     /*
      *  Get parameters to use while computing the scale.
      */
-    (void)ac_AxisState(pd,c,side,datatype,&min,&max );
-    xy_GetAxisDescriptors( pd, c, side, datatype, &offset,
+    if ( side == 't' || side == 'b' )
+        xy_GetCurrentScaleBounds(pd,c,'x',datatype,&min,&max);
+    else if ( side == 'r' || side == 'l' )
+        xy_GetCurrentScaleBounds(pd,c,'y',datatype,&min,&max);
+
+    ac_GetAxisDescriptors( pd, c, side, datatype, &offset,
 		&maxWidth, &maxHeight, &nticLabel, &ticlen, &ticInterval,
-		&baseTic,&fscale, color, label );
+		&baseTic,&fscale, color, label, &drawGrid );
     /*
      * Now re-compute the private axis-descriptors;
      */
@@ -348,20 +197,20 @@ char			datatype;
     {
 	case 't':
 	{
-	    iVal = ts_GetSec(min.val.t);
-	    iBase = 
-     ((float)iVal)/ticInterval - (float)(int)(((float)iVal)/ticInterval) > 0.0 ?
-		((long)(((float)iVal)/ticInterval) + 1) * (long)ticInterval:
-		(long)(((float)iVal)/ticInterval) * (long)ticInterval;
+	    iVal = GetSec(min.val.t);
+	    nint = iVal/((long)ticInterval);
+	    iBase = nint*((long)ticInterval) < iVal?
+		((long)(nint+1)) * (long)ticInterval :
+		((long)nint) * (long)ticInterval ;
 	    lc_GetTime( &(baseTic.val.t), iBase );
 	}
 	break;
 	case 'f':
 	{
-	    baseTic.val.f = 
-	min.val.f/ticInterval - (float)(int)(min.val.f/ticInterval) > 0.0 ?
-		(float)((int)(min.val.f/ticInterval)+1) * ticInterval :
-		(float)((int)(min.val.f/ticInterval)) * ticInterval ;
+	    nint = (int)(min.val.f/ticInterval);
+	    baseTic.val.f = ((float)nint)*ticInterval < min.val.f ?
+		((float)(nint+1)) * ticInterval :
+		((float)nint) * ticInterval ;
 	}
 	break;
     }
@@ -388,7 +237,7 @@ char			datatype;
 	nticLabel = nlab > nticLabel ? nlab : nticLabel;
 	lc_IncrData( &ticLoc, (double)ticInterval );
     }
-    xy_SetPrivateAxisDescriptors(pd,c,side,datatype,
+    ac_SetPrivateAxisDescriptors(pd,c,side,datatype,
 		NULL,&baseTic,&maxHeight,&maxWidth, &nticLabel,&ticInterval);
 }
 
@@ -424,14 +273,46 @@ unsigned short		mode;
     int		direction;
     int		nextoffset = 0;
     unsigned short xmode = 0,ymode = 0;
+    float	drawGrid;
+    XColor	mainPix, gridPix;
+    float	red,green,blue,hue,lightness,saturation;
+    int		x1,x2,y1,y2;
 
-    (void)ac_AxisState(pd,c,side,datatype,&min,&max );
-    xy_GetAxisDescriptors( pd, c, side, datatype, &offset,
+    if ( side == 't' || side == 'b' )
+        xy_GetCurrentScaleBounds(pd,c,'x',datatype,&min,&max);
+    else if ( side == 'r' || side == 'l' )
+        xy_GetCurrentScaleBounds(pd,c,'y',datatype,&min,&max);
+
+    ac_GetAxisDescriptors( pd, c, side, datatype, &offset,
 		&maxWidth, &maxHeight, &maxLabel, &ticlen, &ticInterval,
-		&baseTic,&fscale, color, label );
+		&baseTic,&fscale, color, label,&drawGrid );
     XSetLineAttributes ( XtDisplay(Graphics), Gcontext, 0, LineSolid,
 		CapButt, JoinMiter);
-    SetColor(c,"axis-color",NULL,color);
+/*    SetColor(c,"axis-color",NULL,color);*/
+    if ( !ct_GetColorByName( color, &mainPix ) )
+    {
+	msg_ELog ( EF_PROBLEM, "Unknown axis color: %s", color );
+	ct_GetColorByName ( "white", &mainPix );
+    }
+    gridPix = mainPix;
+    
+    /*
+     * Compute the RGB values for the grid color intensity
+     */
+    if ( drawGrid > 0.0 && drawGrid < 1.0 )
+    {
+	gp_RGBtoHLS ((float)((double)mainPix.red /(double)65535), 
+		     (float)((double)mainPix.green /(double)65535),
+		     (float)((double)mainPix.blue /(double)65535), 
+		     &hue, &lightness, &saturation );
+	lightness = lightness * drawGrid;
+	gp_HLStoRGB ( &red, &green, &blue, hue, lightness, saturation );
+	gridPix.red = (short)((double)red * (double)65535);
+	gridPix.green = (short)((double)green * (double)65535);
+	gridPix.blue = (short)((double)blue * (double)65535);
+	ct_GetColorByRGB( &gridPix );
+    }
+    XSetForeground ( Disp, Gcontext, mainPix.pixel );
 	
     msg_ELog ( EF_DEBUG,"Draw Axis: component = %s side = %c datatype = %c",
 		c,side,datatype);
@@ -526,6 +407,17 @@ horizontal:
 				devY(&yOrig,ymode) + direction*(offset), 
 			    	devX(&ticLoc,xmode), 
 			    	devY(&yOrig,ymode) + direction*(offset + ticlen));
+			    if ( drawGrid > 0.0 )
+			    {
+    				XSetForeground ( Disp, Gcontext, gridPix.pixel);
+		    	        XDrawLine( XtDisplay(Graphics), 
+			    	    GWFrame(Graphics), Gcontext, 
+			    	    devX(&ticLoc,xmode), 
+				    devY(&UY1,ymode) , 
+			    	    devX(&ticLoc,xmode), 
+			    	    devY(&UY0,ymode) );
+    				XSetForeground ( Disp, Gcontext, mainPix.pixel);
+			    }
 		            DrawText ( Graphics, GWFrame(Graphics), 
 				    Gcontext, xloc, yloc,
 				    ticLabel[kk], 0.0,fscale, 
@@ -594,6 +486,13 @@ vertical:
 			devX(&xOrig,xmode)+direction*(offset), devY(&max,ymode));
 
 	    labelExtent = devY(&min,ymode);
+	    labelExtent = ymode & INVERT ?
+		devY(&min,ymode) - 
+		  abs((int)(GWHeight(Graphics)*AxisY1[AXIS_TOP]) -
+			(int)(GWHeight(Graphics)*AxisY0[AXIS_TOP])):
+		devY(&min,ymode) + 
+		  abs((int)(GWHeight(Graphics)*AxisY1[AXIS_BOTTOM]) -
+			(int)(GWHeight(Graphics)*AxisY0[AXIS_BOTTOM]));
 	    /* 
 	     * Draw tic-marks and tic-labels
 	     */
@@ -638,6 +537,17 @@ vertical:
 			    	devY(&ticLoc,ymode), 
 			    	devX(&xOrig,xmode) + direction*(offset+ticlen), 
 			    	devY(&ticLoc,ymode));
+			    if ( drawGrid > 0.0 )
+			    {
+    				XSetForeground ( Disp, Gcontext, gridPix.pixel);
+		    	        XDrawLine( XtDisplay(Graphics), 
+			    	    GWFrame(Graphics), Gcontext, 
+			    	    devX(&UX0,xmode) , 
+			    	    devY(&ticLoc,ymode), 
+			    	    devX(&UX1,xmode) , 
+			    	    devY(&ticLoc,ymode));
+    				XSetForeground ( Disp, Gcontext, mainPix.pixel);
+			    }
 		            DrawText ( Graphics, GWFrame(Graphics), 
 				    Gcontext, xloc, yloc,
 				    ticLabel[kk], 0.0,fscale, 
@@ -676,124 +586,388 @@ vertical:
             DrawText ( Graphics, GWFrame(Graphics), 
 		    Gcontext, xloc, yloc, label, direction > 0 ? -90.0 :90.0,
 		    fscale, JustifyCenter, JustifyBottom);
-	    nextoffset = nextoffset + maxHeight + 2;
+
+	    /*
+	     * Because the (rotated)title text will be stroked, it's size might
+	     * differ from the label text so test to see how tall it really is
+	     * to compute next offset
+	     */
+            DT_TextBox ( Graphics, GWFrame(Graphics), 0, 0, 
+		    label, direction > 0 ? -90.0 :90.0,
+		    fscale, JustifyCenter, JustifyBottom,&x1,&y1,&x2,&y2);
+	    nextoffset = nextoffset + abs(x1-x2) + 2;
 	    lc_SetUserCoord ( &UX0,&UX1,&savemin,&savemax);
 	break;
 
     }
+    ResetGC();
     return(nextoffset);
 }
 
 int
-ac_AxisState(pd,c,side,datatype,min,max )
+ac_QueryAxisState(pd,c,side,datatype)
 plot_description	pd; /* input */
 char			*c; /* input */
 char			side; /* input */
-char			datatype; /*input*/
-DataValPtr		min,max;
+char			*datatype; /*return*/
 {
     char	keyword[80];
-    int		axid;
-    min->type = datatype;
-    max->type = datatype;
-    axid = ac_AxisId (side, c);
+    int		computed = 0;
+    char	dtype[3];
+
+    *datatype = 'n';
     strcpy(keyword, "private-axis-");
     keyword[13] = side;
     keyword[14] = '\0';
-    strcat(keyword, "-min");
-    switch( datatype )
+    strcat(keyword, "-computed");
+    if (! pda_Search (pd, c, keyword, NULL, (char *)&computed, SYMT_INT))
     {
-        case 't':
-            if (axid < 0 || ! pda_Search (pd, c, keyword, NULL,
-                (char *)&(min->val.t), SYMT_DATE))
-            {
-                min->val.t.ds_yymmdd = 0;
-                min->val.t.ds_hhmmss = 0;
-            }
-        break;
-        case 'f':
-            if (axid < 0 || ! pda_Search (pd, c, keyword, NULL,
-                (char *)&(min->val.f), SYMT_FLOAT))
-            {
-                min->val.f = 0.0;
-            }
-        break;
+	computed = 0;
     }
+
     strcpy(keyword, "private-axis-");
     keyword[13] = side;
     keyword[14] = '\0';
-    strcat(keyword, "-max");
-    switch( datatype )
+    strcat(keyword, "-datatype");
+    if (  pda_Search (pd, c, keyword, NULL, dtype, SYMT_STRING) )
     {
-        case 't':
-            if (axid < 0 || ! pda_Search (pd, c, keyword, NULL,
-                (char *)&(max->val.t), SYMT_DATE))
-            {
-                max->val.t.ds_yymmdd = 0;
-                max->val.t.ds_hhmmss = 0;
-            }
-        break;
-        case 'f':
-            if (axid < 0 || ! pda_Search (pd, c, keyword, NULL,
-                (char *)&(max->val.f), SYMT_FLOAT))
-            {
-                max->val.f = 0.0;
-            }
-        break;
+	*datatype = dtype[0];
     }
-    if ( axid < 0 )
-    {
-	return ( 0 );
-    }
-    else
-    {
-        return ( AxisInfoList[ac_AxisSide(side)][axid].computed );
-    }
+
+    return ( computed );
 }
 
 void
-ac_UpdateAxisState(pd,c,side, datatype,scalemin, scalemax )
+ac_UpdateAxisState(pd,c,side, datatype, computed )
 plot_description	pd;
 char	*c;
 char	side;
-char	datatype;
-DataValPtr	scalemin;
-DataValPtr	scalemax;
+char	*datatype;
+int	*computed;
 {
     int axid = 0;
     char	keyword[20];
-    /* 
-     * If axis doesn't exist, add it to the axis-list.
+    char	dtype[3];
+
+    if ( computed )
+    {
+        strcpy(keyword, "private-axis-");
+        keyword[13] = side;
+        keyword[14] = '\0';
+        strcat(keyword, "-computed");
+        pd_Store (pd,c,keyword,(char *)computed, SYMT_INT);
+    }
+
+    if ( datatype )
+    {
+        dtype[0] = datatype[0];
+        dtype[1] = '\0';
+        strcpy(keyword, "private-axis-");
+        keyword[13] = side;
+        keyword[14] = '\0';
+        strcat(keyword, "-datatype");
+        pd_Store (pd,c,keyword,dtype, SYMT_STRING);
+    }
+}
+int
+ac_PlotAxis(pd, c, side)
+plot_description pd; /* input */
+char    *c;          /* input */
+char	side;
+{
+    int	plot=0;
+    char ptype[32];
+    if ( !pda_Search (pd, "global", "plot-type", NULL, &ptype,SYMT_STRING)||
+	 strcmp(ptype,"xygraph") != 0)
+    {
+	return(0);
+    }
+    switch ( side )
+    {
+	case 'b':
+    	    if ( !pda_Search (pd, c, "axis-bottom", "xy",
+                (char *)&plot, SYMT_INT))
+    	    {
+        	plot = 1;
+    	    }
+	break;
+	case 't':
+    	    if ( !pda_Search (pd, c, "axis-top", "xy",
+                (char *)&plot, SYMT_INT))
+    	    {
+        	plot = 0;
+    	    }
+	break;
+	case 'r':
+    	    if ( !pda_Search (pd, c, "axis-right", "xy",
+                (char *)&plot, SYMT_INT))
+    	    {
+        	plot = 0;
+    	    }
+	break;
+	case 'l':
+    	    if ( !pda_Search (pd, c, "axis-left", "xy",
+                (char *)&plot, SYMT_INT))
+    	    {
+        	plot = 1;
+    	    }
+	break;
+    }
+    return (plot);
+}
+
+void
+ac_GetAxisDescriptors( pd, c, side, datatype,
+                       offset, tlabelWidth,tlabelHeight, nticLabel,
+                       ticlen, ticInterval,baseTic,fontScale, color, label,
+                       drawGrid)
+plot_description pd; /* input */
+char    *c;          /* input */
+char    side;        /* input */
+char    datatype;    /* input */
+int     *offset;
+int     *tlabelWidth,*tlabelHeight;
+int     *nticLabel;
+int     *ticlen;
+float   *ticInterval;
+DataValPtr      baseTic;
+float   *fontScale;
+char    *color;
+char    *label;
+float   *drawGrid;
+{
+    char        keyword[80];
+    char        string[80];
+    /*
+     * Get the user-settable axis descriptors
      */
-    if ( (axid = ac_AxisId ( side, c)) < 0 )
+    if ( color )
     {
-	axid = ac_AddAxis ( side,c,datatype);
+        strcpy(keyword, "axis-");
+        keyword[5] = side;
+        keyword[6] = '\0';
+        strcat(keyword, "-color");
+        if (! pda_Search (pd, c, keyword, "xy", (char *)color, SYMT_STRING))
+        {
+            strcpy(color,"white");
+        }
     }
-    strcpy(keyword, "private-axis-");
-    keyword[13] = side;
-    keyword[14] = '\0';
-    strcat(keyword, "-max");
-    switch( datatype )
+    if ( label )
     {
-        case 't':
-            pd_Store (pd,c,keyword,(char *)&(scalemax->val.f), SYMT_DATE);
-        break;
-        case 'f':
-            pd_Store (pd,c,keyword,(char *)&(scalemax->val.f), SYMT_FLOAT);
-        break;
+        strcpy(keyword, "axis-");
+        keyword[5] = side;
+        keyword[6] = '\0';
+        strcat(keyword, "-label");
+        if (! pda_Search (pd, c, keyword, "xy", (char *)label, SYMT_STRING))
+        {
+            strcpy(label,"label");
+        }
     }
-    strcpy(keyword, "private-axis-");
-    keyword[13] = side;
-    keyword[14] = '\0';
-    strcat(keyword, "-min");
-    switch( datatype )
+
+    if ( ticlen )
     {
-        case 't':
-            pd_Store (pd,c,keyword,(char *)&(scalemin->val.f), SYMT_DATE);
-        break;
-        case 'f':
-            pd_Store (pd,c,keyword,(char *)&(scalemin->val.f), SYMT_FLOAT);
-        break;
+        strcpy(keyword, "axis-");
+        keyword[5] = side;
+        keyword[6] = '\0';
+        strcat(keyword, "-tic-len");
+        if (! pda_Search (pd, c, keyword, "xy", (char *)ticlen, SYMT_INT))
+        {
+            *ticlen = 5;
+        }
     }
-    AxisInfoList[ac_AxisSide(side)][axid].computed = 0;
+    if ( ticInterval )
+    {
+        strcpy(keyword, "axis-");
+        keyword[5] = side;
+        keyword[6] = '\0';
+        strcat(keyword, "-tic-interval");
+        /* hardwired for now */
+        switch( datatype )
+        {
+            case 't':
+                *ticInterval = 600.0;
+                if(pda_Search (pd, c, keyword,"xy", (char*)string,SYMT_STRING))
+                {
+                    if ( (*ticInterval = (float)pc_TimeTrigger(string)) == 0.0 )
+                    {
+                        msg_ELog (EF_PROBLEM,"Unparseable tic interval: %s",string);
+                    }
+                }
+            break;
+            case 'f':
+                if(!pda_Search (pd, c, keyword,"xy", (char*)ticInterval,SYMT_FLOAT))
+                {
+                    *ticInterval = 1.0;
+                }
+            break;
+        }
+    }
+    if ( fontScale )
+    {
+        strcpy(keyword, "axis-");
+        keyword[5] = side;
+        keyword[6] = '\0';
+        strcat(keyword, "-font-scale");
+        if (! pda_Search (pd, c, keyword, "xy", (char *)fontScale, SYMT_FLOAT))
+        {
+            *fontScale = 0.025;
+        }
+    }
+    if ( drawGrid )
+    {
+        strcpy(keyword, "axis-");
+        keyword[5] = side;
+        keyword[6] = '\0';
+        strcat(keyword, "-grid-intensity");
+        if (! pda_Search (pd, c, keyword, "xy", (char *)drawGrid, SYMT_FLOAT))
+        {
+            *drawGrid = 0.75;
+        }
+    }
+
+    
+    /*
+     * Get the axis descriptors that are private (calculated)
+     */
+    if ( offset )
+    {
+        strcpy(keyword, "private-axis-");
+        keyword[13] = side;
+        keyword[14] = '\0';
+        strcat(keyword, "-offset");
+        if (! pda_Search (pd, c, keyword, NULL, (char *)offset, SYMT_INT))
+        {
+            *offset = 0;
+        }
+    }
+    if ( baseTic )
+    {
+        strcpy(keyword, "private-axis-");
+        keyword[13] = side;
+        keyword[14] = '\0';
+        strcat(keyword, "-base-tic");
+        baseTic->type = datatype;
+        switch( datatype )
+        {
+            case 't':
+                if (! pda_Search (pd, c, keyword, NULL,
+                    (char *)&(baseTic->val.t), SYMT_DATE))
+                {
+                    baseTic->val.t.ds_yymmdd = 0;
+                    baseTic->val.t.ds_hhmmss = 0;
+                }
+            break;
+            case 'f':
+                if (! pda_Search (pd, c, keyword, NULL,
+                    (char *)&(baseTic->val.f), SYMT_FLOAT))
+                {
+                    baseTic->val.f = 0.0;
+                }
+            break;
+        }
+    }
+    if ( tlabelHeight )
+    {
+        strcpy(keyword, "private-axis-");
+        keyword[13] = side;
+        keyword[14] = '\0';
+        strcat(keyword, "-tic-label-height");
+        if (! pda_Search (pd, c, keyword, NULL, (char *)tlabelHeight, SYMT_INT))
+        {
+            *tlabelHeight = 0;
+        }
+    }
+    if ( nticLabel )
+    {
+        strcpy(keyword, "private-axis-");
+        keyword[13] = side;
+        keyword[14] = '\0';
+        strcat(keyword, "-n-tic-label");
+        if (! pda_Search (pd, c, keyword, NULL, (char *)nticLabel, SYMT_INT))
+        {
+            *nticLabel = 0;
+        }
+    }
+    if ( tlabelWidth )
+    {
+        strcpy(keyword, "private-axis-");
+        keyword[13] = side;
+        keyword[14] = '\0';
+        strcat(keyword, "-tic-label-width");
+        if (! pda_Search (pd, c, keyword, NULL, (char *)tlabelWidth, SYMT_INT))
+        {
+            *tlabelWidth = 0;
+        }
+    }
+}
+void
+ac_SetPrivateAxisDescriptors( pd, c, side, datatype, 
+                       offset, baseTic,tlabelHeight,tlabelWidth,nticLabel,
+                       ticInterval)
+plot_description pd; /* input */
+char    *c;          /* input */
+char    side;        /* input */
+char    datatype;    /* input */
+int     *offset;
+DataValPtr      baseTic;
+int     *tlabelHeight,*tlabelWidth;
+int     *nticLabel;
+float   *ticInterval;
+{
+    char        mode[80];
+    char        keyword[80];
+    char	tstring[3];
+
+    if ( offset )
+    {
+        strcpy(keyword, "private-axis-");
+        keyword[13] = side;
+        keyword[14] = '\0';
+        strcat(keyword, "-offset");
+        pd_Store (pd, c, keyword, (char *)offset, SYMT_INT);
+    }
+
+    if ( baseTic)
+    {
+        strcpy(keyword, "private-axis-");
+        keyword[13] = side;
+        keyword[14] = '\0';
+        strcat(keyword, "-base-tic");
+        switch( datatype )
+        {
+            case 't':
+                pd_Store (pd, c, keyword, (char *)&(baseTic->val.t), SYMT_DATE);
+            break;
+            case 'f':
+                pd_Store (pd, c, keyword,(char *)&(baseTic->val.f), SYMT_FLOAT);
+            break;
+        }
+    }
+
+    if ( tlabelHeight )
+    {
+        strcpy(keyword, "private-axis-");
+        keyword[13] = side;
+        keyword[14] = '\0';
+        strcat(keyword, "-tic-label-height");
+        pd_Store (pd, c, keyword, (char *)tlabelHeight, SYMT_INT);
+    }
+
+    if ( nticLabel )
+    {
+        strcpy(keyword, "private-axis-");
+        keyword[13] = side;
+        keyword[14] = '\0';
+        strcat(keyword, "-n-tic-label");
+        pd_Store (pd, c, keyword, (char *)nticLabel, SYMT_INT);
+    }
+
+    if ( tlabelWidth )
+    {
+        strcpy(keyword, "private-axis-");
+        keyword[13] = side;
+        keyword[14] = '\0';
+        strcat(keyword, "-tic-label-width");
+        pd_Store (pd, c, keyword,  (char *)tlabelWidth, SYMT_INT);
+    }
 }
