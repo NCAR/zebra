@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 1.6 1991-03-08 00:48:01 corbet Exp $ */
+/* $Id: GraphProc.h,v 1.7 1991-03-13 23:09:46 kris Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -110,6 +110,8 @@ extern int fc_LookupFrame (time *);
 extern int fc_GetFrame (void);
 extern void fc_MarkFrames (time *, int);
 extern void mc_DefMovieWidget (void);
+extern void mc_ParamChange (void);
+extern void mc_PDChange (void);
 extern void mc_Dial (int);
 extern char *px_FldDesc (char *, char *);
 extern void I_DoIcons (void);
@@ -166,6 +168,8 @@ extern void SetColor (char *, char *, char *, char *);
 	extern int fc_GetFrame ();
 	extern void fc_MarkFrames ();
 	extern void mc_DefMovieWidget ();
+	extern void mc_ParamChange ();
+	extern void mc_PDChange ();
 	extern void mc_Dial ();
 	extern char *px_FldDesc ();
 	extern void I_DoIcons ();
