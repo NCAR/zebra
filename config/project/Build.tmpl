@@ -9,7 +9,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project auto-build parameters for development compilations
-XCOMM $Id: Build.tmpl,v 1.44 2001-12-14 15:47:19 burghart Exp $
+XCOMM $Id: Build.tmpl,v 1.45 2001-12-21 16:24:38 burghart Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -331,8 +331,8 @@ XCOMM --- Deciding X, RDSS and netCDF library directories
 #if defined(SunArchitecture)
 # if ! UseOpenWindows	/* otherwise use default in Project.tmpl */
 #  if defined(SolarisArchitecture)
-#   define XIncDir /local/X11R6/include
-#   define XLibDir /local/X11R6/lib
+#   define XIncDir /usr/X/include
+#   define XLibDir /usr/X/lib
 #  else
 #   define XIncDir /local/X11R5/include
 #   define XLibDir /local/X11R5/lib
