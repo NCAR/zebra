@@ -38,7 +38,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm.c,v 2.46 1994-06-29 20:21:13 case Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.47 1994-07-14 18:50:52 corbet Exp $")
 
 
 /*
@@ -110,6 +110,8 @@ static int dm_msg_handler FP ((Message *));
 static void EnterPosition FP ((struct ui_command *));
 static void KillProcess FP ((char *));
 static struct config *TryConfigDir FP ((char *, char *));
+static int RealPlatform FP ((int, SValue *, int *, SValue *, int *));
+
 
 
 
@@ -136,6 +138,7 @@ char **argv;
 	ui_setup ("DisplayMgr", &argc, argv, (char *) 0);
 	SetupConfigVariables ();
 	cp_SetupCmdProto ();
+	ds_Initialize ();
 /*
  * Create our symbol tables.
  */
@@ -160,6 +163,7 @@ char **argv;
 	uf_def_function ("pd_defined", 3, type, pd_defined);
 	uf_def_function ("pd_complist", 1, type, pd_complist);
 	uf_def_function ("nvalue", 3, type, nvalue);
+	uf_def_function ("realplatform", 1, type, RealPlatform);
 	type[1] = SYMT_INT;
 	uf_def_function ("nthcolor", 2, type, NthColor);
 	uf_def_function ("nthcomp", 2, type, NthComponent);
@@ -1535,17 +1539,8 @@ struct ui_command *cmds;
 	DataChunk *dc;
 	FieldId fid;
 	ZebTime when;
-	static int init_done = FALSE;
 	float dlat, dlon, mlat, mlon;
-/*
- * If need be, initialize the data store.  We do this here because 99% of the
- * invocations of dm will never need it.
- */
-	if (! init_done)
-	{
-		init_done = TRUE;
-		ds_Initialize ();
-	}
+
 	fid = F_Lookup ("trans");
 /*
  * Pull out basic info.
@@ -1589,3 +1584,16 @@ struct ui_command *cmds;
 
 
 
+
+static int
+RealPlatform (narg, argv, argt, retv, rett)
+int narg, *argt, *rett;
+SValue *argv, *retv;
+/*
+ * The "realstation" command line function -- return TRUE if the argument
+ * is a real platform.
+ */
+{
+	retv->us_v_int = (ds_LookupPlatform (argv->us_v_ptr) != BadPlatform);
+	*rett = SYMT_BOOL;
+}
