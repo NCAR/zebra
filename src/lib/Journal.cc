@@ -8,7 +8,7 @@
 #include <iomanip.h>
 
 //#include <defs.h>
-//RCSID ("$Id: Journal.cc,v 1.8 1998-06-05 19:25:11 granger Exp $");
+//RCSID ("$Id: Journal.cc,v 1.9 1998-09-15 16:50:00 granger Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
 #include "BlockFileP.hh"	// For the private header structure and stuff
@@ -89,8 +89,8 @@ Journal::Changed (BlkVersion rev, BlkOffset offset, BlkSize length)
 		{
 			Block *b = &entries[i].block;
 			if (entries[i].change == BlockChanged &&
-			    b->offset + b->length >= offset &&
-			    offset + length >= b->offset)
+			    b->offset + b->length > offset &&
+			    offset + length > b->offset)
 			{
 				changed = 1;
 				break;
