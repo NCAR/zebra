@@ -29,7 +29,7 @@
 # include "defs.h"
 # include "message.h"
 # ifndef lint
-MAKE_RCSID ("$Id: msg_lib.c,v 2.20 1994-02-02 20:21:53 granger Exp $")
+MAKE_RCSID ("$Id: msg_lib.c,v 2.21 1994-03-19 22:20:21 granger Exp $")
 # endif
 
 /*
@@ -47,7 +47,7 @@ static ifptr QueryRoutine = 0;
  */
 static fd_set Fd_list;
 static int Max_fd = 0;
-static int Msg_fd;
+static int Msg_fd = -1;
 
 /*
  * Our sequence number.
