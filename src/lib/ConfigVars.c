@@ -22,8 +22,9 @@
 # include <config.h>
 # include <ui_symbol.h>
 # include "defs.h"
+# include "message.h"
 
-MAKE_RCSID("$Id: ConfigVars.c,v 1.7 1994-11-17 03:42:38 granger Exp $")
+MAKE_RCSID("$Id: ConfigVars.c,v 1.8 1995-04-15 00:05:27 granger Exp $")
 
 /*
  * Keep the directories around for queries.
