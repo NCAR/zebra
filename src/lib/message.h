@@ -1,17 +1,18 @@
-/* $Id: message.h,v 1.9 1991-04-30 23:10:41 corbet Exp $ */
+/* $Id: message.h,v 1.10 1991-05-30 17:40:25 corbet Exp $ */
 /*
  * Message protocol types.
  */
-# define MT_MESSAGE	0	/* Message handler protocol		*/
-# define MT_DISPLAYMGR	1	/* Display manager messages		*/
-# define MT_LOG		2	/* Event logger				*/
-# define MT_TIMER	3	/* Timer				*/
-# define MT_ELOG	4	/* Extended event logger		*/
-# define MT_SOUND	5	/* Sound effects			*/
-# define MT_DATASTORE	6	/* Data store internal protocol		*/
-# define MT_IMAGEXFR	7	/* Image transfer			*/
-# define MT_PING	8	/* Boing...				*/
-# define MT_CPING	9	/* Client ping				*/
+# define MT_MESSAGE	 0	/* Message handler protocol		*/
+# define MT_DISPLAYMGR	 1	/* Display manager messages		*/
+# define MT_LOG		 2	/* Event logger				*/
+# define MT_TIMER	 3	/* Timer				*/
+# define MT_ELOG	 4	/* Extended event logger		*/
+# define MT_SOUND	 5	/* Sound effects			*/
+# define MT_DATASTORE	 6	/* Data store internal protocol		*/
+# define MT_IMAGEXFR	 7	/* Image transfer			*/
+# define MT_PING	 8	/* Boing...				*/
+# define MT_CPING	 9	/* Client ping				*/
+# define MT_NETXFR	10	/* Data store network transfer		*/
 
 /*
  * Message handler protocol message types.
