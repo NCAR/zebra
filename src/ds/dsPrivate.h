@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 3.30 1995-08-31 09:49:08 granger Exp $
+ * $Id: dsPrivate.h,v 3.31 1996-11-19 09:38:27 granger Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -22,47 +22,40 @@
  * maintenance or updates for its software.
  */
 
+# ifndef _dsPrivate_h_
+# define _dsPrivate_h_
+
 # include <config.h>		/* CFG_ symbol definitions */
 # include <sys/types.h>		/* inode type for DataFile */
 
 /*
- * How many top level platforms do we allow?  Subplatforms are not included
- * in this count.
- */	
-# define MAXPLAT	CFG_MAX_PLATFORMS
-
-/*
- * The file types.  These are tied into the format table definition in
- * DFA, so don't mess with them.
+ * How many platforms (both top-level and subplatforms) do we allow?  Even
+ * though the daemon platform tables grow dynamically, we need an absolute
+ * limit with which to dimension the client-side cache arrays.  This limit
+ * is then enforced by the daemon.
+ * 
+ * Now that we have client-side caching of classes, this is now also the
+ * limit on class definitions, though hopefully no project every comes
+ * even remotely close to this.
  */
-typedef enum {
-	FTUnknown = -1,
-	FTNetCDF = 0,
-	FTBoundary = 1,
-	FTRaster = 2,
-	FTCmpRaster = 3,
-	FTZeb = 4,
-	FTGRIB = 5,
-	FTGRIBSfc = 6,	/* GRIB surface grids only */
-	FTGrads = 7,
-	FTHDF = 8
-	/* ... */
-} FileType;
+# define MAXPLAT	CFG_MAX_PLATFORMS
 
 
 /*
  * The following structure is used to keep track of locks held on platforms
  * by other processes.
  */
+typedef enum { LK_NONE, LK_READ, LK_WRITE } LockKind;
+
 typedef struct s_Lock
 {
 	char	l_Owner[MAX_NAME_LEN];	/* Who owns the lock	*/
 	ZebTime l_When;			/* Since when		*/
+	int	l_Count;		/* Number of locks held */
+	LockKind l_Kind;		/* Kind of lock: read or write */
 	struct s_Lock *l_Next;		/* Next in chain	*/
 } Lock;
 
-
-# define NAMELEN 	CFG_PLATNAME_LEN
 
 /*
  * Structure for describing a subplatform 'template', where the class info
@@ -72,22 +65,8 @@ typedef struct s_Lock
 typedef struct ds_SubPlatform
 {
 	int	dps_class;		/* Class of this subplatform	*/
-	char	dps_name[NAMELEN];	/* Name for instances		*/
+	char	dps_name[P_NAMELEN];	/* Name for instances		*/
 } SubPlatform;
-
-/*
- * Types of directory inheritance for classes
- */
-typedef enum { InheritNone = 0, InheritAppend, InheritCopy } InheritDir;
-
-/*
- * Types of directory instantiation for classes
- */
-typedef enum { 
-	InstanceDefault = 0, InstanceRoot = 0, 
-	InstanceCopyClass, InstanceSubdirClass, 
-	InstanceCopyParent, InstanceSubdirParent
-} InstanceDir;
 
 /*
  * Information that is common among platform instances and does not
@@ -95,9 +74,9 @@ typedef enum {
  */
 typedef struct ds_PlatformClass
 {
-	char	dpc_name[NAMELEN];	/* The full name of this class  */
-	char	dpc_dir[NAMELEN];	/* File directory		*/
-	char	dpc_rdir[NAMELEN];	/* Remote file directory	*/
+	char	dpc_name[P_NAMELEN];	/* The full name of this class  */
+	char	dpc_dir[P_NAMELEN];	/* File directory		*/
+	char	dpc_rdir[P_NAMELEN];	/* Remote file directory	*/
 	int	dpc_superclass;		/* Class hierarchy backpointer	*/
 	DataOrganization dpc_org;	/* Native data organization	*/
 	FileType dpc_ftype;		/* File type			*/
@@ -120,11 +99,11 @@ typedef struct ds_PlatformClass
  */
 typedef struct ds_PlatformInstance
 {
-	char	dp_name[NAMELEN];	/* Full name of this platform 	*/
+	char	dp_name[P_NAMELEN];	/* Full name of this platform 	*/
 	int	dp_class;		/* The class of the platform	*/
 	int	dp_parent;		/* Hierarchy backpointer	*/
-	char	dp_dir[NAMELEN];	/* Local data directory		*/
-	char	dp_rdir[NAMELEN];	/* Remote data directory	*/
+	char	dp_dir[P_NAMELEN];	/* Local data directory		*/
+	char	dp_rdir[P_NAMELEN];	/* Remote data directory	*/
 	int	dp_LocalData;		/* The local data table		*/
 	int	dp_RemoteData;		/* The remote data table	*/
 	int	*dp_subplats;		/* Indices to subplat instances	*/
@@ -133,33 +112,11 @@ typedef struct ds_PlatformInstance
 	int	dp_Tfile;	/* Temp file under creation	*/
 	unsigned short dp_NewSamps;	/* New samps (not yet notified) */
 	unsigned short dp_OwSamps;	/* Overwritten samps (n.y.n.)	*/
-	Lock	*dp_RLockQ;		/* Read locks held		*/
-	Lock	*dp_WLockQ;		/* The write lock 		*/
+	Lock	*dp_RLockQ;		/* Platform structure read locks*/
+	Lock	*dp_WLockQ;		/* File write and read locks	*/
 } PlatformInstance;
 
 typedef PlatformInstance Platform;
-
-/*
- * The platform structure used by the client library, which unifies the
- * information in the class and instance structures.  This structure is
- * fixed in size and can be packed into messages, and only contains info
- * of use to the client.
- */
-typedef struct ds_ClientPlatform
-{
-	char	cp_name[NAMELEN];	/* The full name of this platform */
-	char	cp_class[NAMELEN];	/* The class of the platform	*/
-	char	cp_dir[NAMELEN];	/* File directory		*/
-	char	cp_rdir[NAMELEN];	/* Remote file directory	*/
-	int	cp_parent;		/* Hierarchy backpointer	*/
-	DataOrganization cp_org;	/* Native data organization	*/
-	FileType cp_ftype;		/* File type			*/
-	unsigned short cp_keep;		/* Minimum data keep		*/
-	unsigned short cp_maxsamp;	/* Maximum file samples		*/
-	int	cp_LocalData;		/* The local data table		*/
-	int	cp_RemoteData;		/* The remote data table	*/
-	unsigned short cp_flags;	/* Attribute flags -- see below	*/
-} ClientPlatform;
 
 /*
  * These flags belong to the class
@@ -183,6 +140,29 @@ typedef struct ds_ClientPlatform
 # define DPF_RCLOADED	0x2000		/* Remote cache loaded		*/
 # define DPF_DIRTY	0x4000		/* Cache needs updating		*/
 # define DPF_DIREXISTS	0x8000		/* Local data directory exists	*/
+
+/*
+ * The platform structure used by the client library, which unifies the
+ * information in the class and instance structures.  This structure is
+ * fixed in size and can be packed into messages, and only contains info
+ * of use to the client.
+ */
+typedef struct ds_ClientPlatform
+{
+	char	cp_name[P_NAMELEN];	/* The full name of this platform */
+	PlatClassId cp_class;		/* The class id of the platform	*/
+	char	cp_dir[P_NAMELEN];	/* File directory		*/
+	char	cp_rdir[P_NAMELEN];	/* Remote file directory	*/
+	int	cp_parent;		/* Hierarchy backpointer	*/
+	DataOrganization cp_org;	/* Native data organization	*/
+	FileType cp_ftype;		/* File type			*/
+	unsigned short cp_keep;		/* Minimum data keep		*/
+	unsigned short cp_maxsamp;	/* Maximum file samples		*/
+	int	cp_LocalData;		/* The local data table		*/
+	int	cp_RemoteData;		/* The remote data table	*/
+	unsigned short cp_flags;	/* Attribute flags		*/
+} ClientPlatform;
+
 
 /*
  * Blocks by which subplat allocated arrays are increased.
@@ -228,7 +208,6 @@ typedef enum
 	wc_Append,		/* Append to existing file	*/
 	wc_Insert		/* Insert before some data	*/
 } WriteCode;
-
 
 
 /*----------------------------------------------------------------------
@@ -288,7 +267,17 @@ enum dsp_Types
 	dpt_DeleteObs,			/* 35: DANGER remove an observation*/
 	dpt_PlatformSearch,		/* Match regex to platform names*/
 	 dpt_R_PlatformSearch,		/* Reply with list of plat ids	*/
-	 dpt_R_PlatStructSearch		/* For sending back structs 	*/
+	 dpt_R_PlatStructSearch,	/* For sending back structs 	*/
+	dpt_LookupClass,		/* Class name -> ID		*/
+	 dpt_R_CID,			/* 40: Reply			*/
+	dpt_GetClassStruct,		/* Request class struct by id	*/
+	dpt_R_ClassStruct,		/* Return class struct		*/
+	dpt_DefineClass,		/* Define a class to the daemon */
+	dpt_AddSubplat,			/* Add a subplat to a class	*/
+	dpt_Instantiate,		/* 45: Instantiate a platform   */
+	dpt_ReadLock,			/* Read lock a platform file	*/
+	 dpt_R_ReadLock,		/* Read lock response		*/
+	dpt_ReleaseRLock		/* Release a file read lock	*/
 };
 
 # define DSP_FLEN	CFG_FILEPATH_LEN /* File name length		*/
@@ -297,15 +286,15 @@ enum dsp_Types
  * The current data store protocol version.  CHANGE this when incompatible
  * protocol changes have been made.
  */
-# define DSProtocolVersion	0x950130
+# define DSProtocolVersion	0x960827
 
 /*
- * Use the protocol version, NAMELEN, and FNAMELEN, the three parameters
+ * Use the protocol version, P_NAMELEN, and FNAMELEN, the three parameters
  * affecting compatibility of cache files, to create a pseudo-unique
  * cache file key.
  */
 # define CacheKey ((((unsigned long)DSProtocolVersion) << 8) + \
-	 (unsigned long)(NAMELEN + FNAMELEN))
+	 (unsigned long)(P_NAMELEN + FNAMELEN))
 
 /*
  * Create a new data file.
@@ -447,17 +436,31 @@ struct dsp_NPlat
  */
 struct dsp_GetPlatStruct
 {
-	enum dsp_Types dsp_type;	/* == dpt_GetPlatStruct		*/
-	PlatformId dsp_pid;		/* Platform of interest		*/
+	enum dsp_Types dsp_type;	/* == dpt_Get{Plat|Class}Struct	*/
+	PlatformId dsp_pid;		/* ID of interest		*/
 };
 
 
 struct dsp_PlatStruct
 {
 	enum dsp_Types dsp_type;	/* == dpt_R_PlatStruct		*/
+	int dsp_result;			/* zero on failure		*/
+	PlatformId dsp_pid;		/* Requested PlatformId		*/
 	ClientPlatform dsp_plat;	/* Platform structure		*/
 };
 	
+
+struct dsp_ClassStruct
+{
+	enum dsp_Types dsp_type;	/* == dpt_R_ClassStruct/DefineClass */
+	int dsp_result;			/* zero on failure		*/
+	PlatClassId dsp_cid;		/* Requested class id		*/
+	PlatformClass dsp_class;	/* Platform class structure	*/
+	PlatClassId dsp_subplatid[1];	/* dsp_pc.dpc_nsubplats		*/
+	/* followed by subplat names separated by null characters */
+	/* followed by the null-terminated comment string */
+};
+
 
 /*
  * A search for platform structures
@@ -470,7 +473,7 @@ struct dsp_PlatformSearch
 	bool dsp_subplats;		/* Include subplatforms in search*/
 	bool dsp_alphabet;		/* Return list in alphabetical order*/
 	bool dsp_sendplats;		/* Send structures as well 	*/
-	char dsp_regexp[NAMELEN];	/* regexp pattern to match names*/
+	char dsp_regexp[P_NAMELEN];	/* regexp pattern to match names*/
 };
 
 
@@ -524,19 +527,39 @@ struct dsp_PLock
 
 
 /*
- * Look up platform names.
+ * Look up platform and class names.
  */
 struct dsp_PLookup
 {
-	enum dsp_Types dsp_type;	/* == dpt_LookupPlatform	*/
-	char dsp_name[NAMELEN];		/* Name of interest		*/
+	enum dsp_Types dsp_type;	/* == dpt_Lookup(Platform|Class)*/
+	char dsp_name[P_NAMELEN];	/* Name of interest		*/
 };
 
 struct dsp_PID
 {
-	enum dsp_Types dsp_type;	/* == dpt_R_PID			*/
-	PlatformId dsp_pid;		/* Plat id or BadPlatform	*/
+	enum dsp_Types dsp_type;	/* == dpt_R_(PID|CID)		*/
+	PlatformId dsp_pid;		/* Plat/class id or BadPlatform	*/
 };
+
+
+/*
+ * Structures for class definitions and instantiating platforms
+ */
+struct dsp_AddSubplat
+{
+	enum dsp_Types dsp_type;	/* == dpt_AddSubplat		*/
+	int dsp_class;			/* Id of target class		*/
+	SubPlatform dsp_subplat;	/* description of subplatform	*/
+};
+
+struct dsp_Instance
+{
+	enum dsp_Types dsp_type;	/* == dpt_Instantiate		*/
+	int dsp_class;			/* class to instantiate		*/
+	char dsp_name[P_NAMELEN];	/* name of instance		*/
+	PlatformId dsp_parent;		/* ID of parent platform	*/
+};
+
 
 
 /*
@@ -581,8 +604,8 @@ struct dsp_ProtoVersion
 
 /*
  * Data application notifications --- they go here rather than dsDaemon.h
- * since other programs (e.g. prt_Notify), and they only rely on the
- * protocol structures defined above.
+ * since other programs (e.g. prt_Notify) call them, and the prototypes
+ * require the protocol structures declared above.
  */
 void dap_Init FP ((void));
 void dap_Request FP ((char *, struct dsp_NotifyRequest *));
@@ -591,3 +614,4 @@ void dap_Notify FP ((PlatformId, ZebTime *, int, int, int));
 void dap_Copy FP ((char *));
 int dap_IsInterest FP ((int pid));
 
+#endif /* _dsPrivate_h_ */
