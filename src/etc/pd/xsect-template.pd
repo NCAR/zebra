@@ -1,0 +1,24 @@
+global
+	axis-bottom-space:	0.05
+	hgrid:		200
+	left-endpoint:	-50.0,0.0
+	pd-name:	xsect-template
+	plot-mode:	real-time
+	plot-type:	xsect
+	right-endpoint:	50.0,0.0
+	vgrid:		150
+	xsect-limit-proc:	adj_xsect_limits
+	zig-zag:	false
+p_topo
+	color-table:	Topo
+	field:		topo
+	grid-method:	bilinear
+	icon:		topo
+	icon-right-menu:	contour-right
+	limit-proc:	contour-putup-adj
+	platform:	map_topo
+	representation:	filled-contour
+	require:	contour
+	scale-mode:	manual
+	topo-center:	5
+	topo-step:	10
