@@ -15,6 +15,7 @@ define widget xsect-global-left intmenu 'Cross-section global left menu'
 	submenu 'Window Operations' global-window-ops
 	submenu 'Layout Parameters'  global-layout
 	submenu 'X-Z Axis Font Size' xsect-scale-size
+	submenu 'X-Y Coordinate Labels' xsect-bottom-label
 	line
 	entry 'Help on this Plot Type' 'plot-type-help'
 endmenu
@@ -26,6 +27,17 @@ define widget xsect-height-range intmenu 'height range'
 	entry '0-6 km' 'xsect-zrange 0 6'
 	entry '0-12 km' 'xsect-zrange 0 12'
 	entry 'Custom' 'i_adjust_global z-limit-proc'
+endmenu
+
+define widget xsect-bottom-label intmenu 'bottom-label'
+       title 'Bottom Label Coordinates'
+       line
+       entry 'Longitude, Latitude' \
+	     'parameter #icon_component bottom-label-type latlon' \
+	     (PDParam(icon_component,"bottom-label-type") <> 'xy')
+       entry 'X km, Y km from Origin' \
+	     'parameter #icon_component bottom-label-type xy' \
+	     (PDParam(icon_component,"bottom-label-type") = 'xy')
 endmenu
 
 procedure xsect-zrange min string max string
