@@ -25,7 +25,7 @@
 # include <defs.h>
 # include <message.h>
 # include "pd.h"
-MAKE_RCSID ("$Id: pdlib.c,v 1.14 1992-07-12 02:05:49 granger Exp $")
+MAKE_RCSID ("$Id: pdlib.c,v 1.15 1992-10-12 16:10:23 burghart Exp $")
 
 /*
  * A counter used to generate unique symbol table names.
@@ -758,8 +758,10 @@ int type;
 	switch (type)
 	{
 	   case SYMT_INT:
-	   case SYMT_BOOL:
 		* (int *) target = v.us_v_int;
+		break;
+	   case SYMT_BOOL:
+		* (bool *) target = (bool) v.us_v_int;
 		break;
 	   case SYMT_DATE:
 	   	/* * (date *) target = v.us_v_date; */
