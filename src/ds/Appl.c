@@ -27,7 +27,7 @@
 # define NO_SHM
 #include "dslib.h"
 #ifndef lint
-MAKE_RCSID ("$Id: Appl.c,v 3.11 1993-05-13 20:23:14 corbet Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.12 1993-05-13 20:30:24 corbet Exp $")
 #endif
 
 /*
@@ -1936,7 +1936,7 @@ int dfi;
 	struct dsp_MarkArchived ma;
 
 	ma.dsp_type = dpt_MarkArchived;
-	ma.dsp_FileIndex = index;
+	ma.dsp_FileIndex = dfi;
 	ds_SendToDaemon (&ma, sizeof (ma));
 }
 	
