@@ -1,4 +1,4 @@
-/* $Id: message.h,v 1.4 1990-11-14 17:24:46 corbet Exp $ */
+/* $Id: message.h,v 1.5 1990-12-06 11:04:32 corbet Exp $ */
 /*
  * Message protocol types.
  */
@@ -16,6 +16,7 @@
 # define MH_ACK 	-3	/* Server acknowledgement		*/
 # define MH_JOIN	-4	/* Join process group			*/
 # define MH_CLIENT	-5	/* Client event				*/
+# define MH_STATS	-6	/* Message handler stats.		*/
 # define MH_DIE 	-99	/* Kill the server -- use with care!	*/
 # define MH_SHUTDOWN	-100	/* Server is shutting down		*/
 /*

@@ -1,7 +1,8 @@
 /*
  * The message handler.
  */
-/* $Id: message.c,v 1.3 1990-08-01 17:02:18 corbet Exp $ */
+static char *rcsid = "$Id: message.c,v 1.4 1990-12-06 11:04:22 corbet Exp $";
+
 # include <stdio.h>
 # include <varargs.h>
 # include <errno.h>
@@ -43,6 +44,10 @@ struct connection
 	char	c_name[MAX_NAME_LEN];	/* The name of the connection	*/
 	int	c_id;			/* The short ID for this conn	*/
 	int	c_fd;			/* The file descriptor.		*/
+	int	c_nsend;		/* Messages sent		*/
+	int	c_bnsend;		/* Bytes sent			*/
+	int	c_nrec;			/* Messages received		*/
+	int	c_bnrec;		/* Bytes received		*/
 };
 struct connection *MH_conn;		/* Fake connection for local stuff */
 
@@ -63,6 +68,14 @@ struct group
 static struct connection *Fd_map[64] = { 0 };
 static int Fd_count[64] = { 0 };
 static int Nfd;
+
+
+/*
+ * Global statistics.
+ */
+static int S_nmessage = 0, S_bnmessage = 0, S_nbcast = 0, S_bnbcast = 0;
+static int S_npipe = 0, S_ndisc = 0;
+
 
 
 /*
@@ -183,6 +196,8 @@ new_un_connection ()
  	conp = (struct connection *) malloc (sizeof (struct connection));
 	conp->c_fd = conn;
 	conp->c_id = (Fd_count[conn]++ << 16) | conn;
+	conp->c_nsend = conp->c_bnsend = 0;
+	conp->c_nrec = conp->c_bnrec = 0;
 	strcpy (conp->c_name, "(Unknown)");
 	Fd_map[conn] = conp;
 /*
@@ -234,6 +249,13 @@ struct message *msgp;
 	iov[0].iov_len = sizeof (struct message);
 	iov[1].iov_base = (caddr_t) msgp->m_data;
 	iov[1].iov_len = msgp->m_len;
+/*
+ * Keep stats.
+ */
+	conp->c_nrec++;
+	conp->c_bnrec += msgp->m_len;
+	S_nmessage++;
+	S_bnmessage += msgp->m_len;
 /*
  * Now write it.
  */
@@ -297,6 +319,8 @@ fd_set *fds;
 	/*
 	 * Deal with this message.
 	 */
+		Fd_map[fd]->c_nsend++;
+		Fd_map[fd]->c_bnsend += msg.m_len;
 	 	dispatch (fd, &msg);
 	}
 }
@@ -313,6 +337,8 @@ int fd;
  */
 {
 	int clear_group ();
+
+	S_ndisc++;
 /*
  * Send out the notification.
  */
@@ -322,7 +348,7 @@ int fd;
  */
 	usy_z_symbol (Proc_table, Fd_map[fd]->c_name);
 	FD_CLR (fd, &Allfds);
-	usy_traverse (Group_table, clear_group, Fd_map[fd], FALSE);
+	usy_traverse (Group_table, clear_group, (int) Fd_map[fd], FALSE);
 	free ((char *) Fd_map[fd]);
 	Fd_map[fd] = 0;
 	close (fd);
@@ -420,6 +446,12 @@ struct message *msg;
 		 */
 		   case MH_JOIN:
 		   	join (fd, msg);
+			break;
+		/*
+		 * Somebody wants statistics.
+		 */
+		   case MH_STATS:
+		   	Stats (Fd_map[fd]);
 			break;
 
 		   default:
@@ -661,6 +693,11 @@ struct connection *conp;
 		return;
 	grp = (struct group *) v.us_v_ptr;
 /*
+ * Stats.
+ */
+	S_nbcast++;
+	S_bnbcast += msg->m_len;
+/*
  * Now step through the connections, sending to each, but being careful
  * not to send to the originator of the message.
  */
@@ -817,5 +854,59 @@ psig ()
  * the dead process will be noted later.
  */
 {
+	S_npipe++;
 	send_log ("Pipe signal received");
+}
+
+
+
+
+
+Stats (conp)
+struct connection *conp;
+/*
+ * Send statistics back to this guy.
+ */
+{
+	char string[200];
+	struct message msg;
+	int i;
+/*
+ * Fill in a message structure to be used in sending back the data.
+ */
+	strcpy (msg.m_to, conp->c_name);
+	strcpy (msg.m_from, MSG_MGR_NAME);
+	msg.m_proto = MT_MESSAGE;
+	msg.m_flags = 0;
+	msg.m_data = string;
+/*
+ * Header info.
+ */
+	sprintf (string, "%d messages sent, %d bytes (%d/%d broadcast)",
+		S_nmessage, S_bnmessage, S_nbcast, S_bnbcast);
+	msg.m_len = strlen (string) + 1;
+	send_msg (conp, &msg);
+	sprintf (string, "\t%d disconnects, with %d pipe signals",
+		S_ndisc, S_npipe);
+	msg.m_len = strlen (string) + 1;
+	send_msg (conp, &msg);
+/*
+ * Now go through and report on each connection.
+ */
+	for (i = 0; i < Nfd; i++)
+	{
+		struct connection *c;
+		if (! (c = Fd_map[i]))
+			continue;
+		sprintf (string, " Process '%s' on %d, send %d/%d, rec %d/%d",
+			c->c_name, c->c_id, c->c_nsend, c->c_bnsend,
+			c->c_nrec, c->c_bnrec);
+		msg.m_len = strlen (string) + 1;
+		send_msg (conp, &msg);
+	}
+/*
+ * Send the EOF and quit.
+ */
+	msg.m_len = 0;
+	send_msg (conp, &msg);
 }
