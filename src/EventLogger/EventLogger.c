@@ -37,7 +37,7 @@
 # include "../include/dm.h"
 # include "../include/config.h"
 # include "copyright.h"
-MAKE_RCSID ("$Id: EventLogger.c,v 2.9 1991-12-30 20:48:22 corbet Exp $")
+MAKE_RCSID ("$Id: EventLogger.c,v 2.10 1992-01-27 20:06:23 corbet Exp $")
 
 
 
@@ -73,7 +73,7 @@ struct EMMap
  * Text info.
  */
 static int Buflen = 0;
-static char *Initmsg = "$Id: EventLogger.c,v 2.9 1991-12-30 20:48:22 corbet Exp $\n\
+static char *Initmsg = "$Id: EventLogger.c,v 2.10 1992-01-27 20:06:23 corbet Exp $\n\
 Copyright (C) 1991 UCAR, All rights reserved.\n";
 
 /*
@@ -301,7 +301,7 @@ Widget left;
  */
 {
 	Widget button;
-	Arg args[5];
+	Arg args[10];
 	int n;
 /*
  * Create the menu button to start with.
@@ -783,7 +783,7 @@ char *from;
 {
 	int i;
 	char code;
-	char line[1000];
+	char line[1000], mom[80];
 /*
  * Get a code.
  */
@@ -794,8 +794,8 @@ char *from;
  * Put together a message.
  */
 	sprintf (line, " %c %s %s", code, from, el->el_text);
-	msg_send ("Event Logger@data-store", MT_LOG, FALSE, line,
-			strlen (line) + 1);
+	sprintf (mom, "Event Logger@%s", Mother);
+	msg_send (mom, MT_LOG, FALSE, line, strlen (line) + 1);
 }
 
 
