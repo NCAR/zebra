@@ -33,7 +33,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 
-MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.4 1994-02-25 22:35:39 burghart Exp $")
+MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.5 1994-03-18 20:18:44 burghart Exp $")
 
 /*
  * The GRIB product definition section (PDS)
@@ -183,6 +183,8 @@ static bool	grb_NormalLevel FP ((GFpds *));
 static float	grb_ZLevel FP ((GFpds *, AltUnitType *));
 static void	grb_105Index FP ((double, double, float *, float *));
 static void	grb_105LatLon FP ((double, double, float *, float *));
+static void	grb_36Index FP ((double, double, float *, float *));
+static void	grb_36LatLon FP ((double, double, float *, float *));
 static void	grb_UnpackBDS FP ((GFTag *, int, float *, int, int));
 static void	grb_ResetWind FP ((void));
 static void	grb_UnpackWind FP ((GFTag *, FieldId, int, int, float *, int,
@@ -208,6 +210,8 @@ struct s_GRB_FList
 	{ 1, "pres", 100.0, 0.0 },
 	/* Pressure reduced to MSL (Pa), scale to mb */
 	{ 2, "cpres0", 100.0, 0.0 },
+	/* Geopotential height (m) */
+	{ 7, "gpalt", 1.0, 0.0 },
 	/* Geometric height (m) */
 	{ 8, "height", 1.0, 0.0 },
 	/* Temperature (K), scale to C */
@@ -247,6 +251,14 @@ int GRB_FList_len = sizeof (GRB_FList) / sizeof (struct s_GRB_FList);
  */
 GRB_TypeInfo GRB_Types[] =
 {
+	/*
+	 * 36: 1558-point (41x38) N. Hemisphere polar stereographic grid
+	 * oriented 105W; pole at (18,41) [C type indexing].  The TDL grid
+	 * (N. America) is used to archive LFM and NGM data.  190.5 km
+	 * spacing at 60N.
+	 */
+	{ 36, 41, 38, grb_36Index, grb_36LatLon, 36, 21, 20.0, -130.0, 
+		  2.0, 2.0 },
 	/*
 	 * 105: 6889-point (83x83) N. Hemisphere polar stereographic grid
 	 * oriented 105W; pole at (39.5,87.5) [C type indexing].  (U.S. area
@@ -288,8 +300,12 @@ int	*nsample;
  * Tell the daemon what's in this file.
  */
 {
-	int fd, year, month, day, hour, minute;
-	GFpds	*pds;
+/*
+ * We can do this relatively quickly, assuming that all the grids in the file 
+ * have the same time, or *SLOWLY* if we give up that assumption.
+ */
+# ifdef GRIB_SLOWSCAN
+
 	GFTag	*tag;
 /*
  * Get the file tag.
@@ -298,11 +314,19 @@ int	*nsample;
 		return (FALSE);
 /*
  * Make the (not guaranteed but somewhat reasonable) assumption that the
- * data were written in chronological order.  I.e., get the begin and end
- * times from the first and last grids from the file, respectively.
+ * data were written in chronological order.
  */
-	*begin = tag->gt_grib[0].gd_time;
-	*end = tag->gt_grib[tag->gt_ngrids - 1].gd_time;
+	*begin = *end = tag->gt_grib[0].gd_time;
+	*nsample = 1;
+
+	for (g = 1; g < tag->gt_ngrids; g++)
+	{
+		if (TC_Less (*end, tag->gt_grib[g].gd_time))
+		{
+			*nsample++;
+			*end = tag->gt_grib[g].gd_time;
+		}
+	}
 /*
  * Get rid of the tag and return
  */
@@ -310,6 +334,48 @@ int	*nsample;
 	grb_DestroyTag (tag);
 
 	return (TRUE);
+	
+# else /* ! GRIB_SLOWSCAN */
+
+/*
+ * Fast QueryTime, assuming there's only one time in the file.
+ */
+	int	fd;
+	char	is[8];
+	GFpds	pds;
+/*
+ * Try to open the file
+ */
+	if ((fd = open (file, O_RDONLY)) < 0)
+	{
+		msg_ELog (EF_PROBLEM, "grb_QueryTime: Error %d opening '%s'", 
+			  errno, file);
+		return (FALSE);
+	}
+/*
+ * Get the first Indicator Section (8 bytes) and the first Product Definition
+ * Section.
+ */
+	if ((read (fd, is, 8) != 8) || 
+	    (read (fd, &pds, sizeof (GFpds)) != sizeof (GFpds)))
+	{
+		msg_ELog (EF_PROBLEM, 
+			  "grb_QueryTime: Can't get first grid time from '%s'",
+			  file);
+		return (FALSE);
+	}
+/*
+ * Extract the time from the PDS
+ */
+	TC_ZtAssemble (begin, pds.year, pds.month, pds.day, pds.hour, 
+		       pds.minute, 0, 0);
+	*end = *begin;
+	*nsample = 1;
+
+	close (fd);
+	return (TRUE);
+
+# endif /* GRIB_SLOWSCAN */
 }
 
 
@@ -707,7 +773,8 @@ float	*alts;
 int	*nalts;
 AltUnitType	*altunits;
 /*
- * Fill in the rgrid info for this grid file.
+ * Return an array of altitudes available in this file, along with the
+ * altitude units.
  */
 {
 	int	i, offset, count;
@@ -721,34 +788,25 @@ AltUnitType	*altunits;
 	if (! dfa_OpenFile (dfindex, FALSE, (void *) &tag))
 		return (FALSE);
 /*
- * Vertical level units from the first grid.  We only deal with
- * type 100 (pressure in mb) and type 103 (altitude in meters MSL)
+ * Base things on the first "normal" grid.  Get altitudes from all "normal"
+ * grids with the same field, time, and forecast (offset) time as the first
+ * grid.
  */
-	switch (tag->gt_grib[0].gd_pds->level_id)
+	for (i = 0; i < tag->gt_ngrids; i++)
 	{
-	    case 100:
-		if (altunits)
-			*altunits = AU_mb;	/* millibars */
-		break;
-	    case 103:
-		if (altunits)
-			*altunits = AU_mMSL;	/* meters MSL */
-		break;
-	    default:
-		msg_ELog (EF_PROBLEM, "Can't deal with GRIB level type %d!",
-			  tag->gt_grib[0].gd_pds->level_id);
-		return (FALSE);
+		pds = tag->gt_grib[i].gd_pds;
+
+		if (grb_NormalLevel (pds))
+		{
+			fid = grb_Field (pds, NULL);
+			offset = grb_Offset (pds);
+			t = tag->gt_grib[i].gd_time;
+			break;
+		}
 	}
-/*
- * Base things on the first grid.  Get altitudes from "normal" grids with 
- * the same field, time, and forecast (offset) time as the first grid.
- */
-	fid = grb_Field (tag->gt_grib[0].gd_pds, NULL);
-	offset = grb_Offset (tag->gt_grib[0].gd_pds);
-	t = tag->gt_grib[0].gd_time;
 
 	count = 0;
-	for (i = 0; i < tag->gt_ngrids; i++)
+	for (; i < tag->gt_ngrids; i++)
 	{
 		if (! TC_Eq (tag->gt_grib[i].gd_time, t))
 			break;
@@ -762,8 +820,7 @@ AltUnitType	*altunits;
 		    grb_NormalLevel (pds) && offset == grb_Offset (pds))
 		{
 			if (alts)
-				alts[count++] = (float) 
-					grb_TwoByteInt (&(pds->level_val));
+				alts[count++] = grb_ZLevel (pds, altunits);
 			else
 				count++;
 		}
@@ -771,6 +828,54 @@ AltUnitType	*altunits;
 
 	if (nalts)
 		*nalts = count;
+
+	return (TRUE);
+}
+
+
+
+
+int
+grb_GetForecastTimes (dfindex, times, ntimes)
+int	dfindex;
+int	*times;
+int	*ntimes;
+/*
+ * Return an array of available forecast offset times (in seconds) for 
+ * this file.
+ */
+{
+	int	count, i, offset, t;
+	GFpds	*pds;
+	GFTag	*tag;
+/*
+ * Make sure that the file is open.
+ */
+	if (! dfa_OpenFile (dfindex, FALSE, (void *) &tag))
+		return (FALSE);
+/*
+ * Ugly linear thing.  Just loop through the grids and insert their offsets
+ * into the array if they aren't there already.
+ */
+	count = 0;
+	for (i = 0; i < tag->gt_ngrids; i++)
+	{
+		pds = tag->gt_grib[i].gd_pds;
+
+		if (! grb_NormalLevel (pds))
+			continue;
+
+		offset = grb_Offset (pds);
+
+		for (t = 0; t < count && times[t] != offset; t++)
+			/* nothing */;
+
+		if (t == count)
+			times[count++] = offset;
+	}
+
+	if (ntimes)
+		*ntimes = count;
 
 	return (TRUE);
 }
@@ -860,10 +965,15 @@ FieldId	*flist;
 	for (i = 0; i < tag->gt_ngrids; i++)
 	{
 		pds = tag->gt_grib[i].gd_pds;
-		fid = grb_Field (pds, NULL);
+	/*
+	 * We don't deal with the weird level types
+	 */
+		if (! grb_NormalLevel (pds))
+			continue;
 	/*
 	 * Add this field to the list if it isn't there already
 	 */
+		fid = grb_Field (pds, NULL);
 		for (f = 0; f < *nfld; f++)
 			if (fid == flist[f])
 				break;
@@ -1019,19 +1129,26 @@ GFTag	*tag;
  * in the tag.  Return TRUE if everything goes OK.
  */
 {
-	int	fd = tag->gt_fd, pds_len, gds_len, bms_len, bds_len;
-	int	status, ng;
-	char	is[8], threebytes[3], trailer[4];
+	int	fd = tag->gt_fd;
+	int	is_len, grib_len, pds_len, gds_len, bms_len, bds_len;
+	int	status, ng, ncopy, grib_start, buflen = 0;
+	char	is[8], *trailer, *buf = 0;
 	GFpds	*pds;
 /*
  * Rewind the file first
  */
 	lseek (fd, 0, SEEK_SET);
 /*
- * Each grid starts with an 8 byte Indicator Section.  Loop through grids
+ * File offset to the start of the current GRIB record.
+ */
+	grib_start = tell (fd);
+/*
+ * Each grid starts with an Indicator Section.  Loop through grids
  * until we fail to get one of these.
  */
-	while ((status = read (fd, is, 8)) == 8)
+	is_len = 8;	/* Fixed length of the Indicator Section */
+
+	while ((status = read (fd, is, is_len)) == is_len)
 	{
 	/*
 	 * Make sure we have the "GRIB" tag at the beginning
@@ -1041,6 +1158,32 @@ GFTag	*tag;
 			msg_ELog (EF_PROBLEM, "Got '%4s' instead of 'GRIB'!", 
 				  is);
 			return (FALSE);
+		}
+	/*
+	 * Get the length of this GRIB 'message' (one grid), make sure we
+	 * have space for it.
+	 */
+		grib_len = grb_ThreeByteInt (is + 4);
+		if (grib_len > buflen)
+		{
+			buflen = grib_len;
+
+			if (buf)
+				buf = realloc (buf, buflen);
+			else
+				buf = malloc (buflen);
+		}
+	/*
+	 * Copy in the eight bytes we have, and read the rest
+	 */
+		memcpy (buf, is, is_len);
+		status = read (fd, buf + is_len, grib_len - is_len);
+		if (status < (grib_len - is_len))
+		{
+			msg_ELog (EF_INFO, 
+				  "GRIB file ends with incomplete record");
+			status = 0;	/* Treat it like an EOF */
+			break;
 		}
 	/*
 	 * It looks like we really have a GRIB record here, so update
@@ -1063,21 +1206,16 @@ GFTag	*tag;
 		}
 	/*
 	 * Read the first 3 bytes of the Product Definition Section to
-	 * get the PDS length.
+	 * get the PDS length, then make a copy of the PDS and stash it
+	 * in the tag.  Our structure only holds the (required) first 28 bytes
+	 * of the PDS, so we don't copy any more than that.  We accomodate
+	 * illegal smaller ones though, by padding with zeros.
 	 */
-		pds = (GFpds *) malloc (sizeof (GFpds));
-		read (fd, pds, 3);
+		pds_len = grb_ThreeByteInt (buf + is_len);
+		pds = (GFpds *) calloc (1, sizeof (GFpds));
 
-		pds_len = grb_ThreeByteInt (&(pds->len));
-	/*
-	 * Now read the remainder of the PDS, allocating more space if it's
-	 * bigger than the normal 28 bytes, and update the tag.
-	 */
-		if (pds_len > 28)
-			pds = realloc (pds, pds_len);
-
-		read (fd, (char *) pds + 3, pds_len - 3);
-
+		ncopy = (pds_len < sizeof (GFpds)) ? pds_len : sizeof (GFpds);
+		memcpy (pds, buf + is_len, ncopy);
 		tag->gt_grib[ng-1].gd_pds = pds;
 	/*
 	 * Extract the time from the PDS
@@ -1086,38 +1224,36 @@ GFTag	*tag;
 			       pds->month, pds->day, pds->hour, pds->minute,
 			       0, 0);
 	/*
-	 * If we have a Grid Description Section, read its length and skip it.
+	 * If we have a Grid Description Section, read its length from the
+	 * first three bytes of the GDS.
 	 */
 		if (pds->section_flags && GDS_FLAG)
-		{
-			read (fd, threebytes, 3);
-			gds_len = grb_ThreeByteInt (threebytes);
-			lseek (fd, gds_len - 3, SEEK_CUR);
-		}
+			gds_len = grb_ThreeByteInt (buf + is_len + pds_len);
+		else
+			gds_len = 0;
 	/*
-	 * If we have a Bit Map Section, read its length and skip it.
+	 * Same for the Bit Map Section
 	 */
 		if (pds->section_flags && BMS_FLAG)
-		{
-			read (fd, threebytes, 3);
-			bms_len = grb_ThreeByteInt (threebytes);
-			lseek (fd, bms_len - 3, SEEK_CUR);
-		}
+			bms_len = grb_ThreeByteInt (buf + is_len + 
+						    pds_len + gds_len);
+		else
+			bms_len = 0;
 	/*
-	 * We should be at the beginning of the Binary Data Section now,
-	 * so save our position, get the length of the BDS, and skip it.
+	 * Save the position of the Binary Data Section relative to the start
+	 * of the file, and get its length.
 	 */
-		tag->gt_grib[ng-1].gd_doffset = tell (fd);
+		tag->gt_grib[ng-1].gd_doffset = grib_start + is_len + pds_len +
+			gds_len + bms_len;
 
-		read (fd, threebytes, 3);
 		bds_len = tag->gt_grib[ng-1].gd_bds_len = 
-			grb_ThreeByteInt (threebytes);
-		lseek (fd, bds_len - 3, SEEK_CUR);
+			grb_ThreeByteInt (buf + is_len + pds_len + gds_len +
+					  bms_len);
 	/*
-	 * Sanity check.  Make sure the next 4 bytes are the GRIB trailer
-	 * "7777"
+	 * Sanity check.  Make sure the last 4 bytes of the GRIB record are 
+	 * the GRIB trailer "7777"
 	 */
-		read (fd, trailer, 4);
+		trailer = buf + grib_len - 4;
 		if (strncmp (trailer, "7777", 4))
 		{
 			msg_ELog (EF_EMERGENCY, 
@@ -1125,6 +1261,10 @@ GFTag	*tag;
 				  trailer, ng);
 			return (FALSE);
 		}
+	/*
+	 * Keep the position of the start of the next GRIB record
+	 */
+		grib_start = tell (fd);
 	}
 /*
  * Complain if we exited on anything other than an EOF
@@ -1293,8 +1433,9 @@ dsDetail	*details;
 		float	*grid;
 		int	gridsize;
 
-		msg_ELog (EF_INFO, "GRIB: No '%s' data for '%s'", 
-			  F_GetName (fid), ds_PlatformName(dc->dc_Platform));
+		msg_ELog (EF_INFO, "GRIB: No %d hr forecast for %s/%s", 
+			  offset / 3600, ds_PlatformName(dc->dc_Platform), 
+			  F_GetName (fid));
 		
 		time = tag->gt_grib[sbegin].gd_time;
 
@@ -1645,6 +1786,120 @@ AltUnitType	*units;
 
 
 static void
+grb_36Index (lat, lon, ifloat, jfloat)
+double	lat, lon;
+float	*ifloat, *jfloat;
+/*
+ * Return the (floating point) array indices for a GRIB 36 type grid, given a
+ * latitude and longitude.  The formulas used here come from Section 21
+ * (Stereographic Projection) of "Map Projections--A Working Manual", USGS
+ * Professional Paper 1395.  Variable names have been chosen to correspond to
+ * those used in the book, and equation numbers from the book are referenced
+ * in the comments.
+ */
+{
+	float	x, y, k, psi = DEG_TO_RAD (lat), lambda = DEG_TO_RAD (lon);
+/*
+ * Origin lat & long, in radians, and scale factor at the origin for
+ * GRIB grid type 36 [1558-point (41x38) N. Hemisphere polar stereographic 
+ * grid].  For type 36, the pole is at grid location (19,42), in Fortran 
+ * terms, or (18,41) here in the C world.
+ */
+	const float	psi1 = 1.047197551;	/* 60.0 deg. north */
+	const float	lambda0 = -1.832595715;	/* 105.0 deg. west */
+	const float	scale = 190.5;
+	const float	ipole = 18;
+	const float	jpole = 41;
+/*
+ * Applying the formulas below to the north pole yields the following x 
+ * and y.
+ */
+	const float	xpole = 0.0;
+	const float	ypole = 3412.31689;
+/*
+ * Formula 21-4
+ */
+	k = 2 / (1 + sin (psi1) * sin (psi) + 
+		 cos (psi1) * cos (psi) * cos (lambda - lambda0));
+/*
+ * Formulas 21-2 and 21-3
+ */
+	x = R_Earth * k * cos (psi) * sin (lambda - lambda0);
+	y = R_Earth * k * (cos (psi1) * sin (psi) - 
+		 sin (psi1) * cos (psi) * cos (lambda - lambda0));
+/*
+ * Now turn x and y into grid coordinates based on the north pole, which is
+ * the only reference point for which we have grid coordinates.
+ */
+	*ifloat = ipole + (x - xpole) / scale;
+	*jfloat = jpole + (y - ypole) / scale;
+}
+
+
+
+
+static void
+grb_36LatLon (idouble, jdouble, lat, lon)
+double	idouble, jdouble;
+float	*lat, *lon;
+/*
+ * Turn the (double precision) indices into a GRIB 36 type grid into
+ * a latitude and longitude.  The formulas used here come from Section 21
+ * (Stereographic Projection) of "Map Projections--A Working Manual", USGS
+ * Professional Paper 1395.  Variable names have been chosen to correspond to
+ * those used in the book, and equation numbers from the book are referenced
+ * in the comments.
+ */
+{
+	float	x, y, rho, c, psi, lambda;
+/*
+ * Origin lat & long, in radians, and scale factor at the origin for
+ * GRIB grid type 36 [1558-point (41x38) N. Hemisphere polar stereographic 
+ * grid].  For type 36, the pole is at grid location (19,42), in Fortran 
+ * terms, or (18,41) here in the C world.
+ */
+	const float	psi1 = 1.047197551;	/* 60.0 deg. north */
+	const float	lambda0 = -1.832595715;	/* 105.0 deg. west */
+	const float	scale = 190.5;
+	const float	ipole = 18;
+	const float	jpole = 41;
+/*
+ * The x and y values below for the pole were calculated given the
+ * constants above.
+ */
+	const float	xpole = 0.0;
+	const float	ypole = 3412.31689;
+/*
+ * First turn our indices into x and y in km.
+ */
+	x = (scale * (idouble - ipole)) + xpole;
+	y = (scale * (jdouble - jpole)) + ypole;
+/*
+ * Formulas 20-18 and 21-15
+ */
+	rho = hypot (x, y);
+	c = 2 * atan ((double)(rho / (2 * R_Earth)));
+/*
+ * Formula 20-15
+ */
+	lambda = lambda0 + 
+		atan (x * sin (c) / 
+		      (rho * cos (psi1) * cos (c) - y * sin (psi1) * sin (c)));
+/*
+ * Formula 20-14
+ */
+	psi = asin (cos (c) * sin (psi1) + (y * sin (c) * cos (psi1) / rho));
+/*
+ * Now convert to degrees and we're done
+ */
+	*lat = RAD_TO_DEG (psi);
+	*lon = RAD_TO_DEG (lambda);
+}
+
+
+
+
+static void
 grb_105Index (lat, lon, ifloat, jfloat)
 double	lat, lon;
 float	*ifloat, *jfloat;
@@ -1828,6 +2083,9 @@ float	*grid;
  *	2    * 16           -->      2
  *
  * yields the formula for the exponent below.
+ *
+ * The topmost bit of ref_top is reserved for the sign.  If the bit is set,
+ * the value is negative.
  */
 	sign = (bds_hdr->ref_top & 0x80) ? -1 : 1;
 
@@ -1841,9 +2099,15 @@ float	*grid;
  *	Y = (R + (X * 2 )) * 10
  *                                   -D                     E
  * We calculate the decimal scale (10  ) and binary scale (2 ) here.
+ *
+ * The topmost bit of both ds_factor and bs_factor is reserved for the sign.
+ * If the bit is set, the value is negative.
  */
-	dscale = exp10 (-(pds->ds_factor));
-	bscale = exp2 (bds_hdr->bs_factor);
+	sign = (pds->ds_factor & 0x8000) ? -1 : 1;
+	dscale = exp10 ((double)(-sign * (pds->ds_factor & 0x7FFF)));
+
+	sign = (bds_hdr->bs_factor & 0x8000) ? -1 : 1;
+	bscale = exp2 ((double)(sign * (bds_hdr->bs_factor & 0x7FFF)));
 /*
  * Check the bit count and build a mask with the appropriate number of bits set
  */
@@ -2061,26 +2325,3 @@ void	(*index_module)(), (*ll_module)();
 	else
 		memcpy (grid, vgrid, nx * ny * sizeof (float));
 }
-
-	
-
-		
-/*
- * Test program
- */
-# ifdef notdef
-main ()
-{
-	int	i;
-	char	time[30];
-	GFTag	*tag;
-	GRIBdesc	*gd;
-
-	msg_connect (NULL, "GRIBtest");
-	tag = grb_Open ("/dt/burghart/grib/eta/eta.grib");
-
-	for (i = 0; i < tag->gt_ngrids; i++)
-		printf ("%d: %d %d \n", i, tag->gt_grib[i].gd_pds->field_id,
-			tag->gt_grib[i].gd_time.zt_Sec);
-}
-# endif
