@@ -21,6 +21,7 @@
 # include <stdio.h>
 # include <unistd.h>
 # include <fcntl.h>
+# include <ctype.h>
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
 # include <X11/Shell.h>
@@ -31,7 +32,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm_config.c,v 1.18 1994-11-20 19:11:22 granger Exp $")
+MAKE_RCSID ("$Id: dm_config.c,v 1.19 1994-12-03 06:41:04 granger Exp $")
 
 
 /*
@@ -45,6 +46,7 @@ static void SavePD FP ((FILE *, char *, struct cf_window *));
 static bool ResolveLinks FP ((struct config *, struct ui_command *));
 static bool DisplayWindow FP ((struct cf_window *));
 static void SetupExec FP ((struct cf_window *));
+static int  Rename FP ((char *newname));
 static void PutConfig FP ((struct config *));
 static void RunProgram FP ((char *, char **));
 static int  SaveParameter FP ((char *name, char *value, FILE *fp));
@@ -795,10 +797,8 @@ struct cf_window *wp;
 		uw_popup (wp->cfw_name);
 	}
 /*
- * Otherwise it's a graphics window.  If it does not yet exist, we
- * have to create it.  The sleep is there to avoid "connection
- * refused" problems caused by too many processes trying to hook
- * into the X server at once.
+ * Otherwise it's a window, either graphic or nongraphic.  If it does
+ * not yet exist, we have to either create it or ping it.
  */
 	else if (! (exist = lookup_win (wp->cfw_name, FALSE)))
 	{
@@ -828,6 +828,36 @@ struct cf_window *wp;
 
 
 
+static int
+Rename (newname)
+char *newname;
+/*
+ * Generate a unique window name from the name in newname.  Return non-zero
+ * if we actually come up with a different name, zero if name is already
+ * unique.
+ */
+{
+	int i;
+	int count;
+	char *c;
+/*
+ * See if there is already a number at the end of this name
+ */
+	c = newname + strlen(newname) - 1;
+	while (isdigit((int)*c) && (c >= newname))
+		c--;
+	c++;
+	count = (*c) ? atoi(c) : 0;
+/*
+ * While we find a window, increment the count at the end.
+ */
+	i = 0;
+	while (lookup_win (newname, TRUE) && ++i)
+		sprintf (c, "%d", ++count);
+	return (i);
+}
+
+
 
 void
 NewWindow (cmds)
@@ -851,7 +881,7 @@ struct ui_command *cmds;
 	char newname[256];
 	struct ui_command *cmd;
 /*
- * Check our arguments for optional keywords
+ * Check for keywords which affect how we build the window.
  */
 	for (cmd = cmds; cmd->uc_ctype != UTT_END; cmd++)
 	{
@@ -871,31 +901,48 @@ struct ui_command *cmds;
 	{
 		msg_ELog (EF_PROBLEM, "Duplicate window %s", name);
 		ui_error ("Window %s already exists", name);
+		return;		/* never reached */
 	}
 /*
- * So we either have a unique window name, or it's time come up with one.
+ * So we either have a unique window name, or it's time to come up with one.
  */
 	strcpy (newname, name);
-	i = 0;
-	while (rename && lookup_win (newname, TRUE))
-		sprintf (newname, "%s%d", name, ++i);
+	if (rename && Rename (newname))
+	{
+		msg_ELog (EF_INFO, "new window renamed to '%s'", newname);
+	}
 /*
- * See if a window with the new name exists elsewhere.
+ * If we're re-using, look for the given name which we're supposed to re-use.
  */
-	exist = lookup_win (newname, FALSE);
+	exist = lookup_win (name, FALSE /*anywhere*/);
+	if (reuse && !exist)
+	{
+		reuse = FALSE;
+		msg_ELog (EF_INFO, "window %s not found for re-use", name);
+	}
 /*
  * Where we'll put our new window in the current config
  */
 	newwin = cfg->c_wins + cfg->c_nwin++;
 /*
- * If we're supposed to re-use a suspended window as is, copy it.
- * Otherwise, we initialize it.  The plot description is always reset;
- * to re-use an existing window's current pd (as opposed to its defined pd),
- * forcepd should be false.
+ * If we're supposed to re-use a window as is, copy it.  Otherwise, we
+ * initialize it.  The plot description is always reset; to re-use an
+ * existing window's current pd (as opposed to its defined pd), forcepd
+ * should be false.
  */
 	if (reuse && exist)
 	{
 		memcpy (newwin, exist, sizeof(struct cf_window));
+	/*
+	 * Set the new name, in case its been renamed.  Offset the
+	 * geometry if we're appearing over a current window.
+	 */
+		strcpy (newwin->cfw_name, newname);
+		if (lookup_win (name, TRUE))
+		{
+			newwin->cfw_x += 20;
+			newwin->cfw_y += 20;
+		}
 	}
 	else
 	{
@@ -911,11 +958,6 @@ struct ui_command *cmds;
 		newwin->cfw_tmpforce = newwin->cfw_nongraph = 0;
 	}
 	newwin->cfw_pd = 0;
-
-	if (reuse)
-	{
-		msg_ELog (EF_INFO, "window %s not found for re-use", newname);
-	}
 /*
  * Now pass through the rest of the parameters.
  */
@@ -923,12 +965,10 @@ struct ui_command *cmds;
 	{
 	/*
 	 * Just a string parameter initially means a plot description.
-	 * Ignore it if we're re-using an existing window.
 	 */
 		if (cmds->uc_ctype == UTT_VALUE)
 		{
-			if (!reuse || !exist)
-				strcpy (newwin->cfw_desc, UPTR (*cmds));
+			strcpy (newwin->cfw_desc, UPTR (*cmds));
 		}
 	/*
 	 * Or they could be giving a button map.
