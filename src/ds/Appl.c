@@ -27,7 +27,7 @@
 #include "dslib.h"
 
 #ifndef lint
-MAKE_RCSID ("$Id: Appl.c,v 3.19 1993-08-12 18:19:37 granger Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.20 1993-08-17 19:18:32 granger Exp $")
 #endif
 
 /*
@@ -1049,8 +1049,6 @@ int ndetail;
 /*
  * Start plowing through the data.
  */
-	msg_ELog(EF_INFO,
-	   "ds_StoreBlocks: noting all blocks of 50 or more samples");
 	while (sample < nsample)
 	{
 		bool new;
@@ -1079,7 +1077,7 @@ int ndetail;
 	 * as a single block.  The answer is at least one.
 	 */
 		ds_FindBlock (dfile, dfnext, dc, &p, sample, wc, &block_size);
-		msg_ELog(EF_DEBUG | ((block_size >= 50) ? EF_INFO : 0),
+		msg_ELog(EF_DEBUG | ((block_size >= 25) ? EF_INFO : 0),
 			 "%s block of %i samples",
 			 (wc == wc_Append) ? "appending" :
 			 ((wc == wc_Insert) ? "inserting" : 
