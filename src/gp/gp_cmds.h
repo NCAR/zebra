@@ -1,4 +1,4 @@
-/* $Id: gp_cmds.h,v 1.3 1991-01-09 16:31:50 burghart Exp $ */
+/* $Id: gp_cmds.h,v 1.4 1991-02-07 16:24:18 corbet Exp $ */
 /*
  * Command symbols for the graphics process.
  */
@@ -17,4 +17,4 @@
 # define GPC_POPCOORDS	13
 # define GPC_DRAWLINE	14
 # define GPC_SENDENDPOINTS	15
-
+# define GPC_ACTIVATE	16
