@@ -1,5 +1,5 @@
 /* 12/87 jc */
-/* $Header: /code/cvs/rdss/rdsslibs/ui/ui_menu.h,v 1.1 1989-02-08 13:28:18 corbet Exp $ */
+/* $Id: ui_menu.h,v 1.2 1989-09-25 17:00:23 corbet Exp $ */
 /*
  * Stuff associated with menus.
  */
@@ -7,7 +7,7 @@
 # define MNAMELEN	40	/* Maximum menu name length	*/
 # define MTITLEN	80	/* Maximum title length		*/
 # define DISPLEN	200	/* Choice display length	*/
-# define HELPLEN	50	/* Helpfile length		*/
+# define HELPLEN	52	/* Helpfile length		*/
 # define MAXCHOICE	22	/* Maximum number of menu choices	*/
 
 /*
@@ -17,10 +17,10 @@ struct menu
 {
 	char	m_name[MNAMELEN];	/* The name of this menu	*/
 	char	m_title[MTITLEN];	/* The displayed title 		*/
+	struct mchoice *m_choices;	/* Array of choice structures	*/
 	short	m_nchoice;		/* Number of choices		*/
 	short	m_flags;		/* Menu flags			*/
 	short	m_default;		/* Default menu choice		*/
-	struct mchoice *m_choices;	/* Array of choice structures	*/
 };
 /*
  * Flags.
