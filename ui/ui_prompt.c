@@ -14,10 +14,9 @@
 # include "ui_commands.h"
 # include "ui_expr.h"
 
-static char *Rcsid = "$Id: ui_prompt.c,v 1.3 1989-04-20 15:21:42 corbet Exp $";
+static char *Rcsid = "$Id: ui_prompt.c,v 1.4 1989-06-05 16:05:25 corbet Exp $";
 
 void ui_pr_cc ();	/* Keyboard interrupt handler.	*/
-struct token_context Ctx;
 
 
 int
@@ -65,7 +64,7 @@ int lower, upper, def;
 	 	sprintf (rprompt, "%s [Default %d]: ", prompt, def);
 	 	uii_set_handler (ui_pr_cc, TRUE);
 		ucs_tty_cmode ();
-	 	ut_int_string (&Ctx, rprompt, &tok);
+	 	ut_int_string (rprompt, &tok);
 		ucs_pop_cstack ();
 		uii_clear_handler (ui_pr_cc);
 	/*
@@ -185,7 +184,7 @@ float lower, upper, def;
 	 	sprintf (rprompt, "%s [Default %.2f]: ", prompt, def);
 		uii_set_handler (ui_pr_cc, TRUE);
 		ucs_tty_cmode ();
-	 	ut_int_string (&Ctx, rprompt, &tok);
+	 	ut_int_string (rprompt, &tok);
 		ucs_pop_cstack ();
 		uii_clear_handler (ui_pr_cc);
 	/*
@@ -299,7 +298,7 @@ char *prompt, *helpfile, *dest, *def;
 				def);
 		uii_set_handler (ui_pr_cc, TRUE);
 		ucs_tty_cmode ();
-		ut_int_string (&Ctx, rprompt, &tok);
+		ut_int_string (rprompt, &tok);
 		ucs_pop_cstack ();
 		uii_clear_handler (ui_pr_cc);
 		if (tok.tk_type != TT_HELP)
@@ -378,7 +377,7 @@ date *val, *def;
 
 		uii_set_handler (ui_pr_cc, TRUE);
 		ucs_tty_cmode ();
-	 	ut_int_string (&Ctx, rprompt, &tok);
+	 	ut_int_string (rprompt, &tok);
 		ucs_pop_cstack ();
 		uii_clear_handler (ui_pr_cc);
 	/*
@@ -491,7 +490,7 @@ char *prompt, *helpfile, *state, *def;
 	 	sprintf (rprompt, "%s [Default '%s']: ", prompt, def);
 		uii_set_handler (ui_pr_cc, TRUE);
 		ucs_tty_cmode ();
-	 	ut_int_string (&Ctx, rprompt, &tok);
+	 	ut_int_string (rprompt, &tok);
 		ucs_pop_cstack ();
 		uii_clear_handler (ui_pr_cc);
 		if (tok.tk_string[0] == '\0')
@@ -510,8 +509,7 @@ char *prompt, *helpfile, *state, *def;
 	/*
 	 * See if we can match a keyword.
 	 */
-	 	if (! uip_kw_match (&Ctx, ste, &tok, &ambig, &action, &kwnum,
-				FALSE))
+	 	if (! uip_kw_match (ste, &tok, &ambig, &action, &kwnum, FALSE))
 		{
 			ui_ns_error ("Unknown input '%s' -- hit '?' for help",
 				tok.tk_string);
@@ -536,7 +534,7 @@ ui_pr_cc ()
  * catch interrupts.
  */
 {
-	ut_finish_line (&Ctx, FALSE);
+	ut_finish_line (FALSE);
 	ucs_pop_cstack ();
 	ui_error ("Prompt aborted by ^C");
 }
