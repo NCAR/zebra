@@ -75,57 +75,93 @@
 # define AXIS_RIGHT     3
 # define F_PIX_HEIGHT   ((int)((FY1-FY0)*GWHeight(Graphics)))
 # define F_PIX_WIDTH    ((int)((FX1-FX0)*GWWidth(Graphics)))
+# define DATA_SERIES    (1<<1)
+# define DATA_SNAPSHOT  (1<<2)
+# define AUTO         (1<<0)
+# define MANUAL       (1<<1)
+# define INVERT       (1<<2)
+# define LOG	      (1<<3)
 
-extern float   UX0, UY0, UX1, UY1;
+
 extern float   FX0, FY0, FX1, FY1;
-float   AxisX0[4],AxisX1[4],AxisY0[4],AxisY1[4];
-float   IconX0,IconX1,IconY0,IconY1;
-float   AnnotateX0,AnnotateX1,AnnotateY0,AnnotateY1;
-float   LegendX0,LegendX1,LegendY0,LegendY1;
+extern float   AxisX0[4],AxisX1[4],AxisY0[4],AxisY1[4];
+extern float   IconX0,IconX1,IconY0,IconY1;
+extern float   AnnotateX0,AnnotateX1,AnnotateY0,AnnotateY1;
+extern float   LegendX0,LegendX1,LegendY0,LegendY1;
+typedef struct DataVal_
+{
+    char	type; /* 'i', 'f', 'd', or 't' */
+    union
+    {
+	int	i;
+	float	f;
+	double	d;
+	time	t;
+    } val;
+} DataValRec, *DataValPtr;
+extern  DataValRec	UX0,UX1,UY0,UY1;
 /*
  * User coordinate to pixel coordinate macros
  */
-# define LC_FXPIX(ux)      (int)((short)(0.5 + (float)(GWWidth (Graphics)) * \
-        (FX1 - (((ux) - UX0) / (UX1 - UX0) * (FX1 - FX0)))))
+# define LC_FXPIX(ux,ux0,ux1)      (int)((short)(0.5 + (float)(GWWidth (Graphics)) * \
+        (FX1 - (((ux) - ux0) / (ux1 - ux0) * (FX1 - FX0)))))
 
-# define LC_XPIX(ux)       (int)((short)(0.5 + (float)(GWWidth (Graphics)) * \
-        (((ux) - UX0) / (UX1 - UX0) * (FX1 - FX0) + FX0)))
+# define LC_XPIX(ux,ux0,ux1)       (int)((short)(0.5 + (float)(GWWidth (Graphics)) * \
+        (((ux) - ux0) / (ux1 - ux0) * (FX1 - FX0) + FX0)))
 
-# define LC_FYPIX(uy)       (int)((GWHeight(Graphics) - \
+# define LC_FYPIX(uy,uy0,uy1)       (int)((GWHeight(Graphics) - \
 			(FY1 * GWHeight(Graphics))) +\
-        (int)(( (((uy) - UY0) / (UY1 - UY0)))* F_PIX_HEIGHT))
+        (int)(( (((uy) - uy0) / (uy1 - uy0)))* F_PIX_HEIGHT))
 
-# define LC_YPIX(uy)       (int)((GWHeight(Graphics) - \
+# define LC_YPIX(uy,uy0,uy1)       (int)((GWHeight(Graphics) - \
 			(FY1 * GWHeight(Graphics))) +\
-        (int)((1.0 - (((uy) - UY0) / (UY1 - UY0)))* F_PIX_HEIGHT))
+        (int)((1.0 - (((uy) - uy0) / (uy1 - uy0)))* F_PIX_HEIGHT))
 
 /*
  * Pixel coordinate to user coordinate macros
  */
-# define LC_FXUSER(xp)      (UX1 - (((xp)/(float)GWWidth(Graphics)) - FX0) * \
-                                (UX1 - UX0)/(FX1 - FX0) )
-# define LC_XUSER(xp)      ((((xp)/(float)GWWidth(Graphics)) - FX0) * \
-                                (UX1 - UX0)/(FX1 - FX0) + UX0)
+# define LC_FXUSER(xp,ux0,ux1)      (ux1 - (((xp)/(float)GWWidth(Graphics)) - FX0) * \
+                                (ux1 - ux0)/(FX1 - FX0) )
+# define LC_XUSER(xp,ux0,ux1)      ((((xp)/(float)GWWidth(Graphics)) - FX0) * \
+                                (ux1 - ux0)/(FX1 - FX0) + ux0)
 
-# define LC_FYUSER(yp)      UY1 - (UY1-UY0) * (1.0 - \
+# define LC_FYUSER(yp,uy0,uy1)      uy1 - (uy1-uy0) * (1.0 - \
 	((float)(yp - (GWHeight(Graphics) - (FY1*GWHeight(Graphics))))/(float)(F_PIX_HEIGHT))) 
-# define LC_YUSER(yp)      UY0 + (UY1-UY0) * (1.0 - \
+# define LC_YUSER(yp,uy0,uy1)      uy0 + (uy1-uy0) * (1.0 - \
 	((float)(yp - (GWHeight(Graphics) - (FY1*GWHeight(Graphics))))/(float)(F_PIX_HEIGHT))) 
 
-#define INVERT_Y 	(1<<0)
-#define INVERT_X 	(1<<1)
-#define LOG_Y 		(1<<2)
-#define LOG_X 		(1<<3)
 typedef enum { DataTrans, DeviceTrans, IconTrans, LegendTrans,
 	       ATTrans, ARTrans, ALTrans, ABTrans } TransRegion;
+# ifdef __STDC__
+    extern void lc_SetAxisDim(int,int);
+    extern void lc_SetIconDim(int,int);
+    extern void lc_SetLegendDim(int,int);
+    extern void lc_SetAnnotateDim(int,int);
+    extern void lc_SetUserCoord( DataValPtr, DataValPtr, DataValPtr,DataValPtr);
+    extern void lc_GetTime( time *, time_t );
+    extern void lc_DecrData( DataValPtr,double );
+    extern void lc_IncrData( DataValPtr,double );
+    extern int lc_CompareData( DataValPtr,DataValPtr );
+/*
+    extern int devY(DataValPtr, unsigned short);
+    extern int devX(DataValPtr,unsigned short);
+    extern DataValRec userX(int,unsigned short);
+    extern DataValRec userY(int ,unsigned short);
+*/
+# else
+    extern void lc_SetAxisDim();
+    extern void lc_SetIconDim();
+    extern void lc_SetLegendDim();
+    extern void lc_SetAnnotateDim();
+    extern void lc_SetUserCoord();
+    extern void lc_GetTime();
+    extern void lc_DecrData();
+    extern void lc_IncrData();
+    extern int lc_CompareData();
+    extern int devY();
+    extern int devX();
+    extern DataValRec userX();
+    extern DataValRec userY();
+# endif
 
-extern void     lc_SetUserCoord();
-extern void     lc_SetIconDim();
-extern void     lc_SetAnnotateDim();
-extern void     lc_SetLegendDim();
-extern void     lc_SetAxisDim();
-extern void     lc_ClearTrans();
-extern float    userY();
-extern float    userX();
-extern int      devX();
-extern int      devY();
+
