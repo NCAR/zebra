@@ -18,14 +18,14 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: dsrescan.c,v 1.2 1993-08-04 17:16:26 granger Exp $";
+static char *rcsid = "$Id: dsrescan.c,v 1.3 1993-10-26 15:43:28 corbet Exp $";
 
 # include "defs.h"
 # include "message.h"
 # include <copyright.h>
 # include "DataStore.h"
 
-#ifndef SVR4
+#if !defined(SVR4) && ! defined(SYSV)
 extern char *getenv FP((char *));
 #endif
 
