@@ -38,8 +38,6 @@ extern "C"
 #	include <X11/Xaw/Viewport.h>
 #	include <defs.h>
 #	include <DataStore.h>
-#	include "../DataStore/dsPrivate.h" 	// XXX
-#	include "../DataStore/dslib.h" 		// XXX
 	extern int uit_parse_date (const char *, SValue *, int); // XXX XXX
 	extern int atoi (const char *);
 }
@@ -50,7 +48,7 @@ extern "C"
 # include "Index.h"
 # include "ZTime.h"
 # include "plcontainer.h"
-MAKE_RCSID ("$Id: LoadData.cc,v 1.3 1993-02-02 19:35:33 corbet Exp $")
+MAKE_RCSID ("$Id: LoadData.cc,v 1.4 1993-05-26 19:36:47 corbet Exp $")
 
 class LoadSelect;
 
@@ -744,14 +742,16 @@ LoadSelect::addButtons (Widget form, PlatformIndex *index)
 		else
 		{
 			int dfi = p.files.nth (p.files.ncontained() - 1).index;
-			TC_EncodeTime (&DFTable[dfi].df_begin, TC_Full, ep);
+			DataFileInfo dfinfo;
+			ds_GetFileInfo (dfi, &dfinfo);
+			TC_EncodeTime (&dfinfo.dfi_Begin, TC_Full, ep);
 			strcat (ep, "   ");
 			ep += 18;
 			*ep = '\0';
 			strcat (ep, " -> ");
 			ep += strlen (ep);
 			dfi = p.files.nth (0).index;
-			TC_EncodeTime (&DFTable[dfi].df_end, TC_Full, ep);
+			TC_EncodeTime (&dfinfo.dfi_End, TC_Full, ep);
 			strcat (ep, "     ");
 			ep += 22;
 		}

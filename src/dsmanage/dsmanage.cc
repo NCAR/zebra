@@ -30,8 +30,6 @@ extern "C" {
 #	include <defs.h>
 #	include <message.h>
 #	include <DataStore.h>
-#	include "../DataStore/dsPrivate.h" 	// XXX
-#	include "../DataStore/dslib.h" 		// XXX
 };
 
 #include <stdio.h>
@@ -44,7 +42,7 @@ extern "C" {
 # include "Index.h"
 # include "plcontainer.h"
 
-MAKE_RCSID ("$Id: dsmanage.cc,v 1.4 1993-02-24 20:05:27 corbet Exp $");
+MAKE_RCSID ("$Id: dsmanage.cc,v 1.5 1993-05-26 19:36:47 corbet Exp $");
 
 extern "C" void strcat (char *, const char *);
 extern "C" char *strrchr (const char *, int);
@@ -102,6 +100,7 @@ DSSetup ()
 // Initialize our connection to the data store.
 //
 {
+	DataSrcInfo dsi;
 //
 // Hook into the data store.
 //
@@ -115,7 +114,9 @@ DSSetup ()
 // The machinations below should be replacable with one gsub() call with
 // a regexp, but I couldn't make it work.
 //
-	DDir = PTable[0].dp_dir;
+	ds_GetDataSource (0, 0, &dsi);
+	DDir = dsi.dsrc_Where;
+
 	int lastslash;
 	int slash = lastslash = DDir.index ('/', 0);
 	while ((slash = DDir.index ('/', slash + 1)) >= 0)
@@ -134,7 +135,8 @@ DSSetup ()
 void
 MakePlatformList ()
 {
-	int plat;
+	int plat, nplat = ds_GetNPlat ();;
+	PlatformInfo pi;
 //
 // If there is already a list, delete it and start over.
 //
@@ -143,13 +145,13 @@ MakePlatformList ()
 //
 // Make the platform list.
 //
-	PList = new plContainer (SHeader->sm_nPlatform);
-	for (plat = 0; plat < SHeader->sm_nPlatform; plat++)
+	PList = new plContainer (nplat);
+	for (plat = 0; plat < nplat; plat++)
 	{
-		Platform *p = PTable + plat;
-		if (p->dp_flags & DPF_SUBPLATFORM)
+		ds_GetPlatInfo (plat, &pi);
+		if (pi.pl_SubPlatform)
 			continue;	// We forget these
-		dsPlatform *dp = new dsPlatform (p->dp_name, plat);
+		dsPlatform *dp = new dsPlatform (pi.pl_Name, plat);
 		PList->add (*dp);
 		delete dp;	// Container copies it
 		ScanFiles (plat);
@@ -168,15 +170,22 @@ ScanFiles (int ind)
 {
 	int dfindex;
 	dsPlatform *dp = PList->index (ind);
-	Platform *p = PTable + ind;
 	String name;
-
-	for (dfindex = LOCALDATA (*p); dfindex;
-				dfindex = DFTable[dfindex].df_FLink)
+	DataSrcInfo dsi;
+	DataFileInfo dfi;
+//
+// Pull over the source information, and take the first to
+// be the one we are interested in.
+//
+	ds_GetDataSource (ind, 0, &dsi);
+//
+// Now plow through the files.
+//
+	for (dfindex = dsi.dsrc_FFile; dfindex; dfindex = dfi.dfi_Next)
 	{
-		DataFile *d = DFTable + dfindex;
+		ds_GetFileInfo (dfindex, &dfi);
 		/* sprintf (name, "%s/%s", p->dp_dir, d->df_name); */
-		name = p->dp_dir + String ("/") + String (d->df_name);
+		name = dsi.dsrc_Where + String ("/") + String (dfi.dfi_Name);
 		dsFile *df = new dsFile (name, dfindex);
 		dp->files.add (*df);
 		delete df;
@@ -230,14 +239,17 @@ PEMakePLabel (char *buf, const dsPlatform& p)
 // Begin time.
 //
 	df = p.files.nth (p.files.ncontained () - 1).index;
-	TC_EncodeTime (&DFTable[df].df_begin, TC_Full, buf);
+	DataFileInfo dfi;
+	ds_GetFileInfo (df, &dfi);
+	TC_EncodeTime (&dfi.dfi_Begin, TC_Full, buf);
 	strcat (buf, "      ");
 	buf += 22;
 //
 // End time.
 //
 	df = p.files.nth (0).index;
-	TC_EncodeTime (&DFTable[df].df_end, TC_Full, buf);
+	ds_GetFileInfo (df, &dfi);
+	TC_EncodeTime (&dfi.dfi_End, TC_Full, buf);
 	strcat (buf, "     ");
 	buf += 21;
 //
@@ -267,13 +279,15 @@ FEMakeFLabel (char *buf, const dsFile& f)
 // Begin time.
 //
 	df = f.index;
-	TC_EncodeTime (&DFTable[df].df_begin, TC_Full, buf);
+	DataFileInfo dfi;
+	ds_GetFileInfo (df, &dfi);
+	TC_EncodeTime (&dfi.dfi_Begin, TC_Full, buf);
 	strcat (buf, "      ");
 	buf += 22;
 //
 // End time.
 //
-	TC_EncodeTime (&DFTable[df].df_end, TC_Full, buf);
+	TC_EncodeTime (&dfi.dfi_End, TC_Full, buf);
 	strcat (buf, "     ");
 	buf += 21;
 //
@@ -293,6 +307,7 @@ MakeDSIndex ()
 {
 	int plat, file;
 	PlatformIndex *index = new PlatformIndex;
+	DataFileInfo dfi;
 //
 // Plow through the platforms.
 //
@@ -305,10 +320,11 @@ MakeDSIndex ()
 		for (file = 0; file < dsp.files.ncontained (); file++)
 		{
 			const dsFile &dsf = dsp.files.nth (file);
+			ds_GetFileInfo (dsf.index, &dfi);
 			IndexFile *indf = new IndexFile (dsp.name (),
 				dsf.name (), dsf.size (), 0,
-				&DFTable[dsf.index].df_begin,
-				&DFTable[dsf.index].df_end);
+				&dfi.dfi_Begin,
+				&dfi.dfi_End);
 			index->add (dsp.name (), *indf);
 		}
 	}
@@ -348,6 +364,8 @@ GetPlatDir (const char *name)
 //
 {
 	PlatformId pid = ds_LookupPlatform ((char *) name);
+	DataSrcInfo dsi;
 
-	return (PTable[pid].dp_dir);
+	ds_GetDataSource (pid, 0, &dsi);
+	return (dsi.dsrc_Where);
 }
