@@ -30,7 +30,7 @@
 # include "DataStore.h"
 # include "DataChunkP.h"
 
-RCSID ("$Id: dc_MetData.c,v 3.24 1998-10-28 21:21:05 corbet Exp $")
+RCSID ("$Id: dc_MetData.c,v 3.25 1998-11-20 15:53:17 burghart Exp $")
 
 /*
  * If we have non-uniform, non-fixed, non-pre-arranged fields, then the 
@@ -252,6 +252,9 @@ dc_ChangeFld (DataChunk *dc, FieldId oldfid, FieldId newfid)
 	dc_ClearHash (finfo);
 	dc_BuildIndexHash (finfo, 0, finfo->fi_NField);
     }
+    else
+	msg_ELog (EF_PROBLEM, "dc_ChangeFld: failed to rename %s to %s",
+		  F_GetFullName (oldfid), F_GetFullName (newfid));
 }
 
 
