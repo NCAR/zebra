@@ -1,5 +1,5 @@
 /*
- * $Id: nstest.c,v 1.14 1995-01-18 00:50:25 granger Exp $
+ * $Id: nstest.c,v 1.15 1995-02-10 01:25:40 granger Exp $
  */
 
 /*
@@ -15,7 +15,30 @@
  * then fetch the DataChunk and compare it with the original.  This should
  * be independent of platform and datachunk class (especially if DataChunk
  * instance comparison we're also made a class method).
- *
+
+Example: each class performs comparisons relevant to its domain.
+Transparent tests number of samples, times of each sample, mobility,
+locations.  MetData tests the same fields.  Scalar knows how to test data
+values.  The compare method calls the superclasses of the datachunk classes
+from raw down to the class and returns with a list of diff messages, if
+any.
+
+Built-in test mode: which does things like omit history and creation date
+info from netcdf files.  In test mode, have error log messages come back to
+application, or to some routine which can match them against what was
+expected.  Low-level development messages, like defining variables and
+dimns in n-space might not be logged unless test mode enabled.
+
+Perhaps a verify mode, where each call to a class method calls the opposite
+call to make sure the modifications succeeded correctly.  E.g. SetFields
+immediately calls GetFields and compares.
+
+Diffs might be useful for editing data chunks and keeping a history of the
+changes, perhaps even undo info.
+
+If more than one process could receive event messages, the test program
+could drive the data store and parse the event messages being logged.
+
  * At some point, it would be nice to construct a ds.config file from here
  * given what test we want to make, and then fork() and exec() a dsDaemon
  * on the config file ourselves.  Keep the "t_" prefix convention for all test
@@ -26,8 +49,11 @@
  * generated and the test routines are run.  Could we then pipe some output
  * to 'expect'?
  *
- * See /zeb/gary/nspace/README.TESTS
- */
+
+Perhaps use the ingest library to log messages to both stdout and
+event logger...
+
+ * See ~granger/zeb/ds-tests.notes */
 
 /* #define MARK */
 /*
@@ -52,35 +78,41 @@
 #include <sys/timeb.h>
 #include <assert.h>
 
+#include "ingest.h"
+#include "DataChunkP.h"
+
+#ifdef notdef
 #include <defs.h>
 #include <message.h>
 #include "DataStore.h"
 #include "ds_fields.h"
-#include "DataChunkP.h"
+#endif
 
 /* ARGSUSED */
 int
 msg_handler (msg)
 struct message *msg;
 {
-	msg_ELog (EF_INFO, "Message received");
+	IngestLog (EF_INFO, "Message received");
 	return (0);
 }
 
 #define EXPECT(N) \
-	msg_ELog (EF_INFO, "Expect %d problem(s):", N)
+	IngestLog (EF_INFO, "Expect %d problem(s):", N)
 
 #ifdef notdef
 /* #define BACKWARDS */		/* backwards compatibility */
 /* #define ZNF_TESTING */
 #endif
 
-#define TIME_UNITS
-
 #ifdef notdef
+#define TIME_UNITS
+#define EXAMPLE_ONLY
+#define NSPACE_AERI
+#endif
+
 #define AERI_TYPES
 #define ATTRIBUTES
-#define EXAMPLE_ONLY
 #define TRANSPARENT
 #define SCALAR
 #define GETFIELDS
@@ -98,7 +130,6 @@ struct message *msg;
 #define DUMMY_FILES
 #define DATA_TIMES
 #define FETCH_GAP
-#endif
 
 #ifdef BACKWARDS
 #define dc_CheckClass(a)		{}
@@ -208,7 +239,7 @@ char *header;
  * Announce beginning of test sequence to event logger and to stdout
  */
 {
-	msg_ELog (EF_INFO, "%s", header);
+	IngestLog (EF_INFO, "%s", header);
 	printf ("%s\n", header);
 	fflush (stdout);
 	fflush (stderr);
@@ -342,8 +373,8 @@ main (argc, argv)
 	dc = T_SimpleScalarChunk (&when, 1, 3000, 4, TRUE, TRUE);
 	dc->dc_Platform = plat_id;
 	ds_StoreBlocks (dc, TRUE, NULL, 0);
-	msg_ELog (EF_INFO, 
-		  "t_fixed: storing same datachunk as for t_scalar");
+	IngestLog (EF_INFO, 
+		   "t_fixed: storing same datachunk as for t_scalar");
 	dc->dc_Platform = ds_LookupPlatform("t_fixed");
 	ds_StoreBlocks (dc, TRUE, NULL, 0);
 	dc_DestroyDC (dc);
@@ -386,6 +417,11 @@ main (argc, argv)
 
 #ifdef NSPACE
 	T_NSpace (&begin);
+#endif
+
+#ifdef NSPACE_AERI
+	T_Aeri();
+	fflush (stdout);
 #endif
 
 #ifdef NEXUS
@@ -574,8 +610,8 @@ char *plat;
 	dc = ds_Fetch (pid, DCC_Scalar, &when, &when, fields, nfield, NULL, 0);
 	if (dc)
 	{
-		msg_ELog (EF_PROBLEM, "FetchGap: dc has %d samples",
-			  dc_GetNSample (dc));
+		IngestLog (EF_PROBLEM, "FetchGap: dc has %d samples",
+			   dc_GetNSample (dc));
 		dc_DestroyDC (dc);
 	}
 	/*
@@ -587,8 +623,8 @@ char *plat;
 	dc = ds_Fetch (pid, DCC_Scalar, &when, &next, fields, nfield, NULL, 0);
 	if (dc)
 	{
-		msg_ELog (EF_PROBLEM, "FetchGap: dc has %d samples",
-			  dc_GetNSample (dc));
+		IngestLog (EF_PROBLEM, "FetchGap: dc has %d samples",
+			   dc_GetNSample (dc));
 		dc_DestroyDC (dc);
 	}
 	/*
@@ -603,13 +639,13 @@ char *plat;
 		int ns = dc_GetNSample (dc);
 		if (ns != 4)
 		{
-			msg_ELog (EF_PROBLEM, "FetchGap: dc has %d samples %s",
+			IngestLog(EF_PROBLEM, "FetchGap: dc has %d samples %s",
 				  dc_GetNSample (dc), "instead of 4");
 		}
 		dc_DestroyDC (dc);
 	}
 	else
-		msg_ELog (EF_PROBLEM, "FetchGap: fetch 120 sec returned null");
+		IngestLog(EF_PROBLEM, "FetchGap: fetch 120 sec returned null");
 	/*
 	 * When beginning and end of interval match first and last times
 	 */
@@ -622,13 +658,13 @@ char *plat;
 		int ns = dc_GetNSample (dc);
 		if (ns != 10)
 		{
-			msg_ELog (EF_PROBLEM, "FetchGap: dc has %d samples %s",
+			IngestLog(EF_PROBLEM, "FetchGap: dc has %d samples %s",
 				  dc_GetNSample (dc), "instead of 10");
 		}
 		dc_DestroyDC (dc);
 	}
 	else
-		msg_ELog (EF_PROBLEM, "FetchGap: fetch 320 sec returned null");
+		IngestLog(EF_PROBLEM, "FetchGap: fetch 320 sec returned null");
 	/*
 	 * When interval is outside first and last sample times
 	 */
@@ -642,13 +678,13 @@ char *plat;
 		int ns = dc_GetNSample (dc);
 		if (ns != 10)
 		{
-			msg_ELog (EF_PROBLEM, "FetchGap: dc has %d samples %s",
+			IngestLog(EF_PROBLEM, "FetchGap: dc has %d samples %s",
 				  dc_GetNSample (dc), "instead of 10");
 		}
 		dc_DestroyDC (dc);
 	}
 	else
-		msg_ELog (EF_PROBLEM, "FetchGap: fetch 320 sec returned null");
+		IngestLog(EF_PROBLEM, "FetchGap: fetch 320 sec returned null");
 	Announce ("FetchGap: test completed.");
 }
 #endif	/* FETCH_GAP */
@@ -1655,8 +1691,6 @@ ZebTime *now;
 		dc_DestroyDC (dc);
 	}
 
-	T_Aeri();
-	fflush (stdout);
 }
 #endif /* NSPACE */
 
@@ -1859,6 +1893,7 @@ bool addatts;		/* per-sample atts only 	*/
 
 
 
+#ifdef NSPACE_AERI
 T_Aeri()
 {
 	ZebTime begin, when;
@@ -1924,7 +1959,7 @@ T_Aeri()
 	T_DumpData (retrieve, 5, len, "thermistor0");
 	dc_DestroyDC(dc);
 }
-
+#endif /* NSPACE_AERI */
 
 
 T_GetFields(start, plat)
@@ -1950,12 +1985,12 @@ char *plat;
 	nfield = 10;
 	if (!ds_GetFields(dc->dc_Platform, start, &nfield, fields))
 	{
-		msg_ELog (EF_PROBLEM, 
-			  "ds_GetFields('%s',nfld=10) failed", plat);
+		IngestLog (EF_PROBLEM, 
+			   "ds_GetFields('%s',nfld=10) failed", plat);
 	}
 	else if (nfield != dc_nfield)
 	{
-		msg_ELog (EF_PROBLEM, 
+		IngestLog (EF_PROBLEM, 
 		  "ds_GetFields('%s',nfld=10) returned %d fields, expected %d",
 		  plat, nfield, dc_nfield);
 	}
@@ -1970,9 +2005,9 @@ char *plat;
 				break;
 		}
 		if (i < nfield)
-			msg_ELog (EF_PROBLEM,
-				  "ds_GetFields(): field %d incorrect", 
-				  fields[i]);
+			IngestLog (EF_PROBLEM,
+				   "ds_GetFields(): field %d incorrect", 
+				   fields[i]);
 	}
 	/*
 	 * Now try asking for fewer fields than are in the file, and make
@@ -1981,12 +2016,12 @@ char *plat;
 	nfield = 2;
 	if (!ds_GetFields(dc->dc_Platform, start, &nfield, fields))
 	{
-		msg_ELog (EF_PROBLEM, 
-			  "ds_GetFields('%s',nfld=2) failed", plat);
+		IngestLog (EF_PROBLEM, 
+			   "ds_GetFields('%s',nfld=2) failed", plat);
 	}
 	else if (nfield != 2)
 	{
-		msg_ELog (EF_PROBLEM, 
+		IngestLog (EF_PROBLEM, 
 		  "ds_GetFields('%s',nfld=2) returned %d fields, expected %d",
 		  plat, nfield, 2);
 	}
