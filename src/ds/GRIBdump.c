@@ -19,7 +19,9 @@
  * maintenance or updates for its software.
  */
 
+# include <unistd.h>
 # include <stdio.h>
+# include <string.h>
 # include <errno.h>
 # include <fcntl.h>
 
@@ -76,6 +78,7 @@ static int	Offset FP ((GFpds *));
 
 
 
+int
 main (argc, argv)
 int	argc;
 char	**argv;
