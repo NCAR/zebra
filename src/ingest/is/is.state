@@ -1,0 +1,133 @@
+! $Id: is.state,v 1.1 1991-10-11 15:29:25 martin Exp $
+!
+! Command definition for the display manager.
+!
+!		Copyright (C) 1987,88,89,90,91 by UCAR
+!	University Corporation for Atmospheric Research
+!		   All rights reserved
+!
+! No part of this work covered by the copyrights herein may be reproduced
+! or used in any form or by any means -- graphic, electronic, or mechanical,
+! including photocopying, recording, taping, or information storage and
+! retrieval systems -- without permission of the copyright owner.
+! 
+! This software and any accompanying written materials are provided "as is"
+! without warranty of any kind.  UCAR expressly disclaims all warranties of
+! any kind, either express or implied, including but not limited to the
+! implied warranties of merchantibility and fitness for a particular purpose.
+! UCAR does not indemnify any infringement of copyright, patent, or trademark
+! through use or modification of this software.  UCAR does not provide 
+! maintenance or updates for its software.
+!
+
+define state is-initial
+	eoftext 'exit'
+	ctable ui$command_table
+	@ /rdss/ui/ui_commands.
+	input 'config' 1
+		next is-config-name
+	endinput 
+	input 'start' 13
+		next all-or-name
+	endinput
+	input 'stop' 14
+		next all-or-name
+	endinput
+	input 'list' 12
+		next all-or-name
+	endinput
+enddef
+
+define state all-or-name
+	input 'all' 15
+		next ust$no_more
+	endinput
+	input string
+		next ust$no_more
+	endinput
+enddef
+
+define state is-config-name
+	input string
+		next is-config-type
+	endinput
+enddef
+
+define state is-config-type
+	input 'file' 2
+		next ust$no_more
+	endinput
+	input 'serial' 3
+		next ust$no_more
+	endinput
+enddef
+
+define state is-config
+	eoftext 'endconfig'
+	input 'platform' 5
+		next is-getstring
+	endinput
+	input 'directory' 6
+		next is-getstring
+	endinput
+	input 'directory' 6
+		next is-getstring
+	endinput
+	input 'movedir' 16
+		next is-getstring
+	endinput
+	input 'delete' 17
+		next ust$no_more
+	endinput
+	input 'restart' 18
+		next ust$no_more
+	endinput
+	input 'filename' 7
+		next is-getstring
+	endinput
+	input 'process' 8
+		next is-many-args
+	endinput
+	input 'interval' 9
+		next is-interval
+	endinput
+	input 'device' 10
+		next is-getstring
+	endinput
+	input 'stty' 11
+		next is-many-args
+	endinput
+	input 'endconfig' 4
+		next ust$no_more
+	endinput
+enddef
+
+define state is-getstring
+	eoftext 'endconfig'
+	input string
+		next ust$no_more
+	endinput
+	input 'endconfig' 4
+		next ust$no_more
+	endinput
+enddef
+	
+define state is-interval
+	eoftext 'endconfig'
+	input integer
+		next ust$no_more
+	endinput
+	input 'endconfig' 4
+		next ust$no_more
+	endinput
+enddef
+
+define state is-many-args
+	input EOS
+		done
+	endinput
+	input string
+		next is-many-args
+	endinput
+enddef
+
