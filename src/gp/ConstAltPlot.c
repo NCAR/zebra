@@ -37,7 +37,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.19 1992-10-13 21:11:48 corbet Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.20 1992-10-14 17:15:00 corbet Exp $")
 
 
 /*
@@ -368,7 +368,7 @@ Boolean update;
 	PlatformId pid, *platforms;
 	float vscale, unitlen, badvalue, *ugrid, *vgrid, *qgrid[4];
 	float x0, x1, y0, y1;
-	int linewidth, numquads, shifted, npts, i, j;
+	int linewidth, numquads = 0, shifted, npts, i, j;
 	int pix_x0, pix_x1, pix_y0, pix_y1, tacmatch;
 	ZebTime zt;
 	XColor	color, qcolor;
@@ -414,7 +414,8 @@ Boolean update;
 			qcolor = color;
 		}
 		numquads = CommaParse (quadrants, quads);
-		if (numquads > 4) numquads = 4;
+		if (numquads > 4)
+			numquads = 4;
 	}
 /*
  * Create the field list for our data fetch.
