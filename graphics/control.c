@@ -1,5 +1,5 @@
 /* 5/87 jc */
-/* $Id: control.c,v 1.8 1989-11-02 10:22:35 burghart Exp $ */
+/* $Id: control.c,v 1.9 1989-12-27 11:11:07 burghart Exp $ */
 /*
  * The upper level, control routines for the graphics package.
  */
@@ -14,6 +14,12 @@
 
 
 static int Trace = 0;
+
+/*
+ * Macro to return b or c, whichever is closer to a
+ * (floating point arguments)
+ */
+# define CLOSER(a,b,c)	((fabs (a-b) < fabs (a-c)) ? b : c)
 
 /*
  * Major kludge: Keep a file ID around for code (radar) which might want to
@@ -460,8 +466,9 @@ float x0, y0, x1, y1;
 	struct overlay *ov = (struct overlay *) cov;
 	struct device *dev = ov->ov_ws->ws_dev;
 
-	if (x0 >= x1 || y0 >= y1)
+	if (x0 == x1 || y0 == y1)
 		return (GE_BAD_COORDS);
+
 	ov->ov_x0 = x0;
 	ov->ov_y0 = y0;
 	ov->ov_x1 = x1;
@@ -906,23 +913,28 @@ float x0, y0, x1, y1;
 {
 	struct overlay *ov = (struct overlay *) cov;
 	int coords[4];
+	int	x0_outside, x1_outside, y0_outside, y1_outside;
 	struct device *dev = ov->ov_ws->ws_dev;
 /*
  * Do some basic sanity checks.  While a clip window need not lie entirely
  * within the overlay, there should be some overlap, or this overlay will
  * become simply disabled.
  */
-	if (x0 >= x1 || y0 >= y1 || x0 > ov->ov_x1 || x1 < ov->ov_x0 ||
-		y0 > ov->ov_y1 || y1 < ov->ov_y0)
+	x0_outside = ((x0 - ov->ov_x0) * (x0 - ov->ov_x1)) > 0.0;
+	x1_outside = ((x1 - ov->ov_x0) * (x1 - ov->ov_x1)) > 0.0;
+	y0_outside = ((y0 - ov->ov_y0) * (y0 - ov->ov_y1)) > 0.0;
+	y1_outside = ((y1 - ov->ov_y0) * (y1 - ov->ov_y1)) > 0.0;
+
+	if ((x0_outside || y0_outside) && (x1_outside || y1_outside))
 		return (GE_BAD_COORDS);
 /*
  * Make sure that the clip window lies within the overlay.  In other words,
  * clip the clip window.
  */
-	if (x0 < ov->ov_x0) x0 = ov->ov_x0;
-	if (y0 < ov->ov_y0) y0 = ov->ov_y0;
-	if (x1 > ov->ov_x1) x1 = ov->ov_x1;
-	if (y1 > ov->ov_y1) y1 = ov->ov_y1;
+	if (x0_outside) x0 = CLOSER (x0, ov->ov_x0, ov->ov_x1);
+	if (y0_outside) y0 = CLOSER (y0, ov->ov_y0, ov->ov_y1);
+	if (x1_outside) x1 = CLOSER (x1, ov->ov_x0, ov->ov_x1);
+	if (y1_outside) y1 = CLOSER (y1, ov->ov_y0, ov->ov_y1);
 /*
  * Now store away the clip window in pixel coords.
  */
@@ -1064,9 +1076,12 @@ int *px, *py;
 {
 	struct overlay *ov = (struct overlay *) cov;
 	struct device *dev = ov->ov_ws->ws_dev;
-	
-	if (wx < ov->ov_x0 || wx > ov->ov_x1 ||
-	    wy < ov->ov_y0 || wy > ov->ov_y1)
+	int	outside_wx, outside_wy;
+
+	outside_wx = ((wx - ov->ov_x0) * (wx - ov->ov_x1)) > 0.0;
+	outside_wy = ((wy - ov->ov_y0) * (wx - ov->ov_y1)) > 0.0;
+
+	if (outside_wx || outside_wy)
 		return (GE_OFFSCREEN);
 	*px = W_TO_DC (wx, ov->ov_x0, ov->ov_x1, dev->gd_xres);
 	*py = W_TO_DC (wy, ov->ov_y0, ov->ov_y1, dev->gd_yres);
