@@ -19,10 +19,10 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: d_Notify.c,v 3.2 1992-07-08 19:14:51 kris Exp $";
+static char *rcsid = "$Id: d_Notify.c,v 3.3 1992-11-24 08:11:08 granger Exp $";
 
-# include "../include/defs.h"
-# include "../include/message.h"
+# include "defs.h"
+# include "message.h"
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dsDaemon.h"
