@@ -7,11 +7,16 @@
 # include "ui_globals.h"
 # include "ui_symbol.h"
 
-static char *Rcsid = "$Id: ui_string.c,v 1.1 1989-03-10 16:32:52 corbet Exp $";
+static char *Rcsid = "$Id: ui_string.c,v 1.2 1989-03-10 17:02:05 corbet Exp $";
 /*
  * For small, temporary strings, we maintain some internal lookaside 
  * lists with fixed-size strings.  This way, many malloc/free cycles are
  * avoided.
+ *
+ * The length of the lists is empirically determined from looking at a couple
+ * of applications, particularly ROBOT.  Experience is that almost all
+ * dynamic strings are *very* short, so most of the preallocated strings are
+ * small ones.
  *
  * The following union is used for keeping track of unallocated strings.
  */
@@ -41,9 +46,9 @@ union st_big
 /*
  * These are the actual strings.
  */
-# define N_SMALL	320
-# define N_MED		320
-# define N_BIG		320
+# define N_SMALL	500
+# define N_MED		100
+# define N_BIG		50
 static union st_small SmallT[N_SMALL], *Small, *SmallEnd;
 static union st_med MedT[N_MED], *Med, *MedEnd;
 static union st_big BigT[N_BIG], *Big, *BigEnd;
