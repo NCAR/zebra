@@ -156,7 +156,7 @@ int	xdim, ydim;
  * Find contour limits
  */
 	cndx_min = (int) floor ((min - ccenter) / cstep);
-	cndx_max = (int) floor ((max - ccenter) / cstep);
+	cndx_max = (int) ceil ((max - ccenter) / cstep);
 /*
  * Sanity test
  */
