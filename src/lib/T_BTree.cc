@@ -28,6 +28,8 @@ typedef BTree<ZTime,long> TimeTree;
 typedef long test_key;
 typedef BTree<test_key,test_key> test_tree;
 
+static int Debug = 0;
+
 
 #ifdef linux
 extern "C" { int __getfpucw (); }
@@ -38,24 +40,6 @@ int __getfpucw ()
 }
 #endif
 
-
-#ifdef notdef
-class RandomInteger
-{
-	RandomInteger(_seed = time()) :
-		seed (_seed)
-	{ }
-		
-	int operator() ()
-	{
-		
-
-	}
-
-private:
-	long seed;
-};
-#endif
 
 
 // Report statistics about the given tree
@@ -71,7 +55,7 @@ Summarize (ostream &out, BTree<K,T> &t)
 	out << "   Total key slots: " << s.totalSlots() << endl;
 	out << "  Key slots unused: " << s.keysUnused() << endl;
 	out << " Elem slots unused: " 
-	    << (t.MaxKeys()*s.numLeaves() - s.numElements()) << endl;
+	    << (t.Order()*s.numLeaves() - s.numElements()) << endl;
 	out << " Avg keys per node: " << s.averageKeys() << endl;
 	out << " Max keys per node: " << s.maxKeys() << endl;
 	out << " Min keys per node: " << s.minKeys() << endl;
@@ -109,6 +93,8 @@ int main (int argc, char *argv[])
 		     << " with " << N << " members..." << endl;
 		err += TestTree (tree, N);
 	}
+	if (err) cout << "***** ";
+	cout << err << " errors." << endl;
 	exit (err);
 	}
 
@@ -124,172 +110,12 @@ int main (int argc, char *argv[])
 		err += TestTree (tree, N);
 	}
 	
-#if notdef
-	BigTest (N, order);
-#endif
+	if (err) cout << "***** ";
+	cout << err << " errors." << endl;
 	exit (err);
 }
 
 
-
-#ifdef notdef
-int 
-BigTest (int N = 10, int order = 3) 
-{
-	// Create an empty btree of longs keyed by zebra times
-	ZTime when;
-	long v;
-
-	TimeTree tree(order);
-	// when = time(0);
-	// when += -3600;
-	when = -2;
-	ZTime start = when;
-	for (int i = 0; i < N; ++i)
-	{
-		when += 2;
-		long value = 2*i;
-		cout << "Inserting " << when << ", value: " << value << endl;
-		tree.Insert (when, value);
-		tree.Print (cout);
-	}
-
-
-	cout << endl;
-	when = start;
-	for (int i = 0; i < 2*N; ++i)
-	{
-		when += 1;
-		long value;
-		cout << "Looking for " << when << ", ";
-		if (tree.Find (when, &value))
-			cout << "value: " << value << endl;
-		else
-			cout << "Not Found" << endl;
-	}
-
-	if (tree.First (&when, &v))
-		cout << "First: " << when << ", " << v << endl;
-	else
-		cout << "First: None." << endl;
-
-	if (tree.Last (&when, &v))
-		cout << "Last: " << when << ", " << v << endl;
-	else
-		cout << "Last: None." << endl;
-
-	cout << "Traversing the tree from first to last." << endl;
-	tree.First ();
-	while (tree.Current (&when, &v))
-	{
-		cout << when << ", " << v << endl;
-		tree.Next ();
-	}
-
-	cout << "Traversing the tree from last to first." << endl;
-	tree.Last ();
-	while (tree.Current (&when, &v))
-	{
-		cout << when << ", " << v << endl;
-		tree.Prev ();
-	}
-
-	// Remove from the beginning and in the middle
-	cout << endl;
-	when = start;
-	for (int i = 0; i < N/4; ++i)
-	{
-		when += 2;
-		cout << "Removing for " << when << ", ";
-		if (tree.Remove (when))
-			cout << "Done." << endl;
-		else
-			cout << "Not Found." << endl;
-		tree.Print (cout);
-		cout << "Removing for " << (when+N) << ", ";
-		if (tree.Remove (when + N))
-			cout << "Done." << endl;
-		else
-			cout << "Not Found." << endl;
-		tree.Print (cout);
-	}
-
-	cout << endl;
-	when = start;
-	for (int i = 0; i < 2*N; ++i)
-	{
-		when += 1;
-		long value;
-		cout << "Looking for " << when << ", ";
-		if (tree.Find (when, &value))
-			cout << "value: " << value << endl;
-		else
-			cout << "Not Found" << endl;
-	}
-
-	if (tree.First (&when, &v))
-		cout << "First: " << when << ", " << v << endl;
-	else
-		cout << "First: None." << endl;
-
-	if (tree.Last (&when, &v))
-		cout << "Last: " << when << ", " << v << endl;
-	else
-		cout << "Last: None." << endl;
-
-	tree.Print (cout);
-
-	cout << endl;
-	when = start;
-	for (int i = 0; i < N/2; ++i)
-	{
-		when += 2;
-		cout << "Removing for " << when << ", ";
-		if (tree.Remove (when))
-			cout << "Done." << endl;
-		else
-			cout << "Not Found." << endl;
-		cout << "Removing for " << (when+N) << ", ";
-		if (tree.Remove (when + N))
-			cout << "Done." << endl;
-		else
-			cout << "Not Found." << endl;
-	}
-
-	cout << endl;
-	when = start;
-	for (int i = 0; i < 2*N; ++i)
-	{
-		when += 1;
-		long value;
-		cout << "Looking for " << when << ", ";
-		if (tree.Find (when, &value))
-			cout << "value: " << value << endl;
-		else
-			cout << "Not Found" << endl;
-	}
-
-	if (tree.First (&when, &v))
-		cout << "First: " << when << ", " << v << endl;
-	else
-		cout << "First: None." << endl;
-
-	if (tree.Last (&when, &v))
-		cout << "Last: " << when << ", " << v << endl;
-	else
-		cout << "Last: None." << endl;
-
-	cout << "Traversing the tree from first to last." << endl;
-	tree.First ();
-	while (tree.Current (&when, &v))
-	{
-		cout << when << ", " << v << endl;
-		tree.Next ();
-	}
-	assert (tree.Empty());
-	return 0;
-}
-#endif
 
 
 // To test a tree, use sequential and random generators of integers.  Try
@@ -353,7 +179,8 @@ T_Members (test_tree &tree, vector<test_key> &keys)
 
 
 int
-T_Compare (test_tree &tree, vector<test_key> &keys, vector<test_key> &values)
+T_Compare (test_tree &tree, vector<test_key> &keys, 
+	   vector<test_tree::value_type> &values)
 {
 	// Given a tree, keys, and values, verify the tree contains all
 	// the keys and has the correct values
@@ -401,6 +228,7 @@ T_Insert (test_tree &tree, vector<test_key> &keys, vector<test_key> &values)
 			cout << "***** Insert: internal check failure, "
 			     << "key " << *k << ", value " << *v << endl;
 		}
+		if (Debug) tree.Print (cout);
 	}
 	//cout << endl;
 
@@ -421,19 +249,20 @@ T_Insert (test_tree &tree, vector<test_key> &keys, vector<test_key> &values)
 
 
 int
-T_Removal (test_tree &tree, vector<test_tree::key_type> &keys)
+T_Removal (test_tree &tree, 
+	   vector<test_key>::iterator k, 
+	   vector<test_key>::iterator last, int check_empty = 1)
 {
 	// As removing, make sure the removed key cannot be found
 	//cout << " ...removing key: ";
 	int err = 0;
-	vector<test_key>::iterator k;
-	for (k = keys.begin(); k != keys.end(); ++k)
+	for ( ; k != last; ++k )
 	{
 		//cout << *k << " ";
 		if (! tree.Remove (*k))
 		{
 			cout << "***** Removal: key missing: " << *k << endl;
-			tree.Print (cout);
+			if (Debug) tree.Print (cout);
 			++err;
 		}
 		if (tree.Error())
@@ -448,12 +277,13 @@ T_Removal (test_tree &tree, vector<test_tree::key_type> &keys)
 			     << *k << endl;
 			++err;
 		}
+		if (Debug) tree.Print (cout);
 	}
 	//cout << endl;
-	if (! tree.Empty ())
+	if (check_empty && ! tree.Empty ())
 	{
 		cout << "***** Removal: tree not empty. " << endl;
-		tree.Print (cout);
+		if (Debug) tree.Print (cout);
 		++err;
 	}
 	return (err);
@@ -485,7 +315,53 @@ T_RandomRemoval (test_tree &tree)
 	random_shuffle (keys.begin(), keys.end(), rnd);
 #endif
 	random_shuffle (keys.begin(), keys.end());
-	return (T_Removal (tree, keys));
+	return (T_Removal (tree, keys.begin(), keys.end()));
+}
+
+
+
+
+int
+T_PartialRemoval (test_tree &tree, int n)
+{
+	int err = 0;
+	// Build a vector of keys by traversing the tree, then shuffle
+	// and remove n keys.  Report statistics, then re-insert those
+	// n keys.
+	//typedef pair<test_tree::key_type,test_tree::value_type> Pair; 
+	//vector<Pair> entries;
+	vector<test_tree::key_type> keys;
+	vector<test_tree::value_type> values;
+	test_tree::key_type key;
+	test_tree::value_type val;
+	vector<test_key>::iterator k;
+
+	tree.First ();
+	//cout << " ...removal finding keys: ";
+	while (tree.Current (&key))
+	{
+		keys.push_back (key);
+		//cout << key << " ";
+		tree.Next ();
+	}
+	//cout << endl;
+
+	random_shuffle (keys.begin(), keys.end());
+	random_shuffle (keys.begin(), keys.end());
+	for (k = keys.begin(); k != keys.end(); ++k)
+	{
+		err += (! tree.Find (*k, &val));
+		values.push_back (val);
+	}
+
+	err += T_Removal (tree, keys.begin(), keys.begin()+n, 0);
+	Summarize(cout, tree);
+
+	// Now re-insert everything; some will be overwrites
+	err += T_Insert (tree, keys, values);
+	Summarize(cout, tree);
+
+	return (err);
 }
 
 
@@ -507,7 +383,7 @@ T_ReverseRemoval (test_tree &tree)
 		tree.Prev ();
 	}
 	//cout << endl;
-	return (T_Removal (tree, keys));
+	return (T_Removal (tree, keys.begin(), keys.end()));
 }
 
 
@@ -619,7 +495,7 @@ TestTree (test_tree &tree, int N)
 
 	// Ordered removal
 	cout << "Forward removal... " << endl;
-	err += T_Removal (tree, keys);
+	err += T_Removal (tree, keys.begin(), keys.end());
 	err += tree.Check ();
 
 	// Insert the sequential keys and values and test.
@@ -653,6 +529,18 @@ TestTree (test_tree &tree, int N)
 	err += (tree.Value (&value));
 	err += (tree.Last ());
 	err += (tree.Prev ());
+
+	// Sequential insert and partial removal and re-insert
+	cout << "Sequential insert and partial removal... " 
+	     << *keys.begin() << " to " << keys.back() << endl;
+	err += T_Insert (tree, keys, keys);
+	err += tree.Check ();
+	Summarize(cout, tree);
+	cout << "Removal of half of keys..." << endl;
+	err += T_PartialRemoval (tree, N/2);
+	cout << "Random removal..." << endl;
+	err += T_RandomRemoval (tree);
+	err += tree.Check ();
 
 	// Do the reverse test
 	reverse (keys.begin(), keys.end());

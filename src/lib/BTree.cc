@@ -11,7 +11,7 @@ extern "C" {
 #include <message.h>
 }
 
-RCSID ("$Id: BTree.cc,v 1.8 1997-12-29 07:15:26 granger Exp $")
+RCSID ("$Id: BTree.cc,v 1.9 1997-12-30 07:10:25 granger Exp $")
 
 #include "Logger.hh"
 #include "BTreeP.hh"
@@ -448,7 +448,7 @@ BTreeNode<K,T>::destroy ()
 		return;
 	}
 
-	for (int i = 0; i <= nkeys; ++i)
+	for (int i = 0; i < nkeys; ++i)
 	{
 		down(children[i])->destroy ();
 	}
