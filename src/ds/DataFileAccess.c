@@ -35,7 +35,7 @@
 # define NO_SHM
 # include "dslib.h"
 # include "dfa.h"
-MAKE_RCSID ("$Id: DataFileAccess.c,v 3.9 1993-05-04 21:42:11 granger Exp $")
+MAKE_RCSID ("$Id: DataFileAccess.c,v 3.10 1993-05-13 22:04:50 barrett Exp $")
 
 
 void	dfa_AddOpenFile FP ((int, DataFile *, int, void *));
@@ -1006,7 +1006,7 @@ DataFile *df;
  * static space and will get zapped with the next call.
  */
 {
-	static char fname[512];
+	static char fname[1024];
 
 	sprintf (fname, "%s/%s", (df->df_flags & DFF_Remote) ?
 		p->dp_rdir : p->dp_dir, df->df_name);
