@@ -1,14 +1,15 @@
 /*
  * Plot execution module
  */
-static char *rcsid = "$Id: PlotExec.c,v 1.19 1991-04-10 15:54:20 corbet Exp $";
+static char *rcsid = "$Id: PlotExec.c,v 1.20 1991-04-11 23:00:07 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include <ui.h>
 # include <defs.h>
-# include <pd.h>
-# include <ui_date.h>
 # include <message.h>
+# include <pd.h>
+# include <DataStore.h>
+# include <ui_date.h>
 # include "GC.h"
 # include "GraphProc.h"
 # include "DrawText.h"
@@ -101,9 +102,9 @@ static void	(*EOPHandler) () = 0;
 	void	CAP_LineContour (char *, int);
 	void	CAP_Init (time *);
 	void	px_AdjustCoords (float *, float *, float *, float *);
-	void	px_FixPlotTime ();
+	void	px_FixPlotTime (time *);
 	static bool px_GetCoords (void);
-	void px_GlobalPlot (void);
+	void px_GlobalPlot (time *);
 # else
 	int	px_NameToNumber ();
 	void	px_Init (), px_AddComponent (), CAP_FContour ();
@@ -158,6 +159,7 @@ char	*component;
 	char	plt[30];
 	int	i;
 	Boolean	global;
+	time 	cachetime;
 /*
  * Check now for an abort condition
  */
@@ -200,13 +202,13 @@ char	*component;
 	/*
 	 * Semi-kludge: roll back the plot time to the last trigger incr.
 	 */
-		px_FixPlotTime ();
+		px_FixPlotTime (&cachetime);
 /*
  * Three possibilities:
  *
  * (1) Global plot but already in the cache.
  */
-	if (global && (DisplayFrame = fc_LookupFrame (&PlotTime)) >= 0)
+	if (global && (DisplayFrame = fc_LookupFrame (&cachetime)) >= 0)
 	{
 	/*
 	 * Set up to draw in this frame -- we may be returning to RT mode
@@ -219,7 +221,7 @@ char	*component;
  * (2) Global plot not cached.
  */
 	else if (global)
-		px_GlobalPlot ();
+		px_GlobalPlot (&cachetime);
 /*
  * (3) Update plot.
  */
@@ -248,7 +250,8 @@ char	*component;
 
 
 void
-px_GlobalPlot ()
+px_GlobalPlot (cachetime)
+time *cachetime;
 /*
  * Perform a global update.
  */
@@ -332,7 +335,7 @@ px_GlobalPlot ()
 /*
  * Add this one to the cache.
  */
-	fc_AddFrame (&PlotTime, DisplayFrame);
+	fc_AddFrame (cachetime, DisplayFrame);
 	lw_LoadStatus ();
 }
 
@@ -343,7 +346,7 @@ static bool
 px_GetCoords ()
 {
 	bool ok, cvt_Origin ();
-	int expand;
+	int expand, rs = 0;
 	float lat, lon;
 /*
  * Get the origin and plot limits
@@ -365,10 +368,17 @@ px_GetCoords ()
 /*
  * Get the altitude too.  Default it to ground level if all else fails.
  */
+	if (! pd_Retrieve (Pd, "global", "radar-space", CPTR (rs), SYMT_BOOL))
+		rs = FALSE;
 	if (! pda_Search (Pd, "global", "altitude", NULL, CPTR (Alt),
 				SYMT_FLOAT))
 		Alt = 0;
-	if (Alt > 10)	/* Assume no space stations -- must be in meters */
+/*
+ * Assume that we are not yet dealing with space-based platforms.  If we're
+ * not in radar-space kludge mode, and the altitude is stratospheric, assume
+ * that they give it in meters.
+ */
+	if (Alt > 10 && ! rs)
 		Alt /= 1000.0;
 /*
  * Unless told otherwise, readjust the coordinates so that x == y.
@@ -388,29 +398,62 @@ px_GetCoords ()
 
 
 void
-px_FixPlotTime ()
+px_FixPlotTime (t)
+time *t;
 /*
  * Roll back the plot time to the nearest multiple of the trigger time.
  */
 {
-	char trigger[40];
-	int itrigger, seconds;
+	char trigger[40], **comps;
+	int itrigger, seconds, i;
+	time latest, avail;
+	PlatformId pid;
 /*
- * Find our trigger time.
+ * If the global trigger is time based, we just roll back to that time.
  */
 	if (! pda_Search (Pd, "global", "trigger", 0, trigger, SYMT_STRING))
 		return;
-	if (! (itrigger = pc_TimeTrigger (trigger)))
-		return;	/* Will complain elsewhere */
+	if (itrigger = pc_TimeTrigger (trigger))
+	{
+		seconds = (PlotTime.ds_hhmmss/10000)*60*60 +
+			  ((PlotTime.ds_hhmmss/100) % 100)*60 +
+			  (PlotTime.ds_hhmmss % 100);
+		seconds -= seconds % itrigger;
+		t->ds_hhmmss = (seconds/3600)*10000 + ((seconds/60) % 60)*100 +
+					seconds % 60;
+		return;
+	}
 /*
- * Now fix up the plot time.
+ * Otherwise we need to look at platform triggers.
  */
-	seconds = (PlotTime.ds_hhmmss/10000)*60*60 +
-		  ((PlotTime.ds_hhmmss/100) % 100)*60 +
-		  (PlotTime.ds_hhmmss % 100);
-	seconds -= seconds % itrigger;
-	PlotTime.ds_hhmmss = (seconds/3600)*10000 + ((seconds/60) % 60)*100 +
-				seconds % 60;
+	comps = pd_CompList (Pd);
+	latest.ds_yymmdd = 800101;	/* pretty early */
+	for (i = 0; comps[i]; i++)
+	{
+	/*
+	 * Get the trigger platform.
+	 */
+	 	if (! pd_Retrieve (Pd, comps[i], "trigger", trigger,
+				SYMT_STRING))
+			continue;
+		if ((pid = ds_LookupPlatform (trigger)) == BadPlatform)
+			continue;
+	/*
+	 * Find the most recent time.
+	 */
+	 	if (! ds_DataTimes (pid, &PlotTime, 1, DsBefore, &avail))
+			continue;
+		if (DLE (latest, avail))
+			latest = avail;
+	}
+/*
+ * If we found something, we go with it; otherwise keep the plot time
+ * as it was.
+ */
+	if (latest.ds_yymmdd > 800101)	/* still pretty early */
+		*t = latest;
+	else
+		*t = PlotTime;
 }
 
 
