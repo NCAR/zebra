@@ -29,7 +29,7 @@
 #include "dslib.h"
 #include "Appl.h"
 
-RCSID ("$Id: Appl.c,v 3.42 1996-08-13 21:20:31 granger Exp $")
+RCSID ("$Id: Appl.c,v 3.43 1996-08-21 22:44:24 granger Exp $")
 
 /*
  * Platform search lists
@@ -59,7 +59,7 @@ static int	ds_AwaitPID FP ((Message *, PlatformId *));
 static void	ds_SendSearch FP((char *regexp, int sort, int subs,
 				  int sendplats));
 static int	ds_AwaitDF FP ((Message *, int *));
-static void	ds_GreetDaemon FP ((void));
+static int	ds_GreetDaemon FP ((void));
 static int	ds_CheckProtocol FP ((Message *, int));
 
 /*
@@ -124,15 +124,14 @@ ds_Initialize()
 	F_Init ();
 	msg_AddProtoHandler(MT_DATASTORE, ds_DSMessage);
 /*
- * Say hi to the daemon.
- */
-	ds_GreetDaemon ();
-/*
  * Initialize the datafile cache.
  */
 	for (i = 0; i < N_DF_CACHE; i++)
 		DFCache[i].df_index = -1;
-	return (TRUE);
+/*
+ * Say hi to the daemon.
+ */
+	return (! ds_GreetDaemon ());
 }
 
 
@@ -1284,7 +1283,7 @@ int len;
 
 
 
-static void
+static int
 ds_GreetDaemon ()
 /*
  * Say hi to the daemon and check protocol versions.
@@ -1294,7 +1293,7 @@ ds_GreetDaemon ()
 
 	dt.dsp_type = dpt_Hello;
 	ds_SendToDaemon (&dt, sizeof (dt));
-	msg_Search (MT_DATASTORE, ds_CheckProtocol, 0);
+	return (msg_Search (MT_DATASTORE, ds_CheckProtocol, 0));
 }
 
 
