@@ -26,7 +26,7 @@
 # include <DataChunk.h>
 # include "GraphProc.h"
 # include "rg_status.h"
-MAKE_RCSID ("$Id: GridAccess.c,v 2.24 1995-04-13 16:06:45 corbet Exp $")
+MAKE_RCSID ("$Id: GridAccess.c,v 2.25 1995-04-17 21:56:09 granger Exp $")
 
 
 
@@ -120,8 +120,9 @@ float	*x0, *y0, *x1, *y1, *alt;
 	Location	loc;
 	int 		len;
 	char		datestring[32];
+	char		dimn_parms[512];
 	FieldId		fid;
-	dsDetail	details[5];
+	dsDetail	details[10];
 	int		ndet = 0;
 /*
  * Initialize 'shift' to false, in case we return early
@@ -142,9 +143,11 @@ float	*x0, *y0, *x1, *y1, *alt;
 	switch (platorg)
 	{
 		case Org3dGrid:
+#ifdef notdef
 			details[ndet].dd_Name = "altitude";
 			details[ndet].dd_V.us_v_float = *alt;
 			ndet++;
+#endif
 			/* Fall into */
 		case Org2dGrid:
 			platclass = DCC_RGrid;
@@ -157,15 +160,28 @@ float	*x0, *y0, *x1, *y1, *alt;
 			break;
 		case OrgScalar:	/* <-- historical, should change someday */
 		case OrgNSpace:
+			platclass = DCC_NSpace;
+#ifdef notdef
+			if (pda_Search (Pd, comp, "dimensions", NULL, 
+					dimn_parms, SYMT_STRING))
+				dc_NSFixedDetails(dimn_parms, details, &ndet);
 			details[ndet].dd_Name = "altitude";
 			details[ndet].dd_V.us_v_float = *alt;
 			ndet++;
-			platclass = DCC_NSpace;
+#endif
 			break;
 		default:
 			msg_ELog (EF_PROBLEM, "ga_GetGrid on bad org");
 			return (0);
 	}
+/*
+ * Pass along some slicing parameters.  Not all orgs make use of them yet
+ */
+	if (pda_Search (Pd, comp, "dimensions", NULL, dimn_parms, SYMT_STRING))
+		dc_NSFixedDetails (dimn_parms, details, &ndet);
+	details[ndet].dd_Name = "altitude";
+	details[ndet].dd_V.us_v_float = *alt;
+	ndet++;
 /*
  * If it's a model platform and validation mode is desired (i.e., we want
  * model data valid at the plot time rather than issued then), back off
@@ -469,6 +485,8 @@ int dobarnes;
  */
 	xpos = (float *) malloc (nsta * sizeof (float));
 	ypos = (float *) malloc (nsta * sizeof (float));
+	if (nsta)
+		location.l_alt = locs[0].l_alt;
 	for (i = 0; i < nsta; i++)
 	{
 	/*
@@ -619,6 +637,8 @@ char *field;
  */
 	xpos = (float *) malloc (npoint * sizeof (float));
 	ypos = (float *) malloc (npoint * sizeof (float));
+	if (npoint)
+		location.l_alt = locs[0].l_alt;
 	for (i = 0; i < npoint; i++)
 	{
 	/*
@@ -806,14 +826,35 @@ FieldId	fid;
 	FieldId		lat_id, lon_id, alt_id, dims[DC_MaxDimension];
 	char 		*dimns[ DC_MaxDimension ];
 	unsigned long	sizes[ DC_MaxDimension ];
-	AltUnitType	altunits;
-	unsigned long	dimsize, nlats, nlons;
+	unsigned long	nlats, nlons;
 	Location	location;
 /*
- * Start by checking the dimensions of our field
+ * Start by checking the dimensions of our field.  Compare dimension
+ * names as id's rather then strings to nullify differences in 
+ * capitalization and allow aliases.  This means we first need to make
+ * sure lat and lon have been declared.
  */
 	dc_NSGetField (*dc, fid, &ndims, dimns, sizes, &is_static);
 	/* dc_NSGetVariable (*dc, fid, &ndims, dims, &is_static); */
+
+#ifdef notdef
+	if ((lat_id = F_Declared ("latitude")) == BadField)
+		lat_id = F_DeclareField ("latitude", "latitude",
+					 "degrees north");
+	if ((lon_id = F_Declared ("longitude")) == BadField)
+		lon_id = F_DeclareField ("longitude", "longitude",
+					 "degrees east");
+	F_Alias ("latitude", "lat");
+	F_Alias ("longitude", "lon");
+#endif
+	lat_id = F_Declared ("latitude");
+	lon_id = F_Declared ("longitude");
+	if (lat_id == BadField || lon_id == BadField)
+	{
+		msg_ELog (EF_DEBUG, "%s: %s in FieldDefs as expected",
+			  "nspace simple grid", 
+			  "latitude and longitude not defined");
+	}
 
 	lat_idx = lon_idx = -1;
 	lat_first = FALSE;
@@ -823,13 +864,16 @@ FieldId	fid;
 	/*
 	 * lat or lon
 	 */
-		if (!strcmp(dimns[i], "lat") ||
+		if ((lat_id != BadField && (F_Declared(dimns[i]) == lat_id))
+		    || !strcmp(dimns[i], "lat") ||
 		    !strcmp(dimns[i], "latitude"))
 		{
 			lat_idx = i;
 			lat_first = (lon_idx < 0);
 		}
-		else if (!strcmp(dimns[i], "lon") || 
+		else if ((lon_id != BadField && 
+			  (F_Declared(dimns[i]) == lon_id)) ||
+			 !strcmp(dimns[i], "lon") || 
 			 !strcmp(dimns[i], "longitude"))
 			lon_idx = i;
 	/*
@@ -1108,11 +1152,12 @@ FieldId *fid;		/* Returned FieldId of coordinate variable 	*/
 		return (FALSE);
 	}
 /*
- * Then make sure we have a single dimension and that the dimension matches
- * the expected name
+ * Then make sure we have a single dimension and that the dimension 
+ * and field resolve to the same field id
  */
 	if (! dc_NSGetField (dc, field, &ndims, dimns, NULL, NULL) ||
-	    (ndims != 1) || strcmp(dimns[0], name))
+	    (ndims != 1) || /* strcmp(dimns[0], name) */
+	    (F_Declared (dimns[0]) != field))
 	{
 		msg_ELog (EF_DEBUG, "%s: '%s' not a coordinate variable",
 			  "ga_NSCoordVariable", name);
