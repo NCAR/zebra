@@ -10,7 +10,7 @@
 # include "device.h"
 # include <stdio.h>
 
-static char *rcsid = "$Id: dev_psc.c,v 1.5 1994-01-19 18:51:23 burghart Exp $";
+static char *rcsid = "$Id: dev_psc.c,v 1.6 1994-01-25 16:10:59 burghart Exp $";
 /*
  * The tag structure
  */
@@ -30,13 +30,15 @@ struct psc_tag
 # endif
 	char	pt_buf[DBUFLEN];/* Device output buffer		*/
 	char	*pt_bufp;	/* Current position in ps_buf	*/
-	int	pt_winset;	/* Are we set in a window?	*/
+	int	pt_winset;	/* Window info written yet?	*/
 	int	pt_mode;	/* Portrait or landscape?	*/
 	int	pt_nwin;	/* Number of windows per page	*/
 	int	pt_win;		/* Current window		*/
 	int	pt_winfilled;	/* Are any windows filled?	*/
-	int	pt_cx0, pt_cx1, /* User's clip window		*/
-		pt_cy0, pt_cy1;
+	int	pt_width;	/* x resolution of window	*/
+	int	pt_height;	/* y resolution of window	*/
+	int	pt_cx0, pt_cx1; /* User's clip window		*/
+	int	pt_cy0, pt_cy1;
 	int	pt_pixsize;	/* Current font pixel size	*/
 	int	base;		/* min color value 		*/
 	int	ncolor;		/* max color value 		*/
@@ -46,6 +48,8 @@ struct psc_tag
 	float	r[MAXCOLS];	/* red colortable array		*/
 	float	g[MAXCOLS];	/* green colortable array	*/
 	float	b[MAXCOLS];	/* blue colortable array	*/
+	int	pt_vpx0, pt_vpx1;/* user's viewport		*/
+	int	pt_vpy0, pt_vpy1;
 };
 
 /*
@@ -83,6 +87,15 @@ static char *Psc_ltype[] =
 	"[16 8 2 8]",	/* GPLT_DASH_DOT */
 };
 
+/*
+ * Page number
+ */
+int	PageNum = 1;
+
+/*
+ * Scratch string into which we can write commands
+ */
+char	Command[128];
 
 /*
  * Kludge aspect ratio for courier text.
@@ -98,7 +111,6 @@ char *device, *type, **tag;
 struct device *dev;
 {
 	struct psc_tag *ptp = (struct psc_tag *)malloc(sizeof(struct psc_tag));
-	char command[80];
 	char *getenv ();
 	double atof();
 
@@ -119,12 +131,12 @@ struct device *dev;
 	{
 		ptp->pt_pipe = TRUE;
 #ifdef SYSV
-                sprintf (command, "lp -d%s", device);
+                sprintf (Command, "lp -d%s", device);
 #else
-		sprintf (command, "lpr -P%s", device);
+		sprintf (Command, "lpr -P%s", device);
 #endif
-		if (!(ptp->pt_file = popen (command, "w")))
-			ui_error ("Unable to open pipe '%s'", command);
+		if (!(ptp->pt_file = popen (Command, "w")))
+			ui_error ("Unable to open pipe '%s'", Command);
 	}
 	/*
 	 * Save the device name
@@ -154,25 +166,40 @@ struct device *dev;
 /*
  * Set our device resolution
  */
-	dev->gd_xres = Res[ptp->pt_mode][ptp->pt_nwin-1][0];
-	dev->gd_yres = Res[ptp->pt_mode][ptp->pt_nwin-1][1];
+	dev->gd_xres = ptp->pt_width = Res[ptp->pt_mode][ptp->pt_nwin-1][0];
+	dev->gd_yres = ptp->pt_height = Res[ptp->pt_mode][ptp->pt_nwin-1][1];
+/*
+ * User clip coordinates (start with the whole window)
+ */
+	ptp->pt_cx0 = 0;
+	ptp->pt_cx1 = ptp->pt_width;
+
+	ptp->pt_cy0 = 0;
+	ptp->pt_cy1 = ptp->pt_height;
+/*
+ * Initial viewport (whole window)
+ */
+	ptp->pt_vpx0 = 0;
+	ptp->pt_vpx1 = ptp->pt_width;
+
+	ptp->pt_vpy0 = 0;
+	ptp->pt_vpy1 = ptp->pt_height;
 /*
  * Reset the buffer to the beginning
  */
 	ptp->pt_bufp = ptp->pt_buf;
 /*
- * Initialize the printer
+ * Header
  */
 	if (ptp->pslevel == 1) 
 		psc_out_s (ptp, "%!PS-Adobe\n");
 	else 
 		psc_out_s (ptp, "%!PS-Adobe-2.0\n");
-
-	psc_init (ptp);
 /*
- * PostScript defines
+ * PostScript defines and page initialization
  */
 	psc_def_out (ptp);
+	psc_init (ptp);
 /*
  * Return the info
  */
@@ -202,6 +229,7 @@ char *ctag;
 		psc_out_s (ptp, "showpage\n");
 
 	psc_out_s (ptp, "grestoreall\n");
+
 	psc_buf_out (ptp);
 
 	if (ptp->pt_pipe)
@@ -229,12 +257,15 @@ char *ctag;
 /*
  * Make sure we've done something
  */
-	if (!ptp->pt_winset)
-		return;
+        if (!ptp->pt_winset)
+                return;
 /*
  * Restore the graphics state
  */
-	psc_out_s (ptp, "grestore\n");
+	sprintf (Command, "grestore  %% Finish window %d of %d window page\n",
+		 ptp->pt_win, ptp->pt_nwin);
+	psc_out_s (ptp, Command);
+
 	ptp->pt_winset = FALSE;
 	ptp->pt_pixsize = -1;
 /*
@@ -246,6 +277,7 @@ char *ctag;
 	{
 		ptp->pt_winfilled = TRUE;
 		ptp->pt_win++;
+		psc_set_win (ptp);
 	}
 /*
  * Write out the buffer
@@ -266,15 +298,12 @@ float *r, *g, *b;
  */
 {
 	struct psc_tag *ptp = (struct psc_tag *) ctag;
-	char	command[80];
 	int i, gr;
-
 /*
  * copy base and n color for checking
  */
 	ptp->base = base;
 	ptp->ncolor = ncolor;
-
 /*
  * make a local copy of the colors so the table can be output
  * at the beginning of every page.
@@ -292,10 +321,10 @@ float *r, *g, *b;
 		return (GE_OK);
 
 /*
- * Output the color table in PostScript.
+ * Put out the color table
  */
-	psc_ctable_out (ptp);
-
+	if (ptp->pt_winset)
+		psc_ctable_out (ptp);
 /*
  * Locate the color positions the first ocurrences of black.
  * Save e black index for dealing with out of bound colors.
@@ -325,18 +354,17 @@ struct psc_tag *ptp;
  * crusty old PostScript Level 1 color table here.
  */
 {
-	char command[80];
 	int i, gr;
 
 /*
  * Output the start of the PostScript color table command.
  */
 	if (ptp->pslevel == 1)
-		sprintf (command, "/TABLE %d array def\n", ptp->ncolor);
+		sprintf (Command, "/TABLE %d array def\n", ptp->ncolor);
 	else
-		sprintf (command, "[/Indexed /DeviceRGB %d\n<\n", ptp->ncolor);
+		sprintf (Command, "[/Indexed /DeviceRGB %d\n<\n", ptp->ncolor);
 
-	psc_out_s (ptp, command);
+	psc_out_s (ptp, Command);
 
 /*
  * Build the PostScript color or gray table
@@ -349,25 +377,25 @@ struct psc_tag *ptp;
 		{
 		    /* Turn invisible white to black */
 		    if ((ptp->r[i]+ptp->g[i]+ptp->b[i]) <= 2.99)
-			sprintf (command, "16#%02x%02x%02x\n",
+			sprintf (Command, "16#%02x%02x%02x\n",
 				(unsigned char) (ptp->r[i] * 255.0),
 				(unsigned char) (ptp->g[i] * 255.0),
 				(unsigned char) (ptp->b[i] * 255.0));
 		    else
-			sprintf (command, "16#000000\n");
+			sprintf (Command, "16#000000\n");
 		}
 		else	/* level 2 PS */
 		{
 		    /* Turn invisible white to black */
 		    if ((ptp->r[i]+ptp->g[i]+ptp->b[i]) <= 2.99)
-			sprintf (command, "%02x%02x%02x\n",
+			sprintf (Command, "%02x%02x%02x\n",
 				(unsigned char) (ptp->r[i] * 255.0),
 				(unsigned char) (ptp->g[i] * 255.0),
 				(unsigned char) (ptp->b[i] * 255.0));
 		    else
-			sprintf (command, "000000\n");
+			sprintf (Command, "000000\n");
 		}
-		psc_out_s (ptp, command);
+		psc_out_s (ptp, Command);
 	    }
 	}
 	else if (ptp->cmode == 1) /* fixed linear grayscale mode, Lvl 2 only */
@@ -376,9 +404,9 @@ struct psc_tag *ptp;
 	    {
 		gr = i * (int)((255.0 / (float)ptp->ncolor));
 
-		sprintf (command, "%02x%02x%02x\n", gr, gr, gr);
+		sprintf (Command, "%02x%02x%02x\n", gr, gr, gr);
 
-		psc_out_s (ptp, command);
+		psc_out_s (ptp, Command);
 	    }
 	}
 
@@ -400,34 +428,35 @@ int x, y, xs, ys, size, org;
  * The pixel fill routine.
  */
 {
-	struct psc_tag *ptp = (struct psc_tag *) ctag;
-	char	command[80], *dp;
+	struct psc_tag	*ptp = (struct psc_tag *) ctag;
+	int	i;
+	unsigned char	*dp;
 /*
- * Start with scaling and translation
+ * Initialize if necessary
  */
-	psc_out_s (ptp, "gsave\n");
-
-	sprintf (command, "%d %d translate\n", x, y);
-	psc_out_s (ptp, command);
-
-	sprintf (command, "%d %d scale\n", xs, ys);
-	psc_out_s (ptp, command);
+	if (! ptp->pt_winset)
+		psc_set_win (ptp);
 /*
- * Create a small array to hold one line of pixel data
+ * Start with scaling and translation.
  */
-	sprintf (command, "/pixdata %d string def\n", xs);
-	psc_out_s (ptp, command);
-
+	sprintf (Command, "gsave %d %d t %d %d scale  %% begin pixel image\n", 
+		 x, y, xs, ys);
+	psc_out_s (ptp, Command);
+/*
+ * Different handling for level 1 and level 2 PostScript
+ */
 	if (ptp->pslevel == 1)
 	{
-		unsigned char	rgb[3], *dp;
+		unsigned char	rgb[3];
 	/*
 	 * Level 1: Use "colorimage" and RGB data.  This makes for a big 
 	 * file...
 	 */
-		sprintf (command, "%d %d 8 [%d 0 0 %d 0 %d] ", xs, ys, xs, -ys,
+		sprintf (Command, "/pixdata %d string def\n", xs);
+		psc_out_s (ptp, Command);
+		sprintf (Command, "%d %d 8 [%d 0 0 %d 0 %d] ", xs, ys, xs, -ys,
 			 ys); 
-		psc_out_s (ptp, command);
+		psc_out_s (ptp, Command);
 
 		psc_out_s (ptp, "{currentfile pixdata readstring pop}\n");
 		psc_out_s (ptp, "false 3 colorimage\n");
@@ -450,29 +479,30 @@ int x, y, xs, ys, size, org;
 	 */
 		psc_out_s (ptp, "<<\n");
 
-		sprintf (command, "/Width %d\n/Height %d\n", xs, ys);
-		psc_out_s (ptp, command);
+		sprintf (Command, "/Width %d\n/Height %d\n", xs, ys);
+		psc_out_s (ptp, Command);
 	
-		sprintf (command, "/ImageMatrix [%d 0 0 %d 0 %d]\n", xs, -ys,
+		sprintf (Command, "/ImageMatrix [%d 0 0 %d 0 %d]\n", xs, -ys,
 			 ys);
-		psc_out_s (ptp, command);
+		psc_out_s (ptp, Command);
 
 		psc_out_s (ptp, "/ImageType 1\n");
 		psc_out_s (ptp, "/BitsPerComponent 8\n");
 		psc_out_s (ptp, "/Decode [0 255]\n");
 		psc_out_s (ptp, 
-			"/DataSource {currentfile pixdata readstring pop}\n");
+			"/DataSource currentfile\n");
 		psc_out_s (ptp, ">> image\n");
 	/*
 	 * Data
 	 */
 		psc_out (ptp, data, xs * ys);
 	}
-/*
- * Restore graphics state
- */
+
 	psc_out_s (ptp, "\n");
-	psc_out_s (ptp, "grestore\n");
+/*
+ * Done with this scaling and translation
+ */
+	psc_out_s (ptp, "grestore  % end pixel image\n");
 }
 
 
@@ -489,10 +519,9 @@ int color, ltype, npt, *data;
 {
 	struct psc_tag *ptp = (struct psc_tag *) ctag;
 	int	point = 0;
-	char	command[80];
 
-	if (!ptp->pt_winset)
-		psc_set_win (ptp);
+        if (!ptp->pt_winset)
+                psc_set_win (ptp);
 /*
  * Check color value sanity and then set the color using # setcolor.
  * Default to black if it is out of bounds.
@@ -500,22 +529,22 @@ int color, ltype, npt, *data;
 	if (ptp->cmode)		/* only for color or gray */
 	{
 	    if ((color >= ptp->base) && (color <= ptp->ncolor))
-		sprintf (command, "%d sc\n", color);
+		sprintf (Command, "%d sc\n", color);
 	    else
-		sprintf (command, "%d sc\n", ptp->black);
+		sprintf (Command, "%d sc\n", ptp->black);
 
-	    psc_out_s (ptp, command);
+	    psc_out_s (ptp, Command);
 	}
 /*
  * Do a setdash ('sd') and newpath ('n')
  */
-	sprintf (command, "%s 0 sd n\n", Psc_ltype[ltype]);
-	psc_out_s (ptp, command);
+	sprintf (Command, "%s 0 sd n\n", Psc_ltype[ltype]);
+	psc_out_s (ptp, Command);
 /*
  * position to the first point ('m' = moveto)
  */
-	sprintf (command, "%d %d m\n", data[0], data[1]);
-	psc_out_s (ptp, command);
+	sprintf (Command, "%d %d m\n", data[0], data[1]);
+	psc_out_s (ptp, Command);
 	data += 2;
 /*
  * Draw the polyline (break it into chunks of 100 points
@@ -525,8 +554,8 @@ int color, ltype, npt, *data;
 	/*
 	 * Add a segment ('z' = lineto)
 	 */
-		sprintf (command, "%d %d z\n", data[0], data[1]);
-		psc_out_s (ptp, command);
+		sprintf (Command, "%d %d z\n", data[0], data[1]);
+		psc_out_s (ptp, Command);
 	/*
 	 * Draw the line every 100 points
 	 */
@@ -539,8 +568,8 @@ int color, ltype, npt, *data;
 		/*
 		 * Do a moveto ('m') to start off where we finished
 		 */
-			sprintf (command, "%d %d m\n", data[0], data[1]);
-			psc_out_s (ptp, command);
+			sprintf (Command, "%d %d m\n", data[0], data[1]);
+			psc_out_s (ptp, Command);
 		}
 	/*
 	 * Move through the data
@@ -557,27 +586,25 @@ int color, ltype, npt, *data;
 
 
 
-psc_hcw (ctag, x0, y0, x1, y1)
+psc_clip (ctag, x0, y0, x1, y1)
 char *ctag;
 int x0, y0, x1, y1;
 /*
- * Hardware clipping routine
+ * User requested clipping rectangle
  */
 {
-	char command[80];
+	struct psc_tag *ptp = (struct psc_tag *) ctag;
 /*
- * Make a path around the clipping rectangle, then send 'clip'
- *	'i' = initclip, 'n' = newpath, 'm' = moveto, 'z' = lineto
- *	'c' = closepath, 'cp' = clip
+ * Save the limits of the user's clip rectangle, then establish it.
  */
-	sprintf (command, "i n %d %d m %d %d z %d %d z %d %d z c cp\n", x0, y0,
-			x0, y1, x1, y1, x1, y0);
-	psc_out_s (ctag, command);
+	ptp->pt_cx0 = x0;
+	ptp->pt_cy0 = y0;
+	ptp->pt_cx1 = x1;
+	ptp->pt_cy1 = y1;
 
-	((struct psc_tag *)ctag)->pt_cx0 = x0;
-	((struct psc_tag *)ctag)->pt_cy0 = y0;
-	((struct psc_tag *)ctag)->pt_cx1 = x1;
-	((struct psc_tag *)ctag)->pt_cy1 = y1;
+
+	if (ptp->pt_winset)
+		psc_DoClip (ptp);
 }
 
 
@@ -596,10 +623,34 @@ char *ctag;
 
 
 
-psc_vp (ctag, x0, y0, x1, y1)
+psc_viewport (ctag, x0, y0, x1, y1)
 char *ctag;
 int x0, y0, x1, y1;
 {
+	struct psc_tag	*ptp = (struct psc_tag *) ctag;
+	int	old_x0, old_x1, old_y0, old_y1;
+
+	old_x0 = ptp->pt_vpx0;
+	old_x1 = ptp->pt_vpx1;
+	old_y0 = ptp->pt_vpy0;
+	old_y1 = ptp->pt_vpy1;
+/*
+ * Scale and translate to undo old viewport
+ */
+	sprintf (Command, "%.6f %.6f scale %d %d t  %% Undo old viewport\n", 
+		 (float)(old_x1 - old_x0) / ptp->pt_width, 
+		 (float)(old_y1 - old_y0) / ptp->pt_height, old_x0, old_y0);
+	psc_out_s (ptp, Command);
+/*
+ * Set limits for new viewport, and establish it
+ */
+	ptp->pt_vpx0 = x0;
+	ptp->pt_vpx1 = x1;
+	ptp->pt_vpy0 = y0;
+	ptp->pt_vpy1 = y1;
+
+	if (ptp->pt_winset)
+		psc_DoViewport (ptp);
 }
 
 
@@ -623,13 +674,12 @@ char *ctag;
 psc_finish_page (ptp)
 struct psc_tag	*ptp;
 {
-	char	command[80];
-	static int	pagecount = 0;
 /*
  * Finish this page
  */
 	psc_out_s (ptp, "showpage\n");
 	psc_buf_out (ptp);
+	PageNum++;
 /*
  * Close and reopen the pipe to eject a page.
  */
@@ -637,12 +687,12 @@ struct psc_tag	*ptp;
 	{
 		pclose (ptp->pt_file);
 #ifdef SYSV
-                sprintf (command, "lp -d%s", ptp->pt_devname);
+                sprintf (Command, "lp -d%s", ptp->pt_devname);
 #else
-		sprintf (command, "lpr -P%s", ptp->pt_devname);
+		sprintf (Command, "lpr -P%s", ptp->pt_devname);
 #endif
-		if (!(ptp->pt_file = popen (command, "w")))
-			ui_error ("Unable to open pipe '%s'", command);
+		if (!(ptp->pt_file = popen (Command, "w")))
+			ui_error ("Unable to open pipe '%s'", Command);
 	/*
 	 * Initialize and make appropriate definitions
 	 */
@@ -650,14 +700,12 @@ struct psc_tag	*ptp;
 		psc_def_out (ptp);
 	}
 /*
- * Initialize for the next page
+ * Set up for the first window of the page
  */
-	psc_init (ptp);
+	ptp->pt_winfilled = FALSE;
+	ptp->pt_win = 1;
 
-/*
- * Output a PS color table unless in monochrome mode.
- */
-	if (ptp->cmode) psc_ctable_out (ptp);
+	psc_init (ptp);
 }
 
 
@@ -670,6 +718,8 @@ struct psc_tag *ptp;
  * Initialize a page
  */
 {
+	sprintf (Command, "%%Page: %d\n", PageNum);
+	psc_out_s (ptp, Command);
 /*
  * Set scale for 100 pixels/inch and translate to center our 7.680" by
  * 10.240" graphics area.
@@ -684,7 +734,9 @@ struct psc_tag *ptp;
 		psc_out_s (ptp, "90 rotate\n");
 		psc_out_s (ptp, "0 -768 translate\n");
 	}
-	
+/*
+ * Set up for the first window of the page
+ */
 	ptp->pt_winset = FALSE;
 	ptp->pt_winfilled = FALSE;
 	ptp->pt_win = 1;
@@ -699,9 +751,6 @@ struct psc_tag *ptp;
  * Minimize output file size by redefining frequently used keywords.
  */
 {
-	psc_out_s (ptp, "/c {closepath} def\n");
-	psc_out_s (ptp, "/cp {clip} def\n");
-	psc_out_s (ptp, "/i {initclip} def\n");
 	psc_out_s (ptp, "/m {moveto} def\n");
 	psc_out_s (ptp, "/n {newpath} def\n");
 	psc_out_s (ptp, "/s {stroke} def\n");
@@ -743,20 +792,31 @@ struct psc_tag *ptp;
  * Set up to plot into a window
  */
 {
-	char	command[80];
+	int	width, height, x0, y0;
 /*
- * Save our current state (origin in lower left corner, 72 dpi)
+ * Save our current state
  */
-	psc_out_s (ptp, "gsave\n");
+	sprintf (Command, "gsave  %% Begin window %d of %d window page\n",
+		 ptp->pt_win, ptp->pt_nwin);
+	psc_out_s (ptp, Command);
+
 	ptp->pt_winset = TRUE;
+/*
+ * Color table
+ */
+	if (ptp->cmode)
+		psc_ctable_out (ptp);
 /*
  * Translate coordinate axis
  */
+	width = Res[ptp->pt_mode][ptp->pt_nwin - 1][0];
+	height = Res[ptp->pt_mode][ptp->pt_nwin - 1][1];
+	x0 = y0 = 0;
+
 	switch (ptp->pt_nwin)
 	{
 	/*
  	 * 1 window
-	 *	do nothing since we're already positioned
 	 */
 	    case 1:
 		break;
@@ -772,19 +832,13 @@ struct psc_tag *ptp;
 	 *	-----------
 	 */
 	    case 2:
-		if (ptp->pt_mode == PSC_PORTRAIT)
-			sprintf (command, "0 %d t\n",
-				 (ptp->pt_win == 1) ? 
-				 Res[PSC_PORTRAIT][1][1] : 0);
-		else
-			sprintf (command, "%d 0 t\n",
-				 (ptp->pt_win == 2) ? 
-				 Res[PSC_LANDSCAPE][1][0] :0);
-		psc_out_s (ptp, command);
+		if (ptp->pt_mode == PSC_PORTRAIT && ptp->pt_win == 1)
+			y0 = height;
+		else if (ptp->pt_mode == PSC_LANDSCAPE && ptp->pt_win == 2)
+			x0 = width;
 		break;
 	/*
 	 * 4 windows
-	 *	Use our resolutions to compute offsets
 	 *
 	 *	---------------
 	 *	|  1   |   2  |
@@ -793,19 +847,82 @@ struct psc_tag *ptp;
          *      ---------------
 	 */
 	    case 4:
-		sprintf (command, "%d %d t\n",
-			 ((ptp->pt_win == 2) || (ptp->pt_win == 4) ?
-			  Res[ptp->pt_mode][3][0] : 0),
-			 ((ptp->pt_win < 3) ? Res[ptp->pt_mode][3][1] : 0));
-		psc_out_s (ptp, command);
+		if (ptp->pt_win == 2 || ptp->pt_win == 4)
+			x0 = width;
+
+		if (ptp->pt_win == 1 || ptp->pt_win == 2)
+			y0 = height;
 		break;
 	}
+
+		
+	sprintf (Command, "%d %d t\n", x0, y0);
+	psc_out_s (ptp, Command);
 /*
- * Reset our clipping window
+ * Establish viewport (which also sets clipping)
  */
-	psc_hcw ((char *)ptp, ptp->pt_cx0, ptp->pt_cy0, ptp->pt_cx1,
-			ptp->pt_cy1);
+	psc_DoViewport (ptp);
 }	
+
+
+
+
+psc_DoViewport (ptp)
+struct psc_tag	*ptp;
+/*
+ * Add commands to establish viewport
+ */
+{
+	int	x0, x1, y0, y1;
+
+	x0 = ptp->pt_vpx0;
+	x1 = ptp->pt_vpx1;
+	y0 = ptp->pt_vpy0;
+	y1 = ptp->pt_vpy1;
+/*
+ * Scale and translate for viewport
+ */
+	sprintf (Command, "%.6f %.6f scale %d %d t %% Establish viewport\n", 
+		 (float)ptp->pt_width  / (x1 - x0), 
+		 (float)ptp->pt_height / (y1 - y0), -x0, -y0);
+	psc_out_s (ptp, Command);
+/*
+ * Redo clipping
+ */
+	psc_DoClip (ptp);
+}
+
+
+
+
+psc_DoClip (ptp)
+struct psc_tag	*ptp;
+/*
+ * Add commands to establish clipping
+ */
+{
+/*
+ * Start by clipping around edges of the viewport
+ *
+ * Make a path around the clipping rectangle, then 'clip'
+ *	'n' = newpath, 'm' = moveto, 'z' = lineto, 'c' = closepath, 'cp' = clip
+ */
+	psc_out_s (ptp, "initclip  % Clip for viewport, then user's clip\n");
+	sprintf (Command, 
+		 "n %d %d m %d %d z %d %d z %d %d z closepath clip n\n",
+		 ptp->pt_vpx0, ptp->pt_vpy0, ptp->pt_vpx0, ptp->pt_vpy1, 
+		 ptp->pt_vpx1, ptp->pt_vpy1, ptp->pt_vpx1, ptp->pt_vpy0);
+	psc_out_s (ptp, Command);
+/*
+ * Finally, user's clipping
+ */
+	sprintf (Command, 
+		 "n %d %d m %d %d z %d %d z %d %d z closepath clip n\n",
+		 ptp->pt_cx0, ptp->pt_cy0, ptp->pt_cx0, ptp->pt_cy1, 
+		 ptp->pt_cx1, ptp->pt_cy1, ptp->pt_cx1, ptp->pt_cy0);
+	psc_out_s (ptp, Command);
+}
+
 
 
 
@@ -931,8 +1048,8 @@ float rot;
 /*
  * Initialize if necessary.
  */
-	if (! tag->pt_winset)
-		psc_set_win (tag);
+        if (! tag->pt_winset)
+                psc_set_win (tag);
 /*
  * Check color value sanity and then set the color using # setcolor.
  * Default to color 0 (black) if it is out of bounds.
