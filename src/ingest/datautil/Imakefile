@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.8 1993-11-09 17:07:00 corbet Exp $"
+MFVERSION="$Id: Imakefile,v 1.9 1993-11-19 14:51:02 burghart Exp $"
 
 #define IHaveSubdirs
 #define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
@@ -25,15 +25,16 @@ SUBDIRS = profiler surface
 LIBS=$(LIBZEB) $(LIBNETCDF) $(LIBRDSS)
 
 SRCS  = convmud.c dscopy.c gprotocdf.c mudtocdf.c tao_conv.c \
-	mudutil.c cdf_interpolate.c dump-fgp.c fix-gp.c readgp.c fix_cdf.c
+	mudutil.c cdf_interpolate.c dump-fgp.c fix-gp.c readgp.c fix_cdf.c \
+	netcdf_fixlon.c
 
 FSRCS = mudras.F
 
 HEADERS = mudutil.h fixed-gp.h
 
-OTHERS = mud.id gp.hdr convmud.doc uwtocdf iss.problem
+OTHERS = mud.id gp.hdr convmud.doc uwtocdf iss.problem netcdf_fixlon
 
-DISTFILES = Imakefile $(SRCS) $(FSRCS) $(HEADERS) dscopy.state $(OTHERS)
+DISTFILES = Imakefile $(SRCS) $(FSRCS) $(HEADERS) dscopy.state
 
 #if BuildDataUtilities	/*-------------------- conditional -------------*/
 
@@ -62,6 +63,8 @@ NormalProgramTarget(fix-gp,fix-gp.o,$(DEPLIBS),$(LIBS) $(LIBRDSS),$(SYSLIBS))
 
 NormalProgramTarget(mudtocdf,mudtocdf.o mudras.o,$(DEPLIBS),
 		    $(LIBS) $(FLIBS), $(SYSLIBS))
+
+NormalProgramTarget(netcdf_fixlon,netcdf_fixlon.o,,$(LIBNETCDF),)
 
 UISimpleLoadFileTarget(dscopy.lf,dscopy.state)
 
