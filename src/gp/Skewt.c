@@ -40,7 +40,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: Skewt.c,v 2.19 1995-06-29 23:29:46 granger Exp $")
+RCSID ("$Id: Skewt.c,v 2.20 1995-09-14 00:17:13 granger Exp $")
 
 /*
  * General definitions
@@ -748,6 +748,8 @@ bool    update;
 	PlatformId	pid;
 	DataChunk	*dc;
 	Pixel tacolor = Tacmatch ? color.pixel : Tadefclr.pixel;
+	dsDetail details[5];
+	int ndetail = 0;
 /*
  * Get the platform id and obtain a good data time
  */
@@ -782,13 +784,25 @@ bool    update;
 	flist[1] = F_Lookup ("tdry");
 	flist[2] = F_Lookup ("dp");
 /*
+ * Check for a request for a particular bad value
+ */
+	if (pda_Search (Pd, c, "bad-value", pname, (char *)&badvalue,
+			SYMT_FLOAT))
+	{
+		details[ndetail].dd_V.us_v_float = badvalue;
+		details[ndetail++].dd_Name = DD_FETCH_BADVAL;
+	}
+/*
  * Get the data
  */
-	if (! (dc = ds_FetchObs (pid, DCC_Scalar, &ptime, flist, 3, NULL, 0)))
+	if (! (dc = ds_FetchObs (pid, DCC_Scalar, &ptime, flist, 3, 
+				 details, ndetail)))
 	{
 		msg_ELog (EF_PROBLEM, "Unable to get data for '%s'.", pname);
 		return;
 	}
+	if (ndetail)
+		dc_SetBadval (dc, badvalue);
 /*
  * Add this platform to the annotation
  */
@@ -943,6 +957,8 @@ int	skip;
 	FieldId	flist[3], favail[30];
 	DataChunk	*dc;
 	PlatformId	pid;
+	dsDetail details[5];
+	int ndetail = 0;
 /*
  * Add this platform to the annotation
  */
@@ -999,18 +1015,31 @@ int	skip;
 		pda_Search (Pd, c, "skPrivate-wind-npts", NULL, 
 			    (char *) &nprev, SYMT_INT);
 /*
+ * Check for a request for a particular bad value
+ */
+	if (pda_Search (Pd, c, "bad-value", pname, (char *)&badvalue,
+			SYMT_FLOAT))
+	{
+		details[ndetail].dd_V.us_v_float = badvalue;
+		details[ndetail++].dd_Name = DD_FETCH_BADVAL;
+	}
+/*
  * Get the data
  */
-	if (! (dc = ds_FetchObs (pid, DCC_Scalar, &ptime, flist, 3, NULL, 0)))
+	if (! (dc = ds_FetchObs (pid, DCC_Scalar, &ptime, flist, 3, 
+				 details, ndetail)))
 	{
 		msg_ELog (EF_PROBLEM, "Unable to get winds data for '%s'", 
 			  pname);
 		return;
 	}
+	if (ndetail)
+		dc_SetBadval (dc, badvalue);
+	else
+		badvalue = dc_GetBadval (dc);
 /*
  * Find the number of points in the observation and stash it in the pd
  */
-	badvalue = dc_GetBadval (dc);
 	npts = dc_GetNSample (dc);
 
 	if (nprev > npts)

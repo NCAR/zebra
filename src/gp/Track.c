@@ -44,7 +44,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: Track.c,v 2.36 1995-08-03 21:00:24 corbet Exp $")
+RCSID ("$Id: Track.c,v 2.37 1995-09-14 00:17:16 granger Exp $")
 
 # define ARROWANG .2618 /* PI/12 */
 # ifndef M_PI
@@ -123,6 +123,8 @@ bool update;
 	float badvalue;
 	WindInfo wi;
 	char ctime[64];
+	dsDetail details[5];
+	int ndetail = 0;
 /*
  * Pull in our parameters.
  */
@@ -163,6 +165,17 @@ bool update;
 		numfields += 2;
 	} 
 /*
+ * Check for a particular bad value to use for this platform.  Useful for
+ * platforms with bad locations since locations don't get processed by
+ * file access routines like regular fields.
+ */
+	if (pda_Search (Pd, comp, "bad-value", platform, (char *)&badvalue,
+			SYMT_FLOAT))
+	{
+		details[ndetail].dd_V.us_v_float = badvalue;
+		details[ndetail++].dd_Name = DD_FETCH_BADVAL;
+	}
+/*
  * Figure the begin time and fetch data.  If updating, only fetch and
  * plot data since the last plot of this track; otherwise, fetch the
  * period or the whole observation depending upon the mode.
@@ -180,7 +193,7 @@ bool update;
 			  (period) ? "period" : "obs",
 			  begin.zt_Sec, PlotTime.zt_Sec);
 		dc = ds_Fetch (pid, numfields ? DCC_Scalar : DCC_Location,
-			       &begin, &PlotTime, fields, numfields, 0, 0);
+		       &begin, &PlotTime, fields, numfields, details, ndetail);
 	}
 	/*
 	 * Barring updates we fetch data based on period or observation
@@ -190,7 +203,7 @@ bool update;
 		begin = PlotTime;
 		begin.zt_Sec -= period;
 		dc = ds_Fetch (pid, numfields ? DCC_Scalar : DCC_Location,
-			       &begin, &PlotTime, fields, numfields, 0, 0);
+		       &begin, &PlotTime, fields, numfields, details, ndetail);
 	}
 	else			/* observation type plot */
 	{
@@ -204,8 +217,8 @@ bool update;
 			msg_ELog (EF_DEBUG, "global, FetchObs for %d", 
 				  begin.zt_Sec);
 			dc = ds_FetchObs(pid,
-					 numfields ? DCC_Scalar : DCC_Location,
-					 &begin, fields, numfields, 0, 0);
+				 numfields ? DCC_Scalar : DCC_Location,
+				 &begin, fields, numfields, details, ndetail);
 		}
         }
 /*
@@ -217,6 +230,13 @@ bool update;
 		msg_ELog (EF_INFO, "No %s data available", platform);
 		return;
 	}
+/*
+ * Set the badval here anyway, in case bad values are not supported (ARM)
+ * but we still got a value to use from the pd.  If bad value fetching
+ * is supported, then this doesn't hurt anything.
+ */
+	if (ndetail)
+		dc_SetBadval (dc, badvalue);
 /*
  * Remember the begin time in case we don't plot any points here because
  * of data skips.
