@@ -1,5 +1,5 @@
 /*
- * $Id: areadump.c,v 1.4 1997-06-06 22:30:52 granger Exp $
+ * $Id: areadump.c,v 1.5 1997-06-17 09:36:29 granger Exp $
  */
 
 # include <stdio.h>
@@ -22,8 +22,6 @@ void DumpInfo();
 #define C_DEFAULT	(C_DATE | C_RESOLUTION)
 
 
-long	*uc = NULL, *neguc = NULL;
-
 
 void
 usage(argc, argv)
@@ -38,8 +36,9 @@ char *argv[];
 	printf (" -r  Resolution info\n");
 	printf (" -t  Image type and source\n");
 	printf (" -s  Image sizes: lines, elements, bytes\n");
-	printf (" -l  Estimate area limits (for GOES navigation only)\n");
+	printf (" -l  Estimate area limits\n");
 	printf (" -a  Display all\n");
+	printf (" -x  Include debug messages\n");
 }
 
 
@@ -60,7 +59,6 @@ char	**argv;
 	}
 
 	msg_connect (NULL, argv[0]);
-	msg_ELPrintMask (EF_ALL);
 	for (i = 1; i < argc; ++i)
 	{
 		if ((argv[i][0] == '-') && (strlen(argv[i]) == 2))
@@ -84,6 +82,9 @@ char	**argv;
 				break;
 			   case 'a':
 				code = C_ALL;
+				break;
+			   case 'x':
+				msg_ELPrintMask (EF_ALL);
 				break;
 			   default:
 				printf ("Invalid option %s\n",argv[i]);
@@ -153,13 +154,13 @@ int code;		/* Code detailing what to display */
 	}
 	if (code == C_ALL)
 	{
-		printf("\nSatellite sensor source: %d\n", area.sss);
+		printf("Satellite sensor source: %d\n", area.sss);
 		printf("Number of channels: %d\n", area.nchans);
 		printf("Byte offset to data block: %d\n", area.datablock);
 		printf("         navigation block: %d\n", area.navblock);
 		printf("        calibration block: %d\n", area.calblock);
 		printf("Calibration type: %s\n", area.caltype);
-		printf("Memo: %s\n", area.memo);
+		printf("Memo: %s\n\n", area.memo);
 	}
 }
 

@@ -16,27 +16,14 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.17 1997-06-11 16:20:08 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.18 1997-06-17 09:36:26 granger Exp $"
 
 LIBS = $(DFALIBS) $(ZLIBS) $(XLIBS) $(LIBMCIDAS) $(FLIBS)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
 DEPLIBS = $(LIBZEB) $(LIBZEBDS) $(LIBMCIDAS)
 
-#if defined(SunArchitecture) || defined(LinuxArchitecture)
-DEFINES = -DUNDERSCORE=1
-#endif
-
-SRCS = SatIngest.c GMSIngest.c gvarIngest.c areadump.c \
-	GriddedGOES.c SatUI.c Area.c AreaIngest.c
-
-GOES_OBJS = nvxgoes.o
-GVAR_OBJS = nvxgvar.o cfd.o cfg.o cfi.o cfr.o cfz.o ddest.o edest.o dpsino.o \
-	idmyyd.o iftok.o ih.o len_trim.o lwendw.o lwmop.o lwo.o nchars.o \
-	sdest.o spout.o squak.o volnam.o xonoff.o \
-	puc.o movbmem.o gettim.o ic.o getday.o dw.o sendtext.o laddr.o leof.o \
-	iopn.o luc.o filbuf.o scra.o stc.o dc.o delfil.o ffiletoc.o
-SATUI = SatUI.o Area.o AreaIngest.o
+SRCS = SatIngest.c GMS.c Area.c AreaIngest.c areadump.c GriddedGOES.c
 
 XCOMM nvxgoes.f/nvxgvar.f contain the definitions of the nvxeas, nvxini, 
 XCOMM nvxopt, and nvxsae routines required by the satellite ingestors.
@@ -45,27 +32,18 @@ XCOMM distributed outside of NCAR/UCAR.
 
 DISTFILES = Imakefile $(SRCS) SatIngest.state big.sat \
 	    cape_sat dir_ingest goes.ini gms.ini \
-	    keywords.h sat.init satheader SatUI.h Area.h \
+	    keywords.h sat.init satheader Area.h \
 	    hackgms.c harp.ini README mcidas_read.c satingest.doc
 
 SATDEPS = $(DEPLIBS) SatIngest.lf
 
-SIOBJS = SatIngest.o $(SATUI) $(GOES_OBJS)
+SIOBJS = SatIngest.o GMS.o Area.o AreaIngest.o
 CompleteProgramTarget(SatIngest,$(SIOBJS),$(SATDEPS),$(LIBS),$(SYSLIBS))
 
-GMSOBJS = GMSIngest.o $(SATUI) $(GOES_OBJS)
-CompleteProgramTarget(GMSIngest,$(GMSOBJS),$(SATDEPS),$(LIBS),$(SYSLIBS))
-
-GIOBJS = gvarIngest.o $(SATUI) $(GVAR_OBJS)
-CompleteProgramTarget(gvarIngest,$(GIOBJS),$(SATDEPS),$(LIBS),$(SYSLIBS))
-
-GRIDOBJS = GriddedGOES.o Area.o AreaIngest.o $(GOES_OBJS)
+GRIDOBJS = GriddedGOES.o Area.o AreaIngest.o
 CompleteProgramTarget(GriddedGOES,$(GRIDOBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
-TSO = testSatIngest.o $(GOES_OBJS)
-TestProgramTarget(testSatIngest,$(TSO),$(DEPLIBS),$(LIBS),$(SYSLIBS))
-
-ADOBJS = areadump.o Area.o AreaIngest.o $(GOES_OBJS)
+ADOBJS = areadump.o Area.o AreaIngest.o
 CompleteProgramTarget(areadump,$(ADOBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
 UICppLoadFileTarget(SatIngest.lf,SatIngest.state,keywords.h)

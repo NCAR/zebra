@@ -24,11 +24,9 @@
 # include <defs.h>
 # include <message.h>
 
-RCSID("$Id: GMSIngest.c,v 1.13 1997-03-11 19:39:05 granger Exp $")
+RCSID("$Id: GMS.c,v 1.1 1997-06-17 09:36:24 granger Exp $")
 
 # include "Area.h"	/* Need SetFieldMap() */
-# include "SatUI.h"
-
 
 /*
  * Lookup table for decoding GMS IR values.
@@ -74,11 +72,9 @@ static unsigned char IRLookupTable[256];
 
 
 int
-main (argc, argv)
-int argc;
-char **argv;
+GMS_MapIRField (const char *fname)
 /*
- * Ingest GMS area file(s)
+ * Add a field map for GMS IR fields
  */
 {
 	ScaleInfo scale;
@@ -103,9 +99,10 @@ char **argv;
 	/*
 	 * Set the field-specific scaling and mapping at the ingest layer.
 	 */
-	fid = F_DeclareField ("ir", "", "K");
+	fid = F_DeclareField ((char *)fname, "", "K");
 	SetFieldMap (fid, &scale, IRLookupTable);
-	EnterUI ("GMSIngest", "GOES", argc, argv);
-	exit (0);
+	msg_ELog (EF_INFO, "mapping GMS field '%s' to temperatures (K)", 
+		  fname);
+	return (0);
 }
 

@@ -19,7 +19,7 @@
 
 # include "Area.h"
 
-RCSID("$Id: Area.c,v 1.1 1997-03-11 19:39:02 granger Exp $")
+RCSID("$Id: Area.c,v 1.2 1997-06-17 09:36:21 granger Exp $")
 
 
 static int Mdays[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
@@ -27,6 +27,104 @@ static int Mdays[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 
 static void GetFileTime (AreaFile *f);
 static void swapfour (int *array, int count);
+
+
+
+static int
+SeekAreaDirectory (AreaFile *f)
+/*
+ * Seek to the beginning of the area directory.  If necessary, skip any
+ * lead-in junk and remember the lead-in for future seeks.
+ */
+{
+	char in[8];
+	int *zero = (int *)in;
+	int *head = (int *)(in+4);
+	int area = 0;
+/*
+ * If we've found it once before, go to it.
+ */
+	if (f->area >= 0)
+	{
+		fseek (f->stream, f->area, 0);
+		return (0);
+	}
+	fseek (f->stream, 0, 0);
+	if (fread (in, 1, 8, f->stream) < 8)
+	{
+		msg_ELog (EF_PROBLEM, "could not read beginning of file");
+		return (-1);
+	}
+	while ((*zero != 0) || (*head != 0x04000000 && *head != 0x4))
+	{
+		int i, c;
+		for (i = 0; i < 7; i++)
+			in[i] = in[i+1];
+		if ((c = fgetc (f->stream)) == EOF)
+		{
+			msg_ELog (EF_PROBLEM, "no area directory found");
+			return (-1);
+		}
+		in[7] = (char) c;
+		++area;
+	}
+	msg_ELog (EF_DEBUG, "area directory found at offset %d", area);
+/*
+ * The second word of the area directory should always be 4.  Determine
+ * big-endian vs. little-endian using this word, and swap bytes if necessary.
+ */
+	f->doswap = (*head == 0x04000000);
+	f->area = area;
+/*
+ * Last but not least, back up to the start of the directory.
+ */
+	return (fseek (f->stream, f->area, SEEK_SET));
+}
+
+	
+
+static int
+SeekNavBlock (AreaFile *f, AreaImage *area)
+{
+	int s;
+	char nav[4];
+	static char *known[] =
+	{ "PS  ", "GVAR", "GOES", "RECT", NULL };
+/*
+ * Look for a recognizable nav type to indicate the start of the block.
+ */
+	if ((s = fseek (f->stream, f->area + area->navblock, SEEK_SET)))
+		return (s);
+	fread (nav, 1, 4, f->stream);
+	do {
+		int i, c;
+		for (i = 0; known[i]; ++i)
+		{
+			if (strncmp (nav, known[i], 4) == 0)
+				break;
+		}
+		if (known[i])
+			break;
+		for (i = 0; i < 3; ++i)
+			nav[i] = nav[i+1];
+		if ((c = fgetc (f->stream)) == EOF)
+			return (-1);
+		nav[3] = (char) c;
+	}
+	while (1);
+	f->navoff = ftell(f->stream) - 4;
+	msg_ELog (EF_DEBUG, "nav block found at offset %d", f->navoff);
+	return (fseek (f->stream, -4, SEEK_CUR));
+}
+
+
+
+static int
+SeekDataBlock (AreaFile *f, AreaImage *area)
+{
+	return (fseek (f->stream, f->area + area->datablock, SEEK_SET));
+}
+
 
 
 AreaFile *
@@ -53,6 +151,8 @@ AddFile (AreaFile *chain, char *fname, char *fld)
 	f->name = (char *) malloc (strlen (fname) + 1);
 	strcpy (f->name, fname);
 	f->field = NULL;
+	f->area = -1;
+	f->navoff = -1;
 	if (fld)
 	{
 		f->field = (char *) malloc (strlen (fld) + 1);
@@ -72,7 +172,7 @@ AddFile (AreaFile *chain, char *fname, char *fld)
 		c->next = f;
 		f->prev = c;
 	}
-	GetFileTime (f);		/* sets swap flag as well */
+	GetFileTime (f);
 	return (chain);
 }
 
@@ -135,13 +235,8 @@ GetFileTime (AreaFile *f)
  * Read the first piece of the area directory and do the appropriate byte
  * swapping.
  */
+	SeekAreaDirectory (f);
 	fread ((void *) header, 4, 5, f->stream);
-	fseek (f->stream, 0, 0);			/* rewind the file */
-/*
- * The second word of the area directory should always be 4.  Determine
- * big-endian vs. little-endian using this word, and swap bytes if necessary.
- */
-	f->doswap = (header[1] == 0x04000000);
 	if (f->doswap)
 		swapfour (header, 5);
 /*
@@ -426,7 +521,7 @@ ReadArea (AreaFile *f, AreaImage *area)
 {
 	int header[64];
 
-	if (fseek (f->stream, 0, SEEK_SET))
+	if (SeekAreaDirectory (f))
 	{
 		msg_ELog (EF_PROBLEM, "could not seek to area directory");
 		exit (1);
@@ -464,7 +559,7 @@ ReadNavCod (AreaFile *f, AreaImage *area, int *nav_cod, char *imtype)
 
 	if (! nav_cod)
 		nav_cod = buf;
-	if (fseek (f->stream, area->navblock, SEEK_SET))
+	if (SeekNavBlock (f, area))
 	{
 		msg_ELog (EF_PROBLEM, "could not seek to nav block at %d",
 			  area->navblock);
@@ -494,9 +589,8 @@ ReadNavCod (AreaFile *f, AreaImage *area, int *nav_cod, char *imtype)
 			return (NULL);
 		}
 	}
-	if (i > 1)
-		msg_ELog (EF_DEBUG, "%s: %d navigation codicil chunks", 
-			  f->name, i);
+	++i;
+	msg_ELog (EF_DEBUG, "%d nav codicil chunks (%d bytes)", i, i*4*128);
 	if (imtype)
 	{
 		strncpy (imtype, (char *)nav_cod, 4);
@@ -521,9 +615,9 @@ ReadAreaImage (AreaFile *f, AreaImage *area)
  * Rather than try to figure out what optional sections precede the data
  * block, seek directly to it from the offset in the area directory.
  */
-	if (fseek (f->stream, area->datablock, SEEK_SET))
+	if (SeekDataBlock (f, area))
 	{
-		msg_ELog (EF_PROBLEM, "fseek() to data block failed, error %d",
+		msg_ELog (EF_PROBLEM, "seek to data block failed, error %d",
 			  errno);
 		return (NULL);
 	}

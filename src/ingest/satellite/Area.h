@@ -1,5 +1,5 @@
 /*
- * $Id: Area.h,v 1.2 1997-06-06 22:30:49 granger Exp $
+ * $Id: Area.h,v 1.3 1997-06-17 09:36:22 granger Exp $
  *
  * Prototypes for routies in the Area module
  */
@@ -58,6 +58,8 @@ typedef struct _AreaFile
 	char *name;
 	char *field;
 	FILE *stream;
+	int area;		/* Offset to area directory */
+	int navoff;		/* Offset to navigation codicil */
 	ZebraTime when;
 	int doswap;
 	struct _AreaFile *prev;

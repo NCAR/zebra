@@ -12,12 +12,15 @@
 # include <defs.h>
 # include <message.h>
 # include <DataStore.h>
+# include <ingest.h>
 
 # include "Area.h"
+# include "mcidas.h"
 
-RCSID("$Id: AreaIngest.c,v 1.2 1997-06-06 22:30:50 granger Exp $")
+RCSID("$Id: AreaIngest.c,v 1.3 1997-06-17 09:36:23 granger Exp $")
 
 
+#ifdef notdef
 /*
  * The McIDAS navigation interface, linked from FORTRAN modules
  * according to whether were navigating GOES or GVAR.
@@ -25,6 +28,7 @@ RCSID("$Id: AreaIngest.c,v 1.2 1997-06-06 22:30:50 granger Exp $")
 extern int      nvxeas_ FP ((float *lat, float *lon, float *dummy1, 
                              float *line, float *elem, float *dummy2));
 extern int      nvxini_ FP ((int *ifunc, int *nav_codicil));
+#endif
 
 
 /*
@@ -178,7 +182,7 @@ SetupDC (AreaFile *chain, const char *platname)
 /*
  * Get our platform
  */
-	if ((plat = ds_LookupPlatform (platname)) == BadPlatform)
+	if ((plat = ds_LookupPlatform ((char *)platname)) == BadPlatform)
 	{
 		msg_ELog (EF_PROBLEM, "Bad platform '%s'", (char *)platname);
 		return (NULL);
@@ -191,7 +195,6 @@ SetupDC (AreaFile *chain, const char *platname)
 	dc_ImgSetup (dc, nfields, fid, scale);
 	free (fid);
 	free (scale);
-	dc_DumpDC (dc);
 	return (dc);
 }
 
@@ -207,6 +210,7 @@ AreaIngest (AreaFile *chain, AreaGrid *ag,
 {
 	int		i;
 	int		ngood, nfiles;
+	int		autolimits, autores;
 	void		*grid;
 	Location	loc;
 	RGrid		rg;
@@ -231,6 +235,8 @@ AreaIngest (AreaFile *chain, AreaGrid *ag,
  */
 	ngood = 0;
 	nfiles = 0;
+	autolimits = (! ag->limits);
+	autores = (ag->kmres == 0.0);
 	while (chain)
 	{
 		++nfiles;
@@ -239,11 +245,22 @@ AreaIngest (AreaFile *chain, AreaGrid *ag,
 		msg_ELog (EF_INFO, "Reading %s, field %s, %s", f->name,
 			  f->field, TC_AscTime (&f->when, TC_Full));
 	/*
-	 * Figure out grid spacing
+	 * Figure out grid spacing.  If the user did not specify limits, 
+	 * try to find them automatically for each file.  We call
+	 * SetAreaLimits() no matter what in case a default origin needs to 
+	 * be set.
 	 */
 		grid = NULL;
-		/* SetAreaLimits (f, ag); */
-		if (SetGrid (ag, &rg, &loc))
+		if (autolimits)
+		{
+			ag->origin_lat = NO_ORIGIN;
+			ag->limits = FALSE;
+		}
+		if (autores)
+			ag->kmres = 0.0;
+		if (! SetAreaLimits (f, ag))
+			grid = NULL;
+		else if (SetGrid (ag, &rg, &loc))
 			grid = DoFile (f, spec, ag);
 	/*
 	 * We're done with the file
@@ -306,6 +323,8 @@ MapGrid (unsigned char *image, AreaImage *area, const AreaGrid *ag,
 	float dummy, fline, felem, lat, lon;
 	int i, j, line, elem;
 	int status;
+	int mapped;	/* count number of points mapped successfully */
+	int inrange;	/* count of line/elem pairs in range */
 /*
  * Allocate the grid
  */
@@ -315,6 +334,8 @@ MapGrid (unsigned char *image, AreaImage *area, const AreaGrid *ag,
  * less incidental.)  (So this is where we'll occasionally check for 
  * messages and get them out of the way.)
  */
+	mapped = 0;
+	inrange = 0;
   	for (j = 0; j < ag->gridY; j++)
   	{
   		if (! ((j+1) % 20))
@@ -333,11 +354,13 @@ MapGrid (unsigned char *image, AreaImage *area, const AreaGrid *ag,
 		 * the sign change)
 		 */
 			lon = -(ag->minlon + i * ag->lonstep);
-			status = nvxeas_ (&lat, &lon, &dummy, &fline, &felem,
-					  &dummy);
-
+			status = nvxeas (lat, lon, 0, &fline, &felem, 0);
 			line = (int)(fline + 0.5);
 			elem = (int)(felem + 0.5);
+			if ((line >= area->minline) && (line <= area->maxline)
+			    && (elem >= area->minelem)
+			    && (elem <= area->maxelem))
+				++inrange;
 		/*
 		 * Assign this grid point
 		 */
@@ -347,6 +370,7 @@ MapGrid (unsigned char *image, AreaImage *area, const AreaGrid *ag,
 				if (map)
 					ival = map[ival];
 				grid[ag->gridX * j + i] = ival;
+				++mapped;
 			}
 			else
 			{
@@ -354,6 +378,9 @@ MapGrid (unsigned char *image, AreaImage *area, const AreaGrid *ag,
 			}
 		}
 	}
+	msg_ELog (mapped ? EF_INFO : EF_PROBLEM, 
+		  "%d points mapped out of %d in grid, %d in range", mapped,
+		  ag->gridX * ag->gridY, inrange);
 	return (grid);
 }
 
@@ -367,10 +394,10 @@ SetAreaLimits (AreaFile *f, AreaGrid *ag)
 {
 	AreaImage area;
 	int *nav_cod;
-	int result;
-	int one = 1;
+	int result = 1;
 
-	if (ag->limits && ag->origin_lat != NO_ORIGIN)
+	if (ag->limits && ag->origin_lat != NO_ORIGIN && 
+	    (ag->kmres || (ag->gridX && ag->gridY)))
 		return (1);
 
 	ReadArea (f, &area);
@@ -378,7 +405,7 @@ SetAreaLimits (AreaFile *f, AreaGrid *ag)
 	{
 		return (0);
 	}
-	if (nvxini_ (&one, nav_cod) < 0)
+	if (nvxini (1, nav_cod) < 0)
 	{
 		msg_ELog (EF_PROBLEM, 
 			  "Bad navigation initialization for file '%s'", 
@@ -398,60 +425,90 @@ SetAreaLimits (AreaFile *f, AreaGrid *ag)
 	if (ag->limits && ag->origin_lat == NO_ORIGIN)
 		ag->origin_lat = (ag->minlat + ag->maxlat) / 2.0;
 
+	/*
+	 * If necessary fill in the resolution
+	 */
+	if (ag->kmres == 0.0)
+	{
+		ag->kmres = (area.xres + area.yres) / 2.0;
+		msg_ELog (EF_DEBUG, "setting default resolution: %.2f",
+			  ag->kmres);
+	}
 	return (result);
 }
 
 
 
+static int
+TestLimits (float line, float elem, AreaGrid *t)
+{
+	int status;
+	float lat, lon;
+
+	status = nvxsae (line, elem, 0, &lat, &lon, 0);
+	lon *= -1;
+	if (status == 0)
+	{
+		if (! t->limits)
+		{
+			t->minlat = t->maxlat = lat;
+			t->minlon = t->maxlon = lon;
+			t->limits = 1;
+		}
+		else
+		{
+			t->minlat = lat < t->minlat ? lat : t->minlat;
+			t->minlon = lon < t->minlon ? lon : t->minlon;
+			t->maxlat = lat > t->maxlat ? lat : t->maxlat;
+			t->maxlon = lon > t->maxlon ? lon : t->maxlon;
+		}
+	}
+	return (status);
+}
+	
+
 
 int
 AreaLimits (const AreaImage *area, AreaGrid *ag)
 /*
+ * Find the lat/lon limits of the image by traversing each edge at 
+ * regular intervals.  The corners alone leave out possible
+ * curvature, usually along the north or south edge.
  * Return non-zero when we succeed in filling in the limits.
  */
 {
-	float	fline, felem, dummy, lat, lon;
-	float 	minlat, minlon, maxlat, maxlon;
+	float	fline, felem;
+	AreaGrid t;
+	int	i;
 	int	status;
+	float	de, dl;		/* Line and element deltas */
+#	define NSTEPS 30
 /*
- * Find the lat/lon limits based on the corners of the image
  * (NOTE: nvxsae returns W longitudes as positive, so we change the sign)
  */
-	minlat = minlon = 999.0;
-	maxlat = maxlon = -999.0;
 	status = 0;
+	t.limits = 0;
+	dl = (area->maxline - area->minline) / NSTEPS;
+	de = (area->maxelem - area->minelem) / NSTEPS;
 
-	fline = area->minline; felem = area->minelem;
-	status += nvxsae_ (&fline, &felem, &dummy, &lat, &lon, &dummy);
-	lon *= -1;
-	minlat = lat < minlat ? lat : minlat;
-	minlon = lon < minlon ? lon : minlon;
-	maxlat = lat > maxlat ? lat : maxlat;
-	maxlon = lon > maxlon ? lon : maxlon;
+	for (i = 0; i < NSTEPS; ++i)
+	{
+		fline = area->minline + i*dl;
+		felem = area->minelem;
+		status += TestLimits (fline, felem, &t);
 
-	fline = area->minline; felem = area->maxelem;
-	status += nvxsae_ (&fline, &felem, &dummy, &lat, &lon, &dummy);
-	lon *= -1;
-	minlat = lat < minlat ? lat : minlat;
-	minlon = lon < minlon ? lon : minlon;
-	maxlat = lat > maxlat ? lat : maxlat;
-	maxlon = lon > maxlon ? lon : maxlon;
+		fline = area->minline;
+		felem = area->minelem + i*de;
+		status += TestLimits (fline, felem, &t);
 
-	fline = area->maxline; felem = area->minelem;
-	status += nvxsae_ (&fline, &felem, &dummy, &lat, &lon, &dummy);
-	lon *= -1;
-	minlat = lat < minlat ? lat : minlat;
-	minlon = lon < minlon ? lon : minlon;
-	maxlat = lat > maxlat ? lat : maxlat;
-	maxlon = lon > maxlon ? lon : maxlon;
+		fline = area->maxline - i*dl;
+		felem = area->maxelem;
+		status += TestLimits (fline, felem, &t);
 
-	fline = area->maxline; felem = area->maxelem;
-	status += nvxsae_ (&fline, &felem, &dummy, &lat, &lon, &dummy);
-	lon *= -1;
-	minlat = lat < minlat ? lat : minlat;
-	minlon = lon < minlon ? lon : minlon;
-	maxlat = lat > maxlat ? lat : maxlat;
-	maxlon = lon > maxlon ? lon : maxlon;
+		fline = area->maxline;
+		felem = area->maxelem - i*de;
+		status += TestLimits (fline, felem, &t);
+	}
 /*
  * Look for problems.  If the status is < 0 here, it means one
  * or more of the "corners" of the image is off of the globe and the user
@@ -463,10 +520,10 @@ AreaLimits (const AreaImage *area, AreaGrid *ag)
 			"Explicit bounds must be set for this image");
 		return (0);
 	}
-	ag->minlat = minlat;
-	ag->minlon = minlon;
-	ag->maxlat = maxlat;
-	ag->maxlon = maxlon;
+	ag->minlat = t.minlat;
+	ag->minlon = t.minlon;
+	ag->maxlat = t.maxlat;
+	ag->maxlon = t.maxlon;
 	ag->limits = TRUE;
 	return (1);
 }
@@ -486,7 +543,6 @@ DoFile (AreaFile *f, const char *spec, const AreaGrid *ag)
 	unsigned char	*grid;
 	unsigned char 	*map;
 	char 	imtype[5];
-	int	status, one = 1;
 	unsigned char *Image;
 	AreaImage Area;
 /*
@@ -501,7 +557,7 @@ DoFile (AreaFile *f, const char *spec, const AreaGrid *ag)
 /*
  * Verify that this is the expected image spec
  */
-	if (strncmp (imtype, spec, 4))
+	if (spec && strncmp (imtype, spec, 4))
 	{
 		msg_ELog (EF_PROBLEM, 
 			  "'%s' contains a '%s' image, not %s",
@@ -523,7 +579,7 @@ DoFile (AreaFile *f, const char *spec, const AreaGrid *ag)
 		{
 			msg_ELog (EF_EMERGENCY, 
 				  "Can't deal with %d byte %s data",
-				  Area.nbytes, spec);
+				  Area.nbytes, imtype);
 			return (NULL);
 		}
 	}
@@ -539,8 +595,7 @@ DoFile (AreaFile *f, const char *spec, const AreaGrid *ag)
 /*
  * Initialize the navigation stuff
  */
-	status = nvxini_ (&one, nav_cod);
-	if (status < 0)
+	if (nvxini (1, nav_cod) < 0)
 	{
 		msg_ELog (EF_PROBLEM, 
 			  "Bad navigation initialization for file '%s'", 
