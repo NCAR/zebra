@@ -1,7 +1,7 @@
 /*
  * Vertical cross-sectioning
  *
- * $Revision: 1.2 $ $Date: 1991-03-05 21:34:08 $ $Author: corbet $
+ * $Revision: 1.3 $ $Date: 1991-03-08 15:52:37 $ $Author: burghart $
  */
 # include <math.h>
 # include <ctype.h>
@@ -376,7 +376,7 @@ char	*platforms, *fldname;
 	float	*fdata, *xpos, *ypos, *zpos, *tpos;
 	float	xhighest, yhighest, zhighest;
 	char	*pnames[20], zfld[20], *zf, string[20];
-	time	dtime;
+	time	ptime, dtime;
 	PlatformId	pid;
 	DataObject	*z_dobj = NULL, *f_dobj = NULL, *t_dobj = NULL;
 /*
@@ -417,6 +417,17 @@ char	*platforms, *fldname;
 			BAD_SOUNDING;
 		}
 	/*
+	 * Find the closest data time before PlotTime
+	 */
+		ptime = PlotTime;
+		if (! ds_DataTimes (pid, &ptime, 1, DsBefore, &ptime))
+		{
+			msg_ELog (EF_PROBLEM, "No data for '%s' at %d %d",
+				pnames[plat], ptime.ds_yymmdd, 
+				ptime.ds_hhmmss);
+			BAD_SOUNDING;
+		}
+	/*
 	 * Get the vertical position (altitude or pressure) data
 	 */
 		if (Use_alt)
@@ -425,14 +436,14 @@ char	*platforms, *fldname;
 			strcpy (zfld, "pres");
 
 		zf = zfld;
-		z_dobj = ds_GetObservation (pid, &zf, 1, &PlotTime, 
-			OrgScalar, 0.0, BADVAL);
+		z_dobj = ds_GetObservation (pid, &zf, 1, &ptime, OrgScalar, 
+			0.0, BADVAL);
 
 		if (! z_dobj)
 		{
 			msg_ELog (EF_PROBLEM, "No '%s' data for '%s' at %d %d",
-				zfld, pnames[plat], PlotTime.ds_yymmdd, 
-				PlotTime.ds_hhmmss);
+				zfld, pnames[plat], ptime.ds_yymmdd, 
+				ptime.ds_hhmmss);
 			BAD_SOUNDING;
 		}
 
@@ -441,14 +452,14 @@ char	*platforms, *fldname;
 	/*
 	 * Get the data for the requested field
 	 */
-		f_dobj = ds_GetObservation (pid, &fldname, 1, &PlotTime, 
+		f_dobj = ds_GetObservation (pid, &fldname, 1, &ptime, 
 			OrgScalar, 0.0, BADVAL);
 
 		if (! f_dobj)
 		{
 			msg_ELog (EF_PROBLEM, "No '%s' data for '%s' at %d %d",
-				fldname, pnames[plat], PlotTime.ds_yymmdd, 
-				PlotTime.ds_hhmmss);
+				fldname, pnames[plat], ptime.ds_yymmdd, 
+				ptime.ds_hhmmss);
 			BAD_SOUNDING;
 		}
 
@@ -456,19 +467,19 @@ char	*platforms, *fldname;
 	/*
 	 * Put together the x,y position data
 	 */
-		if (Time_height && ! xs_TimePos (pid, &tpos))
+		if (Time_height && ! xs_TimePos (pid, &ptime, &tpos))
 		{
 			msg_ELog (EF_PROBLEM, "No '%s' time data at %d %06d",
-				pnames[plat], PlotTime.ds_yymmdd,
-				PlotTime.ds_hhmmss);
+				pnames[plat], ptime.ds_yymmdd, 
+				ptime.ds_hhmmss);
 			BAD_SOUNDING;
 		}
-		else if (! Time_height && ! xs_Pos (pid, &xpos, &ypos))
+		else if (! Time_height && ! xs_Pos (pid, &ptime, &xpos, &ypos))
 		{
 			msg_ELog (EF_PROBLEM, 
 				"No '%s' position data at %d %06d", 
-				pnames[plat], PlotTime.ds_yymmdd,
-				PlotTime.ds_hhmmss);
+				pnames[plat], ptime.ds_yymmdd, 
+				ptime.ds_hhmmss);
 			BAD_SOUNDING;
 		}
 	/*
@@ -477,7 +488,7 @@ char	*platforms, *fldname;
 	 */
 		if (Maxdiff > 0)
 		{
-			ud_sub_date (&PlotTime, f_dobj->do_times, &dtime);
+			ud_sub_date (&ptime, f_dobj->do_times, &dtime);
 			diff = (dtime.ds_yymmdd % 100) * 86400 + 
 				(dtime.ds_hhmmss / 10000) * 3600 + 
 				((dtime.ds_hhmmss / 100) % 100) * 60 +
@@ -1192,8 +1203,9 @@ xs_TimeHeight ()
 
 
 int
-xs_Pos (pid, xpp, ypp)
+xs_Pos (pid, ptime, xpp, ypp)
 PlatformId	pid;
+time		*ptime;
 float		**xpp, **ypp;
 /*
  * Return the x and y positions of the data for platform 'pid'
@@ -1223,15 +1235,15 @@ float		**xpp, **ypp;
 		fn = fname;
 
 		strcpy (fname, "lat");
-		lat_dobj = ds_GetObservation (pid, &fn, 1, &PlotTime, 
-			OrgScalar, 0.0, BADVAL);
+		lat_dobj = ds_GetObservation (pid, &fn, 1, ptime, OrgScalar, 
+			0.0, BADVAL);
 
 		if (! lat_dobj)
 			return (FALSE);
 
 		strcpy (fname, "lon");
-		lon_dobj = ds_GetObservation (pid, &fn, 1, &PlotTime, 
-			OrgScalar, 0.0, BADVAL);
+		lon_dobj = ds_GetObservation (pid, &fn, 1, ptime, OrgScalar, 
+			0.0, BADVAL);
 
 		if (! lon_dobj)
 			return (FALSE);
@@ -1341,8 +1353,9 @@ float		**xpp, **ypp;
 
 
 int
-xs_TimePos (pid, tpos)
+xs_TimePos (pid, ptime, tpos)
 char	*pid;
+time	*ptime;
 float	**tpos;
 /*
  * Return the time positions of the data points for 'pid' relative to T0

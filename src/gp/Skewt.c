@@ -89,6 +89,7 @@ bool	update;
 	bool	ok;
 	char	platforms[80], annot[80], ctname[20], tadefcolor[30];
 	int	status, i, npts, plat, nplat;
+	time	ptime;
 	char		*flist[5], *pnames[5];
 	PlatformId	pid;
 	DataObject	*dobj = NULL;
@@ -205,7 +206,16 @@ bool	update;
 			continue;
 		}
 
-		dobj = ds_GetObservation (pid, flist, 5, &PlotTime, OrgScalar,
+		ptime = PlotTime;
+		if (! ds_DataTimes (pid, &ptime, 1, DsBefore, &ptime))
+		{
+			msg_ELog (EF_PROBLEM, "No data for '%s' at %d %d",
+				pnames[plat], ptime.ds_yymmdd, 
+				ptime.ds_hhmmss);
+			continue;
+		}
+
+		dobj = ds_GetObservation (pid, flist, 5, &ptime, OrgScalar,
 			0.0, BADVAL);
 
 		if (! dobj)
