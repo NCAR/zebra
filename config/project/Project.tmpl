@@ -28,7 +28,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.47 1996-11-19 06:45:08 granger Exp $
+XCOMM $Id: Project.tmpl,v 1.48 1996-11-20 21:20:24 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -766,7 +766,7 @@ XCOMM -----------------------------------------------------------------------
  * the installed include files also; otherwise, the include files come from
  * the top include directory.
  */
-#if UseInstalledImake /* || UseInstalledZebra */
+#if UseInstalledImake || UseInstalledZebra
      TOP_INCLUDES = -I$(INCDIR)
 #else
      TOP_INCLUDES = -I$(BUILDINCDIR)
