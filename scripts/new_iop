@@ -26,7 +26,7 @@ def main():
     # and these are the project-specific extra directories (usually
     # extra Zebra platforms)
     #
-    extraDirs = ['radar_composite', 'goes', 'p3', 'kingair', 'dc8', 'mesonet',
+    extraDirs = ['ncgrids', 'radar_composite', 'goes', 'p3', 'kingair', 'dc8', 'mesonet',
                  'particles8', 'particles8/pdesc']
 
     #
