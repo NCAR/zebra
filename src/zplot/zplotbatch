@@ -1,6 +1,6 @@
 #! /usr/bin/sh
 #
-# $Id: zplotbatch,v 1.13 1999-10-15 21:26:05 granger Exp $
+# $Id: zplotbatch,v 1.14 1999-10-20 02:10:04 granger Exp $
 #
 # Start a display manager session with a virtual X server and dump
 # images of its plots.
@@ -114,6 +114,7 @@ if zquery -t 600 $DM > /dev/null 2>&1; then true ; else
 fi
 
 images=''
+lastconfig=''
 now=`zquery timer | egrep 'Current time' | sed -e 's/^.*is //'`
 echo "Current time: $now"
 
@@ -122,8 +123,12 @@ while read when config windows; do
 
     echo "Processing: $when $config $windows"
 
-    (set -x; zrun $DM "display $config")
-    sleep 15
+    if ($config != $lastconfig)
+    {
+	(set -x; zrun $DM "display $config")
+	sleep 20
+	$lastconfig = $config;
+    }
     if [ $when = "now" ]; then
     	zrun $DM "realtime all"
 	when=$now
@@ -134,7 +139,7 @@ while read when config windows; do
     # actually respond to an imgdump command before it has received or
     # acted on the time change, so we must delay here until the time
     # takes effect.
-    sleep 15
+    sleep 20
 
     # Get a list of the graphics processes appearing in this display
     # mstatus
@@ -148,8 +153,9 @@ while read when config windows; do
     # Derive the image name from the plot time
     set `ztsplit $when`
     base="${config}.$1$2$3$4$5."
-    # For the Web, put the images in directories by date and display
-    subspool="${spool}/${config}/$1$2$3"
+    # For the Web, put the images in directories by date, lumping
+    # images from all instruments into the same directory.
+    subspool="${spool}/$1$2$3"
     echo "Putting images in $subspool"
     if [ ! -d $subspool ]; then
 	mkdir -p $subspool
