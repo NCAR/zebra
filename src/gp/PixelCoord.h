@@ -58,3 +58,10 @@
 
 # define YPIX(uy)	(short)(0.5 + (float)(GWHeight (Graphics)) * \
 	(1.0 - (((uy) - Ylo) / (Yhi - Ylo) * (F_Y1 - F_Y0) + F_Y0)))
+
+# define XUSER(xp)	((((xp)/(float)GWHeight(Graphics)) - F_X0) * \
+				(Xhi - Xlo)/(F_X1 - F_X0) + Xlo) 
+
+# define YINVERT(yp)	(GWHeight (Graphics) - (yp) - 1)
+# define YUSER(yp)	(((YINVERT(yp)/(float)GWHeight(Graphics)) - F_Y0) * \
+				(Yhi - Ylo)/(F_Y1 - F_Y0) + Ylo)
