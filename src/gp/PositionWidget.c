@@ -1,7 +1,7 @@
 /*
  * Widget for getting position of cursor.
  */
-static char *rcsid = "$Id: PositionWidget.c,v 1.7 1992-09-23 21:10:11 corbet Exp $";
+static char *rcsid = "$Id: PositionWidget.c,v 1.8 1993-03-04 04:13:02 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -29,9 +29,9 @@ static char *rcsid = "$Id: PositionWidget.c,v 1.7 1992-09-23 21:10:11 corbet Exp
 # include <X11/Xaw/Command.h>
 # include <X11/Xaw/AsciiText.h>
 
-# include "../include/defs.h"
-# include "../include/message.h"
-# include "../include/pd.h"
+# include "defs.h"
+# include "message.h"
+# include "pd.h"
 # include "PixelCoord.h"
 # include "GraphProc.h"
 
@@ -43,11 +43,15 @@ static Widget	KNButton;
 static char	GPOrigin[40];
 static int 	PWMade = FALSE, DegMinSec = TRUE, DoNm = TRUE;
 static int 	NOrg;
+static int	CursorX = 0, 
+	        CursorY = 0; 		/* Location of last XQueryPointer  */
+static int	CursorValid = FALSE;	/* X,Y have been set and are valid */
 
 # ifdef __STDC__
 	static void pw_PosPopup ();
 	static void pw_PosPopdown (Widget, int, int);
 	void pw_PosStatus ();
+        static void pw_PosDisplay ();
 	void pw_InitPos();
 	Widget pw_PosCreate (char *, Widget, XtAppContext);
 	void ChangeType ();
@@ -56,6 +60,7 @@ static int 	NOrg;
 	static void pw_PosPopup ();
 	static void pw_PosPopdown ();
 	void pw_PosStatus ();
+        static void pw_PosDisplay ();
 	void pw_InitPos();
 	Widget pw_PosCreate ();
 	void ChangeType ();
@@ -194,6 +199,8 @@ ChangeType ()
 	XtSetArg (args[0], XtNlabel, DegMinSec ? "Deg/Min/Sec" : 
 		"Decimal Deg");
 	XtSetValues (DMSButton, args, 1);
+
+	pw_PosDisplay ();	/* Convert any previously set point */
 }
 
 
@@ -208,33 +215,64 @@ ChangeUnit ()
 	DoNm = ! DoNm;
 	XtSetArg (args[0], XtNlabel, DoNm ? "Nm" : "km");
 	XtSetValues (KNButton, args, 1);
+
+	pw_PosDisplay ();	/* Convert any previously set point */
 }
+
 
 
 void
 pw_PosStatus ()
 /*
- * Create the position text line and display it in the widget.
+ * Query X server for cursor location, set our global x,y pixel coords,
+ * then call pw_PosDisplay() to actually calculate and the display
+ * the new coordinates.
  */
 {
-	char	string[100], label[300], offstring[50], statusstr[100];
 	Window	wjunk;
 	int	junk, x, y;
-	float	offset, lat, lon, ox, oy; 
-	double	range, azimuth, subx, suby;
-	Location	loc;
-	Arg	args[5];
 
 	if (! PWMade) return;
-/*
- * Empty the label
- */
-	strcpy (label, "");
 /*
  * Find out where the pointer is.
  */
 	XQueryPointer (XtDisplay (Graphics), XtWindow (Graphics), &wjunk, 
 		&wjunk, &junk, &junk, &x, &y, (unsigned int *) &junk);
+/*
+ * Save the point for immediate and future reference
+ */
+	CursorX = x;
+	CursorY = y;
+	CursorValid = TRUE;
+
+	pw_PosDisplay ();
+}
+
+
+
+void
+pw_PosDisplay ()
+/*
+ * Create the position text line and display it in the widget.
+ */
+{
+	char	string[100], label[300], offstring[50], statusstr[100];
+	int	x, y;
+	float	offset, lat, lon, ox, oy; 
+	double	range, azimuth, subx, suby;
+	Location	loc;
+	Arg	args[5];
+
+	if (! CursorValid) return;	/* No cursor point set yet */
+/*
+ * Empty the label
+ */
+	strcpy (label, "");
+/*
+ * Get the most recent pointer location
+ */
+	x = CursorX;
+	y = CursorY;
 /*
  * Calculate the lat/lon
  */
@@ -273,8 +311,14 @@ pw_PosStatus ()
 	{
 		msg_ELog (EF_PROBLEM, "Unable to locate origin '%s'.",
 			GPOrigin);
-		sprintf (statusstr, "Unable to locate origin: '%s.'", GPOrigin);
+		sprintf (statusstr, "Unable to locate origin: '%s'.", GPOrigin);
 		SetStatus (statusstr);
+        /*
+	 * At least display lat/lon since we've already gone to the trouble
+	 */
+		strcat (label, "No origin for relative coordinates\n");
+		XtSetArg (args[0], XtNlabel, label);
+		XtSetValues (PosLabel, args, 1);
 		return;
 	}
 	sprintf (statusstr, "Origin set to: %s.", GPOrigin);
