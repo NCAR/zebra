@@ -39,7 +39,7 @@
 # include "message.h"
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.13 1993-10-22 19:37:23 corbet Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.14 1993-12-04 19:58:13 granger Exp $")
 /*
  * Symbol tables.
  */
@@ -920,7 +920,7 @@ struct connection *conp;
 	for (i = 0; i < grp->g_nprocs; i++)
 		if (grp->g_procs[i] == conp)
 		{
-			for (j = i; j < grp->g_nprocs; j++)
+			for (j = i; j < (grp->g_nprocs - 1); j++)
 				grp->g_procs[j] = grp->g_procs[j+1];
 			(grp->g_nprocs)--;
 			break;
