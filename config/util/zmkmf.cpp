@@ -3,7 +3,7 @@ XCOMM!/bin/sh
 XCOMM
 XCOMM generate a Makefile from an Imakefile from inside or outside the sources
 XCOMM 
-XCOMM $Id: zmkmf.cpp,v 1.3 1994-05-25 16:56:05 burghart Exp $
+XCOMM $Id: zmkmf.cpp,v 1.4 1995-05-25 00:22:27 granger Exp $
 
 usage=\
 "usage:  $0 [-a] top_of_zeb_source current_directory [imake_opt ...]
@@ -41,12 +41,12 @@ if [ -f Makefile ]; then
     mv Makefile Makefile.bak
 fi
 
-args="-I$topdir/config -I$topdir/imake -DTOPDIR=$topdir -DCURDIR=$curdir $*"
+args="-I$topdir/config/project -I$topdir/config/cf -DTOPDIR=$topdir -DCURDIR=$curdir $*"
 
-echo $topdir/imake/imake $args
+echo $topdir/config/imake/imake $args
 case "$do_all" in
 yes)
-    $topdir/imake/imake $args && 
+    $topdir/config/imake/imake $args && 
     echo "make Makefiles" &&
     make Makefiles &&
     echo "make includes" &&
@@ -55,6 +55,6 @@ yes)
     make depend
     ;;
 *)
-    $topdir/imake/imake $args
+    $topdir/config/imake/imake $args
     ;;
 esac
