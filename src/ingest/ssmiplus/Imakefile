@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.6 1994-06-29 21:32:25 case Exp $"
+MFVERSION="$Id: Imakefile,v 1.7 1994-07-31 06:28:09 granger Exp $"
 
 PROOF=/net/CenterLine/bin/proof
 
@@ -61,12 +61,12 @@ LINTOPTS = -nuvxz
 FSRCS = decode.f
 TSRCS = dumpSSMI.c
 
-CSRCS = FindPositions.c dumpSSMI.c tclXAppInit.c
+CSRCS = FindPositions.c dumpSSMI.c 
 CCSRCS = ssmi_ingest.cc SquareScan.cc Scan.cc Source.cc GridMap.cc \
          decode_ssmi.cc
 SRCS = $(CSRCS) /* $(CCSRCS) */
 
-OBJS = decode.o dumpSSMI.o tclXAppInit.o
+OBJS = decode.o dumpSSMI.o
 CCOBJS = ssmi_ingest.o SquareScan.o Scan.o Source.o GridMap.o \
          decode_ssmi.o decode.o
 
@@ -75,7 +75,7 @@ HDRS = SquareScan.h GridMap.h Source.h Scan.h level1b.h outdat.h rss.h \
 
 DISTFILES = Imakefile $(SRCS) $(FSRCS) $(TSRCS) $(HDRS)
 
-CccProgramTarget (ssmi_ingest,/*tclXAppInit.o*/ $(CCOBJS),$(DEPLIBS),
+CccProgramTarget (ssmi_ingest,$(CCOBJS),$(DEPLIBS),
                   $(LOCAL_LIBS),/**/)
 
 TestProgramTarget(dumpSSMI,dumpSSMI.o,/*deplibs*/,/*libs*/,/**/)
