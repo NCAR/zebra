@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.2 2000-03-29 16:29:25 burghart Exp $"
+MFVERSION="$Id: Imakefile,v 1.3 2000-04-10 20:48:01 burghart Exp $"
 
 LIBS = $(DFALIBS) $(ZLIBS)
 INCLUDES = -I/usr/local/include/python1.5
@@ -38,6 +38,8 @@ all:: zebra.so
 
 zebra.so: $(MODULEOBJS)
 	$(CXX) -shared -o $@ $(MODULEOBJS) $(LIBS)
+
+install:: zebra.so
 
 InstallLibFile (zebra.so,python,..)
 
