@@ -79,6 +79,8 @@ int main (int argc, char *argv[])
 	int N = 10;
 	int order = 3;
 
+	srand (1000);
+
 	cout << "-----------------================----------------" << endl;
 	if (argc > 1)
 		N = atoi(argv[1]);
@@ -569,13 +571,16 @@ TestTree (test_tree &tree, int N)
 	// Do the above tests a few times with randomly inserted keys
 	for (int i = 0; i < 3; ++i)
 	{
-		srand (time(0));
+		srand (time(0)+(i << (2*i)));
 		random_shuffle (keys.begin(), keys.end());
 
 		cout << "Random insertions... " << i+1 << endl;
 		err += T_Insert (tree, keys, keys);
 		err += tree.Check ();
 		Summarize(cout, tree);
+		cout << "Partial removal and re-insertion..." << endl;
+		err += T_PartialRemoval (tree, N/2);
+		err += tree.Check ();
 		cout << "Random removal...... " << i+1 << endl;
 		err += T_RandomRemoval (tree);
 		err += tree.Check ();

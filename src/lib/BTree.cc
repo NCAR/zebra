@@ -11,7 +11,7 @@ extern "C" {
 #include <message.h>
 }
 
-RCSID ("$Id: BTree.cc,v 1.9 1997-12-30 07:10:25 granger Exp $")
+RCSID ("$Id: BTree.cc,v 1.10 1997-12-30 08:11:57 granger Exp $")
 
 #include "Logger.hh"
 #include "BTreeP.hh"
@@ -456,26 +456,6 @@ BTreeNode<K,T>::destroy ()
 	tree.factory->destroy (this);
 }
 
-
-
-#ifdef notdef
-template <class K, class T>
-int
-BTree<K,T>::Order ()
-{
-	return (order);
-}
-#endif
-
-
-#ifdef notdef
-template <class K, class T>
-int
-BTree<K,T>::Depth ()
-{ 
-	return (root ? root->Depth() : 0);
-}
-#endif
 
 
 template <class K, class T>
