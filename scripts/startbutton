@@ -12,7 +12,7 @@ class Main (Frame):
     def __init__ (self, master = None):
 	Frame.__init__ (self, master)
 	self.pack ()
-	self.l = Label (self, bitmap = '@/zebra/lib/icons/global',
+	self.l = Label (self, bitmap = '@/usr/local/zebra/lib/icons/global',
 			foreground = 'yellow', background = 'darkblue')
 	self.l.pack (side = 'left')
 	#
@@ -66,6 +66,8 @@ class Main (Frame):
         self.selb.pack (side = 'bottom')
 	
     def startsys(self):
+        self.doit()
+	return  # disable image generation for now
 	d = Dialog(self, 
 		title = 'Start Zebra',
 		text = 'select dual or single pol image generation',
@@ -95,23 +97,23 @@ class Main (Frame):
 	# tell zebra to restart us when user closes down
 	os.environ['STARTBUTTON_USED'] = 'certainly'
 	self.logfile.close()
-	os.system ('/ops/zebra/startup >> ' + self.logname + ' 2>&1')
+	os.system ('/usr/local/zebra/bin/startup >> ' + self.logname + ' 2>&1')
 	sys.exit (0)
 
     def killit(self):
-	os.system('/zebra/bin/zstop &')
+	os.system('/usr/local/zebra/bin/zstop &')
 
     def kill_all(self):
-	os.system('/zebra/bin/kill_all &')
+	os.system('/usr/local/zebra/bin/kill_all &')
 
     def reset_rain(self):
-	os.system('/ops/bin/reset_rain &')
+	os.system('/usr/local/spol/bin/reset_rain &')
 
     def new_iop(self):
-	os.system('/zebra/bin/do_new_iop &')
+	os.system('/usr/local//zebra/bin/do_new_iop &')
 
     def select_archive(self):
-	os.system('/ops/bin/zebra_data_select &')
+	os.system('/usr/local/zebra/bin/zebra_data_select &')
 
 
 win = Main ()

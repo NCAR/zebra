@@ -1,0 +1,70 @@
+#!/bin/tcsh
+#
+# Get the whole mess going.
+#
+echo $0 started at `date`
+
+#
+# If we're not running on the Zebra master machine, dump off the work there.
+#
+if (! $?ZEBRA_MASTER) then
+    echo "${0}: You must set the ZEBRA_MASTER environment variable!"
+    exit 1
+endif
+# we don't want buffering for build_selected_links
+setenv PYTHONUNBUFFERED 1
+set bslog=/tmp/build_select.log
+rm -f $bslog
+nice +15 /usr/local/zebra/bin/build_selected_links >& $bslog &
+
+set execdir = $0:h
+
+if ( `hostname` != $ZEBRA_MASTER ) then
+    echo "${0}: running display only since `hostname` !=" $ZEBRA_MASTER
+    ssh -f $ZEBRA_MASTER $execdir/newdisplay
+    exit 0
+endif
+
+#
+# Otherwise we need to run the real thing.
+#
+setenv XAPPLRESDIR /usr/local/zebra/lib/resources
+setenv ZEB_MESSAGE "message -internet"
+setenv ZEB_EVENTLOGGER "EventLogger -w"
+
+#
+# Start the data store and EventLogger if they aren't running yet
+#
+/usr/local/zebra/bin/mstatus -u >& /dev/null
+set new_zebra = $status
+
+if ($new_zebra) /usr/local/zebra/bin/zstart -ds /ops/zebra
+
+#
+# Hang out for a bit, then start a display
+#
+sleep 5
+chmod 777 /tmp/fcc.socket    # Hack!  Kludge!
+$execdir/newdisplay &
+
+#
+# Run some extra stuff if this is a new session
+#
+set logdir = /ops/run
+set archiverlog = $logdir/arch.out
+set rainlog = $logdir/rain.out
+set hyidlog = $logdir/hyid.out
+
+if ($new_zebra) then
+    rm -f $archiverlog	# AAAAARRRRGH!
+    /usr/local/zebra/bin/Archiver -f /dev/st0 -g +5-85 -time 60 \
+		    -database /ops/run/ArcDB \
+		    -tapelimit 10000000 \
+		    -exclude spol >& $archiverlog  &
+    sleep 2
+
+    /bin/mv -f $rainlog $rainlog.save > /dev/null
+    /usr/local/spol/ops/bin/startboth >& $rainlog
+    /bin/mv -f $hyidlog $hyidlog.save > /dev/null
+    /usr/local/spol/bin/starthyid < /dev/null >& $hyidlog &
+endif

@@ -1,0 +1,27 @@
+#!/bin/tcsh
+#
+# Run another display session
+#
+echo $0 started at `date`
+setenv XAPPLRESDIR /usr/local/zebra/lib/resources
+
+/usr/local/zebra/bin/LastData -g 240x150-0+175 /ops/zebra/LastData.conf &
+
+#
+# Run a zebra display and wait for it to terminate
+#
+xterm -name zebra -title zebra -iconic -e /usr/local//zebra/bin/zstart -dm -preserve /ops/zebra
+
+# 
+# Get rid of the LastData, then quit
+#
+kill %1
+sleep 1
+
+echo $0 finished at `date`
+
+#
+# If we were started by a startbutton, fire it up again
+#
+set execdir = $0:h	# look in the same dir that we were grabbed from
+if ($?STARTBUTTON_USED) $execdir/startbutton &

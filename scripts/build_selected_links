@@ -1,0 +1,123 @@
+#!/usr/bin/python2.1
+
+"""
+build a directory containing links to a subset of the available RHIs,
+so that Zebra doesn't get overloaded by seeing each RHI
+"""
+import os,os.path,xreadlines,glob,string,time
+
+from Perp.util.fileutil import safeMkdir,safeunlink,relink
+from Perp.util.DoradeUtil import sweepTypeFromName,sweepFixedAngle
+import cPickle
+
+def setup(
+	sourceDir, 	# original directory - e.g /scr/data/spol
+	destDir, 	# new zebra DATA_DIR -e.g. /scr/data/selected
+	selected_dirs,	# which directories to link selected files,
+			# e.g. ('particles', 'spol')
+	linked_dirs,	# e.g  ( 'precip.basic', 'precip.hourly')
+	):
+    """ setup directories for zebra sweepfile subset creation """
+
+#    safeMkdir(destDir)
+    # make sure links exist to the specified directories
+    for ld in linked_dirs:
+	orig=os.path.join(sourceDir, ld)
+	new = os.path.join(destDir, ld)
+	if not os.path.exists(new):
+	    relink(orig, new, deleteSource=0)
+
+    # build empty directories to contain the sweepfile links
+    for sd in selected_dirs:
+	new = os.path.join(destDir, sd)
+	safeMkdir(new)
+
+def build_selected_links(
+	sourceDir, 	# original directory - e.g /scr/data/spol
+	destDir, 	# new zebra DATA_DIR -e.g. /scr/data/selected
+	selected_dirs,	# which directories to link selected files,
+			# e.g. ('particles', 'spol')
+	rhi_angle_list  # e.g  (1,5,10,20)
+	):
+
+    """ build/update sweepfiles links for 'selected_dirs', 
+        only creating links to specified angles.
+    """
+
+    global Fdict
+    for s in selected_dirs:
+	d = os.path.join(sourceDir, s)
+	flist = glob.glob(os.path.join(d,'swp.*'))
+	for f in flist:
+	    base = os.path.basename(f)
+# save ourselves the trouble of attempting to make links if we've already
+# processed this file for this directory
+	    if Fdict.has_key((base,s)):
+#	        print 'cache hit on (%s,%s)' % (base,s)
+		continue
+
+	    Fdict[(base,s)]= 1  
+	    type = sweepTypeFromName(f)
+	    dest = os.path.join(destDir,s,base)
+            if not os.path.exists(dest):
+		if type != 'RHI':
+		    print 'linking (%s,%s)' % (base,s)
+		    relink(f, dest,deleteSource=0)
+		    os.system("dsrescan -file %s %s" % (base, s))
+		else:
+		    angle = sweepFixedAngle(f)
+		    if angle in rhi_angle_list:
+			print 'linking (%s,%s)' % (base,s)
+			relink(f, dest,deleteSource=0)
+			os.system("dsrescan -file %s %s" % (base, s))
+	
+
+def mainFunc():
+    global Fdict
+    Fdict = {}
+    include_list = []
+    rhi_include_file = '/usr/local/zebra/project/improve2/rhi_include'  
+    delayTime = 5 # seconds to sleep
+    pickleFile = "/tmp/build_selected.pck"
+    f = open(rhi_include_file, 'r')
+
+    for line in xreadlines.xreadlines(f):
+	numList = string.split(line)
+	# treat two numbers on a line as start,ending[inclusive] angle
+	if len(numList) == 2:
+	    start,end = float(numList[0]),float(numList[1])
+	    for r in range(start,end+1):
+		include_list.append(r)
+	else:
+	    include_list.append(float(line))
+    f.close()
+    # restore previous contents of dictionary, if one exists.
+    if os.path.exists(pickleFile):
+        pf = open(pickleFile, 'r')
+	Fdict = cPickle.load(pf)
+	pf.close()
+
+    srcDir = '/scr/data/spol'
+    destDir = '/scr/data/spol_subset'
+    selectedDirs = ('particles', 'spol')
+
+    setup(srcDir, destDir, selectedDirs,
+	( 'precip.basic', 'precip.hourly', 'precip.storm', 'rain'))
+
+    cnt = 0
+    saveFrequency = 10
+    while 1:
+#	print 'building links'
+	build_selected_links(srcDir, destDir,selectedDirs, include_list )
+#	print '\twaiting'
+	# periodically save the dictionary of what files we've processed.
+        if (cnt % saveFrequency) == 0:
+	    pf = open(pickleFile, 'w')
+	    cPickle.dump(Fdict, pf, 1)
+	    pf.close()
+	cnt = cnt+1
+	time.sleep(delayTime)
+
+if __name__ == '__main__':
+	mainFunc()
+
