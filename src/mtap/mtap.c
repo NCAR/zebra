@@ -331,7 +331,11 @@ Message *msg;
 
 	if (msg->m_proto == MT_ELOG)
 	{
-		if (! (el->el_flag & EF_SETMASK))
+		if ((el->el_flag & EF_SETMASK))
+			printf ("\tSET mask: %0#x\n", el->el_flag);
+		else if ((el->el_flag & EF_ORMASK))
+			printf ("\tOR mask: %0#x\n", el->el_flag);
+		else
 			printf ("\t'%s'\n", el->el_text);
 	}
 	else
