@@ -28,7 +28,7 @@
 #include "dfa.h"
 
 #ifndef lint
-MAKE_RCSID ("$Id: Appl.c,v 3.32 1994-06-10 21:55:55 burghart Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.33 1994-07-01 06:05:26 granger Exp $")
 #endif
 
 /*
@@ -538,9 +538,9 @@ int *index;
 	if (ans->dsp_type == dpt_R_DFIndex)
 	{
 		*index = ans->dsp_index;
-		return (0);
+		return (MSG_DONE);
 	}
-	return (1);
+	return (MSG_ENQUEUE);
 }
 		
 
@@ -1284,8 +1284,8 @@ int ndetail;
 	int nsample, sample;
 	int dfile;
 	int dfnext;
-	int nnew;	/* Number of samples added (appended or inserted) */
-	int now;	/* Number of samples overwritten		  */
+	int nnew;	/* Number of samples added in 1 pass of the loop  */
+	int now;	/* Number of samples overwritten in 1 pass	  */
 	int ndone;	/* Total number of samples successfully stored	  */
 	int block_size;
 	WriteCode wc;
@@ -1312,17 +1312,25 @@ int ndetail;
  * Start plowing through the data.
  */
 	ndone = 0;
-	nnew = 0;
-	now = 0;
-	for (sample = 0; sample < nsample; ++sample)
+	sample = 0;
+	while (sample < nsample)
 	{
 		bool new = FALSE;
+	/*
+	 * These count new and overwritten samples since the last notify.
+	 * We have to notify the daemon each time through the loop since
+	 * our changes may affect where the next block goes. (e.g. new file)
+	 */
+		nnew = now = 0;
 	/*
 	 * Find a feasible location for the next sample of the data chunk
 	 */
 		if (! ds_FindDest (dc, &p, sample, &dfile, &dfnext, &wc, 
 				   newfile && (sample == 0), &curtime))
+		{
+			++sample;	/* Skip this sample */
 			continue;	/* Sigh */
+		}
 	/*
 	 * If a new file is called for, create it.
 	 */
