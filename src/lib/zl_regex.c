@@ -29,7 +29,7 @@
  */
 # include "zl_regex.h"
 
-MAKE_RCSID("$Id: zl_regex.c,v 2.2 1994-01-28 21:31:27 granger Exp $")
+MAKE_RCSID("$Id: zl_regex.c,v 2.3 1995-04-15 00:34:22 granger Exp $")
 
 /*
  * Provide hooks to the system regular expression routines, confining all of
@@ -70,8 +70,12 @@ const char *re;
  * the original compiled expression does not change.
  */
 {
+#if defined(ZL_RE_POSIX) || defined(ZL_RE_SVR4)
 	static char *error = "regular expression would not compile";
+#endif
+#ifdef ZL_RE_POSIX
 	int istat;
+#endif
 	char *result;
 
 #ifdef ZL_RE_SVR4
@@ -130,7 +134,6 @@ const char *s;
  */
 {
 	int result;
-	char *ptr;
 
 #ifdef ZL_RE_SVR4
 	/*
