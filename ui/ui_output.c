@@ -24,7 +24,7 @@ static bool Pager_mode = TRUE;		/* Are we in pager mode? */
 static int Page_size = 21;		/* How many lines to a screen page */
 
 
-int uio_print (), uio_nfprint (), uio_ErrorOut (), uio_EHook ();
+void uio_print (), uio_nfprint (), uio_ErrorOut (), uio_EHook ();
 
 
 
@@ -63,6 +63,7 @@ int lun;
 
 
 
+void
 uio_print (buf)
 char *buf;
 /*
@@ -94,6 +95,7 @@ char *buf;
 
 
 
+void
 uio_nfprint (buf)
 char *buf;
 /*
@@ -216,6 +218,7 @@ uio_stall ()
 
 
 
+void
 uio_ErrorOut (line)
 char *line;
 /*
@@ -228,6 +231,7 @@ char *line;
 
 
 
+void
 uio_EHook ()
 /*
  * The standard error processing hook.
