@@ -26,7 +26,7 @@
 # include <DataChunk.h>
 # include "GraphProc.h"
 # include "rg_status.h"
-MAKE_RCSID ("$Id: GridAccess.c,v 2.16 1994-04-15 21:25:59 burghart Exp $")
+MAKE_RCSID ("$Id: GridAccess.c,v 2.17 1994-04-20 15:40:52 burghart Exp $")
 
 
 
@@ -316,7 +316,7 @@ char		*field;
 		for (x = 0; x < npx; x++)
 		{
 			int xp, yp, npa = 0;
-			gp = grid + (npy - y - 1)*npx + x;
+			gp = grid + y * npx + x;
 			*gp = 0.0;
 			for (yp = 0; yp < COMPRESS; yp++)
 				for (xp = 0; xp < COMPRESS; xp++)
