@@ -40,7 +40,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: Skewt.c,v 2.25 1996-05-03 22:05:09 granger Exp $")
+RCSID ("$Id: Skewt.c,v 2.26 1996-05-06 22:38:38 granger Exp $")
 
 /*
  * General definitions
@@ -265,10 +265,11 @@ bool	update;
  */
 	for (plat = 0; plat < nplat; plat++)
 	{
-		ZebTime when = PlotTime;
+		ZebTime when;
 	/*
 	 * Handle a possible time offset.
 	 */
+		when = PlotTime;
 		if (noffset > plat)
 			when.zt_Sec -= pc_TimeTrigger (poffsets[plat]);
 	/*
