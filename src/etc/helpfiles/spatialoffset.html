@@ -1,0 +1,53 @@
+<title>Shifting data in horizontal plots</title>
+<h1>Shifting data in horizontal plots</h1>
+
+On occasion it is necessary to shift data spatially in a horizontal plot.
+Situations where you might want to do this include:
+<ul>
+<li> There is an error in the positioning of a dataset
+<li> You wish to account for differences in observation times
+</ul>
+To shift data spatially, move to the associated icon in the graphic window,
+use the <b>left</b> mouse button and select <tt>Spatial offsets</tt> from
+the menu.  The result is this widget:
+<blockquote><img src=offsets.gif></blockquote>
+The first line of the widget:
+<blockquote><img src=offenable.gif></blockquote>
+provides overall control on spatial offsets.  As long as it is set to
+<tt>disabled</tt>, no offsets will be performed.  Click on the button to
+enable offsets.
+<p>
+There are two different offset mechanisms available in horizontal plots.
+The first is a constant offset, and is controlled by the next two lines:
+<blockquote><img src=offconst.gif></blockquote>
+Enter a non-zero value in either blank to force a constant offset in the
+given direction.
+<p>
+To account for advection, a time-based offset may be used, as controlled by
+the next three lines:
+<blockquote><img src=offadvect.gif></blockquote>
+The button at the top is used to allow or disallow advection; no time-based
+offsets will be performed if it is set to <tt>disabled</tt>.  The next two
+lines are used to set the speed and direction of motion.  When the overlay
+is plotted, it will be moved according to the difference between the
+observation time and the plot time.  Each sample of the data is offset
+individually; thus the shape of an aircraft track will change.
+<p>
+A couple of other details about spatial offsets:
+<ul>
+<li> When an overlay has been shifted, the text <tt>SHIFTED</tt> will
+     appear in the top annotation for that overlay.
+<li> If both constant and time-based offsets are specified, their effect is
+     additive.
+</ul>
+
+
+<hr>
+<a href=.html><img src=la.gif></a>
+<a href=.html><img src=ra.gif></a><p>
+<i>Return to <a href=index.html> Zeb Help Index</i></a>
+
+
+
+
+

@@ -1,5 +1,36 @@
-<title></title>
-<h2></h2>
+<title>Adjusting display limits</title>
+<h1>Adjusting display limits</h1>
+
+You will likely often wish to change the limits used to display a given
+overlay.  "Limits" refers to the scaling values used to assign colors,
+contour values, and so on.  There is a wide variety of plot types in zeb,
+and a correspondingly wide variety of ways to adjust their limits; it is
+not possible to discuss them all here.  However, the fundamental concepts
+are the same for all of them; some limit adjusters have their own help
+entries.
+<p>
+To adjust the limits for a given overlay, move to that overlay's icon in
+the graphic window.  Use the <b>left</b> mouse button to pull down the
+menu; the first entry will almost always be <tt>Adjust limits</tt>.  Select
+this entry.
+<p>
+There are two basic types of limit-adjusting widgets; which you get depends
+on the configurations you are running and the type of data you are working
+with.  The first type will always place itself on the screen (usually above
+the icon you just used) and looks like:
+<blockquote><img src=adj1.gif></blockquote>
+The second type tends to have more options, and may require you to place it
+with the mouse:
+<blockquote><img src=adj2.gif></blockquote>
+With either type of widget, the thing to do is to fill in the new value(s)
+in the blanks, then click on the <tt>Apply</tt> or <tt>Store</tt> button.
+The window will redraw with the new limits in effect.
+<p>
+Some types of plots will operate with either manual or automatic scaling.
+In this case, you should be sure to set the mode to "manual," or any limits
+you enter will have no effect.
+
+
 <hr>
 <a href=.html><img src=la.gif></a>
 <a href=.html><img src=ra.gif></a><p>

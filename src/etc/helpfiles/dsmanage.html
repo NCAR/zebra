@@ -1,0 +1,102 @@
+<title>Disk space management</title>
+<h1>Disk space management</h1>
+
+Zeb provides a utility called "<tt>dsmanage</tt>" to aid in the management
+of space on your local disk.  While it is always possible to add and remove
+data files by hand, the shear number of them (from hundreds to tens of
+thousands) in most zeb configurations makes this impractical.
+<tt>Dsmanage</tt>
+provides an easier interface for dealing with all these files.
+
+<h2>Bringing up dsmanage</h2>
+
+To invoke <tt>dsmanage</tt>, move to the global <img src=zeb-icon.gif> or
+tools <img src=tools-icon.gif> icon in the icon bar, and select <tt>data
+store management widget</tt>.  There will be a delay (as much as a few
+minutes for a very large data store), after which you will get a widget
+like the following:
+<blockquote><img src=dsmanage.gif></blockquote>
+The middle line tells you how much space you currently have free on the
+disk holding your data store directory.  At the bottom are the two main
+options for <tt>dsmanage</tt>: cleaning up disk space, and loading new
+data.  The latter option will not be covered here, for now.  To invoke the
+cleanup functionality, click on <tt>Disk space cleanup</tt>.  Another delay
+will ensue, followed by a large widget like the following:
+<p><img src=dsmdel-large.gif><p>
+The large sub-window that fills the bottom half of the widget contains a
+summary of all platforms known to zeb, the time period covered by each, the
+number of files present, and the total amount of space occupied by those
+files.  
+
+<h2>Working with individual files</h2>
+
+To examine a platform in more depth, simply click on its associated
+line to get yet another widget:
+<p><img src=dsmvictim.gif><p>
+Now you can see each individual file which exists for the chosen platform,
+its time range, and size.  At this point, you also have the ability to mark
+individual files for deletion.  To do so, simply move to the <img
+src=dsmdelb.gif> button and click with the mouse.  The button will reverse
+its colors <img src=dsmdelbr.gif> to indicate that the file has been marked
+to be deleted.  <b>Note</b> that the file has not yet actually been
+removed; nothing is really deleted until you give the final word, as
+discussed below.
+<p>
+If you look back at the main cleanup widget, in the upper right corner, you
+will now see a display like:
+<blockquote><img src=dsmdelnsel.gif></blockquote>
+Whenever you mark files for deletion, this display will update to tell you
+exactly how many files have been marked, and how much space will be freed
+when they are deleted.  The <img src=dsmdelclr.gif> button will reset all
+of the marks you have made, in case you want to start over.
+<p>
+The <tt>Select all files</tt> and <tt>Unselect all</tt> buttons at the
+bottom of the file window do the obvious thing.  You may dismiss this
+window with the <tt>Zap</tt> button in the upper right corner.
+
+<h2>Time-based deletion</h2>
+
+Deleting files one at a time gets a bit tedious, even with a fancy
+mouse-oriented interface.  Often the desire is to get rid of all of the
+files within a particular time period.  <tt>Dsmanage</tt> provides an easy
+facility to do this, oriented around this subwindow:
+<p><img src=dsmdeltime.gif><p>
+Simply fill in the begin and end times with the time period you wish to
+remove from the disk.  If you want to mark files from all platforms, you
+can simply click on <tt>Apply to selected platforms</tt> and you are done.
+Otherwise you need to tell <tt>dsmanage</tt> which platforms to work with.
+<p>
+Selecting of platforms is done with the <tt>Select</tt> button next to each
+line in the platform list.  Clicking on a <img src=dsmdelsb.gif> button
+will cause it to toggle to the unselected <img src=dsmdelsbu.gif> state and
+back.  When you bring up the deletion window all platforms are selected; if
+you wish to operate on a small number of platforms, you may find it easier
+to unselect everything with the <img src=dsmdeluall.gif> button, then
+reselect the platforms of interest.
+<p>
+Once you have marked the platforms to operate on, click on <tt>Apply to
+selected platforms</tt> and you are done.  If you wish, you may pull up the
+file windows for individual platforms to double-check and fine-tune the
+list of files to be deleted.
+
+<h2>Actually deleting the files</h2>
+
+When you are finished marking files, it's time to hold your breath and
+actually delete them.  The first step is to check the <img
+src=dsmdelsb.gif> buttons one more time: no files will be deleted from an
+unselected platform, even those which may have been marked.  Unless there
+are platforms you wish to explicitly exclude, you may just wish to click on
+the <tt>Select all</tt> button to select all the platforms.
+<p>
+Then just click on <img src=dsmdelperf.gif> and the deed is done.
+
+
+<hr>
+<a href=.html><img src=la.gif></a>
+<a href=.html><img src=ra.gif></a><p>
+<i>Return to <a href=index.html> Zeb Help Index</i></a>
+
+
+
+
+

@@ -1,5 +1,33 @@
-<title></title>
-<h2></h2>
+<title>The data store display widget</title>
+<h1>The data store display widget</h1>
+
+The data store display widget may be used to query the data which is
+currently held in the zeb data store.  To get this widget, move to the
+global <img src=zeb-icon.gif> or tools <img src=tools-icon.gif> icon in the
+icon bar and select <tt>Data store display widget</tt> from the menu.  The
+result will be a widget like:
+<blockquote><img src=dsdwidget.gif></blockquote>
+
+Note that there is usually a delay before the widget appears; if you have a
+very large data store, this delay can be up to a few minutes.
+<p>
+Each line in the data store display widget describes one platform and the
+time period covered by the data for that platform.  You will almost
+certainly need to use the scrollbar on the left to view all the platforms.
+<p>
+To examine a single platform in more depth, simply click on the line for
+that platform.  You will get a new widget that looks like:
+<p><img src=dsdfiles.gif><p>
+This widget lists each data file which exists for the platform and the time
+period covered.  The data store widget is currently limited in that it can
+display the files widget for only one platform at a time; if you wish to
+examine a different platform you should click on the "done" button to
+dismiss the existing files widget.
+<p>
+In real time situations, you can ask the display widget to check for any
+new data by clicking on the "<tt>New data?</tt>" button.  The widget will
+not automatically track incoming data.
+
 <hr>
 <a href=.html><img src=la.gif></a>
 <a href=.html><img src=ra.gif></a><p>

@@ -1,0 +1,61 @@
+<title>Interpolation methods</title>
+<h1>Adjusting interpolation</h1>
+
+Certain types of plots (i.e. contours and wind fields) may need to
+interpolate irregularly-spaced data prior to display.  Such overlays will
+have an <tt>adjust interpolation</tt> option on the right-button icon menu.
+This option produces a widget like:
+
+<blockquote><img src=interpparams.gif></blockquote>
+
+The basic type of interpolation performed is controlled through the
+<tt>Interpolation method</tt> menu.  The options available vary, depending
+on the type of plot you are using.
+<p>
+For Constant Altitude (CAP) Plots, there are three possible types of
+interpolation:
+<ul>
+<li><tt>Barnes</tt>:  Applies a Barnes objective analysis.
+<li><tt>Closest-point</tt>: Performs a simple, closest-point
+	interpolation.
+<li><tt>Rgrid</tt>:  Applies the rgrid (triangulation) method.  Rgrid is
+	provided mostly for backward compatibility, and its use is not
+	recommended.
+</ul>
+<p>
+XYGraph plots (such as time-height plots) have two options:
+<ul>
+<li><tt>Profile-linear</tt>: Performs a linear interpolation across the
+	rows of the destination grid.  No vertical interpolation is done.
+	This method is intended for use with time-height plots.
+<li><tt>Closest-point</tt>:  Performs a simple closest-point interpolation.
+</ul>
+
+The resolution of the destination grid may be controlled by setting the
+appropriate values in the widget.  The defaults (usually 25 by 25) are
+usually adequate.  Note, however, that for profile-linear interpolation,
+the vertical resolution will be decreased as necessary to avoid exceeding
+that of the data.
+<p>
+The <b>radius of influence</b> value is relevant to Barnes interpolation
+only, and controls how quickly the influence of a data point fades at more
+distant grid points.  The influence of a data point is one-tenth its full
+value at a grid point that is exactly the <tt>radius</tt> grid points away.
+<p>
+The <b>max fill</b> also applies only to Barnes interpolation, and
+controls how far a grid point may be from a good data value before being
+set to the bad value flag.
+<p>
+When you have adjusted the interpolation parameters, click on <b>Apply</b>
+to apply them to the display window.  Otherwise you may simply use
+<b>Dismiss</b> to get rid of the widget without changing anything.
+
+<hr>
+<a href=.html><img src=la.gif></a>
+<a href=.html><img src=ra.gif></a><p>
+<i>Return to <a href=index.html> Zeb Help Index</i></a>
+
+
+
+
+
