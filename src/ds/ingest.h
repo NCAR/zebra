@@ -1,7 +1,7 @@
 /*
  * ingest.h --- Public protoypes and macros for ingest modules
  *
- * $Id: ingest.h,v 1.2 1992-07-03 18:39:58 granger Exp $
+ * $Id: ingest.h,v 1.3 1992-07-22 14:54:47 granger Exp $
  */
 
 # ifndef _ingest_h_
@@ -44,6 +44,7 @@ extern void RemoveOptions FP((int *argc, char *argv[], int i, int n));
  */
 #define ds_Store(a,b,c,d) _Ingest_ds_Store(a,b,c,d)
 #define ds_LookupPlatform(a) _Ingest_ds_LookupPlatform(a)
+#define ds_DeleteData(a,b) _Ingest_ds_DeleteData(a,b)
 
 /* -------------------------------------------------------------------- */
 
@@ -56,6 +57,7 @@ extern short NoDataStore;
 extern short NoMessageHandler;
 extern short NoEventLogger;
 extern short DryRun;
+extern short DumpDataChunks;
 
 /* -----------------------------------------------------------------
  * These macros allow ingest modules to set their default debug
