@@ -48,7 +48,7 @@
 # include "PixelCoord.h"
 # include "LayoutControl.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.44 1994-06-10 14:22:45 corbet Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.45 1994-06-10 18:57:27 corbet Exp $")
 
 /*
  * Default resources.
@@ -1866,7 +1866,7 @@ SValue *argv, *retv;
 
 
 
-static int
+int
 ReplString (narg, argv, argt, retv, rett)
 int narg, *argt, *rett;
 SValue *argv, *retv;
@@ -1882,20 +1882,18 @@ SValue *argv, *retv;
 /*
  * Go through the string copying until we find a match with the zap string.
  */
-	msg_ELog (EF_INFO, "Repl %s w/ %s in %s", olds, argv[2].us_v_ptr, cp);
 	for (; *cp; cp++)
 	{
 		if (! strncmp (cp, olds, olen))
 		{
 			strcpy (rp, argv[2].us_v_ptr);
 			rp += strlen (argv[2].us_v_ptr);
-			cp += olen;
+			cp += olen - 1;
 		}
 		else
 			*rp++ = *cp;
 	}
 	*rp = '\0';
-	msg_ELog (EF_INFO, "Result: %s", retstr);
 	*rett = SYMT_STRING;
 	retv->us_v_ptr = usy_string (retstr);
 }
