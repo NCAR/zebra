@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: dm_pick.c,v 1.1 1990-08-30 16:36:02 corbet Exp $";
+static char *rcsid = "$Id: dm_pick.c,v 1.2 1990-12-04 16:06:09 corbet Exp $";
 /*
  * Handle the window picking operation.
  */
@@ -86,7 +86,7 @@ char *var;
  */
 	wp.wp_id = win;
 	wp.wp_sym = var;
-	usy_traverse (Current, dm_CmpPickWin, &wp, FALSE);
+	usy_traverse (Current, dm_CmpPickWin, (long) &wp, FALSE);
 }
 
 
@@ -105,7 +105,7 @@ struct wpick *wp;
 {
 	struct cf_window *win = (struct cf_window *) v->us_v_ptr;
 	
-	if (wp->wp_id == win->cfw_win)
+	if (! (win->cfw_flags & CF_WIDGET) && wp->wp_id == win->cfw_win)
 	{
 		union usy_value nv;
 		nv.us_v_ptr = win->cfw_name;
