@@ -8,7 +8,7 @@
 #include <iomanip.h>
 
 //#include <defs.h>
-//RCSID ("$Id: FreeList.cc,v 1.10 1998-06-02 23:22:39 granger Exp $");
+//RCSID ("$Id: FreeList.cc,v 1.11 1998-06-05 19:25:10 granger Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
 #include "BlockFileP.hh"	// For the private header structure and stuff
@@ -21,11 +21,11 @@
 FreeList::FreeList (BlockFile &bf, Block &b, SyncBlock *parent) : 
 	SyncBlock (bf, b), RefBlock (b, parent),
 	ncache(0),
-	n(0),
+	nfree(0),
 	blocks(0),
 	stats()
 {
-	cout << "Constructing Freelist" << endl;
+	// cout << "Constructing Freelist" << endl;
 }
 
 
@@ -40,34 +40,33 @@ FreeList::~FreeList (void)
 
 
 void
-FreeList::Free (BlkOffset offset, BlkSize _length)
+FreeList::Free (BlkOffset offset, BlkSize length)
 /*
  * Add a freed block to the list.  If the block can just be appended and/or
  * prepended to an existing block, do so with a recursive free.
  */ 
 {
-	BlkSize length = _length;
-	stats.bytesfreed += _length;
+	readSync ();
+	stats.bytesfreed += length;
 	mark ();
 
 	int i;
-	for (i = 0; i < n; ++i)
+	for (i = 0; i < nfree; ++i)
 	{
 		if (offset + length == blocks[i].offset)
 		{
-			blocks[i].offset = offset;		/* prepend */
-			blocks[i].length += length;
+			/* prepend */
 		}
 		else if (offset == blocks[i].offset + blocks[i].length)
 		{
-			blocks[i].length += length;		/* append */
+			/* append */
+			offset = blocks[i].offset;
 		}
 		else
 			continue;
 
 		// Now we're looking to free a larger, combined block
-		offset = blocks[i].offset;
-		length = blocks[i].length;
+		length += blocks[i].length;
 		Remove (i);
 		stats.bytesfreed -= length;
 		Free (offset, length);
@@ -195,19 +194,20 @@ FreeList::Request (BlkSize length, BlkSize *ret_length)
 {
 	FreeBlock ret;
 
+	readSync ();
 	++stats.nrequest;
 	stats.bytesrequest += length;
 	mark ();
 
-	// Calculate the block size to allocate for the request
-	// Allocate in 64-byte increments
+	// Calculate the block size to allocate for the request.
+	// Allocate in 64-byte increments.
 	BlkSize size = (((length-1) >> 6) + 1) << 6;
 	ret.length = size;
 
 	/* Search the free list for the closest match to this request.
 	   If found, decide whether to return the whole block or split it. */
 	int closest = -1;
-	for (int i = 0 ; i < n ; ++i)
+	for (int i = 0 ; i < nfree ; ++i)
 	{
 		if (blocks[i].length == size)
 		{
@@ -241,8 +241,8 @@ FreeList::Request (BlkSize length, BlkSize *ret_length)
 		else
 		{
 			blocks[closest].length -= ret.length;
+			stats.bytesfree -= ret.length;
 		}
-		stats.bytesfree -= ret.length;
 	}
 	if (ret_length)
 		*ret_length = ret.length;
@@ -253,30 +253,12 @@ FreeList::Request (BlkSize length, BlkSize *ret_length)
 
 
 
-
-void
-FreeList::Add (BlkOffset offset, BlkSize length)
+FreeStats
+FreeList::Stats ()
 {
-	stats.nfree++;
-	stats.bytesfree += length;
-	if (!blocks || n >= ncache)
-	{
-		growCache (n+1);
-	}
-	blocks[n].offset = offset;
-	blocks[n].length = length;
-	n++;
-}
-
-
-
-void
-FreeList::Remove (int x)
-{
-	stats.nfree--;
-	n--;
-	for (int i = x ; i < n ; ++i)
-		blocks[i] = blocks[i+1];
+	readSync();
+	stats.nfree = this->nfree;
+	return (stats);
 }
 
 
@@ -284,7 +266,8 @@ FreeList::Remove (int x)
 void
 FreeList::Show (ostream &out)
 {
-	for (int i = 0; i < n; ++i)
+	readSync ();
+	for (int i = 0; i < nfree; ++i)
 	{
 		out << Printf("   %d bytes @ %d\n", 
 			      blocks[i].length, blocks[i].offset);
@@ -298,7 +281,7 @@ FreeList::Show (ostream &out)
 	out << "     bytes alloc: " << fs.bytesalloc << endl;
 	out << "     bytes freed: " << fs.bytesfreed << endl;
 	long slop = fs.bytesalloc - fs.bytesrequest;
-	out << "            slop: " << slop << " bytes";
+	out << " alloc - request: " << slop << " bytes";
 	if (fs.bytesalloc > 0)
 	{
 		float sloppct = (float)slop/fs.bytesalloc*100.0;
@@ -324,62 +307,32 @@ FreeList::Show (ostream &out)
 
 
 
+// ---------------- Private methods ----------------
 
-// ---------------- Serialization ----------------
 
-
-long
-FreeList::encodedSize (SerialBuffer &sbuf)
+void
+FreeList::Add (BlkOffset offset, BlkSize length)
 {
-	long s = serialCount (sbuf, n);
-	s += serialCount (sbuf, stats);
-	if (n > 0)
+	mark ();
+	stats.bytesfree += length;
+	if (!blocks || nfree >= ncache)
 	{
-		long b = serialCount (sbuf, blocks[0]);
-		s += n*b;
+		growCache (nfree+1);
 	}
-	return (s);
+	blocks[nfree].offset = offset;
+	blocks[nfree].length = length;
+	nfree++;
 }
 
 
 
-int
-FreeList::encode (SerialBuffer &sbuf)
+void
+FreeList::Remove (int x)
 {
-	sbuf << n;
-	sbuf << stats;
-
-	bf->log->Debug ("Writing free list blocks:");
-	for (int i = 0; i < n; ++i)
-	{
-		bf->log->Debug (Printf("   %d bytes @ %d",
-				      blocks[i].length, blocks[i].offset));
-		sbuf << blocks[i];
-	}
-	return (0);
-}
-
-
-
-int
-FreeList::decode (SerialBuffer &sbuf)
-{
-	sbuf >> n;
-	sbuf >> stats;
-
-	/*
-	 * Make sure we have room in our array.
-	 */
-	growCache (n);
-
-	/*
-	 * Now read in the array.
-	 */
-	for (int i = 0; i < n; ++i)
-	{
-		sbuf >> blocks[i];
-	}
-	return (0);
+	nfree--;
+	stats.bytesfree -= blocks[x].length;
+	for (int i = x ; i < nfree ; ++i)
+		blocks[i] = blocks[i+1];
 }
 
 
@@ -410,5 +363,66 @@ FreeList::growCache (int num)
 }
 
 
+
+
+
+// ---------------- Serialization ----------------
+
+
+long
+FreeList::encodedSize (SerialBuffer &sbuf)
+{
+	long s = serialCount (sbuf, nfree);
+	s += serialCount (sbuf, stats);
+	if (nfree > 0)
+	{
+		long b = serialCount (sbuf, blocks[0]);
+		s += nfree*b;
+	}
+	return (s);
+}
+
+
+
+int
+FreeList::encode (SerialBuffer &sbuf)
+{
+	sbuf << nfree;
+	stats.nfree = nfree;
+	sbuf << stats;
+
+	bf->log->Debug ("Writing free list blocks:");
+	for (int i = 0; i < nfree; ++i)
+	{
+		bf->log->Debug (Printf("   %d bytes @ %d",
+				      blocks[i].length, blocks[i].offset));
+		sbuf << blocks[i];
+	}
+	return (0);
+}
+
+
+
+int
+FreeList::decode (SerialBuffer &sbuf)
+{
+	sbuf >> nfree;
+	sbuf >> stats;
+	stats.nfree = nfree;
+
+	/*
+	 * Make sure we have room in our array.
+	 */
+	growCache (nfree);
+
+	/*
+	 * Now read in the array.
+	 */
+	for (int i = 0; i < nfree; ++i)
+	{
+		sbuf >> blocks[i];
+	}
+	return (0);
+}
 
 

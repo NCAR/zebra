@@ -8,7 +8,7 @@
 #include <iomanip.h>
 
 //#include <defs.h>
-//RCSID ("$Id: Journal.cc,v 1.7 1998-05-28 21:43:16 granger Exp $");
+//RCSID ("$Id: Journal.cc,v 1.8 1998-06-05 19:25:11 granger Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
 #include "BlockFileP.hh"	// For the private header structure and stuff
@@ -46,7 +46,7 @@ Journal::ChangeName (ChangeType c)
 Journal::Journal (BlockFile &bf, Block &b, SyncBlock *parent) :
 	SyncBlock (bf, b), RefBlock (b, parent)
 {
-	cout << "Constructing Journal" << endl;
+	// cout << "Constructing Journal" << endl;
 	max = MaxEntries;
 	first = 0;
 	last = 0;

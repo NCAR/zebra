@@ -2,7 +2,7 @@
  * The auxillary block base class from which BlockFile helper classes
  * can derive common functionality for serialization and syncing.
  *
- * $Id: AuxBlock.hh,v 1.8 1998-05-28 21:38:36 granger Exp $
+ * $Id: AuxBlock.hh,v 1.9 1998-06-05 19:25:08 granger Exp $
  */
 
 #ifndef _AuxBlock_hh_
@@ -64,6 +64,11 @@ public:
 		encode (*sbuf);
 		bf->write (block.offset, sbuf);
 	}		
+
+	virtual void mark (int _marked = 1)
+	{
+		RefBlock::mark (_marked);
+	}
 
 private:
 	// Not implemented //
@@ -143,10 +148,7 @@ public:
 	 */
 	BlkOffset Request (BlkSize length, BlkSize *ret_length);
 
-	FreeStats Stats ()
-	{
-		return (stats);
-	}
+	FreeStats Stats ();
 
 	void Show (ostream &out);
 
@@ -159,7 +161,7 @@ public:
 
 private:
 	int ncache;	/* Number of free blocks allocated space in array */
-	int n;		/* Actual number of free blocks in use in array */
+	int nfree;	/* Actual number of free blocks in use in array */
 	FreeBlock *blocks; /* The actual array of free blocks */
 
 	// Statistics
