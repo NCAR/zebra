@@ -33,7 +33,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: Ov_Grid.c,v 2.7 1997-02-03 17:52:55 corbet Exp $")
+RCSID ("$Id: Ov_Grid.c,v 2.8 1997-02-03 20:17:17 granger Exp $")
 
 # define BETWEEN(x,a,b)    ((((x)-(a))*((x)-(b))) <= 0)
 
@@ -50,6 +50,9 @@ RCSID ("$Id: Ov_Grid.c,v 2.7 1997-02-03 17:52:55 corbet Exp $")
 #define HeightPixPerInch(screen) \
 	(HeightOfScreen(screen)/(HeightMMOfScreen(screen)/25.4))
 
+#ifdef ABS
+# undef ABS
+#endif
 # define ABS(v) ((v) > 0 ? (v) : (- (v)))
 /*
  * The maximum number of segments we want to draw in a curve.
