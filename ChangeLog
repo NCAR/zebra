@@ -1,3 +1,50 @@
+<<<<<<< ChangeLog
+Wed May 18 16:05:54 1994  Chris Burghart  (burghart@fuggles)
+
+	* dsDaemon: Changed variables Genesis, LastScan, and LastCache from
+	  ZebTime to time_t.  This is mainly to keep the daemon from trying
+	  to send a message to the timer process after it's already dead
+	  (i.e., during a WriteCache() call at shutdown time).
+
+Wed May  4 15:15:22 1994  Chris Burghart  (burghart@fuggles)
+
+	* ds/d_Config.c: Fixed an insidious little bug that could 
+	  cause subplatform definition to fail if a platform table or class
+	  table resize happened while handling a line full of subplatform
+	  declarations.  We now keep a local copy of the parent name string
+	  as well as redoing the parent lookup after each subplatform
+	  definition.  Ugly, but necessary.
+
+
+Tue Apr 19 16:07:21 1994  Jonathan Corbet  (corbet@fuggles)
+
+	* Changed around definition of FINITE in gp to avoid HP weirdness,
+	  and moved it so it's only defined in one place.
+
+	  Fix an "it could have never worked" bug in FieldMenu.
+
+Fri Apr 15 16:00:00 1994  Chris Burghart  (burghart@fuggles)
+
+	* gp: Merged "Branch_alt_and_nspace" branch back into the trunk.  This
+	  branch includes a number of enhancements and fixes.  Two very 
+	  notable changes occurred: First, altitude control has changed
+	  radically.  There is now a notion of altitude units associated with
+	  with locations in Transparent class data chunks.  This information
+	  is used in altitude control, which means that we can now step through
+	  pressure levels, altitude levels in km, etc.  Second, some basic 
+	  handling for certain NSpace data chunks has been added to both 
+	  constant altitude plots (via GridAccess.c) and cross section plots.
+
+	* ds: Merged "Branch_alt_control" branch into the trunk.  Two major
+	  changes are here.  First, the notion of altitude units has been 
+	  added to locations in Transparent class data chunks.  This allows 
+	  different sorts of grids (i.e., those defined by pressure level 
+	  rather than altitude) to be stored and interpreted without fuss.  
+	  Second, the official addition of support for GRIB format data files
+	  (DFA_GRIB.c) comes with this merge.
+
+||||||| 1.16
+=======
 Tue May 24 03:04:57 1994  Gary Granger  (granger@steam)
 
 	* dm: yanked DM_GEOMETRY method until I figure out why olwm 
@@ -117,6 +164,7 @@ Thu Feb 10 14:08:45 1994  Jonathan Corbet  (corbet@ale)
 	  stuff around so that the right thing happens in the right order.
 	  This code needs some review in the future...
 
+>>>>>>> /tmp/T4a08325
 Thu Feb  3 14:45:32 1994  Jonathan Corbet  (corbet@steam)
 
 	* Tagging version V4.0.
