@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.13 1999-07-12 20:12:57 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.14 2001-09-18 21:55:49 granger Exp $"
 
 CLIBS = $(LIBSUDS) $(DFALIBS) $(LIBZEBRA) $(LIBRDSSGRAPH) $(LIBRDSS) $(XLIBS)
 GLIBS = $(DFALIBS) $(ZLIBS) 
@@ -33,8 +33,8 @@ OBJS = class_ingest.o glass_ingest.o
 
 DISTFILES = class_ingest.c Imakefile
 
-CccProgramTarget(class_ingest,class_ingest.o,$(DEPLIBS),$(CLIBS),$(SYSLIBS))
 CccProgramTarget(glass_ingest,glass_ingest.o,$(DEPLIBS),$(GLIBS),$(SYSLIBS))
+CccTestProgramTarget(class_ingest,class_ingest.o,$(DEPLIBS),$(CLIBS),$(SYSLIBS))
 
 DependTarget()
 LintTarget()

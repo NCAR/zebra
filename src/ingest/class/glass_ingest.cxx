@@ -1,5 +1,5 @@
 /* -*- mode: c++; c-basic-offset: 8; -*-
- * $Id: glass_ingest.cxx,v 2.12 2001-06-12 23:11:52 granger Exp $
+ * $Id: glass_ingest.cxx,v 2.13 2001-09-18 21:55:50 granger Exp $
  *
  * Ingest GLASS data into the system.
  *
@@ -74,7 +74,7 @@ extern "C"
 #include <met_formulas.h>
 }
 
-RCSID("$Id: glass_ingest.cxx,v 2.12 2001-06-12 23:11:52 granger Exp $")
+RCSID("$Id: glass_ingest.cxx,v 2.13 2001-09-18 21:55:50 granger Exp $")
 
 #include <ZTime.h>
 #define FC_DEFINE_FIELDS
@@ -110,16 +110,16 @@ public:
 	{}
 
 	LibraryException (const string &msg) :
-		AppException (strerror (::errno)),
-		m_errno (::errno)
+		AppException (strerror (errno)),
+		m_errno (errno)
 	{
 		m_msg += ": ";
 		m_msg += msg;
 	}
 
 	LibraryException () :
-		AppException (strerror (::errno)),
-		m_errno (::errno)
+		AppException (strerror (errno)),
+		m_errno (errno)
 	{}
 
 	unsigned int error () const { return m_errno; }
@@ -431,7 +431,10 @@ static void 	GetPlatformName (const Sounding &snd, char plat[]);
 static void	BuildTranslationTable (const char *tfilename);
 static void	ParseCommandLineOptions (int *argc, char *argv[]);
 static char *	GetNextString (char *, char*);
-extern "C"	void Usage(char *prog_name);
+extern "C"
+{ 
+	static void Usage(char *prog_name);
+}
 
 # define MAX_FIELDS 32
 
@@ -696,7 +699,7 @@ ParseCommandLineOptions (int *argc, char *argv[])
 /*
  * First parse any of the general ingest options
  */
-	IngestParseOptions(argc, argv, (void (*)(...))Usage);
+	IngestParseOptions(argc, argv, (void (*)())Usage);
 /*
  * Now check for any of our own debug flags on the command line
  */
