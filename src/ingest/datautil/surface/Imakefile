@@ -1,5 +1,5 @@
 XCOMM ---------------------------------------------------------------------
-XCOMM $Id: Imakefile,v 1.6 1995-07-06 04:26:56 granger Exp $ 
+XCOMM $Id: Imakefile,v 1.7 1999-06-15 16:50:50 burghart Exp $ 
 XCOMM ---------------------------------------------------------------------
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
@@ -37,7 +37,7 @@ HDRS =	sc_cmds.h
 DISTFILES = Imakefile $(SRCS) $(FSRCS) $(HDRS) surf_convert.state \
 	    surf.example
 
-CompleteProgramTarget(surf_convert,$(OBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
+CccProgramTarget(surf_convert,$(OBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
 UILoadFileTarget(surf_convert.lf, surf_convert.state)
 

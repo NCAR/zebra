@@ -1,5 +1,5 @@
 XCOMM ---------------------------------------------------------------------
-XCOMM $Id: Imakefile,v 1.6 1995-07-06 04:26:52 granger Exp $ 
+XCOMM $Id: Imakefile,v 1.7 1999-06-15 16:50:43 burghart Exp $ 
 XCOMM ---------------------------------------------------------------------
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
@@ -37,7 +37,7 @@ HDRS =	pc_cmds.h
 DISTFILES = Imakefile $(SRCS) $(FSRCS) $(HDRS) prof_convert.state README \
 	    profiler.names profiler.txt
 
-CompleteProgramTarget(prof_convert,$(OBJS),$(DEPLIBS), $(LIBS), $(SYSLIBS))
+CccProgramTarget(prof_convert,$(OBJS),$(DEPLIBS), $(LIBS), $(SYSLIBS))
 
 UILoadFileTarget(prof_convert.lf, prof_convert.state)
 
