@@ -2,14 +2,12 @@
 /*
  * Graphics driver for the X window system, version 11.3
  */
-# include <graphdev.h>
-
-# ifdef DEV_X11
-static char *rcsid = "$Id: dev_x11.c,v 1.33 1998-02-27 16:00:40 burghart Exp $";
+static char *rcsid = "$Id: dev_x11.c,v 1.34 2002-07-11 22:59:23 burghart Exp $";
 
 # include "graphics.h"
 # include "device.h"
 # include <stdio.h>
+# include <stdlib.h>
 # include <X11/Xlib.h>
 # include <X11/Xutil.h>
 # include <X11/cursorfont.h>
@@ -44,10 +42,9 @@ struct xtag
 	GC	x_gc;		/* Graphics context		*/
 	Cursor	x_cursor;	/* The cursor for this window	*/
 	Visual	*x_visual;	/* The visual			*/
+        unsigned long	*x_pixels;	/* index -> pixel array	*/
+	int	x_pseudocolor;	/* Did we get a PseudoColor visual?	*/
 	int	x_xres, x_yres;	/* The resolution of our window	*/
-	int	x_mono;		/* Is this a mono screen?	*/
-	long	x_fg, x_bg;	/* Foreground and background colors	*/
-	int 	*x_dev_bg;	/* KLUGE: pointer to bg color in dev struct */
 	int	x_xtgt, x_ytgt;	/* Target position			*/
 	GC	x_tgt_gc;	/* Target GC (no clipping)		*/
 	int	x_do_pxm;	/* Do we need to do the target pixmap?	*/
@@ -117,10 +114,11 @@ struct device *dev;
 	struct xtag *tag = (struct xtag *) getvm (sizeof (struct xtag));
 	XSetWindowAttributes attr;
 	XGCValues gcontext;
-	XVisualInfo template, *vlist, *p_visinfo;
+	XVisualInfo template, *vlist;
 	XWMHints hints;
-	int screen, pv[2], pm, nmatch, depth, i, found;
+	int screen, pv[2], pm, nmatch, depth, i;
 	XEvent ev;
+	char* default_dev;
 /*
  * Figure out what our resolution will be.
  */
@@ -149,21 +147,22 @@ struct device *dev;
 		dev->gd_yb = dev->gd_xb = 128;
 	}
 /*
- * First, open up our display.  If the device is "screen", convert it to
- * unix:0; otherwise take the device as given.
+ * First, open up our display.  If the device is "screen", use the current
+ * value of getenv("DISPLAY"); otherwise take the device as given.
  */
-	tag->x_display = XOpenDisplay (device && strcmp (device, "screen") ? 
-			device : "unix:0.0");
+	default_dev = getenv("DISPLAY");
+	if (! default_dev)
+	    default_dev = ":0";
+	
+	tag->x_display = XOpenDisplay ((device && strcmp (device, "screen")) ? 
+				       device : default_dev);
 	if (! tag->x_display)
 	{
 		relvm (tag);
 		return (GE_BAD_DEVICE);
 	}
 	screen = DefaultScreen (tag->x_display);
-	tag->x_mono = DefaultDepth (tag->x_display, screen) == 1;
 
-	tag->x_fg = 1;
-	tag->x_bg = 0;
 	tag->x_current = FALSE;
 /*
  * No target for now
@@ -171,51 +170,60 @@ struct device *dev;
 	tag->x_xtgt = -1;
 	tag->x_ytgt = -1;
 /*
- * Try to find a pseudocolor visual.  If we succeed, we use it; otherwise
- * it's monochrome city.  We really won't work well with anything but a
- * 8 bit visual, but if we ask for that the Ardent server freaks.
+ * Look for a good visual.  Try for a TrueColor one first, and if that
+ * fails then get a PseudoColor visual with depth >= 8.
  */
-        found = FALSE;
+	tag->x_visual = 0;
+	
 	template.screen = screen;
-	template.class = PseudoColor;
+	template.class = TrueColor;
 	vlist = XGetVisualInfo (tag->x_display,
-		VisualScreenMask | VisualClassMask, &template, &nmatch);
-	tag->x_mono = ! nmatch;
+				VisualScreenMask | VisualClassMask, 
+				&template, &nmatch);
 	if (nmatch)
 	{
-/*
- * Try to find a visual with at least a depth of 8.
- */ 
-		for (i = 0, p_visinfo = vlist; i < nmatch; i++,p_visinfo++)
+	    /*
+	     * Good, we got a TrueColor visual
+	     */
+	    tag->x_visual = vlist[0].visual;
+	    depth = vlist[0].depth;
+	    tag->x_pseudocolor = FALSE;
+	}
+	else
+	{
+	    /*
+	     * Try to find a PseudoColor visual.
+	     */
+	    template.class = PseudoColor;
+	    vlist = XGetVisualInfo (tag->x_display,
+				    VisualScreenMask | VisualClassMask, 
+				    &template, &nmatch);
+	    if (nmatch)
+	    {
+		/*
+		 * Take the first one with at least a depth of 8.
+		 */ 
+		for (i = 0; i < nmatch; i++)
                 {
-                    if (p_visinfo->class == PseudoColor &&
-                        p_visinfo->depth >= 8){
-		        tag->x_visual = p_visinfo->visual;
-		        depth = p_visinfo->depth;
+                    if (vlist[i].depth >= 8){
+		        tag->x_visual = vlist[i].visual;
+		        depth = vlist[i].depth;
+			tag->x_pseudocolor = TRUE;
 		        XFree ((char *) vlist);
-                        found = TRUE;
                         break;
                     }
                 }
+	    }
 	}
-        if (!found)
-	{
-		tag->x_visual = DefaultVisual (tag->x_display, screen);
-		depth = CopyFromParent;
-	}
+	
+	if (!tag->x_visual)
+	    return GE_DEVICE_UNABLE;
 /*
  * Create the window to exist on that display.
  */
 	attr.background_pixel = BlackPixel (tag->x_display, screen);
 	attr.border_pixel = WhitePixel (tag->x_display, screen);
-	if (! strncmp ("Ardent", ServerVendor (tag->x_display), 6))
-	/*
-	 * Ardent server backing store sucks (is LessThanUseful)
-	 */
-		attr.backing_store = NotUseful;
-	else
-		attr.backing_store = WhenMapped;
-/*		attr.backing_store = NotUseful;  */
+	attr.backing_store = WhenMapped;
 	attr.event_mask = ButtonPressMask | ExposureMask | KeyPressMask;
 	tag->x_window = XCreateWindow (tag->x_display,
 		RootWindow (tag->x_display, screen), 10, 10, tag->x_xres, 
@@ -230,11 +238,10 @@ struct device *dev;
 /*
  * Create all of the subwindows.
  */
-/*	if (! tag->x_mono) */
-		for (i = 0; i < 5; i++)
-			tag->x_sw[i] = XCreatePixmap (tag->x_display,
-				tag->x_window, tag->x_xres, tag->x_yres, 
-				tag->x_mono ? 1 : 8);
+	for (i = 0; i < 5; i++)
+	    tag->x_sw[i] = XCreatePixmap (tag->x_display,
+					  tag->x_window, tag->x_xres, 
+					  tag->x_yres, depth);
 /*
  * Store some properties.
  */
@@ -271,27 +278,21 @@ struct device *dev;
 /*
  * Fill in the device structure.
  */
- 	if (tag->x_mono)
-		dev->gd_ncolor = 2;
-	else
-	{
-		dev->gd_ncolor = DisplayCells (tag->x_display, screen);
-		dev->gd_flags |= GDF_PIXEL;
-	}
+	dev->gd_ncolor = 256;
+	dev->gd_flags |= GDF_PIXEL;
 	dev->gd_xres = tag->x_xres;
 	dev->gd_yres = tag->x_yres;
-	dev->gd_background = tag->x_bg;
+	dev->gd_background = 0;
 /*
- * KLUGE: Keep a pointer to the background color in the dev structure, since
- * we need to change it when the user first allocates some colors
+ * Allocate our color mapping array
  */
-	tag->x_dev_bg = &(dev->gd_background);
+	tag->x_pixels = (unsigned long*) 
+	    malloc (dev->gd_ncolor * sizeof(unsigned long));
 /*
  * Clear the window.
  */
 	XWindowEvent (tag->x_display, tag->x_window, ExposureMask, &ev);
 	x11_clear (tag);
-	/* XClearWindow (tag->x_display, tag->x_window); */
 /*
  * Initialize zoom stuff.
  */
@@ -349,9 +350,9 @@ char *ctag;
  * Clear the main window.
  */
 	XClearWindow (tag->x_display, tag->x_window);
-	XSetForeground (tag->x_display, tag->x_tgt_gc, tag->x_bg);
+	XSetForeground (tag->x_display, tag->x_tgt_gc, tag->x_pixels[0]);
 	XFillRectangle (tag->x_display, tag->x_sw[0], tag->x_tgt_gc, 0, 0,
-		tag->x_xres, tag->x_yres);
+			tag->x_xres, tag->x_yres);
 	tag->x_zoomok = FALSE;
 	tag->x_current = TRUE;
 /*
@@ -381,8 +382,7 @@ int color, ltype, npt, *data;
 /*
  * For color displays, fill in the color value.
  */
- 	if (! tag->x_mono)
-		XSetForeground (tag->x_display, tag->x_gc, color);
+	XSetForeground (tag->x_display, tag->x_gc, tag->x_pixels[color]);
 /*
  * Set up our dash pattern.
  */
@@ -689,96 +689,27 @@ int ncolor, *base;
  */
 {
 	struct xtag *tag = (struct xtag *) ctag;
-	int	ncontig, nget, offset, ncells, contig_start;
-	int	start, i, status;
-	unsigned long	*cells, pm;
-/*
- * Simple for a mono device
- */
-	if (tag->x_mono)
+	/*
+	 * We only need to allocate colors if we have a PseudoColor visual.
+	 */
+	if (tag->x_pseudocolor)
 	{
-		*base = 0;
-		tag->x_fg = WhitePixel (tag->x_display, 0);
-		tag->x_bg = BlackPixel (tag->x_display, 0);
-		return (GE_OK);
+	    int	status;
+	    unsigned long pm;
+	    /*
+	     * Allocate writable cells from the default Colormap, and store
+	     * them in our local color mapping array.
+	     */
+	    status = XAllocColorCells (tag->x_display, 
+				       DefaultColormap (tag->x_display, 0),
+				       False, &pm, 0, tag->x_pixels, ncolor);
+	    if (! status)
+		return (GE_DEVICE_UNABLE);
 	}
-/*
- * Start with space for 256 color cells (this may increase below)
- */
-	ncells = 256;
-	cells = (unsigned long *) malloc (ncells * sizeof (long));
-/*
- * Initialize
- */
-	offset = 0;
-	ncontig = 1;
-	nget = 0;
-	contig_start = 0;
-/*
- * Allocate color cells until we have the requested number of contiguous
- * cells
- */
-	while (ncontig != ncolor)
-	{
 	/*
-	 * Update the offset and the number of cells to get
+	 * Returned base is always zero
 	 */
-		offset += nget;
-		nget = ncolor - ncontig;
-	/*
-	 * Get more cell space if necessary
-	 */
-		if (offset + nget > ncells)
-		{
-			ncells *= 2;
-			cells = (unsigned long *) 
-				realloc (cells, ncells * sizeof (long));
-		}
-	/*
-	 * Get as many color cells as we need to complete a chunk of ncolor
-	 * contiguous cells
-	 */
-		status = XAllocColorCells (tag->x_display, 
-			DefaultColormap (tag->x_display, 0), False, &pm, 0,
-			cells + offset, nget);
-		if (! status)
-			return (GE_DEVICE_UNABLE);
-	/*
-	 * Find out how many contiguous cells we have now
-	 */
-		start = (offset == 0) ? 1 : offset;
-
-		for (i = start; i < nget + offset; i++)
-		{
-			if (ABS ((long)(cells[i] - cells[i-1])) == 1)
-				ncontig++;
-			else
-			{
-				contig_start = i;
-				ncontig = 1;
-			}
-		}
-	}
-/*
- * Deallocate the cells before the contiguous chunk
- */
-	XFreeColors (tag->x_display, DefaultColormap (tag->x_display, 0), 
-		cells, contig_start, 0);
-/*
- * Save the base of the contiguous block
- */
-	*base = cells[contig_start];
-/*
- * Set the background
- */
-	tag->x_bg = *base;
-	*(tag->x_dev_bg) = *base;
-	XSetWindowBackground (tag->x_display, tag->x_window, *base);
-/*
- * Free the memory allocated for cells
- */
-	free (cells);
-
+	*base = 0;
 	return (GE_OK);
 }
 
@@ -792,30 +723,43 @@ int base, ncolor;
 float *r, *g, *b;
 {
 	struct xtag *tag = (struct xtag *) ctag;
-	XColor *xc = (XColor *) getvm (ncolor * sizeof (XColor));
+	XColor xc;
 	int col;
-/*
- * Ignore this stuff for mono displays.
- */
- 	if (tag->x_mono)
-		return (GE_DEVICE_UNABLE);
-/*
- * Reformat the colors for X.
- */
+	/*
+	 * Loop through the given colors
+	 */
  	for (col = 0; col < ncolor; col++)
 	{
-		xc[col].pixel = col + base;
-		xc[col].red = (unsigned short) (*r++ * 65535.0);
-		xc[col].green = (unsigned short) (*g++ * 65535.0);
-		xc[col].blue = (unsigned short) (*b++ * 65535.0);
-		xc[col].flags = DoRed | DoGreen | DoBlue;
+		xc.red = (unsigned short) (*r++ * 65535.0);
+		xc.green = (unsigned short) (*g++ * 65535.0);
+		xc.blue = (unsigned short) (*b++ * 65535.0);
+		xc.flags = DoRed | DoGreen | DoBlue;
+		/*
+		 * For PseudoColor, we store to our allocated pixel
+		 */
+		if (tag->x_pseudocolor)
+		{
+		    xc.pixel = tag->x_pixels[col];
+		    XStoreColor (tag->x_display, 
+				 DefaultColormap (tag->x_display, 0), &xc);
+		}
+		/*
+		 * For TrueColor, we tell the server the RGB we want, and
+		 * let it tell us the necessary pixel value, which we
+		 * put into our colormap array.
+		 */
+		else
+		{
+		    XAllocColor(tag->x_display, 
+				DefaultColormap (tag->x_display, 0), &xc);
+		    tag->x_pixels[col] = xc.pixel;
+		}
 	}
-/*
- * Now, store them.
- */
- 	XStoreColors (tag->x_display, DefaultColormap (tag->x_display, 0), 
-		xc, ncolor);
-	relvm (xc);
+	/*
+	 * Make sure the window background color continues to match our idea of
+	 * the background color
+	 */
+	XSetWindowBackground (tag->x_display, tag->x_window, tag->x_pixels[0]);
 		
 	return (GE_OK);
 }
@@ -834,22 +778,34 @@ int x, y, xs, ys, size, org;
 {
 	XImage *xi;
 	struct xtag *tag = (struct xtag *) ctag;
-
-/*	x11_zreset (tag); */
+	int ix, iy;
+/*
+ * Remap the given char data into an array of pixel values
+ */
+	unsigned long *pixdata = (unsigned long*) 
+	    malloc (xs * ys * sizeof(unsigned long));
+	for (ix = 0; ix < xs; ix++)
+	{
+	    for (iy = 0; iy < ys; iy++)
+	    {
+		int elem = ix * xs + iy;
+		pixdata[elem] = tag->x_pixels[data[elem]];
+	    }
+	}
 /*
  * Create the XImage structure.
  */
- 	xi = XCreateImage (tag->x_display, tag->x_visual, 8, ZPixmap, 0, data,
-		xs, ys, 8, xs);
+ 	xi = XCreateImage (tag->x_display, tag->x_visual, 
+			   tag->x_visual->bits_per_rgb, ZPixmap, 0, 
+			   (char*)pixdata, xs, ys, sizeof(*pixdata), xs);
 /*
  * Send it to the display.
  */
  	XPutImage (tag->x_display, tag->x_sw[0], tag->x_gc, xi, 0, 0, 
-		x, tag->x_yres - (y + ys), xs, ys);
+		   x, tag->x_yres - (y + ys), xs, ys);
 /*
- * Release the image structure.
+ * Release the allocated pixdata and the image structure.
  */
- 	xi->data = (char *) 0;
 	XDestroyImage (xi);
 	tag->x_zoomok = FALSE;
 	tag->x_current = FALSE;
@@ -910,11 +866,6 @@ int x0, y0, x1, y1;
 {
 	struct xtag *tag = (struct xtag *) ctag;
 	int whole;
-/*
- * Mono devices don't do this for now.
- */
- 	if (tag->x_mono)
-		return (GE_DEVICE_UNABLE);
 /*
  * See what sort of zoom is wanted.
  */
@@ -1143,7 +1094,7 @@ char *ctag;
  * Return the color offset.
  */
 {
-	return (((struct xtag *) ctag)->x_bg);
+	return (0);
 }
 
 
@@ -1328,8 +1279,7 @@ float rot;
 /*
  * For color displays, fill in the color value.
  */
- 	if (! tag->x_mono)
-		XSetForeground (tag->x_display, tag->x_gc, color);
+	XSetForeground (tag->x_display, tag->x_gc, tag->x_pixels[color]);
 /*
  * Do it.  We throw in the descent, since graphics expects us to draw at
  * the real bottom, not at the baseline.
@@ -1340,9 +1290,3 @@ float rot;
 		strlen (text));
 	tag->x_current = FALSE;
 }
-
-
-
-
-
-# endif /* DEV_X11 */
