@@ -1,7 +1,7 @@
 !
 ! Display manager widgets.
 !
-! $Id: dm.widgets,v 1.6 1993-11-05 23:44:30 corbet Exp $
+! $Id: dm.widgets,v 1.7 1993-11-17 23:03:06 corbet Exp $
 !
 
 define widget SaveConfig form 'Configuration saver'
@@ -355,26 +355,15 @@ endprocedure
 
 
 
-!
-! Try to figure out what to do with a scalar field.
-!
-procedure PutScalar platform string field string
-!
-! Start by finding a window.
-!
-	set target_win "none"
-	pickwin target_win
-	if (target_win = "none")	! They picked root or something
-		beep
-		return
-	endif
+
+
+procedure ShipScalar platform string field string target_win string
 !
 ! Now figure out what sort of window this is.
 ! If it's a CAP plot, send it out as a track (for now)
 !
 	local ptype pd_param(target_win, 'global', 'plot-type', 'string')
 	if (ptype = 'CAP')
-!		putc2 p_track 'platform' #platform 'field' #field
 		parameter p_track p_track platform #platform
 		parameter p_track p_track field #field
 		sendout p_track #target_win
@@ -441,4 +430,23 @@ procedure PutScalar platform string field string
 		parameter p_xytrace p_xytrace 'field-color' #fcolor
 		add p_xytrace p_xytrace #target_win
 	endif
+endprocedure
+
+
+
+
+!
+! Try to figure out what to do with a scalar field.
+!
+procedure PutScalar platform string field string
+!
+! Start by finding a window.
+!
+	set target_win "none"
+	pickwin target_win
+	if (target_win = "none")	! They picked root or something
+		beep
+		return
+	endif
+	ShipScalar #platform #field #target_win
 endprocedure

@@ -23,7 +23,7 @@
 # include <ui_error.h>
 # include "dm_vars.h"
 # include "dm_cmds.h"
-MAKE_RCSID ("$Id: dm_ui.c,v 2.5 1993-10-21 22:53:02 corbet Exp $")
+MAKE_RCSID ("$Id: dm_ui.c,v 2.6 1993-11-17 23:03:08 corbet Exp $")
 
 
 
@@ -419,6 +419,35 @@ union usy_value *argv, *retv;
 
 
 
+NthComponent (narg, argv, argt, retv, rett)
+int narg, *argt, *rett;
+union usy_value *argv, *retv;
+/*
+ * NthComp command line function:
+ *
+ *	set comp_name NthComp (pd, n)
+ */
+{
+	plot_description find_pd ();
+	plot_description pd = find_pd (argv[0].us_v_ptr);
+	char **comps = pd_CompList (pd);
+	int i;
+/*
+ * Pass through the list of components to make sure it doesn't end before
+ * the one they want.
+ */
+	for (i = 0; i < argv[1].us_v_int; i++)
+		if (! comps[i])
+			break;
+	if (argv[1].us_v_int < 0 || ! comps[i])
+		retv->us_v_ptr = usy_string ("(Undefined)");
+	else
+		retv->us_v_ptr = usy_string (comps[i]);
+	*rett = SYMT_STRING;
+}
+
+
+
 
 
 pd_param (narg, argv, argt, retv, rett)
@@ -428,12 +457,13 @@ union usy_value *argv, *retv;
  * The pd_param command line function.
  *
  *	pd_param (pd, comp, param, type)
+ *	PDParam (pd, comp, param)
  */
 {
 	char tmp[500];
 	plot_description find_pd ();
 	plot_description pd = find_pd (argv[0].us_v_ptr);
-	int type = uit_int_type (argv[3].us_v_ptr);
+	int type = (narg == 4) ? uit_int_type (argv[3].us_v_ptr) : SYMT_STRING;
 
 	*rett = SYMT_STRING;
 	if (! pd)

@@ -34,7 +34,7 @@
 # include <config.h>
 # include <copyright.h>
 # include <xhelp.h>
-MAKE_RCSID ("$Id: dm.c,v 2.37 1993-11-15 21:06:54 corbet Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.38 1993-11-17 23:03:04 corbet Exp $")
 
 
 /*
@@ -97,6 +97,7 @@ static void EnterPosition FP ((struct ui_command *));
 static void KillProcess FP ((char *));
 extern int pd_complist FP ((int, SValue *, int, SValue *, int *));
 extern int NthColor FP ((int, SValue *, int, SValue *, int *));
+extern int NthComponent FP ((int, SValue *, int, SValue *, int *));
 extern int nvalue FP ((int, SValue *, int, SValue *, int *));
 
 
@@ -143,11 +144,13 @@ char **argv;
 	uf_def_function ("pdesc", 1, type, get_pd);
 	uf_def_function ("active", 1, type, is_active);
 	uf_def_function ("pd_param", 4, type, pd_param);
+	uf_def_function ("pdparam", 3, type, pd_param);
 	uf_def_function ("pd_defined", 3, type, pd_defined);
 	uf_def_function ("pd_complist", 1, type, pd_complist);
 	uf_def_function ("nvalue", 3, type, nvalue);
 	type[1] = SYMT_INT;
 	uf_def_function ("nthcolor", 2, type, NthColor);
+	uf_def_function ("nthcomp", 2, type, NthComponent);
 /*
  * Indirect variables.
  */
