@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.7 1994-01-26 01:37:06 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.8 1994-02-02 03:18:45 granger Exp $"
 
 /*
  * All individual ingest-related routines are kept in subdirectories.  Code
@@ -104,6 +104,9 @@ PRECIP = precip
 #if BuildDAPIngest
 DAP = dap
 #endif
+#if BuildPamIngest
+PAM = pam
+#endif
 
 #ifdef notdef		/* ----------------------------------------------
 			 * These directories are ignored since they
@@ -119,9 +122,6 @@ NATS = nats
 #if BuildP3Ingest
 P3 = p3
 #endif
-#if BuildPamIngest
-PAM = pam
-#endif
 #if BuildAircraftIngest
 AIRCRAFT = aircraft
 #endif
@@ -133,9 +133,6 @@ LLP = llp
 #endif
 #endif		/* ---------------- Ignore non-distributed directories -- */
 
-/*
- * This line cannot be divided with escaped newlines because it
- */
 SUBDIRS = mcidas $(IS) $(CLASS) $(RADAR) $(SLGRABBER) $(NOWRAD) $(PROFS) \
 	  $(SATELLITE) $(RADARLIMITS) $(NATS) $(P3) $(PAM) \
 	  $(RAP_DATA_SERVER) $(WETNET) $(AIRCRAFT) $(FM) $(LLP) \
@@ -145,24 +142,14 @@ SUBDIRS = mcidas $(IS) $(CLASS) $(RADAR) $(SLGRABBER) $(NOWRAD) $(PROFS) \
 
 DISTFILES = Imakefile
 
-#ifdef notdef	/* Before ingest directories were moved to zeb-nondist */
-
-DISTSUBDIRS = mcidas aircraft llp radar nats class pam p3 nowrad \
-	      SLGrabber RadarLimits satellite profs fm is tao \
-	      p3composite st_ingest togast gmsISCCP rap_data_server \
-	      wetnet ssmi trmm_rain trmm_sonde fest_p3_c130 precip \
-	      dap
-#endif
-
 /*
  * If any ingest module directories are added to zeb/src/ingest, they
  * should be included below.
  */
 DISTSUBDIRS = mcidas radar class nowrad SLGrabber satellite profs is tao \
-	      p3composite st_ingest togast gmsISCCP rap_data_server \
+	      p3composite st_ingest togast gmsISCCP pam rap_data_server \
 	      wetnet ssmi trmm_rain trmm_sonde fest_p3_c130 precip \
 	      dap
-
 
 MakeSubdirs($(SUBDIRS))
 DependSubdirs($(SUBDIRS))
@@ -235,6 +222,9 @@ OmitBuildRules(PrecipIngest)
 #if !BuildDAPIngest
 OmitBuildRules(DAP ingest)
 #endif
+#if !BuildPamIngest
+OmitBuildRules(PAM ingest)
+#endif
 
 
 #ifdef notdef	/* ---- Directories not presently being distributed ----- */
@@ -246,9 +236,6 @@ OmitBuildRules(nats ingest)
 #endif
 #if !BuildP3Ingest
 OmitBuildRules(P3 ingest)
-#endif
-#if !BuildPamIngest
-OmitBuildRules(PAM ingest)
 #endif
 #if !BuildAircraftIngest
 OmitBuildRules(aircraft ingest)
