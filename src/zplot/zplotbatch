@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# $Id: zplotbatch,v 1.29 2004-07-16 03:16:18 granger Exp $
+# $Id: zplotbatch,v 1.30 2004-07-16 03:35:41 granger Exp $
 #
 # Start a display manager session with a virtual X server and dump
 # images of its plots.
@@ -154,7 +154,7 @@ fi
 
 images=''
 lastconfig=''
-now=`zquery timer`
+now=`zquery -t 10 timer`
 if [ $? -ne 0 ]; then
     problem "Failed to get current time!"
 else
@@ -218,7 +218,7 @@ while read when config windows; do
 	# For each process, check that it has an active window and get the name
 	# zquery returns a line like this:
 	# Graphics process surfrad, window 'surfrad' DOWN ...
-	qwin=`zquery $plot | head -1`
+	qwin=`zquery -t 10 $plot | head -1`
 	if echo "$qwin" | egrep 'Graphics process.*UP' >/dev/null ; then
 	    true
 	else
@@ -229,7 +229,7 @@ while read when config windows; do
 	# If we have specific targets, skip this window if it's not one of them
 	if test "$windows" = "" || echo "$windows" | egrep -s "$win"; then
 
-	    wtime=`zquery $plot | egrep 'plot-time:' | sed 's/^.*plot-time:[^0-9]*//'`
+	    wtime=`zquery -t 10 $plot | egrep 'plot-time:' | sed 's/^.*plot-time:[^0-9]*//'`
 	    echo "Process $plot active, displaying window $win at $wtime."
 	    if [ "`ztsplit $wtime`" != "`ztsplit $when`" ]; then
 		problem "Plot failed to get the correct time!  Skipping."
