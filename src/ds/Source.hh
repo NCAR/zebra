@@ -1,7 +1,7 @@
 //
 // Source: a class holding a large list of files; each file can be retrieved
 // by platform and time.  
-// $Id: Source.hh,v 3.2 1999-03-19 16:19:06 burghart Exp $
+// $Id: Source.hh,v 3.3 2001-08-24 22:23:11 granger Exp $
 //
 //		Copyright (C) 1998 by UCAR
 //	University Corporation for Atmospheric Research
@@ -45,7 +45,7 @@ typedef BTreeFile<ZTime,DataFileCore> PlatFileList;
 // platform's own BTree.  We keep the BTree at the "application block" (i.e.,
 // the bootstrap block) of our block file.
 //
-typedef BTreeFile<string,BlkOffset> OffsetTree;
+typedef BTreeFile<std::string,BlkOffset> OffsetTree;
 
 
 //
@@ -54,6 +54,7 @@ typedef BTreeFile<string,BlkOffset> OffsetTree;
 class Source
 {
 public:
+    typedef std::string string;
 //
 // Source: Reconstruct the Source from file 'fname' if it exists, otherwise
 // create 'fname'.  Either way, maintain the Source's state in 'fname'.
@@ -194,8 +195,8 @@ private:
 //
 // flags: source flags
 //
-    typedef map<PlatformId, PlatFileList*> PlatFilesMap;
-    typedef map<string, string> PlatDirMap;
+    typedef std::map<PlatformId, PlatFileList*> PlatFilesMap;
+    typedef std::map<string, string> PlatDirMap;
     
     BlockFile bfile;
     OffsetTree *poffsets;
@@ -238,14 +239,14 @@ private:
 };
 
 
-inline const string&
+inline const Source::string&
 Source::Name( void ) const
 {
     return srcname;
 }
 
 
-inline const string&
+inline const Source::string&
 Source::RootDir( void ) const
 {
     return rootdir;

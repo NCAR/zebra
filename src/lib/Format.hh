@@ -1,5 +1,5 @@
 /*
- * $Id: Format.hh,v 1.6 1998-10-20 20:44:42 granger Exp $
+ * $Id: Format.hh,v 1.7 2001-08-24 22:23:14 granger Exp $
  * 
  * An interesting, if possibly useful, interface for formatting strings
  * using printf-style format specifiers.
@@ -51,6 +51,8 @@
 class Format
 {
 public:
+	typedef std::string string;
+
 	enum Error { OK = 0, BAD_FORMAT, MISSING_FORMAT, TYPE_MISMATCH };
 
 	// Constructors

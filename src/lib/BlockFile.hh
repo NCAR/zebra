@@ -1,5 +1,5 @@
 /*
- * $Id: BlockFile.hh,v 1.16 1998-10-20 20:44:41 granger Exp $
+ * $Id: BlockFile.hh,v 1.17 2001-08-24 22:23:14 granger Exp $
  *
  * Definition of the BlockFile class, for storing opaque blocks of bytes
  * into a file through a block interface.  The overhead information in the
@@ -178,10 +178,10 @@ protected:
 	SerialBuffer *rbuf;
 	SerialBuffer *wbuf;
 
-	friend FreeList;
-	friend Journal;
-	friend AuxBlock;
-	friend BlockFileHeader;
+	friend class FreeList;
+	friend class Journal;
+	friend class AuxBlock;
+	friend class BlockFileHeader;
 
 	int errnum;	// Error result from last operation (or construction)
 	int status;	// Current status number

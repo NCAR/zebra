@@ -1,6 +1,6 @@
 // -*- mode: c++; c-basic-offset: 8 -*- goodies for dealing with ZebraTimes.
 //
-// $Id: ZTime.h,v 2.5 2001-01-06 00:01:39 granger Exp $
+// $Id: ZTime.h,v 2.6 2001-08-24 22:23:15 granger Exp $
 //
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
@@ -24,6 +24,8 @@
 #define _ZTime_h_
 
 #include "defs.h"
+
+#include <iosfwd>
 
 //
 // Subclass the ZebraTime C struct and call it ZTime!
@@ -278,8 +280,7 @@ inline ZTime operator- (const ZTime &lhs, const ZTime &rhs)
 }
 
 
-class ostream;
-ostream & operator<< (ostream &out, const ZebraTime &t);
+std::ostream & operator<< (std::ostream &out, const ZebraTime &t);
 
 // ================================================================
 // NOTE: The comparison operators assume the zebra time is normalized.

@@ -1,5 +1,5 @@
 /*
- * $Id: BTree.hh,v 1.17 1998-10-20 20:44:40 granger Exp $
+ * $Id: BTree.hh,v 1.18 2001-08-24 22:23:13 granger Exp $
  *
  * Public BTree class interface.
  */
@@ -297,7 +297,7 @@ protected:
 
 	/* ---------------- Nodes call into the tree here ---------------- */
 
-	friend BTreeNode<K,T>;
+	friend class BTreeNode<K,T>;
 
 	/// Resurrect a reference to a node
 	virtual node_type *get (Node &, int depth);

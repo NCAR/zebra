@@ -325,7 +325,7 @@ Source::Current( const Platform *p, DataFileCore* dfc, ZTime *t )
 
 
 
-const string&
+const Source::string&
 Source::DataDir( const Platform *p )
 //
 // Return the full path of the directory we're using for the given platform.

@@ -15,7 +15,7 @@
 //#include <message.h>
 //}
 
-// RCSID ("$Id: BTreeFile.cc,v 1.15 1998-10-20 20:44:40 granger Exp $")
+// RCSID ("$Id: BTreeFile.cc,v 1.16 2001-08-24 22:23:13 granger Exp $")
 
 #include "Logger.hh"
 #include "Format.hh"
@@ -76,7 +76,7 @@ public:
 
 protected:
 
-	friend BTreeFile<K,T>;
+	friend class BTreeFile<K,T>;
 
 	// If there's an overflow block, we keep info about it here.
 	Block overflow;
@@ -188,7 +188,7 @@ void
 BTreeFile<K,T>::Reopen ()
 {
 	BlkOffset addr = Address();
-	string path(bf->Path());
+	std::string path(bf->Path());
 
 	// Release the resources we have, but re-open the blockfile
 	// only if it was actually ours to close 

@@ -55,7 +55,7 @@ extern "C"
 # include "Tape.h"
 
 
-RCSID ("$Id: TapeIndex.cc,v 1.15 1999-03-01 02:03:53 burghart Exp $")
+RCSID ("$Id: TapeIndex.cc,v 1.16 2001-08-24 22:23:12 granger Exp $")
 
 
 //
@@ -95,7 +95,7 @@ int DecodeNum (const char *);
 int MakeTempFile ();
 void ZapTempFile (int);
 void ExtractPlat (const char *, char *);
-void Interrupt (...);
+void Interrupt (int);
 volatile void Usage ();
 void LoadPrefixFile (const char *);
 
@@ -202,7 +202,7 @@ Usage ()
 
 
 void
-Interrupt (...)
+Interrupt (int)
 //
 // Deal with a ^c.
 //

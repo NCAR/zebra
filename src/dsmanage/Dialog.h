@@ -21,7 +21,7 @@
 class dsDialog : public dsPopupWindow
 {
 	friend void DialogCb (Widget, XtPointer, XtPointer);
-	void (*gocb) (char *);
+	void (*gocb) (const char *);
 	void (*cancelcb) ();
 	Widget text, wcancel;
 public:

@@ -1,5 +1,5 @@
 /*
- * $Id: BTreeFile.hh,v 1.13 1998-10-21 14:17:57 granger Exp $
+ * $Id: BTreeFile.hh,v 1.14 2001-08-24 22:23:14 granger Exp $
  *
  * BTree subclass which implements persistence using a BlockFile.
  */
@@ -172,7 +172,7 @@ protected:
 	virtual void leave ();
 	virtual void mark ();
 
-	friend BlockNode<K,T>;
+	friend class BlockNode<K,T>;
 
 	/// Resurrect a reference to a node
 	virtual BTreeNode<K,T> *get (Node &, int depth);

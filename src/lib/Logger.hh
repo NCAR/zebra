@@ -1,5 +1,5 @@
 /*
- * $Id: Logger.hh,v 1.8 1998-10-20 20:44:43 granger Exp $
+ * $Id: Logger.hh,v 1.9 2001-08-24 22:23:15 granger Exp $
  *
  * Class for reporting error and log messages, which can be conveniently
  * subclassed to log messages through different facilities.  A subclass
@@ -151,6 +151,8 @@ class LogRegistry;
 class Logger
 {
 public:
+	typedef std::string string;
+
 	/* ---------------- Class members ---------------- */
 
 	static const int EMERGENCY;
@@ -451,6 +453,7 @@ protected:
 class EnterBlock 
 {
 public:
+	typedef std::string string;
 
 	EnterBlock (Logger &_log, const string &_msg, 
 		    int _level = Logger::DEBUG) : 

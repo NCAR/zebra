@@ -18,6 +18,10 @@
 # ifndef _GraphicsW_h
 # define _GraphicsW_h
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * Graphics widget (Composite widget subclass)
  */
@@ -47,8 +51,38 @@
 # define XtCResizeCallback "ResizeCallback"
 
 /*
- * Convenience routines
+ * class and instance data types
  */
+typedef struct _GraphicsClassRec*	GraphicsWidgetClass;
+typedef struct _GraphicsRec*	GraphicsWidget;
+
+/*
+ * Convenience routines
+ *
+ * The C++ prototypes allow both Widget and GraphicsWidget to be passed to
+ * the routines.  Likewise the C prototypes do not provide for any checking
+ * of any arguments, but they also allow the definitions in GraphicsW.c to
+ * use GraphicsWidget in their argument list. 
+ */
+#ifdef __cplusplus
+extern Pixmap	GWFrame (void* gw);
+extern int	GWWidth (void* gw);
+extern int	GWHeight (void* gw );
+extern int	GWDepth (void* gw );
+extern int	GWBDepth (void* gw );
+extern void	GWPlotRoutine (void* gw, void (*)(), caddr_t );
+extern void	GWClearFrame (void* gw, int i);
+extern void	GWDrawInFrame (void* gw, unsigned int frame);
+extern void	GWDisplayFrame (void* gw, unsigned int frame);
+extern int	GwGetByteOrder ( );
+extern GC	GWGetGC(void* gw );
+extern Pixmap	GWGetFrame(void* gw, int i);
+extern char 	*GWGetFrameAddr(void* gw, int frame );
+extern int	GWFrameShared(void* gw, int frame );
+extern int	GWShmPossible(void* gw );
+extern int	GWGetBPL(void* gw, int frame );
+extern void	GWZapShmPixmap(void* gw, int frame );
+#else
 extern Pixmap	GWFrame (/* GraphicsWidget */);
 extern int	GWWidth (/* GraphicsWidget */);
 extern int	GWHeight (/* GraphicsWidget */);
@@ -68,17 +102,16 @@ extern int	GWFrameShared(/* GraphicsWidget, int frame */);
 extern int	GWShmPossible(/* GraphicsWidget */);
 extern int	GWGetBPL(/* GraphicsWidget, int frame */);
 extern void	GWZapShmPixmap(/* GraphicsWidget, int frame */);
-
-/*
- * class and instance data types
- */
-typedef struct _GraphicsClassRec*	GraphicsWidgetClass;
-typedef struct _GraphicsRec*	GraphicsWidget;
+#endif
 
 /*
  * class constant
  */
 extern WidgetClass graphicsWidgetClass;
+
+#ifdef __cplusplus
+}
+#endif
 
 /*
  * Other definitions

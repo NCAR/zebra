@@ -1,9 +1,11 @@
-/* $Id: Format.cc,v 1.2 1998-10-20 20:44:42 granger Exp $
+/* $Id: Format.cc,v 1.3 2001-08-24 22:23:14 granger Exp $
  *
  * Static class data for Format class.
  */
 
 #include "Format.hh"
+
+using std::string;
 
 const string Format::blank("");
 const string Format::bad("*bad format*");

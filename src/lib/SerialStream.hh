@@ -1,5 +1,5 @@
 /*
- * $Id: SerialStream.hh,v 1.7 1998-10-20 20:44:45 granger Exp $
+ * $Id: SerialStream.hh,v 1.8 2001-08-24 22:23:15 granger Exp $
  *
  */
 #ifndef _SerialStream_hh_
@@ -38,6 +38,8 @@ class XDR;
 class SerialStream
 {
 public:
+	typedef std::string string;
+
 	// typedef int (*xdr_translator)(XDR *, void *);
 
 	///

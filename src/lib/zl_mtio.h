@@ -45,5 +45,5 @@ struct  mtop    {
 #endif
 #endif
 
-#endif  _zeb_zl_mtio_h
+#endif  /*_zeb_zl_mtio_h*/
 

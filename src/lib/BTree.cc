@@ -89,7 +89,7 @@ struct Shortcut
 	int depth;		// Count of current tree depth
 	K key;			// Copy of key
 	int i;			// Index of key in leaf
-	vector<BTreeNode<K,T> *> parents;
+	std::vector<BTreeNode<K,T> *> parents;
 
 	/*
 	 * If leaf is zero we are not a valid shortcut.
@@ -445,7 +445,7 @@ public:
 	{
 		// Depth first dump of this node
 		int indent = (tree.Depth() - depth) * 5;
-		string s(indent, ' ');
+		std::string s(indent, ' ');
 		out << s;
 		out << "[" << (void *)this << " " << thisNode.addr
 		    << ": depth " << depth;
@@ -727,7 +727,7 @@ protected:
 		// key exists or would be inserted.  Return non-zero if
 		// there's a match.
 		//assert (nkeys); // Bootstrapped root leaves allowed to be mt
-		K *which = lower_bound(keys, keys+nkeys, key);
+		K *which = std::lower_bound(keys, keys+nkeys, key);
 		int found = 0;
 		if (which != keys+nkeys)
 			found = (*which == key);
@@ -951,7 +951,7 @@ protected:
 
 		// Make room for the keys in our node, then copy them
 		open_slot (keys, dk, nkeys, num);
-		copy (src.keys+sk, src.keys+sk+num, keys+dk);
+		std::copy (src.keys+sk, src.keys+sk+num, keys+dk);
 
 		if (depth == 0)
 		{
@@ -961,8 +961,8 @@ protected:
 		{
 			// Copy the children
 			open_slot (children, dk, nkeys, num);
-			copy (src.children+sk, src.children+sk+num, 
-			      children+dk);
+			std::copy (src.children+sk, src.children+sk+num, 
+				   children+dk);
 			// Remove the source children
 			close_slot (src.children, sk, src.nkeys, num);
 		}
@@ -986,7 +986,7 @@ protected:
 		sbuf->Need (len);
 		sbuf->Write (from, len);
 		open_slot (table, dk, nkeys+1, num);
-		copy (src.table+sk, src.table+sk+num, table+dk);
+		std::copy (src.table+sk, src.table+sk+num, table+dk);
 
 		// Adjust offsets of the new elements
 		int j;
@@ -1163,7 +1163,7 @@ protected:
 
 			// Find max we can take for what is needed
 			num = (src < n) ? node[src]->nkeys : 0;
-			num = min (num, fill - node[dest]->nkeys);
+			num = std::min (num, fill - node[dest]->nkeys);
 
 			// Determine if an insertion should happen here
 			if (in > 0)

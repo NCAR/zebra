@@ -164,7 +164,7 @@ src_ConfirmDataDir (Source *src, const Platform *p)
 void
 src_SetPlatDir (Source *src, const char *platname, const char *dir)
 {
-    string splatname( platname ), sdir( dir );
+    Source::string splatname( platname ), sdir( dir );
     src->SetPlatDir( splatname, sdir );
 }
 
