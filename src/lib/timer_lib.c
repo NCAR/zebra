@@ -1,7 +1,7 @@
 /*
  * Access routines for the timer module.
  */
-static char *rcsid = "$Id: timer_lib.c,v 1.2 1990-07-08 13:04:16 corbet Exp $";
+static char *rcsid = "$Id: timer_lib.c,v 1.3 1991-01-30 20:44:37 corbet Exp $";
 
 # include "../include/defs.h"
 # include "timer.h"
@@ -22,7 +22,7 @@ static struct Tevent
 	bool	te_recurring;		/* Does this one recurr?	*/
 } Events[MAXEVENT] = { 0 };
 
-
+static bool First = TRUE;
 
 
 /*
@@ -32,11 +32,26 @@ static struct Tevent
 	static void tl_SendToTimer (void *, int);
 	static void tl_DispAlarm (struct tm_alarm *);
 	static void tl_CancelAck (struct tm_alarm *);
+	static int tl_ProtoHandler (struct message *);
 # else
 	static void tl_SendToTimer ();
 	static void tl_DispAlarm ();
 	static void tl_CancelAck ();
+	static int tl_ProtoHandler ();
 # endif
+
+
+
+
+static void inline
+tl_Init ()
+{
+	if (First)
+	{
+		First = FALSE;
+		msg_AddProtoHandler (MT_TIMER, tl_ProtoHandler);
+	}
+}
 
 
 
@@ -58,6 +73,8 @@ int delay, incr;
 {
 	int i;
 	struct tm_rel_alarm_req alr;
+
+	tl_Init ();
 /*
  * Find an empty slot.
  */
@@ -109,6 +126,8 @@ int incr;
 {
 	int i;
 	struct tm_abs_alarm_req alr;
+
+	tl_Init ();
 /*
  * Find an empty slot.
  */
@@ -136,6 +155,22 @@ int incr;
 	tl_SendToTimer (&alr, sizeof (alr));
 	return (i);
 }
+
+
+
+
+
+static int
+tl_ProtoHandler (msg)
+struct message *msg;
+/*
+ * The message protocol handler.  Done this way for hysterical reasons.
+ */
+{
+	tl_DispatchEvent ((struct tm_time *) msg->m_data);
+	return (0);
+}
+
 
 
 
@@ -223,6 +258,8 @@ int slot;
  */
 {
 	struct tm_cancel tr;
+
+	tl_Init ();
 /*
  * Sanity check.
  */
