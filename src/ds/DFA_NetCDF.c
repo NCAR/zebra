@@ -29,7 +29,7 @@
 # include "dslib.h"
 # include "dfa.h"
 #ifndef lint
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.35 1994-08-01 20:42:16 granger Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.36 1994-09-12 18:04:32 granger Exp $")
 #endif
 
 # include <netcdf.h>
@@ -277,13 +277,26 @@ static void	dnc_ReadFieldAtts FP ((DataChunk *, NCTag *, FieldId *, int));
 #define VATT_UNITS	"units"		/* units of variable	   */
 #define VATT_MISSING	"missing_value" /* bad value		   */
 
+
+static inline double
+dnc_ZtToOffset (tag, zt)
+NCTag *tag;
+ZebTime *zt;
+/*
+ * Turn this time into a suitable offset for this file.
+ */
+{
+	return (zt->zt_Sec - tag->nc_base + (zt->zt_MicroSec/1000000.0));
+}
+
+
 int
 dnc_QueryTime (file, begin, end, nsamp)
 char *file;
 ZebTime *begin, *end;
 int *nsamp;
 /*
- * Query the time1s on this file.
+ * Query the times on this file.
  */
 {
 	int id, ndim, nvar, natt, rdim, tvar, btime;
@@ -1203,9 +1216,8 @@ DataClass class;
 		dc_DestroyDC (dc);
 		return (0);
 	}
-
 /*
- * Read global and field attrbiutes.  Any attributes set in the DataChunk
+ * Read global and field attributes.  Any attributes set in the DataChunk
  * when data is retrieved will override any attributes set here
  * (e.g. a change in the bad value due to a dsDetail)
  */
@@ -1436,6 +1448,7 @@ int ndetail;
 	int tbegin, tend, nfield, nsamp;
 	FieldId *fids;
 	SValue v;
+	double offset1, offset2;
 	float badval = 0;
 /*
  * Open the data file.
@@ -1478,6 +1491,18 @@ int ndetail;
  */
 	tbegin = dnc_TimeIndex (tag, &gp->gl_begin);
 	tend = dnc_TimeIndex (tag, &gp->gl_end);
+	offset1 = dnc_ZtToOffset (tag, &gp->gl_begin);
+	offset2 = dnc_ZtToOffset (tag, &gp->gl_end);
+/*
+ * Compare the times at these indices with the requested times and adjust.
+ * We don't want any times outside the requested range.
+ */
+	if (tag->nc_times[tbegin] < offset1)
+		++tbegin;
+	if (offset2 < tag->nc_times[tend])
+		--tend;
+	if (tbegin > tend)
+		return (FALSE);
 	nsamp = tend - tbegin + 1;
 /*
  * Prepare the DataChunk for the samples we're about to add using the current
@@ -2312,7 +2337,7 @@ ZebTime *t;
 /*
  * Find out the time offset from the beginning of the file.
  */
-	offset = t->zt_Sec - tag->nc_base + (t->zt_MicroSec/1000000.0);
+	offset = dnc_ZtToOffset (tag, t);
 /*
  * Check the extreme cases.  STORE CASE WILL NEED A BIT DIFFERENT.
  */
@@ -2836,7 +2861,7 @@ DataChunk *dc;
 	sprintf(history,"created by Zeb DataStore, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.35 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.36 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 }
@@ -3194,20 +3219,6 @@ int *vlat, *vlon, *valt;
 		       strlen (au_LongUnitsName (tag->nc_altUnits)) + 1, 
 		       au_LongUnitsName (tag->nc_altUnits));
 #endif /* STORE_ALT_UNITS */
-}
-
-
-
-
-static double
-dnc_ZtToOffset (tag, zt)
-NCTag *tag;
-ZebTime *zt;
-/*
- * Turn this time into a suitable offset for this file.
- */
-{
-	return (zt->zt_Sec - tag->nc_base + (zt->zt_MicroSec/1000000.0));
 }
 
 

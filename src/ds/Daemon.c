@@ -39,7 +39,7 @@
 # include "dsDaemon.h"
 # include "commands.h"
 
-MAKE_RCSID ("$Id: Daemon.c,v 3.40 1994-08-01 20:42:36 granger Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.41 1994-09-12 18:04:37 granger Exp $")
 
 
 /*
@@ -63,8 +63,8 @@ static void	ds_message FP ((char *, struct dsp_Template *));
 static void	dp_NewFile FP ((char *, struct dsp_CreateFile *));
 static void	dp_AbortNewFile FP ((struct dsp_AbortNewFile *));
 static void	dp_UpdateFile FP ((char *, struct dsp_UpdateFile *));
-static void	dp_DeleteData FP ((Platform *, ZebTime *));
-static void	dp_DeleteObs FP ((Platform *, ZebTime *));
+static void	dp_DeleteData FP ((PlatformId pid, ZebTime *));
+static void	dp_DeleteObs FP ((PlatformId pid, ZebTime *));
 static void	ZapDF FP ((DataFile *));
 static void	DoRescan FP ((struct ui_command *cmds));
 static void	SetUpEvery FP ((struct ui_command *));
@@ -619,14 +619,14 @@ struct dsp_Template *dt;
 	 * DeleteData -- get rid of data before given time.
 	 */
 	   case dpt_DeleteData:
-	   	dp_DeleteData (PTable+((struct dsp_DeleteData *) dt)->dsp_plat,
+	   	dp_DeleteData (((struct dsp_DeleteData *) dt)->dsp_plat,
 				&((struct dsp_DeleteData *) dt)->dsp_when);
 		break;
 	/*
 	 * DeleteObs -- get rid of observation at given time.
 	 */
 	   case dpt_DeleteObs:
-		dp_DeleteObs (PTable+((struct dsp_DeleteData *) dt)->dsp_plat,
+		dp_DeleteObs (((struct dsp_DeleteData *) dt)->dsp_plat,
 			      &((struct dsp_DeleteData *) dt)->dsp_when);
 		break;
 	/*
@@ -832,7 +832,7 @@ struct dsp_UpdateFile *request;
 	{
 		df->df_end = request->dsp_EndTime;
 		recent = (request->dsp_Local) ? 
-			LOCALDATA(*plat) : REMOTEDATA(*plat);
+			pi_LocalData(plat) : pi_RemoteData(plat);
 		if (request->dsp_FileIndex == recent ||
 		    request->dsp_FileIndex == plat->dp_Tfile)
 		    	append = TRUE;
@@ -894,14 +894,23 @@ struct dsp_UpdateFile *request;
 
 
 static void
-dp_DeleteData (p, t)
-Platform *p;
+dp_DeleteData (pid, t)
+PlatformId pid;
 ZebTime *t;
 /*
  * Handle the delete data request.
  */
 {
-	int index = LOCALDATA (*p);
+	int index;
+	Platform *p;
+
+	if (pid < 0 || pid >= NPlatform)
+	{
+		msg_ELog (EF_PROBLEM, "DeleteData on bad platform id");
+		return;
+	}
+	p = PTable + pid;
+	index = pi_LocalData (p);
 /*
  * If there is no data at all, life is easy.
  */
@@ -949,15 +958,24 @@ ZebTime *t;
 
 
 static void
-dp_DeleteObs (p, t)
-Platform *p;
+dp_DeleteObs (pid, t)
+PlatformId pid;
 ZebTime *t;
 /*
  * Handle the request to delete a single, whole observation.
  */
 {
-	int index = LOCALDATA (*p);
+	int index;
+	Platform *p;
 	DataFile *df;
+
+	if (pid < 0 || pid >= NPlatform)
+	{
+		msg_ELog (EF_PROBLEM, "DeleteObs on bad platform id");
+		return;
+	}
+	p = PTable + pid;
+	index = pi_LocalData (p);
 /*
  * If there is no data at all, life is easy.
  */
@@ -1042,7 +1060,7 @@ struct dsp_BCDataGone *dg;
 /*
  * Construct the file name from our perspective.
  */
-	for (dfindex = REMOTEDATA (*plat); dfindex;
+	for (dfindex = pi_RemoteData (plat); dfindex;
 			dfindex = DFTable[dfindex].df_FLink)
 	{
 		if (! strcmp (dg->dsp_File, DFTable[dfindex].df_name))
@@ -1202,7 +1220,7 @@ struct ui_command *cmds;
 		{
 			zaptime = now;
 			zaptime.zt_Sec -= (seconds > 0) ? seconds : pi_Keep(p);
-			dp_DeleteData (p, &zaptime);
+			dp_DeleteData (p - PTable, &zaptime);
 		}
 		return;
 	}
@@ -1214,8 +1232,8 @@ struct ui_command *cmds;
 		{
 			zaptime = now;
 			zaptime.zt_Sec -= (seconds > 0) ? seconds :
-					pi_Keep(PTable+plat);
-			dp_DeleteData (PTable + plat, &zaptime);
+				pi_Keep(PTable+plat);
+			dp_DeleteData (plat, &zaptime);
 		}
 }
 
@@ -1575,7 +1593,7 @@ void
 ClearLocks (p)
 Platform *p;
 /* 
- * Wait until all locks on this platform are clear.
+ * Wait until all read locks on this platform are clear.
  */
 {
 	while (p->dp_RLockQ)
@@ -1662,7 +1680,7 @@ struct dsp_FindDF *req;
  */
 	if (req->dsp_src <= 0)
 	{
-		for (dfe = LOCALDATA (PTable[req->dsp_pid]); dfe;
+		for (dfe = pi_LocalData (PTable + req->dsp_pid); dfe;
 					dfe = DFTable[dfe].df_FLink)
 			if (TC_LessEq (DFTable[dfe].df_begin, req->dsp_when))
 				break;
@@ -1673,7 +1691,7 @@ struct dsp_FindDF *req;
  */
 	if (! dfe && (req->dsp_src == 1 || req->dsp_src == SRC_ALL))
 	{
-		for (dfe = REMOTEDATA (PTable[req->dsp_pid]); dfe;
+		for (dfe = pi_RemoteData (PTable + req->dsp_pid); dfe;
 				dfe = DFTable[dfe].df_FLink)
 			if (TC_LessEq (DFTable[dfe].df_begin, req->dsp_when))
 				break;
@@ -1702,7 +1720,7 @@ struct dsp_FindDF *req;
  * take the closest file, local or remote, after the time.
  */
 {
-	int dfe = LOCALDATA (PTable[req->dsp_pid]);
+	int dfe = pi_LocalData (PTable + req->dsp_pid);
 	int last = 0, rlast = 0;
 	struct dsp_R_DFI answer;
 /*
@@ -1721,7 +1739,7 @@ struct dsp_FindDF *req;
  */
 	if (! dfe || TC_Less(DFTable[dfe].df_end, req->dsp_when))
 	{
-		for (dfe = REMOTEDATA (PTable[req->dsp_pid]); dfe;
+		for (dfe = pi_RemoteData (PTable + req->dsp_pid); dfe;
 		     dfe = DFTable[dfe].df_FLink)
 		{
 			if (TC_LessEq (DFTable[dfe].df_begin, req->dsp_when))

@@ -37,7 +37,7 @@
 #endif
 
 # ifndef lint
-MAKE_RCSID ("$Id: DFA_Zeb.c,v 1.23 1994-08-01 20:42:29 granger Exp $")
+MAKE_RCSID ("$Id: DFA_Zeb.c,v 1.24 1994-09-12 18:04:34 granger Exp $")
 # endif
 
 /*
@@ -2997,6 +2997,15 @@ int ndetail;
  */
 	tbegin = zn_TimeIndex (tag, &gp->gl_begin);
 	tend = zn_TimeIndex (tag, &gp->gl_end);
+/*
+ * Compare the times at the indices with the requested interval and adjust.
+ */
+	if (TC_Less (tag->zt_Time[tbegin], gp->gl_begin))
+		++tbegin;
+	if (TC_Less (gp->gl_end, tag->zt_Time[tend]))
+		--tend;
+	if (tbegin > tend)
+		return (FALSE);
 	nsample = tend - tbegin + 1;
 	msg_ELog (EF_DEBUG, "znf GetData (%d) tbegin=%d to tend=%d",
 		  gp->gl_dfindex, tbegin, tend);
@@ -3673,6 +3682,7 @@ FieldId *fids;
 	znTag *tag;
 	zn_Header *hdr;
 	int fld;
+	int max = *nfield;
 /*
  * Question: should this routine return (1) the list of all known fields, 
  * 	     or (2) just the fields which are present at the given time?
@@ -3684,10 +3694,10 @@ FieldId *fids;
 		return (0);
 	hdr = &tag->zt_Hdr;
 /*
- * Copy out the fields.
+ * Copy out the fields, but only as many as asked for.
  */
 	*nfield = 0;
-	for (fld = 0; fld < hdr->znh_NField; fld++)
+	for (fld = 0; fld < hdr->znh_NField && (*nfield < max); fld++)
 	{
 		fids[*nfield] = tag->zt_Fids[fld];
 		(*nfield)++;

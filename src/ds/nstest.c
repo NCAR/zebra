@@ -1,5 +1,5 @@
 /*
- * $Id: nstest.c,v 1.11 1994-08-01 20:42:41 granger Exp $
+ * $Id: nstest.c,v 1.12 1994-09-12 18:04:39 granger Exp $
  */
 
 /*
@@ -79,21 +79,8 @@ struct message *msg;
 #define SCALAR
 #define GETFIELDS
 #define GRID_BLOCKS
-/* #define DELETE_OBS */	/* test observation deletes */
+#define DELETE_OBS	/* test observation deletes */
 #define NSPACE
-
-#ifdef notdef
-/* #define DUMMY_FILES */
-#endif
-
-#ifdef notdef
-#define BACKWARDS
-#define COPY_SCALAR
-#endif
-
-#define DUMMY_FILES
-#define DATA_TIMES
-
 #define COPY_SCALAR
 #define TEST4_STORE
 #define SCALAR_NSPACE
@@ -101,10 +88,12 @@ struct message *msg;
 #define AERI_TYPES
 #define ATTRIBUTES
 #define NEXUS
-#define RGRID	/* test DC RGrid interface */
+#define RGRID		/* test DC RGrid interface */
+#define DUMMY_FILES
+#define DATA_TIMES
+#define FETCH_GAP
 
 #ifdef BACKWARDS
-
 #define dc_CheckClass(a)		{}
 #define DD_ZN_HINT_NSAMPLES		""
 #define dc_HintNSamples(dc,n,b)		{}
@@ -112,7 +101,6 @@ struct message *msg;
 #define dc_HintMoreSamples(dc,m,b)	{}
 #define dc_AddMoreSamples(dc,n,b)	{}
 #define ds_ForceClosure()		{}
-
 #endif
 
 struct TestField {
@@ -150,6 +138,17 @@ struct TestPlatform {
 	{ "t_irgrid_znf" },
 	{ "t_1dgrid_znf" },
 #endif
+#ifdef DUMMY_FILES
+	{ "t_dummy_cdf" },
+	{ "t_dummy_znf" },
+#endif
+#ifdef FETCH_GAP
+	{ "t_gap_cdf" },
+	{ "t_gap_znf" },
+#endif
+#ifdef DELETE_OBS
+	{ "t_deletes" },
+#endif
 #ifdef NSPACE
 	{ "t_nspace" },
 	{ "t_nsscalar" },
@@ -181,8 +180,8 @@ struct TestPlatform {
 static float test_data[10000];
 
 
-DataChunk *T_SimpleScalarChunk FP ((ZebTime *start, int nsample, int nfield,
-				    bool is_mobile, bool addatts));
+DataChunk *T_SimpleScalarChunk FP ((ZebTime *start, int interval, int nsample,
+				    int nfield, bool is_mobile, bool addatts));
 DataChunk *T_ScalarNSpaceChunk FP((ZebTime *start, int nsample, int nfield,
 				   bool is_mobile, bool addatts));
 
@@ -196,6 +195,8 @@ char *header;
 {
 	msg_ELog (EF_INFO, "%s", header);
 	printf ("%s\n", header);
+	fflush (stdout);
+	fflush (stderr);
 }
 
 
@@ -216,7 +217,16 @@ InitializePlatforms()
 	{
 		platid = ds_LookupPlatform (TestPlatforms[i].name);
 		TestPlatforms[i].platid = platid;
-		ds_DeleteData (platid, &now);
+		if (platid == BadPlatform)
+		{
+			fprintf (stderr, "platform '%s' unknown",
+				 TestPlatforms[i].name);
+			exit (1);
+		}
+		else
+		{
+			ds_DeleteData (platid, &now);
+		}
 	}
 }
 
@@ -287,6 +297,11 @@ main (argc, argv)
 	T_Deletes (&begin);
 #endif
 
+#ifdef FETCH_GAP
+	T_FetchGap (&begin, "t_gap_cdf");
+	T_FetchGap (&begin, "t_gap_znf");
+#endif
+
 #if defined(DUMMY_FILES) && defined(DATA_TIMES)
 	T_DataTimes ("t_dummy_cdf");
 	T_DataTimes ("t_dummy_znf");
@@ -294,7 +309,7 @@ main (argc, argv)
 
 #ifdef SCALAR
 	Announce ("t_scalar: 4 fields, 10 samples, mobile, attributes");
-	dc = T_SimpleScalarChunk (&begin, 10, 4, TRUE, TRUE);
+	dc = T_SimpleScalarChunk (&begin, 1, 10, 4, TRUE, TRUE);
 	plat_id = ds_LookupPlatform("t_scalar");
 	dc->dc_Platform = plat_id;
 	ds_StoreBlocks (dc, TRUE, NULL, 0);
@@ -309,7 +324,7 @@ main (argc, argv)
 	 */
 	Announce("t_scalar: 4 fields, 3000 samples, starting 30 secs back");
 	when.zt_Sec -= 30;
-	dc = T_SimpleScalarChunk (&when, 3000, 4, TRUE, TRUE);
+	dc = T_SimpleScalarChunk (&when, 1, 3000, 4, TRUE, TRUE);
 	dc->dc_Platform = plat_id;
 	ds_StoreBlocks (dc, TRUE, NULL, 0);
 	msg_ELog (EF_INFO, 
@@ -324,7 +339,7 @@ main (argc, argv)
 	 */
 	Announce("t_scalar: 4 fields, 1500 samples, 1500 secs prior to end");
 	when.zt_Sec -= 1500;
-	dc = T_SimpleScalarChunk (&when, 1500, 4, TRUE, TRUE);
+	dc = T_SimpleScalarChunk (&when, 1, 1500, 4, TRUE, TRUE);
 	dc->dc_Platform = plat_id;
 	ds_StoreBlocks (dc, TRUE, NULL, 0);
 	Announce("t_fixed: same datachunk as for t_scalar above");
@@ -338,7 +353,7 @@ main (argc, argv)
 	 */
 	Announce("t_scalar: 3 fields, 1000 samples, 1250 secs prior to end");
 	when.zt_Sec -= 1250;
-	dc = T_SimpleScalarChunk (&when, 1000, 3, TRUE, TRUE);
+	dc = T_SimpleScalarChunk (&when, 1, 1000, 3, TRUE, TRUE);
 	dc->dc_Platform = plat_id;
 	{
 		struct TestField tf;
@@ -465,7 +480,7 @@ char *platform;
 	first.zt_MicroSec = 0;
 	first.zt_Sec = tp.time;
 	first.zt_Sec -= (first.zt_Sec % 60) + NS;
-	dc = T_SimpleScalarChunk (&first, NS, 4, FALSE, FALSE);
+	dc = T_SimpleScalarChunk (&first, 1, NS, 4, FALSE, FALSE);
 	pid = ds_LookupPlatform(platform);
 	dc->dc_Platform = pid;
 	dc_GetTime (dc, NS - 1, &last);
@@ -506,7 +521,118 @@ char *platform;
 	Announce ("------------ DataTimes: done ------------");
 #   endif
 }
-#endif
+#endif	/* DUMMY_FILES */
+
+
+
+#ifdef FETCH_GAP
+T_FetchGap (begin, plat)
+ZebTime *begin;
+char *plat;
+{
+	ZebTime when, next;
+	DataChunk *dc;
+	PlatformId pid;
+	FieldId fields[4];
+	int nfield = 4;
+	char buf[128];
+
+	sprintf (buf, "FetchGap: testing platform '%s'", plat);
+	Announce (buf);
+	when = *begin;
+	/* 10 samples, 30-second intervals */
+	dc = T_SimpleScalarChunk (begin, 30, 10, 4, FALSE, FALSE);
+	pid = ds_LookupPlatform(plat);
+	dc->dc_Platform = pid;
+	ds_StoreBlocks (dc, TRUE, NULL, 0);
+	dc_DestroyDC (dc);
+	/*
+	 * Now fetch an interval within the data file but which does not
+	 * contain any times in the file.  The result should be NULL.
+	 */
+	when.zt_Sec += 15;		/* halfway between samples */
+	ds_GetFields (pid, &when, &nfield, fields);
+	dc = ds_Fetch (pid, DCC_Scalar, &when, &when, fields, nfield, NULL, 0);
+	if (dc)
+	{
+		msg_ELog (EF_PROBLEM, "FetchGap: dc has %d samples",
+			  dc_GetNSample (dc));
+		dc_DestroyDC (dc);
+	}
+	/*
+	 * Now try an interval of time
+	 */
+	when.zt_Sec += 150 - 5;	/* 10 seconds past a sample in the middle */
+	next = when;
+	next.zt_Sec += 10;
+	dc = ds_Fetch (pid, DCC_Scalar, &when, &next, fields, nfield, NULL, 0);
+	if (dc)
+	{
+		msg_ELog (EF_PROBLEM, "FetchGap: dc has %d samples",
+			  dc_GetNSample (dc));
+		dc_DestroyDC (dc);
+	}
+	/*
+	 * Finally, an interval which does contain samples but does not
+	 * start at the same time as any sample
+	 */
+	next = when;
+	next.zt_Sec += 120;
+	dc = ds_Fetch (pid, DCC_Scalar, &when, &next, fields, nfield, NULL, 0);
+	if (dc)
+	{
+		int ns = dc_GetNSample (dc);
+		if (ns != 4)
+		{
+			msg_ELog (EF_PROBLEM, "FetchGap: dc has %d samples %s",
+				  dc_GetNSample (dc), "instead of 4");
+		}
+		dc_DestroyDC (dc);
+	}
+	else
+		msg_ELog (EF_PROBLEM, "FetchGap: fetch 120 sec returned null");
+	/*
+	 * When beginning and end of interval match first and last times
+	 */
+	when = *begin;
+	next = when;
+	next.zt_Sec += 300;
+	dc = ds_Fetch (pid, DCC_Scalar, &when, &next, fields, nfield, NULL, 0);
+	if (dc)
+	{
+		int ns = dc_GetNSample (dc);
+		if (ns != 10)
+		{
+			msg_ELog (EF_PROBLEM, "FetchGap: dc has %d samples %s",
+				  dc_GetNSample (dc), "instead of 10");
+		}
+		dc_DestroyDC (dc);
+	}
+	else
+		msg_ELog (EF_PROBLEM, "FetchGap: fetch 320 sec returned null");
+	/*
+	 * When interval is outside first and last sample times
+	 */
+	when = *begin;
+	next = when;
+	when.zt_Sec -= 10;
+	next.zt_Sec += 310;
+	dc = ds_Fetch (pid, DCC_Scalar, &when, &next, fields, nfield, NULL, 0);
+	if (dc)
+	{
+		int ns = dc_GetNSample (dc);
+		if (ns != 10)
+		{
+			msg_ELog (EF_PROBLEM, "FetchGap: dc has %d samples %s",
+				  dc_GetNSample (dc), "instead of 10");
+		}
+		dc_DestroyDC (dc);
+	}
+	else
+		msg_ELog (EF_PROBLEM, "FetchGap: fetch 320 sec returned null");
+	Announce ("FetchGap: test completed.");
+}
+#endif	/* FETCH_GAP */
 
 
 
@@ -527,7 +653,7 @@ ZebTime begin;
 
 	MARK(scbld);
 	Announce ("t_nsvsc_scalar: 8 fields, mobile, attributes");
-	dc = T_SimpleScalarChunk (&begin, NUMS, 8, TRUE, TRUE);
+	dc = T_SimpleScalarChunk (&begin, 1, NUMS, 8, TRUE, TRUE);
 	plat_id = ds_LookupPlatform(sc_plat);
 	dc->dc_Platform = plat_id;
 	MARK(scsto);
@@ -1402,6 +1528,10 @@ ZebTime *now;
 		/* redefine a variable */
 		EXPECT(2); /* 1 to redefine field, 1 for change in dimns */
 		dc_NSDefineVariable(dc, fid, 1, &did, TRUE);
+		/* re-define 'tests' to be dynamic but suppress the warning */
+		EXPECT(0);
+		dc_NSAllowRedefine (dc, TRUE);
+		dc_NSDefineVariable (dc, fid, 1, &did, FALSE);
 		dc_DumpDC (dc);
 
 		EXPECT(0);
@@ -1587,8 +1717,9 @@ bool addatts;
 
 
 DataChunk *
-T_SimpleScalarChunk (start, nsample, nfield, is_mobile, addatts)
+T_SimpleScalarChunk (start, interval, nsample, nfield, is_mobile, addatts)
 ZebTime *start;
+int interval;
 int nsample;
 int nfield;
 bool is_mobile;
@@ -1645,7 +1776,7 @@ bool addatts;
 			loc.l_alt = i;
 			dc_SetLoc (dc, i, &loc);
 		}
-		++when.zt_Sec;
+		when.zt_Sec += interval;
 		value -= nfield;
 		value += 1.0;
 	}
@@ -1793,7 +1924,7 @@ char *plat;
 	 */
 	sprintf (buf, "testing ds_GetFields() for platform '%s'", plat);
 	Announce (buf);
-	dc = T_SimpleScalarChunk (start, 10, 4, FALSE, FALSE);
+	dc = T_SimpleScalarChunk (start, 1, 10, 4, FALSE, FALSE);
 	dc->dc_Platform = ds_LookupPlatform(plat);
 	dc_fields = dc_GetFields (dc, &dc_nfield);
 	ds_Store (dc, TRUE, NULL, 0);
@@ -1801,13 +1932,13 @@ char *plat;
 	if (!ds_GetFields(dc->dc_Platform, start, &nfield, fields))
 	{
 		msg_ELog (EF_PROBLEM, 
-			  "ds_GetFields('%s') failed", plat);
+			  "ds_GetFields('%s',nfld=10) failed", plat);
 	}
 	else if (nfield != dc_nfield)
 	{
 		msg_ELog (EF_PROBLEM, 
-			  "ds_GetFields('%s') returned %d, expected %d",
-			  plat, nfield, dc_nfield);
+		  "ds_GetFields('%s',nfld=10) returned %d fields, expected %d",
+		  plat, nfield, dc_nfield);
 	}
 	else
 	{
@@ -1823,6 +1954,22 @@ char *plat;
 			msg_ELog (EF_PROBLEM,
 				  "ds_GetFields(): field %d incorrect", 
 				  fields[i]);
+	}
+	/*
+	 * Now try asking for fewer fields than are in the file, and make
+	 * sure we aren't given more than that.
+	 */
+	nfield = 2;
+	if (!ds_GetFields(dc->dc_Platform, start, &nfield, fields))
+	{
+		msg_ELog (EF_PROBLEM, 
+			  "ds_GetFields('%s',nfld=2) failed", plat);
+	}
+	else if (nfield != 2)
+	{
+		msg_ELog (EF_PROBLEM, 
+		  "ds_GetFields('%s',nfld=2) returned %d fields, expected %d",
+		  plat, nfield, 2);
 	}
 	dc_DestroyDC(dc);
 }
@@ -1892,16 +2039,24 @@ ZebTime *start;
 	DataChunk *dc;
 	ZebTime when, begin = *start;
 	int i;
+	char dsdump[256];
+	char cmd[256];
 
-	dc = T_SimpleScalarChunk (&begin, 10, 4, TRUE, TRUE);
+	Announce ("Testing deletion: creating 10 files in t_deletes");
+	dc = T_SimpleScalarChunk (&begin, 1, 10, 4, TRUE, TRUE);
 	t_delete_id = ds_LookupPlatform("t_deletes");
 	dc->dc_Platform = t_delete_id;
 	ds_StoreBlocks (dc, TRUE, NULL, 0);
-	system("dsdump t_deletes");
+	if (getenv("ZEB_TOPDIR"))
+		sprintf (dsdump, "%s/bin/dsdump", getenv("ZEB_TOPDIR"));
+	else
+		strcpy (dsdump, "dsdump");
+	sprintf (cmd, "%s t_deletes", dsdump);
+	system(cmd);
 	fflush (stdout);
 	fflush (stderr);
 
-	printf ("Deleting even-second obs with DeleteObs\n");
+	Announce ("Deleting even-second obs with DeleteObs");
 	when = begin;
 	for (i = 0; i < 10; ++i)
 	{
@@ -1909,13 +2064,13 @@ ZebTime *start;
 			ds_DeleteObs (t_delete_id, &when);
 		++when.zt_Sec;
 	}
-	printf ("Finished deleting with DeleteObs\n");
+	Announce ("Finished deleting with DeleteObs\n");
 	fflush (stdout);
 	fflush (stderr);
-	system("dsdump t_deletes");	
+	system(cmd);	
 	fflush (stdout);
 	fflush (stderr);
-	printf ("Trying to do the same deletes again.\n");
+	Announce ("Trying to do the same deletes again");
 	when = begin;
 	for (i = 0; i < 10; ++i)
 	{
@@ -1923,15 +2078,15 @@ ZebTime *start;
 			ds_DeleteObs (t_delete_id, &when);
 		++when.zt_Sec;
 	}
-	printf ("Storing the DataChunk again...\n");
+	Announce ("Storing the DataChunk again...");
 	ds_StoreBlocks (dc, TRUE, NULL, 0);
-	printf ("Test extremes: time earlier than all obs,\n");
+	Announce ("Test extremes: time earlier than all obs,");
 	when.zt_Sec = begin.zt_Sec - 3600*24;
 	ds_DeleteObs (t_delete_id, &when);
-	printf ("Time later than all obs,\n");
+	Announce ("Time later than all obs,");
 	when.zt_Sec = begin.zt_Sec + 3600*12;
 	ds_DeleteObs (t_delete_id, &when);
-	printf ("Using DeleteObs to delete all files...\n");
+	Announce ("Using DeleteObs to delete all files...");
 	when = begin;
 	for (i = 0; i < 10; ++i)
 	{
@@ -1940,10 +2095,10 @@ ZebTime *start;
 	}
 	fflush (stdout);
 	fflush (stderr);
-	system("dsdump t_deletes");
+	system(cmd);
 	fflush (stdout);
 	fflush (stderr);
-	printf ("Done deletes test.  Should be 0 files left in 't_deletes'.\n");
+	printf("Done deletes test.  Should be 0 files left in 't_deletes'.\n");
 	dc_DestroyDC (dc);
 }
 
