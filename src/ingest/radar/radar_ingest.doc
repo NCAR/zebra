@@ -1,0 +1,272 @@
+
+INGESTING FOF FORMAT AND UNIVERSAL FORMAT RADAR DATA
+====================================================
+
+
+
+radar_ingest and UFIngest
+-------------------------
+
+The Zebra radar ingest programs are called radar_ingest and UFIngest.  The
+programs are used to generate raster image data files from FOF format and
+universal format (UF) data, respectively.  The source code for the programs
+resides in zebra/src/ingest/radar.
+
+The radar ingest programs operate with a command file, which gives
+the ingest program important parameters such as the fields to use, size of the 
+image to be created, and its resolution.  When a radar ingest program is 
+executed, the command file name is given as the only parameter.  E.g., 
+
+	> radar_ingest radar.params
+
+will run radar_ingest using the commands in file 'radar.params'.
+
+The command file can have any name, but only one command file name is
+allowed on a radar ingest command line.  The various commands allowed in the
+command file are described below.
+
+
+
+Radar Ingest Commands
+---------------------
+
+Essentially, the radar ingest programs work by rasterizing radar data from
+an input stream, generating a separate image for each field and each sweep
+of the radar, and starting a new file of images at each radar volume boundary.
+Specifics of what is ingested and how the rasterization takes place are
+specified through the command file, which can contain commands from the list
+below (one per line), comment lines beginning with a "!" character, or blank
+lines.  Note that some of the commands below are REQUIRED to be somewhere in
+the command file.
+
+Here is a list of commands that are accepted by radar_ingest and/or UFIngest:
+
+
+
+source file <filename | tape_dev_name>
+(REQUIRED)
+
+	The 'source' command specifies the input file or tape device from
+	which the raw radar data are to be read.  Only one 'source' command
+	should appear in a radar ingest command file.
+
+	ex: source file /dt/burghart/cp4.941102.121718.tape
+
+
+
+field <name> offset <index> 
+(REQUIRED)
+
+	The 'field' command specifies a radar field to be ingested, where
+	'name' is the name to be assigned to the ingested field, and 'index'
+	is the integer index of the desired field in the source data (the
+	first field has index zero).  One or more 'field' commands must be in
+	the radar ingest command file.
+
+	ex: field reflectivity offset 0
+
+
+
+consumer <prog_name> <plat>
+(REQUIRED)
+
+	The 'consumer' command is used to specify the data consumer program,
+	'prog_name', that will be started to handle writing of the resulting
+	images from the radar ingestor, and the platform 'plat' to which the
+	data belong.  For practical purposes, the consumer program should
+	always be "ds_consumer".
+
+	ex: consumer ds_consumer cp4
+
+
+set <var> <val>
+
+	The 'set' command is used to assign radar ingest variable 'var'
+	a new value 'val'.  A separate list of the variables can be found
+	in the next section.
+
+	ex: set radar_lat 40.0123
+
+
+
+threshold <index> <thresh>
+
+	The threshold command can be used to select a field in the source
+	data to serve as a thresholding parameter for all data ingested.  Here
+	'index' is the ingeger index of the desired threshold field in the 
+	source data, and 'thresh' is the integer threshold value.  When the
+	value of the threshold field is less than 'thresh', all fields at
+	the corresponding gate will be considered bad.
+
+	ex: threshold 0 40
+	default: (no thresholding)
+
+
+
+format [cband | cp2 | mhr]
+(radar_ingest only)
+
+	The 'format' command tells which form of FOF radar data to expect.
+
+	ex: format cp2
+	default: format cband
+
+
+
+calibration [sband | xband]
+  pair <count> <dBZ>
+   .
+   .
+   .
+endcal
+(REQUIRED for format cp2, ignored otherwise)
+
+	The 'calibration' command is used for setting calibration information,
+	and is used for CP2 data only.  The calibration curve is given as
+	a series of count/dBZ pairs, and terminated with the 'endcal' command.
+
+	default: (none)
+
+
+
+Radar Ingest Variables
+----------------------
+
+x_resolution
+	(integer, default: 800)
+	the width in pixels of an ingested image
+
+y_resolution
+	(integer, default: 800)
+	the height in pixels of an ingested image
+
+x_radar
+	(integer, default: 400)
+	radar location in pixels from the left edge of the ingested image
+
+y_radar
+	(integer, default: 400)
+	radar location in pixels from the bottom edge of the ingested image
+
+radar_lat
+	(float, default: 0.0, radar_ingest only)
+	radar latitude, N latitudes positive
+
+radar_lon
+	(float, default: 0.0, radar_ingest only)
+	radar longitude, E longitudes positive
+
+azimuth_fill
+	(float, default: 0.6)
+	sweep edge "smearing", in degrees (~1/2 beam width)
+
+el_tolerance
+	(float, default: 1.0)
+	allowed difference between true elevation and nominal fixed angle
+	before a beam is dropped
+
+pixels_per_km
+	(float, default: 5.0)
+	number of pixels per kilometer in the resulting images
+
+minimum_sweep
+	(integer, default: 25)
+	minimum number of beams in an image before it is considered valid
+
+minimum_rhi
+	(integer, default: 20, radar_ingest only)
+	similar to minimum_sweep, but applied to RHI scans
+
+gmt_offset
+	(integer, default: 0)
+	number of hours to add to data time to obtain GMT
+
+platform
+	(string, default: (none))
+	Zebra platform name
+
+nframes
+	(integer, default: 2)
+	number of shared memory frames used by the ingestor
+
+	Note: unless you are doing real-time ingesting, this should generally
+	be set to 1.
+
+niceness
+	(integer, default: 0)
+	amount to adjust process priority for the ingestor
+
+	When positive, niceness reduces process priority, when negative it
+	increases process priority (useful in real-time).
+
+update
+	(integer, default: 20, radar_ingest only)
+	interval, in radar beams, between updates of the radar ingest status 
+	widget
+
+project
+	(boolean, default: true)
+	when true, horizontal distances are calculated by projecting onto
+	a horizontal plane rather than using distances along the radar beam
+
+mhrtop
+	(float, default: 21.0, radar_ingest and format mhr only)
+	for MHR data, the highest elevation angle to ingest
+
+forcerealtime
+	(boolean, default: true, radar_ingest only)
+	when true, data times will be generated by radar_ingest rather than 
+	taken from the source data
+	
+	If you are not ingesting in real-time, set this to false.
+
+sminusxthresh
+	(integer, default: 12, radar_ingest only)
+	used only during the SCMS project to set a threshold for the derived
+	sminusx field
+
+trustsweep
+	(boolean, default: false, radar_ingest only)
+	when true, the sweep flag in the source data will be used to divide
+	sweeps, otherwise an internal algorithm will determine end of sweep
+
+trustvol
+	(boolean, default: false)
+	when true, the volume flag in the source data will be used to divide
+	volumes, otherwise an internal algorithm will determine end of volume
+
+beamdelay
+	(float, default: 0.0, radar_ingest only)
+	if non-zero, the minimum interval in seconds between beams to be
+	ingested
+
+	This is useful only in real-time ingesting when the incoming data
+	stream may be too fast for the ingestor.
+
+
+check_trailer
+	(boolean, default: true, UFIngest only)
+	when true and reading data from a file source, verify that the 
+	trailing record lengths correspond to leading record lengths
+
+
+Example Command File
+--------------------
+
+Here's an example radar_ingest command file for post processing, reading CP4
+data from tape '/dev/nexa0', with a 900 x 900 image size, radar at the center,
+and 6 pixels per km (yielding a 150km x 150km image):
+
+	source file /dev/nexa0
+	field reflectivity offset 0
+	field velocity offset 1
+	threshold 3 50
+	consumer ds_consumer cp4
+	set x_resolution 900
+	set y_resolution 900
+	set x_radar 450
+	set y_radar 450
+	set gmt_offset 0
+	set platform 'cp4'
+	set minimum_sweep 50
+	set pixels_per_km 6
