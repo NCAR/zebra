@@ -32,7 +32,7 @@
 # include <DataStore.h>
 # include <ui_date.h>
 # include "GraphProc.h"
-MAKE_RCSID ("$Id: FieldMenu.c,v 2.1 1993-07-16 16:05:54 corbet Exp $")
+MAKE_RCSID ("$Id: FieldMenu.c,v 2.2 1993-07-16 17:04:15 corbet Exp $")
 
 
 /*
@@ -55,6 +55,16 @@ static int Funky FP ((char *));
 static int AddPlatform FP ((char *, int, ZebTime *));
 static void ToRealTime FP ((Widget, XtPointer, XtPointer));
 
+/*
+ * XXX Ugly snarfed out of ui_wPulldown.c.
+ */
+static int	Star_width = 16, Star_height = 16;
+static char Star_bits[] = {
+	0x00, 0x00, 0x80, 0x00, 0x80, 0x00, 0x88, 0x08, 0x90, 0x04, 
+	0xa0, 0x02, 0x40, 0x01, 0x3e, 0x3e, 0x40, 0x01, 0xa0, 0x02, 
+	0x90, 0x04, 0x88, 0x08, 0x80, 0x00, 0x80, 0x00, 0x00, 0x00, 
+	0x00, 0x00};
+static Pixmap Star;
 
 
 void
@@ -93,10 +103,11 @@ InitFieldMenu ()
  */
 	n = 0;
 	XtSetArg (args[0], XtNlabel, "(nuttin)");	n++;
+	XtSetArg (args[0], XtNleftMargin, 20);		n++;
 	for (i = 0; i < MAXENTRY; i++)
 	{
 		Entries[i] = XtCreateWidget ("DAEntry", smeBSBObjectClass,
-			Menu, args, 1);
+			Menu, args, n);
 		XtAddCallback (Entries[i], XtNcallback, 
 			(XtCallbackProc) EntryCallback, (XtPointer) i);
 	}
@@ -158,26 +169,35 @@ XtPointer junk, junk1;
 {
 	int nentry, i;
 	Arg args[2];
-	char string[80];
+	char string[80], field[40];
 	UItime uitime;
 /*
  * Get the platforms set.
  */
 	nentry = SetupFields ();
 /*
+ * If we don't have the star pixmap, get it now.
+ */
+	if (! Star)
+		Star = XCreateBitmapFromData (Disp, XtWindow (Menu), Star_bits,
+			Star_width, Star_height);
+	pd_Retrieve (Pd, IComp, "field", field, SYMT_STRING);
+/*
  * Go through and make the labels for each one.
  */
 	for (i = 0; i < nentry; i++)
 	{
+		char *name = F_GetName (Fields[i]);
 	/*
 	 * Add the text.
 	 */
 		sprintf (string, "%s", F_GetDesc (Fields[i]));
-		if (strcmp (string, F_GetName (Fields[i])))
-			sprintf (string + strlen (string), " (%s)",
-						F_GetName (Fields[i]));
+		if (strcmp (string, name))
+			sprintf (string + strlen (string), " (%s)", name);
 		XtSetArg (args[0], XtNlabel, string);
-		XtSetValues (Entries[i], args, 1);
+		XtSetArg (args[1], XtNleftBitmap, 
+			strcmp (field, name) ? None : Star);
+		XtSetValues (Entries[i], args, 2);
 	/*
 	 * If this one isn't managed yet, make it so now.
 	 */
