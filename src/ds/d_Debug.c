@@ -2,6 +2,8 @@
  * Debugging utilities for the daemon
  */
 # include <unistd.h>
+# include <string.h>
+
 # include "defs.h"
 # include "message.h"
 # include "DataStore.h"
@@ -9,7 +11,7 @@
 # include "commands.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID("$Id: d_Debug.c,v 3.5 1994-11-29 14:09:30 granger Exp $")
+MAKE_RCSID("$Id: d_Debug.c,v 3.6 1995-02-10 00:58:51 granger Exp $")
 
 #ifdef ORGANIZATIONS
 typedef enum {
@@ -165,7 +167,7 @@ dbg_DumpStatus ()
 		NPlatform, PTableSize, PTableGrow);
 	printf ("      Classes: %d, space for %d in table, growth at %d\n",
 		NClass, CTableSize, CTableGrow);
-	printf (" Memory Usage: platforms = %i bytes, classes = %i bytes\n",
+	printf (" Memory Usage: platforms = %li bytes, classes = %li bytes\n",
 		NPlatform * sizeof(Platform), NClass * sizeof(PlatformClass));
 	printf (".........................................................\n");
 }
@@ -310,7 +312,6 @@ int len;	/* Length of the buffer		*/
 	int i;
 	Platform *p;
 	Lock *lock;
-	char tmp[sizeof(lock->l_Owner) + 64];
 
 	/*
 	 * Traverse the platform instances, printing the
@@ -346,14 +347,21 @@ char *dest;
 	}
 	sprintf (dest, "%s", ctime(start));
 	dest += strlen(dest) - 1;		/* overwrite \n */
-	if (elapsed > 3*60*60)
+	if (elapsed > 48*3600)
 	{
-		sprintf (dest, ", %d hours and %d mins ago",
+		sprintf (dest, ", %ld days, %ld hrs, and %ld mins ago",
+			 elapsed / (3600*24), 
+			 (elapsed % (3600*24)) / 3600, 
+			 (elapsed % 3600) / 60);
+	}		
+	else if (elapsed > 3*3600)
+	{
+		sprintf (dest, ", %ld hours and %ld mins ago",
 			 elapsed / 3600, (elapsed % 3600) / 60);
 	}
 	else
 	{
-		sprintf (dest, ", %d minutes and %d secs ago",
+		sprintf (dest, ", %ld minutes and %ld secs ago",
 			 elapsed / 60, elapsed % 60);
 	}
 }
@@ -364,34 +372,38 @@ int
 dbg_AnswerQuery (who)
 char *who;
 /*
- * Handle a zquery.
+ * Respond to a query message.
  */
 {
 	char buf[1024];
 	time_t now = time (NULL);
 
-	sprintf (buf, "Zeb data store daemon, protocol version %08x",
+	sprintf (buf, "Zebra data store daemon, protocol version %08x",
 		 DSProtocolVersion);
 	msg_AnswerQuery (who, buf);
 	sprintf (buf, "%s", 
-	 "$Id: d_Debug.c,v 3.5 1994-11-29 14:09:30 granger Exp $");
+	 "$Id: d_Debug.c,v 3.6 1995-02-10 00:58:51 granger Exp $");
 	msg_AnswerQuery (who, buf);
 
 	dbg_EncodeElapsed ("Up since ", &Genesis, &now, buf);
 	msg_AnswerQuery (who, buf);
 
-	if (LastScan)
-		dbg_EncodeElapsed ("Last full rescan at ", 
+	if (InitialScan)
+		sprintf (buf, "Initial scan: %d %s so far, %d to go...",
+			 PlatformsScanned, "platforms scanned", 
+			 NPlatform - PlatformsScanned);
+	else if (LastScan)
+		dbg_EncodeElapsed ("Last full rescan ", 
 				   &LastScan, &now, buf);
 	else
 		sprintf (buf, "No full rescans have occurred.");
 	msg_AnswerQuery (who, buf);
 
 	if (LastCache)
-		dbg_EncodeElapsed ("Cache files up-to-date as of ",
+		dbg_EncodeElapsed ("Cache files written ",
 				   &LastCache, &now, buf);
 	else
-		sprintf (buf, "No cache file updates have occurred.");
+		sprintf (buf, "No cache file writes have occurred.");
 	msg_AnswerQuery (who, buf);
 
 	sprintf (buf, "%18s: %s\n", "Data directory", DefDataDir);
@@ -411,11 +423,11 @@ char *who;
 	sprintf (buf, "%18s: %d used of %d, grow by %d", 
 		 "DataFile entries", NDTEUsed, DFTableSize, DFTableGrow);
 	msg_AnswerQuery (who, buf);
-	sprintf (buf, "%18s: %i bytes for platforms\n",
+	sprintf (buf, "%18s: %li bytes for platforms\n",
 		 "Memory usage", NPlatform * sizeof(Platform));
-	sprintf (buf+strlen(buf), "%18s  %i bytes for classes\n", " ",
+	sprintf (buf+strlen(buf), "%18s  %li bytes for classes\n", " ",
 		 NClass * sizeof(PlatformClass));
-	sprintf (buf+strlen(buf), "%18s  %d bytes for DFE's", " ",
+	sprintf (buf+strlen(buf), "%18s  %ld bytes for DFE's", " ",
 		 NDTEUsed * sizeof (DataFile));
 	msg_AnswerQuery (who, buf);
 
@@ -451,6 +463,7 @@ char *who;
 	msg_AnswerQuery (who, buf);
 
 	msg_FinishQuery (who);
+	return (0);
 }
 
 
