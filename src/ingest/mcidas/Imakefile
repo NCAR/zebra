@@ -4,7 +4,7 @@
  * nowrad and satellite.  Note that any program which references these
  * routines must also link with the FORTRAN libraries ($(FLIBS))
  */
-MFVERSION = "$Id: Imakefile,v 1.4 1993-07-01 20:15:34 granger Exp $"
+MFVERSION = "$Id: Imakefile,v 1.5 1994-02-18 16:22:55 granger Exp $"
 
 SRCS =  clit.f flalo.f ftime.f geolat.f iround.f itime.f lit.f llcart.f \
 	movcw.f movwc.f nvxgoes.f nvxps.f nvxrect.f raerac.f solarp.f \
@@ -18,19 +18,11 @@ OBJS =  clit.o flalo.o ftime.o geolat.o iround.o itime.o lit.o llcart.o \
 
 DISTFILES = Imakefile $(SRCS) README
 
-/*--------------------------------------------------------------------*/
-#if BuildIngest
-
 all:: $(OBJS)
 
 NormalLibraryTarget(mcidas,$(OBJS))
 
 InstallLibrary(mcidas,$(LIBDIR))
-
-/*--------------------------------------------------------------------*/
-#else
-OmitBuildRules(MCIDAS library objects)
-#endif
 
 DistfilesTarget($(DISTFILES))
 
