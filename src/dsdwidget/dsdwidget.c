@@ -40,7 +40,7 @@
 # include <copyright.h>
 # include "DataStore.h"
 
-RCSID ("$Id: dsdwidget.c,v 1.23 1995-06-29 22:33:50 granger Exp $")
+RCSID ("$Id: dsdwidget.c,v 1.24 1996-08-13 21:44:08 granger Exp $")
 
 
 # define MAXPLAT	1024
@@ -197,7 +197,7 @@ char	**argv;
  * displays for different sets of platforms.
  */
 	usy_init ();
-	sprintf (name, "dsdwidget-%d", getpid());
+	sprintf (name, "dsdwidget-%d", (int) getpid());
 	if (! msg_connect (MsgHandler, name))
 	{
 		printf ("Unable to connect to message handler.\n");
@@ -299,64 +299,40 @@ Die ()
 
 
 
+
 static void
 GetTimes (index, pi, begin, end)
 int index;
 PlatformInfo *pi;
 ZebTime *begin, *end;
 /*
- * Get the begin and end data times for a platform.
+ * Get the begin and end data times for a platform, without traversing
+ * the entire file chain.  Use ds_FindDF and ds_FindAfter to get first
+ * and last files in chain, without needing to read any files.
  */
 {
-	int start;
-	DataSrcInfo dsi;
+	int df;
 	DataFileInfo dfi;
 /*
- * Go through the local data list.
+ * Check all sources at once for the first and last file available.
  */
-	ds_GetDataSource (index, 0, &dsi);
-	start = dsi.dsrc_FFile;
-	if (start == 0)
+	df = ds_FindBefore (index, &ZT_OMEGA);
+	if (df == 0)
 	{
+		/* no data whatsoever */
 		end->zt_Sec = end->zt_MicroSec = 0;	
 		begin->zt_Sec = begin->zt_MicroSec = 0;	
 	}
 	else
 	{
-		ds_GetFileInfo (start, &dfi);
+		ds_GetFileInfo (df, &dfi);
 		*end = dfi.dfi_End;
-		start = dfi.dfi_Next;
-		while (start)
-		{
-			ds_GetFileInfo (start, &dfi);
-			start = dfi.dfi_Next;
-		}
+		df = ds_FindAfter (index, &ZT_ALPHA);
+		ds_GetFileInfo (df, &dfi);
 		*begin = dfi.dfi_Begin;
 	}
-/*
- * If there is no remote source, quit.
- */
-	if (pi->pl_NDataSrc < 2)
-		return;
-	ds_GetDataSource (index, 1, &dsi);
-	start = dsi.dsrc_FFile;
-/*
- * See if there is remote data on a wider scale.
- */
-	if (start == 0)
-		return;
-	ds_GetFileInfo (start, &dfi);
-	if (end->zt_Sec == 0 || TC_Less (*end, dfi.dfi_End))
-		*end = dfi.dfi_End;
-	start = dfi.dfi_Next;
-	while (start)
-	{
-		ds_GetFileInfo (start, &dfi);
-		start = dfi.dfi_Next;
-	}
-	if (begin->zt_Sec == 0 || TC_Less (dfi.dfi_Begin, *begin))
-		*begin = dfi.dfi_Begin;
 }
+
 
 
 
@@ -553,15 +529,15 @@ XtPointer call;
 	PlatformInfo pi;
 	
 	dfc->pid = (PlatformId) cdata;
+	dfc->list = NULL;
 	dfc->entries = NULL;
 	dfc->nent = 0;
 	ds_GetPlatInfo (dfc->pid, &pi);
-	CreateDisplayWidget (Top, dfc, &pi);
-
 	/*
- 	 * Fill in the list widget.
+ 	 * Generate the array of entries and the shell.
 	 */
 	DumpPlatform (dfc, &pi);
+	CreateDisplayWidget (Top, dfc, &pi);
 
 	/*
 	 * Popup the shell and forget about it.
@@ -596,15 +572,6 @@ PlatformInfo *pi;
 		ds_GetDataSource (dfc->pid, 1, &dfc->dsi[1]);
 		DumpChain (dfc, RemoteName, dfc->dsi[1].dsrc_FFile);
 	}
-/*
- * All that remains is to tell the list widget about the entries.  If there
- * were no data files, then tell the popup not to worry about it or its
- * parent viewport.
- */
-	if (dfc->nent)
-		XawListChange (dfc->list, dfc->entries, dfc->nent, 0, True);
-	else
-		XtUnmanageChild (XtParent (dfc->list));
 }
 
 
@@ -626,12 +593,12 @@ int start;
 	{
 		ds_GetFileInfo (start, &dfi);
 		TC_EncodeTime (&dfi.dfi_Begin, TC_Full, abegin);
-		sprintf (dest, "%-8s '%s' %s", which, dfi.dfi_Name, abegin);
+		sprintf (dest,"%-8s '%s' %s    ", which, dfi.dfi_Name, abegin);
 		if (dfi.dfi_NSample > 1)
 		{
 			TC_EncodeTime (&dfi.dfi_End, TC_Full, aend);
-			sprintf (dest+strlen(dest),
-				 " -> %s [%hu]", aend, dfi.dfi_NSample);
+			sprintf (dest+strlen(dest)-4,
+				 " -> %s [%hu]    ", aend, dfi.dfi_NSample);
 		}
 		/*
 		 * Add this entry to the list
@@ -687,7 +654,7 @@ PlatformInfo *pi;
         XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
         XtSetArg (args[n], XtNfromVert, NULL);		n++;
         XtSetArg (args[n], XtNlabel, label);		n++;
-        title = XtCreateManagedWidget ("remove", labelWidgetClass, form,
+        title = XtCreateManagedWidget ("title", labelWidgetClass, form,
 				       args, n);
 /*
  * Button to remove the popup
@@ -719,23 +686,30 @@ PlatformInfo *pi;
         info = XtCreateManagedWidget ("info", labelWidgetClass, form,
 				      args, n);
 /*
- * The list widget must be contained in a viewport since the list will
- * likely be long.
+ * The viewport and list are only necessary if we have some entries.
  */
-	n = 0;
-        XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
-        XtSetArg (args[n], XtNfromVert, title);		n++;
-	viewport = XtCreateManagedWidget ("viewport", viewportWidgetClass,
-					  form, args, n);
-/*
- * Finally, insert the list widget which holds all of the data file entries
- */
-	n = 0;
-        XtSetArg (args[n], XtNtranslations, list_trans); n++;
-        list = XtCreateManagedWidget ("list", listWidgetClass,
-				       viewport, args, n);
-	XtAddCallback (list, XtNcallback, ListCallback, (XtPointer) dfc);
-	dfc->list = list;
+	if (dfc->nent)
+	{
+	/*
+	 * The list widget must be contained in a viewport since the list will
+	 * likely be long.
+	 */
+		n = 0;
+		XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
+		XtSetArg (args[n], XtNfromVert, title);		n++;
+		viewport = XtCreateManagedWidget ("viewport", 
+						  viewportWidgetClass,
+						  form, args, n);
+		n = 0;
+		XtSetArg (args[n], XtNtranslations, list_trans); n++;
+		XtSetArg (args[n], XtNlist, dfc->entries); n++;
+		XtSetArg (args[n], XtNnumberStrings, dfc->nent); n++;
+		list = XtCreateManagedWidget ("list", listWidgetClass,
+					      viewport, args, n);
+		XtAddCallback (list, XtNcallback, ListCallback, 
+			       (XtPointer) dfc);
+		dfc->list = list;
+	}
 	dfc->shell = popup;
 	return (popup);
 }
