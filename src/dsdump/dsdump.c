@@ -18,7 +18,6 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: dsdump.c,v 2.2 1992-01-09 21:54:48 corbet Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -26,6 +25,7 @@ static char *rcsid = "$Id: dsdump.c,v 2.2 1992-01-09 21:54:48 corbet Exp $";
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dslib.h"
+MAKE_RCSID ("$Id: dsdump.c,v 2.3 1992-01-24 18:40:50 corbet Exp $")
 
 
 msg_handler ()
@@ -34,7 +34,9 @@ msg_handler ()
 
 
 
-main ()
+main (argc, argv)
+int argc;
+char **argv;
 {
 	int i, pid, np;
 	DataObject *data;
@@ -49,7 +51,8 @@ main ()
 	dsm_ShmLock ();
 	dsm_Dump ();
 	for (i = 0; i < SHeader->sm_nPlatform; i++)
-		dump_platform (PTable + i);
+		if (argc < 2 || ! strcmp (argv[1], PTable[i].dp_name))
+			dump_platform (PTable + i);
 	dsm_ShmUnlock ();
 	exit (0);
 
