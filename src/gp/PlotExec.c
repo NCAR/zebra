@@ -34,7 +34,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 # include "LayoutControl.h"
-MAKE_RCSID ("$Id: PlotExec.c,v 2.20 1992-12-18 10:08:27 granger Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.21 1992-12-18 11:20:40 granger Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -64,21 +64,11 @@ int TriggerGlobal = 0;		/* Update on component may trigger a global */
 
 name_to_num Pt_table[] =
 {
-# if C_PT_CAP
 	{"CAP",		PT_CAP		},
-# endif
-# if C_PT_SKEWT
 	{"skewt", 	PT_SKEWT	},
-# endif
-# if C_PT_XSECT
 	{"xsect",	PT_XSECT	},
-# endif
-# if C_PT_TSERIES
 	{"tseries",	PT_TSERIES	},
-# endif
-# if C_PT_XYGRAPH
 	{"xygraph",	PT_XYGRAPH	},
-# endif
 	{NULL,		0		}
 };
 
@@ -103,39 +93,21 @@ name_to_num Pt_table[] =
 
 name_to_num Rt_table[] = 
 {
-# if C_PT_CAP
 	{"filled-contour",	RT_FCONTOUR	},
 	{"contour",		RT_CONTOUR	},
 	{"line-contour",	RT_CONTOUR	},
-#    if C_CAP_VECTOR
 	{"vector",		RT_VECTOR	},
-#    endif
 	{"station",		RT_STATION	},
-#    if C_CAP_RASTER
 	{"raster",		RT_RASTER	},
-#    endif
-#    if C_CAP_TRACKS
 	{"track",		RT_TRACK	},
-#    endif
-#    if C_CAP_OVERLAY
 	{"overlay",		RT_OVERLAY	},
-#    endif
-#    if C_CAP_LIGHTNING
 	{"lightning",		RT_LIGHTNING	},
-#    endif
-# endif
-# if C_PT_SKEWT
 	{"skewt",		RT_SKEWT	},
-# endif
-# if C_PT_TSERIES
 	{"tseries",		RT_TSERIES	},
-# endif
-# if C_PT_XYGRAPH
 	{"simple",		RT_SIMPLE	},
 	{"wind",		RT_WIND	},
 	{"contour",		RT_CONTOUR	},
 	{"obs",			RT_OBS	},
-# endif
 	{NULL,			0		}
 };
 
@@ -163,18 +135,6 @@ int	px_NameToNumber FP ((char *, name_to_num *));
 char *	px_NumberToName FP ((int, name_to_num *));
 void	px_Init FP ((void));
 void	px_AddComponent FP ((char *, int));
-# if C_PT_CAP
-	void	CAP_FContour FP ((char *, int));
-#    if C_CAP_VECTOR
-	void	CAP_Vector FP ((char *, int));
-#    endif
-#    if C_CAP_RASTER
-	void	CAP_Raster FP ((char *, int));
-#    endif
-	void	CAP_Station FP ((char *, int));
-	void	CAP_LineContour FP ((char *, int));
-	void	CAP_Init FP ((time *));
-# endif
 void	px_AdjustCoords FP ((float *, float *, float *, float *));
 static bool px_GetCoords FP ((void));
 static	void px_GetAltitude FP ((void));
@@ -183,13 +143,23 @@ static	void px_GetAltitude FP ((void));
  * To distinguish between missing capability and uncompiled capability in the
  * plot function table
  */
-void UncompiledFunction() {};
-# define UNCOMPILED_FUNCTION	(&UncompiledFunction)
+static void _UncompiledFunction() {};
+# define UNCOMPILED_FUNCTION	(&_UncompiledFunction)
 
 /*
- * Other routines.
+ * External plot table routines
  */
 # if C_PT_CAP
+	void	CAP_FContour FP ((char *, int));
+	void	CAP_Station FP ((char *, int));
+	void	CAP_LineContour FP ((char *, int));
+	void	CAP_Init FP ((time *));
+#    if C_CAP_VECTOR
+	void	CAP_Vector FP ((char *, int));
+#    endif
+#    if C_CAP_RASTER
+	void	CAP_Raster FP ((char *, int));
+#    endif
 #    if C_CAP_TRACKS
 	extern void	tr_CAPTrack ();
 #    endif
@@ -275,16 +245,21 @@ char	*component;
  */
 	White = WhitePixelOfScreen (XtScreen (Graphics));
 /*
- * Set the busy cursor so that people know something is going on.
- */
-	XDefineCursor (XtDisplay (Top), XtWindow (Graphics), BusyCursor);
-	eq_sync ();
-/*
  * Get the plot type
  */
 	if (!pda_ReqSearch (Pd, "global", "plot-type", NULL, plt, SYMT_STRING))
 		return;
 	PlotType = px_NameToNumber (plt, Pt_table);
+	if (PlotType < 0)
+	{
+		msg_ELog(EF_PROBLEM, "Invalid plot-type parameter: %s", plt);
+		return;
+	}
+/*
+ * Set the busy cursor so that people know something is going on.
+ */
+	XDefineCursor (XtDisplay (Top), XtWindow (Graphics), BusyCursor);
+	eq_sync ();
 /*
  * Figure out coords.
  */
@@ -734,18 +709,21 @@ Boolean	update;
  */
 	if (! pda_ReqSearch (Pd, c, "representation", NULL, rep, SYMT_STRING))
 		return;
-
-	rtype = px_NameToNumber (rep, Rt_table);
 /*
  * Execute the appropriate plot table entry
  */
-	if (Plot_routines[PlotType][rtype] == NULL)
-		msg_ELog (EF_PROBLEM, "Cannot make a '%s' plot of type '%s'",
-		   rep, px_NumberToName (PlotType, Pt_table));
+	rtype = px_NameToNumber (rep, Rt_table);
+	if (rtype < 0)
+		msg_ELog (EF_PROBLEM, "Comp '%s': invalid representation, '%s'", 
+			  c, rep);
+	else if (Plot_routines[PlotType][rtype] == NULL)
+		msg_ELog (EF_PROBLEM, 
+			  "Comp '%s': cannot plot representation '%s', type '%s'",
+			  c, rep, px_NumberToName (PlotType, Pt_table));
 	else if (Plot_routines[PlotType][rtype] == UNCOMPILED_FUNCTION)
 		msg_ELog (EF_PROBLEM, 
-		   "'%s' plot of type '%s' not configured into this compilation of Zeb",
-		   rep, px_NumberToName (PlotType, Pt_table));
+			  "Comp '%s': '%s' plot, type '%s' was not compiled",
+			  c, rep, px_NumberToName (PlotType, Pt_table));
 	else
 		(*Plot_routines[PlotType][rtype]) (c, update);
 }
