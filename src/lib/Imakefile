@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-/* $Id: Imakefile,v 1.26 1997-07-25 21:38:21 granger Exp $ */
+/* $Id: Imakefile,v 1.27 1997-09-18 21:58:23 ishikawa Exp $ */
 
 #if !HasWritev
 WRITEVOBJ=writev.o
@@ -67,7 +67,7 @@ TESTOBJS = cvt_test.o re_test.o msg_test.o
 HEADERS = bitmaps.h copyright.h defs.h GraphicsW.h GraphicsWP.h message.h \
 	pd.h timer.h ImageXfr.h zl_regex.h dm.h twidget.h byteorder.h \
 	draw.h version.h zl_symbol.h zl_param.h Test.h zebra.h map.h \
-	ZTime.h
+	ZTime.h zl_mtio.h
 
 RPCZEBRA = zebra.h zebra_xdr.c
 ZEBRA.x = zebra.x
