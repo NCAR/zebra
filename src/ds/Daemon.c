@@ -44,7 +44,7 @@
 # include "dsDaemon.h"
 # include "commands.h"
 
-MAKE_RCSID ("$Id: Daemon.c,v 3.49 1995-05-11 15:41:33 granger Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.50 1995-06-12 23:09:05 granger Exp $")
 
 
 /*
@@ -565,6 +565,7 @@ Shutdown ()
 	msg_disconnect ();
 	msg_ELog (EF_INFO, "shutdown: disconnected, exiting.");
 	exit (0);
+	return (0);	/* keep compilers happy */
 }
 
 

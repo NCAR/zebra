@@ -27,7 +27,7 @@
 # include "DataChunk.h"
 # include "DataChunkP.h"
 
-MAKE_RCSID ("$Id: dc_Transp.c,v 1.19 1995-06-09 16:01:01 granger Exp $")
+MAKE_RCSID ("$Id: dc_Transp.c,v 1.20 1995-06-12 23:09:17 granger Exp $")
 
 /*
  * TODO:
@@ -1297,7 +1297,7 @@ ZebTime *t;
 /*
  * Make sure the sample exists.  If so, return the info.
  */
-	if (sample < 0 || sample >= tp->at_NSample)
+	if (sample < 0 || sample >= (unsigned int) tp->at_NSample)
 		return (FALSE);
 	tp->at_Samples[sample].ats_Time = *t;
 	return (TRUE);

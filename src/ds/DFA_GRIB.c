@@ -38,7 +38,7 @@
 # include "dfa.h"
 # include "GRIB.h"
 
-MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.21 1995-06-09 16:00:31 granger Exp $")
+MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.22 1995-06-12 23:08:50 granger Exp $")
 
 
 /*
@@ -459,6 +459,11 @@ int	WindsCount = 0;
 int	U_gridnum[MAXLEVELS], V_gridnum[MAXLEVELS];
 float	*U_data[MAXLEVELS], *V_data[MAXLEVELS];
 
+/*
+ * Semi-private prototypes (data format methods)
+ */
+int	grb_GetAlts FP ((int dfindex, FieldId fid, int offset, float *alts,
+			 int *nalts, AltUnitType *altunits));
 
 /*
  * Local prototypes

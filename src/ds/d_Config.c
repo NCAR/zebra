@@ -19,6 +19,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+# include <string.h>
 
 # include "defs.h"
 # include "message.h"
@@ -28,7 +29,7 @@
 # include "commands.h"
 # include <ui_error.h>
 
-MAKE_RCSID("$Id: d_Config.c,v 2.11 1994-11-29 14:28:14 granger Exp $")
+MAKE_RCSID("$Id: d_Config.c,v 2.12 1995-06-12 23:09:10 granger Exp $")
 
 /*-----------------------------------------------------------------------
  * Local forwards.
@@ -237,7 +238,6 @@ struct ui_command *cmds;
 	   case DK_MODEL:	pc->dpc_flags |= DPF_MODEL; break;
 	   case DK_ABSTRACT:	pc->dpc_flags |= DPF_ABSTRACT; break;
 	   case DK_VIRTUAL:	pc->dpc_flags |= DPF_VIRTUAL; break;
-		break;
 	/*
 	 * Where the data lives.
 	 */

@@ -23,6 +23,7 @@
 # include <sys/types.h>
 # include <errno.h>
 # include <fcntl.h>
+# include <string.h>
 # include <unistd.h>
 
 # include "defs.h"
@@ -32,7 +33,7 @@
 # include "dslib.h"
 # include "dfa.h"
 # include "BoundaryFile.h"
-MAKE_RCSID ("$Id: DFA_Boundary.c,v 3.9 1995-02-10 00:49:07 granger Exp $")
+MAKE_RCSID ("$Id: DFA_Boundary.c,v 3.10 1995-06-12 23:08:47 granger Exp $")
 
 
 

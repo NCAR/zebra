@@ -19,7 +19,7 @@
 # include "dfa.h"
 # include <byteorder.h>
 
-MAKE_RCSID ("$Id: DFA_Grads.c,v 3.7 1995-05-01 16:07:01 corbet Exp $")
+MAKE_RCSID ("$Id: DFA_Grads.c,v 3.8 1995-06-12 23:08:54 granger Exp $")
 
 
 
@@ -450,7 +450,7 @@ char *dfname, *cfname;
  * Open the data file associated with this control file.
  */
 {
-	char realname[120], *slash, *strrchr ();
+	char realname[120], *slash;
 /*
  * Grads convention allows the data file name to start with "^", meaning
  * look in the same directory as the control file.

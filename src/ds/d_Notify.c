@@ -19,13 +19,14 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+# include <string.h>
 
 # include <defs.h>
 # include <message.h>
 # include "DataStore.h"
 # include "dsPrivate.h"
 
-RCSID("$Id: d_Notify.c,v 3.6 1995-04-20 20:24:56 granger Exp $")
+RCSID("$Id: d_Notify.c,v 3.7 1995-06-12 23:09:14 granger Exp $")
 
 /*
  * Here we take advantage of the knowledge that PlatformID's are simply small

@@ -30,7 +30,7 @@
 # include "dsPrivate.h"
 # include "commands.h"
 # include "dsDaemon.h"
-MAKE_RCSID("$Id: d_DataTables.c,v 3.18 1995-06-09 16:00:54 granger Exp $")
+MAKE_RCSID("$Id: d_DataTables.c,v 3.19 1995-06-12 23:09:12 granger Exp $")
 
 
 /*
@@ -311,7 +311,7 @@ PlatformInstance *p;
  * Associate this name (and all subnames) with p.
  */
 {
-	char *cp, *strchr ();
+	char *cp;
 	SValue v;
 
 	v.us_v_ptr = (char *) p;

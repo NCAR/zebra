@@ -12,7 +12,7 @@
 # include "DataStore.h"
 # include "znfile.h"
 
-MAKE_RCSID ("$Id: zfdump.c,v 1.12 1995-02-10 01:24:07 granger Exp $")
+MAKE_RCSID ("$Id: zfdump.c,v 1.13 1995-06-12 23:09:21 granger Exp $")
 
 extern int optind;
 
@@ -87,6 +87,7 @@ char **argv;
 				     dump_free, dump_header, dump_all);
 	}
 	exit (failure);
+	return (0);	/* compiler tranquility */
 }
 
 
@@ -434,7 +435,7 @@ float f;
 		sprintf (buf, "%.7g", f);
 	else
 		sprintf (buf, "%.6g", f);
-	if (!strchr (buf, '.') && (strlen(buf) <= 6))
+	if (!strchr (buf, '.') && (strlen(buf) <= (unsigned)6))
 		strcat (buf, ".0");
 	printf ("%9s", buf);
 }		

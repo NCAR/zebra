@@ -38,7 +38,7 @@
 # include "dfa.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID ("$Id: d_Scan.c,v 1.25 1995-04-17 22:36:13 granger Exp $")
+MAKE_RCSID ("$Id: d_Scan.c,v 1.26 1995-06-12 23:09:15 granger Exp $")
 
 
 /*
@@ -174,7 +174,8 @@ char *dir;
  * Try to make the data directory.
  */
 {
-	char tmp[120], *slash = dir, *strchr ();
+	char tmp[120];
+	char *slash = dir;
 /*
  * Go through and try to make all of the parent directories.
  */

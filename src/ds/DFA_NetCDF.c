@@ -32,7 +32,7 @@
 # include "dslib.h"
 # include "dfa.h"
 #ifndef lint
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.48 1995-06-09 16:00:39 granger Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.49 1995-06-12 23:08:59 granger Exp $")
 #endif
 
 #include <netcdf.h>
@@ -188,6 +188,13 @@ struct AttArg {
 	NCTag *tag;
 	int varid;
 };
+
+/*
+ * Semi-public prototypes (data format methods)
+ */
+int dnc_CloseFile FP ((NCTag *tag));
+int dnc_GetAlts FP ((int dfindex, FieldId fid, int offset, float *alts,
+		     int *nalts, AltUnitType *altunits));
 
 /*
  * Locally used stuff.
@@ -751,7 +758,7 @@ static int
 dnc_LocationID (id, platid, name)
 int id;
 int platid;
-char *name;
+const char *name;
 /*
  * Try to find a location variable by the given name which includes the
  * given dimension 'platid'.  For the moment we'll require that the
@@ -3654,7 +3661,7 @@ DataChunk *dc;
 	sprintf(history,"created by Zeb DataStore, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.48 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.49 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 #endif /* TEST_TIME_UNITS */
@@ -3912,7 +3919,7 @@ DataChunk *dc;
 {
 	int dims[2], vplat, vlat, vlon, valt;
 	long start[2], count[2], plat;
-	char *name, *subname, *strrchr ();
+	char *name, *subname;
 	PlatformId *plats;
 /*
  * Look up a couple of dimensions that we have already made, then

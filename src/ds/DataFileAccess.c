@@ -27,6 +27,7 @@
 # include <sys/types.h>
 # include <sys/stat.h>
 # include <errno.h>
+# include <string.h>
 
 # include <defs.h>
 # include <message.h>
@@ -36,7 +37,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-MAKE_RCSID ("$Id: DataFileAccess.c,v 3.21 1995-02-10 00:55:07 granger Exp $")
+MAKE_RCSID ("$Id: DataFileAccess.c,v 3.22 1995-06-12 23:09:08 granger Exp $")
 
 /*
  * This is the structure which describes a format.
@@ -549,7 +550,7 @@ char *file;
  */
 {
 	int fmt;
-	char *cp, *strrchr ();
+	char *cp;
 
 	if (! (cp = strrchr (file, '.')))
 		return (-1);
@@ -572,7 +573,7 @@ char *name;
  * See if this file name is consistent with this file type.
  */
 {
-	char *dot, *strrchr ();
+	char *dot;
 
 	dot = strrchr (name, '.');
 	return (dot && ! strcmp (dot, Formats[type].f_ext));
@@ -591,7 +592,7 @@ char *dest;
  * Create a new file name for this platform, and this time.
  */
 {
-	char *slash, *strchr ();
+	char *slash;
 	int skip = 0;
 /*
  * Get the format-specific code to make up the name, then tweak any 

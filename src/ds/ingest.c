@@ -1,4 +1,4 @@
-/* $Id: ingest.c,v 1.11 1994-10-11 16:24:56 corbet Exp $
+/* $Id: ingest.c,v 1.12 1995-06-12 23:09:20 granger Exp $
  *
  * ingest.c --- A common ingest interface and support routines for 
  *		Zeb ingest modules
@@ -31,6 +31,7 @@
  * defining your own protocol handlers with the message library functions.
  */
 
+#include <string.h>
 #include <varargs.h>
 #include "ingest.h"
 
@@ -43,7 +44,7 @@
 /* #undef ds_DeleteData */
 
 #ifndef lint
-MAKE_RCSID("$Id: ingest.c,v 1.11 1994-10-11 16:24:56 corbet Exp $")
+MAKE_RCSID("$Id: ingest.c,v 1.12 1995-06-12 23:09:20 granger Exp $")
 #endif
 
 
