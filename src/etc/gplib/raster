@@ -39,6 +39,7 @@ define widget highlight form 'Highlight'
 !
 	label title 'Highlighting'
 	label comp 'comp' width 1 color gray95
+	button help 'Help' command 'help limits'
 	button apply 'Apply' command hl-apply
 	button applyd 'Apply and Dismiss' command 'hl-apply; popdown #ui$form'
 	button dismiss 'Dismiss' command 'popdown #ui$form'

@@ -10,6 +10,7 @@ define widget center-step form 'Center and step adjustment'
 ! title/zeb line.
 !
 	label l1 'Adjust center and step limits'
+	button help 'Help' command 'help limits'
 	button apply 'Apply' command 'ctr-step-apply'
 	button zap 'Dismiss' color red command 'popdown #ui$form'
 	newline
