@@ -1,7 +1,7 @@
 /*
  * Plot execution module
  */
-static char *rcsid = "$Id: PlotExec.c,v 2.0 1991-07-18 23:00:21 corbet Exp $";
+static char *rcsid = "$Id: PlotExec.c,v 2.1 1991-08-07 19:56:24 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include <ui.h>
@@ -100,6 +100,7 @@ static void	(*EOPHandler) () = 0;
  */
 # ifdef __STDC__
 	int	px_NameToNumber (char *, name_to_num *);
+	char *	px_NumberToName (int, name_to_num *);
 	void	px_Init ();
 	void	px_AddComponent (char *, int);
 	void	CAP_FContour (char *, int);
@@ -111,6 +112,7 @@ static void	(*EOPHandler) () = 0;
 	static bool px_GetCoords (void);
 # else
 	int	px_NameToNumber ();
+	char *	px_NumberToName ();
 	void	px_Init (), px_AddComponent (), CAP_FContour ();
 	void	CAP_Vector (), CAP_Raster (), CAP_LineContour ();
 	void	CAP_Init ();
@@ -507,7 +509,7 @@ Boolean	update;
 		(*Plot_routines[PlotType][rtype]) (c, update);
 	else
 		msg_ELog (EF_PROBLEM, "Cannot make a '%s' plot of type '%s'",
-			rep, PlotType);
+			rep, px_NumberToName (PlotType, Pt_table));
 }
 
 
@@ -616,6 +618,32 @@ name_to_num	*table;
 
 		if (strcmp (entry.name, name) == 0)
 			return (entry.number);
+	}
+}
+
+
+
+
+char *
+px_NumberToName (num, table)
+int		num;
+name_to_num	*table;
+/*
+ * Return the name associated with 'num' in 'table'
+ */
+{
+	name_to_num	entry;
+	static char	nullstring[] = "";
+
+	while (TRUE)
+	{
+		entry = *table++;
+
+		if (entry.name == NULL)
+			return (nullstring);
+
+		if (entry.number == num)
+			return (entry.name);
 	}
 }
 
