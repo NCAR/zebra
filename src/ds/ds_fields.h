@@ -1,5 +1,7 @@
 /*
  * Fields module stuff.
+ *
+ * $Id: ds_fields.h,v 1.3 1992-12-07 20:11:05 granger Exp $
  */
 
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
