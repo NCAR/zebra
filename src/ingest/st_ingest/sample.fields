@@ -1,0 +1,50 @@
+#
+# Field file for MAP slow tape P-3 flight level data.
+#
+# Conventions: blank lines and anything after # is ignored.  Any other line
+# has four elements, separated by white space, followed by the field 
+# description string (which may contain white space)
+#
+# name	units		format	record?	description
+#
+Iyr	year		%2d	n	Year
+Imo	month		%2d	n	Month of year
+Idy	day		%2d	n	Day of the month
+Iac	(none)		%c	n	Aircraft ID
+
+Ihr	hours		%2d	n	Hour of the day
+Imn	minutes		%2d	n	Minutes
+Isc	seconds		%2d	n	Seconds
+
+fla1	degrees		%f	n	GPS latitude
+
+flo1	degrees		%f	n	GPS longitude
+
+hdnav	degrees		%f	y	Heading
+
+tk	degrees		%f	y	Track
+
+gs	m/s		%f	n	Ground Speed
+
+tasc	m/s		%f	n	True Air Speed
+
+pcnav	degrees		%f	y	Pitch
+
+rlnav	degrees		%f	y	Roll
+
+pres	mb		%f	y	Pressure
+
+ra1	m		%f	y	Radar Altimeter
+
+wdir	degrees		%f	y	Wind Direction
+
+wspd	m/s		%f	y	Wind Speed
+
+w_wind	m/s		%f	y	Vertical Wind Speed
+
+tdry	C		%f	y	Temperature
+
+dp	C		%f	y	Dewpoint Temperature
+
+rh	%		%f	y	Relative Humidity
+
