@@ -10,7 +10,7 @@
 # include "device.h"
 # include <stdio.h>
 
-static char *rcsid = "$Id: dev_ps.c,v 1.3 1990-04-06 10:40:23 corbet Exp $";
+static char *rcsid = "$Id: dev_ps.c,v 1.4 1990-07-18 13:16:44 burghart Exp $";
 /*
  * The tag structure
  */
@@ -20,6 +20,7 @@ struct ps_tag
 # ifdef UNIX
 	FILE	*pt_file;	/* File pointer to the device	*/
 	int	pt_pipe;	/* Piped into lpr?		*/
+	char	*pt_devname;	/* printer name for lpr		*/
 # endif
 # ifdef VMS
 	int	pt_channel;	/* Channel to printer		*/
@@ -108,10 +109,15 @@ struct device *dev;
 	 */
 	{
 		ptp->pt_pipe = TRUE;
-		strcpy (command, "lpr -P");
-		strcat (command, device);
+		sprintf (command, "lpr -P%s", device);
 		if (!(ptp->pt_file = popen (command, "w")))
 			ui_error ("Unable to open pipe '%s'", command);
+	/*
+	 * Save the device name
+	 */
+		ptp->pt_devname = (char *) malloc ((1 + strlen (device)) *
+			sizeof (char));
+		strcpy (ptp->pt_devname, device);
 	}
 # endif
 /*
@@ -166,9 +172,14 @@ char *ctag;
 		ps_out_s (ptp, "showpage\n");
 	ps_buf_out (ptp);
 	if (ptp->pt_pipe)
+	{
 		pclose (ptp->pt_file);
+		free (ptp->pt_devname);
+	}
 	else
 		fclose (ptp->pt_file);
+
+	free (ptp);
 }
 
 
@@ -197,10 +208,7 @@ char *ctag;
  * Do a page eject if we have filled all the windows
  */
 	if (ptp->pt_win == ptp->pt_nwin)
-	{
-		ps_out_s (ptp, "showpage\n");
-		ps_init (ptp);
-	}
+		ps_finish_page (ptp);
 	else
 	{
 		ptp->pt_winfilled = TRUE;
@@ -328,10 +336,46 @@ char *ctag;
 
 	if (!ptp->pt_winfilled)
 		return;
-	ps_out_s (ptp, "showpage\n");
-	ps_init (ptp);
-	ps_buf_out (ptp);
+
+	ps_finish_page (ptp);
 }
+
+
+
+
+ps_finish_page (ptp)
+struct ps_tag	*ptp;
+{
+	char	command[80];
+/*
+ * Finish this page
+ */
+	ps_out_s (ptp, "showpage\n");
+	ps_buf_out (ptp);
+/*
+ * If we're piping the output, close and reopen the pipe at each
+ * page so we don't run into printer queue size limits.  (This makes
+ * each page a separate printer job)
+ */
+	if (ptp->pt_pipe)
+	{
+		pclose (ptp->pt_file);
+
+		sprintf (command, "lpr -P%s", ptp->pt_devname);
+		if (!(ptp->pt_file = popen (command, "w")))
+			ui_error ("Unable to open pipe '%s'", command);
+	/*
+	 * Initialize and make appropriate definitions
+	 */
+		ps_out_s (ptp, "%!\n");
+		ps_def_out (ptp);
+	}
+/*
+ * Initialize for the next page
+ */
+	ps_init (ptp);
+}
+
 
 
 
