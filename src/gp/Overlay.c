@@ -1,7 +1,7 @@
 /*
  * Deal with static (or almost static) overlays.
  */
-static char *rcsid = "$Id: Overlay.c,v 2.10 1992-06-24 20:43:19 kris Exp $";
+static char *rcsid = "$Id: Overlay.c,v 2.11 1992-07-30 18:19:33 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -967,19 +967,27 @@ int update;
  * TODO:
  *	overlay widget entry
  *	annotation
+ *
+ * Modified 6/24/92 to read the "penup-point" attribute of a DataChunk
+ * and use this to separate boundary data into multiple polylines.
  */
 {
 	char platform[500], label[20], *pnames[40];
 	char iconname[40], *lat, *lon;
 	PlatformId pid;
-	int lwidth, pt, npt, closed, nplats, i;
+	int lwidth, npt, closed, nplats, i;
+	int pt, total_pts;
 	int showicon;
+	short first_valid;
 	ZebTime t, target;
 	DataChunk *dc;
 	XPoint *xpts;
 	XColor xc;
 	LabelOpt opt;
 	float x, y, asize;
+	int ix, iy;
+	char *penup;
+	float penup_pt;	/* The x OR y value in lat-lon indicating a break */
 	Location *lp, c;
 
 	target = PlotTime;
@@ -1037,41 +1045,88 @@ int update;
 		XSetForeground (Disp, Gcontext, xc.pixel);
 		XSetLineAttributes (Disp, Gcontext, lwidth, LineSolid, CapButt,
 				JoinMiter);
+		if ((penup = dc_GetSampleAttr(dc, 0, "penup-point")) != NULL)
+		{
+			penup_pt = (float)atof(penup);
+			msg_ELog (EF_DEBUG, 
+				"Found penup-point value %f for platform %s",
+				penup_pt, pnames[i]);
+		}
 	/*
 	 * Convert all points into window system space.
+	 * When a "penup" point is found, draw the line and start over
+	 * with a new one.  Each successive line is stored starting at
+	 * xpts[0].
 	 */
-		for (pt = 0; pt < npt; pt++)
+		pt = 0;
+		first_valid = 1;
+		msg_ELog(EF_DEBUG,"Boundary platform %s: datachunk has %i points",
+			 pnames[i],npt);
+		for (total_pts = 0; total_pts < npt; total_pts++)
 		{
+			if (penup /* The penup-point attr existed */ &&
+			   ((lp->l_lat == penup_pt) || (lp->l_lon == penup_pt)))
+			{
+				/* Draw all points from 0 to pt-1
+				 */
+				if (pt > 1)  /* Need at least two points */
+				{
+				    if (closed)
+					xpts[pt++] = xpts[0];
+				    XDrawLines (Disp, GWFrame (Graphics), 
+					    	Gcontext, xpts, pt,
+					    	CoordModeOrigin);
+				}
+				pt = 0;
+				lp ++;
+				continue;
+			}
+		/*
+		 * Otherwise we convert lat/lon to x,y and hold it in xpts[]
+		 */
 			cvt_ToXY (lp->l_lat, lp->l_lon, &x, &y);
 			xpts[pt].x = XPIX (x);
 			xpts[pt].y = YPIX (y);
 		/*
 		 * Annotate beneath the icon if called for.
 		 */
- 			if ((pt == 0) && (opt != NoLabel))
+ 			if ((first_valid) && (opt != NoLabel))
 			{
-				XSetFillStyle (Disp, Gcontext, FillSolid);
-				DrawText (Graphics, GWFrame (Graphics), 
-					Gcontext, xpts[0].x + 5, xpts[0].y - 5, 
+				first_valid = 0;
+				ix = xpts[pt].x;
+				iy = xpts[pt].y;
+				if (opt != NoLabel)
+				{
+				   XSetFillStyle (Disp, Gcontext, FillSolid);
+				   DrawText (Graphics, GWFrame (Graphics), 
+					Gcontext, ix + 5, iy - 5, 
 					(opt == LabelString) ? label : 
 					pnames[i], 0.0, asize, JustifyCenter, 
 					JustifyBottom);
+				}
 			}
 		/*
-		 * Increment the location pointer.
+		 * Increment the location pointer and xpts[] index
 		 */
 			lp ++;
+			pt++;
 		}
-	/*
-	 * Wrap back to the beginning if this is a closed boundary.
+	/* 
+	 * Draw whatever is left in xpts[]:
 	 */
-		if (closed)
-			xpts[npt++] = xpts[0];
-	/*
-	 * Draw them, clean up.
-	 */
-		XDrawLines (Disp, GWFrame (Graphics), Gcontext, xpts, npt,
-				CoordModeOrigin);
+		if (pt > 1)  /* Make sure more than 1 point left */
+		{
+		/*
+		 * Wrap back to the beginning if this is a closed boundary.
+		 */
+			if (closed)
+				xpts[pt++] = xpts[0];
+		/*
+		 * Draw them, clean up.
+		 */
+			XDrawLines (Disp, GWFrame (Graphics), Gcontext, xpts, pt,
+					CoordModeOrigin);
+		}
 		lw_TimeStatus (comp, pnames[i], &t);
 	/*
 	 * Add an icon if necessary.
@@ -1079,27 +1134,26 @@ int update;
 		if (showicon)
 		{
 		/*
-		 * Where to put the icon?
+		 * Where to put the icon? 
+		 * The default, (ix,iy), is the first valid point found above
 		 */
-		    if (((lat = dc_GetSampleAttr (dc, 0, "center_lat")) == NULL)
-			 || ((lon = dc_GetSampleAttr (dc, 0, "center_lon")) 
-				== NULL))
+		    if (((lat = dc_GetSampleAttr (dc, 0, "center_lat")) != NULL)
+			 && ((lon = dc_GetSampleAttr (dc, 0, "center_lon")) 
+				!= NULL))
 			{
-				x = xpts[0].x;
-				y = xpts[0].y;
-			}
-			else
-			{
+				msg_ELog(EF_DEBUG,
+			   "Using DC atts center_lat/lon %s,%s for %s icon",
+				   lat, lon, pnames[i]);
 				c.l_lat = (float) atof (lat);
 				c.l_lon = (float) atof (lon);
 				cvt_ToXY (c.l_lat, c.l_lon, &x, &y);
-				x = XPIX (x);
-				y = YPIX (y);
+				ix = XPIX (x);
+				iy = YPIX (y);
 			}
 		/*
 		 * Put it there.
 		 */
-			I_PositionIcon (comp, pnames[i], t, iconname, x, y, 
+			I_PositionIcon (comp, pnames[i], t, iconname, ix, iy, 
 				xc.pixel); 
 		}
 	/*
@@ -1112,14 +1166,6 @@ int update;
 	}
 	XSetLineAttributes (Disp, Gcontext, 0, LineSolid, CapButt, JoinMiter);
 }
-
-
-
-
-
-
-
-
 
 
 
