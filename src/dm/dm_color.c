@@ -1,7 +1,7 @@
 /*
  * Color table routines.
  */
-static char *rcsid = "$Id: dm_color.c,v 2.6 1993-11-15 21:06:57 corbet Exp $";
+static char *rcsid = "$Id: dm_color.c,v 2.7 1994-05-19 19:59:15 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -23,7 +23,8 @@ static char *rcsid = "$Id: dm_color.c,v 2.6 1993-11-15 21:06:57 corbet Exp $";
 # include <X11/Xlib.h>
 # include <ui.h>
 # include <ui_error.h>
-# include "defs.h"
+# include <defs.h>
+# include "dm.h"
 # include "dm_cmds.h"
 # include "dm_vars.h"
 
@@ -69,7 +70,7 @@ float v;
 
 
 
-
+void
 dc_Init ()
 /*
  * Initialize the color table module.
@@ -80,7 +81,7 @@ dc_Init ()
 
 
 
-
+void
 dc_Define (name)
 char *name;
 /*
@@ -237,7 +238,7 @@ SValue *argv, *retv;
 	if (! ct)
 	{
 		retv->us_v_ptr = usy_string ("white");
-		return;
+		return (0);
 	}
 /*
  * Pull it out.
@@ -251,6 +252,7 @@ SValue *argv, *retv;
 	}
 	else
 		retv->us_v_ptr = usy_string ("hot pink");	/* WTH */
+	return (0);
 }
 
 

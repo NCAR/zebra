@@ -1,4 +1,4 @@
-/* $Id: dm_cmds.h,v 2.6 1993-03-15 20:15:18 corbet Exp $ */
+/* $Id: dm_cmds.h,v 2.7 1994-05-19 19:59:14 granger Exp $ */
 /*
  * Keyword numbers for displaymgr commands.
  */
@@ -69,3 +69,15 @@
 # define DMC_ENTER	43
 # define DMC_HELP	44
 # define DMC_KILL	45
+/*
+ * In-line plot descriptions
+ */
+# define DMC_BEGINPD	50
+# define DMC_COMPPARAM	51
+# define DMC_COMPONENT	52
+# define DMC_GLOBAL	53
+# define DMC_ENDPD	54
+/*
+ * Feedback
+ */
+# define DMC_SHOWPD	60

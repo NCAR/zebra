@@ -27,14 +27,18 @@
 
 # include <ui.h>
 # include <ui_error.h>
-# include "dm_vars.h"
-# include "dm_cmds.h"
+# include <defs.h>
 # include <timer.h>
 # include <DataStore.h>
 # include <config.h>
 # include <copyright.h>
 # include <xhelp.h>
-MAKE_RCSID ("$Id: dm.c,v 2.40 1994-03-18 16:42:48 corbet Exp $")
+
+# include "dm.h"
+# include "dm_vars.h"
+# include "dm_cmds.h"
+
+MAKE_RCSID ("$Id: dm.c,v 2.41 1994-05-19 19:59:10 granger Exp $")
 
 
 /*
@@ -93,6 +97,7 @@ char SystemType[12] =
 # endif
 
 
+
 /*
  * Forward routines.
  */
@@ -104,10 +109,6 @@ static int dm_dispatcher FP ((int, struct ui_command *));
 static int dm_msg_handler FP ((Message *));
 static void EnterPosition FP ((struct ui_command *));
 static void KillProcess FP ((char *));
-extern int pd_complist FP ((int, SValue *, int, SValue *, int *));
-extern int NthColor FP ((int, SValue *, int, SValue *, int *));
-extern int NthComponent FP ((int, SValue *, int, SValue *, int *));
-extern int nvalue FP ((int, SValue *, int, SValue *, int *));
 
 
 
@@ -115,8 +116,8 @@ main (argc, argv)
 int argc;
 char **argv;
 {
-	int msg_incoming (), get_pd ();
-	int is_active (), type[4], pd_param (), pd_defined (), tw_cb ();
+	int msg_incoming ();
+	int type[4], tw_cb ();
 	char loadfile[100];
 	stbl vtable;
 /*
@@ -238,6 +239,13 @@ struct ui_command *cmds;
 	   	def_config (cmds + 1);
 		break;
 
+	/*
+	 * Begin a plot description
+	 */
+	   case DMC_BEGINPD:
+		def_pd (cmds + 1);
+		break;
+
 	   case DMC_DISPLAY:
 	   	display (cmds + 1);
 		break;
@@ -337,7 +345,7 @@ struct ui_command *cmds;
 	 */
 	   case DMC_CFGSAVE:
 	   	SaveConfig (cmds[1].uc_ctype == UTT_END ?
-					Cur_config : UPTR (cmds[1]));
+			    Cur_config : UPTR (cmds[1]));
 		break;
 	/*
 	 * New windows and configs.
@@ -390,6 +398,13 @@ struct ui_command *cmds;
 	 */
 	   case DMC_KILL:
 	   	KillProcess (UPTR (cmds[1]));
+		break;
+
+	/*
+	 * Write a named plot description to the terminal
+	 */
+	   case DMC_SHOWPD:
+		ShowPD (UPTR (cmds[1]));
 		break;
 
 	   default:
@@ -634,7 +649,6 @@ char *name;
 		strcpy(ConfigPath, v.us_v_ptr);
 		ccd = strtok(ConfigPath, &delim);
 	}
-
 /*
  * Look up this config in the configs table.
  */
@@ -642,35 +656,47 @@ char *name;
 		return ((struct config *) v.us_v_ptr);
 /*
  * If we didn't find it in the table, search ConfigDir and ConfigPath to 
- * try and find it, load it if it exists, then try again.
+ * try and find it, load it and return if it exists, else keep trying.
  */
-	while(1)
+	while (firstime || ccd)
 	{
 		if(firstime == FALSE)
 		{
-			if(ccd != NULL)
+			if (ccd != NULL)
 				strcpy(ConfigDir, ccd);
 			else
 				strcpy(ConfigDir, ".");
 		}
 
-		sprintf (fname, "read %s/%s", ConfigDir, name);
+		sprintf (fname, "read %s/%s%s", ConfigDir, name, SAVED_EXT);
+		msg_ELog (EF_DEBUG, "Looking for config in %s", fname);
 		if (access (fname + 5, F_OK) == 0)
 		{
 			ui_perform (fname);
-			if (usy_g_symbol (Configs, name, &type, &v))
-				return ((struct config *) v.us_v_ptr);
-			ui_error ("Unknown configuration: '%s'\n", name);
+		}
+		else	/* Try the old naming scheme with no extension */
+		{
+			sprintf (fname, "read %s/%s", ConfigDir, name);
+			msg_ELog (EF_DEBUG, "Looking for config in %s", fname);
+			if (access (fname + 5, F_OK) == 0)
+			{
+				ui_perform (fname);
+			}
+		}
+		if (usy_g_symbol (Configs, name, &type, &v))
+		{
+			msg_ELog(EF_DEBUG, "Found config %s in %s",name,fname);
+			return ((struct config *) v.us_v_ptr);
 		}
 
-		if(ccd == NULL)
-			ui_error ("Unknown configuration: '%s'\n", name);
-	
-		if(firstime == FALSE)
+		if (firstime == FALSE)
 			ccd = strtok(NULL, &delim);
 		else
 			firstime = FALSE;
 	}
+
+	ui_error ("Unknown configuration: '%s'\n", name);
+	return (NULL);
 }
 
 

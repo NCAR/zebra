@@ -1,4 +1,4 @@
-/* $Id: dm.h,v 2.7 1994-01-26 11:24:06 granger Exp $ */
+/* $Id: dm.h,v 2.8 1994-05-19 19:59:12 granger Exp $ */
 /*
  * Display manager stuff.
  */
@@ -23,6 +23,10 @@
 #ifndef __zeb_dm_h_
 #define __zeb_dm_h_
 
+# include <X11/Xlib.h>
+# include <defs.h>
+# include <message.h>
+# include <pd.h>
 # include <config.h>		/* CFG_ symbol definitions 	*/
 
 # define DM_RECONFIG	1	/* Change screen configuration	*/
@@ -58,6 +62,12 @@
  * The space required for plot description names in DM messages
  */
 # define PDLEN 		CFG_PDNAME_LEN
+
+/*
+ * File extension for saved display configurations.  The period should
+ * be included.  To define no extension, use ""
+ */
+#define SAVED_EXT	".dc"
 
 /*
  * The message structure sent out by the display manager.
@@ -217,5 +227,45 @@ struct dm_dial
 	int dmm_motion;		/* The amount of dial motion		*/
 	char dmm_param[PDLEN];	/* The parameter to change		*/
 };
+
+
+/*
+ * Public functions.
+ */
+struct cf_window *lookup_win FP ((char *, int));
+void 	PickWin FP ((char *));
+void 	SaveConfig FP ((char *));
+struct config *LookupConfig FP ((char *));
+int 	FindFile FP ((char *, char *, char *));
+void	SetTimeMode FP ((char *, int, ZebTime *));
+void	badwin FP((char *name));
+int	list_cfg FP((char *name, int type, union usy_value *v, int junk));
+void	def_bmap FP((char *name));
+void	list ();
+void	ShowPD FP((char *name));
+void	def_pd FP((struct ui_command *cmds));
+void	def_config FP((struct ui_command *cmds));
+void	display FP((struct ui_command *cmds));
+
+
+/*
+ * Command-line functions.
+ */
+int	is_active FP ((int, SValue *, int *, SValue *, int *));
+int	get_pd FP ((int, SValue *, int *, SValue *, int *));
+int	pd_param FP ((int, SValue *, int *, SValue *, int *));
+int	pd_defined FP ((int, SValue *, int *, SValue *, int *));
+int 	pd_complist FP ((int, SValue *, int *, SValue *, int *));
+int 	NthColor FP ((int, SValue *, int *, SValue *, int *));
+int 	NthComponent FP ((int, SValue *, int *, SValue *, int *));
+int 	nvalue FP ((int, SValue *, int *, SValue *, int *));
+
+/* 
+ * Color table functions
+ */
+void	dc_TableRequest FP((struct dm_ctr *ctr, char *proc));
+void	dc_Define FP((char *name));
+void	dc_Init ();
+
 
 #endif /* !__zeb_dm_h_ */

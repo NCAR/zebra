@@ -19,17 +19,25 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+# include <string.h>
 # include <ui.h>
 # include <ui_error.h>
+# include <defs.h>
+# include "dm.h"
 # include "dm_vars.h"
 # include "dm_cmds.h"
-MAKE_RCSID ("$Id: dm_ui.c,v 2.6 1993-11-17 23:03:08 corbet Exp $")
+
+MAKE_RCSID ("$Id: dm_ui.c,v 2.7 1994-05-19 19:59:20 granger Exp $")
 
 
+static int in_pd FP((raw_plot_description *rpd, struct ui_command *cmds));
+static int in_config FP((struct config *cfg, struct ui_command *cmds));
+static int in_window FP((struct cf_window *win, struct ui_command *cmds));
+static void rpd_append FP((raw_plot_description *rpd, char *src));
+static int in_map FP((ButtonMap *map, struct ui_command *cmds));
 
 
-
-
+void
 def_config (cmds)
 struct ui_command *cmds;
 /*
@@ -37,7 +45,6 @@ struct ui_command *cmds;
  */
 {
 	struct config *cfg = NEW (struct config);
-	int in_config ();
 	union usy_value v;
 /*
  * Initialize our new configuration structure.
@@ -72,7 +79,7 @@ struct ui_command *cmds;
 
 
 
-
+static int
 in_config (cfg, cmds)
 struct config *cfg;
 struct ui_command *cmds;
@@ -81,7 +88,7 @@ struct ui_command *cmds;
  */
 {
 	struct cf_window *win;
-	int in_window (), arg;
+	int arg;
 
 	switch (UKEY (*cmds))
 	{
@@ -150,7 +157,7 @@ struct ui_command *cmds;
 
 
 
-
+static int
 in_window (win, cmds)
 struct cf_window *win;
 struct ui_command *cmds;
@@ -205,9 +212,186 @@ struct ui_command *cmds;
 
 
 
+void
+def_pd (cmds)
+struct ui_command *cmds;
+/*
+ * Define a plot description.  If a name argument is supplied, use it as
+ * the name of the plot description.  Otherwise, use the global pd-name
+ * parameter.  If all else fails, use the name of the first component,
+ * else report an error.
+ */
+{
+	raw_plot_description rpd;
+	plot_description pd;
+	char *pdname = NULL;
+	char name[512];
+/*
+ * Enter the dm-description state and wait for parameter and component
+ * commands.
+ */
+	rpd.rp_len = 0;
+	ERRORCATCH
+		ui_subcommand ("dm-description", "PD>", in_pd, (long) &rpd);
+	ON_ERROR
+		if (rpd.rp_len)
+			relvm (rpd.rp_data);
+		RESIGNAL;
+	ENDCATCH
+/*
+ * Try to compile the raw plot description
+ */
+	pd = pd_Load (&rpd);
+	if (! pd)
+	{
+		free (rpd.rp_data);
+		return ;
+	}
+/*
+ * Work on assigning a name to this plot description
+ */
+	if (cmds[0].uc_ctype != UTT_END)
+	{
+		pdname = UPTR(cmds[0]);
+	}
+	else if (pd_Retrieve (pd, "global", "pd-name", name, SYMT_STRING) &&
+		 strcmp (name, "UNDEFINED"))
+	{
+		pdname = name;
+	}
+	else if (pd_Retrieve (pd, "defaults", "pd-name", name, SYMT_STRING))
+	{
+		pdname = name;
+	}
+	else
+	{
+		char **comps = pd_CompList (pd);
+	/*
+	 * Try the first component
+	 */
+		if (comps)
+			pdname = comps[0];
+	}
+	if (! pdname || ! pdname[0])
+	{
+		ui_warning ("could not assign a name to plot description");
+		pd_Release (pd);
+		return ;
+	}
+/*
+ * Finally, store the new plot description
+ */
+	pd_Store (pd, "global", "pd-name", pdname, SYMT_STRING);
+	pda_StorePD (pd, pdname);
+}
 
 
 
+static void
+rpd_append (rpd, src)
+raw_plot_description *rpd;
+char *src;
+/*
+ * Make sure there is space for characters in src[] and copy them into rpd.
+ * Note that for this to be done efficiently, it relies on realloc()
+ * allocating in sufficient blocks to avoid copying on every call.
+ */
+{
+	int len = rpd->rp_len + strlen(src) + 1;
+
+	if (rpd->rp_len == 0)
+	{	
+		rpd->rp_data = (char *) malloc (len);
+		rpd->rp_data[0] = '\0';
+	}
+	else
+		rpd->rp_data = (char *) realloc (rpd->rp_data, len);
+
+	strcat (rpd->rp_data, src);
+	rpd->rp_len = len - 1;
+}
+
+	
+
+
+static int
+in_pd (rpd, cmds)
+raw_plot_description *rpd;
+struct ui_command *cmds;
+/*
+ * Handle an internal plot description command.  A parameter command simply
+ * tacks on a new parameter to the raw plot description.  A component or global
+ * command begins a new component and ends any previous one.
+ *
+ * If a component is defined before a global, insert the global component 
+ * with a place-holder for the name.
+ */
+{
+	switch (UKEY (*cmds))
+
+	{
+	   case DMC_GLOBAL:
+		rpd_append (rpd, "global\n");
+		break;
+
+	   case DMC_COMPONENT:
+		if (rpd->rp_len == 0)
+			rpd_append (rpd, "global\n\tpd-name:\tUNDEFINED\n");
+		rpd_append (rpd, UPTR(cmds[1]));
+		rpd_append (rpd, "\n");
+		break;
+	   
+	   case DMC_COMPPARAM:
+		rpd_append (rpd, "\t");
+		rpd_append (rpd, UPTR(cmds[1]));
+		rpd_append (rpd, ":\t");
+		rpd_append (rpd, UPTR(cmds[2]));
+		rpd_append (rpd, "\n");
+		break;
+
+	   case DMC_ENDPD:
+	   	return (FALSE);
+
+	   default:
+	   	ui_error ("(BUG): Unknown keyword: %d\n", UKEY (*cmds));
+	}
+	return (TRUE);
+}
+
+
+
+void
+ShowPD (name)
+char *name;	/* Name of the plot description to list */
+{
+	raw_plot_description *rpd;
+	plot_description pd;
+	char *line, *next;
+
+	pd = pda_GetPD (name);
+	if (! pd)
+	{
+		ui_error ("Unknown plot description: '%s'\n", name);
+	}
+	else
+	{
+	/*
+	 * Print a line at a time else ui_printf() chokes.
+	 */
+		rpd = pd_Unload (pd);
+		for (line = rpd->rp_data; line != NULL; line = next)
+		{
+			next = strchr (line, '\n');
+			if (next)
+				*next++ = '\0';
+			ui_printf ("%s\n", line);
+		}
+		pd_RPDRelease (rpd);
+	}
+}
+
+
+void
 list ()
 /*
  * List out the known configs.
@@ -220,11 +404,12 @@ list ()
 
 
 
-
+int
 list_cfg (name, type, v, junk)
 char *name;
-int type, junk;
+int type;
 union usy_value *v;
+int junk;
 /*
  * List out a single configuration.
  */
@@ -249,8 +434,7 @@ union usy_value *v;
 
 
 
-
-
+void
 def_bmap (name)
 char *name;
 /*
@@ -258,7 +442,7 @@ char *name;
  */
 {
 	union usy_value v;
-	int type, i, in_map ();
+	int type, i;
 	ButtonMap *map;
 /*
  * Try to look up the table and see if it already exists.
@@ -285,7 +469,7 @@ char *name;
 
 
 
-int
+static int
 in_map (map, cmds)
 ButtonMap *map;
 struct ui_command *cmds;
@@ -331,11 +515,10 @@ struct ui_command *cmds;
 
 
 
-
-
+int
 pd_defined (narg, argv, argt, retv, rett)
 int narg, *argt, *rett;
-union usy_value *argv, *retv;
+SValue *argv, *retv;
 /*
  * the pd_defined CLF.
  *
@@ -352,6 +535,7 @@ union usy_value *argv, *retv;
 	else 
 		retv->us_v_int = pd_Retrieve (pd, argv[1].us_v_ptr,
 			argv[2].us_v_ptr, junk, SYMT_STRING);
+	return (0);
 }
 
 
@@ -378,7 +562,7 @@ SValue *argv, *retv;
 	if (! pd)
 	{
 		retv->us_v_ptr = usy_string ("bogus");
-		return;
+		return (0);
 	}
 /*
  * Get the components and make up a nice string.
@@ -393,12 +577,15 @@ SValue *argv, *retv;
  * Done.
  */
 	retv->us_v_ptr = usy_string (tmp);
+	return (0);
 }
 
 
+
+int
 nvalue (narg, argv, argt, retv, rett)
 int narg, *argt, *rett;
-union usy_value *argv, *retv;
+SValue *argv, *retv;
 /*
  * CLF: nvalue (pd, comp, param)
  *
@@ -415,13 +602,15 @@ union usy_value *argv, *retv;
 		retv->us_v_int = CommaParse (tmp, vals);
 	else
 		retv->us_v_int = 0;
+	return (0);
 }
 
 
 
+int
 NthComponent (narg, argv, argt, retv, rett)
 int narg, *argt, *rett;
-union usy_value *argv, *retv;
+SValue *argv, *retv;
 /*
  * NthComp command line function:
  *
@@ -444,15 +633,16 @@ union usy_value *argv, *retv;
 	else
 		retv->us_v_ptr = usy_string (comps[i]);
 	*rett = SYMT_STRING;
+	return (0);
 }
 
 
 
 
-
+int
 pd_param (narg, argv, argt, retv, rett)
 int narg, *argt, *rett;
-union usy_value *argv, *retv;
+SValue *argv, *retv;
 /*
  * The pd_param command line function.
  *
@@ -480,15 +670,16 @@ union usy_value *argv, *retv;
 		*rett = type;
 		memcpy (retv, tmp, sizeof (date));	/* XXX */
 	}
+	return (0);
 }
 	
 
 
 
-
+int
 get_pd (narg, argv, argt, retv, rett)
 int narg, *argt, *rett;
-union usy_value *argv, *retv;
+SValue *argv, *retv;
 /*
  * The "pdesc" command line function.
  */
@@ -498,15 +689,16 @@ union usy_value *argv, *retv;
  	*rett = SYMT_STRING;
 	retv->us_v_ptr = win ? usy_string (win->cfw_desc) :
 			       usy_string ("INACTIVE");
+	return (0);
 }
 
 
 
 
-
+int
 is_active (narg, argv, argt, retv, rett)
 int narg, *argt, *rett;
-union usy_value *argv, *retv;
+SValue *argv, *retv;
 /*
  * The "active" command line function.  Return TRUE iff the given window
  * is currently active.
@@ -518,13 +710,14 @@ union usy_value *argv, *retv;
  */
  	*rett = SYMT_BOOL;
 	retv->us_v_int = win != 0;
+	return (0);
 }
 
 
 
 
 
-
+void
 badwin (name)
 char *name;
 /*

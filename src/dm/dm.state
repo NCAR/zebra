@@ -1,4 +1,4 @@
-! $Id: dm.state,v 1.18 1993-03-15 20:15:18 corbet Exp $
+! $Id: dm.state,v 1.19 1994-05-19 19:59:13 granger Exp $
 !
 ! Command definition for the display manager.
 !
@@ -26,6 +26,9 @@ define state dm-initial
 	@ #ui$defs_file
 	input 'config' 1
 		next dm-config-name
+	endinput
+	input 'beginpd' 50
+		next dm-opt-pdname
 	endinput
 	input 'display' 2
 		next dm-disp-config
@@ -107,6 +110,9 @@ define state dm-initial
 	endinput
 	input 'kill' 45
 		next ust$final_unmunged_string
+	endinput
+	input 'showpd' 60
+		next ust$final_string
 	endinput
 enddef
 
@@ -650,3 +656,56 @@ define state dm-help-file
 		next ust$no_more
 	endinput
 enddef
+
+!
+! Plot descriptions
+!
+define state dm-opt-pdname
+	input EOS
+		done
+	endinput
+	input string
+		next ust$no_more
+	endinput
+enddef
+
+define state dm-description
+	eoftext 'endpd'
+	input 'global' 53
+		next ust$no_more
+	endinput
+	input 'parameter' 51
+		next pd-parameter-name
+	endinput
+	input 'parm' 51
+		next pd-parameter-name
+	endinput
+	input 'component' 52
+		next pd-component-name
+	endinput
+	input 'comp' 52
+		next pd-component-name
+	endinput
+	input 'endpd' 54
+		next ust$no_more
+	endinput
+enddef
+
+define state pd-parameter-name
+	input string
+		next pd-value
+	endinput
+enddef
+
+define state pd-component-name
+	input string
+		next ust$no_more
+	endinput
+enddef
+
+define state pd-value
+	input string
+		next ust$no_more
+	endinput
+enddef
+

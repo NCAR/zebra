@@ -1,7 +1,7 @@
 /*
  * DM variables.
  *
- * $Id: dm_vars.h,v 2.7 1993-11-15 21:07:00 corbet Exp $
+ * $Id: dm_vars.h,v 2.8 1994-05-19 19:59:21 granger Exp $
  */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -20,11 +20,9 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-# include <X11/Xlib.h>
-# include <defs.h>
-# include "dm.h"
-# include <message.h>
-# include <pd.h>
+
+#ifndef __zeb_dm_vars_h__
+#define __zeb_dm_vars_h__
 
 /*
  * Button map information.
@@ -145,12 +143,4 @@ extern Display		*Dm_Display;		/* Our display		*/
 extern int TBSpace;
 
 
-/*
- * Functions.
- */
-struct cf_window *lookup_win FP ((char *, int));
-void 	PickWin FP ((char *));
-void 	SaveConfig FP ((char *));
-struct config *LookupConfig FP ((char *));
-int 	FindFile FP ((char *, char *, char *));
-void	SetTimeMode FP ((char *, int, ZebTime *));
+#endif /* !__zeb_dm_vars_h__ */

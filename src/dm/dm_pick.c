@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: dm_pick.c,v 2.7 1993-10-22 16:27:45 corbet Exp $";
+static char *rcsid = "$Id: dm_pick.c,v 2.8 1994-05-19 19:59:18 granger Exp $";
 /*
  * Handle the window picking operation.
  */
@@ -19,6 +19,7 @@ static char *rcsid = "$Id: dm_pick.c,v 2.7 1993-10-22 16:27:45 corbet Exp $";
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+# include "dm.h"
 # include "dm_vars.h"
 # include <X11/Xlib.h>
 # include <X11/Xutil.h>

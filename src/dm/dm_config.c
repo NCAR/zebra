@@ -25,9 +25,11 @@
 
 # include <ui.h>
 # include <ui_error.h>
+# include "dm.h"
 # include "dm_vars.h"
 # include "dm_cmds.h"
-MAKE_RCSID ("$Id: dm_config.c,v 1.10 1994-05-10 21:39:28 corbet Exp $")
+
+MAKE_RCSID ("$Id: dm_config.c,v 1.11 1994-05-19 19:59:16 granger Exp $")
 
 
 /*
@@ -40,6 +42,7 @@ static bool DisplayWindow FP ((struct cf_window *));
 static void SetupExec FP ((struct cf_window *));
 static void PutConfig FP ((struct config *));
 static void RunProgram FP ((char *, char **));
+static int  SaveParameter FP ((char *name, char *value, FILE *fp));
 
 
 
@@ -51,6 +54,7 @@ char *name;
  */
 {
 	char fname[200];
+	char pdname[200];
 	FILE *fp;
 	int win, i;
 	struct cf_window *wp;
@@ -63,7 +67,8 @@ char *name;
 /*
  * Create the file and start writing.
  */
-	sprintf (fname, "%s/%s", ConfigDir, name);
+	sprintf (fname, "%s/%s%s", ConfigDir, name, SAVED_EXT);
+	msg_ELog (EF_DEBUG, "Saving config %s to %s", name, fname);
 	if ((fp = fopen (fname, "w")) == NULL)
 	{
 		msg_ELog (EF_PROBLEM, "Unable to create file %s", fname);
@@ -98,14 +103,15 @@ char *name;
 			fprintf (fp, " %s", wp->cfw_args[i]);
 		fprintf (fp, "\n");
 	/*
-	 * If this is a graphic window, we save PD and button map info;
-	 * otherwise we mark it nongraphic.
+	 * If this is a graphic window, note plot description and button map
+	 * info; otherwise we mark it nongraphic.
 	 */
 		if (wp->cfw_nongraph)
 			fprintf (fp, "\t\tnongraphic\n");
 		else
 		{
-			SavePD (fp, name, wp);
+			sprintf (pdname, "%s-%s", name, wp->cfw_name);
+			fprintf (fp, "\t\tdescription '%s'\n", pdname);
 			fprintf (fp, "\t\tbuttonmap '%s'\n",
 				wp->cfw_bmap->db_name);
 		}
@@ -114,9 +120,26 @@ char *name;
 		fprintf (fp, "\tendwindow\n");
 	}
 /*
- * Finish up.
+ * Close out the display config definition
  */
-	fprintf (fp, "endconfig\n");
+	fprintf (fp, "endconfig\n\n");
+/*
+ * Now dump out each of our plot descriptions into the config file for
+ * each non-widget, graphical window
+ */
+	for (win = 0; win < cfg->c_nwin; win++)
+	{
+		wp = cfg->c_wins + win;
+	 	if ((wp->cfw_flags & CF_WIDGET) || wp->cfw_nongraph)
+			continue;
+		sprintf (pdname, "%s-%s", name, wp->cfw_name);
+		SavePD (fp, pdname, wp);
+	}
+
+
+/*
+ * Now we can finally close the config file and consider the job done.
+ */	
 	fclose (fp);
 }
 
@@ -184,49 +207,56 @@ struct config *cfg;
 
 
 static void
-SavePD (fp, name, wp)
+SavePD (fp, pdname, wp)
 FILE *fp;
-char *name;
+char *pdname;
 struct cf_window *wp;
 /*
  * Dump out the plot description for this window.
  */
 {
-	int fd;
 	plot_description pd;
-	raw_plot_description *rpd;
-	char pdname[40], fname[120];
+	char **comps;
 /*
  * Make a copy of the plot description for this window, and change it's name
  * to be what we think it should be.
  */
-	sprintf (pdname, "%s-%s", name, wp->cfw_name);
 	pd = pd_CopyPD (wp->cfw_pd);
 	pd_Store (pd, "global", "pd-name", pdname, SYMT_STRING);
-	rpd = pd_Unload (pd);
-	fprintf (fp, "\t\tdescription '%s'\n", pdname);
+	fprintf (fp, "beginpd '%s'\n", pdname);
 /*
- * Create the PD file and dump out the stuff.
+ * For each parameter of each component, print the appropriate dm command.
  */
-	sprintf (fname, "%s/%s.pd", ConfigPD, pdname);
-	if ((fd = open (fname, O_WRONLY|O_CREAT|O_TRUNC, 0664)) < 0)
-		msg_ELog (EF_PROBLEM, "Unable to open PD file %s", fname);
-	else
+	for (comps = pd_CompList (pd); *comps; comps++)
 	{
-		write (fd, rpd->rp_data, rpd->rp_len);
-		close (fd);
+		if (!strcmp(*comps, "global"))
+			fprintf (fp, "global\n");
+		else
+			fprintf (fp, "component %s\n", *comps);
+		pd_TraverseParameters (pd, *comps, SaveParameter, fp);
 	}
 /*
  * Clean up and we are done.
  */
+	fprintf (fp, "endpd\n\n");
 	pd_Release (pd);
-	pd_RPDRelease (rpd);
+}
+
+
+
+static int
+SaveParameter (name, value, fp)
+char *name;
+char *value;
+FILE *fp;
+{
+	fprintf (fp, "   parameter %-25s '%s'\n", name, value);
 }
 
 
 
 
-
+void
 display (cmds)
 struct ui_command *cmds;
 /*
