@@ -43,7 +43,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.69 1998-02-05 23:50:16 burghart Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.70 1998-02-19 23:54:45 burghart Exp $")
 
 
 /*
@@ -587,6 +587,12 @@ float *step;	/* scale step */
 		sprintf (param, "%s-step", fname);
 		ok &= pda_ReqSearch (Pd, c, param, qual, (char *) step, 
 				     SYMT_FLOAT);
+
+		if (*step == 0.0)
+		{
+		    msg_ELog (EF_PROBLEM, "%s is zero!", param);
+		    ok = FALSE;
+		}
 	/*
 	 * If they blew it, give them a second chance by turning on
 	 * autoscaling.
@@ -594,7 +600,7 @@ float *step;	/* scale step */
 		if (! ok)
 		{
 			msg_ELog (EF_PROBLEM,
-					"Desperately turning on autoscale");
+				  "Desperately turning on autoscale");
 			ok = autoscale = TRUE;
 		}
 	}
