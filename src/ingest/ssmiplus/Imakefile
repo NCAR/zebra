@@ -1,0 +1,119 @@
+/*		Copyright (C) 1993 by UCAR
+ *	University Corporation for Atmospheric Research
+ *		   All rights reserved
+ *
+ * No part of this work covered by the copyrights herein may be reproduced
+ * or used in any form or by any means -- graphic, electronic, or mechanical,
+ * including photocopying, recording, taping, or information storage and
+ * retrieval systems -- without permission of the copyright owner.
+ * 
+ * This software and any accompanying written materials are provided "as is"
+ * without warranty of any kind.  UCAR expressly disclaims all warranties of
+ * any kind, either express or implied, including but not limited to the
+ * implied warranties of merchantibility and fitness for a particular purpose.
+ * UCAR does not indemnify any infringement of copyright, patent, or trademark
+ * through use or modification of this software.  UCAR does not provide 
+ * maintenance or updates for its software.
+ */
+MFVERSION="$Id: Imakefile,v 1.6 1994-06-29 21:32:25 case Exp $"
+
+PROOF=/net/CenterLine/bin/proof
+
+LIBMP = /local/src/prog-tools/mprof/libc_mp.a
+
+SRC = /net/src/prog-tools
+
+#ifdef notdef
+TCL_INCLUDES = -I$(SRC)/tcl7.3
+TK_INCLUDES = -I$(SRC)/tk3.6
+TCLX_INCLUDES = -I$(SRC)/src
+#endif
+
+/*
+ * This is for the benefit of makedepend
+ */
+G++INCLUDES = -I/locallib/g++-include
+
+/*
+ * The -I. is to get modified tcl++.h from local directory rather than system
+ */
+INCLUDES = -I. -I/usr/local/include
+
+#ifdef notdef
+LIBTCLX = $(SRC)/tclX7.3a/tclmaster/lib/libtclx.a
+LIBTKX = $(SRC)/tclX7.3a/tkmaster/lib/libtkx.a
+LIBTCL = $(SRC)/tcl7.3/libtcl.a
+#endif
+
+LOCAL_LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) \
+		/* /usr/local/lib/libtclx.a */ /usr/local/lib/libtcl.a \
+		$(LIBNETCDF) $(XLIBS) $(FLIBS)
+
+DEPLIBS = $(LIBZEBDS) $(LIBZEB)
+
+CCOPTIONS = -O
+CDEBUGFLAGS = -g /* -Wall */
+C++ = g++
+CC = gcc
+
+LINTOPTS = -nuvxz
+
+FSRCS = decode.f
+TSRCS = dumpSSMI.c
+
+CSRCS = FindPositions.c dumpSSMI.c tclXAppInit.c
+CCSRCS = ssmi_ingest.cc SquareScan.cc Scan.cc Source.cc GridMap.cc \
+         decode_ssmi.cc
+SRCS = $(CSRCS) /* $(CCSRCS) */
+
+OBJS = decode.o dumpSSMI.o tclXAppInit.o
+CCOBJS = ssmi_ingest.o SquareScan.o Scan.o Source.o GridMap.o \
+         decode_ssmi.o decode.o
+
+HDRS = SquareScan.h GridMap.h Source.h Scan.h level1b.h outdat.h rss.h \
+       f2c.h tcl++.h
+
+DISTFILES = Imakefile $(SRCS) $(FSRCS) $(TSRCS) $(HDRS)
+
+CccProgramTarget (ssmi_ingest,/*tclXAppInit.o*/ $(CCOBJS),$(DEPLIBS),
+                  $(LOCAL_LIBS),/**/)
+
+TestProgramTarget(dumpSSMI,dumpSSMI.o,/*deplibs*/,/*libs*/,/**/)
+
+DistfilesTarget($(DISTFILES))
+
+DependTarget()	/* Of course, this is only for the C source files */
+
+/*
+ * Do .cc dependencies manually for now
+ */
+/* ssmi_ingest.o: tcl++.h */
+ssmi_ingest.o: Scan.h SquareScan.h GridMap.h Source.h
+ssmi_ingest.o: outdat.h rss.h level1b.h
+SquareScan.o: SquareScan.h outdat.h
+Scan.o: Scan.h outdat.h rss.h level1b.h
+Source.o: Source.h outdat.h rss.h level1b.h
+GridMap.o: SquareScan.h GridMap.h
+decode_ssmi.o: outdat.h rss.h level1b.h
+decode.o: outdat.h
+
+LintTarget()
+
+LIBGCC = /usr/local/lib/gcc-lib/sparc-sun-sunos4.1/2.4.5/libgcc.a
+
+osaber:	$(IOBJS)
+	# setopt ansi
+	# load $(CFLAGS) $(IOBJS)
+	# load -G decode.o
+	# load -G /locallib/librdss.a
+	# load $(CFLAGS) $(IOBJS) -Bstatic $(LOCAL_LIBS) $(LIBGCC)
+	# link
+
+saber: decode.o
+	# setopt ansi
+	# load $(CFLAGS) $(SRCS)
+	# load -G decode.o
+	# load -G /locallib/librdss.a
+	# load $(CFLAGS) -Bstatic $(LOCAL_LIBS) $(LIBGCC)
+	# link
+
