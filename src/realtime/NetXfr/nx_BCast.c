@@ -1,7 +1,7 @@
 /*
  * Handling of broadcast stuff.
  */
-static char *rcsid = "$Id: nx_BCast.c,v 1.5 1991-06-12 16:43:00 corbet Exp $";
+static char *rcsid = "$Id: nx_BCast.c,v 1.6 1991-06-14 22:17:36 corbet Exp $";
 
 # include <sys/time.h>
 # include <sys/signal.h>
@@ -640,11 +640,8 @@ int process;
  * Poll the receive-only socket if need be.
  */
 {
-	if (BCReceive > 0)
-	{
-		Polling = ! process;
-		/* msg_PollBCast (BCReceive); */
-		ProcessBCasts ();
-		Polling = FALSE;
-	}
+	Polling = ! process;
+	/* msg_PollBCast (BCReceive); */
+	ProcessBCasts ();
+	Polling = FALSE;
 }

@@ -648,3 +648,33 @@ Location *locs;
 	}
 	return (i);
 }
+
+
+
+
+int
+drf_GetFields (dfile, t, nfld, flist)
+int dfile, *nfld;
+time *t;
+char **flist;
+/*
+ * Return a list of fields available from this file at this time.
+ */
+{
+	RFTag *tag;
+	RFHeader *hdr;
+	int f;
+/*
+ * Open up the file first of all.
+ */
+	if (! dfa_OpenFile (dfile, FALSE, (void *) &tag))
+		return (0);
+	hdr = &tag->rt_hdr;
+/*
+ * Now copy.
+ */
+	*nfld = hdr->rf_NField;
+	for (f = 0; f < hdr->rf_NField; f++)
+		flist[f] = hdr->rf_Fields[f].rff_Name;
+	return (*nfld);
+}

@@ -9,12 +9,12 @@
 
 
 # ifdef __STDC__
-	static int Message (struct message *);
+	static int IMessage (struct message *);
 	static void NotificationRequest (struct dsp_Template *);
 	static void MakeTimerRequest (PlatformId);
 	static void TimeToNotify (time *, PlatformId);
 # else
-	static int Message ();
+	static int IMessage ();
 	static void NotificationRequest ();
 	static void MakeTimerRequest ();
 	static void TimeToNotify ();
@@ -33,7 +33,7 @@ main ()
 /*
  * Initialize and hook in to the daemon for copies.
  */
-	msg_connect (Message, "Notifier");
+	msg_connect (IMessage, "Notifier");
 	msg_join ("Client events");
 	usy_init ();
 	ds_Initialize ();
@@ -55,7 +55,7 @@ main ()
 
 
 static int
-Message (msg)
+IMessage (msg)
 struct message *msg;
 /*
  * Something has happened.
@@ -161,10 +161,7 @@ PlatformId pid;
  */
 	tl_GetTime (&now);
 	if (! ds_DataTimes (pid, &now, 1, DsAfter, &t))
-	{
-		msg_ELog (EF_INFO, "No future data for %s", pname);
 		return;
-	}
 /*
  * Set up our request for that time.
  */

@@ -1,7 +1,7 @@
 /*
  * This is the main program for the data store daemon.
  */
-static char *rcsid = "$Id: Daemon.c,v 1.4 1991-04-11 21:58:06 corbet Exp $";
+static char *rcsid = "$Id: Daemon.c,v 1.5 1991-06-14 22:17:36 corbet Exp $";
 
 # include <sys/types.h>
 # include <dirent.h>
@@ -535,7 +535,7 @@ struct dsp_UpdateFile *request;
 /*
  * Now we do data available notifications.
  */
-	dap_Notify (df->df_platform, &df->df_end);
+	dap_Notify (df->df_platform, &df->df_end, request->dsp_NSamples);
 }
 
 

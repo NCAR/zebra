@@ -1,7 +1,7 @@
 /*
  * Deal with Boundary-format files.
  */
-static char *rcsid = "$Id: DFA_Boundary.c,v 1.3 1991-04-03 00:48:22 corbet Exp $";
+static char *rcsid = "$Id: DFA_Boundary.c,v 1.4 1991-06-14 22:17:36 corbet Exp $";
 
 # include <sys/types.h>
 # include <errno.h>
@@ -441,23 +441,47 @@ int
 bf_DataTimes (dfindex, t, which, n, dest)
 int dfindex, n;
 time *t, *dest;
-TimeSpec *which;
+TimeSpec which;
 /*
  * Return the times for which data is available.
  */
 {
 	BFTag *tag;
+	struct BFBTable *bt;
 	int toff, i;
 /*
  * Open this file.
  */
 	if (! dfa_OpenFile (dfindex, FALSE, (void *) &tag))
 		return (0);
+	bt = tag->bt_BTable;
 /*
  * Find the offset to the time, and copy out info.
  */
 	toff = bf_TimeIndex (tag, t);
-	for (i = 0; toff >= 0 && i < n; i++)
-		*dest++ = tag->bt_BTable[toff--].bt_Time;
+	if (which == DsBefore)
+		for (i = 0; toff >= 0 && i < n; i++)
+			*dest++ = tag->bt_BTable[toff--].bt_Time;
+	else if (which == DsAfter)
+	{
+		toff++;
+		for (i = 0; i < n && toff < tag->bt_hdr.bh_NBoundary; i++)
+			*dest-- = bt[toff++].bt_Time;
+	}
 	return (i);
+}
+
+
+
+
+bf_GetFields (dfile, t, nfld, flist)
+int dfile;
+time *t;
+int *nfld;
+char **flist;
+/*
+ * Return the field list.
+ */
+{
+	*nfld = 0;
 }

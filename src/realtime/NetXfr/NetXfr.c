@@ -27,9 +27,23 @@ DataRecip *Recipients[MAXPLAT];
 char *PlatName[MAXPLAT];
 
 /*
+ * Keep track of the fields for every platform.
+ */
+typedef struct _PFields
+{
+	int	pf_NField;		/* How many		*/
+	char	*pf_Fields[MAXFIELD];	/* What they are	*/
+} PField;
+
+static PField *PFields[MAXPLAT] = { 0 };
+
+
+/*
  * The current sequence number.
  */
 int Seq = 0;
+
+static int PrintUnk = 5;
 
 /*
  * Are we broadcasting?
@@ -498,9 +512,8 @@ int ns;
 {
 	time *times, begin;
 	int ntime;
-	static int NFld = -1;
-	static char *FList[MAXFIELD];
 	DataObject *ret;
+	PField *pf;
 /*
  * Allocate a time array, then find the sample times for the new data.
  */
@@ -522,25 +535,26 @@ int ns;
 /*
  * Get field info.
  */
-	if (NFld < 0)
+	if (! (pf = PFields[plat]))
 	{
-		NFld = MAXFIELD;
-		ds_GetFields (plat, t, &NFld, FList);
+		pf = PFields[plat] = ALLOC (PField);
+		pf->pf_NField = MAXFIELD;
+		ds_GetFields (plat, t, &pf->pf_NField, pf->pf_Fields);
 		{
 			int i;
-			ui_nf_printf ("%d Fields: ", NFld);
-			for (i = 0; i < NFld; i++)
+			msg_ELog (EF_DEBUG, "%d Fields: ", pf->pf_NField);
+			for (i = 0; i < pf->pf_NField; i++)
 			{
-				FList[i] = usy_string (FList[i]);
-				ui_nf_printf ("%s ", FList[i]);
+				pf->pf_Fields[i] =
+						usy_string (pf->pf_Fields[i]);
+				msg_ELog (EF_DEBUG, "   %s ", pf->pf_Fields[i]);
 			}
-			ui_printf ("\n");
 		}
 	}
 /*
  * Get the data.
  */
-	return (ds_GetData (plat, FList, NFld, &begin, t,
+	return (ds_GetData (plat, pf->pf_Fields, pf->pf_NField, &begin, t,
 			ds_PlatformDataOrg (plat), 0.0, 9999.9));
 }
 
@@ -703,7 +717,7 @@ ScanIP ()
 {
 	InProgress *ip;
 	DataBCChunk *chunk, *last;
-	int nzapped = 0;
+	int nzapped = 0, nleft = 0;
 /*
  * Go through the IP list, and increment all of the scan flags.  If a
  * particular one has been seen before, we clean it up.
@@ -741,14 +755,18 @@ ScanIP ()
 			free (chunk);
 		}
 		else
+		{
 			last = chunk;
+			nleft++;
+		}
 	/*
 	 * Move on.
 	 */
 		chunk = last->dh_Next;
 	}
 	if (nzapped)
-		msg_ELog (EF_INFO, "%d old bc chunks zapped", nzapped);
+		msg_ELog (EF_INFO, "%d old bc chunks zapped %d left", nzapped, 
+			nleft);
 }
 
 
@@ -851,6 +869,7 @@ char *data;
 		memcpy (save, data, len);
 		save->dh_Next = PollQueue;
 		PollQueue = save;
+		msg_ELog (EF_INFO, "Saving polled pkt");
 		return;
 	}
 /*
@@ -1002,6 +1021,8 @@ int len;
 				chunk->dh_DataSeq);
 		return;
 	}
+	if (PrintUnk-- > 0)
+		msg_ELog (EF_INFO, "Unk queued, seq %d", chunk->dh_DataSeq);
 /*
  * Otherwise we enqueue it, waiting for the header info to arrive.  Use the
  * ID Flag for scanning, now that the above check is done.
@@ -1067,6 +1088,7 @@ DataDone *done;
 /*
  * Make sure we know about this sequence.
  */
+	PrintUnk = 5;
 	if (! ip)
 		return;
 /*
@@ -1099,13 +1121,15 @@ int seq;
  * This is the retransmit timeout routine.
  */
 {
-	InProgress *ip = FindIP (seq);
+	InProgress *ip;
 	int ch;
 /*
  * If we don't find our InProgress structure, that can only mean that
  * the data arrived and it was flushed out.  So we can happily just quit.
  */
+	PrintDrops ();
 	PollBCast (TRUE);
+	ip = FindIP (seq);
 	if (! ip)
 		return;
 /*
@@ -1115,7 +1139,8 @@ int seq;
  */
 	if (++(ip->ip_NRetrans) > BCRetransMax)
 	{
-		msg_ELog (EF_INFO, "Too many timeouts on %d", seq);
+		msg_ELog (EF_INFO, "Too many timeouts on %d (%d missing)",
+			seq, ip->ip_NBExpect - ip->ip_NBCast);
 		if (ip->ip_NBCast > 0)
 			FinishIP (ip);
 		else
@@ -1131,12 +1156,8 @@ int seq;
 	else
 	{
 		for (ch = 0; ch < ip->ip_NBExpect; ch++)
-		{
 			if (! ip->ip_Arrived[ch])
 				AskRetrans (ip, ch);
-			PollBCast (FALSE);
-		}
-		ProcessPolled ();
 	}
 /*
  * Schedule a new timer request on this IP.
@@ -1190,10 +1211,8 @@ InProgress *ip;
  * Throw this data into the data store.
  */
 	msg_ELog (EF_INFO, "Store sequence %d", ip->ip_Seq);
-	PollBCast (FALSE);
 	ds_PutData (ip->ip_DObj, ip->ip_NewFile);
 	ZapIP (ip);
-	ProcessPolled ();
 }
 
 

@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 1.5 1991-04-11 22:03:23 corbet Exp $
+ * $Id: dsPrivate.h,v 1.6 1991-06-14 22:17:36 corbet Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -212,6 +212,7 @@ struct dsp_Notify
 	enum dsp_Types dsp_type;	/* == dpt_Notify		*/
 	PlatformId dsp_pid;		/* Platform of interest		*/
 	int dsp_param;			/* Requestor parameter		*/
+	int dsp_nsample;		/* Number of new samples	*/
 	time dsp_when;			/* The lastest time for data	*/
 };
 

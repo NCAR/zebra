@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 1.4 1991-04-11 22:00:48 corbet Exp $
+ * $Id: DataStore.h,v 1.5 1991-06-14 22:17:36 corbet Exp $
  *
  * Public data store definitions.
  */
@@ -89,6 +89,7 @@ typedef struct _DataObject
 	time		do_end;		/* The end time.		*/
 	DataOrganization do_org;	/* Organization of the data	*/
 	int		do_npoint;	/* Number of samples here	*/
+	int		do_nbyte;	/* Data bytes per field		*/
 	Location	do_loc;		/* Location for fixed platforms	*/
 	Location	*do_aloc;	/* Location for mobile platforms */
 	time		*do_times;	/* Sample time array		*/
@@ -140,6 +141,7 @@ typedef enum
 	int		ds_DataTimes (PlatformId, time *, int,TimeSpec,time *);
 	int		ds_GetObsSamples (PlatformId, time *, time *,
 					Location *, int);
+	int		ds_GetFields (PlatformId, time *, int *, char **);
 # else
 	int		ds_Initialize ();
 	PlatformId	ds_LookupPlatform ();
@@ -154,6 +156,7 @@ typedef enum
 	void		ds_CancelNotify ();
 	int		ds_DataTimes ();
 	int		ds_GetObsSamples ();
+	int		ds_GetFields ();
 # endif
 
 

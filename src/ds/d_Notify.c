@@ -1,7 +1,7 @@
 /*
  * The application notification module.
  */
-static char *rcsid = "$Id: d_Notify.c,v 1.2 1991-04-11 22:01:22 corbet Exp $";
+static char *rcsid = "$Id: d_Notify.c,v 1.3 1991-06-14 22:17:36 corbet Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -171,9 +171,10 @@ struct dsp_Template *dt;
 
 
 void
-dap_Notify (pid, t)
+dap_Notify (pid, t, nsample)
 PlatformId pid;
 time *t;
+int nsample;
 /*
  * Actually send out notifications that data is available for this platform
  * up through this time.
@@ -192,6 +193,7 @@ time *t;
 	msg.dsp_type = dpt_Notify;
 	msg.dsp_pid = pid;
 	msg.dsp_when = *t;
+	msg.dsp_nsample = nsample;
 /*
  * Go through and tell everybody.
  */

@@ -5,7 +5,7 @@
  * of the data store be format-independent.  We push most of the real work
  * down to the format-specific stuff.
  */
-static char *rcsid = "$Id: DataFileAccess.c,v 1.4 1991-04-11 22:00:28 corbet Exp $";
+static char *rcsid = "$Id: DataFileAccess.c,v 1.5 1991-06-14 22:17:36 corbet Exp $";
 
 
 # include "../include/defs.h"
@@ -123,6 +123,16 @@ static char *rcsid = "$Id: DataFileAccess.c,v 1.4 1991-04-11 22:00:28 corbet Exp
  *
  *	Return information on each of the samples in this observation;
  *	return value is the number actually returned.
+ *
+ * f_GetFields (dfile, time, nfld, flist)
+ * int dfile;
+ * time *time;
+ * int *nfld;
+ * char **flist;
+ *
+ *	Return a list of available fields in this platform.  "NFLD" starts
+ * 	as the max the caller can accept; should be returned as the number
+ *	of fields actually returned.
  */
 
 struct DataFormat
@@ -144,6 +154,7 @@ struct DataFormat
 	int (*f_CreateFile) ();		/* Create a new file		*/
 	int (*f_PutData) ();		/* Put data to a file		*/
 	int (*f_GetObsSamples) ();	/* Get observation samples	*/
+	int (*f_GetFields) ();		/* Get fields			*/
 };
 
 
@@ -154,14 +165,16 @@ extern int dnc_QueryTime (), dnc_OpenFile (), dnc_CloseFile ();
 extern int dnc_SyncFile (), dnc_Setup (), dnc_InqPlat (), dnc_GetData ();
 extern int dnc_GetIRGLoc (), dnc_GetRGrid (), dnc_DataTimes ();
 extern int dnc_MakeFileName (), dnc_CreateFile (), dnc_PutData ();
+extern int dnc_GetFields ();
 
 extern int bf_QueryTime (), bf_MakeFileName (), bf_CreateFile ();
 extern int bf_PutData (), bf_OpenFile (), bf_CloseFile (), bf_SyncFile ();
-extern int bf_Setup (), bf_GetData (), bf_DataTimes ();
+extern int bf_Setup (), bf_GetData (), bf_DataTimes (), bf_GetFields ();
 
 extern int drf_OpenFile (), drf_CloseFile (), drf_QueryTime (), drf_PutData ();
 extern int drf_MakeFileName (), drf_CreateFile (), drf_Sync (), drf_Setup ();
 extern int drf_GetData (), drf_DataTimes (), drf_GetObsSamples ();
+extern int drf_GetFields ();
 # define ___ 0
 
 /*
@@ -189,6 +202,7 @@ struct DataFormat Formats[] =
 	dnc_CreateFile,			/* Create a new file		*/
 	dnc_PutData,			/* Write to file		*/
 	___,				/* Get observation samples	*/
+	dnc_GetFields,			/* Get fields			*/
     },
     {
 	"Boundary",	".bf",
@@ -206,6 +220,7 @@ struct DataFormat Formats[] =
 	bf_CreateFile,			/* Create a new file		*/
 	bf_PutData,			/* Write to file		*/
 	___,				/* Get observation samples	*/
+	bf_GetFields,			/* Get fields			*/
     },
     {
     	"Raster",	".rf",
@@ -223,6 +238,7 @@ struct DataFormat Formats[] =
 	drf_CreateFile,			/* Create a new file		*/
 	drf_PutData,			/* Write to file		*/
 	drf_GetObsSamples,		/* Get observation samples	*/
+	drf_GetFields,			/* Get fields			*/
     }
 
 };
@@ -316,6 +332,25 @@ Location *locs;
 		((*Formats[ft].f_GetObsSamples)(dfile, times, locs, max)) : 0);
 }
 
+
+
+
+
+
+int
+dfa_GetFields (dfile, t, nfld, flist)
+int dfile, *nfld;
+time *t;
+char **flist;
+/*
+ * Return the available fields.
+ */
+{
+	FileType ft = DFTable[dfile].df_ftype;
+
+	return (Formats[ft].f_GetFields ?
+		((*Formats[ft].f_GetFields) (dfile, t, nfld, flist)) : 0);
+}
 
 
 

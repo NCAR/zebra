@@ -18,8 +18,9 @@ main ()
 {
 	int i, pid, np;
 	DataObject *data;
-	static char *field = "pres";
+	static char *field = "velocity";
 	time begin, end, ts[5];
+	Location locs[5];
 
 	msg_connect (msg_handler, "DSDump");
 	usy_init ();
@@ -33,16 +34,26 @@ main ()
 /*
  * Try a data get.
  */
-	if ((pid = ds_LookupPlatform ("mesonet/1")) == BadPlatform)
+	if ((pid = ds_LookupPlatform ("cp4")) == BadPlatform)
 	{
-		ui_printf ("Lookup failure on 'mesonet/1'\n");
+		ui_printf ("Lookup failure on 'cp4\n");
 		exit (1);
 	}
-	ui_printf ("\nMesonet/1 PID is %d\n", pid);
-	begin.ds_yymmdd = end.ds_yymmdd = 870717;
-	begin.ds_hhmmss = 220000;
-	end.ds_hhmmss = 221000;
-	data = ds_GetData (pid, &field, 1, &begin, &end, OrgScalar, 0.0, 99.9);
+	ui_printf ("\ncp4 PID is %d\n", pid);
+	begin.ds_yymmdd = end.ds_yymmdd = 910312;
+	begin.ds_hhmmss = 73210;
+	end.ds_hhmmss = 73210;
+	data = ds_GetData (pid, &field, 1, &begin, &end, OrgImage,
+		0.0, 99.9);
+/*
+ * Get some sample info.
+ */
+	np = ds_GetObsSamples (pid, &begin, ts, locs, 5);
+	ui_printf ("Got %d samples\n", np);
+	for (i = 0; i < np; i++)
+		ui_printf ("\t%d: %d %06d, alt %.2f\n", i, ts[i].ds_yymmdd,
+			ts[i].ds_hhmmss, locs[i].l_alt);
+	exit (0);
 /*
  * Print it out.
  */
@@ -100,6 +111,9 @@ Platform *p;
 {
 	int i;
 
+	if (p->dp_flags & DPF_SUBPLATFORM)
+		return;
+
 	ui_printf ("Platform '%s', dir '%s'\n\tFlags 0x%x ( ", p->dp_name,
 		p->dp_dir, p->dp_flags);
 	for (i = 0; i < NFLAG; i++)
@@ -126,10 +140,10 @@ int start;
 	while (start)
 	{
 		dp = DFTable + start;
-		ui_printf ("  %s %2d/%d '%s' %d %d -> %d\n", which,
+		ui_printf ("  %s %2d/%d '%s' %d %d -> %d [%d]\n", which,
 			start, dp->df_use, dp->df_name,
-			dp->df_begin.ds_yymmdd, 
-			dp->df_begin.ds_hhmmss, dp->df_end.ds_hhmmss);
+			dp->df_begin.ds_yymmdd, dp->df_begin.ds_hhmmss,
+			dp->df_end.ds_hhmmss, dp->df_nsample);
 		start = dp->df_FLink;
 	}
 }

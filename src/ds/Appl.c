@@ -1,7 +1,7 @@
 /*
  * The data store application interface.
  */
-static char *rcsid = "$Id: Appl.c,v 1.7 1991-04-11 21:59:11 corbet Exp $";
+static char *rcsid = "$Id: Appl.c,v 1.8 1991-06-14 22:17:36 corbet Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -172,6 +172,32 @@ int max;
 		return (0);
 	return (dfa_GetObsSamples (dfindex, times, locs, max));
 }
+
+
+
+
+int
+ds_GetFields (plat, t, nfld, flist)
+PlatformId plat;
+time *t;
+int *nfld;
+char **flist;
+/*
+ * Return a list of the available fields in this platform at this time.
+ */
+{
+	int dfindex;
+/*
+ * Find a file entry to look at.
+ */
+	if ((dfindex = ds_FindDF (plat, t)) < 0)
+		return (0);
+/*
+ * Have the format driver actually look.
+ */
+	return (dfa_GetFields (dfindex, t, nfld, flist));
+}
+
 
 
 
@@ -406,6 +432,7 @@ GetList *get;
 	dobj->do_times = (time *) malloc (nsample * sizeof (time));
 	dobj->do_flags |= DOF_FREEDATA | DOF_FREETIME;
 	dobj->do_npoint = nsample;
+	dobj->do_nbyte = npoint*size*dobj->do_nfield;
 /*
  * Set the pointers for each field.
  */
@@ -414,6 +441,8 @@ GetList *get;
 						(char *) dobj->do_data[0]);
 /*
  * If this is a mobile platform, we need to arrange for location info.
+ * If this if gets changed, change it throughout this file, and in 
+ * NetXfr.c as well.
  */
 	if (ds_IsMobile (dobj->do_id) || dobj->do_org == OrgOutline ||
 			dobj->do_org == OrgImage)
@@ -551,7 +580,7 @@ TimeSpec which;
  * spec.
  */
 {
-	int ndone = 0, index;
+	int ndone = 0, index, last = 0;
 /*
  * We don't do it all yet.
  */
@@ -590,13 +619,23 @@ TimeSpec which;
 		 */
 		for (index = LOCALDATA (PTable[platform]); index; 
 				index = DFTable[index].df_FLink)
+		{
 			if (DLE (DFTable[index].df_end, *when))
 				break;
+			last = index;
+		}
+		/*
+		 * If we are still pointing at an entry, move back forward
+		 * one.  Else start with the last entry in the list.
+		 */
+		if (index)
+			index = DFTable[index].df_BLink;
+		else if (! (index = last))
+			return (0);
 		/*
 		 * Now we move forward filling the array.
 		 */
-		for (index = DFTable[index].df_BLink; index && ndone < n;
-				index = DFTable[index].df_BLink)
+		for (; index && ndone < n; index = DFTable[index].df_BLink)
 			ndone += dfa_DataTimes (index, when, which, n - ndone,
 					rettimes + n - ndone - 1);
 		/*
@@ -909,7 +948,8 @@ struct dsp_Notify *notify;
 {
 	if (ApplFuncs[notify->dsp_pid])
 		(*ApplFuncs[notify->dsp_pid]) (notify->dsp_pid, 
-				notify->dsp_param, &notify->dsp_when);
+				notify->dsp_param, &notify->dsp_when,
+				notify->dsp_nsample);
 }
 
 

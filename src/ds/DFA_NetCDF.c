@@ -1,7 +1,7 @@
 /*
  * Access to netCDF files.
  */
-static char *rcsid = "$Id: DFA_NetCDF.c,v 1.5 1991-04-02 21:02:10 corbet Exp $";
+static char *rcsid = "$Id: DFA_NetCDF.c,v 1.6 1991-06-14 22:17:36 corbet Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -49,6 +49,12 @@ static int SPMap[MAXPLAT] = { 0 };
 static bool SPMapInited = FALSE;
 
 /*
+ * We use this buffer for field queries.
+ */
+# define MAXFLDBUF 512
+static char FldBuf[MAXFLDBUF];
+
+/*
  * Locally used stuff.
  */
 # ifdef __STDC__
@@ -68,6 +74,7 @@ static bool SPMapInited = FALSE;
 	static void	dnc_CFGridVars (NCTag *, DataObject *);
 	static void	dnc_CFIRGridVars (NCTag *, DataObject *);
 	static void 	dnc_PDTimes (NCTag *, DataObject *, int, int, int *);
+	static bool	dnc_OverheadField (char *const );
 # else
 	static void 	dnc_NCError ();
 	static int	dnc_OFTimes ();
@@ -83,6 +90,7 @@ static bool SPMapInited = FALSE;
 	static void	dnc_CFGridVars ();
 	static void	dnc_CFIRGridVars ();
 	static void 	dnc_PDTimes ();
+	static bool	dnc_OverheadField ();
 # endif
 
 
@@ -259,6 +267,8 @@ NCTag *tag;
  * OK, assume this is going to work.  Allocate the space we need.
  */
 	tag->nc_locs = (Location *) malloc (tag->nc_nPlat * sizeof (Location));
+	tag->nc_subplats = (PlatformId *)
+			malloc (tag->nc_nPlat*sizeof (PlatformId));
 	pos = (float *) malloc (tag->nc_nPlat * sizeof (float));
 /*
  * Now we go through and grab each piece of the location.
@@ -356,6 +366,7 @@ NCTag *tag;
 			msg_ELog (EF_INFO, "Platform %s unknown", fullname);
 		else
 			SPMap[plat] = i;
+		tag->nc_subplats[i] = plat;
 	}
 	SPMap[tag->nc_plat] = BASEDONE;
 	return (TRUE);
@@ -456,7 +467,8 @@ NCTag *tag;
  * Deal with the time info in this file.
  */
 {
-	int dtype, ndim, dims[MAX_VAR_DIMS], natt, vbase;
+	int ndim, dims[MAX_VAR_DIMS], natt, vbase;
+	nc_type dtype;
 /*
  * Get the base time.
  */
@@ -693,6 +705,14 @@ GetList *gp;
  */
 	if (gp->gl_locs)
 		dnc_LoadLocation (tag, gp, tbegin, count);
+/*
+ * Send through the subplatforms if needed.
+ */
+	if (dobj->do_org == OrgIRGrid && dobj->do_desc.d_irgrid.ir_subplats)
+	{
+		memcpy (dobj->do_desc.d_irgrid.ir_subplats, tag->nc_subplats,
+				tag->nc_nPlat * sizeof (PlatformId));
+	}
 }
 
 
@@ -760,6 +780,70 @@ int begin, count;
 }
 
 
+
+
+
+static void
+dnc_PutLocation (tag, start, count, pos)
+NCTag *tag;
+int start, count;
+Location *pos;
+/*
+ * Write location info to a file.
+ */
+{
+	int var, i;
+	float *ltemp;
+/*
+ * Allocate temp space.
+ */ 
+	ltemp = (float *) malloc (count * sizeof (float));
+/*
+ * Write latitudes.
+ */
+	if ((var = ncvarid (tag->nc_id, "lat")) < 0)
+	{
+		dnc_NCError ("No latitude");
+		return;
+	}
+	for (i = 0; i < count; i++)
+		ltemp[i] = pos[i].l_lat;
+	if (ncvarput (tag->nc_id, var, &start, &count, ltemp) < 0)
+	{
+		dnc_NCError ("Latitude put");
+		return;
+	}
+/*
+ * Write longitudes.
+ */
+	if ((var = ncvarid (tag->nc_id, "lon")) < 0)
+	{
+		dnc_NCError ("No longitude");
+		return;
+	}
+	for (i = 0; i < count; i++)
+		ltemp[i] = pos[i].l_lon;
+	if (ncvarput (tag->nc_id, var, &start, &count, ltemp) < 0)
+	{
+		dnc_NCError ("Longitude put");
+		return;
+	}
+/*
+ * Write latitudes.
+ */
+	if ((var = ncvarid (tag->nc_id, "alt")) < 0)
+	{
+		dnc_NCError ("No altitude");
+		return;
+	}
+	for (i = 0; i < count; i++)
+		ltemp[i] = pos[i].l_alt;
+	if (ncvarput (tag->nc_id, var, &start, &count, ltemp) < 0)
+	{
+		dnc_NCError ("Altitude put");
+		return;
+	}
+}
 
 
 
@@ -1076,12 +1160,24 @@ TimeSpec which;
 /*
  * Copy out the info.
  */
-	for (i = 0; t >= 0 && i < n; i++)
+	if (which == DsBefore)
+		for (i = 0; t >= 0 && i < n; i++)
+		{
+			long st = tag->nc_base + (int) tag->nc_times[t];
+			TC_SysToFcc (st, dest);
+			dest++;
+			t--;
+		}
+	else if (which == DsAfter)
 	{
-		long st = tag->nc_base + (int) tag->nc_times[t];
-		TC_SysToFcc (st, dest);
-		dest++;
-		t--;
+		t++;
+		for (i = 0; t < tag->nc_ntime && i < n; i++)
+		{
+			long st = tag->nc_base + (int) tag->nc_times[t];
+			TC_SysToFcc (st, dest);
+			dest--;
+			t++;
+		}
 	}
 	return (i);
 }
@@ -1397,6 +1493,14 @@ DataObject *dobj;
 		ncvarput1 (tag->nc_id, valt, &plat, &tag->nc_locs[plat].l_alt);
 	}
 /*
+ * Sigh.  We really ought to put this into the tag structure while
+ * we are at it.
+ */
+	tag->nc_subplats = (PlatformId *)
+			malloc (tag->nc_nPlat*sizeof (PlatformId));
+	memcpy (tag->nc_subplats, irg->ir_subplats,
+			tag->nc_nPlat*sizeof (PlatformId));
+/*
  * If necessary, we'll work on the platform map as well.
  */
 	if (! SPMapInited)
@@ -1459,6 +1563,11 @@ DataObject *dobj;
 			dnc_NCError ("Data write");
 	}
 /*
+ * For mobile platforms, we need to store the location info too.
+ */
+	if (PTable[tag->nc_plat].dp_flags & DPF_MOBILE)
+		dnc_PutLocation (tag, start[0], count[0], dobj->do_aloc+begin);
+/*
  * Synchronize.
  */
 	dnc_SyncFile (tag);
@@ -1498,4 +1607,87 @@ int begin, end, *start;
 	if (ncvarput (tag->nc_id, tag->nc_vTime, start, &nnew,
 				tag->nc_times + *start) < 0)
 		dnc_NCError ("New time write");
+}
+
+
+
+
+
+int
+dnc_GetFields (dfile, t, nfld, flist)
+int dfile, *nfld;
+time *t;
+char **flist;
+/*
+ * Return the list of available fields.
+ */
+{
+	NCTag *tag;
+	int max = *nfld, ndim, nvar, natt, rdim, fld;
+	char *cp = FldBuf;
+/*
+ * Open the file.
+ */
+	*nfld = 0;
+	if (! dfa_OpenFile (dfile, FALSE, (void *) &tag))
+		return (0);
+/*
+ * Do an inquire to see how many vars there are.
+ */
+	ncinquire (tag->nc_id, &ndim, &nvar, &natt, &rdim);
+/*
+ * Pass through the fields.
+ */
+	for (fld = 0; fld < nvar; fld++)
+	{
+		int ndim, dims[MAX_VAR_DIMS], natt;
+		nc_type type;
+	/*
+	 * Look up this variable.  If's one of our "standard" vars that
+	 * we ignore, bail out now.
+	 */
+		ncvarinq (tag->nc_id, fld, cp, &type, &ndim, dims, &natt);
+		if (dnc_OverheadField (cp))
+			continue;
+	/*
+	 * OK, this one's for real.  Set an FLIST pointer to this spot,
+	 * and move on.
+	 */
+		flist[*nfld] = cp;
+		(*nfld)++;
+		cp += strlen (cp) + 1;
+	}
+	return (*nfld);
+}
+
+
+
+
+
+static bool
+dnc_OverheadField (fld)
+char * const fld;
+/*
+ * See if this is an "overhead" field, as opposed to real data.
+ */
+{
+	static char *OFields[] = {
+		"base_time",
+		"time_offset",
+		"platform",
+		"lat",
+		"lon",
+		"alt",
+		"x_spacing",
+		"y_spacing",
+		"z_spacing",
+		0 };
+	int i;
+/*
+ * See if this field is in our list.  This could really be smarter.
+ */
+	for (i = 0; OFields[i]; i++)
+		if (! strcmp (fld, OFields[i]))
+			return (TRUE);
+	return (FALSE);
 }

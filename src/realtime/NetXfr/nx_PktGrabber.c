@@ -1,7 +1,7 @@
 /*
  * Packet grabber code and interface.
  */
-static char *rcsid = "$Id: nx_PktGrabber.c,v 1.1 1991-06-12 16:43:00 corbet Exp $";
+static char *rcsid = "$Id: nx_PktGrabber.c,v 1.2 1991-06-14 22:17:36 corbet Exp $";
 
 # include <errno.h>
 # include <sys/types.h>
@@ -24,6 +24,7 @@ struct ShmHeader
 	int	sm_PktSize;		/* At which size		*/
 	int	sm_FirstFull;		/* Index of first full pkt	*/
 	int	sm_LastFull;		/* Index of first empty pkt	*/
+	int	sm_NDrop;		/* How many dropped		*/
 	unsigned char sm_Data[0];	/* The data begins here		*/
 };
 
@@ -34,7 +35,7 @@ struct ShmHeader
  */
 # define NPACKET	1024
 # define PKTSIZE	1500
-static struct ShmHeader *Seg = 0;
+static struct ShmHeader * volatile Seg = 0;
 static int ShmId = 0;
 # define SHMKEY 0x910610
 
@@ -180,6 +181,16 @@ ProcessBCasts ()
 }
 
 
+PrintDrops ()
+{
+	if (Seg && Seg->sm_NDrop)
+	{
+		msg_ELog (EF_INFO, "  (%d pkts dropped)", Seg->sm_NDrop);
+		Seg->sm_NDrop = 0;
+	}
+}
+
+
 
 
 void
@@ -312,7 +323,10 @@ char *data;
  * Find a free slot.
  */
 	if (slot == Seg->sm_FirstFull)	/* Buffer full		*/
+	{
+		Seg->sm_NDrop++;
 		return (0);		/* Drop		*/
+	}
 /*
  * Copy in the data, and increment the pointer.
  */
