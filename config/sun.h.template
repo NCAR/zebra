@@ -3,11 +3,6 @@
  */
 
 
-/*
- * Libraries needed to link Fortran code with the C compiler.  Be sure
- * to check your system paths and correct this if necessary.
- */
-# define FortranLibs -L/usr/lang/SC1.0.1 -lF77
 
 /*
  * Flags for the C compiler.
