@@ -8,43 +8,23 @@ XCOMM Nearly all of the source files in this directory are U. of Wisconsin
 XCOMM SSEC copyrighted code and should *not* be distributed outside 
 XCOMM of NCAR/UCAR.
 
-MFVERSION = "$Id: Imakefile,v 1.11 1999-03-01 02:04:37 burghart Exp $"
+MFVERSION = "$Id: Imakefile,v 1.12 2003-01-10 01:09:03 granger Exp $"
 
-FSRCS = asspl2.f blmodel.f calday.f cfi.f cfz.f clit.f cotan.f flalo.f \
-	ftime.f geolat.f idmyyd.f iftok.f iround.f itime.f julday.f ksys.f \
-	lbchek.f lbget.f lit.f llcart.f m0itime.f mcgput.f movcw.f movwc.f \
-	nthday.f raerac.f solarp.f timdif.f vecrot.f verneq.f
+REALMCIDAS=$(McINST_ROOT)/src/libmcidas.a
+CHECKOBJ=$(McINST_ROOT)/src/alit.o
 
-SRCS =  argcmd.c argparse.c argutil.c blelems.c cnav.c date.c daytime.c \
-	di.c eaccess.c envvec.c fbyte4_.c fpaddr_.c frame.c fs.c fsalloc.c \
-	fslen.c gpnav.c handle.c ic_.c ingrpset.c ischar_.c locus.c luc_.c \
-	m0buf.c m0cache.c m0isbase.c m0mcpath.c m0mctext.c m0redir.c \
-	m0spout.c mat2.c mcidas_nav.c mcluc.c mclucase.c mcprintf.c mcread.c \
-	movb_.c movw_.c nchdl.c pathcat.c pathname.c pathtok.c pathvec.c \
-	planet.c puc_.c pvsearch.c sh_match.c spout_.c stc_.c stralloc.c \
-	stricmp.c strrepl.c strtofs.c swbyt4_.c vec.c vector.c
+SRCS = mcidas_nav.c
 
-HEADERS = hex80.inc m0arg.h m0file.h m0frame.h m0glue.h m0gpnav.h mcidas.h \
-	  mcidas_nav.h mcidasp.h servacct.h
+HEADERS = mcidas_nav.h
 
 ALLSRCS = $(FSRCS) $(SRCS)
 
 NAVOBJS = nvxdmsp.o nvxgoes.o nvxgraf.o nvxgvar.o nvxlamb.o nvxmerc.o \
 	  nvxmoll.o nvxmsat.o nvxps.o nvxradr.o nvxrect.o nvxsin.o \
-	  nvxtanc.o nvxtiro.o
+	  nvxtanc.o nvxtiro.o nvxgmsx.o nvxairc.o nvxlalo.o nvxmsg.o \
+          nvxnowr.o
 
-OBJS =  argcmd.o argparse.o argutil.o asspl2.o blelems.o blmodel.o calday.o \
-	cfi.o cfz.o clit.o cnav.o cotan.o date.o daytime.o di.o eaccess.o \
-	envvec.o fbyte4_.o flalo.o fpaddr_.o frame.o fs.o fsalloc.o fslen.o \
-	ftime.o geolat.o gpnav.o handle.o ic_.o idmyyd.o iftok.o ingrpset.o \
-	iround.o ischar_.o itime.o julday.o ksys.o lbchek.o lbget.o lit.o \
-	llcart.o locus.o luc_.o m0buf.o m0cache.o m0isbase.o m0itime.o \
-	m0mcpath.o m0mctext.o m0redir.o m0spout.o mat2.o mcgput.o \
-	mcidas_nav.o mcluc.o mclucase.o mcprintf.o mcread.o movb_.o movcw.o \
-	movw_.o movwc.o nchdl.o nthday.o pathcat.o pathname.o pathtok.o \
-	pathvec.o planet.o puc_.o pvsearch.o raerac.o sh_match.o solarp.o \
-	spout_.o stc_.o stralloc.o stricmp.o strrepl.o strtofs.o swbyt4_.o \
-	timdif.o vec.o vecrot.o vector.o verneq.o $(NAVOBJS)
+OBJS =  $(SRCS:.c=.o) $(NAVOBJS)
 
 /*
  * Leave UNDERSCORE undefined if for some reason a FORTRAN compiler does not
@@ -53,10 +33,22 @@ OBJS =  argcmd.o argparse.o argutil.o asspl2.o blelems.o blmodel.o calday.o \
  */
 DEFINES = -DUNDERSCORE=1
 
-
 DISTFILES = Imakefile $(ALLSRCS) $(HEADERS) README
 
-all:: $(OBJS)
+MCIDASOBJS=
+
+all:: mcidascheck
+
+NormalLibraryTarget(mcidas,$(OBJS) $(wildcard $(McINST_ROOT)/src/?*.o))
+
+InstallLibrary(mcidas,$(LIBDIR))
+
+BuildIncludesTop($(HEADERS))
+InstallMultipleFlags($(HEADERS),$(INCDIR),$(INSTINCFLAGS))
+
+DistfilesTarget($(DISTFILES))
+
+DependTarget()
 
 XCOMM Special targets to rename the common navigation entry points to
 XCOMM unique symbols so we can link to all of them in one program:
@@ -65,26 +57,23 @@ XCOMM unique symbols so we can link to all of them in one program:
  * We can't use a -D option to redefine symbols on some FORTRAN compilers
  * (i.e., AIX), so we have to do the substitutions ourselves.
  */
-#define NavRule(base,sub) \
-base.o: base.dlm							@@\
+#define NavRuleSed(base,sub,sedfile) \
+base.o: $(McINST_ROOT)/src/base.dlm					@@\
 	$(RM) base.f							@@\
-	sed `echo ' ' -e 's/NVXINI/NNNINI/g' -e 's/NVXEAS/NNNEAS/g' \	@@\
-	          -e 's/NVXSAE/NNNSAE/g' -e 's/NVXOPT/NNNOPT/g' | \	@@\
-		sed -e 's,NNN,sub,g'` < base.dlm > base.f		@@\
+	sed `sed -e 's,NNN,sub,g' < sedfile` < $(McINST_ROOT)/src/base.dlm > base.f	@@\
 	RemoveFile($@)							@@\
 	$(FC) -c $(FCFLAGS) base.f					@@\
 									@@\
 clean::									@@\
 	RemoveFile(base.f)						@@\
 
-
+#define NavRule(base,sub) NavRuleSed(base,sub,nvx.sed)
 
 /*
  * These name substitutions must match the method names used in mcidas.c!
  * And they must begin with I-N so FORTRAN returns an integer type!
  */
 NavRule(nvxdmsp,NDM)
-NavRule(nvxgoes,NGS)
 NavRule(nvxgraf,NGR)
 NavRule(nvxgvar,NGV)
 NavRule(nvxlamb,NLA)
@@ -97,15 +86,32 @@ NavRule(nvxrect,NRC)
 NavRule(nvxsin,NSI)
 NavRule(nvxtanc,NTA)
 NavRule(nvxtiro,NTI)
+NavRule(nvxairc,NAI)
+NavRule(nvxlalo,NLO)
+NavRule(nvxmsg,NMG)
+NavRule(nvxnowr,NOW)
 
-NormalLibraryTarget(mcidas,$(OBJS))
+NavRuleSed(nvxgoes,NGS,goes.sed)
+NavRuleSed(nvxgmsx,NGX,goes.sed)
 
-InstallLibrary(mcidas,$(LIBDIR))
+mcidascheck: checkpath $(McINST_ROOT)/jpeg/jconfig.h $(CHECKOBJ)
 
-BuildIncludesTop($(HEADERS))
-InstallMultipleFlags(mcidas_nav.h,$(INCDIR),$(INSTINCFLAGS))
+$(CHECKOBJ): $(McINST_ROOT)/jpeg/jconfig.h
+	(cd $(McINST_ROOT)/src && make mclog mcar mccomp mcfc && \
+	 make VENDOR=-g77 libmcidas.a)
 
-DistfilesTarget($(DISTFILES))
 
-DependTarget()
+$(McINST_ROOT)/jpeg/jconfig.h: 
+	@echo "Configuring $(McINST_ROOT)/jpeg to create jconfig.h" ; \
+	(cd $(McINST_ROOT)/jpeg && ./configure)
 
+checkpath: 
+	@if [ ! -f $(McINST_ROOT)/src/hex80.inc ]; then \
+	echo "McINST_ROOT not set correctly.  Set McINST_ROOT to the top"; \
+	echo "directory of the MCIDAS source tree."; \
+	exit 1; \
+	fi ; \
+	rm -f hex80.inc ; ln -s $(McINST_ROOT)/src/hex80.inc .
+
+clean::
+	rm -f hex80.inc

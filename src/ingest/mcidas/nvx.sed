@@ -1,0 +1,4 @@
+-e s/NVXINI/NNNINI/g
+-e s/NVXEAS/NNNEAS/g
+-e s/NVXSAE/NNNSAE/g
+-e s/NVXOPT/NNNOPT/g
