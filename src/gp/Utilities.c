@@ -31,7 +31,7 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 
-MAKE_RCSID ("$Id: Utilities.c,v 2.39 1996-12-06 19:32:26 granger Exp $")
+MAKE_RCSID ("$Id: Utilities.c,v 2.40 1996-12-11 16:54:33 burghart Exp $")
 
 /*
  * Rules for image dumping.  Indexed by keyword number in GraphProc.state
@@ -148,30 +148,29 @@ Location *loc;
 	char sloc[80], ltime[80];
 	PlatformId pid;
 	DataChunk *dc;
-	int ret = FALSE;
 /*
- * Try first to find a static location in the plot description.
+ * Try first to find a static location in the plot description.  If we succeed,
+ * it overrides trying to get a location from the data.
  */
 	if (pda_Search (Pd, "global", "location", platform, sloc, SYMT_STRING))
 	{
 		if (sscanf (sloc, "%f %f %f", &loc->l_lat, &loc->l_lon,
 				&loc->l_alt) != 3)
 		{
-			msg_ELog (EF_PROBLEM, "Bad location string: '%s'",
-					sloc);
+			msg_ELog (EF_PROBLEM, "Bad %s-location string: '%s'",
+				  platform, sloc);
 			return (FALSE);
 		}
 		*actual = *when;
-		ret = TRUE;	/* Succeed in this case */
+		return (TRUE);
 	}
 /*
  * Well, let's see what the data store can do for us.
  */
 	if ((pid = ds_LookupPlatform (platform)) == BadPlatform)
 	{
-		if (! ret)
-			msg_ELog (EF_DEBUG, "Unknown platform %s", platform);
-		return (ret);
+	    msg_ELog (EF_DEBUG, "Unknown platform %s", platform);
+	    return (FALSE);
 	}
 /*
  * Some platforms want the location closest to the display time (i.e. aircraft,
@@ -197,8 +196,6 @@ Location *loc;
  */
 	if (! AgeCheck (c, platform, actual))
 		return (FALSE);
-	if (ret)
-		return (TRUE);
 /*
  * Fetch the location and we are done.
  */
