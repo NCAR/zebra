@@ -35,7 +35,7 @@
 # define NO_SHM
 # include "dslib.h"
 # include "dfa.h"
-MAKE_RCSID ("$Id: DataFileAccess.c,v 3.10 1993-05-13 22:04:50 barrett Exp $")
+MAKE_RCSID ("$Id: DataFileAccess.c,v 3.11 1993-08-12 17:48:18 granger Exp $")
 
 
 void	dfa_AddOpenFile FP ((int, DataFile *, int, void *));
@@ -263,6 +263,7 @@ extern int	zn_CreateFile (), zn_QueryTime (), zn_GetIRGLoc (), zn_Sync ();
 extern int	zn_PutSample (), zn_Close (), zn_Open (), zn_MakeFileName ();
 extern int	zn_GetData (), zn_InqNPlat (), zn_Times ();
 extern int	zn_GetObsSamples (), zn_Fields (), zn_InqRGrid ();
+extern int	zn_PutSampleBlock ();
 extern DataChunk *zn_Setup ();
 
 
@@ -375,7 +376,7 @@ struct DataFormat Formats[] =
 	zn_MakeFileName,		/* Make file name		*/
 	zn_CreateFile,			/* Create a new file		*/
 	zn_PutSample,			/* Write to file		*/
-	___,				/* Write block to a file	*/
+	zn_PutSampleBlock,		/* Write block to a file	*/
 	zn_GetObsSamples,		/* Get observation samples	*/
 	zn_Fields,			/* Get fields			*/
 	___,				/* Get Attributes		*/
@@ -739,6 +740,7 @@ TimeSpec which;
 
 
 
+/*ARGSUSED*/
 bool
 dfa_CreateFile (df, dc, t, details, ndetail)
 int df;
@@ -900,6 +902,34 @@ int dfindex;
 			dfa_CloseFile (ofp);
 			return;
 		}
+}
+
+
+
+
+
+void
+dfa_ForceClosure ()
+/*
+ * Go through the list of open files and close each one, then release
+ * memory in the OpenFile free list.
+ */
+{
+	OpenFile *ofp, *next;
+
+	for (ofp = OpenFiles; ofp; ofp = ofp->of_next)
+		dfa_CloseFile (ofp);
+	/*
+	 * Free the memory in the OpenFile list as well
+	 */
+	ofp = OFFree;
+	while (ofp)
+	{
+		next = ofp->of_next;
+		free (ofp);
+		ofp = next;
+	}
+	OFFree = NULL;
 }
 
 
