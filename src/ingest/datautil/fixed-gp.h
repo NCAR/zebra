@@ -2,6 +2,9 @@
  * File describing fixed GENPRO files.
  */
 
+#ifndef __zeb_fixed_gp_h_
+#define __zeb_fixed_gp_h_
+
 /*
  * The header structure.
  */
@@ -53,3 +56,5 @@ struct data_rec
 	int	d_time;			/* Time of this data		*/
 	float	d_data[1];		/* The data itself		*/
 };
+
+#endif /* !__zeb_fixed_gp_h_ */
