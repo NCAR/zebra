@@ -22,7 +22,7 @@
 
 
 static char *rcsid =
-   "$Id: ui_error.c,v 1.15 1998-02-26 21:50:14 burghart Exp $";
+   "$Id: ui_error.c,v 1.16 1998-03-02 15:19:58 burghart Exp $";
 /*
  * Stack stuff.
  */
@@ -382,7 +382,7 @@ ui_epush (jmp_buf label)
 	else
 		jp = (struct jstack *) getvm (sizeof (struct jstack));
 
-	memmove (jp->js_value, label, sizeof (jmp_buf));
+	memcpy (jp->js_value, label, sizeof (jmp_buf));
 	jp->js_next = Stack;
 	Stack = jp;
 }
