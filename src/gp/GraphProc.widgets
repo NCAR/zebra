@@ -1,7 +1,7 @@
 !
 ! Widget definitions for the graphics process.
 !
-! $Id: GraphProc.widgets,v 1.2 1992-12-15 18:26:06 corbet Exp $
+! $Id: GraphProc.widgets,v 1.3 1993-03-19 23:40:37 granger Exp $
 !
 set ui$initial_state 'initial'
 
@@ -16,10 +16,12 @@ define widget InterpParams form "Surface interpolation parameters"
 !
 ! Title line.
 !
-	label l0 'Surface interpolation params'
-	label comp 'comp' color white
+	label l0 'Surface interpolation parameters'
+	label comp 'comp' color cadetblue
+	newline
+	button help 'Help' command 'help interpmethods'
 	button apply 'Apply' command IPApply
-	button zap 'zap' color red command 'popdown #ui$form'
+	button zap 'Dismiss' color red command 'popdown #ui$form'
 !
 ! Methods.
 !
@@ -87,7 +89,7 @@ procedure IPSetup
 	endif
 	local fill pd_paramsearch(icon_component,'max-fill',platform,'string')
 	if (fill <> '(Undefined)')
-		formtext #f max-fill #fill
+		formtext #f fill #fill
 	endif
 endprocedure
 
@@ -125,7 +127,7 @@ define widget Offsets form 'Spatial offsets'
 	noheader
 	popup offset_form_popup
 	label l1 "Spatial offset control"
-	label comp "COMPONENT"
+	label comp "COMPONENT" color cadetblue
 	newline
 	label l2 "Spatial offsets are currently:"
 	button GlobalEnable "Enabled" command 'ToggleEnable GlobalEnable' \
@@ -136,10 +138,12 @@ define widget Offsets form 'Spatial offsets'
 	!
 	label l3 "     X offset:"
 	blank xoff "WEIRD" width 40
-	pulldown const_units "km" width 60 menu units
+	!pulldown const_units "km" width 60 menu units
+	label const_units_x "km"
 	newline
 	label l4 "     Y offset:"
 	blank yoff "WEIRD" width 40
+	label const_units_y "km"
 	!
 	! Advection stuff.
 	!
@@ -154,7 +158,8 @@ define widget Offsets form 'Spatial offsets'
 	newline
 	label l7 "      Advection speed:    "
 	blank advspeed "0.0"
-	pulldown adv_units "m/s" width 60 menu speedunits
+	!pulldown adv_units "m/s" width 60 menu speedunits
+	label adv_units "m/s"
 	newline
 	label l8 "      Advection direction:"
 	blank advdir "0.0"
@@ -163,6 +168,7 @@ define widget Offsets form 'Spatial offsets'
 	! Buttons to get out.
 	!
 	newline
+	button help "Help" command 'help spatialoffset'
 	button apply "Apply" command 'offset_apply false'
 	button apply "Apply and dismiss" command 'offset_apply true'
 	button cancel "Dismiss" command 'popdown #ui$form' color red
@@ -218,19 +224,19 @@ endprocedure
 
 
 
-define widget units intmenu "units"
-	title "Offset units (IGNORED!)"
-	line
-	entry "Kilometers" "ConstUnits km"
-	entry "Miles" "ConstUnits miles"
-	entry "Nautical miles" "ConstUnits 'n. mi'"
-endmenu
+!define widget units intmenu "units"
+!	title "Offset units (IGNORED!)"
+!	line
+!	entry "Kilometers" "ConstUnits km"
+!	entry "Miles" "ConstUnits miles"
+!	entry "Nautical miles" "ConstUnits 'n. mi'"
+!endmenu
 
 
-procedure ConstUnits units string
-	local qunits quote(units)
-	formtext #ui$form const_units #qunits
-endprocedure
+!procedure ConstUnits units string
+!	local qunits quote(units)
+!	formtext #ui$form const_units #qunits
+!endprocedure
 
 
 
@@ -316,17 +322,17 @@ endprocedure
 !
 ! Speed unit selection.
 !
-define widget SpeedUnits intmenu "units"
-	title "Speed units (IGNORED!)"
-	line
-	entry "Meters/second" "SpeedUnits m/s"
-	entry "Miles/hour" "SpeedUnits mph"
-	entry "Furlongs/fortnight" "SpeedUnits f/f"
-endmenu
+!define widget SpeedUnits intmenu "units"
+!	title "Speed units (IGNORED!)"
+!	line
+!	entry "Meters/second" "SpeedUnits m/s"
+!	entry "Miles/hour" "SpeedUnits mph"
+!	entry "Furlongs/fortnight" "SpeedUnits f/f"
+!endmenu
 
 
-procedure SpeedUnits units string
-	local qunits quote(units)
-	formtext #ui$form adv_units #qunits
-endprocedure
+!procedure SpeedUnits units string
+!	local qunits quote(units)
+!	formtext #ui$form adv_units #qunits
+!endprocedure
 
