@@ -28,7 +28,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.36 1995-07-06 10:25:28 granger Exp $
+XCOMM $Id: Project.tmpl,v 1.37 1995-08-03 21:01:55 corbet Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -296,6 +296,16 @@ XCOMM -----------------------------------------------------------------------
 #   endif
 #endif
 
+#ifndef ProjIncDir
+#   define ProjIncDir /**/
+#   ifndef ProjIncludes
+#      define ProjIncludes /**/
+#   endif
+#else
+#   ifndef ProjIncludes
+#      define ProjIncludes -I$(PROJINCDIR)
+#   endif
+#endif
 /*
  * For RDSS, the default include directory will be RDSSDir/include, unless
  * we're building RDSS ourselves in which case we leave it blank.  An RDSS
@@ -386,6 +396,17 @@ XCOMM -----------------------------------------------------------------------
 #ifndef XLibDir
 #   if UseOpenWindows
 #      define XLibDir $(OPENWINHOME)/lib
+#   endif
+#endif
+
+#ifndef ProjLibDir
+#   define ProjLibDir /**/
+#   ifndef ProjLibrary
+#      define ProjLibrary LoaderLibPrefix -lproj
+#   endif
+#else
+#   ifndef ProjLibrary
+#      define ProjLibrary -L$(PROJLIBDIR) LoaderLibPrefix -lproj
 #   endif
 #endif
 
@@ -634,6 +655,9 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #define BuildSatelliteingest
 #endif
 
+# ifndef MapProjections
+# define MapProjections NO
+# endif
 /*
  * We must redefine the ImakeSubCmdHelper macro so that our project directory
  * gets included by imake in the MakeMakeSubdirs() macro.
@@ -701,6 +725,9 @@ XCOMM -----------------------------------------------------------------------
  */
        RDSSINCDIR = RDSSIncDir
      NETCDFINCDIR = NetCDFIncDir
+# if MapProjections
+       PROJINCDIR = ProjIncDir
+# endif
 #if HasHDF
         HDFINCDIR = HDFIncDir
 #endif
@@ -715,6 +742,9 @@ XCOMM -----------------------------------------------------------------------
      RDSSINCLUDES = RDSSIncludes
         XINCLUDES = XIncludes
    NETCDFINCLUDES = NetCDFIncludes
+# if MapProjections
+     PROJINCLUDES = ProjIncludes
+# endif
 #if HasHDF
       HDFINCLUDES = HDFIncludes
 #endif
@@ -772,6 +802,9 @@ XCOMM -----------------------------------------------------------------------
  */
        RDSSLIBDIR = RDSSLibDir
      NETCDFLIBDIR = NetCDFLibDir
+# if MapProjections
+       PROJLIBDIR = ProjLibDir
+# endif
 #if HasHDF
         HDFLIBDIR = HDFLibDir
 #endif
@@ -786,6 +819,9 @@ XCOMM -----------------------------------------------------------------------
            LIBZEB = ZebLibrary
          LIBZEBDS = ZebDSLibrary
         LIBNETCDF = NetCDFLibrary
+# if MapProjections
+          LIBPROJ = ProjLibrary
+# endif
 #if HasHDF
            LIBHDF = HDFLibrary
 #endif

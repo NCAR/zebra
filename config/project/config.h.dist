@@ -49,7 +49,7 @@
 XCOMM -----------------------------------------------------------------------
 XCOMM Definitions from config.h included here.  The definitions here override
 XCOMM the defaults in Project.tmpl.  See ...../zeb/config/config.h.
-XCOMM $Id: config.h.dist,v 1.30 1995-07-10 06:45:10 granger Exp $
+XCOMM $Id: config.h.dist,v 1.31 1995-08-03 21:01:58 corbet Exp $
 XCOMM -----------------------------------------------------------------------
 # endif
 
@@ -66,6 +66,9 @@ XCOMM -----------------------------------------------------------------------
  * left commented out, zebra looks for Mosaic and xmosaic on your path.  If
  * defined, zebra checks the defined path before trying the other options.
  * The path must be quoted.
+ *
+ * MOSAIC_COMMAND may also be set to "netscape" and the right thing will
+ * happen.
  *
  * The UseXHelp variable in the display manager can be used to override this
  * definition at run time.
@@ -590,6 +593,21 @@ XCOMM -----------------------------------------------------------------------
  * all this.
  */
 # define PCAPLibrary 	-lpcap
+
+/*
+ * The graphics process can be built to do map projections.  Projections
+ * require the proj library, produced by the U.S. Geological Survey.  It
+ * may be obtained from the ATD FTP site, or from charon.er.usgs.gov.  We
+ * thank Gerald Evenden of USGS for allowing us to use and redistribute
+ * this library.
+ *
+ * To use projections, set MapProjections to YES and ProjLibrary to the
+ * appropriate value.
+ */
+# define MapProjections NO
+# define ProjLibrary -lproj
+# define ProjIncDir -I/usr/local/include /* unnecessary w/gcc */
+	
 
 /*========================================================================
  * Distribution Options
