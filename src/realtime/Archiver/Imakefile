@@ -1,0 +1,17 @@
+/*
+ * Imakefile for the last data displayer.
+ */
+# undef DataDir
+
+SRCS = Archiver.c
+OBJS = Archiver.o
+
+LIBS = $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
+
+
+/*
+ * Now we can get around to the real stuff.
+ */
+ 
+NormalProgramTarget(Archiver, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+InstallAppDefaults (Archiver)
