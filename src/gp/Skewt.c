@@ -40,7 +40,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: Skewt.c,v 2.22 1995-11-19 18:13:39 granger Exp $")
+RCSID ("$Id: Skewt.c,v 2.23 1996-02-22 20:16:52 burghart Exp $")
 
 /*
  * General definitions
@@ -743,9 +743,9 @@ bool    update;
 {
 	float	*xt, *xd, *yt, *yd, *pres, *temp, *dp, badvalue;
 	float	y;
-	int	i, npts, nprev, good_d = 0, good_t = 0, antime = 0;
+	int	i, npts, nprev, good_d = 0, good_t = 0, antime = 0, nflds;
 	char	string[40];
-	FieldId	flist[3];
+	FieldId	flist[3], *platflds;
 	ZebTime	ptime;
 	PlatformId	pid;
 	DataChunk	*dc;
@@ -780,11 +780,21 @@ bool    update;
 		pda_Search (Pd, c, "skPrivate-thermo-npts", NULL, 
 			    (char *) &nprev, SYMT_INT);
 /*	
- * Build the field list
+ * Build the field list, with an ugly kluge to find either "temp" or "tdry"
+ * for the temperature field.  At some point, the field names should be 
+ * specified through plot description parameters...
  */
 	flist[0] = F_Lookup ("pres");
-	flist[1] = F_Lookup ("tdry");
+	flist[1] = BadField;
 	flist[2] = F_Lookup ("dp");
+
+	platflds = (FieldId *) malloc (50 * sizeof (FieldId));
+	ds_GetFields (pid, &ptime, &nflds, platflds);
+	for (i = 0; i < nflds; i++)
+		if (! strcmp (F_GetName (platflds[i]), "temp") ||
+		    ! strcmp (F_GetName (platflds[i]), "tdry"))
+			flist[1] = platflds[i];
+	free (platflds);
 /*
  * Check for a request for a particular bad value
  */
