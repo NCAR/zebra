@@ -4,9 +4,11 @@
 # include "../include/defs.h"
 # include "../include/message.h"
 # include "../include/pd.h"
+# include "../include/DataStore.h"
 # include "GraphProc.h"
+# include "rg_status.h"
 
-static char *rcsid = "$Id: GridAccess.c,v 1.2 1990-09-13 09:45:56 corbet Exp $";
+static char *rcsid = "$Id: GridAccess.c,v 1.3 1990-12-04 15:11:41 corbet Exp $";
 
 
 /*
@@ -317,6 +319,22 @@ static struct meta_kludge
 };
 
 
+
+# ifdef notdef
+/*
+ * Grid accessing macro.
+ */
+# define GRID(g,j,i)	((grid)[(i)* (*ydim) + (j)])
+# endif
+# define BADVAL	-32768.0
+
+# ifdef titan
+#	define do_rgrid DO_RGRID
+# else
+#	define do_rgrid do_rgrid_
+# endif
+extern int	do_rgrid ();
+
 /*
  * Our routines.
  */
@@ -325,11 +343,13 @@ static struct meta_kludge
 	static bool ga_FetchData (int, int, float *, int, int);
 	static void ga_CloseMudrasFile (void);
 	static char *ga_MapField (char *, struct fld_map *);
+	static bool ga_Regularize (DataObject *);
 # else
 	static bool ga_OpenMudrasFile ();
 	static bool ga_FetchData ();
 	static void ga_CloseMudrasFile ();
 	static char *ga_MapField ();
+	static bool ga_Regularize ();
 # endif
 
 
@@ -712,55 +732,239 @@ bool
 ga_AvailableAlts (plot_time, platform, heights, nh)
 time *plot_time;
 char *platform;
-int *heights, *nh;
+float *heights;
+int *nh;
 /*
  * Obtain the list of available heights for this platform at this time.
  */
 {
-	struct mudkludge *ckp;
-	struct meta_kludge *mkp;
-	char fname[80];
+	Location loc;
+	RGrid rg;
+	PlatformId pid;
 	int i;
 /*
- * See if we recognize the platform.
+ * Make sure this is a real platform.
  */
-	for (mkp = Kmap; mkp->mk_platform; mkp++)
-		if (! strcmp (mkp->mk_platform, platform))
-			break;
-	if (! mkp->mk_platform)
-		return (FALSE);
-/*
- * Find the file of interest.
- */
-	if (plot_time->ds_hhmmss < mkp->mk_mud[0].time)
-		return (FALSE);
-	for (ckp = mkp->mk_mud; ckp->time; ckp++)
-		if (ckp->time > plot_time->ds_hhmmss)
-			break;
-	if (! ckp->time)
-		return (FALSE);
-	ckp--;
-/*
- * If the current header information is valid, we can just use it; otherwise
- * we have to open the file.
- */
-	if (! ckp->hdr_valid)
+	if ((pid = ds_LookupPlatform (platform)) == BadPlatform)
 	{
-		sprintf (fname, "../data/%s", ckp->file);
-		if (! ga_OpenMudrasFile (fname))
-		{
-			msg_ELog (EF_PROBLEM, "Open error on %s", fname);
-			return (0);
-		}
-		ckp->hdr_valid = TRUE;
-		ckp->header = volume_;
+		msg_ELog (EF_PROBLEM, "AvailableAlts on bad plat '%s'",
+				platform);
+		return (FALSE);
 	}
 /*
- * Now fill in the heights.
+ * Check it out.
  */
-	*nh = ckp->header.mc_ncx[2];
-	for (i = 0; i < *nh; i++)
-		heights[i] = (int) (1000 * (ckp->header.mc_csp[6] +
-					i*ckp->header.mc_csp[8]));
+	if (! ds_GetRgridParams (pid, plot_time, &loc, &rg))
+		return (FALSE);
+/*
+ * Now calculate the heights.
+ */
+	*nh = rg.rg_nZ;
+	for (i = 0; i < rg.rg_nZ; i++)
+		heights[i] = loc.l_alt + i*rg.rg_Zspacing;
+	return (TRUE);
+}
+
+
+
+
+
+float *
+ga_GetGrid (plot_time, platform, fname, xdim, ydim, x0, y0, x1, y1, alt)
+time	*plot_time;
+char 	*platform, *fname;
+int	*xdim, *ydim;
+float	*x0, *y0, *x1, *y1, *alt;
+{
+	PlatformId	pid;
+	DataObject	*dobj;
+	RGrid *rg;
+	float *ret;
+	time realtime;
+/*
+ * If the data store does not recognize our platform, assume mudras.
+ */
+	if ((pid = ds_LookupPlatform (platform)) == BadPlatform)
+	{
+		int ialt = (int) *alt;
+		float * ret = ga_MudrasGrid (plot_time, platform, fname,
+				&ialt, xdim, ydim, x0, y0, x1, y1);
+		*alt = (float) ialt;
+		return (ret);
+	}
+# ifdef notdef
+/*
+ * Look up our platform.
+ */
+	if ((pid = ds_LookupPlatform (platform)) == BadPlatform)
+	{
+		msg_ELog (EF_PROBLEM, "Bad platform '%s'", platform);
+		return (0);
+	}
+# endif
+/*
+ * Find out when we can really get data.
+ */
+	if (! ds_DataTimes (pid, plot_time, 1, DsBefore, &realtime))
+	{
+		msg_ELog (EF_INFO, "No data available at all for %s",platform);
+		return (0);
+	}
+	msg_ELog (EF_DEBUG, "Plot time %d %d -> %d %d", plot_time->ds_yymmdd,
+		plot_time->ds_hhmmss, realtime.ds_yymmdd, realtime.ds_hhmmss);
+/*
+ * Do a DS get for this data.
+ */
+	if ((dobj = ds_GetData (pid, &fname, 1, &realtime, &realtime,
+				Org2dGrid, *alt, BADVAL)) == 0)
+	{
+		msg_ELog (EF_PROBLEM, "Get failed on %s/%s at %d %06d",
+			platform, fname, realtime.ds_yymmdd, 
+			realtime.ds_hhmmss);
+		return (0);
+	}
+	*alt = dobj->do_loc.l_alt;
+/*
+ * Now turn this grid into a regular one if necessary.
+ */
+	if (dobj->do_org == OrgIRGrid)
+		if (! ga_Regularize (dobj))
+		{
+			ds_FreeDataObject (dobj);
+			return (0);
+		}
+/*
+ * Pull out the info and return it.  For now we yank out the data and 
+ * assume that it can be freed later.
+ */
+	rg = &dobj->do_desc.d_rgrid;
+	*xdim = rg->rg_nX;
+	*ydim = rg->rg_nY;
+	cvt_ToXY (dobj->do_loc.l_lat, dobj->do_loc.l_lon, x0, y0);
+	*x1 = *x0 + (rg->rg_nX - 1)*rg->rg_Xspacing;
+	*y1 = *y0 + (rg->rg_nY - 1)*rg->rg_Yspacing;
+	ret = dobj->do_data[0];
+	dobj->do_flags &= ~DOF_FREEDATA;
+	ds_FreeDataObject (dobj);
+	msg_ELog (EF_DEBUG, "Returned grid (%.2f %.2f) t (%.2f %.2f)",
+		*x0, *y0, *x1, *y1);
+	return (ret);
+}
+
+
+
+
+bool
+ga_Regularize (dobj)
+DataObject *dobj;
+/*
+ * Turn an irregular grid into a regular one.
+ */
+{
+	int		RGRID (), i, j, status;
+	float		spline_eval (), *grid, *xpos, *ypos, xp, yp;
+	float		xmin = 9999.0, ymin = 9999.0, *scratch;
+	float		xmax = -9999.0, ymax = -9999.0, badflag, *dp;
+	void		spline ();
+	RGrid		rg;
+	IRGrid		*irg = &dobj->do_desc.d_irgrid;
+/*
+ * Be really sure this is an irregular one.
+ */
+	if (dobj->do_org != OrgIRGrid)
+	{
+		msg_ELog (EF_PROBLEM, "Attempt to regularize non-IRGrid");
+		return (FALSE);
+	}
+/*
+ * Wire the dimension of the grid, and get some more memory.
+ */
+	rg.rg_nX = rg.rg_nY = 16;			/* XXX */
+	grid = (float *) malloc (rg.rg_nX * rg.rg_nY * sizeof (float));
+/*
+ * Do a pass over the locations, and set everything up.
+ */
+	xpos = (float *) malloc (irg->ir_npoint * sizeof (float));
+	ypos = (float *) malloc (irg->ir_npoint * sizeof (float));
+	dp = dobj->do_data[0];
+	for (i = 0; i < irg->ir_npoint; i++)
+	{
+	/*
+	 * Turn this location into XY space, and see if it stretches our 
+	 * limits.
+	 */
+	 	cvt_ToXY (irg->ir_loc[i].l_lat, irg->ir_loc[i].l_lon,
+				xpos + i, ypos + i);
+# ifdef notdef
+	msg_ELog (EF_DEBUG, "Data %d at %d %d, %.2f", i, (int) xpos[i], 
+			(int) ypos[i], dp[i]);
+		if ((i % 4) == 0)
+			sleep (1);
+# endif
+		if (xpos[i] < xmin)
+			xmin = xpos[i];
+		if (xpos[i] > xmax)
+			xmax = xpos[i];
+		if (ypos[i] < ymin)
+			ymin = ypos[i];
+		if (ypos[i] > ymax)
+			ymax = ypos[i];
+	}
+/*
+ * Store some of the new position info.
+ */
+	rg.rg_Xspacing = (xmax - xmin)/(rg.rg_nX - 1);
+	rg.rg_Yspacing = (ymax - ymin)/(rg.rg_nY - 1);
+	cvt_ToLatLon (xmin, ymin, &dobj->do_loc.l_lat, &dobj->do_loc.l_lon);
+/*
+ * Fill the grid with bad value flags
+ */
+	for (i = 0; i < rg.rg_nX*rg.rg_nY; i++)
+		grid[i] = BADVAL;
+/*
+ * Use RGRID to generate gridded data
+ */
+	badflag = BADVAL;
+	scratch = (float *) malloc (rg.rg_nX * rg.rg_nY * sizeof (float));
+	msg_ELog (EF_DEBUG,
+		"Call rgrid, %d x %d, np %d, (%.2f %.2f) to (%.2f %.2f)",
+		rg.rg_nX, rg.rg_nY, irg->ir_npoint, xmin, ymin, xmax, ymax);
+	status = do_rgrid (grid, &rg.rg_nX, &rg.rg_nY, &irg->ir_npoint,
+		dobj->do_data[0], &badflag, 
+		xpos, ypos, &xmin, &ymin, &xmax, &ymax, scratch);
+/*
+ * Clean up.
+ */
+	free (scratch);
+	free (xpos);
+	free (ypos);
+/*
+ * See what happened here.
+ */
+	switch (status)
+	{
+	    case RG_OK:
+		break;
+	    case RG_NOTENUFPTS:
+		msg_ELog (EF_PROBLEM, 
+			"Not enough good points to generate a grid");
+		break;
+	    case RG_COLLINEAR:
+		msg_ELog (EF_PROBLEM,
+			"Points are collinear, unable to generate a grid");
+		break;
+	    default:
+		msg_ELog (EF_PROBLEM,
+			"Unknown status 0x%x returned by RGRID", status);
+	}
+/*
+ * Finish fixing up the data object, and return.
+ */
+	dobj->do_org = Org2dGrid;
+	if (dobj->do_flags & DOF_FREEDATA)
+		free (dobj->do_data[0]);
+	dobj->do_data[0] = grid;
+	dobj->do_flags |= DOF_FREEDATA;
+	dobj->do_desc.d_rgrid = rg;
 	return (TRUE);
 }
