@@ -87,6 +87,10 @@
 #define imake_ccflags "-DX_NOT_POSIX"
 #endif
 
+#ifdef sgi
+#define imake_ccflags "-D_SYSV"
+#endif
+
 #else /* not CCIMAKE */
 #ifndef MAKEDEPEND
 /*
@@ -95,7 +99,7 @@
  *     descriptor onto another, define such a mechanism here (if you don't
  *     already fall under the existing category(ies).
  */
-#if defined(SYSV) && !defined(CRAY) && !defined(Mips)
+#if defined(SYSV) && !defined(CRAY) && !defined(Mips) && !defined(sgi)
 #define	dup2(fd1,fd2)	((fd1 == fd2) ? fd1 : (close(fd2), \
 					       fcntl(fd1, F_DUPFD, fd2)))
 #endif
@@ -110,7 +114,7 @@
  *     all colons).  One way to tell if you need this is to see whether or not
  *     your Makefiles have no tabs in them and lots of @@ strings.
  */
-#if defined(sun) || defined(SYSV) || defined(SVR4) || defined(hcx)
+#if !defined sgi && (defined(sun) || defined(SYSV) || defined(SVR4) || defined(hcx))
 #define FIXUP_CPP_WHITESPACE
 #endif
 
@@ -160,6 +164,9 @@ char *cpp_argv[ARGUMENTS] = {
 #ifdef unix
 	"-Uunix",	/* remove unix symbol so that filename unix.c okay */
 #endif
+#ifdef hpux
+        "-P",    /* hp puts all the line control information in the Makefile */
+#endif 
 #ifdef M4330
 	"-DM4330",	/* Tektronix */
 #endif
@@ -252,6 +259,12 @@ char *cpp_argv[ARGUMENTS] = {
 #ifdef solaris
 	"-Dsolaris",
 #endif
+#ifdef sgi
+#ifdef IRIX5 
+	"-DIRIX5",
+#endif
+#endif
+       
 };
 #else /* else MAKEDEPEND */
 /*
@@ -297,6 +310,11 @@ struct symtab	predefs[] = {
 #ifdef mips
 	{"mips", "1"},
 #endif
+#ifdef sgi
+        {"sgi", "1"},
+        {"__sgi", "1"},
+#endif
+
 #ifdef ultrix
 	{"ultrix", "1"},
 #endif
