@@ -17,7 +17,7 @@
  */
 
 /*
- * $Id: DataFormat.h,v 3.3 1996-11-27 02:21:24 granger Exp $
+ * $Id: DataFormat.h,v 3.4 1997-06-30 21:46:39 ishikawa Exp $
  */
 #ifndef _zebra_dataformat_h_
 #define _zebra_dataformat_h_
@@ -253,6 +253,15 @@ ZebTime * fn FP((struct _OpenFile *of, int *ntime))
  *	chronological order, but there may be duplicates.
  */
 
+#define M_GetAssociatedFiles(fn) \
+char ** fn FP((DataFile *df, int *nfiles))
+#define P_GetAssociatedFiles(fn) static M_GetAssociatedFiles(fn)
+/*      Return an array of associated file names (in filenames) and the 
+ *      number of files found (in nfiles). The array should be freed
+ *      by the caller of the function. The function returns NULL if there
+ *      are no files associated to that one.
+ */
+
 /* int
  * f_TimeIndex (OpenFile *of, ZebTime *time, int last)
  *	
@@ -329,7 +338,8 @@ typedef struct _DataFormat
 	M_GetFields ((*f_GetFields));	/* Get fields			*/
 	M_GetAttrs ((*f_GetAttrs));	/* Get attributes		*/
 	M_GetTimes ((*f_GetTimes));	/* Return array of times	*/
-
+        M_GetAssociatedFiles ((*f_GetAssociatedFiles));
+                                        /* Get the associated files     */ 
 } DataFormat;
 
 
