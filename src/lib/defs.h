@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 2.11 1992-07-31 16:52:23 corbet Exp $ */
+/* $Id: defs.h,v 2.12 1992-09-17 15:50:49 corbet Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -23,6 +23,7 @@
 # define _DEFS_H_
 
 # include <ui.h>
+# include <stdlib.h>
 # if (! defined(__GNUC__) || __GNUC__ < 2)
 # 	include <memory.h>   /* Conflicts with gcc2 builtin */
 # endif
@@ -78,8 +79,6 @@ typedef struct s_Location
 /*
  * Functions.
  */
-char *	malloc FP ((unsigned size));
-char *	realloc FP ((void *ptr, unsigned size));
 void 	tw_DefTimeWidget FP ((int (*callback) (), char *title));
 void 	tw_DialAdjust FP ((int, int));
 int 	InterpDTime FP ((char *));
