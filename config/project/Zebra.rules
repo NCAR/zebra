@@ -1,5 +1,5 @@
 XCOMM -*- C -*-
-XCOMM $Id: Zebra.rules,v 1.8 1996-05-01 20:29:24 granger Exp $
+XCOMM $Id: Zebra.rules,v 1.9 1996-11-19 06:45:09 granger Exp $
 XCOMM
 XCOMM Rules specific to the Zebra project, including some which override
 XCOMM definitions in Imake.rules
@@ -680,4 +680,15 @@ name::									@@\
 
 /* NamedTargetSubdirs */
 
+/*
+ * ObjectCompile - compile fragment for a normal object file.
+ *
+ * Taken from Imake.rules and redefined so that SpecialObjectRule
+ * does not echo the remove command.
+ */
+#ifdef ObjectCompile
+#undef ObjectCompile
+#endif
+#define ObjectCompile(options) @ RemoveFile($@)				@@\
+	$(CC) -c $(CFLAGS) options $*.c
 

@@ -28,7 +28,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.46 1996-05-02 15:24:20 granger Exp $
+XCOMM $Id: Project.tmpl,v 1.47 1996-11-19 06:45:08 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -766,7 +766,7 @@ XCOMM -----------------------------------------------------------------------
  * the installed include files also; otherwise, the include files come from
  * the top include directory.
  */
-#if UseInstalledImake
+#if UseInstalledImake /* || UseInstalledZebra */
      TOP_INCLUDES = -I$(INCDIR)
 #else
      TOP_INCLUDES = -I$(BUILDINCDIR)
@@ -786,8 +786,8 @@ XCOMM -----------------------------------------------------------------------
  * Project-wide include directories.  
  * Local Imakefiles use the INCLUDES variable
  */
-   EXTRA_INCLUDES = $(XINCLUDES) $(RDSSINCLUDES) $(CONFIGINCLUDES)
-CXXEXTRA_INCLUDES = $(XINCLUDES) $(RDSSINCLUDES) $(CONFIGINCLUDES)
+   EXTRA_INCLUDES = /* $(XINCLUDES) $(RDSSINCLUDES) */ $(CONFIGINCLUDES)
+CXXEXTRA_INCLUDES = /* $(XINCLUDES) $(RDSSINCLUDES) */ $(CONFIGINCLUDES)
 /*
  * We redefine the order of the ALLINCLUDES variable here so that top
  * includes will be first on the compiler command line and always take

@@ -6,8 +6,8 @@ SRCS = dsrescan.c
 OBJS = dsrescan.o
 
 DEPLIBS = $(LIBZEBDS) $(LIBZEB)
-LIBS = $(DFALIBS) $(ZLIBS) $(XLIBS)
-SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
+LIBS = $(DFALIBS) $(LIBZEB) $(XLIBS)
+SYSLIBS = $(LIBMATH) $(LIBREGEXP)
 DISTFILES = $(SRCS) Imakefile
 
 CompleteProgramTarget(dsrescan, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))

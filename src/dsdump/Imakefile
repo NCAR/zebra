@@ -6,8 +6,8 @@ SRCS = dsdump.c
 OBJS = dsdump.o
 
 DEPLIBS = $(LIBZEB) $(LIBZEBDS)
-LIBS = $(DSLIBS) $(ZLIBS)
-SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
+LIBS = $(DSLIBS) $(LIBZEB)
+SYSLIBS = $(LIBMATH) $(LIBREGEXP)
 DISTFILES = $(SRCS) Imakefile
 
 CompleteProgramTarget(dsdump, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))

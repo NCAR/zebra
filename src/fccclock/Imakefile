@@ -2,6 +2,7 @@
 SRCS = fccclock.c
 OBJS = fccclock.o
 
+INCLUDES = $(XINCLUDES)
 LIBS = $(LIBZEB) $(LIBRDSS) $(XLIBS)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 DISTFILES = $(SRCS) Imakefile FccClock.ad

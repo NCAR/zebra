@@ -1,6 +1,6 @@
 /* -*- C -*- */
 XCOMM ---------------------------------------------------------------------
-XCOMM $Id: Imakefile,v 1.32 1996-05-01 20:29:48 granger Exp $ 
+XCOMM $Id: Imakefile,v 1.33 1996-11-19 06:45:51 granger Exp $ 
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -27,10 +27,9 @@ LIBS = $(DFALIBS) $(ZLIBS) $(LIBPROJ) $(XLIBS)
 #endif
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
-/* LIBRDSS = /rdss/ui/uilib.a /locallib/librdssutil.a */
-DEPLIBS = $(LIBZEBDS) $(LIBZEB) /* $(LIBRDSS) */
+INCLUDES = $(XINCLUDES)
 
-CLIBS = /local/lib/gcc-lib/sparc-sun-solaris2/2.4.3/libgcc.a
+DEPLIBS = $(LIBZEBDS) $(LIBZEB)
 
 #if UseOpenWindows && (OpenWindowsVersion < 3)
    LABELOBJS=Label.o
@@ -47,12 +46,8 @@ CLIBS = /local/lib/gcc-lib/sparc-sun-solaris2/2.4.3/libgcc.a
    MAPDEFINE=
 # endif
 /* DEFINES = -DXDEBUG */
-DEPEND_DEFINES = $(SHMDEFINES) $(MAPDEFINE)
 
-/*
- * Projection.c needs the proj include directory when projections defined
- */
-INCLUDES = $(PROJINCLUDES)
+DEPEND_DEFINES = $(SHMDEFINES) $(MAPDEFINE) $(PROJINCLUDES) $(RDSSINCLUDES)
 
 # if defined(HPArchitecture) && (! UseGcc)
    ALLOCA=alloca.o
@@ -77,6 +72,13 @@ COBJS = ActiveArea.o $(ALLOCA) AltControl.o Annotate.o AnnotWidget.o \
 	Skewt.o TimeSeries.o Track.o UserEvent.o Utilities.o \
 	VectorGrid.o XSection.o XYCommon.o XYContour.o XYGraph.o \
 	XYObservation.o XYWind.o
+
+/*
+ * Objects requiring UI header files.
+ */
+UIOBJS = DataMenu.o FieldMenu.o GraphProc.o Icons.o InsertWidget.o \
+	 LimitWidgets.o MovieControl.o Overlay.o PlotControl.o \
+	 PlotExec.o RBand.o UserEvent.o
 
 #ifdef UseFORTRAN
 FOBJS = $(FOBJDIR)rgrid.o $(FOBJDIR)bints.o $(FOBJDIR)cfit.o
@@ -116,10 +118,11 @@ DISTFILES = Imakefile $(SRCS) $(ALLFSRCS) $(HDRS) \
 
 CompleteProgramTarget(gp, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 
+SpecialObjectRule($(UIOBJS),/**/,$(RDSSINCLUDES))
 SpecialObjectRule(RasterPlot.o,/**/,$(SHMDEFINES) $(MAPDEFINE))
-SpecialObjectRule(FrameCache.o,/**/,$(SHMDEFINES))
-MAPOBJS = ConstAltPlot.o Ov_Grid.o Projection.o
+MAPOBJS = ConstAltPlot.o Ov_Grid.o
 SpecialObjectRule($(MAPOBJS),/**/,$(MAPDEFINE))
+SpecialObjectRule(Projection.o,/**/,$(MAPDEFINE) $(PROJINCLUDES))
 
 UILoadFileDepsTarget(graphproc.lf, GraphProc.state, GraphProc.widgets)
 

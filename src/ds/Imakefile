@@ -2,67 +2,85 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.42 1996-05-03 15:17:28 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.43 1996-11-19 06:45:22 granger Exp $"
 
-DEPLIBS=$(LIBZEB) /*$(LIBNETCDF)*/
-/* LIBNETCDF=/net/src/netcdf-2.3.2/libsrc/libnetcdf.a */
+DEPLIBS=$(LIBZEB)
 LIBMPROF=/dt/granger/libc_mp.a
 /* SYSLIBS= $(LIBMPROF) */
-SYSLIBS= $(LIBREGEXP) $(LIBMATH) $(LIBTERMCAP)
-LIBS=$(LIBZEB) $(LIBRDSS) $(XLIBS) $(LIBNETCDF) $(LIBHDF)
-LIBGCC=/locallib/gcc-lib/sparc-sun-sunos4.1/2.4.5/libgcc.a
-CLIBS=$(LIBGCC)
-/*PROOF=/net/CenterLine/bin/proof*/
 
-INCLUDES = $(HDFINCLUDES) $(NETCDFINCLUDES)
+DMNSYSLIBS=$(LIBREGEXP) $(LIBMATH) $(LIBTERMCAP)
+DMNLIBS=$(LIBZEB) $(LIBRDSS) $(XLIBS) $(LIBNETCDF) $(LIBHDF)
+SYSLIBS=$(LIBREGEXP) $(LIBMATH)
+LIBS=$(LIBZEB) $(LIBNETCDF) $(LIBHDF)
 
-/* DEFINES = -DHDF_TEST -DHDF_INTERFACE */	/* for HDF testing */
 DEBUGGER = xgdb
 #ifdef DebugFlag
 DEBUG = -DDEBUG -DNoBuffer -DDEBUGGER="\"$(DEBUGGER)\""
 #endif
-DEFINES = $(DEBUG) /* -DTEST_TIME_UNITS */
-DEPEND_DEFINES = $(HDFDEFINES)
-
-#CCOPTIONS=
-#CCOPTIONS=-pipe -pg
-#CCOPTIONS=-pg
-#LOCAL_LDFLAGS=-static
-#COMPILE_CC=$(CC)
-#COMPILE.c=$(COMPILE_CC) $(CFLAGS) $(CPPFLAGS) -c
+DEFINES = $(DEBUG) -DNCSYNC_FIXED
 
 /* 
  * DSOBJS, DSSRCS = Daemon-specific object modules 
  */
-DSOBJS= Daemon.o d_DataTables.o d_Config.o d_Scan.o d_Debug.o
-DSSRCS= Daemon.c d_DataTables.c d_Config.c d_Scan.c d_Debug.c
+DSOBJS = Daemon.o d_DataTables.o d_Config.o d_Scan.o d_Debug.o d_Appl.o
+DSSRCS = Daemon.c d_DataTables.c d_Config.c d_Scan.c d_Debug.c d_Appl.c
+
+DFAOBJS = DataFormat.o DFA_NetCDF.o DFA_Zeb.o DFA_HDF.o DFA_Grads.o \
+          DFA_Boundary.o DFA_GRIB.o GRIB.o DFA_Raster.o
+DFASRCS = DataFormat.c DFA_NetCDF.c DFA_Zeb.c DFA_HDF.c DFA_Grads.c \
+          DFA_Boundary.c DFA_GRIB.c GRIB.c DFA_Raster.c
 
 /* 
  * DSLIBOBJS, DSLIBSRCS = normal DS library code 
  */
-DSLIBOBJS = Appl.o DFA_Appl.o DataFileAccess.o DFA_GRIB.o DFA_NetCDF.o \
-	ingest.o GetList.o DFA_Boundary.o DFA_Raster.o Fields.o DFA_Zeb.o \
-	DFA_Grads.o GRIB.o d_Notify.o DFA_HDF.o
-DSLIBSRCS = Appl.c DFA_Appl.c DataFileAccess.c DFA_GRIB.c DFA_NetCDF.c \
-	ingest.c GetList.c DFA_Boundary.c DFA_Raster.c Fields.c DFA_Zeb.c \
-	DFA_Grads.c GRIB.c d_Notify.c DFA_HDF.c
+DSLIBOBJS = Appl.o DFA_Appl.o SA_Appl.o C_Appl.o ingest.o GetList.o \
+	Fields.o d_Notify.o Platforms.o $(DFAOBJS) 
+DSLIBSRCS = Appl.c DFA_Appl.c SA_Appl.c C_Appl.c ingest.c GetList.c \
+	Fields.c d_Notify.c Platforms.c $(DFASRCS)
+
+/*
+ * Modules shared between client library and daemon
+ */
+SHAREDOBJS = d_Notify.o Fields.o Platforms.o $(DFAOBJS)
 
 /* 
  * DCOBJS, DCSRCS =  data chunk modules 
  */
-DCOBJS = DataChunk.o dc_Boundary.o dc_IRGrid.o dc_Image.o \
-	dc_MetData.o dc_RGrid.o dc_Scalar.o dc_Transp.o dc_Attr.o \
-	dc_Location.o dc_NSpace.o
-DCSRCS = DataChunk.c dc_Boundary.c dc_IRGrid.c dc_Image.c \
-	dc_MetData.c dc_RGrid.c dc_Scalar.c dc_Transp.c dc_Attr.c \
-	dc_Location.c dc_NSpace.c
+DCOBJS = DataChunk.o DataAttr.o dc_Boundary.o dc_IRGrid.o dc_Image.o \
+	dc_MetData.o dc_MetAttr.o dc_RGrid.o dc_Scalar.o dc_Transp.o \
+	dc_TrAttr.o dc_Attr.o dc_Location.o dc_NSpace.o dc_Process.o \
+	dc_Elements.o dc_ADE.o dc_All.o Details.o
+DCSRCS = DataChunk.c DataAttr.c dc_Boundary.c dc_IRGrid.c dc_Image.c \
+	dc_MetData.c dc_MetAttr.c dc_RGrid.c dc_Scalar.c dc_Transp.c \
+	dc_TrAttr.c dc_Attr.c dc_Location.c dc_NSpace.c dc_Process.c \
+	dc_Elements.c dc_ADE.c dc_All.c Details.c
 
-UTILSRCS = rfdump.c zfdump.c GRIBdump.c
+UTILSRCS = rfdump.c zfdump.c GRIBdump.c bfdump.c
 
 /*
- * For debugging
+ * For debugging and testing
  */
-TESTSRCS = dstest.c dctest.c nstest.c aline.c apple.c hdflook.c
+TESTSRCS = aline.c apple.c T_HDF.c \
+           T_NSpace.c T_Scalar.c T_Grids.c T_Attr.c T_Transparent.c \
+           T_MetData.c T_ZNF.c T_Utils.c T_DataStore.c \
+           T_NetCDF.c T_Appl.c T_DataFormat.c T_DataChunk.c T_Fields.c
+
+/*
+ * Tests which do not include C source files, and so can be
+ * included on makedepend command line.
+ */
+TESTDEPS = aline.c apple.c T_NSpace.c T_Scalar.c T_Grids.c T_Attr.c \
+           T_Utils.c T_DataStore.c T_Fields.c
+
+TESTOBJS = T_NSpace.o T_Scalar.o T_Grids.o T_Attr.o T_Transparent.o \
+           T_MetData.o T_ZNF.o T_Utils.o T_DataStore.o T_Fields.o \
+           T_NetCDF.o T_Appl.o T_DataFormat.o T_DataChunk.o
+
+/*
+ * The complete set of modules for linking test programs.  Some test
+ * objects supercede the normal library objects, so order is important.
+ */
+TESTMODS = $(TESTOBJS) ./libZebDS.a
 
 /*
  * All of the sources in this directory, for the make depend.
@@ -71,18 +89,19 @@ SRCS = $(DSLIBSRCS) $(DCSRCS) $(DSSRCS) $(UTILSRCS)
 
 PRIVATE_HEADERS = BoundaryFile.h DataChunkP.h dslib.h znfile.h \
 		  RasterFile.h commands.h dfa.h dsDaemon.h dsPrivate.h \
-		  GRIB.h Appl.h
+		  GRIB.h Appl.h DataFormat.h NoFormat.h Platforms.h apple.h
 
 HEADERS = DataStore.h DataChunk.h ingest.h fields.h ds_fields.h
 
-DISTFILES = Imakefile $(SRCS) $(TESTSRCS) $(PRIVATE_HEADERS) \
-            $(HEADERS) Daemon.state nstest.config
+DISTFILES = Imakefile $(SRCS) $(PRIVATE_HEADERS) $(TESTSRCS) \
+            $(HEADERS) Daemon.state apple.config hdflook.c
 
-DMNOBJS = $(DSOBJS) $(DSLIBOBJS) $(DCOBJS)
-CompleteProgramTarget(dsDaemon, $(DMNOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+DEPEND_DEFINES=$(HDFDEFINES) $(HDFINCLUDES) $(NETCDFINCLUDES) $(RDSSINCLUDES)
 
-SpecialObjectRule(DFA_HDF.o,/**/,$(HDFDEFINES))
-SpecialObjectRule(DataFileAccess.o,/**/,$(HDFDEFINES))
+DMNOBJS = $(DSOBJS) $(SHAREDOBJS) $(DCOBJS)
+CompleteProgramTarget(dsDaemon,$(DMNOBJS),$(DEPLIBS),$(DMNLIBS),$(DMNSYSLIBS))
+
+SpecialObjectRule($(DSOBJS),/**/,$(RDSSINCLUDES))
 
 UILoadFileTarget(dsDaemon.lf,Daemon.state)
 
@@ -90,6 +109,9 @@ UILoadFileTarget(dsDaemon.lf,Daemon.state)
  * Make the library.
  */
 NormalLibraryTarget (ZebDS, $(DSLIBOBJS) $(DCOBJS))
+SpecialObjectRule(ingest.o,ingest.c ingest.h,$(RDSSINCLUDES))
+SpecialObjectRule(DFA_NetCDF.o T_NetCDF.o,DFA_NetCDF.c,$(NETCDFINCLUDES))
+SpecialObjectRule(DFA_HDF.o T_HDF.o,DFA_HDF.c,$(HDFDEFINES) $(HDFINCLUDES))
 
 InstallLibrary (ZebDS, $(LIBDIR))
 
@@ -99,10 +121,12 @@ InstallMultipleFlags($(HEADERS),$(INCDIR),$(INSTINCFLAGS))
 /*
  * Dump routines.
  */
-CompleteProgramTarget (rfdump, rfdump.o, /**/, /**/, /**/)
+CompleteProgramTarget (rfdump, rfdump.o, $(LIBZEB), $(LIBZEB), $(LIBMATH))
 
-ZFOBJS = zfdump.o $(DSLIBOBJS) $(DCOBJS)
-CompleteProgramTarget (zfdump, $(ZFOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+TestProgramTarget (bfdump, bfdump.o, $(LIBZEB), $(LIBZEB), $(LIBMATH))
+
+ZFOBJS = zfdump.o Fields.o $(DCOBJS)
+CompleteProgramTarget (zfdump, $(ZFOBJS), $(DEPLIBS), $(LIBZEB), $(SYSLIBS))
 
 GDOBJS = GRIBdump.o GRIB.o
 CompleteProgramTarget (GRIBdump, $(GDOBJS), $(LIBZEB), $(LIBZEB), $(LIBMATH))
@@ -110,29 +134,86 @@ CompleteProgramTarget (GRIBdump, $(GDOBJS), $(LIBZEB), $(LIBZEB), $(LIBMATH))
 /*
  * Test routines.
  */
-#ifdef notdef
-NSOBJS = nstest.o $(DSLIBOBJS) $(DCOBJS)
-TestProgramTarget (nstest, $(NSOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
-
-cc_nstest:: nstest.c $(DSLIBSRCS) $(DCSRCS)
-	# setopt ansi
-	# load $(ALLDEFINES) nstest.c  $(DSLIBSRCS) $(DCSRCS) \
-		$(DEPLIBS) $(LIBS) $(SYS_LIBRARIES)  \
-		$(EXTRA_LIBRARIES)   $(CLIBS)
-	# link
-
-CflowTarget (nstest, nstest.c $(DSLIBSRCS) $(DCSRCS), /**/)
-#endif
-
 #if HasHDF
 TestProgramTarget (hdflook, hdflook.o, /**/, $(LIBHDF), /**/)
 #endif
 
-APOBJS = apple.o $(DSLIBOBJS) $(DCOBJS)
+APOBJS = apple.o $(TESTMODS)
 TestProgramTarget (apple, $(APOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 
-ALOBJS = aline.o $(DSLIBOBJS) $(DCOBJS)
+TestProgramTarget (nctime, nctime.o, /*DEPLIBS*/, $(LIBNETCDF), /**/)
+SpecialObjectRule(nctime.o,/**/,$(NETCDFINCLUDES))
+
+NC31DIR = /net/src/data-tools/netcdf-3.1a/gcc-g/include
+NC31LIB = /net/src/data-tools/netcdf-3.1a/gcc-g/lib/libnetcdf.a
+NC24DIR = /net/src/data-tools/netcdf-2.4-beta2/gcc-O/include
+NC24LIB = /net/src/data-tools/netcdf-2.4-beta2/gcc-O/lib/libnetcdf.a
+
+apple31: $(APOBJS) $(DEPLIBS) FORCE
+	rm -f apple DFA_NetCDF.o
+	$(MAKE) apple LIBNETCDF=$(NC31LIB) NETCDFINCLUDES=-I$(NC31DIR)
+	mv apple apple31
+
+apple31.tc: $(APOBJS) $(DEPLIBS) FORCE
+	rm -f apple DFA_NetCDF.o
+	$(MAKE) apple.tc LIBNETCDF=$(NC31LIB) NETCDFINCLUDES=-I$(NC31DIR)
+	mv apple.tc apple31.tc
+
+nctime31: nctime.o FORCE
+	rm -f nctime.o
+	$(MAKE) nctime LIBNETCDF=$(NC31LIB) NETCDFINCLUDES=-I$(NC31DIR)
+	mv nctime nctime31
+
+apple24: $(APOBJS) $(DEPLIBS) FORCE
+	rm -f apple DFA_NetCDF.o
+	$(MAKE) apple LIBNETCDF=$(NC24LIB) NETCDFINCLUDES=-I$(NC24DIR)
+	mv apple apple24
+
+nctime24: nctime.o FORCE
+	rm -f nctime.o
+	$(MAKE) nctime LIBNETCDF=$(NC24LIB) NETCDFINCLUDES=-I$(NC24DIR)
+	mv nctime nctime24
+
+FORCE:
+
+#ifdef notdef /* kludges to compile gprof information */
+NC31DIR = /net/src/data-tools/netcdf-3.1a/sunos-5.4
+NC24DIR = /net/src/data-tools/netcdf-2.4-beta2/sunos-5.4
+
+apple31: $(APOBJS) $(DEPLIBS)
+	rm -f apple DFA_NetCDF.o
+	$(MAKE) apple LIBNETCDF=$(NC31DIR)/libnetcdf.a \
+		      EXTRA_LIBRARIES='-lsocket -lnsl -ldl' \
+		      NETCDFINCLUDES=-I$(NC31DIR)
+	mv apple apple31
+
+nctime31: nctime.o
+	rm -f nctime.o
+	$(MAKE) nctime LIBNETCDF=$(NC31DIR)/libnetcdf.a \
+		      EXTRA_LIBRARIES='-lsocket -lnsl -ldl' \
+		      NETCDFINCLUDES=-I$(NC31DIR)
+	mv nctime nctime31
+
+apple24: $(APOBJS) $(DEPLIBS)
+	rm -f apple DFA_NetCDF.o
+	$(MAKE) apple LIBNETCDF=$(NC24DIR)/lib/libnetcdf.a \
+	              NETCDFINCLUDES=-I$(NC24DIR)/include \
+	              EXTRA_LIBRARIES='-lsocket -lnsl -ldl'
+	mv apple apple24
+
+nctime24: nctime.o
+	rm -f nctime.o
+	$(MAKE) nctime LIBNETCDF=$(NC24DIR)/lib/libnetcdf.a \
+	               NETCDFINCLUDES=-I$(NC24DIR)/include \
+	               EXTRA_LIBRARIES='-lsocket -lnsl -ldl'
+	mv nctime nctime24
+#endif
+
+ALOBJS = aline.o ./libZebDS.a
 TestProgramTarget (aline, $(ALOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+
+THDFOBJS = T_HDF.o ./libZebDS.a
+TestProgramTarget (testhdf, $(THDFOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 
 /*
  * We have to use an explicit test rule since we have to start up
@@ -155,7 +236,7 @@ DATA_DIR = $(TESTPROJ)/data
 SOCKET = ./test.socket
 INVENTORY = 10
 #ifdef DebugFlag
-DEBUG_FLAG = -debug /* -blow */
+DEBUG_FLAG = -debug
 TESTOUT =
 #else
 DEBUG_FLAG =
@@ -269,6 +350,25 @@ saber_lib:
 
 DependTarget()
 
+testdepend:
+	$(MAKE) depend SRCS='$(SRCS) $(TESTDEPS)'
+
+mft: Makefile testdepend
+
+/*
+ * These object files include C source files, so we must hardcode their
+ * dependencies on the corresponding objects, which in turn have their
+ * header dependencies calculated by makedepend.
+ */
+T_Appl.o: Appl.o apple.h
+T_DataFormat.o: DataFormat.o apple.h
+T_DataChunk.o: DataChunk.o apple.h
+T_MetData.o: dc_MetData.o apple.h
+T_NetCDF.o: DFA_NetCDF.o apple.h
+T_Transparent.o: dc_Transp.o apple.h
+T_ZNF.o: DFA_Zeb.o apple.h
+
 LintTarget()
 
 DistfilesTarget($(DISTFILES))
+

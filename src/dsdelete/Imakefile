@@ -5,6 +5,7 @@
 SRCS = dsdelete.c
 OBJS = dsdelete.o
 
+INCLUDES = $(RDSSINCLUDES)
 LIBS = $(DFALIBS) $(ZLIBS) $(XLIBS)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 

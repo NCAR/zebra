@@ -6,7 +6,7 @@ SRCS = dsnotice.c
 OBJS = dsnotice.o
 
 DEPLIBS = $(LIBZEBDS) $(LIBZEB)
-LIBS = $(DSLIBS) $(ZLIBS) $(XLIBS)
+LIBS = $(DSLIBS) $(LIBZEB) $(XLIBS)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 DISTFILES = $(SRCS) Imakefile
 
