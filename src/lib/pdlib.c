@@ -25,7 +25,7 @@
 # include <defs.h>
 # include <message.h>
 # include "pd.h"
-MAKE_RCSID ("$Id: pdlib.c,v 1.12 1992-06-26 16:40:58 corbet Exp $")
+MAKE_RCSID ("$Id: pdlib.c,v 1.13 1992-07-08 19:16:30 kris Exp $")
 
 /*
  * A counter used to generate unique symbol table names.
@@ -134,8 +134,8 @@ char *pdname, *data, *end;
  * Compile one component of this pd.
  */
 {
-	char *nl, *colon, *strchr (), param[100], value[200], clist[200];
-	char line[200];
+	char *nl, *colon, *strchr (), param[100], value[500], clist[200];
+	char line[500];
 	stbl comp;
 	union usy_value v;
 	int type;
