@@ -103,9 +103,14 @@ def mainFunc():
     f.close()
     # restore previous contents of dictionary, if one exists.
     if os.path.exists(pickleFile):
-        pf = open(pickleFile, 'r')
-	Fdict = cPickle.load(pf)
-	pf.close()
+        try:
+            pf = open(pickleFile, 'r')
+            Fdict = cPickle.load(pf)
+            pf.close()
+        except EOFError:
+            pass
+        except OSError:
+            pass
 
     baseDir = '/scr/data/spol'
     subsetPlatforms = ('particles', 'spol')
