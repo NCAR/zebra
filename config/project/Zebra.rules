@@ -1,5 +1,5 @@
 XCOMM -*- C -*-
-XCOMM $Id: Zebra.rules,v 1.19 1999-06-15 16:44:38 burghart Exp $
+XCOMM $Id: Zebra.rules,v 1.20 2001-01-17 20:22:49 granger Exp $
 XCOMM
 XCOMM Rules specific to the Zebra project, including some which override
 XCOMM definitions in Imake.rules
@@ -407,6 +407,7 @@ distfiles::								@@\
 	for i in dirs END;\						@@\
 	do \								@@\
 		if [ $$i = "END" ]; then break; fi; \			@@\
+		if [ ! -d $$i ]; then continue; fi;\@@\
 		(cd $$i ; \						@@\
 		   $(MAKE) $(MFLAGS) MAKE=$(MAKE) DISTCURDIR=$(DISTCURDIR)/$$i distfiles); \ @@\
 	done								@@\
@@ -726,6 +727,9 @@ step step.dstname:: srcname						@@\
  * For the sake of GNU make, which puts variable assignments in MFLAGS,
  * require a single hypen before flags in case variables contain an 'n',
  * and so that GNU double-hyphen opts don't confuse things.
+ *
+ * Also, just skip directories which do not exist, so that parts of the
+ * tree can be trimmed without breaking the build structure.
  */
 #ifdef MakeMakeSubdirs
 #undef MakeMakeSubdirs
@@ -739,6 +743,9 @@ target::								@@\
 	for i in dirs END ;\						@@\
 	do \								@@\
 		if [ $$i = "END" ]; then break; fi; \			@@\
+		if [ ! -d $$i ]; then \                                 @@\
+		   echo "Skipping" target "in $$i (not present)..."; \  @@\
+		   continue; fi; \                                      @@\
 		case "$(CURRENT_DIR)" in \				@@\
 		.) curdir= ;; \						@@\
 		*) curdir=$(CURRENT_DIR)/ ;; \				@@\
@@ -804,6 +811,9 @@ name::									@@\
 	for i in dirs END ;\						@@\
 	do \								@@\
 		if [ $$i = "END" ]; then break; fi; \			@@\
+		if [ ! -d $$i ]; then \                                 @@\
+		   echo "Skipping" name "in $$i (not present)..."; \    @@\
+		   continue; fi; \                                      @@\
 		(cd $$i ; echo verb "in $(CURRENT_DIR)/$$i..."; \	@@\
 			$(MAKE) MAKE=$(MAKE) $(MFLAGS) flags subname);\	@@\
 	done
