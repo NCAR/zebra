@@ -15,15 +15,16 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.1 1993-05-17 18:44:59 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.2 1993-05-18 20:24:50 granger Exp $"
 
-LOCAL_LIBRARIES = $(LIBZEB) $(LIBRDSS) $(LIBNETCDF)
+LOCAL_LIBRARIES = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF)
+
+DEPLIBS = $(LIBZEBDS) $(LIBZEB)
 
 LINTOPTS = -nuvxz
 
-DISTFILES = tao_ingest.c Imakefile
+DISTFILES = $(SRCS) Imakefile
 
 SimpleProgramTarget(tao_ingest)
 
 DistfilesTarget($(DISTFILES))
-
