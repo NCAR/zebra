@@ -19,19 +19,23 @@
  * maintenance or updates for its software.
  */
 
+# include <unistd.h>
+
 # include <defs.h>
 # include "message.h"
 
-MAKE_RCSID ("$Id: zrun.c,v 1.2 1994-10-11 16:27:11 corbet Exp $")
+MAKE_RCSID ("$Id: zrun.c,v 1.3 1995-04-20 08:02:29 granger Exp $")
 
 
-int IncMsg (), QResp ();
+int IncMsg ();
 
 
+int
 main (argc, argv)
 int argc;
 char **argv;
 {
+	char name[20];
 /*
  * Make sure they gave us the info
  */
@@ -43,8 +47,15 @@ char **argv;
 /*
  * Hook in and send the command
  */
-	msg_connect (IncMsg, "zrun");
+	sprintf (name, "zrun-%i", getpid() );
+	msg_connect (IncMsg, name);
 	cp_Exec (argv[1], argv[2]);
+/*
+ * Clear any messages, and give the command time to be sent.
+ */
+	while (msg_poll(1) != MSG_TIMEOUT)
+		/* keep polling */;
+	exit (0);
 }
 
 
@@ -55,32 +66,8 @@ IncMsg (msg)
 struct message *msg;
 {
 	if (msg->m_proto != MT_MESSAGE)
-		return;
-	if (msg->m_len == 0)
-		return (1);
-	printf ("%s\n", msg->m_data);
+		return (0);
 	return (0);
 }
 
 
-
-
-
-int
-QResp (info)
-char *info;
-/*
- * Something came back.
- */
-{
-	if (! info)
-		exit (0);
-	printf ("%s\n", info);
-}
-
-
-
-void
-ui_perform (x)
-char *x;
-{} /* XXX XXX XXX */

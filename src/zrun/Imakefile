@@ -2,7 +2,11 @@
 SRCS = zrun.c
 OBJS = zrun.o
 
-LIBS = $(LIBZEB) $(LIBRDSS)
+/*
+ * RDSS libraries not required since no RDSS routines referenced in the
+ * source file nor in the cmd_exec or msg_lib library objects.
+ */
+LIBS = $(LIBZEB)
 
 DISTFILES = Imakefile $(SRCS)
 
