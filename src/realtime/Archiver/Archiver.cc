@@ -64,7 +64,7 @@
 
 # include "Database.h"
 
-RCSID ("$Id: Archiver.cc,v 1.40 1998-05-21 17:31:14 corbet Exp $")
+RCSID ("$Id: Archiver.cc,v 1.41 1998-08-18 16:06:14 corbet Exp $")
 
 /*
  * Issues:
@@ -131,10 +131,10 @@ RCSID ("$Id: Archiver.cc,v 1.40 1998-05-21 17:31:14 corbet Exp $")
 # define DEF_OUTPUTDIR "/eod0"
 # define DEF_EXCLUDE ""
 # ifdef __STDC__
-# define DEF_TAPELIMIT ((unsigned long) 3500000000ul)
+# define DEF_TAPELIMIT ((unsigned long) 3500000ul)
 # define DEF_MINDISK ((unsigned long) 10000ul)
 # else
-# define DEF_TAPELIMIT ((unsigned long) 3500000000)
+# define DEF_TAPELIMIT ((unsigned long) 3500000)
 # define DEF_MINDISK ((unsigned long) 10000)
 # endif /* __STDC__ */
 
@@ -220,7 +220,7 @@ Pixel RedPix, WhitePix; 	/* Colors for the status widget. */
  * the resources database
  */
 
-	unsigned long TapeLimit;/* Tape size (bytes), less a safety margin */
+	unsigned long TapeLimit;/* Tape size (kbytes), less a safety margin */
 				/* Default is high density Exabyte */
 	String	DriveName;	/* TAPE mode: tape drive device */
 	String	OutputDir;	/* EOD mode: output directory */
@@ -590,7 +590,7 @@ Usage(prog, argc, argv)
 
    fprintf(stderr,"\nTape mode:\n");
    fprintf(stderr,"   %-20s Tape storage limit, minus safety margin (%lu)\n",
-			"-tapelimit <bytes>",DEF_TAPELIMIT);
+			"-tapelimit <kbytes>",DEF_TAPELIMIT);
 
    fprintf(stderr,"\nOptical disk mode:\n");
    fprintf(stderr,"   %-20s Optical disk output directory (%s)\n",
@@ -1079,7 +1079,8 @@ RequestWrite(finish)
 	 * settings
 	 */
 	working = FALSE;
-	SetStatus (FALSE, "Sleeping");
+	if (DeviceFD >= 0)
+		SetStatus (FALSE, "Sleeping");  /* Otherwise leave msg */
 	WriteInProgress = FALSE;
 	SetWaitSensitivity(False);
 	XtSetSensitive(FinishButton, True);
@@ -1210,8 +1211,8 @@ DoTheWriteThing(explicit_finish)
 		     * This tape is full; get a new one 
 		     */
 		    msg_ELog(EF_DEBUG,"tape is full, %li Mb, limit %li",
-				BytesWritten/1000000,
-				TapeLimit/1000000);
+				BytesWritten/1000,
+				TapeLimit/1000);
 		    ActionButton ();
 		    SetStatus (TRUE, "Tape is full, need a new one");
 		    FreshTape = TRUE;
@@ -1350,6 +1351,7 @@ int all;
 			}
 			UpdateList ();
 		}
+		WriteInProgress = FALSE;
 	}	
 
 	if (DumpedFiles)
@@ -1670,7 +1672,7 @@ char *cmd;
  */
 	while ((nb = netread (fd, fbuf, blocksize)) > 0)
 	{
-		if (write (DeviceFD, fbuf, nb) < nb) /* oh shit! */
+		if (write (DeviceFD, fbuf, nb) < nb || errno != 0)
 		{
 			msg_ELog (EF_EMERGENCY,"Archive device write error %d",
 				  errno);
@@ -1725,7 +1727,8 @@ char *cmd;
  */
 	msg_ELog (EF_DEBUG, "Transferred %d bytes, last %d", tnb, nb);
 	FilesWritten++;
-	BytesWritten += tnb;
+	BytesWritten += tnb/1000;
+	msg_ELog (EF_INFO, "Wrote %d, limit %d", BytesWritten, TapeLimit);
 	if ((rstatus = pclose (pfp)) == 0)
 		return (TRUE);
 	msg_ELog (EF_PROBLEM, "Tar returned status %d", rstatus);
@@ -1891,7 +1894,7 @@ UpdateList ()
  * Update the widget too.
  */
 	sprintf (string, "%.2f MBytes in %d files.",
-		(float)BytesWritten/1000000.0, FilesWritten);
+		(float)BytesWritten/1000.0, FilesWritten);
 	XtSetArg (args[0], XtNlabel, string);
 	XtSetValues (Bytes, args, 1);
 	Sync ();
