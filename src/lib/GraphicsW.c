@@ -39,7 +39,7 @@
 # include "pd.h"
 # include "GraphicsWP.h"
 
-MAKE_RCSID("$Id: GraphicsW.c,v 2.18 1995-04-15 00:07:10 granger Exp $")
+MAKE_RCSID("$Id: GraphicsW.c,v 2.19 1996-02-05 15:11:37 granger Exp $")
 
 /*
  * The SHM definition just tells us that we can link with the shared
@@ -668,7 +668,7 @@ GraphicsWidget w;
  * local.  The whole heuristic is rather flawed, but it should be
  * accurate most of the time.
  */
-	n = (c = strchr(DisplayString (dpy), ':')) ? 
+	n = (c = (char *) strchr(DisplayString (dpy), ':')) ? 
 	   (int)(c - DisplayString (dpy)) : strlen(DisplayString (dpy));
 	gethostname(host, HOSTLEN);
 	host[HOSTLEN - 1] = '\0';
