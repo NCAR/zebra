@@ -240,6 +240,7 @@ GFpds *pds;
 {
 	AltUnitType altunits;
 	ZebTime zt;
+	float z;
 
 	/*
 	 * Print the grid number and reference time
@@ -261,13 +262,14 @@ GFpds *pds;
 	/*
 	 * Level
 	 */
-	if (! grb_NormalLevel (pds))
-		printf ("  Z: (level type %d)", pds->level_id);
-	else
-	{
-		float z = grb_ZLevel (pds, &altunits);
+	altunits = -1;
+	z = grb_ZLevel (pds, &altunits);
+
+	if (altunits >= 0)
 		printf ("  Z: %s", au_AltLabel ((double)z, altunits));
-	}
+	else
+		printf ("  Z: (level type %d)", pds->level_id);
+
 	printf ("\n");
 }
 

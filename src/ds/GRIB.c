@@ -32,7 +32,7 @@
 
 # include "GRIB.h"
 
-RCSID ("$Id: GRIB.c,v 3.11 1997-06-11 14:58:17 burghart Exp $")
+RCSID ("$Id: GRIB.c,v 3.12 1997-06-16 16:17:02 burghart Exp $")
 
 typedef struct s_GRB_DataRepType {
 	int data_type;
@@ -433,20 +433,6 @@ bool	sfc_only;
 
 
 
-bool
-grb_NormalLevel (pds)
-GFpds	*pds;
-/*
- * Return TRUE if the level of this GRIB grid is "normal" (i.e., a specific
- * isobaric level or height, rather than earth surface, cloud base, tropopause,
- * etc.)
- */
-{
-	return (grb_Level (pds, 0, NULL, NULL));
-}
-
-
-
 float
 grb_ZLevel (pds, units)
 GFpds	*pds;
@@ -458,7 +444,7 @@ AltUnitType	*units;
 {
 	float alt;
 
-	if (! grb_Level (pds, -1, units, &alt))
+	if (! grb_Level (pds, 0, units, &alt))
 	{
 		msg_ELog (EF_PROBLEM, "Can't deal with GRIB level type %d!",
 			  pds->level_id);
@@ -482,7 +468,7 @@ float	*altitude;
  * The idea is to limit switch statements on the level_id to this routine.
  */
 {
-	AltUnitType au;
+	AltUnitType au = -1;
 	float alt;
 	int sfc = 0;
 
@@ -502,6 +488,12 @@ float	*altitude;
 		break;
 	    case 103:	/* fixed height (meters MSL) */
 		au = AU_mMSL;
+		sfc = (alt == 0.0);
+		break;
+	    case 105:	/* fixed height (meters AGL) */
+		au = AU_mAGL;
+	    /* KLUGE: accept 50m or less as a "surface" grid */
+		sfc = (alt <= 50.0);
 		break;
 	    case 107:	/* sigma levels */
 		au = AU_sigma;
@@ -514,11 +506,11 @@ float	*altitude;
 		return (0);
 	}
 	/*
-	 * If they only wanted surface levels, make sure that's what we found.
-	 * -1 means ignore whether the level id is a surface or not.
+	 * If they wanted a surface level, make sure that's what we found.
 	 */
-	if ((sfc_only >= 0) && ((sfc_only && !sfc) || (sfc && !sfc_only)))
+	if (sfc_only && !sfc)
 		return (0);
+
 	if (altitude)
 		*altitude = alt;
 	if (units)

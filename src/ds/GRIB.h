@@ -1,5 +1,5 @@
 /*
- * $Id: GRIB.h,v 3.6 1997-06-10 20:32:41 burghart Exp $
+ * $Id: GRIB.h,v 3.7 1997-06-16 16:17:03 burghart Exp $
  *
  * GRIB file access structures and utility prototypes.
  */
@@ -174,7 +174,6 @@ extern int grb_ReadGDS FP ((int fd, GFgds *gds_ret, int ng));
 extern void grb_ReferenceTime FP ((GFpds *pds, ZebTime *zt));
 extern int grb_Offset FP ((GFpds *));
 extern bool grb_UsableLevel FP ((GFpds *, int));
-extern bool grb_NormalLevel FP ((GFpds *pds));
 extern float grb_ZLevel FP ((GFpds *, AltUnitType *));
 
 #endif /* ndef _zebra_GRIB_h_ */
