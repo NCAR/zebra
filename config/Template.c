@@ -109,14 +109,12 @@
 # endif
 
 # ifndef XToolkitLibs		/* What else for Xt appls	*/
-#  if (UseXWindows || UseOpenWin)
-#    ifdef OldOpenWin
-#       define XToolkitLibs
-#    else
+#  if (UseXWindows)
 #       define XToolkitLibs -lXaw -lXmu -lXt -lXext 
-#    endif /* OldOpenWin */
+#  elif (UseOpenWin && !OldOpenWin)
+#       define XToolkitLibs -lXaw -lXmu -lXt -lXext
 #  else
-#    define XToolkitLibs          /* Nothing */
+	define XToolkitLibs      /* Nothing */
 #  endif
 # endif /* ndef XToolkitLibs */
 
@@ -164,7 +162,7 @@
  * Figure out RGB color database.
  *
  */
-# if (UseOpenWin)
+# if (UseOpenWin && !UseXWindows)
 # define ColorDB \"$(OPENWINHOME)/lib/rgb.txt\"
 # elif (UseXWindows)
 # define ColorDB \"XLibraries/X11/rgb.txt\"
@@ -208,7 +206,9 @@
 # endif
 
 # ifndef XWindowsFlag
-#    if ((UseXWindows || UseOpenWin) && !OldOpenWin)
+#    if (UseXWindows)
+#       define XWindowsFlag -DXSUPPORT
+#    elif (UseOpenWin && !OldOpenWin)
 #       define XWindowsFlag -DXSUPPORT
 #    else
 #       define XWindowsFlag   /* Nothing */
