@@ -44,7 +44,7 @@
 # include "dsDaemon.h"
 # include "commands.h"
 
-MAKE_RCSID ("$Id: Daemon.c,v 3.46 1995-03-04 19:18:36 granger Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.47 1995-04-17 22:38:58 granger Exp $")
 
 
 /*
@@ -281,6 +281,7 @@ char **argv;
 	if (Debug)
 		printf ("Reading command file %s\n", initfile);
 	ui_get_command ("initial", "dsd>", ui_Handler, 0);
+	msg_ELog (EF_PROBLEM, "ui command interpreter failed; shutting down");
 	Shutdown ();
 	return (0);
 }
@@ -422,7 +423,10 @@ struct ui_command *cmds;
 			dbg_DumpTables ();
 		}
 		if (ParseOnly)
+		{
+			msg_ELog (EF_INFO, "finished init file; shutting down");
 			Shutdown();
+		}
 	   	else if (ndone++)
 			msg_ELog (EF_PROBLEM, "Repeated DONE command");
 		else
@@ -581,8 +585,9 @@ struct message *msg;
 	 */
 		if (! InitialScan && CacheOnExit)
 			WriteCache (0);
-		ui_finish ();
-		exit (1);
+		printf ("%s: normal shutdown\n", msg_myname() );
+		Shutdown ();
+		/* no return */
 	/*
 	 * For client events, we are really only interested in deaths, so
 	 * that we can get rid of any notification requests.
@@ -676,7 +681,8 @@ struct dsp_Template *dt;
 	 */
 	   case dpt_MarkArchived:
 	   	dma = (struct dsp_MarkArchived *) dt;
-		DFTable[dma->dsp_FileIndex].df_flags |= DFF_Archived;
+		if (dma->dsp_FileIndex > 0)
+			DFTable[dma->dsp_FileIndex].df_flags |= DFF_Archived;
 		break;
 	/*
 	 * Do a rescan.
