@@ -15,75 +15,6 @@
  *
  * Stolen from NEXUS 26 Jan 1995 and moved to base Zebra distribution.
  * The original NEXUS code is ifdef'ed out with the NEXUS symbol.
- *
- * Updates: $Log: not supported by cvs2svn $
- * Updates: Revision 1.12  2000/01/04 23:15:31  granger
- * Updates: fix a few calls to TC_ZtSplit which still expect a 2-digit year in return
- * Updates:
- * Updates: Revision 1.11  1999/03/01 02:03:57  burghart
- * Updates: It's time to take the plunge.  This is the merge of the large file database
- * Updates: changes made for the U. of Washington, specifically Branch_Seattle_980430.
- * Updates: See the logs of that branch for details.
- * Updates:
- * Revision 1.10  1997/06/22  22:08:18  granger
- * include errno.h instead of sys/errno.h so we can remove duplicate defn of
- * errno; put zebra includes in <>
- *
- * Updates: Revision 1.9  1997/05/13 21:38:11  ishikawa
- * Updates: Replaced symbol aix for AIXV3 for IBM
- * Updates:
- * Revision 1.8  1997/05/12  22:07:23  ishikawa
- * Added support to IBM machine
- *
- * Revision 1.7  1996/11/19  07:13:40  granger
- * eliminate unneeded usy_init call
- *
- * Updates: Revision 1.6  1996/03/12 02:25:58  granger
- * Updates: merge Branch_V4_2 branch up to V4_2: see branch log messages
- * Updates:
- * Revision 1.5.2.1  1996/02/21  23:34:48  granger
- * define USE_STRERROR for SVR4, SYSV, and linux, otherwise use sys_errlist
- *
- * Updates: Revision 1.5  1996/01/10 18:42:47  granger
- * Updates: cast gmtime arg to (time_t *) for hpux ANSI cc
- * Updates:
- * Revision 1.4  1995/06/29  22:33:57  granger
- * fix compiler warnings, especially solaris cc -v -Xa
- *
- * Revision 1.3  1995/05/05  22:35:48  granger
- * change ANSI headers to K&R so that 4.1.3 cc can compile them
- *
- * Revision 1.2  1995/02/10  00:44:59  granger
- * add skeleton usage function; remove warning from returning getopt to char
- *
- * Revision 1.1.1.1  1995/01/26  21:02:49  granger
- * import dsprint from NEXUS into base zebra distribution
- *
- * Revision 1.7  1994/06/27  19:34:48  martin
- * initial solaris edits
- *
- * Revision 1.6  1994/06/10  22:17:01  newbery
- * fixed bug, which caused dsprint to bomb on transparent data
- *
- * Revision 1.5  1994/01/11  00:10:32  martin
- * typo fix in change to OrgFixedScalar
- *
- * Revision 1.4  1994/01/10  23:18:46  martin
- * added OrgFixedScalar
- *
- * Revision 1.3  1994/01/06  02:22:39  martin
- * added -i option for specifying interval of interest
- *
- * Revision 1.2  1993/10/19  18:36:56  martin
- * dsprint complains (to the event logger) and returns
- * nothing if it can not find an explicitly specified
- * file
- *
- * Revision 1.1  1993/09/17  21:39:43  martin
- * Initial revision
- * Revision 1.1  1992/12/10  18:17:28  martin
- * Initial revision
- *
  */
 
 /***************************************************************************/
@@ -110,7 +41,7 @@
 #define MISSVAL		88888.0	/* NEXUS-specific missing data flags	 */
 #endif /* NEXUS */
 
-MAKE_RCSID("$Id: dsprint.c,v 1.13 2001-09-18 22:00:21 granger Exp $")
+MAKE_RCSID("$Id: dsprint.c,v 1.14 2002-09-17 18:04:36 granger Exp $")
 
 /*************************************************************
  ANSI C function prototypes
