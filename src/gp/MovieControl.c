@@ -46,7 +46,7 @@
 # include "EventQueue.h"
 # include "ActiveArea.h"
 
-RCSID ("$Id: MovieControl.c,v 2.26 1996-11-19 07:28:57 granger Exp $")
+RCSID ("$Id: MovieControl.c,v 2.27 1997-05-13 23:59:13 corbet Exp $")
 
 # define ATSLEN		80	/* Length for AsciiText strings		*/
 # define FLEN 		40	/* Length of a field string		*/
@@ -1203,6 +1203,8 @@ char	*param;
 	{
 		fc_UnMarkFrames ();
 		fc_MarkFrames (Mtimes, Nframes);
+		tl_Cancel(MovieSlot);
+		MovieSlot = -1;
 		mc_GenFrames ();
 	}
 }
