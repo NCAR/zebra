@@ -65,7 +65,7 @@ extern "C" {
 # include "Database.h"
 # include "Archiver.h"
 
-RCSID ("$Id: Archiver.cc,v 1.45 2000-05-17 19:49:05 burghart Exp $")
+RCSID ("$Id: Archiver.cc,v 1.46 2000-07-24 19:44:49 granger Exp $")
 
 /*
  * Issues:
@@ -799,7 +799,7 @@ Usage(char *prog, int argc, char **argv)
    fprintf(stderr,"   %-20s Starting hour offset, 0-60 minutes. (0)\n",
 			"-start <min>");
    fprintf(stderr,"   %-20s Dump interval in minutes (%d)\n",
-			"-t,-interval <min>",DEF_DUMPINTERVAL);
+			"-time,-interval <min>",DEF_DUMPINTERVAL);
    fprintf(stderr,"   %-20s Free device at 0z (yes)\n","-z yes|no");
    fprintf(stderr,"   %-20s Delay button times (1,2,5)\n","-wait n1,n2,...");
    fprintf(stderr,"   %-20s Open archive device automatically on startup %s\n",
@@ -1189,6 +1189,7 @@ DoTheWriteThing (int explicit_finish)
 		 */
 		sprintf( datafile, "%s/%d%02d%02d.%02d%02d.tar",
 			 OutputDir,year,month,day,hour,minute );
+		/* Ignore any errors, we just want to make sure it exists. */
 		mkdir (OutputDir, 0775);
 		if ((DeviceFD = open (datafile, O_RDWR|O_CREAT,(int)0664)) < 0)
 		{
@@ -1593,7 +1594,12 @@ RunTar (char *cmd)
  */
 	while ((nb = netread (fd, fbuf, blocksize)) > 0)
 	{
-		if (write (DeviceFD, fbuf, nb) < nb || errno != 0)
+		/*
+		 * This assumes the write failed if it doesn't write all the
+		 * bytes at once.  It hasn't bitten us yet, but note that 
+		 * errno will be zero unless write actually returns < 0.
+		 */
+	    	if (write (DeviceFD, fbuf, nb) < nb)
 		{
 			msg_ELog (EF_EMERGENCY,"Archive device write error %d",
 				  errno);
