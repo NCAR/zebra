@@ -19,7 +19,7 @@
 #include "PixelCoord.h"
 #include "GC.h"
 
-RCSID ("$Id: Radar.c,v 2.3 1997-05-16 16:51:32 granger Exp $")
+RCSID ("$Id: Radar.c,v 2.4 1997-06-19 20:51:50 granger Exp $")
 
 
 static char *ScanNames[5] = 
@@ -177,6 +177,26 @@ char *comp;
 	bool every = TRUE;
 
 	pda_Search (Pd, comp, "every-sweep", NULL,
+		    (char *) &every, SYMT_BOOL);
+	return (! every);
+}
+
+
+
+static int
+r_HoldVolume (comp)
+char *comp;
+/*
+ * Return non-zero if the list of possible angles should be limited to a
+ * single volume, which at the moment is just another word for observation,
+ * which at the moment is another word for file.  The default is to limit
+ * to the current volume, and that changes only if the parameter
+ * "every-volume" is present and true.
+ */
+{
+	bool every = FALSE;
+
+	pda_Search (Pd, comp, "every-volume", NULL,
 		    (char *) &every, SYMT_BOOL);
 	return (! every);
 }
@@ -568,6 +588,7 @@ R_ScanMode *scan;
 	int hold;
 	R_ScanMode attr;
 	ZebTime times[MAXALT];
+	ZebTime obs;
 	int i, nalt, nret;
 /*
  * Check for the scan mode in effect, and see if we need to force the scan
@@ -614,11 +635,19 @@ R_ScanMode *scan;
 				     r_ScanModeAtt(attr), times);
 	}
 	nret = 0;
+	/*
+	 * The most recent scan in the list determines the observation
+	 * (volume) to which we'll limit the list of angles.
+	 */
+	if (! r_HoldVolume (comp) ||
+	    ! ds_GetObsTimes (pid, times, &obs, 1, NULL))
+		obs = ZT_EPOCH;
 	for (i = 0; i < nalt; i++)
 	{
 		float angle;
 
-		if (r_GetAngle (pid, times+i, &angle, &attr) &&
+		if (TC_LessEq (obs, times[i]) &&
+		    r_GetAngle (pid, times+i, &angle, &attr) &&
 		    (! r_AlreadyThere (alts, nret, angle)))
 		{
 			r_Insert (alts, &nret, attr, angle);
@@ -735,7 +764,7 @@ r_Legend (char *comp, char *data, int datalen, int begin, int space)
  */
         sscanf (data, "%s", platform);
 /*
- * Put in the platform, angle mode, scan mode, and current scan labels.
+ * Put in the current platform and scan, followed by angle mode and scan mode.
  */
         left = An_GetLeft ();
 	begin += LWIDTH;	/* leave room for the surrounding rectangle */
@@ -744,6 +773,9 @@ r_Legend (char *comp, char *data, int datalen, int begin, int space)
 
         XSetForeground (XtDisplay (Graphics), Gcontext, xc.pixel);
 	sprintf (buf, "Radar: %s", platform);
+	AnnotLine (buf, scale, &begin, &space, &right);
+
+	sprintf (buf, "Current: %s", r_ScanModeName(current));
 	AnnotLine (buf, scale, &begin, &space, &right);
 
 	if (hold)
@@ -757,9 +789,6 @@ r_Legend (char *comp, char *data, int datalen, int begin, int space)
 	sprintf (buf, "Scan: %s", r_ScanModeName(scan));
 	AnnotLine (buf, scale, &begin, &space, &right);
         XSetForeground (XtDisplay (Graphics), Gcontext, xc.pixel);
-
-	sprintf (buf, "Current: %s", r_ScanModeName(current));
-	AnnotLine (buf, scale, &begin, &space, &right);
 /*
  * Surround with a box.
  */
