@@ -9,7 +9,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project auto-build parameters for development compilations
-XCOMM $Id: Build.tmpl,v 1.26 1997-06-27 20:51:33 granger Exp $
+XCOMM $Id: Build.tmpl,v 1.27 1997-06-30 14:22:05 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -77,8 +77,11 @@ XCOMM --- Auto-binary distribution
 #endif
 
 /*
- * Default to HDF on all architectures
+ * Default to HDF on all architectures -X-X-X- Disabled til further notice
  */
+#ifndef HasHDF
+# define HasHDF NO
+#endif
 #ifndef HasHDF
 # ifndef LinuxArchitecture /* alas, cannot yet compile HDF on linux */
 #  define HasHDF YES
@@ -86,10 +89,13 @@ XCOMM --- Auto-binary distribution
 #  define HasHDF NO
 # endif /* ndef linux */
 #endif /* ndef HasHDF */
-#define HDFIncDir /usr/local/include/hdf
-#define HDFLibDir /usr/local/lib
+#define HDFIncDir /usr/local/hdf/include
+#define HDFLibDir /usr/local/hdf/lib
 #ifdef AutoBinary
-# define HDFLibrary HDFLibDir/libdf.a
+/*
+ * Version 4.0 HDF requires zlib.
+ */
+# define HDFLibrary HDFLibDir/libdf.a HDFLibDir/libz.a
 #endif
 
 /*
@@ -204,24 +210,45 @@ XCOMM --- Deciding C compiler and options
 
 /*
  * Decide whether to automatically turn on static linking based on
- * existence of AutoBinary.
+ * existence of AutoBinary.  For now it defaults to being left undefined.
  */
 #ifdef AutoBinary
-# if !defined(SunArchitecture) && !defined(AutoStatic)
-#  define AutoStatic
+/* # if !defined(SunArchitecture) && !defined(AutoStatic) */
+/* #  define AutoStatic */
+/* # endif */
+#endif
+
+/*
+ * Determine the static binding options for this machine/compiler pair.
+ */
+#ifdef AutoBinary
+# ifdef HPArchitecture
+#  if UseGcc
+#   define StaticLoadOption -Xlinker -a -Xlinker archive_shared
+#   define ExtraLibraries -ldld
+#  else
+#   define StaticLoadOption -a archive_shared
+#   define ExtraLibraries -ldld
+#  endif
+# endif
+#endif
+
+/*
+ * The static compiler option gets determined here, but it only gets
+ * used if AutoStatic is defined.
+ */
+#ifndef StaticFlag
+# if UseGcc
+#  define StaticFlag -static
+# else /* oh well */
+#   define StaticFlag /**/
 # endif
 #endif
 
 /*
  * Existence of an AutoStatic symbol sets our flags for static linking.
  */
-
 #ifdef AutoStatic
-# if UseGcc
-#  define StaticFlag -static
-# else /* guess */
-#   define StaticFlag -Bstatic
-# endif
 # ifndef CDebugFlags
 #  define CDebugFlags -g StaticFlag
 # endif
@@ -234,8 +261,16 @@ XCOMM --- Deciding C compiler and options
 # define CDebugFlags -g
 #endif
 
+/*
+ * Some machine/compilers use a load option for AutoBinary.
+ * The default is empty.
+ */
+#ifndef StaticLoadOption
+# define StaticLoadOption /**/
+#endif
+
 #ifdef HPArchitecture
-# define ExtraLoadOptions -Xlinker +vnocompatwarnings
+# define ExtraLoadOptions -Xlinker +vnocompatwarnings StaticLoadOption
 #endif
 
 #ifdef SGIArchitecture
@@ -247,7 +282,7 @@ XCOMM --- Deciding C compiler and options
     * Someday we may need to suppress warning 84, about libraries not being
     * used to resolve any symbols.
     */
-#  define ExtraLoadOptions -Wl,-woff,85
+#  define ExtraLoadOptions -Wl,-woff,85 StaticLoadOption
 # else
    /*
     * There might need to be linker options on the gcc command line if
@@ -311,8 +346,14 @@ XCOMM --- Deciding X, RDSS and netCDF library directories
 #  endif
 # endif
 # if defined(HPArchitecture)
-#  define XLibraries $(XLIBDIR)/libXaw.a $(XLIBDIR)/libXmu.a \
+#  if OSMajorVersion < 10
+#   define XLibraries $(XLIBDIR)/libXaw.a $(XLIBDIR)/libXmu.a \
 	$(XLIBDIR)/libXt.a $(XLIBDIR)/libXext.a $(XLIBDIR)/libX11.a
+#  else
+#   define XLibraries $(XLIBDIR)/libXaw.a $(XLIBDIR)/libXmu.a \
+	$(XLIBDIR)/libXt.a $(XLIBDIR)/libXext.a $(XLIBDIR)/libX11.a \
+	$(XLIBDIR)/libSM.a $(XLIBDIR)/libICE.a
+#  endif
 # endif
 #endif
 
@@ -425,7 +466,7 @@ XCOMM --- Deciding FORTRAN library paths
 # define TermcapLibrary -lncurses
 #endif
 
-#if defined(SunArchitecture) && defined(AutoBinary)
+#if defined(AutoBinary) && !defined(LinuxArchitecture)
 # define MathLibrary /usr/lib/libm.a
 # ifdef SolarisArchitecture
 #  define TermcapLibrary /usr/ccs/lib/libtermcap.a
