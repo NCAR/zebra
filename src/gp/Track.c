@@ -38,7 +38,7 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 # include "DrawText.h"
-MAKE_RCSID ("$Id: Track.c,v 2.15 1992-10-06 15:29:00 corbet Exp $")
+MAKE_RCSID ("$Id: Track.c,v 2.16 1992-11-03 21:41:49 burghart Exp $")
 
 # define ARROWANG .2618 /* PI/12 */
 
@@ -48,10 +48,10 @@ MAKE_RCSID ("$Id: Track.c,v 2.15 1992-10-06 15:29:00 corbet Exp $")
  */
 static bool tr_CCSetup FP((char *, char *, char *, char *, XColor **,
 		int *, float *, float *, XColor *, float *, float *));
-static void tr_GetArrowParams FP((char *, char *, float *, int *, int *,
+static void tr_GetArrowParams FP((char *, char *, float *, int *, bool *,
 		int *, char *, XColor *, char *, char *, char *));
 static bool tr_CTSetup FP((char *, char *, PlatformId *, int *, int *,
-		char *, bool *, char *, int *, char *));
+		char *, bool *, char *, bool *, char *));
 static void tr_AnnotTrack FP((char *, char *, char *, int, char *, char *,
 		char *, double, double, double, char *, bool));
 # define BADVAL -32768
@@ -66,10 +66,11 @@ bool update;
 	char mtcolor[20], ctable[30], a_color[30];
 	char a_xfield[30], a_yfield[30], a_type[30];
 	int period, x0, y0, x1, y1, nc, lwidth, pid, index;
-	int dskip = 0, npt = 0, i, a_invert, a_int, numfields = 0, afield;
-	int arrow, a_lwidth, showposition, nfld, nsamp;
+	int dskip = 0, npt = 0, i, a_int, numfields = 0, afield;
+	int a_lwidth, nfld, nsamp;
+	bool arrow, showposition;
 	long timenow, vectime = 0;
-	bool mono, shifted; 
+	bool mono, shifted, a_invert;
 	ZebTime begin, zt;
 	float *data, fx, fy, base, incr, a_scale, *a_xdata, *a_ydata;
 	float unitlen, center, step;
@@ -247,7 +248,7 @@ bool shifted;
 {
 	char tadefcolor[30], datastr[100];
 	XColor tadefclr, taclr;
-	int tacmatch = FALSE;
+	bool tacmatch = FALSE;
 	float sascale;
 /*
  * Read in annotation information.
@@ -335,8 +336,8 @@ tr_CTSetup (comp, platform, pid, period, dskip, mtcolor, mono, ccfield,
 	showposition, positionicon)
 char *comp, *platform, *mtcolor, *ccfield, *positionicon;
 PlatformId *pid;
-int *period, *dskip, *showposition;
-bool *mono;
+int *period, *dskip;
+bool *mono, *showposition;
 /*
  * Do the basic setup to plot aircraft tracks.
  */
@@ -470,7 +471,8 @@ tr_GetArrowParams (comp, platform, a_scale, a_lwidth, a_invert, a_int,
 		a_color, a_clr, a_type, a_xfield, a_yfield)
 char *comp, *platform, *a_type, *a_xfield, *a_yfield, *a_color;
 float *a_scale;
-int *a_lwidth, *a_invert, *a_int;
+int *a_lwidth, *a_int;
+bool *a_invert;
 XColor *a_clr;
 /*
  * Get the parameters that control track arrows.
