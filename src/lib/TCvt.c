@@ -26,7 +26,7 @@
 
 # include "defs.h"
 
-MAKE_RCSID ("$Id: TCvt.c,v 2.19 1996-06-21 16:24:31 granger Exp $")
+MAKE_RCSID ("$Id: TCvt.c,v 2.20 1996-08-08 16:45:52 granger Exp $")
 
 /*
  * Public time constants
@@ -34,6 +34,10 @@ MAKE_RCSID ("$Id: TCvt.c,v 2.19 1996-06-21 16:24:31 granger Exp $")
 const ZebTime ZT_ALPHA = { 0, 0 };
 const ZebTime ZT_OMEGA = { 0x7fffffff, 999999 };
 const ZebTime ZT_NONE = { -1, -1 };
+
+#if defined(SVR4) || defined(SYSV) || defined(linux)
+static char *TC_GMTZONE = "TZ=GMT";
+#endif
 
 /*
  * The months of the year.
@@ -72,9 +76,6 @@ const UItime *fcc;
  */
 {
 	struct tm t;
-#if defined(SVR4) || defined(SYSV) || defined(linux)
-        char tz[20];
-#endif
 
 	t.tm_year = fcc->ds_yymmdd/10000;
 	t.tm_mon = (fcc->ds_yymmdd/100) % 100 - 1;
@@ -83,8 +84,7 @@ const UItime *fcc;
 	t.tm_min = (fcc->ds_hhmmss/100) % 100;
 	t.tm_sec = fcc->ds_hhmmss % 100;
 #if defined(SVR4) || defined(SYSV) || defined(linux)
-        strcpy (tz, "TZ=GMT");
-        putenv (tz);
+        putenv (TC_GMTZONE);
 #ifdef notdef /* mktime() has the effect of tzset() so these are ignored */
         timezone = 0;
         /* altzone = 0; */
@@ -157,9 +157,6 @@ ZebTime *zt;
  */
 {
 	struct tm t;
-#if defined(SVR4) || defined(SYSV) || defined(linux)
-	char tz[20];
-#endif
 	t.tm_year = ui->ds_yymmdd/10000;
 	t.tm_mon = (ui->ds_yymmdd/100) % 100 - 1;
 	t.tm_mday = ui->ds_yymmdd % 100;
@@ -168,8 +165,7 @@ ZebTime *zt;
 	t.tm_sec = ui->ds_hhmmss % 100;
 	zt->zt_MicroSec = 0;
 #if defined(SVR4) || defined(SYSV) || defined(linux)
-	strcpy (tz, "TZ=GMT");
-        putenv (tz);
+        putenv (TC_GMTZONE);
 #ifdef notdef
         timezone = 0;
         /* altzone = 0; */
@@ -338,9 +334,6 @@ int year, month, day, hour, minute, second, microsec;
  */
 {
 	struct tm t;
-#if defined(SVR4) || defined(SYSV) || defined(linux)
-	char tz[20];
-#endif
 
 	if (year >= 1900)
 		year -= 1900;
@@ -352,8 +345,7 @@ int year, month, day, hour, minute, second, microsec;
 	t.tm_sec = second;
 	zt->zt_MicroSec = microsec;
 #if defined(SVR4) || defined(SYSV) || defined(linux)
-	strcpy (tz, "TZ=GMT");
-        putenv (tz);
+        putenv (TC_GMTZONE);
 #ifdef notdef
         timezone = 0;
         /* altzone = 0; */
