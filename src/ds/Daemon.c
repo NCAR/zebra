@@ -35,7 +35,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 # include "commands.h"
-MAKE_RCSID ("$Id: Daemon.c,v 3.5 1992-09-08 21:48:51 corbet Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.6 1992-11-10 04:15:33 corbet Exp $")
 
 
 
@@ -516,6 +516,12 @@ bool local, rescan;
  */
 	df->df_ftype = p->dp_ftype;
 	dt_AddToPlatform (p, df, local);
+/*
+ * This is a rather ugly kludge.....if this becomes the most recent file
+ * for this platform, send out a notification for it.
+ */
+	if (rescan && LOCALDATA(*p) == (df - DFTable))
+		dap_Notify (df->df_platform, &df->df_end, ns, 0, TRUE);
 }
 
 
