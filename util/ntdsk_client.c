@@ -1,3 +1,5 @@
+# ifdef NETACCESS
+
 # include <sys/types.h>
 # include <sys/socket.h>
 # include <netinet/in.h>
@@ -55,7 +57,7 @@ char *file;
  * Do a lookup on our service.
  */
  	if ((srv = getservbyname ("rdss_bio", "tcp")) == NULL)
-		ui_error ("Unable to get netfile service -- sorry");
+		ui_error ("Unable to get netdisk service -- sorry");
 /*
  * Find our host.
  */
@@ -83,12 +85,12 @@ char *file;
 /*
  * Get connected to the remote machine.
  */
-	ui_printf ("Connecting to netfile server..."); fflush (stdout);
+	ui_printf ("\nConnecting to netdisk server..."); fflush (stdout);
  	status = connect (skt, (struct sockaddr *) &addr, sizeof (addr));
 	if (status < 0)
 	{
 		signal (SIGALRM, oldsig);
-		ui_error ("I am unable to connect to the calibration server");
+		ui_error ("I am unable to connect to the netdisk server");
 	}
 	ui_printf ("done\n");
 /*
@@ -101,7 +103,9 @@ char *file;
  * Get the banner line.
  */
 	rpl_receive ();
+# ifdef notdef
 	ui_printf ("'%s'\n", rpl_getstr ());
+# endif
 /*
  * Tell it who we are.
  */
@@ -110,7 +114,9 @@ char *file;
 	msg_addstr (getenv ("USER"));
 	msg_send ();
 	rpl_receive ();
+# ifdef notdef
 	ui_printf ("'%s'\n", rpl_getstr ());
+# endif
 /*
  * All done!
  */
@@ -215,7 +221,7 @@ cli_bio_read (lun, block, buffer, nbytes)
 int lun, *block, *nbytes;
 char *buffer;
 {
-	int		*nread;
+	int		nread;
 
 	if (!Connected) return (-1);
 	msg_addopc (OP_BIO_READ);
@@ -224,15 +230,11 @@ char *buffer;
 	msg_addbyt ((char *) nbytes, 4);
 	msg_send ();
 	rpl_receive ();
-	nread = (int *) rpl_getbyt (4);
-	if (*nread > 0)
-	{
-		char *pos = rpl_getbyt (*nread);	
-
-		memcpy (buffer, pos, *nread);
-	}
-	Len = *nread;
-	return (*nread);	
+	nread = *(int *) rpl_getbyt (4);
+	if (nread > 0)
+		memcpy (buffer, rpl_getbyt (nread), nread);
+	Len = nread;
+	return (nread);	
 }
 
 
@@ -263,6 +265,175 @@ char *buffer;
 	rpl_receive ();
 	Len = *(int *) rpl_getbyt (4);
 	return (Len);		
+}
+
+
+
+
+
+cli_dcreate (file)
+char *file;
+{
+	netdisk_setup (file);
+	msg_addopc (OP_DCREATE);
+	msg_addstr (&file[strcspn (file, ":") + 1]);
+	msg_send ();
+	rpl_receive ();
+	return (*(int *) rpl_getbyt (4));
+}
+
+
+
+
+
+cli_dopen (file)
+char *file;
+{
+	netdisk_setup (file);
+	msg_addopc (OP_DOPEN);
+	msg_addstr (&file[strcspn (file, ":") + 1]);
+	msg_send ();
+	rpl_receive ();
+	return (*(int *) rpl_getbyt (4));
+}
+
+
+
+
+
+cli_dview (file)
+char *file;
+{
+	netdisk_setup (file);
+	msg_addopc (OP_DVIEW);
+	msg_addstr (&file[strcspn (file, ":") + 1]);
+	msg_send ();
+	rpl_receive ();
+	return (*(int *) rpl_getbyt (4));
+}
+
+
+
+
+
+cli_dappend (file)
+char *file;
+{
+	netdisk_setup (file);
+	msg_addopc (OP_DAPPEND);
+	msg_addstr (&file[strcspn (file, ":") + 1]);
+	msg_send ();
+	rpl_receive ();
+	return (*(int *) rpl_getbyt (4));
+}
+
+
+
+
+cli_dput (fnum, buf, len)
+int fnum, len;
+char *buf;
+{
+	if (!Connected) return (FALSE);
+	msg_addopc (OP_DPUT);
+	msg_addbyt (&fnum, 4);
+	msg_addbyt (&len, 4);
+	msg_addbyt (buf, len);
+	msg_send ();
+	rpl_receive ();
+	return (*(int *) rpl_getbyt (4));
+}
+
+
+
+
+
+cli_dget (fnum, buf, max)
+int fnum, max;
+char *buf;
+{
+	int	nread;
+
+	if (!Connected) return (FALSE);
+	msg_addopc (OP_DGET);
+	msg_addbyt (&fnum, 4);
+	msg_addbyt (&max, 4);
+	msg_send ();
+	rpl_receive ();
+	nread = *(int *) rpl_getbyt (4);
+	if (nread > 0)
+		memcpy (buf, rpl_getbyt (nread), nread);
+	return (nread);
+}
+
+
+
+
+
+cli_drfa (fnum, rfa)
+int fnum;
+short *rfa;
+{
+	if (!Connected) return;
+	msg_addopc (OP_DRFA);
+	msg_addbyt (&fnum, 4);
+	msg_send ();
+	rpl_receive ();
+	memcpy (rfa, rpl_getbyt (6), 6);
+}
+
+
+
+
+
+cli_dagain (fnum)
+int fnum;
+{
+	if (!Connected) return;
+	msg_addopc (OP_DAGAIN);
+	msg_addbyt (&fnum, 4);
+	msg_send ();
+}
+
+
+
+
+
+cli_dfind (fnum, rfa)
+int fnum;
+short rfa[3];
+{
+	if (!Connected) return;
+	msg_addopc (OP_DFIND);
+	msg_addbyt (&fnum, 4);
+	msg_addbyt (rfa, 6);
+	msg_send ();
+}
+
+
+
+
+
+cli_dclose (fnum)
+int fnum;
+{
+	if (!Connected) return;
+	msg_addopc (OP_DCLOSE);
+	msg_addbyt (&fnum, 4);
+	msg_send ();
+}
+
+
+
+
+
+cli_drewind (fnum)
+int fnum;
+{
+	if (!Connected) return;
+	msg_addopc (OP_DREWIND);
+	msg_addbyt (&fnum, 4);
+	msg_send ();
 }
 
 
@@ -414,3 +585,73 @@ int len;
 	fflush (Sout);
 	(void) signal (SIGPIPE, oldsig);
 }	
+
+
+
+
+
+/*
+ * Logical unit stuff
+ */
+
+static int Lun_table[256][2];
+static int Initialized = 0;
+
+lun_type (lun)
+int lun;
+{
+	if (lun == (int) stdin || lun == (int) stdout || lun == (int) stderr)
+		return (LUN_LOCAL);
+	return (Lun_table[lun - 3][0]);
+}
+
+
+
+
+
+lun_lookup (lun)
+int lun;
+{
+	if (lun == (int) stdin || lun == (int) stdout || lun == (int) stderr)
+		return (lun);
+	return (Lun_table[lun - 3][1]);
+}
+
+
+
+
+
+lun_assign (lun, type)
+int lun, type;
+{
+	int	i;
+
+	if (!Initialized)
+	{
+		memset ((char *) Lun_table, (char) LUN_FREE, 512);
+		Initialized = 1;
+	}
+	for (i=0; i<255; i++)
+		if (Lun_table[i][0] == LUN_FREE)
+		{
+			Lun_table[i][0] = type;
+			Lun_table[i][1] = lun;
+			return (i + 3);
+		}
+	perror ("Out of space in Lun_table!");
+	return (0);
+}
+
+
+
+
+
+lun_deassign (lun)
+int lun;
+{
+	if (lun == (int) stdin || lun == (int) stdout || lun == (int) stderr)
+		return;
+	Lun_table[lun - 3][0] = LUN_FREE;
+}
+
+# endif /* NETACCESS */
