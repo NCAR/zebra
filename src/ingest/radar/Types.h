@@ -1,3 +1,7 @@
+# ifdef UINT
+#	undef UINT
+# endif
+
 typedef int (*FUNCPTR) ();		/* pointer to a function */
 
 typedef char TINY;

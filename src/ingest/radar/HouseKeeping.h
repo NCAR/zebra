@@ -17,6 +17,14 @@
 #define LAT_CF (4.0 * DEG_TO_BIN)
 #define LON_CF (2.0 * DEG_TO_BIN)
 
+/*
+ * Structure describing parameter scaling and bias info.
+ */
+typedef struct _ParmInfo
+{
+	unsigned short pi_scale;	/* Scale factor	* 100	*/
+	short pi_bias;			/* Bias factor * 100 	*/
+} ParmInfo;
 
 
 /******************************************************************************
@@ -65,8 +73,7 @@ typedef struct {
 /*028*/	USHORT ccw_az_lim;	/* azimuth angle of last dwell */
 /*029*/	USHORT up_elev_lim;	/* 0 */
 /*030*/	USHORT lo_elev_lim;	/* 0 */
-/*031*/	USHORT target_elev;	/* the elevation angle from the
-				 * scan strategy table */
+/*031*/	USHORT fixed;		/* Fixed angle	*/
 /*032*/	USHORT sig_source;	/* signal source (0 = radar) */
 /*033*/	 short coupler_loss;	/* includes all fixed loss (dB * 10) */
 /*034*/	USHORT tp_strt;		/* test pulse start (km * 100) */
@@ -115,16 +122,20 @@ typedef struct {
 				 * 1|1 on 1/2" tape 
 				 */
 /*068*/	USHORT parm_per_gate;
+# ifdef notdef
 /*069*/	USHORT parm1_desc;
 /*070*/	USHORT parm2_desc;
 /*071*/	USHORT parm3_desc;
 /*072*/	USHORT parm4_desc;
 /*073*/	USHORT parm5_desc;
 /*074*/	USHORT parm6_desc;
+# endif
+	USHORT parm_desc[6];
 /*075*/	 short tp_max;		/* test pulse maximum (dBm * 10) */
 /*076*/	 short tp_min;		/* test pulse minimum (dBm * 10) */
 /*077*/	 short tp_step;	/* test pulse step (dB * 10) */
 /*078*/	USHORT vol_scan_prg;
+# ifdef notdef
 /*079*/	USHORT parm1_scale;	/* scale * 100 for Z */
 /*080*/	 short parm1_bias;	/* bias * 100 for Z */
 /*081*/	USHORT parm2_scale;	/* scale * 100 for V */
@@ -137,6 +148,8 @@ typedef struct {
 /*088*/	 short parm5_bias;
 /*089*/	USHORT parm6_scale;
 /*090*/	 short parm6_bias;
+# endif
+	ParmInfo parm_info[6];	/* Parameter scaling info	*/
 /*091*/	USHORT rp7_bit_flags;	/* RP7 bit flags. */
                      /* 0) RP7 beam indexing (1=on)		 
                       * 1) test mode indicator (1=in test mode; this 
@@ -198,3 +211,12 @@ typedef struct {
 #define HSK_PD_WIDTH 0x0308	/* width in m/s */
 #define HSK_PD_DBZ 0x0108	/* reflectivity in dBZ */
 #define HSK_PD_SNR 0x0408	/* SNR */
+
+/*
+ * Scan modes.
+ */
+# define SM_CAL		0
+# define SM_PPI		1
+# define SM_COP		2
+# define SM_RHI		3
+# define SM_SUR		8
