@@ -115,12 +115,12 @@ char	**argv;
 	vtable = usy_g_stbl ("ui$variable_table");
 	usy_c_indirect (vtable, "originLat", &OriginLat, SYMT_FLOAT, 0);
 	usy_c_indirect (vtable, "kmResolution", &KmResolution, SYMT_FLOAT, 0);
-	usy_c_indirect (vtable, "platform", &Platname, SYMT_STRING, 
+	usy_c_indirect (vtable, "platform", Platname, SYMT_STRING, 
 			sizeof (Platname));
 	usy_c_indirect (vtable, "gridX", &GridX, SYMT_INT, 0);
 	usy_c_indirect (vtable, "gridY", &GridY, SYMT_INT, 0);
-	usy_c_indirect (vtable, "source", &Source, SYMT_STRING, 
-			sizeof (Source));
+	usy_c_indirect (vtable, "source", Source, SYMT_STRING, 
+			sizeof (*Source));
 	
 /*
  * Get on with it
@@ -385,7 +385,7 @@ GetRawImages ()
 			
 			EbcdicToAscii ((char *)&record.block[i].lcw, 
 				       sizeof (lcword));
-			EbcdicToAscii ((char *)&record.block[i].tail, 
+			EbcdicToAscii ((char *)record.block[i].tail, 
 				       8);
 		}
 	/*
