@@ -4,9 +4,27 @@
  * Unless otherwise noted, the formulas used herein are extracted
  * from the document "Formulation of Output Parameters for PAM II CMF Data"
  * compiled by Paul Herzegh (18 March 1988 revision).
- *
- * $Revision: 1.5 $ $Date: 1991-01-16 21:40:29 $ $Author: burghart $
  */
+/*
+ *		Copyright (C) 1988-91 by UCAR
+ *	University Corporation for Atmospheric Research
+ *		   All rights reserved
+ *
+ * No part of this work covered by the copyrights herein may be reproduced
+ * or used in any form or by any means -- graphic, electronic, or mechanical,
+ * including photocopying, recording, taping, or information storage and
+ * retrieval systems -- without permission of the copyright owner.
+ * 
+ * This software and any accompanying written materials are provided "as is"
+ * without warranty of any kind.  UCAR expressly disclaims all warranties of
+ * any kind, either express or implied, including but not limited to the
+ * implied warranties of merchantibility and fitness for a particular purpose.
+ * UCAR does not indemnify any infringement of copyright, patent, or trademark
+ * through use or modification of this software.  UCAR does not provide 
+ * maintenance or updates for its software.
+ */
+
+static char *rcsid = "$Id: met_formulas.c,v 1.6 1991-10-21 21:49:30 burghart Exp $";
 
 # include <math.h>
 # include "met_formulas.h"
