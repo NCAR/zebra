@@ -1,7 +1,7 @@
 /*
  * XY-Observation plotting module
  */
-static char *rcsid = "$Id: XYObservation.c,v 1.10 1994-01-19 02:03:34 granger Exp $";
+static char *rcsid = "$Id: XYObservation.c,v 1.11 1994-02-07 21:29:04 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -285,7 +285,7 @@ bool	update;
 		dv[2].fname = zfnames[nzfield > 1 ? plat : 0];
 
 		npts[plat] = xy_GetDataVectors (pid, &bTimeReq, &eTimeReq, 
-						single_obs, 1, dv, 3, 
+						single_obs, 0, dv, 3, 
 						dvObsInfo + plat);
 	/*
 	 * Update the overlay times widget and set up for side annotation

@@ -1,7 +1,7 @@
 /*
  * XY-Graph plotting module
  */
-static char *rcsid = "$Id: XYGraph.c,v 1.26 1994-01-19 02:03:31 granger Exp $";
+static char *rcsid = "$Id: XYGraph.c,v 1.27 1994-02-07 21:29:02 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -251,7 +251,7 @@ bool	update;
 		dv[1].fname = yfnames[nyfield > 1 ? plat : 0];
 
 		npts[plat] = xy_GetDataVectors (pid, &bTimeReq, &eTimeReq, 
-						single_obs, 1, dv, 2, NULL);
+						single_obs, 0, dv, 2, NULL);
 	/*
 	 * Update the overlay times widget and set up for side annotation
 	 * (Do it here since eTimeReq may change from platform to platform)

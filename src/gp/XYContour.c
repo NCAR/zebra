@@ -1,7 +1,7 @@
 /*
  * XY-Contour plotting module
  */
-static char *rcsid = "$Id: XYContour.c,v 1.19 1994-01-19 02:03:28 granger Exp $";
+static char *rcsid = "$Id: XYContour.c,v 1.20 1994-02-07 21:28:59 burghart Exp $";
 /*		Copyright (C) 1993 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -288,7 +288,7 @@ bool	update;
 		dv[2].fname = zfnames[nzfield > 1 ? plat : 0];
 
 		npts[plat] = xy_GetDataVectors (pid, &bTimeReq, &eTimeReq, 
-						single_obs, 1, dv, 3, NULL);
+						single_obs, 0, dv, 3, NULL);
 	/*
 	 * Update the overlay times widget and set up for side annotation
 	 * (Do it here since eTimeReq may change from platform to platform)
