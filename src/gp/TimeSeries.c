@@ -1,7 +1,7 @@
 /*
  * Time Series Plotting
  */
-static char *rcsid = "$Id: TimeSeries.c,v 2.14 1994-04-15 21:26:30 burghart Exp $";
+static char *rcsid = "$Id: TimeSeries.c,v 2.15 1994-05-24 02:33:23 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -454,11 +454,7 @@ float 	*center, *step;
 	 */
 		if (dolabel)
 		{
-/*
- *			sprintf (string, "%d", nint (tick));  // original 
- */
-			sprintf (string, "%d", (double)((long)(tick+0.5)));
-				                         /* cast instead */
+			sprintf (string, "%d", nint (tick));
 			DrawText (Graphics, d, Gcontext, 
 				Pix_left - 0.005 * gwidth, YPIX (tick), string,
 				0.0, TSScale, JustifyRight, JustifyBottom);
@@ -497,11 +493,8 @@ float 	*center, *step;
 	 */
 		if (dolabel)
 		{
-/*
- *			sprintf (string, "%d", nint (tick));  // original 
- */
-			sprintf (string, "%d", (double)((long)(tick+0.5)));
-				                         /* cast instead */
+
+			sprintf (string, "%d", nint (tick));
 			DrawText (Graphics, d, Gcontext, 
 				Pix_right + 0.005 * gwidth, YPIX (tick), 
 				string, 0.0, TSScale, JustifyLeft, 
