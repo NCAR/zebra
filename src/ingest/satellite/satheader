@@ -1,0 +1,4 @@
+	limits 33 -106 44 -89
+	set originLat 39.71
+	set platform "goes"
+	set kmResolution 4
