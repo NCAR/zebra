@@ -65,10 +65,6 @@
  */
 
 
-/*
- defined in "PixelCoords.h"
-# define ICONSPACE	50
-*/
 # define F_PIX_HEIGHT   ((int)((FY1-FY0)*GWHeight(Graphics)))
 # define F_PIX_WIDTH    ((int)((FX1-FX0)*GWWidth(Graphics)))
 # define DATA_SERIES    (1<<1)
