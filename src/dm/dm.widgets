@@ -1,7 +1,7 @@
 !
 ! Display manager widgets.
 !
-! $Id: dm.widgets,v 1.4 1993-03-13 05:40:19 granger Exp $
+! $Id: dm.widgets,v 1.5 1993-03-15 20:15:18 corbet Exp $
 !
 
 define widget SaveConfig form 'Configuration saver'
@@ -153,17 +153,21 @@ procedure DoConfigCreate
 endprocedure
 
 
-
+!
+! The overall configuration editing widget
+!
 define widget ConfigEdit form 'config edit'
 	noheader
 	label l1 'Configuration Editing'
 	newline
-	button zap 'Cancel' width 75 command 'popdown #ui$form' color red
+	button zap 'Zap' width 75 command 'popdown #ui$form' color red
 	button help 'Help' width 75 command 'help editdconfig'
 	newline
 	button b1 'New Configuration' width 160 command 'popup newconfig'
 	newline
 	button b2 'New Window' width 160 command 'popup NewWindow'
+	newline
+	button b2a 'Delete Window' width 160 command 'popup ZorchWindow'
 	newline
 	button b3 'Save Configuration' width 160 command 'popup SaveConfig'
 endform
@@ -234,4 +238,47 @@ procedure DoEnter overwrite bool
 		local when getftext(ui$form,'time')
 		enter #plat #lat_deg #lat_min #lon_deg #lon_min #alt #when
 	endif
+endprocedure
+
+
+
+
+!
+! Interface to the "kill" function.
+!
+define widget ZorchWindow form 'Window zapper'
+	noheader
+	label l1 'Delete a window.'
+	newline
+	label l2 'Enter window name below, or click on "select with mouse"'
+	newline
+	label l3 'to use the mouse.'
+	newline
+	label l4 'Window name:'
+	blank victim '--' width 150
+	button mouse 'Select with mouse' command 'ZW_pick'
+	newline
+	button Reaper 'Do it' color red command 'ZW_Zap'
+	button reprieve 'Cancel' command 'popdown #ui$form'
+endform
+
+
+
+!
+! Select a victim with the mouse.
+!
+procedure ZW_pick
+	set victim '--'
+	pickwin victim
+	formtext #ui$form victim #victim
+endprocedure
+
+
+!
+! Do it.
+!
+procedure ZW_Zap
+	local victim getftext(ui$form,'victim');
+	kill #victim
+	popdown #ui$form
 endprocedure

@@ -34,7 +34,7 @@
 # include <config.h>
 # include <copyright.h>
 # include <xhelp.h>
-MAKE_RCSID ("$Id: dm.c,v 2.27 1993-03-12 21:34:58 granger Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.28 1993-03-15 20:15:18 corbet Exp $")
 
 
 /*
@@ -92,6 +92,7 @@ static void ForceRestart FP ((char *));
 static int dm_dispatcher FP ((int, struct ui_command *));
 static int dm_msg_handler FP ((Message *));
 static void EnterPosition FP ((struct ui_command *));
+static void KillProcess FP ((char *));
 
 
 
@@ -357,7 +358,13 @@ struct ui_command *cmds;
 		XhCallXHelp (Top, helpfile, topic, "Welcome to Zeb");
 		XFlush(Dm_Display);	/* flush Xatoms to xhelp program */
 		break;
-	   	
+	/*
+	 * Do away with a window.
+	 */
+	   case DMC_KILL:
+	   	KillProcess (UPTR (cmds[1]));
+		break;
+
 	   default:
 	   	ui_error ("(BUG): Unknown keyword: %d\n", UKEY (*cmds));
 	}
@@ -456,6 +463,55 @@ char *window;
 	dmsg.dmm_type = DM_DIE;
 	msg_send (window, MT_DISPLAYMGR, FALSE, &dmsg, sizeof (dmsg));
 }
+
+
+
+
+static void
+KillProcess (who)
+char *who;
+/*
+ * Terminate this poor process who is just trying to do his job make pictures
+ * feed his child processes and all that stuff.
+ */
+{
+	struct cf_window *win = lookup_win (who, TRUE);
+	struct config *cfg = LookupConfig (Cur_config);
+	int i;
+/*
+ * Needs to be an on-screen window.
+ */
+	if (! win)
+	{
+		msg_ELog (EF_PROBLEM, "(Kill) process %s nonexistent", who);
+		return;
+	}
+/*
+ * Send it the restart message so that it goes away.
+ */
+	ForceRestart (who);
+	usy_z_symbol (Current, who);	/* So it won't really restart */
+/*
+ * Pass through the configuration and find this window.
+ */
+	for (i = 0; i < cfg->c_nwin; i++)
+		if (! strcmp (cfg->c_wins[i].cfw_name, who))
+			break;
+	if (i >= cfg->c_nwin) /* "can't ever happen" */
+	{
+		msg_ELog (EF_PROBLEM, "Window %s not in current config", who);
+		return;
+	}
+/*
+ * Get rid of the window.  At this point, it is not clear what we should
+ * do about the plot description.  If the same PD is referenced in other
+ * invocations of this window, problems could result.  So we just drop it.
+ */
+	for (; i < --cfg->c_nwin; i++)
+		cfg->c_wins[i] = cfg->c_wins[i + 1];
+}
+
+
 
 
 
