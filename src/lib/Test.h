@@ -1,5 +1,5 @@
 /*
- * $Id: Test.h,v 2.1 1996-11-19 07:50:39 granger Exp $
+ * $Id: Test.h,v 2.2 1996-11-20 22:32:12 granger Exp $
  * 
  * Testing interface declarations
  */
@@ -7,7 +7,7 @@
 #ifndef _zebra_Test_h_
 #define _zebra_Test_h_
 
-#include <defs.h>
+#include "defs.h"
 
 /*
  * The Expect interface.
