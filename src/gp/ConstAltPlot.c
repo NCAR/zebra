@@ -56,7 +56,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.83 2000-04-28 16:33:53 burghart Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.84 2000-08-16 22:54:36 burghart Exp $")
 
 
 /*
@@ -1772,7 +1772,7 @@ CAP_PlotRaster (char *c, zbool update, char *topannot, char *sideannot)
  * description, specified conent, and plot time
  */
 {
-	char	fname[20], ctname[40], data[100], hcolor[40], style[40];
+	char	fname[80], ctname[40], data[100], hcolor[40], style[40];
 	char 	platform[PlatformListLen];
 	char	param[50], outrange[40];
 	int	xdim, ydim, slow;
@@ -2516,7 +2516,7 @@ CAP_PolarParams (char *c, char *platform, PlatformId *pid, FieldId *fids,
  */
 {
 	int ok, enab = 0;
-	char cparam[120], fname[40], param[40], sastyle[40];
+	char cparam[120], fname[80], param[40], sastyle[40];
 /*
  * Platform info.
  */
