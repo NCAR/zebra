@@ -1,7 +1,7 @@
 /*
  * Raster display a rectangular array
  */
-static char *rcsid = "$Id: RasterPlot.c,v 2.5 1992-12-18 08:30:34 granger Exp $";
+static char *rcsid = "$Id: RasterPlot.c,v 2.6 1992-12-18 09:05:12 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -433,22 +433,59 @@ bool	fast;
 
 # ifdef SHM
 static bool
-RP_ShmPossible (disp)
-Display *disp;
+RP_ShmPossible (dpy)
+Display *dpy;
 /*
- * Return TRUE iff we can do shared memory.
+ * Return TRUE iff we can do shared memory.  This function is almost an
+ * exact copy of the one used by the GraphicsWidget, so if something changes
+ * here it might need to be changed there as well.
  */
 {
-	static bool known = FALSE, possible;
-	int maj, min, sp;
+	static int known = FALSE, possible;
 
 	if (known)
-		return (possible);
-	known = True;
-	possible = XShmQueryVersion (disp, &maj, &min, &sp);
-	msg_ELog (EF_DEBUG, "Shared memory: %s", possible ? "True" : "False");
+		return(possible);
+
+	known = TRUE;
+	{
+#		define HOSTLEN 50
+		int maj, min, sp;
+		char host[HOSTLEN];
+		int n;
+		char *c;
+	/*
+	 * First see if the server even supports the extension
+	 */
+		possible = XShmQueryVersion(dpy, &maj, &min, &sp);
+		possible = possible && sp;
+		msg_ELog(EF_DEBUG, "Raster: XShm %s supported by display %s",
+			 possible ? "IS" : "NOT", dpy->display_name);
+		if (!possible)
+			return(possible);
+	/*
+	 * Then check that server and client are on the same host, otherwise we
+	 * can't very well share memory, can we?  If the display name is
+	 * "unix:?.?" or ":?.?", we'll assume the server is local.  The whole
+	 * heuristic is rather flawed, but it should be accurate most of the time.
+	 */
+		n = (c = strchr(dpy->display_name, ':')) ? 
+			(int)(c - dpy->display_name) : strlen(dpy->display_name);
+		gethostname(host, HOSTLEN);
+		host[HOSTLEN - 1] = '\0';
+		if (!n || (!strncmp(dpy->display_name, "unix", n)))
+			possible = TRUE;
+		else if (n == strlen(host))
+			possible = !strncmp(host, dpy->display_name, n);
+		else
+			possible = FALSE;
+		msg_ELog(EF_DEBUG, 
+			 "Raster: XShm %s, server %s, client @ %s",
+			 possible ? "True" : "False",
+			 dpy->display_name, host);
+		return(possible);
+	}
 }
-# endif
+# endif /* SHM */
 
 
 
