@@ -11,7 +11,7 @@ extern "C" {
 #include <message.h>
 }
 
-RCSID ("$Id: BTree.cc,v 1.4 1997-12-17 03:49:18 granger Exp $")
+RCSID ("$Id: BTree.cc,v 1.5 1997-12-17 05:24:07 granger Exp $")
 
 #include "Logger.hh"
 #include "BTree.hh"
@@ -319,7 +319,7 @@ BTreeNode<K,T>::BTreeNode (BTree<K,T> &t, int d) : tree(t), depth(d)
 	else	// we're a leaf which needs an element offset table
 	{
 		table = new Element[tree.MaxKeys()+1];
-		table[nkeys].offset = 0; // Offset for first element insertion
+		table[0].offset = 0; // Offset for first element insertion
 		sbuf = new SerialBuffer;
 	}
 }
