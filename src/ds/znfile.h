@@ -1,7 +1,7 @@
 /*
  * Structures describing the zeb native file format.
  */
-/* $Id: znfile.h,v 1.1.1.1 1993-04-02 00:34:42 granger Exp $ */
+/* $Id: znfile.h,v 1.2 1993-08-12 18:31:59 granger Exp $ */
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -61,7 +61,7 @@ typedef struct _zn_Header
  */
 typedef struct _zn_Free
 {
-	int	znf_FMagic;		/* Free chunk magic		*/
+	long	znf_FMagic;		/* Free chunk magic		*/
 	int	znf_Size;		/* Size of this chunk		*/
 	long	znf_Next;		/* Next free chunk		*/
 } zn_Free;
@@ -106,3 +106,4 @@ typedef struct _zn_Station
 	char	zns_Name[ZN_STA_LEN];	/* Name of this station		*/
 	Location zns_Loc;		/* Where it is			*/
 } zn_Station;
+
