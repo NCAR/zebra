@@ -1,7 +1,7 @@
 /*
  * Data store daemon-specific definitions.
  */
-/* $Id: dsDaemon.h,v 3.5 1993-05-03 17:21:58 corbet Exp $ */
+/* $Id: dsDaemon.h,v 3.6 1993-09-02 08:25:21 granger Exp $ */
 /*
  * The platform and data tables, via pointer.
  */
@@ -83,6 +83,9 @@ void dap_Notify FP ((PlatformId, ZebTime *, int, int, int));
 void dap_Copy FP ((char *));
 void ClearLocks FP ((Platform *));
 void CacheInvalidate FP ((int));
+void Shutdown FP ((void));
+void DataFileGone FP ((DataFile *df));
+
 /*
  * Datascan.
  */
