@@ -25,7 +25,7 @@
 # include <DataChunk.h>
 # include "GraphProc.h"
 # include "rg_status.h"
-MAKE_RCSID ("$Id: GridAccess.c,v 2.12 1992-12-23 21:46:53 granger Exp $")
+MAKE_RCSID ("$Id: GridAccess.c,v 2.13 1993-04-09 16:37:01 corbet Exp $")
 
 
 
@@ -460,7 +460,7 @@ int dobarnes;
  * Use the BINTS routine to do barnes/closest point interpolation.
  */
 {
-	int nsta, i, ip, nqd = 0, nfilt = 0;
+	int nsta, i, ip, nqd = 0, nfilt = 0, fullgrid = 0;
 	float *xpos, *ypos, xmin = 99999.0, xmax = -99999.0, ymin = 99999.0;
 	float ymax = -99999.0, badflag, *grid, *dz, *dzr, radius, rmx, *dp;
 	Location *locs, location;
@@ -484,6 +484,9 @@ int dobarnes;
 	if (! pda_Search (Pd, comp, "max-fill", platform, (char *)
 			&rmx, SYMT_FLOAT))
 		rmx = 3.0;
+	if (! pda_Search (Pd, comp, "full-grid", platform, (char *) &fullgrid,
+			SYMT_BOOL))
+		fullgrid = FALSE;
 /*
  * Get stuff out of the data chunk...number of points (platforms).
  */
@@ -516,6 +519,16 @@ int dobarnes;
 			ymin = ypos[i];
 		if (ypos[i] > ymax)
 			ymax = ypos[i];
+	}
+/*
+ * If they don't want the full grid, move the limits accordingly.
+ */
+	if (! fullgrid)
+	{
+		xmin = Xlo;
+		xmax = Xhi;
+		ymin = Ylo;
+		ymax = Yhi;
 	}
 /*
  * Store some of the new position info.  The rectangular grid is embedded in
