@@ -30,7 +30,7 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 
-RCSID ("$Id: RasterPlot.c,v 2.24 1995-09-11 07:46:35 granger Exp $")
+RCSID ("$Id: RasterPlot.c,v 2.25 1995-09-21 21:10:36 burghart Exp $")
 
 # ifdef TIMING
 # include <sys/time.h>
@@ -844,7 +844,7 @@ RGrid *rg;
  * Kludgery.  If (1) we are using a fancy map projection, and (2) this is
  * 	      a "big" image, go off and do it the slow way.
  */
-	if (prj_FancyProjection () && (rg->rg_Xspacing*rg->rg_nX) > 1000)
+	if (prj_FancyProjection () && rg && (rg->rg_Xspacing*rg->rg_nX) > 1000)
 	{
 		RP_SlowImagePlot (w, frame, grid, scale, bias, loc, rg, cmap);
 		return;
