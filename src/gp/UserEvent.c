@@ -1,7 +1,7 @@
 /*
  * Deal with user-originated events.
  */
-static char *rcsid = "$Id: UserEvent.c,v 2.4 1993-10-18 19:29:04 corbet Exp $";
+static char *rcsid = "$Id: UserEvent.c,v 2.5 1993-11-09 22:23:18 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -281,9 +281,15 @@ Cardinal *nparam;
  * Deal with motion events.
  */
 {
-	XMotionEvent *xme = (XMotionEvent *) event;
-	bool button = xme->state & (Button1Mask|Button2Mask|Button3Mask);
+	XMotionEvent *xme;
+	bool button;
 	ActiveArea *which;
+/*
+ * Clear out redundant events.
+ */
+	while (XCheckMaskEvent (Disp, ButtonMotionMask, event));
+	xme = (XMotionEvent *) event;
+	button = xme->state & (Button1Mask|Button2Mask|Button3Mask);
 /*
  * If somebody is snarfing motions, forward this off to them.
  */

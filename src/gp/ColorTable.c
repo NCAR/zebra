@@ -1,7 +1,7 @@
 /*
  * Color control / display manager interface code.
  */
-static char *rcsid = "$Id: ColorTable.c,v 2.1 1991-09-12 20:27:54 corbet Exp $";
+static char *rcsid = "$Id: ColorTable.c,v 2.2 1993-11-09 22:23:16 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -234,8 +234,7 @@ struct dm_ctable **ctr;
 /*
  * Got it.  Copy out the info and return.
  */
-	if (dmm->dmm_type == DM_TABLE)
-		*ctr = dmm;
+	*ctr = (dmm->dmm_type == DM_TABLE) ? dmm : 0;
 	return (0);
 }
 

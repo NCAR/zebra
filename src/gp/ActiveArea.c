@@ -21,11 +21,12 @@
  */
 # include <X11/Intrinsic.h>
 # include <defs.h>
+# include <message.h>
 # include <pd.h>
 # include "GraphProc.h"
 # include "ActiveArea.h"
 
-MAKE_RCSID ("$Id: ActiveArea.c,v 2.2 1993-10-18 19:28:22 corbet Exp $")
+MAKE_RCSID ("$Id: ActiveArea.c,v 2.3 1993-11-09 22:23:13 corbet Exp $")
 
 /*
  * List creation parameters.
@@ -137,7 +138,14 @@ int col, slot;
  */
 {
 	AAColumn *cp = list->al_columns + col;
-
+/*
+ * Sometimes we get stuff way out of bounds.
+ */
+	if (col < 0 || col >  GWWidth (Graphics)/AA_CWIDTH + 1)
+		return;
+/*
+ * Now just remember.
+ */
 	if (++(cp->ac_nentry) > cp->ac_nalloc)
 	{
 		if (cp->ac_nalloc > 0)
@@ -192,6 +200,14 @@ AAList *list;
  */
 {
 	int col;
+/*
+ * Make sure this isn't the current list.
+ */
+	if (list == CurrentAreas)
+	{
+		msg_ELog (EF_INFO, "Free current areas");
+		CurrentAreas = 0;
+	}
 /*
  * Go through and do the columns.
  */
