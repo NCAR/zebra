@@ -8,7 +8,7 @@
 # include "GraphProc.h"
 # include "rg_status.h"
 
-static char *rcsid = "$Id: GridAccess.c,v 1.6 1991-02-12 20:56:48 corbet Exp $";
+static char *rcsid = "$Id: GridAccess.c,v 1.7 1991-06-25 14:14:07 corbet Exp $";
 
 
 # define BADVAL	-32768.0
@@ -18,8 +18,10 @@ static char *rcsid = "$Id: GridAccess.c,v 1.6 1991-02-12 20:56:48 corbet Exp $";
  */
 # ifdef __STDC__
 	static bool ga_Regularize (DataObject *);
+	static void ga_RangeLimit (char *, int, float *);
 # else
 	static bool ga_Regularize ();
+	static void ga_RangeLimit ();
 # endif
 
 
@@ -216,7 +218,7 @@ DataObject *dobj;
 /*
  * Wire the dimension of the grid, and get some more memory.
  */
-	rg.rg_nX = rg.rg_nY = 16;			/* XXX */
+	rg.rg_nX = rg.rg_nY = 20;			/* XXX */
 	grid = (float *) malloc (rg.rg_nX * rg.rg_nY * sizeof (float));
 /*
  * Do a pass over the locations, and set everything up.
@@ -258,6 +260,10 @@ DataObject *dobj;
  */
 	for (i = 0; i < rg.rg_nX*rg.rg_nY; i++)
 		grid[i] = BADVAL;
+/*
+ * Apply limits.
+ */
+	ga_RangeLimit (dobj->do_fields[0], irg->ir_npoint, dobj->do_data[0]);
 /*
  * Use RGRID to generate gridded data
  */
@@ -304,4 +310,45 @@ DataObject *dobj;
 	dobj->do_flags |= DOF_FREEDATA;
 	dobj->do_desc.d_rgrid = rg;
 	return (TRUE);
+}
+
+
+
+
+
+static void
+ga_RangeLimit (fname, npt, data)
+char *fname;
+int npt;
+float *data;
+/*
+ * Apply range limits to this data.
+ */
+{
+	float limit;
+	int i, nzapped = 0;
+/*
+ * If there is a minimum limit, apply it to the data.
+ */
+	if (pda_Search (Pd, "global", "range-min", fname, (char *) &limit,
+			SYMT_FLOAT))
+		for (i = 0; i < npt; i++)
+			if (data[i] != BADVAL && data[i] < limit)
+			{
+				data[i] = BADVAL;
+				nzapped++;
+			}
+/*
+ * Same for the max.
+ */
+	if (pda_Search (Pd, "global", "range-max", fname, (char *) &limit,
+			SYMT_FLOAT))
+		for (i = 0; i < npt; i++)
+			if (data[i] != BADVAL && data[i] > limit)
+			{
+				data[i] = BADVAL;
+				nzapped++;
+			}
+	if (nzapped)
+		msg_ELog (EF_INFO, "%d pts range limited", nzapped);
 }
