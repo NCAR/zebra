@@ -1,7 +1,7 @@
 /*
  * Convert a composite precip data file to Zeb data store files. 
  */
-static char *rcsid = "$Id: PrecipIngest.c,v 1.1 1993-03-24 18:51:36 burghart Exp $";
+static char *rcsid = "$Id: PrecipIngest.c,v 1.2 1994-02-02 20:11:51 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -380,7 +380,7 @@ char	*ret, *text;
 
 	
 
-int
+static int
 Die (status)
 int	status;
 /*
@@ -446,7 +446,7 @@ short	*qual_code, *qc_flag;
 {
 	char	line[80 + 12 * SAMPS_PER_DAY];
 	int	i, f, flag;
-	char	flagtable[] = "UGBDNXE........M";
+	static char	flagtable[] = "UGBDNXE........M";
 
 	if (! fgets (line, sizeof (line), infile))
 		return (0);
