@@ -33,7 +33,7 @@
 # include <mda.h>
 # include <station.h>
 
-static char *rcsid = "$Id: pam_ingest.c,v 2.1 1991-09-16 21:32:17 burghart Exp $";
+static char *rcsid = "$Id: pam_ingest.c,v 2.2 1992-01-16 18:16:15 corbet Exp $";
 
 # ifdef __STDC__
 	static int incoming (struct message *);
@@ -241,14 +241,21 @@ char **fields;
 	IRGrid *irg = &Dobj.do_desc.d_irgrid;
 	struct dstream *dsp;
 	float *datap;
-	char rtype, *fname;
+	char rtype, *fname, *zebname, *strchr ();
 /*
  * Go through our field list, and validate that we understand each one.
  */
 	Dobj.do_nfield = 0;
 	for (fld = 0; fld < nfield; fld++)
 	{
+	/*
+ 	 * Allow mda/zeb notation.
+	 */
 		fname = fields[fld];
+		if (zebname = strchr (fname, '/'))
+			*zebname++ = '\0';
+		else
+			zebname = fname;
 	/*
 	 * Initialize to no field modification
 	 */
@@ -304,7 +311,7 @@ char **fields;
 			printf ("Bad field '%s'\n", fname);
 			continue;
 		}
-		Dobj.do_fields[Dobj.do_nfield++] = usy_string (fname);
+		Dobj.do_fields[Dobj.do_nfield++] = usy_string (zebname);
 	}
 /*
  * Allocate the space we will need for the data.
