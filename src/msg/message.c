@@ -51,7 +51,7 @@
 # define MESSAGE_MANAGER	/* define prototypes for netread functions */
 # include <message.h>
 
-RCSID ("$Id: message.c,v 2.47 1996-11-19 08:05:10 granger Exp $")
+RCSID ("$Id: message.c,v 2.48 1996-12-31 23:36:42 burghart Exp $")
 
 /*
  * Symbol tables.
@@ -1218,7 +1218,8 @@ int niov, nwrote;
 	/*
 	 * Move over the data and put it into the chain.
 	 */
-		memcpy (dwp->dw_data, iov->iov_base + nwrote, dwp->dw_nbyte);
+		memcpy (dwp->dw_data, (char*)(iov->iov_base) + nwrote, 
+			dwp->dw_nbyte);
 		if (conp->c_dwrite)
 			conp->c_dwtail->dw_next = dwp;
 		else
