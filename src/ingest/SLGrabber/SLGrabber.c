@@ -21,7 +21,6 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: SLGrabber.c,v 2.4 1993-07-01 20:15:02 granger Exp $";
 
 # include <copyright.h>
 # include <stdio.h>
@@ -33,6 +32,8 @@ static char *rcsid = "$Id: SLGrabber.c,v 2.4 1993-07-01 20:15:02 granger Exp $";
 # include <message.h>
 # include <timer.h>
 # include "SLGrabber.h"
+
+MAKE_RCSID("$Id: SLGrabber.c,v 2.5 1994-02-25 10:32:44 granger Exp $")
 
 int Fd;
 FILE *FpFd;
