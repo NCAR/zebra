@@ -1,7 +1,7 @@
 /*
  * Ingest scheduler
  */
-static char    *rcsid = "$Id: is.c,v 1.24 2000-07-21 08:17:32 granger Exp $";
+static char    *rcsid = "$Id: is.c,v 1.25 2001-09-18 21:56:40 granger Exp $";
 
 /*
  * Copyright (C) 1987,88,89,90,91 by UCAR University Corporation for
@@ -61,8 +61,6 @@ void stop (struct is_config *cfg);
 /*
  * Definitions of globals.
  */
-extern char    *sys_errlist[];
-
 stbl            Configs;	/* will hold all configurations, accesable by
 				 * config name */
 stbl		Groups;		/* will hold configuration groups */
