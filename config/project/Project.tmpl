@@ -28,7 +28,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.41 1996-01-18 18:05:50 granger Exp $
+XCOMM $Id: Project.tmpl,v 1.42 1996-02-05 23:28:12 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -763,7 +763,7 @@ CXXEXTRA_INCLUDES = $(XINCLUDES) $(RDSSINCLUDES) $(CONFIGINCLUDES)
  * precedence.  The location of the top include files can still be overridden
  * by assigning TOP_INCLUDES on the make command line.  See Imake.tmpl.
  */
-  ALLINCLUDES = $(TOP_INCLUDES) $(INCLUDES) $(EXTRA_INCLUDES) $(STD_INCLUDES)
+  ALLINCLUDES = $(TOP_INCLUDES) $(EXTRA_INCLUDES) $(INCLUDES) $(STD_INCLUDES)
 
 /*
  * Project-wide defines in EXTRA_DEFINES.  Client defines in DEFINES.
