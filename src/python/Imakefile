@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.4 2000-04-11 20:39:13 burghart Exp $"
+MFVERSION="$Id: Imakefile,v 1.5 2000-12-14 00:29:50 granger Exp $"
 
 LIBS = $(DFALIBS) $(ZLIBS)
 
@@ -29,7 +29,7 @@ SRCS = $(CCSRCS)
 OBJS = $(CCOBJS)
 HEADERS = 
 
-PYSCRIPTS = DataTimes.py
+PYSCRIPTS = DataTimes.py vor_position.py latlon_position.py
 
 DISTFILES = $(SRCS) ($HEADERS) Imakefile 
 
