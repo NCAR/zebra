@@ -38,7 +38,7 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 # include "DrawText.h"
-MAKE_RCSID ("$Id: Track.c,v 2.17 1992-12-16 21:45:27 corbet Exp $")
+MAKE_RCSID ("$Id: Track.c,v 2.18 1992-12-28 15:41:44 kris Exp $")
 
 # define ARROWANG .2618 /* PI/12 */
 
@@ -54,6 +54,11 @@ static bool tr_CTSetup FP((char *, char *, PlatformId *, int *, int *,
 		char *, bool *, char *, bool *, char *));
 static void tr_AnnotTrack FP((char *, char *, char *, int, char *, char *,
 		char *, double, double, double, char *, bool));
+static void tr_AnnotTime FP((char *, char *, DataChunk *, Drawable));
+static void tr_DoTimeAnnot FP((Drawable, int, int, char *, char *, double, 
+		XColor, ZebTime, double));
+static float tr_FigureRot FP ((double, double, double, double));
+
 # define BADVAL -32768
 
 
@@ -68,7 +73,7 @@ bool update;
 	int period, x0, y0, x1, y1, nc, lwidth, pid, index;
 	int dskip = 0, npt = 0, i, a_int, numfields = 0, afield;
 	int a_lwidth, nfld, nsamp;
-	bool arrow, showposition;
+	bool arrow, showposition, annot_time;
 	long timenow, vectime = 0;
 	bool mono, shifted, a_invert;
 	ZebTime begin, zt;
@@ -208,6 +213,16 @@ bool update;
 		if (mono) ov_PositionIcon (positionicon, x0, y0, xc.pixel);
 		else ov_PositionIcon (positionicon, x0, y0, (index >= 0 &&
 			index < nc) ? colors[index].pixel : outrange.pixel);
+/*
+ * If this isn't an update, see about annotating the track with times.
+ */
+	annot_time = FALSE;
+	if ((! update) && pda_Search (Pd, comp, "annot-time", "track", 
+		(char *) &annot_time, SYMT_BOOL)) 
+	{
+		if (annot_time)
+			tr_AnnotTime (comp, platform, dc, d);
+	}
 	ResetGC ();
 /*
  * Put in the status line before we lose the data object, then get rid of it.
@@ -230,6 +245,207 @@ bool update;
 }
 
 
+
+
+
+static void
+tr_AnnotTime (comp, platform, dc, d)
+char	*comp, *platform;
+DataChunk	*dc;
+Drawable	d;
+/*
+ * Annotate the track with times.
+ */
+{
+	char	interval[20], label[40], icon[40], color[20];
+	int	i, interval_sec, nsamp;
+	int	x, y;
+	float	label_scale, rot;
+	float	fx, fy, fx0, fy0, fx1, fy1;
+	XColor	x_color;
+	ZebTime	when, t, t0, t1;
+	Location	loc;
+/*
+ * Get the time interval. 
+ */
+	if (! pda_Search (Pd, comp, "annot-time-interval", "track", 
+		interval, SYMT_STRING))
+	{
+	/*
+	 * Default to one hour intervals.
+	 */
+		interval_sec = 3600;
+	}
+	else
+	{
+		interval_sec = pc_TimeTrigger (interval);
+	}
+/*
+ * Label to use.  May be either "none", "time", or a string.
+ */
+	if (! pda_Search (Pd, comp, "annot-time-label", "track", 
+			label, SYMT_STRING))
+		strcpy (label, "time");
+/*
+ * Icon used to mark the track.
+ */
+	if (! pda_Search (Pd, comp, "annot-time-icon", "track", 
+			icon, SYMT_STRING))
+		strcpy (icon, "littlecircle");
+/*
+ * Color for time annotations.
+ */
+	if (! pda_Search (Pd, comp, "annot-time-color", "track", 
+			color, SYMT_STRING))
+		strcpy (color, "white");
+	if (! ct_GetColorByName (color, &x_color))
+	{
+		strcpy (color, "white");
+		ct_GetColorByName (color, &x_color);
+	}
+/*
+ * Scale of the labels.
+ */
+	if (! pda_Search (Pd, comp, "annot-time-scale", "track", 
+			(char *) &label_scale, SYMT_FLOAT))
+		label_scale = 0.01;
+/*
+ * Set label-blanking to false.
+ */
+	dt_SetBlankLabel (FALSE);
+/*
+ * Figure the first time that we want to annotate (most recent time on
+ * the annot-time-interval boundary).
+ */
+	nsamp = dc_GetNSample (dc);
+	dc_GetTime (dc, nsamp - 1, &when);
+	t.zt_Sec = when.zt_Sec - (when.zt_Sec % interval_sec);
+/*
+ * Loop through the data.
+ */
+	for (i = nsamp - 2; i >= 0; i--)
+	{
+	/*
+	 * Get the time of this sample.
+	 */
+		dc_GetTime (dc, i, &when);
+		if (when.zt_Sec == t.zt_Sec)
+		{
+		/*
+		 * Figure out where the annotation is supposed to go. 
+		 */
+			dc_GetLoc (dc, i, &loc);
+			cvt_ToXY (loc.l_lat, loc.l_lon, &fx, &fy);
+			x = XPIX (fx); y = YPIX (fy);
+		/*
+		 * Figure a rotation for the text.
+		 */
+			dc_GetLoc (dc, i + 1, &loc);
+			cvt_ToXY (loc.l_lat, loc.l_lon, &fx1, &fy1);
+			rot = tr_FigureRot (fx, fy, fx1, fy1);
+		/*
+		 * Do the annotation.
+		 */
+			tr_DoTimeAnnot (d, x, y, icon, label, label_scale,
+				x_color, t, rot);
+		/*
+		 * Increment the time.
+		 */
+			t.zt_Sec -= interval_sec;
+		} 
+		else if (when.zt_Sec < t.zt_Sec)
+		{
+		/*
+		 * Figure out where to put the annotation.
+		 */
+			dc_GetLoc (dc, i, &loc);
+			cvt_ToXY (loc.l_lat, loc.l_lon, &fx0, &fy0);
+			t0.zt_Sec = when.zt_Sec;
+
+			dc_GetLoc (dc, i + 1, &loc);
+			cvt_ToXY (loc.l_lat, loc.l_lon, &fx1, &fy1);
+			dc_GetTime (dc, i + 1, &t1);
+
+			fx = fx0 + (fx1 - fx0) * (t.zt_Sec - t0.zt_Sec) / 
+				(t1.zt_Sec - t0.zt_Sec);
+
+			fy = fy0 + (fy1 - fy0) * (t.zt_Sec - t0.zt_Sec) / 
+				(t1.zt_Sec - t0.zt_Sec);
+
+			x = XPIX (fx); y = YPIX (fy);
+		/*
+		 * Firgure a rotation for the text.
+		 */
+			rot = tr_FigureRot (fx, fy, fx1, fy1);
+		/*
+		 * Do the annotation.
+		 */
+			tr_DoTimeAnnot (d, x, y, icon, label, label_scale,
+				x_color, t, rot);
+		/*
+		 * Increment the time.
+		 */
+			t.zt_Sec -= interval_sec;
+		}
+	}
+
+}
+
+
+
+static float
+tr_FigureRot (x0, y0, x1, y1)
+float	x0, y0, x1, y1;
+/*
+ * Figure a rotation factor (in degrees) which is perpendicular to the 
+ * line defined by (x0, y0) and (x1, y1).
+ */
+{
+	float	sub_x = (x1 - x0), sub_y = (y1 - y0);
+	float	degrees;
+	double	radians, temp;
+
+	temp = (double) (sub_x * sub_x + sub_y * sub_y);
+	if (temp == 0.0) temp = 1.0;
+	radians = asin ((double) sub_y / sqrt (temp));
+	degrees = (float) radians * 180.0 / M_PI;
+	if (degrees >= 0.0) degrees -= 90.0;
+	else degrees += 90.0;
+	if (degrees < 0.0) degrees += 360.0;
+	return (degrees); 
+}
+
+
+
+static void
+tr_DoTimeAnnot (d, x, y, icon, label, label_scale, x_color, t, rot)
+Drawable	d;
+int		x, y;
+char		*icon, *label;
+float		label_scale, rot;
+XColor		x_color;
+ZebTime		t;
+/*
+ * Draw the icon and place the text for a time annotation.
+ */
+{
+	char	label_str[40];
+/*
+ * Place the icon.
+ */
+	ov_PositionIcon (icon, x, y, x_color.pixel);
+/*
+ * Label it.
+ */
+	if (strcmp (label, "time") == 0)
+		TC_EncodeTime (&t, TC_TimeOnly, label_str);
+	else if (strcmp (label, "none") == 0)
+		return;
+	else 
+		strcpy (label_str, label);
+	DrawText (Graphics, d, Gcontext, x, y, label_str, rot, label_scale, 
+		JustifyLeft, JustifyCenter);
+}
 
 
 
