@@ -1,7 +1,7 @@
 /*
  * Track drawing routines.
  */
-static char *rcsid = "$Id: Track.c,v 1.5 1990-11-15 10:45:11 corbet Exp $";
+static char *rcsid = "$Id: Track.c,v 1.6 1990-11-15 14:49:12 corbet Exp $";
 
 
 # include <X11/Intrinsic.h>
@@ -199,18 +199,18 @@ bool update;
 	/*
 	 * On the top.
 	 */
-		px_TopAnnot (platform, White);
-		px_TopAnnot (" track", White);
+		An_TopAnnot (platform, White);
+		An_TopAnnot (" track", White);
 		if (! mono)
 		{
-			px_TopAnnot (" color coded by ", White);
-			px_TopAnnot (px_FldDesc (comp, ccfield), White);
+			An_TopAnnot (" color coded by ", White);
+			An_TopAnnot (px_FldDesc (comp, ccfield), White);
 		}
-		px_TopAnnot (".", White);
+		An_TopAnnot (".", White);
 	/*
 	 * Down the side too.
 	 */
-		px_AnnotLimits (&top, &bottom, &left, &right);
+		An_AnnotLimits (&top, &bottom, &left, &right);
 		left += 10;
 		top += 20;
 		wheight = GWHeight (Graphics);
