@@ -240,9 +240,7 @@ Source::UpdateFile( const Platform *p, const DataFileCore& dfc )
 
     PlatFileList *pfl = GetPlatFileList( p );
 
-    if (pfl->Find( dfc.dfc_begin ))
-	pfl->Remove( dfc.dfc_begin );
-    
+    // An insertion automatically replaces an existing key.
     pfl->Insert( dfc.dfc_begin, dfc );
     return 1;
 }
@@ -256,15 +254,13 @@ Source::RemoveFile( const Platform *p, const DataFileCore& dfc )
 	return 0;
 
     PlatFileList *pfl = GetPlatFileList( p );
-    if (! pfl->Find( dfc.dfc_begin ))
+    if (! pfl->Remove( dfc.dfc_begin ))
     {
 	msg_ELog( EF_PROBLEM, 
 		  "RemoveFile[%s]: attempt to remove nonexistent file %s",
 		  pi_Name( p ), dfc.dfc_name );
 	return 0;
     }
-    
-    pfl->Remove( dfc.dfc_begin );
     return 1;
 }
     
@@ -372,18 +368,6 @@ Source::Next( const Platform *p, DataFileCore* dfc )
 
     PlatFileList *pfl = GetPlatFileList( p );
     return( pfl->Next( 0, dfc ) );
-}
-
-
-
-bool
-Source::Current( const Platform *p, DataFileCore* dfc, ZTime *t )
-{
-    if (! IsGood())
-	return 0;
-
-    PlatFileList *pfl = GetPlatFileList( p );
-    return( pfl->Current( t, dfc ) );
 }
 
 
@@ -505,17 +489,6 @@ Source::NFiles( const Platform *p )
 
     PlatFileList *pfl = GetPlatFileList( p );
     return pfl->numKeys ();
-#ifdef notdef
-    int nfiles = 0;
-    bool ok;
-//
-// We just traverse the tree and count...
-//
-    for (ok = pfl->First(); ok; ok = pfl->Next())
-	nfiles++;
-
-    return nfiles;
-#endif
 }
 
 

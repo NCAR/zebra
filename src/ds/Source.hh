@@ -1,7 +1,7 @@
 //
 // Source: a class holding a large list of files; each file can be retrieved
 // by platform and time.  
-// $Id: Source.hh,v 3.5 2001-10-16 22:26:29 granger Exp $
+// $Id: Source.hh,v 3.6 2002-10-06 08:04:15 granger Exp $
 //
 //		Copyright (C) 1998 by UCAR
 //	University Corporation for Atmospheric Research
@@ -153,7 +153,6 @@ public:
     bool Last( const Platform *p, DataFileCore* dfc = 0 );
     bool Prev( const Platform *p, DataFileCore* dfc = 0 );
     bool Next( const Platform *p, DataFileCore* dfc = 0 );
-    bool Current( const Platform *p, DataFileCore *dfc = 0, ZTime *t = 0 );
     const string& Name( void ) const;
     const string& RootDir( void ) const;
     const string& DataDir( const Platform *p );
