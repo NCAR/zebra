@@ -9,6 +9,7 @@
 # include <string.h>
 # endif
 # include "ui.h"
+# include "ui_cstack.h"
 # include "ui_globals.h"
 # include "ui_state.h"
 # include "ui_token.h"
@@ -16,7 +17,7 @@
 # include "ui_expr.h"
 # include "ui_error.h"
 
-static char *Rcsid = "$Id: ui_parser.c,v 1.3 1989-03-16 15:46:09 corbet Exp $";
+static char *Rcsid = "$Id: ui_parser.c,v 1.4 1989-06-05 16:05:01 corbet Exp $";
 
 void ui_error ();
 char *zapcase ();
@@ -91,7 +92,6 @@ bool subst, retryblank;
 	struct ui_command *cmds;
 	int retsts;
 	bool nobegin = FALSE;
-	struct token_context context;
 /*
  * Pull the initial state pointer.
  */
@@ -109,11 +109,11 @@ top:
  * Now enter the parse loop.
  */
 	if (! nobegin)
-		ut_begin (&context, prompt, subst);
+		ut_begin (prompt, subst);
 	nobegin = FALSE;
 	
 	ERRORCATCH
-		retsts = uip_loop_parse (&context, state, cmds, 0, -1);
+		retsts = uip_loop_parse (state, cmds, 0, -1);
 	ON_ERROR
 		relvm (cmds);	/* Should we uip_release () ??? */
 		RESIGNAL
@@ -156,15 +156,13 @@ top:
 
 
 
-uip_loop_parse (context, state, cmds, depth, prevgrp)
-Tcontext context;
+uip_loop_parse (state, cmds, depth, prevgrp)
 struct state_table_entry *state;
 int depth, prevgrp;
 struct ui_command *cmds;
 /*
  * Perform one stage in the parser loop.
  * Entry:
- *	Context is the tokenizer context.
  *	STATE	is the current parser state.
  *	DEPTH	is the parse depth.
  *	PREVGRP	is the token group of the previous token.
@@ -207,7 +205,7 @@ struct ui_command *cmds;
 again: /* (sigh) */
 	if (Stdebug)
 		ut_put_msg (state->sta_name, TRUE);
-	ut_get_token (context, &tok);
+	ut_get_token (&tok);
 	cmds->uc_col = tok.tk_col;
 /*
  * The first thing we check for is EOF.  If something special has been
@@ -248,7 +246,7 @@ again: /* (sigh) */
 		{
 			if (depth == 0) /* Be silent for blank line */
 			{
-				ut_reset (context);
+				ut_reset ();
 				ut_reline ();
 				goto again;
 			}
@@ -315,13 +313,13 @@ again: /* (sigh) */
  * of token here.  Let's see if we can match up a defined command to it.
  */
  	else if ((state->sta_flags & STF_CTABLE) &&
-		uip_ct_match (context, state, &tok, &ambig))
+		uip_ct_match (state, &tok, &ambig))
 	{
 		if (ambig)
 		{
 			if (! ut_src_int ())
 				ui_error ("Ambiguous command bailout");
-			ut_continue (context);
+			ut_continue ();
 			goto again;
 		}
 		goto again;	/* Now read the real stuff. */
@@ -329,7 +327,7 @@ again: /* (sigh) */
 /*
  * Look for a keyword.
  */
- 	else if (uip_kw_match (context,state, &tok, &ambig, &ap, &kwnum, TRUE))
+ 	else if (uip_kw_match (state, &tok, &ambig, &ap, &kwnum, TRUE))
 	{
 	/*
 	 * Deal with people who don't have enough to say.
@@ -338,7 +336,7 @@ again: /* (sigh) */
 		{
 			if (! ut_src_int ())
 				ui_error ("Ambiguous keyword bailout");
-			ut_continue (context);
+			ut_continue ();
 			goto again;
 		}
 	/*
@@ -372,7 +370,7 @@ again: /* (sigh) */
 			ui_cl_error (jump, tok.tk_col,
 				"Indirect files ('@') not allowed here");
 			ut_reline ();
-			ut_zap_token (context);
+			ut_zap_token ();
 		}
 		else
 		{
@@ -380,7 +378,7 @@ again: /* (sigh) */
 				"Unknown input value '%s' -- hit ? for help",
 					tok.tk_string);
 			ut_reline ();
-			ut_continue (context);
+			ut_continue ();
 		}
 		goto again;
 	}
@@ -397,7 +395,7 @@ again: /* (sigh) */
 	{
 		if (! ut_src_int ())
 			ui_error ("State table mandated REJECT");
-		uip_reject (context);
+		uip_reject ();
 		cmds->uc_ctype = 0;
 		goto again;
 	}
@@ -407,7 +405,7 @@ again: /* (sigh) */
  */
 	if (ap->act_flags & STAF_DONE)
 	{
-		ut_finish_line (context, TRUE);
+		ut_finish_line (TRUE);
 		return (PS_OK);
 	}
 /*
@@ -432,7 +430,7 @@ again: /* (sigh) */
 	if ((next_state = ust_lookup_state (ap->act_next)) == 0)
 		ui_error ("(BUG) Nonexistent next state: '%s' (cur '%s')",
 				ap->act_next, state->sta_name);
-	status = uip_loop_parse (context, next_state, nxtcmd, depth,
+	status = uip_loop_parse (next_state, nxtcmd, depth,
 		tok.tk_tgroup);
 /*
  * Now cope with what came back.
@@ -463,13 +461,12 @@ again: /* (sigh) */
 
 
 
-uip_reject (context)
-Tcontext context;
+uip_reject ()
 /*
  * Do a token reject.
  */
 {
-	ut_zap_token (context);
+	ut_zap_token ();
 	ut_reline ();
 }
 
@@ -478,8 +475,7 @@ Tcontext context;
 	
 	
 int
-uip_kw_match (context, state, tok, ambig, action, kwnum, complete)
-Tcontext context;
+uip_kw_match (state, tok, ambig, action, kwnum, complete)
 struct state_table_entry *state;
 struct token *tok;
 bool *ambig, complete;
@@ -560,7 +556,7 @@ int *kwnum;
  	left = strlen (match->stk_keyword) - len;
 	if (complete && left > 0)
 	{
-		ut_complete (context, match->stk_keyword + len);
+		ut_complete (match->stk_keyword + len);
 		strcat (tok->tk_string, match->stk_keyword + len);
 	}
 	return (TRUE);
@@ -618,6 +614,20 @@ int *type;
  */
  	if ((tree = ue_parse (tok->tk_string, tok->tk_col, TRUE)) == 0)
 		return (FALSE);
+/*
+ * If this command will never be executed, do not actually evaluate the
+ * parse tree -- chances are the variables are not bound right anyway, and
+ * we should not signal errors.  (We do parse the expression, though, to
+ * catch syntax errors.)
+ */
+	if (! Cs->cs_exec)
+	{
+		*type = SYMT_INT;
+		v->us_v_int = 0;
+		*action = &state->sta_vpact;
+		ue_rel_tree (tree);
+		return;
+	}
 /*
  * Evaluate the parse tree we got, and see what we can make of it.
  */
@@ -725,8 +735,7 @@ struct ui_command *cmds;
 
 
 
-uip_ct_match (context, ste, tok, ambig)
-Tcontext context;
+uip_ct_match (ste, tok, ambig)
 struct state_table_entry *ste;
 struct token *tok;
 bool *ambig;
@@ -784,11 +793,11 @@ bool *ambig;
  */
  	left = strlen (names.n1) - len;
 	if (left > 0)
-		ut_complete (context, names.n1 + len);
+		ut_complete (names.n1 + len);
 /*
  * Dump the real value of the command back into the parser.
  */
- 	ut_tok_repl (context, clist);
+ 	ut_tok_repl (clist);
 	return (TRUE);
 }
 
