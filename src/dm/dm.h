@@ -1,4 +1,4 @@
-/* $Id: dm.h,v 1.4 1991-01-10 09:04:24 corbet Exp $ */
+/* $Id: dm.h,v 1.5 1991-01-10 22:44:49 burghart Exp $ */
 /*
  * Display manager stuff.
  */
@@ -15,7 +15,7 @@
 # define DM_REALTIME	10	/* Real time mode		*/
 # define DM_EVBIND	11	/* Event binding change		*/
 # define DM_PARCHANGE	12	/* Individual PD parameter change */
-# define DM_WBOX	13	/* Window box request/reply	*/
+# define DM_WBOUNDS	13	/* Window bounds request/reply	*/
 
 /*
  * Color table stuff.
@@ -72,18 +72,19 @@ struct dm_event
 
 
 /*
- * Requests for window boxes.
+ * Requests for window bounds.
  */
-struct dm_rq_wbox
+struct dm_rq_wbounds
 {
-	int	dmm_type;		/* = DM_WBOX		*/
+	int	dmm_type;		/* = DM_WBOUNDS		*/
 	char	dmm_window[MAXADATA];	/* Window name		*/
 };
 
-struct dm_rp_wbox
+struct dm_rp_wbounds
 {
-	int	dmm_type;		/* = DM_WBOX		*/
+	int	dmm_type;		/* = DM_WBOUNDS		*/
 	int	dmm_success;		/* Did it work?		*/
+	char	dmm_pltype[40];		/* Plot type		*/
 	float	dmm_x0, dmm_y0;		/* Origin		*/
 	float	dmm_x1, dmm_y1;
 	float	dmm_alt;		/* What the heck?	*/
