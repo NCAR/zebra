@@ -1,11 +1,16 @@
 /*
- * Imakefile for the ETC directory.
+ * Imakefile for the zstart script
  */
 
-DISTFILES = Imakefile startzeb.sh
+DISTFILES = Imakefile zstart.sh
 DISTSUBDIRS = $(SUBDIRS)
 
 all:: zstart		/* don't want first target to be install */
+
+zstart: zstart.script
+	$(RM) zstart
+	cat zstart.script > zstart
+	chmod +x zstart
 
 zstart.script:	zstart.sh
 	sed -e s,##TOPDIRHERE,BaseDir, <zstart.sh >zstart.script
@@ -16,3 +21,4 @@ clean::
 InstallScript (zstart, $(BINDIR))
 
 DistfilesTarget($(DISTFILES))
+
