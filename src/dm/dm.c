@@ -11,7 +11,7 @@
 # include "dm_cmds.h"
 # include "../include/timer.h"
 
-static char *rcsid = "$Id: dm.c,v 1.13 1990-11-19 08:03:02 corbet Exp $";
+static char *rcsid = "$Id: dm.c,v 1.14 1990-12-04 16:06:53 corbet Exp $";
 
 /*
  * Definitions of globals.
@@ -28,6 +28,12 @@ Display *Dm_Display;
  * Is sound enabled?
  */
 static int SoundEnabled = FALSE;
+
+/*
+ * Do we restart windows which die?
+ */
+static bool Restart = TRUE;
+
 
 # ifdef __STDC__
 	int dm_shutdown (void);
@@ -55,6 +61,7 @@ char **argv;
  */
 	msg_connect (dm_msg_handler, "Displaymgr");
 	msg_DeathHandler (dm_shutdown);
+	msg_join ("Client events");
 /*
  * Get the interface set up.
  */
@@ -88,6 +95,7 @@ char **argv;
 	vtable = usy_g_stbl ("ui$variable_table");
 	usy_c_indirect (vtable, "dm$config", Cur_config, SYMT_STRING, MAXNAME);
 	usy_c_indirect (vtable, "soundenabled", &SoundEnabled, SYMT_BOOL, 0);
+	usy_c_indirect (vtable, "restart", &Restart, SYMT_BOOL, 0);
 	usy_daemon (vtable, "soundenabled", SOP_WRITE, SEChange, 0);
 	tty_watch (msg_get_fd (), msg_incoming);
 # ifdef titan
@@ -266,6 +274,7 @@ struct message *msg;
  */
 {
 	struct mh_template *tm = (struct mh_template *) msg->m_data;
+	struct mh_client *client;
 
 	switch (tm->mh_type)
 	{
@@ -273,12 +282,67 @@ struct message *msg;
 	   	ui_printf ("Message handler shutdown -- I quit!\n");
 		ui_finish ();
 		exit (1);
+	/*
+	 * For client events, we are really only interested in deaths.
+	 */
+	   case MH_CLIENT:
+		client = (struct mh_client *) msg->m_data;
+		if (client->mh_evtype == MH_CE_DISCONNECT && Restart)
+			ProcessDeath (client->mh_client);
+		break;
+
 	   default:
 	   	ui_printf ("Unknown MESSAGE proto msg %d\n", tm->mh_type);
 		break;
 	}
 }
 
+
+
+
+
+
+ProcessDeath (client)
+char *client;
+/*
+ * Deal with the fact that this client has died.
+ */
+{
+	struct cf_window *win = lookup_win (client, TRUE);
+/*
+ * If this was a currently active window, let us simply restart it now.
+ */
+	if (win)
+	{
+		if (++win->cfw_ncroak < 10)
+			RestartWin (win);
+		else
+			msg_ELog (EF_PROBLEM,
+				"Win %s dies too often -- I give up", client);
+	}
+/*
+ * Otherwise, if this is an existing window, but not in the current config,
+ * we need to just mark it as being dead.
+ */
+	else if (win = lookup_win (client, FALSE))
+		usy_z_symbol (Windows, client);
+}
+
+
+
+
+
+RestartWin (win)
+struct cf_window *win;
+/*
+ * Give this window a new lease on life.
+ */
+{
+	msg_ELog (EF_PROBLEM, "Win '%s' died -- restarting", win->cfw_name);
+	win->cfw_tmpforce = TRUE;
+	create_win (win);
+}
+	
 
 
 
@@ -358,13 +422,14 @@ struct ui_command *cmds;
 		}
 	/*
 	 * Otherwise it's a graphics window.  If it does not yet exist, we
-	 * have to create it.
+	 * have to create it.  The sleep is there to avoid "connection
+	 * refused" problems caused by too many processes trying to hook
+	 * into the X server at once.
 	 */
 		else if (! (exist = lookup_win (wp->cfw_name, FALSE)))
 		{
 			msg_ELog (EF_DEBUG, "Create win %s", wp->cfw_name);
 			create_win (wp);
-			/* msg_incoming (msg_get_fd ()); */
 			if ((win % 4) == 0)
 				sleep (1);
 		}
@@ -525,10 +590,6 @@ struct cf_window *win;
 	{
 		/* close (0); close (1); close (2); */
 		close (msg_get_fd ());
-# ifdef notdef
-		execlp (win->cfw_prog, /* win->cfw_prog, */ win->cfw_name,
-			(char *) 0);
-# endif
 		execv (win->cfw_prog, win->cfw_args);
 		printf ("Unable to exec '%s'\n", win->cfw_prog);
 		perror (win->cfw_prog);
@@ -581,8 +642,9 @@ struct cf_window *win;
 /*
  * Then ship over the PD too.
  */
-	if (win->cfw_linkpar || win->cfw_forcepd || created)
+	if (win->cfw_linkpar || win->cfw_forcepd|| created ||win->cfw_tmpforce)
 		send_pd (win);
+	win->cfw_tmpforce = FALSE;
 /*
  * And the button maps.
  */

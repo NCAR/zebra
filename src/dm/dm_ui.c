@@ -84,7 +84,7 @@ struct ui_command *cmds;
 		win->cfw_bmap = Default_map;
 		win->cfw_nongraph = win->cfw_forcepd = FALSE;
 		win->cfw_pd = 0;
-		win->cfw_flags = 0;
+		win->cfw_ncroak = win->cfw_flags = 0;
 		strcpy (win->cfw_prog, cmds[6].uc_ctype == UTT_END ?
 			DEFPROG : UPTR (cmds[6]));
 		cmds += (cmds[6].uc_ctype == UTT_END) ? 5 : 6;
