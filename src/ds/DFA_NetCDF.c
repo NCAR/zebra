@@ -28,7 +28,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 #ifndef lint
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.17 1993-05-10 17:00:10 corbet Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.18 1993-05-25 18:37:45 granger Exp $")
 #endif
 
 # include "netcdf.h"
@@ -167,8 +167,8 @@ static void	dnc_DefineLocVars FP ((NCTag *tag, int ndims, int *dims,
 static void	dnc_PutGlobalAttributes FP ((NCTag *tag, DataChunk *dc));
 static int	dnc_PutAttribute FP ((char *key, char *value));
 static void	dnc_FillArray FP ((float *, int, double));
-static int	dnc_NewTimes FP ((NCTag *tag, DataChunk *dc, int sample, 
-				  int count, WriteCode wc, long *start));
+static int	dnc_FindTimes FP ((NCTag *tag, DataChunk *dc, int sample, 
+				   int count, WriteCode wc, long *start));
 static char *	dnc_ValueToString FP ((void *value, nc_type type, int len));
 static char *	dnc_GetStringAtt FP ((int cdfid, int varid, char *att_name, 
 				      char *att_val, int len));
@@ -2297,7 +2297,7 @@ DataChunk *dc;
 	sprintf(history,"created by Zeb DataStore, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.17 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.18 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 }
@@ -2654,6 +2654,7 @@ ZebTime *zt;
 
 
 
+#ifdef notdef	/* being phased out, replaced with dnc_FindTimes() */
 static int
 dnc_FindDest (tag, wc, t, fsample)
 NCTag *tag;
@@ -2720,7 +2721,7 @@ long *fsample;
 
 	return (TRUE);
 }
-
+#endif  /* notdef */
 
 
 
@@ -2737,7 +2738,6 @@ WriteCode wc;
 	int ndim;
 	int vfield, field, nfield;
 	DataPtr data;
-	ZebTime zt;
 	FieldId *fids;
 	Location loc;
 /*
@@ -2750,8 +2750,7 @@ WriteCode wc;
  */
 	start[0] = start[1] = start[2] = start[3] = 0;
 	count[0] = count[1] = count[2] = count[3] = 1;
-	dc_GetTime (dc, sample, &zt);
-	if (! dnc_FindDest (tag, wc, &zt, start))
+	if (! dnc_FindTimes (tag, dc, sample, 1, wc, start))
 		return (0);
 /*
  * Work out coords and data stuff now.
@@ -2843,20 +2842,22 @@ DataPtr data;
 
 
 static int
-dnc_NewTimes(tag, dc, sample, count, wc, start)
+dnc_FindTimes(tag, dc, sample, count, wc, start)
 NCTag *tag;
 DataChunk *dc;
 int sample, count;
 WriteCode wc;
 long *start;
 /*
- * Write a block of sample times to the tag->nc_times array
- * and to the file identified by tag->nc_id
- * Returns the starting indices of the new samples in 'start'.
- * Returns 0 if failure, non-zero if success.
- * Note that at the moment only the append case is supported
- * for block writes of times; overwrite is only supported if
- * nsample == 1.
+ * Write a block of sample times to the tag->nc_times array and to the file
+ * identified by tag->nc_id.  Returns the starting indices of the samples
+ * in 'start'.  Returns 0 if failure, non-zero if success.  Note that at
+ * the moment only the append and overwrite cases are supported; overwrite
+ * assumes that the sample times in the block (even if only 1 sample)
+ * already coincide exactly with the times in the file.
+ *
+ * This function replaces the original dnc_FindDest(), which relied on 
+ * single-sample changes.
  */
 {
 	int status;
@@ -2886,16 +2887,15 @@ long *start;
 		tag->nc_ntime += nsample;
 		break;
 	/*
-	 * In the overwrite case we need to find the doomed sample and 
-	 * tweak the TOC accordingly, as long as we're only writing
-	 * one sample.
+	 * In the overwrite case we need to find the beginning of the
+	 * doomed samples.  All of the samples are overwriting existing
+	 * samples with identical times, so we don't have to change the
+	 * times or re-write the times array to the file; just return.
 	 */
 	   case wc_Overwrite:
-		if (nsample != 1)
-			return(FALSE);
 		dc_GetTime(dc, sample, &t);
 	   	*start = dnc_TimeIndex (tag, &t);
-		tag->nc_times[*start] = dnc_ZtToOffset (tag, &t);
+		return(TRUE);
 		break;
 	   default:
 		return(FALSE);
@@ -2959,7 +2959,7 @@ WriteCode wc;
  */
 	start[0] = start[1] = start[2] = start[3] = 0;
 	count[0] = count[1] = count[2] = count[3] = (long)nsample;
-	if (! dnc_NewTimes (tag, dc, sample, (long)nsample, wc, start))
+	if (! dnc_FindTimes (tag, dc, sample, (long)nsample, wc, start))
 		return (0);
 /*
  * Work out coords and data stuff now.
