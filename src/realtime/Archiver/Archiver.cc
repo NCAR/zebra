@@ -47,7 +47,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 
-MAKE_RCSID ("$Id: Archiver.cc,v 1.10 1992-05-12 16:19:02 burghart Exp $")
+MAKE_RCSID ("$Id: Archiver.cc,v 1.11 1992-06-26 22:11:30 kris Exp $")
 
 /*
  * Issues:
@@ -84,9 +84,12 @@ char listfile[200];
  */
 int	TimerEvent;
 int	DeviceFD = -1;		/* -1 = no drive	*/
-int	BytesWritten = 0, FilesWritten = 0;
+unsigned long	BytesWritten = 0;
+int	FilesWritten = 0;
 int	FreshTape = TRUE;
-int	TapeLimit = 350000000;	/* Tape size, less a safety margin */
+int	ZeroZFree = TRUE;
+unsigned long	TapeLimit = 3500000000;	/* in bytes.			   */	
+				/* Tape size, less a safety margin */
 				/* Default is high density Exabyte */
 
 # define BFACTOR	64	/* Blocking factor for the tar command */
@@ -228,6 +231,16 @@ char **argv;
 		    else if ( strcmp ( (*argv), "eod") == 0 )
 			ArchiveMode = AR_EOD;
 		    argc--;
+		break;
+		case 'z':	/* Free tape at 0Z? */
+			++argv;
+			if (strcmp (*argv, "no") == 0)
+				ZeroZFree = FALSE;
+			else
+				ZeroZFree = TRUE;
+			--argc;
+			msg_ELog (EF_DEBUG, "Free tape on 0Z: %s.", ZeroZFree?
+				"true" : "false");
 		break;
 	    }
 	}
@@ -595,6 +608,7 @@ ZebTime *zt;
 {
 	int status;
 	int year, month, day, hour, minute, second;
+	int test;
 	char datafile[120];
 	struct statfs buf;
 /*
@@ -604,8 +618,13 @@ ZebTime *zt;
 	switch ( ArchiveMode )
 	{
 	    case AR_TAPE:
-		SaveFiles (hour == 0 && ! FreshTape);
-		if (hour == 0 && ! FreshTape)
+		if (ZeroZFree)
+			test = ((hour == 0) && (! FreshTape));
+		else
+			test = FALSE;
+
+		SaveFiles (test);
+		if (test)
 		{
 		    ActionButton ();
 		    SetStatus (TRUE, "Need new day's tape");
@@ -878,8 +897,8 @@ UpdateList ()
 /*
  * Update the widget too.
  */
-	sprintf (string, "%d MBytes in %d files.", BytesWritten/1000000,
-		FilesWritten);
+	sprintf (string, "%.2f MBytes in %d files.",
+		(float)BytesWritten/1000000.0, FilesWritten);
 	XtSetArg (args[0], XtNlabel, string);
 	XtSetValues (Bytes, args, 1);
 	Sync ();
