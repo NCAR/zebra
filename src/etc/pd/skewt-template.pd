@@ -5,7 +5,9 @@ global
 	plot-mode:	history
 	plot-time:	now
 	plot-type:	skewt
-	require:	simple-color
+	require:	simple-color, active-time
+	time-annot-active:	true
+	time-topannot-left-menu:	global-time-left-menu
 skewt
 	annot-time:	true
 	color-table:	Skew-t
