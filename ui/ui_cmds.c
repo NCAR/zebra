@@ -12,6 +12,8 @@
 # include "ui_mode.h"
 # include "ui_cstack.h"
 
+static char *Rcsid = "$Header";
+
 # ifdef VMS
 # define HELPDIR "ui_help:"
 # endif	/* Come up with something else for unix */
