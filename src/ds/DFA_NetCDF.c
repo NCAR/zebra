@@ -33,7 +33,7 @@
 # include "dfa.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_NetCDF.c,v 3.73 2002-04-25 21:58:58 granger Exp $")
+RCSID ("$Id: DFA_NetCDF.c,v 3.74 2002-04-29 17:55:46 granger Exp $")
 
 # include <netcdf.h>
 
@@ -273,7 +273,8 @@ static void	dnc_DefineVars FP ((NCTag *tag, DataChunk *dc, int ndim,
 static void	dnc_DefineNSpaceDims FP ((NCTag *tag, DataChunk *dc));
 static int	dnc_DefineNSpaceVar FP ((NCTag *tag, DataChunk *dc,
 					 FieldId fid, int ndim, int *dims));
-static void	dnc_DefineLocVars FP ((NCTag *tag, int ndims, int *dims,
+static void	dnc_DefineLocVars FP ((NCTag *tag, DataChunk *dc,
+				       int ndims, int *dims,
 				       int *vlat, int *vlon, int *valt));
 static void	dnc_PutGlobalAttributes FP ((NCTag *tag, DataChunk *dc));
 static int	dnc_PutAttribute FP ((char *key, void *value, int nval,
@@ -3543,7 +3544,7 @@ DataChunk *dc;
 	strcat (history, "Created by the Zebra DataStore library, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.73 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.74 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 	free (history);
@@ -3696,7 +3697,7 @@ DataChunk *dc;
  */
 	if (ds_IsMobile (dc->dc_Platform))
 		ndim = 1;
-	dnc_DefineLocVars (tag, ndim, &tdim, &vlat, &vlon, &valt);
+	dnc_DefineLocVars (tag, dc, ndim, &tdim, &vlat, &vlon, &valt);
 /*
  * If we are static, initialize the location info now.
  */
@@ -3733,7 +3734,7 @@ DataChunk *dc;
  * Create variables for the origin and spacing information.
  * Add a description and units for each variable defined.
  */
-	dnc_DefineLocVars (tag, 0, 0, &vlat, &vlon, &valt);
+	dnc_DefineLocVars (tag, dc, 0, 0, &vlat, &vlon, &valt);
 	vx = ncvardef (tag->nc_id, "x_spacing", NC_FLOAT, 0, 0);
 	(void)ncattput(tag->nc_id, vx, VATT_LONGNAME,
 		       NC_CHAR, strlen(X_LONGNAME)+1, X_LONGNAME);
@@ -3797,7 +3798,7 @@ DataChunk *dc;
 	dims[0] = ncdimid (tag->nc_id, "platform");
 	dims[1] = ncdimid (tag->nc_id, "fldlen");
 	vplat = ncvardef (tag->nc_id, "platform", NC_CHAR, 2, dims);
-	dnc_DefineLocVars (tag, 1, dims, &vlat, &vlon, &valt);
+	dnc_DefineLocVars (tag, dc, 1, dims, &vlat, &vlon, &valt);
 /*
  * Pull the actual platform info out of the dc.
  */
@@ -3842,11 +3843,8 @@ DataChunk *dc;
 
 
 static void
-dnc_DefineLocVars (tag, ndims, dims, vlat, vlon, valt)
-NCTag *tag;
-int ndims;
-int *dims;
-int *vlat, *vlon, *valt;
+dnc_DefineLocVars (NCTag *tag, DataChunk *dc, 
+		   int ndims, int *dims, int *vlat, int *vlon, int *valt)
 /*
  * Define the lat, lon, and alt variables with the given dimensions,
  * adding the appropriate attributes as well.  Return the ids given to each.
@@ -3855,6 +3853,22 @@ int *vlat, *vlon, *valt;
 	float lat_range[2];
 	float lon_range[2];
 	char buf[256];
+	float badval;
+	int usebadval;
+
+	/*
+	 * Since locations are specially handled by datachunks, they do not
+	 * have field-specific attributes, hence no field badvalues.  So to
+	 * set the missing_value for a location variable, we must expect
+	 * the global bad value to apply to the location variable. However,
+	 * to show some restraint and to follow the practice of regular
+	 * variables, we'll require a global bad value to have been set
+	 * explicitly rather than defaulted.  Unfortunately, when reading
+	 * this file Zebra will ignore the missing_value for the location
+	 * variables.
+	 **/
+	badval = dc_GetBadval (dc);
+	usebadval = (dc_GetGlobalBadval (dc, 0) != NULL);
 
 	*vlat = ncvardef (tag->nc_id, "lat", NC_FLOAT, ndims, dims);
 	lat_range[0] = -90.0;
@@ -3865,6 +3879,11 @@ int *vlat, *vlon, *valt;
 		       strlen(LAT_UNITS)+1, LAT_UNITS);
 	(void)ncattput(tag->nc_id, *vlat, "valid_range", NC_FLOAT,
 		       2, lat_range);
+	if (usebadval)
+	{
+	    (void) ncattput (tag->nc_id, *vlat, VATT_MISSING,
+			     NC_FLOAT, 1, &badval);
+	}
 
 	*vlon = ncvardef (tag->nc_id, "lon", NC_FLOAT, ndims, dims);
 	lon_range[0] = -180.0;
@@ -3875,6 +3894,11 @@ int *vlat, *vlon, *valt;
 		       strlen(LON_UNITS)+1, LON_UNITS);
 	(void)ncattput(tag->nc_id, *vlon, "valid_range", NC_FLOAT,
 		       2, lon_range);
+	if (usebadval)
+	{
+	    (void) ncattput (tag->nc_id, *vlon, VATT_MISSING,
+			     NC_FLOAT, 1, &badval);
+	}
 
 	*valt = ncvardef (tag->nc_id, "alt", NC_FLOAT, ndims, dims);
 	/*
@@ -3907,6 +3931,11 @@ int *vlat, *vlon, *valt;
 	}
 	(void)ncattput(tag->nc_id, *valt, VATT_UNITS, NC_CHAR, 
 		       strlen (buf) + 1, buf);
+	if (usebadval)
+	{
+	    (void) ncattput (tag->nc_id, *valt, VATT_MISSING,
+			     NC_FLOAT, 1, &badval);
+	}
 }
 
 
