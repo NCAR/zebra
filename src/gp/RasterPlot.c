@@ -1,7 +1,7 @@
 /*
  * Raster display a rectangular array
  */
-static char *rcsid = "$Id: RasterPlot.c,v 1.4 1990-08-03 16:35:29 corbet Exp $";
+static char *rcsid = "$Id: RasterPlot.c,v 1.5 1990-09-13 09:42:46 corbet Exp $";
 
 # include <errno.h>
 # include <math.h>
@@ -38,7 +38,7 @@ static XRectangle	Clip;
 /*
  * Forwards.
  */
-static void RP_FPRasterize (), RP_IRasterize ();
+/* static */ void RP_FPRasterize (), RP_IRasterize ();
 # ifdef __STDC__
 	static XImage *RP_GetXImage (Widget, int, int);
 # else
@@ -326,12 +326,12 @@ Display *disp;
  */
 {
 	static bool known = FALSE, possible;
-	int major, minor, sp;
+	int maj, min, sp;
 
 	if (known)
 		return (possible);
 	known = True;
-	possible = XShmQueryVersion (disp, &major, &minor, &sp);
+	possible = XShmQueryVersion (disp, &maj, &min, &sp);
 	msg_ELog (EF_INFO, "Shared memory: %s", possible ? "True" : "False");
 }
 # endif
@@ -369,52 +369,6 @@ float row, icol, rowinc, colinc;
 }
 
 
-
-
-
-
-static void
-RP_IRasterize (ximp, width, height, colgrid, row, icol, rowinc, colinc,
-	xdim, pad)
-unsigned char *ximp;
-int width, height, xdim, pad;
-unsigned int *colgrid;
-float row, icol, rowinc, colinc;
-/*
- * Do rasterization using the new integer-based (Sun-fast) method.
- */
-{
-	int i, j, icolinc;
-# ifdef __STDC__
-	static int col;
-	static const short *s_col = (short *) &col;
-# else
-	int col;
-	short *s_col = (short *) &col;
-# endif
-/*
- * Set up our integer values, which are simply the FP values scaled by 
- * 64K, so that the integer part is in the upper two bytes.  We then kludge
- * our way in with the short pointer to pull out the int part directly.
- */
-	icolinc = (int) (colinc * 65536);
-/*
- * Step through the data.
- */
-	for (i = 0; i < height; i++)
-	{
-		unsigned int *cp = colgrid + ((int) row)*xdim;
-
-		col = (int) (icol*65536);
-		for (j = 0; j < width; j++)
-		{
-			*ximp++ = cp[*s_col];
-			col += icolinc;
-		}
-		row += rowinc;
-		ximp += pad;	/* End of raster line padding.	*/
-	}
-}
 
 
 
@@ -526,3 +480,52 @@ int width, height;
 	XIheight = height;
 	return (image);
 }
+
+
+
+/* static */ void
+RP_IRasterize (ximp, width, height, colgrid, row, icol, rowinc, colinc,
+	xdim, pad)
+unsigned char *ximp;
+int width, height, xdim, pad;
+unsigned int *colgrid;
+float row, icol, rowinc, colinc;
+/*
+ * Do rasterization using the new integer-based (Sun-fast) method.
+ */
+{
+	int i, j, icolinc;
+# ifdef __STDC__
+	static int col;
+	static const short *s_col = (short *) &col;
+# else
+	int col;
+	short *s_col = (short *) &col;
+# endif
+/*
+ * Set up our integer values, which are simply the FP values scaled by 
+ * 64K, so that the integer part is in the upper two bytes.  We then kludge
+ * our way in with the short pointer to pull out the int part directly.
+ */
+	icolinc = (int) (colinc * 65536);
+/*
+ * Step through the data.
+ */
+	for (i = 0; i < height; i++)
+	{
+		unsigned int *cp = colgrid + ((int) row)*xdim;
+
+		col = (int) (icol*65536);
+		for (j = 0; j < width; j++)
+		{
+			*ximp++ = cp[*s_col];
+			col += icolinc;
+		}
+		row += rowinc;
+		ximp += pad;	/* End of raster line padding.	*/
+	}
+}
+
+
+
+
