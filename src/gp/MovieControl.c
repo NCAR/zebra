@@ -1,7 +1,7 @@
 /*
  * Movie control functions.
  */
-static char *rcsid = "$Id: MovieControl.c,v 2.12 1993-03-12 22:05:17 granger Exp $";
+static char *rcsid = "$Id: MovieControl.c,v 2.13 1993-03-19 23:24:49 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -44,6 +44,8 @@ static char *rcsid = "$Id: MovieControl.c,v 2.12 1993-03-12 22:05:17 granger Exp
 # define DAPERCENT      .6666	/* Percent of Frame Skip that must have */
 				/* elapsed before newly available data  */
 	 			/* will result in regenerating frames.  */
+# define MOVIE_NAME	"movie" /* Name of the movie controller widget  */
+
 /*
  * Globals.
  */
@@ -105,6 +107,7 @@ static void	mc_ReGenFramesDS FP ((void));
 static void	mc_SetupPreGen FP ((void));
 static ZebTime	mc_FixTime FP ((ZebTime));
 static void	mc_Notification FP ((PlatformId, int, ZebTime *));
+static void	mc_MovieDismiss ();
 
 
 void
@@ -115,7 +118,8 @@ mc_DefMovieWidget ()
 {
 	stbl vtbl = usy_g_stbl ("ui$variable_table");
 
-	uw_def_widget ("movie", "Movie Control:", mc_MWCreate, 0, 0);
+	uw_def_widget (MOVIE_NAME, "Movie Control:", mc_MWCreate, 0, 0);
+	uw_NoHeader (MOVIE_NAME);
 	usy_c_indirect (vtbl, "movietime", Endt, SYMT_STRING, ATSLEN);
 	usy_c_indirect (vtbl, "movieminutes", Minutes, SYMT_STRING, ATSLEN);
 }
@@ -211,6 +215,13 @@ XtAppContext appc;
 	w = XtCreateManagedWidget ("movieRT", commandWidgetClass, form,
 		args, n);
 	XtAddCallback (w, XtNcallback, mc_MovieRT, 0);
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, w); n++;
+	XtSetArg (args[n], XtNfromVert, NULL); n++;
+	XtSetArg (args[n], XtNlabel, "Dismiss"); n++;
+	w = XtCreateManagedWidget ("movieDismiss", commandWidgetClass, form,
+		args, n);
+	XtAddCallback (w, XtNcallback, mc_MovieDismiss, 0);
 /*
  * Next line: times.
  */
@@ -405,6 +416,18 @@ mc_UpdateWidgets ()
 	mc_DoOneWidget (WFrate, Frate);
 	mc_DoOneWidget (WFskip, Fskip);
 }
+
+
+
+static void
+mc_MovieDismiss ()
+/*
+ * Popdown the movie controller widget through UI
+ */
+{
+	uw_popdown (MOVIE_NAME);
+}
+
 
 
 void
