@@ -116,21 +116,33 @@ static XtResource resources[] = {
  * but we also don't want any EnterNotify events caused by submenus
  * popping down to execute a highlight method.  The disable-highlight() action
  * sets an internal flag disabling any further highlight actions.  Highlighting
- * is automatically enabled on popup via a XtNpopupCallback.
+ * is automatically enabled on popup via an XtNpopupCallback.
  *
  * The other method, perhaps more direct, is to insert a call to action
- * "unmap()" before the "notify()" in the <BtnUp> translation.  The only difference
+ * "unmap()" before the "notify()" in the <BtnUp> translation.  The biggest difference
  * between this method and the above is the order the menu windows disappear
  * from the screen.  Unmap() will unmap the window before unhighlighting its
  * SME children, whereas using "disable-unhighlight" will popdown tree post-order
  * traversal while ignoring the resulting <EnterNotify> events in the parent
  * widgets (those further up the modal cascade).
+ *
+ * Examples of both methods are below.  If you change the method here, you may also
+ * want to change the method used by SmeMenu in its Unhighlight method so that
+ * submenus are consistent.
  */
+#ifndef USE_UNMAP
 static char defaultTranslations[] =
     "<EnterWindow>:     highlight()             \n\
      <LeaveWindow>:     unhighlight()           \n\
      <BtnMotion>:       highlight()             \n\
      <BtnUp>:           disable-highlight() notify() unhighlight() MenuPopdown()";
+#else
+static char defaultTranslations[] =
+    "<EnterWindow>:     highlight()             \n\
+     <LeaveWindow>:     unhighlight()           \n\
+     <BtnMotion>:       highlight()             \n\
+     <BtnUp>:           unmap() notify() unhighlight() MenuPopdown()";
+#endif
 
 /*
  * Semi Public function definitions. 

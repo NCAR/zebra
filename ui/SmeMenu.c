@@ -439,10 +439,10 @@ Highlight(w)
 	}
 /*
  * Should probably get leftMargin resource and use that, or specify
- * this as a unique resource in the SmeMenu widget.  For now, use (x > 30)
- * unless width/2 is less than 30.
+ * this as a unique resource in the SmeMenu widget.  For now, use (x > 40)
+ * unless width/2 is less than 40.
  */
-	wantup = ((x > entry->rectangle.width / 2) || (x > 30)) ? True : False;
+	wantup = ((x > entry->rectangle.width / 2) || (x > 40)) ? True : False;
 /*
  * If we do want it up, and it's not, and there is a menu name, put it up.
  */
