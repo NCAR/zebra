@@ -1,7 +1,7 @@
 /*
  * XY-Wind plotting module
  */
-static char *rcsid = "$Id: XYWind.c,v 1.11 1992-11-10 18:38:29 burghart Exp $";
+static char *rcsid = "$Id: XYWind.c,v 1.12 1992-12-02 16:01:05 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -609,7 +609,8 @@ bool	update;
         if ( !TriggerGlobal )
         {
             lc_SetUserCoord ( &xmin,&xmax,&ymin,&ymax);
-            gp_Clip( &xmin, &ymin,&xmax,&ymax,xscalemode,yscalemode );
+            gp_Clip( &xmin, &ymin, &xmax, &ymax, xscalemode,
+	    		yscalemode | FUDGEBOT);
             msg_ELog ( EF_DEBUG,
                "X-Y Graph plotting %d data points for component %s.",npts,c);
             for (plat = 0; plat < nplat; plat++)

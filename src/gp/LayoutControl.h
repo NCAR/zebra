@@ -73,10 +73,13 @@
 # define MANUAL       (1<<1)
 # define INVERT       (1<<2)
 # define LOG	      (1<<3)
+# define FUDGEBOT     (1 << 4)	/* jc -- allow extra space on bottom */
 # define AXIS_BOTTOM	0
 # define AXIS_LEFT      1
 # define AXIS_TOP       2
 # define AXIS_RIGHT     3
+
+# define FUDGEAMOUNT	50	/* jc -- amount of extra space on bot */
 
 
 

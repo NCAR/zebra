@@ -5,7 +5,7 @@
  * region to hide details of the X coordinate system from individual
  * Plotting routines.
  */
-static char *rcsid = "$Id: PlotPrim.c,v 1.4 1992-01-29 22:29:02 barrett Exp $";
+static char *rcsid = "$Id: PlotPrim.c,v 1.5 1992-12-02 16:01:05 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -125,6 +125,13 @@ unsigned short	xscalemode, yscalemode;
 	    r.y = devY (yhi,yscalemode);
 	    r.height = devY (ylo,yscalemode) - r.y + 1;
 	}
+/*
+ * jc -- Move the bottom clip down if desired.  This is here to make
+ *	 wind profiles more useful by allowing the bottommost barbs
+ *	 to be seen even if they go below the grid.
+ */
+	if (yscalemode & FUDGEBOT)
+		r.height += FUDGEAMOUNT;
 /*
  * Put the clip rectangle into the GC
  */
