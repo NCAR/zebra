@@ -1,4 +1,5 @@
 /* 1/88 jc */
+/* $Id: bfile.c,v 1.3 1990-03-22 16:54:11 corbet Exp $ */
 /*
  * System-dependant binary file stuff.  These routines are needed because
  * the VMS-specific variable-length-record-format file does not exist in
@@ -83,7 +84,7 @@ char *file;
 	if (strchr (file, ':'))
 		return (dcreate (file));
 #   endif
-	if ((fd = creat (file, 0777)) < 0)
+	if ((fd = creat (file, 0666)) < 0)
 	{
 		perror (file);
 		return (0);
