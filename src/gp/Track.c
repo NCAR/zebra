@@ -1,7 +1,7 @@
 /*
  * Track drawing routines.
  */
-static char *rcsid = "$Id: Track.c,v 2.4 1991-09-12 20:27:54 corbet Exp $";
+static char *rcsid = "$Id: Track.c,v 2.5 1991-10-31 20:29:56 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -48,10 +48,10 @@ extern Pixel White;	/* XXX */
  * Forwards.
  */
 # ifdef __STDC__
-	static bool tr_CCSetup (char *, char *, char *, XColor **,
-		int *, float *, float *, XColor *);
+	static bool tr_CCSetup (char *, char *, char *, char *, XColor **,
+		int *, float *, float *, XColor *, float *, float *);
 	static void tr_GetArrowParams (char *, char *, float *, int *, int *,
-			int *, XColor *, char *, char *, char *);
+			int *, char *, XColor *, char *, char *, char *);
 # else
 	static bool tr_CCSetup ();
 	static void tr_GetArrowParams ();
@@ -65,8 +65,8 @@ tr_CAPTrack (comp, update)
 char *comp;
 bool update;
 {
-	char platform[30], tp[30], ccfield[30], ctable[30];
-	char *fields[5], mtcolor[20], string[40], format[30];
+	char platform[30], tp[30], ccfield[30], datastr[100];
+	char *fields[5], mtcolor[20], string[40], ctable[30], a_color[30];
 	char a_xfield[30], a_yfield[30];
 	char a_type[30], tadefcolor[30];
 	int period, dsperiod, x0, y0, x1, y1, nc, lwidth, pid;
@@ -78,7 +78,7 @@ bool update;
 	bool mono; 
 	time begin;
 	float *data, fx, fy, base, incr, cval, a_scale, *a_xdata, *a_ydata;
-	float a_x, a_y, unitlen, sascale;
+	float a_x, a_y, unitlen, sascale, center, step;
 	Drawable d;
 	Window win;
 	Display *disp = XtDisplay (Graphics);
@@ -138,8 +138,8 @@ bool update;
 			|| tr_GetParam (comp, "color-code-field", platform,
 				ccfield, SYMT_STRING));
 	if (! mono)
-		mono = ! tr_CCSetup (comp, platform, ccfield, &colors,
-				&nc, &base, &incr, &outrange);
+		mono = ! tr_CCSetup (comp, platform, ccfield, ctable, &colors,
+				&nc, &base, &incr, &outrange, &center, &step);
 /*
  * Put together the field list.
  */
@@ -161,7 +161,8 @@ bool update;
 	if(arrow)
 	{
 		tr_GetArrowParams (comp, platform, &a_scale, &a_lwidth,
-			&a_invert, &a_int, &a_clr, a_type, a_xfield, a_yfield);
+			&a_invert, &a_int, a_color, &a_clr, a_type, 
+			a_xfield, a_yfield);
 		fields[1] = a_xfield;
 		fields[2] = a_yfield;
 		numfields += 2;
@@ -286,8 +287,8 @@ bool update;
 				XSetLineAttributes (disp, Gcontext, a_lwidth, 
 					LineSolid, CapButt, JoinMiter);
 				a_y = *(a_ydata + i - 1);
-				tr_DrawVector(x0, y0, a_x, a_y, unitlen,
-					disp,d, Gcontext);
+				draw_vector (disp, d, Gcontext, x0, y0, 
+					a_x, a_y, unitlen);
 				XSetLineAttributes (disp, Gcontext, lwidth, 
 					LineSolid, CapButt, JoinMiter);
 			}
@@ -332,101 +333,43 @@ bool update;
 	/*
 	 * Down the side too.
 	 */
-		An_AnnotLimits (&top, &bottom, &left, &right);
-		XSetForeground (disp, Gcontext, tadefclr.pixel);
-		wheight = GWHeight (Graphics);
-		
-		left += 10;
-		top += 10;
-		mid = (left + right)/2;
-	/*
-	 * Some text.
-	 */
 		if (mono)
 		{
-			sprintf (string, "%s", platform);
-			XSetForeground (disp, Gcontext, xc.pixel);
-	 		DrawText (Graphics, GWFrame (Graphics), Gcontext, 
-				left, top, string, 0.0, sascale, JustifyLeft, 
-				JustifyCenter);
-			An_SAUsed (top + 10);
-			return;
+			sprintf (datastr, "%s %s", platform, mtcolor);
+			An_AddAnnotProc (An_ColorString, comp, datastr,
+				strlen (datastr), 25, FALSE, FALSE);
 		}
-			
-		sprintf (string, "%s:", ccfield);
-
-	 	DrawText (Graphics, GWFrame (Graphics), Gcontext, left, top,
-			string, 0.0, sascale, JustifyLeft, JustifyTop);
-
-		top += (int)(1.2 * sascale * wheight);
-	/*
-	 * See if there is a special printf format for this field.
-	 */
-		if (! pda_Search (Pd, comp, "annotation-format", ccfield,
-					format, SYMT_STRING))
-			strcpy (format, "%.1f");
-	/*
-	 * Then put in the annotation.
-	 */
-		cval = base + incr/2.0;
-		for (i = 0; i <= nc; i++)
+		else
 		{
-		/*
-		 * Numeric label
-		 */
-			if((i % ctlimit) == 0)
+			sprintf (datastr, "%s %s %f %f", ccfield, ctable,
+				center, step);
+			An_AddAnnotProc (An_ColorBar, comp, datastr,
+				strlen (datastr), 75, TRUE, FALSE);
+			if (arrow)
 			{
-				cval += incr;
-				sprintf (string, format, cval);
-
-				XSetForeground (disp, Gcontext, 
-					colors[i].pixel);
-				DrawText (Graphics, GWFrame (Graphics),
-					Gcontext, EVEN(i) ? left : mid, top, 
-					string, 0.0, sascale, JustifyLeft, 
-					JustifyTop);
+				sprintf (datastr, "%s %s %f %f %f", "10m/sec", 
+					a_color, 10.0, 0.0, unitlen);
+				An_AddAnnotProc (An_ColorVector, comp, datastr,
+					strlen (datastr), 25, FALSE, FALSE);
 			}
-			if (ODD(i))
-				top += (int)(1.2 * sascale * wheight);
 		}
-	/*
-	 * Annotate arrows if necessary on side
-	 */
-		yannot = top + 0.04 * wheight;
-		if(arrow)
-		{
-			XSetForeground (disp, Gcontext, taclr.pixel);
-			top += 2;
-			xannot = (left + right)/2 - 5;
-			DrawText(Graphics, GWFrame(Graphics), Gcontext,
-				xannot, yannot, "10 m/sec", 0.0, sascale,
-				JustifyCenter, JustifyBottom); 
-			xannot = left - 10;
-			yannot += 0.022 * wheight;
-			tr_DrawVector(xannot, yannot + 4, 10.0, 0.0, unitlen,
-				disp, d, Gcontext);
-		}
-		An_SAUsed (yannot + 10);
 	}
 }
 
 
 
-
-
-
 static bool
-tr_CCSetup (comp, platform, ccfield, colors, nc, base, incr, outrange)
-char *comp, *platform, *ccfield;
+tr_CCSetup (comp, platform, ccfield, ctable, colors, nc, base, incr, outrange,
+	center, step)
+char *comp, *platform, *ccfield, *ctable;
 XColor **colors, *outrange;
 int *nc;
-float *base, *incr;
+float *base, *incr, *center, *step;
 /*
  * Get everything set up to color-code a track.
  */
 {
-	float center, step;
-	char orc[20], ctable[20];
+	char orc[20];
 /*
  * Get the color table.
  */
@@ -445,8 +388,8 @@ float *base, *incr;
  * Get our color coding parameters.
  */
 	if (! pda_ReqSearch (Pd, comp, "track-center", ccfield, (char *)
-			&center, SYMT_FLOAT) ||
-	    ! pda_ReqSearch (Pd, comp, "track-step", ccfield, (char *) &step,
+			center, SYMT_FLOAT) ||
+	    ! pda_ReqSearch (Pd, comp, "track-step", ccfield, (char *) step,
 	    	SYMT_FLOAT))
 		return (FALSE);
 	if (! tr_GetParam (comp, "out-of-range-color", ccfield, orc,
@@ -462,8 +405,8 @@ float *base, *incr;
  */
 	if ((*nc & 0x1) == 0)
 		(*nc)--;
-	*base = center - (*nc/2)*step - step/2;
-	*incr = step;
+	*base = *center - (*nc/2)*(*step) - *step/2;
+	*incr = *step;
 
 	return (TRUE);
 }
@@ -471,9 +414,9 @@ float *base, *incr;
 
 
 static void
-tr_GetArrowParams (comp, platform, a_scale, a_lwidth, a_invert, a_int, a_clr,
-		a_type, a_xfield, a_yfield)
-char *comp, *platform, *a_type, *a_xfield, *a_yfield;
+tr_GetArrowParams (comp, platform, a_scale, a_lwidth, a_invert, a_int, 
+		a_color, a_clr, a_type, a_xfield, a_yfield)
+char *comp, *platform, *a_type, *a_xfield, *a_yfield, *a_color;
 float *a_scale;
 int *a_lwidth, *a_invert, *a_int;
 XColor *a_clr;
@@ -481,7 +424,7 @@ XColor *a_clr;
  * Get the parameters that control track arrows.
  */
 {
-	char a_color[40], a_interval[30];
+	char a_interval[30];
 /*
  * Misc params.
  */
@@ -544,7 +487,11 @@ int type;
 
 
 
-
+# ifdef notdef
+/*
+ * This routine has hopefully been replaced by the generic
+ * draw_vector ().
+ */
 tr_DrawVector(x, y, u, v, unit, W, D, Gcontext)
 int x, y;
 float u, v, unit;
@@ -592,4 +539,4 @@ GC Gcontext;
 			(int)(xend - dx), (int)(yend - dy));
 	}
 }
-
+# endif

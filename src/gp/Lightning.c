@@ -1,7 +1,7 @@
 /*
  * Lightning display routine.
  */
-static char *rcsid = "$Id: Lightning.c,v 2.3 1991-09-12 20:27:54 corbet Exp $";
+static char *rcsid = "$Id: Lightning.c,v 2.4 1991-10-31 20:29:23 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -37,7 +37,8 @@ static char *rcsid = "$Id: Lightning.c,v 2.3 1991-09-12 20:27:54 corbet Exp $";
 
 extern Pixel	White;
 
-void CAPLight ();
+void li_CAPLight ();
+void li_SideAnnot ();
 
 void
 li_CAPLight (comp, update)
@@ -45,10 +46,10 @@ char *comp;
 bool update;
 {
 	char	platform[30], step[30], ctable[30];
-	char	**fields, string[40],	tadefcolor[30];
+	char	**fields, string[40], tadefcolor[30], data[100];
 	int	period, dsperiod, x, y, numcolor, pid, istep;
 	int	i, top, bottom, left, right, numfields, index;
-	time	begin, t, temp;
+	time	begin, t;
 	float	fx, fy, cval, sascale, bar_height;
 	Display	*disp = XtDisplay (Graphics);
 	Drawable d = GWFrame (Graphics);
@@ -179,35 +180,60 @@ bool update;
 	/*
 	 * Down the side too.
 	 */
-		An_AnnotLimits (&top, &bottom, &left, &right);
-		
-		left += 5;
-		top += 5;
-		bar_height = (float) (bottom - top) / (float) numcolor;
-		temp.ds_yymmdd = 0;
-		for (i = 0; i < numcolor; i++)
-		{
-			XSetForeground(disp, Gcontext, colors[i].pixel);
-			XFillRectangle (disp, d, Gcontext, left,
-				(int) (top + i * bar_height), 10,
-				(int) (bar_height + 1));
-			sprintf (string, "%d - %d", i*(istep),(i+1)*istep); 
-			XSetForeground (disp, Gcontext, White);
-			DrawText (Graphics, d, Gcontext, left + 15, 
-				(int) (top + i * bar_height), string, 
-				0.0, sascale, JustifyLeft, JustifyTop);
-		}
-		sprintf (string, "Total = %d", dobj->do_npoint); 
-		DrawText (Graphics, d, Gcontext, left, 
-			(int) (top + numcolor * bar_height), string, 0.0, 
-			sascale, JustifyLeft, JustifyTop);
-		An_SAUsed ((int) (top + (numcolor + 1) * bar_height +  8));
+        	sprintf (data, "%s %d %d", ctable, dobj->do_npoint, istep);
+		An_AddAnnotProc (li_SideAnnot, comp, data, strlen (data),
+			75, TRUE, FALSE);
 	}
 /*
  * Put in the status line before we lose the data object, then get rid of it.
  */
 	lw_TimeStatus (comp, &dobj->do_end);
 	ds_FreeDataObject (dobj);
+}
+
+
+
+void
+li_SideAnnot (comp, data, datalen, begin, space)
+char *comp, *data;
+int datalen, begin, space;
+/*
+ * Do side annotation for a lightning plot.
+ */
+{
+        char string[40], ctable[40];
+        float max, min, frac, val, used, scale;
+        int i, left, limit, ncolors, bar_height, match;
+	int npoint, istep;
+        XColor *colors, xc;
+/*
+ * Get the data.
+ */
+	An_GetSideParams (comp, &scale, &limit);
+	An_GetTopParams (&xc, &match);
+        sscanf (data, "%s %d %d", ctable, &npoint, &istep);
+        ct_LoadTable (ctable, &colors, &ncolors);
+/*
+ * Put in the colored bars.
+ */
+	left = An_GetLeft ();
+	bar_height = (float) space / (float) (ncolors + 1);
+	for (i = 0; i < ncolors; i++)
+	{
+		XSetForeground(XtDisplay (Graphics), Gcontext, 
+			colors[i].pixel);
+		XFillRectangle (XtDisplay (Graphics), GWFrame (Graphics), 
+			Gcontext, left, begin, 10, bar_height);
+		sprintf (string, "%d - %d", i*(istep),(i+1)*istep); 
+		XSetForeground (XtDisplay (Graphics), Gcontext, xc.pixel);
+		DrawText (Graphics, GWFrame (Graphics), Gcontext, left + 15, 
+			begin, string, 0.0, scale, JustifyLeft, JustifyTop);
+		begin += bar_height;	
+		space -= bar_height;
+	}
+	sprintf (string, "Total = %d", npoint); 
+	DrawText (Graphics, GWFrame (Graphics), Gcontext, left, 
+		begin, string, 0.0, scale, JustifyLeft, JustifyTop);
 }
 
 

@@ -1,7 +1,7 @@
 /*
  * Herein lies all the Constant Altitude Plot code, carved from PlotExec.
  */
-static char *rcsid = "$Id: ConstAltPlot.c,v 2.3 1991-09-12 20:27:54 corbet Exp $";
+static char *rcsid = "$Id: ConstAltPlot.c,v 2.4 1991-10-31 20:28:35 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -61,6 +61,7 @@ extern int Comp_index;
 extern Pixel White;
 
 static int Ctlimit;
+static char Ctname[40];
 /*
  * Macro for a pointer to x cast into a char *
  */
@@ -83,17 +84,25 @@ typedef enum {LineContour, FilledContour} contour_type;
 	void	CAP_Vector (char *, int);
 	void	CAP_Raster (char *, int);
 	void	CAP_LineContour (char *, int);
-	void	CAP_Contour (char *, contour_type, char *, float *, float *);
+	void	CAP_Contour (char *, contour_type, char *, float *, 
+		float *, char *);
 	static float * CAP_ImageGrid (char *, time *, PlatformId, char *,
 		int *, int *, float *, float *, float *, float *, ScaleInfo *,
 		float *);
+	void	CAP_RasterSideAnnot (char *, char *, int, int, int);
+	void	CAP_StaPltSideAnnot (char *, char *, int, int, int);
 # else
 	void	CAP_FContour ();
 	void	CAP_Vector (), CAP_Raster (), CAP_LineContour ();
 	void	CAP_Contour ();
+	void	CAP_RasterSideAnnot ();
+	void	CAP_StaPltSideAnnot ();
 # endif
 
-extern int tr_DrawVector ();
+extern void An_ColorNumber ();
+extern void An_ColorBar ();
+extern void An_ColorVector ();
+extern int An_GetLeft ();
 
 
 void
@@ -119,11 +128,11 @@ Boolean	update;
 {
 	float	center, step, bar_height, cval;
 	int	i, left, right, top, bottom;
-	char	string[10], fname[20];
+	char	string[10], fname[20], ctable[40], data[100];
 /*
  * Use the common CAP contouring routine to do a filled contour plot
  */
-	CAP_Contour (c, FilledContour, fname, &center, &step);
+	CAP_Contour (c, FilledContour, fname, &center, &step, ctable);
 /*
  * If it's just an update, return now since we don't want
  * to re-annotate
@@ -139,53 +148,11 @@ Boolean	update;
 /*
  * Side annotation (color bar)
  */
-	if(Sashow)
+	if (Sashow)
 	{
-	/*
-	 * Get the limits of our space, and tweak them a bit.
-	 */
-		An_AnnotLimits (&top, &bottom, &left, &right);
-		left += 5;
-		top += 5;
-		bottom -= 5;
-		bar_height = (float)(bottom - top) / (float) Ncolors;
-	/*
-	 * Put in the field name.
-	 */
-		XSetForeground (XtDisplay (Graphics), Gcontext,Tadefclr.pixel);
-		DrawText (Graphics, GWFrame (Graphics), Gcontext, left, 
-			top, fname, 0.0, Sascale, 
-			JustifyLeft, JustifyCenter);
-		top += Sascale * USABLE_HEIGHT;
-	/*
-	 * Now put each color into the color bar.
-	 */
-		for (i = 0; i <= Ncolors; i += Ctlimit)
-		{
-		/*
-		 * Draw a color rectangle
-		 */
-			if (i < Ncolors)
-			{
-				XSetForeground (XtDisplay (Graphics),Gcontext, 
-					Colors[Ncolors - i - 1].pixel);
-				XFillRectangle (XtDisplay (Graphics), 
-					GWFrame (Graphics), Gcontext, left, 
-					(int)(top + i * bar_height), 10, 
-					(int)(bar_height + 1));
-			}
-		/*
-		 * Numeric label
-		 */
-			cval = center + (Ncolors/2 - i - 1) * step;
-			sprintf (string, "%.1f", cval);
-	
-			XSetForeground (XtDisplay (Graphics), Gcontext, White);
-			DrawText (Graphics, GWFrame (Graphics), Gcontext, 
-				left + 15, (int)(top + i * bar_height), string,
-				 0.0, Sascale, JustifyLeft, JustifyCenter);
-		}
-		An_SAUsed ((int) (Ncolors*bar_height + top + 8));
+		sprintf (data, "%s %s %f %f", fname, ctable, center, step); 
+		An_AddAnnotProc (An_ColorBar, c, data, strlen (data),
+			75, TRUE, FALSE);
 	}
 }
 
@@ -201,13 +168,13 @@ Boolean	update;
  */
 {
 	float	center, step, cval;
-	char	fname[20], string[10];
+	char	fname[20], string[10], data[100], ctable[40];
 	int	top, bottom, left, right, wheight, i;
 	int	tacmatch = 0;
 /* 
  * Use the common CAP contouring routine to do a color line contour plot
  */
-	CAP_Contour (c, LineContour, fname, &center, &step);
+	CAP_Contour (c, LineContour, fname, &center, &step, ctable);
 /*
  * If it's just an update, return now since we don't want
  * to re-annotate
@@ -227,38 +194,15 @@ Boolean	update;
 /*
  * Side annotation
  */
-	if(Sashow)
-	{	
-		An_AnnotLimits (&top, &bottom, &left, &right);
-		left += 10;
-		top += 5;
 
-		wheight = USABLE_HEIGHT;
-
-		if(! Monocolor)
+	if (Sashow)
+	{
+		if (! Monocolor)
 		{
-			XSetForeground (XtDisplay (Graphics), Gcontext, 
-				Tadefclr.pixel);
-			DrawText (Graphics, GWFrame (Graphics), Gcontext, 
-					left, top, fname, 0.0, Sascale, 
-					JustifyLeft, JustifyTop);
-			top += Sascale * wheight;
-			for (i = 0; i <= Ncolors; i += Ctlimit)
-			{
-			/*
-			 * Numeric label
-			 */
-				cval = center + (i - Ncolors / 2) * step;
-				sprintf (string, "%.1f", cval);
-	
-		
-				XSetForeground (XtDisplay (Graphics), Gcontext, 
-					Colors[i].pixel);
-				DrawText (Graphics, GWFrame (Graphics), 
-					Gcontext, left, top, string, 0.0, 
-					Sascale, JustifyLeft, JustifyTop);
-				top += (int)(1.2 * Sascale * wheight);
-			}
+			sprintf (data, "%s %s %f %f", fname, ctable, 
+				center, step); 
+			An_AddAnnotProc (An_ColorNumber, c, data, strlen (data),
+				75, TRUE, FALSE);
 		}
 	}
 }
@@ -267,8 +211,8 @@ Boolean	update;
 
 
 void
-CAP_Contour (c, type, fname, center, step)
-char	*c, *fname;
+CAP_Contour (c, type, fname, center, step, ctable)
+char	*c, *fname, *ctable;
 contour_type	type;
 float	*center, *step;
 /*
@@ -278,7 +222,7 @@ float	*center, *step;
  * description.
  */
 {
-	char	ctname[40], platform[40], ctcolor[40];
+	char	platform[40], ctcolor[40];
 	int	xdim, ydim;
 	float	*rgrid, *grid, x0, x1, y0, y1, alt;
 	int	pix_x0, pix_x1, pix_y0, pix_y1, dolabels, linewidth;
@@ -311,7 +255,7 @@ float	*center, *step;
 			ct_GetColorByName(ctcolor, &Ctclr);
 		}
 	}
-	else ok &= pda_ReqSearch (Pd, c, "color-table", "contour", ctname, 
+	else ok &= pda_ReqSearch (Pd, c, "color-table", "contour", ctable, 
 		SYMT_STRING);
 	labelflag = TRUE;
 	pda_Search(Pd, c, "label-blanking", "contour", (char *) &labelflag,
@@ -344,7 +288,7 @@ float	*center, *step;
  * Grab the color table
  */
 	if(! Monocolor)
-		ct_LoadTable (ctname, &Colors, &Ncolors);
+		ct_LoadTable (ctable, &Colors, &Ncolors);
 /*
  * Get the data (pass in plot time, get back actual data time)
  */
@@ -439,6 +383,7 @@ Boolean	update;
 	char	quadrants[120], *quads[6], quadclr[30], string[10];
 	int	numquads = 0, offset_x[] = {-15, -15, 15, 15};
 	int	offset_y[] = {-15, 15, -15, 15};
+	char	data[100];
 /*
  * Get necessary parameters from the plot description
  */
@@ -447,6 +392,7 @@ Boolean	update;
 	ok &= pda_ReqSearch (Pd, c, "v-field", NULL, vname, SYMT_STRING);
 	ok &= pda_ReqSearch (Pd, c, "arrow-scale", NULL, CPTR (vscale), 
 		SYMT_FLOAT);
+	unitlen = USABLE_HEIGHT * vscale;
 	if (! ok)
 		return;
 /*
@@ -542,9 +488,15 @@ Boolean	update;
 		if (pd_Retrieve (Pd, c, "quadrants", quadrants, SYMT_STRING))
 		{
 			if (!pd_Retrieve(Pd,c,"quad-color",quadclr,SYMT_STRING))
+			{
+				strcpy (quadclr, cname);
 				qcolor = color;
+			}
 			else if(! ct_GetColorByName(quadclr, &qcolor))
+			{
+				strcpy (quadclr, cname);
 				qcolor = color;
+			}
 			numquads = CommaParse (quadrants, quads);
 			if (numquads > 4) numquads = 4;
 		}
@@ -560,7 +512,6 @@ Boolean	update;
 			msg_ELog (EF_INFO, "Get failed on '%s'", platform);
 			return;
 		}
-		unitlen = USABLE_HEIGHT * vscale;
 		XSetForeground (XtDisplay (Graphics), Gcontext, color.pixel);
 		for (i = 0; i < dobj->do_desc.d_irgrid.ir_npoint; i++)
 		{
@@ -573,10 +524,10 @@ Boolean	update;
 				color.pixel);
 			if ((dobj->do_data[0][i] != BADVAL) && 
 			    (dobj->do_data[1][i] != BADVAL))
-				tr_DrawVector (pix_x0, pix_y0, 
+				draw_vector (XtDisplay(Graphics),
+				GWFrame (Graphics), Gcontext,pix_x0, pix_y0, 
 				dobj->do_data[0][i], dobj->do_data[1][i], 
-				unitlen, XtDisplay (Graphics), 
-				GWFrame (Graphics), Gcontext);
+				unitlen);
 			XSetForeground (XtDisplay (Graphics), Gcontext,
 					qcolor.pixel);
 			for (j = 0; j < numquads; j++)
@@ -612,81 +563,99 @@ Boolean	update;
 /*
  * Side annotation (scale vectors)
  */
-	An_AnnotLimits (&top, &bottom, &left, &right);
 
-	if(tacmatch)
-		XSetForeground (XtDisplay (Graphics), Gcontext, color.pixel);
+	if (grid)
+	{
+		sprintf (data, "%s %s %f %f %f", "10m/sec", cname,
+			10.0, 0.0, unitlen); 
+		An_AddAnnotProc (An_ColorVector, c, data, strlen (data),
+			40, FALSE, FALSE);
+	}
 	else
-		XSetForeground (XtDisplay (Graphics), Gcontext, Tadefclr.pixel);
-
-	xannot = (left + right) / 2;
-	yannot = top + 0.04 * USABLE_HEIGHT;
-	DrawText (Graphics, GWFrame (Graphics), Gcontext, xannot, yannot, 
-		"10 m/sec", 0.0, Sascale, JustifyCenter, JustifyBottom);
-	xannot = left;
-	yannot += Sascale * USABLE_HEIGHT;
-	if(tacmatch)
-		if (grid)
-			VG_AnnotVector (xannot, yannot + 4, 10.0, 0.0, 
-				color.pixel);
+	{
+		if (numquads > 0)
+		{
+			sprintf (data, "%s %s %s %f %d ", "10m/sec", 
+				cname, quadclr, unitlen, numquads);
+			for (i = 0; i < 4; i++)
+				if (i < numquads)
+				{
+					strcat (data, dobj->do_fields[i + 2]);
+					strcat (data, " ");
+				}
+				else strcat (data, "null ");
+			An_AddAnnotProc (CAP_StaPltSideAnnot, c, data, 
+				strlen (data), 90, FALSE, FALSE);
+		}
 		else
 		{
-			XSetForeground (XtDisplay (Graphics), Gcontext,
-					color.pixel);
-			tr_DrawVector (xannot, yannot + 4, 10.0, 0.0,
-				unitlen, XtDisplay (Graphics), 
-				GWFrame (Graphics), Gcontext);
-			XSetForeground (XtDisplay (Graphics), Gcontext,
-					qcolor.pixel);
-			if (numquads > 0)
-			{
-				XDrawLine (XtDisplay (Graphics), 
-					GWFrame (Graphics), Gcontext, 
-					xannot + 25, yannot + 10, 
-					xannot + 25, yannot + 55);
-				XDrawLine (XtDisplay (Graphics), 
-					GWFrame (Graphics), Gcontext, 
-					xannot, yannot + 30, 
-					xannot + 55, yannot + 30);
-			}
-			for (i = 0; i < numquads; i++)
-				DrawText (Graphics, GWFrame (Graphics), 
-					Gcontext, xannot + offset_x[i] + 15, 
-					yannot + offset_y[i] + 25, 
-					dobj->do_fields[i + 2], 0.0, 
-					Sascale, JustifyLeft, JustifyTop);
+			sprintf (data, "%s %s %s %f %d %s %s %s %s", "10m/sec", 
+				cname, "null", unitlen, numquads, "null",
+				"null", "null", "null");
+			An_AddAnnotProc (CAP_StaPltSideAnnot, c, data, 
+				strlen (data), 40, FALSE, FALSE);
 		}
-	else
-		if (grid)
-			VG_AnnotVector (xannot, yannot + 4, 10.0, 0.0, 
-				Tadefclr.pixel);
-		else
-		{
-			XSetForeground (XtDisplay (Graphics), Gcontext, 
-				Tadefclr.pixel);
-			tr_DrawVector (xannot, yannot + 4, 10.0, 0.0,
-				unitlen, XtDisplay (Graphics), 
-				GWFrame (Graphics), Gcontext);
-			if (numquads > 0)
-			{
-				XDrawLine (XtDisplay (Graphics), 
-					GWFrame (Graphics), Gcontext, 
-					xannot + 20, yannot + 10, 
-					xannot + 20, yannot + 55);
-				XDrawLine (XtDisplay (Graphics), 
-					GWFrame (Graphics), Gcontext, 
-					xannot, yannot + 30, 
-					xannot + 55, yannot + 30);
-			}
-			for (i = 0; i < numquads; i++)
-				DrawText (Graphics, GWFrame (Graphics), 
-					Gcontext, xannot + offset_x[i] + 15, 
-					yannot + offset_y[i] + 25, 
-					dobj->do_fields[i + 2], 0.0, 
-					Sascale, JustifyLeft, JustifyTop);
-		}
+	}
 	lw_TimeStatus (c, &t);
-	An_SAUsed (yannot + 50);
+}
+
+
+void
+CAP_StaPltSideAnnot (comp, data, datalen, begin, space)
+char *comp, *data;
+int datalen, begin, space;
+/*
+ * Routine to do station plot side annotation.
+ */
+{
+	char string[40], vcolor[40], qcolor[40], qname[4][40];
+	float unitlen, used, scale; 
+	int i, left, numquads, limit;
+	XColor vc, qc;
+	int offset_x[] = {-15, -15, 15, 15};
+	int offset_y[] = {-15, 15, -15, 15};
+/*
+ * Get annotation parameters.
+ */
+	An_GetSideParams (comp, &scale, &limit);
+/*
+ * Get the data.
+ */
+        sscanf (data, "%s %s %s %f %d %s %s %s %s", string, vcolor, qcolor, 
+		&unitlen, &numquads, qname[0], qname[1], qname[2], qname[3]);
+	ct_GetColorByName (vcolor, &vc);
+	ct_GetColorByName (qcolor, &qc);
+/*
+ * Put in the vector.
+ */
+	left = An_GetLeft ();
+	XSetForeground (XtDisplay (Graphics), Gcontext, vc.pixel);
+	DrawText (Graphics, GWFrame (Graphics), Gcontext, left, begin, 
+		"10 m/sec", 0.0, scale, JustifyLeft, JustifyTop);
+	used = scale * (float) USABLE_HEIGHT;
+	begin += used;
+	space -= used;
+
+	XSetForeground (XtDisplay (Graphics), Gcontext, vc.pixel);
+	draw_vector (XtDisplay (Graphics), GWFrame (Graphics), Gcontext,
+		left, begin + 5, 10.0, 0.0, unitlen);
+	begin += 10;
+	space -= 10;
+/*
+ * Put in the quadrant annotation.
+ */
+	XSetForeground (XtDisplay (Graphics), Gcontext, qc.pixel);
+	if (numquads > 0)
+	{
+		XDrawLine (XtDisplay (Graphics), GWFrame (Graphics), Gcontext, 
+			left + 25, begin + 10, left + 25, begin + 55);
+		XDrawLine (XtDisplay (Graphics), GWFrame (Graphics), Gcontext, 
+			left, begin + 30, left + 55, begin + 30);
+	}
+	for (i = 0; i < numquads; i++)
+		DrawText (Graphics, GWFrame (Graphics), Gcontext, 
+			left + offset_x[i] + 15, begin + offset_y[i] + 25, 
+			qname[i], 0.0, scale, JustifyLeft, JustifyTop);
 }
 
 
@@ -701,15 +670,15 @@ Boolean	update;
  * description, specified conent, and plot time
  */
 {
-	char	name[20], string[10], ctname[40], platform[40];
+	char	name[20], ctname[40], platform[40], data[100], hcolor[40];
 	int	xdim, ydim;
-	int	top, bottom, left, right, i, newrp, fastloop;
-	Boolean	ok;
+	int	fastloop, newrp, nsteps;
+	Boolean	ok, highlight;
 	float	*grid, x0, x1, y0, y1, alt;
-	float	min, max, bar_height, val, frac;
+	float	min, max, center, step, hvalue, hrange;
 	int	pix_x0, pix_x1, pix_y0, pix_y1, image;
 	XRectangle	clip;
-	XColor	black;
+	XColor	black, xc;
 	time	t;
 	PlatformId pid;
 	DataOrganization org;
@@ -720,8 +689,12 @@ Boolean	update;
 	strcpy (name, "none");
 	ok = pda_ReqSearch (Pd, c, "platform", NULL, platform, SYMT_STRING);
 	ok &= pda_ReqSearch (Pd, c, "field", NULL, name, SYMT_STRING);
-	ok &= pda_ReqSearch (Pd, c, "minval", name, CPTR (min), SYMT_FLOAT);
-	ok &= pda_ReqSearch (Pd, c, "maxval", name, CPTR (max), SYMT_FLOAT);
+	ok &= pda_ReqSearch (Pd, c, "raster-center", name, CPTR (center), 
+		SYMT_FLOAT);
+	ok &= pda_ReqSearch (Pd, c, "raster-step", name, CPTR (step), 
+		SYMT_FLOAT);
+	ok &= pda_ReqSearch (Pd, c, "raster-nsteps", name, CPTR (nsteps), 
+		SYMT_INT);
 	ok &= pda_ReqSearch (Pd, c, "color-table", "raster", ctname, 
 		SYMT_STRING);
 
@@ -743,6 +716,21 @@ Boolean	update;
 	{
 		msg_ELog (EF_PROBLEM, "Can't do raster plots of %s", platform);
 		return;
+	}
+/*
+ * Get info for highlighting and area.
+ */
+	highlight = FALSE;
+	if (pda_Search (Pd, c, "raster-highlight", name, CPTR (hvalue), 
+			SYMT_FLOAT))
+	{
+		highlight = TRUE;
+		if (! pda_Search (Pd, c, "raster-highlight-color", name, 
+				CPTR (hcolor), SYMT_STRING))
+			strcpy (hcolor, "white");
+		if (! pda_Search (Pd, c, "raster-highlight-range", name, 
+				CPTR (hrange), SYMT_FLOAT))
+			hrange = 4.0;
 	}
 /*
  * Get annotation information from the plot description
@@ -799,7 +787,11 @@ Boolean	update;
  * Draw the raster plot
  */
 	ct_GetColorByName ("black", &black);
-	RP_Init (Colors, Ncolors, black, clip, min, max);
+	ct_GetColorByName (hcolor, &xc);
+	max = center + (nsteps/2) * step;
+	min = center - (nsteps/2) * step;
+	RP_Init (Colors, Ncolors, black, clip, min, max, highlight, hvalue, 
+		xc, hrange);
 	if (image)
 		RasterImagePlot (Graphics, DrawFrame, grid, xdim,
 			ydim, pix_x0, pix_y0, pix_x1, pix_y1, scale.s_Scale,
@@ -830,48 +822,99 @@ Boolean	update;
 /*
  * Side annotation (color bar)
  */
-	An_AnnotLimits (&top, &bottom, &left, &right);
+	if (highlight)
+		sprintf (data, "%s %s %f %f %d %d %f %s %f", name, ctname, 
+	  	     center, step, nsteps, highlight, hvalue, hcolor, hrange);
+	else
+		sprintf (data, "%s %s %f %f %d %d %f %s %f", name, ctname, 
+	  	     center, step, nsteps, highlight, 0.0, "null", 0.0);
+	An_AddAnnotProc (CAP_RasterSideAnnot, c, data, strlen (data), 
+		140, TRUE, FALSE);
+}
 
-	bottom -= 5;
-	top += 5;
-	bar_height = (bottom - top) / (float) Ncolors;
+
+static void
+CAP_RasterSideAnnot (comp, data, datalen, begin, space)
+char *comp, *data;
+int datalen, begin, space;
+{
+	char string[40], ctable[40], color[40];
+	float center, step, val, used, scale, value, range, max;
+	int i, left, ncolors, bar_height, limit, nsteps, y;
+	int highlight;
+	XColor *colors, xc;
+/*
+ * Get annotation parameters.
+ */
+	An_GetSideParams (comp, &scale, &limit);
+/*
+ * Get the data.
+ */
+        sscanf (data,"%s %s %f %f %d %d %f %s %f", string, ctable, &center, 
+		&step, &nsteps, &highlight, &value, color, &range);
+        ct_LoadTable (ctable, &colors, &ncolors);
+	ct_GetColorByName (color, &xc);
 /*
  * Throw in the field name.
  */
+	left = An_GetLeft ();
 	XSetForeground (XtDisplay (Graphics), Gcontext, Tadefclr.pixel);
 	DrawText (Graphics, GWFrame (Graphics), Gcontext, left, 
-		top, name, 0.0, Sascale, JustifyLeft, 
+		begin, string, 0.0, scale, JustifyLeft, 
 		JustifyCenter);
-	top += Sascale * USABLE_HEIGHT;
+	used = scale * (float) USABLE_HEIGHT;
+	begin += used;
+	space -= used;
 /*
  * Add all the colors.
  */
-	for (i = 0; i < Ncolors; i++)
+	space -= scale * (float) USABLE_HEIGHT; /* save space for last num */
+	bar_height = (float) space / (float) ncolors;
+	if (bar_height <= 0) bar_height = 1;
+	for (i = 0; i < ncolors; i++)
 	{
-	/*
-	 * Draw a color rectangle
-	 */
 		XSetForeground (XtDisplay (Graphics), Gcontext, 
-			Colors[Ncolors - i - 1].pixel);
+			colors[ncolors - i - 1].pixel);
 		XFillRectangle (XtDisplay (Graphics), GWFrame (Graphics), 
-			Gcontext, left, (int)(top + i * bar_height), 10, 
-			(int)(bar_height + 1));
+			Gcontext, left, (int) (begin + i * bar_height), 10, 
+			bar_height);
 	}
 /*
  * Do the numeric labels.
  */
-	for (i = 0; i < 9; i++)
+	for (i = 0; i < nsteps; i++)
 	{
-		frac = (float) i/8.0;
-		val = min + (1.0 - frac) * (max - min);
+		val = center + (nsteps/2 - i) * step;
 		sprintf (string, "%.1f", val);
 
 		XSetForeground (XtDisplay (Graphics), Gcontext,Tadefclr.pixel);
+		y = (float) begin + (float) i * (float) ncolors / (float)
+			(nsteps - 1.0) * (float) bar_height;
 		DrawText (Graphics, GWFrame (Graphics), Gcontext, left + 15, 
-			(int)(top + frac * (bottom - top)),string,0.0,Sascale, 
-			JustifyLeft, JustifyCenter);
+			y, string, 0.0, scale, JustifyLeft, JustifyCenter);
 	}
-	An_SAUsed ((int) (Ncolors*bar_height + top + 1));
+/*
+ * Add the special highlight color.
+ */
+	if (highlight)
+	{
+		space -= scale * (float) USABLE_HEIGHT; 
+		XSetForeground (XtDisplay (Graphics), Gcontext, xc.pixel);
+		bar_height = space * range / (step * (nsteps - 1.0));
+		max = center + nsteps / 2 * step;
+		y = (float) begin + (float) space * (max - value) / 
+			(step * (nsteps - 1.0)) - bar_height / 2.0; 
+		if ((y + bar_height) > (begin + space)) 
+			bar_height = begin + space - y;
+		else if (y < begin)
+		{
+			bar_height -= (begin - y);
+			y = begin;
+		}
+		if (bar_height <= 0) bar_height = 1;
+		XFillRectangle (XtDisplay (Graphics), GWFrame (Graphics), 
+			Gcontext, left, y, 10, bar_height);
+	}
 }
 
 
