@@ -52,7 +52,7 @@ typedef struct _GetList
 	void	dsm_ShmLock (void);
 	void	dsm_ShmUnlock (void);
 	int	dfa_CheckName (int, char *);
-	int	dfa_QueryDate (int, char *, time *, time *);
+	int	dfa_QueryDate (int, char *, time *, time *, int *);
 	int	dfa_InqNPlat (int);
 	void	dfa_Setup (GetList *);
 	void	dfa_GetData (GetList *);
@@ -60,6 +60,10 @@ typedef struct _GetList
 	int	dfa_DataTimes (int, time *, TimeSpec, int, time *);
 	GetList *dgl_MakeGetList (DataObject *);
 	void	dgl_ReturnList (GetList *);
+	int	dgl_GetDestFile (DataObject *, int, int, int *);
+	bool	dfa_CreateFile (int, DataObject *);
+	void	dfa_PutData (int, DataObject *, int, int);
+	void	dfa_NoteRevision (int);
 # else
 	int 	dsm_Init ();
 	void	dsm_ShmLock ();
@@ -73,4 +77,8 @@ typedef struct _GetList
 	int	dfa_DataTimes ();
 	GetList *dgl_MakeGetList ();
 	void	dgl_ReturnList ();
+	int	dgl_GetDestFile ();
+	bool	dfa_CreateFile ();
+	void	dfa_PutData ();
+	void	dfa_NoteRevision ();
 # endif
