@@ -22,13 +22,15 @@
 # include <X11/Xlib.h>
 # include <X11/Xutil.h>
 # include <X11/cursorfont.h>
+# include <X11/Intrinsic.h>
+# include <X11/StringDefs.h>
 
 # include <ui.h>
 # include <defs.h>
 # include <dm.h>
 # include "dm_vars.h"
 
-RCSID("$Id: dm_pick.c,v 2.16 1997-04-15 00:38:20 granger Exp $")
+RCSID("$Id: dm_pick.c,v 2.17 2001-01-08 22:16:50 granger Exp $")
 
 /*
  * This structure is used to communicate through usy_traverse.
@@ -42,6 +44,47 @@ struct wpick
 
 
 static int dm_CmpPickWin ();
+
+
+static Cursor PickCursor ()
+{
+	Pixel fg;
+	Pixel bg;
+	Pixmap pmap = None;
+	XColor fgcolor, bgcolor;
+	Cursor cursor = None;
+	Arg args[10];
+	int n;
+
+	/* See if we have a widget context from ui. */
+	Widget button = uw_get_menubutton();
+	if (button)
+	{
+	    n = 0;
+	    XtSetArg (args[n], XtNforeground, &fg); n++;
+	    XtSetArg (args[n], XtNbackground, &bg); n++;
+	    XtSetArg (args[n], XtNbitmap, &pmap); n++;
+	    XtGetValues (button, args, n);
+	}
+
+	if (pmap != None)
+	{
+	    Colormap cmap = DefaultColormap (Dm_Display, 0);
+	    fgcolor.pixel = fg;
+	    bgcolor.pixel = bg;
+	    XQueryColor (Dm_Display, cmap, &fgcolor);
+	    XQueryColor (Dm_Display, cmap, &bgcolor);
+	    cursor = XCreatePixmapCursor (Dm_Display, pmap, None,
+					  &fgcolor, &bgcolor, 0, 0);
+	}
+
+	if (cursor == None)
+	{
+	    cursor = XCreateFontCursor (Dm_Display, XC_crosshair);
+	}
+	return cursor;
+}
+
 
 
 int
@@ -61,7 +104,7 @@ char *winname;
 /*
  * Make the special cursor.
  */
-	cursor = XCreateFontCursor (Dm_Display, XC_crosshair);
+	cursor = PickCursor();
 /*
  * Reach out and snarf up the pointer.
  */
