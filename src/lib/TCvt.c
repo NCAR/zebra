@@ -26,7 +26,7 @@
 
 # include "defs.h"
 
-MAKE_RCSID ("$Id: TCvt.c,v 2.17 1995-06-29 23:09:34 granger Exp $")
+MAKE_RCSID ("$Id: TCvt.c,v 2.18 1995-10-31 02:07:31 granger Exp $")
 
 /*
  * The months of the year.
@@ -111,7 +111,7 @@ const ZebTime *zt;
 
 void
 TC_SysToZt (sys, zt)
-long sys;
+const long sys;
 ZebTime *zt;
 /*
  * Convert a system time to zeb format.

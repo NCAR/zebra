@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 2.30 1995-06-29 23:08:35 granger Exp $ */
+/* $Id: defs.h,v 2.31 1995-10-31 02:07:33 granger Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -131,7 +131,7 @@ typedef enum
 int 	InterpDTime FP ((char *));
 void	RL_Encode FP ((unsigned char *, unsigned char *, int, int, 
 		       int *, int *));
-void 	RL_Decode FP ((unsigned char *, unsigned char *const, int));
+void 	RL_Decode FP ((unsigned char *, unsigned char *const, const int));
 int	CommaParse FP ((char *, char **));
 int	ParseLine FP ((char *string, char **substrings, int delim));
 
