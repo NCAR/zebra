@@ -25,7 +25,7 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_Scalar.c,v 1.2 1991-12-04 23:44:38 corbet Exp $")
+MAKE_RCSID ("$Id: dc_Scalar.c,v 1.3 1991-12-27 21:24:17 corbet Exp $")
 
 # define SUPERCLASS DCC_MetData
 
@@ -38,10 +38,7 @@ MAKE_RCSID ("$Id: dc_Scalar.c,v 1.2 1991-12-04 23:44:38 corbet Exp $")
 /*
  * Local routines.
  */
-# ifdef __STDC__
-	static DataChunk *dc_ScCreate (DataClass);
-# else
-# endif
+static DataChunk *dc_ScCreate FP((DataClass));
 
 RawDCClass ScalarMethods =
 {

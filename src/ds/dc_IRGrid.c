@@ -25,7 +25,7 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_IRGrid.c,v 1.2 1991-12-04 23:44:38 corbet Exp $")
+MAKE_RCSID ("$Id: dc_IRGrid.c,v 1.3 1991-12-27 21:22:22 corbet Exp $")
 
 # define SUPERCLASS DCC_MetData
 
@@ -50,12 +50,9 @@ typedef struct _PlatInfo
 /*
  * Local routines.
  */
-# ifdef __STDC__
-	static DataChunk *dc_IRGCreate (DataClass);
-	static bool dc_GetPlatList (DataChunk *, PlatInfo **, int *);
-	static void dc_IRDump (DataChunk *);
-# else
-# endif
+static DataChunk *dc_IRGCreate FP((DataClass));
+static bool dc_GetPlatList FP((DataChunk *, PlatInfo **, int *));
+static void dc_IRDump FP((DataChunk *));
 
 RawDCClass IRGridMethods =
 {

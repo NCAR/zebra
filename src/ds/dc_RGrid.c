@@ -25,7 +25,7 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_RGrid.c,v 1.2 1991-12-04 23:44:38 corbet Exp $")
+MAKE_RCSID ("$Id: dc_RGrid.c,v 1.3 1991-12-27 21:23:52 corbet Exp $")
 
 # define SUPERCLASS DCC_MetData
 
@@ -50,11 +50,8 @@ typedef struct _GridGeometry
 /*
  * Local routines.
  */
-# ifdef __STDC__
-	static DataChunk *dc_RGCreate (DataClass);
+static DataChunk *dc_RGCreate FP((DataClass));
 	/* static void dc_IRDump (DataChunk *); */
-# else
-# endif
 
 RawDCClass RGridMethods =
 {
