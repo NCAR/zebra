@@ -1,7 +1,7 @@
 /*
  * Deal with static (or almost static) overlays.
  */
-static char *rcsid = "$Id: Overlay.c,v 2.13 1992-10-19 17:30:00 corbet Exp $";
+static char *rcsid = "$Id: Overlay.c,v 2.14 1992-10-20 19:55:36 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -1723,8 +1723,12 @@ float *blat, *blon, xs, ys;
 	iblat += iys;
 	iblon -= iblon % ixs;
 	/* iblon += ixs; */
+# ifdef notdef
 	*blat = ((float) iblat + 0.5)/3600.0;
 	*blon = -((float) iblon + 0.5)/3600.0;
+# endif
+	*blat = ((float) iblat)/3600.0;
+	*blon = -((float) iblon)/3600.0;
 }
 
 
