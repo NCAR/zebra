@@ -1,7 +1,7 @@
 /*
  * Routines common to XY-Type plots
  */
-static char *rcsid = "$Id: XYCommon.c,v 1.19 1994-04-15 21:26:44 burghart Exp $";
+static char *rcsid = "$Id: XYCommon.c,v 1.20 1994-04-18 21:21:54 burghart Exp $";
 /*		Copyright (C) 1993 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -867,7 +867,7 @@ char 		*c;		/* Plot description component */
 	/*
 	 * n-space specific stuff
 	 */
-		if (xyOrg == OrgNSpace)
+		else if (xyOrg == OrgNSpace)
 		{
 		/*
 		 * Move to the next data chunk vector if necessary
