@@ -1,0 +1,29 @@
+/*
+ * $Id: Imakefile,v 1.1 1992-08-20 00:49:53 granger Exp $
+ *
+ * Basically just install config.h into the include directory,
+ * and make sure the necessary files are distributed
+ */
+
+#define IHaveSubdirs
+#define PassCDebugFlags
+
+SUBDIRS = scripts
+
+all::
+
+DISTFILES = Imakefile Project.tmpl README README.imake Xosdefs.h \
+	    Zeb-Imake.doc Zeb.rules Project.tmpl config.h site.def scripts
+
+BuildIncludes(config.h Xosdefs.h,.,.)
+
+depend::
+
+install::
+
+lint::
+
+Makefiles::
+
+DistfilesTarget($(DISTFILES))
+
