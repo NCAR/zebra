@@ -49,7 +49,7 @@
 XCOMM -----------------------------------------------------------------------
 XCOMM Definitions from config.h included here.  The definitions here override
 XCOMM the defaults in Project.tmpl.  See ...../zebra/config/project/config.h.
-XCOMM $Id: config.h.dist,v 1.60 2001-01-17 23:21:18 granger Exp $
+XCOMM $Id: config.h.dist,v 1.61 2001-01-17 23:35:07 granger Exp $
 XCOMM -----------------------------------------------------------------------
 # endif
 
@@ -484,8 +484,10 @@ XCOMM -----------------------------------------------------------------------
  * ////////         installation instructions...	   ///////////////
  *========================================================================*/
 /*-//////////////////////////////////////////////////////////////////////-*/
-
+# ifdef MAKING_MAKEFILE
 #include "config-ingest.h"
+# endif /* MAKING_MAKEFILE */
+
 #include "config-defaults.h"
 
 # endif /* ! _zebra_config_h_ */
