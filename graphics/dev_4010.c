@@ -1,5 +1,5 @@
 /* 4010 device driver */
-static char *rcsid = "$Id: dev_4010.c,v 1.1 1990-04-09 16:01:17 corbet Exp $";
+static char *rcsid = "$Id: dev_4010.c,v 1.2 1998-02-27 16:00:32 burghart Exp $";
 
 # include "param.h"
 
@@ -61,9 +61,14 @@ static int Tek_ltypes[] =
 	2	/* GPLT_DASH_DOT*/
 };
 
+/*
+ * Forwards
+ */
+void t10_endplot();
 
 
 
+int
 t10_open (device, type, tag, dev)
 char *device, *type, **tag;
 struct device *dev;
@@ -117,7 +122,7 @@ struct device *dev;
 
 
 
-
+void
 t10_clear (tag)
 struct tek_tag *tag;
 /*
@@ -140,7 +145,7 @@ struct tek_tag *tag;
 
 
 
-
+void
 t10_flush (ctag)
 char *ctag;
 /*
@@ -158,7 +163,7 @@ char *ctag;
 
 
 
-
+int
 t10_cmap (ctag, base, ncolor, r, g, b)
 char *ctag;
 int base, ncolor;
@@ -173,7 +178,7 @@ float *r, *g, *b;
 
 
 
-
+void
 t10_poly (ctag, color, ltype, npt, data)
 char *ctag;
 int color, ltype, npt, *data;
@@ -205,7 +210,7 @@ int color, ltype, npt, *data;
 
 
 
-
+void
 t10_endplot (tag, renew)
 struct tek_tag *tag;
 int	renew;
@@ -232,7 +237,7 @@ int	renew;
 }
 
 
-
+void
 t10_close (ctag)
 char *ctag;
 /*

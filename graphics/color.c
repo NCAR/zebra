@@ -28,7 +28,7 @@ static struct ctranstbl
 
 char *getvm ();
 
-
+void
 gc_init (wsta, ncolor)
 struct workstation *wsta;
 int ncolor;
@@ -48,10 +48,7 @@ int ncolor;
 
 
 
-
-
-
-
+int
 gc_assign (wstn, ncolor, base)
 struct workstation *wstn;
 int ncolor, *base;
@@ -87,7 +84,7 @@ int ncolor, *base;
 
 
 
-
+void
 gc_close (wstn)
 struct workstation *wstn;
 /*
@@ -157,6 +154,7 @@ gc_transtable ()
 	int	r, g, b;
 	char	string[128], colorname[50];
 	FILE	*infile;
+	char *getenv();
 /*
  * Get the name of the translation file
  */

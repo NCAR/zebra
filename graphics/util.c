@@ -3,7 +3,7 @@
  * Utility routines.
  */
 
-
+void
 slowcopy (len, from, to)
 int len;
 char *from, *to;

@@ -14,7 +14,7 @@
 # include "lib_include:lib_proto.h"
 # endif
 
-static char *rcsid = "$Id: text.c,v 1.9 1993-10-04 18:33:22 case Exp $";
+static char *rcsid = "$Id: text.c,v 1.10 1998-02-27 16:00:55 burghart Exp $";
 
 # ifdef BIG_ENDIAN
 #	define SWAP(v) (v)
@@ -67,10 +67,15 @@ static struct font
 
 static int N_font = 4;
 
+/*
+ * Forwards
+ */
+void gt_pixel(), gt_px_map(), gt_pix_dim(), gt_stroke();
 
 
 
 
+void
 gt_get_start (x, y, font, scale, hjust, vjust, rot, aspect, text, 
 	sx, sy, ex, ey, dev, tag)
 int x, y, font, hjust, vjust, *sx, *sy, *ex, *ey;
@@ -177,7 +182,7 @@ struct device *dev;
 
 
 
-
+int
 gt_line_width (text, font)
 char *text;
 int font;
@@ -198,7 +203,7 @@ int font;
 
 
 
-
+void
 gt_do_text (wstn, ov, color, x, y, font, scale, rot, text, dev)
 struct workstation *wstn;
 struct overlay *ov;
@@ -229,7 +234,7 @@ float	rot;
 
 
 
-
+void
 gt_pixel (wstn, ov, color, x, y, font, text, dev)
 struct workstation *wstn;
 struct overlay *ov;
@@ -336,7 +341,7 @@ char *text;
 
 
 
-
+void
 gt_px_map (dest, rastp, width, color, bg)
 char *dest;
 int *rastp, width, color, bg;
@@ -367,7 +372,7 @@ int *rastp, width, color, bg;
 
 
 
-
+void
 gt_pix_dim (font, text, xd, yd, baseline)
 int font;
 char *text;
@@ -421,7 +426,7 @@ int *xd, *yd, *baseline;
 
 
 
-
+void
 gt_stroke (wstn, ov, color, x, y, font, scale, rot, text, dev)
 struct workstation *wstn;
 struct overlay *ov;
@@ -524,7 +529,7 @@ float rot;
 }
 		
 
-
+int
 gt_f_height (font)
 int font;
 /*
@@ -547,7 +552,7 @@ int font;
 
 
 
-
+int
 gt_load_font (file)
 char *file;
 /*
@@ -612,8 +617,7 @@ char *file;
 
 
 
-
-
+int
 gt_font_type (font)
 int font;
 /*

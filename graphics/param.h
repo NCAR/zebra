@@ -3,7 +3,9 @@
  */
 # include <graphdev.h>
 
-# define NULL 0
+# ifndef NULL
+#   define NULL 0
+# endif
 
 # ifdef  AIXV3
 # undef  TRUE

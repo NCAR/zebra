@@ -9,7 +9,7 @@
 # define LBIT 0x20	/* Low order integer bit	*/
 # define NEGBIT 0x10	/* Sign bit	*/
 
-
+void
 tek_xy (x, y, tag, extra)
 int x, y;
 struct tty_tag *tag;
@@ -50,7 +50,7 @@ int extra;
 
 
 
-
+void
 tek_int (value, tag)
 int value;
 struct tty_tag *tag;

@@ -47,7 +47,7 @@
 		 (y < y0 ? B_BELOW : 0) | (y > y1 ? B_ABOVE : 0))
 			
 
-
+void
 gc_pl_clip (ov, color, ltype, npt, data, dev)
 struct overlay *ov;
 int color, ltype, npt, *data, dev;

@@ -1,5 +1,5 @@
 /* 5/87 jc */
-/* $Id: oplist.c,v 1.3 1989-10-13 14:03:54 corbet Exp $ */
+/* $Id: oplist.c,v 1.4 1998-02-27 16:00:48 burghart Exp $ */
 /*
  * Handle operations lists.
  */
@@ -11,10 +11,14 @@
 # include "device.h"
 # include "pixel.h"
 
+/*
+ * Forwards
+ */
+void gop_perform(), gop_pm_perform();
 
 
 
-
+void
 gop_add_op (opcode, color, extra, nextra, cov, npt, data, keep)
 int opcode, color;
 int *extra, nextra;
@@ -89,6 +93,7 @@ char *data;
 
 static char *C_opcodes[] = { "POLYLINE", "TEXT", "SETHCW", 0};
 
+void
 gop_dump_oplist (cov)
 overlay cov;
 /*
@@ -132,7 +137,7 @@ gop_new_list ()
 
 
 
-
+void
 gop_update (wstn, ov, add)
 struct workstation *wstn;
 struct overlay *ov;
@@ -178,7 +183,7 @@ int add;
 
 
 
-
+void
 gop_perform (wstn, data, ov)
 struct workstation *wstn;
 struct operation *data;
@@ -232,7 +237,7 @@ struct overlay *ov;
 
 
 
-
+void
 gop_clear (ov)
 struct overlay *ov;
 /*
@@ -277,7 +282,7 @@ struct overlay *ov;
 
 
 
-
+void
 gop_remove (ov)
 struct overlay *ov;
 /*
@@ -296,7 +301,7 @@ struct overlay *ov;
 
 
 
-
+void
 gop_cvt_pmap (wstn, ov)
 struct workstation *wstn;
 struct overlay *ov;
@@ -339,7 +344,7 @@ struct overlay *ov;
 
 
 
-
+void
 gop_pm_perform (wstn, data, ov)
 struct workstation *wstn;
 struct operation *data;

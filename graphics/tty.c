@@ -20,6 +20,12 @@
 # define s_error(s)  (((s) & 0x1) == 0)
 # endif
 
+/*
+ * Forwards
+ */
+void gtty_flush();
+
+
 
 int
 gtty_open (device, tag)
@@ -64,7 +70,7 @@ struct tty_tag **tag;
 
 
 
-
+void
 gtty_out (tag, string)
 struct tty_tag *tag;
 char *string;
@@ -89,7 +95,7 @@ char *string;
 
 
 
-
+void
 gtty_flush (tag)
 struct tty_tag *tag;
 /*
@@ -132,7 +138,7 @@ struct tty_tag *tag;
 
 
 
-
+void
 gtty_readprompt (tag, prompt, reply, rlen)
 struct	tty_tag *tag;
 char	*prompt, *reply;
@@ -181,7 +187,7 @@ int	rlen;
 
 
 
-
+void
 gtty_close (tag)
 struct tty_tag *tag;
 /*

@@ -10,7 +10,7 @@
 # include "device.h"
 # include <stdio.h>
 
-static char *rcsid = "$Id: dev_psc.c,v 1.6 1994-01-25 16:10:59 burghart Exp $";
+static char *rcsid = "$Id: dev_psc.c,v 1.7 1998-02-27 16:00:36 burghart Exp $";
 /*
  * The tag structure
  */
@@ -103,9 +103,17 @@ char	Command[128];
 static float Faspect = 0.6;
 # define DESC 4
 
+/*
+ * Forwards
+ */
+void psc_ctable_out(), psc_finish_page(), psc_init(), psc_def_out();
+void psc_set_win(), psc_DoViewport(), psc_DoClip(), psc_out_s(), psc_out();
+void psc_chk_buf(), psc_buf_out();
 
 
 
+
+int
 psc_open (device, type, tag, dev)
 char *device, *type, **tag;
 struct device *dev;
@@ -216,7 +224,7 @@ struct device *dev;
 
 
 
-
+void
 psc_close (ctag)
 char *ctag;
 /*
@@ -246,7 +254,7 @@ char *ctag;
 
 
 
-
+void
 psc_flush (ctag)
 char *ctag;
 /*
@@ -288,7 +296,7 @@ char *ctag;
 
 
 
-
+int
 psc_cmap (ctag, base, ncolor, r, g, b)
 char *ctag;
 int base, ncolor;
@@ -346,7 +354,7 @@ float *r, *g, *b;
 
 
 
-
+void
 psc_ctable_out (ptp)
 struct psc_tag *ptp;
 /*
@@ -419,7 +427,7 @@ struct psc_tag *ptp;
 
 
 
-
+void
 psc_pixel (ctag, x, y, xs, ys, data, size, org)
 char *ctag;
 unsigned char *data;
@@ -509,7 +517,7 @@ int x, y, xs, ys, size, org;
 
 
 
-
+void
 psc_poly (ctag, color, ltype, npt, data)
 char *ctag;
 int color, ltype, npt, *data;
@@ -585,7 +593,7 @@ int color, ltype, npt, *data;
 
 
 
-
+void
 psc_clip (ctag, x0, y0, x1, y1)
 char *ctag;
 int x0, y0, x1, y1;
@@ -610,7 +618,7 @@ int x0, y0, x1, y1;
 
 
 
-
+void
 psc_clear (ctag)
 char *ctag;
 /*
@@ -622,7 +630,7 @@ char *ctag;
 
 
 
-
+void
 psc_viewport (ctag, x0, y0, x1, y1)
 char *ctag;
 int x0, y0, x1, y1;
@@ -656,7 +664,7 @@ int x0, y0, x1, y1;
 
 
 
-
+void
 psc_print (ctag)
 char *ctag;
 {
@@ -670,7 +678,7 @@ char *ctag;
 
 
 
-
+void
 psc_finish_page (ptp)
 struct psc_tag	*ptp;
 {
@@ -711,7 +719,7 @@ struct psc_tag	*ptp;
 
 
 
-
+void
 psc_init (ptp)
 struct psc_tag *ptp;
 /*
@@ -744,7 +752,7 @@ struct psc_tag *ptp;
 
 
 
-
+void
 psc_def_out (ptp)
 struct psc_tag *ptp;
 /*
@@ -785,7 +793,7 @@ struct psc_tag *ptp;
 
 
 
-
+void
 psc_set_win (ptp)
 struct psc_tag *ptp;
 /*
@@ -866,7 +874,7 @@ struct psc_tag *ptp;
 
 
 
-
+void
 psc_DoViewport (ptp)
 struct psc_tag	*ptp;
 /*
@@ -894,7 +902,7 @@ struct psc_tag	*ptp;
 
 
 
-
+void
 psc_DoClip (ptp)
 struct psc_tag	*ptp;
 /*
@@ -927,7 +935,7 @@ struct psc_tag	*ptp;
 
 
 
-
+void
 psc_out_s (ptp, str)
 struct psc_tag *ptp;
 char *str;
@@ -945,7 +953,7 @@ char *str;
 
 
 
-
+void
 psc_out (ptp, data, len)
 struct psc_tag	*ptp;
 char	*data;
@@ -971,7 +979,7 @@ int	len;
 
 
 
-
+void
 psc_chk_buf (ptp, len)
 struct psc_tag *ptp;
 int len;
@@ -986,7 +994,7 @@ int len;
 
 
 
-
+void
 psc_buf_out (ptp)
 struct psc_tag *ptp;
 /*
@@ -1018,7 +1026,7 @@ float rot;
 	return (rot == 0.0);	/* Lazy!	*/
 }
 
-
+void
 psc_tsize (ctag, pixsize, rot, text, width, height, desc)
 char *ctag, *text;
 int pixsize, *width, *height, *desc;
@@ -1033,7 +1041,7 @@ float rot;
 }
 
 
-
+void
 psc_text (ctag, x, y, color, pixsize, rot, text)
 char *ctag, *text;
 int x, y, color, pixsize;

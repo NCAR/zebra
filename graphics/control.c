@@ -13,7 +13,7 @@
 # include "workstation.h"
 # include "pixel.h"
 
-static char *rcsid = "$Id: control.c,v 1.16 1993-09-16 22:06:04 case Exp $";
+static char *rcsid = "$Id: control.c,v 1.17 1998-02-27 16:00:30 burghart Exp $";
 static int Trace = 0;
 
 /*
@@ -28,9 +28,14 @@ static int Trace = 0;
  */
 static int Fdesc = -1;
 
+/*
+ * Forwards
+ */
+void G_easy_update(), G_pmap_update();
 
 
 
+int
 G_open (device, type, wstn, flags)
 char *device, *type;
 ws *wstn;
@@ -189,6 +194,7 @@ ws csta;
 
 
 
+void
 G_easy_update (wstn, add, cleared)
 struct workstation *wstn;
 int add, cleared;
@@ -252,7 +258,7 @@ int add, cleared;
 
 
 
-
+void
 G_pmap_update (wstn)
 struct workstation *wstn;
 /*
@@ -501,7 +507,7 @@ float x0, y0, x1, y1;
 
 
 
-
+int
 G_polyline (cov, ltype, color, npt, x, y)
 char *cov;
 int ltype, color, npt;
@@ -562,7 +568,7 @@ float *x, *y;
 
 
 
-
+int
 G_text (cov, color, font, height, hjust, vjust, x, y, text)
 overlay cov;
 int color, font, hjust, vjust;
@@ -572,12 +578,13 @@ char *text;
  * Do a G_write with a rotation of zero
  */
 {
-	G_write (cov, color, font, height, hjust, vjust, x, y, 0.0, text);
+	return (G_write (cov, color, font, height, hjust, vjust, x, y, 
+			 0.0, text));
 }
 
 
 
-
+int
 G_write (cov, color, font, height, hjust, vjust, x, y, rot, text)
 overlay cov;
 int color, font, hjust, vjust;
@@ -675,7 +682,7 @@ char *text;
 }
 
 
-
+int
 G_w_inquire (csta, item, value)
 ws csta;
 int item;
@@ -737,7 +744,7 @@ int *value;
 
 
 
-
+int
 G_set_color_map (csta, base, ncolor, red, green, blue)
 ws csta;
 int base, ncolor;
@@ -771,7 +778,7 @@ float *red, *green, *blue;
 
 
 
-
+int
 G_visible (cov, state)
 overlay cov;
 int state;
@@ -817,7 +824,7 @@ int state;
 
 
 
-
+int
 G_clear (cov)
 char *cov;
 /*
@@ -869,7 +876,7 @@ char *cov;
 
 
 
-
+int
 G_ws_clear (cws)
 ws cws;
 /*
@@ -888,7 +895,7 @@ ws cws;
 
 
 
-
+int
 G_close (csta)
 char *csta;
 /*
@@ -917,7 +924,7 @@ char *csta;
 }
 
 
-
+int
 G_clip_window (cov, x0, y0, x1, y1)
 overlay cov;
 float x0, y0, x1, y1;
@@ -980,7 +987,7 @@ float x0, y0, x1, y1;
 
 
 
-
+int
 G_tex_font (font)
 char *font;
 /*
@@ -991,7 +998,7 @@ char *font;
 }
 
 
-
+int
 G_pixel_fill (cov, data, x, y, xs, ys, size, mode)
 overlay cov;
 char *data;
@@ -1075,7 +1082,7 @@ int x, y, xs, ys, size, mode;
 
 
 
-
+int
 G_wc_to_px (cov, wx, wy, px, py)
 overlay cov;
 float wx, wy;
@@ -1110,7 +1117,7 @@ int *px, *py;
 
 
 
-
+int
 G_target (cov, x, y)
 overlay cov;
 float *x, *y;
@@ -1138,7 +1145,7 @@ float *x, *y;
 
 
 
-
+int
 G_pick (cov, button, x, y)
 overlay cov;
 int *button;
@@ -1230,7 +1237,7 @@ overlay	cov;
 
 
 
-
+int
 G_zap_overlay (cov)
 overlay cov;
 /*
@@ -1266,6 +1273,7 @@ overlay cov;
  */
 	memset ((char *) ov, 0, sizeof (struct overlay));
  	relvm ((char *) ov);
+	return (GE_OK);
 }
 
 
@@ -1303,7 +1311,7 @@ overlay cov;
 
 
 
-
+int
 G_redraw (cstn)
 ws cstn;
 /*
@@ -1329,7 +1337,7 @@ ws cstn;
 
 
 
-
+int
 G_tx_box (cov, font, height, hjust, vjust, x, y, text, x0, y0, x1, y1)
 overlay cov;
 int font, hjust, vjust;
@@ -1340,13 +1348,13 @@ float *x0, *y0, *x1, *y1;
  * Just call G_wr_box with a rotation of 0.0
  */
 {
-	G_wr_box (cov, font, height, hjust, vjust, x, y, 0.0, text, 
-		x0, y0, x1, y1);
+	return (G_wr_box (cov, font, height, hjust, vjust, x, y, 0.0, text, 
+			  x0, y0, x1, y1));
 }
 
 
 
-
+int
 G_wr_box (cov, font, height, hjust, vjust, x, y, rot, text, x0, y0, x1, y1)
 overlay cov;
 int font, hjust, vjust;
@@ -1424,7 +1432,7 @@ float *x0, *y0, *x1, *y1;
 
 
 
-
+int
 G_get_color (cstn, ncolor, base)
 ws cstn;
 int ncolor, *base;
@@ -1453,7 +1461,7 @@ int ncolor, *base;
 
 
 
-
+void
 G_check (cstn)
 ws cstn;
 /*
@@ -1490,7 +1498,7 @@ ws cstn;
 
 
 
-
+void
 G_mark (cov)
 overlay cov;
 /*
@@ -1506,7 +1514,7 @@ overlay cov;
 
 
 
-
+int
 G_viewport (cov, x0, y0, x1, y1)
 overlay cov;
 float x0, y0, x1, y1;
@@ -1530,7 +1538,7 @@ float x0, y0, x1, y1;
 
 
 
-
+void
 G_print (cstn)
 ws cstn;
 /*
@@ -1547,7 +1555,7 @@ ws cstn;
 
 
 
-
+void
 G_trace (t)
 int t;
 /*
@@ -1559,7 +1567,7 @@ int t;
 
 
 
-
+int
 G_name_to_rgb (cname, r, g, b)
 char	*cname;
 double	*r, *g, *b;
@@ -1573,7 +1581,7 @@ double	*r, *g, *b;
 
 
 
-
+void
 G_setfd (fd)
 int fd;
 /* 
@@ -1584,7 +1592,7 @@ int fd;
 }
 
 
-
+int
 G_getfd ()
 /*
  * Return the Fd.

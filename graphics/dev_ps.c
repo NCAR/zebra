@@ -10,7 +10,7 @@
 # include "device.h"
 # include <stdio.h>
 
-static char *rcsid = "$Id: dev_ps.c,v 1.9 1993-07-23 19:43:34 case Exp $";
+static char *rcsid = "$Id: dev_ps.c,v 1.10 1998-02-27 16:00:34 burghart Exp $";
 /*
  * The tag structure
  */
@@ -81,9 +81,16 @@ static char *Ps_ltype[] =
 static float Faspect = 0.6;
 # define DESC 4
 
+/*
+ * Forwards
+ */
+void ps_finish_page(), ps_init(), ps_def_out(), ps_set_win(), ps_out_s();
+void ps_chk_buf(), ps_buf_out();
 
 
 
+
+int
 ps_open (device, type, tag, dev)
 char *device, *type, **tag;
 struct device *dev;
@@ -163,7 +170,7 @@ struct device *dev;
 
 
 
-
+void
 ps_close (ctag)
 char *ctag;
 /*
@@ -192,7 +199,7 @@ char *ctag;
 
 
 
-
+void
 ps_flush (ctag)
 char *ctag;
 /*
@@ -230,7 +237,7 @@ char *ctag;
 
 
 
-
+void
 ps_cmap (ctag, base, ncolor, r, g, b)
 char *ctag;
 int base, ncolor;
@@ -243,7 +250,7 @@ float *r, *g, *b;
 
 
 
-
+void
 ps_poly (ctag, color, ltype, npt, data)
 char *ctag;
 int color, ltype, npt, *data;
@@ -307,7 +314,7 @@ int color, ltype, npt, *data;
 
 
 
-
+void
 ps_hcw (ctag, x0, y0, x1, y1)
 char *ctag;
 int x0, y0, x1, y1;
@@ -334,7 +341,7 @@ int x0, y0, x1, y1;
 
 
 
-
+void
 ps_clear (ctag)
 char *ctag;
 /*
@@ -345,7 +352,7 @@ char *ctag;
 
 
 
-
+void
 ps_vp (ctag, x0, y0, x1, y1)
 char *ctag;
 int x0, y0, x1, y1;
@@ -356,7 +363,7 @@ int x0, y0, x1, y1;
 
 
 
-
+void
 ps_print (ctag)
 char *ctag;
 {
@@ -370,7 +377,7 @@ char *ctag;
 
 
 
-
+void
 ps_finish_page (ptp)
 struct ps_tag	*ptp;
 {
@@ -409,7 +416,7 @@ struct ps_tag	*ptp;
 
 
 
-
+void
 ps_init (ptp)
 struct ps_tag *ptp;
 /*
@@ -429,7 +436,7 @@ struct ps_tag *ptp;
 
 
 
-
+void
 ps_def_out (ptp)
 struct ps_tag *ptp;
 /*
@@ -450,7 +457,7 @@ struct ps_tag *ptp;
 
 
 
-
+void
 ps_set_win (ptp)
 struct ps_tag *ptp;
 /*
@@ -522,7 +529,7 @@ struct ps_tag *ptp;
 
 
 
-
+void
 ps_out_s (ptp, str)
 struct ps_tag *ptp;
 char *str;
@@ -540,7 +547,7 @@ char *str;
 
 
 
-
+void
 ps_chk_buf (ptp, len)
 struct ps_tag *ptp;
 int len;
@@ -555,7 +562,7 @@ int len;
 
 
 
-
+void
 ps_buf_out (ptp)
 struct ps_tag *ptp;
 /*
@@ -588,6 +595,7 @@ float rot;
 }
 
 
+void
 ps_tsize (ctag, pixsize, rot, text, width, height, desc)
 char *ctag, *text;
 int pixsize, *width, *height, *desc;
@@ -603,6 +611,7 @@ float rot;
 
 
 
+void
 ps_text (ctag, x, y, color, pixsize, rot, text)
 char *ctag, *text;
 int x, y, color, pixsize;

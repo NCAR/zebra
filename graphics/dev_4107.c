@@ -14,7 +14,7 @@
 # include "lib_include:lib_proto.h"
 # endif
 
-static char *rcsid = "$Id: dev_4107.c,v 1.6 1990-03-30 14:30:24 corbet Exp $";
+static char *rcsid = "$Id: dev_4107.c,v 1.7 1998-02-27 16:00:33 burghart Exp $";
 
 /*
  * Defines.
@@ -63,9 +63,14 @@ static int Tek_ltypes[] =
 	2	/* GPLT_DASH_DOT*/
 };
 
+/*
+ * Forwards
+ */
+void tek_endplot();
 
 
 
+int
 tek_open (device, type, tag, dev)
 char *device, *type, **tag;
 struct device *dev;
@@ -141,7 +146,7 @@ struct device *dev;
 
 
 
-
+void
 tek_clear (tag)
 struct tek_tag *tag;
 /*
@@ -165,7 +170,7 @@ struct tek_tag *tag;
 
 
 
-
+void
 tek_flush (ctag)
 char *ctag;
 /*
@@ -185,7 +190,7 @@ char *ctag;
 
 
 
-
+void
 tek_flush_nr (ctag)
 char *ctag;
 /*
@@ -205,7 +210,7 @@ char *ctag;
 
 
 
-
+int
 tek_cmap (ctag, base, ncolor, r, g, b)
 char *ctag;
 int base, ncolor;
@@ -233,7 +238,7 @@ float *r, *g, *b;
 
 
 
-
+void
 tek_poly (ctag, color, ltype, npt, data)
 char *ctag;
 int color, ltype, npt, *data;
@@ -274,7 +279,7 @@ int color, ltype, npt, *data;
 
 
 
-
+int
 tek_qtext (ctag, height, rot)
 char *ctag;
 int height;
@@ -289,7 +294,7 @@ float rot;
 
 
 
-
+void
 tek_tsize (ctag, pixsize, rot, text, width, height, desc)
 char *ctag, *text;
 int pixsize, *width, *height, *desc;
@@ -308,7 +313,7 @@ float rot;
 
 
 
-
+void
 tek_text (ctag, x, y, color, pixsize, rot, text)
 char *ctag, *text;
 int x, y, color, pixsize;
@@ -373,6 +378,7 @@ char *ctag;
 
 
 
+void
 tek_s_clear (ctag, seg)
 char *ctag;
 int seg;
@@ -397,7 +403,7 @@ int seg;
 
 
 
-
+void
 tek_s_select (ctag, seg, priority)
 char *ctag;
 int seg, priority;
@@ -438,7 +444,7 @@ int seg, priority;
 
 
 
-
+void
 tek_s_end (ctag, seg)
 char *ctag;
 int seg;
@@ -455,7 +461,7 @@ int seg;
 
 
 
-
+void
 tek_s_attr (ctag, seg, vis)
 char *ctag;
 int seg, vis;
@@ -536,7 +542,7 @@ int big;
 
 # endif
 
-
+void
 tek_endplot (tag, renew)
 struct tek_tag *tag;
 int	renew;
@@ -558,7 +564,7 @@ int	renew;
 }
 
 
-
+void
 tek_close (ctag)
 char *ctag;
 /*
@@ -596,7 +602,7 @@ char *ctag;
 
 
 
-
+void
 tek_pixel (ctag, x, y, xs, ys, data, size, org)
 char *ctag;
 int x, y, xs, ys;
@@ -674,7 +680,7 @@ int size, org;
 		
 
 
-
+void
 tek_target (ctag, x, y)
 char *ctag;
 int *x, *y;
@@ -717,7 +723,7 @@ int *x, *y;
 }
 
 
-
+void
 tek_put_target (ctag, x, y)
 char *ctag;
 int x, y;
@@ -738,7 +744,7 @@ int x, y;
 
 
 
-
+void
 tek_untarget (ctag)
 char	*ctag;
 /*
@@ -757,7 +763,7 @@ char	*ctag;
 
 
 
-
+int
 tek_vp (ctag, x0, y0, x1, y1)
 char *ctag;
 int x0, y0, x1, y1;
@@ -780,6 +786,7 @@ int x0, y0, x1, y1;
  	gtty_out (tag->tek_tty, "\033RW");	/* SET WINDOW...	*/
 	tek_xy (x0, y0, tag->tek_tty, TRUE);	/* Origin		*/
 	tek_xy (x1, y1, tag->tek_tty, TRUE);	/* extent	*/
+	return (GE_OK);
 }
 
 

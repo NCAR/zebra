@@ -1,6 +1,7 @@
 /*
  * Test module.
  */
+# include <stdio.h>
 # include "param.h"
 # include "graphics.h"
 # include "pixel.h"
@@ -12,6 +13,16 @@ unsigned char Cbuf[1024*1024];
 static float red[256] =   { 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.6, 1.0 };
 static float green[256] = { 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.6, 1.0 };
 static float blue[256] =  { 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.6, 1.0 };
+/*
+ * Protos
+ */
+void line_pat (overlay ov, int cbase, char *ctype, int ltype, double x, 
+	       double y, double length, double hgt);
+void do_font (overlay ov, int font, char *name, float *y, double height, 
+	      int color);
+void ui_error ();
+void ui_printf ();
+
 
 
 main ()
@@ -202,7 +213,7 @@ main ()
 
 
 
-
+void
 line_pat (ov, cbase, ctype, ltype, x, y, length, hgt)
 overlay ov;
 char *ctype;
@@ -233,7 +244,7 @@ float x, y, length, hgt;
 
 
 
-
+void
 do_font (ov, font, name, y, height, color)
 overlay ov;
 int font;
@@ -267,7 +278,7 @@ int color;
 #       define SPRINTARGS a1, a2, a3, a4, a5, a6, a7, a8, a9, a10
 
 
-
+void
 ui_error (fmt, ARGS)
 char *fmt;
 int ARGS;
@@ -281,6 +292,7 @@ int ARGS;
 
 
 
+void
 ui_printf (fmt, ARGS)
 char *fmt;
 int ARGS;

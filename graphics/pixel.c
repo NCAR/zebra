@@ -1,5 +1,5 @@
 /* 7/87 jc */
-/* $Id: pixel.c,v 1.3 1993-09-16 22:08:05 case Exp $ */
+/* $Id: pixel.c,v 1.4 1998-02-27 16:00:52 burghart Exp $ */
 /*
  * Operations relating to pixel maps are performed here.
  */
@@ -35,6 +35,12 @@ static unsigned short Vpats[GPLT_NTYPES] =
  * chunk in gp_insert.
  */
 # define BIG_INSERT	512
+
+/*
+ * Forwards
+ */
+void gp_clear();
+
 
 
 struct pixmap *
@@ -112,7 +118,8 @@ struct device *dev;
 
 
 
-void gp_pl (ov, color, ltype, npt, ndata)
+void 
+gp_pl (ov, color, ltype, npt, ndata)
 struct overlay *ov;
 int color, ltype, npt, *ndata;
 /*
@@ -183,7 +190,7 @@ int color, ltype, npt, *ndata;
 
 
 
-
+void
 gp_update (wstn, pm, unconditional)
 struct workstation *wstn;
 struct pixmap *pm;
@@ -224,7 +231,7 @@ int unconditional;
 
 
 
-
+void
 gp_copy_pmap (source, dest, mflags)
 struct pixmap *source, *dest;
 int mflags;
@@ -288,7 +295,7 @@ int mflags;
 
 
 
-
+void
 gp_mrg_pmaps (source, dest)
 struct pixmap *source, *dest;
 /*
@@ -337,7 +344,7 @@ struct pixmap *source, *dest;
 
 
 
-
+void
 gp_insert (src, size, xs, ys, pm, x0, y0)
 char *src;
 int size, xs, ys, x0, y0;
@@ -455,7 +462,7 @@ int x0, y0, x1, y1, cx0, cy0, cx1, cy1, *nx0, *ny0, *nx1, *ny1;
 
 
 
-
+void
 gp_clear (pm)
 struct pixmap *pm;
 /*
@@ -469,7 +476,7 @@ struct pixmap *pm;
 
 
 
-
+void
 gp_remove (map)
 struct pixmap *map;
 /*
@@ -490,7 +497,7 @@ struct pixmap *map;
 
 
 
-
+void
 gp_overlay (src, size, xs, ys, pm, x0, y0)
 char *src;
 int size, xs, ys, x0, y0;
@@ -526,7 +533,7 @@ struct pixmap *pm;
 
 
 
-
+void
 gp_invert (data, xd, yd)
 char *data;
 int xd, yd;

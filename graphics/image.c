@@ -1,5 +1,5 @@
 /* 10/88 jc */
-/* $Id: image.c,v 1.4 1991-11-15 17:26:44 burghart Exp $ */
+/* $Id: image.c,v 1.5 1998-02-27 16:00:45 burghart Exp $ */
 /*
  * Routines related to image save/restore functions. 
  */
@@ -21,7 +21,10 @@ struct ifile
 	struct if_toc *if_contents;	/* The table of contents	*/
 };
 
-
+/*
+ * Forwards
+ */
+void Gi_inc_toc(), Gi_offset();
 
 
 
@@ -137,7 +140,7 @@ int *nimage;
 
 
 
-
+int
 Gi_close (tag)
 image_file tag;
 /*
@@ -243,8 +246,8 @@ char *description;
  * Fill in the new contents entry.
  */
 	toc = ifl->if_contents + (ifl->if_header.ih_nimage - 1);
-	strncpy (toc->it_desc, description, DESCSIZE);
-	toc->it_desc[DESCSIZE] = '\0';
+	strncpy (toc->it_desc, description, DESCSIZE-1);
+	toc->it_desc[DESCSIZE-1] = '\0';
 	toc->it_x = dev->gd_xres;
 	toc->it_y = dev->gd_yres;
 /*
@@ -280,7 +283,7 @@ char *description;
 
 
 
-
+void
 Gi_inc_toc (ifl)
 struct ifile *ifl;
 /*
@@ -363,7 +366,7 @@ int image;
 
 
 
-
+void
 Gi_offset (data, len, offset)
 register char *data;
 register int len, offset;

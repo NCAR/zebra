@@ -5,7 +5,7 @@
 # include <graphdev.h>
 
 # ifdef DEV_X11
-static char *rcsid = "$Id: dev_x11.c,v 1.32 1993-07-23 19:41:12 case Exp $";
+static char *rcsid = "$Id: dev_x11.c,v 1.33 1998-02-27 16:00:40 burghart Exp $";
 
 # include "graphics.h"
 # include "device.h"
@@ -98,9 +98,15 @@ static unsigned short Ztable[256];
  */
 # define MAXREAD	8000	/* This is a guess */
 
+/*
+ * Forwards
+ */
+void x11_clear(), x11_clip(), x11_calc_zoom(), x11_key(), x11_splitread();
 
 
 
+
+int
 x11_open (device, type, ctag, dev)
 char *device, *type, **ctag;
 struct device *dev;
@@ -313,7 +319,7 @@ struct device *dev;
 
 
 
-
+void
 x11_close (ctag)
 char *ctag;
 /*
@@ -331,7 +337,7 @@ char *ctag;
 
 
 
-
+void
 x11_clear (ctag)
 char *ctag;
 /*
@@ -361,7 +367,7 @@ char *ctag;
 
 
 
-
+void
 x11_poly (ctag, color, ltype, npt, data)
 char *ctag;
 int color, ltype, npt, *data;
@@ -474,7 +480,7 @@ int color, ltype, npt, *data;
 
 
 
-
+void
 x11_flush (ctag)
 char *ctag;
 /*
@@ -535,7 +541,7 @@ char *ctag;
 
 
 
-
+int
 x11_noop ()
 {
 	return (GE_OK);
@@ -544,7 +550,7 @@ x11_noop ()
 
 
 
-
+void
 x11_pick (ctag, button, x, y)
 char *ctag;
 int *button, *x, *y;
@@ -590,7 +596,7 @@ int *button, *x, *y;
 
 
 
-
+void
 x11_target (ctag, x, y)
 char *ctag;
 int *x, *y;
@@ -606,7 +612,7 @@ int *x, *y;
 }
 
 
-
+void
 x11_put_target (ctag, x, y)
 char	*ctag;
 int	x, y;
@@ -643,7 +649,7 @@ int	x, y;
 
 
 
-
+void
 x11_untarget (ctag)
 char	*ctag;
 /*
@@ -674,7 +680,7 @@ char	*ctag;
 
 
 
-
+int
 x11_casn (ctag, ncolor, base)
 char *ctag;
 int ncolor, *base;
@@ -685,7 +691,7 @@ int ncolor, *base;
 	struct xtag *tag = (struct xtag *) ctag;
 	int	ncontig, nget, offset, ncells, contig_start;
 	int	start, i, status;
-	long	*cells, pm;
+	unsigned long	*cells, pm;
 /*
  * Simple for a mono device
  */
@@ -700,7 +706,7 @@ int ncolor, *base;
  * Start with space for 256 color cells (this may increase below)
  */
 	ncells = 256;
-	cells = (long *) malloc (ncells * sizeof (long));
+	cells = (unsigned long *) malloc (ncells * sizeof (long));
 /*
  * Initialize
  */
@@ -725,7 +731,7 @@ int ncolor, *base;
 		if (offset + nget > ncells)
 		{
 			ncells *= 2;
-			cells = (long *) 
+			cells = (unsigned long *) 
 				realloc (cells, ncells * sizeof (long));
 		}
 	/*
@@ -744,12 +750,12 @@ int ncolor, *base;
 
 		for (i = start; i < nget + offset; i++)
 		{
-			if (ABS (cells[i] - cells[i-1]) == 1)
+			if (ABS ((long)(cells[i] - cells[i-1])) == 1)
 				ncontig++;
 			else
 			{
 				contig_start = i;
-				ncontig == 1;
+				ncontig = 1;
 			}
 		}
 	}
@@ -779,7 +785,7 @@ int ncolor, *base;
 
 
 
-
+int
 x11_color (ctag, base, ncolor, r, g, b)
 char *ctag;
 int base, ncolor;
@@ -818,7 +824,7 @@ float *r, *g, *b;
 
 
 
-
+void
 x11_pixel (ctag, x, y, xs, ys, data, size, org)
 char *ctag, *data;
 int x, y, xs, ys, size, org;
@@ -853,7 +859,7 @@ int x, y, xs, ys, size, org;
 
 
 
-
+void
 x11_clip (ctag, x0, y0, x1, y1)
 char	*ctag;
 int	x0, y0, x1, y1;
@@ -874,7 +880,7 @@ int	x0, y0, x1, y1;
 }
 
 
-
+void
 x11_zreset (tag)
 struct xtag *tag;
 /*
@@ -893,7 +899,7 @@ struct xtag *tag;
 
 
 
-
+int
 x11_vp (ctag, x0, y0, x1, y1)
 char *ctag;
 int x0, y0, x1, y1;
@@ -938,7 +944,7 @@ int x0, y0, x1, y1;
 		tag->x_zy = y0 ? 0 : tag->x_yres/2;
 		tag->x_zquad = (tag->x_zx ? 1 : 0) + (tag->x_zy ? 2 : 0) + 1;
 		if (tag->x_zquad == oldquad)
-			return;
+			return (GE_OK);
 		tag->x_current = FALSE;
 	/*
 	 * Create the zoomed image, if necessary.
@@ -954,7 +960,7 @@ int x0, y0, x1, y1;
 
 
 
-
+void
 x11_do_quad (tag, x, y, q, read, write)
 struct xtag *tag;
 int x, y, q;
@@ -1006,7 +1012,7 @@ XImage *read, *write;
 
 
 
-
+void
 x11_calc_zoom (tag, q)
 struct xtag *tag;
 int q;
@@ -1067,7 +1073,7 @@ int q;
 
 
 
-
+int
 x11_event (ctag)
 char *ctag;
 /*
@@ -1094,7 +1100,7 @@ char *ctag;
 
 
 
-
+void
 x11_key (tag, ev)
 struct xtag *tag;
 XEvent *ev;
@@ -1130,7 +1136,7 @@ XEvent *ev;
 
 
 
-
+int
 x11_coff (ctag)
 char *ctag;
 /*
@@ -1143,7 +1149,7 @@ char *ctag;
 
 
 
-
+int
 x11_readscreen (ctag, x, y, xs, ys, data)
 char *ctag, *data;
 int x, y, xs, ys;
@@ -1160,7 +1166,7 @@ int x, y, xs, ys;
 
 
 
-
+void
 x11_splitread (disp, src, dest, x, y, xs, ys)
 Display *disp;
 Drawable src;
@@ -1273,7 +1279,7 @@ float rot;
 
 
 
-
+void
 x11_tsize (ctag, pixsize, rot, text, width, height, desc)
 char *ctag, *text;
 int pixsize, *width, *height, *desc;
@@ -1303,7 +1309,7 @@ float rot;
 
 
 
-
+void
 x11_text (ctag, x, y, color, pixsize, rot, text)
 char *ctag, *text;
 int x, y, color, pixsize;
