@@ -1,7 +1,7 @@
 /*
  * Movie control functions.
  */
-static char *rcsid = "$Id: ModelWidget.c,v 2.3 1994-05-19 21:04:44 burghart Exp $";
+static char *rcsid = "$Id: ModelWidget.c,v 2.4 1994-05-25 14:48:18 burghart Exp $";
 /*		Copyright (C) 1994 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -80,7 +80,6 @@ static int 	CurrentFrame, DisplayedFrame;
  * Forward definitions.
  */
 static Widget	mw_MWCreate FP ((int, Widget, XtAppContext));
-static void	mw_Update FP ((void));
 static void	mw_SetStatus FP ((char *));
 static void	mw_GetFrameOffsets FP ((void));
 static void	mw_StartLoop FP ((Widget, XtPointer, XtPointer));
@@ -92,8 +91,9 @@ static void	mw_IndicateFrame FP ((int));
 static void	mw_GenNFrame FP ((int *));
 static void	mw_Notification FP ((PlatformId, int, ZebTime *));
 static void	mw_Dismiss FP ((Widget, XtPointer, XtPointer));
-static void	mw_ShowFrame FP ((Widget, XtPointer, XtPointer));
+static void	mw_ShowFrame FP ((int *));
 static void	mw_FrameStep FP ((Widget, XEvent *, String *, Cardinal *));
+static void	mw_FrameAction FP ((Widget, XEvent *, String *, Cardinal *));
 static void	mw_ValidOrIssue FP ((Widget, XtPointer, XtPointer));
 static void	mw_NewIssueTime FP ((Widget, XtPointer, XtPointer));
 static void	mw_UseAllOrNone FP ((Widget, XtPointer, XtPointer));
@@ -130,12 +130,16 @@ XtAppContext appc;
 	char	string[40];
 	int	n, i;
 	Pixmap	pm;
+	XtTranslations	trans;
 	static char	oneofmany[] = "<Btn1Down>,<Btn1Up>: set() notify()";
 	static char	updown[] = "<Btn1Down>: set() \n\
 			   <Btn1Up>: FrameStep() unset() \n\
 			   <Btn3Down>: set() \n\
 			   <Btn3Up>: FrameStep() unset()";
-	static XtActionsRec	actions[] = {{"FrameStep", mw_FrameStep}};
+	static char	chooseframe[] = 
+		"<Btn1Down>,<Btn1Up>: toggle() notify() ShowFrame()";
+	static XtActionsRec	actions[] = {{"FrameStep", mw_FrameStep},
+					     {"ShowFrame", mw_FrameAction}};
 	static char		allnone_bits[] = 
 	{
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0xff, 0x9f, 
@@ -153,6 +157,10 @@ XtAppContext appc;
 	XtSetArg (args[n], XtNborderWidth, 0); n++;
 	form = XtCreateManagedWidget ("modelform", formWidgetClass, parent, 
 				      args, n);
+/*
+ * Add the actions we'll need
+ */
+	XtAppAddActions (Actx, actions, XtNumber (actions));
 /*
  * The label which holds our title.
  */
@@ -204,11 +212,17 @@ XtAppContext appc;
 	XtGetValues (WIssueTime, args, n);
 	XtAddCallback (src, XtNcallback, mw_TextChange, 0);
 /*
+ * The frame buttons below will get a new translation to cause a frame
+ * draw when the button is pushed.
+ */
+	trans = XtParseTranslationTable (chooseframe);
+/*
  * Create a set of radio buttons for NCACHE frames.
  */
 	above = w;
 	w = NULL;
 	FrameButton[0] = NULL;
+
 	
 	for (i = 0; i < NCACHE; i++)
 	{
@@ -231,7 +245,8 @@ XtAppContext appc;
 		w = FrameButton[i] = 
 			XtCreateManagedWidget (string, toggleWidgetClass,
 					       form, args, n);
-		XtAddCallback (w, XtNcallback, mw_ShowFrame, (XtPointer) i);
+
+		XtOverrideTranslations (w, trans);
 	}
 /*
  * Use the first button to identify the radio group
@@ -306,7 +321,6 @@ XtAppContext appc;
 	w = XtCreateManagedWidget ("loopStep", commandWidgetClass, form, 
 				   args, n);
 
-	XtAppAddActions (Actx, actions, XtNumber (actions));
 	XtOverrideTranslations (w, XtParseTranslationTable (updown));
 /*
  * Stop loop button
@@ -431,7 +445,7 @@ XtAppContext appc;
 
 
 
-static void
+void
 mw_Update ()
 /*
  * Apply current PD info to update the widget
@@ -515,6 +529,7 @@ mw_Update ()
 	{
 		if (ForecastOffset == Foffsets[i])
 		{
+			DisplayedFrame = i;
 		/*
 		 * We choose the button by its "radioData", which is just
 		 * the frame number + 1.
@@ -751,15 +766,13 @@ int *which;
 			 Foffsets[frame] / 3600);
 		mw_SetStatus (string);
 	/*
-	 * Do the frame by using the toggle widget callback.  We choose the
-	 * right button by its "radioData", which is just the frame 
-	 * number + 1.
+	 * Show the frame and mark frames in the cache
 	 */
-		XawToggleSetCurrent (RadioGroup, (XtPointer)(frame + 1));
+		mw_ShowFrame (&frame);
 		fc_MarkFramesByOffset (Foffsets, Nframes);
 	/*
 	 * The loop might have been stopped during the X action that goes with
-	 * XawToggleSetCurrent().  If so, bail out before we try to start
+	 * mw_ShowFrame().  If so, bail out before we try to start
 	 * another frame.
 	 */
 		if (! MovieMode)
@@ -938,26 +951,8 @@ mw_NextFrame ()
 /*
  * Now schedule an update of the next frame.
  */
-	Eq_AddEvent (PDisplay, mw_DoNextFrame, &CurrentFrame, sizeof (int), 
+	Eq_AddEvent (PDisplay, mw_ShowFrame, &CurrentFrame, sizeof (int), 
 		     Augment);
-}
-
-
-
-
-static void
-mw_DoNextFrame (which)
-int *which;
-/*
- * Actually display the next frame in the movie.
- */
-{
-	int	frame = *which;
-/*
- * Do the frame by using the toggle widget callback.  We choose the right
- * button by its "radioData", which is just the frame number + 1.
- */
-	XawToggleSetCurrent (RadioGroup, (XtPointer)(frame + 1));
 }
 
 
@@ -970,17 +965,6 @@ char	*param;
  * A parameter changed.  Deal with it.
  */
 {
-	bool	hold;
-/*
- * Return if they have us on hold
- */
-	if (pd_Retrieve (Pd, "global", "plot-hold", (char *) &hold, 
-			 SYMT_BOOL) && hold)
-		return;
-/*
- * Update the widget
- */
-	mw_Update ();
 /*
  * If we have a loop going, stop and restart it
  */
@@ -1012,28 +996,46 @@ ZebTime *t;
 
 
 
-
 static void
-mw_ShowFrame (w, cdata, junk)
+mw_FrameAction (w, event, params, num_params)
 Widget	w;
-XtPointer	cdata, junk;
+XEvent	*event;
+String	*params;
+Cardinal	*num_params;
 /*
- * Callback for the per-frame buttons
+ * Action procedure called when one of the frame buttons is used.
  */
 {
-	int	frame = (int) cdata;
+	int	frame;
+/*
+ * The frame number is just the widget's radio data value - 1.
+ */
+	XtVaGetValues (w, XtNradioData, &frame, NULL);
+	frame--;
+	mw_ShowFrame (&frame);
+}
+
+	
+
+
+static void
+mw_ShowFrame (frame)
+int	*frame;
+/*
+ * Draw the chosen frame.
+ */
+{
 	char	string[40];
 	Boolean	set;
 /*
- * If this is a call because the button became unset, we can just return
+ * We select the FrameButton by its "radioData", which is just the frame 
+ * number + 1.
  */
-	XtVaGetValues (FrameButton[frame], XtNstate, &set, NULL);
-	if (! set)
-		return;
+	XawToggleSetCurrent (RadioGroup, (XtPointer)(*frame + 1));
 /*
  * Stash the desired forecast offset and plot time in the PD
  */
-	ForecastOffset = Foffsets[frame];
+	ForecastOffset = Foffsets[*frame];
 
 	sprintf (string, "%ds", ForecastOffset);
 	pd_Store (Pd, "global", "forecast-offset", string, SYMT_STRING);
@@ -1057,7 +1059,7 @@ XtPointer	cdata, junk;
 /*
  * Finish up
  */
-	DisplayedFrame = frame;
+	DisplayedFrame = *frame;
 
 	sprintf (string, "%d hr forecast", Foffsets[DisplayedFrame] / 3600);
 	mw_SetStatus (string);
@@ -1108,11 +1110,8 @@ Cardinal	*num_params;
 	 */
 		XtVaGetValues (UseButton[frame], XtNstate, &use_frame, NULL);
 	}
-/*
- * We select the FrameButton by its "radioData", which is just the frame 
- * number + 1.
- */
-	XawToggleSetCurrent (RadioGroup, (XtPointer)(frame + 1));
+
+	mw_ShowFrame (&frame);
 }
 
 	
