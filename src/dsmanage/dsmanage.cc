@@ -43,7 +43,7 @@ extern "C" {
 # include "Index.h"
 # include "plcontainer.h"
 
-MAKE_RCSID ("$Id: dsmanage.cc,v 1.8 1995-10-30 21:29:54 corbet Exp $");
+MAKE_RCSID ("$Id: dsmanage.cc,v 1.9 1995-12-05 20:25:16 corbet Exp $");
 
 extern "C" void strcat (char *, const char *);
 extern "C" char *strrchr (const char *, int);
@@ -200,8 +200,12 @@ ScanFiles (int ind)
 	{
 		ds_GetFileInfo (dfindex, &dfi);
 		/* sprintf (name, "%s/%s", p->dp_dir, d->df_name); */
-		name = dsi.dsrc_Where + String ("/") + String (dfi.dfi_Name);
-		dsFile *df = new dsFile (name, dfindex);
+	//		name = String (dsi.dsrc_Where) + String ("/") +
+	//			String (dfi.dfi_Name);
+		name = String (dsi.dsrc_Where);
+		name += "/";
+		name += dfi.dfi_Name;
+		dsFile *df = new dsFile (name.chars (), dfindex);
 		dp->files.add (*df);
 		delete df;
 	}
@@ -220,7 +224,7 @@ DDInfo (const char **dir, float *space)
 // Return the data dir info.
 //
 {
-	DataDir dd (DDir);
+	DataDir dd (DDir.chars ());
 	*dir = DDir.chars ();
 	*space = dd.FreeSpace ()/1024000.0;
 }

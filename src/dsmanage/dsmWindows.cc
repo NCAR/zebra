@@ -26,10 +26,7 @@
 # include "container.h"
 # include "DataDir.h"
 
-//
-// Avoid no end of weirdness by including this now.
-//
-# include <std/cstring.h>
+# include "MaybeCString.h"
 
 extern "C" 
 {
@@ -45,7 +42,7 @@ extern "C"
 }
 
 # include "dsmWindows.h"
-static char *rcsid = "$Id: dsmWindows.cc,v 1.6 1995-10-30 21:29:52 corbet Exp $";
+static char *rcsid = "$Id: dsmWindows.cc,v 1.7 1995-12-05 20:25:15 corbet Exp $";
 //
 // Forwards.
 //

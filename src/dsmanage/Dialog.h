@@ -25,7 +25,7 @@ class dsDialog : public dsPopupWindow
 	void (*cancelcb) ();
 	Widget text, wcancel;
 public:
-	dsDialog (char * title, char *prompt, void (*goproc) (char *),
+	dsDialog (char * title, char *prompt, void (*goproc) (const char *),
 		void (*cancelproc) ());
 	~dsDialog ();
 	void popdown () { delete this; };

@@ -22,7 +22,7 @@
 # include <stdio.h>
 # include <stream.h>
 # include <unistd.h>
-# include <std/cstring.h>
+# include "MaybeCString.h"
 # include "dsmanage.h"
 
 
@@ -50,7 +50,7 @@ extern "C"
 # include "Index.h"
 # include "ZTime.h"
 # include "plcontainer.h"
-MAKE_RCSID ("$Id: TBCleanup.cc,v 1.5 1995-10-30 21:29:51 corbet Exp $")
+MAKE_RCSID ("$Id: TBCleanup.cc,v 1.6 1995-12-05 20:25:13 corbet Exp $")
 
 class DelSelect;
 

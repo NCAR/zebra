@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-# include <std/cstring.h>
+# include "MaybeCString.h"
 
 extern "C" 
 {
@@ -40,7 +40,7 @@ extern "C"
 # include "dsmWindows.h"
 # include "Dialog.h"
 
-static char *rcsid = "$Id: MainWindow.cc,v 1.7 1995-10-30 21:29:48 corbet Exp $";
+static char *rcsid = "$Id: MainWindow.cc,v 1.8 1995-12-05 20:25:09 corbet Exp $";
 //
 // Externs.
 //

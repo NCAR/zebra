@@ -23,7 +23,7 @@ class DataDir
 {
 	char *directory;
 public:
-	DataDir (char *);
+	DataDir (const char *);
 	~DataDir ();
 	int FreeSpace ();
 };
@@ -39,9 +39,10 @@ class dsFile
 	int	fsize;		// How big it is.
 public:
 	int	index;		// SHM DF index
-	dsFile (char *, int);
+	dsFile (const char *, int);
 	dsFile (const dsFile &);
-	inline ~dsFile () { delete[] fname; }
+	~dsFile ();
+//	inline ~dsFile () { delete[] fname; }
 	inline int size () const { return fsize; }
 	inline char *name () const { return fname; }
 };
@@ -54,10 +55,11 @@ class dsPlatform
 {
 	char	*pname;		// Name of this platform.
 public:
-	int	index;		// It's index
+	int index;		// Its index
 	fContainer files; // The files
 	dsPlatform (char *, int);
 	dsPlatform (const dsPlatform &);
+	~dsPlatform () { delete [] pname; }
 	float space() const ;		// How much space it takes.
 	int ndfile () const { return files.ncontained (); }
 	char *name () const { return pname; }

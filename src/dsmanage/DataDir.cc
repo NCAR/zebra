@@ -42,13 +42,13 @@ extern "C" {
 # endif
 };
 
-static char *rcsid = "$Id: DataDir.cc,v 1.5 1994-02-01 20:43:44 corbet Exp $";
+static char *rcsid = "$Id: DataDir.cc,v 1.6 1995-12-05 20:25:00 corbet Exp $";
 
 //
 // The data directory class.
 //
 
-DataDir::DataDir (char *dir)
+DataDir::DataDir (const char *dir)
 //
 // Initialize one of these babies.
 //
@@ -95,7 +95,7 @@ DataDir::FreeSpace ()
 // Data file routines.
 //
 
-dsFile::dsFile (char *name, int findex)
+dsFile::dsFile (const char *name, int findex)
 //
 // Set up this dsFile structure.
 //
@@ -129,6 +129,16 @@ dsFile::dsFile (const dsFile& old)
 	strcpy (fname, old.fname);
 	fsize = old.fsize;
 	index = old.index;
+}
+
+
+
+dsFile::~dsFile ()
+//
+// Destroy one of these babies.
+//
+{
+	delete [] this->fname;
 }
 
 
