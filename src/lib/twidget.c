@@ -37,7 +37,7 @@
 # include "../include/message.h"
 # include "../include/timer.h"
 
-MAKE_RCSID ("$Id: twidget.c,v 2.8 1992-01-27 20:07:05 corbet Exp $")
+MAKE_RCSID ("$Id: twidget.c,v 2.9 1992-06-22 22:29:36 pai Exp $")
 
 
 # define LABELWIDTH	60
@@ -565,9 +565,12 @@ int which;
 	switch (which)
 	{
 	   case MONTHUP:
-		m = (m + 1) % 12;
-		if (m == 0)
+		m += 1;
+		if (m > 12)
+		{
+			m = 1;
 			y++;
+		}
 		TC_ZtAssemble (&Histdate, y, m, d, hour, min, sec, 0);
 		break;
 
@@ -575,7 +578,7 @@ int which;
 		m -= 1;
 		if (m < 0) 
 		{
-			m = 11;
+			m = 12;
 			y--;
 		}
 		TC_ZtAssemble (&Histdate, y, m, d, hour, min, sec, 0);
