@@ -35,16 +35,19 @@ define widget rings-right intmenu 'x'
 	line
 	entry '10 degree lines' \
 		'parameter #icon_component azimuth-interval 10' \
-		(PDParam(icon_component, "azimuth-interval") = '10')
+		(PDParam (icon_component, "azimuth-interval") = '10')
 	entry '30 degree lines' \
 		'parameter #icon_component azimuth-interval 30' \
-		(PDParam(icon_component, "azimuth-interval") = '30')
+		(PDParam (icon_component, "azimuth-interval") = '30')
 	entry '45 degree lines' \
 		'parameter #icon_component azimuth-interval 45' \
-		(PDParam(icon_component, "azimuth-interval") = '45')
+		(PDParam (icon_component, "azimuth-interval") = '45')
 	entry '90 degree lines' \
 		'parameter #icon_component azimuth-interval 90' \
-		(PDParam(icon_component, "azimuth-interval") = '90')
+		(PDParam (icon_component, "azimuth-interval") = '90')
+	line
+	entry 'Draw labels' 'ToggleBoolean do-labels' \
+	    (PDSearch (icon_component, "do-labels", "range-ring") <> "false")
 	line
 	submenu 'Ring color' 'simple-color'
 	submenu 'Line width' 'LineWidth'
