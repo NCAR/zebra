@@ -1,4 +1,4 @@
-XCOMM $Id: Imakefile,v 1.5 1993-06-16 15:32:37 granger Exp $
+XCOMM $Id: Imakefile,v 1.6 1993-06-23 22:20:56 granger Exp $
 XCOMM
 XCOMM This is the top-level Imakefile for the Zeb distribution.
 XCOMM It is modeled after the top-level Imakefile of the MIT X11R5
@@ -14,9 +14,9 @@ XCOMM distribution.
         SUBDIRS = config src 
     DISTSUBDIRS = config src imake
      SRCSUBDIRS = config src imake
-      DISTFILES = Imakefile Makefile.ini README 
-       LINKDIRS = dist/zeb/doc dist/zeb/cape
-      LINKNAMES = $(TARNAME)/doc $(TARNAME)/cape
+      DISTFILES = Imakefile Makefile.ini
+       LINKDIRS = dist/zeb/doc dist/zeb/project
+      LINKNAMES = $(TARNAME)/doc $(TARNAME)/project
 
 XCOMM From the top-level directory, the default "all" behavior will
 XCOMM be the same as the "Everything" target, i.e. make sure all
@@ -36,7 +36,6 @@ usage::
 	@echo "	make Makefiles"
 	@echo "	make includes"
 	@echo "	make depend"
-	@echo "	make install.lib"
 	@echo "	make install"
 	@echo "The 'World' target performs:"
 	@echo "	make Makefile"
@@ -44,7 +43,6 @@ usage::
 	@echo "	make clean"
 	@echo "	make includes"
 	@echo "	make depend"
-	@echo "	make install.lib"
 	@echo "	make install"
 	@echo "If you are installing Zeb for the first time, break"
 	@echo "out of this make by typing Ctl-C.  Make sure you have"
@@ -66,17 +64,20 @@ usage::
 
 all:: Everything
 
-/*MakeSubdirs($(SUBDIRS))*/ /* Can't use all target because of install.lib */
+/*MakeSubdirs($(SUBDIRS))*/ /* Can't use all target because libraries must */
+			    /* be installed before executables built	   */
 DependSubdirs($(SUBDIRS))
-InstallLibSubdirs($(SUBDIRS))
+/*InstallLibSubdirs($(SUBDIRS))*/ 		/* Not used at the moment  */
 DistfilesTarget($(DISTFILES))
 DistfilesSubdirs($(DISTSUBDIRS))
+/* install:: for subdirs automatically included by the IHaveSubdirs defn   */
 
 XCOMM do not name your log file make.log or MakeOut when you run this ...
 World::
 	@echo ""
 	@echo "Building Zeb"
-	@echo ""
+	@echo "Do not name you log file make.log or MakeOut,"
+	@echo "else it will be erased."
 	@date
 	@echo ""
 	cd $(IMAKESRC); $(MAKE) $(MFLAGS) -f Makefile.ini clean; $(MAKE) $(MFLAGS) -f Makefile.ini BOOTSTRAPCFLAGS="$(BOOTSTRAPCFLAGS)" INCLUDES=-I../config
@@ -86,7 +87,9 @@ World::
 	$(MAKE) $(MFLAGS) clean
 	$(MAKE) $(MFLAGS) includes
 	$(MAKE) $(MFLAGS) depend
-/*	$(MAKE) $(MFLAGS) $(WORLDOPTS) install.lib */
+#ifdef notdef
+	$(MAKE) $(MFLAGS) $(WORLDOPTS) install.lib
+#endif
 	$(MAKE) $(MFLAGS) $(WORLDOPTS) install
 	@echo ""
 	@date
@@ -106,7 +109,9 @@ Everything::
 	$(MAKE) $(MFLAGS) Makefiles
 	$(MAKE) $(MFLAGS) includes
 	$(MAKE) $(MFLAGS) depend
-/*	$(MAKE) $(MFLAGS) $(WORLDOPTS) install.lib */
+#ifdef notdef
+	$(MAKE) $(MFLAGS) $(WORLDOPTS) install.lib
+#endif
 	$(MAKE) $(MFLAGS) $(WORLDOPTS) install
 	@echo ""
 	@date
@@ -117,7 +122,7 @@ Everything::
 /*
  * Some probably wouldn't want a simple 'make clean' to remove
  * the ./bin and ./include directories, and since this is the natural
- * distribution state, I made this the 'distclean' target:
+ * distribution state, this is the 'distclean' target:
  */
 distclean::
 	$(RM) -rf ./include ./bin
@@ -152,7 +157,7 @@ distclean:: clean
 TARFILE = zeb-1.0
 SRCFILE = zeb-src
 
-tarfile: FORCE
+tarfile:
 	@echo Making file $(TARFILE).tar.Z ; \
 	if mkdir $(TARFILE) ; then \
 	  (set -x; \
@@ -169,7 +174,7 @@ tarfile: FORCE
 	  false ; \
 	fi
 
-srcfile: FORCE
+srcfile:
 	@echo Making file $(SRCFILE).tar.Z ; \
 	if mkdir $(SRCFILE) ; then \
 	  (set -x; \
@@ -186,8 +191,6 @@ srcfile: FORCE
 	  echo "Cannot make directory '$(SRCFILE)'!  Aborting."; \
 	  false ; \
 	fi
-
-FORCE::
 
 /*
  * Since the mf shortcut turns around and does a depend as well, we'll
