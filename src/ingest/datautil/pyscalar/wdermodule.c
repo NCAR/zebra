@@ -25,11 +25,15 @@
 
 static PyObject *wder_TempHumToDp (PyObject *, PyObject *);
 static PyObject *wder_ThetaE (PyObject *, PyObject *);
+static PyObject *wder_PresDpToMr (PyObject *, PyObject *);
 static float bolton (float, float, float);
+static float vpres (float);
+
 
 static PyMethodDef WDerMethods[] = {
 	{ "TempHumToDp", wder_TempHumToDp, 1},
 	{ "ThetaE", wder_ThetaE, 1},
+	{ "PresDpToMr", wder_PresTempToMr, 1 },
 	{ NULL, NULL },
 };
 
@@ -172,3 +176,37 @@ float T;	/* temperature in deg C */
 	return(value);
 	}
 
+
+
+
+static float
+vpres (float t)
+/*
+ * Return vapor pressure.  (From Morgan)
+ */
+{
+	return (6.112*exp ((17.67*t)/(t + 243.5)));
+}
+
+
+
+static PyObject *
+wder_PresDpToMr (self, args)
+PyObject *self, *args;
+/*
+ * Temp/Pres -> mr
+ */
+{
+	float temp, pres, vp, mr;
+/*
+ * Get the args.
+ */
+	if (! PyArg_ParseTuple (args, "ff", &pres, &temp))
+		return NULL;
+/*
+ * Figure it out and return.
+ */
+	vp = vpres (temp);
+	mr = (622*vp)/(pres - vp);
+	return (Py_BuildValue ("f", mr));
+}
