@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.65 1998-04-27 21:41:02 corbet Exp $"
+MFVERSION="$Id: Imakefile,v 1.66 1998-04-27 22:10:49 corbet Exp $"
 
 DEPLIBS=$(ZLIBS)
 LIBMPROF=/dt/granger/libc_mp.a
@@ -128,9 +128,6 @@ CccProgramTarget(dsDaemon,$(DMNOBJS),$(DEPLIBS),$(DMNLIBS),$(DMNSYSLIBS))
 SpecialObjectRule($(DSOBJS),/**/,$(RDSSINCLUDES))
 
 UILoadFileTarget(dsDaemon.lf,Daemon.state)
-
-TPOBJS = tpolar.o $(DSLIBOBJS)
-CccProgramTarget(tpolar,$(TPOBJS),$(DEPLIBS),$(DMNLIBS),$(DMNSYSLIBS))
 
 /*
  * Make the library.
