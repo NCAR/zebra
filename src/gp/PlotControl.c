@@ -1,7 +1,7 @@
 /*
  * Window plot control routines.
  */
-static char *rcsid = "$Id: PlotControl.c,v 2.2 1991-09-12 20:27:54 corbet Exp $";
+static char *rcsid = "$Id: PlotControl.c,v 2.3 1991-10-01 15:58:45 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -401,6 +401,9 @@ char *comp;
 	msg_ELog (EF_DEBUG, "Plot alarm at %d %d", t->ds_yymmdd, t->ds_hhmmss);
 	Eq_AddEvent (PDisplay, pc_Plot, comp, 1 + strlen (comp),
 		(strcmp (comp, "global") ? Bounce : Override));
+/*
+	Eq_AddEvent (PDisplay, I_DoIcons, NULL, 0, Bounce);
+*/
 }
 
 
@@ -447,6 +450,9 @@ time *t;
 		index = 0;
 	Eq_AddEvent (PDisplay, pc_Plot, comps[index],
 			strlen (comps[index]) + 1, Override);
+/*
+	Eq_AddEvent (PDisplay, I_DoIcons, NULL, 0, Bounce);
+*/
 }
 
 
@@ -461,6 +467,9 @@ char	*comp;
 {
 	msg_ELog (EF_DEBUG, "pc_Plot (%s)", comp); 
 	px_PlotExec (comp);
+
+	if (! MovieMode)
+		I_DoIcons ();
 }
 
 
