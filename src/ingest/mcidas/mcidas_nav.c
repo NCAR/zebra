@@ -49,15 +49,27 @@ static NavMethods methods = \
 	  & fname(base ## sae) \
 };
 
+NAV_PROTO(DmspMethods,"DMSP",ndm)
 NAV_PROTO(GoesMethods,"GOES",ngs)
+NAV_PROTO(GrafMethods,"GRAF",ngr)
 NAV_PROTO(GvarMethods,"GVAR",ngv)
+NAV_PROTO(LambMethods,"LAMB",nla)
+NAV_PROTO(MercMethods,"MERC",nme)
+NAV_PROTO(MollMethods,"MOLL",nmo)
+NAV_PROTO(MsatMethods,"MSAT",nms)
 NAV_PROTO(PSMethods,"PS",nps)
 NAV_PROTO(RadrMethods,"RADR",nra)
 NAV_PROTO(RectMethods,"RECT",nrc)
+NAV_PROTO(SinMethods,"SIN",nsi)
+NAV_PROTO(TancMethods,"TANC",nta)
+NAV_PROTO(TiroMethods,"TIRO",nti)
+
 
 static NavMethods *Navs[] =
 {
-	&GoesMethods, &GvarMethods, &PSMethods, &RadrMethods, &RectMethods
+    &DmspMethods, &GoesMethods, &GrafMethods, &GvarMethods, &LambMethods,
+    &MercMethods, &MollMethods, &MsatMethods, &PSMethods, &RadrMethods,
+    &RectMethods, &SinMethods, &TancMethods, &TiroMethods
 };
 static int NumNavs = sizeof (Navs) / sizeof (Navs[0]);
 
