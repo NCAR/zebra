@@ -34,7 +34,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 # include "LayoutControl.h"
-MAKE_RCSID ("$Id: PlotExec.c,v 2.22 1992-12-23 21:45:36 granger Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.23 1993-02-24 08:24:15 granger Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -656,7 +656,7 @@ px_GetAltitude ()
 		}
 		else
 			msg_ELog (EF_PROBLEM,
-				"Altitude control comp %d missing", comps[i]);
+				"Altitude control comp %s missing", altcomp);
 	}
 /*
  * That didn't work out, so:
@@ -678,9 +678,13 @@ px_GetAltitude ()
 		}
 	}
 /*
- * (3) Just use the base, like things used to be in the good olde days.
+ * (3) Just use the base, like things used to be in the good olde days, as
+ *     long as there is a base to use.
  */
-	AltControlComp = 1;
+	if (comps[1])
+		AltControlComp = 1;
+	else
+		AltControlComp = 0;
 }
 
 

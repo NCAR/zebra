@@ -29,7 +29,7 @@
 # include <DataStore.h>
 # include "GraphProc.h"
 # include "GraphicsW.h"
-MAKE_RCSID ("$Id: FrameCache.c,v 2.8 1992-12-23 18:43:22 kris Exp $")
+MAKE_RCSID ("$Id: FrameCache.c,v 2.9 1993-02-24 08:24:15 granger Exp $")
 
 # define BFLEN		500
 # define FLEN		40
@@ -240,15 +240,17 @@ int number;
 		return;
 	}
 /*
+ * Refuse to cache any plots with only a global component
+ */
+	complist = pd_CompList (Pd);
+	if (!complist[1])
+		return;
+/*
  * Get an empty frame which will correspond to the pixmap <number>.
  */
 	findex = fc_GetFreeFrame();
 /*
- * Add the info.
- */
-	complist = pd_CompList (Pd);
-/*
- * Fill in the base field.
+ * Add the info.  Fill in the base field.
  */
 	FCache[findex].fc_base[0] = '\0';
 	(void) (pd_Retrieve (Pd, complist[1], "field", FCache[findex].fc_base,
@@ -398,6 +400,11 @@ char **info_return;
  */
 	base[0] = '\0';
 	complist = pd_CompList (Pd);
+/*
+ * If there are no components other than global, then we won't find a frame
+ */
+	if (!complist[1])
+		return (-1);
 	(void) (pd_Retrieve (Pd, complist[1], "field", base, SYMT_STRING) ||
 		pd_Retrieve (Pd, complist[1], "color-code-field", base,
 				SYMT_STRING) ||
@@ -471,6 +478,11 @@ int	ntime;
 	float	alt;
 	char	base[BFLEN], **complist = pd_CompList (Pd);
 	PF_Pair	*pairs = NULL;
+/*
+ * Make sure we've got a base component
+ */
+	if (!complist[1])
+		return;
 /*
  * Get the current base field, and only mark those which match.
  */
