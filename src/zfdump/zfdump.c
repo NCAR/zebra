@@ -6,7 +6,7 @@
 # include "DataStore.h"
 # include "znfile.h"
 
-MAKE_RCSID ("$Id: zfdump.c,v 1.1 1992-12-11 17:43:54 corbet Exp $")
+MAKE_RCSID ("$Id: zfdump.c,v 1.1.1.1 1993-04-02 00:34:41 granger Exp $")
 
 extern int optind;
 

@@ -29,7 +29,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID ("$Id: d_Scan.c,v 1.1 1993-03-22 16:41:21 corbet Exp $");
+MAKE_RCSID ("$Id: d_Scan.c,v 1.1.1.1 1993-04-02 00:33:48 granger Exp $");
 
 
 /*

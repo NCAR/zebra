@@ -1,4 +1,4 @@
-! $Id: make-lf,v 1.1 1991-12-20 20:24:35 kris Exp $
+! $Id: make-lf,v 1.1.1.1 1993-04-02 00:34:30 granger Exp $
 read Daemon.state
 set ui$pager_mode false
 save dsDaemon.lf all

@@ -1,7 +1,7 @@
 /*
  * Structures describing the zeb native file format.
  */
-/* $Id: znfile.h,v 1.1 1992-12-10 18:21:44 corbet Exp $ */
+/* $Id: znfile.h,v 1.1.1.1 1993-04-02 00:34:42 granger Exp $ */
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
