@@ -29,7 +29,7 @@ public:
 	plContainer (int n = 10);
 	~plContainer ();
 	void add (const dsPlatform&);	// Add an element to the container
-	inline ncontained() const { return nelem; }	// How many?
+	inline int ncontained() const { return nelem; }	// How many?
 	dsPlatform& nth (const int which) const { return *(stuff[which]); }
 	dsPlatform *index (const int) const;	// Get by index
 	void zap (int);		// Zap the nth element

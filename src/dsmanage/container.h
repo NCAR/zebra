@@ -29,7 +29,7 @@ public:
 	IContainer (int n = 10);
 	~IContainer ();
 	void add (const C&);		// Add an element to the container
-	inline ncontained() const { return nelem; }	// How many?
+	inline int ncontained() const { return nelem; }	// How many?
 	C& nth (const int which) const { return *(stuff[which]); }
 	C *index (const int) const;	// Get by index
 	void zap (int);		// Zap the nth element

@@ -33,7 +33,7 @@ public:
 	fContainer (int n = 10);
 	~fContainer ();
 	void add (const dsFile&);	// Add an element to the container
-	inline ncontained() const { return nelem; }	// How many?
+	inline int ncontained() const { return nelem; }	// How many?
 	dsFile& nth (const int which) const { return *(stuff[which]); }
 	dsFile *index (const int) const;	// Get by index
 	void zap (int);		// Zap the nth element
