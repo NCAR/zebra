@@ -1,7 +1,6 @@
 /*
  * Routines common to XY-Type plots
  */
-static char *rcsid = "$Id: XYCommon.c,v 1.24 1994-11-17 07:39:10 granger Exp $";
 /*		Copyright (C) 1993 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -36,6 +35,8 @@ static char *rcsid = "$Id: XYCommon.c,v 1.24 1994-11-17 07:39:10 granger Exp $";
 # include "LayoutControl.h"
 # include "DrawText.h"
 # include "XYCommon.h"
+
+RCSID("$Id: XYCommon.c,v 1.25 1995-04-17 21:20:45 granger Exp $")
 
 /* 
  * One somewhat reasonable definition for infinity in XDR, lifted from 
@@ -117,7 +118,6 @@ bool	*xauto, *xinvert, *yauto, *yinvert;
  * The default is autoscaling and normal (not inverted) direction
  */
 {
-    char	keyword[20];
 /*
  * Establish defaults
  */
@@ -414,7 +414,6 @@ int	*dmode;
  */
 {
     int		spanSec;
-    unsigned long spanTime;
 /* 
  * If snap-shot mode, then use the current PLOT-TIME for begin and
  * end times.  If series mode, then compute the target begin time at
@@ -758,8 +757,8 @@ char 		*c;		/* Plot description component */
  * The number of points in the resultant data vectors will be returned.
  */
 {
-	int	i, pt, samp, f, npts, ngood, fcount, *fndx, nobs, ntimes;
-	int	dcpts, dcveclen, sample, vecpts, ncopied, totalpts;
+	int	i, pt, samp, f, npts, ngood, fcount, *fndx;
+	int	dcpts, dcveclen, sample, ncopied, totalpts;
 	float	*val, **dcvector = NULL;
 	char	*dtype, stime1[32], stime2[32];
 	FieldId	*fids;

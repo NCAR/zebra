@@ -1,7 +1,6 @@
 /*
  * XY-Contour plotting module
  */
-static char *rcsid = "$Id: XYContour.c,v 1.31 1995-04-13 16:06:48 corbet Exp $";
 /*		Copyright (C) 1993 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -26,6 +25,7 @@ static char *rcsid = "$Id: XYContour.c,v 1.31 1995-04-13 16:06:48 corbet Exp $";
 # include <ui_error.h>
 # include <defs.h>
 # include <pd.h>
+# include <GraphicsW.h>
 # include <time.h>
 # include <message.h>
 # include <DataStore.h>
@@ -36,6 +36,8 @@ static char *rcsid = "$Id: XYContour.c,v 1.31 1995-04-13 16:06:48 corbet Exp $";
 # include "XYCommon.h"
 # include "AxisControl.h"
 # include "rg_status.h"
+
+RCSID("$Id: XYContour.c,v 1.32 1995-04-17 21:20:25 granger Exp $")
 
 # define GRID(g,i,j,ydim)   (g[((i) * (ydim)) + (j)])
 
@@ -85,12 +87,11 @@ bool	update;
  */
 {
 	bool	fill;
-	int	npts[MAX_PLAT], plat, nplat, angle = 0, ncolors, dmode;
+	int	npts[MAX_PLAT], plat, nplat, ncolors, dmode;
 	int	dolabel = 1, linewidth = 0, nxfield, nyfield, nzfield;
 	int	xgridres, ygridres = 0;
-	float	vecScale = 0.01, zstep, ccenter, *datagrid = NULL;
+	float	zstep, ccenter, *datagrid = NULL;
 	char	platforms[PlatformListLen], *pnames[MaxPlatforms];
-	char	xflds[FieldListLen], yflds[FieldListLen], zflds[FieldListLen];
 	char	*xfnames[MaxFields], *yfnames[MaxFields], *zfnames[MaxFields];
 	char	gridtype[20], ctname[24], style[20], annotcontrol[80];
 	char	xtype, ytype, ztype;
@@ -523,7 +524,7 @@ float		badval;
 {
     int	lxdim, lydim, lnpts;
     float lbad;
-    int 	i, j, k;
+    int 	k;
     int		status;
     GridInfoPtr pinfo = NULL;
     float	*xpos, *ypos, *data;
@@ -589,7 +590,7 @@ float		badval;
     lbad = badval;
 
     status = dorgrid_ (pinfo->grid, &lxdim, &lydim, &lnpts, data, &lbad,
-			xpos, ypos, &fx0, &fy0, &fx1, &fy1, pinfo->scratch);
+		       xpos, ypos, &fx0, &fy0, &fx1, &fy1, pinfo->scratch);
     switch (status)
     {
 	case RG_NOTENUFPTS:
@@ -858,7 +859,9 @@ char *c, *platforms, **pnames, **xfnames, **yfnames, **zfnames;
 
 static void
 xyc_DoColors (c, fill, ctname, colors, ncolors)
-char *c, *ctname;
+char *c;
+int fill;
+char *ctname;
 XColor **colors;
 int *ncolors;
 /*

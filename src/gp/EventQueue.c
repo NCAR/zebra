@@ -1,7 +1,7 @@
 /*
  * The graphics process event/processing queue system.
  */
-static char *rcsid = "$Id: EventQueue.c,v 2.5 1993-10-27 21:46:37 burghart Exp $";
+static char *rcsid = "$Id: EventQueue.c,v 2.6 1995-04-17 21:22:10 granger Exp $";
 /*		Copyright (C) 1993 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -137,7 +137,6 @@ int     len;
  */
 {
         struct pq_entry *ent;
-        int i;
 
         for (ent = P_queue[pri]; ent; )
         {
@@ -301,7 +300,7 @@ Eq_Execute ()
 /*
  * See if there is work to do.
  */
-	if (pqe = P_queue[PUrgent])
+	if ((pqe = P_queue[PUrgent]))
 		pri = PUrgent;
 	else if (! HoldProcess && (pqe = P_queue[PDisplay]))
 		pri = PDisplay;

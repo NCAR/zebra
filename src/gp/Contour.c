@@ -1,7 +1,7 @@
 /*
  * Contour a rectangular array
  */
-static char *rcsid = "$Id: Contour.c,v 2.9 1994-11-23 18:52:45 burghart Exp $";
+static char *rcsid = "$Id: Contour.c,v 2.10 1995-04-17 21:21:24 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -44,7 +44,7 @@ typedef short	cbool;
 # define PI		3.141592654
 # define RAD_TO_DEG(x)	((x)*57.29577951)
 
-# define IXYPAK(i,j)	((i) << 16 + (j))
+# define IXYPAK(i,j)	(((i) << 16) + (j))
 # define FRAC(p1,p2)	(((p1) - Cval) / ((p1) - (p2)))
 
 /*
