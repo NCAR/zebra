@@ -25,7 +25,7 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_RGrid.c,v 3.2 1992-06-11 20:15:59 corbet Exp $")
+MAKE_RCSID ("$Id: dc_RGrid.c,v 3.3 1992-09-25 15:44:45 corbet Exp $")
 
 # define SUPERCLASS DCC_MetData
 
@@ -41,7 +41,6 @@ MAKE_RCSID ("$Id: dc_RGrid.c,v 3.2 1992-06-11 20:15:59 corbet Exp $")
  */
 typedef struct _GridGeometry
 {
-	Location	gg_Loc;		/* Where is the origin	*/
 	RGrid		gg_Rg;		/* Dims and spacing	*/
 } GridGeometry;
 
@@ -146,10 +145,13 @@ DataChunk *dc;
  */
 	printf ("RGRID Class:\n");
 	for (samp = 0; samp < nsamples; samp++)
+	{
+		Location loc;
+		dc_GetLoc (dc, samp, &loc);
 		printf ("\tGrid at %.4f %.4f %.3f, %dx%dx%d\n",
-			gg[samp].gg_Loc.l_lat, gg[samp].gg_Loc.l_lon,
-			gg[samp].gg_Loc.l_alt, gg[samp].gg_Rg.rg_nX,
+			loc.l_lat, loc.l_lon, loc.l_alt, gg[samp].gg_Rg.rg_nX,
 			gg[samp].gg_Rg.rg_nY, gg[samp].gg_Rg.rg_nZ);
+	}
 }
 
 
@@ -205,7 +207,6 @@ float *data;
 	 * Initialize a new Geometry structure.
 	 */
 		gg = ALLOC (GridGeometry);
-		gg->gg_Loc = *origin;
 		gg->gg_Rg = *rg;
 		dc_AddADE (dc, gg, DCC_RGrid, ST_GRID_GEOM,
 				sizeof (GridGeometry), TRUE);
@@ -227,7 +228,6 @@ float *data;
 	{
 		int newlen = (nsamples + 1)*sizeof (GridGeometry);
 		gg = (GridGeometry *) realloc (gg, newlen);
-		gg[sample].gg_Loc = *origin;
 		gg[sample].gg_Rg = *rg;
 		dc_ChangeADE (dc, gg, DCC_RGrid, ST_GRID_GEOM, newlen);
 	}
@@ -237,6 +237,7 @@ float *data;
 	if (len == 0)
 		len = rg->rg_nX * rg->rg_nY * rg->rg_nZ * sizeof (float);
 	dc_AddMData (dc, t, field, len, sample, 1, data);
+	dc_SetLoc (dc, sample, origin);
 }
 
 
@@ -280,7 +281,7 @@ RGrid *rg;
  * Return the stuff they want.
  */
 	if (origin)
-		*origin = gg[sample].gg_Loc;
+		dc_GetLoc (dc, sample, origin);
 	if (rg)
 		*rg = gg[sample].gg_Rg;
 	return ((float *) data);
@@ -321,7 +322,7 @@ RGrid *rg;
  * Return the stuff they want.
  */
 	if (origin)
-		*origin = gg[sample].gg_Loc;
+		dc_GetLoc (dc, sample, origin);
 	if (rg)
 		*rg = gg[sample].gg_Rg;
 	return (TRUE);
