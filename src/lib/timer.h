@@ -1,4 +1,4 @@
-/* $Id: timer.h,v 1.3 1990-05-07 11:32:45 corbet Exp $ */
+/* $Id: timer.h,v 1.4 1990-06-11 16:37:19 corbet Exp $ */
 /*
  * Timer module protocol requests and responses.
  */
@@ -88,7 +88,7 @@ struct tm_status
 {
 	int	tm_type;	/* Answer type			*/
 	time	tm_time;	/* The current time value	*/
-	char	tm_status[0];	/* Actual status -- as long as nec.	*/
+	char	tm_status[1];	/* Actual status -- as long as nec.	*/
 };
 
 
