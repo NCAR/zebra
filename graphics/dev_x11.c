@@ -1,5 +1,5 @@
 /* 12/88 jc */
-/* $Id: dev_x11.c,v 1.8 1989-09-28 11:28:39 burghart Exp $	*/
+/* $Id: dev_x11.c,v 1.9 1989-09-29 11:19:32 burghart Exp $	*/
 /*
  * Graphics driver for the X window system, version 11.3
  */
@@ -432,6 +432,34 @@ int	x, y;
  * Make sure we redo the pixmap on the next flush
  */
 	tag->x_do_pxm = TRUE;
+
+	x11_flush (ctag);
+	return;
+}
+
+
+
+
+x11_untarget (ctag)
+char	*ctag;
+/*
+ * Remove the target
+ */
+{
+	struct xtag *tag = (struct xtag *) ctag;
+/*
+ * Restore the data under the old target location (if there is an old
+ * target location)
+ */
+	if (tag->x_xtgt > 0 && tag->x_ytgt > 0)
+		XCopyArea (tag->x_display, tag->x_tgt_pixmap, tag->x_window,
+			tag->x_tgt_gc, 0, 0, TGT_SIZE + 2, TGT_SIZE + 2, 
+			tag->x_xtgt - TGT_SIZE/2 - 1, 
+			tag->x_ytgt - TGT_SIZE/2 - 1);
+/*
+ * Negative target location for no target
+ */
+	tag->x_xtgt = tag->x_ytgt = -1;
 
 	x11_flush (ctag);
 	return;
