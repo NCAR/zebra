@@ -12,7 +12,12 @@
 
 # include "P3Composite.h"
 
-int MHandler (Message *msg) {}
+int 
+MHandler (msg)
+Message *msg;
+{
+}
+
 
 
 main (argc, argv)
@@ -87,7 +92,7 @@ char **argv;
 	 * Get the data grid.
 	 */
 	 	srcgrid = (short *) malloc (len*sizeof (short));
-		grid = malloc (len);
+		grid = (unsigned char *) malloc (len);
 		ReadGrid (fd, srcgrid, ph.ph_Nx, ph.ph_Ny);
 	/*
 	 * Start putting together our data chunk.

@@ -8,8 +8,8 @@
 
 
 
-int MHandler (Message *);
-DataChunk *MakeDC (PlatformId, FieldId);
+int MHandler FP ((Message *));
+DataChunk *MakeDC FP ((PlatformId, FieldId));
 /*
  * togast file yymmdd platform
  */
@@ -131,4 +131,8 @@ FieldId fid;
 
 
 
-int MHandler (Message *msg) {}
+int 
+MHandler (msg)
+Message *msg;
+{
+}
