@@ -1,7 +1,7 @@
 /*
  * Ingest scheduler
  */
-static char    *rcsid = "$Id: is.c,v 1.4 1991-10-30 19:02:53 martin Exp $";
+static char    *rcsid = "$Id: is.c,v 1.5 1991-11-12 20:31:48 martin Exp $";
 
 /*
  * Copyright (C) 1987,88,89,90,91 by UCAR University Corporation for
@@ -69,6 +69,7 @@ main(argc, argv)
 	/* is this necessary? */
 	msg_DeathHandler(is_shutdown);
 
+	msg_ELog(EF_INFO, "%s", rcsid);
 	msg_ELog(EF_INFO, "is started ");
 	/*
 	 * Get the interface set up.
@@ -290,7 +291,6 @@ start_cfg(name, type, v, all)
 	int             pid;
 	struct is_config *cfg = (struct is_config *) v->us_v_ptr;
 
-	static char    *new_args[MAX_PROC_ARGS];
 	extern int      errno;
 	struct proc_entry *this_proc = NEW(struct proc_entry);
 	void            timed_check();
