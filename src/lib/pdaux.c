@@ -1,4 +1,4 @@
-/* $Id: pdaux.c,v 1.7 1993-03-25 03:39:10 granger Exp $ */
+/* $Id: pdaux.c,v 1.8 1993-04-16 17:11:14 burghart Exp $ */
 /*
  * Auxilliary library routines for plot descriptions.
  */
@@ -117,33 +117,33 @@ int type;
  */
 	found = pd_Retrieve (pd, comp, param, dest, type);
 /*
- * Try the global component.
+ * Build the qualified parameter
  */
-	if (!found && qual)
+	if (qual)
 	{
 		qlen = strlen (qual) + strlen (param) + 2;
-		qparam = (qlen > sizeof(qstatic)) ?
+		qparam = (qlen > sizeof(qstatic)) ? 
 			(char *)malloc(qlen) : qstatic;
 		sprintf (qparam, "%s-%s", qual, param);
-		found = pd_Retrieve (pd, "global", qparam, dest, type);
 	}
+	else
+		qparam = param;
 /*
- * If there is a defaults table, try it too.  Try both qualified and unqual.
+ * Try the global component if necessary.
+ */
+	if (!found)
+		found = pd_Retrieve (pd, "global", qparam, dest, type);
+/*
+ * If there is a defaults table, try it if necessary.
  */
 	if (!found && (defpd = pda_GetPD ("defaults")))
-	{
-		found = (qparam && pd_Retrieve (defpd, "defaults", qparam, dest, type));
-	/*
-	 * Only do an unqualified search of defaults if the qualified search failed
-	 */
-		if (!found)
-			found = pd_Retrieve (defpd, "defaults", param, dest, type);
-	}
+		found = pd_Retrieve (defpd, "defaults", qparam, dest, type);
 /*
  * Free any malloc'ed memory and vamoose with our answer.
  */
-	if (qparam && (qparam != qstatic))
+	if (qparam && (qparam != qstatic) && (qparam != param))
 		free (qparam);
+
 	return (found);
 }
 
