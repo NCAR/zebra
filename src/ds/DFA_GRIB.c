@@ -39,7 +39,7 @@
 # include "DataFormat.h"
 # include "GRIB.h"
 
-RCSID ("$Id: DFA_GRIB.c,v 3.38 1998-05-15 20:31:32 burghart Exp $")
+RCSID ("$Id: DFA_GRIB.c,v 3.39 1998-07-31 22:38:12 burghart Exp $")
 
 
 /*
@@ -187,10 +187,14 @@ DataFormat *gribSfcFormat = (DataFormat *) &gribSfcFormatRec;
 
 
 /*
- * Model ID's
+ * Originating centers
  */
-#define ANY -1
-#define MM5 95
+# define OC_ANY		-1
+# define OC_NCEP	 7
+/* originating center 39 appears in MM5 GRIB files from Dan Hansen in MMM */
+# define OC_NCARMMM	39
+# define OC_NCAR	60
+# define OC_ECMWF	98
 
 
 /*
@@ -203,7 +207,7 @@ DataFormat *gribSfcFormat = (DataFormat *) &gribSfcFormatRec;
 static struct s_GRB_FList 
 {
 	int	fnum;
-	int	process_id;
+	int	originating_center;
 	char	*fname;
 	char 	*fdesc;
 	char	*funits;
@@ -211,173 +215,190 @@ static struct s_GRB_FList
 } GRB_FList[] = 
 {
 	/* Pressure (Pa), scale to mb */
-	{ 1, ANY, "pres", "Pressure", "mb", 100.0, 0.0 },
+	{ 1, OC_ANY, "pres", "Pressure", "mb", 100.0, 0.0 },
 	/* Pressure reduced to MSL (Pa), scale to mb */
-	{ 2, ANY, "cpres0", "Pressure reduced to MSL", "mb", 100.0, 0.0 },
+	{ 2, OC_ANY, "cpres0", "Pressure reduced to MSL", "mb", 100.0, 0.0 },
 	/* Station pressure (Pa), scale to mb */
-	{ 4, MM5, "stn_pres", "Station pressure", "mb", 100.0, 0.0 },
-	/* Ground elevation (m) */
-	{ 5, MM5, "topography", "Ground elevation", "m above MSL", 1.0, 0.0 },
+	{ 4, OC_NCAR, "stn_pres", "Station pressure", "mb", 100.0, 0.0 },
+	/* NCAR MM5: Ground elevation (m) */
+	{ 5, OC_NCAR, "topography", "Ground elevation", "m", 1.0, 0.0 },
 	/* Geopotential height (m) */
-	{ 7, ANY, "gpalt", "Geopotential height", "m", 1.0, 0.0 },
+	{ 7, OC_ANY, "gpalt", "Geopotential height", "m", 1.0, 0.0 },
 	/* Geometric height (m) */
-	{ 8, ANY, "height", "Geometric height", "m", 1.0, 0.0 },
+	{ 8, OC_ANY, "height", "Geometric height", "m", 1.0, 0.0 },
 	/* Temperature (K), scale to C */
-	{ 11, ANY, "tdry", "Temperature", "deg C", 1.0, -273.15 },
+	{ 11, OC_ANY, "tdry", "Temperature", "degC", 1.0, -273.15 },
 	/* Virtual temperature (K) */
-	{ 12, ANY, "vt", "Virtual temperature", "K", 1.0, 0.0 },
+	{ 12, OC_ANY, "vt", "Virtual temperature", "K", 1.0, 0.0 },
 	/* Potential temperature (K) */
-	{ 13, ANY, "pt", "Potential temperature", "K", 1.0, 0.0 },
+	{ 13, OC_ANY, "pt", "Potential temperature", "K", 1.0, 0.0 },
 	/* Dew point temperature (K) */
-	{ 17, ANY, "dp", "Dew point temperature", "K", 1.0, -273.15 },
+	{ 17, OC_ANY, "dp", "Dew point temperature", "K", 1.0, -273.15 },
 	/* Dew point depression (K) */
-	{ 18, ANY, "dp_depression", "Dew point depression", "K", 1.0, 
+	{ 18, OC_ANY, "dp_depression", "Dew point depression", "K", 1.0, 
 	  -273.15 },
 	/* Wind direction (deg. true) */
-	{ 31, ANY, "wdir", "Wind direction", "deg", 1.0, 0.0 },
+	{ 31, OC_ANY, "wdir", "Wind direction", "deg", 1.0, 0.0 },
 	/* Wind speed (m/s) */
-	{ 32, ANY, "wspd", "Wind speed", "m/s", 1.0, 0.0 },
+	{ 32, OC_ANY, "wspd", "Wind speed", "m/s", 1.0, 0.0 },
 	/* u component of wind (m/s) */
-	{ 33, ANY, "u_wind", "u component of wind", "m/s", 1.0, 0.0 },
+	{ 33, OC_ANY, "u_wind", "u component of wind", "m/s", 1.0, 0.0 },
 	/* v component of wind (m/s) */
-	{ 34, ANY, "v_wind", "v component of wind", "m/s", 1.0, 0.0 },
+	{ 34, OC_ANY, "v_wind", "v component of wind", "m/s", 1.0, 0.0 },
 	/* Stream function */
-	{ 35, ANY, "stream_fn", "Stream function", "km**2/s", 1.0e6, 0.0 },
+	{ 35, OC_ANY, "stream_fn", "Stream function", "km2/s", 1.0e6, 0.0 },
 	/* Montgomery stream function */
-	{ 37, ANY, "monty_stream", "Montgomery stream function", 
-		  "m**2/s**2", 1.0, 0.0 },
+	{ 37, OC_ANY, "monty_stream", "Montgomery stream function", 
+	  "m2 s-2", 1.0, 0.0 },
 	/* pressure vertical velocity (Pa/s) */
-	{ 39, ANY, "pres_w", "pressure vertical velocity", "Pa/s", 1.0, 0.0 },
+	{ 39, OC_ANY, "pres_w", "pressure vertical velocity", "Pa/s", 1.0, 
+	  0.0 },
 	/* geometric vertical velocity (m/s) */
-	{ 40, ANY, "w_wind", "geometric vertical velocity", "m/s", 1.0, 0.0 },
+	{ 40, OC_ANY, "w_wind", "geometric vertical velocity", "m/s", 1.0, 
+	  0.0 },
 	/* Absolute vorticity (1/s) */
-	{ 41, ANY, "vort", "Absolute vorticity", "1/s", 1.0, 0.0 },
+	{ 41, OC_ANY, "vort", "Absolute vorticity", "1/s", 1.0, 0.0 },
 	/* Absolute divergence (1/s) */
-	{ 42, ANY, "dvrg", "Absolute divergence", "1/s", 1.0, 0.0 },
+	{ 42, OC_ANY, "dvrg", "Absolute divergence", "1/s", 1.0, 0.0 },
 	/* Relative vorticity (1/s) */
-	{ 43, ANY, "rel_vort", "Relative vorticity", "1/s", 1.0, 0.0 },
+	{ 43, OC_ANY, "rel_vort", "Relative vorticity", "1/s", 1.0, 0.0 },
 	/* Relative divergence (1/s) */
-	{ 44, ANY, "rel_dvrg", "Relative divergence", "1/s", 1.0, 0.0 },
+	{ 44, OC_ANY, "rel_dvrg", "Relative divergence", "1/s", 1.0, 0.0 },
 	/* Specific humidity */
-	{ 51, ANY, "sph", "Specific humidity", "kg/kg", 1.0, 0.0 },
+	{ 51, OC_ANY, "sph", "Specific humidity", "kg/kg", 1.0, 0.0 },
 	/* Relative humidity (%) */
-	{ 52, ANY, "rh", "Relative humidity", "%", 1.0, 0.0 },
+	{ 52, OC_ANY, "rh", "Relative humidity", "%", 1.0, 0.0 },
 	/* Humidity mixing ratio (kg/kg), scale to g/kg */
-	{ 53, ANY, "mr", "Humidity mixing ratio", "g/kg", 0.001, 0.0 },
+	{ 53, OC_ANY, "mr", "Humidity mixing ratio", "g/kg", 0.001, 0.0 },
 	/* Cloud ice (kg/m**2)	*/
-	{ 58, ANY, "cloud_ice", "Cloud ice", "kg/m**2", 1.0, 0.0 },
+	{ 58, OC_ANY, "cloud_ice", "Cloud ice", "kg m-2", 1.0, 0.0 },
 	/* Precipitation rate kg m-2 s-1	*/
-	{ 59, ANY, "precip_rate", "Precipitation rate", 
+	{ 59, OC_ANY, "precip_rate", "Precipitation rate", 
 	  "kg m-2 s-1", 1.0, 0.0 },
 	/* Total precipitation (kg/m**2)	*/
-	{ 61, ANY, "precip", "Total precipitation", "kg/m**2", 1.0, 0.0 },
+	{ 61, OC_ANY, "precip", "Total precipitation", "kg m-2", 1.0, 0.0 },
 	/* Large-scale precipitation */
-	{ 62, ANY, "ls_precip", "Large-scale precipitation", 
-		  "kg/m**2", 1.0, 0.0 },
+	{ 62, OC_ANY, "ls_precip", "Large-scale precipitation", "kg m-2", 
+	  1.0, 0.0 },
 	/* Convective precipitation (kg/m**2)	*/
-	{ 63, ANY, "conv_precip", "Convective precipitation", 
-		  "kg/m**2", 1.0, 0.0 },
+	{ 63, OC_ANY, "conv_precip", "Convective precipitation", "kg m-2", 
+	  1.0, 0.0 },
 	/* Surface roughness (m) */
-	{ 83, ANY, "roughness", "Surface roughness", "m", 1.0, 0.0 },
+	{ 83, OC_ANY, "roughness", "Surface roughness", "m", 1.0, 0.0 },
 	/* Soil temperature (scale to C) */
-	{ 85, ANY, "soil_temp", "Soil temperature", "deg C", 1.0, -273.15 },
+	{ 85, OC_ANY, "soil_temp", "Soil temperature", "degC", 1.0, -273.15 },
 	/* Water runoff (kg m-2) */
-	{ 90, ANY, "water_runoff", "Water runoff", "kg m-2", 1.0, 0.0 },
+	{ 90, OC_ANY, "water_runoff", "Water runoff", "kg m-2", 1.0, 0.0 },
 	/* Ice concentration (ice = 0; no ice = 0) */
-	{ 91, ANY, "ice", "Ice concentration", "deg C", 1.0, 0.0 },
+	{ 91, OC_ANY, "ice", "Ice concentration", "degC", 1.0, 0.0 },
 	/* Latent heat net flux (W m-2) */
-	{ 121, ANY, "lhtfl", "Latent heat flux", "W m-2", 1.0, 0.0 },
+	{ 121, OC_ANY, "lhtfl", "Latent heat flux", "W m-2", 1.0, 0.0 },
 	/* Sensible heat net flux (W m-2) */
-	{ 122, ANY, "shtfl", "Sensible heat net flux", "W m-2", 1.0, 0.0 },
+	{ 122, OC_ANY, "shtfl", "Sensible heat net flux", "W m-2", 1.0, 0.0 },
 	/* Momentum flux, u component (N m-2) */
-	{ 124, ANY, "uflx", "Momentum flux, u", "N m-2", 1.0, 0.0 },
+	{ 124, OC_ANY, "uflx", "Momentum flux, u", "N m-2", 1.0, 0.0 },
 	/* Momentum flux, v component (N m-2) */
-	{ 125, ANY, "vflx", "Momentum flux, v", "N m-2", 1.0, 0.0 },
-	/* Geopotential (m**2/s) (scale from ft**2/s)	*/
-	{ 129, ANY, "geopotential", "Geopotential", "m**2/s", 0.09290304, 
+	{ 125, OC_ANY, "vflx", "Momentum flux, v", "N m-2", 1.0, 0.0 },
+    /*
+     * The rest of the values (128-254) are reserved for definition by the
+     * individual originating centers.
+     */
+	/* ECMWF: geopotential (m**2/s) (scale from ft**2/s)	*/
+	{ 129, OC_ECMWF, "geopotential", "Geopotential", "m2/s", 0.09290304, 
 	  0.0 },
-	/* Temperature (K), scale to C 		*/
-	{ 130, ANY, "tdry", "Temperature", "deg C", 1.0, -273.15 },
-	/* u component of wind (m/s)		*/
-	{ 131, ANY, "u_wind", "u component of wind", "m/s", 1.0, 0.0 },
-	/* v component of wind (m/s)		*/
-	{ 132, ANY, "v_wind", "v component of wind", "m/s", 1.0, 0.0 },
-	/* Surface pressure (Pa), scale to mb	*/
-	{ 134, ANY, "sfc_pres", "Surface pressure", "Pa", 100.0, 0.0 },
-	/* pressure vertical velocity (Pa/s)	*/
-	{ 135, ANY, "pres_w", "pressure vertical velocity", "Pa/s", 1.0, 0.0 },
-	/* Surface temperature (K), scale to C	*/
-	{ 139, ANY, "sfc_temp", "Surface temperature", "deg C", 1.0, -273.15 },
-/*
- * MM5 fields
- */
-	/* 144 Cloud water specific humidity (kg/kg) */
-	{ 144, MM5, "cloud_sph", "Cloud water specific humidity", 
-		  "kg/kg", 1.0, 0.0 },
-	/* 145 Rain water specific humidity (kg/kg) */
-	{ 145, MM5, "rain_sph", "Rain water specific humidity", 
-		  "kg/kg", 1.0, 0.0 },
-	/* 146 Snow specific humidity (kg/kg) */
-	{ 146, MM5, "snow_sph", "Snow specific humidity", "kg/kg", 1.0, 0.0 },
-	/* 147 Ice specific humidity (kg/kg) */
-	{ 147, MM5, "ice_sph", "Ice specific humidity", "kg/kg", 1.0, 0.0 },
-/*
- * General fields (cont)
- */
+	/* ECMWF: temperature (K), scale to C 		*/
+	{ 130, OC_ECMWF, "temp", "Temperature", "deg C", 1.0, -273.15 },
+	/* ECMWF: u component of wind (m/s)		*/
+	{ 131, OC_ECMWF, "u_wind", "u component of wind", "m/s", 1.0, 0.0 },
+	/* ECMWF: v component of wind (m/s)		*/
+	{ 132, OC_ECMWF, "v_wind", "v component of wind", "m/s", 1.0, 0.0 },
+	/* ECMWF: specific humidity		*/
+	{ 133, OC_ECMWF, "sph", "specific humidity", "kg/kg", 1.0, 0.0 },
+	/* ECMWF: surface pressure (Pa), scale to mb	*/
+	{ 134, OC_ECMWF, "sfc_pres", "Surface pressure", "hPa", 100.0, 0.0 },
+	/* ECMWF: pressure vertical velocity (Pa/s)	*/
+	{ 135, OC_ECMWF, "pres_w", "pressure vertical velocity", "Pa/s", 1.0, 
+	  0.0 },
+	/* ECMWF: vorticity	*/
+	{ 138, OC_ECMWF, "vort", "vorticity", "1/s", 1.0, 0.0 },
+	/* ECMWF: surface temperature (K), scale to C	*/
+	{ 139, OC_ECMWF, "sfc_temp", "Surface temperature", "deg C", 1.0, 
+	  -273.15 },
+	/* ECMWF: convective precipitation	*/
+	{ 143, OC_ECMWF, "conv_precip", "convective precipitation", "m", 1.0, 
+	  0.0 },
+	/* NCAR MM5: Cloud water specific humidity (kg/kg) */
+	{ 144, OC_NCAR, "cloud_sph", "Cloud water specific humidity", 
+	  "kg/kg", 1.0, 0.0 },
+	/* NCAR MM5: Rain water specific humidity (kg/kg) */
+	{ 145, OC_NCAR, "rain_sph", "Rain water specific humidity", 
+	  "kg/kg", 1.0, 0.0 },
+	/* NCAR MM5: Snow specific humidity (kg/kg) */
+	{ 146, OC_NCAR, "snow_sph", "Snow specific humidity", "kg/kg", 1.0, 
+	  0.0 },
+	/* NCAR MM5: Ice specific humidity (kg/kg) */
+	{ 147, OC_NCAR, "ice_sph", "Ice specific humidity", "kg/kg", 1.0, 
+	  0.0 },
 	/* Zonal flux of gravity wave stress (N m-2)*/
-	{ 147, ANY, "u_gwd", "Zonal flux, gravity wave stress", 
+	{ 147, OC_NCEP, "u_gwd", "Zonal flux, gravity wave stress", 
 	  "N m-2", 1.0, 0.0 },
 	/* Meriodonal flux of gravity wave stress (N m-2) */
-	{ 148, ANY, "v_gwd", "Meriodonal flux, gravity wave stress", 
+	{ 148, OC_NCEP, "v_gwd", "Meriodonal flux, gravity wave stress", 
 	  "N m-2", 1.0, 0.0 },
-	/* Pressure reduced to MSL (Pa), scale to mb */
-	{ 151, ANY, "cpres0", "Pressure reduced to MSL", "mb", 100.0, 0.0 },
-	/* Relative humidity (%) */
-	{ 157, ANY, "rh", "Relative humidity", "%", 1.0, 0.0 },
+	/* ECMWF: pressure reduced to MSL (Pa), scale to mb */
+	{ 151, OC_ECMWF, "cpres0", "Pressure reduced to MSL", "mb", 100.0, 
+	  0.0 },
+	/* ECMWF: relative humidity (%) */
+	{ 157, OC_ECMWF, "rh", "Relative humidity", "%", 1.0, 0.0 },
 	/* Turbulent kinetic energy (TKE) (J/kg) */
-	{ 158, ANY, "tke", "Turbulent kinetic energy", "J/kg", 1.0, 0.0 },
+	{ 158, OC_NCEP, "tke", "Turbulent kinetic energy", "J/kg", 1.0, 0.0 },
 	/* Condenstation pressure (Pa) scale to mb */
-	{ 159, ANY, "condp", "Condenstation pressure", "mb", 100.0, 0.0 },
+	{ 159, OC_NCEP, "condp", "Condenstation pressure", "mb", 100.0, 0.0 },
 	/* Clear sky upward solar flux (W m-2) */
-	{ 160, ANY, "csusf", "Clear sky upward solar flux", 
+	{ 160, OC_NCEP, "csusf", "Clear sky upward solar flux", 
 	  "W m-2", 1.0, 0.0 },
 	/* Clear sky downward solar flux (W m-2) */
-	{ 161, ANY, "csdsf", "Clear sky downward solar flux", 
+	{ 161, OC_NCEP, "csdsf", "Clear sky downward solar flux", 
 	  "W m-2", 1.0, 0.0 },
 	/* Clear sky downward longwave flux (W m-2) */
-	{ 163, ANY, "csdlf", "Clear sky downward longwave flux", 
+	{ 163, OC_NCEP, "csdlf", "Clear sky downward longwave flux", 
 	  "W m-2", 1.0, 0.0 },
-	/* u component of wind at 10m (m/s)	*/
-	{ 165, ANY, "u_wind_10m", "u component of wind at 10m", 
-		  "m/s", 1.0, 0.0 },
-	/* v component of wind at 10m (m/s)	*/
-	{ 166, ANY, "v_wind_10m", "v component of wind at 10m", 
-		  "m/s", 1.0, 0.0 },
-	/* temperature at 2m (K), scale to C	*/
-	{ 167, ANY, "temp_2m", "temperature at 2m", "deg C", 1.0, -273.15 },
-	/* dewpoint at 2m (K), scale to C	*/
-	{ 168, ANY, "dp_2m", "dewpoint at 2m", "deg C", 1.0, -273.15 },
-	/* land/sea (0/1)			*/
-	{ 172, ANY, "land/sea", "land/sea (0/1)", "none", 1.0, 0.0 },
+	/* ECMWF: u component of wind at 10m (m/s)	*/
+	{ 165, OC_ECMWF, "u_wind_10m", "u component of wind at 10m", 
+	  "m/s", 1.0, 0.0 },
+	/* ECMWF: v component of wind at 10m (m/s)	*/
+	{ 166, OC_ECMWF, "v_wind_10m", "v component of wind at 10m", 
+	  "m/s", 1.0, 0.0 },
+	/* ECMWF: temperature at 2m (K), scale to C	*/
+	{ 167, OC_ECMWF, "temp_2m", "temperature at 2m", "deg C", 1.0, 
+	  -273.15 },
+	/* ECMWF: dewpoint at 2m (K), scale to C	*/
+	{ 168, OC_ECMWF, "dp_2m", "dewpoint at 2m", "deg C", 1.0, -273.15 },
+	/* ECMWF: land/sea (0/1)			*/
+	{ 172, OC_ECMWF, "land/sea", "land/sea (0/1)", "none", 1.0, 0.0 },
 	/* latitude */
-	{ 176, ANY, "latitude", "latitude", "deg", 1.0, 0.0 },
+	{ 176, OC_NCARMMM, "latitude", "latitude", "deg", 1.0, 0.0 },
+	{ 176, OC_NCEP, "latitude", "latitude", "deg", 1.0, 0.0 },
 	/* longitude */
-	{ 177, ANY, "longitude", "longitude", "deg", 1.0, 0.0 },
+	{ 177, OC_NCARMMM, "longitude", "longitude", "deg", 1.0, 0.0 },
+	{ 177, OC_NCEP, "longitude", "longitude", "deg", 1.0, 0.0 },
 	/* downward shortwave radiation flux (W m-2) */
-	{ 204, ANY, "dswrf", "downward shortwave radiation flux", 
+	{ 204, OC_NCEP, "dswrf", "downward shortwave radiation flux", 
 	  "W m-2", 1.0, 0.0 },
 	/* downward longwave radiation flux (W m-2) */
-	{ 205, ANY, "dlwrf", "downward longwave radiation flux", 
+	{ 205, OC_NCEP, "dlwrf", "downward longwave radiation flux", 
 	  "W m-2", 1.0, 0.0 },
 	/* upward shortwave radiation flux (W m-2) */
-	{ 211, ANY, "uswrf", "upward shortwave radiation flux", 
+	{ 211, OC_NCEP, "uswrf", "upward shortwave radiation flux", 
 	  "W m-2", 1.0, 0.0 },
 	/* upward longwave radiation flux (W m-2) */
-	{ 212, ANY, "ulwrf", "upward longwave radiation flux", 
+	{ 212, OC_NCEP, "ulwrf", "upward longwave radiation flux", 
 	  "W m-2", 1.0, 0.0 },
 	/* Convective precipitation rate (kg m-2 s-1) */
-	{ 214, ANY, "cprat", "Convective precip rate", 
-	  "kg m-2 s-1", 1.0, 0.0 },
+	{ 214, OC_NCEP, "cprat", "Convective precip rate", "kg m-2 s-1", 1.0, 
+	  0.0 },
+	/* ECMWF: total precipitation	*/
+	{ 228, OC_ECMWF, "precip", "total precipitation", "m", 1.0, 0.0 },
 };
 
 static int GRB_FList_len = sizeof (GRB_FList) / sizeof (struct s_GRB_FList);
@@ -560,7 +581,7 @@ static PolarStereo Transform105 =
 
 static PolarStereo Transform150 =
 /*
- * GRIB grid type 150 for MM5: (73x73) N. hemisphere polar stereographic
+ * GRIB grid type 150: (73x73) N. hemisphere polar stereographic
  * grid oriented 105W].  60 km true spacing at 40 N, 7.573 km spacing at 
  * 60 N.
  */
@@ -2202,8 +2223,8 @@ ScaleInfo	*sc;
  */
 	for (i = 0; i < GRB_FList_len; i++)
 	{
-		if ((GRB_FList[i].process_id == ANY ||
-		     GRB_FList[i].process_id == pds->process_id) &&
+		if ((GRB_FList[i].originating_center == OC_ANY ||
+		     GRB_FList[i].originating_center == pds->center_id) &&
 		    pds->field_id == GRB_FList[i].fnum)
 		{
 		/*
