@@ -39,7 +39,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_window.c,v 1.11 1990-03-30 09:28:08 corbet Exp $";
+static char *Rcsid = "$Id: ui_window.c,v 1.12 1990-05-13 11:12:27 corbet Exp $";
 
 static bool Initialized = FALSE;
 static bool Active = FALSE;	/* Is window mode active??	*/
@@ -75,11 +75,16 @@ uw_init ()
  */
 {
 	union usy_value v;
-
+/*
+ * Set up our symbol tables.
+ */
 	Widget_table = usy_c_stbl ("ui$widget_table");
 	Widget_vars = usy_c_stbl ("ui$widget_vars");
 	v.us_v_ptr = (char *) Widget_vars;
 	usy_s_symbol (usy_g_stbl ("usym$master_table"), "w", SYMT_SYMBOL, &v);
+/*
+ * Indirect variables.
+ */
 	usy_c_indirect (Ui_variable_table, "ui$title_font", Title_font_name,
 		SYMT_STRING, TITLE_FONT_LEN);
 	strcpy (Title_font_name, DEFAULT_TITLE_FONT);
@@ -101,8 +106,6 @@ struct ui_command *cmds;
 {
 	Arg args[10];
 	void uw_quit (), uw_sel (), uw_do_pop ();
-	static char *argv[] = { "ui", 0 };
-	static int one = 1;
 	int uw_xevent (), h, w;
 /*
  * Throw the mode onto the stack.
@@ -115,8 +118,8 @@ struct ui_command *cmds;
  */
 	if (! Initialized)
 	{
-		Top = XtAppInitialize (&Appc, "UI", NULL, ZERO, &one, argv,
-			NULL, NULL, ZERO);
+		Top = XtAppInitialize (&Appc, Appl_name, NULL, ZERO, &Argc, 
+			Argv, Resources, NULL, ZERO);
 		Labelfont = XLoadQueryFont (XtDisplay (Top), Title_font_name);
 		Zapcursor = XCreateFontCursor (XtDisplay (Top), XC_pirate);
 		Initialized = TRUE;
@@ -746,8 +749,15 @@ uw_sync ()
  * Sync up with the server.
  */
 {
+/*
+ * Synchronize, if we are running.  Also call xevent, because SYNC can
+ * cause things to be queued.
+ */
 	if (Initialized)
+	{
 		XSync (XtDisplay (Top), False);
+		uw_xevent ();
+	}
 }
 
 
