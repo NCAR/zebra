@@ -43,7 +43,7 @@
 # include "DrawText.h"
 
 # ifndef lint
-MAKE_RCSID ("$Id: Track.c,v 2.32 1994-11-19 00:35:46 burghart Exp $")
+MAKE_RCSID ("$Id: Track.c,v 2.33 1995-04-17 22:17:54 granger Exp $")
 # endif
 
 # define ARROWANG .2618 /* PI/12 */
@@ -54,7 +54,7 @@ MAKE_RCSID ("$Id: Track.c,v 2.32 1994-11-19 00:35:46 burghart Exp $")
 static bool tr_CCSetup FP((char *, char *, char *, char *, XColor **,
 		int *, float *, float *, XColor *, float *, float *, bool *));
 static void tr_GetArrowParams FP((char *, char *, float *, int *, bool *,
-		int *, char *, XColor *, char *, char *, char *));
+		int *, char *, XColor *, char *));
 static bool tr_CTSetup FP((char *, char *, PlatformId *, int *, int *,
 		char *, bool *, char *, bool *, char *));
 static void tr_AnnotTrack FP((char *, char *, char *, int, char *, char *,
@@ -97,7 +97,7 @@ bool update;
 	char platform[PlatformListLen];
 	char ccfield[30], positionicon[40], param[40];
 	char mtcolor[20], ctable[30], a_color[30];
-	char a_xfield[30], a_yfield[30], a_type[30];
+	char a_type[30];
 	int period, nc, lwidth, pid, index;
 	int dskip = 0, i, a_int, numfields = 0, afield;
 	int x0, y0, x1, y1;
@@ -116,6 +116,7 @@ bool update;
 	DataChunk *dc;
 	FieldId fields[5];
 	float badvalue;
+	WindInfo wi;
 /*
  * Pull in our parameters.
  */
@@ -144,14 +145,12 @@ bool update;
 	if (arrow)
 	{
 		tr_GetArrowParams (comp, platform, &a_scale, &a_lwidth,
-			&a_invert, &a_int, a_color, &a_clr, a_type, 
-			a_xfield, a_yfield);
+			&a_invert, &a_int, a_color, &a_clr, a_type);
 # ifdef notdef
 		fields[numfields] = F_Lookup (a_xfield);
 		fields[numfields + 1] = F_Lookup (a_yfield);
 # endif
-		FindWindsFields (pid, &PlotTime, a_xfield, a_yfield,
-				fields + numfields);
+		FindWindsFields (comp, pid, &PlotTime, fields+numfields, &wi);
 		afield = numfields;
 		numfields += 2;
 	} 
@@ -180,7 +179,8 @@ bool update;
 
 			msg_ELog(EF_DEBUG,"update in obs mode from %d to %d",
 				 begin.zt_Sec, PlotTime.zt_Sec);
-			dc = ds_Fetch (pid, numfields ? DCC_Scalar : DCC_Location,
+			dc = ds_Fetch (pid, 
+				       numfields ? DCC_Scalar : DCC_Location,
 				       &begin, &PlotTime, fields, numfields,
 				       0, 0);
 		}
@@ -296,7 +296,7 @@ bool update;
 			{
 				u = dc_GetScalar (dc, i, fields[afield]);
 				v = dc_GetScalar(dc, i, fields[afield+1]);
-				GetWindData (fields + afield, &u, &v,badvalue);
+				GetWindData (&wi, &u, &v, badvalue);
 				if (u != badvalue && v != badvalue) {
 					vectime = timenow - timenow % a_int;
 					FixForeground (a_clr.pixel);
@@ -644,7 +644,7 @@ bool shifted;
 	if (! ccfield)
 	{
 		ct_GetColorByName (mtcolor, &xc);
-		sprintf (datastr, "%s %d", platform, xc.pixel);
+		sprintf (datastr, "%s %li", platform, xc.pixel);
 		An_AddAnnotProc (An_ColorString, comp, datastr,
 			strlen (datastr), 25, FALSE, FALSE);
 	}
@@ -655,7 +655,7 @@ bool shifted;
 			strlen (datastr), 75, TRUE, FALSE);
 		if (arrow)
 		{
-			sprintf (datastr, "%s %d %f %f %f", "10m/sec", 
+			sprintf (datastr, "%s %li %f %f %f", "10m/sec", 
 				taclr.pixel, 10.0, 0.0, unitlen);
 			An_AddAnnotProc (An_ColorVector, comp, datastr,
 				strlen (datastr), 25, FALSE, FALSE);
@@ -954,12 +954,16 @@ bool *autoscale;
 
 static void
 tr_GetArrowParams (comp, platform, a_scale, a_lwidth, a_invert, a_int, 
-		a_color, a_clr, a_type, a_xfield, a_yfield)
-char *comp, *platform, *a_type, *a_xfield, *a_yfield, *a_color;
+		a_color, a_clr, a_type)
+char *comp;
+char *platform;
 float *a_scale;
-int *a_lwidth, *a_int;
+int *a_lwidth;
 bool *a_invert;
+int *a_int;
+char *a_color;
 XColor *a_clr;
+char *a_type;
 /*
  * Get the parameters that control track arrows.
  */
@@ -1004,11 +1008,13 @@ XColor *a_clr;
  * And what are we actually plotting?
  */
 	if(! tr_GetParam (comp, "arrow-type", platform, a_type, SYMT_STRING))
-		strcpy (a_type,"wind");
+		strcpy (a_type, "wind");
+#ifdef notdef
 	if(! tr_GetParam (comp, "x-field", platform, a_xfield, SYMT_STRING))
 		strcpy (a_xfield, "u_wind");
 	if(! tr_GetParam (comp, "y-field", platform, a_yfield, SYMT_STRING))
 		strcpy (a_yfield, "v_wind");
+#endif
 }
 
 
