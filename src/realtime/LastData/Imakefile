@@ -14,3 +14,4 @@ LIBS = $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
  */
  
 NormalProgramTarget(LastData, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+InstallAppDefaults (LastData)
