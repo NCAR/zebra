@@ -27,7 +27,7 @@
 
 # include <netcdf.h>
 
-/* $Id: dem2zebra.c,v 1.9 2003-03-17 22:38:09 burghart Exp $ */
+/* $Id: dem2zebra.c,v 1.10 2004-01-12 23:26:30 burghart Exp $ */
 
 struct _Map
 {
@@ -37,6 +37,9 @@ struct _Map
     int	lat_spacing, lon_spacing;
     int north, south, east, west;
 } Map;
+
+/* default size of generated maps will be less than BIGDIM x BIGDIM */
+const int BIGDIM = 2000;
 
 
 void	InitMap (char *fname);
@@ -157,18 +160,19 @@ CreateMapFile (char *fname)
 
     nlons = (int)((Map.east - Map.west) / Map.lon_spacing + 0.5) + 1;
     nlats = (int)((Map.north - Map.south) / Map.lat_spacing + 0.5) + 1;
+
     /*
-     * Adjust spacing if necessary to get us below a 1000x1000 final map
+     * Adjust spacing if necessary to get us below a BIGDIM x BIGDIM final map
      */
-    if (nlons > 1000)
+    if (nlons > BIGDIM)
     {
-	Map.lon_spacing *= (1 + nlons / 1000);
+	Map.lon_spacing *= (1 + nlons / BIGDIM);
 	nlons = (int)((Map.east - Map.west) / Map.lon_spacing + 0.5) + 1;
     }
     
-    if (nlats > 1000)
+    if (nlats > BIGDIM)
     {
-	Map.lat_spacing *= (1 + nlats / 1000);
+	Map.lat_spacing *= (1 + nlats / BIGDIM);
 	nlats = (int)((Map.north - Map.south) / Map.lat_spacing + 0.5) + 1;
     }
 
