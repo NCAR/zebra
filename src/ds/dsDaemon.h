@@ -1,7 +1,7 @@
 /*
  * Data store daemon-specific definitions.
  */
-/* $Id: dsDaemon.h,v 3.14 1994-05-18 22:01:54 burghart Exp $ */
+/* $Id: dsDaemon.h,v 3.15 1994-05-24 00:14:13 granger Exp $ */
 /*
  * The platform and data tables, via pointer.
  */
@@ -182,6 +182,8 @@ int	dbg_Append FP((char *buf, char *str, int len));
 int	dbg_DirtyCount FP((void));
 int	dbg_CompositeCount FP((void));
 int	dbg_SubplatCount FP((void));
+void	dbg_EncodeElapsed FP((char *prefix, time_t *start, time_t *end,
+			      char *dest));
 
 /*
  * Now that lots of platform info is split between class and instance,

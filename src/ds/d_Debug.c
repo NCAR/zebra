@@ -9,7 +9,7 @@
 # include "commands.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID("$Id: d_Debug.c,v 3.3 1994-05-18 22:01:50 burghart Exp $")
+MAKE_RCSID("$Id: d_Debug.c,v 3.4 1994-05-24 00:14:11 granger Exp $")
 
 #ifdef ORGANIZATIONS
 typedef enum {
@@ -324,6 +324,36 @@ int len;	/* Length of the buffer		*/
 
 
 
+void
+dbg_EncodeElapsed (prefix, start, end, dest)
+char *prefix;
+time_t *start;
+time_t *end;
+char *dest;
+{
+	long elapsed = *end - *start;
+
+	if (prefix)
+	{
+		strcpy (dest, prefix);
+		dest += strlen(dest);
+	}
+	sprintf (dest, "%s", ctime(start));
+	dest += strlen(dest) - 1;		/* overwrite \n */
+	if (elapsed > 3*60*60)
+	{
+		sprintf (dest, ", %d hours and %d mins ago",
+			 elapsed / 3600, (elapsed % 3600) / 60);
+	}
+	else
+	{
+		sprintf (dest, ", %d minutes and %d secs ago",
+			 elapsed / 60, elapsed % 60);
+	}
+}
+
+
+
 int
 dbg_AnswerQuery (who)
 char *who;
@@ -338,37 +368,30 @@ char *who;
 		 DSProtocolVersion);
 	msg_AnswerQuery (who, buf);
 	sprintf (buf, "%s", 
-	 "$Id: d_Debug.c,v 3.3 1994-05-18 22:01:50 burghart Exp $");
+	 "$Id: d_Debug.c,v 3.4 1994-05-24 00:14:11 granger Exp $");
 	msg_AnswerQuery (who, buf);
 
-	sprintf (buf, "Up since %s", ctime (&Genesis));
-	buf[strlen (buf) - 1] = '\0';	/* remove \n supplied by ctime */
-	sprintf (buf+strlen(buf), ", %d minutes and %d seconds ago",
-		 (now - Genesis) / 60, (now - Genesis) % 60);
+	dbg_EncodeElapsed ("Up since ", &Genesis, &now, buf);
 	msg_AnswerQuery (who, buf);
 
 	if (LastScan)
-	{
-		sprintf (buf, "Last full rescan at %s", ctime (&LastScan));
-		buf[strlen (buf) - 1] = '\0';	/* remove \n */
-		sprintf (buf+strlen(buf), ", %d minutes and %d seconds ago",
-			 (now - LastScan) / 60, (now - LastScan) % 60);
-	}
+		dbg_EncodeElapsed ("Last full rescan at ", 
+				   &LastScan, &now, buf);
 	else
 		sprintf (buf, "No full rescans have occurred.");
 	msg_AnswerQuery (who, buf);
+
 	if (LastCache)
-	{
-		sprintf (buf, "Cache files up-to-date as of %s", 
-			 ctime (&LastCache));
-		buf[strlen (buf) - 1] = '\0';	/* remove \n */
-		sprintf (buf+strlen(buf), ", %d minutes and %d seconds ago",
-			 (now - LastCache) / 60, (now - LastCache) % 60);
-	}
+		dbg_EncodeElapsed ("Cache files up-to-date as of ",
+				   &LastCache, &now, buf);
 	else
 		sprintf (buf, "No cache file updates have occurred.");
 	msg_AnswerQuery (who, buf);
 
+	sprintf (buf, "%18s: %s\n", "Data directory", DefDataDir);
+	sprintf (buf+strlen(buf), "%18s: %s", "Remote directory",
+		 RemDataDir);
+	msg_AnswerQuery (who, buf);
 	sprintf (buf, "%18s: %d used of %d allocated, %s %d",
 		 "Platform classes", NClass, CTableSize, "grow by", 
 		 CTableGrow);
