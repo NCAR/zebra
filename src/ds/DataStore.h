@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.32 1995-06-29 21:34:39 granger Exp $
+ * $Id: DataStore.h,v 3.33 1995-07-06 05:09:57 granger Exp $
  *
  * Public data store definitions.
  */
@@ -376,7 +376,7 @@ DataChunk 	*dc_CreateDC FP((DataClass));
 void		dc_DestroyDC FP((DataChunk *));
 void		dc_DumpDC FP((DataChunk *));
 void 		Dc_RawAdd FP((DataChunk *, int));
-void		dc_AddADE FP((DataChunk *dc, DataPtr data, DataClass class,
+void		dc_AddADE FP((DataChunk *dc, DataPtr data, DataClass,
 			      int subtype, int len, int free));
 void		dc_ForceClosure FP ((void));
 void		dc_SetGlobalAttr FP ((DataChunk *, char *, char *));
