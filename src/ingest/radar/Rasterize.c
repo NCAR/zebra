@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: Rasterize.c,v 2.6 1993-08-18 15:34:23 burghart Exp $";
+static char *rcsid = "$Id: Rasterize.c,v 2.7 1993-10-05 16:13:23 burghart Exp $";
 
 # include <defs.h>
 # include <message.h>
@@ -243,12 +243,12 @@ int interleaved;
 		 * Kluge:  tweak the ThrFldOffset temporarily since we're
 		 * dealing with sequential rather than interleaved data.
 		 */
-		ThrFldOffset *= hk->gates_per_beam * hk->parm_per_gate;
+		ThrFldOffset *= hk->gates_per_beam;
 
-		Threshold (beam, TBuf[fld], rd[fld].rd_foffset * 
-			   hk->gates_per_beam * hk->parm_per_gate, 1);
+		Threshold (beam, TBuf[fld], 
+			   rd[fld].rd_foffset * hk->gates_per_beam, 1);
 
-		ThrFldOffset /= hk->gates_per_beam * hk->parm_per_gate;
+		ThrFldOffset /= hk->gates_per_beam;
 	      }
 	  }
 /*
@@ -301,20 +301,19 @@ const int offset, skip;
 	 */
 	 	if (dothresh)
 		{
-			register unsigned char *thresh = data - offset +
+			register unsigned char *thr = data - offset +
 							  ThrFldOffset;
 			for (gate = 0; gate < ngate; gate++)
 			{
-				*dest++ = (*thresh >= ThrCounts) ? *data : 0xFF;
+				*dest++ = (*thr >= ThrCounts) ? *data : 0xFF;
 				data += skip;
-				thresh += skip;
+				thr += skip;
 			}
 		}
 		else
 			for (gate = 0; gate < ngate; gate++)
 			{
-				/* *dest++ = CMap[*data]; */
-				*dest ++ = *data;
+				*dest++ = *data;
 				data += skip;
 			}
 	}
@@ -335,31 +334,33 @@ int vertical, nrd;
  * Now that all the parameters are in place, actually do the scan conversion.
  */
 {
+	int	i;
 /*
- * Split out based on the number of fields we are doing -- this is done to
- * facilitate loop unrolling below.
+ * Do two RDest's at a time, doing the last by itself if we have an
+ * odd number.
  */
-	switch (nrd)
+	for (i = 0; i < nrd; i += 2)
 	{
-	   case 1:
-		if (vertical)
-			PFillR (rinfo, colinc, rowinc, inc1, inc2,
-				TBuf[0], rd->rd_image);
+		if (i == (nrd - 1))
+		{
+			if (vertical)
+				PFillR (rinfo, colinc, rowinc, inc1, inc2,
+					TBuf[i], rd[i].rd_image);
+			else
+				PFillC (rinfo, colinc, rowinc, inc1, inc2,
+					TBuf[i], rd[i].rd_image);
+		}
 		else
-			PFillC (rinfo, colinc, rowinc, inc1, inc2,
-				TBuf[0], rd->rd_image);
-		break;
-
-	   case 2:
-		if (vertical)
-			PFill2R (rinfo, colinc, rowinc, inc1, inc2,
-				TBuf[0], rd->rd_image,
-				TBuf[1], rd[1].rd_image);
-		else
-			PFill2C (rinfo, colinc, rowinc, inc1, inc2,
-				TBuf[0], rd->rd_image,
-				TBuf[1], rd[1].rd_image);
-		break;
+		{
+			if (vertical)
+				PFill2R (rinfo, colinc, rowinc, inc1, inc2,
+					 TBuf[i], rd[i].rd_image,
+					 TBuf[i+1], rd[i+1].rd_image);
+			else
+				PFill2C (rinfo, colinc, rowinc, inc1, inc2,
+					 TBuf[i], rd[i].rd_image,
+					 TBuf[i+1], rd[i+1].rd_image);
+		}
 	}
 }
 
@@ -469,12 +470,10 @@ Beam beam;
 /*
  * Remember the info about this sweep, and get started.
  */
-	if (! BeginSweep ())
-	{
-		InSweep = FALSE;
+	InSweep = BeginSweep ();
+	if (!InSweep)
 		return;
-	}
-	InSweep = TRUE;
+
 	scan++;
 	oldtime = newtime;
 	firstbeam = hk->log_rec_num;
