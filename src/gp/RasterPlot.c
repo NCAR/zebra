@@ -1,6 +1,8 @@
 /*
  * Raster display a rectangular array
  */
+static char *rcsid = "$Id: RasterPlot.c,v 1.3 1990-08-03 10:32:05 corbet Exp $";
+
 # include <errno.h>
 # include <math.h>
 # include <X11/Intrinsic.h>
@@ -265,7 +267,7 @@ bool fast;
  * Get our ximage and do the rasterization.
  */
 	image = RP_GetXImage (w, width, height);
-	ximp = image->data;
+	ximp = (unsigned char *) image->data;
 	if (fast)
 		RP_IRasterize (ximp, width, height, colgrid, row, icol,
 			rowinc, colinc, xdim);
