@@ -1,7 +1,7 @@
 /*
  * XY-Graph plotting module
  */
-static char *rcsid = "$Id: XYGraph.c,v 1.12 1992-10-30 22:54:15 kris Exp $";
+static char *rcsid = "$Id: XYGraph.c,v 1.13 1992-11-10 18:38:21 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -110,7 +110,7 @@ bool	update;
 	char	style[80];
 	char	datalabel[80];
 	char	timelabel[80];
-	int	sideAnnot;
+	bool	sideAnnot;
 /*
  * Get X-Y Graph Required parameters:
  * "platform","x-field", "y-field", "wind-coords", "org"

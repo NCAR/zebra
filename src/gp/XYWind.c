@@ -1,7 +1,7 @@
 /*
  * XY-Wind plotting module
  */
-static char *rcsid = "$Id: XYWind.c,v 1.10 1992-10-12 22:57:15 kris Exp $";
+static char *rcsid = "$Id: XYWind.c,v 1.11 1992-11-10 18:38:29 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -112,7 +112,7 @@ bool	update;
 	char	csystem[32];
 	int	dmode;
 	char	datalabel[80];
-	int	sideAnnot;
+	bool	sideAnnot;
 /*
  * Get X-Y Winds Required parameters:
  * "platform","x-field", "y-field", "coords", "color-table", "org"
