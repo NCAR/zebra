@@ -5,6 +5,9 @@
 
 # define NULL 0
 
+# ifdef  AIXV3
+# undef  TRUE
+# endif
 # define TRUE -1
 # define FALSE 0
 
