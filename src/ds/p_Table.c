@@ -44,7 +44,7 @@
 # include "Platforms.h"
 # include "dsDaemon.h"
 
-RCSID("$Id: p_Table.c,v 3.1 1999-03-01 16:32:12 burghart Exp $")
+RCSID("$Id: p_Table.c,v 3.2 2002-06-14 16:25:02 burghart Exp $")
 
 /*
  * Memory allocation options.  External so the daemon can associate them
@@ -696,7 +696,7 @@ dt_ExpandClassTable (int min)
 	size = CTableSize + growth;
 	if (size > MAXPLAT)
 		size = MAXPLAT;
-	msg_ELog (EF_INFO, "Expanding CTable to %d entries", size);
+	msg_ELog (EF_DEBUG, "Expanding CTable to %d entries", size);
 	CTable = (PlatformClass **) realloc (CTable,
 					     size * sizeof (PlatformClass *));
 	for (i = CTableSize; i < size; ++i)
@@ -722,7 +722,7 @@ dt_ExpandPlatformTable (int min)
 	size = PTableSize + growth;
 	if (size > MAXPLAT)
 		size = MAXPLAT;
-	msg_ELog (EF_INFO, "Expanding PTable to %d entries", size);
+	msg_ELog (EF_DEBUG, "Expanding PTable to %d entries", size);
 	PTable = (Platform **) realloc (PTable, size * sizeof (Platform *));
 	for (i = PTableSize; i < size; ++i)
 		PTable[i] = NULL;

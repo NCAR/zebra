@@ -39,7 +39,7 @@
 # include "commands.h"
 # include "dsDaemon.h"
 
-RCSID("$Id: d_DataTables.c,v 3.23 1996-11-19 09:26:42 granger Exp $")
+RCSID("$Id: d_DataTables.c,v 3.24 2002-06-14 16:25:02 burghart Exp $")
 
 
 /*
@@ -251,7 +251,7 @@ int growth;
 	CTableSize += growth;
 	if (CTableSize > MAXPLAT)
 		CTableSize = MAXPLAT;
-	msg_ELog (EF_INFO, "Expanding CTable to %d entries", CTableSize);
+	msg_ELog (EF_DEBUG, "Expanding CTable to %d entries", CTableSize);
 	CTable = (PlatformClass *) realloc (CTable,
 				    CTableSize * sizeof (PlatformClass));
 	for (i = 0; i < NClass; i++)
@@ -408,7 +408,7 @@ int growth;
 	PTableSize += growth;
 	if (PTableSize > MAXPLAT)
 		PTableSize = MAXPLAT;
-	msg_ELog (EF_INFO, "Expanding PTable to %d entries", PTableSize);
+	msg_ELog (EF_DEBUG, "Expanding PTable to %d entries", PTableSize);
 	PTable = (PlatformInstance *) realloc (PTable,
 		PTableSize * sizeof (PlatformInstance));
 	for (i = 0; i < NPlatform; i++)
