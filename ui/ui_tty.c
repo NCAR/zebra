@@ -1,23 +1,9 @@
-/* $Id: ui_tty.c,v 1.13 1998-02-26 21:18:50 burghart Exp $ */
+/* $Id: ui_tty.c,v 1.14 1999-03-25 22:23:45 burghart Exp $ */
 /*
  * Basic terminal handling.  This is an extremely VMS-dependant module.
  */
 
-/*
- * The Ardent acts like bsd, but it's really sysv...
- */
-# ifdef titan
-# include <sys/types.h>
-# undef BSD
-# define SYSV
-# endif
-
-# ifdef VMS
-# include <ssdef.h>
-# include <iodef.h>
-# include <ttdef.h>
-# include <smgtrmptr.h>
-# endif
+# include <stdlib.h>
 
 # ifdef SYSV
 # ifdef AIXV3 
@@ -234,7 +220,7 @@ tty_set ()
  */
 {
 	char tt_buf[1024], *tptr;
-	char *cp, *getenv (), *stupid, *tgetstr ();
+	char *cp, *tgetstr();
 	int status, ttchar[3], len, key;
 # ifdef VMS
 /*
@@ -896,11 +882,7 @@ tty_readch ()
 	{
 		fd_set fset, ret;
 		int width;
-# ifdef titan
-		int tt_sel_ch = 0;
-# else
 		int tt_sel_ch = TT_chan;
-# endif
 
 		FD_ZERO (&ret);
 		while (Nfd > 0 && ! FD_ISSET (tt_sel_ch, &ret))
