@@ -33,20 +33,25 @@
 # include <errno.h>
 # include <X11/IntrinsicP.h>
 # include <X11/StringDefs.h>
-# include <config.h>		/* to establish dependency on SHM def */
+
+# include <config.h>
 # include "defs.h"
 # include "message.h"
 # include "pd.h"
 # include "GraphicsWP.h"
 
-MAKE_RCSID("$Id: GraphicsW.c,v 2.20 1996-02-05 23:33:42 granger Exp $")
+RCSID("$Id: GraphicsW.c,v 2.21 1996-11-19 07:47:47 granger Exp $")
 
 /*
  * The SHM definition just tells us that we can link with the shared
  * memory functions; it does not mean use of the X shared memory
- * extension will always be possible, it just means we'll always at least
+ * extension will always be possible, it just means we can
  * attempt it.  We try to account for shared memory failures when possible
- * by resorting to the slower, non-shared approach.
+ * by resorting to the slower, non-shared approach.  Without SHM defined,
+ * the shared memory routines either automatically disable shared memory
+ * pixmaps, or do nothing.  An application can include code to use
+ * shared memory pixmaps when available, but they will not be available
+ * without SHM defined.
  */
 
 # ifdef SHM
@@ -156,13 +161,13 @@ GraphicsWidget w;
 		w->graphics.frame_count = 0;
 	w->graphics.gc = None;
 	w->graphics.frames = NULL;
-# ifdef SHM
 	w->graphics.shm_possible = False;
 	w->graphics.frameaddr = (char **) NULL;
 	w->graphics.frame_shared = (Boolean *) NULL;
+# ifdef SHM
 	w->graphics.shminfo = (XShmSegmentInfo *) NULL;
-	w->graphics.image = (XImage **) NULL;
 # endif
+	w->graphics.image = (XImage **) NULL;
 /*
  * Initialize the draw and display frame numbers
  */
@@ -597,10 +602,10 @@ int i;
 			w->graphics.frame_shared[i] = True;
 	}
 /*
- * If the shared memory attempt failed, go the conventional route
+ * If shared memory not available, go the conventional route
  */
 	if (w->graphics.frames[i] == None)
-# endif
+# endif /* SHM */
 		w->graphics.frames[i] = XCreatePixmap (XtDisplay (w), 
 			XtWindow (w), w->core.width, w->core.height, 
 			w->core.depth);
@@ -616,22 +621,19 @@ int i;
  * Destroy a frame according to whether its shared or not
  */
 {
-# ifdef SHM
 	if (GWFrameShared (w, i))
 		GWZapShmPixmap (w, i);
 	else if (w->graphics.frames[i] != None)
-# endif
 		XFreePixmap (XtDisplay (w), w->graphics.frames[i]);
 	w->graphics.frames[i] = None;
 }
 
 
 
-# ifdef SHM
 /* 
  * Private shared memory routines
  */
-
+# ifdef SHM		/* not used if SHM not defined */
 static void
 gw_SetShmPossible(w)
 GraphicsWidget w;
@@ -684,7 +686,6 @@ GraphicsWidget w;
 		 DisplayString (dpy), host);
 	w->graphics.shm_possible = (possible) ? True : False;
 }
-
 
 
 
@@ -756,10 +757,10 @@ int width, height, depth, index;
 /*
  *  Return the pixmap id.
  */
-	return(pixmap);		
+	return (pixmap);		
 }
+# endif /* SHM */
 
-# endif /* SHM --- end private shared memory routines */
 
 
 
@@ -767,6 +768,10 @@ int width, height, depth, index;
  * ======================================================================
  * 			   Convenience Routines
  * ----------------------------------------------------------------------
+ * The shared memory routines are always defined, but they have no effect
+ * unless shared memory support was compiled into the graphics widget
+ * by defining SHM.  Applications using a graphics widget without shared
+ * memory support can just think that shared memory was not available.
  */
 
 Pixmap
@@ -953,7 +958,6 @@ int p;
 
 
 
-# ifdef SHM
 /*
  * Shared Memory Convenience Routines
  */
@@ -1028,6 +1032,7 @@ int index;
 {
 	Display *disp = XtDisplay(w);
 	
+# ifdef SHM
 	if (GWFrameShared (w, index))
 	{
 		XShmDetach(disp, w->graphics.shminfo + index);
@@ -1038,6 +1043,9 @@ int index;
 		w->graphics.frame_shared[index] = False;
 		w->graphics.frames[index] = None;
 	}
+# else
+	/* do nothing */
+
+# endif /* SHM */
 }
 
-# endif /* SHM --- end shared memory convenience routines */

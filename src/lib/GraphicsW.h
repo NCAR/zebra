@@ -61,13 +61,12 @@ extern void	GWDrawInFrame (/* GraphicsWidget, int */);
 extern void	GWDisplayFrame (/* GraphicsWidget, int */);
 extern GC	GWGetGC(/* GraphicsWidget */);
 extern Pixmap	GWGetFrame(/* GraphicsWidget, int */);
-# ifdef SHM
 extern char 	*GWGetFrameAddr(/* GraphicsWidget, int frame */);
 extern int	GWFrameShared(/* GraphicsWidget, int frame */);
 extern int	GWShmPossible(/* GraphicsWidget */);
 extern int	GWGetBPL(/* GraphicsWidget, int frame */);
 extern void	GWZapShmPixmap(/* GraphicsWidget, int frame */);
-# endif
+
 /*
  * class and instance data types
  */
