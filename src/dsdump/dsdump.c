@@ -30,7 +30,7 @@
 # include <DataStore.h>
 # include <Platforms.h>
 
-RCSID ("$Id: dsdump.c,v 3.28 2000-11-08 20:03:44 granger Exp $")
+RCSID ("$Id: dsdump.c,v 3.29 2000-11-21 23:20:11 granger Exp $")
 
 /*
  * Standalone scanning flag.
@@ -57,7 +57,7 @@ static int Alone = 0;
 typedef enum e_platform_att_id
 {
     PA_NONE = 0, PA_NAME, PA_CLASS, PA_SUPERCLASS, PA_CLASSTREE,
-    PA_FILETYPE, PA_ORGANIZATION, PA_MAXSAMPLES, PA_CLASSDIR,
+    PA_FILETYPE, PA_ORGANIZATION, PA_MAXSAMPLES, PA_CLASSDIR, PA_DATADIR,
     PA_PARENT, PA_INHERIT_DIR, PA_INSTANCE_DIR, PA_COMMENT, PA_LASTATT
 } platform_att_id;
 
@@ -82,6 +82,7 @@ platform_att PlatformAtts[] =
     { "organization", PA_ORGANIZATION },
     { "maxsamples", PA_MAXSAMPLES },
     { "classdir", PA_CLASSDIR },
+    { "datadir", PA_DATADIR },
     { "parent", PA_PARENT },
     { "inheritdir", PA_INHERIT_DIR },
     { "instancedir", PA_INSTANCE_DIR },
@@ -106,7 +107,7 @@ struct dsdump_options
     int tcf;		/* time formats */
     platform_att_id *atts;
     int natts;
-    const PlatformClass *subclass;
+    PlatClassId subclass;
     ZebraTime since;
     ZebraTime before;
 };
@@ -130,12 +131,16 @@ DumpOptions Options =
     FALSE,		/* full */
     TC_Full,		/* tcf, time formats */
     0, 0,		/* default to no table rows */
-    0			/* don't limit to a particular class */
+    BadClass		/* don't limit to a particular class */
 };
 	
 
 
 
+/*
+ * Return 0 if the attribute could not be acquired, does not exist,
+ * or does not make sense.
+ */
 const char *
 DumpAtt (const Platform *p, const PlatformClass *pc, 
 	 platform_att_id pa)
@@ -149,6 +154,7 @@ DumpAtt (const Platform *p, const PlatformClass *pc,
     switch (pa)
     {
     case PA_NONE:
+	return 0;
 	break;
 
     case PA_NAME:
@@ -164,7 +170,7 @@ DumpAtt (const Platform *p, const PlatformClass *pc,
 	if (spc)
 	    return (pc_Name (spc));
 	else
-	    return ("NA");
+	    return 0;
 	break;
 
     case PA_CLASSTREE:
@@ -196,12 +202,16 @@ DumpAtt (const Platform *p, const PlatformClass *pc,
 	return pi_ClassDir (p);
 	break;
 
+    case PA_DATADIR:
+	return pi_SuggestedDir (p);
+	break;
+
     case PA_PARENT:
 	ppid = pi_ParentId (p);
 	if (ppid != BadPlatform)
 	    return ds_PlatformName (ppid);
 	else
-	    return "NA";
+	    return 0;
 	break;
 
     case PA_INHERIT_DIR:
@@ -218,7 +228,7 @@ DumpAtt (const Platform *p, const PlatformClass *pc,
 
     default:
     }
-    return "NA";
+    return 0;
 }
 
 
@@ -244,10 +254,12 @@ DumpRow (PlatformId pid, platform_att_id atts[], int natts)
 	const char *att = DumpAtt (p, pc, atts[i]);
 	if (atts[i] == PA_COMMENT)
 	{
-	    printf ("'%s' ", att ? att : "");
+	    printf ("%s ", att ? att : "");
 	}
 	else
-	    printf ("%s ", att ? att : "-");
+	{
+	    printf ("%s ", att ? att : "NA");
+	}
     }
     printf ("\n");
     return 0;
@@ -315,6 +327,8 @@ char *prog;
     {
 	printf ("\t\t\t%s\n", PlatformAtts[i].pa_name);
     }
+    printf("\t\tComments may contain spaces and are unquoted.\n");
+    printf("\t\tUnknown or unavailable attributes (not comments) are NA.\n");
     printf("Examples:\n");
     printf("\tAlphabetized list of all platforms:\n\t   %s -a\n", prog);
     printf("\tList 'ship' platforms, including subplatforms for each:\n");
@@ -472,7 +486,8 @@ NextPlatform (PlatformId pid, DumpOptions *opts)
 {
     const Platform *p = dt_FindPlatform (pid);
 
-    if (opts->subclass && ! pi_IsSubclass (p, opts->subclass))
+    if (opts->subclass != BadClass && 
+	! pi_IsSubclass (p, dt_FindClass(opts->subclass)))
 	return 0;
 /*
  * If table output requested, that is all we show.
@@ -643,8 +658,8 @@ main (argc, argv)
 		    usage (argv[0]);
 		    exit (1);
 		}
-		opts->subclass = dt_FindClassName (argv[opt]);
-		if (! opts->subclass)
+		opts->subclass = ds_LookupClass (argv[opt]);
+		if (opts->subclass == BadClass)
 		{
 		    fprintf(stderr,"%s: class unknown\n", argv[opt]);
 		    exit (1);
@@ -744,7 +759,9 @@ DumpPlatform (const Platform *p, const DumpOptions *opts)
 	    
 	    if (opts->files <= SHOWFILES)
 	    {
-		printf (" Data source '%s'\n", si.src_Name);
+		printf (" Data source '%s' (%s): %s\n", 
+			si.src_Name, si.src_ReadOnly ? "ro" : "rw",
+			si.src_Dir);
 
 		if (! opts->files)
 		    continue;
@@ -788,13 +805,12 @@ DumpSubplatforms (const Platform *p)
     for (i = 0; i < nsubplats; ++i)
     {
 	const char *name;
+	const char *fname = ds_PlatformName (subplats[i]);
 
-	const Platform *sp = dt_FindPlatform (subplats[i]);
-
-	if ((name = strchr(pi_Name (sp), '/')))
+	if ((name = strrchr(fname, '/')))
 	    ++name;
 	else
-	    name = pi_Name (sp);
+	    name = fname;
 
 	if (buflen && (buflen + strlen(name) + 3 >= (unsigned)78))
 	{
