@@ -1,5 +1,5 @@
 /*
- * $Id: apple.c,v 3.2 1995-11-19 16:16:46 granger Exp $
+ * $Id: apple.c,v 3.3 1995-12-04 11:32:05 granger Exp $
  */
 
 /*
@@ -71,8 +71,7 @@ to 'expect'?
 
 #include <stdio.h>
 #include <sys/types.h>
-#include <sys/time.h>
-#include <sys/timeb.h>
+#include <time.h>
 #include <assert.h>
 
 #include <defs.h>
@@ -313,11 +312,9 @@ InitializePlatforms()
 	int i;
 	PlatformId platid;
 	ZebTime now;
-	struct timeb tp;
 
 	msg_ELog (EF_DEBUG, "initializing data, erasing platforms");
-	ftime(&tp);
-	now.zt_Sec = tp.time;
+	tl_Time (&now);
 	now.zt_MicroSec = 0;
 	for (i = 0; i < NUM_PLATFORMS; ++i)
 	{
@@ -660,7 +657,6 @@ char *platform;
 	int i,j;
 	ZebTime when, begin, end;
 	ZebTime now, next;
-	struct timeb tp;
 #	define NS (60*5)	/* 5 60-sample files */
 	ZebTime reftime;
 	ZebTime times[NS];
@@ -670,9 +666,8 @@ char *platform;
 	char buf[128];
 	int errors = 0;
 
-	ftime(&tp);
+	tl_Time (&first);
 	first.zt_MicroSec = 0;
-	first.zt_Sec = tp.time;
 	first.zt_Sec -= (first.zt_Sec % 60) + NS;
 	dc = T_SimpleScalarChunk (&first, 1, NS, 4, FALSE, FALSE);
 	pid = NeedPlatform (platform);

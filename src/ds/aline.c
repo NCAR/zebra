@@ -1,5 +1,5 @@
 /*
- * $Id: aline.c,v 3.4 1995-11-19 16:16:44 granger Exp $
+ * $Id: aline.c,v 3.5 1995-12-04 11:32:00 granger Exp $
  *
  * An 'Assembly Line' test driver for the DataStore.
  *
@@ -27,8 +27,7 @@
 #include <stdio.h>
 #include <limits.h>
 #include <sys/types.h>
-#include <sys/time.h>
-#include <sys/timeb.h>
+#include <time.h>
 #include <sys/wait.h>
 #include <assert.h>
 
@@ -39,6 +38,22 @@
 #include "DataStore.h"
 #include "ds_fields.h"
 #include "DataChunkP.h"
+
+
+#if defined(SYSV) || defined(SVR4)
+# ifndef RAND_MAX
+#  define RAND_MAX ((double)(32767))
+# endif
+# define RAND() rand()
+# define SRAND(seed) srand(seed)
+#else
+# ifndef RAND_MAX
+#  define RAND_MAX (((double)LONG_MAX+1))
+# endif
+# define RAND() random()
+# define SRAND(seed) srandom(seed)
+#endif
+
 
 /*
  * If consumers' platform is different from producer's, we'll create a link
@@ -103,7 +118,7 @@ char *name;
 	int i;
 	char buf[50];
 
-	srandom(10);
+	SRAND(10);
 #ifdef MPROF
 	sprintf (buf, "mprof.%s", name);
 	mprof_restart (buf);
@@ -141,7 +156,6 @@ main (argc, argv)
 	int nconsumers;
 	PlatformId platid;
 	ZebTime now;
-	struct timeb tp;
 	char dbg[256];
 	int err = 0;
 
@@ -208,8 +222,7 @@ main (argc, argv)
 	 * Make sure our platforms are starting out clean.  Remove the
 	 * consumer first in case it just a link to the producer.
 	 */
-	ftime(&tp);
-	now.zt_Sec = tp.time;
+	tl_Time (&now);
 	now.zt_MicroSec = 0;
 	msg_ELog (EF_DEBUG, "deleting files from consumer platform '%s'", 
 		  CONSUMER_PLAT);
@@ -536,7 +549,7 @@ int num;
    double trunc;
    int result;
 
-   ratio = (double)((double)random())/(((double)LONG_MAX+1));
+   ratio = (double)((double)RAND())/RAND_MAX;
    /* printf ("%lf       ",ratio); */
    trunc = (ratio*((double)(num+1)));
    /* printf ("%lf       ",trunc); */
