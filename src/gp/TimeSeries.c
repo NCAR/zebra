@@ -1,7 +1,7 @@
 /*
  * Time Series Plotting
  */
-static char *rcsid = "$Id: TimeSeries.c,v 2.10 1992-11-03 20:41:52 burghart Exp $";
+static char *rcsid = "$Id: TimeSeries.c,v 2.11 1992-12-22 18:07:30 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -800,7 +800,7 @@ static struct _goodtick
 
 
 
-void
+static void
 ts_TimeTick (begin, end, first, step)
 ZebTime	*begin, *end, *first;
 long	*step;
