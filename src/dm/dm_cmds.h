@@ -1,4 +1,4 @@
-/* $Id: dm_cmds.h,v 1.2 1990-03-19 11:01:39 corbet Exp $ */
+/* $Id: dm_cmds.h,v 1.3 1990-07-08 12:59:22 corbet Exp $ */
 /*
  * Keyword numbers for displaymgr commands.
  */
@@ -15,3 +15,21 @@
 # define DMC_ENDMAP	10
 # define DMC_EXCHANGE	11
 # define DMC_BEEP	14
+# define DMC_PDLOAD	15
+# define DMC_PDDIR	16
+# define DMC_PARAMETER	17
+# define DMC_REMOVE	18
+# define DMC_ADD 	19
+# define DMC_HISTORY	20
+# define DMC_REALTIME	21
+# define DMC_COLORTABLE 22
+# define DMC_ENDTABLE	23
+# define DMC_XCOLOR	24
+# define DMC_DM		25
+# define DMC_LOCAL	26
+# define DMC_IGNORE	27
+# define DMC_MENU	28
+# define DMC_DIAL	29
+# define DMC_NONGRAPHIC 30
+# define DMC_FORCEPD	31
+# define DMC_TIME	32

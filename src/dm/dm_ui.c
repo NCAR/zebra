@@ -69,6 +69,8 @@ struct ui_command *cmds;
 		win->cfw_dx = UINT (cmds[4]);
 		win->cfw_dy = UINT (cmds[5]);
 		win->cfw_bmap = Default_map;
+		win->cfw_nongraph = win->cfw_forcepd = FALSE;
+		win->cfw_pd = 0;
 		strcpy (win->cfw_prog, cmds[6].uc_ctype == UTT_END ?
 			DEFPROG : UPTR (cmds[6]));
 		strcpy (win->cfw_desc, "(undefined)");
@@ -110,11 +112,19 @@ struct ui_command *cmds;
 	   	if (! usy_g_symbol (Bmaps, UPTR (cmds[1]), &type, &v))
 			ui_cl_error (TRUE, UCOL (cmds[1]),
 				"Unknown button map: '%s'", UPTR (cmds[1]));
-		win->cfw_bmap = (char **) v.us_v_ptr;
+		win->cfw_bmap = (ButtonMap *) v.us_v_ptr;
 		break;
 
 	   case DMC_ENDWINDOW:
 	   	return (FALSE);
+
+	   case DMC_NONGRAPHIC:
+	   	win->cfw_nongraph = TRUE;
+		break;
+
+	   case DMC_FORCEPD:
+	   	win->cfw_forcepd = TRUE;
+		break;
 
 	   default:
 	   	ui_error ("(BUG) Unknown window kw: %d\n", UKEY (*cmds));
@@ -178,23 +188,15 @@ char *name;
 {
 	union usy_value v;
 	int type, i, in_map ();
-	char ** map;
+	ButtonMap *map;
 /*
  * Try to look up the table and see if it already exists.
  */
 	if (usy_g_symbol (Bmaps, name, &type, &v))
-	{
-		map = (char **) v.us_v_ptr;
-		for (i = 0; i < N_BUTTON; i++)
-			usy_rel_string (map[i]);
-	}
+		map = (ButtonMap *) v.us_v_ptr;
 	else
-		map = (char **) getvm (N_BUTTON * sizeof (char *));
-/*
- * All entries undefined by default.
- */
-	for (i = 0; i < N_BUTTON; i++)
-		map[i] = usy_string ("beep");
+		map = ALLOC (ButtonMap);
+	map->db_nentry = 0;
 /*
  * Now parse the individual entries.
  */
@@ -213,23 +215,44 @@ char *name;
 
 int
 in_map (map, cmds)
-char **map;
+ButtonMap *map;
 struct ui_command *cmds;
 /*
  * Deal with the internal button map definitions.
  */
 {
+	struct dm_evbind *bind = map->db_bindings + map->db_nentry++;
+
 	switch (UKEY (*cmds))
 	{
-	   case B_LEFT:
-	   case B_MIDDLE:
-	   case B_RIGHT:
-		map[UKEY (*cmds)] = usy_pstring (UPTR (cmds[1]));
+	   case DMC_IGNORE:
+	   	bind->dmm_action = AC_Ignore;
+		break;
+
+	   case DMC_DM:
+	   	bind->dmm_action = AC_Report;
+		break;
+
+	   case DMC_LOCAL:
+		bind->dmm_action = AC_CommandText;
+		break;
+
+	   case DMC_MENU:
+	   	bind->dmm_action = AC_PopupMenu;
 		break;
 
 	   case DMC_ENDMAP:
+	   	map->db_nentry--;
 	   	return (FALSE);
 	}
+/*
+ * For commands that actually bind keys, remember the code, and, if
+ * relevant, the action.
+ */
+	strcpy (bind->dmm_code, UPTR (cmds[1]));
+	if (bind->dmm_action != AC_Ignore)
+		strcpy (bind->dmm_adata, UPTR (cmds[2]));
+
 	return (TRUE);
 }
 

@@ -11,7 +11,7 @@
 # include "dm_cmds.h"
 # include "../include/timer.h"
 
-static char *rcsid = "$Id: dm.c,v 1.4 1990-06-04 14:08:27 corbet Exp $";
+static char *rcsid = "$Id: dm.c,v 1.5 1990-07-08 12:59:14 corbet Exp $";
 
 /*
  * Definitions of globals.
@@ -24,7 +24,7 @@ stbl Bmaps;
 ButtonMap *Default_map;	/* The default button map	*/
 Display *Dm_Display;
 
-
+int dm_shutdown ();
 
 
 
@@ -32,14 +32,14 @@ main (argc, argv)
 int argc;
 char **argv;
 {
-	int dm_dispatcher (), dm_msg_handler (), msg_incoming (), i, get_pd ();
+	int dm_dispatcher (), dm_msg_handler (), msg_incoming (), get_pd ();
 	int is_active (), type[4], pd_param (), pd_defined (), tw_cb ();
-	union usy_value v;
 	char loadfile[100];
 /*
  * Hook into the message handler.
  */
 	msg_connect (dm_msg_handler, "Displaymgr");
+	msg_DeathHandler (dm_shutdown);
 /*
  * Get the interface set up.
  */
@@ -81,6 +81,12 @@ char **argv;
 		ui_printf ("Unable to open the display!\n");
 		dm_shutdown ();
 	}
+# ifdef titan
+/*
+ * Hook into the dialbox.
+ */
+	dlb_Init ();
+# endif
 /*
  * Interpret commands.
  */
@@ -163,6 +169,16 @@ struct ui_command *cmds;
 	   	dc_Define (UPTR (cmds[1]));
 		break;
 
+	   case DMC_DIAL:
+# ifdef titan
+	   	dlb_Define (cmds + 1);
+# endif
+		break;
+
+	   case DMC_TIME:
+	   	SetTime (&UDATE (cmds[1]));
+		break;
+
 	   default:
 	   	ui_error ("(BUG): Unknown keyword: %d\n", UKEY (*cmds));
 	}
@@ -202,7 +218,8 @@ struct message *msg;
 	 * Everything else we don't know about.
 	 */
 	   default:
-	   	log_printf ("Funky message type %d in DM", msg->m_proto);
+	   	msg_ELog (EF_PROBLEM, "Funky message type %d in DM",
+			msg->m_proto);
 	};
 }
 
@@ -289,11 +306,11 @@ char *name;
  */
 	for (win = 0; win < cfg->c_nwin; win++)
 	{
-		struct cf_window *wp = cfg->c_wins + win;
+		struct cf_window *wp = cfg->c_wins + win, *exist;
 	/*
 	 * Fix up this window on the screen.
 	 */
-		if (! lookup_win (wp->cfw_name, FALSE))
+		if (! (exist = lookup_win (wp->cfw_name, FALSE)))
 		{
 			create_win (wp);
 			/* msg_incoming (msg_get_fd ()); */
@@ -301,7 +318,11 @@ char *name;
 				sleep (1);
 		}
 		else
+		{
+			if (! wp->cfw_forcepd)
+				wp->cfw_pd = exist->cfw_pd; /* no copy! */
 			config_win (wp);
+		}
 	/*
 	 * Add it to the new config table, and remove it from the old.
 	 */
@@ -355,9 +376,20 @@ struct cf_window *win;
 	v.us_v_ptr = (char *) win;
 	usy_s_symbol (Windows, win->cfw_name, SYMT_POINTER, &v);
 /*
- * Now actually fire off the process.
+ * If this is a nongraphic window, we don't create it.  We just ping it, and
+ * wait for the hello.
  */
-	if (fork () == 0)
+	if (win->cfw_nongraph)
+	{
+		struct dm_hello dmh;
+		dmh.dmm_type = DM_HELLO;
+		msg_send (win->cfw_name, MT_DISPLAYMGR, FALSE, &dmh,
+			sizeof (dmh));
+	}
+/*
+ * Otherwise actually fire off the process.
+ */
+	else if (fork () == 0)
 	{
 		/* close (0); close (1); close (2); */
 		close (msg_get_fd ());
@@ -378,6 +410,7 @@ struct cf_window *win;
  */
 {
 	struct dm_msg msg;
+	bool created = FALSE;
 /*
  * Fill in the message structure.
  */
@@ -387,23 +420,33 @@ struct cf_window *win;
 	msg.dmm_dx = win->cfw_dx;
 	msg.dmm_dy = win->cfw_dy;
 /*
- * Ship it out.
+ * Ship it out.  If this is a nongraphic window, we then quit.
  */
 	msg_send (win->cfw_name, MT_DISPLAYMGR, FALSE, (char *) &msg,
 		sizeof (struct dm_msg));
-/*
- * Dig out the plot description for this window.
- */
-	if (! win->cfw_pd && ! (win->cfw_pd = pda_GetPD (win->cfw_desc)))
-	{
-		log_printf ("Window %s wants bad PD %s", win->cfw_name,
-			win->cfw_desc);
+	if (win->cfw_nongraph)
 		return;
+/*
+ * Dig out the plot description for this window.  Clone it so that our changes
+ * do not affect the other invocations of this PD.
+ */
+	if (! win->cfw_pd)
+	{
+		if (win->cfw_pd = pda_GetPD (win->cfw_desc))
+			win->cfw_pd = pd_CopyPD (win->cfw_pd);
+		else
+		{
+			msg_ELog (EF_EMERGENCY, "Window %s wants bad PD %s",
+				win->cfw_name, win->cfw_desc);
+			return;
+		}
+		created = TRUE;
 	}
 /*
  * Then ship over the PD too.
  */
-	send_pd (win);
+	if (win->cfw_forcepd || created)
+		send_pd (win);
 /*
  * And the button maps.
  */
@@ -413,7 +456,7 @@ struct cf_window *win;
 
 
 
-
+# ifdef notdef
 
 log_printf (va_alist)
 va_dcl
@@ -436,7 +479,7 @@ va_dcl
 	msg_send ("Event logger", MT_LOG, 0, mbuf, strlen (mbuf) + 1);
 }
 
-
+# endif
 
 
 
@@ -448,7 +491,9 @@ struct dm_msg *dmsg;
  */
 {
 	struct dm_hello *dmh;
+	struct dm_pdchange *dmp;
 	struct cf_window *win;
+	raw_plot_description rpd;
 
 	switch (dmsg->dmm_type)
 	{
@@ -460,10 +505,10 @@ struct dm_msg *dmsg;
 		dmh = (struct dm_hello *) dmsg;   	
 		if (! (win = lookup_win (from, FALSE)))
 		{
-			log_printf ("Funky hello from '%s'", from);
+			msg_ELog (EF_PROBLEM, "Funky hello from '%s'", from);
 			return;
 		}
-		log_printf ("Hello received from '%s'", from);
+		msg_ELog (EF_DEBUG, "Hello received from '%s'", from);
 		win->cfw_win = dmh->dmm_win;
 		config_win (win);
 		send_default (win);
@@ -478,17 +523,34 @@ struct dm_msg *dmsg;
 	 * A color table request.
 	 */
 	   case DM_R_CTABLE:
-		if (! (win = lookup_win (from, FALSE)))
+		if (! (win = lookup_win (from, TRUE)))
 		{
-			log_printf ("Funky CTR from '%s'", from);
+			msg_ELog (EF_PROBLEM, "Funky CTR from '%s'", from);
 			return;
 		}
 		dc_TableRequest ((struct dm_ctr *) dmsg, win->cfw_name);
 		break;
-
+	/*
+	 * A graphics process has had the temerity to change its own
+	 * plot description.  Now we have to scramble to keep up with it.
+	 */
+	   case DM_PDCHANGE:
+		if (! (win = lookup_win (from, TRUE)))
+		{
+			msg_ELog(EF_PROBLEM, "Funky PDCHANGE from '%s'", from);
+			return;
+		}
+		msg_ELog (EF_DEBUG, "New PD from %s", from);
+		pd_Release (win->cfw_pd);
+		dmp = (struct dm_pdchange *) dmsg;
+		rpd.rp_len = dmp->dmm_pdlen;
+		rpd.rp_data = dmp->dmm_pdesc;
+		win->cfw_pd = pd_Load (&rpd);
+		break;
+		
 	   default:
-	   	log_printf ("Funky DMSG type %d from %s\n", dmsg->dmm_type,
-			from);
+	   	msg_ELog (EF_PROBLEM, "Funky DMSG type %d from %s\n",
+			dmsg->dmm_type, from);
 	}
 }
 
@@ -536,14 +598,20 @@ char *window, *pdesc;
  */
 	if (! (pd = pda_GetPD (pdesc)))
 	{
-		log_printf ("NEWPD for win %s wants bad pd %s", window, pdesc);
+		msg_ELog (EF_PROBLEM, "NEWPD for win %s wants bad pd %s",
+			window, pdesc);
 		return;
 	}
+/*
+ * If the window had an old one, return it.
+ */
+	if (win->cfw_pd)
+		pd_Release (win->cfw_pd);
 /*
  * Store the new info, and send it to the graphproc.
  */
 	strcpy (win->cfw_desc, pdesc);
-	win->cfw_pd = pd;
+	win->cfw_pd = pd_CopyPD (pd);
 	send_pd (win);
 }
 
@@ -563,7 +631,7 @@ struct dm_event *dme;
  */
 	if (! win)
 	{
-		log_printf ("Funky button from '%s'", from);
+		msg_ELog (EF_PROBLEM, "Funky button from '%s'", from);
 		return;
 	}
 /*
@@ -675,7 +743,8 @@ struct cf_window *win;
 	dmp->dmm_type = DM_DEFAULTS;
 	dmp->dmm_pdlen = rpd->rp_len;
 	memcpy (dmp->dmm_pdesc, rpd->rp_data, rpd->rp_len);
-	msg_log ("Sending defaults to %s", win->cfw_name);
+	msg_ELog (EF_DEBUG, "Sending defaults to %s len %d", win->cfw_name,
+		len);
 	msg_send (win->cfw_name, MT_DISPLAYMGR, FALSE, dmp, len);
 
 	free (dmp);
@@ -721,7 +790,7 @@ char *name, *comp, *param, *value;
  */
 	if (! pd)
 	{
-		log_printf ("Unable to find pd '%s'", name);
+		msg_ELog (EF_PROBLEM, "Unable to find pd '%s'", name);
 		return;
 	}
 /*
@@ -729,8 +798,29 @@ char *name, *comp, *param, *value;
  */
 	pd_Store (pd, comp, param, value, SYMT_STRING);
 	if (win)
-		send_pd (win);
+		send_param (win, comp, param, value);
 }
+
+
+
+
+
+send_param (win, comp, param, value)
+struct cf_window *win;
+char *comp, *param, *value;
+/*
+ * Send this parameter to the given window.
+ */
+{
+	struct dm_parchange dmp;
+
+	dmp.dmm_type = DM_PARCHANGE;
+	strcpy (dmp.dmm_comp, comp);
+	strcpy (dmp.dmm_param, param);
+	strcpy (dmp.dmm_value, value);
+	msg_send (win->cfw_name, MT_DISPLAYMGR, FALSE, &dmp, sizeof (dmp));
+}
+
 
 
 
@@ -747,8 +837,8 @@ char *pdn, *comp;
  */
 	if (! win)
 	{
-		log_printf ("Remove (%s %s) FAIL -- %s not active", pdn,
-			comp, pdn);
+		msg_ELog (EF_PROBLEM, "Remove (%s %s) FAIL -- %s not active",
+			pdn, comp, pdn);
 		return;
 	}
 /*
@@ -775,12 +865,12 @@ char *pdn, *comp, *dest;
  */
 	if (! pd)
 	{
-		log_printf ("FAIL: PD '%s' not found", pdn);
+		msg_ELog (EF_PROBLEM, "FAIL: PD '%s' not found", pdn);
 		return;
 	}
 	if (! dwin)
 	{
-		log_printf ("FAIL: Dest win '%s' not active", dest);
+		msg_ELog (EF_PROBLEM, "FAIL: Dest win '%s' not active", dest);
 		return;
 	}
 /*
@@ -817,13 +907,14 @@ struct ui_command *cmds;
 	{
 		if (cmds->uc_vptype != SYMT_STRING)
 		{
-			msg_log ("HISTORY error -- win name must be string");
+			msg_ELog (EF_PROBLEM,
+				"HISTORY error -- win name must be string");
 			return;
 		}
 		dwin = lookup_win (UPTR (*cmds), TRUE);
 		if (! dwin)
 		{
-			msg_log ("HISTORY on unavailable win '%s'",
+			msg_ELog(EF_PROBLEM, "HISTORY on unavailable win '%s'",
 				UPTR (*cmds));
 			return;
 		}
@@ -910,13 +1001,13 @@ time *t;
 	   case RealTime:
 	   	dmh.dmm_type = DM_REALTIME;
 		break;
-
+# ifdef notdef
 	   case Movie:
 	   	msg_log ("I can't put *everybody* in movie mode!");
 		return;
-
+# endif
 	   default:
-	   	msg_log ("Funky mode (%d) in tw_cb", mode);
+	   	msg_ELog (EF_PROBLEM, "Funky mode (%d) in tw_cb", mode);
 		return;
 	}
 /*
@@ -976,7 +1067,7 @@ struct cf_window *win;
  */
 	if (! map)
 	{
-		msg_log ("Window %s has no button map", win->cfw_name);
+		msg_ELog(EF_INFO,"Window %s has no button map", win->cfw_name);
 		return;
 	}
 /*
@@ -1001,4 +1092,22 @@ struct cf_window *win;
 	msg_send (win->cfw_name, MT_DISPLAYMGR, FALSE, ebc,
 		sizeof (struct dm_ebchange) +
 		(map->db_nentry - 1)*(sizeof (struct dm_evbind)));
+}
+
+
+
+
+
+SetTime (when)
+time *when;
+/*
+ * Force pseudo real time mode at this time.
+ */
+{
+	struct tm_prt prt;
+	
+	prt.tr_type = TR_PRT;
+	prt.tr_time = *when;
+	prt.tr_scale = 1;
+	msg_send ("Timer", MT_TIMER, FALSE, &prt, sizeof (prt));
 }
