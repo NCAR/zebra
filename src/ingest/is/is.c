@@ -1,7 +1,7 @@
 /*
  * Ingest scheduler
  */
-static char    *rcsid = "$Id: is.c,v 1.22 1999-11-22 23:04:18 granger Exp $";
+static char    *rcsid = "$Id: is.c,v 1.23 2000-04-12 20:05:12 granger Exp $";
 
 /*
  * Copyright (C) 1987,88,89,90,91 by UCAR University Corporation for
@@ -45,21 +45,18 @@ static char    *rcsid = "$Id: is.c,v 1.22 1999-11-22 23:04:18 granger Exp $";
 void            sigchldHandler();
 
 
-#ifdef __STDC__
-int             is_shutdown(void);
-char           *substitute(char *, char *, char *);
-char           *last_part(char *, int);
-void            cfg_done(struct is_config *);
-
-#else
-int		is_shutdown();
-char           *substitute();
-char           *last_part();
-void            cfg_done();
-
-#endif
-
+void init_cfg (struct ui_command *cmds, struct is_config *cfg, char *name);
+int is_shutdown();
+char *substitute(char *, char *, char *);
+char *last_part(char *, int);
+void cfg_done(struct is_config *);
 int is_exit FP((int exitcode));
+void start_cfg (struct is_config *cfg);
+int is_msg_handler (struct message *msg);
+int is_initial(int arg, struct ui_command *cmds);
+void mh_message (struct message *msg);
+int process_term(char *name, int type, union usy_value *v, int junk);
+void stop (struct is_config *cfg);
 
 /*
  * Definitions of globals.
@@ -81,7 +78,10 @@ is_CPHandler (char *cmd)
  * Perform the command, then make sure the output makes it out.
  */
 {
-	ui_perform (cmd);
+	ERRORCATCH
+	    ui_perform (cmd);
+	ON_ERROR
+	ENDCATCH
 	fflush (stdout);
 	fflush (stderr);
 	return 0;
@@ -93,18 +93,13 @@ main(argc, argv)
 	int             argc;
 	char          **argv;
 {
-	int             is_initial(), is_msg_handler(), msg_incoming();
-	int             is_list();
-	void            sigchldHandler();
-
 	int		exitcode = 0;
 	int		i;
+	char           *lfdir = NULL;	/* points to user specified location of the .lf file */
 	char            loadfile[100];
-	stbl            vtable;
 #ifdef IS_WINDOW_MODE
 	Widget          top;
 #endif
-	char           *lfdir = NULL;	/* points to user specified location of the .lf file */
 #ifdef SVR4
 	struct sigaction act;
 #endif
@@ -181,9 +176,6 @@ main(argc, argv)
 
 	/*
 	 * Indirect variables.
-	 */
-	/*
-	 * vtable = usy_g_stbl("ui$variable_table");
 	 */
 	tty_watch(msg_get_fd(), (void (*) ()) msg_incoming);
 
@@ -262,53 +254,8 @@ sigaction()  SVR4           Y                  Y                 optional
 
 
 
-is_initial(arg, cmds)
-	int             arg;
-	struct ui_command *cmds;
-/*
- * Deal with a ingest scheduler command.
- */
-{
-	switch (UKEY(*cmds)) {
-	case ISC_CONFIG:
-		is_config(cmds + 1);
-		break;
-
-	case ISC_LIST:
-		is_list(cmds + 1);
-		break;
-
-	case ISC_START:
-		is_start(cmds + 1);
-		break;
-
-	case ISC_STOP:
-		is_stop(cmds + 1);
-		break;
-
-	case ISC_SHUTDOWN:
-		is_shutdown();
-		break;
-
-	case ISC_REDIRECT:
-		is_redirect(cmds + 1);
-		break;
-
-	case ISC_GROUP:
-		is_group(cmds + 1);
-		break;
-
-	default:
-		ui_error("(BUG): Unknown keyword: %d\n", UKEY(*cmds));
-	}
-	return (TRUE);
-}
-
-
-
-
-is_msg_handler(msg)
-	struct message *msg;
+int
+is_msg_handler (struct message *msg)
 /*
  * Deal with incoming messages.
  */
@@ -331,18 +278,18 @@ is_msg_handler(msg)
 		msg_ELog(EF_PROBLEM, "Funky message type %d in IS",
 			 msg->m_proto);
 	};
+	return 0;
 }
 
 
 
-mh_message(msg)
-	struct message *msg;
+void
+mh_message (struct message *msg)
 /*
  * Deal with a MESSAGE protocol msg.
  */
 {
 	struct mh_template *tm = (struct mh_template *) msg->m_data;
-	struct mh_client *client;
 
 	switch (tm->mh_type) {
 	case MH_SHUTDOWN:
@@ -356,10 +303,107 @@ mh_message(msg)
 }
 
 
+/*
+ * These are meant to be private to add_config() and get_configs().
+ */
+static struct is_config *ret[MAXGC+1];
+static int nret = 0;
+
+int
+add_config (char *name, int type, union usy_value *v, int all)
+{
+	struct is_config *cfg = (struct is_config *) v->us_v_ptr;
+	ret[nret++] = cfg;
+	return 1;
+}
+
+
+/*
+ * Return null-terminated array of pointers to configs for this name or group.
+ * If name is null, return all configs.
+ */
+struct is_config **
+get_configs (char *name, int *ncfg)
+{
+    union usy_value v;
+    int type;
+    int i;
+    struct NList *g;
+
+    nret = 0;
+    /*
+     * name of null implies get all configs
+     */
+    if (name == 0)
+    {
+	usy_traverse (Configs, add_config, TRUE, FALSE);
+    }
+    else if (usy_g_symbol(Configs, name, &type, &v))
+    {
+	/*
+	 * must be a configuration or group name, so look it up
+	 */
+	ret[nret++] = (struct is_config *) v.us_v_ptr;
+    }
+    else if (usy_g_symbol(Groups, name, &type, &v))
+    {
+	g = (struct NList *)v.us_v_ptr;
+	for ( i = 0; i < g->n; i++)
+	{
+	    if (usy_g_symbol(Configs, g->list[i], &type, &v))
+	    {
+		ret[nret++] = (struct is_config *) v.us_v_ptr;
+	    }
+	    else
+	    {
+		ui_warning("Unknown configuration %s in group %s\n", 
+			   g->list[i], name);
+	    }
+	}
+    }
+    else
+    {
+	ui_warning("Unknown configuration or group %s\n", name);
+    }
+
+    if (ncfg) *ncfg = nret;
+    ret[nret] = 0;
+    return ret;
+}
+
+
+struct is_config **
+parse_config_list (struct ui_command *cmds)
+{
+	/*
+	 * parse the command for a config list
+	 */
+	struct is_config **cfg = 0;
+
+	switch (cmds[0].uc_ctype)
+	{
+
+	case UTT_VALUE:
+	    cfg = get_configs (UPTR(cmds[0]), 0);
+	    break;
+
+	case UTT_KW:
+	    cfg = get_configs (0, 0);
+	    break;
+
+	default:
+	    ui_warning ("(BUG): Unknown keyword: %d\n", UKEY(cmds[0]));
+	    break;
+	}
+
+	return cfg;
+}
+
+
+
 int 
 is_exit (int exitcode)
 {
-	int             stop();
 	/*
 	 * Now finish up here and quit.
 	 */
@@ -367,7 +411,12 @@ is_exit (int exitcode)
 	/*
 	 * call the stop routine for all configurations
 	 */
-	usy_traverse(Configs, stop, TRUE, FALSE);
+        struct is_config **cfg = get_configs (0, 0);
+	while (*cfg)
+	{
+	    stop (*cfg);
+	    ++cfg;
+	}
 	msg_ELog(EF_INFO, "is terminated");
 	ui_finish();
 	exit (exitcode);
@@ -382,70 +431,25 @@ is_shutdown()
 
 {
 	is_exit (0);
+	return 0;
 }
 
 
 int
-is_start(cmds)
-	struct ui_command *cmds;
+is_start(struct ui_command *cmds)
 {
-
-	/*
-	 * parse the start command
-	 */
-
-	union usy_value v;
-
-	int             start_cfg();
-
-	int             type;
-	int		i;
-	struct NList *g = NEW(struct NList);
-
-	switch (cmds[0].uc_ctype) {
-
-	case UTT_VALUE:
-		/*
-		 * must be a configuration or group name, so look it up and do 
-		 * the business
-		 */
-		if (usy_g_symbol(Configs, UPTR(cmds[0]), &type, &v))
-			start_cfg(UPTR(cmds[0]), type, &v, FALSE);
-		else if (usy_g_symbol(Groups, UPTR(cmds[0]), &type, &v))
-		{
-		    g = (struct NList *)v.us_v_ptr;
-		    for ( i = 0; i < g->n; i++)
-		    {
-		        if (usy_g_symbol(Configs, g->list[i], &type, &v))
-			    start_cfg(g->list[i], type, &v, FALSE);
-			else
-			    ui_error("Unknown configuration %s\n", g->list[i]);
-		    }
-		}
-		else
-			ui_error("Unknown configuration or group %s\n", UPTR(cmds[0]));
-		break;
-
-	case UTT_KW:
-		/*
-		 * Keyword all has been specified, so start them all
-		 */
-		usy_traverse(Configs, start_cfg, TRUE, FALSE);
-		break;
-
-	default:
-		ui_error("(BUG): Unknown keyword: %d\n", UKEY(cmds[0]));
+	struct is_config **cfg = parse_config_list (cmds);
+	while (cfg && *cfg)
+	{
+	    start_cfg (*cfg);
+	    ++cfg;
 	}
-
+	return 0;
 }
 
-int
-start_cfg(name, type, v, all)
-	char           *name;
-	int             type;
-	union usy_value *v;
-	int             all;
 
+void
+start_cfg (struct is_config *cfg)
 {
 	/*
 	 * merely start the timer so that this cfg will run in a tick. File
@@ -453,14 +457,6 @@ start_cfg(name, type, v, all)
 	 * repeat. Continuous types will have a zero interval, and so will
 	 * not be repeated.
 	 */
-
-	int             i;
-#ifdef SVR4
-	pid_t           pid;
-#else
-	int             pid;
-#endif
-	struct is_config *cfg = (struct is_config *) v->us_v_ptr;
 
 	extern int      errno;
 	void            timed_check();
@@ -482,67 +478,10 @@ start_cfg(name, type, v, all)
 	cfg->n_restarts = 0;
 }
 
-int
-is_stop(cmds)
-	struct ui_command *cmds;
-{
 
-	union usy_value v;
 
-	int             stop();
-
-	int             type;
-	int		i;
-	struct NList *g = NEW(struct NList);
-
-	/*
-	 * parse the stop command
-	 */
-
-	switch (cmds[0].uc_ctype) {
-
-	case UTT_VALUE:
-		/*
-		 * must be a configuration or group name, so look it up and do 
-		 * the business
-		 */
-		if (usy_g_symbol(Configs, UPTR(cmds[0]), &type, &v))
-			stop(UPTR(cmds[0]), type, &v, FALSE);
-		else if (usy_g_symbol(Groups, UPTR(cmds[0]), &type, &v))
-		{
-		    g = (struct NList *)v.us_v_ptr;
-		    for ( i = 0; i < g->n; i++)
-		    {
-		        if (usy_g_symbol(Configs, g->list[i], &type, &v))
-			    stop(g->list[i], type, &v, FALSE);
-			else
-			    ui_error("Unknown configuration %s\n", g->list[i]);
-		    }
-		}
-		else
-			ui_error("Unknown configuration or group %s\n", UPTR(cmds[0]));
-		break;
-
-	case UTT_KW:
-		/*
-		 * Keyword all has been specified, so stop them all
-		 */
-		usy_traverse(Configs, stop, TRUE, FALSE);
-		break;
-
-	default:
-		ui_error("(BUG): Unknown keyword: %d\n", UKEY(cmds[0]));
-	}
-
-}
-
-int
-stop(name, type, v, all)
-	char           *name;
-	int             type;
-	union usy_value *v;
-	int             all;
-
+void
+stop (struct is_config *cfg)
 {
 	/*
 	 * called when a stop command is issued for a configuration. Do the
@@ -554,8 +493,6 @@ stop(name, type, v, all)
 	 * 2. cancel the timer associated with this configuration
 	 * 
 	 */
-	struct is_config *cfg = (struct is_config *) v->us_v_ptr;
-
 	if (cfg->pid) {
 		kill(cfg->pid, SIGHUP);
 		cfg->pid = 0;
@@ -571,15 +508,28 @@ stop(name, type, v, all)
 	cfg->timer_slot = -1;
 }
 
-is_group(cmds)
-	struct ui_command *cmds;
+
+int
+is_stop (struct ui_command *cmds)
+{
+	struct is_config **cfg = parse_config_list (cmds);
+	while (cfg && *cfg)
+	{
+	    stop (*cfg);
+	    ++cfg;
+	}
+	return 0;
+}
+
+
+int
+is_group (struct ui_command *cmds)
 /*
  * Collect several configurations into a group
  */
 {
 	
 	union usy_value v;
-	int             i;
 	char		gname[64];
 	int             type;
 
@@ -601,15 +551,18 @@ is_group(cmds)
 		    g->n = g->n + 1;
 	    }
 	    else
-	        ui_error("Unknown configuration %s -- ignored\n", UPTR(cmds[0]) );
+	        ui_warning ("Unknown configuration %s -- ignored\n", 
+			    UPTR(cmds[0]) );
 	    cmds++;
 	}
 	v.us_v_ptr = (char *) g;
 	usy_s_symbol(Groups, gname, SYMT_POINTER, &v);
+	return 0;
 }
 
-is_config(cmds)
-	struct ui_command *cmds;
+
+int
+is_config (struct ui_command *cmds)
 /*
  * parse out the configuration specifications
  */
@@ -620,7 +573,7 @@ is_config(cmds)
 
 	int             do_config();
 	union usy_value v;
-	int             i;
+	int             complete;
 
 	/* allocate a new configuration */
 	struct is_config *cfg = NEW(struct is_config);
@@ -641,61 +594,45 @@ is_config(cmds)
 	/*
 	 * now verify that the configuration is complete
 	 */
-		v.us_v_ptr = (char *) cfg;
+	complete = 0;
 	switch (cfg->type) {
 	case IS_FTYPE:
 		/*
 		 * file type ingestor
 		 */
-		if
-			(cfg->filename &&
-			 cfg->process &&
-			 cfg->interval)
-			/*
-			 * Enter configuration in symbol table, using name as
-			 * symbol
-			 */
-			usy_s_symbol(Configs, UPTR(*cmds), SYMT_POINTER, &v);
-		else
-			ui_error(
-				 "Configuration %s is incomplete and will be ignored\n",
-				 UPTR(cmds[0]));
+		complete = (cfg->filename && cfg->process && cfg->interval);
 		break;
 	case IS_CTYPE:
 		/*
 		 * continuous type ingestor
 		 */
-		if (cfg->process)
-			/*
-			 * Enter configuration in symbol table, using name as
-			 * symbol
-			 */
-			usy_s_symbol(Configs, UPTR(*cmds), SYMT_POINTER, &v);
-		else
-			ui_error(
-				 "Configuration %s is incomplete and will be ignored\n",
-				 UPTR(cmds[0]));
-
+		complete = (cfg->process != 0);
 		break;
 	case IS_PTYPE:
 		/*
 		 * periodic type ingestor
 		 */
-		if (cfg->process && cfg->interval)
-			/*
-			 * Enter configuration in symbol table, using name as
-			 * symbol
-			 */
-			usy_s_symbol(Configs, UPTR(*cmds), SYMT_POINTER, &v);
-		else
-			ui_error(
-				 "Configuration %s is incomplete and will be ignored\n",
-				 UPTR(cmds[0]));
-
+		complete = (cfg->process && cfg->interval);
 		break;
 	}
 
+	if (complete)
+	{
+	    /*
+	     * Enter configuration in symbol table, using name as
+	     * symbol
+	     */
+	    v.us_v_ptr = (char *) cfg;
+	    usy_s_symbol(Configs, UPTR(*cmds), SYMT_POINTER, &v);
+	}
+	else
+	{
+	    ui_warning("Configuration %s is incomplete and will be ignored\n",
+		       UPTR(cmds[0]));
+	}
+	return 0;
 }
+
 
 int
 do_config(cfg, cmds)
@@ -738,9 +675,9 @@ do_config(cfg, cmds)
 				cfg->n_proc_args++;
 				cfg->proc_args[i] = usy_string(UPTR(cmds[i]));
 			} else {
-				ui_error(
-					 "Max %d proc args allowed, rest are ignored\n",
-					 MAX_PROC_ARGS);
+				ui_warning
+			("Max %d proc args allowed, rest are ignored\n",
+			 MAX_PROC_ARGS);
 				break;
 			}
 		break;
@@ -753,13 +690,14 @@ do_config(cfg, cmds)
 		return (FALSE);
 
 	default:
-		ui_error("(BUG): Unknown keyword: %d\n", UKEY(*cmds));
+		ui_warning("(BUG): Unknown keyword: %d\n", UKEY(*cmds));
 	}
 	return (TRUE);
 }
 
-is_redirect(cmds)
-	struct ui_command *cmds;
+
+int
+is_redirect (struct ui_command *cmds)
 {
 	char *check_redirect;
 
@@ -790,76 +728,19 @@ is_redirect(cmds)
 		}
 		break;
 	}
+	return 0;
 }
-is_list(cmds)
-	struct ui_command *cmds;
-{
 
-	/*
-	 * List out the known configs.
-	 */
-	int             list_cfg();
-
-	union usy_value v;
-	struct NList	*g = NULL;
-	int		i;
-
-	int             type;
-
-	/*
-	 * parse the list command
-	 */
-
-	switch (cmds[0].uc_ctype) {
-
-	case UTT_VALUE:
-		/*
-		 * must be a configuration or group name, so look it up and do 
-		 * the business
-		 */
-		if (usy_g_symbol(Configs, UPTR(cmds[0]), &type, &v))
-			list_cfg(UPTR(cmds[0]), type, &v, FALSE);
-		else if (usy_g_symbol(Groups, UPTR(cmds[0]), &type, &v))
-		{
-		    g = (struct NList *)v.us_v_ptr;
-		    for ( i = 0; i < g->n; i++)
-		    {
-		        if (usy_g_symbol(Configs, g->list[i], &type, &v))
-			    list_cfg(g->list[i], type, &v, FALSE);
-			else
-			    ui_error("Unknown configuration %s\n", g->list[i]);
-		    }
-		}
-		else
-			ui_error("Unknown configuration or group %s\n", UPTR(cmds[0]));
-		break;
-
-	case UTT_KW:
-		/*
-		 * Keyword all has been specified, so list them all
-		 */
-		usy_traverse(Configs, list_cfg, TRUE, TRUE);
-		break;
-
-	default:
-		ui_error("(BUG): Unknown keyword: %d\n", UKEY(cmds[0]));
-	}
-
-}
 
 int
-list_cfg(name, type, v, junk)
-	char           *name;
-	int             type, junk;
-	union usy_value *v;
+list_cfg (struct is_config *cfg)
 /*
  * List out a single configuration.
  */
 {
 	int             i;
-	struct is_config *cfg = (struct is_config *) v->us_v_ptr;
 
-	ui_nf_printf("Config '%s':\n", name);
+	ui_nf_printf("Config '%s':\n", cfg->name);
 	ui_nf_printf("\ttimer:\t\t%c\n", cfg->timer ? 'T' : 'F');
 	ui_nf_printf("\tactive:\t\t%d\n", cfg->active);
 	ui_nf_printf("\trestart:\t%c\n", cfg->restart ? 'T' : 'F');
@@ -892,9 +773,22 @@ list_cfg(name, type, v, junk)
 	return (TRUE);
 }
 
+
+int 
+is_list (struct ui_command *cmds)
+{
+	struct is_config **cfg = parse_config_list (cmds);
+	while (cfg && *cfg)
+	{
+	    list_cfg (*cfg);
+	    ++cfg;
+	}
+	return 0;
+}
+
+
 void
-cfg_go(cfg)
-	struct is_config *cfg;
+cfg_go (struct is_config *cfg)
 {
 	int             i;
 #ifdef SVR4
@@ -1034,18 +928,52 @@ cfg_go(cfg)
 }
 
 
+int
+is_initial(int arg, struct ui_command *cmds)
+/*
+ * Deal with a ingest scheduler command.
+ */
+{
+	switch (UKEY(*cmds)) {
+	case ISC_CONFIG:
+		is_config(cmds + 1);
+		break;
+
+	case ISC_LIST:
+		is_list(cmds + 1);
+		break;
+
+	case ISC_START:
+		is_start(cmds + 1);
+		break;
+
+	case ISC_STOP:
+		is_stop(cmds + 1);
+		break;
+
+	case ISC_SHUTDOWN:
+		is_shutdown();
+		break;
+
+	case ISC_REDIRECT:
+		is_redirect(cmds + 1);
+		break;
+
+	case ISC_GROUP:
+		is_group(cmds + 1);
+		break;
+
+	default:
+		ui_warning ("(BUG): Unknown keyword: %d\n", UKEY(*cmds));
+	}
+	return (TRUE);
+}
+
+
 static int     exit_status;
 void
 sigchldHandler()
 {
-
-#ifdef SVR4
-	pid_t           pid;
-#else
-	int             pid;
-#endif
-	int             process_term();
-
 	/*
 	 * this handler is called when an ingestor terminates. Traverse the
 	 * Configs table. process_term() is called to check each pid
@@ -1058,16 +986,12 @@ sigchldHandler()
 	ui_printf("\rgot a sigchld\n");
 #endif
 
-	usy_traverse(Configs, process_term,
-		     0, FALSE);
+	usy_traverse(Configs, process_term, 0, FALSE);
 }
 
 
 int
-process_term(name, type, v, junk)
-	char           *name;
-	int             type, junk;
-	union usy_value *v;
+process_term(char *name, int type, union usy_value *v, int junk)
 
 /**
 
@@ -1080,7 +1004,6 @@ terminating. If it does matche, do the following:
 **/
 
 {
-	int             i;
 	struct is_config *cfg = (struct is_config *) v->us_v_ptr;
 	char           *ptr_proc;
 #ifdef SVR4
@@ -1274,13 +1197,16 @@ cfg_done(cfg)
 		 * certain conditions
 		 */
 		if (cfg->restart)
+                {
 			if (cfg->n_restarts++ < MAX_RESTARTS)
 				cfg_go(cfg);
-			else {
+			else
+                        {
 				msg_ELog(EF_PROBLEM,
 				      "%s has exceeded restart limit of %d",
 					 cfg->name, MAX_RESTARTS);
 			}
+                }
 		break;
 
 	default:
@@ -1342,13 +1268,8 @@ find_file(cfg)
 	 * information in the configurtion structure. return 1 if successful,
 	 * 0 otherwise.
 	 */
-
-
-	DIR            *d;
-	struct dirent  *e;
 	struct stat     buff;
 	struct stat    *buf = &buff;
-	char           *ct;
 	char            full_name[MAX_FILE_NAME];
 	time_t          file_t;
 	int             first = 1;
@@ -1451,10 +1372,10 @@ find_file(cfg)
 	}
 
 }
-init_cfg(cmds, cfg, name)
-	struct ui_command *cmds;
-	struct is_config *cfg;
-	char           *name;
+
+
+void
+init_cfg (struct ui_command *cmds, struct is_config *cfg, char *name)
 {
 
 	/*
