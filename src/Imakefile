@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.12 1995-01-26 21:25:35 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.13 1995-04-18 22:32:16 granger Exp $"
 
 #define IHaveSubdirs
 #define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
@@ -41,6 +41,9 @@ REALTIME = realtime
 #if BuildDataManager && DistributeDataManager
 DSMANAGE = dsmanage
 #endif
+#if BuildXHelp && DistributeXHelp
+XHELP = xhelp
+#endif
 
 
 /*
@@ -50,8 +53,9 @@ DSMANAGE = dsmanage
 SUBDIRS = $(LIBS) $(DATAUTIL) dm dsdelete dsdump dsprint dsdwidget \
 	$(DSMANAGE) dsrescan $(ETC) EventLogger fccclock gettime \
 	$(GP) $(INGEST) msg msg_ping mstatus mtap $(OPTIMIZER_DIR) \
-	pdmon prt_Notify $(REALTIME) settime Sound timer tweakcolor \
-	xhelp zstop zmon zquery zrun zstart
+	pdmon pdcheck prt_Notify $(REALTIME) settime Sound timer \ 
+	tweakcolor $(XHELP) xmgrpipe \
+	zstop zmon zquery zrun zstart
 
 DSCLIENTS = $(LIBS) dsdelete dsdump dsprint dsdwidget $(DSMANAGE) \
 	dsrescan $(GP) $(INGEST) $(OPTIMIZER_DIR) $(REALTIME)
@@ -59,7 +63,7 @@ DSCLIENTS = $(LIBS) dsdelete dsdump dsprint dsdwidget $(DSMANAGE) \
 DSUTILS = $(LIBS) dsdelete dsdump dsprint dsdwidget $(DSMANAGE) \
 	dsrescan $(REALTIME)
 
-MSGUTILS = $(ZEBLIB) msg msg_ping mstatus mtap zebstop zmon zquery zrun
+MSGUTILS = $(ZEBLIB) msg msg_ping mstatus mtap zstop zmon zquery zrun
 
 XCOMM Include everything in the distfiles target.  They
 XCOMM don't all have to be compiled, so no big deal sending along a little
@@ -81,13 +85,17 @@ DISTREALTIME = realtime
 #if DistributeDataManager
 DISTDSMANAGE = dsmanage
 #endif
+#if DistributeXHelp
+DISTXHELP = xhelp
+#endif
 
 DISTFILES = Imakefile
 DISTSUBDIRS = lib ds $(DISTDATAUTIL) dm dsdelete dsdump dsprint \
 	dsdwidget $(DISTDSMANAGE) dsrescan etc EventLogger fccclock \
 	gettime $(GP) $(DISTINGEST) msg msg_ping mstatus mtap \
-	$(DISTOPTIMIZER) pdmon prt_Notify $(DISTREALTIME) settime \
-	Sound timer tweakcolor xhelp zebstop zmon zquery zrun
+	$(DISTOPTIMIZER) pdmon pdcheck prt_Notify $(DISTREALTIME) settime \
+	Sound timer tweakcolor $(DISTXHELP) xmgrpipe \
+	zstop zmon zquery zrun zstart
 
 MakeSubdirs($(SUBDIRS))
 DependSubdirs($(SUBDIRS))
@@ -131,4 +139,8 @@ OmitBuildRules(real-time DataStore tools)
 
 #if !BuildDataManager
 OmitBuildRules(dsmanage)
+#endif
+
+#if !BuildXHelp
+OmitBuildRules(xhelp)
 #endif
