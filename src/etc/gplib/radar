@@ -3,6 +3,7 @@
 !
 require color-table
 require contour
+require simple-color
 
 
 define widget radar-middle intmenu 'radar middle'
