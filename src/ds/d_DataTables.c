@@ -27,7 +27,7 @@
 # include "dsPrivate.h"
 # include "commands.h"
 # include "dsDaemon.h"
-MAKE_RCSID("$Id: d_DataTables.c,v 3.9 1993-08-12 18:25:46 granger Exp $")
+MAKE_RCSID("$Id: d_DataTables.c,v 3.10 1993-09-02 08:22:41 granger Exp $")
 
 
 /*
@@ -277,14 +277,20 @@ dt_RemoveDFE (p, dfi)
 Platform *p;
 int dfi;
 /*
- * Remove this entry from the given platform and free it.
+ * Remove this entry from the given platform and free it.  Don't forget to
+ * send CacheInvalidate messages for all DFE's whose links we change.  This
+ * is why it is important to do all deletions from the DF chain through
+ * this function.  The notification of the removed DFE is presumably sent
+ * separately in a DataGone message.
  */
 {
 	DataFile *df = DFTable + dfi;
 
 	ClearLocks (p);
 /*
- * See if it is at the top of a list.
+ * See if it is at the top of a list.  Though the platform structure
+ * changes here, the client code is responsible for making sure the
+ * platform structure caches are up-to-date as needed.
  */
 	if (dfi == p->dp_LocalData)
 		p->dp_LocalData = df->df_FLink;
@@ -294,12 +300,18 @@ int dfi;
  * Nope.  Adjust backward links.
  */
 	else
+	{
 		DFTable[df->df_BLink].df_FLink = df->df_FLink;
+		CacheInvalidate ( df->df_BLink );
+	}
 /*
  * Now adjust the backward links of the following DFI, if there is one.
  */
 	if (df->df_FLink)
+	{
 		DFTable[df->df_FLink].df_BLink = df->df_BLink;
+		CacheInvalidate ( df->df_FLink );
+	}
 /*
  * The entry is now out of the chain.  Free it and we are done.
  */
