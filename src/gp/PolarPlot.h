@@ -12,7 +12,7 @@ typedef void *PPCookie;
 extern PPCookie pol_DisplaySetup (int project, int tfill);
 extern PPCookie pol_GridSetup (int, DestImage *, double, double, double,
 		double);
-extern void pol_PlotBeam (PPCookie, PolarBeam *, void *, int, int);
+extern void pol_PlotBeam (PPCookie, PolarBeam *, void *, float, float);
 extern void pol_Finished (PPCookie);	
 
 # ifdef __cplusplus

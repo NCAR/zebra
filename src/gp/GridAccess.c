@@ -37,7 +37,7 @@
 # include "PolarPlot.h"
 # endif
 
-MAKE_RCSID ("$Id: GridAccess.c,v 2.33 1998-04-27 21:44:42 corbet Exp $")
+MAKE_RCSID ("$Id: GridAccess.c,v 2.34 1998-05-04 19:51:34 corbet Exp $")
 
 # define DEG_TO_RAD(x)	((x)*0.017453292)
 # define KM_TO_DEG(x)	((x)*0.008982802) /* on a great circle */
@@ -55,8 +55,8 @@ static void 	ga_ImgToCGrid FP ((DataChunk **, FieldId));
 # if C_CAP_POLAR
 static void	ga_Rasterize FP ((char *, DataChunk **, FieldId));
 static void	ga_MkRastDest FP ((DataChunk *, FieldId, int, int,
-			DestImage **, PPCookie *pc, int *, int *, Location *,
-			RGrid *));
+			DestImage **, PPCookie *pc, float *, float *,
+			Location *, RGrid *));
 # endif
 static bool 	ga_DoNSpace FP ((DataChunk **, FieldId));
 static bool 	ga_NSSimpleGrid FP ((DataChunk **, FieldId));
@@ -340,12 +340,11 @@ ga_GetRastParams (char *comp, int *gratio, int *project, FieldId *fids,
 		int *ttest, float *tvalue)
 /*
  * Get the PD parameters we need to do this rasterization work.
- * "gratio" stands for "grid ratio", but let's consider it to be named in
- * honor of Debbie...what ever became of you, anyway?
  */
 {
 	char rep[80], tfield[80];
 	char *fname = F_GetName (fids[0]);
+	int enab;
 /*
  * Pull out the representation of this component.
  */
@@ -375,7 +374,10 @@ ga_GetRastParams (char *comp, int *gratio, int *project, FieldId *fids,
  * get away with this for now.  Someday it will break and you'll be mad
  * at me.
  */
-	if (pda_Search (Pd, comp, "threshold-field", fname, tfield,
+	if (! pda_Search (Pd, comp, "threshold", fname, (char *) &enab,
+			SYMT_BOOL))
+		enab = FALSE;
+	if (enab && pda_Search (Pd, comp, "threshold-field", fname, tfield,
 			SYMT_STRING))
 	{
 		fids[1] = F_Lookup (tfield);
@@ -403,14 +405,14 @@ ga_Rasterize (char *comp, DataChunk **dc, FieldId fid)
 {
 	DestImage *dest;
 	PPCookie pc;
-	int xradar, yradar, beam, row, rlen, gratio = 0, project = 0, ttest;
+	int beam, row, rlen, gratio = 0, project = 0, ttest;
 	RGrid rg;
 	Location origin;
 	SweepInfo sweep;
 	PolarBeam *pb;
 	DataChunk *gdc;
 	ZebTime when;
-	float *srcg, *dstg, tvalue;
+	float *srcg, *dstg, tvalue, xradar, yradar;
 	FieldId fids[2];
 /*
  * Pull out needed PD parameters.
@@ -485,7 +487,7 @@ ga_Rasterize (char *comp, DataChunk **dc, FieldId fid)
 static void
 ga_MkRastDest (DataChunk *dc, FieldId fid, int gratio, int project,
 		DestImage **dest,
-		PPCookie *pc, int *xradar, int *yradar, Location *origin,
+		PPCookie *pc, float *xradar, float *yradar, Location *origin,
 		RGrid *rg)
 /*
  * Create the destination grid for this rasterization.  This grid, it may
@@ -539,16 +541,17 @@ ga_MkRastDest (DataChunk *dc, FieldId fid, int gratio, int project,
 /*
  * Radar and origin positions...
  */
-	*xradar = rint ((rxkm - XUSER (0))*pixPerKm);
-	*yradar = rint ((YUSER (0) - rykm)*pixPerKm) - 1;
+	*xradar = (rxkm - XUSER (0))*pixPerKm;
+	*yradar = (YUSER (0) - rykm)*pixPerKm - 1;
 	prj_Reverse (XUSER (0), YUSER (GWHeight (Graphics) - 1),
 			&origin->l_lat, &origin->l_lon);
-
+# ifdef GRDEBUG
 	msg_ELog (EF_INFO,
 		      "Grid res %dx%d, sp %.1f %.1f orig %.1f %.1f, ppkm %.2f",
 			rg->rg_nX, rg->rg_nY, rg->rg_Xspacing, rg->rg_Yspacing,
 			origin->l_lat, origin->l_lon, pixPerKm);
 	msg_ELog (EF_INFO, "Radar at %d %d", *xradar, *yradar);
+# endif
 /*
  * Now that we've figured out what we want, it's time to create the actual
  * grid.

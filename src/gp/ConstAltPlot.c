@@ -55,7 +55,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.72 1998-04-27 21:44:38 corbet Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.73 1998-05-04 19:51:31 corbet Exp $")
 
 
 /*
@@ -2379,7 +2379,7 @@ CAP_PolarParams (char *c, char *platform, PlatformId *pid, FieldId *fids,
  * Grab all of the PD parameters controlling polar plots.
  */
 {
-	int ok;
+	int ok, enab = 0;
 	char cparam[120], fname[40], param[40];
 /*
  * Platform info.
@@ -2395,7 +2395,13 @@ CAP_PolarParams (char *c, char *platform, PlatformId *pid, FieldId *fids,
  */
 	ok &= pda_ReqSearch (Pd, c, "field", NULL, fname, SYMT_STRING);
 	fids[0] = F_Lookup (fname);
-	if (pda_Search (Pd, c, "threshold-field", fname, cparam, SYMT_STRING))
+/*
+ * Are we doing thresholding?
+ */
+	if (! pda_Search (Pd, c, "threshold", fname, (char *) &enab,SYMT_BOOL))
+		enab = FALSE;
+	if (enab && pda_Search (Pd, c, "threshold-field", fname, cparam,
+			SYMT_STRING))
 	{
 		fids[1] = F_Lookup (cparam);
 		*nfids = 2;

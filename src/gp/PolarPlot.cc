@@ -82,8 +82,8 @@ private:
 // We put the radar location here, since it may differ from one scan to
 // the next, when the scan mode changes.
 //
-	int sp_Xradar;
-	int sp_Yradar;
+	float sp_Xradar;
+	float sp_Yradar;
 	int sp_NGates;
 //
 // How much physical distance is covered by a pixel.
@@ -163,7 +163,7 @@ private:
 public:
 	ScanConverter (DestImage *dest, double, double, double, double, int,
 			int);
-	void DoBeam (PolarBeam *pb, void *data, int xr, int yr);
+	void DoBeam (PolarBeam *pb, void *data, float xr, float yr);
 	
 	DestImage *getDest () { return sc_Dest; };
 };
@@ -200,7 +200,7 @@ ScanConverter::ScanConverter (DestImage *dest, double xlo, double ylo,
 
 
 void
-ScanConverter::DoBeam (PolarBeam *pb, void *data, int xr, int yr)
+ScanConverter::DoBeam (PolarBeam *pb, void *data, float xr, float yr)
 //
 // Actually convert a beam of data.
 //
@@ -376,7 +376,8 @@ ScanConverter::Setup (PolarBeam *pb)
 // This is something we need to do when the intersection edge and the 
 // rasterization have the same direction.
 //
-	sp_CFill = sp_DoTFill && (closeints[0].vertical == sp_Vertical);
+	sp_CFill = sp_DoTFill && (closeints[0].vertical == sp_Vertical) &&
+		closeints[0].range > 0;
 	sp_FFill = sp_DoTFill && (farints[0].vertical == sp_Vertical);
 //
 // Convert the ranges to the intersections into gates.  If the closest 
@@ -723,7 +724,7 @@ ScanConverter::SetPixel (int x, int y, unsigned int v)
 	if (x < 0 || x >= sc_Dest->di_w || y < 0 || y >= sc_Dest->di_h)
 		return (FALSE);
 	void *vp = sc_Dest->di_image + sc_Dest->di_ioffset +
-		sc_Dest->di_bpl*x + sc_Dest->di_bdepth*y;
+		sc_Dest->di_bpl*y + sc_Dest->di_bdepth*x;
 	switch (sc_Dest->di_bdepth)
 	{
 	    case 1:
@@ -766,7 +767,7 @@ ScanConverter::TFillR (int dir, int row, float col1, float col2, float gate,
 		{
 			if (gc >= sp_NGates)
 				break;
-			set |= SetPixel (row, col, vdata[(int) gc]);
+			set |= SetPixel (col, row, vdata[(int) gc]);
 			gc += sp_colinc;
 		}
 	}
@@ -797,7 +798,7 @@ ScanConverter::TFillC (int dir, int col, float row1, float row2, float gate,
 		{
 			if (gc >= sp_NGates)
 				break;
-			set |= SetPixel (row, col, vdata[(int) gc]);
+			set |= SetPixel (col, row, vdata[(int) gc]);
 			gc += sp_rowinc;
 		}
 	}
@@ -822,7 +823,7 @@ ScanConverter::PFill_1_R (void *vdata)
 	FakeFloat gate_col;	
 	FakeFloat col_inc = sp_colinc;
 	FakeFloat row_inc = sp_rowinc;
-	FakeFloat left = sp_minor1 + 1;
+	FakeFloat left = sp_minor1 /* + 1 */;
 	FakeFloat right = sp_minor2;
 	FakeFloat left_inc = sp_inc1;
 	FakeFloat right_inc = sp_inc2;
@@ -880,7 +881,7 @@ ScanConverter::PFill_1_C (void *vdata)
 	FakeFloat gate_row;
 	FakeFloat row_inc = sp_rowinc;
 	FakeFloat col_inc = sp_colinc;
-	FakeFloat top = sp_minor1 + 1;
+	FakeFloat top = sp_minor1 /* + 1 */;
 	FakeFloat bottom = sp_minor2;
 	FakeFloat top_inc = sp_inc1;
 	FakeFloat bottom_inc = sp_inc2;
@@ -939,7 +940,7 @@ ScanConverter::PFill_2_R (void *vdata)
 	FakeFloat gate_col;	
 	FakeFloat col_inc = sp_colinc;
 	FakeFloat row_inc = sp_rowinc;
-	FakeFloat left = sp_minor1 + 1;
+	FakeFloat left = sp_minor1 /*+ 1*/ ;
 	FakeFloat right = sp_minor2;
 	FakeFloat left_inc = sp_inc1;
 	FakeFloat right_inc = sp_inc2;
@@ -999,7 +1000,7 @@ ScanConverter::PFill_2_C (void *vdata)
 	FakeFloat gate_row;
 	FakeFloat row_inc = sp_rowinc;
 	FakeFloat col_inc = sp_colinc;
-	FakeFloat top = sp_minor1 + 1;
+	FakeFloat top = sp_minor1 /* + 1 */;
 	FakeFloat bottom = sp_minor2;
 	FakeFloat top_inc = sp_inc1;
 	FakeFloat bottom_inc = sp_inc2;
@@ -1056,7 +1057,7 @@ ScanConverter::PFill_4_R (void *vdata)
 	FakeFloat gate_col;	
 	FakeFloat col_inc = sp_colinc;
 	FakeFloat row_inc = sp_rowinc;
-	FakeFloat left = sp_minor1 + 1;
+	FakeFloat left = sp_minor1 /* + 1 */;
 	FakeFloat right = sp_minor2;
 	FakeFloat left_inc = sp_inc1;
 	FakeFloat right_inc = sp_inc2;
@@ -1116,7 +1117,7 @@ ScanConverter::PFill_4_C (void *vdata)
 	FakeFloat gate_row;
 	FakeFloat row_inc = sp_rowinc;
 	FakeFloat col_inc = sp_colinc;
-	FakeFloat top = sp_minor1 + 1;
+	FakeFloat top = sp_minor1 /*+ 1 */;
 	FakeFloat bottom = sp_minor2;
 	FakeFloat top_inc = sp_inc1;
 	FakeFloat bottom_inc = sp_inc2;
@@ -1207,7 +1208,7 @@ pol_GridSetup (int project, DestImage *di, double xlo, double ylo, double xhi,
 
 
 extern "C" void
-pol_PlotBeam (PPCookie pc, PolarBeam *pb, void *data, int xr, int yr)
+pol_PlotBeam (PPCookie pc, PolarBeam *pb, void *data, float xr, float yr)
 //
 // Plot this beam.  Data comes in as a separate pointer so that it
 // can be optionally munged by the caller before plotting.
