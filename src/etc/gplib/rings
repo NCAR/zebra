@@ -6,7 +6,7 @@
 ! Default placeholder origin menu in case they haven't defined one of their
 ! own.
 !
-set wname 'rings-origin'
+set wname 'rings-origins'
 if (defined (concat ('ui$widget_table:', wname)))
 	set wname concat('default-',wname)
 endif
