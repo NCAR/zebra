@@ -1,5 +1,5 @@
 /*
- * $Id: Logger.hh,v 1.1 1997-08-01 19:34:28 granger Exp $
+ * $Id: Logger.hh,v 1.2 1997-11-24 10:41:39 granger Exp $
  *
  * Class for reporting error and log messages, which can be conveniently
  * subclassed to log messages through different facilities.  A subclass
@@ -17,9 +17,30 @@
 #define _Logger_hh_
 
 #include <iostream.h>
-#include <stdarg.h>
+#include <strstream.h>
 #include <string.h>		// for strerror()
 #include <errno.h>
+
+
+
+/* NOTES
+
+   Add methods for registering entrance and exit from routines or
+   components, possibly taking advantage of automatic variables so that
+   we're not messed up by exceptions.  Perhaps a method also for just
+   announcing "i was reached" or "i am done."
+   
+   Allow selection of messages to be logged with a predicate function which
+   matches the message string, level, or "stack trace".  After compiling
+   the stack, message, and level of the log event, pass to a single method
+   which subclasses can easily override for directing the output.
+
+   Allow a global "default" logger?  Create a logger hierarchy so that log
+   messages to one logger can be passed back up the tree, possibly to
+   loggers with different behaviors or selection criteria.
+
+   */
+   
 
 class Logger
 {
@@ -50,37 +71,23 @@ public:
 		return ("None");
 	}
 
-	// Log a va_list of printf format arguments.
+	// Log a message at the given level.
 	// This is the method to override in subclasses.
 
-	virtual void Log (int levels, const char *s, va_list vl)
+	virtual void Log (int levels, const char *s)
 	{
-		char sbuf[1024];
-		vsprintf (sbuf, s, vl);
 		if (name)
 			cerr << name << ": ";
-		cerr << levelName(levels) << ": " << sbuf << endl;
-	}
-
-	// Log a message using printf formatting at particular levels
-	virtual void Log (int levels, const char *s ...)
-	{
-		va_list vl;
-		va_start (vl, s);
-		Log (levels, s, vl);
-		va_end (vl);
+		cerr << levelName(levels) << ": " << s << endl;
 	}
 
 #define LOG_METHOD(name,level) \
-	virtual void name (const char *s, ...) \
+	virtual void name (const char *s) \
 	{ \
-		va_list vl; \
-		va_start (vl, s); \
-		Log (level, s, vl); \
-		va_end (vl); \
+		Log (level, s); \
 	}
 
-	// Log printf formatted message at PROBLEM/ERROR level
+	// Log messages at PROBLEM/ERROR level
 	LOG_METHOD(Error,ERROR);
 	LOG_METHOD(Problem,PROBLEM);
 
@@ -97,14 +104,12 @@ public:
 	LOG_METHOD(Develop,DEVELOP);
 
 	// Log system error messages
-	virtual void System (const char *s ...)
+	virtual void System (const char *s)
 	{
-		char buf[1024];
-		va_list vl;
-		va_start (vl, s);
-		vsprintf (buf, s, vl);
-		Problem ("'%s' (%d): %s", strerror(errno), errno, buf);
-		va_end (vl);
+		ostrstream buf;
+		buf << "'" << strerror(errno) << "' (" << errno << "): ";
+		buf << s;
+		Problem (buf.str());
 	}
 
 	Logger ()
@@ -118,20 +123,7 @@ public:
 		strcpy (this->name, name);
 	}
 
-#ifdef notdef
-	Logger (const char *name = NULL)
-	{
-		if (name)
-		{
-			this->name = (char *) malloc (strlen(name) + 1);
-			strcpy (this->name, name);
-		}
-		else
-			this->name = NULL;
-	}
-#endif
-
-	~Logger ()
+	virtual ~Logger ()
 	{
 		if (name)
 			free (name);
@@ -146,7 +138,7 @@ protected:
 
 class NullLogger : public Logger
 {
-	virtual void Log (int levels, const char *s, va_list vl)
+	virtual void Log (int /*levels*/, const char *)
 	{
 
 	}
