@@ -1,7 +1,6 @@
 /*
  * Basic parsing stuff.
  */
-static char *rcsid = "$Id: Parse.c,v 2.2 1993-10-07 16:06:28 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -21,6 +20,8 @@ static char *rcsid = "$Id: Parse.c,v 2.2 1993-10-07 16:06:28 corbet Exp $";
  */
 
 # include "defs.h"
+
+RCSID("$Id: Parse.c,v 2.3 1995-04-15 00:12:17 granger Exp $")
 
 int
 CommaParse (string, substrings)
