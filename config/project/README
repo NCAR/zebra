@@ -1,45 +1,85 @@
-This directory holds the Zeb-specific include files for Imake and
-the configuration file 'config.h' which is included by the source
-files.  As long as this directory is listed first on imake's list
-of include directories, the files here will override any other
-imake include files.  Hence you can use either the imake distributed
-with Zeb (which is just an exact copy of the MIT X11 distribution),
-or you can use a previously installed imake.
+This directory holds the Zeb-specific include files for Imake and the
+configuration file 'config.h' which is included by both source files and
+Imakefiles.  As long as this directory is listed first on imake's list of
+include directories, the files here will override any other imake include
+files.
 
 Files:
 ======
 
-Zeb.rules:	Unique Zeb Makefile rules and re-definitions of 
-		some of the rule definitions in Imake.rules.
+Zebra.rules:    Unique Zebra Makefile rules, and a few re-definitions of
+		some of the rules in Imake.rules.  As of X11R6,
+		Imake.tmpl includes Project.tmpl AFTER Imake.rules,
+		so the definitions in Zebra.rules must first undef
+		any macros which need to be redefined.  Rules
+		specific to the Zebra distribution are given unique
+		names so as not to conflict with the usual Imake
+		rules.
 
-Project.tmpl:	Unique Zeb make(1) variables and definitions which
-		are defaulted here.  This file includes the Zeb.rules
-		file and the config.h file.  
+Project.tmpl:   Zebra make variables and definitions are given defaults
+		here.  This file includes the Zebra.rules file and
+		the config.h file.
 
-config.h:	The user-configurable file which defines certain
-		choices and configurations available to the
-		Zeb installer.  This file is included when creating
-		Makefiles and by source files.  Stable copies are
-		installed in $(TOP)/include for inclusion by 
-		source files.
+Build.tmpl:	A template file which replaces config.h and makes automatic
+		decisions about symbol definitions according to the system
+		architecture.  Project.tmpl includes Build.tmpl instead of
+		config.h when AutoBuild has been defined.
+
+site.def:	The site default file included by Imake.tmpl.  The Zebra 
+		project uses this file to include Zebra's config.h.
+		Site-specific customizations are made in config.h rather
+		than site.def.
+
+config.h:       The user-configurable file which defines certain choices
+		and configurations available to the Zebra installer.
+		This file is included when creating Makefiles and by
+		source files.  Stable copies are installed in
+		$(TOP)/include for inclusion by source files.
+
+config.h.dist:	A copy of config.h as it is distributed.  Overwrite config.h
+		with config.h.dist to start a configuration from scratch.
 
 README:		This file.
 
-README.imake:	Describes the ../imake directory and its role in this
-		distribution.
-
-Imakefile.imake: A modified copy of the ../imake directory's Imakefile.
-		 See README.imake.
-
-Zeb-Imake.doc:	A guide to imake and its use in the Zeb distribution.
+Zebra-Imake.doc:
+appendix.doc:
+		A guide to imake and its use in the Zebra distribution.  It
+		certainly is not up to date and probably even wrong in places.
 
 Xosdefs.h:	An X11 include file required by imake; it is included
 		directly from this directory when imake is compiled.
 
-site.def:	A site-specific configuration file for overriding some
-		of Imake's definitions in Imake.tmpl and <machine>.cf
-		files.  See Zeb-Imake.doc.
+Imakefile:	The Imakefile for this directory.  Basically it installs the
+		config.h and version.h files into the include directory.
 
-Imakefile:	The Imakefile for this directory.  It just installs the
-		config.h file into the build include directory.
+Differences from X11R6:
+=======================
+
+The config/imake directory holds the source for imake as distributed with the
+MIT X11 release 6.  Zebra-specific rules and templates for imake are
+included from the config/project directory (this directory).  The project
+directory must be given first in Imake's include path.  As of release 6,
+the .cf config files for different platforms are kept separate from the
+imake source in the config/cf directory.  Local modifications to the settings
+in a .cf file can be made in the project-specific config.h file in this
+directory (config/project).  The config.h file is included by both source 
+files and Imakefiles.  Imakefiles get it since Imake.tmpl includes site.def,
+and config/project/site.def includes config.h.
+
+There have been a few modifications to the files in the config/imake and
+config/cf directory, so these directories are NOT exact replicas of the
+X11R6 distribution.  The Imakefiles in config/imake and config/cf have been
+modified to include a distfiles:: target for distributing the
+necessary files.  In addition, the install targets have been removed
+from config/cf/Imakefile, so that the config files will not be installed.
+
+Lastly, the config/cf directory does not contain a Project.tmpl file so
+that a 'make Makefiles' in config/cf will include Zebra's Project.tmpl
+file in config/project rather than X11's template file.
+
+Except for the differences noted above, the config/cf and config/imake
+directories should be identical to the corresponding directories in
+MIT X11R6, xc/config/cf and xc/config/imake.  In particular, none of the
+vendor cf, library templates, or rules files have been changed.
+
 
