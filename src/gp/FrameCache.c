@@ -28,12 +28,11 @@
 # include <DataStore.h>
 # include "GraphProc.h"
 # include "GraphicsW.h"
-MAKE_RCSID ("$Id: FrameCache.c,v 2.6 1992-07-22 16:18:14 kris Exp $")
+MAKE_RCSID ("$Id: FrameCache.c,v 2.7 1992-11-02 22:02:19 burghart Exp $")
 
 # define BFLEN		500
 # define FLEN		40
 # define PLEN		1024
-# define OLEN		1024
 # define PMODE		0666
 # define InvalidEntry	-1
 # define FREE		-2
@@ -65,9 +64,8 @@ static struct FrameCache
 	bool	fc_valid;	/* Is this frame valid?			*/
 	bool	fc_inmem;  	/* Is this frame in memory? 	*/
 	int	fc_index;  /* pixmap index if in memory file offset if in*/
-                           /* FrameFile                                  */
-	char	fc_info[OLEN];	/* Holds info about the frame.  Used by */
-				/* the overlay widget.		        */
+                           /* FrameFile                                 */
+	char	*fc_info;	/* Overlay time info string		*/
 } FCache[NCACHE];
 
 
@@ -96,7 +94,7 @@ void		fc_InitFrameCache FP ((void));
 void		fc_InvalidateCache FP ((void));
 void		fc_CreateFrameFile FP ((void));
 void		fc_AddFrame FP ((ZebTime *, int));
-int		fc_LookupFrame FP ((ZebTime *));
+int		fc_LookupFrame FP ((ZebTime *, char **));
 int		fc_GetFrame FP ((void));
 void		fc_MarkFrames FP ((ZebTime *, int));
 void		fc_UnMarkFrames FP ((void));
@@ -107,7 +105,6 @@ static int	fc_GetFreeFile FP ((void));
 static int	fc_GetFreeFrame FP ((void)); 
 static int	fc_GetFreePixmap FP ((void));
 void		fc_SetNumFrames FP ((int));
-char		*fc_GetInfo FP ((int));
 static int	fc_SetPFPairs FP ((char **, PF_Pair **));
 static int	fc_ComparePairs FP ((PF_Pair *, int, PF_Pair *, int));
 
@@ -122,7 +119,8 @@ fc_InitFrameCache ()
 
 	for (i = 0; i < NCACHE; i++)
 	{
-		FCache[i].fc_pairs = NULL;		
+		FCache[i].fc_pairs = NULL;
+		FCache[i].fc_info = NULL;
 	}
 
 	fc_InvalidateCache ();
@@ -150,6 +148,11 @@ fc_InvalidateCache ()
 		{
 			free (FCache[i].fc_pairs);
 			FCache[i].fc_pairs = NULL;
+		}
+		if (FCache[i].fc_info)
+		{
+			free (FCache[i].fc_info);
+			FCache[i].fc_info = NULL;
 		}
 		BufferTable[i] = FREE;
 		FreePixmaps[i] = InvalidEntry;
@@ -202,7 +205,7 @@ int number;
  * Add this frame to the cache.  <number> is the pixmap index of this frame.
  */
 {
-	char **complist;
+	char **complist, *info;
 	int findex;
 /*
  * Sanity checking.
@@ -247,6 +250,12 @@ int number;
  */
 	FCache[findex].fc_numpairs = fc_SetPFPairs (complist, 
 		&FCache[findex].fc_pairs);
+/*
+ * Get overlay time info from the overlay time widget
+ */
+	info = lw_Status ();
+	FCache[findex].fc_info = (char *) malloc (strlen (info) + 1);
+	strcpy (FCache[findex].fc_info, info);
 /*
  * Everything else.
  */
@@ -354,11 +363,12 @@ int	nump1, nump2;
 
 
 int
-fc_LookupFrame (when)
+fc_LookupFrame (when, info_return)
 ZebTime	*when;
+char **info_return;
 /*
  * Try to find a cache entry that matches PD at this time and return its
- * pixmap index.
+ * pixmap index.  Return the overlay times info too.
  */
 {
 	int	i, pindex, flag, numpairs;
@@ -411,6 +421,7 @@ ZebTime	*when;
 		else 
 			pindex = FCache[i].fc_index;
 		if (pairs) free (pairs);
+		*info_return = FCache[i].fc_info;
 	    	return (pindex);
 	    }
 	}
@@ -646,7 +657,6 @@ int frame;
 		if(image) XDestroyImage(image);		
 		return(FALSE);
 	}
-
 /*  
  *  Transfer frame data from pixmap into the FrameFile using shared memory
  *  pixmaps if possible.
@@ -822,33 +832,6 @@ fc_PrintCache ()
 				FCache[i].fc_inmem, FCache[i].fc_index);
 }
 
-
-char *
-fc_GetInfo (index)
-int index;
-/*
- *  index is the pixmap index.  Get the FCache index and return the
- *  string in fc_info.
- */
-{
-	int findex;
-
-/*  
- *  Get the frame index from the pixmap index.
- */
-	findex = FreePixmaps[index];
-	if(findex == FREE || findex == InvalidEntry)
-	{
-		msg_ELog(EF_PROBLEM, "Can't get info for pixmap %d.", index);
-		return (NULL);
-	}
-
-/*
- *  Return the info.
- */
-	return(usy_string(FCache[findex].fc_info));
-}
-	
 
 static int
 fc_GetFreeFile ()
