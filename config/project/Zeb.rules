@@ -1,5 +1,5 @@
 XCOMM
-XCOMM $Id: Zeb.rules,v 1.3 1993-03-24 22:41:41 granger Exp $
+XCOMM $Id: Zeb.rules,v 1.4 1993-05-06 05:41:09 granger Exp $
 XCOMM
 XCOMM Rules specific to the Zeb project, including some which override
 XCOMM definitions in Imake.rules
@@ -297,14 +297,24 @@ Concat(osaber_,program):: objlist					@@\
 #define HasSaberC NO
 
 
+/*-----------------------------------------------------------------------
+ * The next several rules re-define the install rules in Imake.rules
+ * to provide targets of the form install.<target file> whose rules
+ * install only the particular file.  These rules are in turn invoked in
+ * the definitions of larger rules.
+ *-----------------------------------------------------------------------*/
 /*
  * InstallShellScriptDest -- Install a shell script of the form program.shell
  * into dest and call it 'program', giving it $(INSTPGMFLAGS)
  * permissions
  */
+#ifndef InstallShellScriptDest
 #define InstallShellScriptDest(program,shell,dest)			@@\
-install:: program.shell							@@\
+install:: install.program						@@\
+									@@\
+install.program: program.shell						@@\
 	$(INSTALL) -c $(INSTPGMFLAGS) program.shell dest/program
+#endif
 
 
 /*
@@ -313,6 +323,86 @@ install:: program.shell							@@\
  */
 #define InstallShellScript(program,shell)				@@\
 InstallShellScriptDest(program,shell,$(BINDIR))
+
+
+/*
+ * InstallProgramWithFlags - generate rules to install an executable program
+ * using given install flags.  Changes Imake.rules by adding the
+ * install.<program name> target for installing a specific program.
+ */
+#ifndef InstallProgramWithFlags
+#define InstallProgramWithFlags(program,dest,flags)			@@\
+install:: install.program						@@\
+									@@\
+install.program: program						@@\
+	MakeDir($(DESTDIR)dest)						@@\
+	$(INSTALL) -c $(INSTPGMFLAGS) flags program $(DESTDIR)dest
+#endif /* InstallProgramWithFlags */
+
+/*
+ * InstallNamedNonExec - generate rules to install a data file
+ */
+#ifndef InstallNamedNonExec
+#define	InstallNamedNonExec(srcname,dstname,dest)			@@\
+install:: install.dstname						@@\
+									@@\
+install.dstname: srcname						@@\
+	MakeDir($(DESTDIR)dest)						@@\
+	$(INSTALL) -c $(INSTDATFLAGS) srcname $(DESTDIR)dest/dstname
+#endif /* InstallNamedNonExec */
+
+
+/*
+ * InstallNonExecFile - generate rules to install a data file
+ */
+#ifndef InstallNonExecFile
+#define	InstallNonExecFile(file,dest)					@@\
+install:: install.file							@@\
+									@@\
+install.file: file							@@\
+	MakeDir($(DESTDIR)dest)						@@\
+	$(INSTALL) -c $(INSTDATFLAGS) file $(DESTDIR)dest
+#endif /* InstallNonExecFile */
+
+
+/*
+ * InstallNonExec - generate rules to install a data file, but does not
+ * try to create the destination directory (deprecated)
+ */
+#ifndef InstallNonExec
+#define	InstallNonExec(file,dest)					@@\
+install:: install.file							@@\
+									@@\
+install.file: file							@@\
+	$(INSTALL) -c $(INSTDATFLAGS) file $(DESTDIR)dest
+#endif /* InstallNonExec */
+
+
+/*
+ * InstallScript - install a shell script.
+ */
+#ifndef InstallScript
+#define	InstallScript(program,dest)					@@\
+install:: install.program						@@\
+									@@\
+install.program: program.script						@@\
+	MakeDir($(DESTDIR)dest)						@@\
+	$(INSTALL) -c $(INSTBINFLAGS) program.script $(DESTDIR)dest/program
+#endif /* InstallScript */
+
+
+/*
+ * InstallNamedProg - install a program with renaming and no stripping.
+ */
+#ifndef InstallNamedProg
+#define	InstallNamedProg(srcname,dstname,dest)				@@\
+install:: install.dstname						@@\
+									@@\
+install.dstname: srcname						@@\
+	MakeDir($(DESTDIR)dest)						@@\
+	$(INSTALL) -c $(INSTBINFLAGS) srcname $(DESTDIR)dest/dstname
+#endif /* InstallNamedProg */
+
 
 
 /* This overrides the definition in Imake.rules! It adds program to all target
