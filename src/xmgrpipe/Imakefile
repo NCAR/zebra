@@ -1,5 +1,5 @@
 /*
- * Imakefile for the data store dumper
+ * Imakefile for the ds<-->ace/gr pipe interface
  */
 
 SRCS = xmgrpipe.c
@@ -7,9 +7,10 @@ OBJS = xmgrpipe.o
 
 DEPLIBS = $(LIBZEB) $(LIBZEBDS)
 LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
+SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 DISTFILES = $(SRCS) Imakefile
 
-NormalProgramTarget(xmgrpipe, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+CompleteProgramTarget(xmgrpipe, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 DistfilesTarget($(DISTFILES))
 DependTarget ()
 LintTarget()

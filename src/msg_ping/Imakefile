@@ -5,6 +5,6 @@ OBJS = msg_ping.o
 LIBS = $(LIBZEB) $(LIBRDSS)
 DISTFILES = $(SRCS) Imakefile
 
-NormalProgramTarget(msg_ping, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+CompleteProgramTarget(msg_ping, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 DependTarget()
 DistfilesTarget($(DISTFILES))

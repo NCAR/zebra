@@ -1,11 +1,12 @@
 /*
- * Imakefile for the data store dumper
+ * Imakefile for the pseudo-real-time notifier
  */
 
 SRCS = prt_Notify.c
 OBJS = prt_Notify.o
 
 LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF)
+SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
 INCLUDES = -I$(TOP)/src/ds
 
@@ -13,7 +14,7 @@ all::
 
 install::
 
-NormalProgramTarget(prt_Notify, $(OBJS), $(DEPLIBS), $(LIBS), /**/)
+CompleteProgramTarget(prt_Notify, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 DependTarget ()
 
 DISTFILES = $(SRCS) Imakefile

@@ -5,7 +5,7 @@ OBJS = zstop.o
 LIBS = $(LIBZEB) $(LIBRDSS)
 DISTFILES = $(SRCS) Imakefile
 
-NormalProgramTarget(zstop, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+CompleteProgramTarget(zstop, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 DistfilesTarget($(DISTFILES))
 DependTarget()
 LintTarget()

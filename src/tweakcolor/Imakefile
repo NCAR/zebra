@@ -2,10 +2,10 @@
 SRCS = tweakcolor.c
 OBJS = tweakcolor.o
 
-LIBS = $(LIBZEB) $(LIBRDSS) $(XLIBS)
+LIBS = $(XLIBS)
 DISTFILES = $(SRCS) Imakefile
 
-NormalProgramTarget(tweakcolor, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+CompleteProgramTarget(tweakcolor, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 DistfilesTarget($(DISTFILES))
 DependTarget()
 LintTarget()

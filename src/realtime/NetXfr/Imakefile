@@ -7,11 +7,12 @@ OBJS = NetXfr.o nx_BCast.o nx_DirImage.o nx_PktGrabber.o
 
 HEADERS = NetXfr.h
 
-LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS) $(LIBREGEXP)
+LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
+SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
 DISTFILES = $(SRCS) $(HEADERS) Imakefile NetXfr.state
 
-NormalProgramTarget(NetXfr, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+CompleteProgramTarget(NetXfr, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 UILoadFileTarget(NetXfr.lf, NetXfr.state)
 DependTarget()
 LintTarget()

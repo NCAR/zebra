@@ -6,10 +6,11 @@ SRCS = message.c
 OBJS = message.o
 
 LIBS = $(LIBZEB) $(LIBRDSS)
+SYSLIBS = $(LIBREGEXP)
 
 DISTFILES = Imakefile $(SRCS)
 
-NormalProgramTarget(message, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+CompleteProgramTarget(message, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 
 DependTarget()
 LintTarget()

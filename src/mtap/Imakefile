@@ -8,7 +8,7 @@ DSDIR = $(TOP)/src/ds
 DSINCLUDES = -I$(DSDIR)
 INCLUDES = $(DSINCLUDES)
 
-NormalProgramTarget(mtap, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+CompleteProgramTarget(mtap, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 DistfilesTarget($(DISTFILES))
 DependTarget()
 LintTarget()

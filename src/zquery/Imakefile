@@ -6,7 +6,7 @@ LIBS = $(LIBZEB) $(LIBRDSS)
 
 DISTFILES = Imakefile $(SRCS)
 
-NormalProgramTarget(zquery, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+CompleteProgramTarget(zquery, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 
 DependTarget()
 LintTarget()

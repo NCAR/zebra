@@ -10,7 +10,7 @@ LIBS = $(LIBZEB)
 
 DISTFILES = Imakefile $(SRCS)
 
-NormalProgramTarget(zrun, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+CompleteProgramTarget(zrun, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 
 DependTarget()
 LintTarget()

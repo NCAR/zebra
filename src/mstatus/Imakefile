@@ -5,7 +5,7 @@ OBJS = mstatus.o
 LIBS = $(LIBZEB) $(LIBRDSS)
 DISTFILES = $(SRCS) Imakefile
 
-NormalProgramTarget(mstatus, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+CompleteProgramTarget(mstatus, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 LintTarget()
 DependTarget()
 DistfilesTarget($(DISTFILES))

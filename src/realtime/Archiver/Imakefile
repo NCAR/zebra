@@ -3,9 +3,10 @@ SRCS = Archiver.c
 OBJS = Archiver.o
 
 LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS) $(LIBREGEXP)
+SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 DISTFILES = $(SRCS) Imakefile Archiver.ad
 
-NormalProgramTarget(Archiver, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+CompleteProgramTarget(Archiver, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 InstallAppDefaults(Archiver)
 DependTarget()
 LintTarget()

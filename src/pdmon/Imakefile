@@ -17,7 +17,7 @@ DISTFILES = $(SRCS) $(HEADERS) $(ELISPFILES) Imakefile
  * and install just in case someone decides to run with the non-compiled
  * elisp files.
  */
-NormalProgramTarget(pdmon, $(OBJS), $(DEPLIBS), $(LIBS), /**/)
+CompleteProgramTarget(pdmon, $(OBJS), $(DEPLIBS), $(LIBS), /**/)
 BuildIncludes (pdmon.h,.,.)
 
 #if HaveEmacs

@@ -3,17 +3,18 @@ PROG = pdcheck
 SRCS = pdcheck.c
 OBJS = pdcheck.o
 
-UI = /rdss/ui
-RDSSOBJS = $(UI)/ui_symbol.o $(UI)/ui_string.o $(UI)/ui_error.o \
-	   $(UI)/ui_expr.o $(UI)/ui_types.o $(UI)/ui_parser.o \
-	   $(UI)/ui_date.o $(UI)/ui_token.o $(UI)/ui_globals.o \
-	   $(UI)/ui_OutHook.o $(UI)/ui_state.o $(UI)/ui_tty.o \
-	   $(UI)/ui_output.o $(UI)/ui_cstack.o $(UI)/ui_function.o \
-	   $(UI)/ui_util.o $(UI)/ui_keys.o $(UI)/ui_cmds.o
-#LIBS = $(LIBZEB) /*$(LIBRDSS)*/ $(RDSSOBJS) /locallib/librdssutil.a
 LIBS = $(LIBZEB) $(LIBRDSS)
 DISTFILES = $(SRCS) Imakefile
+SYSLIBS = $(LIBREGEXP)
 
-NormalProgramTarget($(PROG), $(OBJS), $(DEPLIBS), $(LIBS), /**/)
+CompleteProgramTarget($(PROG), $(OBJS), $(DEPLIBS), $(LIBS), $(LIBREGEXP))
 DependTarget()
 DistfilesTarget($(DISTFILES))
+
+/*
+ * The ?* is necessary else it looks like a comment to cpp
+ */
+PDFILES = $(TOP)/src/etc/pd/?*.pd
+
+RunTestProgram(pdcheck,plot descriptions,./pdcheck -test $(PDFILES))
+
