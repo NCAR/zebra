@@ -1,7 +1,7 @@
 !
 ! Display manager widgets.
 !
-! $Id: dm.widgets,v 1.31 1999-05-24 18:39:39 burghart Exp $
+! $Id: dm.widgets,v 1.32 1999-08-18 16:08:00 burghart Exp $
 !
 
 define widget SaveConfig form 'Configuration saver'
@@ -185,7 +185,7 @@ define widget enter form "Entry widget"
 	newline
 	label l_alt 'Alt:'
 	blank alt '0.0' width 60
-	pulldown aunits 'km' menu en_altunits width 50
+	pulldown aunits 'kft' menu en_altunits width 50
 	newline
 !
 ! Let them put in a time.
@@ -990,5 +990,5 @@ procedure AllXSect x0 string y0 string x1 string y1 string
 endprocedure
 
 procedure dm_widgets_id
-	local '$Id: dm.widgets,v 1.31 1999-05-24 18:39:39 burghart Exp $'
+	local '$Id: dm.widgets,v 1.32 1999-08-18 16:08:00 burghart Exp $'
 endprocedure
