@@ -39,7 +39,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.57 1997-06-06 22:33:24 ishikawa Exp $
+XCOMM $Id: Project.tmpl,v 1.58 1997-06-22 22:05:35 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -127,6 +127,13 @@ XCOMM -----------------------------------------------------------------------
  */
 #ifndef UseInstalledImake
 #define UseInstalledImake NO
+#endif
+
+#if UseInstalledImake		/* Force installed zebra defs */
+#ifdef UseInstalledZebra
+#undef UseInstalledZebra
+#endif
+#define UseInstalledZebra YES
 #endif
 
 #ifndef UseInstalledZebra
@@ -446,6 +453,12 @@ XCOMM -----------------------------------------------------------------------
 # else
 #	define XRunPath /**/
 # endif
+
+#if UseOpenWindows && !defined(SolarisArchitecture)
+# define OWMath $(LIBMATH)
+#else
+# define OWMath /**/
+#endif
 
 #ifndef XLibDir
 #   define XLibDir /**/
@@ -953,7 +966,7 @@ CXXEXTRA_INCLUDES = /* $(XINCLUDES) $(RDSSINCLUDES) */ $(CONFIGINCLUDES)
           LIBSUDS = SudsLibrary
            LIBUNP = PamCfgLibrary
         LIBMCIDAS = MCIDASLibrary
-            XLIBS = XLibraries
+            XLIBS = XLibraries OWMath
           LIBMATH = MathLibrary
           LIBNDBM = NDBMLibrary
        LIBTERMCAP = TermcapLibrary
