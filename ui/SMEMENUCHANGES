@@ -3,7 +3,7 @@ Changes, re-writes, and explanations of rdss/SmeMenu development.  The
 version numbers referenced below refer to RCS symbolic tags where 1.1
 is tagged as 'V1_1'.
 
-$Id: SMEMENUCHANGES,v 1.1 1993-04-09 16:00:26 granger Exp $
+$Id: SMEMENUCHANGES,v 1.2 1993-04-12 19:16:44 granger Exp $
 
 RdssMenu and SmeMenu Changes
 ----------------------------
@@ -110,48 +110,75 @@ ignore the XtName() argument type warnings.
     "<EnterWindow>:     highlight()             \n\
      <LeaveWindow>:     unhighlight()           \n\
      <BtnMotion>:       highlight()             \n\
-     <BtnUp>:           disable-highlight() notify() unhighlight() MenuPopdown()";
+     <BtnUp>:           disable-highlight() notify() \
+			unhighlight() MenuPopdown()";
 
     "<EnterWindow>:     highlight()             \n\
      <LeaveWindow>:     unhighlight()           \n\
      <BtnMotion>:       highlight()             \n\
      <BtnUp>:           unmap() notify() unhighlight() MenuPopdown()";
 
-	The method used in RdssMenu's translations should correspond with that
-	used in SmeMenu's unhighlight method.  Unhighlight() popsdown a submenu
-	by first calling either of the submenu's "unmap" or "disable-highlight"
-	actions.  Then it pops down the submenu.
+	The method used in RdssMenu's translations should correspond with
+	that used in SmeMenu's unhighlight method.  Unhighlight() popsdown
+	a submenu by first calling either of the submenu's "unmap" or
+	"disable-highlight" actions.  Then it pops down the submenu.
 
-	Since RdssMenu's Unhighlight() action now ignores <LeaveNotify> events
-	in an SmeMenu entry while its submenu is popped up, it is possible to
-	leave the right side of an entry without causing an unhighlight.
-	However, due to a bug in GetEventEntry(), a <Motion> event at the edge of
-	an entry would be returned as a NULL entry.  This would cause an
-	unhighlight() action would pop down the submenu.  The problem was that
-	GetEventEntry was not taking into account its border width when determining
-	whether an event occurred inside one of its gadgets.  This has been fixed.
+	Since RdssMenu's Unhighlight() action now ignores <LeaveNotify>
+	events in an SmeMenu entry while its submenu is popped up, it is
+	possible to leave the right side of an entry without causing an
+	unhighlight.  However, due to a bug in GetEventEntry(), a <Motion>
+	event at the edge of an entry would be returned as a NULL entry.
+	This would cause an unhighlight() action would pop down the
+	submenu.  The problem was that GetEventEntry was not taking into
+	account its border width when determining whether an event occurred
+	inside one of its gadgets.  This has been fixed.
 
 
-1.7  -- No changes to SmeMenu.c, except debugging undefined.
-	RdssMenu.c: Modularized the menu position, move, and popup procedures
-	and re-wrote the PositionMenuAction to take advantage.  Added two
-	methods of public access to the PositionAndPopup functionality, which
-	takes care of positioning, moving, and popping up an RdssMenu with the
-	cursor under the default entry, even if the menu must be moved to
-	appear entirely on the screen.  The two methods:
+1.7 -- No changes to SmeMenu.c, except debugging undefined.  RdssMenu.c:
+	Modularized the menu position, move, and popup procedures and
+	re-wrote the PositionMenuAction to take advantage.  Added two
+	methods of public access to the PositionAndPopup functionality,
+	which takes care of positioning, moving, and popping up an RdssMenu
+	with the cursor under the default entry, even if the menu must be
+	moved to appear entirely on the screen.  The two methods:
 
-     1)	Action named "PositionAndPopupRdssMenu".  If no argument, tries to get
-	the menu name from the menuName of the widget whose translations called
-	the action (i.e. a MenuButton).  Otherwise it takes a single argument 
-	which is the name of the menu.
+     1)	Action named "PositionAndPopupRdssMenu".  If no argument, tries to
+	get the menu name from the menuName of the widget whose
+	translations called the action (i.e. a MenuButton).  Otherwise it
+	takes a single argument which is the name of the menu.
 
-     2) Public function RdssMenuPositionAndPopup(Widget, XPoint *, XtGrabKind).
-	Intended to be called by SmeMenu objects in modal cascades with
-	XtGrabNonexclusive.
+     2) Public function RdssMenuPositionAndPopup(Widget, XPoint *,
+	XtGrabKind).  Intended to be called by SmeMenu objects in modal
+	cascades with XtGrabNonexclusive.
 
 	Also, the action "PositionRdssMenu" is now an alias for the
-	original position action "RdssPositionSimpleMenu" (either name can be used).
+	original position action "RdssPositionSimpleMenu" (either name can
+	be used).
 
-	The file uic.ad has been added.  It sets MenuButton translations to use
-	the PositionAndPopupRdssMenu() action.  Run 'xrdb -merge uic.ad' before
-	running uic> to see its effect on the MenuButton popup behavior.
+	The file uic.ad has been added.  It sets MenuButton translations to
+	use the PositionAndPopupRdssMenu() action.  Run 'xrdb -merge
+	uic.ad' before running uic> to see its effect on the MenuButton
+	popup behavior.
+
+
+Further changes not given symbolic revision tags:
+
+	There was a problem with re-using the same popup shell in different
+	parts of a menu hierarchy.  SmeMenu's highlight method overrides
+	the popup shell's <BtnUp> translations to disable the usual 
+	unhighlight() and popdown() actions, which will get invoked from 
+	above.  However, if the same popup shell is subsequently use as a
+	top-level menu, it will need its original translations back.  So
+	the SmeMenu widget now has a private structure member called
+	"popup_trans" which holds the popup shell's original translations.
+	The translations are restored whenever the popup shell is popped
+	down.  I think the changes in translations may be entirely 
+	unnecessary now that the action order has changed from 
+	popdown-notify-unhighlight to notify-unhighlight-popdown.  Without
+	the translation change in SmeMenu:Highlight(), there will be some
+	calls to unhighlight and popdown from any parent SmeMenu objects
+	after the RdssMenu has already popped itself down.  This doesn't
+	cause XtRemoveGrab errors because the RdssMenu popping down is at
+	the bottom of the modal cascade.
+
+	For now the translation shuffling has been left there.
