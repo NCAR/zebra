@@ -1,7 +1,7 @@
 /*
  * XY-Contour plotting module
  */
-static char *rcsid = "$Id: XYContour.c,v 1.8 1992-11-03 21:00:45 burghart Exp $";
+static char *rcsid = "$Id: XYContour.c,v 1.9 1993-03-24 23:03:37 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -351,6 +351,7 @@ bool	update;
 	    switch (xyOrg)
 	    {
 		case OrgScalar:
+		case OrgFixedScalar:
 			xyClass = DCC_Scalar;
 			break;
 		case Org1dGrid:

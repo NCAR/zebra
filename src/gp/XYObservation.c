@@ -1,7 +1,7 @@
 /*
  * XY-Observation plotting module
  */
-static char *rcsid = "$Id: XYObservation.c,v 1.2 1992-11-10 22:07:01 barrett Exp $";
+static char *rcsid = "$Id: XYObservation.c,v 1.3 1993-03-24 23:07:38 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -310,6 +310,7 @@ bool	update;
 	    switch (xyOrg)
 	    {
 		case OrgScalar:
+		case OrgFixedScalar:
 			xyClass = DCC_Scalar;
 			break;
 		case Org1dGrid:
