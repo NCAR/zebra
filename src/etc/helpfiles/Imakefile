@@ -42,7 +42,7 @@ GIFFILES = \
 	hcremove.gif hcrevv.gif hcscreen.gif hcwidget.gif \
 	iconbar-help.gif iconbar-over.gif iconbar-sat-gray.gif \
 	iconbar-sat-red.gif layout.gif \
-	iconbar-sat.gif iconbar-zeb.gif iconbar.gif interpparams.gif \
+	iconbar-sat.gif iconbar.gif interpparams.gif \
 	iss-aa-menu.gif iss-marker-active.gif iss-marker.gif la.gif \
 	menu1.gif menu2.gif microboat.gif model-widget-eight.gif \
 	model-widget-five.gif model-widget-four.gif model-widget-one.gif \
