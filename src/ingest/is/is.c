@@ -1,7 +1,7 @@
 /*
  * Ingest scheduler
  */
-static char    *rcsid = "$Id: is.c,v 1.8 1992-01-10 02:41:46 martin Exp $";
+static char    *rcsid = "$Id: is.c,v 1.9 1992-01-17 16:33:53 martin Exp $";
 
 /*
  * Copyright (C) 1987,88,89,90,91 by UCAR University Corporation for
@@ -82,7 +82,7 @@ main(argc, argv)
 	 * Get the interface set up.
 	 */
 
-	fixdir_t("ISLOADFILE", ".", "is.lf", loadfile, ".lf");
+	fixdir_t("ISLOADFILE", "/iss/bin", "is.lf", loadfile, ".lf");
 	ui_init(loadfile, TRUE, FALSE);
 	ui_setup("is", &argc, argv, (char *) 0);
 
