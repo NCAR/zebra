@@ -16,7 +16,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-MAKE_RCSID ("$Id: DFA_Grads.c,v 3.1 1994-06-28 19:58:53 corbet Exp $");
+MAKE_RCSID ("$Id: DFA_Grads.c,v 3.2 1994-06-30 20:14:15 corbet Exp $");
 
 
 
@@ -309,7 +309,7 @@ int nw;
 /*
  * Look for hours.
  */
-	if (cp[2] == 'Z' || cp[2] == ':') /* hours present */
+	if (cp[2] == 'z' || cp[2] == 'Z' || cp[2] == ':') /* hours present */
 	{
 		hour = (cp[0] - '0')*10 + cp[1] - '0';
 		cp += 2;
@@ -325,7 +325,7 @@ int nw;
 /*
  * If we have a Z skip it then move into the date portion.
  */
-	if (*cp == 'Z')
+	if (*cp == 'Z' || *cp == 'z')
 		cp++;
 /*
  * Is this a number?  Then it's gotta be a date.
