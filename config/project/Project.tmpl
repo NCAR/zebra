@@ -40,7 +40,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.28 1995-04-28 23:21:08 granger Exp $
+XCOMM $Id: Project.tmpl,v 1.29 1995-05-05 17:36:18 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -113,10 +113,6 @@ XCOMM -----------------------------------------------------------------------
 /* --------------------------------------------------------------------------
  * Zebra's Imake project definitions
 ///////////////////////////////////////////////////////////////////////////*/
-
-#ifndef UseMosaic
-#define UseMosaic YES
-#endif
 
 #ifndef UseInstalled
 #define UseInstalled /* since makedepend is assumed installed */
@@ -221,7 +217,7 @@ XCOMM -----------------------------------------------------------------------
 #define RDSSDir /rdss
 #endif
 
-/*///////////////////////////////////////////////////// Includes ///////////*/
+/* //////////////////////////////////////////////////// Includes ////////// */
 /*--------------------------------------------------------------------------*/
 /* If no include directory has been defined, the default will just omit an  */
 /* include option altogether.  An include option could still be specified at*/
@@ -475,6 +471,28 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 /*/////////////////////////////////// Defaults for build options /////////*/
 /*------------------------------------------------------------------------*/
 
+#ifndef UseMosaic
+#define UseMosaic YES
+#endif
+
+/*
+ * If we're not installing xhelp, then zebra programs need to be told
+ * not to look for it and not to include the xhelp header file.
+ */
+#ifndef BuildXHelp
+#if UseMosaic
+#define BuildXHelp NO
+#else
+#define BuildXHelp YES
+#endif /* UseMosaic */
+#endif
+
+#if BuildXHelp	/* we'll only support if we're told we're building it */
+#define XHelpDefines -DSUPPORT_XHELP
+#else
+#define XHelpDefines /* defining nothing disables xhelp */
+#endif
+
 #ifndef BuildRealtimeDataStoreTools
 #define BuildRealtimeDataStoreTools NO
 #endif
@@ -627,7 +645,7 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
  */
     EXTRA_DEFINES = ExtraDefines $(AUTO_DEFINES)
        SHMDEFINES = ShmDefines
-
+     XHELPDEFINES = XHelpDefines
 /* 
  * Default directory paths specified in config.h.  Programs which need
  * these symbols defined in their source should add $(DIRDEFINES) to the

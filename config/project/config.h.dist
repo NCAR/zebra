@@ -49,7 +49,7 @@
 XCOMM -----------------------------------------------------------------------
 XCOMM Definitions from config.h included here.  The definitions here override
 XCOMM the defaults in Project.tmpl.  See ...../zeb/config/config.h.
-XCOMM $Id: config.h.dist,v 1.26 1995-04-14 23:58:29 granger Exp $
+XCOMM $Id: config.h.dist,v 1.27 1995-05-05 17:36:20 granger Exp $
 XCOMM -----------------------------------------------------------------------
 # endif
 
@@ -75,20 +75,6 @@ XCOMM -----------------------------------------------------------------------
  */
 # define UseMosaic YES
 /* # define MOSAIC_COMMAND "Mosaic" */
-
-/*
- * If you're using Mosaic exclusively and do not want to build or install
- * the xhelp utility, define BuildXHelp to NO.  It defaults to NO if
- * UseMosaic is YES and BuildXHelp is not defined.  If you want the default
- * to be Mosaic, but you still want to compile xhelp capability, define
- * BuildXHelp to YES and UseMosaic to YES.  If BuildXHelp is NO, then zebra
- * will always try to use Mosaic no matter what (since xhelp won't be there).
- *
- * If you have Mosaic and will not be using older project configurations
- * such as the StormFEST CD's (which have project-specific info under xhelp),
- * then you may as well define this to NO.
- */
-# define BuildXHelp YES
 
 # ifdef MAKING_MAKEFILE
 /*=======================================================================
@@ -134,6 +120,20 @@ XCOMM -----------------------------------------------------------------------
  * 	NO  --- The capability WILL NOT be included into the system.
  *
    ------------------------------------------------------------------------ */
+
+/*
+ * If you're using Mosaic exclusively and do not want to build or install
+ * the xhelp utility, define BuildXHelp to NO.  It defaults to NO if
+ * UseMosaic is YES and BuildXHelp is not defined.  If you want the default
+ * to be Mosaic, but you still want to compile xhelp capability, define
+ * BuildXHelp to YES and UseMosaic to YES.  If BuildXHelp is NO, then zebra
+ * will always try to use Mosaic no matter what (since xhelp won't be there).
+ *
+ * If you have Mosaic and will not be using older project configurations
+ * such as the StormFEST CD's (which have project-specific info under xhelp),
+ * then you may as well define this to NO.
+ */
+# define BuildXHelp YES
 
 /* 
  * Do you want to build any of Zebra's ingest modules?  Only recommended
@@ -907,21 +907,5 @@ XCOMM -----------------------------------------------------------------------
 # define MAX_PLAT_LEN	160	/* Maximum platform len -- remember lists */
 # define MAX_PARAM_LEN	40	/* Length of parameter names		*/
 # define TIME_LEN	40	/* Length needed for encoded times	*/
-
-/*
- * If we're not installing xhelp, then zebra programs need to be told
- * not to look for it or include the xhelp header file.
- */
-#ifndef BuildXHelp
-#if UseMosaic
-#define BuildXHelp NO
-#else
-#define BuildXHelp YES
-#endif /* UseMosaic */
-#endif
-
-# if BuildXHelp
-# 	define SUPPORT_XHELP
-# endif
 
 # endif /* ! _zeb_config_h_ */
