@@ -10,18 +10,24 @@ endif
 define widget #wname intmenu 'ctbl'
 	title 'Color tables'
 	line
-	entry 'Black and white stepped' 'CTSet 16gray' \
+	entry 'Black and white stepped (16)' 'CTSet 16gray' \
 		(PDParam(icon_component, 'color-table') = '16gray')
-	entry 'Black and white log' 'CTSet newgray' \
+	entry 'Black and white log (36)' 'CTSet newgray' \
 		(PDParam(icon_component, 'color-table') = 'newgray')
-	entry 'scook table' 'CTSet scook' \
+	entry 'Cook (16)' 'CTSet gcook16' \
+		(PDParam (icon_component, 'color-table') = 'gcook')
+	entry 'Cook smooth (127)' 'CTSet scook' \
 		(PDParam(icon_component, 'color-table') = 'scook')
-	entry 'Hot and cold table' 'CTSet hotcold' \
+	entry 'Hot and cold (31)' 'CTSet hotcold' \
 		(PDParam (icon_component, 'color-table') = 'hotcold')
-	entry 'Wild color table' 'CTSet wild' \
+	entry 'Wild' 'CTSet wild (25)' \
 		(PDParam (icon_component, 'color-table') = 'wild')
-	entry 'New wild color table' 'CTSet wild_new' \
+	entry 'New wild (25)' 'CTSet wild_new' \
 		(PDParam (icon_component, 'color-table') = 'wild_new')
+	entry 'Chris (15)' 'CTSet chris' \
+		(PDParam (icon_component, 'color-table') = 'chris')
+	entry 'Carbone (17)' 'CTSet carbone17' \
+		(PDParam (icon_component, 'color-table') = 'carbone17')
 endmenu
 
 
