@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: GraphProc.c,v 1.6 1990-06-07 11:04:00 corbet Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 1.7 1990-06-12 11:30:39 burghart Exp $";
 
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
@@ -52,9 +52,8 @@ XtAppContext Actx;			/* The application context	*/
 bool Abort = FALSE;			/* Has the current plot been stopped*/
 plot_description Pd = 0, Defaults = 0;	/* Plot description info	*/
 time PlotTime;				/* The current plot time.	*/
-enum pmode PlotMode = None;
+enum pmode PlotMode = NoMode;
 enum wstate WindowState = DOWN;
-bool NewPD = FALSE;
 bool MovieMode = FALSE;
 Cursor BusyCursor, NormalCursor;	/* Our cursors			*/
 
@@ -64,7 +63,7 @@ Cursor BusyCursor, NormalCursor;	/* Our cursors			*/
 int msg_handler ();
 int dispatcher ();
 int xtEvent ();
-static void DMButton ();
+static void DMButton (), UiErrorReport (), UiPfHandler ();
 
 extern void Ue_PointerEvent (), Ue_ButtonUp (), Ue_KeyEvent ();
 /*
@@ -101,7 +100,7 @@ char **argv;
  * mucked with).
  */
 	ui_get_command ("initial", Ourname, dispatcher, 0);
-	shutdown ();
+	GPShutDown ();
 }
 
 
@@ -122,6 +121,7 @@ finish_setup ()
 		{ "ue_button_up",	Ue_ButtonUp	},
 		{ "ue_el",		Ue_el		},
 	};
+	int type[4], pd_defined (), pd_param ();
 /*
  * Force a shift into window mode, so we can start with the fun stuff.
  */
@@ -163,6 +163,17 @@ finish_setup ()
 	lle_AddFD (msg_get_fd (), msg_incoming);
 	lle_AddFD (XConnectionNumber (XtDisplay (Top)), xtEvent);
 /*
+ * Command line functions.
+ */
+	type[0] = type[1] = type[2] = type[3] = SYMT_STRING;
+	uf_def_function ("pd_param", 3, type, pd_param);
+	uf_def_function ("pd_defined", 2, type, pd_defined);
+/*
+ * Redirect UI output.
+ */
+	ui_ErrorOutputRoutine (UiErrorReport);
+	ui_OutputRoutine (UiPfHandler, UiPfHandler);
+/*
  * Pull in the widget definition file.
  */
 	ui_perform ("read /fcc/gp/Widgets");
@@ -170,7 +181,7 @@ finish_setup ()
 
 
 
-shutdown ()
+GPShutDown ()
 /*
  * Finish up and quit.
  */
@@ -206,7 +217,7 @@ struct message *msg;
 	 */
 	   case MT_MESSAGE:
 	   	if (tm->mh_type == MH_SHUTDOWN)
-			shutdown ();
+			GPShutDown ();
 		msg_log ("Unknown MESSAGE proto type: %d", tm->mh_type);
 		break;
 	 /*
@@ -329,7 +340,7 @@ struct dm_msg *dmsg;
 	 */
 	   case DM_DIE:
 	   	msg_log ("DM decreed shutdown");
-		shutdown ();
+		GPShutDown ();
 	/*
 	 * Suspend.
 	 */
@@ -482,6 +493,31 @@ eq_sync ()
 
 
 
+void eq_ReturnPD ()
+/*
+ * Send our PD back to the display manager -- it has changed locally.
+ */
+{
+	struct dm_pdchange *dmp;
+	raw_plot_description *rpd = pd_Unload (Pd);
+	int len = sizeof (struct dm_pdchange) + rpd->rp_len;
+/*
+ * Allocate a sufficiently big pdchange structure.
+ */
+	dmp = (struct dm_pdchange *) malloc (len);
+/*
+ * Move over the stuff.
+ */
+	dmp->dmm_type = DM_PDCHANGE;
+	dmp->dmm_pdlen = rpd->rp_len;
+	memcpy (dmp->dmm_pdesc, rpd->rp_data, rpd->rp_len);
+	msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, dmp, len);
+}
+
+
+
+
+
 void
 sync ()
 /*
@@ -529,10 +565,6 @@ struct dm_pdchange *dmp;
 	rpd.rp_data = dmp->dmm_pdesc;
 	Pd = pd_Load (&rpd);
 /*
- * We need to get the plot mode when we next execute the plot handler
- */
-	NewPD = TRUE;
-/*
  * Now we need to set up to display the new PD.
  */
 	Eq_AddEvent (PDisplay, pc_PlotHandler, 0, 0, Override);
@@ -548,6 +580,7 @@ struct dm_parchange *dmp;
  * Change one parameter in our plot description.
  */
 {
+	char	*par;
 /*
  * Make sure this makes sense.
  */
@@ -565,8 +598,8 @@ struct dm_parchange *dmp;
 /*
  * Now reset things.
  */
-	NewPD = TRUE;
-	Eq_AddEvent (PDisplay, pc_PlotHandler, 0, 0, Override);
+	par = dmp->dmm_param;
+	Eq_AddEvent (PDisplay, pc_ParamChange, par, 1 + strlen(par), Override);
 }
 
 
@@ -595,8 +628,11 @@ char *comp, *param, *value;
 /*
  * Now reset things.
  */
-	NewPD = TRUE;
 	Eq_AddEvent (PDisplay, pc_PlotHandler, 0, 0, Override);
+/*
+ * We'll also eventually want to ship the PD back to DM.
+ */
+	Eq_AddEvent (PWhenever, eq_ReturnPD, 0, 0, Override);
 }
 
 
@@ -618,10 +654,6 @@ struct dm_pdchange *dmp;
 	rpd.rp_data = dmp->dmm_pdesc;
 	pd = pd_Load (&rpd);
 	pda_StorePD (pd, "defaults");
-/*
- * We need to get the plot mode when we next execute the plot handler
- */
-	NewPD = TRUE;
 /*
  * Redisplay with reinitialization of timer stuff, since anything could 
  * have changed.  (Maybe this can be made smarter in the future?)
@@ -651,18 +683,16 @@ struct dm_history *dmh;
 		return;
 	}
 /*
- * Cancel anything that might be going now.
+ * Store the new plot-mode
  */
-	pc_CancelPlot ();
+	pd_Store (Pd, "global", "plot-mode", "history", SYMT_STRING);
 /*
  * Stash the plot time into the PD.
  */
-	pd_Store (Pd, "global", "plot-time", (char *)&dmh->dmm_time,SYMT_DATE);
+	pd_Store (Pd, "global", "plot-time", (char*)&dmh->dmm_time, SYMT_DATE);
 /*
- * Set the time and do a full display.
+ * Now reset things.
  */
-	PlotTime = dmh->dmm_time;
-	PlotMode = History;
 	Eq_AddEvent (PDisplay, pc_PlotHandler, 0, 0, Override);
 }
 
@@ -682,25 +712,18 @@ RealTimeMode ()
 		msg_log ("Real-time mode requested with no plot description!");
 		return;
 	}
-
-	msg_log ("Real-time mode");
 /*
  * If we're already in real time mode, do nothing.
  */
 	if (PlotMode == RealTime)
 		return;
 /*
- * Cancel anything going now
+ * Store the new plot-mode
  */
-	pc_CancelPlot ();
+	pd_Store (Pd, "global", "plot-mode", "real-time", SYMT_STRING);
 /*
- * Switch modes and start plotting.
+ * Now reset things.
  */
-	PlotMode = RealTime;
-	if (WindowState == UP)
-		pc_SetUpTriggers ();
-	tl_GetTime (&PlotTime);
-	
 	Eq_AddEvent (PDisplay, pc_PlotHandler, 0, 0, Override);
 }
 
@@ -719,15 +742,100 @@ struct tm_change	*tch;
 	if (PlotMode != RealTime)
 		return;
 /*
- * Cancel anything going now
+ * Redo the plot
  */
-	pc_CancelPlot ();
-/*
- * Reestablish triggers and do the plot
- */
-	if (WindowState == UP)
-		pc_SetUpTriggers ();
-	tl_GetTime (&PlotTime);
-	
 	Eq_AddEvent (PDisplay, pc_PlotHandler, 0, 0, Override);
+}
+
+
+
+
+
+
+pd_defined (narg, argv, argt, retv, rett)
+int narg, *argt, *rett;
+union usy_value *argv, *retv;
+/*
+ * the pd_defined CLF.
+ *
+ *	pd_defined (comp, param)
+ */
+{
+	char junk[200];
+
+	*rett = SYMT_BOOL;
+	if (! Pd)
+		retv->us_v_int = FALSE;
+	else 
+		retv->us_v_int = pd_Retrieve (Pd, argv[0].us_v_ptr,
+			argv[1].us_v_ptr, junk, SYMT_STRING);
+}
+
+
+
+
+
+
+pd_param (narg, argv, argt, retv, rett)
+int narg, *argt, *rett;
+union usy_value *argv, *retv;
+/*
+ * The pd_param command line function.
+ *
+ *	pd_param (pd, comp, param, type)
+ */
+{
+	char tmp[500];
+	int type = uit_int_type (argv[2].us_v_ptr);
+
+	*rett = SYMT_STRING;
+	if (! Pd)
+		retv->us_v_ptr = usy_string ("No PD");
+	else if (type == SYMT_UNDEFINED)
+		retv->us_v_ptr = usy_string ("Bad type");
+	else if (! pd_Retrieve (Pd, argv[0].us_v_ptr, argv[1].us_v_ptr, 
+			tmp, type))
+		retv->us_v_ptr = usy_string ("(Undefined)");
+	else if (type == SYMT_STRING)
+		retv->us_v_ptr = usy_string (tmp);
+	else
+	{
+		*rett = type;
+		memcpy (retv, tmp, sizeof (date));	/* XXX */
+	}
+}
+	
+
+
+
+
+static void
+UiErrorReport (line)
+char *line;
+/*
+ * Report errors generated in UI.
+ */
+{
+	msg_log ("UI ERROR: %s", line);
+}
+
+
+
+
+static void
+UiPfHandler (line)
+char *line;
+/*
+ * Handle ui_printf'd stuff.
+ */
+{
+	char *nl, *strchr ();
+	char tbuf[400];
+/*
+ * Clean out NL's.
+ */
+	strcpy (tbuf, line);
+	while (nl = strchr (tbuf, '\n'))
+		*nl = ' ';
+	msg_log ("ui_printf('%s')", tbuf);
 }
