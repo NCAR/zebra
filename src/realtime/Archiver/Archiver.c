@@ -32,12 +32,21 @@
 # include <sys/types.h>
 # include <sys/time.h>
 # include <sys/ioctl.h>
+# ifdef AIXV3
+# include "zl_mtio.h"
+# else
 # include <sys/mtio.h>
+# endif
 # include <sys/wait.h>
-#ifdef SVR4
+
+#if defined(SVR4) || defined(__osf__)
 # include <sys/statvfs.h>
 #else
+# ifndef AIXV3
 # include <sys/vfs.h>
+# else
+# include <sys/statfs.h>
+# endif
 #endif
 
 # include <X11/Intrinsic.h>
@@ -55,7 +64,7 @@
 
 # include "Database.h"
 
-RCSID ("$Id: Archiver.c,v 1.38 1997-06-20 21:02:12 granger Exp $")
+RCSID ("$Id: Archiver.c,v 1.39 1997-10-03 23:49:18 ishikawa Exp $")
 
 /*
  * Issues:
@@ -1056,7 +1065,7 @@ DoTheWriteThing(explicit_finish)
 	ZebTime daystart;
 	ZebTime zt;	/* The current time, the time this write begins */
 	char datafile[120];
-#ifdef SVR4
+#if defined(SVR4) || defined (__osf__)
 	struct statvfs buf;
 #else
 	struct statfs buf;
