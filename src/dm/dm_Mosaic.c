@@ -228,7 +228,7 @@ char *url;
 		{
 			args[i++] = "Mosaic";
 			args[i++] = "-xrm";
-			args[i++] = "useGlobalHistory: false";
+			args[i++] = "useGlobalHistory:false";
 			args[i++] = "-home";
 			args[i++] = url;
 		}
