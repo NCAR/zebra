@@ -8,6 +8,11 @@
 # include "GraphProc.h"
 # include "DrawText.h"
 
+/*
+ * Graphics context (don't use the global one in GC.h because we don't
+ * want to have to worry about clipping)
+ */
+static GC	Gcontext;
 
 /*
  * Top annotation stuff
@@ -151,10 +156,18 @@ Pixel	color;
 			"An_TopAnnot could not break annotation '%s'", string);
 	}
 /*
+ * Make sure we have a graphics context
+ */
+	if (! Gcontext)
+		Gcontext = XCreateGC (XtDisplay (Graphics), GWFrame (Graphics),
+			0, NULL);
+/*
  * Draw the string up to the break, if any
  */
-	DrawText (Graphics, GWFrame (Graphics), color, Annot_xpos, Annot_ypos, 
-		cstring, 0.0, TOPANNOTHEIGHT, JustifyLeft, JustifyTop);
+	XSetForeground (XtDisplay (Graphics), Gcontext, color);
+	DrawText (Graphics, GWFrame (Graphics), Gcontext, Annot_xpos, 
+		Annot_ypos, cstring, 0.0, TOPANNOTHEIGHT, JustifyLeft, 
+		JustifyTop);
 	Annot_xpos += swidth;
 /*
  * If we have to break, move down to the next line and call TopAnnot with
