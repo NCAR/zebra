@@ -1,5 +1,5 @@
 /*
- * $Id: p3fest_ingest.c,v 1.8 1994-07-13 16:37:14 sobol Exp $
+ * $Id: p3fest_ingest.c,v 1.9 1997-02-03 17:04:27 granger Exp $
  *
  * Ingest P3 format data files into Zeb using DCC_Scalar class DataChunks.
  * The general program flow is as follows:
@@ -1188,7 +1188,7 @@ static DataChunk *
 CreateDataChunk(hdr)
 	P3_header_t *hdr;
 {
-	static char version_info[] = "$RCSfile: p3fest_ingest.c,v $ $Revision: 1.8 $";
+	static char version_info[] = "$RCSfile: p3fest_ingest.c,v $ $Revision: 1.9 $";
 	static int file_part = 0;
 	DataChunk *dc;
 	unsigned int nsamples;
@@ -1257,25 +1257,15 @@ CreateDataChunk(hdr)
 	dc_SetGlobalAttr(dc, AttWindsFilename, attr);
 
 	/*
-	 * Initialize the scalar parts of the datachunk.
-	 * NOTE: We use the superclass' SetupUniformFields() method
-	 * because we'd like to give some guidance on how many samples
-	 * we'll be storing to avoid thrashing memory.  However, as of
-	 * this writing (10/26/92), dc_SetupUniformFields ignores
-	 * the nsamples value! :(  
-	 * We still use it here just in case someday it does...
+	 * Initialize the scalar fields of the datachunk, then hint to
+	 * the transparent class about the number of samples we'll need.
 	 */
-	dc_SetupUniformFields(dc, nsamples, 
-			      (int)NUMBER(P3_FieldIds), P3_FieldIds,
-			      sizeof(float));
-
-#ifdef notdef /*---- The Scalar method call -----*/
-	dc_SetScalarFields(dc, (int)NUMBER(P3_FieldIds), P3_FieldIds);
-#endif
+	dc_SetScalarFields (dc, (int)NUMBER(P3_FieldIds), P3_FieldIds);
+	dc_HintNSamples (dc, nsamples, TRUE);
 
 	/*
-	 * We'll set a bad value flag here to a default, even though it probably
-	 * won't be used 
+	 * Set the bad value flag to a default, even though it probably
+	 * won't be used.
 	 */
 	dc_SetBadval(dc, BADVAL_DEFAULT);
 

@@ -1,10 +1,12 @@
 /* 
- * Inget data from a DAP format file.
+ * Ingest data from a DAP format file.
  */
-# include "dap_file.h"
 # include <errno.h>
 # include <time.h>
 # include <sys/time.h>
+
+# include <ui.h>
+# include "dap_file.h"
 # include <defs.h>
 # include <message.h>
 # include <DataStore.h>
