@@ -23,7 +23,7 @@ FromBigI4 (void *vsrc)
  * Get the four bytes in the right place
  */
     if (BigEndian())
-	memmove (c + sizeof (long) - 4, src, 4);
+	memcpy (c + sizeof (long) - 4, src, 4);
     else
     {
 	c[0] = src[3];
@@ -65,7 +65,7 @@ FromLittleI4 (void *vsrc)
  * Get the four bytes in the right place
  */
     if (LittleEndian())
-	memmove (c, src, 4);
+	memcpy (c, src, 4);
     else
     {
 	c[sizeof (long) - 4] = src[3];
@@ -108,7 +108,7 @@ FromBigUI4 (void *vsrc)
  * Get the four bytes in the right place
  */
     if (BigEndian())
-	memmove (c + sizeof (long) - 4, src, 4);
+	memcpy (c + sizeof (long) - 4, src, 4);
     else
     {
 	c[0] = src[3];
@@ -141,7 +141,7 @@ FromLittleUI4 (void *vsrc)
  * Get the four bytes in the right place
  */
     if (LittleEndian())
-	memmove (c, src, 4);
+	memcpy (c, src, 4);
     else
     {
 	c[sizeof (long) - 4] = src[3];
@@ -174,7 +174,7 @@ FromBigI2 (void *vsrc)
  * Get the four bytes in the right place
  */
     if (BigEndian())
-	memmove (c + sizeof (long) - 2, src, 2);
+	memcpy (c + sizeof (long) - 2, src, 2);
     else
     {
 	c[0] = src[1];
@@ -214,7 +214,7 @@ FromLittleI2 (void *vsrc)
  * Get the four bytes in the right place
  */
     if (LittleEndian())
-	memmove (c, src, 2);
+	memcpy (c, src, 2);
     else
     {
 	c[sizeof (long) - 2] = src[1];
@@ -255,7 +255,7 @@ FromBigUI2 (void *vsrc)
  * Get the four bytes in the right place
  */
     if (BigEndian())
-	memmove (c + sizeof (long) - 2, src, 2);
+	memcpy (c + sizeof (long) - 2, src, 2);
     else
     {
 	c[0] = src[1];
@@ -286,7 +286,7 @@ FromLittleUI2 (void *vsrc)
  * Get the four bytes in the right place
  */
     if (LittleEndian())
-	memmove (c, src, 2);
+	memcpy (c, src, 2);
     else
     {
 	c[sizeof (long) - 2] = src[1];
@@ -324,7 +324,7 @@ ToBigI4 (long val, void *vdest)
  * Stuff the least significant four bytes of val into dest in the correct order
  */
     if (BigEndian())
-	memmove (dest, c + sizeof (long) - 4, 4);
+	memcpy (dest, c + sizeof (long) - 4, 4);
     else
     {
 	dest[0] = c[3];
@@ -355,7 +355,7 @@ ToBigUI4 (unsigned long val, void *vdest)
  * Stuff the least significant four bytes of val into dest in the correct order
  */
     if (BigEndian())
-	memmove (dest, c + sizeof (long) - 4, 4);
+	memcpy (dest, c + sizeof (long) - 4, 4);
     else
     {
 	dest[0] = c[3];
@@ -391,7 +391,7 @@ ToLittleI4 (long val, void *vdest)
  * Stuff the least significant four bytes of val into dest in the correct order
  */
     if (LittleEndian())
-	memmove (dest, c, 4);
+	memcpy (dest, c, 4);
     else
     {
 	dest[0] = c[sizeof(long) - 1];
@@ -424,7 +424,7 @@ ToLittleUI4 (unsigned long val, void *vdest)
  * Stuff the least significant four bytes of val into dest in the correct order
  */
     if (LittleEndian())
-	memmove (dest, c, 4);
+	memcpy (dest, c, 4);
     else
     {
 	dest[0] = c[sizeof(long) - 1];
@@ -458,7 +458,7 @@ ToBigI2 (long val, void *vdest)
  * Stuff the least significant two bytes of val into dest in the correct order
  */
     if (BigEndian())
-	memmove (dest, c + sizeof (long) - 2, 2);
+	memcpy (dest, c + sizeof (long) - 2, 2);
     else
     {
 	dest[0] = c[1];
@@ -489,7 +489,7 @@ ToBigUI2 (unsigned long val, void *vdest)
  * Stuff the least significant two bytes of val into dest in the correct order
  */
     if (BigEndian())
-	memmove (dest, c + sizeof (long) - 2, 2);
+	memcpy (dest, c + sizeof (long) - 2, 2);
     else
     {
 	dest[0] = c[1];
@@ -521,7 +521,7 @@ ToLittleI2 (long val, void *vdest)
  * Stuff the least significant two bytes of val into dest in the correct order
  */
     if (LittleEndian())
-	memmove (dest, c, 2);
+	memcpy (dest, c, 2);
     else
     {
 	dest[0] = c[sizeof(long) - 1];
@@ -552,7 +552,7 @@ ToLittleUI2 (unsigned long val, void *vdest)
  * Stuff the least significant two bytes of val into dest in the correct order
  */
     if (LittleEndian())
-	memmove (dest, c, 2);
+	memcpy (dest, c, 2);
     else
     {
 	dest[0] = c[sizeof(long) - 1];
