@@ -19,17 +19,12 @@
  *        Edit "define XInclude" to read:
  *        #       define XInclude -I/usr/local/include
  *
- * Either UseXWindows or UseOpenWin should be defined to get windows support.
- * Defining both will default to OpenWindows libraries.  If you are not
- * using OpenWindows 3.0, you may have to define OldOpenWin to Yes later
- * in this file where UseOpenWin is defined.
+ * Either UseXWindows or UseOpenWin should be set to yes to get X windows 
+ * support; however, OpenWindows 3.0 is required by some programs 
+ * (notably Zeb) to get full windows support.  If you have an earlier 
+ * OpenWindows version, set #define OldOpenWin to yes below.  
  *
- * To change the default math library from -lm, use MathLib, as in
- *
- *	  # define MathLib /usr/lang/SC1.0/libm.a
- *							-- or --
- * 	  # define MathLib -L/usr/local/lib -lm
- */
+ * 
  
 # define UseXWindows Yes
 
@@ -47,10 +42,13 @@
 
 /*
  * If you have OpenWindows, either 2.0 or 3.0, set UseOpenWin to Yes.
- * If you are only using OpenWindows 2.0, set OldOpenWin to Yes.
+ *
+ * If your version of OpenWindows is older than OpenWindows 3.0, set
+ * OldOpenWin to Yes.
  */
 # define UseOpenWin No
 # define OldOpenWin Yes
+
 /*
  * You can change the location of OpenWindow's home directory here:
  */
