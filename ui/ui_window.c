@@ -27,7 +27,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_window.c,v 1.26 1992-12-18 21:11:34 corbet Exp $";
+static char *Rcsid = "$Id: ui_window.c,v 1.27 1993-03-09 22:00:43 granger Exp $";
 
 static bool Initialized = FALSE;
 static bool Active = FALSE;	/* Is window mode active??	*/
@@ -180,7 +180,7 @@ XtAppContext *appc;
 	XtRegisterGrabAction (uw_FPopup, True,
 	      ButtonPressMask|ButtonReleaseMask, GrabModeAsync, GrabModeAsync);
 	XawSimpleMenuAddGlobalActions (Appc);
-	RdssSimpleMenuAddGlobalActions (Appc);
+	RdssMenuAddGlobalActions (Appc);
 /*
  * If we have a widget name as an argument, go ahead and put it up.
  */
@@ -607,13 +607,17 @@ char *name, *geom;
 	frame = (struct frame_widget *) gw;
 /*
  * If the widget is already popped up:
- *	Just return if there's no specified geometry OR
- *	pop it down if a geometry was specified
+ *	If there's no specified geometry, raise the window and return,
+ *	else pop it down so that it will pop up with the new geometry.
  */
  	if (frame->fw_flags & WF_POPPED)
 	{
 		if (! geom)
+		{
+			XRaiseWindow(XtDisplay(frame->fw_w),
+				     XtWindow(frame->fw_w));
 			return;
+		}
 		else
 			uw_BringDown (frame);
 	}
