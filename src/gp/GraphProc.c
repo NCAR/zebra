@@ -1,7 +1,7 @@
 /*
  * The zeb graphics process.
  */
-static char *rcsid = "$Id: GraphProc.c,v 2.6 1991-10-21 21:14:04 burghart Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 2.7 1991-10-25 17:59:54 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -87,10 +87,14 @@ time	PlotTime;			/* The current plot time.	*/
 enum pmode	PlotMode = NoMode;
 enum wstate	WindowState = DOWN;
 bool	MovieMode = FALSE;
-int	PostProcMode = FALSE;
 Cursor	BusyCursor, NormalCursor;	/* Our cursors			*/
 float	Xlo, Xhi, Ylo, Yhi;
 float	Alt;
+/*
+ * Post processing mode stuff.
+ */
+int	PostProcMode = FALSE;
+time	PostProcTime;
 
 /*
  * Definition of the global graphics context in GC.h
@@ -1006,6 +1010,11 @@ time *when;
  */
 	pd_Store (Pd, "global", "plot-time", (char*) when, SYMT_DATE);
 	PlotTime = *when;
+/*
+ * Save post processing time if necessary.
+ */
+	if (PostProcMode)
+		PostProcTime = *when;
 /*
  * Now reset things.
  */

@@ -1,7 +1,7 @@
 /*
  * Window plot control routines.
  */
-static char *rcsid = "$Id: PlotControl.c,v 2.4 1991-10-17 15:31:34 kris Exp $";
+static char *rcsid = "$Id: PlotControl.c,v 2.5 1991-10-25 18:01:53 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -218,6 +218,11 @@ pc_PlotHandler ()
 	}
 	else
 		tl_GetTime (&PlotTime);
+/*
+ * If we're in post processing mode assign PostProcTime to something.
+ */
+	if (PostProcMode && (PlotMode == RealTime))
+		PostProcTime = PlotTime;
 /*
  * Force a replot if the window is visible.
  */
