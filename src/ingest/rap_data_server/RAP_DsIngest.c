@@ -1,7 +1,7 @@
 /*
  * Generic data ingest from RAP's data servers.
  */
-static char *rcsid = "$Id: RAP_DsIngest.c,v 1.1 1992-07-01 21:03:54 kris Exp $";
+static char *rcsid = "$Id: RAP_DsIngest.c,v 1.2 1993-03-24 22:47:32 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -40,6 +40,8 @@ static char *rcsid = "$Id: RAP_DsIngest.c,v 1.1 1992-07-01 21:03:54 kris Exp $";
 # define MAXFIELDS	10
 # define MAXZ		30
 # define BADVAL		999999.0
+# define RIGHT		1
+# define LEFT		0
 
 
 /*
@@ -61,8 +63,8 @@ static void		NewField FP ((struct ui_command *));
 static void		SetupIndirect FP ((void));
 static cd_command_t	form_request FP ((int, int));
 static void		request_data FP ((void));
-static void		store_data FP ((unsigned char *[][], 
-				cd_grid_info_t [][], cd_reply_t [][], int));
+static void		add_grid FP ((DataChunk *, FieldId, unsigned char *[], 
+				cd_grid_info_t [], cd_reply_t [], int));
 
 /*
  * Other routines.
@@ -84,6 +86,7 @@ static int	Levels;			/* Number of levels to ask for.	  */
 static float	LevelSpacing;		/* Spacing in km between levels.  */	
 static float	FirstLevel;		/* First level for data.	  */
 static int	NumFields = 0;		/* Number of fields.		  */
+static ZebTime	LastDataTime;		/* Time we last got data.	  */
 
 
 main (argc, argv)
@@ -120,6 +123,11 @@ char	**argv;
 	sprintf (string, "%s_ingest", Platform);
 	msg_connect (Die, string);
 	ds_Initialize ();
+/*
+ * Init some variables.
+ */
+	LastDataTime.zt_Sec = 0;
+	LastDataTime.zt_MicroSec = 0;
 /*
  * Time to go into UI mode.
  */
@@ -245,8 +253,12 @@ int	field, level;
 /*
  * What type of data to get.
  */
-	com.primary_com = GET_INFO | GET_DATA | GET_MOST_RECENT;
+	com.primary_com = GET_INFO | GET_DATA | GET_NEW;
 	com.second_com = GET_XY_PLANE;
+/*
+ * Last time we got data.
+ */
+	com.time_cent = LastDataTime.zt_Sec;
 /*
  * What area of the grid to get.
  */	
@@ -280,10 +292,29 @@ request_data ()
  */
 {
 	int		i, j, numz = 0;
+	bool		gotsomedata = FALSE;
 	cd_command_t	com;
-	unsigned char	*buffer[MAXFIELDS][MAXZ];
-	cd_grid_info_t	info[MAXFIELDS][MAXZ];
-	cd_reply_t	reply[MAXFIELDS][MAXZ];
+	unsigned char	*buffer[MAXZ];
+	cd_grid_info_t	info[MAXZ];
+	cd_reply_t	reply[MAXZ];
+	DataChunk	*dc;
+	FieldId		fieldlist[MAXFIELDS];
+/*
+ * Get a data chunk set up.
+ */
+	dc = dc_CreateDC (DCC_RGrid);
+	dc->dc_Platform = ds_LookupPlatform (Platform);
+/*
+ * Set up fields.
+ */
+	for (i = 0; i < NumFields; i++)
+		fieldlist[i] = F_Lookup (FieldList[i].fl_name);
+
+	dc_RGSetup (dc, NumFields, fieldlist);
+/*
+ * Set the badvalue.
+ */
+	dc_SetBadval (dc, BADVAL);
 /*
  * Request data from each field.
  */
@@ -298,35 +329,35 @@ request_data ()
 		for (j = 0; j < Levels; j++)
 		{
 			com = form_request (FieldList[i].fl_number, j);
-			buffer[i][numz] = NULL;
-			buffer[i][numz] = get_data (&com, &reply[i][numz], 
-				&info[i][numz], Host, Port);
+			buffer[numz] = NULL;
+			buffer[numz] = get_data (&com, &reply[numz], 
+				&info[numz], Host, Port);
 		/*
 		 * Print out the reply.
 		 */
 # ifdef notdef
-			print_reply (&reply[i][numz], stdout);
+			print_reply (&reply[numz], stdout);
 # endif
 		/*
 		 * And what is the status of the reply.
 		 */
-			if (reply[i][numz].status & REQUEST_SATISFIED)
+			if (reply[numz].status & REQUEST_SATISFIED)
 			{
 				msg_ELog (EF_DEBUG, "Data received for %s",
-					info[i][numz].field_name);
+					info[numz].field_name);
 			}
-			else if (reply[i][numz].status & NO_DATA)
+			else if (reply[numz].status & NO_DATA)
 			{
 				msg_ELog (EF_PROBLEM, "No data available.");
 				continue;
 			}
-			else if (reply[i][numz].status & VOLUME_LIMITS)
+			else if (reply[numz].status & VOLUME_LIMITS)
 			{
 				msg_ELog (EF_PROBLEM, 
 					"No data in desired volume.");
 				continue;
 			}
-			else if (reply[i][numz].status & TIME_LIMITS)
+			else if (reply[numz].status & TIME_LIMITS)
 			{
 				msg_ELog (EF_PROBLEM, "No data in time frame.");
 				continue;
@@ -335,137 +366,132 @@ request_data ()
 		 * Print out the info we got.
 		 */
 # ifdef notdef
-			print_info (&info[i][numz], stdout);
+			print_info (&info[numz], stdout);
 # endif
 		/*
  		 * See if we got any data.
 		 */
-			if (buffer[i][numz] != NULL) numz++;
+			if (buffer[numz] != NULL)
+			{
+				numz++; 
+				gotsomedata = TRUE;
+			}
 		}
+	/*
+	 * Add this grid to the data chunk.
+	 */
+		if (numz > 0)
+			add_grid (dc, fieldlist[i], buffer, info, reply, numz);
+		for (j = 0; j < numz; j++)
+			if (buffer[j])
+				free (buffer[j]);
 	}
 /*
  * Store the data.
  */
-	if (numz > 0)
-		store_data (buffer, info, reply, numz);
-/*
- * Free memory.
- */
-	for (i = 0; i < NumFields; i++)
-		for (j = numz; j < 0; j++)
-			if (buffer[i][j])
-				free (buffer[i][j]);
-}
-
-
-static void
-store_data (buffer, info, reply, numz)
-unsigned char	*buffer[MAXFIELDS][MAXZ];
-cd_grid_info_t	info[MAXFIELDS][MAXZ];
-cd_reply_t	reply[MAXFIELDS][MAXZ];
-int		numz;
-/*
- * Create a data chunk out of this stuff.
- */
-{
-	int		i, j, k, len, gridsize;
-	DataChunk	*dc;
-	FieldId		fieldlist[MAXFIELDS];
-	Location	origin;
-	RGrid		rg;
-	ZebTime		when;
-	float		*grid[MAXFIELDS];
-/*
- * Create the data chunk.
- */
-	dc = dc_CreateDC (DCC_RGrid);
-	dc->dc_Platform = ds_LookupPlatform (Platform);
-/*
- * Set up the fields.
- */
-	for (i = 0; i < NumFields; i++)
-		fieldlist[i] = F_Lookup (FieldList[i].fl_name);
-
-	dc_RGSetup (dc, NumFields, fieldlist); 
-/*
- * Set the bad data value.
- */
-	dc_SetBadval (dc, BADVAL);
-/*
- * Add the grids.
- */
-	for (i = 0; i < NumFields; i++)
-	{
-	/*
-	 * Get the info we need.
-	 */
-	/*
-	 * Origin.
-	 */
-		cvt_Origin (info[i][0].lat_origin, info[i][0].lon_origin);
-		cvt_ToLatLon (info[i][0].min_x, info[i][0].min_y, 
-			&origin.l_lat, &origin.l_lon);
-		origin.l_alt = info[i][0].min_z;	/* in km */
-	/*
-	 * Grid spacing.
-	 */
-		rg.rg_Xspacing = reply[i][0].dx;
-		rg.rg_Yspacing = reply[i][0].dy;
-		rg.rg_Zspacing = reply[i][0].dz;
-		rg.rg_nX = reply[i][0].nx;
-		rg.rg_nY = reply[i][0].ny;
-		rg.rg_nZ = numz;
-	/*
-	 * Time.
-	 */
-		when.zt_Sec = reply[i][0].time_end;
-		when.zt_MicroSec = 0;
-	/*
-	 * Data length.
-	 */
-		len = rg.rg_nX * rg.rg_nY * rg.rg_nZ; 
-	/*
-	 * Convert the data from unsigned char to float.
-	 */
-		if ((grid[i] = (float *) malloc (len * sizeof (float)))					 == NULL) {
-			msg_ELog (EF_PROBLEM, "Can't allocate grid.");
-			return;
-		}
-	/*
-	 * Loop through all the levels.
-	 */
-		for (j = 0; j < numz; j ++)
-		{
-		    gridsize = rg.rg_nX * rg.rg_nY;
-		    for (k = 0; k < gridsize; k++)
-		    {
-			if ((unsigned char) buffer[i][j][k] == 
-			    reply[i][j].bad_data_val)
-				grid[i][j * gridsize + k] = BADVAL;
-			else
-				grid[i][j * gridsize + k] = 
-				    ((unsigned int) buffer[i][j][k]) * 
-				    reply[i][j].scale + reply[i][j].bias;
-		    }
-		}
-	/*
-	 * Put the grid in the data chunk.
-	 */
-		dc_RGAddGrid (dc, 0, fieldlist[i], &origin, &rg, &when,
-			grid[i], 0);	
-	}
-/*
- * Send the data chunk to the data store.
- */
-	ds_Store (dc, FALSE, NULL, 0);
+	if (gotsomedata) ds_Store (dc, FALSE, NULL, 0);
 /*
  * Free the data chunk.
  */
 	dc_DestroyDC (dc);
+}
+
+
+static void
+add_grid (dc, fid, buffer, info, reply, numz)
+DataChunk	*dc;
+FieldId		fid;
+unsigned char	*buffer[MAXZ];
+cd_grid_info_t	info[MAXZ];
+cd_reply_t	reply[MAXZ];
+int		numz;
+/*
+ * Add a grid to a data chunk.
+ */
+{
+	int		i, j, len, gridsize, index;
+	int		x, y;
+	Location	origin;
+	RGrid		rg;
+	ZebTime		when;
+	float		*grid;
+/*
+ * Get the info we need.
+ */
+/*
+ * Origin.
+ */
+	cvt_Origin (info[0].lat_origin, info[0].lon_origin);
+	cvt_ToLatLon (info[0].min_x, info[0].min_y, &origin.l_lat, 
+		&origin.l_lon);
+	origin.l_alt = info[0].min_z;	/* in km */
+/*
+ * Grid spacing.
+ */
+	rg.rg_Xspacing = reply[0].dx;
+	rg.rg_Yspacing = reply[0].dy;
+	rg.rg_Zspacing = reply[0].dz;
+	rg.rg_nX = reply[0].nx;
+	rg.rg_nY = reply[0].ny;
+	rg.rg_nZ = numz;
+/*
+ * Time.
+ */
+	LastDataTime.zt_Sec = reply[0].time_cent;
+	LastDataTime.zt_MicroSec = 0;
+	when.zt_Sec = reply[0].time_end;
+	when.zt_MicroSec = 0;
+/*
+ * Data length.
+ */
+	len = rg.rg_nX * rg.rg_nY * rg.rg_nZ; 
+/*
+ * Convert the data from unsigned char to float.
+ */
+	if ((grid = (float *) malloc (len * sizeof (float)))	== NULL) 
+	{
+		msg_ELog (EF_PROBLEM, "Can't allocate grid.");
+		return;
+	}
+/*
+ * Loop through all the levels.
+ */
+	for (i = 0; i < numz; i++)
+	{
+	    gridsize = rg.rg_nX * rg.rg_nY;
+	    index = i * gridsize;
+	    for (j = 0; j < gridsize; j++)
+	    {
+		if (info[i].order == RIGHT)
+		{
+		    if ((unsigned char) buffer[i][j] == reply[i].bad_data_val)
+			grid[index + j] = BADVAL;
+		    else
+			grid[index + j] = 
+			    ((unsigned int) buffer[i][j]) * reply[i].scale + 
+				reply[i].bias;
+		}
+		else
+		{
+		    y = j / rg.rg_nX;
+		    if (y == 0) x = j;
+		    else x = j % (y * rg.rg_nX);
+		    if ((unsigned char) buffer[i][j] == reply[i].bad_data_val)
+			grid[index + x + (rg.rg_nY-y-1) * rg.rg_nY] = BADVAL;
+		    else
+			grid[index + x + (rg.rg_nY-y-1) * rg.rg_nY] = 
+			    ((unsigned int) buffer[i][j]) * reply[i].scale + 
+				reply[i].bias;
+		}
+	    }
+	}
+/*
+ * Put the grid in the data chunk.
+ */
+	dc_RGAddGrid (dc, 0, fid, &origin, &rg, &when, grid, 0);	
 /*
  * Free memory.
  */
-	for (i = 0; i < NumFields; i++)
-		free (grid[i]);
+	free (grid);
 }
 
