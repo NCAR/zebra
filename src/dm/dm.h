@@ -1,4 +1,4 @@
-/* $Id: dm.h,v 2.9 1994-05-21 05:19:37 granger Exp $ */
+/* $Id: dm.h,v 2.10 1994-05-24 09:02:03 granger Exp $ */
 /*
  * Display manager stuff.
  */
@@ -76,7 +76,7 @@
 #define SAVED_EXT	".dc"
 
 /*
- * Message structure sent display manager.
+ * Message structure sent by display manager.
  * The geometry exchanged by display manager and clients uses types
  * DM_R_GEOMETRY and DM_GEOMETRY.
  */

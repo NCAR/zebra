@@ -38,7 +38,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm.c,v 2.42 1994-05-21 05:19:35 granger Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.43 1994-05-24 09:02:02 granger Exp $")
 
 
 /*
@@ -738,7 +738,7 @@ struct dm_msg *dmsg;
 			return;
 		}
 		msg_ELog (EF_DEBUG, "Hello received from '%s' win %x", from,
-			dmh->dmm_win);
+			  dmh->dmm_win);
 		win->cfw_win = dmh->dmm_win;
 		send_default (win);
 		config_win (win);

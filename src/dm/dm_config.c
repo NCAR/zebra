@@ -31,7 +31,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm_config.c,v 1.12 1994-05-21 05:19:41 granger Exp $")
+MAKE_RCSID ("$Id: dm_config.c,v 1.13 1994-05-24 09:02:04 granger Exp $")
 
 
 /*
@@ -160,12 +160,16 @@ struct config *cfg;
  * weren't looking.
  */
 {
+	Window root, realwin, qwin, *children;
+	int win, junk;
+	unsigned int bw, depth, nchild;
+#ifdef notdef
 	Widget shell;
 	Dimension width, height;
 	Position x, y;
-	int win;
 	Arg args[5];
 	int n;
+#endif
 /*
  * Find the current geometry of each window and widget.
  */
@@ -177,6 +181,12 @@ struct config *cfg;
 	 */
 	 	if (wp->cfw_flags & CF_WIDGET)
 		{
+			Widget tmp = uw_IWWidget (wp->cfw_name);
+			realwin = XtWindow (XtParent (XtParent (tmp)));
+			XQueryTree (Dm_Display, realwin, &root, &qwin,
+				&children, &nchild);
+			XFree (children);
+#ifdef notdef
 			shell = UWShell (wp->cfw_name);
 
 			n = 0;
@@ -185,15 +195,36 @@ struct config *cfg;
 			XtSetArg (args[n], XtNwidth, &width);	n++;
 			XtSetArg (args[n], XtNheight, &height);	n++;
 			XtGetValues (shell, args, n);
+#endif
 		}
 	/*
 	 * Otherwise it's a client with a window, and we need to ask directly.
 	 */
 		else if (wp->cfw_win)
 		{
+			XQueryTree (Dm_Display, wp->cfw_win, &root, &qwin,
+				&children, &nchild);
+			realwin = wp->cfw_win;
+			XFree (children);
+#ifdef notdef
 			GetGeometry (wp, &x, &y, &width, &height);
+#endif
 		}
-
+		else
+			continue;
+	/*
+	 * Get the info.  The positioning comes from the parent window while
+	 * the size comes from the real window.
+	 */
+		XGetGeometry (Dm_Display, qwin, &root, &wp->cfw_x,
+			&wp->cfw_y, (unsigned int *) &junk,
+			(unsigned int *) &junk, &bw, &depth);
+		wp->cfw_x += bw;
+		wp->cfw_y += bw;
+		XGetGeometry (Dm_Display, realwin, &root, &junk,
+			&junk, (unsigned int *) &wp->cfw_dx,
+			(unsigned int *) &wp->cfw_dy, &bw, &depth);
+#ifdef notdef
 	/*
 	 * Record our latest geometry info
 	 */
@@ -210,6 +241,7 @@ struct config *cfg;
 			uw_SetGeometry (wp->cfw_name, wp->cfw_x, wp->cfw_y,
 					wp->cfw_dx, wp->cfw_dy);
 		}
+#endif
 	}
 }
 
@@ -681,6 +713,8 @@ struct cf_window *wp;
  */
 {
 	SValue v;
+	Arg args[10];
+	int i;
 	struct cf_window *exist;
 	bool created = FALSE;
 /*
@@ -688,14 +722,26 @@ struct cf_window *wp;
  */
 	if (wp->cfw_flags & CF_WIDGET)
 	{
+		Widget shell;
 		uw_ForceOverride (wp->cfw_name);
+#ifdef notdef
 	/*
 	 * First pop it up, and then move it, so that olwm gets its act
-	 * together.
+	 * together.  Make sure we set the shell location by setting
+	 * it explicitly ourselves.
 	 */
 		uw_popup (wp->cfw_name);
+#endif
 		uw_SetGeometry (wp->cfw_name, wp->cfw_x, wp->cfw_y,
 			wp->cfw_dx, wp->cfw_dy);
+#ifdef notdef
+		shell = UWShell (wp->cfw_name);
+		i = 0;
+		XtSetArg (args[i], XtNx, wp->cfw_x);	++i;
+		XtSetArg (args[i], XtNy, wp->cfw_y);	++i;
+		XtSetValues (shell, args, i);
+#endif
+		uw_popup (wp->cfw_name);
 	}
 /*
  * Otherwise it's a graphics window.  If it does not yet exist, we
