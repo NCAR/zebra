@@ -21,9 +21,11 @@ variables:
 		altitude:units = "km" ;
 		altitude:long_name = "altitude MSL" ;
 	float var1(time, altitude, latitude, longitude) ;
-		elev:long_name = "first variable long name" ;
+		var1:long_name = "first variable long name" ;
 		var1:units = "units string"
+		var1:missing_value = -99.99f ;
 	float var2(time, altitude, latitude, longitude) ;
-		elev:long_name = "second variable long name" ;
+		var2:long_name = "second variable long name" ;
 		var2:units = "units string"
+		var2:missing_value = -99.99f ;
 }
