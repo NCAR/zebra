@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: fccclock.c,v 1.3 1990-11-15 16:31:09 corbet Exp $";
+static char *rcsid = "$Id: fccclock.c,v 1.4 1991-06-14 22:31:24 corbet Exp $";
 /*
  * The FCC clock program.
  */
@@ -47,6 +47,7 @@ Colormap Cm;
 int msg_handler ();
 int xtEvent ();
 static void DMButton ();
+void NewTime ();
 
 /*
  * Our plot description.
@@ -96,6 +97,7 @@ char **argv;
 /*
  * Now wait for things.
  */
+	tl_ChangeHandler (NewTime);
 	msg_add_fd (XConnectionNumber (XtDisplay (Top)), xtEvent);
 	msg_await ();
 	exit (0);
@@ -131,12 +133,6 @@ struct message *msg;
 	   	if (tm->mh_type == MH_SHUTDOWN)
 			shutdown ();
 		msg_log ("Unknown MESSAGE proto type: %d", tm->mh_type);
-		break;
-	 /*
-	  * Timer.
-	  */
-	    case MT_TIMER:
-		tm_message ((struct tm_time *) msg->m_data);
 		break;
 	}
 	return (0);
@@ -235,29 +231,6 @@ struct dm_msg *dmsg;
 }
 
 
-
-
-tm_message (te)
-struct tm_time	*te;
-/*
- * Deal with a timer message
- */
-{
-	switch (te->tm_type)
-	{
-	/*
-	 * We deal with a time change here
-	 */
-	    case TRR_TCHANGE:
-	   	NewTime ((struct tm_tchange *) te);
-		break;
-	/*
-	 * Other messages can be handled by the timer lib event dispatcher
-	 */
-	    default:
-	    	tl_DispatchEvent (te);
-	}
-}
 
 
 
@@ -363,8 +336,9 @@ sync ()
 
 
 
-NewTime (tch)
-struct tm_change	*tch;
+void
+NewTime (t)
+time *t;
 /*
  * Deal with a change in ``current'' time
  */
