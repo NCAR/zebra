@@ -24,7 +24,7 @@
 # include <defs.h>
 # include "message.h"
 
-MAKE_RCSID ("$Id: zrun.c,v 1.5 1998-12-17 16:38:57 burghart Exp $")
+MAKE_RCSID ("$Id: zrun.c,v 1.6 2004-07-05 17:27:42 granger Exp $")
 
 
 int IncMsg ();
@@ -36,6 +36,7 @@ int argc;
 char **argv;
 {
 	char name[20];
+	int result;
 /*
  * Make sure they gave us the info
  */
@@ -51,11 +52,17 @@ char **argv;
 	msg_connect (IncMsg, name);
 	cp_Exec (argv[1], argv[2]);
 /*
- * Clear any messages, and give the command time to be sent.
+ * Clear any messages, and give the command time to be sent.  As long as
+ * messages are being handled, handle them.  If the poll returns anything
+ * other than 0, then either there was an error or the poll timed out.
+ * Either way we exit.
  */
-	while (msg_poll(1) != MSG_TIMEOUT)
-		/* keep polling */;
-	exit (0);
+	do 
+	{
+	  result = msg_poll(1);
+	}
+	while (result == 0);
+	exit ((result == MSG_TIMEOUT) ? 0 : 1);
 }
 
 
