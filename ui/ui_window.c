@@ -28,7 +28,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_window.c,v 1.37 1998-12-17 17:18:18 burghart Exp $";
+static char *Rcsid = "$Id: ui_window.c,v 1.38 2001-06-19 22:21:48 granger Exp $";
 
 /*
  * Public variables, declared in ui_window.h
@@ -596,6 +596,70 @@ struct ui_command *cmds;
 	
 			
 
+void
+uw_PositionWidget (Widget w)
+/*
+ * Get the current size and location of the popup shell widget and make
+ * sure the entire widget appears on the screen (or as much as possible
+ * anyway).  Since we could have already been moved based on an old size,
+ * we have to start all over with positioning the menu/widget based on the
+ * pointer location.
+ *
+ * This function originally copied from a zebra implementation in
+ * src/gp/Icons.c.  18 Jun 2001, gjg
+ */
+{
+	int root_x, root_y, win_x, win_y;
+	Window root, child;
+	unsigned int mask;
+	Position x, y;
+	Dimension width, height, sw, sh;
+	Dimension border;
+	Arg args[10];
+	Cardinal n;
+
+	/*
+	 * The width will not be correct unless it is realized, but we
+	 * don't want to map it yet (i.e. we don't want it to receive any
+	 * events). 
+	 */
+	if (! XtIsRealized (w))
+	{
+	    XtSetMappedWhenManaged (w, False);
+	    XtRealizeWidget(w);
+	}
+
+	n = 0;
+	XtSetArg (args[n], XtNwidth, &width); ++n;
+	XtSetArg (args[n], XtNheight, &height); ++n;
+	XtSetArg (args[n], XtNborderWidth, &border); ++n;
+	XtGetValues (w, args, n);
+
+	XQueryPointer (XtDisplay(w), XtWindow(w), &root, &child,
+		       &root_x, &root_y, &win_x, &win_y, &mask);
+	/*
+	 * Default to popping up with pointer over top left corner
+	 */
+	x = root_x - 5;
+	y = root_y - 5;
+
+	sw = WidthOfScreen (XtScreen(w));
+	sh = HeightOfScreen (XtScreen(w));
+	if (x - 5 + width + 2*border > (unsigned) sw)
+		x -= width + 2*border;
+	if (y - 5 + height + 2*border > (unsigned) sh)
+		y = sh - height - 2*border;
+
+	/*
+	 * Set the widget to its new location.  If it hasn't changed,
+	 * it will ignore this.
+	 */
+	n = 0;
+	XtSetArg (args[n], XtNx, x); ++n;
+	XtSetArg (args[n], XtNy, y); ++n;
+	XtSetValues (w, args, n);
+}
+
 
 
 void
@@ -630,21 +694,12 @@ char *name, *geom;
 		ui_error ("Funky widget type: %d", gw->gw_type);
 	frame = (struct frame_widget *) gw;
 /*
- * If the widget is already popped up:
- *	If there's no specified geometry, raise the window and return,
- *	else pop it down so that it will pop up with the new geometry.
+ * If the widget is already popped up, pop it down so that it will pop up
+ * with the new geometry. 
  */
- 	if (frame->fw_flags & WF_POPPED)
+ 	if ((frame->fw_flags & WF_POPPED) && geom)
 	{
-		if (! geom)
-		{
-			XRaiseWindow (XtDisplay(frame->fw_w),
-				      XtWindow(frame->fw_w));
-			uw_sync ();
-			return;
-		}
-		else
-			uw_BringDown (frame);
+	    uw_BringDown (frame);
 	}
 /*
  * Certain widgets are not meant to be popped up from the command line.
@@ -672,9 +727,22 @@ char *name, *geom;
 		XtSetValues (frame->fw_w, &arg, 1);
 	}
 /*
- * Now put it up on the screen.
+ * Now put it up on the screen.  Position it at the pointer if no other
+ * position information has been specified (even if it is already popped
+ * up). 
  */
-	XtPopup (frame->fw_w, XtGrabNone);
+	if (! geom && frame->fw_x == NotSpecified)
+	{
+	    uw_PositionWidget (frame->fw_w);
+	}
+ 	if (! (frame->fw_flags & WF_POPPED))
+	{
+	    XtPopup (frame->fw_w, XtGrabNone);
+	}
+	else
+	{
+	    XRaiseWindow (XtDisplay(frame->fw_w), XtWindow(frame->fw_w));
+	}
 	uw_sync ();
 	frame->fw_flags |= WF_POPPED;
 /*

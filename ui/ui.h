@@ -1,5 +1,5 @@
 /* 10/86 jc */
-/* $Id: ui.h,v 1.9 2001-01-08 22:12:02 granger Exp $ */
+/* $Id: ui.h,v 1.10 2001-06-19 22:21:48 granger Exp $ */
 
 # ifndef UI_H_SYMBOLS
 # define UI_H_SYMBOLS
@@ -77,6 +77,7 @@ struct ui_command
 	void uw_IWRealize (char *, Widget);
 	Widget uw_IWWidget (char *);
 	void uw_IWPopup (char *);
+	void uw_PositionWidget (Widget w);
 	Widget uw_get_menubutton();
 # endif
 	void uw_mk_list (char *, char *, int, char **, void (*)(), char *);
@@ -120,6 +121,7 @@ struct ui_command
 	void uw_IWRealize ();
 	Widget uw_IWWidget ();
 	void uw_IWPopup ();
+	void uw_PositionWidget ();
 	Widget uw_get_menubutton();
 # endif
 	void uw_mk_list ();
