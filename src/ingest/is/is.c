@@ -1,7 +1,7 @@
 /*
  * Ingest scheduler
  */
-static char    *rcsid = "$Id: is.c,v 1.5 1991-11-12 20:31:48 martin Exp $";
+static char    *rcsid = "$Id: is.c,v 1.6 1991-11-12 23:51:19 martin Exp $";
 
 /*
  * Copyright (C) 1987,88,89,90,91 by UCAR University Corporation for
@@ -48,6 +48,8 @@ is_shutdown();
  */
 stbl            Configs;	/* will hold all configurations, accesable by
 				 * config name */
+int             exclose = 1;	/* true if stdout and stderr should be closed
+				 * after fork */
 
 main(argc, argv)
 	int             argc;
@@ -149,6 +151,10 @@ is_initial(arg, cmds)
 
 	case ISC_SHUTDOWN:
 		is_shutdown();
+		break;
+
+	case ISC_EXCLOSE:
+		is_exclose(cmds + 1);
 		break;
 
 	default:
@@ -535,6 +541,18 @@ do_config(cfg, cmds)
 		cfg->interval = UINT(cmds[1]);
 		break;
 
+
+
+
+
+
+
+
+
+
+
+
+
 	case ISC_ENDCON:
 		return (FALSE);
 
@@ -542,6 +560,25 @@ do_config(cfg, cmds)
 		ui_error("(BUG): Unknown keyword: %d\n", UKEY(*cmds));
 	}
 	return (TRUE);
+}
+
+is_exclose(cmds)
+	struct ui_command *cmds;
+{
+
+	switch (UKEY(*cmds)) {
+	case ISC_TRUE:
+		exclose = 1;
+		break;
+
+	case ISC_FALSE:
+		exclose = 0;
+		break;
+
+	default:
+		ui_error("(BUG): Unknown keyword: %d\n", UKEY(*cmds));
+	}
+
 }
 
 is_list(cmds)
@@ -670,8 +707,10 @@ cfg_go(cfg)
 
 	if ((pid = fork()) == 0) {
 		close(0);
-		close(1);
-		close(2);
+		if (exclose) {
+			close(1);
+			close(2);
+		}
 		close(msg_get_fd());
 		/*
 		 * sleep for a second. Otherwise, the exec'd job can run and

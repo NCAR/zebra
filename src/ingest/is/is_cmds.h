@@ -1,4 +1,4 @@
-/* $Id: is_cmds.h,v 1.3 1991-10-30 19:02:31 martin Exp $ */
+/* $Id: is_cmds.h,v 1.4 1991-11-12 23:51:54 martin Exp $ */
 /*
  * Keyword numbers for ingest scheduler commands.
  */
@@ -39,3 +39,6 @@
 #define ISC_RESTART    18
 #define ISC_SHUTDOWN   19
 #define ISC_PTYPE      20
+#define ISC_EXCLOSE    21
+#define ISC_TRUE       22
+#define ISC_FALSE      23
