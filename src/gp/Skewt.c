@@ -7,9 +7,10 @@
 # include <defs.h>
 # include <pd.h>
 # include <message.h>
-# include <FakeDataStore.h>
+# include <DataStore.h>
 # include "derive.h"
 # include "GraphProc.h"
+# include "GC.h"
 # include "PixelCoord.h"
 # include "DrawText.h"
 
@@ -72,11 +73,6 @@ static int	Ncolors;
 # define C_BG4		5
 # define C_DATA(i)	(6 + (i))
 
-/*
- * Graphics context
- */
-static GC	Gcontext = NULL;
-
 
 
 
@@ -89,21 +85,27 @@ bool	update;
  */
 {
 	bool	ok;
-	char	platform[40], annot[80], ctname[20];
-	int	status, i;
-	FieldId		flist[5];
+	char	platforms[80], annot[80], ctname[20];
+	int	status, i, npts, plat, nplat;
+	char		*flist[5], *pnames[5];
 	PlatformId	pid;
-	DataObject	dobjs[5];
-	DataObject	pres, temp, dp, u_wind, v_wind;
+	DataObject	*dobj = NULL;
+	float		*pres, *temp, *dp, *u_wind, *v_wind;
 /*
  * Get the platform and color table
  */
-	ok = pda_ReqSearch (Pd, c, "platform", NULL, platform, SYMT_STRING);
+	ok = pda_ReqSearch (Pd, c, "platform", NULL, platforms, SYMT_STRING);
 	ok &= pda_ReqSearch (Pd, c, "color-table", "skewt", ctname, 
 		SYMT_STRING);
 
 	if (! ok)
 		return;
+/*
+ * Break apart the platform names
+ */
+	nplat = xs_CommaParse (platforms, pnames);
+	if (nplat > 3)
+		nplat = 3;
 /*
  * Look for data limits; set them to defaults if necessary
  */
@@ -133,76 +135,82 @@ bool	update;
 		return;
 	}
 /*
- * Get the data
- */
-	flist[0] = "pres";
-	flist[1] = "temp";
-	flist[2] = "dp";
-	flist[3] = "u_wind";
-	flist[4] = "v_wind";
-
-	pid = ds_NameToPid (platform, &status);
-	switch (status)
-	{
-	    case 0:
-		/* OK */
-		break;
-	    case DSS_NONESUCH:
-		msg_ELog (EF_PROBLEM, "No such platform '%s'", platform);
-		return;
-	    case DSS_AMBIG:
-		msg_ELog (EF_PROBLEM, "Ambiguous platform '%s'", platform);
-		return;
-	    default:
-		msg_ELog (EF_PROBLEM, "BUG: Unknown status %d", status);
-		return;
-	}
-
-	cls_MGetData (1, &pid, 5, flist, PlotTime, PlotTime, dobjs, BADVAL);
-
-	pres = dobjs[0];
-	temp = dobjs[1];
-	dp = dobjs[2];
-	u_wind = dobjs[3];
-	v_wind = dobjs[4];
-/*
  * Set the plot limits
  */
 	Xlo = -0.2;
 	Ylo = -0.1;
 	Xhi = 1.4;
 	Yhi = 1.1;
-/* 
- * Get a graphics context, if necessary
- */
-	if (! Gcontext)
-		Gcontext = XCreateGC (XtDisplay (Graphics), 
-			XtWindow (Graphics), 0, NULL);
 /*
- * Plot the background
+ * Build the field list
  */
-	sk_Background ();
+	flist[0] = "pres";
+	flist[1] = "tdry";	/* = "temp" */
+	flist[2] = "dp";
+	flist[3] = "u_wind";
+	flist[4] = "v_wind";
 /*
- * Plot the thermo data and the winds data if requested
+ * Plot the background and top annotation
  */
-	sk_Thermo (pres, temp, dp);
-	sk_Winds (pres, u_wind, v_wind);
+	if (! update)
+	{
+		sk_Background ();
+		An_TopAnnot ("Skew-t plot for ", Colors[C_WHITE].pixel);
+	}
 /*
- * Free the data objects
+ * Loop through the platforms
  */
-	for (i = 0; i < 5; i++)
-		ds_FreeDataObject (dobjs[i]);
+	for (plat = 0; plat < nplat; plat++)
+	{
+	/*
+	 * Add this platform to the annotation
+	 */
+		if (! update)
+		{
+			if (plat > 0)
+				An_TopAnnot (", ", Colors[C_WHITE].pixel);
+
+			An_TopAnnot (pnames[plat], Colors[C_DATA(plat)].pixel);
+		}
+	/*
+	 * Get the data
+	 */
+		pid = ds_LookupPlatform (pnames[plat]);
+		if (pid == BadPlatform)
+		{
+			msg_ELog (EF_PROBLEM, "Bad platform '%s'", 
+				pnames[plat]);
+			continue;
+		}
+
+		dobj = ds_GetObservation (pid, flist, 5, &PlotTime, OrgScalar,
+			0.0, BADVAL);
+
+		pres = dobj->do_data[0];
+		temp = dobj->do_data[1];
+		dp = dobj->do_data[2];
+		u_wind = dobj->do_data[3];
+		v_wind = dobj->do_data[4];
+
+		npts = dobj->do_npoint;
+	/*
+	 * Plot the thermo data and then the winds data
+	 */
+		sk_Thermo (pres, temp, dp, npts, plat);
+		sk_Winds (pres, u_wind, v_wind, npts, plat, nplat);
+	/*
+	 * Free the data object
+	 */
+		ds_FreeDataObject (dobj);
+	}
 /*
- * If it's just an update, return now since we don't want
- * to re-annotate
+ * Add a period to the top annotation
  */
-	if (update)
-		return;
+	An_TopAnnot (".  ", Colors[C_WHITE].pixel);
 /*
- * Top annotation
+ * Unclip since we want to return the shared GC in clean condition
  */
-	sprintf (annot, "Skew-t plot (%s).", platform);
-	An_TopAnnot (annot, C_WHITE);
+	sk_Clip (Xlo, Ylo, Xhi, Yhi);
 }
 
 
@@ -265,7 +273,7 @@ sk_Background ()
 	 * Write the number either on the top or on the right side depending
 	 * on the isotherm
 	 */
-		sprintf (string, "%d\0", (int) t);
+		sprintf (string, "%d", (int) t);
 
 		if (x[1] <= 1.0)
 			sk_DrawText (string, x[1] + 0.01 * SKEWSLOPE, 1.01,
@@ -298,7 +306,7 @@ sk_Background ()
 	/*
 	 * Annotate along the left side
 	 */
-		sprintf (string, "%d\0", (int) p);
+		sprintf (string, "%d", (int) p);
 		sk_DrawText (string, -0.01, y[0], 0.0, C_WHITE, 0.025, 
 			JustifyRight, JustifyCenter);
 	}
@@ -324,7 +332,7 @@ sk_Background ()
 	/*
 	 * Label
 	 */
-		sprintf (string, "%d \0", i);
+		sprintf (string, "%d ", i);
 		sk_DrawText (string, x[1], y[1], 0.0, C_BG2, 0.02, 
 			JustifyRight, JustifyCenter);
 	}
@@ -349,7 +357,7 @@ sk_Background ()
 	 * Plot the line and annotate just above the top of the line
 	 */
 		sk_Polyline (x, y, 2, L_dashed, C_BG2);
-		sprintf (string, "%03.1f\0", mr[i]);
+		sprintf (string, "%03.1f", mr[i]);
 		sk_DrawText (string, x[1], y[1] + 0.01, annot_angle, C_BG2, 
 			0.02, JustifyLeft, JustifyCenter);
 	}
@@ -382,10 +390,12 @@ sk_Background ()
 
 		if (x[0] > 0.0 && x[0] < 1.0)
 		{
-			slope = (y[1] - y[0]) / (x[1] - x[0]);
-			annot_angle = RAD_TO_DEG (atan (slope));
+			annot_angle = 
+				RAD_TO_DEG (atan2 (y[1] - y[0], x[1] - x[0]));
+			if (annot_angle > 0.0)
+				annot_angle -= 180.0;
 
-			sprintf (string, "%d\0", (int) t);
+			sprintf (string, "%d", (int) t);
 			sk_DrawText (string, x[0], y[0] + 0.01, annot_angle, 
 				C_BG3, 0.02, JustifyRight, JustifyCenter);
 		}
@@ -412,7 +422,7 @@ sk_Background ()
 	 */
 		sk_Polyline (x, y, npts, L_dotted, C_BG4);
 
-		sprintf (string, "%d\0", (int) pt);
+		sprintf (string, "%d", (int) pt);
 
 		if (x[0] > 0.0 && x[0] <= 1.0)
 		{
@@ -633,29 +643,24 @@ float	*pres, *temp, *dp;
 
 
 void
-sk_Thermo (pres, temp, dp)
-DataObject	pres, temp, dp;
+sk_Thermo (p, t, d, npts, plot_ndx)
+float	*p, *t, *d;
+int	npts, plot_ndx;
 /*
  * Plot the thermo data for the given sounding
  */
 {
-	float	*p, *t, *d;
 	float	*xt, *xd, *yt, *yd;
 	float	y;
-	int	i, npts, good_d = 0, good_t = 0;
+	int	i, good_d = 0, good_t = 0;
 	DataObject	dobjs[3];
-	int	plot_ndx = 0;
 /*
- * Grab the data
+ * Clip
  */
-	p = pres->dunion.scalar;
-	t = temp->dunion.scalar;
-	d = dp->dunion.scalar;
+	sk_Clip (0.0, 0.0, 1.0, 1.0);
 /*
  * Allocate pixel coordinate arrays
  */
-	npts = pres->npoints;
-
 	xt = (float *) malloc (npts * sizeof (float));
 	xd = (float *) malloc (npts * sizeof (float));
 	yt = (float *) malloc (npts * sizeof (float));
@@ -683,8 +688,8 @@ DataObject	pres, temp, dp;
 /*
  * Draw the lines
  */
-	sk_Polyline (xt, yt, good_t, L_solid, C_DATA (2 * plot_ndx));
-	sk_Polyline (xd, yd, good_d, L_solid, C_DATA (2 * plot_ndx + 1));
+	sk_Polyline (xt, yt, good_t, L_solid, C_DATA (plot_ndx));
+	sk_Polyline (xd, yd, good_d, L_solid, C_DATA (plot_ndx));
 /*
  * Draw the lifted parcel lines
  */
@@ -704,24 +709,16 @@ DataObject	pres, temp, dp;
 
 
 void
-sk_Winds (pres, u_wind, v_wind)
-DataObject	pres, u_wind, v_wind;
+sk_Winds (p, u, v, npts, plot_ndx, nplots)
+float	*p, *u, *v;
+int	npts;
+int	plot_ndx, nplots;
 /*
  * Plot the winds for the given sounding
  */
 {
-	float	*p, *u, *v;
 	float	xstart, xscale, yscale, xov[2], yov[2], w_aspect;
-	int	i, npts;
-	int	plot_ndx = 0, nplots = 1;
-/*
- * Get the actual data arrays
- */
-	npts = pres->npoints;
-
-	p = pres->dunion.scalar;
-	u = u_wind->dunion.scalar;
-	v = v_wind->dunion.scalar;
+	int	i;
 /*
  * Calculate the x starting position and the x and y scaling factors
  */
@@ -761,7 +758,7 @@ DataObject	pres, u_wind, v_wind;
 	/*
 	 * Draw the wind line
 	 */
-		sk_Polyline (xov, yov, 2, L_solid, C_DATA (2 * plot_ndx));
+		sk_Polyline (xov, yov, 2, L_solid, C_DATA (plot_ndx));
 	}
 /*
  * Draw the staff
@@ -832,7 +829,7 @@ int	hjust, vjust;
  * Draw the text
  */
 	scale = cheight / (Yhi - Ylo);
-	DrawText (Graphics, GWFrame (Graphics), color, xpix, ypix, text, 
+	DrawText (Graphics, GWFrame (Graphics), Gcontext, xpix, ypix, text, 
 		rot, scale, hjust, vjust);
 }
 
