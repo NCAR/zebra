@@ -40,7 +40,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.50 1995-04-07 16:50:25 burghart Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.51 1995-04-07 22:23:04 burghart Exp $")
 
 
 /*
@@ -107,6 +107,7 @@ static void	CAP_Contour FP ((char *, contour_type, char **, char **,
 static DataChunk *CAP_ImageGrid FP ((char *, ZebTime *, PlatformId, char *, 
 			int *, int *, float *, float *, float *, float *, 
 			float *, int *));
+static void	CAP_ImageDataTime FP ((ZebTime *dtime));
 void		CAP_RasterSideAnnot FP ((char *, char *, int, int, int));
 void		CAP_StaPltSideAnnot FP ((char *, char *, int, int, int));
 static bool 	CAP_VecParams FP ((char *, char *, char *, char *, float *,
@@ -1777,88 +1778,30 @@ float	*x0, *y0, *x1, *y1, *alt;
  * Fetch an image grid from this platform.
  */
 {
-	ZebTime realtime, stimes[60], obstimes[2];
+	ZebTime realtime;
 	RGrid rg;
 	ScaleInfo sc;
-	float cdiff;
-	Location slocs[60], origin;
-	int nsample, samp, ntime, len;
-	bool all = FALSE, rspace = FALSE;
+	Location origin;
+	int len;
 	DataChunk *dc;
 	FieldId	fid = F_Lookup (field);
 /*
- * Find out when we can really get data.
+ * Get a data time, applying altitude selection if appropriate.
  */
-	if (! (ntime = ds_DataTimes (pid, when, 1, DsBefore, &realtime)))
-	{
-		msg_ELog (EF_INFO, "No data available at all for %s",
-			ds_PlatformName (pid));
+	realtime = *when;
+	if (! ImageDataTime (c, pid, *alt, &realtime))
 		return (0);
-	}
-/*
- * Unless they have specified that they want all of the heights, we need
- * to find the specific one of interest.
- */
-	if (pda_Search (Pd, c, "radar-space", NULL, (char *) &rspace,
-			SYMT_BOOL) && rspace &&
-			(! pda_Search (Pd, c, "every-sweep",
-				NULL, (char *) &all, SYMT_BOOL)	|| !all))
-	{
-		char cattr[200], *attr = NULL;
-	/*
-	 * Look for a filter attribute.
-	 */
-		if (pda_Search (Pd, "global", "filter-attribute", 
-				ds_PlatformName (pid), cattr, SYMT_STRING))
-			attr = cattr;
-	/*
-	 * Look at the previous two observations.
-	 */
-		if (! (ntime = ds_GetObsTimes (pid, when, obstimes, 2, attr)))
-		{
-			msg_ELog (EF_PROBLEM, "Strange...no observations");
-			return (0);
-		}
-	/*
-	 * Get the samples from the first volume and see which is closest.
-	 */
-		realtime = obstimes[0];
-		nsample = ds_GetObsSamples (pid, &realtime, stimes, slocs, 60);
-		cdiff = 99.9;
-		for (samp = 0; samp < nsample; samp++)
-			if (ABS (*alt - slocs[samp].l_alt) < cdiff)
-			{
-				cdiff = ABS (*alt - slocs[samp].l_alt);
-				realtime = stimes[samp];
-			}
-	/*
-	 * If we don't come within a degree, drop back to the previous
-	 * one and try one more time.
-	 */
-		if (cdiff > 1.0 && ntime > 1)
-		{
-			nsample = ds_GetObsSamples (pid, obstimes + 1, stimes,
-					slocs, 60);
-			for (samp = 0; samp < nsample; samp++)
-				if (ABS (*alt - slocs[samp].l_alt) < cdiff)
-				{
-				msg_ELog (EF_DEBUG, "Drop back case");
-					cdiff = ABS (*alt - slocs[samp].l_alt);
-					realtime = stimes[samp];
-				}
-		}
-	}
 /*
  * Snarf it.
  */
 	if (! (dc = ds_Fetch (pid, DCC_Image, &realtime, &realtime, &fid, 1,
-		NULL, 0)))
+			      NULL, 0)))
 	{
 		msg_ELog (EF_PROBLEM, "Get failed on %s/%s.", 
 			ds_PlatformName (pid), field);
 		return (0);
 	}
-	*shift =  ApplySpatialOffset (dc, c, when);
+	*shift =  ApplySpatialOffset (dc, c, &realtime);
 /*
  * Get some info out of the data chunk.
  */

@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.44 1994-12-09 08:38:08 granger Exp $ */
+/* $Id: GraphProc.h,v 2.45 1995-04-07 22:21:59 burghart Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -297,6 +297,8 @@ extern int ApplySpatialOffset FP ((DataChunk *, char *, ZebTime *));
 extern void FindWindsFields FP ((PlatformId, ZebTime *, char *, char *,
 		FieldId *));
 extern void GetWindData FP ((FieldId *, float *, float *, double));
+extern bool ImageDataTime FP ((char *c, PlatformId pid, double alt,
+			       ZebTime *dtime));
 
 
 

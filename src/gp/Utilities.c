@@ -29,7 +29,7 @@
 # include <time.h>
 # include "GraphProc.h"
 # include "PixelCoord.h"
-MAKE_RCSID ("$Id: Utilities.c,v 2.26 1994-09-15 21:50:20 corbet Exp $")
+MAKE_RCSID ("$Id: Utilities.c,v 2.27 1995-04-07 22:21:57 burghart Exp $")
 
 /*
  * Rules for image dumping.  Indexed by keyword number in GraphProc.state
@@ -800,3 +800,86 @@ Cursor	cursor;
 		eq_sync ();
 }
 
+
+
+bool
+ImageDataTime (c, pid, alt, dtime)
+char	*c;
+PlatformId	pid;
+double		alt;
+ZebTime		*dtime;
+/*
+ * Get the "real" time for image data, applying the current altitude 
+ * selection if appropriate.
+ */
+{
+	ZebTime	stimes[60], obstimes[2], wanted_time = *dtime;
+	int	nsample, samp, ntime, len;
+	bool	all = FALSE, rspace = FALSE;
+	float	cdiff;
+	Location	slocs[60];
+/*
+ * Find out when we can really get data.
+ */
+	if (! (ntime = ds_DataTimes (pid, &wanted_time, 1, DsBefore, dtime)))
+	{
+		msg_ELog (EF_INFO, "ImageDataTime: No data for '%s'",
+			  ds_PlatformName (pid));
+		return (0);
+	}
+/*
+ * Unless they have specified that they want all of the heights, we need
+ * to find the specific one of interest.
+ */
+	if (pda_Search (Pd, c, "radar-space", NULL, (char *) &rspace,
+			SYMT_BOOL) && rspace &&
+			(! pda_Search (Pd, c, "every-sweep",
+				NULL, (char *) &all, SYMT_BOOL)	|| !all))
+	{
+		char cattr[200], *attr = NULL;
+	/*
+	 * Look for a filter attribute.
+	 */
+		if (pda_Search (Pd, "global", "filter-attribute", 
+				ds_PlatformName (pid), cattr, SYMT_STRING))
+			attr = cattr;
+	/*
+	 * Look at the previous two observations.
+	 */
+		if (! (ntime = ds_GetObsTimes (pid, dtime, obstimes, 2, attr)))
+		{
+			msg_ELog (EF_PROBLEM, "Strange...no observations");
+			return (0);
+		}
+	/*
+	 * Get the samples from the first volume and see which is closest.
+	 */
+		*dtime = obstimes[0];
+		nsample = ds_GetObsSamples (pid, dtime, stimes, slocs, 60);
+		cdiff = 99.9;
+		for (samp = 0; samp < nsample; samp++)
+			if (ABS (alt - slocs[samp].l_alt) < cdiff)
+			{
+				cdiff = ABS (alt - slocs[samp].l_alt);
+				*dtime = stimes[samp];
+			}
+	/*
+	 * If we don't come within a degree, drop back to the previous
+	 * one and try one more time.
+	 */
+		if (cdiff > 1.0 && ntime > 1)
+		{
+			nsample = ds_GetObsSamples (pid, obstimes + 1, stimes,
+					slocs, 60);
+			for (samp = 0; samp < nsample; samp++)
+				if (ABS (alt - slocs[samp].l_alt) < cdiff)
+				{
+				msg_ELog (EF_DEBUG, "Drop back case");
+					cdiff = ABS (alt - slocs[samp].l_alt);
+					*dtime = stimes[samp];
+				}
+		}
+	}
+
+	return (1);
+}
