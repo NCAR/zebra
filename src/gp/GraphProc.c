@@ -47,7 +47,7 @@
 # include "LayoutControl.h"
 # include "LLEvent.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.59 1996-02-05 14:58:18 granger Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.60 1996-02-05 16:50:08 burghart Exp $")
 
 /*
  * Default resources.
@@ -98,7 +98,7 @@ float	Alt;
 bool	PostProcMode = FALSE;
 ZebTime	PostProcTime;
 
-static int ListPosition (), RmElement (), ReplElement ();
+static int ListPosition (), RmElement (), ReplElement (), NthElement ();
 
 /*
  * Definition of the global graphics context in GC.h
@@ -376,6 +376,7 @@ finish_setup ()
 	type[1] = SYMT_INT;
 	uf_def_function ("rmelement", 2, type, RmElement);
 	uf_def_function ("replelement", 3, type, ReplElement);
+	uf_def_function ("nthelement", 2, type, NthElement);
 /*
  * Redirect UI output.
  */
@@ -1971,6 +1972,28 @@ SValue *argv, *retv;
 	}
 	*rett = SYMT_STRING;
 	retv->us_v_ptr = ret;
+	return (0);
+}
+
+
+
+static int
+NthElement (narg, argv, argt, retv, rett)
+int narg, *argt, *rett;
+SValue *argv, *retv;
+/*
+ * CLF: NthElement (list, nth)
+ */
+{
+	char *elems[40];
+	int which = argv[1].us_v_int;
+	int nelem = CommaParse (argv[0].us_v_ptr, elems), i;
+
+	*rett = SYMT_STRING;
+	if ((nelem - 1) < which)
+		retv->us_v_ptr = usy_string ("(NONE)");
+	else
+		retv->us_v_ptr = usy_string (elems[which]);
 	return (0);
 }
 
