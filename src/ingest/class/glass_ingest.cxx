@@ -1,5 +1,5 @@
 /*
- * $Id: glass_ingest.cxx,v 2.2 1999-07-12 20:12:57 granger Exp $
+ * $Id: glass_ingest.cxx,v 2.3 1999-07-12 21:46:22 granger Exp $
  *
  * Ingest GLASS data into the system.
  *
@@ -60,7 +60,7 @@ extern "C"
 #include <met_formulas.h>
 }
 
-RCSID("$Id: glass_ingest.cxx,v 2.2 1999-07-12 20:12:57 granger Exp $")
+RCSID("$Id: glass_ingest.cxx,v 2.3 1999-07-12 21:46:22 granger Exp $")
 
 #include "ZTime.hh"
 #include "FieldClass.h"
@@ -1457,8 +1457,9 @@ ReadSamples (DataChunk *dc, char *file, Sounding &snd)
 		Location loc;
 		loc.l_lat = snd.lat();
 		loc.l_lon = snd.lon();
-		if (snd.alt() != BADVAL)
-			loc.l_alt = snd.alt() / 1000.0;	// convert to km
+		loc.l_alt = snd.alt();
+		if (loc.l_alt != BADVAL)
+			loc.l_alt /= 1000.0;	// convert to km
 		int sample = dc_GetNSample(dc);
 		AddRecord estore(dc, when, sample);
 		snd.enumerate (estore);
