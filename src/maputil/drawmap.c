@@ -11,7 +11,9 @@
 # include <ui.h>
 # include <ui_error.h>
 
+#ifndef PI
 # define PI	3.141592654
+#endif
 # define BADPOINT_NOISE	"cat /rdss/audio/misc/drip.au > /dev/audio"
 
 # define GHEIGHT	559
