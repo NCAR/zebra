@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.8 1994-02-02 03:18:45 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.9 1999-06-15 16:44:36 burghart Exp $"
 
 /*
  * All individual ingest-related routines are kept in subdirectories.  Code
@@ -151,12 +151,9 @@ DISTSUBDIRS = mcidas radar class nowrad SLGrabber satellite profs is tao \
 	      wetnet ssmi trmm_rain trmm_sonde fest_p3_c130 precip \
 	      dap
 
-MakeSubdirs($(SUBDIRS))
-DependSubdirs($(SUBDIRS))
-InstallLibSubdirs($(SUBDIRS))
 DistfilesTarget($(DISTFILES))
-DistfilesSubdirs($(DISTSUBDIRS))
 
+StandardSubdirTargets()
 
 /*
  * Omission notices.  This might get verbal, but for testing and feedback

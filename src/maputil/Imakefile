@@ -16,9 +16,9 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.9 1999-03-01 21:16:08 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.10 1999-06-15 16:44:36 burghart Exp $"
 
-/* #define IHaveSubdirs */
+#define IHaveSubdirs
 #define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
 
 LIBS = $(LIBZEBRA)
@@ -27,6 +27,7 @@ SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 FIPSLIB = fips123/libfips123.a
 
 SUBDIRS = fips123
+DISTSUBDIRS = $(SUBDIRS)
 
 SRCS = cbd2zebra.c dem2zebra.c dlg2zebra.c map_decimate.c \
        ncar2zebra.c rect_filter.c sdtsdump.c tablet.c zmap.c
@@ -38,16 +39,10 @@ DISTFILES = Imakefile $(DISTSRCS) README DEM.txt cbd_world.gif \
 
 DEPEND_DEFINES=$(NETCDFINCLUDES)
 
-/*
- * Make the FIPS123 library now, since we'll need it for later targets
- */
-MakeSubdirs($(SUBDIRS))
-DependSubdirs($(SUBDIRS))
-InstallSubdirs($(SUBDIRS))
-InstallLibSubdirs($(SUBDIRS))
-DistfilesSubdirs($(SUBDIRS))
-CleanSubdirs($(SUBDIRS))
-MakefileSubdirs($(SUBDIRS))
+StandardSubdirTargets()
+
+$(FIPSLIB):
+	cd fips123; make libfips123.a
 
 CompleteProgramTarget(cbd2zebra,cbd2zebra.o,/**/,/**/,/**/)
 SpecialObjectRule(dem2zebra.o,/**/,$(NETCDFINCLUDES))

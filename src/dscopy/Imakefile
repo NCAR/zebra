@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.18 1998-10-28 21:20:20 corbet Exp $"
+MFVERSION="$Id: Imakefile,v 1.19 1999-06-15 16:44:35 burghart Exp $"
 
 #define IHaveSubdirs
 #define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
@@ -24,6 +24,7 @@ PROGRAMS = dscopy convmud cdf_interpolate tao_conv gprotocdf \
            mudtocdf netcdf_fixlon
 
 SUBDIRS = profiler surface
+DISTSUBDIRS = $(SUBDIRS)
 
 LIBS = $(ZLIBS) $(LIBNETCDF)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
@@ -42,8 +43,9 @@ OTHERS = mud.id gp.hdr convmud.doc uwtocdf iss.problem netcdf_fixlon
 
 DISTFILES = Imakefile $(SRCS) $(FSRCS) $(HEADERS) dscopy.state
 
-
 all:: $(PROGRAMS)
+
+StandardSubdirTargets()
 
 DSCLIBS = $(DFALIBS) $(ZLIBS) $(XLIBS)
 CccProgramTarget(dscopy, dscopy.o, $(DEPLIBS), $(DSCLIBS), $(SYSLIBS))
@@ -57,7 +59,7 @@ NormalProgramTarget(cdf_interpolate,$(CIOBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
 InstallProgramWithFlags(cdf_interpolate,$(BINDIR),-s)
 
 TAOLIBS = $(DFALIBS) $(ZLIBS) $(XLIBS)
-NormalProgramTarget(tao_conv, tao_conv.o, $(DEPLIBS), $(TAOLIBS), $(SYSLIBS))
+CccProgramTarget(tao_conv, tao_conv.o, $(DEPLIBS), $(TAOLIBS), $(SYSLIBS))
 InstallProgramWithFlags(tao_conv,$(BINDIR),-s)
 
 /*
@@ -99,7 +101,4 @@ saber_dc:
 DependTarget()
 LintTarget()
 
-MakeSubdirs($(SUBDIRS))
-DependSubdirs($(SUBDIRS))
 DistfilesTarget($(DISTFILES))
-DistfilesSubdirs($(SUBDIRS))

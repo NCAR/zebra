@@ -9,11 +9,9 @@ XCOMM $XConsortium: Imakefile,v 1.3 94/02/09 15:50:05 matt Exp $
  */
 SUBDIRS = cf project imake /*makedepend*/ util
 
-MakeSubdirs($(SUBDIRS))
-DependSubdirs($(SUBDIRS))
-
 DISTFILES = Imakefile
 DISTSUBDIRS = $(SUBDIRS)
 
 DistfilesTarget($(DISTFILES))
-DistfilesSubdirs($(DISTSUBDIRS))
+
+StandardSubdirTargets()

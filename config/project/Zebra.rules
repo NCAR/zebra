@@ -1,5 +1,5 @@
 XCOMM -*- C -*-
-XCOMM $Id: Zebra.rules,v 1.18 1999-03-01 02:03:09 burghart Exp $
+XCOMM $Id: Zebra.rules,v 1.19 1999-06-15 16:44:38 burghart Exp $
 XCOMM
 XCOMM Rules specific to the Zebra project, including some which override
 XCOMM definitions in Imake.rules
@@ -276,6 +276,8 @@ base.h Concat(base,_xdr).c: base.x					@@\
 									@@\
 depend:: base.h								@@\
 									@@\
+distclean:: xdrclean							@@\
+									@@\
 xdrclean::								@@\
 	$(RM) base.h Concat(base,_xdr).c				@@\
 
@@ -452,13 +454,15 @@ CvsIgnoreTargets()							@@\
 									@@\
 CvsIgnoreFile(Makefile)							@@\
 									@@\
+xdr::									@@\
+									@@\
 depend::								@@\
 									@@\
 test::									@@\
 									@@\
 install.lib::								@@\
 
-#endif
+#endif	/* MakefileAdditions */
 
 
 /*
@@ -485,15 +489,12 @@ includes::								@@\
 
 
 /*
- * InstallLibSubdirs --
- * Propagates the install.lib target to subdirectories.
- * PassCDebugFlags IS passed, likewise is DESTDIR as it is in InstallSubdirs()
+ * XdrSubdirs - recursively add xdr target to subdirectories
  */
-#ifndef InstallLibSubdirs
-#define InstallLibSubdirs(dirs)						@@\
-NamedTargetSubdirs(install.lib,dirs,"installing libraries",\
-		   PassCDebugFlags DESTDIR='$(DESTDIR)',install.lib)
-#endif /* InstallLibSubdirs */
+#ifndef XdrSubdirs
+#define XdrSubdirs(dirs)						@@\
+NamedTargetSubdirs(xdr,dirs,"building XDR files",,xdr)
+#endif
 
 
 /*
@@ -808,6 +809,21 @@ name::									@@\
 	done
 
 /* NamedTargetSubdirs */
+
+
+/*
+ * Standard Zebra subdir targets - the subdirectory stuff we need that 
+ * Imake.tmpl doesn't do for us automatically.  It is assumed that both
+ * SUBDIRS and DISTSUBDIRS are defined before this macro is used.
+ */
+# define StandardSubdirTargets()					@@\
+MakeSubdirs($(SUBDIRS))							@@\
+DependSubdirs($(SUBDIRS))						@@\
+XdrSubdirs($(SUBDIRS))							@@\
+									@@\
+DistfilesSubdirs($(DISTSUBDIRS))
+
+/* end of StandardSubdirTargets */
 
 /*
  * ObjectCompile - compile fragment for a normal object file.

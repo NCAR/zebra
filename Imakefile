@@ -1,4 +1,4 @@
-XCOMM $Id: Imakefile,v 1.29 1997-11-25 16:25:31 granger Exp $
+XCOMM $Id: Imakefile,v 1.30 1999-06-15 16:44:22 burghart Exp $
 XCOMM
 XCOMM This is the top-level Imakefile for the Zebra distribution.
 XCOMM It is modeled after the top-level Imakefile of the MIT X11R5
@@ -44,6 +44,7 @@ default::
 	@echo "The 'Everything' target performs:"
 	@echo "	make Makefile"
 	@echo "	make Makefiles"
+	@echo "	make xdr"
 	@echo "	make includes"
 	@echo "	make depend"
 	@echo "	make install"
@@ -51,6 +52,7 @@ default::
 	@echo "	make Makefile"
 	@echo "	make Makefiles"
 	@echo "	make clean"
+	@echo "	make xdr"
 	@echo "	make includes"
 	@echo "	make depend"
 	@echo "	make install"
@@ -72,9 +74,7 @@ default::
 
 default:: Everything
 
-MakeSubdirs($(SUBDIRS))
-DependSubdirs($(SUBDIRS))
-/*InstallLibSubdirs($(SUBDIRS))*/	/* No longer used */
+StandardSubdirTargets()
 
 DistfilesTarget($(DISTFILES))
 DistfilesSubdirs($(DISTSUBDIRS))
@@ -107,6 +107,7 @@ makeWorld:
 	@echo ""
 	$(MAKE) MAKE=$(MAKE) $(MFLAGS) Makefiles
 	$(MAKE) MAKE=$(MAKE) $(MFLAGS) clean
+	$(MAKE) MAKE=$(MAKE) $(MFLAGS) xdr
 	MAKE_INCLUDES
 	$(MAKE) $(WORLDOPTS) MAKE=$(MAKE) $(MFLAGS) install
 	@echo ""
@@ -122,6 +123,7 @@ Everything:: makeMakefile
 	@date
 	@echo ""
 	$(MAKE) MAKE=$(MAKE) $(MFLAGS) Makefiles
+	$(MAKE) MAKE=$(MAKE) $(MFLAGS) xdr
 	MAKE_INCLUDES
 	$(MAKE) $(WORLDOPTS) MAKE=$(MAKE) $(MFLAGS) install
 	@echo ""

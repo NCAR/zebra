@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.21 1999-03-01 02:03:17 burghart Exp $"
+MFVERSION="$Id: Imakefile,v 1.22 1999-06-15 16:44:34 burghart Exp $"
 
 #define IHaveSubdirs
 #define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
@@ -98,11 +98,10 @@ DISTSUBDIRS = $(LIBS) $(DISTDATAUTIL) dm dsdelete dsdump dsnotice \
 
 TESTSUBDIRS = $(LIBS) pdcheck
 
-MakeSubdirs($(SUBDIRS))
-DependSubdirs($(SUBDIRS))
-InstallLibSubdirs($(SUBDIRS))
 DistfilesTarget($(DISTFILES))
-DistfilesSubdirs($(DISTSUBDIRS))
+
+StandardSubdirTargets()
+
 TestSubdirs($(TESTSUBDIRS))
 
 TARGET = all

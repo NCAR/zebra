@@ -12,6 +12,7 @@ all:: /* don't want first target to be install */
 
 InstallLibFile (FieldDefs,.,.)
 
-MakeSubdirs($(SUBDIRS))
 DistfilesTarget($(DISTFILES))
-DistfilesSubdirs($(DISTSUBDIRS))
+
+StandardSubdirTargets()
+
