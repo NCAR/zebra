@@ -599,8 +599,8 @@ ZebTime *now;
 		dc = dc_CreateDC (DCC_NSpace);
 		dc->dc_Platform = plat_id;
 		
-		fid = F_DeclareField("tests","Testing 1, 2, 3","#");
-		did = F_DeclareField(dimname[1],"Dimension","u");
+		fid = F_Field("tests", 0, "Testing 1, 2, 3", "#");
+		did = F_Field(dimname[1], 0, 0, 0);
 
 		/* define a variable whose dimensions do not exist */
 		EXPECT(1);
