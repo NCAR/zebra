@@ -5,7 +5,7 @@
 # include <graphdev.h>
 
 # ifdef DEV_X11
-static char *rcsid = "$Id: dev_x11.c,v 1.28 1992-09-02 15:32:23 oye Exp $";
+static char *rcsid = "$Id: dev_x11.c,v 1.29 1992-09-18 16:30:11 carson Exp $";
 
 # include "graphics.h"
 # include "device.h"
@@ -196,7 +196,8 @@ struct device *dev;
 	 */
 		attr.backing_store = NotUseful;
 	else
-		attr.backing_store = NotUseful /* WhenMapped */;
+		attr.backing_store = WhenMapped;
+/*		attr.backing_store = NotUseful;  */
 	attr.event_mask = ButtonPressMask | ExposureMask | KeyPressMask;
 	tag->x_window = XCreateWindow (tag->x_display,
 		RootWindow (tag->x_display, screen), 10, 10, tag->x_xres, 
