@@ -21,9 +21,10 @@
 
 # include "defs.h"
 # include <time.h>
+# include <ctype.h>
 # include <sys/types.h>
 
-MAKE_RCSID ("$Id: TCvt.c,v 2.11 1993-12-21 17:39:17 corbet Exp $")
+MAKE_RCSID ("$Id: TCvt.c,v 2.12 1994-03-21 20:27:02 burghart Exp $")
 
 /*
  * The months of the year.
@@ -216,6 +217,79 @@ char *dest;
 }
 
 
+
+
+bool
+TC_DecodeTime (string, zt)
+const char	*string;
+ZebTime		*zt;
+/*
+ * Attempt a simple decoding of the string of the form 
+ * "dd-mmm-yy,hh:mm:ss.uuuuuu" into a ZebTime.  Return FALSE
+ * if we don't get at least the first three fields.
+ */
+{
+	char	cmonth[3];
+	int	nfields, year, month, day, hour, minute;
+	float	fsecond;
+	struct tm	t;
+# if defined(SVR4) || defined(SYSV)
+	char	tz[20];
+# endif
+/*
+ * Initialize our pieces and scan the string
+ */
+	fsecond = 0.0;
+	year = month = day = hour = minute = 0;
+
+	nfields = sscanf (string, "%d-%3c-%d,%d:%d:%f", &day, &cmonth, &year,
+			  &hour, &minute, &fsecond);
+/*
+ * If we didn't make it at least to the year, we failed
+ */
+	if (nfields < 3)
+		return (FALSE);
+/*
+ * See if we got a reasonable month
+ */
+	cmonth[0] = toupper (cmonth[0]);
+	cmonth[1] = tolower (cmonth[1]);
+	cmonth[2] = tolower (cmonth[2]);
+
+	for (month = 0; month < 12; month++)
+		if (! strncmp (cmonth, Months[month], 3))
+			break;
+
+	if (month == 12)
+		return (FALSE);
+/*
+ * Trust the rest and use it to build a "struct tm", that we then convert
+ * into seconds.
+ */
+	t.tm_year = year;
+	t.tm_mon = month;
+	t.tm_mday = day;
+	t.tm_hour = hour;
+	t.tm_min = minute;
+	t.tm_sec = (int) fsecond;
+	zt->zt_MicroSec = (fsecond - (int)fsecond) * 1000000;
+#if defined(SVR4) || defined(SYSV)
+	strcpy (tz, "TZ=GMT");
+        putenv (tz);
+        timezone = 0;
+        /* altzone = 0; */
+        daylight = 0;
+        t.tm_wday = t.tm_yday = 0;
+        t.tm_isdst = -1;
+	zt->zt_Sec = mktime (&t);
+#else
+        t.tm_zone = (char *) 0;
+        t.tm_wday = t.tm_yday = t.tm_isdst = 0;
+	zt->zt_Sec = timegm (&t);
+#endif
+
+	return (TRUE);
+}
 
 
 
