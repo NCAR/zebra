@@ -26,7 +26,7 @@ define command quit 'exit'
 define state initial
 	eoftext 'exit'
 	ctable ui$command_table
-	@ /rdss/ui/ui_commands.
+	@ #ui$defs_file
 
 	input 'go' KW_GO
 		next ust$no_more

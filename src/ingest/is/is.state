@@ -1,4 +1,4 @@
-! $Id: is.state,v 1.5 1992-08-28 23:35:45 barrett Exp $
+! $Id: is.state,v 1.6 1994-05-21 07:18:42 granger Exp $
 !
 ! Command definition for the display manager.
 !
@@ -23,7 +23,7 @@
 define state is-initial
 	eoftext 'exit'
 	ctable ui$command_table
-	@ /rdss/ui/ui_commands.
+	@ #ui$defs_file
 	input 'config' 1
 		next is-config-name
 	endinput 
