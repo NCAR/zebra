@@ -5,7 +5,7 @@
 # ifdef XSUPPORT
 
 
-static char *rcsid = "$Id: ui_wPulldown.c,v 1.6 1990-09-17 10:28:46 corbet Exp $";
+static char *rcsid = "$Id: ui_wPulldown.c,v 1.7 1991-12-20 18:12:14 corbet Exp $";
 
 # ifndef X11R3		/* This stuff don't work under R3.	*/
 /* 
@@ -24,6 +24,11 @@ static char *rcsid = "$Id: ui_wPulldown.c,v 1.6 1990-09-17 10:28:46 corbet Exp $
 # include <X11/Xaw/SimpleMenu.h>
 # include <X11/Xaw/SmeBSB.h>
 # include <X11/Xaw/SmeLine.h>
+# ifdef SMEMENU
+/* #  include <X11/Xaw/SmeMenu.h> */
+#  include "SmeMenu.h"
+#  include "submenu.h"
+# endif
 
 # include "ui.h"
 # include "ui_param.h"
@@ -34,6 +39,10 @@ static char *rcsid = "$Id: ui_wPulldown.c,v 1.6 1990-09-17 10:28:46 corbet Exp $
 # include "ui_window.h"
 # include "ui_error.h"
 # include "ui_loadfile.h"
+
+# ifdef SMEMENU
+static Pixmap SubMenuPixmap = 0;
+# endif
 
 /*
  * The "menubar" widget.
@@ -54,6 +63,14 @@ struct menubar_widget
 };
 
 
+typedef enum {
+	CommandEntry,
+	LineEntry,
+# ifdef SMEMENU
+	MenuEntry,
+# endif
+} EntryType;
+
 /*
  * This structure holds an actual pulldown menu.
  */
@@ -72,6 +89,7 @@ struct mb_menu
 	char	mbm_title[MAXTITLE];	/* Title to appear on the menu	*/
 	Widget	mbm_button;		/* The menu button		*/
 	int	mbm_nentries;		/* The number of entries.	*/
+	EntryType mbm_EType[MAX_ENTRY];	/* Type of each entry		*/
 	char	*mbm_etext[MAX_ENTRY];	/* The text of each entry	*/
 	char	*mbm_eact[MAX_ENTRY];	/* The associated action command */
 	Widget	mbm_ewidget[MAX_ENTRY];	/* The smeBSB widget		*/
@@ -85,6 +103,7 @@ struct mb_menu
 	bool	mbm_oom;		/* one-of-many selection	*/
 	bool	mbm_expr;		/* There are mark expressions	*/
 	bool	mbm_pixmap;		/* There is a pixmap 		*/
+	bool	mbm_SubMarks;		/* There are submenus to mark	*/
 };
 
 /*
@@ -194,7 +213,7 @@ struct ui_command *cmds;
  * Initialize the menu structure, and add it to the list.
  */
  	menu->mbm_nmap = menu->mbm_nentries = 0;
-	menu->mbm_expr = FALSE;
+	menu->mbm_SubMarks = menu->mbm_expr = FALSE;
 	menu->mbm_next = 0;
 	menu->mbm_type = WT_MENUBUTTON;
 	menu->mbm_title[0] = '\0';
@@ -214,6 +233,8 @@ struct ui_command *cmds;
  */
 	if (menu->mbm_oom = (cmds->uc_ctype != UTT_END))
 		menu->mbm_selector = usy_pstring (UPTR (*cmds));
+	else
+		menu->mbm_selector = NULL;
 /*
  * Deal with the actual entries now.
  */
@@ -240,7 +261,7 @@ char *name;
  * Initialize the menu structure.
  */
  	menu->mbm_nmap = menu->mbm_nentries = 0;
-	menu->mbm_expr = menu->mbm_oom = FALSE;
+	menu->mbm_SubMarks = menu->mbm_expr = menu->mbm_oom = FALSE;
 	menu->mbm_next = 0;
 	menu->mbm_type = WT_INTPOPUP;
 	menu->mbm_create = uw_mbmcreate;
@@ -280,6 +301,7 @@ struct ui_command *cmds;
 	 * Most things are ENTRYs.
 	 */
 	   case UIC_ENTRY:
+		menu->mbm_EType[menu->mbm_nentries] = CommandEntry;
 	   	menu->mbm_etext[menu->mbm_nentries] = 
 				usy_pstring (UPTR (cmds[1]));
 		menu->mbm_eact[menu->mbm_nentries] =
@@ -298,8 +320,29 @@ struct ui_command *cmds;
 	 * A LINE is represented by a null entry.
 	 */
 	   case UIC_LINE:
+		menu->mbm_EType[menu->mbm_nentries] = LineEntry;
+	   	menu->mbm_eexpr[menu->mbm_nentries] = 0;
 		menu->mbm_etext[menu->mbm_nentries++] = (char *) 0;
 		break;
+# ifdef SMEMENU
+	/*
+	 * Maybe a submenu?
+	 */
+	  case UIC_SUBMENU:
+		menu->mbm_EType[menu->mbm_nentries] = MenuEntry;
+		menu->mbm_eexpr[menu->mbm_nentries] = 0;
+	   	menu->mbm_etext[menu->mbm_nentries] = 
+				usy_pstring (UPTR (cmds[1]));
+		menu->mbm_eact[menu->mbm_nentries] = 
+				usy_pstring (UPTR (cmds[2]));
+		menu->mbm_nentries++;
+		menu->mbm_SubMarks = TRUE;
+		break;
+# else
+	   case UIC_SUBMENU:
+	   	ui_warning ("No submenus supported in this version");
+		break;
+# endif
 	/*
 	 * It could be a title.
 	 */
@@ -376,7 +419,7 @@ Widget parent;
  */
 {
 	int i, uw_mb_cb ();
-	static Arg margs[10];
+	Arg margs[10];
 	int uw_mb_popup ();
 /*
  * Create the menubutton and the shell for the menu.
@@ -415,40 +458,61 @@ Widget parent;
 /*
  * Go through and add each entry.
  */
+# ifdef SMEMENU
+	XtSetArg (margs[0], XtNleftMargin, 20);
+# else
 	XtSetArg (margs[0], XtNleftMargin, (menu->mbm_oom || menu->mbm_expr) ?
 			20 : 4);
+# endif
 	for (i = 0; i < menu->mbm_nentries; i++)
 	{
-		if (menu->mbm_etext[i])
+	/*
+	 * Create a subwidget based on the entry type.
+	 */
+	 	switch (menu->mbm_EType[i])
 		{
+		/*
+		 * Basic command entries.
+		 */
+		   case CommandEntry:
 			menu->mbm_ewidget[i] = XtCreateManagedWidget (
 				menu->mbm_etext[i], smeBSBObjectClass,
 				menu->mbm_pulldown, margs, ONE);
 			XtAddCallback (menu->mbm_ewidget[i], XtNcallback,
 				uw_mb_cb, menu->mbm_eact[i]);
-		}
-		else
+			break;
+		/*
+		 * Lines.
+		 */
+		   case LineEntry:
 			menu->mbm_ewidget[i] = XtCreateManagedWidget ("line",
 				smeLineObjectClass, menu->mbm_pulldown,
 				NULL, ZERO);
+			break;
+# ifdef SMEMENU
+		/*
+		 * Submenus.
+		 */
+		   case MenuEntry:
+		   	XtSetArg (margs[1], XtNmenu, menu->mbm_eact[i]);
+			uw_IWRealize (menu->mbm_eact[i], parent);
+		   	menu->mbm_ewidget[i] = XtCreateManagedWidget
+				(menu->mbm_etext[i], smeMenuObjectClass,
+				 menu->mbm_pulldown, margs, TWO);
+			break;
+# endif
+		}
 	}
 /*
  * If this menu has a selector, put in a popup callback to insure that it
  * is always right.
  */
-	if (menu->mbm_oom || menu->mbm_expr)
+	if (menu->mbm_oom || menu->mbm_expr || menu->mbm_SubMarks)
 	{
 		menu->mbm_esel = -1;
 		XtAddCallback (menu->mbm_pulldown, XtNpopupCallback,
 			uw_mb_popup, menu);
 	}
-# ifdef notdef
-/*
- * For menus with mark expressions, go through and set the initial values.
- */
-	if (menu->mbm_expr)
-		uw_mb_set_marks (menu, TRUE);
-# endif
 }
 
 
@@ -520,7 +584,7 @@ XtPointer xpmenu, junk;
 	union usy_value v;
 	Arg args[5];
 /*
- * Do we have our pixmap?
+ * Do we have our pixmaps?
  */
 	if (! Mb_mark && XReadBitmapFile (XtDisplay (Top),
 		XtWindow (menu->mbm_pulldown), Mb_mark_file, &w, &h,
@@ -530,6 +594,17 @@ XtPointer xpmenu, junk;
 		return;
 	}
 /*
+ * Deal with submenus.
+ */
+# ifdef SMEMENU
+	if (! SubMenuPixmap)
+		SubMenuPixmap = XCreateBitmapFromData ( XtDisplay (Top),
+			XtWindow (menu->mbm_pulldown), submenu_bits,
+			submenu_width, submenu_height);
+	if (menu->mbm_SubMarks)
+		uw_mb_submenu_marks (menu);
+# endif
+/*
  * If this menu has individual item marks, deal with it separately.
  */
 	if (menu->mbm_expr)
@@ -537,6 +612,8 @@ XtPointer xpmenu, junk;
 		uw_mb_set_marks (menu, FALSE);
 		return;
 	}
+	if (! menu->mbm_selector)
+		return;
 /*
  * Look up the selector variable.
  */
@@ -568,6 +645,34 @@ XtPointer xpmenu, junk;
 
 
 
+# ifdef SMEMENU
+uw_mb_submenu_marks (menu)
+struct mb_menu *menu;
+/*
+ * Add marks for the submenus.
+ */
+{
+	int i;
+	Arg args[2];
+/*
+ * Set the submenu marks.
+ */
+	XtSetArg (args[0], XtNleftBitmap, SubMenuPixmap);
+	for (i = 0; i < menu->mbm_nentries; i++)
+		if (menu->mbm_EType[i] == MenuEntry)
+			XtSetValues (menu->mbm_ewidget[i], args, ONE);
+	menu->mbm_SubMarks = FALSE;
+/*
+ * If there is no longer any need for this callback, remove it.
+ */
+	if (! menu->mbm_oom && ! menu->mbm_expr)
+		XtRemoveCallback (menu->mbm_pulldown, XtNpopupCallback,
+			uw_mb_popup, menu);
+}
+# endif
+
+
+
 
 uw_mb_set_marks (menu, all)
 struct mb_menu *menu;
@@ -586,7 +691,7 @@ bool all;
 	/*
 	 * If no expression, no mark.
 	 */
-	 	if (! menu->mbm_eexpr[i])
+	 	if (menu->mbm_EType[i] != CommandEntry || ! menu->mbm_eexpr[i])
 			continue;
 	/*
 	 * Evaluate the expression.
@@ -832,6 +937,9 @@ int lun;
  */
 	if (new->mbm_oom)
 		new->mbm_selector = uw_LoadString (lun);
+	else
+		new->mbm_selector = NULL;
+
 	if (new->mbm_nmap)
 		new->mbm_map = uw_LoadMap (lun, new->mbm_nmap);
 	return (new);
