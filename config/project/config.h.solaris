@@ -49,7 +49,7 @@
 XCOMM -----------------------------------------------------------------------
 XCOMM Definitions from config.h included here.  The definitions here override
 XCOMM the defaults in Project.tmpl.  See ...../zebra/config/project/config.h.
-XCOMM $Id: config.h.solaris,v 1.1 2002-06-10 15:41:01 burghart Exp $
+XCOMM $Id: config.h.solaris,v 1.2 2002-06-10 15:41:52 burghart Exp $
 XCOMM -----------------------------------------------------------------------
 # endif
 
@@ -159,6 +159,7 @@ XCOMM -----------------------------------------------------------------------
  * for Sun machines, and only if you know that you need them.
  */
 #define BuildIngest NO
+#define BuildPythonUtils NO
 
 /*
  * Here you can select which individual ingest modules to build.  
@@ -251,8 +252,16 @@ XCOMM -----------------------------------------------------------------------
  * If the home directory of OpenWindows is not the default /usr/openwin,
  * then define OpenWinHome to the correct directory.
  */
-# define UseOpenWindows 	NO	
-# define OpenWinHome		/usr/openwin
+/* # define UseOpenWindows 	NO	*/
+/* # define OpenWinHome		/usr/openwin */
+
+/*
+ * "Distribution-safe" build for Solaris.  Shared libraries are used, but
+ * only those distributed with Solaris.
+ */
+# define UseOpenWindows	YES
+# define OpenWinHome	/usr/openwin
+# define ExtraLoadFlags	-nodefaultlibs /usr/local/lib/libstdc++.a -lgcc -lc
 
 /*
  * Does your X system support the shared memory extension?  The answer is
@@ -287,7 +296,7 @@ XCOMM -----------------------------------------------------------------------
  *	 gcc 2.6.1 or greater.  Lacking those, use of the native compiler
  *	 is highly recommended.
  */
-# define UseGcc NO
+# define UseGcc YES
 
 /*
  * Zebra uses the RDSS UI compiler to generate load files for much of its
@@ -303,7 +312,7 @@ XCOMM -----------------------------------------------------------------------
  * tapeindex) GNU's libg++.  In turn, libg++ essentially requires that the
  * C++ compiler be GNU's g++. (Known reasons are: use of the "#include_next"
  * preprocessor directive, and assumption of "bool" as a built-in type.)
- * Hence: we use g++ and libg++.  Period.
+ * Hence: we must use g++ and libg++.  Period.
  *
  * In general, defaults generated for finding g++ and libg++ will suffice.
  * In some instances, however, one or more of the following variables may 
@@ -321,10 +330,7 @@ XCOMM -----------------------------------------------------------------------
  * the C++ compiler as well.
  */
 # define HasCplusplus	YES
-# define CplusplusCmd	CC
-# ifdef SGIArchitecture		/* -ansi needed for IRIX */
-#	define CplusplusOptions -ansi
-# endif
+# define CplusplusCmd	g++
 
 /*
  * To set debugging flags for the FORTRAN and C compilers' command
@@ -397,7 +403,7 @@ XCOMM -----------------------------------------------------------------------
 #ifdef HPArchitecture
 # define XIncDir /usr/contrib/mitX11R5/include	/* HP-UX version */
 #else
-# define XIncDir /local/X11R6/include
+/* # define XIncDir /local/X11R6/include */
 #endif
 
 #define NetCDFIncDir /usr/local/include
@@ -428,7 +434,7 @@ XCOMM -----------------------------------------------------------------------
  * HDFLibrary to the full path, including the file name, of the HDF library
  * (e.g. /usr/local/ncsa/libdf.a). 
  */
-#define HasHDF YES
+#define HasHDF NO
 #define HDFIncDir /usr/local/include/hdf
 #define HDFLibDir /usr/local/lib
 
@@ -442,9 +448,8 @@ XCOMM -----------------------------------------------------------------------
  * (or SweepFileLibDir to just give the directory).
  */
 # define HasSweepFiles YES
-# define SweepFileIncDir /usr/local/spol/include
-# define SweepFileLibrary /usr/local/spol/lib/ddmlib.a
-
+# define SweepFileIncDir /usr/local/rdss/spol/include
+# define SweepFileLibrary /usr/local/rdss/spol/ddutils/ddmlib.a
 
 /*
  * During linking, the linker must be told where to find the libraries 
@@ -470,7 +475,7 @@ XCOMM -----------------------------------------------------------------------
  * one.
  */
 
-# define XLibDir /local/X11R6/lib
+/* # define XLibDir /local/X11R6/lib */
 /* # define XLibDir /usr/contrib/mitX11R5/lib */ /* for HPUX */
 
 # if !BuildRDSS
@@ -573,47 +578,13 @@ XCOMM -----------------------------------------------------------------------
 
 #ifndef FortranLibraries
 #ifdef SunArchitecture /* SunOS and Solaris */
-/*
- * Uncomment one of the following definitions (# define FortranLibraries ...)
- * appropriate for your system.  SC4.0 is the default.  The first uncommented
- * definition will take precedence over any following definitions.
+
+/* 
+ * Change the FortranLibraries definition below if you are not using the 
+ * SC4.2 version of the Fortran compiler.
  */
-
-/* SunOS 4 with Fortran SC1.x */
-/* # define FortranLibraries -L/usr/lang/SC1.0.1 -lF77 -lV77 */
-
 #ifndef FortranLibraries
-/* SunOS 4 with gcc or cc and FORTRAN SC2.x */
-/* # define FortranLibraries \
-  -L/usr/lang/SC2.0.1 -lF77 -lV77 -lM77 -lansi /usr/lang/SC2.0.1/values-Xa.o */
-#endif
-
-#ifndef FortranLibraries
-/* SunOS 4 with acc and FORTRAN SC2.x */
-/* # define FortranLibraries -L/usr/lang/SC2.0.1 -lF77 -lV77 -lM77 -lansi */
-#endif
-
-/* Solaris, C2 and C3.0.  -lsunmath doesn't get linked into /opt/SUNWspro/lib
- * so it really does have to point explicitly at SC3.0...*/
-#ifndef FortranLibraries
-/* # define FortranLibraries -L/opt/SUNWspro/SC2.0.1 -lF77 -lV77 */
-#endif
-
-#ifndef FortranLibraries
-/* # define FortranLibraries -L/opt/SUNWspro/SC3.0/lib -lF77 -lV77 -lsunmath */
-#endif
-
-#ifndef FortranLibraries
-/* Solaris, SC3.0.1, for some reason (for some programs) now requires M77 */
-/* # define FortranLibraries -L/opt/SUNWspro/SC3.0.1/lib \
-		-lF77 -lV77 -lM77 -lsunmath */
-#endif
-
-/* Solaris SC4.0.  If none of the examples above are uncommented, this will
- * be the default */
-#ifndef FortranLibraries
-# define FortranLibraries -L/opt/SUNWspro/SC4.0/lib \
-   -lF77 -lV77 -lM77 -lsunmath
+# define FortranLibraries -L/opt/SUNWspro/SC4.2/lib -lF77 -lV77 -lM77 -lsunmath
 #endif
 
 #else
@@ -760,7 +731,8 @@ XCOMM -----------------------------------------------------------------------
  */
 
 /* #define DistributeIngest 	NO */
-/* #define DistributeOptimizer 	NO */
+#define DistributeOptimizer 	YES
+#define BuildOptimizer		YES
 /* #define DistributeDataUtil 	NO */
 /* #define DistributeMapUtil 	NO */
 /* #define DistributeXHelp	NO */
@@ -817,6 +789,12 @@ XCOMM -----------------------------------------------------------------------
  * ALL of these definitions will be ignored and none of these plots will
  * be built.  Again, it is rare that anyone would want or need to define
  * any of these to NO.
+ *
+ * The one possible exception is POLAR, which enables the "polar"
+ * representation and contours of polar data.  This is probably not useful
+ * to the bulk of people out there.  Polar plots currently only work from
+ * sweepfile data, so you will need to have enabled sweepfile access as
+ * well.
  */
 # if C_PT_CAP
 #	define C_CAP_OVERLAY	YES	/* Overlays			*/
@@ -929,7 +907,7 @@ XCOMM -----------------------------------------------------------------------
 #define CFG_PDNAME_LEN	40	/* Len of name of a plot description table   */
 #endif
 #ifndef CFG_MSGNAME_LEN
-#define CFG_MSGNAME_LEN	32	/* Max length of a message client name	     */
+#define CFG_MSGNAME_LEN	64	/* Max length of a message client name	     */
 #endif
 #ifndef CFG_MSGEVENT_LEN
 #define CFG_MSGEVENT_LEN 200	/* Length of extended logger event messages  */
