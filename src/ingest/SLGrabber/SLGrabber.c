@@ -47,7 +47,7 @@ Testing mode which reads bytes from file and sends to consumer
 # include <timer.h>
 # include "SLGrabber.h"
 
-MAKE_RCSID("$Id: SLGrabber.c,v 2.10 2000-05-24 21:08:17 granger Exp $")
+MAKE_RCSID("$Id: SLGrabber.c,v 2.11 2000-05-24 22:33:28 granger Exp $")
 
 typedef enum { UnspecifiedMode, TextMode, ByteMode } Mode;
 
@@ -67,7 +67,6 @@ typedef struct _Connection
 {
 	Mode	c_Mode;
 	int 	c_Fd;
-	FILE 	*c_File;
 	int 	c_TSlot;
 	char 	*c_Port;
 	char 	*c_Speed;
@@ -151,7 +150,6 @@ Connection *conn;
 {
 	conn->c_Mode = DEFAULT_MODE;
 	conn->c_Fd = -1;
-	conn->c_File = NULL;
 	conn->c_TSlot = -1;
 	conn->c_Port = DEFAULT_TERM;
 	conn->c_Speed = DEFAULT_SPEED;
@@ -254,9 +252,9 @@ char **argv;
 	if (conn.c_Consumer && ! strcmp (conn.c_Consumer, "print"))
 		conn.c_Consumer = NULL;
 /* 
- * Hook in.
+ * Hook in.  (Colon is not a valid character in message names.)
  */
-	sprintf (buf, "%s:%s", name, conn.c_Port);
+	sprintf (buf, "%s-%s", name, conn.c_Port);
 	if (! msg_connect (MHandler, buf))
 		Die ("message connect failure", 2);
 /*
@@ -402,23 +400,19 @@ Connection *conn;
 			  conn->c_Port);
 		Die ("couldn't open port", 4);
 	}
-	conn->c_File = fdopen (conn->c_Fd, "r+");
-# ifdef notdef
 /*
  * Get the current TTY parameters.
  */ 
-	if (ioctl (Fd, TIOCGETP, &tbuf) != 0)
+	if (tcgetattr (conn->c_Fd, &tbuf) != 0)
 	{
 		perror ("getting tty parms");
-		msg_ELog (EF_EMERGENCY, "ioctl error (%d)", errno);
+		msg_ELog (EF_EMERGENCY, "tcgetattr error (%d)", errno);
 		Die ("couldn't get tty parms", 5);
 	}
-# endif
 /*
- * Set to 8 bit, no parity, 1 stop bit, RTS/CTS flow control enabled, hang
- * up on last close.
+ * Set to 8 bit, no parity, 1 stop bit, hang up on last close.
  */
-	tbuf.c_cflag = CS8 | CREAD | CRTSCTS | HUPCL;
+	tbuf.c_cflag = CS8 | CREAD | HUPCL;
 	tbuf.c_cflag |= Speeds[i].n_speed;
 /*
  * Tweak it to be as raw as possible.
@@ -652,8 +646,10 @@ int start;		/* where in the buffer the new data begins */
 		/* null statement */;
 #endif
 /*
- * Now look for newlines indicating that whole lines have been read.
+ * Now look for newlines indicating that whole lines have been read,
+ * from the beginning of the buffer.
  */
+	cp = conn->c_buf;
 	conn->c_buf[conn->c_nbuf] = '\0';
 	while ((cp - conn->c_buf < conn->c_nbuf) &&
 	       ((newline = strchr (cp, '\n')) != 0))
