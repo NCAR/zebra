@@ -1,7 +1,7 @@
 /*
  * Routines for pulling grids out of MUDRAS files.
  */
-static char *rcsid = "$Id: GridAccess.c,v 2.1 1991-09-12 20:27:54 corbet Exp $";
+static char *rcsid = "$Id: GridAccess.c,v 2.2 1991-09-18 14:38:56 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -267,11 +267,13 @@ DataObject *dobj;
 			ymax = ypos[i];
 	}
 /*
- * Store some of the new position info.
+ * Store some of the new position info.  The rectangular grid is embedded in
+ * the irregular grid with a one grid width border on each side.
  */
-	rg.rg_Xspacing = (xmax - xmin)/(rg.rg_nX - 1);
-	rg.rg_Yspacing = (ymax - ymin)/(rg.rg_nY - 1);
-	cvt_ToLatLon (xmin, ymin, &dobj->do_loc.l_lat, &dobj->do_loc.l_lon);
+	rg.rg_Xspacing = (xmax - xmin)/(rg.rg_nX + 1);
+	rg.rg_Yspacing = (ymax - ymin)/(rg.rg_nY + 1);
+	cvt_ToLatLon (xmin + rg.rg_Xspacing, ymin + rg.rg_Yspacing,
+		&dobj->do_loc.l_lat, &dobj->do_loc.l_lon);
 /*
  * Fill the grid with bad value flags
  */
@@ -283,6 +285,10 @@ DataObject *dobj;
 	ga_RangeLimit (dobj->do_fields[0], irg->ir_npoint, dobj->do_data[0]);
 /*
  * Use RGRID to generate gridded data
+ *
+ * 9/17/91 cb	NOTE: rgrid expects a bounding box that gives a 
+ * 		one grid width border around the grid, rather than
+ * 		the bounds of the grid itself.  What a pain...
  */
 	badflag = BADVAL;
 	scratch = (float *) malloc (rg.rg_nX * rg.rg_nY * sizeof (float));
@@ -290,8 +296,8 @@ DataObject *dobj;
 		"Call rgrid, %d x %d, np %d, (%.2f %.2f) to (%.2f %.2f)",
 		rg.rg_nX, rg.rg_nY, irg->ir_npoint, xmin, ymin, xmax, ymax);
 	status = do_rgrid_ (grid, &rg.rg_nX, &rg.rg_nY, &irg->ir_npoint,
-		dobj->do_data[0], &badflag, 
-		xpos, ypos, &xmin, &ymin, &xmax, &ymax, scratch);
+		dobj->do_data[0], &badflag, xpos, ypos, &xmin, &ymin, 
+		&xmax, &ymax, scratch);
 /*
  * Clean up.
  */
