@@ -1,4 +1,4 @@
-/*
+/* -*- mode: c++; c-basic-offset: 8; -*-
  * Test the BTree
  */
 
@@ -19,7 +19,7 @@ using namespace std;
 #include "T_BTree.hh"
 
 #ifdef RCSID
-RCSID("$Id: T_BTree.cc,v 1.33 2002-09-17 20:00:19 granger Exp $")
+RCSID("$Id: T_BTree.cc,v 1.34 2002-12-18 22:22:24 granger Exp $")
 #endif
 
 typedef BTreeFile<ZTime,DataFileCore> TimeFileTree;
@@ -185,6 +185,26 @@ private:
 
 
 /*
+ * Template for returning a default value for a type.
+ */
+template <typename T>
+T
+getDefault()
+{
+	return T();
+}
+
+
+template <>
+ZTime
+getDefault()
+{
+	ZTime zt(0);
+	return zt;
+}
+
+
+/*
  * Put the test routines in a template class so we can call multiple
  * tree types within the same test.
  */
@@ -316,9 +336,10 @@ T_Removal (test_tree &tree,
 	   typename vector<key_type>::iterator k, 
 	   typename vector<key_type>::iterator last, int check_empty = 1)
 {
-	// Accept default initialization 
-	value_type v0 = value_type();
-	value_type v  = v0;
+	value_type v0;
+
+	v0 = getDefault<value_type>();
+	value_type v = v0;
 
 	// As removing, make sure the removed key cannot be found
 	//cout << " ...removing key: ";

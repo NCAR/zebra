@@ -1,6 +1,6 @@
 // -*- mode: c++; c-basic-offset: 8 -*- goodies for dealing with ZebraTimes.
 //
-// $Id: ZTime.h,v 2.6 2001-08-24 22:23:15 granger Exp $
+// $Id: ZTime.h,v 2.7 2002-12-18 22:22:24 granger Exp $
 //
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
@@ -231,7 +231,8 @@ struct ZTime : public ZebraTime
 
 	inline ZTime ()
 	{
-		setSystem(0);
+		zt_Sec = 0;
+		zt_MicroSec = 0;
 	}
 
 	inline ZTime (const ZebraTime &zt)
