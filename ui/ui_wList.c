@@ -1,4 +1,4 @@
-/* $Id: ui_wList.c,v 1.2 1990-03-27 09:31:37 corbet Exp $ */
+/* $Id: ui_wList.c,v 1.3 1990-04-21 16:41:09 corbet Exp $ */
 /*
  * List-widget specific windowing code.
  */
@@ -457,6 +457,7 @@ uw_cm_def ()
 	new->lw_destroy = uw_ldestroy;
 	new->lw_cb = ui_perform;
 	new->lw_flags = 0;
+	new->lw_nmap = 0;
 /*
  * Put together a cmenu struct, and get the rest of the info.
  */
