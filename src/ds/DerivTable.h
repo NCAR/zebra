@@ -1,5 +1,6 @@
 //
 // The Zebra DerivTable, a class for a list of derivation trees
+// $Id: DerivTable.h,v 3.3 1999-03-01 02:03:32 burghart Exp $
 //
 //		Copyright (C) 1997 by UCAR
 //	University Corporation for Atmospheric Research

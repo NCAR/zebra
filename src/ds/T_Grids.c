@@ -86,6 +86,7 @@ FileType ftype;
 	{
 		PlatClassRef spc = ds_NewClass (station);
 		ds_AssignClass (spc, OrgScalar, ftype, /*mobile*/ 0);
+		ds_SetInstanceDir (spc, InstanceCopyParent);
 		stn = ds_DefineClass (spc);
 	}
 	/*
@@ -269,7 +270,7 @@ T_MakeIRGrid (when, arg)
 ZebTime *when;
 char *arg;
 {
-	FileType ftype = (int)arg;
+	FileType ftype = (FileType)arg;
 	static char *cdfname = "t_fakemeso_cdf";
 	static char *znfname = "t_fakemeso_znf";
 	DataChunk *dc;

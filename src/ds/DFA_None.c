@@ -26,7 +26,7 @@
 # include <config.h>
 # include <message.h>
 
-RCSID ("$Id: DFA_None.c,v 3.2 1996-12-06 00:40:02 granger Exp $")
+RCSID ("$Id: DFA_None.c,v 3.3 1999-03-01 02:03:26 burghart Exp $")
 
 # include "DataStore.h"
 # include "dsPrivate.h"
@@ -38,11 +38,8 @@ RCSID ("$Id: DFA_None.c,v 3.2 1996-12-06 00:40:02 granger Exp $")
 
 /* ARGSUSED */
 int
-fmt_QueryNotCompiled (file, begin, end, nsample)
-char *file;
-ZebTime *begin;
-ZebTime *end;
-int *nsample;
+fmt_QueryNotCompiled (const char *file, ZebraTime *begin, ZebraTime *end, 
+		      int *nsample)
 {
 	msg_ELog (EF_PROBLEM, "cannot query file %s: format not compiled",
 		  file);
@@ -53,14 +50,12 @@ int *nsample;
 
 /* ARGSUSED */
 int
-fmt_OpenNotCompiled (of, file, dp, write)
+fmt_OpenNotCompiled (of, write)
 OpenFile *of;
-char *file;
-DataFile *dp;
 int write;
 {
 	msg_ELog (EF_PROBLEM, "cannot open file %s: format not compiled",
-		  file);
+		  of->of_df.df_fullname);
 	return (0);
 }
 
@@ -68,16 +63,14 @@ int write;
 
 /* ARGSUSED */
 int
-fmt_CreateNotCompiled (ofp, fname, dfile, dc, details, ndetail)
+fmt_CreateNotCompiled (ofp, dc, details, ndetail)
 OpenFile *ofp;
-char *fname;
-DataFile *dfile;
 DataChunk *dc;
 dsDetail *details;
 int ndetail;
 {
 	msg_ELog (EF_PROBLEM, "cannot create file %s: format not compiled",
-		  fname);
+		  ofp->of_df.df_fullname);
 	return (0);
 }
 

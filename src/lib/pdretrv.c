@@ -36,12 +36,13 @@
 # include "message.h"
 # include "pd.h"
 
-RCSID ("$Id: pdretrv.c,v 2.3 1998-10-28 21:22:44 corbet Exp $")
+RCSID ("$Id: pdretrv.c,v 2.4 1999-03-01 02:04:46 burghart Exp $")
 
 zbool
 pd_Retrieve (pd, comp, param, target, type)
 plot_description pd;
-char *comp, *param, *target;
+const char *comp, *param;
+char *target;
 int type;
 /*
  * Try to retrieve a parameter from a plot description.

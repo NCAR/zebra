@@ -40,7 +40,7 @@
 # include "DrawText.h"
 # include "EventQueue.h"
 
-RCSID("$Id: TimeSeries.c,v 2.23 1998-11-20 16:08:57 burghart Exp $")
+RCSID("$Id: TimeSeries.c,v 2.24 1999-03-01 02:04:30 burghart Exp $")
 
 /*
  * General definitions

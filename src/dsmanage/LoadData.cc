@@ -31,7 +31,8 @@
 # include <stream.h>
 # include <unistd.h>
 # include "dsmanage.h"
-
+# include <defs.h>
+# include <DataStore.h>
 
 extern "C" 
 {
@@ -44,19 +45,17 @@ extern "C"
 #	include <X11/Xaw/Label.h>
 #	include <X11/Xaw/Toggle.h>
 #	include <X11/Xaw/Viewport.h>
-#	include <defs.h>
-#	include <DataStore.h>
 	extern int uit_parse_date (const char *, SValue *, int); // XXX XXX
 	extern int atoi (const char *);
 }
 //# include "container.h"
-# include "DataDir.h"
+# include "dsPlatform.h"
 # include "STable.h"
 # include "dsmWindows.h"
 # include "Index.h"
 # include "ZTime.h"
 # include "plcontainer.h"
-MAKE_RCSID ("$Id: LoadData.cc,v 1.15 1998-03-02 20:23:11 burghart Exp $")
+MAKE_RCSID ("$Id: LoadData.cc,v 1.16 1999-03-01 02:03:52 burghart Exp $")
 
 class LoadSelect;
 
@@ -709,7 +708,7 @@ LoadSelect::UpdFSummary ()
 	char line[120];
 	Arg args[2];
 
-	sprintf (line, "%d files selected\n(%.3f MB)", nfile, nbyte/1000000.0);
+	sprintf (line, "%d files selected\n(%.3f MB)", nfile, nbyte/1048576.0);
 	XtSetArg (args[0], XtNlabel, line);
 	XtSetValues (fsummary, args, 1);
 }
@@ -725,102 +724,98 @@ LoadSelect::addButtons (Widget form, PlatformIndex *index)
 // Add all the platform buttons.
 //
 {
-	char ebuf[180], *ep;
-	Widget toggle, above = NULL, label, cw;
-	int plat, n;
-	Arg args[15];
+    char ebuf[180], *ep;
+    Widget toggle, above = NULL, label, cw;
+    PlatformId pid;
+    int n;
+    Arg args[15];
 //
 // Allocate space to hold the toggles.
 //
-	ntoggle = PList->ncontained ();	// One per platform
-	toggles = new Widget[ntoggle];
+    ntoggle = PList->ncontained ();	// One per platform
+    toggles = new Widget[ntoggle];
 //
 // Go through the list.
 //
-	for (plat = 0; plat < PList->ncontained (); plat++)
+    for (pid = 0; pid < PList->ncontained (); pid++)
+    {
+	ZebTime bt, et;
+	const dsPlatform &p = PList->nth (pid);
+	int nfiles = p.files.ncontained();
+    //
+    // Add a toggle for this platform.
+    //
+	n = 0;
+	XtSetArg (args[n], XtNlabel, "Select");			n++;
+	XtSetArg (args[n], XtNfromHoriz, NULL);			n++;
+	XtSetArg (args[n], XtNfromVert, above);			n++;
+	XtSetArg (args[n], XtNstate, True);			n++;
+	XtSetArg (args[n], XtNradioData, p.name ());		n++;
+	AddConstraints (args, &n);
+	toggle = XtCreateManagedWidget ("select", toggleWidgetClass,
+					form, args, n);
+	XtAddCallback (toggle, XtNcallback, PlatformSel, this);
+	index->isMarked (p.name ()) = True;
+    //
+    // Put together the text for the label.
+    //
+	sprintf (ebuf, "%-12s", p.name ());
+	ep = ebuf + 12;
+    //
+    // Local data.
+    //
+	if (nfiles == 0)
 	{
-		ZebTime bt, et;
-		const dsPlatform &p = PList->nth (plat);
-	//
-	// Add a toggle for this platform.
-	//
-		n = 0;
-		XtSetArg (args[n], XtNlabel, "Select");			n++;
-		XtSetArg (args[n], XtNfromHoriz, NULL);			n++;
-		XtSetArg (args[n], XtNfromVert, above);			n++;
-		XtSetArg (args[n], XtNstate, True);			n++;
-		XtSetArg (args[n], XtNradioData, p.name ());		n++;
-		AddConstraints (args, &n);
-		toggle = XtCreateManagedWidget ("select", toggleWidgetClass,
-				form, args, n);
-		XtAddCallback (toggle, XtNcallback, PlatformSel, this);
-		index->isMarked (p.name ()) = True;
-	//
-	// Put together the text for the label.
-	//
-		sprintf (ebuf, "%-12s", p.name ());
-		ep = ebuf + 12;
-	//
-	// Local data.
-	//
-		if (p.files.ncontained () == 0)
-		{
-			strcpy (ep,
-			  "               (none)                       ");
-			ep += strlen (ep);
-		}
-		else
-		{
-			int dfi = p.files.nth (p.files.ncontained() - 1).index;
-			DataFileInfo dfinfo;
-			ds_GetFileInfo (dfi, &dfinfo);
-			TC_EncodeTime (&dfinfo.dfi_Begin, TC_Full, ep);
-			strcat (ep, "   ");
-			ep += 18;
-			*ep = '\0';
-			strcat (ep, " -> ");
-			ep += strlen (ep);
-			dfi = p.files.nth (0).index;
-			ds_GetFileInfo (dfi, &dfinfo);
-			TC_EncodeTime (&dfinfo.dfi_End, TC_Full, ep);
-			strcat (ep, "        ");
-			ep += 22;
-		}
-	//
-	// Available data.
-	//
-		if (! index->coverage (p.name (), bt, et))
-			strcpy (ep, "    (none available)");
-		else
-		{
-			TC_EncodeTime (&bt, TC_Full, ep);
-			strcat (ep, " -> ");
-			ep += strlen (ep);
-			TC_EncodeTime (&et, TC_Full, ep);
-			strcat (ep, "        ");
-			ep += 22;
-		}
-	//
-	// Now add the label with all this info.  KLUDGE: this thing is
-	// done as a toggle since they consent to store radioData for us,
-	// the the resources are set such that it looks like a command
-	// widget.
-	//
-		n = 0;
-		XtSetArg (args[n], XtNlabel, ebuf);			n++;
-		XtSetArg (args[n], XtNfromHoriz, toggle);		n++;
-		XtSetArg (args[n], XtNfromVert, above);			n++;
-		AddConstraints (args, &n);
-		XtSetArg (args[n], XtNborderWidth, 0);			n++;
-		XtSetArg (args[n], XtNwidth, 690);			n++;
-		XtSetArg (args[n], XtNjustify, XtJustifyLeft);		n++;
-		XtSetArg (args[n], XtNresize, False);			n++;
-		XtSetArg (args[n], XtNradioData, p.name ());		n++;
-		cw = XtCreateManagedWidget ("FCToggle", toggleWidgetClass,
-				form, args, n);
-		XtAddCallback (cw, XtNcallback, GetFileChooser, this);
-		toggles[plat] = above = toggle;
+	    strcpy (ep, "               (none)                       ");
+	    ep += strlen (ep);
 	}
+	else
+	{
+	    TC_EncodeTime (p.files.nth(0).begin(), TC_Full, ep);
+	    strcat (ep, "   ");
+	    ep += 18;
+	    *ep = '\0';
+	    strcat (ep, " -> ");
+	    ep += strlen (ep);
+	    TC_EncodeTime (p.files.nth(nfiles - 1).end(), TC_Full, ep);
+	    strcat (ep, "        ");
+	    ep += 22;
+	}
+    //
+    // Available data.
+    //
+	if (! index->coverage (p.name (), bt, et))
+	    strcpy (ep, "    (none available)");
+	else
+	{
+	    TC_EncodeTime (&bt, TC_Full, ep);
+	    strcat (ep, " -> ");
+	    ep += strlen (ep);
+	    TC_EncodeTime (&et, TC_Full, ep);
+	    strcat (ep, "        ");
+	    ep += 22;
+	}
+    //
+    // Now add the label with all this info.  KLUDGE: this thing is
+    // done as a toggle since they consent to store radioData for us,
+    // the the resources are set such that it looks like a command
+    // widget.
+    //
+	n = 0;
+	XtSetArg (args[n], XtNlabel, ebuf);			n++;
+	XtSetArg (args[n], XtNfromHoriz, toggle);		n++;
+	XtSetArg (args[n], XtNfromVert, above);			n++;
+	AddConstraints (args, &n);
+	XtSetArg (args[n], XtNborderWidth, 0);			n++;
+	XtSetArg (args[n], XtNwidth, 690);			n++;
+	XtSetArg (args[n], XtNjustify, XtJustifyLeft);		n++;
+	XtSetArg (args[n], XtNresize, False);			n++;
+	XtSetArg (args[n], XtNradioData, p.name ());		n++;
+	cw = XtCreateManagedWidget ("FCToggle", toggleWidgetClass,
+				    form, args, n);
+	XtAddCallback (cw, XtNcallback, GetFileChooser, this);
+	toggles[pid] = above = toggle;
+    }
 }
 
 
@@ -1670,7 +1665,7 @@ MakeFileLabel (const IndexFile *file, char *label)
 //
 // Throw the size onto the end and we are done.
 //
-	sprintf (label, "%.3f", file->size ()/1000000.0);
+	sprintf (label, "%.3f", file->size ()/1048576.0);
 }
 
 

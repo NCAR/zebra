@@ -7,7 +7,7 @@
 # include "DataStore.h"
 # include "apple.h"
 
-RCSID("$Id: T_Derivations.c,v 3.3 1997-12-19 15:24:01 burghart Exp $")
+RCSID("$Id: T_Derivations.c,v 3.4 1999-03-01 02:03:36 burghart Exp $")
 
 # define NTIMES 100
 

@@ -27,7 +27,7 @@
 # include "DataStore.h"
 # include "DataChunkP.h"
 
-RCSID ("$Id: dc_Transp.c,v 1.25 1998-10-28 21:21:08 corbet Exp $")
+RCSID ("$Id: dc_Transp.c,v 1.26 1999-03-01 02:03:43 burghart Exp $")
 
 /*
  * TODO:
@@ -458,7 +458,7 @@ Location *loc;
 		nloc = dc_TrGrowthHint (dc, tp, 0);
 		len = nloc * sizeof (Location);
 		loclist = (Location *) malloc(len);
-		tr_SetADE (dc, ST_LOCATIONS, loclist, len);
+		tr_SetADE (dc, ST_LOCATIONS, (DataPtr) loclist, len);
 		for (i = 0; i < begin; ++i)
 			loclist[i] = tp->at_SLoc;
 		for (i = begin+nsamp; i < nloc; ++i)
@@ -742,7 +742,7 @@ ZebTime *offsets;
 	len = nsubs * sizeof(ZebTime);
 	subs = (ZebTime *) malloc( len );
 	memcpy (subs, offsets, len);
-	tr_SetADE (dc, ST_SUBOFFSETS, subs, len);
+	tr_SetADE (dc, ST_SUBOFFSETS, (DataPtr) subs, len);
 	return (subs);
 }
 
@@ -829,7 +829,7 @@ int subsample;
 		len = nind * sizeof (int);
 		indices = (int *) malloc(len);
 		memset (indices, 0, len);
-		tr_SetADE (dc, ST_SUBSAMPLES, indices, len);
+		tr_SetADE (dc, ST_SUBSAMPLES, (DataPtr) indices, len);
 	}
 	indices[sample] = subsample;
 }
@@ -1047,7 +1047,8 @@ int n;
 		list = (PlatformId *) realloc (list, n*sizeof (PlatformId));
 		for (samp = old; samp < n; samp++)
 			list[samp] = dc->dc_Platform;
-		tr_SetADE (dc, ST_PLATFORMS, list, n*sizeof (PlatformId));
+		tr_SetADE (dc, ST_PLATFORMS, (DataPtr) list, 
+			   n*sizeof (PlatformId));
 	}
 }
 
@@ -1079,7 +1080,8 @@ int n;
 	if (old < n)
 	{
 		locs = (Location *) realloc (locs, n*sizeof (Location));
-		tr_SetADE (dc, ST_LOCATIONS, locs, n*sizeof (Location));
+		tr_SetADE (dc, ST_LOCATIONS, (DataPtr) locs, 
+			   n*sizeof (Location));
 	}
 /*
  * Default the new locations to the static location.
@@ -1479,7 +1481,8 @@ DataChunk *dc;
 /*
  * Add it to the data chunk.
  */
-	tr_SetADE (dc, ST_PLATFORMS, list, nsamp*sizeof (PlatformId));
+	tr_SetADE (dc, ST_PLATFORMS, (DataPtr) list, 
+		   nsamp*sizeof (PlatformId));
 	return (list);
 }
 
@@ -1760,7 +1763,7 @@ DataChunk *dc;
  * Checking.
  */
 	if (! dc_ReqSubClass (dc, DCP_Transparent, "GetLocAltUnits"))
-		return (0);
+		return (AU_kmMSL);
 /*
  * Find our data and return the info.
  */
@@ -1963,7 +1966,7 @@ DataChunk *dc;
 	for (i = 0; i < ST_NUM_ADE; ++i)
 	{
 		data = dc_FindADE (dc, DCP_Transparent, i, &len);
-		tr_SetADE (dc, i, data, len);
+		tr_SetADE (dc, i, (DataPtr) data, len);
 	}
 	data = dc_FindADE (dc, DCP_Transparent, ST_SAMPLES, &len);
 	tp->at_Samples = (TransSample *) data;

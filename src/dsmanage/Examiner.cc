@@ -39,11 +39,12 @@ extern "C"
 	extern void ds_ForceRescan (int, int);
 }
 //# include "container.h"
-# include "DataDir.h"
+# include "dsPlatform.h"
+# include "dsFile.h"
 # include "dsmWindows.h"
 # include "plcontainer.h"
 
-static char *rcsid = "$Id: Examiner.cc,v 1.4 1993-02-24 20:05:27 corbet Exp $";
+static char *rcsid = "$Id: Examiner.cc,v 1.5 1999-03-01 02:03:52 burghart Exp $";
 
 //
 // Local forwards.
@@ -428,7 +429,7 @@ dsFileExaminer::DoZap ()
 			dsFile &df = plat->files.nth (file);
 			nzapped++;
 			GetRidOfFile (*plat, df, file);
-			cout << "Zap file " << df.name() << ".\n";
+			cout << "Delete file " << df.name() << ".\n";
 		}
 //
 // If there was nothing to delete, no more work to do now.

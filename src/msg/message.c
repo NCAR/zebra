@@ -52,7 +52,7 @@
 # define MESSAGE_MANAGER	/* define prototypes for netread functions */
 # include <message.h>
 
-RCSID ("$Id: message.c,v 2.56 1998-12-17 17:18:10 burghart Exp $")
+RCSID ("$Id: message.c,v 2.57 1999-03-01 02:04:48 burghart Exp $")
 
 /*
  * Symbol tables.
@@ -107,7 +107,7 @@ typedef struct _DWrite
  */
 typedef struct connection 
 {
-	char	c_name[MAX_NAME_LEN];	/* The name of the connection	*/
+	char	c_name[MSG_MAXNAMELEN];	/* The name of the connection	*/
 	int	c_fd;			/* The file descriptor.		*/
 	int	c_nsend;		/* Messages sent		*/
 	int	c_bnsend;		/* Bytes sent			*/
@@ -130,7 +130,7 @@ Connection *MH_conn;		/* Fake connection for local stuff */
  */
 struct group
 {
-	char	g_name[MAX_NAME_LEN];	/* The name of this group	*/
+	char	g_name[MSG_MAXNAMELEN];	/* The name of this group	*/
 	short	g_nprocs;		/* The number of procs in this grp */
 	struct connection **g_procs;	/* The array of connections.	*/
 };
@@ -145,7 +145,7 @@ static int Nfd;
 /*
  * Who are we?
  */
-char Hostname[MAX_NAME_LEN];
+char Hostname[MSG_MAXNAMELEN];
 
 /*
  * Our very own host table for connecting to hosts (possibly ourself) using

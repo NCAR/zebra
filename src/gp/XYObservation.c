@@ -40,7 +40,7 @@
 # include "DrawText.h"
 # include "PlotPrim.h"
 
-RCSID ("$Id: XYObservation.c,v 1.25 1998-11-20 16:09:00 burghart Exp $")
+RCSID ("$Id: XYObservation.c,v 1.26 1999-03-01 02:04:34 burghart Exp $")
 
 /*
  * Enum to tell how we anchor z values
@@ -195,9 +195,8 @@ zbool	update;
 	ztype = (strcmp (zfnames[0], "time") == 0) ? 't' : 'f';
 	if (ztype == 't')
 	{
-		msg_ELog (EF_PROBLEM,
-			  "XYObs: %s: Cannot use time for z-field", c);
-		return;
+	    msg_ELog (EF_PROBLEM, "XYObs: %s: Cannot use time for z-field", c);
+	    return;
 	}
 /*
  * Get our time bounds

@@ -35,7 +35,7 @@
 # include "DrawText.h"
 # include "XYCommon.h"
 
-RCSID("$Id: XYCommon.c,v 1.33 1998-11-20 16:06:11 burghart Exp $")
+RCSID("$Id: XYCommon.c,v 1.34 1999-03-01 02:04:33 burghart Exp $")
 
 /* 
  * One somewhat reasonable definition for infinity in XDR, lifted from 

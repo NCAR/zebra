@@ -31,12 +31,12 @@
 # include <fcntl.h>
 
 # include <config.h>
-# include <ui.h>
+# include "zl_symbol.h"
 # include "defs.h"
 # include "message.h"
 # include "pd.h"
 
-RCSID ("$Id: pdlib.c,v 1.27 1998-12-17 17:18:06 burghart Exp $")
+RCSID ("$Id: pdlib.c,v 1.28 1999-03-01 02:04:45 burghart Exp $")
 
 struct traverse {
 	int (*func)();		/* Function to call for traverse */
@@ -64,34 +64,40 @@ extern char *zapcase FP ((char *));
 /*
  * Forwards.
  */
-static int pd_CompilePD FP ((stbl pd, char *source, char *data, char *end));
-static void pd_Complain FP ((char *msg, char *source, int line, 
-			     char *data, char *end));
-static void pd_Warn FP ((char *msg, char *source, int line, 
-			 char *data, char *end));
-static void pd_Log FP ((int mask, char *msg, char *source, int line,
-			char *data, char *end));
-static char *pd_NextLine FP ((char *data, char *end));
-static char *pd_FindNewline FP ((char *data, char *end));
-static char *pd_GetToken FP ((char *data, char *end, char *name, 
-			      pd_token *token));
-static char *pd_GetValue FP ((char *data, char *end, char *value));
-static void pd_CarveString FP ((char *dest, char *begin, char *end));
+static int pd_CompilePD FP ((stbl pd, const char *source, const char *data, 
+			     const char *end));
+static void pd_Complain FP ((const char *msg, const char *source, int line, 
+			     const char *data, const char *end));
+static void pd_Warn FP ((const char *msg, const char *source, int line, 
+			 const char *data, const char *end));
+static void pd_Log FP ((int mask, const char *msg, const char *source, 
+			int line, const char *data, const char *end));
+static const char *pd_NextLine FP ((const char *data, const char *end));
+static const char *pd_FindNewline FP ((const char *data, const char *end));
+static const char *pd_GetToken FP ((const char *data, const char *end, 
+				    char *name, pd_token *token));
+static const char *pd_GetValue FP ((const char *data, const char *end, 
+				    char *value));
+static void pd_CarveString FP ((char *dest, const char *begin, 
+				const char *end));
 static int pd_ForEachComponent FP ((plot_description pd, int (*func)(),
 				    long param));
 static stbl pd_NewPD FP ((char *name));
-static stbl pd_NewComponent FP ((stbl pd, char *compname));
-static int pd_ParamFunc FP((char *name, int type, union usy_value *v,
+static stbl pd_NewComponent FP ((stbl pd, const char *compname));
+static int pd_ParamFunc FP((const char *name, int type, union usy_value *v,
 			    struct traverse *t));
 static void pd_CopyComp FP ((stbl dest, stbl src));
-static int pd_UnloadParam FP ((char *name, int type, union usy_value *v,
+static int pd_UnloadParam FP ((const char *name, int type, union usy_value *v,
 			       raw_plot_description *rpd));
 
-static int pd_RelComp FP ((char *name, int type, union usy_value *v, int));
-static int pd_UnloadComp FP ((plot_description pd, stbl comp, char *name,
+static int pd_RelComp FP ((const char *name, int type, union usy_value *v, 
+			   int));
+static int pd_UnloadComp FP ((plot_description pd, stbl comp, const char *name,
 			      raw_plot_description *rpd));
-static int pd_CopyParam FP ((char *name, int type, union usy_value *v, stbl));
-static int pd_OverrideComp FP ((stbl pd, stbl comp, char *name, stbl dest));
+static int pd_CopyParam FP ((const char *name, int type, union usy_value *v, 
+			     stbl));
+static int pd_OverrideComp FP ((stbl pd, stbl comp, const char *name, 
+				stbl dest));
 
 /*
  * Size of temp buffer used for writing raw PD's, eg 40960
@@ -137,7 +143,7 @@ raw_plot_description *raw;
 
 plot_description
 pd_Read (file)
-char *file;
+const char *file;
 /*
  * Load in a single plot description from a file.  Return the pd if
  * successful, 0 otherwise.
@@ -222,15 +228,15 @@ char *name;
 static int
 pd_CompilePD (pd, source, data, end)
 stbl pd;
-char *source;
-char *data;
-char *end;
+const char *source;
+const char *data;
+const char *end;
 /*
  * Compile this pd.  Return non-zero on success, zero on failure.
  */
 {
 	pd_token token, expect;
-	char *last;	/* points to the line being parsed */
+	const char *last;	/* points to the line being parsed */
 	int line;
 	char name[256];
 	char param[256];
@@ -353,11 +359,11 @@ char *end;
 
 static void
 pd_Complain (msg, source, line, data, end)
-char *msg;
-char *source;
+const char *msg;
+const char *source;
 int line;
-char *data;
-char *end;
+const char *data;
+const char *end;
 {
 	pd_Log (EF_PROBLEM, msg, source, line, data, end);
 }
@@ -366,11 +372,11 @@ char *end;
 
 static void
 pd_Warn (msg, source, line, data, end)
-char *msg;
-char *source;
+const char *msg;
+const char *source;
 int line;
-char *data;
-char *end;
+const char *data;
+const char *end;
 {
 	pd_Log (EF_DEBUG, msg, source, line, data, end);
 }
@@ -380,11 +386,11 @@ char *end;
 static void
 pd_Log (mask, msg, source, line, data, end)
 int mask;
-char *msg;
-char *source;
+const char *msg;
+const char *source;
 int line;
-char *data;
-char *end;
+const char *data;
+const char *end;
 /*
  * Gripe about this PD.  Note we can't just strcpy the offending text into
  * the message buf since it may not be null-terminated.  Argh.
@@ -406,10 +412,10 @@ char *end;
 
 
 
-static char *
+static const char *
 pd_NextLine (data, end)
-char *data;
-char *end;
+const char *data;
+const char *end;
 {
 	pd_token token;
 	char name[256];
@@ -424,10 +430,10 @@ char *end;
 
 
 
-static char *
+static const char *
 pd_GetToken (data, end, name, token)
-char *data;
-char *end;
+const char *data;
+const char *end;
 char *name;
 pd_token *token;
 /*
@@ -440,7 +446,7 @@ pd_token *token;
 {
 #	define NEWLINE(c) ((c)=='\n'||(c)=='\r')
 #	define WHITE(c) (!(NEWLINE(c))&&isspace(c))
-	char *c;
+	const char *c;
 	char *n;
 /*
  * Skip whitespace until we reach a token or the end of the data.
@@ -502,12 +508,12 @@ pd_token *token;
 
 
 
-static char *
+static const char *
 pd_FindNewline (data, end)
-char *data;
-char *end;
+const char *data;
+const char *end;
 {
-	char *c = data;
+	const char *c = data;
 
 	while ((c <= end) && *c)
 	{
@@ -520,17 +526,17 @@ char *end;
 
 
 
-static char *
+static const char *
 pd_GetValue (data, end, value)
-char *data;
-char *end;
+const char *data;
+const char *end;
 char *value;
 /*
  * Values begin at first non-white space and end at the newline, 
  * end of string, or exclamation point.
  */
 {
-	char *c;
+	const char *c;
 
 	c = data;
 	while ((c <= end) && (*c) && ! NEWLINE(*c) && (*c != '!'))
@@ -548,7 +554,8 @@ char *value;
 
 static void
 pd_CarveString (dest, begin, end)
-char *dest, *begin, *end;
+char *dest;
+const char *begin, *end;
 /*
  * Copy out all information from BEGIN up to, but not including, END.
  */
@@ -593,7 +600,7 @@ plot_description pd;
 
 static int
 pd_RelComp (name, type, v, junk)
-char *name;
+const char *name;
 int type, junk;
 union usy_value *v;
 /*
@@ -655,7 +662,7 @@ static int
 pd_UnloadComp (pd, comp, name, rpd)
 plot_description pd;
 stbl comp;
-char *name;
+const char *name;
 raw_plot_description *rpd;
 /*
  * Encode a single component into this rpd.
@@ -673,7 +680,7 @@ raw_plot_description *rpd;
 
 static int
 pd_UnloadParam (name, type, v, rpd)
-char *name;
+const char *name;
 int type;
 union usy_value *v;
 raw_plot_description *rpd;
@@ -704,7 +711,7 @@ long param;
  * 	(*func) (pd, comp, compname, param)
  *	plot_description pd;
  *	stbl comp;
- *	char *compname;
+ *	const char *compname;
  *	int param;
  */
 {
@@ -759,7 +766,7 @@ raw_plot_description *rpd;
 plot_description
 pd_ReadComponent (pd, comp, newname)
 plot_description pd;
-char *comp, *newname;
+const char *comp, *newname;
 /*
  * Pull out this component as a separate plot description.
  */
@@ -800,7 +807,7 @@ char *comp, *newname;
 static stbl
 pd_NewComponent (pd, compname)
 stbl pd;
-char *compname;
+const char *compname;
 /*
  * Add a new (empty) component to this PD.
  */
@@ -828,7 +835,7 @@ char *compname;
 	comps = (char **) v.us_v_ptr;
 	for (i = 0; comps[i]; i++)
 		;
-	comps[i] = zapcase (usy_string (compname));
+	comps[i] = zapcase (zl_string (compname));
 /*
  * Return the new table.
  */
@@ -853,7 +860,7 @@ stbl dest, src;
 
 static int
 pd_CopyParam (name, type, v, dest)
-char *name;
+const char *name;
 int type;
 union usy_value *v;
 stbl dest;
@@ -886,7 +893,7 @@ plot_description pd, new;
 static int
 pd_OverrideComp (pd, comp, compname, dest)
 stbl pd, comp, dest;
-char *compname;
+const char *compname;
 /*
  * Merge this component into the destination PD, in place of any
  * existing component with the given name.
@@ -906,7 +913,7 @@ char *compname;
 	comps = (char **) v.us_v_ptr;
 	for (i = 0; comps[i]; i++)
 		;
-	comps[i] = zapcase (usy_string (compname));
+	comps[i] = zapcase (zl_string (compname));
 	v.us_v_ptr = (char *) comp;
 	usy_s_symbol (dest, compname, SYMT_SYMBOL, &v);
 
@@ -963,7 +970,7 @@ int position;
  */
 	for (i = ndest; i > position; i--)
 		dstcomps[i] = dstcomps[i - 1];
-	dstcomps[position] = zapcase (usy_string (srccomps[0]));
+	dstcomps[position] = zapcase (zl_string (srccomps[0]));
 	dstcomps[ndest + 1] = 0;
 /*
  * Add the actual entry into the destination table.
@@ -980,7 +987,7 @@ int position;
 int
 pd_RemoveComp (pd, name)
 plot_description pd;
-char *name;
+const char *name;
 /*
  * Remove this component from this plot description.
  */
@@ -1033,7 +1040,7 @@ plot_description pd;
 void
 pd_TraverseParameters (pd, compname, func, arg)
 plot_description pd;
-char *compname;
+const char *compname;
 int (*func)();
 void *arg;
 /*
@@ -1067,7 +1074,7 @@ void *arg;
 
 static int
 pd_ParamFunc (name, type, v, t)
-char *name;
+const char *name;
 int type;
 union usy_value *v;
 struct traverse *t;
@@ -1118,9 +1125,9 @@ plot_description pd;
 void
 pd_MergeComp (dest, destname, src, srcname)
 plot_description dest;
-char *destname;
+const char *destname;
 plot_description src;
-char *srcname;
+const char *srcname;
 /*
  * Copy the parameters from comp1 of the src pd into comp2 of the
  * dest pd.  Existing parameters in the dest component are overridden.
@@ -1149,7 +1156,8 @@ char *srcname;
 void
 pd_Store (pd, comp, param, value, type)
 plot_description pd;
-char *comp, *param, *value;
+const char *comp, *param;
+char *value;
 int type;
 /*
  * Store an attribute into this PD.
@@ -1209,7 +1217,7 @@ int type;
 void
 pd_RemoveParam (pd, comp, param)
 plot_description pd;
-char *comp, *param;
+const char *comp, *param;
 /*
  * Remove a parameter from this PD.
  * Entry:
@@ -1245,7 +1253,7 @@ char *comp, *param;
 void
 pd_MoveComponent (pd, comp, newpos)
 plot_description pd;
-char *comp;
+const char *comp;
 int newpos;
 /*
  * Move this component to the given new position.
@@ -1298,7 +1306,7 @@ int newpos;
 zbool
 pd_CompExists (pd, comp)
 plot_description pd;
-char *comp;
+const char *comp;
 /*
  * Return TRUE if this component exists here.
  */

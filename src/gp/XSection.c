@@ -42,7 +42,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: XSection.c,v 2.43 1998-11-20 16:05:18 burghart Exp $")
+RCSID ("$Id: XSection.c,v 2.44 1999-03-01 02:04:32 burghart Exp $")
 
 /*
  * General definitions

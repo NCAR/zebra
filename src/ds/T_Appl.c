@@ -13,46 +13,6 @@
 #include "apple.h"
 
 
-static int
-T_VerifyCache (name, pid)
-char *name;
-PlatformId pid;
-/* 
- * If standalone, verify we have a structure and name
- * cached for this platform.  Otherwise we should at least
- * have a name.
- */
-{
-	int type;
-	SValue v;
-	int errors = 0;
-
-	if (! usy_g_symbol (Pf_Names, (char *)name, &type, &v))
-	{
-		++errors;
-		msg_ELog (EF_PROBLEM, "platform %s (%d) was not cached",
-			  name, pid);
-	}
-	else if (v.us_v_int != pid)
-	{
-		++errors;
-		msg_ELog (EF_PROBLEM, "id cached for name %s (%d) != %d",
-			  name, v.us_v_int, pid);
-	}
-	else if (Standalone)
-	{
-		if ((pid < 0) || (pid >= MAXPLAT) ||
-		    (! PlatStructs[pid]))
-		{
-			msg_ELog (EF_PROBLEM, "standalone: %s for %s (%d)",
-				  "no struct cache", name, pid);
-			++errors;
-		}
-	} 
-	return (errors);
-}
-
-
 
 static int
 T_DumpClasses (show)
@@ -93,7 +53,7 @@ int show;
 			++errors;
 			continue;
 		}
-		errors += T_VerifyCache (TestPlatforms[i].name, pid);
+
 		if ((cid = ds_PlatformClass (pid)) == BadClass)
 		{
 			msg_ELog (EF_PROBLEM, "%s for %s (%d)",
@@ -139,35 +99,11 @@ T_ShowClasses ()
 
 
 
-void
-T_ApplStats ()
-{
-	int i, ndf = 0;
-
-	for (i = 0; i < DFCacheSize; ++i)
-		ndf += (DFCache[i].df_index != -1) ? 1 : 0;
-	msg_ELog (EF_STATS, "%s: size %d, filled %d, zap %d, loops %d",
-		  "datafile cache stats", DFCacheSize, ndf, DFZap, DFC_Loops);
-	msg_ELog (EF_STATS, "   hits %d; misses %d; in %d; out %d; up %d",
-		  DFC_Hits, DFC_Misses, DFC_In, DFC_Out, DFC_Updated);
-	msg_ELog (EF_STATS, "%s: size %d",
-		  "platform and class cache stats", MAXPLAT);
-	msg_ELog (EF_STATS, "   class names: hits %d; misses %d",
-		  ClassNameHits, ClassNameMisses);
-	msg_ELog (EF_STATS, "   plat names: hits %d; misses %d",
-		  PlatNameHits, PlatNameMisses);
-	msg_ELog (EF_STATS, "   class structs: hits %d; misses %d",
-		  ClassHits, ClassMisses);
-	msg_ELog (EF_STATS, "   plat structs: hits %d; misses %d; refresh %d",
-		  PlatHits, PlatMisses, PlatRefresh);
-}
-
-
-static void DumpSubplatforms FP((PlatformId pid, PlatformInfo *pi));
-static void DumpPlatform FP((PlatformId pid, PlatformInfo *pi, ZebTime *since,
-			     int names, int files, int obs));
-static void PrintInfo FP((int index, DataFileInfo *dfi));
-static void PrintFilePath FP((DataSrcInfo *dsi, DataFileInfo *dfi, int files));
+static void DumpSubplatforms (const Platform *p);
+static void DumpPlatform (const Platform *p, ZebTime *since, int names, 
+			  int files, int obs);
+static void PrintInfo (const DataFile *df);
+static void PrintFilePath (const DataFile *df, int files);
 
 /*
  * Options for displaying files
@@ -185,7 +121,6 @@ T_DSDump ()
  * those platforms we have cached.
  */
 {
-	PlatformInfo pi;
 	int i;
 	int tier = 0;
 	ZebTime since;
@@ -193,16 +128,18 @@ T_DSDump ()
 	since = ZT_EPOCH;
 	if (! Verbose && ! Debug)
 		return (0);
-	for (i = 0; i < MAXPLAT; i++)
+	for (i = 0; i < dt_NPlatform(); i++)
 	{
-		if (! PlatStructs[i])
+		const Platform *p = dt_FindPlatform (i);
+	    
+		if (! p)
 			continue;
-		ds_GetPlatInfo (i, &pi);
-		if (pi.pl_SubPlatform)
+
+		if (pi_Subplatform (p))
 			continue;
-		DumpPlatform (i, &pi, &since, FALSE, SHOWFILES, FALSE);
+		DumpPlatform (p, &since, FALSE, SHOWFILES, FALSE);
 		if (tier)
-			DumpSubplatforms (i, &pi);
+			DumpSubplatforms (p);
 	}
 	return (0);
 }
@@ -210,32 +147,28 @@ T_DSDump ()
 
 
 static void
-DumpPlatform (pid, pi, since, names, files, obs)
-PlatformId pid;
-PlatformInfo *pi;
-ZebTime *since;		/* Time since which to dump files */
-int names;		/* list names only when true */
-int files;		/* list files if true */
-int obs;		/* list only most recent file */
+DumpPlatform (const Platform *p, ZebraTime *since, int names, int files, 
+	      int obs)
 {
 	int i, index;
-	DataSrcInfo dsi;
-	DataFileInfo dfi;
-	char *name;
+	SourceInfo dsi;
+	const DataFile *df;
+	const char *name;
 /*
  * Add a newline only when not listing only the names, and when listing files
  */
 	if (!names && (files == SHOWFILES))
 		printf ("\n");
 	
-	if ((pi->pl_SubPlatform) && (name = strrchr(pi->pl_Name, '/')))
+	if (pi_Subplatform (p) && (name = strrchr (pi_Name (p), '/')))
 		++name;
 	else
-		name = pi->pl_Name;
+		name = pi_Name (p);
+
 	if (files <= SHOWFILES)
 	{
-		printf ("Platform %s, %d data sources", name, pi->pl_NDataSrc);
-		if (pi->pl_Mobile)
+		printf ("Platform %s", name);
+		if (pi_Mobile (p))
 			printf (" (MOBILE)");
 		printf ("\n");
 	}
@@ -246,66 +179,63 @@ int obs;		/* list only most recent file */
 	 * Now dump out each source, quitting at the first file outside
 	 * of our period, unless period == 0.
 	 */
-		ds_LockPlatform (pid);
-		for (i = 0; i < pi->pl_NDataSrc; i++)
+		for (i = 0; ds_GetSourceInfo (i, &dsi); i++)
 		{
-			ds_GetDataSource (pid, i, &dsi);
 			if (files <= SHOWFILES)
 			{
-				printf (" Data source '%s', in %s, type %d\n", 
-					dsi.dsrc_Name, dsi.dsrc_Where, 
-					dsi.dsrc_Type);
+				printf (" Data source '%s', basedir %s\n", 
+					dsi.src_Name, dsi.src_Dir);
 				if (! files)
 					continue;
 			}
-			for (index = dsi.dsrc_FFile; index > 0; 
-			     index = dfi.dfi_Next)
+
+			for (df = ds_FirstFile (i, pi_Id (p)); df; 
+			     df = ds_NextFile (df))
 			{
-				ds_GetFileInfo (index, &dfi);
-				if (TC_Less(dfi.dfi_End, *since))
+				if (TC_Less(df->df_core.dfc_end, *since))
 					break;
 				if (files >= ONLYFILES)
-					PrintFilePath (&dsi, &dfi, files);
+					PrintFilePath (df, files);
 				else
-					PrintInfo (index, &dfi);
+					PrintInfo (df);
 				if (obs)
 					break;
 			}
 		}
-		ds_UnlockPlatform (pid);
 	}
 }
 
 
 
 static void
-DumpSubplatforms (pid, pi)
-PlatformId pid;
-PlatformInfo *pi;
+DumpSubplatforms (const Platform *p)
 {
 	PlatformId *subplats;
-	PlatformInfo spi;
+	const Platform *sp;
 	char buf[256];
 	unsigned int buflen;
 	int n, i;
 /*
  * Request a list of subplatforms from the daemon
  */
-	subplats = ds_LookupSubplatforms (pid, &n);
-	if (!subplats)
+	n = p->dp_nsubplats;
+	if (! n)
 		return;
+
+	subplats = p->dp_subplats;
 	printf (" Subplatforms:\n");
 	buf[0] = '\0';
 	buflen = 0;
 	for (i = 0; i < n; ++i)
 	{
-		char *name;
+		const char *name;
 
-		ds_GetPlatInfo (subplats[i], &spi);
-		if ((name = strchr(spi.pl_Name, '/')))
+		sp = dt_FindPlatform (subplats[i]);
+		if ((name = strchr(pi_Name (sp), '/')))
 			++name;
 		else
-			name = spi.pl_Name;
+			name = pi_Name (sp);
+
 		if (buflen && (buflen + strlen(name) + 3 >= (unsigned)78))
 		{
 			printf (" %s\n", buf);
@@ -317,15 +247,12 @@ PlatformInfo *pi;
 	}
 	if (buflen)
 		printf (" %s\n", buf);
-	free (subplats);
 }
 
 
 
 static void
-PrintInfo (index, dfi)
-int index;
-DataFileInfo *dfi;
+PrintInfo (const DataFile *df)
 /*
  * Dump out file info.
  */
@@ -335,31 +262,27 @@ DataFileInfo *dfi;
 /*
  * Pull out the date information and encode it.
  */
-	TC_EncodeTime (&dfi->dfi_Begin, TC_Full, abegin);
-	TC_EncodeTime (&dfi->dfi_End, TC_TimeOnly, aend);
+	TC_EncodeTime (&df->df_core.dfc_begin, TC_Full, abegin);
+	TC_EncodeTime (&df->df_core.dfc_end, TC_TimeOnly, aend);
 /*
  * Now print.
  */
-	printf ("  %c %4d  %s  %s > %s [%hu]\n",
-		dfi->dfi_Archived ? 'A' : 'N',
-		index, dfi->dfi_Name, abegin, aend, dfi->dfi_NSample);
+	printf ("  %s  %s > %s [%hu]\n",
+		df->df_core.dfc_name, abegin, aend, df->df_core.dfc_nsample);
 }		
 
 
 
 static void
-PrintFilePath (dsi, dfi, files)
-DataSrcInfo *dsi;
-DataFileInfo *dfi;
-int files;
+PrintFilePath (const DataFile *df, int files)
 /*
  * Print just the pathname of this file on one line.
  */
 {
 	if (files == ONLYFILES)
-		printf ("%s\n", dfi->dfi_Name);
+		printf ("%s\n", df->df_core.dfc_name);
 	else if (files == FULLFILES)
-		printf ("%s/%s\n", dsi->dsrc_Where, dfi->dfi_Name);
+		printf ("%s\n", df->df_fullname);
 }
 
 

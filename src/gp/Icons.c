@@ -38,7 +38,7 @@
 # include <DataStore.h>
 # include <GraphicsW.h>
 
-RCSID("$Id: Icons.c,v 2.28 1998-10-28 21:21:44 corbet Exp $")
+RCSID("$Id: Icons.c,v 2.29 1999-03-01 02:04:25 burghart Exp $")
 
 # include "GraphProc.h"
 # include "ActiveArea.h"
@@ -186,11 +186,8 @@ I_ClearPosIcons ()
 
 
 void
-I_PositionIcon (comp, platform, zt, name, x, y, fg)
-char	*comp, *platform;
-ZebTime	*zt;
-char	*name;
-int	x, y, fg;
+I_PositionIcon (const char *comp, const char *platform, ZebraTime *zt, 
+		const char *name, int x, int y, int fg)
 /*
  * Place a position icon named 'name' at the location (x,y), color fg.
  */
@@ -232,9 +229,8 @@ int	x, y, fg;
 
 
 void
-I_ActivateArea (x, y, w, h, type, comp, plat, something)
-int x, y, w, h;
-char *type, *comp, *plat, *something;
+I_ActivateArea (int x, int y, int w, int h, const char *type, const char *comp,
+		const char *plat, const char *something)
 /*
  * Create an active area under management of the icon module.  The SOMETHING
  * parameter is reserved for future use (will be probably some sort of
@@ -425,7 +421,7 @@ int *fg, *bg, disable;
 
 Pixmap
 I_GetPMap (iname, xh, yh, w, h)
-char *iname;
+const char *iname;
 int *xh, *yh, *w, *h;
 /*
  * Return the pixmap corresponding to this name.
@@ -456,9 +452,10 @@ int *xh, *yh, *w, *h;
 /*
  * Otherwise we gotta go dig it up.
  */
-	if (! FindFile (iname, IconPath, fname) || XReadBitmapFile (Disp,
-		 root, fname, (unsigned int *) w, (unsigned int *) h, &pmap,
-		  xh, yh) != BitmapSuccess)
+	if (! FindFile (iname, IconPath, fname) || 
+	    XReadBitmapFile (Disp, root, fname, (unsigned int *) w, 
+			     (unsigned int *) h, &pmap, 
+			     xh, yh) != BitmapSuccess)
 	{
 		msg_ELog (EF_PROBLEM, "Unable to load icon  '%s'", iname);
 		return (0);

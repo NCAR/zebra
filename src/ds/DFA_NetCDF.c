@@ -33,7 +33,7 @@
 # include "dfa.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_NetCDF.c,v 3.65 1998-10-29 20:57:52 burghart Exp $")
+RCSID ("$Id: DFA_NetCDF.c,v 3.66 1999-03-01 02:03:24 burghart Exp $")
 
 # include <netcdf.h>
 
@@ -507,10 +507,7 @@ ZebTime *base_time;
 
 
 static int
-dnc_QueryTime (file, begin, end, nsamp)
-char *file;
-ZebTime *begin, *end;
-int *nsamp;
+dnc_QueryTime (const char *file, ZebraTime *begin, ZebraTime *end, int *nsamp)
 /*
  * Query the times on this file.
  */
@@ -586,16 +583,16 @@ int *nsamp;
 
 
 static int
-dnc_OpenFile (of, fname, dp, write)
+dnc_OpenFile (of, write)
 OpenFile *of;
-char *fname;
-DataFile *dp;
 int write;
 /*
  * Try to open this file.
  */
 {
 	NCTag *tag = TAGP(of);
+	char *fname = of->of_df.df_fullname;
+	const Platform *p = dt_FindPlatform (of->of_df.df_pid);
 	int ret, v;
 	int flags;
 /*
@@ -611,8 +608,6 @@ int write;
 /*
  * Do some filling in.
  */
-	tag->nc_org = ds_PlatformDataOrg (dp->df_platform);
-	tag->nc_plat = dp->df_platform;
 	tag->nc_ntime = 0;
 	tag->nc_locs = (Location *) NULL;
 	tag->nc_alts = (float *) NULL;
@@ -621,6 +616,15 @@ int write;
 	tag->nc_nalts = 0;
 	tag->nc_altvar = BadField;
 	tag->nc_FMap = 0;
+/*
+ * We let the platform tell us what kind of file this is.  Use the parent
+ * platform if the requested one is a subplatform.
+ */
+	while (pi_Subplatform (p))
+	    p = pi_Parent (p);
+	
+	tag->nc_org = pi_DataOrg (p);
+	tag->nc_plat = pi_Id (p);
 /*
  * Deal with the time and field information.
  */
@@ -981,7 +985,8 @@ int pdim;
 	long fldlen;
 	long start[MAX_VAR_DIMS];
 	long count[MAX_VAR_DIMS];
-	char *name, *base, *fullname;
+	char *name, *fullname;
+	const char *base;
 	char value[sizeof(double)];
 /*
  * Get set up to start snooping through platform names.
@@ -1262,6 +1267,8 @@ int op;		/* opening a file; initialize the altitudes */
 	FieldId altid;
 	int varid;
 	int ndims;
+	char *anamelist[] = { "altitude", "alt" };
+	char *altname;
 	int dimids[MAX_VAR_DIMS];
 	long start[MAX_VAR_DIMS];
 	long count[MAX_VAR_DIMS];
@@ -1271,15 +1278,28 @@ int op;		/* opening a file; initialize the altitudes */
 
 	if (! op)		/* don't change unless it's a new tag */
 		return (TRUE);
-	if ((altid = F_Declared ("altitude")) == BadField)
-		return (TRUE);
+/*
+ * Find the first name in our altitude name list for which we have a 
+ * variable defined (if any).
+ */
+	for (i = 0; i < sizeof(anamelist) / sizeof(anamelist[0]); i++)
+	    if ((altid = dnc_GetFieldByName (tag, anamelist[i])) != BadField)
+		break;
+
+	if (altid == BadField)
+	    return (TRUE);
+
+	altname = anamelist[i];
+/*
+ * Get the ncvar and its dimensions
+ */
 	varid = dnc_GetFieldVar (tag, altid);
 
 	ncvarinq (tag->nc_id, varid, NULL, &vtype, &ndims, dimids, NULL);
 	if (vtype != NC_FLOAT)
 	{
-		msg_ELog (EF_DEBUG, "%s: 'altitude' variable not float type",
-			  "netcdf nspace");
+		msg_ELog (EF_DEBUG, "%s: '%s' variable not float type",
+			  "netcdf nspace", altname);
 		return (TRUE);
 	}
 /*
@@ -1297,7 +1317,7 @@ int op;		/* opening a file; initialize the altitudes */
 
 		start[i] = 0;
 		ncdiminq (tag->nc_id, dimids[i], dimname, &dimsize);
-		if (F_Declared (dimname) == altid)
+		if (! strcmp (dimname, altname))
 		{
 			altdimn = i;
 			count[i] = dimsize;
@@ -1314,8 +1334,8 @@ int op;		/* opening a file; initialize the altitudes */
  */
 	if ((ndims > 0) && (altdimn == -1))
 	{
-		msg_ELog (EF_DEBUG, "%s: 'altitude' not a coordinate variable",
-			  "netcdf nspace");
+		msg_ELog (EF_DEBUG, "%s: '%s' not a coordinate variable",
+			  "netcdf nspace", altname);
 		return (TRUE);
 	}
 /*
@@ -1324,7 +1344,7 @@ int op;		/* opening a file; initialize the altitudes */
 	alts = (float *) malloc (sizeof(float) * nalts);
 	if (ncvarget (tag->nc_id, varid, start, count, (void *)alts) < 0)
 	{
-		dnc_NCError ("'altitude' variable");
+		dnc_NCError ("GetNSpaceAlts ncvarget failed");
 		free (alts);
 		return (TRUE);
 	}
@@ -1949,7 +1969,7 @@ int ndetail;
 
 	dc_NSAllowRedefine (dc, TRUE);
 
-	altid = F_Declared ("altitude");
+	altid = F_Lookup ("altitude");
 	if ((altid != BadField) &&
 	    ds_GetDetail ("altitude", details, ndetail, NULL))
 		dc_NSDefineDimension (dc, altid, (long)1 );
@@ -1989,8 +2009,8 @@ int ndetail;
  */
 	if (tag->nc_altUnits != dc_GetLocAltUnits (dc))
 	{
-		msg_ELog (EF_PROBLEM, "%s: altitude units mismatch in file %d",
-			  "netCDF get data", dfa_FileIndex (ofp));
+		msg_ELog (EF_PROBLEM, "%s: altitude units mismatch",
+			  "netCDF get data");
 		return (0);
 	}
 /*
@@ -3061,10 +3081,8 @@ int offset;
 
 
 static int
-dnc_CreateFile (ofp, fname, df, dc, details, ndetail)
+dnc_CreateFile (ofp, dc, details, ndetail)
 OpenFile *ofp;
-char *fname;
-DataFile *df;
 DataChunk *dc;
 dsDetail *details;
 int ndetail;
@@ -3078,8 +3096,11 @@ int ndetail;
 	ZebTime t;
 	nc_type time_type;
 	char full_time[50];
+	char *fname = ofp->of_df.df_fullname;
 	int year, month, day, hour, minute, second;
 	int flags;
+	const Platform *p = dt_FindPlatform (dc->dc_Platform);
+
 #	define BT_LONGNAME "Base time in Epoch"
 #	define BT_UNITS	   "seconds since 1970-1-1 0:00:00 0:00"
 #	define OT_LONGNAME "Time offset from base_time"
@@ -3111,12 +3132,19 @@ int ndetail;
 	tag->nc_times = (ZebTime *) 0;
 	tag->nc_ntime = tag->nc_nrec = 0;
 	tag->nc_timeType = time_type;
-	tag->nc_org = ds_PlatformDataOrg (dc->dc_Platform);
 	tag->nc_locs = (Location *) 0;
-	tag->nc_plat = dc->dc_Platform;;
 	tag->nc_altUnits = dc_GetLocAltUnits (dc);
 	tag->nc_alts = NULL;
 	tag->nc_nalts = 0;
+/*
+ * We let the platform tell us what kind of file this is.  Use the parent
+ * platform if the requested one is a subplatform.
+ */
+	while (pi_Subplatform (p))
+	    p = pi_Parent (p);
+	
+	tag->nc_org = pi_DataOrg (p);
+	tag->nc_plat = pi_Id (p);
 /*
  * Create the time dimension.  If this platform has the "discrete"
  * flag set, or it's an IRGRID organization, then we make time
@@ -3348,7 +3376,8 @@ DataChunk *dc;
  * was given different values in different datachunks?
  */
 {
-	char *attr, history[256];
+	char history[256];
+	const char *attr;
 	struct timeval tv;
 	struct AttArg attarg;
 	void *badval;
@@ -3381,7 +3410,7 @@ DataChunk *dc;
 	sprintf(history,"created by the Zebra DataStore library, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.65 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.66 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 }
@@ -3625,7 +3654,7 @@ DataChunk *dc;
 {
 	int dims[2], vplat, vlat, vlon, valt;
 	long start[2], count[2], plat;
-	char *name, *subname;
+	const char *name, *subname;
 	PlatformId *plats;
 /*
  * Look up a couple of dimensions that we have already made, then
@@ -4331,7 +4360,6 @@ DC_ElemType type;
 	   case DCT_Float:
 		return (NC_FLOAT);
 	   case DCT_Double:
-	   case DCT_LongDouble:
 		return (NC_DOUBLE);
 	   case DCT_Char:
 		return (NC_CHAR);
@@ -4346,7 +4374,7 @@ DC_ElemType type;
 	   case DCT_UnsignedLong:
 		return (NC_LONG);
 	   default:
-		return (0);
+	        return (NC_LONG);	/* no good answer here... */
 	}
 }
 

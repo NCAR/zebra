@@ -6,8 +6,8 @@ SRCS = dsdwidget.c xncdump.c
 OBJS = dsdwidget.o xncdump.o
 
 INCLUDES = $(XINCLUDES)
-DEPLIBS = $(LIBZEBDS) $(LIBZEB)
-LIBS = $(DSLIBS) $(LIBZEB) $(LIBRDSSUTIL) $(XLIBS)
+DEPLIBS = $(LIBZEBRADS) $(LIBZEBRA)
+LIBS = $(DFALIBS) $(LIBZEBRA) $(LIBRDSSUTIL) $(XLIBS)
 SYSLIBS = $(LIBREGEXP) $(LIBMATH)
 DISTFILES = $(SRCS) Imakefile dsdwidget.ad
 

@@ -25,7 +25,7 @@
 # include "DataFormat.h"
 
 
-RCSID ("$Id: DFA_SweepFile.cc,v 3.1 1998-04-27 21:40:57 corbet Exp $")
+RCSID ("$Id: DFA_SweepFile.cc,v 3.2 1999-03-01 02:03:27 burghart Exp $")
 
 //
 // From here down only if sweepfile access is enabled.
@@ -212,7 +212,7 @@ DataFormat *sweepfileFormat = &sweepfileFormatRec;
 
 
 static int
-dsf_QueryTime (char *file, ZebTime *begin, ZebTime *end, int *nsample)
+dsf_QueryTime (const char *file, ZebTime *begin, ZebTime *end, int *nsample)
 //
 // Query this file to see what's in it.
 //
@@ -223,6 +223,7 @@ dsf_QueryTime (char *file, ZebTime *begin, ZebTime *end, int *nsample)
 // Open up the file.
 //
 	int ok = sfile.access_sweepfile (file, &mapper);
+
 	if (! ok)
 		return (FALSE);
 //
@@ -243,12 +244,13 @@ dsf_QueryTime (char *file, ZebTime *begin, ZebTime *end, int *nsample)
 
 
 static int
-dsf_OpenFile (OpenFile *ofp, char *fname, DataFile *dp, int write)
+dsf_OpenFile (OpenFile *ofp, int write)
 //
 // Open up one of these guys.
 //
 {
 	SFTag &tag = dsf_GetTag (ofp);
+	char *fname = ofp->of_df.df_fullname;
 //
 // Don't even think about writing one of these guys.  This "should never
 // happen".
@@ -388,8 +390,8 @@ dsf_GetAttrs (OpenFile *ofp, int sample, int *len)
 
 
 static PolarBeam *
-dsf_GetBeam (DataChunk *dc, int dfi, int fsample, int beam, FieldId fid, 
-		FieldId tfid, int throver, float tvalue)
+dsf_GetBeam (DataChunk *dc, const DataFile *df, int fsample, int beam, 
+	     FieldId fid, FieldId tfid, int throver, float tvalue)
 //
 // Actually extract a beam and pass it back to the user.
 //
@@ -399,10 +401,11 @@ dsf_GetBeam (DataChunk *dc, int dfi, int fsample, int beam, FieldId fid,
 // Since this guy is called asynchronously, from who knows where, we may
 // have to open the file ourselves.
 //
-	OpenFile *ofp = dfa_OpenFile (dfi, 0);
+	OpenFile *ofp = dfa_OpenFile (df, 0);
 	if (! ofp)
 	{
-		msg_ELog (EF_PROBLEM, "dsf_GetBeam open fail on dfi %d", dfi);
+		msg_ELog (EF_PROBLEM, "dsf_GetBeam open fail on %s", 
+			  df->df_fullname);
 		return (NULL);
 	}
 //
@@ -515,7 +518,7 @@ dsf_GetData (OpenFile *ofp, DataChunk *dc, int begin, int nsample,
 		dcp_AddSweep (dc, &tag.ZTime, &tag.Loc, 
 				tag.Mapper->rays_in_sweep (), tag.Loc.l_alt, 
 				(ScanMode) tag.Mapper->scan_mode (),
-				fmt_FileIndex (ofp), 0);
+				&(ofp->of_df), 0);
 }
 
 

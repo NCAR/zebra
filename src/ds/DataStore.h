@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.48 1998-10-28 21:20:53 corbet Exp $
+ * $Id: DataStore.h,v 3.49 1999-03-01 02:03:30 burghart Exp $
  *
  * Public data store definitions.
  */
@@ -11,6 +11,8 @@
 # include <config.h>		/* CFG_ parameter definitions 	*/
 # include <defs.h>		/* RGrid, ScaleInfo, and Svalue	*/
 # include "ds_fields.h"		/* FieldId and function protos	*/
+# include "DataFiles.h"		/* DataFile definition		*/
+# include "DataTypes.h"
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -30,51 +32,11 @@
  * maintenance or updates for its software.
  */
 
-# ifdef __cplusplus
-extern "C" 
+
+# if __cplusplus
+extern "C"
 {
 # endif
-
-/*
- * Possible data organizations.
- */
-typedef enum {
-	OrgUnknown	= 0,
-	Org2dGrid	= 1,
-	OrgIRGrid	= 2,
-	OrgScalar	= 3,
-	OrgImage	= 4,
-	OrgOutline	= 5,
-	Org3dGrid	= 6,
-	OrgCmpImage	= 7,
-        Org1dGrid       = 8,
-	OrgTransparent  = 9,
-	OrgFixedScalar  = 10,	/* Inflexible scalar for DFA_Zebra */
-	OrgNSpace	= 11,
-	OrgPolar	= 12	/* Raw radar data */
-} DataOrganization;
-
-/*
- * The file types.  These are tied into the format table definition in
- * DFA, so don't mess with them.
- */
-typedef enum {
-	FTUnknown = -1,
-	FTNetCDF = 0,
-	FTBoundary = 1,
-	FTRaster = 2,
-	FTCmpRaster = 3,
-	FTZebra = 4,
-	FTGRIB = 5,
-	FTGRIBSfc = 6,	/* GRIB surface grids only */
-	FTGrads = 7,
-	FTGradsModel = 8, /* Grads Model format */
-	FTHDF = 9,
-	FTSweepFile = 10,	/* Radar sweep files */
-	/* ... */
-} FileType;
-
-# define FTZeb FTZebra
 
 /*
  * The platform id format.
@@ -83,7 +45,6 @@ typedef int PlatformId;
 typedef int PlatClassId;
 # define BadPlatform -1
 # define BadClass    -1
-
 
 /* ================================================================
  * RGrid and ScaleInfo type definitions have moved to defs.h in the
@@ -250,7 +211,6 @@ typedef enum _DC_ElemType {
 	DCT_Unknown = 0,
 	DCT_Float, 
 	DCT_Double, 
-	DCT_LongDouble,
 	DCT_Char, 
 	DCT_UnsignedChar,
 	DCT_ShortInt,
@@ -268,16 +228,9 @@ typedef enum _DC_ElemType {
 
 #define DCT_ZebTime DCT_ZebraTime
 
-#if defined(__STDC__) && !defined(sgi)
-typedef long double LongDouble;
-#else
-typedef double LongDouble;
-#endif
-
 typedef union _DC_Element {
 	float 		dcv_float;
 	double 		dcv_double;
-	LongDouble	dcv_longdbl;
 	char 		dcv_char;
 	unsigned char	dcv_uchar;
 	short 		dcv_shortint;
@@ -406,11 +359,19 @@ typedef RawDataChunk DataChunk;
 	
 /*
  * Class-specific defines.
+ *
+ * HEY YOU!  READ THIS IF YOU CHANGE THE DEFINITION OF 'DC_MaxField':
+ * ------------------------------------------------------------------------
+ * The field index hash size (MD_HASH_SIZE) depends on DC_MaxField, so we 
+ * define it here.  It must be the least power of 2 greater than (not equal 
+ * to) DC_MaxField.
  */
 # define MAXFIELD		CFG_DC_MAXFIELD	/* Max fields in data object*/
 # define DC_MaxField		MAXFIELD    /* MetData -- max # of fields   */
 # define DC_MaxDimension	CFG_DC_MAXDIMN /* Max number of dimensions  */
 # define DC_MaxDimName		CFG_DIMNAME_LEN /* Max name length, incl \0 */
+
+# define MD_HASH_SIZE		CFG_DC_MF_HASH_SIZE
 
 /*
  * The sweep and beam info structures used by DCC_Polar.
@@ -436,14 +397,6 @@ typedef struct _PolarBeam
 	float *pb_Data;
 } PolarBeam;
 
-/* 
- * HEY YOU!  READ THIS IF YOU CHANGE THE DEFINITION OF 'DC_MaxField':
- * ------------------------------------------------------------------------
- * The field index hash size depends on DC_MaxField, so we define it here.
- * It must be the least power of 2 greater than (not equal to) DC_MaxField.
- */
-# define MD_HASH_SIZE		CFG_DC_MF_HASH_SIZE
-
 /*
  * Symbol to pass as data pointer to MetData subclasses to have the field
  * filled with fill values.
@@ -457,7 +410,7 @@ extern zbool 	_CheckClass;
 
 zbool		dc_IsSubClassOf FP((DataClassID, DataClassID));
 zbool		dc_IsSubClass FP((DataClassP classp, DataClassP superclass));
-#ifdef __cplusplus
+#if __cplusplus
 inline	PlatformId dc_PlatformId (DataChunk *dc)
 		{ return (dc->dc_Platform); }
 inline	DataClassID dc_ClassId (DataChunk *dc)
@@ -687,12 +640,9 @@ const char	*dc_PrintValue FP((void *ptr, DC_ElemType type));
 int		dc_CompareElement FP((DC_Element *e, DC_Element *f, 
 				      DC_ElemType type));
 int		dc_CompareValue FP((void *e, void *f, DC_ElemType type));
-int		dc_ConvertLongDouble FP((LongDouble *ld, void *ptr, 
-					 DC_ElemType type));
 int		dc_ConvertDouble FP((double *d, void *ptr, DC_ElemType type));
 int		dc_ConvertFloat FP((float *f, void *ptr, DC_ElemType type));
-int		dc_LongDoubleToType FP((void *ptr, DC_ElemType type, 
-					LongDouble ld));
+int		dc_DoubleToType FP((void *ptr, DC_ElemType type, double d));
 void *		dc_DefaultBadval FP((DC_ElemType type));
 
 /*
@@ -752,15 +702,15 @@ unsigned char *	dc_ImgGetImage FP ((DataChunk *, int, FieldId, Location *,
 /*
  * The polar class.
  */
-typedef PolarBeam *(*dcpGetFunc) (DataChunk *, int, int, int, FieldId,
-				  FieldId, int, float);
-void		dcp_Setup (DataChunk *, int, FieldId *, dcpGetFunc);
-void		dcp_AddSweep (DataChunk *, ZebTime *, Location *, int,
-			      float, ScanMode, int, int);
-int		dcp_GetSweepInfo (DataChunk *, int, SweepInfo *);
-PolarBeam *	dcp_GetBeam (DataChunk *, int, int, FieldId, FieldId,
-			     int, float);
-void		dcp_FreeBeam (PolarBeam *beam);
+typedef PolarBeam *(*dcpGetFunc) (DataChunk *, const DataFile*, int, int, 
+				  FieldId, FieldId, int, float);
+void		dcp_Setup FP ((DataChunk *, int, FieldId *, dcpGetFunc));
+void		dcp_AddSweep FP ((DataChunk *, ZebTime *, Location *, int,
+				  float, ScanMode, const DataFile*, int));
+int		dcp_GetSweepInfo FP ((DataChunk *, int, SweepInfo *));
+PolarBeam *	dcp_GetBeam FP ((DataChunk *, int, int, FieldId, FieldId,
+				 int, float));
+void		dcp_FreeBeam FP ((PolarBeam *beam));
 
 /*-------------------------------------------------------------------------
  * The NSpace class
@@ -862,58 +812,15 @@ int dc_ProcessDetails FP ((DataChunk *dc, dsDetail *details, int ndetail));
  */
 
 /*
- * The platform information structure for application queries.
+ * Info about one of the daemon's data sources
  */
-# define P_NAMELEN 	CFG_PLATNAME_LEN
-# define P_PATHLEN	CFG_PLATNAME_LEN
-
-typedef struct s_PlatformInfo
+typedef struct s_SourceInfo
 {
-	char	pl_Name[P_NAMELEN];	/* Name of this platform	*/
-	int	pl_NDataSrc;		/* How many data sources	*/
-	zbool	pl_Mobile;		/* Does it move?		*/
-	zbool	pl_SubPlatform;		/* Is it a subplat?		*/
-	PlatformId pl_Parent;		/* Parent plat for subplats	*/
-} PlatformInfo;
-
-
-/*
- * Types of data sources.  This definition will move elsewhere some day 
- * as the data source notion moves back.
- */
-typedef enum
-{
-	dst_Local,		/* Local disk source	*/
-	dst_NFS			/* Remotely mounted fs	*/
-} DataSrcType;
-
-
-/*
- * The platform data source structure.
- */
-typedef struct s_DataSrcInfo
-{
-	char	dsrc_Name[P_NAMELEN];	/* Name of the data source	*/
-	char	dsrc_Where[P_NAMELEN];	/* Where it lives		*/
-	DataSrcType dsrc_Type;		/* Type of this data source	*/
-	int	dsrc_FFile;		/* First file ID		*/
-} DataSrcInfo;
-
-
-
-/*
- * The application-visible notion of a data file.
- */
-typedef struct s_DataFileInfo
-{
-	char	dfi_Name[P_NAMELEN];	/* Name of this file		*/
-	ZebTime	dfi_Begin;		/* Begin time			*/
-	ZebTime dfi_End;		/* End time			*/
-	int	dfi_NSample;		/* How many samples		*/
-	PlatformId dfi_Plat;		/* It's platform		*/
-	zbool	dfi_Archived;		/* Has been archived?		*/
-	int	dfi_Next;		/* Next file in chain		*/
-} DataFileInfo;
+    int src_Id;				/* id			*/
+    char src_Name[CFG_PLATNAME_LEN];	/* source name		*/
+    char src_Dir[CFG_FILEPATH_LEN];	/* base directory	*/
+    zbool src_ReadOnly;			/* read-only source?	*/
+} SourceInfo;
 
 
 /*
@@ -922,7 +829,7 @@ typedef struct s_DataFileInfo
 typedef enum { 
 	InheritNone = 0, InheritDefault = 0, 
 	InheritAppend, InheritCopy 
-} InheritDir;
+} InheritDirFlag;
 
 /*
  * Types of directory instantiation for classes
@@ -931,7 +838,7 @@ typedef enum {
 	InstanceDefault = 0, InstanceRoot = 0, 
 	InstanceCopyClass, InstanceSubdirClass, 
 	InstanceCopyParent, InstanceSubdirParent
-} InstanceDir;
+} InstanceDirFlag;
 
 
 /**************************************************************************
@@ -941,8 +848,6 @@ int		ds_Initialize FP ((void));
 int		ds_Standalone FP ((void));
 int		ds_IsStandalone FP ((void));
 const char *	ds_ProtoVersion FP ((void));
-PlatformId *	ds_GatherPlatforms FP ((char *regexp, int *nplat, 
-					int alphabet, int subs));
 PlatformId *	ds_SearchPlatforms FP ((char *regexp, int *nplat, 
 					int alphabet, int subs));
 PlatformId	ds_LookupParent FP ((PlatformId pid));
@@ -957,24 +862,52 @@ DataChunk *	ds_FetchObs FP ((PlatformId, DataClass, ZebTime *, FieldId *,
 				 int, dsDetail *, int));
 void		ds_DeleteData FP ((PlatformId, ZebTime *));
 void		ds_DeleteObs FP ((PlatformId platform, ZebTime *zaptime));
+zbool		ds_ScanFile (int srcid, PlatformId pid, char *fname);
+# ifdef notdef	/* no longer supported */
 zbool		ds_InsertFile FP ((PlatformId platform, char *filename,
 				   ZebTime *begin, ZebTime *end,
 				   int nsample, int local));
-zbool		ds_ScanFile FP((PlatformId platid, char *fname, int local));
+# endif
 void		ds_RequestNotify FP ((PlatformId, int, void (*)()));
 void		ds_CancelNotify FP ((void));
 void		ds_MarkArchived FP ((int dfi));
 void		ds_SnarfCopies FP ((void (*handler)()));
-int		ds_FindBefore FP ((PlatformId pid, const ZebTime *when));
-int		ds_FindAfter FP ((PlatformId pid, const ZebTime *when));
+
+/*
+ * Special source ids that can be used with the file-finding functions below
+ */
+# define SRC_ALL	(-1)	/* all sources */
+# define SRC_DEFAULT	(-2)	/* default readable source */
+# define SRC_DEFAULT_W	(-4)	/* default writable source */
+
+/*
+ * File finding
+ */
+const DataFile*	ds_FindDFBefore (int srcid, PlatformId pid, 
+				 const ZebTime *when);
+const DataFile*	ds_FindDFAfter (int srcid, PlatformId pid, 
+				const ZebTime *when);
+const DataFile*	ds_FirstFile (int srcid, PlatformId pid);
+const DataFile*	ds_LastFile (int srcid, PlatformId pid);
+const DataFile*	ds_PrevFile (const DataFile *df);
+const DataFile*	ds_NextFile (const DataFile *df);
+/* 
+ * The following two functions are deprecated.  Switch to ds_FindDFBefore()
+ * and ds_FindDFAfter().
+ */
+const DataFile*	ds_FindBefore (PlatformId pid, const ZebTime *when);
+const DataFile*	ds_FindAfter (PlatformId pid, const ZebTime *when);
+
+
 int		ds_DataTimes FP ((PlatformId, ZebTime *, int, TimeSpec,
 				  ZebTime *));
 int 		ds_AttrTimes FP ((PlatformId pid, ZebTime *when, int n,
 				  TimeSpec which, char *key, char *value,
 				  ZebTime *rettimes));
-int		ds_GetObsSamples FP ((PlatformId, ZebTime *, ZebTime *,
-				      Location *, int));
-int		ds_GetFields FP ((PlatformId, ZebTime *, int *, FieldId *));
+int		ds_GetObsSamples (PlatformId pid, const ZebTime *when, 
+				  ZebTime *times, Location *locs, int max);
+int		ds_GetFields (PlatformId pid, const ZebTime *t, int *nfld, 
+			      FieldId *flist);
 int		ds_GetObsTimes FP ((PlatformId, ZebTime *, ZebTime *, int,
 				    char *));
 zbool		ds_GetAlts FP((PlatformId pid, FieldId fid, ZebTime *when,
@@ -982,11 +915,6 @@ zbool		ds_GetAlts FP((PlatformId pid, FieldId fid, ZebTime *when,
 			       AltUnitType *altunits));
 zbool		ds_GetForecastTimes FP ((PlatformId, ZebTime *, int *, int *));
 int		ds_GetNPlat FP ((void));
-void		ds_GetPlatInfo FP ((PlatformId, PlatformInfo *));
-int		ds_GetDataSource FP ((PlatformId, int, DataSrcInfo *));
-void		ds_GetFileInfo FP ((int, DataFileInfo *));
-void		ds_LockPlatform FP ((PlatformId));
-void		ds_UnlockPlatform FP ((PlatformId));
 void 		ds_ForceRescan FP ((PlatformId platform, int all));
 void		ds_ForceClosure FP ((void));
 
@@ -999,9 +927,8 @@ void		ds_ForceClosure FP ((void));
 PlatformId 	ds_LookupPlatform FP ((const char *name));
 PlatClassId	ds_LookupClass FP ((const char *name));
 PlatClassId	ds_PlatformClass FP ((PlatformId pid));
-char *		ds_PlatformName FP ((PlatformId));
+const char *	ds_PlatformName FP ((PlatformId));
 const char *	ds_ClassName FP ((PlatClassId));
-char *		ds_FilePath FP ((PlatformId pid, int dfid));
 DataOrganization ds_PlatformDataOrg FP ((PlatformId pid));
 int		ds_IsMobile FP ((PlatformId));
 int		ds_IsModelPlatform FP ((PlatformId));
@@ -1039,8 +966,11 @@ typedef struct ds_PlatformClass *PlatClassRef;
  */
 PlatClassRef	ds_NewSubClass FP ((const char *name, PlatClassId sid));
 PlatClassRef	ds_NewClass FP ((const char *name));
-void		ds_AddClassSubplat FP ((PlatClassRef pc, PlatClassId subid,
+PlatClassRef	ds_NewNamedClass (const char *name, const char *super);
+void		ds_AddClassSubplat FP ((const PlatClassRef pc, 
+					PlatClassId subid, 
 					const char *subname));
+void		ds_EraseClassSubplat (PlatClassRef pc);
 void		ds_DestroyClass FP ((PlatClassRef pc));
 int		ds_ShowPlatformClass FP ((FILE *fp, PlatClassId cid));
 
@@ -1049,12 +979,10 @@ int		ds_ShowPlatformClass FP ((FILE *fp, PlatClassId cid));
  */
 void		ds_AssignClass FP ((PlatClassRef pc, DataOrganization org,
 				    FileType ftype, int mobile));
-void		ds_SetDirectory FP ((PlatClassRef cd, const char *dir));
-void		ds_SetRemoteDir FP ((PlatClassRef cd, const char *dir));
 void		ds_SetOrg FP ((PlatClassRef cd, DataOrganization org));
 void		ds_SetFiletype FP ((PlatClassRef cd, FileType ft));
-void		ds_SetInheritDir FP ((PlatClassRef cd, InheritDir id));
-void		ds_SetInstanceDir FP ((PlatClassRef cd, InstanceDir id));
+void		ds_SetInheritDir FP ((PlatClassRef cd, InheritDirFlag id));
+void		ds_SetInstanceDir FP ((PlatClassRef cd, InstanceDirFlag id));
 void		ds_SetMobile FP ((PlatClassRef cd, int mobile));
 void		ds_SetComposite FP ((PlatClassRef cd, int composite));
 void		ds_SetModel FP ((PlatClassRef cd, int flag));
@@ -1065,11 +993,10 @@ void		ds_SetMaxSample FP ((PlatClassRef cd, int maxsamp));
 void		ds_SetComment FP ((PlatClassRef cd, const char *comment));
 
 /*
- * Modify client-side directory defaults
+ * Source info
  */
-int 		ds_SetDataDir FP ((const char *dir));
-int		ds_SetRemoteDataDir FP ((const char *dir));
-void		ds_DisableRemote FP ((int flag));
+int		ds_GetSourceInfo (int srcid, SourceInfo *si);
+int		ds_GetPlatDir (int srcid, PlatformId pid, char *dir);
 
 /*
  * Define and instantiate class references
@@ -1080,13 +1007,14 @@ PlatformId	ds_DefineSubPlatform FP ((PlatClassId cid, const char *name,
 					  PlatformId parent));
 
 /*
- * String forms of enumerated types.  Defined in Platforms.c so they're
+ * String forms of enumerated types.  Defined in DataTypes.c so they're
  * available to both client and daemon.
  */
-const char *	ds_InstanceDirName FP ((InstanceDir id));
-const char *	ds_InheritDirName FP ((InheritDir id));
+const char *	ds_InstanceDirFlagName FP ((InstanceDirFlag id));
+const char *	ds_InheritDirFlagName FP ((InheritDirFlag id));
 const char *	ds_FTypeName FP ((FileType ft));
 const char *	ds_OrgName FP ((DataOrganization org));
+
 
 /*
  * Field derivation interface
@@ -1106,7 +1034,7 @@ int		ds_IsDerivable (PlatformId pid, FieldId wantid,
 				FieldId* raw_ids, int nraw);
 void		ds_DestroyDeriv (DerivMethod der);
 
-# ifdef __cplusplus
+# if __cplusplus
 } // end of extern "C"
 # endif
 

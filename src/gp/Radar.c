@@ -19,7 +19,7 @@
 #include "PixelCoord.h"
 #include "GC.h"
 
-RCSID ("$Id: Radar.c,v 2.8 1998-10-28 21:22:05 corbet Exp $")
+RCSID ("$Id: Radar.c,v 2.9 1999-03-01 02:04:28 burghart Exp $")
 
 
 static char *ScanNames[5] = 

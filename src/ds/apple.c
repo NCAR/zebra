@@ -1,5 +1,5 @@
 /*
- * $Id: apple.c,v 3.14 1997-11-21 20:36:45 burghart Exp $
+ * $Id: apple.c,v 3.15 1999-03-01 02:03:38 burghart Exp $
  */
 
 /*
@@ -76,7 +76,7 @@ to 'expect'?
 #include "DataStore.h"
 #include "apple.h"
 
-RCSID("$Id: apple.c,v 3.14 1997-11-21 20:36:45 burghart Exp $")
+RCSID("$Id: apple.c,v 3.15 1999-03-01 02:03:38 burghart Exp $")
 
 extern TestRoutine NSpaceTests[];
 extern TestRoutine ZNFTests[];
@@ -487,9 +487,8 @@ char *argv[];
 		exit (0);
 	}
 
+	putenv ("DS_DATA_DIR=/net/shared/zebra/project/test/data");
 	Initialize (standalone);
-	ds_SetDataDir ("/net/shared/zebra/project/test/data");
-	ds_DisableRemote (TRUE);
 	errors = 0;
 	TC_ZtAssemble (&when, 93, 1, 1, 0, 0, 0, 0);
 	Begin = when;
@@ -524,7 +523,6 @@ char *argv[];
 	 * try to release all held memory and exit gracefully.
 	 */
 	T_MetDataStats();
-	T_ApplStats();
 	ds_ForceClosure();
 	TX_Closure();
 	if (TestNames)

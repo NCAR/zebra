@@ -1,5 +1,5 @@
 !
-! $Id: Daemon.state,v 2.22 1998-04-27 21:40:58 corbet Exp $
+! $Id: Daemon.state,v 2.23 1999-03-01 02:03:29 burghart Exp $
 !
 ! The data store daemon configuration language.
 !
@@ -65,6 +65,9 @@ define state initial
 	endinput
 	input 'rescan' 21
 		next rescan-which
+	endinput
+	input 'source' 54
+		next source-name
 	endinput
 enddef
 
@@ -544,11 +547,69 @@ define state rescan-which
 	endinput
 enddef
 
+!
+! source <name>
+!	Directory <directory>
+!	[CacheFile <cachefile>]
+!	[DirConst [true|false]]
+!	[FileConst [true|false]]
+!	[RememberAll [true|false]]
+!	[DelayDataDirs [true|false]]
+!	[PlatDir <platname> <directory>]
+! endsource
+!
+define state source-name
+	input string
+		next ust$no_more
+	endinput
+enddef
+
+define state in-source
+	input 'endsource' 0
+		next ust$no_more
+	endinput
+	input 'directory' 1
+		next ust$final_unmunged_string
+	endinput
+	input 'cachefile' 2
+		next ust$final_unmunged_string
+	endinput
+	input 'dirconst' 3
+		next src-t-or-f
+	endinput
+	input 'fileconst' 4
+		next src-t-or-f
+	endinput
+	input 'rememberall' 5
+		next src-t-or-f
+	endinput
+	input 'platdir' 6
+		next src-platdir-platname
+	endinput
+	input 'delaydatadirs' 7
+		next src-t-or-f
+	endinput
+enddef
+
+define state src-platdir-platname
+	input string
+		next ust$final_unmunged_string
+	endinput
+enddef
+
+define state src-t-or-f
+	input 'true' 1
+		next ust$no_more
+	endinput
+	input 'false' 1
+		next ust$no_more
+	endinput
+enddef
 
 set ui$initial_state "initial"
 
 procedure ui$init
-	local _id '$Id: Daemon.state,v 2.22 1998-04-27 21:40:58 corbet Exp $'
+	local _id '$Id: Daemon.state,v 2.23 1999-03-01 02:03:29 burghart Exp $'
 
 	start
 	done

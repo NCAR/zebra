@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-/* $Id: Imakefile,v 1.28 1998-03-17 18:27:24 corbet Exp $ */
+/* $Id: Imakefile,v 1.29 1999-03-01 02:04:42 burghart Exp $ */
 
 #if !HasWritev
 WRITEVOBJ=writev.o
@@ -38,16 +38,36 @@ INCLUDES = -I.		/* so that <> includes can be found */
  */
 DEPEND_DEFINES = $(SHMDEFINES) $(DIRDEFINES) $(XINCLUDES) $(RDSSINCLUDES)
 
+/*
+ * Sources
+ */
 TESTSRCS = cvt_test.c re_test.c msg_test.c
 
-SRCS = alarmwidget.c altunits.c barb.c Bitmaps.c byteorder.c cmd_proto.c \
+CSRCS = alarmwidget.c altunits.c barb.c Bitmaps.c byteorder.c cmd_proto.c \
 	cmd_exec.c ConfigVars.c ConfigUI.c convert.c GraphicsW.c ImageXfr.c \
 	Buttons.c msg_BCast.c msg_lib.c netread.c Parse.c pdlib.c pdretrv.c \
 	pdaux.c RLEncode.c Sound_lib.c TCvt.c TInterp.c timer_lib.c twidget.c \
 	vector.c $(WRITEVSRC) FindFile.c zl_regex.c dm_lib.c $(TESTSRCS) \
 	location.c version.c zl_symbol.c zl_string.c T_Expect.c T_Profile.c \
-	zebra_xdr.c map.c map_xdr.c
+	zebra_rpc_xdr.c map.c map_xdr.c
 
+CCSRCS = BTree.cc BTreeFile.cc BlockFile.cc FreeList.cc Journal.cc XDR.cc \
+	Logger.cc Format.cc Buffer.cc AuxBlock.cc BlockObject.cc \
+	SerialBuffer.cc SerialStream.cc Serializable.cc \
+	T_Block.cc dbf.cc T_BTree.cc
+
+SRCS = $(CSRCS) ($CCSRCS)
+
+/*
+ * Source for C++ templates should go here as well as in CCSRCS, with no
+ * associated .o entries in OBJS below.  These files will be installed into 
+ * the header directory.
+ */
+TEMPLATESRCS = BTree.cc BTreeFile.cc
+
+/*
+ * Objects
+ */
 XOBJS = Bitmaps.o barb.o vector.o Buttons.o
 XUIOBJS = alarmwidget.o twidget.o dm_lib.o 
 UIOBJS = pdlib.o pdretrv.o pdaux.o cmd_proto.o
@@ -55,22 +75,33 @@ CFGOBJS = ConfigVars.o ConfigUI.o
 
 SPECIAL_OBJS = $(XOBJS) $(XUIOBJS) $(UIOBJS) $(CFGOBJS)
 
-OBJS = $(SPECIAL_OBJS) altunits.o byteorder.o cmd_exec.o \
-	convert.o GraphicsW.o ImageXfr.o \
-	msg_BCast.o msg_lib.o netread.o Parse.o \
-	RLEncode.o Sound_lib.o TCvt.o TInterp.o timer_lib.o \
-	$(WRITEVOBJ) FindFile.o zl_regex.o zebra_xdr.o map_xdr.o map.o \
-	location.o version.o zl_symbol.o zl_string.o T_Expect.o T_Profile.o
+OBJS = $(SPECIAL_OBJS) altunits.o byteorder.o cmd_exec.o convert.o \
+	GraphicsW.o ImageXfr.o msg_BCast.o msg_lib.o netread.o Parse.o \
+	RLEncode.o Sound_lib.o TCvt.o TInterp.o timer_lib.o $(WRITEVOBJ) \
+	FindFile.o zl_regex.o zebra_rpc_xdr.o map_xdr.o map.o location.o \
+	version.o zl_symbol.o zl_string.o T_Expect.o T_Profile.o \
+	BlockFile.o FreeList.o XDR.o Buffer.o SerialBuffer.o Logger.o \
+	SerialStream.o Serializable.o AuxBlock.o Journal.o BlockObject.o \
+	Format.o
 
 TESTOBJS = cvt_test.o re_test.o msg_test.o
 
-HEADERS = bitmaps.h copyright.h defs.h GraphicsW.h GraphicsWP.h message.h \
+CHEADERS = bitmaps.h copyright.h defs.h GraphicsW.h GraphicsWP.h message.h \
 	pd.h timer.h ImageXfr.h zl_regex.h dm.h twidget.h byteorder.h \
-	draw.h version.h zl_symbol.h zl_param.h Test.h zebra.h map.h \
-	ZTime.h zl_mtio.h
+	draw.h version.h zl_symbol.h zl_param.h Test.h zebra.h zebra_rpc.h \
+	map.h ZTime.h zl_mtio.h
 
-RPCZEBRA = zebra.h zebra_xdr.c
-ZEBRA.x = zebra.x
+DOCXX_HEADERS = Buffer.hh SerialBuffer.hh SerialStream.hh \
+	Serializable.hh AuxBlock.hh XDR.hh BlockObject.hh
+
+CCHEADERS = BTree.hh BTreeFile.hh BTreeStats.hh BlockFile.hh \
+	Format.hh SerialZTime.hh Serialize.hh Logger.hh \
+	ZTime.hh $(DOCXX_HEADERS) 
+
+HEADERS = $(CHEADERS) $(CCHEADERS) $(TEMPLATESRCS)
+
+RPCZEBRA = zebra_rpc.h zebra_rpc_xdr.c
+ZEBRA.x = zebra_rpc.x
 
 RPCMAP = map.h map_xdr.c
 MAP.x = map.x
@@ -81,7 +112,7 @@ SOURCES.x = $(ZEBRA.x) $(MAP.x)
 /*
  * Private internal header files
  */
-PHEADERS = setup.h
+PHEADERS = setup.h BlockFileP.hh
 
 DISTFILES = $(SRCS) writev.c $(HEADERS) Imakefile $(PHEADERS) $(SOURCES.x)
 
@@ -96,7 +127,7 @@ SpecialObjectRule(GraphicsW.o,GraphicsW.c GraphicsW.h GraphicsWP.h,$(SHMDEFINES)
 /*
  * rpcgen rules
  */
-XDRTarget(zebra)
+XDRTarget(zebra_rpc)
 XDRTarget(map)
 
 InstallLibrary (Zebra, $(LIBDIR))
@@ -106,8 +137,6 @@ install::
 
 BuildIncludesTop ($(HEADERS))
 InstallMultipleFlags($(HEADERS),$(INCDIR),$(INSTINCFLAGS))
-
-DependTarget()
 
 LintTarget()
 
@@ -125,4 +154,21 @@ RunTestProgram(cvt_test,coordinate conversion,./cvt_test)
 RunTestProgram(msg_test,error logging,./msg_test > /dev/null 2>&1)
 RunTestProgram(re_test,regular expressions,./re_test)
 
+/*
+ * BTree and related class testing
+ */
+BSOBJS = Buffer.o SerialBuffer.o SerialStream.o Serializable.o XDR.o Logger.o \
+	Format.o BlockFile.o FreeList.o Journal.o BlockObject.o
+
+CccTestProgramTarget (tblocks,T_Block.o $(BSOBJS),/**/,/**/,/**/)
+
+CccTestProgramTarget (dbf,dbf.o $(BSOBJS),/**/,/**/,/**/)
+
+TBTREEOBJS = T_BTree.o TestTrees.o $(BSOBJS) TCvt.o version.o
+CccTestProgramTarget (tbtree,$(TBTREEOBJS),/**/,/**/,/**/)
+
 DistfilesTarget($(DISTFILES))
+
+ZebraMakeDepend()
+CcDependTarget($(CSRCS))
+CccDependTarget($(CCSRCS))

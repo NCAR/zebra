@@ -40,7 +40,7 @@
 # include "AxisControl.h"
 # include "ActiveArea.h"
 
-MAKE_RCSID ("$Id: PlotExec.c,v 2.57 1998-10-28 21:22:00 corbet Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.58 1999-03-01 02:04:27 burghart Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *

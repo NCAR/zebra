@@ -1,5 +1,5 @@
 /*
- * "$Id: dslib.h,v 3.14 1996-11-19 09:40:38 granger Exp $"
+ * "$Id: dslib.h,v 3.15 1999-03-01 02:03:45 burghart Exp $"
  * Internal info for the data store application interface library.
  */
 
@@ -36,8 +36,7 @@
  * of DataStore.h
  */
 
-int	ds_GetFileStruct FP ((int, DataFile *));
-const PlatformClass *ds_GetClassStruct FP ((PlatClassId, PlatformClass *));
-int	ds_FindDF FP ((PlatformId, const ZebTime *, int));
+int	ds_GetFileStruct (int, DataFile *);
+const PlatformClass *ds_GetClassStruct (PlatClassId, PlatformClass *);
 
 #endif /* __zebra_dslib_h_ */

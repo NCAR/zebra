@@ -40,7 +40,7 @@
 # define MESSAGE_LIBRARY	/* to get netread prototypes */
 # include "message.h"
 
-RCSID ("$Id: msg_lib.c,v 2.49 1998-02-26 00:23:00 burghart Exp $")
+RCSID ("$Id: msg_lib.c,v 2.50 1999-03-01 02:04:44 burghart Exp $")
 
 /*
  * The array of functions linked with file descriptors.

@@ -11,7 +11,7 @@
 #include <iomanip.h>
 
 //#include <defs.h>
-//RCSID ("$Id: BlockFile.cc,v 1.18 1998-10-20 20:44:41 granger Exp $");
+//RCSID ("$Id: BlockFile.cc,v 1.19 1999-03-01 02:04:41 burghart Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
 #include "BlockFileP.hh"
@@ -150,14 +150,15 @@ BlockFile::Open (const char *path_, unsigned long app_magic /* = 0 */,
 	struct stat st;
 	create = (flags_ & BF_CREATE) || 
 		(stat (path, &st) < 0 && errno == ENOENT);
+	int readonly = flags_ & BF_READONLY;
 
-	if (create)
+	if (! readonly && create)
 		WriteLock ();
 	else
 		ReadLock ();
 
 	// Try to open a file pointer on the given path
-	fp = fopen (path, create ? "w+" : "r+");
+	fp = fopen (path, readonly ? "r" : (create ? "w+" : "r+"));
 	if (! fp)
 	{
 		this->errnum = errno;

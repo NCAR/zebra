@@ -1,7 +1,7 @@
 /*
  * Plot description related stuff.
  *
- * $Id: pd.h,v 1.13 1998-10-28 21:22:42 corbet Exp $
+ * $Id: pd.h,v 1.14 1999-03-01 02:04:45 burghart Exp $
  */
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
@@ -57,33 +57,36 @@ typedef void *plot_description;
  * The PD routines.
  */
 plot_description pd_Load FP((raw_plot_description *raw));
-plot_description pd_Read FP((char *file));
+plot_description pd_Read FP((const char *file));
 raw_plot_description *pd_Unload FP((plot_description pd));
 void pd_RPDRelease FP((raw_plot_description *raw));
 void pd_Merge FP((plot_description dest, plot_description src));
-void pd_MergeComp FP((plot_description dest, char *destname,
-		      plot_description src, char *srcname));
-zbool pd_Retrieve FP((plot_description pd, char *comp, char *param,
-	char *target, int type));
+void pd_MergeComp FP((plot_description dest, const char *destname,
+		      plot_description src, const char *srcname));
+zbool pd_Retrieve FP((plot_description pd, const char *comp, const char *param,
+		     char *target, int type));
 char **pd_CompList FP((plot_description pd));
 void pd_Release FP((plot_description pd));
-plot_description pda_GetPD FP((char *name));
-void pda_StorePD FP((plot_description pd, char *name));
-zbool pda_Search FP((plot_description pd, char *comp, char *param,
-	char *qual, char *dest, int type));
-zbool pda_ReqSearch FP((plot_description pd, char *comp, char *param,
-	char *qual, char *dest, int type));
+plot_description pda_GetPD FP((const char *name));
+void pda_StorePD FP((plot_description pd, const char *name));
+zbool pda_Search FP((plot_description pd, const char *comp, const char *param,
+		    const char *qual, char *dest, int type));
+zbool pda_ReqSearch FP((plot_description pd, const char *comp, 
+		       const char *param, const char *qual, char *dest, 
+		       int type));
 void pda_ReleaseAll FP ((void));
 plot_description pd_CopyPD FP((plot_description pd));
-void pd_Store FP((plot_description pd, char *comp, char *param,
-	char *value, int type));
-void pd_RemoveParam FP((plot_description pd, char *comp, char *param));
-int pd_RemoveComp FP((plot_description pd, char *name));
-plot_description pd_ReadComponent FP((plot_description, char *, char *));
+void pd_Store FP((plot_description pd, const char *comp, const char *param,
+		  char *value, int type));
+void pd_RemoveParam FP((plot_description pd, const char *comp, 
+			const char *param));
+int pd_RemoveComp FP((plot_description pd, const char *name));
+plot_description pd_ReadComponent FP((plot_description, const char *, 
+				      const char *));
 void pd_AddComponent FP((plot_description, plot_description, int));
-void pd_MoveComponent FP((plot_description, char *, int));
-zbool pd_CompExists FP((plot_description, char *));
-void pd_TraverseParameters FP((plot_description pd, char *compname, 
+void pd_MoveComponent FP((plot_description, const char *, int));
+zbool pd_CompExists FP((plot_description, const char *));
+void pd_TraverseParameters FP((plot_description pd, const char *compname, 
 			       int (*func)(), void *arg));
 
 #endif /* !__zeb_pd_h_ */

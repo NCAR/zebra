@@ -28,8 +28,9 @@
 # include <message.h>
 # include <timer.h>
 # include <DataStore.h>
+# include <Platforms.h>
 
-RCSID ("$Id: dsdump.c,v 3.20 1998-10-28 21:21:20 corbet Exp $")
+RCSID ("$Id: dsdump.c,v 3.21 1999-03-01 02:03:50 burghart Exp $")
 
 /*
  * Standalone scanning flag.
@@ -94,14 +95,11 @@ DumpOptions Options =
 /*
  * Local prototypes
  */
-static void DumpSubplatforms FP((PlatformId pid, PlatformInfo *pi));
-static void DumpPlatform FP((PlatformId pid, PlatformInfo *pi,
-			     DumpOptions *opts));
-static void PrintInfo FP((DataSrcInfo *dsi, DataFileInfo *dfi, 
-			  DumpOptions *opts));
-static void PrintTime (char *s, ZebraTime *zt, DumpOptions *opts);
-static void PrintFilePath FP((DataSrcInfo *dsi, DataFileInfo *dfi, 
-			      DumpOptions *opts));
+static void DumpSubplatforms (const Platform *p);
+static void DumpPlatform (const Platform *p, const DumpOptions *opts);
+static void PrintInfo (const DataFile *df, const DumpOptions *opts);
+static void PrintFilePath (const DataFile *df, const DumpOptions *opts);
+static void PrintTime (char *s, const ZebraTime *zt, const DumpOptions *opts);
 
 
 static int
@@ -256,18 +254,17 @@ GetPeriod (char *arg, ZebTime *when)
 static void
 NextPlatform (PlatformId pid, DumpOptions *opts)
 {
-	PlatformInfo pi;
+    const Platform *p = dt_FindPlatform (pid);
 
-	ds_GetPlatInfo (pid, &pi);
-	if (! opts->quiet)
-		DumpPlatform (pid, &pi, opts);
-	if (opts->defn)
-	{
-		fprintf (stdout, "\n");
-		ds_ShowPlatformClass (stdout, ds_PlatformClass(pid));
-	}
-	if (opts->tier)
-		DumpSubplatforms (pid, &pi);
+    if (! opts->quiet)
+	DumpPlatform (p, opts);
+    if (opts->defn)
+    {
+	fprintf (stdout, "\n");
+	ds_ShowPlatformClass (stdout, ds_PlatformClass(pid));
+    }
+    if (opts->tier)
+	DumpSubplatforms (p);
 }
 
 
@@ -425,7 +422,7 @@ char **argv;
 		else
 		{
 			pattern = (opt < argc) ? (argv[opt]) : (NULL);
-			platforms = ds_GatherPlatforms (pattern, &nplat, 
+			platforms = ds_SearchPlatforms (pattern, &nplat, 
 							opts->sort, 
 							opts->subs);
 			matches += nplat;
@@ -459,186 +456,188 @@ char **argv;
 
 
 static void
-DumpPlatform (pid, pi, opts)
-PlatformId pid;
-PlatformInfo *pi;
-DumpOptions *opts;
+DumpPlatform (const Platform *p, const DumpOptions *opts)
 {
-	int i, index;
-	DataSrcInfo dsi;
-	DataFileInfo dfi;
-	char *name;
+    int i, index;
+    PlatformId pid = pi_Id (p);
+    DataFile dfi;
+    const char *name;
 /*
  * Add a newline only when not listing only the names, and when listing files
  */
-	if (!opts->names && (opts->files == SHOWFILES))
-		printf ("\n");
+    if (!opts->names && (opts->files == SHOWFILES))
+	printf ("\n");
 	
-	if ((pi->pl_SubPlatform) && (name = strrchr(pi->pl_Name, '/')))
-		++name;
-	else
-		name = pi->pl_Name;
-	if (opts->files <= SHOWFILES)
-	{
-		printf ("Platform %s, %d data sources", name, pi->pl_NDataSrc);
-		if (pi->pl_Mobile)
-			printf (" (MOBILE)");
-		printf ("\n");
-	}
+    if (pi_Subplatform (p) && (name = strrchr(pi_Name (p), '/')))
+	++name;
+    else
+	name = pi_Name (p);
 
-	if (!opts->names)
+    if (opts->files <= SHOWFILES)
+    {
+	printf ("Platform %s ", name);
+	if (pi_Mobile (p))
+	    printf (" (MOBILE)");
+	printf ("\n");
+    }
+
+    if (!opts->names)
+    {
+    /*
+     * Now dump out each source, quitting at the first file outside
+     * of our period, unless period == 0.
+     */
+	SourceInfo si;
+	int src = 0;
+	    
+	for (src = 0; ds_GetSourceInfo (src, &si); src++)
 	{
-	/*
-	 * Now dump out each source, quitting at the first file outside
-	 * of our period, unless period == 0.
-	 */
-		ds_LockPlatform (pid);
-		for (i = 0; i < pi->pl_NDataSrc; i++)
-		{
-			ds_GetDataSource (pid, i, &dsi);
-			if (opts->files <= SHOWFILES)
-			{
-				printf (" Data source '%s', in %s, type %d\n", 
-					dsi.dsrc_Name, dsi.dsrc_Where, 
-					dsi.dsrc_Type);
-				if (! opts->files)
-					continue;
-			}
-			for (index = dsi.dsrc_FFile; index > 0; 
-			     index = dfi.dfi_Next)
-			{
-				ds_GetFileInfo (index, &dfi);
-				if (TC_Less(dfi.dfi_End, opts->since))
-					break;
-				if (TC_Less(opts->before, dfi.dfi_Begin))
-					continue;
-				PrintInfo (&dsi, &dfi, opts);
-				if (opts->obs)
-					break;
-			}
-		}
-		ds_UnlockPlatform (pid);
+	    const DataFile *df;
+	    
+	    if (opts->files <= SHOWFILES)
+	    {
+		printf (" Data source '%s'\n", si.src_Name);
+
+		if (! opts->files)
+		    continue;
+	    }
+
+	    for (df = ds_LastFile (src, pid); df; df = ds_PrevFile (df))
+	    {
+		if (TC_Less(df->df_core.dfc_end, opts->since))
+		    break;
+		if (TC_Less(opts->before, df->df_core.dfc_begin))
+		    continue;
+
+		PrintInfo (df, opts);
+
+
+		if (opts->obs)
+		    break;
+	    }
 	}
+    }
 }
 
 
 
 static void
-DumpSubplatforms (pid, pi)
-PlatformId pid;
-PlatformInfo *pi;
+DumpSubplatforms (const Platform *p)
 {
-	PlatformId *subplats;
-	PlatformInfo spi;
-	char buf[256];
-	unsigned int buflen;
-	int n, i;
+    const PlatformId *subplats = p->dp_subplats;
+    int nsubplats = p->dp_nsubplats;
+    const Platform *sp;
+    char buf[256];
+    unsigned int buflen;
+    int n, i;
 /*
  * Request a list of subplatforms from the daemon
  */
-	subplats = ds_LookupSubplatforms (pid, &n);
-	if (!subplats)
-		return;
-	printf (" Subplatforms:\n");
-	buf[0] = '\0';
-	buflen = 0;
-	for (i = 0; i < n; ++i)
-	{
-		char *name;
+    if (!nsubplats)
+	return;
 
-		ds_GetPlatInfo (subplats[i], &spi);
-		if ((name = strchr(spi.pl_Name, '/')))
-			++name;
-		else
-			name = spi.pl_Name;
-		if (buflen && (buflen + strlen(name) + 3 >= (unsigned)78))
-		{
-			printf (" %s\n", buf);
-			buf[0] = '\0';
-			buflen = 0;
-		}
-		sprintf (buf+buflen, " '%s'", name);
-		buflen += strlen(name) + 3;
+    printf (" Subplatforms:\n");
+    buf[0] = '\0';
+    buflen = 0;
+    for (i = 0; i < nsubplats; ++i)
+    {
+	const char *name;
+
+	const Platform *sp = dt_FindPlatform (subplats[i]);
+
+	if ((name = strchr(pi_Name (sp), '/')))
+	    ++name;
+	else
+	    name = pi_Name (sp);
+
+	if (buflen && (buflen + strlen(name) + 3 >= (unsigned)78))
+	{
+	    printf (" %s\n", buf);
+	    buf[0] = '\0';
+	    buflen = 0;
 	}
-	if (buflen)
-		printf (" %s\n", buf);
-	free (subplats);
+	sprintf (buf+buflen, " '%s'", name);
+	buflen += strlen(name) + 3;
+    }
+    if (buflen)
+	printf (" %s\n", buf);
 }
 
 
 
 static void
-PrintInfo (dsi, dfi, opts)
-DataSrcInfo *dsi;
-DataFileInfo *dfi;
-DumpOptions *opts;
+PrintInfo (const DataFile *df, const DumpOptions *opts)
 /*
  * Dump out file info.
  */
 {
-	FieldId fields [DC_MaxField];
-	int nfield = DC_MaxField;
-	char abegin[40], aend[20];
+    FieldId fields [DC_MaxField];
+    int nfield = DC_MaxField;
+    char abegin[40], aend[20];
+    const Platform *p = dt_FindPlatform (df->df_pid);
 
-	if (opts->files & LONGFILES)
-	{
-		printf ("%s ", ds_PlatformName(dfi->dfi_Plat));
-		PrintFilePath (dsi, dfi, opts);
-		PrintTime (aend, &dfi->dfi_End, opts);
-		printf (" %s %s %hu\n", dsi->dsrc_Where, 
-			aend, dfi->dfi_NSample);
-	}
-	else if (opts->files & ONLYFILES)
-	{
-		PrintFilePath (dsi, dfi, opts);
-		printf ("\n");
-	}
-	else if (opts->files & SHOWFILES)	/* The trusty default */
-	{
-		/*
-		 * Pull out the date information and encode it.
-		 */
-		PrintTime (abegin, &dfi->dfi_Begin, opts);
-		PrintTime (aend, &dfi->dfi_End, opts);
-		printf (" %c  %s  %s . %s [%hu]\n",
-			dfi->dfi_Archived ? 'A' : 'N',
-			dfi->dfi_Name, abegin, aend, dfi->dfi_NSample);
-	}
+    if (opts->files & LONGFILES)
+    {
+    /*
+     * Copy out just the path portion of the full file name
+     */
+	char dir[CFG_FILEPATH_LEN];
+	int dirlen = strlen (df->df_fullname) - 
+	    strlen (df->df_core.dfc_name) - 1;
+	strncpy (dir, df->df_fullname, dirlen);
+	dir[dirlen] = '\0';
+	
+	printf ("%s ", pi_Name (p));
+	PrintFilePath (df, opts);
+	PrintTime (aend, &df->df_core.dfc_end, opts);
+	printf (" %s %s %hu\n", dir, aend, df->df_core.dfc_nsample);
+    }
+    else if (opts->files & ONLYFILES)
+    {
+	PrintFilePath (df, opts);
+	printf ("\n");
+    }
+    else if (opts->files & SHOWFILES)	/* The trusty default */
+    {
+    /*
+     * Pull out the date information and encode it.
+     */
+	PrintTime (abegin, &df->df_core.dfc_begin, opts);
+	PrintTime (aend, &df->df_core.dfc_end, opts);
+	printf (" %s  %s . %s [%hu]\n",	df->df_core.dfc_name, abegin, 
+		aend, df->df_core.dfc_nsample);
+    }
 /*
  * Perform GetFields on this file if enabled.
  */
-	if (opts->toc && 
-	    ds_GetFields (dfi->dfi_Plat, &dfi->dfi_Begin, &nfield, fields))
-	{
-		int i;
-		for (i = 0; i < nfield; ++i)
-			printf ("   %s (%s): %s\n", F_GetName (fields[i]),
-				F_GetUnits (fields[i]),
-				F_GetDesc (fields[i]));
-	}
+    if (opts->toc && 
+	ds_GetFields (df->df_pid, &df->df_core.dfc_begin, &nfield, fields))
+    {
+	int i;
+	for (i = 0; i < nfield; ++i)
+	    printf ("   %s (%s): %s\n", F_GetName (fields[i]),
+		    F_GetUnits (fields[i]), F_GetDesc (fields[i]));
+    }
 }		
 
 
 
 static void
-PrintFilePath (dsi, dfi, opts)
-DataSrcInfo *dsi;
-DataFileInfo *dfi;
-DumpOptions *opts;
+PrintFilePath (const DataFile *df, const DumpOptions *opts)
 /*
  * Print just the pathname of this file on one line.
  */
 {
-	if (opts->full)
-		printf ("%s/%s", dsi->dsrc_Where, dfi->dfi_Name);
-	else
-		printf ("%s", dfi->dfi_Name);
+    if (opts->full)
+	printf ("%s", df->df_fullname);
+    else
+	printf ("%s", df->df_core.dfc_name);
 }
 
 
 
 static void
-PrintTime (char *s, ZebraTime *zt, DumpOptions *opts)
+PrintTime (char *s, const ZebraTime *zt, const DumpOptions *opts)
 {
 	if (opts->tcf == TC_DIGITS)
 	{

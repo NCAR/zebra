@@ -39,7 +39,7 @@
 # include "DataFormat.h"
 # include "GRIB.h"
 
-RCSID ("$Id: DFA_GRIB.c,v 3.43 1998-10-28 21:20:37 corbet Exp $")
+RCSID ("$Id: DFA_GRIB.c,v 3.44 1999-03-01 02:03:22 burghart Exp $")
 
 
 /*
@@ -735,10 +735,8 @@ static GRB_TypeInfo *grb_LambertGridInfo FP ((GDSLambertConformal *));
 
 
 static int
-grb_QueryTime (file, begin, end, nsample)
-char	*file;
-ZebTime	*begin, *end;
-int	*nsample;
+grb_QueryTime (const char *file, ZebraTime *begin, ZebraTime *end, 
+	       int *nsample)
 /*
  * Tell the daemon what's in this file.
  */
@@ -838,16 +836,15 @@ int	*nsample;
 
 
 static int
-grb_OpenFile (of, fname, dp, write)
+grb_OpenFile (of, write)
 OpenFile	*of;
-char	*fname;
-DataFile	*dp;
 zbool		write;
 /*
  * DFA routine to open a file and return a tag.
  */
 {
 	GFTag *tag = GFTAGP(of);
+	char *fname = of->of_df.df_fullname;
 
 	if (! grb_Open (fname, tag))
 		return (FALSE);
@@ -860,16 +857,15 @@ zbool		write;
 
 
 static int
-grb_SfcOpenFile (of, fname, dp, write)
+grb_SfcOpenFile (of, write)
 OpenFile	*of;
-char		*fname;
-DataFile	*dp;
 zbool		write;
 /*
  * DFA routine to open a file (for access to surface data only).
  */
 {
 	GFTag	*tag = GFTAGP(of);
+	char *fname = of->of_df.df_fullname;
 
 	if (! grb_Open (fname, tag))
 		return (FALSE);

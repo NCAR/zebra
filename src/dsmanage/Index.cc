@@ -33,7 +33,7 @@ extern "C"
 # include "Index.h"
 # include "ZTime.h"
 
-MAKE_RCSID ("$Id: Index.cc,v 1.10 1998-03-02 20:23:10 burghart Exp $");
+MAKE_RCSID ("$Id: Index.cc,v 1.11 1999-03-01 02:03:52 burghart Exp $");
 
 //
 // Internal structures

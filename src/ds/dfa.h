@@ -1,5 +1,5 @@
 /*
- * $Id: dfa.h,v 2.8 1998-10-28 21:21:09 corbet Exp $
+ * $Id: dfa.h,v 2.9 1999-03-01 02:03:44 burghart Exp $
  * Internal DFA declarations.  Requires DataStore.h and dslib.h.
  */
 
@@ -26,27 +26,41 @@
 
 #include "GetList.h"
 
-void	dfa_ForceClose FP ((int));
-int	dfa_CheckName FP ((int, char *));
-int	dfa_QueryDate FP ((int, char *, ZebTime *, ZebTime *, int *));
-int	dfa_InqNPlat FP ((int));
-DataChunk *dfa_Setup FP ((GetList *, FieldId *, int, DataClass));
-void	dfa_GetData FP ((DataChunk *, GetList *, dsDetail *, int));
-int	dfa_InqRGrid FP ((int, Location *, RGrid *));
-int	dfa_DataTimes FP ((int, ZebTime *, TimeSpec, int, ZebTime *));
-void	dfa_MakeFileName FP ((ClientPlatform *, ZebTime *, char *,
-			      dsDetail *details, int ndetail));
-zbool	dfa_CreateFile FP ((int, DataChunk *, ZebTime *, dsDetail *, int));
-void	dfa_NoteRevision FP ((int dfindex, long revision));
-void	dfa_ForceClosure FP ((void));
-char	*dfa_GetAttr FP ((int, ZebTime *, int *));
-int	dfa_GetFields FP((int dfile, ZebTime *t, int *nfld, FieldId *flist));
-int	dfa_GetAlts FP ((int index, FieldId fid, int offset, float *alts,
-			 int *nalts, AltUnitType *altunits));
-int	dfa_GetForecastTimes FP ((int index, int *times, int *ntimes));
-int	dfa_GetObsSamples FP ((int dfile, ZebTime *times,
-			       Location *locs, int max));
-int	dfa_PutBlock FP ((int dfile, DataChunk *dc, int sample, int nsample,
-			  WriteCode wc, dsDetail *details, int ndetail));
-char ** dfa_GetAssociatedFiles FP ((int df, int *nfiles));
+# if __cplusplus
+extern "C" {
+# endif
+
+zbool	dfa_CreateFile (const DataFile *df, DataChunk *dc, ZebraTime *t, 
+			dsDetail *details, int ndetail);
+void	dfa_ForceClose (const DataFile *df);
+int	dfa_GetObsSamples (const DataFile *df, ZebraTime *times, 
+			   Location *locs, int max);
+int	dfa_GetFields (const DataFile *df, const ZebraTime *t, int *nfld, 
+		       FieldId *flist);
+char*	dfa_GetAttr (const DataFile *df, const ZebraTime *t, int *len);
+int	dfa_QueryDate (int type, const char *name, ZebraTime *begin, 
+		       ZebraTime *end, int *nsample);
+DataChunk* dfa_Setup (GetList *gl, FieldId *fields, int nfield, 
+		      DataClass dclass);
+void	dfa_GetData (DataChunk *dc, GetList *gl, dsDetail *details, 
+		     int ndetail);
+int	dfa_PutBlock (const DataFile *df, DataChunk *dc, int sample, 
+		      int nsample, WriteCode wc, dsDetail *details, 
+		      int ndetail);
+int	dfa_GetAlts (const DataFile *df, FieldId fid, int offset, float *alts, 
+		     int *nalts, AltUnitType *altunits);
+int	dfa_GetForecastTimes (const DataFile *df, int *times, int *ntimes);
+int	dfa_DataTimes (const DataFile *df, const ZebraTime *when, 
+		       TimeSpec which, int n, ZebraTime *dest);
+char**	dfa_GetAssociatedFiles (const DataFile *df, int *nfiles);
+int	dfa_CheckName (int type, const char *name);
+void	dfa_MakeFileName (const Platform *plat, const ZebraTime *t, char *dest,
+			  dsDetail *details, int ndetail);
+void	dfa_NoteRevision (const DataFile *df);
+void	dfa_ForceClosure (void);
+
+# if __cplusplus
+}	// close extern "C"
+# endif
+
 #endif /* __zebra_dfa_h_ */

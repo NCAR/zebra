@@ -3,7 +3,7 @@
  * Include DataStore.h instead, since they are interdependent and DataStore.h
  * includes this file.
  *
- * $Id: ds_fields.h,v 1.9 1998-10-28 21:21:12 corbet Exp $
+ * $Id: ds_fields.h,v 1.10 1999-03-01 02:03:45 burghart Exp $
  */
 
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR

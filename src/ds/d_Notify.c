@@ -27,7 +27,7 @@
 # include "DataStore.h"
 # include "dsPrivate.h"
 
-RCSID("$Id: d_Notify.c,v 3.13 1998-10-28 21:21:01 corbet Exp $")
+RCSID("$Id: d_Notify.c,v 3.14 1999-03-01 02:03:40 burghart Exp $")
 
 /*
  * Here we take advantage of the knowledge that PlatformID's are simply small
@@ -36,7 +36,7 @@ RCSID("$Id: d_Notify.c,v 3.13 1998-10-28 21:21:01 corbet Exp $")
  */
 typedef struct s_NRequest
 {
-	char nr_from[MAX_NAME_LEN];	/* Who wants it		*/
+	char nr_from[MSG_MAXNAMELEN];	/* Who wants it		*/
 	int nr_param;			/* The param they gave	*/
 	struct s_NRequest *nr_next;	/* Next in chain	*/
 } NRequest;
@@ -44,26 +44,13 @@ typedef struct s_NRequest
 /*
  * The actual array of these requests.
  */
-static NRequest *Requests[MAXPLAT];
+static NRequest **Requests = 0;
+static int ReqTblSize = 0;
 
 static NRequest *NRFree = 0;	/* Free lookaside list		*/
 
 static char CopyProc[128];	/* Who's getting copies?	*/
 static zbool Copies = FALSE;
-
-
-
-void
-dap_Init ()
-/*
- * Initialize the notification mechanism.
- */
-{
-	int i;
-
-	for (i = 0; i < MAXPLAT; i++)
-		Requests[i] = (NRequest *) 0;
-}
 
 
 
@@ -110,13 +97,30 @@ struct dsp_NotifyRequest *req;
  */
 {
 	NRequest *nr = dap_GetNR ();
+	PlatformId pid = req->dsp_pid;
+/*
+ * Make sure our Requests array goes up to the requested pid
+ */
+	if (pid >= ReqTblSize)
+	{
+	    int i;
+	    int oldsize = ReqTblSize;
+	/*
+	 * Adjust the size up to the number of platforms currently known
+	 */
+	    ReqTblSize = dt_NPlatform();
+	    Requests = (NRequest**) realloc (Requests, 
+					     ReqTblSize * sizeof (NRequest*));
+	    for (i = oldsize; i < ReqTblSize; i++)
+		Requests[i] = NULL;
+	}
 /*
  * Fix up our data structures.
  */
 	strcpy (nr->nr_from, from);
 	nr->nr_param = req->dsp_param;
-	nr->nr_next = Requests[req->dsp_pid];
-	Requests[req->dsp_pid] = nr;
+	nr->nr_next = Requests[pid];
+	Requests[pid] = nr;
 /*
  * If somebody is snarfing copies, we send it on.
  */
@@ -159,7 +163,7 @@ char *proc;
 	int plat;
 	NRequest *zap, *last;
 
-	for (plat = 0; plat < MAXPLAT; plat++)
+	for (plat = 0; plat < ReqTblSize; plat++)
 	{
 		if (! Requests[plat])
 			continue;
@@ -226,7 +230,7 @@ int append;	/* non-zero if new samples are the most recent for this plat */
 /*
  * If nobody's interested, don't bother.
  */
-	if (! Requests[pid])
+	if (pid >= ReqTblSize || ! Requests[pid])
 		return;
 /*
  * Fill in the notification structure.
@@ -278,5 +282,5 @@ int pid;
  * Return true iff some process has a notification request on this platform.
  */
 {
-	return (Requests[pid] != 0);
+	return ((pid < ReqTblSize) && (Requests[pid] != 0));
 }

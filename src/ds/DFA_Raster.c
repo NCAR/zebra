@@ -19,7 +19,7 @@
 # include "RasterFile.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_Raster.c,v 3.24 1998-10-28 21:20:45 corbet Exp $")
+RCSID ("$Id: DFA_Raster.c,v 3.25 1999-03-01 02:03:26 burghart Exp $")
 
 /*
  * This is the tag for an open raster file.
@@ -201,10 +201,8 @@ int size;
 
 
 static int
-drf_OpenFile (ofp, fname, dp, write)
+drf_OpenFile (ofp, write)
 OpenFile *ofp;
-char *fname;
-DataFile *dp;
 zbool write;
 /*
  * Open up a raster file.
@@ -212,6 +210,7 @@ zbool write;
 {
 	RFTag *tag = RFTAGP(ofp);
 	int fld;
+	char *fname = ofp->of_df.df_fullname;
 /*
  * Open up the actual disk file and read the header.
  */
@@ -285,10 +284,8 @@ OpenFile *ofp;
 
 
 static int
-drf_QueryTime (file, begin, end, nsample)
-char *file;
-ZebTime *begin, *end;
-int *nsample;
+drf_QueryTime (const char *file, ZebraTime *begin, ZebraTime *end, 
+	       int *nsample)
 /*
  * Query the times available in this file.
  */
@@ -337,10 +334,8 @@ int *nsample;
 
 
 static int
-drf_CreateFile (ofp, fname, dp, dc, details, ndetail)
+drf_CreateFile (ofp, dc, details, ndetail)
 OpenFile *ofp;
-char *fname;
-DataFile *dp;
 DataChunk *dc;
 dsDetail *details;
 int ndetail;
@@ -353,6 +348,7 @@ int ndetail;
 	int fld, nfld;
 	PlatformId id = dc->dc_Platform;
 	FieldId *fids;
+	char *fname = ofp->of_df.df_fullname;
 /*
  * We gotta create a file before doing much of anything.
  */
@@ -369,7 +365,8 @@ int ndetail;
 	strcpy (tag->rt_hdr.rf_Platform, ds_PlatformName (id));
 	tag->rt_hdr.rf_MaxSample = ds_MaxSamples (id);
 	tag->rt_hdr.rf_NSample = 0;
-	tag->rt_hdr.rf_Flags = (dp->df_ftype == FTCmpRaster) ? RFF_COMPRESS :0;
+	tag->rt_hdr.rf_Flags = (ofp->of_df.df_core.dfc_ftype == FTCmpRaster) ? 
+	    RFF_COMPRESS :0;
 /*
  * Fill in the fields info.
  */
@@ -484,7 +481,8 @@ int ndetail;
  */
 	if (hdr->rf_NSample >= hdr->rf_MaxSample && wc != wc_Overwrite)
 	{
-		msg_ELog (EF_PROBLEM, "File %d overfull", ofp->of_dfindex);
+		msg_ELog (EF_PROBLEM, "drf_PutSample: File %s overfull", 
+			  ofp->of_df.df_fullname);
 		return (0);
 	}
 /*

@@ -23,14 +23,15 @@
 # include <X11/StringDefs.h>
 # include <X11/XWDFile.h>	/* for ImageDump() */
 # include <math.h>
+# include <string.h>
+# include <time.h>
+
 # include <defs.h>
 # include <message.h>
 # include <pd.h>
 # include <GraphicsW.h>
 # include <DataStore.h>
 # include <byteorder.h>
-# include <string.h>
-# include <time.h>
 # include "GraphProc.h"
 # include "PixelCoord.h"
 
@@ -48,7 +49,7 @@ typedef struct {
         CARD8   pad;
 } U_XWDColor;
 
-RCSID ("$Id: Utilities.c,v 2.56 1998-12-10 00:36:29 burghart Exp $")
+RCSID ("$Id: Utilities.c,v 2.57 1999-03-01 02:04:31 burghart Exp $")
 
 /*
  * Rules for image dumping.  Indexed by keyword number in GraphProc.state
@@ -143,7 +144,7 @@ Location *loc;
 
 int
 FancyGetLocation (c, platform, when, actual, loc)
-char *c, *platform;
+const char *c, *platform;
 ZebTime *when, *actual;
 Location *loc;
 /*
@@ -403,7 +404,7 @@ int width;
 
 int
 AgeCheck (comp, platform, t)
-char	*comp, *platform;
+const char	*comp, *platform;
 ZebTime	*t;
 /*
  * If this component has an age limit, enforce it.  Return FALSE if the
@@ -456,7 +457,7 @@ ZebTime *ptime;
 	int advect, constant, sample, ns;
 	zbool enable = FALSE;
 	float xoffset = 0, yoffset = 0, advdir, advspeed;
-	char *pname = ds_PlatformName (dc->dc_Platform);
+	const char *pname = ds_PlatformName (dc->dc_Platform);
 	Location loc;
 	ZebTime t;
 /*
@@ -825,8 +826,7 @@ char *file;
  * Build the xwd header.  All pieces of the header are of type CARD32, which
  * is a 4-byte big-endian unsigned int.
  */
-    ToBigUI4 (SIZEOF (XWDheader) + strlen (wname) + 1,
-	      (void*)&(header.header_size));
+    ToBigUI4 (sz_XWDheader + strlen (wname) + 1, (void*)&(header.header_size));
     ToBigUI4 (XWD_FILE_VERSION, (void*)&(header.file_version));
     ToBigUI4 (imgfmt, (void*)&(header.pixmap_format));
     ToBigUI4 (image->depth, (void*)&(header.pixmap_depth));
@@ -854,7 +854,7 @@ char *file;
 /*
  * Write out the header
  */
-    fwrite ((char *)&header, SIZEOF (XWDheader), 1, xwdfile);
+    fwrite ((char *)&header, sz_XWDheader, 1, xwdfile);
     fwrite (wname, strlen (wname) + 1, 1, xwdfile);
 /*
  * Write the color map
@@ -878,7 +878,7 @@ char *file;
 	xwdc.flags = xc.flags;
 	xwdc.pad = 0;
 
-	fwrite ((char *) &xwdc, SIZEOF(XWDColor), 1, xwdfile);
+	fwrite ((char *) &xwdc, sz_XWDColor, 1, xwdfile);
     }
 /*
  * Write the image and close the file.  
@@ -979,7 +979,7 @@ WindInfo *wi;
 {
 	char uname[128];
 	char vname[128];
-	char *p;
+	const char *p;
 	char wspd[128];
 	char wdir[128];
 	FieldId fields[MAXFIELD];
@@ -1313,6 +1313,8 @@ float           *azim;
 	
 	return (1);
 }
+
+
 
 
 int

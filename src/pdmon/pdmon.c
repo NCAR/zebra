@@ -25,7 +25,7 @@
 # include "pd.h"
 # include "pdmon.h"
 
-MAKE_RCSID ("$Id: pdmon.c,v 1.4 1995-06-29 22:37:47 granger Exp $")
+MAKE_RCSID ("$Id: pdmon.c,v 1.5 1999-03-01 02:04:50 burghart Exp $")
 
 char *Process;
 
@@ -48,7 +48,7 @@ char **argv;
  * pdmon process
  */
 {
-	char pname[MAX_NAME_LEN];
+	char pname[MSG_MAXNAMELEN];
 	pdmTemplate pt;
 /*
  * See that they know what they are doing.

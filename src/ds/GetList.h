@@ -2,7 +2,7 @@
  * Declaration of the GetList interface from GetList.c
  */
 
-/* $Id: GetList.h,v 3.1 1996-11-19 08:13:06 granger Exp $ */
+/* $Id: GetList.h,v 3.2 1999-03-01 02:03:34 burghart Exp $ */
 
 /*		Copyright (C) 1987-1995 by UCAR
  *	University Corporation for Atmospheric Research
@@ -25,13 +25,18 @@
 # ifndef _zebra_getlist_h_
 # define _zebra_getlist_h_
 
+# if __cplusplus
+extern "C" {
+# endif
+    
+
 /*
  * This is the format of the data request list, which is generated as
  * part of the process of satisfying each application data grab.
  */
 typedef struct _GetList
 {
-	int	gl_dfindex;		/* Corresponding DF entry	*/
+	DataFile gl_df;			/* Corresponding DataFile	*/
 	ZebTime	gl_begin;		/* Begin time			*/
 	ZebTime	gl_end;			/* End time			*/
 	int	gl_flags;		/* Flag values			*/
@@ -53,6 +58,10 @@ typedef struct _GetList
 GetList *dgl_MakeGetList FP ((PlatformId, ZebTime *, ZebTime *));
 void	dgl_ReturnList FP ((GetList *));
 void 	dgl_ForceClosure FP ((void));
+
+# if __cplusplus
+}	// close extern "C"
+# endif
 
 # endif	/* _zebra_getlist_h_ */
 

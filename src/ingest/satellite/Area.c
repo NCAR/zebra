@@ -17,7 +17,7 @@
 
 # include "Area.h"
 
-RCSID("$Id: Area.c,v 1.5 1998-08-18 14:51:06 burghart Exp $")
+RCSID("$Id: Area.c,v 1.6 1999-03-01 02:04:40 burghart Exp $")
 
 
 static int Mdays[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};

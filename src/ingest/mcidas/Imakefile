@@ -8,7 +8,7 @@ XCOMM Nearly all of the source files in this directory are U. of Wisconsin
 XCOMM SSEC copyrighted code and should *not* be distributed outside 
 XCOMM of NCAR/UCAR.
 
-MFVERSION = "$Id: Imakefile,v 1.10 1998-08-18 14:46:15 burghart Exp $"
+MFVERSION = "$Id: Imakefile,v 1.11 1999-03-01 02:04:37 burghart Exp $"
 
 FSRCS = asspl2.f blmodel.f calday.f cfi.f cfz.f clit.f cotan.f flalo.f \
 	ftime.f geolat.f idmyyd.f iftok.f iround.f itime.f julday.f ksys.f \

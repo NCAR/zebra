@@ -32,7 +32,7 @@
 
 # include "GRIB.h"
 
-RCSID ("$Id: GRIB.c,v 3.13 1998-10-28 21:20:54 corbet Exp $")
+RCSID ("$Id: GRIB.c,v 3.14 1999-03-01 02:03:33 burghart Exp $")
 
 typedef struct s_GRB_DataRepType {
 	int data_type;
@@ -468,7 +468,7 @@ float	*altitude;
  * The idea is to limit switch statements on the level_id to this routine.
  */
 {
-	AltUnitType au = -1;
+	AltUnitType au;
 	float alt;
 	int sfc = 0;
 

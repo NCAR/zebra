@@ -1,5 +1,5 @@
 /*
- * $Id: commands.h,v 2.7 1996-08-22 01:38:31 granger Exp $
+ * $Id: commands.h,v 2.8 1999-03-01 02:03:39 burghart Exp $
  *
  * Command keywords for the data store daemon.
  */
@@ -53,6 +53,7 @@
 # define DK_SUBPLATS	29
 # define DK_NOSUBPLATS	31
 # define DK_COMMENT	27
+# define DK_SOURCE	54
 
 /*
  * The instancedir keywords

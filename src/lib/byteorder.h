@@ -1,4 +1,4 @@
-/* $Id: byteorder.h,v 2.8 1997-12-30 16:07:02 burghart Exp $ */
+/* $Id: byteorder.h,v 2.9 1999-03-01 02:04:43 burghart Exp $ */
 /*
  * Byte order testing and swapping functions.  Two's complement is assumed
  * for all signed values.

@@ -44,7 +44,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: Track.c,v 2.47 1998-10-28 21:22:11 corbet Exp $")
+RCSID ("$Id: Track.c,v 2.48 1999-03-01 02:04:30 burghart Exp $")
 
 # define ARROWANG .2618 /* PI/12 */
 # ifndef M_PI
@@ -238,8 +238,8 @@ TrackParams *tparams;
  * Read arrow parameters if necessary.
  */
 	tparams->tp_DoArrows = FALSE;
-	tr_GetParam (comp, "arrow", pname,
-			(char *) &tparams->tp_DoArrows, SYMT_BOOL);
+	tr_GetParam (comp, "arrow", pname, (char *) &tparams->tp_DoArrows, 
+		     SYMT_BOOL);
 	if (tparams->tp_DoArrows)
 	{
 		tr_GetArrowParams (comp, pname, tparams);
@@ -1081,7 +1081,7 @@ TrackParams *tparams;
  * Time annotations?
  */
 	if (! pda_Search (Pd, comp, "annot-time", "track", 
-				(char *) &tparams->tp_AnnotTime, SYMT_BOOL))
+			  (char *) &tparams->tp_AnnotTime, SYMT_BOOL))
 		tparams->tp_AnnotTime = FALSE;
 /*
  * Color info.
@@ -1102,16 +1102,18 @@ TrackParams *tparams;
 	tparams->tp_ShowPosition = FALSE;
 	tparams->tp_PositionArrow = FALSE;
 	if (tr_GetParam (comp, "show-position", platform, 
-			(char *) &tparams->tp_ShowPosition, SYMT_BOOL) &&
-			tparams->tp_ShowPosition)
+			 (char*) &tparams->tp_ShowPosition, SYMT_BOOL) &&
+	    tparams->tp_ShowPosition)
 	{
 	/*
 	 * do-position-arrow takes precedence over position-icon; if
 	 * position arrow enabled, positionicon is undefined.
 	 */
 		if (tr_GetParam (comp, "do-position-arrow", platform, 
-			(char *) &tparams->tp_PositionArrow, SYMT_BOOL) &&
-			tparams->tp_PositionArrow); /* hunky-dory */
+				 (char*) &tparams->tp_PositionArrow, 
+				 SYMT_BOOL) &&
+		    tparams->tp_PositionArrow)
+			; /* hunky-dory */
 	/*
 	 * If we need an icon to show, get it from position-icon if it
 	 * exists, else default to plain old icon.  The thinking is that
@@ -1227,7 +1229,7 @@ TrackParams *tparams;
 			(char *) &tparams->tp_ALWidth, SYMT_INT))
 		tparams->tp_ALWidth = 1;
 	if (! tr_GetParam(comp, "arrow-invert", platform,
-			(char *) &tparams->tp_AInvert, SYMT_BOOL))
+			  (char *) &tparams->tp_AInvert, SYMT_BOOL))
 		tparams->tp_AInvert = FALSE;
 /*
  * Maybe they really want to plot barbs?

@@ -406,7 +406,7 @@ ZebTime *when;
 	msg_ELog (EF_DEBUG,
 		  "%s Attributes with zero values and empty strings:",
 		  dash);
-	dc_SetGlobalAttrArray (dc, "global_flag", 0, 0, NULL);
+	dc_SetGlobalAttrArray (dc, "global_flag", DCT_Unknown, 0, NULL);
 	dc_SetGlobalAttr (dc, "global_empty", "");
 	T_DumpDC (dc);
 	msg_ELog (EF_DEBUG, "%s Deleting empty- and zero-valued global atts",

@@ -47,7 +47,7 @@
 # include "LayoutControl.h"
 # include "LLEvent.h"
 
-RCSID ("$Id: GraphProc.c,v 2.68 1998-10-28 21:21:39 corbet Exp $")
+RCSID ("$Id: GraphProc.c,v 2.69 1999-03-01 02:04:22 burghart Exp $")
 
 /*
  * Default resources.

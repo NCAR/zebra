@@ -61,10 +61,11 @@
 # include <timer.h>
 # include <config.h>
 # include <DataStore.h>
+# include <Platforms.h>
 
 # include "Database.h"
 
-RCSID ("$Id: Archiver.c,v 1.41 1998-08-18 16:06:14 corbet Exp $")
+RCSID ("$Id: Archiver.c,v 1.42 1999-03-01 02:04:51 burghart Exp $")
 
 /*
  * Issues:
@@ -149,22 +150,6 @@ RCSID ("$Id: Archiver.c,v 1.41 1998-08-18 16:06:14 corbet Exp $")
  * GLOBAL VARIABLES and FLAGS
  */
 
-#ifdef notdef
-/*
- * This table contains an entry for each platform that we dump, indicating
- * the latest data which has been written.
- */
-stbl	DumpedTable;
-char listfile[200];	
-#endif
-
-/*
- * The indices of the tarred files, kept until after the tar successfully
- * completes, to be added to the database.
- */
-int	*DumpedFiles = NULL;
-int	NFiles = 0;		/* Number files in DumpedFiles */
-
 /*
  * Platform exclusion stuff.
  */
@@ -199,8 +184,11 @@ int	DeviceFD = -1;		/* output device file descriptor:
 unsigned long	BytesWritten = 0;	/* Statistics stuff */
 int		FilesWritten = 0;
 
-static char Tarbuf[65536]; 	/* Where the tar command is built.  */
-unsigned long Tarlen = 0;       /* == strlen(Tarbuf) at all times */
+static char Tarbuf[65536]; 	/* Where the tar command is built.	*/
+unsigned long Tarlen = 0;       /* == strlen(Tarbuf) at all times	*/
+unsigned long Tarcmdlen = 0;	/* == length of the command portion of	*/
+				/*    Tarbuf (i.e., no filenames)	*/
+
 
 /*
  * Widget info.
@@ -306,55 +294,53 @@ static XrmOptionDescRec Options[] = {
 /*---------------------------------------------------------------------*/
 
 /*-- initialization --*/
-static void	InitArchiver FP ((int *, char**));
-static void	MakeWidget FP ((int *, char **));
-static Widget	CreateWaitButtons FP ((String times, Widget parent,
-			Widget left, Widget above));
-static void	Usage FP((char *prog, int argc, char *argv[]));
-static void	Die FP ((void));
+static void	InitArchiver (int *, char**);
+static void	MakeWidget (int *, char **);
+static Widget	CreateWaitButtons (String times, Widget parent,
+			Widget left, Widget above);
+static void	Usage (char *prog, int argc, char *argv[]);
+static void	Die (void);
 
 /*-- socket i/o handlers --*/
-static int	Handler FP ((Message *));
-static int	xevent FP ((int));
-static void	Sync FP ((void));
+static int	Handler (Message *);
+static int	xevent (int);
+static void	Sync (void);
 
 /*-- Xt callbacks --*/
-static void	Finish FP ((void));
-static void	ActionButton FP ((void));
-static void	WriteNow FP((void));
-static void 	SuspendWrite FP((Widget w, XtPointer call_data));
+static void	Finish (void);
+static void	ActionButton (void);
+static void	WriteNow (void);
+static void 	SuspendWrite (Widget w, XtPointer call_data);
 
 /*-- Xt convenience fns --*/
-static void	SetStatus FP ((int, char *));
-static void	SetWaitSensitivity FP((int sensitive));
+static void	SetStatus (int, char *);
+static void	SetWaitSensitivity (int sensitive);
 
 /*-- low-level device i/o --*/
-static int	OpenTapeDevice FP ((void));
-static void	WriteEOF FP ((void));
-static void	SpinOff FP ((void));
-static int	EjectEOD FP ((void));
-static void	MountEOD FP ((void));
-static int	netread FP ((int fd, char *dest, int len));
+static int	OpenTapeDevice (void);
+static void	WriteEOF (void);
+static void	SpinOff (void);
+static int	EjectEOD (void);
+static void	MountEOD (void);
+static int	netread (int fd, char *dest, int len);
 
 /*-- Timer event handlers --*/
-static void	TimerSaveFiles FP ((ZebTime *zt));
-static void	TimerResumeWrite FP((ZebTime *zt));
-static void	TimerRemaining FP((ZebTime *zt, void *cdata));
+static void	TimerSaveFiles (ZebTime *zt);
+static void	TimerResumeWrite (ZebTime *zt);
+static void	TimerRemaining (ZebTime *zt, void *cdata);
 
 /*-- high-level write and datastore interaction */
-static void	RequestWrite FP((int finish));
-static void	DoTheWriteThing FP((int finish));
-static void	SaveFiles FP ((int));
-/* static void	LoadFileList FP ((void)); */
-static int *	GetFileChain FP ((PlatformId pid, const ZebTime *since, 
-				  int *count));
-static int	DumpPlatform FP ((PlatformId, PlatformInfo *, int));
-static int	RunTar FP ((char *));
-static void	UpdateList FP ((void));
-static int	WriteFileDate FP ((char *, int, SValue *, FILE *));
-static int	TellDaemon FP ((char *, int, SValue *, int));
-/* static void	UpdateMem FP ((void)); */
-static void	FinishFinishing FP((int error));
+static void	RequestWrite (int finish);
+static void	DoTheWriteThing (int finish);
+static void	SaveFiles (int);
+static DataFile*	GetFileList (int srcid, const Platform *p, 
+				     const ZebTime *since, int *count);
+static int	DumpPlatform (const Platform *p, int all);
+static int	RunTar (char *);
+static void	TarFailed (void);
+static int	WriteFileDate (char *, int, SValue *, FILE *);
+static int	TellDaemon (char *, int, SValue *, int);
+static void	FinishFinishing (int error);
 static void	SetupExcludes ();
 static int	Excluded (PlatformId pid);
 
@@ -437,10 +423,8 @@ char **argv;
 	 * Initialize X and the Toolkit, get our toplevel shell and AppContext,
 	 * and get our application options from the resource database
 	 */
-	Top = XtAppInitialize (&Appc, "Archiver", 
-		Options, XtNumber(Options),
-		argc, argv,
-		NULL, NULL, 0);
+	Top = XtAppInitialize (&Appc, "Archiver", Options, XtNumber(Options),
+			       argc, argv, NULL, NULL, 0);
 
 	/*
 	 * If any args are left, there was an error on the command line
@@ -940,60 +924,6 @@ ActionButton ()
 
 
 
-#ifdef notdef
-static void
-LoadFileList ()
-/*
- * Pull in the list of files which have already been dumped to disk.
- */
-{
-	FILE *fp;
-	char pname[200], *colon;
-	SValue v;
-	date d;
-/*
- * Open up the file.
- */
-	sprintf (listfile, "%s/%s", GetProjDir(), DUMPED_FILES );
-	DumpedTable = usy_c_stbl ("DumpedTable");
-	if ((fp = fopen (listfile, "r")) == NULL)
-	{
-		msg_ELog (EF_INFO, "No dumped file list, '%s'", listfile);
-		return;
-	}
-/*
- * Go through and read each platform.
- */
-	msg_ELog (EF_DEBUG, "Reading dumped file list from %s", listfile);
-	while (fgets (pname, 200, fp))
-	{
-	/*
-	 * Split apart the entry.
-	 */
-		if ((colon = strchr (pname, ':')) == 0 || 
-		  sscanf(colon+1, "%li %li", &d.ds_yymmdd, &d.ds_hhmmss) != 2)
-		{
-			msg_ELog (EF_PROBLEM, "Bad %s line: %s",
-				  DUMPED_FILES, pname);
-			continue;
-		}
-		*colon = '\0';
-	/*
-	 * Store it.
-	 */
-		v.us_v_date = d;
-		usy_s_symbol (DumpedTable, pname, SYMT_DATE, &v);
-	}
-/*
- * All done.
- */
-	fclose (fp);
-}
-#endif
-
-
-
-
 static int
 OpenTapeDevice ()
 /*
@@ -1268,16 +1198,15 @@ int all;
  * Pass through the list of stuff and save files to the tape.
  */
 {
-	int plat, nplat = ds_GetNPlat ();
-	PlatformInfo pi;
-	int cmdlen;
+	int pid, nplat = ds_GetNPlat ();
+	const Platform *p;
 
 	/*
 	 * The tar command, less the file names
 	 */
 	sprintf (Tarbuf, "exec tar cfb - %d ", BFactor);
-	cmdlen = strlen (Tarbuf);
-	Tarlen = cmdlen;
+	Tarcmdlen = strlen (Tarbuf);
+	Tarlen = Tarcmdlen;
 
 	/*
 	 * Our cache of dumped file indices to which DumpPlatform
@@ -1291,9 +1220,6 @@ int all;
 		SetStatus (TRUE, buf);
 		return;
 	}
-	DumpedFiles = (int *) malloc (2048 * sizeof (int));
-	NFiles = 0;
-	
 
 	/*
 	 * Pass through the platform table and dump things.  Keep adding
@@ -1305,16 +1231,14 @@ int all;
 	 * at zero, but that could change.
 	 */
 	SetStatus (FALSE, "Scanning platforms");
-	for (plat = 0; plat < nplat; plat++)
+	for (pid = 0; pid < nplat; pid++)
 	{
-		if (Excluded (plat))
-			continue;
-		ds_GetPlatInfo (plat, &pi);
-		if (! pi.pl_SubPlatform)
-		{
-			if (! DumpPlatform (plat, &pi, all))
-				break;
-		}
+	    if (Excluded (pid))
+		continue;
+
+	    p = dt_FindPlatform (pid);
+	    if (! pi_Subplatform (p) && ! DumpPlatform (p, all))
+		break;
 	}
 	db_Close ();	/* Leave closed during the long delay in writing */
 
@@ -1322,7 +1246,7 @@ int all;
 	 * Run the tar command to put this all together, but only if
 	 * we actually got any files to write
 	 */
-	if ( Tarlen > cmdlen )
+	if ( Tarlen > Tarcmdlen )
 	{
 		/* 
 		 * Do all the settings to signal a write in progress 
@@ -1339,25 +1263,34 @@ int all;
 		 */
 		if (RunTar (Tarbuf))
 		{
-			/* The tar succeeded, so put an EOF marker
-			 * on the tape */
-			switch ( ArchiveMode )
-			{
-			   case AR_TAPE:
-				WriteEOF ();
-				break;
-			   case AR_EOD:
-				break;
-			}
-			UpdateList ();
+		    char string[80];
+		/* 
+		 * The tar succeeded, so put an EOF marker
+		 * on the tape
+		 */
+		    switch ( ArchiveMode )
+		    {
+		      case AR_TAPE:
+			WriteEOF ();
+			break;
+		      case AR_EOD:
+			break;
+		    }
+		/*
+		 * Update the widget too.
+		 */
+		    sprintf (string, "%.2f MBytes in %d files.",
+			     (float)BytesWritten / (1024 * 1024), 
+			     FilesWritten);
+		    XtVaSetValues (Bytes, XtNlabel, string, NULL);
+		    Sync ();
 		}
+		else
+		    TarFailed ();
+
 		WriteInProgress = FALSE;
 	}	
 
-	if (DumpedFiles)
-		free (DumpedFiles);
-	DumpedFiles = NULL;
-	NFiles = 0;
 	/*
 	 * Another write may be pending so we'll just return.
 	 * If all writing is finished, it is up to the calling function to
@@ -1367,230 +1300,115 @@ int all;
 
 
 
-static int *
-GetFileChain (PlatformId pid, const ZebTime *since, int *count)
+static DataFile*
+GetFileList (int srcid, const Platform *p, const ZebTime *since, int *count)
 /*
- * Return an array of data file indices from latest to oldest.
+ * Return an array of data files in time-sequential order, starting after the
+ * given time.
+ *
  * The array must be freed by the caller.
  */
 {
-	DataFileInfo dfi;
-	DataSrcInfo dsi;
-	int *chain;
-	int nchain;
-	int findex;
-	int n;
-
-	n = 0;
-	chain = NULL;
+    int nfiles = 0, listsize = 0;
+    DataFile *dflist = 0;
+    const DataFile *df;
 /*
  * Fill the array
  */
-	ds_LockPlatform (pid);
-	ds_GetDataSource (pid, 0, &dsi);
-	findex = dsi.dsrc_FFile;
-	if (findex != 0)
-		ds_GetFileInfo (findex, &dfi);
-	while (findex && TC_Less (*since, dfi.dfi_End))
+    for (df = ds_FindDFAfter (srcid, pi_Id (p), since); df; 
+	 df = ds_NextFile (df))
+    {
+	if (nfiles == listsize)
 	{
-		if (! chain)
-		{
-			nchain = 32;
-			chain = (int *) malloc (nchain * sizeof(int));
-		}
-		else if (n == nchain)
-		{
-			nchain *= 2;
-			chain = (int *) realloc (chain, nchain * sizeof(int));
-
-		}
-		chain[n++] = findex;
-		if ((findex = dfi.dfi_Next) > 0)
-			ds_GetFileInfo (findex, &dfi);
+	    listsize += 100;
+	    dflist = (DataFile*) realloc (dflist, 
+					  listsize * sizeof (DataFile));
 	}
 
-	ds_UnlockPlatform (pid);
-	*count = n;
-	return (chain);
+	dflist[nfiles++] = *df;
+    }
+
+    *count = nfiles;
+    return (dflist);
 }
 
 
 
 
-#ifdef notdef 
 static int
-DumpPlatform (pid, pi, all)
-PlatformId pid;
-PlatformInfo *pi;
-int all;
+DumpPlatform (const Platform *p, int all)
 /*
  * Dump out any files from this platform by appending each file name onto
  * the Tarbuf command buffer
  */
 {
-	ZebTime dumptime;
-	SValue v;
-	int *chain;
-	int type;
-	DataSrcInfo dsi;
-	DataFileInfo dfi;
-	int findex;
-	int nfiles, i;
-	char buf[512];
-	int ret;
+    ZebTime dumptime;
+    ZebraTime now;
+    DataFile *dflist;
+    DataFileCore dfc;
+    SourceInfo dsi;
+    int ndumped;
+    int nfiles, s;
+    int ok;
 
+    tl_Time (&now);
 /*
- * Find the last time this thing was dumped.
+ * Archive all of the writable sources.  The (somewhat arbitrary) assumption
+ * here is that read-only sources are probably archived by someone else.
  */
-	if (usy_g_symbol (DumpedTable, pi->pl_Name, &type, &v))
-		TC_UIToZt (&(v.us_v_date), &dumptime);
-	else
-		dumptime.zt_Sec = dumptime.zt_MicroSec = 0;
-	ds_LockPlatform (pid);
-	ds_GetDataSource (pid, 0, &dsi);
-	chain = GetFileChain (pid, &dumptime, &nfiles);
+    for (s = 0; ds_GetSourceInfo (s, &dsi); s++)
+    {
+	int i;
+	
+	if (dsi.src_ReadOnly)
+	    continue;
+    /*
+     * Get a list of all the files for this source/platform combo
+     */
+	dflist = GetFileList (s, p, &ZT_ALPHA, &nfiles);
 
-	TC_EncodeTime (&dumptime, TC_Full, buf);
-	msg_ELog (EF_DEBUG, "platform '%s' has %d files since %s",
-		  ds_PlatformName (pid), nfiles, buf);
-/*
- * Now step through the file chain as far as we can.  We'll skip the loop
- * entirely if we have no files, or if there is only one and we are not
- * supposed to do all of them.  We have to traverse the file chain in time
- * order in case we have to abort before putting all of the file names on
- * the command line.  That way we can advance the dump time forward with
- * each file as its put on the tar command line.
- */
-	ret = 1;
-	for (i = nfiles - 1; (nfiles > 0) && (i >= (all ? 0 : 1)); --i)
-	{
-		char *fname;
-
-		findex = chain[i];
-		ds_GetFileInfo (findex, &dfi);
-	/*
-	 * Fix up the file name
-	 */
-		fname = dfi.dfi_Name;
-		sprintf (buf, "%s/%s ", dsi.dsrc_Where, fname);
-	/*
-	 * If this file name will not fit in the tar command line, skip it
-	 * and the rest of the files in this platform.
-	 */
-		if (Tarlen + strlen(buf) + 1 >= sizeof(Tarbuf))
-		{
-			msg_ELog (EF_DEBUG, "tar command line full");
-			ret = 0;
-		        break;
-		}
-		msg_ELog (EF_DEBUG, "Dumping file '%s' (index %d)", 
-			  fname, findex);
-		strcat (Tarbuf, buf);
-		Tarlen += strlen(buf);
-	/*
-	 * Send the MarkArchived request now, even though we do not know
-	 * that the tar will succeed.  This is to help insure that nothing
-	 * is written to the file while archiving it.  If the archive fails,
-	 * we'll try again later, since we go by our own dates, and not the
-	 * archived flag, when picking files to write.
-	 */
-		ds_MarkArchived (findex);
-	/*
-	 * Advance the dumped time to include this file
-	 */
-		dumptime = dfi.dfi_End;
-	}
-	if (chain)
-		free (chain);
-/*
- * Record the new time.
- */
-	TC_EncodeTime (&dumptime, TC_Full, buf);
-	msg_ELog (EF_INFO, "platform '%s' being dumped up to %s",
-		  ds_PlatformName (pid), buf);
-	TC_ZtToUI (&dumptime, &(v.us_v_date));
-	usy_s_symbol (DumpedTable, pi->pl_Name, SYMT_DATE, &v);
-	ds_UnlockPlatform (pid);
-	return (ret);
-}
-#endif /* notdef */
-
-
-
-static int
-DumpPlatform (pid, pi, all)
-PlatformId pid;
-PlatformInfo *pi;
-int all;
-/*
- * Dump out any files from this platform by appending each file name onto
- * the Tarbuf command buffer
- */
-{
-	ZebTime dumptime;
-	SValue v;
-	int *chain;
-	int type;
-	DataSrcInfo dsi;
-	DataFileInfo dfi;
-	int findex;
-	int ndumped;
-	int nfiles, i;
-	char buf[512];
-	int ret;
-/*
- * Get a chain of all the files in this platform.
- */
-	ds_LockPlatform (pid);
-	ds_GetDataSource (pid, 0, &dsi);
-	chain = GetFileChain (pid, &ZT_ALPHA, &nfiles);
-/*
- * Make sure there's room in our file list.
- */
-	if (nfiles)
-		DumpedFiles = (int *) realloc (DumpedFiles, 
-					       (NFiles + nfiles)*sizeof(int));
-
-	msg_ELog (EF_DEBUG, "platform '%s' has %d files on disk",
-		  ds_PlatformName (pid), nfiles);
-/*
- * Now step through the file chain as far as we can.  We'll skip the loop
- * entirely if we have no files, or if there is only one and we are not
- * supposed to do all of them.
- */
-	ret = 1;
+	msg_ELog (EF_DEBUG, "src %s, platform %s: %d files on disk",
+		  dsi.src_Name, pi_Name (p), nfiles);
+    /*
+     * Now step through the file list, skipping the last file in the list 
+     * (i.e., the latest) if we're not doing all of the files.
+     */
+	ok = 1;
 	ndumped = 0;
-	for (i = nfiles - 1; (nfiles > 0) && (i >= (all ? 0 : 1)); --i)
-	{
-		char *fname;
 
-		findex = chain[i];
-		ds_GetFileInfo (findex, &dfi);
+	for (i = 0; i < (all ? nfiles : nfiles - 1); i++)
+	{
+	    const DataFile *df = dflist + i;
+	    const char *fname = df->df_fullname;
+	    char buf[1 + sizeof (df->df_fullname)];
 	/*
-	 * Skip this file if already in the database.  Someday this can
-	 * check for number of samples or revision or such.
+	 * Skip this file if already in the database and the rev number
+	 * is the same.
 	 */
-		if (! db_Fetch (ds_PlatformName(dfi.dfi_Plat),&dfi,NULL,NULL))
-			continue;
-	/*
-	 * Fix up the file name
-	 */
-		fname = dfi.dfi_Name;
-		sprintf (buf, "%s/%s ", dsi.dsrc_Where, fname);
+	    if (db_Fetch (fname, &dfc) && dfc.dfc_rev == df->df_core.dfc_rev)
+		continue;
 	/*
 	 * If this file name will not fit in the tar command line, skip it
 	 * and the rest of the files in this platform.
 	 */
-		if (Tarlen + strlen(buf) + 1 >= sizeof(Tarbuf))
-		{
-			msg_ELog (EF_DEBUG, "tar command line full");
-			ret = 0;
-		        break;
-		}
-		msg_ELog (EF_DEBUG, "Dumping file '%s' (index %d)", 
-			  fname, findex);
-		strcat (Tarbuf, buf);
-		Tarlen += strlen(buf);
+	    sprintf (buf, " %s", fname);
+
+	    if (Tarlen + strlen(buf) >= sizeof(Tarbuf))
+	    {
+		msg_ELog (EF_DEBUG, "tar command line full");
+		ok = 0;
+		break;
+	    }
+
+	    msg_ELog (EF_DEBUG, "Dumping file '%s'", fname);
+	    strcat (Tarbuf, buf);
+	    Tarlen += strlen(buf);
+	/*
+	 * Add this file to the database of dumped files.  We may remove
+	 * it later if the tar fails.
+	 */
+	    db_Insert (fname, &df->df_core);
+# ifdef notdef /* no more MarkArchived */
 	/*
 	 * Send the MarkArchived request now, even though we do not know
 	 * that the tar will succeed.  This is to help insure that nothing
@@ -1600,28 +1418,33 @@ int all;
 	 * index is kept in an array of files to be added to the database
 	 * later.
 	 */
-		ds_MarkArchived (findex);
-		DumpedFiles[NFiles++] = findex;
+	    ds_MarkArchived (findex);
+# endif
 	/*
 	 * Advance the dumped time for this platform
 	 */
-		++ndumped;
-		dumptime = dfi.dfi_End;
+	    ++ndumped;
+	    dumptime = df->df_core.dfc_end;
 	}
-	if (chain)
-		free (chain);
-/*
- * Record the new time.
- */
+
+	if (dflist)
+	    free (dflist);
+    /*
+     * Record the new time.
+     */
 	if (ndumped > 0)
-		msg_ELog (EF_INFO, "%s: dumping %d files up to %s",
-			  ds_PlatformName (pid), ndumped, 
-			  TC_AscTime (&dumptime, TC_Full));
+	    msg_ELog (EF_INFO, "src %s, plat %s: dumping %d files up to %s", 
+		      dsi.src_Name, pi_Name (p), ndumped, 
+		      TC_AscTime (&dumptime, TC_Full));
 	else
-		msg_ELog (EF_INFO, "%s: no new files to be dumped",
-			  ds_PlatformName (pid));
-	ds_UnlockPlatform (pid);
-	return (ret);
+	    msg_ELog (EF_INFO, "src %s, plat %s: no new files to be dumped", 
+		      dsi.src_Name, pi_Name (p));
+
+	if (! ok)
+	    break;
+    }
+
+    return (ok);
 }
 
 
@@ -1842,82 +1665,43 @@ Die ()
 
 
 static void
-UpdateList ()
+TarFailed ()
 /*
- * Update the list that says when we've dumped things.
+ * Since our tar command failed, remove the files on the tar command line
+ * from the database.
  */
 {
-	ZebTime now;
-	char string[80];
-	Arg args[2];
-	int i;
-#ifdef notdef
-	FILE *fp;
-/*
- * Open up the file.
- */
-	sprintf (listfile, "%s/DumpedFiles", GetProjDir() );
-	if ((fp = fopen (listfile, "w")) == NULL)
-	{
-		msg_ELog (EF_PROBLEM, "Unable to open %s", listfile);
-		return;
-	}
-/*
- * Scan through our table and write everything.
- */
-	msg_ELog (EF_DEBUG, "Writing dumped file dates to '%s'", listfile);
-	usy_traverse (DumpedTable, WriteFileDate, (long) fp, FALSE);
-	fclose (fp);
-#endif
-	if (db_Open (Database) != 0)
-	{
-		char buf[100];
-		sprintf (buf, "Failed to update database '%s'", Database);
-		msg_ELog (EF_PROBLEM, "%s", buf);
-		SetStatus (TRUE, buf);
-		Sync ();
-		return;
-	}
-/*
- * Insert the dumped files into the database.
- */
-	tl_Time (&now);
-	for (i = 0; i < NFiles; ++i)
-	{
-		DataFileInfo dfi;
+    char string[80];
+    char fname[CFG_FILEPATH_LEN];
+    const char *pos;
 
-		ds_GetFileInfo (DumpedFiles[i], &dfi);
-		db_Insert (ds_PlatformName (dfi.dfi_Plat), &dfi, &now);
-	}
-	db_Close ();
-/*
- * Update the widget too.
- */
-	sprintf (string, "%.2f MBytes in %d files.",
-		(float)BytesWritten/1000.0, FilesWritten);
-	XtSetArg (args[0], XtNlabel, string);
-	XtSetValues (Bytes, args, 1);
+    if (db_Open (Database) != 0)
+    {
+	char buf[100];
+	sprintf (buf, "TarFailed: Cannot open database '%s'", Database);
+	msg_ELog (EF_PROBLEM, "%s", buf);
+	SetStatus (TRUE, buf);
 	Sync ();
-}
-
-
-
-#ifdef notdef
-static int
-WriteFileDate (sym, type, v, fp)
-char *sym;
-int type;
-SValue *v;
-FILE *fp;
+	return;
+    }
 /*
- * Write out a single file date.
+ * Remove the files in the failed tar command from the database.
  */
-{
-	fprintf (fp, "%s: %li %li\n", sym, v->us_v_date.ds_yymmdd,
-			v->us_v_date.ds_hhmmss);
-	return (TRUE);
+    for (pos = Tarbuf + Tarcmdlen + 1; pos < Tarbuf + Tarlen; 
+	 pos += strlen (fname) + 1)
+    {
+    /*
+     * Read the next file name from the tar command line
+     */
+	sscanf (pos, "%s", fname);
+    /*
+     * Remove this file from the database
+     */
+	db_Remove (fname);
+    }
+
+    db_Close ();
 }
-#endif
 
 
 
@@ -2036,64 +1820,6 @@ Sync ()
 	XSync (XtDisplay (Top), False);
 	xevent (0);
 }
-
-
-#ifdef notdef
-static void
-UpdateMem ()
-/*
- * Update the "archived" flags on the daemon side.
- */
-{
-/*
- * Scan through our table.
- */
-	usy_traverse (DumpedTable, TellDaemon, 0, FALSE);
-}
-
-
-
-/* ARGSUSED */
-static int
-TellDaemon (sym, type, v, junk)
-char *sym;
-int type;
-SValue *v;
-int junk;
-/*
- * Update this platform.
- */
-{
-	int index;
-	ZebTime ftime;
-	PlatformId pid;
-	DataSrcInfo dsi;
-	DataFileInfo dfi;
-/*
- * Plow through the file entries, marking everything that we have written 
- * out.
- */
-	if ((pid = ds_LookupPlatform (sym)) != BadPlatform)
-	{
-		TC_UIToZt (&(v->us_v_date), &ftime);
-
-		ds_GetDataSource (pid, 0, &dsi);
-		for (index = dsi.dsrc_FFile; index; index = dfi.dfi_Next)
-		{
-			/*
-			 * If this file is already marked or hasn't been done, 
-			 * move on.  Otherwise send the notification.
-			 */
-			ds_GetFileInfo (index, &dfi);
-			if (TC_LessEq(dfi.dfi_End, ftime) && !dfi.dfi_Archived)
-				ds_MarkArchived (index);
-		}
-	}
-	return (TRUE);
-}
-#endif /* notdef */
-
-
 
 
 /*

@@ -41,7 +41,7 @@
  */
 int	AltControlComp;
 
-MAKE_RCSID("$Id: AltControl.c,v 2.25 1998-10-28 21:21:28 corbet Exp $")
+MAKE_RCSID("$Id: AltControl.c,v 2.26 1999-03-01 02:04:19 burghart Exp $")
 
 #define MAXALT		80	/* Max heights we expect to see		*/
 

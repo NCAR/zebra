@@ -31,6 +31,8 @@
 # include <stream.h>
 # include <unistd.h>
 # include <fcntl.h>
+# include <sys/stat.h>
+
 extern "C"
 {
 #	include <X11/Intrinsic.h>
@@ -43,10 +45,10 @@ extern "C"
 # include "Index.h"
 # include "StatusWin.h"
 //# include "container.h"
-# include "DataDir.h"
+# include "dsPlatform.h"
 # include "Tape.h"
 # include "plcontainer.h"
-MAKE_RCSID ("$Id: DLoad.cc,v 1.15 1998-03-02 20:23:08 burghart Exp $")
+MAKE_RCSID ("$Id: DLoad.cc,v 1.16 1999-03-01 02:03:51 burghart Exp $")
 
 //
 // Import from main.
@@ -68,6 +70,7 @@ static void MoveCDFile (const char *, const char *, int, const char *);
 static int FindFirstFile (const PlatformIndex *index);
 static void InsertSlash (char *string, const int where);
 static void FlushTapeBlock ();
+static int VerifyDir (const char *dirname);
 
 
 
@@ -112,91 +115,101 @@ LoadFromCD (PlatformIndex *index, const char *basedir, StatusWindow &sw)
 // Bring in data from a CD.
 //
 {
-	int nstrip = -1, plat, nf = 0, nbyte = 0;
-	IndexFile *file;
+    int nstrip = -1, plat, nf = 0, nbyte = 0;
+    IndexFile *file;
+    int dirverified;
 //
 // Pass through the list of platforms.
 //
-	for (plat = 0; plat < PList->ncontained (); plat++)
-	{
-		const dsPlatform &p = PList->nth (plat);
-		int nfp = 0;
-	//
-	// If this platform is not selected, we blow it off.
-	//
-		if (! index->isMarked (p.name ()))
-			continue;
-		String destdir ((char *)GetPlatDir (p.name ()));
-	//
-	// Pass through the file list.
-	//
-		for (file = index->files (p.name ()); file;
-						file = file->next ())
-		{
-		//
-		// Only if it's marked.
-		//
-			if (! file->isMarked ())
-				continue;
-		//
-		// Only if the same file has not alreay been moved.
-		//
-			IndexFile *chain = file->same();
-			for ( ; chain && (chain != file); 
-			     chain = chain->same())
-			{
-			//
-			// Check for this platform among those already done
-			//
-				String origdir
-					((char *)GetPlatDir (chain->plat()));
-				int done;
-				for (done = 0; done < plat; ++done)
-					if (strcmp ((PList->nth (done)).name(),
-						    chain->plat()) == 0)
-						break;
-				if (done < plat && chain->isMarked() && 
-				    index->isMarked(chain->plat()) &&
-				    (destdir == origdir))
-				{
-#ifdef DEBUG
-					cout << p.name() << ": file " <<
-						file->name() << " already "
-						"moved to directory " <<
-						origdir << "\n";
-#endif
-					break;
-				}
-			}
-			if (chain && (chain != file))
-			{
-				nfp++;	// we still want this plat scanned
-				continue;
-			}
+    for (plat = 0; plat < PList->ncontained (); plat++)
+    {
+	const dsPlatform &p = PList->nth (plat);
+	int nfp = 0;
+    //
+    // If this platform is not selected, we blow it off.
+    //
+	if (! index->isMarked (p.name ()))
+	    continue;
 
-			if (nstrip < 0)
-				nstrip = FindNStrip (basedir, file->name ());
-		//
-		// status.
-		//
-			if (sw.status (nf, nbyte))
-				return;
-			Disp->sync ();
-		//
-		// OK, pull it over.
-		//
-			MoveCDFile (file->name (), basedir, nstrip, destdir);
-			nf++;
-			nfp++;
-			nbyte += file->size ();
-			Main->UpdateSpace ();
+	char destdir[CFG_FILEPATH_LEN];
+	ds_GetPlatDir (SrcId, p.index, destdir);
+	dirverified = 0;
+    //
+    // Pass through the file list.
+    //
+	for (file = index->files (p.name ()); file; file = file->next ())
+	{
+	//
+	// Only if it's marked.
+	//
+	    if (! file->isMarked ())
+		continue;
+	//
+	// We need to move a file, so let's verify that the destination 
+	// dir exists
+	//
+	    if (! dirverified && ! VerifyDir (destdir))
+		break;
+
+	    dirverified = 1;
+	//
+	// Only if the same file has not alreay been moved.
+	//
+	    IndexFile *chain = file->same();
+	    for ( ; chain && (chain != file); chain = chain->same())
+	    {
+		char origdir[CFG_FILEPATH_LEN];
+		ds_GetPlatDir (SrcId, ds_LookupPlatform (chain->plat()), 
+			       origdir);
+	    //
+	    // Check for this platform among those already done
+	    //
+		int done;
+		for (done = 0; done < plat; ++done)
+		    if (! strcmp ((PList->nth (done)).name(), chain->plat()))
+			break;
+		if (done < plat && chain->isMarked() && 
+		    index->isMarked(chain->plat()) &&
+		    ! strcmp (destdir, origdir))
+		{
+#ifdef DEBUG
+		    cout << p.name() << ": file " <<
+			file->name() << " already "
+			"moved to directory " <<
+			origdir << "\n";
+#endif
+		    break;
 		}
+	    }
+	    if (chain && (chain != file))
+	    {
+		nfp++;	// we still want this plat scanned
+		continue;
+	    }
+
+	    if (nstrip < 0)
+		nstrip = FindNStrip (basedir, file->name ());
 	//
-	// If we moved anything, tell the daemon that things have changed.
+	// status.
 	//
-		if (nfp > 0)
-			ds_ForceRescan (p.index, FALSE);
+	    if (sw.status (nf, nbyte))
+		return;
+	    Disp->sync ();
+	//
+	// OK, pull it over.
+	//
+	    MoveCDFile (file->name (), basedir, nstrip, destdir);
+	    nf++;
+	    nfp++;
+	    nbyte += file->size ();
+	    Main->UpdateSpace ();
 	}
+    //
+    // If we moved anything, tell the daemon that things have changed.
+    //
+	if (nfp > 0)
+	    ds_ForceRescan (p.index, FALSE);
+    }
 }
 
 
@@ -631,7 +644,9 @@ ExtractTapeFile (Tape &tape, char *plat, TarHeader *tp)
 //
 // Find out where the file goes, and make the new file name.
 //
-	const char *destdir = GetPlatDir (plat);
+	char destdir[CFG_FILEPATH_LEN];
+	ds_GetPlatDir (SrcId, ds_LookupPlatform (plat), destdir);
+
 	char fname[200], *cp = strrchr (hdr.th_name, '/');
 	strcpy (fname, destdir);
 	strcat (fname, cp);
@@ -684,3 +699,19 @@ DecodeNum (const char *num)
 }
 
 
+static int
+VerifyDir (const char *dirname)
+//
+// Verify that the given directory exists, creating it if necessary.
+// Return zero if we fail to find or create the directory.
+//
+{
+    struct stat statbuf;
+    
+    if (stat (dirname, &statbuf) < 0 && mkdir (dirname, 0777) < 0)
+    {
+	cout << "Failed to create directory " << dirname << endl;
+	return 0;
+    }
+    return 1;
+}

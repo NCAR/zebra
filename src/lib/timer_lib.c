@@ -23,7 +23,7 @@
 # include "timer.h"
 # include "message.h"
 
-RCSID ("$Id: timer_lib.c,v 2.11 1998-10-28 21:22:46 corbet Exp $")
+RCSID ("$Id: timer_lib.c,v 2.12 1999-03-01 02:04:46 burghart Exp $")
 
 typedef enum { Empty = 0, Active, Cancelled } sstatus;
 

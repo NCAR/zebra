@@ -38,7 +38,7 @@
 # include <pd.h>
 # include "GraphProc.h"
 
-RCSID("$Id: LimitWidgets.c,v 2.25 1998-12-17 17:17:59 burghart Exp $")
+RCSID("$Id: LimitWidgets.c,v 2.26 1999-03-01 02:04:25 burghart Exp $")
 
 /*
  * Station widget static data.
@@ -1260,7 +1260,7 @@ struct ui_command *cmds;
 	else 
 	{
 		if (nfld >= 2)
-		{
+		{	
 		    sprintf (wq->wq_param[0], "%s-%s", 
 			     F_GetName (F_Lookup (fnames[1])), UPTR (cmds[1]));
 		    sprintf (wq->wq_param[1], "%s-%s", 
@@ -1268,7 +1268,7 @@ struct ui_command *cmds;
 		}
 		else 
 		{
-		    sprintf (wq->wq_param[0], "%s-%s",
+		    sprintf (wq->wq_param[0], "%s-%s", 
 			     F_GetName (F_Lookup (fnames[0])), UPTR (cmds[1]));
 		    sprintf (wq->wq_param[1], "%s-%s", 
 			     F_GetName (F_Lookup (fnames[0])), UPTR (cmds[3]));

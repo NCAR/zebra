@@ -36,7 +36,7 @@
 # include "PixelCoord.h"
 
 
-RCSID("$Id: Contour.c,v 2.20 1998-04-27 21:44:39 corbet Exp $")
+RCSID("$Id: Contour.c,v 2.21 1999-03-01 02:04:21 burghart Exp $")
 
 typedef short	cbool;
 

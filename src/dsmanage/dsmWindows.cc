@@ -24,7 +24,6 @@
 # include <unistd.h>
 # include "dsmanage.h"
 # include "container.h"
-# include "DataDir.h"
 
 extern "C" 
 {
@@ -40,7 +39,7 @@ extern "C"
 }
 
 # include "dsmWindows.h"
-static char *rcsid = "$Id: dsmWindows.cc,v 1.8 1998-03-02 20:23:16 burghart Exp $";
+static char *rcsid = "$Id: dsmWindows.cc,v 1.9 1999-03-01 02:03:54 burghart Exp $";
 //
 // Forwards.
 //
@@ -126,7 +125,7 @@ dsWindow::popdown ()
 	XtPopdown (dw_shell);
 }
 
-static void ZapPopup (Widget, XtPointer, XtPointer);
+static void DismissPopup (Widget, XtPointer, XtPointer);
 
 //
 // PopupWindow methods.
@@ -155,13 +154,13 @@ dsPopupWindow::dsPopupWindow (const dsDisplay &disp, char *title,
 // The zap button.
 //
 	n = 0;
-	XtSetArg (args[n], XtNlabel, "Zap");		n++;
+	XtSetArg (args[n], XtNlabel, "Dismiss");	n++;
 	XtSetArg (args[n], XtNfromHoriz, corner);	n++;
 	XtSetArg (args[n], XtNhorizDistance, zapspace);	n++;
 	AddConstraints (args, &n);
 	zap = XtCreateManagedWidget ("quit", commandWidgetClass, dw_form,
 			args, n);
-	XtAddCallback (zap, XtNcallback, ZapPopup, (XtPointer) this);
+	XtAddCallback (zap, XtNcallback, DismissPopup, (XtPointer) this);
 }
 
 
@@ -189,9 +188,9 @@ dsPopupWindow::SetTitle (const char *title)
 
 
 static void
-ZapPopup (Widget w, XtPointer win, XtPointer junk)
+DismissPopup (Widget w, XtPointer win, XtPointer junk)
 //
-// Try to zap the examiner this way.
+// Try to dismiss the examiner this way.
 //
 {
 	dsPopupWindow *pwin = (dsPopupWindow *) win;

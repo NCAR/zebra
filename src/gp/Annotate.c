@@ -30,7 +30,7 @@
 # include "DrawText.h"
 # include "PixelCoord.h"
 # include "GC.h"
-MAKE_RCSID ("$Id: Annotate.c,v 2.33 1998-10-28 21:21:30 corbet Exp $")
+MAKE_RCSID ("$Id: Annotate.c,v 2.34 1999-03-01 02:04:19 burghart Exp $")
 
 /*
  * Graphics context (don't use the global one in GC.h because we don't
@@ -128,7 +128,7 @@ float scale;
 
 void
 An_TopAnnot (string, color)
-char *string;
+const char *string;
 Pixel color;
 /*
  * Older interface.
@@ -142,9 +142,9 @@ Pixel color;
 
 void
 An_DoTopAnnot (string, color, comp, plat)
-char	*string;
+const char	*string;
 Pixel	color;
-char *comp, *plat;
+const char *comp, *plat;
 /*
  * Add the string to the top annotation using the given color.  If "comp"
  * and "plat" are provided, the annotation is made active using these

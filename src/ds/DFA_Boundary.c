@@ -36,7 +36,7 @@
 # include "BoundaryFile.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_Boundary.c,v 3.16 1998-10-28 21:20:35 corbet Exp $")
+RCSID ("$Id: DFA_Boundary.c,v 3.17 1999-03-01 02:03:21 burghart Exp $")
 
 
 /*
@@ -133,10 +133,7 @@ static void	bf_WriteSync FP ((OpenFile *ofp));
 
 
 static int
-bf_QueryTime (file, begin, end, nsample)
-char *file;
-ZebTime *begin, *end;
-int *nsample;
+bf_QueryTime (const char *file, ZebraTime *begin, ZebraTime *end, int *nsample)
 /*
  * Tell the daemon what's in this file.
  */
@@ -176,10 +173,8 @@ int *nsample;
 
 
 static int
-bf_CreateFile (ofp, fname, dfile, dc, details, ndetail)
+bf_CreateFile (ofp, dc, details, ndetail)
 OpenFile *ofp;
-char *fname;
-DataFile *dfile;
 DataChunk *dc;
 dsDetail *details;
 int ndetail;
@@ -189,6 +184,7 @@ int ndetail;
 {
 	BFTag *tag = BF_TAGP(ofp);
 	PlatformId id = dc->dc_Platform;
+	char *fname = ofp->of_df.df_fullname;
 /*
  * Start by trying to create the file.
  */
@@ -276,8 +272,7 @@ int ndetail;
  */
 	if (hdr->bh_NBoundary >= hdr->bh_MaxBoundary && wc != wc_Overwrite)
 	{
-		msg_ELog (EF_PROBLEM, "Too many samples in df %d", 
-			  fmt_FileIndex (ofp));
+		msg_ELog (EF_PROBLEM, "Too many samples in datafile");
 		return (FALSE);
 	}
 /*
@@ -367,10 +362,8 @@ int len, sample;
 
 
 static int
-bf_OpenFile (ofp, fname, dp, write)
+bf_OpenFile (ofp, write)
 OpenFile *ofp;
-char *fname;
-DataFile *dp;
 zbool write;
 /*
  * Open this file and return a tag.
@@ -378,6 +371,7 @@ zbool write;
 {
 	BFTag *tag = BF_TAGP(ofp);
 	int btlen;
+	char *fname = ofp->of_df.df_fullname;
 /*
  * See if we can really open the file.
  */

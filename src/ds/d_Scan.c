@@ -40,7 +40,7 @@
 # include "Platforms.h"		/* for dt_SetString */
 # include "byteorder.h"
 
-RCSID ("$Id: d_Scan.c,v 1.34 1998-10-28 21:21:02 corbet Exp $")
+RCSID ("$Id: d_Scan.c,v 1.35 1999-03-01 02:03:40 burghart Exp $")
 
 /*
  * Define this to force changed files to be closed and re-opened by
@@ -51,14 +51,17 @@ RCSID ("$Id: d_Scan.c,v 1.34 1998-10-28 21:21:02 corbet Exp $")
 /*
  * Local stuff.
  */
-static void	ScanDirectory FP ((Platform *, int, int));
-static void	ScanFile FP ((Platform *, char *, char *, int, int));
-static int	FileKnown FP ((Platform *, char *, int local));
-static int	FileChanged FP ((Platform *p, DataFile *df, 
-				 ino_t *new_ino, long *new_rev));
-static void	CleanChain FP ((Platform *, int));
-static int	LoadCache FP ((Platform *, int));
-static char     *CacheFileName FP((Platform *p, int local, int version));
+static void ScanDirectory (Source *src, const Platform *p, zbool rescan);
+static DataFileCore* GetSortedSrcFiles (Source *src, const Platform *p, 
+					int *nsfiles);
+static int CompareFiles (const void *v1, const void *v2);
+static void ScanFile (const char *file, Source *src, const Platform *p,
+		      DataFileCore *sfiles, int *nsfiles);
+static int FileKnown (const char *file, const DataFileCore *sfiles,
+		      const int nsfiles);
+static int FileChanged (Source *src, const Platform *p, 
+			const DataFileCore *dfc, ino_t *new_ino, 
+			long *new_rev);
 
 static int ScanProto[] =
 {
@@ -67,63 +70,67 @@ static int ScanProto[] =
 
 static int NProto = sizeof (ScanProto) / sizeof (ScanProto[0]);
 
+/*
+ * File count, for user info messages
+ */
+static int FilesScanned;
+
+
 void
-DataScan ()
+DataScan (Source *src)
 /*
  * Go through the disk and see what data already exists.
  */
 {
-	int plat;
+    int plat;
+
+    FilesScanned = 0;
 /*
  * Do this for every platform.
  */
-	for (plat = 0; plat < NPlatform; plat++)
-	{
-		Platform *p = PTable + plat;
-	/*
-	 * Check and handle any pending messages except ds protocol
-	 */
-		while (msg_PollProto (0, NProto, ScanProto) != MSG_TIMEOUT)
-			/* handle messages besides our own */ ;
-	/*
-	 * Don't really scan subplatforms or virtual platforms.
-	 */
-		if (! pi_Subplatform(p) && ! pi_Virtual(p))
-		{
-		/*
-		 * Scan the local directory, and the remote one if it exists.
-		 */
-			ScanDirectory (p, TRUE, FALSE);
-			if (pi_Remote(p))
-				ScanDirectory (p, FALSE, FALSE);
-		}
-	/*
-	 * Update the count of scanned platforms, i.e. the highest scanned PID
-	 */
-		++PlatformsScanned;
-	}
+    for (plat = 0; plat < dt_NPlatform(); plat++)
+    {
+	const Platform *p = dt_FindPlatform (plat);
+    /*
+     * We sometimes hit a bad id if a platform has been deleted.
+     */
+	if (! p)
+	    continue;
+    /*
+     * Check and handle any pending messages except ds protocol
+     */
+	while (msg_PollProto (0, NProto, ScanProto) != MSG_TIMEOUT)
+	/* handle messages besides our own */ ;
+    /*
+     * If it isn't a subplatform or virtual platform, scan its directory.
+     */
+	if (! pi_Subplatform(p) && ! pi_Virtual(p))
+	    ScanDirectory (src, p, FALSE);
+    /*
+     * Update the count of scanned platforms, i.e. the highest scanned PID
+     */
+	++PlatformsScanned;
+    }
 /*
  * Update the time of this scan if we're not using stat revisions
  */
-	if (!StatRevisions)
-		LastScan = time (NULL);
+    if (!StatRevisions)
+	LastScan = time (NULL);
 }
 
 
 
 
 static void
-ScanDirectory (p, local, rescan)
-Platform *p;
-zbool local, rescan;
+ScanDirectory (Source *src, const Platform *p, zbool rescan)
 /*
- * Scan a directory for this platform.
+ * Scan the directory for this source/platform pair.  This should really
+ * become a Source method.
  */
 {
-	char *dir = local ? p->dp_dir : p->dp_rdir;
-	DIR *dp;
-	struct dirent *ent;
-	int cloaded = FALSE, cflag = local ? DPF_CLOADED : DPF_RCLOADED;
+    const char *dir = src_DataDir (src, p);
+    DIR *dp;
+    struct dirent *ent;
 /*
  * Make sure there really is a directory.  If not, we may try to create it,
  * in which case we won't need to scan it or check for cache files.
@@ -133,336 +140,369 @@ zbool local, rescan;
  * trying to open three cache files before the directory and only then
  * realizing the data directory didn't exist?
  */
-	if (! (dp = opendir (dir)))
+    if (! (dp = opendir (dir)))
+    {
+	if (src_DirsAreForced (src))
+	    src_ConfirmDataDir (src, p);
+    }
+    else
+    {
+	DataFileCore *sfiles;
+	int nsfiles, i;
+    /*
+     * If it's not a forced rescan and the source is "directory constant",
+     * we're done.
+     */
+	if (! rescan && src_IsDirConst (src))
 	{
-		if (! local)		/* don't create remote directories */
-		{
-			msg_ELog(EF_DEBUG, "cannot access remote dir %s", dir);
-		}				  
-		else if (DelayDataDirs)	/* don't create local directories */
-		{
-			p->dp_flags &= ~DPF_DIREXISTS;
-		}
-		else if (! dt_MakeDataDir (dir))
-		{
-			msg_ELog (EF_PROBLEM, 
-				  "Cannot open or create dir %s (plat %s)",
-				  dir, p->dp_name);
-		}
-		else
-		{
-			msg_ELog (EF_INFO, 
-				  "Created data dir %s (plat %s)", dir,
-				  p->dp_name);
-			p->dp_flags |= DPF_DIREXISTS;
-			p->dp_flags |= DPF_DIRTY;
-		}
+	    closedir (dp);
+	    return; /* Cache is gospel in this case */
 	}
-	else
+    /*
+     * Get the complete list of files currently known in the source, 
+     * sorted by filename.  This is our list of unverified files, and
+     * will be modified as we scan the files in the directory.
+     */
+	sfiles = GetSortedSrcFiles (src, p, &nsfiles);
+    /*
+     * Go through the files in the directory.
+     */
+	while ((ent = readdir (dp)))
 	{
-		int count = 0;
+	    ScanFile (ent->d_name, src, p, sfiles, &nsfiles);
+	    if ((++FilesScanned % 25) == 0)
+	    {
+		while (msg_PollProto (0, NProto, ScanProto) != MSG_TIMEOUT)
+		/* handle messages */ ;
+	    }
+	    if ((FilesScanned % 1000) == 0)
+		msg_ELog (EF_INFO, "%d files scanned so far", FilesScanned);
+	}
+	closedir (dp);
+    /*
+     * Any files remaining in our unverified file list are no longer in
+     * the directory, so tell the source to forget about them.
+     */
+	for (i = 0; i < nsfiles; i++)
+	{
+	    DataFile df;
+	    
+	    msg_ELog (EF_DEBUG, "File %s disappeared", sfiles[i].dfc_name);
 
-		if (local)
-			p->dp_flags |= DPF_DIREXISTS;
-	/*
-	 * Try to load a cache file.
-	 */
-		if (! rescan)
-			cloaded = (p->dp_flags & cflag) || LoadCache(p,local);
-		if (cloaded && (local ? LDirConst : RDirConst))
-		{
-			closedir (dp);
-			return; /* Cache is gospel in this case */
-		}
-	/*
-	 * Go through the files.
-	 */
-		while ((ent = readdir (dp)))
-		{
-			ScanFile (p, dir, ent->d_name, local, 
-				  rescan || cloaded);
-			if ((++count % 25) == 0)
-			{
-				while (msg_PollProto (0, NProto, ScanProto)
-				       != MSG_TIMEOUT)
-					/* handle messages */ ;
-			}
-		}
-		closedir (dp);
-	/*
-	 * If we loaded a cache, go through and preen out nonexistent files.
-	 */
-		if (cloaded)
-			CleanChain (p, local ? pi_LocalData (p) : 
-				    pi_RemoteData (p));
+	    BuildDataFile (&df, sfiles + i, src, p);
+	    DataFileGone (&df);
+
+	    src_RemoveFile (src, p, sfiles + i);
 	}
+
+	free (sfiles);
+    }
 }
 
 
+
+static DataFileCore*
+GetSortedSrcFiles (Source *src, const Platform *p, int *nsfiles)
+/*
+ * Return an array of DataFileCore structs known by the given source, sorted
+ * by filename.  The array should be freed by the caller.
+ */
+{
+    zbool ok;
+    DataFileCore *files;
+    int nfiles;
+    int n;
+/*
+ * Allocate the array
+ */ 
+    nfiles = src_NFiles (src, p);
+    files = (DataFileCore*) malloc (nfiles * sizeof (DataFileCore));
+    n = 0;
+/*
+ * Get all of the files from the source for this platform
+ */
+    for (ok = src_First (src, p, &files[n++]); ok; 
+	 ok = src_Next (src, p, &files[n++]))
+    {
+	if (n > nfiles)
+	{
+	/*
+	 * Oops, we wrote past our allocated memory... 
+	 */
+	    msg_ELog (EF_EMERGENCY, "%s:%s returned more files than expected!",
+		      src_Name (src), pi_Name (p));
+	    exit (1);
+	}
+    }
+
+    if (n < nfiles)
+    {
+	msg_ELog (EF_PROBLEM, "%s:%s returned fewer files than expected!",
+		  src_Name (src), pi_Name (p));
+	nfiles = n - 1;
+    }
+/*
+ * Now sort'em
+ */
+    qsort ((void*) files, nfiles, sizeof (*files), CompareFiles);
+/*
+ * Put stuff into the return parameters and we're done
+ */
+    *nsfiles = nfiles;
+    return (files);
+}
+
+
+
+static int
+CompareFiles (const void *v1, const void *v2)
+/*
+ * qsort comparison function for DataFileCore structs
+ */
+{
+    const DataFileCore *dfc1 = (const DataFileCore*) v1;
+    const DataFileCore *dfc2 = (const DataFileCore*) v2;
+    return (strcmp (dfc1->dfc_name, dfc2->dfc_name));
+}
 
 
 
 static void
-ScanFile (p, dir, file, local, rescan)
-Platform *p;
-char *file, *dir;
-zbool local, rescan;
+ScanFile (const char *file, Source *src, const Platform *p, 
+	  DataFileCore *sfiles, int *nsfiles)
 /*
- * Look at this file and see what we think of it.
+ * Look at this file and see how it compares to what our source knows.
+ * If we find it in the list of unverified files for the source, update
+ * it in the source and remove it from the unverified list.  Otherwise,
+ * add it to the source as a new file.
  */
 {
-	DataFile *df = NULL;
-	int dfi;
-	int ns;
-	ino_t new_ino;
-	long new_rev;
-	char abegin[40], aend[40];
-	int isconst = local ? LFileConst : RFileConst;
+    DataFileCore dfc, existing_dfc;
+    zbool newfile = FALSE;
+    int ndx, ns;
+    ino_t new_ino;
+    long new_rev;
+    char abegin[40], aend[40];
+    ZebraTime last_time;
+    int isconst = src_IsFileConst (src);
 /*
  * If DFA doesn't recognize it, we don't even bother.
  */
-	if (! dfa_CheckName (pi_FileType(p), file))
-		return;
+    if (! dfa_CheckName (pi_FileType(p), file))
+	return;
 /*
- * If this is a rescan, check to see if we already know about this file.
- * If the file is known and has not changed, we're in the clear.  If this
- * isn't a rescan, then we automatically need a new file entry.
+ * Check to see if this file is in our list of known (but unverified) files.
  */
-	dfi = 0;   /* <-- non-zero means we're re-using an existing entry */
-	if (rescan && ((dfi = FileKnown (p, file, local)) > 0))
-	{
-		df = DFTable + dfi;
-		if (isconst || ! FileChanged(p, df, &new_ino, &new_rev))
-			return;
-		/*
-		 * But is it the same file (but different), or a new one?
-		 * If we're not using stat(), inodes aren't set, so we'll
-		 * be conservative and close and re-open the file.
-		 */
+    if ((ndx = FileKnown (file, sfiles, *nsfiles)) >= 0)
+    {
+	newfile = FALSE;
+	dfc = sfiles[ndx];
+    /* 
+     * Remove this file from the list of unverified files.  By the time
+     * we're done here, it's considered verified... 
+     */
+	memmove (sfiles + ndx, sfiles + ndx + 1, 
+		 (*nsfiles - ndx - 1) * sizeof (DataFileCore));
+	(*nsfiles)--;
+    /*
+     * If the file hasn't changed, then we need go no further
+     */
+	if (isconst || ! FileChanged (src, p, &dfc, &new_ino, &new_rev))
+	    return;
+    /*
+     * But is it the same file (but different), or a new one?
+     * If we're not using stat(), inodes aren't set, so we'll
+     * be conservative and close and re-open the file.
+     */
 #ifndef FORCE_CLOSE_SYNC
-		if (new_ino || !StatRevisions)
+	if (new_ino || !StatRevisions)
 #else
-		if (1)
+	if (1)
 #endif
-		{
-			/* Uh-oh, the old file is history */
-			msg_ELog (EF_DEBUG, "File %s: changed, %s, %s",
-				  file, 
+	{
+	    DataFile df;
+	/* Uh-oh, the old file is history */
+	    msg_ELog (EF_DEBUG, "File %s: changed, %s, %s",
+		      file, 
 #ifndef FORCE_CLOSE_SYNC
-				  (StatRevisions) ? 
-				  "new inode" : "inodes disabled",
+		      (StatRevisions) ? 
+		      "new inode" : "inodes disabled",
 #else
-				  "syncs fail",
+		      "syncs fail",
 #endif
-				  "removing datafile entry");
-			/* tell clients to close the file */
-			DataFileGone (df);
-			dt_RemoveDFE (p, dfi);
-			dfi = 0;	/* start over with a new dfe */
-		}
-		else
-		{
-			msg_ELog (EF_DEBUG, "File %s: changed, %s", 
-				  file, "re-sorting chain");
-		}
-	}
-/*
- * If this is only a changed file, try to re-use the current entry but
- * update its revision number.  Else grab a new datafile entry and begin 
- * to fill it in.
- */
-	if (dfi)
-	{
-	/*
-	 * Update revisions so clients with this file open will sync with it
+		      "removing datafile entry");
+	/* 
+	 * Remove the file from our source, and tell clients to close the file
 	 */
-		if (StatRevisions)
-			df->df_rev = new_rev;
-		else
-			++df->df_rev;
-	}
-	else if ((df = dt_NewFile ()) != NULL)
-	{
-	/*
-	 * Initialize a whole new file entry
-	 */
-		dt_SetString (df->df_name, file, sizeof(df->df_name),
-			      "scanning new file");
-		df->df_flags = DFF_Seen;
-		if (! local)
-			df->df_flags |= DFF_Remote;
-		df->df_platform = p - PTable;
-		if (StatRevisions)
-			df->df_rev = StatRevision (p, df, &df->df_inode);
-		else
-		{
-			df->df_inode = 0;
-			df->df_rev = 0;
-		}
+	    src_RemoveFile (src, p, &dfc);
+
+	    BuildDataFile (&df, &dfc, src, p);
+	    DataFileGone (&df);
+
+	    newfile = TRUE;	/* start over with a new df */
 	}
 	else
-	{
-		return;		/* bummer -- no new data files */
-	}
+	    msg_ELog (EF_DEBUG, "File %s: changed, updating list", file);
+    }
+    else
+	newfile = TRUE;
 /*
- * Find the times for this file.
+ * If we get here, we have either a changed file or a new file
  */
-	if (! dfa_QueryDate(pi_FileType(p), dt_DFEFilePath(p, df), 
-			    &df->df_begin, &df->df_end, &ns))
+    if (newfile)
+    {
+	msg_ELog (EF_DEBUG, "New file %s:%s:%s", src_Name (src), pi_Name (p),
+		  file);
+    /*
+     * Allocate and initialize a whole new file entry
+     */
+	dt_SetString (dfc.dfc_name, file, sizeof(dfc.dfc_name),
+		      "scanning new file");
+
+	if (StatRevisions)
+	    dfc.dfc_rev = StatRevision (DataFilePath (src, p, &dfc), 
+					&dfc.dfc_inode);
+	else
 	{
-		msg_ELog (EF_PROBLEM, "File '%s' inaccessible", df->df_name);
-		if (dfi)
-			dt_RemoveDFE (p, dfi);
-		else
-			dt_FreeDFE (df);
-		return;
+	    dfc.dfc_inode = 0;
+	    dfc.dfc_rev = 0;
 	}
-	df->df_nsample = ns;
+
+	dfc.dfc_ftype = pi_FileType(p);
+    }
+    else
+    {
+    /*
+     * Update revisions so clients with this file open will sync with it
+     */
+	if (StatRevisions)
+	    dfc.dfc_rev = new_rev;
+	else
+	    ++dfc.dfc_rev;
+    }
+/*
+ * Check the file directly, and set the begin and end times and the sample 
+ * count in our DataFileCore.
+ */
+    if (! dfa_QueryDate (pi_FileType(p), DataFilePath (src, p, &dfc), 
+			 &dfc.dfc_begin, &dfc.dfc_end, &ns))
+    {
+	msg_ELog (EF_PROBLEM, "File '%s' inaccessible", 
+		  DataFilePath (src, p, &dfc));
+
+	if (! newfile)
+	    src_RemoveFile (src, p, &dfc);
+
+	return;
+    }
+
+    dfc.dfc_nsample = ns;
+/*
+ * Report if we're going to stomp on a file already in the source with 
+ * the same start time
+ */
+    if (newfile && src_FindExact (src, p, &dfc.dfc_begin, &existing_dfc))
+    {
+	msg_ELog (EF_PROBLEM, "File %s being superceded", 
+		  DataFilePath (src, p, &existing_dfc));
+	msg_ELog (EF_PROBLEM, "by %s, with the same start time",
+		  DataFilePath (src, p, &dfc));
+    /*
+     * If the existing file is in our list of unverified files, take it out
+     * now, because it won't be in our source's list much longer.
+     */
+	if ((ndx = FileKnown (existing_dfc.dfc_name, sfiles, *nsfiles)) >= 0)
+	{
+	    memmove (sfiles + ndx, sfiles + ndx + 1, 
+		     (*nsfiles - ndx - 1) * sizeof (DataFileCore));
+	    (*nsfiles)--;
+	}
+    }
 /*
  * Debugging is nice sometimes.
  */
- 	TC_EncodeTime (&df->df_begin, TC_Full, abegin);
-	TC_EncodeTime (&df->df_end, TC_TimeOnly, aend);
-	msg_ELog (EF_DEBUG, "%c File '%s', %s to %s ns %d",
-		  local ? 'L' : 'C', file, abegin, aend, df->df_nsample);
+    TC_EncodeTime (&dfc.dfc_begin, TC_Full, abegin);
+    TC_EncodeTime (&dfc.dfc_end, TC_TimeOnly, aend);
+    msg_ELog (EF_DEBUG, "%s: %s, %s to %s ns %d", src_Name (src), file, 
+	      abegin, aend, ns);
 /*
- * Finish the fill-in and add it to this platform's list.  If the file
- * is not new, move it to its correct position and update the client
- * caches.  Otherwise just add the file to the platform chain as usual.
+ * Add or update the file for this source/platform list.
  */
-	if (dfi)
-	{
-		dt_SortDFE (p, df, local);
-		CacheInvalidate (dfi);
-	}
-	else
-	{
-		df->df_ftype = pi_FileType(p);
-		dt_AddToPlatform (p, df, local);
-	}
-	p->dp_flags |= DPF_DIRTY;
-	/*
-	 * This is a rather ugly kludge.... if this becomes (or was already)
-	 * the most recent file for this platform, send out a notification
-	 * for it.
-	 */
-	if (rescan && (pi_LocalData(p) == (df - DFTable)))
-		dap_Notify (df->df_platform, &df->df_end, ns, 0, TRUE);
+    src_UpdateFile (src, p, &dfc);
+    
+    if (! newfile)
+    {
+	DataFile df;
+	BuildDataFile (&df, &dfc, src, p);
+    }
+/*
+ * This is a rather ugly kludge.... if this becomes (or was already)
+ * the most recent file for this platform, send out a notification
+ * for it.
+ */
+    src_LastTime (src, p, &last_time);
+
+    if (TC_Eq (dfc.dfc_end, last_time))
+	dap_Notify (pi_Id (p), &last_time, ns, 0, TRUE);
 }
 
 
 
-
 static int
-LoadCache (p, local)
-Platform *p;
-int local;
+FileKnown (const char *file, const DataFileCore *sfiles, const int nsfiles)
 /*
- * Attempt to pull in a cache file.
+ * See if we already know about a file by this name; return its index
+ * in the sfiles array if found, else -1.  The sfiles array must be
+ * sorted by filename.
  */
 {
-	int fd;
-	unsigned long version;
+    int bot, top, mid, test;
 /*
- * See if we can get the cache file.  First try the newest standard name,
- * which includes our protocol version, then the name without the version.
- * We no longer check for the old form "<dir>/.ds_cache", since it is
- * guaranteed to be the wrong version.
+ * Quick check against the ends of the list
  */
-	if ((fd = open (CacheFileName(p, local, TRUE), O_RDONLY)) < 0)
-	{
-		if ((fd = open (CacheFileName(p, local, FALSE), O_RDONLY)) < 0)
-		{
-			msg_ELog (EF_DEBUG, "No cache file for %s", 
-				  p->dp_name);
-			return (FALSE);
-		}
-	}
+    if (nsfiles == 0)
+	return (-1);
+
+    test = strcmp (file, sfiles[0].dfc_name);
+    if (test < 0)
+	return (-1);	/* this file compares < any in the list */
+    else if (test == 0)
+	return (0);
+
+    test = strcmp (file, sfiles[nsfiles-1].dfc_name);
+    if (test > 0)
+	return (-1);	/* this file compares > any in the list */
+    else if (test == 0)
+	return (nsfiles - 1);
 /*
- * Pull in the protocol version number.
+ * Binary search from here
  */
-	if (read (fd, &version, sizeof (long)) < sizeof (long))
-	{
-		msg_ELog (EF_PROBLEM, "corrupted cache file: %s", p->dp_name);
-		close (fd);
-		return (FALSE);
-	}
-	else if (version != CacheKey && version != DSProtocolVersion)
-	{
-		msg_ELog(EF_PROBLEM, "cache version mismatch: %s", p->dp_name);
-		close (fd);
-		return (FALSE);
-	}
-/*
- * OK, we got one.  Now plow through it and load all the files.
- */
-	msg_ELog (EF_DEBUG, "Loading %s cache", p->dp_name);
-	for (;;)
-	{
-		DataFile *df = dt_NewFile ();
-	/*
-	 * Get the next entry and add it to the list.
-	 */
-		if (read (fd, df, sizeof (DataFile)) < sizeof (DataFile))
-		{
-			dt_FreeDFE (df);
-			close (fd);
-			return (TRUE);
-		}
-		df->df_index = df - DFTable;
-	/*
-	 * Get the remote flag right, since the point of view of the 
-	 * process that wrote the cache may not agree with our own.
-	 */
-		df->df_flags &= ~DFF_Seen;
-	 	if (! local)
-			df->df_flags |= DFF_Remote;
-		else
-			df->df_flags &= ~DFF_Remote;
-		dt_AddToPlatform (p, df, local);
-	}
-}
+    bot = 0;
+    top = nsfiles - 1;
+    mid = (bot + top) / 2;
 
+    for (; mid != bot; mid = (bot + top) / 2)
+    {
+	test = strcmp (file, sfiles[mid].dfc_name);
 
-
-
-
-static int
-FileKnown (p, file, local)
-Platform *p;
-char *file;
-zbool local;
-/*
- * See if we already know about a file by this name; return its index if found.
- */
-{
-	int dfi = local ? pi_LocalData(p) : pi_RemoteData(p);
-/*
- * Just pass through the list and see if we find it.
- */
-	for (; dfi; dfi = DFTable[dfi].df_FLink)
-		if (! strcmp (DFTable[dfi].df_name, file))
-			break;
-	if (! dfi)
-	{
-		msg_ELog (EF_DEBUG, "New file %s/%s", p->dp_name, file);
-	}
+	if (test < 0)
+	    top = mid;
+	else if (test == 0)
+	    return (mid);
 	else
-	{
-		msg_ELog (EF_DEBUG, "File %s known dfi %d", file, dfi);
-		DFTable[dfi].df_flags |= DFF_Seen;
-	}
-	return (dfi);
+	    bot = mid;
+    }
+/*
+ * If we get here, the file is not in the list
+ */
+    return (-1);
 }
 
 
 
 static int
-FileChanged (p, df, new_ino, new_rev)
-Platform *p;
-DataFile *df;
-ino_t *new_ino;
-long *new_rev;
+FileChanged (Source *src, const Platform *p, const DataFileCore *dfc, 
+	     ino_t *new_ino, long *new_rev)
 /*
  * Try to determine whether this file has been modified behind our back.
  * Return non-zero if we think it has, zero otherwise.  If the inode has
@@ -479,41 +519,39 @@ long *new_rev;
  * have to be called a second time on this file to set the rev.
  */
 {
-	ino_t inode;
+    ino_t inode;
 
-	*new_rev = StatRevision(p, df, &inode);
-	/*
-	 * If we're using stat() revision numbers, the answer is easy
-	 */
-	if (StatRevisions)
-	{
-		*new_ino = (inode != df->df_inode) ? (inode) : 0;
+    *new_rev = StatRevision (DataFilePath (src, p, dfc), &inode);
+/*
+ * If we're using stat() revision numbers, the answer is easy
+ */
+    if (StatRevisions)
+    {
+	*new_ino = (inode != dfc->dfc_inode) ? (inode) : 0;
 #ifdef DEBUG
-		msg_ELog (EF_DEBUG, 
-			  "checking %s: current rev %li, stat mtime %li",
-			  dt_DFEFilePath (p, df), df->df_rev, *new_rev);
+	msg_ELog (EF_DEBUG, 
+		  "checking %s: current rev %li, stat mtime %li",
+		  DataFilePath (src, p, dfc), dfc->dfc_rev, *new_rev);
 #endif
-		return ((*new_rev > df->df_rev) || (*new_ino));
-	}
-	/*
-	 * Otherwise, compare the stat revision to the time of the last scan.
-	 * We don't include the inode check since df_inode is always zero
-	 * when stat() is not being used.
-	 */
-	else
-	{
-		*new_ino = 0;
-		return (*new_rev > LastScan);
-	}
+	return ((*new_rev > dfc->dfc_rev) || (*new_ino));
+    }
+/*
+ * Otherwise, compare the stat revision to the time of the last scan.
+ * We don't include the inode check since df_inode is always zero
+ * when stat() is not being used.
+ */
+    else
+    {
+	*new_ino = 0;
+	return (*new_rev > LastScan);
+    }
 }
 
 
 
 
 void
-Rescan (platid, all)
-PlatformId platid;
-int all;
+Rescan (Source *src, PlatformId platid, zbool all)
 /*
  * Implement the rescan request.
  */
@@ -521,88 +559,65 @@ int all;
 /*
  * Reset the "file constant" flags -- we always want to check on a rescan.
  */
-	LFileConst = RFileConst = FALSE;
+    src_SetFileConst (src, FALSE);
 /*
  * If they want everything done, then we need to pass through the list.
  */
-	if (all)
+    if (all)
+    {
+	int plat;
+	for (plat = 0; plat < dt_NPlatform(); plat++)
 	{
-		int plat;
-		for (plat = 0; plat < NPlatform; plat++)
-		{
-			Platform *p = PTable + plat;
-		/*
-		 * Don't scan subplatforms.
-		 */
-			if (! pi_Subplatform (p) && ! pi_Virtual (p))
-				RescanPlat (p);
-		}
-		/*
-		 * Update the time for the last full scan
-		 */
-		LastScan = time (NULL);
+	    const Platform *p = dt_FindPlatform (plat);
+	/*
+	 * Don't scan subplatforms.
+	 */
+	    if (! pi_Subplatform (p) && ! pi_Virtual (p))
+		RescanPlat (src, p);
 	}
+    /*
+     * Update the time for the last full scan
+     */
+	LastScan = time (NULL);
+    }
 /*
  * Otherwise just do the one they asked for.
  */
-	else
-		RescanPlat (PTable + platid);
+    else
+	RescanPlat (src, dt_FindPlatform (platid));
 }
 
 
 
 
 void
-RescanPlat (p)
-Platform *p;
+RescanPlat (Source *src, const Platform *p)
 /*
  * Rescan the files for this platform.
  */
 {
-	int dfindex;
-
-	if (pi_Subplatform(p) || pi_Virtual(p))
-		return;
-/*
- * Go through and clear the "seen" flags.
- */
-	for (dfindex = pi_LocalData (p); dfindex;
-				dfindex = DFTable[dfindex].df_FLink)
-		DFTable[dfindex].df_flags &= ~DFF_Seen;
-	for (dfindex = pi_RemoteData (p); dfindex;
-				dfindex = DFTable[dfindex].df_FLink)
-		DFTable[dfindex].df_flags &= ~DFF_Seen;
+    if (pi_Subplatform(p) || pi_Virtual(p))
+	return;
 /*
  * Rescan the directory(ies).
  */
-	ScanDirectory (p, TRUE, TRUE);
-	if (pi_Remote(p) && ! RDirConst)
-		ScanDirectory (p, FALSE, TRUE);
-/*
- * Now get rid of anything that has disappeared.
- */
-	CleanChain (p, pi_LocalData (p));
-	if (p->dp_flags & DPF_REMOTE && ! RDirConst)
-		CleanChain (p, pi_RemoteData (p));
+    FilesScanned = 0;
+    ScanDirectory (src, p, TRUE);
 }
 
 
 
 long 
-StatRevision (p, df, inode)
-Platform *p;
-DataFile *df;
-ino_t *inode;
+StatRevision (const char *name, ino_t *inode)
 /*
  * Get a revision count for this file from its modification time
  */
 {
 	struct stat sbuf;
 
-	if (stat (dt_DFEFilePath (p, df), &sbuf) < 0)
+	if (stat (name, &sbuf) < 0)
 	{
-		msg_ELog (EF_PROBLEM, "Error %d on stat of %s", errno,
-				dt_DFEFilePath (p, df));
+		msg_ELog (EF_PROBLEM, "Error %d on stat of %s", errno, name);
 		if (inode)
 			*inode = 0;
 		return (0);
@@ -610,244 +625,8 @@ ino_t *inode;
 	if (inode)
 		*inode = sbuf.st_ino;
 #ifdef DEBUG
-	msg_ELog (EF_DEBUG, "stat file #%d: rev %d inode %d", df->df_index,
+	msg_ELog (EF_DEBUG, "stat file %s: rev %d inode %d", name,
 		  sbuf.st_mtime, sbuf.st_ino);
 #endif
 	return (sbuf.st_mtime);
 }
-
-
-
-static void
-CleanChain (p, chain)
-Platform *p;
-int chain;
-/*
- * Get rid of vanished files in this chain.
- */
-{
-	int dfi, next;
-
-	for (dfi = chain; dfi; dfi = next)
-	{
-		next = DFTable[dfi].df_FLink;
-		if ((DFTable[dfi].df_flags & DFF_Seen) == 0)
-		{
-			msg_ELog (EF_DEBUG, "File %s disappeared",
-				DFTable[dfi].df_name);
-			DataFileGone (DFTable + dfi);
-			dt_RemoveDFE (p, dfi);
-			p->dp_flags |= DPF_DIRTY;
-		}
-	}
-}
-
-
-
-
-void
-WriteCache (ufile, onlydirty)
-const char *ufile;
-int onlydirty;
-/*
- * Dump out cache files for all local directores.  (Only those with changes
- * if "onlydirty" is set).  To write a unified cache file, 'ufile' must
- * point to the file name and 'onlydirty' must be false, else write
- * platform cache files.
- */
-{
-	int plat, df;
-	int fd = -1;
-	unsigned long version = CacheKey;
-	char *fname;
-	zbool onefile = FALSE;
-/*
- * Do they want a unified file?
- */
-	if (ufile && ! onlydirty)
-	{
-		onefile = TRUE;
-		if ((fd = open (ufile, O_WRONLY|O_CREAT|O_TRUNC,
-				0664)) < 0)
-		{
-			msg_ELog (EF_PROBLEM, "Error %d opening %s",
-				  errno, ufile);
-			return;
-		}
-		write (fd, &version, sizeof (long));
-	}
-/*
- * Now plow through the platforms and do it.
- */
-	for (plat = 0; plat < NPlatform; plat++)
-	{
-		Platform *p = PTable + plat;
-	/*
-	 * We don't dump subplatforms or virtual platforms.
-	 */
-		if (pi_Subplatform(p) || pi_Virtual(p))
-			continue;
-	/*
-	 * Maybe they only want to write those which have changed.
-	 */
-	 	if (onlydirty && !pi_Dirty(p))
-			continue;
-	/*
-	 * Create the dump file if we're doing individual files.
-	 */
-		if (! onefile)
-		{
-			if (! pi_DirExists (p))
-				continue; /* can't cache what's not there */
- 			fname = CacheFileName(p, TRUE, TRUE);
-			if ((fd = open (fname, O_WRONLY|O_CREAT|O_TRUNC,
-					0664)) < 0)
-			{
-				msg_ELog (EF_PROBLEM, "Error %d opening %s",
-					  errno, fname);
-				continue;
-			}
-			write (fd, &version, sizeof (long));
-		}
-	/*
-	 * Otherwise put in the platform marker.
-	 */
-		else
-		{
-			DataFile fake;
-			strcpy (fake.df_name, p->dp_name);
-			fake.df_flags = DFF_PlatMarker;
-			write (fd, &fake, sizeof (fake));
-		}
-	/*
-	 * Follow the chain.
-	 */
-	 	for (df = pi_LocalData (p); df && DFTable[df].df_FLink;
-					    df = DFTable[df].df_FLink)
-			; /* Scan to end of chain */
-		for (; df; df = DFTable[df].df_BLink)
-			write (fd, DFTable + df, sizeof (DataFile));
-		if (! onefile)
-			close (fd);
-	/*
-	 * This platform is now clean.
-	 */
-	 	p->dp_flags &= ~DPF_DIRTY;
-	}
-/*
- * Close the file if there's only one.
- */
-	if (onefile)
-		close (fd);
-/*
- * Update the cache time if all of the platforms are now clean
- */
-	if (dbg_DirtyCount() == 0)
-		LastCache = time (NULL);
-}
-
-
-
-
-
-void
-ReadCacheFile (fname, local)
-char *fname;
-int local;
-/*
- * Pull in a big cache file.
- */
-{
-	int fd, cflag = local ? DPF_CLOADED : DPF_RCLOADED;
-	unsigned long version;
-	Platform *p = NULL;
-/*
- * Open up the file and check the version number.
- */
-	if ((fd = open (fname, O_RDONLY)) < 0)
-	{
-		msg_ELog (EF_PROBLEM, "Error %d opening %s", errno, fname);
-		return;
-	}
-	read (fd, &version, sizeof (long));
-	if (version != CacheKey && version != DSProtocolVersion)
-	{
-		msg_ELog (EF_PROBLEM, "Cache version mismatch in %s", fname);
-		close (fd);
-		return;
-	}
-/*
- * Plow through the file.
- */
-	for (;;)
-	{
-		DataFile *df = dt_NewFile ();
-	/*
-	 * Pull in the next entry.
-	 */
-		if (read (fd, df, sizeof (DataFile)) < sizeof (DataFile))
-		{
-			dt_FreeDFE (df);
-			close (fd);
-			return;
-		}
-		df->df_index = df - DFTable;
-	/*
-	 * See if we have a platform marker.
-	 */
-		if (df->df_flags & DFF_PlatMarker)
-		{
-			if ((p = dt_FindPlatform (df->df_name)) == NULL)
-				msg_ELog (EF_PROBLEM, "Funky plat %s in cache",
-					  df->df_name);
-			else
-				p->dp_flags |= cflag;
-			dt_FreeDFE (df);
-		}
-	/*
-	 * Otherwise store the file entry.
-	 */
-		else if (p)
-		{
-			df->df_flags &= ~(DFF_Seen | DFF_Remote);
-			if (! local)
-				df->df_flags |= DFF_Remote;
-			dt_AddToPlatform (p, df, local);
-		}
-	}
-}
-			
-
-
-static char *
-CacheFileName (p, local, version)
-Platform *p;
-zbool local;
-zbool version;	/* include the cache key if non-zero */
-/*
- * Generate the cache file name for this platform.  The returned string
- * is only valid until the next call.  Follow the dfa_MakeFileName
- * convention of just removing the '/' characters.
- */
-{
-	static char fname[sizeof(p->dp_name)+sizeof(p->dp_dir)+32];
-	char name[sizeof(p->dp_name)];
-	char *c;
-	int i = 0;
-
-	for (c = p->dp_name; *c; ++c)
-	{
-		if (*c != '/')
-			name[i++] = *c;
-	}
-	name[i] = '\0';
-	if (version)
-		sprintf (fname, "%s/%s.%lx%s.ds_cache", 
-			 local ? p->dp_dir : p->dp_rdir, name,
-			 CacheKey, LittleEndian() ? "-l" : "");
-	else
-		sprintf (fname, "%s/%s.ds_cache", 
-			 local ? p->dp_dir : p->dp_rdir, name);
-	return (fname);
-}
-

@@ -224,7 +224,7 @@ int nsample;
 UpdCode ucode;
 {
 	char tbuf[64];
-	char *platname;
+	const char *platname;
 	/*
 	 * Print lines of the form:
 	 *

@@ -1,4 +1,4 @@
-/* $Id: ingest.c,v 1.17 1998-10-28 21:21:13 corbet Exp $
+/* $Id: ingest.c,v 1.18 1999-03-01 02:03:46 burghart Exp $
  *
  * ingest.c --- A common ingest interface and support routines for 
  *		Zeb ingest modules
@@ -44,7 +44,7 @@
 /* #undef ds_DeleteData */
 
 #ifndef lint
-MAKE_RCSID("$Id: ingest.c,v 1.17 1998-10-28 21:21:13 corbet Exp $")
+MAKE_RCSID("$Id: ingest.c,v 1.18 1999-03-01 02:03:46 burghart Exp $")
 #endif
 
 
@@ -311,18 +311,7 @@ IngestInitialize(name)
 	{
 		msg_connect (NULL, (ShowIngestName ? IngestName : ""));
 		ds_Standalone ();
-		if (! DataDir)
-		{
-			DataDir = getenv("DS_DATA_DIR");
-		}
-		if (! DataDir)
-		{
-			DataDir = ".";
-		}
-		ds_SetDataDir (DataDir);
 		fprintf(stderr,"Running standalone.  ");
-		fprintf(stderr,"Writing datafiles to datadir '%s'.\n", 
-			DataDir);
 	}
 	else if (!DryRun)
 	{

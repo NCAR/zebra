@@ -29,7 +29,7 @@
 # include <copyright.h>
 # include <DataStore.h>
 
-RCSID("$Id: dsdelete.c,v 2.14 1998-10-28 21:21:19 corbet Exp $")
+RCSID("$Id: dsdelete.c,v 2.15 1999-03-01 02:03:49 burghart Exp $")
 
 /*
  * The standard C test prevents conflicts with correctly-prototyped GNU C
@@ -127,7 +127,7 @@ char **argv;
 	}
 	if (! ds_Initialize ())
 	{
-		printf ("%s: could not connect to data store\n");
+		printf ("%s: could not connect to data store\n", argv[0]);
 		exit (9);
 	}
 /*

@@ -30,7 +30,7 @@
 # include "DataStore.h"
 # include "DataChunkP.h"
 
-RCSID ("$Id: dc_MetAttr.c,v 3.10 1997-11-21 20:36:48 burghart Exp $")
+RCSID ("$Id: dc_MetAttr.c,v 3.11 1999-03-01 02:03:41 burghart Exp $")
 
 
 /*

@@ -22,6 +22,8 @@
 # ifndef _fcontainer_h_
 # define _fcontainer_h_
 
+# include "dsFile.h"
+
 class fContainer
 {
 	int nalloc;		// Number we have allocated;
@@ -35,6 +37,7 @@ public:
 	dsFile& nth (const int which) const { return *(stuff[which]); }
 	dsFile *index (const int) const;	// Get by index
 	void zap (int);		// Zap the nth element
+# ifdef notdef
 	int pos (int index) const
 		{
 			int i;
@@ -43,6 +46,7 @@ public:
 					return (i);
 			return (-1);
 		}
+# endif
 };
 
 
@@ -143,6 +147,7 @@ void fContainer::zap (const int which)
 }
 
 
+# ifdef notdef
 inline
 dsFile *fContainer::index (const int ind) const
 //
@@ -156,5 +161,6 @@ dsFile *fContainer::index (const int ind) const
 			return (stuff[i]);
 	return (0);
 }
+# endif
 
 # endif

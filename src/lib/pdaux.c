@@ -1,4 +1,4 @@
-/* $Id: pdaux.c,v 1.15 1998-10-28 21:22:43 corbet Exp $ */
+/* $Id: pdaux.c,v 1.16 1999-03-01 02:04:45 burghart Exp $ */
 /*
  * Auxilliary library routines for plot descriptions.
  */
@@ -37,14 +37,15 @@ static stbl Pd_table = 0;
 /*
  * Prototypes
  */
-static int pda_FreePD FP ((char *name, int type, union usy_value *v, int));
+static int pda_FreePD FP ((const char *name, int type, union usy_value *v, 
+			   int));
 
 
 
 
 plot_description
 pda_GetPD (name)
-char *name;
+const char *name;
 /*
  * Look up this plot description by name.  If such a PD exists, it is returned;
  * otherwise the return value is 0.
@@ -76,7 +77,7 @@ char *name;
 void
 pda_StorePD (pd, name)
 plot_description pd;
-char *name;
+const char *name;
 /*
  * Store this plot description as a named entity.
  * Entry:
@@ -123,7 +124,7 @@ pda_ReleaseAll ()
 
 static int
 pda_FreePD (name, type, v, param)
-char *name;
+const char *name;
 int type;
 union usy_value *v;
 int param;
@@ -140,7 +141,8 @@ int param;
 zbool
 pda_Search (pd, comp, param, qual, dest, type)
 plot_description pd;
-char *comp, *param, *qual, *dest;
+const char *comp, *param, *qual;
+char *dest;
 int type;
 /*
  * Search a parameter from the plot description.
@@ -164,24 +166,23 @@ int type;
 			(char *)malloc(qlen) : qstatic;
 		sprintf (qparam, "%s-%s", qual, param);
 	}
-	else
-		qparam = param;
 /*
  * Try the global component if necessary.
  */
 	if (!found)
-		found = pd_Retrieve (pd, "global", qparam, dest, type);
+		found = pd_Retrieve (pd, "global", qparam ? qparam : param, 
+				     dest, type);
 /*
  * If there is a defaults table, try it if necessary.
  */
-	if (!found && (defpd = pda_GetPD ("defaults")))
+	if (!found && (defpd = pda_GetPD ("defaults")) && qparam)
 		found = pd_Retrieve (defpd, "defaults", qparam, dest, type);
 	if (!found && defpd)
 		found = pd_Retrieve (defpd, "defaults", param, dest, type);
 /*
  * Free any malloc'ed memory and vamoose with our answer.
  */
-	if (qparam && (qparam != qstatic) && (qparam != param))
+	if (qparam && (qparam != qstatic))
 		free (qparam);
 
 	return (found);
@@ -193,7 +194,8 @@ int type;
 zbool
 pda_ReqSearch (pd, comp, param, qual, dest, type)
 plot_description	pd;
-char	*comp, *param, *qual, *dest;
+const char	*comp, *param, *qual;
+char *dest;
 int	type;
 /*
  * Search for a required parameter from the plot description.  If it

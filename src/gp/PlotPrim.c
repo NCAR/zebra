@@ -41,7 +41,7 @@
 # include "DrawText.h"
 # include "PlotPrim.h"
 
-RCSID("$Id: PlotPrim.c,v 1.15 1998-10-28 21:22:02 corbet Exp $")
+RCSID("$Id: PlotPrim.c,v 1.16 1999-03-01 02:04:28 burghart Exp $")
 
 
 static int PP_LineWidth = 0;
@@ -486,8 +486,8 @@ char		*icon, *comp, *platform;
  * Do we want active icons?
  */
 	makeActive = FALSE;
-	pda_Search (Pd, comp, "active-icon", platform, (char *) &makeActive,
-			SYMT_BOOL);
+	pda_Search (Pd, comp, "active-icon", platform, (char*)&makeActive, 
+		    SYMT_BOOL);
 /*
  * Set some GC stuff
  */

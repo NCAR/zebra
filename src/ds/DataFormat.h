@@ -17,7 +17,7 @@
  */
 
 /*
- * $Id: DataFormat.h,v 3.5 1998-04-27 21:41:00 corbet Exp $
+ * $Id: DataFormat.h,v 3.6 1999-03-01 02:03:30 burghart Exp $
  */
 #ifndef _zebra_dataformat_h_
 #define _zebra_dataformat_h_
@@ -44,7 +44,7 @@ extern "C" {
  */
 
 #define M_QueryTime(fn) \
-int fn FP((char *file, ZebTime *begin, ZebTime *end, int *nsample))
+int fn (const char *file, ZebTime *begin, ZebTime *end, int *nsample)
 #define P_QueryTime(fn) static M_QueryTime(fn)
 /*
  *	Given the file name, return the begin and end times of the data
@@ -58,7 +58,7 @@ int fn FP((char *file, ZebTime *begin, ZebTime *end, int *nsample))
 
 #ifdef notdef /* to be added eventually */
 #define M_QueryPlatform(fn) \
-int fn FP((char *file, ClassDef *cd))
+int fn (char *file, ClassDef *cd)
 #define P_QueryPlatform(fn) static M_QueryPlatform(fn)
 /*
  * 	Given the file name, try to deduce from the contents of the file
@@ -71,8 +71,8 @@ int fn FP((char *file, ClassDef *cd))
 #endif
 
 #define M_MakeFileName(fn) \
-int fn FP((struct _DataFormat *fmt, const char *platform, ZebTime *time, \
-	   char *dest, dsDetail *details, int ndetail))
+int fn (struct _DataFormat *fmt, const char *platform, const ZebraTime *time, \
+	char *dest, dsDetail *details, int ndetail)
 #define P_MakeFileName(fn) static M_MakeFileName(fn)
 /*
  *	Create an appropriate name in dest for a new file for platform, 
@@ -85,8 +85,7 @@ int fn FP((struct _DataFormat *fmt, const char *platform, ZebTime *time, \
  */
 
 #define M_CreateFile(fn) \
-int fn FP((struct _OpenFile *ofp, char *fname, DataFile *dfile, \
-	   DataChunk *dc, dsDetail *details, int ndetail))
+int fn (struct _OpenFile *ofp, DataChunk *dc, dsDetail *details, int ndetail)
 #define P_CreateFile(fn) static M_CreateFile(fn)
 /*
  *	Cause the given file to exist, returning TRUE iff
@@ -97,7 +96,7 @@ int fn FP((struct _OpenFile *ofp, char *fname, DataFile *dfile, \
  */
 
 #define M_OpenFile(fn) \
-int fn FP((struct _OpenFile *of, char *filepath, DataFile *dp, int write))
+int fn (struct _OpenFile *of, int write)
 #define P_OpenFile(fn) static M_OpenFile(fn)
 /*
  *	Open the given filepath, returning TRUE if success.  The OpenFile
@@ -106,7 +105,7 @@ int fn FP((struct _OpenFile *of, char *filepath, DataFile *dp, int write))
  */
 
 #define M_CloseFile(fn) \
-void fn FP((struct _OpenFile *of))
+void fn (struct _OpenFile *of)
 #define P_CloseFile(fn) static M_CloseFile(fn)
 /*
  *	Close this file.  The format should not free its tag, only any
@@ -114,7 +113,7 @@ void fn FP((struct _OpenFile *of))
  */
 
 #define M_SyncFile(fn) \
-int fn FP((struct _OpenFile *of))
+int fn (struct _OpenFile *of)
 #define P_SyncFile(fn) static M_SyncFile(fn)
 /*
  *	Synchronize this file to catch up with updates which have occurred.
@@ -123,8 +122,8 @@ int fn FP((struct _OpenFile *of))
  */
 
 #define M_Setup(fn) \
-DataChunk *fn FP((struct _OpenFile *of, FieldId *fields, int nfield, \
-		  DataClass dclass))
+DataChunk *fn (struct _OpenFile *of, FieldId *fields, int nfield, \
+	       DataClass dclass)
 #define P_Setup(fn) static M_Setup(fn)
 /*
  *	Get ready to do this data access.  The format driver should, at
@@ -147,8 +146,8 @@ DataChunk *fn FP((struct _OpenFile *of, FieldId *fields, int nfield, \
  */
 
 #define M_GetData(fn) \
-int fn FP((struct _OpenFile *of, DataChunk *dc, int begin, int nsample, \
-	   dsDetail *details, int ndetail))
+int fn (struct _OpenFile *of, DataChunk *dc, int begin, int nsample, \
+	dsDetail *details, int ndetail)
 #define P_GetData(fn) static M_GetData(fn)
 /*
  *	Actually get the data from the given series of samples and append
@@ -161,8 +160,8 @@ int fn FP((struct _OpenFile *of, DataChunk *dc, int begin, int nsample, \
  */
 
 #define M_GetAlts(fn) \
-int fn FP((struct _OpenFile *ofp, FieldId fid, int offset, float *alts, \
-	   int *nalts, AltUnitType *altunits))
+int fn (struct _OpenFile *ofp, FieldId fid, int offset, float *alts, \
+	int *nalts, AltUnitType *altunits)
 #define P_GetAlts(fn) static M_GetAlts(fn)
 /*
  *	Return the vertical levels associated with the given field and forecast
@@ -172,15 +171,15 @@ int fn FP((struct _OpenFile *ofp, FieldId fid, int offset, float *alts, \
  */
 
 #define M_GetForecastTimes(fn) \
-int fn FP((struct _OpenFile *of, int *times, int *ntimes))
+int fn (struct _OpenFile *of, int *times, int *ntimes)
 #define P_GetForecastTimes(fn) static M_GetForecastTimes(fn)
 /*
  *	Return the available model forecast offset times in the given file.
  */
 
 #define M_DataTimes(fn) \
-int fn FP((struct _OpenFile *of, ZebTime *time, TimeSpec which, int n, \
-	   ZebTime *dest))
+int fn (struct _OpenFile *of, const ZebraTime *time, TimeSpec which, int n, \
+	ZebraTime *dest)
 #define P_DataTimes(fn) static M_DataTimes(fn)
 /*
  * 	Return a list of times for which data is available.  The return
@@ -188,8 +187,8 @@ int fn FP((struct _OpenFile *of, ZebTime *time, TimeSpec which, int n, \
  */
 
 #define M_PutSample(fn) \
-int fn FP((struct _OpenFile *of, DataChunk *dc, int sample, WriteCode wc, \
-	   dsDetail *details, int ndetail))
+int fn (struct _OpenFile *of, DataChunk *dc, int sample, WriteCode wc, \
+	dsDetail *details, int ndetail)
 #define P_PutSample(fn) static M_PutSample(fn)
 /*
  *	Write the given sample from the DC into the indicated file, as
@@ -201,8 +200,8 @@ int fn FP((struct _OpenFile *of, DataChunk *dc, int sample, WriteCode wc, \
  */
 
 #define M_PutBlock(fn) \
-int fn FP((struct _OpenFile *of, DataChunk *dc, int sample, int nsample, \
-	   WriteCode wc, dsDetail *details, int ndetail))
+int fn (struct _OpenFile *of, DataChunk *dc, int sample, int nsample, \
+	WriteCode wc, dsDetail *details, int ndetail)
 #define P_PutBlock(fn) static M_PutBlock(fn) 
 /*
  * 	Write a block of 'nsample' samples, beginning at 'sample'
@@ -212,7 +211,7 @@ int fn FP((struct _OpenFile *of, DataChunk *dc, int sample, int nsample, \
  */
 
 #define M_GetObsSamples(fn) \
-int fn FP((struct _OpenFile *of, ZebTime *times, Location *locs, int max))
+int fn (struct _OpenFile *of, ZebTime *times, Location *locs, int max)
 #define P_GetObsSamples(fn) static M_GetObsSamples(fn)
 /*
  *	Return the time and location for each of the samples in this
@@ -220,7 +219,7 @@ int fn FP((struct _OpenFile *of, ZebTime *times, Location *locs, int max))
  */
 
 #define M_GetFields(fn) \
-int fn FP((struct _OpenFile *of, int sample, int *nfld, FieldId *flist))
+int fn (struct _OpenFile *of, int sample, int *nfld, FieldId *flist)
 #define P_GetFields(fn) static M_GetFields(fn)
 /*
  *	Return a list of available fields in this platform.  "NFLD" starts
@@ -230,7 +229,7 @@ int fn FP((struct _OpenFile *of, int sample, int *nfld, FieldId *flist))
  */
 
 #define M_GetAttrs(fn) \
-char * fn FP((struct _OpenFile *of, int sample, int *len))
+char * fn (struct _OpenFile *of, int sample, int *len)
 #define P_GetAttrs(fn) static M_GetAttrs(fn)
 /*
  *	Get the attributes from the file for this sample.  Returns a
@@ -249,7 +248,7 @@ char * fn FP((struct _OpenFile *of, int sample, int *len))
  */
 
 #define M_GetTimes(fn) \
-ZebTime * fn FP((struct _OpenFile *of, int *ntime))
+ZebTime * fn (struct _OpenFile *of, int *ntime)
 #define P_GetTimes(fn) static M_GetTimes(fn)
 /*
  * 	Return an array of sample times in the file.  The array should not
@@ -258,7 +257,7 @@ ZebTime * fn FP((struct _OpenFile *of, int *ntime))
  */
 
 #define M_GetAssociatedFiles(fn) \
-char ** fn FP((DataFile *df, int *nfiles))
+char ** fn (const DataFile *df, int *nfiles)
 #define P_GetAssociatedFiles(fn) static M_GetAssociatedFiles(fn)
 /*      Return an array of associated file names (in filenames) and the 
  *      number of files found (in nfiles). The array should be freed
@@ -267,7 +266,7 @@ char ** fn FP((DataFile *df, int *nfiles))
  */
 
 /* int
- * f_TimeIndex (OpenFile *of, ZebTime *time, int last)
+ * f_TimeIndex (OpenFile *of, const ZebraTime *time, int last)
  *	
  *	Find the sample index of the given time.  If last is true, return
  *	the last time of a series of identical times.  Otherwise return
@@ -366,12 +365,11 @@ typedef struct _DataFormat
  */
 typedef struct _OpenFile
 {
-	int	of_lru;			/* Access count			*/
-	int	of_dfindex;		/* DF structure index		*/
+	int		of_lru;		/* Access count			*/
+	DataFile	of_df;		/* DF structure			*/
 	struct _OpenFile *of_next;	/* Next in chain		*/
-	int	of_write;		/* File open for write access	*/
-	long	of_dfrev;		/* Revision we're sync'd to	*/
-	DataFormat *of_fmt;		/* Pointer to format class	*/
+	int		of_write;	/* File open for write access	*/
+	DataFormat	*of_fmt;	/* Pointer to format class	*/
 #ifdef notdef
 	FileType of_dftype;		/* File type, shouldn't change	*/ 
 	void	*of_tag;		/* Format-specific tag		*/
@@ -383,27 +381,31 @@ typedef struct _OpenFile
 #endif
 } OpenFile;
 
+#ifdef notdef
 /*
  * Define a macro to access the only publicly useful OpenFile member
  */
 # define fmt_FileIndex(ofp) (((OpenFile *)(ofp))->of_dfindex)
+#endif
 
 /*
  * Public prototypes for the DataFormat methods which can be 'inherited'
  * or called by other format methods.
  */
-int dfa_TimeIndex FP ((OpenFile *ofp, ZebTime *when, int last));
+int dfa_TimeIndex FP ((OpenFile *ofp, const ZebraTime *when, int last));
 M_DataTimes (fmt_DataTimes);
 M_MakeFileName (fmt_MakeFileName);
 
+#ifdef notdef
 /*
  * Semi-private dfa routines, for accessing the OpenFile structure
  */
 #define dfa_FileIndex(ofp) ((ofp)->of_dfindex)
+#endif
 
-OpenFile *dfa_OpenFile FP ((int dfile, int write));
-ZebTime *dfa_GetTimes FP ((OpenFile *ofp, int *ntime));
-int dfa_SyncFile FP ((OpenFile *ofp));
+OpenFile *dfa_OpenFile (const DataFile *df, int write);
+ZebTime *dfa_GetTimes (OpenFile *ofp, int *ntime);
+int dfa_SyncFile (OpenFile *ofp);
 
 /*
  * Prototypes for non-compiled methods defined in DFA_None.c

@@ -26,12 +26,12 @@
 # include <message.h>
 # include <copyright.h>
 # include <DataStore.h>
+# include <Platforms.h>
 
-RCSID ("$Id: dsnotice.c,v 1.8 1998-12-17 00:38:41 burghart Exp $")
+RCSID ("$Id: dsnotice.c,v 1.9 1999-03-01 02:03:56 burghart Exp $")
 
 static void ReceiveNotify FP ((PlatformId pid, int param, ZebTime *when,
 			      int nsample, UpdCode ucode));
-static char *PlatFileName FP ((PlatformId pid, ZebTime *when));
 
 static int ShowPlatDir = 0;
 
@@ -204,40 +204,6 @@ char **argv;
 
 
 
-static char *
-PlatDirectory (pid)
-PlatformId pid;
-/*
- * Return a pointer to a platform's directory path.  The string is only
- * valid until the next call.  Returns NULL if this platform has no
- * local data source.
- */
-{
-	int i;
-        PlatformInfo pinfo;
-        static DataSrcInfo dsi;
-
-        ds_LockPlatform (pid);
-        ds_GetPlatInfo (pid, &pinfo);
-        /*
-         * Find the first local data source
-         */
-        for (i = 0; i < pinfo.pl_NDataSrc; i++)
-        {
-                ds_GetDataSource (pid, i, &dsi);
-                if (dsi.dsrc_Type == dst_Local)
-                        break;
-        }
-        ds_UnlockPlatform (pid);
-        if (i < pinfo.pl_NDataSrc)
-                return (dsi.dsrc_Where);
-        else
-                return (NULL);
-}               
-
-
-
-
 static void
 ReceiveNotify (pid, param, when, nsample, ucode)
 PlatformId pid;
@@ -247,53 +213,20 @@ int nsample;
 UpdCode ucode;
 {
 	char tbuf[64];
-	char *platname;
-	char *platdir;
-	char *filename;
+	const DataFile *df;
+	const Platform *p = dt_FindPlatform (pid);
 	/*
 	 * Print lines of the form:
 	 *
 	 * <platform> <filename> <datadir> <time> <nsamples> <ucode>
 	 */
 	TC_EncodeTime (when, TC_Full, tbuf);
-	platname = ds_PlatformName (pid);
-	platdir = PlatDirectory (pid);
-	filename = PlatFileName (pid, when);
-	msg_ELog (EF_INFO, "%s %s %s %s %i %s", 
-		platname ? platname : "NULL", 
-		filename ? filename : "NULL",
-		(ShowPlatDir ? (platdir ? platdir : "NULL") : ""),
-		tbuf, nsample, (ucode == UpdOverwrite) ? "owr" :
-		((ucode == UpdInsert) ? "ins" : "app"));
+	df = ds_FindBefore (pid, when);
+	msg_ELog (EF_INFO, "%s %s %s %i %s", 
+		  p ? pi_Name (p) : "NULL", 
+		  ShowPlatDir ? df->df_fullname : df->df_core.dfc_name,
+		  tbuf, df->df_core.dfc_nsample, 
+		  (ucode == UpdOverwrite) ? "owr" :
+		  ((ucode == UpdInsert) ? "ins" : "app"));
 	/* fflush (stdout); */
 }
-
-
-
-
-static char *
-PlatFileName (pid, when)
-PlatformId pid;
-ZebTime *when;
-{
-        static DataFileInfo dfi;
-        int findex;
-	char *name = NULL;
-#	define SRC_LOCAL 0
-	/*
-	 * Technically use of ds_FindDF is illegal since it's internal, but
-	 * what do you expect for a quick-and-dirty application?
-	 */
-	extern int ds_FindDF FP((PlatformId pid, ZebTime *when, int));
-
-        ds_LockPlatform (pid);
-	findex = ds_FindDF (pid, when, SRC_LOCAL);
-	if (findex >= 0)
-	{
-		ds_GetFileInfo (findex, &dfi);
-		name = dfi.dfi_Name;
-	}
-        ds_UnlockPlatform (pid);
-	return (name);
-}
-

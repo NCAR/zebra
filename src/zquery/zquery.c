@@ -25,7 +25,7 @@
 # include <defs.h>
 # include <message.h>
 
-RCSID ("$Id: zquery.c,v 1.6 1995-06-29 22:38:50 granger Exp $")
+RCSID ("$Id: zquery.c,v 1.7 1999-03-01 02:04:56 burghart Exp $")
 
 #define DEFAULT_DELAY 	0
 
@@ -51,7 +51,7 @@ char **argv;
 	int ret;
 	int arg;
 	int delay = DEFAULT_DELAY;
-	char name[MAX_NAME_LEN];
+	char name[MSG_MAXNAMELEN];
 	char *query;
 /*
  * Check for a couple options

@@ -30,7 +30,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-MAKE_RCSID ("$Id: Histogram.c,v 2.7 1998-11-20 16:08:55 burghart Exp $")
+MAKE_RCSID ("$Id: Histogram.c,v 2.8 1999-03-01 02:04:24 burghart Exp $")
 
 # if C_PT_HISTOGRAM
 
@@ -81,6 +81,8 @@ static void HG_DividerBar FP ((char *));
 static int HG_FigureInterval FP ((int, int, int));
 static void HG_CountGrid FP ((char *, int, int, int, int));
 static void HG_NextPlot FP ((char *));
+static void HG_SetOT (char *c, DataChunk *dc);
+
 
 
 
@@ -655,7 +657,7 @@ double scale;
 	int xpos = GWWidth (Graphics)*F_X1 + 5, field, sx, sy, ex, ey;
 	char s[40];
 	Pixel white = WhitePixelOfScreen (XtScreen (Graphics));
-	char *platname = ds_PlatformName (pid);
+	const char *platname = ds_PlatformName (pid);
 /*
  * Platform name.
  */
@@ -796,9 +798,8 @@ char *c;
 
 
 
-HG_SetOT (c, dc)
-char *c;
-DataChunk *dc;
+static void
+HG_SetOT (char *c, DataChunk *dc)
 /*
  * Add a line for this platform into the overlay times widget.
  */

@@ -30,7 +30,7 @@
 # include <message.h>
 # include "DrawText.h"
 
-RCSID("$Id: DrawText.c,v 2.14 1998-10-28 21:21:36 corbet Exp $")
+RCSID("$Id: DrawText.c,v 2.15 1999-03-01 02:04:22 burghart Exp $")
 
 # ifndef __STDC__
 #  ifndef sgi
@@ -68,9 +68,10 @@ static int BlankLabel = TRUE;
  * Forward declarations
  */
 # ifdef __STDC__
-	void	DT_XTextInfo (char *, int, int, int, int *, int *, int *);
-	void	DT_TextInfo (char *, double, int, int, float *, float *, 
-			float *, float *);
+	void	DT_XTextInfo (const char *, int, int, int, int *, int *, 
+			      int *);
+	void	DT_TextInfo (const char *, double, int, int, float *, float *, 
+			     float *, float *);
 	zbool	DT_HaveXFont (Widget, int, int *);
 # else
 	void	DT_XTextInfo (), DT_TextInfo ();
@@ -86,7 +87,7 @@ Widget	w;
 Drawable	d;
 GC	gc;
 int	x, y, hjust, vjust;
-String	text;
+const char*	text;
 float	rot, scale;
 /*
  * Draw a text string into an X Drawable. Use an X font if possible, 
@@ -165,7 +166,7 @@ float	rot, scale;
 
 void
 DT_XTextInfo (text, cheight, hjust, vjust, width, hoffset, voffset)
-char	*text;
+const char	*text;
 int	cheight, hjust, vjust;
 int	*width, *hoffset, *voffset;
 /*
@@ -229,7 +230,7 @@ Widget	w;
 Drawable	d;
 GC	gc;
 int	x, y, hjust, vjust;
-String	text;
+const char*	text;
 float	rot, scale;
 /*
  * Draw a text string into an X Drawable using a stroke font
@@ -383,7 +384,7 @@ void
 DT_TextBox (w, d, x, y, text, rot, scale, hjust, vjust, sx, sy, ex, ey)
 Widget	w;
 Drawable	d;
-char	*text;
+const char	*text;
 int	x, y;
 float	rot, scale;
 int	hjust, vjust;
@@ -485,7 +486,7 @@ int	*sx, *sy, *ex, *ey;
 
 void
 DT_TextInfo (text, rot, hjust, vjust, xoffset, yoffset, width, height)
-char	*text;
+const char	*text;
 float	rot;
 int	hjust, vjust;
 float	*xoffset, *yoffset, *width, *height;

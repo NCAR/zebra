@@ -17,6 +17,10 @@
  * The original NEXUS code is ifdef'ed out with the NEXUS symbol.
  *
  * Updates: $Log: not supported by cvs2svn $
+ * Revision 1.10  1997/06/22  22:08:18  granger
+ * include errno.h instead of sys/errno.h so we can remove duplicate defn of
+ * errno; put zebra includes in <>
+ *
  * Updates: Revision 1.9  1997/05/13 21:38:11  ishikawa
  * Updates: Replaced symbol aix for AIXV3 for IBM
  * Updates:
@@ -103,7 +107,7 @@
 #define MISSVAL		88888.0	/* NEXUS-specific missing data flags	 */
 #endif /* NEXUS */
 
-MAKE_RCSID("$Id: dsprint.c,v 1.10 1997-06-22 22:08:18 granger Exp $")
+MAKE_RCSID("$Id: dsprint.c,v 1.11 1999-03-01 02:03:57 burghart Exp $")
 
 /*************************************************************
  ANSI C function prototypes

@@ -41,7 +41,7 @@
 # include "Skewt.h"
 
 
-RCSID ("$Id: Skewt.c,v 2.32 1998-10-28 21:22:08 corbet Exp $")
+RCSID ("$Id: Skewt.c,v 2.33 1999-03-01 02:04:29 burghart Exp $")
 
 /*
  * General definitions

@@ -25,6 +25,7 @@
 # include <stdio.h>
 # include <stream.h>
 # include <stdlib.h>
+# include <DataStore.h>
 
 extern "C" 
 {
@@ -42,7 +43,7 @@ extern "C"
 # include "dsmWindows.h"
 # include "Dialog.h"
 
-static char *rcsid = "$Id: MainWindow.cc,v 1.10 1998-03-02 20:23:12 burghart Exp $";
+static char *rcsid = "$Id: MainWindow.cc,v 1.11 1999-03-01 02:03:53 burghart Exp $";
 //
 // Externs.
 //
@@ -67,23 +68,19 @@ dsMainWindow::dsMainWindow (const dsDisplay &disp) :
 // Add our label to the top.
 //
 	n = 0;
-	XtSetArg (args[n], XtNlabel, "The zeb disk manager");	n++;
+	XtSetArg (args[n], XtNlabel, "Zebra Data Store Manager");	n++;
 	above = XtCreateManagedWidget ("title", labelWidgetClass, dw_form,
 		args, n);
 //
 // The free space line.
 //
-	char label[200];
-	const char *dir;
-	float space;
-	DDInfo (&dir, &space);
-	sprintf (label, "%.2f MB free in %s.", space, dir);
 	n = 0;
-	XtSetArg (args[n], XtNlabel, label);			n++;
 	XtSetArg (args[n], XtNborderWidth, 0);			n++;
 	XtSetArg (args[n], XtNfromVert, above);			n++;
 	spaceLabel = XtCreateManagedWidget ("spaceLabel", labelWidgetClass,
 		dw_form, args, n);
+
+	UpdateSpace();
 //
 // New line
 //
@@ -156,12 +153,16 @@ dsMainWindow::UpdateSpace ()
 //
 {
 	char label[200];
-	const char *dir;
 	float space;
+	SourceInfo dsi;
 	Arg args[1];
+	extern unsigned int FreeSpace (const char *dirname);
 
-	DDInfo (&dir, &space);
-	sprintf (label, "%.2f MB free in %s.", space, dir);
+	ds_GetSourceInfo (SrcId, &dsi);
+
+	space = FreeSpace (dsi.src_Name) / (float)(1024 * 1024);
+	sprintf (label, "Source '%s': %.2f MB free in %s.", dsi.src_Name, 
+		 space, dsi.src_Dir);
 	
 	XtSetArg (args[0], XtNlabel, label);
 	XtSetValues (spaceLabel, args, 1);

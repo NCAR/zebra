@@ -1,25 +1,23 @@
 /*
  * Imakefile for the data store management stuff.
  */
-# undef DataDir
-
 TISRCS = TapeIndex.cc
-SRCS = dsmanage.cc dsmWindows.cc DataDir.cc Index.cc MainWindow.cc Dialog.cc \
-	LoadData.cc StatusWin.cc DLoad.cc Tape.cc TBCleanup.cc $(TISRCS) \
-	Examiner.cc
+SRCS = dsmanage.cc dsmWindows.cc dsFile.cc dsPlatform.cc Index.cc \
+	MainWindow.cc Dialog.cc LoadData.cc StatusWin.cc DLoad.cc Tape.cc \
+	TBCleanup.cc Examiner.cc FreeSpace.cc $(TISRCS)
 
-HEADERS = DataDir.h Dialog.h Index.h STable.h StatusWin.h Tape.h \
+HEADERS = dsFile.h dsPlatform.h Dialog.h Index.h STable.h StatusWin.h Tape.h \
 	fcontainer.h plcontainer.h container.h dsmWindows.h dsmanage.h \
 	Exceptions.h dsPlatform.h BoolKludge.h MaybeCString.h
 
-DSMLIBS = $(DSLIBS) $(ZLIBS) $(XLIBS)
-TILIBS = $(DFALIBS) $(LIBZEBRA) $(LIBRDSSUTIL)
+DSMLIBS = $(DFALIBS) $(ZLIBS) $(XLIBS)
+TILIBS = $(DFALIBS) $(LIBZEBRA)
 SYSLIBS = $(LIBMATH) $(LIBREGEXP)
 
 INCLUDES = $(XINCLUDES)
 
-OBJS = dsmanage.o dsmWindows.o DataDir.o Index.o MainWindow.o Dialog.o \
-	LoadData.o StatusWin.o DLoad.o Tape.o TBCleanup.o
+OBJS = dsmanage.o dsmWindows.o dsFile.o dsPlatform.o Index.o MainWindow.o \
+	Dialog.o LoadData.o StatusWin.o DLoad.o Tape.o TBCleanup.o FreeSpace.o
 TIOBJS = TapeIndex.o Index.o Tape.o
 
 APPDEFAULTS = dsmanage.ad

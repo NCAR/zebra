@@ -1,7 +1,7 @@
 /*
  * DM variables.
  *
- * $Id: dm_vars.h,v 2.13 1998-10-28 21:20:28 corbet Exp $
+ * $Id: dm_vars.h,v 2.14 1999-03-01 02:03:18 burghart Exp $
  */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -188,7 +188,6 @@ extern Display		*Dm_Display;		/* Our display		*/
  */
 void	ReleaseMemory FP ((void));
 int 	PickWin FP ((char *));
-int 	FindFile FP ((char *, char *, char *));
 void	SetTimeMode FP ((struct cf_window *, int, ZebTime *));
 void	badwin FP((char *name));
 void	def_bmap FP((char *name));

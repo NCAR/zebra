@@ -37,7 +37,7 @@
 # include "PolarPlot.h"
 # endif
 
-MAKE_RCSID ("$Id: GridAccess.c,v 2.35 1998-10-28 21:21:42 corbet Exp $")
+MAKE_RCSID ("$Id: GridAccess.c,v 2.36 1999-03-01 02:04:24 burghart Exp $")
 
 # define DEG_TO_RAD(x)	((x)*0.017453292)
 # define KM_TO_DEG(x)	((x)*0.008982802) /* on a great circle */
@@ -578,7 +578,7 @@ ga_MkRastDest (DataChunk *dc, FieldId fid, int gratio, int project,
 
 
 
-# endif C_CAP_POLAR
+# endif /* C_CAP_POLAR */
 
 
 

@@ -3,7 +3,7 @@
  * Appl.c and DFA_Appl.c
  */
 
-/* $Id: Appl.h,v 3.3 1996-11-19 08:25:04 granger Exp $ */
+/* $Id: Appl.h,v 3.4 1999-03-01 02:03:20 burghart Exp $ */
 
 /*		Copyright (C) 1987-1995 by UCAR
  *	University Corporation for Atmospheric Research
@@ -46,28 +46,28 @@ extern int Standalone;
  */
 typedef struct _DS_Methods
 {
-	int	(*dsm_FindBefore)(/* pid, when, src */);
-	int	(*dsm_FindAfter)(/* pid, when */);
-	void	(*dsm_DeleteObs)(/* pid, when */);
-	void	(*dsm_DeleteData)(/* pid, when */);
-	PlatClassId (*dsm_DefineClass)(/* PlatformClass *pc */);
-	PlatformId (*dsm_DefinePlatform)(/* cid, name, parent */);
-	int	(*dsm_NewDataFile)(/* pid, filename, zt */);
-	void	(*dsm_NotifyFile)(/* cp, dfi, dc, now, nnew, sample, last */);
-	int 	(*dsm_NPlat)(/* void */);
-	void	(*dsm_SearchPlatforms)(/* search, pl */);
-
+	const DataFile*	(*dsm_FindBefore)(PlatformId pid, 
+					  const ZebraTime *when, int srcid);
+	const DataFile*	(*dsm_FindAfter)(PlatformId pid, 
+					 const ZebraTime *when, int srcid);
+	const DataFile*	(*dsm_FindDFLink)(const DataFile *df, int prev);
+	void	(*dsm_DeleteObs)(PlatformId pid, const ZebraTime *when);
+	void	(*dsm_DeleteData)(PlatformId pid, const ZebraTime *when);
+	PlatClassId (*dsm_DefineClass)(const PlatformClass *pc);
+	PlatformId (*dsm_DefinePlatform)(PlatClassId cid, const char *name, 
+					 PlatformId parent);
+	int	(*dsm_NewDataFile)(PlatformId pid, const char *filename, 
+				   const ZebraTime *zt, DataFile *df);
+	void	(*dsm_NotifyFile)(const Platform *p, const DataFile *df, 
+				  int now, int nnew, int sample, int last);
+	int 	(*dsm_NPlat)(void);
+	void	(*dsm_SearchPlatforms)(PlatformSearch *search, 
+				       PlatformList *pl);
+	int	(*dsm_GetSrcInfo)(int srcid, SourceInfo *si);
+	int	(*dsm_GetPlatDir)(int srcid, PlatformId pid, char *dir);
 } DS_Methods;
 
 extern DS_Methods DSM;
-
-/*
- * Platform search lists
- */
-typedef struct _PlatformList {
-	PlatformId *pl_pids;
-	int pl_npids;
-} PlatformList;
 
 /*
  * Functions shared internally by the application interface modules,
@@ -75,22 +75,7 @@ typedef struct _PlatformList {
  */
 void	ds_InitAPI FP ((void));
 void	ds_SendToDaemon FP ((void *, int));
-int	ds_AwaitPID FP ((Message *, PlatformId *));
-void	ds_ZapCache FP ((DataFile *));
-void	ds_WriteLock FP ((PlatformId));
-void	ds_FreeWriteLock FP ((PlatformId));
-void	ds_FreeCache FP((void));
-void	ds_CreateFileCache FP ((int size));
-DataFile *ds_SearchCache FP ((int dfi));
-int	ds_DataChain FP ((ClientPlatform *p, int which));
-void	ds_CachePlatform FP ((PlatformId pid, ClientPlatform *plat));
-void	ds_CacheClass FP ((PlatClassId cid, PlatformClass *pc));
-DataFile *ds_CacheFile FP ((DataFile *dfe));
-void	ds_CacheName FP ((const char *name, PlatformId pid));
-void	ds_CacheClassName FP ((const char *name, PlatClassId cid));
-void	*ds_PlatTable FP ((void));
-ClientPlatform *ds_GetPlatStruct FP ((PlatformId pid, ClientPlatform *,
-				      int refresh));
+
 
 # endif /* ! _zebra_appl_h_ */
 

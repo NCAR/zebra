@@ -21,13 +21,10 @@
 //
 
 # include <errno.h>
+# include <message.h>
 # include "DerivTable.h"
 # include "DataStore.h"
-
-extern "C"
-{
-#	include <message.h>
-}
+# include "Platforms.h"
 
 
 MAKE_RCSID ("$Id")
@@ -122,7 +119,8 @@ ds_GetDerivation( PlatformId pid, FieldId wantid, FieldId raw_ids[], int nraw )
     RawFldDNode	want( *(Field*)wantid );
     Field *raw_flds = new Field[nraw];
     DerivNode *deriv;
-    PlatformId parent;
+    const Platform *p = dt_FindPlatform (pid);
+    PlatformId parent_id = pi_ParentId (p);
     const DerivTable *dtables[4];
     int ntables;
 
@@ -139,10 +137,8 @@ ds_GetDerivation( PlatformId pid, FieldId wantid, FieldId raw_ids[], int nraw )
     ntables = 0;
     
     dtables[ntables++] = PlatDerList.Table( pid );
-
-    if ((parent = ds_LookupParent( pid )) != BadPlatform)
-	dtables[ntables++] = PlatDerList.Table( parent );
-
+    if (parent_id != BadPlatform)
+	dtables[ntables++] = PlatDerList.Table( parent_id );
     dtables[ntables++] = &ProjectDerivs;
     dtables[ntables++] = &DefaultDerivs;
 //
@@ -272,6 +268,8 @@ LoadDerivs( DerivTable *dtable, const char *fname, int quiet )
 	msg_ELog (EF_PROBLEM, "Error %d opening derivations file '%s'",
 		  errno, fname);
     }
+    else
+	msg_ELog (EF_DEBUG, "No derivs file: %s", fname);
 }
 
 
@@ -314,8 +312,8 @@ _PlatDerList::Table( PlatformId pid )
 //
     if (! derivs[pid])
     {
-	DataSrcInfo dsi;
 	char fname[128];
+	const char *pdir;
 	
 	derivs[pid] = new DerivTable;
     //
@@ -324,7 +322,11 @@ _PlatDerList::Table( PlatformId pid )
     // have an empty DerivTable.  If the platform's suggested directory
     // is a relative path, use that, otherwise use the platform's name.
     //
-	sprintf( fname, "%s/derivs/%s", GetProjDir(), ds_PlatformName( pid ) );
+	pdir = pi_SuggestedDir( dt_FindPlatform( pid ) );
+	if (pdir[0] == '/')
+	    pdir = ds_PlatformName( pid );
+
+	sprintf( fname, "%s/derivs/%s", GetProjDir(), pdir );
 	LoadDerivs( derivs[pid], fname, 1 );	
     }
 

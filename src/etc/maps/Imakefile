@@ -4,7 +4,6 @@
 
 MAPS = smallworld.map us.map world.map
 
-
 DISTFILES = Imakefile $(MAPS)
 
 all::

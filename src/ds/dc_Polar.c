@@ -14,7 +14,7 @@
 # include "DataStore.h"
 # include "DataChunkP.h"
 
-RCSID ("$Id: dc_Polar.c,v 3.2 1998-05-04 15:46:15 burghart Exp $")
+RCSID ("$Id: dc_Polar.c,v 3.3 1999-03-01 02:03:43 burghart Exp $");
 
 
 
@@ -28,7 +28,7 @@ typedef struct _PolarSample
 	int	ps_NBeams;		/* How many beams it has 	*/
 	float	ps_FixedAngle;		/* Fixed angle			*/
 	ScanMode ps_Mode;		/* The scan mode		*/
-	int	ps_DFI;			/* The data file index		*/
+	const DataFile *ps_df;		/* The data file		*/
 	int	ps_FSample;		/* Sample within the file	*/
 } PolarSample;
 
@@ -155,7 +155,7 @@ dcp_Setup (DataChunk *dc, int nfield, FieldId *fids, dcpGetFunc getfcn)
 
 void
 dcp_AddSweep (DataChunk *dc, ZebTime *when, Location *where, int nbeam,
-		float fixang, ScanMode mode, int dfi, int fsample)
+		float fixang, ScanMode mode, const DataFile *df, int fsample)
 /*
  * Add a sweep to this data chunk.
  */
@@ -173,6 +173,7 @@ dcp_AddSweep (DataChunk *dc, ZebTime *when, Location *where, int nbeam,
 	if (++(polar->po_NSweeps) >= polar->po_NSweepAlloc)
 	{
 		polar->po_NSweepAlloc *= 2;
+
 		polar->po_Sweeps = (PolarSample *) realloc (polar->po_Sweeps,
 				polar->po_NSweepAlloc*sizeof (PolarSample));
 	}
@@ -183,7 +184,7 @@ dcp_AddSweep (DataChunk *dc, ZebTime *when, Location *where, int nbeam,
 	ps->ps_NBeams = nbeam;
 	ps->ps_FixedAngle = fixang;
 	ps->ps_Mode = mode;
-	ps->ps_DFI = dfi;
+	ps->ps_df = df;
 	ps->ps_FSample = fsample;
 /*
  * Make sure MetData knows about this too.
@@ -256,7 +257,7 @@ dcp_GetBeam (DataChunk *dc, int sweep, int beam, FieldId fid, FieldId tfid,
 /*
  * Just pass the info on to the routine that knows what it is doing.
  */
-	return ((*polar->po_GetBeam) (dc, ps->ps_DFI, ps->ps_FSample, beam,
+	return ((*polar->po_GetBeam) (dc, ps->ps_df, ps->ps_FSample, beam,
 			fid, tfid, throver, tvalue));
 }
 
@@ -299,9 +300,12 @@ dcp_Dump (DataChunk *dc)
 	ps = polar->po_Sweeps;
 	for (sweep = 0; sweep < polar->po_NSweeps; sweep++)
 	{
-		printf (" Sweep %d, %d beams, fixed %.1f, mode %d, dfi %d, fs %d\n",
+	    printf (" Sweep %d, %d beams, fixed %.1f, mode %d, ",
 				sweep, ps->ps_NBeams, ps->ps_FixedAngle,
-				ps->ps_Mode, ps->ps_DFI, ps->ps_FSample);
+				ps->ps_Mode);
+		printf ("fs %d, %s\n", ps->ps_FSample, 
+			ps->ps_df->df_core.dfc_name);
+		
 		ps++;
 	}
 }

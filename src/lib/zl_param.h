@@ -1,4 +1,4 @@
-/* $Id: zl_param.h,v 2.4 1998-10-28 21:22:48 corbet Exp $ */
+/* $Id: zl_param.h,v 2.5 1999-03-01 02:04:46 burghart Exp $ */
 /*
  * Basic UI types needed regardless of whether we're linking with UI.
  */

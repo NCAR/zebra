@@ -29,7 +29,7 @@
 # include "DataChunkP.h"
 # include <zl_regex.h> /* System-independent regex functions in Zebra lib */
 
-RCSID ("$Id: dc_Attr.c,v 1.16 1996-12-06 00:40:32 granger Exp $")
+RCSID ("$Id: dc_Attr.c,v 1.17 1999-03-01 02:03:41 burghart Exp $")
 
 /*--------------------------------------------------------------------
  * Quick explanation of how attributes work now that they can have 
@@ -732,15 +732,13 @@ void *arg;
 
 
 static int
-dca_ProcStringArrays (key, value, nval, type, arg)
+dca_ProcStringArrays (key, value, nval, type, func)
 char *key;
 void *value;
 int nval;
 DC_ElemType type;
-void *arg;
+int (*func)();
 {
-	int (*func)() = (int (*)())arg;
-
 	if (type == DCT_String)
 		return ((*func)(key, (char *)value));
 	return (0);
@@ -761,7 +759,7 @@ int (*func)();
  */
 {
 	return (dca_ProcAttrArrays (dc, class, code, pattern, 
-				    dca_ProcStringArrays, (void *)func));
+				    dca_ProcStringArrays, (void*)func));
 }
 
 

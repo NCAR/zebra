@@ -56,7 +56,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.79 1998-11-20 15:58:02 burghart Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.80 1999-03-01 02:04:20 burghart Exp $")
 
 
 /*
@@ -854,19 +854,19 @@ zbool update;
 	for (i = 0; i < 4; i++)
 	{
 	    strcat (data, "|");
-	    
-		if (quadstn[i])
-		    strcat (data, "station ");
-		else if (quadfields[i] != BadField)
-		{
-		    char *justname = F_GetName (quadfields[i]);
-		    if (justname[0] != '\0')
-			strcat (data, justname);
-		    else
-			strcat (data, F_GetFullName (quadfields[i]));
-		}
+
+	    if (quadstn[i])
+		strcat (data, "station");
+	    else if (quadfields[i] != BadField)
+	    {
+		char *justname = F_GetName (quadfields[i]);
+		if (justname[0] != '\0')
+		    strcat (data, justname);
 		else
-		    strcat (data, "none");
+		    strcat (data, F_GetFullName (quadfields[i]));
+	    }
+	    else
+		strcat (data, "none");
 	}
 
 	An_AddAnnotProc (CAP_StaPltSideAnnot, c, data, strlen (data), 90, 
@@ -938,7 +938,7 @@ zbool quadstn[4];
  */
 {
 	char buf[64];
-	char *label;
+	const char *label;
 	static const int hjust[4] = { JustifyRight, JustifyLeft, JustifyRight,
 				      JustifyLeft };
 	static const int vjust[4] = { JustifyBottom, JustifyBottom, 
@@ -1654,8 +1654,8 @@ int datalen, begin, space;
 /*
  * Get the data.
  */
-        sscanf (data, "%[^|]|%li|%li|%f|%d|%[^|]|%[^|]|%[^|]|%[^|]", units,
-		&vc, &qc, &unitlen, &numquads, qname[0], qname[1], qname[2],
+        sscanf (data, "%[^|]|%li|%li|%f|%d|%[^|]|%[^|]|%[^|]|%[^|]", units, 
+		&vc, &qc, &unitlen, &numquads, qname[0], qname[1], qname[2], 
 		qname[3]);
 /*
  * Put in the vector (unless unitlen == 0, implying wind barbs).
@@ -1727,7 +1727,7 @@ int datalen, begin, space;
 	 */
 		sprintf (name, "quad%d", i + 1);
 		if (! strcmp (qname[i], "none"))
-		    strcpy (qname[i], "      ");
+			strcpy (qname[i], "      ");
 	/*
 	 * Throw it onto the screen and activate it.  We really need a
 	 * "draw and activate text" routine to do this for us...
@@ -2521,7 +2521,7 @@ CAP_PolarParams (char *c, char *platform, PlatformId *pid, FieldId *fids,
 
 }
 
-# endif  /* C_CAP_POLAR */
+# endif /* C_CAP_POLAR */
 
 
 

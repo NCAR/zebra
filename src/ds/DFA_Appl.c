@@ -35,34 +35,36 @@
 #include "dfa.h"
 #include "Appl.h"
 
-RCSID ("$Id: DFA_Appl.c,v 3.16 1998-12-10 21:38:10 burghart Exp $")
+RCSID ("$Id: DFA_Appl.c,v 3.17 1999-03-01 02:03:20 burghart Exp $")
 
 /*
  * Local private prototypes.
  */
 static int	ds_DFAMessage (struct message *msg);
-static int      ds_AttrCheck (int, ZebTime *, char *);
-static void     ds_NotifyDaemon (ClientPlatform *, int, DataChunk *, 
-				 int, int, int, int);
-static int 	ds_FindDest (DataChunk *, ClientPlatform *, DataFile *,
-			     int sample, int *dfile, int *dfnext,
-			     WriteCode *, int, ZebTime *);
-static zbool	ds_SameDay (ZebTime *, ZebTime *);
-static int	ds_MakeNewFile (DataChunk *, ClientPlatform *, int sample, 
-				dsDetail *details, int ndetail);
-static int	ds_RequestNewDF (PlatformId, char *, ZebTime *);
+static int      ds_AttrCheck (const DataFile *df, const ZebraTime *t, 
+			      char *attr);
+static void 	ds_NotifyDaemon (const Platform *p, const DataFile *df, 
+				 int now, int nnew, int sample, int last);
+static const DataFile* ds_FindDest (DataChunk *dc, const Platform *plat, 
+				    int sample, WriteCode *wc, int newfile, 
+				    const ZebraTime *now);
+static zbool	ds_SameDay (const ZebraTime *, const ZebraTime *);
+static int	ds_MakeNewFile (DataChunk *dc, const Platform *plat, 
+				int sample, dsDetail *details, int ndetail, 
+				DataFile *df);
+static int	ds_RequestNewDF (PlatformId plat, const char *file, 
+				 const ZebraTime *t, DataFile *df);
 static int	ds_GetNDFResp (struct message *, struct dsp_R_CreateFile *);
-static void	ds_AbortNewDF (PlatformId, int);
 static int	ds_AwaitAck (Message *, int);
 static void 	ds_FProcGetList (DataChunk *, GetList *, dsDetail *, int);
-static void	ds_FindBlock (DataFile *dfp, int dfnext, 
-			      DataChunk *dc, ClientPlatform *p,
-			      int sample, WriteCode wc, int *nsample);
+static void	ds_FindBlock (const DataFile *dfp, const DataFile *dfnext, 
+			      DataChunk *dc, const Platform *plat, int sample, 
+			      WriteCode wc, int *block_size);
 static DataChunk* Derive (PlatformId pid, DataClass class, GetList *get, 
 			  FieldId *flds, int nflds, dsDetail *details, 
 			  int ndetail);
 static void	DeriveFld (DataChunk *dest_dc, DataChunk *extra_dc, 
-			   FieldId fld,DerivMethod deriv);
+			   FieldId fld, DerivMethod deriv);
 static void	DerivationFailure (DataChunk *dest_dc, FieldId fld);
 static zbool	DerivationCheck (PlatformId pid, DataClass class, 
 				 GetList *get, FieldId *flds, int nflds);
@@ -96,25 +98,25 @@ static int DFAInstalled = 0;
 	 
 
 int
-ds_GetObsSamples (pid, when, times, locs, max)
-PlatformId pid;
-ZebTime *times, *when;
-Location *locs;
-int max;
+ds_GetObsSamples (PlatformId pid, const ZebraTime *when, ZebraTime *times, 
+		  Location *locs, int max)
 /*
  * Get the time and location of up to "max" samples from the observation
  * enclosing "when".
  */
 {
-	int dfindex;
+	const DataFile *df;
+	int result = 0;
 /*
  * Find the data file holding the observation of interest, then pass
  * off the real work to DFA.
  */
-	if ((dfindex = ds_FindDF (pid, when, SRC_ALL)) < 0)
-		return (0);
-	InstallDFA;
-	return (dfa_GetObsSamples (dfindex, times, locs, max));
+	if ((df = ds_FindBefore (pid, when)))
+	{
+		InstallDFA;
+		result = dfa_GetObsSamples (df, times, locs, max);
+	}
+	return (result);
 }
 
 
@@ -125,7 +127,7 @@ int max;
 int
 ds_GetObsTimes (pid, when, times, ntime, attr)
 PlatformId pid;
-ZebTime *when, *times;
+ZebraTime *when, *times;
 int ntime;
 char *attr;
 /*
@@ -133,30 +135,27 @@ char *attr;
  * against attributes.
  */
 {
-	int df, i;
-	DataFile dfe;
+	int i;
+	const DataFile *df;
 /*
  * Find the first datafile which works.
  */
-	if ((df = ds_FindDF (pid, when, SRC_ALL)) < 0)
+	if ((df = ds_FindBefore (pid, when)) < 0)
 		return (0);
 /*
  * Now return some times.
  */
 	InstallDFA;
-	ds_LockPlatform (pid);
 	for (i = 0; i < ntime && df;)
 	{
-		if (! ds_GetFileStruct (df, &dfe))
-			return (0);
-		if (!attr || ds_AttrCheck (df, &dfe.df_begin, attr))
+		if (!attr || ds_AttrCheck (df, &df->df_core.dfc_begin, attr))
 		{
-			*times++ = dfe.df_begin;
+			*times++ = df->df_core.dfc_begin;
 			i++;
 		}
-		df = dfe.df_FLink;
+		df = ds_PrevFile (df);
 	}
-	ds_UnlockPlatform (pid);
+
 	return (i);
 }
 
@@ -164,10 +163,7 @@ char *attr;
 
 #ifndef NO_GETATTR
 static int
-ds_AttrCheck (df, t, attr)
-int df;
-ZebTime *t;
-char *attr;
+ds_AttrCheck (const DataFile *df, const ZebraTime *t, char *attr)
 /*
  * See if this attribute is found in the data.
  */
@@ -209,8 +205,8 @@ char *attr;
 #ifdef NO_GETATTR
 static int
 ds_AttrCheck (df, t, attr)
-int df;
-ZebTime *t;
+DataFile *df;
+ZebraTime *t;
 char *attr;
 /*
  * See if this attribute is found in the data.
@@ -252,18 +248,19 @@ int *ndetail;
 int
 ds_GetFields (plat, t, nfld, flist)
 PlatformId plat;
-ZebTime *t;
+const ZebraTime *t;
 int *nfld;
 FieldId *flist;
 /*
  * Return a list of the available fields in this platform at this time.
  */
 {
-	int dfindex;
+	const DataFile *df;
+	int result;
 /*
  * Find a file entry to look at.
  */
-	if ((dfindex = ds_FindDF (plat, t, SRC_ALL)) < 0)
+	if ((df = ds_FindBefore (plat, t)) == NULL)
 	{
 		*nfld = 0;
 		return (0);
@@ -272,17 +269,18 @@ FieldId *flist;
  * Have the format driver actually look.
  */
 	InstallDFA;
-	return (dfa_GetFields (dfindex, t, nfld, flist));
+	result = dfa_GetFields (df, t, nfld, flist);
+	return (result);
 }
 
 
 
 
 static int
-ds_QualifyTimes (dfi, which, times, n, key, value)
-int dfi;
+ds_QualifyTimes (df, which, times, n, key, value)
+DataFile *df;
 TimeSpec which;
-ZebTime *times;
+ZebraTime *times;
 int n;
 char *key;
 char *value;
@@ -316,7 +314,7 @@ char *value;
 	skip = 0;
 	for ( ; i >= 0 && i < n; )
 	{
-		if (! ds_AttrCheck (dfi, times+i, value))
+		if (! ds_AttrCheck (df, times+i, value))
 		{
 			--n;
 			skip += dir;
@@ -337,7 +335,7 @@ char *value;
 int
 ds_DataTimes (platform, when, n, which, rettimes)
 PlatformId platform;
-ZebTime *when, *rettimes;
+ZebraTime *when, *rettimes;
 int n;
 TimeSpec which;
 /*
@@ -354,12 +352,12 @@ TimeSpec which;
 int
 ds_AttrTimes (platform, when, n, which, key, value, rettimes)
 PlatformId platform;
-ZebTime *when;
+ZebraTime *when;
 int n;
 TimeSpec which;
 char *key;		/* if null, value checked as key or value */
 char *value;		/* simple string comparison for now */
-ZebTime *rettimes;
+ZebraTime *rettimes;
 /*
  * Return a list of up to "n" times related to "time" by the given spec.
  * The times returned can be qualified an attribute key and/or value.
@@ -371,10 +369,10 @@ ZebTime *rettimes;
  * we might search forever looking for a single qualified sample.
  */
 {
-	int ndone = 0, index;
+	int ndone = 0;
 	int nseen = 0;
 	int max = n;
-	DataFile dfe;
+	const DataFile *df;
 	int i;
 /*
  * We don't do it all yet.
@@ -395,30 +393,24 @@ ZebTime *rettimes;
 	 * Scan down the datafile list until we find the first entry
 	 * which begins before the given time.
 	 */
-		if ((index = ds_FindDF (platform, when, SRC_ALL)) < 0)
+		if ((df = ds_FindBefore (platform, when)) == NULL)
 			return (0);
 	/*
 	 * Now we plow through datafile entries until we have all we
 	 * want.
 	 */
-		ds_LockPlatform (platform);
-		while (index && ndone < n && nseen < max)
-		{
+		do {
 			int nnew;
-			nnew = dfa_DataTimes (index, when, which, n - ndone,
+			nnew = dfa_DataTimes (df, when, which, n - ndone,
 					      rettimes + ndone);
 			nseen += nnew;
-			nnew = ds_QualifyTimes (index, which, 
+			nnew = ds_QualifyTimes (df, which, 
 						rettimes + ndone, nnew,
 						key, value);
 			ndone += nnew;
-			if (ndone < n)
-			{
-				ds_GetFileStruct (index, &dfe);
-				index = dfe.df_FLink;
-			}
 		}
-		ds_UnlockPlatform (platform);
+		while (ndone < n && nseen < max && 
+		       (df = ds_PrevFile(df)) != 0);
 		return (ndone);
 /*
  * We now do DsAfter too.
@@ -427,31 +419,31 @@ ZebTime *rettimes;
 	/*
 	 * Get positioned.
 	 */
-		if ((index = ds_FindAfter (platform, when)) < 0)
+		if ((df = ds_FindAfter (platform, when)) == NULL)
 			return (0);
 	/*
-	 * Now we move forward filling the array.
+	 * Now we move forward filling the array.  The loop test at the
+	 * end is meant to shortcut finding another file in the chain
+	 * when the loop will be exited for other reasons.
 	 */
-		ds_LockPlatform (platform);
-		for (; index && ndone < n && nseen < max; index = dfe.df_BLink)
-		{
+		do {
 			int nnew;
-			ds_GetFileStruct (index, &dfe);
-			nnew = dfa_DataTimes (index, when, which, n - ndone,
+			nnew = dfa_DataTimes (df, when, which, n - ndone,
 					      rettimes + n - ndone - 1);
 			nseen += nnew;
-			nnew = ds_QualifyTimes (index, which,
+			nnew = ds_QualifyTimes (df, which,
 						rettimes + n - ndone - nnew,
 						nnew, key, value);
 			ndone += nnew;
 		}
-		ds_UnlockPlatform (platform);
+		while (ndone < n && nseen < max && 
+		       (df = ds_NextFile (df)) != 0);
 	/*
 	 * If we couldn't do it all, copy what we could do forward.
 	 */
 		if (ndone && ndone < n)
 			memcpy (rettimes, rettimes + n - ndone,
-			       (n - ndone) * sizeof (ZebTime));
+			       (n - ndone) * sizeof (ZebraTime));
 		return (ndone);
 	/*
 	 * But that's all.
@@ -470,7 +462,7 @@ zbool
 ds_GetAlts (pid, fid, when, offset, alts, nalts, altunits)
 PlatformId pid;
 FieldId	fid;
-ZebTime	*when;
+ZebraTime	*when;
 int	offset;
 float	*alts;
 int	*nalts;
@@ -479,8 +471,8 @@ AltUnitType *altunits;
  * Get the heights for this time, field, and forecast offset.
  */
 {
-	int dfindex;
-	GetList	gl;
+	const DataFile *df;
+	GetList gl;
 	zbool is_raw;
 	DerivMethod deriv;
 	FieldId check_fid = fid;
@@ -488,8 +480,9 @@ AltUnitType *altunits;
  * Now find a datafile entry we can use.
  */
 	InstallDFA;
-	if ((dfindex = ds_FindDF (pid, when, SRC_ALL)) < 0)
-		return (FALSE);
+
+	if (! (df = ds_FindBefore (pid, when)))
+	    return (FALSE);
 /*
  * Check for availability (including derivation if necessary) of the 
  * chosen field.
@@ -497,7 +490,7 @@ AltUnitType *altunits;
  * KLUGE: we build a fake GetList (with the datafile we found above
  * as its only entry) to call FldAvailable().
  */
-	gl.gl_dfindex = dfindex;
+	gl.gl_df = *df;
 	gl.gl_begin = *when;
 	gl.gl_end = *when;
 	gl.gl_flags = 0;
@@ -526,8 +519,7 @@ AltUnitType *altunits;
 /*
  * Get the rest from the format-specific code.
  */
-	return (dfa_GetAlts (dfindex, check_fid, offset, alts, nalts, 
-			     altunits));
+	return (dfa_GetAlts (df, check_fid, offset, alts, nalts, altunits));
 }
 
 
@@ -536,13 +528,14 @@ AltUnitType *altunits;
 zbool
 ds_GetForecastTimes (pid, when, times, ntimes)
 PlatformId	pid;
-ZebTime	*when;
+ZebraTime	*when;
 int	*times, *ntimes;
 /*
  * Get the heights for this time.
  */
 {
-	int dfindex;
+	const DataFile *df;
+	int result;
 /*
  * First make sure it's a model platform
  */
@@ -552,12 +545,14 @@ int	*times, *ntimes;
 /*
  * Now find a datafile entry we can use.
  */
-	if ((dfindex = ds_FindDF (pid, when, SRC_ALL)) < 0)
-		return (FALSE);
-/*
- * Get the rest from the format-specific code.
- */
-	return (dfa_GetForecastTimes (dfindex, times, ntimes));
+	if ((df = ds_FindBefore (pid, when)))
+	{
+		/*
+		 * Get the rest from the format-specific code.
+		 */
+		result = dfa_GetForecastTimes (df, times, ntimes);
+	}
+	return (result);
 }
 
 
@@ -586,7 +581,7 @@ struct message *msg;
 	 */
 	   case dpt_DataGone:
 		ddg = (struct dsp_DataGone *) dt;
-		dfa_ForceClose (ddg->dsp_file);
+		dfa_ForceClose (&ddg->dsp_file);
 		break;
 	   default:
 		break;
@@ -618,14 +613,342 @@ int ndetail;
 		
 	TC_EncodeTime (&gp->gl_begin, TC_Full, btime);
 	TC_EncodeTime (&gp->gl_end, TC_Full, etime);
-	msg_ELog (EF_DEBUG, "getdata file #%d, getlist %s to %s",
-		  gp->gl_dfindex, btime, etime);
+	msg_ELog (EF_DEBUG, "ds_FProcGetList: %s, %s to %s",
+		  gp->gl_df.df_fullname, btime, etime);
     }
 #endif
 /*
  * Get the data from this getlist entry's data file.
  */
     dfa_GetData (dc, gp, details, ndetail);
+}
+
+
+
+static DataChunk *
+ds_FetchData (pid, class, obs, begin, end, fields, nfield, details, ndetail)
+PlatformId pid;
+DataClass class;
+int obs;		/* non-zero if fetching entire, single obs */
+ZebTime *begin, *end;
+FieldId *fields;
+int nfield, ndetail;
+dsDetail *details;
+/*
+ * The net data store fetch interface.
+ * Entry:
+ *	PID	is the name of the platform of interest.
+ *	CLASS	is the class of the desired data chunk.
+ *	BEGIN	is the desired time of the first datum
+ *	END	is the end time
+ *	FIELDS	is a list of desired fields
+ *	NFIELD	is the length of that list
+ *	DETAILS	is a list of fetch control details
+ *	NDETAIL	is the length of that list.
+ * 	ALLOW_DERIVATION is true iff field derivation is to be allowed
+ * Exit:
+ *	If any data could be found then
+ *		The return value is a data chunk containing that data
+ *	else
+ *		The return value is NULL.
+ */
+{
+    DataChunk *return_dc, *base_dc;
+    GetList *get;
+/*
+ * Make the get list describing where this data has to come from.
+ */
+    InstallDFA;
+    CheckDetails (&details, &ndetail);
+    if (! (get = dgl_MakeGetList (pid, begin, end)))
+    {
+	msg_ELog (EF_DEBUG, "GetList get failure");
+	return (NULL);
+    }
+    if (obs)
+    {
+	get->gl_begin = get->gl_df.df_core.dfc_begin;
+	get->gl_end = get->gl_df.df_core.dfc_end;
+    }
+/*
+ * Pass the work off to Derive() if we're building a MetData datachunk
+ * and at least one of the fields needs derivation.
+ */
+    if (DerivationCheck (pid, class, get, fields, nfield))
+    {
+	return_dc = Derive (pid, class, get, fields, nfield, details, ndetail);
+    }
+/*
+ * Otherwise, we just use the old non-derivation method...
+ */
+    else
+    {
+    /*
+     * Now it is up to the format driver to get ready and create a data 
+     * chunk for us.
+     */
+	if (! (return_dc = dfa_Setup (get, fields, nfield, class)))
+	{
+	    msg_ELog (EF_DEBUG, "Setup failure");
+	    dgl_ReturnList (get);
+	    return (NULL);
+	}
+	dc_SetPlatform (return_dc, pid);
+    /*
+     * Finally, fill the data chunk.  For MetData data chunks, try to derive 
+     * data if possible.
+     */
+	ds_FProcGetList (return_dc, get, details, ndetail);
+	dgl_ReturnList (get);
+    }
+    
+/*
+ * Clean up
+ */
+    if (dc_GetNSample (return_dc) == 0)
+    {
+	dc_DestroyDC (return_dc);
+	return (NULL);
+    }
+/*
+ * Done
+ */
+    dc_ProcessDetails (return_dc, details, ndetail);
+    return (return_dc);
+}
+
+
+
+DataChunk *
+ds_Fetch (pid, class, begin, end, fields, nfield, details, ndetail)
+PlatformId pid;
+DataClass class;
+ZebraTime *begin, *end;
+FieldId *fields;
+int nfield, ndetail;
+dsDetail *details;
+{
+	return (ds_FetchData (pid, class, FALSE, begin, end, fields, nfield, 
+			      details, ndetail));
+}
+
+
+
+
+
+DataChunk *
+ds_FetchObs (pid, class, when, fields, nfield, details, ndetail)
+PlatformId pid;
+DataClass class;
+ZebraTime *when;
+FieldId *fields;
+int nfield, ndetail;
+dsDetail *details;
+/*
+ * Get an observation from this source.
+ * Entry:
+ *	PID	is the name of the platform of interest.
+ *	CLASS	is the class of the desired data chunk.
+ *	WHEN	is the time of the desired observation.
+ *	FIELDS	is a list of desired fields
+ *	NFIELD	is the length of that list
+ *	DETAILS	is a list of fetch control details
+ *	NDETAIL	is the length of that list.
+ * Exit:
+ *	If any data could be found then
+ *		The return value is a data chunk containing that data
+ *	else
+ *		The return value is NULL.
+ */
+{
+	return (ds_FetchData (pid, class, TRUE, when, when, fields, nfield, 
+			      details, ndetail));
+}
+
+
+
+
+/*
+ * WHEREAS, I am lazy and tired of keeping two (2) storage algorithms
+ * up-to-date and error free, and I have recently made fixes to
+ * ds_StoreBlocks making it more complete and effective, and
+ *
+ * INASMUCH as the two routines ds_Store and ds_StoreBlocks have identical
+ * functionality, and
+ *
+ * WHEREAS ds_StoreBlocks has been thoroughly tested and stable for quite
+ * some time now, and
+ *
+ * LASTLY, being that ds_StoreBlocks is in general significantly more
+ * efficient and faster and always at least as fast as the original
+ * ds_Store implementation,
+ *
+ * be it DECREED that the original ds_Store is no longer compiled and is
+ * now instead simply a direct call to ds_StoreBlocks.
+ *
+ * Be it so NOTED this 9th day of November, in the year 1995 A.D. 
+ */
+zbool
+ds_Store (dc, newfile, details, ndetail)
+DataChunk *dc;
+zbool newfile;
+dsDetail *details;
+int ndetail;
+{
+	return (ds_StoreBlocks (dc, newfile, details, ndetail));
+}
+
+
+
+zbool
+ds_StoreBlocks (dc, newfile, details, ndetail)
+DataChunk *dc;
+zbool newfile;
+dsDetail *details;
+int ndetail;
+/*
+ * Store samples in the largest blocks possible, while consolidating 
+ * notifications to the daemon as much as possible.
+ */
+{
+    int nsample, sample, endsamp = 0;
+    const DataFile *dfp, *next;
+    DataFile df;
+    int ndone;		/* Total number of samples successfully stored	*/
+    int block_size;
+    WriteCode wc;
+    const Platform *p;
+    ZebraTime curtime;
+/*
+ * This is a reasonable spot to make sure we have a valid platform
+ */
+    InstallDFA;
+    if (dc->dc_Platform == BadPlatform)
+    {
+	msg_ELog (EF_PROBLEM, "attempting ds_Store of DataChunk %s",
+		  "with bad platform id");
+	return (FALSE);
+    }
+    CheckDetails (&details, &ndetail);
+/*
+ * Setup time.
+ */
+    p = dt_FindPlatform (dc->dc_Platform);
+
+    if (! Standalone)
+	tl_Time (&curtime);
+    else
+	TC_SysToZt (time(0), &curtime);
+/*
+ * Start plowing through the data.
+ */
+    nsample = dc_GetNSample (dc);
+    ndone = 0;
+    sample = 0;
+
+    while (sample < nsample)
+    {
+    /*
+     * Find a feasible location for the next sample of the data chunk.
+     */
+	dfp = ds_FindDest (dc, p, sample, &wc, newfile && (sample == 0),
+			   &curtime);
+    /*
+     * Do some WriteCode-specific stuff
+     */
+	if (wc == wc_SkipIt)
+	{
+	/*
+	 * Skip the sample if we're told to
+	 */
+	    ++sample;
+	    continue;	/* go on with the next sample */
+	}
+	else if (wc == wc_NewFile)
+	{
+	/*
+	 * If a new file is called for, create it and tell the dsDaemon.
+	 */
+	    if (! ds_MakeNewFile (dc, p, sample, details, ndetail, &df))
+		break;	/* Bail completely */
+
+	    wc = wc_Append;	/* Now that the file is around */
+	/*
+	 * What's the next file after our file, if any?  We use ds_FindFile()
+	 * here rather than ds_NextFile(df), since the daemon doesn't know
+	 * about our new file yet.
+	 */
+	    next = ds_FindDFAfter (SRC_DEFAULT_W, pi_Id (p), 
+				   &df.df_core.dfc_end);
+	}
+	else
+	{
+	/*
+	 * Make sure we got a file from ds_FindDest()...
+	 */
+	    if (! dfp)
+	    {
+		msg_ELog (EF_PROBLEM, 
+			  "ds_StoreBlocks: Good wcode, but no file to write");
+		++sample;
+		continue;
+	    }
+
+	    df = *dfp;
+	/*
+	 * What's the next file after our file, if any?
+	 */
+	    next = ds_NextFile (&df);
+	}
+    /*
+     * Find out how many samples can be written to this file
+     * as a single block.  The answer is at least one.
+     */
+	ds_FindBlock (&df, next, dc, p, sample, wc, &block_size);
+	msg_ELog ((block_size >= 25) ? EF_DEBUG : EF_DEVELOP,
+		  "%s block of %i samples to %s",
+		  (wc == wc_Append) ? "appending" : 
+		  ((wc == wc_Insert) ? "inserting" : 
+		   "overwriting"), block_size, pi_Name (p));
+    /*
+     * Now we write whatever block we found
+     */
+	if (dfa_PutBlock (&df, dc, sample, block_size, wc, details, ndetail))
+	{
+	    ZebraTime endt;
+	    int noverwritten = 0, nnew = 0;
+	/*
+	 * Keep track of successful writes.
+	 */
+	    ndone += block_size;
+	    if (wc == wc_Overwrite)
+		noverwritten = block_size;
+	    else
+	    {
+		nnew = block_size;
+		df.df_core.dfc_nsample += block_size;
+	    }
+        /*
+         * Update the end time of the file, if necessary
+         */
+            endsamp = sample + block_size - 1;
+            dc_GetTime (dc, endsamp, &endt);
+            if (TC_Less (df.df_core.dfc_end, endt))
+                df.df_core.dfc_end = endt;
+        /*
+         * Note that we've made modifications
+         */
+            ds_NotifyDaemon (p, &df, noverwritten, nnew, endsamp, TRUE);
+        }
+    /*
+     * Move on to the rest of the samples no matter what
+     */
+        sample += block_size;
+    } /* while (sample < nsample) */
+/*
+ * Release the write lock and we're outta here.
+ */
+    return (ndone == nsample);
 }
 
 
@@ -647,10 +970,10 @@ Derive (PlatformId pid, DataClass class, GetList *gl, FieldId *destflds,
     DataChunk *dest_dc, *extra_dc;
 /* 
  * For each destination field:
- *    Get a derivation method (if any).  If the field is available raw,
- *    do nothing special.  Otherwise, if we got a good derivation method,
- *    then add the source fields necessary for the derivation to our list
- *    of extra fields.
+ *	Get a derivation method (if any).  If the field is available raw,
+ *	do nothing special.  Otherwise, if we got a good derivation method, 
+ *	then add the source fields necessary for the derivation to our list 
+ *	of extra fields.
  */
     derivs = (DerivMethod*) malloc (ndestflds * sizeof (DerivMethod));
     
@@ -666,9 +989,9 @@ Derive (PlatformId pid, DataClass class, GetList *gl, FieldId *destflds,
      * or is available raw, we don't have to deal with extra derivation stuff
      * so just move on.
      */
-	derivs[df] = (DerivMethod) 0;
+	derivs[df] = 0;
 	aliases[df] = BadField;
-	
+
 	if (! FldAvailable (destflds[df], pid, gl, &is_raw, &derivs[df]) ||
 	    is_raw)
 	{
@@ -677,7 +1000,7 @@ Derive (PlatformId pid, DataClass class, GetList *gl, FieldId *destflds,
 		nraw++;
 		ds_DestroyDeriv (derivs[df]);
 		derivs[df] = 0;
-	    }   
+	    }
 	    continue;
 	}
     /*
@@ -705,7 +1028,7 @@ Derive (PlatformId pid, DataClass class, GetList *gl, FieldId *destflds,
 	    for (d = 0; d < ndestflds; d++)
 		if (rawfld == destflds[d])
 		    break;
-	/*
+	/* 
 	 * If the desired raw FieldId isn't already in the list of
 	 * destination fields, then we can use the shortcut.  Stash the
 	 * real destination field into the aliases list, and replace it
@@ -715,11 +1038,11 @@ Derive (PlatformId pid, DataClass class, GetList *gl, FieldId *destflds,
 	    if (d == ndestflds)
 	    {
 		char rname[128];
-	    /*
+	    /* 
 	     * Print a message.  Gotta copy one of the full names, since
 	     * the string returned by F_GetFullName() is only valid until
 	     * the next call, so we can't have two of them in one
-	     * msg_ELog() call...
+	     * msg_ELog() call... 
 	     */
 		strcpy (rname, F_GetFullName (rawfld));
 		msg_ELog (EF_DEBUG, "Alias shortcut: %s yields %s.  Cool!",
@@ -741,11 +1064,11 @@ Derive (PlatformId pid, DataClass class, GetList *gl, FieldId *destflds,
 		continue;
 	    }
 	}
-    /*
+    /* 
      * Not raw or a simple alias, so we have to set up for a real derivation.
      * Figure out which source field(s) we need for deriving this
      * destination field, and add those to our list of extra fields,
-     * dropping duplicates. 
+     * dropping duplicates.
      */
 	for (sf = 0; sf < nsrcflds; sf++)
 	{
@@ -761,7 +1084,6 @@ Derive (PlatformId pid, DataClass class, GetList *gl, FieldId *destflds,
 	 */
 	    extraflds[nextraflds++] = srcflds[sf];
 	}
-
 	free (srcflds);
     }
 /* 
@@ -785,11 +1107,10 @@ Derive (PlatformId pid, DataClass class, GetList *gl, FieldId *destflds,
 	}
     }
 /*
- * Set up our return datachunk with the destination fields.  Also set up a
+ * Set up our return datachunk with the destination fields.  Also set up a 
  * data chunk for the extra fields needed for derivations.
  */
     dest_dc = dfa_Setup (gl, destflds, ndestflds, class);
-
     extra_dc = nextraflds ? dfa_Setup (gl, extraflds, nextraflds, class) : 0;
     
     if (! dest_dc || (nextraflds && ! extra_dc))
@@ -808,16 +1129,16 @@ Derive (PlatformId pid, DataClass class, GetList *gl, FieldId *destflds,
     }
 /*
  * Get the extra data required for derivations (if any)
- */ 
+ */
     if (extra_dc)
     {
 	dc_SetPlatform (extra_dc, pid);
 	ds_FProcGetList (extra_dc, gl, details, ndetail);
     }
 /*
- * Special handling for derived fields in NSpace datachunks.  The
- * setup above knew nothing of the geometry for derived fields, so we have
- * to redefine them here.  For each derived field, we just copy the geometry
+ * Special handling for derived fields in NSpace datachunks.  The 
+ * setup above knew nothing of the geometry for derived fields, so we have 
+ * to redefine them here.  For each derived field, we just copy the geometry 
  * from one of the fields to be used in its derivation.
  */
     if (class == DCC_NSpace)
@@ -838,7 +1159,7 @@ Derive (PlatformId pid, DataClass class, GetList *gl, FieldId *destflds,
 	     * field's geometry.
 	     */
 		srcflds = ds_DerivNeededFields (derivs[df], &nsrcflds);
-		dc_NSGetField (extra_dc, srcflds[0], &ndims, names, 0,
+		dc_NSGetField (extra_dc, srcflds[0], &ndims, names, 0, 
 			       &is_static);
 
 		for (i = 0; i < ndims; i++)
@@ -847,17 +1168,17 @@ Derive (PlatformId pid, DataClass class, GetList *gl, FieldId *destflds,
 		dc_NSDefineVariable (dest_dc, destflds[df], ndims, dims,
 				     is_static);
 	    }
-	} 
+	}
     }
 /*
  * Fill the destination data chunk
- */
+ */	
     dc_SetPlatform (dest_dc, pid);
     ds_FProcGetList (dest_dc, gl, details, ndetail);
 /*
  * Loop through the fields in the destination data chunk.  Rename fields where
- * the alias shortcut was used.  For destination fields that need to be
- * derived, perform the derivation and replace their data in the destination
+ * the alias shortcut was used.  For destination fields that need to be 
+ * derived, perform the derivation and replace their data in the destination 
  * data chunk.
  */
     for (df = 0; df < ndestflds; df++)
@@ -876,11 +1197,11 @@ Derive (PlatformId pid, DataClass class, GetList *gl, FieldId *destflds,
     }
 /*
  * Clean up
- */    
+ */
     free (derivs);
     
     if (extra_dc)
-	dc_DestroyDC (extra_dc);
+	dc_DestroyDC (extra_dc);    
 /*
  * Done
  */
@@ -894,8 +1215,8 @@ static void
 DeriveFld (DataChunk *dest_dc, DataChunk *src_dc, FieldId fld, 
 	   DerivMethod deriv)
 /*
- * Derive field 'fld' from data in src_dc, using derivation method 'deriv',
- * and inserting the results into dest_dc. 
+ * Derive field 'fld' from data in src_dc, using derivation method 'deriv', 
+ * and inserting the results into dest_dc.
  */
 {
     int nsrcflds, sf, nsample, elemsize, elemcount, samp, firstelem;
@@ -1050,10 +1371,10 @@ DeriveFld (DataChunk *dest_dc, DataChunk *src_dc, FieldId fld,
     results = (char *) malloc (elemcount * elemsize);
 
     for (e = 0; e < elemcount; e++)
-	dc_LongDoubleToType ((void*)(results + e * elemsize), elemtype,
-			     (LongDouble)(dblresults[e]));
+	dc_DoubleToType ((void*)(results + e * elemsize), elemtype, 
+			 dblresults[e]);
 /*
- * We can now stash the derived data.  Data stash can happen as a unit for
+ * We can now stash the derived data.  Data stash can happen as a unit for 
  * uniform samples, otherwise must happen sample by sample.
  */
     if (uniform)
@@ -1129,105 +1450,6 @@ DerivationFailure (DataChunk *dest_dc, FieldId fld)
 
 
 
-static DataChunk *
-ds_FetchData (pid, class, obs, begin, end, fields, nfield, details, ndetail)
-PlatformId pid;
-DataClass class;
-int obs;		/* non-zero if fetching entire, single obs */
-ZebTime *begin, *end;
-FieldId *fields;
-int nfield, ndetail;
-dsDetail *details;
-/*
- * The net data store fetch interface.
- * Entry:
- *	PID	is the name of the platform of interest.
- *	CLASS	is the class of the desired data chunk.
- *	BEGIN	is the desired time of the first datum
- *	END	is the end time
- *	FIELDS	is a list of desired fields
- *	NFIELD	is the length of that list
- *	DETAILS	is a list of fetch control details
- *	NDETAIL	is the length of that list.
- * 	ALLOW_DERIVATION is true iff field derivation is to be allowed
- * Exit:
- *	If any data could be found then
- *		The return value is a data chunk containing that data
- *	else
- *		The return value is NULL.
- */
-{
-    DataChunk *return_dc, *base_dc;
-    GetList *get;
-/*
- * Make the get list describing where this data has to come from.
- */
-    InstallDFA;
-    CheckDetails (&details, &ndetail);
-    if (! (get = dgl_MakeGetList (pid, begin, end)))
-    {
-	msg_ELog (EF_DEBUG, "GetList get failure");
-	return (NULL);
-    }
-    if (obs)
-    {
-	DataFile dfe;
-
-	ds_GetFileStruct (get->gl_dfindex, &dfe);
-	get->gl_begin = dfe.df_begin;
-
-	get->gl_end = dfe.df_end;
-    }
-/*
- * Pass the work off to Derive() if we're building a MetData datachunk
- * and at least one of the fields needs derivation.
- */
-    if (DerivationCheck (pid, class, get, fields, nfield))
-    {
-	return_dc = Derive (pid, class, get, fields, nfield, details, ndetail);
-    }
-/*
- * Otherwise, we just use the old non-derivation method...
- */
-    else
-    {
-    /*
-     * Now it is up to the format driver to get ready and create a data 
-     * chunk for us.
-     */
-	if (! (return_dc = dfa_Setup (get, fields, nfield, class)))
-	{
-	    msg_ELog (EF_DEBUG, "Setup failure");
-	    dgl_ReturnList (get);
-	    return (NULL);
-	}
-	dc_SetPlatform (return_dc, pid);
-    /*
-     * Finally, fill the data chunk.  For MetData data chunks, try to derive 
-     * data if possible.
-     */
-	ds_FProcGetList (return_dc, get, details, ndetail);
-	dgl_ReturnList (get);
-    }
-    
-/*
- * It is still possible that there were no times in the file between
- * the requested times, in which case we return null for no data found.
- */
-    if (dc_GetNSample (return_dc) == 0)
-    {
-	dc_DestroyDC (return_dc);
-	return (NULL);
-    }
-/*
- * Finally, process any file-format-independent details, like bad values
- */
-    dc_ProcessDetails (return_dc, details, ndetail);
-    return (return_dc);
-}
-
-
-
 static zbool
 DerivationCheck (PlatformId pid, DataClass class, GetList *gl, FieldId *flds, 
 		 int nflds)
@@ -1287,7 +1509,7 @@ FldAvailable (FieldId fld, PlatformId pid, GetList *gl, zbool *is_raw,
      * Get the list of available fields in this getlist entry's file
      */
 	nfflds = MAXRAWFLDS;
-	dfa_GetFields (gp->gl_dfindex, &(gp->gl_begin), &nfflds, fileflds);
+	dfa_GetFields (&(gp->gl_df), &(gp->gl_begin), &nfflds, fileflds);
     /*
      * See if this field is available raw from the data file
      */
@@ -1320,7 +1542,7 @@ FldAvailable (FieldId fld, PlatformId pid, GetList *gl, zbool *is_raw,
      * Get the list of available fields in this getlist entry's file
      */
 	nfflds = MAXRAWFLDS;
-	dfa_GetFields (gp->gl_dfindex, &(gp->gl_begin), &nfflds, fileflds);
+	dfa_GetFields (&(gp->gl_df), &(gp->gl_begin), &nfflds, fileflds);
     /* 
      * Return true if this field is derivable from fields in the data file
      */
@@ -1340,351 +1562,31 @@ FldAvailable (FieldId fld, PlatformId pid, GetList *gl, zbool *is_raw,
 
 
 
-
-DataChunk *
-ds_Fetch (pid, class, begin, end, fields, nfield, details, ndetail)
-PlatformId pid;
-DataClass class;
-ZebTime *begin, *end;
-FieldId *fields;
-int nfield, ndetail;
-dsDetail *details;
-/*
- * The net data store fetch interface.
- * Entry:
- *	PID	is the name of the platform of interest.
- *	CLASS	is the class of the desired data chunk.
- *	BEGIN	is the desired time of the first datum
- *	END	is the end time
- *	FIELDS	is a list of desired fields
- *	NFIELD	is the length of that list
- *	DETAILS	is a list of fetch control details
- *	NDETAIL	is the length of that list.
- * Exit:
- *	If any data could be found then
- *		The return value is a data chunk containing that data
- *	else
- *		The return value is NULL.
- */
-{
-	return (ds_FetchData (pid, class, FALSE, begin, end, fields, nfield, 
-			      details, ndetail));
-}
-
-
-
-
-
-DataChunk *
-ds_FetchObs (pid, class, when, fields, nfield, details, ndetail)
-PlatformId pid;
-DataClass class;
-ZebTime *when;
-FieldId *fields;
-int nfield, ndetail;
-dsDetail *details;
-/*
- * Get an observation from this source.
- * Entry:
- *	PID	is the name of the platform of interest.
- *	CLASS	is the class of the desired data chunk.
- *	WHEN	is the time of the desired observation.
- *	FIELDS	is a list of desired fields
- *	NFIELD	is the length of that list
- *	DETAILS	is a list of fetch control details
- *	NDETAIL	is the length of that list.
- * Exit:
- *	If any data could be found then
- *		The return value is a data chunk containing that data
- *	else
- *		The return value is NULL.
- */
-{
-	return (ds_FetchData (pid, class, TRUE, when, when, fields, nfield, 
-			      details, ndetail));
-}
-
-
-
-
-/*
- * WHEREAS, I am lazy and tired of keeping two (2) storage algorithms
- * up-to-date and error free, and I have recently made fixes to
- * ds_StoreBlocks making it more complete and effective, and
- *
- * INASMUCH as the two routines ds_Store and ds_StoreBlocks have identical
- * functionality, and
- *
- * WHEREAS ds_StoreBlocks has been thoroughly tested and stable for quite
- * some time now, and
- *
- * LASTLY, being that ds_StoreBlocks is in general significantly more
- * efficient and faster and always at least as fast as the original
- * ds_Store implementation,
- *
- * be it DECREED that the original ds_Store is no longer compiled and is
- * now instead simply a direct call to ds_StoreBlocks.
- *
- * Be it so NOTED this 9th day of November, in the year 1995 A.D. 
- */
-zbool
-ds_Store (dc, newfile, details, ndetail)
-DataChunk *dc;
-zbool newfile;
-dsDetail *details;
-int ndetail;
-{
-	return (ds_StoreBlocks (dc, newfile, details, ndetail));
-}
-
-
-
-
-zbool
-ds_StoreBlocks (dc, newfile, details, ndetail)
-DataChunk *dc;
-zbool newfile;
-dsDetail *details;
-int ndetail;
-/*
- * Store samples in the largest blocks possible, while consolidating 
- * notifications to the daemon as much as possible.  To this end, we must
- * keep a copy of the DataFile structure for the current file we're writing,
- * so we can modify it and keep it up to date for the FindDest and FindBlock
- * routines.
- *
- * Hold off on notifying the daemon as long as we're just adding to a pending
- * change.  As soon as we begin writing to a new file or switching to a
- * new write code, send the pending notification.
- */
-{
-	int nsample, sample, endsamp = 0;
-	int dfile, dfupdate;
-	int dfnext;
-	int nnew;
-	int now;
-	int ndone;	/* Total number of samples successfully stored	*/
-	int block_size;
-	DataFile dfe;	/* Stash for pending changes not yet notified 	*/
-	DataFile *dfp;
-	WriteCode wc;
-	ClientPlatform p;
-	ZebTime curtime;
-/*
- * This is a reasonable spot to make sure we have a valid platform
- */
-	InstallDFA;
-	if (dc_PlatformId (dc) == BadPlatform)
-	{
-		msg_ELog (EF_PROBLEM, "attempting ds_Store of DataChunk %s",
-			  "with bad platform id");
-		return (FALSE);
-	}
-	CheckDetails (&details, &ndetail);
-/*
- * Setup time.
- */
-	ds_WriteLock (dc_PlatformId (dc));
-	ds_GetPlatStruct (dc_PlatformId (dc), &p, TRUE);
-	if (! Standalone)
-		tl_Time (&curtime);
-	else
-		TC_SysToZt (time(0), &curtime);
-/*
- * Start plowing through the data.
- */
-	nsample = dc_GetNSample (dc);
-	ndone = 0;
-	sample = 0;
-	nnew = now = 0;
-	dfupdate = -1;
-	dfp = NULL;
-	while (sample < nsample)
-	{
-		zbool new = FALSE;
-	/*
-	 * Find a feasible location for the next sample of the data chunk.
-	 */
-		if (! ds_FindDest (dc, &p, dfp, sample, &dfile, &dfnext, &wc, 
-				   newfile && (sample == 0), &curtime))
-		{
-			++sample;	/* Skip this sample */
-			continue;	/* Sigh */
-		}
-	/*
-	 * If a new file is called for, create it.
-	 */
-	 	if (wc == wc_NewFile)
-		{
-			if ((dfile = ds_MakeNewFile (dc, &p, sample,
-						     details, ndetail)) < 0)
-				break;	/* Bail completely */
-			wc = wc_Append; /* Now that the file is around */
-			new = TRUE;
-		}
-	/* 
-	 * See if we have an update pending on a file different from the
-	 * next one.  Send the update now before writing the next file.
-	 * Set 'last' to true since this is probably the last update (as
-	 * far as we can guess anyway) for that file. 
-	 */
-		if ((dfupdate >= 0) && 
-		    ((dfile != dfupdate) || 
-		     (nnew && wc == wc_Overwrite) || 
-		     (now && wc != wc_Overwrite)))
-		{
-		/*
-		 * Fill in the daemon on what we did to the previus file.
-		 * The last sample of the block updates the file end time.
-		 */
-			ds_NotifyDaemon (&p, dfupdate, dc, now, nnew, 
-					 endsamp, /* last */ TRUE);
-		/*
-		 * These count new and overwritten samples since the last
-		 * notify, so now's the time to reset them.
-		 */
-			nnew = now = 0;
-		/* 
-		 * No longer need to update this file.
-		 */
-			dfupdate = -1;
-			dfp = NULL;
-		}
-	/*
-	 * Get a copy of the DataFile structure whose information we will be
-	 * modifying privately.
-	 */
-		if (! dfp)
-		{
-			ds_GetFileStruct (dfile, &dfe);
-			dfp = &dfe;
-		}
-	/*
-	 * Find out how many samples can be written to this file
-	 * as a single block.  The answer is at least one.
-	 */
-		ds_FindBlock (dfp, dfnext, dc, &p, sample, wc, &block_size);
-		msg_ELog((block_size >= 25) ? EF_DEBUG : EF_DEVELOP,
-			 "%s block of %i samples to %s",
-			 (wc == wc_Append) ? "appending" :
-			 ((wc == wc_Insert) ? "inserting" : 
-			  "overwriting"), block_size, p.cp_name);
-	/*
-	 * Now we write whatever block we found
-	 */
-		if (dfa_PutBlock (dfile, dc, sample, block_size, wc, 
-				  details, ndetail))
-		{
-			ZebTime endt;
-		/*
-		 * Keep track of successful writes.  Likewise, keep a
-		 * running tab of new samples in our private DataFile
-		 * structure.
-		 */
-			ndone += block_size;
-			if (wc == wc_Overwrite)
-			{
-				now += block_size;
-			}
-			else
-			{
-				nnew += block_size;
-				dfp->df_nsample += block_size;
-			}
-		/*
-		 * Set the end sample to the last sample of this block
-		 */
-			endsamp = sample + block_size - 1;
-			dc_GetTime (dc, endsamp, &endt);
-			if (TC_Less (dfp->df_end, endt))
-				dfp->df_end = endt;
-		/*
-		 * Set this file to be updated in the next daemon notify.
-		 * Either dfupdate is -1, or it already equals dfile.
-		 */
-			dfupdate = dfile;
-		}
-	/*
-	 * Move on to the rest of the samples no matter what
-	 */
-		sample += block_size;
-	/*
-	 * If we created a new file above, then our platform structure
-	 * needs to be updated before we can look for our next destination.
-	 * Notify the daemon of the update to this file, so that it moves
-	 * the Tfile into the file chain.  If the write failed above then
-	 * we'll likely get a "reusing temp file" warning, which is as it
-	 * should be.
-	 */
-		if (new && (dfupdate >= 0))
-		{
-		/*
-		 * We have to assume 'last' is true in case the next write
-		 * is to a different file.
-		 */
-			ds_NotifyDaemon (&p, dfupdate, dc, now, nnew, 
-					 endsamp, /* last */ TRUE);
-			nnew = now = 0;
-			dfupdate = -1;
-			dfp = NULL;
-			ds_GetPlatStruct (dc_PlatformId (dc), &p, TRUE);
-		}
-
-	} /* while (sample < nsample) */
-/*
- * Send any leftover update.
- */
-	if (dfupdate >= 0)
-	{
-		ds_NotifyDaemon (&p, dfupdate, dc, now, nnew, 
-				 endsamp, /* last */ TRUE);
-	}
-/*
- * Release the write lock and we're outta here.
- */
-	ds_FreeWriteLock (dc_PlatformId (dc));
-	return (ndone == nsample);
-}
-
-
-
-
-
 static void
-ds_FindBlock (dfp, dfnext, dc, plat, sample, wc, block_size)
-DataFile *dfp;
-int dfnext;		/* file following dfile, chronologically */
-DataChunk *dc;
-ClientPlatform *plat;
-int sample;
-WriteCode wc;
-int *block_size;
-/*
- * Starts at 'sample' in data chunk 'dc', and finds out how many
- * samples following constitute a block, suitable for storing
- * with dfa_PutBlock() into 'dfile'.  
- * Returns the number in 'block_size'.  Unless
- * 'sample' is out of range, 'nsample' will always hold at least 1.
- * At present, write code other wc_Insert automatically returns 1.
+ds_FindBlock (const DataFile *df, const DataFile *dfnext, DataChunk *dc, 
+	      const Platform *plat, int sample, WriteCode wc, int *block_size)
+/* Starts at 'sample' in data chunk 'dc', and finds out how many samples
+ * following constitute a block, suitable for storing with dfa_PutBlock()
+ * into 'dfile'.  Returns the number in 'block_size'.  Unless 'sample' is
+ * out of range, 'nsample' will always hold at least 1.  At present, write
+ * code other wc_Insert automatically returns 1. 
  */
 {
-	int smp, fut = 0;	/* counters			*/
-	int nsample;
-	DataFile dfenext;
-	ZebTime when, past;
-	ZebTime next;		/* time dfnext starts		*/
-	int avail;		/* samples available in the file*/
-	ZebTime *future = NULL;	/* data times already in file	*/
-	int nfuture = 0;	/* returned by dfa_DataTimes	*/
-	int dfile = dfp->df_index;
+    int smp, fut = 0;	/* counters			*/
+    int nsample;
+    ZebraTime when, past;
+    ZebraTime next;		/* time dfnext starts		*/
+    int avail;		/* samples available in the file*/
+    ZebraTime *future = NULL;	/* data times already in file	*/
+    int nfuture = 0;	/* returned by dfa_DataTimes	*/
 /*
  * Only accept appends and overwrites
  */
-	if (wc == wc_Insert)
-	{
-		*block_size = 1;
-		return;
-	}
+    if (wc == wc_Insert)
+    {
+	*block_size = 1;
+	return;
+    }
 /*
  * To be a block, times must be chronological (the order they'll
  * be written to the file), and the samples cannot overwrite or
@@ -1693,17 +1595,13 @@ int *block_size;
  * If overwriting, the maximum number of slots ever possibly available
  * is the number in the file already.
  */
-	ds_LockPlatform (dc_PlatformId (dc));
-	if (wc != wc_Overwrite)
-		avail = plat->cp_maxsamp - dfp->df_nsample;
-	else
-		avail = dfp->df_nsample;
+    if (wc != wc_Overwrite)
+	avail = pi_MaxSamp (plat) - df->df_core.dfc_nsample;
+    else
+	avail = df->df_core.dfc_nsample;
 
-	if (dfnext)
-	{
-		ds_GetFileStruct (dfnext, &dfenext);
-		next = dfenext.df_begin;
-	}
+    if (dfnext)
+	next = dfnext->df_core.dfc_begin;
 /*
  * So we'll see how many samples we can get which
  *  a) are in chronological order, and
@@ -1713,171 +1611,155 @@ int *block_size;
  *  e) if overwriting, which coincide with a sample already in the file
  * ...all without exceeding the number of samples in the data chunk
  */
-	nsample = dc_GetNSample(dc);
-	dc_GetTime(dc, sample, &past);
+    nsample = dc_GetNSample(dc);
+    dc_GetTime(dc, sample, &past);
 
-	if (wc == wc_Overwrite)
-	{
-	/*
-	 * Remember: for DsAfter, the times will be written chronologically
-	 * beginning at the end of the future[] array and working backwards.
-	 * nfuture will be the number of times in the future[] array, 
-	 * beginning at future[avail - 1].
-	 */
-		future = (ZebTime *)malloc(avail * sizeof(ZebTime));
-		fut = avail - 1;
-		nfuture = dfa_DataTimes (dfile, &past, DsAfter, 
-					 avail, future + fut);
-	/*
-	 * See if the oldest time we got is the one we already know
-	 * we're overwriting.  If so, go to the next one.
-	 */
-		if (nfuture && TC_Eq(past, future[fut]))
-			--fut;
-	}
-	ds_UnlockPlatform (dc_PlatformId (dc));
+    if (wc == wc_Overwrite)
+    {
+    /*
+     * Remember: for DsAfter, the times will be written chronologically
+     * beginning at the end of the future[] array and working backwards.
+     * nfuture will be the number of times in the future[] array, 
+     * beginning at future[avail - 1].
+     */
+	future = (ZebraTime *)malloc(avail * sizeof(ZebraTime));
+	fut = avail - 1;
+	nfuture = dfa_DataTimes (df, &past, DsAfter, avail, future + fut);
+    /*
+     * See if the oldest time we got is the one we already know
+     * we're overwriting.  If so, go to the next one.
+     */
+	if (nfuture && TC_Eq(past, future[fut]))
+	    --fut;
+    }
 /*
  * We know that at least one sample remains in the DC and that there is
  * space in the file for at least that sample (ds_FindDest told us).
  * So start looking at the next sample.
  */
-	smp = sample + 1;
-	while ((smp < nsample) && (smp - sample < avail))
+    smp = sample + 1;
+    while ((smp < nsample) && (smp - sample < avail))
+    {
+	dc_GetTime (dc, smp, &when);
+
+	if (! TC_LessEq (past, when))
+	    break;
+
+	if (wc == wc_Append)
 	{
-		dc_GetTime (dc, smp, &when);
-		if (! TC_LessEq (past, when))
-			break;
-		if (wc == wc_Append)
-		{
-			if (dfnext && (! TC_Less(when, next)))
-				break;
-			if ((plat->cp_flags & DPF_SPLIT) &&
-			    (! ds_SameDay (&when, &past)))
-				break;
-		}
-		else if (wc == wc_Overwrite)
-		{
-			if (avail - fut > nfuture) /* no more times in file */
-				break;
-			if (! TC_Eq(when, future[fut]))
-				break;
-			--fut;
-		}
-		past = when;
-		smp++;
+	    if (dfnext && (! TC_Less(when, next)))
+		break;
+	    if (pi_Daysplit (plat) && (! ds_SameDay (&when, &past)))
+		break;
 	}
+	else if (wc == wc_Overwrite)
+	{
+	    if (avail - fut > nfuture) /* no more times in file */
+		break;
+	    if (! TC_Eq(when, future[fut]))
+		break;
+	    --fut;
+	}
+
+	past = when;
+	smp++;
+    }
 /*
  * Finished.  Record the number of samples we found and return;
  * the size of the block will be at least one.
  */
-	*block_size = smp - sample;
-	if (wc == wc_Overwrite)
-		free (future);
-	return;
+    *block_size = smp - sample;
+    if (wc == wc_Overwrite)
+	free (future);
+    return;
 }
 
 
 
 
 
-static int
-ds_FindDest (dc, plat, cur, sample, dfile, dfnext, wc, newfile, now)
-DataChunk *dc;
-ClientPlatform *plat;
-DataFile *cur;		/* the file most recently written but not notified */
-int sample, *dfile, *dfnext, newfile;
-WriteCode *wc;
-ZebTime *now;
+static const DataFile*
+ds_FindDest (DataChunk *dc, const Platform *plat, int sample, WriteCode *wc, 
+	     int newfile, const ZebraTime *now)
 /*
- * Try to find an appropriate destination for this datum.
- * Return value is TRUE iff it was possible.  *dfnext returns with
- * the data file which chronologically follows *dfile, if it exists.
+ * Try to find and return an appropriate destination DataFile for this datum,
+ * and the correct WriteCode.  Return NULL if the WriteCode is wc_NewFile or
+ * wc_SkipIt.  The returned DataFile pointer is good until the next call
+ * to one of the file-finding functions.
  */
 {
-	int df;
-	DataFile dfe;
-	DataFile *dfp = NULL;
-	ZebTime when, dftime;
+    const DataFile *df;
+    const DataFileCore *dfc;
+    ZebraTime when, dftime;
 /*
  * Do a quick sanity check to see if this data has a bizarre time.  Reject
  * it in that case.
  */
-	dc_GetTime (dc, sample, &when);
-	if ((when.zt_Sec - now->zt_Sec) > MaxFuture)
-	{
-		msg_ELog (EF_PROBLEM, "Rejecting %s sample %d sec in future",
-			plat->cp_name, when.zt_Sec - now->zt_Sec);
-		return (FALSE);
-	}
+    dc_GetTime (dc, sample, &when);
+    if ((when.zt_Sec - now->zt_Sec) > MaxFuture)
+    {
+	msg_ELog (EF_PROBLEM, "Rejecting %s sample %d sec in future",
+		  pi_Name (plat), when.zt_Sec - now->zt_Sec);
+	*wc = wc_SkipIt;
+	return (0);
+    }
 /*
- * Find the first file in the local list which begins before the time
- * of interest.  This may seem like an inefficient search, and I suppose
- * it is, but the fact of the matter is that almost every time we are 
- * appending data and we'll stop at the first DFE.
+ * Find the latest file in the default writable source which begins before 
+ * the time of interest.
  */
-	ds_LockPlatform (dc_PlatformId (dc));
-	df = ds_DataChain (plat, 0);
-	*dfnext = 0;
-	for (; df; df = dfp->df_FLink)
-	{
-		if (cur && (df == cur->df_index))
-			dfp = cur;
-		else
-		{
-			ds_GetFileStruct (df, &dfe);
-			dfp = &dfe;
-		}
-		if (TC_LessEq (dfp->df_begin, when))
-			break;
-		*dfnext = df;
-	}
-	*dfile = df;
+    df = ds_FindDFBefore (SRC_DEFAULT_W, pi_Id (plat), &when);
 /*
  * If there is none, then this data predates anything we have, so we
  * just return a new file case.
  */
-	if (! df)
-	{
-		*dfile = -1;
-		*wc = wc_NewFile;
-	}
+    if (! df)
+    {
+	*wc = wc_NewFile;
+	return (0);
+    }
 /*
  * See if the datum actually falls after the end of this dfile (most common
  * case).  If so, we either append or newfile.
  */
-	else if (TC_Less (dfp->df_end, when))
+    dfc = &df->df_core;
+    
+    if (TC_Less (dfc->dfc_end, when))
+    {
+	if (! newfile && dfc->dfc_nsample < pi_MaxSamp (plat) &&
+	    (! pi_Daysplit (plat) || ds_SameDay (&when, &dfc->dfc_end)))
+	    *wc = wc_Append;
+	else
 	{
-		if (! newfile && dfp->df_nsample < plat->cp_maxsamp &&
-				 (! (plat->cp_flags & DPF_SPLIT) ||
-			 	ds_SameDay (&when, &dfp->df_end)) &&
-				 (dfp->df_flags & DFF_Archived) == 0)
-			*wc = wc_Append;
-		else
-			*wc = wc_NewFile;
+	    *wc = wc_NewFile;
+	    df = 0;
 	}
+    }
+/*
+ * Writes to empty files are automatically appends.
+ */
+    else if (dfc->dfc_nsample == 0)
+	*wc = wc_Append;
 /*
  * The simple cases are not to be.  Now we have to see whether we
  * need to be overwriting data, or stuffing it in between.
  */
-	else if (! dfa_DataTimes (df, &when, DsBefore, 1, &dftime) ||
-		 ! TC_Eq (when, dftime))
-	{
-		*wc = wc_Insert;
-	}
-	else
-	{
-		*wc = wc_Overwrite;
-	}
-	ds_UnlockPlatform (dc_PlatformId (dc));
-	return (TRUE);
+    else if (! dfa_DataTimes (df, &when, DsBefore, 1, &dftime) ||
+	     ! TC_Eq (when, dftime))
+    {
+	*wc = wc_Insert;
+    }
+    else
+    {
+	*wc = wc_Overwrite;
+    }
+    return (df);
 }
 
 
 
 
 static zbool
-ds_SameDay (t1, t2)
-ZebTime *t1, *t2;
+ds_SameDay (const ZebraTime *t1, const ZebraTime *t2)
 /*
  * Return TRUE iff the two times are on the same day, 
  * of the same month and year.
@@ -1894,77 +1776,74 @@ ZebTime *t1, *t2;
 
 
 static int
-ds_MakeNewFile (dc, plat, sample, details, ndetail)
-DataChunk *dc;
-ClientPlatform *plat;
-int sample;
-dsDetail *details;	/* dsDetail's needed for dfa_CreateFile() */
-int ndetail;
+ds_MakeNewFile (DataChunk *dc, const Platform *plat, int sample, 
+		dsDetail *details, int ndetail, DataFile *df)
 /*
  * Make a new file that will contain this DC and sample.
  */
 {
 	char fname[256];
-	int newdf;
-	ZebTime when;
+	ZebraTime when;
 /*
  * Create the new file name and tell the daemon what we have in mind
  * to do.
  */
 	dc_GetTime (dc, sample, &when);
 	dfa_MakeFileName (plat, &when, fname, details, ndetail);
-	if ((newdf = ds_RequestNewDF (dc_PlatformId (dc), fname, &when)) < 0)
-		return (-1);
+	if (! ds_RequestNewDF (dc->dc_Platform, fname, &when, df))
+		return (0);
 /*
  * Have DFA get the file made for us.  They use the data object to know which
  * fields/platforms belong therein.  A bit kludgy, but it works.
  */
-	if (! dfa_CreateFile (newdf, dc, &when, details, ndetail))
-	{
-		ds_AbortNewDF (dc_PlatformId (dc), newdf);
-		return (-1);
-	}
-	return (newdf);
+	if (! dfa_CreateFile (df, dc, &when, details, ndetail))
+		return (0);
+
+	return (1);
 }
 
 
 
 
 static int
-ds_RequestNewDF (plat, file, t)
-PlatformId plat;
-char *file;
-ZebTime *t;
+ds_RequestNewDF (PlatformId plat, const char *filename, const ZebraTime *t,
+		 DataFile *df)
 /*
  * Get a new datafile entry from the DS daemon for this new file.
  * Entry:
  *	PLAT	is the platform for which this file is being created.
  *	FILE	is the name of the file.
  *	T	is the expected begin time of the data to put into the file.
+ * 	DF	is a pointer to the DataFile to fill in
  * Exit:
- *	On success, the return value is the new DF entry.  Otherwise a
- *	negative value is returned.
+ *	Return non-zero on success, zero otherwise.
  */
 {
 	struct dsp_CreateFile dspcf;
 	struct dsp_R_CreateFile dspresp;
 
 	if (DSM.dsm_NewDataFile)
-		return ((*DSM.dsm_NewDataFile) (plat, file, t));
+		return ((*DSM.dsm_NewDataFile) (plat, filename, t, df));
 /*
  * Put together the request for the daemon.
  */
 	dspcf.dsp_type = dpt_NewFileRequest;
 	dspcf.dsp_plat = plat;
+	dspcf.dsp_srcid = SRC_DEFAULT_W;
 	dspcf.dsp_time = *t;
-	strcpy (dspcf.dsp_file, file);
+	strcpy (dspcf.dsp_FileName, filename);
 /*
  * Ship it off, and pick out our response.
  */
 	ds_SendToDaemon (&dspcf, sizeof (dspcf));
 	msg_Search (MT_DATASTORE, ds_GetNDFResp, &dspresp);
-	return ((dspresp.dsp_type == dpt_R_NewFileSuccess) ?
-			dspresp.dsp_FileIndex : -1);
+	if (dspresp.dsp_type == dpt_R_NewFileSuccess)
+	{
+	    *df = dspresp.dsp_file;
+	    return (1);
+	}
+	else
+	    return (0);
 }
 
 
@@ -1982,7 +1861,7 @@ struct dsp_R_CreateFile *dspresp;
 	struct dsp_Template *t = (struct dsp_Template *) msg->m_data;
 
 	if (t->dsp_type == dpt_R_NewFileSuccess ||
-			t->dsp_type == dpt_R_NewFileFailure)
+	    t->dsp_type == dpt_R_NewFileFailure)
 	{
 		*dspresp = * (struct dsp_R_CreateFile *) t;
 		return (0);
@@ -1994,36 +1873,8 @@ struct dsp_R_CreateFile *dspresp;
 
 
 static void
-ds_AbortNewDF (plat, df)
-PlatformId plat;
-int df;
-/*
- * Abort this DF create, for some reason.
- */
-{
-	struct dsp_AbortNewFile abort;
-
-	if (Standalone)
-	{
-		/* abandon the cached file entry */
-		return;
-	}
-	abort.dsp_type = dpt_AbortNewFile;
-	abort.dsp_FileIndex = df;
-	abort.dsp_pid = plat;
-	ds_SendToDaemon (&abort, sizeof (abort));
-}
-
-
-
-
-
-static void
-ds_NotifyDaemon (p, dfile, dc, now, nnew, sample, last)
-ClientPlatform *p;
-int dfile;
-DataChunk *dc;
-int now, nnew, sample, last;
+ds_NotifyDaemon (const Platform *p, const DataFile *df, int now, int nnew, 
+		 int sample, int last)
 /*
  * Tell the data store daemon about this data.
  */
@@ -2032,24 +1883,20 @@ int now, nnew, sample, last;
 
 	if (DSM.dsm_NotifyFile)
 	{
-		(*DSM.dsm_NotifyFile) (p, dfile, dc, now, nnew, sample, last);
+		(*DSM.dsm_NotifyFile) (p, df, now, nnew, sample, last);
 		return;
 	}
 /*
  * Fire off the message.
  */
 	update.dsp_type = dpt_UpdateFile;
-	update.dsp_FileIndex = dfile;
-	dc_GetTime (dc, sample, &update.dsp_EndTime);
+	update.dsp_file = *df;
 	update.dsp_NSamples = nnew;
 	update.dsp_NOverwrite = now;
 	update.dsp_Last = last;
-	update.dsp_Local = TRUE;
 	ds_SendToDaemon ( &update, sizeof(update) );
 /*
- * Wait for the update ack.  While waiting for the ack, process any
- * CacheInvalidate messages which are put in the message queue by
- * the Daemon's update process.
+ * Wait for the update ack.
  */
 	msg_Search (MT_DATASTORE, ds_AwaitAck, 0);
 }
@@ -2067,30 +1914,17 @@ int junk;
  * See if this is our ack.
  */
 {
-	struct dsp_FileStruct *fs = (struct dsp_FileStruct *) msg->m_data;
+	struct dsp_UpdateAck *fs = (struct dsp_UpdateAck *) msg->m_data;
 /*
- * If this is the ack, we're outta here.  This should also mean we've
- * cleared our message queue of the CacheInvalidate's generated by our
- * FileUpdate message.  Note the new revision for the file in DFA.
+ * If this is the ack, we're outta here.
  */
 	if (fs->dsp_type == dpt_R_UpdateAck)
 	{
-		ds_ZapCache (&fs->dsp_file);
-		dfa_NoteRevision (fs->dsp_file.df_index, fs->dsp_file.df_rev);
+		dfa_NoteRevision (&fs->dsp_file);
 		return (MSG_DONE);
 	}
-/*
- * Otherwise we need to be processing CacheInvalidate messages to keep
- * our data file cache up to date.
- */
-	switch (fs->dsp_type)
-	{
-	   case dpt_CacheInvalidate:
-	   	(msg_ProtoHandler (MT_DATASTORE)) (msg);
-		return (MSG_CONSUMED);
-	   default:
+	else
 	   	return (MSG_ENQUEUE);
-	}
 }
 
 
@@ -2106,141 +1940,64 @@ ds_ForceClosure()
 	dfa_ForceClosure();
 	dc_ForceClosure();
 	dgl_ForceClosure();
-	ds_FreeCache();
 	F_Closure();
 }
 
 
 
-
 zbool
-ds_ScanFile (platid, filename, local)
-PlatformId platid;
-char *filename;
-zbool local;
+ds_ScanFile (int srcid, PlatformId pid, char *filename)
 /*
  * Look for the file in the platform directory, verify the file name with
- * DFA, and then retrieve time info about the file through DFA.
+ * DFA, and then retrieve time info about the file through DFA.  Finally,
+ * tell the daemon about the file.
  */
 {
-	static char fpath[1024];
-	ClientPlatform plat, *p = &plat;
-	ZebTime begin;
-	ZebTime end;
-	int nsample;
+    const Platform *p = dt_FindPlatform (pid);
+    DataFile df;
+    char *fullpath;
+    ZebraTime begin;
+    ZebraTime end;
+    int nsample;
 
-	if (Standalone)
-		return (FALSE);
-	InstallDFA;
-	ds_GetPlatStruct (platid, &plat, FALSE);
-	if (! dfa_CheckName (p->cp_ftype, filename))
-	{
-		msg_ELog (EF_PROBLEM, "scan file '%s': %s",
-			  filename, "dfa name check failed");
-		return (FALSE);
-	}
-/*
- * Now make sure we can open the file and retrieve some vital statistics
- */
-	sprintf (fpath, "%s/%s", (local) ? p->cp_dir : p->cp_rdir, filename);
-	if (! dfa_QueryDate (p->cp_ftype, fpath, &begin, &end, &nsample))
-	{
-		msg_ELog (EF_PROBLEM, "scan file '%s': %s", 
-			  fpath, "inaccessible or incorrect format");
-		return (FALSE);
-	}
-/*
- * Now we can pass on the rest of the work
- */
-	return (ds_InsertFile (platid, filename, &begin, &end, 
-			       nsample, local));
-}
+    if (Standalone)
+	return (FALSE);
 
+    InstallDFA;
 
-
-
-zbool
-ds_InsertFile (platid, filename, begin, end, nsample, local)
-PlatformId platid;
-char *filename;
-ZebTime *begin;
-ZebTime *end;
-int nsample;
-zbool local;
+    if (! dfa_CheckName (pi_FileType (p), filename))
+    {
+	msg_ELog (EF_PROBLEM, "scan file '%s' of %s: %s", filename, 
+		  pi_Name (p), "dfa name check failed");
+	return (FALSE);
+    }
 /*
  * Tell the Daemon about this new file by simulating a ds_Store to it
  */
-{
-	int dfile;
-	DataFile dfe;
-	struct dsp_UpdateFile update;
-	ClientPlatform p;
-	int df;
+    fullpath = df.df_fullname;
+    ds_GetPlatDir (srcid, pid, fullpath);
+    strcat (fullpath, "/");
+    strcat (fullpath, filename);
 
-	if (Standalone)
-		return (FALSE);
+    if (! dfa_QueryDate (pi_FileType (p), fullpath, &begin, &end, &nsample))
+    {
+	msg_ELog (EF_PROBLEM, "scan file '%s': %s", fullpath, 
+		  "inaccessible or incorrect format");
+	return (FALSE);
+    }
 /*
- * Get a write lock and our platform structure.
+ * Now fill in the rest of the DataFile and notify the daemon
  */
-	InstallDFA;
-	ds_WriteLock (platid);
-	ds_GetPlatStruct (platid, &p, TRUE);
-/*
- * Make sure the bounds of this file do not overlap any existing files.  Find
- * the first file which begins before our end time.  If there is such a file
- * make sure it ends before our begin time.  Otherwise we have a conflict and
- * fail.
- */
-	ds_LockPlatform (platid);
-	df = (local) ? ds_DataChain (&p, 0) : ds_DataChain (&p, 1);
-	for (; df; df = dfe.df_FLink)
-	{
-		if (! ds_GetFileStruct (df, &dfe))
-			return (FALSE);
-		if (TC_LessEq (dfe.df_begin, *end))
-			break;
-	};
-	ds_UnlockPlatform (platid);
-	if (df && !(TC_Less (dfe.df_end, *begin)))
-	{
-		msg_ELog (EF_PROBLEM, 
-			"inserting file '%s': %s %s", filename,
-			"times conflict with known file", dfe.df_name);
-		ds_FreeWriteLock (platid);
-		return (FALSE);
-	}
-/*
- * Get a datafile entry for the new file
- */
-	if ((dfile = ds_RequestNewDF (platid, filename, begin)) < 0)
-	{
-		ds_FreeWriteLock (platid);
-		return (FALSE);
-	}
-/*
- * The rest of the steps are essentially like a call to ds_NotifyDaemon,
- * except its possible we're updating a remote file rather than local.
- */
-	update.dsp_type = dpt_UpdateFile;
-	update.dsp_FileIndex = dfile;
-	update.dsp_EndTime = *end;
-	update.dsp_NSamples = nsample;
-	update.dsp_NOverwrite = 0;
-	update.dsp_Last = TRUE;
-	update.dsp_Local = local;
-	ds_SendToDaemon ( &update, sizeof(update));
-/*
- * Wait for the update ack.
- */
-	msg_Search (MT_DATASTORE, ds_AwaitAck, 0);
-/*
- * We know this file is new, so we must update the platform structure.
- */
-	ds_GetPlatStruct (platid, &p, TRUE);
-/*
- * Done.
- */
-	ds_FreeWriteLock (platid);
-	return (TRUE);
+    strcpy (df.df_core.dfc_name, filename);
+    df.df_core.dfc_begin = begin;
+    df.df_core.dfc_end = end;
+    df.df_core.dfc_rev = 0;	/* Daemon will update */
+    df.df_core.dfc_inode = 0;	/* Daemon will update */
+    df.df_core.dfc_ftype = pi_FileType (p);
+    df.df_core.dfc_nsample = nsample;
+    df.df_pid = pid;
+    df.df_srcid = srcid;
+
+    ds_NotifyDaemon (p, &df, 0, nsample, nsample, 1);
+    return (TRUE);
 }
-

@@ -11,12 +11,12 @@
  *
  *	Reference number	- SP1/HDR/02000042
  *	
- *	Revision number		- $Revision: 2.1 $
+ *	Revision number		- $Revision: 2.2 $
  *	Release state		- $State: Exp $
  *
  *	Author, designer	- Ian McAfee
  *
- *	Modification date	- $Date: 1993-08-18 15:34:51 $
+ *	Modification date	- $Date: 1999-03-01 02:04:39 $
  *	Modified by		- $Author: burghart $
  * 
  * COPYRIGHT NOTICE
@@ -37,6 +37,13 @@
  * MODIFICATION RECORD
  *
  * $Log: not supported by cvs2svn $
+ * Revision 2.1  1993/08/18  15:34:51  burghart
+ * Created new adrad_ingest program to deal with data from Texas A&M's ADRAD
+ * (Aggie Doppler Radar).  The Rasterize() function in Rasterize.c was
+ * changed slightly to allow for interleaved or non-interleaved data.  Changes
+ * in radar_ingest.c are only to adapt to the new interface to Rasterize() and
+ * also a new interface to IX_GetWFrame() (in /zeb/src/lib/ImageXfr.c).
+ *
  * Revision 8.1  92/04/27  10:31:35  stafford
  * Version used during FAT
  * 
@@ -58,7 +65,7 @@
  ******************************************************************************/
 
 
-/**static char rcs_id[] = "$Id: radinfo.h,v 2.1 1993-08-18 15:34:51 burghart Exp $";*/
+/**static char rcs_id[] = "$Id: radinfo.h,v 2.2 1999-03-01 02:04:39 burghart Exp $";*/
 
 #ifndef RADINFO
 #define RADINFO 1

@@ -10,7 +10,7 @@
 #include "message.h"
 #include "map.h"
 
-RCSID("$Id: map.c,v 2.4 1998-02-26 00:25:29 burghart Exp $")
+RCSID("$Id: map.c,v 2.5 1999-03-01 02:04:43 burghart Exp $")
 
 static unsigned char XDR_MAGIC[4] = { 0x88, 0x88, 0x00, 0x00 };
 

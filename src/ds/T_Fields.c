@@ -9,7 +9,7 @@
 
 #include "apple.h"
 
-RCSID("$Id: T_Fields.c,v 3.5 1997-12-12 16:34:08 burghart Exp $")
+RCSID("$Id: T_Fields.c,v 3.6 1999-03-01 02:03:36 burghart Exp $")
 
 extern void F_Warnings (int);
 

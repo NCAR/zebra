@@ -39,7 +39,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.69 1998-04-27 21:36:49 corbet Exp $
+XCOMM $Id: Project.tmpl,v 1.70 1999-03-01 02:03:09 burghart Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -626,6 +626,9 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #ifndef CDebugFlags
 #define CDebugFlags DefaultCDebugFlags
 #endif
+#ifndef CplusplusDebugFlags
+#define CplusplusDebugFlags DefaultCplusplusDebugFlags
+#endif
 #ifndef FortDebugFlags
 #define FortDebugFlags /* none */
 #endif
@@ -1088,7 +1091,11 @@ CXXEXTRA_INCLUDES = /* $(XINCLUDES) $(RDSSINCLUDES) */ $(CONFIGINCLUDES)
           EMACS19 = Emacs19Path
 
              RPCG = rpcgen
-        RPCGFLAGS = -C
+# ifdef SGIArchitecture
+        RPCGFLAGS = -P
+# else
+	RPCGFLAGS = -C
+# endif
 
 /*
  * Our own implicit rules, such as for C++ files (.cc extension)

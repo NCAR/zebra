@@ -22,6 +22,7 @@
 # include <iostream.h>
 # include "DerivTable.h"
 
+RCSID ("$Id")
 
 DerivTable::DerivTable( void )
 {

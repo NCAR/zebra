@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *Version = "$Revision: 2.13 $ $Date: 1998-12-17 17:18:14 $";
+static char *Version = "$Revision: 2.14 $ $Date: 1999-03-01 02:04:55 $";
 
 # include <sys/types.h>
 # include <sys/time.h>
@@ -30,14 +30,14 @@ static char *Version = "$Revision: 2.13 $ $Date: 1998-12-17 17:18:14 $";
 # include <message.h>
 # include <timer.h>
 
-MAKE_RCSID ("$Id: timer.c,v 2.13 1998-12-17 17:18:14 burghart Exp $")
+MAKE_RCSID ("$Id: timer.c,v 2.14 1999-03-01 02:04:55 burghart Exp $")
 
 /*
  * The timer queue is made up of these sorts of entries.
  */
 struct tq_entry
 {
-	char	tqe_proc[MAX_NAME_LEN];	/* The process awaiting this TO */
+	char	tqe_proc[MSG_MAXNAMELEN];/* The process awaiting this TO */
 	struct timeval tqe_when;	/* When this process wants it   */
 	int	tqe_param;		/* Proc-supplied param		*/
 	int	tqe_inc;		/* Alarm increment		*/

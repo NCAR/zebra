@@ -31,7 +31,7 @@ extern "C"
 
 	
 
-RCSID("$Id: Field.cc,v 3.3 1997-11-21 20:36:30 burghart Exp $")
+RCSID("$Id: Field.cc,v 3.4 1999-03-01 02:03:32 burghart Exp $")
 
 //
 // The predefined field types.  Shared via Field.h.

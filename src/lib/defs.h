@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 2.41 1998-10-28 21:22:40 corbet Exp $ */
+/* $Id: defs.h,v 2.42 1999-03-01 02:04:43 burghart Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -44,14 +44,14 @@ extern "C"
  * A macro to make function prototypes a little easier across both STDC and
  * non-STDC implementations.
  */
-# if __STDC__
+# if __STDC__ || defined(__cplusplus)
 #  define FP(stuff) stuff
 # else
 #  define FP(stuff) ()
 #  define const
 # endif
 
-# if ! __GNUC__ && ! __cplusplus
+# if ! __GNUC__ && ! defined(__cplusplus)
 #  define inline
 # endif
 
@@ -146,7 +146,7 @@ void	TC_ZtSplit FP ((const ZebTime *, int *, int *, int *, int *, int *,
 void	TC_ZtAssemble FP ((ZebTime *, int, int, int, int, int, int, int));
 void	TC_y2k FP ((UItime *));
 
-int     FindFile FP ((char *, char *, char *));
+int     FindFile FP ((const char *, const char *, char *));
 
 /*
  * Altitude units convenience utilities

@@ -48,14 +48,16 @@ static char *DS_OrgName[] =
 };
 
 
+typedef void(*Method)();
 
 
 static int
-VerifyMethod (name, member, inherit)
-char *name;	/* name of the method being verified */
-void *member;	/* value of member function pointer */
-void *inherit;	/* function which could be inherited */
+VerifyMethod (char *name, Method member, Method inherit)
 /*
+ * name		name of the method being verified
+ * member	value of member function pointer
+ * inherit	function which could be inherited
+ *
  * Verify that the member function is non-NULL, and note if it points
  * to the inherited method.
  */
@@ -156,172 +158,172 @@ TestFormats ()
  * Loop through each format and print information about it 
  */
 {
-	int nerror = 0;
-	int i, j;
-	DataFormat *fmt;
+    int nerror = 0;
+    int i, j;
+    DataFormat *fmt;
 
-	for (i = 0; i < NumFormats; ++i)
+    for (i = 0; i < NumFormats; ++i)
+    {
+	if (! Formats[i])
 	{
-		if (! Formats[i])
-		{
-			msg_ELog (EF_PROBLEM, " * Format %d: %s\n", i,
-				  "NULL table pointer");
-			++nerror;
-			continue;
-		}
-		fmt = *Formats[i];
-
-		/*
-		 * Start printing information about the format
-		 */
-		if (Verbose)
-		{
-			printf ("--- Format: %s; %s: %s; filetype %d; %s\n",
-				fmt->f_name, "extensions", fmt->f_ext, 
-				fmt->f_ftype, (fmt->f_readonly) ?
-				"read-only" : "read-write");
-			printf ("    Org/class pairs:\n");
-		}
-		for (j = 0; j < fmt->f_ncompat; ++j)
-		{
-			if (! dfa_OrgClassCompat (fmt, fmt->f_compat[j].c_org,
-						  fmt->f_compat[j].c_class))
-			{
-				/* Now this is strange */
-				msg_ELog (EF_PROBLEM, "%s %s",
-					  "org/class pair in fmt",
-					  "fails OrgClassCompat test");
-				++nerror;
-			}
-			if (! Verbose)
-				continue;
-			printf ("\t%s <-> %s\n",
-				DS_OrgName[fmt->f_compat[j].c_org],
-				DC_ClassName[fmt->f_compat[j].c_class]);
-		}
-		if (Verbose)
-			printf ("    %s: %i  NOpened: %i  NFree: %i\n",
-				"Open instance size", fmt->f_of_size,
-				fmt->f_nopened, fmt->f_nfree);
-
-		/*
-		 * Check for minimal set of methods, unless not compiled 
-		 */
-		if ((fmt->f_OpenFile == fmt_OpenNotCompiled &&
-		    fmt->f_QueryTime == fmt_QueryNotCompiled) ||
-		    fmt->f_CreateFile == fmt_CreateNotCompiled)
-		{
-			if (Verbose)
-				printf ("    Format not compiled.\n");
-			continue;
-		}
-		/*
-		 * We require every format to define: QueryTime, 
-		 * Open, Close, GetData, GetTimes, GetFields, and DataTimes.
-		 * Read-write formats must also include:
-		 * MakeFileName, CreateFile, PutSample (check for PutBlock)
-		 */
-		nerror += VerifyMethod ("QueryTime", fmt->f_QueryTime, NULL);
-		nerror += VerifyMethod ("OpenFile", fmt->f_OpenFile, NULL);
-		nerror += VerifyMethod ("CloseFile", fmt->f_CloseFile, NULL);
-		nerror += VerifyMethod ("GetData", fmt->f_GetData, NULL);
-		nerror += VerifyMethod ("DataTimes", fmt->f_DataTimes, 
-					fmt_DataTimes);
-		nerror += VerifyMethod ("GetTimes", fmt->f_GetTimes, NULL);
-		nerror += VerifyMethod ("GetFields", fmt->f_GetFields, NULL);
-		if (! fmt->f_readonly)
-		{
-			nerror += VerifyMethod ("MakeFileName", 
-						fmt->f_MakeFileName,
-						fmt_MakeFileName);
-			nerror += VerifyMethod ("CreateFile", 
-						fmt->f_CreateFile, NULL);
-			if (fmt->f_PutBlock && Verbose)
-			{
-				printf ("    (PutBlock is defined)\n");
-				if (fmt->f_PutSample && Verbose)
-				   printf ("    (PutSample also defined)\n");
-			}
-			if (! fmt->f_PutBlock)
-				nerror += VerifyMethod ("PutSample", 
-						fmt->f_PutSample, NULL);
-		}
+	    msg_ELog (EF_PROBLEM, " * Format %d: %s\n", i,
+		      "NULL table pointer");
+	    ++nerror;
+	    continue;
 	}
+	fmt = *Formats[i];
 
-	/*
-	 * Now make sure the map between FileType enum and DataFormat
-	 * pointer is correct.
-	 */
-	nerror += VerifyFiletype (FTNetCDF, "netCDF", netcdfFormat);
-	nerror += VerifyFiletype (FTBoundary, "Boundary", boundaryFormat);
-	nerror += VerifyFiletype (FTRaster, "Raster", rasterFormat);
-	nerror += VerifyFiletype (FTCmpRaster, "CmpRaster", cmpRasterFormat);
-	nerror += VerifyFiletype (FTZebra, "Zebra", zebraFormat);
-	nerror += VerifyFiletype (FTZeb, "Zebra", zebraFormat);
-	nerror += VerifyFiletype (FTGRIB, "GRIB", gribFormat);
-	nerror += VerifyFiletype (FTGRIBSfc, "GRIB_sfc", gribSfcFormat);
-	nerror += VerifyFiletype (FTGrads, "GRADS", gradsFormat);
-	nerror += VerifyFiletype (FTGradsModel,"GRADSModel",gradsmodelFormat);
-	if (hdfFormat->f_OpenFile != fmt_OpenNotCompiled)
-		nerror += VerifyFiletype (FTHDF, "HDF", hdfFormat);
+    /*
+     * Start printing information about the format
+     */
+	if (Verbose)
+	{
+	    printf ("--- Format: %s; %s: %s; filetype %d; %s\n",
+		    fmt->f_name, "extensions", fmt->f_ext, 
+		    fmt->f_ftype, (fmt->f_readonly) ?
+		    "read-only" : "read-write");
+	    printf ("    Org/class pairs:\n");
+	}
+	for (j = 0; j < fmt->f_ncompat; ++j)
+	{
+	    if (! dfa_OrgClassCompat (fmt, fmt->f_compat[j].c_org,
+				      fmt->f_compat[j].c_class))
+	    {
+	    /* Now this is strange */
+		msg_ELog (EF_PROBLEM, "%s %s",
+			  "org/class pair in fmt",
+			  "fails OrgClassCompat test");
+		++nerror;
+	    }
+	    if (! Verbose)
+		continue;
+	    printf ("\t%s <-> %s\n",
+		    DS_OrgName[fmt->f_compat[j].c_org],
+		    DC_ClassName[fmt->f_compat[j].c_class]);
+	}
+	if (Verbose)
+	    printf ("    %s: %i  NOpened: %i  NFree: %i\n",
+		    "Open instance size", fmt->f_of_size,
+		    fmt->f_nopened, fmt->f_nfree);
 
-	/*
-	 * Test file name checks
-	 */
-	nerror += MatchType (FTZebra, "file.znf", TRUE);
-	nerror += MatchType (FTZebra, "really.really.long.file.znf", TRUE);
-	nerror += MatchType (FTZebra, "file.znf.Z", FALSE);
-	nerror += MatchType (FTRaster, "file.rf", TRUE);
+    /*
+     * Check for minimal set of methods, unless not compiled 
+     */
+	if ((fmt->f_OpenFile == fmt_OpenNotCompiled &&
+	     fmt->f_QueryTime == fmt_QueryNotCompiled) ||
+	    fmt->f_CreateFile == fmt_CreateNotCompiled)
+	{
+	    if (Verbose)
+		printf ("    Format not compiled.\n");
+	    continue;
+	}
+    /*
+     * We require every format to define: QueryTime, 
+     * Open, Close, GetData, GetTimes, GetFields, and DataTimes.
+     * Read-write formats must also include:
+     * MakeFileName, CreateFile, PutSample (check for PutBlock)
+     */
+	nerror += VerifyMethod ("QueryTime", (Method)fmt->f_QueryTime, NULL);
+	nerror += VerifyMethod ("OpenFile", (Method)fmt->f_OpenFile, NULL);
+	nerror += VerifyMethod ("CloseFile", (Method)fmt->f_CloseFile, NULL);
+	nerror += VerifyMethod ("GetData", (Method)fmt->f_GetData, NULL);
+	nerror += VerifyMethod ("DataTimes", (Method)fmt->f_DataTimes, 
+				(Method)fmt_DataTimes);
+	nerror += VerifyMethod ("GetTimes", (Method)fmt->f_GetTimes, NULL);
+	nerror += VerifyMethod ("GetFields", (Method)fmt->f_GetFields, NULL);
+	if (! fmt->f_readonly)
+	{
+	    nerror += VerifyMethod ("MakeFileName", 
+				    (Method)fmt->f_MakeFileName,
+				    (Method)fmt_MakeFileName);
+	    nerror += VerifyMethod ("CreateFile", (Method)fmt->f_CreateFile, 
+				    NULL);
+	    if (fmt->f_PutBlock && Verbose)
+	    {
+		printf ("    (PutBlock is defined)\n");
+		if (fmt->f_PutSample && Verbose)
+		    printf ("    (PutSample also defined)\n");
+	    }
+	    if (! fmt->f_PutBlock)
+		nerror += VerifyMethod ("PutSample", (Method)fmt->f_PutSample,
+					NULL);
+	}
+    }
+
+/*
+ * Now make sure the map between FileType enum and DataFormat
+ * pointer is correct.
+ */
+    nerror += VerifyFiletype (FTNetCDF, "netCDF", netcdfFormat);
+    nerror += VerifyFiletype (FTBoundary, "Boundary", boundaryFormat);
+    nerror += VerifyFiletype (FTRaster, "Raster", rasterFormat);
+    nerror += VerifyFiletype (FTCmpRaster, "CmpRaster", cmpRasterFormat);
+    nerror += VerifyFiletype (FTZebra, "Zebra", zebraFormat);
+    nerror += VerifyFiletype (FTZeb, "Zebra", zebraFormat);
+    nerror += VerifyFiletype (FTGRIB, "GRIB", gribFormat);
+    nerror += VerifyFiletype (FTGRIBSfc, "GRIB_sfc", gribSfcFormat);
+    nerror += VerifyFiletype (FTGrads, "GRADS", gradsFormat);
+    nerror += VerifyFiletype (FTGradsModel,"GRADSModel",gradsmodelFormat);
+    if (hdfFormat->f_OpenFile != fmt_OpenNotCompiled)
+	nerror += VerifyFiletype (FTHDF, "HDF", hdfFormat);
+
+/*
+ * Test file name checks
+ */
+    nerror += MatchType (FTZebra, "file.znf", TRUE);
+    nerror += MatchType (FTZebra, "really.really.long.file.znf", TRUE);
+    nerror += MatchType (FTZebra, "file.znf.Z", FALSE);
+    nerror += MatchType (FTRaster, "file.rf", TRUE);
 
 #ifdef notyet
-	/* 
-	 * We expect these to fail because the reverse map from
-	 * file extension to file type finds the other file type which
-	 * shares the extension.
-	 */
-	nerror += (MatchType (FTCmpRaster, "file.rf", TRUE) != 1) ? 1 : 0;
-	nerror += (MatchType (FTGRIBSfc, "file.grib", TRUE) != 1) ? 1 : 0;
-	nerror += (MatchType (FTGRIBSfc, "file.grb", TRUE) != 1) ? 1 : 0;
+/* 
+ * We expect these to fail because the reverse map from
+ * file extension to file type finds the other file type which
+ * shares the extension.
+ */
+    nerror += (MatchType (FTCmpRaster, "file.rf", TRUE) != 1) ? 1 : 0;
+    nerror += (MatchType (FTGRIBSfc, "file.grib", TRUE) != 1) ? 1 : 0;
+    nerror += (MatchType (FTGRIBSfc, "file.grb", TRUE) != 1) ? 1 : 0;
 #endif
 
-	nerror += MatchType (FTGRIB, "file.grib", TRUE);
-	nerror += MatchType (FTGRIB, "file.grb", TRUE);
-	nerror += MatchType (FTBoundary, "boundary.bf", TRUE);
-	nerror += MatchType (FTGrads, "gradscontrolfile1.ctl", TRUE);
-	nerror += MatchType (FTGrads, "gradsdatafile1.data", FALSE);
-	nerror += MatchType (FTZebra, "file.hdf", FALSE);
-	nerror += MatchType (FTHDF, "file.hdf", TRUE);
-	nerror += MatchType (FTHDF, "file.df", FALSE);
-	nerror += MatchType (FTHDF, "hdf", FALSE);
-	nerror += MatchType (FTNetCDF, "netcdffile.cdf", TRUE);
-	nerror += MatchType (FTNetCDF, "netcdffile.nc", TRUE);
-	nerror += MatchType (FTNetCDF, "netcdffile.ncf", FALSE);
-	nerror += MatchType (FTNetCDF, "netcdffile.nc.cdf", TRUE);
-	nerror += MatchType (FTNetCDF, "netcdffile.cdf.nc", TRUE);
-	nerror += MatchType (FTNetCDF, ".cdf", FALSE);
-	nerror += MatchType (FTNetCDF, ".ncrc", FALSE);
+    nerror += MatchType (FTGRIB, "file.grib", TRUE);
+    nerror += MatchType (FTGRIB, "file.grb", TRUE);
+    nerror += MatchType (FTBoundary, "boundary.bf", TRUE);
+    nerror += MatchType (FTGrads, "gradscontrolfile1.ctl", TRUE);
+    nerror += MatchType (FTGrads, "gradsdatafile1.data", FALSE);
+    nerror += MatchType (FTZebra, "file.hdf", FALSE);
+    nerror += MatchType (FTHDF, "file.hdf", TRUE);
+    nerror += MatchType (FTHDF, "file.df", FALSE);
+    nerror += MatchType (FTHDF, "hdf", FALSE);
+    nerror += MatchType (FTNetCDF, "netcdffile.cdf", TRUE);
+    nerror += MatchType (FTNetCDF, "netcdffile.nc", TRUE);
+    nerror += MatchType (FTNetCDF, "netcdffile.ncf", FALSE);
+    nerror += MatchType (FTNetCDF, "netcdffile.nc.cdf", TRUE);
+    nerror += MatchType (FTNetCDF, "netcdffile.cdf.nc", TRUE);
+    nerror += MatchType (FTNetCDF, ".cdf", FALSE);
+    nerror += MatchType (FTNetCDF, ".ncrc", FALSE);
 
-	return (nerror);
+    return (nerror);
 }
 
 
 
 
 static int
-CheckFileName (cp, when, name, details, ndetail)
-ClientPlatform *cp;
+CheckFileName (p, when, name, details, ndetail)
+const Platform *p;
 ZebTime *when;
 char *name;
 dsDetail *details;
 int ndetail;
 {
-	DataFormat *fmt = FMTP(cp->cp_ftype);
+	DataFormat *fmt = FMTP(pi_FileType (p));
 	int errors = 0;
 	char dest[256];
 
 	if (fmt->f_readonly)
 		TX_Catch ("format read-only: cannot make file name");
-	dfa_MakeFileName (cp, when, dest, details, ndetail);
+	dfa_MakeFileName (p, when, dest, details, ndetail);
 	if (fmt->f_readonly)
 		errors += TX_Caught();
 	else if (strcmp (name, dest))
@@ -347,10 +349,10 @@ T_MakeFileName ()
 	static TestPlatform 
 		fplat = { "", FTUnknown, OrgScalar, 100, FALSE };
 	int errors = 0;
-	int ft;
+	FileType ft;
 	ZebTime when;
 	PlatformId pid;
-	ClientPlatform cp;
+	const Platform *p;
 	char name[256];
 	char stime[64];
 	DataFormat *fmt;
@@ -365,7 +367,7 @@ T_MakeFileName ()
 		fplat.name = (char *) ds_FTypeName (fplat.ftype);
 		pid = MakePlatform (&fplat);
 		fmt = FMTP(fplat.ftype);
-		ds_GetPlatStruct (pid, &cp, FALSE);
+		p = dt_FindPlatform (pid);
 		/* try with four-digit years */
 		strcpy (stime, "19960713.120000");
 		sprintf (name, "%s.%s%s", fplat.name, stime, fmt->f_ext);
@@ -373,7 +375,7 @@ T_MakeFileName ()
 			*bar++ = '\0';
 		/* see what we get */
 		ds_SetDetail (DD_FOUR_YEAR, details, 0);
-		errors += CheckFileName (&cp, &when, name, details, 1);
+		errors += CheckFileName (p, &when, name, details, 1);
 		/* try with two-digit years */
 		strcpy (stime, "960713.120000");
 		sprintf (name, "%s.%s%s", fplat.name, stime, fmt->f_ext);
@@ -381,7 +383,7 @@ T_MakeFileName ()
 			*bar++ = '\0';
 		/* see what we get */
 		ds_SetDetail (DD_TWO_YEAR, details, 0);
-		errors += CheckFileName (&cp, &when, name, details, 1);
+		errors += CheckFileName (p, &when, name, details, 1);
 		/* try the default */
 #ifdef CFG_FULL_YEARS
 		strcpy (stime, "19960713.120000");
@@ -392,10 +394,10 @@ T_MakeFileName ()
 		if ((bar = strrchr (name, '|')))
 			*bar++ = '\0';
 		/* see what we get */
-		errors += CheckFileName (&cp, &when, name, NULL, 0);
+		errors += CheckFileName (p, &when, name, NULL, 0);
 		/* try no extension */
 		ds_SetStringDetail (DD_FILE_NAME, "filename", details, 0);
-		errors += CheckFileName (&cp, &when, "filename", details, 1);
+		errors += CheckFileName (p, &when, "filename", details, 1);
 		/* try choosing the other extension */
 		ndetail = 0;
 		if (bar)
@@ -404,7 +406,7 @@ T_MakeFileName ()
 						      details, ndetail);
 			sprintf (name, "%s.%s%s", fplat.name, stime, bar);
 
-			errors += CheckFileName (&cp, &when, name, 
+			errors += CheckFileName (p, &when, name, 
 						 details, ndetail);
 		}
 		else
@@ -412,7 +414,7 @@ T_MakeFileName ()
 		ndetail = ds_SetStringDetail (DD_FILE_BASE, "basename",
 					      details, ndetail);
 		sprintf (name, "%s%s", "basename", bar);
-		errors += CheckFileName (&cp, &when, name, details, ndetail);
+		errors += CheckFileName (p, &when, name, details, ndetail);
 		/*
 		 * Test error messages for faulty extensions
 		 */
@@ -420,15 +422,15 @@ T_MakeFileName ()
 			continue;
 		ds_SetStringDetail (DD_FILE_EXT, "x", details, 0);
 		TX_Catch ("will not recognize.*without a leading period");
-		dfa_MakeFileName (&cp, &when, name, details, 1);
+		dfa_MakeFileName (p, &when, name, details, 1);
 		errors += TX_Caught();
 		ds_SetStringDetail (DD_FILE_EXT, ".x", details, 0);
 		TX_Catch ("dfa does not recognize");
-		dfa_MakeFileName (&cp, &when, name, details, 1);
+		dfa_MakeFileName (p, &when, name, details, 1);
 		errors += TX_Caught();
 		ds_SetStringDetail (DD_FILE_EXT, 0, details, 0);
 		TX_Catch ("no string value");
-		dfa_MakeFileName (&cp, &when, name, details, 1);
+		dfa_MakeFileName (p, &when, name, details, 1);
 		errors += TX_Caught();
 	}
 	return (errors);
@@ -445,7 +447,7 @@ T_DFAStatus ()
  */
 {
 	OpenFile *ofp;
-	DataFile df, *dfp;
+	DataFile df;
 	DataFormat *fmt;
 	int num, space;
 	int err = 0;
@@ -459,12 +461,10 @@ T_DFAStatus ()
 	num = space = 0;
 	while (ofp)
 	{
-		dfp = NULL;
-		if (ds_GetFileStruct (ofp->of_dfindex, &df))
-			dfp = &df;
-		printf(" %3d %8li %2s %10s %45s\n", ofp->of_lru, ofp->of_dfrev,
+		printf(" %3d %8li %2s %10s %45s\n", ofp->of_lru, 
+		       ofp->of_df.df_core.dfc_rev, 
 		       ofp->of_write ? "rw" : "ro", ofp->of_fmt->f_name, 
-		       dfp ? dfp->df_name : "<no datafile structure>");
+		       ofp->of_df.df_core.dfc_name);
 		num++;
 		space += ofp->of_fmt->f_of_size;
 		ofp = ofp->of_next;

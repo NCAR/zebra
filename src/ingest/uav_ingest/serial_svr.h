@@ -6,11 +6,14 @@
 ==
 ==   RCS State: $State: Exp $
 ==
-==   RCS Version: $Revision: 1.1 $
+==   RCS Version: $Revision: 1.2 $
 ==
-==   RCS Creation Date: $Date: 1994-04-15 20:14:03 $
+==   RCS Creation Date: $Date: 1999-03-01 02:04:41 $
 ==
 ==   RCS Revision Log:  $Log: not supported by cvs2svn $
+ * Revision 1.1  1994/04/15  20:14:03  granger
+ * first version
+ *
  * Revision 1.1  1994/03/05  22:57:09  d3e728
  * Initial revision
  *

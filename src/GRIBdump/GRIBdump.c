@@ -31,6 +31,8 @@
 # include <message.h>
 # include "GRIB.h"
 
+RCSID ("$Id")
+
 static void ShowGDS FP ((GFgds *gds_in));
 static void ShowGDS_LL FP ((GDSLatLon *gds_in));
 static void ShowGDS_PS FP ((GDSPolarStereo *gds_in));
@@ -267,10 +269,10 @@ GFpds *pds;
 	/*
 	 * Level
 	 */
-	altunits = -1;
+	altunits = AU_unknown;
 	z = grb_ZLevel (pds, &altunits);
 
-	if (altunits >= 0)
+	if (altunits != AU_unknown)
 		printf ("  Z: %s", au_AltLabel ((double)z, altunits));
 	else
 		printf ("  Z: (level type %d)", pds->level_id);

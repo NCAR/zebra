@@ -40,7 +40,7 @@
 # include "pd.h"
 # include "GraphicsWP.h"
 
-RCSID("$Id: GraphicsW.c,v 2.26 1998-12-07 20:57:16 burghart Exp $")
+RCSID("$Id: GraphicsW.c,v 2.27 1999-03-01 02:04:42 burghart Exp $")
 
 /*
  * The SHM definition just tells us that we can link with the shared

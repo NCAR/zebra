@@ -24,12 +24,13 @@
 
 int
 FindFile (file, spath, dest)
-char *file, *spath, *dest;
+const char *file, *spath;
+char *dest;
 /*
  * Try to find the given file by applying components from the path.
  */
 {
-	char *path, *delim;
+	const char *path, *delim;
 /*
  * Try to find the file as given.
  */

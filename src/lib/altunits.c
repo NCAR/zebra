@@ -24,7 +24,7 @@
 # include "copyright.h"
 # include "defs.h"
 
-RCSID("$Id: altunits.c,v 2.11 1998-10-28 21:22:38 corbet Exp $")
+RCSID("$Id: altunits.c,v 2.12 1999-03-01 02:04:43 burghart Exp $")
 
 /*
  * 

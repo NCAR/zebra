@@ -10,61 +10,11 @@
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "Platforms.h"		/* for DefDataDir global declaration */
+# include "d_Source.h"
 # include "commands.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID("$Id: d_Debug.c,v 3.10 1997-06-30 21:48:45 ishikawa Exp $")
-
-#ifdef ORGANIZATIONS
-typedef enum {
-	OrgUnknown	= 0,
-	Org2dGrid	= 1,
-	OrgIRGrid	= 2,
-	OrgScalar	= 3,
-	OrgImage	= 4,
-	OrgOutline	= 5,
-	Org3dGrid	= 6,
-	OrgCmpImage	= 7,
-        Org1dGrid       = 8,
-	OrgTransparent  = 9,
-	OrgFixedScalar  = 10,	/* Inflexible scalar for DFA_Zeb */
-	OrgNSpace	= 11
-} DataOrganization;
-#endif
-
-static char *orgstr[] = {
-	"unknown", "2dgrid", "irgrid", "scalar", "image",
-	"outline", "3dgrid", "cmpimage", "1dgrid", "transparent",
-	"fixedscalar", "nspace" };
-
-
-#ifdef FILETYPES
-typedef enum {
-	FTUnknown = -1,
-	FTNetCDF = 0,
-	FTBoundary = 1,
-	FTRaster = 2,
-	FTCmpRaster = 3,
-	FTZeb = 4,
-	FTGRIB = 5,
-	FTGRIBSfc = 6,	/* GRIB surface grids only */
-	FTGrads = 7,
-	FTGradsModel = 8
-	/* ... */
-} FileType;
-#endif
-
-static char *ftypestr[] = {
-	"unknown", "netcdf", "boundary", "raster", "cmpraster", "zeb",
-	"grib", "grib_sfc", "grads", "grads_model"
-};
-
-static char *inheritdir[] = { "none", "append", "copy" };
-
-static char *instancedir[] = { 
-	"default", "copyclass", "subdirclass", "copyparent", "subdirparent"
-};
-				       
+MAKE_RCSID("$Id: d_Debug.c,v 3.11 1999-03-01 02:03:39 burghart Exp $")
 
 static struct flagmask {
 	unsigned short mask;
@@ -80,31 +30,28 @@ static struct flagmask {
 	{ DPF_MODEL, "model" },
 	{ DPF_ABSTRACT, "abstract" },
 	{ DPF_VIRTUAL, "virtual" },
-	{ DPF_DIRTY, "dirty" },
-	{ DPF_CLOADED, "cache_loaded" },
-	{ DPF_RCLOADED, "rcache_loaded" }
 };
 
 static int nflagstr = sizeof(flagstr)/sizeof(flagstr[0]);
 
 
 void
-dbg_DumpClass (pc)
-PlatformClass *pc;
+dbg_DumpClass (const PlatformClass *pc)
 {
 	int i;
 
 	printf ("::::::::: Class %s, id %d, superclass %s\n", pc->dpc_name,
-		pc - CTable,
+		pc->dpc_id,
 		(pc_SuperClass(pc)) ? pc_SuperClass(pc)->dpc_name : "none");
-	printf ("     Dir: %s\n", pc->dpc_dir);
-	printf ("    RDir: %s\n", pc->dpc_rdir);
-	printf ("     Org: %s\n", orgstr[pc->dpc_org]);
-	printf ("   FType: %s\n", ftypestr[pc->dpc_ftype+1]);
+	printf ("     Dir: %s\n", pc_SuggestedDir(pc));
+	printf ("     Org: %s\n", ds_OrgName(pc->dpc_org));
+	printf ("   FType: %s\n", ds_FTypeName(pc->dpc_ftype));
 	printf ("    Keep: %hu\n", pc->dpc_keep);
 	printf (" MaxSamp: %hu\n", pc->dpc_maxsamp);
-	printf (" Inherit: %s\n", inheritdir[pc->dpc_inherit]);
-	printf ("Instance: %s\n", instancedir[pc->dpc_instance]);
+	printf (" Inherit: %s\n", 
+		ds_InheritDirFlagName (pc_InheritDirFlag (pc)));
+	printf ("Instance: %s\n", 
+		ds_InstanceDirFlagName (pc_InstanceDirFlag (pc)));
 	printf ("   Flags:");
 	for (i = 0; i < nflagstr; ++i)
 	{
@@ -115,26 +62,22 @@ PlatformClass *pc;
 	printf ("Subplats: ");
 	for (i = 0; i < pc->dpc_nsubplats; ++i)
 	{
-		printf (" {%s,%s}", 
-			(CTable + pc->dpc_subplats[i].dps_class)->dpc_name,
-			pc->dpc_subplats[i].dps_name);
+	    printf (" {%s,%s}", pc_Name (pc), pc->dpc_subplats[i].dps_name);
 	}
 	printf ("\n");
-	printf ("::::::::: End   %s :::::\n", pc->dpc_name);
+	printf ("::::::::: End   %s :::::\n", pc_Name (pc));
 }
 
 
 
 void
-dbg_DumpInstance (pi)
-PlatformInstance *pi;
+dbg_DumpInstance (const Platform *pi)
 {
 	int i;
 
 	printf ("_______ Instance %s, id %d, class %s\n", 
-		pi->dp_name, pi - PTable, pi_Class(pi)->dpc_name);
-	printf ("     Dir: %s\n", pi->dp_dir);
-	printf ("    RDir: %s\n", pi->dp_rdir);
+		pi->dp_name, pi->dp_id, pi_Class(pi)->dpc_name);
+	printf ("     Dir: %s\n", pi_SuggestedDir(pi));
 	printf ("  Parent: %s\n", 
 		(pi_Parent(pi) != NULL) ? pi_Parent(pi)->dp_name : "none");
 	printf ("   Flags:");
@@ -149,9 +92,9 @@ PlatformInstance *pi;
 		printf ("Subplats: ");
 		for (i = 0; i < pi->dp_nsubplats; ++i)
 		{
-			PlatformInstance *sub;
+			const Platform *sub;
 
-			sub = PTable + pi->dp_subplats[i];
+			sub = dt_FindPlatform (pi->dp_subplats[i]);
 			printf (" {%s,%s}", pi_Class(sub)->dpc_name, 
 				sub->dp_name);
 		}
@@ -167,11 +110,12 @@ dbg_DumpStatus ()
 {
 	printf ("Status...................................................\n");
 	printf ("    Platforms: %d, space for %d in table, growth at %d\n",
-		NPlatform, PTableSize, PTableGrow);
+		dt_NPlatform(), PTableSize, PTableGrow);
 	printf ("      Classes: %d, space for %d in table, growth at %d\n",
-		NClass, CTableSize, CTableGrow);
+		dt_NClass(), CTableSize, CTableGrow);
 	printf (" Memory Usage: platforms = %li bytes, classes = %li bytes\n",
-		NPlatform * sizeof(Platform), NClass * sizeof(PlatformClass));
+		dt_NPlatform() * sizeof(DaemonPlatform), 
+		dt_NClass() * sizeof(PlatformClass));
 	printf (".........................................................\n");
 }
 
@@ -184,16 +128,20 @@ dbg_DumpTables ()
 {
 	int i;
 	char *dash = "===================================";
+	const PlatformClass *pc;
+	const Platform *pi;
 
 	printf ("%s Class Table ====================\n", dash);
-	for (i = 0; i < NClass; ++i)
+	for (i = 0; i < dt_NClass(); ++i)
 	{
-		dbg_DumpClass (CTable + i);
+		if ((pc = dt_FindClass (i)))
+			dbg_DumpClass (pc);
 	}
 	printf ("%s Platform Table =================\n", dash);
-	for (i = 0; i < NPlatform; ++i)
+	for (i = 0; i < dt_NPlatform(); ++i)
 	{
-		dbg_DumpInstance (PTable + i);
+		if ((pi = dt_FindPlatform (i)))
+			dbg_DumpInstance (pi);
 	}
 	printf ("%s=================================\n", dash);
 }
@@ -201,33 +149,17 @@ dbg_DumpTables ()
 
 
 int
-dbg_DirtyCount ()
-/*
- * Count the number of platforms which are 'dirty'
- */
-{
-	int count = 0;
-	int i;
-
-	for (i = 0; i < NPlatform; ++i)
-		if (pi_Dirty(PTable + i))
-			++count;
-	return (count);
-}
-
-
-
-int
 dbg_SubplatCount ()
 /*
- * Count the number of platforms which are 'dirty'
+ * Count the number of platforms which are a 'subplatform'
  */
 {
 	int count = 0;
 	int i;
+	const Platform *pi;
 
-	for (i = 0; i < NPlatform; ++i)
-		if (pi_Subplatform(PTable + i))
+	for (i = 0; i < dt_NPlatform(); ++i)
+		if ((pi = dt_FindPlatform (i)) && pi_Subplatform (pi))
 			++count;
 	return (count);
 }
@@ -243,9 +175,10 @@ dbg_CompositeCount ()
 {
 	int count = 0;
 	int i;
+	const Platform *pi;
 
-	for (i = 0; i < NPlatform; ++i)
-		if (pi_Composite(PTable + i))
+	for (i = 0; i < dt_NPlatform(); ++i)
+		if ((pi = dt_FindPlatform (i)) && pi_Composite (pi))
 			++count;
 	return (count);
 }
@@ -279,60 +212,8 @@ int len;
 		return (buflen + slen);
 }
 
+
 	
-
-void
-dbg_DumpLockQueue (p, lock, que, buf, len)
-Platform *p;
-Lock *lock;
-char *que;
-char *buf;
-int len;
-{
-	char tmp[sizeof(lock->l_Owner) + 64];
-
-	if (lock)
-	{
-		sprintf (tmp, "\t%s lock queue for '%s':", que, pi_Name(p));
-		dbg_Append(buf, tmp, len);
-		for ( ; lock; lock = lock->l_Next)
-		{
-			sprintf (tmp, " %s", lock->l_Owner);
-			dbg_Append(buf, tmp, len);
-		}
-		if (dbg_Append (buf, "\n", len) < 0)
-			return;
-	}
-}
-
-
-
-void
-dbg_DumpLocks (buf, len)
-char *buf;	/* Buffer to dump info into	*/
-int len;	/* Length of the buffer		*/
-{
-	int i;
-	Platform *p;
-	Lock *lock;
-
-	/*
-	 * Traverse the platform instances, printing the
-	 * read and write locks on each one
-	 */
-	sprintf (buf, "Locks:\n");
-	for (i = 0; i < NPlatform; ++i)
-	{
-		p = PTable + i;
-
-		lock = p->dp_RLockQ;
-		dbg_DumpLockQueue (p, lock, "Read", buf, len);
-		lock = p->dp_WLockQ;
-		dbg_DumpLockQueue (p, lock, "Write", buf, len);
-	}
-}
-
-
 
 void
 dbg_EncodeElapsed (prefix, start, end, dest)
@@ -380,9 +261,12 @@ char *who;
 {
 	char buf[1024];
 	time_t now = time (NULL);
+	extern Source **Srcs;	/* from Daemon.c */
+	extern int NSrcs;	/* from Daemon.c */
+	int s;
 
-	sprintf (buf, "Zebra data store daemon, proto %08x, cache key %08lx",
-		 DSProtocolVersion, CacheKey);
+	sprintf (buf, "Zebra data store daemon, proto %08x",
+		 DSProtocolVersion);
 	msg_AnswerQuery (who, buf);
 	sprintf (buf, "%s", V_version());
 	msg_AnswerQuery (who, buf);
@@ -393,7 +277,7 @@ char *who;
 	if (InitialScan)
 		sprintf (buf, "Initial scan: %d %s so far, %d to go...",
 			 PlatformsScanned, "platforms scanned", 
-			 NPlatform - PlatformsScanned);
+			 dt_NPlatform() - PlatformsScanned);
 	else if (LastScan)
 		dbg_EncodeElapsed ("Last full rescan ", 
 				   &LastScan, &now, buf);
@@ -408,62 +292,40 @@ char *who;
 		sprintf (buf, "No cache file writes have occurred.");
 	msg_AnswerQuery (who, buf);
 
-	sprintf (buf, "%18s: %s\n", "Data directory", DefDataDir);
-	sprintf (buf+strlen(buf), "%18s: %s", "Remote directory",
-		 RemDataDir);
+	sprintf (buf, "Sources: \n");
+	for (s = 0; s < NSrcs; s++)
+	{
+	    sprintf (buf, "\t%s: %s%s%s%s%s%s\n", 
+		     src_Name (Srcs + s), 
+		     src_IsDirConst (Srcs + s) ? "DirConst, " : "", 
+		     src_IsFileConst (Srcs + s) ? "FileConst, " : "",
+		     src_RemembersAll (Srcs + s) ? "RememberAll, " : "",
+		     src_DirsAreForced (Srcs + s) ? "ForceDirs, " : "",
+		     src_BaseDir (Srcs + s));
+	}
+	    
 	msg_AnswerQuery (who, buf);
 	sprintf (buf, "%18s: %d used of %d allocated, %s %d",
-		 "Platform classes", NClass, CTableSize, "grow by", 
+		 "Platform classes", dt_NClass(), CTableSize, "grow by", 
 		 CTableGrow);
 	msg_AnswerQuery (who, buf);
 	sprintf (buf, "%18s: %d used of %d allocated, %s %d\n", 
-		 "Platforms", NPlatform, PTableSize, "grow by", PTableGrow);
+		 "Platforms", dt_NPlatform(), PTableSize, "grow by", 
+		 PTableGrow);
 	sprintf (buf+strlen(buf), "%18s  %d %s with %d subplatforms",
 		 " ", dbg_CompositeCount(), "composite platforms",
 		 dbg_SubplatCount());
 	msg_AnswerQuery (who, buf);
-	sprintf (buf, "%18s: %d used of %d, grow by %d", 
-		 "DataFile entries", NDTEUsed, DFTableSize, DFTableGrow);
-	msg_AnswerQuery (who, buf);
 	sprintf (buf, "%18s: %li bytes for platforms\n",
-		 "Memory usage", NPlatform * sizeof(Platform));
+		 "Memory usage", dt_NPlatform() * sizeof(DaemonPlatform));
 	sprintf (buf+strlen(buf), "%18s  %li bytes for classes\n", " ",
-		 NClass * sizeof(PlatformClass));
-	sprintf (buf+strlen(buf), "%18s  %ld bytes for DFE's", " ",
-		 NDTEUsed * sizeof (DataFile));
+		 dt_NClass() * sizeof(PlatformClass));
 	msg_AnswerQuery (who, buf);
 
-	sprintf (buf, "%18s: %d platforms marked dirty\n", 
-		 "Statistics", dbg_DirtyCount());
-	sprintf (buf+strlen(buf), "%18s  %d cache invalidate messages sent\n",
-		 " ", InvalidatesSent);
-	sprintf (buf+strlen(buf), "%18s  %d write lock requests\n",
-		 " ", WriteLockRequests);
-	sprintf (buf+strlen(buf), "%18s  %d read lock requests",
-		 " ", ReadLockRequests);
-	msg_AnswerQuery (who, buf);
-	
 	sprintf (buf, "%18s: revision method: %s; ", "Variables",
 		 (StatRevisions) ? "stat()" : "count");
-	sprintf (buf+strlen(buf), "cache on exit: %s\n",
-		 CacheOnExit ? "true" : "false");
-	sprintf (buf+strlen(buf), "%18s  local files const: %s; ", " ",
-		 LFileConst ? "true" : "false");
-	sprintf (buf+strlen(buf), "local dir const: %s\n",
-		 LDirConst ? "true" : "false");
-	sprintf (buf+strlen(buf), "%18s  remote files const: %s; ", " ",
-		 RFileConst ? "true" : "false");
-	sprintf (buf+strlen(buf), "remote dir const: %s\n",
-		 RDirConst ? "true" : "false");
 	sprintf (buf+strlen(buf), "%18s  debugging: %s; ", " ",
 		 Debug ? "enabled" : "disabled");
-	sprintf (buf+strlen(buf), "remote directories: %s\n",
-		 DisableRemote ? "disabled" : "enabled");
-	sprintf (buf+strlen(buf), "%18s  create local directories: %s",
-		 " ", DelayDataDirs ? "delayed" : "on startup");
-	msg_AnswerQuery (who, buf);
-
-	dbg_DumpLocks (buf, sizeof(buf));
 	msg_AnswerQuery (who, buf);
 
 	msg_FinishQuery (who);

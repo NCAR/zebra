@@ -30,7 +30,7 @@
 # include <defs.h>
 # include <map.h>
 
-RCSID("$Id: Overlay.c,v 2.63 1998-10-28 21:21:57 corbet Exp $")
+RCSID("$Id: Overlay.c,v 2.64 1999-03-01 02:04:26 burghart Exp $")
 
 # include <pd.h>
 # include <GraphicsW.h>
@@ -171,13 +171,16 @@ static OvIcon 	*ov_GetIcon FP ((char *));
 static int 	ov_LocSetup FP ((char *, char **, int *, char *, LabelOpt *,
 			char *, zbool *, float *, int *, PlatformId **, int *,
 			ZebTime *, ZebTime *, int *));
-static void	ov_LocPlot FP ((char *, char *, Location *, ZebTime *, char *,
-			int, LabelOpt, char *, double, int));
+static void	ov_LocPlot FP ((const char *, const char *, Location *, 
+				ZebraTime *, const char *, int, LabelOpt, 
+				const char *, double, int));
 static MapPoints *ov_LoadMap FP ((char *));
 static void	ov_DrawMap FP ((const MapPoints *));
 static void	ov_ZapMap FP ((MapPoints *));
-static int 	ov_GetLocArray FP ((char *, char *, ZebTime *, ZebTime *,
-			ZebTime *, Location *, int));
+static int ov_InFeature ();
+static int 	ov_GetLocArray FP ((const char *, const char *, ZebraTime *, 
+				    ZebraTime *, ZebraTime *, Location *, 
+				    int));
 static void	ov_FillPolygon FP ((float *x, float *y, int));
 
 
@@ -1681,8 +1684,8 @@ int update;
 	/*
 	 * Otherwise let's see if we can regexp it.
 	 */
-		if (! (pids = ds_GatherPlatforms (plist[plat], &npid, FALSE,
-				FALSE)))
+		if (! (pids = ds_SearchPlatforms (plist[plat], &npid, FALSE,
+						  FALSE)))
 		{
 			msg_ELog (EF_PROBLEM, "Unknown platform: %s",
 					plist[plat]);
@@ -1694,7 +1697,7 @@ int update;
 	 */
 		for (pid = 0; pid < npid; pid++)
 		{
-			char *pname = ds_PlatformName (pids[pid]);
+			const char *pname = ds_PlatformName (pids[pid]);
 		/*
 		 * Check for exclusion.
 		 */
@@ -1730,11 +1733,8 @@ int update;
 
 
 static int
-ov_GetLocArray (comp, plat, begin, end, times, locs, max)
-char *comp, *plat;
-ZebTime *begin, *end, *times;
-Location *locs;
-int max;
+ov_GetLocArray (const char *comp, const char *plat, ZebraTime *begin, 
+		ZebraTime *end, ZebraTime *times, Location *locs, int max)
 /*
  * Return a set of locations.  All OBSERVATION locations between BEGIN
  * and END are returned in TIMES and LOCS.  The number of locations is
@@ -1788,7 +1788,7 @@ int max;
 
 static void
 ov_LocPlot (comp, pname, loc, loctime, icon, fg, opt, label, asize, tlabel)
-char *pname, *icon, *comp, *label;
+const char *pname, *icon, *comp, *label;
 Location *loc;
 ZebTime *loctime;
 int fg, tlabel;
@@ -1820,7 +1820,7 @@ double asize;
  */
 	if (opt != NoLabel)
 	{
-		char *plabel;
+		const char *plabel;
 		if ((plabel = strrchr (pname, '/')))
 			plabel++;
 		else
@@ -1847,15 +1847,15 @@ double asize;
 	 * local time.
 	 */
 		(void) pda_Search (Pd, comp, "local-time", pname,
-				(char *) &tlocal, SYMT_BOOL);
+				   (char*)&tlocal, SYMT_BOOL);
 		tzstr = "z";
 		if (tlocal)
 		{
 			if (! pda_Search (Pd, comp, "timezone-offset",
-					pname, (char *)&tzoffset, SYMT_INT))
+					  pname, (char *)&tzoffset, SYMT_INT))
 			{
 				msg_ELog(EF_PROBLEM,
-						"no 'timezone-offset' parameter, though 'local-time' true");
+					 "no 'timezone-offset' parameter, though 'local-time' true");
 			}
 			else
 			{

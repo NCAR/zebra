@@ -1,5 +1,5 @@
 /*
- * $Id: version.h,v 2.3 1997-08-06 15:00:32 burghart Exp $
+ * $Id: version.h,v 2.4 1999-03-01 02:04:46 burghart Exp $
  *
  * Include various symbols, compilation, and version info into an object
  * file.  We try to take advantage of ANSI C pre-preprocessors as much as
@@ -32,15 +32,26 @@ const char *V_format FP ((char *buf, const char *a, const char *b,
 const char *V_copyright FP((void));
 #endif
 
+#if __STDC__ || defined(__cplusplus)
+# define V_STDC 1
+#endif
+
+
 /* ----------------------------------------------------------------------
  * CPP symbols present at the time an object module is compiled.
  */
 #if !defined(SABER) && !defined(lint) && !defined(LINT)
 
-#if __STDC__
+#if V_STDC
 
 static const char cppsyms[] = "@(#)$Symbols: "
-" __STDC__ "
+#ifdef __STDC__
+# if __STDC__
+" __STDC__!=0 "
+# else
+" __STDC__==0 "
+# endif
+#endif
 #ifdef _POSIX_SOURCE
 " _POSIX_SOURCE "
 #endif
@@ -120,7 +131,7 @@ Z_cppsymbols()
 /* Note that any necessary semi-colons are already included and should
  * not be added when invoked in code.  Prepending "@(#)" allows version
  * info to be found by both ident(1) (RCS) and what(1) (SCCS).
- * The compile date and time are only included with RCSID for __STDC__.
+ * The compile date and time are only included with RCSID for V_STDC.
  */
 
 #if defined(lint) || defined(LINT) || defined(SABER)
@@ -128,7 +139,7 @@ Z_cppsymbols()
 #define RCSID(id) 
 
 #else
-#if __STDC__
+#if V_STDC
 #define RCSID(id) \
 static const char* \
 Z_rcsid() \
@@ -140,7 +151,7 @@ Z_rcsid() \
     return (V_format (buf, rcs_id, compileid, 0, 0)); \
 }
 
-#else /* !__STDC__ */
+#else /* !V_STDC */
 /*
  * These defs are not as complete as above. And the 'what' flags may be
  * lost on optimization or not left preceding the RCS string.
@@ -155,7 +166,7 @@ Z_rcsid() { \
     return (V_format (buf, rcs_id, 0, 0, 0)); \
 }
 
-#endif /* __STDC__ */
+#endif /* V_STDC */
 
 #endif /* lint */
 
@@ -172,5 +183,9 @@ Z_version()
 
 static inline const char *Z_copyright()
 { return (V_copyright()); }
+
+#ifdef V_STDC
+# undef V_STDC
+#endif
 
 #endif /* !_zebra_version_h__ */

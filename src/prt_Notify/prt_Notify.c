@@ -26,7 +26,7 @@
 # include "DataStore.h"
 # include "dsPrivate.h"
 
-RCSID("$Id: prt_Notify.c,v 3.11 1998-12-17 17:18:12 burghart Exp $")
+RCSID("$Id: prt_Notify.c,v 3.12 1999-03-01 02:04:51 burghart Exp $")
 
 static int IMessage FP ((struct message *));
 static void NotificationRequest FP ((struct dsp_Template *));
@@ -49,7 +49,6 @@ main ()
 	msg_connect (IMessage, "Notifier");
 	msg_join (MSG_CLIENT_EVENTS);
 	ds_Initialize ();
-	dap_Init ();
 	ds_SnarfCopies (NotificationRequest);
 /*
  * Time events too.

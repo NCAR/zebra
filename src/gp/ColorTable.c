@@ -29,7 +29,7 @@
 # include <message.h>
 # include "GraphProc.h"
 
-RCSID ("$Id: ColorTable.c,v 2.11 1998-10-28 21:21:32 corbet Exp $")
+RCSID ("$Id: ColorTable.c,v 2.12 1999-03-01 02:04:20 burghart Exp $")
 
 /*
  * For now, we use a simple bitmap to keep track of the colors that

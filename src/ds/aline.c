@@ -1,5 +1,5 @@
 /*
- * $Id: aline.c,v 3.14 1996-12-13 18:31:59 granger Exp $
+ * $Id: aline.c,v 3.15 1999-03-01 02:03:37 burghart Exp $
  *
  * An 'Assembly Line' test driver for the DataStore.
  *
@@ -115,6 +115,10 @@ FieldId Fields[NFIELDS];
 int ConsumerNumber = -1;
 char OurName[50];
 int NNotifies = 0;	/* Global count of consumer notifications received */
+/*
+ * ID of the source we'll use
+ */
+int SrcId;
 
 /*
  * Forwards
@@ -124,9 +128,8 @@ void Consume();
 static void WaitForNotifies FP ((void *mdata));
 void ReceiveNotify FP ((PlatformId plat_id, int param, ZebTime *when,
 			int nsample, UpdCode ucode));
-char *PlatDirectory FP ((PlatformId pid));
 void ReqRescan ();
-char *PlatFileName FP ((PlatformId pid));
+char *PlatFileName (const Platform *p);
 int rnd();
 
 
@@ -156,7 +159,6 @@ DefinePlatforms ()
 		pc = ds_NewClass (NetcdfClass);
 		ds_AssignClass (pc, OrgScalar, FTNetCDF, TRUE);
 		ds_SetMaxSample (pc, 20);
-		ds_SetDirectory (pc, "/tmp");
 		ds_SetInstanceDir (pc, InstanceSubdirClass);
 		ds_SetInheritDir (pc, InheritCopy);
 		cid = ds_DefineClass (pc);
@@ -430,12 +432,15 @@ main (argc, argv)
 	int pid;
 	PlatformId platid;
 	ZebTime now;
+	zbool ok;
+	SourceInfo dsi;
 #ifdef DEBUGGER
 	char dbg[256];
 #endif
 	int err = 0;
 
 	alarm (4*NConsumers*Interval*Inventory);
+
 #ifdef NoBuffer
 	setvbuf (stdout, NULL, _IONBF, 0);
 	setvbuf (stderr, NULL, _IONBF, 0);
@@ -471,6 +476,24 @@ main (argc, argv)
 		ds_ShowPlatformClass (stdout, ds_LookupClass(NetcdfClass));
 		ds_ShowPlatformClass (stdout, ds_LookupClass(ZebraClass));
 	}
+
+	/*
+	 * Find the first writable data source
+	 */
+	for (i = 0; (ok = ds_GetSourceInfo (i, &dsi)) != 0; i++)
+	{
+	    if (! dsi.src_ReadOnly)
+		break;
+	}
+	
+
+	if (! ok)
+	{
+	    msg_ELog (EF_PROBLEM, "aline: No writable sources");
+	    exit (1);
+	}
+
+	SrcId = i;
 
 	/*
 	 * To fork multiple producers/consumers: the parent will be the
@@ -609,12 +632,11 @@ int nconsumers;
 	int i, fld;
 	ZebTime when, now;
 	float value;
-	PlatformId plat_id;
+	const Platform *p, *dest;
 	Location loc;
 	dsDetail details[5];
 	int ndetail = 0;
 	char cmd[512];
-	PlatformId destid;
 	int newfile;
 	int err = 0;
 	int delay;
@@ -628,8 +650,9 @@ int nconsumers;
 	ndetail++;
 	
 	dc_CheckClass (FALSE);
-	plat_id = ds_LookupPlatform(ProducerPlat);
-	destid = ds_LookupPlatform (ConsumerPlat);
+	p = dt_FindPlatformName (ProducerPlat);
+	dest = dt_FindPlatformName (ConsumerPlat);
+
 	value = 0.0;
 	for (i = 0; i < Inventory; ++i)
 	{
@@ -638,7 +661,7 @@ int nconsumers;
 		when.zt_MicroSec = 0;
 
 		dc = dc_CreateDC (DCC_Scalar);
-		dc->dc_Platform = plat_id;
+		dc->dc_Platform = pi_Id (p);
 		dc_SetScalarFields (dc, NFIELDS, Fields);
 		dc_SetBadval (dc, 9999.0);
 		for (fld = 0; fld < NFIELDS; ++fld, value += 0.01)
@@ -667,20 +690,25 @@ int nconsumers;
 		 */
 		if (i == 0 && LinkPlatforms)
 		{
-			/*
-			 * Try to make sure the consumer dir exists first
-			 */
-			mkdir (PlatDirectory (destid), 0775);
-			if (RemoveDest)
-				sprintf (cmd, "rm -f %s/%s; ", 
-					 PlatDirectory (destid),
-					 PlatFileName (plat_id));
-			else
-				cmd[0] = '\0';
-			sprintf (cmd+strlen(cmd), "cp %s/%s ", 
-				 PlatDirectory (plat_id),
-				 PlatFileName (plat_id));
-			strcat (cmd, PlatDirectory (destid));
+		    char pdir[128];
+		    char destdir[128];
+		    /*
+		     * Try to make sure the consumer dir exists first
+		     */
+		    ds_GetPlatDir (SrcId, pi_Id (dest), destdir);
+		    
+		    mkdir (destdir, 0775);
+		    if (RemoveDest)
+			sprintf (cmd, "rm -f %s/%s; ", destdir, 
+				 PlatFileName (p));
+		    else
+			cmd[0] = '\0';
+		    /*
+		     * Build the command to copy the file.
+		     */
+		    ds_GetPlatDir (SrcId, pi_Id (p), pdir);
+		    sprintf (cmd+strlen(cmd), "cp %s/%s %s", 
+			     pdir, PlatFileName (p), destdir);
 		}
 
 		/*
@@ -695,8 +723,8 @@ int nconsumers;
 			msg_ELog (EF_DEBUG, "  %s", cmd);
 			system (cmd);
 			msg_ELog (EF_DEBUG, "forcing rescan of %s",
-				  ds_PlatformName (destid));
-			ds_ForceRescan (destid, 0);
+				  pi_Name (dest));
+			ds_ForceRescan (pi_Id (dest), 0);
 		}
 		value = (int)value + 1.0;
 		/* wait Interval seconds on average, +/- Interval/2 */
@@ -720,11 +748,11 @@ int nconsumers;
 		  "Consumer children have terminated, %d errors.", err);
 	msg_ELog (EF_DEBUG, "Final state of observations:");
 	tl_Time (&now);
-	if (ds_GetObsTimes (plat_id, &now, &when, 1, NULL) != 1)
+	if (ds_GetObsTimes (pi_Id (p), &now, &when, 1, NULL) != 1)
 		++err;
 	else
 	{
-		dc = ds_FetchObs (plat_id, DCC_Scalar, &when, Fields, 
+		dc = ds_FetchObs (pi_Id (p), DCC_Scalar, &when, Fields, 
 				  NFIELDS, NULL, 0);
 		if (! dc)
 			++err;
@@ -734,11 +762,11 @@ int nconsumers;
 			dc_DestroyDC (dc);
 		}
 	}
-	if (ds_GetObsTimes (destid, &now, &when, 1, NULL) != 1)
+	if (ds_GetObsTimes (pi_Id (dest), &now, &when, 1, NULL) != 1)
 		++err;
 	else
 	{
-		dc = ds_FetchObs (destid, DCC_Scalar, &when, Fields, 
+		dc = ds_FetchObs (pi_Id (dest), DCC_Scalar, &when, Fields, 
 				  NFIELDS, NULL, 0);
 		if (! dc)
 			++err;
@@ -775,7 +803,7 @@ UpdCode ucode;
 	static int noverwrite = 0;
 	static ZebTime begin = { 0, 0 };
 	static ZebTime last = { 0, 0 };	/* time of last append update */
-	static err = 0;		/* our error count and eventual exit value */
+	static int err = 0;	/* our error count and eventual exit value */
         float check, value;	/* to check our data values */
 	DataChunk *dc;
 	char btime[128], atime[128];
@@ -850,8 +878,10 @@ UpdCode ucode;
 			if ((int)(check*100.0+0.2) != (int)(value*100.0+0.2))
 			{
 				msg_ELog (EF_PROBLEM,
-				   "%s, sample %d, fid %d",
-				   "Data comparison failed", i, Fields[fld]);
+					  "%s, '%s' sample %d, (%.4f != %.4f)",
+					  "Data comparison failed", 
+					  F_GetName (Fields[fld]), i, check,
+					  value);
 				++err;
 				break;
 			}
@@ -949,39 +979,6 @@ int num;
 
 
 
-char *
-PlatDirectory (pid)
-PlatformId pid;
-/*
- * Return a pointer to a platform's directory path.  The string is only
- * valid until the next call.  Returns NULL if this platform has no
- * local data source.
- */
-{
-	int i;
-        PlatformInfo pinfo;
-        static DataSrcInfo dsi;
-
-        ds_LockPlatform (pid);
-        ds_GetPlatInfo (pid, &pinfo);
-        /*
-         * Find the first local data source
-         */
-        for (i = 0; i < pinfo.pl_NDataSrc; i++)
-        {
-                ds_GetDataSource (pid, i, &dsi);
-                if (dsi.dsrc_Type == dst_Local)
-                        break;
-        }
-        ds_UnlockPlatform (pid);
-        if (i < pinfo.pl_NDataSrc)
-                return (dsi.dsrc_Where);
-        else
-                return (NULL);
-}               
-
-
-
 void
 ReqRescan (zt, param)
 ZebTime *zt;
@@ -1000,30 +997,16 @@ void *param;
 
 
 char *
-PlatFileName (pid)
-PlatformId pid;
+PlatFileName (const Platform *p)
 {
-        PlatformInfo pinfo;
-        DataSrcInfo dsi;
-        static DataFileInfo dfi;
-        int i;
-	char *name = NULL;
-
-        ds_LockPlatform (pid);
-        ds_GetPlatInfo (pid, &pinfo);
-        for (i = 0; i < pinfo.pl_NDataSrc; i++)
-        {
-                ds_GetDataSource (pid, i, &dsi);
-                if ((dsi.dsrc_Type == dst_Local) &&
-		    (dsi.dsrc_FFile > 0))
-                        break;
-        }
-	if (i < pinfo.pl_NDataSrc)
-	{
-		ds_GetFileInfo (dsi.dsrc_FFile, &dfi);
-		name = dfi.dfi_Name;
-	}
-        ds_UnlockPlatform (pid);
-	return (name);
+    const DataFile *df;
+    static char name[CFG_FILEPATH_LEN];
+/*
+ * Return the pathless filename of the latest file for our source/platform 
+ * combination
+ */
+    df = ds_LastFile (SrcId, pi_Id (p));
+    strcpy (name, df->df_core.dfc_name);
+    return (name);
 }
 

@@ -1,6 +1,6 @@
 //
 // The Zebra data store field class
-// $Id: Field.h,v 3.3 1997-11-21 20:36:31 burghart Exp $
+// $Id: Field.h,v 3.4 1999-03-01 02:03:33 burghart Exp $
 //
 //		Copyright (C) 1996 by UCAR
 //	University Corporation for Atmospheric Research

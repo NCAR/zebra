@@ -1,7 +1,15 @@
 /*
  * Routines for manipulating class definition structures.
  * Meant to be the basic level of access to be shared by daemon and client
- * alike.  Instantiation is different between them so it's not included.
+ * alike.  
+ *
+ * The goal is this: define and implement a single interface for describing,
+ * defining, and accessing platforms which can be used by any application,
+ * client and daemon alike.  The table structure for storing platforms on
+ * the daemon can be used by the client to cache platform structures.  The
+ * daemon configuration code uses the same interface to define classes and
+ * platforms read from the config file.  This keeps everything nice and
+ * uniform and helps avoid redundancy, especially redundant errors...
  */
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
@@ -32,145 +40,66 @@
 
 # include <defs.h>
 # include <message.h>
-# include <zl_symbol.h>	/* for searching platform name tables */
-# include <zl_regex.h>
 
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "Platforms.h"
 
-RCSID("$Id: Platforms.c,v 3.5 1998-12-17 17:17:51 burghart Exp $")
+RCSID("$Id: Platforms.c,v 3.6 1999-03-01 02:03:34 burghart Exp $")
+
 
 
 /*
- * The public default time period to keep data
+ * Applications (i.e., the daemon) may want to tag extra information
+ * onto the instance structure (derive), so we allow specification
+ * of the size to allocate and the functions to initialize and destroy it.
+ */
+struct _Derive 
+{
+	int Size;
+	void (*Init)(PlatformInstance *new);
+	void (*Destroy)(PlatformInstance *new);
+}
+Derived =
+{
+	sizeof(PlatformInstance),
+	NULL,
+	NULL
+};
+
+/*
+ * Blocks by which subplat allocated arrays are increased.
+ */
+# define ALLOC_SUBPLATS	10
+
+/*
+ * Default file keep time for real-time operations.
  */
 int DefaultKeep = 60;
 
 /*
- * Default data directory.
- */
-char DefDataDir[DDIR_LEN];
-char RemDataDir[DDIR_LEN];
-zbool DisableRemote = FALSE;	/* Disable use of remote directories 	*/
-
-/*
- * Public access to names of enumerated types
- */
-static const char *_OrgName[] =
-{
-	"unknown",	/* OrgUnknown	= 0 */
-	"2dgrid",	/* Org2dGrid	= 1 */
-	"irgrid",	/* OrgIRGrid	= 2 */
-	"scalar", 	/* OrgScalar	= 3 */
-	"image",	/* OrgImage	= 4 */
-	"outline", 	/* OrgOutline	= 5 */
-	"3dgrid",	/* Org3dGrid	= 6 */
-	"cmpimage",	/* OrgCmpImage	= 7 */
-        "1dgrid",	/* Org1dGrid       = 8 */
-	"transparent",	/* OrgTransparent  = 9 */
-	"fixedscalar",	/* OrgFixedScalar  = 10 */
-	"nspace" 	/* OrgNSpace	= 11 */
-};
-#define OrgName(org) (_OrgName[(org)])
-#define NOrg (sizeof(_OrgName)/sizeof(char *))
-
-const char *
-ds_OrgName (org)
-DataOrganization org;
-{
-	return ((org >= 0 && org < NOrg) ? OrgName(org) : OrgName(OrgUnknown));
-}
-
-static const char *_FTypeName[] =
-{
-	"unknown",	/* FTUnknown = -1 */
-	"netcdf",	/* FTNetCDF = 0 */
-	"boundary",	/* FTBoundary = 1 */
-	"raster",	/* FTRaster = 2 */
-	"compressed_raster", /* FTCmpRaster = 3 */
-	"zebra",	/* FTZebra = 4 */
-	"grib",		/* FTGRIB = 5 */
-	"grib_sfc", 	/* FTGRIBSfc = 6 */
-	"grads",	/* FTGrads = 7 */
-	"grads_model",  /* FTGradsModel = 8 */
-	"hdf"		/* FTHDF = 9 */
-};
-#define FTypeName(ftype) (_FTypeName[(ftype)+1])
-#define NFType ((sizeof(_FTypeName)/sizeof(char *)))
-
-const char *
-ds_FTypeName (ft)
-FileType ft;
-{
-	return ((ft >= -1 && ft < NFType) ? FTypeName(ft) : 
-		FTypeName(FTUnknown));
-}
-
-static const char *_InheritDirName[] =
-{
-	"none",		/* InheritNone = 0 */
-	"append",	/* InheritAppend */
-	"copy"		/* InheritCopy */
-};
-#define InheritDirName(id) (_InheritDirName[(id)])
-#define NInheritDir ((sizeof(_InheritDirName)/sizeof(char *)))
-
-const char *
-ds_InheritDirName (id)
-InheritDir id;
-{
-	return ((id >= 0 && id < NInheritDir) ? InheritDirName(id) : 
-		InheritDirName(InheritDefault));
-}
-
-
-static const char *_InstanceDirName[] =
-{
-	"root", 	/* InstanceDefault = 0, InstanceRoot = 0 */
-	"copyclass",	/* InstanceCopyClass */
-	"subdirclass",	/* InstanceSubdirClass */
-	"copyparent",	/* InstanceCopyParent */
-	"subdirparent"	/* InstanceSubdirParent */
-};
-#define InstanceDirName(id) (_InstanceDirName[(id)])
-#define NInstanceDir ((sizeof(_InstanceDirName)/sizeof(char *)))
-
-const char *
-ds_InstanceDirName (id)
-InstanceDir id;
-{
-	return ((id >= 0 && id < NInstanceDir) ? InstanceDirName(id) : 
-		InstanceDirName(InstanceDefault));
-}
-
-
-
-/*
  * Private prototypes
  */
-static void dt_DecodeDirs FP ((FILE *fp, PlatformClass *spc, 
-			       PlatformClass *pc));
-static void dt_DecodeSubplats FP ((FILE *fp, const PlatformClass *spc,
-				   const PlatformClass *pc));
+static void dt_InitClass (PlatformClass *pc, const char *name);
+static int dt_FindSubplat (const PlatformClass *pc, SubPlatform *dps);
+static SubPlatform *dt_NewClassSubPlat (PlatformClass *pc);
+static void dt_InitInstance (PlatformInstance *new, const char *name);
+static void dt_EraseSubPlats (PlatformInstance *plat);
+
 
 
 void
-dt_InitDirectories ()
+dt_ExtendPlatforms (int size, void (*init)(Platform *), 
+		    void (*destroy)(Platform *))
 {
-	char *dir;
-
-	strcpy (DefDataDir, GetDataDir());
-	RemDataDir[0] = '\0';
-	DisableRemote = FALSE;
-	if ((dir = getenv("DS_DATA_DIR")) != NULL)
-	{
-		strcpy (DefDataDir, dir);
-	}
+	Derived.Size = size;
+	Derived.Init = init;
+	Derived.Destroy = destroy;
 }
 
 
-void
+
+static void
 dt_InitClass (pc, name)
 PlatformClass *pc;
 const char *name;
@@ -185,9 +114,9 @@ const char *name;
 			      "assigning name to class");
 	else
 		pc->dpc_name[0] = '\0';
-	pc->dpc_dir[0] = '\0';
-	pc->dpc_rdir[0] = '\0';
 
+	pc->dpc_dir[0] = '\0';
+	pc->dpc_id = BadClass;
 	pc->dpc_superclass = BadClass;
 	pc->dpc_org = OrgUnknown;
 
@@ -204,18 +133,31 @@ const char *name;
 
 
 
-void
-dt_Subclass (superid, super, sub, name)
-PlatClassId superid;
+
+PlatformClass *
+dt_Subclass (super, name)
 const PlatformClass *super;
-PlatformClass *sub;
 const char *name;	/* name to give to the subclass */
 /*
- * Copy the super class to the sub class, taking care of details like
- * copying subplats and resetting the comment and subclass name.
+ * Create a new class, then copy the super class to the sub class, taking
+ * care of details like copying subplats and resetting the comment and
+ * subclass name.
  */
 {
-	dt_CopyClass (sub, super);
+	PlatformClass *sub;
+
+	sub = (PlatformClass *) malloc (sizeof (PlatformClass));
+	if (super)
+	{
+		dt_CopyClass (sub, super);
+		sub->dpc_superclass = super->dpc_id;
+	}
+	else
+	{
+		dt_InitClass (sub, name);
+		sub->dpc_superclass = BadClass;
+	}
+	sub->dpc_id = BadClass;
 /*
  * For now, as an arbitrary convention, we won't inherit comments.
  */
@@ -228,12 +170,11 @@ const char *name;	/* name to give to the subclass */
 	sub->dpc_flags &= ~DPF_VIRTUAL;
 	dt_SetString (sub->dpc_name, name, sizeof(sub->dpc_name),
 		      "assigning name to subclass");
-	sub->dpc_superclass = superid;
 /* 
- * Erase our directories since these will be given defaults later
+ * Erase our directory since it will be given defaults later
  */
 	sub->dpc_dir[0] = '\0';
-	sub->dpc_rdir[0] = '\0';
+	return (sub);
 }
 
 
@@ -274,6 +215,18 @@ PlatformClass *pc;
 }
 
 
+void
+dt_DestroyClass (pc)
+PlatClassRef pc;
+/*
+ * Free an UNDEFINED class structure returned by dt_Subclass().
+ */
+{
+	dt_EraseClass (pc);
+	free (pc);
+}
+
+
 
 void
 dt_SetComment (pc, comment)
@@ -293,10 +246,7 @@ const char *comment;
 
 
 void
-dt_AddClassSubPlat (pc, sid, name)
-PlatformClass *pc;
-PlatClassId sid;		/* id of subplatform class */
-const char *name;
+dt_AddClassSubPlat (PlatformClass *pc, PlatClassId sid, const char *name)
 /*
  * Add a subplat of class 'spc' and name 'name' to class 'pc'
  */
@@ -311,9 +261,8 @@ const char *name;
 
 
 
-SubPlatform *
-dt_NewClassSubPlat (pc)
-PlatformClass *pc;
+static SubPlatform *
+dt_NewClassSubPlat (PlatformClass *pc)
 /*
  * Add a SubPlatform template to this class.
  * The subplats list will be allocated in blocks of ALLOC_SUBPLATS.  We
@@ -426,12 +375,14 @@ PlatformClass *pc;
 			  "class %s: no directory", pc->dpc_name);
 		valid = FALSE;
 	}
+#ifdef notdef
 	if (!DisableRemote && !pc->dpc_rdir)
 	{
 		msg_ELog (EF_DEBUG, "class %s: remote enabled but %s",
 			  pc->dpc_name, "no remote data directory");
 		/* just a warning, still valid class */
 	}
+#endif
 	return (valid);
 }
 
@@ -439,7 +390,7 @@ PlatformClass *pc;
 
 struct dsp_ClassStruct *
 dt_InjectClass (pc, am, retlen)
-PlatformClass *pc;		/* the class to serialize */
+const PlatformClass *pc;	/* the class to serialize */
 struct dsp_ClassStruct *am;	/* pre-allocated memory (e.g. automatic)
 				   for common unadorned classes */
 int *retlen;			/* length of final message */
@@ -451,51 +402,57 @@ int *retlen;			/* length of final message */
  * which must be freed by the caller.
  */
 {
-	struct dsp_ClassStruct *answer;
-	int i, len;
+    struct dsp_ClassStruct *answer;
+    int i, len;
 
-	answer = am;
-	len = sizeof (struct dsp_ClassStruct);
-	/*
-	 * The length we calculate first is a maximum. We'll adjust it
-	 * later to fit the space we actually used.
-	 */
-	if (pc->dpc_nsubplats > 1)
-		len += (pc->dpc_nsubplats - 1) * sizeof (SubPlatform);
-	if (pc->dpc_comment)
-	{	
-		len += strlen (pc->dpc_comment) + 1;
-	}
-	if (len > sizeof (struct dsp_ClassStruct))
-		answer = (struct dsp_ClassStruct *) malloc (len);
-	answer->dsp_class = *pc;
+    answer = am;
+    len = sizeof (struct dsp_ClassStruct);
 
-	len = sizeof (struct dsp_ClassStruct);
-	if (pc->dpc_nsubplats > 0)
+/*
+ * The length we calculate first is a maximum. We'll adjust it
+ * later to fit the space we actually used.
+ */
+    if (pc->dpc_nsubplats > 1)
+	len += (pc->dpc_nsubplats - 1) * sizeof (SubPlatform);
+
+    if (pc->dpc_comment)
+	len += strlen (pc->dpc_comment) + 1;
+/*
+ * Allocate space separate from that given to us if our class has a comment
+ * or subplats.
+ */
+    if (len > sizeof (struct dsp_ClassStruct))
+	answer = (struct dsp_ClassStruct *) malloc (len);
+
+    answer->dsp_type = dpt_R_ClassStruct;
+    answer->dsp_class = *pc;
+
+    len = sizeof (struct dsp_ClassStruct);
+    if (pc->dpc_nsubplats > 0)
+    {
+    /* 
+     * Pack these in, to save the empty space from short names.
+     * First the class id's of each subplat, then their names.
+     */
+	len += (pc->dpc_nsubplats - 1) * sizeof (PlatClassId);
+	for (i = 0; i < pc->dpc_nsubplats; ++i)
 	{
-		/* 
-		 * Pack these in, to save the empty space from short names.
-		 * First the class id's of each subplat, then their names.
-		 */
-		len += (pc->dpc_nsubplats - 1) * sizeof (PlatClassId);
-		for (i = 0; i < pc->dpc_nsubplats; ++i)
-		{
-			answer->dsp_subplatid[i] = 
-				pc->dpc_subplats[i].dps_class;
-			strcpy ((char *)answer + len, 
-				pc->dpc_subplats[i].dps_name);
-			len += strlen (pc->dpc_subplats[i].dps_name) + 1;
-		}
+	    answer->dsp_subplatid[i] = 
+		pc->dpc_subplats[i].dps_class;
+	    strcpy ((char *)answer + len, 
+		    pc->dpc_subplats[i].dps_name);
+	    len += strlen (pc->dpc_subplats[i].dps_name) + 1;
 	}
-	if (pc->dpc_comment)
-	{
-		strcpy ((char *)answer + len, pc->dpc_comment);
-		len += strlen (pc->dpc_comment) + 1;
-	}
-	*retlen = len;
-	if (answer != am)
-		answer = (struct dsp_ClassStruct *) realloc (answer, len);
-	return (answer);
+    }
+    if (pc->dpc_comment)
+    {
+	strcpy ((char *)answer + len, pc->dpc_comment);
+	len += strlen (pc->dpc_comment) + 1;
+    }
+    *retlen = len;
+    if (answer != am)
+	answer = (struct dsp_ClassStruct *) realloc (answer, len);
+    return (answer);
 }
 
 
@@ -551,67 +508,29 @@ int len;
 
 
 void
-dt_FillClassDirs (pc, super)
-PlatformClass *pc;
-const PlatformClass *super;
+dt_FillClassDir (PlatformClass *pc, const PlatformClass *super)
 /*
- * Fill in the directories if the definition hasn't done it already.
- * If the directory is relative, use the inherit flags to determine whether
- * to prepend DataDir, the prepend the superclass dir, or copy the superclass
- * dir.  If its absolute, use the full path name without modifying it.
- * If the dir is nonexistent and inheritance is none, use DataDir/name.
- *
- * For remote directories, if remote is disabled or the remote directory
- * is absolute, we do nothing.
- * If we have no default remote datadir, there is nothing we *can* do.
- * Otherwise, prepend the default remote dir to either the name or the
- * relative path.
+ * Determine the default directory name, using the inherit flags.
+ *	InheritNone: just use our class name
+ *	InheritCopy: use our superclass's directory name
+ *	InheritAppend: append our class name as a subdirectory of our
+ *		superclass's directory
  */
 {
-	char newdir[512];
-	char *dirname;
+    char newdir[512];
+    char *dirname;
 
-	dirname = (pc->dpc_dir[0] == '\0') ? pc->dpc_name : pc->dpc_dir;
+    dirname = (pc->dpc_dir[0] == '\0') ? pc->dpc_name : pc->dpc_dir;
 
-	if (pc->dpc_dir[0] != '/')	/* absolute paths don't change */
-	{
-		if  (((InheritDir)pc->dpc_inherit == InheritNone) ||
-		     (super == NULL))
-		{
-			sprintf (newdir, "%s/%s", DefDataDir, dirname);
-		}
-		else if ((InheritDir)pc->dpc_inherit == InheritCopy)
-		{
-			sprintf (newdir, "%s", super->dpc_dir);
-		}
-		else 	/* InheritAppend */
-		{
-			sprintf (newdir, "%s/%s", super->dpc_dir, dirname);
-		}
-		dt_SetString (pc->dpc_dir, newdir, sizeof(pc->dpc_dir),
-			      "class data directory");
-	}
-	if (DisableRemote || (pc->dpc_rdir[0] == '/'))
-		return;
-	dirname = (pc->dpc_rdir[0] == '\0') ? pc->dpc_name : pc->dpc_rdir;
-	if (RemDataDir[0] != '\0')
-	{
-		if  (((InheritDir)pc->dpc_inherit == InheritNone) ||
-		     (super == NULL))
-		{
-			sprintf (newdir, "%s/%s", RemDataDir, dirname);
-		}
-		else if ((InheritDir)pc->dpc_inherit == InheritCopy)
-		{
-			sprintf (newdir, "%s", super->dpc_rdir);
-		}
-		else 	/* InheritAppend */
-		{
-			sprintf (newdir, "%s/%s", super->dpc_rdir, dirname);
-		}
-		dt_SetString (pc->dpc_rdir, newdir, sizeof(pc->dpc_rdir),
-			      "class remote data directory");
-	}
+    if  ((pc->dpc_inherit == InheritNone) || (super == NULL))
+	strcpy (newdir, dirname);
+    else if (pc->dpc_inherit == InheritCopy)
+	strcpy (newdir, super->dpc_dir);
+    else 	/* InheritAppend */
+	sprintf (newdir, "%s/%s", super->dpc_dir, dirname);
+
+    dt_SetString (pc->dpc_dir, newdir, sizeof(pc->dpc_dir), 
+		  "class default data directory");
 }
 
 
@@ -642,109 +561,184 @@ PlatformId subid;
 
 
 
+PlatformInstance *
+dt_NewPlatform (const char *name)
 /*
- * All the logic for deriving instance directories is in this function.
- * It does not use any instance structures so that both daemon and client
- * can use it to fill in their own instance structures.
- */
-void
-dt_FillDirs (pc, defname, dir, rdir, pdir, prdir)
-const PlatformClass *pc;
-const char *defname;	/* Defined name, doesn't include parent if a subplat */
-char *dir;		/* Local directory to set */
-char *rdir;		/* Remote directory to set */
-const char *pdir;	/* Parent local directory, or NULL */
-const char *prdir;	/* Parent remote directory, or NULL */
-/* 
- * Determine our instance directory given our directory instance flags.
- * Otherwise we do the default of using a subdirectory of datadir.
+ * Create a new platform instance with the given name.  The returned
+ * structure has not been added to the table, so it needs to either
+ * be added to the table or deleted.
  *
- * If the class specifies subdir, the instance directory is a subdir of the
- * class directory (DataDir/<class name> unless the class has a directory).
- *
- * If the class specified samedir, the instance directory is the same 
- * directory as the class (DataDir/<class name> unless the class has a 
- * valid directory).
- *
- * Platforms being instantiated via 'platform', whose class has the same
- * name, will have samedir set by default, so that the instance will
- * automatically be where it has always been.
+ * Return NULL if the platform could not be created.
  */
 {
-	char newdir[512];
-	const char *dirname;
-
-	dirname = defname;
+	PlatformInstance *new;
+	int size;
 /*
- * First lets do the local directory.
+ * Allocate a new platform table entry.
  */
-	if ((InstanceDir)pc->dpc_instance == InstanceDefault ||
-	    (InstanceDir)pc->dpc_instance == InstanceRoot)
-		/* InstanceDefault and InstanceRoot */
-		sprintf (newdir, "%s/%s", DefDataDir, dirname);
-	else if ((InstanceDir)pc->dpc_instance == InstanceCopyClass)
-		/* InstanceCopyClass */
-		sprintf (newdir, "%s", pc->dpc_dir);
-	else if ((InstanceDir)pc->dpc_instance == InstanceSubdirClass)
-		/* InstanceSubdirClass */
-		sprintf (newdir, "%s/%s", pc->dpc_dir, dirname);
-	else if (pdir == NULL)
-		/* No parent for parent instance types */
-		sprintf (newdir, "%s/%s", DefDataDir, dirname);
-	else if ((InstanceDir)pc->dpc_instance == InstanceCopyParent)
-		/* InstanceCopyParent */
-		sprintf (newdir, "%s", (char *) pdir);
+	new = (PlatformInstance *) malloc (Derived.Size);
+	if (! new)
+	{
+		msg_ELog (EF_PROBLEM,
+			  "malloc failure for platform instance '%s'", name);
+		return (NULL);
+	}
+/*
+ * Initialize the instance.  Note this is not the same as assigning defaults.
+ * Defaults come later since they may be inherited or specified by the class.
+ */
+	dt_InitInstance (new, name);
+	if (Derived.Init)
+	{
+		(*Derived.Init)(new);
+	}
+	return (new);
+}
+
+
+
+void
+dt_FreePlatform (PlatformInstance *pi)
+{
+	dt_EraseSubPlats (pi);
+	if (Derived.Destroy)
+		(*Derived.Destroy)(pi);
+	free (pi);
+}
+
+
+
+static void
+dt_EraseSubPlats (plat)
+PlatformInstance *plat;
+/*
+ * Remove the subplats array from this instance
+ */
+{
+	if (plat->dp_subplats)
+		free (plat->dp_subplats);
+	plat->dp_subplats = NULL;
+	plat->dp_nsubplats = 0;
+}
+
+
+
+static int
+dt_FindSubplat (pc, dps)
+const PlatformClass *pc;
+SubPlatform *dps;
+/*
+ * Look for this subplatform in the given class.  Return its index if found,
+ * else -1.
+ */
+{
+	int j;
+
+	for (j = 0; j < pc->dpc_nsubplats; ++j)
+		if ((pc->dpc_subplats[j].dps_class == dps->dps_class) &&
+		    ! strcmp (pc->dpc_subplats[j].dps_name, dps->dps_name))
+			return (j);
+	return (-1);
+}
+
+
+
+static void
+dt_InitInstance (PlatformInstance *new, const char *name)
+/*
+ * Initialize this platform instance structure
+ */
+{
+	dt_SetString (new->dp_name, name, sizeof(new->dp_name),
+		      "assigning instance name");
+	new->dp_class = BadClass;
+	new->dp_parent = BadPlatform;
+	new->dp_subplats = NULL;
+	new->dp_nsubplats = 0;
+	new->dp_flags = 0;
+}
+
+
+
+
+const char*
+pi_SuggestedDir (const Platform *p)
+/* 
+ * Determine our instance subdirectory given our class's directory 
+ * instance flag.  The string returned is valid until the next call here.
+ */
+{
+    static char dir[CFG_FILEPATH_LEN];
+    const char *uplatname;
+    const PlatformClass *pc = pi_Class (p);
+    const Platform *parent;
+    int parentlen;
+/*
+ * First find our unique platform name (the "normal" platform name, less the
+ * parent portion if any).
+ */
+    if ((parent = pi_Parent (p)) != NULL)
+	parentlen = strlen (pi_Name (parent)) + 1;   /* +1 is for the slash */
+    else
+	parentlen = 0;
+
+    uplatname = pi_Name (p) + parentlen;
+/*
+ * Now choose based on the class directory instance flag
+ */
+    switch (pc_InstanceDirFlag (pc))
+    {
+    /*
+     * InstanceRoot: <uplatname>
+     */
+      case InstanceRoot:	/* == InstanceDefault */
+	strcpy (dir, uplatname);
+	break;
+    /*
+     * InstanceCopyClass: <class_dir>
+     */
+      case InstanceCopyClass:
+	strcpy (dir, pc_SuggestedDir (pc));
+	break;
+    /*
+     * InstanceSubdirClass: <class_dir>/<uplatname>
+     */
+      case InstanceSubdirClass:
+	sprintf (dir, "%s/%s", pc_SuggestedDir (pc), uplatname);
+	break;
+    /*
+     * InstanceCopyParent: <parent_dir>
+     */
+      case InstanceCopyParent:
+	if (! parent)
+	    strcpy (dir, uplatname);
 	else
-		/* InstanceSubdirParent */
-		sprintf (newdir, "%s/%s", (char *) pdir, dirname);
-
-	dt_SetString (dir, newdir, sizeof(pc->dpc_dir),
-		      "instance data directory");
-/*
- * Now we have to do the remote directory, but only if enabled,
- * and if this isn't a subplatform class.
- */
-	if (DisableRemote || (pc->dpc_flags & DPF_SUBPLATFORM))
-		return;
-/*
- * Otherwise we treat remote dirs just like the data dirs above.  If 
- * RemDataDir is empty, then we must have a remote directory from our
- * parent or class in order to generate a new remote directory.
- */
-	newdir[0] = '\0';
-	if (((InstanceDir)pc->dpc_instance == InstanceDefault ||
-	    (InstanceDir)pc->dpc_instance == InstanceRoot) && RemDataDir[0])
-		/* InstanceDefault and InstanceRoot */
-		sprintf (newdir, "%s/%s", RemDataDir, dirname);
-	else if (((InstanceDir)pc->dpc_instance == InstanceCopyClass) 
-		 && (pc->dpc_rdir[0]))
-		/* InstanceCopyClass */
-		sprintf (newdir, "%s", pc->dpc_rdir);
-	else if (((InstanceDir)pc->dpc_instance == InstanceSubdirClass) 
-		 && (pc->dpc_rdir[0]))
-		/* InstanceSubdirClass */
-		sprintf (newdir, "%s/%s", pc->dpc_rdir, dirname);
-	else if (prdir == NULL)
+	    pi_SuggestedDir (parent);	/* sets our static "dir" variable */
+	break;
+    /*
+     * InstanceSubdirParent: <parent_dir>/<uplatname>
+     */
+      case InstanceSubdirParent:
+	if (! parent)
+	    strcpy (dir, uplatname);
+	else
 	{
-		/* No parent for parent instance types */
-		if (RemDataDir[0])
-			sprintf (newdir, "%s/%s", RemDataDir, dirname);
-		else
-			newdir[0] = '\0';
+	    pi_SuggestedDir (parent);	/* sets our static "dir" variable */
+	    strcat (dir, "/");
+	    strcat (dir, uplatname);
 	}
-	else if (((InstanceDir)pc->dpc_instance == InstanceCopyParent)
-		 && (prdir[0]))
-		/* InstanceCopyParent */
-		sprintf (newdir, "%s", (char *) prdir);
-	else if (prdir[0])
-		/* InstanceSubdirParent */
-		sprintf (newdir, "%s/%s", (char *) prdir, dirname);
+	break;
+    /*
+     * Oops.  Bad InstanceDir value.
+     */
+      default:
+	msg_ELog (EF_PROBLEM, 
+		  "pi_SuggestedDir: Bad InstanceDir value %d for plat %s",
+		  pc_InstanceDirFlag (pc), pi_Name (p));
+	strcpy (dir, uplatname);
+    }
 
-	if (newdir[0])
-	{
-		dt_SetString (rdir, newdir, sizeof(pc->dpc_rdir),
-			      "instance remote data directory");
-	}
+    return (dir);
 }
 
 
@@ -778,7 +772,8 @@ char *op;	       	/* optional operation for error message */
 
 
 
-/*
+
+/* =====================================================================
  * A little experiment.  See how hard it is to write a routine which
  * decodes a class structure into clear text datastore config commands.  We
  * have to make some assumptions: anything which would ordinarily be
@@ -786,6 +781,15 @@ char *op;	       	/* optional operation for error message */
  * unspecified.  If the default derived directories would be identical to
  * the defined directories, leave them unspecified also.
  */
+
+/*
+ * Private prototypes used for platform decoding.
+ */
+static void dt_DecodeDirs FP ((FILE *fp, PlatformClass *spc, 
+			       PlatformClass *pc));
+static void dt_DecodeSubplats FP ((FILE *fp, const PlatformClass *spc,
+				   const PlatformClass *pc));
+
 
 int
 dt_DecodeClass (fp, pc, spc)
@@ -796,9 +800,9 @@ const PlatformClass *spc;/* the class's superclass, or null */
 	fprintf (fp, "class %s %s\n", pc->dpc_name,
 		 (spc ? spc->dpc_name : ""));
 	if (!spc || (spc->dpc_org != pc->dpc_org))
-		fprintf (fp, "\torganization\t%s\n", OrgName(pc->dpc_org));
+		fprintf (fp, "\torganization\t%s\n", ds_OrgName(pc->dpc_org));
 	if (!spc || (spc->dpc_ftype != pc->dpc_ftype))
-		fprintf (fp, "\tfiletype\t%s\n", FTypeName(pc->dpc_ftype));
+		fprintf (fp, "\tfiletype\t%s\n", ds_FTypeName(pc->dpc_ftype));
 	if (!spc || (spc->dpc_maxsamp != pc->dpc_maxsamp))
 		fprintf (fp, "\tmaxsamples\t%d\n", pc->dpc_maxsamp);
 	/*
@@ -834,11 +838,11 @@ const PlatformClass *spc;/* the class's superclass, or null */
 	if ((spc && (spc->dpc_inherit != pc->dpc_inherit)) ||
 	    (!spc && (pc->dpc_inherit != InheritDefault)))
 		fprintf (fp, "\tinheritdir\t%s\n", 
-			 InheritDirName(pc->dpc_inherit));
+			 ds_InheritDirFlagName (pc_InheritDirFlag (pc)));
 	if ((spc && (spc->dpc_instance != pc->dpc_instance)) ||
 	    (!spc && (pc->dpc_instance != InstanceDefault)))
 		fprintf (fp, "\tinstancedir\t%s\n", 
-			 InstanceDirName(pc->dpc_instance));
+			 ds_InstanceDirFlagName (pc_InstanceDirFlag (pc)));
 	dt_DecodeDirs (fp, (PlatformClass *)spc, (PlatformClass *)pc);
 	/*
 	 * Subplatforms.
@@ -848,26 +852,6 @@ const PlatformClass *spc;/* the class's superclass, or null */
 		fprintf (fp, "\tcomment\t'%s'\n", pc->dpc_comment);
 	fprintf (fp, "endclass %s\n", pc->dpc_name);
 	return (0);
-}
-
-
-
-int
-dt_FindSubplat (pc, dps)
-const PlatformClass *pc;
-SubPlatform *dps;
-/*
- * Look for this subplatform in the given class.  Return its index if found,
- * else -1
- */
-{
-	int j;
-
-	for (j = 0; j < pc->dpc_nsubplats; ++j)
-		if ((pc->dpc_subplats[j].dps_class == dps->dps_class) &&
-		    ! strcmp (pc->dpc_subplats[j].dps_name, dps->dps_name))
-			return (j);
-	return (-1);
 }
 
 
@@ -990,26 +974,26 @@ PlatformClass *pc;
  */
 {
 	char dir[sizeof(pc->dpc_dir)];
-	char rdir[sizeof(pc->dpc_rdir)];
+	/* char rdir[sizeof(pc->dpc_rdir)]; */
 
 	/*
 	 * Save the current dirs and reset them to empty.
 	 */
 	strcpy (dir, pc->dpc_dir);
-	strcpy (rdir, pc->dpc_rdir);
 	pc->dpc_dir[0] = '\0';
+#ifdef notdef
+	strcpy (rdir, pc->dpc_rdir);
 	pc->dpc_rdir[0] = '\0';
-	dt_FillClassDirs (pc, spc);
+#endif
+	dt_FillClassDir (pc, spc);
 	/*
 	 * Local:
 	 */
 	if (strcmp (pc->dpc_dir, dir))
 	{
-		char *c;
-
-		if ((c = dt_ExtractDir (DefDataDir, dir)))
-			fprintf (fp, "\tdirectory\t'%s'\n", c);
+		fprintf (fp, "\tdirectory\t'%s'\n", dir);
 	}
+#ifdef notdef
 	/*
 	 * Remote:
 	 */
@@ -1020,131 +1004,11 @@ PlatformClass *pc;
 		if ((c = dt_ExtractDir (RemDataDir, rdir)))
 			fprintf (fp, "\tremote\t'%s'\n", c);
 	}
+#endif
 	/*
 	 * Finally, restore the class directories
 	 */
 	strcpy (pc->dpc_dir, dir);
-	strcpy (pc->dpc_rdir, rdir);
+	/* strcpy (pc->dpc_rdir, rdir); */
 }
-
-
-
-
-int
-dt_CreateDataDir (dir, name, flags)
-const char *dir;
-const char *name;
-unsigned short *flags;
-/*
- * Check whether this platform's local data directory exists, and if not
- * try to create it.  If upon exit the directory exists and is accessible,
- * set the platform's DPF_DIREXISTS flag so that we don't try this again.
- * The flags parameter is ignored if NULL.
- */
-{
-	int succeed = 0;
-	int check;
-
-	check = access (dir, R_OK | W_OK | X_OK);
-	if (check == 0)
-	{
-		succeed = 1;
-	}
-	else if (errno == EACCES)
-	{
-		msg_ELog (EF_PROBLEM, "Access denied to path %s", dir);
-	}
-	else if (errno == ENOENT)
-	{
-		if ((succeed = dt_MakeDataDir (dir)) != 0)
-			msg_ELog (EF_INFO, "Created data dir %s (plat %s)",
-				  dir, name);
-		else
-			msg_ELog (EF_PROBLEM, "Cannot create dir %s (plat %s)",
-				  dir, name);
-	}
-	else
-	{
-		msg_ELog (EF_PROBLEM, "access() error %d checking dir %s",
-			  errno, dir);
-	}
-
-	if (succeed && flags)
-	{
-		*flags |= DPF_DIREXISTS;
-		*flags |= DPF_DIRTY;
-	}
-	return (succeed);
-}
-
-
-
-
-int
-dt_MakeDataDir (dir)
-const char *dir;
-/*
- * Try to make the data directory.
- */
-{
-	char tmp[512];
-	const char *slash = dir;
-/*
- * Go through and try to make all of the parent directories.
- */
-	while ((slash = (const char *) strchr (slash + 1, '/')))
-	{
-		strncpy (tmp, dir, slash - dir);
-		tmp[slash - dir] = '\0';
-		mkdir (tmp, 0777);
-	}
-/*
- * Now try for the whole thing.
- */
-	return (mkdir (dir, 0777) == 0);
-}
-
-
-
-
-void
-ds_SearchPlatTable (table, function, req, pids, npids)
-void *table;
-int (*function)();
-struct dsp_PlatformSearch *req;
-PlatformId *pids;
-int *npids;
-{
-	char *re_result;
-	struct SearchInfo info;
-/*
- * Store the info for the matching function
- */
-	info.si_req = req;
-	info.si_pids = pids;
-	info.si_npids = 0;
-	*npids = 0;
-/*
- * Prepare our regexp, if there is one.  If there isn't, we match everything.
- */
-	re_result = NULL;
-	if (req->dsp_regexp[0])
-	{
-		re_result = zl_re_comp (req->dsp_regexp);
-		if (re_result)
-			msg_ELog (EF_PROBLEM, "PlatformSearch, '%s': %s",
-				  req->dsp_regexp, re_result);
-	}
-/*
- * Now loop through all of the symbol entries.
- */
-	if (re_result == NULL)
-	{
-		zl_search ((stbl) table, function, (long)&info, 
-			   req->dsp_alphabet, NULL);
-		*npids = info.si_npids;
-	}
-}
-
-
 

@@ -73,10 +73,9 @@
 # include <GraphicsW.h>
 # include "GraphProc.h"
 # include "PixelCoord.h"
-
 # include "RasterImage.h"
 
-RCSID ("$Id: RasterPlot.c,v 2.37 1998-10-28 21:22:06 corbet Exp $")
+RCSID ("$Id: RasterPlot.c,v 2.38 1999-03-01 02:04:28 burghart Exp $")
 
 # ifdef TIMING
 # include <sys/time.h>

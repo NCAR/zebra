@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.70 1998-12-17 00:36:09 burghart Exp $"
+MFVERSION="$Id: Imakefile,v 1.71 1999-03-01 02:03:34 burghart Exp $"
 
 DEPLIBS=$(ZLIBS)
 LIBMPROF=/dt/granger/libc_mp.a
@@ -47,29 +47,36 @@ DCSRCS = DataChunk.c DataAttr.c dc_Boundary.c dc_IRGrid.c dc_Image.c \
 	 dc_Elements.c dc_ADE.c dc_All.c Details.c dc_Polar.c
 
 /*
+ * Shared platform access interface
+ */
+PLATSRCS = Platforms.c p_Appl.c p_Table.c DataTypes.c DataTypes_xdr.c
+PLATOBJS = Platforms.o p_Appl.o p_Table.o DataTypes.o DataTypes_xdr.o
+
+/*
  * Modules shared between client library and daemon
  */
-SHAREDOBJS = $(DFAOBJS) $(DCOBJS) d_Notify.o Platforms.o ds_fields.o Field.o
-SHAREDSRCS = $(DFASRCS) $(DCSRCS) d_Notify.c Platforms.c
-SHAREDSRCS_CXX = ds_fields.cc Field.cc
-
+SHAREDOBJS = $(DFAOBJS) $(DCOBJS) $(PLATOBJS) d_Notify.o \
+	     d_Source.o DataFiles.o ds_fields.o Field.o Source.o
+SHAREDSRCS = $(DFASRCS) $(DCSRCS) $(PLATSRCS) d_Notify.c
+SHAREDSRCS_CXX = d_Source.cc DataFiles.cc ds_fields.cc Field.cc Source.cc
 
 /* 
  * DSOBJS, DSSRCS = Daemon-specific object modules 
  */
-DSOBJS = Daemon.o d_DataTables.o d_Config.o d_Scan.o d_Debug.o d_Appl.o
-DSSRCS = Daemon.c d_DataTables.c d_Config.c d_Scan.c d_Debug.c d_Appl.c
+DSOBJS = Daemon.o d_Config.o d_Scan.o d_Debug.o
+DSSRCS = Daemon.c d_Config.c d_Scan.c d_Debug.c
+DSSRCS_CXX = 
 
 /* 
  * DSLIBOBJS, DSLIBSRCS = normal DS library code 
  */
-DSLIBOBJS = Appl.o DFA_Appl.o SA_Appl.o C_Appl.o ingest.o GetList.o \
+DSLIBOBJS = Appl.o DFA_Appl.o SA_Appl.o ingest.o GetList.o \
 	    ds_Derive.o DerivNode.o DerivTable.o FDScan.o FDParse.tab.o \
-	    $(SHAREDOBJS) 
-DSLIBSRCS = Appl.c DFA_Appl.c SA_Appl.c C_Appl.c ingest.c GetList.c \
-	    $(SHAREDSRCS)
+	    p_Client.o $(SHAREDOBJS) 
+DSLIBSRCS = Appl.c DFA_Appl.c SA_Appl.c ingest.c GetList.c \
+	    p_Client.c $(SHAREDSRCS)
 DSLIBSRCS_CXX = ds_Derive.cc DerivNode.cc DerivTable.cc FDScan.cc \
-	        FDParse.tab.cc $(SHAREDSRCS_CXX)
+		FDParse.tab.cc $(SHAREDSRCS_CXX)
 
 
 UTILSRCS = rfdump.c zfdump.c GRIBdump.c bfdump.c
@@ -85,11 +92,11 @@ DERIVDEF = Derivations
  */
 TESTSRCS = aline.c apple.c T_HDF.c \
 	   T_Appl.c T_Attr.c T_DataChunk.c T_DataFormat.c T_DataStore.c \
-	   T_Derivations.c T_Fields.c T_Grids.c T_MetData.c T_NetCDF.c \
+           T_Derivations.c T_Fields.c T_Grids.c T_MetData.c T_NetCDF.c \
 	   T_NSpace.c T_Scalar.c T_Transparent.c T_Utils.c T_ZNF.c
 
 TESTOBJS = T_Appl.o T_Attr.o T_DataChunk.o T_DataFormat.o T_DataStore.o \
-	   T_Derivations.o T_Fields.o T_Grids.o T_MetData.o T_NetCDF.o \
+           T_Derivations.o T_Fields.o T_Grids.o T_MetData.o T_NetCDF.o \
 	   T_NSpace.o T_Scalar.o T_Transparent.o T_Utils.o T_ZNF.o
 
 /*
@@ -102,20 +109,21 @@ TESTMODS = $(TESTOBJS) ./libZebraDS.a
  * All of the sources in this directory, for the make depend.
  */
 SRCS = $(DSLIBSRCS) $(DCSRCS) $(DSSRCS) $(UTILSRCS)
-SRCS_CXX = $(DSLIBSRCS_CXX)
+SRCS_CXX = $(DSLIBSRCS_CXX) $(DSSRCS_CXX)
 
 PRIVATE_HEADERS = BoundaryFile.h DataChunkP.h dslib.h znfile.h \
 		  RasterFile.h commands.h dfa.h dsDaemon.h dsPrivate.h \
 		  GRIB.h Appl.h DataFormat.h Platforms.h apple.h GetList.h \
 		  DerivNode.h DerivTable.h Field.h
 
-HEADERS = DataStore.h DataChunk.h ingest.h ds_fields.h
+HEADERS = DataChunk.h DataFiles.h DataStore.h DataTypes.h ds_fields.h \
+	ingest.h Platforms.h
 
 DSCONFIGS = perm.config aline.config apple.config
 
-DISTFILES = Imakefile $(SRCS) $(PRIVATE_HEADERS) $(TESTSRCS) \
+DISTFILES = Imakefile $(SRCS) $(SRCS_CXX) $(PRIVATE_HEADERS) $(TESTSRCS) \
             $(HEADERS) Daemon.state hdflook.c $(DSCONFIGS) dbgstart.csh \
-	    $(DERIVDEF)
+	    $(DERIVDEF) $(XDRFILES)
 
 DEPEND_DEFINES = $(HDFDEFINES) $(HDFINCLUDES) $(NETCDFINCLUDES) \
 		 $(RDSSINCLUDES) $(UDUNITSINCLUDES)
@@ -129,6 +137,14 @@ CccProgramTarget(dsDaemon,$(DMNOBJS),$(DEPLIBS),$(DMNLIBS),$(DMNSYSLIBS))
 SpecialObjectRule($(DSOBJS),/**/,$(RDSSINCLUDES))
 
 UILoadFileTarget(dsDaemon.lf,Daemon.state)
+
+/*
+ * XDR targets
+ */
+RPCGENFILES = DataTypes_xdr.c DataTypes.h
+XDRFILES = DataTypes.x
+
+XDRTarget(DataTypes)
 
 /*
  * Make the library.
@@ -158,7 +174,8 @@ CompleteProgramTarget (rfdump,$(RFDOBJS),$(LIBZEBRA),$(DEPLIBS) $(LIBZEBRA),/**/
 TestProgramTarget (bfdump, bfdump.o, $(LIBZEBRA), $(LIBZEBRA), /**/)
 
 ZFOBJS = zfdump.o ./libZebraDS.a
-CccProgramTarget (zfdump,$(ZFOBJS),$(DEPLIBS),$(LIBS),$(LIBREGEXP) $(LIBMATH))
+CccProgramTarget (zfdump,$(ZFOBJS),$(LIBZEBRA),$(LIBZEBRA),\
+		  $(LIBUDUNITS) $(LIBREGEXP) $(LIBMATH))
 
 GDOBJS = GRIBdump.o GRIB.o
 CompleteProgramTarget(GRIBdump,$(GDOBJS),$(LIBZEBRA),$(LIBZEBRA),$(LIBMATH))
@@ -181,7 +198,6 @@ FDParse.tab.cc: FDParse.bison
 	$(CP) -f $@ $@.dist
 
 depend:: FDScan.cc FDParse.tab.cc
-
 
 /*
  * Test routines.
@@ -360,4 +376,3 @@ CcDependTarget($(TESTSRCS))
 LintTarget()
 
 DistfilesTarget($(DISTFILES))
-

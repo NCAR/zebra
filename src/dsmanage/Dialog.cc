@@ -37,7 +37,7 @@ extern "C"
 # include "dsmWindows.h"
 # include "Dialog.h"
 
-static char *rcsid = "$Id: Dialog.cc,v 1.6 1998-03-02 20:23:09 burghart Exp $";
+static char *rcsid = "$Id: Dialog.cc,v 1.7 1999-03-01 02:03:51 burghart Exp $";
 
 
 dsDialog::dsDialog (char *title, char *prompt, void (*goproc) (const char *),

@@ -37,12 +37,11 @@
 # include <zl_symbol.h>
 # include <message.h>
 # include <copyright.h>
-# include "DataStore.h"
+# include <DataStore.h>
+# include <Platforms.h>
 
-RCSID ("$Id: dsdwidget.c,v 1.28 1998-12-17 17:17:55 burghart Exp $")
+RCSID ("$Id: dsdwidget.c,v 1.29 1999-03-01 02:03:50 burghart Exp $")
 
-
-# define MAXPLAT	1024
 
 /*
  * Data structures for the platforms we know.
@@ -79,8 +78,8 @@ struct df_context {
 	Widget	shell;		/* our popup shell */
 	Widget	list;		/* the list widget */
 	char 	**entries;	/* data file entries */
+	char	**filenames;	/* complete file name for each entry */
 	int	nent;		/* number of entries */
-	DataSrcInfo dsi[2];	/* data source info */
 	PlatformId pid;		/* our pid */
 };
 
@@ -91,20 +90,20 @@ static XtTranslations list_trans;
 static char *atrans = "<Btn1Down>:	Set() \n\
            	       <Btn1Up>: 	Notify() Unset()";
 
-static void	AddPlatforms FP((char *re, int sort));
-static void	CreateDSDWidget FP((void));
-static void	Die FP((void));
-static void	GetTimes FP((int, PlatformInfo *, ZebTime *, ZebTime *));
-static void	SetEntry FP((int, ZebTime *, ZebTime *));
-static int	MsgHandler FP((Message *));
-static void	MsgInput ();
-static void	Update FP((void));
+static void	AddPlatforms (char *re, int sort);
+static void	CreateDSDWidget (void);
+static void	Die (void);
+static void	GetTimes (const Platform*, ZebTime *, ZebTime *);
+static void	SetEntry (int, ZebTime *, ZebTime *);
+static int	MsgHandler (Message *);
+static void	MsgInput (XtPointer junk, int *fd, XtInputId *morejunk);
+static void	Update (void);
 
-static void 	PopupDisplay FP((Widget w, XtPointer cdata, XtPointer call));
-static void	DumpPlatform FP((struct df_context *dfc, PlatformInfo *));
-static void	DumpChain FP((struct df_context *dfc, char *which, int start));
+static void 	PopupDisplay (Widget w, XtPointer cdata, XtPointer call);
+static void	DumpPlatform (struct df_context *dfc);
+static void	DumpChain (struct df_context *dfc, const SourceInfo *si);
 static Widget	CreateDisplayWidget FP((Widget parent, struct df_context *dfc,
-					PlatformInfo *pi));
+					const Platform *p));
 static void	RescanCallback FP((Widget w, XtPointer, XtPointer));
 static void	ListCallback FP((Widget w, XtPointer, XtPointer));
 static void	QuitDisplay FP((Widget w, XtPointer, XtPointer));
@@ -266,10 +265,7 @@ Message	*msg;
 
 
 static void
-MsgInput (junk, fd, morejunk)
-XtPointer junk;
-int *fd;
-XtInputId *morejunk;
+MsgInput (XtPointer junk, int *fd, XtInputId *morejunk)
 /*
  * Input is happening.
  */
@@ -299,23 +295,19 @@ Die ()
 
 
 static void
-GetTimes (index, pi, begin, end)
-int index;
-PlatformInfo *pi;
-ZebTime *begin, *end;
+GetTimes (const Platform *p, ZebraTime *begin, ZebraTime *end)
 /*
  * Get the begin and end data times for a platform, without traversing
  * the entire file chain.  Use ds_FindDF and ds_FindAfter to get first
  * and last files in chain, without needing to read any files.
  */
 {
-	int df;
-	DataFileInfo dfi;
+	const DataFile *df;
 /*
  * Check all sources at once for the first and last file available.
  */
-	df = ds_FindBefore (index, &ZT_OMEGA);
-	if (df <= 0)
+	df = ds_FindDFBefore (SRC_ALL, pi_Id (p), &ZT_OMEGA);
+	if (! df)
 	{
 		/* no data whatsoever */
 		end->zt_Sec = end->zt_MicroSec = 0;	
@@ -323,11 +315,9 @@ ZebTime *begin, *end;
 	}
 	else
 	{
-		ds_GetFileInfo (df, &dfi);
-		*end = dfi.dfi_End;
-		df = ds_FindAfter (index, &ZT_ALPHA);
-		ds_GetFileInfo (df, &dfi);
-		*begin = dfi.dfi_Begin;
+		*end = df->df_core.dfc_end;
+		df = ds_FindDFAfter (SRC_ALL, pi_Id (p), &ZT_ALPHA);
+		*begin = df->df_core.dfc_begin;
 	}
 }
 
@@ -412,14 +402,12 @@ Update ()
  */
 {
 	int i;
-	ZebTime begin, end;
-	PlatformInfo pi;
+	ZebraTime begin, end;
 
 	msg_ELog (EF_INFO, "Updating platform info.");
 	for (i = 0; i < NPlat; i++)
 	{
-		ds_GetPlatInfo (PlatIds[i], &pi);
-		GetTimes (PlatIds[i], &pi, &begin, &end);
+		GetTimes (dt_FindPlatform (PlatIds[i]), &begin, &end);
 		/* msg_ELog (EF_DEBUG, "Setting entry %d", i); */
 		SetEntry (i, &begin, &end);
 	}
@@ -430,7 +418,7 @@ Update ()
 static void
 SetEntry (index, begin, end)
 int index;
-ZebTime *begin, *end;
+ZebraTime *begin, *end;
 /*
  * Make a label for this platform.
  */
@@ -471,11 +459,11 @@ zbool sort;	/* true if we want them alphabetized 	*/
  */
 {
 	int i, nplat;
-	PlatformInfo pi;
-	ZebTime begin, end;
+	ZebraTime begin, end;
+	const Platform *p;
 	PlatformId *platforms;
 
-	platforms = ds_GatherPlatforms (re, &nplat, sort, FALSE);
+	platforms = ds_SearchPlatforms (re, &nplat, sort, FALSE);
 	for (i = 0; i < nplat; i++)
 	{
 	/*
@@ -490,14 +478,14 @@ zbool sort;	/* true if we want them alphabetized 	*/
 	 * Get the platform info.  Don't bother with subplatforms, since
 	 * there is no info of interest there.
 	 */
-		ds_GetPlatInfo (platforms[i], &pi);
-	        Names[NPlat] = usy_pstring (pi.pl_Name);
+		p = dt_FindPlatform (platforms[i]);
+	        Names[NPlat] = usy_pstring (pi_Name (p));
 		PlatIds[NPlat] = platforms[i];
 	/*
 	 * Create a command button for a platform.
 	 */
-		GetTimes (platforms[i], &pi, &begin, &end);
-        	Entry[NPlat] = XtCreateManagedWidget (pi.pl_Name,
+		GetTimes (p, &begin, &end);
+        	Entry[NPlat] = XtCreateManagedWidget (pi_Name (p),
 			commandWidgetClass, Box, NULL, 0);
 		XtAddCallback (Entry[NPlat], XtNcallback, 
 			       (XtCallbackProc) PopupDisplay, 
@@ -523,18 +511,19 @@ XtPointer call;
  */
 {
 	struct df_context *dfc = NEW (struct df_context);
-	PlatformInfo pi;
+	PlatformId pid = (PlatformId) cdata;
+	const Platform *p = dt_FindPlatform (pid);
 	
 	dfc->pid = (PlatformId) (long)cdata;
 	dfc->list = NULL;
 	dfc->entries = NULL;
+	dfc->filenames = NULL;
 	dfc->nent = 0;
-	ds_GetPlatInfo (dfc->pid, &pi);
 	/*
  	 * Generate the array of entries and the shell.
 	 */
-	DumpPlatform (dfc, &pi);
-	CreateDisplayWidget (Top, dfc, &pi);
+	DumpPlatform (dfc);
+	CreateDisplayWidget (Top, dfc, p);
 
 	/*
 	 * Popup the shell and forget about it.
@@ -545,79 +534,76 @@ XtPointer call;
 
 
 static void
-DumpPlatform (dfc, pi)
-struct df_context *dfc;
-PlatformInfo *pi;
+DumpPlatform (struct df_context *dfc)
 /*
  * Create list entries for all of this platform's datafiles
  */
 {
+	SourceInfo si;
+	int s;
 /*
  * Give the list an initial allocation, and don't reallocate except
  * when the number of entries crosses the granularity size.
  */
 #	define GRAIN 25
 	dfc->entries = (char **) malloc (GRAIN * sizeof(char *));
+	dfc->filenames = (char **) malloc (GRAIN * sizeof(char *));
 	dfc->nent = 0;
 /*
  * Write data times to the list entries.
  */
-	ds_GetDataSource (dfc->pid, 0, &dfc->dsi[0]);
-	DumpChain (dfc, "Local", dfc->dsi[0].dsrc_FFile);
-	if (pi->pl_NDataSrc >= 2)
-	{
-		ds_GetDataSource (dfc->pid, 1, &dfc->dsi[1]);
-		DumpChain (dfc, RemoteName, dfc->dsi[1].dsrc_FFile);
-	}
+	for (s = 0; ds_GetSourceInfo (s, &si); s++)
+	    DumpChain (dfc, &si);
 }
 
 
 
 static void
-DumpChain (dfc, which, start)
-struct df_context *dfc;
-char *which;
-int start;
+DumpChain (struct df_context *dfc, const SourceInfo *si)
 /*
  * Dump out a datafile chain.
  */
 {
-	DataFileInfo dfi;
-	char abegin[24], aend[24];
-	char dest[256];
+    const DataFile *df;
+    char abegin[30], aend[30];
+    char dest[256];
+    const Platform *p = dt_FindPlatform (dfc->pid);
 
-	while (start)
+    for (df = ds_FirstFile (si->src_Id, pi_Id (p)); df; 
+	 df = ds_NextFile (df))
+    {
+	TC_EncodeTime (&df->df_core.dfc_begin, TC_Full, abegin);
+	sprintf (dest,"%-8s '%s' %s    ", si->src_Name, 
+		 df->df_core.dfc_name, abegin);
+	if (df->df_core.dfc_nsample > 1)
 	{
-		ds_GetFileInfo (start, &dfi);
-		TC_EncodeTime (&dfi.dfi_Begin, TC_Full, abegin);
-		sprintf (dest,"%-8s '%s' %s    ", which, dfi.dfi_Name, abegin);
-		if (dfi.dfi_NSample > 1)
-		{
-			TC_EncodeTime (&dfi.dfi_End, TC_Full, aend);
-			sprintf (dest+strlen(dest)-4,
-				 " -> %s [%hu]    ", aend, dfi.dfi_NSample);
-		}
-		/*
-		 * Add this entry to the list
-		 */
-		++dfc->nent;
-		if (! (dfc->nent % GRAIN))
-			dfc->entries = (char **) 
-				realloc (dfc->entries,
-					 (dfc->nent + GRAIN) * sizeof(char *));
-		dfc->entries[ dfc->nent - 1 ] = usy_string (dest);
-		start = dfi.dfi_Next;
+	    TC_EncodeTime (&df->df_core.dfc_end, TC_Full, aend);
+	    sprintf (dest+strlen(dest)-4, " -> %s [%hu]    ", aend, 
+		     df->df_core.dfc_nsample);
 	}
+
+    /*
+     * Add this entry to the list
+     */
+	++dfc->nent;
+	if (! (dfc->nent % GRAIN))
+	{
+	    dfc->entries = (char **) 
+		realloc (dfc->entries, (dfc->nent + GRAIN) * sizeof(char *));
+	    dfc->filenames = (char **) 
+		realloc (dfc->filenames, (dfc->nent + GRAIN) * sizeof(char *));
+	}
+	
+	dfc->entries[ dfc->nent - 1 ] = usy_string (dest);
+	dfc->filenames[ dfc->nent - 1 ] = usy_string (df->df_fullname);
+    }
 }
 
 
 
 
 static Widget
-CreateDisplayWidget (parent, dfc, pi)
-Widget parent;
-struct df_context *dfc;
-PlatformInfo *pi;
+CreateDisplayWidget (Widget parent, struct df_context *dfc, const Platform *p)
 /*
  * Build a widget for displaying the full data for a platform.
  */
@@ -644,8 +630,8 @@ PlatformInfo *pi;
 /*
  * Put platform info at top
  */
-	sprintf (label, "Platform '%s'", pi->pl_Name);
-	if (pi->pl_Mobile)
+	sprintf (label, "Platform '%s'", pi_Name (p));
+	if (pi_Mobile (p))
 		strcat (label, " [mobile]");
         n = 0;
         XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
@@ -737,27 +723,18 @@ XtPointer	call_data;
 	XawListReturnStruct *lrs = (XawListReturnStruct *) call_data;
 	struct df_context *dfc = (struct df_context *) cdata;
 	char cmd[1024];
-	char filename[512];
-	char src[32];
 	char ext[32];
-	char *period;
-	int dsindex;
+	char *period, *file;
 	int i;
+
+	msg_ELog (EF_DEBUG, "selected entry: %s", lrs->string);
 /*
- * Parse the string for the file name and soure name.
+ * Get the full filename for the selected entry, and extract its extension
  */
-	if (sscanf (lrs->string, "%s '%[^' ]", src, filename) != 2)
-	{
-		msg_ELog (EF_INFO, "could not extract source and file names");
-		return;
-	}
-	msg_ELog (EF_DEBUG, "selected source: %s; file: %s", src, filename);
-	if (!strcmp (src, dfc->dsi[0].dsrc_Name))
-		dsindex = 0;
-	else
-		dsindex = 1;
+	file = dfc->filenames[lrs->list_index];
+
 	ext[0] = 0;
-	if ((period = strrchr (filename, '.')))
+	if ((period = strrchr (file, '.')))
 		strcpy (ext, period);
 /*
  * Find the command to use for this extension
@@ -772,8 +749,10 @@ XtPointer	call_data;
 		msg_ELog (EF_INFO, "no action for extension '%s'", ext);
 		return;
 	}
-	sprintf (cmd, "%s %s/%s &", DumpActions[i].cmd, 
-		 dfc->dsi[dsindex].dsrc_Where, filename);
+/*
+ * Finally, build and execute the command
+ */
+	sprintf (cmd, "%s %s &", DumpActions[i].cmd, file);
 	msg_ELog (EF_DEBUG, "%s", cmd);
 	system (cmd);
 }
@@ -797,9 +776,17 @@ XtPointer	call_data;
 	XtPopdown (dfc->shell);
 	XtDestroyWidget (dfc->shell);
 	for (i = 0; i < dfc->nent; ++i)
+	{
 		usy_rel_string (dfc->entries[i]);
+		usy_rel_string (dfc->filenames[i]);
+	}
+	
 	if (dfc->entries)
+	{
 		free (dfc->entries);
+		free (dfc->filenames);
+	}
+
 	free (dfc);
 }
 

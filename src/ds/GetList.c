@@ -28,7 +28,7 @@
 # include "GetList.h"
 # include "dslib.h"
 
-RCSID("$Id: GetList.c,v 3.12 1996-12-06 00:40:20 granger Exp $")
+RCSID("$Id: GetList.c,v 3.13 1999-03-01 02:03:33 burghart Exp $")
 
 /*
  * Getlist lookaside list.
@@ -36,11 +36,11 @@ RCSID("$Id: GetList.c,v 3.12 1996-12-06 00:40:20 granger Exp $")
 static GetList *GList = 0;
 
 
-static GetList	*dgl_GetEntry FP ((void));
-static void	dgl_ReturnEntry FP ((GetList *));
-static int	dgl_DoList FP ((int, GetList *));
-static int	dgl_Overlaps FP ((GetList *, DataFile *));
-static GetList	*dgl_FixList FP ((GetList *, int, DataFile *, int *));
+static GetList	*dgl_GetEntry (void);
+static void	dgl_ReturnEntry (GetList *);
+static int	dgl_DoList (GetList *, const DataFile *);
+static int	dgl_Overlaps (GetList *, const DataFile *);
+static GetList	*dgl_FixList (GetList *, const DataFile *, int *);
 
 
 
@@ -71,7 +71,8 @@ static void
 dgl_ReturnEntry (gl)
 GetList *gl;
 /*
- * Return this getlist entry.
+ * Return this getlist entry, which means we're through with any file
+ * that it pointed to.
  */
 {
 	gl->gl_next = GList;
@@ -140,10 +141,8 @@ ZebTime *begin, *end;
 /*
  * Now try to satisfy it against the platform lists.
  */
-	ds_LockPlatform (pid);
-	if (! dgl_DoList (ds_FindDF (pid, end, 0), list))
-		dgl_DoList (ds_FindDF (pid, end, 1), list);
-	ds_UnlockPlatform (pid);
+/* XXX Searches all sources by default for now */
+	dgl_DoList (list, ds_FindDFBefore (SRC_ALL, pid, end));
 /*
  * Remove any unsatisfied elements at the beginning of the list.
  */
@@ -178,20 +177,17 @@ ZebTime *begin, *end;
 
 
 static int
-dgl_DoList (data, list)
-int data;
-GetList *list;
+dgl_DoList (GetList *list, const DataFile *df)
 /*
  * Try to satisfy this getlist against the given data file list.
  */
 {
-	int ret = TRUE, dp;
-	DataFile dfe;
+	int ret = TRUE;
 	GetList *lp;
 /*
  * Mark all list entries as not having been tried.
  */
-	if (data < 0)
+	if (! df)
 		return (FALSE);
 	for (lp = list; lp; lp = lp->gl_next)
 		lp->gl_flags &= ~GLF_TRIED;
@@ -216,24 +212,23 @@ GetList *list;
 	 * (Smarter means not passing over the files that we have already
 	 *  been over N times satisfying earlier getlist entries.)
 	 */
-	 	for (dp = data; dp; dp = dfe.df_FLink)
-		{
-			ds_GetFileStruct (dp, &dfe);
-			if (dgl_Overlaps (list, &dfe))
+		do {
+			if (dgl_Overlaps (list, df))
 			{
-				data = dp;  /* No point looking further back*/
+				break;  /* No point looking further back*/
+			}
+			if (TC_Less (df->df_core.dfc_end, list->gl_begin))
+			{
+				df = 0;	/* Never will find it here */
 				break;
 			}
-			if (TC_Less (dfe.df_end, list->gl_begin))
-			{
-				dp = 0;	/* Never will find it here */
-				break;
-			}
+			df = ds_PrevFile (df);
 		}
+	 	while (df);
 	/*
 	 * If we found nothing, this entry can not be satisfied, so we bail.
 	 */
-	 	if (! dp)
+	 	if (! df)
 		{
 			list->gl_flags |= GLF_TRIED;
 			list = list->gl_next;
@@ -243,7 +238,7 @@ GetList *list;
 	 * We found something.  Rework the list as appropriate.
 	 */
 	 	else
-			list = dgl_FixList (list, dp, &dfe, &ret);
+			list = dgl_FixList (list, df, &ret);
 	}
 	return (ret);
 }
@@ -253,9 +248,7 @@ GetList *list;
 
 
 static int 
-dgl_Overlaps (gp, dp)
-GetList *gp;
-DataFile *dp;
+dgl_Overlaps (GetList *gp, const DataFile *df)
 /*
  * See if these two entries overlap in time.
  */
@@ -264,18 +257,18 @@ DataFile *dp;
  * If the data begins before our desired time, then we have an overlap iff
  * it ends after that time.
  */
-	if  (TC_Less (dp->df_begin, gp->gl_begin))
+	if  (TC_Less (df->df_core.dfc_begin, gp->gl_begin))
 		return ((gp->gl_flags & GLF_BEG_INCL) ?
-			TC_LessEq (gp->gl_begin, dp->df_end) :
-			TC_Less (gp->gl_begin, dp->df_end));
+			TC_LessEq (gp->gl_begin, df->df_core.dfc_end) :
+			TC_Less (gp->gl_begin, df->df_core.dfc_end));
 /*
  * Otherwise overlap iff the data begins before the desired end time,
  * or if the end time is inclusive, at the end time.
  */
 	else
 		return ((gp->gl_flags & GLF_END_INCL) ? 
-			TC_LessEq (dp->df_begin, gp->gl_end) : 
-			TC_Less (dp->df_begin, gp->gl_end));
+			TC_LessEq (df->df_core.dfc_begin, gp->gl_end) : 
+			TC_Less (df->df_core.dfc_begin, gp->gl_end));
 }
 
 
@@ -283,10 +276,7 @@ DataFile *dp;
 
 
 static GetList *
-dgl_FixList (gp, dfindex, dp, complete)
-GetList *gp;
-DataFile *dp;
-int *complete, dfindex;
+dgl_FixList (GetList *gp, const DataFile *df, int *complete)
 /*
  * Fix up the getlist to reflect what this datafile can do for us.  The
  * current entry is split if necessary.  COMPLETE is set FALSE iff there
@@ -297,7 +287,7 @@ int *complete, dfindex;
 /*
  * If the data ends before our request, we have to split the request.
  */
-	if (TC_Less (dp->df_end, gp->gl_end))
+	if (TC_Less (df->df_core.dfc_end, gp->gl_end))
 	{
 		*complete = FALSE;
 	/*
@@ -310,9 +300,9 @@ int *complete, dfindex;
 	/*
 	 * Now fix up the times and move past the unsatisfiable piece.
 	 */
-	 	gp->gl_begin = dp->df_end;
+	 	gp->gl_begin = df->df_core.dfc_end;
 		gp->gl_flags &= ~GLF_BEG_INCL;
-		new->gl_end = dp->df_end;
+		new->gl_end = df->df_core.dfc_end;
 		new->gl_flags |= GLF_END_INCL;
 		gp = new;
 	}
@@ -321,9 +311,9 @@ int *complete, dfindex;
  * Mark it accordingly.  If we can go all the way back to the beginning, 
  * we're done.
  */
-	gp->gl_dfindex = dfindex;
+	gp->gl_df = *df;
 	gp->gl_flags |= GLF_SATISFIED;
-	if (TC_LessEq (dp->df_begin, gp->gl_begin))
+	if (TC_LessEq (df->df_core.dfc_begin, gp->gl_begin))
 		return (gp);
 /*
  * Otherwise we have to split again, and leave an unsatisfied chunk for
@@ -333,9 +323,9 @@ int *complete, dfindex;
 	*new = *gp;
 	new->gl_next = gp->gl_next;
 	gp->gl_next = new;
-	gp->gl_begin = dp->df_begin;
+	gp->gl_begin = df->df_core.dfc_begin;
 	gp->gl_flags |= GLF_BEG_INCL;
-	new->gl_end = dp->df_begin;
+	new->gl_end = df->df_core.dfc_begin;
 	new->gl_flags &= ~GLF_END_INCL;
 	new->gl_flags &= ~GLF_SATISFIED;
 	return (new);

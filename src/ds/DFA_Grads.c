@@ -19,7 +19,7 @@
 # include "dfa.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_Grads.c,v 3.15 1998-10-28 21:20:39 corbet Exp $")
+RCSID ("$Id: DFA_Grads.c,v 3.16 1999-03-01 02:03:23 burghart Exp $")
 
 
 /*
@@ -184,12 +184,12 @@ DataFormat *gradsmodelFormat = (DataFormat *) &gradsmodelFormatRec;
  * Forwards.
  */
 static void	dgr_CleanTag FP ((GradsTag *));
-static int	dgr_DoOpen FP ((GradsTag *tag, char *, int));
+static int	dgr_DoOpen FP ((GradsTag *tag, const char *, int));
 static void	dgr_HandleDDef FP ((GradsTag *, char **, int, FILE *));
 static void	dgr_HandleTDef FP ((GradsTag *, char **, int));
 static int	dgr_GetCtlLine FP ((FILE *, char **, int *));
 static void	dgr_HandleVars FP ((GradsTag *, int, FILE *));
-static int	dgr_OpenData FP ((GradsTag *, char *, char *));
+static int	dgr_OpenData FP ((GradsTag *, const char *, const char *));
 static void	dgr_CalcTime FP ((GradsTag *, int, ZebTime *));
 static void	dgr_SetTimes FP ((GradsTag *tag));
 static int	dgr_FindIndex FP ((GradsTag *, FieldId));
@@ -205,7 +205,7 @@ static void	dgr_SwapFloats FP ((float *, int));
 static int
 dgr_DoOpen (tag, file, opendata)
 GradsTag *tag;
-char *file;
+const char *file;
 zbool opendata;
 /*
  * Actually open the given file; only open the associated data file if
@@ -571,7 +571,7 @@ FILE *fp;
 static int
 dgr_OpenData (tag, dfname, cfname)
 GradsTag *tag;
-char *dfname, *cfname;
+const char *dfname, *cfname;
 /*
  * Open the data file associated with this control file.
  */
@@ -604,11 +604,13 @@ char *dfname, *cfname;
  * as it turns out, with no real indication of what's going on.
  */
 	if (read (tag->gt_dfd, data, 10*sizeof (float)) < 10*sizeof (float))
-		return;		/* No data, who cares about order? */
+		return (0);		/* No data, who cares about order? */
 	tag->gt_swap = 0;
 	for (i = 0; i < 10; i++)
 		if (fabs (data[i]) > 1e10 && dgr_Swap (data + i) < 1e10)
 			tag->gt_swap = 1;
+
+	return (1);
 }
 
 
@@ -617,16 +619,15 @@ char *dfname, *cfname;
 
 /* ARGSUSED */
 static int
-dgr_OpenFile (of, fname, dp, write)
+dgr_OpenFile (of, write)
 OpenFile *of;
-char *fname;
-DataFile *dp;
 zbool write;
 /*
  * The DFA open routine.
  */
 {
 	GradsTag *tag = TAGP(of);
+	char *fname = of->of_df.df_fullname;
 /*
  * Just open the file.
  */
@@ -634,7 +635,8 @@ zbool write;
 	{
 		dgr_SetTimes (tag);
 		/* Set this field for model platorms */
-		if (ds_IsModelPlatform(dp->df_platform)) tag->gt_ismodel=TRUE;
+		if (ds_IsModelPlatform (of->of_df.df_pid)) 
+		    tag->gt_ismodel=TRUE;
 		else tag->gt_ismodel=FALSE;
 		return (TRUE);
 	}
@@ -650,10 +652,8 @@ zbool write;
 
 
 static int
-dgr_QueryTime (file, begin, end, nsample)
-char *file;
-ZebTime *begin, *end;
-int *nsample;
+dgr_QueryTime (const char *file, ZebraTime *begin, ZebraTime *end, 
+	       int *nsample)
 /*
  * Query times in this file.
  */
@@ -675,10 +675,8 @@ int *nsample;
 }
 
 static int
-dgr_ModelQueryTime (file, begin, end, nsample)
-char *file;
-ZebTime *begin, *end;
-int *nsample;
+dgr_ModelQueryTime (const char *file, ZebraTime *begin, ZebraTime *end, 
+		    int *nsample)
 /*
  * Query times in this file.
  */
@@ -1234,13 +1232,11 @@ int *ntime;
 
 
 static char **
-dgr_GetAssociatedFiles (df, nfiles)
-DataFile *df;
-int *nfiles;
+dgr_GetAssociatedFiles (const DataFile *df, int *nfiles)
 {
   /* Some pieces of code borrowed from dgr_DoOpen and dgr_OpenData. Thanks! */
 
-  char *cfname;
+  const char *cfname;
   char **filenames;
   int  n;
   char realname[120], *slash;
@@ -1249,7 +1245,7 @@ int *nfiles;
   int nw;
   int i;
 
-  cfname = ds_FilePath (df->df_platform, df->df_index);
+  cfname = df->df_fullname;
 
 /*
  * Try opening up our control file.

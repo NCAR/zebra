@@ -145,20 +145,20 @@ XCOMM site:  $XConsortium: site.sample,v 1.9 94/04/08 17:02:06 rws Exp $
 /*
  * Override the vendor Default* symbols with symbols from config.h
  */
-#ifdef DefaultCCOptions
-#undef DefaultCCOptions
+#if defined(DefaultCCOptions) && defined(CCOptions)
+# undef DefaultCCOptions
+# define DefaultCCOptions CCOptions
 #endif
-#define DefaultCCOptions CCOptions
 
-#ifdef DefaultCDebugFlags
-#undef DefaultCDebugFlags
+#if defined(DefaultCDebugFlags) && defined(CDebugFlags)
+# undef DefaultCDebugFlags
+# define DefaultCDebugFlags CDebugFlags
 #endif
-#define DefaultCDebugFlags CDebugFlags
 
-#ifdef DefaultCplusplusDebugFlags
-#undef DefaultCplusplusDebugFlags
+#if defined(DefaultCplusplusDebugFlags) && defined(CplusplusDebugFlags)
+# undef DefaultCplusplusDebugFlags
+# define DefaultCplusplusDebugFlags CplusplusDebugFlags
 #endif
-#define DefaultCplusplusDebugFlags CDebugFlags
 
 #if defined(SunArchitecture) && defined(SparcArchitecture)
 #define HasCodeCenter	YES

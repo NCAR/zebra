@@ -28,9 +28,9 @@ void DisplayAddInput (int fd, void (*proc)());
 //
 // from main
 //
-void DDInfo (const char **, float *);
+extern int SrcId;
+
 void MakeLocalIndex (const char *);
-const char *GetPlatDir (const char *);
 void MakePlatformList ();
 
 void DLoad (class PlatformIndex *, int, const char *, int, int);

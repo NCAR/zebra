@@ -20,7 +20,7 @@
  * maintenance or updates for its software.
  */
 
-/* $Id: ActiveArea.h,v 2.2 1993-10-18 19:28:25 corbet Exp $ */
+/* $Id: ActiveArea.h,v 2.3 1999-03-01 02:04:19 burghart Exp $ */
 
 # define AA_PSIZE 60		/* Max parameter size		*/
 # define AA_TSIZE	12	/* Class size			*/
@@ -77,8 +77,8 @@ extern AAList *CurrentAreas;
 /*
  * Functions.
  */
-extern void aa_AddArea FP ((int, int, int, int, char *, char *, char *, char *,
-			    void (*) ()));
+extern void aa_AddArea FP ((int, int, int, int, const char *, const char *, 
+			    const char *, const char *, void (*) ()));
 extern void aa_ResetAreas FP ((void));
 extern void aa_ReloadAreas FP ((AAList *));
 extern ActiveArea *aa_Which FP ((int, int));

@@ -37,7 +37,7 @@
 # include "rg_status.h"
 # include "Contour.h"
 
-RCSID("$Id: XYContour.c,v 1.40 1998-11-20 16:07:07 burghart Exp $")
+RCSID("$Id: XYContour.c,v 1.41 1999-03-01 02:04:34 burghart Exp $")
 
 # define GRID(g,i,j,ydim)   (g[((i) * (ydim)) + (j)])
 
@@ -167,7 +167,7 @@ zbool	update;
  * Contour labels and whether we blank the area beneath them
  */
 	dolabel = TRUE;
-	pda_Search (Pd, c, "do-labels", "contour", (char *) &dolabel,
+	pda_Search (Pd, c, "do-labels", "contour", (char *) &dolabel, 
 		    SYMT_BOOL);
 
 	labelblank = TRUE;
@@ -946,7 +946,7 @@ int *ncolors;
  * ask for things in monochrome.
  */
 	if (! fill && pda_Search (Pd, c, "color-mono", "xy-contour",
-			(char *) &mono, SYMT_BOOL) && mono)
+				  (char*) &mono, SYMT_BOOL) && mono)
 	{
 		if (! pda_Search (Pd, c, "color", "xy-contour", ctname,
 				SYMT_STRING))

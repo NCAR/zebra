@@ -23,7 +23,7 @@
 # include <message.h>
 # include <copyright.h>
 
-RCSID("$Id: zstop.c,v 1.6 1998-12-17 16:39:11 burghart Exp $")
+RCSID("$Id: zstop.c,v 1.7 1999-03-01 02:04:56 burghart Exp $")
 
 static char *argv0;
 
@@ -68,6 +68,6 @@ Message *msg;
 		printf ("%s: message manager shutting down\n", argv0);
 		exit (0);
 	}
-	else
-		return (0);
+
+	return (0);
 }

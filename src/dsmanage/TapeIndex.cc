@@ -55,7 +55,7 @@ extern "C"
 # include "Tape.h"
 
 
-RCSID ("$Id: TapeIndex.cc,v 1.14 1998-03-02 20:22:11 burghart Exp $")
+RCSID ("$Id: TapeIndex.cc,v 1.15 1999-03-01 02:03:53 burghart Exp $")
 
 
 //

@@ -13,7 +13,7 @@
 #include "DataStore.h"
 #include "DataChunkP.h"
 
-RCSID("$Id: dc_All.c,v 3.4 1998-10-28 21:21:03 corbet Exp $")
+RCSID("$Id: dc_All.c,v 3.5 1999-03-01 02:03:40 burghart Exp $")
 
 static RawClass *ClassTable[] =
 {

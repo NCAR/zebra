@@ -30,7 +30,7 @@
 # include "DataStore.h"
 # include "DataChunkP.h"
 
-RCSID ("$Id: dc_MetData.c,v 3.25 1998-11-20 15:53:17 burghart Exp $")
+RCSID ("$Id: dc_MetData.c,v 3.26 1999-03-01 02:03:42 burghart Exp $")
 
 /*
  * If we have non-uniform, non-fixed, non-pre-arranged fields, then the 

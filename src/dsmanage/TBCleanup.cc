@@ -31,6 +31,8 @@
 # include <stream.h>
 # include <unistd.h>
 # include "dsmanage.h"
+# include <defs.h>
+# include <DataStore.h>
 
 
 extern "C" 
@@ -44,20 +46,18 @@ extern "C"
 #	include <X11/Xaw/Label.h>
 #	include <X11/Xaw/Toggle.h>
 #	include <X11/Xaw/Viewport.h>
-#	include <defs.h>
-#	include <DataStore.h>
 	extern int uit_parse_date (const char *, SValue *, int); // XXX XXX
 	extern int atoi (const char *);
 	extern void ds_ForceRescan (int, int);
 }
 //# include "container.h"
-# include "DataDir.h"
+# include "dsPlatform.h"
 # include "STable.h"
 # include "dsmWindows.h"
 # include "Index.h"
 # include "ZTime.h"
 # include "plcontainer.h"
-MAKE_RCSID ("$Id: TBCleanup.cc,v 1.10 1998-10-28 21:21:24 corbet Exp $")
+MAKE_RCSID ("$Id: TBCleanup.cc,v 1.11 1999-03-01 02:03:53 burghart Exp $")
 
 class DelSelect;
 
@@ -380,7 +380,7 @@ DelSelect::UpdFSummary ()
 	char line[120];
 	Arg args[2];
 
-	sprintf (line, "%d files selected\n(%.3f MB)", nfile, nbyte/1000000.0);
+	sprintf (line, "%d files selected\n(%.3f MB)", nfile, nbyte/1048576.0);
 	XtSetArg (args[0], XtNlabel, line);
 	XtSetValues (fsummary, args, 1);
 }
@@ -1325,7 +1325,7 @@ MakeFileLabel (const IndexFile *file, char *label)
 //
 // Throw the size onto the end and we are done.
 //
-	sprintf (label, "%.3f", file->size ()/1000000.0);
+	sprintf (label, "%.3f", file->size ()/1048576.0);
 }
 
 

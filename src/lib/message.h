@@ -1,4 +1,4 @@
-/* $Id: message.h,v 2.35 1998-10-28 21:22:41 corbet Exp $ */
+/* $Id: message.h,v 2.36 1999-03-01 02:04:44 burghart Exp $ */
 /*
  * Message protocol types.
  */
@@ -122,14 +122,7 @@ extern "C" {
 # define DEFAULT_PORT	CFG_MSG_DEFAULT_PORT   /* Default tcp port, eg 1500 */
 # define SERVICE_NAME	"zeb-msg"
 
-/*
- * Solaris 2.6 defines MAX_NAME_LEN in some weird place.  Assume we
- * don't need that.
- */
-# ifdef MAX_NAME_LEN
-# undef MAX_NAME_LEN
-# endif
-# define MAX_NAME_LEN	CFG_MSGNAME_LEN  /* Maximum length of a name, eg 32 */
+# define MSG_MAXNAMELEN	CFG_MSGNAME_LEN  /* Maximum length of a name, eg 32 */
 
 /*
  * The type for message handlers
@@ -166,7 +159,7 @@ struct mh_greeting
 {
 	int	mh_type;	/* == MH_GREETING		*/
 	char	mh_version[20];	/* Server version number	*/
-	char	mh_session[MAX_NAME_LEN];	/* Session name	*/
+	char	mh_session[MSG_MAXNAMELEN];	/* Session name	*/
 };
 
 /*
@@ -175,7 +168,7 @@ struct mh_greeting
 struct mh_ident
 {
 	int	mh_type;	/* == MH_IDENTIFY		*/
-	char	mh_name[MAX_NAME_LEN];	/* The name		*/
+	char	mh_name[MSG_MAXNAMELEN];	/* The name	*/
 };
 
 /*
@@ -196,8 +189,8 @@ struct mh_client
 	int	mh_type;	/* == MH_CLIENT			*/
 	short	mh_evtype;	/* The client event type	*/
 	short	mh_inet;	/* This is an internet "client" */
-	char	mh_client[MAX_NAME_LEN];/* The client being talked about */
-	char	mh_group[MAX_NAME_LEN]; /* Group name, when appl	*/
+	char	mh_client[MSG_MAXNAMELEN];/* The client being talked about */
+	char	mh_group[MSG_MAXNAMELEN]; /* Group name, when appl	*/
 };
 
 /*
@@ -206,9 +199,9 @@ struct mh_client
 struct mh_members
 {
 	int	mh_type;		/* == MH_LISTGROUP or MH_GROUP  */
-	char	mh_group[MAX_NAME_LEN];	/* name of group, or empty	*/
+	char	mh_group[MSG_MAXNAMELEN]; /* name of group, or empty	*/
 	int	mh_nclient;		/* number clients in list	*/
-	char	mh_client[1][MAX_NAME_LEN];	/* list of clients	*/
+	char	mh_client[1][MSG_MAXNAMELEN];	/* list of clients	*/
 };
 
 /*
@@ -234,8 +227,8 @@ struct mh_stats
  */
 typedef struct message
 {
-	char	m_from[MAX_NAME_LEN];	/* Who it's from	*/
-	char	m_to[MAX_NAME_LEN];	/* Who it is going to	*/
+	char	m_from[MSG_MAXNAMELEN];	/* Who it's from	*/
+	char	m_to[MSG_MAXNAMELEN];	/* Who it is going to	*/
 	int	m_proto;		/* Message protocols	*/
 	int	m_seq;			/* Sequence number	*/
 	short	m_flags;		/* Flag field		*/
@@ -314,7 +307,7 @@ struct msg_mtap
 {
 	int mt_nclient, mt_nproto;
 	int mt_protos[MAX_TAP_PROTO];
-	char mt_clients[MAX_NAME_LEN][MAX_TAP_CLIENT];
+	char mt_clients[MSG_MAXNAMELEN][MAX_TAP_CLIENT];
 };
 
 /*

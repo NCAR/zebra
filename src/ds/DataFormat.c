@@ -40,7 +40,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-RCSID ("$Id: DataFormat.c,v 3.9 1998-10-29 20:58:00 burghart Exp $")
+RCSID ("$Id: DataFormat.c,v 3.10 1999-03-01 02:03:30 burghart Exp $")
 
 /*
  * Include the DataFormat structure definition, and the public and
@@ -103,18 +103,18 @@ static int OF_Reopens = 0;		/* Number files re-opend r/w	*/
 /*
  * Private routines.
  */
-static OpenFile *dfa_FileIsOpen FP((int dfindex));
-static void	dfa_AddOpenFile FP((OpenFile *ofp));
-static OpenFile *dfa_GetOF FP((DataFormat *fmt, int dfindex,
-			       DataFile *df, int write));
-static void	dfa_FreeOF FP((OpenFile *ofp));
-static void 	dfa_CloseFile FP((OpenFile *));
-static char 	*dfa_GetExt FP((DataFormat *fmt));
-static int	dfa_MatchExt FP((int fmt, char *dot));
-static void	dfa_Deslash FP((char *dest));
-static void	dfa_AccessCount FP((OpenFile *ofp));
-static int	dfa_OrgClassCompat FP((DataFormat *fmt, DataOrganization org,
-				       DataClass class));
+static OpenFile *dfa_FileIsOpen (const DataFile *df);
+static void	dfa_AddOpenFile (OpenFile *ofp);
+static OpenFile *dfa_GetOF (DataFormat *fmt, const DataFile *df, int write);
+static void	dfa_FreeOF (OpenFile *ofp);
+static void 	dfa_CloseFile (OpenFile *);
+static char 	*dfa_GetExt (DataFormat *fmt);
+static int	dfa_MatchExt (int fmt, char *dot);
+static zbool	dfa_OpenFileMatches (OpenFile *ofp, const DataFile *df);
+static void	dfa_Deslash (char *dest);
+static void	dfa_AccessCount (OpenFile *ofp);
+static int	dfa_OrgClassCompat (DataFormat *fmt, DataOrganization org,
+				    DataClass class);
 
 
 /* ================================================================
@@ -124,17 +124,12 @@ static int	dfa_OrgClassCompat FP((DataFormat *fmt, DataOrganization org,
 
 
 zbool
-dfa_CreateFile (df, dc, t, details, ndetail)
-int df;
-DataChunk *dc;
-ZebTime *t;
-dsDetail *details;
-int ndetail;
+dfa_CreateFile (const DataFile *df, DataChunk *dc, ZebraTime *t, 
+		dsDetail *details, int ndetail)
 /*
  * Cause this file to exist, if at all possible.
  */
 {
-	DataFile dfe;
 	PlatformId pid;
 	OpenFile *ofp;
 	DataFormat *fmt;
@@ -143,9 +138,8 @@ int ndetail;
  * can't hurt to be sure.)
  */
 	dfa_ForceClose (df);
-	ds_GetFileStruct (df, &dfe);
-	pid = dfe.df_platform;
-	fmt = FMTP(dfe.df_ftype);
+	pid = df->df_pid;
+	fmt = FMTP(df->df_core.dfc_ftype);
 /*
  * Make sure the format isn't read-only
  */
@@ -159,13 +153,11 @@ int ndetail;
  * Try to open up the file.  If successful, do our accounting and return
  * our success.
  */
-	ofp = dfa_GetOF (fmt, df, &dfe, TRUE);
-	if ((*fmt->f_CreateFile) (ofp, ds_FilePath (pid, df), &dfe, dc,
-				  details, ndetail))
+	ofp = dfa_GetOF (fmt, df, TRUE);
+	if ((*fmt->f_CreateFile) (ofp, dc, details, ndetail))
 	{
 #ifdef DEBUG
-		msg_ELog (EF_DEBUG, "created file #%d, %s", df,
-			  ds_FilePath (pid, df));
+		msg_ELog (EF_DEBUG, "created file %s", df->df_fullname);
 #endif
 		dfa_AddOpenFile (ofp);
 		return (TRUE);
@@ -181,41 +173,36 @@ int ndetail;
 
 
 void
-dfa_ForceClose (dfindex)
-int dfindex;
+dfa_ForceClose (const DataFile *df)
 /*
- * If this file index is opened, close it now.  See the comment for
- * dfa_CloseFile.
+ * If this file is opened, close it now.  See the comment for dfa_CloseFile.
  */
 {
-	OpenFile *ofp;
+    OpenFile *ofp;
 
-	for (ofp = OpenFiles; ofp; ofp = ofp->of_next)
+    for (ofp = OpenFiles; ofp; ofp = ofp->of_next)
+    {
+	if (dfa_OpenFileMatches (ofp, df))
 	{
-		if (ofp->of_dfindex == dfindex)
-		{
-			dfa_CloseFile (ofp);
-			return;
-		}
+	    dfa_CloseFile (ofp);
+	    return;
 	}
+    }
 }
 
 
 
 
 int
-dfa_GetObsSamples (dfile, times, locs, max)
-int dfile, max;
-ZebTime *times;
-Location *locs;
+dfa_GetObsSamples (const DataFile *df, ZebraTime *times, Location *locs, 
+		   int max)
 /*
  * Return sample info from this observation.
  */
 {
 	OpenFile *ofp;
 
-	if ((ofp = dfa_OpenFile (dfile, 0)) &&
-	    (ofp->of_fmt->f_GetObsSamples))
+	if ((ofp = dfa_OpenFile (df, 0)) && (ofp->of_fmt->f_GetObsSamples))
 	{
 		return ((*ofp->of_fmt->f_GetObsSamples)
 			(ofp, times, locs, max));
@@ -227,19 +214,17 @@ Location *locs;
 
 
 int
-dfa_GetFields (dfile, t, nfld, flist)
-int dfile, *nfld;
-ZebTime *t;
-FieldId *flist;
+dfa_GetFields (const DataFile *df, const ZebraTime *t, int *nfld, 
+	       FieldId *flist)
 /*
  * Return the available fields.
  */
 {
 	OpenFile *ofp;
 
-	if ((ofp = dfa_OpenFile (dfile, 0)) && ofp->of_fmt->f_GetFields)
-	{
-		int sample = dfa_TimeIndex (ofp, t, 0);
+	if ((ofp = dfa_OpenFile (df, 0)) && ofp->of_fmt->f_GetFields)
+	{	
+	int sample = dfa_TimeIndex (ofp, t, 0);
 		if (sample < 0)
 			sample = 0;
 		return ((*ofp->of_fmt->f_GetFields)(ofp, sample, nfld, flist));
@@ -251,10 +236,7 @@ FieldId *flist;
 
 #ifndef NO_GETATTR
 char *
-dfa_GetAttr (dfile, t, len)
-int dfile;
-ZebTime *t;
-int *len;
+dfa_GetAttr (const DataFile *df, const ZebraTime *t, int *len)
 /*
  * Get the attributes for this time if we can.
  */
@@ -262,7 +244,7 @@ int *len;
 	OpenFile *ofp;
 	int sample;
 
-	if (! (ofp = dfa_OpenFile (dfile, 0)))
+	if (! (ofp = dfa_OpenFile (df, 0)))
 		return (NULL);
 	if ((sample = dfa_TimeIndex (ofp, t, 0)) < 0)
 		sample = 0;
@@ -274,11 +256,8 @@ int *len;
 
 
 int
-dfa_QueryDate (type, name, begin, end, nsample)
-int type;
-char *name;
-ZebTime *begin, *end;
-int *nsample;
+dfa_QueryDate (int type, const char *name, ZebraTime *begin, ZebraTime *end, 
+	       int *nsample)
 /*
  * Query the dates on this file.
  */
@@ -290,33 +269,28 @@ int *nsample;
 
 
 DataChunk *
-dfa_Setup (gl, fields, nfield, class)
-GetList *gl;
-FieldId *fields;
-int nfield;
-DataClass class;
+dfa_Setup (GetList *gl, FieldId *fields, int nfield, DataClass class)
 /*
  * Set up to grab the data described by this GetList entry.
  */
 {
 	OpenFile *ofp;
 	DataFormat *fmt;
-	DataFile dfe;
+	DataFile *dfp = &(gl->gl_df);
 	DataOrganization org;
 
-	ds_GetFileStruct (gl->gl_dfindex, &dfe);
-	fmt = FMTP(dfe.df_ftype);
+	fmt = FMTP(dfp->df_core.dfc_ftype);
 /*
  * Check for compatibility of the request, then open the file and pass it on
  */
-	org = ds_PlatformDataOrg (dfe.df_platform);
+	org = ds_PlatformDataOrg (dfp->df_pid);
 	if (! dfa_OrgClassCompat (fmt, org, class))
 	{
 		msg_ELog (EF_PROBLEM, "%s format: class-organization mismatch",
 			  fmt->f_name);
 		return (NULL);
 	}
-	if ((ofp = dfa_OpenFile (gl->gl_dfindex, 0)))
+	if ((ofp = dfa_OpenFile (dfp, 0)))
 		return ((*ofp->of_fmt->f_Setup) (ofp, fields, nfield, class));
 	return (NULL);
 }
@@ -325,17 +299,13 @@ DataClass class;
 
 
 void
-dfa_GetData (dc, gl, details, ndetail)
-DataChunk *dc;
-GetList *gl;
-dsDetail *details;
-int ndetail;
+dfa_GetData (DataChunk *dc, GetList *gl, dsDetail *details, int ndetail)
 /*
  * Get the data from this getlist entry.
  */
 {
 	OpenFile *ofp;
-	ZebTime *times;
+	ZebraTime *times;
 	int ntime;
 	int begin;
 	int end;
@@ -345,14 +315,14 @@ int ndetail;
  */
 	if (TC_Less (gl->gl_end, gl->gl_begin))
 	{
-		msg_ELog (EF_PROBLEM, "getdata on file %i: end < begin",
-			  gl->gl_dfindex);
+		msg_ELog (EF_PROBLEM, "getdata on file %s: end < begin",
+			  gl->gl_df.df_fullname);
 		return;
 	}
 /*
  * Open the file.
  */
-	if (! (ofp = dfa_OpenFile (gl->gl_dfindex, 0)))
+	if (! (ofp = dfa_OpenFile (&(gl->gl_df), 0)))
 		return;
 /*
  * Find the indices of the samples for the range of times we want.
@@ -387,19 +357,14 @@ int ndetail;
 
 
 int
-dfa_PutBlock (dfile, dc, sample, nsample, wc, details, ndetail)
-int dfile;
-DataChunk *dc;
-int sample, nsample;
-WriteCode wc;
-dsDetail *details;
-int ndetail;
+dfa_PutBlock (const DataFile *df, DataChunk *dc, int sample, int nsample, 
+	      WriteCode wc, dsDetail *details, int ndetail)
 /*
  * If the file's format has a f_PutBlock() method, call it.
  * Otherwise call the f_PutSample() method for each sample in the block.
  */
 {
-	OpenFile *ofp = dfa_OpenFile (dfile, 1);
+	OpenFile *ofp = dfa_OpenFile (df, 1);
 	int result, i;
 
 	if (!ofp)
@@ -434,13 +399,8 @@ int ndetail;
 
 
 int
-dfa_GetAlts (index, fid, offset, alts, nalts, altunits)
-int	index;
-FieldId	fid;
-int	offset;
-float	*alts;
-int	*nalts;
-AltUnitType *altunits;
+dfa_GetAlts (const DataFile *df, FieldId fid, int offset, float *alts, 
+	     int *nalts, AltUnitType *altunits)
 /*
  * Get the altitudes from the given file associated with the given fid and 
  * forecast offset.
@@ -448,8 +408,7 @@ AltUnitType *altunits;
 {
 	OpenFile *ofp;
 
-	if ((ofp = dfa_OpenFile (index, 0)) &&
-	    (ofp->of_fmt->f_GetAlts))
+	if ((ofp = dfa_OpenFile (df, 0)) && (ofp->of_fmt->f_GetAlts))
 	{
 		return ((*ofp->of_fmt->f_GetAlts)
 			(ofp, fid, offset, alts, nalts, altunits));
@@ -461,16 +420,14 @@ AltUnitType *altunits;
 
 
 int
-dfa_GetForecastTimes (dfindex, times, ntimes)
-int dfindex;
-int *times, *ntimes;
+dfa_GetForecastTimes (const DataFile *df, int *times, int *ntimes)
 /*
  * Get the forecast times.
  */
 {
 	OpenFile *ofp;
 
-	if ((ofp = dfa_OpenFile (dfindex, 0)) &&
+	if ((ofp = dfa_OpenFile (df, 0)) &&
 	    (ofp->of_fmt->f_GetForecastTimes))
 	{
 		return ((*ofp->of_fmt->f_GetForecastTimes)
@@ -483,23 +440,19 @@ int *times, *ntimes;
 
 
 int
-dfa_DataTimes (dfindex, when, which, n, dest)
-int dfindex;
-ZebTime *when;
-TimeSpec which;
-int n;
-ZebTime *dest;
+dfa_DataTimes (const DataFile *df, const ZebraTime *when, TimeSpec which, 
+	       int n, ZebraTime *dest)
 {
 	OpenFile *ofp;
 	int count = 0;
 
-	if (ofp = dfa_OpenFile (dfindex, 0))
+	if ((ofp = dfa_OpenFile (df, 0)) && (ofp->of_fmt->f_DataTimes))
 	{
-		if (ofp->of_fmt->f_DataTimes)
-			count = ((*ofp->of_fmt->f_DataTimes)
-					(ofp, when, which, n, dest));
-		else
-			count = (fmt_DataTimes (ofp, when, which, n, dest));
+		count = (*ofp->of_fmt->f_DataTimes)(ofp, when, which, n, dest);
+	}
+	else
+	{
+		count = fmt_DataTimes (ofp, when, which, n, dest);
 	}
 	return (count);
 }
@@ -507,35 +460,30 @@ ZebTime *dest;
 
 
 char **
-dfa_GetAssociatedFiles (df, nfiles)
-int df;
-int *nfiles;
-/* Returns the full path name of associated files. The caller must free
+dfa_GetAssociatedFiles (const DataFile *df, int *nfiles)
+/* 
+ * Returns the full path name of associated files. The caller must free
  * filenames [0..n-1] and filenames. The number of files is returned in
  * nfiles. If there are associated files, the main file is returned in
  * filenames[0] and the associated files though [1..n-1].
  */ 
 {
-  DataFile dfe;        
-  DataFormat *fmt;
-  char *datafile;
-  char ** filenames;
+    DataFormat *fmt;
+    char **filenames;
 
-  ds_GetFileStruct (df, &dfe);
-  fmt = FMTP(dfe.df_ftype);
-  if (fmt->f_GetAssociatedFiles)
-    return ((char **) (*fmt->f_GetAssociatedFiles) ( &dfe, nfiles ));
-  else
-  {
+    fmt = FMTP(df->df_core.dfc_ftype);
+    if (fmt->f_GetAssociatedFiles)
+	return ((char **) (*fmt->f_GetAssociatedFiles) ( df, nfiles ));
+    else
+    {
         filenames = (char **) malloc ( sizeof(char *) );
-	datafile  = ds_FilePath ( dfe.df_platform, dfe.df_index );
 
-        filenames[0]=(char *) malloc (strlen(datafile)+1);
-        sprintf (filenames[0],"%s",datafile);
+        filenames[0]=(char *) malloc (strlen(df->df_fullname)+1);
+	strcpy (filenames[0], df->df_fullname);
 
-        *nfiles=1;
+        *nfiles = 1;
         return filenames;
-  }
+    }
 }
 
 
@@ -546,22 +494,18 @@ int *nfiles;
 
 
 OpenFile *
-dfa_OpenFile (dfindex, write)
-int dfindex;
-int write;
+dfa_OpenFile (const DataFile *df, int write)
 /*
  * See to it that this file is open.  On success, return the pointer 
  * to the open file structure.  Otherwise return NULL.
  * Upon return, TAG contains the tag value.
  */
 {
-        DataFile df;
         PlatformId pid;
         OpenFile *ofp;
 	DataFormat *fmt;
 
-        ds_GetFileStruct (dfindex, &df);
-	fmt = FMTP(df.df_ftype);
+	fmt = FMTP(df->df_core.dfc_ftype);
 /* 
  * Verify they don't want to open a read-only format for writing.
  */
@@ -574,40 +518,44 @@ int write;
 /*
  * If the file is open, check the revision and access, and return the pointer.
  */
-        if ((ofp = dfa_FileIsOpen (dfindex)))
+        if ((ofp = dfa_FileIsOpen (df)))
         {
+	/*
+	 * Pointer to the rev in the DF portion of our open file
+	 */
+		long *ofrev = &(ofp->of_df.df_core.dfc_rev);
+	    
                 if (write && ! ofp->of_write)
                 {
 #ifdef DEBUG
 			msg_ELog (EF_DEBUG, "re-opening r/o file for r/w: %s",
-				  df.df_name);
+				  df->df_fullname);
 			++OF_Reopens;
 #endif
                         dfa_CloseFile (ofp);
                 }
-                else if (df.df_rev > ofp->of_dfrev)
+                else if (df->df_core.dfc_rev > *ofrev)
                 {
                 /*
                  * The latest data file entry has a new revision, so our
                  * open file's tag must be out of date.  Thus sync the file. 
                  */
-                        msg_ELog (EF_DEBUG, 
-                                  "file #%d (%s) out of sync: %d < %d",
-                                  ofp->of_dfindex, df.df_name, 
-                                  ofp->of_dfrev, df.df_rev);
+                        msg_ELog (EF_DEBUG, "file %s out of sync: %d < %d",
+                                  df->df_fullname, *ofrev,
+				  df->df_core.dfc_rev);
 #ifdef NCSYNC_FIXED
 			dfa_SyncFile (ofp);
-                        ofp->of_dfrev = df.df_rev;
+                        *ofrev = df->df_core.dfc_rev;
 			dfa_AccessCount (ofp);
                         return (ofp);
 #else
                 /*
                  * close and re-open netCDF files to work around broken ncsync
                  */
-                        if (df.df_ftype != FTNetCDF)
+                        if (df->df_core.dfc_ftype != FTNetCDF)
                         {
 				dfa_SyncFile (ofp);
-				ofp->of_dfrev = df.df_rev;
+				*ofrev = df->df_core.dfc_rev;
 				dfa_AccessCount (ofp);
 				return (ofp);
                         }
@@ -615,7 +563,7 @@ int write;
                         {
                                 msg_ELog (EF_DEBUG, "%s(%s #%d) to force sync",
                                           "ncsync bug: closing netCDF file ",
-                                          df.df_name, ofp->of_dfindex);
+                                          df->df_fullname);
                                 dfa_CloseFile (ofp);
                                 /* it will get re-opened below */
                         }
@@ -630,21 +578,20 @@ int write;
 /*
  * Nope, open it now.
  */
-        pid = df.df_platform;
-	ofp = dfa_GetOF (fmt, dfindex, &df, write);
-	if ((*fmt->f_OpenFile) (ofp, ds_FilePath (pid, dfindex), &df, write))
+        pid = df->df_pid;
+	ofp = dfa_GetOF (fmt, df, write);
+	if ((*fmt->f_OpenFile) (ofp, write))
 	{
 #ifdef DEBUG
-                msg_ELog (EF_DEBUG, "opened file #%d %s, %s", dfindex,
-                          (write) ? "read-write" : "read-only",
-                          ds_FilePath (pid, dfindex));
+	    msg_ELog (EF_DEBUG, "opened file %s, %s", df->df_fullname,
+                          (write) ? "read-write" : "read-only");
 #endif
 		dfa_AddOpenFile (ofp);
 	}
 	else	/* failure */
 	{
-		msg_ELog (EF_PROBLEM, "DFA: could not open file %s",
-			  ds_FilePath (pid, dfindex));
+		msg_ELog (EF_PROBLEM, "DFA: could not open file %s", 
+			  df->df_fullname);
 		dfa_FreeOF (ofp);
 		ofp = NULL;
 	}
@@ -667,7 +614,7 @@ OpenFile *ofp;
 
 
 
-ZebTime *
+ZebraTime *
 dfa_GetTimes (ofp, ntime)
 OpenFile *ofp;
 int *ntime;
@@ -685,10 +632,7 @@ int *ntime;
 
 
 int 
-dfa_TimeIndex (ofp, when, last)
-OpenFile *ofp;
-ZebTime *when;
-int last;
+dfa_TimeIndex (OpenFile *ofp, const ZebraTime *when, int last)
 /*
  * Find the closest sample time to 'when' without going beyond 'when'.
  * Returns -1 if when precedes all times in the file.  Returns the
@@ -697,7 +641,7 @@ int last;
  */
 {
 #	define MINTIME 25
-	ZebTime *times;
+	ZebraTime *times;
 	int nsample;
 	int step, i;
 	int ret;
@@ -794,12 +738,8 @@ int last;
 
 
 int
-fmt_DataTimes (ofp, when, which, n, start)
-OpenFile *ofp;
-ZebTime *when;
-TimeSpec which;
-int n;
-ZebTime *start;
+fmt_DataTimes (OpenFile *ofp, const ZebraTime *when, TimeSpec which, int n, 
+	       ZebraTime *start)
 /*
  * Find out when data is available.  Return at most n times in the
  * dest array corresponding to the 'which' TimeSpec for reference time
@@ -808,8 +748,8 @@ ZebTime *start;
  */
 {
 	int t, i;
-	ZebTime *times;
-	ZebTime *dest;
+	ZebraTime *times;
+	ZebraTime *dest;
 	int ntime;
 /*
  * Find the sample index for this time, the first sample whose time is
@@ -860,13 +800,8 @@ ZebTime *start;
 
 
 int
-fmt_MakeFileName (fmt, plat_name, t, dest, details, ndetail)
-DataFormat *fmt;
-const char *plat_name;
-ZebTime *t;
-char *dest;
-dsDetail *details;
-int ndetail;
+fmt_MakeFileName (DataFormat *fmt, const char *plat_name, const ZebraTime *t, 
+		  char *dest, dsDetail *details, int ndetail)
 /*
  * Create a new file name for this platform, at this time.  The DataFormat
  * method uses the platform name, date, and time separated by periods,
@@ -968,14 +903,10 @@ int ndetail;
 
 
 void
-dfa_MakeFileName (plat, t, dest, details, ndetail)
-ClientPlatform *plat;
-ZebTime *t;
-char *dest;
-dsDetail *details;
-int ndetail;
+dfa_MakeFileName (const Platform *plat, const ZebraTime *t, char *dest, 
+		  dsDetail *details, int ndetail)
 {
-	DataFormat *fmt = FMTP(plat->cp_ftype);
+	DataFormat *fmt = FMTP(pi_FileType (plat));
 /*
  * Shouldn't need to make file names for format's we can't write
  */
@@ -990,12 +921,12 @@ int ndetail;
 		msg_ELog (EF_PROBLEM, 
 			  "%s format is missing a MakeFileName method",
 			  fmt->f_name);
-		fmt_MakeFileName (fmt, plat->cp_name, t, dest, 
+		fmt_MakeFileName (fmt, pi_Name (plat), t, dest, 
 				  details, ndetail);
 	}
 	else
 	{
-		(*fmt->f_MakeFileName)(fmt, plat->cp_name, t, dest, 
+		(*fmt->f_MakeFileName)(fmt, pi_Name (plat), t, dest, 
 				       details, ndetail);
 	}
 }
@@ -1004,24 +935,22 @@ int ndetail;
 
 
 void
-dfa_NoteRevision (dfindex, rev)
-int dfindex;
-long rev;
+dfa_NoteRevision (const DataFile *df)
 /*
  * Note that a revision has been signalled on this file
  */
 {
-	OpenFile *ofp = dfa_FileIsOpen (dfindex);
+	OpenFile *ofp = dfa_FileIsOpen (df);
 
 	if (ofp)
-		ofp->of_dfrev = rev;
+		ofp->of_df.df_core.dfc_rev = df->df_core.dfc_rev;
 }
 
 
 
 
 void
-dfa_ForceClosure ()
+dfa_ForceClosure (void)
 /*
  * Go through the list of open files and close each one, then release
  * memory in the OpenFile free list.
@@ -1054,9 +983,7 @@ dfa_ForceClosure ()
 
 
 int
-dfa_CheckName (type, name)
-int type;
-char *name;
+dfa_CheckName (int type, const char *name)
 /*
  * See if this file name is consistent with this file type.
  */
@@ -1141,8 +1068,9 @@ OpenFile *ofp;
 				zap = ofp;
 #ifdef DEBUG
 		++OF_NPurged;
-		msg_ELog (EF_DEBUG, "%s (%d): lru file #%d being purged",
-			  "DFA open limit", MaxOpenFiles, zap->of_dfindex);
+		msg_ELog (EF_DEBUG, "%s (%d): lru file %s being purged",
+			  "DFA open limit", MaxOpenFiles, 
+			  zap->of_df.df_core.dfc_name);
 #endif
 		dfa_CloseFile (zap);
 	}
@@ -1181,11 +1109,7 @@ DataClass class;
 
 
 static OpenFile *
-dfa_GetOF (fmt, dfindex, df, write)
-DataFormat *fmt;
-int dfindex;
-DataFile *df;
-int write;
+dfa_GetOF (DataFormat *fmt, const DataFile *df, int write)
 /*
  * Return an initialized open file entry, but don't add it to the
  * open files chain yet.
@@ -1206,10 +1130,9 @@ int write;
  */
 	memset (ofp, 0, fmt->f_of_size);
 	ofp->of_lru = 0;
-	ofp->of_dfindex = dfindex;
+	ofp->of_df = *df;
 	ofp->of_next = NULL;
 	ofp->of_write = write;
-	ofp->of_dfrev = df->df_rev;
 	ofp->of_fmt = fmt;
 	return (ofp);
 }
@@ -1269,7 +1192,7 @@ OpenFile *victim;
  * Get the actual file closed.
  */
 #ifdef DEBUG
-	msg_ELog (EF_DEBUG, "closing file #%d", victim->of_dfindex);
+	msg_ELog (EF_DEBUG, "closing file %s", victim->of_df.df_fullname);
 #endif           
 	(*victim->of_fmt->f_CloseFile) (victim);
 	OF_NOpen--;
@@ -1281,8 +1204,7 @@ OpenFile *victim;
 
 
 static OpenFile *
-dfa_FileIsOpen (dfindex)
-int dfindex;
+dfa_FileIsOpen (const DataFile *df)
 /*
  * Check and see if this file is open.
  */
@@ -1290,11 +1212,24 @@ int dfindex;
 	OpenFile *ofp;
 
 	for (ofp = OpenFiles; ofp; ofp = ofp->of_next)
-		if (ofp->of_dfindex == dfindex)
+		if (dfa_OpenFileMatches (ofp, df))
 			return (ofp);
 	return (0);
 }
 
+
+
+static zbool
+dfa_OpenFileMatches (OpenFile *ofp, const DataFile *df)
+/*
+ * Return true iff the platform id, source id, and file name are the same
+ * for the given OpenFile and DataFile
+ */
+{
+    return (ofp->of_df.df_pid == df->df_pid &&
+	    ofp->of_df.df_srcid == df->df_srcid &&
+	    ! strcmp (ofp->of_df.df_fullname, df->df_fullname));
+}
 
 
 

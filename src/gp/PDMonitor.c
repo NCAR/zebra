@@ -30,7 +30,7 @@
 
 
 
-MAKE_RCSID ("$Id: PDMonitor.c,v 1.5 1995-06-29 23:29:24 granger Exp $")
+MAKE_RCSID ("$Id: PDMonitor.c,v 1.6 1999-03-01 02:04:27 burghart Exp $")
 
 
 /*
@@ -38,7 +38,7 @@ MAKE_RCSID ("$Id: PDMonitor.c,v 1.5 1995-06-29 23:29:24 granger Exp $")
  * monitoring process.
  */
 static int MonitorActive = FALSE;	/* Nobody watching	*/
-static char MonitorProc[MAX_NAME_LEN];	/* Who is watching	*/
+static char MonitorProc[MSG_MAXNAMELEN];/* Who is watching	*/
 static int Suppress = FALSE;		/* Suppress one update	*/
 
 

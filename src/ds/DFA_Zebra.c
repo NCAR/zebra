@@ -36,7 +36,7 @@
 #  include <string.h>
 #endif
 
-RCSID ("$Id: DFA_Zebra.c,v 1.35 1998-10-28 21:20:46 corbet Exp $")
+RCSID ("$Id: DFA_Zebra.c,v 1.36 1999-03-01 02:03:27 burghart Exp $")
 
 /*
  * There is a conflict with the symbol DataFormat between DFA and the
@@ -305,10 +305,8 @@ int sample;
 
 
 static int
-zn_CreateFile (ofp, fname, df, dc, details, ndetail)
+zn_CreateFile (ofp, dc, details, ndetail)
 OpenFile *ofp;
-char *fname;
-DataFile *df;
 DataChunk *dc;
 dsDetail *details;
 int ndetail;
@@ -319,6 +317,7 @@ int ndetail;
 	znTag *tag = TAGP (ofp);
 	zn_Header *hdr = &tag->zt_Hdr;
 	int ssize, asize;
+	char *fname = ofp->of_df.df_fullname;
 	zbool grid;
 	zbool hint = FALSE;
 	void *ablock;
@@ -352,7 +351,8 @@ int ndetail;
 	hdr->znh_Free = -1;
 	hdr->znh_Len = hdr->znh_NFree = hdr->znh_NFreeB = 0;
 	hdr->znh_NSample = hdr->znh_NField = 0;
-	hdr->znh_Org = (DataOrganization) ds_PlatformDataOrg (df->df_platform);
+	hdr->znh_Org = (DataOrganization) 
+	    ds_PlatformDataOrg (ofp->of_df.df_pid);
 	hdr->znh_OffLoc = -1;
 	hdr->znh_OffStation = -1;
 	hdr->znh_NStation = 0;
@@ -536,7 +536,7 @@ DataChunk *dc;
 	for (i = 0; i < nf; i++)
 	{
 		tag->zt_Fids[i] = fids[i];
-		strcpy (tag->zt_Fields[i].zf_Name, F_GetName (fids[i]));
+		strcpy (tag->zt_Fields[i].zf_Name, F_GetFullName (fids[i]));
 		tag->zt_Fields[i].zf_Format = DF_Float;
 		if (dc_IsSubClass (dc->dc_ClassP, DCP_MetData))
 			tag->zt_Fields[i].zf_Badval = 
@@ -641,10 +641,7 @@ DataChunk *dc;
 
 
 static int
-zn_QueryTime (file, begin, end, nsample)
-char *file;
-ZebTime *begin, *end;
-int *nsample;
+zn_QueryTime (const char *file, ZebraTime *begin, ZebraTime *end, int *nsample)
 /*
  * Tell the daemon about what is in this file, anyway.
  */
@@ -1408,7 +1405,7 @@ int nfield, *index, create;
 		if (index[dcfield] < 0)
 		{
 			strcpy (tag->zt_Fields[hdr->znh_NField].zf_Name,
-					F_GetName (fids[dcfield]));
+					F_GetFullName (fids[dcfield]));
 			tag->zt_Fields[hdr->znh_NField].zf_Format = DF_Float;
 			tag->zt_Fields[hdr->znh_NField].zf_AttrLen = 0;
 			tag->zt_Fields[hdr->znh_NField].zf_OffAttr = -1;
@@ -2429,10 +2426,8 @@ OpenFile *ofp;
 
 
 static int
-zn_Open (ofp, fname, df, write)
+zn_Open (ofp, write)
 OpenFile *ofp;
-char *fname;
-DataFile *df;
 zbool write;
 /*
  * Open an existing data file.
@@ -2442,6 +2437,7 @@ zbool write;
 	zn_Header *hdr = &tag->zt_Hdr;
 	int nsa, field, magic;
 	zbool grid;
+	char *fname = ofp->of_df.df_fullname;
 /*
  * Open the file.
  */
@@ -2516,7 +2512,7 @@ zbool write;
 /*
  * Look for a location array.
  */
-	if (grid || ds_IsMobile (df->df_platform))
+	if (grid || ds_IsMobile (ofp->of_df.df_pid))
 	{
 		tag->zt_Locs = (Location *) malloc (nsa*sizeof (Location));
 		zn_GetBlock (tag, hdr->znh_OffLoc, tag->zt_Locs,

@@ -22,20 +22,20 @@
 
 # include <stdio.h>
 # include <string.h>
+# include <limits.h>
 
 # include <defs.h>
 # include <config.h>
 # include <message.h>
 # include "DataStore.h"
 
-RCSID ("$Id: dc_Elements.c,v 3.5 1998-12-17 17:17:53 burghart Exp $")
+RCSID ("$Id: dc_Elements.c,v 3.6 1999-03-01 02:03:41 burghart Exp $")
 
 static const char *DC_ElemTypeNames[] =
 {
 	"unknown",
 	"float",
 	"double",
-	"long double",
 	"char",
 	"unsigned char",
 	"short int",
@@ -55,7 +55,6 @@ static const int DC_ElemTypeSizes[] =
 	0,
 	sizeof(float),
 	sizeof(double),
-	sizeof(LongDouble),
 	sizeof(char),
 	sizeof(unsigned char),
 	sizeof(short int),
@@ -121,9 +120,6 @@ DC_ElemType type;
 		break;
 	   case DCT_Double:
 		e->dcv_double = *(double *)ptr;
-		break;
-	   case DCT_LongDouble:
-		e->dcv_longdbl = *(LongDouble *)ptr;
 		break;
 	   case DCT_Char:
 		e->dcv_char = *(char *)ptr;
@@ -191,53 +187,35 @@ DC_ElemType type;
 	{
 	   case DCT_Float:
 		return (CMP(e->dcv_float, f->dcv_float));
-		break;
 	   case DCT_Double:
 		return (CMP(e->dcv_double, f->dcv_double));
-		break;
-	   case DCT_LongDouble:
-		return (CMP(e->dcv_longdbl, f->dcv_longdbl));
-		break;
 	   case DCT_Char:
 		return (CMP(e->dcv_char, f->dcv_char));
-		break;
 	   case DCT_UnsignedChar:
 		return (CMP(e->dcv_uchar, f->dcv_char));
-		break;
 	   case DCT_ShortInt:
 		return (CMP(e->dcv_shortint, f->dcv_shortint));
-		break;
 	   case DCT_UnsignedShort:
 		return (CMP(e->dcv_ushort, f->dcv_ushort));
-		break;
 	   case DCT_Integer:
 		return (CMP(e->dcv_int, f->dcv_int));
-		break;
 	   case DCT_UnsignedInt:
 		return (CMP(e->dcv_uint, f->dcv_uint));
-		break;
 	   case DCT_LongInt:
 		return (CMP(e->dcv_longint, f->dcv_longint));
-		break;
 	   case DCT_UnsignedLong:
 		return (CMP(e->dcv_ulong, f->dcv_ulong));
-		break;
 	   case DCT_String:
 		return (strcmp(e->dcv_string, f->dcv_string));
-		break;
 	   case DCT_Boolean:
 		return (CMP(e->dcv_boolean, f->dcv_boolean));
-		break;
 	   case DCT_ZebTime:
 		return (TC_Less(e->dcv_zebtime, f->dcv_zebtime) ? (-1) :
 			((TC_Eq(e->dcv_zebtime, f->dcv_zebtime)) ? 0 : -1));
-		break;
 	   case DCT_VoidPointer:
 		return (CMP(e->dcv_pointer, f->dcv_pointer));
-		break;
 	   default:
 		return (0);
-		break;
 	}
 #undef CMP
 }
@@ -277,9 +255,6 @@ DC_ElemType type;
 		break;
 	   case DCT_Double:
 		*(double *)ptr = e->dcv_double;
-		break;
-	   case DCT_LongDouble:
-		*(LongDouble *)ptr = e->dcv_longdbl;
 		break;
 	   case DCT_Char:
 		*(char *)ptr = e->dcv_char;
@@ -358,9 +333,6 @@ DC_ElemType type;
 		break;
 	   case DCT_Double:
 		sprintf (dest, "%g", e->dcv_double);
-		break;
-	   case DCT_LongDouble:
-		sprintf (dest, "%Lg", e->dcv_longdbl);
 		break;
 	   case DCT_Char:
 		sprintf (dest, "%c", e->dcv_char);
@@ -523,9 +495,9 @@ DC_ElemType type;
 
 
 int
-dc_LongDoubleToType (void *ptr, DC_ElemType type, LongDouble ld)
+dc_DoubleToType (void *ptr, DC_ElemType type, double d)
 /*
- * Convert a long double to a specified type, and store it at the given
+ * Convert a double to a specified type, and store it at the given
  * location.  Return zero if we fail.
  */
 {
@@ -534,47 +506,44 @@ dc_LongDoubleToType (void *ptr, DC_ElemType type, LongDouble ld)
     switch (type)
     {
       case DCT_Float:
-	*(float*)ptr = (float)ld;
+	*(float*)ptr = (float)d;
 	break;
       case DCT_Double:
-	*(double*)ptr = (double)ld;
-	break;
-      case DCT_LongDouble:
-	*(LongDouble*)ptr = ld;
+	*(double*)ptr = d;
 	break;
       case DCT_Char:
-	*(char*)ptr = (char)ld;
+	*(char*)ptr = (char)d;
 	break;
       case DCT_UnsignedChar:
-	*(unsigned char*)ptr = (unsigned char)ld;
+	*(unsigned char*)ptr = (unsigned char)d;
 	break;
       case DCT_ShortInt:
-	*(short*)ptr = (short)ld;
+	*(short*)ptr = (short)d;
 	break;
       case DCT_UnsignedShort:
-	*(unsigned short*)ptr = (unsigned short)ld;
+	*(unsigned short*)ptr = (unsigned short)d;
 	break;
       case DCT_Integer:
-	*(int*)ptr = (int)ld;
+	*(int*)ptr = (int)d;
 	break;
       case DCT_UnsignedInt:
-	*(unsigned int*)ptr = (unsigned int)ld;
+	*(unsigned int*)ptr = (unsigned int)d;
 	break;
       case DCT_LongInt:
 	*(long int*)ptr = (long int)ptr;
 	break;
       case DCT_UnsignedLong:
-	*(unsigned long*)ptr = (unsigned long)ld;
+	*(unsigned long*)ptr = (unsigned long)d;
 	break;
       case DCT_Boolean:
-	*(unsigned char*)ptr = (unsigned char)ld;
+	*(unsigned char*)ptr = (unsigned char)d;
 	break;
       case DCT_ZebTime:
       {
 	  ZebraTime *zt = (ZebraTime*)ptr;
 	  
-	  zt->zt_Sec = (long)ld;
-	  zt->zt_MicroSec = (long)(1.0e6 * (ld - zt->zt_Sec));
+	  zt->zt_Sec = (long)d;
+	  zt->zt_MicroSec = (long)(1.0e6 * (d - zt->zt_Sec));
 	  break;
       }
       default:
@@ -582,84 +551,6 @@ dc_LongDoubleToType (void *ptr, DC_ElemType type, LongDouble ld)
     }
 
     return (ret);
-}
-
-
-
-
-int
-dc_ConvertLongDouble (ld, ptr, type)
-LongDouble *ld;
-void *ptr;
-DC_ElemType type;
-/*
- * De-reference a void pointer to type, cast it to long double and store it.
- * Return zero if we fail.
- */
-{
-	int ret = 1;
-
-	switch (type)
-	{
-	   case DCT_Float:
-		*ld = *(float *)ptr;
-		break;
-	   case DCT_Double:
-		*ld = (LongDouble) *(double *)ptr;
-		break;
-	   case DCT_LongDouble:
-		*ld = (LongDouble) *(LongDouble *)ptr;
-		break;
-	   case DCT_Char:
-		*ld = (LongDouble) *(char *)ptr;
-		break;
-	   case DCT_UnsignedChar:
-		*ld = (LongDouble) *(unsigned char *)ptr;
-		break;
-	   case DCT_ShortInt:
-		*ld = (LongDouble) *(short *)ptr;
-		break;
-	   case DCT_UnsignedShort:
-		*ld = (LongDouble) *(unsigned short *)ptr;
-		break;
-	   case DCT_Integer:
-		*ld = (LongDouble) *(int *)ptr;
-		break;
-	   case DCT_UnsignedInt:
-		*ld = (LongDouble) *(unsigned int *)ptr;
-		break;
-	   case DCT_LongInt:
-		*ld = (LongDouble) *(long int *)ptr;
-		break;
-	   case DCT_UnsignedLong:
-		*ld = (LongDouble) *(unsigned long *)ptr;
-		break;
-#ifdef notdef	/* would this be atof() or byte->float? */
-	   case DCT_String:
-		*ld = *(char **)ptr;
-		break;
-#endif
-	   case DCT_Boolean:
-		*ld = (LongDouble) *(unsigned char *)ptr;
-		break;
-	   case DCT_ZebTime:
-		*ld = (LongDouble) (((ZebTime *)ptr)->zt_Sec +
-				    1.0e-6 * ((ZebTime *)ptr)->zt_MicroSec);
-		break;
-#ifdef notdef
-	   case DCT_VoidPointer:
-		*ld = (LongDouble) ptr;
-	        break;
-	   case DCT_Element:
-		*e = *(DC_Element *)ptr;
-		break;
-#endif
-	   default:
-		*ld = 0;
-		ret = 0;
-		break;
-	}
-	return (ret);
 }
 
 
@@ -675,13 +566,66 @@ DC_ElemType type;
  * Return zero if we fail.
  */
 {
-    LongDouble ld;
-    int ok = (dc_ConvertLongDouble (&ld, ptr, type));
+	int ret = 1;
 
-    if (ok)
-	*d = (double) ld;
-
-    return (ok);
+	switch (type)
+	{
+	   case DCT_Float:
+		*d = (double) *(float *)ptr;
+		break;
+	   case DCT_Double:
+		*d = *(double *)ptr;
+		break;
+	   case DCT_Char:
+		*d = (double) *(char *)ptr;
+		break;
+	   case DCT_UnsignedChar:
+		*d = (double) *(unsigned char *)ptr;
+		break;
+	   case DCT_ShortInt:
+		*d = (double) *(short *)ptr;
+		break;
+	   case DCT_UnsignedShort:
+		*d = (double) *(unsigned short *)ptr;
+		break;
+	   case DCT_Integer:
+		*d = (double) *(int *)ptr;
+		break;
+	   case DCT_UnsignedInt:
+		*d = (double) *(unsigned int *)ptr;
+		break;
+	   case DCT_LongInt:
+		*d = (double) *(long int *)ptr;
+		break;
+	   case DCT_UnsignedLong:
+		*d = (double) *(unsigned long *)ptr;
+		break;
+#ifdef notdef	/* would this be atof() or byte->float? */
+	   case DCT_String:
+		*d = *(char **)ptr;
+		break;
+#endif
+	   case DCT_Boolean:
+		*d = (double) *(unsigned char *)ptr;
+		break;
+	   case DCT_ZebTime:
+		*d = (double) (((ZebTime *)ptr)->zt_Sec +
+				    1.0e-6 * ((ZebTime *)ptr)->zt_MicroSec);
+		break;
+#ifdef notdef
+	   case DCT_VoidPointer:
+		*d = (double) ptr;
+	        break;
+	   case DCT_Element:
+		*e = *(DC_Element *)ptr;
+		break;
+#endif
+	   default:
+		*d = 0;
+		ret = 0;
+		break;
+	}
+	return (ret);
 }
 
 
@@ -697,11 +641,11 @@ DC_ElemType type;
  * Return zero if we fail.
  */
 {
-    LongDouble ld;
-    int ok = (dc_ConvertLongDouble (&ld, ptr, type));
+    double d;
+    int ok = (dc_ConvertDouble (&d, ptr, type));
 
     if (ok)
-	*f = (float) ld;
+	*f = (float) d;
 
     return (ok);
 }
@@ -717,56 +661,52 @@ DC_ElemType type;
  */
 {
 	static unsigned char cbv = '\0';
-	static short sbv = (short)CFG_DC_DEFAULT_BADVAL;
-	static int ibv = (int)CFG_DC_DEFAULT_BADVAL;
+	static short sbv;
+	static int ibv;
 	static float fbv = (float)CFG_DC_DEFAULT_BADVAL;
 	static double dbv = (double)CFG_DC_DEFAULT_BADVAL;
-	static LongDouble ldbv = (LongDouble)CFG_DC_DEFAULT_BADVAL;
+/*
+ * Make sure the given default bad value will fit in our integer types.
+ * Otherwise, use the minimum representable value for the type.
+ */
+	sbv = (CFG_DC_DEFAULT_BADVAL < SHRT_MIN || 
+	       CFG_DC_DEFAULT_BADVAL > SHRT_MAX) ?
+	    SHRT_MIN : (short)CFG_DC_DEFAULT_BADVAL;
 
+	ibv = (CFG_DC_DEFAULT_BADVAL < INT_MIN || 
+	       CFG_DC_DEFAULT_BADVAL > INT_MAX) ? 
+	    INT_MIN : (int)CFG_DC_DEFAULT_BADVAL;
+/*
+ * Now just return the appropriate value
+ */
 	switch (type)
 	{
 	   case DCT_Float:
 		return (&fbv);
-		break;
 	   case DCT_Double:
 		return (&dbv);
-		break;
-	   case DCT_LongDouble:
-		return (&ldbv);
-		break;
 	   case DCT_Char:
 		return (&cbv);
-		break;
 	   case DCT_UnsignedChar:
 		return (&cbv);
-		break;
 	   case DCT_ShortInt:
 		return (&sbv);
-		break;
 	   case DCT_UnsignedShort:
 		return (&sbv);
-		break;
 	   case DCT_Integer:
 		return (&ibv);
-		break;
 	   case DCT_UnsignedInt:
 		return (&ibv);
-		break;
 	   case DCT_LongInt:
 		return (&ibv);
-		break;
 	   case DCT_UnsignedLong:
 		return (&ibv);
-		break;
 	   case DCT_String:
 		return (&cbv);
-		break;
 	   case DCT_Boolean:
 		return (&cbv);
-		break;
 	   case DCT_ZebTime:
 		return (NULL);
-		break;
 	   default:
 		break;
 	}

@@ -150,47 +150,46 @@ Message *msg;
 	struct dsp_Template *dt = (struct dsp_Template *) msg->m_data;
 	struct dsp_GetPlatStruct *dgps;
 	struct dsp_PlatStruct *dps;
+	struct dsp_ClassStruct *dcs;
 	struct dsp_CreateFile *dcf;
 	struct dsp_R_CreateFile *drcf;
 	struct dsp_UpdateFile *duf;
+	struct dsp_UpdateAck *dua;
 	struct dsp_Notify *dn;
 	struct dsp_NotifyRequest *dnr;
-	struct dsp_GetFileStruct *dgfs;
-	struct dsp_FileStruct *dfs;
-	struct dsp_PLock *dp;
 	struct dsp_FindDF *dfdf;
-	struct dsp_CacheInvalidate *dci;
 	struct dsp_DeleteData *dd;
+	struct dsp_FindDFLink *dfl;
+	struct dsp_R_SrcInfo *dsi;
+	struct dsp_GetPlatDir *dgpd;
+	struct dsp_R_PlatDir *drpd;
 
 	switch (dt->dsp_type)
 	{
 	   case dpt_NewFileRequest:
 		dcf = (struct dsp_CreateFile *) dt;
-		printf ("\tNewFileRequest: plat %d f '%s'\n", dcf->dsp_plat,
-			dcf->dsp_file);
+		printf ("\tNewFileRequest: src %d plat %d '%s'\n", 
+			dcf->dsp_srcid, dcf->dsp_plat, dcf->dsp_FileName);
 	   	break;
 
 	   case dpt_R_NewFileSuccess:
 		drcf = (struct dsp_R_CreateFile *) dt;
-		printf ("\tNewFileSuccess, dfi = %d\n", drcf->dsp_FileIndex);
+		printf ("\tNewFileSuccess: %s\n", drcf->dsp_file.df_fullname);
 		break;
 
 	   case dpt_R_NewFileFailure:
 	   	printf ("\tNewFileFailure\n"); break;
 
-	   case dpt_AbortNewFile:
-		printf ("\tAbortNewFile\n"); break;
-
 	   case dpt_UpdateFile:
 		duf = (struct dsp_UpdateFile *) dt;
-	   	printf ("\tUpdateFile: dfi %d samp %d ow %d last %s\n",
-			duf->dsp_FileIndex, duf->dsp_NSamples, 
+	   	printf ("\tUpdateFile: %s samp %d ow %d last %s\n",
+			duf->dsp_file.df_fullname, duf->dsp_NSamples, 
 			duf->dsp_NOverwrite, duf->dsp_Last ? "TRUE" : "FALSE");
 		break;
 	   case dpt_R_UpdateAck:
-	   	dfs = (struct dsp_FileStruct *) dt;
+	   	dua = (struct dsp_UpdateAck *) dt;
 	   	printf ("\tUpdateAck\n"); 
-		print_dfe (&dfs->dsp_file);
+		print_dfe (&dua->dsp_file);
 		break;
 
 	   case dpt_NotifyRequest:
@@ -214,8 +213,8 @@ Message *msg;
 		break;
 
 	   case dpt_DataGone:
-		printf ("\t%s: dfi %d\n", "DataGone",
-			((struct dsp_DataGone *)dt)->dsp_file);
+		printf ("\tDataGone: %s\n", 
+			((struct dsp_DataGone *)dt)->dsp_file.df_fullname);
 		break;
 
 		PCASE(dpt_CancelNotify);
@@ -230,59 +229,71 @@ Message *msg;
 
 	   case dpt_GetPlatStruct:
 		dgps = (struct dsp_GetPlatStruct *) dt;
-		printf ("\tGetPlatStruct: pid = %d\n", dgps->dsp_pid);
+		printf ("\tGetPlatStruct: ");
+		if (dgps->dsp_id == BadPlatform)
+		    printf ("%s\n", dgps->dsp_name);
+		else
+		    printf ("%d\n", dgps->dsp_id);
 		break;
 	   case dpt_R_PlatStruct:
 		dps = (struct dsp_PlatStruct *) dt;
-		printf ("\tPlatStruct (%s)\n", dps->dsp_plat.cp_name);
+		printf ("\tPlatStruct (%s)\n", dps->dsp_plat.dp_name);
 		break;
 
-	   case dpt_GetFileStruct:
-	   	dgfs = (struct dsp_GetFileStruct *) dt;
-		printf ("\tGetFileStruct: dfi %d\n", dgfs->dsp_index);
+	   case dpt_GetClassStruct:
+		dgps = (struct dsp_GetPlatStruct *) dt;
+		printf ("\tGetPlatStruct: ");
+		if (dgps->dsp_id == BadClass)
+		    printf ("%s\n", dgps->dsp_name);
+		else
+		    printf ("%d\n", dgps->dsp_id);
 		break;
-	   case dpt_R_FileStruct:
-	   	dfs = (struct dsp_FileStruct *) dt;
-		printf ("\tFileStruct: %s\n", dfs->dsp_file.df_name);
-		break;
-
-	   case dpt_PLock:
-	   case dpt_R_PLockGranted:
-	   	dp = (struct dsp_PLock *) dt;
-		printf ("\tPLock%s: id %d\n",
-			dt->dsp_type == dpt_PLock ? "" :"Granted",dp->dsp_pid);
-		break;
-	   case dpt_ReleasePLock:
-	   	dp = (struct dsp_PLock *) dt;
-		printf ("\tReleasePLock: id %d\n", dp->dsp_pid);
-		break;
-
-		PCASE(dpt_LookupPlatform);
-		PCASE(dpt_R_PID);
-
-	   case dpt_WriteLock:
-	   	dp = (struct dsp_PLock *) dt;
-		printf ("\tWriteLock: id %d\n", dp->dsp_pid);
-		break;
-	   case dpt_ReleaseWLock:
-	   	dp = (struct dsp_PLock *) dt;
-		printf ("\tReleaseWLock: id %d\n", dp->dsp_pid);
+	   case dpt_R_ClassStruct:
+		dcs = (struct dsp_ClassStruct *) dt;
+		printf ("\tClassStruct (%s)\n", dcs->dsp_class.dpc_name);
 		break;
 	   case dpt_FindDF:
 	   	dfdf = (struct dsp_FindDF *) dt;
 		printf ("\tFindDF at %d, pid %d, src %d\n",
 			dfdf->dsp_when.zt_Sec,
-			dfdf->dsp_pid, dfdf->dsp_src);
+			dfdf->dsp_pid, dfdf->dsp_srcid);
 		break;
-	   case dpt_R_DFIndex:
-	   	printf ("\tDFI, index = %d\n",
-			((struct dsp_R_DFI *) dt)->dsp_index);
+	   case dpt_FindDFPrev:
+	   	dfl = (struct dsp_FindDFLink *) dt;
+		printf ("\tFindDFPrev:");
+		print_dfe (&dfl->dsp_file);
 		break;
-	   case dpt_CacheInvalidate:
-		dci = (struct dsp_CacheInvalidate *) dt;
-		printf ("\tCacheInvalidate: index = %d\n", 
-			dci->dsp_dfe.df_index);
-		print_dfe (&dci->dsp_dfe);
+	   case dpt_FindDFNext:
+	   	dfl = (struct dsp_FindDFLink *) dt;
+		printf ("\tFindDFNext:");
+		print_dfe (&dfl->dsp_file);
+		break;
+	   case dpt_R_DataFile:
+	   	printf ("\tDF, %s\n",
+			((struct dsp_R_DataFile *) dt)->dsp_file.df_fullname);
+		break;
+	   case dpt_GetSrcInfo:
+	   	printf ("\tGetSourceInfo, %d\n",
+			((struct dsp_GetSrcInfo *) dt)->dsp_srcid);
+		break;
+	   case dpt_R_SrcInfo:
+		dsi = (struct dsp_R_SrcInfo*) dt;
+		if (dsi->dsp_success)
+		    printf ("\tSourceInfo, %s (%d)\n", 
+			    dsi->dsp_srcinfo.src_Name, 
+			    dsi->dsp_srcinfo.src_Id);
+		else
+		    printf ("\tSourceInfo, failure\n");
+		break;
+	   case dpt_GetPlatDir:
+		dgpd = (struct dsp_GetPlatDir*) dt;
+	   	printf ("\tGetPlatDir, src %d, plat %d\n",
+			dgpd->dsp_srcid, dgpd->dsp_pid);
+		break;
+	   case dpt_R_PlatDir:
+		drpd = (struct dsp_R_PlatDir*) dt;
+		printf ("\tPlatDir, %s\n", 
+			drpd->dsp_success ? drpd->dsp_dir : "(failure)");
 		break;
 	   case dpt_Hello:
 	   	printf ("\tHello\n");
@@ -296,7 +307,6 @@ Message *msg;
 
 		PCASE(dpt_PlatformSearch);
 		PCASE(dpt_R_PlatformSearch);
-		PCASE(dpt_R_PlatStructSearch);
 
 	   default:
 	   	printf ("\tData store proto %d\n", dt->dsp_type);
@@ -309,14 +319,13 @@ void
 print_dfe(dfe)
 DataFile *dfe;
 {
-	printf ("\tdfi %d '%s', begin: %lu, end: %lu\n",
-		dfe->df_index,
-		dfe->df_name,
-		dfe->df_begin.zt_Sec,
-		dfe->df_end.zt_Sec);
+	printf ("\tdf '%s', begin: %lu, end: %lu\n",
+		dfe->df_fullname,
+		dfe->df_core.dfc_begin.zt_Sec,
+		dfe->df_core.dfc_end.zt_Sec);
 	printf ("\tRev: %li, nsample: %d\n",
-		dfe->df_rev,
-		dfe->df_nsample);
+		dfe->df_core.dfc_rev,
+		dfe->df_core.dfc_nsample);
 }
 
 

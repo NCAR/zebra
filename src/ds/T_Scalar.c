@@ -49,7 +49,7 @@ struct TestPlatform *plats;
 	plat_id = NewPlatform(&plats[0]);
 	dc->dc_Platform = plat_id;
 	ds_RequestNotify (plat_id, 0, T_ReceiveNotify);
-	T_ExpectNotify (plat_id, NULL, 10, wc_Append);
+	T_ExpectNotify (plat_id, NULL, 10, UpdAppend);
 	err += ! ds_StoreBlocks (dc, TRUE, NULL, 0);
 	err += T_CatchNotify ();
 	dc_DestroyDC (dc);
@@ -68,7 +68,7 @@ struct TestPlatform *plats;
 	when.zt_Sec -= 30;
 	dc = T_SimpleScalarChunk (&when, 1, 3000, 4, TRUE, TRUE);
 	dc->dc_Platform = plat_id;
-	T_ExpectNotify (plat_id, NULL, 30, UpdAppend);
+	T_ExpectNotify (plat_id, NULL, 30, UpdInsert);
 	T_ExpectNotify (plat_id, NULL, 10, UpdOverwrite);
 	T_ExpectNotify (plat_id, NULL, 990, UpdAppend);
 	T_ExpectNotify (plat_id, NULL, 1000, UpdAppend);
@@ -162,13 +162,11 @@ FieldId *fields;
 	char cvalue;
 	int ivalue;
 	double dvalue;
-	LongDouble ldvalue;
 	short svalue;
 	float fvalue;
 
 #define FVAL(sample) (-1.1 - ((float)(sample) * 2.1))
 #define DVAL(sample) (pow ((double)1.234567901234, (double) (sample)))
-#define LDVAL(sample) ((LongDouble) exp ((double) (sample)))
 #define CVAL(sample) ('A' + (int)(sample))
 #define SVAL(sample) (1 << (sample))
 #define IVAL(sample) (1024 + (2*(sample)))
@@ -178,9 +176,6 @@ FieldId *fields;
 
 	dvalue = DVAL(sample);
 	dc_AddScalar (dc, &when, sample, fields[DCT_Double-1], &dvalue);
-	ldvalue = LDVAL(sample);
-	dvalue = ldvalue;	/* until DFA netcdf can store long double */
-	dc_AddScalar (dc, &when, sample, fields[DCT_LongDouble-1], &dvalue);
 
 	cvalue = CVAL(sample);
 	dc_AddScalar (dc, &when, sample, fields[DCT_Char-1], &cvalue);
@@ -226,9 +221,6 @@ FieldId *fields;
 	value = dc_GetScalar (dc, sample, fields[DCT_Double-1]);
 	errors += ! Equal (value, (float)DVAL(sample));
 
-	value = dc_GetScalar (dc, sample, fields[DCT_LongDouble-1]);
-	errors += ! Equal (value, (float)LDVAL(sample));
-
 	value = dc_GetScalar (dc, sample, fields[DCT_Char-1]);
 	errors += ! Equal (value, (float)CVAL(sample));
 	value = dc_GetScalar (dc, sample, fields[DCT_UnsignedChar-1]);
@@ -265,8 +257,8 @@ ZebTime *when;
  */
 {
 	FieldId fields[20];
-	DC_ElemType types[20];
-	int nfield = DCT_String - 1;	/* exclude String and Unknown */
+	DC_ElemType types[20], e;
+	int nfield = DCT_String - DCT_Float;/* exclude String and Unknown */
 	int i, f;
 	DataChunk *dc;
 	ZebTime begin;
@@ -276,26 +268,19 @@ ZebTime *when;
 
 	begin = *when;
 	Announce ("Testing field types interfaces");
-	for (i = 1; i < nfield+1; ++i)
+	for (e = DCT_Float; e < DCT_String; ++e)
 	{
 		char buf[32];
 		char *c;
 
 		msg_ELog (EF_DEVELOP, "type name: %s, size %d", 
-			  dc_TypeName(i), dc_SizeOfType(i));
+			  dc_TypeName(e), dc_SizeOfType(e));
 		c = buf;
-		strcpy (c, dc_TypeName(i));
+		strcpy (c, dc_TypeName(e));
 		while ((c = strchr (c, ' ')) != NULL)
 			*c++ = '_';
-		fields[i-1] = F_DeclareField (buf, "Typed field","none");
-		/*
-		 * Use double instead of LongDouble until DFA netcdf can
-		 * store them.
-		 */
-		if (i == DCT_LongDouble)
-			types[i-1] = DCT_Double;
-		else
-			types[i-1] = i;
+		fields[e-1] = F_DeclareField (buf, "Typed field","none");
+		types[e-1] = e;
 	}
 
 	/*

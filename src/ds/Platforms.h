@@ -1,87 +1,388 @@
-
-#include <config.h>	/* for CFG_FILEPATH_LEN */
-
-/* Need "dsPrivate.h" for dsp_ClassStruct, PlatformClass, and so on */
-
 /*
- * The routines for manipulating platform class and instance structures.
+ * $Id: Platforms.h,v 3.3 1999-03-01 02:03:35 burghart Exp $
+ *
+ * The interface to platform classes and instances shared by daemon
+ * and client.  The application, be they daemon or client, can choose
+ * either a local table or a client cache, and this interface does the
+ * right thing transparently.
  */
-void dt_InitDirectories FP((void));
-void dt_InitClass FP((PlatformClass *pc, const char *name));
-void dt_Subclass FP((PlatClassId superid, const PlatformClass *super, 
-		     PlatformClass *sub, const char *name));
-void dt_AddClassSubPlat FP((PlatformClass *pc, PlatClassId subplat, 
-			    const char *name));
-SubPlatform *dt_NewClassSubPlat FP((PlatformClass *pc));
-void dt_CopyClassSubPlats FP((const PlatformClass *src, PlatformClass *dest));
-void dt_EraseClassSubPlats FP((PlatformClass *pc));
-void dt_FillClassDirs FP((PlatformClass *pc, const PlatformClass *super));
-zbool dt_ValidateClass FP((PlatformClass *pc));
-void dt_CopyClass FP((PlatformClass *dest, const PlatformClass *src));
-void dt_EraseClass FP((PlatformClass *pc));
-void dt_SetComment FP((PlatformClass *pc, const char *comment));
-int dt_ExtractClass FP((PlatformClass *pc, struct dsp_ClassStruct *dsp, 
-			int len));
-struct dsp_ClassStruct *dt_InjectClass FP((PlatformClass *pc, 
-				   struct dsp_ClassStruct *am, int *len));
-int dt_DecodeClass FP((FILE *fp, const PlatformClass *pc, 
-		       const PlatformClass *spc));
-int dt_FindSubplat FP((const PlatformClass *pc, SubPlatform *dps));
+#ifndef __zebra_Platforms_h_
+#define __zebra_Platforms_h_
 
-/* -- platform instance routines -- */
-void dt_FillDirs FP((const PlatformClass *pc, const char *defname, char *dir,
-		     char *rdir, const char *pdir, const char *prdir));
-void dt_AddSubPlat FP((PlatformInstance *plat, PlatformId subid));
+#include "DataStore.h"
 
-/* -- misc -- */
-int dt_SetString FP((char *dest, const char *src, int maxlen, char *op));
+# if __cplusplus
+extern "C"
+{
+# endif
 
-/* -- data directories -- */
-int dt_CreateDataDir FP ((const char *dir, const char *name, 
-			  unsigned short *flags));
-int dt_MakeDataDir FP ((const char *));
-
-/* -- table searching -- */
 /*
- * Used to pass search criteria and message structures to the
- * matching function during a platform table traverse.
+ * How many platforms (both top-level and subplatforms) do we allow?  Even
+ * though the daemon platform tables grow dynamically, we need an absolute
+ * limit with which to dimension the client-side cache arrays.  This limit
+ * is then enforced by the daemon.
+ * 
+ * Now that we have client-side caching of classes, this is now also the
+ * limit on class definitions, though hopefully no project every comes
+ * even remotely close to this.
+ */
+# define MAXPLAT	CFG_MAX_PLATFORMS
+
+/*
+ * Public access to table parameters, so they can be configured by the daemon.
+ */
+extern int PTableSize;		/* Platform table parameters 	*/
+extern int PTableGrow;
+
+extern int CTableSize;		/* Class table initial size	*/
+extern int CTableGrow;		/* Amount to grow by		*/
+
+/*
+ * Structure for describing a subplatform 'template', where the class info
+ * comes from the subplatform's class.  An instance name is also required
+ * to create instances of classes which reference this subplatform.
+ */
+typedef struct ds_SubPlatform
+{
+	int	dps_class;		/* Class of this subplatform	*/
+	char	dps_name[CFG_PLATNAME_LEN];	/* Name for instances	*/
+} SubPlatform;
+
+/*
+ * Information that is common among platform instances and does not
+ * change during run-time resides in the platform class structure.
+ */
+typedef struct ds_PlatformClass
+{
+	int	dpc_id;			/* Class id			*/
+	char	dpc_name[CFG_PLATNAME_LEN];	/* name of this class	*/
+	int	dpc_superclass;		/* Class hierarchy backpointer	*/
+	DataOrganization dpc_org;	/* Native data organization	*/
+	FileType dpc_ftype;		/* Default file type		*/
+	unsigned int dpc_maxsamp;	/* Maximum file samples		*/
+	unsigned short dpc_keep;	/* Minimum data keep		*/
+	unsigned short dpc_flags;	/* Attribute flags -- see below	*/
+	char 	*dpc_comment;		/* Comment about this class	*/
+	SubPlatform *dpc_subplats;	/* Subplatform templates	*/
+	int	dpc_nsubplats;		/* Number of subplats in array	*/
+/*
+ * Info for directory suggestions
+ */
+	char	dpc_dir[CFG_FILEPATH_LEN];/* Source-relative or absolute*/
+	InheritDirFlag dpc_inherit;	/* Directory inheritance flags	*/
+	InstanceDirFlag dpc_instance;	/* Directory instance flags	*/
+} PlatformClass;
+
+/*
+ * Default value for the dpc_keep member above
+ */
+extern int DefaultKeep;
+
+/*
+ * The platform instance structure.  Most of the static information is
+ * retrieved by following the pointer to the class structure in the class
+ * table.  The instance structure has its own members for stuff that is
+ * likely to be different among instances of a class.  This structure is
+ * shared between client and daemon, so daemon information is attached
+ * in a "derived" structure.  This is the information which can be derived
+ * by a class instantiation and thus is needed by both client and daemon.
+ * For now, the subplats list is not sent between client and daemon and
+ * is only valid where instantiated.
+ */
+typedef struct ds_PlatformInstance
+{
+	int	dp_id;			/* Platform instance id 	*/
+	char	dp_name[CFG_PLATNAME_LEN];/* Full name of this platform	*/
+	PlatClassId dp_class;		/* Class id of the platform	*/
+	PlatformId dp_parent;		/* Hierarchy backpointer	*/
+	unsigned short dp_flags;	/* Attribute flags		*/
+	int	*dp_subplats;		/* Indices to subplat instances	*/
+	int	dp_nsubplats;		/* Number of indices (not alloc)*/
+} PlatformInstance;
+
+typedef PlatformInstance Platform;
+
+/*
+ * These flags belong to the class
+ */
+
+# define DPF_MOBILE	0x0001		/* Does this platform move?	*/
+# define DPF_COMPOSITE	0x0002		/* A grouping of other plats?	*/
+# define DPF_DISCRETE	0x0004		/* "Continuous" data?		*/
+# define DPF_REGULAR	0x0008		/* Regularly-spaced (time) samples? */
+# define DPF_SUBPLATFORM 0x010		/* This is a sub platform	*/
+# define DPF_REMOTE	0x0020		/* A remote dir has been given	*/
+# define DPF_SPLIT	0x0040		/* Split on day boundary 	*/
+# define DPF_MODEL	0x0080		/* Model data, i.e., has	*/
+					/* separate issue/valid times	*/
+# define DPF_VIRTUAL	0x0100		/* Only a node in the hierarchy */
+# define DPF_ABSTRACT	0x0200		/* Abstract platform class	*/
+
+/* =====================================================================
+ * This is the internal interface for looking up and defining classes and
+ * structures on both the daemon and client side.  Defines prototypes
+ * for routines shared between the p_ and Platforms modules.
+ */
+
+# define INLINE static inline
+
+# ifdef notdef
+/*
+ * If inline has been defined because it is not supported by the compiler,
+ * then use static instead.  This is an attempt to avoid using static
+ * if 'inline' is supported.
+ */
+#ifdef inline
+#define INLINE static inline
+#else
+#define INLINE inline
+#endif
+# endif
+
+/*
+ * A bunch of inline boolean tests for class flags, which happen to be
+ * copied into the instances also and thus can ge tested there.
+ * This may change.
+ */
+INLINE int pi_Subplatform (const PlatformInstance *pi)
+{ return (pi->dp_flags & DPF_SUBPLATFORM); }
+
+INLINE int pi_Mobile (const PlatformInstance *pi)
+{ return (pi->dp_flags & DPF_MOBILE); }
+
+INLINE int pi_Composite (const PlatformInstance *pi)
+{ return (pi->dp_flags & DPF_COMPOSITE); }
+
+INLINE int pi_Regular (const PlatformInstance *pi)
+{ return (pi->dp_flags & DPF_REGULAR); }
+
+INLINE int pi_Remote (const PlatformInstance *pi)
+{ return (pi->dp_flags & DPF_REMOTE); }
+
+INLINE int pi_Daysplit (const PlatformInstance *pi)
+{ return (pi->dp_flags & DPF_SPLIT); }
+
+INLINE int pi_Model (const PlatformInstance *pi)
+{ return (pi->dp_flags & DPF_MODEL); }
+
+INLINE int pi_Virtual (const PlatformInstance *pi)
+{ return (pi->dp_flags & DPF_VIRTUAL); }
+
+/*
+ * Access for other platform instance members
+ */
+INLINE const char *pi_Name (const PlatformInstance *pi)
+{ return (pi->dp_name); }
+
+INLINE PlatformId pi_Id (const PlatformInstance *pi)
+{ return (pi->dp_id); }
+
+
+INLINE PlatClassId pi_ClassId (const PlatformInstance *pi)
+{ return (pi->dp_class); }
+
+INLINE PlatformId pi_ParentId (const PlatformInstance *pi)
+{ return (pi->dp_parent); }
+
+/*
+ * And a method to return the suggested subdirectory for this platform
+ */
+const char* pi_SuggestedDir (const PlatformInstance *pi);
+
+/*
+ * Easy access to class members
+ */
+INLINE PlatClassId pc_Id (const PlatformClass *pc)
+{ return (pc->dpc_id); }
+
+INLINE const char *pc_Name (const PlatformClass *pc)
+{ return (pc->dpc_name); }
+
+INLINE DataOrganization pc_DataOrg (const PlatformClass *pc)
+{ return (pc->dpc_org); }
+
+INLINE FileType pc_FileType (const PlatformClass *pc)
+{ return (pc->dpc_ftype); }
+
+INLINE unsigned short pc_Keep (const PlatformClass *pc)
+{ return (pc->dpc_keep); }
+
+INLINE unsigned int pc_MaxSamp (const PlatformClass *pc)
+{ return (pc->dpc_maxsamp); }
+
+INLINE PlatClassId pc_SuperClassId (const PlatformClass *pc)
+{ return (pc->dpc_superclass); }
+
+INLINE const char* pc_SuggestedDir (const PlatformClass *pc)
+{ return (pc->dpc_dir); }
+
+INLINE InheritDirFlag pc_InheritDirFlag (const PlatformClass *pc)
+{ return (pc->dpc_inherit); }
+
+INLINE InstanceDirFlag pc_InstanceDirFlag (const PlatformClass *pc)
+{ return (pc->dpc_instance); }
+
+
+/* ---------------- p_Table.c ---------------- */
+/*
+ * This module maintains the internal table of known/cached/defined
+ * platforms and structures.
+ *
+ * There are two mappings, one from id to structure,
+ * the other from name to structure.  If you just want id to name and vice
+ * versa you have to get them from the returned pointer.  These functions
+ * return NULL if the platform or class could not be found, either in the
+ * cache or through asking the daemon (if applicable).
+ */
+
+/*
+ * Platform search lists and message typedefs
+ */
+typedef struct _PlatformList
+{
+	PlatformId *pl_pids;
+	int pl_npids;
+}
+PlatformList;
+
+/*
+ * The structure actually gets defined in dsPrivate.h, since
+ * it's part of the protocol.  We only need it as a forward
+ * reference since the interface here only declares pointers to it.
  */
 typedef struct dsp_PlatformSearch PlatformSearch;
 
-struct SearchInfo {
-	PlatformSearch *si_req;
-	PlatformId *si_pids;
-	int si_npids;
-};
-
-void ds_SearchPlatTable FP ((void *symbol_table, int (*function)(), 
-			     PlatformSearch *req,
-			     PlatformId *pids, int *npids));
-
-/* ----------------
- * Global variables maintained and utilized in Platforms.c.  Global only
- * so that the Daemon can provide access to them for ui config files.
+/*
+ * Define the set of methods which the table module can call when in 
+ * client mode.
  */
+typedef struct _PlatformMethods
+{
+	Platform *(*PlatStruct)(int id, const char *name);
+	PlatformClass *(*ClassStruct)(int id, const char *name);
+	PlatformId (*DefinePlatform)(int cid, const char *name, int parent);
+	PlatClassId (*DefineClass)(PlatClassRef pc);
+	void (*SendSearch)(PlatformSearch *, PlatformList *pl);
+	int (*GetNPlat)();
+} 
+PlatformMethods;
+
+/* -- initialize -- */
+void dt_SetMethods (PlatformMethods *);
+
+/* -- retrieval -- */
+const PlatformClass *dt_FindClassName (const char *name);
+const PlatformClass *dt_FindClass (PlatClassId id);
+const Platform *dt_FindPlatformName (const char *name);
+const Platform *dt_FindPlatform (PlatformId pid);
+
+/* -- definition -- */
+PlatClassId dt_DefineClass (PlatClassRef pc);
+PlatformId dt_DefineSubPlatform (PlatClassId cid, const char *name,
+				 PlatformId parent);
+
+/* -- searching -- */
+
+void dt_GetPlatformList (PlatformSearch *search, PlatformList *pl);
+struct dsp_PlatformList *dt_AnswerSearch (PlatformSearch *req, 
+					  int *npids, int *len);
+
+/* -- other info -- */
+int dt_NPlatform (void);
+int dt_NClass (void);
+
+/* ---------------- more inline ---------------- */
+/*
+ * More inline routines which translate members to pointers
+ * using the table routines prototyped above.
+ */
+
+INLINE const PlatformClass *pi_Class (const PlatformInstance *pi)
+{ return (dt_FindClass (pi_ClassId (pi))); }
+
+INLINE const PlatformClass *pc_SuperClass (const PlatformClass *pc)
+{ return (dt_FindClass (pc_SuperClassId (pc))); }
+
+INLINE const PlatformInstance *pi_Parent (const PlatformInstance *pi)
+{ return (dt_FindPlatform (pi_ParentId (pi))); }
 
 /*
- * The default data directory.
+ * Access to class info through an instance structure.
+ * Note these will fail miserably if the platform's class
+ * structure cannot be found for some reason.
  */
-#define DDIR_LEN	CFG_FILEPATH_LEN
+INLINE DataOrganization pi_DataOrg (const PlatformInstance *pi)
+{ return (pi_Class(pi)->dpc_org); }
 
-#define DefDataDir _ds_DefDataDir
-#define RemDataDir _ds_RemDataDir
-extern char DefDataDir[DDIR_LEN];
-extern char RemDataDir[DDIR_LEN];
+INLINE FileType pi_FileType (const PlatformInstance *pi)
+{ return (pi_Class(pi)->dpc_ftype); }
 
+INLINE unsigned short pi_Keep (const PlatformInstance *pi)
+{ return (pi_Class(pi)->dpc_keep); }
+
+INLINE unsigned int pi_MaxSamp (const PlatformInstance *pi)
+{ return (pi_Class(pi)->dpc_maxsamp); }
+
+INLINE const char* pi_ClassDir (const PlatformInstance *pi)
+{ return (pi_Class(pi)->dpc_dir); }
+
+/* ---------------- p_Client.c ---------------- */
 /*
- * If this flag is set, no remote directories will be accessed.
+ * This module contains the routines which communicate platform
+ * information with the daemon.  There is only one public routine:
+ * the one which turns on client behavior rather than local (standalone)
+ * behavior.
  */
-#define DisableRemote _ds_DisableRemote
-extern zbool DisableRemote;
+void dt_PlatformClientMode ();
 
+/* ---------------- p_Appl.c ---------------- */
 /*
- * The default keep period defined in Platforms.c
+ * The public application layer for defining and accessing platform class
+ * and instance structures independent of underlying table implementation
+ * or behavior.  This interface is built on top of the functionality of
+ * p_Table.c and Platforms.c with no knowledge of p_Client.c.  All of its
+ * prototypes are in DataStore.h, and none of those prototypes rely on
+ * definitions in this header file.
  */
-#define DefaultKeep _ds_DefaultKeep
-extern int DefaultKeep;
+
+
+/* ---------------- Platforms.c ---------------- */
+/*
+ * The internal interface for manipulating platform classes and related
+ * convenvience routines.
+ */
+
+void dt_ExtendPlatforms (int size, void (*init)(Platform *), 
+			 void (*destroy)(Platform *));
+PlatClassRef dt_Subclass (const PlatformClass *super, const char *name);
+void dt_AddClassSubPlat (PlatformClass *pc, PlatClassId subplat,
+			 const char *name);
+void dt_CopyClassSubPlats (const PlatformClass *src, PlatformClass *dest);
+void dt_EraseClassSubPlats (PlatformClass *pc);
+void dt_FillClassDir (PlatformClass *pc, const PlatformClass *super);
+zbool dt_ValidateClass (PlatformClass *pc);
+void dt_CopyClass (PlatformClass *dest, const PlatformClass *src);
+void dt_EraseClass (PlatformClass *pc);
+void dt_SetComment (PlatformClass *pc, const char *comment);
+
+struct dsp_ClassStruct;	/* actual struct defined in dsPrivate.h */
+int dt_ExtractClass (PlatformClass *pc, struct dsp_ClassStruct *dsp, 
+		     int len);
+struct dsp_ClassStruct *dt_InjectClass (const PlatformClass *pc, 
+					struct dsp_ClassStruct *am, int *len);
+int dt_DecodeClass (FILE *fp, const PlatformClass *pc, 
+		    const PlatformClass *spc);
+
+/* -- platform instance routines -- */
+PlatformInstance *dt_NewPlatform (const char *name);
+void dt_AddSubPlat (PlatformInstance *plat, PlatformId subid);
+
+/* -- misc -- */
+int dt_SetString (char *dest, const char *src, int maxlen, char *op);
+
+# if __cplusplus
+}	// end extern "C"
+# endif
+    
+#endif /* ndef __zebra_Platforms_h_ */
 

@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.65 1998-11-20 16:08:54 burghart Exp $ */
+/* $Id: GraphProc.h,v 2.66 1999-03-01 02:04:23 burghart Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -198,8 +198,9 @@ static inline double ATAN2(y,x) double y, x;
  */
 /* Basic graphic utilities */
 extern int GetLocation FP ((char *, ZebTime *, Location *));
-extern int FancyGetLocation FP ((char *c, char *platform, ZebTime *when,
-				 ZebTime *actual, Location *loc));
+extern int FancyGetLocation FP ((const char *c, const char *platform, 
+				 ZebTime *when, ZebTime *actual, 
+				 Location *loc));
 extern int SetLWidth FP((char *, char *, char *, int));
 extern void FixLWidth FP((int));
 extern void FixForeground FP((long));
@@ -272,12 +273,12 @@ extern void ct_Init FP ((void));
 extern void I_init FP ((void));
 extern void I_DoIcons FP ((void));
 extern void I_ColorIcons FP ((char *));
-extern void I_PositionIcon FP ((char *, char *, ZebTime *, char *, int, 
-				int, int));
+extern void I_PositionIcon FP ((const char *, const char *, ZebraTime *, 
+				const char *, int, int, int));
 extern void I_ClearPosIcons FP ((void));
 extern int ov_PositionIcon FP ((char *, int, int, int));
-extern void I_ActivateArea FP ((int, int, int, int, char *, char *, char *,
-				char *));
+extern void I_ActivateArea FP ((int, int, int, int, const char *, const char *,
+				const char *, const char *));
 
 /* Projections. */
 extern int	prj_Setup FP ((void));
@@ -380,8 +381,8 @@ extern int dispatcher FP ((int junk, struct ui_command *cmds));
 #endif
 extern void parameter FP ((char *comp, char *param, char *value));
 extern int xtEvent FP ((int fd));
-extern int AgeCheck FP ((char *, char *, ZebTime *));
-/* extern long GetSec FP(( UItime )); */
+extern int AgeCheck FP ((const char *, const char *, ZebTime *));
+extern long GetSec FP(( UItime ));
 extern int  reset_limits FP ((char *, char *, char *));
 extern void eq_ResetAbort FP ((void));
 extern void eq_ReturnPD FP ((void));
@@ -437,8 +438,9 @@ extern DataChunk *GetVorticity ( ZebTime *, char *, char *, FieldId, int *,
 	extern void ct_DeleteTable FP ((char *));
 	extern int ct_GetColorByName FP ((char *, XColor *));
 	extern int ct_GetColorByRGB FP ((XColor *));
-	extern void An_TopAnnot FP ((char *, Pixel));
-	extern void An_DoTopAnnot FP ((char *, Pixel, char *, char *));
+	extern void An_TopAnnot FP ((const char *, Pixel));
+	extern void An_DoTopAnnot FP ((const char *, Pixel, const char *, 
+				       const char *));
 	extern void An_GetTopParams FP ((XColor *, int *));
 	extern Widget LeftRightButtons FP ((Widget, void *,XtTranslations));
 	extern void WindGrid FP((Widget w, Drawable d, GC Gcontext, 
@@ -448,7 +450,8 @@ extern DataChunk *GetVorticity ( ZebTime *, char *, char *, FieldId, int *,
 				 int degrade, int vector));
 	extern void WindProjGrid FP ((float *, float *, int, int, Location *,
 			double, double, double, double, Pixel, int, int));
-	extern Pixmap I_GetPMap FP ((char *, int *, int *, int *, int *));
+	extern Pixmap I_GetPMap FP ((const char *, int *, int *, int *, 
+				     int *));
 	extern void I_RepositionMenu FP ((Widget w));
 	extern void I_RedirectButton FP ((Window win, XEvent *ev));
 

@@ -13,7 +13,7 @@
 # include "DataStore.h"
 # include "znfile.h"
 
-RCSID ("$Id: zfdump.c,v 1.16 1996-11-19 10:57:59 granger Exp $")
+RCSID ("$Id: zfdump.c,v 1.17 1999-03-01 02:03:46 burghart Exp $")
 
 extern int optind;
 
@@ -630,9 +630,8 @@ void *arg;
  * To avoid linking in the whole library, since none of our use of DataChunks
  * will require it.
  */
-char *
-ds_PlatformName (id)
-int id;
+const char *
+ds_PlatformName (PlatformId id)
 {
 	return ("unknown");
 }

@@ -24,7 +24,7 @@
 # include <errno.h>
 # include <netcdf.h>
 
-/* $Id: dem2zebra.c,v 1.3 1998-06-02 15:58:25 burghart Exp $ */
+/* $Id: dem2zebra.c,v 1.4 1999-03-01 02:04:48 burghart Exp $ */
 
 struct _Map
 {

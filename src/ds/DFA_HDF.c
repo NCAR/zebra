@@ -79,7 +79,7 @@ static char *hdfopt[2] = { "@(#)$DFA: HDF_INTERFACE Compiled $",
 # include <config.h>
 # include <message.h>
 
-RCSID ("$Id: DFA_HDF.c,v 3.13 1998-10-28 21:20:40 corbet Exp $")
+RCSID ("$Id: DFA_HDF.c,v 3.14 1999-03-01 02:03:24 burghart Exp $")
 
 # include "DataStore.h"
 # include "dsPrivate.h"
@@ -492,8 +492,6 @@ int32 type;
 		return (DCT_Float);
 	   case DFNT_FLOAT64:
 		return (DCT_Double);
-	   case DFNT_FLOAT128:
-		return (DCT_LongDouble);
 	   default:
 		return (DCT_Unknown);
 	}
@@ -571,10 +569,7 @@ const char *name;
 
 
 static int
-dh_QueryTime (file, begin, end, nsamp)
-char *file;
-ZebTime *begin, *end;
-int *nsamp;
+dh_QueryTime (const char *cfile, ZebraTime *begin, ZebraTime *end, int *nsamp)
 /*
  * Query the times on this file.
  */
@@ -583,10 +578,20 @@ int *nsamp;
 	int32 vgid;
 	ZebTime zt;
 	int fail = 0;
+	char *file = 
 /*
- * Try opening the file.
+ * Try opening the file.  
+ * XXX: Allocate a non-const string here just for passing to Hopen, which
+ * 	doesn't explicitly take a const filename.  Yuck.
  */
-	if ((fid = Hopen (file, DFACC_READ, 0)) < 0)
+	file = (char*) malloc (strlen (cfile) + 1);
+	strcpy (file, cfile);
+	
+	fid = Hopen (file, DFACC_READ, 0);
+
+	free (file);
+	
+	if (fid  < 0)
 		return (FALSE);
 	Vstart (fid);
 /*
@@ -618,16 +623,15 @@ int *nsamp;
 
 
 static int
-dh_OpenFile (ofp, fname, dp, write)
+dh_OpenFile (ofp, write)
 OpenFile *ofp;
-char *fname;
-DataFile *dp;
 int write;
 /*
  * Try to open this file.
  */
 {
 	Htag *tag = HTAGP (ofp);
+	char *fname = ofp->of_df.df_fullname;
 	int32 fid;
 /*
  * Try to open the file.
@@ -642,8 +646,8 @@ int write;
  * Do some initialization.
  */
 	tag->h_fid = fid;
-	tag->h_org = ds_PlatformDataOrg (dp->df_platform);
-	tag->h_plat = dp->df_platform;
+	tag->h_org = ds_PlatformDataOrg (ofp->of_df.df_pid);
+	tag->h_plat = ofp->of_df.df_pid;
 	tag->h_Fids = NULL;
 	tag->h_Vids = NULL;
 	tag->h_nVar = 0;
@@ -1585,7 +1589,7 @@ int nfield;
 		   case DFNT_UINT16:
 			words = (unsigned short *) 
 				malloc (nx * ny * sizeof (unsigned short));
-			dh_ReadData (tag->h_fid, varid, words);
+			dh_ReadData (tag->h_fid, varid, (void*) words);
 			if (! dh_ReadAttr (tag->h_fid, varid, FILL_VALUE, 
 					   &ftype, &count, &isize, &sfillval))
 				sfillval = 0xffff;
@@ -1605,7 +1609,7 @@ int nfield;
 		   case DFNT_INT16:
 			words = (unsigned short *) 
 				malloc (nx * ny * sizeof (unsigned short));
-			dh_ReadData (tag->h_fid, varid, words);
+			dh_ReadData (tag->h_fid, varid, (void*) words);
 			if (! dh_ReadAttr (tag->h_fid, varid, FILL_VALUE, 
 					   &ftype, &count, &isize, &sfillval))
 				sfillval = 0x8000;
@@ -1624,7 +1628,7 @@ int nfield;
 			free (words);
 			break;
 		   case DFNT_FLOAT32:
-			dh_ReadData (tag->h_fid, varid, grid);
+			dh_ReadData (tag->h_fid, varid, (void*) grid);
 			if (dh_ReadAttr (tag->h_fid, varid, FILL_VALUE, 
 					 &ftype, &count, &isize, &fillval))
 			{
@@ -1865,7 +1869,7 @@ int nfield;
 		   case DFNT_INT16:
 		   case DFNT_UINT16:
 			words = (short *) malloc (nx * ny * sizeof (short));
-			dh_ReadData (tag->h_fid, varid, words);
+			dh_ReadData (tag->h_fid, varid, (void*) words);
 			for (j = 0; j < nx * ny; ++j)
 				image[j] = (unsigned char)(words[j] >> 8);
 			free (words);
@@ -1912,11 +1916,6 @@ Location *locs;
 {
 	NCTag *tag;
 	int i;
-/*
- * Get the file open.
- */
-	if (!dfa_OpenFile (dfile, FALSE, (void *) &tag))
-		return (0);
 
 	*times = tag->nc_time;
 	locs->l_lat = 0.0;
@@ -1941,7 +1940,6 @@ DC_ElemType type;
 	   case DCT_Float:
 		return (NC_FLOAT);
 	   case DCT_Double:
-	   case DCT_LongDouble:
 		return (NC_DOUBLE);
 	   case DCT_Char:
 		return (NC_CHAR);

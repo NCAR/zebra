@@ -32,26 +32,31 @@
 //
 // Zeb includes.
 //
-# include "BoolKludge.h"
-extern "C" {
-#	include <defs.h>
-#	include <message.h>
-#	include <DataStore.h>
-};
+# include <defs.h>
+# include <message.h>
+# include <DataStore.h>
+# include <Platforms.h>
 
+# include "BoolKludge.h"
 # include "STable.h"
 //# include "container.h"
 # include "dsmanage.h"
-# include "DataDir.h"
+# include "dsFile.h"
+# include "dsPlatform.h"
 # include "Index.h"
 # include "plcontainer.h"
 
-MAKE_RCSID ("$Id: dsmanage.cc,v 1.14 1998-10-28 21:21:25 corbet Exp $");
+MAKE_RCSID ("$Id: dsmanage.cc,v 1.15 1999-03-01 02:03:54 burghart Exp $");
 
 extern "C" char *strcat (char *, const char *);
 extern "C" char *strrchr (const char *, int);
 
+//
+// Global source id (we just use 0 for now)
+//
+int SrcId = 0;
 
+//
 //
 // The platform list.
 //
@@ -59,16 +64,11 @@ extern "C" char *strrchr (const char *, int);
 plContainer *PList = 0;
 
 //
-// Other globals.
-//
-string DDir;		// The data directory.
-
-//
 // Forwards.
 //
-static int MsgHandler (Message *);
-static void DSSetup ();
-static void ScanFiles (int);
+static int MsgHandler (Message *msg);
+static void DSSetup (void);
+static void ScanFiles (PlatformId pid);
 
 
 
@@ -117,29 +117,10 @@ DSSetup ()
 // Initialize our connection to the data store.
 //
 {
-	DataSrcInfo dsi;
 //
 // Hook into the data store.
 //
 	ds_Initialize ();
-//	cout << SHeader->sm_nPlatform << " platforms, " << 
-//		SHeader->sm_nDTEUsed << " datafiles defined.\n";
-//
-// Assume that the data directory of the first platform is the directory
-// for all, and save it aside.
-//
-// The machinations below should be replacable with one gsub() call with
-// a regexp, but I couldn't make it work.
-//
-	ds_GetDataSource (0, 0, &dsi);
-	DDir = dsi.dsrc_Where;
-
-	int lastslash;
-	int slash = lastslash = DDir.find ('/', 0);
-	while ((slash = DDir.find ('/', slash + 1)) >= 0)
-		lastslash = slash;
-	DDir.replace (lastslash, DDir.length() - lastslash, "");
-	cout << "Data dir is '" << DDir << "'.\n";
 //
 // Make the platform list.
 //
@@ -152,8 +133,8 @@ DSSetup ()
 void
 MakePlatformList ()
 {
-	int plat, nplat = ds_GetNPlat ();;
-	PlatformInfo pi;
+	int pid, nplat = ds_GetNPlat ();
+	const Platform *p;
 //
 // If there is already a list, delete it and start over.
 //
@@ -163,74 +144,40 @@ MakePlatformList ()
 // Make the platform list.
 //
 	PList = new plContainer (nplat);
-	for (plat = 0; plat < nplat; plat++)
+	for (pid = 0; pid < nplat; pid++)
 	{
-		ds_GetPlatInfo (plat, &pi);
-		if (pi.pl_SubPlatform)
+		p = dt_FindPlatform (pid);
+		if (pi_Subplatform (p))
 			continue;	// We forget these
-		dsPlatform *dp = new dsPlatform (pi.pl_Name, plat);
+		dsPlatform *dp = new dsPlatform (pi_Name (p), pid);
 		PList->add (*dp);
 		delete dp;	// Container copies it
-		ScanFiles (plat);
+
+		ScanFiles (pid);
 	}
-//	cout << "PList has " << PList->ncontained () << " entries.\n";
 }
 
 
 
 
 static void
-ScanFiles (int ind)
+ScanFiles (PlatformId pid)
 //
 // Pick up all the files for this platform.
 //
 {
-	int dfindex;
-	dsPlatform *dp = PList->index (ind);
-	string name;
-	DataSrcInfo dsi;
-	DataFileInfo dfi;
+    const DataFile *df;
+    dsPlatform *dp = PList->index (pid);
 //
-// Pull over the source information, and take the first to
-// be the one we are interested in.
+// Now plow through the files. (For now, we work with the default writable
+// source)
 //
-	ds_GetDataSource (ind, 0, &dsi);
-//
-// Now plow through the files.
-//
-	for (dfindex = dsi.dsrc_FFile; dfindex; dfindex = dfi.dfi_Next)
-	{
-		ds_GetFileInfo (dfindex, &dfi);
-		/* sprintf (name, "%s/%s", p->dp_dir, d->df_name); */
-	//		name = String (dsi.dsrc_Where) + String ("/") +
-	//			String (dfi.dfi_Name);
-		name = dsi.dsrc_Where;
-		name += "/";
-		name += dfi.dfi_Name;
-		dsFile *df = new dsFile (name.c_str (), dfindex);
-		dp->files.add (*df);
-		delete df;
-	}
-//	cout << "Platform '" << p->dp_name << "' has " <<
-//			dp->files.ncontained () << " files for " <<
-//			dp->space() << "mb.\n";
+    for (df = ds_FirstFile (SRC_DEFAULT_W, pid); df; df = ds_NextFile (df))
+    {
+	dsFile dsf(df);
+	dp->files.add (dsf);
+    }
 }
-
-
-
-
-
-void
-DDInfo (const char **dir, float *space)
-// XXX
-// Return the data dir info.
-//
-{
-	DataDir dd (DDir.c_str ());
-	*dir = DDir.c_str ();
-	*space = dd.FreeSpace ()/1024000.0;
-}
-
 
 
 
@@ -243,6 +190,7 @@ PEMakePLabel (char *buf, const dsPlatform& p)
 //
 {
 	int df;
+	int nfiles = p.ndfile();
 //
 // Fill in the platform name.
 //
@@ -251,32 +199,28 @@ PEMakePLabel (char *buf, const dsPlatform& p)
 //
 // If this platform has no files, just say so.
 //
-	if (p.files.ncontained () <= 0)
+	if (nfiles <= 0)
 	{
 		strcpy (buf, "---- no data files ----");
 		return;
 	}
 //
-// Begin time.
+// Begin time of first file
 //
-	df = p.files.nth (p.files.ncontained () - 1).index;
-	DataFileInfo dfi;
-	ds_GetFileInfo (df, &dfi);
-	TC_EncodeTime (&dfi.dfi_Begin, TC_Full, buf);
+	TC_EncodeTime (p.files.nth(0).begin(), TC_Full, buf);
 	strcat (buf, "      ");
 	buf += 22;
 //
-// End time.
+// End time of last file
 //
-	df = p.files.nth (0).index;
-	ds_GetFileInfo (df, &dfi);
-	TC_EncodeTime (&dfi.dfi_End, TC_Full, buf);
+	TC_EncodeTime (p.files.nth(nfiles - 1).end(), TC_Full, 
+		       buf);
 	strcat (buf, "     ");
 	buf += 21;
 //
 // Files and space.
 //
-	sprintf (buf, "%3d  %6.2f", p.files.ncontained (), p.space ());
+	sprintf (buf, "%3d  %6.2f", nfiles, p.space ());
 }
 
 
@@ -290,7 +234,6 @@ FEMakeFLabel (char *buf, const dsFile& f)
 // Create the label for this file's button.
 //
 {
-	int df;
 //
 // Fill in the file name.
 //
@@ -300,22 +243,19 @@ FEMakeFLabel (char *buf, const dsFile& f)
 //
 // Begin time.
 //
-	df = f.index;
-	DataFileInfo dfi;
-	ds_GetFileInfo (df, &dfi);
-	TC_EncodeTime (&dfi.dfi_Begin, TC_Full, buf);
+	TC_EncodeTime (f.begin(), TC_Full, buf);
 	strcat (buf, "      ");
 	buf += 24;
 //
 // End time.
 //
-	TC_EncodeTime (&dfi.dfi_End, TC_Full, buf);
+	TC_EncodeTime (f.end(), TC_Full, buf);
 	strcat (buf, "     ");
 	buf += 24;
 //
 // Files and space.
 //
-	sprintf (buf, "%6.2f", f.size ()/1024000.0);
+	sprintf (buf, "%6.2f", f.size ()/1048576.0);
 }
 
 
@@ -327,33 +267,31 @@ MakeDSIndex ()
 // Create an index of the local data store and return it.
 //
 {
-	int plat, file;
-	PlatformIndex *index = new PlatformIndex;
-	DataFileInfo dfi;
+    PlatformId pid;
+    int file;
+    PlatformIndex *index = new PlatformIndex;
 //
 // Plow through the platforms.
 //
-	for (plat = 0; plat < PList->ncontained (); plat++)
+    for (pid = 0; pid < PList->ncontained (); pid++)
+    {
+	const dsPlatform &dsp = PList->nth (pid);
+    //
+    // Now all the files.
+    //
+	for (file = 0; file < dsp.ndfile(); file++)
 	{
-		const dsPlatform &dsp = PList->nth (plat);
-	//
-	// Now all the files.
-	//
-		for (file = 0; file < dsp.files.ncontained (); file++)
-		{
-			const dsFile &dsf = dsp.files.nth (file);
-			ds_GetFileInfo (dsf.index, &dfi);
-			IndexFile *indf = new IndexFile (dsp.name (),
-				dsf.name (), dsf.size (), 0,
-				&dfi.dfi_Begin,
-				&dfi.dfi_End);
-			index->add (dsp.name (), *indf);
-		}
+	    const dsFile &dsf = dsp.files.nth (file);
+	    IndexFile *indf = new IndexFile (dsp.name(), dsf.name(), 
+					     dsf.size(), 0, dsf.begin(), 
+					     dsf.end());
+	    index->add (dsp.name(), *indf);
 	}
+    }
 //
 // Return the index and we are done.
 //
-	return (index);
+    return (index);
 }
 
 
@@ -374,22 +312,4 @@ MakeLocalIndex (const char *fname)
 //
 	index->save (fname);
 	delete index;
-}
-
-
-
-
-const char *
-GetPlatDir (const char *name)
-//
-// Return the data directory for this platform.
-//
-{
-	PlatformId pid = ds_LookupPlatform ((char *) name);
-	DataSrcInfo dsi;
-	static char retbuf[256];	// XXX
-
-	ds_GetDataSource (pid, 0, &dsi);
-	strcpy (retbuf, dsi.dsrc_Where);
-	return (retbuf);
 }

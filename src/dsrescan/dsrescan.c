@@ -27,7 +27,7 @@
 # include <copyright.h>
 # include <DataStore.h>
 
-RCSID ("$Id: dsrescan.c,v 1.12 1998-12-17 00:39:09 burghart Exp $")
+RCSID ("$Id: dsrescan.c,v 1.13 1999-03-01 02:03:57 burghart Exp $")
 
 
 void
@@ -36,23 +36,15 @@ char *prog;
 {
 	printf ("Usage: %s -h\n", prog);
 	printf ("   Print this usage message\n");
-	printf ("Usage: %s [-remote] -all\n", prog);
-	printf ("Usage: %s [-remote] regexp [regexp ...]\n", prog);
+	printf ("Usage: %s -all\n", prog);
+	printf ("Usage: %s regexp [regexp ...]\n", prog);
 	printf ("   Rescan all platforms or only those matching the given");
 	printf (" regular expressions.\n");
 	printf ("   -all   \tRescan all platforms\n");
-	printf ("   -remote\tReset remote-dirs-constant (RDirConst) %s\n",
-		"flag before scan");
-	printf ("Usage: %s [-remote] -file <filename> platform\n", prog);
+	printf ("Usage: %s -file <filename> platform\n", prog);
 	printf ("   Scan a new file in the named platform.\n");
-	printf ("   -remote\tThe file is in the platform's remote dir\n");
-	printf ("   -file  \tSpecify the name of the file\n");
+	printf ("   -file  \tSpecify the (pathless) name of the file\n");
 	printf ("   Options can be abbreviated to any number of letters.\n");
-#ifdef notdef
-	printf ("Usage: %s -scan filename [filename ...]\n", prog);
-	printf ("   Scan files and show sample times, without connecting\n");
-	printf ("   to the datastore daemon.\n");
-#endif
 }
 
 
@@ -72,8 +64,6 @@ char **argv;
 	PlatformId *plist;
 	int all = FALSE;
 	int fileonly = FALSE;
-	int remote = FALSE;
-	int scan = FALSE;	/* scan files only */
 	char pname[50];
 	char *filename;
 	char **platname = NULL;
@@ -98,12 +88,6 @@ char **argv;
 			platname[p++] = argv[i];
 		else if (!strncmp(argv[i], "-all", strlen(argv[i])))
 			all = TRUE;
-		else if (!strncmp(argv[i],"-remote",strlen(argv[i])))
-			remote = TRUE;
-#ifdef notdef
-		else if (!strncmp(argv[i],"-scan",strlen(argv[i])))
-			scan = TRUE;
-#endif
 		else if (!strncmp(argv[i],"-file",strlen(argv[i])))
 		{
 			fileonly = TRUE;
@@ -135,23 +119,11 @@ char **argv;
  * Get initialized.
  */
 	sprintf (pname, "Rescan-%d", getpid ());
-	if (scan)
-	{
-#ifdef notdef
-		msg_connect (0, pname);
-		ds_Standalone ();
-#endif
-	}
-	else if (! msg_connect (handler, pname) || !ds_Initialize ())
+
+	if (! msg_connect (handler, pname) || !ds_Initialize ())
 	{
 		msg_ELog (EF_EMERGENCY, "could not connect to datastore");
 		exit (1);
-	}
-
-	if (remote && !fileonly)
-	{
-		printf ("Resetting remote-dir-constant (RDirConst) flag.\n");
-		cp_Exec (DS_DAEMON_NAME, "set RDirConst false");
 	}
 
 	if (all)
@@ -164,20 +136,6 @@ char **argv;
 		}
 		ds_ForceRescan (BadPlatform, TRUE);
 		printf ("All platforms being scanned.\n");
-	}
-	else if (scan)
-	{
-#ifdef notdef
-		if (p == 0)
-		{
-			printf ("need at least one file name for -scan\n");
-			usage (argv[0]);
-			exit(3);
-		}
-		ds_ScanFile (plat, filename, remote ? FALSE : TRUE);
-		printf ("File '%s' in platform '%s' scanned.\n", 
-			filename, platname[0]);
-#endif
 	}
 	else if (fileonly)
 	{
@@ -195,7 +153,7 @@ char **argv;
 			usage(argv[0]);
 			exit (4);
 		}
-		ds_ScanFile (plat, filename, remote ? FALSE : TRUE);
+		ds_ScanFile (SRC_DEFAULT, plat, filename);
 		printf ("File '%s' in platform '%s' scanned.\n", 
 			filename, platname[0]);
 	}

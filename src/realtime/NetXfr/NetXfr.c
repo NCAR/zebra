@@ -32,7 +32,7 @@
 # include "NetXfr.h"
 
 
-RCSID("$Id: NetXfr.c,v 3.11 1998-10-28 21:22:57 corbet Exp $")
+RCSID("$Id: NetXfr.c,v 3.12 1999-03-01 02:04:54 burghart Exp $")
 
 
 /*
@@ -115,7 +115,7 @@ typedef struct _InProgress
 	PlatformId	ip_Plat;	/* The platform		*/
 	DataChunk	*ip_Dc;		/* The data chunk	*/
 	char		*ip_Arrived;	/* Indications of arrived packets*/
-	char		ip_Source[MAX_NAME_LEN]; /* Who is sending these */
+	char		ip_Source[MSG_MAXNAMELEN]; /* Who is sending these */
 	struct _InProgress *ip_Next;	/* Next in chain	*/
 	short		ip_NBCast;	/* # of arrived bcast pkts	*/
 	short		ip_NBExpect;	/* # expected			*/

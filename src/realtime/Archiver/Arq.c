@@ -3,6 +3,7 @@
  */
 
 #include <stdio.h>
+#include <time.h>
 
 #include <defs.h>
 #include <message.h>
@@ -28,8 +29,7 @@ main (int argc, char *argv[])
 {
 	char *database = NULL;
 	const char *key;
-	DataFileInfo dfi;
-	ZebraTime zt;
+	DataFileCore dfc;
 	int nf, i;
 
 	for (i = 1; i < argc; ++i)
@@ -60,17 +60,17 @@ main (int argc, char *argv[])
 		exit (1);
 	}
 
-	key = db_First (&dfi, &zt);
 	nf = 0;
-	while (key)
+	for (key = db_First (&dfc); key; key = db_Next (&dfc))
 	{
-		++nf;
-		printf ("%-55s %-20s\n", key, TC_AscTime (&zt, TC_Full));
-		key = db_Next (&dfi, &zt);
+	    char revdate[32];
+	    
+	    ++nf;
+	    strftime (revdate, sizeof (revdate), "%d-%b-%Y,%T", 
+		      gmtime (&dfc.dfc_rev));
+	    printf ("%-55s %-20s\n", key, revdate);
 	}
 	fprintf (stderr, "---\n%d records.\n", nf);
 	db_Close ();
 	exit (0);
 }
-
-

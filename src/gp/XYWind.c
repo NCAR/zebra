@@ -38,7 +38,7 @@
 # include "AxisControl.h"
 # include "PlotPrim.h"
 
-RCSID ("$Id: XYWind.c,v 1.34 1998-11-20 16:09:01 burghart Exp $")
+RCSID ("$Id: XYWind.c,v 1.35 1999-03-01 02:04:35 burghart Exp $")
 
 /*
  * General definitions
@@ -475,8 +475,8 @@ char *ctname;
 /*
  * See if they want mono or not.
  */
-	if (! pda_Search (Pd, c, "color-mono", "xy-wind", (char *) mono,
-			SYMT_BOOL))
+	if (! pda_Search (Pd, c, "color-mono", "xy-wind", (char*) mono, 
+			  SYMT_BOOL))
 		*mono = FALSE;
 /*
  * If they don't want mono, look for a color table.  If we encounter

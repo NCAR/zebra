@@ -1,6 +1,6 @@
 /*
- * Simple dbm interface for storing datafile structures keyed by
- * their platform namd and filename pair.
+ * Simple dbm interface for storing DataFileCore structures keyed by
+ * their full path name.
  */
 
 #include <ndbm.h>
@@ -14,14 +14,6 @@
 
 
 static DBM *File = NULL;	/* For now Archiver only opens one database */
-
-
-typedef struct _Entry
-{
-	DataFileInfo dfi;
-	ZebraTime dump;		/* time this file was dumped */
-} 
-Entry;
 
 
 
@@ -60,33 +52,24 @@ db_Close ()
 
 
 
-static const char *
-db_Key (const char *plat, const DataFileInfo *dfi, datum *key)
+static void
+db_Key (const char* fname, datum *key)
 {
-	static char buf[512];
-
-	sprintf (buf, "%s/%s", plat, dfi->dfi_Name);
-	if (key)
-	{
-		key->dptr = buf;
-		key->dsize = strlen (buf) + 1;
-	}
-	return (buf);
+    key->dptr = (void*)fname;
+    key->dsize = strlen (fname) + 1;
 }
 
 
 
 int
-db_Insert (const char *plat, DataFileInfo *dfi, ZebraTime *zt)
+db_Insert (const char *fname, const DataFileCore *dfc)
 {
-	Entry e;
 	datum key, value;
 
-	e.dfi = *dfi;
-	e.dump = *zt;
-	db_Key (plat, dfi, &key);
-	value.dptr = (void *)&e;
-	value.dsize = sizeof(Entry);
+	db_Key (fname, &key);
+
+	value.dptr = (void *)dfc;
+	value.dsize = sizeof(DataFileCore);
 	return (dbm_store (File, key, value, DBM_REPLACE));
 }
 
@@ -94,7 +77,7 @@ db_Insert (const char *plat, DataFileInfo *dfi, ZebraTime *zt)
 
 
 static int
-db_Value (datum *key, DataFileInfo *dfi, ZebraTime *zt)
+db_Value (datum *key, DataFileCore *dfc)
 {
 	datum value;
 	int found = 0;
@@ -103,37 +86,33 @@ db_Value (datum *key, DataFileInfo *dfi, ZebraTime *zt)
 	if (value.dptr)
 	{
 		found = 1;
-		if (dfi)
-			*dfi = ((Entry *)(value.dptr))->dfi;
-		if (zt)
-			*zt = ((Entry *)(value.dptr))->dump;
+		if (dfc)
+			*dfc = *(DataFileCore*)(value.dptr);
 	}
-	return (found ? 0 : -1);
+	return (found);
 }
 
 
 
 
 int
-db_Fetch (const char *plat, const DataFileInfo *in, 
-	  DataFileInfo *dfi, ZebraTime *zt)
+db_Fetch (const char* fname, DataFileCore *dfc)
 {
 	datum key;
-	datum value;
 
-	db_Key (plat, in, &key);
-	return (db_Value (&key, dfi, zt));
+	db_Key (fname, &key);
+	return (db_Value (&key, dfc));
 }
 
 
 
 const char *
-db_First (DataFileInfo *dfi, ZebraTime *zt)
+db_First (DataFileCore *dfc)
 {
 	datum key;
 
 	key = dbm_firstkey (File);
-	if (key.dptr == 0 || (db_Value (&key, dfi, zt) != 0))
+	if (key.dptr == 0 || ! db_Value (&key, dfc))
 		return (NULL);
 	return ((const char *)key.dptr);
 }
@@ -141,14 +120,23 @@ db_First (DataFileInfo *dfi, ZebraTime *zt)
 
 
 const char *
-db_Next (DataFileInfo *dfi, ZebraTime *zt)
+db_Next (DataFileCore *dfc)
 {
 	datum key;
 
 	key = dbm_nextkey (File);
-	if (key.dptr == 0 || (db_Value (&key, dfi, zt) != 0))
+	if (key.dptr == 0 || ! db_Value (&key, dfc))
 		return (NULL);
 	return ((const char *)key.dptr);
 }
 
 
+
+int
+db_Remove (const char *fname)
+{
+    datum key;
+
+    db_Key (fname, &key);
+    return (dbm_delete (File, key));
+}

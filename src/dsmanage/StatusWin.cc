@@ -37,7 +37,7 @@ extern "C"
 # include "dsmWindows.h"
 # include "StatusWin.h"
 
-static char *rcsid = "$Id: StatusWin.cc,v 1.5 1998-03-02 20:23:13 burghart Exp $";
+static char *rcsid = "$Id: StatusWin.cc,v 1.6 1999-03-01 02:03:53 burghart Exp $";
 
 
 //
@@ -135,19 +135,20 @@ StatusWindow::status (int nf, int bytes)
 //
 {
 	Arg args[2];
-	float percent;
+	float len;
 	char text[120];
 //
 // Do the text line first.
 //
 	sprintf (text, "%d of %d files (%.3f/%.3f MB) loaded", nf, sw_nf,
-		bytes/1000000.0, sw_bytes/1000000.0);
+		bytes/1048576.0, sw_bytes/1048576.0);
 	XtSetArg (args[0], XtNlabel, text);
 	XtSetValues (sw_textline, args, 1);
 //
 // Scrollbar too.
 //
-	XawScrollbarSetThumb (sw_scroll, 0.0, ((float) bytes)/sw_bytes);
+	len = (float) bytes / sw_bytes;
+	XawScrollbarSetThumb (sw_scroll, 0.0, len);
 	return (sw_abort);
 }
 
