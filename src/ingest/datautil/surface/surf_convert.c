@@ -1,7 +1,7 @@
 /*
  * Convert a composite surface data file to Zeb data store files. 
  */
-static char *rcsid = "$Id: surf_convert.c,v 1.5 1994-11-17 03:42:20 granger Exp $";
+static char *rcsid = "$Id: surf_convert.c,v 1.6 1995-06-29 21:22:59 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -77,7 +77,10 @@ static void	Go FP ((void));
 static void	StoreSample FP ((ZebTime *));
 static void	NewField FP ((struct ui_command *));
 static void	NewSubplatform FP ((struct ui_command *));
+#ifdef notdef
 static bool	CdfToZt FP ((short, char, char, char, char, ZebTime *));
+#endif
+static bool	CdfToZt FP ((int, int, int, int, int, ZebTime *));
 static int	ZtEqual FP ((ZebTime, ZebTime));
 static void	InitFieldData FP ((void));
 static int	GetPlatIndex FP ((char *));
@@ -624,8 +627,8 @@ Die ()
 
 static bool
 CdfToZt (year, month, day, hour, minute, zt)
-short	year;
-char	month, day, hour, minute;
+int	year;
+int	month, day, hour, minute;
 ZebTime	*zt;
 /*
  * Convert time from its netcdf representation to ZebTime
