@@ -1,7 +1,7 @@
 /*
  * Vertical cross-sectioning
  */
-static char *rcsid = "$Id: XSection.c,v 2.7 1992-11-03 20:59:53 burghart Exp $";
+static char *rcsid = "$Id: XSection.c,v 2.8 1993-04-15 23:16:33 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -142,7 +142,8 @@ static int	xs_Pos FP ((char *, ZebTime *, float **, float **));
 static int	xs_TimePos FP ((char *, ZebTime *, float **)); 
 static int	xs_ZIndex FP ((double));
 static void	xs_ColorScale FP ((void));
-static DataChunk *xs_GetData FP ((char *, char *, ZebTime *));
+static DataChunk *xs_GetObsDC FP ((char *, char *, ZebTime *));
+static DataChunk *xs_GetGridDC FP ((char *, char *, ZebTime *));
 
 
 
@@ -350,7 +351,7 @@ char	*c, *platforms, *fldname;
 	/*
 	 * Get the data
 	 */
-		if (! (dc = xs_GetData (pnames[p], fldname, &dtime)))
+		if (! (dc = xs_GetObsDC (pnames[p], fldname, &dtime)))
 			BAD_SOUNDING;
 	/*
 	 * Move the platform name to the appropriate spot in the name array,
@@ -638,9 +639,10 @@ char	*c, *platforms, *fldname;
 	sprintf (Scratch, "Cross-section of %s using: ", fldname);
 	An_TopAnnot (Scratch, White.pixel);
 /*
- * Grab the left endpoint from the PD
+ * Grab the left endpoint from the PD (should be in the global component, since
+ * we don't want different endpoints for various components of the plot)
  */
-	if (! pda_ReqSearch (Pd, c, "left-endpoint", NULL, Scratch, 
+	if (! pda_ReqSearch (Pd, "global", "left-endpoint", NULL, Scratch, 
 		SYMT_STRING))
 		return;
 
@@ -658,9 +660,10 @@ char	*c, *platforms, *fldname;
 		return;
 	}
 /*
- * Grab the right endpoint from the PD
+ * Grab the right endpoint from the PD (should be in the global component, 
+ * since we don't want different endpoints for various components of the plot)
  */
-	if (! pda_ReqSearch (Pd, c, "right-endpoint", NULL, Scratch, 
+	if (! pda_ReqSearch (Pd, "global", "right-endpoint", NULL, Scratch, 
 		SYMT_STRING))
 		return;
 
@@ -814,7 +817,7 @@ char	*platforms, *fldname;
 	/*
 	 * Get the data
 	 */
-		if (! (dc = xs_GetData (pnames[plat], fldname, &dtime)))
+		if (! (dc = xs_GetObsDC (pnames[plat], fldname, &dtime)))
 			BAD_SOUNDING;
 	/*
  	 * Get some info from the data chunk
@@ -1090,7 +1093,7 @@ char	*platform, *fldname;
 /*
  * Get the data
  */
-	if (! (dc = xs_GetData (platform, fldname, &dtime)))
+	if (! (dc = xs_GetGridDC (platform, fldname, &dtime)))
 		return;
 /*
  * Get the info we need from the data chunk
@@ -2029,11 +2032,11 @@ xs_ColorScale ()
 
 
 static DataChunk *
-xs_GetData (plat, fldname, dtime)
+xs_GetObsDC (plat, fldname, dtime)
 char	*plat, *fldname;
 ZebTime *dtime;
 /*
- * Find data for the given platform before the current plot time
+ * Find an observation from the given platform before the current plot time
  * and within the user-specified maximum time difference.  Return
  * a good data chunk if this is possible, otherwise return NULL.
  * Return the data time if a real data chunk is returned.
@@ -2062,7 +2065,7 @@ ZebTime *dtime;
 		return (NULL);
 	}
 /*
- * Make sure the sounding start time is within the user-specified
+ * Make sure the data start time is within the user-specified
  * limit (if any)
  */
 	diff = PlotTime.zt_Sec - dtime->zt_Sec;
@@ -2083,6 +2086,68 @@ ZebTime *dtime;
 		TC_EncodeTime (&PlotTime, TC_Full, Scratch);
 		msg_ELog (EF_PROBLEM, "'%s' or '%s' missing for '%s' at %s", 
 			fldname, Zfld, plat, Scratch);
+		return (NULL);
+	}
+	else
+		return (dc);
+}
+
+
+
+
+static DataChunk *
+xs_GetGridDC (plat, fldname, dtime)
+char	*plat, *fldname;
+ZebTime *dtime;
+/*
+ * Find the 3d grid for the given platform before the current plot time
+ * and within the user-specified maximum time difference.  Return
+ * a good data chunk if this is possible, otherwise return NULL.
+ * Return the data time if a real data chunk is returned.
+ */
+{
+	int	diff;
+	FieldId	fld;
+	PlatformId	pid;
+	DataChunk	*dc;
+/*
+ * Get the ID of this platform
+ */
+	pid = ds_LookupPlatform (plat);
+	if (pid == BadPlatform)
+	{
+		msg_ELog (EF_PROBLEM, "Bad platform '%s'", plat);
+		return (NULL);
+	}
+/*
+ * Find the closest data time before PlotTime
+ */
+	if (! ds_DataTimes (pid, &PlotTime, 1, DsBefore, dtime))
+	{
+		TC_EncodeTime (&PlotTime, TC_Full, Scratch);
+		msg_ELog (EF_PROBLEM, "No data for '%s' at %s", plat, Scratch);
+		return (NULL);
+	}
+/*
+ * Make sure the data start time is within the user-specified
+ * limit (if any)
+ */
+	diff = PlotTime.zt_Sec - dtime->zt_Sec;
+	if (Maxdiff > 0 && diff > Maxdiff)
+	{
+		msg_ELog (EF_INFO, "No data recent enough from '%s'", plat);
+		return (NULL);
+	}
+/*
+ * Get the data
+ */
+	fld = F_Lookup (fldname);
+
+	if (! (dc = ds_Fetch (pid, DCC_RGrid, dtime, dtime, &fld, 1, NULL, 0)))
+	{
+		TC_EncodeTime (&PlotTime, TC_Full, Scratch);
+		msg_ELog (EF_PROBLEM, "'%s' missing for '%s' at %s", 
+			fldname, plat, Scratch);
 		return (NULL);
 	}
 	else
