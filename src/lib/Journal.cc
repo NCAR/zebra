@@ -8,7 +8,7 @@
 #include <iomanip.h>
 
 //#include <defs.h>
-//RCSID ("$Id: Journal.cc,v 1.6 1998-05-15 19:36:57 granger Exp $");
+//RCSID ("$Id: Journal.cc,v 1.7 1998-05-28 21:43:16 granger Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
 #include "BlockFileP.hh"	// For the private header structure and stuff
@@ -24,6 +24,21 @@ const Journal::ChangeType Journal::BlockRemoved = 1;
 const Journal::ChangeType Journal::BlockAdded = 2;
 const Journal::ChangeType Journal::BlockChanged = 3;
 const Journal::ChangeType Journal::EndTransaction = 4;
+
+static const char *change_names[] =
+{
+	"Begin", "Removed", "Added", "Changed", "End"
+};
+
+
+// Static methods
+
+const char *
+Journal::ChangeName (ChangeType c)
+{
+	int i = (int) c;
+	return ((i >= 0 && i <= 4) ? change_names[i] : "Illegal");
+}
 
 
 // Constructor
@@ -59,7 +74,7 @@ Journal::Changed (BlkVersion rev, BlkOffset offset, BlkSize length)
 	{
 		changed = 0;
 	}
-	else if (rev < entries[first].block.revision)
+	else if (rev < entries[(last+max-1)%max].block.revision)
 	{
 		// The oldest entry is after the rev, so consider it changed
 		changed = 1;
@@ -91,7 +106,7 @@ Journal::Changed (BlkVersion rev, BlkOffset offset, BlkSize length)
 void
 Journal::Record (Journal::ChangeType change, BlkOffset offset, BlkSize length)
 {
-	// Insert new records (lastest rev) at the beginning of the queue
+	// Insert new records (latest rev) at the beginning of the queue
 	readSync ();
 	first = (max + first - 1) % max;
 	Block *b = &entries[first].block;
@@ -99,12 +114,33 @@ Journal::Record (Journal::ChangeType change, BlkOffset offset, BlkSize length)
 	b->length = length;
 	b->revision = bf->header->revision;
 	entries[first].change = change;
-	if (first == last)
+	if (first == last)	// queue has come full circle
 	{
 		last = (max + last - 1) % max;
 	}
 	mark ();
 }
+
+
+
+
+void
+Journal::Show (ostream &out)
+{
+	readSync ();
+
+	int i = first;
+	Format f("   Block (%7u, %7u, %7u) : %-20s");
+	while (i != last)
+	{
+		Block *b = &entries[i].block;
+		out << f % b->offset % b->length % b->revision
+			% ChangeName (entries[i].change) 
+		    << endl;
+		i = (i + 1) % max;
+	}
+}
+
 
 
 
