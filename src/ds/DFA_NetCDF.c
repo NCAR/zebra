@@ -25,7 +25,7 @@
 #include "DataStore.h"
 #include "dsPrivate.h"
 #include "dslib.h"
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 2.7 1991-12-06 23:07:27 corbet Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 2.8 1991-12-20 17:48:24 corbet Exp $")
 
 #include "netcdf.h"
 
@@ -80,42 +80,23 @@ static char     FldBuf[MAXFLDBUF];
 /*
  * Locally used stuff.
  */
-#ifdef __STDC__
-	static void     dnc_NCError (char *);
-	static int      dnc_OFTimes (NCTag *);
-	static int      dnc_GetTimes (NCTag *);
-	static int      dnc_OFIRGrid (NCTag *);
-	int      	dnc_TimeIndex (NCTag *, time *);
-	static void dnc_GField (NCTag *, char *, float *, 
-		int, int, double, DataObject *);
-	static void     dnc_LoadLocation (NCTag *, GetList *, long, long);
-	static void     dnc_MakeCoords (NCTag *, DataObject *, long *, long *);
-	static int      dnc_BuildPMap (NCTag *);
-	static void     dnc_CFMakeDims (NCTag *, DataObject *, int *, int *);
-	static void     dnc_CFMakeVars (NCTag *, DataObject *);
-	static void     dnc_CFScalarVars (NCTag *, DataObject *);
-	static void     dnc_CFGridVars (NCTag *, DataObject *);
-	static void     dnc_CFIRGridVars (NCTag *, DataObject *);
-	static void     dnc_PDTimes (NCTag *, DataObject *, int, int, long *);
-	static bool     dnc_OverheadField (char *const);
-#else
-	static void     dnc_NCError ();
-	static int      dnc_OFTimes ();
-	static int      dnc_GetTimes ();
-	static int      dnc_OFIRGrid ();
-	int      	dnc_TimeIndex ();
-	static void     dnc_GField ();
-	static void     dnc_LoadLocation ();
-	static void     dnc_MakeCoords ();
-	static int      dnc_BuildPMap ();
-	static void     dnc_CFMakeDims ();
-	static void     dnc_CFMakeVars ();
-	static void     dnc_CFScalarVars ();
-	static void     dnc_CFGridVars ();
-	static void     dnc_CFIRGridVars ();
-	static void     dnc_PDTimes ();
-	static bool     dnc_OverheadField ();
-#endif
+static void     dnc_NCError FP((char *));
+static int      dnc_OFTimes FP((NCTag *));
+static int      dnc_GetTimes FP((NCTag *));
+static int      dnc_OFIRGrid FP((NCTag *));
+int      	dnc_TimeIndex FP((NCTag *, time *));
+static void 	dnc_GField FP((NCTag *, char *, float *, int, int, double,
+			DataObject *));
+static void     dnc_LoadLocation FP((NCTag *, GetList *, long, long));
+static void     dnc_MakeCoords FP((NCTag *, DataObject *, long *, long *));
+static int      dnc_BuildPMap FP((NCTag *));
+static void     dnc_CFMakeDims FP((NCTag *, DataObject *, int *, int *));
+static void     dnc_CFMakeVars FP((NCTag *, DataObject *));
+static void     dnc_CFScalarVars FP((NCTag *, DataObject *));
+static void     dnc_CFGridVars FP((NCTag *, DataObject *));
+static void     dnc_CFIRGridVars FP((NCTag *, DataObject *));
+static void     dnc_PDTimes FP((NCTag *, DataObject *, int, int, long *));
+static bool     dnc_OverheadField FP((char *const));
 
 
 /*
@@ -234,6 +215,7 @@ NCTag **rtag;
 	 * Nothing to do for scalar files, for now.
 	 */
 	   case OrgScalar:
+	        ret = TRUE;
 		break;
 
 	   default:
