@@ -19,7 +19,7 @@
 # include "dfa.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_Grads.c,v 3.12 1997-06-30 21:26:32 ishikawa Exp $")
+RCSID ("$Id: DFA_Grads.c,v 3.13 1997-07-01 20:09:59 ishikawa Exp $")
 
 
 /*
@@ -228,6 +228,10 @@ bool opendata;
  */
 	memset (tag, 0, sizeof (GradsTag));
 	tag->gt_dfd = -1;
+
+	/* Make sure there is a bad value set */
+	tag->gt_badflag=(float) CFG_DC_DEFAULT_BADVAL;
+
 	while (dgr_GetCtlLine (cfile, cfwords, &nw))
 	{
 		char fc = cfwords[0][0];
@@ -871,6 +875,7 @@ int ndetail;
 	int start;	/* where to start adding samples to dc */
 	int forecast_offset; /* Stores the forecast offset */ 
 	int fileoffset;      /* will store the forecast time offset in file */
+	float badval;
 /*
  * Find the dimensions first.
  */
@@ -912,6 +917,13 @@ int ndetail;
 		dc_NSAddStatic (dc, lat, tag->gt_yc);
 		dc_NSAddStatic (dc, lon, tag->gt_xc);
 	}
+
+/*
+ * Set the badval in the data chunk, either based on the details we're given
+ * or by using the default.
+ */
+	dc_SetBadval (dc, tag->gt_badflag);
+
 /*
  * Now get the whole ugly list of variables out of the data chunk.
  */
