@@ -40,7 +40,7 @@
 # define MESSAGE_LIBRARY	/* to get netread prototypes */
 # include "message.h"
 
-RCSID ("$Id: msg_lib.c,v 2.40 1996-09-02 06:48:28 granger Exp $")
+RCSID ("$Id: msg_lib.c,v 2.41 1996-09-06 21:05:28 granger Exp $")
 
 /*
  * The array of functions linked with file descriptors.
@@ -1208,6 +1208,15 @@ int type, broadcast, datalen;
 		msg_PError ("%s: msg_send: attempt to send message %s",
 			    Identity, (NoConnection) ? "with no connection" :
 			    "after shutdown received");
+		return;
+	}
+/*
+ * Nor should we send anything we know the handler will reject
+ */
+	if (datalen > MSG_MAX_DATALEN)
+	{
+		msg_PError ("%s: msg_send: rejecting huge message (%d) to %s",
+			    Identity, datalen, to);
 		return;
 	}
 /*

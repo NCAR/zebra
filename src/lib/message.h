@@ -1,4 +1,4 @@
-/* $Id: message.h,v 2.25 1996-09-02 06:48:27 granger Exp $ */
+/* $Id: message.h,v 2.26 1996-09-06 21:05:25 granger Exp $ */
 /*
  * Message protocol types.
  */
@@ -367,6 +367,8 @@ typedef fd_set SelectSet;
 
 int msg_XX_netread FP ((int fd, char *dest, int len));
 int msg_netread FP ((int fd, char *dest, int len));
+
+#define MSG_MAX_DATALEN 50000	/* prohibit excessively large messages */
 
 # endif /* MESSAGE_MANAGER || MESSAGE_LIBRARY */
 

@@ -51,7 +51,7 @@
 # include <message.h>
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.45 1996-09-05 18:50:29 granger Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.46 1996-09-06 21:05:57 granger Exp $")
 /*
  * Symbol tables.
  */
@@ -1443,10 +1443,13 @@ int fd;
 			deadconn (fd);
 			return (0);
 		}
-		if (msg->m_len > 50000)
+		if (msg->m_len > MSG_MAX_DATALEN)
 		{
-			send_log (EF_PROBLEM, "CORRUPT msg, len %d from %s", 
+			send_log (EF_PROBLEM, "%s, len %d from %s", 
+				  "CORRUPT or HUGE msg",
 				  msg->m_len, cp->c_name);
+			/* jump ship or we'll corrupt ourselves too */
+			deadconn (fd);
 			return (0);
 		}
 	/*
