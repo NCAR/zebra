@@ -31,7 +31,7 @@
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dslib.h"
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.7 1992-09-01 21:46:43 burghart Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.8 1992-09-25 15:45:50 corbet Exp $")
 
 # include "netcdf.h"
 
@@ -59,6 +59,7 @@ typedef struct _nctag
 	PlatformId     *nc_subplats;	/* IRGRID subplatform ID's	 */
 	int		nc_nVar;	/* Number of variables in the file */
 	FieldId		*nc_FMap;	/* The field map		*/
+	char		nc_buffered;	/* Is buffering on?		*/
 } NCTag;
 
 
@@ -250,6 +251,7 @@ NCTag **rtag;
 	tag->nc_ntime = 0;
 	tag->nc_locs = (Location *) 0;
 	tag->nc_FMap = 0;
+	tag->nc_buffered = TRUE;
 /*
  * Deal with the time and field information.
  */
@@ -762,6 +764,14 @@ NCTag *tag;
  * Synchronize this file.
  */
 {
+/*
+ * If buffering is still enabled, we need to turn it off now.
+ */
+	if (tag->nc_buffered)
+	{
+		ncnobuf (tag->nc_id);
+		tag->nc_buffered = FALSE;
+	}
 /*
  * Update to the file itself, then reload the times array.
  */
@@ -1701,6 +1711,7 @@ NCTag **rtag;
 	tag->nc_org = plat->dp_org;
 	tag->nc_locs = (Location *) 0;
 	tag->nc_plat = dc->dc_Platform;;
+	tag->nc_buffered = TRUE;
 /*
  * Create the time dimension.  If this platform has the "discrete"
  * flag set, or it's an IRGRID organization, then we make time
