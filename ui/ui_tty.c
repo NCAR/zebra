@@ -1,4 +1,4 @@
-/* $Id: ui_tty.c,v 1.3 1989-08-09 09:16:11 corbet Exp $ */
+/* $Id: ui_tty.c,v 1.4 1989-09-25 14:31:17 corbet Exp $ */
 /*
  * Basic terminal handling.  This is an extremely VMS-dependant module.
  */
@@ -448,7 +448,7 @@ int x, y;
 # endif
 # ifdef UNIX
 	char *tgoto ();
-	tty_string (tgoto (TC_cm, y-1, x-1));
+	tty_putpad (tgoto (TC_cm, y-1, x-1));
 # endif
 }
 
