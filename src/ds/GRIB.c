@@ -26,13 +26,12 @@
 # include <unistd.h>
 # include <string.h>
 
-# include <copyright.h>
 # include <defs.h>
 # include <message.h>
 
 # include "GRIB.h"
 
-RCSID ("$Id: GRIB.c,v 3.7 1997-05-30 15:13:31 burghart Exp $")
+RCSID ("$Id: GRIB.c,v 3.8 1997-05-30 15:21:33 burghart Exp $")
 
 typedef struct s_GRB_DataRepType {
 	int data_type;
