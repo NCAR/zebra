@@ -1,4 +1,4 @@
-19
+21
 000000%000000Welcome to the Wide World of Zeb
 824
 
@@ -22,7 +22,7 @@ glass, provides a search facility for finding text
 references within a single topic.  
 
 Click the <Down> icon for more information on using Help...  moreonhelp   More Help with Using Help
-1368
+1303
 
 / SCROLLING HELP WINDOWS /
 
@@ -32,7 +32,9 @@ the left side of the help window.  Click the middle mouse
 button inside the scroll bar, and while holding the button
 down, move the mouse up and down to scroll text through the
 window.  Clicking the left or right mouse buttons inside
-the scroll bar scrolls the text down and up, respectively.
+the scroll bar scrolls the text in increments, down and up,
+respectively.  The increments are larger the lower the
+cursor is when a mouse button is pressed.
 
 / HOW HELP TOPICS ARE ORGANIZED /
 
@@ -51,10 +53,9 @@ Graphics Window icon.
 
 To remove the help window, click on the <Quit> button found
 above the row of icon buttons in the help window.  If help
-is requested at a later time, the help window will
-automatically pop up again.  If a help window is already on
-the screen (though it may be hidden by other windows), any
-help topics requested will be shown in that help window.  buttonmaps   Graphics Window Buttons
+is requested at a later time, the help window will pop up
+again.
+buttonmaps   Graphics Window Buttons
 1985
 
 / BUTTON TO COMMAND MAPPING /
@@ -195,14 +196,16 @@ The movie controller window can be removed by pressing the
 controller leaves the graphics window in the mode and time
 last set by the movie controller.  
 altitude     Changing Altitude
-528
+632
 
-/ CHANGING THE ALTITUDE OF A CONSTANT-ALTITUDE PLOT /
+/ CHANGING THE ALTITUDE OF A HORIZONTAL PLOT /
 
-When a Graphics Window is dislaying a constant-altitude
-plot, and its base field contains several different
-altitudes (or elevation angles), it is possible to change
-the altitude of the plot.
+When a Graphics Window is dislaying a horizontal
+(constant-altitude) plot, and its base field contains
+several different altitudes (or elevation angles), it is
+possible to change the altitude of the plot.  The altitude
+(or elevation angle) is displayed in the lower right corner
+of the graphics window.
 
 The following keystrokes may be used to step up and
 down in altitude:
@@ -708,7 +711,7 @@ shuts down all of the Zeb processes once the graphics
 display is shut down.  Hence STORM-FEST CD users do not
 need to perform the second step mentioned above.
 printer      Printing Hardcopies of Windows
-4630
+6195
 
 / THE HARDCOPY WIDGET /
 
@@ -721,11 +724,11 @@ Icon Bar.
 / SETTING THE PARAMETERS /
 
 The Hardcopy Widget controls several printing parameters. 
-The settings of these parameters should be verified before
-attempting to print a window.  Messages which appear at the
-bottom of the widget give hints on which steps to take,
-information about each selection made, and notices about
-any problems which occur.
+The parameter settings should be verified before attempting
+to print a window.  Messages which appear at the bottom of
+the widget give hints on which steps to take, information
+about each selection made, and notices about any problems
+which occur.
 
 First, decide whether to print a single window or the
 entire screen.  The top button, to the right of the
@@ -735,10 +738,17 @@ Click on this button to change from one setting to the
 other.  The window you wish to print does not have to
 be a Zeb window.
 
-Second, if the default printer name is not correct, type
+Second, choose the destination of the output, either a
+printer or a file.  The button in the left column toggles
+between a printer or file destination; the choice is
+indicated with the text "Printer name:" or "File name:",
+respectively.  The hardcopy widget prints to the printer by
+default.  If the default printer name is not correct, type
 the name of the printer in the box to the right of "Printer
-name:".  See "Environment Variables" below to learn how to
-change the default printer name.
+name:".  Click on "Printer name:" to change to destination
+to a file, and replace the printer name with a file name. 
+See "Environment Variables" below to learn how to change
+the default printer name.
 
 Next, choose the printer's device type.  Pressing the
 button to the right of "Device type:" pops up a menu
@@ -754,16 +764,16 @@ The next button from the top toggles the "Reverse
 video:" parameter.  If this parameter is "On", black
 and white will be swapped before printing the window.
 This helps cut down on the use of ink, especially in
-color printers.
+color printers, when printing on white paper.
 
 Lastly, you may toggle the "Remove widget:" parameter
-between "Yes" and "No".  This is most useful when you
-want to print the entire screen, but you do not want the
+between "Yes" and "No".  This is most useful when you want
+to print the entire screen, but you do not want the
 Hardcopy Widget to appear on the printout.  If this
 parameter is "Yes", the Hardcopy Widget will be removed
 from the screen before anything is printed.
 
-/ EXECUTING THE PRINT /
+/ PERFORMING THE PRINT /
 
 Once you are satisfied with the parameter settings, press
 the <Print> button at the top of the Hardcopy Widget.  If
@@ -776,8 +786,14 @@ window.  If you chose to have the widget removed before
 printing, the widget will disappear; it can be popped up
 again by selecting it from the Icon Bar menu as described
 above.  Otherwise, a message will be displayed noting that
-the window has been sent to the printer.  At this point,
-you may change the parameters and/or print another window.
+the window has been sent to the printer (or file).  The
+print command is displayed by the display manager inside
+the window in which Zeb was started.  Any error messages
+caused by the print command will be shown following the
+print command.  Look for error messages if the printout
+does not appear or you suspect the parameter settings were
+incorrect.  After printing a window, you may change the
+hardcopy parameters and/or print another window.
 
 / EXITING THE HARDCOPY WIDGET /
 
@@ -788,8 +804,9 @@ the upper right corner of the widget.
 
 The Hardcopy Widget tests several environment variables to
 determine parameter defaults and paths to required
-programs.  Ordinarily, these variables should be set in
-your dm.config file if the defaults do not suffice.
+programs.  These variables can be set in the Zeb startup
+script, before the Display Manager (dm) is executed, if the
+defaults do not suffice.
 
 ZEB_PRINTER_NAME	Default name of printer;
 			"lp" if variable not found
@@ -822,14 +839,37 @@ The xwd program must exist.  If it is not in your default
 path, it must be explicitly specified in the ZEB_XWD_PATH
 environment variable.  The xwd2ps program is required to
 generate Color PostScript code for Color PostScript
-printers.  All other devices require xpr.  If you specify a
-path for xwd2ps, then xwd2ps will be used for monchrome
-PostScript, instead of xpr, using the xwd2ps option for
-monochrome output.
+printers, and it is the preferred program for greyscale
+PostScript on monochrome PostScript printers.  All other
+devices require xpr.  
+
+Special command-line options can be passed to the programs
+through the environment variables.  For example, to print
+to A4 size paper with xwd2ps, add this line to your startup
+script:
+
+	setenv ZEB_XWD2PS_PATH 'xwd2ps -p A4'
+
+To add a date, time, border, and title, try
+
+	setenv ZEB_XWD2PS_PATH 'xwd2ps -d -t -b -s "title"'
+
+See the xwd2ps man(1) page included in the distribution,
+"doc/man/xwd2ps.man", for more information on command-line
+options.
+
+The 'xwd2ps' program is included in the STORM-FEST CD
+distribution, so the default path should be correct and
+should not be changed, unless spcific options are desired. 
+The executable supplied on the CD contains a fix for
+automatically determining landscape versus portrait
+orientation.
 
 The programs 'xwd' and 'xpr' are part of the standard MIT
 X11 Release 5 distribution, and the 'xwd2ps' program is
-freely distributed software.
+freely distributed software.  See the copyright notices in
+the xwd2ps man(1) page in the directory doc/man in the
+distribution.  
 components   Planets in the Zeb Solar System
 2607
 
@@ -936,24 +976,234 @@ points is allowed, then menus to do this will be found by
 clicking the right mouse button on the icons in the graphics
 window.
 iconbar      The Icon Bar Icons
-580
+2949
 
 / THE ICON BAR ICONS /
 
 This topic describes the purpose and function of each of the
 icon menus on the Icon Bar.  In particular, the topic covers
 the Icon Bar for the STORM-FEST CD distribution, but the
-information here will be readily applicable to many project
-configurations.
+information here will be readily applicable to many of the
+Zeb project configurations.
 
 The Icon Bar performs "global" Zeb functions---functions
 which are useful or applicable to more than one window or
 process in the Zeb display.  Most of the icon menus specify
 platforms and fields for addition to one of the Graphics
-Windows in the display.  Each of these icons is described
-below.  
-documentationGuide to Zeb Documentation
-33
+Windows in the display.  Each of Icon Bar icons is
+described below, in the order they occur on the Icon Bar,
+either top-to-bottom or left-to-right.
+
+/ THE HELP ICON /
+
+This icon pictures a question mark and the word "Help". 
+The menu for this icon can pop up the Zeb help window with
+information on the topics listed in the menu.  One of the
+menu entries, "Surface Station Listing", pops up a help
+window which lists a subset of the hourly surface stations,
+their Zeb IDs, cities and coordinates.
+
+/ THE ZEB ICON /
+
+The main Zeb menu is found under the "Zeb" icon of the Icon
+Bar.  This menu starts up several of the important widgets
+in the Zeb display, and also allows convenient switching
+between display configurations.  The first block of the
+menu lists the available display configurations.  The next
+block contains an entry for each of the global Zeb display
+widgets:
+
+  Time ---	Controls the time settings and
+		history modes of all or individual
+		graphics windows in the display.
+		See "Setting a History Time".
+
+  Hardcopy ---	Generates hardcopy plots of one
+		or all of the windows in the 
+		display.  See "Printing Hardcopies".
+
+  Configuration Editing ---
+		Creates new configurations or changes
+		existing ones, and stores the changes
+		for future use.  See the help topic 
+		"Changing Display Configurations".
+
+  Data Store ---
+		Runs the 'dsdwidget' application,
+		which displays the times for
+		which data is available for every
+		platform.  See the "Data Store
+		Widget" help topic.
+
+  Data Store Management	---
+		Runs the "dsmanage" program, the Zeb
+		disk manager.  The Zeb disk manager 
+		simplifies and oversees the task of
+		managing magnetic disk space by
+		moving data files back and forth
+		between disk and CD or tape.
+
+The "Open Windows mode" entry changes internal parameters
+to help Zeb cooperate with the OpenWindows environment. 
+Lastly, "Shut Down Zeb System" does just that; see the
+"Ending the Zeb Universe" help topic for details.
+
+/ THE REST OF THE ICONS /
+
+The rest of the Icon Bar icons direct which fields of which
+platforms to add to a plot in an individual Graphics
+Window.  In general, when an overlay is selected from an
+icon menu, you must indicate to which window you wish to
+add the overlay.  After selecting the entry, the cursor
+will change into a crosshair; just click the mouse inside
+the desired window.  If you click the mouse in a window
+which is not a Graphics Window, documentationGuide to Zeb Documentation
+3178
 
 / GUIDE TO ZEB DOCUMENTATION /
 
+The Zeb documentation is contained in the "doc" directory
+under Zeb top directory.  For the STORM-FEST CDROM
+distribution, if the CD is mounted on /cd, the document
+directory will be /cd/doc.  There are some notable
+documents specific to the CD distribution.
+
+The "Running Zeb" document can be found in the PostScript
+file <>.  This document covers the installation of Zeb from
+the CD and provides a simple overview and several examples
+of the basic operation of Zeb.
+
+The "data" directory under the "doc" directory (in the
+above example it would be /cd/doc/data) contains text
+files about the platforms and data supplied on the
+STORM-FEST compact discs.
+
+File name:              Platforms covered:
+
+aster.doc               aster
+cp4.doc                 cp4
+goes.doc                goes_us, goes_fest
+nowrad.doc              nowrad, nowrad_f
+N2UW-Storm1.doc         storm1
+N312D-Storm2.doc        storm2
+WP3D-P3.doc             p3
+C131-Storm4.doc         storm4
+profilers.doc           All platforms beginning with prof_
+surface.doc             surface_5min, surface_hourly,
+soundings.doc           All platforms whose names are four
+			characters begining with an s.
+fest_sites_hourly	Listing of the hourly surface
+			stations, their Zeb IDs, cities,
+			states, and coordinates.
+
+The "fest_sites_hourly" listing can also be viewed through
+the Zeb Help facility by choosing the "Surface Stations
+Listing" entry from the <Help> menu on the Icon Bar.  For
+information on the structure of the CD data directories,
+see the file "DataStructure.doc" in the "data/doc"
+directory.
+
+Below is a listing of all of the general Zeb documents and
+the topics each covers.  All of these files use the
+PostScript language, and so they must be printed with a
+PostScript printer.
+
+configuration.ps  The Zeb Configuration Manual.  Describes
+                  how to customize the Zeb system using
+                  configuration files.
+
+config-index.ps   The index for the configuration manual.
+
+gp.ps             The Zeb Graphics Process Data Structures
+                  and Internals.  Describes the internal
+                  workings of the Zeb graphics process from
+                  a programming point of view.
+
+gp-index.ps       The index for the graphics process manual.
+
+install.ps        The Zeb Installation Manual.  Describes
+                  how to install the Zeb system.
+
+install.ascii     An ascii version of some portions of the
+                  installation manual.
+
+interface.ps      The Zeb Data Integration and Display
+                  System Interface Specifications and
+                  Internals.  Describes many of the modules
+                  of Zeb and how to utilize them from a
+                  programming point of view.
+
+tutorial.ps       The Zeb Tutorial.  Step by step guide
+                  through some of the most commonly used
+                  functions of Zeb.
+
+user.ps           The Zeb User's Manual.  Describes how
+                  to start up, basic operations, and
+                  shutting down.  **Takes a long time to
+                  print!**
+        
+user-index.ps     The index for the user's manual.
+
+
+timeseries   Time Series Plots
+24
+
+/ TIME SERIES PLOTS /
+
+Cross-sectionUsing Cross-section Plots
+2428
+
+/ USING CROSS-SECTION PLOTS /
+
+Zeb has the ability to generate vertical cross-section plots
+using various datasets.  Two basic types of cross-sections
+are provided: "zig-zag" and planar.  The types and their
+differences are described separately below.  Various options
+such as which platforms to use, the field to display, and
+whether to use pressure or altitude as the vertical scale
+are generally provided in menus from the associated
+cross-section icon.
+
+/ ZIG-ZAG CROSS-SECTIONS /
+
+The "zig-zag" cross-section plot builds a vertical
+cross-section running from point to point along a path
+defined by a list of platforms, each of which provides a
+single vertical profile.  This is a common method for
+drawing a spatial cross-section using data from a series of
+sounding sites or profilers.  Between each adjacent pair of
+platforms, a simple linear interpolation is performed
+horizontally to fill in the cross-section.  In order for
+this method to work properly, it must be assumed that each
+data profile is truly vertical, with no variation in
+horizontal position.  For balloon soundings in particular,
+this assumption can produce distortion in the cross-section.
+
+/ PLANAR CROSS-SECTIONS /
+
+A planar cross-section plot is defined by two endpoints
+rather than by the locations of a list of platforms.  A true
+vertical plane is built, which is filled in a manner much
+different from that used for zig-zag cross-sections.  Often,
+the user interface is set up so that the endpoints of a
+planar cross-section can be changed by the user drawing a
+line, representing the projection of the plane, on a
+constant altitude plot.
+
+Two methods are used for building planar cross-sections,
+depending on the structure of the data for which the
+cross-section is being generated:
+
+1) The first method is a distance weighting scheme used for
+series' of vertical profiles (e.g., balloon soundings or
+profiler data).  The value at a given point on the plane is
+calculated using the values from all selected platforms at
+the same vertical level, applying a horizontal distance
+weighting to each.  The weighting factor used is 1/d^2, with
+weights greater than 100 truncated to 100.
+
+2) The second method is a bilinear interpolation used when
+creating arbitrary vertical cross-sections from 3D gridded
+data.  The value for each point in the plane is interpolated
+bilinearly from the four surrounding source grid points at
+the same vertical level.
