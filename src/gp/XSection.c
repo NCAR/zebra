@@ -1,7 +1,7 @@
 /*
  * Vertical cross-sectioning
  */
-static char *rcsid = "$Id: XSection.c,v 2.8 1993-04-15 23:16:33 burghart Exp $";
+static char *rcsid = "$Id: XSection.c,v 2.9 1993-07-13 19:59:31 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -154,6 +154,15 @@ char	*c;
 bool	update;
 {
 	Fill_contour = FALSE;
+
+	Do_labels = TRUE;
+	pda_Search (Pd, c, "do-labels", "xsect", (char *) &Do_labels, 
+		    SYMT_BOOL);
+	
+	Line_width = 0;
+	pda_Search (Pd, c, "line-width", "xsect", (char *) &Line_width,
+		    SYMT_INT);
+
 	xs_Contour (c, update);
 }
 
@@ -181,6 +190,7 @@ bool	update;
  */
 {
 	bool	ok;
+	float	zmax;
 	char	platforms[120], fldname[20], ctname[20];
 	char	param[50];
 /*
@@ -208,16 +218,6 @@ bool	update;
 	else
 		Maxdiff *= 60;	/* Convert to seconds */
 /*
- * Special stuff for line contours
- */
-	Do_labels = TRUE;
-	pda_Search (Pd, c, "do-labels", "xsect", (char *) &Do_labels, 
-		SYMT_BOOL);
-
-	Line_width = 0;
-	pda_Search (Pd, c, "line-width", "xsect", (char *) &Line_width, 
-		SYMT_INT);
-/*
  * Load the color table + explicitly get black and white
  */
 	ct_LoadTable (ctname, &Colors, &Ncolors);
@@ -235,6 +235,17 @@ bool	update;
 		strcpy (Zfld, "alt");
 	else
 		strcpy (Zfld, "pres");
+/*
+ * Altitude or pressure limits.  Take the user values if they exist, otherwise
+ * default to:  altitude - 0 to 12 km, pressure - 1050 to 200 mb.
+ */
+	P_bot = Use_alt ? 0.0 : 1050.0;
+	P_hgt = Use_alt ? 12.0 : -850.0;
+
+	pda_Search (Pd, "global", "z-min", NULL, (char *) &P_bot, SYMT_FLOAT);
+	if (pda_Search (Pd, "global", "z-max", NULL, (char *) &P_hgt, 
+			SYMT_FLOAT))
+		P_hgt = zmax - P_bot;
 /*
  * Pixel plot limits
  */
@@ -272,7 +283,7 @@ bool	update;
  */
 	if (Time_height)	
 		/* xs_TimeHeight (); */
-		msg_ELog (EF_INFO, "Time-height plots not yet implemented!");
+		msg_ELog (EF_INFO, "Time-height plots not yet implemented");
 	else if (Zig_zag)
 		xs_ZigZag (c, platforms, fldname);
 	else
@@ -320,15 +331,13 @@ char	*c, *platforms, *fldname;
 		return;
 	}
 /*
- * Arbitrarily (for now) use 50 vertical levels running from 0 to 12 km
+ * Arbitrarily use 50 vertical levels (for now)
  */
 	Vdim = 50;
-	P_bot = Use_alt ? 0.0 : 1050.0;
-	P_hgt = Use_alt ? 12.0 : -850.0;
 /*
  * Get the data plane and fill it with bad values
  */
-	Plane = (float *) malloc (nplat * Vdim * sizeof (float));
+	Plane = (float *) alloca (nplat * Vdim * sizeof (float));
 
 	for (pt = 0; pt < nplat * Vdim; pt++)
 		Plane[pt] = BADVAL;
@@ -555,9 +564,8 @@ char	*c, *platforms, *fldname;
 		xs_DrawTrace ("");
 	}
 /*
- * Clean up
+ * Done
  */
-	free (Plane);
 	return;
 }
 
@@ -728,7 +736,8 @@ xs_HDWeighting (platforms, fldname)
 char	*platforms, *fldname;
 /*
  * Fill the cross-section array with data from the chosen soundings, using
- * a horizontal distance weighting scheme.
+ * a horizontal distance weighting scheme.  Plane is malloc'ed here and 
+ * should be free'd by the caller.
  */
 {
 	int	plat, nplat, pt, npts, iz, zndx, zndx_prev, ih, iv;
@@ -746,12 +755,9 @@ char	*platforms, *fldname;
  */
 	nplat = CommaParse (platforms, pnames);
 /*
- * Arbitrarily choose 50x50 for our grid size and 12km for the grid height.
- * Optional plot parameters for these should be added at some point.
+ * Arbitrarily choose 50x50 for our grid size.
  */
 	Hdim = Vdim = 50;
-	P_bot = Use_alt ? 0.0 : 1050.0;
-	P_hgt = Use_alt ? 12.0 : -850.0;
 /*
  * Set user coordinates for pixel conversions
  */
@@ -764,14 +770,17 @@ char	*platforms, *fldname;
  * Allocate space for the plane and weight arrays.
  */
 	Plane = (float *) malloc (Hdim * Vdim * sizeof (float));
-	P_wgt = (float *) malloc (Hdim * Vdim * sizeof (float));
 /*
- * Get the floor and ceiling arrays and their associated weight arrays
+ * Get the plane weight array plus the floor and ceiling arrays and 
+ * their associated weight arrays.  These arrays are all only needed
+ * for the duration of this routine, so we can use alloca.
  */
-	floor = (float *) malloc (Hdim * sizeof (float));
-	f_wgt = (float *) malloc (Hdim * sizeof (float));
-	ceiling = (float *) malloc (Hdim * sizeof (float));
-	c_wgt = (float *) malloc (Hdim * sizeof (float));
+	P_wgt = (float *) alloca (Hdim * Vdim * sizeof (float));
+
+	floor = (float *) alloca (Hdim * sizeof (float));
+	f_wgt = (float *) alloca (Hdim * sizeof (float));
+	ceiling = (float *) alloca (Hdim * sizeof (float));
+	c_wgt = (float *) alloca (Hdim * sizeof (float));
 /*
  * Fill the plane with BADVALs and set the weights to zero.
  * Initialize the floor and ceiling arrays also.
@@ -1046,14 +1055,6 @@ char	*platforms, *fldname;
 		for (iv = xs_ZIndex (ceiling[ih]); iv < Vdim; iv++)
 			Plane[ih * Vdim + iv] = BADVAL;
 	}
-/*
- * Free our local arrays
- */
-	free (floor);
-	free (f_wgt);
-	free (ceiling);
-	free (c_wgt);
-	free (P_wgt);
 
 	return;
 }
@@ -1066,18 +1067,28 @@ char	*platform, *fldname;
 /*
  * Fill the cross-section array with data from a cartesian grid, using
  * bilinear interpolation.  It is assumed that the data source will be a
- * 3d cartesian grid.
+ * 3d cartesian grid.  Plane is malloc'ed here and should be free'd by the
+ * caller.
  */
 {
-	int	nplat, len, h, v, i, j;
+	int	nplat, len, h, v, i, j, k;
 	float	*sourcegrid, *sgp, sgbad, *pp;
-	float	f_i0, f_istep, f_j0, f_jstep, f_i, f_j;
-	float	grid_x0, grid_y0, di, dj, val0, val1, val2, val3;
+	float	f_i0, f_istep, f_j0, f_jstep, f_k0, f_kstep, f_i, f_j;
+	float	grid_x0, grid_y0, grid_z0, di, dj, val0, val1, val2, val3;
 	char	*pnames[20];
 	RGrid	rg;
 	ZebTime dtime;
 	Location	loc;
 	DataChunk	*dc;
+/*
+ * Can't use pressure for the vertical scale for this type of plot
+ */
+	if (! Use_alt)
+	{
+		msg_ELog (EF_PROBLEM, 
+			  "Can't do bilinear plots with pressure vert. scale");
+		return;
+	}
 /*
  * Parse out platform names
  */
@@ -1100,6 +1111,7 @@ char	*platform, *fldname;
  */
 	sourcegrid = dc_RGGetGrid (dc, 0, F_Lookup (fldname), &loc, &rg, &len);
 	cvt_ToXY (loc.l_lat, loc.l_lon, &grid_x0, &grid_y0);
+	grid_z0 = loc.l_alt;
 
 	sgbad = dc_GetBadval (dc);
 /*
@@ -1108,10 +1120,7 @@ char	*platform, *fldname;
  * the z spacing of the source grid.
  */
 	Hdim = (P_len / rg.rg_Xspacing) + 1;
-	Vdim = rg.rg_nZ;
-
-	P_hgt = rg.rg_Zspacing * (rg.rg_nZ - 1);
-	P_bot = loc.l_alt;
+	Vdim = (P_hgt / rg.rg_Zspacing) + 1;
 
 	Plane = (float *) malloc (Hdim * Vdim * sizeof (float));
 /*
@@ -1131,6 +1140,7 @@ char	*platform, *fldname;
  */
 	f_i0 = (X0 - grid_x0) / rg.rg_Xspacing;
 	f_j0 = (Y0 - grid_y0) / rg.rg_Yspacing;
+	f_k0 = (P_bot - grid_z0) / rg.rg_Zspacing;
 
 	if (Hdim > 1)
 	{
@@ -1139,13 +1149,18 @@ char	*platform, *fldname;
 	}
 	else
 		f_istep = f_jstep = 0.0;
+
+	f_kstep = 1.0;
 /*
- * h is the horizontal index into the vertical plane we're building.
- * i and j are the horizontal indices into the source grid.
- * v is the vertical index into both.
+ * h is the horizontal index and v is the vertical index into the vertical 
+ * plane we're building.
+ * i and j are the horizontal indices and k is the vertical index into the 
+ * source grid.
  */
 	for (v = 0; v < Vdim; v++)
 	{
+		k = nint (f_k0 + v * f_kstep);
+
 		for (h = 0; h < Hdim; h++)
 		{
 			pp = Plane + h * Vdim + v;
@@ -1153,12 +1168,13 @@ char	*platform, *fldname;
 			f_i = f_i0 + h * f_istep;
 			f_j = f_j0 + h * f_jstep;
 
-			i = (int) f_i;
-			j = (int) f_j;
+			i = nint (f_i);
+			j = nint (f_j);
 		/*
 		 * Simple if we're outside the source grid
 		 */
-			if (i < 0 || j < 0 || i > rg.rg_nX-2 || j > rg.rg_nY-2)
+			if (i < 0 || j < 0 || k < 0 ||
+			    i > rg.rg_nX-2 || j > rg.rg_nY-2 || k > rg.rg_nZ-1)
 			{
 				*pp = BADVAL;
 				continue;
@@ -1187,7 +1203,7 @@ char	*platform, *fldname;
 			di = f_i - i;
 			dj = f_j - j;
 
-			sgp = sourcegrid + v * (rg.rg_nX * rg.rg_nY) + 
+			sgp = sourcegrid + k * (rg.rg_nX * rg.rg_nY) + 
 				j * rg.rg_nX + i;
 			val0 = *sgp;
 			val1 = *(sgp + 1);
