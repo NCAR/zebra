@@ -1,4 +1,4 @@
-! $Id: DisplayMgr.ad,v 1.3 1993-03-18 23:03:40 granger Exp $
+! $Id: DisplayMgr.ad,v 1.4 1993-03-19 23:29:02 granger Exp $
 !
 ! Application defaults file for the Display Manager
 !
@@ -38,6 +38,8 @@
 	<Key>+:		kill-to-end-of-line()insert-char() \n\
 	<Key>.:		kill-to-end-of-line()insert-char() \n\
 	<Key>:		no-op()
+*iconbar.vertDistance:	2
+*iconbar.horizDistance:	2
 *iconbar*MenuButton.foreground:	yellow
 *iconbar*MenuButton.background: MidnightBlue
 *iconbar*Box.background: CadetBlue
