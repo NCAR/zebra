@@ -1,7 +1,7 @@
 !
 ! Display manager widgets.
 !
-! $Id: dm.widgets,v 1.27 1996-08-20 20:21:44 granger Exp $
+! $Id: dm.widgets,v 1.28 1998-06-03 19:35:36 corbet Exp $
 !
 
 define widget SaveConfig form 'Configuration saver'
@@ -296,7 +296,7 @@ procedure sendout comp string target string
 ! Figure out the proper positioning for this component.
 !
 	local rep pd_param(comp, comp, 'representation', 'string')
-	if (rep = 'raster' or rep = 'filled-contour')
+	if (rep = 'raster' or rep = 'filled-contour' or rep = 'polar')
 		local position '1'
 	else
 		local position '0'
@@ -960,5 +960,5 @@ procedure AllXSect x0 string y0 string x1 string y1 string
 endprocedure
 
 procedure dm_widgets_id
-	local '$Id: dm.widgets,v 1.27 1996-08-20 20:21:44 granger Exp $'
+	local '$Id: dm.widgets,v 1.28 1998-06-03 19:35:36 corbet Exp $'
 endprocedure
