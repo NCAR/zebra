@@ -40,7 +40,7 @@
 # include "pd.h"
 # include "GraphicsWP.h"
 
-RCSID("$Id: GraphicsW.c,v 2.21 1996-11-19 07:47:47 granger Exp $")
+RCSID("$Id: GraphicsW.c,v 2.22 1997-01-10 17:49:33 burghart Exp $")
 
 /*
  * The SHM definition just tells us that we can link with the shared
@@ -319,14 +319,14 @@ Colormap	*colormap;
 				  VisualDepthMask | VisualClassMask, &template,
 				  &nmatches);
 /*
- * If that failed, try for a 1-bit pseudocolor visual.
+ * If that failed, try for any 1-bit visual.
  */
 	if (! matches)
 	{
 		template.depth = 1;
 		matches = XGetVisualInfo (XtDisplay (w), VisualScreenMask | 
-					  VisualDepthMask | VisualClassMask, 
-					  &template, &nmatches);
+					  VisualDepthMask, &template, 
+					  &nmatches);
 		if (! matches)
 			XtError ("No good visuals for a GraphicsWidget");
 	}
