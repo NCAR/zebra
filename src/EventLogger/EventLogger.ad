@@ -1,4 +1,4 @@
-! $Id: EventLogger.ad,v 1.8 1995-04-20 08:21:47 granger Exp $
+! $Id: EventLogger.ad,v 1.9 2000-08-30 17:21:57 burghart Exp $
 !
 ! Application defaults file for the EventLogger
 ! DO NOT MODIFY this file if this is the library installed copy!!!
@@ -10,10 +10,10 @@
 *allowShellResize:	True
 *resizable:		False
 *borderWidth: 1
-*Toggle*font:	-*-helvetica-medium-r-*-*-*-120-*-*-*-*-*-*
-*Command*font:	-*-helvetica-medium-r-*-*-*-120-*-*-*-*-*-*
-*MenuButton*font:	-*-helvetica-medium-r-*-*-*-120-*-*-*-*-*-*
-*text*font:	-*-courier-medium-r-*-*-*-100-*-*-*-*-*-*
+*Toggle*font:	*-helvetica-medium-r-normal--12-*
+*Command*font:	*-helvetica-medium-r-normal--12-*
+*MenuButton*font:	*-helvetica-medium-r-normal--12-*
+*text*font:	*-courier-medium-r-normal--12-*
 *text*left:		chainLeft
 *text*right:		chainRight
 *text*top:		chainTop
