@@ -21,8 +21,11 @@ define widget radar-middle intmenu 'radar middle'
 		'param #icon_component representation contour'
 	entry 'Filled contour representation' \
 		'param #icon_component representation filled-contour'
+	line
+	submenu 'Color tables' Color-tables
 endmenu
 
+require color-table
 
 
 procedure toggle_sur
