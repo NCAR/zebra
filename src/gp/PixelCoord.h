@@ -82,11 +82,11 @@
 /*
  * User coordinate to pixel coordinate macros
  */
-# define XPIX(ux)	(short)(0.5 + (float)(GWWidth (Graphics)) * \
-	(((ux) - Xlo) / (Xhi - Xlo) * (F_X1 - F_X0) + F_X0))
+# define XPIX(ux)	((short) nint ((float)(GWWidth (Graphics)) * \
+	(((ux) - Xlo) / (Xhi - Xlo) * (F_X1 - F_X0) + F_X0)))
 
-# define YPIX(uy)	(short)(0.5 + (float)(USABLE_HEIGHT) * \
-	(1.0 - (((uy) - Ylo) / (Yhi - Ylo) * (F_Y1 - F_Y0) + F_Y0)))
+# define YPIX(uy)	((short) nint ((float)(USABLE_HEIGHT) * \
+	(1.0 - (((uy) - Ylo) / (Yhi - Ylo) * (F_Y1 - F_Y0) + F_Y0))))
 
 
 /*
