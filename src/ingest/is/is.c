@@ -1,7 +1,7 @@
 /*
  * Ingest scheduler
  */
-static char    *rcsid = "$Id: is.c,v 1.19 1995-01-09 20:11:19 martin Exp $";
+static char    *rcsid = "$Id: is.c,v 1.20 1995-05-05 22:45:00 granger Exp $";
 
 /*
  * Copyright (C) 1987,88,89,90,91 by UCAR University Corporation for
@@ -1461,7 +1461,7 @@ substitute(source, pattern, string)
 
 		ret[0] = 0;
 
-		starts_at = strstr(source, pattern);
+		starts_at = (char *)strstr(source, pattern);
 
 		ends_at = starts_at + strlen(pattern);
 
@@ -1495,7 +1495,7 @@ last_part(str, cc)
 	if (!str)
 		return ((char *) 0);
 
-	temp = strrchr(str, cc);
+	temp = (char *)strrchr(str, cc);
 
 	if (temp) {
 		temp++;
