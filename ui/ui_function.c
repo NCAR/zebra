@@ -11,7 +11,7 @@
 
 extern char *malloc ();
 
-static char *rcsid = "$Id: ui_function.c,v 1.7 1992-11-03 21:56:49 burghart Exp $";
+static char *rcsid = "$Id: ui_function.c,v 1.8 1992-12-07 17:16:29 corbet Exp $";
 
 /*
  * These structures represent functions.
@@ -41,6 +41,7 @@ int uf_sqrt (), uf_exp (), uf_defined (), uf_stbl (), uf_concat ();
 int uf_quote (), uf_within ();
 int uf_cos (), uf_sin (), uf_tan (), uf_contains (), uf_substring ();
 int uf_getenv (), uf_noccur (), uf_string ();
+static int uf_strlength ();
 # ifdef XSUPPORT
 	int uw_GetFText ();
 # endif
@@ -63,6 +64,8 @@ Func_tbl[] =
   { "sin",	1,	{ SYMT_FLOAT },			FF_HARD, uf_sin     },
   { "sqrt",	1,	{ SYMT_FLOAT },			FF_HARD, uf_sqrt    },
   { "string",	1,	{ SYMT_UNDEFINED },		FF_HARD, uf_string  },
+  { "strlength", 1,	{ SYMT_STRING },		FF_HARD, uf_strlength},
+  { "strlen", 	1,	{ SYMT_STRING },		FF_HARD, uf_strlength},
   { "substring", 2,	{ SYMT_STRING, SYMT_STRING },	FF_HARD, uf_substring},
   { "symbol_table", 1,	{ SYMT_STRING },		FF_HARD, uf_stbl },
   { "tan",	1,	{ SYMT_FLOAT },			FF_HARD, uf_tan },
@@ -500,4 +503,26 @@ union usy_value *argv, *retv;
 	*rett = SYMT_BOOL;
 	retv->us_v_int = ABS (argv[0].us_v_float - argv[1].us_v_float) <=
 				argv[2].us_v_float;
+}
+
+
+
+
+
+/* ARGSUSED */
+static int
+uf_strlength (narg, argv, argt, retv, rett)
+int 	narg, *argt, *rett;
+union usy_value	*argv, *retv;
+/*
+ * Command line function to return the length of a string.
+ *
+ *	strlength (string)
+ */
+{
+	int	i;
+	
+	i = strlen (argv[0].us_v_ptr);
+	*rett = SYMT_INT;
+	retv->us_v_int = i;
 }
