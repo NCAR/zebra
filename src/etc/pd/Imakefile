@@ -5,7 +5,8 @@
 PDFILES = p_contour.pd p_fcontour.pd p_irg_winds.pd p_kmgrid.pd p_llgrid.pd \
 	p_map.pd p_radar.pd p_raster.pd p_rings.pd p_simple_track.pd \
 	p_station.pd p_track.pd p_xytrace.pd cap-template.pd p_iss_loc.pd \
-	p_loc.pd skewt-template.pd tseries-template.pd wind-template.pd
+	p_loc.pd skewt-template.pd tseries-template.pd wind-template.pd \
+	p_wbounds.pd
 
 
 DISTFILES = $(PDFILES) Imakefile
