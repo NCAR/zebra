@@ -9,7 +9,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project auto-build parameters for development compilations
-XCOMM $Id: Build.tmpl,v 1.27 1997-06-30 14:22:05 granger Exp $
+XCOMM $Id: Build.tmpl,v 1.28 1997-10-27 22:47:21 burghart Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -360,10 +360,17 @@ XCOMM --- Deciding X, RDSS and netCDF library directories
 #if !BuildRDSS
 # define RDSSLibDir /usr/local/lib
 #endif
+
 #define NetCDFLibDir /usr/local/lib
 #define NetCDFIncDir /usr/local/include
 #ifdef AutoBinary
 # define NetCDFLibrary NetCDFLibDir/libnetcdf.a
+#endif
+
+#define UDUnitsLibDir /usr/local/lib
+#define UDUnitsIncDir /usr/local/include
+#ifdef AutoBinary
+# define UDUnitsLibrary UDUnitsLibDir/libudunits.a
 #endif
 
 XCOMM --- Deciding FORTRAN library paths
