@@ -49,6 +49,7 @@ float  	CurLat = 0, CurLon = 0;
 float	ElTolerance = 1.0;	/* Elevation difference tolerance, deg. */
 int	MinSweep = 25;
 int	GMTOffset = 0;
+int	MinRHI = 0;		/* not used in UFIngest (yet) */
 int	NFrames = 2;		/* How many frames		*/
 int	Niceness = 0;
 int	NBeam = 0;
@@ -247,6 +248,11 @@ struct ui_command *cmds;
 	{
 		FileInput (UPTR (cmds[1]));
 		msg_ELog (EF_INFO, "Ingesting file '%s'", UPTR (cmds[1]));
+	}
+	else if (UKEY (*cmds) == RIC_TAPE)
+	{
+		TapeInput (UPTR (cmds[1]));
+		msg_ELog (EF_INFO, "Ingesting from tape %s", UPTR (cmds[1]));
 	}
 	else
 		perror("FileInput");
