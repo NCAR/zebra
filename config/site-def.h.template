@@ -111,8 +111,9 @@
 
 /*
  * The location for RADAR include files (for Perusal, Editor, Reorder, ToDisk).
+ * This should not need editing. 
  */
-# define RADARInclude /rdss/radar/h
+# define RADARInclude RDSSRoot/radar/h
 
 
 /*
