@@ -16,7 +16,7 @@ $debug = 0;     # No debugging
 
 
 # Top zebra directory
-$ztop="/net/sssf3/lake_ice/zebra";
+$ztop="/scr/steam/granger/zebra";
 $zbin="$ztop/bin";
 $ENV{'PATH'} = "$zbin:" . $ENV{'PATH'};
 
@@ -25,32 +25,13 @@ $project=".";
 
 # The platforms which are plotted for each observation rather
 # than only the most recent
-%Observations = ("iss1/class", 1, "iss2/class", 1, "iss3/class", 1,
-		 "bea", 1, "bel", 1, "tim", 1, 
-		 "own", 1, "alg", 1, "sud", 1);
+%Observations = ("iss1/class", 1);
 
 %Plots = (
 	  "iss1/class", 	"iss1 class",
-	  "iss1/prof915l",	"iss1 prof915l",
+	  "iss1/prof915h",	"iss1 prof915l",
 	  "iss1/rass915",	"iss1 rass",
-	  "iss1/surface_met",	"iss1 surfmet surfwind",
-
-	  "iss2/class", 	"iss2 class",
-	  "iss2/prof915l",	"iss2 prof915l",
-	  "iss2/rass915",	"iss2 rass",
-	  "iss2/surface_met",	"iss2 surfmet surfwind",
-
-	  "iss3/class", 	"iss3 class",
-	  "iss3/prof915l",	"iss3 prof915l",
-	  "iss3/rass915",	"iss3 rass",
-	  "iss3/surface_met",	"iss3 surfmet surfwind",
-
-	  "bea",       		"class-bea class",
-	  "bel",       		"class-bel class",
-	  "tim",       		"class-tim class",
-	  "own",       		"class-own class",
-	  "alg",       		"class-alg class",
-	  "sud",       		"class-sud class"
+	  "iss1/surface_met",	"iss1 surfmet surfwind surfrad",
 	  );
 
 @Queue = ();
@@ -135,7 +116,7 @@ $EL = "true";
 #$EL = "$zbin/EventLogger -n -l epic -f logs/zebra.$dt.log";
 
 # Make sure zebra is running
-if (system("ZEB_EVENTLOGGER=\"$EL\" $zbin/zstart -n -ds -preserve $project"))
+if (system("ZEB_TOPDIR=\"$ztop\" ZEB_EVENTLOGGER=\"$EL\" $zbin/zstart -n -ds -preserve -data /net/sssf2/forestabl $project"))
 {
     die "Failed to start zebra.\n";
 }
@@ -301,8 +282,8 @@ sub clear
 	    $status = "plot FAILED" if ($?);
 	}
 	unlink("$batch");
-	print "Running: ftpjoss.pl $images\n";
-	if ($debug >= $D_NoFtp)
+	print "Running: ftpjoss.pl $images\n" unless ($D_NoFtp);
+	if ($D_NoFtp)
 	{ }
 	elsif (open (FTP, "ftpjoss.pl $images 2>&1 |"))
 	{

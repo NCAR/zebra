@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# $Id: zplotbatch,v 1.3 1997-12-23 09:22:09 granger Exp $
+# $Id: zplotbatch,v 1.4 1998-04-21 20:28:09 granger Exp $
 #
 # Start a display manager session with a virtual X server and dump
 # images of its plots.
@@ -12,14 +12,14 @@ echo=
 host=`uname -n`
 
 # The spool dir is where images are dumped
-spool=/net/sssf3/lake_ice/images
+spool=/net/global/www/sssf/projects/forestabl/realtime
 
 # Default config to dump when none specified on command line
 config="iss1"
 
 # Top zebra directory
-ztop="/net/sssf3/lake_ice/zebra"
-zstart=./zstart
+ztop="/scr/steam/granger/zebra"
+zstart=zstart
 
 # Project directory
 project="."
@@ -107,7 +107,7 @@ DISPLAY=${display}.0 ; export DISPLAY
 ZEB_EVENTLOGGER=true ; export ZEB_EVENTLOGGER
 
 echo "-- Checking for datastore session:"
-$zstart -n -ds $project
+$zstart -n -ds -data /net/sssf2/forestabl $project
 sleep 5
 
 # Then start a private display session
@@ -130,9 +130,6 @@ fi
 # Wait for dm initialization after passing the daemon scan
 sleep 10
 
-if [ ! -d $spool ]; then
-    mkdir -p $spool
-fi
 images=''
 
 now=`zquery timer | egrep 'Current time' | sed -e 's/^.*is //'`
@@ -164,6 +161,11 @@ while read when config windows; do
     # Derive the image name from the plot time
     set `./tcsplit $when`
     base="$1$2$3$4$5.${config}_"
+    # For the Web, put the images in directories by date
+    subspool="$spool/$1$2$3"
+    if [ ! -d $subspool ]; then
+	mkdir -p $subspool
+    fi
 
     for plot in $procs ; do
 
@@ -172,7 +174,7 @@ while read when config windows; do
 	# If we have specific targets, skip this window if it's not one of them
 	if test "$windows" = "" || echo "$windows" | egrep -s "$name"; then
 
-	    name="$spool/${base}${name}.gif"
+	    name="$subspool/${base}${name}.gif"
 
 	    # Form the gif file name by extracting the plot name from the
 	    # process. An alternative is to grep the pd-name from a zquery of

@@ -1,12 +1,12 @@
 #! /usr/local/bin/perl5
 #
-# $Id: dfsince,v 1.2 1998-01-28 01:21:47 granger Exp $
+# $Id: dfsince,v 1.3 1998-04-21 20:28:10 granger Exp $
 #
 # Collect all the datafiles files more recent than a persistent timestamp.
 # Assumes zebra is already running.
 #
 
-$ENV{'PATH'} = "/net/sssf3/lake_ice/zebra/bin:" . $ENV{'PATH'};
+$ENV{'PATH'} = "/scr/steam/granger/zebra/bin:" . $ENV{'PATH'};
 
 # Default timestamp file, if not given on the command line
 $timestamp="./SinceStamp" unless ($timestamp = shift @ARGV);
