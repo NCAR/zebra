@@ -15,16 +15,22 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.4 1993-02-19 23:09:30 burghart Exp $"
+MFVERSION="$Id: Imakefile,v 1.5 1993-05-18 01:52:09 granger Exp $"
 
-LOCAL_LIBS = $(LIBSUDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
+LIBS = $(LIBSUDS) $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
 
 LINTOPTS = -nuvxz
 
+SRCS = class_ingest.c
+OBJS = class_ingest.o
+
 DISTFILES = class_ingest.c Imakefile
 
-NormalProgramTarget(class_ingest, class_ingest.o, $(DEPLIBS), $(LOCAL_LIBS), 
+NormalProgramTarget(class_ingest, $(OBJS), $(DEPLIBS), $(LIBS), 
 		$(SYSLIBS))
 
 DistfilesTarget($(DISTFILES))
 
+DependTarget()
+
+LintTarget()
