@@ -31,7 +31,7 @@
 # include "GraphicsW.h"
 # include "ActiveArea.h"
 
-MAKE_RCSID ("$Id: FrameCache.c,v 2.18 1994-11-19 00:34:46 burghart Exp $")
+MAKE_RCSID ("$Id: FrameCache.c,v 2.19 1995-04-17 21:52:37 granger Exp $")
 
 # define BFLEN		500
 # define FLEN		40
@@ -223,8 +223,8 @@ fc_CreateFrameFile ()
 	/*
 	 * Put together the FileName.
 	 */
-		sprintf (FileName, "%s/%s%dFrameFile", FrameFilePath, Ourname,
-			getpid ());
+		sprintf (FileName, "%s/%s%dFrameFile", FrameFilePath, 
+			 msg_myname(), getpid ());
 		msg_ELog (EF_DEBUG, "FrameFile:  %s.", FileName);
 	/*
 	 * Open it.
@@ -510,8 +510,8 @@ char **info_return;
 	    if (FCache[i].fc_valid && 
 		FCache[i].fc_time.zt_Sec == when->zt_Sec &&
 		FCache[i].fc_time.zt_MicroSec == when->zt_MicroSec &&
-		FCache[i].fc_alt >= (alt - 0.1) &&
-		FCache[i].fc_alt <= (alt + 0.1) &&
+		FCache[i].fc_alt >= (alt - 0.005) &&
+		FCache[i].fc_alt <= (alt + 0.005) &&
 		FCache[i].fc_foffset == foffset &&
 		! strcmp (FCache[i].fc_base, base) &&
 		fc_ComparePairs (FCache[i].fc_pairs, FCache[i].fc_numpairs, 
