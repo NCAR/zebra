@@ -35,7 +35,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 # include "commands.h"
-MAKE_RCSID ("$Id: Daemon.c,v 3.11 1993-02-24 18:37:18 corbet Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.12 1993-02-24 19:57:53 corbet Exp $")
 
 
 
@@ -689,7 +689,8 @@ Platform *p;
  * Now get rid of anything that has disappeared.
  */
 	CleanChain (p, LOCALDATA (*p));
-	CleanChain (p, REMOTEDATA (*p));
+	if (p->dp_flags & DPF_REMOTE && ! RDirConst)
+		CleanChain (p, REMOTEDATA (*p));
 }
 
 
