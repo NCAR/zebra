@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.17 1996-04-30 18:41:03 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.18 1996-11-19 15:24:30 granger Exp $"
 
 #define IHaveSubdirs
 #define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
@@ -52,8 +52,8 @@ XHELP = xhelp
  */
 SUBDIRS = $(LIBS) $(DATAUTIL) dm dsdelete dsdump dsnotice dsprint \
 	dsdwidget $(DSMANAGE) dsrescan $(ETC) EventLogger fccclock gettime \
-	$(GP) $(INGEST) msg msg_ping mstatus mtap $(OPTIMIZER_DIR) \
-	pdmon pdcheck prt_Notify $(REALTIME) settime Sound timer \
+	pdmon pdcheck $(GP) $(INGEST) msg msg_ping mstatus mtap \
+	$(OPTIMIZER_DIR) prt_Notify $(REALTIME) settime Sound timer \
 	tweakcolor $(XHELP) xmgrpipe zstop zmon zquery zrun zstart
 
 DSUTILS = $(LIBS) dsdelete dsdump dsnotice dsprint dsdwidget $(DSMANAGE) \
@@ -91,8 +91,8 @@ DISTXHELP = xhelp
 DISTFILES = Imakefile
 DISTSUBDIRS = lib ds $(DISTDATAUTIL) dm dsdelete dsdump dsnotice dsprint \
 	dsdwidget $(DISTDSMANAGE) dsrescan etc EventLogger fccclock \
-	gettime $(GP) $(DISTINGEST) msg msg_ping mstatus mtap \
-	$(DISTOPTIMIZER) pdmon pdcheck prt_Notify $(DISTREALTIME) settime \
+	gettime pdmon pdcheck $(GP) $(DISTINGEST) msg msg_ping mstatus \
+	mtap $(DISTOPTIMIZER) prt_Notify $(DISTREALTIME) settime \
 	Sound timer tweakcolor $(DISTXHELP) xmgrpipe \
 	zstop zmon zquery zrun zstart
 
