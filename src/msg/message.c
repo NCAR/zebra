@@ -37,7 +37,7 @@
 # include "message.h"
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.7 1993-03-19 21:01:53 corbet Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.8 1993-04-06 19:08:46 corbet Exp $")
 /*
  * Symbol tables.
  */
@@ -850,10 +850,6 @@ int fd;
 
 	S_ndisc++;
 /*
- * Send out the notification.
- */
- 	ce_disconnect (Fd_map[fd]);
-/*
  * Clean up our data structures.
  */
 	if (Fd_map[fd]->c_inet)
@@ -861,6 +857,10 @@ int fd;
 	else
 		usy_z_symbol (Proc_table, Fd_map[fd]->c_name);
 	usy_traverse (Group_table, clear_group,(int)Fd_map[fd], FALSE);
+/*
+ * Send out the notification.
+ */
+ 	ce_disconnect (Fd_map[fd]);
 /*
  * Clear out the mtap list too.
  */
