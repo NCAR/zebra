@@ -11,6 +11,9 @@
 # include <X11/Cardinals.h>
 # include <X11/StringDefs.h>
 # include <X11/Shell.h>
+/*
+ * X11.3 backward compatibility.
+ */
 # ifdef X11R3
 # include <X11/Box.h>
 # include <X11/Command.h>
@@ -20,6 +23,7 @@
 # include <X11/VPaned.h>
 # define XawListHighlight XtListHighlight
 # define XawListUnhighlight XtListUnhighlight
+
 # else
 # include <X11/Xaw/Box.h>
 # include <X11/Xaw/Command.h>
@@ -43,7 +47,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_window.c,v 1.3 1990-03-02 15:57:46 corbet Exp $";
+static char *Rcsid = "$Id: ui_window.c,v 1.4 1990-03-02 16:42:35 corbet Exp $";
 
 static bool Initialized = FALSE;
 static bool Active = FALSE;	/* Is window mode active??	*/
@@ -2079,6 +2083,7 @@ uw_mb_def ()
 	new->mw_menus = (struct mb_menu *) 0;
 	new->mw_create = uw_mbcreate;
 	new->mw_destroy = uw_mbdestroy;
+	new->mw_popup = 0;
 /*
  * Read in each pulldown.
  */
