@@ -14,7 +14,7 @@
 # include "lib_include:lib_proto.h"
 # endif
 
-static char *rcsid = "$Id: text.c,v 1.8 1991-12-18 00:14:05 corbet Exp $";
+static char *rcsid = "$Id: text.c,v 1.9 1993-10-04 18:33:22 case Exp $";
 
 # ifdef BIG_ENDIAN
 #	define SWAP(v) (v)
@@ -41,7 +41,7 @@ struct font_dir
 # define globalref extern
 # endif
 
-globalref char *Gt_sf_0[128], *Gt_sf_1[128];
+globalref short *Gt_sf_0[128], *Gt_sf_1[128];
 globalref struct font_dir Pf0_dir[];
 globalref int Pf0_rasters[];
 /*
@@ -51,7 +51,7 @@ globalref int Pf0_rasters[];
 static struct font
 {
 	int	f_type;		/* Font type -- see below		*/
-	char	**f_data;	/* Stroke table (vector font)		*/
+	short	**f_data;	/* Stroke table (vector font)		*/
 	int	*f_rast;	/* Rastor information			*/
 	struct font_dir	*f_fdir;	/* Font directory		*/
 } F_table[MAXFONT] = 
@@ -95,10 +95,10 @@ struct device *dev;
  */
 {
 	int	cheight, desc, width;
-	char	*cp;
+	short	*cp;
 	float	xoffset, yoffset, fsx, fsy;
-	float	cos_rot = cos (DEG_TO_RAD (rot));
-	float	sin_rot = sin (DEG_TO_RAD (rot));
+	float	cos_rot = (float) cos (DEG_TO_RAD (rot));
+	float	sin_rot = (float) sin (DEG_TO_RAD (rot));
 /*
  * Get our character size info.
  */
@@ -165,6 +165,7 @@ struct device *dev;
 
 	*sx = (int)(fsx + 0.5);
 	*sy = (int)(fsy + 0.5);
+  
 /*
  * Find the ending points
  */
@@ -185,7 +186,7 @@ int font;
  */
 {
 	int len = 0;
-	char *cp;
+	short *cp;
 
 	while (*text)
 	{
@@ -432,10 +433,10 @@ float rot;
  */
 {
 	int	pdata[200], *pdp, cbase;
-	char	*cp;
+	short	*cp;
 	float	xpos = (float) x, ypos = (float) y, del_x, del_y;
-	float	cos_rot = cos (DEG_TO_RAD (rot));
-	float	sin_rot = sin (DEG_TO_RAD (rot));
+	float	cos_rot = (float) cos (DEG_TO_RAD (rot));
+	float	sin_rot = (float) sin (DEG_TO_RAD (rot));
 	float	aspect = ov->ov_ws->ws_dev->gd_aspect;
 /*
  * Get the character height.  This particular measure, which includes 
@@ -449,7 +450,7 @@ float rot;
  	while (*text)
 	{
 		int npoint = 0, npair;
-		char *point;
+		short *point;
 	/*
 	 * Locate the vector info.
 	 */
@@ -530,7 +531,7 @@ int font;
  * Return the nominal height, in pixels, of this font.
  */
 {
-	char *cp;
+	short *cp;
 
 	if (F_table[font].f_type == GFT_STROKE)
 	{
