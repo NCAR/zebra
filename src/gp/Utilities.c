@@ -1,7 +1,7 @@
 /*
  * Miscellaneous utility functions.
  */
-static char *rcsid = "$Id: Utilities.c,v 1.1 1991-03-05 21:24:34 corbet Exp $";
+static char *rcsid = "$Id: Utilities.c,v 1.2 1991-03-08 00:59:53 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include "../include/defs.h"
@@ -72,4 +72,99 @@ int full;
 		clip.height = (F_Y1 - F_Y0) * GWHeight (Graphics);
 		XSetClipRectangles (Disp, Gcontext, 0, 0, &clip, 1, Unsorted);
 	}
+}
+
+
+
+
+
+
+
+int
+CommaParse (string, substrings)
+char	*string, **substrings;
+/*
+ * Parse comma-separated names from 'string' by putting NULLs in place of
+ * the commas, and putting pointers to the beginning of each name into the
+ * 'substrings' array.  Return the number of substrings in the string.
+ */
+{
+	int	i = 0, nsubs = 0;
+
+	while (TRUE)
+	{
+	/*
+	 * Skip leading white space
+	 */
+		while (string[i] == ' ' || string[i] == '\t')
+			i++;
+
+		if (string[i] == '\0')
+			break;
+	/*
+	 * We're at the beginning of a substring
+	 */
+		substrings[nsubs++] = string + i;
+	/*
+	 * Skip characters until we hit a comma or the end of 'string'
+	 */
+		while (string[i] != ',' && string[i] != '\0')
+			i++;
+	/*
+	 * Replace a comma with a NULL or quit if we are at the end
+	 */
+		if (string[i] == ',')
+			string[i++] = '\0';
+		else
+			break;
+	}
+
+	return (nsubs);
+}
+
+
+
+
+
+void
+ResetGC ()
+/*
+ * Restore the graphics context to a "clean" state.
+ */
+{
+	XGCValues vals;
+
+	vals.function = GXcopy;
+	vals.line_width = 0;
+	vals.line_style = LineSolid;
+	vals.cap_style = CapButt;
+	vals.join_style = JoinMiter;
+	vals.fill_style = FillSolid;
+	XChangeGC (Disp, Gcontext, GCFunction | GCLineWidth | GCLineStyle |
+		GCCapStyle | GCJoinStyle | GCFillStyle, &vals);
+}
+
+
+
+
+
+
+void
+SetColor (comp, param, qual, def)
+char *comp, *param, *qual, *def;
+/*
+ * Set the color in Gcontext;
+ */
+{
+	char color[40];
+	XColor xc;
+
+	if (! pda_Search (Pd, comp, param, qual, color, SYMT_STRING))
+		strcpy (color, def);
+	if (! ct_GetColorByName (color, &xc))
+	{
+		msg_ELog (EF_PROBLEM, "Unknown color: %s", color);
+		ct_GetColorByName ("white", &xc);
+	}
+	XSetForeground (Disp, Gcontext, xc.pixel);
 }
