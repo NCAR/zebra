@@ -5,7 +5,7 @@
 # ifdef XSUPPORT
 
 
-static char *rcsid = "$Id: ui_wPulldown.c,v 1.12 1993-04-09 16:18:19 granger Exp $";
+static char *rcsid = "$Id: ui_wPulldown.c,v 1.13 1993-04-12 17:34:56 burghart Exp $";
 
 # ifndef X11R3		/* This stuff don't work under R3.	*/
 /* 
@@ -590,24 +590,51 @@ XtPointer xpmenu, junk;
 	unsigned int h, w;
 	union usy_value v;
 	Arg args[5];
+
+	int	star_width = 16, star_height = 16;
+	static char star_bits[] = {
+		0x00, 0x00, 0x80, 0x00, 0x80, 0x00, 0x88, 0x08, 0x90, 0x04, 
+		0xa0, 0x02, 0x40, 0x01, 0x3e, 0x3e, 0x40, 0x01, 0xa0, 0x02, 
+		0x90, 0x04, 0x88, 0x08, 0x80, 0x00, 0x80, 0x00, 0x00, 0x00, 
+		0x00, 0x00};
 /*
- * Do we have our pixmaps?
+ * Do we have the pixmap for the marker?
  */
-	if (! Mb_mark && XReadBitmapFile (XtDisplay (Top),
-		XtWindow (menu->mbm_pulldown), Mb_mark_file, &w, &h,
-		&Mb_mark, &xh, &yh) != BitmapSuccess)
+	if (! Mb_mark)
 	{
-		ui_warning ("Can't read bitmap file '%s'", Mb_mark_file);
-		return;
+	/*
+	 * Start with our default bitmap (a star)
+	 */
+		Mb_mark = XCreateBitmapFromData (XtDisplay (Top),
+			XtWindow (menu->mbm_pulldown), star_bits, star_width,
+			star_height);
+		if (! Mb_mark)
+			ui_warning ("Uh-oh!  Failed to make menumark pixmap!");
+	/*
+	 * If the user specified a bitmap file, try for that
+	 */
+		if (strlen (Mb_mark_file) > 0 && 
+			XReadBitmapFile (XtDisplay (Top), 
+			XtWindow (menu->mbm_pulldown), Mb_mark_file, &w, &h, 
+			&Mb_mark, &xh, &yh) != BitmapSuccess)
+		{
+			ui_warning ("Bad bitmap file '%s'", Mb_mark_file);
+			return;
+		}
 	}
 /*
  * Deal with submenus.
  */
 # ifdef SMEMENU
 	if (! SubMenuPixmap)
+	{
 		SubMenuPixmap = XCreateBitmapFromData ( XtDisplay (Top),
 			XtWindow (menu->mbm_pulldown), submenu_bits,
 			submenu_width, submenu_height);
+
+		if (! SubMenuPixmap)
+			ui_warning ("Uh-oh!  Couldn't create submenu pixmap!");
+	}
 	if (menu->mbm_SubMarks)
 		uw_mb_submenu_marks (menu);
 # endif
