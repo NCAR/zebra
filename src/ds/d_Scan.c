@@ -40,7 +40,7 @@
 # include "Platforms.h"		/* for dt_SetString */
 # include "byteorder.h"
 
-RCSID ("$Id: d_Scan.c,v 1.36 1999-03-02 05:09:25 granger Exp $")
+RCSID ("$Id: d_Scan.c,v 1.37 1999-04-13 18:36:23 granger Exp $")
 
 /*
  * Define this to force changed files to be closed and re-opened by
@@ -145,9 +145,9 @@ Rescan (Source *src, const Platform *pin, zbool all)
 	{
 	    const Platform *p = dt_FindPlatform (plat);
 	/*
-	 * Don't scan subplatforms.
+	 * Don't scan subplatforms or null platforms.
 	 */
-	    if (! pi_Subplatform (p) && ! pi_Virtual (p))
+	    if (p && ! pi_Subplatform (p) && ! pi_Virtual (p))
 		RescanPlat (src, p);
 	}
     /*
