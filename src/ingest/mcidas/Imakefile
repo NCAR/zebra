@@ -4,15 +4,18 @@
  * nowrad and satellite.  Note that any program which references these
  * routines must also link with the FORTRAN libraries ($(FLIBS))
  */
-MFVERSION = "$Id: Imakefile,v 1.6 1997-06-17 09:30:02 granger Exp $"
+MFVERSION = "$Id: Imakefile,v 1.7 1997-06-30 19:33:20 granger Exp $"
 
-FSRCS = clit.f flalo.f ftime.f geolat.f iround.f itime.f lit.f llcart.f \
-	movcw.f movwc.f nvxgoes.f nvxps.f nvxrect.f raerac.f solarp.f \
-	timdif.f
+FSRCS = cfd.f cfg.f cfi.f cfr.f cfz.f clit.f ddest.f dpsino.f \
+        edest.f flalo.f ftime.f geolat.f idmyyd.f iftok.f ih.f \
+        iround.f itime.f len_trim.f lit.f llcart.f lwendw.f lwmop.f \
+        lwo.f movcw.f movwc.f nchars.f nvxgoes.f nvxgvar.f nvxps.f \
+        nvxrect.f raerac.f sdest.f solarp.f spout.f squak.f \
+        timdif.f volnam.f xonoff.f
 
-SRCS =  movb.c dc.c filbuf.c iopn.c movb.c scra.c delfil.c getday.c \
-	laddr.c movbmem.c sendtext.c dw.c gettim.c leof.c stc.c \
-	ffiletoc.c ic.c luc.c puc.c mcidas.c
+SRCS =  dc.c delfil.c dw.c ffiletoc.c filbuf.c getday.c gettim.c \
+        ic.c iopn.c laddr.c leof.c luc.c mcidas.c movb.c movbmem.c \
+        puc.c scra.c sendtext.c stc.c /* nav.c */
 
 HEADERS = mcidas.h
 
@@ -54,18 +57,27 @@ all:: $(OBJS)
 XCOMM Special targets to rename the common navigation entry points to
 XCOMM unique symbols so we can link to all of them in one program:
 
+/*
+ * We can't use a -D option to redefine symbols on some FORTRAN compilers
+ * (i.e., AIX), so we have to do the substitutions ourselves.
+ */
 #define NavRule(base,sub) \
 base.o: base.f								@@\
-	$(RM) base.F							@@\
-	$(LN) base.f base.F						@@\
+	$(RM) base.F 							@@\
+	sed `echo -e 's/NVXINI/NNNINI/g' -e 's/NVXEAS/NNNEAS/g' \	@@\
+	          -e 's/NVXSAE/NNNSAE/g' -e 's/NVXOPT/NNNOPT/g' | \	@@\
+		sed -e 's,NNN,sub,g'` < base.f > base.F			@@\
 	RemoveFile($@)							@@\
-	$(FC) -c $(FCFLAGS) \						@@\
-	`echo '-DNVXINI=NNNINI -DNVXEAS=NNNEAS -DNVXSAE=NNNSAE -DNVXOPT=NNNOPT' | sed -e 's,NNN,sub,g'` \ @@\
-	$*.F								@@\
+	$(FC) -c $(FCFLAGS) $*.F					@@\
+									@@\
+clean::									@@\
+	RemoveFile(base.F)						@@\
+
 
 
 /*
  * These name substutions must match the method names used in mcidas.c!
+ * And they must begin with I-N so FORTRAN returns an integer type!
  */
 NavRule(nvxgoes,NGS)
 NavRule(nvxps,NPS)
