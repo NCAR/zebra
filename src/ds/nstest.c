@@ -1,5 +1,5 @@
 /*
- * $Id: nstest.c,v 1.6 1993-09-02 07:56:33 granger Exp $
+ * $Id: nstest.c,v 1.7 1993-09-14 17:56:09 granger Exp $
  */
 
 #include <defs.h>
@@ -19,7 +19,8 @@ struct message *msg;
 
 /* #define ZNF_TESTING */
 #define SCALAR
-#define BLOCKS
+/* #define GETFIELDS_ONLY */
+/* #define BLOCKS */
 #define TRANSP
 /* #define DELETE_OBS */	/* test observation deletes */
 /* #define NSPACE */
@@ -137,7 +138,7 @@ main (argc, argv)
 
 #if defined(SCALAR)	/* Use only scalar chunks, for testing znf */
 	{
-		FieldId fids[4];
+		FieldId fids[5];
 		float value;
 		int fld;
 		int i;
@@ -174,6 +175,27 @@ main (argc, argv)
 		dc_SetSampleAttr (dc, 3, "sample_number", "3");
 		dc_SetSampleAttr (dc, 2, "median", "middle");
 		ds_StoreBlocks (dc, TRUE, details, ndetail);
+		/*
+		 * Quick test of ds_GetFields() while we have a file
+		 */
+		dc->dc_Platform = ds_LookupPlatform("testcdf");
+		ds_Store (dc, TRUE, details, ndetail);
+		nfield = 5;
+		if (!ds_GetFields(dc->dc_Platform, &begin, &nfield, fids))
+		{
+			msg_ELog (EF_PROBLEM, 
+				  "ds_GetFields('t_scalar') failed");
+		}
+		else
+		{
+			msg_ELog (EF_INFO,
+				  "ds_GetFields() returns %d fields",
+				  nfield);
+		}
+#ifdef GETFIELDS_ONLY
+		dc_DestroyDC(dc);
+		return(0);
+#endif
 #ifdef DELETE_OBS
 		/*
 		 * Here's an idea: use a platform whose maxsamples=1 to
@@ -247,7 +269,9 @@ main (argc, argv)
 		dc->dc_Platform = plat_id;
 		dc_SetScalarFields (dc, 4, fids);
 		dc_SetBadval (dc, -999.0);
+#ifdef notdef
 		dc_SetStaticLoc (dc, &loc);
+#endif
 		dc_SetGlobalAttr (dc, "zeb_platform", "t_scalar");
 		dc_SetGlobalAttr (dc, "date", "today");
 		value = 0.0;
@@ -260,6 +284,10 @@ main (argc, argv)
 				dc_AddScalar (dc, &when, i, 
 					      fids[fld], &value); 
 			/* dc_SetSampleAttr (dc, i, "ones", c); */
+			loc.l_lat = -90.0 + i*180.0/3000.0;
+			loc.l_lon = -180.0 + i*360.0/3000.0;
+			loc.l_alt = i;
+			dc_SetLoc (dc, i, &loc);
 			++when.zt_Sec;
 			value -= 4;
 			value += 10.0;
@@ -286,7 +314,9 @@ main (argc, argv)
 		dc->dc_Platform = plat_id;
 		dc_SetScalarFields (dc, 4, fids);
 		dc_SetBadval (dc, -999.0);
+#ifdef notdef
 		dc_SetStaticLoc (dc, &loc);
+#endif
 		dc_SetGlobalAttr (dc, "zeb_platform", "t_scalar");
 		dc_SetGlobalAttr (dc, "date", "today");
 		value = 0.0;
@@ -299,21 +329,21 @@ main (argc, argv)
 				dc_AddScalar (dc, &when, i, 
 					      fids[fld], &value); 
 			/* dc_SetSampleAttr (dc, i, "ones", c); */
+			loc.l_lat = -90.0 + i*180.0/1500.0;
+			loc.l_lon = -180.0 + i*360.0/1500.0;
+			loc.l_alt = i;
+			dc_SetLoc (dc, i, &loc);
 			++when.zt_Sec;
 			value += 1.0;
 		}
 		dc_SetSampleAttr (dc, 0, "key", "first sample, 2nd block");
-		dc_SetSampleAttr (dc, 3, "sample_number", "3");
-		dc_SetSampleAttr (dc, 27, "overwrote", "old_median");
-		dc_SetSampleAttr (dc, 28, "sample_number", "28");
-		dc_SetSampleAttr (dc, 1500, "median", "middle");
+		dc_SetSampleAttr (dc, 1499, "key", "last sample, 2nd block");
 		ds_StoreBlocks (dc, TRUE, details, ndetail);
 		msg_ELog (EF_INFO, 
 		   "t_fixed: same datachunk as for t_scalar above");
 		dc->dc_Platform = ds_LookupPlatform("t_fixed");
 		ds_StoreBlocks (dc, TRUE, details, ndetail);
 		dc_DestroyDC (dc);
-
 
 		/*
 		 * Now overwrite, but only with a subset of the fields
@@ -327,7 +357,9 @@ main (argc, argv)
 		fids[1] = fids[3];
 		dc_SetScalarFields (dc, 3, fids);
 		dc_SetBadval (dc, -999.0);
+#ifdef notdef
 		dc_SetStaticLoc (dc, &loc);
+#endif
 		dc_SetGlobalAttr (dc, "zeb_platform", "t_scalar");
 		dc_SetGlobalAttr (dc, "date", "today");
 		value = 0.0;
@@ -340,6 +372,10 @@ main (argc, argv)
 				dc_AddScalar (dc, &when, i, 
 					      fids[fld], &value); 
 			/* dc_SetSampleAttr (dc, i, "ones", c); */
+			loc.l_lat = -90.0 + i*180.0/1000.0;
+			loc.l_lon = -180.0 + i*360.0/1000.0;
+			loc.l_alt = i;
+			dc_SetLoc (dc, i, &loc);
 			++when.zt_Sec;
 			value += 1.0;
 		}
