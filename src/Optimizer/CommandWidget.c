@@ -1,6 +1,6 @@
 /*
  * "Command" widget module
- * $Id: CommandWidget.c,v 1.1 1991-06-16 17:02:25 burghart Exp $
+ * $Id: CommandWidget.c,v 1.2 1991-07-08 20:59:49 burghart Exp $
  */
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -379,10 +379,10 @@ cw_ShowParams ()
 	/*
 	 * Horizontal and vertical resolution
 	 */
-		sprintf (label, "%.2f", Hres);
+		sprintf (label, "%.1f", Hres);
 		XtSetValues (WHres, &labelarg, 1);
 
-		sprintf (label, "%.2f", Vres);
+		sprintf (label, "%.1f", Vres);
 		XtSetValues (WVres, &labelarg, 1);
 	/*
 	 * Minimum horizontal and vertical beam separation
