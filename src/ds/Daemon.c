@@ -33,7 +33,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 # include "commands.h"
-MAKE_RCSID ("$Id: Daemon.c,v 3.16 1993-05-05 15:34:07 corbet Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.17 1993-05-06 17:10:22 corbet Exp $")
 
 
 
@@ -1208,14 +1208,18 @@ struct dsp_FindDF *req;
  * Find a data file entry based on time.
  */
 {
-	int dfe = LOCALDATA (PTable[req->dsp_pid]);
+	int dfe = 0;
 	struct dsp_R_DFI answer;
 /*
  * Search the platform's local list first.
  */
-	for (; req->dsp_src <= 0 && dfe; dfe = DFTable[dfe].df_FLink)
-		if (TC_LessEq (DFTable[dfe].df_begin, req->dsp_when))
-			break;
+	if (req->dsp_src <= 0)
+	{
+		for (dfe = LOCALDATA (PTable[req->dsp_pid]); dfe;
+					dfe = DFTable[dfe].df_FLink)
+			if (TC_LessEq (DFTable[dfe].df_begin, req->dsp_when))
+				break;
+	}
 /*
  * If we didn't find the data locally, see if there's anything in the
  * remote data table.

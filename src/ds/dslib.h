@@ -1,5 +1,5 @@
 /*
- * "$Id: dslib.h,v 3.4 1993-05-04 21:42:11 granger Exp $"
+ * "$Id: dslib.h,v 3.5 1993-05-06 17:10:22 corbet Exp $"
  * Internal info for the data store application interface library.
  */
 
@@ -24,19 +24,10 @@
  * maintenance or updates for its software.
  */
 
-# ifdef KLUDGE_SHM
-int	Semaphore;		/* The semaphores		*/
-char	*ShmSegment;		/* The actual segment		*/
-struct ds_ShmHeader *SHeader;	/* The memory header		*/
-Platform *PTable;
-DataFile *DFTable;
-# endif
-
 /*
  * The platform lookup table.
  */
 stbl Pf_Names;
-
 
 
 /*
@@ -61,6 +52,7 @@ typedef struct _GetList
  */
 # define GLF_SATISFIED	0x0001		/* This piece is satisfied	*/
 # define GLF_REMOTE	0x0002		/* This is a remote data grab	*/
+# define GLF_TRIED	0x0004		/* We have tried this one	*/
 
 
 

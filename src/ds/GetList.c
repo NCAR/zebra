@@ -19,7 +19,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: GetList.c,v 3.4 1993-04-26 16:00:50 corbet Exp $";
+static char *rcsid = "$Id: GetList.c,v 3.5 1993-05-06 17:10:22 corbet Exp $";
 
 # include "defs.h"
 # include "message.h"
@@ -167,15 +167,25 @@ GetList *list;
 {
 	int ret = TRUE, dp;
 	DataFile dfe;
-
+	GetList *lp;
+/*
+ * Mark all list entries as not having been tried.
+ */
+	if (data < 0)
+		return (FALSE);
+	for (lp = list; lp; lp = lp->gl_next)
+		lp->gl_flags &= ~GLF_TRIED;
+/*
+ * Now pass through the list and try to satisfy things.
+ */
 	while (list)
 	{
 	/*
-	 * Find the first unsatisfied getlist entry.  If there are no
+	 * Find the first unsatisfied, untried getlist entry.  If there are no
 	 * more, we're done.
 	 */
 		for (; list; list = list->gl_next)
-			if (! (list->gl_flags & GLF_SATISFIED))
+			if (! (list->gl_flags & (GLF_SATISFIED | GLF_TRIED)))
 				break;
 		if (! list)
 			return (ret);
@@ -190,7 +200,10 @@ GetList *list;
 		{
 			ds_GetFileStruct (dp, &dfe);
 			if (dgl_Overlaps (list, &dfe))
+			{
+				data = dp;  /* No point looking further back*/
 				break;
+			}
 			if (TC_Less (dfe.df_end, list->gl_begin))
 			{
 				dp = 0;	/* Never will find it here */
@@ -202,6 +215,7 @@ GetList *list;
 	 */
 	 	if (! dp)
 		{
+			list->gl_flags |= GLF_TRIED;
 			list = list->gl_next;
 			ret = FALSE;
 		}
@@ -267,6 +281,7 @@ int *complete, dfindex;
 		new = dgl_GetEntry ();
 		*new = *gp;
 		gp->gl_next = new;
+		gp->gl_flags |= GLF_TRIED;	/* No point in trying again */
 	/*
 	 * Now fix up the times and move past the unsatisfiable piece.
 	 */
