@@ -1,0 +1,22 @@
+!
+! Parameters to read in nexrad-kmlb UF data
+!
+set radar_lat 28.1131
+set radar_lon -80.6544
+set x_resolution 230
+set y_resolution 230
+set x_radar 115
+set y_radar 115
+set gmt_offset 5
+set platform "nexrad-kmlb"
+set minimum_sweep 25
+set pixels_per_km 1
+set ui$pager_mode false
+set nframes 2
+source file 920824_73334.uf
+field 'reflectivity' offset 0 min -20 max 65
+field 'velocity' offset 1 min -30 max 30
+field 'swidth' offset 2 min -20 max 20
+set niceness -19
+set azimuth_fill 0.8
+consumer ds_consumer nexrad-kmlb
