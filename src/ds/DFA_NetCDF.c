@@ -34,7 +34,7 @@
 # include "DataFormat.h"
 # include "DFA_ncutil.c"
 
-RCSID ("$Id: DFA_NetCDF.c,v 3.78 2002-10-21 08:30:53 granger Exp $")
+RCSID ("$Id: DFA_NetCDF.c,v 3.79 2003-03-11 00:32:21 burghart Exp $")
 
 /*
  * Location fields: standard attributes
@@ -1427,11 +1427,27 @@ FieldId *fields;
 	 */
 	for (i = 0; i < nfield; ++i)
 	{
-		types[i] = DCT_Float;
-		if ((varid = dnc_GetFieldVar (tag, fields[i])) < 0)
-			continue;
-		ncvarinq (tag->nc_id, varid, 0, &vtype, &ndims, dims, &natts);
+	    types[i] = DCT_Float;
+	    if ((varid = dnc_GetFieldVar (tag, fields[i])) < 0)
+		continue;
+	    ncvarinq (tag->nc_id, varid, 0, &vtype, &ndims, dims, &natts);
+	    if (vtype != NC_BYTE)
 		types[i] = dnc_ElemType (vtype);
+	    else
+	    {
+		/*
+		 * NC_BYTE vars would get mapped to DCT_UnsignedChar by
+		 * default, but we map to (signed) DCT_Char instead
+		 * if there's a non-zero "is_signed" attribute.  The test
+		 * below should work if the attribute is any of the
+		 * integer types (NC_CHAR, NC_BYTE, NC_SHORT, NC_INT).
+		 */
+		int s;
+		if (ncattget(tag->nc_id, varid, "is_signed", &s) != -1 && s)
+		    types[i] = DCT_Char;
+		else
+		    types[i] = DCT_UnsignedChar;
+	    }
 	}
 	dc_SetFieldTypes (dc, nfield, fields, types);
 }
@@ -3106,7 +3122,7 @@ DataChunk *dc;
 	strcat (history, "Created by the Zebra DataStore library, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.78 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.79 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 	free (history);
