@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 2.0 1991-07-18 22:53:23 corbet Exp $
+ * $Id: DataStore.h,v 2.1 1991-09-24 21:16:52 martin Exp $
  *
  * Public data store definitions.
  */
@@ -18,6 +18,7 @@ typedef enum {
 	OrgOutline	= 5,
 	Org3dGrid	= 6,
 	OrgCmpImage	= 7,
+        Org1dGrid       = 8
 } DataOrganization;
 
 /*
