@@ -28,8 +28,9 @@
 
 # include <config.h>
 # include <defs.h>
+# include <map.h>
 
-RCSID("$Id: Overlay.c,v 2.59 1997-02-03 20:14:00 granger Exp $")
+RCSID("$Id: Overlay.c,v 2.60 1997-02-10 20:28:58 granger Exp $")
 
 # include <pd.h>
 # include <GraphicsW.h>
@@ -851,13 +852,14 @@ char *name;
  * Load the map by this name.
  */
 {
-	char fname[200], line[200], fill[4];
+	char fname[200], line[200];
+	int fill;
 	int c, pkey = prj_ProjKey ();
-	float lat, lon, junk;
+	float lat, lon;
 	int type, npt, pt;
 	SValue v;
-	FILE *mapfp;
 	MapPoints *mp, *list;
+	MapFile *mf;
 /*
  * Make sure the symbol table exists.  If so, see if we've already done
  * this one.  If we have, make sure the projection matches what we are
@@ -882,7 +884,7 @@ char *name;
 	strcpy (line, name);
 	strcat (line, ".map");
 	if (! FindFile (line, MapPath, fname) ||
-	    ((mapfp = fopen (fname, "r")) == NULL))
+	    (mf = MapRead (fname)) == NULL)
 	{
 		msg_ELog (EF_PROBLEM, "Unable to open map %s", name);
 		return (NULL);
@@ -890,16 +892,9 @@ char *name;
 /*
  * Plow through the points and convert them to XY space.
  */
- 	list = 0;
-	while (fgets (line, 200, mapfp))
+ 	list = NULL;
+	while (MapReadHeader (mf, &npt, 0, 0, 0, 0, &fill))
 	{
-	/*
-	 * Figure out how many points we have.  Ignore the four floats that
-	 * give us the bounding box, but try for the optional "FILL" string.
-	 */
-		strncpy (fill, "    ", 4);
-	 	sscanf (line, "%d %f %f %f %f %4s", &npt, &junk, &junk, &junk,
-			&junk, fill);
 	/*
 	 * Do landmarks separately.
 	 */
@@ -918,7 +913,7 @@ char *name;
 		mp->mp_x = (float *) malloc (npt*sizeof (float));
 		mp->mp_y = (float *) malloc (npt*sizeof (float));
 		mp->mp_npt = npt;
-		mp->mp_fill = ! strncmp (fill, "FILL", 4);
+		mp->mp_fill = (fill & PF_FILL) ? 1 : 0;
 		mp->mp_pkey = pkey;
 		mp->mp_next = list;
 		list = mp;
@@ -930,21 +925,19 @@ char *name;
 		/*
 		 * Read the stuff and convert it to our space.
 		 */
-		 	fscanf (mapfp, "%f %f", &lat, &lon);
+			MapReadPoint (mf, &lat, &lon);
 			prj_Project (lat, lon, mp->mp_x + pt, mp->mp_y + pt);
 		}
-	/*
-	 * Eat a newline if need be.
-	 */
-		while ((c = fgetc (mapfp)) != '\n' && c != EOF)
-			;
 	}
 /*
  * Save this set of points, and return it to the caller.
  */
-	v.us_v_ptr = (char *) list;
-	usy_s_symbol (MapTable, name, SYMT_POINTER, &v);
-	fclose (mapfp);
+	if (list)
+	{
+		v.us_v_ptr = (char *) list;
+		usy_s_symbol (MapTable, name, SYMT_POINTER, &v);
+	}
+	MapClose (mf);
 	return (list);
 }
 
