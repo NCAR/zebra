@@ -43,7 +43,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm.c,v 2.61 1995-05-05 22:43:55 granger Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.62 1995-05-08 19:26:20 granger Exp $")
 
 
 /*
@@ -77,8 +77,9 @@ int TestMode = 0;
  * Non-zero when running in "backwards compatible" singleton mode.
  * Process and window names are identical and map 1-1, and the names
  * are only unique while a single display manager is running.
+ * Defaults to non-zero and can be turned off with "-multiple" option.
  */
-int SingletonMode = 0;
+int SingletonMode = 1;
 
 /*
  * Our unique group name for graphics processes
@@ -154,13 +155,16 @@ usage (prog)
 char *prog;
 {
 	printf ("usage: %s [options] [config-file]\n", prog);
-	printf ("options:  [-name <name>] [-test] [-help] [-single]\n");
+	printf ("options:  [-name <name>][-test][-help][-single|-multiple]\n");
 	printf ("where <name> is the message handle to use;\n");
 	printf ("      -test enters test mode;\n");
 	printf ("      -help shows this message;\n");
 	printf ("      -single forces singleton mode, where process and\n");
 	printf ("         window names are identical and only unique while\n");
-	printf ("         a single display manager is running;\n");
+	printf ("         a single display manager is running [default];\n");
+	printf ("      -multiple selects multiple mode, where dm, group,\n");
+	printf ("         and process names are unique so that more than\n");
+	printf ("         one single display manager can be running;\n");
 	printf ("      and <config-file> is a UI config file.\n");
 	printf ("Options can be uniquely abbreviated to any length.\n");
 }
@@ -220,6 +224,10 @@ char *msgname;
 		else if (! strncmp (argv[i], "-single", optlen))
 		{
 			SingletonMode = 1;
+		}
+		else if (! strncmp (argv[i], "-multiple", optlen))
+		{
+			SingletonMode = 0;
 		}
 		else
 		{
