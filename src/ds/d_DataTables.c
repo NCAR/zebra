@@ -30,7 +30,7 @@
 # include "dsPrivate.h"
 # include "commands.h"
 # include "dsDaemon.h"
-MAKE_RCSID("$Id: d_DataTables.c,v 3.21 1996-01-23 04:23:01 granger Exp $")
+MAKE_RCSID("$Id: d_DataTables.c,v 3.22 1996-08-22 01:36:14 granger Exp $")
 
 
 /*
@@ -49,8 +49,8 @@ int NClass;		/* Number of platform classes		*/
 /*
  * We use these symbol tables to find platforms and classes quickly by name.
  */
-static stbl Platforms;
-static stbl Classes;
+static stbl Platforms = NULL;
+static stbl Classes = NULL;
 
 /*
  * What is the default time period to keep data?
@@ -66,6 +66,7 @@ static int Initialized = FALSE;
 /*-------------------------------------------------------------------------
  * Local forwards.
  */
+static void dt_InitTables FP((void));
 static void dt_InitClass FP((PlatformClass *pc, const char *name));
 static void dt_Subclass FP((PlatformClass *super, PlatformClass *sub,
 			    const char *name));
@@ -88,7 +89,7 @@ static void dt_IPAdd FP((DataFile *df, int *link));
 
 
 
-void
+static void
 dt_InitTables ()
 /*
  * Initialize the data tables.
@@ -970,6 +971,8 @@ const char *name;
 	SValue v;
 	int type;
 
+	if (! Initialized)
+		dt_InitTables ();
 	if (ParseOnly)
 		printf ("Looking for instance '%s'...", name);
 	if (! usy_g_symbol (Platforms, (char *)name, &type, &v))
@@ -995,6 +998,8 @@ int full;
 	SValue v;
 	int type;
 
+	if (! Initialized)
+		dt_InitTables ();
 	if (ParseOnly)
 		printf ("Looking for instance '%s'...", name);
 	if (! usy_g_symbol (Platforms, (char *)name, &type, &v))
@@ -1018,6 +1023,8 @@ const char *name;
 	SValue v;
 	int type;
 
+	if (! Initialized)
+		dt_InitTables ();
 	if (ParseOnly)
 		printf ("Looking for class '%s'...", name);
 	if (! usy_g_symbol (Classes, (char *)name, &type, &v))
@@ -1038,6 +1045,8 @@ void *arg;
 bool sort;
 char *re;
 {
+	if (! Initialized)
+		dt_InitTables ();
 	usy_search (Platforms, function, (int)arg, sort, re);
 }
 
@@ -1054,6 +1063,9 @@ dt_NewFile ()
 {
 	DataFile *ret;
 	int i, nsize;
+
+	if (! Initialized)
+		dt_InitTables ();
 /*
  * If the free list is empty, it means we have to expand the table.
  */

@@ -1,7 +1,7 @@
 /*
  * Data store daemon-specific definitions.
  */
-/* $Id: dsDaemon.h,v 3.22 1996-01-23 04:24:29 granger Exp $ */
+/* $Id: dsDaemon.h,v 3.23 1996-08-22 01:36:16 granger Exp $ */
 /*
  * The platform and data tables, via pointer.
  */
@@ -124,7 +124,6 @@ void InitSharedMemory FP ((void));
 /*
  * Data table routines.
  */
-void dt_InitTables FP ((void));
 PlatformClass *dt_NewClass FP((const char *name, const char *superclass));
 PlatformInstance *dt_Instantiate FP((PlatformClass *pc, 
 				     PlatformId parent, 
