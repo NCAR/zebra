@@ -23,12 +23,13 @@ enum pmode { NoMode, History, RealTime };
 	char *realloc (void *ptr, unsigned size);
 	void tw_DefTimeWidget (int (*callback) (), char *title);
 	void tw_DialAdjust (int, int);
+	int InterpDTime (char *);
 # else
 	char *malloc ();
 	char *realloc ();
 	void tw_DefTimeWidget ();
 	void tw_DialAdjust ();
-
+	int InterpDTime ();
 # endif
 
 
@@ -39,6 +40,8 @@ enum pmode { NoMode, History, RealTime };
 # define ODD(v) ((v) & 0x1)
 # define EVEN(v) (((v) & 0x1) == 0)
 
+# define DLT(d1,d2) ((d1).ds_yymmdd < (d2).ds_yymmdd || \
+	((d1).ds_yymmdd == (d2).ds_yymmdd && (d1).ds_hhmmss < (d2).ds_hhmmss))
 /*
  * Set up inline so that we can use it.
  */
