@@ -1,5 +1,5 @@
 # Process this file with autoconf to produce a configure script.
-AC_INIT(rdssui, 20020712, rdp-support@atd.ucar.edu)
+AC_INIT(rdssui, 20020716, rdp-support@atd.ucar.edu)
 AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR([ui.c])
 
