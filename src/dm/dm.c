@@ -38,7 +38,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm.c,v 2.43 1994-05-24 09:02:02 granger Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.44 1994-05-25 19:52:11 granger Exp $")
 
 
 /*
@@ -399,12 +399,17 @@ struct ui_command *cmds;
 	   case DMC_KILL:
 	   	KillProcess (UPTR (cmds[1]));
 		break;
-
 	/*
 	 * Write a named plot description to the terminal
 	 */
 	   case DMC_SHOWPD:
-		ShowPD (UPTR (cmds[1]));
+		WritePD (UPTR (cmds[1]), NULL);
+		break;
+	/*
+	 * Write a named plot description to the terminal
+	 */
+	   case DMC_WRITEPD:
+		WritePD (UPTR (cmds[1]), UPTR (cmds[2]));
 		break;
 
 	   default:

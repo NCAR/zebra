@@ -19,6 +19,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+# include <stdio.h>
 # include <string.h>
 # include <ui.h>
 # include <ui_error.h>
@@ -27,7 +28,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm_ui.c,v 2.7 1994-05-19 19:59:20 granger Exp $")
+MAKE_RCSID ("$Id: dm_ui.c,v 2.8 1994-05-25 19:52:17 granger Exp $")
 
 
 static int in_pd FP((raw_plot_description *rpd, struct ui_command *cmds));
@@ -361,13 +362,24 @@ struct ui_command *cmds;
 
 
 void
-ShowPD (name)
-char *name;	/* Name of the plot description to list */
+WritePD (name, filename)
+char *name;	/* Name of the plot description to list 	*/
+char *filename;	/* path of file to write to, NULL for stdout	*/
 {
 	raw_plot_description *rpd;
 	plot_description pd;
+	FILE *out = NULL;
 	char *line, *next;
 
+	if (filename)
+	{
+		out = fopen (filename, "w");
+		if (! out)
+		{
+			ui_error ("%s: could not open file %s",
+				  "pdstore", filename);
+		}
+	}
 	pd = pda_GetPD (name);
 	if (! pd)
 	{
@@ -384,11 +396,17 @@ char *name;	/* Name of the plot description to list */
 			next = strchr (line, '\n');
 			if (next)
 				*next++ = '\0';
-			ui_printf ("%s\n", line);
+			if (out)
+				fprintf (out, "%s\n", line);
+			else
+				ui_printf ("%s\n", line);
 		}
 		pd_RPDRelease (rpd);
 	}
+	if (out)
+		fclose (out);
 }
+
 
 
 void
