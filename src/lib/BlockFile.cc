@@ -11,7 +11,7 @@
 #include <iomanip.h>
 
 //#include <defs.h>
-//RCSID ("$Id: BlockFile.cc,v 1.13 1998-09-02 00:42:05 granger Exp $");
+//RCSID ("$Id: BlockFile.cc,v 1.14 1998-09-15 06:39:00 granger Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
 #include "BlockFileP.hh"
@@ -72,6 +72,16 @@ void BlockFile::init ()
 	memset (&(this->stats), 0, sizeof(this->stats));
 
 	log.Debug ("Initialized");
+}
+
+
+void
+BlockFile::Stats::reset()
+{
+	num_reads = 0;
+	bytes_read = 0;
+	num_writes = 0;
+	bytes_writ = 0;
 }
 
 
@@ -324,6 +334,10 @@ BlockFile::Unlock ()
 			WriteSync ();
 		writelock = 0;
 		log.Debug ("unlock");
+		/*
+		 * Flush any pending writes incurred during this last lock.
+		 */
+		fflush (fp);
 	}
 	--lock;
 }
@@ -341,7 +355,6 @@ BlockFile::WriteSync (int force)
 	journal->writeSync (force);
 	freelist->writeSync (force);
 	header->writeSync (force);
-	fflush (fp);
 	Unlock ();		// No need to do another write sync!
 }
 

@@ -1,5 +1,5 @@
 /*
- * $Id: BlockFile.hh,v 1.12 1998-09-02 00:42:07 granger Exp $
+ * $Id: BlockFile.hh,v 1.13 1998-09-15 06:39:00 granger Exp $
  *
  * Definition of the BlockFile class, for storing opaque blocks of bytes
  * into a file through a block interface.  The overhead information in the
@@ -38,6 +38,7 @@ class AuxBlock;
 class Block;
 class SerialBuffer;
 
+
 // The machine-independent block file interface
 //
 class BlockFile
@@ -68,6 +69,17 @@ public:
 		ERROR = 99
 	};
 	
+	// Statistics collection
+	struct Stats
+	{
+		int num_reads;
+		int bytes_read;
+		int num_writes;
+		int bytes_writ;
+
+		void reset ();
+	};
+
 	// ----- Constructors -----
 
 	// Create a BlockFile object without any corresponding file.
@@ -144,7 +156,10 @@ public:
 
 	ostream& DumpHeader (ostream& out);
 
-private:
+	void Statistics (Stats &s) { s = stats; }
+	void ResetStats () { stats.reset(); }
+
+protected:
 
 	//Logger *log;
 	Sender log;
@@ -170,13 +185,7 @@ private:
 	int writelock;	// Write sync pending
 
 	/* statistics and debugging */
-	struct
-	{
-		int num_reads;
-		int bytes_read;
-		int num_writes;
-		int bytes_writ;
-	} stats;
+	Stats stats;
 
 	/*
 	 * Private methods
@@ -190,10 +199,11 @@ private:
 	void recover (BlkOffset addr);
 	BlkOffset alloc (BlkSize size, BlkSize *actual);
 	void free (BlkOffset addr, BlkSize len);
-	//int top () { return (lock == 1); }
-
 	void init ();
 };
+
+
+
 
 
 inline int
