@@ -30,7 +30,7 @@
 # include "DrawText.h"
 # include "PixelCoord.h"
 # include "GC.h"
-MAKE_RCSID ("$Id: Annotate.c,v 2.27 1995-06-29 23:28:15 granger Exp $")
+MAKE_RCSID ("$Id: Annotate.c,v 2.28 1995-09-21 20:43:02 granger Exp $")
 
 /*
  * Graphics context (don't use the global one in GC.h because we don't
@@ -153,7 +153,11 @@ char *comp, *plat;
 {
 	int	i, brk, slen, swidth, sx, sy, ex, ey;
 	char	*cstring;
-
+/*
+ * Turn off top annotations if the available space is zero.
+ */
+	if (AnnotateY0 == AnnotateY1)
+		return;
 	slen = strlen (string);
 /*
  * If we're at the left margin, strip leading spaces
@@ -286,7 +290,7 @@ int	*top, *bottom, *left, *right;
 	int	width = GWWidth (Graphics);
 
 	if (! SA_first)
-		An_Divider (SA_position, (int) (F_X1 * width), width);
+		An_Divider (SA_position, (int) (LegendX0 * width), width);
 	else
 		SA_first = FALSE;
 
@@ -294,7 +298,7 @@ int	*top, *bottom, *left, *right;
 	SA_position += SA_space;
 	*bottom = SA_position - 2;
 
-	*left = F_X1 * width;
+	*left = LegendX0 * width;
 	*right = width;
 }
 
@@ -336,13 +340,13 @@ int y, x1, x2;
 typedef struct ainfo {
 	char comp[40];	/* Component name				*/
 	void (*proc) ();/* Annotation procedure for this component	*/
-	char data[DATALEN];/* Data needed to do the side annotation	*/	
+	char data[DATALEN];/* Data needed to do the side annotation	*/
 	int datalen;	/* Length of the data				*/ 
 	int minspace;	/* Minimum space required to do side annotation	*/
 	int more;	/* Want more space if available?		*/
 	int optional;	/* Annotation can be dropped completely?	*/
 	int allocspace;	/* How much space has actually been allocated	*/
-	struct ainfo *next;	/* Pointer to next table entry.		*/	
+	struct ainfo *next;	/* Pointer to next table entry.		*/
 } AnnotInfo;
 
 AnnotInfo *AnnotTable = NULL;	/* Table which saves info for each comp	*/
@@ -422,14 +426,14 @@ An_DoSideAnnot ()
  * Call the side annotation procedures for each component, and then free
  * that entry in the annotation table.
  */
-	begin = (1.0 - F_Y1) * USABLE_HEIGHT;
+	begin = (1.0 - LegendY1) * USABLE_HEIGHT;
 	width = GWWidth (Graphics);
 	entry = AnnotTable;
 	while (entry != NULL)
 	{
 		if (entry->allocspace > 0)
 		{
-			An_Divider (begin, (int)(F_X1 * width), width);
+			An_Divider (begin, (int)(LegendX0 * width), width);
 			begin += DIVIDE;
 			entry->allocspace -= DIVIDE;
 			(*entry->proc) (entry->comp, entry->data, 
@@ -440,7 +444,7 @@ An_DoSideAnnot ()
 		entry = entry->next;
 		free (temp);
 	}
-	An_Divider (begin, (int) (F_X1 * width), width);
+	An_Divider (begin, (int) (LegendX0 * width), width);
 	AnnotTable = NULL;
 }
 
@@ -453,7 +457,7 @@ An_AllocSpace ()
  */
 {
 	AnnotInfo *entry;
-	int total = (F_Y1 - F_Y0) * USABLE_HEIGHT;
+	int total = (LegendY1 - LegendY0) * USABLE_HEIGHT;
 	int totalUsed = 0;
 	int moreCount = 0;
 /*
@@ -937,7 +941,7 @@ An_GetLeft ()
  * Return the left side of the side annotation space.
  */
 {
-	return (F_X1 * GWWidth (Graphics) + 2);
+	return (LegendX0 * GWWidth (Graphics) + 2);
 }
 
 
@@ -950,9 +954,9 @@ int *limit;
  * Get all side annotation parameters from the plot description.
  */
 {
-	if(! pda_Search(Pd, comp, "sa-scale", NULL, (char *) scale, SYMT_FLOAT))
+	if(! pda_Search(Pd, comp, "sa-scale", NULL, (char *)scale, SYMT_FLOAT))
 		*scale = 0.02;
-	if(! pda_Search(Pd, comp, "ct-limit", NULL, (char *) limit, SYMT_INT))
+	if(! pda_Search(Pd, comp, "ct-limit", NULL, (char *)limit, SYMT_INT))
 		*limit = 1;
 }
 
