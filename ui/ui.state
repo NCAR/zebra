@@ -11,7 +11,7 @@
 ! Nothing other than "define state" and its inferiors should appear here.
 ! IF YOU CHANGE THIS FILE, MAKE SURE IT WILL GET THROUGH uib!
 !
-! $Id: ui.state,v 1.4 1992-08-04 22:18:08 burghart Exp $
+! $Id: ui.state,v 1.5 1992-08-05 16:25:28 burghart Exp $
 
 !
 ! Kludge needed to get the state definitions read in with the bootstrap
@@ -800,7 +800,7 @@ define state ust$what_mode
 		next ust$menu_name
 	endinput
 	input 'window' 4 ! M_WINDOW
-		next ust$menu_name
+		next ust$mw_widget
 	endinput
 enddef
 
@@ -814,6 +814,23 @@ define state ust$menu_name
 	endinput
 enddef
 
+define state ust$mw_widget
+	input eos
+		done
+	endinput
+	input string
+		next ust$mw_geom
+	endinput
+enddef
+
+define state ust$mw_geom
+	input eos
+		done
+	endinput
+	input string
+		next ust$no_more
+	endinput
+enddef
 
 
 define state ust$keypad_state
