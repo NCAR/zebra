@@ -1,7 +1,7 @@
 /*
  * Deal with static (or almost static) overlays.
  */
-static char *rcsid = "$Id: Overlay.c,v 1.15 1991-06-24 18:24:32 corbet Exp $";
+static char *rcsid = "$Id: Overlay.c,v 1.16 1991-06-28 19:53:35 corbet Exp $";
 
 # include <stdio.h>
 # include <X11/Intrinsic.h>
@@ -36,77 +36,8 @@ typedef enum
 } LabelOpt;
 
 
-/*
- * Our internal overlay drawing routines.
- */
-# ifdef __STDC__
-	static void ov_GridBBox (char *, int);
-	static void ov_DrawFeature (char *, int);
-	static void ov_Map (char *, int);
-	static void ov_WBounds (char *, int);
-	static void ov_RangeRings (char *, int);
-	static void ov_Location (char *, int);
-	static void ov_Grid (char *, int);
-	static bool ov_GetWBounds (char *, char *, float *, float *, float *,
-			float *, float *);
-	static int ov_FindWBReply (struct message *, struct dm_rp_wbounds *);
-	static void ov_Boundary (char *, int);
-	static bool ov_GetBndParams (char *, char *, XColor *, int *, int *);
-	static int ov_RRInfo (char *, char *, Location *, float *, float *,
-			float *, float *, int *, float *, XColor *, int *);
-	static OvIcon *ov_GetIcon (char *);
-	static int ov_LocSetup (char *, char **, int *, OvIcon **, LabelOpt *,
-					char *, float *);
-	static void	ov_SGSetup (char *, float *, float *, float *, int *,
-					int *);
-	static void 	ov_SolidGrid (int, int, int, int, double, double,
-				double, int);
-	static void	ov_TicGrid (int, int, int, int, double, double,
-				double, int, int);
-# else
-	static void ov_GridBBox ();
-	static void ov_DrawFeature ();
-	static void ov_Map ();
-	static void ov_WBounds ();
-	static bool ov_GetWBounds ();
-	static void ov_Grid ();
-	static int ov_FindWBReply ();
-	static void ov_Boundary ();
-	static bool ov_GetBndParams ();
-	static void ov_RangeRings ();
-	static int ov_RRInfo ();
-	static OvIcon *ov_GetIcon ();
-	static int ov_LocSetup ();
-	static void	ov_SGSetup ();
-	static void 	ov_SolidGrid ();
-	static void	ov_TicGrid ();
-# endif
 
 # define BADVAL -9999.9
-
-/*
- * The table to map the overlay type ("field" parameter) onto the function
- * that draws it.
- */
-static struct overlay_table
-{
-	char *ot_type;		/* Overlay type		*/
-	void (*ot_func) ();	/* Function.		*/
-} Ov_table[] =
-{
-	{ "gridbbox",	ov_GridBBox	},
-	{ "wbox",	ov_WBounds	},
-	{ "wbounds",	ov_WBounds	},
-	{ "feature",	ov_DrawFeature	},
-	{ "map",	ov_Map		},
-	{ "boundary",	ov_Boundary	},
-	{ "range-rings", ov_RangeRings	},
-	{ "location",	ov_Location	},
-	{ "solidgrid",	ov_Grid		},
-	{ "grid",	ov_Grid		},
-	{ 0, 0}
-};
-
 
 
 /*
@@ -142,6 +73,99 @@ static stbl Ftable = 0;
  * How many polyline segments we can get away with drawing at once.
  */
 # define MAXPLSEG 100
+
+
+/*
+ * Map drawing stuff.  With big maps, a lot of time can go into the
+ * reading and coordinate-conversion of the data, so we do it once and
+ * store it.
+ */
+static stbl MapTable = 0;
+typedef struct _MapPoints
+{
+	int mp_npt;		/* Number of points in this segment. 	*/
+	float *mp_x, *mp_y;	/* The points themselves		*/
+	struct _MapPoints *mp_next;	/* Next entry in chain		*/
+} MapPoints;
+
+
+
+/*
+ * Our internal overlay drawing routines.
+ */
+# ifdef __STDC__
+	static void ov_GridBBox (char *, int);
+	static void ov_DrawFeature (char *, int);
+	static void ov_Map (char *, int);
+	static void ov_WBounds (char *, int);
+	static void ov_RangeRings (char *, int);
+	static void ov_Location (char *, int);
+	static void ov_Grid (char *, int);
+	static bool ov_GetWBounds (char *, char *, float *, float *, float *,
+			float *, float *);
+	static int ov_FindWBReply (struct message *, struct dm_rp_wbounds *);
+	static void ov_Boundary (char *, int);
+	static bool ov_GetBndParams (char *, char *, XColor *, int *, int *);
+	static int ov_RRInfo (char *, char *, Location *, float *, float *,
+			float *, float *, int *, float *, XColor *, int *);
+	static OvIcon *ov_GetIcon (char *);
+	static int ov_LocSetup (char *, char **, int *, OvIcon **, LabelOpt *,
+					char *, float *);
+	static void	ov_SGSetup (char *, float *, float *, float *, int *,
+					int *);
+	static void 	ov_SolidGrid (int, int, int, int, double, double,
+				double, int);
+	static void	ov_TicGrid (int, int, int, int, double, double,
+				double, int, int);
+	static MapPoints *ov_LoadMap (char *);
+	static void	ov_DrawMap (const MapPoints *);
+# else
+	static void ov_GridBBox ();
+	static void ov_DrawFeature ();
+	static void ov_Map ();
+	static void ov_WBounds ();
+	static bool ov_GetWBounds ();
+	static void ov_Grid ();
+	static int ov_FindWBReply ();
+	static void ov_Boundary ();
+	static bool ov_GetBndParams ();
+	static void ov_RangeRings ();
+	static int ov_RRInfo ();
+	static OvIcon *ov_GetIcon ();
+	static int ov_LocSetup ();
+	static void	ov_SGSetup ();
+	static void 	ov_SolidGrid ();
+	static void	ov_TicGrid ();
+	static MapPoints *ov_LoadMap ();
+	static void	ov_DrawMap ();
+# endif
+
+
+
+
+/*
+ * The table to map the overlay type ("field" parameter) onto the function
+ * that draws it.
+ */
+static struct overlay_table
+{
+	char *ot_type;		/* Overlay type		*/
+	void (*ot_func) ();	/* Function.		*/
+} Ov_table[] =
+{
+	{ "gridbbox",	ov_GridBBox	},
+	{ "wbox",	ov_WBounds	},
+	{ "wbounds",	ov_WBounds	},
+	{ "feature",	ov_DrawFeature	},
+	{ "map",	ov_Map		},
+	{ "boundary",	ov_Boundary	},
+	{ "range-rings", ov_RangeRings	},
+	{ "location",	ov_Location	},
+	{ "solidgrid",	ov_Grid		},
+	{ "grid",	ov_Grid		},
+	{ 0, 0}
+};
+
 
 
 
@@ -518,7 +542,7 @@ bool update;
 	XColor xc;
 	Display *disp = XtDisplay (Graphics);
 	Drawable d = GWFrame (Graphics);
-	FILE *mapfp;
+	MapPoints *points;
 /*
  * Find our platform -- the map name.
  */
@@ -539,74 +563,45 @@ bool update;
 		XSetLineAttributes (disp, Gcontext, lwidth, LineSolid,
 			CapButt, JoinMiter);
 /*
- * Open up the map file.
+ * Load up the map file.
  */
-	sprintf (fname, "../lib/%s.map", platform);
-	if ((mapfp = fopen (fname, "r")) == NULL)
-	{
-		msg_ELog (EF_PROBLEM, "Unable to open map file %s", fname);
+	if ((points = ov_LoadMap (platform)) == 0)
 		return;
-	}
 /*
  * Draw it.
  */
-	ov_DrawMap (mapfp);
-/*
- * Clean up and go home.
- */
-	fclose (mapfp);
-
+	ov_DrawMap (points);
 	XSetLineAttributes (disp, Gcontext, 0, LineSolid, CapButt, JoinMiter);
 }
 
 
 
 
-
-ov_DrawMap (mapfp)
-FILE *mapfp;
+static void
+ov_DrawMap (points)
+const MapPoints * points;
 /*
  * Draw this map file onto the screen.
  */
 {
-	float lat, lon, x, y;
-	int px, py, npt, pt, xp;
+	int npt, pt, xp;
 	XPoint pts[MAXPLSEG];
-	char line[200], c;
 /*
  * Just plow through the file.
  */
-	while (fgets (line, 200, mapfp))
+	for (; points; points = points->mp_next)
 	{
-	/*
-	 * Figure out how many points we have.  Then discard the rest of the
-	 * line, which seems to be a sort of bounding box.
-	 */
-	 	sscanf (line, "%4d", &npt);
-	/*
-	 * Do landmarks separately.
-	 */
-		if (npt == 1)
-		{
-			/* ov_DrawLandmark (line, disp, d, gcontext); */
-			msg_ELog (EF_INFO, "Landmark, ignored");
-			continue;
-		}
 	/*
 	 * Pass through each point.
 	 */
-		npt /= 2;
 		xp = 0;
-	 	for (pt = 0; pt < npt; pt++)
+	 	for (pt = 0; pt < points->mp_npt; pt++)
 		{
 		/*
-		 * Read the stuff, and convert it to something useful, and 
-		 * stash it into the XPoint structure.
+		 * Convert the point into pixel space.
 		 */
-		 	fscanf (mapfp, "%f %f", &lat, &lon);
-			cvt_ToXY (lat, lon, &x, &y);
-		 	pts[xp].x = XPIX (x);
-			pts[xp].y = YPIX (y);
+		 	pts[xp].x = XPIX (points->mp_x[pt]);
+			pts[xp].y = YPIX (points->mp_y[pt]);
 		/*
 		 * If we've filled our array, shove it out.
 		 */
@@ -625,13 +620,104 @@ FILE *mapfp;
 		if (xp > 1)
 			XDrawLines (XtDisplay (Graphics), GWFrame (Graphics),
 				Gcontext, pts, xp, CoordModeOrigin);
+	}
+}
+
+
+
+
+
+static MapPoints *
+ov_LoadMap (name)
+char *name;
+/*
+ * Load the map by this name.
+ */
+{
+	char fname[200], line[200], c;
+	float lat, lon, x, y;
+	int type, npt, pt;
+	SValue v;
+	FILE *mapfp;
+	MapPoints *mp, *list;
+/*
+ * Make sure the symbol table exists.  If so, see if we've already done
+ * this one.
+ */
+	if (! MapTable)
+		MapTable = usy_c_stbl ("MapTable");
+	else if (usy_g_symbol (MapTable, name, &type, &v))
+		return ((MapPoints *) v.us_v_ptr);
+/*
+ * Nope.  Try to open up a file.
+ */
+	sprintf (fname, "../lib/%s.map", name);
+	if ((mapfp = fopen (fname, "r")) == NULL)
+	{
+		msg_ELog (EF_PROBLEM, "Unable to open map file %s", fname);
+		return;
+	}
+/*
+ * Plow through the points and convert them to XY space.
+ */
+ 	list = 0;
+	while (fgets (line, 200, mapfp))
+	{
+	/*
+	 * Figure out how many points we have.  Then discard the rest of the
+	 * line, which seems to be a sort of bounding box.
+	 */
+	 	sscanf (line, "%4d", &npt);
+	/*
+	 * Do landmarks separately.
+	 */
+		if (npt == 1)
+		{
+			/* ov_DrawLandmark (line, disp, d, gcontext); */
+			msg_ELog (EF_INFO, "Landmark, ignored");
+			continue;
+		}
+	/*
+	 * Get the memory to hold this set of points, and add it to
+	 * the list.
+	 */
+		npt /= 2;
+	 	mp = ALLOC (MapPoints);
+		mp->mp_x = (float *) malloc (npt*sizeof (float));
+		mp->mp_y = (float *) malloc (npt*sizeof (float));
+		mp->mp_npt = npt;
+		mp->mp_next = list;
+		list = mp;
+	/*
+	 * Pass through each point.
+	 */
+	 	for (pt = 0; pt < npt; pt++)
+		{
+		/*
+		 * Read the stuff and convert it to our space.
+		 */
+		 	fscanf (mapfp, "%f %f", &lat, &lon);
+			cvt_ToXY (lat, lon, mp->mp_x + pt, mp->mp_y + pt);
+		}
 	/*
 	 * Eat a newline if need be.
 	 */
 		while ((c = fgetc (mapfp)) != '\n' && c != EOF)
 			;
 	}
+/*
+ * Save this set of points, and return it to the caller.
+ */
+	v.us_v_ptr = (char *) list;
+	usy_s_symbol (MapTable, name, SYMT_POINTER, &v);
+	fclose (mapfp);
+	return (list);
 }
+
+
+
+
+
 
 
 
@@ -1014,6 +1100,31 @@ XColor *xc;
 
 
 
+ov_PositionIcon (name, x, y, fg)
+char	*name;
+int	x, y, fg;
+{
+	OvIcon	*icon;
+	Display	*Disp = XtDisplay (Graphics);
+	XGCValues vals;
+
+	SetClip (FALSE);
+
+	icon = ov_GetIcon (name);
+
+	vals.foreground = fg;
+	vals.fill_style = FillStippled;
+	vals.stipple = icon->oi_pixmap;
+	XChangeGC (Disp, Gcontext, GCForeground|GCFillStyle|GCStipple,
+			&vals);
+	x -= icon->oi_xh;
+	y -= icon->oi_yh;
+	XSetTSOrigin (Disp, Gcontext, x, y);
+	XFillRectangle (Disp, GWFrame (Graphics), Gcontext, x, y,
+			icon->oi_w, icon->oi_h);
+	ResetGC ();
+	SetClip (TRUE);
+}
 
 
 
