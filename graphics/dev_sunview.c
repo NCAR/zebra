@@ -1,4 +1,5 @@
 /* 10/88 jc */
+/* $Id: dev_sunview.c,v 1.2 1989-06-28 13:05:00 corbet Exp $ */
 /*
  * Sunview driver.
  */
@@ -299,6 +300,7 @@ int color, ltype, npt, *data;
 	brush.width = 1;
 	pw_polyline (tag->sv_pixwin, 0, 0, npt, pos, POLY_DONTCLOSE,
 		&brush, (struct pr_texture *) 0, PIX_SRC | PIX_COLOR (color));
+	relvm (pos);
 }
 
 
