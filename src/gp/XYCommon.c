@@ -1,7 +1,7 @@
 /*
  * Routines common to XY-Type plots
  */
-static char *rcsid = "$Id: XYCommon.c,v 1.5 1992-02-19 23:55:26 barrett Exp $";
+static char *rcsid = "$Id: XYCommon.c,v 1.6 1992-07-31 19:26:13 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -36,6 +36,15 @@ static char *rcsid = "$Id: XYCommon.c,v 1.5 1992-02-19 23:55:26 barrett Exp $";
 # include "LayoutControl.h"
 # include "DrawText.h"
 # include "XYCommon.h"
+
+/*
+ * Our routines.
+ */
+void	xy_GetScaleInfo FP ((plot_description, char *, int, short *));
+void	xy_SetScaleBounds FP ((plot_description, char *, int, int, DataValPtr,
+		DataValPtr));
+void	xy_GetCurrentScaleBounds FP ((plot_description, char *, int, int,
+		DataValPtr, DataValPtr, char *));
 
 void
 xy_GetScaleInfo(pd,c,dim,info)
@@ -116,6 +125,7 @@ DataValPtr		min,max;
     char	minkey[32];
     char	maxkey[32];
     short	info;
+    ZebTime	zt;
 
     xy_GetScaleInfo(pd,c,dim,&info);
     if ( info & AUTO )
@@ -147,8 +157,10 @@ DataValPtr		min,max;
             pd_Store(pd,c,minkey,(char *)&(min->val.f),SYMT_FLOAT);
 	break;
 	case 't':
-            pd_Store(pd,c,maxkey,(char *)&(max->val.t),SYMT_DATE);
-            pd_Store(pd,c,minkey,(char *)&(min->val.t),SYMT_DATE);
+	    TC_UIToZt (&max->val.t, &zt);
+            pd_Store(pd,c,maxkey,(char *) &(zt),SYMT_DATE);
+	    TC_UIToZt (&min->val.t, &zt);
+            pd_Store(pd,c,minkey,(char *) &(zt),SYMT_DATE);
 	break;
     }
 
@@ -179,6 +191,8 @@ char			*qual;
     char	minkey[32];
     char	maxkey[32];
     short	info;
+    ZebTime	minzt, maxzt;
+
     xy_GetScaleInfo(pd,c,dim,&info);
     if ( info & AUTO )
     {
@@ -217,14 +231,19 @@ char			*qual;
 	    }
 	break;
 	case 't':
-            if (!pda_Search(pd,c,maxkey,qual,(char *)&(max->val.t),SYMT_DATE) ||
-                !pda_Search(pd,c,minkey,qual,(char *)&(min->val.t),SYMT_DATE)
+            if (!pda_Search(pd,c,maxkey,qual, (char *) &(maxzt), SYMT_DATE) ||
+                !pda_Search(pd,c,minkey,qual, (char *) &(minzt), SYMT_DATE)
 	       )
 	    {
 		min->val.t.ds_yymmdd = 0;
 		min->val.t.ds_hhmmss = 0;
 		max->val.t.ds_yymmdd = 0;
 		max->val.t.ds_hhmmss = 0;
+	    }
+	    else
+	    {
+		TC_ZtToUI (&maxzt, &max->val.t);
+		TC_ZtToUI (&minzt, &min->val.t);
 	    }
 	break;
 	default:
@@ -248,8 +267,18 @@ int	*npnts;
  * with by "manual" means.
  */
 {
-    if ( btime ) pd_Store (pd, c, "data-begin-time",(char*)btime,SYMT_DATE);
-    if ( etime ) pd_Store (pd, c, "data-end-time",(char*)etime,SYMT_DATE);
+    ZebTime	zt;
+
+    if ( btime ) 
+    {
+	TC_UIToZt (btime, &zt);
+	pd_Store (pd, c, "data-begin-time", (char*) &zt, SYMT_DATE);
+    }
+    if ( etime ) 
+    {
+	TC_UIToZt (etime, &zt);
+	pd_Store (pd, c, "data-end-time", (char*) &zt, SYMT_DATE);
+    }
     if ( npnts ) pd_Store (pd, c, "data-ndatapoints",(char*)npnts,SYMT_INT);
 }
 
@@ -279,14 +308,15 @@ int	*ndat;
     char	mode[80];
     int		spanSec;
     unsigned long spanTime;
+    ZebTime	zt;
 
     /* 
      * If snap-shot mode, then use the current PLOT-TIME for begin and
      * end times.  If series mode, then compute the target begin time at
      * the appropriate span-offset from PLOT-TIME.
      */
-    *etime = PlotTime;
-    *btime = PlotTime;
+    TC_ZtToUI (&PlotTime, etime);
+    TC_ZtToUI (&PlotTime, btime);
     *dmode = DATA_SNAPSHOT;
     if(pda_Search (pd, c, "data-mode","xy", (char*)mode,SYMT_STRING))
     {
@@ -310,9 +340,11 @@ int	*ndat;
      */
     if ( update )
     {
-        pda_Search ( pd, c, "data-begin-time", NULL, (char*)bold, SYMT_DATE); 
-        pda_Search ( pd, c, "data-end-time", NULL, (char*)eold, SYMT_DATE); 
-        pda_Search ( pd, c, "data-ndatapoints", NULL, (char*)ndat, SYMT_INT); 
+        pda_Search ( pd, c, "data-begin-time", NULL, (char*) &zt, SYMT_DATE); 
+	TC_ZtToUI (&zt, bold);
+        pda_Search ( pd, c, "data-end-time", NULL, (char*) &zt, SYMT_DATE); 
+	TC_ZtToUI (&zt, eold);
+        pda_Search ( pd, c, "data-ndatapoints", NULL, (char*) ndat, SYMT_INT); 
     }
     else
     {
@@ -409,31 +441,38 @@ time            *bTimeReq,*eTimeReq;
  */
 {
     int available = 1;
+    ZebTime	zt;
+
     *eTimeReq = eTimeOld;
     *bTimeReq = bTimeTarget;
-    if (! ds_DataTimes (pid, &eTimeTarget, 1, DsBefore, eTimeReq))
+    TC_UIToZt (&eTimeTarget, &zt);
+    if (! ds_DataTimes (pid, &zt, 1, DsBefore, &zt))
     {
         msg_ELog (EF_INFO, "No data before %d %d", eTimeTarget.ds_yymmdd,
                                 eTimeTarget.ds_hhmmss);
         available = 0;
     }
+    TC_ZtToUI (&zt, eTimeReq);
     /*
      * If no data previously exists, then get the time of the oldest
      * available data within the target range.
      */
     if ( eTimeOld.ds_yymmdd == 0 )
     {
-        if (! ds_DataTimes (pid, &bTimeTarget, 1, DsBefore, bTimeReq))
+	TC_UIToZt (&bTimeTarget, &zt);
+        if (! ds_DataTimes (pid, &zt, 1, DsBefore, &zt))
         {
             msg_ELog (EF_INFO, "No data before %d %d", bTimeTarget.ds_yymmdd,
                                 bTimeTarget.ds_hhmmss);
-            if (! ds_DataTimes (pid, &bTimeTarget, 1, DsAfter, bTimeReq))
+            if (! ds_DataTimes (pid, &zt, 1, DsAfter, &zt))
             {
                 msg_ELog (EF_INFO, "No data after %d %d", bTimeTarget.ds_yymmdd,
                                 bTimeTarget.ds_hhmmss);
                 available = 0;
             }
+	    TC_ZtToUI (&zt, bTimeReq);
         }
+	TC_ZtToUI (&zt, bTimeReq);
     }
     else
         *bTimeReq = eTimeOld;

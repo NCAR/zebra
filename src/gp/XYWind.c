@@ -1,7 +1,7 @@
 /*
  * XY-Wind plotting module
  */
-static char *rcsid = "$Id: XYWind.c,v 1.6 1992-04-09 18:30:37 granger Exp $";
+static char *rcsid = "$Id: XYWind.c,v 1.7 1992-07-31 19:27:20 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -43,8 +43,7 @@ static char *rcsid = "$Id: XYWind.c,v 1.6 1992-04-09 18:30:37 granger Exp $";
 /*
  * General definitions
  */
-
-void	xy_Wind();
+void	xy_Wind FP ((char *, int));
 
 /*
  * Line style
@@ -66,18 +65,18 @@ bool	update;
  */
 {
 	bool	ok;
-	int	i, npts, plat, nplat,ii,jj;
+	int	i, npts, plat, nplat, ii, jj, ns, gridsize;
 	int	nxfield,nyfield;
 	int	count;
 	int 	nPlotted=0;
 	char	platforms[80], tadefcolor[30];
 	char	ctname[20];
-	float   cstep;               /* interval for each step of color tables */
+	float   cstep;           /* interval for each step of color tables */
 	float	scaleSpeed;
 	XColor	*colors;
 	int	ncolors;
 	char	dataNames[4][80];
-	char	*flist[4];
+	FieldId	fids[4];
 	time	ptime;
 	time	bTimeTarget,eTimeTarget;
 	time	eTimeReq,bTimeReq;
@@ -86,7 +85,14 @@ bool	update;
 	char	*pnames[MAX_PLAT];
 	char	*fnames[4][MAX_PLAT];
 	PlatformId	pid;
-	DataObject	*dobj = NULL;
+	DataChunk	*dc = NULL;
+	DataClass	xyClass;
+	Location	origin;
+	ZebTime		when, when2;
+	time		t;
+	int		n, m, len;
+	float		badvalue, *data[MAX_PLAT], *tempdata;
+	RGrid		rg;
 	DataOrganization	xyOrg;
 	DataValPtr	*xdata,*ydata;
 	DataValPtr	*udata,*vdata;
@@ -361,6 +367,18 @@ bool	update;
 		continue;
 	    }
             xyOrg = ds_PlatformDataOrg(pid);
+	    switch (xyOrg)
+	    {
+		case OrgScalar:
+			xyClass = DCC_Scalar;
+			break;
+		case Org1dGrid:
+			xyClass = DCC_RGrid;
+			break;
+		default:
+			msg_ELog (EF_PROBLEM, "Bad orgainization.");
+			continue;
+	    }
 
 	    /*
 	     * Set up the field-names for the data retrieval request.
@@ -369,17 +387,17 @@ bool	update;
 	    if (xtype != 't')
 	    {
 		xdim = fcount;
-	        flist[fcount] = fnames[0][plat]; fcount++;
+	        fids[fcount] = F_Lookup (fnames[0][plat]); fcount++;
 	    }
 	    if (ytype != 't')
 	    {
 		ydim = fcount;
-	        flist[fcount] = fnames[1][plat]; fcount++;
+	        fids[fcount] = F_Lookup (fnames[1][plat]); fcount++;
 	    }
 	    udim = fcount;
-	    flist[fcount] = fnames[2][plat]; fcount++;
+	    fids[fcount] = F_Lookup (fnames[2][plat]); fcount++;
 	    vdim = fcount;
-	    flist[fcount] = fnames[3][plat]; fcount++;
+	    fids[fcount] = F_Lookup (fnames[3][plat]); fcount++;
 
 	    /*
 	     *  Determine times of data to request.
@@ -387,18 +405,18 @@ bool	update;
             if (xy_AvailableData(pid,bTimeTarget,eTimeTarget,eTimeOld,
                                 &bTimeReq, &eTimeReq))
             {
-
-
                 msg_ELog ( EF_DEBUG,
                    "%s Data request times begin %d %d end = %d %d",
                         c,
                         bTimeTarget.ds_yymmdd,bTimeTarget.ds_hhmmss,
                         eTimeTarget.ds_yymmdd,eTimeTarget.ds_hhmmss);
-                dobj = ds_GetData (pid, flist, fcount,&bTimeReq,&eTimeReq,
-                        xyOrg, 0.0, BADVAL);
+		dc = NULL;
+		TC_UIToZt (&bTimeReq, &when);
+		TC_UIToZt (&eTimeReq, &when2);
+                dc = ds_Fetch (pid, xyClass, &when, &when2, fids, fcount,
+			NULL, 0);
 	    }
-
-	    if (! dobj)
+	    if (! dc)
 	    {
 		msg_ELog (EF_INFO, 
 			"Unable to get field data for '%s' at %d %06d", 
@@ -413,11 +431,34 @@ bool	update;
 	    }
 	    else
 	    {
+		badvalue = dc_GetBadval (dc);
 
 	        if ( xyOrg == OrgScalar )
-		    npts = dobj->do_npoint;
+		{
+			npts = dc_GetNSample (dc);
+			for (n = 0; n < fcount; n++)
+			{
+				data[n] = (float *) malloc (npts * 
+					sizeof (float));
+				for (m = 0; m < npts; m++)
+					data[n][m] = dc_GetScalar (dc, m,
+						fids[n]);
+			}
+		}
 	        else if ( xyOrg == Org1dGrid )
-		    npts = dobj->do_desc.d_rgrid.rg_nX * dobj->do_npoint;
+		{
+		    ns = dc_GetNSample (dc);
+		    for (n = 0; n < fcount; n++)
+			for (m = 0; m < ns; m++)
+			{
+			    tempdata = dc_RGGetGrid (dc, m, fids[n],
+					&origin, &rg, &len);
+			    npts = rg.rg_nX * ns;
+			    data[n] = (float *) malloc (npts * sizeof (float));
+			    gridsize = m * rg.rg_nX;
+			    memcpy (data[n] + gridsize, tempdata, gridsize);
+			}
+		}
 
 	        xdata[plat] = (DataValPtr)malloc( npts * sizeof(DataValRec));
 	        ydata[plat] = (DataValPtr)malloc( npts * sizeof(DataValRec));
@@ -436,7 +477,7 @@ bool	update;
 		do {
 		    for ( jj = 0; jj < fcount ; jj++)
 		    {
-			if(dobj->do_data[jj][ii] == BADVAL)
+			if (data[jj][ii] == badvalue)
 			{
 			    ii++; break;
 			}
@@ -446,28 +487,32 @@ bool	update;
 		{
 		  if ( xtype == 't' )
 		  {
-		    xdata[plat][count].val.t = dobj->do_times[xyOrg==OrgScalar?
-			       ii : (int)(ii/dobj->do_desc.d_rgrid.rg_nX)];
+		    dc_GetTime (dc, xyOrg == OrgScalar ? ii : 
+			(int) (ii/rg.rg_nX), &when);
+		    TC_ZtToUI (&when, &t);
+		    xdata[plat][count].val.t = t;
 		    xdata[plat][count].type = 't';
 		  }
 		  else
 		  {
-		    xdata[plat][count].val.f = dobj->do_data[xdim][ii];
+		    xdata[plat][count].val.f = data[xdim][ii];
 		    xdata[plat][count].type = 'f';
 		  }
 		  if ( ytype == 't' )
 		  {
-		    ydata[plat][count].val.t = dobj->do_times[xyOrg==OrgScalar?
-			       ii : (int)(ii/dobj->do_desc.d_rgrid.rg_nX)];
+		    dc_GetTime (dc, xyOrg == OrgScalar ? ii : 
+			(int) (ii/rg.rg_nX), &when);
+		    TC_ZtToUI (&when, &t);
+		    xdata[plat][count].val.t = t;
 		    ydata[plat][count].type = 't';
 		  }
 		  else
 		  {
-		    ydata[plat][count].val.f = dobj->do_data[ydim][ii];
+		    ydata[plat][count].val.f = data[ydim][ii];
 		    ydata[plat][count].type = 'f';
 		  }
-		  udata[plat][count].val.f = dobj->do_data[udim][ii];
-		  vdata[plat][count].val.f = dobj->do_data[vdim][ii];
+		  udata[plat][count].val.f = data[udim][ii];
+		  vdata[plat][count].val.f = data[vdim][ii];
 		  udata[plat][count].type = 'f';
 		  vdata[plat][count].type = 'f';
 		  count += nPlotted % (skip+1) == 0 ? 1 : 0;
@@ -486,8 +531,13 @@ bool	update;
             {
                 xy_GetDataMinMax(update, &ymin, &ymax, ydata[plat], npts);
             }
-
-	    ds_FreeDataObject (dobj);
+	    /*
+	     * Free memory.
+	     */
+	    dc_DestroyDC (dc);
+	    for (n = 0; n < fcount; n++)
+		if (data[n])
+			free (data[n]);
 	}
 /*
  * Now set the current scale bounds.
