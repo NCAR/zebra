@@ -279,6 +279,10 @@ Message *msg;
 
 		PCASE(dpt_FindAfter);
 
+		PCASE(dpt_PlatformSearch);
+		PCASE(dpt_R_PlatformSearch);
+		PCASE(dpt_R_PlatStructSearch);
+
 	   default:
 	   	printf ("\tData store proto %d\n", dt->dsp_type);
 	}
