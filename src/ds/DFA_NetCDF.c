@@ -25,13 +25,14 @@
  */
 
 # include <math.h>
+# include <sys/time.h>
 # include "../include/defs.h"
 # include "../include/message.h"
 # include "dfa.h"
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dslib.h"
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.8 1992-09-25 15:45:50 corbet Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.9 1992-11-06 22:21:43 granger Exp $")
 
 # include "netcdf.h"
 
@@ -74,6 +75,7 @@ typedef struct _nctag
 #define UNKNOWN	-2
 static int      SPMap[MAXPLAT] = {0};
 static bool     SPMapInited = FALSE;
+static NCTag *Tag;	/* for passing tag parameter to dnc_PutGlobalAttribute */
 
 /*
  * We also maintain a subplatform list for IRGrid platforms, which ends up in
@@ -137,7 +139,7 @@ static void	dnc_ApplyBadval FP ((NCTag *, int, double, float *, int));
 static double	dnc_ZtToOffset FP ((NCTag *, ZebTime *));
 static void	dnc_DoWriteCoords FP ((NCTag *, DataChunk *, int, long *,
 			long *));
-
+static int	dnc_PutGlobalAttribute FP ((char *key, char *value));
 
 /*
  * The minimum size of a time list before it's worthwhile to do a binary
@@ -1692,6 +1694,7 @@ NCTag **rtag;
 	ZebTime t;
 	float badval;
 	FieldId *fids;
+	char *attr, history[80];
 /*
  * We might as well start by creating the actual file.  After all,
  * that, at least, is common to all of the organizations.
@@ -1744,8 +1747,7 @@ NCTag **rtag;
 	tag->nc_base = t.zt_Sec;
 /*
  * Create the actual fields that we are storing here.  Add the bad
- * value flag for now.  Eventually we should get the other info in
- * here as well (units, description, etc).
+ * value flag for now and conventional long_name and units attributes.
  */
 	badval = dc_GetBadval (dc);
 	fids = dc_GetFields (dc, &nfield);
@@ -1755,6 +1757,33 @@ NCTag **rtag;
 				     NC_FLOAT, ndim, dims);
 		(void) ncattput (tag->nc_id, vars[var], "missing_value",
 				NC_FLOAT, 1, &badval);
+		attr = F_GetUnits(fids[var]);
+		(void) ncattput (tag->nc_id, vars[var], "units",
+				NC_CHAR, strlen(attr)+1, attr);
+		attr = F_GetDesc(fids[var]);
+		(void) ncattput (tag->nc_id, vars[var], "long_name",
+				NC_CHAR, strlen(attr)+1, attr);
+	}
+/*
+ * Add global attributes from the data chunk and the create global
+ *  history attribute.
+ * Unfortunately, dc_ProcessAttrs does not provide for a 'tag' argument
+ * to the function, so it must be set to a global variable.
+ */
+	Tag = tag;
+	(void)dc_ProcessAttrs(dc, NULL, dnc_PutGlobalAttribute);
+	attr = ds_PlatformName(dc->dc_Platform);
+	(void)ncattput(tag->nc_id, NC_GLOBAL, "platform", 
+		       NC_CHAR, strlen(attr)+1, attr);
+	sprintf(history,"created: Zeb DataStore, $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.9 $, ");
+	{
+		struct timeval tv;
+
+		(void)gettimeofday(&tv, NULL);
+		TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
+		strcat(history,"\n");
+		(void)ncattput(tag->nc_id, NC_GLOBAL, "history",
+			       NC_CHAR, strlen(history)+1, history);
 	}
 /*
  * Create the organization-specific variables.  Since some of these
@@ -1768,6 +1797,25 @@ NCTag **rtag;
 	return (TRUE);
 }
 
+
+
+
+int
+dnc_PutGlobalAttribute(key, value)
+char *key;
+char *value;
+/*
+ * Add this datachunk attribute to the file's global attributes
+ * Presently, this only happens when a file is created.  Any additional
+ * datachunks' global attributes will not be written.  XXX What would the
+ * behavior be if the same global attribute was given different values
+ * in different datachunks?
+ */
+{
+	(void)ncattput(Tag->nc_id, NC_GLOBAL,
+		       key, NC_CHAR, strlen(value)+1, value);
+	return(0);
+}
 
 
 
@@ -1787,7 +1835,7 @@ int *ndim, *dims;
 	switch (tag->nc_org)
 	{
 	/*
-	 * Scalar files are easy -- we're done!
+	  Scalar files are easy -- we're done!
 	 */
 	   case OrgScalar:
 		break;
