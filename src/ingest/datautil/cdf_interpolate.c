@@ -2,7 +2,7 @@
  * Replace missing values in the latitude or longitude fields of a
  * netcdf file with interpolated values. 
  */
-static char *rcsid = "$Id: cdf_interpolate.c,v 1.1 1992-11-05 20:28:58 kris Exp $";
+static char *rcsid = "$Id: cdf_interpolate.c,v 1.2 1992-11-05 23:21:57 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -41,7 +41,7 @@ main (argc, argv)
 int	argc;
 char	**argv;
 {
-	int	i;
+	int	i,j;
 	int	cdfid;
 	int	num_records;
 	int	latid, lonid;
@@ -139,7 +139,7 @@ int	index;
 	y0 = array[index - 1];
 	while (array[index + (++i)] == missing_value);
 	if (i > 5)
-		printf ("Warning: Gap of %d.\n", i);
+		printf ("Warning: Gap of %d at index %d.\n", i, index);
 	x1 = (float) (index + i);
 	y1 = array[index + i]; 
 	x = (float) index;
