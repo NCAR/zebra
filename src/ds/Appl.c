@@ -27,7 +27,7 @@
 # define NO_SHM
 #include "dslib.h"
 #ifndef lint
-MAKE_RCSID ("$Id: Appl.c,v 3.8 1993-05-04 21:42:11 granger Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.9 1993-05-04 22:08:17 granger Exp $")
 #endif
 
 /*
@@ -143,9 +143,6 @@ ds_InitPFTable ()
  * Create the platform lookup table.
  */
 {
-	int             i;
-	char           *slash, *strchr ();
-	SValue          v;
 /*
  * Create the table itself.
  */
@@ -1222,7 +1219,7 @@ WriteCode *wc;
  */
 {
 	int df = LOCALDATA (*plat);
-	DataFile *dp, dfe;
+	DataFile dfe;
 	ZebTime when, dftime;
 /*
  * Find the first file in the local list which begins before the time
@@ -1800,6 +1797,7 @@ PlatformId plat;
 
 
 
+/* ARGSUSED */
 static int
 ds_AwaitGrant (msg, junk)
 Message *msg;
@@ -1836,7 +1834,7 @@ PlatformId plat;
 
 
 
-void
+static void
 ds_SendToDaemon (msg, len)
 void *msg;
 int len;
@@ -1909,6 +1907,7 @@ ds_GreetDaemon ()
 
 
 
+/* ARGSUSED */
 static int
 ds_CheckProtocol (msg, junk)
 Message *msg;
