@@ -16,7 +16,7 @@
 #include "message.h"
 #include "Test.h"
 
-RCSID("$Id: T_Profile.c,v 2.1 1996-11-19 07:50:37 granger Exp $")
+RCSID("$Id: T_Profile.c,v 2.2 1997-02-10 20:10:37 granger Exp $")
 
 #define TE_NAME_LEN 40
 
@@ -70,19 +70,19 @@ TP_Init ()
 	 */
 #if defined(_SC_CLK_TCK)
 	ClockTicks = sysconf(_SC_CLK_TCK);
-	msg_ELog (EF_INFO, "%s %i clock ticks per second",
+	msg_ELog (EF_DEBUG, "%s %i clock ticks per second",
 		  "profile: sysconf() returns", ClockTicks);
 #elif defined(CLK_TCK)
 	ClockTicks = CLK_TCK;
-	msg_ELog (EF_INFO, "%s %i clock ticks per second",
+	msg_ELog (EF_DEBUG, "%s %i clock ticks per second",
 		  "profile: CLK_TCK symbol gives", ClockTicks);
 #elif defined(HZ)
 	ClockTicks = HZ;
-	msg_ELog (EF_INFO, "%s %i clock ticks per second",
+	msg_ELog (EF_DEBUG, "%s %i clock ticks per second",
 		  "profile: HZ symbol gives", ClockTicks);
 #else
 	ClockTicks = 60;
-	msg_ELog (EF_INFO, "%s %i per second",
+	msg_ELog (EF_DEBUG, "%s %i per second",
 		  "profile: clock ticks UNKNOWN, using default", ClockTicks);
 #endif
 }
