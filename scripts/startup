@@ -50,15 +50,18 @@ if ( `hostname` == $ZEBRA_MASTER && $need_extras ) then
     sleep 2
 
     #
-    # Start the rain and hydrometeor ID stuff
+    # Start the rain, hydrometeor ID, and refractivity stuff
     #
     set rainlog = $logdir/rain.out
     set hyidlog = $logdir/hyid.out
+    set refractlog = $logdir/refract.out
 
     /bin/mv -f $rainlog $rainlog.save > /dev/null
     startboth >& $rainlog
     /bin/mv -f $hyidlog $hyidlog.save > /dev/null
     starthyid < /dev/null >& $hyidlog &
+#    ssh -n -x ap.spol.rtf start_refract >& $refractlog &
+    ssh -n -x ap.spol.rtf start_refract 
 
     # 
     # Start up building of selected sweepfile links
