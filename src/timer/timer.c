@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-char *Version = "$Revision: 2.2 $ $Date: 1991-12-20 17:51:05 $";
+char *Version = "$Revision: 2.3 $ $Date: 1992-01-09 20:46:24 $";
 
 # include <sys/types.h>
 # include <sys/time.h>
@@ -27,7 +27,7 @@ char *Version = "$Revision: 2.2 $ $Date: 1991-12-20 17:51:05 $";
 # include "../include/defs.h"
 # include "../include/message.h"
 # include "timer.h"
-MAKE_RCSID ("$Id: timer.c,v 2.2 1991-12-20 17:51:05 corbet Exp $");
+MAKE_RCSID ("$Id: timer.c,v 2.3 1992-01-09 20:46:24 corbet Exp $");
 
 /*
  * The timer queue is made up of these sorts of entries.
@@ -621,7 +621,7 @@ char *who;
  */
 	for (tqe = Tq; tqe; tqe = tqe->tqe_next)
 	{
-		sprintf (tbuf, "\t%s: alarm %d ", tqe->tqe_proc);
+		sprintf (tbuf, "\t%s: alarm ", tqe->tqe_proc);
 		TC_EncodeTime ((ZebTime *) &tqe->tqe_when, TC_FullUSec,
 				tbuf + strlen (tbuf));
 		if (tqe->tqe_inc)
