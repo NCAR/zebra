@@ -1,7 +1,7 @@
 /*
  * The data store application interface.
  */
-static char *rcsid = "$Id: Appl.c,v 1.8 1991-06-14 22:17:36 corbet Exp $";
+static char *rcsid = "$Id: Appl.c,v 2.0 1991-07-18 22:43:01 corbet Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -20,6 +20,7 @@ static char *rcsid = "$Id: Appl.c,v 1.8 1991-06-14 22:17:36 corbet Exp $";
 	static void ds_DispatchNotify (struct dsp_Notify *);
 	int ds_DSMessage (struct message *);
 	static void dfa_FixBoundary (DataObject *);
+	static int ds_AttrCheck (int, char *);
 # else
 	static void ds_InitPFTable ();
 	static void ds_AllocMemory ();
@@ -27,6 +28,7 @@ static char *rcsid = "$Id: Appl.c,v 1.8 1991-06-14 22:17:36 corbet Exp $";
 	static void ds_DispatchNotify ();
 	int ds_DSMessage ();
 	static void dfa_FixBoundary ();
+	static int ds_AttrCheck ();
 # endif
 
 
@@ -177,6 +179,70 @@ int max;
 
 
 int
+ds_GetObsTimes (pid, when, times, ntime, attr)
+PlatformId pid;
+time *when, *times;
+int ntime;
+char *attr;
+/*
+ * Return the times for which observations are available.  Optionally
+ * test against attributes.
+ */
+{
+	int df, i;
+/*
+ * Find the first datafile which works.
+ */
+	if ((df = ds_FindDF (pid, when)) < 0)
+		return (0);
+/*
+ * Now return some times.
+ */
+	for (i = 0; i < ntime && df; )
+	{
+		if (! attr || ds_AttrCheck (df, attr))
+		{
+			*times++ = DFTable[df].df_begin;
+			i++;
+		}
+		df = DFTable[df].df_FLink;
+	}
+	return (i);
+}
+
+
+
+
+static int
+ds_AttrCheck (df, attr)
+int df;
+char *attr;
+/*
+ * See if this attribute is found in the data.
+ */
+{
+	char *dattr, *pattr[50], copy[200];
+	int len, i;
+/*
+ * If no data attrs, assume yes.
+ */
+	if (! (dattr = dfa_GetAttr (df, &DFTable[df].df_begin, &len)))
+		return (TRUE);
+/*
+ * Parse up the attributes and see if any match.
+ */
+	strcpy (copy, dattr);
+	len = CommaParse (copy, pattr);
+	for (i = 0; i < len; i++)
+		if (! strcmp (pattr[i], attr))
+			return (TRUE);
+	return (FALSE);
+}
+
+
+
+
+int
 ds_GetFields (plat, t, nfld, flist)
 PlatformId plat;
 time *t;
@@ -236,6 +302,7 @@ float sel, badflag;
 	dobj->do_loc.l_alt = sel;	/* XXX */
 	dobj->do_badval = badflag;
 	dobj->do_npoint = 0;
+	dobj->do_attr = 0;
 /*
  * Move the field names over too.
  */
@@ -247,7 +314,7 @@ float sel, badflag;
  */
 	if (! (get = dgl_MakeGetList (dobj)))
 	{
-		msg_ELog (EF_INFO, "GetList get failure");
+		msg_ELog (EF_DEBUG, "GetList get failure");
 		ds_FreeDataObject (dobj);	/* Complete failure	*/
 		return (NULL);
 	}
@@ -279,8 +346,10 @@ float sel, badflag;
  * of things.  Then return the data object.
  */
 	dgl_ReturnList (get);
+# ifdef notdef
 	if (dobj->do_org == OrgOutline)
 		dfa_FixBoundary (dobj);
+# endif
 	return (dobj);
 }
 
@@ -288,6 +357,7 @@ float sel, badflag;
 
 
 
+# ifdef notdef
 
 static void
 dfa_FixBoundary (dobj)
@@ -334,6 +404,9 @@ DataObject *dobj;
 }
 				
 
+# endif
+
+
 
 void
 ds_FreeDataObject (dobj)
@@ -369,6 +442,11 @@ DataObject *dobj;
 	if (dobj->do_flags & DOF_FREETIME)
 		free (dobj->do_times);
 /*
+ * Attributes.
+ */
+	if (dobj->do_flags & DOF_FREEATTR)
+		free (dobj->do_attr);
+/*
  * Some organizations have additional stuff to get rid of.
  */
 	switch (dobj->do_org)
@@ -380,7 +458,7 @@ DataObject *dobj;
 		break;
 
 	   case OrgOutline:
-		free (dobj->do_desc.d_length);
+		free (dobj->do_desc.d_bnd);
 		break;
 
 	   case OrgImage:
@@ -509,6 +587,10 @@ GetList *get;
 		rip->ri_scale = (ScaleInfo *) malloc (dobj->do_nfield *
 						sizeof (ScaleInfo));
 		break;
+	   case OrgOutline:
+	   	dobj->do_desc.d_bnd = (BndDesc *)
+				malloc (nsample*sizeof (BndDesc));
+		break;
 	}
 }
 
@@ -563,6 +645,13 @@ time *when;
 	for (; ret; ret = DFTable[ret].df_FLink)
 		if (DLE (DFTable[ret].df_begin, *when))
 			return (ret);
+/*
+ * If we didn't find the data locally, see if there's anything in
+ * the remote data table.
+ */
+	for (ret = REMOTEDATA (PTable[pid]); ret; ret = DFTable[ret].df_FLink)
+		if (DLE (DFTable[ret].df_begin, *when))
+			return (ret);
 	return (-1);
 }
 
@@ -594,10 +683,8 @@ TimeSpec which;
 		 * Scan down the datafile list until we find the first
 		 * entry which begins before the given time.
 		 */
-		for (index = LOCALDATA (PTable[platform]); index; 
-				index = DFTable[index].df_FLink)
-			if (DLE (DFTable[index].df_begin, *when))
-				break;
+		if ((index = ds_FindDF (platform, when)) < 0)
+			return (0);
 		/*
 		 * Now we plow through datafile entries until we have
 		 * all we want.
@@ -624,6 +711,17 @@ TimeSpec which;
 				break;
 			last = index;
 		}
+	   /*
+	    * Check the remote table too if need be.
+	    */
+		if (! index)
+			for (index = REMOTEDATA (PTable[platform]); index; 
+					index = DFTable[index].df_FLink)
+			{
+				if (DLE (DFTable[index].df_end, *when))
+					break;
+				last = index;
+			}
 		/*
 		 * If we are still pointing at an entry, move back forward
 		 * one.  Else start with the last entry in the list.
