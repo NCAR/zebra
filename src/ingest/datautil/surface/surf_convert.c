@@ -1,7 +1,7 @@
 /*
  * Convert a composite surface data file to Zeb data store files. 
  */
-static char *rcsid = "$Id: surf_convert.c,v 1.4 1993-08-10 20:09:58 burghart Exp $";
+static char *rcsid = "$Id: surf_convert.c,v 1.5 1994-11-17 03:42:20 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -128,7 +128,7 @@ char	**argv;
 /*
  * Hook into the Zeb world.
  */
-	fixdir ("DSI_LOAD_FILE", LIBDIR, "surf_convert.lf", loadfile);
+	fixdir ("DSI_LOAD_FILE", GetLibDir (), "surf_convert.lf", loadfile);
 	if (argc > 3)
 	{
 		ui_init (loadfile, FALSE, TRUE);

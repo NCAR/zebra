@@ -24,7 +24,7 @@
 # include <message.h>
 # include <DataStore.h>
 
-MAKE_RCSID ("$Id: dscopy.c,v 1.6 1994-10-11 16:24:10 corbet Exp $")
+MAKE_RCSID ("$Id: dscopy.c,v 1.7 1994-11-17 03:42:16 granger Exp $")
 
 
 # define MAX_TIMES 10000
@@ -75,7 +75,7 @@ char **argv;
 /*
  * Hook into the user interface.
  */
-	fixdir_t ("DSCOPY_LF_DIR", LIBDIR, "dscopy.lf", loadfile, ".lf");
+	fixdir_t ("DSCOPY_LF_DIR", GetLibDir(), "dscopy.lf", loadfile, ".lf");
 	if (argc > 1)
 	{
 		ui_init (loadfile, FALSE, TRUE);

@@ -23,14 +23,14 @@
 # include <ui_symbol.h>
 # include "defs.h"
 
-MAKE_RCSID("$Id: ConfigVars.c,v 1.6 1994-05-24 02:37:38 granger Exp $")
+MAKE_RCSID("$Id: ConfigVars.c,v 1.7 1994-11-17 03:42:38 granger Exp $")
 
 /*
  * Keep the directories around for queries.
  */
-# define DIRLENGTH 80
+# define DIRLENGTH 128
 static char Basedir[DIRLENGTH], Bindir[DIRLENGTH], Libdir[DIRLENGTH];
-static char Projdir[DIRLENGTH];
+static char Projdir[DIRLENGTH], Datadir[DIRLENGTH];
 
 
 
@@ -44,6 +44,7 @@ InitDirVariables ()
 	static int done = FALSE;
 	char *getenv ();
 	char *envbase;
+	char *envp;
 
 	if (done)
 		return;
@@ -66,6 +67,13 @@ InitDirVariables ()
 		sprintf (Bindir, "%s/bin", envbase);
 		sprintf (Libdir, "%s/lib", envbase);
 	}
+/*
+ * Use DATA_DIR from the environment, else use the default
+ */
+	if ((envp = getenv ("DATA_DIR")) != NULL)
+		strcpy (Datadir, envp);
+	else
+		strcpy (Datadir, DATADIR);
 /*
  * Try to figure out a project directory.  If they haven't given anything
  * explicit, just take the current directory and hope for the best.  If
@@ -119,8 +127,7 @@ SetupConfigVariables ()
 /*
  * Data dir is separate.  RDSS doesn't change, I don't think.
  */
- 	if ((v.us_v_ptr = getenv ("DATA_DIR")) == 0)
-		v.us_v_ptr = DATADIR;
+	v.us_v_ptr = Datadir;
 	usy_s_symbol (vtable, "c$datadir", SYMT_STRING, &v);
 	v.us_v_ptr = RDSSDIR;
 	usy_s_symbol (vtable, "c$rdssdir", SYMT_STRING, &v);
@@ -165,3 +172,12 @@ GetProjDir ()
 	InitDirVariables ();
 	return (Projdir);
 }
+
+
+char *
+GetDataDir ()
+{
+	InitDirVariables ();
+	return (Datadir);
+}
+

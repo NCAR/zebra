@@ -37,7 +37,7 @@
 # include <DataChunk.h>
 # include <ingest.h>
 
-MAKE_RCSID("$Id: nwsascii.c,v 1.1 1994-04-15 20:24:58 granger Exp $")
+MAKE_RCSID("$Id: nwsascii.c,v 1.2 1994-11-17 03:42:26 granger Exp $")
 
 # include "sc_cmds.h"
 # include "netcdf.h"
@@ -153,7 +153,7 @@ char	**argv;
  */
 	usy_init ();
 	F_Init ();
-	fixdir ("DSI_LOAD_FILE", LIBDIR, LOADFILE, loadfile);
+	fixdir ("DSI_LOAD_FILE", GetLibDir(), LOADFILE, loadfile);
 	if (argc > 3)
 	{
 		ui_init (loadfile, FALSE, TRUE);

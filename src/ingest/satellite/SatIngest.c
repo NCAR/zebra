@@ -32,7 +32,7 @@
 # include <DataStore.h>
 # include <DataChunk.h>
 
-MAKE_RCSID("$Id: SatIngest.c,v 1.10 1994-06-29 21:29:57 case Exp $")
+MAKE_RCSID("$Id: SatIngest.c,v 1.11 1994-11-17 03:42:36 granger Exp $")
 
 # include "keywords.h"
 
@@ -146,7 +146,7 @@ char **argv;
 /*
  * UI stuff
  */
-	fixdir ("SI_LOAD_FILE", LIBDIR, "SatIngest.lf", loadfile);
+	fixdir ("SI_LOAD_FILE", GetLibDir(), "SatIngest.lf", loadfile);
 
 	if (argc > 1)
 	{
@@ -732,7 +732,7 @@ int	fentry;
   		if (! ((j+1) % 20))
  			msg_ELog (EF_DEBUG, "%s: line %d of %d, lat %.2f", 
  				Infile[fentry].name, j + 1, GridY, lat);
-		while (j % 25 == 0 && msg_poll() != MSG_TIMEOUT);
+		while (j % 25 == 0 && msg_poll(0) != MSG_TIMEOUT);
   
 		lat = Maxlat - j * Latstep;
 

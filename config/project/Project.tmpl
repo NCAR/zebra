@@ -1,6 +1,6 @@
 /**/#-------------------------------------------------------------------------
 /**/# Zeb project build parameters
-/**/# $Id: Project.tmpl,v 1.23 1994-05-21 05:14:38 granger Exp $
+/**/# $Id: Project.tmpl,v 1.24 1994-11-17 03:42:07 granger Exp $
 /**/#-------------------------------------------------------------------------
 
 /*****************************************************************************
@@ -269,6 +269,22 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #endif
 
+#ifndef UseInstalledZeb
+#   define UseInstalledZeb	YES
+#endif
+
+#if ! UseInstalledZeb
+#ifndef ZebLibrary
+#    define ZebLibrary	 	$(TOP)/src/lib/libZeb.a
+#endif
+#ifndef ZebDSLibrary
+#    define ZebDSLibrary	$(TOP)/src/ds/libZebDS.a
+#endif
+#ifndef MCIDASLibrary
+#    define MCIDASLibrary	$(TOP)/src/ingest/mcidas/libmcidas.a
+#endif
+#endif
+
 #ifndef ZebLibrary
 #define ZebLibrary LoaderLibPrefix $(LIBDIR)/libZeb.a
 #endif
@@ -533,6 +549,22 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
  */
     EXTRA_DEFINES = /* nothing */
        SHMDEFINES = ShmDefines
+
+/* 
+ * Default directory paths specified in config.h.  Programs which need
+ * these symbols defined in their source should add $(DIRDEFINES) to the
+ * DEFINES variable in their Imakefile.  Only the Zeb library should need
+ * this; all other programs should use the ConfigVars routines from the
+ * library.
+ */
+       DEFBASEDIR = BaseDir
+        DEFBINDIR = BinDir
+        DEFLIBDIR = LibDir
+       DEFDATADIR = DataDir
+       DEFRDSSDIR = RDSSDir
+       DIRDEFINES = '-DBASEDIR="$(DEFBASEDIR)"' '-DBINDIR="$(DEFBINDIR)"' \
+                    '-DLIBDIR="$(DEFLIBDIR)"' '-DDATADIR="$(DEFDATADIR)"' \
+                    '-DRDSSDIR="$(DEFRDSSDIR)"'
 
 /*
  * Library directories

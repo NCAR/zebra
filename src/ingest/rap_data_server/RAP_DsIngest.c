@@ -1,7 +1,7 @@
 /*
  * Generic data ingest from RAP's data servers.
  */
-static char *rcsid = "$Id: RAP_DsIngest.c,v 1.3 1993-07-08 22:46:32 burghart Exp $";
+static char *rcsid = "$Id: RAP_DsIngest.c,v 1.4 1994-11-17 03:42:33 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -114,7 +114,7 @@ char	**argv;
 /*
  * Hook into the Zeb world.
  */
-	fixdir ("DSI_LOAD_FILE", LIBDIR, "RAP_DsIngest.lf", loadfile);
+	fixdir ("DSI_LOAD_FILE", GetLibDir(), "RAP_DsIngest.lf", loadfile);
 	if (argc > 2)
 	{
 		ui_init (loadfile, FALSE, TRUE);

@@ -36,14 +36,13 @@
 # define _zeb_config_h_
 
 # ifdef MAKING_MAKEFILE
-# define UNQUOTED_DIRDEFS
 # ifndef XCOMM
 # define XCOMM #
 # endif
 XCOMM -----------------------------------------------------------------------
 XCOMM Definitions from config.h included here.  The definitions here override
 XCOMM the defaults in Project.tmpl.  See ...../zeb/config/config.h.
-XCOMM $Id: config.h.dist,v 1.15 1994-06-29 20:35:56 case Exp $
+XCOMM $Id: config.h.dist,v 1.16 1994-11-17 03:42:09 granger Exp $
 XCOMM -----------------------------------------------------------------------
 # endif
 
@@ -58,34 +57,25 @@ XCOMM -----------------------------------------------------------------------
 /*=======================================================================*/
 
 
+# ifdef MAKING_MAKEFILE
 /*=======================================================================
  * CHECK THE FOLLOWING DEFINITIONS:
- *
- * This section defines the directories in which ZEB files live.  These,
- * alas, need to be defined twice, once in quotes for inclusion in program
- * source files, and once without for inclusion in Makefiles.  Someday when
- * we all have ANSI compilers that can be avoided, but we are not there
- * yet.  These are set-up for the default Zeb installation, in which Zeb
- * resides under /zeb, and the bin and lib directories are /zeb/bin and
- * /zeb/lib.  If you would like to change the destination for Zeb, edit the
- * definitions below.  But be sure to change the lines for both the quoted
- * and un-quoted definitions.
+ * 
+ * This section defines the directories in which ZEB files live.  These are
+ * set-up for a default Zeb installation under /zeb, with the bin and lib
+ * directories in /zeb/bin and /zeb/lib.  If you would like to change the
+ * destination for Zeb, edit the definitions below.  The definitions should
+ * be absolute paths and they should NOT be enclosed in quotes.
  * 
  * PLEASE NOTE:
- * Files will be installed into LibDir, BinDir, and BaseDir/include
+ * Files will be installed into the LibDir, BinDir, and BaseDir/include
  * directories.  If you wish to preserve files already stored in these
  * directories, either move the directories BEFORE building Zeb or specify
  * different directory paths for the symbols below.  If you wish to
  * overwrite a previous version of Zeb, you might as well completely erase
  * the contents of BinDir so that programs which are no longer used are not
  * left taking up space.
- *
- * REMEMBER, whenever changing any of these symbols, to also change the
- * corresponding quoted/un-quoted symbol definition.  The quoted and
- * unquoted definitions should contain the same directory path!
- *
  */
-# ifdef UNQUOTED_DIRDEFS 	/* use unquoted definitions for Makefiles */
 
 # define BaseDir	/zeb
 # define BinDir		BaseDir/bin
@@ -93,15 +83,15 @@ XCOMM -----------------------------------------------------------------------
 # define DataDir	/zeb/data
 # define RDSSDir	/rdss
 
-# else 		/* use the quoted versions for inclusion in source files */
+/*
+ * If the UseInstalledZeb symbol is YES, Zeb executables will link with
+ * the installed libraries instead of the libraries built in the source 
+ * directories.  Sometimes it is more convenient to link with the source.
+ * If you don't understand or don't care about the difference, leave this
+ * as YES.
+ */
+# define UseInstalledZeb	YES
 
-# define BASEDIR	"/zeb"
-# define BINDIR		"/zeb/bin"
-# define LIBDIR		"/zeb/lib"
-# define DATADIR	"/zeb/data"
-# define RDSSDIR	"/rdss"
-
-# endif /* UNQUOTED_DIRDEFS */
 /*=======================================================================*/
 
 /* =========================================================================
@@ -112,7 +102,6 @@ XCOMM -----------------------------------------------------------------------
  * 	NO  --- The capability WILL NOT be included into the system.
  *
    ------------------------------------------------------------------------ */
-
 
 /* 
  * Do you want to build any of Zeb's ingest modules?  Only recommended for
@@ -206,7 +195,6 @@ XCOMM -----------------------------------------------------------------------
  * symbol to the appropriate version number
  *
  */
-# ifdef MAKING_MAKEFILE
 
 /*
  * Using Open Windows?  Define UseOpenWindows to YES, and be sure to 
@@ -244,7 +232,7 @@ XCOMM -----------------------------------------------------------------------
  *	 special version at jaguar.cs.utah.edu.
  *
  *  SGI: At the time of this writing, the gcc compiler and IRIX 5.x
- *       systems did not support debugging and had other unresolved loader
+ *       systems do not support debugging and have other unresolved loader
  *       problems.  If you're compiling on the SGI, use the SGI cc compiler
  *	 and set UseGcc to NO 
  */
@@ -622,6 +610,9 @@ XCOMM -----------------------------------------------------------------------
  *------------------------------------------------------------------------*/
 #ifdef ARM_PROJECT
 
+#define CFG_DC_MAXFIELD 150	/* Maximum allowable fields in one datachunk */
+#define CFG_DC_MF_HASH_SIZE 256	/* Least power of 2 > (not =) CFG_DC_MAXFIELD*/
+
 #define CFG_DATAFILE_LEN	50
 #define CFG_PLATNAME_LEN	100
 
@@ -637,7 +628,14 @@ XCOMM -----------------------------------------------------------------------
  */
 #define CFG_NO_BADVALUES
 
-#define CFG_ALTITUDE_UNITS	"meters above Mean Sea Level"
+/* 
+ * The default altitude units for datachunks and for netCDF files whose alt
+ * field does not have a units attribute (or has a blank one).  If the
+ * altitude units of a datachunk are not explicitly overridden, this will
+ * be the units which are stored in the "units" attribute of the "alt"
+ * field in netCDF files.
+ */
+#define CFG_ALTITUDE_UNITS	AU_mMSL
 
 #define DistributeIngest 	NO
 #define DistributeOptimizer 	NO
@@ -779,7 +777,7 @@ XCOMM -----------------------------------------------------------------------
  * Other parameters
  */
 #ifndef CFG_ALTITUDE_UNITS
-#define CFG_ALTITUDE_UNITS 	"km"	/* Default units for "alt" field */
+#define CFG_ALTITUDE_UNITS 	AU_kmMSL /* Default units for "alt" field */
 #endif
 /*------------------------------------------------------------------------*/
 

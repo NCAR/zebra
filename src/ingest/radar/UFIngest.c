@@ -130,7 +130,7 @@ char **argv;
 	sprintf (ourname, "UFIngest_%x", getpid ());
 	msg_connect (MHandler, ourname);
 	msg_DeathHandler (die);
-	fixdir ("RI_LOAD_FILE", LIBDIR, "UFIngest.lf", loadfile);
+	fixdir ("RI_LOAD_FILE", GetLibDir(), "UFIngest.lf", loadfile);
 	if (argc > 1)
 	{
 		ui_init (loadfile, FALSE, TRUE);

@@ -22,7 +22,7 @@
 
 /* rewrite for adrad data input by Dan Austin 8/93	*/
 
-static char *rcsid = "$Id: adrad_ingest.c,v 2.5 1994-06-01 17:01:55 burghart Exp $";
+static char *rcsid = "$Id: adrad_ingest.c,v 2.6 1994-11-17 03:42:30 granger Exp $";
 
 /* clean up includes later	*/
 # include <copyright.h>
@@ -155,7 +155,7 @@ char **argv;
 	sprintf (ourname, "Adrad_%x", getpid ());
 	msg_connect (MHandler, ourname);
 	msg_DeathHandler (die);
-	fixdir ("RI_LOAD_FILE", LIBDIR, "adrad_ingest.lf", loadfile);
+	fixdir ("RI_LOAD_FILE", GetLibDir(), "adrad_ingest.lf", loadfile);
 	if (argc > 1)
 	{
 		ui_init (loadfile, FALSE, TRUE);

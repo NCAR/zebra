@@ -65,7 +65,7 @@ main( argc, argv )
  * Hook in.
  */
 	msg_connect (Die, "dap_ingest");
-	fixdir ("DAPLOADFILE", LIBDIR, "dap_ingest.lf", loadfile);
+	fixdir ("DAPLOADFILE", GetLibDir(), "dap_ingest.lf", loadfile);
 	if (argc > 4)
 	{
 		ui_init (loadfile, FALSE, TRUE);

@@ -32,7 +32,7 @@
 # include <DataStore.h>
 # include <DataChunk.h>
 
-MAKE_RCSID("$Id: GMSIngest.c,v 1.3 1994-06-29 21:28:38 case Exp $")
+MAKE_RCSID("$Id: GMSIngest.c,v 1.4 1994-11-17 03:42:35 granger Exp $")
 
 # include "keywords.h"
 
@@ -174,7 +174,7 @@ char **argv;
 /*
  * UI stuff
  */
-	fixdir ("SI_LOAD_FILE", LIBDIR, "SatIngest.lf", loadfile);
+	fixdir ("SI_LOAD_FILE", GetLibDir(), "SatIngest.lf", loadfile);
 
 	if (argc > 1)
 	{

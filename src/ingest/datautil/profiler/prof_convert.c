@@ -1,7 +1,7 @@
 /*
  * Convert a composite profiler data file to Zeb data store files. 
  */
-static char *rcsid = "$Id: prof_convert.c,v 1.3 1993-03-24 22:50:07 corbet Exp $";
+static char *rcsid = "$Id: prof_convert.c,v 1.4 1994-11-17 03:42:18 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -104,7 +104,7 @@ char	**argv;
 /*
  * Hook into the Zeb world.
  */
-	fixdir ("DSI_LOAD_FILE", LIBDIR, "prof_convert.lf", loadfile);
+	fixdir ("DSI_LOAD_FILE", GetLibDir (), "prof_convert.lf", loadfile);
 	if (argc > 2)
 	{
 		ui_init (loadfile, FALSE, TRUE);

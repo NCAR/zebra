@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: radar_ingest.c,v 2.10 1994-10-26 00:36:17 granger Exp $";
+static char *rcsid = "$Id: radar_ingest.c,v 2.11 1994-11-17 03:42:31 granger Exp $";
 
 # include <copyright.h>
 # include <errno.h>
@@ -156,7 +156,7 @@ char **argv;
  */
 	msg_connect (MHandler, "Radar Ingest");
 	msg_DeathHandler (die);
-	fixdir ("RI_LOAD_FILE", LIBDIR, "radar_ingest.lf", loadfile);
+	fixdir ("RI_LOAD_FILE", GetLibDir(), "radar_ingest.lf", loadfile);
 	if (argc > 1)
 	{
 		ui_init (loadfile, FALSE, TRUE);

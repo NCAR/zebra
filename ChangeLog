@@ -1,3 +1,11 @@
+
+Thu Nov  3 13:54:30 1994  Gary Granger  <granger@steam.atd.ucar.edu>
+
+	* library: define default directories on compile command line,
+	  eliminating the quoted versions from config.h, and forcing all
+	  programs which still used the cpp defs to use the ConfigVars
+	  functions; added GetDataDir() to ConfigVars.c
+
 Fri Sep 16 11:03:23 1994  Jonathan Corbet  <corbet@ale>
 
 	* InsertWidget.c Don't mangle the time after inserting boundaries.

@@ -1,7 +1,7 @@
 /*
  * Send sound files to the audio port.
  */
-static char *rcsid = "$Id: Sound.c,v 2.2 1991-12-05 17:35:47 corbet Exp $";
+static char *rcsid = "$Id: Sound.c,v 2.3 1994-11-17 03:42:13 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -114,7 +114,7 @@ char *file;
 /*
  * Open up the file.
  */
-	sprintf (fname, "%s/audio/%s.au", LIBDIR, file);
+	sprintf (fname, "%s/audio/%s.au", GetLibDir (), file);
 	if ((fd = open (fname, O_RDONLY, 0)) < 0)
 	{
 		msg_ELog (EF_INFO, "Error %d opening sound file '%s'", errno,
