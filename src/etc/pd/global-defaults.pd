@@ -1,4 +1,4 @@
-! $Id: global-defaults.pd,v 1.3 2000-11-13 23:50:49 granger Exp $
+! $Id: global-defaults.pd,v 1.4 2000-11-21 23:13:37 granger Exp $
 !
 ! This file contains default values for some plot description parameters.
 ! By default, this pd is loaded from the libray pd directory.  To use it,
@@ -43,6 +43,12 @@ defaults
 !	goes-icon-age-limit:	120m
 !
 	icon-age-limit:		15m
+!
+! So that null components (like xygraph grids) do not indicate old thanks
+! to the default icon-age-limit above for all other platforms.
+!
+	null-age-limit:		0
+	null-icon-age-limit:	0
 !
 ! Will you be using tracks of mobile platforms?  If so, it can be useful
 ! to assign a special color to each one.
@@ -157,6 +163,12 @@ defaults
 ! Default to matched top annotation colors where allowed.
 !
 	ta-color-match:			true
+!
+! Activate the time label in all windows and require the active-time module.
+!
+	time-annot-active:	true
+	time-topannot-left-menu:	global-time-left-menu
+	require:		active-time
 !
 ! Post processing mode parameters.
 !
