@@ -23,6 +23,7 @@
 # include <ui.h>
 # include <config.h>
 # include <defs.h>
+# include <GraphicsW.h>
 # include <message.h>
 # include <pd.h>
 # include <DataStore.h>
@@ -34,7 +35,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 # include "LayoutControl.h"
-MAKE_RCSID ("$Id: PlotExec.c,v 2.42 1994-11-29 17:58:19 granger Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.43 1995-04-17 22:15:08 granger Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -356,6 +357,7 @@ ZebTime *cachetime;
 	int i, showsteps = FALSE;
 	Pixel timecolor;
 	UItime temptime;
+	int active;
 /*
  * Choose the drawing frame and clear it out
  */
@@ -415,8 +417,6 @@ ZebTime *cachetime;
 		sprintf (datestring + strlen (datestring), " (%s)", 
 			 px_ModelTimeLabel ());
 
-	strcat (datestring, "  ");
-
 	if (PlotMode == History)
 	{
 	/*
@@ -445,7 +445,16 @@ ZebTime *cachetime;
 	else
 		timecolor = Tadefclr.pixel;
 
+	active = FALSE;
+	pda_Search (Pd, "global", "time-annot-active", NULL,
+		    (char *) &active, SYMT_BOOL);
+	An_DoTopAnnot (datestring, timecolor, active ? "global" : 0,
+		       active ? "time" : 0);
+	An_TopAnnot ("  ", timecolor);
+
+#ifdef notdef
 	An_TopAnnot (datestring, timecolor);
+#endif
 /*
  * If there is an initialization routine, call it now.
  */
@@ -491,7 +500,7 @@ ZebTime *cachetime;
 static bool
 px_GetCoords ()
 {
-	bool ok, expand, cvt_Origin ();
+	bool ok, expand;
 	float lat, lon;
 	int axisSpace;
 	AxisSide side;
@@ -577,7 +586,7 @@ ZebTime	*t;
  */
 	if (! pda_Search (Pd, "global", "trigger", 0, trigger, SYMT_STRING))
 		return;
-	if (itrigger = pc_TimeTrigger (trigger))
+	if ((itrigger = pc_TimeTrigger (trigger)))
 	{
 		seconds = (temptime.ds_hhmmss / 10000) * 3600 +
 			  ((temptime.ds_hhmmss / 100) % 100) * 60 +
@@ -881,7 +890,7 @@ char *fld;
 
 
 
-
+void
 px_SetEOPHandler (handler)
 void (*handler) ();
 /*
@@ -896,6 +905,7 @@ void (*handler) ();
 
 
 
+void
 px_ClearEOPHandler ()
 {
 	EOPHandler = 0;
@@ -922,7 +932,8 @@ px_ModelTimeLabel ()
 	/*
 	 * We need minutes and seconds in the forecast time
 	 */
-		sprintf (label, "%d:%02d:%02d forecast", ForecastOffset / 3600,
+		sprintf (label, "%li:%02li:%02li forecast", 
+			 ForecastOffset / 3600,
 			 (ForecastOffset / 60) % 60, ForecastOffset % 60);
 	}
 	else
@@ -930,7 +941,7 @@ px_ModelTimeLabel ()
 	/*
 	 * Just need hours
 	 */
-		sprintf (label, "%d h forecast", ForecastOffset / 3600);
+		sprintf (label, "%li h forecast", ForecastOffset / 3600);
 	}
 /*
  * Valid time
