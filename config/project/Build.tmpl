@@ -9,7 +9,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project auto-build parameters for development compilations
-XCOMM $Id: Build.tmpl,v 1.23 1996-08-22 20:18:44 granger Exp $
+XCOMM $Id: Build.tmpl,v 1.24 1996-12-06 21:28:27 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -115,6 +115,13 @@ XCOMM --- Auto-binary distribution
 #  define IncDir BaseDir/include
 # endif
 #endif
+
+/*
+ * Default to NO data utilities for all architectures, Sun included.
+ */
+# ifndef BuildDataUtilities
+#  define	BuildDataUtilities	NO
+# endif
 
 #if defined(SunArchitecture)
 
