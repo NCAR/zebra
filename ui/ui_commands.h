@@ -1,4 +1,4 @@
-/* $Header: /code/cvs/rdss/rdsslibs/ui/ui_commands.h,v 1.1 1989-02-08 13:28:13 corbet Exp $ */
+/* $Id: ui_commands.h,v 1.2 1989-09-25 17:01:20 corbet Exp $ */
 /*
  * This file defines all of the command keyword numbers.  It absolutely MUST
  * match the numbers given in the state transition information, or things
@@ -83,6 +83,20 @@
 # define UIC_PUSH	-62
 # define UIC_DELETE	-63
 # define UIC_EXPRESSION -64
+
+/*
+ * Window system stuff.
+ */
+# define UIC_WIDGET	-65
+# define UIC_LIST	-66
+# define UIC_ITEMS	-67
+# define UIC_POPUP	-68
+# define UIC_POPDOWN	-69
+# define UIC_ENTRY	-70
+# define UIC_SELECTOR	-71
+# define UIC_MAPPING	-72
+# define UIC_ENDMAPPING -73
+# define UIC_HORIZONTAL	-74
 /*
  * Control structure commands have their own range.  The UI dispatcher is
  * counting on this, so don't change things.
