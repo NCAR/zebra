@@ -5,6 +5,7 @@
 SRCS = NetXfr.c nx_BCast.c nx_DirImage.c nx_PktGrabber.c
 OBJS = NetXfr.o nx_BCast.o nx_DirImage.o nx_PktGrabber.o
 
+INCLUDES = $(RDSSINCLUDES)
 HEADERS = NetXfr.h
 
 LIBS = $(DFALIBS) $(ZLIBS) $(XLIBS)

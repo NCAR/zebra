@@ -2,6 +2,7 @@
 SRCS = Archiver.c
 OBJS = Archiver.o
 
+INCLUDES = $(XINCLUDES)
 LIBS = $(DSLIBS) $(ZLIBS) $(XLIBS)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 DISTFILES = $(SRCS) Imakefile Archiver.ad

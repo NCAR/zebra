@@ -2,7 +2,8 @@
 SRCS = zmon.c
 OBJS = zmon.o
 
-LIBS = $(LIBZEB) $(LIBRDSS) $(XLIBS)
+INCLUDES = $(XINCLUDES)
+LIBS = $(LIBZEB) $(XLIBS)
 SYSLIBS = $(LIBMATH)
 
 DISTFILES = Imakefile $(SRCS)

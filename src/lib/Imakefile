@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-/* $Id: Imakefile,v 1.18 1996-06-21 16:24:29 granger Exp $ */
+/* $Id: Imakefile,v 1.19 1996-11-19 07:01:02 granger Exp $ */
 
 #if !HasWritev
 WRITEVOBJ=writev.o
@@ -32,39 +32,53 @@ WRITEVSRC=
  * Graphics widget needs to know whether to try shared memory, and the
  * ConfigVars routines need to the various default directory paths.
  */
-DEPEND_DEFINES = $(SHMDEFINES) $(DIRDEFINES)
+DEPEND_DEFINES = $(SHMDEFINES) $(DIRDEFINES) $(XINCLUDES) $(RDSSINCLUDES)
 
 TESTSRCS = cvt_test.c re_test.c msg_test.c
 
 SRCS = alarmwidget.c altunits.c barb.c Bitmaps.c cmd_proto.c cmd_exec.c \
-	ConfigVars.c convert.c GraphicsW.c ImageXfr.c Buttons.c \
+	ConfigVars.c ConfigUI.c convert.c GraphicsW.c ImageXfr.c Buttons.c \
 	msg_BCast.c msg_lib.c netread.c Parse.c pdlib.c pdretrv.c pdaux.c \
 	RLEncode.c Sound_lib.c TCvt.c TInterp.c timer_lib.c twidget.c \
 	vector.c $(WRITEVSRC) FindFile.c zl_regex.c dm_lib.c $(TESTSRCS) \
-	location.c
+	location.c version.c zl_symbol.c zl_string.c T_Expect.c T_Profile.c
 
-OBJS = alarmwidget.o altunits.o barb.o Bitmaps.o cmd_proto.o cmd_exec.o \
-	ConfigVars.o convert.o GraphicsW.o ImageXfr.o Buttons.o \
-	msg_BCast.o msg_lib.o netread.o Parse.o pdlib.o pdretrv.o pdaux.o \
-	RLEncode.o Sound_lib.o TCvt.o TInterp.o timer_lib.o twidget.o \
-	vector.o $(WRITEVOBJ) FindFile.o zl_regex.o dm_lib.o \
-	location.o
+XOBJS = Bitmaps.o barb.o vector.o Buttons.o
+XUIOBJS = alarmwidget.o twidget.o dm_lib.o 
+UIOBJS = pdlib.o pdretrv.o pdaux.o cmd_proto.o
+CFGOBJS = ConfigVars.o ConfigUI.o 
+
+SPECIAL_OBJS = $(XOBJS) $(XUIOBJS) $(UIOBJS) $(CFGOBJS)
+
+OBJS = $(SPECIAL_OBJS) altunits.o cmd_exec.o \
+	convert.o GraphicsW.o ImageXfr.o \
+	msg_BCast.o msg_lib.o netread.o Parse.o \
+	RLEncode.o Sound_lib.o TCvt.o TInterp.o timer_lib.o \
+	$(WRITEVOBJ) FindFile.o zl_regex.o \
+	location.o version.o zl_symbol.o zl_string.o T_Expect.o T_Profile.o
 
 TESTOBJS = cvt_test.o re_test.o msg_test.o
 
 HEADERS = bitmaps.h copyright.h defs.h GraphicsW.h GraphicsWP.h message.h \
 	pd.h timer.h ImageXfr.h zl_regex.h dm.h twidget.h byteorder.h \
-	draw.h
+	draw.h version.h zl_symbol.h zl_param.h Test.h
 
-DISTFILES = $(SRCS) writev.c $(HEADERS) Imakefile
+/*
+ * Private internal header files
+ */
+PRIVATE_HEADERS = setup.h
+
+DISTFILES = $(SRCS) writev.c $(HEADERS) Imakefile $(PRIVATE_HEADERS)
 
 NormalLibraryTarget (Zeb, $(OBJS))
 
-SpecialObjectRule(GraphicsW.o,/**/,$(SHMDEFINES))
-SpecialObjectRule(ConfigVars.o,/**/,$(DIRDEFINES))
+SpecialObjectRule($(XUIOBJS),/**/,$(XINCLUDES) $(RDSSINCLUDES))
+SpecialObjectRule($(XOBJS),/**/,$(XINCLUDES))
+SpecialObjectRule($(UIOBJS),/**/,$(RDSSINCLUDES))
+SpecialObjectRule($(CFGOBJS),/**/,$(DIRDEFINES) $(RDSSINCLUDES))
+SpecialObjectRule(GraphicsW.o,/**/,$(SHMDEFINES) $(XINCLUDES) $(RDSSINCLUDES))
 
 InstallLibrary (Zeb, $(LIBDIR))
-
 BuildIncludesTop ($(HEADERS))
 InstallMultipleFlags($(HEADERS),$(INCDIR),$(INSTINCFLAGS))
 

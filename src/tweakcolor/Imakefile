@@ -2,6 +2,7 @@
 SRCS = tweakcolor.c
 OBJS = tweakcolor.o
 
+INCLUDES = $(XINCLUDES)
 LIBS = $(XLIBS)
 DISTFILES = $(SRCS) Imakefile
 SYSLIBS = $(LIBMATH)
