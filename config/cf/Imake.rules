@@ -1237,7 +1237,7 @@ LintLibReferences(varname,libname,libsource)
 
 #ifndef ObjectCplusplusCompile
 #define ObjectCplusplusCompile(options) RemoveFile($@)			@@\
-	$(CXX) -c $(CXXFLAGS) options $*.CCsuf
+	$(CXX) -c $(CXXFLAGS) options $*.cc
 #endif
 
 /*
@@ -1349,8 +1349,8 @@ objs:	depends								@@\
 #endif /* SpecialObjectRule */
 
 #ifndef SpecialCplusplusObjectRule
-#define SpecialCplusplusObjectRule(baseobj,basedep,options)		@@\
-baseobj.Osuf:	basedep.CCsuf						@@\
+#define SpecialCplusplusObjectRule(objs,depends,options)		@@\
+objs:	depends								@@\
 	ObjectCplusplusCompile(options)
 #endif /* SpecialCplusplusObjectRule */
 
