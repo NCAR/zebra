@@ -4,9 +4,9 @@
  */
 #include "zl_regex.h"
 
-static char *rcsid = 
-   "$Id: re_test.c,v 2.1 1994-01-05 20:16:37 granger Exp $";
+RCSID ("$Id: re_test.c,v 2.2 1995-05-24 22:34:22 granger Exp $")
 
+int
 main()
 {
 	int errors = 0;
@@ -18,7 +18,7 @@ main()
 	 */
 	if (stat = zl_re_comp("[abc]"))
 	{
-		printf ("%s\n", stat);
+		printf ("regex error: %s\n", stat);
 		++errors;
 	}
 	else if (zl_re_exec("lkjjklkajji") != 1)
@@ -26,10 +26,23 @@ main()
 	else if (zl_re_exec("  fgh ") != 0)
 		++errors;
 
-	if (errors)
-		printf ("%d errors found!\n");
-	else
-		printf ("OK.\n");
+	if (stat = zl_re_comp("^.234.*5$"))
+	{
+		printf ("regex error: %s\n", stat);
+		++errors;
+	}
+	else if (zl_re_exec("12345") != 1)
+		++errors;
+	else if (zl_re_exec("x234xxxx5") != 1)
+		++errors;
+	else if (zl_re_exec(" ") != 0)
+		++errors;
+	else if (zl_re_exec("xx2345") != 0)
+		++errors;
+	else if (zl_re_exec("x2345yyy") != 0)
+		++errors;
+
+	return (errors);
 }
 
 		

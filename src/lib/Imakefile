@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-/* $Id: Imakefile,v 1.14 1995-05-01 16:06:47 corbet Exp $ */
+/* $Id: Imakefile,v 1.15 1995-05-24 22:34:20 granger Exp $ */
 
 #if !HasWritev
 WRITEVOBJ=writev.o
@@ -34,17 +34,21 @@ WRITEVSRC=
  */
 DEFINES = $(SHMDEFINES) $(DIRDEFINES)
 
+TESTSRCS = cvt_test.c re_test.c msg_test.c
+
 SRCS = alarmwidget.c altunits.c barb.c Bitmaps.c cmd_proto.c cmd_exec.c \
 	ConfigVars.c convert.c GraphicsW.c ImageXfr.c Buttons.c \
 	msg_BCast.c msg_lib.c netread.c Parse.c pdlib.c pdretrv.c pdaux.c \
 	RLEncode.c Sound_lib.c TCvt.c TInterp.c timer_lib.c twidget.c \
-	vector.c $(WRITEVSRC) FindFile.c zl_regex.c dm_lib.c
+	vector.c $(WRITEVSRC) FindFile.c zl_regex.c dm_lib.c $(TESTSRCS)
 
 OBJS = alarmwidget.o altunits.o barb.o Bitmaps.o cmd_proto.o cmd_exec.o \
 	ConfigVars.o convert.o GraphicsW.o ImageXfr.o Buttons.o \
 	msg_BCast.o msg_lib.o netread.o Parse.o pdlib.o pdretrv.o pdaux.o \
 	RLEncode.o Sound_lib.o TCvt.o TInterp.o timer_lib.o twidget.o \
 	vector.o $(WRITEVOBJ) FindFile.o zl_regex.o dm_lib.o
+
+TESTOBJS = cvt_test.o re_test.o msg_test.o
 
 HEADERS = bitmaps.h copyright.h defs.h GraphicsW.h GraphicsWP.h message.h \
 	pd.h timer.h ImageXfr.h zl_regex.h dm.h twidget.h byteorder.h
@@ -61,31 +65,17 @@ DependTarget()
 
 LintTarget()
 
-/*
- * Hard-coded targets for testing library objects
- */
-tconvert: tconvert.c convert.o $(DEPLIBS)
-	$(RM) $@
-	$(CC) -o $@ $(ALLDEFINES) tconvert.c convert.o $(LDOPTIONS) \
-	$(LIBZEB) $(LIBRDSS) $(XLIBS) $(LDLIBS) $(SYSLIBS) $(EXTRA_LOAD_FLAGS)
+MSGOBJS = msg_lib.o netread.o
+CVTOBJS = cvt_test.o convert.o
 
-clean::
-	$(RM) tconvert
+TestProgramTarget(cvt_test,$(CVTOBJS) $(MSGOBJS),/**/,/**/,$(LIBMATH))
 
-re_test: re_test.o zl_regex.o
-	$(RM) $@
-	$(CC) -o $@ $(ALLDEFINES) re_test.o zl_regex.o $(LDOPTIONS) \
-			$(LDLIBS) $(SYSLIBS) $(EXTRA_LOAD_FLAGS)
+TestProgramTarget(re_test, re_test.o zl_regex.o,/**/,/**/,$(LIBREGEXP))
 
-clean::
-	$(RM) re_test
+TestProgramTarget(msg_test, msg_test.o $(MSGOBJS),/**/,/**/,/**/)
 
-msg_test: msg_test.o msg_lib.o netread.o
-	$(RM) $@
-	$(CC) -o $@ $(ALLDEFINES) msg_test.o msg_lib.o netread.o \
-	   $(LDOPTIONS) $(LDLIBS) $(SYSLIBS) $(EXTRA_LOAD_FLAGS)
-
-clean::
-	$(RM) msg_test
+RunTestProgram(cvt_test,coordinate conversion,cvt_test)
+RunTestProgram(msg_test,error logging,msg_test > /dev/null 2>&1)
+RunTestProgram(re_test,regular expressions,re_test)
 
 DistfilesTarget($(DISTFILES))
