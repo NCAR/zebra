@@ -1,5 +1,5 @@
 XCOMM
-XCOMM $Id: Zeb.rules,v 1.4 1993-05-06 05:41:09 granger Exp $
+XCOMM $Id: Zeb.rules,v 1.5 1993-05-17 20:07:12 granger Exp $
 XCOMM
 XCOMM Rules specific to the Zeb project, including some which override
 XCOMM definitions in Imake.rules
@@ -170,7 +170,8 @@ clean::								@@\
  * The third parameter, depfiles, is the files which the loadfile
  * is dependent on, besides the uisrc.  
  *
- * $(CLAGS) is included in the CC -E cmd to get -I options to cpp
+ * $(ALLDEFINES) on the $(CPP) command line includes all of the
+ * -I and -D options.
  */
 #define UICppLoadFileTarget(loadfile,uisrc,depfiles)		@@\
 								@@\
@@ -180,7 +181,7 @@ InstallNonExec(loadfile,$(LIBDIR))				@@\
 								@@\
 loadfile: uisrc depfiles					@@\
 	$(RM) loadfile						@@\
-	$(CPP) $(ALLINCLUDES) $(ALLDEFINES) uisrc \		@@\
+	$(CPP) $(ALLDEFINES) uisrc \				@@\
 		| sed -e '/^#/d' > /tmp/uisrc.TMP; \ 		@@\
 	echo read /tmp/uisrc.TMP \; \				@@\
 	     set 'ui$$pager_mode' false \; \			@@\
