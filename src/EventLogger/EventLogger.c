@@ -42,7 +42,7 @@
 # include "config.h"
 # include "copyright.h"
 # ifndef lint
-MAKE_RCSID ("$Id: EventLogger.c,v 2.19 1993-09-13 23:38:44 granger Exp $")
+MAKE_RCSID ("$Id: EventLogger.c,v 2.20 1993-10-22 22:26:54 granger Exp $")
 # endif
 
 # define EL_NAME "EventLogger"
@@ -80,15 +80,22 @@ struct EMMap
 /*
  * Keep things from getting too big.
  */
-# define MAXCHAR	5000	/* This is too big	*/
-# define TRIMCHAR	3000	/* Trim back to this	*/
+# define MAXCHAR	6000	/* This is too big	*/
+# define TRIMCHAR	4000	/* Trim back to this	*/
+
+# define FORTUNE_CMD 	"fortune -s"
+# define FORTUNE_LEN 	512
+# define FORTUNE_WAIT	300	/* default seconds to be idle bet fortunes */
+static bool TellFortune = FALSE;
+static int FortuneWait = FORTUNE_WAIT;	/* secs idle time between fortunes */
 
 /*
  * Text info.
  */
 static int Buflen = 0;
-static char *Initmsg = "$Id: EventLogger.c,v 2.19 1993-09-13 23:38:44 granger Exp $\n\
-Copyright (C) 1991 UCAR, All rights reserved.\n";
+static char *Initmsg = 
+"$Id: EventLogger.c,v 2.20 1993-10-22 22:26:54 granger Exp $\nCopyright (C)\
+ 1991 UCAR, All rights reserved.\n";
 
 /*
  * Special info to enable debugging logging on selected clients only.
@@ -184,7 +191,9 @@ void	DeadProc FP ((char *));
 void	ToggleProc FP ((Widget, XtPointer, XtPointer));
 int	SendDbgMask FP ((char *, int, SValue *, long));
 int	PassDebug FP ((int,  char *));
-static void AppendToLog FP ((char *buf));
+int 	xevent (), msg_event ();
+static void sync ();
+static void CreateEventLogger FP ((void));
 static Widget MakeTimestampButton FP ((Widget left, int default_period));
 static void TimestampSetup FP ((int period));
 static void Timestamp FP ((ZebTime *t, void *param));
@@ -206,12 +215,16 @@ static char *FormatMessage FP ((char code, char *from_in,
 static void AppendToDisplay FP ((char *fmtbuf));
 static void AppendToLogFile FP ((char *fmtbuf));
 static void DoLog FP ((char *from, char *msg));
-
+static void LogFortune FP((void));
+static void Wait FP ((void));
 
 
 #define USAGE \
-"EventLogger [-h] [-o|-w] [-f logfile] [-m eventmask] [-l filemask] [mom]\n\
+"EventLogger [-h] [-j secs] [-o|-w] [-f logfile] [-m eventmask] [-l filemask]\
+ [mom]\n\
    -h\tPrint this usage message\n\
+   -j\tLog a fortune once in a while (0 defaults to 5 minutes)\n\
+     \tThe fortune command must be in your path.\n\
    -o\tOverride redirect---give display manager control\n\
    -w\tNo override redirect---gives window manager control\n\
    -f\tSpecify a file to which log messages will be written\n\
@@ -287,13 +300,19 @@ char *argv[];
 	char c;
 
 	Log_path[0] = '\0';
-	while ((c = getopt(argc, argv, "howf:m:l:")) != -1)
+	while ((c = getopt(argc, argv, "hj:owf:m:l:")) != -1)
 	{
 		switch (c)
 		{
 		   case 'h':
 			printf ("%s", USAGE);
 			exit (0);
+		   case 'j':
+			TellFortune = TRUE;
+			FortuneWait = atoi(optarg);
+			if (FortuneWait <= 0)
+				FortuneWait = FORTUNE_WAIT;
+			break;
 		   case 'o':
 			Override = TRUE;
 			break;
@@ -387,26 +406,30 @@ char *argv[];
 
 
 
-main (argc, argv)
-int argc;
-char **argv;
+static void
+CreateBitmaps()
 {
-	Arg args[20];
-	Widget w, label;
-	int xevent (), msg_event (), clearbutton (), wm (), n;
-	char *fname;
-	char buf[128];
-/*
- * Get set up with the toolkit, removing it's options first.
- */
-	Top = XtAppInitialize (&Appc, "EventLogger", NULL, 0, &argc, argv,
-		Resources, NULL, 0);
 	Check = XCreateBitmapFromData (XtDisplay (Top),
 		RootWindowOfScreen (XtScreen (Top)), Check_bits,
 		check_width, check_height);
 	Scroll = XCreateBitmapFromData (XtDisplay (Top),
 		RootWindowOfScreen (XtScreen (Top)), scroll_bits,
 		scroll_width, scroll_height);
+}
+
+
+
+main (argc, argv)
+int argc;
+char **argv;
+{
+	char buf[128];
+/*
+ * Get set up with the toolkit, removing it's options first.
+ */
+	Top = XtAppInitialize (&Appc, "EventLogger", NULL, 0, &argc, argv,
+		Resources, NULL, 0);
+	CreateBitmaps();
 /*
  * Retrieve our command line options and initialize parameters accordingly
  */
@@ -424,6 +447,86 @@ char **argv;
 		printf ("Unable to connect to message handler\n");
 		exit (1);
 	}
+/*
+ * Create the EventLogger toplevel shell and widgets
+ */
+	CreateEventLogger();
+	AppendToLogFile (Initmsg);
+/*
+ * Join the client event and event logger groups.
+ */
+	msg_join ("Client events");
+	msg_join ("Event logger");
+/*
+ * Tell msglib about our X connection.
+ */
+	msg_add_fd (XConnectionNumber (XtDisplay (Shell)), xevent);
+	reconfig (625, 600, 500, 150);
+/*
+ * Log a message about our log file, if there is one
+ */
+	if (Log_file)
+		sprintf (buf, "Logging to file '%s'", Log_path);
+	else
+		sprintf (buf, "No log file specified.");
+	LogMessage (EF_INFO, EL_NAME, buf);
+/*
+ * Now we wait and process messages as we get them.
+ */
+	Wait();
+}
+
+
+
+static void
+Wait()
+/*
+ * If we'll be writing fortunes while not busy, use msg_poll,
+ * otherwise we can just hang around in msg_await.
+ */
+{
+	int count;
+	int code;
+
+	sync ();
+	xevent ();
+	if (!TellFortune)
+		msg_await ();
+	else
+	{
+		/*
+		 * The count prevents fortunes from overrunning an EventLogger
+		 * which sits idle for a long time.
+		 */
+		count = 0;
+		for (;;)
+		{
+			code = msg_poll(FortuneWait*(count+1));
+			if (code == MSG_TIMEOUT)
+			{
+				LogFortune();
+				++count;
+			}
+			else if (code == 0)
+				count = 0;
+			else
+				break;
+		}
+	}
+	printf ("EventLogger: Message error or disconnect, aborting.\n");
+	exit(1);
+}
+
+
+
+
+static void
+CreateEventLogger()
+{
+	Arg args[20];
+	Cardinal n;
+	Widget w, label;
+	int clearbutton (), wm ();
 /*
  * Create our shell.
  */
@@ -524,34 +627,9 @@ char **argv;
 	XtSetArg (args[10], XtNright, XtChainRight);
 	Text = XtCreateManagedWidget ("text", asciiTextWidgetClass, Form,
 		args, 11);
+	XawTextDisplayCaret (Text, False);
 	Buflen = strlen (Initmsg);
-/*
- * Join the client event and event logger groups.
- */
-	msg_join ("Client events");
-	msg_join ("Event logger");
-/*
- * Tell msglib about our X connection.
- */
-	msg_add_fd (XConnectionNumber (XtDisplay (Shell)), xevent);
-	reconfig (625, 600, 500, 150);
-/*
- * Log a message about our log file, if there is one
- */
-	if (Log_file)
-		sprintf (buf, "Logging to file '%s'", Log_path);
-	else
-		sprintf (buf, "No log file specified.");
-	LogMessage (EF_INFO, EL_NAME, buf);
-/*
- * Now we wait.
- */
-	sync ();
-	xevent ();
-	msg_await ();
 }
-
-
 
 
 
@@ -1208,20 +1286,21 @@ char *msg_in;
  */
 {
 #	define FMTLEN 256
+#	define FROMLEN 12
 	static char fmtbuf[FMTLEN];
 	static char last_msg[FMTLEN];
 	static int repeat_count = 0;
 	char msg[FMTLEN];
-	char from[16];
+	char from[FROMLEN];
 /*
  * Format the message to be logged.  For robustness, make sure the msg is
  * not too long for our buffer.
  */
-	strncpy (from, from_in, 15);
-	from[15] = '\0';
+	strncpy (from, from_in, FROMLEN-1);
+	from[FROMLEN-1] = '\0';
 	strncpy (msg, msg_in, FMTLEN - 30);
 	msg[FMTLEN - 30] = '\0';
-	sprintf (fmtbuf, "%c %-16s%s\n", code, from, msg);
+	sprintf (fmtbuf, "%c %-*s %s\n", code, FROMLEN-1, from, msg);
 /*
  * See if we've seen this message before: if so, print the repeat count
  * at regular intervals; otherwise reset repeat count and proceed as usual.
@@ -1235,8 +1314,8 @@ char *msg_in;
 		    ((repeat_count < 50) && !(repeat_count % 10)) ||
 		    (!(repeat_count % 50)))
 		{
-			sprintf (fmtbuf,"%c %-16s%s, %d repeats\n",
-				 'R', from, msg, repeat_count);
+			sprintf (fmtbuf,"%c %-*s %s, %d repeats\n",
+				 'R', FROMLEN-1, from, msg, repeat_count);
 		}
 		else if (repeat_count > 5)
 		{
@@ -1255,8 +1334,8 @@ char *msg_in;
 	 */
 		if (repeat_count > 5)
 			sprintf (fmtbuf, 
-				 "R %-16sLast message repeated %d times\n%s",
-				 EL_NAME, repeat_count, last_msg);
+				 "R %-*s Last message repeated %d times\n%s",
+				 FROMLEN-1, EL_NAME, repeat_count, last_msg);
 		repeat_count = 1;
 	}
 
@@ -1290,6 +1369,7 @@ char *fmtbuf;
 {
 	Arg args[10];
 	XawTextBlock tb;
+	XawTextPosition cut;
 
 	tb.firstPos = 0;
 	tb.length = strlen (fmtbuf);
@@ -1297,28 +1377,38 @@ char *fmtbuf;
 	tb.format = FMT8BIT;
 /*
  * Add it to the buffer.  Turn on editing only for long enough to do this
- * operation.
+ * operation.  Disable re-display to keep the text from bouncing around.
  */
+	XawTextDisableRedisplay (Text);
 	XtSetArg (args[0], XtNeditType, XawtextAppend);
 	XtSetValues (Text, args, 1);
 	XawTextReplace (Text, Buflen, Buflen, &tb);
 /*
- * If this is getting too big, trim it back.
+ * If this is getting too big, trim it back.  Try to trim it at a line break.
  */
 	if ((Buflen += strlen (fmtbuf)) > MAXCHAR)
 	{
-		tb.firstPos = tb.length = 0;
-		XawTextReplace (Text, 0, Buflen - TRIMCHAR, &tb);
-		Buflen = TRIMCHAR;
+		XawTextSetInsertionPoint (Text, Buflen - TRIMCHAR);
+		tb.firstPos = 0;
+		tb.length = 1;
+		tb.ptr = "\n";
+		cut = XawTextSearch (Text, XawsdRight, &tb);
+		if (cut == XawTextSearchError)
+			cut = Buflen - TRIMCHAR;
+
+		tb.length = 0;
+		XawTextReplace (Text, 0, cut + 1, &tb);
+		Buflen -= (cut + 1);
 	}
 /*
  * Update.
  */
 	XtSetArg (args[0], XtNeditType, XawtextRead);
 	XtSetValues (Text, args, 1);
-	XawTextDisplay (Text);
-	sync ();
+	/* XawTextDisplay (Text); */
 	XawTextSetInsertionPoint (Text, Buflen);
+	XawTextEnableRedisplay (Text);
+	xevent ();
 }
 
 
@@ -1340,7 +1430,7 @@ clearbutton ()
 
 
 
-
+static void
 sync ()
 /*
  * Synchronize with the window system.
@@ -1775,4 +1865,39 @@ XtPointer call_data;
 	XtSetArg (args[0], XtNleftBitmap, Check);
 	XtSetValues (entry, args, 1);
 	TimestampEntry = entry;
+}
+
+
+
+static void
+LogFortune ()
+/*
+ * Just for the heck of it, write a short fortune message to the display log
+ */
+{
+	FILE *pipe;
+	char command[80];
+	char fortune[FORTUNE_LEN];
+	int len, nread;
+
+	sprintf (command, "%s", FORTUNE_CMD);
+	pipe = popen (command, "r");
+	if (!pipe)
+	{
+		sprintf (fortune, "%s: pipe failed, err %d", command, errno);
+		LogMessage (EF_DEBUG, EL_NAME, fortune);
+		return;
+	}
+	strcpy (fortune, "J ");
+	len = strlen(fortune);
+	while (fgets (fortune+len, FORTUNE_LEN-len-3, pipe))
+	{
+		strcat (fortune, "  ");
+		len = strlen(fortune);
+	}
+	pclose (pipe);
+	if (len < 5)
+		return;
+	fortune[len-2] = '\0';		/* remove last two spaces */
+	AppendToDisplay (fortune);
 }
