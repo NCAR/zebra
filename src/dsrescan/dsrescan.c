@@ -27,7 +27,9 @@
 # include <copyright.h>
 # include <DataStore.h>
 
-RCSID ("$Id: dsrescan.c,v 1.13 1999-03-01 02:03:57 burghart Exp $")
+#include <signal.h>
+
+RCSID ("$Id: dsrescan.c,v 1.14 2005-01-16 15:56:42 granger Exp $")
 
 
 void
@@ -36,12 +38,13 @@ char *prog;
 {
 	printf ("Usage: %s -h\n", prog);
 	printf ("   Print this usage message\n");
-	printf ("Usage: %s -all\n", prog);
-	printf ("Usage: %s regexp [regexp ...]\n", prog);
+	printf ("Usage: %s [-t n] -all\n", prog);
+	printf ("   -t N   \tTimeout in N seconds, otherwise wait forever.\n");
+	printf ("Usage: %s [-t n] regexp [regexp ...]\n", prog);
 	printf ("   Rescan all platforms or only those matching the given");
 	printf (" regular expressions.\n");
 	printf ("   -all   \tRescan all platforms\n");
-	printf ("Usage: %s -file <filename> platform\n", prog);
+	printf ("Usage: %s [-t n] -file <filename> platform\n", prog);
 	printf ("   Scan a new file in the named platform.\n");
 	printf ("   -file  \tSpecify the (pathless) name of the file\n");
 	printf ("   Options can be abbreviated to any number of letters.\n");
@@ -52,6 +55,14 @@ static int
 handler ()
 {
 	return (0);
+}
+
+
+static void
+OutOfTime (int signal)
+{
+  msg_ELog (EF_PROBLEM, "dsrescan timed out.");
+  exit (1);
 }
 
 
@@ -68,6 +79,7 @@ char **argv;
 	char *filename;
 	char **platname = NULL;
 	int i, j, p, nplat, total;
+	int delay = 0;
 /*
  * Check args.
  */
@@ -84,7 +96,18 @@ char **argv;
 		platname = (char **)malloc((argc - 1)*sizeof(char *));
 	for (i = 1; i < argc; ++i)
 	{
-		if ((argv[i][0] != '-') || (strlen(argv[i]) < (unsigned)2))
+		if (! strcmp (argv[i], "-t"))
+		{
+			if (i+1 < argc)
+				delay = atoi (argv[++i]);
+			else
+			{
+				usage (argv[0]);
+				exit(1);
+			}
+		}
+		else if ((argv[i][0] != '-') || 
+			 (strlen(argv[i]) < (unsigned)2))
 			platname[p++] = argv[i];
 		else if (!strncmp(argv[i], "-all", strlen(argv[i])))
 			all = TRUE;
@@ -119,6 +142,11 @@ char **argv;
  * Get initialized.
  */
 	sprintf (pname, "Rescan-%d", getpid ());
+	if (delay > 0)
+	{
+	  signal (SIGALRM, OutOfTime);
+	  alarm (delay);
+	}
 
 	if (! msg_connect (handler, pname) || !ds_Initialize ())
 	{
