@@ -35,7 +35,7 @@
 # include "DrawText.h"
 # include "XYCommon.h"
 
-RCSID("$Id: XYCommon.c,v 1.35 2000-07-13 20:41:26 granger Exp $")
+RCSID("$Id: XYCommon.c,v 1.36 2000-11-16 23:01:00 granger Exp $")
 
 /* 
  * One somewhat reasonable definition for infinity in XDR, lifted from 
@@ -59,6 +59,8 @@ void	xy_Init FP ((ZebTime *));
  * Default top annotation color (from PlotExec.c)
  */
 extern XColor 	Tadefclr;
+
+static plot_description XYPD = 0;
 
 /*
  * Forwards.
@@ -91,13 +93,33 @@ void
 xy_Init (t)
 ZebTime *t;
 /*
- * CAP Plot initialization.
+ * XY Plot initialization.
  */
 {
 	ot_SetString ("COMPONENT      PLATFORM   FIELD       TIME\n");
 }
 
 
+static plot_description
+xy_GetPrivatePD (char *comp)
+/*
+ * Setup the private pd as a copy of the global one to get all the right
+ * components.  Then make sure it has the expected component in case the
+ * global pd has changed since initialization.  Yes, over the lifetime of a
+ * graphics process a few extra components may accumulate, but I'm not
+ * worried about it.
+ */
+{
+	if (! XYPD)
+	{
+	    XYPD = pd_CopyPD (Pd);
+	}
+	if (! pd_CompExists (XYPD, comp))
+	{
+	    pd_MergeComp (XYPD, comp, Pd, comp);
+	}
+	return XYPD;
+}
 
 
 void
@@ -129,7 +151,7 @@ zbool	*xauto, *xinvert, *yauto, *yinvert;
     {
 	if (strcmp (Scratch, "manual") == 0)
 	    *xauto = FALSE;
-	else if (strcmp (Scratch, "autoscale") != 0)
+	else if (strcmp (Scratch, "autoscale") && strcmp (Scratch, "auto"))
     	    msg_ELog (EF_PROBLEM, 
 		"Unknown x scaling mode '%s'. Using autoscaling.", Scratch);
     }
@@ -138,7 +160,7 @@ zbool	*xauto, *xinvert, *yauto, *yinvert;
     {
 	if (strcmp (Scratch, "manual") == 0)
 	    *yauto = FALSE;
-	else if (strcmp (Scratch, "autoscale") != 0)
+	else if (strcmp (Scratch, "autoscale") && strcmp (Scratch, "auto"))
     	    msg_ELog (EF_PROBLEM, 
 		"Unknown y scaling mode '%s'. Using autoscaling.", Scratch);
     }
@@ -213,47 +235,49 @@ DataValPtr	xmin, xmax, ymin, ymax;
  * xmin, xmax, ymin, ymax - current bounds
  */
 {
+    plot_description ppd;
     char	type[2];
     /*
      * x bounds
      */
     sprintf (type, "%c", xmin->type);
-    pd_Store (Pd, c, "XYPrivate-x-type", type, SYMT_STRING);
+    ppd = xy_GetPrivatePD (c);
+    pd_Store (ppd, c, "XYPrivate-x-type", type, SYMT_STRING);
 
     switch (xmin->type)
     {
 	case 'f':
-            pd_Store (Pd, c, "XYPrivate-x-max", (char *) &(xmax->val.f), 
-		      SYMT_FLOAT);
-            pd_Store (Pd, c, "XYPrivate-x-min", (char *) &(xmin->val.f), 
-		      SYMT_FLOAT);
+            pd_Store (ppd, c, "XYPrivate-x-max", 
+		      (char *) &(xmax->val.f), SYMT_FLOAT);
+            pd_Store (ppd, c, "XYPrivate-x-min",
+		      (char *) &(xmin->val.f), SYMT_FLOAT);
 	break;
 	case 't':
-            pd_Store (Pd, c, "XYPrivate-x-max", (char *) &(xmax->val.t), 
-		      SYMT_DATE);
-            pd_Store (Pd, c, "XYPrivate-x-min", (char *) &(xmin->val.t), 
-		      SYMT_DATE);
+            pd_Store (ppd, c, "XYPrivate-x-max",
+		      (char *) &(xmax->val.t), SYMT_DATE);
+            pd_Store (ppd, c, "XYPrivate-x-min",
+		      (char *) &(xmin->val.t), SYMT_DATE);
 	break;
     }
     /*
      * y bounds
      */
     sprintf (type, "%c", ymin->type);
-    pd_Store (Pd, c, "XYPrivate-y-type", type, SYMT_STRING);
+    pd_Store (ppd, c, "XYPrivate-y-type", type, SYMT_STRING);
 
     switch (ymin->type)
     {
 	case 'f':
-            pd_Store (Pd, c, "XYPrivate-y-max", (char *) &(ymax->val.f), 
-		      SYMT_FLOAT);
-            pd_Store (Pd, c, "XYPrivate-y-min", (char *) &(ymin->val.f), 
-		      SYMT_FLOAT);
+            pd_Store (ppd, c, "XYPrivate-y-max",
+		      (char *) &(ymax->val.f), SYMT_FLOAT);
+            pd_Store (ppd, c, "XYPrivate-y-min",
+		      (char *) &(ymin->val.f), SYMT_FLOAT);
 	break;
 	case 't':
-            pd_Store (Pd, c, "XYPrivate-y-max", (char *) &(ymax->val.t), 
-		      SYMT_DATE);
-            pd_Store (Pd, c, "XYPrivate-y-min", (char *) &(ymin->val.t), 
-		      SYMT_DATE);
+            pd_Store (ppd, c, "XYPrivate-y-max",
+		      (char *) &(ymax->val.t), SYMT_DATE);
+            pd_Store (ppd, c, "XYPrivate-y-min",
+		      (char *) &(ymin->val.t), SYMT_DATE);
 	break;
     }
 }
@@ -277,6 +301,8 @@ DataValPtr	min, max;
 	char	justname[32];
 	int	ok = TRUE, time;
 	FieldId fid = F_Lookup (fldname);
+	char *dv;
+	int dt;
 /*
  * Get just the name part of the field string
  */
@@ -293,25 +319,34 @@ DataValPtr	min, max;
 /*
  * minimum
  */
-	sprintf (keyword, "scale-%c-min", dim);
-
-	if (time)
-		ok &= pda_ReqSearch (Pd, c, keyword, justname, 
-				    (char *) &(min->val.t), SYMT_DATE);
+	dt = time ? SYMT_DATE : SYMT_FLOAT;
+	dv = time ? (char *) &(min->val.t) : (char *) &(min->val.f);
+	sprintf (keyword, "xy-scale-%c-min", dim);
+	if (pda_Search (Pd, "global", keyword, 0, dv, dt))
+	{
+	    msg_ELog (EF_DEBUG, "xygraph global %s overrides all components",
+		      keyword);
+	}
 	else
-		ok &= pda_ReqSearch (Pd, c, keyword, justname, 
-				    (char *) &(min->val.f), SYMT_FLOAT);
+	{
+	    sprintf (keyword, "scale-%c-min", dim);
+	    ok &= pda_ReqSearch (Pd, c, keyword, justname, dv, dt);
+	}
 /*
  * maximum
  */
-	sprintf (keyword, "scale-%c-max", dim);
-
-	if (time)
-		ok &= pda_ReqSearch (Pd, c, keyword, justname,
-				     (char *) &(max->val.t), SYMT_DATE);
+	dv = time ? (char *) &(max->val.t) : (char *) &(max->val.f);
+	sprintf (keyword, "xy-scale-%c-max", dim);
+	if (pda_Search (Pd, "global", keyword, 0, dv, dt))
+	{
+	    msg_ELog (EF_DEBUG, "xygraph global %s overrides all components",
+		      keyword);
+	}
 	else
-		ok &= pda_ReqSearch (Pd, c, keyword, justname,
-				     (char *) &(max->val.f), SYMT_FLOAT);
+	{
+	    sprintf (keyword, "scale-%c-max", dim);
+	    ok &= pda_ReqSearch (Pd, c, keyword, justname, dv, dt);
+	}
 
 	return (ok);
 }
@@ -329,26 +364,28 @@ DataValPtr		xmin, xmax, ymin, ymax;
  * xmin, xmax, ymin, ymax - previous bounds
  */
 {
+    plot_description ppd;
     char	type[2];
     /*
      * x bounds
      */
-    pda_Search (Pd, c, "XYPrivate-x-type", NULL, type, SYMT_STRING);
+    ppd = xy_GetPrivatePD (c);
+    pda_Search (ppd, c, "XYPrivate-x-type", NULL, type, SYMT_STRING);
     xmin->type = xmax->type = type[0];
 
     switch (type[0])
     {
 	case 'f':
-	    pda_Search (Pd, c, "XYPrivate-x-max", NULL, 
+	    pda_Search (ppd, c, "XYPrivate-x-max", NULL, 
 			(char *) &(xmax->val.f), SYMT_FLOAT);
-	    pda_Search (Pd, c, "XYPrivate-x-min", NULL, 
+	    pda_Search (ppd, c, "XYPrivate-x-min", NULL, 
 			(char *) &(xmin->val.f), SYMT_FLOAT);
 
 	    break;
 	case 't':
-            pda_Search (Pd, c, "XYPrivate-x-max", NULL, 
+            pda_Search (ppd, c, "XYPrivate-x-max", NULL, 
 			(char *) &(xmax->val.t), SYMT_DATE);
-	    pda_Search (Pd, c, "XYPrivate-x-min", NULL, 
+	    pda_Search (ppd, c, "XYPrivate-x-min", NULL, 
 			(char *) &(xmin->val.t), SYMT_DATE);
 
 	    break;
@@ -356,22 +393,22 @@ DataValPtr		xmin, xmax, ymin, ymax;
     /*
      * y bounds
      */
-    pda_Search (Pd, c, "XYPrivate-y-type", NULL, type, SYMT_STRING);
+    pda_Search (ppd, c, "XYPrivate-y-type", NULL, type, SYMT_STRING);
     ymin->type = ymax->type = type[0];
 
     switch (type[0])
     {
 	case 'f':
-	    pda_Search (Pd, c, "XYPrivate-y-max", NULL, 
+	    pda_Search (ppd, c, "XYPrivate-y-max", NULL, 
 			(char *) &(ymax->val.f), SYMT_FLOAT);
-	    pda_Search (Pd, c, "XYPrivate-y-min", NULL, 
+	    pda_Search (ppd, c, "XYPrivate-y-min", NULL, 
 			(char *) &(ymin->val.f), SYMT_FLOAT);
 
 	    break;
 	case 't':
-            pda_Search (Pd, c, "XYPrivate-y-max", NULL, 
+            pda_Search (ppd, c, "XYPrivate-y-max", NULL, 
 			(char *) &(ymax->val.t), SYMT_DATE);
-	    pda_Search (Pd, c, "XYPrivate-y-min", NULL, 
+	    pda_Search (ppd, c, "XYPrivate-y-min", NULL, 
 			(char *) &(ymin->val.t), SYMT_DATE);
 
 	    break;
@@ -389,12 +426,14 @@ ZebTime	*btime, *etime;
  * Stash the current begin and end data times
  */
 {
+    	plot_description ppd = xy_GetPrivatePD (c);
+
 	if (btime) 
-		pd_Store (Pd, c, "XYPrivate-data-begin", (char*) btime, 
+		pd_Store (ppd, c, "XYPrivate-data-begin", (char*) btime, 
 			  SYMT_DATE);
 
 	if (etime) 
-		pd_Store (Pd, c, "XYPrivate-data-end", (char*) etime, 
+		pd_Store (ppd, c, "XYPrivate-data-end", (char*) etime, 
 			  SYMT_DATE);
 }
 
@@ -451,8 +490,13 @@ int	*dmode;
     eold->zt_Sec = 0;
     eold->zt_MicroSec = 0;
 
-    pda_Search (Pd, c, "XYPrivate-data-begin", NULL, (char*) bold, SYMT_DATE);
-    pda_Search (Pd, c, "XYPrivate-data-end", NULL, (char*) eold, SYMT_DATE);
+    {
+    	plot_description ppd = xy_GetPrivatePD (c);
+	pda_Search (ppd, c, "XYPrivate-data-begin", 
+		    NULL, (char*) bold, SYMT_DATE);
+	pda_Search (ppd, c, "XYPrivate-data-end", 
+		    NULL, (char*) eold, SYMT_DATE);
+    }
 }
 
 
