@@ -35,7 +35,7 @@
 # include "DrawText.h"
 # include "XYCommon.h"
 
-RCSID("$Id: XYCommon.c,v 1.37 2001-04-20 08:26:28 granger Exp $")
+RCSID("$Id: XYCommon.c,v 1.38 2001-06-19 23:48:31 granger Exp $")
 
 /* 
  * One somewhat reasonable definition for infinity in XDR, lifted from 
@@ -293,7 +293,7 @@ DataValPtr	min, max;
  */
 {
 	char	keyword[20];
-	char	justname[32];
+	char	justname[64];
 	int	ok = TRUE, time;
 	FieldId fid = F_Lookup (fldname);
 	char *dv;
@@ -301,7 +301,7 @@ DataValPtr	min, max;
 /*
  * Get just the name part of the field string
  */
-	strcpy (justname, F_GetName (fid));
+	strcpy (justname, SimpleFieldName (fid));
 /*
  * Are we dealing with time?
  */

@@ -56,7 +56,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.86 2001-04-20 08:26:26 granger Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.87 2001-06-19 23:48:28 granger Exp $")
 
 
 /*
@@ -533,12 +533,13 @@ int *shifted;
  */
 	if (autoscale)
 	{
-		FindCenterStep (dc, fid, Monocolor ? 10 : Ncolors,
-				center, step);
-		sprintf (param, "%s-center", F_GetName (fid));
-		pd_Store (Pd, c, param, (char *) center, SYMT_FLOAT);
-		sprintf (param, "%s-step", F_GetName (fid));
-		pd_Store (Pd, c, param, (char *) step, SYMT_FLOAT);
+	    char *justname = SimpleFieldName (fid);
+	    FindCenterStep (dc, fid, Monocolor ? 10 : Ncolors,
+			    center, step);
+	    sprintf (param, "%s-center", justname);
+	    pd_Store (Pd, c, param, (char *) center, SYMT_FLOAT);
+	    sprintf (param, "%s-step", justname);
+	    pd_Store (Pd, c, param, (char *) step, SYMT_FLOAT);
 	}
 /*
  * If we are doing a fancy projection, get the original lat/lon info
@@ -632,17 +633,18 @@ float *step;	/* scale step */
 	/*
 	 * Get the parameters.
 	 */
-		sprintf (param, "%s-center", F_GetName (fid));
+		char *justname = SimpleFieldName (fid);
+		sprintf (param, "%s-center", justname);
 		ok &= pda_ReqSearch (Pd, c, param, qual, (char *) center, 
 				     SYMT_FLOAT);
-		sprintf (param, "%s-step", F_GetName (fid));
+		sprintf (param, "%s-step", justname);
 		ok &= pda_ReqSearch (Pd, c, param, qual, (char *) step, 
 				     SYMT_FLOAT);
 
 		if (*step == 0.0)
 		{
-		    msg_ELog (EF_PROBLEM, "%s is zero!", param);
-		    ok = FALSE;
+			msg_ELog (EF_PROBLEM, "%s is zero!", param);
+			ok = FALSE;
 		}
 	/*
 	 * If they blew it, give them a second chance by turning on
@@ -857,7 +859,7 @@ zbool update;
 		strcat (data, "station");
 	    else if (quadfields[i] != BadField)
 	    {
-		char *justname = F_GetName (quadfields[i]);
+		char *justname = SimpleFieldName (quadfields[i]);
 		if (justname[0] != '\0')
 		    strcat (data, justname);
 		else
@@ -1762,6 +1764,7 @@ CAP_PlotRaster (char *c, zbool update, char *topannot, char *sideannot)
 	FieldId	fid;
 	AltUnitType	altunits;
 	int transparent = 0;
+	char justname[64];
 /*
  * Get necessary parameters from the plot description
  */
@@ -1819,16 +1822,17 @@ CAP_PlotRaster (char *c, zbool update, char *topannot, char *sideannot)
  * Get info for highlighting and area.
  */
 	highlight = FALSE;
-	sprintf (param, "%s-highlight-range", F_GetName (fid));
+	strcpy (justname, SimpleFieldName (fid));
+	sprintf (param, "%s-highlight-range", justname);
 	if (pda_Search (Pd, c, param, "raster", CPTR (hrange), SYMT_FLOAT)
 		&& (hrange != 0.0))
 	{
 		highlight = TRUE;
-		sprintf (param, "%s-highlight-color", F_GetName (fid));
+		sprintf (param, "%s-highlight-color", justname);
 		if (! pda_Search (Pd, c, param, "raster", hcolor, 
 				SYMT_STRING))
 			strcpy (hcolor, "white");
-		sprintf (param, "%s-highlight", F_GetName (fid));
+		sprintf (param, "%s-highlight", justname);
 		if (! pda_Search (Pd, c, param, "raster", CPTR (hvalue), 
 				SYMT_FLOAT))
 			hvalue = 0.0;
@@ -1861,7 +1865,7 @@ CAP_PlotRaster (char *c, zbool update, char *topannot, char *sideannot)
 /*
  * Default nsteps to number of colors in color table if not set.
  */
-	sprintf (param, "%s-nsteps", F_GetName (fid));
+	sprintf (param, "%s-nsteps", justname);
 	if (! pda_Search (Pd, c, param, "raster", CPTR (nsteps), SYMT_INT))
 		nsteps = Ncolors;
 /*
@@ -1930,9 +1934,9 @@ CAP_PlotRaster (char *c, zbool update, char *topannot, char *sideannot)
 	if (autoscale)
 	{
 		FindCenterStep (dc, fid, nsteps, &center, &step);
-		sprintf (param, "%s-center", F_GetName (fid));
+		sprintf (param, "%s-center", justname);
 		pd_Store (Pd, c, param, (char *) &center, SYMT_FLOAT);
-		sprintf (param, "%s-step", F_GetName (fid));
+		sprintf (param, "%s-step", justname);
 		pd_Store (Pd, c, param, (char *) &step, SYMT_FLOAT);
 	}
 	max = center + (nsteps/2.0) * step;
@@ -2311,6 +2315,7 @@ CAP_Polar (char *c, int update)
 	Pixel ccbuf[4096];
 	Location rloc;
 	int transparent;
+	char justname[64];
 /*
  * Instrumentation if needed.
  */
@@ -2436,7 +2441,8 @@ CAP_Polar (char *c, int update)
 /*
  * Set up for side annotation.
  */
-	sprintf (adata, "%s|%s|%f|%f|%d|%d|%f|%s|%f", F_GetName(fids[0]),
+	strcpy (justname, SimpleFieldName (fids[0]));
+	sprintf (adata, "%s|%s|%f|%f|%d|%d|%f|%s|%f", justname,
 			ctable, center, step, nstep, FALSE, 0.0, "white", 0.0);
 	if (legend)
 	{
@@ -2479,6 +2485,7 @@ CAP_PolarParams (char *c, char *platform, PlatformId *pid, FieldId *fids,
 {
 	int ok, enab = 0;
 	char cparam[120], fname[80], param[40], sastyle[40];
+	char justname[64];
 /*
  * Platform info.
  */
@@ -2493,24 +2500,25 @@ CAP_PolarParams (char *c, char *platform, PlatformId *pid, FieldId *fids,
  */
 	ok &= pda_ReqSearch (Pd, c, "field", NULL, fname, SYMT_STRING);
 	fids[0] = F_Lookup (fname);
+	strcpy (justname, SimpleFieldName (fids[0]));
 /*
  * Are we doing thresholding?
  */
-	if (! pda_Search (Pd, c, "threshold", F_GetName (fids[0]), 
+	if (! pda_Search (Pd, c, "threshold", justname,
 			  (char *) &enab, SYMT_BOOL))
 		enab = FALSE;
-	if (enab && pda_Search (Pd, c, "threshold-field", F_GetName (fids[0]), 
+	if (enab && pda_Search (Pd, c, "threshold-field", justname,
 				cparam, SYMT_STRING))
 	{
 		fids[1] = F_Lookup (cparam);
 		*nfids = 2;
-		if (! pda_Search (Pd, c, "threshold-test", F_GetName (fids[0]),
+		if (! pda_Search (Pd, c, "threshold-test", justname,
 				  cparam, SYMT_STRING))
 			*ttest = FALSE;
 		else
 			*ttest = ! strcmp (cparam, "over");
 		if (! pda_ReqSearch (Pd, c, "threshold-value", 
-				     F_GetName (fids[0]),
+				     justname,
 				     CPTR (*tvalue), SYMT_FLOAT))
 			*nfids = 1;  /* Turn off thresholding */
 	}
@@ -2524,12 +2532,12 @@ CAP_PolarParams (char *c, char *platform, PlatformId *pid, FieldId *fids,
  */
 	ok &= pda_ReqSearch (Pd, c, "color-table", platform, ctable,
 			SYMT_STRING);
-	sprintf (param, "%s-center", F_GetName (fids[0]));
+	sprintf (param, "%s-center", justname);
 	ok &= pda_ReqSearch (Pd, c, param, platform, CPTR (*center),
 			SYMT_FLOAT);
-	sprintf (param, "%s-step", F_GetName (fids[0]));
+	sprintf (param, "%s-step", justname);
 	ok &= pda_ReqSearch (Pd, c, param, platform, CPTR (*step), SYMT_FLOAT);
-	sprintf (param, "%s-nsteps", F_GetName (fids[0]));
+	sprintf (param, "%s-nsteps", justname);
 	if (! pda_Search (Pd, c, param, platform, CPTR (*nstep), SYMT_INT))
 		*nstep = 17;
 	if (! pda_Search (Pd, c, "out-of-range-color", platform, cparam,
@@ -2556,7 +2564,7 @@ CAP_PolarParams (char *c, char *platform, PlatformId *pid, FieldId *fids,
  * Do they want legend-style annotation?
  */
 	*legend = 0;
-	if (pda_Search (Pd, c, "side-annot-style", F_GetName (fids[0]), 
+	if (pda_Search (Pd, c, "side-annot-style", justname,
 			sastyle, SYMT_STRING) && ! strcmp (sastyle, "legend"))
 	{
 	/*
@@ -2564,7 +2572,7 @@ CAP_PolarParams (char *c, char *platform, PlatformId *pid, FieldId *fids,
 	 * have one.
 	 */
 		char lmap[1024], *me[128];
-		if (! pda_Search (Pd, c, "legend-map", F_GetName (fids[0]), 
+		if (! pda_Search (Pd, c, "legend-map", justname,
 				  lmap, SYMT_STRING))
 			msg_ELog (EF_PROBLEM, "No legend map!");
 		else

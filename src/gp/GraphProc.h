@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.74 2001-06-19 22:32:25 granger Exp $ */
+/* $Id: GraphProc.h,v 2.75 2001-06-19 23:48:29 granger Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -427,6 +427,7 @@ typedef struct _WindInfo {
 	FieldId wi_vwind;
 } WindInfo;
 
+extern char *SimpleFieldName (FieldId fid);
 extern void FindWindsFields FP ((char *comp, PlatformId, ZebTime *, 
 				 FieldId *, WindInfo *));
 extern void GetWindData FP ((WindInfo *, float *, float *, double));

@@ -44,7 +44,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: Track.c,v 2.51 2001-04-20 08:26:27 granger Exp $")
+RCSID ("$Id: Track.c,v 2.52 2001-06-19 23:48:30 granger Exp $")
 
 # define ARROWANG .2618 /* PI/12 */
 # ifndef M_PI
@@ -301,7 +301,7 @@ TrackParams *tparams;
 	if (tparams->tp_AutoScale && ! tparams->tp_Mono)
 	{
 		FieldId fid = F_Lookup (tparams->tp_CCField);
-		char *justname = F_GetName (fid);
+		char *justname = SimpleFieldName (fid);
 
 		FindCenterStep (dc, tparams->tp_Fields[0], tparams->tp_NColor,
 				&tparams->tp_Center, &tparams->tp_Step);
@@ -1164,7 +1164,7 @@ TrackParams *tparams;
 	if (! tparams->tp_AutoScale)
 	{
 		FieldId fid = F_Lookup (tparams->tp_CCField);
-		char *justname = F_GetName (fid);
+		char *justname = SimpleFieldName (fid);
 
 		sprintf (param1, "%s-center", justname);
 		sprintf (param2, "%s-step", justname);

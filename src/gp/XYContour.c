@@ -37,7 +37,7 @@
 # include "rg_status.h"
 # include "Contour.h"
 
-RCSID("$Id: XYContour.c,v 1.44 2001-04-20 08:26:28 granger Exp $")
+RCSID("$Id: XYContour.c,v 1.45 2001-06-19 23:48:31 granger Exp $")
 
 # define GRID(g,i,j,ydim)   (g[((i) * (ydim)) + (j)])
 
@@ -383,7 +383,9 @@ zbool	update;
 	for (plat = 0; plat < (oneplot ? 1 : nplat); plat++)
 	{
 		FieldId fid = F_Lookup (zfnames[0]);
-		char *z0justname = F_GetName (fid);
+		char z0justname[64];
+
+		strcpy (z0justname, SimpleFieldName (fid));
 	/*
 	 * If z is manual get the info now.
 	 */

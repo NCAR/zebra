@@ -42,7 +42,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: XSection.c,v 2.52 2001-04-24 23:40:28 granger Exp $")
+RCSID ("$Id: XSection.c,v 2.53 2001-06-19 23:48:30 granger Exp $")
 
 /*
  * General definitions
@@ -469,7 +469,8 @@ zbool	update;
 	char	platforms[PlatformListLen];
 	char	*pnames[MaxPlatforms], fldname[80], cname[20];
 	char	ufldname[40], vfldname[40];
-	char	param[50], outrange[40], justname[40];
+	char	param[50], outrange[40];
+	char    justname[64];
 	FieldId	fid;
 /*
  * Platform(s).  Platform must come from the global component for zig-zag
@@ -501,7 +502,7 @@ zbool	update;
 	}
 	else  {
 		fid = F_Lookup (fldname);
-		strcpy (justname, F_GetName (fid));
+		strcpy (justname, SimpleFieldName (fid));
 	}
 /*
  * Autoscale?
@@ -780,7 +781,7 @@ int	nplat;
 	{
 		float	min, max;
 		FieldId fid = F_Lookup (fldname);
-		char *justname = F_GetName (fid);
+		char *justname = SimpleFieldName (fid);
 
 		GetRange (plane->data, plane->nobs * plane->vdim, BADVAL, 
 			  &min, &max);
@@ -1490,7 +1491,7 @@ int	nplat;
 	{
 		float	min, max;
 		FieldId fid = F_Lookup (fldname);
-		char *justname = F_GetName (fid);
+		char *justname = SimpleFieldName (fid);
 
 		GetRange (plane->data, plane->hdim * plane->vdim, BADVAL, 
 			  &min, &max);
@@ -3247,7 +3248,7 @@ zbool	update;
 	int	nplat, nsteps;
 	char	platform[PlatformListLen];
 	char	*pnames[MaxPlatforms], fldname[80], cname[20], hcolor[20];
-	char	justname[40];
+	char	justname[64];
 	char	param[50], outrange[40];
 	unsigned char *igrid = 0;
 	float	center, step, step_per_color, hrange, hvalue, alt;
@@ -3284,7 +3285,7 @@ zbool	update;
  */
 	ok &= pda_ReqSearch (Pd, c, "field", NULL, fldname, SYMT_STRING);
 	fid = F_Lookup (fldname);
-	strcpy (justname, F_GetName (fid));
+	strcpy (justname, SimpleFieldName (fid));
 /*
  * Autoscale?
  */

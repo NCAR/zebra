@@ -37,7 +37,7 @@
 # include "PolarPlot.h"
 # endif
 
-MAKE_RCSID ("$Id: GridAccess.c,v 2.37 2000-04-10 20:52:17 burghart Exp $")
+MAKE_RCSID ("$Id: GridAccess.c,v 2.38 2001-06-19 23:48:29 granger Exp $")
 
 # define DEG_TO_RAD(x)	((x)*0.017453292)
 # define KM_TO_DEG(x)	((x)*0.008982802) /* on a great circle */
@@ -343,8 +343,10 @@ ga_GetRastParams (char *comp, int *gratio, int *project, FieldId *fids,
  */
 {
 	char rep[80], tfield[80];
-	char *fname = F_GetName (fids[0]);
+	char fname[64];
 	int enab;
+
+	strcpy (fname, SimpleFieldName (fids[0]));
 /*
  * Pull out the representation of this component.
  */

@@ -30,7 +30,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-MAKE_RCSID ("$Id: Histogram.c,v 2.9 2001-04-20 08:26:26 granger Exp $")
+MAKE_RCSID ("$Id: Histogram.c,v 2.10 2001-06-19 23:48:30 granger Exp $")
 
 # if C_PT_HISTOGRAM
 
@@ -670,7 +670,7 @@ double scale;
  */
 	for (field = 0; field < nfield; field++)
 	{
-		char *fname = F_GetName (fids[field]);
+		char *fname = SimpleFieldName (fids[field]);
 	/*
 	 * Fill in the bar.
 	 */

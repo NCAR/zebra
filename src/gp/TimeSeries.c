@@ -40,7 +40,7 @@
 # include "DrawText.h"
 # include "EventQueue.h"
 
-RCSID("$Id: TimeSeries.c,v 2.25 2001-04-20 08:26:27 granger Exp $")
+RCSID("$Id: TimeSeries.c,v 2.26 2001-06-19 23:48:30 granger Exp $")
 
 /*
  * General definitions
@@ -164,7 +164,7 @@ zbool	update;
 	for (i = 0; i < nfld; i ++)
 	{
 		FieldId fid = F_Lookup (fnames[i]);
-		char *justname = F_GetName (fid);
+		char *justname = SimpleFieldName (fid);
 
 		sprintf (string, "%s-center", justname);
 		ok &= pda_ReqSearch (Pd, c, string, "tseries", 

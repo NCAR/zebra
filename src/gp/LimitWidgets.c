@@ -38,7 +38,7 @@
 # include <pd.h>
 # include "GraphProc.h"
 
-RCSID("$Id: LimitWidgets.c,v 2.26 1999-03-01 02:04:25 burghart Exp $")
+RCSID("$Id: LimitWidgets.c,v 2.27 2001-06-19 23:48:30 granger Exp $")
 
 /*
  * Station widget static data.
@@ -1253,25 +1253,31 @@ struct ui_command *cmds;
 	if (strcmp (UPTR (cmds[0]), "left") == 0)
 	{
 		sprintf (wq->wq_param[0], "%s-%s", 
-			 F_GetName (F_Lookup (fnames[0])), UPTR (cmds[1]));
+			 SimpleFieldName (F_Lookup (fnames[0])), 
+			 UPTR (cmds[1]));
 		sprintf (wq->wq_param[1], "%s-%s", 
-			 F_GetName (F_Lookup (fnames[0])), UPTR (cmds[3]));
+			 SimpleFieldName (F_Lookup (fnames[0])), 
+			 UPTR (cmds[3]));
 	}
 	else 
 	{
 		if (nfld >= 2)
 		{	
 		    sprintf (wq->wq_param[0], "%s-%s", 
-			     F_GetName (F_Lookup (fnames[1])), UPTR (cmds[1]));
+			     SimpleFieldName (F_Lookup (fnames[1])), 
+			     UPTR (cmds[1]));
 		    sprintf (wq->wq_param[1], "%s-%s", 
-			     F_GetName (F_Lookup (fnames[1])), UPTR (cmds[3]));
+			     SimpleFieldName (F_Lookup (fnames[1])), 
+			     UPTR (cmds[3]));
 		}
 		else 
 		{
 		    sprintf (wq->wq_param[0], "%s-%s", 
-			     F_GetName (F_Lookup (fnames[0])), UPTR (cmds[1]));
+			     SimpleFieldName (F_Lookup (fnames[0])), 
+			     UPTR (cmds[1]));
 		    sprintf (wq->wq_param[1], "%s-%s", 
-			     F_GetName (F_Lookup (fnames[0])), UPTR (cmds[3]));
+			     SimpleFieldName (F_Lookup (fnames[0])), 
+			     UPTR (cmds[3]));
 		}
 	}
 /*

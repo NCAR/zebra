@@ -48,7 +48,7 @@
 # include "LLEvent.h"
 # include "FieldMenu.h"
 
-RCSID ("$Id: GraphProc.c,v 2.75 2001-06-19 22:32:25 granger Exp $")
+RCSID ("$Id: GraphProc.c,v 2.76 2001-06-19 23:48:29 granger Exp $")
 
 /*
  * Default resources.
@@ -148,7 +148,7 @@ static void NewTime FP ((ZebTime *));
 static int AnswerQuery FP ((char *));
 static void SendGeometry FP((struct dm_msg *dmm));
 static int RealPlatform FP ((int, SValue *, int *, SValue *, int *));
-static int SimpleFieldName FP ((int, SValue *, int *, SValue *, int *));
+static int SimpleFieldNameUIF FP ((int, SValue *, int *, SValue *, int *));
 static void Enqueue FP ((EQpriority, char *));
 static int dmgr_message ();
 static void gp_sync FP ((void));
@@ -439,7 +439,7 @@ finish_setup ()
 	uf_def_function ("listposition", 2, type, ListPosition);
 	uf_def_function ("replstring", 3, type, ReplString);
 	uf_def_function ("myname", 0, type, MyName);
-	uf_def_function ("simplefieldname", 1, type, SimpleFieldName);
+	uf_def_function ("simplefieldname", 1, type, SimpleFieldNameUIF);
 /*
  * Couple more CLF's with non-string parameters
  */
@@ -1923,25 +1923,44 @@ SValue *argv, *retv;
 
 
 
-int
-SimpleFieldName (narg, argv, argt, retv, rett)
-int narg, *argt, *rett;
-SValue *argv, *retv;
+char *
+SimpleFieldName (FieldId f)
 /*
- * The "SimpleFieldName()" command line function -- strip out just the name
- * portion of a field description string.  Our one arg is a potentially
- * full-blown field string like "temp[T][degC][ambient temperature]".
- * We return just the name portion; in the example case above, "temp".
+ * Strip out just the name portion of a full field spec.  Given a full
+ * field name like "temp[T][degC][ambient temperature]", we return just the
+ * name portion; in the example case above, "temp".  The return value is
+ * only good until the next call.  If there is no name, return the type
+ * name.  Otherwise return an empty string.  
+ *
+ * UI cannot handle spaces and special characters in the full fields name,
+ * and so this function simplifies a full field spec into something which
+ * can be shared between UI code and the graphics process routines.  Note
+ * that UI code expects a certain form for the field names, so that calling
+ * the simplefieldname() ui function will match what is stored and
+ * retrieved in the graphics process through calls to this function. 
  */
 {
-    FieldId f = F_Lookup (argv->us_v_ptr);
-    char justname[64];
+    static char namebuf[64];
+    char *justname = F_GetName (f);
 /*
  * First try the field name.  If that's empty, take the type.
  */
-    strcpy (justname, F_GetName (f));
     if (! strlen (justname))
+    {
+	justname = namebuf;
 	strcpy (justname, F_GetTypeName (f));
+    }
+    return justname;
+}
+
+
+
+static int
+SimpleFieldNameUIF (narg, argv, argt, retv, rett)
+int narg, *argt, *rett;
+SValue *argv, *retv;
+{
+    char *justname = SimpleFieldName (F_Lookup(argv->us_v_ptr));
 /*
  * Set up our return value and we're done
  */
