@@ -1,4 +1,4 @@
-! $Id: Graphproc.ad,v 1.3 1993-03-04 04:12:00 granger Exp $
+! $Id: Graphproc.ad,v 1.4 1993-03-11 23:31:02 granger Exp $
 !
 ! The Graphics process resource file.
 !
@@ -105,7 +105,7 @@
 ! GetPosition resources
 !
 *position*origintext.translations: #override 	\n\
-	<Key>Return:	no-op(RingBell) 	\n\
+	<Key>Return:	new-origin()	 	\n\
 	Ctrl<Key>u:	beginning-of-line()kill-to-end-of-line()
 !
 ! Color widgets.
