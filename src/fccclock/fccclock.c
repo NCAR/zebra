@@ -35,7 +35,7 @@
 # include <timer.h>
 # include <pd.h>
 
-MAKE_RCSID ("$Id: fccclock.c,v 2.7 1994-10-11 16:25:49 corbet Exp $")
+MAKE_RCSID ("$Id: fccclock.c,v 2.8 1995-04-20 05:00:47 granger Exp $")
 
 /*
  * Default resources.
@@ -86,22 +86,24 @@ char **argv;
  * Connect to the message handler immediately -- Ardent weirdness
  * requires this.
  */
-	msg_connect (msg_handler, argv[0]);
+	usy_init ();
+	dm_Setup (&argc, argv, NULL);
+	msg_connect (msg_handler, dm_MessageName());
 	msg_join ("TimeChange");
-	msg_join ("Graphproc");
+	msg_join (dm_GroupName());
 /*
  * Get the toolkit going.
  */
 	Top = XtAppInitialize (&Actx, "FccClock", NULL, ZERO, &argc,
 		argv, Resources, NULL, ZERO);
-	usy_init ();
 /*
  * Now create a popup shell to hold the graphics widget that holds
  * our output.
  */
 	XtSetArg (args[0], XtNallowShellResize, True);
+	XtSetArg (args[1], XtNwinGravity, StaticGravity);
 	GrShell = XtCreatePopupShell ("fccclock", applicationShellWidgetClass,
-				      Top, args, 1);
+				      Top, args, 2);
 /*
  * Inside this shell goes the label widget to hold the time.
  */
@@ -112,7 +114,7 @@ char **argv;
 /*
  * Tell DM that we're here, but we don't have a window yet
  */
-	greet_dm (None);
+	dm_Greet ();
 	msg_add_fd (XConnectionNumber (XtDisplay (Top)), xtEvent);
 	tl_ChangeHandler (NewTime);
 /*
@@ -181,37 +183,6 @@ int fd;
 
 
 
-greet_dm (win)
-Window win;
-/*
- * Send the greeting to the display manager.
- */
-{
-	struct dm_hello dmh;
-
-	dmh.dmm_type = DM_HELLO;
-	dmh.dmm_win = win;
-	msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &dmh, sizeof (dmh));
-}
-
-
-
-
-
-send_window (win)
-Window win;
-/*
- * Send the greeting to the display manager.
- */
-{
-	struct dm_hello dmh;
-
-	dmh.dmm_type = DM_WINDOW;
-	dmh.dmm_win = win;
-	msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &dmh, sizeof (dmh));
-}
-
-
 
 
 
@@ -227,6 +198,7 @@ struct dm_msg *dmsg;
 	 * Reconfigure.
 	 */
 	   case DM_RECONFIG:
+		dm_Reconfig ((struct dm_reconfig *) dmsg);
 	   	reconfig (dmsg);
 		break;
 	/*
@@ -302,8 +274,38 @@ struct dm_msg *dmm;
 	reply.dmm_dx = width;
 	reply.dmm_dy = height;
 
-	msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &reply, sizeof (reply));
+	msg_send (DISPLAY_MANAGER, MT_DISPLAYMGR, FALSE, &reply, sizeof (reply));
 }
+
+
+
+
+
+
+static void
+ConfigureWindow (display, win, x, y, width, height)
+Display *display;
+Window win;
+int x, y;
+int width, height;
+/*
+ * Configure this window with the given geometry.  Rely on the window
+ * manager to send the ConfigureNotify to the client so that the 
+ * window's children re-arrange themselves as necessary.
+ */
+{
+	unsigned int mask;
+	XWindowChanges changes;
+
+	mask = CWX | CWY | CWWidth | CWHeight;
+	changes.x = x;
+	changes.y = y;
+	changes.width = width;
+	changes.height = height;
+	XConfigureWindow (display, win, mask, &changes);
+	XSync (display, True);
+}
+
 
 
 
@@ -326,6 +328,10 @@ struct dm_msg *dmsg;
 /*
  * Then reconfigure our shell geometry.
  */
+	ConfigureWindow (XtDisplay(GrShell), XtWindow(GrShell), 
+			 dmsg->dmm_x, dmsg->dmm_y,
+			 dmsg->dmm_dx, dmsg->dmm_dy);
+#ifdef notdef
 	XtSetArg (args[0], XtNwidth, dmsg->dmm_dx);
 	XtSetArg (args[1], XtNheight, dmsg->dmm_dy);
 	XtSetValues (Graphics, args, (Cardinal)2 );
@@ -335,6 +341,7 @@ struct dm_msg *dmsg;
 	XtSetArg (args[1], XtNy, dmsg->dmm_y);
 	XtSetValues (GrShell, args, (Cardinal)2 );
 	sync();
+#endif
 
 	XClearWindow (XtDisplay (Top), XtWindow (Graphics));
 /*
@@ -368,7 +375,7 @@ enum wstate new;
 		if (! WindowSent)
 		{
 			WindowSent = 1;
-			send_window (XtWindow(GrShell));
+			dm_SendWindowID (XtWindow(GrShell));
 		}
 	}
 	else
