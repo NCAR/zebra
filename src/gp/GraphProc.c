@@ -45,7 +45,7 @@
 # include "GC.h"
 # include "GraphProc.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.22 1992-11-03 22:19:30 burghart Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.23 1992-12-09 16:14:26 corbet Exp $")
 
 /*
  * Default resources.
@@ -130,7 +130,7 @@ void eq_reconfig (), eq_sync ();
 
 static void NewTime FP ((ZebTime *));
 static int AnswerQuery FP ((char *));
-
+static int RealPlatform FP ((int, SValue *, int *, SValue *, int *));
 
 
 
@@ -227,7 +227,7 @@ finish_setup ()
 		{ "ue_motion",		Ue_MotionEvent	},
 	};
 	int type[5], pd_defined (), pd_param (), pd_paramsearch();
-	int pd_removeparam (), substr_remove(), strlength ();
+	int pd_removeparam (), substr_remove();
 	char *initfile, perf[80];
 	XSizeHints hints;
 	long supplied;
@@ -310,7 +310,7 @@ finish_setup ()
 	uf_def_function ("pd_defined", 2, type, pd_defined);
 	uf_def_function ("pd_removeparam", 2, type, pd_removeparam);
 	uf_def_function ("substr_remove", 2, type, substr_remove);
-	uf_def_function ("strlength", 1, type, strlength);
+	uf_def_function ("realplatform", 1, type, RealPlatform);
 /*
  * Redirect UI output.
  */
@@ -606,8 +606,9 @@ struct ui_command *cmds;
 	 */
 	   case GPC_HELP:
 		fixdir ("ZEB_HELPFILE", LIBDIR, "zeb.hlp", helpfile);
-		XhCallXHelp (Graphics, helpfile, XHELP_INTRO_ID, 
-			"Welcome to Zeb");
+		XhCallXHelp (Graphics, helpfile, 
+			cmds[1].uc_ctype == UTT_END ? XHELP_INTRO_ID : 
+				UPTR (cmds[1]), "Welcome to Zeb");
 		break;
 	/*
 	 * The user wants to annotate something.
@@ -1285,27 +1286,6 @@ union usy_value	*argv, *retv;
 
 
 
-/* ARGSUSED */
-strlength (narg, argv, argt, retv, rett)
-int 	narg, *argt, *rett;
-union usy_value	*argv, *retv;
-/*
- * Command line function to return the length of a string.
- *
- *	strlength (string)
- */
-{
-	int	i;
-	
-	i = strlen (argv[0].us_v_ptr);
-	*rett = SYMT_INT;
-	retv->us_v_int = i;
-}
-	
-
-
-
-
 static void
 UiErrorReport (line)
 char *line;
@@ -1443,4 +1423,21 @@ char *who;
 	}
 	msg_FinishQuery (who);
 	return (0);
+}
+
+
+
+
+
+static int
+RealPlatform (narg, argv, argt, retv, rett)
+int narg, *argt, *rett;
+SValue *argv, *retv;
+/*
+ * The "realstation" command line function -- return TRUE if the argument
+ * is a real platform.
+ */
+{
+	retv->us_v_int = (ds_LookupPlatform (argv->us_v_ptr) != BadPlatform);
+	*rett = SYMT_BOOL;
 }

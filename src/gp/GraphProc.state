@@ -1,4 +1,4 @@
-! $Id: GraphProc.state,v 1.17 1992-10-06 15:29:00 corbet Exp $
+! $Id: GraphProc.state,v 1.18 1992-12-09 16:14:26 corbet Exp $
 !
 !		Copyright (C) 1987,88,89,90,91 by UCAR
 !	University Corporation for Atmospheric Research
@@ -77,7 +77,7 @@ define state initial
 		next alias-old
 	endinput
 	input 'help' 22
-		next ust$no_more
+		next help-opt-topic
 	endinput
 	input 'userannot' 23
 		next ust$no_more
@@ -409,10 +409,15 @@ define state move-component
 	endinput
 enddef
 
-!
-! Don't die just because we hit something undefined
-!
-set ui$bailout false
+
+define state help-opt-topic
+	input string
+		next ust$no_more
+	endinput
+	input EOS
+		done
+	endinput
+enddef
 
 !
 ! Read in offset control widgets too.
@@ -424,6 +429,10 @@ read offset.w
 ! into the graphproc event loop.
 !
 procedure ui$init
+	!
+	! Don't die just because we hit something undefined
+	!
+	set ui$bailout false
 	set ui$menu_mark_file '/local/X11R5/include/X11/bitmaps/star' ! XXX
 	while (true)
 		run
