@@ -44,7 +44,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: Track.c,v 2.43 1997-06-04 15:16:48 granger Exp $")
+RCSID ("$Id: Track.c,v 2.44 1997-10-23 22:14:01 burghart Exp $")
 
 # define ARROWANG .2618 /* PI/12 */
 # ifndef M_PI
@@ -837,7 +837,7 @@ TrackParams *tparams;
 		}
 		else
 		{
-			sprintf (datastr, "%s %li %f %f %f", "10m/sec", 
+			sprintf (datastr, "%s %li %f %f %f", "m/s", 
 				taclr.pixel, 10.0, 0.0, tparams->tp_UnitLen);
 			An_AddAnnotProc (An_ColorVector, comp, datastr,
 				strlen (datastr), 30, FALSE, FALSE);

@@ -30,7 +30,7 @@
 # include "DrawText.h"
 # include "PixelCoord.h"
 # include "GC.h"
-MAKE_RCSID ("$Id: Annotate.c,v 2.29 1995-10-09 22:09:23 burghart Exp $")
+MAKE_RCSID ("$Id: Annotate.c,v 2.30 1997-10-23 22:13:55 burghart Exp $")
 
 /*
  * Graphics context (don't use the global one in GC.h because we don't
@@ -662,7 +662,7 @@ int datalen, begin, space;
  */
 {
         int limit, left;
-        char string[40];
+        char units[16], string[24];
         float scale, used, u, v, unitlen;
 	Pixel color;
 /*
@@ -672,14 +672,15 @@ int datalen, begin, space;
 /*
  * Get data.
  */
-        sscanf (data, "%s %li %f %f %f", string, &color, &u, &v, &unitlen);
+        sscanf (data, "%s %li %f %f %f", units, &color, &u, &v, &unitlen);
+	sprintf (string, "%.0f %s", (float)(hypot (u, v)), units);
 /*
  * Draw the string.
  */
         left = An_GetLeft ();
         XSetForeground (XtDisplay (Graphics), AnGcontext, color);
-        DrawText (Graphics, GWFrame (Graphics), AnGcontext,
-                left, begin, string, 0.0, scale, JustifyLeft, JustifyTop);
+        DrawText (Graphics, GWFrame (Graphics), AnGcontext, left, begin, 
+		  string, 0.0, scale, JustifyLeft, JustifyTop);
 	used = DT_ApproxHeight (Graphics, scale, 1);
         begin += used;
         space -= used;

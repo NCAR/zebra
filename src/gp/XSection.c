@@ -42,7 +42,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: XSection.c,v 2.38 1997-05-13 21:32:47 ishikawa Exp $")
+RCSID ("$Id: XSection.c,v 2.39 1997-10-23 22:14:04 burghart Exp $")
 
 /*
  * General definitions
@@ -708,7 +708,7 @@ bool	update;
 
 	if (Do_vectors)
 	{
-		sprintf (Scratch, "%s %li %f %f %f", "10m/s", Ccolor.pixel, 
+		sprintf (Scratch, "%s %li %f %f %f", "m/s", Ccolor.pixel, 
 			 10.0, 0.0, Wind_scale * USABLE_HEIGHT); 
 		An_AddAnnotProc (An_ColorVector, c, Scratch, strlen (Scratch),
 				 40, FALSE, FALSE);

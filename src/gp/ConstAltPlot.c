@@ -43,7 +43,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.67 1997-10-03 23:45:48 ishikawa Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.68 1997-10-23 22:13:58 burghart Exp $")
 
 
 /*
@@ -1459,8 +1459,8 @@ bool	update;
 	if (do_vectors)
 	{
 		int	length = 10;
-		sprintf (data, "%d %s %li %f %f %f", length, "m/s",
-			 color.pixel, (float) length, 0.0, unitlen); 
+		sprintf (data, "%s %li %f %f %f", "m/s", color.pixel, 
+			 (float) length, 0.0, unitlen); 
 		An_AddAnnotProc (An_ColorVector, c, data, strlen (data),
 				 40, FALSE, FALSE);
 	}

@@ -38,7 +38,7 @@
 # include "AxisControl.h"
 # include "PlotPrim.h"
 
-RCSID ("$Id: XYWind.c,v 1.30 1997-10-16 20:41:50 burghart Exp $")
+RCSID ("$Id: XYWind.c,v 1.31 1997-10-23 22:14:07 burghart Exp $")
 
 /*
  * General definitions
@@ -305,9 +305,8 @@ bool	update;
 		    {
 			if (strcmp (style, "vector") == 0)
 			{
-			    sprintf (annotcontrol, "%5.1f%s %li %f %f %f", 
-				     scaleSpeed, "m/sec", taColor, scaleSpeed, 
-				     0.0, vecScale);
+			    sprintf (annotcontrol, "%s %li %f %f %f", "m/s", 
+				     taColor, scaleSpeed, 0.0, vecScale);
 			    An_AddAnnotProc (An_ColorVector, c, annotcontrol,
 					     strlen (annotcontrol) + 1, 30, 
 					     FALSE, FALSE);
