@@ -39,7 +39,7 @@
 # include "DataFormat.h"
 # include "GRIB.h"
 
-RCSID ("$Id: DFA_GRIB.c,v 3.41 1998-09-22 22:36:08 burghart Exp $")
+RCSID ("$Id: DFA_GRIB.c,v 3.42 1998-10-14 17:08:27 burghart Exp $")
 
 
 /*
@@ -3022,28 +3022,21 @@ GDSLatLon *gds;
  */
 	if ((latstep < 0) && (lat1 < lat2))
 	{
-	    float temp;
-
 	    msg_ELog (EF_INFO, "grb_LLGridInfo: %s",
 		      "Latitude scan mode inconsistent with lat1/lat2");
-	    msg_ELog (EF_INFO, "grb_LLGridInfo: Believing scan mode, so %s",
+	    msg_ELog (EF_INFO, "grb_LLGridInfo: Believing lat1/lat2, so %s",
 		      "data may be flipped N <-> S.");
-	    temp = lat1;
-	    lat1 = lat2;
-	    lat2 = temp;
+	    latstep *= -1.0;
 	}
 
 	if ((lonstep < 0) && (lon1 < lon2))
 	{
-	    float temp;
-
 	    msg_ELog (EF_INFO, "grb_LLGridInfo: %s",
 		      "Longitude scan mode inconsistent with lon1/lon2");
-	    msg_ELog (EF_INFO, "grb_LLGridInfo: Believing scan mode, so %s",
+	    msg_ELog (EF_INFO, "grb_LLGridInfo: Believing lon1/lon2, so %s",
 		      "data may be flipped E <-> W.");
-	    temp = lat1;
-	    lat1 = lat2;
-	    lat2 = temp;
+	    lonstep *= -1.0;
+
 	}
 /*
  * Define the destination grid info.
