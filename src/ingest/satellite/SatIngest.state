@@ -71,7 +71,7 @@ enddef
 !
 define state file-name
 	input string
-		lowercase
+!		lowercase
 		next file-field
 	endinput
 enddef
