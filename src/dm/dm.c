@@ -30,9 +30,10 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 # include <timer.h>
+# include <DataStore.h>
 # include <config.h>
 # include <copyright.h>
-MAKE_RCSID ("$Id: dm.c,v 2.16 1992-08-18 16:11:07 corbet Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.17 1992-11-22 22:46:42 corbet Exp $")
 
 
 /*
@@ -75,6 +76,7 @@ int SEChange FP ((char *, int, int, int, SValue *, int, SValue *));
 static void ForceRestart FP ((char *));
 static int dm_dispatcher FP ((int, struct ui_command *));
 static int dm_msg_handler FP ((Message *));
+static void EnterPosition FP ((struct ui_command *));
 
 
 
@@ -300,6 +302,12 @@ struct ui_command *cmds;
 
 	   case DMC_NEWWINDOW:
 	   	NewWindow (cmds + 1);
+		break;
+	/*
+	 * Position entry.
+	 */
+	   case DMC_ENTER:
+	   	EnterPosition (cmds + 1);
 		break;
 
 	   default:
@@ -1295,3 +1303,70 @@ sendreply:
 	msg_send (from, MT_DISPLAYMGR, FALSE, &reply, sizeof (reply));
 }
 
+
+
+
+
+static void
+EnterPosition (cmds)
+struct ui_command *cmds;
+/*
+ * Manually enter a position.
+ */
+{
+	PlatformId pid;
+	Location where;
+	DataChunk *dc;
+	FieldId fid;
+	ZebTime when;
+	static int init_done = FALSE;
+	float dlat, dlon, mlat, mlon;
+/*
+ * If need be, initialize the data store.  We do this here because 99% of the
+ * invocations of dm will never need it.
+ */
+	if (! init_done)
+	{
+		init_done = TRUE;
+		ds_Initialize ();
+	}
+	fid = F_Lookup ("trans");
+/*
+ * Pull out basic info.
+ */
+	if ((pid = ds_LookupPlatform (UPTR (*cmds))) == BadPlatform)
+		ui_error ("Bad platform %s", UPTR (*cmds));
+	dlat = UFLOAT (cmds[1]);
+	mlat = UFLOAT (cmds[2]);
+	dlon = UFLOAT (cmds[3]);
+	mlon = UFLOAT (cmds[4]);
+	where.l_lat = dlat + mlat/60.0;
+	where.l_lon = dlon + mlon/60.0;
+	where.l_alt = UFLOAT (cmds[5]);
+/*
+ * If they gave us a time, use it; otherwise we need to see when the last
+ * point is.
+ */
+	if (cmds[4].uc_ctype != UTT_END)
+		TC_UIToZt (&UDATE (cmds[6]), &when);
+	else
+	{
+		ZebTime now;
+		tl_Time (&now);
+		if (! ds_DataTimes (pid, &now, 1, DsBefore, &when))
+			when = now;
+	}
+/*
+ * Make our data chunk.
+ */
+	dc = dc_CreateDC (DCC_Scalar);
+	dc->dc_Platform = pid;
+	dc_SetScalarFields (dc, 1, &fid);
+	dc_AddScalar (dc, &when, 0, fid, &where.l_lat);
+	dc_SetLoc (dc, 0, &where);
+/*
+ * Store the point, free the data chunk, and we are done.
+ */
+	ds_Store (dc, FALSE, 0, 0);
+	dc_DestroyDC (dc);
+}

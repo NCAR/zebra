@@ -1,4 +1,4 @@
-! $Id: dm.state,v 1.14 1992-02-07 21:03:48 corbet Exp $
+! $Id: dm.state,v 1.15 1992-11-22 22:46:42 corbet Exp $
 !
 ! Command definition for the display manager.
 !
@@ -98,6 +98,9 @@ define state dm-initial
 	endinput
 	input 'newwindow' 42
 		next dm-newwin-name
+	endinput
+	input 'enter' 43
+		next dm-enter-plat
 	endinput
 enddef
 
@@ -569,5 +572,55 @@ define state dm-newcfg-copy
 	endinput
 	input string
 		next ust$no_more
+	endinput
+enddef
+
+
+!
+! Position entry.
+!
+define state dm-enter-plat
+	input string
+		lowercase
+		next dm-enter-lat
+	endinput
+enddef
+
+define state dm-enter-lat
+	input real
+		next dm-enter-lat_min
+	endinput
+enddef
+
+define state dm-enter-lat_min
+	input real
+		next dm-enter-lon
+	endinput
+enddef
+
+define state dm-enter-lon
+	input real
+		next dm-enter-lon_min
+	endinput
+enddef
+
+define state dm-enter-lon_min
+	input real
+		next dm-enter-alt
+	endinput
+enddef
+
+define state dm-enter-alt
+	input real
+		next dm-enter-overwrite
+	endinput
+enddef
+
+define state dm-enter-overwrite
+	input date
+		next ust$no_more
+	endinput
+	input EOS
+		done
 	endinput
 enddef
