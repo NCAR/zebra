@@ -1,0 +1,44 @@
+! $Id: sk-add-data,v 1.1 2000-11-10 22:20:33 granger Exp $
+!
+! Code to connect PutScalar to skewt windows.
+!
+
+procedure sk-add-data platform string field string target string
+!
+! ISS compatibility: see if we need to append a "/omega" here.
+!
+	if (RealPlatform (concat (platform, '/omega')))
+		local platform concat(platform, '/omega')
+	endif
+!
+! Find the name of the second component (i.e. what we assume is the real
+! data component).  Also check the overlay mode.
+!
+	local comp NthComp(target, 1)
+	local mode PDParam(target,comp,'overlay-mode')
+!
+! If they are not in overlay mode just bash it in directly.  (Direct test
+! on false since true is default)
+!
+	if (mode = 'false')
+		parameter #target #comp platform #platform
+		return
+	endif
+!
+! OK implement overlaying for them.
+!
+	if (nvalue (target, comp, 'platform') >= 3)
+		message 'Too many platforms.  Reset window to initial state.'
+		beep
+	else
+		local explat PDParam(target,comp,'platform')
+		if (explat = 'null')
+		   	local explat platform
+		else
+			local explat concat3(explat, ',', platform)
+		endif
+		parameter #target #comp platform #explat
+	endif
+endprocedure
+
+
