@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Makefile.cpp,v 1.1 1991-12-20 15:53:42 kris Exp $"
+MFVERSION="$Id: Makefile.cpp,v 1.2 1992-04-28 21:48:53 granger Exp $"
 
 # include "../include/config.h"
 
@@ -26,7 +26,7 @@ MFVERSION="$Id: Makefile.cpp,v 1.1 1991-12-20 15:53:42 kris Exp $"
  */
 CC=CCompiler
 CFLAGS=CCOptions IncludeDirs
-LIBS=ZebLibrary CDFLibrary MiscLibs XLibraries
+LIBS=ZebLibrary CDFLibrary MiscLibs 
 # endif
 
 all:	gprotocdf mudtocdf convmud
