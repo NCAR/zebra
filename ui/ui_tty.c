@@ -1,4 +1,4 @@
-/* $Id: ui_tty.c,v 1.8 1991-10-18 20:20:52 burghart Exp $ */
+/* $Id: ui_tty.c,v 1.9 1995-11-19 18:16:16 granger Exp $ */
 /*
  * Basic terminal handling.  This is an extremely VMS-dependant module.
  */
@@ -22,7 +22,11 @@
 # ifdef SYSV
 # include <fcntl.h>
 # include <termio.h>
+# ifdef linux
+# include <sys/time.h>	/* for FD_ set macros */
 # endif
+# endif
+
 
 # ifdef BSD
 # include <sys/types.h>

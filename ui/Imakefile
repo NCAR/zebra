@@ -1,5 +1,5 @@
 /* -*- C -*- */
-MFVERSION="$Id: Imakefile,v 1.5 1995-05-24 23:13:32 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.6 1995-11-19 18:16:14 granger Exp $"
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -42,7 +42,11 @@ SYSDEFINES = -DBSD
 #if defined(SVR4Architecture) || SVR4 || SYSV || SystemV4 || SystemV
 SYSDEFINES = -DSYSV
 #else
+#if defined(LinuxArchitecture)
+SYSDEFINES = -DSYSV
+#else
 SYSDEFINES =
+#endif
 #endif
 #endif
 
