@@ -35,10 +35,14 @@ static void NotificationRequest FP ((struct dsp_Template *));
 static void MakeTimerRequest FP ((PlatformId));
 static void TimeToNotify FP ((ZebTime *, PlatformId));
 
+/* kludge to keep acc compiler happy - these vars are not used */
+PlatformClass    *CTable;
+PlatformInstance *PTable;
+
 /*
  * Keep track of timer events.
  */
-# define MAXPLAT 1024
+/* # define MAXPLAT 1024 - this is already defined in included files */
 static int TimeEvent[MAXPLAT];
 
 
