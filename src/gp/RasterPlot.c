@@ -29,7 +29,7 @@
 # include <GraphicsW.h>
 # include "GraphProc.h"
 
-RCSID ("$Id: RasterPlot.c,v 2.19 1995-07-16 15:28:55 granger Exp $")
+RCSID ("$Id: RasterPlot.c,v 2.20 1995-07-21 18:07:05 granger Exp $")
 
 # ifdef TIMING
 # include <sys/time.h>
@@ -362,7 +362,7 @@ float *leftcol_out, *toprow_out;
 	}
 	if (*xhi > (int)(Clip.x + Clip.width))
 	{
-		rightcol -= (*xhi - Clip.x - Clip.width) * colinc;
+		rightcol -= (*xhi - (int)(Clip.x - Clip.width)) * colinc;
 		*xhi = Clip.x + Clip.width;
 	}
 
@@ -373,7 +373,7 @@ float *leftcol_out, *toprow_out;
 	}
 	if (*ylo > (int)(Clip.y + Clip.height))
 	{
-		bottomrow -= (*ylo - Clip.y - Clip.height) * rowinc;
+		bottomrow -= (*ylo - (int)(Clip.y + Clip.height)) * rowinc;
 		*ylo = Clip.y + Clip.height;
 	}
 /*
@@ -892,7 +892,7 @@ float 		scale, bias;
 	}
 	if (xhi > (int)(Clip.x + Clip.width))
 	{
-		rightcol -= (xhi - Clip.x - Clip.width) * colinc;
+		rightcol -= (xhi - (int)(Clip.x + Clip.width)) * colinc;
 		xhi = Clip.x + Clip.width;
 	}
 
@@ -904,7 +904,7 @@ float 		scale, bias;
 	
 	if (ylo > (int)(Clip.y + Clip.height))
 	{
-		bottomrow -= (ylo - Clip.y - Clip.height) * rowinc;
+		bottomrow -= (ylo - (int)(Clip.y + Clip.height)) * rowinc;
 		ylo = Clip.y + Clip.height;
 	}
 /*
