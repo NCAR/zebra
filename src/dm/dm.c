@@ -34,7 +34,7 @@
 # include <config.h>
 # include <copyright.h>
 # include <xhelp.h>
-MAKE_RCSID ("$Id: dm.c,v 2.25 1993-03-02 20:13:29 granger Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.26 1993-03-12 18:05:15 granger Exp $")
 
 
 /*
@@ -329,7 +329,12 @@ struct ui_command *cmds;
 	   	EnterPosition (cmds + 1);
 		break;
 	/*
-	 * Fire up xhelp.
+	 * Fire up xhelp: help [topic] [help-file]
+	 * If no topic or help-file, intro of default help file used
+	 * If only topic specified, default help file used
+	 * If a non-default help file is specified, the topic must
+	 * be specified as well.  The file will be looked for in the 
+	 * library directory. "intro" topic becomes XHELP_INTRO_ID.
 	 */
 	   case DMC_HELP:
 		fixdir ("ZEB_HELPFILE", GetLibDir (), "zeb.hlp", helpfile);
@@ -337,9 +342,17 @@ struct ui_command *cmds;
 			strcpy (topic, XHELP_INTRO_ID);
 		else
 		{
-			strcpy (topic, UPTR (cmds[1]));
+			if (strcmp(UPTR (cmds[1]), "intro") == 0)
+				strcpy (topic, XHELP_INTRO_ID);
+			else
+				strcpy (topic, UPTR (cmds[1]));
 			/* strcat (topic, "             "); */
 			/* topic[13] = '\0'; */
+			if (cmds[2].uc_ctype != UTT_END)
+			{		
+				fixdir ("ZEB_HELPFILE", GetLibDir (), 
+					UPTR (cmds[2]), helpfile);
+			}
 		}
 		XhCallXHelp (Top, helpfile, topic, "Welcome to Zeb");
 		XFlush(Dm_Display);	/* flush Xatoms to xhelp program */
