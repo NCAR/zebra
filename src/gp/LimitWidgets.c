@@ -1,7 +1,7 @@
 /*
  * Widgets for changing plot limits.
  */
-static char *rcsid = "$Id: LimitWidgets.c,v 2.4 1991-11-22 20:54:16 kris Exp $";
+static char *rcsid = "$Id: LimitWidgets.c,v 2.5 1991-12-07 18:06:51 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -290,8 +290,10 @@ int type;
 /*
  * Make it known to UI.
  */
-	uw_def_widget (ret->wq_name, " ", wd->wd_create, 0, (char *) ret);
+	uw_def_widget (ret->wq_name, "", wd->wd_create, 0, (char *) ret);
+# ifdef notdef
 	uw_ForceOverride (ret->wq_name);
+# endif
 /*
  * All done -- send it back.
  */
@@ -391,7 +393,8 @@ XtAppContext actx;
 	XtSetArg (args[n], XtNlabel, "Store"); n++;
 	w = XtCreateManagedWidget ("store", commandWidgetClass, form,
 		args, n);
-	XtAddCallback (w, XtNcallback, lw_SSStore, wq);
+	XtAddCallback (w, XtNcallback, (XtCallbackProc) lw_SSStore, 
+		(XtPointer) wq);
 # ifdef notdef
 /*
  * The "store local" button.
@@ -402,7 +405,8 @@ XtAppContext actx;
 	XtSetArg (args[n], XtNlabel, "Store local"); n++;
 	w = XtCreateManagedWidget ("local", commandWidgetClass, form,
 		args, n);
-	/* XtAddCallback (w, XtNcallback, mc_MovieRun, 0); */
+	/* XtAddCallback (w, XtNcallback, (XtCallbackProc) mc_MovieRun, 
+		(XtPointerr) 0); */
 # endif
 /*
  * The "cancel" button.
@@ -413,7 +417,8 @@ XtAppContext actx;
 	XtSetArg (args[n], XtNlabel, "Cancel"); n++;
 	w = XtCreateManagedWidget ("cancel", commandWidgetClass, form,
 		args, n);
-	XtAddCallback (w, XtNcallback, lw_CBPopdown, wq);
+	XtAddCallback (w, XtNcallback, (XtCallbackProc) lw_CBPopdown, 
+		(XtPointer) wq);
 	return (form);
 }
 
@@ -478,7 +483,8 @@ XtAppContext actx;
 	XtSetArg (args[n], XtNlabel, "Store"); n++;
 	w = XtCreateManagedWidget ("store", commandWidgetClass, form,
 		args, n);
-	XtAddCallback (w, XtNcallback, lw_SIStore, wq);
+	XtAddCallback (w, XtNcallback, (XtCallbackProc) lw_SIStore, 
+		(XtPointer) wq);
 # ifdef notdef
 /*
  * The "store local" button.
@@ -489,7 +495,8 @@ XtAppContext actx;
 	XtSetArg (args[n], XtNlabel, "Store local"); n++;
 	w = XtCreateManagedWidget ("local", commandWidgetClass, form,
 		args, n);
-	/* XtAddCallback (w, XtNcallback, mc_MovieRun, 0); */
+	/* XtAddCallback (w, XtNcallback, (XtCallbackProc) mc_MovieRun, 
+		(XtPointer) 0); */
 # endif
 /*
  * The "cancel" button.
@@ -500,7 +507,8 @@ XtAppContext actx;
 	XtSetArg (args[n], XtNlabel, "Cancel"); n++;
 	w = XtCreateManagedWidget ("cancel", commandWidgetClass, form,
 		args, n);
-	XtAddCallback (w, XtNcallback, lw_CBPopdown, wq);
+	XtAddCallback (w, XtNcallback, (XtCallbackProc) lw_CBPopdown, 
+		(XtPointer) wq);
 	return (form);
 }
 
@@ -565,7 +573,8 @@ XtAppContext actx;
 	XtSetArg (args[n], XtNlabel, "Store"); n++;
 	w = XtCreateManagedWidget ("store", commandWidgetClass, form,
 		args, n);
-	XtAddCallback (w, XtNcallback, lw_SFStore, wq);
+	XtAddCallback (w, XtNcallback, (XtCallbackProc) lw_SFStore, 
+		(XtPointer) wq);
 # ifdef notdef
 /*
  * The "store local" button.
@@ -576,7 +585,8 @@ XtAppContext actx;
 	XtSetArg (args[n], XtNlabel, "Store local"); n++;
 	w = XtCreateManagedWidget ("local", commandWidgetClass, form,
 		args, n);
-	/* XtAddCallback (w, XtNcallback, mc_MovieRun, 0); */
+	/* XtAddCallback (w, XtNcallback, (XtCallbackProc) mc_MovieRun, 
+		(XtPointer) 0); */
 # endif
 /*
  * The "cancel" button.
@@ -587,7 +597,8 @@ XtAppContext actx;
 	XtSetArg (args[n], XtNlabel, "Cancel"); n++;
 	w = XtCreateManagedWidget ("cancel", commandWidgetClass, form,
 		args, n);
-	XtAddCallback (w, XtNcallback, lw_CBPopdown, wq);
+	XtAddCallback (w, XtNcallback, (XtCallbackProc) lw_CBPopdown, 
+		(XtPointer) wq);
 	return (form);
 }
 
@@ -682,7 +693,8 @@ XtAppContext actx;
 	XtSetArg (args[n], XtNlabel, "Store"); n++;
 	w = XtCreateManagedWidget ("store", commandWidgetClass, form,
 		args, n);
-	XtAddCallback (w, XtNcallback, lw_DFStore, wq);
+	XtAddCallback (w, XtNcallback, (XtCallbackProc) lw_DFStore, 
+		(XtPointer) wq);
 # ifdef notdef
 /*
  * The "store local" button.
@@ -693,7 +705,8 @@ XtAppContext actx;
 	XtSetArg (args[n], XtNlabel, "Store local"); n++;
 	w = XtCreateManagedWidget ("local", commandWidgetClass, form,
 		args, n);
-	/* XtAddCallback (w, XtNcallback, mc_MovieRun, 0); */
+	/* XtAddCallback (w, XtNcallback, (XtCallbackProc) mc_MovieRun, 
+		(XtPointer) 0); */
 # endif
 /*
  * The "cancel" button.
@@ -704,7 +717,8 @@ XtAppContext actx;
 	XtSetArg (args[n], XtNlabel, "Cancel"); n++;
 	w = XtCreateManagedWidget ("cancel", commandWidgetClass, form,
 		args, n);
-	XtAddCallback (w, XtNcallback, lw_CBPopdown, wq);
+	XtAddCallback (w, XtNcallback, (XtCallbackProc) lw_CBPopdown, 
+		(XtPointer) wq);
 	return (form);
 }
 
@@ -799,7 +813,8 @@ XtAppContext actx;
 	XtSetArg (args[n], XtNlabel, "Store"); n++;
 	w = XtCreateManagedWidget ("store", commandWidgetClass, form,
 		args, n);
-	XtAddCallback (w, XtNcallback, lw_TSStore, wq);
+	XtAddCallback (w, XtNcallback, (XtCallbackProc) lw_TSStore, 
+		(XtPointer) wq);
 # ifdef notdef
 /*
  * The "store local" button.
@@ -810,7 +825,8 @@ XtAppContext actx;
 	XtSetArg (args[n], XtNlabel, "Store local"); n++;
 	w = XtCreateManagedWidget ("local", commandWidgetClass, form,
 		args, n);
-	/* XtAddCallback (w, XtNcallback, mc_MovieRun, 0); */
+	/* XtAddCallback (w, XtNcallback, (XtCallbackProc) mc_MovieRun, 
+		(XtPointer) 0); */
 # endif
 /*
  * The "cancel" button.
@@ -821,7 +837,8 @@ XtAppContext actx;
 	XtSetArg (args[n], XtNlabel, "Cancel"); n++;
 	w = XtCreateManagedWidget ("cancel", commandWidgetClass, form,
 		args, n);
-	XtAddCallback (w, XtNcallback, lw_CBPopdown, wq);
+	XtAddCallback (w, XtNcallback, (XtCallbackProc) lw_CBPopdown, 
+		(XtPointer) wq);
 	return (form);
 }
 
@@ -1370,7 +1387,8 @@ XtAppContext	appc;
 		XtSetArg (args[0], XtNlabel, name);
 		Sw_Swidgets[sta] = XtCreateManagedWidget (name,
 			toggleWidgetClass, box, args, 1);
-		XtAddCallback (Sw_Swidgets[sta], XtNcallback, lw_SwCb, sta);
+		XtAddCallback (Sw_Swidgets[sta], XtNcallback, 
+			(XtCallbackProc) lw_SwCb, (XtPointer) sta);
 		Sw_Sset[sta] = FALSE;
 	}
 /*
@@ -1382,7 +1400,8 @@ XtAppContext	appc;
 	XtSetArg (args[n], XtNlabel, "Store");		n++;
 	w = XtCreateManagedWidget ("store", commandWidgetClass, form,
 		args, n);
-	XtAddCallback (w, XtNcallback, lw_SWStore, wq);
+	XtAddCallback (w, XtNcallback, (XtCallbackProc) lw_SWStore, 
+		(XtPointer) wq);
 
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, w);		n++;
@@ -1390,7 +1409,8 @@ XtAppContext	appc;
 	XtSetArg (args[n], XtNlabel, "Cancel");		n++;
 	w = XtCreateManagedWidget ("cancel", commandWidgetClass, form,
 		args, n);
-	XtAddCallback (w, XtNcallback, lw_CBPopdown, wq);
+	XtAddCallback (w, XtNcallback, (XtCallbackProc) lw_CBPopdown, 
+		(XtPointer) wq);
 
 	return (form);
 }
