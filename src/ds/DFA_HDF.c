@@ -78,7 +78,7 @@ static char *hdfopt[2] = { "@(#)$DFA: HDF_INTERFACE Compiled $",
 # include <config.h>
 # include <message.h>
 
-RCSID ("$Id: DFA_HDF.c,v 3.5 1995-09-06 16:32:47 granger Exp $")
+RCSID ("$Id: DFA_HDF.c,v 3.6 1995-11-19 21:39:49 granger Exp $")
 
 #ifdef HDF_TEST
 #define ds_PlatformDataOrg(id) Org2dGrid
@@ -97,7 +97,7 @@ RCSID ("$Id: DFA_HDF.c,v 3.5 1995-09-06 16:32:47 granger Exp $")
  * Radius of the earth, in km
  */
 static const double R_EARTH = 6378.;
-static const double PI = 3.14159265358979323846;
+static const double D_PI = 3.14159265358979323846;
 
 
 # define MAX_DIMS	128
@@ -1400,7 +1400,7 @@ int i;
 	 * kilometer coordinate of the grid center latitude before
 	 * calculating the row.
 	 */
-	y = R_EARTH*log(tan(PI/4.0+phi/2.0))*cos(phi1) - y0;
+	y = R_EARTH*log(tan(D_PI/4.0+phi/2.0))*cos(phi1) - y0;
 	m = rg->rg_nY/2.0 - (y / rg->rg_Yspacing) - 0.5;
 	return (m);
 }
@@ -1428,7 +1428,7 @@ float badval;
 	int i, j, m;
 
 	phi1 = DEG_TO_RAD (tag->h_center.l_lat);
-	y0 = R_EARTH*log(tan(PI/4.0+phi1/2.0))*cos(phi1);
+	y0 = R_EARTH*log(tan(D_PI/4.0+phi1/2.0))*cos(phi1);
 	for (i = 0; i < rg->rg_nY; ++i)
 	{
 		m = dh_TranslateRow (rg, phi1, y0, i);
@@ -1456,7 +1456,7 @@ RGrid *rg;
 	int i, m;
 
 	phi1 = DEG_TO_RAD (tag->h_center.l_lat);
-	y0 = R_EARTH*log(tan(PI/4.0+phi1/2.0))*cos(phi1);
+	y0 = R_EARTH*log(tan(D_PI/4.0+phi1/2.0))*cos(phi1);
 	for (i = 0; i < rg->rg_nY; ++i)
 	{
 		m = dh_TranslateRow (rg, phi1, y0, i);
