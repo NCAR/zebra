@@ -40,13 +40,14 @@
 # include <X11/Xaw/Dialog.h>
 # include <X11/Xaw/Toggle.h>
 # include <defs.h>
+# include <zl_symbol.h>
 # include <message.h>
 # include <timer.h>
 # include <dm.h>
 # include <config.h>
 # include <copyright.h>
 
-RCSID ("$Id: EventLogger.c,v 2.35 1996-08-20 19:55:40 granger Exp $")
+RCSID ("$Id: EventLogger.c,v 2.36 1996-11-19 07:06:13 granger Exp $")
 
 # define LOGNAME "EventLogger"
 
@@ -96,9 +97,7 @@ static int FortuneWait = FORTUNE_WAIT;	/* secs idle time between fortunes */
  * Text info.
  */
 static int Buflen = 0;
-static char *Initmsg = 
-"$Id: EventLogger.c,v 2.35 1996-08-20 19:55:40 granger Exp $\nCopyright (C)\
- 1991 UCAR, All rights reserved.\n";
+static char Initmsg[256] = "";
 
 /*
  * Special info to enable debugging logging on selected clients only.
@@ -518,7 +517,7 @@ main (argc, argv)
 int argc;
 char **argv;
 {
-	char buf[128];
+	char buf[512];
 /*
  * Retrieve our command line options and initialize parameters accordingly
  */
@@ -565,9 +564,12 @@ char **argv;
 /*
  * Create the EventLogger toplevel shell and widgets
  */
+	sprintf (Initmsg, "%s%s\n", Z_version(), Z_cppsymbols());
 	if (Windows)
 		CreateEventLogger();
 	AppendToLogFile (Initmsg);
+	sprintf (buf, "Message protocol version: %s", MSG_PROTO_VERSION);
+	LogMessage (EF_INFO, LOGNAME, buf);
 /*
  * Tell msglib about our X connection.
  */
