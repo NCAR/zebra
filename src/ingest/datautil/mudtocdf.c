@@ -24,7 +24,7 @@
 
 # include <defs.h>	/* Time and coordinate conversions */
 
-RCSID ("$Id: mudtocdf.c,v 1.6 1995-06-29 21:20:47 granger Exp $")
+RCSID ("$Id: mudtocdf.c,v 1.7 1995-07-09 14:33:35 granger Exp $")
 
 extern char *getenv ();
 
@@ -276,8 +276,8 @@ char *tmp;
 /*
  * Pull the data from the mudras file.
  */
-	fetchd_ (&Lun, &volume_.mc_id, &nid, &level, MFields + fld, tmp,
-			grid, &nx, &ny, &axis, &bf, &status);
+	fetchd_ (&Lun, volume_.mc_id, &nid, &level, MFields + fld, tmp,
+		 grid, &nx, &ny, &axis, &bf, &status);
 	if (status)
 		printf ("FETCHD failure %d\n", status);
 /*
