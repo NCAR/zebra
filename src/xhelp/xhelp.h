@@ -108,7 +108,7 @@
  **    Mark Newsome                                                          **
  **    January 1991, September 1991                                          **
  **
- **    $Id: xhelp.h,v 1.2 1993-03-12 20:28:19 granger Exp $
+ **    $Id: xhelp.h,v 1.3 1993-03-13 00:59:12 granger Exp $
  ******************************************************************************/
 
 #include <stdio.h>
@@ -193,7 +193,7 @@ void XhSetHelpStatusProperty(w,arg)
          XA_INTEGER,
          8,
          PropModeReplace,
-         &arg,sizeof(int));
+         (unsigned char *)&arg,sizeof(int));
 } /** XhSetHelpStatusProperty() **/
 
 /*-------------------*/
@@ -208,6 +208,7 @@ void XhCreateHelpAtoms(w)
 /*------------------------*/
 int XhGetHelpStatusProperty(w)
 /*------------------------*/
+   Widget w;
 {
    Atom actual_type;
    int  actual_format, nitems, leftover;
@@ -221,7 +222,8 @@ int XhGetHelpStatusProperty(w)
             FALSE,  /** server deletes data upon receipt **/
             XA_INTEGER,
             &actual_type, &actual_format,
-            &nitems, &leftover, &retdata) == Success && actual_type == XA_INTEGER) {
+            &nitems, &leftover, (unsigned char **)&retdata) == Success 
+               && actual_type == XA_INTEGER) {
         if (*retdata == XHELP_ACTIVE)
           return XHELP_ACTIVE;
         else
