@@ -20,7 +20,7 @@
 #include "T_BTree.hh"
 
 #ifdef RCSID
-RCSID("$Id: T_BTree.cc,v 1.29 2000-11-21 23:09:47 granger Exp $")
+RCSID("$Id: T_BTree.cc,v 1.30 2000-12-05 23:25:24 granger Exp $")
 #endif
 
 typedef BTreeFile<ZTime,DataFileCore> TimeFileTree;
@@ -555,6 +555,32 @@ T_Traversal (test_tree &tree, int print = 0)
 
 
 
+int
+T_RandomAccess (test_tree &tree, 
+		vector<key_type> &keys,
+		vector<value_type> &values,
+		int print = 0)
+{
+	int err = 0;
+	int ntimes = 5*tree.numKeys();
+	int nkeys = keys.size();
+	vector<key_type>::iterator k;
+	vector<value_type>::iterator v;
+	value_type val;
+
+	cout << "Random accesses (" << ntimes << ")..." << endl;
+	srandom (42);
+	for (int i = 0; i < ntimes; ++i)
+	{
+	    int r = (random() % nkeys);
+	    err += (! tree.Find (keys[r], &val));
+	    err += (val != values[r]);
+	}
+	return err;
+}
+
+
+
 
 int
 TestTree (test_tree &tree, int N)
@@ -578,6 +604,15 @@ TestTree (test_tree &tree, int N)
 	if (T_Reopen (tree))
 		return (err+1);
 	err += T_Traversal (tree);
+
+	// Random accesses (ie datastore file access)
+	err += T_RandomAccess (tree, keys, values);
+
+	if (T_Reopen (tree))
+		return (err+1);
+
+	// Random accesses (ie datastore file access)
+	err += T_RandomAccess (tree, keys, values);
 
 	// Ordered removal
 	cout << "Forward removal... " << endl;
