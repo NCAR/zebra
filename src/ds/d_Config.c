@@ -19,7 +19,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: d_Config.c,v 2.1 1991-09-26 22:57:32 gracio Exp $";
+static char *rcsid = "$Id: d_Config.c,v 2.2 1992-02-20 21:33:23 burghart Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -88,20 +88,19 @@ struct ui_command *cmds;
  */
 	for (cmds++; cmds->uc_ctype != UTT_END; cmds++)
 	{
+		char subname[80];
 	/*
 	 * We won't redefine an existing platform.
 	 */
-	 	if (dt_FindPlatform (UPTR (*cmds), TRUE))
+		sprintf (subname, "%s/%s", parent->dp_name, UPTR (*cmds));
+	 	if (dt_FindPlatform (subname, TRUE))
 			msg_ELog (EF_PROBLEM, "Subplatform %s already exists",
-				UPTR (*cmds));
+				subname);
 	/*
 	 * Get a new entry, clone the parent, and tweak.
 	 */
 		else
 		{
-			char subname[80];
-			sprintf (subname, "%s/%s", parent->dp_name,
-				UPTR (*cmds));
 		 	sub = dt_NewPlatform (subname);
 			*sub = *parent;
 			strcpy (sub->dp_name, subname);
