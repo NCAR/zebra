@@ -35,7 +35,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID("$Id: Lightning.c,v 2.12 1996-11-19 07:28:54 granger Exp $")
+RCSID("$Id: Lightning.c,v 2.13 1997-04-17 16:02:07 corbet Exp $")
 
 extern Pixel	White;
 
@@ -50,15 +50,17 @@ li_CAPLight (comp, update)
 char *comp;
 bool update;
 {
-	char	platform[30], step[30], ctable[30];
+	char	platform[30], step[30], ctable[30], field[40], color[40];
 	char	tadefcolor[30], data[100], temp[50], iconname[40];
+	char	dannot[32];
 	int	period, dsperiod, x, y, numcolor, pid, istep;
-	int	i, index, nsamp, showicon;
+	int	i, index, nsamp, showicon, doannot = FALSE;
 	ZebTime	begin, when;
 	float	fx, fy, sascale;
-	XColor	*colors, tadefclr;
+	XColor	*colors, tadefclr, acolor;
 	DataChunk	*dc;
 	Location	loc;
+	FieldId datafld;
 /*
  * Get our platform first, since that's what is of interest to us.
  */
@@ -131,6 +133,18 @@ bool update;
 		return;
 	}
 /*
+ * See if they want a data field annotated with the locations.
+ */
+	if (pda_Search (Pd, comp, "annot-field", platform, field, SYMT_STRING))
+	{
+		datafld = F_Lookup (field);
+		doannot = TRUE;
+		if (! pda_Search (Pd, comp, "annot-color", platform, color,
+				SYMT_STRING))
+			strcpy (color, "white");
+		ct_GetColorByName (color, &acolor);
+	}
+/*
  * Figure the begin time.
  */
 	begin = PlotTime;
@@ -141,8 +155,11 @@ bool update;
 /*
  * Get the data.
  */
-	if (! (dc = ds_Fetch (pid, DCC_Location, &begin, &PlotTime, 
-		NULL, 0, NULL, 0)))
+	dc = doannot ? ds_Fetch (pid, DCC_Scalar, &begin, &PlotTime, &datafld,
+			1, NULL, 0) :
+		ds_Fetch (pid, DCC_Location, &begin, &PlotTime, NULL, 0,
+				NULL, 0);
+	if (! dc)
 	{
 		msg_ELog (EF_INFO, "No %s data available", platform);
 		return;
@@ -174,6 +191,16 @@ bool update;
 				colors[index].pixel);
 		else
 			ov_PositionIcon (iconname, x, y, colors[index].pixel);
+	/*
+	 * Also annotation.
+	 */
+		if (! doannot)
+			continue;
+		XSetForeground (Disp, Gcontext, acolor.pixel);
+		sprintf (dannot, "%.1f", dc_GetScalar (dc, i, datafld));
+		DrawText (Graphics, GWFrame (Graphics), Gcontext, x + 10, y,
+				dannot, 0.0, sascale, JustifyLeft,
+				JustifyCenter);
 	}
 /*
  * Annotate if necessary.
