@@ -39,6 +39,7 @@ struct device
 	int	(*gd_s_attr) ();	/* Set segment attributes	*/
 	int	(*gd_target) ();	/* Read target			*/
 	int	(*gd_put_target) ();	/* Put target			*/
+	int	(*gd_untarget) ();	/* Remove target		*/
 	int	(*gd_casn) ();		/* Color assignment		*/
 	int	(*gd_check) ();		/* Exposure checking (Xwin)	*/
 	int	(*gd_viewport) ();	/* Viewport (zoom/origin)	*/
