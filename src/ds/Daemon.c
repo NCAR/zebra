@@ -53,7 +53,7 @@
 # include "dsDaemon.h"
 # include "commands.h"
 
-RCSID ("$Id: Daemon.c,v 3.64 1997-09-18 22:09:34 ishikawa Exp $")
+RCSID ("$Id: Daemon.c,v 3.65 1998-10-28 21:20:48 corbet Exp $")
 
 /*
  * Local forwards.
@@ -131,10 +131,10 @@ char *ECmds[MAXEVERY];
  */
 static Lock *FreeLocks = 0;
 
-bool InitialScan = TRUE;
+zbool InitialScan = TRUE;
 int PlatformsScanned = 0;
 
-bool DelayDataDirs = FALSE;
+zbool DelayDataDirs = FALSE;
 
 time_t LastScan = 0;	/* Time of the most recent FULL scan */
 time_t LastCache = 0;	/* Time to which cache files are up-to-date */
@@ -143,11 +143,11 @@ time_t Genesis;		/* In the beginning, there was Zeb...*/
 /*
  * Caching options.
  */
-bool LDirConst = FALSE;		/* Nothing changes		*/
-bool RDirConst = FALSE;
-bool LFileConst = FALSE;	/* Files don't change (but they	*/
-bool RFileConst = FALSE;	/* can come and go)		*/
-bool CacheOnExit = FALSE;	/* Write cache on way out?	*/
+zbool LDirConst = FALSE;		/* Nothing changes		*/
+zbool RDirConst = FALSE;
+zbool LFileConst = FALSE;	/* Files don't change (but they	*/
+zbool RFileConst = FALSE;	/* can come and go)		*/
+zbool CacheOnExit = FALSE;	/* Write cache on way out?	*/
 
 /*
  * Memory allocation options.
@@ -162,11 +162,11 @@ int DFTableGrow = 500;	/* Amount to grow by		*/
 /*
  * Other options
  */
-bool StatRevisions = TRUE;	/* Use stat() calls to get revision 
+zbool StatRevisions = TRUE;	/* Use stat() calls to get revision 
 				   numbers, rather than using a counter	*/
 
-bool Debug = FALSE;		/* Produce voluminous output as it happens */
-bool ParseOnly = FALSE;		/* Parse the init file and abort	*/
+zbool Debug = FALSE;		/* Produce voluminous output as it happens */
+zbool ParseOnly = FALSE;	/* Parse the init file and abort	*/
 int InvalidatesSent = 0;	/* Number of CacheInvalidate broadcasts */
 int ReadLockRequests = 0;
 int WriteLockRequests = 0;
@@ -1073,7 +1073,7 @@ struct dsp_UpdateFile *request;
 	if (request->dsp_FileIndex == plat->dp_Tfile)
 	{
 		plat->dp_Tfile = 0;
-		dt_AddToPlatform (plat, df, (bool)request->dsp_Local);
+		dt_AddToPlatform (plat, df, (zbool)request->dsp_Local);
 		newfile = TRUE;
 	}
 /*
@@ -1380,7 +1380,7 @@ static void
 DoRescan (cmds)
 struct ui_command *cmds;
 {
-	bool all = FALSE;
+	zbool all = FALSE;
 	PlatformId platid = BadPlatform;
 	Platform *plat;
 
@@ -2164,7 +2164,7 @@ int expect;
 {
 	Lock *zap;
 	Platform *p = PTable + which;
-	bool release = TRUE;
+	zbool release = TRUE;
 /*
  * Make sure there are locks to release.
  */

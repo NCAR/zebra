@@ -36,7 +36,7 @@
 #  include <string.h>
 #endif
 
-RCSID ("$Id: DFA_Zebra.c,v 1.34 1997-06-30 21:28:26 ishikawa Exp $")
+RCSID ("$Id: DFA_Zebra.c,v 1.35 1998-10-28 21:20:46 corbet Exp $")
 
 /*
  * There is a conflict with the symbol DataFormat between DFA and the
@@ -319,8 +319,8 @@ int ndetail;
 	znTag *tag = TAGP (ofp);
 	zn_Header *hdr = &tag->zt_Hdr;
 	int ssize, asize;
-	bool grid;
-	bool hint = FALSE;
+	zbool grid;
+	zbool hint = FALSE;
 	void *ablock;
 	SValue svalue;
 	int res_size = 0, reserved = -1;
@@ -2041,7 +2041,7 @@ unsigned long *size;
 	zn_Sample *samp;
 	float *data, *di;
 	int i, fld;
-	bool no_init;
+	zbool no_init;
 	float bad = dc_GetBadval (dc);
 	zn_Header *hdr = &tag->zt_Hdr;
 
@@ -2433,7 +2433,7 @@ zn_Open (ofp, fname, df, write)
 OpenFile *ofp;
 char *fname;
 DataFile *df;
-bool write;
+zbool write;
 /*
  * Open an existing data file.
  */
@@ -2441,7 +2441,7 @@ bool write;
 	znTag *tag = TAGP (ofp);
 	zn_Header *hdr = &tag->zt_Hdr;
 	int nsa, field, magic;
-	bool grid;
+	zbool grid;
 /*
  * Open the file.
  */
@@ -2780,28 +2780,6 @@ int ndetail;
 /*
  * Met data stuff
  */
-#ifdef notdef
-	if (metdata)
-	{
-		float badval = 0;
-		bool metdata = dc_IsSubClassOf (dc->dc_Class, DCC_MetData);
-		SValue v;
-
-		badval = dc_GetBadval (dc);
-	/*
-	 * Complain for now if the user requests a bad value flag 
-	 * and it doesn't match the one from the file
-	 *
-	 * Why does this have to be this way???????
-	 */
-		if (ds_GetDetail ("badval", details, ndetail, &v) &&
-			v.us_v_float != badval)
-		{
-			msg_ELog (EF_PROBLEM, "User/file badval mismatch!");
-			return (0);
-		}
-	}
-#endif
 	tend = tbegin + nsample - 1;
 	msg_ELog (EF_DEBUG, "znf GetData tbegin=%d to tend=%d",
 		  tbegin, tend);
@@ -2926,7 +2904,7 @@ int dcsamp, tbegin, tend;
 	float *data = (float *) malloc (nsamp * sizeof (float));
 	float *block = NULL;
 	float *dp, *bp;
-	bool fixed = (hdr->znh_Org == OrgFixedScalar);
+	zbool fixed = (hdr->znh_Org == OrgFixedScalar);
 /*
  * If we are pulling a single station out of an irgrid, figure out 
  * what the offset will be.

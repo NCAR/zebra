@@ -111,7 +111,7 @@ int	X0, Y0;
  * Projection information -- only used if we should be projecting this
  * data in a fancy way.
  */
-static bool	Projecting = FALSE;
+static zbool	Projecting = FALSE;
 static Location Origin;
 static float	LatSpacing, LonSpacing;
 

@@ -38,7 +38,7 @@
 # include <pd.h>
 # include "GraphProc.h"
 
-RCSID("$Id: LimitWidgets.c,v 2.22 1997-10-16 19:50:07 burghart Exp $")
+RCSID("$Id: LimitWidgets.c,v 2.23 1998-10-28 21:21:52 corbet Exp $")
 
 /*
  * Station widget static data.
@@ -48,7 +48,7 @@ RCSID("$Id: LimitWidgets.c,v 2.22 1997-10-16 19:50:07 burghart Exp $")
 static int Sw_Nsta;			/* Number of stations		*/
 static Widget Sw_Swidgets[MAXSTA];	/* Per-station toggles		*/
 static Widget Sw_Form;			/* Form that holds the stations	*/
-static bool Sw_Sset[MAXSTA];		/* Is this station selected?	*/
+static zbool Sw_Sset[MAXSTA];		/* Is this station selected?	*/
 static char Sw_RetSta[40*MAXSTA];	/* What we return		*/
 static char Sw_Plat[40], SavePlat[40*MAXSTA];
 static int SwNManaged;		/* Number of managed sw boxes	*/

@@ -23,7 +23,7 @@
 # include "defs.h"
 # include "message.h"
 
-RCSID("$Id: convert.c,v 2.9 1995-11-19 18:14:05 granger Exp $")
+RCSID("$Id: convert.c,v 2.10 1998-10-28 21:22:39 corbet Exp $")
 
 # ifndef PI	/* linux defines it */
 # define PI	3.141592654
@@ -167,7 +167,7 @@ float	*lat, *lon;
 
 
 
-bool
+zbool
 cvt_Origin (lat, lon)
 double	lat, lon;
 /*

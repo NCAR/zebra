@@ -27,7 +27,7 @@
 # include "DataStore.h"
 # include "dsPrivate.h"
 
-RCSID("$Id: d_Notify.c,v 3.12 1996-12-13 18:32:01 granger Exp $")
+RCSID("$Id: d_Notify.c,v 3.13 1998-10-28 21:21:01 corbet Exp $")
 
 /*
  * Here we take advantage of the knowledge that PlatformID's are simply small
@@ -49,7 +49,7 @@ static NRequest *Requests[MAXPLAT];
 static NRequest *NRFree = 0;	/* Free lookaside list		*/
 
 static char CopyProc[128];	/* Who's getting copies?	*/
-static bool Copies = FALSE;
+static zbool Copies = FALSE;
 
 
 

@@ -39,7 +39,7 @@
 # include "dsPrivate.h"
 # include "Platforms.h"
 
-RCSID("$Id: Platforms.c,v 3.3 1997-06-30 21:48:13 ishikawa Exp $")
+RCSID("$Id: Platforms.c,v 3.4 1998-10-28 21:20:57 corbet Exp $")
 
 
 /*
@@ -52,7 +52,7 @@ int DefaultKeep = 60;
  */
 char DefDataDir[DDIR_LEN];
 char RemDataDir[DDIR_LEN];
-bool DisableRemote = FALSE;	/* Disable use of remote directories 	*/
+zbool DisableRemote = FALSE;	/* Disable use of remote directories 	*/
 
 /*
  * Public access to names of enumerated types
@@ -380,7 +380,7 @@ PlatformClass *dest;
 
 
 
-bool
+zbool
 dt_ValidateClass (pc)
 PlatformClass *pc;
 /*
@@ -393,7 +393,7 @@ PlatformClass *pc;
  * requirement at the moment, that they be scalar.
  */
 {
-	bool valid = TRUE;
+	zbool valid = TRUE;
 
 	if (pc->dpc_flags & DPF_ABSTRACT)
 		return (TRUE);

@@ -37,7 +37,7 @@
 # include "PolarPlot.h"
 # endif
 
-MAKE_RCSID ("$Id: GridAccess.c,v 2.34 1998-05-04 19:51:34 corbet Exp $")
+MAKE_RCSID ("$Id: GridAccess.c,v 2.35 1998-10-28 21:21:42 corbet Exp $")
 
 # define DEG_TO_RAD(x)	((x)*0.017453292)
 # define KM_TO_DEG(x)	((x)*0.008982802) /* on a great circle */
@@ -46,9 +46,9 @@ MAKE_RCSID ("$Id: GridAccess.c,v 2.34 1998-05-04 19:51:34 corbet Exp $")
 /*
  * Our routines.
  */
-static bool 	ga_Regularize FP ((DataChunk **, FieldId, char *, char *));
-static bool 	ga_RgridRegularize FP ((DataChunk **, FieldId));
-static bool	ga_BarnesRegularize FP ((DataChunk **, FieldId, char *, char *,
+static zbool 	ga_Regularize FP ((DataChunk **, FieldId, char *, char *));
+static zbool 	ga_RgridRegularize FP ((DataChunk **, FieldId));
+static zbool	ga_BarnesRegularize FP ((DataChunk **, FieldId, char *, char *,
 			int));
 static void 	ga_RangeLimit FP ((char *, int, float *, double));
 static void 	ga_ImgToCGrid FP ((DataChunk **, FieldId));
@@ -58,8 +58,8 @@ static void	ga_MkRastDest FP ((DataChunk *, FieldId, int, int,
 			DestImage **, PPCookie *pc, float *, float *,
 			Location *, RGrid *));
 # endif
-static bool 	ga_DoNSpace FP ((DataChunk **, FieldId));
-static bool 	ga_NSSimpleGrid FP ((DataChunk **, FieldId));
+static zbool 	ga_DoNSpace FP ((DataChunk **, FieldId));
+static zbool 	ga_NSSimpleGrid FP ((DataChunk **, FieldId));
 
 int		ga_NSRegularSpacing FP((DataChunk *dc, FieldId fid,
 					float *rspacing, unsigned long *rnum,
@@ -108,7 +108,7 @@ int x, y;
 
 
 
-bool
+zbool
 ga_GridBBox (plot_time, platform, x0, y0, x1, y1)
 ZebTime	*plot_time;
 char 	*platform;
@@ -705,7 +705,7 @@ FieldId fid;
 
 
 
-static bool
+static zbool
 ga_Regularize (dc, fid, platform, comp)
 DataChunk 	**dc;
 FieldId		fid;
@@ -744,7 +744,7 @@ char		*platform, *comp;
 
 
 
-static bool
+static zbool
 ga_BarnesRegularize (dc, fid, platform, comp, dobarnes)
 DataChunk **dc;
 FieldId fid;
@@ -921,7 +921,7 @@ int dobarnes;
 
 
 
-static bool
+static zbool
 ga_RgridRegularize (dc, fid)
 DataChunk **dc;
 FieldId fid;
@@ -1104,7 +1104,7 @@ float	*data, badflag;
 
 
 
-static bool
+static zbool
 ga_DoNSpace (dc, fid)
 DataChunk	**dc;
 FieldId	fid;
@@ -1122,7 +1122,7 @@ FieldId	fid;
 
 
 	
-static bool
+static zbool
 ga_NSSimpleGrid (dc, fid)
 DataChunk	**dc;
 FieldId	fid;
@@ -1145,7 +1145,7 @@ FieldId	fid;
 {
 	DataChunk 	*rdc;
 	int		nflds, ndims, is_static, i;
-	bool		lat_first;
+	zbool		lat_first;
 	int		lat_idx, lon_idx;
 	float		latspacing, lonspacing, spacings[2];
 	float		latorg, lonorg;
@@ -1281,7 +1281,7 @@ float latspacing;
 float lonspacing;
 int nlats;
 int nlons;
-bool transpose;
+zbool transpose;
 /*
  * Use the given n-space datachunk and lat/lon spacing parameters to generate
  * a kilometer rgrid.  Return the rgrid datachunk.
@@ -1461,7 +1461,7 @@ WindInfo    wi;
 Location    loc;
 RGrid       rg;
 int         len;
-bool        do_divergence;
+zbool        do_divergence;
 float       badvalue;
 AltUnitType altunits;
 

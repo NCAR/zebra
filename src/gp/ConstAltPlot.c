@@ -56,7 +56,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.77 1998-10-14 16:29:03 burghart Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.78 1998-10-28 21:21:33 corbet Exp $")
 
 
 /*
@@ -64,7 +64,7 @@ MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.77 1998-10-14 16:29:03 burghart Exp $")
  */
 static XColor	*Colors, Ctclr;
 static int	Ncolors;
-static bool 	Monocolor;
+static zbool 	Monocolor;
 
 /*
  * Our plot altitude
@@ -75,7 +75,7 @@ static float	Alt;
  * Other annotation information.
  */
 static float	Sascale;
-static bool	Sashow;
+static zbool	Sashow;
 
 /*
  * Non-modular kludgery to make things work for now, until something better
@@ -103,8 +103,8 @@ typedef enum {LineContour, FilledContour} contour_type;
 typedef struct _StInfo
 {
 	int	si_x, si_y;	/* Where it is (on screen)	*/
-	bool	si_excl;	/* Excluded?			*/
-	bool	si_mark;	/* Used in filtering operations */
+	zbool	si_excl;	/* Excluded?			*/
+	zbool	si_mark;	/* Used in filtering operations */
 } StInfo;
 
 
@@ -140,9 +140,9 @@ static int	CAP_AutoScale FP ((char *c, char *qual, char *platform,
 void		CAP_RasterSideAnnot FP ((char *, char *, int, int, int));
 static void	CAP_LegendAnnot FP ((char *, char *, int, int, int));
 void		CAP_StaPltSideAnnot FP ((char *, char *, int, int, int));
-static bool	CAP_VecParams FP ((char *c, char *platform, float *vscale,
+static zbool	CAP_VecParams FP ((char *c, char *platform, float *vscale,
 		   char *cname, int *linewidth, float *unitlen, 
-		   XColor *color, bool *do_vectors));
+		   XColor *color, zbool *do_vectors));
 static StInfo	*CAP_StationInfo FP ((DataChunk *, Location *, int));
 static void 	CAP_SpFilter FP ((float *, float *, float *, StInfo *, int,
 				  int));
@@ -154,14 +154,14 @@ static void	CAP_StDoScalar FP ((char *c, DataChunk *dc, char *platform,
 				    XColor *color, XColor *qcolor, ZebTime *zt,
 				    char *sticon, int linewidth, 
 				    double unitlen, int do_vectors, 
-				    bool quadstn[4], WindInfo *wi));
+				    zbool quadstn[4], WindInfo *wi));
 static void	CAP_StDoIRGrid FP ((char *c, DataChunk *dc, char *platform,
 				    FieldId *fields, int nfield,
 				    FieldId quadfields[4], QFormat qformats[4],
 				    XColor *color, XColor *qcolor, ZebTime *zt,
 				    char *sticon, int linewidth, 
 				    double unitlen, int do_vectors, 
-				    bool quadstn[4], WindInfo *wi, float *));
+				    zbool quadstn[4], WindInfo *wi, float *));
 static DataChunk *CAP_StGetData FP ((char *c, PlatformId plat, FieldId *fields,
 				     int nfield, int *shifted));
 static void	CAP_StPlotVector FP ((char *c, int pt, ZebTime *zt, int x0, 
@@ -171,14 +171,14 @@ static void	CAP_StPlotVector FP ((char *c, int pt, ZebTime *zt, int x0,
 				      float *vgrid, double badvalue, 
 				      double unitlen, float *qgrid[4],
 				      QFormat qformats[4], int do_vectors, 
-				      bool quadstn[4]));
-static bool	CAP_TimeCheck FP ((char *c, PlatformId pid));
+				      zbool quadstn[4]));
+static zbool	CAP_TimeCheck FP ((char *c, PlatformId pid));
 
 
 
 void
 CAP_Init (t)
-UItime *t;
+ZebTime *t;
 /*
  * CAP Plot initialization.
  */
@@ -237,7 +237,7 @@ UItime *t;
 void
 CAP_FContour (c, update)
 char	*c;
-bool	update;
+zbool	update;
 /*
  * Filled contour CAP plot for the given component
  */
@@ -300,14 +300,14 @@ bool	update;
 void
 CAP_LineContour (c, update)
 char	*c;
-bool	update;
+zbool	update;
 /*
  * Line contour CAP plot for the given component
  */
 {
 	float	center, step;
 	char	*plat, *fname, *ctable, string[100];
-	bool	tacmatch = FALSE;
+	zbool	tacmatch = FALSE;
 	int	shift;
 /* 
  * Use the common CAP contouring routine to do a color line contour plot
@@ -383,7 +383,7 @@ int *shifted;
 	float	*rgrid, *grid, x0, x1, y0, y1, alt, lats, lons;
 	int	pix_x0, pix_x1, pix_y0, pix_y1, linewidth;
 	int	do_outrange;
-	bool	labelflag, dolabels, ok, autoscale;
+	zbool	labelflag, dolabels, ok, autoscale;
 	ZebTime	zt;
 	XColor	c_outrange;
 	XRectangle	clip;
@@ -660,7 +660,7 @@ float *step;	/* scale step */
 void
 CAP_Station (c, update)
 char *c;
-bool update;
+zbool update;
 /*
  * Deal with a station plot.
  */
@@ -673,10 +673,10 @@ bool update;
 	PlatformId pid;
 	float vscale, unitlen;
 	int linewidth, shifted = FALSE, i, nplat;
-	bool	tacmatch, do_vectors;
+	zbool	tacmatch, do_vectors;
 	ZebTime zt;
 	XColor	color, qcolor;
-	bool	quadstn[4];
+	zbool	quadstn[4];
 	FieldId	fields[6];
 	FieldId quadfields[4];
 	Location loc;
@@ -924,8 +924,8 @@ XColor *color, *qcolor;
 int linewidth;
 float *ugrid, *vgrid, badvalue, unitlen, *qgrid[4];
 QFormat qformats[4];
-bool do_vectors;
-bool quadstn[4];
+zbool do_vectors;
+zbool quadstn[4];
 /*
  * Actually plot some station plot info.
  */
@@ -1083,8 +1083,8 @@ ZebTime *zt;
 char *sticon;
 int linewidth;
 float unitlen;
-bool do_vectors;
-bool quadstn[4];
+zbool do_vectors;
+zbool quadstn[4];
 WindInfo *wi;
 float *alt;	/* return an altitude for the irgrid */
 /*
@@ -1096,7 +1096,7 @@ float *alt;	/* return an altitude for the irgrid */
 	Location	*locations;
 	StInfo		*sinfo;
 	float *ugrid, *vgrid, *qgrid[4], badvalue;
-	bool filter = FALSE;
+	zbool filter = FALSE;
 /*
  * Get some info out of the data chunk.
  */	
@@ -1190,8 +1190,8 @@ ZebTime *zt;
 char *sticon;
 int linewidth;
 float unitlen;
-bool do_vectors;
-bool quadstn[4];
+zbool do_vectors;
+zbool quadstn[4];
 WindInfo *wi;
 /*
  * Plot up a scalar value
@@ -1355,7 +1355,7 @@ int res;
 void
 CAP_Vector (c, update)
 char	*c;
-bool	update;
+zbool	update;
 /*
  * Execute a CAP vector plot, based on the given plot
  * description, specified component, and plot time
@@ -1368,7 +1368,7 @@ bool	update;
 	float	vscale, x0, x1, y0, y1, alt, badvalue;
 	int	pix_x0, pix_x1, pix_y0, pix_y1, xdim, ydim;
 	int	linewidth, len, degrade, shifted, i;
-	bool	tacmatch = FALSE, grid = FALSE, do_vectors, proj;
+	zbool	tacmatch = FALSE, grid = FALSE, do_vectors, proj;
 	XColor	color;
 	ZebTime zt;
 	DataChunk	*udc, *vdc;
@@ -1386,7 +1386,7 @@ bool	update;
 	if (pda_Search (Pd, c, "grid", NULL, (char *) &grid, SYMT_BOOL) &&
 			! grid)
 	{
-		static bool griped = FALSE;
+		static zbool griped = FALSE;
 		if (! griped++)
 			msg_ELog (EF_INFO,"Converting vector to station rep.");
 		CAP_Station (c, update);
@@ -1537,7 +1537,7 @@ bool	update;
 
 
 
-static bool
+static zbool
 CAP_VecParams (c, platform, vscale, cname, linewidth, unitlen,
 	       color, do_vectors)
 char *c;
@@ -1547,13 +1547,13 @@ char *cname;
 int *linewidth;
 float *unitlen;
 XColor *color;
-bool *do_vectors;
+zbool *do_vectors;
 /*
  * Get common parameters for vector plots.
  */
 {
 	char string[16];
-	bool ok;
+	zbool ok;
 /*
  * Vectors or barbs?
  */
@@ -1739,7 +1739,7 @@ int datalen, begin, space;
 void
 CAP_Raster (c, update)
 char	*c;
-bool	update;
+zbool	update;
 /*
  * Execute a CAP raster plot, based on the given plot
  * description, specified conent, and plot time
@@ -1750,7 +1750,7 @@ bool	update;
 	char	param[50], outrange[40];
 	int	xdim, ydim, slow;
 	int	nsteps;
-	bool	ok, highlight, autoscale;
+	zbool	ok, highlight, autoscale;
 	float	*fgrid;			/* Floating point grid	*/
 	unsigned char *igrid;		/* Image grid		*/
 	float	x0, x1, y0, y1, alt;
@@ -2174,7 +2174,7 @@ ZebTime *t;
 
 
 
-static bool
+static zbool
 CAP_TimeCheck (c, pid)
 char	*c;
 PlatformId	pid;
@@ -2184,7 +2184,7 @@ PlatformId	pid;
  * Otherwise, return FALSE.
  */
 {
-	bool	limit_data_age;
+	zbool	limit_data_age;
 	int	seconds;
 	char	string[16];
 	ZebTime	zt;

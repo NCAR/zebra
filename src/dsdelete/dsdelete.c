@@ -29,7 +29,7 @@
 # include <copyright.h>
 # include <DataStore.h>
 
-RCSID("$Id: dsdelete.c,v 2.13 1996-11-19 07:08:02 granger Exp $")
+RCSID("$Id: dsdelete.c,v 2.14 1998-10-28 21:21:19 corbet Exp $")
 
 /*
  * The standard C test prevents conflicts with correctly-prototyped GNU C
@@ -46,7 +46,7 @@ All files are deleted whose times fall before a calculated cutoff time.\n\
 If 'zap-time' is a number, or a UI expression which evaluates to a number,\n\
 the cutoff time is that number of seconds prior to the current ZEB time.\n\
 Otherwise the cutoff time is 'zap-time' interpreted as an absolute time\n\
-in UI format, 'dd-mmm-yy[,hh:mm:ss]'.\n\
+in UI format, 'dd-mmm-yyyy[,hh:mm:ss]'.\n\
    -o\tdeletes the single observation which contains the cutoff time\n\
    -z\tdeletes the single most recent observation\n\
    -h\tprints this usage message\n\
@@ -82,7 +82,7 @@ char **argv;
 	SValue v;
 	char cbuf[128];
 	ZebTime zaptime, now;
-	bool obs = FALSE, last_obs = FALSE;
+	zbool obs = FALSE, last_obs = FALSE;
  	struct parse_tree *pt;
 	extern char *optarg;
 	extern int optind;

@@ -41,7 +41,7 @@
 # include "DrawText.h"
 # include "PlotPrim.h"
 
-RCSID("$Id: PlotPrim.c,v 1.14 1997-10-16 20:41:37 burghart Exp $")
+RCSID("$Id: PlotPrim.c,v 1.15 1998-10-28 21:22:02 corbet Exp $")
 
 
 static int PP_LineWidth = 0;
@@ -472,7 +472,7 @@ char		*icon, *comp, *platform;
  *	The polyline has been drawn
  */
 {
-	bool	makeActive;
+	zbool	makeActive;
 	int	i, xhot, yhot, w, h;
 	int	xPix,yPix;
 	Pixmap	pmap;
@@ -486,7 +486,8 @@ char		*icon, *comp, *platform;
  * Do we want active icons?
  */
 	makeActive = FALSE;
-	pda_Search (Pd, comp, "active-icon", platform, &makeActive, SYMT_BOOL);
+	pda_Search (Pd, comp, "active-icon", platform, (char *) &makeActive,
+			SYMT_BOOL);
 /*
  * Set some GC stuff
  */

@@ -1,4 +1,4 @@
-/* $Id: timer.h,v 2.6 1995-06-29 23:09:49 granger Exp $ */
+/* $Id: timer.h,v 2.7 1998-10-28 21:22:45 corbet Exp $ */
 /*
  * Timer module protocol requests and responses.
  */
@@ -140,7 +140,7 @@ struct tm_tchange
 {
 	int	tm_type;	/* == TRR_TCHANGE			*/
 	ZebTime	tm_time;	/* The new time				*/
-	bool	tm_pseudo;	/* Pseudo real time mode?		*/
+	zbool	tm_pseudo;	/* Pseudo real time mode?		*/
 };
 
 

@@ -30,7 +30,7 @@
 # include <defs.h>
 # include <map.h>
 
-RCSID("$Id: Overlay.c,v 2.62 1998-10-08 21:02:31 burghart Exp $")
+RCSID("$Id: Overlay.c,v 2.63 1998-10-28 21:21:57 corbet Exp $")
 
 # include <pd.h>
 # include <GraphicsW.h>
@@ -69,12 +69,14 @@ typedef enum
 } LabelOpt;
 
 
+# ifdef FEATURES
 /*
  * The internals of a predefined feature.
  */
 # define MAXFSTRING 120
 # define NFEATURE 20
 # define DEFAULT_TEXT_SIZE 0.02
+# endif
 
 /*
  * Modulus operation which is always positive given any a and some b > 0
@@ -94,6 +96,7 @@ typedef enum
 # define KM_TO_NM	(0.62137119 * 5280.0 / 6080.0)
 
 
+# ifdef FEATURES
 typedef enum { FText, FCircle, FMarker } FeatureType;
 typedef struct feature
 {
@@ -114,7 +117,7 @@ struct FList
 };
 
 static stbl Ftable = 0;
-
+# endif
 
 /*
  * How many polyline segments we can get away with drawing at once.
@@ -132,7 +135,7 @@ typedef struct _MapPoints
 {
 	int mp_npt;		/* Number of points in this segment. 	*/
 	int mp_pkey;		/* Projection key			*/
-	bool mp_fill;		/* Draw as filled polygon if true 	*/
+	zbool mp_fill;		/* Draw as filled polygon if true 	*/
 	float *mp_x, *mp_y;	/* The points themselves		*/
 	struct _MapPoints *mp_next;	/* Next entry in chain		*/
 } MapPoints;
@@ -143,33 +146,36 @@ typedef struct _MapPoints
  * Our internal overlay drawing routines.
  */
 static void 	ov_GridBBox FP ((char *, int));
+# ifdef FEATURES
 static void 	ov_DrawFeature FP ((char *, int));
 static void	ov_DoFeature FP ((Feature *fp));
+static int ov_InFeature ();
+# endif
+
 static void 	ov_Map FP ((char *, int));
 static void 	ov_WBounds FP ((char *, int));
 static void 	ov_RangeRings FP ((char *, int));
 static void 	ov_Location FP ((char *, int));
 void 	ov_Grid FP ((char *, int));	/* moved to Ov_Grid.c */
 static void 	ov_AzLimits FP ((char *, int));
-static bool 	ov_GetWBounds FP ((char *, char *, float *, float *, float *,
+static zbool 	ov_GetWBounds FP ((char *, char *, float *, float *, float *,
 			float *, float *));
 static int 	ov_FindWBReply FP ((struct message *, struct dm_rp_wbounds *));
 static void 	ov_Boundary FP ((char *, int));
-static bool 	ov_GetBndParams FP ((char *, char *, XColor *, int *, bool *,
+static zbool 	ov_GetBndParams FP ((char *, char *, XColor *, int *, zbool *,
 			LabelOpt *, char *, float *, int *, char *, int *));
 static int 	ov_RRInfo FP ((char *, char *, Location *, float *, float *,
 			float *, float *, int *, float *, XColor *, int *,
-			float *, bool *, float *, bool *));
+			float *, zbool *, float *, zbool *));
 static OvIcon 	*ov_GetIcon FP ((char *));
 static int 	ov_LocSetup FP ((char *, char **, int *, char *, LabelOpt *,
-			char *, bool *, float *, int *, PlatformId **, int *,
+			char *, zbool *, float *, int *, PlatformId **, int *,
 			ZebTime *, ZebTime *, int *));
 static void	ov_LocPlot FP ((char *, char *, Location *, ZebTime *, char *,
 			int, LabelOpt, char *, double, int));
 static MapPoints *ov_LoadMap FP ((char *));
 static void	ov_DrawMap FP ((const MapPoints *));
 static void	ov_ZapMap FP ((MapPoints *));
-static int ov_InFeature ();
 static int 	ov_GetLocArray FP ((char *, char *, ZebTime *, ZebTime *,
 			ZebTime *, Location *, int));
 static void	ov_FillPolygon FP ((float *x, float *y, int));
@@ -188,7 +194,9 @@ static struct overlay_table
 	{ "gridbbox",	ov_GridBBox	},
 	{ "wbox",	ov_WBounds	},
 	{ "wbounds",	ov_WBounds	},
+# ifdef FEATURES
 	{ "feature",	ov_DrawFeature	},
+# endif
 	{ "map",	ov_Map		},
 	{ "boundary",	ov_Boundary	},
 	{ "range-rings", ov_RangeRings	},
@@ -207,7 +215,7 @@ static struct overlay_table
 void
 ov_CAPOverlay (comp, update)
 char *comp;
-bool update;
+zbool update;
 /*
  * Draw an overlay onto the screen.
  */
@@ -243,7 +251,7 @@ bool update;
 static void
 ov_AzLimits (comp, update)
 char *comp;
-bool update;
+zbool update;
 /*
  * Do an azimuth limits plot.
  */
@@ -256,7 +264,6 @@ bool update;
 	PlatformId pid;
 	Location loc;
 	DataChunk *dc;
-	UItime	t;
 	ZebTime zt;
 	FieldId fieldlist[2];
 /*
@@ -310,11 +317,11 @@ bool update;
 /*
  * Check into age limits.
  */
-	TC_ZtToUI (&zt, &t);
  	if (! AgeCheck (comp, plat, &zt))
 	{
-		msg_ELog (EF_INFO, "Az limits %s too old %d %d", plat,
-			t.ds_yymmdd, t.ds_hhmmss);
+		char szt[80];
+		TC_EncodeTime (&zt, TC_Full, szt);
+		msg_ELog (EF_INFO, "Az limits %s too old (%s)", plat, szt);
 		return;
 	}
 /*
@@ -364,7 +371,7 @@ bool update;
 static void
 ov_GridBBox (comp, update)
 char *comp;
-bool update;
+zbool update;
 /*
  * Draw the bounding box of the grid indicated by the platform field.
  */
@@ -424,7 +431,7 @@ bool update;
 static void
 ov_WBounds (comp, update)
 char *comp;
-bool update;
+zbool update;
 /*
  * Draw the bounding box of the window indicated by the platform field.
  */
@@ -482,7 +489,7 @@ bool update;
 
 
 
-static bool
+static zbool
 ov_GetWBounds (window, ptype, x0, y0, x1, y1, alt)
 char *window, *ptype;
 float *x0, *y0, *x1, *y1, *alt;
@@ -550,12 +557,13 @@ struct dm_rp_wbounds *repl;
 }
 
 
+# ifdef FEATURES
 
 /*ARGSUSED*/
 static void
 ov_DrawFeature (comp, update)
 char *comp;
-bool update;
+zbool update;
 /*
  * Draw a predefined feature onto the screen.
  */
@@ -672,12 +680,14 @@ Feature *fp;
 	}
 }
 
+# endif
+
 
 /*ARGSUSED*/
 static void
 ov_Map (comp, update)
 char *comp;
-bool update;
+zbool update;
 /*
  * Put a map overlay onto the screen.
  */
@@ -971,7 +981,7 @@ MapPoints *mp;
 
 
 
-
+# ifdef FEATURES
 /*
  * Feature definition stuff.
  */
@@ -1082,7 +1092,7 @@ struct ui_command *cmds;
 }
 
 
-
+# endif
 
 
 
@@ -1110,7 +1120,7 @@ int update;
 	int lwidth, npt, nplats, i;
 	int pt, total_pts;
 	int showicon, adjust;
-	bool closed;
+	zbool closed;
 	short first_valid;
 	ZebTime t, target;
 	DataChunk *dc;
@@ -1325,13 +1335,13 @@ int update;
 
 
 
-static bool
+static zbool
 ov_GetBndParams (comp, platform, xc, lwidth, closed, opt, label, asize,
 	showicon, iconname, adjust)
 char	*comp, *platform, *label, *iconname;
 XColor	*xc;
 int	*lwidth, *showicon;
-bool	*closed;
+zbool	*closed;
 LabelOpt *opt;
 float	*asize;
 int	*adjust;
@@ -1417,7 +1427,7 @@ int update;
  */
 {
 	Location loc;
-	bool dolabels, do_nm;
+	zbool dolabels, do_nm;
 	float ringint, azint, rannot, aannot, maxrange, x, y, az, azoff;
 	float radius, azrad, textrot, labelsize;
 	int lastring, ring, lwidth, px, py, pradius, farx, fary;
@@ -1530,7 +1540,7 @@ Location *loc;
 float *ringint, *maxrange, *azint, *rannot, *aannot, *azoff, *labelsize;
 int *lastring, *lwidth;
 XColor *xc;
-bool *dolabels, *do_nm;
+zbool *dolabels, *do_nm;
 /*
  * Get all of the parameters which control the plotting of range rings.
  */
@@ -1632,7 +1642,7 @@ int update;
 	char *plist[MaxPlatforms];
 	char label[40], icon[40];
 	int nplat, plat, fg, npid, pid, expid, nexcl, maxloc, nloc, loc;
-	bool tlabel;
+	zbool tlabel;
 	Location *locs;
 	float asize;
 	LabelOpt opt;
@@ -1828,7 +1838,7 @@ double asize;
 	if (tlabel)
 	{
 		int m, d, h, min, ptm, ptd;
-		bool tlocal = FALSE;
+		zbool tlocal = FALSE;
 		int tzoffset = 0;
 		char *tzstr;
 		char lstr[40];
@@ -1837,7 +1847,7 @@ double asize;
 	 * local time.
 	 */
 		(void) pda_Search (Pd, comp, "local-time", pname,
-				&tlocal, SYMT_BOOL);
+				(char *) &tlocal, SYMT_BOOL);
 		tzstr = "z";
 		if (tlocal)
 		{
@@ -1893,7 +1903,7 @@ ov_LocSetup (comp, plist, nplat, icon, opt, label, tlabel, asize, fg, expids,
 		nexcl, begin, end, maxloc)
 char *comp, **plist, *label, *icon;
 int *nplat, *maxloc;
-bool *tlabel;
+zbool *tlabel;
 LabelOpt *opt;
 float *asize;
 int *fg, *nexcl;

@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 2.40 1998-04-27 21:56:18 corbet Exp $ */
+/* $Id: defs.h,v 2.41 1998-10-28 21:22:40 corbet Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -77,6 +77,13 @@ extern const ZebraTime ZT_OMEGA;
 #define ZT_END ZT_OMEGA
 
 /*
+ * OK, I give up.  egcs/g++ defines bool as a one-byte type, leading
+ * to all kinds of really ugly confusion over the C/C++ interface.  Time
+ * to dump bool for something more obscure.
+ */
+typedef int zbool;
+
+/*
  * Time conversion options.
  */
 typedef enum 
@@ -133,10 +140,11 @@ void	TC_UIToZt FP ((const date *, ZebTime *));
 void	TC_ZtToUI FP ((const ZebTime *, date *));
 void	TC_EncodeTime FP ((const ZebTime *, TimePrintFormat, char *));
 const char *TC_AscTime FP ((const ZebTime *zt, TimePrintFormat format));
-bool	TC_DecodeTime FP ((const char *, ZebTime *));
+zbool	TC_DecodeTime FP ((const char *, ZebTime *));
 void	TC_ZtSplit FP ((const ZebTime *, int *, int *, int *, int *, int *,
 		int *, int *));
 void	TC_ZtAssemble FP ((ZebTime *, int, int, int, int, int, int, int));
+void	TC_y2k FP ((UItime *));
 
 int     FindFile FP ((char *, char *, char *));
 
@@ -148,7 +156,7 @@ const char	*au_LongUnitsName FP ((AltUnitType atype));
 const char	*au_PrintFormat FP ((AltUnitType atype));
 const char	*au_AltLabel FP ((double alt, AltUnitType atype));
 const char	*au_LongAltLabel FP ((double alt, AltUnitType atype));
-bool		au_ConvertName FP ((char *name, AltUnitType *atype));
+zbool		au_ConvertName FP ((char *name, AltUnitType *atype));
 
 /* 
  * Alarm widget interface
@@ -166,7 +174,7 @@ void DoSound FP ((char *sound));
 void cvt_ToXY FP ((double lat, double lon, float *x, float *y));
 void cvt_ToLatLon FP ((double x, double y, float *lat, float *lon));
 int cvt_GetOrigin FP ((float *lat, float *lon));
-bool cvt_Origin FP ((double lat, double lon));
+zbool cvt_Origin FP ((double lat, double lon));
 void cvt_ShowOrigin FP ((void));
 
 /*

@@ -42,7 +42,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: XSection.c,v 2.41 1998-09-22 22:28:32 burghart Exp $")
+RCSID ("$Id: XSection.c,v 2.42 1998-10-28 21:22:16 corbet Exp $")
 
 /*
  * General definitions
@@ -131,8 +131,8 @@ static int	Pix_left, Pix_right, Pix_bottom, Pix_top;
  * Horizontal axis labeling
  */
 static char	Zfld[20];
-static bool	Fill_contour;
-static bool	Zig_zag;
+static zbool	Fill_contour;
+static zbool	Zig_zag;
 
 typedef enum 
 {
@@ -146,7 +146,7 @@ LabelType	BottomLabel;
  */
 static float	Contour_center, Contour_step, Wind_scale;
 static int	Line_width, Degrade;
-static bool	Do_labels, Mono_color, Autoscale, Do_vectors;
+static zbool	Do_labels, Mono_color, Autoscale, Do_vectors;
 
 /*
  * Maximum acceptable time difference between sounding time and plot time
@@ -171,7 +171,7 @@ static int	Do_outrange;	/* do we want out-of-range contours? */
 /*
  * Match top annotation color to contour color?
  */
-static bool	AnnotMatch;
+static zbool	AnnotMatch;
 
 /*
  * Clip and unclip rectangles
@@ -181,7 +181,7 @@ static XRectangle	Clip, Unclip;
 /*
  * Prototypes
  */
-void	xs_Init FP ((UItime *));
+void	xs_Init FP ((ZebTime *));
 void	xs_LineContour FP ((char *, int));
 void	xs_FilledContour FP ((char *, int));
 void	xs_Vector FP ((char *, int));
@@ -219,12 +219,12 @@ static DataChunk	*xs_NSpaceToRGrid FP ((DataChunk *, FieldId, float *));
 
 void
 xs_Init (t)
-UItime	*t;
+ZebTime	*t;
 /*
  * Initialize for a cross-section plot.
  */
 {
-	bool	use_alt;
+	zbool	use_alt;
 	float	zmax;
 /*
  * Initialize the overlay times widget
@@ -405,9 +405,9 @@ xs_LineContour (c, update)
  * Handle a line contour cross-section component
  */
 char	*c;
-bool	update;
+zbool	update;
 {
-	bool	blank;
+	zbool	blank;
 
 	Do_labels = TRUE;
 	pda_Search (Pd, c, "do-labels", "contour", (char *) &Do_labels, 
@@ -439,7 +439,7 @@ xs_FilledContour (c, update)
  * Handle a filled contour cross-section component
  */
 char	*c;
-bool	update;
+zbool	update;
 {
 	Fill_contour = TRUE;
 	Mono_color = FALSE;
@@ -452,12 +452,12 @@ bool	update;
 static void
 xs_Contour (c, update)
 char	*c;
-bool	update;
+zbool	update;
 /*
  * Draw a cross-section contour plot based on the given PD component.
  */
 {
-	bool	ok;
+	zbool	ok;
 	int	nplat;
 	char	platforms[PlatformListLen];
 	char	*pnames[MaxPlatforms], fldname[80], cname[20];
@@ -604,12 +604,12 @@ bool	update;
 void
 xs_Vector (c, update)
 char	*c;
-bool	update;
+zbool	update;
 /*
  * Draw vectors from a cross-section based on the given PD component.
  */
 {
-	bool	ok;
+	zbool	ok;
 	char	platforms[PlatformListLen];
 	char	ufldname[40], vfldname[40], *pnames[MaxPlatforms];
 	char	cname[20], style[16];
@@ -2478,7 +2478,7 @@ float	**xpp, **ypp;
 	float	*xpos, *ypos, lat, lon;
 	float	site_x, site_y, badvalue;
 	int	i, pt, npts, navail;
-	bool	have_lat, have_lon;
+	zbool	have_lat, have_lon;
 	float	snd_s_lat (), snd_s_lon ();
 	FieldId	fieldlist[2], available[50], f_lat, f_lon;
 	PlatformId	pid;
@@ -3134,12 +3134,12 @@ float		*alts;
 void
 xs_Raster (c, update)
 char	*c;
-bool	update;
+zbool	update;
 /*
  * Project a vertical raster image onto our cross-section plane
  */
 {
-	bool	ok, image, xiraster;
+	zbool	ok, image, xiraster;
 	int	nplat, nsteps;
 	char	platform[PlatformListLen];
 	char	*pnames[MaxPlatforms], fldname[80], cname[20], hcolor[20];
@@ -3418,7 +3418,7 @@ bool	update;
 void
 xs_Track (c, update)
 char	*c;
-bool	update;
+zbool	update;
 /*
  * Project a track onto our cross-section plane
  */

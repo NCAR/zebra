@@ -3,7 +3,7 @@
  * Include DataStore.h instead, since they are interdependent and DataStore.h
  * includes this file.
  *
- * $Id: ds_fields.h,v 1.8 1998-03-05 23:59:35 burghart Exp $
+ * $Id: ds_fields.h,v 1.9 1998-10-28 21:21:12 corbet Exp $
  */
 
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
@@ -53,7 +53,7 @@ char*	F_GetUnits (FieldId id);
 char*	F_GetDesc (FieldId id);
 char*	F_GetTypeName (FieldId id);
 char*	F_GetFullName (FieldId id);
-bool	F_CanYield (FieldId src, FieldId wanted, double *slope, 
+zbool	F_CanYield (FieldId src, FieldId wanted, double *slope, 
 		    double *intercept);
 
 

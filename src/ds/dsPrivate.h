@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 3.33 1996-12-13 18:32:03 granger Exp $
+ * $Id: dsPrivate.h,v 3.34 1998-10-28 21:21:11 corbet Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -477,10 +477,10 @@ struct dsp_PlatformSearch
 {
 	enum dsp_Types dsp_type;	/* == dpt_PlatformSearch	*/
 	PlatformId dsp_parent;		/* Req'd if dsp_children TRUE	*/
-	bool dsp_children;		/* Want children of dsp_parent	*/
-	bool dsp_subplats;		/* Include subplatforms in search*/
-	bool dsp_alphabet;		/* Return list in alphabetical order*/
-	bool dsp_sendplats;		/* Send structures as well 	*/
+	zbool dsp_children;		/* Want children of dsp_parent	*/
+	zbool dsp_subplats;		/* Include subplatforms in search*/
+	zbool dsp_alphabet;		/* Return list in alphabetical order*/
+	zbool dsp_sendplats;		/* Send structures as well 	*/
 	char dsp_regexp[P_NAMELEN];	/* regexp pattern to match names*/
 };
 

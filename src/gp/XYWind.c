@@ -38,26 +38,26 @@
 # include "AxisControl.h"
 # include "PlotPrim.h"
 
-RCSID ("$Id: XYWind.c,v 1.32 1998-09-22 22:28:36 burghart Exp $")
+RCSID ("$Id: XYWind.c,v 1.33 1998-10-28 21:22:23 corbet Exp $")
 
 /*
  * General definitions
  */
 void	xy_Wind FP ((char *, int));
-static void xyw_PlotColors FP ((char *, bool *, XColor **, int *, char *));
+static void xyw_PlotColors FP ((char *, zbool *, XColor **, int *, char *));
 
 
 
 void
 xy_Wind(c, update)
 char	*c;
-bool	update;
+zbool	update;
 /*
  * Draw an xy-graph on the given component
  */
 {
-	bool	ok, xauto, yauto, xinvert, yinvert, angle, sideAnnot, doKnot;
-	bool	mono;
+	zbool	ok, xauto, yauto, xinvert, yinvert, angle, sideAnnot, doKnot;
+	zbool	mono;
 	int	npts[MAX_PLAT], plat, nplat, alen;
 	int	nxfield, nyfield, ncolors, skip, dmode;
 	char	platforms[PlatformListLen], *pnames[MaxPlatforms];
@@ -258,7 +258,7 @@ bool	update;
  */
 	for (plat = 0; plat < nplat; plat++)
 	{
-		bool	single_obs;
+		zbool	single_obs;
 		PlatformId	pid = ds_LookupPlatform (pnames[plat]);
 
 		npts[plat] = 0;
@@ -462,7 +462,7 @@ bool	update;
 static void
 xyw_PlotColors (c, mono, colors, ncolors, ctname)
 char *c;
-bool *mono;
+zbool *mono;
 XColor **colors;
 int *ncolors;
 char *ctname;
@@ -475,7 +475,8 @@ char *ctname;
 /*
  * See if they want mono or not.
  */
-	if (! pda_Search (Pd, c, "color-mono", "xy-wind", mono, SYMT_BOOL))
+	if (! pda_Search (Pd, c, "color-mono", "xy-wind", (char *) mono,
+			SYMT_BOOL))
 		*mono = FALSE;
 /*
  * If they don't want mono, look for a color table.  If we encounter

@@ -43,7 +43,7 @@
 
 
 
-RCSID ("$Id: ThetaPlot.c,v 2.3 1997-10-16 20:41:40 burghart Exp $")
+RCSID ("$Id: ThetaPlot.c,v 2.4 1998-10-28 21:22:09 corbet Exp $")
 
 
 /*
@@ -101,7 +101,7 @@ static const int FP_Pres = 0, FP_Tdry = 1, FP_Dp = 2, FP_Uw = 3, FP_Vw = 4;
 /*
  * Forwards.
  */
-static bool TP_GetPlotParams (char *, TPParams *);
+static zbool TP_GetPlotParams (char *, TPParams *);
 static void TP_DrawBox (TPParams *);
 static float TP_Theta (const TPParams *, float, float, float);
 static void TP_AltitudeScale (TPParams *p);
@@ -124,7 +124,7 @@ static float das_temp_from_p_and_mr (float press, float ws);
 void
 TP_ThetaPlot (c, update)
 char *c;
-bool update;
+zbool update;
 /*
  * Do one of these here theta plots.
  */
@@ -194,7 +194,7 @@ bool update;
 
 
 
-static bool
+static zbool
 TP_GetPlotParams (char *c, TPParams *params)
 /*
  * Get the plot parameters from the PD.

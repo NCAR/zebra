@@ -25,7 +25,7 @@
 # include "DataStore.h"
 # include "DataChunkP.h"
 
-RCSID ("$Id: dc_IRGrid.c,v 3.5 1996-12-06 00:40:36 granger Exp $")
+RCSID ("$Id: dc_IRGrid.c,v 3.6 1998-10-28 21:21:04 corbet Exp $")
 
 /*
  * Our class-specific AuxData structure types.
@@ -56,7 +56,7 @@ typedef IRGridDataChunkPart IRG;	/* type shortcut */
 /*
  * Local routines.
  */
-static bool dc_GetPlatList FP((DataChunk *, PlatInfo **, int *));
+static zbool dc_GetPlatList FP((DataChunk *, PlatInfo **, int *));
 
 /*
  * Class method prototypes
@@ -179,7 +179,7 @@ DataChunk *dc;
 /*========================================================================*/
 
 
-static bool
+static zbool
 dc_GetPlatList (dc, plist, nplat)
 DataChunk *dc;
 PlatInfo **plist;

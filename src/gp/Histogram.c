@@ -30,7 +30,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-MAKE_RCSID ("$Id: Histogram.c,v 2.5 1998-02-26 19:53:53 granger Exp $")
+MAKE_RCSID ("$Id: Histogram.c,v 2.6 1998-10-28 21:21:43 corbet Exp $")
 
 # if C_PT_HISTOGRAM
 
@@ -66,8 +66,8 @@ static int PlotHeight;		/* How high each can be		*/
  * Forwards go here.
  */
 static int HG_BCParams FP ((char *, PlatformId *, int *, FieldId *, int *,
-		float *, int *, bool *, int *, XColor **, int *, bool *,
-		bool *, bool *, int *, int *, float *, float *));
+		float *, int *, zbool *, int *, XColor **, int *, zbool *,
+		zbool *, zbool *, int *, int *, float *, float *));
 static DataChunk *HG_GetBCData FP ((PlatformId, FieldId *, int, int));
 static void HG_FillBins FP ((DataChunk *, FieldId, float *, int, int *,int *));
 static void HG_GetLimits FP ((int **, int, int, int, int *, int, int *,int *));
@@ -95,14 +95,14 @@ ZebTime *t;
 {
 	char **comps = pd_CompList (Pd);
 	int comp;
-	bool disabled;
+	zbool disabled;
 /*
  * Count the components, but not the disabled ones.
  */
 	NComponents = 0;
 	for (comp = 1; comps[comp]; comp++)
-		if (! pd_Retrieve (Pd, comps[comp], "disable", &disabled,
-				SYMT_BOOL) || ! disabled)
+		if (! pd_Retrieve (Pd, comps[comp], "disable",
+				(char *)&disabled, SYMT_BOOL) || ! disabled)
 			NComponents++;
 /*
  * You never know what they might do.
@@ -162,7 +162,7 @@ int update;
 	int nplat, nfield, nbin, tperiod, ncolor, cmin, cmax, bwidth, ngroup;
 	int plat, *badcounts, field, barpos, y0, y1, bbase, maxbh, nok = 0;
 	int **counts, bin, pbegin, binwidth, sapos, junk, lheight;
-	bool bvbin, anncounts, autoscale, zanchor;
+	zbool bvbin, anncounts, autoscale, zanchor;
 	XColor *ctable;
 /*
  * Onward.
@@ -322,7 +322,7 @@ int *nplat, *nfield, *nbin, *tperiod, *ncolor, *cmin, *cmax;
 FieldId *fids;
 float *bins, *sscale, *bscale;
 XColor **ctable;
-bool *bvbin, *anncounts, *autoscale, *zanchor;
+zbool *bvbin, *anncounts, *autoscale, *zanchor;
 /*
  * Get the parameters that control our plot.
  */
@@ -833,7 +833,7 @@ int cmin, cmax, base, maxbh;
  * Throw on a count grid.
  */
 {
-	bool dogrid;
+	zbool dogrid;
 	float scale;
 	char s[32];
 	XColor gridc, annotc;
@@ -842,8 +842,8 @@ int cmin, cmax, base, maxbh;
 /*
  * Make sure they really want a grid.
  */
-	if (pda_Search (Pd, c, "count-grid", "histogram", &dogrid, SYMT_BOOL)
-			&& ! dogrid)
+	if (pda_Search (Pd, c, "count-grid", "histogram", (char *) &dogrid,
+			SYMT_BOOL) && ! dogrid)
 		return;
 /*
  * Control parameters.

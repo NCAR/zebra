@@ -16,7 +16,7 @@ SubPlatform *dt_NewClassSubPlat FP((PlatformClass *pc));
 void dt_CopyClassSubPlats FP((const PlatformClass *src, PlatformClass *dest));
 void dt_EraseClassSubPlats FP((PlatformClass *pc));
 void dt_FillClassDirs FP((PlatformClass *pc, const PlatformClass *super));
-bool dt_ValidateClass FP((PlatformClass *pc));
+zbool dt_ValidateClass FP((PlatformClass *pc));
 void dt_CopyClass FP((PlatformClass *dest, const PlatformClass *src));
 void dt_EraseClass FP((PlatformClass *pc));
 void dt_SetComment FP((PlatformClass *pc, const char *comment));
@@ -77,7 +77,7 @@ extern char RemDataDir[DDIR_LEN];
  * If this flag is set, no remote directories will be accessed.
  */
 #define DisableRemote _ds_DisableRemote
-extern bool DisableRemote;
+extern zbool DisableRemote;
 
 /*
  * The default keep period defined in Platforms.c

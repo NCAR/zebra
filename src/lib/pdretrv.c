@@ -36,9 +36,9 @@
 # include "message.h"
 # include "pd.h"
 
-RCSID ("$Id: pdretrv.c,v 2.2 1996-09-11 14:30:51 granger Exp $")
+RCSID ("$Id: pdretrv.c,v 2.3 1998-10-28 21:22:44 corbet Exp $")
 
-bool
+zbool
 pd_Retrieve (pd, comp, param, target, type)
 plot_description pd;
 char *comp, *param, *target;
@@ -109,7 +109,7 @@ int type;
 		* (int *) target = v.us_v_int;
 		break;
 	   case SYMT_BOOL:
-		* (bool *) target = (bool) v.us_v_int;
+		* (zbool *) target = (zbool) v.us_v_int;
 		break;
 	   case SYMT_DATE:
 	   	/* * (date *) target = v.us_v_date; */

@@ -39,7 +39,7 @@
 # include <copyright.h>
 # include <DataStore.h>
 
-RCSID ("$Id: LastData.c,v 2.13 1996-11-19 08:06:45 granger Exp $")
+RCSID ("$Id: LastData.c,v 2.14 1998-10-28 21:22:55 corbet Exp $")
 
 
 /*
@@ -49,7 +49,7 @@ RCSID ("$Id: LastData.c,v 2.13 1996-11-19 08:06:45 granger Exp $")
 char *Names[MaximumPlat];
 Widget Labels[MaximumPlat];
 Widget MEntries[MaximumPlat];
-bool Enabled[MaximumPlat];
+zbool Enabled[MaximumPlat];
 int Counters[MaximumPlat];
 int YThresh[MaximumPlat], RThresh[MaximumPlat];
 int NPlat = 0, Border = 0;
@@ -248,9 +248,6 @@ char *config_file;
 /*
  * Make sure we have a config.
  */
-# ifdef notdef
-	sprintf (config_file, "%s/LastData.config", GetLibDir());
-# endif
 	cfile = fopen (config_file, "r");
 	if (cfile == NULL)
 	{
@@ -276,17 +273,6 @@ char *config_file;
 		AddPlatform (line, yellow, red, &now);
 	}		
 	fclose (cfile);
-# ifdef notdef
-	AddPlatform ("mesonet", &now);
-	AddPlatform ("cp4", &now);
-	AddPlatform ("lightning", &now);
-	AddPlatform ("cp2-az-limits", &now);
-	AddPlatform ("spotlight", &now);
-	AddPlatform ("boundary", &now);
-	AddPlatform ("n510mh", &now);
-	AddPlatform ("n566na", &now);
-	AddPlatform ("field-mill", &now);
-# endif
 }
 
 

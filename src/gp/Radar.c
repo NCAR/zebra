@@ -19,7 +19,7 @@
 #include "PixelCoord.h"
 #include "GC.h"
 
-RCSID ("$Id: Radar.c,v 2.7 1998-08-18 16:09:22 corbet Exp $")
+RCSID ("$Id: Radar.c,v 2.8 1998-10-28 21:22:05 corbet Exp $")
 
 
 static char *ScanNames[5] = 
@@ -153,7 +153,7 @@ char *comp;
  * Return non-zero if this component exists in "radar space" ooo-eeee-ooooo
  */
 {
-	bool rspace = FALSE;
+	zbool rspace = FALSE;
 
 	if (! pd_Retrieve (Pd, comp, "radar-space", 
 			   (char *) &rspace, SYMT_BOOL))
@@ -174,7 +174,7 @@ char *comp;
  * Only valid if radar-space is true.
  */
 {
-	bool every = TRUE;
+	zbool every = TRUE;
 
 	pda_Search (Pd, comp, "every-sweep", NULL,
 		    (char *) &every, SYMT_BOOL);
@@ -194,7 +194,7 @@ char *comp;
  * "every-volume" is present and true.
  */
 {
-	bool every = FALSE;
+	zbool every = FALSE;
 
 	pda_Search (Pd, comp, "every-volume", NULL,
 		    (char *) &every, SYMT_BOOL);

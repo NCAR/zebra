@@ -33,7 +33,7 @@
 # include "sc_cmds.h"
 # include "netcdf.h"
 
-RCSID("$Id: surf_convert.c,v 1.7 1997-02-03 17:52:44 granger Exp $")
+RCSID("$Id: surf_convert.c,v 1.8 1998-10-28 21:20:23 corbet Exp $")
 
 # define STRLEN		80
 # define CDF_STR_LEN	11
@@ -76,9 +76,9 @@ static void	StoreSample FP ((ZebTime *));
 static void	NewField FP ((struct ui_command *));
 static void	NewSubplatform FP ((struct ui_command *));
 #ifdef notdef
-static bool	CdfToZt FP ((short, char, char, char, char, ZebTime *));
+static zbool	CdfToZt FP ((short, char, char, char, char, ZebTime *));
 #endif
-static bool	CdfToZt FP ((int, int, int, int, int, ZebTime *));
+static zbool	CdfToZt FP ((int, int, int, int, int, ZebTime *));
 static int	ZtEqual FP ((ZebTime, ZebTime));
 static void	InitFieldData FP ((void));
 static int	GetPlatIndex FP ((char *));
@@ -623,7 +623,7 @@ Die ()
 
 
 
-static bool
+static zbool
 CdfToZt (year, month, day, hour, minute, zt)
 int	year;
 int	month, day, hour, minute;

@@ -25,7 +25,7 @@
 # include <message.h>
 # include <DataStore.h>
 
-MAKE_RCSID ("$Id: dscopy.c,v 1.8 1997-02-03 17:52:38 granger Exp $")
+MAKE_RCSID ("$Id: dscopy.c,v 1.9 1998-10-28 21:20:20 corbet Exp $")
 
 
 # define MAX_TIMES 10000
@@ -51,7 +51,7 @@ int NField = 0, NRField = 0;
 ZebTime Begin = { 0, 0 }, End = { 0, 0 };
 DataClass Class;	/* Class of data we move. */
 
-bool PreserveObs = TRUE;
+zbool PreserveObs = TRUE;
 
 /*
  * Forwards.

@@ -38,7 +38,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 
-RCSID("$Id: RBand.c,v 2.15 1997-02-21 00:05:05 burghart Exp $")
+RCSID("$Id: RBand.c,v 2.16 1998-10-28 21:22:04 corbet Exp $")
 
 /*
  * Types of things we can rubber band
@@ -64,7 +64,7 @@ static Cursor	RBandCursor = (Cursor)NULL;
 /*
  * Rubber band drawing parameters.
  */
-static bool RBandActive = FALSE;
+static zbool RBandActive = FALSE;
 static int RBandX0, RBandY0;	/* Fixed point of the rubber band	*/
 static int RBandX, RBandY;	/* Floating end of the rubber band	*/
 static GC RBandGC = 0;

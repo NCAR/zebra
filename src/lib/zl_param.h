@@ -1,10 +1,13 @@
-/* $Id: zl_param.h,v 2.3 1998-03-02 23:58:51 burghart Exp $ */
+/* $Id: zl_param.h,v 2.4 1998-10-28 21:22:48 corbet Exp $ */
 /*
  * Basic UI types needed regardless of whether we're linking with UI.
  */
-# ifndef UI_PARAM_SYMBOLS	/* otherwise this is all already defined */
+
+
 # ifndef ZL_PARAM_SYMBOLS
 # define ZL_PARAM_SYMBOLS
+# ifndef UI_PARAM_SYMBOLS	/* otherwise this is all already defined */
+
 
 /*
  * Data types of interest.
@@ -19,9 +22,12 @@ typedef unsigned char byte;	/* Basic byte variable */
  * is 4 bytes on all the systems tested.  We must have a size match for 
  * symbols and structures shared between g++ and non-g++ object modules.
  */
+# ifdef BOOL_IS_DEAD
 # if !(__cplusplus && __GNUC__)
 typedef int bool;		/* Boolean variable	*/
 # endif
+# endif
+
 
 struct date_st
 {
@@ -79,5 +85,5 @@ typedef union usy_value
 # define ABS(v) (((v) < 0) ? -(v) : v)
 # endif
 
-# endif /* ZL_PARAM_SYMBOLS */
 # endif /* UI_PARAM_SYMBOLS */
+# endif /* ZL_PARAM_SYMBOLS */

@@ -30,7 +30,7 @@
 # include "DrawText.h"
 # include "PixelCoord.h"
 # include "GC.h"
-MAKE_RCSID ("$Id: Annotate.c,v 2.32 1998-10-08 21:01:49 burghart Exp $")
+MAKE_RCSID ("$Id: Annotate.c,v 2.33 1998-10-28 21:21:30 corbet Exp $")
 
 /*
  * Graphics context (don't use the global one in GC.h because we don't
@@ -968,7 +968,7 @@ int *match;
  */
 {
 	char colorstr[40];
-	bool bmatch = FALSE;
+	zbool bmatch = FALSE;
 
         if(! pd_Retrieve (Pd, "global", "ta-color", colorstr, SYMT_STRING))
                 strcpy (colorstr, "white");

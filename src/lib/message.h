@@ -1,4 +1,4 @@
-/* $Id: message.h,v 2.34 1998-02-26 00:22:59 burghart Exp $ */
+/* $Id: message.h,v 2.35 1998-10-28 21:22:41 corbet Exp $ */
 /*
  * Message protocol types.
  */
@@ -122,6 +122,13 @@ extern "C" {
 # define DEFAULT_PORT	CFG_MSG_DEFAULT_PORT   /* Default tcp port, eg 1500 */
 # define SERVICE_NAME	"zeb-msg"
 
+/*
+ * Solaris 2.6 defines MAX_NAME_LEN in some weird place.  Assume we
+ * don't need that.
+ */
+# ifdef MAX_NAME_LEN
+# undef MAX_NAME_LEN
+# endif
 # define MAX_NAME_LEN	CFG_MSGNAME_LEN  /* Maximum length of a name, eg 32 */
 
 /*

@@ -46,7 +46,7 @@
 # include "EventQueue.h"
 # include "ActiveArea.h"
 
-RCSID ("$Id: MovieControl.c,v 2.27 1997-05-13 23:59:13 corbet Exp $")
+RCSID ("$Id: MovieControl.c,v 2.28 1998-10-28 21:21:55 corbet Exp $")
 
 # define ATSLEN		80	/* Length for AsciiText strings		*/
 # define FLEN 		40	/* Length of a field string		*/
@@ -93,9 +93,9 @@ static int 	Nframes = 0;		/* Number of frames in the movie*/
 static int 	TimeSkip = 1;		/* Time between frames		*/
 static int 	Rate;			/* Display Rate frames/second	*/
 static int 	OldFrameCount = 0;	/* FrameCount before movie  	*/
-static bool 	Now;			/* Should endtime track realtime*/
-static bool 	ReGenFrame = FALSE;
-static bool 	Notification = FALSE;
+static zbool 	Now;			/* Should endtime track realtime*/
+static zbool 	ReGenFrame = FALSE;
+static zbool 	Notification = FALSE;
 static ZebTime 	NotTime;
 static char	EndTime[ATSLEN];
 static int 	CurrentFrame;
@@ -104,7 +104,7 @@ static int 	DisplayedFrame;
 /*
  * If a movie is running, are we the ones controlling it?
  */
-static bool	MyMovie = FALSE;
+static zbool	MyMovie = FALSE;
 
 /*
  * CurrentFrame is the frame we are supposed to be actually looking at.
@@ -115,7 +115,7 @@ static bool	MyMovie = FALSE;
 /*
  *  Frame pregeneration globals.
  */
-static bool Pregenerate = FALSE;	/* Should frames be pregenerated*/	
+static zbool Pregenerate = FALSE;	/* Should frames be pregenerated*/	
 static char Field1[FLEN], Field2[FLEN]; /* Fields to be pregenerated	*/	
 static char PGComp[FLEN];		/* Component which wants pregen.*/
 
@@ -124,9 +124,9 @@ static char PGComp[FLEN];		/* Component which wants pregen.*/
  * Forward definitions.
  */
 static Widget	mc_MWCreate FP ((int, Widget, XtAppContext));
-static bool	mc_SetupParams FP ((void));
+static zbool	mc_SetupParams FP ((void));
 static void	mc_SetStatus FP ((char *));
-static bool	mc_GetFrameTimes FP ((ZebTime *, int));
+static zbool	mc_GetFrameTimes FP ((ZebTime *, int));
 static void	mc_ReGetFrameTimes FP ((ZebTime *));
 void		mc_MovieRun FP (());
 void		mc_MovieStop FP (());
@@ -613,7 +613,7 @@ mc_MovieRun ()
 }
 
 
-static bool
+static zbool
 mc_SetupParams ()
 /*
  * Set up everything for movie mode.
@@ -818,7 +818,7 @@ int *which;
 }
 
 
-static bool
+static zbool
 mc_GetFrameTimes (end, movielen)
 ZebTime	*end;
 int	movielen;
@@ -1368,16 +1368,12 @@ PlatformId pid;
 int global;
 ZebTime *t;
 {
-	UItime tmp;
 /*
  *  When the end time is 'now' used to regenerate frames as new data 
  *  becomes available.
  */
 	Notification = TRUE;
 	NotTime = *t;
-	TC_ZtToUI (t, &tmp);
-	msg_ELog(EF_DEBUG, "Data available on %s at %d %d.", 
-		ds_PlatformName(pid), tmp.ds_yymmdd, tmp.ds_hhmmss);
 }
 
 

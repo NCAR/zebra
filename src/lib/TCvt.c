@@ -26,7 +26,7 @@
 
 # include "defs.h"
 
-RCSID ("$Id: TCvt.c,v 2.24 1998-02-26 00:25:25 burghart Exp $")
+RCSID ("$Id: TCvt.c,v 2.25 1998-10-28 21:22:37 corbet Exp $")
 
 /*
  * Public time constants
@@ -60,7 +60,8 @@ UItime *fcc;
 {
 	struct tm *t = gmtime ((time_t *)&sys);
 
-	fcc->ds_yymmdd = t->tm_year*10000 + (t->tm_mon + 1)*100 + t->tm_mday;
+	fcc->ds_yymmdd = (t->tm_year + 1900)*10000 +
+		(t->tm_mon + 1)*100 + t->tm_mday;
 	fcc->ds_hhmmss = t->tm_hour*10000 + t->tm_min*100 + t->tm_sec;
 }
 
@@ -77,7 +78,8 @@ const UItime *fcc;
 {
 	struct tm t;
 
-	t.tm_year = fcc->ds_yymmdd/10000;
+	if ((t.tm_year = fcc->ds_yymmdd/10000) > 1000)
+		t.tm_year -= 1900;  /* Defined as years since 1900 */
 	t.tm_mon = (fcc->ds_yymmdd/100) % 100 - 1;
 	t.tm_mday = fcc->ds_yymmdd % 100;
 	t.tm_hour = fcc->ds_hhmmss/10000;
@@ -107,9 +109,6 @@ const ZebTime *zt;
  * Includes microseconds and rounds to the nearest second.
  */
 {
-#ifdef notdef
-	return (zt->zt_Sec + (int)((zt->zt_MicroSec * 1e-6) + 0.5));
-#endif
 	return (zt->zt_Sec);
 }
 
@@ -143,7 +142,8 @@ UItime *ui;
 	time_t syst = TC_ZtToSys (zt);
 	struct tm *t = gmtime (&syst);
 
-	ui->ds_yymmdd = t->tm_year*10000 + (t->tm_mon + 1)*100 + t->tm_mday;
+	ui->ds_yymmdd = (t->tm_year + 1900)*10000 +
+		(t->tm_mon + 1)*100 + t->tm_mday;
 	ui->ds_hhmmss = t->tm_hour*10000 + t->tm_min*100 + t->tm_sec;
 }
 
@@ -157,7 +157,8 @@ ZebTime *zt;
  */
 {
 	struct tm t;
-	t.tm_year = ui->ds_yymmdd/10000;
+	if ((t.tm_year = ui->ds_yymmdd/10000) > 1000)
+		t.tm_year -= 1900;
 	t.tm_mon = (ui->ds_yymmdd/100) % 100 - 1;
 	t.tm_mday = ui->ds_yymmdd % 100;
 	t.tm_hour = ui->ds_hhmmss/10000;
@@ -198,19 +199,19 @@ char *dest;
 	{
 	   case TC_Full:	/* Everything */
 		sprintf (dest, "%d-%s-%d,%d:%02d:%02d", t->tm_mday,
-			Months[t->tm_mon], t->tm_year, t->tm_hour,
+			Months[t->tm_mon], t->tm_year + 1900, t->tm_hour,
 			t->tm_min, t->tm_sec);
 		break;
 
 	   case TC_FullUSec:	/* Everything plus the microseconds field */
 		sprintf (dest, "%d-%s-%d,%d:%02d:%02d.%06li", t->tm_mday,
-			Months[t->tm_mon], t->tm_year, t->tm_hour,
+			Months[t->tm_mon], t->tm_year + 1900, t->tm_hour,
 			t->tm_min, t->tm_sec, zt->zt_MicroSec);
 		break;
 
 	   case TC_DateOnly:	/* Day of year only */
 		sprintf (dest, "%d-%s-%d", t->tm_mday, Months[t->tm_mon],
-			t->tm_year);
+			t->tm_year + 1900);
 		break;
 
 	   case TC_TimeOnly:	/* Time of day only */
@@ -240,7 +241,7 @@ TimePrintFormat format;
 
 
 
-bool
+zbool
 TC_DecodeTime (string, zt)
 const char	*string;
 ZebTime		*zt;
@@ -307,7 +308,7 @@ int *year, *month, *day, *hour, *minute, *second, *microsec;
 {
 	struct tm *t = gmtime ((time_t *)&zt->zt_Sec);
 
-	if (year)	*year = t->tm_year;
+	if (year)	*year = t->tm_year + 1900;
 	if (month)	*month = t->tm_mon+1;
 	if (day)	*day = t->tm_mday;
 	if (hour)	*hour = t->tm_hour;
@@ -351,4 +352,22 @@ int year, month, day, hour, minute, second, microsec;
 	zt->zt_Sec = timegm (&t);
 #endif
 
+}
+
+
+
+
+void TC_y2k (UItime *d)
+/*
+ * Rationalize this date.
+ */
+{
+	int y = d->ds_yymmdd/10000;
+	
+	if (y <= 0)
+		return; /* Relative date */
+	if (y < 10)
+		d->ds_yymmdd += 20000000;
+	else if (y < 100)
+		d->ds_yymmdd += 19000000;
 }

@@ -79,7 +79,7 @@ static char *hdfopt[2] = { "@(#)$DFA: HDF_INTERFACE Compiled $",
 # include <config.h>
 # include <message.h>
 
-RCSID ("$Id: DFA_HDF.c,v 3.12 1997-11-21 20:36:06 burghart Exp $")
+RCSID ("$Id: DFA_HDF.c,v 3.13 1998-10-28 21:20:40 corbet Exp $")
 
 # include "DataStore.h"
 # include "dsPrivate.h"
@@ -527,6 +527,7 @@ ZebTime *zt;
 		return (FALSE);
 	microsec = (start_time - (long)start_time) * 1e+6;
 	uidate.ds_hhmmss = (long) start_time;
+	TC_y2k (&uidate);
 	TC_UIToZt (&uidate, zt);
 	zt->zt_MicroSec = microsec;
 	return (TRUE);

@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.47 1998-05-04 15:46:13 burghart Exp $
+ * $Id: DataStore.h,v 3.48 1998-10-28 21:20:53 corbet Exp $
  *
  * Public data store definitions.
  */
@@ -377,7 +377,7 @@ typedef struct _AuxDataEntry
 	short		dca_SubType;	/* Class-specific code		*/
 	unsigned short	dca_Len;	/* Length of aux data		*/
 	DataPtr		dca_Data;	/* Actual information		*/
-	bool		dca_Free;	/* Free this one?		*/
+	zbool		dca_Free;	/* Free this one?		*/
 } AuxDataEntry, *AuxDataChain;
 
 /*
@@ -453,10 +453,10 @@ extern DataPtr DC_FillValues;
 /*
  * Definitions of basic routines dealing with data chunks.
  */
-extern bool 	_CheckClass;
+extern zbool 	_CheckClass;
 
-bool		dc_IsSubClassOf FP((DataClassID, DataClassID));
-bool		dc_IsSubClass FP((DataClassP classp, DataClassP superclass));
+zbool		dc_IsSubClassOf FP((DataClassID, DataClassID));
+zbool		dc_IsSubClass FP((DataClassP classp, DataClassP superclass));
 #ifdef __cplusplus
 inline	PlatformId dc_PlatformId (DataChunk *dc)
 		{ return (dc->dc_Platform); }
@@ -542,8 +542,8 @@ DataPtr		dc_AddAlignedSample FP((DataChunk *dc, ZebTime *, DataPtr data,
 int		dc_ReserveStaticSpace FP((DataChunk *dc, int len));
 void		dc_SetPlat FP((DataChunk *, int, PlatformId));
 PlatformId	dc_GetPlat FP((DataChunk *, int));
-bool		dc_SetTime FP((DataChunk *, int, ZebTime *));
-bool		dc_GetTime FP((DataChunk *, int, ZebTime *));
+zbool		dc_SetTime FP((DataChunk *, int, ZebTime *));
+zbool		dc_GetTime FP((DataChunk *, int, ZebTime *));
 void		dc_SortSamples FP((DataChunk *dc));
 void		dc_AdjustSample FP((DataChunk *, int, int));
 void		dc_SetStaticLoc FP((DataChunk *, Location *));
@@ -575,7 +575,7 @@ void		dc_SetLocAltUnits FP ((DataChunk *dc, AltUnitType units));
  * Transparent class sub-sample abstractions
  */
 void		dc_SetValidTime FP((DataChunk *, int sample, ZebTime *valid));
-bool		dc_GetIssueTime FP((DataChunk *dc, int sample, ZebTime *when));
+zbool		dc_GetIssueTime FP((DataChunk *dc, int sample, ZebTime *when));
 int 		dc_GetForecastOffset FP((DataChunk *, int samp, ZebTime *val));
 void		dc_SetForecastOffset FP((DataChunk *dc, int sample, 
 					 int forecast_index));
@@ -871,8 +871,8 @@ typedef struct s_PlatformInfo
 {
 	char	pl_Name[P_NAMELEN];	/* Name of this platform	*/
 	int	pl_NDataSrc;		/* How many data sources	*/
-	bool	pl_Mobile;		/* Does it move?		*/
-	bool	pl_SubPlatform;		/* Is it a subplat?		*/
+	zbool	pl_Mobile;		/* Does it move?		*/
+	zbool	pl_SubPlatform;		/* Is it a subplat?		*/
 	PlatformId pl_Parent;		/* Parent plat for subplats	*/
 } PlatformInfo;
 
@@ -911,7 +911,7 @@ typedef struct s_DataFileInfo
 	ZebTime dfi_End;		/* End time			*/
 	int	dfi_NSample;		/* How many samples		*/
 	PlatformId dfi_Plat;		/* It's platform		*/
-	bool	dfi_Archived;		/* Has been archived?		*/
+	zbool	dfi_Archived;		/* Has been archived?		*/
 	int	dfi_Next;		/* Next file in chain		*/
 } DataFileInfo;
 
@@ -947,9 +947,9 @@ PlatformId *	ds_SearchPlatforms FP ((char *regexp, int *nplat,
 					int alphabet, int subs));
 PlatformId	ds_LookupParent FP ((PlatformId pid));
 PlatformId *	ds_LookupSubplatforms FP ((PlatformId parent, int *nsubplat));
-bool		ds_Store FP ((DataChunk *dc, int newfile, 
+zbool		ds_Store FP ((DataChunk *dc, int newfile, 
 			      dsDetail *details, int ndetail));
-bool		ds_StoreBlocks FP ((DataChunk *dc, int newfile,
+zbool		ds_StoreBlocks FP ((DataChunk *dc, int newfile,
 				    dsDetail *details, int ndetail));
 DataChunk *	ds_Fetch FP ((PlatformId, DataClass, ZebTime *, ZebTime *,
 			      FieldId *, int, dsDetail *, int));
@@ -957,10 +957,10 @@ DataChunk *	ds_FetchObs FP ((PlatformId, DataClass, ZebTime *, FieldId *,
 				 int, dsDetail *, int));
 void		ds_DeleteData FP ((PlatformId, ZebTime *));
 void		ds_DeleteObs FP ((PlatformId platform, ZebTime *zaptime));
-bool		ds_InsertFile FP ((PlatformId platform, char *filename,
+zbool		ds_InsertFile FP ((PlatformId platform, char *filename,
 				   ZebTime *begin, ZebTime *end,
 				   int nsample, int local));
-bool		ds_ScanFile FP((PlatformId platid, char *fname, int local));
+zbool		ds_ScanFile FP((PlatformId platid, char *fname, int local));
 void		ds_RequestNotify FP ((PlatformId, int, void (*)()));
 void		ds_CancelNotify FP ((void));
 void		ds_MarkArchived FP ((int dfi));
@@ -977,10 +977,10 @@ int		ds_GetObsSamples FP ((PlatformId, ZebTime *, ZebTime *,
 int		ds_GetFields FP ((PlatformId, ZebTime *, int *, FieldId *));
 int		ds_GetObsTimes FP ((PlatformId, ZebTime *, ZebTime *, int,
 				    char *));
-bool		ds_GetAlts FP((PlatformId pid, FieldId fid, ZebTime *when,
+zbool		ds_GetAlts FP((PlatformId pid, FieldId fid, ZebTime *when,
 			       int offset, float *alts, int *nalts, 
 			       AltUnitType *altunits));
-bool		ds_GetForecastTimes FP ((PlatformId, ZebTime *, int *, int *));
+zbool		ds_GetForecastTimes FP ((PlatformId, ZebTime *, int *, int *));
 int		ds_GetNPlat FP ((void));
 void		ds_GetPlatInfo FP ((PlatformId, PlatformInfo *));
 int		ds_GetDataSource FP ((PlatformId, int, DataSrcInfo *));

@@ -44,14 +44,14 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm.c,v 2.68 1997-05-12 21:36:46 ishikawa Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.69 1998-10-28 21:20:25 corbet Exp $")
 
 /*
  * Pick a help browser.
  */
 #ifdef SUPPORT_XHELP
 static void CallXHelp ();
-static bool UseXHelp =
+static zbool UseXHelp =
 # if UseMosaic
 			FALSE;
 # else
@@ -96,12 +96,12 @@ static char **Argv;		/* Save our args for a potential exec */
 /*
  * Is sound enabled?
  */
-static bool SoundEnabled = FALSE;
+static zbool SoundEnabled = FALSE;
 
 /*
  * Do we restart windows which die?
  */
-static bool Restart = TRUE;
+static zbool Restart = TRUE;
 
 /*
  * What kind of computer is this, anyway?
@@ -1497,7 +1497,7 @@ SValue *oldv, *newv;
  * the sound generator process.
  */
 {
-	bool send = newv->us_v_int;
+	zbool send = newv->us_v_int;
 
 	dmsg_SendSound (&send, 1);
 	return (0);
@@ -1515,7 +1515,7 @@ struct dm_rq_wbounds *wb;
  * Deal with a window bounds request.
  */
 {
-	bool ok;
+	zbool ok;
 	char string[40];
 	struct cf_window *win = dg_CurrentWindow (wb->dmm_window);
 	struct cf_graphic *g;

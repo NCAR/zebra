@@ -30,7 +30,7 @@
 # include <message.h>
 # include "DrawText.h"
 
-RCSID("$Id: DrawText.c,v 2.13 1996-11-19 07:28:45 granger Exp $")
+RCSID("$Id: DrawText.c,v 2.14 1998-10-28 21:21:36 corbet Exp $")
 
 # ifndef __STDC__
 #  ifndef sgi
@@ -71,10 +71,10 @@ static int BlankLabel = TRUE;
 	void	DT_XTextInfo (char *, int, int, int, int *, int *, int *);
 	void	DT_TextInfo (char *, double, int, int, float *, float *, 
 			float *, float *);
-	bool	DT_HaveXFont (Widget, int, int *);
+	zbool	DT_HaveXFont (Widget, int, int *);
 # else
 	void	DT_XTextInfo (), DT_TextInfo ();
-	bool	DT_HaveXFont ();
+	zbool	DT_HaveXFont ();
 # endif
 
 
@@ -560,7 +560,7 @@ float	*xoffset, *yoffset, *width, *height;
 
 
 
-bool
+zbool
 DT_HaveXFont (w, size, actual)
 Widget	w;
 int	size;

@@ -1,4 +1,4 @@
-/* $Id: pdaux.c,v 1.14 1996-11-19 08:04:22 granger Exp $ */
+/* $Id: pdaux.c,v 1.15 1998-10-28 21:22:43 corbet Exp $ */
 /*
  * Auxilliary library routines for plot descriptions.
  */
@@ -137,7 +137,7 @@ int param;
 
 
 
-bool
+zbool
 pda_Search (pd, comp, param, qual, dest, type)
 plot_description pd;
 char *comp, *param, *qual, *dest;
@@ -149,7 +149,7 @@ int type;
 	plot_description defpd = NULL;
 	char qstatic[80], *qparam = NULL;
 	int qlen;
-	bool found = FALSE;
+	zbool found = FALSE;
 /*
  * Try the given place first.
  */
@@ -190,7 +190,7 @@ int type;
 
 
 
-bool
+zbool
 pda_ReqSearch (pd, comp, param, qual, dest, type)
 plot_description	pd;
 char	*comp, *param, *qual, *dest;
@@ -200,7 +200,7 @@ int	type;
  * doesn't exist, log a message.
  */
 {
-	bool	success;
+	zbool	success;
 
 	if (! (success = pda_Search (pd, comp, param, qual, dest, type)))
 		msg_ELog (EF_PROBLEM,

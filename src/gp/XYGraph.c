@@ -40,7 +40,7 @@
 # include "PlotPrim.h"
 # include "DrawText.h"
 
-RCSID ("$Id: XYGraph.c,v 1.36 1997-10-16 20:41:46 burghart Exp $")
+RCSID ("$Id: XYGraph.c,v 1.37 1998-10-28 21:22:21 corbet Exp $")
 
 /*
  * Prototypes
@@ -55,12 +55,12 @@ static void xy_GetGraphParams FP ((char *, char *, int *, int *));
 void
 xy_Graph (c, update)
 char	*c;
-bool	update;
+zbool	update;
 /*
  * Draw an xy graph based on the given component
  */
 {
-	bool	ok;
+	zbool	ok;
 	int	sideAnnot, doLine;
 	int	plat, nplat, npts[MAX_PLAT];
 	int	nxfield, nyfield, dmode;
@@ -71,7 +71,7 @@ bool	update;
 	Pixel	taColor, *lcolor;
 	ZebTime	eTimeTarget, bTimeTarget, bTimeOld, eTimeOld;
 	ZebTime	eTimeReq, bTimeReq;
-	bool	xauto, yauto, xinvert, yinvert;
+	zbool	xauto, yauto, xinvert, yinvert;
 	PlatformId	pid;
 	xyDataVector	dv[2];
 	DataValPtr	*xdata, *ydata;
@@ -164,7 +164,7 @@ bool	update;
  */
 	for (plat = 0; plat < nplat; plat++)
 	{
-		bool	single_obs;
+		zbool	single_obs;
 
 		pid = ds_LookupPlatform (pnames[plat]);
 

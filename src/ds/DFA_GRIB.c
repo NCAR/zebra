@@ -39,7 +39,7 @@
 # include "DataFormat.h"
 # include "GRIB.h"
 
-RCSID ("$Id: DFA_GRIB.c,v 3.42 1998-10-14 17:08:27 burghart Exp $")
+RCSID ("$Id: DFA_GRIB.c,v 3.43 1998-10-28 21:20:37 corbet Exp $")
 
 
 /*
@@ -842,7 +842,7 @@ grb_OpenFile (of, fname, dp, write)
 OpenFile	*of;
 char	*fname;
 DataFile	*dp;
-bool		write;
+zbool		write;
 /*
  * DFA routine to open a file and return a tag.
  */
@@ -864,7 +864,7 @@ grb_SfcOpenFile (of, fname, dp, write)
 OpenFile	*of;
 char		*fname;
 DataFile	*dp;
-bool		write;
+zbool		write;
 /*
  * DFA routine to open a file (for access to surface data only).
  */
@@ -1003,7 +1003,7 @@ int		ndetail;
 	int	ndx, nfield, samp, sbegin, send, f;
 	int	offset, nalts, test, i;
 	float  	badval, ztarget, *lats, *lons, alts[MAXLEVELS];
-	bool	onelevel;
+	zbool	onelevel;
 	SValue	v;
 	GFTag	*tag = GFTAGP (of);
 	GFpds	*pds;
@@ -1947,7 +1947,7 @@ AltUnitType	altunits;
     float	z, di, dj, val0, val1, val2, val3, *fsi, *fsj;
     GFpds	*pds;
     ZebTime	time;
-    bool	u_or_v;
+    zbool	u_or_v;
     FieldId	grid_fid, u_fid, v_fid;
     ScaleInfo	sc;
     unsigned long	nlat, nlon;
@@ -2498,7 +2498,7 @@ double	badval;
 	int	longbits, shift, bfactor, dfactor;
 	int	firstbit, firstbyte, lastbit, lastbyte, n_bytes;
 	unsigned long	longval, mask;
-	bool	int_data;
+	zbool	int_data;
 	char	flag, *bds, *bitmap;
 	float	ref, bscale, dscale, *gp;
 	GFpds	*pds = tag->gt_grib[which].gd_pds;

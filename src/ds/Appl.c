@@ -33,7 +33,7 @@
 #include "dslib.h"
 #include "Appl.h"
 
-RCSID ("$Id: Appl.c,v 3.49 1997-11-21 18:09:27 burghart Exp $")
+RCSID ("$Id: Appl.c,v 3.50 1998-10-28 21:20:31 corbet Exp $")
 
 /*
  * Notification callbacks are void functions
@@ -309,9 +309,9 @@ PlatformList *pl;
 static void
 ds_SendSearch (regexp, sort, subs, sendplats, pl)
 char *regexp;
-bool sort;
-bool subs;
-bool sendplats;	/* True if we want to receive platform structures as well */
+zbool sort;
+zbool subs;
+zbool sendplats;	/* True if we want to receive platform structures as well */
 PlatformList *pl;
 /*
  * Send off a search request to the daemon
@@ -339,8 +339,8 @@ PlatformId *
 ds_SearchPlatforms (regexp, nplats, sort, subs)
 char *regexp;
 int *nplats;
-bool sort;
-bool subs;
+zbool sort;
+zbool subs;
 /*
  * Send a search message to the daemon, telling it we don't want platform
  * structures, and return the list of pids we receive back from the daemon.
@@ -363,8 +363,8 @@ PlatformId *
 ds_GatherPlatforms (regexp, nplats, sort, subs)
 char *regexp;
 int *nplats;
-bool sort;
-bool subs;
+zbool sort;
+zbool subs;
 /*
  * Send a search message to the daemon, telling it we do want platform
  * structures, and return the list of pids we receive back from the daemon.

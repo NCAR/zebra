@@ -44,7 +44,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: Track.c,v 2.46 1998-09-22 22:28:29 burghart Exp $")
+RCSID ("$Id: Track.c,v 2.47 1998-10-28 21:22:11 corbet Exp $")
 
 # define ARROWANG .2618 /* PI/12 */
 # ifndef M_PI
@@ -68,14 +68,14 @@ typedef struct _TrackParams
 	int	tp_DSkip;			/* Data skip		*/
 	int	tp_NField;			/* How many fields	*/
 	FieldId	tp_Fields[5];			/* The fields		*/
-	bool	tp_AnnotTime;			/* Time annotations?	*/
+	zbool	tp_AnnotTime;			/* Time annotations?	*/
 /*
  * Color coding parameters.
  */
-	bool	tp_Mono;			/* Plotting mono?	*/
-	bool	tp_ShowPosition;		/* Add position icon?	*/
-	bool	tp_PositionArrow;		/* Arrow at end of track*/
-	bool	tp_AutoScale;			/* Scale automatically? */
+	zbool	tp_Mono;			/* Plotting mono?	*/
+	zbool	tp_ShowPosition;		/* Add position icon?	*/
+	zbool	tp_PositionArrow;		/* Arrow at end of track*/
+	zbool	tp_AutoScale;			/* Scale automatically? */
 	char	tp_CCField[CFG_FIELD_NAME_LEN];	/* color-code field 	*/
 	char	tp_MTColor[CFG_FILENAME_LEN];	/* Color for mono tracks*/
 	char	tp_CTable[CFG_FILENAME_LEN];	/* Color table for coded*/
@@ -87,9 +87,9 @@ typedef struct _TrackParams
 /*
  * Arrow parameters.
  */
-	bool	tp_DoArrows;			/* Do they want them?	*/
-	bool	tp_AInvert;			/* Flip 180 degrees?	*/
-	bool	tp_Barb;			/* Really do barbs	*/
+	zbool	tp_DoArrows;			/* Do they want them?	*/
+	zbool	tp_AInvert;			/* Flip 180 degrees?	*/
+	zbool	tp_Barb;			/* Really do barbs	*/
 	char	tp_AColor[CFG_FILENAME_LEN];	/* Arrow color		*/
 	char	tp_AType[CFG_PDPARAM_LEN];	/* Type (for annot)	*/
 	int	tp_AInterval;			/* Arrow interval	*/
@@ -112,9 +112,9 @@ typedef struct _TrackParams
 /*
  * Forwards.
  */
-static bool tr_CCSetup FP((char *, char *, TrackParams *));
+static zbool tr_CCSetup FP((char *, char *, TrackParams *));
 static void tr_GetArrowParams FP((char *, char *, TrackParams *));
-static bool tr_CTSetup FP((char *, char **, PlatformId *,TrackParams*));
+static zbool tr_CTSetup FP((char *, char **, PlatformId *,TrackParams*));
 static void tr_AnnotTrack FP((char *, char *, TrackParams *));
 static void tr_AnnotTime FP((char *, char *, DataChunk *, Drawable,
 		TrackParams *));
@@ -153,7 +153,7 @@ static void tr_DrawArrow FP ((Drawable, DataChunk *, int, WindInfo, int, int,
 void
 tr_CAPTrack (comp, update)
 char *comp;
-bool update;
+zbool update;
 /*
  * Add a track to a CAP plot.
  */
@@ -196,7 +196,7 @@ bool update;
 static void
 tr_PlotPlatform (comp, update, pname, pid, tparams)
 char *comp, *pname;
-bool update;
+zbool update;
 PlatformId pid;
 TrackParams *tparams;
 /*
@@ -239,7 +239,7 @@ TrackParams *tparams;
  */
 	tparams->tp_DoArrows = FALSE;
 	tr_GetParam (comp, "arrow", pname,
-			&tparams->tp_DoArrows, SYMT_BOOL);
+			(char *) &tparams->tp_DoArrows, SYMT_BOOL);
 	if (tparams->tp_DoArrows)
 	{
 		tr_GetArrowParams (comp, pname, tparams);
@@ -755,7 +755,7 @@ TrackParams *tparams;
 {
 	char tadefcolor[30], datastr[100];
 	XColor tadefclr, taclr, xc;
-	bool tacmatch = FALSE;
+	zbool tacmatch = FALSE;
 	float sascale;
 /*
  * Read in annotation information.
@@ -1025,7 +1025,7 @@ int *justify;		/* Justification to use for annotation */
 
 
 
-static bool
+static zbool
 tr_CTSetup (comp, pnames, pids, tparams)
 char *comp, **pnames;
 PlatformId *pids;
@@ -1081,7 +1081,7 @@ TrackParams *tparams;
  * Time annotations?
  */
 	if (! pda_Search (Pd, comp, "annot-time", "track", 
-				&tparams->tp_AnnotTime, SYMT_BOOL))
+				(char *) &tparams->tp_AnnotTime, SYMT_BOOL))
 		tparams->tp_AnnotTime = FALSE;
 /*
  * Color info.
@@ -1102,7 +1102,7 @@ TrackParams *tparams;
 	tparams->tp_ShowPosition = FALSE;
 	tparams->tp_PositionArrow = FALSE;
 	if (tr_GetParam (comp, "show-position", platform, 
-			&tparams->tp_ShowPosition, SYMT_BOOL) &&
+			(char *) &tparams->tp_ShowPosition, SYMT_BOOL) &&
 			tparams->tp_ShowPosition)
 	{
 	/*
@@ -1110,9 +1110,8 @@ TrackParams *tparams;
 	 * position arrow enabled, positionicon is undefined.
 	 */
 		if (tr_GetParam (comp, "do-position-arrow", platform, 
-				&tparams->tp_PositionArrow, SYMT_BOOL) &&
-				tparams->tp_PositionArrow)
-			; /* hunky-dory */
+			(char *) &tparams->tp_PositionArrow, SYMT_BOOL) &&
+			tparams->tp_PositionArrow); /* hunky-dory */
 	/*
 	 * If we need an icon to show, get it from position-icon if it
 	 * exists, else default to plain old icon.  The thinking is that
@@ -1136,7 +1135,7 @@ TrackParams *tparams;
 
 
 
-static bool
+static zbool
 tr_CCSetup (comp, platform, tparams)
 char *comp, *platform;
 TrackParams *tparams;
@@ -1227,8 +1226,8 @@ TrackParams *tparams;
 	if (! tr_GetParam (comp, "arrow-line-width", platform,
 			(char *) &tparams->tp_ALWidth, SYMT_INT))
 		tparams->tp_ALWidth = 1;
-	if (! tr_GetParam(comp, "arrow-invert", platform, &tparams->tp_AInvert,
-			SYMT_BOOL))
+	if (! tr_GetParam(comp, "arrow-invert", platform,
+			(char *) &tparams->tp_AInvert, SYMT_BOOL))
 		tparams->tp_AInvert = FALSE;
 /*
  * Maybe they really want to plot barbs?

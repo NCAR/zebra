@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.63 1998-02-05 23:50:18 burghart Exp $ */
+/* $Id: GraphProc.h,v 2.64 1998-10-28 21:21:41 corbet Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -50,7 +50,7 @@
  * This flag is set when something happens which should abort an ongoing
  * plot operation.
  */
-extern bool Abort;
+extern zbool Abort;
 
 #ifdef UI_H_SYMBOLS	/* dependent on ui.h */
 /*
@@ -70,14 +70,14 @@ extern plot_description Pd, Defaults;
  */
 extern ZebTime PlotTime;	/* Time currently shown on the screen	*/
 extern enum pmode PlotMode;	/* The current plot mode		*/
-extern bool MovieMode;		/* Movie mode?				*/
+extern zbool MovieMode;		/* Movie mode?				*/
 extern long ForecastOffset;	/* Forecast offset time (for model data)*/
-extern bool ValidationMode;	/* Use validation mode for model data?	*/
+extern zbool ValidationMode;	/* Use validation mode for model data?	*/
 
 /*
  * Post processing stuff.
  */
-extern bool PostProcMode;	/* Post processing mode?		*/
+extern zbool PostProcMode;	/* Post processing mode?		*/
 extern ZebTime PostProcTime;	/* Post processing mode history time	*/
 /*
  * Needed for opening the FrameFile.
@@ -232,10 +232,10 @@ extern void px_SetEOPHandler FP ((void (*handler) ()));
 extern void px_ClearEOPHandler FP ((void));
 
 /* Grid access */
-extern bool ga_GridBBox FP ((ZebTime *, char *, float *, float *, float *,
+extern zbool ga_GridBBox FP ((ZebTime *, char *, float *, float *, float *,
 			     float *));
 extern void ga_RotateGrid FP ((float *, float *, int, int));
-extern bool ga_AvailableAlts FP ((ZebTime *, char *, float *, int *));
+/* extern zbool ga_AvailableAlts FP ((ZebTime *, char *, float *, int *)); */
 extern DataChunk *ga_GetGrid FP ((ZebTime *, char *, char *, FieldId, int *,
 				  int *, float *, float *, float *, float *, 
 				  float *, int *));
@@ -381,7 +381,7 @@ extern int dispatcher FP ((int junk, struct ui_command *cmds));
 extern void parameter FP ((char *comp, char *param, char *value));
 extern int xtEvent FP ((int fd));
 extern int AgeCheck FP ((char *, char *, ZebTime *));
-extern long GetSec FP(( UItime ));
+/* extern long GetSec FP(( UItime )); */
 extern int  reset_limits FP ((char *, char *, char *));
 extern void eq_ResetAbort FP ((void));
 extern void eq_ReturnPD FP ((void));
@@ -394,9 +394,9 @@ extern void GetByteRange FP((unsigned char *, int np, float *min, float *max));
 extern void CalcCenterStep FP ((double, double, int, float *, float *));
 extern void FindCenterStep FP ((DataChunk *, FieldId, int, float *, float *));
 extern int ApplySpatialOffset FP ((DataChunk *, char *, ZebTime *));
-extern bool ImageDataTime FP ((char *c, PlatformId pid, double alt,
+extern zbool ImageDataTime FP ((char *c, PlatformId pid, double alt,
 			       ZebTime *dtime));
-extern bool ClosestRHI FP ((char *c, PlatformId pid, double azimuth,
+extern zbool ClosestRHI FP ((char *c, PlatformId pid, double azimuth,
 			    ZebTime *dtime, float *angdiff));
 extern int GetLLSpacings FP ((DataChunk *, float *, float *));
 extern void FreeColors FP ((plot_description pd));
@@ -431,7 +431,7 @@ extern DataChunk *GetVorticity ( ZebTime *, char *, char *, FieldId, int *,
 # ifdef _XtIntrinsic_h
 	extern void HelpCallback FP ((Widget w, XtPointer client_data,
 				      XtPointer call_data));
-	extern bool ct_LoadTable FP ((char *, XColor**, int *));
+	extern zbool ct_LoadTable FP ((char *, XColor**, int *));
 	extern void ct_FreeColors FP ((void));
 	extern void ct_DeleteTable FP ((char *));
 	extern int ct_GetColorByName FP ((char *, XColor *));

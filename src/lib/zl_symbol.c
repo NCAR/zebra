@@ -9,7 +9,7 @@
 #include "zl_symbol.h"
 #include "zl_regex.h"
 
-RCSID("$Id: zl_symbol.c,v 2.1 1996-11-19 07:56:10 granger Exp $")
+RCSID("$Id: zl_symbol.c,v 2.2 1998-10-28 21:22:49 corbet Exp $")
 
 /*
  * This is the format of a single symbol table entry.
@@ -374,7 +374,7 @@ union usy_value *v;
 	   	v->us_v_date = * (date *) ip;
 		break;
 	   case SYMT_BOOL:
-	   	v->us_v_int = * (bool *) ip;
+	   	v->us_v_int = * (zbool *) ip;
 		break;
 	}
 }
@@ -434,7 +434,7 @@ int *type;
 
 
 
-bool
+zbool
 usy_defined (stable, symbol)
 const stbl stable;
 const char *symbol;
@@ -543,7 +543,7 @@ union usy_value *v;
 	   	* (date *) ip = v->us_v_date;
 		break;
 	   case SYMT_BOOL:
-	   	* (bool *) ip = v->us_v_int;
+	   	* (zbool *) ip = v->us_v_int;
 		break;
 	   case SYMT_SYMBOL:
 	   case SYMT_POINTER:
@@ -735,7 +735,7 @@ usy_traverse (stable, func, arg, sort)
 const stbl stable;
 int (*func) ();
 long arg;
-bool sort;
+zbool sort;
 /*
  * The old interface to usy_search.
  */
@@ -751,7 +751,7 @@ usy_search (stable, func, arg, sort, re)
 const stbl stable;
 int (*func) ();
 long arg;
-bool sort;
+zbool sort;
 char *re;
 /*
  * Perform a traversal of this table, possibly controlled by a regular

@@ -27,7 +27,7 @@
 # include "DataStore.h"
 # include "DataChunkP.h"
 
-RCSID ("$Id: dc_Transp.c,v 1.24 1996-12-06 00:40:50 granger Exp $")
+RCSID ("$Id: dc_Transp.c,v 1.25 1998-10-28 21:21:08 corbet Exp $")
 
 /*
  * TODO:
@@ -186,7 +186,7 @@ void
 dc_HintNSamples (dc, nsample, decrease)
 DataChunk *dc;
 int nsample;
-bool decrease;
+zbool decrease;
 /* 
  * Provide a hint to the number of samples this chunk will contain.  
  * If 'decrease' is TRUE, then 'nsample' will be used as the new hint even
@@ -224,7 +224,7 @@ void
 dc_HintSampleSize (dc, sampsize, override)
 DataChunk *dc;
 int sampsize;
-bool override;
+zbool override;
 /* 
  * Suggests an approximate size for each sample in a DataChunk.  The
  * estimate should include only the space required for the data.  Overhead
@@ -264,7 +264,7 @@ void
 dc_HintMoreSamples (dc, nsample, decrease)
 DataChunk *dc;
 int nsample;
-bool decrease;
+zbool decrease;
 /*
  * Hint that 'nsample' more samples are about to be added to the DataChunk.
  * Basically, this is just like HintNSamples, except it calculates the new
@@ -320,7 +320,7 @@ int size;
 void
 dc_HintUseAverages (dc, use)
 DataChunk *dc;
-bool use;
+zbool use;
 /*
  * Set the HintUseAvgs flag
  */
@@ -922,7 +922,7 @@ ZebTime *valid;
 
 
 
-bool
+zbool
 dc_GetIssueTime (dc, sample, when)
 DataChunk *dc;
 int sample;
@@ -1194,7 +1194,7 @@ int len;
 
 
 
-bool
+zbool
 dc_SetTime (dc, sample, t)
 DataChunk *dc;
 int sample;
@@ -1224,7 +1224,7 @@ ZebTime *t;
 
 
 
-bool
+zbool
 dc_GetTime (dc, sample, t)
 DataChunk *dc;
 int sample;

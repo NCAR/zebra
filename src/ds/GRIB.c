@@ -32,7 +32,7 @@
 
 # include "GRIB.h"
 
-RCSID ("$Id: GRIB.c,v 3.12 1997-06-16 16:17:02 burghart Exp $")
+RCSID ("$Id: GRIB.c,v 3.13 1998-10-28 21:20:54 corbet Exp $")
 
 typedef struct s_GRB_DataRepType {
 	int data_type;
@@ -416,10 +416,10 @@ GFpds	*pds;
 
 
 
-bool
+zbool
 grb_UsableLevel (pds, sfc_only)
 GFpds	*pds;
-bool	sfc_only;
+zbool	sfc_only;
 /*
  * Return whether this GRIB grid is "usable".  If sfc_only is true, only
  * surface data are usable.  Otherwise, the data must have an associated single

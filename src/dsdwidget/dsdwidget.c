@@ -39,7 +39,7 @@
 # include <copyright.h>
 # include "DataStore.h"
 
-RCSID ("$Id: dsdwidget.c,v 1.26 1998-07-21 23:37:35 burghart Exp $")
+RCSID ("$Id: dsdwidget.c,v 1.27 1998-10-28 21:21:22 corbet Exp $")
 
 
 # define MAXPLAT	1024
@@ -138,7 +138,7 @@ int	argc;
 char	**argv;
 {
 	char name[256];
-	bool sort;
+	zbool sort;
 	char *title;
 	int c;
 	int optind, i;
@@ -435,7 +435,7 @@ ZebTime *begin, *end;
  * Make a label for this platform.
  */
 {
-        char label[80], end_date[20], begin_date[20];
+        char label[80], end_date[30], begin_date[30];
         Arg arg;
 /*
  * Make the label.
@@ -449,7 +449,7 @@ ZebTime *begin, *end;
 	{
 		TC_EncodeTime (end, TC_Full, end_date);
 		TC_EncodeTime (begin, TC_Full, begin_date);
-		sprintf (label, "%-17s  %20s -> %20s", Names[index],
+		sprintf (label, "%-17s  %22s -> %22s", Names[index],
 			begin_date, end_date);
 	}
 	msg_ELog (EF_DEBUG, "Entry %s", label);
@@ -465,14 +465,14 @@ ZebTime *begin, *end;
 static void
 AddPlatforms (re, sort)
 char *re;	/* NULL implies get them all 		*/
-bool sort;	/* true if we want them alphabetized 	*/
+zbool sort;	/* true if we want them alphabetized 	*/
 /*
  * Add platform names and data times to dsdwidget.
  */
 {
 	int i, nplat;
 	PlatformInfo pi;
-	UItime begin, end;
+	ZebTime begin, end;
 	PlatformId *platforms;
 
 	platforms = ds_GatherPlatforms (re, &nplat, sort, FALSE);
@@ -496,15 +496,14 @@ bool sort;	/* true if we want them alphabetized 	*/
 	/*
 	 * Create a command button for a platform.
 	 */
-		GetTimes (platforms[i], &pi, 
-			  (ZebTime *)&begin, (ZebTime *)&end);
+		GetTimes (platforms[i], &pi, &begin, &end);
         	Entry[NPlat] = XtCreateManagedWidget (pi.pl_Name,
 			commandWidgetClass, Box, NULL, 0);
 		XtAddCallback (Entry[NPlat], XtNcallback, 
 			       (XtCallbackProc) PopupDisplay, 
 			       (XtPointer) platforms[i]);
 
-		SetEntry (NPlat, (ZebTime *)&begin, (ZebTime *)&end);
+		SetEntry (NPlat, &begin, &end);
 		NPlat++;
 	}
 	if (platforms)
@@ -584,7 +583,7 @@ int start;
  */
 {
 	DataFileInfo dfi;
-	char abegin[20], aend[20];
+	char abegin[24], aend[24];
 	char dest[256];
 
 	while (start)

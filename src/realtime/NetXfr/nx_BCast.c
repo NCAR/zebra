@@ -34,7 +34,7 @@
 # include <DataStore.h>
 # include "NetXfr.h"
 
-RCSID("$Id: nx_BCast.c,v 3.5 1996-11-19 08:08:15 granger Exp $")
+RCSID("$Id: nx_BCast.c,v 3.6 1998-10-28 21:22:58 corbet Exp $")
 
 /*
  * Local stuff.
@@ -84,9 +84,6 @@ void Delay FP ((void));
 void Alarm FP ((int));
 static int BCastPlain FP ((tx_BCast *, DataBCChunk *, char *, int));
 static int BCastRLE FP ((tx_BCast *, DataBCChunk *, char *, int));
-#ifdef notdef
-static int RLEncode FP ((unsigned char *, DataBCChunk *, int));
-#endif
 
 
 void

@@ -47,7 +47,7 @@
 # include "LayoutControl.h"
 # include "LLEvent.h"
 
-RCSID ("$Id: GraphProc.c,v 2.67 1998-10-08 20:53:40 burghart Exp $")
+RCSID ("$Id: GraphProc.c,v 2.68 1998-10-28 21:21:39 corbet Exp $")
 
 /*
  * Default resources.
@@ -77,25 +77,27 @@ int	MaxFrames = 0;			/* Maximum number of frames	*/
 int	DisplayFrame = 0;		/* Frame being displayed	*/
 int	DrawFrame = 0;			/* Frame to draw next		*/
 XtAppContext	Actx;			/* The application context	*/
-bool	Abort = FALSE;			/* Has the current plot been stopped?*/
-bool	HoldProcess = FALSE;		/* Plotting on hold?		*/
+zbool	Abort = FALSE;			/* Has the current plot been stopped?*/
+# ifdef NOTUSED
+zbool	HoldProcess = FALSE;		/* Plotting on hold?		*/
+# endif
 stbl	Vtable;				/* The variable table		*/
 plot_description	Pd = 0;		/* Current plot description	*/
 plot_description	Defaults = 0;	/* Plot description info	*/
 ZebTime	PlotTime;			/* The current plot time.	*/
 long	ForecastOffset;			/* Forecast offset time (models)*/
-bool	ValidationMode;			/* Validation mode for models?	*/
+zbool	ValidationMode;			/* Validation mode for models?	*/
 int	Event_X, Event_Y;		/* Button event locations	*/
 enum pmode	PlotMode = NoMode;
 enum wstate	WindowState = DOWN;
-bool	MovieMode = FALSE;
+zbool	MovieMode = FALSE;
 Cursor	BusyCursor, NormalCursor;	/* Our cursors			*/
 float	Xlo, Xhi, Ylo, Yhi;
 float	Alt;
 /*
  * Post processing mode stuff.
  */
-bool	PostProcMode = FALSE;
+zbool	PostProcMode = FALSE;
 ZebTime	PostProcTime;
 
 static int ListPosition (), RmElement (), ReplElement (), NthElement ();
@@ -468,7 +470,9 @@ finish_setup ()
 /*
  * Indirect variables.
  */
+# ifdef NOTUSED
 	usy_c_indirect (Vtable, "holdprocess", &HoldProcess, SYMT_BOOL, 0);
+# endif
 	usy_c_indirect (Vtable, "iconpath", IconPath, SYMT_STRING, PathLen);
 	usy_c_indirect (Vtable, "mappath", MapPath, SYMT_STRING, PathLen);
 	usy_c_indirect (Vtable, "requirepath", RequirePath, SYMT_STRING,
@@ -621,7 +625,7 @@ struct ui_command *cmds;
  * The GP command dispatcher.
  */
 {
-	static bool first = TRUE;
+	static zbool first = TRUE;
 	extern void mc_MovieRun ();
 	struct dm_event dme;
 
@@ -668,12 +672,14 @@ struct ui_command *cmds;
 	   	alt_Step (UINT (cmds[1]));
 		break;
 # if C_CAP_OVERLAY
+#ifdef FEATURES
 	/*
 	 * Predefined features.
 	 */
 	   case GPC_FEATURE:
 	   	ov_Feature (cmds + 1);
 		break;
+# endif
 # endif
 	/*
 	 * Movie control.
@@ -986,11 +992,11 @@ int len;
  * Reconfigure the window.
  */
 {
-	static bool WindowSent = FALSE;
+	static zbool WindowSent = FALSE;
 	Arg args[10];
 	Dimension width, height;
 	Position x, y;
-	bool schanged, wchanged;
+	zbool schanged, wchanged;
 
 	msg_ELog (EF_DEBUG, "reconfig routine entered from event queue");
 /*
@@ -1226,7 +1232,7 @@ eq_ResetAbort ()
 void
 FreeColors (plot_description pd)
 {
-	bool keep = FALSE;
+	zbool keep = FALSE;
 /*
  * Free colors if the "keep-colors" parameter does not exist or is false.
  */
@@ -1354,7 +1360,7 @@ char *comp;
 char *param;
 char *value;
 {
-	bool disable = FALSE;
+	zbool disable = FALSE;
 /*
  * Make sure this makes sense.
  */
@@ -2062,7 +2068,7 @@ SValue *argv, *retv;
 {
 	char *elems[40], *ret = usy_string (argv[0].us_v_ptr);
 	int nelem = CommaParse (argv[0].us_v_ptr, elems), i;
-	bool first = TRUE;
+	zbool first = TRUE;
 
 	*ret = '\0';
 	for (i = 0; i < nelem; i++)

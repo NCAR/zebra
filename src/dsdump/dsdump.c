@@ -29,7 +29,7 @@
 # include <timer.h>
 # include <DataStore.h>
 
-RCSID ("$Id: dsdump.c,v 3.19 1998-04-23 16:22:53 granger Exp $")
+RCSID ("$Id: dsdump.c,v 3.20 1998-10-28 21:21:20 corbet Exp $")
 
 /*
  * Standalone scanning flag.
@@ -55,16 +55,16 @@ static int Alone = 0;
  */
 struct dsdump_options
 {
-	bool sort;
-	bool subs;
-	bool tier;
+	zbool sort;
+	zbool subs;
+	zbool tier;
 	int files;
-	bool names;
-	bool obs;
-	bool defn;
-	bool toc;
-	bool quiet;	/* skip default output if true */
-	bool full;	/* full datafile paths if true */
+	zbool names;
+	zbool obs;
+	zbool defn;
+	zbool toc;
+	zbool quiet;	/* skip default output if true */
+	zbool full;	/* full datafile paths if true */
 	int tcf;	/* time formats */
 	ZebraTime since;
 	ZebraTime before;
@@ -281,7 +281,7 @@ char **argv;
 	PlatformId *platforms;
 	PlatformId pid;
 	char *pattern;
-	bool first, exact;
+	zbool first, exact;
 	char name[20];
 	int matches;
 	long period = 0;	/* Length of time to show data for */
@@ -645,7 +645,7 @@ PrintTime (char *s, ZebraTime *zt, DumpOptions *opts)
 		UItime uid;
 
 		TC_ZtToUI (zt, &uid);
-		sprintf (s, "%06d%04d", uid.ds_yymmdd, uid.ds_hhmmss/100);
+		sprintf (s, "%08d%04d", uid.ds_yymmdd, uid.ds_hhmmss/100);
 	}
 	else
 	{

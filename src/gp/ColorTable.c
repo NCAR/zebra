@@ -29,7 +29,7 @@
 # include <message.h>
 # include "GraphProc.h"
 
-RCSID ("$Id: ColorTable.c,v 2.10 1998-03-17 18:30:03 corbet Exp $")
+RCSID ("$Id: ColorTable.c,v 2.11 1998-10-28 21:21:32 corbet Exp $")
 
 /*
  * For now, we use a simple bitmap to keep track of the colors that
@@ -87,7 +87,7 @@ typedef struct ColorTable
 	char	ct_name[80];		/* The name of this table	*/
 	int	ct_ncolor;		/* The number of colors		*/
 	XColor	*ct_colors;		/* The actual color values	*/
-	bool	ct_alloc;		/* The colors alloc'd from server */
+	zbool	ct_alloc;		/* The colors alloc'd from server */
 } CTable;
 
 static stbl Ctable = 0;
@@ -114,7 +114,7 @@ ct_Init ()
 
 
 
-bool
+zbool
 ct_LoadTable (name, colors, ncolor)
 char *name;
 XColor **colors;

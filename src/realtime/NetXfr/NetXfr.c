@@ -32,7 +32,7 @@
 # include "NetXfr.h"
 
 
-RCSID("$Id: NetXfr.c,v 3.10 1997-02-14 07:36:57 granger Exp $")
+RCSID("$Id: NetXfr.c,v 3.11 1998-10-28 21:22:57 corbet Exp $")
 
 
 /*
@@ -335,14 +335,6 @@ char **argv;
  */
 	for (i = 0; i < MAXPLAT; i++)
 		Recipients[i] = 0;
-/*
- * Kludgery.
- */
-# ifdef notdef
-	CFile = argv[1];
-	signal (SIGSEGV, UglyDeath);
-	signal (SIGBUS, UglyDeath);
-# endif
 /*
  * Start reading commands.
  */
@@ -1326,19 +1318,12 @@ int seq;
 		return;
 /*
  * If we have exceeded the number of timeouts we are willing to deal with,
- * we give up on this.  If any data has arrived at all, finish out the IP
- * to preserve it; otherwise just dump it.
+ * we give up on this.  
  */
 	if (++(ip->ip_NRetrans) > BCRetransMax)
 	{
 		msg_ELog (EF_INFO, "Too many timeouts on %d (%d missing)",
 			seq, ip->ip_NBExpect - ip->ip_NBCast);
-#ifdef notdef
-		/* trying to store an incomplete chunk is likely to crash us */
-		if (ip->ip_NBCast > 0)
-			FinishIP (ip);
-		else
-#endif
 			ZapIP (ip);
 		return;
 	}

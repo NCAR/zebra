@@ -36,7 +36,7 @@
 # include "message.h"
 # include "pd.h"
 
-RCSID ("$Id: pdlib.c,v 1.25 1996-11-19 08:04:24 granger Exp $")
+RCSID ("$Id: pdlib.c,v 1.26 1998-10-28 21:22:44 corbet Exp $")
 
 struct traverse {
 	int (*func)();		/* Function to call for traverse */
@@ -1191,7 +1191,7 @@ int type;
 		   	sprintf (kludge, "%d", * (int *) value);
 			break;
 		   case SYMT_BOOL:
-		   	strcpy (kludge, (* (bool *) value) ? "True" : "False");
+		   	strcpy (kludge, (*(zbool *) value) ? "True" : "False");
 			break;
 		   case SYMT_FLOAT:
 		   	sprintf (kludge, "%.4f", * (float *) value);
@@ -1295,7 +1295,7 @@ int newpos;
 
 
 
-bool
+zbool
 pd_CompExists (pd, comp)
 plot_description pd;
 char *comp;

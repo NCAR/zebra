@@ -30,7 +30,7 @@
 # include "DataStore.h"
 # include "DataChunkP.h"
 
-RCSID ("$Id: dc_MetData.c,v 3.23 1997-11-21 20:36:52 burghart Exp $")
+RCSID ("$Id: dc_MetData.c,v 3.24 1998-10-28 21:21:05 corbet Exp $")
 
 /*
  * If we have non-uniform, non-fixed, non-pre-arranged fields, then the 
@@ -591,7 +591,7 @@ int *sizes;
 void
 dc_ReserveFieldSpace (dc, reserve)
 DataChunk *dc;		/* subclass of DC_MetTypes 	*/
-bool reserve;		/* FALSE disables the pre-allocation and forces TOC */
+zbool reserve;		/* FALSE disables the pre-allocation and forces TOC */
 {
 	FldInfo *finfo;
 
@@ -759,7 +759,7 @@ FldInfo *finfo;
  */
 {
 	int i, tsize = 0, ssize;
-	bool uniform;
+	zbool uniform;
 /*
  * If holding space for all defined fields has been disabled, disable all
  * optimization flags so that we resort to non-uniform field storage

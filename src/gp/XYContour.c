@@ -37,7 +37,7 @@
 # include "rg_status.h"
 # include "Contour.h"
 
-RCSID("$Id: XYContour.c,v 1.38 1998-09-22 22:28:34 burghart Exp $")
+RCSID("$Id: XYContour.c,v 1.39 1998-10-28 21:22:20 corbet Exp $")
 
 # define GRID(g,i,j,ydim)   (g[((i) * (ydim)) + (j)])
 
@@ -81,12 +81,12 @@ static float    gridStep FP ((int, DataValPtr, DataValPtr));
 void
 xy_Contour (c, update)
 char	*c;
-bool	update;
+zbool	update;
 /*
  * Draw an xy-graph on the given component
  */
 {
-	bool	fill;
+	zbool	fill;
 	int	npts[MAX_PLAT], plat, nplat, ncolors, dmode;
 	int	dolabel = 1, linewidth = 0, nxfield, nyfield, nzfield;
 	int	xgridres, ygridres = 0;
@@ -96,7 +96,7 @@ bool	update;
 	char	*xfnames[MaxFields], *yfnames[MaxFields], *zfnames[MaxFields];
 	char	gridtype[20], ctname[24], style[20], annotcontrol[80];
 	char	xtype, ytype, ztype;
-	bool	xauto, yauto, xinvert, yinvert, sideAnnot, zauto, zinvert;
+	zbool	xauto, yauto, xinvert, yinvert, sideAnnot, zauto, zinvert;
 	Pixel	taColor;
 	XColor	*colors, white;
 	ZebTime	bTimeTarget, eTimeTarget, bTimeReq, eTimeReq;
@@ -238,7 +238,7 @@ bool	update;
  */
 	for (plat = 0; plat < nplat; plat++)
 	{
-		bool	single_obs;
+		zbool	single_obs;
 		PlatformId	pid = ds_LookupPlatform (pnames[plat]);
 
 		npts[plat] = 0;
@@ -868,7 +868,7 @@ char *c, *platforms, **pnames, **xfnames, **yfnames, **zfnames;
 {
 	static char xflds[MAX_PLAT_LEN], yflds[MAX_PLAT_LEN];
 	static char zflds[MAX_PLAT_LEN]; /* XXX */
-	bool ok;
+	zbool ok;
 	int plat;
 /*
  * Look up the parameters.
@@ -928,14 +928,14 @@ int *ncolors;
  * Figure out what's happening with colors.
  */
 {
-	bool mono;
+	zbool mono;
 	static XColor monocolor;
 /*
  * If we are not doing filled contours, give them the opportunity to
  * ask for things in monochrome.
  */
 	if (! fill && pda_Search (Pd, c, "color-mono", "xy-contour",
-			&mono, SYMT_BOOL) && mono)
+			(char *) &mono, SYMT_BOOL) && mono)
 	{
 		if (! pda_Search (Pd, c, "color", "xy-contour", ctname,
 				SYMT_STRING))

@@ -33,7 +33,7 @@
 # include "ActiveArea.h"
 # include "PixelCoord.h"
 
-RCSID("$Id: UserEvent.c,v 2.12 1996-11-19 07:29:11 granger Exp $")
+RCSID("$Id: UserEvent.c,v 2.13 1998-10-28 21:22:12 corbet Exp $")
 
 /*
  * The structure which defines the response to a user event, such as a
@@ -293,9 +293,6 @@ Cardinal *nparam;
 {
 	XMotionEvent *xme;
 	XCrossingEvent *xce;
-#ifdef notdef
-	bool button;
-#endif
 	ActiveArea *which;
 	int x, y;
 /*
@@ -305,18 +302,12 @@ Cardinal *nparam;
 	{
 		while (XCheckMaskEvent (Disp, ButtonMotionMask, event));
 		xme = (XMotionEvent *) event;
-#ifdef notdef
-		button = xme->state & (Button1Mask|Button2Mask|Button3Mask);
-#endif
 		x = xme->x;
 		y = xme->y;
 	}
 	else if (event->type == EnterNotify || event->type == LeaveNotify)
 	{
 		xce = (XCrossingEvent *) event;
-#ifdef notdef
-		button = xce->state & (Button1Mask|Button2Mask|Button3Mask);
-#endif
 		x = xce->x;
 		y = xce->y;
 	}

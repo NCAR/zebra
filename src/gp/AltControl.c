@@ -41,7 +41,7 @@
  */
 int	AltControlComp;
 
-MAKE_RCSID("$Id: AltControl.c,v 2.24 1998-09-22 22:04:28 burghart Exp $")
+MAKE_RCSID("$Id: AltControl.c,v 2.25 1998-10-28 21:21:28 corbet Exp $")
 
 #define MAXALT		80	/* Max heights we expect to see		*/
 
@@ -78,7 +78,7 @@ alt_GetControlComp ()
 {
 	char altcomp[80], **comps = pd_CompList (Pd);
 	char plat[PlatformListLen];
-	bool control, disabled;
+	zbool control, disabled;
 	int i;
 /*
  * Algorithm for finding the control component:
@@ -236,7 +236,7 @@ int nstep;
  */
 {
 	int nalt, i, next;
-	bool rspace;
+	zbool rspace;
 	float alts[MAXALT];
 	char platform[PlatformListLen];
 	char *comma;

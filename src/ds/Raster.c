@@ -20,7 +20,7 @@
 # include "RasterFile.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: Raster.c,v 3.1 1997-06-19 20:19:29 granger Exp $")
+RCSID ("$Id: Raster.c,v 3.2 1998-10-28 21:20:59 corbet Exp $")
 
 
 /*
@@ -148,6 +148,7 @@ int fd;
  */
 {
 	RFToc *toc;
+	int t;
 /*
  * Allocate memory for the TOC.
  */
@@ -188,7 +189,12 @@ int fd;
  */
 	if (LittleEndian())
 	    drf_SwapTOC (toc, hdr->rf_MaxSample);
-
+/*
+ * Once things are swapped, rationalize the dates.
+ */
+	for (t = 0; t < hdr->rf_MaxSample; t++)
+		TC_y2k (&toc[t].rft_Time);
+	
 	return (toc);
 }
 

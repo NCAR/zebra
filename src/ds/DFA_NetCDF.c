@@ -33,7 +33,7 @@
 # include "dfa.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_NetCDF.c,v 3.63 1998-10-01 16:56:05 corbet Exp $")
+RCSID ("$Id: DFA_NetCDF.c,v 3.64 1998-10-28 21:20:42 corbet Exp $")
 
 # include <netcdf.h>
 
@@ -234,7 +234,7 @@ static void     dnc_CFMakeVars FP ((NCTag *, DataChunk *));
 static void     dnc_CFScalarVars FP ((NCTag *, DataChunk *));
 static void     dnc_CFGridVars FP ((NCTag *, DataChunk *));
 static void     dnc_CFIRGridVars FP ((NCTag *, DataChunk *));
-static bool     dnc_OverheadField FP ((char *const));
+static zbool     dnc_OverheadField FP ((char *const));
 static void	dnc_SetFieldTypes FP ((NCTag *tag, DataChunk *dc, int nfield,
 				       FieldId *fields));
 static void	dnc_NSpaceSetup FP((NCTag *tag, DataChunk *dc, 
@@ -3381,7 +3381,7 @@ DataChunk *dc;
 	sprintf(history,"created by the Zebra DataStore library, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.63 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.64 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 }
@@ -4109,7 +4109,7 @@ int *ndim;
 
 
 
-static bool
+static zbool
 dnc_OverheadField(fld)
 char *const fld;
 /*

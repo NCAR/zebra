@@ -13,7 +13,7 @@
 #include "DataStore.h"
 #include "DataChunkP.h"
 
-RCSID("$Id: dc_All.c,v 3.3 1998-04-27 21:41:04 corbet Exp $")
+RCSID("$Id: dc_All.c,v 3.4 1998-10-28 21:21:03 corbet Exp $")
 
 static RawClass *ClassTable[] =
 {
@@ -65,7 +65,7 @@ DataClass id;
 
 
 
-bool
+zbool
 dc_IsSubClassOf (cid, sid)
 DataClassID cid, sid;
 {

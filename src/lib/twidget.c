@@ -45,7 +45,7 @@
 # include "bitmaps.h"
 # include "twidget.h"
 
-RCSID ("$Id: twidget.c,v 2.19 1995-09-09 16:36:04 granger Exp $")
+RCSID ("$Id: twidget.c,v 2.20 1998-10-28 21:22:47 corbet Exp $")
 
 
 # define LABELWIDTH	65
@@ -925,7 +925,7 @@ datebutton (code)
 int code;
 {
 	void arrow_timeout ();
-	bool norep = FALSE;
+	zbool norep = FALSE;
 /*
  * Cancel if necessary.
  */

@@ -47,7 +47,7 @@
 # include <config.h>
 # include <copyright.h>
 
-RCSID ("$Id: EventLogger.c,v 2.36 1996-11-19 07:06:13 granger Exp $")
+RCSID ("$Id: EventLogger.c,v 2.37 1998-10-28 21:20:07 corbet Exp $")
 
 # define LOGNAME "EventLogger"
 
@@ -90,7 +90,7 @@ struct EMMap
 # define FORTUNE_CMD 	"fortune -s"
 # define FORTUNE_LEN 	512
 # define FORTUNE_WAIT	300	/* default seconds to be idle bet fortunes */
-static bool TellFortune = FALSE;
+static zbool TellFortune = FALSE;
 static int FortuneWait = FORTUNE_WAIT;	/* secs idle time between fortunes */
 
 /*
@@ -107,7 +107,7 @@ typedef struct _ProcInfo
 {
 	char	pi_name[40];	/* Process name		*/
 	Widget	pi_menu;	/* The menu entry	*/
-	bool	pi_enabled;	/* Is debugging enabled? */
+	zbool	pi_enabled;	/* Is debugging enabled? */
 } ProcInfo;
 
 /*
@@ -115,21 +115,21 @@ typedef struct _ProcInfo
  */
 Widget Top, Text, Shell, Form, Wm, ProcMenu;
 XtAppContext Appc;
-bool Visible = False;
-bool Override = True;
+zbool Visible = False;
+zbool Override = True;
 
 /*
  * Currently active entry from timestamp periods menu
  */
 #ifdef notdef
 #define DEFAULT_PERIOD 	300 	/* 5 minutes */
-bool TimestampEnabled = FALSE;	/* false until timer started */
+zbool TimestampEnabled = FALSE;	/* false until timer started */
 #endif
 
 #define DEFAULT_PERIOD 	0 	/* must start out disabled */
 int TSSecs = -1;
 Widget TimestampEntry = NULL;
-bool TimestampEnabled = TRUE;	/* must assume timer is around already, */
+zbool TimestampEnabled = TRUE;	/* must assume timer is around already, */
    /* but we won't try anything until the user explicitly requests it	*/
 
 static String Resources[] = 
@@ -174,10 +174,10 @@ Pixmap Scroll;
 
 FILE *Log_file = (FILE *) 0;	/* File being logged to 		*/
 char Log_path[320];		/* File path of log file		*/
-bool Log_enabled = FALSE;	/* Whether actively logging to the file	*/
+zbool Log_enabled = FALSE;	/* Whether actively logging to the file	*/
 int Log_mask = DEFAULT_MASK;	/* Event mask for the log file		*/
-bool Echo = FALSE;		/* Echo log messages to stdout		*/
-bool Windows = TRUE;		/* Create X Window display		*/
+zbool Echo = FALSE;		/* Echo log messages to stdout		*/
+zbool Windows = TRUE;		/* Create X Window display		*/
 #define MAX_SESSIONS 5		/* Names of sessions to join		*/
 char *Session[MAX_SESSIONS+1] = { NULL };
 
@@ -317,7 +317,7 @@ char *argv[];
  * do not conflict with the standard Xt options.
  */
 {
-	bool dmask_set = FALSE, lmask_set = FALSE;
+	zbool dmask_set = FALSE, lmask_set = FALSE;
 	char *optarg;
 	int argc = *rargc;
 	int i, j;

@@ -27,7 +27,7 @@
 # include "GraphProc.h"
 # include "EventQueue.h"
 
-RCSID ("$Id: EventQueue.c,v 2.7 1995-06-29 23:28:37 granger Exp $")
+RCSID ("$Id: EventQueue.c,v 2.8 1998-10-28 21:21:37 corbet Exp $")
 
 /*
  * The event queue consists of actions to be performed -- as represented by
@@ -382,6 +382,7 @@ void
 Eq_BreakHold ()
 /*
  * Break out of a hold process forcibly.
+ * 10/1998 jc: as far as I can tell, nobody actually calls this.
  */
 {
 /*

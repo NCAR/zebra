@@ -1,4 +1,4 @@
-/* $Id: zl_symbol.h,v 2.1 1996-11-19 07:56:11 granger Exp $ */
+/* $Id: zl_symbol.h,v 2.2 1998-10-28 21:22:50 corbet Exp $ */
 /*
  * Global declarations for the symbol table module.
  */
@@ -48,7 +48,7 @@ stbl zl_c_stbl FP ((const char *));
 void zl_z_stbl FP ((stbl));
 void zl_z_symbol FP ((stbl, const char *));
 int zl_g_symbol FP ((const stbl, const char *, int *, SValue *));
-bool zl_usy_defined FP ((const stbl, const char *));
+zbool zl_usy_defined FP ((const stbl, const char *));
 void zl_s_symbol FP ((stbl, const char *, int, const SValue *));
 stbl zl_g_stbl FP ((const char *));
 void zl_c_indirect FP ((stbl, const char *, const void *, int, int));

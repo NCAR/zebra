@@ -37,7 +37,7 @@
 # include "PixelCoord.h"
 # include "ActiveArea.h"
 
-RCSID("$Id: PlotControl.c,v 2.42 1997-07-01 01:06:26 granger Exp $")
+RCSID("$Id: PlotControl.c,v 2.43 1998-10-28 21:21:59 corbet Exp $")
 
 int		pc_TimeTrigger FP ((char *));
 void		pc_TriggerGlobal FP (());
@@ -118,8 +118,8 @@ pc_PlotHandler ()
 {
 	char	string[80];
 	Arg	arg;
-	static bool	First = TRUE;
-	bool	hold;
+	static zbool	First = TRUE;
+	zbool	hold;
 /*
  * Cancel all existing timer requests.
  */
@@ -347,7 +347,7 @@ pc_SetUpTriggers ()
 {
 	char trigger[PlatformListLen];
 	char **comps;
-	bool disable = FALSE;
+	zbool disable = FALSE;
 	int i;
 /*
  * Find the global trigger first.
@@ -562,7 +562,7 @@ UpdCode ucode;
 	char **comps;
 	char rep[40];
 	int reroute;
-	bool global;
+	zbool global;
 	char ctime[40];
 /*
  * Look at times and components.  Florida change: Use the current time

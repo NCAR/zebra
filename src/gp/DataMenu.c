@@ -34,7 +34,7 @@
 # include <ui_date.h>
 # include "GraphProc.h"
 
-RCSID ("$Id: DataMenu.c,v 2.18 1997-05-13 11:24:17 granger Exp $")
+RCSID ("$Id: DataMenu.c,v 2.19 1998-10-28 21:21:35 corbet Exp $")
 
 
 /*
@@ -120,7 +120,6 @@ XtPointer xwhich, junk;
 	int which = (int) xwhich;
 	char cbuf[200];
 	char *qual;
-	UItime uitime;
 /*
  * Here we just put together the command and go.  Start by searching for
  * a command to execute.
@@ -144,8 +143,7 @@ XtPointer xwhich, junk;
 	strcat (cbuf, " ");
 	strcpy (cbuf + strlen (cbuf), EPlats[which]);
 	strcat (cbuf, " ");
-	TC_ZtToUI (Times + which, &uitime);
-	ud_format_date (cbuf + strlen (cbuf), &uitime, UDF_FULL);
+	TC_EncodeTime (Times + which, TC_Full, cbuf + strlen (cbuf));
 
 	msg_ELog (EF_DEBUG, "DAvail cmd '%s'", cbuf);
 	ui_perform (cbuf);

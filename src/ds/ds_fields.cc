@@ -349,7 +349,7 @@ F_GetUnits( FieldId id )
 
 
 
-bool
+zbool
 F_CanYield( FieldId src, FieldId wanted, double *slope, double *intercept )
 //
 // Return true iff 'src' can yield 'wanted', with at most a linear conversion

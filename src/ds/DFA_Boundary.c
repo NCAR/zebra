@@ -36,7 +36,7 @@
 # include "BoundaryFile.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_Boundary.c,v 3.15 1997-06-30 21:12:52 ishikawa Exp $")
+RCSID ("$Id: DFA_Boundary.c,v 3.16 1998-10-28 21:20:35 corbet Exp $")
 
 
 /*
@@ -161,13 +161,11 @@ int *nsample;
 		return (FALSE);
 	}
 /*
- * Pull out the info and return.
+ * Pull out the info and return.  Normalize the dates, just to be sure.
  */
-# ifdef ancient_stuff
-	*begin = hdr.bh_Begin;
-	*end = hdr.bh_End;
-# endif
+	TC_y2k (&hdr.bh_Begin);
 	TC_UIToZt (&hdr.bh_Begin, begin);
+	TC_y2k (&hdr.bh_End);
 	TC_UIToZt (&hdr.bh_End, end);
 	*nsample = hdr.bh_NBoundary;
 	close (fd);
@@ -373,7 +371,7 @@ bf_OpenFile (ofp, fname, dp, write)
 OpenFile *ofp;
 char *fname;
 DataFile *dp;
-bool write;
+zbool write;
 /*
  * Open this file and return a tag.
  */
@@ -464,7 +462,10 @@ BFTag *tag;
 	int i;
 
 	for (i = 0; i < tag->bt_hdr.bh_NBoundary; ++i)
+	{
+		TC_y2k (&tag->bt_BTable[i].bt_Time);
 		TC_UIToZt (&tag->bt_BTable[i].bt_Time, tag->bt_times+i);
+	}
 
 }
 

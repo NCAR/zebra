@@ -1,4 +1,4 @@
-/* $Id: DataChunkP.h,v 1.15 1998-04-27 21:40:58 corbet Exp $ */
+/* $Id: DataChunkP.h,v 1.16 1998-10-28 21:20:50 corbet Exp $ */
 /*
  * Internal data chunk definitions.
  */
@@ -173,12 +173,12 @@ typedef struct _FldInfo
 	int		fi_Sizes[DC_MaxField];	/* field sizes, if fixed */
 	int		fi_Offset[DC_MaxField];	/* offsets into sample	 */
 	int		fi_HashIndex[HASH_SIZE];
-	bool		fi_BlockChanges;	/* block changes, esp types */
-	bool		fi_Uniform;		/* Uniform length fields */
-	bool		fi_UniformOrg;		/* Uniform elems/sample	 */
+	zbool		fi_BlockChanges;	/* block changes, esp types */
+	zbool		fi_Uniform;		/* Uniform length fields */
+	zbool		fi_UniformOrg;		/* Uniform elems/sample	 */
 	int		fi_Size;		/* Size of uniform flds  */
-	bool		fi_FixedFields;		/* Field sizes fixed	 */
-	bool		fi_ReserveSpace;	/* Pre-arrange field space */
+	zbool		fi_FixedFields;		/* Field sizes fixed	 */
+	zbool		fi_ReserveSpace;	/* Pre-arrange field space */
 } FldInfo;
 
 typedef FldInfo MetDataChunkPart;
@@ -297,7 +297,7 @@ typedef struct _IRGridDataChunkPart
 /*
  * Internally useful routines.
  */
-bool		_dc_ReqSubClass FP ((DataChunk *, DataClassP, char *op));
+zbool		_dc_ReqSubClass FP ((DataChunk *, DataClassP, char *op));
 
 /*
  * Attribute handling

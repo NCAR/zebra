@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.17 1997-10-03 23:41:32 ishikawa Exp $"
+MFVERSION="$Id: Imakefile,v 1.18 1998-10-28 21:20:20 corbet Exp $"
 
 #define IHaveSubdirs
 #define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
@@ -46,7 +46,7 @@ DISTFILES = Imakefile $(SRCS) $(FSRCS) $(HEADERS) dscopy.state
 all:: $(PROGRAMS)
 
 DSCLIBS = $(DFALIBS) $(ZLIBS) $(XLIBS)
-NormalProgramTarget(dscopy, dscopy.o, $(DEPLIBS), $(DSCLIBS), $(SYSLIBS))
+CccProgramTarget(dscopy, dscopy.o, $(DEPLIBS), $(DSCLIBS), $(SYSLIBS))
 InstallProgramWithFlags(dscopy,$(BINDIR),-s)
 
 NormalProgramTarget(convmud,convmud.o mudutil.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))

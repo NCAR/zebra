@@ -45,7 +45,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 
-RCSID("$Id: InsertWidget.c,v 1.13 1998-02-26 19:53:56 granger Exp $")
+RCSID("$Id: InsertWidget.c,v 1.14 1998-10-28 21:21:46 corbet Exp $")
 
 # ifndef PI
 # define PI		3.141592654
@@ -1027,7 +1027,7 @@ YesInsertLine ()
 	PlatformId	pid;
 	Location	*pts, center;
 	int		i;
-	bool		sub = FALSE;
+	zbool		sub = FALSE;
 	char		temp[STRLEN], param[STRLEN];
 	char		string[1000];
 
@@ -1929,7 +1929,7 @@ XtPointer	entry, junk;
 {
 	int	i = (int) entry;
 	char	param[40];
-	bool	iconon;
+	zbool	iconon;
 /*
  * Is the icon currently on or off?
  */

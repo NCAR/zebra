@@ -31,7 +31,7 @@
 # include <config.h>
 # include <defs.h>
 
-MAKE_RCSID ("$Id: Projection.c,v 2.9 1997-09-17 22:04:03 granger Exp $")
+MAKE_RCSID ("$Id: Projection.c,v 2.10 1998-10-28 21:22:03 corbet Exp $")
 
 # ifdef MAP_PROJECTIONS
 static char *projopt[2] = { "@(#)$GP: Map projections compiled $",
@@ -249,7 +249,7 @@ float *lat, *lon;
  * Get the projection control parameters.
  */
 {
-	bool ok;
+	zbool ok;
 	char *space;
 	char *c;
 	int param;

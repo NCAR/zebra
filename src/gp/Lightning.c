@@ -35,7 +35,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID("$Id: Lightning.c,v 2.14 1997-07-25 15:23:41 burghart Exp $")
+RCSID("$Id: Lightning.c,v 2.15 1998-10-28 21:21:48 corbet Exp $")
 
 extern Pixel	White;
 
@@ -48,7 +48,7 @@ void	li_SideAnnot FP ((char *, char *, int, int, int));
 void
 li_CAPLight (comp, update)
 char *comp;
-bool update;
+zbool update;
 {
 	char	platform[30], step[30], ctable[30], field[40], color[40];
 	char	tadefcolor[30], data[100], temp[50], iconname[40];

@@ -40,7 +40,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-RCSID ("$Id: DataFormat.c,v 3.7 1998-04-27 21:40:59 corbet Exp $")
+RCSID ("$Id: DataFormat.c,v 3.8 1998-10-28 21:20:51 corbet Exp $")
 
 /*
  * Include the DataFormat structure definition, and the public and
@@ -123,7 +123,7 @@ static int	dfa_OrgClassCompat FP((DataFormat *fmt, DataOrganization org,
  * ================================================================ */
 
 
-bool
+zbool
 dfa_CreateFile (df, dc, t, details, ndetail)
 int df;
 DataChunk *dc;
@@ -493,15 +493,13 @@ ZebTime *dest;
 	OpenFile *ofp;
 	int count = 0;
 
-	if ((ofp = dfa_OpenFile (dfindex, 0)) &&
-	    (ofp->of_fmt->f_DataTimes))
+	if (ofp = dfa_OpenFile (dfindex, 0))
 	{
-		count = ((*ofp->of_fmt->f_DataTimes)
-			 (ofp, when, which, n, dest));
-	}
-	else
-	{
-		count = (fmt_DataTimes (ofp, when, which, n, dest));
+		if (ofp->of_fmt->f_DataTimes)
+			count = ((*ofp->of_fmt->f_DataTimes)
+					(ofp, when, which, n, dest));
+		else
+			count = (fmt_DataTimes (ofp, when, which, n, dest));
 	}
 	return (count);
 }

@@ -40,7 +40,7 @@
 # include "AxisControl.h"
 # include "ActiveArea.h"
 
-MAKE_RCSID ("$Id: PlotExec.c,v 2.56 1998-09-22 22:07:13 burghart Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.57 1998-10-28 21:22:00 corbet Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -168,7 +168,7 @@ static void _UncompiledFunction () { }
 	void	CAP_FContour FP ((char *, int));
 	void	CAP_Station FP ((char *, int));
 	void	CAP_LineContour FP ((char *, int));
-	void	CAP_Init FP ((UItime *));
+	void	CAP_Init FP ((ZebTime *));
 #    if C_CAP_POLAR
 	void	CAP_Polar FP ((char *, int));
 #    endif
@@ -192,7 +192,7 @@ static void _UncompiledFunction () { }
 	extern void	sk_Skewt ();
 # endif
 # if C_PT_XSECT
-	extern void	xs_Init FP ((UItime *));
+	extern void	xs_Init FP ((ZebTime *));
 	extern void	xs_LineContour FP ((char *, int));
 	extern void	xs_FilledContour FP ((char *, int));
 	extern void	xs_Vector FP ((char *, int));
@@ -380,7 +380,7 @@ ZebTime *cachetime;
 	int i, showsteps = FALSE;
 	Pixel timecolor;
 	UItime temptime;
-	bool active;
+	zbool active;
 /*
  * Choose the drawing frame and clear it out
  */
@@ -546,7 +546,7 @@ int pixels;
 static int
 px_GetCoords ()
 {
-	bool expand;
+	zbool expand;
 	AxisSide side;
 	char param[32];
 	int pixel_space;
@@ -710,7 +710,7 @@ Boolean	update;
  */
 {
 	int	rtype;
-	bool	disable = FALSE;
+	zbool	disable = FALSE;
 	char	rep[30];
 /*
  * If this overlay is disabled, ignore it.

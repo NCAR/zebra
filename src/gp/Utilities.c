@@ -47,7 +47,7 @@ typedef struct {
         CARD8   pad;
 } U_XWDColor;
 
-RCSID ("$Id: Utilities.c,v 2.53 1998-08-19 14:23:24 burghart Exp $")
+RCSID ("$Id: Utilities.c,v 2.54 1998-10-28 21:22:14 corbet Exp $")
 
 /*
  * Rules for image dumping.  Indexed by keyword number in GraphProc.state
@@ -453,7 +453,7 @@ ZebTime *ptime;
  */
 {
 	int advect, constant, sample, ns;
-	bool enable = FALSE;
+	zbool enable = FALSE;
 	float xoffset = 0, yoffset = 0, advdir, advspeed;
 	char *pname = ds_PlatformName (dc->dc_Platform);
 	Location loc;
@@ -1134,7 +1134,7 @@ Cursor	cursor;
 
 
 
-bool
+zbool
 ImageDataTime (c, pid, alt, dtime)
 char	*c;
 PlatformId	pid;
@@ -1147,7 +1147,7 @@ ZebTime		*dtime;
 {
 	ZebTime wanted_time;
 	int	ntime;
-	bool	rspace = FALSE;
+	zbool	rspace = FALSE;
 /*
  * Of course radar is a special case.
  */
@@ -1227,7 +1227,7 @@ float *latspacing, *lonspacing;
 
 
 
-bool
+zbool
 ClosestRHI (c, pid, wanted_azim, dtime, azim)
 char    *c;
 PlatformId      pid;
@@ -1251,7 +1251,7 @@ float           *azim;
 	ZebTime stimes[60], obstime;
 	int     nsample, samp, ntime;
 	float   diff, mindiff;
-	bool    matchazim, everysweep;
+	zbool    matchazim, everysweep;
 	Location        slocs[60];
 /*
  * Find out when we can really get data.

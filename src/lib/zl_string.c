@@ -10,7 +10,7 @@
 # include "defs.h"
 # include "zl_symbol.h"
 
-RCSID("$Id: zl_string.c,v 2.1 1996-11-19 07:56:08 granger Exp $")
+RCSID("$Id: zl_string.c,v 2.2 1998-10-28 21:22:49 corbet Exp $")
 /*
  * For small, temporary strings, we maintain some internal lookaside 
  * lists with fixed-size strings.  This way, many malloc/free cycles are
@@ -72,7 +72,7 @@ static int S_pstring = 0;		/* "permanent" strings		*/
 static int N_small = 0, N_med = 0, N_big = 0;
 static int N_asmall = 0, N_amed = 0, N_abig = 0;
 
-static bool D_string = FALSE;
+static zbool D_string = FALSE;
 
 
 int

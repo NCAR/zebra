@@ -32,7 +32,7 @@
 # include "GraphicsW.h"
 # include "ActiveArea.h"
 
-MAKE_RCSID ("$Id: FrameCache.c,v 2.21 1996-11-19 07:17:33 granger Exp $")
+MAKE_RCSID ("$Id: FrameCache.c,v 2.22 1998-10-28 21:21:38 corbet Exp $")
 
 # define BFLEN		500
 # define FLEN		40
@@ -64,9 +64,9 @@ static struct FrameCache
 	int	fc_numpairs;	/* Number of platform/field pairs.	*/
 	float	fc_alt;		/* Altitude (for now) of this frame	*/
 	int	fc_lru;		/* LRU counter				*/
-	bool	fc_keep;	/* Save this frame if possible.		*/
-	bool	fc_valid;	/* Is this frame valid?			*/
-	bool	fc_inmem;  	/* Is this frame in memory? 	*/
+	zbool	fc_keep;	/* Save this frame if possible.		*/
+	zbool	fc_valid;	/* Is this frame valid?			*/
+	zbool	fc_inmem;  	/* Is this frame in memory? 	*/
 	int	fc_index;  /* pixmap index if in memory file offset if in*/
                            /* FrameFile                                 */
 	char	*fc_info;	/* Overlay time info string		*/
@@ -981,7 +981,7 @@ int n;
  *  Update the FreePixmaps table whenever the FrameCount changes.
  */
 {
-	static bool	firstcall = TRUE;
+	static zbool	firstcall = TRUE;
 	int i;
 /*
  * If this is the initial call, set everything to InvalidEntry.

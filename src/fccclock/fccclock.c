@@ -33,7 +33,7 @@
 # include <timer.h>
 # include <pd.h>
 
-RCSID ("$Id: fccclock.c,v 2.13 1997-02-14 07:06:26 granger Exp $")
+RCSID ("$Id: fccclock.c,v 2.14 1998-10-28 21:21:27 corbet Exp $")
 
 /*
  * Default resources.
@@ -323,9 +323,6 @@ struct dm_msg *dmsg;
  * Reconfigure the window.
  */
 {
-#ifdef notdef
-	Arg args[10];
-#endif
 /*
  * If we are not currently on-screen, put it there.
  */
@@ -340,18 +337,6 @@ struct dm_msg *dmsg;
 	ConfigureWindow (XtDisplay(GrShell), XtWindow(GrShell), 
 			 dmsg->dmm_x, dmsg->dmm_y,
 			 dmsg->dmm_dx, dmsg->dmm_dy);
-#ifdef notdef
-	XtSetArg (args[0], XtNwidth, dmsg->dmm_dx);
-	XtSetArg (args[1], XtNheight, dmsg->dmm_dy);
-	XtSetValues (Graphics, args, (Cardinal)2 );
-	Height = dmsg->dmm_dy;
-
- 	XtSetArg (args[0], XtNx, dmsg->dmm_x);
-	XtSetArg (args[1], XtNy, dmsg->dmm_y);
-	XtSetValues (GrShell, args, (Cardinal)2 );
-	SyncWindow();
-#endif
-
 	XClearWindow (XtDisplay (Top), XtWindow (Graphics));
 /*
  * The raise window is to get us an expose event to the graphics widget
@@ -469,7 +454,6 @@ int junk;
  * A resize may have given us a new height which we should be aware of
  */
 	Height = GWHeight (Graphics);
-	/* ud_format_date (dbuf, t, UDF_FULL); */
 	TC_EncodeTime (t, TC_Full, dbuf);
 	strcat (dbuf, "  ");
 	XDrawImageString (XtDisplay (Top), XtWindow (Graphics), Gc,
@@ -485,19 +469,10 @@ StartUpdate ()
  * Start Updating the time.
  */
 {
-#ifdef notdef
-	UItime t;
-#endif
 /*
  * Cancel everything just to be sure.
  */
 	tl_AllCancel ();
-# ifdef notdef
-/*
- * Find out what time it is now.
- */
-	tl_GetTime (&t);
-# endif
 /*
  * Queue up our timer request.
  */

@@ -11,7 +11,7 @@
 # include <message.h>
 # include "BeamBuffer.h"
 
-MAKE_RCSID ("$Id: BeamBuffer.c,v 2.3 1996-12-10 21:27:02 granger Exp $")
+MAKE_RCSID ("$Id: BeamBuffer.c,v 2.4 1998-10-28 21:22:32 corbet Exp $")
 
 /*
  * The beginning of our SHM segment has one of these.
@@ -154,7 +154,9 @@ int value;
  * Set our semaphore to this value.
  */
 {
-	if (semctl (Sem_ID, 0, SETVAL, &value))
+	union semun su;
+	su.val = value;
+	if (semctl (Sem_ID, 0, SETVAL, su))
 		msg_ELog (EF_PROBLEM, "Error %d setting semaphore", errno);
 }
 

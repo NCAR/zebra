@@ -32,13 +32,13 @@
 //
 // Zeb includes.
 //
+# include "BoolKludge.h"
 extern "C" {
 #	include <defs.h>
 #	include <message.h>
 #	include <DataStore.h>
 };
 
-# include "BoolKludge.h"
 # include "STable.h"
 //# include "container.h"
 # include "dsmanage.h"
@@ -46,7 +46,7 @@ extern "C" {
 # include "Index.h"
 # include "plcontainer.h"
 
-MAKE_RCSID ("$Id: dsmanage.cc,v 1.13 1998-03-02 20:21:15 burghart Exp $");
+MAKE_RCSID ("$Id: dsmanage.cc,v 1.14 1998-10-28 21:21:25 corbet Exp $");
 
 extern "C" char *strcat (char *, const char *);
 extern "C" char *strrchr (const char *, int);
@@ -296,6 +296,7 @@ FEMakeFLabel (char *buf, const dsFile& f)
 //
 	sprintf (buf, "%-28s", strrchr (f.name (), '/') + 1);
 	buf += 28;
+	buf[-1] = ' ';
 //
 // Begin time.
 //
@@ -304,13 +305,13 @@ FEMakeFLabel (char *buf, const dsFile& f)
 	ds_GetFileInfo (df, &dfi);
 	TC_EncodeTime (&dfi.dfi_Begin, TC_Full, buf);
 	strcat (buf, "      ");
-	buf += 22;
+	buf += 24;
 //
 // End time.
 //
 	TC_EncodeTime (&dfi.dfi_End, TC_Full, buf);
 	strcat (buf, "     ");
-	buf += 21;
+	buf += 24;
 //
 // Files and space.
 //

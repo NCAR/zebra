@@ -35,7 +35,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm_config.c,v 1.27 1995-09-27 16:07:26 granger Exp $")
+MAKE_RCSID ("$Id: dm_config.c,v 1.28 1998-10-28 21:20:27 corbet Exp $")
 
 /*
  * Exported variables
@@ -75,7 +75,7 @@ static void dg_GetGeometry FP ((struct cf_window *win,
 static int  dg_AwaitGeometry FP((Message *msg, struct dm_msg *ret));
 #endif
 static void dg_SavePD FP ((FILE *, char *, struct cf_window *));
-static bool dg_ResolveLinks FP ((struct config *, struct ui_command *));
+static zbool dg_ResolveLinks FP ((struct config *, struct ui_command *));
 static void dg_SuspendWindow FP ((struct cf_window *wp));
 static int  dg_Rename FP ((char *newname));
 static void dg_PutConfig FP ((struct config *));
@@ -95,7 +95,7 @@ static void dg_DisplayWidget FP ((struct cf_window *wp));
 static int dg_DisplayProcess FP ((struct cf_window *wp));
 static int dg_DisplayGraphic FP ((struct config *cfg, 
 				  struct cf_window *wp, int force));
-static bool dg_DisplayWindow FP ((struct config *cfg, 
+static zbool dg_DisplayWindow FP ((struct config *cfg, 
 				  struct cf_window *wp, int force));
 static void dg_SyncStates FP ((void));
 static Process *dg_FindExisting FP ((ProcessClass *pc, struct config *cfg, 
@@ -548,7 +548,7 @@ struct config *cfg;
  */
 {
 	int win, newcount;
-	bool new;
+	zbool new;
 	char cfg_sname[2 * MAXNAME];
 /*
  * Remove the existing config symbol table and start a new one.
@@ -617,7 +617,7 @@ dg_SyncStates ()
 
 
 
-static bool
+static zbool
 dg_ResolveLinks (cfg, cmds)
 struct config *cfg;
 struct ui_command *cmds;
@@ -1241,7 +1241,7 @@ struct cf_window *wp;
 
 
 
-static bool
+static zbool
 dg_DisplayWindow (cfg, wp, force)
 struct config *cfg;
 struct cf_window *wp;
@@ -1252,7 +1252,7 @@ int force;
  * once they have said hello.  Return TRUE iff we executed a new process.
  */
 {
-	bool created = FALSE;
+	zbool created = FALSE;
 	SValue v;
 /*
  * Deal with window classes separately.  Forcing a new process is only
@@ -1331,7 +1331,7 @@ struct ui_command *cmds;
 	struct cf_window *newwin;
 	struct cf_window *exist;
 	struct cf_graphic *g;
-	bool rename = FALSE, reuse = FALSE;
+	zbool rename = FALSE, reuse = FALSE;
 	int type;
 	SValue v;
 	char *name;

@@ -33,7 +33,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: Ov_Grid.c,v 2.8 1997-02-03 20:17:17 granger Exp $")
+RCSID ("$Id: Ov_Grid.c,v 2.9 1998-10-28 21:21:56 corbet Exp $")
 
 # define BETWEEN(x,a,b)    ((((x)-(a))*((x)-(b))) <= 0)
 
@@ -63,8 +63,8 @@ RCSID ("$Id: Ov_Grid.c,v 2.8 1997-02-03 20:17:17 granger Exp $")
 
 static void	ov_CGFixLL FP ((float *, float *, float *, float *, float *,
 			float *, double, double));
-static void	ov_SGSetup FP ((char *, float *, float *, float *, bool *,
-			int *, bool *, float *, float *));
+static void	ov_SGSetup FP ((char *, float *, float *, float *, zbool *,
+			int *, zbool *, float *, float *));
 static void 	ov_SolidGrid FP ((int, int, int, int, double, double,
 			double, double, double, double));
 static void 	ov_LLSolidGrid FP ((int, int, int, int, double, double,
@@ -145,7 +145,7 @@ int update;
 {
 	float xs, ys, theight, xoff, yoff;
 	int top, bottom, left, right, tic;
-	bool solid, ll;
+	zbool solid, ll;
 	float xskm, uxs;
 	float aint;
 /*
@@ -997,7 +997,7 @@ char *comp;
 float *xs, *ys;
 float *theight, *xoff, *yoff;
 int *ticwidth;
-bool *solid, *ll;
+zbool *solid, *ll;
 /*
  * Get everything set up to draw a grid.
  */

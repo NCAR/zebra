@@ -170,7 +170,7 @@ extern void	lc_SetUserCoord FP ((DataValPtr, DataValPtr, DataValPtr,
 				     DataValPtr));
 extern void	lc_GetUserCoord FP ((DataValPtr, DataValPtr, DataValPtr,
 				     DataValPtr));
-extern void	lc_GetTime FP ((UItime *, time_t));
+/* extern void	lc_GetTime FP ((UItime *, time_t)); */
 extern void	lc_DecrData FP ((DataValPtr, double));
 extern void	lc_IncrData FP ((DataValPtr, double));
 extern int	lc_CompareData FP ((DataValPtr, DataValPtr));

@@ -28,7 +28,7 @@
 # include "HouseKeeping.h"
 # include "radar_ingest.h"
 
-RCSID("$Id: Rasterize.c,v 2.15 1997-11-14 17:09:40 burghart Exp $")
+RCSID("$Id: Rasterize.c,v 2.16 1998-10-28 21:22:33 corbet Exp $")
 
 
 static char *Modes[] = { "CAL", "PPI", "COP", "RHI", "??4", "??5", "??6",
@@ -66,7 +66,7 @@ static unsigned char *TBuf[6] = { ThreshBuf, ThreshBuf + MAXGATES,
  * Info about the sweep we're currently rasterizing
  */
 UItime	BeginTime;
-int	ScanMode = -1, Fixed = -1;
+int	SMode = -1, Fixed = -1;
 
 /*
  * We keep track of the maximum extents in every direction, so that we
@@ -314,7 +314,7 @@ RasterizeDone ()
 {
 	if (NBeam > MinSweep)
 		OutputSweep (&BeginTime, Fixed / CORR_FACT, FALSE, 
-			     MaxLeft, MaxRight, MaxUp, MaxDown, ScanMode);
+			     MaxLeft, MaxRight, MaxUp, MaxDown, SMode);
 /*
  * Make sure XRadar and YRadar are back to the user settings
  */
@@ -434,7 +434,7 @@ Beam beam;
  */
 	if (! InSweep)
 		;	/* New sweep by definition */
-	else if (ScanMode != hk->scan_mode)		/* Scan mode change */
+	else if (SMode != hk->scan_mode)		/* Scan mode change */
 		msg_ELog (EF_DEBUG, "Mode change break");
 	else if (TrustSweep && (hk->sweep_index != sweep || hk->transit))
 		msg_ELog (EF_DEBUG, "Sweep count/transition break");
@@ -452,14 +452,6 @@ Beam beam;
 		msg_ELog (EF_DEBUG, "Gates per beam change break");
 	else
 		return;	/* Business as usual */
-
-# ifdef notdef	
-	if (! InSweep || ScanMode != hk->scan_mode || Fixed != hk->fixed ||
-		ABS (hk->fixed - hk->elevation) > ELTOLERANCE ||
-		DirCheck (&dir, beam, hk->log_rec_num - firstbeam,
-				firstaz/CORR_FACT) ||
-		gs != hk->gate_spacing || ng != hk->gates_per_beam)
-# endif
 /*
  * If we were currently rasterizing an old sweep, shove it out.
  */
@@ -467,31 +459,12 @@ Beam beam;
 	if (InSweep)
 	{
 		bool newvol;
-# ifdef notdef
-		float tdiff = newtime.tv_sec - oldtime.tv_sec;
-		tdiff += (newtime.tv_usec - oldtime.tv_usec)/1000000.0;
-		ui_printf ("%d, v %d ll %6.2f %6.2f F %6.2f m %s ",
-			scan, hk->vol_count, hk->latitude/LAT_CF,
-			hk->longitude/LON_CF,
-			Fixed/CORR_FACT, Modes[ScanMode]);
-		ui_printf ("%d b, %.2f s %.1f b/s\n", NBeam, tdiff,
-				NBeam/tdiff);
-# endif
 	/*
 	 * See if a new volume is warranted.
 	 */
 		newvol = NextNewVol || Fixed <= lastfixed;
-# ifdef notdef
-		msg_ELog (EF_INFO, "MHR ck fix %.2f last %.2f top %.2f",
-			Fixed/CORR_FACT, lastfixed/CORR_FACT, MhrTop);
-		if (MhrMode && Fixed/CORR_FACT < 0.7 &&
-					lastfixed/CORR_FACT < MhrTop)
-			msg_ELog (EF_DEBUG, "Dropping .5 sweep, last %.2f",
-				lastfixed);
-		else
-# endif
-			if ((NBeam > MinSweep) ||
-			    (ScanMode == SM_RHI && NBeam > MinRHI))
+		if ((NBeam > MinSweep) ||
+				(SMode == SM_RHI && NBeam > MinRHI))
 		{
 		/*
 		 * See if we're forcing the next sweep written to start a new
@@ -507,7 +480,7 @@ Beam beam;
 		 */
 			OutputSweep (&BeginTime, Fixed/CORR_FACT,
 			   newvol, MaxLeft, MaxRight, MaxUp, MaxDown,
-			   ScanMode);
+			   SMode);
 
 			lastfixed = Fixed;
 			dir = Unknown;
@@ -536,11 +509,11 @@ Beam beam;
 /*
  * Do we want to force the next sweep written to be a new volume?
  */
-	NextNewVol |= (ScanMode != hk->scan_mode) ||
+	NextNewVol |= (SMode != hk->scan_mode) ||
 		(TrustVol && hk->vol_count != vol);
 
-	if (ScanMode != hk->scan_mode)
-		msg_ELog (EF_DEBUG, "Scan mode change: %d -> %d\n", ScanMode,
+	if (SMode != hk->scan_mode)
+		msg_ELog (EF_DEBUG, "Scan mode change: %d -> %d\n", SMode,
 			  hk->scan_mode);
 
 	if (TrustVol && hk->vol_count != vol)
@@ -557,9 +530,16 @@ Beam beam;
 	oldtime = newtime;
 	firstbeam = hk->log_rec_num;
 	Fixed = hk->fixed;
-	ScanMode = hk->scan_mode;
+	SMode = hk->scan_mode;
 	firstaz = hk->azimuth;
 	firstel = hk->elevation;
+/*
+ * Rationalize the date.
+ */
+	if (hk->year < 10)
+		hk->year += 10;
+	else if (hk->year < 1000)
+		hk->year += 1900;
 	BeginTime.ds_yymmdd = hk->year*10000 + hk->month*100 + hk->day;
 	BeginTime.ds_hhmmss = hk->hour*10000 + hk->minute*100 + hk->second;
 	vol = hk->vol_count;
@@ -575,16 +555,13 @@ Beam beam;
 /*
  * For RHIs, put the radar in the lower left corner.
  */
-	if (ScanMode == SM_RHI)
+	if (SMode == SM_RHI)
 		XRadar = YRadar = 0;
 /*
  * Come up with a new pixel scaling.
  */
 	ng = hk->gates_per_beam;
 	gs = hk->gate_spacing;
-# ifdef notdef
-	PixScale = 1000*XRes/(2.0*gs*ng);
-# endif
 /*
  * Reset our max parameters.
  */
@@ -980,9 +957,6 @@ double *inc1, *inc2, *rowinc, *colinc;
  * The per-row gate increment.
  */
 	*rowinc = -pgs*cos (DegToRad (az));
-# ifdef notdef
-	*colinc = pgs/sin (DegToRad (az));
-# endif
 	*colinc = (cos1 > cos2) ? pgs/sin1 : pgs/sin2;
 }
 
@@ -1009,9 +983,6 @@ double *inc1, *inc2, *rowinc, *colinc;
 /*
  * The per-row gate increment.
  */
-# ifdef notdef
-	*rowinc = -pgs/cos (DegToRad (az));
-# endif
 	*rowinc = (sin1 < sin2) ? -pgs/cos1 : -pgs/cos2;
 	*colinc = pgs*sin (DegToRad (az));
 }
@@ -1265,187 +1236,3 @@ unsigned char *data, *dest, *data2, *dest2;
 	}
 }
 
-
-
-
-
-
-# ifdef notdef
-
-
-
-PFill3c_ (left, right, rad, cinc, linc, tand, tanu, y1, y2, beam, xmap, ymap,
-	xo, yo, xo2, yo2, doff)
-int *left, *right, *xmap, *ymap, *xo, *yo, *doff, *xo2, *yo2;
-float *rad, *cinc, *linc, *tanu, *tand, *y1, *y2;
-register unsigned char *beam;
-{
-	register int row, col;
-	int Xrad = (int) ((*rad - 1.0)*256.0*256.0);
-	int Xrad1;
-	register int Xr1i = (int) (*linc * 256.0 * 256.0);
-	int Xri = (int) (*cinc * 256.0 * 256.0);
-	int Yl1 = (int) ((*y1 + 1) * 256.0 * 256.0);
-	int Yl2 = (int) (*y2 * 256.0 * 256.0);
-	int Yl1i = (int) (*tand * 256.0 * 256.0);
-	int Yl2i = (int) (*tanu * 256.0 * 256.0);
-	register short *Xr1p = (short *) &Xrad1;
-	short *Yl1p = (short *) &Yl1, *Yl2p = (short *) &Yl2;
-	int lxo = *xo, lyo = *yo, ldoff = *doff;
-	int lxo2 = *xo2, lyo2 = *yo2;
-	register unsigned char *dp = Pmap->pm_data;
-	
-	for (col = *left; col < *right; col++)
-	{
-		Xrad1 = Xrad;
-		for (row = *Yl1p; row <= *Yl2p; row++)
-		{
-			dp[xmap[col] + ymap[row]] = beam[*Xr1p];
-			dp[xmap[col+lxo] + ymap[row+lyo]] =
-				beam[*Xr1p+ldoff];
-			dp[xmap[col+lxo2] + ymap[row+lyo2]] =
-				beam[*Xr1p + 2*ldoff];
-			Xrad1 += Xr1i;
-		}
-		Xrad += Xri;
-		Yl1 += Yl1i;
-		Yl2 += Yl2i;
-	}
-	Pmap->pm_flags |= PF_ENTIRE;
-}
-
-
-
-
-
-PFill3r_ (low, high, rad, cinc, linc, cotl, cotr, x1, x2, beam, xmap, ymap,
-  xo, yo, xo2, yo2, doff)
-int *low, *high, *xmap, *ymap, *xo, *yo, *doff, *xo2, *yo2;
-float *rad, *cinc, *linc, *cotl, *cotr, *x1, *x2;
-register unsigned char *beam;
-{
-	register int row, col;
-	int Xrad = (int) ((*rad - 1.0)*256.0*256.0);
-	int Xrad1;	/* Can't be register, alas */
-	register int Xr1i = (int) (*cinc * 256.0 * 256.0);
-	int Xri = (int) (*linc * 256.0 * 256.0);
-	int Xl1 = (int) ((*x1 + 1) * 256.0 * 256.0);
-	int Xl2 = (int) (*x2 * 256.0 * 256.0);
-	int Xl1i = (int) (*cotl * 256.0 * 256.0);
-	int Xl2i = (int) (*cotr * 256.0 * 256.0);
-	register short *Xr1p = (short *) &Xrad1;
-	short *Xl1p = (short *) &Xl1, *Xl2p = (short *) &Xl2;
-	int lxo = *xo, lyo = *yo, ldoff = *doff;
-	int lxo2 = *xo2, lyo2 = *yo2;
-	register unsigned char *dp = Pmap->pm_data;
-	
-	for (row = *low; row < *high; row++)
-	{
-		Xrad1 = Xrad;
-		for (col = *Xl1p; col <= *Xl2p; col++)
-		{
-			dp[xmap[col] + ymap[row]] = beam[*Xr1p];
-			dp[xmap[col+lxo]+ymap[row+lyo]] = beam[*Xr1p + ldoff];
-			dp[xmap[col+lxo2]+ymap[row+lyo2]] =
-				beam[*Xr1p + 2*ldoff];
-			Xrad1 += Xr1i;
-		}
-		Xrad += Xri;
-		Xl1 += Xl1i;
-		Xl2 += Xl2i;
-	}
-	Pmap->pm_flags |= PF_ENTIRE;
-}
-
-
-
-
-
-PFill4c_ (left, right, rad, cinc, linc, tand, tanu, y1, y2, beam, xmap, ymap,
-	xo, yo, xo2, yo2, xo3, yo3, doff)
-int *left, *right, *xmap, *ymap, *xo, *yo, *doff, *xo2, *yo2, *xo3, *yo3;
-float *rad, *cinc, *linc, *tanu, *tand, *y1, *y2;
-register unsigned char *beam;
-{
-	register int row, col;
-	int Xrad = (int) ((*rad - 1.0)*256.0*256.0);
-	int Xrad1;
-	register int Xr1i = (int) (*linc * 256.0 * 256.0);
-	int Xri = (int) (*cinc * 256.0 * 256.0);
-	int Yl1 = (int) ((*y1 + 1) * 256.0 * 256.0);
-	int Yl2 = (int) (*y2 * 256.0 * 256.0);
-	int Yl1i = (int) (*tand * 256.0 * 256.0);
-	int Yl2i = (int) (*tanu * 256.0 * 256.0);
-	register short *Xr1p = (short *) &Xrad1;
-	short *Yl1p = (short *) &Yl1, *Yl2p = (short *) &Yl2;
-	int lxo = *xo, lyo = *yo, ldoff = *doff;
-	int lxo2 = *xo2, lyo2 = *yo2, lxo3 = *xo3, lyo3 = *yo3;
-	register unsigned char *dp = Pmap->pm_data;
-	
-	for (col = *left; col < *right; col++)
-	{
-		Xrad1 = Xrad;
-		for (row = *Yl1p; row <= *Yl2p; row++)
-		{
-			dp[xmap[col] + ymap[row]] = beam[*Xr1p];
-			dp[xmap[col+lxo] + ymap[row+lyo]] =
-				beam[*Xr1p+ldoff];
-			dp[xmap[col+lxo2] + ymap[row+lyo2]] =
-				beam[*Xr1p + 2*ldoff];
-			dp[xmap[col+lxo3] + ymap[row+lyo3]] =
-				beam[*Xr1p + 3*ldoff];
-			Xrad1 += Xr1i;
-		}
-		Xrad += Xri;
-		Yl1 += Yl1i;
-		Yl2 += Yl2i;
-	}
-	Pmap->pm_flags |= PF_ENTIRE;
-}
-
-
-
-
-
-PFill4r_ (low, high, rad, cinc, linc, cotl, cotr, x1, x2, beam, xmap, ymap,
-  xo, yo, xo2, yo2, xo3, yo3, doff)
-int *low, *high, *xmap, *ymap, *xo, *yo, *doff, *xo2, *yo2, *xo3, *yo3;
-float *rad, *cinc, *linc, *cotl, *cotr, *x1, *x2;
-register unsigned char *beam;
-{
-	register int row, col;
-	int Xrad = (int) ((*rad - 1.0)*256.0*256.0);
-	int Xrad1;	/* Can't be register, alas */
-	register int Xr1i = (int) (*cinc * 256.0 * 256.0);
-	int Xri = (int) (*linc * 256.0 * 256.0);
-	int Xl1 = (int) ((*x1 + 1) * 256.0 * 256.0);
-	int Xl2 = (int) (*x2 * 256.0 * 256.0);
-	int Xl1i = (int) (*cotl * 256.0 * 256.0);
-	int Xl2i = (int) (*cotr * 256.0 * 256.0);
-	register short *Xr1p = (short *) &Xrad1;
-	short *Xl1p = (short *) &Xl1, *Xl2p = (short *) &Xl2;
-	int lxo = *xo, lyo = *yo, ldoff = *doff;
-	int lxo2 = *xo2, lyo2 = *yo2, lxo3 = *xo3, lyo3 = *yo3;
-	register unsigned char *dp = Pmap->pm_data;
-	
-	for (row = *low; row < *high; row++)
-	{
-		Xrad1 = Xrad;
-		for (col = *Xl1p; col <= *Xl2p; col++)
-		{
-			dp[xmap[col] + ymap[row]] = beam[*Xr1p];
-			dp[xmap[col+lxo]+ymap[row+lyo]] = beam[*Xr1p + ldoff];
-			dp[xmap[col+lxo2]+ymap[row+lyo2]] =
-				beam[*Xr1p + 2*ldoff];
-			dp[xmap[col+lxo3]+ymap[row+lyo3]] =
-				beam[*Xr1p + 3*ldoff];
-			Xrad1 += Xr1i;
-		}
-		Xrad += Xri;
-		Xl1 += Xl1i;
-		Xl2 += Xl2i;
-	}
-	Pmap->pm_flags |= PF_ENTIRE;
-}
-
-# endif

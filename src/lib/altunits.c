@@ -24,7 +24,7 @@
 # include "copyright.h"
 # include "defs.h"
 
-RCSID("$Id: altunits.c,v 2.10 1998-03-13 15:42:21 burghart Exp $")
+RCSID("$Id: altunits.c,v 2.11 1998-10-28 21:22:38 corbet Exp $")
 
 /*
  * 
@@ -157,7 +157,7 @@ AltUnitType	atype;
 	
 	
 
-bool
+zbool
 au_ConvertName (name, atype)
 char	*name;
 AltUnitType	*atype;

@@ -40,7 +40,7 @@
 # include "DrawText.h"
 # include "EventQueue.h"
 
-RCSID("$Id: TimeSeries.c,v 2.21 1998-09-22 22:28:28 burghart Exp $")
+RCSID("$Id: TimeSeries.c,v 2.22 1998-10-28 21:22:10 corbet Exp $")
 
 /*
  * General definitions
@@ -75,12 +75,12 @@ static float	Save_v[MAXPLTS * MAXFLDS];
 /*
  * Should time axis be flipped.
  */
-static bool	FlipTime;
+static zbool	FlipTime;
 
 /*
  * Update plot?
  */
-static bool	Update = FALSE;
+static zbool	Update = FALSE;
 
 /*
  * Save the sa-scale value.
@@ -116,12 +116,12 @@ static void	ts_TimeTick FP ((ZebTime *, ZebTime *, ZebTime *, long *));
 void
 ts_Plot (c, update)
 char	*c;
-bool	update;
+zbool	update;
 /*
  * Draw a time series plot based on the given PD component.
  */
 {
-	bool	ok;
+	zbool	ok;
 	char	string[STRLEN], platforms[PlatformListLen]; 
 	char	fields[MAXFLDS*PARAMLEN], ctname[PARAMLEN];
 	char	*pnames[MaxPlatforms], *fnames[MAXFLDS*PARAMLEN];
@@ -294,7 +294,7 @@ int	nplat, nfld;
  */
 {
 	char	string[STRLEN], tacolor[PARAMLEN]; 
-	bool	tacmatch; 
+	zbool	tacmatch; 
 	int	i, j, top, bottom, left, right;
 	float	sascale;
 	XColor	taclr;

@@ -37,7 +37,7 @@
 # include "GraphProc.h"
 # include "EventQueue.h"
 
-RCSID("$Id: ModelWidget.c,v 2.9 1995-06-29 23:29:10 granger Exp $")
+RCSID("$Id: ModelWidget.c,v 2.10 1998-10-28 21:21:53 corbet Exp $")
 
 # define MODEL_NAME	"model" /* Name of the movie controller widget  */
 
@@ -64,7 +64,7 @@ static int 	Nframes = 0;		/* Number of frames in the loop	*/
 static int 	TimerSlot = -1;
 static int 	Rate;			/* Display Rate frames/second	*/
 #ifdef notdef
-static bool 	Notification = FALSE;
+static zbool 	Notification = FALSE;
 static ZebTime 	NotTime;
 #endif
 static ZebTime	IssueTime;		/* Issue time for model data	*/
@@ -72,7 +72,7 @@ static ZebTime	IssueTime;		/* Issue time for model data	*/
 /*
  * If a movie is running, is it ours?
  */
-static bool	MyMovie = FALSE;
+static zbool	MyMovie = FALSE;
 
 /*
  * The last frame we asked to be displayed (CurrentFrame), and the frame
@@ -866,7 +866,7 @@ mw_GetFrameOffsets ()
 	int	i, f, n, insert_pos, offsets[20], noffsets;
 	char	**complist;
 	char	platform[PlatformListLen];
-	bool	disabled;
+	zbool	disabled;
 	PlatformId	pid;
 /*
  * Start with one offset of zero seconds

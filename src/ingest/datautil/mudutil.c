@@ -25,7 +25,7 @@
 # include <defs.h>
 # include "mudutil.h"
 
-MAKE_RCSID ("$Id: mudutil.c,v 1.4 1994-10-11 16:24:12 corbet Exp $")
+MAKE_RCSID ("$Id: mudutil.c,v 1.5 1998-10-28 21:20:21 corbet Exp $")
 
 
 /*
@@ -120,7 +120,7 @@ int Fid;
  */
 static int	HdrLen = 512;
 static int	LvlHdrLen = 12;
-static bool	Cray_mudras = TRUE;
+static zbool	Cray_mudras = TRUE;
 
 
 
@@ -291,7 +291,7 @@ float *dest, badflag;
 
 void
 CrayMudrasMode (flag)
-bool flag;
+zbool flag;
 /*
  * Set whether or not we're using CRAY type MUDRAS.
  */

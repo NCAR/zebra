@@ -57,7 +57,7 @@ extern "C"
 # include "Index.h"
 # include "ZTime.h"
 # include "plcontainer.h"
-MAKE_RCSID ("$Id: TBCleanup.cc,v 1.9 1998-03-02 20:23:14 burghart Exp $")
+MAKE_RCSID ("$Id: TBCleanup.cc,v 1.10 1998-10-28 21:21:24 corbet Exp $")
 
 class DelSelect;
 
@@ -1311,7 +1311,8 @@ MakeFileLabel (const IndexFile *file, char *label)
 	else 
 		slash = file->name ();
 	sprintf (label, "%-29s", slash);
-	label += strlen (label);
+	label += 29;
+	label[-1] = ' ';
 //
 // Begin and end time.
 //

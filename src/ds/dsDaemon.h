@@ -1,7 +1,7 @@
 /*
  * Data store daemon-specific definitions.
  */
-/* $Id: dsDaemon.h,v 3.24 1996-11-19 09:36:01 granger Exp $ */
+/* $Id: dsDaemon.h,v 3.25 1998-10-28 21:21:10 corbet Exp $ */
 /*
  * The platform and data tables, via pointer.
  */
@@ -49,13 +49,13 @@ extern int NClass;		/* Number of platform classes		*/
 /*
  * Allow the revision numbering to be chosen from the config file.
  */
-extern bool StatRevisions;
+extern zbool StatRevisions;
 
 /*
  * A global debug flag and some statistics variables
  */
-extern bool Debug;
-extern bool ParseOnly;
+extern zbool Debug;
+extern zbool ParseOnly;
 
 extern int InvalidatesSent;	/* Number of CacheInvalidate broadcasts */
 extern int ReadLockRequests;
@@ -64,16 +64,16 @@ extern int WriteLockRequests;
 /*
  * Cache options.
  */
-extern bool LDirConst;		/* Nothing changes		*/
-extern bool RDirConst;
-extern bool LFileConst;		/* Files don't change (but they	*/
-extern bool RFileConst;		/* can come and go)		*/
-extern bool CacheOnExit;	/* Write cache on way out?	*/
+extern zbool LDirConst;		/* Nothing changes		*/
+extern zbool RDirConst;
+extern zbool LFileConst;	/* Files don't change (but they	*/
+extern zbool RFileConst;	/* can come and go)		*/
+extern zbool CacheOnExit;	/* Write cache on way out?	*/
 
 /*
  * This variable is TRUE only during the initial file scan.
  */
-extern bool InitialScan;	/* True implies first data scan	*/
+extern zbool InitialScan;	/* True implies first data scan	*/
 
 /*
  * This variable reflects the number of platforms scanned so far
@@ -84,7 +84,7 @@ extern int PlatformsScanned;
 /*
  * Flag allowing the creation of data directories to be delayed until needed.
  */
-extern bool DelayDataDirs;
+extern zbool DelayDataDirs;
 
 /*
  * Some useful timing information 

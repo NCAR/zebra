@@ -1,7 +1,7 @@
 /*
  * Ingest scheduler
  */
-static char    *rcsid = "$Id: is.c,v 1.20 1995-05-05 22:45:00 granger Exp $";
+static char    *rcsid = "$Id: is.c,v 1.21 1998-10-28 21:22:30 corbet Exp $";
 
 /*
  * Copyright (C) 1987,88,89,90,91 by UCAR University Corporation for
@@ -68,7 +68,7 @@ stbl		Groups;		/* will hold configuration groups */
 char           *redirect = "none";	/* where to redirect stdout and
 					 * stderr when an ingest process is
 					 * spawned */
-bool		Batch = FALSE;	/* Continue after user input is done?*/
+zbool		Batch = FALSE;	/* Continue after user input is done?*/
 						
 
 main(argc, argv)

@@ -19,7 +19,7 @@
 # include "dfa.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_Grads.c,v 3.14 1998-01-28 17:09:26 burghart Exp $")
+RCSID ("$Id: DFA_Grads.c,v 3.15 1998-10-28 21:20:39 corbet Exp $")
 
 
 /*
@@ -59,7 +59,7 @@ typedef struct _GradsTag
 	FieldId *gt_fids;		/* The field ID's		*/
 	int	*gt_nlevels;		/* How many levels/field	*/
 	int	gt_swap;		/* Data need to be swapped	*/
-        bool    gt_ismodel;             /* It is a Model platform       */
+        zbool    gt_ismodel;             /* It is a Model platform       */
 } GradsTag;
 
 
@@ -206,7 +206,7 @@ static int
 dgr_DoOpen (tag, file, opendata)
 GradsTag *tag;
 char *file;
-bool opendata;
+zbool opendata;
 /*
  * Actually open the given file; only open the associated data file if
  * OPENDATA is TRUE.  Returns non-zero iff the open succeeds.
@@ -621,7 +621,7 @@ dgr_OpenFile (of, fname, dp, write)
 OpenFile *of;
 char *fname;
 DataFile *dp;
-bool write;
+zbool write;
 /*
  * The DFA open routine.
  */

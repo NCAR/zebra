@@ -136,7 +136,7 @@
 #include "DataStore.h"
 #include "DataChunkP.h"
 
-RCSID ("$Id: dc_NSpace.c,v 1.16 1997-11-21 20:36:55 burghart Exp $")
+RCSID ("$Id: dc_NSpace.c,v 1.17 1998-10-28 21:21:07 corbet Exp $")
 
 /*
  * The DCC_NSpace public interface is included in DataStore.h, along with
@@ -967,7 +967,7 @@ NSpaceInfo *info;
 	NSpaceFldInfo *finfo;
 	FieldId *fields;
 	int nfield;
-	bool uniform;
+	zbool uniform;
 	unsigned long fsize = 0;
 	int i;
 

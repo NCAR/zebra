@@ -16,19 +16,19 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-RCSID ("$Id: dm_time.c,v 2.9 1996-11-19 07:07:18 granger Exp $")
+RCSID ("$Id: dm_time.c,v 2.10 1998-10-28 21:20:28 corbet Exp $")
 
 #define TIME_FILE_LEN CFG_FILEPATH_LEN
 
 /*
  * History mode control.
  */
-static bool ForceHistory = FALSE;
-static bool HistoryMode = FALSE;
-static bool AutoAdvance = FALSE;
+static zbool ForceHistory = FALSE;
+static zbool HistoryMode = FALSE;
+static zbool AutoAdvance = FALSE;
 static ZebTime HistoryTime;
 static char TimeFile[TIME_FILE_LEN] = { '\0' };
-static bool InitTW = FALSE;
+static zbool InitTW = FALSE;
 
 /*
  * Private prototypes
@@ -223,7 +223,7 @@ struct ui_command *cmds;
  * Throw one or more windows into history mode.
  */
 {
-	bool all = (cmds->uc_ctype == UTT_KW);
+	zbool all = (cmds->uc_ctype == UTT_KW);
 	struct cf_window *dwin = NULL;
 	ZebTime when;
 /*
@@ -274,7 +274,7 @@ struct ui_command *cmds;
  * Throw one or more windows into real time mode.
  */
 {
-	bool all = (cmds->uc_ctype == UTT_KW);
+	zbool all = (cmds->uc_ctype == UTT_KW);
 	struct cf_window *dwin = NULL;
 /*
  * If necessary, look up the window.

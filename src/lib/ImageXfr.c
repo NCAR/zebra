@@ -30,7 +30,7 @@
 # include "message.h"
 # include "ImageXfr.h"
 
-MAKE_RCSID("$Id: ImageXfr.c,v 2.9 1995-04-15 00:07:31 granger Exp $")
+MAKE_RCSID("$Id: ImageXfr.c,v 2.10 1998-10-28 21:22:36 corbet Exp $")
 
 # define MAXATTR	100		/* Max attribute space	*/
 
@@ -263,7 +263,7 @@ int verbose;
 {
 	int set, frame;
 	struct set_desc *sd;
-	static bool Failed = FALSE;
+	static zbool Failed = FALSE;
 /*
  * Pass through the sets looking for one that is free.
  */
@@ -331,6 +331,7 @@ char *attr;
 	sd->sd_XMin = xmin; sd->sd_YMin = ymin;
 	sd->sd_XMax = xmax; sd->sd_YMax = ymax;
 	sd->sd_Time = *when;
+	TC_y2k (&sd->sd_Time);
 	sd->sd_Rgrid = *rg;
 	sd->sd_Where = *loc;
 	strncpy (sd->sd_Attr, attr, MAXATTR);

@@ -1,4 +1,4 @@
-/* $Id: ingest.c,v 1.16 1997-10-16 23:24:59 burghart Exp $
+/* $Id: ingest.c,v 1.17 1998-10-28 21:21:13 corbet Exp $
  *
  * ingest.c --- A common ingest interface and support routines for 
  *		Zeb ingest modules
@@ -44,16 +44,16 @@
 /* #undef ds_DeleteData */
 
 #ifndef lint
-MAKE_RCSID("$Id: ingest.c,v 1.16 1997-10-16 23:24:59 burghart Exp $")
+MAKE_RCSID("$Id: ingest.c,v 1.17 1998-10-28 21:21:13 corbet Exp $")
 #endif
 
 
 /*
  * Public Prototypes:
  */
-bool _Ingest_ds_Store FP((DataChunk *dc, int newfile, 
+zbool _Ingest_ds_Store FP((DataChunk *dc, int newfile, 
 			  dsDetail *details, int ndetail));
-bool _Ingest_ds_StoreBlocks FP((DataChunk *dc, int newfile, 
+zbool _Ingest_ds_StoreBlocks FP((DataChunk *dc, int newfile, 
 				dsDetail *details, int ndetail));
 PlatformId _Ingest_ds_LookupPlatform FP((char *name));
 void _Ingest_ds_DeleteData FP((PlatformId platform, int leave));
@@ -371,14 +371,14 @@ _Ingest_ds_LookupPlatform (name)
 }
 
 
-bool 
+zbool 
 _Ingest_ds_Store (dc, newfile, details, ndetail)
 	DataChunk *dc;
-	bool newfile;
+	zbool newfile;
 	dsDetail *details;
 	int ndetail;
 {
-	bool ret;
+	zbool ret;
 	static short called_once = 0;
 
 	if (DumpDataChunks)
@@ -411,14 +411,14 @@ _Ingest_ds_Store (dc, newfile, details, ndetail)
 
 
 #ifdef notdef
-bool 
+zbool 
 _Ingest_ds_StoreBlocks (dc, newfile, details, ndetail)
 	DataChunk *dc;
-	bool newfile;
+	zbool newfile;
 	dsDetail *details;
 	int ndetail;
 {
-	bool ret;
+	zbool ret;
 	static short called_once = 0;
 
 	if (DumpDataChunks)

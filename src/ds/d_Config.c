@@ -34,7 +34,7 @@
 # include "commands.h"
 # include <ui_error.h>
 
-RCSID("$Id: d_Config.c,v 2.15 1996-11-19 09:25:21 granger Exp $")
+RCSID("$Id: d_Config.c,v 2.16 1998-10-28 21:21:00 corbet Exp $")
 
 /*-----------------------------------------------------------------------
  * Local forwards.
@@ -84,7 +84,7 @@ void
 dc_DefPlatformClass (name, superclass, platform)
 char *name;
 char *superclass;	/* NULL if not specified */
-bool platform;		/* Implicit class creation from a platform command? */
+zbool platform;		/* Implicit class creation from a platform command? */
 /*
  * Define a platform in the data store configuration.
  */

@@ -40,7 +40,7 @@
 # include "DrawText.h"
 # include "PlotPrim.h"
 
-RCSID ("$Id: XYObservation.c,v 1.23 1998-09-22 22:28:35 burghart Exp $")
+RCSID ("$Id: XYObservation.c,v 1.24 1998-10-28 21:22:22 corbet Exp $")
 
 /*
  * Enum to tell how we anchor z values
@@ -64,13 +64,13 @@ static void XYO_DoSideAnnotation FP ((char *, char *, Pixel, char *, char *,
 void
 xy_Observation(c, update)
 char	*c;
-bool	update;
+zbool	update;
 /*
  * Draw an xy-graph on the given component
  */
 {
-	bool	ok, doLine, annotLoc, sideAnnot;
-	bool	xauto, yauto, xinvert, yinvert;
+	zbool	ok, doLine, annotLoc, sideAnnot;
+	zbool	xauto, yauto, xinvert, yinvert;
 	int	plat, nplat, npts[MAX_PLAT], dmode, ob, nobs;
 	int	nxfield, nyfield, nzfield, obsStart, obsEnd, obsLen;
 	char	platforms[PlatformListLen], *pnames[MaxPlatforms];
@@ -254,7 +254,7 @@ bool	update;
  */
 	for (plat = 0; plat < nplat; plat++)
 	{
-		bool	single_obs;
+		zbool	single_obs;
 		PlatformId	pid = ds_LookupPlatform (pnames[plat]);
 
 		npts[plat] = 0;

@@ -1,7 +1,7 @@
 /*
  * DM variables.
  *
- * $Id: dm_vars.h,v 2.12 1995-06-29 21:29:35 granger Exp $
+ * $Id: dm_vars.h,v 2.13 1998-10-28 21:20:28 corbet Exp $
  */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -76,8 +76,8 @@ struct cf_graphic
 	plot_description g_pd;		/* The actual PD		*/
 	struct cf_window *g_linksrc;	/* Source window for linked PD	*/
 	short	g_linkpar;		/* PD link parameter		*/
-	bool	g_forcepd;		/* Always force new PD		*/
-	bool	g_tmpforce;		/* Force PD once		*/
+	zbool	g_forcepd;		/* Always force new PD		*/
+	zbool	g_tmpforce;		/* Force PD once		*/
 };
 
 /*
@@ -94,7 +94,7 @@ struct cf_window
 	int	cfw_x, cfw_y;		/* The location of the window	*/
 	int	cfw_dx, cfw_dy;		/* The size of the window	*/
 	short	cfw_ncroak;		/* No. of processes its killed  */
-	bool	cfw_force_exec;		/* One-time force a new process */
+	zbool	cfw_force_exec;		/* One-time force a new process */
 	struct cf_graphic *cfw_graphic; /* Graphic info if graphic      */
 	Process *cfw_process;		/* Process assigned to this window */
 };

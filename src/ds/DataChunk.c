@@ -29,7 +29,7 @@
 # include "DataStore.h"
 # include "DataChunkP.h"
 
-RCSID ("$Id: DataChunk.c,v 3.11 1996-12-06 00:40:11 granger Exp $")
+RCSID ("$Id: DataChunk.c,v 3.12 1998-10-28 21:20:50 corbet Exp $")
 
 /*
  * The class methods structure for the raw class.
@@ -58,19 +58,19 @@ RawClass RawMethods =
 DataClassP DCP_Raw = (DataClassP)&RawMethods;
 
 
-bool _CheckClass = TRUE;
+zbool _CheckClass = TRUE;
 
 
 void
 dc_CheckClass (on)
-bool on;
+zbool on;
 {
 	_CheckClass = on;
 }
 
 
 
-bool
+zbool
 dc_IsSubClass (class, superclass)
 DataClassP class, superclass;
 /*
@@ -89,7 +89,7 @@ DataClassP class, superclass;
 
 
 
-bool
+zbool
 _dc_ReqSubClass (dc, superclass, op)
 DataChunk *dc;
 DataClassP superclass;

@@ -76,7 +76,7 @@
 
 # include "RasterImage.h"
 
-RCSID ("$Id: RasterPlot.c,v 2.36 1998-10-09 16:28:20 burghart Exp $")
+RCSID ("$Id: RasterPlot.c,v 2.37 1998-10-28 21:22:06 corbet Exp $")
 
 # ifdef TIMING
 # include <sys/time.h>
@@ -203,7 +203,7 @@ XPoint *xp;
 
 
 
-static bool
+static zbool
 RP_OffScreen (points, np)
 XPoint *points;
 int np;
@@ -545,7 +545,7 @@ Drawable d;
 float	*array;
 int	xdim, ydim;
 int	xlo, ylo, xhi, yhi;
-bool	fast; /* not used any more */
+zbool	fast; /* not used any more */
 /*
  * Draw a raster image of rectangular (xdim x ydim) array into widget w.
  * The coordinates (xlo,ylo) and (xhi,yhi) specify the centers of the

@@ -41,7 +41,7 @@
 # include "Skewt.h"
 
 
-RCSID ("$Id: Skewt.c,v 2.31 1998-01-30 16:42:09 burghart Exp $")
+RCSID ("$Id: Skewt.c,v 2.32 1998-10-28 21:22:08 corbet Exp $")
 
 /*
  * General definitions
@@ -86,17 +86,17 @@ static float	W_scale = 25.0;
  */
 static XColor	*Colors;
 static int	Ncolors;
-static bool 	Tacmatch = TRUE;
+static zbool 	Tacmatch = TRUE;
 static XColor 	Tadefclr;
 /*
  * Feet vs. Kilometer flag.
  */
-static bool	DoFeet = FALSE;
+static zbool	DoFeet = FALSE;
 
 /*
  * Wind barbs or wind vectors?
  */
-static bool	Do_vectors;
+static zbool	Do_vectors;
 
 
 
@@ -119,12 +119,12 @@ static void	EncodeLocation FP ((char *, Location *));
 void
 sk_Skewt (c, update)
 char	*c;
-bool	update;
+zbool	update;
 /*
  * Draw a skew-t, log p plot based on the given PD component.
  */
 {
-	bool		ok;
+	zbool		ok;
 	int		plat, nplat, nwplat, noffset;
 	char		ctname[24], tadefcolor[32], style[16];
 	char		platforms[PlatformListLen];
@@ -272,7 +272,7 @@ bool	update;
 	 */
 		sk_Thermo (c, pnames[plat], &when, color, update);
 		sk_Winds (c, (nwplat > 0) ? wpnames[plat] : pnames[plat],
-			  &when, color, plat, nplat, (bool)(nwplat > 0), 
+			  &when, color, plat, nplat, (zbool)(nwplat > 0), 
 			  update, skip);
 	}
 /*
@@ -738,7 +738,7 @@ sk_Thermo (c, pname, when, color, update)
 char	*c, *pname;
 ZebTime *when;
 XColor	color;
-bool    update;
+zbool    update;
 /*
  * Plot the thermo data using the given component, platform name, and color.  
  * The boolean "update" tells whether this is just an update of a previous
@@ -748,7 +748,7 @@ bool    update;
 	float	*xt, *xd, *yt, *yd, *pres, *temp, *dp, badvalue;
 	float	y;
 	int	i, npts, nprev, good_d = 0, good_t = 0, antime = 0, nflds;
-	char	string[40];
+	char	string[60];
 	FieldId	flist[3], *platflds;
 	ZebTime	ptime;
 	PlatformId	pid;
@@ -769,7 +769,7 @@ bool    update;
 	ptime = *when;
 	if (! ds_GetObsTimes (pid, &ptime, &ptime, 1, NULL))
 	{
-		char	tstring[20];
+		char	tstring[24];
 
 		TC_EncodeTime (&ptime, TC_Full, tstring);
 		msg_ELog (EF_INFO, "No data for '%s' at %s", pname, tstring);
@@ -978,7 +978,7 @@ char	*c, *pname;
 XColor	color;
 ZebTime	*when;
 int	plot_ndx, nplots;
-bool	annot, update;
+zbool	annot, update;
 int	skip;
 /*
  * Plot sounding winds given:
@@ -995,8 +995,8 @@ int	skip;
 	float	xstart, xscale, yscale, xov[2], yov[2], badvalue;
 	float	*pres, *u, *v, wspd, wdir;
 	int	i, npts, nprev, ipts, shaftlen;
-	bool	have_uv;
-	char	string[40];
+	zbool	have_uv;
+	char	string[60];
 	ZebTime	ptime;
 	FieldId	flist[3], favail[30];
 	WindInfo	w_info;
@@ -1025,7 +1025,7 @@ int	skip;
 	ptime = *when;
 	if (! ds_GetObsTimes (pid, &ptime, &ptime, 1, NULL))
 	{
-		char	tstring[20];
+		char	tstring[32];
 
 		TC_EncodeTime (&ptime, TC_Full, tstring);
 		msg_ELog (EF_INFO, "No winds data for '%s' at %s", pname, 

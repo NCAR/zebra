@@ -23,7 +23,7 @@
 # include "timer.h"
 # include "message.h"
 
-RCSID ("$Id: timer_lib.c,v 2.10 1998-02-26 00:25:32 burghart Exp $")
+RCSID ("$Id: timer_lib.c,v 2.11 1998-10-28 21:22:46 corbet Exp $")
 
 typedef enum { Empty = 0, Active, Cancelled } sstatus;
 
@@ -36,11 +36,11 @@ static struct Tevent
 	void	(*te_func) ();		/* Function to call		*/
 	void	*te_param;		/* Param for func		*/
 	sstatus	te_status;		/* This stuff in use		*/
-	bool	te_recurring;		/* Does this one recurr?	*/
-	bool	te_BCompat;		/* Backward compatible fmt?	*/
+	zbool	te_recurring;		/* Does this one recurr?	*/
+	zbool	te_BCompat;		/* Backward compatible fmt?	*/
 } Events[MAXEVENT] = { { 0, 0, Empty, 0, 0 } };
 
-static bool First = TRUE;
+static zbool First = TRUE;
 
 static void (*ChangeHandler) () = 0;
 

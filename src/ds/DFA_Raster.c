@@ -19,7 +19,7 @@
 # include "RasterFile.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_Raster.c,v 3.23 1997-06-30 21:28:08 ishikawa Exp $")
+RCSID ("$Id: DFA_Raster.c,v 3.24 1998-10-28 21:20:45 corbet Exp $")
 
 /*
  * This is the tag for an open raster file.
@@ -205,7 +205,7 @@ drf_OpenFile (ofp, fname, dp, write)
 OpenFile *ofp;
 char *fname;
 DataFile *dp;
-bool write;
+zbool write;
 /*
  * Open up a raster file.
  */

@@ -35,7 +35,7 @@
 # include "DrawText.h"
 # include "XYCommon.h"
 
-RCSID("$Id: XYCommon.c,v 1.31 1997-10-16 20:41:42 burghart Exp $")
+RCSID("$Id: XYCommon.c,v 1.32 1998-10-28 21:22:18 corbet Exp $")
 
 /* 
  * One somewhat reasonable definition for infinity in XDR, lifted from 
@@ -53,7 +53,7 @@ char	Scratch[200];
 /*
  * Our routines.
  */
-void	xy_Init FP ((UItime *));
+void	xy_Init FP ((ZebTime *));
 
 /*
  * Default top annotation color (from PlotExec.c)
@@ -66,7 +66,7 @@ extern XColor 	Tadefclr;
 static void xy_NSpaceVector FP((DataChunk *dc, FieldId *fids, int fcount,
 				int *dcveclen));
 static void xy_NSpaceDimensions FP((char *comp, dsDetail *, int *ndetail));
-static bool xy_BadPoint FP((float *val, int fcount, float *badvals, int nbad));
+static zbool xy_BadPoint FP((float *val, int fcount, float *badvals, int nbad));
 static void xy_GetBadPoints FP((char *c, DataChunk *, float *bval, int *nbad));
 static void xy_FillScalarObs FP((PlatformId pid, xyObsInfo *obsinfo, 
 				 ZebTime *btime, ZebTime *etime, 
@@ -79,7 +79,7 @@ static void xy_SetDataPoint FP((xyDataVector *dvectors, char *dtype,
 				float *val, int *fndx));
 static void xy_InitVectorData FP((xyDataVector *dvectors, char *dtype,
 				  int ndvec, int npoints));
-static bool xy_DataVectorClass FP((PlatformId pid, char *c, 
+static zbool xy_DataVectorClass FP((PlatformId pid, char *c, 
 				   DataOrganization *org, DataClass *class, 
 				   dsDetail *details, int *ndetail));
 static int xy_SetVectorTypes FP((xyDataVector *dvectors, char *dtype, 
@@ -89,7 +89,7 @@ static int xy_SetVectorTypes FP((xyDataVector *dvectors, char *dtype,
 
 void
 xy_Init (t)
-UItime *t;
+ZebTime *t;
 /*
  * CAP Plot initialization.
  */
@@ -103,7 +103,7 @@ UItime *t;
 void
 xy_GetScaleModes (c, xauto, xinvert, yauto, yinvert)
 char	*c;
-bool	*xauto, *xinvert, *yauto, *yinvert;
+zbool	*xauto, *xinvert, *yauto, *yinvert;
 /*
  * Retrieve the scaling mode information from the plot-description.
  * ENTRY:
@@ -169,7 +169,7 @@ bool	*xauto, *xinvert, *yauto, *yinvert;
 void
 xy_GetZModes (c, zauto, invert)
 char *c;
-bool *zauto, *invert;
+zbool *zauto, *invert;
 /*
  * Figure out scaling modes for the Z axis.
  */
@@ -599,7 +599,7 @@ ZebTime		*bTimeReq, *eTimeReq;
 
 void
 xy_GetDataMinMax (haveminmax, min, max, data, npts)
-bool   haveminmax;
+zbool   haveminmax;
 DataValPtr      min, max;
 DataValPtr      data;
 int             npts;
@@ -652,9 +652,9 @@ xy_DetermineBounds (c, dim, min, max, autoscale, fldname, update)
 char	*c;
 char	dim;
 DataValPtr	min, max;
-bool	autoscale;
+zbool	autoscale;
 char	*fldname;
-bool	update;
+zbool	update;
 /*
  * Come up with plot bounds for the 'dim' (x or y) axis of the given
  * component.  On entry, we are given the actual data min and max for the
@@ -772,7 +772,7 @@ char 		*c;		/* Plot description component */
 	int ndetail, gridpts;
 	float 	badvals[20];
 	int	nbadval;
-	bool	ok;
+	zbool	ok;
 /*
  * Info message
  */
@@ -1049,7 +1049,7 @@ int *fndx;	/* Array to hold mapping from vector to non-time fids	*/
 
 
 
-static bool
+static zbool
 xy_DataVectorClass (pid, c, org, class, details, ndetail)
 PlatformId pid;
 char *c;
@@ -1336,7 +1336,7 @@ int *ndetail;		/* return new number of details			 */
 
 
 
-static bool
+static zbool
 xy_BadPoint (val, fcount, badvals, nbadval)
 float *val;
 int fcount;

@@ -38,7 +38,7 @@
 # include <DataStore.h>
 # include <GraphicsW.h>
 
-RCSID("$Id: Icons.c,v 2.27 1996-11-19 07:28:48 granger Exp $")
+RCSID("$Id: Icons.c,v 2.28 1998-10-28 21:21:44 corbet Exp $")
 
 # include "GraphProc.h"
 # include "ActiveArea.h"
@@ -198,7 +198,7 @@ int	x, y, fg;
 	int xh, yh, w, h;
 	Pixmap pmap = I_GetPMap (name, &xh, &yh, &w, &h);
 	XGCValues vals;
-	bool active = FALSE;
+	zbool active = FALSE;
 /*
  * Bail out if we didn't get a good pixmap
  */
@@ -223,8 +223,8 @@ int	x, y, fg;
 /*
  * See if they want this to be an active area, and set it up if so.
  */
-	if (pda_Search (Pd, comp, "active-icon", platform, &active, SYMT_BOOL)
-	    && active)
+	if (pda_Search (Pd, comp, "active-icon", platform, (char *) &active,
+			SYMT_BOOL) && active)
 		I_ActivateArea (x, y, w, h, "posicon", comp, platform, 0);
 }
 
@@ -316,7 +316,7 @@ I_DoIcons ()
 	int fg, bg;
 	char **comps = pd_CompList (Pd), *qual = NULL;
 	char platform[PlatformListLen];
-	bool disable = FALSE;
+	zbool disable = FALSE;
 	Pixmap icon;
 	struct IconList *ilp;
 /* 
@@ -620,7 +620,7 @@ Cardinal *cardjunk;
 	struct IconList *ilp;
 	union usy_value v;
 	Arg arg;
-	bool posicon = FALSE;
+	zbool posicon = FALSE;
 /*
  * First, we need to find the icon that generated this event.
  */
@@ -761,7 +761,7 @@ char *colorcomp;
  */
 {
         int fg, bg, seconds, ntime, update;
-	bool disable;
+	zbool disable;
 	ZebTime timenow, datatime;
         char comp[40], repr[40];
 	char platform[PlatformListLen];

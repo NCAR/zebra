@@ -35,7 +35,7 @@
 #include "dfa.h"
 #include "Appl.h"
 
-RCSID ("$Id: DFA_Appl.c,v 3.12 1998-01-29 17:52:08 burghart Exp $")
+RCSID ("$Id: DFA_Appl.c,v 3.13 1998-10-28 21:20:34 corbet Exp $")
 
 /*
  * Local private prototypes.
@@ -47,7 +47,7 @@ static void     ds_NotifyDaemon (ClientPlatform *, int, DataChunk *,
 static int 	ds_FindDest (DataChunk *, ClientPlatform *, DataFile *,
 			     int sample, int *dfile, int *dfnext,
 			     WriteCode *, int, ZebTime *);
-static bool	ds_SameDay (ZebTime *, ZebTime *);
+static zbool	ds_SameDay (ZebTime *, ZebTime *);
 static int	ds_MakeNewFile (DataChunk *, ClientPlatform *, int sample, 
 				dsDetail *details, int ndetail);
 static int	ds_RequestNewDF (PlatformId, char *, ZebTime *);
@@ -65,10 +65,10 @@ static void	DeriveFld (DataChunk *dest_dc, DataChunk *extra_dc,
 			   FieldId fld, FieldId surrogate, DerivMethod deriv);
 static void	DerivationFailure (DataChunk *dest_dc, FieldId fld, 
 				   FieldId surrogate);
-static bool	DerivationCheck (PlatformId pid, DataClass class, 
+static zbool	DerivationCheck (PlatformId pid, DataClass class, 
 				 GetList *get, FieldId *flds, int nflds);
-static bool	FldAvailable (FieldId fld, PlatformId pid, GetList *get, 
-			      bool *is_raw, DerivMethod *return_deriv);
+static zbool	FldAvailable (FieldId fld, PlatformId pid, GetList *get, 
+			      zbool *is_raw, DerivMethod *return_deriv);
 
 /*
  * This is the fine line dividing the sides of the interface.  Once a program
@@ -467,7 +467,7 @@ ZebTime *rettimes;
 
 
 
-bool
+zbool
 ds_GetAlts (pid, fid, when, offset, alts, nalts, altunits)
 PlatformId pid;
 FieldId	fid;
@@ -482,7 +482,7 @@ AltUnitType *altunits;
 {
 	int dfindex;
 	GetList	gl;
-	bool is_raw;
+	zbool is_raw;
 	DerivMethod deriv;
 	FieldId check_fid = fid;
 /*
@@ -534,7 +534,7 @@ AltUnitType *altunits;
 
 
 
-bool
+zbool
 ds_GetForecastTimes (pid, when, times, ntimes)
 PlatformId	pid;
 ZebTime	*when;
@@ -663,7 +663,7 @@ Derive (PlatformId pid, DataClass class, GetList *gl, FieldId *destflds,
     {
 	FieldId	*srcflds;
 	int sf, nsrcflds;
-	bool is_raw;
+	zbool is_raw;
     /*
      * Get a derivation for this field.  If it's either available raw or
      * it's underivable, the field will serve as a surrogate for itself and
@@ -1169,7 +1169,7 @@ dsDetail *details;
 
 
 
-static bool
+static zbool
 DerivationCheck (PlatformId pid, DataClass class, GetList *gl, FieldId *flds, 
 		 int nflds)
 /* 
@@ -1182,7 +1182,7 @@ DerivationCheck (PlatformId pid, DataClass class, GetList *gl, FieldId *flds,
  */
 {
     int f;
-    bool is_raw;
+    zbool is_raw;
     FieldId fileflds[MAXRAWFLDS];
 /*
  * Derivation is only an option for MetData datachunks
@@ -1201,8 +1201,8 @@ DerivationCheck (PlatformId pid, DataClass class, GetList *gl, FieldId *flds,
 
     
 
-static bool
-FldAvailable (FieldId fld, PlatformId pid, GetList *gl, bool *is_raw, 
+static zbool
+FldAvailable (FieldId fld, PlatformId pid, GetList *gl, zbool *is_raw, 
 		 DerivMethod *return_deriv)
 /*
  * Return true if 'fld' is available raw from one or more of the files
@@ -1214,7 +1214,7 @@ FldAvailable (FieldId fld, PlatformId pid, GetList *gl, bool *is_raw,
 {
     int nfflds, ff;
     FieldId fileflds[MAXRAWFLDS];
-    bool raw;
+    zbool raw;
     GetList *gp;
 /*
  * Loop through the get list, seeing if this field is available raw in
@@ -1368,10 +1368,10 @@ dsDetail *details;
  *
  * Be it so NOTED this 9th day of November, in the year 1995 A.D. 
  */
-bool
+zbool
 ds_Store (dc, newfile, details, ndetail)
 DataChunk *dc;
-bool newfile;
+zbool newfile;
 dsDetail *details;
 int ndetail;
 {
@@ -1381,10 +1381,10 @@ int ndetail;
 
 
 
-bool
+zbool
 ds_StoreBlocks (dc, newfile, details, ndetail)
 DataChunk *dc;
-bool newfile;
+zbool newfile;
 dsDetail *details;
 int ndetail;
 /*
@@ -1442,7 +1442,7 @@ int ndetail;
 	dfp = NULL;
 	while (sample < nsample)
 	{
-		bool new = FALSE;
+		zbool new = FALSE;
 	/*
 	 * Find a feasible location for the next sample of the data chunk.
 	 */
@@ -1816,7 +1816,7 @@ ZebTime *now;
 
 
 
-static bool
+static zbool
 ds_SameDay (t1, t2)
 ZebTime *t1, *t2;
 /*
@@ -2054,11 +2054,11 @@ ds_ForceClosure()
 
 
 
-bool
+zbool
 ds_ScanFile (platid, filename, local)
 PlatformId platid;
 char *filename;
-bool local;
+zbool local;
 /*
  * Look for the file in the platform directory, verify the file name with
  * DFA, and then retrieve time info about the file through DFA.
@@ -2100,14 +2100,14 @@ bool local;
 
 
 
-bool
+zbool
 ds_InsertFile (platid, filename, begin, end, nsample, local)
 PlatformId platid;
 char *filename;
 ZebTime *begin;
 ZebTime *end;
 int nsample;
-bool local;
+zbool local;
 /*
  * Tell the Daemon about this new file by simulating a ds_Store to it
  */

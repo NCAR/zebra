@@ -1,5 +1,5 @@
 /*
- * $Id: dfa.h,v 2.7 1997-06-30 21:50:27 ishikawa Exp $
+ * $Id: dfa.h,v 2.8 1998-10-28 21:21:09 corbet Exp $
  * Internal DFA declarations.  Requires DataStore.h and dslib.h.
  */
 
@@ -36,7 +36,7 @@ int	dfa_InqRGrid FP ((int, Location *, RGrid *));
 int	dfa_DataTimes FP ((int, ZebTime *, TimeSpec, int, ZebTime *));
 void	dfa_MakeFileName FP ((ClientPlatform *, ZebTime *, char *,
 			      dsDetail *details, int ndetail));
-bool	dfa_CreateFile FP ((int, DataChunk *, ZebTime *, dsDetail *, int));
+zbool	dfa_CreateFile FP ((int, DataChunk *, ZebTime *, dsDetail *, int));
 void	dfa_NoteRevision FP ((int dfindex, long revision));
 void	dfa_ForceClosure FP ((void));
 char	*dfa_GetAttr FP ((int, ZebTime *, int *));

@@ -36,7 +36,7 @@
 # include "AxisControl.h"
 # include "PlotPrim.h"
 
-RCSID("$Id: AxisControl.c,v 1.28 1997-10-16 20:41:31 burghart Exp $")
+RCSID("$Id: AxisControl.c,v 1.29 1998-10-28 21:21:31 corbet Exp $")
 
 /*
  * Convenient scratch string
@@ -625,7 +625,7 @@ ac_AxisEnabled (c, side)
 char    *c;
 AxisSide	side;
 {
-    bool plot;
+    zbool plot;
 /*
  * By default, we put an axis on the bottom and on the left
  */

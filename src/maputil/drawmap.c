@@ -66,7 +66,7 @@ int	argc;
 char	**argv;
 {
 	char	reply[40], fname[40], device[40];
-	bool	done;
+	zbool	done;
 	int	button, x, y, nargs, x_tab, y_tab;
 	point	ll, lr, ul, ur;
 	Widget	top;
@@ -213,7 +213,7 @@ int	x0, y0;
 	int	npts, i, x, y, button;
 	float	lat[500], lon[500];
 	point	pts[500];
-	bool	done;
+	zbool	done;
 /*
  * Sanity check on position
  */

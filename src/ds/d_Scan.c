@@ -40,7 +40,7 @@
 # include "Platforms.h"		/* for dt_SetString */
 # include "byteorder.h"
 
-RCSID ("$Id: d_Scan.c,v 1.33 1997-06-10 19:01:17 burghart Exp $")
+RCSID ("$Id: d_Scan.c,v 1.34 1998-10-28 21:21:02 corbet Exp $")
 
 /*
  * Define this to force changed files to be closed and re-opened by
@@ -115,7 +115,7 @@ DataScan ()
 static void
 ScanDirectory (p, local, rescan)
 Platform *p;
-bool local, rescan;
+zbool local, rescan;
 /*
  * Scan a directory for this platform.
  */
@@ -206,7 +206,7 @@ static void
 ScanFile (p, dir, file, local, rescan)
 Platform *p;
 char *file, *dir;
-bool local, rescan;
+zbool local, rescan;
 /*
  * Look at this file and see what we think of it.
  */
@@ -431,7 +431,7 @@ static int
 FileKnown (p, file, local)
 Platform *p;
 char *file;
-bool local;
+zbool local;
 /*
  * See if we already know about a file by this name; return its index if found.
  */
@@ -660,7 +660,7 @@ int onlydirty;
 	int fd = -1;
 	unsigned long version = CacheKey;
 	char *fname;
-	bool onefile = FALSE;
+	zbool onefile = FALSE;
 /*
  * Do they want a unified file?
  */
@@ -822,8 +822,8 @@ int local;
 static char *
 CacheFileName (p, local, version)
 Platform *p;
-bool local;
-bool version;	/* include the cache key if non-zero */
+zbool local;
+zbool version;	/* include the cache key if non-zero */
 /*
  * Generate the cache file name for this platform.  The returned string
  * is only valid until the next call.  Follow the dfa_MakeFileName

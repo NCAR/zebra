@@ -41,7 +41,7 @@ static char MosaicPath[CFG_FILEPATH_LEN]; /* Mosaic executable */
 /*
  * A variable to tell us if "Mosaic" is really netscape.
  */
-static bool ReallyNetscape = FALSE;
+static zbool ReallyNetscape = FALSE;
 
 
 

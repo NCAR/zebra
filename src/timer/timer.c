@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *Version = "$Revision: 2.11 $ $Date: 1997-04-28 04:44:18 $";
+static char *Version = "$Revision: 2.12 $ $Date: 1998-10-28 21:22:59 $";
 
 # include <sys/types.h>
 # include <sys/time.h>
@@ -30,7 +30,7 @@ static char *Version = "$Revision: 2.11 $ $Date: 1997-04-28 04:44:18 $";
 # include <message.h>
 # include <timer.h>
 
-MAKE_RCSID ("$Id: timer.c,v 2.11 1997-04-28 04:44:18 granger Exp $")
+MAKE_RCSID ("$Id: timer.c,v 2.12 1998-10-28 21:22:59 corbet Exp $")
 
 /*
  * The timer queue is made up of these sorts of entries.
@@ -514,7 +514,6 @@ struct timeval *ct;
  * Send back the alarm packet.
  */
 	alarm.tm_type = TRR_ALARM;
-	/* CvtSysToFcc (ct, &alarm.tm_time); */
 	TimevalToZt (ct, &alarm.tm_time);
 	alarm.tm_param = tqe->tqe_param;
 	msg_send (tqe->tqe_proc, MT_TIMER, FALSE, &alarm, sizeof (alarm));
@@ -610,7 +609,6 @@ struct tq_entry *tqe;
 	struct tm_alarm tr;
 
 	tr.tm_type = TRR_CANCELACK;
-	/* CvtSysToFcc (GetTime (), &tr.tm_time); */
 	GetZebTime (&tr.tm_time);
 	tr.tm_param = tqe->tqe_param;
 	msg_send (tqe->tqe_proc, MT_TIMER, FALSE, &tr, sizeof (tr));
