@@ -1,0 +1,45 @@
+global
+	alt-scale-y-max:	7.0
+	axis-bottom-space:	30
+	axis-left-space:	60
+	axis-right-space:	20
+	height-scale-y-max:	7000.0
+	pd-name:	wind-template
+	plot-mode:	history
+	plot-time:	now
+	plot-type:	xygraph
+	sa-scale:	12
+	xy-adj-axis-side:	b
+	xy-axis-b-font-scale:	10
+	xy-axis-b-tic-interval:	60m
+	xy-axis-l-font-scale:	10
+	xy-axis-l-tic-interval:	1000.0
+	xy-axis-r-font-scale:	10
+	xy-axis-r-tic-interval:	0.5
+	xy-data-mode:	series
+	xy-scale-x-mode:	autoscale
+	xy-scale-y-mode:	manual
+	xy-series-span:	720m
+915profh
+	adj-axis-side:	l
+	axis-b-label:	time
+	axis-b-tic-interval:	7200s
+	axis-l-color:	green
+	axis-l-label:	915 Profiler Altitude (m agl)
+	axis-t-tic-interval:	7200s
+	barb-scale:	20
+	data-skip:	0
+	icon:	iss-prof
+	icon-background:	black
+	icon-color:	green
+	icon-left-menu:		minimal-cap-left-menu
+	icon-middle-menu:	time-height-winds
+	icon-right-menu:	DataAvailable
+	platform:	null
+	representation:	wind
+	representation-style:	barb
+	trigger:	platform
+	vec-scale:	3
+	x-field:	time
+	y-field:	height
+	require:	xywind
