@@ -17,7 +17,7 @@
 # include "ui_expr.h"
 # include "ui_error.h"
 
-static char *Rcsid = "$Id: ui_parser.c,v 1.5 1989-07-14 10:50:51 burghart Exp $";
+static char *Rcsid = "$Id: ui_parser.c,v 1.6 1990-03-02 11:42:15 corbet Exp $";
 
 void ui_error ();
 char *zapcase ();
@@ -626,7 +626,7 @@ int *type;
 		v->us_v_int = 0;
 		*action = &state->sta_vpact;
 		ue_rel_tree (tree);
-		return;
+		return (TRUE);
 	}
 /*
  * Evaluate the parse tree we got, and see what we can make of it.
