@@ -32,7 +32,7 @@
 #include "dfa.h"
 #include "Appl.h"
 
-RCSID ("$Id: DFA_Appl.c,v 3.2 1995-11-19 16:14:48 granger Exp $")
+RCSID ("$Id: DFA_Appl.c,v 3.3 1996-01-23 04:36:10 granger Exp $")
 
 /*
  * Local private prototypes.
@@ -472,6 +472,16 @@ int ndetail;
 {
 	if (gp->gl_next)
 		ds_FProcGetList (dc, gp->gl_next, details, ndetail);
+#ifdef DEBUG
+	{
+		char btime[80], etime[80];
+		
+		TC_EncodeTime (&gp->gl_begin, TC_Full, btime);
+		TC_EncodeTime (&gp->gl_end, TC_Full, etime);
+		msg_ELog (EF_DEBUG, "getdata file #%d, getlist %s to %s",
+			  gp->gl_dfindex, btime, etime);
+	}
+#endif
 	dfa_GetData (dc, gp, details, ndetail);
 }
 
