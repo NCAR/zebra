@@ -1,7 +1,7 @@
 /*
  * Display two rectangular arrays (u and v) as wind vectors
  */
-static char *rcsid = "$Id: VectorGrid.c,v 2.2 1991-11-14 17:50:55 kris Exp $";
+static char *rcsid = "$Id: VectorGrid.c,v 2.3 1992-06-02 20:09:08 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -39,13 +39,13 @@ static char *rcsid = "$Id: VectorGrid.c,v 2.2 1991-11-14 17:50:55 kris Exp $";
 
 
 VectorGrid (w, d, Gcontext, u_array, v_array, xdim, ydim, xlo, ylo, xhi, yhi, 
-	vlen, bad, color)
+	vlen, bad, color, degrade)
 Widget	w;
 Drawable 	d;
 GC	Gcontext;
 float	*u_array, *v_array, bad;
 int	xlo, ylo, xhi, yhi;
-int	xdim, ydim;
+int	xdim, ydim, degrade;
 XColor	color;
 float	vlen;
 /*
@@ -93,6 +93,8 @@ float	vlen;
 		{
 			ypos = (int)(ylo + (float) j / (float)(ydim - 1) *
 				(yhi - ylo) + 0.5);
+			if (degrade > 1 && ((i % degrade) || (j % degrade)))
+				continue;
 		/*
 		 * Check for bad values
 		 */
