@@ -1,5 +1,5 @@
 /* Archiver Imakefile -*- C -*-
- * $Id: Imakefile,v 1.17 1999-03-01 02:04:53 burghart Exp $
+ * $Id: Imakefile,v 1.18 1999-05-12 14:12:45 burghart Exp $
  */
 
 SRCS = Archiver.c Database.c Arq.c
@@ -8,7 +8,7 @@ HDRS = Database.h
 
 INCLUDES = $(XINCLUDES)
 LIBS = $(DFALIBS) $(LIBZEBRA) $(LIBRDSSUTIL) $(XLIBS)
-SYSLIBS = $(LIBNDBM) $(LIBREGEXP)
+SYSLIBS = $(LIBNDBM) $(LIBREGEXP) $(LIBMATH)
 DISTFILES = $(SRCS) $(HDRS) Imakefile Archiver.ad
 
 CccProgramTarget(Archiver, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
