@@ -22,7 +22,7 @@
 # include "../include/defs.h"
 # include "timer.h"
 # include "../include/message.h"
-MAKE_RCSID ("$Id: timer_lib.c,v 2.2 1991-12-20 17:51:05 corbet Exp $");
+MAKE_RCSID ("$Id: timer_lib.c,v 2.3 1991-12-27 17:18:07 corbet Exp $");
 
 
 typedef enum { Empty = 0, Active, Cancelled } sstatus;
@@ -107,8 +107,22 @@ tl_GetSlot ()
 
 
 
+static int
+tl_ProtoHandler (msg)
+struct message *msg;
+/*
+ * The message protocol handler.  Done this way for hysterical reasons.
+ */
+{
+	tl_DispatchEvent ((struct tm_time *) msg->m_data);
+	return (0);
+}
+
+
+
+
 int
-tl_AddRelativeEvent (func, param, delay, incr)
+tl_RelativeReq (func, param, delay, incr)
 void (*func) ();
 void *param;
 int delay, incr;
@@ -139,7 +153,7 @@ int delay, incr;
 	Events[i].te_param = param;
 	Events[i].te_status = Active;
 	Events[i].te_recurring = incr != 0;
-	Events[i].te_BCompat = TRUE;
+	Events[i].te_BCompat = FALSE;
 /*
  * Pass on the request to the timer module.
  */
@@ -156,10 +170,10 @@ int delay, incr;
 
 
 int
-tl_AddAbsoluteEvent (func, param, when, incr)
+tl_AbsoluteReq (func, param, when, incr)
 void (*func) ();
 void *param;
-time *when;
+ZebTime *when;
 int incr;
 /*
  * Add an absolute timer event.
@@ -188,32 +202,16 @@ int incr;
 	Events[i].te_param = param;
 	Events[i].te_status = Active;
 	Events[i].te_recurring = incr != 0;
-	Events[i].te_BCompat = TRUE;
+	Events[i].te_BCompat = FALSE;
 /*
  * Pass on the request to the timer module.
  */
 	alr.tr_type = TR_ABSOLUTE;
-	/* alr.tr_when = *when; */
-	TC_UIToZt (when, &alr.tr_when);
+	alr.tr_when = *when;
 	alr.tr_inc = incr;
 	alr.tr_param = i;
 	tl_SendToTimer (&alr, sizeof (alr));
 	return (i);
-}
-
-
-
-
-
-static int
-tl_ProtoHandler (msg)
-struct message *msg;
-/*
- * The message protocol handler.  Done this way for hysterical reasons.
- */
-{
-	tl_DispatchEvent ((struct tm_time *) msg->m_data);
-	return (0);
 }
 
 
@@ -382,6 +380,62 @@ int len;
 
 
 void
+tl_Time (zt)
+ZebTime *zt;
+/*
+ * Return the current time in t.
+ */
+{
+	static int tl_TimeHandler ();
+	struct tm_req req;
+/*
+ * Send off the timer request.
+ */
+	req.tr_type = TR_TIME;
+	tl_SendToTimer (&req, sizeof (req));
+/*
+ * Now wait for the reply.
+ */
+	msg_Search (MT_TIMER, tl_TimeHandler, zt);
+}
+
+
+
+static int
+tl_TimeHandler (msg, t)
+struct message *msg;
+ZebTime *t;
+/*
+ * The time handler, called out of msg_Search.
+ */
+{
+	struct tm_time *repl = (struct tm_time *) msg->m_data;
+/*
+ * If this is not a TRR_TIME, blow it off.
+ */
+	if (repl->tm_type != TRR_TIME)
+		return (1);
+/*
+ * Otherwise store the info.
+ */
+	*t = repl->tm_time;
+	return (0);
+}
+
+
+
+
+
+
+
+/*
+ * Old interface compatibility.
+ */
+
+
+
+
+void
 tl_GetTime (t)
 time *t;
 /*
@@ -406,23 +460,98 @@ time *t;
 
 
 
-static int
-tl_TimeHandler (msg, t)
-struct message *msg;
-ZebTime *t;
+
+
+int
+tl_AddRelativeEvent (func, param, delay, incr)
+void (*func) ();
+void *param;
+int delay, incr;
 /*
- * The time handler, called out of msg_Search.
+ * Add a relative timer event.
+ * Entry:
+ *	FUNC	is the function to call when the event happens.
+ *	PARAM	is a parameter to pass to FUNC
+ *	DELAY	is the delay until the first timer event
+ *	INCR	is the increment between successive events, or zero.
+ * Exit:
+ *	The event has been queued.
  */
 {
-	struct tm_time *repl = (struct tm_time *) msg->m_data;
+	int i;
+	struct tm_rel_alarm_req alr;
+
+	tl_Init ();
 /*
- * If this is not a TRR_TIME, blow it off.
+ * Find an empty slot.
  */
-	if (repl->tm_type != TRR_TIME)
-		return (1);
+	if ((i = tl_GetSlot ()) < 0)
+		return (-1);
 /*
- * Otherwise store the info.
+ * Fill in the information.
  */
-	*t = repl->tm_time;
-	return (0);
+	Events[i].te_func = func;
+	Events[i].te_param = param;
+	Events[i].te_status = Active;
+	Events[i].te_recurring = incr != 0;
+	Events[i].te_BCompat = TRUE;
+/*
+ * Pass on the request to the timer module.
+ */
+	alr.tr_type = TR_RELATIVE;
+	alr.tr_delay = delay;
+	alr.tr_inc = incr;
+	alr.tr_param = i;
+	tl_SendToTimer (&alr, sizeof (alr));
+	return (i);
+}
+
+
+
+
+
+int
+tl_AddAbsoluteEvent (func, param, when, incr)
+void (*func) ();
+void *param;
+time *when;
+int incr;
+/*
+ * Add an absolute timer event.
+ * Entry:
+ *	FUNC	is the function to call when the event happens.
+ *	PARAM	is a parameter to pass to FUNC
+ *	WHEN	is the time of the first alarm.
+ *	INCR	is the increment between successive events, or zero.
+ * Exit:
+ *	The event has been queued.
+ */
+{
+	int i;
+	struct tm_abs_alarm_req alr;
+
+	tl_Init ();
+/*
+ * Find an empty slot.
+ */
+	if ((i = tl_GetSlot ()) < 0)
+		return (-1);
+/*
+ * Fill in the information.
+ */
+	Events[i].te_func = func;
+	Events[i].te_param = param;
+	Events[i].te_status = Active;
+	Events[i].te_recurring = incr != 0;
+	Events[i].te_BCompat = TRUE;
+/*
+ * Pass on the request to the timer module.
+ */
+	alr.tr_type = TR_ABSOLUTE;
+	/* alr.tr_when = *when; */
+	TC_UIToZt (when, &alr.tr_when);
+	alr.tr_inc = incr;
+	alr.tr_param = i;
+	tl_SendToTimer (&alr, sizeof (alr));
+	return (i);
 }

@@ -1,4 +1,4 @@
-/* $Id: timer.h,v 2.2 1991-12-20 17:51:05 corbet Exp $ */
+/* $Id: timer.h,v 2.3 1991-12-27 17:18:07 corbet Exp $ */
 /*
  * Timer module protocol requests and responses.
  */
@@ -144,8 +144,14 @@ struct tm_tchange
 /*
  * Definitions of timer library routines.
  */
-int tl_AddRelativeEvent FP ((void (*func) (), void *, int, int));
-int tl_AddAbsoluteEvent FP ((void (*func) (), void *, time *, int));
+void tl_Time FP ((ZebTime *));
 void tl_DispatchEvent FP ((struct tm_time *));
 void tl_AllCancel FP ((void));
 void tl_Cancel FP ((int));
+int tl_RelativeReq FP ((void (*func) (), void *, int, int));
+int tl_AbsoluteReq FP ((void (*func) (), void *, ZebTime *, int));
+
+/* The following preserve the old interface for compatibility */
+void tl_GetTime FP ((time *));
+int tl_AddRelativeEvent FP ((void (*func) (), void *, int, int));
+int tl_AddAbsoluteEvent FP ((void (*func) (), void *, time *, int));
