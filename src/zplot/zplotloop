@@ -1,6 +1,6 @@
 #! /usr/bin/env perl
 #
-# $Id: zplotloop,v 1.9 2004-07-17 05:38:02 granger Exp $
+# $Id: zplotloop,v 1.10 2004-07-28 04:59:06 granger Exp $
 #
 # Loop through times by a certain time step collecting from zplotd all the
 # plots which need to be generated, then generate those plots with
@@ -30,7 +30,7 @@ $step = "$ENV{'PLOT_PERIOD'}";
 $begin = $ARGV[0];
 $end = $ARGV[1];
 shift; shift;
-if ($ARGV[0] =~ /[0-9]+/)
+if ($ARGV[0] =~ /^[0-9]+$/)
 {
     $step = $ARGV[0];
     shift;
