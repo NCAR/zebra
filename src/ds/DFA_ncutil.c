@@ -401,10 +401,10 @@ dnc_TimeUnits (ZebraTime *zt, const char *time_units)
 	nscan = sscanf (time_units, "%s %s %d-%d-%d %d:%d:%f %s",
 			units, ref, &year, &month, &day, &hour, &minute, 
 			&fsecond, zone);
-	if (nscan > 1 && nscan < 7)
+	if (nscan != 1 && nscan < 7)
 	{
-		msg_ELog (EF_PROBLEM, "bad syntax in time units" ENDL);
-		return (FALSE);
+	    msg_ELog (EF_PROBLEM, "bad syntax in time units" ENDL);
+	    return (FALSE);
 	}
 	/*
 	 * Can only accept seconds for now

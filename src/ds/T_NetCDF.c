@@ -67,6 +67,7 @@ ZebTime *begin;
 		"  ",
 		"seconds since 1994-09-15 06:15:00 zone",
 		"seconds since 1994-09-15 06:15:00",
+		"seconds since 1994-09-15 06:15",
 		NULL
 	};
 	char **u;
@@ -80,7 +81,6 @@ ZebTime *begin;
 	TX_ExpectMany (EF_ALL, TRUE, 2, "time units must be.*seconds");
 	TX_Catch ("bad syntax in time units");
 	TX_Catch ("could not understand time zone");
-	TX_Catch ("bad syntax in time units");
 	while (*u)
 	{
 		result = dnc_TimeUnits (&zt, *u);
