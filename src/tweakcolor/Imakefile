@@ -4,6 +4,7 @@ OBJS = tweakcolor.o
 
 LIBS = $(XLIBS)
 DISTFILES = $(SRCS) Imakefile
+SYSLIBS = $(LIBMATH)
 
 CompleteProgramTarget(tweakcolor, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 DistfilesTarget($(DISTFILES))

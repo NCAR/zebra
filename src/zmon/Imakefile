@@ -3,6 +3,7 @@ SRCS = zmon.c
 OBJS = zmon.o
 
 LIBS = $(LIBZEB) $(LIBRDSS) $(XLIBS)
+SYSLIBS = $(LIBMATH)
 
 DISTFILES = Imakefile $(SRCS)
 
