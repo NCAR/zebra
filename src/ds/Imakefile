@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.72 2001-01-18 17:11:26 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.73 2001-01-18 17:55:30 granger Exp $"
 
 DEPLIBS=$(ZLIBS)
 LIBMPROF=/dt/granger/libc_mp.a
@@ -158,9 +158,6 @@ SpecialCplusplusObjectRule(DFA_SweepFile.o,DFA_SweepFile.cc,$(SWFDEFINES) $(SWFI
 
 InstallLibrary (ZebraDS, $(LIBDIR))
 InstallNonExecFile ($(DERIVDEF), $(LIBDIR))
-
-install::
-	(cd $(LIBDIR); $(RM) libZebDS.a; $(LN) libZebraDS.a libZebDS.a)
 
 BuildIncludesTop($(HEADERS))
 InstallMultipleFlags($(HEADERS),$(INCDIR),$(INSTINCFLAGS))
