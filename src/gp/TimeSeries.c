@@ -282,7 +282,7 @@ int	nplat, nfld;
 		SYMT_FLOAT))
 		sascale = 0.02;
 /*
- * Do annotation.
+ *  Top Annotation
  */
 	An_TopAnnot ("Time series plot of ", taclr.pixel);
 	for (i = 0; i < nfld; i++)
@@ -295,26 +295,26 @@ int	nplat, nfld;
 	left += 25;
 	for (i = 0; i < nplat; i++)
 	{
-	/*
-	 *  Top Annotation
-	 */
 		An_TopAnnot (platforms[i], taclr.pixel);
 		if (i < (nplat - 1)) An_TopAnnot (", ", taclr.pixel);
-	/*
-	 *  Side Annotation
-	 */
-		for (j = 0; j < nfld; j++)
+	}
+	An_TopAnnot (".", taclr.pixel);
+/*
+ *  Side Annotation
+ */
+	for (i = 0; i < nfld; i++)
+	{
+		for (j = 0; j < nplat; j++)
 		{
 			XSetForeground (XtDisplay (Graphics), Gcontext, 
-				Colors[i * nfld + j].pixel);
-			sprintf (string, "%s-%s", platforms[i], fields[j]);
+				Colors[i * nplat + j].pixel);
+			sprintf (string, "%s-%s", fields[i], platforms[j]);
 			DrawText (Graphics, GWFrame (Graphics), Gcontext, 
 				left, top, string, 0.0, sascale, JustifyLeft, 
 				JustifyTop);
 			top += sascale * GWHeight (Graphics);
 		}
 	}
-	An_TopAnnot (".", taclr.pixel);
 }
 
 
@@ -547,7 +547,7 @@ int	nplat, nfld;
 		for (i = 0; i < nfld; i++)
 		{
 			XSetForeground (disp, Gcontext, 
-				Colors[plat * nfld + i].pixel);
+				Colors[i * nplat + plat].pixel);
 			if (update)
 			{
 				fx = CONVERT (Save_x[plat * nfld + i],
