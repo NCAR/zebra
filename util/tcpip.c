@@ -87,7 +87,7 @@ char *service;
 /*
  * Accept a connection on the socket.
  */
-	if ((realskt = accept (skt, (char *) 0, (int *) 0)) < 0)
+	if ((realskt = accept (skt, NULL, (int *) 0)) < 0)
 	{
 		gmt_perr (": accept");
 		return (-1);
@@ -179,7 +179,7 @@ char *hostname, *service;
 /*
  * install the keepalive timer, SIGPIPE int is set to ignore
  */
-	if (setsockopt(skt, SOL_SOCKET, SO_KEEPALIVE, &opv, opl) < 0)
+	if (setsockopt(skt, SOL_SOCKET, SO_KEEPALIVE, (char *)&opv, opl) < 0)
 	{
 		gmt_perr (": setsockopt");
 		signal (SIGALRM, oldsig);
