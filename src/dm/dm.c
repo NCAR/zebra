@@ -1,9 +1,9 @@
-/* $Id: dm.c,v 1.3 1990-04-26 16:23:32 corbet Exp $ */
 /*
  * The MOCCA display manager.
  */
 # include <stdio.h>
 # include <varargs.h>
+# include <X11/Xlib.h>
 
 # include <ui.h>
 # include <ui_error.h>
@@ -11,16 +11,19 @@
 # include "dm_cmds.h"
 # include "../include/timer.h"
 
+static char *rcsid = "$Id: dm.c,v 1.4 1990-06-04 14:08:27 corbet Exp $";
 
 /*
  * Definitions of globals.
  */
 stbl Configs;
 stbl Windows;
-static stbl Current;
-static char Cur_config[MAXNAME];
+stbl Current;
+char Cur_config[MAXNAME];
 stbl Bmaps;
-char **Default_map;	/* The default button map	*/
+ButtonMap *Default_map;	/* The default button map	*/
+Display *Dm_Display;
+
 
 
 
@@ -33,6 +36,10 @@ char **argv;
 	int is_active (), type[4], pd_param (), pd_defined (), tw_cb ();
 	union usy_value v;
 	char loadfile[100];
+/*
+ * Hook into the message handler.
+ */
+	msg_connect (dm_msg_handler, "Displaymgr");
 /*
  * Get the interface set up.
  */
@@ -47,14 +54,11 @@ char **argv;
 	Current = usy_c_stbl ("junk");
 	Bmaps = usy_c_stbl ("ButtonMaps");
 	strcpy (Cur_config, "nothing");
+	dc_Init ();
 /*
- * Create the default button map.
+ * Create the default default button map.
  */
-	Default_map = (char **) getvm (N_BUTTON * sizeof (char *));
-	for (i = 0; i < N_BUTTON; i++)
-		Default_map[i] = usy_pstring ("beep");
-	v.us_v_ptr = (char *) Default_map;
-	usy_s_symbol (Bmaps, "default", SYMT_POINTER, &v);
+	MakeDefaultMap ();
 /*
  * Command line functions.
  */
@@ -68,11 +72,15 @@ char **argv;
  */
 	usy_c_indirect (usy_g_stbl ("ui$variable_table"), "dm$config",
 		Cur_config, SYMT_STRING, MAXNAME);
-/*
- * Hook into the message handler.
- */
-	msg_connect (dm_msg_handler, "Displaymgr");
 	tty_watch (msg_get_fd (), msg_incoming);
+/*
+ * Open the display.
+ */
+	if (! (Dm_Display = XOpenDisplay (NULL)))
+	{
+		ui_printf ("Unable to open the display!\n");
+		dm_shutdown ();
+	}
 /*
  * Interpret commands.
  */
@@ -151,6 +159,10 @@ struct ui_command *cmds;
 	   	realtime (cmds + 1);
 		break;
 
+	   case DMC_COLORTABLE:
+	   	dc_Define (UPTR (cmds[1]));
+		break;
+
 	   default:
 	   	ui_error ("(BUG): Unknown keyword: %d\n", UKEY (*cmds));
 	}
@@ -162,21 +174,33 @@ struct ui_command *cmds;
 
 dm_msg_handler (msg)
 struct message *msg;
+/*
+ * Deal with incoming messages.
+ */
 {
 	switch (msg->m_proto)
 	{
+	/*
+	 * Display manager stuff.
+	 */
 	   case MT_DISPLAYMGR:
 	   	dm_message (msg->m_from, (struct dm_msg *) msg->m_data);
 		return;
-
+	/*
+	 * Stuff from the message handler itself.
+	 */
 	   case MT_MESSAGE:
 	   	mh_message (msg);
 		break;
-
+	/*
+	 * We use timer events at times.
+	 */
 	   case MT_TIMER:
 	   	tl_DispatchEvent ((struct tm_time *) msg->m_data);
 		break;
-
+	/*
+	 * Everything else we don't know about.
+	 */
 	   default:
 	   	log_printf ("Funky message type %d in DM", msg->m_proto);
 	};
@@ -331,15 +355,6 @@ struct cf_window *win;
 	v.us_v_ptr = (char *) win;
 	usy_s_symbol (Windows, win->cfw_name, SYMT_POINTER, &v);
 /*
- * Dig out the plot description for this window.
- */
-	if (! (win->cfw_pd = pda_GetPD (win->cfw_desc)))
-	{
-		log_printf ("Window %s wants bad PD %s", win->cfw_name,
-			win->cfw_desc);
-		return;
-	}
-/*
  * Now actually fire off the process.
  */
 	if (fork () == 0)
@@ -371,16 +386,28 @@ struct cf_window *win;
 	msg.dmm_y = win->cfw_y;
 	msg.dmm_dx = win->cfw_dx;
 	msg.dmm_dy = win->cfw_dy;
-	/* strcpy (msg.dmm_pdesc, win->cfw_desc); */
 /*
  * Ship it out.
  */
 	msg_send (win->cfw_name, MT_DISPLAYMGR, FALSE, (char *) &msg,
 		sizeof (struct dm_msg));
 /*
+ * Dig out the plot description for this window.
+ */
+	if (! win->cfw_pd && ! (win->cfw_pd = pda_GetPD (win->cfw_desc)))
+	{
+		log_printf ("Window %s wants bad PD %s", win->cfw_name,
+			win->cfw_desc);
+		return;
+	}
+/*
  * Then ship over the PD too.
  */
 	send_pd (win);
+/*
+ * And the button maps.
+ */
+	SendButtonMap (win);
 }
 
 
@@ -421,7 +448,6 @@ struct dm_msg *dmsg;
  */
 {
 	struct dm_hello *dmh;
-	struct dm_button *dmb;
 	struct cf_window *win;
 
 	switch (dmsg->dmm_type)
@@ -440,13 +466,24 @@ struct dm_msg *dmsg;
 		log_printf ("Hello received from '%s'", from);
 		win->cfw_win = dmh->dmm_win;
 		config_win (win);
+		send_default (win);
 		break;
 	/*
-	 * A button click.
+	 * A button report
 	 */
-	   case DM_BUTTON:
-	   	dmb = (struct dm_button *) dmsg;
-		exec_button (from, dmb);
+	   case DM_EVENT:
+		exec_button (from, (struct dm_event *) dmsg);
+		break;
+	/*
+	 * A color table request.
+	 */
+	   case DM_R_CTABLE:
+		if (! (win = lookup_win (from, FALSE)))
+		{
+			log_printf ("Funky CTR from '%s'", from);
+			return;
+		}
+		dc_TableRequest ((struct dm_ctr *) dmsg, win->cfw_name);
 		break;
 
 	   default:
@@ -512,10 +549,9 @@ char *window, *pdesc;
 
 
 
-
-exec_button (from, dmb)
+exec_button (from, dme)
 char *from;
-struct dm_button *dmb;
+struct dm_event *dme;
 /*
  * Execute a button event.
  */
@@ -536,9 +572,8 @@ struct dm_button *dmb;
 	v.us_v_ptr = from;
 	usy_s_symbol (usy_g_stbl ("ui$variable_table"), "dm$button_window",
 		SYMT_STRING, &v);
-	ui_perform (win->cfw_bmap[dmb->dmm_button]);
+	ui_perform (dme->dmm_data);
 }
-
 
 
 
@@ -606,6 +641,46 @@ struct cf_window *win;
 
 	free (dmp);
 }
+
+
+
+
+send_default (win)
+struct cf_window *win;
+/*
+ * Send this window it's defaults table.
+ */
+{
+	struct dm_pdchange *dmp;
+	plot_description def = pda_GetPD ("defaults");
+	raw_plot_description *rpd;
+	int len;
+/*
+ * If there is no defaults table, forget it.
+ */
+	if (! def)
+		return;
+/*
+ * Convert it to external form.
+ */
+	rpd = pd_Unload (def);
+	len = sizeof (struct dm_pdchange) + rpd->rp_len;
+/*
+ * Allocate a sufficiently big pdchange structure.
+ */
+	dmp = (struct dm_pdchange *) malloc (len);
+/*
+ * Move over the stuff.
+ */
+	dmp->dmm_type = DM_DEFAULTS;
+	dmp->dmm_pdlen = rpd->rp_len;
+	memcpy (dmp->dmm_pdesc, rpd->rp_data, rpd->rp_len);
+	msg_log ("Sending defaults to %s", win->cfw_name);
+	msg_send (win->cfw_name, MT_DISPLAYMGR, FALSE, dmp, len);
+
+	free (dmp);
+}
+
 
 
 
@@ -848,4 +923,82 @@ time *t;
  * Now broadcast the result.
  */
 	msg_send ("Graphproc", MT_DISPLAYMGR, TRUE, &dmh, sizeof (dmh));
+}
+
+
+
+
+MakeDefaultMap ()
+/*
+ * Create the default default button map, just in case they don't redefine
+ * themselves.
+ */
+{
+	ButtonMap *map;
+	union usy_value v;
+/*
+ * Create the structures.
+ */
+	map = Default_map = ALLOC (ButtonMap);
+	v.us_v_ptr = (char *) Default_map;
+	usy_s_symbol (Bmaps, "default", SYMT_POINTER, &v);
+/*
+ * Fill in the three mouse buttons to send back beeps.
+ */
+	strcpy (map->db_name, "default");
+	map->db_nentry = 3;
+	strcpy (map->db_bindings[0].dmm_code, "mb-left");
+	strcpy (map->db_bindings[1].dmm_code, "mb-middle");
+	strcpy (map->db_bindings[2].dmm_code, "mb-right");
+	map->db_bindings[0].dmm_action = AC_Report;
+	map->db_bindings[1].dmm_action = AC_Report;
+	map->db_bindings[2].dmm_action = AC_Report;
+	strcpy (map->db_bindings[0].dmm_adata, "beep");
+	strcpy (map->db_bindings[1].dmm_adata, "beep");
+	strcpy (map->db_bindings[2].dmm_adata, "beep");
+}
+
+
+
+
+
+
+SendButtonMap (win)
+struct cf_window *win;
+/*
+ * Send the button map to this window.
+ */
+{
+	static struct dm_ebchange *ebc = 0;
+	ButtonMap *map = win->cfw_bmap;
+/*
+ * Make sure everything's cool.
+ */
+	if (! map)
+	{
+		msg_log ("Window %s has no button map", win->cfw_name);
+		return;
+	}
+/*
+ * If we haven't allocated our binding change structure yet, do it now.  We
+ * just get the biggest we could need and keep it, since this could be 
+ * happening fairly often.
+ */
+	if (! ebc)
+		ebc = (struct dm_ebchange *)
+			malloc (sizeof (struct dm_ebchange) +
+				MAXBINDING*sizeof (struct dm_evbind));
+/*
+ * Copy over the information into one place.
+ */
+	ebc->dmm_type = DM_EVBIND;
+	ebc->dmm_nbind = map->db_nentry;
+	memcpy (ebc->dmm_bindings, map->db_bindings, 
+		map->db_nentry * sizeof (struct dm_evbind));
+/*
+ * Ship it out.
+ */
+	msg_send (win->cfw_name, MT_DISPLAYMGR, FALSE, ebc,
+		sizeof (struct dm_ebchange) +
+		(map->db_nentry - 1)*(sizeof (struct dm_evbind)));
 }
