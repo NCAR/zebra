@@ -19,10 +19,15 @@ cbd2zebra.c
 	Program to convert CBD format CIA World Bank II map files into
 	Zebra-usable form.
 
+cbd_world.gif
+	GIF image showing coverage of the CIA/CBD dataset.  This is what
+	to look at to find that, e.g., Antarctica and Mexico are included in 
+	the South America part of the dataset.
+
 DEM_records.txt
 	Brief description of the structure of DEM files.
 
-DEMextract.c
+dem2zebra.c
 	Program to extract a selected rectangular area from USGS 1:250,000 
 	(3 arc second) DEM files into a gridded netCDF file (usable in Zebra).
 
@@ -38,20 +43,28 @@ drawmap.c
 	Simple map digitizing program which uses the digitizing tablet in the 
 	Users' Room.
 
-extractmap.c
-	Program to extract a given region from the NCAR Graphics map database
-	and convert it to Zebra-usable form.  Except perhaps for making maps
-	of large multi-state regions, this should be superceded by dlg2zebra.
-
 fips123
 	Subdirectory for the FIPS PUB 123 Function Library, used for unpacking
 	SDTS files.
 
-landmark.c
-	Program to add landmarks to a Zebra map file.
+map_decimate.c
+	Program which applies a filter of user-specified length in km to
+	a map to generate a smaller map with coarser resolution.
+
+ncar2zebra.c
+	Program to extract a given region from the NCAR Graphics map database
+	and convert it to Zebra-usable form.  Except perhaps for making maps
+	of large multi-state regions, this should be superceded by dlg2zebra.
+
+rect_filter.c
+	Program to extract a specified lat/lon rectangle from the input map
+	file.
 
 sdtsdump.c
 	Simple SDTS file dumping program.
+
+tablet.c
+	Tablet stuff used by drawmap.
 
 
 
