@@ -1063,6 +1063,7 @@ C
 
 # include "rgrid.h"
 
+       INTEGER STATUS
 C
        STATUS=RG_OK
 C
