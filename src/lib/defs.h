@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 2.10 1992-04-08 16:56:00 corbet Exp $ */
+/* $Id: defs.h,v 2.11 1992-07-31 16:52:23 corbet Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -114,6 +114,8 @@ void	TC_ZtAssemble FP ((ZebTime *, int, int, int, int, int, int, int));
 		((t1).zt_MicroSec <= (t2).zt_MicroSec) :	\
 		((t1).zt_Sec <= (t2).zt_Sec))
 
+# define TC_Eq(t1,t2) (((t1).zt_Sec == (t2).zt_Sec) && \
+			((t1).zt_MicroSec == (t2).zt_MicroSec))
 
 /*
  * Macros
