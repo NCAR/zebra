@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: GraphProc.c,v 1.27 1991-03-05 23:16:41 kris Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 1.28 1991-03-18 18:27:11 kris Exp $";
 
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
@@ -110,7 +110,7 @@ GPShutDown ()
  */
 {
 	int i;
-	char filename[50];
+	char filename[100];
 	
 	ui_finish ();
 # ifdef SHM
@@ -119,7 +119,8 @@ GPShutDown ()
 		for(i = 0; i < FrameCount; i++)
 			GWZapShmPixmap(Graphics, i);
 # endif
-	sprintf(filename, "%s/%sFrameFile", FrameFilePath, Ourname);
+	sprintf(filename, "%s/%s%dFrameFile", FrameFilePath, Ourname, getpid());
+	msg_ELog(EF_DEBUG, "Getting rid of %s.", filename);
 	unlink(filename);
 	exit (0);
 }
