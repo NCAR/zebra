@@ -27,7 +27,7 @@
 #include "dslib.h"
 
 #ifndef lint
-MAKE_RCSID ("$Id: Appl.c,v 3.21 1993-09-02 07:58:02 granger Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.22 1993-09-30 22:07:33 granger Exp $")
 #endif
 
 /*
@@ -2152,3 +2152,24 @@ int dfi;
 	ds_SendToDaemon (&ma, sizeof (ma));
 }
 	
+
+
+void
+ds_ForceClosure()
+/*
+ * Release whatever memory we have been holding onto, from open files,
+ * to DataChunk free chains, to GetList free chains, to cached structures.
+ */
+{
+	dfa_ForceClosure();
+	dc_ForceClosure();
+	dgl_ForceClosure();
+	for (i = 0; i < MAXPLAT; ++i)
+	{
+		if (PlatStructs[i])
+		{
+			free (PlatStructs[i]);
+			PlatStructs[i] = NULL;
+		}
+	}
+}
