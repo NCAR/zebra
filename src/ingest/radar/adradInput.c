@@ -30,7 +30,7 @@
 # include "HouseKeeping.h"
 # include "radar_ingest.h"
 
-RCSID("$Id: adradInput.c,v 2.5 1997-02-03 16:41:06 granger Exp $")
+RCSID("$Id: adradInput.c,v 2.6 1997-04-28 03:39:23 granger Exp $")
 
 /*
  * Adrad includes for xdr, etc.
@@ -133,7 +133,8 @@ GetBeam ()
  */
 {
 struct ray_header               tmpray;
-int numfields=0,status,size,i;
+int numfields=0,status,i;
+unsigned int size;
 unsigned int freqint;
 float londeg,latdeg,tmp;
 float vtemp1,vtemp2;
@@ -232,7 +233,7 @@ float C=299792500.0; /* ye olde speed limit m/s */
 	if (! raydata)
 		raydata = (unsigned char *) malloc (BUFLEN * sizeof (char));
 
-        status=xdr_bytes(&xdrstrm,&raydata,&size,BUFLEN);
+        status=xdr_bytes(&xdrstrm,(char **)&raydata,&size,BUFLEN);
 	if(!(status&&(size==numfields*tmpray.numgates)))
        	 {
 		msg_ELog (EF_EMERGENCY, "xdr_bytes failure");
@@ -411,7 +412,7 @@ struct ray_header	*rayptr;
 	ret&=xdr_u_char( xdrptr, &rayptr->p_width);
 	ret&=xdr_u_char( xdrptr, &rayptr->cfilter);
 	ret&=xdr_u_short( xdrptr, &rayptr->status);
-	ret&=xdr_u_short( xdrptr, &rayptr->flags);	/* a bit field */
+	ret&=xdr_u_short( xdrptr, (u_short *)&rayptr->flags); /* bit field */
 
 	for(i=0;i<NUMOFFSETS;i++)
 		ret&=xdr_u_short( xdrptr, &rayptr->offset[i]);
@@ -535,14 +536,14 @@ int accessvolhead( xdrptr, volptr, version )
 	ret&=xdr_u_char(xdrptr, &volptr->ehour);
 	ret&=xdr_u_char(xdrptr, &volptr->eminute);
 	ret&=xdr_u_char(xdrptr, &volptr->esecond);
-	ret&=xdr_u_short(xdrptr, &volptr->volflags);
+	ret&=xdr_u_short(xdrptr, (u_short *)&volptr->volflags);
 	
 	/* now get the radar info structure				*/
 	tmp=volptr->radinfo.radar_name;
 	ret&=xdr_string(xdrptr, &tmp, 8);
 	tmp=volptr->radinfo.site_name;
 	ret&=xdr_string(xdrptr, &tmp, 8);
-	ret&=xdr_short(xdrptr, &volptr->radinfo.antenna_height);
+	ret&=xdr_u_short(xdrptr, &volptr->radinfo.antenna_height);
 	ret&=xdr_short(xdrptr, &volptr->radinfo.latitude.degree);
 	ret&=xdr_short(xdrptr, &volptr->radinfo.latitude.minute);
 	ret&=xdr_short(xdrptr, &volptr->radinfo.latitude.second);
