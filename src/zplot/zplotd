@@ -157,6 +157,10 @@ if ($first && ! $since && ! $notice && ! $fixtime)
     exit 0;
 }
 
+# Otherwise the queue is filled from datastore inquiries on our targets
+@Queue = ();
+%Pending = ();
+
 $dt = `date -u '+%y%m%d.%H%M'`;
 chop $dt;
 system("mkdir $project/logs > /dev/null 2>&1");
@@ -200,8 +204,9 @@ if ($since)
     $until = "$since.update";
     # If we're only plotting since a given time, get our platform list from 
     # the dfsince script.
-    print "Opening dfsince $since ...\n";
-    open (DS, "dfsince $since 2> /dev/null |") || 
+    $targets = join('|',@Targets);
+    print "Opening dfsince $since and matching \'$targets\'...\n";
+    open (DS, "dfsince $since 2> /dev/null | egrep -e \'$targets\' | ") || 
 	die "dfsince: $!";
     $timeout = 0;
 }
