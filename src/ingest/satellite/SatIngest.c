@@ -32,7 +32,7 @@
 # include <DataStore.h>
 # include <DataChunk.h>
 
-MAKE_RCSID("$Id: SatIngest.c,v 1.8 1994-02-16 02:52:03 granger Exp $")
+MAKE_RCSID("$Id: SatIngest.c,v 1.9 1994-04-01 08:32:10 granger Exp $")
 
 # include "keywords.h"
 
@@ -57,6 +57,7 @@ int	GridX = 0, GridY = 0;
 float	KmResolution = 0.0;
 float	Minlon, Maxlon, Minlat, Maxlat;
 float	Latstep, Lonstep;
+
 bool 	HaveLimits = FALSE;
 bool	CheckTimes = TRUE;
 
@@ -285,21 +286,19 @@ struct ui_command	*cmds;
 		return;
 	}
 /*
- * Add the file to the list
- */
-	Infile[Nfiles].name = (char *) malloc (strlen (fname) + 1);
-	strcpy (Infile[Nfiles].name, fname);
-
-	Infile[Nfiles].field = (char *) malloc (strlen (fld) + 1);
-	strcpy (Infile[Nfiles].field, fld);
-/*
- * Open it
+ * Make sure the file can be opened first, then add it
  */
 	if ((Infile[Nfiles].stream = fopen (fname, "r")) != NULL)
+	{
+		Infile[Nfiles].name = (char *) malloc (strlen (fname) + 1);
+		strcpy (Infile[Nfiles].name, fname);
+		Infile[Nfiles].field = (char *) malloc (strlen (fld) + 1);
+		strcpy (Infile[Nfiles].field, fld);
 		Nfiles++;
+	}
 	else
 		msg_ELog (EF_PROBLEM, "Error %d opening file '%s'", errno, 
-			fname);
+			  fname);
 }
 
 
@@ -310,8 +309,9 @@ Ingest ()
  * Begin the ingest process
  */
 {
-	int	f, i, nfields = 0, ngood = 0;
-	void	*grid;
+	int		f, i;
+	int		nfields, ngood;
+	void		*grid;
 	Location	loc;
 	RGrid		rg;
 	FieldId		fid[MAXFILES];
@@ -373,7 +373,6 @@ Ingest ()
 		Minlat, Maxlat, Latstep);
 	msg_ELog (EF_INFO, "Lon. limits: %.2f to %.2f every %.2f",
 		Minlon, Maxlon, Lonstep);
-
 /*
  * Build the location and rgrid information
  */
@@ -424,12 +423,14 @@ Ingest ()
 /*
  * Create and initialize a data chunk
  */
+	dc = NULL;
 	dc = dc_CreateDC (DCC_Image);
 	dc->dc_Platform = Plat;
 	dc_ImgSetup (dc, nfields, fid, scale);
 /*
  * Build and insert the grids
  */
+	ngood = 0;
 	for (f = 0; f < Nfiles; f++)
 	{
 	/*
@@ -441,6 +442,10 @@ Ingest ()
 		TC_EncodeTime (&t, TC_Full, buf);
 		msg_ELog (EF_INFO, "Reading %s, field %s, %s", 
 			  Infile[f].name, Infile[f].field, buf);
+	/*
+	 * We spend most of the time in DoFile(), so we'll poll
+	 * for messages there instead of here
+	 */
 		if ((grid = DoFile (f)) == NULL)
 			continue;
 	/*
@@ -719,13 +724,15 @@ int	fentry;
 	grid = (unsigned char *) malloc (GridX * GridY * sizeof (char));
 /*
  * Fill in the grid (This is the meat of the program, the rest is more or
- * less incidental.)
+ * less incidental.)  (So this is where we'll occasionally check for 
+ * messages and get them out of the way.)
  */
   	for (j = 0; j < GridY; j++)
   	{
   		if (! ((j+1) % 20))
  			msg_ELog (EF_DEBUG, "%s: line %d of %d, lat %.2f", 
  				Infile[fentry].name, j + 1, GridY, lat);
+		while (j % 25 == 0 && msg_poll() != MSG_TIMEOUT);
   
 		lat = Maxlat - j * Latstep;
 
