@@ -2,7 +2,7 @@
  * Imakefile for the DataStore, including its real-time utilities
  */
 
-MFVERSION="$Id: Imakefile,v 1.8 1993-05-04 21:48:05 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.9 1993-05-10 16:34:07 barrett Exp $"
 
 LIBS=$(LIBZEB) $(LIBNETCDF) $(LIBRDSS)
 LIBGCC=/usr/local/lib/gcc-lib/sparc-sun-sunos4.1.2/2.2/libgcc.a
@@ -49,7 +49,7 @@ NXOBJS = NetXfr.o nx_BCast.o nx_PktGrabber.o nx_DirImage.o
 /*
  * For debugging
  */
-TESTSRCS = dstest.c dctest.c nstest.c
+TESTSRCS = dstest.c dctest.c nstest.c nxtest.c
 
 APPDEFAULTS = Archiver.ad LastData.ad dsdwidget.ad
 
@@ -114,6 +114,8 @@ TestProgramTarget(nstest,nstest.o $(DSLIBOBJS) $(DCOBJS),$(DEPLIBS),
 TestProgramTarget(dstest,dstest.o $(DSLIBOBJS) $(DCOBJS),
 		  $(DEPLIBS),$(LIBS),$(SYSLIBS))
 
+TestProgramTarget(nxtest,nxtest.o $(DSLIBOBJS) $(DCOBJS),
+		  $(DEPLIBS),$(LIBS),$(SYSLIBS))
 
 # if RT_DS_TOOLS
 /*
