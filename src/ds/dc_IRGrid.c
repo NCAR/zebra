@@ -25,7 +25,7 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_IRGrid.c,v 1.3 1991-12-27 21:22:22 corbet Exp $")
+MAKE_RCSID ("$Id: dc_IRGrid.c,v 1.4 1992-01-22 23:22:58 corbet Exp $")
 
 # define SUPERCLASS DCC_MetData
 
@@ -164,7 +164,7 @@ int *nplat;
 void
 dc_IRAddGrid (dc, t, sample, field, data)
 DataChunk *dc;
-time *t;
+ZebTime *t;
 int sample;
 FieldId field;
 float *data;
@@ -199,7 +199,7 @@ float *data;
 void
 dc_IRAddMultGrid (dc, t, begin, nsample, field, data)
 DataChunk *dc;
-time *t;
+ZebTime *t;
 int begin, nsample;
 FieldId field;
 float *data;

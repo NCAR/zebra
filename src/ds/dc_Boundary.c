@@ -23,7 +23,7 @@
 # include "DataStore.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_Boundary.c,v 1.3 1991-12-27 21:21:49 corbet Exp $")
+MAKE_RCSID ("$Id: dc_Boundary.c,v 1.4 1992-01-22 23:22:58 corbet Exp $")
 
 
 /*
@@ -92,7 +92,7 @@ DataClass class;
 void
 dc_BndAdd (dc, t, plat, pts, npt)
 DataChunk *dc;
-time *t;
+ZebTime *t;
 PlatformId plat;
 Location *pts;
 int npt;

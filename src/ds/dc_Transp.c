@@ -23,7 +23,7 @@
 # include "DataStore.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_Transp.c,v 1.3 1991-12-27 21:20:50 corbet Exp $")
+MAKE_RCSID ("$Id: dc_Transp.c,v 1.4 1992-01-22 23:22:58 corbet Exp $")
 
 /*
  * TODO:
@@ -64,7 +64,7 @@ RawDCClass TranspMethods =
  */
 typedef struct _TransSample
 {
-	time	ats_Time;	/* Time of this sample		*/
+	ZebTime	ats_Time;	/* Time of this sample		*/
 	int	ats_Offset;	/* Offset into data array	*/
 	int	ats_Len;	/* Length of this sample	*/
 } TransSample;
@@ -236,7 +236,7 @@ Location *loc;
 void
 dc_AddSample (dc, t, data, len)
 DataChunk *dc;
-time *t;
+ZebTime *t;
 DataPtr data;
 int len;
 /*
@@ -283,7 +283,7 @@ int len;
 	tp->at_Samples[ns].ats_Time = *t;
 	tp->at_Samples[ns].ats_Offset = offset;
 	tp->at_Samples[ns].ats_Len = len;
-	if (data)
+	if (data && len > 0)
 		memcpy ((char *) dc->dc_Data + offset, data, len);
 }
 
@@ -394,7 +394,11 @@ int len;
 {
 	int offset = dc->dc_DataLen;
 
-	Dc_RawAdd (dc, len);
+/*
+ * Check to see that they really want more stuff, then add it if so.
+ */
+	if (len > 0)
+		Dc_RawAdd (dc, len);
 	return (offset);
 }
 
@@ -407,7 +411,7 @@ bool
 dc_GetTime (dc, sample, t)
 DataChunk *dc;
 int sample;
-time *t;
+ZebTime *t;
 /*
  * Return the time of the given sample.
  */
@@ -492,6 +496,7 @@ DataChunk *dc;
 {
 	AuxTrans *tp;
 	int i;
+	char atime[40];
 /*
  * The obbligatory class check.
  */
@@ -514,9 +519,9 @@ DataChunk *dc;
 	for (i = 0; i < tp->at_NSample; i++)
 	{
 		TransSample *ts = tp->at_Samples + i;
-		printf ("\t%2d at %06d %06d, len %d offset %d\n", i,
-			ts->ats_Time.ds_yymmdd, ts->ats_Time.ds_hhmmss,
-			ts->ats_Len, ts->ats_Offset);
+		TC_EncodeTime (&ts->ats_Time, TC_Full, atime);
+		printf ("\t%2d at %s, len %d offset %d\n", i,
+			atime, ts->ats_Len, ts->ats_Offset);
 	}
 }
 

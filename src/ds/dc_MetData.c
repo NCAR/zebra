@@ -27,7 +27,7 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_MetData.c,v 1.3 1991-12-27 21:23:14 corbet Exp $")
+MAKE_RCSID ("$Id: dc_MetData.c,v 1.4 1992-01-22 23:22:58 corbet Exp $")
 
 # define SUPERCLASS DCC_Transparent
 
@@ -70,12 +70,12 @@ typedef struct _FieldTOC
  */
 static DataChunk *dc_MDCreate FP((DataClass));
 static int	dc_GetIndex FP((FldInfo *, FieldId));
-static int	dc_ArrangeSpace FP((DataChunk *, time *, int, int, int,
+static int	dc_ArrangeSpace FP((DataChunk *, ZebTime *, int, int, int,
 			FldInfo *));
 static void	dc_CopyData FP((DataChunk *, FldInfo *, int, int, int,
 			DataPtr));
 static void	dc_DumpMD FP((DataChunk *));
-static void	dc_AddNonUniform FP((DataChunk *, FldInfo *, int, time *,
+static void	dc_AddNonUniform FP((DataChunk *, FldInfo *, int, ZebTime *,
 			int, int, int, DataPtr));
 
 RawDCClass MetDataMethods =
@@ -321,7 +321,7 @@ int *nf;
 void
 dc_AddMData (dc, t, field, size, start, nsamp, data)
 DataChunk *dc;
-time *t;
+ZebTime *t;
 FieldId field;
 int start, size, nsamp;
 DataPtr data;
@@ -392,7 +392,7 @@ dc_AddNonUniform (dc, finfo, findex, t, size, start, nsamp, data)
 DataChunk *dc;
 FldInfo *finfo;
 int findex, size, start, nsamp;
-time *t;
+ZebTime *t;
 DataPtr data;
 /*
  * Add this field to a DC with non-uniform data.
@@ -471,7 +471,7 @@ FieldId field;
 static int
 dc_ArrangeSpace (dc, t, size, start, nsamp, finfo)
 DataChunk *dc;
-time *t;
+ZebTime *t;
 int size, start, nsamp;
 FldInfo *finfo;
 /*

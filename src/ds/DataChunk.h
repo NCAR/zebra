@@ -1,4 +1,5 @@
-/* $Id: DataChunk.h,v 1.3 1991-12-16 17:44:12 corbet Exp $ */
+/* $Id: DataChunk.h,v 1.4 1992-01-22 23:22:58 corbet Exp $ */
+
 /*
  * DataChunks -- the new "data object" format.
  *
@@ -7,6 +8,7 @@
  *	- Type codes
  *	- External access functions
  */
+
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -45,8 +47,9 @@ typedef enum _DataClass
 	DCC_IRGrid	= 6,
 	DCC_RGrid	= 7,
 	DCC_Image	= 8,
+	DCC_Location	= 9,
 
-	DCC_Text 	= 9,
+	/* DCC_Text 	= 10, */
 } DataClass;
 
 /*
@@ -106,10 +109,10 @@ int		dc_ProcessAttrs FP ((DataChunk *, char *, int (*) ()));
  */
 int		dc_GetNSample FP((DataChunk *));
 DataPtr		dc_GetSample FP((DataChunk *, int, int *));
-void		dc_AddSample FP((DataChunk *, time *, DataPtr, int));
+void		dc_AddSample FP((DataChunk *, ZebTime *, DataPtr, int));
 void		dc_SetPlat FP((DataChunk *, int, PlatformId));
 PlatformId	dc_GetPlat FP((DataChunk *, int));
-bool		dc_GetTime FP((DataChunk *, int, time *));
+bool		dc_GetTime FP((DataChunk *, int, ZebTime *));
 void		dc_AdjustSample FP((DataChunk *, int, int));
 void		dc_SetStaticLoc FP((DataChunk *, Location *));
 void		dc_SetLoc FP((DataChunk *, int, Location *));
@@ -117,7 +120,7 @@ void		dc_GetLoc FP((DataChunk *, int, Location *));
 /*
  * Boundary class methods.
  */
-void		dc_BndAdd FP((DataChunk *, time *, PlatformId, 
+void		dc_BndAdd FP((DataChunk *, ZebTime *, PlatformId, 
 			Location *, int));
 Location *	dc_BndGet FP((DataChunk *, int, int *));
 /*
@@ -129,7 +132,7 @@ void		dc_SetupFields FP((DataChunk *, int, FieldId *));
 float		dc_GetBadval FP((DataChunk *));
 void		dc_SetBadval FP((DataChunk *, double));
 int		dc_GetNField FP((DataChunk *));
-void		dc_AddMData FP((DataChunk *, time *, FieldId, int, int,
+void		dc_AddMData FP((DataChunk *, ZebTime *, FieldId, int, int,
 			int, DataPtr));
 DataPtr		dc_GetMData FP((DataChunk *, int, FieldId,   int *));
 FieldId		*dc_GetFields FP((DataChunk *, int *));
@@ -137,8 +140,8 @@ FieldId		*dc_GetFields FP((DataChunk *, int *));
  * Scalar class.
  */
 void		dc_SetScalarFields FP((DataChunk *, int, FieldId *));
-void		dc_AddScalar FP((DataChunk *, time *, int, FieldId, float *));
-void		dc_AddMultScalar FP((DataChunk *, time *, int, int,
+void		dc_AddScalar FP((DataChunk *, ZebTime *, int, FieldId, float *));
+void		dc_AddMultScalar FP((DataChunk *, ZebTime *, int, int,
 			FieldId, float *));
 float		dc_GetScalar FP((DataChunk *, int, FieldId));
 /*
@@ -146,7 +149,7 @@ float		dc_GetScalar FP((DataChunk *, int, FieldId));
  */
 void		dc_IRSetup FP((DataChunk *, int, PlatformId *, Location *,
 			int, FieldId *));
-void		dc_IRAddGrid FP((DataChunk *, time *, int, FieldId, float *));
+void		dc_IRAddGrid FP((DataChunk *, ZebTime *, int, FieldId, float *));
 int		dc_IRGetNPlatform FP((DataChunk *));
 void		dc_IRGetPlatforms FP((DataChunk *, PlatformId *, Location *));
 float 		*dc_IRGetGrid FP((DataChunk *, int, FieldId));
@@ -155,7 +158,7 @@ float 		*dc_IRGetGrid FP((DataChunk *, int, FieldId));
  */
 void		dc_RGSetup FP((DataChunk *, int, FieldId *));
 void		dc_RGAddGrid FP((DataChunk *, int, FieldId, Location *,
-			RGrid *, time *, float *, int));
+			RGrid *, ZebTime *, float *, int));
 float *		dc_RGGetGrid FP((DataChunk *, int, FieldId, Location *,
 			RGrid *, int *));
 /*
@@ -163,6 +166,6 @@ float *		dc_RGGetGrid FP((DataChunk *, int, FieldId, Location *,
  */
 void		dc_ImgSetup FP ((DataChunk *, int, FieldId *, ScaleInfo *));
 void		dc_ImgAddImage FP ((DataChunk *, int, FieldId, Location *,
-			RGrid *, time *, unsigned char *, int));
+			RGrid *, ZebTime *, unsigned char *, int));
 unsigned char *	dc_ImgGetImage FP ((DataChunk *, int, FieldId, Location *,
 			RGrid *, int *, ScaleInfo *));

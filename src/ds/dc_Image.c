@@ -31,7 +31,7 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_Image.c,v 1.2 1991-12-27 21:22:46 corbet Exp $")
+MAKE_RCSID ("$Id: dc_Image.c,v 1.3 1992-01-22 23:22:58 corbet Exp $")
 
 # define SUPERCLASS DCC_RGrid
 
@@ -131,7 +131,7 @@ int sample, len;
 FieldId field;
 Location *origin;
 RGrid *rg;
-time *t;
+ZebTime *t;
 unsigned char *data;
 /*
  * Add this field to the DC.

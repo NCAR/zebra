@@ -25,7 +25,7 @@
 # include "DataStore.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_Location.c,v 1.1 1991-12-27 22:09:50 corbet Exp $")
+MAKE_RCSID ("$Id: dc_Location.c,v 1.2 1992-01-22 23:22:58 corbet Exp $")
 
 
 
@@ -83,7 +83,7 @@ DataClass class;
 void
 dc_LocAdd (dc, t, loc)
 DataChunk *dc;
-time *t;
+ZebTime *t;
 Location *loc;
 /*
  * Add a location to this data chunk.
@@ -102,7 +102,7 @@ int
 dc_LocGet (dc, sample, t, loc)
 DataChunk *dc;
 int sample;
-time *t;
+ZebTime *t;
 Location *loc;
 /*
  * Look up a location in this data chunk.
