@@ -4,12 +4,13 @@
 
 
 #include <ctype.h>
+#include <string.h>
 
 #include "defs.h"
 #include "zl_symbol.h"
 #include "zl_regex.h"
 
-RCSID("$Id: zl_symbol.c,v 2.2 1998-10-28 21:22:49 corbet Exp $")
+RCSID("$Id: zl_symbol.c,v 2.3 1999-06-23 14:32:20 burghart Exp $")
 
 /*
  * This is the format of a single symbol table entry.
@@ -853,7 +854,7 @@ char *symbol;
  * symbols with the form table:symbol.
  */
 {
-	char *colon, *strchr ();
+	char *colon;
 /*
  * If there is no colon in this symbol name, then just return the table
  * that was passed to us.
