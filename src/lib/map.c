@@ -6,11 +6,11 @@
 #include <string.h>
 
 #include <config.h>
-#include <defs.h>
-#include <message.h>
+#include "defs.h"
+#include "message.h"
 #include "map.h"
 
-RCSID("$Id: map.c,v 2.2 1997-02-14 07:31:59 granger Exp $")
+RCSID("$Id: map.c,v 2.3 1997-05-29 14:53:08 granger Exp $")
 
 static unsigned char XDR_MAGIC[4] = { 0x88, 0x88, 0x00, 0x00 };
 
