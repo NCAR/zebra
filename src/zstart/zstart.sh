@@ -2,7 +2,7 @@
 #
 # This is an attempt at a generalized zeb startup script.
 #
-# $Id: zstart.sh,v 1.2 1994-12-05 23:51:35 sobol Exp $
+# $Id: zstart.sh,v 1.3 1995-01-31 16:35:09 burghart Exp $
 #
 # Here we do basic location of directories, set environment variables,
 # and try to hand things off to a project-specific startup file.
@@ -18,14 +18,17 @@
 #
 	set path=($ZEB_TOPDIR/bin $path)
 
-# Make sure ZEB_TOPDIR/lib/resources gets included in the Resource Search path
+# 
+# Add ZEB_TOPDIR/lib/resources directory for X application defaults.  Using
+# XFILESEARCHPATH puts these resources very near the bottom of the search 
+# heirarchy, so they're easily overridden.
+#
+	if ( $?XFILESEARCHPATH ) then
+		setenv XFILESEARCHPATH \
+			$XFILESEARCHPATH:$ZEB_TOPDIR/lib/resources/%N
+	else
+		setenv XFILESEARCHPATH $ZEB_TOPDIR/lib/resources/%N
 
-        if ( $?XUSERFILESEARCHPATH ) then
-                setenv XUSERFILESEARCHPATH \
-			${XUSERFILESEARCHPATH}:$ZEB_TOPDIR/lib/resources/%N
-        else
-                setenv XAPPLRESDIR $ZEB_TOPDIR/lib/resources
-        endif
 #
 # Make pointers to all of our executables so that somebody can
 # override them if desired.
