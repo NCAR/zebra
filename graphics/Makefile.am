@@ -5,7 +5,7 @@ librdssgraph_a_SOURCES = \
 	clip.c color.c control.c device.c dev_null.c \
 	dev_ps.c dev_psc.c dev_x11.c image.c messages.c oplist.c \
 	overlay.c pixel.c pixel_font_0.c sfont_0.c sfont_1.c \
-	text.c tty.c util.c vpt.c \
+	text.c util.c \
 	\
 	color.h device.h graphics.h image.h oplist.h overlay.h \
 	param.h pixel.h pxl.h tty.h workstation.h
@@ -15,6 +15,8 @@ aspect_SOURCES = aspect.c
 gt_SOURCES = gt.c
 
 ov_test_SOURCES = ov_test.c
+
+vpt_SOURCES = vpt.c
 
 DEFS = -DCOLORDB=\"${rdssgraphdir}/rgb.txt\"
 
