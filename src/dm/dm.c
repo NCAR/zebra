@@ -44,7 +44,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm.c,v 2.67 1996-03-12 06:45:31 granger Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.68 1997-05-12 21:36:46 ishikawa Exp $")
 
 /*
  * Pick a help browser.
@@ -107,7 +107,7 @@ static bool Restart = TRUE;
  * What kind of computer is this, anyway?
  */
 char SystemType[12] = 
-# if defined(SYSV) || defined(SVR4)
+# if defined(SYSV) || defined(SVR4) || defined (__osf__)
 	"sysv";
 # else
 	"bsd";
