@@ -11,7 +11,7 @@ extern "C" {
 #include <message.h>
 }
 
-RCSID ("$Id: BTree.cc,v 1.2 1997-11-24 18:13:31 granger Exp $")
+RCSID ("$Id: BTree.cc,v 1.3 1997-12-09 05:42:08 granger Exp $")
 
 #include "Logger.hh"
 #include "BTree.hh"
@@ -20,25 +20,31 @@ RCSID ("$Id: BTree.cc,v 1.2 1997-11-24 18:13:31 granger Exp $")
 // XDR_ADDTYPE (tree_base);
 
 
-#ifdef notdef
 /*
- * Interface to objects which will create, store, and manage our nodes
+ * Interface to objects which will create, store, and manage nodes
  * for us.
  */
-template <class BT, 
+template <class K, class T>
 class BTreeFactory
 {
-	typedef BTreeNode *address_type;
+	typedef BTreeNode<K,T> node_type;
+	typedef node_type *address_type;
 
 	/// Retrieve an existing node
 
-	BTreeNode *
-	get (address_type &addr, int depth, BTreeBranch *parent = 0);
+	node_type *
+	get (Child &addr, int depth);
 
 	/// Create a new node
 
-	BTreeNode *
-	make (address_type &addr, int depth, BTreeBranch *parent = 0);
+	node_type *
+	make (Child &addr, int depth);
+	{
+		node_type *node = new node_type (tree, depth);
+		addr.local = node;
+		access (node);
+		return (node);
+	}
 
 	/// Delete a node.  Can also be done with delete operator.
 
@@ -314,7 +320,7 @@ BTreeNode<K,T>::BTreeNode (BTree<K,T> &t, int d) : tree(t), depth(d)
 	nkeys = 0;
 	if (depth > 0)	// we're an internal node which only has children
 	{
-		children = new (BTreeNode<K,T> *)[tree.Order()];
+		children = new Child[tree.Order()];
 	}
 	else	// we're a leaf which needs an element offset table
 	{
