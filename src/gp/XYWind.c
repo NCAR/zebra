@@ -1,7 +1,7 @@
 /*
  * XY-Wind plotting module
  */
-static char *rcsid = "$Id: XYWind.c,v 1.17 1993-06-29 15:37:16 barrett Exp $";
+static char *rcsid = "$Id: XYWind.c,v 1.18 1993-07-29 16:56:30 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -69,18 +69,18 @@ bool	update;
 	int	nxfield,nyfield;
 	int	count;
 	int 	nPlotted=0;
-	char	platforms[80], tadefcolor[30];
+	char	platforms[MAX_PLAT_LEN], tadefcolor[30];
 	char	ctname[20];
 	float   cstep;           /* interval for each step of color tables */
 	float	scaleSpeed;
 	XColor	*colors;
 	int	ncolors;
-	char	dataNames[4][80];
+	char	dataNames[4][MAX_PLAT_LEN];
 	FieldId	fids[4];
 	ZebTime	bTimeTarget,eTimeTarget;
 	ZebTime	eTimeReq,bTimeReq;
 	ZebTime	eTimeOld,bTimeOld;
-	char	stime1[80],stime2[80];
+	char	stime1[TIME_LEN],stime2[TIME_LEN];
 	long	autoTime;
 	char	*pnames[MAX_PLAT];
 	char	*fnames[4][MAX_PLAT];
@@ -111,7 +111,7 @@ bool	update;
 	char	style[80];
 	char	csystem[32];
 	int	dmode;
-	char	datalabel[80];
+	char	datalabel[MAX_PLAT_LEN];
 	bool	sideAnnot;
         char    barbtype[8];
         int     doKnot = 0;

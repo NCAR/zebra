@@ -1,7 +1,7 @@
 /*
  * XY-Observation plotting module
  */
-static char *rcsid = "$Id: XYObservation.c,v 1.5 1993-06-29 15:37:14 barrett Exp $";
+static char *rcsid = "$Id: XYObservation.c,v 1.6 1993-07-29 16:56:27 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -90,13 +90,13 @@ bool	update;
 	int	nxfield,nyfield,nzfield;
 	int	count;
 	int 	nPlotted;
-	char	platforms[80], tadefcolor[30];
-	char	dataNames[3][80];
+	char	platforms[MAX_PLAT_LEN], tadefcolor[30];
+	char	dataNames[3][MAX_PLAT_LEN];
 	ZebTime    eTimeTarget,bTimeTarget,bTimeOld,eTimeOld;
 	ZebTime    eTimeReq,bTimeReq;
 	ZebTime	zt;
 	char	valLabel[32];
-	char	stime1[80],stime2[80];
+	char	stime1[TIME_LEN],stime2[TIME_LEN];
 	long	autoTime;
 	char	*pnames[MAX_PLAT];
 	char	*fnames[3][MAX_PLAT];
@@ -125,8 +125,8 @@ bool	update;
         int	xdim,ydim,zdim;
 	int	dmode ;
 	char	style[80];
-	char	datalabel[80];
-	char	timelabel[80];
+	char	datalabel[MAX_PLAT_LEN];
+	char	timelabel[TIME_LEN];
 	bool	annotLoc;
 	bool	sideAnnot;
 	char	zJustify[10];

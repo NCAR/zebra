@@ -1,7 +1,7 @@
 /*
  * XY-Graph plotting module
  */
-static char *rcsid = "$Id: XYGraph.c,v 1.18 1993-07-23 16:52:15 burghart Exp $";
+static char *rcsid = "$Id: XYGraph.c,v 1.19 1993-07-29 16:56:24 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -77,9 +77,9 @@ bool	update;
 	int	nxfield,nyfield;
 	int	count;
 	int 	nPlotted;
-	char	platforms[80], tadefcolor[30];
+	char	platforms[MAX_PLAT_LEN], tadefcolor[30];
 	char	ctname[20];
-	char	dataNames[2][80];
+	char	dataNames[2][MAX_PLAT_LEN];
 	ZebTime    eTimeTarget,bTimeTarget,bTimeOld,eTimeOld;
 	ZebTime    eTimeReq,bTimeReq;
 	int	change;
@@ -108,8 +108,8 @@ bool	update;
 	int	saveConfig;
 	int	dmode ;
 	char	style[80];
-	char	datalabel[80];
-	char	timelabel[80];
+	char	datalabel[MAX_PLAT_LEN];
+	char	timelabel[TIME_LEN];
 	bool	sideAnnot;
 /*
  * Get X-Y Graph Required parameters:

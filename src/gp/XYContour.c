@@ -1,7 +1,7 @@
 /*
  * XY-Contour plotting module
  */
-static char *rcsid = "$Id: XYContour.c,v 1.12 1993-06-29 15:37:09 barrett Exp $";
+static char *rcsid = "$Id: XYContour.c,v 1.13 1993-07-29 16:56:21 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -112,9 +112,9 @@ bool	update;
 	int	nxfield,nyfield;
 	int	count;
 	int 	nPlotted=0;
-	char	platforms[80], tadefcolor[30];
+	char	platforms[MAX_PLAT_LEN], tadefcolor[30];
 	char	ctname[20];
-	char	dataNames[4][80];
+	char	dataNames[4][MAX_PLAT_LEN];
 	ZebTime	bTimeTarget,eTimeTarget;
 	ZebTime	eTimeReq,bTimeReq;
 	ZebTime	eTimeOld,bTimeOld;
@@ -151,7 +151,7 @@ bool	update;
 	int		xgridres, ygridres=0;
 	char	csystem[32];
 	int	dmode;
-	char	datalabel[80];
+	char	datalabel[MAX_PLAT_LEN];
         float	ccenter;
 	char	gridtype[80];
 	XColor	*colors;
