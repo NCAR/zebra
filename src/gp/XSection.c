@@ -24,7 +24,7 @@
 
 # if C_PT_XSECT
 
-# ifndef hpux
+# if !defined (hpux) && !defined(aix)
 # include <alloca.h>
 # endif
 # include <math.h>
@@ -42,7 +42,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: XSection.c,v 2.36 1996-11-19 07:29:14 granger Exp $")
+RCSID ("$Id: XSection.c,v 2.37 1997-05-13 16:03:42 ishikawa Exp $")
 
 /*
  * General definitions
