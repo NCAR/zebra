@@ -253,6 +253,24 @@ while (<DS>)
 	{
 	    $Pending{$platform} = 1;
 
+	    # The plot time for this platform must be adjusted when
+	    # plotting a fixed period or an observation platform.
+	    # Observation platforms use the observation (file) begin time
+	    # as the plot time, determined with dsdump.  This also means
+	    # all 'observations' with data within a fixed period will
+	    # always be plotted, rather than overwriting each other
+	    # if all are given the same end time.
+	    if ($Observations{$platform})
+	    {
+		$obs=`dsdump -e $platform | egrep $time | awk '{print \$2;}'`;
+		print "\nobservation: time $time reset to file time $obs"
+		    if ($debug);
+		$time = $obs;
+	    }
+	    elsif ($fixtime)
+	    {
+		$time = $fixend;
+	    }
 	    # This latest notify will overwrite any notifications for this
 	    # platform already in the queue
 	    $entry = join(' ', ($platform, $time, $Plots{$platform}));
@@ -318,7 +336,7 @@ sub clear
     foreach $entry (@Queue)
     {
 	($platform, $time, $config, @window) = split(/\s+/,$entry);
-	if ($fixtime) { $time = $fixend; }
+	# if ($fixtime) { $time = $fixend; }
 	$Configs{"$time $config"} .= " " . join(" ",@window) . " ";
     }
     print "Opening $batch...\n" if $debug;
