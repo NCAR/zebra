@@ -6,7 +6,11 @@
 
 # include <errno.h>
 # include <fcntl.h>
+# ifdef AIXV3
+# include <termios.h>
+# else
 # include <sys/termios.h>
+# endif
 
 /*
  * Beware of /dev/ttya with getty running on it
