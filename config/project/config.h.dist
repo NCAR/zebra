@@ -49,7 +49,7 @@
 XCOMM -----------------------------------------------------------------------
 XCOMM Definitions from config.h included here.  The definitions here override
 XCOMM the defaults in Project.tmpl.  See ...../zeb/config/config.h.
-XCOMM $Id: config.h.dist,v 1.35 1995-11-19 19:22:19 granger Exp $
+XCOMM $Id: config.h.dist,v 1.36 1995-11-27 05:53:55 granger Exp $
 XCOMM -----------------------------------------------------------------------
 # endif
 
@@ -149,7 +149,7 @@ XCOMM -----------------------------------------------------------------------
  * such as the StormFEST CD's (which have project-specific info under xhelp),
  * then you may as well define this to NO.
  */
-# define BuildXHelp YES
+# define BuildXHelp NO
 
 /* 
  * Do you want to build any of Zebra's ingest modules?  Only recommended
