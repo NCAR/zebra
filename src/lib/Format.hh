@@ -1,5 +1,5 @@
 /*
- * $Id: Format.hh,v 1.1 1997-11-24 10:27:27 granger Exp $
+ * $Id: Format.hh,v 1.2 1997-12-09 09:26:31 granger Exp $
  * 
  * An interesting, if possibly useful, interface for formatting strings
  * using printf-style format specifiers.
@@ -32,6 +32,11 @@
 
 #ifndef _Format_hh_
 #define _Format_hh_
+
+#include <stdarg.h>
+#include <std.h>
+#include <iostream.h>
+#include <string>
 
 class Format
 {
@@ -255,6 +260,11 @@ public:
 		vsprintf (sbuf, s, vl);
 		va_end (vl);
 		buf = sbuf;
+	}
+
+	operator const char * ()
+	{
+		return buf.c_str();
 	}
 };
 
