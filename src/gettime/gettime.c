@@ -15,16 +15,16 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: gettime.c,v 2.4 1995-06-29 22:34:14 granger Exp $";
 /*
  * Timer module test code.
  */
 # include <signal.h>
-# include "defs.h"
-# include "message.h"
-# include "copyright.h"
-# include "timer.h"
+# include <defs.h>
+# include <message.h>
+# include <copyright.h>
+# include <timer.h>
 
+RCSID ("$Id: gettime.c,v 2.5 1995-07-06 04:22:05 granger Exp $")
 
 int msg_handler (), intr (), Slot;
 void alrm ();
@@ -34,7 +34,6 @@ main (argc, argv)
 int argc;
 char **argv;
 {
-	struct tm_req tr;
 	UItime t;
 
 	msg_connect (msg_handler, "GetTime");
@@ -42,12 +41,13 @@ char **argv;
  * Just get and print the time.
  */
 	tl_GetTime (&t);
-	printf ("Time is %d %d\n", t.ds_yymmdd, t.ds_hhmmss);
+	printf ("Time is %li %li\n", t.ds_yymmdd, t.ds_hhmmss);
 	return (0);
 }
 
 
 
+int
 msg_handler (msg)
 struct message *msg;
 {
@@ -59,8 +59,6 @@ struct message *msg;
 int
 intr ()
 {
-	struct tm_req tr;
-
 	printf ("OUCH! (%d)\n", Slot);
 	tl_Cancel (Slot);
 	return (0);
@@ -73,6 +71,6 @@ alrm (now, param)
 UItime *now;
 char *param;
 {
-	printf ("Alarm at %d %d, param '%s'\n", now->ds_yymmdd,
+	printf ("Alarm at %li %li, param '%s'\n", now->ds_yymmdd,
 		now->ds_hhmmss, param);
 }

@@ -35,7 +35,7 @@
 # include <timer.h>
 # include <pd.h>
 
-MAKE_RCSID ("$Id: fccclock.c,v 2.9 1995-06-29 22:34:08 granger Exp $")
+MAKE_RCSID ("$Id: fccclock.c,v 2.10 1995-07-06 04:22:01 granger Exp $")
 
 /*
  * Default resources.
@@ -67,7 +67,6 @@ Colormap Cm;
  */
 int msg_handler ();
 int xtEvent ();
-static void DMButton ();
 void NewTime ();
 static void SendGeometry FP((struct dm_msg *dmm));
 static void dmgr_message FP((struct dm_msg *dmsg));
@@ -325,7 +324,9 @@ struct dm_msg *dmsg;
  * Reconfigure the window.
  */
 {
+#ifdef notdef
 	Arg args[10];
+#endif
 /*
  * If we are not currently on-screen, put it there.
  */
@@ -485,7 +486,9 @@ StartUpdate ()
  * Start Updating the time.
  */
 {
+#ifdef notdef
 	UItime t;
+#endif
 /*
  * Cancel everything just to be sure.
  */
