@@ -48,7 +48,7 @@
 # include "PixelCoord.h"
 # include "LayoutControl.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.45 1994-06-10 18:57:27 corbet Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.46 1994-06-29 21:17:42 case Exp $")
 
 /*
  * Default resources.
@@ -60,7 +60,7 @@ static String Resources[] = {
 	"	*Text*font:	-*-helvetica-medium-r-*-*-*-120-*-*-*-*-*-*",
 	"	*title*font:	-*-times-bold-r-*-*-17-120-*-*-*-*-*-*",
 	"	*arrow*font:	-*-symbol-*-*-*-*-*-120-*-*-*-*-*-*",
-	"	*Text*height:	20",
+/*	"	*Text*height:	20", */
 	"	*title*borderWidth: 0",
 /*	"	*Command*font:	-*-times-medium-i-*-*-*-120-*-*-*-*-*-*", */
 	0,
