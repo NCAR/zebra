@@ -39,7 +39,7 @@
 # include "message.h"
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.18 1994-05-03 21:05:37 corbet Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.19 1994-05-05 19:51:21 corbet Exp $")
 /*
  * Symbol tables.
  */
@@ -1013,6 +1013,11 @@ die ()
 	tmpl.mh_type = MH_SHUTDOWN;
 	broadcast (&msg, 0);
 /*
+ * Get rid of the socket now.  That means nobody can connect during the
+ * remaining up time, but it also means that we get out of the way.
+ */
+	unlink (UnSocketName);
+/*
  * Now set an alarm and continue to operate for a little while longer so that
  * processes can communicate while they shut down.
  */
@@ -1040,7 +1045,6 @@ ReallyDie ()
  * Clear out our sockets and quit.
  */
 	close (M_un_socket);
-	unlink (UnSocketName);
 	if (M_in_socket >= 0)
 		close (M_in_socket);
 	for (i = 0; i < 64; i++)
