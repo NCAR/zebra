@@ -1,13 +1,13 @@
 !
 ! Form widget utilities
-! $Id: form-utilities,v 1.1 1996-02-08 16:43:29 burghart Exp $
+! $Id: form-utilities,v 1.2 1996-03-08 17:49:21 burghart Exp $
 !
 
 !
 ! Set the text of a form entry based on a boolean plot description parameter:
 !
 !	fu-setenabled <form> <formentry> <component> <param> <default>
-!	fu_setdisabled <form> <formentry> <component> <param> <default>
+!	fu-setdisabled <form> <formentry> <component> <param> <default>
 !
 ! where <form> and <formentry> define the entry whose text is to be changed,
 ! <param> is the plot description parameter to check, and <default> is the 
