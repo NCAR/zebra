@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: GraphProc.c,v 1.16 1990-12-13 15:47:27 burghart Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 1.17 1991-01-09 16:15:26 burghart Exp $";
 
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
@@ -80,13 +80,14 @@ static char **Argv;
 /*
  * Forward routine definitions.
  */
-int msg_handler ();
-int dispatcher ();
-int xtEvent ();
+int	msg_handler (), dispatcher (), xtEvent ();
+void	SendEndpoints ();
+
 static void DMButton (), UiErrorReport (), UiPfHandler ();
 
 extern void Ue_PointerEvent (), Ue_ButtonUp (), Ue_KeyEvent ();
 extern void Ue_MotionEvent ();
+
 /*
  * Routines called through the event queue mechanism.
  */
@@ -301,6 +302,7 @@ struct message *msg;
 
 
 
+
 int
 xtEvent (fd)
 int fd;
@@ -435,12 +437,24 @@ struct ui_command *cmds;
 	   case GPC_PUSHCOORDS:
 	   	pc_PushCoords (cmds + 1);
 		break;
-
 	/*
 	 * Pop them off again.
 	 */
 	   case GPC_POPCOORDS:
 	   	pc_PopCoords ();
+		break;
+	/*
+	 * Rubberband a line
+	 */
+	   case GPC_DRAWLINE:
+		rb_Line (cmds + 1);
+		break;
+	/*
+	 * Ship endpoints off to the associated cross-section graphics
+	 * process
+	 */
+	   case GPC_SENDENDPOINTS:
+		SendEndpoints (cmds + 1);
 		break;
 
 	   default:
@@ -1062,4 +1076,73 @@ char *line;
 	while (nl = strchr (tbuf, '\n'))
 		*nl = ' ';
 	msg_ELog (EF_INFO, "ui_printf('%s')", tbuf);
+}
+
+
+
+
+void
+SendEndpoints (cmds)
+struct ui_command *cmds;
+/*
+ * Send new endpoints to the associated cross-section graphics process
+ */
+{
+	SValue	v;
+	int	type;
+	float	x0, y0, x1, y1;
+	char	win[30], comp[30];
+	struct dm_event	dme;
+/*
+ * If the coords are given explicitly, use them.
+ */
+	if (cmds->uc_ctype != UTT_END)
+	{
+		x0 = UFLOAT (cmds[0]);
+		y0 = UFLOAT (cmds[1]);
+		x1 = UFLOAT (cmds[2]);
+		y1 = UFLOAT (cmds[3]);
+	}
+/*
+ * Otherwise assume that a drawline has been run, and use those values.
+ */
+	else
+	{
+		usy_g_symbol (Vtable, "linex0", &type, &v); x0 = v.us_v_float;
+		usy_g_symbol (Vtable, "liney0", &type, &v); y0 = v.us_v_float;
+		usy_g_symbol (Vtable, "linex1", &type, &v); x1 = v.us_v_float;
+		usy_g_symbol (Vtable, "liney1", &type, &v); y1 = v.us_v_float;
+	}
+/*
+ * Get the window and component to which the endpoints are going
+ */
+	if (! pda_Search (Pd, "global", "xsect-window", NULL, win, 
+		SYMT_STRING))
+	{
+		msg_ELog (EF_PROBLEM, "No associated cross-section window");
+		return;
+	}
+
+	if (! pda_Search (Pd, "global", "xsect-component", NULL, comp, 
+		SYMT_STRING))
+	{
+		msg_ELog (EF_PROBLEM, "No associated cross-section component");
+		return;
+	}
+/*
+ * Send the endpoints
+ */
+	dme.dmm_type = DM_EVENT;
+
+	sprintf (dme.dmm_data, "param %s %s left-endpoint %.3f,%.3f", win, 
+		comp, x0, y0);
+	msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &dme, sizeof (dme));
+
+	sprintf (dme.dmm_data, "param %s %s right-endpoint %.3f,%.3f", win, 
+		comp, x1, y1);
+	msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &dme, sizeof (dme));
+
+	msg_ELog (EF_DEBUG, 
+		"Sent endpoints (%.2f,%.2f) (%.2f,%.2f) to '%s/%s'", x0, y0,
+		x1, y1, win, comp);
 }
