@@ -1,7 +1,7 @@
 /*
  * Plot execution module
  */
-static char *rcsid = "$Id: PlotExec.c,v 1.12 1991-01-22 23:17:24 burghart Exp $";
+static char *rcsid = "$Id: PlotExec.c,v 1.13 1991-01-24 21:11:48 kris Exp $";
 
 # include <X11/Intrinsic.h>
 # include <ui.h>
@@ -135,6 +135,15 @@ static int  	Monocolor;
 Pixel	White;
 
 /*
+ * Annotation stuff
+ */
+static int Tacmatch;
+static XColor Tadefclr;
+static float Sascale;
+static int Ctlimit;
+static int Sashow;
+
+/*
  * Stuff for px_GetGrid (the phony data store)
  * Macro to reference the grid two-dimensionally
  */
@@ -246,8 +255,8 @@ px_GlobalPlot ()
  * Perform a global update.
  */
 {
-	float orig_alt;
-	char **comps, datestring[40], rep[30];
+	float orig_alt,tascale;
+	char **comps, datestring[40], rep[30], tadefcolor[30];
 	int i;
 /*
  * Choose the drawing frame and clear it out
@@ -272,12 +281,31 @@ px_GlobalPlot ()
 			  rep, SYMT_STRING) || strcmp (rep, "overlay"))
 			Ncomps++;
 /*
+ * Get annotation information
+ */
+	if(! pd_Retrieve (Pd, "global", "ta-color", tadefcolor, SYMT_STRING))
+		strcpy(tadefcolor, "white");
+	if(! ct_GetColorByName(tadefcolor, &Tadefclr))
+	{
+		msg_ELog(EF_PROBLEM, "Can't get default color: '%s'.",
+			tadefcolor);
+		strcpy(tadefcolor, "white");
+		ct_GetColorByName(tadefcolor, &Tadefclr);
+	}
+	Tacmatch = FALSE;
+	pd_Retrieve(Pd, "global", "ta-color-match", (char *) &Tacmatch,
+		SYMT_BOOL);
+	if(pd_Retrieve(Pd, "global", "ta-scale", (char *) &tascale,
+		SYMT_FLOAT))
+		An_SetScale(tascale);
+	
+/*
  * Annotate with the date and time
  */
 	An_ResetAnnot (Ncomps);
 	ud_format_date (datestring, (date *)(&PlotTime), UDF_FULL);
 	strcat (datestring, "  ");
-	An_TopAnnot (datestring, White);
+	An_TopAnnot (datestring, Tadefclr.pixel);
 /*
  * Run through the plot components (start at 1 to skip the
  * global component)
@@ -294,7 +322,7 @@ px_GlobalPlot ()
 	{
 		sprintf (datestring, "Alt: %dm", (int) (Alt*1000.0));
 
-		XSetForeground (XtDisplay (Graphics), Gcontext, White);
+		XSetForeground (XtDisplay (Graphics), Gcontext, Tadefclr.pixel);
 		DrawText (Graphics, GWFrame (Graphics), Gcontext,
 			GWWidth (Graphics) - 10, USABLE_HEIGHT - 10, 
 			datestring, 0.0, TOPANNOTHEIGHT, JustifyRight,
@@ -532,43 +560,51 @@ Boolean	update;
 /*
  * Top annotation
  */
-	An_TopAnnot ("Filled contour plot of ", White);
-	An_TopAnnot (px_FldDesc (c, fname), White);
-	An_TopAnnot (".  ", White);
+	An_TopAnnot (px_FldDesc (c, fname), Tadefclr.pixel);
+	An_TopAnnot (" filled contour", Tadefclr.pixel);
+	An_TopAnnot (".  ", Tadefclr.pixel);
 /*
  * Side annotation (color bar)
  */
-	An_AnnotLimits (&top, &bottom, &left, &right);
-	left += 5;
-	top += 5;
-	bottom -= 5;
-
-	bar_height = (float)(bottom - top) / (float) Ncolors;
-
-	for (i = 0; i <= Ncolors; i++)
+	if(Sashow)
 	{
-	/*
-	 * Draw a color rectangle
-	 */
-		if (i < Ncolors)
-		{
-			XSetForeground (XtDisplay (Graphics), Gcontext, 
-				Colors[i].pixel);
-			XFillRectangle (XtDisplay (Graphics), 
-				GWFrame (Graphics), Gcontext, left, 
-				(int)(top + i * bar_height), 10, 
-				(int)(bar_height + 1));
-		}
-	/*
-	 * Numeric label
-	 */
-		cval = center + (i - Ncolors / 2) * step;
-		sprintf (string, "%.1f", cval);
+		An_AnnotLimits (&top, &bottom, &left, &right);
+		left += 5;
+		top += 5;
+		bottom -= 5;
 
-		XSetForeground (XtDisplay (Graphics), Gcontext, White);
-		DrawText (Graphics, GWFrame (Graphics), Gcontext, left + 15, 
-			(int)(top + i * bar_height), string, 0.0, 0.02, 
+		bar_height = (float)(bottom - top) / (float) Ncolors;
+	
+		XSetForeground (XtDisplay (Graphics), Gcontext, Tadefclr.pixel);
+		DrawText (Graphics, GWFrame (Graphics), Gcontext, left, 
+			top, fname, 0.0, Sascale, 
 			JustifyLeft, JustifyCenter);
+		top += Sascale * USABLE_HEIGHT;
+		for (i = 0; i <= Ncolors; i += Ctlimit)
+		{
+		/*
+		 * Draw a color rectangle
+		 */
+			if (i < Ncolors)
+			{
+				XSetForeground (XtDisplay (Graphics), Gcontext, 
+					Colors[i].pixel);
+				XFillRectangle (XtDisplay (Graphics), 
+					GWFrame (Graphics), Gcontext, left, 
+					(int)(top + i * bar_height), 10, 
+					(int)(bar_height + 1));
+			}
+		/*
+		 * Numeric label
+		 */
+			cval = center + (i - Ncolors / 2) * step;
+			sprintf (string, "%.1f", cval);
+	
+			XSetForeground (XtDisplay (Graphics), Gcontext, White);
+			DrawText (Graphics, GWFrame (Graphics), Gcontext, 
+				left + 15, (int)(top + i * bar_height), string,
+				 0.0, Sascale, JustifyLeft, JustifyCenter);
+		}
 	}
 }
 
@@ -599,44 +635,48 @@ Boolean	update;
 /*
  * Top annotation
  */
-	An_TopAnnot ("Contour plot of ", White);
-	An_TopAnnot (px_FldDesc (c, fname), White);
-	An_TopAnnot (".  ", White);
+	if(Tacmatch && Monocolor)
+		An_TopAnnot (px_FldDesc (c, fname), Ctclr.pixel);
+	else 
+		An_TopAnnot (px_FldDesc (c, fname), Tadefclr.pixel);
+	An_TopAnnot (" contour", Tadefclr.pixel);
+	An_TopAnnot (".  ", Tadefclr.pixel);
 /*
  * Side annotation
  */
-	
-	An_AnnotLimits (&top, &bottom, &left, &right);
-	left += 10;
-	top += 5;
+	if(Sashow)
+	{	
+		An_AnnotLimits (&top, &bottom, &left, &right);
+		left += 10;
+		top += 5;
 
-	wheight = USABLE_HEIGHT;
+		wheight = USABLE_HEIGHT;
 
-	if(! Monocolor)
-	{
-		for (i = 0; i <= Ncolors; i++)
+		if(! Monocolor)
 		{
-		/*
-		 * Numeric label
-		 */
-			cval = center + (i - Ncolors / 2) * step;
-			sprintf (string, "%.1f", cval);
-
-	
 			XSetForeground (XtDisplay (Graphics), Gcontext, 
-				Colors[i].pixel);
+				Tadefclr.pixel);
 			DrawText (Graphics, GWFrame (Graphics), Gcontext, 
-				left, top, string, 0.0, 0.02, JustifyLeft, 
-				JustifyTop);
-			top += (int)(1.2 * 0.02 * wheight);
+					left, top, fname, 0.0, Sascale, 
+					JustifyLeft, JustifyTop);
+			top += Sascale * wheight;
+			for (i = 0; i <= Ncolors; i += Ctlimit)
+			{
+			/*
+			 * Numeric label
+			 */
+				cval = center + (i - Ncolors / 2) * step;
+				sprintf (string, "%.1f", cval);
+	
+		
+				XSetForeground (XtDisplay (Graphics), Gcontext, 
+					Colors[i].pixel);
+				DrawText (Graphics, GWFrame (Graphics), 
+					Gcontext, left, top, string, 0.0, 
+					Sascale, JustifyLeft, JustifyTop);
+				top += (int)(1.2 * Sascale * wheight);
+			}
 		}
-	}
-	else
-	{
-		XSetForeground(XtDisplay(Graphics), Gcontext, Ctclr.pixel);
-		DrawText (Graphics, GWFrame (Graphics), Gcontext, 
-				left, top, px_FldDesc(c, fname), 0.0, 0.02, 
-				JustifyLeft, JustifyTop);
 	}
 }
 
@@ -696,6 +736,16 @@ float	*center, *step;
 
 	if (! ok)
 		return;
+/* 
+ * Get annotation information
+ */
+	if(! pda_Search(Pd, c, "sa-scale", NULL, (char *) &Sascale, SYMT_FLOAT))
+		Sascale = 0.02;
+	if(! pda_Search(Pd, c, "ct-limit", NULL, (char *) &Ctlimit, SYMT_INT))
+		Ctlimit = 1;
+	Sashow = TRUE;
+	pda_Search(Pd, c, "sa-show", NULL, (char *) &Sashow, SYMT_BOOL);
+
 /*
  * Special stuff for line contours
  */
@@ -805,6 +855,11 @@ Boolean	update;
 	if (! ok)
 		return;
 /*
+ * Get annotation information from the plot description
+ */
+	if(! pda_Search(Pd, c, "sa-scale", NULL, (char *) &Sascale, SYMT_FLOAT))
+		Sascale = 0.02;
+/*
  * Figure out an arrow color.
  */
 	if (! pda_Search (Pd, c, "arrow-color", platform, cname, SYMT_STRING)
@@ -869,34 +924,33 @@ Boolean	update;
 /*
  * Top annotation
  */
-	sprintf (annot, "Vector winds plot (%s).", platform);
-	An_TopAnnot (annot, White);
+	sprintf (annot, " plot (%s).  ", platform);
+	if(Tacmatch)
+		An_TopAnnot ("Vector winds", color.pixel);
+	else
+		An_TopAnnot ("Vector winds", Tadefclr.pixel);
+	An_TopAnnot (annot, Tadefclr.pixel);
 /*
  * Side annotation (scale vectors)
  */
 	An_AnnotLimits (&top, &bottom, &left, &right);
 
-	XSetForeground (XtDisplay (Graphics), Gcontext, White);
+	if(Tacmatch)
+		XSetForeground (XtDisplay (Graphics), Gcontext, color.pixel);
+	else
+		XSetForeground (XtDisplay (Graphics), Gcontext, Tadefclr.pixel);
 
 	xannot = (left + right) / 2;
 	yannot = top + 0.04 * USABLE_HEIGHT;
 	DrawText (Graphics, GWFrame (Graphics), Gcontext, xannot, yannot, 
-		"VECTOR", 0.0, 0.02, JustifyCenter, JustifyBottom);
+		"10 m/sec", 0.0, Sascale, JustifyCenter, JustifyBottom);
+	xannot = left;
+	yannot += Sascale * USABLE_HEIGHT;
+	if(Tacmatch)
+		VG_AnnotVector (xannot, yannot + 4, 10.0, 0.0, color.pixel);
+	else
+		VG_AnnotVector (xannot, yannot + 4, 10.0, 0.0, Tadefclr.pixel);
 
-	yannot += 0.022 * USABLE_HEIGHT;
-	DrawText (Graphics, GWFrame (Graphics), Gcontext, xannot, yannot, 
-		"SCALE", 0.0, 0.02, JustifyCenter, JustifyBottom);
-
-	xannot = left + 0.25 * (right - left);
-	yannot += 0.03 * USABLE_HEIGHT;
-	DrawText (Graphics, GWFrame (Graphics), Gcontext, xannot, yannot,
-		"5.0", 0.0, 0.02, JustifyCenter, JustifyBottom);
-	VG_AnnotVector (xannot, yannot + 4, 0.0, -5.0, White);
-
-	xannot = left + 0.75 * (right - left);
-	DrawText (Graphics, GWFrame (Graphics), Gcontext, xannot, yannot,
-		"10.0", 0.0, 0.02, JustifyCenter, JustifyBottom);
-	VG_AnnotVector (xannot, yannot + 4, 0.0, -10.0, White);
 }
 
 
@@ -933,6 +987,13 @@ Boolean	update;
 
 	if (! ok)
 		return;
+/*
+ * Get annotation information from the plot description
+ */
+	if(! pda_Search(Pd, c, "sa-scale", NULL, (char *) &Sascale, SYMT_FLOAT))
+		Sascale = 0.02;
+	if(! pda_Search(Pd, c, "ct-limit", NULL, (char *) &Ctlimit, SYMT_INT))
+		Ctlimit = 1;
 /*
  * Rasterization control.
  */
@@ -996,9 +1057,9 @@ Boolean	update;
 /*
  * Top annotation
  */
-	An_TopAnnot ("Raster plot of ", White);
-	An_TopAnnot (px_FldDesc (c, name), White);
-	An_TopAnnot (".  ", White);
+	An_TopAnnot (px_FldDesc (c, name), Tadefclr.pixel);
+	An_TopAnnot ("plot", Tadefclr.pixel);
+	An_TopAnnot (".  ", Tadefclr.pixel);
 /*
  * Side annotation (color bar)
  */
@@ -1008,7 +1069,11 @@ Boolean	update;
 	top += 5;
 
 	bar_height = (bottom - top) / (float) Ncolors;
-
+	XSetForeground (XtDisplay (Graphics), Gcontext, Tadefclr.pixel);
+	DrawText (Graphics, GWFrame (Graphics), Gcontext, left, 
+		top, name, 0.0, Sascale, JustifyLeft, 
+		JustifyCenter);
+	top += Sascale * USABLE_HEIGHT;
 	for (i = 0; i < Ncolors; i++)
 	{
 	/*
@@ -1030,9 +1095,9 @@ Boolean	update;
 		val = min + frac * (max - min);
 		sprintf (string, "%.1f", val);
 
-		XSetForeground (XtDisplay (Graphics), Gcontext, White);
+		XSetForeground (XtDisplay (Graphics), Gcontext, Tadefclr.pixel);
 		DrawText (Graphics, GWFrame (Graphics), Gcontext, left + 15, 
-			(int)(top + frac * (bottom - top)), string, 0.0, 0.02, 
+			(int)(top + frac * (bottom - top)),string, 0.0,Sascale, 
 			JustifyLeft, JustifyCenter);
 	}
 }
