@@ -108,7 +108,7 @@ template <class C> C& IContainer<C>::nth (const int which) const
 {
 	if (which < 0 || which >= nelem)
 	{
-		cerr << "NTH value " << which << " out of range\n";
+		std::cerr << "NTH value " << which << " out of range\n";
 		which = 0;
 	}
 	return *(stuff[which]);
@@ -128,7 +128,7 @@ template <class C> void IContainer<C>::zap (const int which)
 //
 	if (which < 0 || which >= nelem)
 	{
-		cerr << "NTH value " << which << " out of range\n";
+		std::cerr << "NTH value " << which << " out of range\n";
 		return;
 	}
 //
