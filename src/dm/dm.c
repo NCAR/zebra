@@ -11,7 +11,7 @@
 # include "dm_cmds.h"
 # include "../include/timer.h"
 
-static char *rcsid = "$Id: dm.c,v 1.11 1990-09-20 09:18:09 corbet Exp $";
+static char *rcsid = "$Id: dm.c,v 1.12 1990-11-08 09:30:01 corbet Exp $";
 
 /*
  * Definitions of globals.
@@ -320,8 +320,6 @@ struct ui_command *cmds;
 	if (cfg->c_nlink > 0)
 		if (! ResolveLinks (cfg, cmds + 1))
 			return;
-	msg_ELog (EF_DEBUG, "Display %s, %d links %d wins", cfg->c_name,
-		cfg->c_nlink, cfg->c_nwin);
 /*
  * Get a new symbol table for this display config.
  */
@@ -363,6 +361,7 @@ struct ui_command *cmds;
 			msg_ELog (EF_DEBUG, "Existing win %s", wp->cfw_name);
 			if (! wp->cfw_linkpar && ! wp->cfw_forcepd)
 				wp->cfw_pd = exist->cfw_pd; /* no copy! */
+			wp->cfw_win = exist->cfw_win;
 			config_win (wp);
 		}
 	/*
