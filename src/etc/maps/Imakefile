@@ -6,7 +6,7 @@ MAPS = cape.map cape_aircraft.map cape_ddop.map cape_llpnet.map \
 	cape_roads.map cinde.map ctex.map \
 	fest_array.map harp.map nowrad.map raps_county.map \
 	raps_now_region.map stormfest.map stormfest_lobes.map \
-	wisp.map wisp91.map
+	wisp.map
 
 DISTFILES = Imakefile $(MAPS)
 
@@ -14,4 +14,8 @@ all::
 
 InstallLibFile ($(MAPS),.,.)
 
+install::
+	(cd $(LIBDIR); $(RM) wisp91.map; ln -s wisp.map wisp91.map)
+
 DistfilesTarget($(DISTFILES))
+
