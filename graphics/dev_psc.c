@@ -10,7 +10,7 @@
 # include "device.h"
 # include <stdio.h>
 
-static char *rcsid = "$Id: dev_psc.c,v 1.1 1993-07-23 18:01:11 case Exp $";
+static char *rcsid = "$Id: dev_psc.c,v 1.2 1993-07-27 19:52:41 cook Exp $";
 /*
  * The tag structure
  */
@@ -42,7 +42,6 @@ struct psc_tag
 	int	ncolor;		/* max color value 		*/
 	int	cmode;		/* 0=mono, 1=gray, 2=color	*/
 	int	black;		/* color position for black	*/
-	int	white;		/* color position for white	*/
 	float	r[MAXCOLS];	/* red colortable array		*/
 	float	g[MAXCOLS];	/* green colortable array	*/
 	float	b[MAXCOLS];	/* blue colortable array	*/
@@ -256,7 +255,6 @@ float *r, *g, *b;
 {
 	struct psc_tag *ptp = (struct psc_tag *) ctag;
 	char	command[80];
-	float all;
 	int i, gr;
 
 /*
@@ -287,24 +285,16 @@ float *r, *g, *b;
 	psc_ctable_out (ptp);
 
 /*
- * Locate the color positions the first ocurrences of black and white.
- * Save these color values for use in replacing invisible output.
+ * Locate the color positions the first ocurrences of black.
+ * Save e black index for dealing with out of bound colors.
  */
+	ptp->black = 0;
+
 	for (i=base; i<=ncolor; i++)
 	{
-		all = r[i]+g[i]+b[i];
-		if (all == 0.0)
+		if ((r[i]+g[i]+b[i]) == 0.0)
 		{
 			ptp->black = i;
-			break;
-		}
-	}
-	for (i=base; i<=ncolor; i++)
-	{
-		all = r[i]+g[i]+b[i];
-		if (all >= 2.99)
-		{
-			ptp->white = i;
 			break;
 		}
 	}
@@ -338,11 +328,14 @@ struct psc_tag *ptp;
 	{
 	    for (i=ptp->base; i<=ptp->ncolor; i++)
 	    {
-		sprintf (command, "%02x%02x%02x\n",
+		/* Turn invisible white to black */
+		if ((ptp->r[i]+ptp->g[i]+ptp->b[i]) <= 2.99)
+			sprintf (command, "%02x%02x%02x\n",
 				(unsigned char) (ptp->r[i] * 255.0),
 				(unsigned char) (ptp->g[i] * 255.0),
 				(unsigned char) (ptp->b[i] * 255.0));
-
+		else
+			sprintf (command, "000000\n");
 		psc_out_s (ptp, command);
 	    }
 	}
@@ -380,13 +373,11 @@ int color, ltype, npt, *data;
 		psc_set_win (ptp);
 /*
  * Check color value sanity and then set the color using # setcolor.
- * Default to black if it is out of bounds or white.
+ * Default to black if it is out of bounds.
  */
 	if (ptp->cmode)		/* only for color or gray */
 	{
-	    if ((color >= ptp->base) &&
-	        (color <= ptp->ncolor) &&
-	        (color != ptp->white))
+	    if ((color >= ptp->base) && (color <= ptp->ncolor))
 		sprintf (command, "%d sc\n", color);
 	    else
 		sprintf (command, "%d sc\n", ptp->black);
@@ -778,13 +769,11 @@ float rot;
 		psc_set_win (tag);
 /*
  * Check color value sanity and then set the color using # setcolor.
- * Default to color 0 (black) if it is out of bounds or white.
+ * Default to color 0 (black) if it is out of bounds.
  */
 	if (tag->cmode)		/* only for color or gray */
 	{
-	    if ((color >= tag->base) &&
-	        (color <= tag->ncolor) &&
-	        (color != tag->white))
+	    if ((color >= tag->base) && (color <= tag->ncolor))
 		sprintf (cbuf, "%d sc\n", color);
 	    else
 		sprintf (cbuf, "%d sc\n", tag->black);
@@ -827,4 +816,3 @@ float rot;
 			
 
 # endif /* DEV_PSC */
-
