@@ -5,7 +5,7 @@
 # include <graphdev.h>
 
 # ifdef DEV_X11
-static char *rcsid = "$Id: dev_x11.c,v 1.26 1992-04-29 22:05:56 burghart Exp $";
+static char *rcsid = "$Id: dev_x11.c,v 1.27 1992-04-30 22:19:57 burghart Exp $";
 
 # include "graphics.h"
 # include "device.h"
@@ -673,6 +673,8 @@ int ncolor, *base;
 	if (tag->x_mono)
 	{
 		*base = 0;
+		tag->x_fg = WhitePixel (tag->x_display, 0);
+		tag->x_bg = BlackPixel (tag->x_display, 0);
 		return (GE_OK);
 	}
 /*
@@ -742,16 +744,11 @@ int ncolor, *base;
  */
 	*base = cells[contig_start];
 /*
- * Set the background if it hasn't been done
+ * Set the background
  */
-	if (! tag->x_bg)
-	{
-		long	bg = cells[contig_start];
-
-		tag->x_bg = bg;
-		*(tag->x_dev_bg) = bg;
-		XSetWindowBackground (tag->x_display, tag->x_window, bg);
-	}
+	tag->x_bg = *base;
+	*(tag->x_dev_bg) = *base;
+	XSetWindowBackground (tag->x_display, tag->x_window, *base);
 /*
  * Free the memory allocated for cells
  */
