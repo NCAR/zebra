@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: dm_pick.c,v 2.2 1991-10-11 18:59:46 kris Exp $";
+static char *rcsid = "$Id: dm_pick.c,v 2.3 1991-12-07 18:01:49 kris Exp $";
 /*
  * Handle the window picking operation.
  */
@@ -126,11 +126,43 @@ struct wpick *wp;
  */
 {
 	struct cf_window *win = (struct cf_window *) v->us_v_ptr;
+	Window root, parent, *children;
+	unsigned int nchild;
+	XWindowAttributes attr;
 	
-	if (! (win->cfw_flags & CF_WIDGET) && wp->wp_id == win->cfw_win)
+	if (! (win->cfw_flags & CF_WIDGET) && (win->cfw_win != 0))
 	{
-		strcpy (wp->wp_name, win->cfw_name);
-		return (FALSE);
+		msg_ELog (EF_DEBUG, "Window name = %s", win->cfw_name);
+		msg_ELog (EF_DEBUG, "Window id = %X", win->cfw_win);
+		XGetWindowAttributes (Dm_Display, win->cfw_win, &attr);
+		if (attr.override_redirect == True)
+		{
+		/*
+		 * The shell is in override redirect mode, i.e it has
+		 * NOT been reparented.  Compare the picked window with
+		 * the windows we know about.
+		 */
+			if (wp->wp_id == win->cfw_win)
+			{
+				strcpy (wp->wp_name, win->cfw_name);
+				return (FALSE);
+			}
+		}
+		else
+		{
+		/*
+		 * The shell is not in override redirect mode, i.e it has
+		 * been reparented.  Compare the picked window with
+		 * the parent window of the windows we know about.
+		 */
+			XQueryTree (Dm_Display, win->cfw_win, &root, &parent, 
+				&children, &nchild);	
+			if (wp->wp_id == parent)
+			{
+				strcpy (wp->wp_name, win->cfw_name);
+				return (FALSE);
+			}
+		}
 	}
 	return (TRUE);
 }
