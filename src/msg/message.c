@@ -52,7 +52,7 @@
 # define MESSAGE_MANAGER	/* define prototypes for netread functions */
 # include <message.h>
 
-RCSID ("$Id: message.c,v 2.60 1999-08-10 23:11:00 burghart Exp $")
+RCSID ("$Id: message.c,v 2.61 1999-11-01 22:04:27 granger Exp $")
 
 /*
  * Symbol tables.
@@ -244,6 +244,7 @@ static void FreeTap FP ((int fd));
 void	SetNonBlock FP ((int));
 void	ReallyDie FP ((void));
 void	GetInetPort FP ((void));
+void	EnterServicePort ();
 void	NewInConnection FP ((void));
 void	new_un_connection FP ((void));
 static void MakeUnixSocket FP ((void));
@@ -330,6 +331,13 @@ char **argv;
 	char *host = NULL;
 	fd_set fds, wfds;
 	int i;
+
+/* 
+ * Initialize host table with our default service port, so
+ * that the default can be overridden by command-line or
+ * session file host entries.
+ */
+	EnterServicePort ();
 /*
  * Check args.
  */
@@ -773,6 +781,30 @@ MakeUnixSocket ()
 
 
 
+void
+EnterServicePort ()
+{
+	struct servent *service;
+/*
+ * Try to get the service port as a fallback for outbound connections,
+ * but any other default (*@*) entries will override this one, either
+ * from the command line or in a session file.
+ */
+	if ((service = getservbyname (SERVICE_NAME, "tcp")) != NULL)
+	{
+#ifdef notdef
+		if (! Port)
+		{
+			Port = service->s_port;
+			if (Debug) printf ("%s on port %d, tcp service %s\n",
+					   "Listening", Port, SERVICE_NAME);
+		}
+#endif
+		EnterHost (ANYHOST, NULL, service->s_port);
+	}
+}
+
+
 
 void
 GetInetPort ()
@@ -781,36 +813,23 @@ GetInetPort ()
  * default port in the table for outbound connections.
  */
 {
-	struct servent *service;
 	int cmd_port = Port;	   /* did we get a command-line default? */
 /*
  * Try to look up our port number.  The command-line option takes precedence,
  * followed by an exact match for our host name in the host table, followed 
- * by the services entry.  The last resort is to use the default.
+ * by a pattern match in the host table.  With no command-line or session
+ * file host-port map entries, the default pattern match will be the services
+ * entry.  Finally, with no services entry, the last resort is to use the 
+ * hardcoded default.
  */
 	if (Port != 0)
 	{
 		if (Debug) printf ("Listening on cmd-line port %d\n", Port);
 	}
-	else if (FindHost (Hostname, &Port, TRUE) >= 0)
+	else if (FindHost (Hostname, &Port, FALSE) >= 0)
 	{
 		if (Debug) printf ("%s on port %d from host table\n", 
 				   "Listening", Port);
-	}
-/*
- * Try to get the service port as a fallback for outbound connections,
- * else use the command-line default, otherwise we're stuck with the
- * hardcoded default.
- */
-	if ((service = getservbyname (SERVICE_NAME, "tcp")) != NULL)
-	{
-		if (! Port)
-		{
-			Port = service->s_port;
-			if (Debug) printf ("%s on port %d, tcp service %s\n",
-					   "Listening", Port, SERVICE_NAME);
-		}
-		EnterHost (ANYHOST, NULL, service->s_port);
 	}
 	else
 	{
@@ -1127,9 +1146,13 @@ struct message *msgp;
 	}
 	else
 	{
+	    /* No need for alarm if a write fails during a shutdown... */
+	    if (M_un_socket >= 0)
+	    {
 		zmlog (EF_PROBLEM, "Write failed for %s, errno %d",
-		     conp->c_name, errno);
-		deadconn (conp->c_fd);
+		       conp->c_name, errno);
+	    }
+	    deadconn (conp->c_fd);
 	}
 	if (at)
 		*at = '\0';
@@ -1562,6 +1585,11 @@ int fd;
 {
 	Connection *cp = Fd_map[fd];
 	int setmask = 0;
+/*
+ * Just in case we try to disconnect more than once.
+ */
+	if (! cp)
+	    return;
 
 	S_ndisc++;
 /*
@@ -2037,12 +2065,6 @@ Message *msg;
 		send_log (EF_PROBLEM, "unexpected ack from %s", msg->m_from);
 		break;
 	/*
-	 * If they want us to die, we'll go along with it...
-	 */
-	   case MH_DIE:
-		die ();
-		break;
-	/*
 	 * Join a process group.
 	 */
 	   case MH_JOIN:
@@ -2104,6 +2126,22 @@ Message *msg;
 		    send_log (EF_DEBUG, "msg to %s rejected by %s: %s",
 			      ((struct mh_ident*) tm)->mh_name,  msg->m_from,
 			      "recipient not found");
+		else
+		    route (fd, msg);
+		break;
+	/*
+	 * If they want us to die, we'll go along with it...
+	 */
+	   case MH_DIE:
+		die ();
+		break;
+	/*
+	 * Someone (i.e., zstop) is sending a shutdown to someone in
+	 * particular.  If us, then die, else send it on.
+	 */
+	   case MH_SHUTDOWN:
+		if (! strcmp (msg->m_to, MSG_MGR_NAME))
+		    die ();
 		else
 		    route (fd, msg);
 		break;
