@@ -1,7 +1,7 @@
 /*
  * Routines common to XY-Type plots
  */
-static char *rcsid = "$Id: XYCommon.c,v 1.2 1992-01-03 00:29:30 barrett Exp $";
+static char *rcsid = "$Id: XYCommon.c,v 1.3 1992-01-10 19:24:50 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -310,7 +310,7 @@ char	*label;
     strcat(keyword, "-font-scale");
     if (! pda_Search (pd, c, keyword, "xy", (char *)fontScale, SYMT_FLOAT))
     {
-	*fontScale = 0.1;
+	*fontScale = 0.025;
     }
 
     /*
