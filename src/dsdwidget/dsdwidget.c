@@ -21,7 +21,7 @@
  */
 
 static char *rcsid = 
-   "$Id: dsdwidget.c,v 1.16 1994-01-03 17:30:06 granger Exp $";
+   "$Id: dsdwidget.c,v 1.17 1994-01-20 03:47:38 granger Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -85,14 +85,17 @@ static void
 usage (prog)
 char *prog;
 {
-	printf("Usage: %s [-h] [-a] [regexp ...] [platform ...]\n", prog);
-	printf("If a regular expression or platform name is present, only\n");
-	printf("those platforms whose names match the name or expression\n");
-	printf("are displayed.  Any number or combination of names and\n");
-	printf("expressions may be given.  If there are no strings to\n");
-	printf("match, all of the platforms will be displayed.\n");
+	printf("Usage: %s [-h] [-a] [-u] [-t <title>] [regexp ...] \n",
+	       prog);
+	printf("If a regular expression is present, only those platforms\n");
+	printf("whose names match the expression are displayed.  Any\n");
+	printf("number or combination of expressions may be given.  If\n");
+	printf("there are no strings to match, all of the platforms will\n");
+	printf("be displayed, by default alphabetically\n");
 	printf("   -h\tPrint this usage message.\n");
 	printf("   -a\tAlphabetize the platforms for each matching string.\n");
+	printf("   -u\tDon't alphabetize the platform names.\n");
+	printf("   -t\tSpecify a title for the window.\n");
 }
 
 
@@ -101,15 +104,45 @@ int	argc;
 char	**argv;
 {
 	char name[256];
-	bool sort, first;
-	int opt;
-/*
- * As always, see if all they want is a little help first
- */
-	if ((argc > 1) && !strcmp(argv[1], "-h"))
+	bool sort;
+	char *title;
+	int c;
+	int optind, i;
+
+	sort = TRUE;
+	title = name;
+	optind = 1;
+	while ((optind < argc) && (strlen(argv[optind]) == 2) &&
+	       (argv[optind][0] == '-'))
 	{
-		usage(argv[0]);
-		exit(0);
+		c = argv[optind][1];
+		switch (c)
+		{
+		   case 'h':
+			usage(argv[0]);
+			exit(0);
+			break;
+		   case 'a':
+			sort = TRUE;
+			break;
+		   case 'u':
+			sort = FALSE;
+			break;
+		   case 't':
+			if (optind + 1 < argc)
+				title = argv[++optind];
+			else
+			{
+				printf ("-t option needs argument\n");
+				usage (argv[0]);
+				exit (2);
+			}
+			break;
+		}
+		for (i = 1; i < argc - optind; ++i)
+			argv[i] = argv[i + optind];
+		argc -= optind;
+		optind = 1;
 	}
 /*
  * Hook into the message system and initialize data store.  We use our pid
@@ -129,15 +162,14 @@ char	**argv;
 		exit (1);
 	}
 /*
- * Hook into window system.
+ * Hook into the window system.
  */
-	Top = XtAppInitialize (&Appc, "dsdwidget", NULL, 0, &argc, argv,
-                NULL, NULL, 0);
+	Top = XtVaAppInitialize (&Appc, "dsdwidget", NULL, 0, &argc, argv,
+                NULL, XtNtitle, title, NULL);
 /*
  * Create the data file.
  */
 	sprintf (Fname, "/tmp/dsdwidget%d", getpid ());
-
 	Fptr = fopen (Fname, "w");
 	fprintf (Fptr, "data file");
 	fclose (Fptr);
@@ -151,20 +183,10 @@ char	**argv;
  */
 	if (! (RemoteName = getenv ("REMOTE_NAME")))
 		RemoteName = "Remote";
-	first = FALSE;
-	sort = FALSE;
-	for (opt = 1; opt < argc; ++opt)
-	{
-		if (!strcmp (argv[opt], "-a"))
-			sort = TRUE;
-		else
-		{
-			first = TRUE;
-			AddPlatforms (argv[opt], sort);
-		}
-	}
-	if (!first)
+	if (argc < 2)
 		AddPlatforms (NULL, sort);
+	for (optind = 1; optind < argc; ++optind)
+		AddPlatforms (argv[optind], sort);
 	if (NPlat == 0)
 	{
 		printf ("%s: No matches found!\n", argv[0]);
@@ -237,7 +259,6 @@ DumpPlatform (pid, pi)
 int pid;
 PlatformInfo *pi;
 {
-	int i;
 	DataSrcInfo dsi;
 /*
  * Open the data file.
