@@ -28,7 +28,7 @@
 # include <DataStore.h>
 # include "GraphProc.h"
 # include "GraphicsW.h"
-MAKE_RCSID ("$Id: FrameCache.c,v 2.5 1992-07-07 23:55:37 kris Exp $")
+MAKE_RCSID ("$Id: FrameCache.c,v 2.6 1992-07-22 16:18:14 kris Exp $")
 
 # define BFLEN		500
 # define FLEN		40
@@ -92,6 +92,7 @@ static int Lru = 0;
 /*
  * Our routines.
  */
+void		fc_InitFrameCache FP ((void));
 void		fc_InvalidateCache FP ((void));
 void		fc_CreateFrameFile FP ((void));
 void		fc_AddFrame FP ((ZebTime *, int));
@@ -112,6 +113,23 @@ static int	fc_ComparePairs FP ((PF_Pair *, int, PF_Pair *, int));
 
 
 void
+fc_InitFrameCache ()
+/*
+ * Initialize some variables for the Frame Cache.
+ */
+{
+	int	i;
+
+	for (i = 0; i < NCACHE; i++)
+	{
+		FCache[i].fc_pairs = NULL;		
+	}
+
+	fc_InvalidateCache ();
+}
+
+
+void
 fc_InvalidateCache ()
 /*
  * Clear out the frame cache.
@@ -129,8 +147,10 @@ fc_InvalidateCache ()
 	{
 		FCache[i].fc_valid = FCache[i].fc_keep = FALSE;
 		if (FCache[i].fc_pairs)
+		{
 			free (FCache[i].fc_pairs);
-		FCache[i].fc_pairs = NULL;
+			FCache[i].fc_pairs = NULL;
+		}
 		BufferTable[i] = FREE;
 		FreePixmaps[i] = InvalidEntry;
 	}
@@ -144,11 +164,11 @@ fc_InvalidateCache ()
  */
 	if(FrameFileFlag)
 	{
-		if(FrameFile >= 0)
-			close(FrameFile);
-		if((FrameFile = open(FileName, O_RDWR | O_CREAT |O_TRUNC, 
+		if (FrameFile >= 0)
+			close (FrameFile);
+		if ((FrameFile = open (FileName, O_RDWR | O_CREAT |O_TRUNC, 
 			PMODE)) < 0)
-			msg_ELog(EF_PROBLEM, "Can't open %s (%d).", FileName, 
+			msg_ELog (EF_PROBLEM, "Can't open %s (%d).", FileName, 
 				errno);
 		unlink (FileName);
 	}
@@ -160,14 +180,14 @@ void fc_CreateFrameFile()
 /*
  *  Create the FrameFile.
  */
-	if(FrameFile < 0)
+	if (FrameFile < 0)
 	{
-		sprintf(FileName, "%s/%s%dFrameFile", FrameFilePath, Ourname,
+		sprintf (FileName, "%s/%s%dFrameFile", FrameFilePath, Ourname,
 			getpid());
-		msg_ELog(EF_DEBUG, "FrameFile:  %s.", FileName);
-		if((FrameFile = open(FileName, O_RDWR | O_CREAT | O_TRUNC, 
+		msg_ELog (EF_DEBUG, "FrameFile:  %s.", FileName);
+		if ((FrameFile = open (FileName, O_RDWR | O_CREAT | O_TRUNC, 
 			PMODE)) < 0)
-			msg_ELog(EF_PROBLEM, "Can't open %s (%d).", FileName, 
+			msg_ELog (EF_PROBLEM, "Can't open %s (%d).", FileName, 
 				errno);
 		unlink (FileName);
 	}
@@ -367,6 +387,7 @@ ZebTime	*when;
  * Now go searching.
  */
 	for (i = 0; i < MaxFrames; i++)
+	{
 	    if (FCache[i].fc_valid && 
 		FCache[i].fc_time.zt_Sec == when->zt_Sec &&
 		FCache[i].fc_time.zt_MicroSec == when->zt_MicroSec &&
@@ -376,17 +397,23 @@ ZebTime	*when;
 		fc_ComparePairs (FCache[i].fc_pairs, FCache[i].fc_numpairs, 
 			pairs, numpairs))
 	    {
-		if (pairs) free (pairs);
 		FCache[i].fc_lru = ++Lru;
 		if(! FCache[i].fc_inmem)
 		{
-			pindex = fc_GetFreePixmap();
-			flag = fc_FileToPixmap(i, pindex); 
-			if(! flag) return(-1);
+			pindex = fc_GetFreePixmap ();
+			flag = fc_FileToPixmap (i, pindex); 
+			if (! flag)
+			{
+				if (pairs) free (pairs);
+				return (-1);
+			}
 		}
-		else pindex = FCache[i].fc_index;
+		else 
+			pindex = FCache[i].fc_index;
+		if (pairs) free (pairs);
 	    	return (pindex);
 	    }
+	}
 	if (pairs) free (pairs);
 	return (-1);
 }
@@ -452,9 +479,9 @@ int	ntime;
 				fc->fc_keep = TRUE;
 				break;
 			}
-			if (pairs) free (pairs);
 		}
 	}
+	if (pairs) free (pairs);
 }
 
 
@@ -699,8 +726,10 @@ fc_GetFreePixmap ()
 	{
 		FCache[FreePixmaps[i]].fc_valid = FALSE;
 		if (FCache[FreePixmaps[i]].fc_pairs)
+		{
 			free (FCache[FreePixmaps[i]].fc_pairs);
-		FCache[FreePixmaps[i]].fc_pairs = NULL;
+			FCache[FreePixmaps[i]].fc_pairs = NULL;
+		}
 	}
 	return(i);
 }
@@ -735,8 +764,10 @@ fc_GetFreeFrame ()
 	i = (kframe >= 0) ? kframe : minframe;
 	FCache[i].fc_keep = FCache[i].fc_valid = FALSE;
 	if (FCache[i].fc_pairs)
+	{
 		free (FCache[i].fc_pairs);
-	FCache[i].fc_pairs = NULL;
+		FCache[i].fc_pairs = NULL;
+	}
 	if(FCache[i].fc_inmem)
 		FreePixmaps[FCache[i].fc_index] = FREE;
 	else
@@ -764,8 +795,10 @@ int n;
 			{
 				FCache[FreePixmaps[i]].fc_valid = FALSE;
 				if (FCache[FreePixmaps[i]].fc_pairs)
+				{
 					free (FCache[FreePixmaps[i]].fc_pairs);
-				FCache[FreePixmaps[i]].fc_pairs = NULL;
+					FCache[FreePixmaps[i]].fc_pairs = NULL;
+				}
 			}
 		FreePixmaps[i] = InvalidEntry;
 	}
@@ -851,8 +884,10 @@ fc_GetFreeFile ()
 	offset = (kframe >= 0) ? kframe : minframe;
 	FCache[BufferTable[offset]].fc_valid = FALSE;
 	if (FCache[BufferTable[offset]].fc_pairs)
+	{
 		free (FCache[BufferTable[offset]].fc_pairs);
-	FCache[BufferTable[offset]].fc_pairs = NULL;
+		FCache[BufferTable[offset]].fc_pairs = NULL;
+	}
 	BufferTable[offset] = FREE;
 	return(offset);
 }	
