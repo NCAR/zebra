@@ -63,7 +63,8 @@ do
     then
 	    ln -s $DIRFROM/$file .
     else
-	    if [ $file != RCS -a $file != SCCS -a $file != . -a $file != .. ]
+	    if [ $file != RCS -a $file != SCCS -a $file != TC.Cache -a \
+		 $file != CVS -a $file != . -a $file != .. ]
 	    then
 		    echo $file:
 		    mkdir $file
