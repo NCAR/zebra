@@ -39,7 +39,7 @@
 # include "message.h"
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.17 1994-05-03 17:35:34 corbet Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.18 1994-05-03 21:05:37 corbet Exp $")
 /*
  * Symbol tables.
  */
@@ -206,6 +206,11 @@ char **argv;
 	InetAvoidTable = usy_c_stbl ("InetAvoidTable");
 	signal (SIGPIPE, (void *)psig);
 /*
+ * Get our inet port.  Do so even if we are not opening a listening
+ * socket, since we may want to connect outbound.
+ */
+	GetInetPort ();
+/*
  * Create Unix and Internet sockets.
  */
 	MakeUnixSocket ();
@@ -217,11 +222,6 @@ char **argv;
 		exit (1);
 	}
 	strcpy (Hostname, host);
-/*
- * Get our inet port.  Do so even if we are not opening a listening
- * socket, since we may want to connect outbound.
- */
-	GetInetPort ();
 /*
  * Set up our select stuff.
  */
