@@ -2,7 +2,7 @@
  * Imakefile for the DataStore, including its real-time utilities
  */
 
-MFVERSION="$Id: Imakefile,v 1.1 1992-08-20 13:20:20 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.2 1992-11-24 08:38:23 granger Exp $"
 
 LIBS=$(LIBZEB) $(LIBNETCDF) $(LIBRDSS)
 LIBGCC=/usr/local/lib/gcc-lib/sparc-sun-sunos4.1.2/2.2/libgcc.a
@@ -13,6 +13,14 @@ CLIBS=$(LIBGCC)
  */
 DSOBJS= Daemon.o d_SharedMemory.o d_DataTables.o d_Config.o d_Notify.o
 DSSRCS= Daemon.c d_SharedMemory.c d_DataTables.c d_Config.c d_Notify.c
+
+/*
+ * BINSRCS, BINOBJS = Sources for DS utilities
+ */
+BINSRCS= dsdump.c zfdump.c rfdump.c bfdump.c dsdelete.c \
+	 dsdwidget.c dsrescan.c Archiver.c LastData.c
+BINOBJS= dsdump.o zfdump.o rfdump.o bfdump.o dsdelete.o \
+	 dsdwidget.o dsrescan.o Archiver.o LastData.o
 
 /* 
  * DSLIBOBJS, DSLIBSRCS = normal DS library code 
@@ -46,7 +54,7 @@ APPDEFAULTS = Archiver.ad LastData.ad dsdwidget.ad
  * need to be changed if it is decided that they will not be
  * distributed with the general distribution
  */
-SRCS = $(DSLIBSRCS) $(DCSRCS) $(DSSRCS) $(NXSRCS)
+SRCS = $(DSLIBSRCS) $(DCSRCS) $(DSSRCS) $(NXSRCS) $(BINSRCS)
 
 HEADERS = BoundaryFile.h DataChunk.h DataChunkP.h DataStore.h NetXfr.h \
 	  RasterFile.h commands.h dfa.h dsDaemon.h dsPrivate.h \
@@ -69,6 +77,7 @@ NormalProgramTarget(zfdump,zfdump.o $(DSLIBOBJS) $(DCOBJS),
 
 NormalProgramTarget(dsdwidget,dsdwidget.o $(DSLIBOBJS) $(DCOBJS),
 		    $(DEPLIBS),$(LIBS) $(XLIBS),$(SYSLIBS))
+InstallAppDefaults(dsdwidget)
 
 NormalProgramTarget(prt_Notify,
 		    prt_Notify.o d_Notify.o $(DSLIBOBJS) $(DCOBJS),
@@ -85,10 +94,6 @@ InstallObjectsIntoLibrary($(LIBZEB),$(DSLIBOBJS) $(DCOBJS))
 
 
 BuildIncludes(DataStore.h ds_fields.h DataChunk.h,.,.)
-
-InstallAppDefaults(Archiver)
-InstallAppDefaults(LastData)
-InstallAppDefaults(dsdwidget)
 
 /*
  * Test programs.  These programs are not included in the all::
@@ -117,6 +122,9 @@ NormalProgramTarget(Archiver,Archiver.o $(DSLIBOBJS) $(DCOBJS),
 		$(DEPLIBS),$(LIBS) $(XLIBS),$(SYSLIBS))
 
 UILoadFileTarget(NetXfr.lf,NetXfr.state)
+
+InstallAppDefaults(Archiver)
+InstallAppDefaults(LastData)
 
 # endif /* RT_DS_TOOLS */
 
