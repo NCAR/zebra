@@ -42,7 +42,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: XSection.c,v 2.46 1999-07-15 17:13:40 burghart Exp $")
+RCSID ("$Id: XSection.c,v 2.47 2000-12-18 23:57:32 granger Exp $")
 
 /*
  * General definitions
@@ -147,6 +147,10 @@ LabelType	BottomLabel;
 static float	Contour_center, Contour_step, Wind_scale, Text_size;
 static int	Line_width, Degrade;
 static zbool	Do_labels, Mono_color, Autoscale, Do_vectors;
+/*
+ * Project vectors onto the cross-section plane.
+ */
+static zbool	ProjectVectors;
 
 /*
  * Maximum acceptable time difference between sounding time and plot time
@@ -191,7 +195,7 @@ static void	xs_Contour FP ((char *, int));
 static void	xs_ZZContour FP ((char *, char **, int, char *));
 static void	xs_PlaneContour FP ((char *, char **, int, char *));
 static void	xs_ZZVector FP ((char *, char **, int, char *, char *));
-static void	xs_PlaneVector FP ((char *, char **, int, char *, char *));
+static void	xs_PlaneVector FP ((char *, char **, int, char *, char *, char *));
 static void	xs_ZZFillIn FP ((ZZ_DPlane *));
 static void	xs_Background FP ((void));
 static void	xs_ExtendTrace FP ((double, double)); 
@@ -624,7 +628,7 @@ zbool	update;
 {
 	zbool	ok;
 	char	platforms[PlatformListLen];
-	char	ufldname[40], vfldname[40], *pnames[MaxPlatforms];
+	char	ufldname[40], vfldname[40], wfldname[40], *pnames[MaxPlatforms];
 	char	cname[20], style[16];
 	int	nplat;
 	zbool	sashow;
@@ -659,10 +663,19 @@ zbool	update;
 	Degrade = 1;
 	pda_Search (Pd, c, "degrade", NULL, (char *)&Degrade, SYMT_INT);
 /*
+ * Project 3-D vectors onto the plane?  For the moment this only applies to Plane
+ * cross-sections and not zig-zags.
+ */
+	ProjectVectors = FALSE;
+	strcpy(wfldname, "none");
+	pda_Search (Pd, c, "project-vectors", NULL, (char *)&ProjectVectors, SYMT_BOOL);
+/*
  * Get the fields and arrow or barb scale factor
  */
 	ok &= pda_ReqSearch (Pd, c, "u-field", "xsect", ufldname, SYMT_STRING);
 	ok &= pda_ReqSearch (Pd, c, "v-field", "xsect", vfldname, SYMT_STRING);
+	if (! Zig_zag && ProjectVectors)
+		ok &= pda_ReqSearch (Pd, c, "w-field", "xsect", wfldname, SYMT_STRING);
 	if (Do_vectors)
 	{
 		Wind_scale = 0.002;
@@ -717,7 +730,7 @@ zbool	update;
 	if (Zig_zag)
 		xs_ZZVector (c, pnames, nplat, ufldname, vfldname);
 	else
-		xs_PlaneVector (c, pnames, nplat, ufldname, vfldname);
+		xs_PlaneVector (c, pnames, nplat, ufldname, vfldname, wfldname);
 /*
  * Draw the background and set up to draw side annotation (scale vector)
  */
@@ -1495,12 +1508,12 @@ int	nplat;
 
 
 static void
-xs_PlaneVector (c, pnames, nplat, ufldname, vfldname)
-char	*c, **pnames, *ufldname, *vfldname;
+xs_PlaneVector (c, pnames, nplat, ufldname, vfldname, wfldname)
+char	*c, **pnames, *ufldname, *vfldname, *wfldname;
 int	nplat;
 {
 	int	i;
-	DPlane	*uplane, *vplane;
+	DPlane	*uplane, *vplane, *wplane;
 	ZebTime	dtime;
 /*
  * Annotate
@@ -1511,6 +1524,7 @@ int	nplat;
 /*
  * Find the gridding method and grab the data
  */
+ 	wplane = 0;
 	strcpy (Scratch, "default");
 	pda_Search (Pd, c, "grid-method", "xsect", Scratch, SYMT_STRING);
 
@@ -1532,10 +1546,15 @@ int	nplat;
 	 */
 		uplane = xs_Bilinear (pnames[0], ufldname, &dtime);
 		vplane = xs_Bilinear (pnames[0], vfldname, &dtime);
+		if (ProjectVectors)
+			wplane = xs_Bilinear (pnames[0], wfldname, &dtime);
 	/*
 	 * Add a line to the overlay times widget
 	 */
-		if (uplane && vplane)
+		if (uplane && vplane && wplane)
+			ot_AddStatusLine (c, pnames[0], "(projected winds)",
+					  &dtime);
+		else if (! ProjectVectors && uplane && vplane) 
 			ot_AddStatusLine (c, pnames[0], "(winds)", &dtime);
 	}
 	else
@@ -1547,6 +1566,9 @@ int	nplat;
 	 */
 		uplane = xs_HDWeighting (pnames, nplat, ufldname, times);
 		vplane = xs_HDWeighting (pnames, nplat, vfldname, times);
+		if (ProjectVectors)
+			wplane = xs_HDWeighting (pnames, nplat, wfldname, 
+						 times);
 	/*
 	 * Annotate with the platforms
 	 */
@@ -1580,49 +1602,73 @@ int	nplat;
 		 * Add a line to the overlay times widget, too
 		 */
 			if (times[i].zt_Sec != 0)
-				ot_AddStatusLine (c, pnames[i], "(winds)", 
+				ot_AddStatusLine (c, pnames[i], 
+						  ProjectVectors ? 
+						  "(projected winds)" :
+						  "(winds)",
 						  times + i);
 		}
 		An_TopAnnot (".  ", White.pixel);
 	}
-
-	if (! uplane || ! vplane)
+/*
+ * If we have 3-D vector components, project the vector onto the vertical
+ * plane, computing the u and v components in the u and v data planes. 
+ */
+	if (uplane && vplane && wplane)
 	{
-		if (uplane)
-		{
-			free (uplane->data);
-			free (uplane);
-		}
-		else if (vplane)
-		{
-			free (vplane->data);
-			free (vplane);
-		}
+	    DPlane *tmp;
+	    double pangle = atan2 (Y1 - Y0, X1 - X0);
 
-		return;
+	    /* Project the horizontal wind speed onto the vertial plane.
+	     * The vertical component of the projected wind is exactly w. 
+	     */
+	    for (i = 0; i < uplane->hdim * uplane->vdim; ++i)
+	    {
+		float u = uplane->data[i];
+		float v = vplane->data[i];
+		double theta = pangle - atan2(v, u);
+		uplane->data[i] = sqrt(u*u + v*v) * cos(theta);
+	    }
+
+	    /* Swap v and w so that both will still be freed later. */
+	    tmp = vplane; vplane = wplane; wplane = tmp;
 	}
-/*
- * Draw the vectors or barbs
- */
-	XSetLineAttributes (XtDisplay (Graphics), Gcontext, Line_width, 
-			    LineSolid, CapButt, JoinMiter);
-	WindGrid (Graphics, GWFrame (Graphics), Gcontext, uplane->data, 
-		  vplane->data, uplane->hdim, uplane->vdim, Pix_left, 
-		  Pix_bottom, Pix_right, Pix_top, Wind_scale, BADVAL, Ccolor, 
-		  Degrade, Do_vectors);
-/*
- * Return the line width to the default of zero, since this is a
- * shared GC
- */
-	XSetLineAttributes (XtDisplay (Graphics), Gcontext, 0, LineSolid, 
-			    CapButt, JoinMiter);
+	if (uplane && vplane && (! ProjectVectors || wplane))
+	{ 
+		XSetLineAttributes (XtDisplay (Graphics), Gcontext, 
+				    Line_width, LineSolid, CapButt, JoinMiter);
+	/*
+	 * Draw the vectors or barbs
+	 */
+		WindGrid (Graphics, GWFrame (Graphics), Gcontext, uplane->data,
+			  vplane->data, uplane->hdim, uplane->vdim, Pix_left, 
+			  Pix_bottom, Pix_right, Pix_top, Wind_scale, BADVAL, 
+			  Ccolor, Degrade, Do_vectors);
+	/*
+	 * Return the line width to the default of zero, since this is a
+	 * shared GC
+	 */
+		XSetLineAttributes (XtDisplay (Graphics), Gcontext, 0, 
+				    LineSolid, CapButt, JoinMiter);
+	}
 /*
  * Clean up
  */
-	free (uplane->data);
-	free (vplane->data);
-	free (uplane);
-	free (vplane);
+ 	if (uplane)
+	{
+		free (uplane->data);
+		free (uplane);
+	}
+	if (vplane)
+	{
+		free (vplane->data);
+		free (vplane);
+	}
+	if (wplane)
+	{
+		free (wplane->data);
+		free (wplane);
+	}
 
 	return;
 }
