@@ -1,7 +1,7 @@
 /*
  * Vertical cross-sectioning
  */
-static char *rcsid = "$Id: XSection.c,v 2.18 1994-04-15 21:26:41 burghart Exp $";
+static char *rcsid = "$Id: XSection.c,v 2.19 1994-04-20 15:39:07 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -1899,13 +1899,13 @@ ZebTime	*dtime;
 			f_i = f_i0 + h * f_istep;
 			f_j = f_j0 + h * f_jstep;
 
-			i = nint (f_i);
-			j = nint (f_j);
+			i = (int) f_i;
+			j = (int) f_j;
 		/*
 		 * Simple if we're outside the source grid
 		 */
 			if (i < 0 || j < 0 || k < 0 ||
-			    i > rg.rg_nX-2 || j > rg.rg_nY-2 || k > rg.rg_nZ-1)
+			    i > rg.rg_nX-2 || j > rg.rg_nY-2 || k > rg.rg_nZ-2)
 			{
 				*pp = BADVAL;
 				continue;
@@ -2669,9 +2669,9 @@ float	*alts;
 	if (ds_IsModelPlatform (pid) && ValidationMode)
 		want_time.zt_Sec -= ForecastOffset;
 	
-	if (! ds_DataTimes (pid, &PlotTime, 1, DsBefore, dtime))
+	if (! ds_DataTimes (pid, &want_time, 1, DsBefore, dtime))
 	{
-		TC_EncodeTime (&PlotTime, TC_Full, Scratch);
+		TC_EncodeTime (&want_time, TC_Full, Scratch);
 		msg_ELog (EF_PROBLEM, "No data for '%s' at %s", plat, Scratch);
 		return (NULL);
 	}
