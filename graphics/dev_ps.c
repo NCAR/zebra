@@ -10,7 +10,7 @@
 # include "device.h"
 # include <stdio.h>
 
-static char *rcsid = "$Id: dev_ps.c,v 1.5 1991-05-02 21:35:16 burghart Exp $";
+static char *rcsid = "$Id: dev_ps.c,v 1.6 1991-09-18 22:43:44 burghart Exp $";
 /*
  * The tag structure
  */
@@ -248,13 +248,13 @@ int color, ltype, npt, *data;
  */
 {
 	struct ps_tag *ptp = (struct ps_tag *) ctag;
-	int	points = 0;
+	int	point = 0;
 	char	command[80];
 
 	if (!ptp->pt_winset)
 		ps_set_win (ptp);
 /*
- * Do a setdash ('sd') and a newpath ('n')
+ * Do a setdash ('sd') and newpath ('n')
  */
 	sprintf (command, "%s 0 sd n\n", Ps_ltype[ltype]);
 	ps_out_s (ptp, command);
@@ -265,13 +265,34 @@ int color, ltype, npt, *data;
 	ps_out_s (ptp, command);
 	data += 2;
 /*
- * Loop through all points ('z' = lineto)
+ * Draw the polyline (break it into chunks of 100 points
  */
-	while (points++ < npt - 1)
+	for (point = 1; point < npt; point++)
 	{
+	/*
+	 * Add a segment ('z' = lineto)
+	 */
 		sprintf (command, "%d %d z\n", data[0], data[1]);
 		ps_out_s (ptp, command);
-		data += 2;
+	/*
+	 * Draw the line every 100 points
+	 */
+		if ((point % 100) == 0)
+		{
+		/*
+		 * Stroke ('s') and newpath ('n')
+		 */
+			ps_out_s (ptp, "s n\n");
+		/*
+		 * Do a moveto ('m') to start off where we finished
+		 */
+			sprintf (command, "%d %d m\n", data[0], data[1]);
+			ps_out_s (ptp, command);
+		}
+	/*
+	 * Move through the data
+	 */
+		data += 2;	
 	}
 /*
  * Connect the dots ('s' = stroke)
