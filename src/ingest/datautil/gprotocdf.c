@@ -26,7 +26,7 @@
 # include <stdio.h>
 # include <netcdf.h>
 # include "defs.h"
-MAKE_RCSID ("$Id: gprotocdf.c,v 1.12 1993-07-01 20:12:11 granger Exp $")
+MAKE_RCSID ("$Id: gprotocdf.c,v 1.13 1994-02-01 09:05:40 granger Exp $")
 
 /*
  * Netcdf stuff.
@@ -67,7 +67,7 @@ int NField = 0;		/* number of elements in Fields[] */
 # define DST(i)		(Fields[i].gpf_dst)
 # define DESC(i)	(Fields[i].gpf_desc)
 # define UNITS(i)	(Fields[i].gpf_units)
-# define FOFFSET(i)	(Fields[i].gpf_offset)
+# define FLDOFFSET(i)	(Fields[i].gpf_offset)
 # define VFIELD(i)	(Fields[i].gpf_ncvar)
 # define FACTOR(i)	(Fields[i].gpf_factor)
 # define TERM(i)	(Fields[i].gpf_term)
@@ -75,7 +75,7 @@ int NField = 0;		/* number of elements in Fields[] */
 			  DST(i)[0] = '\0'; \
 			  DESC(i)[0] = '\0'; \
 			  UNITS(i)[0] = '\0'; \
-			  FOFFSET(i) = BAD_OFFSET; \
+			  FLDOFFSET(i) = BAD_OFFSET; \
 			  VFIELD(i) = BAD_VFIELD; \
 			  FACTOR(i) = BAD_FACTOR; \
 			  TERM(i) = BAD_TERM; \
@@ -448,13 +448,13 @@ ValidateFields()
 	{
 		if (TERM(i) == BAD_TERM)
 			printf("TERM value missing for %s, offset %i\n",
-			       SRC(i), FOFFSET(i));
+			       SRC(i), FLDOFFSET(i));
 		else if (FACTOR(i) == BAD_FACTOR)
 			printf("FACTOR missing for field %s, offset %i\n",
-			       SRC(i), FOFFSET(i));
-		else if (FOFFSET(i) == BAD_OFFSET)
+			       SRC(i), FLDOFFSET(i));
+		else if (FLDOFFSET(i) == BAD_OFFSET)
 			printf("No offset found for %s, offset = %i\n",
-			       SRC(i), FOFFSET(i));
+			       SRC(i), FLDOFFSET(i));
 		else
 			continue;
 		GiveUp("Giving up!");
@@ -673,10 +673,10 @@ char *line;
  * Grab the stuff.
  */
 	STRNCPY (Fields[i].gpf_units, unit, UNITLEN);
-	sscanf (offset, "%d", &(FOFFSET(i)));
-	FOFFSET(i) /= 32;
+	sscanf (offset, "%d", &(FLDOFFSET(i)));
+	FLDOFFSET(i) /= 32;
 	printf ("Field %s, units '%s', offset %d\n", SRC(i),
-		UNITS(i), FOFFSET(i));
+		UNITS(i), FLDOFFSET(i));
 }
 
 
@@ -803,9 +803,9 @@ Plow ()
 	 * Major source of ugliness.
 	 */
 # ifdef notdef
-		if (ip[FOFFSET(LatOffset)]/FACTOR(LatOffset) 
+		if (ip[FLDOFFSET(LatOffset)]/FACTOR(LatOffset) 
 		      == TERM(LatOffset) 			||
-		    ip[FOFFSET(LonOffset)]/FACTOR(LonOffset) 
+		    ip[FLDOFFSET(LonOffset)]/FACTOR(LonOffset) 
 		      == TERM(LonOffset))
 		{
 			NTrashed++;
@@ -843,7 +843,7 @@ Plow ()
 	 */
 	 	for (i = 0; i < NField; i++)
 		{
-			data = ip[FOFFSET(i)]/FACTOR(i) - TERM(i);
+			data = ip[FLDOFFSET(i)]/FACTOR(i) - TERM(i);
 			if (i == AltOffset)
 				data /= 1000.0;		/* m -> km */
 			ncvarput1 (NFile, VFIELD(i), &NOut, &data);
