@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.21 1992-12-22 17:32:53 granger Exp $ */
+/* $Id: GraphProc.h,v 2.22 1993-03-12 22:01:49 granger Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -114,6 +114,21 @@ extern int DrawFrame;			/* Frame to draw in		*/
 extern int TriggerGlobal;
 
 /*
+ * Definition of help topic names, in a central place for convenience and
+ * accuracy.  Note that length is no longer significant; it is corrected
+ * elsewhere.
+ */
+# define GP_HELP_MOVIE		"movies"
+# define GP_HELP_OVERLAYS	"overlaytimes"
+# define GP_HELP_LIMITS		"limitwidgets"
+# define GP_HELP_XYGRAPHS	"xygraph"
+# define GP_HELP_XSECTIONS	"Cross-section"
+# define GP_HELP_TSERIES	"timeseries"
+# define GP_HELP_ICONS		"icons"
+# define GP_HELP_GPOSITION	"getposition"
+# define GP_HELP_ALTITUDE	"altitude"
+
+/*
  * Routines of interest.
  */
 /* Basic graphic utilities */
@@ -223,6 +238,8 @@ extern char *lw_Status FP ((void));
 /* This stuff contains window system oriented stuff, so is only brought
    in if this module is doing X things. */
 # ifdef _XtIntrinsic_h
+	extern void HelpCallback FP ((Widget w, XtPointer client_data,
+				      XtPointer call_data));
 	extern bool ct_LoadTable FP ((char *, XColor**, int *));
 	extern void ct_FreeColors FP ((void));
 	extern void ct_DeleteTable FP ((char *));
