@@ -39,7 +39,7 @@
 # include "message.h"
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.15 1994-04-28 21:05:15 corbet Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.16 1994-05-03 16:34:24 corbet Exp $")
 /*
  * Symbol tables.
  */
@@ -177,12 +177,21 @@ void	ReallyDie FP ((void));
 
 
 
-main ()
+main (argc, argv)
+int argc;
+char **argv;
 {
-	int conn, nb;
+	int conn, nb, inet = FALSE;
 	char msg[120], *host, *getenv ();
 	fd_set fds, wfds;
 	int psig ();
+/*
+ * Check args.
+ */
+	if (argc > 2 || (argc == 2 && strcmp (argv[1], "-i")))
+		fprintf (stderr, "Usage: message [-i] (args ignored)\n");
+	else
+		inet = (argc == 2);
 /*
  * Create our symbol tables.
  */
@@ -197,7 +206,7 @@ main ()
  * Create Unix and Internet sockets.
  */
 	MakeUnixSocket ();
-	if (! getenv ("ZEB_SOCKET"))
+	if (inet)
 		MakeInetSocket ();
 	if (! (host = getenv ("HOST")))
 	{
