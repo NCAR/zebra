@@ -40,7 +40,7 @@
 # define MESSAGE_LIBRARY	/* to get netread prototypes */
 # include "message.h"
 
-RCSID ("$Id: msg_lib.c,v 2.36 1996-08-16 20:26:42 granger Exp $")
+RCSID ("$Id: msg_lib.c,v 2.37 1996-08-20 19:51:33 granger Exp $")
 
 /*
  * The array of functions linked with file descriptors.
@@ -1560,7 +1560,7 @@ int (*func) ();
 
 int
 msg_QueryClient (client)
-char *client;
+const char *client;
 /*
  * Return TRUE iff this client exists.
  */
@@ -1571,13 +1571,36 @@ char *client;
  * Format and send the query.
  */
 	mhi.mh_type = MH_CQUERY;
-	strcpy (mhi.mh_name, client);
+	strcpy (mhi.mh_name, (char *)client);
 	msg_send (MSG_MGR_NAME, MT_MESSAGE, FALSE, &mhi, sizeof (mhi));
 /*
  * Now we await the reply.
  */
 	msg_Search (MT_MESSAGE, msg_CQReply, &reply);
 	return (reply);
+}
+
+
+
+
+void
+msg_ListGroup (group)
+const char *group;
+/*
+ * Send a message requesting a list of the clients in group.  If group
+ * is NULL, return Everybody.  We don't wait for the response here, we
+ * just send the request.
+ */
+{
+	struct mh_members mh;
+
+	mh.mh_type = MH_LISTGROUP;
+	if (group)
+		strcpy (mh.mh_group, (char *)group);
+	else
+		mh.mh_group[0] = '\0';
+	mh.mh_nclient = 0;
+	msg_send (MSG_MGR_NAME, MT_MESSAGE, FALSE, &mh, sizeof(mh));
 }
 
 

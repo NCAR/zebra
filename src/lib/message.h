@@ -1,4 +1,4 @@
-/* $Id: message.h,v 2.22 1996-08-16 16:38:40 granger Exp $ */
+/* $Id: message.h,v 2.23 1996-08-20 19:51:30 granger Exp $ */
 /*
  * Message protocol types.
  */
@@ -86,6 +86,8 @@
 # define MH_CQUERY	-9	/* Does this client exist?		*/
 # define MH_CQREPLY	-10	/* Reply to CQUERY			*/
 # define MH_QUIT	-11	/* Quit process group			*/
+# define MH_LISTGROUP	-12	/* List clients in a group		*/
+# define MH_GROUP	-13	/* Reply to MH_LISTGROUP		*/
 # define MH_DIE 	-99	/* Kill the server -- use with care!	*/
 # define MH_SHUTDOWN	-100	/* Server is shutting down		*/
 
@@ -172,6 +174,17 @@ struct mh_client
 	short	mh_inet;	/* This is an internet "client" */
 	char	mh_client[MAX_NAME_LEN];/* The client being talked about */
 	char	mh_group[MAX_NAME_LEN]; /* Group name, when appl	*/
+};
+
+/*
+ * The group list structure
+ */
+struct mh_members
+{
+	int	mh_type;		/* == MH_LISTGROUP or MH_GROUP  */
+	char	mh_group[MAX_NAME_LEN];	/* name of group, or empty	*/
+	int	mh_nclient;		/* number clients in list	*/
+	char	mh_client[1][MAX_NAME_LEN];	/* list of clients	*/
 };
 
 /*
@@ -304,7 +317,8 @@ int msg_PollProto FP ((int timeout, int nproto, int *protolist));
 int msg_Search FP ((int proto, int (*func) (), void * param));
 void msg_AddProtoHandler FP ((int, int (*) ()));
 void msg_Enqueue FP ((Message *msg));
-int msg_QueryClient FP ((char *));
+int msg_QueryClient FP ((const char *));
+void msg_ListGroup FP ((const char *group));
 void msg_DeathHandler FP ((ifptr f));
 /* query protocol */
 void msg_SendQuery FP ((char *, int (*) ()));
