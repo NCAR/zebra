@@ -26,7 +26,14 @@
 
 # include "defs.h"
 
-MAKE_RCSID ("$Id: TCvt.c,v 2.18 1995-10-31 02:07:31 granger Exp $")
+MAKE_RCSID ("$Id: TCvt.c,v 2.19 1996-06-21 16:24:31 granger Exp $")
+
+/*
+ * Public time constants
+ */
+const ZebTime ZT_ALPHA = { 0, 0 };
+const ZebTime ZT_OMEGA = { 0x7fffffff, 999999 };
+const ZebTime ZT_NONE = { -1, -1 };
 
 /*
  * The months of the year.

@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-/* $Id: Imakefile,v 1.17 1996-05-01 20:30:01 granger Exp $ */
+/* $Id: Imakefile,v 1.18 1996-06-21 16:24:29 granger Exp $ */
 
 #if !HasWritev
 WRITEVOBJ=writev.o
@@ -40,13 +40,15 @@ SRCS = alarmwidget.c altunits.c barb.c Bitmaps.c cmd_proto.c cmd_exec.c \
 	ConfigVars.c convert.c GraphicsW.c ImageXfr.c Buttons.c \
 	msg_BCast.c msg_lib.c netread.c Parse.c pdlib.c pdretrv.c pdaux.c \
 	RLEncode.c Sound_lib.c TCvt.c TInterp.c timer_lib.c twidget.c \
-	vector.c $(WRITEVSRC) FindFile.c zl_regex.c dm_lib.c $(TESTSRCS)
+	vector.c $(WRITEVSRC) FindFile.c zl_regex.c dm_lib.c $(TESTSRCS) \
+	location.c
 
 OBJS = alarmwidget.o altunits.o barb.o Bitmaps.o cmd_proto.o cmd_exec.o \
 	ConfigVars.o convert.o GraphicsW.o ImageXfr.o Buttons.o \
 	msg_BCast.o msg_lib.o netread.o Parse.o pdlib.o pdretrv.o pdaux.o \
 	RLEncode.o Sound_lib.o TCvt.o TInterp.o timer_lib.o twidget.o \
-	vector.o $(WRITEVOBJ) FindFile.o zl_regex.o dm_lib.o
+	vector.o $(WRITEVOBJ) FindFile.o zl_regex.o dm_lib.o \
+	location.o
 
 TESTOBJS = cvt_test.o re_test.o msg_test.o
 

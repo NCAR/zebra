@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 2.31 1995-10-31 02:07:33 granger Exp $ */
+/* $Id: defs.h,v 2.32 1996-06-21 16:24:33 granger Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -69,6 +69,12 @@ typedef struct _ZebTime
 	long	zt_MicroSec;	/* Microseconds added to zt_Sec */
 } ZebTime;
 
+extern const ZebTime ZT_NONE;
+extern const ZebTime ZT_ALPHA;
+extern const ZebTime ZT_OMEGA;
+#define ZT_EPOCH ZT_ALPHA;
+#define ZT_END ZT_OMEGA;
+
 /*
  * Time conversion options.
  */
@@ -89,6 +95,8 @@ typedef struct s_Location
 	float	l_lon;
 	float	l_alt;
 } Location;
+
+extern const Location LOC_NONE;
 
 /*
  * Scale and bias info for integer-encoded fields.
@@ -202,6 +210,12 @@ void cvt_ShowOrigin FP ((void));
 
 # define TC_Eq(t1,t2) (((t1).zt_Sec == (t2).zt_Sec) && \
 			((t1).zt_MicroSec == (t2).zt_MicroSec))
+
+/*
+ * Location macros
+ */
+# define loc_OutOfRange(loc) (((loc)->l_lat < -90 || (loc)->l_lat > 90 || \
+			       (loc)->l_lon > 180 || (loc)->l_lon < -180))
 
 /*
  * Macros
