@@ -1,7 +1,7 @@
 /*
  * Deal with static (or almost static) overlays.
  */
-static char *rcsid = "$Id: Overlay.c,v 1.5 1990-11-14 10:51:02 burghart Exp $";
+static char *rcsid = "$Id: Overlay.c,v 1.6 1990-11-15 13:37:28 corbet Exp $";
 
 # include <stdio.h>
 # include <X11/Intrinsic.h>
@@ -91,7 +91,7 @@ bool update;
 /*
  * Pull out the type of overlay they want.
  */
-	if (! pda_ReqSearch (comp, "field", NULL, type, SYMT_STRING))
+	if (! pda_ReqSearch (Pd, comp, "field", NULL, type, SYMT_STRING))
 		return;
 /*
  * Simply try to find a routine which can do this.
@@ -134,7 +134,7 @@ bool update;
 /*
  * Find our platform.
  */
-	if (! pda_ReqSearch (comp, "platform", NULL, platform, SYMT_STRING))
+	if (! pda_ReqSearch (Pd,comp, "platform", NULL, platform, SYMT_STRING))
 		return;
 /*
  * Now try to pull in the bounding box.
@@ -198,7 +198,7 @@ bool update;
 /*
  * Find our "platform".  (Really the name of the feature of interest).
  */
-	if (! pda_ReqSearch (comp, "platform", NULL, platform, SYMT_STRING))
+	if (! pda_ReqSearch (Pd,comp, "platform", NULL, platform, SYMT_STRING))
 		return;
 	if (! Ftable || ! usy_g_symbol (Ftable, platform, &type, &v))
 	{
@@ -318,7 +318,7 @@ bool update;
 /*
  * Find our platform -- the map name.
  */
-	if (! pda_ReqSearch (comp, "platform", NULL, platform, SYMT_STRING))
+	if (! pda_ReqSearch (Pd,comp, "platform", NULL, platform, SYMT_STRING))
 		return;
 /*
  * Color information.
