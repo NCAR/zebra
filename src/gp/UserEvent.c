@@ -32,7 +32,7 @@
 # include "ActiveArea.h"
 # include "PixelCoord.h"
 
-RCSID("$Id: UserEvent.c,v 2.10 1995-06-29 23:29:56 granger Exp $")
+RCSID("$Id: UserEvent.c,v 2.11 1995-09-23 02:41:03 granger Exp $")
 
 /*
  * The structure which defines the response to a user event, such as a
@@ -291,23 +291,47 @@ Cardinal *nparam;
  */
 {
 	XMotionEvent *xme;
+	XCrossingEvent *xce;
+#ifdef notdef
 	bool button;
+#endif
 	ActiveArea *which;
+	int x, y;
 /*
- * Clear out redundant events.
+ * Clear out redundant motion events.
  */
-	while (XCheckMaskEvent (Disp, ButtonMotionMask, event));
-	xme = (XMotionEvent *) event;
-	button = xme->state & (Button1Mask|Button2Mask|Button3Mask);
+	if (event->type == MotionNotify)
+	{
+		while (XCheckMaskEvent (Disp, ButtonMotionMask, event));
+		xme = (XMotionEvent *) event;
+#ifdef notdef
+		button = xme->state & (Button1Mask|Button2Mask|Button3Mask);
+#endif
+		x = xme->x;
+		y = xme->y;
+	}
+	else if (event->type == EnterNotify || event->type == LeaveNotify)
+	{
+		xce = (XCrossingEvent *) event;
+#ifdef notdef
+		button = xce->state & (Button1Mask|Button2Mask|Button3Mask);
+#endif
+		x = xce->x;
+		y = xce->y;
+	}
+	else
+		return;
 /*
  * If somebody is snarfing motions, forward this off to them.
  */
 	if (MotionHandler)
-		(*MotionHandler) (xme->x, xme->y);
+		(*MotionHandler) (x, y);
 /*
  * Otherwise look for active areas to deal with.
  */
-	else if ((which = aa_Which (xme->x, xme->y)))
+	else if (event->type == LeaveNotify)
+		Ue_UnHighlight ();
+	else if ((which = aa_Which (x, y)))
 		Ue_HighlightArea (which);
 	else if (Highlighted)
 		Ue_UnHighlight ();

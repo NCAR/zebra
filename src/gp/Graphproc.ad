@@ -1,4 +1,4 @@
-! $Id: Graphproc.ad,v 1.17 1994-12-09 08:42:52 granger Exp $
+! $Id: Graphproc.ad,v 1.18 1995-09-23 02:41:00 granger Exp $
 !
 ! The Graphics process resource file.
 !
@@ -64,6 +64,8 @@ Graphproc.?.form.background:	gray95
 	<Btn2Down>:	ue_pointer_event(mb-middle) \n\
 	<Btn3Down>:	ue_pointer_event(mb-right) \n\
 	<Motion>:	ue_motion() \n\
+	<EnterNotify>:	ue_motion() \n\
+	<LeaveNotify>:	ue_motion() \n\
 	<Key>:		ue_key_event()
 *xgrshell.Graphics.translations: #augment \n\
 	<Key>:		ue_key_event()
