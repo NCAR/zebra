@@ -30,7 +30,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID ("$Id: d_Scan.c,v 1.15 1994-04-27 08:24:20 granger Exp $")
+MAKE_RCSID ("$Id: d_Scan.c,v 1.16 1994-04-27 10:38:30 granger Exp $")
 
 
 /*
@@ -635,7 +635,8 @@ Platform *p;
 bool local;
 /*
  * Generate the cache file name for this platform.  The returned string
- * is only valid until the next call.
+ * is only valid until the next call.  Follow the dfa_MakeFileName
+ * convention of just removing the '/' characters.
  */
 {
 	static char fname[sizeof(p->dp_name)+sizeof(p->dp_dir)+20];
@@ -643,9 +644,8 @@ bool local;
 	char *slash;
 
 	strcpy (name, p->dp_name);
-	slash = name;
-	while (slash = strchr(slash, '/'))
-		*slash++ = '-';
+	while (slash = strchr(name, '/'))
+		strcpy (slash, slash+1);
 
 	sprintf (fname, "%s/%s.ds_cache", local ? p->dp_dir : p->dp_rdir,
 		 name);
