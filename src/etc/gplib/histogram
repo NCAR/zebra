@@ -1,0 +1,232 @@
+!
+! Histogram support.
+!
+define widget historight intmenu 'historight'
+	title 'Histogram options'
+	line
+	entry 'Annotate bars' 'ToggleBoolean annotate-counts' \
+		(PDParam (icon_component, 'annotate-counts') <> 'false')
+	entry 'Draw grid' 'ToggleBoolean count-grid' \
+		(PDParam (icon_component, 'count-grid') <> 'false')
+	line
+	entry 'Display bad value bin' 'ToggleBoolean badvalue-bin' \
+		(PDParam (icon_component, 'badvalue-bin') <> 'false')
+	entry 'Other histogram parameters...' 'popup histo-params'
+endmenu
+
+
+procedure histo-limits junk string
+	popup histo-limits
+endprocedure
+
+!
+! Limits tweaking.
+!
+define widget histo-limits form 'Histogram plot limits'
+	popup hgl-popup
+	noheader
+!
+! title line.
+!
+	label l1 'Adjust histogram plotting limits'
+	button help 'Help' command 'help histogram'
+	button apply 'Apply' command 'hgl-apply'
+	button zap 'Dismiss' color red command 'popdown #ui$form'
+	newline
+!
+! Scale mode.
+!
+	label lmode 'Scale mode: '
+	button mode 'FUNKY' command 'ToggleMode' width 70
+	label comp 'comp' color gray95 
+	newline
+!
+! The actual center and step if they want to tweak it.
+!
+	label lcenter 'Minimum counts: '
+	blank cmin '0.0' width 60 
+	label lstep ' Maximum: '
+	blank cmax '0.0' width 60
+!
+! Zero anchor.
+!
+	newline
+	label lzanc '(Autoscale) use '
+	button zanchor 'bong' width 95 command 'ToggleZAnchor'
+	label lzanc2 ' for minimum counts'
+enddef
+
+
+!
+! The popup procedure for the histogram limits form.
+!
+procedure hgl-popup
+!
+! Pull some basic info.
+!
+	local f ui$form
+!
+! Stash aside the component name, we will want it later.
+!
+	formtext #f 'comp' #icon_component
+!
+! Now see if they have auto scaling turned on.
+!
+	local mode PDSearch(icon_component, 'scale-mode', 'histogram')
+	if (mode = 'manual')
+		formtext #f mode 'manual'
+	else
+		formtext #f mode 'auto'
+	endif
+!
+! Pull in the min amd max values.
+!
+	local v PDSearch(icon_component, 'count-min', 'histogram')
+	formtext #f cmin #v
+	local v PDSearch(icon_component, 'count-max', 'histogram')
+	formtext #f cmax #v
+!
+! Zero anchor.
+!
+	local v PDSearch(icon_component, 'zero-anchor', 'histogram')
+	if (v = '(Undefined)' or v = 'true')
+		formtext #f zanchor 'zero'
+	else
+		formtext #f zanchor 'data minimum'
+	endif
+endprocedure
+
+
+
+!
+! Apply all the junk they just put in.
+!
+procedure hgl-apply
+	local f ui$form
+	local comp getftext(f, 'comp')
+	local mode getftext(f, 'mode')
+	parameter #comp 'scale-mode' #mode
+	local cmin getftext(f, 'cmin')
+	parameter #comp count-min #cmin
+	local cmax getftext(f, 'cmax')
+	parameter #comp count-max #cmax
+	local zanchor getftext(f, 'zanchor')
+	if (zanchor = 'zero')
+		parameter #comp zero-anchor true
+	else
+		parameter #comp zero-anchor false
+	endif
+endprocedure
+
+
+
+!
+! Tweak autoscale mode.  Duplicate from ctr-step, sigh.
+!
+procedure ToggleMode
+	local current getftext(ui$form, 'mode')
+	if (current = 'manual')
+		formtext #ui$form 'mode' 'auto'
+	else
+		formtext #ui$form 'mode' 'manual'
+	endif
+endprocedure
+
+
+procedure ToggleZAnchor
+	local cur getftext(ui$form, 'zanchor')
+	if (cur = 'zero')
+		formtext #ui$form zanchor 'data minimum'
+	else
+		formtext #ui$form zanchor 'zero'
+	endif
+endprocedure
+
+
+
+
+
+
+!
+! The big histogram parameters widget.
+!
+define widget histo-params form 'Histogram control'
+	noheader
+	popup hgp-popup
+!
+! Title stuff.
+!
+	label title 'Histogram control'
+	button help 'Help' command 'help histogram'
+	button apply 'Apply' command 'hgp-apply'
+	button zap 'Dismiss' color red command 'popdown #ui$form'
+	label comp 'comp' color gray95 
+	newline
+!
+! Platforms fields and bins
+!
+	label lplat 'Platforms: ' width 80
+	blank platforms 'weirdstuff' width 200
+!	newline
+	label lfield 'Fields: ' ! width 80
+	blank fields 'weird' width 200
+	newline
+	label lbin 'Bins: ' width 80
+	blank bins 'weird' width 200
+	newline
+!
+! Time period
+!
+	label ltime 'Time period: '
+	blank time 'weird' width 60
+	label ltime2 '(+s = seconds, m = minutes h = hours, d = days)'
+	newline
+!
+! Other stuff.
+!
+	button limits 'Adjust plot limits...' command 'popup histo-limits'
+enddef
+
+
+!
+! Set up the form.
+!
+procedure hgp-popup
+	local f ui$form
+	formtext #f comp #icon_component
+	local v quote(PDParam(icon_component, 'platform'))
+	formtext #f platforms #v
+	local v quote(PDParam (icon_component, 'field'))
+	formtext #f fields #v
+	local v quote(PDParam (icon_component, 'bins'))
+	formtext #f bins #v
+	local v PDParam(icon_component, 'time-period')
+	formtext #f time #v
+endprocedure
+
+!
+! Do something about the form.
+!
+procedure hgp-apply
+	local f ui$form
+	local c getftext(f,'comp')
+!
+	local v quote(getftext (f,'platforms'))
+	parameter #c platform #v
+	local v quote(getftext (f, 'fields'))
+	parameter #c field #v
+	local v quote(getftext (f, 'bins'))
+	parameter #c bins #v
+	local v getftext(f, 'time')
+	parameter #c time-period #v
+endprocedure
+
+
+
+
+!
+! Tweak a field out of the field menu.
+!
+procedure hg-field field string
+	message 'this is not as simple as I had thought'
+endprocedure
