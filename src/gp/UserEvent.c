@@ -1,7 +1,7 @@
 /*
  * Deal with user-originated events.
  */
-static char *rcsid = "$Id: UserEvent.c,v 2.5 1993-11-09 22:23:18 corbet Exp $";
+static char *rcsid = "$Id: UserEvent.c,v 2.6 1994-02-14 22:47:33 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -192,6 +192,9 @@ char *code;
 {
 	union usy_value v;
 	int type;
+
+	if (! code)
+		return (0);
 
 	if (! usy_g_symbol (EventHandlers, code, &type, &v))
 		return (0);
