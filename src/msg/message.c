@@ -51,7 +51,7 @@
 # include <message.h>
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.39 1996-08-13 21:53:58 granger Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.40 1996-08-13 23:04:39 granger Exp $")
 /*
  * Symbol tables.
  */
@@ -221,6 +221,8 @@ void	add_to_group FP ((struct connection *, char *, struct message *));
 int	clear_group FP ((char *name, int type, union usy_value *v,
 			 struct connection *conp));
 int	free_group FP ((char *name, int type, union usy_value *v, int unused));
+static int stat_group FP ((char *name, int type, union usy_value *v,
+			   char *text));
 void	FixAddress FP ((char *));
 void	MsgProtocol FP ((int, Message *));
 void	AnswerPing FP ((int, Message *));
@@ -2681,7 +2683,7 @@ int query;	/* nonzero if this a MT_QUERY rather the MH_STATS */
  * Send statistics back to this guy.
  */
 {
-	char buffer[256];
+	char buffer[1024];
 	char *text;
 	char *username;
 	struct message msg;
@@ -2774,6 +2776,13 @@ int query;	/* nonzero if this a MT_QUERY rather the MH_STATS */
 		send_msg (conp, &msg);
 	}
 /*
+ * Finally list our groups and the members of each.
+ */
+	strcpy (text, "Groups:\n");
+	usy_traverse (Group_table, stat_group, (int)text, FALSE);
+	msg.m_len = len + strlen (text);
+	send_msg (conp, &msg);
+/*
  * Send the EOF and quit.
  */
 	if (query)
@@ -2790,6 +2799,28 @@ int query;	/* nonzero if this a MT_QUERY rather the MH_STATS */
 }
 
 
+
+/*ARGSUSED*/
+static int
+stat_group (name, type, v, text)
+char *name;
+int type;
+union usy_value *v;
+char *text;
+{
+	int i;
+	struct group *grp = (struct group *) v->us_v_ptr;
+
+	sprintf (text+strlen(text), " %s (%d): ", 
+		 grp->g_name, grp->g_nprocs);
+	for (i = 0; i < grp->g_nprocs; i++)
+	{
+		sprintf (text+strlen(text), "%s%s", (i) ? ", " : "", 
+			 grp->g_procs[i]->c_name);
+	}
+	strcat (text, "\n");
+	return (TRUE);
+}
 
 
 
