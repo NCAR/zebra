@@ -2,7 +2,7 @@
 SRCS = pdmon.c
 OBJS = pdmon.o
 HEADERS = pdmon.h
-ELISPFILES = pd-utils.el
+ELISPFILES = pd-utils.el pd-utils19.el
 ECOMPILE = emacs -batch -f batch-byte-compile
 
 LIBS = $(LIBZEB) $(LIBRDSS)
@@ -12,7 +12,9 @@ NormalProgramTarget(pdmon, $(OBJS), $(DEPLIBS), $(LIBS), /**/)
 BuildIncludes (pdmon.h,.,.)
 
 /*
- * Specialty stuff for the elisp file.
+ * Specialty stuff for the elisp file.  We don't build a byte compiled 
+ * version of pd-utils19, since GNU Emacs V19 or greater is required, and 
+ * that's a pain to test for.
  */
 all::	pd-utils.elc
 
@@ -21,8 +23,10 @@ pd-utils.elc:	pd-utils.el
 
 InstallNonExec(pd-utils.elc,$(LIBDIR))
 
+InstallNonExec(pd-utils19.el,$(LIBDIR))
+
 clean::
-	$(RM) pd-utils.elc
+	$(RM) *.elc
 
 DependTarget()
 LintTarget()
