@@ -1,5 +1,5 @@
 /*
- * $Id: SerialStream.hh,v 1.8 2001-08-24 22:23:15 granger Exp $
+ * $Id: SerialStream.hh,v 1.9 2004-10-22 22:42:29 burghart Exp $
  *
  */
 #ifndef _SerialStream_hh_
@@ -341,41 +341,6 @@ SerialCountStream::Count()
 {
 	return count;
 }
-
-
-#include "SerialBuffer.hh"
-
-
-template <class T>
-inline long serialCount (SerialBuffer &sbuf, const T &t)
-{
-	SerialCountStream *cs = sbuf.countStream();
-	*cs << const_cast<T &>(t);
-	return (cs->Count());
-}
-
-
-
-template <class T>
-inline SerialBuffer & operator<< (SerialBuffer &sbuf, const T &t)
-{
-	SerialEncodeStream *es = sbuf.encodeStream();
-	sbuf.Need (serialCount (sbuf, t));
-	*es << const_cast<T &>(t);
-	return (sbuf);
-}
-
-
-
-template <class T>
-inline SerialBuffer & operator>> (SerialBuffer &sbuf, T &t)
-{
-	SerialDecodeStream *ds = sbuf.decodeStream();
-	*ds >> t;
-	return (sbuf);
-}
-
-
 
 #ifdef notyet			// g++ reports "not implemented yet"...
 /*

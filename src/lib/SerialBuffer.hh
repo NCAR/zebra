@@ -1,5 +1,5 @@
 /*
- * $Id: SerialBuffer.hh,v 1.4 1998-10-20 20:44:44 granger Exp $
+ * $Id: SerialBuffer.hh,v 1.5 2004-10-22 22:42:28 burghart Exp $
  *
  * A simple Buffer subclassed and complicated with methods to help
  * serialize and deserialize objects to/from the buffer.
@@ -128,6 +128,38 @@ protected:
 	}
 
 };
+
+
+template <class T>
+inline long serialCount (SerialBuffer &sbuf, const T &t)
+{
+	SerialCountStream *cs = sbuf.countStream();
+	*cs << const_cast<T &>(t);
+	return (cs->Count());
+}
+
+
+
+template <class T>
+inline SerialBuffer & operator<< (SerialBuffer &sbuf, const T &t)
+{
+	SerialEncodeStream *es = sbuf.encodeStream();
+	sbuf.Need (serialCount (sbuf, t));
+	*es << const_cast<T &>(t);
+	return (sbuf);
+}
+
+
+
+template <class T>
+inline SerialBuffer & operator>> (SerialBuffer &sbuf, T &t)
+{
+	SerialDecodeStream *ds = sbuf.decodeStream();
+	*ds >> t;
+	return (sbuf);
+}
+
+
 
 
 
