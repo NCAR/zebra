@@ -16,5 +16,5 @@ all::	pd-utils.elc
 pd-utils.elc:	pd-utils.el bcomp.el
 	emacs -batch -l bcomp.el
 
-install::
+install:: pd-utils.elc
 	install -m 0444 pd-utils.elc LibDir
