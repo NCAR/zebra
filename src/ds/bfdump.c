@@ -16,14 +16,13 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$ID$";
-
-# include "../include/defs.h"
-# include <copyright.h>
-# include "BoundaryFile.h"
 # include <fcntl.h>
 
+# include <defs.h>
+# include "BoundaryFile.h"
 
+
+RCSID("$Id: bfdump.c,v 2.3 1996-11-19 08:19:16 granger Exp $")
 
 
 main (argc, argv)
@@ -33,6 +32,14 @@ char **argv;
 	int fd, i;
 	struct BFHeader hdr;
 	struct BFBTable *btable;
+/*
+ * Arg check
+ */
+	if (argc != 2)
+	{
+		fprintf (stderr, "usage: %s boundary_file\n", argv[0]);
+		exit (9);
+	}
 /*
  * Open.
  */
