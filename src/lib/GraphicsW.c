@@ -3,7 +3,7 @@
  * of pixmap "frames" associated with it.  Zero frames means just write 
  * everything directly to the window.
  */
-static char *rcsid = "$Id: GraphicsW.c,v 2.12 1993-12-14 03:09:09 granger Exp $";
+static char *rcsid = "$Id: GraphicsW.c,v 2.13 1994-01-27 16:27:21 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -590,12 +590,15 @@ GraphicsWidget w;
 	int n;
 	char *c;
 /*
- * First see if the server even supports the extension
+ * Make sure the server has the extension and that it supports shared
+ * pixmaps
  */
-	possible = XShmQueryVersion(dpy, &maj, &min, &sp);
-	possible = possible && sp;
-	msg_ELog(EF_DEBUG, "XShmExt: %s supported by display %s",
+	possible = XShmQueryExtension (dpy) && 
+		XShmQueryVersion (dpy, &maj, &min, &sp) && sp;
+
+	msg_ELog (EF_DEBUG, "XShmExt: %s supported by display %s",
 		 possible ? "IS" : "NOT", dpy->display_name);
+
 	if (!possible)
 	{
 		w->graphics.shm_possible = False;
