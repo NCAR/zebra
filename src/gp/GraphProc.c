@@ -47,7 +47,7 @@
 # include "LayoutControl.h"
 # include "LLEvent.h"
 
-RCSID ("$Id: GraphProc.c,v 2.69 1999-03-01 02:04:22 burghart Exp $")
+RCSID ("$Id: GraphProc.c,v 2.70 1999-05-12 14:57:56 burghart Exp $")
 
 /*
  * Default resources.
@@ -480,14 +480,13 @@ finish_setup ()
 /*
  * Default values for the path variables.
  */
-	sprintf (IconPath, "%s/icons,./icons", GetLibDir ());
-	sprintf (MapPath, "%s,./maps", GetLibDir ());
+	sprintf (IconPath, "./icons,%s/icons", GetLibDir ());
+
 	if (getenv ("GP_MAP_DIR"))
-	{
-		strcat (MapPath, ",");
-		strcat (MapPath, getenv ("GP_MAP_DIR"));
-	}
-	sprintf (RequirePath, "%s/gplib", GetLibDir ());
+	    sprintf (MapPath, "%s,", getenv ("GP_MAP_DIR"));
+	sprintf (MapPath + strlen (MapPath), "./maps,%s", GetLibDir ());
+
+	sprintf (RequirePath, "./modules,%s/gplib", GetLibDir ());
 /*
  * Pull in the init files.
  */
