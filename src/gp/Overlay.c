@@ -1,7 +1,7 @@
 /*
  * Deal with static (or almost static) overlays.
  */
-static char *rcsid = "$Id: Overlay.c,v 2.0 1991-07-18 23:00:21 corbet Exp $";
+static char *rcsid = "$Id: Overlay.c,v 2.1 1991-08-07 20:13:44 corbet Exp $";
 
 # include <stdio.h>
 # include <X11/Intrinsic.h>
@@ -1392,7 +1392,7 @@ float *asize;
  * Do the setup required to plot locations.
  */
 {
-	static char platform[80];	/* XXX */
+	static char platform[200];	/* XXX */
 	char iconname[40], color[40];
 	XColor xc;
 	XGCValues vals;
