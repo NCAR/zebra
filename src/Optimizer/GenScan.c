@@ -1,9 +1,27 @@
 /*
  * Generate scan parameters for a radar that will cover the current
  * volume
- *
- * $Id: GenScan.c,v 1.1 1991-06-16 17:02:25 burghart Exp $
  */
+/*		Copyright (C) 1987,88,89,90,91 by UCAR
+ *	University Corporation for Atmospheric Research
+ *		   All rights reserved
+ *
+ * No part of this work covered by the copyrights herein may be reproduced
+ * or used in any form or by any means -- graphic, electronic, or mechanical,
+ * including photocopying, recording, taping, or information storage and
+ * retrieval systems -- without permission of the copyright owner.
+ * 
+ * This software and any accompanying written materials are provided "as is"
+ * without warranty of any kind.  UCAR expressly disclaims all warranties of
+ * any kind, either express or implied, including but not limited to the
+ * implied warranties of merchantibility and fitness for a particular purpose.
+ * UCAR does not indemnify any infringement of copyright, patent, or trademark
+ * through use or modification of this software.  UCAR does not provide 
+ * maintenance or updates for its software.
+ */
+
+static char *rcsid = "$Id: GenScan.c,v 1.2 1991-09-17 15:58:12 burghart Exp $";
+
 # include "globals.h"
 # include "radar.h"
 # include "prototypes.h"
@@ -107,8 +125,9 @@ bool	report_error;
 		gs_SepTest (angres, Vsep_min, rad->name);
 		break;
 	    default:
-		ui_error ("BUG: unknown scan type %d in GenScan", 
+		msg_ELog (EF_PROBLEM, "BUG: unknown scan type %d in GenScan", 
 			rad->scantype);
+		ui_bailout (NULL);
 	}
 /*
  * Find the range of hits we're allowed
@@ -351,10 +370,9 @@ char	*rname;
 		return;
 
 	if (ReportError)
-		ui_error ("Scan for %s would violate beam separation limits",
-			rname);
-	else
-		ui_bailout ((char *) 0);
+		msg_ELog (EF_INFO, "%s: Beam separation violation", rname);
+
+	ui_bailout (NULL);
 }
 
 
@@ -406,12 +424,17 @@ void
 gs_Error (rad)
 Radar	*rad;
 {
-	if (! ReportError)
-		ui_bailout (NULL);
-	else if (rad->nsweeps == MAX_SWEEPS)
-		ui_error ("Too many sweeps for %s, stopping at %d", rad->name,
-			MAX_SWEEPS);
-	else
-		ui_error ("Unable to meet all requirements with %s", 
-			rad->name);
+	if (ReportError)
+	{
+		if (rad->nsweeps == MAX_SWEEPS)
+			msg_ELog (EF_INFO, 
+				"Too many sweeps for %s, stopping at %d",
+				rad->name, MAX_SWEEPS);
+		else
+			msg_ELog (EF_INFO, 
+				"Unable to meet all requirements with %s", 
+				rad->name);
+	}
+
+	ui_bailout (NULL);
 }
