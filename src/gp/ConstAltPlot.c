@@ -56,7 +56,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.90 2003-08-06 21:53:46 burghart Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.91 2004-07-06 00:32:30 burghart Exp $")
 
 
 /*
@@ -2312,7 +2312,13 @@ CAP_Polar (char *c, int update)
  */
 	when = PlotTime;
 	if (! ImageDataTime (c, pid, alt, &when))
-		return;
+	  return;
+/*
+ * Make sure the data are recent enough, if we're checking for
+ * that sort of thing.
+ */
+	if (! AgeCheck (c, plat, &when))
+	  return;
 /*
  * OK, time to get it.
  */
