@@ -39,7 +39,7 @@
 # include "DataFormat.h"
 # include "GRIB.h"
 
-RCSID ("$Id: DFA_GRIB.c,v 3.44 1999-03-01 02:03:22 burghart Exp $")
+RCSID ("$Id: DFA_GRIB.c,v 3.45 1999-07-21 17:21:49 burghart Exp $")
 
 
 /*
@@ -1031,8 +1031,9 @@ int		ndetail;
 /*
  * Get the requested forecast offset, in seconds.
  */
-	offset = ds_GetDetail (DD_FORECAST_OFFSET, details, ndetail, &v) ?
-		v.us_v_int : 0;
+	offset = (ds_IsModelPlatform (dc->dc_Platform) && 
+		  ds_GetDetail (DD_FORECAST_OFFSET, details, ndetail, &v)) ?
+	    v.us_v_int : 0;	
 /*
  * Get the grid type and get the entry from our types table.  We look for the
  * first grid in the file that is of a type we can unpack, matches our first
