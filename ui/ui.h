@@ -1,5 +1,5 @@
 /* 10/86 jc */
-/* $Id: ui.h,v 1.4 1990-09-19 08:49:58 corbet Exp $ */
+/* $Id: ui.h,v 1.5 1990-09-19 09:11:02 corbet Exp $ */
 
 # ifndef UI_H_SYMBOLS
 # define UI_H_SYMBOLS
@@ -49,7 +49,7 @@ struct ui_command
 	void ui_setup (char *, int *, char **, char *);
 	int ui_get_command (char *, char *, int (*)(), long);
 	int ui_subcommand (char *, char *, int (*)(), long);
-	int ui_perform (char *);
+	void ui_perform (char *);
 	int ui_OutputRoutine (void (*)(), void (*)());
 	int ui_ErrorOutputRoutine (void (*)());
 	int ui_ErrHook (void (*)());
@@ -86,7 +86,7 @@ struct ui_command
 	void ui_setup ();
 	int ui_get_command ();
 	int ui_subcommand ();
-	int ui_perform ();
+	void ui_perform ();
 	int ui_OutputRoutine ();
 	int ui_ErrorOutputRoutine ();
 	int ui_ErrHook ();

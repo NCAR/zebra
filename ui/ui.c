@@ -5,7 +5,7 @@
  * commands are in ui_cmds.c
  */
 
-static char *Rcsid = "$Id: ui.c,v 1.12 1990-09-11 15:54:51 corbet Exp $";
+static char *Rcsid = "$Id: ui.c,v 1.13 1990-09-19 09:11:09 corbet Exp $";
 # include "ui_param.h"
 # include "ui.h"
 # include "ui_error.h"
@@ -1733,6 +1733,7 @@ int mode;
 
 
 
+void
 ui_perform (command)
 char *command;
 /*
