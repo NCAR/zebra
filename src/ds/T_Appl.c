@@ -32,7 +32,7 @@ int show;
 	else if (show)
 	{
 		char buf[64];
-		sprintf (buf, "classes.%d.o", getpid());
+		sprintf (buf, "classes.%lu.o", (unsigned long)getpid());
 		out = fopen (buf, "w");
 		if (! out)
 		{
@@ -150,7 +150,7 @@ static void
 DumpPlatform (const Platform *p, ZebraTime *since, int names, int files, 
 	      int obs)
 {
-	int i, index;
+	int i;
 	SourceInfo dsi;
 	const DataFile *df;
 	const char *name;

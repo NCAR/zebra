@@ -200,6 +200,7 @@ Source::RemovePlatform( const Platform *p )
 	pflists[pid] = 0;
     }
     poffsets->Remove( pname );
+    return 1;
 }
 
 

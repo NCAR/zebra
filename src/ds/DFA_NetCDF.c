@@ -33,7 +33,7 @@
 # include "dfa.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_NetCDF.c,v 3.75 2002-05-19 03:54:54 burghart Exp $")
+RCSID ("$Id: DFA_NetCDF.c,v 3.76 2002-09-17 18:28:43 granger Exp $")
 
 # include <netcdf.h>
 
@@ -2679,7 +2679,6 @@ int ndetail;
 	long start[MAX_VAR_DIMS], count[MAX_VAR_DIMS];
 	void *grid;
 	int sample, f, vfield, dsamp = dc_GetNSample (dc);
-	int altindex;
 	int nfield;
 	FieldId *fids = dc_GetFields (dc, &nfield);
 /*
@@ -3575,7 +3574,7 @@ DataChunk *dc;
 	strcat (history, "Created by the Zebra DataStore library, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.75 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.76 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 	free (history);
@@ -4795,6 +4794,9 @@ dnc_TimeIsBad (int ncid, int timevar, nc_type ttype, double val)
 	if (ncattget (ncid, timevar, VATT_MISSING, (void *)(&lmissing)) < 0)
 	    return (FALSE);
 	missing = (double)lmissing;
+	break;
+      default:
+	return (FALSE);
 	break;
     }
 

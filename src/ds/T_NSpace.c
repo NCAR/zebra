@@ -95,9 +95,9 @@ DataChunk *dc;
 		sprintf (buf, "  ( ");
 		for (j = 0; j < rndim; ++j)
 		{
-			sprintf (buf+strlen(buf), " %s:id %i, ",
+			sprintf (buf+strlen(buf), " %s, ",
 			       (rids[j] != BadField)?(F_GetName(rids[j])):
-			       (""), rids[j]);
+			       ("unknown"));
 		}
 		sprintf (buf+strlen(buf), ")");
 		msg_ELog (EF_DEVELOP, "%s", buf);

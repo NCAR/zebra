@@ -35,7 +35,7 @@
 #include "dfa.h"
 #include "Appl.h"
 
-RCSID ("$Id: DFA_Appl.c,v 3.19 2002-01-19 06:50:02 granger Exp $")
+RCSID ("$Id: DFA_Appl.c,v 3.20 2002-09-17 18:28:43 granger Exp $")
 
 /*
  * Local private prototypes.
@@ -141,7 +141,7 @@ char *attr;
 /*
  * Find the first datafile which works.
  */
-	if ((df = ds_FindBefore (pid, when)) < 0)
+	if ((df = ds_FindBefore (pid, when)) == 0)
 		return (0);
 /*
  * Now return some times.
@@ -1941,9 +1941,7 @@ ds_NotifyDaemon (const Platform *p, const DataFile *df, int now, int nnew,
 
 /* ARGSUSED */
 static int
-ds_AwaitAck (msg, junk)
-Message *msg;
-int junk;
+ds_AwaitAck (Message *msg, int junk)
 /*
  * See if this is our ack.
  */

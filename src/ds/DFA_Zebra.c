@@ -36,7 +36,7 @@
 #  include <string.h>
 #endif
 
-RCSID ("$Id: DFA_Zebra.c,v 1.36 1999-03-01 02:03:27 burghart Exp $")
+RCSID ("$Id: DFA_Zebra.c,v 1.37 2002-09-17 18:28:43 granger Exp $")
 
 /*
  * There is a conflict with the symbol DataFormat between DFA and the
@@ -1462,6 +1462,9 @@ WriteCode wc;
 		sample = dfa_TimeIndex (ofp, t, 0) + 1;
 		zn_OpenSlot (tag, sample);
 		return (sample);
+	    case wc_SkipIt:
+		return (-99999);
+		break;
 	}
 	return (-99999);	/* Should never get here */
 }

@@ -19,7 +19,7 @@
 # include "RasterFile.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_Raster.c,v 3.27 2000-11-20 18:07:28 granger Exp $")
+RCSID ("$Id: DFA_Raster.c,v 3.28 2002-09-17 18:28:43 granger Exp $")
 
 /*
  * This is the tag for an open raster file.
@@ -492,6 +492,9 @@ int ndetail;
 		toc = tag->rt_toc + soffset;
 		drf_ClearToc (hdr, toc);
 		break;
+	    case wc_SkipIt:
+		return 1;
+		break;
 	}
 /*
  * Now actually output the data.
@@ -553,7 +556,7 @@ RFToc *toc;
 	 */
 		data = dc_ImgGetImage (dc, sample, fids[fld], &toc->rft_Origin,
 				       &toc->rft_Rg, &nb, &scale);
-		if (! drf_WriteData (tag->rt_fd, &tag->rt_hdr, toc, 
+		if (! drf_WriteData (tag->rt_fd, hdr, toc, 
 				     dfield, data, nb, reuse))
 			return 0;
 	}

@@ -7,7 +7,7 @@
 # include "DataStore.h"
 # include "apple.h"
 
-RCSID("$Id: T_Derivations.c,v 3.5 2001-10-26 05:59:29 granger Exp $")
+RCSID("$Id: T_Derivations.c,v 3.6 2002-09-17 18:28:43 granger Exp $")
 
 # define NTIMES 100
 
@@ -101,6 +101,7 @@ T_Derivations ()
  * of a more fully qualified field to a lesser qualified derivation
  * succeeds, eg mr[w][gram/kg][Mixing ratio] = [w][gram/kg] works.
  */
+int
 T_ClassDerivations ()
 {
     int errors = 0;

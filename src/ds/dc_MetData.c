@@ -30,7 +30,7 @@
 # include "DataStore.h"
 # include "DataChunkP.h"
 
-RCSID ("$Id: dc_MetData.c,v 3.26 1999-03-01 02:03:42 burghart Exp $")
+RCSID ("$Id: dc_MetData.c,v 3.27 2002-09-17 18:28:43 granger Exp $")
 
 /*
  * If we have non-uniform, non-fixed, non-pre-arranged fields, then the 
@@ -182,7 +182,6 @@ DataChunk *dc;
  */
 {
 	FldInfo *finfo;
-	int i;
 
 	if ((finfo = dc_ChangeInfo (dc, "ClearFields")) && finfo->fi_NField)
 	{
@@ -1440,10 +1439,7 @@ int *stride;
  */
 {
 	FldInfo *finfo;
-	DataPtr data, next;
-	int i;
 	int ssize;
-	int nsample;
 /*
  * The usual sanity checking.
  */
@@ -1474,6 +1470,10 @@ int *stride;
 		ssize = (int) ALIGN(ssize,DC_ElemTypeMaxSize);
 	}
 #ifdef notdef
+	{
+	DataPtr data, next;
+	int i;
+	int nsample;
 /*
  * Now loop through the samples in index order, and make sure each
  * starts exactly 'ssize' bytes from the previous.
@@ -1488,6 +1488,7 @@ int *stride;
 		data = next;
 	}
 	msg_ELog (EF_DEBUG, "sample stride check succeeded: %d bytes", ssize);
+	}
 #endif
 	*stride = ssize;
 	return (1);

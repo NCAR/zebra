@@ -45,7 +45,7 @@
 # include "dsPrivate.h"
 # include "Platforms.h"
 
-RCSID("$Id: Platforms.c,v 3.11 2002-01-19 06:50:02 granger Exp $")
+RCSID("$Id: Platforms.c,v 3.12 2002-09-17 18:28:43 granger Exp $")
 
 
 
@@ -1145,26 +1145,6 @@ const PlatformClass *pc;
 
 
 
-static char *
-dt_ExtractDir (base, dir, cmd)
-char *base;
-char *dir;
-{
-	char *c = dir;
-	int len = strlen(base);
-
-	/* try to back out base dir */
-	if (len && !strncmp (base, dir, len) &&
-	    len != strlen(dir))
-	{
-		c += len;
-		while ((*c) && (*c == '/'))	/* skip slashes */
-			++c;
-	}
-	return ((*c) ? c : NULL);
-}
-
-
 
 static void
 dt_DecodeDirs (fp, spc, pc)
@@ -1185,10 +1165,6 @@ PlatformClass *pc;
 	 */
 	strcpy (dir, pc->dpc_dir);
 	pc->dpc_dir[0] = '\0';
-#ifdef notdef
-	strcpy (rdir, pc->dpc_rdir);
-	pc->dpc_rdir[0] = '\0';
-#endif
 	dt_FillClassDir (pc, spc);
 	/*
 	 * Local:
@@ -1197,18 +1173,6 @@ PlatformClass *pc;
 	{
 		fprintf (fp, "\tdirectory\t'%s'\n", dir);
 	}
-#ifdef notdef
-	/*
-	 * Remote:
-	 */
-	if (strcmp (pc->dpc_rdir, rdir))
-	{
-		char *c;
-
-		if ((c = dt_ExtractDir (RemDataDir, rdir)))
-			fprintf (fp, "\tremote\t'%s'\n", c);
-	}
-#endif
 	/*
 	 * Finally, restore the class directories
 	 */

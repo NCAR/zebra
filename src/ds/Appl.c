@@ -32,8 +32,9 @@
 #include "Platforms.h"
 #include "dslib.h"
 #include "Appl.h"
+#include "DataFormat.h"
 
-RCSID ("$Id: Appl.c,v 3.52 2001-10-16 22:26:28 granger Exp $")
+RCSID ("$Id: Appl.c,v 3.53 2002-09-17 18:28:43 granger Exp $")
 
 /*
  * Notification callbacks are void functions
@@ -713,8 +714,6 @@ int len;
  * Send a message off to the data store daemon.
  */
 {
-	char *dhost, group[80];
-
 	if (Standalone)
 	{
 		msg_ELog (EF_PROBLEM, "Can't send to daemon while standalone");

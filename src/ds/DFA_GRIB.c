@@ -40,7 +40,7 @@
 # include "DataFormat.h"
 # include "GRIB.h"
 
-RCSID ("$Id: DFA_GRIB.c,v 3.47 2001-08-09 23:55:20 burghart Exp $")
+RCSID ("$Id: DFA_GRIB.c,v 3.48 2002-09-17 18:28:43 granger Exp $")
 
 
 /*
@@ -1051,7 +1051,7 @@ int		ndetail;
 {
 	int	ndx, nfield, samp, sbegin, send, f;
 	int	offset, nalts, test, i;
-	float  	badval, ztarget, *lats, *lons, alts[MAXLEVELS];
+	float  	badval, *lats, *lons, alts[MAXLEVELS];
 	zbool	onelevel;
 	SValue	v;
 	GFTag	*tag = GFTAGP (of);
@@ -1989,9 +1989,9 @@ AltUnitType	altunits;
  * Return planes for the given altitudes.
  */
 {
-    int	nsx, nsy, si, sj, i, j, itemp;
+    int	nsx, nsy, si, sj, i, j;
     int	indices[MAXLEVELS], u_indices[MAXLEVELS], v_indices[MAXLEVELS];
-    float	zvals[MAXLEVELS], badval = dc_GetBadval (dc), ftemp;
+    float	badval = dc_GetBadval (dc);
     int		level, gndx;
     float	*sgrid, *sp, *dgrid, *dp, *lats, *lons;
     float	z, di, dj, val0, val1, val2, val3, *fsi, *fsj;
@@ -2040,7 +2040,7 @@ AltUnitType	altunits;
 	grid_fid = grb_Field (pds, NULL);
 
 	if (grid_fid != fid  &&
-	    ! (u_or_v && (grid_fid == u_fid) || (grid_fid == v_fid)))
+	    ! (u_or_v && ((grid_fid == u_fid) || (grid_fid == v_fid))))
 	    continue;
     /*
      * Finally, use this grid iff its altitude is in our list of wanted

@@ -41,7 +41,7 @@
 #include "Appl.h"
 #include "d_Source.h"
 
-RCSID ("$Id: SA_Appl.c,v 3.4 1999-03-19 16:19:05 burghart Exp $")
+RCSID ("$Id: SA_Appl.c,v 3.5 2002-09-17 18:28:43 granger Exp $")
 
 
 /*
@@ -140,7 +140,6 @@ sa_MakeDataFile (PlatformId pid, const char *file, const ZebraTime *t,
  */
 {
 	const Platform *p;
-	int dfi;
 
 	if (! (p = dt_FindPlatform (pid)))
 		return (0);

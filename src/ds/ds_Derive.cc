@@ -95,7 +95,7 @@ ds_IsDerivable( PlatformId pid, FieldId wantid, FieldId *raw_ids, int nraw )
 //
 {
     DerivMethod der;
-    if (der = ds_GetDerivation( pid, wantid, raw_ids, nraw ))
+    if ((der = ds_GetDerivation( pid, wantid, raw_ids, nraw )))
     {
 	ds_DestroyDeriv ( der );
 	return 1;

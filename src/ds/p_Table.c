@@ -44,7 +44,7 @@
 # include "Platforms.h"
 # include "dsDaemon.h"
 
-RCSID("$Id: p_Table.c,v 3.2 2002-06-14 16:25:02 burghart Exp $")
+RCSID("$Id: p_Table.c,v 3.3 2002-09-17 18:28:43 granger Exp $")
 
 /*
  * Memory allocation options.  External so the daemon can associate them
@@ -416,7 +416,7 @@ dt_InitTables ()
  * Initialize the data tables.
  */
 {
-	int i, nbytes;
+	int nbytes;
 
 	Initialized = TRUE;
 	msg_ELog (EF_DEBUG, "Initializing platform and class tables");
@@ -461,7 +461,6 @@ dt_AddClass (PlatformClass *pc, PlatClassId cid)
 {
     SValue v;
     int type;
-    const PlatformClass *exist;
 /*
  * Make sure we're initialized.
  */

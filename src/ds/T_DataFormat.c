@@ -447,7 +447,6 @@ T_DFAStatus ()
  */
 {
 	OpenFile *ofp;
-	DataFile df;
 	DataFormat *fmt;
 	int num, space;
 	int err = 0;

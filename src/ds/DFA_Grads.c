@@ -19,7 +19,7 @@
 # include "dfa.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_Grads.c,v 3.16 1999-03-01 02:03:23 burghart Exp $")
+RCSID ("$Id: DFA_Grads.c,v 3.17 2002-09-17 18:28:43 granger Exp $")
 
 
 /*
@@ -874,7 +874,6 @@ int ndetail;
 	int start;	/* where to start adding samples to dc */
 	int forecast_offset; /* Stores the forecast offset */ 
 	int fileoffset;      /* will store the forecast time offset in file */
-	float badval;
 /*
  * Find the dimensions first.
  */
@@ -1238,12 +1237,10 @@ dgr_GetAssociatedFiles (const DataFile *df, int *nfiles)
 
   const char *cfname;
   char **filenames;
-  int  n;
   char realname[120], *slash;
   FILE *cfile;
   char *cfwords[32];
   int nw;
-  int i;
 
   cfname = df->df_fullname;
 
@@ -1295,7 +1292,7 @@ dgr_GetAssociatedFiles (const DataFile *df, int *nfiles)
 }
 
 
-
+int
 dgr_GetForecastTimes (of, times, ntimes)
 OpenFile *of;
 int *times;
