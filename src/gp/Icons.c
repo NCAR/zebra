@@ -38,7 +38,7 @@
 # include <DataStore.h>
 # include <GraphicsW.h>
 
-RCSID("$Id: Icons.c,v 2.29 1999-03-01 02:04:25 burghart Exp $")
+RCSID("$Id: Icons.c,v 2.30 2000-08-22 20:28:53 burghart Exp $")
 
 # include "GraphProc.h"
 # include "ActiveArea.h"
@@ -457,8 +457,23 @@ int *xh, *yh, *w, *h;
 			     (unsigned int *) h, &pmap, 
 			     xh, yh) != BitmapSuccess)
 	{
-		msg_ELog (EF_PROBLEM, "Unable to load icon  '%s'", iname);
+	/*
+	 * Fall back to "unknown" if we fail to find the named icon.
+	 * Also, make sure we bail out completely if we just failed to
+	 * find "unknown".
+	 */
+	    char *unknown = "unknown";
+	    if (! strcmp (iname, unknown))
+	    {
+		msg_ELog (EF_PROBLEM, "Unable to load icon '%s'", unknown);
 		return (0);
+	    }
+	    else
+	    {
+		msg_ELog (EF_PROBLEM, "Unable to load icon '%s', using '%s'.", 
+			  iname, unknown);
+	        pmap = I_GetPMap (unknown, xh, yh, w, h);
+	    }
 	}
 /*
  * Remember this one.
