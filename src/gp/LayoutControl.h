@@ -52,6 +52,18 @@
  *	The "f" coordinates are fractional values representing the 
  *	subwindow relative to the entire drawable (less the lowest 
  *	ICONSPACE pixels, which are reserved for putting up icons) .  
+ *	^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ *	This has been changed.  The Icon region is now treated exactly
+ *	as the other regions: side, top, and axes.  The origin of the
+ *	normalized coordinate space is now the lower left of the whole
+ *	window, corresponding to point (0,Gheight) in pixel coordinates.
+ *	The location of the Icon region itself is stored in normalized
+ *	coordinates just like the other regions.  All transformations
+ *	from normalized to pixel now take the forms:
+ *
+ *		Xp = Xndc * Width(Graphics)
+ * 		Yp = (1.0 - Yndc) * Height(Graphics)
+ *
  *	The "f" coordinates range from (0.0, 0.0) at the LOWER LEFT 
  *	corner to (1.0, 1.0) at the upper right corner of the drawable.  
  *	Note that the origin is different from the origin of the X 
@@ -64,6 +76,8 @@
  *	right corner are (ux1, uy1) .
  */
 
+# ifndef _layoutcontrol_h_
+# define _layoutcontrol_h_
 
 # define F_PIX_HEIGHT   ((int) ((FY1-FY0) * GWHeight (Graphics)))
 # define F_PIX_WIDTH    ((int) ((FX1-FX0) * GWWidth (Graphics)))
@@ -80,7 +94,7 @@
  */
 typedef enum 
 {
-	SideLeft, SideRight, SideTop, SideBottom, NumSides
+	SideLeft = 0, SideRight, SideTop, SideBottom, NumSides
 } AxisSide;
 
 /*
@@ -95,6 +109,10 @@ typedef enum
 		       (s) == SideRight ? "right" : \
 		       (s) == SideTop ? "top" : \
 		       (s) == SideBottom ? "bottom" : "?")
+
+# define AXIS_SPACE(s) (((s) == SideLeft || (s) == SideRight) ? \
+			(AxisX1[(s)] - AxisX0[(s)]) * GWWidth(Graphics) : \
+			(AxisY1[(s)] - AxisY0[(s)]) * GWHeight(Graphics))
 
 /*
  * The current dimensions
@@ -163,3 +181,5 @@ extern int	devY FP ((DataValPtr));
 extern int	devX FP ((DataValPtr));
 extern DataValRec	userX FP ((int));
 extern DataValRec	userY FP ((int));
+
+#endif /* ! _layoutcontrol_h_ */
