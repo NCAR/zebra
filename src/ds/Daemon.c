@@ -41,7 +41,7 @@
 # include "commands.h"
 # include "zl_regex.h"
 
-MAKE_RCSID ("$Id: Daemon.c,v 3.32 1994-01-05 20:18:04 granger Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.33 1994-01-19 01:35:20 granger Exp $")
 
 
 /*
@@ -1304,14 +1304,18 @@ struct SearchInfo *info;
 	struct dsp_PlatformSearch *req = info->si_req;
 /*
  * Always skip subplatform symbols with parent qualifiers in the name,
- * or regular platforms where the symbol does not match the name.
+ * or regular platforms where the symbol does not match the name (meaning
+ * the name had slashes without actually being defined as a subplatform).
+ * A comparison of length should suffice to match symbol to name.
+ * strcmp won't work if the name has upper-case letters in it, since the
+ * symbol will be all lower case.
  */
 	if (plat->dp_flags & DPF_SUBPLATFORM)
 	{
 		if (strchr (symbol, '/'))
 			return (TRUE);
 	}
-	else if (strcmp(plat->dp_name, symbol))
+	else if (strlen(plat->dp_name) != strlen(symbol))
 		return (TRUE);
 /*
  * Ignore subplatforms if so requested
