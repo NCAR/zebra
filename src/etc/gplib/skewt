@@ -62,13 +62,47 @@ define widget skewt-right intmenu 'feet/km'
 		(PDParam (icon_component, 'annot-time') <> 'false')
 	entry 'Overlay new soundings' 'ToggleBoolean "overlay-mode"' \
 	        (PDParam (icon_component, 'overlay-mode') <> 'false')
+	entry 'Wind barbs' 'skewt-toggle-wind' \
+		(PDParam (icon_component, 'wind-style') = 'barb')
 	line
 	entry 'Altitude in feet' 'do-feet-proc true' \
 		(PDParam (icon_component, 'do-feet') = 'true')
 	entry 'Altitude in kilometers' 'do-feet-proc false' \
 		(PDParam (icon_component, 'do-feet') <> 'true')
+	line
+	submenu 'Data skip interval' 'skewt-data-skip'
 endmenu
 
 procedure do-feet-proc value string
 	parameter #icon_component do-feet #value
 endprocedure
+
+procedure skewt-toggle-wind
+	local style PDParam(icon_component,"wind-style")
+	if (style = "barb")
+		parameter #icon_component wind-style vector
+	else
+		parameter #icon_component wind-style barb
+	endif
+endprocedure
+
+define widget skewt-data-skip intmenu 'skip data points'
+	title 'Data skip interval'
+	line
+	entry 'Plot every point' \
+		'parameter #icon_component data-skip "1"' \
+		(PDParam (icon_component,"data-skip") = "1")
+	entry 'Every 5th point' \
+		'parameter #icon_component data-skip "5"' \
+		(PDParam (icon_component,"data-skip") = "5")
+	entry 'Every 10th point' \
+		'parameter #icon_component data-skip "10"' \
+		(PDParam (icon_component,"data-skip") = "10")
+	entry 'Every 20th point' \
+		'parameter #icon_component data-skip "20"' \
+		(PDParam (icon_component,"data-skip") = "20")
+	entry 'Every 30th point' \
+		'parameter #icon_component data-skip "30"' \
+		(PDParam (icon_component,"data-skip") = "30")
+endmenu
+
