@@ -1,7 +1,6 @@
 /*
  * The FCC clock program.
  */
-static char *rcsid = "$Id: fccclock.c,v 2.2 1991-12-07 17:59:46 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -35,6 +34,7 @@ static char *rcsid = "$Id: fccclock.c,v 2.2 1991-12-07 17:59:46 kris Exp $";
 # include "../include/copyright.h"
 # include "timer.h"
 # include "../include/pd.h"
+MAKE_RCSID ("$Id: fccclock.c,v 2.3 1991-12-27 17:17:51 corbet Exp $");
 /*
  * Default resources.
  */
@@ -359,7 +359,7 @@ sync ()
 
 void
 NewTime (t)
-time *t;
+ZebTime *t;
 /*
  * Deal with a change in ``current'' time
  */
@@ -375,7 +375,7 @@ time *t;
 
 void
 UpdateClock (t, junk)
-time *t;
+ZebTime *t;
 int junk;
 /*
  * Actually update the clock.
@@ -383,7 +383,8 @@ int junk;
 {
 	char dbuf[40];
 
-	ud_format_date (dbuf, t, UDF_FULL);
+	/* ud_format_date (dbuf, t, UDF_FULL); */
+	TC_EncodeTime (t, TC_Full, dbuf);
 	strcat (dbuf, "  ");
 	XDrawImageString (XtDisplay (Top), XtWindow (Graphics), Gc,
 		5, Height - 5, dbuf, strlen (dbuf));
@@ -402,14 +403,16 @@ StartUpdate ()
  * Cancel everything just to be sure.
  */
 	tl_AllCancel ();
+# ifdef notdef
 /*
  * Find out what time it is now.
  */
 	tl_GetTime (&t);
+# endif
 /*
  * Queue up our timer request.
  */
-	tl_AddRelativeEvent (UpdateClock, 0, 10, 10);
+	tl_RelativeReq (UpdateClock, 0, 10, 10);
 }
 
 
