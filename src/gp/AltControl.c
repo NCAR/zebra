@@ -1,7 +1,7 @@
 /*
  * Altitude control for CAP plots.
  */
-static char *rcsid = "$Id: AltControl.c,v 1.1 1990-07-06 11:16:59 corbet Exp $";
+static char *rcsid = "$Id: AltControl.c,v 1.2 1990-07-08 12:46:16 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
