@@ -21,7 +21,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: SLGrabber.c,v 2.1 1991-09-16 21:26:17 burghart Exp $";
+static char *rcsid = "$Id: SLGrabber.c,v 2.2 1992-04-07 22:05:02 granger Exp $";
 
 # include <copyright.h>
 # include <stdio.h>
@@ -171,7 +171,7 @@ char *port, *speed;
  * Locate our speed.
  */
  	for (i = 0; Speeds[i].c_speed; i++)
-		if (! strcmp (speed, Speeds[i]))
+		if (! strcmp (speed, Speeds[i].c_speed))
 			break;
 	if (! Speeds[i].c_speed)
 	{
