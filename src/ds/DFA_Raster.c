@@ -19,7 +19,7 @@
 # include "RasterFile.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_Raster.c,v 3.22 1997-06-19 20:19:24 granger Exp $")
+RCSID ("$Id: DFA_Raster.c,v 3.23 1997-06-30 21:28:08 ishikawa Exp $")
 
 /*
  * This is the tag for an open raster file.
@@ -96,7 +96,8 @@ static DataFormat rasterFormatRec =
 	drf_GetObsSamples,		/* Get observation samples	*/
 	drf_GetFields,			/* Get fields			*/
 	drf_GetAttrs,			/* Get Attributes		*/
-	drf_GetTimes			/* Get times 			*/
+	drf_GetTimes,			/* Get times 			*/
+	___                             /* Get the associated files     */
 };
 
 DataFormat *rasterFormat = (DataFormat *) &rasterFormatRec;

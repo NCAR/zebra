@@ -33,7 +33,7 @@
 # include "dfa.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_NetCDF.c,v 3.59 1997-04-28 04:52:30 granger Exp $")
+RCSID ("$Id: DFA_NetCDF.c,v 3.60 1997-06-30 21:27:29 ishikawa Exp $")
 
 # include <netcdf.h>
 
@@ -179,7 +179,8 @@ static DataFormat netcdfFormatRec =
 	dnc_GetObsSamples,		/* Get observation samples	*/
 	dnc_GetFields,			/* Get fields			*/
 	___,				/* Get Attributes		*/
-	dnc_TimesArray			/* Return the times array	*/
+	dnc_TimesArray,			/* Return the times array	*/
+	___                             /* Get the associated files     */
 };
 
 
@@ -3371,7 +3372,7 @@ DataChunk *dc;
 	sprintf(history,"created by the Zebra DataStore library, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.59 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.60 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 }

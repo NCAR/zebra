@@ -36,7 +36,7 @@
 #  include <string.h>
 #endif
 
-RCSID ("$Id: DFA_Zebra.c,v 1.33 1997-02-21 23:38:04 granger Exp $")
+RCSID ("$Id: DFA_Zebra.c,v 1.34 1997-06-30 21:28:26 ishikawa Exp $")
 
 /*
  * There is a conflict with the symbol DataFormat between DFA and the
@@ -159,7 +159,8 @@ static DataFormat zebraFormatRec =
 	zn_GetObsSamples,		/* Get observation samples	*/
 	zn_Fields,			/* Get fields			*/
 	___,				/* Get Attributes		*/
-	zn_GetTimes			/* Return array of ZebTimes	*/
+	zn_GetTimes,			/* Return array of ZebTimes	*/
+	___                             /* Get the associated files     */
 };
 
 DataFormat *zebraFormat = (DataFormat *) &zebraFormatRec;
