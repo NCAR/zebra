@@ -1,0 +1,18 @@
+!
+! $Id: active-time,v 1.1 1995-04-19 14:55:00 granger Exp $
+!
+! Menus and commands for active time labels in the top annotation
+!
+
+define widget global-time-left-menu intmenu "global time actions"
+	title 'Time Options'
+	line
+	entry 'Set THIS window to real-time' \
+	   'parameter global plot-mode "real-time"'
+	entry 'Set ALL windows to real-time'	\
+	   'dm "realtime all"'
+	entry 'Set ALL windows to this history time' \
+	   'dm concat("history all ",PDParam("global","plot-time"))'
+endmenu
+
+
