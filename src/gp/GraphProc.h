@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.49 1995-06-29 23:44:43 granger Exp $ */
+/* $Id: GraphProc.h,v 2.50 1995-07-24 20:08:33 granger Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -95,9 +95,10 @@ extern char	IconPath[PathLen];	/* The icon path */
 extern char	MapPath[PathLen];	/* Path for maps */
 
 /*
- *  Maximum number of frames in the frame cache.
+ *  Maximum number of frames in the frame cache, and the default number.
  */
-# define NCACHE 100
+# define NCACHE 		100
+# define DEFAULT_MAXFRAMES	20
 
 /*
  * How much of the screen is used for the top annotation.
