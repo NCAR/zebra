@@ -1,0 +1,237 @@
+/* rafthetae -- Kerry Emanuel's equivalent potential temperature calc */
+/* Make supersaturation possible -- 9 Dec 92. */
+/* Also compute saturation mixing ratio -- 15 Dec 92. */
+#include <stdio.h>
+#include <math.h>
+#include "cdfhdr.h"
+
+#define LV0 2.501e6
+#define P0 1000.
+#define RD 287.04
+#define RV 461.5
+#define CPD 1005.
+#define CL 4190.
+#define CTOK 273.15
+#define EPS .622
+
+char hbuff[HBMAX][LINE];
+long nsbuff,nvbuffold,nvbuff;
+float *sbuff,*vbuff;
+float *pres;                         /* pressure (mb) */
+float *temp;                         /* temperature (C) */
+float *moisture;                     /* mixing ratio (g/kg) or dewpt (C) */
+float *thetae;                       /* eq pot temp (K) */
+float *satmr;                        /* saturation mixing ratio (g/kg) */
+float *rhol;                         /* liquid water density (g/m^3) */
+char cline[LINE];
+float r,p,t,es,l;
+float bad,badlim;
+long size;
+long loop;
+int dpflag,lflag;
+struct field *fp;
+float the(),escalc();
+
+main(argc,argv)
+int argc;
+char *argv[];
+{
+
+/* command line arguments */
+  if ((argc != 7 && argc != 8) || (argc > 1 && argv[1][0] != '-')) {
+    fprintf(stderr,
+         "Usage: rafthetae -d|q pres temp dwpt|mixrat thetae satmr [rhol]\n");
+    exit(1);
+  }
+
+/* set lflag if liquid water to be included */
+  lflag = (argc == 8);
+
+/* check to see whether to expect dewpoint or mixing ratio */
+  if (strcmp(argv[1],"-d") == 0) dpflag = 1;
+  else if (strcmp(argv[1],"-q") == 0) dpflag = 0;
+  else {
+    fprintf(stderr,"rafthetae: unknown option %s\n",argv[1]);
+    exit(1);
+  }
+
+/* get header */
+  gethdr(stdin,hbuff,HBMAX);
+
+/* check format */
+  if (getfmt(hbuff,HBMAX) != 'f') {
+    fprintf(stderr,"rafthetae: float format expected\n");
+    exit(1);
+  }
+
+/* get bad data values */
+  if (seekpar(hbuff,HBMAX,"bad",cline) == OK) bad = atof(cline);
+  else bad = BAD;
+  if (seekpar(hbuff,HBMAX,"badlim",cline) == OK) badlim = atof(cline);
+  else badlim = BADLIM;
+
+/* add comment */
+  sprintf(cline,"rafthetae: %s %s %s\n",argv[1],argv[2],argv[3]);
+  addcline(hbuff,HBMAX,cline);
+  if (lflag) sprintf(cline,"  %s %s %s %s\n",argv[4],argv[5],argv[6],argv[7]);
+  else sprintf(cline,"  %s %s %s\n",argv[4],argv[5],argv[6]);
+  addcline(hbuff,HBMAX,cline);
+
+/* get size of incoming variable slice */
+  nvbuffold = elemcnt(hbuff,HBMAX,'v');
+
+/* add new fields if needed -- assume same size and shape as pressure field */
+  if((fp = seekfld(hbuff,HBMAX,'v',argv[2])) == NULL) {
+    fprintf(stderr,"rafthetae: field %s doesn't exist\n",argv[2]);
+    exit(1);
+  }
+  size = fp->tsize;
+
+/* thetae */
+  if (seekfld(hbuff,HBMAX,'v',argv[5]) == NULL) {
+    addfld(hbuff,HBMAX,'v',argv[5],10.,0.,'s',fp->dim,
+         fp->dname1,fp->dsize1,
+         fp->dname2,fp->dsize2,
+         fp->dname3,fp->dsize3,
+         fp->dname4,fp->dsize4);
+  }
+
+/* saturation mixing ratio */
+  if (seekfld(hbuff,HBMAX,'v',argv[6]) == NULL) {
+    addfld(hbuff,HBMAX,'v',argv[6],10.,0.,'s',fp->dim,
+         fp->dname1,fp->dsize1,
+         fp->dname2,fp->dsize2,
+         fp->dname3,fp->dsize3,
+         fp->dname4,fp->dsize4);
+  }
+
+/* create buffers */
+  nsbuff = elemcnt(hbuff,HBMAX,'s');
+  nvbuff = elemcnt(hbuff,HBMAX,'v');
+  sbuff = getbuff(nsbuff);
+  vbuff = getbuff(nvbuff);
+
+/* get pointers */
+  pres = getptr2(hbuff,HBMAX,vbuff,'v','d',argv[2],&fp);
+  temp = getptr2(hbuff,HBMAX,vbuff,'v','d',argv[3],&fp);
+  if (fp->tsize != size) {
+    fprintf(stderr,"rafthetae: different sizes for %s and %s\n",
+         argv[2],argv[3]);
+    exit(1);
+  }
+  moisture = getptr2(hbuff,HBMAX,vbuff,'v','d',argv[4],&fp);
+  if (fp->tsize != size) {
+    fprintf(stderr,"rafthetae: different sizes for %s and %s\n",
+         argv[2],argv[4]);
+    exit(1);
+  }
+  thetae = getptr2(hbuff,HBMAX,vbuff,'v','d',argv[5],&fp);
+  if (fp->tsize != size) {
+    fprintf(stderr,"rafthetae: different sizes for %s and %s\n",
+         argv[2],argv[5]);
+    exit(1);
+  }
+  satmr = getptr2(hbuff,HBMAX,vbuff,'v','d',argv[6],&fp);
+  if (fp->tsize != size) {
+    fprintf(stderr,"rafthetae: different sizes for %s and %s\n",
+         argv[2],argv[6]);
+    exit(1);
+  }
+  if (lflag) {
+    rhol = getptr2(hbuff,HBMAX,vbuff,'v','d',argv[7],&fp);
+    if (fp->tsize != size) {
+      fprintf(stderr,"rafthetae: different sizes for %s and %s\n",
+           argv[2],argv[7]);
+      exit(1);
+    }
+  }
+
+/* write header buffer */
+  puthdr(stdout,hbuff,HBMAX);
+
+/* transfer static slice */
+  getslice(stdin,nsbuff,sbuff);
+  putslice(stdout,nsbuff,sbuff);
+
+/* loop on variable slices */
+  while (getslice(stdin,nvbuffold,vbuff) != EOF) {
+
+/* loop on elements */
+    for (loop = 0; loop < size; loop++) {
+
+/* get and convert data -- skip if data bad */
+      t = temp[loop];
+      p = pres[loop];
+      r = moisture[loop];
+      if (lflag) l = rhol[loop];
+      else l = 0.;
+      if (fabs(t) > badlim || fabs(p) > badlim || fabs(r) > badlim ||
+           fabs(l) > badlim) {
+        thetae[loop] = bad;
+        satmr[loop] = bad;
+      }
+      else {
+        t += CTOK;
+
+/* r is initially dewpoint temperature */
+        if (dpflag) {
+          r += CTOK;
+
+/* if dewpoint exceeds temperature, make temperature = dewpoint */
+          if (r > t) t = r;
+          es = escalc(r);
+          r = EPS*es/(p - es);
+        }
+        else {
+
+/* r is initially mixing ratio in g/kg */
+          r /= 1000.;
+        }
+
+/* get the liquid water mixing ratio */
+        if (lflag) l *= (1.e-5*RD*t/p);
+
+/* compute thetae */
+        thetae[loop] = the(t,p,r,l);
+
+/* compute saturation mixing ratio in g/kg */
+        es = escalc(t);
+        satmr[loop] = 1000.*EPS*es/(p - es);
+      }
+    }
+
+/* write variable slice */
+    putslice(stdout,nvbuff,vbuff);
+  }
+}
+
+/* do the actual computation given temp (K), pres (mb), and mixrat (g/g) */
+float the(t,p,r,l)
+float t,p,r,l;
+{
+  float es,rh,x1,x2,a1,a2,lv,rs;
+
+/* don't let r exceed saturation value */
+  es = escalc(t);
+  rs = EPS*es/(p - es);
+  if (r > rs) r = rs;
+  rh = r/rs;
+
+/* get actual L */
+  lv = LV0 - 2320.*(t - CTOK);
+  if (lv > LV0) lv = LV0;
+
+/* do the rest */
+  x1 = RD/(CPD + (r + l)*CL);
+  x2 = -r*RV/(CPD + (r + l)*CL);
+  a1 = P0*(1. + 1.608*r)/p;
+  a2 = lv*r/((CPD + (r + l)*CL)*t);
+  return(t*pow(a1,x1)*pow(rh,x2)*exp(a2));
+}
+
+/* compute saturation vapor pressure from dewpoint */
+float escalc(td)
+float td;
+{
+  return(6.112*exp(17.67*(td - CTOK)/(td - 29.65)));
+}
