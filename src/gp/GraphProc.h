@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 1.8 1991-04-10 17:42:59 kris Exp $ */
+/* $Id: GraphProc.h,v 1.9 1991-04-10 17:43:48 corbet Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -47,15 +47,6 @@ extern float	Alt;		/* CAP plot altitude			*/
  *  Maximum number of frames in the frame cache.
  */
 # define NCACHE 100
-
-/*
- * Macros defining the fractional portion of the widget to
- * use for plotting
- */
-# define F_X0	0.05
-# define F_X1	0.85
-# define F_Y0	0.05
-# define F_Y1	0.85
 
 /*
  * How much of the screen is used for the top annotation.
