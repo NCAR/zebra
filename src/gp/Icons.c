@@ -55,7 +55,6 @@ static struct IconList *UsedIcons = 0;	/* Which are in use		*/
  * in this symbol table, indexed by name.
  */
 static stbl IconTable = 0;
-static stbl Vtable = 0;		/* ui$variable_table	*/
 
 /*
  * Forwards.
@@ -97,7 +96,6 @@ I_init ()
  * Create the symbol table to hold the icon pixmaps.
  */
 	IconTable = usy_c_stbl ("Icons");
-	Vtable = usy_g_stbl ("ui$variable_table");
 /*
  * Add our actions.
  */
