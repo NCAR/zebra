@@ -34,7 +34,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 # include "LayoutControl.h"
-MAKE_RCSID ("$Id: PlotExec.c,v 2.17 1992-10-14 16:38:54 corbet Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.18 1992-11-02 22:09:16 burghart Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -221,7 +221,7 @@ char	*component;
  * Execute the given component of the plot description
  */
 {
-	char	plt[30];
+	char	plt[30], *info;
 	Boolean	global;
 	ZebTime	cachetime;
 	time	temptime;
@@ -275,7 +275,7 @@ char	*component;
  *
  * (1) Global plot but already in the cache.
  */
-	if (global && (DisplayFrame = fc_LookupFrame (&cachetime)) >= 0)
+	if (global && (DisplayFrame = fc_LookupFrame (&cachetime, &info)) >= 0)
 	{
 	/*
 	 * Set up to draw in this frame -- we may be returning to RT mode
@@ -283,6 +283,11 @@ char	*component;
 	 */
 		DrawFrame = DisplayFrame;
 		GWDrawInFrame (Graphics, DrawFrame);
+	/*
+	 * Update the overlay times widget
+	 */
+		lw_OvInit (info);
+		lw_LoadStatus ();
 	}
 /*
  * (2) Global plot not cached.
