@@ -35,7 +35,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.15 1994-10-10 16:45:05 corbet Exp $")
+MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.16 1994-10-13 22:35:48 sobol Exp $")
 
 /*
  * The GRIB product definition section (PDS)
@@ -2967,7 +2967,7 @@ GRB_TypeInfo	*ginfo;
 
 
 
-GRB_TypeInfo *
+static GRB_TypeInfo *
 grb_GridTypeInfo (pds, gds)
 GFpds	*pds;
 GFgds	*gds;
@@ -3009,7 +3009,7 @@ GFgds	*gds;
 
 
 
-GRB_TypeInfo *
+static GRB_TypeInfo *
 grb_Build255GInfo (gds)
 GFgds	*gds;
 /*

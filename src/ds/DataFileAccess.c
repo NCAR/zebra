@@ -36,7 +36,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-MAKE_RCSID ("$Id: DataFileAccess.c,v 3.18 1994-09-12 18:01:36 granger Exp $")
+MAKE_RCSID ("$Id: DataFileAccess.c,v 3.19 1994-10-13 22:35:53 sobol Exp $")
 
 /*
  * This is the structure which describes a format.
@@ -918,7 +918,7 @@ int ndetail;
 
 
 
-void
+static void
 dfa_AddOpenFile (dfindex, df, write, tag)
 DataFile *df;
 int write, dfindex;

@@ -32,7 +32,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID ("$Id: d_Scan.c,v 1.19 1994-10-11 16:24:41 corbet Exp $")
+MAKE_RCSID ("$Id: d_Scan.c,v 1.20 1994-10-13 22:35:56 sobol Exp $")
 
 
 /*
@@ -626,7 +626,6 @@ int local;
 			dt_AddToPlatform (p, df, local);
 		}
 	}
-	close (fd);
 }
 			
 
