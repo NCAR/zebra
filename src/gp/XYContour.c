@@ -1,7 +1,7 @@
 /*
  * XY-Contour plotting module
  */
-static char *rcsid = "$Id: XYContour.c,v 1.2 1992-04-09 18:30:37 granger Exp $";
+static char *rcsid = "$Id: XYContour.c,v 1.3 1992-04-13 18:39:18 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -66,11 +66,17 @@ static XColor 	Tadefclr;
 /*
  * Forwards
  */
+#ifdef notdef  /* I tried to add these prototypes, but they baffle 
+		* gcc for some reason, GJG */
 GridInfoPtr getGrid FP((char *, bool, int, int, float));
 
-float *xy_RGridit FP((char *, bool, DataValPtr, DataValPtr,
-		      unsigned short, DataValPtr, DataValPtr, DataValPtr,
-		      int, float, int, int));
+float *xy_RGridit FP((char *, bool, 
+		      DataValPtr, DataValPtr,
+		      unsigned short, int,
+		      DataValPtr, DataValPtr, 
+		      unsigned short, int,
+		      DataValPtr, DataValPtr, DataValPtr,
+		      int, float));
 
 void gridRandomData FP((
 	GridInfoPtr	ginfo,
@@ -83,7 +89,8 @@ void gridRandomData FP((
 	unsigned short	xscalemode,
 	DataValPtr	ymin,
 	DataValPtr	ymax,
-	unsigned short	yscalemode));
+	unsigned short	yscalemode,
+	float		badval));
 
 float *xy_InterpolateLinearOnY FP((
 	GridInfoPtr	ginfo,
@@ -92,6 +99,12 @@ float *xy_InterpolateLinearOnY FP((
 	DataValPtr	ymin,
 	DataValPtr	ymax,
 	float		badval));
+#endif /* notdef */
+
+float *xy_RGridit();
+GridInfoPtr getGrid();
+void gridRandomData();
+float *xy_InterpolateLinearOnY();
 
 
 void
@@ -805,12 +818,13 @@ char		*c;
 bool		update;
 DataValPtr	xmin,xmax;
 unsigned short  xscalemode;
+int		xdim;
 DataValPtr	ymin,ymax;
 unsigned short yscalemode;
+int		ydim;
 DataValPtr	xdata,ydata,zdata;
 int		npts;
 float		badval;
-int		xdim,ydim;
 {
     int	lxdim,lydim,lnpts;
     float lbad;
