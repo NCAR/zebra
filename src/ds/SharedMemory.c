@@ -32,7 +32,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 
-MAKE_RCSID ("$Id: SharedMemory.c,v 2.2 1991-11-22 21:11:42 corbet Exp $")
+MAKE_RCSID ("$Id: SharedMemory.c,v 2.3 1992-12-23 16:51:24 corbet Exp $")
 
 
 /*
@@ -187,7 +187,7 @@ dsm_ShmUnlock ()
  * Actually unlock.
  */
 	op.sem_num = S_READ;
-	op.sem_flg = SEM_UNDO;
+	op.sem_flg = SEM_UNDO | IPC_NOWAIT;
 	op.sem_op = -1;
 	if (semop (Semaphore, &op, 1) < 0)
 		msg_ELog (EF_PROBLEM, "Error %d decr read sem", errno);
