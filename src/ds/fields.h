@@ -1,7 +1,7 @@
 /*
  * Fields information
  *
- * $Id: fields.h,v 2.1 1991-09-16 21:30:06 burghart Exp $
+ * $Id: fields.h,v 2.2 1993-08-27 10:05:10 granger Exp $
  */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -20,6 +20,9 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+
+#ifndef _zeb_fields_h_
+#define _zeb_fields_h_
 
 typedef enum
 {
@@ -55,3 +58,5 @@ typedef enum
 	float	fd_center ();
 	float	fd_step ();
 # endif
+
+#endif /* _zeb_fields_h_ */
