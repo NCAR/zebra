@@ -16,7 +16,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.32 2001-08-09 20:58:03 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.33 2001-10-25 18:30:02 granger Exp $"
 
 #define IHaveSubdirs
 #define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
@@ -94,6 +94,11 @@ StandardSubdirTargets()
 TestSubdirs($(TESTSUBDIRS))
 
 TARGET = all
+
+.PHONY: gp
+
+gp:
+	$(MAKE) $(MFLAGS) SUBDIRS='$(LIBS) gp' $(TARGET)
 
 programs:
 	$(MAKE) $(MFLAGS) ETC= LIBS= GP='$(GP)' $(TARGET)
