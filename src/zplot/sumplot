@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# $Id: sumplot,v 1.16 2002-06-30 05:05:36 granger Exp $
+# $Id: sumplot,v 1.17 2004-03-03 07:36:22 granger Exp $
 #
 # Collect all the images of a given pattern, reduce their size, and
 # put them into a table in the current directory.
@@ -15,12 +15,12 @@ if [ "$1" = "-bright" ]; then
     shift; shift
 fi
 
-if [ $# -ne 4 -a $# -ne 5 ]; then
+if [ $# -ne 5 ]; then
 
-    echo "Usage: $0 [-bright N] <project> <pattern> <basedir> <destdir> [<htmlfile>]"
-    echo "Finds all image files of the given <pattern> under <basedir>,"
+    echo "Usage: $0 [-bright N] <title> <pattern> <basedir> <destdir> <htmlfile>"
+    echo "Finds all image files of the given <pattern> under <basedir>"
+    echo "and any of its subdirectories, then"
     echo "creates thumbnails in <destdir> and a html table <htmlfile>."
-    echo "If <htmlfile> not given, a default is created using the pattern."
     echo "Any text on standard input is inserted onto the page under the"
     echo "title.  If bright argument N is non-zero, then contrast will be"
     echo "increased in the generated image; used when reducing plot images"
@@ -29,32 +29,31 @@ if [ $# -ne 4 -a $# -ne 5 ]; then
 
 fi
 
-project=$1
-pattern=$2
+title=$1
+pattern="$2"
 basedir=$3
 destdir=$4
+htmlfile=$5
 
 if [ ! -d $destdir ]; then
     echo "$destdir does not exist."
     exit 1
 fi
 
-if [ $# -eq 5 ]; then
-    htmlfile=$5
-else
-    htmlfile=$destdir/summary-$pattern.html
-fi
+findimages()
+{
+    find $basedir/. -type f -name "${pattern}" | sort
+}
 
 . libsumplot
-(sumplot_beginpage "$project Plot Summary"
+(sumplot_beginpage "$title"
 
 # Insert any text from standard input here
 cat
 
 echo "<hr>"
 
-find $basedir/. -type f -name "*${pattern}*.png" -o -name "*${pattern}*.gif" \
-    | sort | sumplot_filltable "$destdir" "$brightness"
+findimages | sumplot_filltable "$destdir" "$brightness"
 
 sumplot_endpage) > $htmlfile.$$
 rm -f $htmlfile
@@ -66,11 +65,10 @@ echo "Done generating $htmlfile"
 #
 number=4
 quickpartfile="$htmlfile.quick.part"
+findimages | tail -$number | \
 (echo "<tr>"
-echo "<td align=center colspan=$number><p><strong><a href="$htmlfile">$project</a></strong></p></td></tr>"
-find $basedir/. -type f -name "*${pattern}*.png" -o -name "*${pattern}*.gif" \
-    | sort | tail -$number \
-    | sumplot_fillrows "$destdir" "$brightness" $number) > $quickpartfile.$$
+echo "<td align=center colspan=$number><p><strong><a href="$htmlfile">$title</a></strong></p></td></tr>";
+sumplot_fillrows "$destdir" "$brightness" $number) > $quickpartfile.$$
 
 rm -f $quickpartfile
 mv -f $quickpartfile.$$ $quickpartfile
