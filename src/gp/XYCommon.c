@@ -1,7 +1,7 @@
 /*
  * Routines common to XY-Type plots
  */
-static char *rcsid = "$Id: XYCommon.c,v 1.11 1993-04-20 20:25:45 burghart Exp $";
+static char *rcsid = "$Id: XYCommon.c,v 1.12 1993-05-03 21:40:54 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -30,7 +30,7 @@ static char *rcsid = "$Id: XYCommon.c,v 1.11 1993-04-20 20:25:45 burghart Exp $"
 # include <time.h>
 # include <message.h>
 # include <DataStore.h>
-# include <netcdf.h>	/* needed for infinity kluge below */
+# include "xdr_infinity.h"	/* needed for infinity kluge below */
 # include "derive.h"
 # include "GraphProc.h"
 # include "GC.h"
