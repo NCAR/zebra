@@ -37,7 +37,7 @@
 # include "PixelCoord.h"
 # include "ActiveArea.h"
 
-RCSID("$Id: PlotControl.c,v 2.44 2000-11-16 22:55:43 granger Exp $")
+RCSID("$Id: PlotControl.c,v 2.45 2000-12-05 19:11:20 granger Exp $")
 
 int		pc_TimeTrigger FP ((char *));
 void		pc_TriggerGlobal FP (());
@@ -426,28 +426,20 @@ int index;
 	int seconds;
 	PlatformId pid;
 /*
- * Try to interpret the trigger as a time.
+ * Look it up as a platform and request notifications.
  */
-	if ((seconds = pc_TimeTrigger (trigger)))
-	{
-		pc_SetTimeTrigger (seconds, comp);
-	}
-/*
- * Else look it up as a platform and request notifications.
- */
-	else if ((pid = ds_LookupPlatform (trigger)) != BadPlatform)
+	if ((pid = ds_LookupPlatform (trigger)) != BadPlatform)
 	{
 		msg_ELog (EF_DEBUG, "comp %s: trigger on platform '%s'",
 			  comp, trigger);
 		ds_RequestNotify (pid, index, pc_Notification);
 	}
 /*
- * Otherwise it's junk.
+ * Or else resort to interpreting the trigger as a time.
  */
-	else
+	else if ((seconds = pc_TimeTrigger (trigger)))
 	{
-		msg_ELog (EF_PROBLEM, 
-			  "Funky trigger '%s', component %s", trigger, comp);
+		pc_SetTimeTrigger (seconds, comp);
 	}
 }
 
@@ -481,7 +473,7 @@ char *trigger;
 		return (seconds*24*60*60);
 	else
 	{
-		msg_ELog (EF_PROBLEM, "Funky time period: '%s'", period);
+		msg_ELog (EF_PROBLEM, "Funky time trigger: '%s'", period);
 		return (0);
 	}
 }
