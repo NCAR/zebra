@@ -37,7 +37,7 @@
 # include "PolarPlot.h"
 # endif
 
-MAKE_RCSID ("$Id: GridAccess.c,v 2.40 2003-03-11 00:29:21 burghart Exp $")
+MAKE_RCSID ("$Id: GridAccess.c,v 2.41 2004-07-22 21:02:20 burghart Exp $")
 
 # define DEG_TO_RAD(x)	((x)*0.017453292)
 # define KM_TO_DEG(x)	((x)*0.008982802) /* on a great circle */
@@ -1295,12 +1295,17 @@ zbool transpose;
 {
 	DataChunk 	*rdc;
 	float 		badflag;
+	void		*bad_ptr;
 	float 		olat, olon;
+	float		float_bad;
 	float		*fdata, *grid;
 	void		*nsdata;
 	short		*sdata;
+	short		short_bad;
 	unsigned char	*ucdata;
+	unsigned char	uchar_bad;
 	char		*cdata;
+	char		char_bad;
 	RGrid		rg;
 	ZebTime		when;
 	DC_ElemType	type;
@@ -1314,9 +1319,16 @@ zbool transpose;
 	dc_RGSetup (rdc, 1, &fid); 
 
 	dc_SetLocAltUnits (rdc, dc_GetLocAltUnits (dc));
-
+/*
+ * Get the default bad value flag from the source, and use it for the
+ * destination as well.
+ */
 	badflag = dc_GetBadval (dc);
 	dc_SetBadval (rdc, badflag);
+/*
+ * Look for a field-specific bad value in the source dc.
+ */
+	bad_ptr = dc_GetFieldBadval (dc, fid);
 /*
  * Grid info and location
  */
@@ -1336,44 +1348,52 @@ zbool transpose;
 	switch (type = dc_Type (dc, fid))
 	{
 	    case DCT_Float:
+		float_bad = (bad_ptr) ? *(float*)bad_ptr : badflag;
+
 		fdata = nsdata;
+		  
 		if (! use_scaling)
 		    break;
 		
 		for (i = 0; i < nlats * nlons; i++)
 		{
-		    if (fdata[i] != badflag)
+		    if (fdata[i] != float_bad)
 			fdata[i] = fdata[i] * scale + offset;
+		    else
+			fdata[i] = badflag;
 		}
 		break;
 	    case DCT_ShortInt:
+		short_bad = (bad_ptr) ? *(short*)bad_ptr : badflag;
 		sdata = (short *) nsdata;
 		fdata = (float *) malloc (nlats * nlons * sizeof (float));
 		for (i = 0; i < nlats * nlons; i++)
 		{
-		    if (sdata[i] != badflag)
+		    if (sdata[i] != short_bad)
 			fdata[i] = (float) sdata[i] * scale + offset;
 		    else
 			fdata[i] = badflag;
 		}
 		break;
 	    case DCT_UnsignedChar:
+		uchar_bad = (bad_ptr) ? *(unsigned char*)bad_ptr : badflag;
 	        ucdata = (unsigned char*) nsdata;
 		fdata = (float *) malloc (nlats * nlons * sizeof (float));
 		for (i = 0; i < nlats * nlons; i++)
 		{
-		    if (ucdata[i] != badflag)
+		    if (ucdata[i] != uchar_bad)
 			fdata[i] = (float)ucdata[i] * scale + offset;
 		    else
 			fdata[i] = badflag;
 		}
 		break;
 	    case DCT_Char:
+		char_bad = (bad_ptr) ? *(char*)bad_ptr : badflag;
 	        cdata = (char*) nsdata;
 		fdata = (float *) malloc (nlats * nlons * sizeof (float));
 		for (i = 0; i < nlats * nlons; i++)
 		{
-		    if (cdata[i] != badflag)
+		    if (cdata[i] != char_bad)
 			fdata[i] = (float)cdata[i] * scale + offset;
 		    else
 			fdata[i] = badflag;
