@@ -17,7 +17,7 @@
 
 # define HIDE_BUTTON 0
 
-RCSID ("$Id: XArchiver.cc,v 1.3 2001-09-18 21:54:32 granger Exp $")
+RCSID ("$Id: XArchiver.cc,v 1.4 2002-12-13 23:23:01 granger Exp $")
 
 class XArchiverView : public ArchiverView
 {
@@ -206,6 +206,15 @@ XArchiverView::XArchiverView (ArchiverModel *model, char *display_name)
  */
 	OK = true;
 	MakeWidgets ();
+/*
+ * Now update with the model and realize everything.
+ */
+	Model->update (this);
+	XtRealizeWidget (Top);
+	Sync ();
+
+	connection = XConnectionNumber (XtDisplay (Top));
+	msg_add_fd (connection, (int (*)())xevent);
 }
 
 
@@ -346,15 +355,6 @@ XArchiverView::MakeWidgets ()
 	XAllocNamedColor (XtDisplay (Top), DefaultColormap (XtDisplay (Top),0),
 		"white", &exact, &screen);
 	WhitePix = screen.pixel;
-/*
- * Now update with the model and realize everything.
- */
-	Model->update (this);
-	XtRealizeWidget (Top);
-	Sync ();
-
-	connection = XConnectionNumber (XtDisplay (Top));
-	msg_add_fd (connection, (int (*)())xevent);
 }
 
 
@@ -557,7 +557,8 @@ xevent ()
 {
 	XEvent event;
 /*
- * Deal with events as long as they keep coming.
+ * Deal with events as long as they keep coming and the view is prepared 
+ * to deal with them.
  */
  	while (XArchiverView::Appc && XtAppPending (XArchiverView::Appc))
 	{

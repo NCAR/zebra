@@ -1,6 +1,6 @@
-/* -*- C++ -*-
+/* -*- mode: C++; c-basic-offset: 8 -*-
  *
- * $Id: Archiver.h,v 1.2 1999-11-24 00:03:07 granger Exp $
+ * $Id: Archiver.h,v 1.3 2002-12-13 23:23:01 granger Exp $
  *
  * Define an interface for an Archiver process and its view
  * and controllers.  A controller works with the Archiver control
@@ -21,6 +21,8 @@ extern String WaitTimes;
 class ArchiverView
 {
 public:
+	typedef std::string string;
+
 	// General exception class for archiver views.
 	class ErrorException { };
 
