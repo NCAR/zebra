@@ -28,7 +28,7 @@
 # include "commands.h"
 # include <ui_error.h>
 
-MAKE_RCSID("$Id: d_Config.c,v 2.8 1994-04-27 08:24:12 granger Exp $")
+MAKE_RCSID("$Id: d_Config.c,v 2.9 1994-05-04 21:13:37 burghart Exp $")
 
 /*-----------------------------------------------------------------------
  * Local forwards.
@@ -333,29 +333,60 @@ struct ui_command *cmds;	/* Instance names		*/
 	PlatformInstance *plat;
 	PlatformClass *pc;
 	PlatformClass *spc;
-
-	plat = dt_FindInstance (target);
-	pc = dt_FindClass (target);
+	char	*safetarget;
+/*
+ * Make a copy of the target name.  We have to do this because the
+ * name we're given is a pointer into the platform or class table, which we 
+ * may end up moving (when a resize happens) while we're defining 
+ * subplatforms.  Ugly.
+ */
+	safetarget = usy_string (target);
+/*
+ * Find the appropriate platform or class entry for our parent.
+ */
+	plat = dt_FindInstance (safetarget);
+	pc = dt_FindClass (safetarget);
 	if (!plat && !pc)
 	{
 		msg_ELog (EF_PROBLEM, "subplats target '%s' not a known %s",
-			  target, "class or instance");
+			  safetarget, "class or instance");
 		return ;
 	}
 	spc = dt_FindClass (classname);
 	if (!spc)
 	{
 		msg_ELog (EF_PROBLEM, "subplats class '%s' for %s unknown",
-			  classname, target);
+			  classname, safetarget);
 		return;
 	}
+/*
+ * Do each subplatform in this command line.
+ */
 	for ( ; cmds->uc_ctype != UTT_END; ++cmds)
 	{
 		if (plat)
+		{
 			dt_DefSubPlat (plat, spc, UPTR (*cmds));
+		/*
+		 * Grab plat again, since we may have caused a resize of the
+		 * platform table, and hence caused the platform entry to move.
+		 */
+			plat = dt_FindInstance (safetarget);
+		}
 		else
+		{
 			dt_DefClassSubPlat (pc, spc, UPTR (*cmds));
+		/*
+		 * Grab pc again, since we may have caused a resize of the
+		 * class table, and hence caused the class entry to move.
+		 */
+			pc = dt_FindClass (safetarget);
+		}
 	}
+/*
+ * Release our copy of the target name
+ */
+	usy_rel_string (safetarget);
 }
 
 
