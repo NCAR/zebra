@@ -5,7 +5,7 @@
  * commands are in ui_cmds.c
  */
 
-static char *Rcsid = "$Header: /code/cvs/rdss/rdsslibs/ui/ui.c,v 1.1 1989-02-08 13:27:42 corbet Exp $";
+static char *Rcsid = "$Header: /code/cvs/rdss/rdsslibs/ui/ui.c,v 1.2 1989-03-10 16:18:11 corbet Exp $";
 /*
  * Declare all globals here
  */
@@ -455,7 +455,7 @@ bool exec;
 	 * Testing hook.
 	 */
 	  case UIC_TEST:
-	  	ui_test (cmds + 1);
+		dump_str (UINT (cmds[1]));
 		return (TRUE);
 	/*
 	 * Evaluate an expression.
@@ -758,6 +758,7 @@ ui_endwhile ()
  */
 	pt = ue_parse (Cs->cs_test, 0, TRUE);
 	ue_eval (pt, &v, &type);
+	ue_rel_tree (pt);
 	if (type != SYMT_BOOL)
 		uit_coerce (&v, type, SYMT_BOOL);
 	exec = v.us_v_int && (Cs->cs_csave == 0) && 
@@ -1352,6 +1353,7 @@ struct ui_command *cmds;
 			ue_rel_tree (pt);
 			RESIGNAL;
 		ENDCATCH
+		ue_rel_tree (pt);
 	/*
 	 * Whew!  It actually worked.  Define this symbol and go on.
 	 */
