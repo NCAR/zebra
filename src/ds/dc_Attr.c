@@ -25,7 +25,7 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_Attr.c,v 1.3 1992-12-09 19:45:42 granger Exp $")
+MAKE_RCSID ("$Id: dc_Attr.c,v 1.4 1993-04-21 22:22:19 granger Exp $")
 
 
 /*
@@ -82,11 +82,12 @@ char *key, *value;
 	if ((ade->aa_Used + len) >= ade->aa_Alloc)
 	{
 	/*
-	 * Make sure we add at least enough space for this attribute, as well
-	 * as some extra space for later additions.  The goal is to make realloc
-	 * infrequent without consuming too much memory... so we're increasing
-	 * the ade->aa_Data array to (len + ade->aa_Alloc*2) bytes, which means
-	 * our new ade structure requires 'newlen' bytes:
+	 * Make sure we add at least enough space for this attribute, as
+	 * well as some extra space for later additions.  The goal is to
+	 * make realloc infrequent without consuming too much memory... so
+	 * we're increasing the ade->aa_Data array to (len +
+	 * ade->aa_Alloc*2) bytes, which means our new ade structure
+	 * requires 'newlen' bytes:
 	 */
 		int newlen = sizeof (AttrADE) + len + ade->aa_Alloc*2 - 1;
 		ade = (AttrADE *) realloc (ade, newlen);
@@ -109,6 +110,30 @@ char *key, *value;
 	ade->aa_Used += len;
 }
 
+
+
+void
+dca_RemoveAttr (dc, class, code, key)
+DataChunk *dc;
+DataClass class;
+int code;
+char *key;
+/*
+ * Remove this attribute from the data chunk.
+ */
+{
+	AttrADE *ade;
+/*
+ * Find the ADE; if it doesn't exist, we can't very well remove anything,
+ * can we?
+ */
+	if (! (ade = (AttrADE *) dc_FindADE (dc, class, code, 0)))
+		return;
+/*
+ * Remove this key
+ */
+	dca_RemoveKey (ade, key);
+}
 
 
 
@@ -152,7 +177,6 @@ char *key;
 
 
 
-
 static void
 dca_RemoveKey (ade, key)
 AttrADE *ade;
@@ -162,6 +186,7 @@ char *key;
  */
 {
 	char *loc, *next;
+	char *src, *dest;
 /*
  * If it already doesn't exist, life is easy.
  */
@@ -176,9 +201,15 @@ char *key;
 /*
  * If need be, shift the data after this entry up, and decrement the
  * length.
+ * We can't use memcpy because copy regions may overlap,
+ * and Sun doesn't have ANSI memmove()
  */
-	if ((next - ade->aa_Data) < ade->aa_Used)
-		memcpy (loc, next, ade->aa_Used - (next - ade->aa_Data));
+	for (src = next, dest = loc; 
+	     src - ade->aa_Data < ade->aa_Used;
+	     ++src, ++dest)
+	{
+		*dest = *src;
+	}
 	ade->aa_Used -= next - loc;
 }
 

@@ -23,7 +23,7 @@
 # include "DataStore.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_Transp.c,v 1.7 1992-11-16 21:12:01 granger Exp $")
+MAKE_RCSID ("$Id: dc_Transp.c,v 1.8 1993-04-21 22:23:39 granger Exp $")
 
 /*
  * TODO:
@@ -804,6 +804,22 @@ char *key, *value;
 	dca_AddAttr (dc, DCC_Transparent, ST_ATTR + sample, key, value);
 }
 
+
+
+void
+dc_RemoveSampleAttr (dc, sample, key)
+DataChunk *dc;
+int sample;
+char *key;
+/*
+ * Remvoe a per-sample attribute from this data chunk.
+ */
+{
+	if (! dc_ReqSubClassOf (dc->dc_Class, 
+				DCC_Transparent,"RemoveSampleAttr"))
+		return;
+	dca_RemoveAttr (dc, DCC_Transparent, ST_ATTR + sample, key);
+}
 
 
 
