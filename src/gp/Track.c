@@ -1,13 +1,14 @@
 /*
  * Track drawing routines.
  */
-static char *rcsid = "$Id: Track.c,v 1.6 1990-11-15 14:49:12 corbet Exp $";
+static char *rcsid = "$Id: Track.c,v 1.7 1990-12-04 15:12:30 corbet Exp $";
 
 
 # include <X11/Intrinsic.h>
 # include "../include/defs.h"
 # include "../include/pd.h"
 # include "../include/message.h"
+# include "../include/DataStore.h"
 # include "GraphProc.h"
 # include "PixelCoord.h"
 # include "DrawText.h"
@@ -15,30 +16,18 @@ static char *rcsid = "$Id: Track.c,v 1.6 1990-11-15 14:49:12 corbet Exp $";
 
 extern Pixel White;	/* XXX */
 
-/*
- * Source name to file mapping.
- */
-static struct amap
-{
-	char	am_name[20];		/* Aircraft name		*/
-	char	*am_file;		/* File ptr			*/
-} Amap[20];
-static int Namap = 0;
-
-
 
 /*
  * Forwards.
  */
 # ifdef __STDC__
-	static char *tr_GetFile (char *);
-	static bool tr_CCSetup (char *, char *, char *, char *, XColor **,
+	static bool tr_CCSetup (char *, char *, char *, XColor **,
 		int *, float *, float *, XColor *);
 # else
-	static char *tr_GetFile ();
 	static bool tr_CCSetup ();
 # endif
 
+# define BADVAL -32768
 
 
 void
@@ -46,22 +35,37 @@ tr_CAPTrack (comp, update)
 char *comp;
 bool update;
 {
-	char platform[30], *file, tp[30], ccfield[30], ctable[30];
-	char *fields[5], field_data[60], *afctx, mtcolor[20], string[40];
-	int period, nfield, dsperiod, when, x0, y0, x1, y1, nc, lwidth;
+	char platform[30], tp[30], ccfield[30], ctable[30];
+	char *fields[5], mtcolor[20], string[40];
+	int period, dsperiod, x0, y0, x1, y1, nc, lwidth, pid;
 	int dskip = 0, npt = 0, i, top, bottom, left, right, wheight, mid;
 	bool mono;
 	time begin;
-	float data[5], fx, fy, base, incr, cval;
+	float *data, fx, fy, base, incr, cval;
 	Drawable d;
 	GC Gcontext;
 	Display *disp = XtDisplay (Graphics);
 	XColor xc, *colors, outrange;
+	DataObject *dobj;
 /*
  * Get our platform first, since that's what is of interest to us.
  */
 	if (! pda_ReqSearch (Pd,comp, "platform", NULL, platform, SYMT_STRING))
 		return;
+	if ((pid = ds_LookupPlatform (platform)) == BadPlatform)
+	{
+		msg_ELog (EF_PROBLEM, "Unknown platform '%s'", platform);
+		return;
+	}
+/*
+ * Make sure that we'll get the right sort of stuff.
+ */
+	if (! ds_IsMobile (pid))
+	{
+		msg_ELog (EF_PROBLEM, "Track attempted on static platform %s",
+			platform);
+		return;
+	}
 /*
  * Pull out other parameters of interest.
  */
@@ -92,27 +96,21 @@ bool update;
 	if (! tr_GetParam (comp, "track-color", platform, mtcolor,SYMT_STRING))
 		strcpy (mtcolor, "white");
 /*
- * Find our file.
- */
-	if (! (file = tr_GetFile (platform)))
-		return;
-/*
  * Color code field.
  */
 	mono = ! (tr_GetParam (comp, "field", platform, ccfield, SYMT_STRING)
 			|| tr_GetParam (comp, "color-code-field", platform,
 				ccfield, SYMT_STRING));
 	if (! mono)
-		mono = ! tr_CCSetup (file, comp, platform, ccfield, &colors,
+		mono = ! tr_CCSetup (comp, platform, ccfield, &colors,
 				&nc, &base, &incr, &outrange);
 /*
  * Put together the field list.
  */
-	fields[0] = "alat";
-	fields[1] = "alon";
-	nfield = 2;
 	if (! mono)
-		fields[nfield++] = ccfield;
+		fields[0] = ccfield;
+	else
+		fields[0] = "temperature";	/* XXX */
 /*
  * Figure the begin time.
  */
@@ -120,30 +118,28 @@ bool update;
 	dsperiod = (period/3600)*10000 + ((period/60) % 60)*100 + period % 60;
 	pmu_dsub (&begin.ds_yymmdd, &begin.ds_hhmmss, dsperiod);
 /*
- * Position to get the data.
+ * Get the data.
  */
-	if (! (afctx = af_Setup (file, &begin, nfield, fields)))
+	dobj = ds_GetData (pid, fields, 1, &begin, &PlotTime, OrgScalar,
+		0.0, BADVAL);
+	if (! dobj)
 	{
-		msg_ELog (EF_PROBLEM, "AF Setup failed");
+		msg_ELog (EF_INFO, "No %s data available", platform);
 		return;
 	}
-/*
- * Get the initial point.
- */
-	if (! af_NextSample (afctx, &when, data))
-	{
-		msg_ELog (EF_DEBUG, "No aircraft data for initial point");
-		af_ReleaseCtx (afctx);
-		return;
-	}
-	cvt_ToXY (data[0], data[1], &fx, &fy);
+	msg_ELog (EF_DEBUG, "Got track data, %d pt", dobj->do_npoint);
+	cvt_ToXY (dobj->do_aloc[0].l_lat, dobj->do_aloc[0].l_lon, &fx, &fy);
 	x0 = XPIX (fx); y0 = YPIX (fy);
+	data = dobj->do_data[0];
 /*
  * We need a graphics context.
  */
 	Gcontext = XCreateGC (disp, XtWindow (Graphics), 0, NULL);
-	ct_GetColorByName (mtcolor, &xc);
-	XSetForeground (disp, Gcontext, xc.pixel);
+	if (mono)
+	{
+		ct_GetColorByName (mtcolor, &xc);
+		XSetForeground (disp, Gcontext, xc.pixel);
+	}
 	d = GWFrame (Graphics);
 /*
  * How wide do they like their lines?
@@ -155,14 +151,9 @@ bool update;
 /*
  * Now work through the data.
  */
-	for (;;)
+	for (i = 1; i < dobj->do_npoint; i++)
 	{
-	/*
-	 * Get another sample, and make sure we're not past our time.
-	 */
-		if (! af_NextSample (afctx, &when, data) ||
-				when > PlotTime.ds_hhmmss)
-			break;
+		Location *loc = ds_Where (dobj, i);
 	/*
 	 * Do skipping if requested.
 	 */
@@ -171,14 +162,14 @@ bool update;
 	/*
 	 * Locate this point.
 	 */
-		cvt_ToXY (data[0], data[1], &fx, &fy);
+		cvt_ToXY (loc->l_lat, loc->l_lon, &fx, &fy);
 		x1 = XPIX (fx); y1 = YPIX (fy);
 	/*
 	 * Color code if necessary.
 	 */
 	 	if (! mono)
 		{
-			int index = (data[2] - base)/incr;
+			int index = (data[i] - base)/incr;
 			XSetForeground (disp, Gcontext,
 				(index >= 0 && index < nc) ?
 				colors[index].pixel : outrange.pixel);
@@ -189,8 +180,8 @@ bool update;
 		XDrawLine (disp, d, Gcontext, x0, y0, x1, y1); 
 		x0 = x1; y0 = y1;
 	}
-	af_ReleaseCtx (afctx);
 	XFreeGC (disp, Gcontext);
+	ds_FreeDataObject (dobj);
 /*
  * Annotate if necessary.
  */
@@ -248,8 +239,8 @@ bool update;
 
 
 static bool
-tr_CCSetup (file, comp, platform, ccfield, colors, nc, base, incr, outrange)
-char *file, *comp, *platform, *ccfield;
+tr_CCSetup (comp, platform, ccfield, colors, nc, base, incr, outrange)
+char *comp, *platform, *ccfield;
 XColor **colors, *outrange;
 int *nc;
 float *base, *incr;
@@ -259,15 +250,6 @@ float *base, *incr;
 {
 	float center, step;
 	char orc[20], ctable[20];
-/*
- * Check and make sure they've given us a real field.
- */
-	if (! af_FieldOK (file, ccfield))
-	{
-		msg_ELog (EF_PROBLEM, "Color code field '%s' unknown",
-			ccfield);
-		return (FALSE);
-	}
 /*
  * Get the color table.
  */
@@ -310,32 +292,6 @@ float *base, *incr;
 }
 
 
-
-
-
-
-static char *
-tr_GetFile (platform)
-char *platform;
-/*
- * Open up the aircraft file associated with this platform.
- */
-{
-	int i;
-/*
- * See if it's already open.
- */
-	for (i = 0; i < Namap; i++)
-		if (! strcmp (platform, Amap[i].am_name))
-			return (Amap[i].am_file);
-/*
- * Open it ourselves.
- */
-	if (! (Amap[Namap].am_file = af_OpenFile (platform)))
-		return (0);
-	strcpy (Amap[Namap++].am_name, platform);
-	return (Amap[Namap-1].am_file);
-}
 
 
 
