@@ -1,6 +1,25 @@
 /*
  * The new event logger.
  */
+static char *rcsid = "$Id: EventLogger.c,v 2.1 1991-09-13 15:01:58 corbet Exp $";
+/*		Copyright (C) 1987,88,89,90,91 by UCAR
+ *	University Corporation for Atmospheric Research
+ *		   All rights reserved
+ *
+ * No part of this work covered by the copyrights herein may be reproduced
+ * or used in any form or by any means -- graphic, electronic, or mechanical,
+ * including photocopying, recording, taping, or information storage and
+ * retrieval systems -- without permission of the copyright owner.
+ * 
+ * This software and any accompanying written materials are provided "as is"
+ * without warranty of any kind.  UCAR expressly disclaims all warranties of
+ * any kind, either express or implied, including but not limited to the
+ * implied warranties of merchantibility and fitness for a particular purpose.
+ * UCAR does not indemnify any infringement of copyright, patent, or trademark
+ * through use or modification of this software.  UCAR does not provide 
+ * maintenance or updates for its software.
+ */
+
 # include <stdio.h>
 # include <X11/Intrinsic.h>
 # include <X11/Xaw/Form.h>
@@ -17,6 +36,7 @@
 # include "defs.h"
 # include "../include/message.h"
 # include "../include/dm.h"
+# include "copyright.h"
 
 
 
@@ -52,7 +72,8 @@ struct EMMap
  * Text info.
  */
 static int Buflen = 0;
-static char *Initmsg = "$Id: EventLogger.c,v 2.0 1991-07-18 23:07:02 corbet Exp $\n";
+static char *Initmsg = "$Id: EventLogger.c,v 2.1 1991-09-13 15:01:58 corbet Exp $\n\
+Copyright (C) 1991 UCAR, All rights reserved.\n"";
 
 /*
  * Our widgets.
