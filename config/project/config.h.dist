@@ -39,7 +39,7 @@
 /**/# -----------------------------------------------------------------------
 /**/# Definitions from config.h included here.  The definitions here override
 /**/# the defaults in Project.tmpl.  See ...../zeb/config/config.h.
-/**/# $Id: config.h.dist,v 1.4 1994-02-01 11:01:31 granger Exp $
+/**/# $Id: config.h.dist,v 1.5 1994-02-01 11:40:03 granger Exp $
 /**/# -----------------------------------------------------------------------
 # endif
 
@@ -244,6 +244,14 @@
  */
 # define HaveEmacs NO
 # define EmacsPath emacs
+
+/*
+ * Zeb uses the RDSS UI compiler to generate load files for much of its
+ * user interface.  If the UI compiler, uic, is not in your path,
+ * define the full path of uic, including the executable name, in the
+ * symbol UicCmd.  The default value is just 'uic'.
+ */
+/* # define UicCmd /rdss/bin/uic */
 
 /*
  * If you wish to compile dsmanage and tapeindex, you need to specify
