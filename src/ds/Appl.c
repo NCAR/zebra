@@ -28,7 +28,7 @@
 #include "dfa.h"
 
 #ifndef lint
-MAKE_RCSID ("$Id: Appl.c,v 3.33 1994-07-01 06:05:26 granger Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.34 1994-09-12 17:55:58 granger Exp $")
 #endif
 
 /*
@@ -1092,7 +1092,17 @@ dsDetail *details;
  */
 	ds_FProcGetList (dc, get, details, ndetail);
 	dgl_ReturnList (get);
-	return (dc);
+/*
+ * It is still possible that there were no times in the file between
+ * the requested times, in which case we return null for no data found.
+ */
+	if (dc_GetNSample (dc) == 0)
+	{
+		dc_DestroyDC (dc);
+		return (NULL);
+	}
+	else
+		return (dc);
 }
 
 
@@ -2272,7 +2282,9 @@ int junk;
 	if (dt->dsp_type == dpt_R_PLockGranted)
 		return (MSG_DONE);
 /*
- * Otherwise let's look for messages that are worth processing now.
+ * Otherwise let's look for messages that are worth processing now.  It's
+ * a good idea to be in sync with changes from the daemon before accepting
+ * our lock on the platform.
  */
 	switch (dt->dsp_type)
 	{
