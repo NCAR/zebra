@@ -34,7 +34,7 @@
 # include <config.h>
 # include <copyright.h>
 # include <xhelp.h>
-MAKE_RCSID ("$Id: dm.c,v 2.33 1993-08-04 17:15:19 granger Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.34 1993-08-26 20:16:11 corbet Exp $")
 
 
 /*
@@ -1496,50 +1496,3 @@ struct ui_command *cmds;
 
 
 
-
-int
-FindFile (file, spath, dest)
-char *file, *spath, *dest;
-/*
- * Try to find the given file by applying components from the path.
- */
-{
-	char *path, *delim;
-	char *strchr ();
-/*
- * Try to find the file as given.
- */
-	if (! access (file, F_OK))
-	{
-		strcpy (dest, file);
-		return (TRUE);
-	}
-/*
- * Oops.  No such luck.  Now we try the search path
- * and see if that works any better.
- */
-	for (delim = path = spath; delim; path = delim + 1)
-	{
-	/*
-	 * Build up a new program name from the next path entry.
-	 */
-		if ((delim = strchr (path, ',')) != 0)
-		{
-			strncpy (dest, path, delim - path);
-			dest[delim - path] = '\0';
-		}
-		else
-			strcpy (dest, path);
-		strcat (dest, "/");
-		strcat (dest, file);
-	/*
-	 * See if this one exists.
-	 */
-		if (! access (dest, F_OK))
-			return (TRUE);
-	} 	
-/*
- * Nope.
- */
- 	return (FALSE);
-}
