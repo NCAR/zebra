@@ -45,7 +45,7 @@
 # include "dsDaemon.h"
 # include "commands.h"
 
-MAKE_RCSID ("$Id: Daemon.c,v 3.54 1995-08-31 19:09:36 granger Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.55 1996-01-23 04:44:26 granger Exp $")
 
 
 /*
@@ -96,6 +96,7 @@ static Lock	*GetLockEntry FP ((void));
 static void	DoLookup FP ((char *, char *));
 static void	FindDF FP ((char *, struct dsp_FindDF *));
 static void	FindAfter FP ((char *, struct dsp_FindDF *));
+static int	NewRevision FP ((Platform *plat, DataFile *df));
 
 
 /*
@@ -192,7 +193,7 @@ char *prog;
 	printf("options: [can be abbreviated]\n");
 	printf("   -help       Show this usage message\n");
 	printf("   -parse      Parse config file and exit\n");
-	printf("   -debug      Dump platform debug info\n");
+	printf("   -debug      Print log messages\n");
 	printf("variables: \n");
 	printf("   name=value  Override config file variable\n");
 }
@@ -209,6 +210,11 @@ char **argv;
 	int argt = SYMT_STRING;
 	stbl vtable;
 	int i;
+
+#ifdef NoBuffer
+	setvbuf (stdout, NULL, _IONBF, 0);
+	setvbuf (stderr, NULL, _IONBF, 0);
+#endif
 /*
  * Set up the init file and other command-line options
  */
@@ -242,6 +248,9 @@ char **argv;
 		exit (1);
 	}
 		
+	if (Debug)
+		msg_ELPrintMask (EF_ALL);
+
 #ifdef MSG_CLIENT_EVENTS
 	msg_join (MSG_CLIENT_EVENTS);
 #else
@@ -304,8 +313,7 @@ char **argv;
 		usy_s_symbol (usy_g_stbl ("ui$variable_table"),
 			      "initfile", SYMT_STRING, &v);
 	}
-	if (Debug)
-		printf ("Reading command file %s\n", initfile);
+	msg_ELog (EF_DEBUG, "Reading command file %s", initfile);
 	ui_get_command ("initial", "dsd>", ui_Handler, 0);
 	msg_ELog (EF_PROBLEM, "ui command interpreter failed; shutting down");
 	Shutdown ();
@@ -354,6 +362,8 @@ FinishInit ()
  * Override config file variables with any cmd-line settings
  */
 	OverrideSettings (Argc, Argv);
+	if (Debug)
+		msg_ELPrintMask (EF_ALL);
 /*
  * Keep track of when we start.
  */
@@ -480,11 +490,11 @@ struct ui_command *cmds;
 		{
 			printf ("Status after reading init file:\n");
 			dbg_DumpStatus ();
-			printf ("Tables after reading init file:\n");
-			dbg_DumpTables ();
 		}
 		if (ParseOnly)
 		{
+			printf ("Tables after reading init file:\n");
+			dbg_DumpTables ();
 			msg_ELog(EF_INFO, "finished init file; shutting down");
 			Shutdown();
 		}
@@ -618,8 +628,8 @@ Shutdown ()
  * Clean up in UI land.
  */
 	ui_finish ();
+	msg_ELog (EF_INFO, "shutdown: disconnecting, exiting.");
 	msg_disconnect ();
-	msg_ELog (EF_INFO, "shutdown: disconnected, exiting.");
 	exit (0);
 	return (0);	/* keep compilers happy */
 }
@@ -948,10 +958,7 @@ struct dsp_UpdateFile *request;
  * Get a new revision for the file.  This will be the revision noted by the
  * client in the DFA.
  */
-	if (StatRevisions)
-		df->df_rev = StatRevision (plat, df, &df->df_inode);
-	else
-		df->df_rev += 1;
+	df->df_rev = NewRevision (plat, df);
 	df->df_nsample += request->dsp_NSamples;
 	plat->dp_NewSamps += request->dsp_NSamples;
 	plat->dp_OwSamps += request->dsp_NOverwrite;
@@ -1939,7 +1946,7 @@ PlatformId which;
  * Write lock platform WHICH for WHO.
  */
 {
-	Lock *lp;
+	Lock *lp, *lq;
 	Platform *p = PTable + which;
 	struct dsp_PLock answer;
 /*
@@ -1947,6 +1954,7 @@ PlatformId which;
  * least until experience shows that we need it.
  */
 	lp = GetLockEntry ();
+	lp->l_Next = NULL;
 	strcpy (lp->l_Owner, who);
 	++WriteLockRequests;
 	/* tl_Time (lp->l_When); */
@@ -1956,7 +1964,6 @@ PlatformId which;
  */
 	if (! p->dp_WLockQ)
 	{
-		lp->l_Next = 0;
 		p->dp_WLockQ = lp;
 		answer.dsp_type = dpt_R_PLockGranted;
 		answer.dsp_pid = which;
@@ -1964,6 +1971,7 @@ PlatformId which;
 		msg_ELog (EF_DEBUG, 
 			  "Write lock on %s granted to %s",p->dp_name, who);
 	}
+#ifdef notdef
 /*
  * Otherwise the request needs to be enqueued.  We do this by putting it 
  * after the current lock.  NOTE that this does NOT implement proper
@@ -1980,6 +1988,16 @@ PlatformId which;
 			  "%s waiting for write lock on %s", who, p->dp_name);
 		lp->l_Next = p->dp_WLockQ->l_Next;
 		p->dp_WLockQ->l_Next = lp;
+	}
+#endif
+	else
+	{
+		msg_ELog (EF_DEBUG, 
+			  "%s waiting for write lock on %s", who, p->dp_name);
+		lq = p->dp_WLockQ;
+		while (lq->l_Next)
+			lq = lq->l_Next;
+		lq->l_Next = lp;
 	}
 }
 
@@ -2023,6 +2041,38 @@ int expect;
 		answer.dsp_pid = which;
 		msg_send (p->dp_WLockQ->l_Owner, MT_DATASTORE, FALSE,
 				&answer, sizeof (answer));
+		msg_ELog (EF_DEBUG, "Write lock on %s granted to %s",
+			  p->dp_name, p->dp_WLockQ->l_Owner);
 	}
 }
 
+
+
+static int
+NewRevision (plat, df)
+Platform *plat;
+DataFile *df;
+{
+	int rev;
+
+	if (StatRevisions)
+	{
+		rev = StatRevision (plat, df, &df->df_inode);
+		/*
+		 * Make sure we actually got a more recent revision number
+		 */
+		if (rev <= df->df_rev)
+		{
+#ifdef DEBUG
+			msg_ELog (EF_DEBUG, "%s: warping %d to %d",
+				  "outdated stat mtime", rev, df->df_rev+1);
+#endif
+			rev = df->df_rev + 1;
+		}
+	}
+	else
+	{
+		rev = df->df_rev + 1;
+	}
+	return (rev);
+}
