@@ -1,7 +1,7 @@
 /*
  * Data insertion widget.
  */
-static char *rcsid = "$Id: InsertWidget.c,v 1.4 1994-06-29 21:11:33 case Exp $";
+static char *rcsid = "$Id: InsertWidget.c,v 1.5 1994-09-16 17:02:41 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -980,7 +980,11 @@ int	entry;
 		strcat (string, "\nNo  - Reject the data.");
 		SetInstr (string);
 
-		ResetTime ();
+	/*
+	 * ResetTime is described as a "RAPS kludge."  In any case, it
+	 * annoys Wilson.  Someday we'll do something smarter here...
+	 */
+		/* ResetTime (); */
 
 		break;
 	  default:
