@@ -32,7 +32,7 @@
 # define MESSAGE_LIBRARY	/* to get netread prototypes */
 # include "message.h"
 # ifndef lint
-MAKE_RCSID ("$Id: msg_lib.c,v 2.24 1995-04-21 16:29:34 granger Exp $")
+MAKE_RCSID ("$Id: msg_lib.c,v 2.25 1995-04-25 17:46:54 granger Exp $")
 # endif
 
 /*
@@ -73,6 +73,7 @@ static int NoConnection = 1; 	/* True when in a non-connected state */
  */
 static int PrintMask = (EF_ALL & ~(EF_DEVELOP));
 static int SendMask = 0x00;
+static char LogBuffer[1024];	/* for msg_log and msg_ELog to share */
 
 /*
  * Echo mode: a test mode where we first send all of our messages to 
@@ -114,10 +115,12 @@ static void msg_SendPID FP ((void));
 static int msg_CQReply FP ((struct message *, int *));
 static void msg_free FP ((Message *));
 static int msg_HandleProto FP ((Message *msg, int n, int *plist, int *ret));
-static void msg_write FP ((struct message *msg));
+static int msg_write FP ((struct message *msg));
 static int msg_echo FP ((struct message *msg, void *param));
 static void msg_abort FP ((void));
 static int msg_xf_ack FP ((struct message *msg));
+static void msg_PError FP ((/* char *s, ... */));
+static void msg_SendLog FP ((struct msg_elog *el));
 
 /*
  * How much data we write at once.
@@ -199,8 +202,8 @@ char *ident;
 	msg_netread (Msg_fd, (char *)&msg, sizeof (struct message));
 	if (msg.m_proto != MT_MESSAGE || msg.m_len != sizeof (greet))
 	{
-		printf ("Funky greeting from message server: %d\n",
-				msg.m_proto);
+		msg_PError ("Funky greeting from message server: %d",
+			    msg.m_proto);
 		close (Msg_fd);
 		return (FALSE);
 	}
@@ -217,6 +220,7 @@ char *ident;
 	strcpy (id.mh_name, ident);
 	if (! msg_xf_ack (&msg))
 	{
+		msg_PError ("message manager failed to acknowledge IDENTIFY");
 		close (Msg_fd);
 		return (FALSE);
 	}
@@ -329,8 +333,8 @@ Message *msg;
  */
 	msg->m_proto = MT_PING;
 	strcpy (msg->m_to, msg->m_from);
-	if (write (Msg_fd, msg, sizeof (Message)) < sizeof (Message))
-		perror ("Message structure write");
+	msg->m_len = 0;
+	(void) msg_write (msg);
 	return (0);
 }
 
@@ -360,6 +364,7 @@ struct message *msg;
  */
 {
 	struct mh_ack ack;
+#ifdef notdef
 	struct iovec iov[2];
 /*
  * Put together the outgoing message.
@@ -373,8 +378,14 @@ struct message *msg;
  */
  	if (! writev (Msg_fd, iov, 2))
 		return (FALSE);
-	msg_Search (MT_MESSAGE, msg_SrchAck, &ack);
-	return (TRUE);
+#endif
+	if (msg_write (msg))
+	{
+		msg_Search (MT_MESSAGE, msg_SrchAck, &ack);
+		return (TRUE);
+	}
+	else
+		return (FALSE);
 }
 
 
@@ -398,8 +409,8 @@ struct mh_ack *ack;
 	}
 	else if (msg->m_len == sizeof (struct mh_ack))
 	{
-		fprintf (stderr, "%s: accepting ack w/out MH_ACK type\n", 
-			 "msg_SrchAck bug");
+		msg_PError ("%s: accepting ack w/out MH_ACK type", 
+			    "msg_SrchAck bug");
 		*ack = * (struct mh_ack *) msg->m_data;
 		return (0);
 	}
@@ -438,7 +449,8 @@ char *group;
 /*
  * Send it out.
  */
-	msg_xf_ack (&msg);
+	if (! msg_xf_ack (&msg))
+		msg_ELog (EF_PROBLEM, "failed to join group %s", group);
 }
 
 
@@ -473,7 +485,8 @@ char *group;
 /*
  * Send it out.
  */
-	msg_xf_ack (&msg);
+	if (! msg_xf_ack (&msg))
+		msg_ELog (EF_PROBLEM, "failed to quit group %s", group);
 }
 
 
@@ -504,7 +517,7 @@ msg_await ()
 		{
 			if (errno == EINTR) /* gdb attach can cause this */
 				continue;
-			printf ("Return code %d from msg select", errno);
+			msg_PError ("Return code %d from msg select", errno);
 			return (-1);
 		}
 	/*
@@ -718,7 +731,7 @@ int timeout; /* seconds */
 		{
 			if (errno == EINTR) /* gdb attach can cause this */
 				continue;
-			printf ("Return code %d from msg select", errno);
+			msg_PError ("Return code %d from msg select", errno);
 			return (1);
 		}
 		else if (nsel == 0)		/* timeout occurred */
@@ -791,7 +804,7 @@ int *protolist;	/* array of protocols to handle */
 		{
 			if (errno == EINTR) /* gdb attach can cause this */
 				continue;
-			printf ("Return code %d from msg select", errno);
+			msg_PError ("Return code %d from msg select", errno);
 			return (1);
 		}
 		else if (nsel == 0)		/* timeout occurred */
@@ -982,7 +995,7 @@ int fd;
 
 
 
-static void
+static int
 msg_write (msg)
 struct message *msg;
 /*
@@ -991,22 +1004,34 @@ struct message *msg;
 {
 	int nsent;
 	int len;
+	int fail = 0;
 
-	if (write (Msg_fd, msg, sizeof (struct message)) <
-	    		sizeof (struct message))
+	if (write (Msg_fd, msg, sizeof (Message)) < sizeof (Message))
+	{
 		perror ("Message structure write");
+		fail = 1;
+	}
 /*
  * Now send the data, in chunks.
  */
 	nsent = 0;
-	while (nsent < msg->m_len)
+	while ((!fail) && (nsent < msg->m_len))
 	{
 		len = ((msg->m_len - nsent) > DCHUNK) ? DCHUNK : 
 				(msg->m_len - nsent);
 		if (write (Msg_fd, ((char *)msg->m_data) + nsent, len) < len)
+		{
 			perror ("Message data write");
+			fail = 1;
+		}
 		nsent += len;
 	}
+	if (fail)
+	{
+		msg_PError ("failed message: %s --> %s, proto %d",
+			    Identity, msg->m_to, msg->m_proto);
+	}
+	return (! fail);
 }
 
 
@@ -1035,9 +1060,9 @@ int type, broadcast, datalen;
  */
 	if (ShuttingDown || NoConnection)
 	{
-		printf ("%s: msg_send: attempt to send message %s\n",
-			Identity, (NoConnection) ? "with no connection" :
-			"after shutdown received");
+		msg_PError ("%s: msg_send: attempt to send message %s",
+			    Identity, (NoConnection) ? "with no connection" :
+			    "after shutdown received");
 		return;
 	}
 /*
@@ -1058,11 +1083,13 @@ int type, broadcast, datalen;
 		strcpy (msg.m_to, Identity);
 		msg.m_flags = 0;
 		msg.m_seq = Seq++;
-		msg_write (&msg);
-		signal (SIGALRM, (void *) msg_abort);
-		alarm (30);
-		msg_Search (type, msg_echo, (void *) &msg);
-		alarm (0);
+		if (msg_write (&msg))
+		{
+			signal (SIGALRM, (void *) msg_abort);
+			alarm (30);
+			msg_Search (type, msg_echo, (void *) &msg);
+			alarm (0);
+		}
 	}
 /*
  * Finish the structure for transmission to the intended recipient
@@ -1070,7 +1097,7 @@ int type, broadcast, datalen;
 	strcpy (msg.m_to, to);
 	msg.m_flags = broadcast ? MF_BROADCAST : 0;
 	msg.m_seq = Seq++;
-	msg_write (&msg);
+	(void) msg_write (&msg);
 }
 
 
@@ -1081,8 +1108,7 @@ msg_abort ()
  * Uh-oh, a search for an echo failed.
  */
 {
-	fprintf (stderr, "%s: echo: expected echo never found, aborting\n",
-		 Identity);
+	msg_PError ("echo: expected echo never found, aborting");
 	exit (99);
 }
 
@@ -1106,8 +1132,8 @@ void *param;
  */
 	if (echo->m_proto != msg->m_proto)
 	{
-		fprintf (stderr, "echo: unexpected proto %i from msg_Search\n",
-			 echo->m_proto);
+		msg_PError ("echo: unexpected proto %i from msg_Search",
+			    echo->m_proto);
 		return (MSG_ENQUEUE);
 	}
 /*
@@ -1136,14 +1162,13 @@ void *param;
 	if (!datamatch && !seqmatch)
 		return (MSG_ENQUEUE);
 	if (!seqmatch)
-		fprintf (stderr, "%s: echo: proto %i, %s [echo %i, sent %i]\n",
-			 Identity, echo->m_proto, "sequence mismatch",
-			 echo->m_seq, msg->m_seq);
+		msg_PError ("echo: proto %i, %s [echo %i, sent %i]",
+			    echo->m_proto, "sequence mismatch",
+			    echo->m_seq, msg->m_seq);
 	if (!datamatch)
-		fprintf (stderr, 
-			 "%s: echo: proto %i, %s [echo len %i, sent len %i]\n",
-			 Identity, echo->m_proto, "data mismatch",
-			 echo->m_len, msg->m_len);
+		msg_PError ("echo: proto %i, %s [echo len %i, sent len %i]",
+			    echo->m_proto, "data mismatch",
+			    echo->m_len, msg->m_len);
 	return (MSG_DONE);
 }
 
@@ -1183,36 +1208,49 @@ int mask;
 
 
 
+static void
+msg_PError (va_alist)
+va_dcl
+/*
+ * Log an error message without sending it.  Meant for within msg_send, 
+ * since using msg_ELog might lead to infinite recursion.
+ */
+{
+	va_list args;
+	char *fmt;
+/*
+ * Format and print the message to stderr.
+ */
+ 	va_start (args);
+	fmt = va_arg (args, char *);
+	vsprintf (LogBuffer, fmt, args);
+	va_end (args);
+	fprintf (stderr, "%s: %s\n", Identity, LogBuffer);
+}
+
+
+
 
 void
 msg_log (va_alist)
 va_dcl
 /*
- * Send a message to the event logger.
+ * Send a message to the event logger with a default mask of EF_INFO.
  */
 {
+	static struct msg_elog *el = (struct msg_elog *) LogBuffer;
 	va_list args;
-	char mbuf[300], *fmt;
+	char *fmt;
 /*
  * Print up our message.
  */
+	el->el_flag = EF_INFO;
 	va_start (args);
 	fmt = va_arg (args, char *);
-	vsprintf (mbuf, fmt, args);
+	vsprintf (el->el_text, fmt, args);
 	va_end (args);
-/*
- * Possibly print it out 
- */
-	if (PrintMask || (SendMask && ShuttingDown))
-		printf ("%s: %s\n", Identity, mbuf);
-/*
- * Send it to the event logger, maybe.
- */
-	if (SendMask && !ShuttingDown && !NoConnection)
-		msg_send (EVENT_LOGGER_NAME, MT_LOG, 0, 
-			  mbuf, strlen (mbuf) + 1);
+	msg_SendLog (el);
 }
-
 
 
 
@@ -1220,33 +1258,41 @@ void
 msg_ELog (va_alist)
 va_dcl
 /*
- * Extended message logging.
+ * Extended message logging interface.
  */
 {
-	struct msg_elog *el;
-	static char cbuf[10000];
+	static struct msg_elog *el = (struct msg_elog *) LogBuffer;
 	va_list args;
-	int flags;
 	char *fmt;
 /*
  * Get and/or use all of our arguments from the va_alist first
  */
 	va_start (args);
-	flags = va_arg (args, int);
+	el->el_flag = va_arg (args, int);
 	fmt = va_arg (args, char *);
-	el = (struct msg_elog *) cbuf;
 	vsprintf (el->el_text, fmt, args);
 	va_end (args);
+	msg_SendLog (el);
+}
+
+
+
+
+static void
+msg_SendLog (el)
+struct msg_elog *el;
+{
 /*
- * If this message won't get logged, don't even send it.
+ * If this message won't get logged, don't bother sending it.
  */
-	if (! (flags & SendMask) && ! (flags & PrintMask))
+	if (! (el->el_flag & SendMask) && ! (el->el_flag & PrintMask))
 		return;
 /*
  * Print the message if we're shutting down or the message matches the 
  * print mask.
  */
-	if ((ShuttingDown && (flags & SendMask)) || (flags & PrintMask))
+	if ((ShuttingDown && (el->el_flag & SendMask)) || 
+	    (el->el_flag & PrintMask))
 	{
 		printf ("%s: %s\n", Identity, el->el_text); 
 	}
@@ -1254,9 +1300,8 @@ va_dcl
  * Actually send the message only if it's in the send mask, we're not
  * shutting down, and we're connected.
  */
-	if (! ShuttingDown && (flags & SendMask) && ! NoConnection)
+	if (! ShuttingDown && (el->el_flag & SendMask) && ! NoConnection)
 	{
-		el->el_flag = flags;
 		msg_send (EVENT_LOGGER_NAME, MT_ELOG, 0, el,
 			  sizeof (*el) + strlen (el->el_text));
 	}
@@ -1396,7 +1441,8 @@ struct mqueue *zap;
 				last = qp;
 		if (! qp)
 		{
-			msg_log ("RemQueue on missing entry 0x%x", zap);
+			msg_ELog (EF_PROBLEM, 
+				  "RemQueue on missing entry 0x%x", zap);
 			return;
 		}
 	/*
