@@ -599,6 +599,7 @@ int *type;
 		if (state->sta_vpact.act_flags & STAF_LOWERCASE)
 			zapcase (v->us_v_ptr);
 		*action = &state->sta_vpact;
+		*type = SYMT_STRING;
 		return (TRUE);	/* String match can't fail */
 	}
 /*
