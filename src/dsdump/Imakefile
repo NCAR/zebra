@@ -6,7 +6,7 @@ SRCS = dsdump.c
 OBJS = dsdump.o
 
 DEPLIBS = $(LIBZEB) $(LIBZEBDS)
-LIBS = $(DSLIBS) $(LIBZEB)
+LIBS = $(DFALIBS) $(ZLIBS)
 SYSLIBS = $(LIBMATH) $(LIBREGEXP)
 DISTFILES = $(SRCS) Imakefile
 

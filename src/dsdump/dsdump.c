@@ -29,7 +29,7 @@
 # include <timer.h>
 # include <DataStore.h>
 
-RCSID ("$Id: dsdump.c,v 3.16 1996-11-19 07:09:30 granger Exp $")
+RCSID ("$Id: dsdump.c,v 3.17 1996-11-25 21:15:37 granger Exp $")
 
 
 /*
@@ -40,6 +40,11 @@ static void DumpPlatform FP((PlatformId pid, PlatformInfo *pi, ZebTime *since,
 			     int names, int files, int obs));
 static void PrintInfo FP((int index, DataFileInfo *dfi));
 static void PrintFilePath FP((DataSrcInfo *dsi, DataFileInfo *dfi, int files));
+
+/*
+ * Table of contents flag (enable ds_GetFields)
+ */
+static int TOC = 0;
 
 /*
  * Options for displaying files
@@ -70,21 +75,25 @@ char *prog;
 	printf("\t-x\tExclude data files from listing\n");
 	printf("\t-n\tList platform names only\n");
 	printf("\t-z\tList only the most recent observation\n");
+	printf("\t-t\tList fields in each observation ('%s')\n",
+	       "table of contents");
 	printf("\t-f\tList filenames only\n");
 	printf("\t-g\tList filenames with their full pathnames\n");
 	printf("\t-p '<number> [days|minutes|hours]'\n");
 	printf("\t\tList data within a certain period of the current time,\n");
 	printf("\t\twhere units can be abbreviated and defaults to days.\n");
 	printf("Examples:\n");
-	printf("\tAlphabetized list of all platforms: %s -a\n", prog);
+	printf("\tAlphabetized list of all platforms:\n\t   %s -a\n", prog);
 	printf("\tList 'ship' platforms, including subplatforms for each:\n");
-	printf("\t%s -c '.*ship.*'\n", prog);
+	printf("\t   %s -c '.*ship.*'\n", prog);
 	printf("\tList radars, and the platform exactly named 'base':\n");
-	printf("\t%s radars -e base\n", prog);
+	printf("\t   %s radars -e base\n", prog);
 	printf("\tShow the last two days worth of data for all platforms:\n");
-	printf("\t%s -p '2 days'\n", prog);
+	printf("\t   %s -p '2 days'\n", prog);
 	printf("\tTar the last 6 hours of GOES data\n");
-	printf("\ttar cf goes.tar `%s -f -p '6 hours' goes`\n", prog);
+	printf("\t   tar cf goes.tar `%s -g -p '6 hours' goes`\n", prog);
+	printf("\tList fields in most recent observation of each platform:\n");
+	printf("\t   %s -z -t\n", prog);
 }
 
 
@@ -222,6 +231,9 @@ char **argv;
 				break;
 			   case 'z':
 				obs = TRUE;
+				break;
+			   case 't':
+				TOC = TRUE;
 				break;
 			   case 'f':
 				files = ONLYFILES;
@@ -420,7 +432,8 @@ DataFileInfo *dfi;
  */
 {
 	char abegin[40], aend[20];
-
+	FieldId fields [DC_MaxField];
+	int nfield = DC_MaxField;
 /*
  * Pull out the date information and encode it.
  */
@@ -432,6 +445,18 @@ DataFileInfo *dfi;
 	printf ("  %c %4d  %s  %s > %s [%hu]\n",
 		dfi->dfi_Archived ? 'A' : 'N',
 		index, dfi->dfi_Name, abegin, aend, dfi->dfi_NSample);
+/*
+ * Perform GetFields on this file if enabled.
+ */
+	if (TOC && 
+	    ds_GetFields (dfi->dfi_Plat, &dfi->dfi_Begin, &nfield, fields))
+	{
+		int i;
+		for (i = 0; i < nfield; ++i)
+			printf ("   %s (%s): %s\n", F_GetName (fields[i]),
+				F_GetUnits (fields[i]),
+				F_GetDesc (fields[i]));
+	}
 }		
 
 
