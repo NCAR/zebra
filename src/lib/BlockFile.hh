@@ -1,5 +1,5 @@
 /*
- * $Id: BlockFile.hh,v 1.1 1997-11-24 10:43:20 granger Exp $
+ * $Id: BlockFile.hh,v 1.2 1997-11-24 18:15:08 granger Exp $
  *
  * Definition of the BlockFile class, for storing opaque blocks of bytes
  * into a file through a block interface.  The overhead information in the
@@ -12,7 +12,6 @@
 #include <stdlib.h>
 #include <iostream.h>		// to add stream operator to dump header
 
-#include "BlockStore.hh"
 #include "Block.h"
 
 class Logger;
@@ -21,7 +20,7 @@ class BlockFileHeader;
 
 // The machine-independent block file interface
 //
-class BlockFile : public BlockStore
+class BlockFile
 {
 public:
 	// File operation flags
@@ -57,8 +56,6 @@ public:
 
 	~BlockFile ();
 
-	// The BlockStore interface which we inherit and implement
-
 	BlkOffset Alloc (BlkSize size);
 
 	// BlkOffset Realloc (BlkOffset addr, BlkSize size);
@@ -66,8 +63,6 @@ public:
 
 	void *Read (void *buf, BlkOffset block, BlkSize len);
 	int Write (BlkOffset block, void *buf, BlkSize len);
-
-	// BlockFile extensions to BlockStore interface
 
 	BlkOffset Alloc (BlkSize size, BlkSize *actual);
 

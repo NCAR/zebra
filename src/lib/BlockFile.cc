@@ -9,10 +9,10 @@
 
 #include <defs.h>
 
-RCSID ("$Id: BlockFile.cc,v 1.1 1997-11-24 10:43:19 granger Exp $");
+RCSID ("$Id: BlockFile.cc,v 1.2 1997-11-24 18:15:07 granger Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
-#include "blockfile.h"		// For the private header structure and stuff
+#include "BlockFileP.hh"	// For the private header structure and stuff
 
 static const unsigned long DEFAULT_APP_MAGIC = 0x01020304;
 static const unsigned long BF_BLOCK_MAGIC = BLOCK_FILE_MAGIC+1;

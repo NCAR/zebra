@@ -1,5 +1,5 @@
 /*
- * $Id: BlockFileP.hh,v 1.1 1997-11-24 10:43:22 granger Exp $
+ * $Id: BlockFileP.hh,v 1.2 1997-11-24 18:15:10 granger Exp $
  *
  * Private classes and declarations for BlockFile implementation,
  * such as auxillary block classes.
@@ -13,7 +13,7 @@
 
 #include "Block.h"
 #include "Serialize.hh"
-#include "zebra.h"			// For ZebraTime 
+#include "ZTime.hh"
 
 const unsigned long BLOCK_FILE_MAGIC = 0xb10cf11e;	/* blocfile */
 const unsigned long BLOCK_FILE_VERSION = 0x00010000;	/* major/minor 1.0 */

@@ -9,10 +9,10 @@
 
 #include <defs.h>
 
-RCSID ("$Id: FreeList.cc,v 1.1 1997-11-24 10:29:41 granger Exp $");
+RCSID ("$Id: FreeList.cc,v 1.2 1997-11-24 18:15:11 granger Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
-#include "blockfile.h"		// For the private header structure and stuff
+#include "BlockFileP.hh"	// For the private header structure and stuff
 
 // XDR_ADDTYPE(BF_FreeBlock)
 
