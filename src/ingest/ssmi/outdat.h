@@ -33,4 +33,13 @@ typedef struct _OUTDAT {
 
 extern OUTDAT_BLOCK *C_OUTDAT;
 
+void decode_ssmi FP((
+  int i85ghz,	/* decode 85 Ghz channels */
+  int itb,	/* provide antenna temps if 0, brightness if 1 */
+  int iadj,	/* If 1, along-track correction for F08 prior to 1989 */
+  int irec,	/* which logical record in physical rec, 1 to 16 */
+  char *lrec	/* the logical record */
+));
+
+
 #endif /* _outdat_h_ */
