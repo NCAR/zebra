@@ -1,7 +1,7 @@
 /*
  * XY-Wind plotting module
  */
-static char *rcsid = "$Id: XYWind.c,v 1.12 1992-12-02 16:01:05 corbet Exp $";
+static char *rcsid = "$Id: XYWind.c,v 1.13 1992-12-16 18:06:58 erik Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -113,6 +113,8 @@ bool	update;
 	int	dmode;
 	char	datalabel[80];
 	bool	sideAnnot;
+        char    barbtype[8];
+        int     doKnot = 0;
 /*
  * Get X-Y Winds Required parameters:
  * "platform","x-field", "y-field", "coords", "color-table", "org"
@@ -180,6 +182,7 @@ bool	update;
  * "data-skip" - skip every "n" data points.
  * "style" - "barb" or "vector"
  * "step" - float, the size of the color table intervale
+ * "barb-type" - "m/s" or "knots"
  */
         if ( !pda_Search (Pd,c,"do-side-annotation", "xy-wind",
                 (char *) &sideAnnot, SYMT_BOOL))
@@ -210,6 +213,11 @@ bool	update;
 	    {
 	        vecScale = 25.0;
 	    }
+            if( !pda_Search (Pd,c,"barb-type", "xy-wind",(char *) barbtype,
+                        SYMT_STRING))
+            {
+                strcpy ( barbtype, "m/s");
+            }
 	}
 	if( !pda_Search (Pd,c,"step", "xy-wind",(char *) &cstep, SYMT_FLOAT))
 	{
@@ -335,6 +343,10 @@ bool	update;
 			"m/sec", tadefcolor, scaleSpeed, 0.0, vecScale);
                 An_AddAnnotProc (An_ColorVector, c, datalabel,
                         strlen (datalabel) + 1, 30, FALSE, FALSE);
+		sprintf (datalabel, "%s %s %f %f", "wind-speed:m/sec",
+                        ctname, 
+		ncolors%2 ?(ncolors*cstep*0.5)-cstep*0.5 :ncolors*cstep*0.5,
+                        cstep);
 	    }
 	    if (strcmp (style, "barb") == 0 )
 	    {	
@@ -342,10 +354,16 @@ bool	update;
 			(int) vecScale);
                 An_AddAnnotProc (An_BarbLegend, c, datalabel,
                 	strlen (datalabel) + 1, 100, FALSE, FALSE);
+                doKnot = strcmp( barbtype, "knots" ) == 0 ? 1 :0;
+                sprintf (datalabel, "%s %s %d", barbtype,
+                                tadefcolor,  (int)vecScale);
+                An_AddAnnotProc (An_BarbLegend, c, datalabel,
+                                strlen(datalabel)+1, 100, FALSE, FALSE);
+                sprintf (datalabel, "%s%s %s %f %f ",
+                        "wind-speed:",barbtype ,ctname,
+                    ncolors%2 ?(ncolors*cstep*0.5)-cstep*0.5 :ncolors*cstep*0.5,
+                        cstep);
 	    }
-            sprintf (datalabel, "%s %s %f %f", "wind-speed:m/sec", ctname,
-           	ncolors%2 ?(ncolors*cstep*0.5)-cstep*0.5 :ncolors*cstep*0.5, 
-	        cstep);
             An_AddAnnotProc (An_ColorBar, c, datalabel, strlen (datalabel) + 1,
 		 75, TRUE, FALSE);
 	}
@@ -377,6 +395,7 @@ bool	update;
 	    switch (xyOrg)
 	    {
 		case OrgScalar:
+		case OrgFixedScalar:
 			xyClass = DCC_Scalar;
 			break;
 		case Org1dGrid:
@@ -620,7 +639,7 @@ bool	update;
 	            gp_WindBarb( xdata[plat],ydata[plat],
 			udata[plat],vdata[plat],
 			npts, angle, (int)vecScale, L_solid, 
-			colors,ncolors,cstep,xscalemode,yscalemode);
+			colors,ncolors,cstep,xscalemode,yscalemode,doKnot);
 	        }
 	        else
 	        {
