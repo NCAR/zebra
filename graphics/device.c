@@ -1,5 +1,5 @@
 /* 5/87 jc */
-static char *rcsid = "$Id: device.c,v 1.12 1990-03-29 15:44:09 corbet Exp $";
+static char *rcsid = "$Id: device.c,v 1.13 1990-03-30 14:30:04 corbet Exp $";
 /*
  * Handle device specifics.
  */
@@ -518,7 +518,7 @@ struct device D_tab[] =
  */
  	{
 		"4107",			/* Device type 			*/
-		1, { "tek4107" },
+		2, { "tek4107", "4107s" },
 		GDF_SEGMENT | GDF_VECTOR | GDF_VP | GDF_TEXT,
 		16,			/* 16 colors			*/
 		640, 480,		/* Our screen resolution	*/
