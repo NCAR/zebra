@@ -36,7 +36,7 @@
 # include "PixelCoord.h"
 
 
-RCSID("$Id: Contour.c,v 2.18 1995-11-19 18:13:28 granger Exp $")
+RCSID("$Id: Contour.c,v 2.19 1997-06-10 19:12:35 burghart Exp $")
 
 typedef short	cbool;
 
@@ -150,7 +150,7 @@ int	dolabels, linewidth;
  */
 {
 	int		cndx, cndx_min, cndx_max, prec, dummy, i;
-	float		min, max, maxabs, ptest;
+	float		min, max, maxabs, ptest, min_ndx_f, max_ndx_f;
 	char		testlabel[16];
 	unsigned int	udummy;
 	Window		win;
@@ -180,12 +180,19 @@ int	dolabels, linewidth;
 		return;
 	}
 /*
- * Find the max and min contour indices
+ * Floating point index limits
+ */
+	min_ndx_f = (cstep > 0) ? 
+	    (min - ccenter) / cstep : (max - ccenter) / cstep;
+	max_ndx_f = (cstep > 0) ? 
+	    (max - ccenter) / cstep : (min - ccenter) / cstep;
+/*
+ * Integer max and min contour indices
  * Limit ourselves to six out-of-range contours on either side of 
  * the color limits.
  */
-	cndx_min = (int) ceil ((min - ccenter) / cstep);
-	cndx_max = (int) floor ((max - ccenter) / cstep);
+	cndx_min = (int) ceil (min_ndx_f);
+	cndx_max = (int) floor (max_ndx_f);
 
 	if(! Monoflag)
 	{

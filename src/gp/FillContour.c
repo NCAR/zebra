@@ -143,7 +143,7 @@ double	ccenter, cstep;
 {
 	int	cndx, cndx_min, cndx_max;
 	Pixel	foreground;
-	float	min, max, cval;
+	float	min, max, cval, min_ndx_f, max_ndx_f;
 	triangle	tri;
 /*
  * Initialize
@@ -176,10 +176,17 @@ double	ccenter, cstep;
 	if (! ContourGC)
 		ContourGC = XCreateGC (XtDisplay (W), XtWindow (W), 0, NULL);
 /*
- * Find contour limits
+ * Floating point index limits
  */
-	cndx_min = (int) floor ((min - ccenter) / cstep);
-	cndx_max = (int) ceil ((max - ccenter) / cstep);
+	min_ndx_f = (cstep > 0) ? 
+	    (min - ccenter) / cstep : (max - ccenter) / cstep;
+	max_ndx_f = (cstep > 0) ? 
+	    (max - ccenter) / cstep : (min - ccenter) / cstep;
+/*
+ * Integer index limits
+ */
+	cndx_min = (int) floor (min_ndx_f);
+	cndx_max = (int) ceil (max_ndx_f);
 /*
  * Sanity test
  */
@@ -391,12 +398,14 @@ FC_DoContour (tri, cval, cstep)
 triangle	tri;
 double	cval, cstep;
 /*
- * Do a contour fill in this triangle for the given contour value
+ * Do a contour fill in this triangle for the given contour value.  If cstep
+ * is positive, the portion of the triangle with values greater than cval is
+ * filled, otherwise the portion with values less than cval is filled.
  */
 {
 	int	lower_right;
 	int	side, ep0, ep1;
-	float	v_val[3], val0, val1, frac, ctop, x, y;
+	float	v_val[3], val0, val1, frac, cbot, ctop, x, y;
 	vertex	v[3];
 /*
  * Return if the triangle is outside the defined boundaries
@@ -443,9 +452,18 @@ double	cval, cstep;
 /*
  * Bail out if we don't need to draw anything in this triangle
  */
-	ctop = cval + cstep;
+	if (cstep > 0)
+	{
+	    cbot = cval;
+	    ctop = cval + cstep;
+	}
+	else
+	{
+	    cbot = cval + cstep;
+	    ctop = cval;
+	}
 
-	if (v_val[0] < cval && v_val[1] < cval && v_val[2] < cval)
+	if (v_val[0] < cbot && v_val[1] < cbot && v_val[2] < cbot)
 		return;
 	else if (v_val[0] > ctop && v_val[1] > ctop && v_val[2] > ctop)
 		return;
@@ -466,10 +484,11 @@ double	cval, cstep;
 		val0 = v_val[ep0];
 		val1 = v_val[ep1];
 	/*
-	 * If endpoint 0 has a value greater than cval, add it to the 
+	 * If endpoint 0 is on the "fill" side of cval, add it to the 
 	 * path
 	 */
-		if (val0 > cval)
+		if (((cstep > 0) && (val0 > cval)) ||
+		    ((cstep < 0) && (val0 < cval)))
 		{
 			x = v[ep0].i;
 			y = v[ep0].j;
