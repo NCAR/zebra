@@ -7,7 +7,7 @@
 # include "ui.h"
 # include "ui_window.h"
 
-static char *rcsid = "$Id: ui_wAppl.c,v 1.3 1990-05-13 11:11:19 corbet Exp $";
+static char *rcsid = "$Id: ui_wAppl.c,v 1.4 1991-12-20 18:10:35 corbet Exp $";
 
 /*
  * The format of an application widget.
@@ -57,6 +57,7 @@ char *tag;
 	new->aw_popup = 0;
 	new->aw_acreate = create;
 	new->aw_destroy = destroy;
+	new->aw_tag = tag;
 /*
  * Define everything.
  */
