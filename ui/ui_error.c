@@ -20,7 +20,7 @@
 # endif /* UNIX */
 
 
-static char *rcsid = "$Id: ui_error.c,v 1.8 1993-12-28 20:46:00 case Exp $";
+static char *rcsid = "$Id: ui_error.c,v 1.9 1994-11-10 17:32:55 case Exp $";
 /*
  * Stack stuff.
  */
@@ -492,7 +492,8 @@ sys_error (int status, char *fmt, ...)
 
 {
 
-        va_list args, *args1;
+        va_list args;
+	char buf[200];
 
         va_start (args, fmt);
 
@@ -503,7 +504,7 @@ va_dcl
 
 {
 
-        va_list args, *args1;
+        va_list args;
         int status;
         char *fmt;
 
@@ -525,9 +526,11 @@ va_dcl
 /*
  * Now add the program text.
  */
-        args1 = va_arg (args, va_list *);
-	ui_error (fmt, args1 ); 
+	vsprintf (buf, fmt, args);
+	ui_error (buf);
         va_end (args);
+
+
 }
 
 
