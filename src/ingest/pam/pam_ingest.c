@@ -33,27 +33,16 @@
 # include <mda.h>
 # include <station.h>
 
-static char *rcsid = "$Id: pam_ingest.c,v 2.2 1992-01-16 18:16:15 corbet Exp $";
+MAKE_RCSID ("$Id: pam_ingest.c,v 2.3 1992-01-24 16:49:36 corbet Exp $")
 
-# ifdef __STDC__
-	static int incoming (struct message *);
-	void	Stations (char *);
-	void	Fields (int, char **);
-	void	SnarfLoop (void);
-	void	DoSnarf (time *, int);
-	int	rollback (int, int);
-	void	DoRain (int, time, time);
-	void	DoPres (int, time, time);
-# else
-	static int incoming ();
-	void	Stations ();
-	void	Fields ();
-	void	SnarfLoop ();
-	void	DoSnarf ();
-	int	rollback ();
-	void	DoRain ();
-	void	DoPres ();
-# endif
+static int incoming FP ((struct message *));
+void	Stations FP ((char *));
+void	Fields FP ((int, char **));
+void	SnarfLoop FP ((void));
+void	DoSnarf FP ((time *, int));
+int	rollback FP ((int, int));
+void	DoRain FP ((int, time, time));
+void	DoPres FP ((int, time, time));
 
 
 /*
@@ -125,7 +114,7 @@ char **argv;
  * Figure our current time and force an init.
  */
 	tl_GetTime (&t);
-	mda_do_init (t.ds_yymmdd, t.ds_hhmmss);
+	mda_do_init (t.ds_yymmdd, t.ds_hhmmss, argv[2]);
 /*
  * More initialization.
  */
@@ -182,7 +171,8 @@ char *plat;
 		if ((irg->ir_subplats[irg->ir_npoint] =
 				ds_LookupPlatform (pname)) == BadPlatform)
 		{
-			printf("Station %s unknown\n", pname);
+			msg_ELog (EF_PROBLEM, "DS doesn't now station %s",
+				pname);
 			continue;
 		}
 	/*
@@ -203,7 +193,6 @@ char *plat;
 	sta_g_rate (slist[0], &Sample, &Report);
 	Sample /= NTICKSEC; 
 	Report /= NTICKSEC;
-	/* printf ("Sample %d, report %d\n", Sample, Report); */
 }
 
 
@@ -238,7 +227,7 @@ char **fields;
  */
 {
 	int fld, sta, ominutes, osecs, alt;
-	IRGrid *irg = &Dobj.do_desc.d_irgrid;
+	/* IRGrid *irg = &Dobj.do_desc.d_irgrid; */
 	struct dstream *dsp;
 	float *datap;
 	char rtype, *fname, *zebname, *strchr ();
@@ -286,7 +275,7 @@ char **fields;
 				Mods[fld].mod = RainRate;
 				break;
 			    default:
-				printf ("Bad field '%s'\n", fname);
+				msg_ELog (EF_PROBLEM, "Bad field '%s'", fname);
 				continue;
 			}
 
@@ -308,7 +297,7 @@ char **fields;
 	 */
 	 	else if (! (Mda_flds[Dobj.do_nfield] = fld_number (fname)))
 		{
-			printf ("Bad field '%s'\n", fname);
+			msg_ELog (EF_PROBLEM, "Bad field '%s'", fname);
 			continue;
 		}
 		Dobj.do_fields[Dobj.do_nfield++] = usy_string (zebname);
@@ -391,7 +380,7 @@ SnarfLoop ()
 
 
 
-
+/* ARGSUSED */
 void
 DoSnarf (t, junk)
 time *t;
@@ -418,6 +407,17 @@ int junk;
 		ui_epop ();
 		return;
 	ENDCATCH
+/*
+ * Test: see if we got all bad flags.  If so, we refuse to do any more.
+ */
+	for (i = 0; i < Ngrab*Nds; i++)
+		if (Data[i] != BADVAL)
+			break;
+	if (i >= Ngrab*Nds)
+	{
+		msg_ELog (EF_PROBLEM, "No PAM data!");
+		return;
+	}
 /*
  * Do modifications if necessary
  */
@@ -493,10 +493,11 @@ time	begin, end;
  * Adjust the begin and end times to the beginning of our delta
  * period
  */
-	printf ("time: %06d %06d, ", begin.ds_yymmdd, begin.ds_hhmmss);
+	msg_ELog (EF_DEBUG, "time: %06d %06d,", begin.ds_yymmdd,
+			begin.ds_hhmmss);
 	pmu_dsub (&begin.ds_yymmdd, &begin.ds_hhmmss, adj);
 	pmu_dsub (&end.ds_yymmdd, &end.ds_hhmmss, adj);
-	printf ("time - %d: %06d %06d\n", adj, begin.ds_yymmdd,
+	msg_ELog (EF_DEBUG, "time - %d: %06d %06d", adj, begin.ds_yymmdd,
 		begin.ds_hhmmss);
 /*
  * Put the field into the dstreams
@@ -532,7 +533,7 @@ time	begin, end;
 			continue;
 		}
 
-		printf ("now: %.1f, then: %.1f, ", *dp, *mdp);
+		msg_ELog (EF_DEBUG, "now: %.1f, then: %.1f, ", *dp, *mdp);
 		*dp = *dp - *mdp++;
 		*dp *= factor;
 	/*
@@ -542,7 +543,7 @@ time	begin, end;
 		if (*dp <= 0.0)
 			*dp = BADVAL;
 		dp++;
-		printf ("fixed: %.1f\n", *(dp-1));
+		msg_ELog (EF_DEBUG, "  fixed: %.1f", *(dp-1));
 	}
 }
 
