@@ -1,7 +1,7 @@
 /*
  * Routines common to XY-Type plots
  */
-static char *rcsid = "$Id: XYCommon.c,v 1.4 1992-01-29 22:26:51 barrett Exp $";
+static char *rcsid = "$Id: XYCommon.c,v 1.5 1992-02-19 23:55:26 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -154,12 +154,13 @@ DataValPtr		min,max;
 
 }
 void
-xy_GetCurrentScaleBounds(pd,c,dim,dimtype,min,max)
+xy_GetCurrentScaleBounds(pd,c,dim,dimtype,min,max,qual)
 plot_description	pd;
 char			*c;
 char			dim;
 char			dimtype;
 DataValPtr		min,max;
+char			*qual;
 /*
  * Find the scale bounds that apply to this component.
  * pd - the plot-description to search
@@ -171,7 +172,8 @@ DataValPtr		min,max;
  * "xy_GetCurrentScaleBounds" will first search the given component, 
  * then if the parameter scale-<dim>-min or scale-<dim>-max is not
  * found, the global component and defaults will be searched respectively
- * with the qualifier "xy" prepended to the parameter name.
+ * with the qualifier "qual" prepended to the parameter name. "qual" should
+ * be the field-name.
  */
 {
     char	minkey[32];
@@ -206,8 +208,8 @@ DataValPtr		min,max;
     switch ( dimtype )
     {
 	case 'f':
-            if (!pda_Search(pd,c,maxkey,"xy",(char *)&(max->val.f),SYMT_FLOAT)||
-                !pda_Search(pd,c,minkey,"xy",(char *)&(min->val.f),SYMT_FLOAT)
+            if (!pda_Search(pd,c,maxkey,qual,(char *)&(max->val.f),SYMT_FLOAT)||
+                !pda_Search(pd,c,minkey,qual,(char *)&(min->val.f),SYMT_FLOAT)
 	       )
 	    {
 		min->val.f =  9999.0;
@@ -215,8 +217,8 @@ DataValPtr		min,max;
 	    }
 	break;
 	case 't':
-            if (!pda_Search(pd,c,maxkey,"xy",(char *)&(max->val.t),SYMT_DATE) ||
-                !pda_Search(pd,c,minkey,"xy",(char *)&(min->val.t),SYMT_DATE)
+            if (!pda_Search(pd,c,maxkey,qual,(char *)&(max->val.t),SYMT_DATE) ||
+                !pda_Search(pd,c,minkey,qual,(char *)&(min->val.t),SYMT_DATE)
 	       )
 	    {
 		min->val.t.ds_yymmdd = 0;
@@ -330,11 +332,11 @@ int	nplat;
 char	*datacolor[MAX_PLAT];
 char	*topAnnColor;
 /*
- * Get the color names for "ta-color" and "platform-color"
+ * Get the color names for "ta-color" and "field-color"
  * from the plot description.
  * pd - the plot-description to search
  * c - the component to search
- * nplat - the number of colors expected for "platform-color"
+ * nplat - the number of colors expected for "field-color"
  * datacolor - the (returned) list of platform colors.
  * topAnnColor - the (returned) top annotation color
  * 
@@ -351,13 +353,13 @@ char	*topAnnColor;
  */
 	if ( datacolor )
 	{
-	    if ( pda_Search (pd, c, "platform-color", NULL,colors, SYMT_STRING))
+	    if ( pda_Search (pd, c, "field-color", NULL,colors, SYMT_STRING))
 	    {
 	        ncol = CommaParse( colors, colorlist);
 	        if ( ncol < nplat )
 	        {
 		    msg_ELog ( EF_INFO, 
-    "%s Not enough platform-colors specified, filling in with white.",c);
+    "%s Not enough field-colors specified, filling in with white.",c);
 	        }
 	        for ( i = 0; i < nplat; i++)
 	        {
@@ -370,7 +372,7 @@ char	*topAnnColor;
 	    else
 	    {
 		msg_ELog ( EF_INFO,
-			"%s: No platform-color(s) specified, using white.",c);
+			"%s: No field-color(s) specified, using white.",c);
 		for ( i = 0; i < nplat; i++ )
 		{
 		    strcpy(datacolor[i], "white");
