@@ -6,7 +6,7 @@
 # include "DataStore.h"
 # include "znfile.h"
 
-MAKE_RCSID ("$Id: zfdump.c,v 1.1.1.1 1993-04-02 00:34:41 granger Exp $")
+MAKE_RCSID ("$Id: zfdump.c,v 1.2 1993-05-11 02:29:20 granger Exp $")
 
 extern int optind;
 
@@ -79,6 +79,7 @@ char **argv;
 	   case Org3dGrid:	printf ("3D GRID\n"); break;
 	   case Org2dGrid:	printf ("2D GRID\n"); break;
 	   case Org1dGrid:	printf ("1D GRID\n"); break;
+	   case OrgTransparent: printf ("TRANSPARENT\n"); break;
 	   default:		printf ("** HOSED **\n"); break;
 	}
 /*
