@@ -1,0 +1,42 @@
+<title>Map projections</title>
+<h1>Map projections</h1>
+
+Zebra has the ability to use several different map projections for
+horizontal plots.  This capability is not useful in many situations, but
+can be crucial for some projects.
+<p>
+The default projection, called simply the "Zebra" projection, is an
+equidistant cylindrical variety.  This projection has the advantage of
+producing fast graphics.  It works quite well in situations where a small
+area is being plotted, or where the plot area is in the tropics.
+<p>
+Several other projections are available, if your version of Zebra has been
+built to include them.  Binary distributions from RDP have projections
+enabled.  Note, however, that plotting with other projections will be
+slower.  Image data (such as satellite imagery) in particular takes longer
+to plot.
+<p>
+The projections currently available are:
+<ul>
+	<li>Albers equal area.
+	<li>Cassini.
+	<li>Mercator.
+	<li>Equidistant cylindrical.  This projection is identical to the
+	     default Zebra projection, but uses the map projection library
+	     instead of the (optimized) internal routines.
+	<li>Lambert equal area.
+	<li>Lambert conformal
+	<li>Lambert conformal polar
+	<li>Mollweide
+	<li>Orthographic
+</ul>
+To change the map projection, move to the top annotation area of the window
+of interest.  The current projection will be annotated there, immediately
+next to the date.  This area will highlight as you move the pointer into
+it; by pressing the <b>left</b> mouse button, you will obtain a menu which
+allows you to change projections.
+
+<hr>
+<a href=hp-aircraft.html><img src=la.gif></a>
+<a href=getposition.html><img src=ra.gif> Next: Retrieving coordinates</a><p>
+<h6>$Id: hp-projection.html,v 1.1 1995-08-03 21:05:11 corbet Exp $</h6>
