@@ -34,7 +34,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 # include "LayoutControl.h"
-MAKE_RCSID ("$Id: PlotExec.c,v 2.36 1994-02-09 23:33:04 corbet Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.37 1994-02-10 21:09:23 corbet Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -312,6 +312,9 @@ char	*component;
 		Ue_ResetHighlight ();
 		px_GlobalPlot (&cachetime);
 		An_DoSideAnnot ();
+		fc_AddFrame (&cachetime, DisplayFrame);
+		lw_LoadStatus ();
+
 	}
 /*
  * (3) Update plot.
@@ -479,11 +482,6 @@ ZebTime *cachetime;
 			SYMT_FLOAT);
 		Eq_AddEvent (PWhenever, eq_ReturnPD, 0, 0, Override);
 	}
-/*
- * Add this one to the cache.
- */
-	fc_AddFrame (cachetime, DisplayFrame);
-	lw_LoadStatus ();
 }
 
 

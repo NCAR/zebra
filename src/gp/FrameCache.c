@@ -31,7 +31,7 @@
 # include "GraphicsW.h"
 # include "ActiveArea.h"
 
-MAKE_RCSID ("$Id: FrameCache.c,v 2.13 1994-02-09 23:32:55 corbet Exp $")
+MAKE_RCSID ("$Id: FrameCache.c,v 2.14 1994-02-10 21:09:18 corbet Exp $")
 
 # define BFLEN		500
 # define FLEN		40
@@ -285,7 +285,8 @@ int number;
 	FCache[findex].fc_keep = FALSE;
 	FCache[findex].fc_index = number;
 	FCache[findex].fc_inmem = TRUE;
-	fc_CheckDup (findex);
+	if (CurrentAreas)
+		fc_CheckDup (findex);
 	FCache[findex].fc_active = CurrentAreas;
 	FreePixmaps[number] = findex;
 }

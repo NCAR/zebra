@@ -1,7 +1,7 @@
 /*
  * Movie control functions.
  */
-static char *rcsid = "$Id: MovieControl.c,v 2.16 1994-02-09 23:32:59 corbet Exp $";
+static char *rcsid = "$Id: MovieControl.c,v 2.17 1994-02-10 21:09:21 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -718,6 +718,7 @@ int *which;
 		{
 			aa_ResetAreas ();
 			px_GlobalPlot(&PlotTime);
+			fc_AddFrame (&PlotTime, DisplayFrame);
 			An_DoSideAnnot ();
 		}
 		pd_Store(Pd, PGComp, "field", Field1, SYMT_STRING);
