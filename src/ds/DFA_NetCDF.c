@@ -32,7 +32,7 @@
 # include "dslib.h"
 # include "dfa.h"
 #ifndef lint
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.51 1996-01-23 04:38:11 granger Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.52 1996-01-23 23:09:29 granger Exp $")
 #endif
 
 #include <netcdf.h>
@@ -299,7 +299,7 @@ static void	strtolower FP ((char *c));
 /*
  * Global attribute names which are automatically stored with the file
  */
-#define GATT_PLATFORM	"zeb_platform"	/* the platform name */
+#define GATT_PLATFORM	"zebra_platform"/* the platform name */
 #define GATT_HISTORY	"history"	/* creation info */
 /*
  * Variable attributes retrieved for a field
@@ -3659,10 +3659,10 @@ DataChunk *dc;
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_PLATFORM,
 		       NC_CHAR, strlen(attr)+1, attr);
 
-	sprintf(history,"created by Zeb DataStore, ");
+	sprintf(history,"created by the Zebra DataStore library, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.51 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.52 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 #endif /* TEST_TIME_UNITS */
