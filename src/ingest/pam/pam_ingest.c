@@ -28,12 +28,12 @@
 # include "../include/defs.h"
 # include "../include/message.h"
 # include "../include/timer.h"
-# include "../include/DataStore.h"
+# include <DataStore.h>
 # include <ui_error.h>
 # include <mda.h>
 # include <station.h>
 
-MAKE_RCSID ("$Id: pam_ingest.c,v 2.4 1992-03-31 22:45:35 burghart Exp $")
+MAKE_RCSID ("$Id: pam_ingest.c,v 2.5 1992-10-12 21:48:13 corbet Exp $")
 
 static int incoming FP ((struct message *));
 void	Stations FP ((char *));
@@ -76,13 +76,19 @@ int	Nsta;
 /*
  * Data for interfacing to various packages.
  */
-DataObject Dobj;
+# define MAX_FIELD 40
+# define MAX_PLAT 100
 struct dstream *Ds, *Ms;
-int Sample, Report, Ngrab, Nds;
-station Mda_plats[100];
-field Mda_flds[40];
-float Alts[100];
+int Sample, Report, Ngrab, Nds, NField;
+station Mda_plats[MAX_PLAT];
+field Mda_flds[MAX_FIELD];
 float *Data, *Mdata;		/* The data array */
+FieldId ZebFields[MAX_FIELD];
+PlatformId Plat;
+PlatformId SubPlats[MAX_PLAT];
+Location Locs[MAX_PLAT];
+ZebTime Times[10];
+float *FData[MAX_FIELD];
 
 # define BADVAL -9999.0
 
@@ -120,15 +126,11 @@ char **argv;
 /*
  * More initialization.
  */
-	if ((Dobj.do_id = ds_LookupPlatform (argv[1])) == BadPlatform)
+	if ((Plat = ds_LookupPlatform (argv[1])) == BadPlatform)
 	{
 		printf ("Unknown platform: %s\n", argv[1]);
 		exit (1);
 	}
-	Dobj.do_org = OrgIRGrid;
-	Dobj.do_badval = BADVAL;
-	Dobj.do_aloc = 0;
-	Dobj.do_flags = 0;
 /*
  * Figure out our stations and fields.
  */
@@ -151,27 +153,22 @@ char *plat;
  */
 {
 	int slist[100], sta, elev;
-	IRGrid *irg = &Dobj.do_desc.d_irgrid;
 	Location *loc;
 	char pname[60];
 /*
  * Get our station list.
  */
 	sta_g_slist (slist, &Nsta);
-	irg->ir_npoint = 0;
 /*
  * Go through and fill in all of our irgrid info.
  */
-	irg->ir_loc = (Location *) malloc (Nsta * sizeof (Location));
-	irg->ir_subplats = (PlatformId *) malloc (Nsta * sizeof (PlatformId));
 	for (sta = 0; sta < Nsta; sta++)
 	{
 	/*
 	 * Make sure that this station is known to the system.
 	 */
 		sprintf (pname, "%s/%s", plat, sta_g_name (slist[sta]));
-		if ((irg->ir_subplats[irg->ir_npoint] =
-				ds_LookupPlatform (pname)) == BadPlatform)
+		if ((SubPlats[sta] = ds_LookupPlatform (pname)) == BadPlatform)
 		{
 			msg_ELog (EF_PROBLEM, "DS doesn't now station %s",
 				pname);
@@ -180,13 +177,12 @@ char *plat;
 	/*
 	 * Get the rest of the info.
 	 */
-		loc = irg->ir_loc + irg->ir_npoint;
+		loc = Locs + sta;
 		sta_g_position (slist[sta], &loc->l_lat, &loc->l_lon, &elev);
 		if (loc->l_lon > 0)
 			loc->l_lon *= -1;	/* Assume west hemisphere */
 		loc->l_alt = ((float) elev)/1000.0;
-		Alts[sta] = (float) elev;
-		Mda_plats[irg->ir_npoint++] = slist[sta];
+		Mda_plats[sta] = slist[sta];
 	}
 /*
  * Finish up by getting the sampling info, which we assume is the same
@@ -221,23 +217,22 @@ struct message *msg;
 
 
 void
-Fields (nfield, fields)
-int nfield;
+Fields (nf, fields)
+int nf;
 char **fields;
 /*
  * Deal with the list of fields, and make our dstream structures.
  */
 {
 	int fld, sta, ominutes, osecs, alt;
-	/* IRGrid *irg = &Dobj.do_desc.d_irgrid; */
 	struct dstream *dsp;
 	float *datap;
 	char rtype, *fname, *zebname, *strchr ();
 /*
  * Go through our field list, and validate that we understand each one.
  */
-	Dobj.do_nfield = 0;
-	for (fld = 0; fld < nfield; fld++)
+	NField = 0;
+	for (fld = 0; fld < nf; fld++)
 	{
 	/*
  	 * Allow mda/zeb notation.
@@ -247,6 +242,10 @@ char **fields;
 			*zebname++ = '\0';
 		else
 			zebname = fname;
+
+		ZebFields[NField] = F_Lookup (zebname);
+		printf ("Field %d: %s (%d)\n", NField, zebname, 
+			ZebFields[NField]);
 	/*
 	 * Initialize to no field modification
 	 */
@@ -266,7 +265,7 @@ char **fields;
 				continue;
 			}
 
-			Mda_flds[Dobj.do_nfield] = fld_number ("raina");
+			Mda_flds[NField] = fld_number ("raina");
 
 			switch (rtype)
 			{
@@ -290,36 +289,35 @@ char **fields;
 	 */
 		else if (sscanf (fname, "cpres%d", &alt) == 1)
 		{
-			Mda_flds[Dobj.do_nfield] = fld_number ("pres");
+			Mda_flds[NField] = fld_number ("pres");
 			Mods[fld].mod = PresCorr;
 			Mods[fld].refalt = (float) alt;
 		}
 	/*
 	 * Otherwise assume it's a normal field
 	 */
-	 	else if (! (Mda_flds[Dobj.do_nfield] = fld_number (fname)))
+	 	else if (! (Mda_flds[NField] = fld_number (fname)))
 		{
 			msg_ELog (EF_PROBLEM, "Bad field '%s'", fname);
 			continue;
 		}
-		Dobj.do_fields[Dobj.do_nfield++] = usy_string (zebname);
+		NField++;
 	}
 /*
  * Allocate the space we will need for the data.
  */
-	Dobj.do_npoint = Ngrab = Report/Sample;
-	Nds = Nsta * Dobj.do_nfield;
+	Ngrab = Report/Sample;
+	Nds = Nsta * NField;
 	Data = (float *) malloc (Ngrab * Nds * sizeof (float));
 	Ds = (struct dstream *) malloc (Nds*sizeof (struct dstream));
-	Dobj.do_times = (time *) malloc (Ngrab * sizeof (time));
 /*
  * Now we go through and fill in all of the dstreams.
  */
 	dsp = Ds;
-	for (fld = 0; fld < Dobj.do_nfield; fld++)
+	for (fld = 0; fld < NField; fld++)
 	{
 		datap = Data + fld*Ngrab*Nsta;
-		Dobj.do_data[fld] = datap;
+		FData[fld] = datap;
 		for (sta = 0; sta < Nsta; sta++)
 		{
 			dsp->ds_plat = Mda_plats[sta];
@@ -358,6 +356,7 @@ SnarfLoop ()
  * Go through and move data.
  */
 {
+	ZebTime zt;
 	time wakeup, t;
 	int add;
 	
@@ -365,7 +364,9 @@ SnarfLoop ()
 /*
  * Get our initial time.
  */
-	tl_GetTime (&t);
+	/* tl_GetTime (&t); */
+	tl_Time (&zt);
+	TC_ZtToUI (&zt, &t);
 	t.ds_hhmmss = rollback (t.ds_hhmmss, Report/60); /* Last full report */
 	wakeup = t;
 /*
@@ -395,6 +396,7 @@ int junk;
 	int add = (Report/60)*100 + Report % 60;
 	int sadd = (Sample/60)*100 + Sample % 60;
 	time begin, end;
+	DataChunk *dc;
 /*
  * Get the data from MDA.
  */
@@ -423,7 +425,7 @@ int junk;
 /*
  * Do modifications if necessary
  */
-	for (fld = 0; fld < Dobj.do_nfield; fld++)
+	for (fld = 0; fld < NField; fld++)
 	{
 		switch (Mods[fld].mod)
 		{
@@ -444,18 +446,26 @@ int junk;
 /*
  * Fill in the times array.
  */
-	Dobj.do_begin = begin;
-	Dobj.do_end = end;
 	add = (Sample/60)*100 + Sample % 60;
 	for (i = 0; i < Ngrab; i++)
 	{
-		Dobj.do_times[i] = begin;
+		TC_UIToZt (&begin, Times + i);
 		pmu_dadd (&begin.ds_yymmdd, &begin.ds_hhmmss, add);
 	}
 /*
+ * Create and fill in the data chunk.
+ */
+	dc = dc_CreateDC (DCC_IRGrid);
+	dc->dc_Platform = Plat;
+	dc_IRSetup (dc, Nsta, SubPlats, Locs, NField, ZebFields);
+	dc_SetBadval (dc, BADVAL);
+	for (i = 0; i < NField; i++)
+		dc_IRAddMultGrid (dc, Times, 0, Ngrab, ZebFields[i], FData[i]);
+/*
  * Put it into the data store.
  */
-	ds_PutData (&Dobj, FALSE);
+	ds_Store (dc, FALSE, 0, 0);
+	dc_DestroyDC (dc);
 }
 
 
@@ -523,7 +533,7 @@ time	begin, end;
 /*
  * Find the deltas and multiply by the factor from above
  */
-	dp = Dobj.do_data[fndx];
+	dp = FData[fndx];
 	mdp = Mdata;
 
 	for (i = 0; i < Nsta * Ngrab; i++)
@@ -580,7 +590,7 @@ time	begin, end;
 /*
  * Do the correction
  */
-	p = Dobj.do_data[fndx];
+	p = FData[fndx];
 	vt = Mdata;
 
 	for (samp = 0; samp < Ngrab; samp++)
@@ -601,8 +611,9 @@ time	begin, end;
 		 * to come up with a true virtual temperature at the 
 		 * reference altitude. 
 		 */
-			num = 2.0 * 9.81 * (Alts[sta] - ref);
-			den = 287.0 * (2 * (*vt++) + (Alts[sta] - ref)*0.0065);
+			num = 2.0 * 9.81 * (1000.0*Locs[sta].l_alt - ref);
+			den = 287.0 * (2 * (*vt++) +
+					(1000.0*Locs[sta].l_alt - ref)*0.0065);
 			*p++ *= exp (num/den);
 		}
 	}
