@@ -2,6 +2,8 @@
 #
 # This is an attempt at a generalized zeb startup script.
 #
+# $Id: startzeb.sh,v 1.4 1994-05-18 19:22:50 corbet Exp $
+#
 # Here we do basic location of directories, set environment variables,
 # and try to hand things off to a project-specific startup file.
 #
@@ -27,17 +29,36 @@
 	if (! $?ZEB_DSDAEMON) setenv ZEB_DSDAEMON $ZEB_TOPDIR/bin/dsDaemon
 	if (! $?ZEB_DM) setenv ZEB_DM $ZEB_TOPDIR/bin/dm
 #
+# Look at args
+#
+	unset projdir
+	while ($#argv)
+		switch ($argv[1])
+		    case -preserve:
+		    	setenv PRESERVE_ZEB yes
+			breaksw
+		    case -data*:
+			setenv DATA_DIR $argv[2]
+			shift
+			breaksw
+		    default:
+		    	set projdir=$argv[1]
+			breaksw
+		endsw
+		shift
+	end
+#
 # Figure out where the project directory is.
 #
-	if ( ! $#argv ) then
+	if ( ! $#argv && ! $?projdir ) then
 		if ( -f proj_startup ) then
 			set projdir=`pwd`
 		else
 			echo -n "Please enter the project directory name: "
 			set projdir=$<
 		endif
-	else
-		set projdir=$argv[1]
+#	else
+#		set projdir=$argv[1]
 	endif
 
 again:
@@ -84,16 +105,12 @@ ddir_again:
 	rm -f /tmp/fcc.socket
 	sleep 1
 #
-# Start core processes
+# Start core processes.  Message is started in foreground now; we'll wait
+# for it to background itself.
 #
 	echo 'Starting core zeb processes: '
-	echo -n '	message daemon '
-	$ZEB_MESSAGE & 
-#
-# Wait for startup of the message process.  "sleep 1" was insufficient.
-#
-	sleep 3
-	mstatus > /dev/null
+	echo '	message daemon'
+	$ZEB_MESSAGE
 
 	echo -n '	event logger '
 	$ZEB_EVENTLOGGER &
