@@ -1327,7 +1327,7 @@ char **argv;
   } /* for */ 
   /***********************************************************************/
   lastwidget=edit=XtVaCreateManagedWidget("edit",menuButtonWidgetClass,menuForm,
-         XtNfromHoriz, file, XtNmenuName, "editMenu", XtNlabel, "EDIT", NULL);
+         XtNfromHoriz, file, XtNmenuName, "editMenu", NULL);
   editMenu=XtCreatePopupShell("editMenu",simpleMenuWidgetClass,edit,NULL,0);
   XtVaCreateManagedWidget("Line", smeLineObjectClass,editMenu, XtNborderWidth,0,NULL); 
   for (i=0; i<XtNumber(EditMenuItems); i++) {
