@@ -5,6 +5,24 @@
  *	class_ingest file f1 f2 ... fn
  *
  */
+/*		Copyright (C) 1987,88,89,90,91 by UCAR
+ *	University Corporation for Atmospheric Research
+ *		   All rights reserved
+ *
+ * No part of this work covered by the copyrights herein may be reproduced
+ * or used in any form or by any means -- graphic, electronic, or mechanical,
+ * including photocopying, recording, taping, or information storage and
+ * retrieval systems -- without permission of the copyright owner.
+ * 
+ * This software and any accompanying written materials are provided "as is"
+ * without warranty of any kind.  UCAR expressly disclaims all warranties of
+ * any kind, either express or implied, including but not limited to the
+ * implied warranties of merchantibility and fitness for a particular purpose.
+ * UCAR does not indemnify any infringement of copyright, patent, or trademark
+ * through use or modification of this software.  UCAR does not provide 
+ * maintenance or updates for its software.
+ */
+# include <copyright.h>
 # include <ctype.h>
 # include <ui_error.h>
 # include "../include/defs.h"
@@ -13,7 +31,7 @@
 # include "../include/DataStore.h"
 # include "fields.h"
 
-static char *rcsid = "$Id: class_ingest.c,v 2.0 1991-07-18 23:20:21 corbet Exp $";
+static char *rcsid = "$Id: class_ingest.c,v 2.1 1991-09-16 21:28:23 burghart Exp $";
 
 # ifdef __STDC__
 	static int	incoming (struct message *);
