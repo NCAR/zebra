@@ -25,7 +25,7 @@
 # include <DataChunk.h>
 # include "GraphProc.h"
 # include "rg_status.h"
-MAKE_RCSID ("$Id: GridAccess.c,v 2.11 1992-12-15 18:26:50 corbet Exp $")
+MAKE_RCSID ("$Id: GridAccess.c,v 2.12 1992-12-23 21:46:53 granger Exp $")
 
 
 
@@ -403,6 +403,7 @@ char		*field;
  * Free old memory.
  */
 	dc_DestroyDC (*dc);
+	free (grid);
 /*
  * Return the newly created regular grid.
  */
@@ -444,7 +445,6 @@ char		*field, *platform, *comp;
 		msg_ELog (EF_PROBLEM, "Bad grid method: %s", method);
 		return (FALSE);
 	}
-	return (TRUE);
 }
 
 
@@ -464,7 +464,6 @@ int dobarnes;
 	float *xpos, *ypos, xmin = 99999.0, xmax = -99999.0, ymin = 99999.0;
 	float ymax = -99999.0, badflag, *grid, *dz, *dzr, radius, rmx, *dp;
 	Location *locs, location;
-	PlatformId *platforms;
 	FieldId fid;
 	RGrid rg;
 	ZebTime when;
@@ -490,11 +489,10 @@ int dobarnes;
  */
 	nsta = dc_IRGetNPlatform (*dc);
 	locs = (Location *) malloc (sizeof (Location) * nsta);
-	platforms = (PlatformId *) malloc (sizeof (PlatformId) * nsta);
 /*
  * Platform locations, field ID, and data.
  */
-	dc_IRGetPlatforms (*dc, platforms, locs);
+	dc_IRGetPlatforms (*dc, NULL /* don't need platids */, locs);
 	fid = F_Lookup (field);
 	dp = dc_IRGetGrid (*dc, 0, fid);
 	badflag = dc_GetBadval (*dc);
@@ -569,9 +567,10 @@ int dobarnes;
  * Free up old memory.
  */
 	dc_DestroyDC (*dc);
-	free (grid);
+	free (locs);
 	free (xpos);
 	free (ypos);
+	free (grid);
 	free (dz);
 	free (dzr);
 /*
@@ -598,7 +597,6 @@ char *field;
 	RGrid		rg;
 	DataChunk	*rdc;
 	int		npoint;
-	PlatformId	*platforms;
 	Location	*locs, location;
 	FieldId		fid;
 	ZebTime		when;
@@ -607,11 +605,10 @@ char *field;
  */
 	npoint = dc_IRGetNPlatform (*dc);
 	locs = (Location *) malloc (sizeof (Location) * npoint);
-	platforms = (PlatformId *) malloc (sizeof (PlatformId) * npoint);
 /*
  * Platform locations.
  */
-	dc_IRGetPlatforms (*dc, platforms, locs);
+	dc_IRGetPlatforms (*dc, NULL /* don't need platids */, locs);
 /*
  * Field id.
  */
@@ -687,6 +684,7 @@ char *field;
 	free (scratch);
 	free (xpos);
 	free (ypos);
+	free (locs);
 /*
  * See what happened here.
  */
@@ -719,6 +717,7 @@ char *field;
  * Free up old memory.
  */
 	dc_DestroyDC (*dc);
+	free (grid);
 /*
  * Return the newly created regular grid.
  */
