@@ -350,7 +350,7 @@ int *date;
 	long clk = time ((long) 0);
 	struct tm *t = gmtime (&clk);
 	*date = t->tm_year*10000 + (t->tm_mon + 1)*100 + t->tm_mday;
-	return;
+	return (1);
 # else
 /*
  * Get the offset to greenwich time, in hours.
@@ -430,7 +430,7 @@ char *string;
 		if (*s != ' ' && *s != '\t' && *s != '\n')
 		{
 			warning ("Junk past end of legal command: '%s'",string);
-			return;
+			return (1);
 		}
 		else
 			s++;
@@ -483,7 +483,7 @@ int *date, *time, incr;
 		carry = 0;
 	*time = hour*10000 + minute*100 + second;
 	if (! carry)
-		return;
+		return (1);
 /*
  * We spilled over to the next day.
  */
@@ -551,7 +551,7 @@ int *date, *time, incr;
 		borrow = 0;
 	*time = hour*10000 + minute*100 + second;
 	if (! borrow)
-		return;
+		return (1);
 /*
  * We spilled over to the next day.
  */
@@ -688,7 +688,7 @@ int *date, *rtime;
 	struct tm *t = gmtime (&clk);
 	*date = t->tm_year*10000 + (t->tm_mon+1)*100 + t->tm_mday;
 	*rtime = t->tm_hour*10000 + t->tm_min*100 + t->tm_sec;
-	return;
+	return (1);
 # else
 /*
  * Get the offset to greenwich time, in hours.
