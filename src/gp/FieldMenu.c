@@ -43,7 +43,7 @@
 # include <DataStore.h>
 # include "GraphProc.h"
 
-RCSID ("$Id: FieldMenu.c,v 2.19 1998-09-22 22:28:26 burghart Exp $")
+RCSID ("$Id: FieldMenu.c,v 2.20 1998-10-08 20:53:03 burghart Exp $")
 
 /*
  * Stuff for the SME menu.
@@ -155,8 +155,7 @@ XtPointer xwhich, junk;
 /*
  * Now format the rest of the command with the field.
  */
-	strcat (cbuf, " ");
-	strcpy (cbuf + strlen (cbuf), fname);
+	sprintf (cbuf + strlen (cbuf), " '%s'", fname);
 
 	msg_ELog (EF_DEBUG, "FMenu cmd '%s'", cbuf);
 	ui_perform (cbuf);
@@ -465,16 +464,15 @@ XtPointer xfield, junk;
  * field name and be done with it.
  */
 	if (! pda_Search (Pd, IComp, "field-select-command", Platform, 
-			cbuf, SYMT_STRING))
+			  cbuf, SYMT_STRING))
 		parameter (IComp, "field", field);
 /*
  * OK, format up the command and set it loose.
  */
 	else
 	{
-		strcat (cbuf, " ");
-		strcpy (cbuf + strlen (cbuf), field);
-		msg_ELog (EF_DEBUG, "FChooser cmd '%s'", cbuf);
-		ui_perform (cbuf);
+	    sprintf (cbuf + strlen (cbuf), " '%s'", field);
+	    msg_ELog (EF_DEBUG, "FChooser cmd '%s'", cbuf);
+	    ui_perform (cbuf);
 	}
 }
