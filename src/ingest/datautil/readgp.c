@@ -3,7 +3,11 @@
  *
  * readgp device file
  */
+# ifdef AIXV3
+# include <fcntl.h>
+# else
 # include <sys/fcntl.h>
+# endif
 # include <stdio.h>
 
 char Buf[60000];
