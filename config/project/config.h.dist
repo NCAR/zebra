@@ -39,7 +39,7 @@
 XCOMM -----------------------------------------------------------------------
 XCOMM Definitions from config.h included here.  The definitions here override
 XCOMM the defaults in Project.tmpl.  See ...../zeb/config/config.h.
-XCOMM $Id: config.h.dist,v 1.8 1994-02-02 21:21:34 granger Exp $
+XCOMM $Id: config.h.dist,v 1.9 1994-02-03 08:26:19 granger Exp $
 XCOMM -----------------------------------------------------------------------
 # endif
 
@@ -358,7 +358,7 @@ XCOMM -----------------------------------------------------------------------
 /* # define RDSSLibDir /rdss/lib */		/* common RDSS installation */
 /* # define RDSSLibDir /usr/local/lib */	/* not needed with gcc */
 
-/* # define NetCDFLibDir /usr/local/lib */	/* non needed with gcc */
+/* # define NetCDFLibDir /usr/local/lib */	/* not needed with gcc */
 
 /*
  * To specify the whole command-line option for a library use the symbols
@@ -645,7 +645,7 @@ XCOMM -----------------------------------------------------------------------
 /*------------------------------------------------------------------------*/
 /* The definitions below will not usually need to be changed, but they are
  * provided here so that they can be conveniently found and changed in 
- * single file.  DO NOT EDIT THESE UNLESS YOU ARE KNOW WHAT YOU ARE DOING!
+ * single file.  DO NOT EDIT THESE UNLESS YOU KNOW WHAT YOU ARE DOING!
  * If any of these definitions are unreasonable or downright incorrect,
  * you may not be able to compile or run Zeb.
  **************************************************************************/
