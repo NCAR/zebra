@@ -2,7 +2,7 @@
  * The auxillary block base class from which BlockFile helper classes
  * can derive common functionality for serialization and syncing.
  *
- * $Id: AuxBlock.hh,v 1.7 1998-05-15 19:36:34 granger Exp $
+ * $Id: AuxBlock.hh,v 1.8 1998-05-28 21:38:36 granger Exp $
  */
 
 #ifndef _AuxBlock_hh_
@@ -11,6 +11,8 @@
 #include "BlockObject.hh"
 #include "BlockFileP.hh"
 #include "Serialize.hh"
+
+class ostream;
 
 /* On block behavior:
 
@@ -31,6 +33,10 @@
  * The Auxiliary Block class uses the BlockObject classes to implement 
  * sync functionality for BlockFile auxiliary structures.  The FreeList
  * and Journal classes are derived from AuxBlock.
+ *
+ * We also override the SerialBlock write() method to use the BlockFile's
+ * internal method, so that writes to auxilliary blocks are not recorded
+ * in the journal.
  */
 
 class AuxBlock : virtual public RefBlock, virtual public SerialBlock
@@ -43,6 +49,21 @@ public:
 
 	virtual ~AuxBlock ()
 	{ }
+
+	virtual void write ()
+	{
+		// Encode ourself onto a serial buffer from the block file.
+		// Be careful to size and allocate before encoding, in
+		// case the object changes (e.g., FreeList) when allocated.
+		SerialBuffer *sbuf = bf->writeBuffer (block.length);
+		unsigned long growth = encodedSize (*sbuf);
+		sbuf->Need (growth);
+
+		// Now make sure we have space, then write into it.
+		allocate (growth);
+		encode (*sbuf);
+		bf->write (block.offset, sbuf);
+	}		
 
 private:
 	// Not implemented //
@@ -127,6 +148,8 @@ public:
 		return (stats);
 	}
 
+	void Show (ostream &out);
+
 	// Serialization interface
 	int encode (SerialBuffer &sbuf);
 	int decode (SerialBuffer &sbuf);
@@ -166,15 +189,6 @@ class Journal : virtual public AuxBlock
 public:
 	typedef int ChangeType;
 
-#ifdef notdef	// Sun CC can't handle this!
-	static const long MaxEntries = 256;
-
-	static const ChangeType BeginTransaction = 0;
-	static const ChangeType BlockRemoved = 1;
-	static const ChangeType BlockAdded = 2;
-	static const ChangeType BlockChanged = 3;
-	static const ChangeType EndTransaction = 4;
-#endif
 	static const long MaxEntries;
 
 	static const ChangeType BeginTransaction;
@@ -189,6 +203,10 @@ public:
 	// Functionality
 	int Changed (BlkVersion, BlkOffset, BlkSize);
 	void Record (ChangeType, BlkOffset, BlkSize);
+
+	// Info
+	static const char *ChangeName (ChangeType);
+	void Show (ostream &out);
 
 	// Serialization interface
 	int encode (SerialBuffer &sbuf);
