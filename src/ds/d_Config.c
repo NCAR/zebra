@@ -19,7 +19,6 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: d_Config.c,v 2.7 1994-04-15 22:27:58 burghart Exp $";
 
 # include "defs.h"
 # include "message.h"
@@ -29,45 +28,92 @@ static char *rcsid = "$Id: d_Config.c,v 2.7 1994-04-15 22:27:58 burghart Exp $";
 # include "commands.h"
 # include <ui_error.h>
 
+MAKE_RCSID("$Id: d_Config.c,v 2.8 1994-04-27 08:24:12 granger Exp $")
 
-
-/*
+/*-----------------------------------------------------------------------
  * Local forwards.
  */
-static int dc_InPlatform FP ((Platform *, struct ui_command *));
+static int dc_InPlatformClass FP ((PlatformClass *, struct ui_command *));
 
+/*-----------------------------------------------------------------------*/
 
 
 void
-dc_DefPlatform (name)
+dc_DefPlatform (name, superclass)
 char *name;
+char *superclass;	/* NULL if not specified */
 /*
  * Define a platform in the data store configuration.
  */
 {
-	Platform *plat;
+	PlatformInstance *plat;
+	PlatformClass *pc;
 /*
- * Grab a platform table entry for this guy.
+ * Defining a platform implicitly defines a class first, then instantiates
+ * that class with the same name.  So first define a like-named class.
  */
-	plat = dt_NewPlatform (name);
+	dc_DefPlatformClass (name, superclass, TRUE);
+	pc = dt_FindClass (name);
 /*
- * Now go pick up all the pieces.
+ * The directory of the platform will be the same as the class directory,
+ * regardless of whether we inherited anything from a superclass.
  */
-	ERRORCATCH
-		ui_subcommand ("in-platform", "Platform>", dc_InPlatform, 
-			(long) plat);
-	        /*
-		 * If this is an on-the-fly definition, then go off and scan
-		 * the directory, and hope that nobody minds that we don't
-		 *respond for a little bit...
-		 */
-		if (! InitialScan)
-			RescanPlat (plat);
-	ENDCATCH
+	pc->dpc_instance = InstanceCopyClass;
+/*
+ * Finally, instantiate this platform.
+ */
+	plat = dt_Instantiate (pc, /*parent*/NULL, name);
+/*
+ * In case this is an on-the-fly definition, scan the platform directory
+ */
+	if (! InitialScan)
+		RescanPlat (plat);
 }
 
 
 
+void
+dc_DefPlatformClass (name, superclass, platform)
+char *name;
+char *superclass;	/* NULL if not specified */
+bool platform;		/* Implicit class creation from a platform command? */
+/*
+ * Define a platform in the data store configuration.
+ */
+{
+	PlatformClass *pc;
+	char *next_state;
+/*
+ * Grab a platform table entry for this guy.
+ */
+	if (Debug)
+		printf ("----->Defining%s class '%s', superclass '%s'\n",
+			((platform) ? " implicit" : ""), name, 
+			((superclass != NULL) ? superclass : "none"));
+	pc = dt_NewClass (name, superclass);
+	next_state = (platform) ? "in-platform" : "in-class";
+/*
+ * Now go pick up all the pieces.
+ */
+	ERRORCATCH
+		ui_subcommand (next_state, "Class>", dc_InPlatformClass, 
+			(long) pc);
+	ENDCATCH
+/*
+ * Set any necessary default directory paths.
+ */
+	dt_FillClassDirs (pc);
+/*
+ * Some day we may want to remove this class or somehow flag if its in error.
+ * For now there will only be a warning about invalid classes.
+ */
+	dt_ValidateClass (pc);
+	if (Debug)
+	{
+		dbg_DumpClass (pc);
+		printf ("----->Finished defining class %s\n", name);
+	}
+}
 
 
 
@@ -75,60 +121,64 @@ void
 dc_SubPlatform (cmds)
 struct ui_command *cmds;
 /*
- * Define a subplatform.
+ * Define a subplatform.  Define a 'subplatform' class for the parent,
+ * (unless already defined), and then use that class in a call dc_DefSubPlats.
  */
 {
-	Platform *parent, *sub, *other;
+	PlatformClass *spc, *parent_class;
+	PlatformInstance *parent;
+	char spcname[512];
 /*
  * Find our parent platform first.
  */
-	if (! (parent = dt_FindPlatform (UPTR (*cmds), 0)))
+	if (! (parent = dt_FindInstance (UPTR (*cmds))))
 	{
 		msg_ELog (EF_PROBLEM, "Unknown parent platform '%s'",
-				UPTR (*cmds));
+			  UPTR (*cmds));
 		return;
 	}
 /*
- * Now it's time to make some children.
+ * Now try to find the subplatform class, else define it now.
  */
-	for (cmds++; cmds->uc_ctype != UTT_END; cmds++)
+	sprintf (spcname, "%s.subplatform", parent->dp_name);
+	spc = dt_FindClass (spcname);
+	if (! spc)
 	{
-		char subname[80];
 	/*
-	 * We won't redefine an existing platform.
+	 * Define the subplatform class, which is just a tweaked version
+	 * of the parent's class (so start with a subclass of the parent's
+	 * class).
 	 */
-		if ((other = dt_FindPlatform (UPTR (*cmds), TRUE)) &&
-				! (other->dp_flags & DPF_SUBPLATFORM))
+		if (Debug)
+			printf ("----->Defining subplatform class %s\n",
+				spcname);
+		parent_class = CTable + parent->dp_class;
+		spc = dt_NewClass (spcname, parent_class->dpc_name);
+		spc->dpc_inherit = InheritNone;
+		spc->dpc_instance = InstanceCopyParent;
+		spc->dpc_org = OrgScalar;
+		spc->dpc_flags &= ~DPF_COMPOSITE;
+		spc->dpc_flags |= DPF_SUBPLATFORM;
+		dt_FillClassDirs (spc);
+
+		if (Debug)
 		{
-			msg_ELog (EF_PROBLEM,"(Sub)platform %s already exists",
-				UPTR (*cmds));
-			return;
-		}
-		sprintf (subname, "%s/%s", parent->dp_name, UPTR (*cmds));
-	 	if (dt_FindPlatform (subname, TRUE))
-			msg_ELog (EF_PROBLEM, "Subplatform %s already exists",
-				subname);
-	/*
-	 * Get a new entry, clone the parent, and tweak.
-	 */
-		else
-		{
-		 	sub = dt_NewPlatform (subname);
-			*sub = *parent;
-			strcpy (sub->dp_name, subname);
-			sub->dp_org = OrgScalar;
-			sub->dp_flags |= DPF_SUBPLATFORM;
-			sub->dp_parent = parent - PTable;
+			dbg_DumpClass (spc);
+			printf ("----->Finished defining class %s\n", spcname);
 		}
 	}
+/*
+ * Now pass the work on to the subplats command.
+ */
+	dc_DefSubPlats (parent->dp_name, spc->dpc_name, cmds+1);
+
 }
 
 
 
-
 static int
-dc_InPlatform (plat, cmds)
-Platform *plat;
+dc_InPlatformClass (pc, cmds)
+PlatformClass *pc;
 struct ui_command *cmds;
 /*
  * Deal with an internal definition for this platform.
@@ -137,47 +187,59 @@ struct ui_command *cmds;
 	switch (UKEY (*cmds))
 	{
 	/*
-	 * Maybe we're done.
+	 * Maybe we're done.  In which case, verify the name for them.
 	 */
 	   case DK_ENDPLATFORM:
+	   case DK_ENDCLASS:
+		if ((cmds[1].uc_ctype != UTT_END) && 
+		    (strcmp(UPTR(cmds[1]), pc->dpc_name)))
+		{
+			msg_ELog (EF_PROBLEM, 
+			  "%s: class name %s does not match %s",
+			  cmds[0].uc_text, pc->dpc_name, UPTR(cmds[1]));
+		}
 	   	return (FALSE);
 	/*
 	 * They want to tell us about the file organization.
 	 */
 	   case DK_ORGANIZATION:
-	   	plat->dp_org = (DataOrganization) UINT (cmds[1]);
+	   	pc->dpc_org = (DataOrganization) UINT (cmds[1]);
 		break;
 	/*
 	 * ...or the file type.
 	 */
 	   case DK_FILETYPE:
-	   	plat->dp_ftype = (FileType) UINT (cmds[1]);
+	   	pc->dpc_ftype = (FileType) UINT (cmds[1]);
 		break;
 	/*
 	 * Keep time, in minutes.
 	 */
 	   case DK_KEEP:
-	   	plat->dp_keep = InterpDTime (UPTR (cmds[1]))*60;
+	   	pc->dpc_keep = InterpDTime (UPTR (cmds[1]))*60;
 		break;
 	/*
 	 * Maximum samples.
 	 */
 	   case DK_MAXSAMPLES:
-	   	plat->dp_maxsamp = UINT (cmds[1]);
+	   	pc->dpc_maxsamp = UINT (cmds[1]);
 		break;
 	/*
 	 * Various flags.
 	 */
-	   case DK_REGULAR:	plat->dp_flags |= DPF_REGULAR; break;
-	   case DK_MOBILE:	plat->dp_flags |= DPF_MOBILE; break;
-	   case DK_COMPOSITE:	plat->dp_flags |= DPF_COMPOSITE; break;
-	   case DK_DISCRETE:	plat->dp_flags |= DPF_DISCRETE; break;
-	   case DK_MODEL:	plat->dp_flags |= DPF_MODEL; break;
+	   case DK_REGULAR:	pc->dpc_flags |= DPF_REGULAR; break;
+	   case DK_MOBILE:	pc->dpc_flags |= DPF_MOBILE; break;
+	   case DK_COMPOSITE:	pc->dpc_flags |= DPF_COMPOSITE; break;
+	   case DK_DISCRETE:	pc->dpc_flags |= DPF_DISCRETE; break;
+	   case DK_MODEL:	pc->dpc_flags |= DPF_MODEL; break;
+	   case DK_ABSTRACT:	pc->dpc_flags |= DPF_ABSTRACT; break;
+	   case DK_VIRTUAL:	pc->dpc_flags |= DPF_VIRTUAL; break;
+		break;
 	/*
 	 * Where the data lives.
 	 */
 	   case DK_DIRECTORY:
-	   	strcpy (plat->dp_dir, UPTR (cmds[1]));
+		dt_SetString (pc->dpc_dir, UPTR(cmds[1]), sizeof(pc->dpc_dir),
+			      "data directory");
 		break;
 	/*
 	 * Where remote data lives.
@@ -185,16 +247,152 @@ struct ui_command *cmds;
 	   case DK_REMOTE:
 		if (! DisableRemote)
 		{
-		   	strcpy (plat->dp_rdir, UPTR (cmds[1]));
-			plat->dp_flags |= DPF_REMOTE;
+			dt_SetString (pc->dpc_rdir, UPTR(cmds[1]),
+				      sizeof (pc->dpc_rdir), "remote dir");
+		}
+		break;
+	/*
+	 * Where instances of this class are put
+	 */
+	   case DK_INSTANCEDIR:
+		switch (UKEY(cmds[1]))
+		{
+		   case DK_COPYCLASS:
+			pc->dpc_instance = (InstanceDir)InstanceCopyClass; 
+			break;
+		   case DK_SUBDIRCLASS:
+			pc->dpc_instance = (InstanceDir)InstanceSubdirClass; 
+			break;
+		   case DK_COPYPARENT:
+			pc->dpc_instance = (InstanceDir)InstanceCopyParent; 
+			break;
+		   case DK_SUBDIRPARENT: 
+			pc->dpc_instance = (InstanceDir)InstanceSubdirParent; 
+			break;
+		   case DK_DEFAULT:
+		   case DK_ROOT:
+			pc->dpc_instance = (InstanceDir)InstanceDefault; 
+			break;
+		}
+		break;
+	/*
+	 * How to inherit directories in subclasses
+	 */
+	   case DK_INHERITDIR:
+		switch (UKEY(cmds[1]))
+		{
+		   case DK_APPEND:
+			pc->dpc_inherit = (InheritDir)InheritAppend; 
+			break;
+		   case DK_COPY:
+			pc->dpc_inherit = (InheritDir)InheritCopy; 
+			break;
+		   case DK_NONE:
+			pc->dpc_inherit = (InheritDir)InheritNone; 
+			break;
 		}
 		break;
 	/*
 	 * Split files across days.
 	 */
 	   case DK_DAYSPLIT:
-	   	plat->dp_flags |= DPF_SPLIT;
+	   	pc->dpc_flags |= DPF_SPLIT;
+		break;
+	/*
+	 * Subplats to be created
+	 */
+	   case DK_SUBPLATS:
+		if (cmds[1].uc_ctype == UTT_KW) /* None */
+			dt_EraseClassSubPlats (pc);
+		else
+			dc_DefSubPlats (pc->dpc_name, UPTR(cmds[1]), cmds+2);
+		break;
+	/*
+	 * Comments for this class.  Ignored at present.
+	 */
+	   case DK_COMMENT:
 		break;
 	}
 	return (TRUE);
 }
+
+
+
+void
+dc_DefSubPlats (target, classname, cmds)
+char *target;			/* Class or instance adding subplats to */
+char *classname;		/* Class of these subplatforms 	*/
+struct ui_command *cmds;	/* Instance names		*/
+/*
+ * Define some new subplats.  If the target is an instance, instantiate
+ * the platforms in the list and add them to the parent instance.
+ * Otherwise, if the target is a class, add the subplats to the class
+ * as SubPlatform templates.
+ */
+{
+	PlatformInstance *plat;
+	PlatformClass *pc;
+	PlatformClass *spc;
+
+	plat = dt_FindInstance (target);
+	pc = dt_FindClass (target);
+	if (!plat && !pc)
+	{
+		msg_ELog (EF_PROBLEM, "subplats target '%s' not a known %s",
+			  target, "class or instance");
+		return ;
+	}
+	spc = dt_FindClass (classname);
+	if (!spc)
+	{
+		msg_ELog (EF_PROBLEM, "subplats class '%s' for %s unknown",
+			  classname, target);
+		return;
+	}
+	for ( ; cmds->uc_ctype != UTT_END; ++cmds)
+	{
+		if (plat)
+			dt_DefSubPlat (plat, spc, UPTR (*cmds));
+		else
+			dt_DefClassSubPlat (pc, spc, UPTR (*cmds));
+	}
+}
+
+
+
+void
+dc_DefInstances (classname, cmds)
+char *classname;		/* Name of class to create instances of */
+struct ui_command *cmds;	/* Name of the instances		*/
+/*
+ * Traverse the list of names in the cmds list, and create an instance for
+ * each one using the given class.
+ */
+{
+	PlatformClass *pc;
+
+	pc = dt_FindClass (classname);
+	if (! pc)
+	{
+		msg_ELog (EF_PROBLEM, "instance: class %s not defined",
+			  classname);
+		return;
+	}
+	
+	if (Debug)
+	{
+		int i;
+
+		printf ("Instantiating class %s:", pc->dpc_name);
+		for (i = 0; cmds[i].uc_ctype != UTT_END; ++i)
+		{
+			printf (" %s", UPTR(cmds[i]));
+		}
+		printf ("\n");
+	}
+	for ( ; cmds->uc_ctype != UTT_END; cmds++)
+	{
+		(void) dt_Instantiate (pc, NULL, UPTR(*cmds));
+	}
+}
+

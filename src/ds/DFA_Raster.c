@@ -8,12 +8,12 @@
 
 # include "defs.h"
 # include "message.h"
-# include "dfa.h"
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dslib.h"
+# include "dfa.h"
 # include "RasterFile.h"
-MAKE_RCSID ("$Id: DFA_Raster.c,v 3.7 1994-01-03 07:17:22 granger Exp $")
+MAKE_RCSID ("$Id: DFA_Raster.c,v 3.8 1994-04-27 08:23:48 granger Exp $")
 
 
 
@@ -297,7 +297,7 @@ void **rtag;
 	int fld, nfld;
 	PlatformId id = dc->dc_Platform;
 	FieldId *fids;
-	Platform p;
+	ClientPlatform p;
 /*
  * We gotta create a file before doing much of anything.
  */
@@ -313,8 +313,8 @@ void **rtag;
  */
 	ds_GetPlatStruct (id, &p, FALSE);
 	tag->rt_hdr.rf_Magic = RF_MAGIC;
-	strcpy (tag->rt_hdr.rf_Platform, p.dp_name);
-	tag->rt_hdr.rf_MaxSample = p.dp_maxsamp;
+	strcpy (tag->rt_hdr.rf_Platform, p.cp_name);
+	tag->rt_hdr.rf_MaxSample = p.cp_maxsamp;
 	tag->rt_hdr.rf_NSample = 0;
 	tag->rt_hdr.rf_Flags = (dp->df_ftype == FTCmpRaster) ? RFF_COMPRESS :0;
 /*

@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.20 1994-04-15 22:27:51 burghart Exp $
+ * $Id: DataStore.h,v 3.21 1994-04-27 08:24:04 granger Exp $
  *
  * Public data store definitions.
  */
@@ -51,6 +51,7 @@ typedef enum {
  */
 typedef int PlatformId;
 # define BadPlatform -1
+# define BadClass    -1
 
 
 /*

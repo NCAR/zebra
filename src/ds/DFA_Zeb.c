@@ -29,6 +29,7 @@
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dslib.h"
+# include "dfa.h"
 # include "znfile.h"
 # include "ds_fields.h"
 #ifdef SYS4
@@ -36,7 +37,7 @@
 #endif
 
 # ifndef lint
-MAKE_RCSID ("$Id: DFA_Zeb.c,v 1.21 1994-04-15 22:27:41 burghart Exp $")
+MAKE_RCSID ("$Id: DFA_Zeb.c,v 1.22 1994-04-27 08:23:52 granger Exp $")
 # endif
 
 /*

@@ -20,6 +20,7 @@
  * maintenance or updates for its software.
  */
 
+# include <string.h>
 # include <fcntl.h>
 # include <dirent.h>
 # include <errno.h>
@@ -29,7 +30,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID ("$Id: d_Scan.c,v 1.14 1994-04-15 22:28:00 burghart Exp $")
+MAKE_RCSID ("$Id: d_Scan.c,v 1.15 1994-04-27 08:24:20 granger Exp $")
 
 
 /*
@@ -41,6 +42,7 @@ static int	FileKnown FP ((Platform *, char *, char *, int));
 static int	FileChanged FP ((Platform *p, DataFile *df));
 static void	CleanChain FP ((Platform *, int));
 static int	LoadCache FP ((Platform *, int));
+static char     *CacheFileName FP((Platform *p, bool local));
 
 
 void
@@ -59,25 +61,20 @@ DataScan ()
 	/*
 	 * Don't scan subplatforms.
 	 */
-		if (p->dp_flags & DPF_SUBPLATFORM)
+		if (pi_Subplatform(p))
 			continue;
 	/*
 	 * Scan the local directory, and the remote one if it exists.
 	 */
 		ScanDirectory (p, TRUE, FALSE);
-		if (p->dp_flags & DPF_REMOTE)
+		if (pi_Remote(p))
 			ScanDirectory (p, FALSE, FALSE);
 	}
 /*
  * Update the time of this scan if we're not using stat revisions
  */
 	if (!StatRevisions)
-	{
-		ZebTime zt;
-
-		tl_Time (&zt);
-		LastScan = TC_ZtToSys (&zt);
-	}
+		tl_Time (&LastScan);
 }
 
 
@@ -148,7 +145,7 @@ bool local, rescan;
 /*
  * If DFA doesn't recognize it, we don't even bother.
  */
-	if (! dfa_CheckName (p->dp_ftype, file))
+	if (! dfa_CheckName (pi_FileType(p), file))
 		return;
 /*
  * If this is a rescan, check to see if we already know about this file.
@@ -169,14 +166,14 @@ bool local, rescan;
 		df->df_flags |= DFF_Remote;
 	df->df_platform = p - PTable;
 	if (StatRevisions)
-		df->df_rev = dfa_StatRevision (p, df);
+		df->df_rev = StatRevision (p, df);
 	else
 		df->df_rev = 0;
 /*
  * Find the times for this file.
  */
-	if (! dfa_QueryDate (p->dp_ftype, dfa_FilePath (p, df), &df->df_begin,
-			&df->df_end, &ns))
+	if (! dfa_QueryDate(pi_FileType(p), dt_DFEFilePath(p, df), 
+			    &df->df_begin, &df->df_end, &ns))
 	{
 		msg_ELog (EF_PROBLEM, "File '%s' inaccessible", df->df_name);
 		dt_FreeDFE (df);
@@ -193,7 +190,7 @@ bool local, rescan;
 /*
  * Finish the fillin and add it to this platform's list.
  */
-	df->df_ftype = p->dp_ftype;
+	df->df_ftype = pi_FileType(p);
 	dt_AddToPlatform (p, df, local);
 	p->dp_flags |= DPF_DIRTY;
 /*
@@ -216,14 +213,13 @@ int local;
  */
 {
 	int fd, version;
-	char fname[300];
+ 	char fname[sizeof(p->dp_dir)+sizeof(p->dp_name)+20];
 /*
- * See if we can get the cache file.  First try for "<dir>/<plat>.ds_cache",
- * then for "<dir>/.ds_cache" (the old form).
+ * See if we can get the cache file.  First try the new standard name,
+ * then try the old form "<dir>/.ds_cache".
  */
-	sprintf (fname, "%s/%s.ds_cache", local ? p->dp_dir : p->dp_rdir,
-		 p->dp_name);
-	if ((fd = open (fname, O_RDONLY)) < 0)
+ 	fname[0] = '\0';
+	if ((fd = open (CacheFileName(p, local), O_RDONLY)) < 0)
 	{
 		sprintf (fname, "%s/.ds_cache", 
 			 local ? p->dp_dir : p->dp_rdir);
@@ -324,7 +320,7 @@ DataFile *df;
  * Return non-zero if we think it has, zero otherwise.
  */
 {
-	long rev = dfa_StatRevision(p, df);
+	long rev = StatRevision(p, df);
 
 	/*
 	 * If we're using stat() revision numbers, the answer is easy
@@ -338,7 +334,7 @@ DataFile *df;
 	 */
 	else
 	{
-		return (rev > LastScan);
+		return (rev > LastScan.zt_Sec);
 	}
 }
 
@@ -369,7 +365,7 @@ int all;
 		/*
 		 * Don't scan subplatforms.
 		 */
-			if ((p->dp_flags & DPF_SUBPLATFORM) == 0)
+			if (! pi_Subplatform (p))
 				RescanPlat (p);
 		}
 	}
@@ -379,15 +375,9 @@ int all;
 	else
 		RescanPlat (PTable + platid);
 /*
- * Update the time for the last full scan when not using stat revisions
+ * Update the time for the last full scan
  */
-	if (all && !StatRevisions)
-	{
-		ZebTime zt;
-
-		tl_Time (&zt);
-		LastScan = TC_ZtToSys (&zt);
-	}
+	tl_Time (&LastScan);
 }
 
 
@@ -414,7 +404,7 @@ Platform *p;
  * Rescan the directory(ies).
  */
 	ScanDirectory (p, TRUE, TRUE);
-	if (p->dp_flags & DPF_REMOTE && ! RDirConst)
+	if (pi_Remote(p) && ! RDirConst)
 		ScanDirectory (p, FALSE, TRUE);
 /*
  * Now get rid of anything that has disappeared.
@@ -425,6 +415,25 @@ Platform *p;
 }
 
 
+
+long 
+StatRevision (p, df)
+Platform *p;
+DataFile *df;
+/*
+ * Get a revision count for this file from its modification time
+ */
+{
+	struct stat sbuf;
+
+	if (stat (dt_DFEFilePath (p, df), &sbuf) < 0)
+	{
+		msg_ELog (EF_PROBLEM, "Error %d on stat of %s", errno,
+				dt_DFEFilePath (p, df));
+		return (0);
+	}
+	return (sbuf.st_mtime);
+}
 
 
 
@@ -464,7 +473,7 @@ struct ui_command *cmd;
  */
 {
 	int plat, fd, df, version = DSProtocolVersion;
-	char fname[300];
+	char *fname;
 	bool onlydirty = FALSE, onefile = FALSE;
 /*
  * Do they want a unified file?
@@ -490,20 +499,19 @@ struct ui_command *cmd;
 	/*
 	 * We don't dump subplatforms.
 	 */
-		if (p->dp_flags & DPF_SUBPLATFORM)
+		if (pi_Subplatform(p))
 			continue;
 	/*
 	 * Maybe they only want to write those which have changed.
 	 */
-	 	if (onlydirty && ! (p->dp_flags & DPF_DIRTY))
+	 	if (onlydirty && !pi_Dirty(p))
 			continue;
 	/*
 	 * Create the dump file if we're doing individual files.
 	 */
 		if (! onefile)
 		{
-			sprintf (fname, "%s/%s.ds_cache", p->dp_dir,
-				 p->dp_name);
+ 			fname = CacheFileName(p, TRUE);
 			if ((fd = open (fname, O_WRONLY|O_CREAT|O_TRUNC,
 					0664)) < 0)
 			{
@@ -541,6 +549,11 @@ struct ui_command *cmd;
  */
 	if (onefile)
 		close (fd);
+/*
+ * Update the cache time if all of the platforms are now clean
+ */
+	if (dbg_DirtyCount() == 0)
+		tl_Time (&LastCache);
 }
 
 
@@ -614,3 +627,28 @@ int local;
 	close (fd);
 }
 			
+
+
+static char *
+CacheFileName (p, local)
+Platform *p;
+bool local;
+/*
+ * Generate the cache file name for this platform.  The returned string
+ * is only valid until the next call.
+ */
+{
+	static char fname[sizeof(p->dp_name)+sizeof(p->dp_dir)+20];
+	char name[sizeof(p->dp_name)];
+	char *slash;
+
+	strcpy (name, p->dp_name);
+	slash = name;
+	while (slash = strchr(slash, '/'))
+		*slash++ = '-';
+
+	sprintf (fname, "%s/%s.ds_cache", local ? p->dp_dir : p->dp_rdir,
+		 name);
+	return (fname);
+}
+

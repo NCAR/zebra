@@ -27,12 +27,12 @@
 
 # include "defs.h"
 # include "message.h"
-# include "dfa.h"
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dslib.h"
+# include "dfa.h"
 # include "BoundaryFile.h"
-MAKE_RCSID ("$Id: DFA_Boundary.c,v 3.6 1994-01-03 07:17:11 granger Exp $")
+MAKE_RCSID ("$Id: DFA_Boundary.c,v 3.7 1994-04-27 08:23:35 granger Exp $")
 
 
 
@@ -143,7 +143,7 @@ char **rtag;
 {
 	BFTag *tag = ALLOC (BFTag);
 	PlatformId id = dc->dc_Platform;
-	Platform p;
+	ClientPlatform p;
 /*
  * Start by trying to create the file.
  */
@@ -160,7 +160,7 @@ char **rtag;
 	tag->bt_hdr.bh_Magic = BH_MAGIC;
 	strcpy (tag->bt_hdr.bh_Platform, ds_PlatformName (id));
 	ds_GetPlatStruct (id, &p, FALSE);
-	tag->bt_hdr.bh_MaxBoundary = p.dp_maxsamp;
+	tag->bt_hdr.bh_MaxBoundary = p.cp_maxsamp;
 	tag->bt_hdr.bh_NBoundary = 0;
 /*
  * Allocate the boundary table.

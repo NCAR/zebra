@@ -1,7 +1,7 @@
 /*
  * Data store daemon-specific definitions.
  */
-/* $Id: dsDaemon.h,v 3.12 1994-04-18 14:49:13 burghart Exp $ */
+/* $Id: dsDaemon.h,v 3.13 1994-04-27 08:24:24 granger Exp $ */
 /*
  * The platform and data tables, via pointer.
  */
@@ -24,16 +24,25 @@
  * maintenance or updates for its software.
  */
 
-#include <defs.h>
 
 #ifndef _zeb_dsDaemon_h_
 #define _zeb_dsDaemon_h_
 
-Platform *PTable;
-DataFile *DFTable;
-int NDTEUsed;		/* How many data table entries used. */
-int DTFreeList;		/* The datafile free list		*/
-int NPlatform;		/* How many platforms			*/
+#include <defs.h>
+#include <config.h>
+
+/*
+ * The table pointers and their counts are declared in d_DataTables.c.
+ * The rest are in Daemon.c.
+ */
+extern PlatformClass 	*CTable;
+extern PlatformInstance *PTable;
+extern DataFile 	*DFTable;
+
+extern int NDTEUsed;		/* How many data table entries used. 	*/
+extern int DTFreeList;		/* The datafile free list		*/
+extern int NPlatform;		/* How many platforms			*/
+extern int NClass;		/* Number of platform classes		*/
 
 /*
  * The default data directory.
@@ -56,6 +65,15 @@ extern bool DisableRemote;
 extern bool StatRevisions;
 
 /*
+ * A global debug flag and some statistics variables
+ */
+extern bool Debug;
+
+extern int InvalidatesSent;	/* Number of CacheInvalidate broadcasts */
+extern int ReadLockRequests;
+extern int WriteLockRequests;
+
+/*
  * Cache options.
  */
 extern bool LDirConst;		/* Nothing changes		*/
@@ -68,34 +86,70 @@ extern bool CacheOnExit;	/* Write cache on way out?	*/
  * This variable is TRUE only during the initial file scan.
  */
 extern bool InitialScan;	/* True implies first data scan	*/
-extern long LastScan;		/* Time of latest full scan	*/
+extern ZebTime LastScan;	/* Time of latest full scan	*/
+extern ZebTime LastCache;	/* Time to which cache files are up-to-date */
+extern ZebTime Genesis;		/* Time when daemon started	*/
 
 /*
  * Metadata space
  */
 extern int PTableSize, PTableGrow, DFTableSize, DFTableGrow;
 
+extern int CTableSize;		/* Class table initial size	*/
+extern int CTableGrow;		/* Amount to grow by		*/
+
 /*
  * Internal functions.
  */
 void InitSharedMemory FP ((void));
+
 /*
  * Data table routines.
  */
-Platform *dt_NewPlatform FP ((char *));
-Platform *dt_FindPlatform FP ((char *, int));
+void dt_InitTables FP ((void));
+PlatformClass *dt_NewClass FP((const char *name, const char *superclass));
+PlatformInstance *dt_NewPlatform FP((char *name));
+PlatformInstance *dt_Instantiate FP((PlatformClass *pc, 
+				     PlatformInstance *parent, 
+				     const char *name));
+void dt_FillClassDirs FP((PlatformClass *pc));
+void dt_DefClassSubPlat FP((PlatformClass *pc, PlatformClass *spc,
+			    const char *name));
+void dt_DefSubPlat FP((PlatformInstance *plat, PlatformClass *spc,
+		       const char *name));
+void dt_EraseClassSubPlats FP((PlatformClass *pc));
+void dt_EraseSubPlats FP((PlatformInstance *plat));
+bool dt_ValidateClass FP((PlatformClass *pc));
+PlatformInstance *dt_FindInstance FP((const char *name));
+Platform *dt_FindPlatform FP ((const char *, int));
+PlatformClass *dt_FindClass FP((const char *name));
 void dt_SearchPlatforms FP ((int (*func)(), void *arg, bool sort, char *re));
 DataFile *dt_NewFile FP ((void));
 void dt_FreeDFE FP ((DataFile *));
 void dt_AddToPlatform FP ((Platform *, DataFile *, int));
 void dt_RemoveDFE FP ((Platform *, int));
+int dt_SetString FP((char *dest, const char *src, int maxlen, char *op));
+char *dt_DFEFilePath FP((Platform *pi, DataFile *df));
 
-void dc_DefPlatform FP ((char *));
+/*
+ * UI command parsing
+ */
+void dc_DefPlatform FP((char *name, char *superclass));
+void dc_DefPlatformClass FP((char *name, char *superclass, bool platform));
+void dc_SubPlatform FP((struct ui_command *cmds));
+void dc_DefSubPlats FP((char *target, char *classname, 
+			struct ui_command *cmds));
+void dc_DefInstances FP((char *classname, struct ui_command *cmds));
+
+/*
+ * Data application notifications
+ */
 void dap_Init FP ((void));
 void dap_Request FP ((char *, struct dsp_NotifyRequest *));
 void dap_Cancel FP ((char *, struct dsp_Template *));
 void dap_Notify FP ((PlatformId, ZebTime *, int, int, int));
 void dap_Copy FP ((char *));
+
 void ClearLocks FP ((Platform *));
 void CacheInvalidate FP ((int));
 void Shutdown FP ((void));
@@ -109,5 +163,134 @@ void	Rescan FP ((PlatformId platid, int all));
 void	WriteCache FP ((struct ui_command *));
 void	ReadCacheFile FP ((char *, int));
 void	RescanPlat FP ((Platform *));
+long	StatRevision FP ((Platform *, DataFile *));
+
+/*
+ * Debuggin' routines
+ */
+void	dbg_DumpClass FP ((PlatformClass *pc));
+void	dbg_DumpInstance FP ((PlatformInstance *pi));
+void	dbg_DumpStatus FP ((void));
+void	dbg_DumpTables FP((void));
+int	dbg_AnswerQuery FP((char *who));
+void	dbg_DumpLocks FP((char *buf, int len));
+void	dbg_DumpLockQueue FP((Platform *p, Lock *lock, char *que,
+			      char *buf, int len));
+int	dbg_Append FP((char *buf, char *str, int len));
+int	dbg_DirtyCount FP((void));
+int	dbg_CompositeCount FP((void));
+int	dbg_SubplatCount FP((void));
+
+/*
+ * Now that lots of platform info is split between class and instance,
+ * some macros would be very useful for accessing common info.  Use static
+ * inline functions, in hopes of C compilers which support inline and
+ * getting away from clumsy cpp definitions. (static in case the compiler
+ * doesn't support inline).
+ */
+static inline PlatformClass *pi_Class (pi)
+PlatformInstance *pi;
+{ return (CTable + pi->dp_class); }
+
+static inline PlatformClass *pc_SuperClass (pc)
+PlatformClass *pc;
+{ return ((pc->dpc_superclass == BadClass) ?
+	  NULL : (CTable + pc->dpc_superclass)); }
+
+static inline PlatformInstance *pi_Parent (pi)
+PlatformInstance *pi;
+{ return ((pi->dp_parent == BadPlatform) ?
+	  NULL : (PTable + pi->dp_parent)); }
+
+/*
+ * A bunch of boolean tests for class flags
+ */
+static inline int pi_Subplatform (pi)
+PlatformInstance *pi;
+{ return (pi->dp_flags & DPF_SUBPLATFORM); }
+
+static inline int pi_Mobile (pi)
+PlatformInstance *pi;
+{ return (pi->dp_flags & DPF_MOBILE); }
+
+static inline int pi_Composite (pi)
+PlatformInstance *pi;
+{ return (pi->dp_flags & DPF_COMPOSITE); }
+
+static inline int pi_Regular (pi)
+PlatformInstance *pi;
+{ return (pi->dp_flags & DPF_REGULAR); }
+
+static inline int pi_Remote (pi)
+PlatformInstance *pi;
+{ return (pi->dp_flags & DPF_REMOTE); }
+
+static inline int pi_Daysplit (pi)
+PlatformInstance *pi;
+{ return (pi->dp_flags & DPF_SPLIT); }
+
+static inline int pi_Dirty (pi)
+PlatformInstance *pi;
+{ return (pi->dp_flags & DPF_DIRTY); }
+
+static inline int pi_CacheLoaded (pi)
+PlatformInstance *pi;
+{ return (pi->dp_flags & DPF_CLOADED); }
+
+static inline int pi_RCacheLoaded (pi)
+PlatformInstance *pi;
+{ return (pi->dp_flags & DPF_RCLOADED); }
+
+/*
+ * Access for other platform instance members
+ */
+static inline char *pi_Name (pi)
+PlatformInstance *pi;
+{ return (pi->dp_name); }
+
+static inline char *pi_Dir (pi)
+PlatformInstance *pi;
+{ return (pi->dp_dir); }
+
+static inline char *pi_RDir (pi)
+PlatformInstance *pi;
+{ return (pi->dp_rdir); }
+
+/*
+ * Access to data file lists through instance structure
+ */
+static inline int pi_LocalData (pi)
+PlatformInstance *pi;
+{ return (pi_Subplatform(pi) ? pi_Parent(pi)->dp_LocalData :
+	  pi->dp_LocalData); }
+
+static inline int pi_RemoteData (pi)
+PlatformInstance *pi;
+{ return (pi_Subplatform(pi) ? pi_Parent(pi)->dp_RemoteData :
+	  pi->dp_RemoteData); }
+
+#define LOCALDATA(p) (((p).dp_flags & DPF_SUBPLATFORM) ? \
+	PTable[(p).dp_parent].dp_LocalData : (p).dp_LocalData)
+#define REMOTEDATA(p) (((p).dp_flags & DPF_SUBPLATFORM) ? \
+	PTable[(p).dp_parent].dp_RemoteData : (p).dp_RemoteData)
+
+/*
+ * Access to class members through the instance structure
+ */
+static inline DataOrganization pi_DataOrg (pi)
+PlatformInstance *pi;
+{ return (pi_Class(pi)->dpc_org); }
+
+static inline FileType pi_FileType (pi)
+PlatformInstance *pi;
+{ return (pi_Class(pi)->dpc_ftype); }
+
+static inline unsigned short pi_Keep (pi)
+PlatformInstance *pi;
+{ return (pi_Class(pi)->dpc_keep); }
+
+static inline unsigned short pi_MaxSamp (pi)
+PlatformInstance *pi;
+{ return (pi_Class(pi)->dpc_maxsamp); }
 
 #endif /* ! _zeb_dsDaemon_h_ */

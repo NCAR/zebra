@@ -25,9 +25,10 @@
 #include "DataStore.h"
 #include "dsPrivate.h"
 #include "dslib.h"
+#include "dfa.h"
 
 #ifndef lint
-MAKE_RCSID ("$Id: Appl.c,v 3.29 1994-04-26 19:55:41 corbet Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.30 1994-04-27 08:23:31 granger Exp $")
 #endif
 
 /*
@@ -43,15 +44,16 @@ typedef struct _PlatformList {
  * Local prototypes.
  */
 static void     ds_InitPFTable FP ((void));
-static void     ds_NotifyDaemon FP ((Platform *, int, DataChunk *, int, int,
-				     int, int));
+static void     ds_NotifyDaemon FP ((ClientPlatform *, int, DataChunk *, 
+				     int, int, int, int));
 static void     ds_DispatchNotify FP ((struct dsp_Notify *));
 int             ds_DSMessage FP ((struct message *));
 static int      ds_AttrCheck FP ((int, ZebTime *, char *));
-static int 	ds_FindDest FP ((DataChunk *, Platform *, int, int *dfile,
+static int 	ds_FindDest FP ((DataChunk *, ClientPlatform *, int, 
+				 int *dfile,
 				 int *dfnext, WriteCode *, int, ZebTime *));
 static bool	ds_SameDay FP ((ZebTime *, ZebTime *));
-static int	ds_MakeNewFile FP ((DataChunk *, Platform *, int sample, 
+static int	ds_MakeNewFile FP ((DataChunk *, ClientPlatform *, int sample, 
 				    dsDetail *details, int ndetail));
 static int	ds_RequestNewDF FP ((PlatformId, char *, ZebTime *));
 static int	ds_GetNDFResp FP ((struct message *,
@@ -59,9 +61,9 @@ static int	ds_GetNDFResp FP ((struct message *,
 static void	ds_AbortNewDF FP ((PlatformId, int));
 static int	ds_AwaitAck FP ((Message *, int));
 static int	ds_AwaitNPlat FP ((Message *, int *));
-static int	ds_AwaitPlat FP ((Message *, Platform *));
+static int	ds_AwaitPlat FP ((Message *, ClientPlatform *));
 static int	ds_AwaitPlatformList FP ((Message *msg, PlatformList *));
-static void	ds_CachePlatform FP ((PlatformId pid, Platform *plat));
+static void	ds_CachePlatform FP ((PlatformId pid, ClientPlatform *plat));
 static void 	ds_FProcGetList FP ((DataChunk *, GetList *, dsDetail *, int));
 static int	ds_AwaitFile FP ((Message *, DataFile *));
 static int	ds_AwaitGrant FP ((Message *, int));
@@ -74,7 +76,7 @@ static void	ds_ZapCache FP ((DataFile *));
 static void	ds_GreetDaemon FP ((void));
 static int	ds_CheckProtocol FP ((Message *, int));
 static int	ds_FindBlock FP((int dfile, int dfnext, 
-				 DataChunk *dc, Platform *p,
+				 DataChunk *dc, ClientPlatform *p,
 				 int sample, WriteCode wc, int *nsample));
 static int	ds_FindAfter FP ((PlatformId, ZebTime *));
 static void	ds_WriteLock FP ((PlatformId));
@@ -92,7 +94,7 @@ VFunc CopyFunc = 0;
 /*
  * Platform structure caching.
  */
-static Platform *PlatStructs[MAXPLAT] = { 0 };
+static ClientPlatform *PlatStructs[MAXPLAT] = { 0 };
 
 
 /*
@@ -407,13 +409,13 @@ PlatformId id;
 	if (! PlatStructs[id])
 	{
 		int n = ds_GetNPlat ();
-		Platform p;
+		ClientPlatform p;
 
 		if (id >= n)
 			return (badmsg);
 		ds_GetPlatStruct (id, &p, FALSE);
 	}
-	return (PlatStructs[id]->dp_name);
+	return (PlatStructs[id]->cp_name);
 }
 
 
@@ -425,9 +427,9 @@ PlatformId id;
  * Return TRUE iff this is a mobile platform.
  */
 {
-	Platform p;
+	ClientPlatform p;
 	ds_GetPlatStruct (id, &p, FALSE);
-	return (p.dp_flags & DPF_MOBILE);
+	return (p.cp_flags & DPF_MOBILE);
 }
 
 
@@ -441,9 +443,9 @@ PlatformId id;
  * Return TRUE iff this is a model platform.
  */
 {
-	Platform p;
+	ClientPlatform p;
 	ds_GetPlatStruct (id, &p, FALSE);
-	return ((p.dp_flags & DPF_MODEL) != 0);
+	return ((p.cp_flags & DPF_MODEL) != 0);
 }
 
 
@@ -772,7 +774,8 @@ int	*times, *ntimes;
  * Get the heights for this time.
  */
 {
-	int	dfindex;
+	ClientPlatform p;
+	int dfindex;
 /*
  * First make sure it's a model platform
  */
@@ -799,10 +802,10 @@ PlatformId pid;
  * Return the organization of the data returned by this platform.
  */
 {
-	Platform p;
+	ClientPlatform p;
 	
 	ds_GetPlatStruct (pid, &p, FALSE);
-	return (p.dp_org);
+	return (p.cp_org);
 }
 
 
@@ -1191,7 +1194,7 @@ int ndetail;
 {
 	int nsample, sample, dfile, nnew = 0, now = 0, ndone = 0;
 	WriteCode wc;
-	Platform p;
+	ClientPlatform p;
 	int dfnext;
 	ZebTime curtime;
 /*
@@ -1286,7 +1289,7 @@ int ndetail;
 	int ndone;	/* Total number of samples successfully stored	  */
 	int block_size;
 	WriteCode wc;
-	Platform p;
+	ClientPlatform p;
 	ZebTime curtime;
 /*
  * This is a reasonable spot to make sure we have a valid platform
@@ -1340,7 +1343,7 @@ int ndetail;
 			 "%s block of %i samples to %s",
 			 (wc == wc_Append) ? "appending" :
 			 ((wc == wc_Insert) ? "inserting" : 
-			  "overwriting"), block_size, p.dp_name);
+			  "overwriting"), block_size, p.cp_name);
 	/*
 	 * Now we write whatever block we found
 	 */
@@ -1391,7 +1394,7 @@ ds_FindBlock(dfile, dfnext, dc, plat, sample, wc, block_size)
 int dfile;
 int dfnext;		/* file following dfile, chronologically */
 DataChunk *dc;
-Platform *plat;
+ClientPlatform *plat;
 int sample;
 WriteCode wc;
 int *block_size;
@@ -1431,7 +1434,7 @@ int *block_size;
 	ds_LockPlatform (dc->dc_Platform);
 	ds_GetFileStruct (dfile, &dfe);
 	if (wc != wc_Overwrite)
-		avail = plat->dp_maxsamp - dfe.df_nsample;
+		avail = plat->cp_maxsamp - dfe.df_nsample;
 	else
 		avail = dfe.df_nsample;
 
@@ -1509,7 +1512,7 @@ int *block_size;
 		{
 			if (dfnext && (! TC_Less(when, next)))
 				break;
-			if ((plat->dp_flags & DPF_SPLIT) &&
+			if ((plat->cp_flags & DPF_SPLIT) &&
 			    (! ds_SameDay (&when, &past)))
 				break;
 		}
@@ -1542,7 +1545,7 @@ int *block_size;
 static int
 ds_FindDest (dc, plat, sample, dfile, dfnext, wc, newfile, now)
 DataChunk *dc;
-Platform *plat;
+ClientPlatform *plat;
 int sample, *dfile, *dfnext, newfile;
 WriteCode *wc;
 ZebTime *now;
@@ -1552,7 +1555,8 @@ ZebTime *now;
  * the data file which chronologically follows *dfile, if it exists.
  */
 {
-	int df = LOCALDATA (*plat);
+	int df = ds_DataChain (plat, 0);
+
 	DataFile dfe;
 	ZebTime when, dftime;
 /*
@@ -1563,7 +1567,7 @@ ZebTime *now;
 	if ((when.zt_Sec - now->zt_Sec) > MaxFuture)
 	{
 		msg_ELog (EF_PROBLEM, "Rejecting %s sample %d sec in future",
-			plat->dp_name, when.zt_Sec - now->zt_Sec);
+			plat->cp_name, when.zt_Sec - now->zt_Sec);
 		return (FALSE);
 	}
 /*
@@ -1599,8 +1603,8 @@ ZebTime *now;
 	*dfile = df;
 	if (TC_Less (dfe.df_end, when))
 	{
-		if (! newfile && dfe.df_nsample < plat->dp_maxsamp &&
-				 (! (plat->dp_flags & DPF_SPLIT) ||
+		if (! newfile && dfe.df_nsample < plat->cp_maxsamp &&
+				 (! (plat->cp_flags & DPF_SPLIT) ||
 			 	ds_SameDay (&when, &dfe.df_end)) &&
 				 (dfe.df_flags & DFF_Archived) == 0)
 			*wc = wc_Append;
@@ -1645,7 +1649,7 @@ ZebTime *t1, *t2;
 static int
 ds_MakeNewFile (dc, plat, sample, details, ndetail)
 DataChunk *dc;
-Platform *plat;
+ClientPlatform *plat;
 int sample;
 dsDetail *details;	/* dsDetail's needed for dfa_CreateFile() */
 int ndetail;
@@ -1761,7 +1765,7 @@ int df;
 
 static void
 ds_NotifyDaemon (p, dfile, dc, now, nnew, sample, last)
-Platform *p;
+ClientPlatform *p;
 int dfile, now, nnew, sample, last;
 DataChunk *dc;
 /*
@@ -1910,18 +1914,18 @@ PlatformInfo *pinfo;
  * Get some info about this plat.
  */
 {
-	Platform plat;
+	ClientPlatform plat;
 /*
  * Get the platform structure and reformat it into the user's structure.
  * The stuff which goes into the platform info never changes, so we
  * don't need to refresh the cache.
  */
 	ds_GetPlatStruct (pid, &plat, FALSE);
-	strcpy (pinfo->pl_Name, plat.dp_name);
-	pinfo->pl_NDataSrc = (plat.dp_flags & DPF_REMOTE) ? 2 : 1;
-	pinfo->pl_Mobile = plat.dp_flags & DPF_MOBILE;
-	pinfo->pl_SubPlatform = plat.dp_flags & DPF_SUBPLATFORM;
-	pinfo->pl_Parent = plat.dp_parent;
+	strcpy (pinfo->pl_Name, plat.cp_name);
+	pinfo->pl_NDataSrc = (plat.cp_flags & DPF_REMOTE) ? 2 : 1;
+	pinfo->pl_Mobile = plat.cp_flags & DPF_MOBILE;
+	pinfo->pl_SubPlatform = plat.cp_flags & DPF_SUBPLATFORM;
+	pinfo->pl_Parent = plat.cp_parent;
 }
 
 
@@ -1930,7 +1934,7 @@ PlatformInfo *pinfo;
 void
 ds_GetPlatStruct (pid, plat, refresh)
 PlatformId pid;
-Platform *plat;
+ClientPlatform *plat;
 bool refresh;
 /*
  * Get the platform structure for this PID.  Only re-fetch a cached struct
@@ -1965,7 +1969,7 @@ bool refresh;
 static int
 ds_AwaitPlat (msg, p)
 Message *msg;
-Platform *p;
+ClientPlatform *p;
 /*
  * See if this is our platform structure.
  */
@@ -1986,10 +1990,10 @@ Platform *p;
 static void
 ds_CachePlatform (pid, plat)
 PlatformId pid;
-Platform *plat;
+ClientPlatform *plat;
 {
 	if (! PlatStructs[pid])
-		PlatStructs[pid] = ALLOC (Platform);
+		PlatStructs[pid] = ALLOC (ClientPlatform);
 	*PlatStructs[pid] = *plat;
 }
 
@@ -2004,7 +2008,7 @@ DataSrcInfo *dsi;
  * Return information about a data source on this platform.
  */
 {
-	Platform plat;
+	ClientPlatform plat;
 	char *remname;
 /*
  * We need the platform structure to get anywhere with this.  And we need
@@ -2019,22 +2023,22 @@ DataSrcInfo *dsi;
 	if (which == 0)		/* local source */
 	{
 		strcpy (dsi->dsrc_Name, "Local");
-		strcpy (dsi->dsrc_Where, plat.dp_dir);
+		strcpy (dsi->dsrc_Where, plat.cp_dir);
 		dsi->dsrc_Type = dst_Local;
-		dsi->dsrc_FFile = plat.dp_LocalData;
+		dsi->dsrc_FFile = plat.cp_LocalData;
 		return (TRUE);
 	}
 /*
  * "Remote" directory is 1, if it exists.
  */
-	if (which != 1 || ! (plat.dp_flags & DPF_REMOTE))
+	if (which != 1 || ! (plat.cp_flags & DPF_REMOTE))
 		return (FALSE);
 	strcpy (dsi->dsrc_Name,
 		((remname = getenv ("REMOTE_NAME")) != NULL) ? 
 		remname : "Secondary");
-	strcpy (dsi->dsrc_Where, plat.dp_rdir);
+	strcpy (dsi->dsrc_Where, plat.cp_rdir);
 	dsi->dsrc_Type = dst_Local;
-	dsi->dsrc_FFile = plat.dp_RemoteData;
+	dsi->dsrc_FFile = plat.cp_RemoteData;
 	return (TRUE);
 }
 
@@ -2309,25 +2313,25 @@ int len;
 
 int
 ds_DataChain (p, which)
-Platform *p;
+ClientPlatform *p;
 int which;
 /*
  * Return the beginning of the appropriate data chain.
  */
 {
-	Platform parent;
+	ClientPlatform parent;
 /*
  * If this is a subplatform we refer ourselves to the parent instead.
  */
-	if (p->dp_flags & DPF_SUBPLATFORM)
+	if (p->cp_flags & DPF_SUBPLATFORM)
 	{
-		ds_GetPlatStruct (p->dp_parent, &parent, TRUE);
+		ds_GetPlatStruct (p->cp_parent, &parent, TRUE);
 		p = &parent;
 	}
 /*
  * Now just return what they want.
  */
-	return (which == 0 ? p->dp_LocalData : p->dp_RemoteData);
+	return (which == 0 ? p->cp_LocalData : p->cp_RemoteData);
 }
 
 
@@ -2427,13 +2431,13 @@ bool local;
  */
 {
 	static char fpath[1024];
-	Platform plat, *p = &plat;
+	ClientPlatform plat, *p = &plat;
 	ZebTime begin;
 	ZebTime end;
 	int nsample;
 
 	ds_GetPlatStruct (platid, &plat, FALSE);
-	if (! dfa_CheckName (p->dp_ftype, filename))
+	if (! dfa_CheckName (p->cp_ftype, filename))
 	{
 		msg_ELog (EF_PROBLEM, "scan file '%s': %s",
 			  filename, "dfa name check failed");
@@ -2442,8 +2446,8 @@ bool local;
 /*
  * Now make sure we can open the file and retrieve some vital statistics
  */
-	sprintf (fpath, "%s/%s", (local) ? p->dp_dir : p->dp_rdir, filename);
-	if (! dfa_QueryDate (p->dp_ftype, fpath, &begin, &end, &nsample))
+	sprintf (fpath, "%s/%s", (local) ? p->cp_dir : p->cp_rdir, filename);
+	if (! dfa_QueryDate (p->cp_ftype, fpath, &begin, &end, &nsample))
 	{
 		msg_ELog (EF_PROBLEM, "scan file '%s': %s", 
 			  fpath, "inaccessible or incorrect format");
@@ -2473,7 +2477,7 @@ bool local;
 	int dfile;
 	DataFile dfe;
 	struct dsp_UpdateFile update;
-	Platform p;
+	ClientPlatform p;
 	int dfnext, df;
 /*
  * Get a write lock and our platform structure.
@@ -2487,7 +2491,7 @@ bool local;
  * fail.
  */
 	ds_LockPlatform (platid);
-	df = (local) ? LOCALDATA(p) : REMOTEDATA(p);
+	df = (local) ? ds_DataChain (p, 0) : ds_DataChain (p, 1);
 	for (; df; df = dfe.df_FLink)
 	{
 		ds_GetFileStruct (df, &dfe);

@@ -24,15 +24,15 @@
 # include "defs.h"
 # include "config.h"
 # include "message.h"
-# include "dfa.h"
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dslib.h"
+# include "dfa.h"
 #ifndef lint
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.31 1994-04-26 17:26:24 corbet Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.32 1994-04-27 08:23:43 granger Exp $")
 #endif
 
-# include "netcdf.h"
+# include <netcdf.h>
 
 /*
  * Do we include units attribute for altitude
@@ -2830,7 +2830,7 @@ DataChunk *dc;
 	sprintf(history,"created by Zeb DataStore, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.31 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.32 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 }

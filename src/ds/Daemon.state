@@ -1,5 +1,5 @@
 !
-! $Id: Daemon.state,v 2.14 1994-04-15 22:27:46 burghart Exp $
+! $Id: Daemon.state,v 2.15 1994-04-27 08:23:59 granger Exp $
 !
 ! The data store daemon configuration language.
 !
@@ -28,10 +28,19 @@ define state initial
 	@ #ui$defs_file 
 
 	input 'platform' 1
-		next ust$final_unmunged_string
+		next platform-name
+	endinput
+	input 'class' 25
+		next class-name
 	endinput
 	input 'subplatform' 12
 		next subplatform-parent
+	endinput
+	input 'instance' 28
+		next instance-class
+	endinput
+	input 'subplats' 29
+		next subplats-instance-or-class
 	endinput
 	input 'done' 8
 		next ust$no_more
@@ -65,12 +74,84 @@ define state bcast-address
 enddef
 
 
+!----------------------------------------------------------------------
+! Platform declaration with optional class name
 !
-! Stuff for platform definition
-!
-define state in-platform
-	input 'endplatform' 2
+define state platform-name
+	input string
+		next platform-class
+	endinput
+enddef
+
+define state platform-class
+	input EOS
+		done
+	endinput
+	input string
 		next ust$no_more
+	endinput
+enddef
+
+!----------------------------------------------------------------------
+! Class declaration with optional superclass name
+!
+define state class-name
+	input string
+		next class-superclass
+	endinput
+enddef
+
+define state class-superclass
+	input EOS
+		done
+	endinput
+	input string
+		next ust$no_more
+	endinput
+enddef
+
+!-------------------------------------------------------------------------
+! Adding subplatforms to a class or instance, using the form
+! 	subplats <name> <class> <instance-name>+
+! where name is the name of either a class or an instance
+!
+define state subplats-instance-or-class
+	input string
+		next subplats-class
+	endinput
+enddef
+
+define state subplats-class
+	input string
+		next subplats-name
+	endinput
+enddef
+
+define state subplats-name
+	input string
+		next subplats-name-cont
+	endinput
+enddef
+
+define state subplats-name-cont
+	input EOS
+		done
+	endinput
+	input string
+		next subplats-name-cont
+	endinput
+enddef
+
+
+!-------------------------------------------------------------------------
+! Stuff for platform and class definitions.  Not all may be valid for
+! platform definitions, but it's left up to the command handler to notice.
+! The only difference between here and below is the terminator allowed at
+! the end.
+!
+define state in-class
+	input 'endclass' 23
+		next end-optional-name
 	endinput
 	input 'organization' 3
 		next organization
@@ -102,14 +183,160 @@ define state in-platform
 	input 'remote' 16
 		next ust$final_unmunged_string
 	endinput
+	input 'subplats' 29
+		next subplats-class
+	endinput
+	input 'comment' 27
+		next ust$final_unmunged_string
+	endinput
+	input 'daysplit' 19
+		next ust$no_more
+	endinput
+	input 'instancedir' 40
+		next instancedir-keyword
+	endinput
+	input 'inheritdir' 50
+		next inheritdir-keyword
+	endinput
+	input 'abstract' 24
+		next ust$no_more
+	endinput
+	input 'virtual' 33
+		next ust$no_more
+	endinput
+enddef
+
+! The allowed keywords for 'instancedir'.  The default allows sub and same
+! to be reset in subclasses (implicit or explicit).
+!
+define state instancedir-keyword
+	input 'copyclass' 41
+		next ust$no_more
+	endinput
+	input 'subdirclass' 42
+		next ust$no_more
+	endinput
+	input 'copyparent' 43
+		next ust$no_more
+	endinput
+	input 'subdirparent' 44
+		next ust$no_more
+	endinput
+	input 'default' 45
+		next ust$no_more
+	endinput
+	input 'root' 46
+		next ust$no_more
+	endinput
+enddef
+
+define state inheritdir-keyword
+	input 'append' 51
+		next ust$no_more
+	endinput
+	input 'copy' 52
+		next ust$no_more
+	endinput
+	input 'none' 53
+		next ust$no_more
+	endinput
+enddef
+
+define state end-optional-name
+	input EOS
+		done
+	endinput
+	input string
+		next ust$no_more
+	endinput
+enddef
+	
+!-------------------------------------------------------------------------
+! Stuff for platform and class definitions.  Not all may be valid for
+! class definitions, but it's left up to the command handler to notice.
+!
+define state in-platform
+	input 'endplatform' 2
+		next end-optional-name
+	endinput
+	input 'organization' 3
+		next organization
+	endinput
+	input 'filetype' 4
+		next file-type
+	endinput
+	input 'keep' 5
+		next ust$final_string
+	endinput
+	input 'regular' 6
+		next ust$final_int
+	endinput
+	input 'mobile' 7
+		next ust$no_more
+	endinput
+	input 'composite' 9
+		next ust$no_more
+	endinput
+	input 'discrete' 10
+		next ust$no_more
+	endinput
+	input 'directory' 11
+		next ust$final_unmunged_string
+	endinput
+	input 'maxsamples' 13
+		next ust$final_int
+	endinput
+	input 'remote' 16
+		next ust$final_unmunged_string
+	endinput
+	input 'subplats' 29
+		next subplats-class
+	endinput
+	input 'comment' 27
+		next ust$final_unmunged_string
+	endinput
 	input 'daysplit' 19
 		next ust$no_more
 	endinput
 	input 'model' 22
 		next ust$no_more
 	endinput
+	input 'virtual' 33
+		next ust$no_more
+	endinput
+	input 'instancedir' 40
+		next instancedir-keyword
+	endinput
+	input 'inheritdir' 50
+		next inheritdir-keyword
+	endinput
 enddef
 
+! Either add more subplats or reset the list to nil
+!
+define state subplats-class
+	input 'none' 31
+		next ust$no_more
+	endinput
+	input string
+		next subplats-name
+	endinput
+enddef
+
+define state subplats-name
+	input string
+		next subplats-name-cont
+	endinput
+enddef
+
+define state subplats-name-cont
+	input EOS
+		done
+	endinput
+	input string
+		next subplats-name-cont
+	endinput
+enddef
 
 
 !
@@ -182,7 +409,6 @@ define state organization
 	endinput
 enddef
 
-
 !
 ! Definition of subplatforms.
 !
@@ -208,6 +434,30 @@ define state continue-subplatform
 	endinput
 enddef
 
+!---------------------------------------------------------------------
+! Definition of instances.
+!
+define state instance-class
+	input string
+		next instance-name
+	endinput
+enddef
+
+define state instance-name
+	input string
+		next instance-name-cont
+	endinput
+enddef
+
+define state instance-name-cont
+	input string
+		next instance-name-cont
+	endinput
+	input EOS
+		done
+	endinput
+enddef
+!---------------------------------------------------------------------
 
 define state trunc-how-much
 	input integer

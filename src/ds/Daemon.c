@@ -20,8 +20,6 @@
  * maintenance or updates for its software.
  */
 
-# define DS_DAEMON
-
 # include <sys/types.h>
 # ifdef SVR4
 #    include <sys/statvfs.h>
@@ -41,7 +39,7 @@
 # include "commands.h"
 # include "zl_regex.h"
 
-MAKE_RCSID ("$Id: Daemon.c,v 3.34 1994-01-31 20:14:57 granger Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.35 1994-04-27 08:23:56 granger Exp $")
 
 
 /*
@@ -92,7 +90,7 @@ static Lock	*GetLockEntry FP ((void));
 static void	DoLookup FP ((char *, char *));
 static void	FindDF FP ((char *, struct dsp_FindDF *));
 static void	FindAfter FP ((char *, struct dsp_FindDF *));
-static int	QueryHandler FP ((char *));
+
 
 /*
  * Public forwards
@@ -118,7 +116,9 @@ char *ECmds[MAXEVERY];
 static Lock *FreeLocks = 0;
 
 bool InitialScan = TRUE;
-long LastScan = 0;		/* Time of the most recent FULL scan */
+ZebTime LastScan = { 0, 0 };	/* Time of the most recent FULL scan */
+ZebTime LastCache = { 0, 0 };	/* Time to which cache files are up-to-date */
+ZebTime Genesis;		/* In the beginning, there was Zeb...*/
 
 /*
  * Caching options.
@@ -134,6 +134,8 @@ bool CacheOnExit = FALSE;	/* Write cache on way out?	*/
  */
 int PTableSize = 200;	/* Platform table initial size	*/
 int PTableGrow = 50;	/* Amount to grow by		*/
+int CTableSize = 100;	/* Class table initial size	*/
+int CTableGrow = 50;	/* Amount to grow by		*/
 int DFTableSize = 2000;	/* Data file table size		*/
 int DFTableGrow = 500;	/* Amount to grow by		*/
 
@@ -145,6 +147,24 @@ bool DisableRemote = FALSE;	/* Disable use of remote directories 	*/
 bool StatRevisions = TRUE;	/* Use stat() calls to get revision 
 				   numbers, rather than using a counter	*/
 
+bool Debug = FALSE;		/* Produce voluminous output as it happens */
+bool ParseOnly = FALSE;		/* Parse the init file and abort	*/
+int InvalidatesSent = 0;	/* Number of CacheInvalidate broadcasts */
+int ReadLockRequests = 0;
+int WriteLockRequests = 0;
+
+
+
+static inline int
+Match(arg,opt)
+char *arg;
+char *opt;
+{
+	int len = strlen(arg);
+
+	return (len > 1 && strncmp(arg, opt, len) == 0);
+}
+
 
 
 main (argc, argv)
@@ -152,15 +172,17 @@ int argc;
 char **argv;
 {
 	char loadfile[80];
+	char *initfile;
 	int argt = SYMT_STRING;
 	stbl vtable;
+	int i;
 /*
  * Hook into the message system.
  */
 	msg_connect (msg_Handler, DS_DAEMON_NAME);
 	msg_join ("Client events");
 	msg_DeathHandler (Shutdown);
-	msg_SetQueryHandler (QueryHandler);
+	msg_SetQueryHandler (dbg_AnswerQuery);
 /*
  * Hook into the UI.
  */
@@ -179,6 +201,8 @@ char **argv;
 			DDIR_LEN);
 	usy_c_indirect (vtable, "DisableRemote", &DisableRemote, SYMT_BOOL, 0);
 	usy_c_indirect (vtable, "StatRevisions", &StatRevisions, SYMT_BOOL, 0);
+	usy_c_indirect (vtable, "Debug", &Debug, SYMT_BOOL, 0);
+	usy_c_indirect (vtable, "ParseOnly", &ParseOnly, SYMT_BOOL, 0);
 	usy_c_indirect (vtable, "LDirConst", &LDirConst, SYMT_BOOL, 0);
 	usy_c_indirect (vtable, "RDirConst", &RDirConst, SYMT_BOOL, 0);
 	usy_c_indirect (vtable, "LFileConst", &LFileConst, SYMT_BOOL, 0);
@@ -189,28 +213,44 @@ char **argv;
  */
 	usy_c_indirect (vtable, "PTableSize", &PTableSize, SYMT_INT, 0);
 	usy_c_indirect (vtable, "PTableGrow", &PTableGrow, SYMT_INT, 0);
+	usy_c_indirect (vtable, "CTableSize", &CTableSize, SYMT_INT, 0);
+	usy_c_indirect (vtable, "CTableGrow", &CTableGrow, SYMT_INT, 0);
 	usy_c_indirect (vtable, "DFTableSize", &DFTableSize, SYMT_INT, 0);
 	usy_c_indirect (vtable, "DFTableGrow", &DFTableGrow, SYMT_INT, 0);
 /*
  * Other initialization.
  */
 /*	InitSharedMemory (); */
-/*	dt_InitTables (); */
+/*	dt_InitTables (); */	/* Allow setting table sizes in config file */
 	dap_Init ();
 	uf_def_function ("freespace", 1, &argt, FreeSpace);
 /*
- * Set up the init file.
+ * Set up the init file and other command-line options
  */
-	if (argc > 1)
+	initfile = NULL;
+	for (i = 1; i < argc; ++i)
+	{
+		if (Match (argv[i], "-debug"))
+			Debug = TRUE;
+		else if (Match (argv[i], "-parse"))
+			ParseOnly = TRUE;
+		else if (initfile)
+			printf ("%s: argument %s ignored\n", argv[0], argv[i]);
+		else
+			initfile = argv[i];
+	}
+	if (initfile)
 	{
 		SValue v;
-		v.us_v_ptr = argv[1];
-		usy_s_symbol (usy_g_stbl ("ui$variable_table"), "initfile",
-				SYMT_STRING, &v);
+		v.us_v_ptr = initfile;
+		usy_s_symbol (usy_g_stbl ("ui$variable_table"),
+			      "initfile", SYMT_STRING, &v);
 	}
 /*
  * Start reading commands.
  */
+	if (Debug)
+		printf ("Reading command file %s\n", initfile);
 	ui_get_command ("initial", "dsd>", ui_Handler, 0);
 	Shutdown ();
 }
@@ -245,6 +285,7 @@ FinishInit ()
 	tl_Time (&t2);
 	msg_ELog (EF_INFO, "Scan done, took %d secs", t2.zt_Sec - t1.zt_Sec);
 	InitialScan = FALSE;
+	Genesis = t1;
 /*
  * If a cleanup_procedure exists, run it now.
  */
@@ -306,17 +347,50 @@ struct ui_command *cmds;
 	 * Platform definition.
 	 */
 	   case DK_PLATFORM:
-		dc_DefPlatform (UPTR (cmds[1]));
+		if (cmds[2].uc_ctype != UTT_END)
+			dc_DefPlatform (UPTR (cmds[1]), UPTR (cmds[2]));
+		else
+			dc_DefPlatform (UPTR (cmds[1]), /*superclass*/NULL);
 		break;
 
 	   case DK_SUBPLATFORM:
 	   	dc_SubPlatform (cmds + 1);
 		break;
 	/*
+	 * Class definition.
+	 */
+	   case DK_CLASS:
+		if (cmds[2].uc_ctype != UTT_END)
+		   dc_DefPlatformClass (UPTR (cmds[1]), UPTR (cmds[2]), FALSE);
+		else
+		   dc_DefPlatformClass (UPTR (cmds[1]), /*super*/NULL, FALSE);
+		break;
+	/*
+	 * Instance definitions
+	 */
+	   case DK_INSTANCE:
+		dc_DefInstances (UPTR(cmds[1]), cmds + 2);
+		break;
+	/*
+	 * Subplats additions to either classes or instances
+	 */
+	   case DK_SUBPLATS:
+		dc_DefSubPlats ( UPTR(cmds[1]), UPTR(cmds[2]), cmds+3);
+		break;
+	/*
 	 * Configuration done -- go operational.
 	 */
 	   case DK_DONE:
-	   	if (ndone++)
+		if (Debug)
+		{
+			printf ("Status after reading init file:\n");
+			dbg_DumpStatus ();
+			printf ("Tables after reading init file:\n");
+			dbg_DumpTables ();
+		}
+		if (ParseOnly)
+			Shutdown();
+	   	else if (ndone++)
 			msg_ELog (EF_PROBLEM, "Repeated DONE command");
 		else
 			FinishInit ();
@@ -685,7 +759,7 @@ struct dsp_CreateFile *request;
 	new->df_rev = 0;
 	new->df_FLink = new->df_BLink = new->df_nsample = 0;
 	new->df_platform = request->dsp_plat;
-	new->df_ftype = PTable[request->dsp_plat].dp_ftype;
+	new->df_ftype = pi_FileType(PTable+request->dsp_plat);
 	PTable[request->dsp_plat].dp_Tfile = new - DFTable;
 /*
  * Respond back to the requester and quit.
@@ -761,7 +835,7 @@ struct dsp_UpdateFile *request;
  * client in the DFA.
  */
 	if (StatRevisions)
-		df->df_rev = dfa_StatRevision (plat, df);
+		df->df_rev = StatRevision (plat, df);
 	else
 		df->df_rev += 1;
 	df->df_nsample += request->dsp_NSamples;
@@ -832,7 +906,7 @@ ZebTime *t;
 /*
  * Sanity check.
  */
-	if (p->dp_flags & DPF_SUBPLATFORM)
+	if (pi_Subplatform(p))
 	{
 		msg_ELog (EF_PROBLEM, "Attempted DeleteData on subplat %s",
 			p->dp_name);
@@ -855,16 +929,6 @@ ZebTime *t;
 		/*
 		 * OK, this one goes.
 		 */
-#ifdef notdef	
-		/* 
-		 * We need to use dt_RemoveDFE() instead of the code below so
-		 * that CacheInvalidate messages are sent as needed.
-		 */
-		        if (index == p->dp_LocalData)
-				index = p->dp_LocalData = df->df_FLink;
-			else
-				index = DFTable[last].df_FLink = df->df_FLink;
-#endif
 		        msg_ELog (EF_DEBUG, "DeleteData: zap %d (%s)", 
 				  df->df_index, df->df_name);
 		        ZapDF (df);
@@ -898,7 +962,7 @@ ZebTime *t;
 /*
  * Sanity check.
  */
-	if (p->dp_flags & DPF_SUBPLATFORM)
+	if (pi_Subplatform(p))
 	{
 		msg_ELog (EF_PROBLEM, "Attempted DeleteObs on subplat %s",
 			p->dp_name);
@@ -1037,7 +1101,7 @@ DataFile *df;
  * Unlink the file from in the filesystem.
  */
 	if (! (df->df_flags & DFF_Remote))
-		if (unlink (dfa_FilePath (PTable + df->df_platform, df)) < 0)
+		if (unlink (dt_DFEFilePath(PTable + df->df_platform, df)) < 0)
 			msg_ELog (EF_PROBLEM, "Error %d unlinking '%s'", 
 				  errno, df->df_name);
 }
@@ -1130,7 +1194,7 @@ struct ui_command *cmds;
 		else
 		{
 			zaptime = now;
-			zaptime.zt_Sec -= (seconds > 0) ? seconds : p->dp_keep;
+			zaptime.zt_Sec -= (seconds > 0) ? seconds : pi_Keep(p);
 			dp_DeleteData (p, &zaptime);
 		}
 		return;
@@ -1143,7 +1207,7 @@ struct ui_command *cmds;
 		{
 			zaptime = now;
 			zaptime.zt_Sec -= (seconds > 0) ? seconds :
-					PTable[plat].dp_keep;
+					pi_Keep(PTable+plat);
 			dp_DeleteData (PTable + plat, &zaptime);
 		}
 }
@@ -1213,7 +1277,7 @@ struct dsp_GetPlatStruct *req;
 	struct dsp_PlatStruct answer;
 
 	answer.dsp_type = dpt_R_PlatStruct;
-	answer.dsp_plat = PTable[req->dsp_pid];
+	dt_ClientPlatform (PTable + req->dsp_pid, &answer.dsp_plat);
 	msg_send (to, MT_DATASTORE, FALSE, &answer, sizeof (answer));
 }
 
@@ -1310,7 +1374,7 @@ struct SearchInfo *info;
  * strcmp won't work if the name has upper-case letters in it, since the
  * symbol will be all lower case.
  */
-	if (plat->dp_flags & DPF_SUBPLATFORM)
+	if (pi_Subplatform(plat))
 	{
 		if (strchr (symbol, '/'))
 			return (TRUE);
@@ -1320,13 +1384,13 @@ struct SearchInfo *info;
 /*
  * Ignore subplatforms if so requested
  */
-	if (!req->dsp_subplats && (plat->dp_flags & DPF_SUBPLATFORM))
+	if (!req->dsp_subplats && pi_Subplatform(plat))
 		return (TRUE);
 /*
  * If we're looking for subplatforms of a particular parent, ignore
  * all other platforms.
  */
-	if ((req->dsp_children) && (((plat->dp_flags & DPF_SUBPLATFORM) == 0)
+	if ((req->dsp_children) && (! pi_Subplatform(plat)
 	    || (plat->dp_parent != req->dsp_parent)))
 		return (TRUE);
 
@@ -1346,7 +1410,7 @@ struct SearchInfo *info;
 		if (req->dsp_sendplats)
 		{
 			send.dsp_type = dpt_R_PlatStructSearch;
-			send.dsp_plat = *plat;
+			dt_ClientPlatform (plat, &send.dsp_plat);
 			send.dsp_pid = plat - PTable;
 			msg_send (info->si_to, MT_DATASTORE, FALSE, 
 				  &send, sizeof (send));
@@ -1421,6 +1485,7 @@ PlatformId which;
 			  "Read lock attempt for invalid plat id %d", which);
 		return;
 	}
+	++ReadLockRequests;
 	msg_ELog (EF_DEBUG, "Read lock on %s by %s", p->dp_name, who);
 	for (lp = p->dp_RLockQ; lp; lp = lp->l_Next)
 		if (! strcmp (who, lp->l_Owner))
@@ -1693,36 +1758,12 @@ int index;
  */
 	if (! InitialScan)
 	{
+		++InvalidatesSent;
 		msg.dsp_type = dpt_CacheInvalidate;
 		msg.dsp_dfe = DFTable[index];
 		msg_send ("DataStore", MT_DATASTORE, TRUE, &msg, sizeof (msg));
 	}
 }
-
-
-
-
-
-static int
-QueryHandler (who)
-char *who;
-/*
- * Handle a zquery.
- */
-{
-	char buf[120];
-
-	msg_AnswerQuery (who, "Zeb data store daemon");
-	sprintf (buf, "%d Platforms used of %d allocated", NPlatform,
-		PTableSize);
-	msg_AnswerQuery (who, buf);
-	sprintf (buf, "%d DataFile entries used of %d", NDTEUsed,
-		DFTableSize);
-	msg_AnswerQuery (who, buf);
-	msg_FinishQuery (who);
-}
-
-
 
 
 
@@ -1745,6 +1786,7 @@ PlatformId which;
  */
 	lp = GetLockEntry ();
 	strcpy (lp->l_Owner, who);
+	++WriteLockRequests;
 	/* tl_Time (lp->l_When); */
 /*
  * Now...if there is no lock active we can add this one and send the

@@ -1,5 +1,5 @@
 /*
- * $Id: commands.h,v 2.5 1994-04-15 22:27:56 burghart Exp $
+ * $Id: commands.h,v 2.6 1994-04-27 08:24:11 granger Exp $
  *
  * Command keywords for the data store daemon.
  */
@@ -21,6 +21,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+
 # define DK_PLATFORM	 1
 # define DK_ENDPLATFORM  2
 # define DK_ORGANIZATION 3
@@ -43,3 +44,32 @@
 # define DK_CACHE	20
 # define DK_RESCAN	21
 # define DK_MODEL	22
+
+# define DK_CLASS	25
+# define DK_ENDCLASS	23
+# define DK_ABSTRACT	24
+# define DK_VIRTUAL	33
+# define DK_INSTANCE	28
+# define DK_SUBPLATS	29
+# define DK_NOSUBPLATS	31
+# define DK_COMMENT	27
+
+/*
+ * The instancedir keywords
+ */
+# define DK_INSTANCEDIR 40
+# define DK_COPYCLASS	41
+# define DK_SUBDIRCLASS	42
+# define DK_COPYPARENT	43
+# define DK_SUBDIRPARENT 44
+# define DK_DEFAULT	45
+# define DK_ROOT	46
+
+/*
+ * Directory class inheritance keywords
+ */
+# define DK_INHERITDIR	50
+# define DK_APPEND	51
+# define DK_COPY	52
+# define DK_NONE	53
+

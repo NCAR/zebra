@@ -1,6 +1,6 @@
 /*
- * $Id: dfa.h,v 2.2 1993-04-26 16:00:50 corbet Exp $
- * Internal DFA declarations.
+ * $Id: dfa.h,v 2.3 1994-04-27 08:24:22 granger Exp $
+ * Internal DFA declarations.  Requires DataStore.h and dslib.h.
  */
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
@@ -21,5 +21,25 @@
  * maintenance or updates for its software.
  */
 
+#ifndef __zeb_dfa_h_
+#define __zeb_dfa_h_
+
 void	dfa_ForceClose FP ((int));
 int	dfa_OpenFile FP ((int, int, void **));
+int	dfa_CheckName FP ((int, char *));
+int	dfa_QueryDate FP ((int, char *, ZebTime *, ZebTime *, int *));
+int	dfa_InqNPlat FP ((int));
+DataChunk *dfa_Setup FP ((GetList *, FieldId *, int, DataClass));
+void	dfa_GetData FP ((DataChunk *, GetList *, dsDetail *, int));
+int	dfa_InqRGrid FP ((int, Location *, RGrid *));
+int	dfa_DataTimes FP ((int, ZebTime *, TimeSpec, int, ZebTime *));
+void	dfa_MakeFileName FP ((ClientPlatform *, ZebTime *, char *));
+bool	dfa_CreateFile FP ((int, DataChunk *, ZebTime *, dsDetail *, int));
+void	dfa_NoteRevision FP ((int dfindex, long revision));
+char	*dfa_GetAttr FP ((int, ZebTime *, int *));
+char	*dfa_FilePath FP ((ClientPlatform *, DataFile *));
+int	dfa_GetAlts FP ((int index, FieldId fid, int offset, float *alts,
+			 int *nalts, AltUnitType *altunits));
+int	dfa_GetForecastTimes FP ((int index, int *times, int *ntimes));
+
+#endif /* __zeb_dfa_h_ */

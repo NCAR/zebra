@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 3.21 1994-04-15 22:28:14 burghart Exp $
+ * $Id: dsPrivate.h,v 3.22 1994-04-27 08:24:26 granger Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -56,29 +56,103 @@ typedef struct s_Lock
 # define NAMELEN 	CFG_PLATNAME_LEN
 
 /*
- * A platform in the data table is described by this structure.
+ * Structure for describing a subplatform 'template', where the class info
+ * comes from the subplatform's class.  An instance name is also required
+ * to create instances of classes which reference this subplatform.
  */
-typedef struct ds_Platform
+typedef struct ds_SubPlatform
 {
-	char	dp_name[NAMELEN];	/* The full name of this platform */
-	char	dp_class[NAMELEN];	/* The class of the platform	*/
-	char	dp_dir[NAMELEN];	/* File directory		*/
-	char	dp_rdir[NAMELEN];	/* Remote file directory	*/
+	int	dps_class;		/* Class of this subplatform	*/
+	char	dps_name[NAMELEN];	/* Name for instances		*/
+} SubPlatform;
+
+/*
+ * Types of directory inheritance for classes
+ */
+typedef enum { InheritNone = 0, InheritAppend, InheritCopy } InheritDir;
+
+/*
+ * Types of directory instantiation for classes
+ */
+typedef enum { 
+	InstanceDefault = 0, InstanceRoot = 0, 
+	InstanceCopyClass, InstanceSubdirClass, 
+	InstanceCopyParent, InstanceSubdirParent
+} InstanceDir;
+
+/*
+ * Information that is common among platform instances and does not
+ * change during run-time resides in the platform class structure.
+ */
+typedef struct ds_PlatformClass
+{
+	char	dpc_name[NAMELEN];	/* The full name of this class  */
+	char	dpc_dir[NAMELEN];	/* File directory		*/
+	char	dpc_rdir[NAMELEN];	/* Remote file directory	*/
+	int	dpc_superclass;		/* Class hierarchy backpointer	*/
+	DataOrganization dpc_org;	/* Native data organization	*/
+	FileType dpc_ftype;		/* File type			*/
+	unsigned short dpc_keep;	/* Minimum data keep		*/
+	unsigned short dpc_maxsamp;	/* Maximum file samples		*/
+	unsigned short dpc_flags;	/* Attribute flags -- see below	*/
+	unsigned char dpc_inherit;	/* Directory inheritance flags	*/
+	unsigned char dpc_instance;	/* Directory instance flags	*/
+	char 	*dpc_comment;		/* Comment about this class	*/
+	SubPlatform *dpc_subplats;	/* Subplatform templates	*/
+	int	dpc_nsubplats;		/* Number of subplats in array	*/
+} PlatformClass;
+
+/*
+ * The platform instance structure.  Most of the static information is
+ * retrieved by following the pointer to the class structure in the class
+ * table.  The instance structure has its own members for stuff that is
+ * likely to be different among instances of a class, such as the data
+ * directories.
+ */
+typedef struct ds_PlatformInstance
+{
+	char	dp_name[NAMELEN];	/* Full name of this platform 	*/
+	int	dp_class;		/* The class of the platform	*/
 	int	dp_parent;		/* Hierarchy backpointer	*/
-	DataOrganization dp_org;	/* Native data organization	*/
-	FileType dp_ftype;		/* File type			*/
-	unsigned short dp_keep;		/* Minimum data keep		*/
-	unsigned short dp_maxsamp;	/* Maximum file samples		*/
+	char	dp_dir[NAMELEN];	/* Local data directory		*/
+	char	dp_rdir[NAMELEN];	/* Remote data directory	*/
 	int	dp_LocalData;		/* The local data table		*/
 	int	dp_RemoteData;		/* The remote data table	*/
-	short	dp_flags;		/* Attribute flags -- see below	*/
+	int	*dp_subplats;		/* Indices to subplat instances	*/
+	int	dp_nsubplats;		/* Number of indices (not alloc)*/
+	unsigned short dp_flags;	/* Attribute flags -- see below	*/
 	short	dp_Tfile;		/* Temp file under creation	*/
 	unsigned short dp_NewSamps;	/* New samps (not yet notified) */
 	unsigned short dp_OwSamps;	/* Overwritten samps (n.y.n.)	*/
 	Lock	*dp_RLockQ;		/* Read locks held		*/
 	Lock	*dp_WLockQ;		/* The write lock 		*/
-} Platform;
+} PlatformInstance, Platform;
 
+/*
+ * The platform structure used by the client library, which unifies the
+ * information in the class and instance structures.  This structure is
+ * fixed in size and can be packed into messages, and only contains info
+ * of use to the client.
+ */
+typedef struct ds_ClientPlatform
+{
+	char	cp_name[NAMELEN];	/* The full name of this platform */
+	char	cp_class[NAMELEN];	/* The class of the platform	*/
+	char	cp_dir[NAMELEN];	/* File directory		*/
+	char	cp_rdir[NAMELEN];	/* Remote file directory	*/
+	int	cp_parent;		/* Hierarchy backpointer	*/
+	DataOrganization cp_org;	/* Native data organization	*/
+	FileType cp_ftype;		/* File type			*/
+	unsigned short cp_keep;		/* Minimum data keep		*/
+	unsigned short cp_maxsamp;	/* Maximum file samples		*/
+	int	cp_LocalData;		/* The local data table		*/
+	int	cp_RemoteData;		/* The remote data table	*/
+	unsigned short cp_flags;	/* Attribute flags -- see below	*/
+} ClientPlatform;
+
+/*
+ * These flags belong to the class
+ */
 # define DPF_MOBILE	0x0001		/* Does this platform move?	*/
 # define DPF_COMPOSITE	0x0002		/* A grouping of other plats?	*/
 # define DPF_DISCRETE	0x0004		/* "Continuous" data?		*/
@@ -86,24 +160,23 @@ typedef struct ds_Platform
 # define DPF_SUBPLATFORM 0x010		/* This is a sub platform	*/
 # define DPF_REMOTE	0x0020		/* A remote dir has been given	*/
 # define DPF_SPLIT	0x0040		/* Split on day boundary 	*/
-# define DPF_DIRTY	0x0080		/* Cache needs updating		*/
-# define DPF_CLOADED	0x0100		/* Cache has been loaded	*/
-# define DPF_RCLOADED	0x0200		/* Remote cache loaded		*/
-# define DPF_MODEL	0x0400		/* Model data, i.e., has	*/
+# define DPF_MODEL	0x0080		/* Model data, i.e., has	*/
 					/* separate issue/valid times	*/
+# define DPF_VIRTUAL	0x0100		/* Only a node in the hierarchy */
+# define DPF_ABSTRACT	0x0200		/* Abstract platform class	*/
 
 /*
- * Macro to return the right data list for a platform.
+ * These flags belong to the instance
  */
-# ifdef DS_DAEMON
-#	define LOCALDATA(p) (((p).dp_flags & DPF_SUBPLATFORM) ? \
-		PTable[(p).dp_parent].dp_LocalData : (p).dp_LocalData)
-#	define REMOTEDATA(p) (((p).dp_flags & DPF_SUBPLATFORM) ? \
-		PTable[(p).dp_parent].dp_RemoteData : (p).dp_RemoteData)
-# else
-#	define LOCALDATA(p) (ds_DataChain (&(p), 0))
-#	define REMOTEDATA(p) (ds_DataChain (&(p), 1))
-# endif
+# define DPF_CLOADED	0x1000		/* Cache has been loaded	*/
+# define DPF_RCLOADED	0x2000		/* Remote cache loaded		*/
+# define DPF_DIRTY	0x4000		/* Cache needs updating		*/
+
+
+/*
+ * Blocks by which subplat allocated arrays are increased.
+ */
+# define ALLOC_SUBPLATS	10
 
 
 # define FNAMELEN 	CFG_DATAFILE_LEN
@@ -213,7 +286,7 @@ enum dsp_Types
  * The current data store protocol version.  CHANGE this when incompatible
  * protocol changes have been made.
  */
-# define DSProtocolVersion	0x931229
+# define DSProtocolVersion	0x940424
 
 /*
  * Create a new data file.
@@ -363,7 +436,7 @@ struct dsp_GetPlatStruct
 struct dsp_PlatStruct
 {
 	enum dsp_Types dsp_type;	/* == dpt_R_PlatStruct		*/
-	Platform dsp_plat;		/* Platform structure		*/
+	ClientPlatform dsp_plat;	/* Platform structure		*/
 };
 	
 
@@ -399,7 +472,7 @@ struct dsp_PlatStructSearch
 {
 	enum dsp_Types dsp_type;	/* == dpt_R_PlatStructSearch	*/
 	PlatformId dsp_pid;		/* The ID of the plat struct	*/
-	Platform dsp_plat;		/* Platform structure		*/
+	ClientPlatform dsp_plat;	/* Platform structure		*/
 };
 	
 

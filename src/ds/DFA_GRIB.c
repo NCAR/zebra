@@ -30,12 +30,12 @@
 # include <defs.h>
 # include <message.h>
 
-# include "dfa.h"
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dslib.h"
+# include "dfa.h"
 
-MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.7 1994-04-19 17:14:57 burghart Exp $")
+MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.8 1994-04-27 08:23:38 granger Exp $")
 
 /*
  * The GRIB product definition section (PDS)

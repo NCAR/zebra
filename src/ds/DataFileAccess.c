@@ -28,18 +28,15 @@
 # include <sys/stat.h>
 # include <errno.h>
 
-# include "defs.h"
-# include "message.h"
+# include <defs.h>
+# include <message.h>
+
 # include "DataStore.h"
 # include "dsPrivate.h"
-# define NO_SHM
 # include "dslib.h"
 # include "dfa.h"
 
-MAKE_RCSID ("$Id: DataFileAccess.c,v 3.15 1994-04-15 22:27:48 burghart Exp $")
-
-
-void	dfa_AddOpenFile FP ((int, DataFile *, int, void *));
+MAKE_RCSID ("$Id: DataFileAccess.c,v 3.16 1994-04-27 08:24:02 granger Exp $")
 
 /*
  * This is the structure which describes a format.
@@ -490,6 +487,7 @@ typedef struct _OpenFile
 #endif
 } OpenFile;
 
+
 static OpenFile *OpenFiles = 0;		/* Open file list head		*/
 static OpenFile *OFFree = 0;		/* lookaside list		*/
 static int OF_Lru = 0;			/* LRU count			*/
@@ -500,14 +498,9 @@ static int OF_NOpen = 0;		/* Number of open files		*/
 /*
  * Local routines.
  */
-# ifdef __STDC__
-	static OpenFile *dfa_GetOF (void);
-	static void 	dfa_CloseFile (OpenFile *);
-# else
-	static OpenFile *dfa_GetOF ();
-	static void 	dfa_CloseFile ();
-# endif
-
+static void	dfa_AddOpenFile FP ((int, DataFile *, int, void *));
+static OpenFile *dfa_GetOF FP((void));
+static void 	dfa_CloseFile FP((OpenFile *));
 
 
 
@@ -554,7 +547,7 @@ char *name;
 
 void
 dfa_MakeFileName (plat, t, dest)
-Platform *plat;
+ClientPlatform *plat;
 ZebTime *t;
 char *dest;
 /*
@@ -566,8 +559,8 @@ char *dest;
  * Get the format-specific code to make up the name, then tweak any 
  * slashes out of it.
  */
-	(*Formats[plat->dp_ftype].f_MakeFileName) (plat->dp_dir,
-				plat->dp_name, t, dest);
+	(*Formats[plat->cp_ftype].f_MakeFileName) (plat->cp_dir,
+				plat->cp_name, t, dest);
 	while (slash = strchr (dest, '/'))
 		strcpy (slash, slash + 1);
 }
@@ -875,7 +868,7 @@ int ndetail;
 {
 	char *tag;
 	DataFile dfe;
-	Platform p;
+	ClientPlatform p;
 /*
  * Make sure that it isn't somehow open now.  (Would be strange but 
  * can't hurt to be sure.)
@@ -1081,8 +1074,6 @@ int dfindex;
 
 
 
-
-
 void
 dfa_NoteRevision (dfindex, rev)
 int dfindex;
@@ -1100,33 +1091,6 @@ long rev;
 
 
 
-
-long
-dfa_NewRevision (p, dfindex)
-Platform *p;
-int dfindex;
-/*
- * Note that this client has signalled a revision on this file.  Calculate
- * a new revision number and store it in our open file structure,
- * indicating that the open file's tag is in sync with the file (which
- * makes sense if this client is the one changing the file and signalling
- * the revision).  Return the new revision number.
- */
-{
-	OpenFile *ofp = dfa_FileIsOpen (dfindex);
-	DataFile dfe;
-	long revision;
-
-	ds_GetFileStruct (dfindex, &dfe);
-	revision = dfe.df_rev + 1;
-	if (ofp)
-		ofp->of_dfrev = revision;
-	return (revision);
-}
-
-
-
-
 int
 dfa_OpenFile (dfindex, write, tag)
 int dfindex;
@@ -1138,7 +1102,7 @@ void **tag;
  */
 {
 	DataFile df;
-	Platform p;
+	ClientPlatform p;
 	OpenFile *ofp;
 	int retv = TRUE;
 
@@ -1188,38 +1152,20 @@ void **tag;
 
 char *
 dfa_FilePath (p, df)
-Platform *p;
+ClientPlatform *p;
 DataFile *df;
 /*
  * Generate the full name of this data file.  The name is returned in
- * static space and will get zapped with the next call.
+ * static space and will get zapped with the next call.  Note the
+ * ClinetPlatform parameter, meaning this function is intended for
+ * client-side routines and not for the DataStore daemon.
  */
 {
 	static char fname[1024];
 
 	sprintf (fname, "%s/%s", (df->df_flags & DFF_Remote) ?
-		p->dp_rdir : p->dp_dir, df->df_name);
+		p->cp_rdir : p->cp_dir, df->df_name);
 	return (fname);
 }
 
 
-
-
-long 
-dfa_StatRevision (p, df)
-Platform *p;
-DataFile *df;
-/*
- * Get a revision count for this file from its modification time
- */
-{
-	struct stat sbuf;
-
-	if (stat (dfa_FilePath (p, df), &sbuf) < 0)
-	{
-		msg_ELog (EF_PROBLEM, "Error %d on stat of %s", errno,
-				dfa_FilePath (p, df));
-		return (0);
-	}
-	return (sbuf.st_mtime);
-}

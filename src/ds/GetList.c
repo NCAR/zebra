@@ -19,13 +19,12 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: GetList.c,v 3.7 1994-01-03 07:17:43 granger Exp $";
+static char *rcsid = "$Id: GetList.c,v 3.8 1994-04-27 08:24:07 granger Exp $";
 
 # include "defs.h"
 # include "message.h"
 # include "DataStore.h"
 # include "dsPrivate.h"
-# define NO_SHM
 # include "dslib.h"
 
 
@@ -129,7 +128,7 @@ ZebTime *begin, *end;
  */
 {
 	GetList *list, *l, *zap;
-	Platform p;
+	ClientPlatform p;
 	int startdf;
 /*
  * Make an initial, unsatisfied entry.

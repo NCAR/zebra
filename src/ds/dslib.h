@@ -1,11 +1,8 @@
 /*
- * "$Id: dslib.h,v 3.8 1994-04-15 22:28:16 burghart Exp $"
+ * "$Id: dslib.h,v 3.9 1994-04-27 08:24:28 granger Exp $"
  * Internal info for the data store application interface library.
  */
 
-/*
- * Shared memory segment parameters.
- */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -23,6 +20,9 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+
+#ifndef __zeb_dslib_h_
+#define __zeb_dslib_h_
 
 /*
  * The platform lookup table.
@@ -54,30 +54,16 @@ typedef struct _GetList
 # define GLF_REMOTE	0x0002		/* This is a remote data grab	*/
 # define GLF_TRIED	0x0004		/* We have tried this one	*/
 
-
-int 	dsm_Init FP ((void));
-void	dsm_ShmLock FP ((void));
-void	dsm_ShmUnlock FP ((void));
-int	dfa_CheckName FP ((int, char *));
-int	dfa_QueryDate FP ((int, char *, ZebTime *, ZebTime *, int *));
-int	dfa_InqNPlat FP ((int));
-DataChunk *dfa_Setup FP ((GetList *, FieldId *, int, DataClass));
-void	dfa_GetData FP ((DataChunk *, GetList *, dsDetail *, int));
-int	dfa_GetAlts FP ((int index, FieldId fid, int offset, float *alts,
-			 int *nalts, AltUnitType *altunits));
-int	dfa_GetForecastTimes FP ((int index, int *times, int *ntimes));
-int	dfa_InqRGrid FP ((int, Location *, RGrid *));
-int	dfa_DataTimes FP ((int, ZebTime *, TimeSpec, int, ZebTime *));
-void	dfa_MakeFileName FP ((Platform *, ZebTime *, char *));
+/*
+ * Prototypes required by the application interface but not fit
+ * for public visibility.
+ */
 GetList *dgl_MakeGetList FP ((PlatformId, ZebTime *, ZebTime *));
 void	dgl_ReturnList FP ((GetList *));
-bool	dfa_CreateFile FP ((int, DataChunk *, ZebTime *, dsDetail *, int));
-void	dfa_NoteRevision FP ((int dfindex, long revision));
-long	dfa_NewRevision FP ((Platform *, int dfindex));
-char	*dfa_GetAttr FP ((int, ZebTime *, int *));
+
 int	ds_GetDetail FP ((char *, dsDetail *, int, SValue *));
-char	*dfa_FilePath FP ((Platform *, DataFile *));
-long	dfa_StatRevision FP ((Platform *, DataFile *));
 void	ds_GetFileStruct FP ((int, DataFile *));
-void	ds_GetPlatStruct FP ((PlatformId, Platform *, bool));
+void	ds_GetPlatStruct FP ((PlatformId, ClientPlatform *, bool));
 int	ds_FindDF FP ((PlatformId, ZebTime *, int));
+
+#endif /* __zeb_dslib_h_ */

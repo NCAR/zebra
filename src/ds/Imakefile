@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.20 1994-04-15 22:27:54 burghart Exp $"
+MFVERSION="$Id: Imakefile,v 1.21 1994-04-27 08:24:09 granger Exp $"
 
 LIBMPROF=/dt/granger/libc_mp.a
 SYSLIBS=/* $(LIBMPROF) */
@@ -23,8 +23,8 @@ CLIBS=$(LIBGCC)
 /* 
  * DSOBJS, DSSRCS = Daemon-specific object modules 
  */
-DSOBJS= Daemon.o d_DataTables.o d_Config.o d_Notify.o d_Scan.o
-DSSRCS= Daemon.c d_DataTables.c d_Config.c d_Notify.c d_Scan.c
+DSOBJS= Daemon.o d_DataTables.o d_Config.o d_Notify.o d_Scan.o d_Debug.o
+DSSRCS= Daemon.c d_DataTables.c d_Config.c d_Notify.c d_Scan.c d_Debug.c
 
 /* 
  * DSLIBOBJS, DSLIBSRCS = normal DS library code 
