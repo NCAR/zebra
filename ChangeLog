@@ -1,11 +1,160 @@
+Thu Nov  4 09:24:43 1993  Jonathan Corbet  (corbet@ale)
+
+	* Fixed a "never should have worked" bug in dsmanage when loading
+	data from CD.  Also changed the default CD name to "/cd".
+
+Wed Oct 27 14:18:01 1993  Jonathan Corbet  (corbet@ale)
+
+	* Lots and lots of changes for the HPUX port.
+
+	* Added the ability write a single, large, combined data store
+	cache file which contains all platforms.  If the daemon config file
+	defines the variable "ConfigFile", it is expected to the the name
+	of one of these big files and loaded according; in this case, any
+	per-platform cache files are IGNORED.
+
+	Wonder why we would want to do this?  Essentially it's for CDROM
+	users who (1) want to get going faster, and (2) want to be able to
+	use a newer version of the software without enduring lots of "cache
+	version mismatch" messages and a 20-minute daemon startup...
+
+Mon Oct 18 13:30:43 1993  Jonathan Corbet  (corbet@ale)
+
+	* Numerous active area tweaks, especially with station plots.  You
+	may now click on the field annotation to easily change what appears
+	in each quad (given the right configuration, of course).
+
+Fri Oct 15 10:31:25 1993  Jonathan Corbet  (corbet@ale)
+
+	* Added active areas to xygraph annotation.
+
+	* Fixed the "vanishing annotation" problem that appeared in numerous
+	CAP plot types when the scale value was > 1.
+
+	* Demoted some annoying xygraph babble to EF_DEBUG
+
+Thu Oct 14 14:12:27 1993  Jonathan Corbet  (corbet@ale)
+
+	* Added the "active areas" capability to gp.  Active areas are
+	essentially icons which appear within the graphics windows, and
+	which can have menus attached to them.  They are not implemented
+	like the base icons, though, in that they are not separate widgets
+	(for performance reasons).  So far, station plots, lightning,
+	boundaries, and tracks can have active icons.
+
+	* Added some CLF's to dm: NthColor to get the Nth color out of a
+	color table; nvalue to get the number of (comma-separated) values
+	for a PD parameter; pd_complist to return a foreach-able list of
+	components from a PD.
+
+Thu Oct  7 10:07:52 1993  Jonathan Corbet  (corbet@ale)
+
+	* Added the "plot-hold" parameter.  If present in the global 
+	component, and true, no plotting will be done.  The purpose is
+	to allow the tweaking of multiple parameters from dm (or from
+	icons, eventually) without replots happening in the middle.
+
+	* Reworked xygraph (simple) side annotation to be more useful and
+	legible.  Time stamps still appear, but may be disabled by setting
+	[xy-]time-annot to false.
+
+	* Added a function ParseLine to do what CommaParse does, but with
+	an arbitrary delimiter.  Then made CommaParse use it.
+
+Fri Oct  1 15:03:37 1993  Chris Burghart  (burghart@trenco)
+
+	* gp/Annotate.c: Fixed An_ColorNumber() so it works correctly for 
+	color tables with an even number of colors.  Andy's change a while
+	ago to reverse the order of the labels worked correctly only for
+	color tables with an odd number of colors.
+
+Thu Sep 30 15:45:16 1993  Gary Granger  (granger@kodiak)
+
+	* Fixed dc_NSpace.c bug where static field data got overwritten
+	unless added first or last to the DataChunk.
+
+	* netCDF improvements: add null terminators to att strings, create
+	the conventional field atts (long_name, etc) first, accept 
+	missing_value's of non-float type
+
+	* moved emacs local variables in ChangeLog to bottom of file, where
+	it won't get messed up by add-change-log-entry; extended the 
+	outline-regexp expression---change it back if you don't like it
+
+Mon Sep 27 14:37:10 1993  Jonathan Corbet  (corbet@ale)
+
+	* Fixed a memory leak associated with the plot description
+	monitoring system.  Testcenter is good for something after all.
+
+	* Allow the specification of only a single field for "simple"
+	xygraphs, even in the presence of multiple platforms.  The obvious
+	thing is done.  Fixed a bug with the old attempt to provide this
+	behavior with "time".
+
+	* Removed most widgets from the "GraphProc.widgets" file.  They
+	are now autoloaded through the "require" mechanism.
+
+	* Added autoscaling to contour plots and color-coded track plots.
+	If "scale-mode" is "auto", center and step values will be
+	determined automatically.  Default is not to do this, so that old
+	PD's don't start acting in new, unexpected ways.
+
+	* Added new CL functions PDParam and PDSearch which function just
+	like the old pd_param and pd_paramsearch, but which only return
+	parameters as strings and thus do not need the final data type
+	argument.
+
+	* Added an "extras" capability to the FieldMenu so that non-field
+	options can be presented in the menu.  Used for adding "station"
+	to station plots and so on.
+
+	* Added the "require" capability to load chunks of UI code once
+	when actually needed.
+
+
+Mon Sep 20 11:21:41 1993  Chris Burghart  (burghart@trenco)
+
+	* gp
+	Vector representation is now supported on cross-section plots.
+	This involved an *extensive* thrashing of the way XSection.c does
+	its work, so this revision will be a significant source of
+	potential bugs.  Testing hasn't turned up anything, though, so I
+	have my fingers crossed.
+	
+
+Thu Sep 16 10:38:41 1993  Chris Burghart  (burghart@trenco)
+
+	* gp
+	Contour and FilledContour now create only one GC each, rather than
+	creating a new one for each contour drawn.  
+
+	* gp
+	Annotations generated by routines in Annotate.c now put them a 
+	couple of pixels further to the right, so they don't overlay the 
+	edge of the plotting area.
+
+Thu Sep  9 11:40:27 1993  Jonathan Corbet  (corbet@ale)
+
+	* dm: fixed a bug introduced by a previous change wherein a
+	restarted window would no longer keep its PD, but would instead
+	revert back to the original one.
+
+	(NOTE) If the "*" line contains a good line-line description
+	of the changes, nice things can be done with outline mode in
+	emacs...
+
+Tue Sep  7 17:01:13 1993  Gary Granger  (granger@kodiak)
+
+	* EventLogger: Popup window for controlling a log file and the
+	log file's event mask separately.
+
 Thu Sep  2 02:38:57 1993  Gary Granger  (granger@kodiak)
 
-	* DataStore
+	* DataStore: ds_DeleteObs() added, ds_DeleteData() bug fixed
 	New API function ds_DeleteObs().  Bug fixes for ds_ForceRescan() and
 	ds_DeleteData().  Improvements to ZNF block overwrites and file growth.
 
-	* dsdelete
-	Allows deletion of specific observations by absolute time.
+	* dsdelete: Allows deletion of specific observations by absolute time.
 
 Thu Aug 26 14:14:14 1993  Jonathan Corbet  (corbet@ale)
 
@@ -107,11 +256,11 @@ Tue Jul 13 15:21:39 1993  Jonathan Corbet  (corbet@ale)
 
 Fri Jul  9 00:03:51 1993  Gary Granger  (granger@steam)
 
-	* DataStore:
+	* DataStore: ds_StoreBlocks()
 	ds_StoreBlocks() bug fixed which improperly handled the addition
 	of new files prior to existing data files.
 
-	* DataStore: 
+	* DataStore: 'maxsamples' bug
 	Fixed bug which allowed more than 'maxsamples' samples to be
 	written to a platform's data file.
 
@@ -120,5 +269,7 @@ Fri Jul  9 00:03:51 1993  Gary Granger  (granger@steam)
 	in this file.  This file lists a history of changes of importance
 	and interest to the end user.
 
-
-
+--- Local Variables:
+--- mode: outline
+--- outline-regexp: "[MTWFS]\\|[ \t]+\\*"
+--- End:
