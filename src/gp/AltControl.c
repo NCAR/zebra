@@ -1,7 +1,6 @@
 /*
  * Altitude control for CAP plots.
  */
-static char *rcsid = "$Id: AltControl.c,v 2.4 1992-11-03 15:54:20 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -35,15 +34,12 @@ static char *rcsid = "$Id: AltControl.c,v 2.4 1992-11-03 15:54:20 burghart Exp $
 # include <DataStore.h>
 # include "GraphProc.h"
 
+MAKE_RCSID("$Id: AltControl.c,v 2.5 1994-02-25 02:32:56 granger Exp $")
 
 # define MAXALT		80	/* Max heights we expect to see		*/
 
 
-# ifdef __STDC__
-	static int alt_GetRSAlts (char *, float *);
-# else
-	static int alt_GetRSAlts ();
-# endif
+static int alt_GetRSAlts FP ((char *, float *));
 
 
 
