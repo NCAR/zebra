@@ -42,7 +42,7 @@
 XCOMM -----------------------------------------------------------------------
 XCOMM Definitions from config.h included here.  The definitions here override
 XCOMM the defaults in Project.tmpl.  See ...../zeb/config/config.h.
-XCOMM $Id: config.h.dist,v 1.19 1994-11-23 15:29:58 burghart Exp $
+XCOMM $Id: config.h.dist,v 1.20 1994-11-29 22:53:42 granger Exp $
 XCOMM -----------------------------------------------------------------------
 # endif
 
@@ -152,9 +152,9 @@ XCOMM -----------------------------------------------------------------------
 /*
  * The data manager utilities are the programs dsmanage and tapeindex.
  * These are extremely useful in most environments, but not absolutely
- * necessary.  These programs require GCC's C++ compiler, so if you do not have
- * GCC's C++ compiler, define this to NO.  See further on in this file for
- * information about specifying the C++ compiler.
+ * necessary.  These programs require GNU's C++ compiler (g++), so if you 
+ * do not have GNU's C++ compiler, define this to NO.  See further on in 
+ * this file for information about specifying the C++ compiler.
  */
 # define	BuildDataManager		YES
 
@@ -456,8 +456,8 @@ XCOMM -----------------------------------------------------------------------
 /* HP-UX */
 /* # define FortranLibraries -lU77 -lf -lisamstub */
 
-/* SGI */
-/* # define FortranLibraries -lF77 */
+/* IRIX 5.x */
+/* # define FortranLibraries -lF77 -lI77 -lisam */
 
 /*
  * Some of Zeb's routines require the terminal capability library,
