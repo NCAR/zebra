@@ -364,20 +364,12 @@ C
 C
 C     ENCODE CURRENT DATE AND TIME
 C
-# ifdef hpux
-      call idate_ (iscrb)
-# else
       CALL IDATE(ISCRB)
-# endif
       ISCRB(3)=ISCRB(3)-1900
       WRITE (LCDATE, 122) ISCRB(2),ISCRB(1),ISCRB(3) 
   122 FORMAT(I2,'/',I2,'/',I2)
 
-# ifdef hpux
-      call itime_ (iscrb)
-# else
       CALL ITIME(ISCRB)
-# endif
       WRITE (LCTIME,123) ISCRB(1),ISCRB(2),ISCRB(3)
   123 FORMAT(I2,':',I2,':',I2)
 

@@ -1,7 +1,7 @@
 /*
  * Translate MUDRAS files to netcdf.
  */
-static char *rcsid = "$Id: mudtocdf.c,v 1.3 1993-10-25 20:19:52 corbet Exp $";
+static char *rcsid = "$Id: mudtocdf.c,v 1.4 1993-10-26 21:18:22 corbet Exp $";
 
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
@@ -23,14 +23,7 @@ static char *rcsid = "$Id: mudtocdf.c,v 1.3 1993-10-25 20:19:52 corbet Exp $";
 # include "netcdf.h"
 # include <math.h>
 
-/*
- * Fortran name stuff.
- */
-# ifdef hpux
-# define cdopnr_ cdopnr
-# define volume_ volume
-# define fetchd_ fetchd
-# endif
+extern char *getenv ();
 
 /*
  * Field info.
