@@ -305,7 +305,7 @@ _PlatDerList::Table( PlatformId pid )
 	for (; i < len; i++)
 	    derivs[i] = (DerivTable*) 0;
 
-	delete oldderivs; // not delete[] since we copied into derivs
+	delete[] oldderivs; // delete[] since we allocated with new[]
     }
 //
 // Make an entry for this pid if it doesn't exist already
