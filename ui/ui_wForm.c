@@ -19,7 +19,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_wForm.c,v 1.6 1992-12-18 21:10:30 corbet Exp $";
+static char *Rcsid = "$Id: ui_wForm.c,v 1.7 1994-09-26 15:40:33 case Exp $";
 
 
 # define MAXENTRY 100
@@ -505,7 +505,7 @@ Widget parent;
  */
 	XtSetArg (args[n], XtNdisplayPosition, 0);		n++;
 	XtSetArg (args[n], XtNinsertPosition, 0);		n++;
-	XtSetArg (args[n], XtNheight, 20);			n++;
+/*	XtSetArg (args[n], XtNheight, 20);			n++; */
 	XtSetArg (args[n], XtNtype, XawAsciiString);		n++;
 	XtSetArg (args[n], XtNeditType, XawtextEdit);		n++;
 /*
