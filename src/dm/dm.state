@@ -1,4 +1,4 @@
-! $Id: dm.state,v 1.16 1993-02-23 19:41:12 corbet Exp $
+! $Id: dm.state,v 1.17 1993-03-12 17:28:08 granger Exp $
 !
 ! Command definition for the display manager.
 !
@@ -630,6 +630,16 @@ enddef
 
 
 define state dm-help-topic
+	input EOS
+		done
+	endinput
+	input string
+		next dm-help-file
+	endinput
+enddef
+
+
+define state dm-help-file
 	input EOS
 		done
 	endinput
