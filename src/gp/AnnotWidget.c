@@ -1,7 +1,6 @@
 /*
  * The graphics window annotation widget for making pretty pictures.
  */
-static char *rcsid = "$Id: AnnotWidget.c,v 1.1 1992-03-26 20:16:13 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -29,12 +28,16 @@ static char *rcsid = "$Id: AnnotWidget.c,v 1.1 1992-03-26 20:16:13 kris Exp $";
 # include <X11/Xaw/Command.h>
 # include <X11/Xaw/AsciiText.h>
 
-# include "defs.h"
-# include "message.h"
-# include "pd.h"
+# include <defs.h>
+# include <message.h>
+# include <pd.h>
+# include <GraphicsW.h>
+
 # include "PixelCoord.h"
 # include "DrawText.h"
 # include "GraphProc.h"
+
+RCSID("$Id: AnnotWidget.c,v 1.2 1995-04-17 21:07:40 granger Exp $")
 
 # define STRLEN		1000
 
