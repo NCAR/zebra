@@ -1,5 +1,5 @@
 /* -*- mode: c++; c-basic-offset: 8; -*-
- * $Id: glass_ingest.cxx,v 2.18 2002-10-21 23:14:14 granger Exp $
+ * $Id: glass_ingest.cxx,v 2.19 2002-11-14 05:51:10 granger Exp $
  *
  * Ingest GLASS data into the system.
  *
@@ -80,7 +80,7 @@ extern "C"
 #include <met_formulas.h>
 }
 
-RCSID("$Id: glass_ingest.cxx,v 2.18 2002-10-21 23:14:14 granger Exp $")
+RCSID("$Id: glass_ingest.cxx,v 2.19 2002-11-14 05:51:10 granger Exp $")
 
 #include <ZTime.h>
 #define FC_DEFINE_FIELDS
@@ -628,6 +628,7 @@ GlassIngest (int argc, char *argv[])
 	else
 		IngestLog(EF_INFO,
 		   "%s: CLASS data loaded into DataStore", PlatformName);
+	dc_DestroyDC (Dchunk);
 }
 
 
@@ -1179,6 +1180,8 @@ ReadSamples (DataChunk *dc, char *file, Sounding &snd)
 	} 
 
 	// Start reading data values
+	GlassFileRecord *gl = snd.gl;
+	gl->nsurface = 0;
 	ZTime when = 0;
 	while (getline (fin, line))
 	{
@@ -1277,7 +1280,6 @@ ReadSamples (DataChunk *dc, char *file, Sounding &snd)
 
 		// Records with negative tdelta are stored as surface fields.
 		int sample = dc_GetNSample(dc);
-		GlassFileRecord *gl = snd.gl;
 		if (snd.tdelta() < 0 && sample == 0)
 		{
 			if (gl->nsurface >= GlassFileRecord::MAX_SURFACE)
