@@ -1,5 +1,5 @@
 /*
- * $Id: aline.c,v 3.7 1996-01-23 04:53:48 granger Exp $
+ * $Id: aline.c,v 3.8 1996-01-23 19:56:47 granger Exp $
  *
  * An 'Assembly Line' test driver for the DataStore.
  *
@@ -67,7 +67,7 @@ char ConsumerPlat[64] = "t_consumer";	/* platform consumer reads from	*/
 static int NConsumers = 2;		/* number of children 		*/
 static int RemoveDest = 1;		/* remove consumer file before copy */
 static int Interval = 5;		/* seconds between writes	*/
-static int FixedInterval = 0;		/* random or fixed interval	*/
+static int FixedInterval = 1;		/* random or fixed interval	*/
 static int Inventory = 10;		/* number to produce		*/
 static int Debug = 0;
 static int Blow = 0;			/* Dump data chunks		*/
