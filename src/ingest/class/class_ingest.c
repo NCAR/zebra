@@ -1,5 +1,5 @@
 /*
- * $Id: class_ingest.c,v 2.18 1997-01-14 17:57:59 granger Exp $
+ * $Id: class_ingest.c,v 2.19 1997-02-14 07:09:39 granger Exp $
  *
  * Ingest CLASS data into the system.
  *
@@ -27,12 +27,14 @@
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+
+#include <ui.h>		/* need struct ui_command and ERRORCATCH */
+#include <ui_error.h>
 #include "ingest.h"
-#include <copyright.h>
 
 #ifndef lint
 MAKE_RCSID(
-   "$Id: class_ingest.c,v 2.18 1997-01-14 17:57:59 granger Exp $")
+   "$Id: class_ingest.c,v 2.19 1997-02-14 07:09:39 granger Exp $")
 #endif
 
 static void	Usage FP((char *prog_name));
@@ -490,7 +492,7 @@ ParseCommandLineOptions(argc, argv)
 	int *argc;
 	char *argv[];
 {
-	int i, j;
+	int i;
 
 /*
  * First parse any of the general ingest options
@@ -679,7 +681,7 @@ BuildTranslationTable ()
  */
 {
 	int	i;
-	char	line[80], *lp, quote, site[40], plat[40];
+	char	line[80], *lp, site[40], plat[40];
 	FILE	*tfile;
 	SiteTranslation	*newtrans;
 /*
@@ -752,7 +754,7 @@ char	*ret, *text;
  * (success) or null (failure).
  */
 {
-	char	*endquote, *whitespace;
+	char	*endquote;
 /*
  * Remove leading white space
  */
@@ -784,4 +786,4 @@ char	*ret, *text;
 /*
  * Suds lib seems to need this these days.
  */
-main_dump_cmd () {}
+int main_dump_cmd () { return (0); }
