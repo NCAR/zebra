@@ -49,7 +49,7 @@
 # include <config.h>
 # include <copyright.h>
 
-RCSID ("$Id: EventLogger.c,v 2.42 1999-12-06 19:32:32 granger Exp $")
+RCSID ("$Id: EventLogger.c,v 2.43 2000-04-11 19:53:00 burghart Exp $")
 
 # define LOGNAME "EventLogger"
 
@@ -1509,6 +1509,9 @@ FormatMessage (char code, char *from_in, char *msg_in)
 
 	char repeat_msg[128];
 	char tmp[128];
+
+	if (! msg_in)
+	    msg_in = "";
 
 	/* 
 	 * Only considered a repeat if from the same client.  Messages
