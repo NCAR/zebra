@@ -38,7 +38,7 @@
 #endif
 
 # ifndef lint
-MAKE_RCSID ("$Id: DFA_Zebra.c,v 1.26 1995-11-20 20:22:47 granger Exp $")
+MAKE_RCSID ("$Id: DFA_Zebra.c,v 1.27 1996-01-15 07:48:45 granger Exp $")
 # endif
 
 /*
@@ -2622,7 +2622,8 @@ void **rtag;
 	}
 	else
 	{
-		msg_ELog (EF_PROBLEM, "znf: Bad magic number %d!", magic);
+		msg_ELog (EF_PROBLEM, "znf: Bad magic number %d in %s!",
+			magic, fname);
 		close (tag->zt_Fd);
 		free (tag);
 		return (FALSE);
