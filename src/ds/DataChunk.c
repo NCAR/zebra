@@ -25,7 +25,7 @@
 # include "DataStore.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: DataChunk.c,v 3.3 1993-05-04 21:42:11 granger Exp $")
+MAKE_RCSID ("$Id: DataChunk.c,v 3.4 1993-09-23 08:26:53 granger Exp $")
 
 /*
  * ADE Codes for the raw data object.
@@ -192,8 +192,6 @@ DataChunk *dc;
 
 
 
-
-
 /*
  * AuxData routines.
  */
@@ -203,6 +201,25 @@ DataChunk *dc;
  * to save on malloc/free stuff.
  */
 static AuxDataChain AD_Free = NULL;
+
+
+void
+dc_ForceClosure()
+/*
+ * Get rid of any memory we're hanging on to, such as the ADE free chain
+ */
+{
+	AuxDataChain next, ade;
+
+	next = AD_Free;
+	while (next)
+	{
+		ade = next;
+		next = ade->dca_Next;
+		free (ade);
+	}
+	AD_Free = NULL;
+}
 
 
 static inline AuxDataChain 
