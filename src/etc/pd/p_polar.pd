@@ -1,0 +1,23 @@
+!
+! Deal with radar displays in the polar mode.
+!
+global
+	pd-name:	p_polar
+p_polar
+	platform:	PLATFORM
+	altitude-control:	true
+	field:		FIELD
+	every-volume:	true
+	representation:	polar
+	icon:		radar
+	color-table:	wild_new
+	every-sweep:	true
+	icon-left-menu:		standard-cap-left-menu
+	icon-middle-menu:	radar-middle
+	icon-right-menu:	DataAvailable
+	limit-proc:	raster-limit-proc
+	out-of-range-color:	none
+	radar-space:	true
+	require:	radar, raster
+	trigger:	platform
+	trigger-global:	true
