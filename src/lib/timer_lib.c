@@ -23,7 +23,7 @@
 # include "timer.h"
 # include "message.h"
 
-RCSID ("$Id: timer_lib.c,v 2.8 1995-05-02 23:16:33 granger Exp $")
+RCSID ("$Id: timer_lib.c,v 2.9 1995-05-24 22:33:26 granger Exp $")
 
 typedef enum { Empty = 0, Active, Cancelled } sstatus;
 
@@ -51,6 +51,7 @@ static void tl_SendToTimer FP ((void *, int));
 static void tl_DispAlarm FP ((struct tm_alarm *));
 static void tl_CancelAck FP ((struct tm_alarm *));
 static int tl_ProtoHandler FP ((struct message *));
+static int tl_TimeHandler FP ((struct message *msg, ZebTime *t));
 
 
 
@@ -386,17 +387,26 @@ ZebTime *zt;
  * Return the current time in t.
  */
 {
-	static int tl_TimeHandler ();
-	struct tm_req req;
 /*
- * Send off the timer request.
+ * If not connected, make do with a system time call.
  */
-	req.tr_type = TR_TIME;
-	tl_SendToTimer (&req, sizeof (req));
-/*
- * Now wait for the reply.
- */
-	msg_Search (MT_TIMER, tl_TimeHandler, zt);
+	if (! msg_Connected())
+	{
+		TC_SysToZt (time (NULL), zt);
+	}
+	else
+	{
+		struct tm_req req;
+	/*
+	 * Send off the timer request.
+	 */
+		req.tr_type = TR_TIME;
+		tl_SendToTimer (&req, sizeof (req));
+	/*
+	 * Now wait for the reply.
+	 */
+		msg_Search (MT_TIMER, tl_TimeHandler, zt);
+	}
 }
 
 
@@ -442,21 +452,11 @@ UItime *t;
  * Return the current time in t.
  */
 {
-	static int tl_TimeHandler ();
-	struct tm_req req;
 	ZebTime zt;
-/*
- * Send off the timer request.
- */
-	req.tr_type = TR_TIME;
-	tl_SendToTimer (&req, sizeof (req));
-/*
- * Now wait for the reply.
- */
-	msg_Search (MT_TIMER, tl_TimeHandler, &zt);
+
+	tl_Time (&zt);
 	TC_ZtToUI (&zt, t);
 }
-
 
 
 
