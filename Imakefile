@@ -1,4 +1,4 @@
-XCOMM $Id: Imakefile,v 1.12 1994-01-21 11:47:36 granger Exp $
+XCOMM $Id: Imakefile,v 1.13 1994-01-26 11:09:19 granger Exp $
 XCOMM
 XCOMM This is the top-level Imakefile for the Zeb distribution.
 XCOMM It is modeled after the top-level Imakefile of the MIT X11R5
@@ -86,7 +86,7 @@ DependSubdirs($(SUBDIRS))
  * distfiles:: to work.
  */
 Makefiles::
-	$(MAKE) $(MFLAGS) subdirMakefiles \
+	$(MAKE) MAKE=$(MAKE) $(MFLAGS) subdirMakefiles \
 		UPPREFIX=../ NEWTOP=../ \
 		MAKEFILE_SUBDIR=imake NEW_CURRENT_DIR=$(CURRENT_DIR)/imake
 #endif
@@ -103,16 +103,16 @@ World::
 	@date
 	@echo ""
 	cd $(IMAKESRC); \
-		$(MAKE) $(MFLAGS) clean; \
-		$(MAKE) $(MFLAGS) INCLUDES=-I../config \
+		$(MAKE) MAKE=$(MAKE) $(MFLAGS) clean; \
+		$(MAKE) MAKE=$(MAKE) $(MFLAGS) INCLUDES=-I../config \
 		BOOTSTRAPCFLAGS="$(BOOTSTRAPCFLAGS)" CC="$(CC)"
 	-$(RM) Makefile.bak; $(MV) Makefile Makefile.bak
-	$(MAKE) $(MFLAGS) -f Makefile.bak Makefile
-	$(MAKE) $(MFLAGS) Makefiles
-	$(MAKE) $(MFLAGS) clean
-	$(MAKE) $(MFLAGS) includes
-	$(MAKE) $(MFLAGS) depend
-	$(MAKE) $(MFLAGS) $(WORLDOPTS) install
+	$(MAKE) MAKE=$(MAKE) $(MFLAGS) -f Makefile.bak Makefile
+	$(MAKE) MAKE=$(MAKE) $(MFLAGS) Makefiles
+	$(MAKE) MAKE=$(MAKE) $(MFLAGS) clean
+	$(MAKE) MAKE=$(MAKE) $(MFLAGS) includes
+	$(MAKE) MAKE=$(MAKE) $(MFLAGS) depend
+	$(MAKE) MAKE=$(MAKE) $(MFLAGS) $(WORLDOPTS) install
 	@echo ""
 	@date
 	@echo ""
@@ -129,11 +129,11 @@ Everything::
 		$(MAKE) $(MFLAGS) -f Makefile.ini \
 		BOOTSTRAPCFLAGS="$(BOOTSTRAPCFLAGS)" CC="$(CC)"
 	-$(RM) Makefile.bak; $(MV) Makefile Makefile.bak
-	$(MAKE) $(MFLAGS) -f Makefile.bak Makefile
-	$(MAKE) $(MFLAGS) Makefiles
-	$(MAKE) $(MFLAGS) includes
-	$(MAKE) $(MFLAGS) depend
-	$(MAKE) $(MFLAGS) $(WORLDOPTS) install
+	$(MAKE) MAKE=$(MAKE) $(MFLAGS) -f Makefile.bak Makefile
+	$(MAKE) MAKE=$(MAKE) $(MFLAGS) Makefiles
+	$(MAKE) MAKE=$(MAKE) $(MFLAGS) includes
+	$(MAKE) MAKE=$(MAKE) $(MFLAGS) depend
+	$(MAKE) MAKE=$(MAKE) $(MFLAGS) $(WORLDOPTS) install
 	@echo ""
 	@date
 	@echo ""
@@ -186,7 +186,7 @@ tarfile:
 		cp ../Makefile.ini Makefile \
 	  ) ; \
 	  tar cvhf - $(LINKNAMES) \
-	     `$(MAKE) $(MFLAGS) -s DISTCURDIR=$(TARFILE) distfiles` | \
+	     `$(MAKE) MAKE=$(MAKE) $(MFLAGS) -s DISTCURDIR=$(TARFILE) distfiles` | \
 		  compress -c > $(TARFILE).tar.Z ; \
 	  rm -rf $(TARFILE) ; \
 	  echo Done making $(TARFILE).tar.Z ; \
@@ -203,7 +203,7 @@ srcfile:
 		  $(LN) ../$$f . ; \
 	  done) ; \
 	  tar cvhf - \
-	     `$(MAKE) $(MFLAGS) -s DISTCURDIR=$(SRCFILE) \
+	     `$(MAKE) MAKE=$(MAKE) $(MFLAGS) -s DISTCURDIR=$(SRCFILE) \
 	      DISTSUBDIRS="$(SRCSUBDIRS)" distfiles ` | \
 		  compress -c > $(SRCFILE).tar.Z ; \
 	  rm -rf $(SRCFILE) ; \
