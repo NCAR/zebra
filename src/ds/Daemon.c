@@ -47,7 +47,7 @@
 # include "dsDaemon.h"
 # include "commands.h"
 
-RCSID ("$Id: Daemon.c,v 3.58 1996-11-19 09:08:18 granger Exp $")
+RCSID ("$Id: Daemon.c,v 3.59 1996-12-03 06:57:43 granger Exp $")
 
 /*
  * Local forwards.
@@ -720,7 +720,7 @@ struct message *msg;
 		client = (struct mh_client *) msg->m_data;
 		if (client->mh_evtype == MH_CE_DISCONNECT)
 		{
-			dap_Cancel (client->mh_client);
+			dap_Disconnect (client->mh_client);
 			CleanClientLocks (client->mh_client);
 		}
 		break;

@@ -26,7 +26,7 @@
 # include "DataStore.h"
 # include "dsPrivate.h"
 
-RCSID("$Id: d_Notify.c,v 3.8 1996-11-19 09:28:22 granger Exp $")
+RCSID("$Id: d_Notify.c,v 3.9 1996-12-03 06:57:44 granger Exp $")
 
 /*
  * Here we take advantage of the knowledge that PlatformID's are simply small
@@ -125,6 +125,24 @@ struct dsp_NotifyRequest *req;
 		msg_send (CopyProc, MT_DATASTORE, FALSE, req,
 			  sizeof (*req) + strlen (from) + 1);
 	}
+}
+
+
+
+
+void
+dap_Disconnect (proc)
+char *proc;
+/*
+ * Handle the disconnection of this process.
+ */
+{
+	if (Copies && (strcmp (CopyProc, proc) == 0))
+	{
+		Copies = FALSE;
+		CopyProc[0] = '\0';
+	}
+	dap_Cancel (proc);
 }
 
 

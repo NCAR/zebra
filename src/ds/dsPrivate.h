@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 3.31 1996-11-19 09:38:27 granger Exp $
+ * $Id: dsPrivate.h,v 3.32 1996-12-03 06:57:45 granger Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -610,6 +610,7 @@ struct dsp_ProtoVersion
 void dap_Init FP ((void));
 void dap_Request FP ((char *, struct dsp_NotifyRequest *));
 void dap_Cancel FP ((char *client));
+void dap_Disconnect FP ((char *client));
 void dap_Notify FP ((PlatformId, ZebTime *, int, int, int));
 void dap_Copy FP ((char *));
 int dap_IsInterest FP ((int pid));
