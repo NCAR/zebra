@@ -28,10 +28,10 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-# include <regex.h> /* use GNU implementation of POSIX regex in Zeb library */
+# include <zl_regex.h> /* System-independent regex functions in Zeb library */
 
 #ifndef lint
-MAKE_RCSID ("$Id: dc_Attr.c,v 1.9 1994-01-03 07:15:35 granger Exp $")
+MAKE_RCSID ("$Id: dc_Attr.c,v 1.10 1994-01-05 20:18:08 granger Exp $")
 #endif
 
 /*--------------------------------------------------------------------
@@ -501,7 +501,7 @@ void *arg;
 	AttrRec *rec;
 	int len;
 	int ret;
-	regex_t reg;
+	char *stat;
 /*
  * Look for our block.
  */
@@ -524,7 +524,11 @@ void *arg;
  */
 	if (pattern)
 	{
-	        regcomp (&reg, pattern, REG_EXTENDED);
+	        if (stat = zl_re_comp (pattern))
+		{
+			msg_ELog (EF_PROBLEM,"regexp '%s': %s", pattern, stat);
+			pattern = NULL;
+		}
 	}
 /*
  * Go through all of the attributes now.
@@ -536,7 +540,7 @@ void *arg;
 	/*
 	 * Pass it to the function.
 	 */
-		if (! pattern || regexec (&reg, AR_KEY(rec), 0, NULL, 0))
+		if (! pattern || zl_re_exec (AR_KEY(rec)))
 			ret = (*func) (AR_KEY(rec), AR_VALUES(rec), 
 				       rec->ar_NValues, AR_TYPE(rec), arg);
 		if (ret)
@@ -721,7 +725,7 @@ int *natts;
 	int num_atts, count;
 	AttrADE *ade;
 	AttrRec *rec;
-	regex_t reg;
+	char *stat;
 
 	if (natts)
 		*natts = 0;
@@ -734,7 +738,13 @@ int *natts;
  * If we have a pattern, compile it now.
  */
 	if (pattern)
-	        regcomp (&reg, pattern, REG_EXTENDED);
+	{
+	        if (stat = zl_re_comp (pattern))
+		{
+			msg_ELog (EF_PROBLEM,"regexp '%s': %s", pattern, stat);
+			pattern = NULL;
+		}
+	}
 /*
  * Get some memory. Rather than realloc we free and malloc since we
  * we don't need to copy the old stuff.
@@ -763,7 +773,7 @@ int *natts;
 			rec = dca_NextRec (ade, rec);
 			continue;
 		}
-		if (! pattern || regexec (&reg, AR_KEY(rec), 0, NULL, 0))
+		if (! pattern || zl_re_exec (AR_KEY(rec)))
 		{
 			local_keys[count] = AR_KEY(rec);
 			local_vals[count] = (char *)AR_VALUES(rec);

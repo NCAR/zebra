@@ -39,9 +39,9 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 # include "commands.h"
-# include "regex.h"
+# include "zl_regex.h"
 
-MAKE_RCSID ("$Id: Daemon.c,v 3.31 1994-01-03 10:25:32 granger Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.32 1994-01-05 20:18:04 granger Exp $")
 
 
 /*
@@ -51,7 +51,6 @@ MAKE_RCSID ("$Id: Daemon.c,v 3.31 1994-01-03 10:25:32 granger Exp $")
 struct SearchInfo {
 	struct dsp_PlatformSearch *si_req;
 	struct dsp_PlatformList *si_list;
-	regex_t si_regex;
 	char *si_to;
 };
 
@@ -1231,7 +1230,7 @@ struct dsp_PlatformSearch *req;
 {
 	struct dsp_PlatformList *answer;
 	struct SearchInfo info;
-	int re_result;
+	char *re_result;
 	int len, i;
 /*
  * Create space for all possible matches, but we'll send only as many as we
@@ -1255,25 +1254,22 @@ struct dsp_PlatformSearch *req;
 /*
  * Prepare our regexp, if there is one.  If there isn't, we match everything
  */
-	re_result = 0;
+	re_result = NULL;
 	if (req->dsp_regexp[0])
 	{
-		re_result = regcomp (&info.si_regex, req->dsp_regexp,
-				     REG_EXTENDED | REG_NOSUB);
+		re_result = zl_re_comp (req->dsp_regexp);
 		if (re_result)
-			msg_ELog (EF_PROBLEM, "PlatformSearch, '%s': error %d",
+			msg_ELog (EF_PROBLEM, "PlatformSearch, '%s': %s",
 				  req->dsp_regexp, re_result);
 	}
 /*
  * Now loop through all of our platforms and test each one, skipping
  * all of the duplicate, parent-qualified subplatform names.
  */
-	if (re_result == 0)
+	if (re_result == NULL)
 	{
 		dt_SearchPlatforms (MatchPlatform, (void *)&info, 
 				    req->dsp_alphabet, /*regexp*/ NULL);
-		if (req->dsp_regexp[0])
-			regfree (&info.si_regex);
 	}
 /*
  * The response has been filled or left empty.  Send it off.
@@ -1335,8 +1331,7 @@ struct SearchInfo *info;
 /*
  * The last remaining check is the regular expression, if there is one
  */
-	if ((req->dsp_regexp[0] == '\0') || 
-	    (regexec (&info->si_regex, plat->dp_name, 0, NULL, 0) == 0))
+	if ((req->dsp_regexp[0] == '\0') || (zl_re_exec (plat->dp_name)))
 	{
 		struct dsp_PlatStructSearch send;
 
