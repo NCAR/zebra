@@ -42,7 +42,7 @@ static char *rcsid = "$ID$";
 # include "dslib.h"
 
 
-# define MAXPLAT	64
+# define MAXPLAT	1024
 
 /*
  * Data structures for the platforms we know.
