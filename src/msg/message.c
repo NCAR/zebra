@@ -51,7 +51,7 @@
 # include <message.h>
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.41 1996-08-16 20:35:49 granger Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.42 1996-08-20 19:59:50 granger Exp $")
 /*
  * Symbol tables.
  */
@@ -260,6 +260,7 @@ static void broadcast FP ((struct message *msg, struct connection *conp));
 static void route FP ((int fd, struct message *msg));
 static void identify FP ((int fd, struct message *msg));
 static void join FP ((int fd, struct message *msg));
+static void listgroup FP ((int fd, struct message *msg));
 static void create_group FP ((struct connection *conp, char *name));
 static void Stats FP ((struct connection *conp, char *to, int query));
 static void ack FP ((struct connection *conp, struct message *msg));
@@ -1950,7 +1951,13 @@ Message *msg;
 	    case MH_CLIENT:
 		broadcast (msg, Fd_map[fd]);
 		break;
-		
+	/*
+	 * Someone wants a list of clients in a group.
+	 */
+	   case MH_LISTGROUP:
+		listgroup (fd, msg);
+		break;
+
 	   default:
 		send_log (EF_PROBLEM, "Funky MESSAGE type: %d", tm->mh_type);
 		break;
@@ -2352,6 +2359,58 @@ struct message *msg;
 
 
 
+static void
+listgroup (fd, msg)
+int fd;
+struct message *msg;
+/*
+ * This process wants of list of group members.
+ */
+{
+	struct message out;
+	struct mh_members *mg = (struct mh_members *) msg->m_data;
+	struct mh_members *reply = NULL;
+	struct group *grp = NULL;
+	char *name;
+	int i, len;
+	int type;
+	SValue v;
+
+	len = sizeof (struct mh_members);
+	name = (mg->mh_group[0] ? mg->mh_group : MSG_EVERYBODY);
+ 	if (usy_g_symbol (Group_table, name, &type, &v))
+	{
+	 	grp = (struct group *) v.us_v_ptr;
+		len += ((grp->g_nprocs - 1) * sizeof (mg->mh_client[0]));
+	}
+	reply = (struct mh_members *) malloc (len);
+	if (! reply)
+	{
+		send_log (EF_EMERGENCY, 
+			  "malloc failed for reply to listgroup %s", name);
+		return;
+	}
+	reply->mh_type = MH_GROUP;
+	strcpy (reply->mh_group, name);
+	reply->mh_nclient = (grp ? grp->g_nprocs : 0);
+	for (i = 0; grp && (i < grp->g_nprocs); i++)
+	{
+		strcpy (reply->mh_client[i], grp->g_procs[i]->c_name);
+	}
+
+	strcpy (out.m_to, msg->m_from);
+	strcpy (out.m_from, MSG_MGR_NAME);
+	out.m_proto = MT_MESSAGE;
+	out.m_len = len;
+	out.m_flags = 0;
+	out.m_data = (char *) reply;
+	send_msg (Fd_map[fd], &out);
+	if (reply)
+		free (reply);
+}
+
+
+
 
 static void
 ack (conp, msg)
@@ -2370,6 +2429,7 @@ struct message *msg;
 	strcpy (out.m_from, MSG_MGR_NAME);
 	out.m_proto = MT_MESSAGE;
 	out.m_len = sizeof (ack);
+	out.m_flags = 0;
 	out.m_data = (char *) &ack;
 	ack.mh_type = MH_ACK;
 	ack.mh_number = msg->m_seq;
