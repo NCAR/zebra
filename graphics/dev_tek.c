@@ -26,32 +26,22 @@ int extra;
 {
 	int b;
 	char obuf[10], *op = obuf;
-/*
- * Put together the Hi-Y byte, and send it if necessary.
- */
-	b = ((y & 0xF80) >> 7) | LBIT;
-	*op++ = b;
-/*
- * Send the "extra" byte.
- */
- 	if (extra)
+
+	if (extra)
+	{
+		*op++ = ((y & 0xF80) >> 7) | LBIT;
 		*op++ = HBIT | LBIT | ((y & 0x3) << 2) | (x & 0x3);
-/*
- * Now send the Lo-Y byte.
- */
-	*op++ = HBIT | LBIT | ((y & 0x7C) >> 2);
-/*
- * Put together and send the Hi-X byte, if necessary.
- */
-	b = ((x & 0xF80) >> 7) | LBIT;
-	*op++ = b;
-/*
- * Send the Lo-X byte.
- */
-	*op++ = HBIT | ((x & 0x7C) >> 2);
-/*
- * Finally, actually ship all this stuff out.
- */
+		*op++ = HBIT | LBIT | ((y & 0x7C) >> 2);
+		*op++ = ((x & 0xF80) >> 7) | LBIT;
+		*op++ = HBIT | ((x & 0x7C) >> 2);
+	}
+	else
+	{
+		*op++ = ((y & 0x3E0) >> 5) | LBIT;
+		*op++ = HBIT | LBIT | (y & 0x1F);
+		*op++ = ((x & 0x3E0) >> 5) | LBIT;
+		*op++ = (x & 0x1F) | HBIT;
+	}
  	*op = '\0';
 	gtty_out (tag, obuf);
 }
