@@ -1,5 +1,5 @@
 /* 11/84 jc */
-/* $Id: disk.c,v 1.4 1990-01-16 09:57:54 wyngaard Exp $ */
+/* $Id: disk.c,v 1.5 1993-12-28 20:50:50 case Exp $ */
 /*
  * Disk handling.
  *
@@ -591,7 +591,7 @@ short rfa[3];
 	if (lun_type (r) == LUN_NTDSK_DISK)
 	{
 		cli_drfa (lun_lookup (r), rfa);
-		return;
+		return (0);
 	}
 	else
 		fd = (FILE *) lun_lookup (r);
@@ -641,7 +641,7 @@ LTYPE r;
 	if (lun_type (r) == LUN_NTDSK_DISK)
 	{
 		cli_dagain (lun_lookup (r));
-		return;
+		return (0);
 	}
 	else
 		fd = (FILE *) lun_lookup (r);
@@ -693,7 +693,7 @@ short rfa[3];
 	if (lun_type (r) == LUN_NTDSK_DISK)
 	{
 		cli_dfind (lun_lookup (r), rfa);
-		return;
+		return (0);
 	}
 	else
 		fd = (FILE *) lun_lookup (r);
@@ -720,7 +720,7 @@ LTYPE r;
 	if ((status = sys$close (r->rab$l_fab)) != RMS$_NORMAL)
 	{
 		errmes (&status);
-		return;
+		return (0);
 	}
 /*
  * Deallocate the storage.
