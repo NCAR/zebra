@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.6 1993-07-01 20:15:15 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.7 1994-01-21 11:49:06 granger Exp $"
 
 LOCAL_LIBRARIES = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
 
@@ -38,9 +38,6 @@ DISTFILES = $(SRCS) Imakefile $(FSRCS) $(README) $(MISC)
 /* CDEBUGFLAGS = -g -pg -static */
 /* CDEBUGFLAGS = -g */
 
-/*-----------------------------------------------------------------------*/
-#if BuildIngest
-
 NormalProgramTarget(p3fest_ingest,p3fest_ingest.o $(OBJS),$(DEPLIBS),
 				$(LOCAL_LIBRARIES),/**/)
 
@@ -52,10 +49,5 @@ InstallProgramWithFlags(acqual,$(BINDIR),-s)
 NormalProgramTargetNoInstall(windsname,windsname.o,/**/,$(LIBNETCDF),/**/)
 InstallProgramWithFlags(windsname,$(BINDIR),-s)
 DependTarget()
-
-/*------------------------------------------------------------------------*/
-#else
-OmitBuildRules(FEST P3 and C130 ingest)
-#endif
 
 DistfilesTarget($(DISTFILES))

@@ -15,13 +15,13 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.1 1994-01-21 00:16:36 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.2 1994-01-21 11:50:36 granger Exp $"
 
-LOCAL_LIBRARIES = $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
+LOCAL_LIBRARIES = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
 
 LINTOPTS = -nuvxz
 
-DISTFILES = togast.c Imakefile
+DISTFILES = togast.c readstape.c Imakefile
 
 SimpleProgramTarget(togast)
 

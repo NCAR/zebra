@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.4 1993-08-04 17:15:13 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.5 1994-01-21 11:48:00 granger Exp $"
 
 #define IHaveSubdirs
 #define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
@@ -23,25 +23,60 @@ MFVERSION="$Id: Imakefile,v 1.4 1993-08-04 17:15:13 granger Exp $"
 ETC = etc
 LIBS = lib ds
 
+#if BuildIngest && DistributeIngest
+INGEST = ingest
+#endif
+#if BuildOptimizer && DistributeOptimizer
+OPTIMIZER = Optimizer
+#endif
+#if BuildDataUtilities && DistributeDataUtil
+DATAUTIL = datautil
+#endif
+#if BuildRealtimeDataStoreTools && DistributeRealtimeDataStoreTools
+REALTIME = realtime
+#endif   
+#if BuildDataManager && DistributeDataManager
+DSMANAGE = dsmanage
+#endif
+
+
 /*
- * "lib" and "ds" must come first, in that order.  Thereafter it's
+ * "LIB" and "ds" must come first, in that order.  Thereafter it's
  * alphabetical but really doesn't matter.
  */
-SUBDIRS = $(LIBS) datautil dm dsdelete dsdump dsdwidget dsmanage \
-	dsrescan $(ETC) EventLogger fccclock gettime gp ingest \
-	msg msg_ping mstatus mtap Optimizer pdmon prt_Notify realtime \
+SUBDIRS = $(LIBS) $(DATAUTIL) dm dsdelete dsdump dsdwidget $(DSMANAGE) \
+	dsrescan $(ETC) EventLogger fccclock gettime gp $(INGEST) \
+	msg msg_ping mstatus mtap $(OPTIMIZER) pdmon prt_Notify $(REALTIME) \
 	settime Sound timer tweakcolor xhelp zebstop zmon zquery zrun
 
-XCOMM For now, we'll just include everything in the distfiles target.  They
+XCOMM Include everything in the distfiles target.  They
 XCOMM don't all have to be compiled, so no big deal sending along a little
 XCOMM extra source.  Distribute prt_Notify even though it will never get
 XCOMM built, so that we don't forget it somewhere down the road.
 
+#if DistributeIngest
+DISTINGEST = ingest
+#endif
+#if DistributeOptimzer
+DISTOPTIMIZER = Optimizer
+#endif
+#if DistributeDataUtil
+DISTDATAUTIL = datautil
+#endif
+#if DistributeRealtimeDataStoreTools
+DISTREALTIME = realtime
+#endif
+#if DistributeDataManager
+DISTDSMANAGE = dsmanage
+#endif
+
 DISTFILES = Imakefile
-DISTSUBDIRS = lib ds datautil dm dsdelete dsdump dsdwidget dsmanage dsrescan \
-	etc EventLogger fccclock gettime gp ingest \
-	msg msg_ping mstatus mtap Optimizer pdmon prt_Notify realtime \
-	settime Sound timer tweakcolor xhelp zebstop zmon zquery zrun
+DISTSUBDIRS = lib ds $(DISTDATAUTIL) dm dsdelete dsdump dsdwidget \
+	$(DISTDSMANAGE) \
+	dsrescan etc EventLogger fccclock gettime gp $(DISTINGEST) \
+	msg msg_ping mstatus mtap $(DISTOPTIMIZER) pdmon prt_Notify \
+	$(DISTREALTIME) settime Sound timer tweakcolor xhelp zebstop \
+	zmon zquery zrun
 
 MakeSubdirs($(SUBDIRS))
 DependSubdirs($(SUBDIRS))
@@ -56,3 +91,23 @@ programs:
 
 libraries:
 	$(MAKE) $(MFLAGS) SUBDIRS='$(LIBS)' $(TARGET)
+
+#if !BuildIngest
+OmitBuildRules(ingest utilities)
+#endif
+
+#if !BuildOptimizer
+OmitBuildRules(Optimizer)
+#endif
+
+#if !BuildDataUtilities
+OmitBuildRules(data utilities)
+#endif
+
+#if !BuildRealtimeDataStoreTools
+OmitBuildRules(real-time DataStore tools)
+#endif   
+
+#if !BuildDataManager
+OmitBuildRules(dsmanage)
+#endif

@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.5 1993-08-10 20:44:11 case Exp $"
+MFVERSION="$Id: Imakefile,v 1.6 1994-01-21 11:48:34 granger Exp $"
 
 /*
  * All individual ingest-related routines are kept in subdirectories.  Code
@@ -28,24 +28,219 @@ MFVERSION="$Id: Imakefile,v 1.5 1993-08-10 20:44:11 case Exp $"
 #define IHaveSubdirs
 #define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
 
-SUBDIRS = mcidas aircraft llp radar nats class pam p3 nowrad \
-          SLGrabber RadarLimits satellite profs fm is tao
+/*
+ * If adding a new ingest directory, make sure you do all of the following:
+ *
+ * Determine a conditional build symbol and add a line for the symbol's
+ * default value in config.h
+ *
+ * Add the test for the conditional symbol, which when positive defines
+ * a variable whose value is the directory name.
+ *
+ * Add the directory variable to the SUBDIRS variable below.
+ *
+ * Add the directory name to the DISTSUBDIR variable below.
+ *
+ * Add a test for the negative of the build symbol at the end of this file,
+ * calling OmitBuildRules() on the name of the ingest module.
+ */
+#if BuildIngestScheduler
+IS = is
+#endif
+#if BuildClassIngest
+CLASS = class
+#endif
+#if BuildRadarIngest
+RADAR = radar
+#endif
+#if BuildSLGrabber
+SLGRABBER = SLGrabber
+#endif
+#if BuildNowradIngest
+NOWRAD = nowrad
+#endif
+#if BuildProfsIngest
+PROFS = profs
+#endif
+#if BuildSatelliteIngest
+SATELLITE = satellite
+#endif
+#if BuildRadarLimits
+RADARLIMITS = RadarLimits
+#endif
+#if BuildNatsIngest
+NATS = nats
+#endif
+#if BuildP3Ingest
+P3 = p3
+#endif
+#if BuildPamIngest
+PAM = pam
+#endif
+#if BuildRAPDataServerIngest
+RAP_DATA_SERVER = rap_data_server
+#endif
+#if BuildWetnetIngest
+WETNET = wetnet
+#endif
+#if BuildAircraftIngest
+AIRCRAFT = aircraft
+#endif
+#if BuildFMIngest
+FM = fm
+#endif
+#if BuildLLPIngest
+LLP = llp
+#endif
+#if BuildP3Composite
+P3COMPOSITE = p3composite
+#endif
+#if BuildTOGASlowTape
+TOGAST = togast
+#endif
+#if BuildSlowTapeIngest
+ST_INGEST = st_ingest
+#endif
+#if BuildTAOIngest
+TAO = tao
+#endif
+#if Build_GMS_ISCCP
+GMSISCCP = gmsISCCP
+#endif
+#if Build_TRMM_SSMI
+SSMI = ssmi
+#endif
+#if Build_TRMM_Rain
+TRMM_RAIN = trmm_rain
+#endif
+#if Build_TRMM_Sonde
+TRMM_SONDE = trmm_sonde
+#endif
+#if Build_FEST_P3_C130
+FEST_P3_C130 = fest_p3_c130
+#endif
+#if BuildPrecipIngest
+PRECIP = precip
+#endif
+#if BuildDAPIngest
+DAP = dap
+#endif
+
+
+/*
+ * This line cannot be divided with escaped newlines because it
+ */
+SUBDIRS = mcidas $(IS) $(CLASS) $(RADAR) $(SLGRABBER) $(NOWRAD) $(PROFS) \
+	  $(SATELLITE) $(RADARLIMITS) $(NATS) $(P3) $(PAM) \
+	  $(RAP_DATA_SERVER) $(WETNET) $(AIRCRAFT) $(FM) $(LLP) \
+	  $(P3COMPOSITE) $(TOGAST) $(ST_INGEST) $(TAO) $(GMSISCCP) \
+	  $(SSMI) $(TRMM_RAIN) $(TRMM_SONDE) $(FEST_P3_C130) $(PRECIP) \
+	  $(DAP)
 
 /*
  * Other subdirectories which for the moment are not made by their
  * parent directory, but they are included as distfiles so they'll
  * be put in distribution lists as whole directories rather than 
- * file-by-file.  The idea is that these will not usually be built, so
- * they won't need Makefiles, cleaning, or a specific distfiles target.
+ * file-by-file.
  */
-OTHERSUBDIRS = dap fest_p3_c130 precip ssmi trmm_rain trmm_sonde gmsISCCP
+OTHERSUBDIRS = raps
 
 DISTFILES = Imakefile $(OTHERSUBDIRS)
 DISTSUBDIRS = mcidas aircraft llp radar nats class pam p3 nowrad \
-	      SLGrabber RadarLimits satellite profs fm is tao
+	      SLGrabber RadarLimits satellite profs fm is tao \
+	      p3composite st_ingest togast gmsISCCP rap_data_server \
+	      wetnet ssmi trmm_rain trmm_sonde fest_p3_c130 precip \
+	      dap
 
 MakeSubdirs($(SUBDIRS))
 DependSubdirs($(SUBDIRS))
 InstallLibSubdirs($(SUBDIRS))
 DistfilesTarget($(DISTFILES))
 DistfilesSubdirs($(DISTSUBDIRS))
+
+
+/*
+ * Omission notices.  This might get verbal, but for testing and feedback
+ * it will probably be very useful.
+ */
+#if !BuildIngestScheduler
+OmitBuildRules(ingest scheduler)
+#endif
+#if !BuildClassIngest
+OmitBuildRules(CLASS ingest)
+#endif
+#if !BuildRadarIngest
+OmitBuildRules(radar ingest)
+#endif
+#if !BuildSLGrabber
+OmitBuildRules(serial line grabber)
+#endif
+#if !BuildNowradIngest
+OmitBuildRules(NOWRAD ingest)
+#endif
+#if !BuildProfsIngest
+OmitBuildRules(profs ingest)
+#endif
+#if !BuildSatelliteIngest
+OmitBuildRules(satellite ingest)
+#endif
+#if !BuildRadarLimits
+OmitBuildRules(radar limits)
+#endif
+#if !BuildNatsIngest
+OmitBuildRules(nats ingest)
+#endif
+#if !BuildP3Ingest
+OmitBuildRules(P3 ingest)
+#endif
+#if !BuildPamIngest
+OmitBuildRules(PAM ingest)
+#endif
+#if !BuildRAPDataServerIngest
+OmitBuildRules(RAP data server)
+#endif
+#if !BuildWetnetIngest
+OmitBuildRules(WETNET ingest)
+#endif
+#if !BuildAircraftIngest
+OmitBuildRules(aircraft ingest)
+#endif
+#if !BuildFMIngest
+OmitBuildRules(field mill ingest)
+#endif
+#if !BuildLLPIngest
+OmitBuildRules(llp ingest)
+#endif
+#if !BuildP3Composite
+OmitBuildRules(P3 composite ingest)
+#endif
+#if !BuildTOGASlowTape
+OmitBuildRules(TOGA slow tape)
+#endif
+#if !BuildSlowTapeIngest
+OmitBuildRules(slow tape ingest)
+#endif
+#if !BuildTAOIngest
+OmitBuildRules(TAO ingest)
+#endif
+#if !Build_GMS_ISCCP
+OmitBuildRules(GMS ISCCP ingest)
+#endif
+#if !Build_TRMM_SSMI
+OmitBuildRules(TRMM SSMI ingest)
+#endif
+#if !Build_TRMM_Rain
+OmitBuildRules(TRMM raingauge ingest)
+#endif
+#if !Build_TRMM_Sonde
+OmitBuildRules(TRMM sonde ingest)
+#endif
+#if !Build_FEST_P3_C130
+OmitBuildRules(StormFEST P3 and C130 ingest)
+#endif
+#if !BuildPrecipIngest
+OmitBuildRules(PrecipIngest)
+#endif
+#if !BuildDAPIngest
+OmitBuildRules(DAP ingest)
+#endif

@@ -15,22 +15,22 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.1 1993-08-10 20:27:33 case Exp $"
+MFVERSION="$Id: Imakefile,v 1.2 1994-01-21 11:49:00 granger Exp $"
 
 LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF)
 
-SRCS = dap_ingest.c
+SRCS = dap_ingest.c raf.c
 OBJS = dap_ingest.o
 
-DISTFILES = Imakefile $(SRCS) get-dap dap_ingest.state dap.fields dap_file.h dap_cmds.h 
+HDRS = dap_file.h dap_cmds.h
 
-NormalProgramTarget(dap_ingest,dap_ingest.o,
+DISTFILES = Imakefile $(SRCS) $(HDRS) dap_ingest.state dap.fields list
+
+NormalProgramTarget(dap_ingest, dap_ingest.o,
 		$(DEPLIBS), $(LIBS) $(LIBUNP) $(XLIBS),$(SYSLIBS))
 
 UILoadFileTarget(dap_ingest.lf,dap_ingest.state)
-DependTarget()
 
 LintTarget()
-
+DependTarget()
 DistfilesTarget($(DISTFILES))
-

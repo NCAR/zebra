@@ -15,9 +15,9 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.1 1993-07-07 16:30:18 burghart Exp $"
+MFVERSION="$Id: Imakefile,v 1.2 1994-01-21 11:50:09 granger Exp $"
 
-LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS) $(FLIBS)
+LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
 
 DEPLIBS = $(LIBZEB) $(LIBZEBDS)
 
@@ -29,9 +29,6 @@ OBJS = freeform.o get_server_data.o print_stuff.o sock_subs.o time_date.o
 DISTFILES = Imakefile $(SRCS) RAP_DsIngest.state example.input \
 	    cdata_server.h ds_cmds.h
 
-/*---------------------------------------------------------------------*/
-#if BuildIngest && BuildRAPDataServerIngest
-
 NormalProgramTarget(RAP_DsIngest,RAP_DsIngest.o $(OBJS),
 		    $(DEPLIBS),$(LIBS),$(SYSLIBS))
 
@@ -42,9 +39,5 @@ UICppLoadFileTarget(RAP_DsIngest.lf,RAP_DsIngest.state,ds_cmds.h)
 
 LintTarget()
 DependTarget()
-/*---------------------------------------------------------------------*/
-#else
-OmitBuildRules(RAP data server ingest)
-#endif
 
 DistfilesTarget($(DISTFILES))

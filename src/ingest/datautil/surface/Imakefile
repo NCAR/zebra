@@ -1,5 +1,5 @@
 XCOMM ---------------------------------------------------------------------
-XCOMM $Id: Imakefile,v 1.2 1993-07-01 20:12:23 granger Exp $ 
+XCOMM $Id: Imakefile,v 1.3 1994-01-21 11:48:17 granger Exp $ 
 XCOMM ---------------------------------------------------------------------
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
@@ -35,9 +35,6 @@ HDRS =	sc_cmds.h
 DISTFILES = Imakefile $(SRCS) $(FSRCS) $(HDRS) surf_convert.state \
 	    surf.example
 
-/*------------------------------------------------------------------------*/
-#if BuildDataUtilities
-
 NormalProgramTarget(surf_convert,$(OBJS),$(DEPLIBS), $(LOCAL_LIBRARIES), 
 		    $(SYSLIBS))
 
@@ -49,10 +46,5 @@ CflowTarget(surf_convert, $(OBJS), /**/)
 
 DependTarget()
 LintTarget()
-
-/*------------------------------------------------------------------------*/
-#else
-OmitBuildRules(surface data utilities)
-#endif
 
 DistfilesTarget($(DISTFILES))

@@ -26,6 +26,11 @@ WRITEVOBJ=
 WRITEVSRC=
 #endif
 
+/*
+ * Graphics widget needs to know whether to try shared memory
+ */
+DEFINES = $(SHMDEFINES) 
+
 SRCS = alarmwidget.c barb.c Bitmaps.c cmd_proto.c ConfigVars.c convert.c \
 	GraphicsW.c ImageXfr.c LeftRightButtons.c msg_BCast.c msg_lib.c \
 	netread.c Parse.c pdlib.c pdaux.c RLEncode.c \

@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.10 1993-12-22 18:18:14 corbet Exp $"
+MFVERSION="$Id: Imakefile,v 1.11 1994-01-21 11:48:06 granger Exp $"
 
 #define IHaveSubdirs
 #define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
@@ -36,7 +36,6 @@ OTHERS = mud.id gp.hdr convmud.doc uwtocdf iss.problem netcdf_fixlon
 
 DISTFILES = Imakefile $(SRCS) $(FSRCS) $(HEADERS) dscopy.state
 
-#if BuildDataUtilities	/*-------------------- conditional -------------*/
 
 NormalProgramTargetNoInstall(dscopy, dscopy.o, $(DEPLIBS),
 			     $(LIBZEBDS) $(LIBS) $(XLIBS), $(SYSLIBS))
@@ -86,12 +85,6 @@ saber_dc:
 
 DependTarget()
 LintTarget()
-
-#else		/*---------not building data utilities----------*/
-
-OmitBuildRules(data utilities)
-
-#endif 		/* BuildDataUtilities */
 
 MakeSubdirs($(SUBDIRS))
 DependSubdirs($(SUBDIRS))

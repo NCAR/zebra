@@ -1,5 +1,5 @@
 XCOMM ---------------------------------------------------------------------
-XCOMM $Id: Imakefile,v 1.2 1993-07-01 20:12:20 granger Exp $ 
+XCOMM $Id: Imakefile,v 1.3 1994-01-21 11:48:11 granger Exp $ 
 XCOMM ---------------------------------------------------------------------
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
@@ -35,9 +35,6 @@ HDRS =	pc_cmds.h
 DISTFILES = Imakefile $(SRCS) $(FSRCS) $(HDRS) prof_convert.state README \
 	    profiler.names profiler.txt
 
-/*-----------------------------------------------------------------------*/
-#if BuildDataUtilities
-
 NormalProgramTarget(prof_convert,$(OBJS),$(DEPLIBS), $(LOCAL_LIBRARIES), 
 		    $(SYSLIBS))
 
@@ -49,11 +46,6 @@ CflowTarget(prof_convert, $(OBJS),)
 
 DependTarget()
 LintTarget()
-
-/*-----------------------------------------------------------------------*/
-#else
-OmitBuildRules(profiler data utilities)
-#endif
 
 DistfilesTarget($(DISTFILES))
 

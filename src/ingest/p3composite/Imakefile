@@ -15,16 +15,19 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.1 1994-01-21 00:21:20 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.2 1994-01-21 11:49:43 granger Exp $"
 
-LIBS = $(LIBZEB) $(LIBRDSS) $(LIBNETCDF)
+LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF)
 
 SRCS = p3comp_ingest.c
 OBJS = p3comp_ingest.o
 
-DISTFILES = Imakefile $(SRCS) 
+HDRS = P3Composite.h
 
-NormalProgramTargetNoInstall(p3comp_ingest,$(OBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
+DISTFILES = Imakefile $(SRCS) $(HDRS)
+
+NormalProgramTargetNoInstall(p3comp_ingest,$(OBJS),$(DEPLIBS),
+			     $(LIBS),$(SYSLIBS))
 
 InstallProgramWithFlags(p3comp_ingest,$(BINDIR),-s)
 

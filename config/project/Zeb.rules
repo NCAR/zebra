@@ -1,5 +1,5 @@
 XCOMM
-XCOMM $Id: Zeb.rules,v 1.10 1993-12-03 22:13:23 granger Exp $
+XCOMM $Id: Zeb.rules,v 1.11 1994-01-21 11:47:49 granger Exp $
 XCOMM
 XCOMM Rules specific to the Zeb project, including some which override
 XCOMM definitions in Imake.rules
@@ -104,7 +104,7 @@ XCOMM
  *     path can be given, as in the case of making a tar file of a
  *     whole distribution.
  *
- * OmitBuild(name)
+ * OmitBuildRules(name)
  *  -- Inserts comments indicating that rules to build the named module
  *     were not included because of symbols defined elsewhere (config.h)
  */
@@ -500,10 +500,6 @@ clean::									@@\
 
 
 /*
- * CccProgramTarget(
-
-
-/*
  * InstallProgramSetUID -- Install a program into 'dest' using
  * the INSTUIDFLAGS variable.  If the user is not 'root', a warning
  * is issued.
@@ -567,28 +563,57 @@ install::								@@\
 #ifndef DistfilesTarget
 #define DistfilesTarget(files)						@@\
 distfiles:: files							@@\
-	@for f in files ; do \						@@\
+	@for f in files END; do \					@@\
+		if [ $$f = "END" ]; then break; fi; \			@@\
 		echo $(DISTCURDIR)/$$f ; \				@@\
 	done
 #endif
 
 
 /*
- * Propagate the distfiles target to subdirectories
+ * DistCleanTarget - do a make clean with no SUBDIRS.
+ * This target is included in Makefiles by the MakefileAdditions() macro.
+ */
+#ifndef DistCleanTarget
+#define	DistCleanTarget()						@@\
+distclean::								@@\
+	@$(MAKE) $(MFLAGS) MAKE=$(MAKE) clean SUBDIRS=			@@\
+
+#endif /* DistCleanTarget */
+
+/*
+ * Propagate the distfiles and distclean targets to dist subdirectories.
  * Note that we can't use the more standard NamedTargetSubdirs() macro
  * since that macro echoes info that would interfere with the list of files
- * the target is generating
+ * the target is generating.
+ *
+ * We also need to include targets to make Makefiles in the subdirs for
+ * distmakefiles::
  */
 #ifndef DistfilesSubdirs
 #define DistfilesSubdirs(dirs)						@@\
 distfiles::								@@\
 	@case '${MFLAGS}' in *-[ik]*) set +e;; esac; \			@@\
-	for i in dirs ;\						@@\
+	for i in dirs END;\						@@\
 	do \								@@\
+		if [ $$i = "END" ]; then break; fi; \			@@\
 		(cd $$i ; \						@@\
 		   $(MAKE) $(MFLAGS) MAKE=$(MAKE) DISTCURDIR=$(DISTCURDIR)/$$i distfiles); \ @@\
-	done
-#endif
+	done								@@\
+									@@\
+NamedTargetSubdirs(distclean,dirs,"cleaning distdirs",/*flags*/,distclean) @@\
+									@@\
+DistMakefileSubdirs(dirs)
+#endif /* DistfilesSubdirs */
+
+/*
+ * DistMakefileSubdirs - generate rules to create Makefiles for distmakefiles::
+ */
+#ifndef DistMakefileSubdirs
+#define DistMakefileSubdirs(dirs)					@@\
+MakeMakeSubdirs(dirs,distmakefiles)					@@\
+
+#endif /* DistMakefileSubdirs */
 
 
 /*
@@ -615,6 +640,10 @@ mf:: Makefile								@@\
 									@@\
 distfiles::								@@\
 									@@\
+distmakefiles::								@@\
+									@@\
+DistCleanTarget()							@@\
+									@@\
 depend::								@@\
 									@@\
 install.lib::								@@\
@@ -622,6 +651,11 @@ install.lib::								@@\
 #endif
 
 
+/*
+ * Don't bother giving notice about Makefiles and depend not being
+ * propagated.  Only those targets which would result in something being
+ * built or installed, since those targets can affect other targets.
+ */
 #ifndef OmitBuildRules
 #define OmitBuildRules(name)						@@\
 XCOMM !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  @@\
@@ -629,10 +663,13 @@ XCOMM ------ Rules for building name omitted ------			@@\
 XCOMM !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  @@\
 									@@\
 all::									@@\
-	@echo No build of name for this configuration			@@\
+	@echo Not building name						@@\
 									@@\
 install::								@@\
-	@echo name not being built---nothing to install			@@\
+	@echo Not installing name					@@\
+									@@\
+includes::								@@\
+	@echo Not doing includes for name				@@\
 
 #endif
 
@@ -646,15 +683,16 @@ install::								@@\
  * MakeMakeSubdirs - generate rules to recursively recreate Makefiles as part
  * of the specified step in the build.  If $(TOP) is set to an absolute path, 
  * do not prepend the ../ prefix.  This makes running things outside of the 
- * source tree to be much easier.
+ * source tree much easier.
  */
 #ifndef MakeMakeSubdirs
 #define MakeMakeSubdirs(dirs,target)					@@\
 target::								@@\
 	@case '${MFLAGS}' in *-[ik]*) set +e;; esac; \			@@\
-	for i in dirs ;\						@@\
+	for i in dirs END;\						@@\
 	do \								@@\
-		echo "making Makefiles in $(CURRENT_DIR)/$$i..."; \	@@\
+		if [ $$i = "END" ]; then break; fi; \			@@\
+		echo "making" target "in $(CURRENT_DIR)/$$i..."; \	@@\
 		case "$$i" in \						@@\
 		./?*/?*/?*/?*) newtop=../../../../ sub=subsubsubsub;; \	@@\
 		./?*/?*/?*) newtop=../../../ sub=subsubsub;; \		@@\
@@ -669,11 +707,69 @@ target::								@@\
 		/?*) newtop=  upprefix=  ;; \				@@\
 		*) upprefix=../ ;; \					@@\
 		esac; \							@@\
-		$(MAKE) $(MFLAGS) MAKE=$(MAKE) $${sub}dirMakefiles \	@@\
+		$(MAKE) $(MFLAGS) MAKE=$(MAKE) $${sub}dirMakefiles \@@\
+		   MAKESUBDIR_TARGET=target \			@@\
 		   UPPREFIX=$$upprefix NEWTOP=$$newtop \		@@\
 		   MAKEFILE_SUBDIR=$$i NEW_CURRENT_DIR=$(CURRENT_DIR)/$$i;\ @@\
 	done
 #endif /* MakeMakeSubdirs */
 
+
+/*
+ * NamedTargetSubdirs - recursively make a series of steps.  Redefine
+ * the rule in Imake.rules to pass the MAKE variable.
+ */
+#ifndef NamedTargetSubdirs
+#define NamedTargetSubdirs(name,dirs,verb,flags,subname)		@@\
+name::									@@\
+	@case '${MFLAGS}' in *[ik]*) set +e;; esac; \			@@\
+	for i in dirs END;\						@@\
+	do \								@@\
+		if [ $$i = "END" ]; then break; fi; \			@@\
+		(cd $$i ; echo verb "in $(CURRENT_DIR)/$$i..."; \	@@\
+			$(MAKE) $(MFLAGS) MAKE=$(MAKE) flags subname); \		@@\
+	done;
+
+#endif
+
+
+/*
+ * MakeNsubdirMakefiles - generate rules to create sub Makefiles
+ * and propagate the MAKESUBDIR_TARGET target.
+ */
+#ifndef MakeNsubdirMakefiles
+#define MakeNsubdirMakefiles()						@@\
+subdirMakefiles:							@@\
+	$(RM) $(MAKEFILE_SUBDIR)/Makefile.bak				@@\
+	-@if [ -f $(MAKEFILE_SUBDIR)/Makefile ]; then set -x; \		@@\
+	$(MV) $(MAKEFILE_SUBDIR)/Makefile $(MAKEFILE_SUBDIR)/Makefile.bak; \ @@\
+	else exit 0; fi							@@\
+	cd $(MAKEFILE_SUBDIR); $(IMAKE_CMD) -DTOPDIR=$(UPPREFIX)$(TOP) -DCURDIR=$(NEW_CURRENT_DIR); \	@@\
+	$(MAKE) $(MFLAGS) $(MAKESUBDIR_TARGET)				@@\
+									@@\
+subsubdirMakefiles:							@@\
+	$(RM) $(MAKEFILE_SUBDIR)/Makefile.bak				@@\
+	-@if [ -f $(MAKEFILE_SUBDIR)/Makefile ]; then set -x; \		@@\
+	$(MV) $(MAKEFILE_SUBDIR)/Makefile $(MAKEFILE_SUBDIR)/Makefile.bak; \ @@\
+	else exit 0; fi							@@\
+	cd $(MAKEFILE_SUBDIR); $(IMAKE_CMD) -DTOPDIR=$(UPPREFIX)$(UPPREFIX)$(TOP) -DCURDIR=$(NEW_CURRENT_DIR); \	@@\
+	$(MAKE) $(MFLAGS) $(MAKESUBDIR_TARGET)				@@\
+									@@\
+subsubsubdirMakefiles:						@@\
+	$(RM) $(MAKEFILE_SUBDIR)/Makefile.bak				@@\
+	-@if [ -f $(MAKEFILE_SUBDIR)/Makefile ]; then set -x; \		@@\
+	$(MV) $(MAKEFILE_SUBDIR)/Makefile $(MAKEFILE_SUBDIR)/Makefile.bak; \ @@\
+	else exit 0; fi @@\
+	cd $(MAKEFILE_SUBDIR); $(IMAKE_CMD) -DTOPDIR=$(UPPREFIX)$(UPPREFIX)$(UPPREFIX)$(TOP) -DCURDIR=$(NEW_CURRENT_DIR); \	@@\
+	$(MAKE) $(MFLAGS) $(MAKESUBDIR_TARGET)				@@\
+									@@\
+subsubsubsubdirMakefiles:						@@\
+	$(RM) $(MAKEFILE_SUBDIR)/Makefile.bak				@@\
+	-@if [ -f $(MAKEFILE_SUBDIR)/Makefile ]; then set -x; \		@@\
+	$(MV) $(MAKEFILE_SUBDIR)/Makefile $(MAKEFILE_SUBDIR)/Makefile.bak; \ @@\
+	else exit 0; fi 						@@\
+	cd $(MAKEFILE_SUBDIR); $(IMAKE_CMD) -DTOPDIR=$(UPPREFIX)$(UPPREFIX)$(UPPREFIX)$(UPPREFIX)$(TOP) -DCURDIR=$(NEW_CURRENT_DIR); \	@@\
+	$(MAKE) $(MFLAGS) $(MAKESUBDIR_TARGET)
+#endif /* MakeNsubdirMakefiles */
 
 

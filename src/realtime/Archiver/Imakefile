@@ -5,17 +5,9 @@ OBJS = Archiver.o
 LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS) $(LIBREGEXP)
 DISTFILES = $(SRCS) Imakefile Archiver.ad
 
-/*------------------------------------------------------------------------*/
-#if BuildRealtimeDataStoreTools
-
 NormalProgramTarget(Archiver, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 InstallAppDefaults(Archiver)
 DependTarget()
 LintTarget()
-
-/*------------------------------------------------------------------------*/
-#else
-OmitBuildRules(Archiver)
-#endif
 
 DistfilesTarget($(DISTFILES))

@@ -1,5 +1,5 @@
 
-MFVERSION="$Id: Imakefile,v 1.2 1993-07-01 20:15:22 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.3 1994-01-21 11:49:16 granger Exp $"
 
 LIBS = $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
 
@@ -11,9 +11,6 @@ OBJS = is.o
 
 DISTFILES = Imakefile $(SRCS) is.state is_cmds.h is_vars.h
 
-/*---------------------------------------------------------------------*/
-#if BuildIngest && BuildIngestScheduler
-
 NormalProgramTarget(is,$(OBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
 UILoadFileTarget(is.lf,is.state)
@@ -24,10 +21,6 @@ code_src:
 
 LintTarget()
 DependTarget()
-/*---------------------------------------------------------------------*/
-#else
-OmitBuildRules(Ingest Scheduler)
-#endif
 
 DistfilesTarget($(DISTFILES))
 

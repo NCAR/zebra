@@ -1,4 +1,4 @@
-XCOMM $Id: Imakefile,v 1.11 1993-11-30 23:29:56 granger Exp $
+XCOMM $Id: Imakefile,v 1.12 1994-01-21 11:47:36 granger Exp $
 XCOMM
 XCOMM This is the top-level Imakefile for the Zeb distribution.
 XCOMM It is modeled after the top-level Imakefile of the MIT X11R5
@@ -16,7 +16,8 @@ XCOMM distribution.
      SRCSUBDIRS = config imake src
 
 XCOMM Note that for distributions, Makefile should be a copy of 
-XCOMM Makefile.ini and NOT the Makefile created by imake
+XCOMM Makefile.ini and NOT the Makefile created by imake.  The tarfile
+XCOMM target copies Makefile.ini over Makefile automatically.
 
       DISTFILES = Imakefile Makefile.ini Makefile
 #ifdef notdef
@@ -62,8 +63,9 @@ usage::
 	@echo "naming the target on the make command line.  However,"
 	@echo "with some targets you risk compiling with outdated files."
 	@echo "Other targets available:
-	@echo "	make distclean      - clean all subdirectories, as well"
-	@echo "	                      as removing ./bin and ./include"
+	@echo "	make distclean      - clean all subdirectories, even ./imake,"
+	@echo "	                      as well as remove ./bin, ./lib, and"
+	@echo "			      ./include"
 	@echo "	make tarfile        - make a tar file of the distribution,"
 	@echo "	                      see Imakefile for info before using"
 	@echo "Press <Return> here to continue with 'make Everything',"
@@ -77,6 +79,7 @@ all:: Everything
 DependSubdirs($(SUBDIRS))
 /*InstallLibSubdirs($(SUBDIRS))*/ 		/* Not used at the moment  */
 
+#ifdef notdef		/* new distfiles strategy should make this obsolete*/
 /*
  * Ordinarily imake/ doesn't get Makefiles:: targets, so explicitly make 
  * sure that it does here.  It needs an imake-generated Makefile for 
@@ -86,6 +89,7 @@ Makefiles::
 	$(MAKE) $(MFLAGS) subdirMakefiles \
 		UPPREFIX=../ NEWTOP=../ \
 		MAKEFILE_SUBDIR=imake NEW_CURRENT_DIR=$(CURRENT_DIR)/imake
+#endif
 
 DistfilesTarget($(DISTFILES))
 DistfilesSubdirs($(DISTSUBDIRS))
@@ -138,15 +142,11 @@ Everything::
 
 /*
  * Some probably wouldn't want a simple 'make clean' to remove
- * the ./bin and ./include directories, and since this is the natural
- * distribution state, this is the 'distclean' target:
+ * the ./bin, ./lib, and ./include directories, and since this is the natural
+ * distribution state, this is called the 'distclean' target:
  */
 distclean::
 	$(RM) -rf $(TOP)/include $(TOP)/bin $(TOP)/lib
-	cd $(IMAKESRC); $(MAKE) $(MFLAGS) -f Makefile.ini clean
-
-distclean:: clean
-
 
 /*
  * This is the top-level rule for generating tar files of the distributed
@@ -171,16 +171,20 @@ distclean:: clean
  * 	make srcfile SRCNAME=pikes-copy \
  *		SRCSUBDIRS="imake config src/msg"
  */
-TARFILE = zeb-1.0
+TARFILE = zeb-4.0
 SRCFILE = zeb-src
 
 tarfile:
 	@echo Making file $(TARFILE).tar.Z ; \
 	if mkdir $(TARFILE) ; then \
 	  (set -x; \
-	   cd $(TARFILE); for f in $(DISTFILES) $(LINKDIRS) $(DISTSUBDIRS); do \
+	   cd $(TARFILE); \
+	        for f in $(DISTFILES) $(LINKDIRS) $(DISTSUBDIRS); do \
 		  $(LN) ../$$f . ; \
-	  done) ; \
+		done; \
+		rm -f Makefile ; \
+		cp ../Makefile.ini Makefile \
+	  ) ; \
 	  tar cvhf - $(LINKNAMES) \
 	     `$(MAKE) $(MFLAGS) -s DISTCURDIR=$(TARFILE) distfiles` | \
 		  compress -c > $(TARFILE).tar.Z ; \

@@ -11,17 +11,9 @@ LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS) $(LIBREGEXP)
 
 DISTFILES = $(SRCS) $(HEADERS) Imakefile NetXfr.state
 
-/*------------------------------------------------------------------------*/
-#if BuildRealtimeDataStoreTools
-
 NormalProgramTarget(NetXfr, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 UILoadFileTarget(NetXfr.lf, NetXfr.state)
 DependTarget()
 LintTarget()
-
-/*------------------------------------------------------------------------*/
-#else
-OmitBuildRules(NetXfr)
-#endif
 
 DistfilesTarget($(DISTFILES))

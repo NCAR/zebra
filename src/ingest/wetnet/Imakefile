@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.1.1.1 1993-08-19 15:15:33 burghart Exp $"
+MFVERSION="$Id: Imakefile,v 1.2 1994-01-21 11:50:49 granger Exp $"
 
 LOCAL_LIBRARIES = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF)
 
@@ -25,13 +25,6 @@ SRCS = wetnet_ingest.c
 
 DISTFILES = $(SRCS) Imakefile
 
-/*---------------------------------------------------------------------*/
-#if BuildIngest && BuildWetnetIngest
-
 SimpleProgramTarget(wetnet_ingest)
-/*---------------------------------------------------------------------*/
-#else
-OmitBuildRules(WETNET ingest)
-#endif
 
 DistfilesTarget($(DISTFILES))

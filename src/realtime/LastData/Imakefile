@@ -11,16 +11,8 @@ APPDEFAULTS = LastData.ad
 
 DISTFILES = $(SRCS) $(APPDEFAULTS) Imakefile
 
-/*------------------------------------------------------------------------*/
-#if BuildRealtimeDataStoreTools
-
 NormalProgramTarget(LastData, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 InstallAppDefaults(LastData)
 DependTarget()
-
-/*------------------------------------------------------------------------*/
-#else
-OmitBuildRules(LastData)
-#endif
 
 DistfilesTarget($(DISTFILES))

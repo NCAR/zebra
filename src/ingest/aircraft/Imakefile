@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.2 1993-07-01 20:15:06 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.3 1994-01-21 11:48:50 granger Exp $"
 
 LIBS = $(LIBZEB) $(LIBRDSS) $(LIBNETCDF)
 
@@ -27,9 +27,6 @@ SRCS = ac_ingest.c ac_status.c
 DISTFILES = Imakefile $(SRCS) ac_ingest.h ac_ingest.params ac_ingest.state \
 	    ac_status.state status.params test.params transfile
 
-/*-----------------------------------------------------------------------*/
-#if BuildAircraftIngest && BuildIngest
-
 NormalProgramTarget(ac_ingest,$(OBJS),$(DEPLIBS),$(LIBS) $(XLIBS),$(SYSLIBS))
 
 NormalProgramTarget(ac_status,$(OBJS2),$(DEPLIBS),$(LIBS) $(XLIBS),$(SYSLIBS))
@@ -40,10 +37,6 @@ UILoadFileTarget(ac_status.lf,ac_status.state)
 
 DependTarget()
 LintTarget()
-/*-----------------------------------------------------------------------*/
-#else
-OmitBuildRules(aircraft ingest)
-#endif
 
 DistfilesTarget($(DISTFILES))
 

@@ -23,17 +23,10 @@ APPDEFAULTS = dsmanage.ad
 
 DISTFILES = $(SRCS) $(HEADERS) $(APPDEFAULTS) Imakefile
 
-/*------------------------------------------------------------------------*/
-#if BuildDataManager
-
 CccProgramTarget (tapeindex,$(TIOBJS),$(DEPLIBS),$(TILIBS),/**/)
 CccProgramTarget (dsmanage,$(OBJS),$(DEPLIBS),$(DSMLIBS),/**/)
 
 InstallAppDefaults(dsmanage)
-/*------------------------------------------------------------------------*/
-#else
-OmitBuildRules(DataStore Manager)
-#endif
 
 DistfilesTarget($(DISTFILES))
 
