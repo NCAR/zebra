@@ -362,10 +362,10 @@ int subtype;
 
 
 
-
-void
-dc_DestroyADE (dc)
+static void
+dc_IntDestroyADE (dc, force_free)
 DataChunk *dc;
+int force_free;		/* free all ADE data regardless of dca_Free */
 /*
  * Get rid of any AuxData entries by working our way up the
  * class hierarchy for this datachunk.
@@ -381,13 +381,40 @@ DataChunk *dc;
 		for (j = 0; j < ADE_HASH_SIZE; ++j)
 		{
 			while (ade[j])
+			{
+				if (force_free)
+					ade[j]->dca_Free = TRUE;
 				dc_IntZapADE (dc, class, ade[j]);
+			}
 		}
 		class = dc_Super (class);
 	}
 }
 
 
+
+void
+dc_DestroyADE (dc)
+DataChunk *dc;
+/*
+ * Remove all ADEs from this chunk as usual.
+ */
+{
+	dc_IntDestroyADE (dc, 0);
+}
+
+
+
+void
+dc_FreeAllADE (dc)
+DataChunk *dc;
+/*
+ * Not only remove all of the ADEs, but also explicitly free all of their
+ * data as well.
+ */
+{
+	dc_IntDestroyADE (dc, 1);
+}
 
 
 

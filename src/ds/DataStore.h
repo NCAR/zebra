@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.39 1997-01-10 23:31:24 granger Exp $
+ * $Id: DataStore.h,v 3.40 1997-02-14 07:14:47 granger Exp $
  *
  * Public data store definitions.
  */
@@ -423,6 +423,22 @@ DataClassID	dc_SuperClass FP((DataClassID subclass));
 DataClassP	dc_Super FP((DataClassP subclass));
 void		dc_CheckClass FP((int check));
 PlatformId	dc_SetPlatform FP((DataChunk *dc, PlatformId pid));
+DataClassP	dc_ClassP FP ((DataClassID id));
+
+/*
+ * ADE handling
+ */
+void		dc_ClearADE FP ((DataChunk *dc));
+DataPtr		dc_AddADE FP ((DataChunk *, DataPtr, DataClassP,
+			       int, int, int));
+DataPtr		dc_FindADE FP ((DataChunk *, DataClassP, int, int *));
+void		dc_ChangeADE FP ((DataChunk *, DataPtr, DataClassP,
+				  int, int));
+void		dc_RemoveADE FP ((DataChunk *, DataClassP, int));
+void		dc_DestroyADE FP ((DataChunk *dc));
+void		dc_FreeAllADE FP ((DataChunk *dc));
+void		dc_CopyADE FP ((DataChunk *target, DataChunk *dc));
+void		dc_StatsADE FP ((DataChunk *dc, int *count, int *len));
 
 /*
  * Basic data chunk methods.

@@ -1,4 +1,4 @@
-/* $Id: DataChunkP.h,v 1.12 1997-02-12 08:55:02 granger Exp $ */
+/* $Id: DataChunkP.h,v 1.13 1997-02-14 07:14:45 granger Exp $ */
 /*
  * Internal data chunk definitions.
  */
@@ -292,20 +292,6 @@ typedef struct _IRGridDataChunkPart
  * Internally useful routines.
  */
 bool		_dc_ReqSubClass FP ((DataChunk *, DataClassP, char *op));
-
-/*
- * ADE handling
- */
-void		dc_ClearADE FP ((DataChunk *dc));
-DataPtr		dc_AddADE FP ((DataChunk *, DataPtr, DataClassP,
-			       int, int, int));
-DataPtr		dc_FindADE FP ((DataChunk *, DataClassP, int, int *));
-void		dc_ChangeADE FP ((DataChunk *, DataPtr, DataClassP,
-				  int, int));
-void		dc_RemoveADE FP ((DataChunk *, DataClassP, int));
-void		dc_DestroyADE FP ((DataChunk *dc));
-void		dc_CopyADE FP ((DataChunk *target, DataChunk *dc));
-void		dc_StatsADE FP ((DataChunk *dc, int *count, int *len));
 
 /*
  * Attribute handling
