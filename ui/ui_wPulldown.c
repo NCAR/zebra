@@ -5,7 +5,7 @@
 # ifdef XSUPPORT
 
 
-static char *rcsid = "$Id: ui_wPulldown.c,v 1.9 1992-04-20 21:27:47 granger Exp $";
+static char *rcsid = "$Id: ui_wPulldown.c,v 1.10 1992-12-15 16:58:18 corbet Exp $";
 
 # ifndef X11R3		/* This stuff don't work under R3.	*/
 /* 
@@ -21,13 +21,17 @@ static char *rcsid = "$Id: ui_wPulldown.c,v 1.9 1992-04-20 21:27:47 granger Exp 
 
 # include <X11/Xaw/Box.h>
 # include <X11/Xaw/MenuButton.h>
-# include <X11/Xaw/SimpleMenu.h>
 # include <X11/Xaw/SmeBSB.h>
 # include <X11/Xaw/SmeLine.h>
 # ifdef SMEMENU
 /* #  include <X11/Xaw/SmeMenu.h> */
 #  include "SmeMenu.h"
 #  include "submenu.h"
+#  include "/rdss/SmeMenu/rdssMenu.h"
+#  define MenuWidgetClass rdssMenuWidgetClass
+# else
+#  include <X11/Xaw/SimpleMenu.h>
+#  define MenuWidgetClass simpleMenuWidgetClass
 # endif
 
 # include "ui.h"
@@ -456,7 +460,7 @@ Widget parent;
 	if (menu->mbm_title[0])
 		XtSetArg (margs[0], XtNlabel, menu->mbm_title);
 	menu->mbm_pulldown = XtCreatePopupShell (menu->mbm_name,
-		simpleMenuWidgetClass, parent, margs,
+		MenuWidgetClass, parent, margs,
 		menu->mbm_title[0] ? ONE : ZERO);
 /*
  * Go through and add each entry.
