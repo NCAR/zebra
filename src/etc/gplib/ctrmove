@@ -1,0 +1,21 @@
+
+!
+! Move to center around a click without changing zoom.
+!
+procedure CtrMove
+	local xmin pd_paramsearch('global','x-min','x','float')
+	local xmax pd_paramsearch('global','x-max','x','float')
+	local ymin pd_paramsearch('global','y-min','x','float')
+	local ymax pd_paramsearch('global','y-max','x','float')
+	local xshift (buttonx - (xmax + xmin)/2)
+	local yshift (buttony - (ymax + ymin)/2)
+	local newv string(xmin + xshift)
+	parameter global x-min #newv
+	local newv string(xmax + xshift)
+	parameter global x-max #newv
+	local newv string(ymin + yshift)
+	parameter global y-min #newv
+	local newv string(ymax + yshift)
+	parameter global y-max #newv
+endprocedure
+
