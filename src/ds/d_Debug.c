@@ -14,7 +14,7 @@
 # include "commands.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID("$Id: d_Debug.c,v 3.13 1999-03-19 16:19:06 burghart Exp $")
+MAKE_RCSID("$Id: d_Debug.c,v 3.14 2002-01-19 06:50:02 granger Exp $")
 
 static struct flagmask {
 	unsigned short mask;
@@ -26,7 +26,6 @@ static struct flagmask {
 	{ DPF_REGULAR, "regular" },
 	{ DPF_SUBPLATFORM, "subplatform" },
 	{ DPF_REMOTE, "remote" },
-	{ DPF_SPLIT, "daysplit" },
 	{ DPF_MODEL, "model" },
 	{ DPF_ABSTRACT, "abstract" },
 	{ DPF_VIRTUAL, "virtual" },
@@ -47,7 +46,8 @@ dbg_DumpClass (const PlatformClass *pc)
 	printf ("     Org: %s\n", ds_OrgName(pc->dpc_org));
 	printf ("   FType: %s\n", ds_FTypeName(pc->dpc_ftype));
 	printf ("    Keep: %hu\n", pc->dpc_keep);
-	printf (" MaxSamp: %hu\n", pc->dpc_maxsamp);
+	printf (" MaxSamp: %u\n", pc->dpc_maxsamp);
+	printf ("   Split: %u\n", pc->dpc_splitseconds);
 	printf (" Inherit: %s\n", 
 		ds_InheritDirFlagName (pc_InheritDirFlag (pc)));
 	printf ("Instance: %s\n", 

@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.50 2001-10-16 22:26:29 granger Exp $
+ * $Id: DataStore.h,v 3.51 2002-01-19 06:50:02 granger Exp $
  *
  * Public data store definitions.
  */
@@ -988,6 +988,7 @@ void		ds_SetInstanceDir FP ((PlatClassRef cd, InstanceDirFlag id));
 void		ds_SetMobile FP ((PlatClassRef cd, int mobile));
 void		ds_SetComposite FP ((PlatClassRef cd, int composite));
 void		ds_SetModel FP ((PlatClassRef cd, int flag));
+void		ds_SetSplitSeconds (PlatClassRef cd, unsigned int secs);
 void		ds_SetDaysplit FP ((PlatClassRef cd, int split));
 void		ds_SetAbstract FP ((PlatClassRef cd));
 void		ds_SetVirtual FP ((PlatClassRef cd));

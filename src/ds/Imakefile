@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.75 2001-10-26 08:10:00 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.76 2002-01-19 06:50:02 granger Exp $"
 
 DEPLIBS=$(ZLIBS)
 LIBMPROF=/dt/granger/libc_mp.a
@@ -272,7 +272,7 @@ DSDUMP = $(TOP)/src/dsdump/dsdump
 ZPROGS = $(MESSAGE) $(TIMER) $(ZSTOP) $(DSDUMP)
 TESTPROJ = /net/shared/zebra/project/test
 DSCONFIG = perm.config
-DATA_DIR = $(TESTPROJ)/data
+DATA_DIR = ./data
 SOCKET = /tmp/DStest.socket
 INVENTORY = 10
 #ifdef DebugFlag
@@ -310,8 +310,10 @@ test.session $(SOCKET): $(ZPROGS) dsDaemon dsDaemon.lf $(DSCONFIG)
 	set -x; \
 	HOST=`uname -n` $(MESSAGE) $(TESTOUT) ; \
 	($(TIMER) $(TESTOUT) &); \
-	if [ ! -d ./data ]; then rm -f ./data; \
-	ln -s /net/shared/zebra/project/test/data . ; fi ; \
+	if [ ! -d ./data/. ]; then rm -f ./data; \
+	ln -s $(TESTPROJ)/data . ; fi ; \
+	if [ ! -d ./derivs/. ]; then rm -f ./derivs; \
+	ln -s $(TESTPROJ)/derivs . ; fi ; \
 	($(DSDAEMON) $(DSCONFIG) $(TESTOUT) &); \
 	sleep 5; /* give daemon time to connect */
 

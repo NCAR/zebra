@@ -1,5 +1,5 @@
 !
-! $Id: Daemon.state,v 2.26 2001-10-16 22:26:29 granger Exp $
+! $Id: Daemon.state,v 2.27 2002-01-19 06:50:02 granger Exp $
 !
 ! The data store daemon configuration language.
 !
@@ -189,6 +189,9 @@ define state in-class
 	input 'maxsamples' 13
 		next ust$final_int
 	endinput
+	input 'splitseconds' 26
+		next ust$final_int
+	endinput
 	input 'remote' 16
 		next ust$final_unmunged_string
 	endinput
@@ -302,6 +305,9 @@ define state in-platform
 		next ust$final_unmunged_string
 	endinput
 	input 'maxsamples' 13
+		next ust$final_int
+	endinput
+	input 'splitseconds' 26
 		next ust$final_int
 	endinput
 	input 'remote' 16
@@ -618,7 +624,7 @@ enddef
 set ui$initial_state "initial"
 
 procedure ui$init
-	local _id '$Id: Daemon.state,v 2.26 2001-10-16 22:26:29 granger Exp $'
+	local _id '$Id: Daemon.state,v 2.27 2002-01-19 06:50:02 granger Exp $'
 
 	start
 	done

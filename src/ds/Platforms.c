@@ -45,7 +45,7 @@
 # include "dsPrivate.h"
 # include "Platforms.h"
 
-RCSID("$Id: Platforms.c,v 3.10 2001-10-26 05:59:29 granger Exp $")
+RCSID("$Id: Platforms.c,v 3.11 2002-01-19 06:50:02 granger Exp $")
 
 
 
@@ -124,6 +124,7 @@ const char *name;
 	pc->dpc_ftype = FTUnknown;
 	pc->dpc_keep = DefaultKeep;
 	pc->dpc_maxsamp = 60;
+	pc->dpc_splitseconds = 0;
 	pc->dpc_flags = 0;
 	pc->dpc_inherit = InheritDefault;	/* InheritNone */
 	pc->dpc_instance = InstanceDefault;	/* InstanceRoot */
@@ -924,6 +925,12 @@ pi_IsSubclass (const PlatformInstance *pi, const PlatformClass *spc)
 }
 
 
+int pi_Daysplit (const PlatformInstance *pi)
+{
+    const PlatformClass *pc = pi_Class (pi);
+    return (pc && pc->dpc_splitseconds == 24*3600);
+}
+
 
 int
 dt_SetString (dest, src, maxlen, op)
@@ -987,6 +994,8 @@ const PlatformClass *spc;/* the class's superclass, or null */
 		fprintf (fp, "\tfiletype\t%s\n", ds_FTypeName(pc->dpc_ftype));
 	if (!spc || (spc->dpc_maxsamp != pc->dpc_maxsamp))
 		fprintf (fp, "\tmaxsamples\t%d\n", pc->dpc_maxsamp);
+	if (!spc || (spc->dpc_splitseconds != pc->dpc_splitseconds))
+		fprintf (fp, "\tsplitseconds\t%d\n", pc->dpc_splitseconds);
 	/*
 	 * Flags: if inherited or the default, don't print the command.
 	 */
@@ -999,8 +1008,6 @@ const PlatformClass *spc;/* the class's superclass, or null */
 		fprintf (fp, "\tcomposite\n");
 	if (NEEDFLAG(spc,pc,DPF_MODEL))
 		fprintf (fp, "\tmodel\n");
-	if (NEEDFLAG(spc,pc,DPF_SPLIT))
-		fprintf (fp, "\tdaysplit\n");
 	if (NEEDFLAG(spc,pc,DPF_REGULAR))
 		fprintf (fp, "\tregular\n");
 	if (NEEDFLAG(spc,pc,DPF_DISCRETE))

@@ -1,5 +1,5 @@
 /*
- * $Id: Platforms.h,v 3.7 2001-10-16 22:26:29 granger Exp $
+ * $Id: Platforms.h,v 3.8 2002-01-19 06:50:02 granger Exp $
  *
  * The interface to platform classes and instances shared by daemon
  * and client.  The application, be they daemon or client, can choose
@@ -60,6 +60,7 @@ typedef struct ds_PlatformClass
 	DataOrganization dpc_org;	/* Native data organization	*/
 	FileType dpc_ftype;		/* Default file type		*/
 	unsigned int dpc_maxsamp;	/* Maximum file samples		*/
+	unsigned int dpc_splitseconds;  /* Seconds to split files at    */
 	unsigned short dpc_keep;	/* Minimum data keep		*/
 	unsigned short dpc_flags;	/* Attribute flags -- see below	*/
 	char 	*dpc_comment;		/* Comment about this class	*/
@@ -121,7 +122,6 @@ typedef PlatformInstance Platform;
 # define DPF_REGULAR	0x0008		/* Regularly-spaced (time) samples? */
 # define DPF_SUBPLATFORM 0x010		/* This is a sub platform	*/
 # define DPF_REMOTE	0x0020		/* A remote dir has been given	*/
-# define DPF_SPLIT	0x0040		/* Split on day boundary 	*/
 # define DPF_MODEL	0x0080		/* Model data, i.e., has	*/
 					/* separate issue/valid times	*/
 # define DPF_VIRTUAL	0x0100		/* Only a node in the hierarchy */
@@ -155,8 +155,7 @@ INLINE int pi_Regular (const PlatformInstance *pi)
 INLINE int pi_Remote (const PlatformInstance *pi)
 { return (pi->dp_flags & DPF_REMOTE); }
 
-INLINE int pi_Daysplit (const PlatformInstance *pi)
-{ return (pi->dp_flags & DPF_SPLIT); }
+int pi_Daysplit (const PlatformInstance *pi);
 
 INLINE int pi_Model (const PlatformInstance *pi)
 { return (pi->dp_flags & DPF_MODEL); }

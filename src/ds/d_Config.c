@@ -34,7 +34,7 @@
 # include "commands.h"
 # include <ui_error.h>
 
-RCSID("$Id: d_Config.c,v 2.19 2001-10-16 22:26:29 granger Exp $")
+RCSID("$Id: d_Config.c,v 2.20 2002-01-19 06:50:02 granger Exp $")
 
 /*-----------------------------------------------------------------------
  * Local forwards.
@@ -306,6 +306,12 @@ struct ui_command *cmds;
 		pc->dpc_maxsamp = UINT (cmds[1]);
 		break;
 	/*
+	 * File splits.
+	 */
+	   case DK_SPLITSECONDS:
+		pc->dpc_splitseconds = UINT (cmds[1]);
+		break;
+	/*
 	 * Various flags.
 	 */
 	   case DK_REGULAR:	pc->dpc_flags |= DPF_REGULAR; break;
@@ -374,7 +380,7 @@ struct ui_command *cmds;
 	 * Split files across days.
 	 */
 	   case DK_DAYSPLIT:
-	   	pc->dpc_flags |= DPF_SPLIT;
+		pc->dpc_splitseconds = 24*3600;
 		break;
 	/*
 	 * Subplat templates to be added.

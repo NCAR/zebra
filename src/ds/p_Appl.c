@@ -13,7 +13,7 @@
 #include "dsPrivate.h"		/* platform and class type definitions */
 #include "Platforms.h"
 
-RCSID("$Id: p_Appl.c,v 3.2 2001-10-16 22:26:30 granger Exp $")
+RCSID("$Id: p_Appl.c,v 3.3 2002-01-19 06:50:02 granger Exp $")
 
 
 /* ================
@@ -520,11 +520,18 @@ int flag;
 	
 
 void
+ds_SetSplitSeconds (PlatClassRef cd, unsigned int secs)
+{
+    cd->dpc_splitseconds = secs;
+}
+
+
+void
 ds_SetDaysplit (cd, split)
 PlatClassRef cd;
 int split;
 {
-	ds_SetClassFlag (cd, DPF_SPLIT, split);
+    ds_SetSplitSeconds (cd, (split != 0) ? 24*3600 : 0);
 }
 
 

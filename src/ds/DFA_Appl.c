@@ -35,7 +35,7 @@
 #include "dfa.h"
 #include "Appl.h"
 
-RCSID ("$Id: DFA_Appl.c,v 3.18 2001-10-16 22:26:28 granger Exp $")
+RCSID ("$Id: DFA_Appl.c,v 3.19 2002-01-19 06:50:02 granger Exp $")
 
 /*
  * Local private prototypes.
@@ -48,7 +48,8 @@ static void 	ds_NotifyDaemon (const Platform *p, const DataFile *df,
 static const DataFile* ds_FindDest (DataChunk *dc, const Platform *plat, 
 				    int sample, WriteCode *wc, int newfile, 
 				    const ZebraTime *now);
-static zbool	ds_SameDay (const ZebraTime *, const ZebraTime *);
+static zbool    ds_SameFile (const PlatformClass* pc, 
+			     const ZebraTime *t1, const ZebraTime *t2);
 static int	ds_MakeNewFile (DataChunk *dc, const Platform *plat, 
 				int sample, dsDetail *details, int ndetail, 
 				DataFile *df);
@@ -1606,6 +1607,7 @@ ds_FindBlock (const DataFile *df, const DataFile *dfnext, DataChunk *dc,
     int avail;		/* samples available in the file*/
     ZebraTime *future = NULL;	/* data times already in file	*/
     int nfuture = 0;	/* returned by dfa_DataTimes	*/
+    const PlatformClass* pc = pi_Class (plat);
 /*
  * Only accept appends and overwrites
  */
@@ -1633,7 +1635,7 @@ ds_FindBlock (const DataFile *df, const DataFile *dfnext, DataChunk *dc,
  * So we'll see how many samples we can get which
  *  a) are in chronological order, and
  *  b) precede the start of dfnext (if there is one), and
- *  c) are on the same day, iff DPF_SPLIT set, and
+ *  c) are in the same split region, if splitseconds is nonzero, and
  *  d) will fit within the platform's maxsamples limit, and finally
  *  e) if overwriting, which coincide with a sample already in the file
  * ...all without exceeding the number of samples in the data chunk
@@ -1676,7 +1678,7 @@ ds_FindBlock (const DataFile *df, const DataFile *dfnext, DataChunk *dc,
 	{
 	    if (dfnext && (! TC_Less(when, next)))
 		break;
-	    if (pi_Daysplit (plat) && (! ds_SameDay (&when, &past)))
+	    if (! ds_SameFile (pc, &when, &past))
 		break;
 	}
 	else if (wc == wc_Overwrite)
@@ -1718,6 +1720,7 @@ ds_FindDest (DataChunk *dc, const Platform *plat, int sample, WriteCode *wc,
     const DataFile *df;
     const DataFileCore *dfc;
     ZebraTime when, dftime;
+    const PlatformClass* pc = pi_Class (plat);
 /*
  * Do a quick sanity check to see if this data has a bizarre time.  Reject
  * it in that case.
@@ -1753,8 +1756,10 @@ ds_FindDest (DataChunk *dc, const Platform *plat, int sample, WriteCode *wc,
     if (TC_Less (dfc->dfc_end, when))
     {
 	if (! newfile && dfc->dfc_nsample < pi_MaxSamp (plat) &&
-	    (! pi_Daysplit (plat) || ds_SameDay (&when, &dfc->dfc_end)))
+	    ds_SameFile (pc, &when, &dfc->dfc_end))
+	{
 	    *wc = wc_Append;
+	}
 	else
 	{
 	    *wc = wc_NewFile;
@@ -1784,21 +1789,23 @@ ds_FindDest (DataChunk *dc, const Platform *plat, int sample, WriteCode *wc,
 
 
 
-
 static zbool
-ds_SameDay (const ZebraTime *t1, const ZebraTime *t2)
+ds_SameFile (const PlatformClass* pc, 
+	     const ZebraTime *t1, const ZebraTime *t2)
 /*
- * Return TRUE iff the two times are on the same day, 
- * of the same month and year.
+ * Return TRUE iff the two times are in the same split region, meaning
+ * they do not across a file split boundary.  To test that we just idiv
+ * by the splitseconds count and compare.
  */
 {
-	int y1, y2, m1, m2, d1, d2;
-
-	TC_ZtSplit (t1, &y1, &m1, &d1, 0, 0, 0, 0);
-	TC_ZtSplit (t2, &y2, &m2, &d2, 0, 0, 0, 0);
-	return ((d1 == d2) && (m1 == m2) && (y1 == y2));
+    zbool samefile = TRUE;
+    if (pc && (pc->dpc_splitseconds > 0))
+    {
+	unsigned int split = pc->dpc_splitseconds;
+	samefile = ((t1->zt_Sec / split) == (t2->zt_Sec / split));
+    }
+    return samefile;
 }
-
 
 
 

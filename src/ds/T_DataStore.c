@@ -8,6 +8,7 @@
 #include <message.h>
 #include <timer.h>
 #include "DataStore.h"
+#include "Platforms.h"
 #include "DataChunkP.h"
 #include "apple.h"
 
@@ -437,7 +438,6 @@ T_ClassFields(ZebTime *start, char *plat)
 	FieldId cfields[10];
 	int ncfields = 0;
 	FieldId fields[20];
-	const FieldId *fieldp;
 	FieldId *dc_fields;
 	DataChunk *dc;
 	DataChunk *fdc;
@@ -585,6 +585,79 @@ T_ClassFields(ZebTime *start, char *plat)
 }
 
 
+static int
+T_Splits(ZebTime *start_in, char *plat)
+{
+    int errors = 0;
+    DataChunk *dc;
+    char buf[128];
+    PlatClassRef pc;
+    const PlatformClass* cpc;
+    PlatClassId cid;
+    PlatformId pid;
+    unsigned int splitperiod = 3600;
+    ZebTime start = *start_in;
+
+    /* make sure permsplit platform parsed correctly */
+    cpc = dt_FindClassName ("permsplit");
+    if (! cpc || cpc->dpc_splitseconds != 1234)
+    {
+	msg_ELog (EF_PROBLEM, "no permsplit platform or splitseconds != 1234");
+	++errors;
+    }
+
+    splitperiod = atoi(plat);
+    sprintf (buf, "Testing file splits at %d for platform '%s'", 
+	     splitperiod, plat);
+    Announce (buf);
+
+    if ((cid = ds_LookupClass (plat)) == BadClass)
+    {
+	pc = ds_NewClass (plat);
+	msg_ELog (EF_DEBUG, "defining platform class '%s'", plat);
+	ds_AssignClass (pc, OrgScalar, FTNetCDF, FALSE);
+	ds_SetMaxSample (pc, 65000);
+	ds_SetSplitSeconds (pc, splitperiod);
+	cid = ds_DefineClass (pc);
+    }
+    if ((pid = ds_LookupPlatform (plat)) == BadPlatform)
+    {
+	pid = ds_DefinePlatform (cid, plat);
+    }
+    CleanPlatform (pid);
+    /*
+     * Start at the beginning of file boundary, and so we always expect
+     * to get 60 samples in each file, and 1200/60 files.
+     */
+    start.zt_MicroSec = 0;
+    start.zt_Sec -= (start.zt_Sec % splitperiod);
+    dc = T_SimpleScalarChunk (&start, splitperiod/60, 1200, 4, FALSE, FALSE);
+    dc->dc_Platform = pid;
+    ds_Store (dc, TRUE, NULL, 0);
+    dc_DestroyDC (dc);
+
+    {
+	int i;
+	int nfiles = 1200/60;
+	ZebTime end = start;
+	ZebTime obs[nfiles+5];
+	ZebTime times[100];
+	int ntime;
+	end.zt_Sec += (nfiles+5)*splitperiod;
+	ntime = ds_GetObsTimes (pid, &end, obs, nfiles+5, NULL);
+	if (ntime != nfiles)
+	{
+	    ++errors;
+	    msg_ELog (EF_PROBLEM, "expected %d observations", nfiles);
+	}
+	for (i = 0; i < ntime; ++i)
+	{
+	    if (ds_GetObsSamples(pid, obs+i, times, 0, 100) != 60)
+		++errors;
+	}
+    }
+    return errors;
+}
 
 
 
@@ -608,6 +681,14 @@ TestRoutine DataStoreTests[] =
 	  "ds_DataTimes", "t_dummy_znf" },
 	{ "deletes", FTUnknown, DCC_None, TR_BEGIN, T_Deletes,
 	  "ds_DeleteObs" },
+	{ "splitshourly", FTNetCDF, DCC_None, TR_PLAT, T_Splits,
+	  "file splits by platform splitseconds", "3600splits" },
+	{ "splits1800", FTNetCDF, DCC_None, TR_PLAT, T_Splits,
+	  "file splits by platform splitseconds", "1800splits" },
+	{ "splitsbiday", FTNetCDF, DCC_None, TR_PLAT, T_Splits,
+	  "file splits by platform splitseconds", "172800splits" },
+	{ "splitsminute", FTNetCDF, DCC_None, TR_PLAT, T_Splits,
+	  "file splits by platform splitseconds", "60splits" },
 	END_TESTS
 };
 

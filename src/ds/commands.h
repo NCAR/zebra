@@ -1,5 +1,5 @@
 /*
- * $Id: commands.h,v 2.10 2001-10-16 22:26:29 granger Exp $
+ * $Id: commands.h,v 2.11 2002-01-19 06:50:02 granger Exp $
  *
  * Command keywords for the data store daemon.
  */
@@ -35,6 +35,7 @@
 # define DK_DIRECTORY	11
 # define DK_SUBPLATFORM	12
 # define DK_MAXSAMPLES	13
+# define DK_SPLITSECONDS 26
 # define DK_TRUNCATE	14
 # define DK_EVERY	15
 # define DK_REMOTE	16
