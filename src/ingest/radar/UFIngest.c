@@ -70,6 +70,12 @@ int	ThrFldOffset;
 unsigned char	ThrCounts = 0;
 
 /*
+ * Source info
+ */
+char	SrcName[128];
+int	SrcType;
+
+/*
  * Image transfer stuff
  */
 struct _ix_desc *ShmDesc = 0;
@@ -247,19 +253,10 @@ struct ui_command *cmds;
  * Here is a definition of our input source.
  */
 {
-	if (UKEY (*cmds) == RIC_FILE)
-	{
-		FileInput (UPTR (cmds[1]), CheckTrailLen);
-		msg_ELog (EF_INFO, "Ingesting file '%s'", UPTR (cmds[1]));
-	}
-	else if (UKEY (*cmds) == RIC_TAPE)
-	{
-		TapeInput (UPTR (cmds[1]));
-		msg_ELog (EF_INFO, "Ingesting from tape %s", UPTR (cmds[1]));
-	}
-	else
-		perror("FileInput");
+	SrcType = UKEY (cmds[0]);
+	strcpy (SrcName, UPTR (cmds[1]));
 }
+	
 
 
 
@@ -343,6 +340,20 @@ Go ()
  * Set up our beam input source.
  */
 	signal (SIGINT, die);
+
+	if (SrcType == RIC_FILE)
+	{
+		FileInput (SrcName, CheckTrailLen);
+		msg_ELog (EF_INFO, "Ingesting file '%s'", SrcName);
+	}
+	else if (SrcType == RIC_TAPE)
+	{
+		TapeInput (SrcName);
+		msg_ELog (EF_INFO, "Ingesting from tape %s", SrcName);
+	}
+	else
+		perror("FileInput");
+
 	SetupInput ();
 /*
  * Definition checking.
@@ -573,6 +584,10 @@ InvokeConsumer ()
  * Create the new process, then try to exec the consumer program in the
  * child.
  */
+# ifdef sgi
+# 	define vfork fork
+# endif
+
 	if ((CPid = vfork ()) == 0)
 	{
 		execvp (Consumer, CArgs);
