@@ -9,7 +9,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project auto-build parameters for development compilations
-XCOMM $Id: Build.tmpl,v 1.1 1995-04-15 00:02:42 granger Exp $
+XCOMM $Id: Build.tmpl,v 1.2 1995-05-04 06:32:23 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 # define UseInstalledZeb	YES
@@ -36,18 +36,28 @@ XCOMM -----------------------------------------------------------------------
 # endif
 #endif
 
-#if defined(SunArchitecture) && !defined(solaris)
-# define	BuildIngestScheduler	YES	/* Sun only	 	*/
-# define	BuildRadarIngest	YES	/* Sun only		*/
-# define	BuildSLGrabber		YES	/* Sun only		*/
-# define	Build_TRMM_Rain		YES	/* Sun only		*/
-# define	BuildDataUtilities	YES
-#else
+#if defined(SunArchitecture)
+
+# define	BuildIngestScheduler	YES	/* SunOS/Solaris 	*/
+# define	BuildDataUtilities	YES	/* SunOS/Solaris	*/
+# if defined(SVR4) || defined(solaris) /* Solaris only */
+#  define	BuildRadarIngest	YES	/* Solaris only		*/
+#  define	BuildSLGrabber		NO
+#  define	Build_TRMM_Rain		NO
+# else /* SunOS only */
+#  define	BuildRadarIngest	NO
+#  define	BuildSLGrabber		YES	/* SunOS only		*/
+#  define	Build_TRMM_Rain		YES	/* SunOS only		*/
+# endif
+
+#else /* all other architectures */
+
 # define	BuildIngestScheduler	NO
+# define	BuildDataUtilities	NO
 # define	BuildRadarIngest	NO
 # define	BuildSLGrabber		NO
 # define	Build_TRMM_Rain		NO
-# define	BuildDataUtilities		NO
+
 #endif /* SunArchitecture */
 
 # define	BuildPamIngest			NO
