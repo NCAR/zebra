@@ -1,4 +1,4 @@
-/* $Id: message.h,v 1.3 1990-07-08 17:17:32 corbet Exp $ */
+/* $Id: message.h,v 1.4 1990-11-14 17:24:46 corbet Exp $ */
 /*
  * Message protocol types.
  */
@@ -7,6 +7,7 @@
 # define MT_LOG		2	/* Event logger				*/
 # define MT_TIMER	3	/* Timer				*/
 # define MT_ELOG	4	/* Extended event logger		*/
+# define MT_SOUND	5	/* Sound effects			*/
 /*
  * Message handler protocol message types.
  */
