@@ -34,7 +34,7 @@
 # include <ui_date.h>
 # include "GraphProc.h"
 
-RCSID ("$Id: DataMenu.c,v 2.17 1996-11-19 07:28:43 granger Exp $")
+RCSID ("$Id: DataMenu.c,v 2.18 1997-05-13 11:24:17 granger Exp $")
 
 
 /*
@@ -52,7 +52,7 @@ static char IComp[60];
 
 static void EntryCallback FP ((Widget, XtPointer, XtPointer));
 static void PopupCallback FP ((Widget, XtPointer, XtPointer));
-static int SetupPlats FP ((void));
+static int SetupPlats FP ((int *showalts));
 static int FunkyPlat FP ((char *));
 static int AddPlatform FP ((char *, int, ZebTime *));
 static void ToRealTime FP ((Widget, XtPointer, XtPointer));
@@ -155,6 +155,7 @@ XtPointer xwhich, junk;
 
 
 
+
 static void
 PopupCallback (w, junk, junk1)
 Widget w;
@@ -165,23 +166,36 @@ XtPointer junk, junk1;
 {
 	int nentry, i;
 	Arg args[2];
-	char string[80];
-	UItime uitime;
+	char string[256];
+	int radar;
 /*
  * Get the platforms set.
  */
-	nentry = SetupPlats ();
+	nentry = SetupPlats (&radar);
 /*
  * Go through and make the labels for each one.
  */
 	for (i = 0; i < nentry; i++)
 	{
+		PlatformId pid;
+		float alt;
+		R_ScanMode scan;
 	/*
 	 * Add the text.
 	 */
 		sprintf (string, "%-15s ", EPlats[i]);
+		if (radar && 
+		    ((pid = ds_LookupPlatform (EPlats[i])) != BadPlatform)
+		    && r_GetAngle (pid, Times+i, &alt, &scan))
+		{
+			sprintf (string+strlen(string), "%4s %6.1f  ", 
+				 r_ScanModeName(scan), alt);
+		}
+		strcat (string, TC_AscTime (Times+i, TC_Full));
+#ifdef notdef
 		TC_ZtToUI (Times + i, &uitime);
-		ud_format_date (string + 15, &uitime, UDF_FULL);
+		ud_format_date (string + strlen(string), &uitime, UDF_FULL);
+#endif
 		XtSetArg (args[0], XtNlabel, string);
 		XtSetValues (Entries[i], args, 1);
 	/*
@@ -210,7 +224,8 @@ XtPointer junk, junk1;
 
 
 static int
-SetupPlats ()
+SetupPlats (radar)
+int *radar;
 /*
  * Figure out what should appear in this menu where.
  */
@@ -229,6 +244,7 @@ SetupPlats ()
 	if (! pd_Retrieve (Pd, IComp, "menu-platform", platform,SYMT_STRING) &&
 		  ! pd_Retrieve (Pd, IComp, "platform", platform, SYMT_STRING))
 		return (FunkyPlat ("No platform or menu-platform"));
+	*radar = r_RadarSpace (IComp);
 /*
  * Split things apart.
  */
@@ -293,7 +309,8 @@ ZebTime *t;
 	ZebTime dtimes[MAXENTRY];
 	PlatformId pid = ds_LookupPlatform (plat);
 	int dt, ntime, i, ent;
-	char *attr = NULL, cattr[200];
+	char *attr = NULL;
+	char code[128];
 /*
  * Check out our platform.
  */
@@ -303,15 +320,32 @@ ZebTime *t;
 		return (0);
 	}
 /*
- * Check out filter attributes.
+ * Check out radar scan modes.
  */
-	if (pda_Search (Pd, "global", "filter-attribute", plat, cattr,
-						SYMT_STRING))
-		attr = cattr;
+	if (r_RadarSpace (IComp))
+		attr = r_ScanModeAtt (r_ScanMode (IComp));
 /*
- * See what's available.
+ * Check out sample versus observation times.
  */
-	if ((ntime = ds_GetObsTimes (pid, t, dtimes, 2*MAXENTRY/3, attr)) <= 0)
+	strcpy (code, "obs");
+	pda_Search (Pd, IComp, "data-available-times", plat, code,
+		    SYMT_STRING);
+	msg_ELog (EF_DEBUG, "data-available '%s' mode, attributes: %s", 
+		  code, (attr ? attr : "None"));
+/*
+ * See what's available according to the time mode, samples or obs.
+ */
+	if (!strcmp (code, "samples"))
+	{
+		ntime = ds_AttrTimes (pid, t, /*2*MAXENTRY/3*/MAXENTRY, 
+				      DsBefore, NULL, attr, dtimes);
+	}
+	else
+	{
+		ntime = ds_GetObsTimes (pid, t, dtimes, /*2*MAXENTRY/3*/
+					MAXENTRY, attr);
+	}
+	if (ntime <= 0)
 		return (nsofar);
 /*
  * Now sort them into the list.
@@ -364,7 +398,7 @@ XtPointer xwhich, junk;
  */
 {
 	int	which = (int) xwhich;
-	char	cbuf[100], *plat;
+	char	cbuf[256], *plat;
 
 	parameter ("global", "plot-mode", "real-time");
 /*

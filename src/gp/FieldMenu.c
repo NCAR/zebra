@@ -43,7 +43,7 @@
 # include <DataStore.h>
 # include "GraphProc.h"
 
-RCSID ("$Id: FieldMenu.c,v 2.17 1997-02-03 17:52:53 corbet Exp $")
+RCSID ("$Id: FieldMenu.c,v 2.18 1997-05-13 11:24:17 granger Exp $")
 
 /*
  * Stuff for the SME menu.
@@ -383,7 +383,7 @@ XtAppContext appc;
 {
 	Arg args[15];
 	int n, field;
-	Widget w, vp, vpform, above;
+	Widget vp, vpform, above;
 
 	NField = SetupFields ();
 /*

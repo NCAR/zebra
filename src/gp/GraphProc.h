@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.55 1996-11-19 07:20:39 granger Exp $ */
+/* $Id: GraphProc.h,v 2.56 1997-05-13 11:24:19 granger Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -350,6 +350,19 @@ extern void aw_SetLoc FP ((void));
 /* Position widget */
 extern void pw_InitPos FP ((void));
 extern void pw_PosStatus FP ((void));
+
+/* Radar accomodations */
+typedef enum { R_ANY = 0, R_SUR, R_RHI, R_PPI } R_ScanMode;
+
+char *r_ScanModeAtt (R_ScanMode i);
+char *r_ScanModeName (R_ScanMode i);
+int r_ImageTime (char *c, PlatformId pid, double angle, ZebTime *when);
+int r_HoldAngle (char *comp);
+int r_RadarSpace (char *comp);
+R_ScanMode r_ScanMode (char *comp);
+int r_GetAlts (PlatformId pid, char *comp, int nstep, float *alts);
+int r_GetAngle (PlatformId pid, ZebTime *t, float *angle, R_ScanMode *scan);
+void r_AddAnnot (char *comp, char *platform);
 
 /* Rubber bands */
 #ifdef UI_H_SYMBOLS	/* dependent on ui.h */

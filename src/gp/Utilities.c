@@ -47,7 +47,7 @@ typedef struct {
         CARD8   pad;
 } U_XWDColor;
 
-RCSID ("$Id: Utilities.c,v 2.45 1997-04-04 19:53:20 corbet Exp $")
+RCSID ("$Id: Utilities.c,v 2.46 1997-05-13 11:24:20 granger Exp $")
 
 /*
  * Rules for image dumping.  Indexed by keyword number in GraphProc.state
@@ -1125,12 +1125,17 @@ ZebTime		*dtime;
  * selection if appropriate.
  */
 {
-	ZebTime	stimes[60], obstimes[2];
 	ZebTime wanted_time;
-	int	nsample, samp, ntime;
-	bool	all = FALSE, rspace = FALSE;
-	float	cdiff;
-	Location	slocs[60];
+	int	ntime;
+	bool	rspace = FALSE;
+/*
+ * Of course radar is a special case.
+ */
+	rspace = r_RadarSpace (c);
+	if (rspace)
+	{
+		return (r_ImageTime (c, pid, alt, dtime));
+	}
 /*
  * Find out when we can really get data.
  */
@@ -1141,77 +1146,10 @@ ZebTime		*dtime;
 			  ds_PlatformName (pid));
 		return (0);
 	}
-/*
- * Unless they have specified that they want all of the heights, we need
- * to find the specific one of interest.
- */
-	if (pda_Search (Pd, c, "radar-space", NULL, (char *) &rspace,
-			SYMT_BOOL) && rspace &&
-	    (! pda_Search (Pd, c, "every-sweep", NULL, (char *) &all, 
-			   SYMT_BOOL) || !all))
-	{
-		char cattr[200], *attr = NULL;
-	/*
-	 * Look for a filter attribute.
-	 */
-		if (pda_Search (Pd, "global", "filter-attribute", 
-				ds_PlatformName (pid), cattr, SYMT_STRING))
-			attr = cattr;
-	/*
-	 * Look at the previous two observations.
-	 */
-		if (! (ntime = ds_GetObsTimes (pid, dtime, obstimes, 2, attr)))
-		{
-			msg_ELog (EF_PROBLEM, "Strange...no observations");
-			return (0);
-		}
-	/*
-	 * Get the samples from the first volume and see which is closest.
-	 */
-		*dtime = obstimes[0];
-		nsample = ds_GetObsSamples (pid, dtime, stimes, slocs, 60);
-		cdiff = 99.9;
-		for (samp = 0; samp < nsample; samp++)
-		{
-			float diff = ABS (alt - slocs[samp].l_alt);
-			if (diff < cdiff)
-			{
-				cdiff = ABS (alt - slocs[samp].l_alt);
-				*dtime = stimes[samp];
-			}
-		/*
-		 * If we have more than one "hit", try to reproduce the
-		 * old "latest before the plot time" behavior
-		 */
-			else if (diff == cdiff && 
-					TC_LessEq (stimes[samp], wanted_time))
-				*dtime = stimes[samp];
-		}
-	/*
-	 * If we don't come within a degree, drop back to the previous
-	 * one and try one more time.
-	 *
-	 * IS this the right test?  Maybe we should look if they want
-	 * something above what we found thus far?  
-	 */
-		if (cdiff > 1.0 && ntime > 1)
-		{
-			nsample = ds_GetObsSamples (pid, obstimes + 1, stimes,
-						    slocs, 60);
-			for (samp = 0; samp < nsample; samp++) 
-			{
-				if (ABS (alt - slocs[samp].l_alt) < cdiff)
-				{
-					msg_ELog (EF_DEBUG, "Drop back case");
-					cdiff = ABS (alt - slocs[samp].l_alt);
-					*dtime = stimes[samp];
-				}
-			}
-		}
-	}
 
 	return (1);
 }
+
 
 
 
@@ -1290,7 +1228,7 @@ float           *azim;
  *                        from north
  */
 {
-	ZebTime stimes[60], obstime, wanted_time;
+	ZebTime stimes[60], obstime;
 	int     nsample, samp, ntime;
 	float   diff, mindiff;
 	bool    matchazim, everysweep;

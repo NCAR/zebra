@@ -47,7 +47,7 @@
 # include "LayoutControl.h"
 # include "LLEvent.h"
 
-RCSID ("$Id: GraphProc.c,v 2.63 1996-11-19 07:19:33 granger Exp $")
+RCSID ("$Id: GraphProc.c,v 2.64 1997-05-13 11:24:18 granger Exp $")
 
 /*
  * Default resources.
@@ -2064,7 +2064,7 @@ SValue *argv, *retv;
 {
 	char *elems[40];
 	int which = argv[1].us_v_int;
-	int nelem = CommaParse (argv[0].us_v_ptr, elems), i;
+	int nelem = CommaParse (argv[0].us_v_ptr, elems);
 
 	*rett = SYMT_STRING;
 	if ((nelem - 1) < which)

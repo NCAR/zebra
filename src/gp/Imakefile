@@ -1,6 +1,6 @@
 /* -*- C -*- */
 XCOMM ---------------------------------------------------------------------
-XCOMM $Id: Imakefile,v 1.33 1996-11-19 06:45:51 granger Exp $ 
+XCOMM $Id: Imakefile,v 1.34 1997-05-13 11:24:19 granger Exp $ 
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -69,7 +69,7 @@ COBJS = ActiveArea.o $(ALLOCA) AltControl.o Annotate.o AnnotWidget.o \
 	LimitWidgets.o LLEvent.o ModelWidget.o MovieControl.o Ov_Grid.o \
 	Overlay.o OverlayTimes.o PDMonitor.o PlotControl.o PlotExec.o \
 	PlotPrim.o PositionWidget.o Projection.o RasterPlot.o RBand.o \
-	Skewt.o TimeSeries.o Track.o UserEvent.o Utilities.o \
+	Skewt.o TimeSeries.o Track.o UserEvent.o Utilities.o Radar.o \
 	VectorGrid.o XSection.o XYCommon.o XYContour.o XYGraph.o \
 	XYObservation.o XYWind.o
 
@@ -96,9 +96,9 @@ SRCS =  ActiveArea.c alloca.c AltControl.c  Annotate.c AnnotWidget.c \
 	LimitWidgets.c LLEvent.c ModelWidget.c MovieControl.c Ov_Grid.c \
 	Overlay.c OverlayTimes.c PDMonitor.c PlotControl.c PlotExec.c \
 	PlotPrim.c PositionWidget.c Projection.c RasterPlot.c RBand.c \
-	Skewt.c TimeSeries.c Track.c UserEvent.c Utilities.c \
+	Skewt.c TimeSeries.c Track.c UserEvent.c Utilities.c Radar.c \
 	VectorGrid.c XSection.c XYCommon.c XYContour.c XYGraph.c \
-	XYObservation.c XYWind.c sfont_1.c
+	XYObservation.c XYWind.c sfont_1.c 
 
 #ifdef UseFORTRAN
 FSRCS = cfit.F rgrid.F bints.f

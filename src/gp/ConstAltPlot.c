@@ -43,7 +43,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.64 1997-04-11 21:18:29 corbet Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.65 1997-05-13 11:24:16 granger Exp $")
 
 
 /*
@@ -597,7 +597,7 @@ bool update;
 	char	*pnames[MaxPlatforms];
 	PlatformId pid;
 	float vscale, unitlen;
-	int linewidth, shifted = FALSE, i, nplat, f;
+	int linewidth, shifted = FALSE, i, nplat;
 	bool	tacmatch, do_vectors;
 	ZebTime zt;
 	XColor	color, qcolor;
@@ -944,7 +944,7 @@ int nfield, *shifted;
 	DataOrganization org = (DataOrganization) ds_PlatformDataOrg (plat);
 	DataChunk *dc;
 	dsDetail details[5];
-	int ndetail, seconds;
+	int ndetail;
 	char string[256];
 /*
  * Make sure this makes sense.
@@ -1479,7 +1479,6 @@ bool *do_vectors;
 {
 	char string[16];
 	bool ok;
-	PlatformId pid;
 /*
  * Vectors or barbs?
  */
@@ -1704,7 +1703,12 @@ bool	update;
 				   &center, &step);
 	ok &= pda_ReqSearch (Pd, c, "color-table", "raster", ctname, 
 		SYMT_STRING);
-
+/*
+ * We want special radar annotation whether we get data or not, so the
+ * user knows what selection criteria are in effect.
+ */
+	if (!update && r_RadarSpace (c))
+		r_AddAnnot (c, platform);
 	if (! ok)
 		return;
 /*
@@ -1880,6 +1884,8 @@ bool	update;
 /*
  * Top annotation
  */
+	An_TopAnnot (platform, Tadefclr.pixel);
+	An_TopAnnot (" ", Tadefclr.pixel);
 	An_TopAnnot (px_FldDesc (fname), Tadefclr.pixel);
 	An_TopAnnot (shifted ? " plot (SHIFTED).  " : " plot.  ", 
 		     Tadefclr.pixel);
@@ -2074,13 +2080,10 @@ ZebTime *t;
  */
 {
 	char	string[120], anglabel[16];
-	bool	rspace = FALSE;
+	int	rspace;
 
-	pd_Retrieve (Pd, comp, "radar-space", (char *) &rspace, SYMT_BOOL);
-	if (rspace)
-		sprintf (anglabel, "%.1f deg.", alt);
-		
-
+	if ((rspace = r_RadarSpace (comp)))
+		sprintf (anglabel, "%.1f deg", alt);
 
 	sprintf (string, "%-14s %-10s %-10s %-14s ", comp, plat, fname,
 		 rspace ? anglabel : au_AltLabel (alt, altunits));

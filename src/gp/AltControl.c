@@ -41,20 +41,16 @@
  */
 int	AltControlComp;
 
-MAKE_RCSID("$Id: AltControl.c,v 2.21 1997-04-17 17:16:42 granger Exp $")
+MAKE_RCSID("$Id: AltControl.c,v 2.22 1997-05-13 11:24:15 granger Exp $")
 
-# define MAXALT		80	/* Max heights we expect to see		*/
+#define MAXALT		80	/* Max heights we expect to see		*/
 
 /*
  * Prototypes
  */
 static void	alt_GetControlComp FP ((void));
 static void	alt_SetAlt FP ((int));
-static int	alt_GetRSAlts FP ((char *, float *));
 static void	alt_SetLabel FP ((char *label));
-/* static int	alt_AlreadyThere FP ((float *, int, double)); */
-static int	alt_GetLatest FP ((char *, float *));
-/* static void	alt_Insert FP ((float *, int *, float)); */
 
 
 
@@ -65,23 +61,12 @@ alt_Initialize ()
  * Set a good initial "altitude" parameter in our PD
  */
 {
-	float	alt;
-	char	label[32];
 /*
  * Find the control component
  */
 	alt_GetControlComp ();
 	msg_ELog (EF_DEBUG, "chose #%d for altitude control", AltControlComp);
-# ifdef notdef
-/*
- * Now set the "altitude" and "altitude-label" parameters if we don't have them
- */
-	if (! pda_Search (Pd, "global", "altitude", NULL, (char *)&alt, 
-			  SYMT_FLOAT) ||
-	    ! pda_Search (Pd, "global", "altitude-label", NULL, label,
-			  SYMT_STRING))
-# endif
-		alt_SetAlt (0);
+	alt_SetAlt (0);
 }
 
 
@@ -172,6 +157,73 @@ int nstep;
 
 
 
+
+static int
+alt_NextStep (alts, nalt, nstep, alt_in)
+float *alts;
+int nalt;
+int nstep;
+float *alt_in;
+/*
+ * 'alt_in' can point to an altitude value to use as the target, else
+ * the current altitude parameter is used.
+ */
+{
+	int i;
+	int closest;
+	int have_target = 0;
+	float target_alt;
+/*
+ * Existing "altitude" becomes a target starting place.  Otherwise, we'll
+ * start from the zeroth altitude.
+ */
+	if (alt_in)
+	{
+		have_target = 1;
+		target_alt = *alt_in;
+	}
+	else
+	{
+		have_target = pd_Retrieve (Pd, "global", "altitude", 
+					   (char *) &target_alt, SYMT_FLOAT);
+	}
+/*
+ * Now go through and find the closest one to our target.
+ */
+	if (have_target && nalt > 0)
+	{
+		float dist = ABS (alts[0] - target_alt);
+		closest = 0;
+		for (i = 1; i < nalt; i++)
+		{
+			float delta = ABS (alts[i] - target_alt);
+			if (delta < dist)
+			{
+				dist = delta;
+				closest = i;
+			}
+		}
+		msg_ELog (EF_DEBUG, "found alt %.1f at %i => %.1f",
+			  target_alt, closest, alts[closest]);
+	}
+	else
+	{
+		msg_ELog (EF_DEBUG, "no target or nalt <= 0");
+		closest = 0;
+	}
+/*
+ * Step by the given amount, and apply bounds.  nstep==0 when 
+ * initializing means we use the closest altitude found above.
+ */
+	if ((closest += nstep) < 0)
+		closest = 0;
+	else if (closest >= nalt)
+		closest = nalt - 1;
+	return (closest);
+}
+
+
+
 	
 static void
 alt_SetAlt (nstep)
@@ -183,9 +235,9 @@ int nstep;
  * altitude at the beginning of a new plot.
  */
 {
-	int nalt, closest = 0, i;
-	bool rspace, have_target, use_latest = FALSE;
-	float alts[MAXALT], target_alt, dist, temp;
+	int nalt, i, next;
+	bool rspace;
+	float alts[MAXALT];
 	char platform[PlatformListLen];
 	char *comma;
 	char field[40], **comps = pd_CompList (Pd), scratch[40];
@@ -214,13 +266,22 @@ int nstep;
 	if ((comma = strchr(platform, ',')) != NULL)
 		*comma = '\0';
 /*
+ * Need a valid platform.
+ */
+	if ((pid = ds_LookupPlatform (platform)) == BadPlatform)
+	{
+		/* There are too many reasons this can fail
+		 * in normal situations to flag it as a problem
+		 */
+		alt_SetLabel ("");
+		msg_ELog (EF_DEBUG, "alt_Step: bad platform '%s'",
+			  platform);
+		return;
+	}
+/*
  * Radar space?
  */
-	rspace = FALSE;
-	if (! pd_Retrieve (Pd, comps[AltControlComp], "radar-space",
-			(char *) &rspace, SYMT_BOOL))
-		pd_Retrieve (Pd, "global", "radar-space", (char *) &rspace,
-				SYMT_BOOL);
+	rspace = r_RadarSpace (comps[AltControlComp]);
 /*
  * Now, depending on our model of the world, we choose one way or the other
  * to look for the available altitudes.
@@ -228,19 +289,9 @@ int nstep;
 	if (! rspace)
 	{
 	/*
-	 * Get platform and field IDs.
+	 * Get field IDs.
 	 */
-		if ((pid = ds_LookupPlatform (platform)) == BadPlatform)
-		{
-			/* There are too many reasons this can fail
-			 * in normal situations to flag it as a problem
-			 */
-			alt_SetLabel ("");
-			msg_ELog (EF_DEBUG, "alt_Step: bad platform '%s'",
-				  platform);
-			return;
-		}
-		else if ((fid = F_Lookup (field)) == BadField)
+		if ((fid = F_Lookup (field)) == BadField)
 		{
 			alt_SetLabel ("");
 			msg_ELog (EF_DEBUG, "alt_Step: bad field '%s'", field);
@@ -268,7 +319,7 @@ int nstep;
 		{
 			for (i = 0; i < nalt / 2; i++)
 			{
-				temp = alts[i];
+				float temp = alts[i];
 				alts[i] = alts[nalt - i - 1];
 				alts[nalt - i - 1] = temp;
 			}
@@ -276,64 +327,29 @@ int nstep;
 	}
 	else
 	{
-	/*
-	 * In real-time "every-sweep" mode (i.e., show the latest sweep mode),
-	 * we'll just be using the last alt in the list.
-	 */
-		use_latest = FALSE;
-		pda_Search (Pd, comps[AltControlComp], "every-sweep", NULL,
-			    (char *) &use_latest, SYMT_BOOL);
-		if (use_latest)
-			nalt = alt_GetLatest (platform, alts);
-	/*
-	 * Otherwise we have to go get a list to choose from.
-	 */
-		else if ((nalt = alt_GetRSAlts (platform, alts)) <= 0)
+		nalt = r_GetAlts (pid, comps[AltControlComp], nstep, alts);
+
+		if (nalt <= 0)
 		{
 			pd_RemoveParam (Pd, "global", "altitude");
 			alt_SetLabel ("?");
-			msg_ELog (EF_DEBUG, "No available RS alts for %s",
+			msg_ELog (EF_DEBUG, "No available radar angles for %s",
 				  platform);
 			return;
 		}
 	}
 /*
- * Existing "altitude" becomes a target starting place.  Otherwise, we'll
- * start from the zeroth altitude.
+ * If we have some altitudes to step through, do so.  Otherwise its
+ * pointless.
  */
-	have_target = pd_Retrieve (Pd, "global", "altitude", 
-				   (char *) &target_alt, SYMT_FLOAT);
-/*
- * Now go through and find the closest one to our target.
- */
-	if (use_latest)
-		closest = nalt - 1;
-	else if (have_target)
-	{
-		closest = 0;
-		dist = ABS (alts[0] - target_alt);
-		for (i = 1; (dist) && (i < nalt); i++)
-		{
-			if (ABS (alts[i] - target_alt) < dist)
-			{
-				dist = ABS (alts[i] - target_alt);
-				closest = i;
-			}
-		}
-	}
-	else
-		closest = 0;
-/*
- * Step by the given amount, and apply bounds.
- */
-	if ((closest += nstep) < 0)
-		closest = 0;
-	else if (closest >= nalt)
-		closest = nalt - 1;
+	next = 0;
+	if (nalt > 1)
+		next = alt_NextStep (alts, nalt, nstep, NULL);
 /*
  * Stash the new altitude
  */
-	sprintf (scratch, "%.4f", alts[closest]);
+	msg_ELog (EF_DEBUG, "new altitude %.1f", alts[next]);
+	sprintf (scratch, "%.4f", alts[next]);
 	pd_Store (Pd, "global", "altitude", scratch, SYMT_STRING);
 /*
  * and the new altitude label
@@ -341,14 +357,15 @@ int nstep;
 	if (! rspace)
 	{
 		sprintf (scratch, "Alt: %s",
-			 au_AltLabel (alts[closest], altunits));
+			 au_AltLabel (alts[next], altunits));
 	}
 	else
 	{
-		sprintf (scratch, "%.1f deg", alts[closest]);
+		sprintf (scratch, "%.1f deg", alts[next]);
 	}
 	alt_SetLabel (scratch);
 }
+
 
 
 
@@ -363,173 +380,6 @@ char *label;
 	Eq_AddEvent (PWhenever, eq_ReturnPD, 0, 0, Override);
 	pdm_ScheduleUpdate ();
 }
-
-
-
-static int
-alt_AlreadyThere (alts, nalt, new)
-float *alts;
-int nalt;
-float new;
-/*
- * See if this altitude is already present in the list.
- */
-{
-	int i;
-
-	for (i = 0; i < nalt; i++)
-		if (alts[i] == new)
-			return (TRUE);
-	return (FALSE);
-}
-
-
-
-
-
-static void
-alt_Insert (alts, nalt, new)
-float *alts, new;
-int *nalt;
-/*
- * Add this altitude to the list, in a sorted manner.  Ugly, linear
- * check, but this list is always short.
- */
-{
-	int alt, i;
-
-	if (new > 90.0)
-		return;
-	for (alt = 0; alt < *nalt; alt++)
-		if (alts[alt] > new)
-		{
-			for (i = *nalt; i > alt; i--)
-				alts[i] = alts [i - 1];
-			alts[alt] = new;
-			(*nalt)++;
-			return;
-		}
-	alts[*nalt] = new;
-	(*nalt)++;
-}
-
-
-
-
-
-static int
-alt_GetRSAlts (platform, alts)
-char *platform;
-float *alts;
-/*
- * Find the list of available radar space altitudes.
- */
-{
-	ZebTime	stimes[MAXALT], otimes[2];
-	PlatformId	pid;
-	Location	locs[MAXALT];
-	char	cattr[200], *attr = NULL;
-	int	i, nalt, ntime, nret;
-/*
- * Find our platform first.
- */
-	if ((pid = ds_LookupPlatform (platform)) == BadPlatform)
-	{
-		msg_ELog (EF_PROBLEM, "Bad platform: %s", platform);
-		return (-1);
-	}
-/*
- * See if there is a filter attribute to apply.
- */
-	if (pda_Search (Pd, "global", "filter-attribute", platform,
-			cattr, SYMT_STRING))
-		attr = cattr;
-/*
- * Now we have to copy out the altitudes to match what is expected
- * in alt_Step;
- */
-	if ((ntime = ds_GetObsTimes (pid, &PlotTime, otimes, 2, attr)) <= 0)
-		return (0);
-	nalt = ds_GetObsSamples (pid, otimes, stimes, locs, MAXALT);
-	nret = 0;
-	for (i = 0; i < nalt; i++)
-		if (! alt_AlreadyThere (alts, nret, locs[i].l_alt))
-			alt_Insert (alts, &nret, locs[i].l_alt);
-/*			alts[nret++] = locs[i].l_alt; */
-/*
- * Now look at the previous observation and get any tilts higher than
- * what we have here.
- */
-	if (ntime > 1)
-	{
-		int na = ds_GetObsSamples (pid, otimes + 1, stimes, locs,
-				MAXALT);
-		for (i = 0; i < na; i++)
-			if (locs[i].l_alt > alts[nret - 1])
-				alts[nret++] = locs[i].l_alt;
-	}
-	return (nret);
-}
-
-
-
-
-
-static int
-alt_GetLatest (platform, alts)
-char *platform;
-float *alts;
-/*
- * Get the "latest" sweep before the plot time, in order to set the
- * "altitude" in every-sweep mode.
- *
- * This is an unpleasant kludge grafted on top of a horrible one.  We
- * here have to essentially reproduce the selection process that we
- * expect ImageDataTime will go through, for the sole purpose of properly
- * updating the label in the display.  Someday this stuff will get tossed
- * into the recycle bin and the new version will:
- *
- *	- abolish the altitude/elevation kludge
- *	- set the altitude label from the actual data after it's fetched
- *	- have lots less whining comments
- */
-{
-	PlatformId pid;
-	char	cattr[200], *attr = NULL;
-	int ntime, nalt, i;
-	ZebTime otime, stimes[MAXALT];
-	Location	locs[MAXALT];
-/*
- * Find our platform first.
- */
-	if ((pid = ds_LookupPlatform (platform)) == BadPlatform)
-	{
-		msg_ELog (EF_PROBLEM, "Bad platform: %s", platform);
-		return (-1);
-	}
-/*
- * See if there is a filter attribute to apply.
- */
-	if (pda_Search (Pd, "global", "filter-attribute", platform,
-			cattr, SYMT_STRING))
-		attr = cattr;
-/*
- * Get the list of altitudes, and see which one lands before the plot
- * time.
- */
-	if ((ntime = ds_GetObsTimes (pid, &PlotTime, &otime, 1, attr)) <= 0)
-		return (0);
-	nalt = ds_GetObsSamples (pid, &otime, stimes, locs, MAXALT);
-	for (i = 0; i < nalt; i++)
-	{
-		if (TC_LessEq (stimes[i], PlotTime))
-			*alts = locs[i].l_alt;
-		else
-			break;
-	}
-	return ((i < nalt) ? 1 : 0);
-}
-
 
 
 
