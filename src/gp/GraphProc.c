@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: GraphProc.c,v 1.17 1991-01-09 16:15:26 burghart Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 1.18 1991-01-22 21:59:34 burghart Exp $";
 
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
@@ -62,7 +62,6 @@ enum pmode	PlotMode = NoMode;
 enum wstate	WindowState = DOWN;
 bool	MovieMode = FALSE;
 Cursor	BusyCursor, NormalCursor;	/* Our cursors			*/
-int	Pltype;
 float	Xlo, Xhi, Ylo, Yhi;
 float	Alt;
 
