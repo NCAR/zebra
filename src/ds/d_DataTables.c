@@ -27,7 +27,7 @@
 # include "dsPrivate.h"
 # include "commands.h"
 # include "dsDaemon.h"
-MAKE_RCSID("$Id: d_DataTables.c,v 3.4 1992-11-14 06:45:17 granger Exp $")
+MAKE_RCSID("$Id: d_DataTables.c,v 3.5 1992-12-10 18:24:42 corbet Exp $")
 
 
 /*
@@ -130,7 +130,6 @@ char *name;
  * Fill it in and return it.
  */
 	strcpy (new->dp_name, name);
-	strcpy (new->dp_class, "");
 	sprintf (new->dp_dir, "%s/%s", DefDataDir, name);
 	new->dp_Tfile = new->dp_flags = 0;
 	new->dp_org = OrgUnknown;
