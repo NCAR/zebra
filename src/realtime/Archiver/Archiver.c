@@ -47,12 +47,13 @@
 # include <X11/Xaw/Command.h>
 
 # include <defs.h>
+# include <zl_symbol.h>
 # include <message.h>
 # include <timer.h>
 # include <config.h>
 # include <DataStore.h>
 
-RCSID ("$Id: Archiver.c,v 1.34 1996-01-12 20:43:38 granger Exp $")
+RCSID ("$Id: Archiver.c,v 1.35 1996-11-19 08:06:21 granger Exp $")
 
 /*
  * Issues:

@@ -32,13 +32,14 @@
 # include <X11/Xaw/Label.h>
 
 # include <defs.h>
+# include <zl_symbol.h>		/* for usy_pstring */
 # include <message.h>
 # include <timer.h>
 # include <config.h>
 # include <copyright.h>
 # include <DataStore.h>
 
-RCSID ("$Id: LastData.c,v 2.12 1996-02-05 14:57:43 granger Exp $")
+RCSID ("$Id: LastData.c,v 2.13 1996-11-19 08:06:45 granger Exp $")
 
 
 /*
@@ -88,7 +89,6 @@ char **argv;
 /*
  * Hook into the message system.
  */
-	usy_init ();
 	if (! msg_connect (MsgHandler, "LastData"))
 	{
 		printf ("Unable to connect to message handler\n");
