@@ -34,7 +34,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 # include "LayoutControl.h"
-MAKE_RCSID ("$Id: PlotExec.c,v 2.10 1992-05-27 16:44:58 kris Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.11 1992-08-06 18:49:52 corbet Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -475,6 +475,7 @@ px_GetCoords ()
 	if (! pda_Search (Pd, "global", "altitude", NULL, CPTR (Alt),
 				SYMT_FLOAT))
 		Alt = 0;
+# ifdef notdef
 /*
  * Assume that we are not yet dealing with space-based platforms.  If we're
  * not in radar-space kludge mode, and the altitude is stratospheric, assume
@@ -482,6 +483,7 @@ px_GetCoords ()
  */
 	if (Alt > 10 && ! rs)
 		Alt /= 1000.0;
+# endif
 /*
  * Unless told otherwise, readjust the coordinates so that x == y.
  */
