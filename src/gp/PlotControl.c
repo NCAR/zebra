@@ -1,7 +1,7 @@
 /*
  * Window plot control routines.
  */
-static char *rcsid = "$Id: PlotControl.c,v 1.5 1991-03-28 18:26:47 kris Exp $";
+static char *rcsid = "$Id: PlotControl.c,v 1.6 1991-04-12 19:07:56 kris Exp $";
 
 # include <ctype.h>
 # include <X11/Intrinsic.h>
@@ -142,8 +142,7 @@ pc_PlotHandler ()
 		fc_CreateFrameFile();
 	}
 /*
- * Figure out how many frames we need the frame cache to have and the
- * maximum number of pixmaps the graphics widget may have.
+ * Figure out how many pixmaps we need the graphics widget to have.
  */
 	FrameCount = 1;
 	pda_Search (Pd, "global", "time-frames", 0, (char *)(&FrameCount), 
@@ -164,7 +163,6 @@ pc_PlotHandler ()
  */
 	if (PlotMode == RealTime && WindowState == UP)
 		pc_SetUpTriggers ();
-
 /*
  *  If a movie is running, keep it running, so the changes can be incorporated
  *  into the movie.
