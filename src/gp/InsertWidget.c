@@ -1,7 +1,7 @@
 /*
  * Data insertion widget.
  */
-static char *rcsid = "$Id: InsertWidget.c,v 1.3 1993-12-22 01:16:48 corbet Exp $";
+static char *rcsid = "$Id: InsertWidget.c,v 1.4 1994-06-29 21:11:33 case Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -523,7 +523,6 @@ XtAppContext 	actx;
 	XtSetArg (args[n], XtNlength, STRLEN);		n++;
 	XtSetArg (args[n], XtNresize, XawtextResizeNever);	n++;
 	XtSetArg (args[n], XtNwidth, 140);		n++;
-	XtSetArg (args[n], XtNheight, 20);		n++;
 	XtSetArg (args[n], XtNstring, ValidTime);	n++;
 	XtSetArg (args[n], XtNtype, XawAsciiString);	n++;
 	XtSetArg (args[n], XtNuseStringInPlace, True);	n++;
