@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.1 1992-11-19 01:45:44 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.2 1992-11-19 01:47:10 granger Exp $"
 
 LIBDS = /zeb/DataStore/libds.a
 
@@ -32,7 +32,7 @@ DISTFILES =
 
 DEFINES = -DDEBUG
 
-NormalProgramTarget(p3fest_ingest,p3feset_ingest.o $(OBJS),$(DEPLIBS),
+NormalProgramTarget(p3fest_ingest,p3fest_ingest.o $(OBJS),$(DEPLIBS),
 				$(LOCAL_LIBRARIES),/**/)
 
 NormalProgramTarget(c130fest_ingest,c130fest_ingest.o $(OBJS),$(DEPLIBS),
