@@ -11,7 +11,7 @@
 # include "ui_tty.h"
 # include "ui_mode.h"
 
-static char *Rcsid = "$Id: ui_token.c,v 1.7 1989-07-12 09:39:06 corbet Exp $";
+static char *Rcsid = "$Id: ui_token.c,v 1.8 1989-07-17 14:07:45 corbet Exp $";
 
 /*
  * For input analysis, all characters are classified into one of the
@@ -1076,6 +1076,7 @@ bool fatal;
  * Get a new source structure, and try to open the file.
  */
  	src = ucs_input ();
+	src->s_type = IST_FILE; /* Do this now, in case it fails */
 	dsetdef ("[].");
 	if ((src->s_lun = dview (file)) == 0)
 	{
@@ -1091,7 +1092,6 @@ bool fatal;
  	src->s_pb = 0;
 	src->s_xp = 0;
 	src->s_snarf = FALSE;
-	src->s_type = IST_FILE;
 }
 
 
