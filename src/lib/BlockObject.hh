@@ -1,4 +1,4 @@
-/* $Id: BlockObject.hh,v 1.6 1998-05-15 19:36:48 granger Exp $
+/* $Id: BlockObject.hh,v 1.7 1998-05-28 21:51:44 granger Exp $
  *
  * A set of classes to facilitate object persistence with a BlockFile.
  */
@@ -94,8 +94,8 @@ public:
 
 	virtual void updateRev ();
 
-	// Indicate the block and/or its size and location have changed
-	virtual void newRev () { }
+	// Indicate the block size, location, or revision have changed
+	virtual void blockChanged () { }
 
 	// Write ourself to our block
 	virtual void write () = 0;
@@ -202,18 +202,20 @@ public:
 		return (changed);
 	}
 
+#ifdef notdef
 	/*
 	 * After reading the block from disk, our block info 
 	 * should have already been synced with our reference.  
 	 */
 	virtual void updateRev ()
 	{ }
+#endif
 
 	/*
 	 * Lastly, when we've changed we need to pass on the change to
 	 * the parent reference.
 	 */
-	virtual void newRev ()
+	virtual void blockChanged ()
 	{
 		// Our revision, and possibly location,
 		// have changed.  Update the reference.

@@ -6,47 +6,72 @@
 //#include <defs.h>
 //#undef bool
 //
-//RCSID("$Id: BlockObject.cc,v 1.5 1998-05-15 19:36:47 granger Exp $")
+//RCSID("$Id: BlockObject.cc,v 1.6 1998-05-28 21:51:42 granger Exp $")
 
 #include "BlockFile.hh"
 #include "BlockObject.hh"
+#include "Format.hh"
 
+/*
+ * Construction and attachment puts us in one of our two initial states:
+ * a new, unallocated block (block.offset == 0), or an allocated block
+ * which has not yet been read into our object (block.offset > 0 && changed).
+ */
 
 SyncBlock::SyncBlock (BlockFile &_bf, const Block &exist) :
-	bf(&_bf), block(exist)
+	bf(&_bf)
 {
 	// cout << "SyncBlock constructor" << endl;
+	attach (exist);
+#ifdef notdef
 	block.revision = 0;	// we have no revision in memory yet
 	marked = 0;
 	changed = 0;
 	lock = 0;
 	writelock = 0;
-
 	// If the given block has not been allocated, we're dirty
-	// because we don't yet exist in the file
+	// because we don't yet exist in the file, and we don't need to
+	// be read-synced so our revision is set to the file rev.
 	if (block.offset == 0 && block.length == 0)
+	{
 		mark ();
+		block.revision = bf->Revision();
+	}
+#endif
 }
 
 
 SyncBlock::SyncBlock (BlockFile &_bf) :
-	bf(&_bf), block()
+	bf(&_bf)
 {
 	// cout << "SyncBlock constructor" << endl;
+	attach (Block());
+}
+
+
+/*
+ * This method puts us in one of our initial states, either from
+ * a constructor or by an explicit call with a new block.
+ */
+void
+SyncBlock::attach (const Block &exist)
+{
 	marked = 0;
 	changed = 0;
 	lock = 0;
 	writelock = 0;
-}
 
-
-
-void
-SyncBlock::attach (const Block &exist)
-{
+	// "exist" may be a null, unallocated block.
 	block = exist;
-	newRev ();
-	block.revision = 0;	// still need to read the new block
+
+	// Base class method does nothing, as when called from constructor.
+	// Only calls virtual subclass implementations when calling
+	// attach() on an existing SyncBlock object.
+	blockChanged ();
+
+	// Existing blocks need to be read on next readSync
+	if (block.offset > 0)
+		changed = 1;
 }
 
 
@@ -54,22 +79,33 @@ SyncBlock::attach (const Block &exist)
 void
 SyncBlock::mark (int _marked)
 {
+#ifdef notdef
 	// Increment our revision number on the first change
 	if (clean() && _marked)
 		++block.revision;
+#endif
 	this->marked = _marked;
 }
 
 
 
+
+/*
+ * When we write our changed object, the block file's revision advances,
+ * then we bring our block revision up to date with the file revision. 
+ */
 void 
 SyncBlock::writeSync (int force)
 {
 	if (needsWrite (force))
 	{
+		// cout << Format("SyncBlock: writing block (%u,%u,%u)\n") %
+		//	block.offset % block.length % block.revision;
 		write ();
 	}
-	newRev ();
+	updateRev ();
+	blockChanged ();
+	changed = 0;
 	mark (0);
 }
 
@@ -80,11 +116,13 @@ SyncBlock::readSync ()
 {
 	if (needsRead ())
 	{
+		// cout << Format("SyncBlock: reading block (%u,%u,%u)\n") %
+		//	block.offset % block.length % block.revision;
 		read ();
 		changed = 0;
+		mark (0);
 	}
 	updateRev ();
-	mark (0);
 }
 
 
@@ -92,8 +130,21 @@ SyncBlock::readSync ()
 int
 SyncBlock::needsRead ()
 {
-	changed = (changed || bf->Changed (block.revision, block.offset,
-					   block.length));
+	// We do not need to be read from disk when
+	//  1) We have no location, meaning we are a new and unallocated block
+	//  2) Our block revision equals the current file revision
+	//  3) We are marked as dirty, meaning we are pending a write sync
+
+	// Otherwise, we need to be read when
+	//  1) We have a location and a zero revision, meaning we have
+	//     been newly attached to an existing block and not read yet.
+	//  2) We have a block and a revision, but we're out of rev.
+
+	if (block.offset > 0 && clean() && block.revision < bf->Revision())
+	{
+		changed = changed ||
+		   bf->Changed (block.revision, block.offset, block.length);
+	}
 	return (changed);
 }
 
@@ -128,7 +179,16 @@ SyncBlock::allocate (BlkSize need)
 		// then don't reallocate the block.
 		//
 		if (need > block.length)
+		{
 			block.offset = bf->Alloc (need, &block.length);
+
+			// After allocating, we will never want to trigger
+			// a readsync.  Likewise we need to be written to
+			// the new block, so get dirty.
+			changed = 0;
+			mark ();
+			blockChanged ();
+		}
 	}
 }
 
