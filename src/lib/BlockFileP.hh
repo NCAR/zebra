@@ -1,5 +1,5 @@
 /*
- * $Id: BlockFileP.hh,v 1.3 1997-12-09 09:29:21 granger Exp $
+ * $Id: BlockFileP.hh,v 1.4 1997-12-13 00:24:27 granger Exp $
  *
  * Private classes and declarations for BlockFile implementation,
  * such as auxiliary block classes.
@@ -12,10 +12,12 @@
 #include <iostream.h>			// For << operators
 
 #include "BlockFile.hh"
+#include "BlockObject.hh"
 #include "Serialize.hh"
 
 const unsigned long BLOCK_FILE_MAGIC = 0xb10cf11e;	/* blocfile */
 const unsigned long BLOCK_FILE_VERSION = 0x00010000;	/* major/minor 1.0 */
+const unsigned long HEADER_SIZE = 256;
 
 #ifdef notdef
 #include "ZTime.hh"
@@ -23,52 +25,16 @@ typedef ZebraTime BF_Time;
 SERIAL_XDR_OPERATOR(BF_Time, xdr_ZebraTime);
 #endif
 
-
-/* ================
- * A block.  The header uses this structure to point to blocks of 
- * auxiliary information.  The revision indicates whether the block
- * needs to be re-read from disk.
- */
-class Block // : public Translatable
-{
-public:
-	Block (BlkOffset bo = 0, BlkSize bs = 0, 
-	       BlkVersion rev = 0) :
-		offset(bo), length(bs), revision(rev)
-	{ }
-
-	BlkOffset offset;	/* Location of block */
-	BlkSize length;		/* Length of block (bytes) */
-	BlkVersion revision;	/* Revision block last changed */
-
-	inline void translate (SerialStream &ss)
-	{
-		ss << offset << length << revision;
-	}
-
-	void init ()
-	{
-		offset = 0;
-		length = 0;
-		revision = 0;
-	}
-};
-
-SERIAL_STREAMABLE(Block);
-
-inline ostream &
-operator<< (ostream &o, const Block &b)
-{
-	o << "(" << b.offset << ", " << b.length << ", "
-	  << ", " << b.revision << ")" << endl;
-	return o;
-}
-
-
 /* =============================
- * Our header structure, the root of the block file structure
+ * Our header structure, the root of the block file administration
+ * overhead.  It's a syncable translatable block which will always
+ * force a read on readSync(), and it always reads and writes itself
+ * from the beginning of the block file (offset 0).
+ *
+ * We get our encode, decode, and size implementations for SerialBlock
+ * from Translatable.
  */
-struct BlockFileHeader : public Translatable
+struct BlockFileHeader : virtual public TranslateBlock
 {
 	/* Basic information */
 
@@ -85,26 +51,7 @@ struct BlockFileHeader : public Translatable
 	Block freelist;		/* Free list block */
 	Block journal;		/* Journal entries */
 
-	int dirty;		/* Dirty status */
-	BlockFile &bf;		/* Our block file */
-
-	BlockFileHeader (BlockFile &_bf) : bf(_bf)
-	{ }
-
-	void mark () 
-	{
-		dirty = 1;
-	}
-
-	int clean ()
-	{
-		return (! dirty);
-	}
-
-	long Revision ()
-	{
-		return (revision);
-	}
+	// ---------------- Methods ---------------- //
 
 	void translate (SerialStream &ss)
 	{
@@ -116,41 +63,46 @@ struct BlockFileHeader : public Translatable
 		ss << journal;
 	}
 
-	void init (int magic = 0)
-	{
-		bf_magic = BLOCK_FILE_MAGIC;
-		app_magic = magic;
-		header_size = 256;	// Room for future header versions
-		bf_version = BLOCK_FILE_VERSION;
-		revision = 0;
-		bf_length = header_size;
-		app_header.init();
-		freelist.init();
-		journal.init();
+	// ---------------- Constructor  ----------------
 
-		mark ();
+	BlockFileHeader (BlockFile &_bf, int magic = 0) : 
+		// Fix our block at the beginning
+		SyncBlock (_bf, Block (0, HEADER_SIZE)),
+		// Initialize members
+		bf_magic (BLOCK_FILE_MAGIC),
+		app_magic (magic),
+		header_size (HEADER_SIZE),
+		bf_version (BLOCK_FILE_VERSION),
+		revision (0),
+		bf_length (HEADER_SIZE),
+		app_header(),
+		freelist(),
+		journal()
+	{ }
+
+	// ---------------- Override SyncBlock methods ----------------
+
+	// Never need allocation, and we'll never grow
+	void allocate () { }
+
+	// Always read the header when asked
+	int needsRead ()
+	{
+		return (1);
 	}
 
-	void writeSync (int force = 0)
+	void updateRev ()
 	{
-		if (dirty || force)
-		{
-			++revision;
-			SerialBuffer *sbuf = bf.writeBuffer ();
-			*sbuf << *this;
-			bf.write (0, sbuf);
-			dirty = 0;
-		}
+		// Take note of a new revision after reading
+		block.revision = revision;
 	}
 
-	// Always read the header; there is no check for revision sync
-	void readSync ()
+	void mark (int _marked = 1)
 	{
-		SerialBuffer *sbuf = bf.readBuffer (0, header_size);
-		*sbuf >> *this;
-		dirty = 0;
+		// Keep the revision in the header in sync with changes
+		SyncBlock::mark (_marked);
+		revision = block.revision;
 	}
-
 };
 
 

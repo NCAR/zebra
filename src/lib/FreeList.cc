@@ -9,7 +9,7 @@
 
 #include <defs.h>
 
-RCSID ("$Id: FreeList.cc,v 1.3 1997-12-09 09:29:23 granger Exp $");
+RCSID ("$Id: FreeList.cc,v 1.4 1997-12-13 00:24:31 granger Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
 #include "BlockFileP.hh"	// For the private header structure and stuff
@@ -19,8 +19,10 @@ RCSID ("$Id: FreeList.cc,v 1.3 1997-12-09 09:29:23 granger Exp $");
 
 // Constructor
 
-FreeList::FreeList (BlockFile &bf, Block &b) : AuxBlock (bf, b)
+FreeList::FreeList (BlockFile &bf, Block &b, SyncBlock *parent) : 
+	SyncBlock (bf, b), RefBlock (b, parent)
 {
+	cout << "Constructing Freelist" << endl;
 	ncache = 0;
 	n = 0;
 	blocks = 0;
@@ -122,7 +124,8 @@ FreeList::Request (BlkSize length, BlkSize *ret_length)
 	}
 
 	// Calculate the block size to allocate for the request
-	int size = (((length-1) >> 8) + 1) << 8;
+	// Allocate in 64-byte increments
+	int size = (((length-1) >> 6) + 1) << 6;
 	ret.length = size;
 
 	if (closest < 0)

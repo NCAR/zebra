@@ -2,12 +2,13 @@
  * The auxillary block base class from which BlockFile helper classes
  * can derive common functionality for serialization and syncing.
  *
- * $Id: AuxBlock.hh,v 1.2 1997-12-09 09:29:16 granger Exp $
+ * $Id: AuxBlock.hh,v 1.3 1997-12-13 00:24:23 granger Exp $
  */
 
 #ifndef _AuxBlock_hh_
 #define _AuxBlock_hh_
 
+#include "BlockObject.hh"
 #include "BlockFileP.hh"
 #include "Serialize.hh"
 
@@ -26,101 +27,35 @@
 
    */
 
-///
-/** A base class which holds the location and size of a block and its
-    revision info, simplifying the synchronization of objects 
-    to and from disk.
+/*
+ * The Auxiliary Block class uses the BlockObject classes to implement 
+ * sync functionality for BlockFile auxiliary structures.  The FreeList
+ * and Journal classes are derived from AuxBlock.
+ */
 
-    Auxillary blocks must be serializable, and thus subclasses must
-    implement the necessary interface methods.
-    */
-class AuxBlock : public Serializable
+class AuxBlock : virtual public RefBlock, virtual public SerialBlock
 {
 public:
-	/* ---
-	 * This is the interface we need all auxillary blocks to support
-	 * to simplify the BlockFile class.
-	 */
+	AuxBlock ()
+	{
+		cout << "AuxBlock constructor" << endl;
+	}
 
-	/// Associate a memory object with a block in the block file
-	AuxBlock (BlockFile &bf, Block &block);
+	virtual ~AuxBlock ()
+	{ }
 
-	/// 
-	/** Write this block to disk if its changed or if 'force' non-zero
-	    */
-	void writeSync (int force = 0);
-
-	/// 
-	/** Read this block from the file if its revision has changed
-	    on the disk. */
-	void readSync ();
-
-	/* ---
-	 * This is the interface to the implementation which can be
-	 * shared among auxillary block subclasses.
-	 */
-
-	/// 
-	/** Set the mark on this block.  Use mark() to mark it as changed
-	    (dirty), else mark(0) to reset the mark (clean).
-	    */
-	void mark (int marked = 1);
-
-	/// Return non-zero if this block is marked.
-	int dirty ();
-
-	/// Return non-zero if this block is clean (not marked).
-	int clean ();
-
-	/// The virtual destructor
-	virtual ~AuxBlock ();
-
-	//---- Subclasses must provide the serialization methods, and
-	//---- they may override the allocate() method to change their
-	//---- growth behavior.
-
-	// How much space to allocate for this block in the block file
-	virtual BlkSize allocate (BlkSize need);
-
-#ifdef notdef
-	///
-	/** Translate ourself onto a serial stream.  Subclasses override
-	    this, but call this before doing their translation.
-	    */
-	virtual void translate (SerialStream &ss);
-#endif
-
-protected:
-
-	BlockFile &bf;		// The block file we're associated with
-	Block &block;		// The block we're associated with
-	BlkVersion revision;	// Revision we last sync'ed with
-	int marked;		// Whether we're dirty or not
+private:
+	// Not implemented //
+	AuxBlock (const AuxBlock &);
+	AuxBlock &operator= (const AuxBlock &);
 };
 
-
-inline void AuxBlock::mark (int _marked = 1)
-{
-	this->marked = _marked;
-}
-
-
-inline int AuxBlock::dirty ()
-{
-	return marked;
-}
-
-
-inline int AuxBlock::clean ()
-{
-	return (! marked);
-}
 
 
 /*
  * Free blocks are just length and offset, without a revision.
  */
-class FreeBlock // : public Translatable
+class FreeBlock
 {
 public:
 	FreeBlock (BlkOffset addr = 0, BlkSize size = 0) :
@@ -142,10 +77,10 @@ SERIAL_STREAMABLE(FreeBlock);
 //
 // Package free list memory management into a convenient structure
 //
-class FreeList : public virtual AuxBlock
+class FreeList : virtual public AuxBlock
 {
 public:
-	FreeList (BlockFile &bf, Block &b);
+	FreeList (BlockFile &bf, Block &b, SyncBlock *parent);
 	~FreeList ();
 
 	/*
@@ -190,7 +125,7 @@ private:
 
 class JournalEntry;
 
-class Journal : public virtual AuxBlock
+class Journal : virtual public AuxBlock
 {
 public:
 	static const MaxEntries = 256;
@@ -203,7 +138,7 @@ public:
 	static const ChangeType BlockChanged = 3;
 	static const ChangeType EndTransaction = 4;
 
-	Journal (BlockFile &bf, Block &b);
+	Journal (BlockFile &bf, Block &b, SyncBlock *parent);
 	~Journal ();
 
 	// Functionality
@@ -215,10 +150,10 @@ public:
 	int decode (SerialBuffer &sbuf);
 	long size (SerialBuffer &sbuf);
 
-	// We'll never actually grow, so allocate only what we need when asked
-	virtual BlkSize allocate (BlkSize need)
+	// Don't grow; our queue size is fixed
+	BlkSize grow (BlkSize need)
 	{
-		return (need);
+		return need;
 	}
 
 private:

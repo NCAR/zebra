@@ -6,12 +6,13 @@
 #include <defs.h>
 #undef bool
 
-RCSID("$Id: AuxBlock.cc,v 1.2 1997-12-09 09:29:14 granger Exp $")
+RCSID("$Id: AuxBlock.cc,v 1.3 1997-12-13 00:24:21 granger Exp $")
 
 #include "AuxBlock.hh"
 #include "BlockFile.hh"
 
 
+#ifdef notdef
 /* 
  * Initialize ourself to an existing block reference, which may be empty.
  * It will remain empty until we change and we're told to write sync.  If
@@ -83,7 +84,7 @@ AuxBlock::readSync ()
 
 
 BlkSize
-AuxBlock::allocate (BlkSize needed)
+AuxBlock::grow (BlkSize needed)
 {
 	// As a default growth algorithm, round to the nearest 256 bytes,
 	// then add on half as many of those 256-byte blocks.
@@ -93,7 +94,7 @@ AuxBlock::allocate (BlkSize needed)
 	return (npages << 8);
 }
 
-
+#endif
 
 
 

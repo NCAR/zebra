@@ -1,5 +1,5 @@
 /*
- * $Id: BlockFile.hh,v 1.3 1997-12-09 09:29:20 granger Exp $
+ * $Id: BlockFile.hh,v 1.4 1997-12-13 00:24:26 granger Exp $
  *
  * Definition of the BlockFile class, for storing opaque blocks of bytes
  * into a file through a block interface.  The overhead information in the
@@ -27,15 +27,13 @@ typedef unsigned long BlkOffset;
 typedef unsigned long BlkSize;
 typedef unsigned long BlkVersion;
 
-#define BadBlockAddr (0)
-#define BAD_BLOCK_ADDR BadBlockAddr
-#define BadBlock BadBlockAddr
 
 class Logger;
 class FreeList;
 class Journal;
 class BlockFileHeader;
 class AuxBlock;
+class Block;
 class SerialBuffer;
 
 // The machine-independent block file interface
@@ -112,11 +110,11 @@ public:
 
 	// ----- File sharing -----
 
-	void Lock ();			// Lock entire file
-	void Unlock ();			// Unlock entire file
+	void Lock (int sync = 1);		// Lock entire file
+	void Unlock (int sync = 1);		// Unlock entire file
 
-	void ReadSync ();		// Read sync from file
-	void WriteSync (int force = 0);	// Write sync to file
+	void ReadSync ();			// Read sync from file
+	void WriteSync (int force = 0);		// Write sync to file
 
 	// Debugging
 
@@ -131,7 +129,8 @@ private:
 	BlockFileHeader *header;
 	FreeList *freelist;
 	Journal *journal;
-	SerialBuffer *sbuf;
+	SerialBuffer *rbuf;
+	SerialBuffer *wbuf;
 
 	friend FreeList;
 	friend Journal;
@@ -169,6 +168,7 @@ private:
 	void recover (BlkOffset addr);
 	BlkOffset alloc (BlkSize size, BlkSize *actual);
 	void free (BlkOffset addr, BlkSize len);
+	int top () { return (lock == 1); }
 
 	void init ();
 };

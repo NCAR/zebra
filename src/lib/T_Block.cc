@@ -9,7 +9,7 @@
 #include "BlockFile.hh"
 #include "Logger.hh"
 
-RCSID ("$Id: T_Block.cc,v 1.2 1997-12-09 09:29:30 granger Exp $")
+RCSID ("$Id: T_Block.cc,v 1.3 1997-12-13 00:24:38 granger Exp $")
 
 static int TestStore (char *name);
 
@@ -57,7 +57,7 @@ TestStore (char *name)
 {
 	BlockFile *store = new BlockFile (name);
 
-	const int N = 500;
+	const int N = 10;
 	const int ndata = 500;
 	unsigned long size = (128 * (N+1)) * sizeof(int);
 	int *data = (int *) malloc (size);
@@ -82,6 +82,7 @@ TestStore (char *name)
 
 	BlkOffset blocks[N];
 	BlkSize sizes[N];
+	BlkVersion old;
 	
 	// Allocate several blocks
 	for (int i = 0; i < N; ++i)
@@ -96,16 +97,36 @@ TestStore (char *name)
 		{
 			data[j] = sizes[i];
 		}
+		old = store->Revision ();
 		store->Write(blocks[i], data, sizes[i]);
+		if (! store->Changed (old, blocks[i], sizes[i]))
+		{
+			cout << "Error: block " << i
+			     << ", offset " << blocks[i]
+			     << ", size " << sizes[i]
+			     << "no change since revision " << old << endl;
+			cout << "Current file revision: " 
+			     << store->Revision() << endl;
+		}
 	}
 
 	// Verify the data in each block
 	for (int i = 0; i < N; ++i)
 	{
+		old = store->Revision ();
 		store->Read (data, blocks[i], sizes[i]);
 		for (unsigned j = 0; j < sizes[i]/sizeof(int); ++j)
 		{
 			assert ((unsigned)data[j] == sizes[i]);
+		}
+		if (store->Changed (old, blocks[i], sizes[i]))
+		{
+			cout << "Error: block " << i
+			     << ", offset " << blocks[i]
+			     << ", size " << sizes[i]
+			     << "changed since revision " << old << endl;
+			cout << "Current file revision: " 
+			     << store->Revision() << endl;
 		}
 	}
 

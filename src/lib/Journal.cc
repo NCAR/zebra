@@ -9,7 +9,7 @@
 
 #include <defs.h>
 
-RCSID ("$Id: Journal.cc,v 1.1 1997-12-09 09:29:25 granger Exp $");
+RCSID ("$Id: Journal.cc,v 1.2 1997-12-13 00:24:34 granger Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
 #include "BlockFileP.hh"	// For the private header structure and stuff
@@ -19,8 +19,10 @@ RCSID ("$Id: Journal.cc,v 1.1 1997-12-09 09:29:25 granger Exp $");
 
 // Constructor
 
-Journal::Journal (BlockFile &bf, Block &b) : AuxBlock (bf, b)
+Journal::Journal (BlockFile &bf, Block &b, SyncBlock *parent) :
+	SyncBlock (bf, b), RefBlock (b, parent)
 {
+	cout << "Constructing Journal" << endl;
 	max = MaxEntries;
 	first = 0;
 	last = 0;
@@ -59,13 +61,12 @@ Journal::Changed (BlkVersion rev, BlkOffset offset, BlkSize length)
 		// more recent than the given revision
 		changed = 0;
 		int i = first;
-		while (i != last)
+		while (i != last && entries[i].block.revision >= rev)
 		{
 			Block *b = &entries[i].block;
 			if (entries[i].change == BlockChanged &&
 			    b->offset + b->length >= offset &&
-			    offset + length >= b->offset &&
-			    b->revision > rev)
+			    offset + length >= b->offset)
 			{
 				changed = 1;
 				break;
