@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: dsrescan.c,v 1.5 1994-01-13 00:51:29 granger Exp $";
+static char *rcsid = "$Id: dsrescan.c,v 1.6 1994-01-13 01:19:54 granger Exp $";
 
 # include "defs.h"
 # include "message.h"
@@ -42,6 +42,8 @@ void
 usage (prog)
 char *prog;
 {
+	printf ("Usage: %s -h\n", prog);
+	printf ("   Print this usage message\n");
 	printf ("Usage: %s -all\n", prog);
 	printf ("Usage: %s regexp [regexp ...]\n", prog);
 	printf ("   Rescan all platforms or only those matching the given");
@@ -68,14 +70,14 @@ char **argv;
 	char pname[50];
 	char *filename;
 	char **platname = NULL;
-	int i, j, p, nplat;
+	int i, j, p, nplat, total;
 /*
  * Check args.
  */
-	if (argc < 2)
+	if ((argc < 2) || (!strcmp (argv[1], "-h")))
 	{
 		usage (argv[0]);
-		exit (1);
+		exit (0);
 	}
 /*
  * Get initialized.
@@ -113,11 +115,21 @@ char **argv;
 					exit(2);
 				}
 			}
+			else
+			{
+				printf ("%s: invalid option '%s'\n",
+					argv[0], argv[i]);
+				usage (argv[0]);
+				exit (99);
+			}
 		}
 	}
 
 	if (all)
+	{
 		ds_ForceRescan (BadPlatform, TRUE);
+		printf ("All platforms being scanned.\n");
+	}
 	else if (fileonly)
 	{
 		if (p != 1)
@@ -135,9 +147,12 @@ char **argv;
 			exit (4);
 		}
 		ds_ScanFile (plat, filename, remote ? FALSE : TRUE);
+		printf ("File '%s' in platform '%s' scanned.\n", 
+			filename, platname[0]);
 	}
 	else
 	{
+		total = 0;
 		for (i = 0; i < p; ++i)
 		{
 			plist = ds_SearchPlatforms (platname[i], &nplat, 
@@ -152,8 +167,10 @@ char **argv;
 					ds_ForceRescan (plist[j], FALSE);
 				}
 				free (plist);
+				total += nplat;
 			}
 		}
+		printf ("%d platforms being scanned.\n", total);
 	}
 	if (platname)
 		free (platname);
