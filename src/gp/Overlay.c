@@ -3,7 +3,7 @@
  */
 #ifndef lint
 static char *rcsid = 
-	"$Id: Overlay.c,v 2.30 1993-11-11 19:56:54 burghart Exp $";
+	"$Id: Overlay.c,v 2.31 1993-11-11 20:02:47 burghart Exp $";
 #endif
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -1403,7 +1403,7 @@ int update;
 		py = YPIX (y + aannot * sin (azrad));
 
 		textrot = cos (azrad) >= 0.0 ? 90.0 - az : 270.0 - az;
-		if (textrot = 0.0)
+		if (textrot == 0.0)
 			textrot = 0.5; /* force stroke text */
 
 		DrawText (Graphics, GWFrame (Graphics), Gcontext, px, py, 
