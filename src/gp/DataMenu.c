@@ -31,7 +31,7 @@
 # include <DataStore.h>
 # include <ui_date.h>
 # include "GraphProc.h"
-MAKE_RCSID ("$Id: DataMenu.c,v 2.10 1993-08-04 17:16:33 granger Exp $")
+MAKE_RCSID ("$Id: DataMenu.c,v 2.11 1993-08-25 16:15:55 burghart Exp $")
 
 
 /*
@@ -206,7 +206,7 @@ SetupPlats ()
  * Figure out what should appear in this menu where.
  */
 {
-	char platform[80], *plats[MAXENTRY], adjust_str[40];
+	char platform[200], *plats[MAXENTRY], adjust_str[40];
 	SValue v;
 	int type, nplat, nentry = 0, plat, adjust, dsadjust;
 	ZebTime t;
@@ -218,7 +218,7 @@ SetupPlats ()
 	strcpy (IComp, v.us_v_ptr);
 	if (! pd_Retrieve (Pd, IComp, "menu-platform", platform,SYMT_STRING) &&
 		  ! pd_Retrieve (Pd, IComp, "platform", platform, SYMT_STRING))
-		return (FunkyPlat ("No platform"));
+		return (FunkyPlat ("No platform or menu-platform"));
 /*
  * Split things apart.
  */
