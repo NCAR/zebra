@@ -1,0 +1,17 @@
+#!/bin/csh
+#
+# Shell wrapper to set PYTHONPATH and execute PYTHON_SCRIPT
+# (auto-generated from $Id: shell_wrapper.tmpl,v 1.1 2000-03-29 16:28:03 burghart Exp $)
+#
+
+if (! $?ZEB_TOPDIR) setenv ZEB_TOPDIR DEFAULT_TOPDIR
+
+if ($?PYTHONPATH) then
+	setenv PYTHONPATH $(ZEB_TOPDIR)/lib/python:$(PYTHONPATH)
+else
+	setenv PYTHONPATH $(ZEB_TOPDIR)/lib/python
+endif
+
+exec python $(ZEB_TOPDIR)/bin/PYTHON_SCRIPT $*
+
+
