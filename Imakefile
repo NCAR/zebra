@@ -1,4 +1,4 @@
-XCOMM $Id: Imakefile,v 1.6 1993-06-23 22:20:56 granger Exp $
+XCOMM $Id: Imakefile,v 1.7 1993-06-25 10:27:02 granger Exp $
 XCOMM
 XCOMM This is the top-level Imakefile for the Zeb distribution.
 XCOMM It is modeled after the top-level Imakefile of the MIT X11R5
@@ -76,7 +76,7 @@ XCOMM do not name your log file make.log or MakeOut when you run this ...
 World::
 	@echo ""
 	@echo "Building Zeb"
-	@echo "Do not name you log file make.log or MakeOut,"
+	@echo "Do not name your log file make.log or MakeOut,"
 	@echo "else it will be erased."
 	@date
 	@echo ""
@@ -87,9 +87,6 @@ World::
 	$(MAKE) $(MFLAGS) clean
 	$(MAKE) $(MFLAGS) includes
 	$(MAKE) $(MFLAGS) depend
-#ifdef notdef
-	$(MAKE) $(MFLAGS) $(WORLDOPTS) install.lib
-#endif
 	$(MAKE) $(MFLAGS) $(WORLDOPTS) install
 	@echo ""
 	@date
@@ -109,9 +106,6 @@ Everything::
 	$(MAKE) $(MFLAGS) Makefiles
 	$(MAKE) $(MFLAGS) includes
 	$(MAKE) $(MFLAGS) depend
-#ifdef notdef
-	$(MAKE) $(MFLAGS) $(WORLDOPTS) install.lib
-#endif
 	$(MAKE) $(MFLAGS) $(WORLDOPTS) install
 	@echo ""
 	@date
