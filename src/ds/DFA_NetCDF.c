@@ -1,7 +1,7 @@
 /*
  * Access to netCDF files.
  */
-static char *rcsid = "$Id: DFA_NetCDF.c,v 1.3 1991-02-26 19:02:10 corbet Exp $";
+static char *rcsid = "$Id: DFA_NetCDF.c,v 1.4 1991-03-08 18:45:13 corbet Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -783,19 +783,22 @@ DataObject *dobj;
 	int vfield, start[4], count[4], i, np;
 	float ncbadval;
 /*
- * Figure out how to tell netCDF what we want.
- */
-	if ((vfield = ncvarid (tag->nc_id, fname)) < 0)
-	{
-		msg_ELog (EF_PROBLEM, "Field '%s' missing!", fname);
-		return;
-	}
-/*
  * Figure out the data coordinates based on the file organization.
  */
 	start[0] = tbegin;
 	count[0] = tend - tbegin + 1;
 	dnc_MakeCoords (tag, dobj, start, count);
+	np = count[0] * count[1] * count[2] * count[3];
+/*
+ * Figure out how to tell netCDF what we want.
+ */
+	if ((vfield = ncvarid (tag->nc_id, fname)) < 0)
+	{
+		msg_ELog (EF_DEBUG, "Field '%s' missing", fname);
+		for (i = 0; i < np; i++)
+			data[i] = badval;
+		return;
+	}
 /*
  * Do it.
  */
@@ -805,7 +808,6 @@ DataObject *dobj;
  * If there is a bad value flag associated with this field, go through
  * and change it to the one stored in the data object.
  */
-	np = count[0] * count[1] * count[2] * count[3];
 	if (ncattget (tag->nc_id, vfield, "missing_value", &ncbadval) > 0 &&
 			ncbadval != badval)
 		for (i = 0; i < np; i++)

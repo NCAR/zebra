@@ -1,7 +1,7 @@
 /*
  * The data store application interface.
  */
-static char *rcsid = "$Id: Appl.c,v 1.4 1991-02-26 19:00:15 corbet Exp $";
+static char *rcsid = "$Id: Appl.c,v 1.5 1991-03-08 18:45:13 corbet Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -569,7 +569,7 @@ float sel, badflag;
  */
 	if (! (get = dgl_MakeGetList (dobj)))
 	{
-		msg_ELog (EF_INFO, "GetList get failure");
+		msg_ELog (EF_DEBUG, "GetList get failure");
 		ds_FreeDataObject (dobj);	/* Complete failure	*/
 		return (NULL);
 	}
