@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 2.19 1994-02-02 23:32:58 burghart Exp $ */
+/* $Id: defs.h,v 2.20 1994-02-16 22:21:54 burghart Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -70,6 +70,17 @@ typedef struct s_Location
 } Location;
 
 /*
+ * Altitude units.  If you add new units here, be sure to add associated
+ * units strings and formats to altunits.c.
+ */
+typedef enum 
+{
+	AU_kmMSL,	/* km MSL */
+	AU_mMSL,	/* m MSL */
+	AU_mb,		/* mb (pressure altitude) */
+} AltUnitType;
+
+/*
  * A macro to make function prototypes a little easier across both STDC and
  * non-STDC implementations.
  */
@@ -111,6 +122,15 @@ void	TC_ZtSplit FP ((const ZebTime *, int *, int *, int *, int *, int *,
 void	TC_ZtAssemble FP ((ZebTime *, int, int, int, int, int, int, int));
 
 int     FindFile FP ((char *, char *, char *));
+
+/*
+ * Altitude units convenience utilities
+ */
+char	*au_UnitsName FP ((AltUnitType));
+char	*au_LongUnitsName FP ((AltUnitType));
+char	*au_PrintFormat FP ((AltUnitType));
+char	*au_AltLabel FP ((double, AltUnitType));
+char	*au_LongAltLabel FP ((double, AltUnitType));
 
 /*
  * Some macros for the new time format.

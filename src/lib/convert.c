@@ -1,7 +1,7 @@
 /*
  * lat,lon <-> x,y conversion utilities
  */
-static char *rcsid = "$Id: convert.c,v 2.4 1993-05-14 23:50:52 granger Exp $";
+static char *rcsid = "$Id: convert.c,v 2.5 1994-02-16 22:21:53 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -20,9 +20,10 @@ static char *rcsid = "$Id: convert.c,v 2.4 1993-05-14 23:50:52 granger Exp $";
  * maintenance or updates for its software.
  */
 # include <math.h>
-# include <ui.h>
+# include <defs.h>
+# include <message.h>
 
-# define PI 3.141592654
+# define PI	3.141592654
 
 /*
  * Radius of the earth, in km
@@ -30,9 +31,15 @@ static char *rcsid = "$Id: convert.c,v 2.4 1993-05-14 23:50:52 granger Exp $";
 # define R_EARTH	6378.
 
 /*
+ * Has the origin been set?
+ */
+int	OriginSet = FALSE;
+
+/*
  * Origin latitude and longitude (radians)
  */
 static float	Origin_lat = -99.0, Origin_lon = -99.0;
+
 
 
 
@@ -49,13 +56,12 @@ float	lat, lon, *x, *y;
 /*
  * Make sure we have an origin
  */
-	if (Origin_lat < -2*PI || Origin_lon < -2*PI)
+	if (! OriginSet)
 	{
-		ui_printf ("Enter the origin to use for conversions\n");
-		Origin_lat = ui_float_prompt ("   Latitude (decimal degrees)",
-			0, -90.0, 90.0, 0.0) * PI / 180.0;
-		Origin_lon = ui_float_prompt ("   Longitude (decimal degrees)",
-			0, -180.0, 180.0, 0.0) * PI / 180.0;
+		msg_ELog (EF_PROBLEM, 
+			  "No origin for lat/lon -> x,y conversion");
+		*x = *y = 0.0;
+		return;
 	}
 /*
  * Convert the lat,lon to x,y, making sure to do the arithmetic in mod(180
@@ -103,13 +109,12 @@ float	x, y, *lat, *lon;
 /*
  * Make sure we have an origin
  */
-	if (Origin_lat < -2*PI || Origin_lon < -2*PI)
+	if (! OriginSet)
 	{
-		ui_printf ("Enter the origin to use for conversions\n");
-		Origin_lat = ui_float_prompt ("   Latitude (decimal degrees)",
-			0, -90.0, 90.0, 0.0) * PI / 180.0;
-		Origin_lon = ui_float_prompt ("   Longitude (decimal degrees)",
-			0, -180.0, 180.0, 0.0) * PI / 180.0;
+		msg_ELog (EF_PROBLEM, 
+			  "No origin for x,y -> lat/lon conversion!");
+		*lat = *lon = 0.0;
+		return;
 	}
 /*
  * Convert the x,y to lat,lon
@@ -133,7 +138,7 @@ float	x, y, *lat, *lon;
 
 
 
-void
+int
 cvt_GetOrigin (lat, lon)
 float	*lat, *lon;
 /*
@@ -143,19 +148,14 @@ float	*lat, *lon;
 /*
  * Make sure we have an origin
  */
-	if (Origin_lat < -2*PI || Origin_lon < -2*PI)
+	if (! OriginSet)
+		return (FALSE);
+	else
 	{
-		ui_printf ("Enter the origin to use for conversions\n");
-		Origin_lat = ui_float_prompt ("   Latitude (decimal degrees)",
-			0, -90.0, 90.0, 0.0) * PI / 180.0;
-		Origin_lon = ui_float_prompt ("   Longitude (decimal degrees)",
-			0, -180.0, 180.0, 0.0) * PI / 180.0;
+		*lat = Origin_lat / PI * 180.0;
+		*lon = Origin_lon / PI * 180.0;
+		return (TRUE);
 	}
-/*
- * Return the current origin in degrees
- */
-	*lat = Origin_lat / PI * 180.0;
-	*lon = Origin_lon / PI * 180.0;
 }
 
 
@@ -176,12 +176,14 @@ float	lat, lon;
  */
 	if (lat > 90.0 || lat < -90.0)
 	{
-		msg_log ("Latitude out of range (-90.0 to 90.0)");
+		msg_ELog (EF_INFO, "Latitude out of range (-90.0 to 90.0)");
+		OriginSet = FALSE;
 		return (FALSE);
 	}
 	if (lon > 180.0 || lon < -180.0)
 	{
-		msg_log ("Longitude out of range (-180.0 to 180.0)");
+		msg_ELog (EF_INFO, "Longitude out of range (-180.0 to 180.0)");
+		OriginSet = FALSE;
 		return (FALSE);
 	}
 /*
@@ -189,6 +191,7 @@ float	lat, lon;
  */
 	Origin_lat = lat * PI / 180.0;
 	Origin_lon = lon * PI / 180.0;
+	OriginSet = TRUE;
 	return (TRUE);
 }
 
@@ -200,13 +203,15 @@ cvt_ShowOrigin ()
  * Print out the current origin
  */
 {
-	if (Origin_lat < -90.0 || Origin_lon < -90.0)
+	if (! OriginSet)
 	{
-		ui_printf ("\n    No current origin\n\n");
+		msg_ELog (EF_INFO, 
+			  "No current origin for lat/lon <-> x,y conversions");
 		return;
 	}
 
-	ui_printf ("\n    Current origin latitude: %.4f, longitude: %.4f\n\n",
+	msg_ELog ("Current origin for lat/lon <-> x,y conversions: %.4f/%.4f",
 		Origin_lat * 180.0 / PI, Origin_lon * 180.0 / PI);
 	return;
 }
+
