@@ -10,7 +10,7 @@
 #include "zl_symbol.h"
 #include "zl_regex.h"
 
-RCSID("$Id: zl_symbol.c,v 2.3 1999-06-23 14:32:20 burghart Exp $")
+RCSID("$Id: zl_symbol.c,v 2.4 2004-10-25 22:01:46 burghart Exp $")
 
 /*
  * This is the format of a single symbol table entry.
@@ -519,7 +519,7 @@ char *symbol;
 static void
 usy_s_indirect (sym, v)
 struct ste *sym;
-union usy_value *v;
+const union usy_value *v;
 /*
  * Set this indirect symbol's value from v.
  */
