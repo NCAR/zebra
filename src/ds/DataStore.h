@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.6 1992-12-11 17:43:06 corbet Exp $
+ * $Id: DataStore.h,v 3.7 1993-02-26 22:58:42 burghart Exp $
  *
  * Public data store definitions.
  */
@@ -159,7 +159,7 @@ typedef struct _AuxDataEntry
 	struct _AuxDataEntry	*dca_Next; /* Next in the chain		*/
 	DataClass	dca_Class;	/* Class which owns this entry	*/
 	short		dca_SubType;	/* Class-specific code		*/
-	short		dca_Len;	/* Length of aux data		*/
+	unsigned short	dca_Len;	/* Length of aux data		*/
 	DataPtr	dca_Data;	/* Actual information		*/
 	bool		dca_Free;	/* Free this one?		*/
 } AuxDataEntry, *AuxDataChain;
