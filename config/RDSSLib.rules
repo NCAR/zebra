@@ -1,5 +1,5 @@
 XCOMM
-XCOMM $Id: RDSSLib.rules,v 1.1 1993-05-12 15:04:47 case Exp $
+XCOMM $Id: RDSSLib.rules,v 1.2 1993-07-23 19:27:44 case Exp $
 XCOMM
 XCOMM Rules specific to the RDSS Libraries project, including some which
 XCOMM override definitions in Imake.rules
@@ -67,14 +67,10 @@ XCOMM
  *  -- InstallShellScriptDest(program,shell,$(BINDIR))
  *
  * InstallScript
- *  -- Install a shell script
+ *  -- Install a shell script (adds suffix .script)
  *
- * InstallShellScriptDest(program,shell,dest)
- *  -- Installs 'program.shell' in dest with the name 'program' and
- *     permissions $(INSTALLPGMFLAGS)
- *
- * InstallShellScript(program,shell)
- *  -- InstallShellScriptDest(program,shell,$(BINDIR))
+ * InstallScriptAsIs
+ *  -- Installs a shell script with no added suffix
  *
  * InstallProgramWithFlags(program,dest,flags)
  *  -- Generates rules to install an executable program using given
@@ -109,6 +105,9 @@ XCOMM
  *	<syslibs>	System libraries, such as -lm, -ltermcap. Usually
  *			the value of $(SYSLIBS) set in Project.tmpl will 
  *                      suffice.
+ *
+ * NormalFortranProgramTarget(program,objects,deplibs,locallibs,syslibs)
+ *  -- Same as above but used for Fortran programs
  *
  * NormalProgramTargetNoInstall(program,objects,deplibs,locallibs,syslibs)
  *  -- Same as above without an automatic install target.  An install
@@ -249,7 +248,7 @@ InstallNonExec(loadfile,$(LIBDIR))				@@\
 								@@\
 loadfile: uisrc depfiles					@@\
 	$(RM) loadfile						@@\
-	$(CPP) $(ALLINCLUDES) $(ALLDEFINES) uisrc \		@@\
+	$(CPP) $(ALLINCLUDES) uisrc \				@@\
 		|grep -v '^# [0-9]' | cat -s > ./uisrc2		@@\
 	$(BINDIR)/uic < ./uisrc1				@@\
 	$(RM) uisrc2						@@\
@@ -418,13 +417,6 @@ install:: program.shell							@@\
 #define InstallShellScript(program,shell)				@@\
 InstallShellScriptDest(program,shell,$(BINDIR))
 
-/*
- * InstallShellScript -- performs InstallShellScriptDest using $(BINDIR)
- * as the dest directory (as in ComplexProgramTarget)
- */
-#define InstallShellScript(program,shell)                               @@\
-InstallShellScriptDest(program,shell,$(BINDIR))
-
 
 /*
  * InstallProgramWithFlags - generate rules to install an executable program
@@ -449,7 +441,7 @@ install:: install.dstname                                               @@\
                                                                         @@\
 install.dstname: srcname                                                @@\
 	MakeDir($(DESTDIR)dest)                                         @@\
-	$(INSTALL) -c $(INSTDATFLAGS) srcname $(DESTDIR)dest/dstname
+	$(INSTALL) -c $(INSTLIBFLAGS) srcname $(DESTDIR)dest/dstname
 #endif /* InstallNamedNonExec */
 
 /*
@@ -461,7 +453,7 @@ install:: install.file                                                  @@\
                                                                         @@\
 install.file: file                                                      @@\
 	MakeDir($(DESTDIR)dest)                                         @@\
-	$(INSTALL) -c $(INSTDATFLAGS) file $(DESTDIR)dest
+	$(INSTALL) -c $(INSTLIBFLAGS) file $(DESTDIR)dest
 #endif /* InstallNonExecFile */
 
 
@@ -474,7 +466,7 @@ install.file: file                                                      @@\
 install:: install.file                                                  @@\
                                                                         @@\
 install.file: file                                                      @@\
-	$(INSTALL) -c $(INSTDATFLAGS) file $(DESTDIR)dest
+	$(INSTALL) -c $(INSTLIBFLAGS) file $(DESTDIR)dest
 #endif /* InstallNonExec */
 
 
@@ -489,6 +481,18 @@ install.program: program.script                                         @@\
 	MakeDir($(DESTDIR)dest)                                         @@\
 	$(INSTALL) -c $(INSTBINFLAGS) program.script $(DESTDIR)dest/program
 #endif /* InstallScript */
+
+/*
+ * InstallScriptAsIs - install a shell script with the given name
+ */
+#ifndef InstallScriptAsIs
+#define InstallScriptAsIs(path,program,dest)					@@\
+install:: install.program						@@\
+									@@\
+install.program: path/program						@@\
+	MakeDir($(BINDIR))						@@\
+	$(INSTALL) -c $(INSTBINFLAGS) path/program $(BINDIR)/program	
+#endif /* InstallScriptAsIs */
 
 /*
  * InstallNamedProg - install a program with renaming and no stripping.
@@ -524,6 +528,26 @@ InstallProgram(program,$(BINDIR))					@@\
 clean::									@@\
 	$(RM) program
 #endif /* NormalProgramTarget */
+
+/*
+ * NormalFortranProgramTarget - same as NormalProgramTarget but for
+ * Fortran programs
+ */
+
+#ifndef NormalFortranProgramTarget
+#define NormalFortranProgramTarget(program,objects,deplibs,locallibs,syslibs)	@@\
+AllTarget(program)							@@\
+									@@\
+program: objects deplibs						@@\
+	RemoveTargetProgram($@)						@@\
+	$(FC) $(FCFLAGS) -o $@ objects locallibs $(LDLIBS) syslibs $(EXTRA_LOAD_FLAGS)	@@\
+									@@\
+InstallProgram(program,$(BINDIR))					@@\
+									@@\
+clean::									@@\
+	$(RM) program
+#endif /* NormalFortranProgramTarget */
+
 
 
 /* 
@@ -610,7 +634,7 @@ includes::								@@\
 	MakeDir($(BUILDINCDIR)/dstsubdir)				@@\
 	@(set -x; cd $(BUILDINCDIR)/dstsubdir; for i in srclist; do \	@@\
 		$(RM) $$i; \						@@\
-		$(CP) -p $(BUILDINCTOP)/dstupdir/$(CURRENT_DIR)/$$i .; \ @@\
+		$(CP) $(CPOPTION) $(RDSSDIR)/$(CURRENT_DIR)/$$i .; \ @@\
 	done)
 #endif /* BuildIncludes */
 
