@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 2.32 1996-06-21 16:24:33 granger Exp $ */
+/* $Id: defs.h,v 2.33 1996-11-19 08:00:34 granger Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -22,17 +22,10 @@
 # ifndef _zeb_defs_h_
 # define _zeb_defs_h_
 
-# include <ui.h>
-# include <stdlib.h>
-
 /*
- * If a source file needs memory prototypes, make it include string.h itself.
+ * This at least seems safe enough 
  */
-#ifdef notdef
-# if (! defined(__GNUC__) || __GNUC__ < 2) && ! __STDC__
-# 	include <memory.h>   /* Conflicts with gcc2 builtin */
-# endif
-#endif
+# include <stdlib.h>
 
 /*
  * A macro to make function prototypes a little easier across both STDC and
@@ -49,10 +42,11 @@
 #  define inline
 # endif
 
-# include <version.h>
+# include "version.h"
+# include "zl_param.h"
 
 /*
- * FCC-specific defined types.
+ * Zebra library types.
  */
 typedef struct date_st UItime;	/* Different from UI "date" so we can 
 				   change it. */
@@ -60,18 +54,18 @@ typedef struct date_st UItime;	/* Different from UI "date" so we can
 enum pmode { NoMode, History, RealTime };
 
 /*
- * Here is the new zeb time format.  This looks suspiciously like the
+ * Here is the new zebra time format.  This looks suspiciously like the
  * BSD timeval structure....
  */
 typedef struct _ZebTime
 {
 	long	zt_Sec;		/* Seconds since 1/1/70		*/
 	long	zt_MicroSec;	/* Microseconds added to zt_Sec */
-} ZebTime;
+} ZebTime, ZebraTime;
 
-extern const ZebTime ZT_NONE;
-extern const ZebTime ZT_ALPHA;
-extern const ZebTime ZT_OMEGA;
+extern const ZebraTime ZT_NONE;
+extern const ZebraTime ZT_ALPHA;
+extern const ZebraTime ZT_OMEGA;
 #define ZT_EPOCH ZT_ALPHA;
 #define ZT_END ZT_OMEGA;
 
