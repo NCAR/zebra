@@ -1,3 +1,4 @@
+/* $Id: sfont_1.c,v 1.2 1989-08-07 14:30:55 corbet Exp $ */
 /*
  *  GKL_SF2 - GKS Stroke Font 2
  *
