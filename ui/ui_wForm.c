@@ -19,7 +19,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_wForm.c,v 1.2 1992-01-30 21:09:01 corbet Exp $";
+static char *Rcsid = "$Id: ui_wForm.c,v 1.3 1992-04-21 13:48:46 corbet Exp $";
 
 
 # define MAXENTRY 100
@@ -120,7 +120,8 @@ static char *BlTrans =
 
 
 struct gen_widget *
-uw_FormDef ()
+uw_FormDef (frame)
+FrameWidget *frame;
 {
 	UIFormWidget *fw = (UIFormWidget *) malloc (sizeof (UIFormWidget));
 	int check, store;
@@ -136,6 +137,7 @@ uw_FormDef ()
 	fw->fw_Entries = (FormEntry *) malloc (MAXENTRY*sizeof (FormEntry));
 	fw->fw_w = NULL;
 	fw->fw_PopupCmd[0] = '\0';
+	fw->fw_frame = frame;
 /*
  * Pull in all of the entries.
  */
@@ -217,6 +219,16 @@ struct ui_command *cmds;
 	   case UIC_ENDFORM:
 		fw->fw_NEntry--;
 	   	return (FALSE);
+	/*
+	 * Overall control stuff.
+	 */
+	   case UIC_NOHEADER:
+	   case UIC_LOCATION:
+	   case UIC_SIZE:
+	   case UIC_OVERRIDE:
+		fw->fw_NEntry--;
+	   	uw_DoFrameParam (fw->fw_frame, cmds);
+		return (TRUE);
 	}
 /*
  * Grab the name and text.
