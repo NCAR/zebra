@@ -16,7 +16,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.4 1995-05-24 22:49:35 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.5 1996-05-01 20:30:21 granger Exp $"
 
 #define PassCDebugFlags /* 'CDEBUGFLAGS=$(CDEBUGFLAGS)' */
 
@@ -47,14 +47,17 @@ DISTFILES = Imakefile $(LIBSRCS) $(HEADERS) $(PRIVATE_HEADERS)
 NormalLibraryTarget(rdssutil,$(LIBOBJS))
 InstallLibrary(rdssutil,$(LIBDIR))
 
+BuildIncludesTop($(HEADERS))
+InstallMultipleFlags($(HEADERS),$(INCDIR),$(INSTINCFLAGS))
+
 #else /* ProjectRDSSLibs */
 
 NormalLibraryTarget($(LOCALLIB),$(LIBOBJS))
 InstallObjectsIntoLibrary($(LIBRDSSUTIL),$(LIBOBJS))
 
-#endif /* ProjectZebra */
-
 BuildIncludes($(HEADERS),.,.)
+
+#endif /* ProjectZebra */
 
 LintTarget()
 

@@ -1,5 +1,5 @@
 /* -*- C -*- */
-MFVERSION="$Id: Imakefile,v 1.7 1996-02-05 15:09:42 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.8 1996-05-01 20:30:16 granger Exp $"
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -35,7 +35,18 @@ LIBS = $(LIBRDSSUTIL)
 
 DEPLIBS = $(LIBRDSSUTIL)
 
+
+/*
+ * Zebra installs the ui_commands file into LIBDIR/ui; probably where it
+ * should have been located all along rather than in the source.  Setting
+ * UIDIR to LIBDIR makes the default ui$defs_file LIBDIR/ui/ui_commands
+ */
+#ifdef ProjectZebra
+UIDIR = -DUIDIR=\"$(LIBDIR)\"
+#else
 UIDIR = -DUIDIR=\"$(RDSSDIR)\"
+#endif
+
 LFDIR = -DLF=\"$(UI_LF)\"
 MENUDEFINES = -DSMEMENU
 NORMAL_DEFINES = $(UIDIR) $(LFDIR) $(XWINDOWSFLAG) $(MENUDEFINES)
@@ -110,9 +121,13 @@ SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
 NormalLibraryTarget(rdssui,$(LIBOBJS))
 InstallLibrary(rdssui,$(LIBDIR))
+InstallNonExecFile(ui_commands,$(LIBDIR)/ui)
 
 CompleteProgramTarget(uib, uib.o $(LIBOBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
 CompleteProgramTarget(uic, uic.o $(LIBOBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
+
+BuildIncludesTop($(HEADERS))
+InstallMultipleFlags($(HEADERS),$(INCDIR),$(INSTINCFLAGS))
 
 #else /* ProjectRDSSLibs */
 
@@ -127,11 +142,11 @@ NormalProgramTarget(uic,uic.o $(LIBOBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
 InstallObjectsIntoLibrary($(LIBRDSSUI),$(LIBOBJS))
 
+BuildIncludes($(HEADERS),.,.)
+
 #endif /* ProjectZebra */
 
 UIBootFileDepsTarget(ui.lf, ui.state, ui_commands. $(UIB))
-
-BuildIncludes($(HEADERS),.,.)
 
 DependTarget()
 
