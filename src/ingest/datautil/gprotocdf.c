@@ -26,7 +26,7 @@
 # include <stdio.h>
 # include <netcdf.h>
 # include "defs.h"
-MAKE_RCSID ("$Id: gprotocdf.c,v 1.4 1992-09-22 19:50:20 pai Exp $")
+MAKE_RCSID ("$Id: gprotocdf.c,v 1.5 1992-10-12 22:46:47 kris Exp $")
 
 
 /*
@@ -77,6 +77,14 @@ int Nrec = 0;		/* Number of comment records		*/
 # define HDR_LEN 80
 
 /*
+ * Filetype stuff.
+ */
+int FileType = 0;
+# define WYOMING	1
+# define NCAR		2
+
+
+/*
  * Quick white-space skipping.
  */
 # define SKIP_WHITE(cp) while (*cp && (*cp == ' ' || *cp == '\t')) cp++;
@@ -89,15 +97,20 @@ char **argv;
 /*
  * Basic sanity checking.
  */
-	if (argc < 4)
+	if (argc < 5)
 	{
-		printf ("Usage: %s infile outfile fields...\n", argv[0]);
+		printf ("Usage: %s -filetype infile outfile fields...\n", 
+			argv[0]);
 		exit (1);
 	}
 /*
+ * Get the type of the input file.
+ */
+	get_file_type (argv + 1);
+/*
  * Make our local field list.
  */
-	make_fields (argv + 3, (argc - 3)/2);
+	make_fields (argv + 4, (argc - 4)/2);
 /*
  * Figure out time offsets.
  */
@@ -113,11 +126,11 @@ char **argv;
 /*
  * Open the input file.
  */
-	GpOpen (argv[1]);
+	GpOpen (argv[2]);
 /* 
  * Create the output file.
  */
-	MakeNFile (argv[2]);
+	MakeNFile (argv[3]);
 /*
  * Plow through the data.
  */
@@ -134,6 +147,25 @@ char **argv;
 }
 
 
+
+
+get_file_type (filetype)
+char	**filetype;
+/*
+ * Get the type of the input file.
+ */
+{
+	if (strcmp (filetype[0], "-wyoming") == 0)
+		FileType = WYOMING;
+	else if (strcmp (filetype[0], "-ncar") == 0)
+		FileType = NCAR;
+	else
+	{
+		printf ("Invalid file type: '%s'\n", filetype[0]);
+		exit (0);
+	}
+	printf ("FileType: %s.\n", filetype[0] + 1);
+}
 
 
 
@@ -161,24 +193,36 @@ int count;
 /*
  * Add the positioning fields.
  */
-# ifdef notdef
-	strcpy (SrcFlds[NField], "alat");
-	strcpy (DstFlds[NField++], "lat");
-	strcpy (SrcFlds[NField], "alon");
-	strcpy (DstFlds[NField++], "lon");
-	AltOffset = NField;
-	strcpy (SrcFlds[NField], "hgm");
-	strcpy (DstFlds[NField++], "alt");
-# endif
-	LatOffset = NField;
-	strcpy (SrcFlds[NField], "latg");	Scales[NField] = 10000.0;
-	strcpy (DstFlds[NField++], "lat");
-	LonOffset = NField;
-	strcpy (SrcFlds[NField], "long");	Scales[NField] = 10000.0;
-	strcpy (DstFlds[NField++], "lon");
-	AltOffset = NField;
-	strcpy (SrcFlds[NField], "altg");	Scales[NField] = 1000.0;
-	strcpy (DstFlds[NField++], "alt");
+	if (FileType == NCAR)
+	{
+		LatOffset = NField;
+		strcpy (SrcFlds[NField], "alat");
+		Scales[NField] = 1000.0;
+		strcpy (DstFlds[NField++], "lat");
+		LonOffset = NField;
+		strcpy (SrcFlds[NField], "alon");
+		Scales[NField] = 1000.0;
+		strcpy (DstFlds[NField++], "lon");
+		AltOffset = NField;
+		strcpy (SrcFlds[NField], "hgm");
+		Scales[NField] = 1000.0;
+		strcpy (DstFlds[NField++], "alt");
+	}
+	else if (FileType == WYOMING)
+	{
+		LatOffset = NField;
+		strcpy (SrcFlds[NField], "latg");
+		Scales[NField] = 10000.0;
+		strcpy (DstFlds[NField++], "lat");
+		LonOffset = NField;
+		strcpy (SrcFlds[NField], "long");
+		Scales[NField] = 10000.0;
+		strcpy (DstFlds[NField++], "lon");
+		AltOffset = NField;
+		strcpy (SrcFlds[NField], "altg");
+		Scales[NField] = 1000.0;
+		strcpy (DstFlds[NField++], "alt");
+	}
 }
 
 
@@ -641,8 +685,10 @@ Plow ()
 	 	for (i = 0; i < NField; i++)
 		{
 			data = ip[Foffsets[i]]/Scales[i] - 1000.0;
+# ifdef notdef
 			if (i == AltOffset)
 				data /= 1000.0;	/* m -> km */
+# endif
 			ncvarput1 (NFile, VFields[i], &NOut, &data);
 		}
 		NOut++;
