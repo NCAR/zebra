@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 3.17 1993-10-27 20:18:08 corbet Exp $
+ * $Id: dsPrivate.h,v 3.18 1993-11-02 20:34:57 corbet Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -83,6 +83,7 @@ typedef struct ds_Platform
 # define DPF_SPLIT	0x0040		/* Split on day boundary 	*/
 # define DPF_DIRTY	0x0080		/* Cache needs updating		*/
 # define DPF_CLOADED	0x0100		/* Cache has been loaded	*/
+# define DPF_RCLOADED	0x0200		/* Remote cache loaded		*/
 
 /*
  * Macro to return the right data list for a platform.

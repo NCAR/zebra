@@ -29,7 +29,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID ("$Id: d_Scan.c,v 1.5 1993-10-27 20:18:02 corbet Exp $");
+MAKE_RCSID ("$Id: d_Scan.c,v 1.6 1993-11-02 20:34:52 corbet Exp $");
 
 
 /*
@@ -82,13 +82,20 @@ bool local, rescan;
  */
 {
 	char *dir = local ? p->dp_dir : p->dp_rdir;
-	DIR *dp = opendir (dir);
+	DIR *dp;
 	struct dirent *ent;
-	int cloaded = FALSE;
+	int cloaded = FALSE, cflag = local ? DPF_CLOADED : DPF_RCLOADED;
+/*
+ * Try to load a cache file.
+ */
+	if (! rescan)
+		cloaded = (p->dp_flags & cflag) || LoadCache (p, local);
+	if (cloaded && (local ? LDirConst : RDirConst))
+		return; /* Cache is gospel in this case */
 /*
  * Make sure there really is a directory.
  */
-	if (! dp)
+	if (! (dp = opendir (dir)))
 	{
 		msg_ELog (EF_PROBLEM,
 			"Data dir %s (plat %s) nonexistent", dir, p->dp_name);
@@ -98,16 +105,6 @@ bool local, rescan;
 			return;
 		}
 		dp = opendir (dir);
-	}
-/*
- * Try to load a cache file.
- */
-	if (! rescan)
-		cloaded = (p->dp_flags & DPF_CLOADED) || LoadCache (p, local);
-	if (cloaded && (local ? LDirConst : RDirConst))
-	{
-		closedir (dp);
-		return; /* Cache is gospel in this case */
 	}
 /*
  * Go through the files.
@@ -495,13 +492,14 @@ struct ui_command *cmd;
 
 
 void
-ReadCacheFile (fname)
+ReadCacheFile (fname, local)
 char *fname;
+int local;
 /*
  * Pull in a big cache file.
  */
 {
-	int fd, version;
+	int fd, version, cflag = local ? DPF_CLOADED : DPF_RCLOADED;
 	Platform *p = NULL;
 /*
  * Open up the file and check the version number.
@@ -543,7 +541,7 @@ char *fname;
 				msg_ELog (EF_PROBLEM, "Funky plat %s in cache",
 					  df->df_name);
 			else
-				p->dp_flags |= DPF_CLOADED;
+				p->dp_flags |= cflag;
 			dt_FreeDFE (df);
 		}
 	/*
@@ -552,7 +550,9 @@ char *fname;
 		else if (p)
 		{
 			df->df_flags &= ~(DFF_Seen | DFF_Remote);
-			dt_AddToPlatform (p, df, TRUE);
+			if (! local)
+				df->df_flags |= DFF_Remote;
+			dt_AddToPlatform (p, df, local);
 		}
 	}
 	close (fd);

@@ -39,7 +39,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 # include "commands.h"
-MAKE_RCSID ("$Id: Daemon.c,v 3.28 1993-10-27 20:17:58 corbet Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.29 1993-11-02 20:34:49 corbet Exp $")
 
 
 
@@ -209,7 +209,10 @@ FinishInit ()
  */
 	if (usy_g_symbol (usy_g_stbl ("ui$variable_table"), "cachefile",
 			  &type, &v))
-		ReadCacheFile (v.us_v_ptr);
+		ReadCacheFile (v.us_v_ptr, TRUE);
+	if (usy_g_symbol (usy_g_stbl ("ui$variable_table"), "remotecachefile",
+			  &type, &v))
+		ReadCacheFile (v.us_v_ptr, FALSE);
 /*
  * Perform the file scan to see what is out there.
  */

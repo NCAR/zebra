@@ -1,7 +1,7 @@
 /*
  * Data store daemon-specific definitions.
  */
-/* $Id: dsDaemon.h,v 3.7 1993-10-27 20:18:05 corbet Exp $ */
+/* $Id: dsDaemon.h,v 3.8 1993-11-02 20:34:55 corbet Exp $ */
 /*
  * The platform and data tables, via pointer.
  */
@@ -92,4 +92,4 @@ void DataFileGone FP ((DataFile *df));
 void	DataScan FP ((void));
 void	Rescan FP ((struct dsp_Rescan *));
 void	WriteCache FP ((struct ui_command *));
-void	ReadCacheFile FP ((char *));
+void	ReadCacheFile FP ((char *, int));
