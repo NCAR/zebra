@@ -27,7 +27,7 @@
 # include "DrawText.h"
 # include "PixelCoord.h"
 # include "GC.h"
-MAKE_RCSID ("$Id: Annotate.c,v 2.19 1993-10-28 20:28:35 burghart Exp $")
+MAKE_RCSID ("$Id: Annotate.c,v 2.20 1993-12-01 16:47:00 burghart Exp $")
 
 /*
  * Graphics context (don't use the global one in GC.h because we don't
@@ -543,8 +543,8 @@ int datalen, begin, space;
 	float	scale;
 	char	label[32];
 	char	field[32];
-	int	nTic, ticPix, pixUnit, i;
-	float	used;
+	int	nTic, i;
+	float	used, ticPix, step;
 	int	textlim, x1,x2,y1,y2;
 /*
  * Get annotation parameters.
@@ -559,25 +559,29 @@ int datalen, begin, space;
  */
 	left = An_GetLeft();
 	left += 10; /* put in a buffer */
+
 	width = GWWidth(Graphics) - left;
-	ticPix = pixUnit = (int)(ratio * graphWidth);
-	nTic = width / ticPix;
-	/* 
-	 * decrease the number of ticks below 5 by increments of
-	 * 5 and 10.  This may need to get more sophisticated for
-	 * extreme cases, but hopefully this will suffice for now;
-	 */
+
+	ticPix = ratio * graphWidth;
+	step = 1.0;
+	
+	nTic = (int)(width / ticPix);
+/* 
+ * decrease the number of ticks below 5 by increments of
+ * 5 and 10.  This may need to get more sophisticated for
+ * extreme cases, but hopefully this will suffice for now;
+ */
 	if ( nTic > 5 ) 
 	{
-	    nTic = nTic / 5 ; 
-	    ticPix = ticPix * 5;
-	    ratio = ratio * 5.0;
+		ticPix *= 5.0;
+		nTic = (int)(width / ticPix);
+		step *= 5.0;
 	}
 	if ( nTic > 5 ) 
 	{
-	    nTic = nTic / 2 ; 
-	    ticPix = ticPix * 2;
-	    ratio = ratio * 2.0;
+		ticPix *= 2.0;
+		nTic = (int)(width / ticPix);
+		step *= 2.0;
 	}
 
 	ct_GetColorByName("white", &xc);
@@ -585,31 +589,31 @@ int datalen, begin, space;
 	textlim = left-10;
 	for ( i = 0; i <= nTic; i++ )
 	{
-	    sprintf ( label, "%0.01f", 0.0+(float)(i*ticPix)/(float)pixUnit);
-	    DT_TextBox ( Graphics, GWFrame(Graphics), left+(i*ticPix),0,
+	    sprintf ( label, "%0.01f", i * step);
+	    DT_TextBox ( Graphics, GWFrame(Graphics), left+(int)(i*ticPix),0,
 		label, 0.0, scale, JustifyCenter, JustifyTop, &x1,&y1,&x2,&y2);
 	    if ( x1 > textlim ) 
 	    {
                 DrawText (Graphics, GWFrame (Graphics), AnGcontext,
-                    left+(i*ticPix), begin+1, label, 0.0, scale, 
+                    left+(int)(i*ticPix), begin+1, label, 0.0, scale, 
 		    JustifyCenter, JustifyTop);
 		textlim = x2;
 	    }
 	    XDrawLine( XtDisplay(Graphics),GWFrame(Graphics), AnGcontext,
-	        left+(i*ticPix), begin + 1+abs(y1-y2)+2, left+(i*ticPix), 
+	        left+(int)(i*ticPix), begin + 1+abs(y1-y2)+2, left+(i*ticPix), 
 		begin+1+abs(y1-y2)+5);
 
 	}
 	XDrawLine( XtDisplay(Graphics),GWFrame(Graphics), AnGcontext,
 	    left, begin + 1+abs(y1-y2)+5, 
-	    left+(ticPix*nTic), begin+1+abs(y1-y2)+5);
+	    left+(int)(ticPix*nTic), begin+1+abs(y1-y2)+5);
 	/*
 	 * Draw the scale name
 	 */
         XSetForeground (XtDisplay (Graphics), AnGcontext, color);
         DrawText (Graphics, GWFrame (Graphics), AnGcontext,
-             left+(ticPix*nTic/2), begin+1+abs(y1-y2)+7, field, 0.0, scale, 
-	     JustifyCenter, JustifyTop);
+	     left+(int)(ticPix*nTic/2), begin+1+abs(y1-y2)+7, field, 0.0, 
+	     scale, JustifyCenter, JustifyTop);
 }
 
 void
@@ -948,7 +952,7 @@ int datalen, begin, space;
  *
  * The data string is expected to be formatted as:
  *
- *	style|color|line[|line...]
+ *	style|color|platform[|line...]
  */
 {
 	int limit, left, cheight, nstuff, i;
@@ -978,26 +982,10 @@ int datalen, begin, space;
 		XDrawLine (Disp, GWFrame (Graphics), AnGcontext, left,
 			   begin + cheight/2, left + cheight,
 			   begin + cheight/2);
-	else if (! strcmp (stuff[0], "cross"))
-	{
-		XDrawLine (Disp, GWFrame (Graphics), AnGcontext, left,
-			   begin + cheight/2, left + cheight,
-			   begin + cheight/2);
-		XDrawLine (Disp, GWFrame (Graphics), AnGcontext,
-			   left + cheight/2, begin,
-			   left + cheight/2, begin + cheight);
-	}
-	else if (! strcmp (stuff[0], "xmark"))
-	{
-		XDrawLine (Disp, GWFrame (Graphics), AnGcontext, left,
-			   begin, left + cheight, begin + cheight);
-		XDrawLine (Disp, GWFrame (Graphics), AnGcontext,
-			   left + cheight, begin,
-			   left, begin + cheight);
-	}
-	else if (! strcmp (stuff[0], "point"))
-		XDrawPoint (Disp, GWFrame (Graphics), AnGcontext,
-			    left + cheight/2, begin + cheight/2);
+	else
+		I_PositionIcon (comp, stuff[2], NULL, stuff[0], 
+				left + cheight/2, begin + cheight/2, color);
+	
         DrawText (Graphics, GWFrame (Graphics), AnGcontext, 
         	left + cheight + 2, begin, stuff[2], 0.0, scale,
 		JustifyLeft, JustifyTop);
