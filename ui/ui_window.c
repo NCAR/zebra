@@ -39,7 +39,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_window.c,v 1.12 1990-05-13 11:12:27 corbet Exp $";
+static char *Rcsid = "$Id: ui_window.c,v 1.13 1990-06-04 14:50:50 corbet Exp $";
 
 static bool Initialized = FALSE;
 static bool Active = FALSE;	/* Is window mode active??	*/
@@ -104,9 +104,25 @@ struct ui_command *cmds;
  * perform a shift into Window mode.
  */
 {
+	uw_ForceWindowMode (cmds->uc_ctype == UTT_END ? (char *) 0 :
+		UPTR (*cmds), 0, 0);
+}
+
+
+
+
+/* void */
+uw_ForceWindowMode (popup, top, appc)
+char *popup;
+Widget *top;
+XtAppContext *appc;
+/*
+ * Force the system into window mode.
+ */
+{
 	Arg args[10];
 	void uw_quit (), uw_sel (), uw_do_pop ();
-	int uw_xevent (), h, w;
+	int uw_xevent ();
 /*
  * Throw the mode onto the stack.
  */
@@ -131,10 +147,18 @@ struct ui_command *cmds;
 	tty_watch (XConnectionNumber (XtDisplay (Top)), uw_xevent);
 	Active = TRUE;
 /*
- * Finally, if we have a widget name as an argument, go ahead and put it up.
+ * If we have a widget name as an argument, go ahead and put it up.
  */
-	if (cmds->uc_ctype != UTT_END)
-		uw_popup (UPTR (*cmds));
+	if (popup)
+		uw_popup (popup);
+/*
+ * Return the info.
+ */
+	if (top)
+		*top = Top;
+	if (appc)
+		*appc = Appc;
+
 	return (TRUE);
 }
 
@@ -772,7 +796,7 @@ struct map_table *map;
  * Do a map table->index lookup.
  */
 {
-	int index = -1, i, rt;
+	int index = -1, i;
 	union usy_value result;
 /*
  * If there is a map table for this widget, let's attempt to translate
@@ -924,7 +948,7 @@ int lun, init;
  * Restore some widgets from the file.
  */
 {
-	int type, nc;
+	int type;
 	char name[MAXTITLE], title[MAXTITLE];
 	struct frame_widget *frame = 0;
 	struct gen_widget *gw, *uw_l_list (), *uw_l_cmenu ();
@@ -1022,6 +1046,7 @@ int lun, nmap;
 	for (i = 0; i < nmap; i++)
 		if (map[i].mt_type == SYMT_STRING)
 			map[i].mt_v.us_v_ptr = uw_LoadString (lun);
+	return (map);
 }
 
 
