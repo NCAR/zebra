@@ -1,9 +1,11 @@
-! $Id: dataskip,v 1.3 2001-11-09 23:31:18 granger Exp $
+! $Id: dataskip,v 1.4 2001-11-27 22:19:54 granger Exp $
 !
 ! Generic submenu for setting data-skip parameter, known to be shared
-! at least between skewt and xywind.  Try to keep the two versions
+! among skewt, xywind, thetaplot, and tracks.  Try to keep the two versions
 ! in sync since there will probably always be configurations referring
-! to either menu name.
+! to either menu name.  The convention is expected to be that values of
+! 0 or 1 plot every point, and for all other values only every Nth point
+! is plotted.
 !
 
 define widget data-skip-menu intmenu 'skip data points'
@@ -13,8 +15,8 @@ define widget data-skip-menu intmenu 'skip data points'
 		'parameter #icon_component data-skip "0"' \
 		(PDParam (icon_component,"data-skip") = "0")
 	entry 'Every other point' \
-		'parameter #icon_component data-skip "1"' \
-		(PDParam (icon_component,"data-skip") = "1")
+		'parameter #icon_component data-skip "2"' \
+		(PDParam (icon_component,"data-skip") = "2")
 	entry 'Every 5th point' \
 		'parameter #icon_component data-skip "5"' \
 		(PDParam (icon_component,"data-skip") = "5")
@@ -43,8 +45,8 @@ define widget skewt-data-skip intmenu 'skip data points'
 		'parameter #icon_component data-skip "0"' \
 		(PDParam (icon_component,"data-skip") = "0")
 	entry 'Every other point' \
-		'parameter #icon_component data-skip "1"' \
-		(PDParam (icon_component,"data-skip") = "1")
+		'parameter #icon_component data-skip "2"' \
+		(PDParam (icon_component,"data-skip") = "2")
 	entry 'Every 5th point' \
 		'parameter #icon_component data-skip "5"' \
 		(PDParam (icon_component,"data-skip") = "5")
