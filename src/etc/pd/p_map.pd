@@ -5,6 +5,7 @@ p_map
 	representation:	overlay
 	field:		map
 	color:		yellow
+	line-width:	0
 	icon-middle-menu:	simple-color
 	icon-right-menu:	linewidth
 	icon:		map

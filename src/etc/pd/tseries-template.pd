@@ -39,3 +39,4 @@ xy-grid
 	do-side-annotation:	false
 	platform:		null
 	field-color:		red
+	line-width:		0
