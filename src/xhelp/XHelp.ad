@@ -1,0 +1,36 @@
+! XHelp app defaults file specific to Zeb applications
+!
+XHelp*outerForm.background:			CadetBlue
+XHelp*borderColor:				MidnightBlue
+XHelp*menuForm.background:			CadetBlue
+XHelp*QUIT.background:				gray90
+XHelp*QUIT.foreground:				MidnightBlue
+XHelp*QUIT.borderColor:				red
+XHelp*iconForm*borderColor:			CadetBlue
+XHelp*iconForm.internalBorderColor:		CadetBlue
+
+!
+! Icons will look like other Zeb icons
+!
+XHelp*iconForm.indexButton.background:		gray90
+XHelp*iconForm.backwardButton.background:	gray90
+XHelp*iconForm.forwardButton.background:	gray90
+XHelp*iconForm.searchButton.background:		gray90
+XHelp*iconForm.filler2.background:		CadetBlue
+XHelp*iconForm.filler1.background:		CadetBlue
+
+XHelp*iconForm*background:			CadetBlue
+XHelp*iconForm*foreground:			CadetBlue
+XHelp*iconForm.indexButton.foreground:		MidnightBlue
+XHelp*iconForm.backwardButton.foreground:	MidnightBlue
+XHelp*iconForm.forwardButton.foreground:	MidnightBlue
+XHelp*iconForm.searchButton.foreground:		MidnightBlue
+XHelp*iconForm.filler2.foreground:		CadetBlue
+XHelp*iconForm.filler1.foreground:		CadetBlue
+
+XHelp*textFile*background:			gray90
+XHelp*textFile*foreground:			MidnightBlue
+
+XHelp*titleLabel.background:			midnightblue
+XHelp*titleLabel.foreground:			white
+XHelp*titleLabel.borderColor:			gray90
