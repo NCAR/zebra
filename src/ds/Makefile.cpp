@@ -1,44 +1,45 @@
-MFVERSION="$Id: Makefile.cpp,v 1.3 1991-09-26 22:50:31 gracio Exp $"
+MFVERSION="$Id: Makefile.cpp,v 1.4 1991-10-24 17:25:25 corbet Exp $"
+
+# include "../include/config.h"
 
 # ifdef sun
 /*
  * Sun options
  */
 CC=gcc
-CFLAGS= -g -O -I$(ZEBHOME)/fcc/include -I$(ZEBHOME)/rdss/include
-LIBS=../lib/libfcc.a -lrdss -ltermcap -lnetcdf -lm
+CFLAGS= -g -O -I$(FCCINC) -I$(RDSSINC)
+LIBS=ZebLibrary -lrdss -ltermcap -lnetcdf -lm
 XLIBS=-lXaw -lXmu -lXt -lXext -lX11
 # endif
 
 
-BINDIR=../bin
-LIBDIR=../lib
-HDIR=../include
 
 DSOBJS= Daemon.o d_SharedMemory.o d_DataTables.o d_Config.o d_Notify.o
 OBJS = Appl.o SharedMemory.o DataFileAccess.o DFA_NetCDF.o GetList.o \
 	DFA_Boundary.o DFA_Raster.o
+SRCS = Appl.c SharedMemory.c DataFileAccess.c DFA_NetCDF.c GetList.c \
+	DFA_Boundary.c DFA_Raster.c
 
 all:	dsDaemon dsDaemon.lf $(OBJS) dsdump dsdelete prt_Notify \
 		NetXfr NetXfr.lf Archiver LastData dsdwidget
 
 install:	dsDaemon dsDaemon.lf $(OBJS) dsdelete include prt_Notify \
 		NetXfr NetXfr.lf dsdump Archiver LastData dsdwidget
-	install -c dsDaemon $(BINDIR)
-	install -c Archiver $(BINDIR)
-	install -c LastData $(BINDIR)
-	install -c -m 04555 -o root NetXfr $(BINDIR)
-	install -c -s dsdelete $(BINDIR)
-	install -c -s prt_Notify $(BINDIR)
-	install -c -s dsdump $(BINDIR)
-	install -c -s dsdwidget $(BINDIR)
-	install -c -m 0444 dsDaemon.lf $(LIBDIR)
-	install -c -m 0444 NetXfr.lf $(LIBDIR)
-	ar ruv $(LIBDIR)/libfcc.a $(OBJS)
-	ranlib $(LIBDIR)/libfcc.a
+	install -c dsDaemon D_BINDIR
+	install -c Archiver D_BINDIR
+	install -c LastData D_BINDIR
+	install -c -m 04555 -o root NetXfr D_BINDIR
+	install -c -s dsdelete D_BINDIR
+	install -c -s prt_Notify D_BINDIR
+	install -c -s dsdump D_BINDIR
+	install -c -s dsdwidget D_BINDIR
+	install -c -m 0444 dsDaemon.lf D_LIBDIR
+	install -c -m 0444 NetXfr.lf D_LIBDIR
+	ar ruv ZebLibrary $(OBJS)
+	ranlib ZebLibrary
 
 include:
-	install -c -m 0444 DataStore.h $(HDIR)
+	install -c -m 0444 DataStore.h D_FCCINC
 
 dsDaemon:	$(DSOBJS) $(OBJS)
 	$(CC) $(CFLAGS) -o dsDaemon $(DSOBJS) $(OBJS) $(LIBS) $(XLIBS)
@@ -77,8 +78,22 @@ notify:	notify.o $(OBJS)
 dsdelete:	dsdelete.o $(OBJS)
 	$(CC) $(CFLAGS) -o dsdelete dsdelete.o $(OBJS) $(LIBS)
 
+/*
+ * Saber stuff.  This is a bit complicated, depending on what you are
+ * trying to debug.  The saber "#" construct makes it through the Sun
+ * preprocessor; others may give trouble.
+ */
+saber_lib:
+	#setopt ansi
+	#load $(CFLAGS) $(SRCS)
+	#load -Bstatic $(LIBS) /locallib/gcc-gnulib
+
+saber_pn: saber_lib
+	#load $(CFLAGS) prt_Notify.c d_Notify.c
+
 clean:
-	rm -f *~ dsDaemon dsdump dsdwidget dsdelete NetXfr prt_Notify core notify dsDaemon.lf *.o Makefile.bak
+	rm -f *~ dsDaemon LastData dsdump dsdwidget dsdelete NetXfr 
+	rm -f prt_Notify core notify dsDaemon.lf *.o Makefile.bak
 
 Makefile: mf
 
@@ -86,7 +101,7 @@ mf:
 	mv Makefile Makefile~
 	cp Makefile.cpp Makefile.c
 	echo "# DO NOT EDIT -- EDIT Makefile.cpp INSTEAD" > Makefile
-	cc -E Makefile.c >> Makefile
+	cc -E -DMAKING_MAKEFILE Makefile.c | cat -s >> Makefile
 	rm -f Makefile.c
 	make depend
 
