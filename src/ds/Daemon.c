@@ -35,7 +35,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 # include "commands.h"
-MAKE_RCSID ("$Id: Daemon.c,v 3.7 1992-11-18 23:39:40 granger Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.8 1993-02-05 21:25:04 corbet Exp $")
 
 
 
@@ -437,7 +437,10 @@ bool local, rescan;
 	if (! rescan)
 		cloaded = LoadCache (p, local);
 	if (cloaded && (local ? LDirConst : RDirConst))
+	{
+		closedir (dp);
 		return; /* Cache is gospel in this case */
+	}
 /*
  * Go through the files.
  */
