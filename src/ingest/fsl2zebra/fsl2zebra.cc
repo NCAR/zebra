@@ -90,10 +90,14 @@ main(int argc, char* argv[])
 	//
 	vars.push_back(new floatOutVar("temperature", "degC", infile, 
 				       "temperature"));
+	vars.push_back(new floatOutVar("pressure", "hPa", infile,
+				       "stationPressure"));
 	vars.push_back(new floatOutVar("altimeter", "hPa", infile, 
 				       "altimeter"));
-	vars.push_back(new floatOutVar("dewpoint", "degC", infile, 
-				       "dewpoint"));
+	//	vars.push_back(new floatOutVar("dewpoint", "degC", infile, 
+	//				       "dewpoint"));
+	vars.push_back(new floatOutVar("rh", "percent", infile, 
+				       "relHumidity"));
 	vars.push_back(new floatOutVar("wdir", "degrees", infile, "windDir"));
   	vars.push_back(new floatOutVar("wspd", "m/s", infile, "windSpeed"));
     } catch (outVar::VarError ve) {
@@ -124,13 +128,13 @@ main(int argc, char* argv[])
 	    continue;
 	
 	const Station* s = stations[ids[r]];
-	//
-	// Skip stuff that isn't at least 30 minutes old.  Otherwise
-	// our most recent Zebra time record will almost always be sparsely
-	// popuplated.
-	//
-	if ((now - times[r]) < 1800)
-	    continue;
+//  	//
+//  	// Skip stuff that isn't at least 30 minutes old.  Otherwise
+//  	// our most recent Zebra time record will almost always be sparsely
+//  	// popuplated.
+//  	//
+//  	if ((now - times[r]) < 1800)
+//  	    continue;
 	//
 	// See if one of our open files gets this sample
 	//
