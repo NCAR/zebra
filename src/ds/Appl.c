@@ -20,15 +20,15 @@
  */
 
 
-#include "defs.h"
-#include "message.h"
+#include <defs.h>
+#include <message.h>
 #include "DataStore.h"
 #include "dsPrivate.h"
 #include "dslib.h"
 #include "dfa.h"
 
 #ifndef lint
-MAKE_RCSID ("$Id: Appl.c,v 3.36 1994-11-19 00:29:21 burghart Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.37 1994-11-21 22:46:40 granger Exp $")
 #endif
 
 /*
@@ -1465,29 +1465,11 @@ int *block_size;
 	else
 		avail = dfe.df_nsample;
 
-#ifdef notdef
-/*
- * The code below doesn't work because new files do not have links set.
- * Instead, we have to rely on being passed in the next file, presumably
- * as determined in ds_FindDest().
- */
-/*
- * The next file, chronologically, is backwards on the linked list
- */
-	dfnext = dfe.df_BLink;
 	if (dfnext)
 	{
 		ds_GetFileStruct (dfnext, &dfenext);
 		next = dfenext.df_begin;
 	}
-#endif
-
-	if (dfnext)
-	{
-		ds_GetFileStruct (dfnext, &dfenext);
-		next = dfenext.df_begin;
-	}
-
 /*
  * So we'll see how many samples we can get which
  *  a) are in chronological order, and
@@ -1504,25 +1486,20 @@ int *block_size;
 	{
 	/*
 	 * Remember: for DsAfter, the times will be written chronologically
-	 * beginning at the end of the future[] array and working backwards
+	 * beginning at the end of the future[] array and working backwards.
+	 * nfuture will be the number of times in the future[] array, 
+	 * beginning at future[avail - 1].
 	 */
 		future = (ZebTime *)malloc(avail * sizeof(ZebTime));
 		fut = avail - 1;
 		nfuture = dfa_DataTimes (dfile, &past, DsAfter, 
 					 avail, future + fut);
 	/*
-	 * I think I can correctly assume that the list of times in future[]
-	 * will not include the time passed in 'past'.  If not, someone
-	 * please correct this.
-	 */
-#ifdef notdef
-	/*
-	 * Just in case, see if the first time we got is the one we
-	 * already know we're overwriting.  If so, go to the next one.
+	 * See if the oldest time we got is the one we already know
+	 * we're overwriting.  If so, go to the next one.
 	 */
 		if (nfuture && TC_Eq(past, future[fut]))
 			--fut;
-#endif
 	}
 /*
  * We know that at least one sample remains in the DC and that there is
