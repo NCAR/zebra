@@ -1,4 +1,4 @@
-! $Id: dm.state,v 1.28 1995-06-29 21:26:17 granger Exp $
+! $Id: dm.state,v 1.29 1996-08-20 20:21:42 granger Exp $
 !
 ! Command definition for the display manager.
 !
@@ -932,6 +932,10 @@ define state pd-value
 		next ust$no_more
 	endinput
 enddef
+
+procedure dm_state_id
+	local '$Id: dm.state,v 1.29 1996-08-20 20:21:42 granger Exp $'
+endprocedure
 
 set ui$initial_state "initial"
 read dm.widgets

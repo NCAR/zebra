@@ -1,7 +1,7 @@
 !
 ! Display manager widgets.
 !
-! $Id: dm.widgets,v 1.26 1995-09-22 19:15:58 burghart Exp $
+! $Id: dm.widgets,v 1.27 1996-08-20 20:21:44 granger Exp $
 !
 
 define widget SaveConfig form 'Configuration saver'
@@ -957,4 +957,8 @@ procedure AllXSect x0 string y0 string x1 string y1 string
 			parameter #window global plot-hold false
 		endif
 	endfor
+endprocedure
+
+procedure dm_widgets_id
+	local '$Id: dm.widgets,v 1.27 1996-08-20 20:21:44 granger Exp $'
 endprocedure

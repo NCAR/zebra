@@ -1,5 +1,5 @@
 !
-! $Id: Daemon.state,v 2.18 1995-06-29 21:31:53 granger Exp $
+! $Id: Daemon.state,v 2.19 1996-08-20 20:16:47 granger Exp $
 !
 ! The data store daemon configuration language.
 !
@@ -536,6 +536,7 @@ enddef
 set ui$initial_state "initial"
 
 procedure ui$init
+	local _id '$Id: Daemon.state,v 2.19 1996-08-20 20:16:47 granger Exp $'
 !
 ! Pull in the init file.
 !
