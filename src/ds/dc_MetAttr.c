@@ -29,7 +29,7 @@
 # include "DataStore.h"
 # include "DataChunkP.h"
 
-RCSID ("$Id: dc_MetAttr.c,v 3.3 1996-11-27 02:24:12 granger Exp $")
+RCSID ("$Id: dc_MetAttr.c,v 3.4 1996-11-27 02:32:17 granger Exp $")
 
 
 /*
@@ -251,7 +251,7 @@ int (*func) ();
 		return(0);
 	st = dc_FieldKey (dc, fid, 1);
 	return ((st >= 0) ? dca_ProcAttrs (dc, DCP_MetData, st,
-					   pattern, func) : NULL);
+					   pattern, func) : -1);
 }
 
 
