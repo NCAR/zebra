@@ -1,7 +1,6 @@
 /*
  * Movie control functions.
  */
-static char *rcsid = "$Id: MovieControl.c,v 2.21 1994-11-19 00:35:21 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -42,6 +41,8 @@ static char *rcsid = "$Id: MovieControl.c,v 2.21 1994-11-19 00:35:21 burghart Ex
 # include "GraphProc.h"
 # include "EventQueue.h"
 # include <ui_date.h>
+
+RCSID ("$Id: MovieControl.c,v 2.22 1995-04-27 15:56:24 granger Exp $")
 
 # define ATSLEN		80	/* Length for AsciiText strings		*/
 # define FLEN 		40	/* Length of a field string		*/
@@ -164,15 +165,35 @@ mc_LoadParams ()
  * Load the movie params from the PD.
  */
 {
+	char units[128];
 	ZebTime t;
+	int i;
 
-	if (! pda_Search (Pd, "global", "movie-minutes", NULL, MovieLen, 
+	TimeUnits = tu_minutes;
+	if (pda_Search (Pd, "global", "movie-length", NULL, MovieLen, 
+			SYMT_STRING) &&
+	    pda_Search (Pd, "global", "movie-units", NULL, units,
 			SYMT_STRING))
 	{
-		strcpy (MovieLen, "30");
-		TimeUnits = tu_minutes;
+		/* Use the new plot parameters to derive length and units */
+		for (i = 0; i < sizeof(TUTable)/sizeof(TUTable[0]); ++i)
+		{
+			if (units[0] && 
+			    !strncmp(units, TUTable[i].units, strlen(units)))
+			{
+				TimeUnits = (t_units) i;
+				break;
+			}
+		}
+		msg_ELog (EF_DEBUG, "found movie-length %s and movie-units %s",
+			  MovieLen, TUTable[TimeUnits].units);
 	}
-	
+	else if (! pda_Search (Pd, "global", "movie-minutes", NULL, MovieLen, 
+			       SYMT_STRING))
+	{
+		strcpy (MovieLen, "30");
+	}
+
 	if (! pda_Search (Pd, "global", "movie-end-time", NULL, Endt, 
 			SYMT_STRING))
 	{
@@ -647,7 +668,12 @@ mc_SetupParams ()
 /*
  * Store these values in the PD.
  */
+#ifdef notdef
 	pd_Store (Pd, "global", "movie-minutes", (char *) &movielen, SYMT_INT);
+#endif
+	pd_Store (Pd, "global", "movie-length", (char *) &movielen, SYMT_INT);
+	pd_Store (Pd, "global", "movie-units", TUTable[TimeUnits].units, 
+		  SYMT_STRING);
 	if (! strcmp (Endt, "now"))
 		pd_Store (Pd, "global", "movie-end-time", "now", SYMT_STRING);
 	else
@@ -1370,7 +1396,8 @@ mc_ChangeTimeUnits (w, entry, junk)
 Widget		w;
 XtPointer	entry, junk;
 /*
- * Make the movie widget use the newly specified time units
+ * Make the movie widget use the newly specified time units, but convert the
+ * current values into the new units if possible.
  */
 {
 	Arg	arg;
