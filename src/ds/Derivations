@@ -35,11 +35,12 @@ _pi_[][] = 3.14159265358979323846;	/* Pi */
 [L_c][J/kg] = 2.500e6 - 2369 * ([T][K] - 273);
 
 /*
- * Mixing ratio (g/kg) from vapor pressure (hPa) and pressure (hPa)
+ * Mixing ratio (gram/kg) from vapor pressure (hPa) and pressure (hPa)
  * Ref: Note 2 of FOPPCD
  *
  * This used to be g/kg, but udunits interprets 'g' as the gravity
- * acceleration constant, or standard_free_fall.  Oops.
+ * acceleration constant, or standard_free_fall.  Oops.  In fact, all
+ * occurrences of g/kg in this file have been changed to gram/kg.
  */
 [w][gram/kg] = 1000 * _epsilon_ * ([e][hPa] / ([P][hPa] - [e][hPa]));
 
@@ -103,20 +104,20 @@ _pi_[][] = 3.14159265358979323846;	/* Pi */
 
 /*
  * Potential temperature (K), from temperature (K), pressure (hPa), and
- * mixing ratio (g/kg)
+ * mixing ratio (gram/kg)
  * Ref: Note 8 of FOPPCD
  */
 [theta][K] = [T][K] * pow ((1000 / [P][hPa]), 
-			   (_R_d_ / _c_p_) * (1 - 0.00028 * [w][g/kg]));
+			   (_R_d_ / _c_p_) * (1 - 0.00028 * [w][gram/kg]));
 
 /*
  * Equivalent potential temperature (K), from potential temperature (K),
  * temperature of the lifting condensation level (K), and mixing ratio
- * (g/kg)
+ * (gram/kg)
  * Ref: Note 9 of FOPPCD
  */
-[theta_e][K] = [theta][K] * exp ((3.376 / [T_L][K] - 2.54e-3) * [w][g/kg] *
-				 (1 + 0.81e-3 * [w][g/kg]));
+[theta_e][K] = [theta][K] * exp ((3.376 / [T_L][K] - 2.54e-3) * [w][gram/kg] *
+				 (1 + 0.81e-3 * [w][gram/kg]));
 
 /*
  * Use the t_wet built-in to calculate wet bulb temperature from T, P, and rh
