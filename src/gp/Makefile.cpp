@@ -1,4 +1,4 @@
-/* $Id: Makefile.cpp,v 1.6 1991-11-14 17:51:33 kris Exp $ */
+/* $Id: Makefile.cpp,v 1.7 1991-11-22 20:54:03 kris Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -24,14 +24,23 @@
 /*
  * Sun options
  */
-CC=gcc
-CFLAGS=-g -O -I$(FCCINC) -I$(RDSSINC) -DSHM
+CC=CCompiler
+CFLAGS=CCOptions -I$(FCCINC) -I$(RDSSINC) -DSHM
 /* CFLAGS=-g -O -I/fcc/include -I/rdss/include -DTIMING -DSHM */
 FFLAGS=-g 
 LIBS=ZebLibrary -L/usr/lang/SC0.0 -lF77 -lV77 -lrdss -ltermcap -lnetcdf -lXaw -lXmu -lXt -lXext -lX11 -lm
 # endif
 
-
+# if OPENWIN
+OBJS =  TimeSeries.o ColorTable.o EventQueue.o LLEvent.o PlotControl.o \
+	PlotExec.o UserEvent.o GraphicsW.o Contour.o FillContour.o \
+	DrawText.o RasterPlot.o VectorGrid.o derive.o \
+	Lightning.o Track.o GridAccess.o Overlay.o  PositionWidget.o\
+	FrameCache.o MovieControl.o rgrid.o cfit.o AltControl.o \
+	Icons.o Skewt.o RBand.o Annotate.o XSection.o LimitWidgets.o \
+	ConstAltPlot.o Utilities.o DataMenu.o malloc.o \
+	XYGraph.o PlotPrim.o LayoutControl.o AxisControl.o Label.o
+# else
 OBJS =  TimeSeries.o ColorTable.o EventQueue.o LLEvent.o PlotControl.o \
 	PlotExec.o UserEvent.o GraphicsW.o Contour.o FillContour.o \
 	DrawText.o RasterPlot.o VectorGrid.o derive.o \
@@ -40,6 +49,7 @@ OBJS =  TimeSeries.o ColorTable.o EventQueue.o LLEvent.o PlotControl.o \
 	Icons.o Skewt.o RBand.o Annotate.o XSection.o LimitWidgets.o \
 	ConstAltPlot.o Utilities.o DataMenu.o malloc.o \
 	XYGraph.o PlotPrim.o LayoutControl.o AxisControl.o
+# endif
 
 all:	gp
 
