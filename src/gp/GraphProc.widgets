@@ -1,0 +1,12 @@
+!
+! Widget definitions for the graphics process.
+!
+! $Id: GraphProc.widgets,v 1.1 1992-12-10 15:52:51 corbet Exp $
+!
+set ui$initial_state 'initial'
+
+
+
+!
+! A nifty widget for tweaking irgrid gridding params.
+!
