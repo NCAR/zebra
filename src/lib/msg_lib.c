@@ -29,7 +29,7 @@
 # include "defs.h"
 # include "message.h"
 # ifndef lint
-MAKE_RCSID ("$Id: msg_lib.c,v 2.19 1993-12-21 17:39:20 corbet Exp $")
+MAKE_RCSID ("$Id: msg_lib.c,v 2.20 1994-02-02 20:21:53 granger Exp $")
 # endif
 
 /*
@@ -569,7 +569,7 @@ int timeout; /* seconds */
 	 * Wait for something.
 	 */
 		fds = Fd_list;
-		if ((nsel = select (Max_fd + 1, &fds, 0, 0, &timeout)) < 0)
+		if ((nsel = select (Max_fd + 1, &fds, 0, 0, &delay)) < 0)
 		{
 			if (errno == EINTR) /* gdb attach can cause this */
 				continue;
