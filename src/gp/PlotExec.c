@@ -34,7 +34,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 # include "LayoutControl.h"
-MAKE_RCSID ("$Id: PlotExec.c,v 2.14 1992-10-02 21:58:20 barrett Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.15 1992-10-13 21:11:48 corbet Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -98,7 +98,8 @@ name_to_num Pt_table[] =
 # define RT_SIMPLE	10
 # define RT_WIND	11
 # define RT_OBS		12
-# define N_RTYPES	13	/* Increase this as rep. types are added */
+# define RT_STATION	13	/* Station plot (not vector any more)	*/
+# define N_RTYPES	14	/* Increase this as rep. types are added */
 
 name_to_num Rt_table[] = 
 {
@@ -106,6 +107,7 @@ name_to_num Rt_table[] =
 	{"contour",		RT_CONTOUR	},
 	{"line-contour",	RT_CONTOUR	},
 	{"vector",		RT_VECTOR	},
+	{"station",		RT_STATION	},
 	{"raster",		RT_RASTER	},
 	{"track",		RT_TRACK	},
 	{"overlay",		RT_OVERLAY	},
@@ -153,6 +155,7 @@ void	px_AddComponent FP ((char *, int));
 	void	CAP_FContour FP ((char *, int));
 	void	CAP_Vector FP ((char *, int));
 	void	CAP_Raster FP ((char *, int));
+	void	CAP_Station FP ((char *, int));
 	void	CAP_LineContour FP ((char *, int));
 	void	CAP_Init FP ((time *));
 # endif
@@ -730,6 +733,7 @@ px_Init ()
 	Plot_routines[PT_CAP][RT_FCONTOUR] = CAP_FContour;
 	Plot_routines[PT_CAP][RT_CONTOUR] = CAP_LineContour;
 	Plot_routines[PT_CAP][RT_VECTOR] = CAP_Vector;
+	Plot_routines[PT_CAP][RT_STATION] = CAP_Station;
 	Plot_routines[PT_CAP][RT_RASTER] = CAP_Raster;
 	Plot_routines[PT_CAP][RT_TRACK] = tr_CAPTrack;
 	Plot_routines[PT_CAP][RT_OVERLAY] = ov_CAPOverlay;
