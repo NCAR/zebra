@@ -34,7 +34,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 # include "LayoutControl.h"
-MAKE_RCSID ("$Id: PlotExec.c,v 2.6 1991-12-04 23:06:39 corbet Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.7 1992-01-02 16:58:29 barrett Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -59,6 +59,8 @@ typedef struct
 # define PT_TSERIES	3
 # define PT_XYGRAPH	4
 # define N_PTYPES	5	/* Increase this as plot types are added */
+
+int TriggerGlobal = 0;		/* Update on component may trigger a global */
 
 name_to_num Pt_table[] =
 {
@@ -93,8 +95,9 @@ name_to_num Pt_table[] =
 # define RT_FCONTOUR	7
 # define RT_TSERIES	8
 # define RT_LIGHTNING	9
-# define RT_LINE	10
-# define N_RTYPES	11	/* Increase this as rep. types are added */
+# define RT_SIMPLE	10
+# define RT_WIND	11
+# define N_RTYPES	12	/* Increase this as rep. types are added */
 
 name_to_num Rt_table[] = 
 {
@@ -112,7 +115,8 @@ name_to_num Rt_table[] =
 	{"tseries",		RT_TSERIES	},
 # endif
 # if C_PT_XYGRAPH
-	{"line",		RT_LINE	},
+	{"simple",		RT_SIMPLE	},
+	{"wind",		RT_WIND	},
 # endif
 	{"lightning",		RT_LIGHTNING	},
 	{NULL,			0		}
@@ -182,6 +186,7 @@ static void	(*EOPHandler) () = 0;
 # endif
 # if C_PT_XYGRAPH
 	extern void	xy_Graph();
+	extern void	xy_Wind();
 # endif
 
 /*
@@ -287,12 +292,22 @@ char	*component;
 	{
 		px_GlobalPlot (&cachetime);
 		An_DoSideAnnot ();
+		ac_DisplayAxes ();
 	}
 /*
  * (3) Update plot.
  */
 	else
 		px_AddComponent (component, True);
+/*
+ * A component made a change that requires the other components to also
+ * be redrawn to insure correctness, so force a re-draw of the plot.
+ */
+        if ( TriggerGlobal )
+        {
+            TriggerGlobal = 0;
+            pc_TriggerGlobal();
+        }
 /*
  * Display the frame
  */
@@ -503,10 +518,6 @@ px_GetCoords ()
             lc_SetAxisDim ( AXIS_RIGHT, axisSpace );
         }
 
-	/* initialize the data-region coordinate system for "LayoutControl"
-	   transformations */
-        lc_SetUserCoord (Xlo,Xhi,Ylo,Yhi);
-
 	return (TRUE);
 }
 
@@ -653,7 +664,8 @@ px_Init ()
 	Plot_routines[PT_TSERIES][RT_TSERIES] = ts_Plot;	
 # endif
 # if C_PT_XYGRAPH
-	Plot_routines[PT_XYGRAPH][RT_LINE] = xy_Graph;	
+	Plot_routines[PT_XYGRAPH][RT_SIMPLE] = xy_Graph;	
+	Plot_routines[PT_XYGRAPH][RT_WIND] = xy_Wind;	
 # endif
 /*
  * Done
