@@ -1,0 +1,215 @@
+!
+! Stuff for time-height plots.
+!
+
+procedure thc-climits junk string
+	popup thc-climits
+endprocedure
+
+
+define widget thc-climits form 'Contour limits'
+	popup thc-cl-popup
+	noheader
+!
+! Title
+!
+	label l0 'Contour limits'
+	label comp 'comp' color gray95 width 1
+!	newline
+!
+! Usual stuff
+!
+	button help 'Help' command 'Help xy-contour-limits'
+	button apply 'Apply' command 'thc-cl-apply'
+	button zap 'Dismiss' color red command 'popdown #ui$form'
+	newline
+!
+! The actual stuff.
+!
+	label l-1 'Scale mode:'
+	button mode 'weird' width 70 command 'thc-ToggleMode'
+!	label l-2 'Z-scale:'
+!	button invert 'weird' width 70 command 'thc-ToggleInvert'
+	newline
+	label l1 'Data limits, center:'
+	blank center 'min' width 50 command 'thc-cl-apply'
+	label l2 'step:'
+	blank step 'max' width 50 command 'thc-cl-apply'
+endform
+
+
+
+procedure thc-cl-popup
+	local f ui$form
+	formtext #f comp #icon_component
+!
+! Figure modes.
+!
+	local mode PDSearch(icon_component, 'scale-z-mode', 'xy')
+	if (mode = '(Undefined)')
+		local mode 'autoscale'
+	endif
+	formtext #f mode #mode
+!	local invert PDSearch(icon_component, 'scale-z-style', 'xy')
+!	if (invert = 'invert')
+!		formtext #f invert 'inverted'
+!	else
+!		formtext #f invert 'normal'
+!	endif
+!
+! And limits.
+!
+	local field PDParam(icon_component, 'z-field')
+	local ctr PDSearch(icon_component, 'scale-z-center', field)
+	formtext #f center #ctr
+	local step PDSearch(icon_component, 'scale-z-step', field)
+	formtext #f step #step
+endprocedure
+
+
+
+
+!
+! Apply changes.
+!
+procedure thc-cl-apply
+	local f ui$form
+	local c getftext(f, 'comp')
+
+	local mode getftext(f, 'mode')
+	parameter #c scale-z-mode #mode
+!	local invert getftext(f, 'invert')
+!	if (invert = 'inverted')
+!		parameter #c scale-z-style invert
+!	else
+!		parameter #c scale-z-style normal
+!	endif
+	local ctr getftext(f, 'center')
+	local field PDParam(c, 'z-field')
+	local pname concat(field, '-scale-z-center')
+	parameter global #pname #ctr
+	local step getftext(f, 'step')
+	local pname concat(field, '-scale-z-step')
+	parameter global #pname #step
+endprocedure
+
+
+
+!
+! Tweak autoscale mode.
+!
+procedure thc-ToggleMode
+	local current getftext(ui$form, 'mode')
+	if (current = 'manual')
+		formtext #ui$form 'mode' 'autoscale'
+	else
+		formtext #ui$form 'mode' 'manual'
+	endif
+endprocedure
+
+!
+! Tweak inversion mode
+!
+procedure thc-ToggleInvert
+	local current getftext(ui$form, 'invert')
+	if (current = 'inverted')
+		formtext #ui$form 'invert' 'normal'
+	else
+		formtext #ui$form 'invert' 'inverted'
+	endif
+endprocedure
+
+
+!
+! Left button menu for the global component, vertical version
+!
+define widget vertical-global-left intmenu 'Global left menu'
+	title 'Global Options'
+	line
+	entry 'Adjust global limits' 'popup th-tweakglobal'
+	line
+	entry 'Reset window to initial state' 'dm "ResetWindow"'
+	line
+	entry 'Popup Overlay Times Window' 'popup overlay'
+	entry 'Popup Movie Controller' 'popup movie'
+	entry 'Popup image file generator' 'popup imagecrank'
+	submenu 'Movies' movie-control
+endmenu
+
+
+
+define widget th-tweakglobal form 'TweakHeight'
+	noheader
+	popup th-tg-popup
+
+	label l0 'Adjust max height'
+	label comp 'comp' color gray95 width 1
+	button help 'Help' command 'help th-tweakheight'
+	button apply 'Apply' command 'th-tg-apply'
+	button zap 'Dismiss' color red command 'popdown #ui$form'
+
+	newline
+	label l1 'Maximum height (km):'
+	blank max 'max' width 50 command 'th-tg-apply'
+
+	newline
+	label l2 'Time period:'
+	blank tp 'funky' width 50 command 'th-tg-apply'
+	label l3 '(s)econds, (m)inutes, (h)ours, (d)ays'
+endform
+
+
+
+procedure th-tg-popup
+	local max PDParam('global', 'height-scale-y-max')
+	formtext #ui$form max #max
+	local tp PDParam('global','xy-series-span')
+	formtext #ui$form tp #tp
+endprocedure
+
+
+procedure th-tg-apply
+	local max getftext(ui$form, 'max')
+	parameter global height-scale-y-max #max
+	parameter global wheight-scale-y-max #max	! xxx
+	parameter global alt-scale-y-max #max	! xxx
+	local tp getftext(ui$form, 'tp')
+	parameter global xy-series-span #tp
+endprocedure
+
+
+
+!
+! COARE profiler kludgery: different fields use different height arrays.
+! This is an inherently dangerous situation; hopefully everybody will
+! use the field menu to change fields, and we can make sure that they have
+! the right height array to go with it...
+!
+set th_wfields 'w_wind devw wid3 snr3 n_w wheight'
+
+procedure th-coare-fselect field string
+	parameter #icon_component z-field #field
+	if (substring (th_wfields, field))
+		parameter #icon_component y-field wheight
+	else
+		parameter #icon_component y-field height
+	endif
+endprocedure
+
+
+!
+! This doesn't belong here; move it someday.  Set z field only.
+!
+procedure set-zfield field string
+	parameter #icon_component z-field #field
+endprocedure
+
+
+
+!
+! Tweak the color of the grid.
+!
+procedure thgrid-color-tweaker color string
+	parameter #icon_component axis-b-color #color
+	parameter #icon_component axis-l-color #color
+endprocedure
