@@ -51,7 +51,7 @@
 # define MESSAGE_MANAGER	/* define prototypes for netread functions */
 # include <message.h>
 
-RCSID ("$Id: message.c,v 2.52 1997-05-13 23:55:55 granger Exp $")
+RCSID ("$Id: message.c,v 2.53 1997-05-29 22:37:17 granger Exp $")
 
 /*
  * Symbol tables.
@@ -217,6 +217,7 @@ static void FreeHosts FP((void));
 
 void	Greeting FP ((int, struct message *));
 void	add_to_group FP ((struct connection *, char *, struct message *));
+int	in_group (char *name, struct connection *conp);
 int	clear_group FP ((char *name, int type, union usy_value *v,
 			 struct connection *conp));
 int	free_group FP ((char *name, int type, union usy_value *v, int unused));
@@ -247,6 +248,7 @@ void	new_un_connection FP ((void));
 static void MakeUnixSocket FP ((void));
 static void MakeInetSocket FP ((void));
 static void UpdateLogMask FP ((struct message *msg));
+static void BroadcastMask (int mask);
 static void send_log ();
 static void log ();
 static void inc_message FP ((int nsel, fd_set *fds));
@@ -1558,6 +1560,7 @@ int fd;
  */
 {
 	Connection *cp = Fd_map[fd];
+	int setmask = 0;
 
 	S_ndisc++;
 /*
@@ -1567,6 +1570,15 @@ int fd;
 		usy_z_symbol (Inet_table, cp->c_name);
 	else
 		usy_z_symbol (Proc_table, cp->c_name);
+/*
+ * If this process was a member of the event logger group, meaning it
+ * was interested in log messages and may have set the mask, reset the
+ * mask to zero so that other loggers will OR their own.
+ */
+	if (in_group (EVENT_LOGGER_GROUP, cp))
+	{
+		setmask = 1;
+	}
 	usy_traverse (Group_table, clear_group, (int)cp, FALSE);
 /*
  * Send out the notification.
@@ -1592,7 +1604,46 @@ int fd;
 	Fd_map[fd] = NULL;
 	shutdown (fd, 2);
 	close (fd);
+/*
+ * Reset the event mask to zero, in case the dead event logger didn't.
+ */
+	if (setmask)
+	{
+		send_log (EF_DEBUG, "event logger died: resetting mask");
+		BroadcastMask (EF_SETMASK);
+		EMask = 0;
+	}
 }
+
+
+
+int
+in_group (char *name, struct connection *conp)
+/*
+ * Return non-zero if the given connection belongs to the named group.
+ */
+{
+	union usy_value v;
+	int type;
+	int found = 0;
+
+	if (usy_g_symbol (Group_table, name, &type, &v))
+	{
+		int i;
+		struct group *grp = (struct group *) v.us_v_ptr;
+
+		for (i = 0; i < grp->g_nprocs; i++)
+		{
+			if (grp->g_procs[i] == conp)
+			{
+				found = 1;
+				break;
+			}
+		}
+	}
+	return (found);
+}
+		
 
 
 
@@ -1610,6 +1661,7 @@ struct connection *conp;
 	struct group *grp = (struct group *) v->us_v_ptr;
 
 	for (i = 0; i < grp->g_nprocs; i++)
+	{
 		if (grp->g_procs[i] == conp)
 		{
 			for (j = i; j < (grp->g_nprocs - 1); j++)
@@ -1617,6 +1669,15 @@ struct connection *conp;
 			(grp->g_nprocs)--;
 			break;
 		}
+	}
+	/*
+	 * Remove this group if now empty
+	 */
+	if (grp->g_nprocs <= 0)
+	{
+		send_log (EF_DEBUG, "removing empty group: %s", grp->g_name);
+		free_group (name, type, v, 0);
+	}
 	return (TRUE);
 }
 
@@ -1652,6 +1713,7 @@ int unused;
 	if (grp->g_procs)
 		free (grp->g_procs);
 	free (grp);
+	usy_z_symbol (Group_table, name);
 	return (TRUE);
 }
 
@@ -1689,6 +1751,36 @@ SValue *v;
 	return (TRUE);
 }
 	
+
+
+
+static void
+BroadcastMask (int mask)
+/*
+ * This routine is functionally similar to the SendEverybody() function
+ * in the EventLogger.  Just broadcast a new mask to everybody, and if
+ * setting the mask let the event logger group know, whose members may
+ * be over an internet connection.
+ */
+{
+	struct message msg;
+
+	strcpy (msg.m_from, MSG_MGR_NAME);
+	msg.m_proto = MT_ELOG;
+	msg.m_flags = MF_BROADCAST;
+	msg.m_seq = 0;
+	msg.m_len = sizeof (mask);
+	msg.m_data = (char *) &mask;
+
+	strcpy (msg.m_to, MSG_EVERYBODY);
+	broadcast (&msg, 0);
+
+	if (mask & EF_SETMASK)
+	{
+		strcpy (msg.m_to, EVENT_LOGGER_GROUP);
+		broadcast (&msg, 0);
+	}
+}
 
 
 
