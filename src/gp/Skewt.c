@@ -174,6 +174,7 @@ bool	update;
 	{
 		sk_Background ();
 		An_TopAnnot ("Skew-t plot for ", Tadefclr.pixel);
+		lw_OvInit ("PLATFORM    TIME\n");
 	}
 /*
  * Loop through the platforms
@@ -239,6 +240,13 @@ bool	update;
 	 */
 		sk_Thermo (pres, temp, dp, npts, plat);
 		sk_Winds (pres, u_wind, v_wind, npts, plat, nplat);
+	/*
+	 * Fill in the time info.
+	 */
+		sprintf (annot, "%-12s%2d:%02d\n", pnames[plat],
+			dobj->do_begin.ds_hhmmss/10000,
+			(dobj->do_begin.ds_hhmmss/100) % 100);
+		lw_OvAddString (annot);
 	/*
 	 * Free the data object
 	 */
