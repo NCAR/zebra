@@ -10,13 +10,13 @@
 # include <varargs.h>
 # endif
 
-static char *rcsid = "$Id: ui_OutHook.c,v 1.5 1995-05-20 06:46:07 granger Exp $";
+static char *rcsid = "$Id: ui_OutHook.c,v 1.6 1996-02-03 16:35:43 granger Exp $";
 
 /*
  * The routines we use to output normal (ui_printf) text.
  */
 
-#if !defined(hpux) && !defined(sgi)
+#if !defined(hpux) && !defined(sgi) && !defined(SVR4)
 extern int printf ();
 #endif 
 static void errprint ();
@@ -65,7 +65,7 @@ vfptr hook;
 
 
 
-# ifdef __STDC__
+# if __STDC__
 
 
 /* use the ANSI standard variable args */
@@ -106,7 +106,7 @@ va_dcl
   	va_start (args);
         fmt = va_arg (args, char *);
 
-# endif /* ifdef __STDC __ */
+# endif /* if __STDC __ */
 
 
 /*
@@ -132,7 +132,7 @@ va_dcl
 
 
 
-# ifdef __STDC__
+# if __STDC__
 
 
 /* use the ANSI standard variable args */
@@ -164,7 +164,7 @@ va_dcl
         va_start (args);
         fmt = va_arg (args, char *);
 
-# endif /* ifdef __STDC__ */
+# endif /* if __STDC__ */
 
         vsprintf (buf, fmt, args);
 
