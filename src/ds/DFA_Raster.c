@@ -19,7 +19,7 @@
 # include "RasterFile.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_Raster.c,v 3.18 1997-04-01 17:34:38 corbet Exp $")
+RCSID ("$Id: DFA_Raster.c,v 3.19 1997-05-13 11:07:33 granger Exp $")
 
 /*
  * This is the tag for an open raster file.
@@ -45,7 +45,8 @@ RasterOpenFile;
 
 static CO_Compat COCTable [] =
 {
-	{ OrgImage,		DCC_Image	}
+	{ OrgImage,		DCC_Image	},
+	{ OrgImage,		DCC_Location	},	/* Fetch only */
 };
 
 
@@ -813,10 +814,16 @@ int sample, reuse;
  */
 {
 /*
- * Pull the attributes out of the dc.
+ * Pull the attributes out of the dc.  XXX  Note that we're pulling global
+ * attributes from a datachunk and inserting them as sample attributes!
+ *
+ * As a quick hack, look for sample attributes.  If not found, revert to
+ * global.
  */
 	AttrLen = 0;
-	dc_ProcessAttrs (dc, 0, drf_ProcAttr);
+	dc_ProcSampleAttrArrays (dc, sample, NULL, drf_ProcAttr, NULL);
+	if (AttrLen == 0)
+		dc_ProcessAttrs (dc, NULL, drf_ProcAttr);
 	if (AttrLen == 0)
 		return;
 /*
@@ -979,6 +986,8 @@ DataClass class;
 	int ufield, ffield;
 
 	dc = dc_CreateDC (class);
+	if (class == DCC_Location)
+		return (dc);
 	hdr = &tag->rt_hdr;
 	sc = (ScaleInfo *) malloc (nfield * sizeof (ScaleInfo));
 /*
@@ -1028,11 +1037,15 @@ int ndetail;
 	int sample, fld, rfld;
 	int fieldmap[MAXFIELD], nfield;
 	int dcsamp = dc_GetNSample (dc);
-	FieldId *fids = dc_GetFields (dc, &nfield);
+	FieldId *fids = NULL;
 	ZebTime t_hack;
 
 	hdr = &tag->rt_hdr;
 	dc_AddMoreSamples (dc, nsample, 0);
+	if (dc_IsSubClassOf (dc_ClassId(dc), DCC_MetData))
+		fids = dc_GetFields (dc, &nfield);
+	else
+		nfield = 0;
 /*
  * Go through and map the fields.  Ugly.  If this proves to take a lot
  * of time, we may have to go to an stbl or something, but I don't think
@@ -1083,9 +1096,15 @@ int ndetail;
 				&toc->rft_Rg, &t_hack, Sbuf, 0);
 		}
 	/*
+	 * If dealing with a 0-field case (i.e. DCC_Location), 
+	 * just add the location and time for this sample.
+	 */
+		if (nfield == 0)
+			dc_LocAdd (dc, &t_hack, &toc->rft_Origin);
+	/*
 	 * Deal with attributes.
 	 */
-	 	drf_ReadAttrs (tag, toc, sample, dc);
+	 	drf_ReadAttrs (tag, toc, dcsamp, dc);
 		dcsamp++;
 	}
 	return (TRUE);
@@ -1140,6 +1159,7 @@ DataChunk *dc;
 	{
 		avalue = aname + strlen (aname) + 1;
 		dc_SetGlobalAttr (dc, aname, avalue);
+		dc_SetSampleAttr (dc, sample, aname, avalue);
 		aname = avalue + strlen (avalue) + 1;
 	}
 	free (adata);

@@ -34,7 +34,7 @@
 #include "dfa.h"
 #include "Appl.h"
 
-RCSID ("$Id: DFA_Appl.c,v 3.7 1997-05-09 05:19:27 granger Exp $")
+RCSID ("$Id: DFA_Appl.c,v 3.8 1997-05-13 11:07:32 granger Exp $")
 
 /*
  * Local private prototypes.
@@ -107,6 +107,7 @@ int max;
 
 
 
+
 int
 ds_GetObsTimes (pid, when, times, ntime, attr)
 PlatformId pid;
@@ -174,14 +175,6 @@ char *attr;
  * here we're comparing against both keys and values, but since
  * this is mostly a kludge for radar images anyway...
  */
-#ifdef notdef
-	free (dattr);
-	strcpy (copy, dattr);
-	len = CommaParse (copy, pattr);
-	for (i = 0; i < len; i++)
-		if (!strcmp (pattr[i], attr))
-			return (TRUE);
-#endif
 	a = dattr;
 	while (a - dattr < len)
 	{
@@ -268,6 +261,62 @@ FieldId *flist;
 
 
 
+static int
+ds_QualifyTimes (dfi, which, times, n, key, value)
+int dfi;
+TimeSpec which;
+ZebTime *times;
+int n;
+char *key;
+char *value;
+/*
+ * Given a list of times for the given datafile, remove the times
+ * which do not match the attributes and return the new number of times.
+ * Shift in the direction indicated by 'which'.
+ */
+{
+	int i, skip, dir;
+
+	if (n == 0 || !times || (!key && !value))
+		return (n);
+
+	switch (which) 
+	{
+	case DsBefore:
+		i = 0;
+		dir = 1;
+		break;
+
+	case DsAfter:
+		i = n - 1;
+		dir = -1;
+		break;
+
+	default:
+		return (n);
+	}
+
+	skip = 0;
+	for ( ; i >= 0 && i < n; )
+	{
+		if (! ds_AttrCheck (dfi, times+i, value))
+		{
+			--n;
+			skip += dir;
+		}
+		else
+		{
+			i += dir;
+		}
+		if ((skip != 0) && (i+skip < n+skip) && (i+skip >= 0))
+			times[i] = times[i+skip];
+	}
+	return (n);
+}
+
+
+
+
 int
 ds_DataTimes (platform, when, n, which, rettimes)
 PlatformId platform;
@@ -275,18 +324,51 @@ ZebTime *when, *rettimes;
 int n;
 TimeSpec which;
 /*
+ * The same old usual DataTimes routine, except we pass the work on to
+ * AttrTimes with no attributes.
+ */
+{
+	ds_AttrTimes (platform, when, n, which, NULL, NULL, rettimes);
+}
+
+
+
+
+int
+ds_AttrTimes (platform, when, n, which, key, value, rettimes)
+PlatformId platform;
+ZebTime *when;
+int n;
+TimeSpec which;
+char *key;		/* if null, value checked as key or value */
+char *value;		/* simple string comparison for now */
+ZebTime *rettimes;
+/*
  * Return a list of up to "n" times related to "time" by the given spec.
+ * The times returned can be qualified an attribute key and/or value.
  *
  * Reworked for new non-SHM scheme.  This routine fetches more DFE's than
  * might really be desired, but so it goes.
+ *
+ * "n" is the limit of the samples to search, rather than return, else
+ * we might search forever looking for a single qualified sample.
  */
 {
 	int ndone = 0, index;
+	int nseen = 0;
+	int max = n;
 	DataFile dfe;
+	int i;
 /*
  * We don't do it all yet.
  */
 	InstallDFA;
+
+	if (key && value)
+	{
+		msg_ELog (EF_PROBLEM, "don't do key & value attr checks yet");
+		key = NULL;
+	}
 	switch (which) {
 	/*
 	 * Handle dsBefore -- the usual case.
@@ -303,10 +385,16 @@ TimeSpec which;
 	 * want.
 	 */
 		ds_LockPlatform (platform);
-		while (index && ndone < n)
+		while (index && ndone < n && nseen < max)
 		{
-			ndone += dfa_DataTimes (index, when, which, n - ndone,
-					       rettimes + ndone);
+			int nnew;
+			nnew = dfa_DataTimes (index, when, which, n - ndone,
+					      rettimes + ndone);
+			nseen += nnew;
+			nnew = ds_QualifyTimes (index, which, 
+						rettimes + ndone, nnew,
+						key, value);
+			ndone += nnew;
 			if (ndone < n)
 			{
 				ds_GetFileStruct (index, &dfe);
@@ -328,11 +416,17 @@ TimeSpec which;
 	 * Now we move forward filling the array.
 	 */
 		ds_LockPlatform (platform);
-		for (; index && ndone < n; index = dfe.df_BLink)
+		for (; index && ndone < n && nseen < max; index = dfe.df_BLink)
 		{
+			int nnew;
 			ds_GetFileStruct (index, &dfe);
-			ndone += dfa_DataTimes (index, when, which, n - ndone,
-					       rettimes + n - ndone - 1);
+			nnew = dfa_DataTimes (index, when, which, n - ndone,
+					      rettimes + n - ndone - 1);
+			nseen += nnew;
+			nnew = ds_QualifyTimes (index, which,
+						rettimes + n - ndone - nnew,
+						nnew, key, value);
+			ndone += nnew;
 		}
 		ds_UnlockPlatform (platform);
 	/*
