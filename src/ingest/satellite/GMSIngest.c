@@ -32,7 +32,7 @@
 # include <DataStore.h>
 # include <DataChunk.h>
 
-MAKE_RCSID("$Id: GMSIngest.c,v 1.6 1995-05-19 20:26:16 corbet Exp $")
+MAKE_RCSID("$Id: GMSIngest.c,v 1.7 1995-06-12 19:24:35 corbet Exp $")
 
 # include "keywords.h"
 
@@ -742,7 +742,7 @@ ZebTime	*t;
  * Figure out whether this file needs to be swapped or not and
  * set our flag accordingly.
  */
-	NeedSwap = (header[3] > 99000); /* end-of-century problem, sigh! */
+	NeedSwap = (abs (header[3]) > 99000);
 	msg_ELog (EF_DEBUG, "This file does %sneed swapping",
 			NeedSwap ? "" : "not ");
 	swapfour (header, 5);
