@@ -23,16 +23,17 @@
 # include <sys/types.h>
 # include <string.h>
 # include <unistd.h>
+# include <limits.h>
 
 # include "defs.h"
 
-RCSID ("$Id: TCvt.c,v 2.25 1998-10-28 21:22:37 corbet Exp $")
+RCSID ("$Id: TCvt.c,v 2.26 1999-03-01 01:27:08 burghart Exp $")
 
 /*
  * Public time constants
  */
-const ZebTime ZT_ALPHA = { 0, 0 };
-const ZebTime ZT_OMEGA = { 0x7fffffff, 999999 };
+const ZebTime ZT_ALPHA = { LONG_MIN, 0 };
+const ZebTime ZT_OMEGA = { LONG_MAX, 999999 };
 const ZebTime ZT_NONE = { -1, -1 };
 
 #if defined(SVR4) || defined(SYSV) || defined(linux) || defined (__osf__)
