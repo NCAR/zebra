@@ -45,7 +45,7 @@
 # include "dsPrivate.h"
 # include "Platforms.h"
 
-RCSID("$Id: Platforms.c,v 3.9 2001-10-16 22:26:29 granger Exp $")
+RCSID("$Id: Platforms.c,v 3.10 2001-10-26 05:59:29 granger Exp $")
 
 
 
@@ -1032,6 +1032,19 @@ const PlatformClass *spc;/* the class's superclass, or null */
 	dt_DecodeSubplats (fp, spc, pc);
 	if (pc->dpc_comment)
 		fprintf (fp, "\tcomment\t'%s'\n", pc->dpc_comment);
+	/*
+	 * Class fields.  Note the original definition may have used the
+	 * shortcut of including a derivation in the field spec, but this
+	 * doesn't try to figure that out.  The effect is the same.
+	 */
+	{
+	    int i;
+	    for (i = 0; i < pc->dpc_nfields; ++i)
+	    {
+		fprintf (fp, "\tfield\t'%s'\n", 
+			 F_GetFullName(pc->dpc_fields[i]));
+	    }
+	}
 	if (pc->dpc_derivations)
 		fprintf (fp, "\tderivation\t'%s'\n", pc->dpc_derivations);
 	fprintf (fp, "endclass %s\n", pc->dpc_name);

@@ -452,27 +452,6 @@ T_ClassFields(ZebTime *start, char *plat)
 	sprintf (buf, "Testing class fields for platform '%s'", plat);
 	Announce (buf);
 
-	/* Verify that we can get class fields from the daemon
-	 * for a permanent platform.
-	 */
-	if ((pid = ds_LookupPlatform ("surface")) == BadPlatform)
-	{
-	    ++errors;
-	    msg_ELog (EF_PROBLEM, "expected platform 'surface' to be defined");
-	}
-	else
-	{
-	    FieldId idmr = F_Lookup ("mr[w][%][Mixing Ratio]");
-	    /* Get its fields */
-	    fieldp = ds_PlatformClassFields (pid, &nfield);
-	    if (nfield != 1 || idmr != fieldp[0])
-	    {
-		++errors;
-		msg_ELog (EF_PROBLEM, "did not find class field '%s'",
-			  F_GetFullName (idmr));
-	    }
-	}
-
 	/* This one will override a field from the file. */
 	ncfields = 0;
 	cfields[ncfields++] = F_Lookup ("scalar[][degC][Basic Field]");

@@ -7,7 +7,7 @@
 # include "DataStore.h"
 # include "apple.h"
 
-RCSID("$Id: T_Derivations.c,v 3.4 1999-03-01 02:03:36 burghart Exp $")
+RCSID("$Id: T_Derivations.c,v 3.5 2001-10-26 05:59:29 granger Exp $")
 
 # define NTIMES 100
 
@@ -91,16 +91,126 @@ T_Derivations ()
 	    err++;
 	}
     }
-
+    dc_DestroyDC (dc);
     return (err);
 }
 
 		
+/*
+ * Given the permanent t_surface test platform, see that an alias
+ * of a more fully qualified field to a lesser qualified derivation
+ * succeeds, eg mr[w][gram/kg][Mixing ratio] = [w][gram/kg] works.
+ */
+T_ClassDerivations ()
+{
+    int errors = 0;
+    PlatformId pid;
+    int i;
+    int nfield;
+    FieldId fields[50];
+    DataChunk *dc;
+    ZebraTime now, times[NTIMES];
+
+    /* Verify that we can get class fields from the daemon
+     * for a permanent platform, inherited into a subclass in fact.
+     */
+    if ((pid = ds_LookupPlatform ("t_surface")) == BadPlatform)
+    {
+	++errors;
+	msg_ELog(EF_PROBLEM,"expected platform 't_surface' to be defined");
+    }
+    else
+    {
+	FieldId idmr = F_Lookup ("mr[w][gram/kg][Mixing ratio]");
+	FieldId idrh = F_Lookup ("rh[rh][%][Relative humidity]");
+	/* Get its class fields and verify these are there. */
+	const FieldId *fieldp = ds_PlatformClassFields (pid, &nfield);
+	for (i = 0; i < nfield; ++i)
+	{
+	    if (fieldp[i] == BadField)
+	    {
+		++errors;
+		msg_ELog (EF_PROBLEM, "class field %d is bad", i);
+	    }
+	    else if (fieldp[i] == idmr)
+		idmr = BadField;
+	    else if (fieldp[i] == idrh)
+		idrh = BadField;
+	}
+	if (idmr != BadField)
+	{
+	    ++errors;
+	    msg_ELog (EF_PROBLEM, "did not find class field '%s'",
+		      F_GetFullName (idmr));
+	}
+	if (idrh != BadField)
+	{
+	    ++errors;
+	    msg_ELog (EF_PROBLEM, "did not find class field '%s'",
+		      F_GetFullName (idrh));
+	}
+    }
+/*
+ * Get the times for the last 100 samples in the t_surface platform.
+ */
+    TC_SysToZt (time(0), &now);
+    if (ds_DataTimes (pid, &now, NTIMES, DsBefore, times) != NTIMES)
+    {
+	msg_ELog (EF_PROBLEM, "Didn't get the expected %d sample times!",
+		  NTIMES);
+	return (++errors);
+    }
+/*
+ * Now fetch all the fields and verify that they are not bad.
+ */
+    nfield = 30;
+    if (!ds_GetFields (pid, times, &nfield, fields) ||
+	nfield < 10)
+    {
+	msg_ELog (EF_PROBLEM, "ds_GetFields('%s',nfld=30) failed", 
+		  ds_PlatformName (pid));
+	return (++errors);
+    }
+
+    if (! (dc = ds_Fetch (pid, DCC_Scalar, &(times[NTIMES - 1]), &(times[0]), 
+			  fields, nfield, NULL, 0)))
+    {
+	msg_ELog (EF_PROBLEM, "Error fetching data for %s\n",
+		  ds_PlatformName (pid));
+	return (++errors);
+    }
+    
+    for (i = 0; i < nfield; ++i)
+    {
+	int nbad = 0;
+	int j;
+	for (j = 0; j < NTIMES; ++j)
+	{
+	    if (dc_GetScalar (dc, j, fields[i]) == dc_GetBadval (dc))
+		++nbad;
+	}
+	/* We know most of esol is bad. */
+	if (!strcmp(F_GetName(fields[i]),"esol") && nbad < NTIMES)
+	    continue;
+	if (nbad > 0)
+	{
+	    ++errors;
+	    msg_ELog (EF_PROBLEM, "unexpected %d bad values in field %s",
+		      nbad, F_GetFullName (fields[i]));
+	}
+    }
+    dc_DestroyDC (dc);
+    return errors;
+}
+
+
 
 TestRoutine DerivationTests[] = 
 {
 	{ "derivations", FTUnknown, DCC_None, TR_BEGIN, T_Derivations,
 	  "check for correct field derivation" },
+	{ "classderivations", FTUnknown, DCC_None, TR_BEGIN, 
+	  T_ClassDerivations, "check for correct class derivations" },
 	END_TESTS
 };
 
