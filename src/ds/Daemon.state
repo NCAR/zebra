@@ -1,5 +1,5 @@
 !
-! $Id: Daemon.state,v 2.17 1994-09-15 21:49:15 corbet Exp $
+! $Id: Daemon.state,v 2.18 1995-06-29 21:31:53 granger Exp $
 !
 ! The data store daemon configuration language.
 !
@@ -361,6 +361,9 @@ define state file-type
 	input 'zeb' 4
 		next ust$no_more
 	endinput
+	input 'zebra' 4
+		next ust$no_more
+	endinput
 	input 'grib' 5
 		next ust$no_more
 	endinput
@@ -368,6 +371,9 @@ define state file-type
 		next ust$no_more
 	endinput
 	input 'grads' 7
+	      	next ust$no_more
+	endinput
+	input 'hdf' 8
 	      	next ust$no_more
 	endinput
 enddef
