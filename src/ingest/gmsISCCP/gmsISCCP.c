@@ -762,7 +762,7 @@ static char AsToEb[256] =
 
 
 
-void
+static void
 EbcdicToAscii (array, len)
 char	*array;
 int	len;
@@ -775,7 +775,7 @@ int	len;
 
 
 
-void
+static void
 AsciiToEbcdic (array, len)
 char	*array;
 int	len;
