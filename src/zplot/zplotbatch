@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# $Id: zplotbatch,v 1.26 2002-10-15 09:07:30 granger Exp $
+# $Id: zplotbatch,v 1.27 2003-05-22 22:41:00 burghart Exp $
 #
 # Start a display manager session with a virtual X server and dump
 # images of its plots.
@@ -201,7 +201,7 @@ while read when config windows; do
 	if echo "$qwin" | egrep DOWN >/dev/null ; then
 	    continue
 	fi
-	win=`echo "$qwin" | sed -e "s/^.* \'//" -e "s/\' .*//" `
+	win=`echo "$qwin" | sed -e "s/^[^']*'//" -e "s/'.*//" `
 	echo "Process $plot active and displaying window $win."
 
 	# If we have specific targets, skip this window if it's not one of them
