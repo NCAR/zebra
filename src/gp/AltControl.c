@@ -41,7 +41,7 @@
  */
 int	AltControlComp;
 
-MAKE_RCSID("$Id: AltControl.c,v 2.17 1995-09-23 02:30:59 granger Exp $")
+MAKE_RCSID("$Id: AltControl.c,v 2.18 1997-04-04 19:53:19 corbet Exp $")
 
 # define MAXALT		80	/* Max heights we expect to see		*/
 
@@ -52,6 +52,10 @@ static void	alt_GetControlComp FP ((void));
 static void	alt_SetAlt FP ((int));
 static int	alt_GetRSAlts FP ((char *, float *));
 static void	alt_SetLabel FP ((char *label));
+static int	alt_AlreadyThere FP ((float *, int, float));
+static int	alt_GetLatest FP ((char *, float *));
+
+
 
 
 
@@ -272,14 +276,6 @@ int nstep;
 	}
 	else
 	{
-		if ((nalt = alt_GetRSAlts (platform, alts)) <= 0)
-		{
-			pd_RemoveParam (Pd, "global", "altitude");
-			alt_SetLabel ("?");
-			msg_ELog (EF_DEBUG, "No available RS alts for %s",
-				  platform);
-			return;
-		}
 	/*
 	 * In real-time "every-sweep" mode (i.e., show the latest sweep mode),
 	 * we'll just be using the last alt in the list.
@@ -287,6 +283,19 @@ int nstep;
 		use_latest = FALSE;
 		pda_Search (Pd, comps[AltControlComp], "every-sweep", NULL,
 			    (char *) &use_latest, SYMT_BOOL);
+		if (use_latest)
+			nalt = alt_GetLatest (platform, alts);
+	/*
+	 * Otherwise we have to go get a list to choose from.
+	 */
+		else if ((nalt = alt_GetRSAlts (platform, alts)) <= 0)
+		{
+			pd_RemoveParam (Pd, "global", "altitude");
+			alt_SetLabel ("?");
+			msg_ELog (EF_DEBUG, "No available RS alts for %s",
+				  platform);
+			return;
+		}
 	}
 /*
  * Existing "altitude" becomes a target starting place.  Otherwise, we'll
@@ -369,7 +378,7 @@ float *alts;
 	PlatformId	pid;
 	Location	locs[MAXALT];
 	char	cattr[200], *attr = NULL;
-	int	i, nalt, ntime;
+	int	i, nalt, ntime, nret;
 /*
  * Find our platform first.
  */
@@ -391,12 +400,14 @@ float *alts;
 	if ((ntime = ds_GetObsTimes (pid, &PlotTime, otimes, 2, attr)) <= 0)
 		return (0);
 	nalt = ds_GetObsSamples (pid, otimes, stimes, locs, MAXALT);
+	nret = 0;
 	for (i = 0; i < nalt; i++)
-		alts[i] = locs[i].l_alt;
+		if (! alt_AlreadyThere (alts, nret, locs[i].l_alt))
+			alts[nret++] = locs[i].l_alt;
 # ifdef notdef
 /*
  * Now look at the previous observation and get any tilts higher than
- * what we have here.
+ * what we have here.  IF REENABLED, USE NRET.
  */
 	if (ntime > 1)
 	{
@@ -407,5 +418,83 @@ float *alts;
 				alts[nalt++] = locs[i].l_alt;
 	}
 # endif
-	return (nalt);
+	return (nret);
+}
+
+
+
+
+
+static int
+alt_GetLatest (platform, alts)
+char *platform;
+float *alts;
+/*
+ * Get the "latest" sweep before the plot time, in order to set the
+ * "altitude" in every-sweep mode.
+ *
+ * This is an unpleasant kludge grafted on top of a horrible one.  We
+ * here have to essentially reproduce the selection process that we
+ * expect ImageDataTime will go through, for the sole purpose of properly
+ * updating the label in the display.  Someday this stuff will get tossed
+ * into the recycle bin and the new version will:
+ *
+ *	- abolish the altitude/elevation kludge
+ *	- set the altitude label from the actual data after it's fetched
+ *	- have lots less whining comments
+ */
+{
+	PlatformId pid;
+	char	cattr[200], *attr = NULL;
+	int ntime, nalt, i;
+	ZebTime otime, stimes[MAXALT];
+	Location	locs[MAXALT];
+/*
+ * Find our platform first.
+ */
+	if ((pid = ds_LookupPlatform (platform)) == BadPlatform)
+	{
+		msg_ELog (EF_PROBLEM, "Bad platform: %s", platform);
+		return (-1);
+	}
+/*
+ * See if there is a filter attribute to apply.
+ */
+	if (pda_Search (Pd, "global", "filter-attribute", platform,
+			cattr, SYMT_STRING))
+		attr = cattr;
+/*
+ * Get the list of altitudes, and see which one lands before the plot
+ * time.
+ */
+	if ((ntime = ds_GetObsTimes (pid, &PlotTime, &otime, 1, attr)) <= 0)
+		return (0);
+	nalt = ds_GetObsSamples (pid, &otime, stimes, locs, MAXALT);
+	for (i = 0; i < nalt; i++)
+	{
+		if (TC_LessEq (stimes[i], PlotTime))
+			*alts = locs[i].l_alt;
+		else
+			break;
+	}
+	return ((i < nalt) ? 1 : 0);
+}
+
+
+
+
+static int
+alt_AlreadyThere (alts, nalt, new)
+float *alts, new;
+int nalt;
+/*
+ * See if this altitude is already present in the list.
+ */
+{
+	int i;
+
+	for (i = 0; i < nalt; i++)
+		if (alts[i] == new)
+			return (TRUE);
+	return (FALSE);
 }

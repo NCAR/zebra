@@ -47,7 +47,7 @@ typedef struct {
         CARD8   pad;
 } U_XWDColor;
 
-RCSID ("$Id: Utilities.c,v 2.44 1997-02-16 17:06:29 granger Exp $")
+RCSID ("$Id: Utilities.c,v 2.45 1997-04-04 19:53:20 corbet Exp $")
 
 /*
  * Rules for image dumping.  Indexed by keyword number in GraphProc.state
@@ -1173,15 +1173,26 @@ ZebTime		*dtime;
 		cdiff = 99.9;
 		for (samp = 0; samp < nsample; samp++)
 		{
-			if (ABS (alt - slocs[samp].l_alt) < cdiff)
+			float diff = ABS (alt - slocs[samp].l_alt);
+			if (diff < cdiff)
 			{
 				cdiff = ABS (alt - slocs[samp].l_alt);
 				*dtime = stimes[samp];
 			}
+		/*
+		 * If we have more than one "hit", try to reproduce the
+		 * old "latest before the plot time" behavior
+		 */
+			else if (diff == cdiff && 
+					TC_LessEq (stimes[samp], wanted_time))
+				*dtime = stimes[samp];
 		}
 	/*
 	 * If we don't come within a degree, drop back to the previous
 	 * one and try one more time.
+	 *
+	 * IS this the right test?  Maybe we should look if they want
+	 * something above what we found thus far?  
 	 */
 		if (cdiff > 1.0 && ntime > 1)
 		{
