@@ -37,7 +37,7 @@
 # include "message.h"
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.8 1993-04-06 19:08:46 corbet Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.9 1993-06-10 22:59:56 corbet Exp $")
 /*
  * Symbol tables.
  */
@@ -50,7 +50,7 @@ static stbl InetAvoidTable;	/* Machines which time out and slow us down */
  * The master sockets for incoming connections.
  */
 static int M_un_socket;		/* Unix domain socket		*/
-static int M_in_socket;		/* Internet domain socket	*/
+static int M_in_socket = -1;	/* Internet domain socket	*/
 
 /*
  * An FD set which knows about all file descriptors that we are interested
@@ -188,7 +188,8 @@ main ()
  * Create Unix and Internet sockets.
  */
 	MakeUnixSocket ();
-	MakeInetSocket ();
+	if (! getenv ("ZEB_SOCKET"))
+		MakeInetSocket ();
 	if (! (host = getenv ("HOST")))
 	{
 		printf ("Who the hell are we?\n");
@@ -243,7 +244,7 @@ main ()
 	/*
 	 * Look for Internet connections too.
 	 */
-	 	if (FD_ISSET (M_in_socket, &fds))
+	 	if (M_in_socket >= 0 && FD_ISSET (M_in_socket, &fds))
 		{
 			NewInConnection ();
 			nsel--;
@@ -984,7 +985,8 @@ die ()
  */
 	close (M_un_socket);
 	unlink (UN_SOCKET_NAME);
-	close (M_in_socket);
+	if (M_in_socket >= 0)
+		close (M_in_socket);
 	for (i = 0; i < 64; i++)
 		if (Fd_map[i])
 			close (i);
