@@ -1,7 +1,7 @@
 /*
  * Window plot control routines.
  */
-static char *rcsid = "$Id: PlotControl.c,v 2.26 1993-12-01 17:10:58 burghart Exp $";
+static char *rcsid = "$Id: PlotControl.c,v 2.27 1994-01-20 21:15:16 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -460,9 +460,7 @@ PlatformId pid;
 int index;
 UItime *t;
 /*
- * A data available notification has arrived.  Only do global updates for
- * the moment, until we decide how we're passing the component through
- * the PARAM field....
+ * A data available notification has arrived.
  */
 {
 	char **comps;
@@ -492,8 +490,16 @@ UItime *t;
 		msg_ELog (EF_DEBUG, " (reroute to %d)", index);
 	}
 	else if (pda_Search (Pd, comps[index], "trigger-global", NULL,
-			(char *) &global, SYMT_BOOL) && global)
+			     (char *) &global, SYMT_BOOL) && global)
 		index = 0;
+/*
+ * Invalidate the cache if it's a global update.  This assures us of getting
+ * a new plot even if one of the components has data more recent than the
+ * new data which caused the trigger.
+ */
+	if (index == 0)
+		fc_InvalidateCache ();
+
 	Eq_AddEvent (PDisplay, pc_Plot, comps[index],
 			strlen (comps[index]) + 1, 
 			index == 0 ? Override : OverrideQ);
