@@ -1,7 +1,7 @@
 /*
  * Track drawing routines.
  */
-static char *rcsid = "$Id: Track.c,v 1.10 1991-01-14 18:20:08 kris Exp $";
+static char *rcsid = "$Id: Track.c,v 1.11 1991-01-24 17:01:35 kris Exp $";
 
 
 # include <X11/Intrinsic.h>
@@ -41,20 +41,20 @@ bool update;
 	char platform[30], tp[30], ccfield[30], ctable[30];
 	char *fields[5], mtcolor[20], string[40], format[30];
 	char a_interval[30], a_color[30], a_xfield[30], a_yfield[30];
-	char a_type[30];
+	char a_type[30], tadefcolor[30];
 	int period, dsperiod, x0, y0, x1, y1, nc, lwidth, pid;
 	int dskip = 0, npt = 0, i, top, bottom, left, right, wheight, mid;
 	int arrow, a_invert, a_int, numfields = 1, dummy, xannot, yannot;
-	int timenow, vectime = 0, a_lwidth;
+	int timenow, vectime = 0, a_lwidth, tacmatch, ctlimit;
 	unsigned int udummy, dwidth, dheight;
 	bool mono; 
 	time begin;
 	float *data, fx, fy, base, incr, cval, a_scale, *a_xdata, *a_ydata;
-	float a_x, a_y, unitlen;
+	float a_x, a_y, unitlen, sascale;
 	Drawable d;
 	Window win;
 	Display *disp = XtDisplay (Graphics);
-	XColor xc, *colors, outrange, a_clr;
+	XColor xc, *colors, outrange, a_clr, taclr, tadefclr;
 	DataObject *dobj;
 /*
  * Get our platform first, since that's what is of interest to us.
@@ -140,7 +140,7 @@ bool update;
 			a_invert = FALSE;
 		if(! tr_GetParam(comp, "arrow-interval", platform, a_interval,
 				SYMT_STRING))
-			a_int = 30;
+			a_int = 10;
 		else if((a_int = pc_TimeTrigger(a_interval))  == 0)
 		{
 			msg_ELog(EF_PROBLEM,"Unparsable arrow interval:
@@ -170,7 +170,32 @@ bool update;
 		fields[2] = a_yfield;
 		numfields = 3;
 	} 
-
+/*
+ * Read in annotation information.
+ */
+	if(! tr_GetParam("global", "ta-color", NULL, tadefcolor, 
+		SYMT_STRING))
+		strcpy(tadefcolor, "white");
+	if(! ct_GetColorByName(tadefcolor, &tadefclr))
+	{
+		msg_ELog(EF_PROBLEM,"Can't get default color:
+			'%s'.",tadefcolor);
+		strcpy(tadefcolor,"white");
+		ct_GetColorByName(tadefcolor,&tadefclr);
+	}
+	tacmatch = FALSE;
+	tr_GetParam("global", "ta-color-match", NULL, (char *) &tacmatch,
+		SYMT_BOOL);
+	if(tacmatch)
+		taclr = a_clr;
+	else taclr = tadefclr;
+	if(! tr_GetParam(comp, "sa-scale", platform, (char *) &sascale,
+		SYMT_FLOAT))
+		sascale = 0.02;
+	if(! tr_GetParam(comp, "ct-limit", platform, (char *) &ctlimit,
+		SYMT_INT))
+		ctlimit = 1;
+	if(ctlimit < 1) ctlimit = 1;
 /*
  * Figure the begin time.
  */
@@ -282,32 +307,33 @@ bool update;
 	/*
 	 * On the top.
 	 */
-		An_TopAnnot (platform, White);
-		An_TopAnnot (" track", White);
+		An_TopAnnot (platform, tadefclr.pixel);
 		if (! mono)
 		{
-			An_TopAnnot (" color coded by ", White);
-			An_TopAnnot (px_FldDesc (comp, ccfield), White);
+			An_TopAnnot(" ", tadefclr.pixel);
+			An_TopAnnot (px_FldDesc (comp, ccfield), 
+				tadefclr.pixel);
 		}
+		An_TopAnnot (" track", tadefclr.pixel);
 	/*
 	 * Annotate arrows if necessary.
 	 */
 		if(arrow)
 		{
-			An_TopAnnot(" with ",White);
-			An_TopAnnot(a_type,White);
-			An_TopAnnot(" vectors",White);
+			An_TopAnnot(" with ",tadefclr.pixel);
+			An_TopAnnot(a_type,taclr.pixel);
+			An_TopAnnot(" vectors",taclr.pixel);
 		}
-		An_TopAnnot (".", White);
+		An_TopAnnot (".  ", tadefclr.pixel);
 	/*
 	 * Down the side too.
 	 */
 		An_AnnotLimits (&top, &bottom, &left, &right);
-		XSetForeground (disp, Gcontext, White);
+		XSetForeground (disp, Gcontext, tadefclr.pixel);
 		wheight = GWHeight (Graphics);
 		
 		left += 10;
-		top += 5;
+		top += 2;
 		mid = (left + right)/2;
 	/*
 	 * Some text.
@@ -315,9 +341,9 @@ bool update;
 		sprintf (string, "%s:", ccfield);
 
 	 	DrawText (Graphics, GWFrame (Graphics), Gcontext, left, top,
-			string, 0.0, 0.02, JustifyLeft, JustifyTop);
+			string, 0.0, sascale, JustifyLeft, JustifyTop);
 
-		top += (int)(1.2 * 0.02 * wheight);
+		top += (int)(1.2 * sascale * wheight);
 	/*
 	 * See if there is a special printf format for this field.
 	 */
@@ -333,43 +359,36 @@ bool update;
 		/*
 		 * Numeric label
 		 */
-			cval += incr;
-			sprintf (string, format, cval);
+			if((i % ctlimit) == 0)
+			{
+				cval += incr;
+				sprintf (string, format, cval);
 
-			XSetForeground (disp, Gcontext, colors[i].pixel);
-			DrawText (Graphics, GWFrame (Graphics),
-				Gcontext, EVEN(i) ? left : mid, top, string, 
-				0.0, 0.02, JustifyLeft, JustifyTop);
+				XSetForeground (disp, Gcontext, 
+					colors[i].pixel);
+				DrawText (Graphics, GWFrame (Graphics),
+					Gcontext, EVEN(i) ? left : mid, top, 
+					string, 0.0, sascale, JustifyLeft, 
+					JustifyTop);
+			}
 			if (ODD(i))
-				top += (int)(1.2 * 0.02 * wheight);
+				top += (int)(1.2 * sascale * wheight);
 		}
 	/*
 	 * Annotate arrows if necessary on side
 	 */
 		if(arrow)
 		{
-			top += 5;
+			XSetForeground (disp, Gcontext, taclr.pixel);
+			top += 2;
 			xannot = (left + right)/2;
 			yannot = top + 0.04 * wheight;
 			DrawText(Graphics, GWFrame(Graphics), Gcontext,
-				xannot, yannot, "VECTOR", 0.0, 0.02,
+				xannot, yannot, "10 m/sec", 0.0, sascale,
 				JustifyCenter, JustifyBottom); 
+			xannot = left;
 			yannot += 0.022 * wheight;
-			DrawText(Graphics, GWFrame(Graphics), Gcontext,
-				xannot, yannot, "SCALE", 0.0, 0.02,
-				JustifyCenter, JustifyBottom); 
-			xannot = left + 0.25 * (right - left);
-			yannot += 0.03 * wheight;
-			DrawText(Graphics, GWFrame(Graphics), Gcontext,
-				xannot, yannot, "5.0", 0.0, 0.02,
-				JustifyCenter, JustifyBottom); 
-			tr_DrawVector(xannot, yannot + 4, 0.0, -5.0, unitlen,
-				disp, d, Gcontext);
-			xannot = left + 0.75 * (right - left);
-			DrawText(Graphics, GWFrame(Graphics), Gcontext,
-				xannot, yannot, "10.0", 0.0, 0.02,
-				JustifyCenter, JustifyBottom); 
-			tr_DrawVector(xannot, yannot + 4, 0.0, -10.0, unitlen,
+			tr_DrawVector(xannot, yannot + 4, 10.0, 0.0, unitlen,
 				disp, d, Gcontext);
 		}
 	

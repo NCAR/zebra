@@ -20,6 +20,7 @@ static GC	Gcontext;
 static int	Annot_xpos, Annot_ypos;
 static int	Annot_height;
 static int	Annot_lmargin = 10, Annot_rmargin;
+static float	Annot_Scale = TOPANNOTHEIGHT;
 
 /*
  * Side annotation stuff.
@@ -43,7 +44,7 @@ int nc;
 /*
  * Get the line spacing for the top annotation
  */
-	Annot_height = (int)(1.2 * TOPANNOTHEIGHT * GWHeight (Graphics));
+	Annot_height = (int)(1.2 * Annot_Scale * GWHeight (Graphics));
 /*
  * Set the right margin
  */
@@ -59,6 +60,14 @@ int nc;
 	Ncomps = nc;
 	SA_position  = (1.0 - F_Y1) * height;
 	SA_space = ((F_Y1 - F_Y0) * height)/ (float) Ncomps;
+}
+
+
+void
+An_SetScale(scale)
+float scale;
+{
+	Annot_Scale = scale;
 }
 
 
@@ -126,7 +135,7 @@ Pixel	color;
  * a space if necessary
  */
 	DT_TextBox (Graphics, GWFrame (Graphics), 0, 0, cstring, 0.0, 
-		TOPANNOTHEIGHT, JustifyLeft, JustifyTop, &dummy, &dummy, 
+		Annot_Scale, JustifyLeft, JustifyTop, &dummy, &dummy, 
 		&swidth, &dummy);
 
 	brk = slen;
@@ -141,7 +150,7 @@ Pixel	color;
 	 * Get the new string width
 	 */
 		DT_TextBox (Graphics, GWFrame (Graphics), 0, 0, cstring, 0.0, 
-			TOPANNOTHEIGHT, JustifyLeft, JustifyTop, &dummy, 
+			Annot_Scale, JustifyLeft, JustifyTop, &dummy, 
 			&dummy, &swidth, &dummy);
 	}
 /*
@@ -166,7 +175,7 @@ Pixel	color;
  */
 	XSetForeground (XtDisplay (Graphics), Gcontext, color);
 	DrawText (Graphics, GWFrame (Graphics), Gcontext, Annot_xpos, 
-		Annot_ypos, cstring, 0.0, TOPANNOTHEIGHT, JustifyLeft, 
+		Annot_ypos, cstring, 0.0, Annot_Scale, JustifyLeft, 
 		JustifyTop);
 	Annot_xpos += swidth;
 /*

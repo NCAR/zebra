@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 1.2 1990-12-13 14:52:44 burghart Exp $ */
+/* $Id: GraphProc.h,v 1.3 1991-01-24 17:01:15 kris Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -112,6 +112,7 @@ extern void I_DoIcons (void);
 extern void Ue_Override (void (*) (), void (*) (), void (*) ());
 extern void Ue_ResetOverride (void);
 extern void An_ResetAnnot (int);
+extern void An_SetScale (double);
 extern void An_AnnotLimits (int *, int *, int *, int *);
 extern float *ga_GetGrid (time *, char *, char *, int *, int *, float *,
 		float *, float *, float *, float *);

@@ -64,6 +64,8 @@ typedef enum {L_solid, L_dashed, L_dotted} LineStyle;
  */
 static XColor	*Colors;
 static int	Ncolors;
+static int 	Tacmatch = TRUE;
+static XColor 	Tadefclr;
 
 # define C_BLACK	0
 # define C_WHITE	1
@@ -85,7 +87,7 @@ bool	update;
  */
 {
 	bool	ok;
-	char	platforms[80], annot[80], ctname[20];
+	char	platforms[80], annot[80], ctname[20], tadefcolor[30];
 	int	status, i, npts, plat, nplat;
 	char		*flist[5], *pnames[5];
 	PlatformId	pid;
@@ -124,6 +126,21 @@ bool	update;
 	if (! pda_Search (Pd, c, "temp-maxval", "skewt", (char *) &Tmax, 
 		SYMT_FLOAT))
 		Tmax = 35.0;
+	
+	if (! pda_Search (Pd, "global", "ta-color", NULL, tadefcolor, 
+		SYMT_STRING))
+		strcpy(tadefcolor, "white");
+	if (! ct_GetColorByName(tadefcolor, &Tadefclr))
+	{
+		msg_ELog(EF_PROBLEM, "Can't get default color: '%s'.",
+			tadefcolor);
+		strcpy(tadefcolor, "white");
+		ct_GetColorByName(tadefcolor, &Tadefclr);
+	}
+	Tacmatch = TRUE;
+	pda_Search (Pd, "global", "ta-color-match", NULL, (char *) &Tacmatch,
+		SYMT_BOOL);
+
 /*
  * Get the color table
  */
@@ -155,7 +172,7 @@ bool	update;
 	if (! update)
 	{
 		sk_Background ();
-		An_TopAnnot ("Skew-t plot for ", Colors[C_WHITE].pixel);
+		An_TopAnnot ("Skew-t plot for ", Tadefclr.pixel);
 	}
 /*
  * Loop through the platforms
@@ -168,9 +185,14 @@ bool	update;
 		if (! update)
 		{
 			if (plat > 0)
-				An_TopAnnot (", ", Colors[C_WHITE].pixel);
+				An_TopAnnot (", ", Tadefclr.pixel);
 
-			An_TopAnnot (pnames[plat], Colors[C_DATA(plat)].pixel);
+			if (Tacmatch)
+				An_TopAnnot (pnames[plat], 
+					Colors[C_DATA(plat)].pixel);
+			else
+				An_TopAnnot (pnames[plat], 
+					Tadefclr.pixel);
 		}
 	/*
 	 * Get the data
@@ -215,7 +237,7 @@ bool	update;
 /*
  * Add a period to the top annotation
  */
-	An_TopAnnot (".  ", Colors[C_WHITE].pixel);
+	An_TopAnnot (".  ", Tadefclr.pixel);
 /*
  * Unclip since we want to return the shared GC in clean condition
  */
@@ -252,7 +274,7 @@ sk_Background ()
 	x[2] = 1.0; y[2] = 1.0;
 	x[3] = 0.0; y[3] = 1.0;
 	x[4] = 0.0; y[4] = 0.0;
-	sk_Polyline (x, y, 5, L_solid, C_BG2);
+	sk_Polyline (x, y, 5, L_solid, Colors[C_BG2]);
 /*
  * Isotherms
  */
@@ -273,7 +295,7 @@ sk_Background ()
 		if (x[1] < 0.0)
 			continue;
 
-		sk_Polyline (x, y, 2, L_solid, C_BG2);
+		sk_Polyline (x, y, 2, L_solid, Colors[C_BG2]);
 	/*
 	 * Unclip so we can annotate outside the border
 	 */
@@ -286,14 +308,14 @@ sk_Background ()
 
 		if (x[1] <= 1.0)
 			sk_DrawText (string, x[1] + 0.01 * SKEWSLOPE, 1.01,
-				annot_angle, C_WHITE, 0.025, JustifyLeft, 
+				annot_angle, Tadefclr, 0.025, JustifyLeft, 
 				JustifyCenter);
 		else
 		{
 			float	intercept = SKEWSLOPE * (1.01 - x[0]);
 			if (intercept > 0.0)
 				sk_DrawText (string, 1.01, intercept, 
-					annot_angle, C_WHITE, 0.025, 
+					annot_angle, Tadefclr, 0.025, 
 					JustifyLeft, JustifyCenter);
 		}
 	}
@@ -311,12 +333,12 @@ sk_Background ()
 	 */
 		y[0] = y[1] = YPOS (p);
 
-		sk_Polyline (x, y, 2, L_solid, C_BG2);
+		sk_Polyline (x, y, 2, L_solid, Colors[C_BG2]);
 	/*
 	 * Annotate along the left side
 	 */
 		sprintf (string, "%d", (int) p);
-		sk_DrawText (string, -0.01, y[0], 0.0, C_WHITE, 0.025, 
+		sk_DrawText (string, -0.01, y[0], 0.0, Tadefclr, 0.025, 
 			JustifyRight, JustifyCenter);
 	}
 /*
@@ -327,7 +349,7 @@ sk_Background ()
 	x[0] = x[1] = Xlo / 2.0;
 	y[0] = 0.0;
 	y[1] = 1.0;
-	sk_Polyline (x, y, 2, L_solid, C_BG2);
+	sk_Polyline (x, y, 2, L_solid, Colors[C_BG2]);
 
 	x[0] = Xlo / 2.0;
 	x[1] = x[0] - 0.01;
@@ -337,12 +359,12 @@ sk_Background ()
 	 * Tick mark
 	 */
 		y[0] = y[1] = YPOS (alt_pres[i]);
-		sk_Polyline (x, y, 2, L_solid, C_BG2);
+		sk_Polyline (x, y, 2, L_solid, Colors[C_BG2]);
 	/*
 	 * Label
 	 */
 		sprintf (string, "%d ", i);
-		sk_DrawText (string, x[1], y[1], 0.0, C_BG2, 0.02, 
+		sk_DrawText (string, x[1], y[1], 0.0, Colors[C_BG2], 0.02, 
 			JustifyRight, JustifyCenter);
 	}
 /*
@@ -365,10 +387,10 @@ sk_Background ()
 	/*
 	 * Plot the line and annotate just above the top of the line
 	 */
-		sk_Polyline (x, y, 2, L_dashed, C_BG2);
+		sk_Polyline (x, y, 2, L_dashed, Colors[C_BG2]);
 		sprintf (string, "%03.1f", mr[i]);
-		sk_DrawText (string, x[1], y[1] + 0.01, annot_angle, C_BG2, 
-			0.02, JustifyLeft, JustifyCenter);
+		sk_DrawText (string, x[1], y[1] + 0.01, annot_angle, 
+			Colors[C_BG2], 0.02, JustifyLeft, JustifyCenter);
 	}
 /*
  * Saturated adiabats
@@ -395,7 +417,7 @@ sk_Background ()
 	/*
 	 * Plot the curve and annotate just above the (Pmin + 100) isobar
 	 */
-		sk_Polyline (x, y, npts, L_dotted, C_BG3);
+		sk_Polyline (x, y, npts, L_dotted, Colors[C_BG3]);
 
 		if (x[0] > 0.0 && x[0] < 1.0)
 		{
@@ -406,7 +428,8 @@ sk_Background ()
 
 			sprintf (string, "%d", (int) t);
 			sk_DrawText (string, x[0], y[0] + 0.01, annot_angle, 
-				C_BG3, 0.02, JustifyRight, JustifyCenter);
+				Colors[C_BG3], 0.02, JustifyRight, 
+				JustifyCenter);
 		}
 	}
 /*
@@ -429,7 +452,7 @@ sk_Background ()
 	 * Plot the curve and annotate just inside either the left or top
 	 * boundary
 	 */
-		sk_Polyline (x, y, npts, L_dotted, C_BG4);
+		sk_Polyline (x, y, npts, L_dotted, Colors[C_BG4]);
 
 		sprintf (string, "%d", (int) pt);
 
@@ -448,8 +471,9 @@ sk_Background ()
 		/*
 		 * Write the number
 		 */
-			sk_DrawText (string, xloc, yloc, annot_angle, C_BG4, 
-				0.02, JustifyLeft, JustifyBottom);
+			sk_DrawText (string, xloc, yloc, annot_angle, 
+				Colors[C_BG4], 0.02, JustifyLeft, 
+				JustifyBottom);
 		}
 		else if (x[0] <= 0.0)
 		{
@@ -476,7 +500,7 @@ sk_Background ()
 			 * Write the number
 			 */
 				sk_DrawText (string, xloc, yloc, annot_angle,
-					C_BG4, 0.02, JustifyLeft, 
+					Colors[C_BG4], 0.02, JustifyLeft, 
 					JustifyBottom);
 			}
 		}
@@ -551,7 +575,7 @@ float	*pres, *temp, *dp;
 		npts++;
 	}
 
-	sk_Polyline (x, y, npts, L_dotted, C_BG1);
+	sk_Polyline (x, y, npts, L_dotted, Colors[C_BG1]);
 /*
  * Draw the saturated adiabat from the forecasted LCL up
  */
@@ -567,7 +591,7 @@ float	*pres, *temp, *dp;
 			npts++;
 		}
 
-		sk_Polyline (x, y, npts, L_dotted, C_BG1);
+		sk_Polyline (x, y, npts, L_dotted, Colors[C_BG1]);
 	}
 /*
  * Draw the dry adiabat from the LCL down
@@ -593,7 +617,7 @@ float	*pres, *temp, *dp;
 		npts++;
 	}
 
-	sk_Polyline (x, y, npts, L_dotted, C_BG1);
+	sk_Polyline (x, y, npts, L_dotted, Colors[C_BG1]);
 /*
  * Draw the dry adiabat from the forecasted LCL down
  */
@@ -620,7 +644,7 @@ float	*pres, *temp, *dp;
 			npts++;
 		}
 
-		sk_Polyline (x, y, npts, L_dotted, C_BG1);
+		sk_Polyline (x, y, npts, L_dotted, Colors[C_BG1]);
 	}
 /*
  * Draw the saturation mixing ratio line from the surface up to the LCL
@@ -641,7 +665,7 @@ float	*pres, *temp, *dp;
 
 	npts = 2;
 
-	sk_Polyline (x, y, npts, L_dotted, C_BG1);
+	sk_Polyline (x, y, npts, L_dotted, Colors[C_BG1]);
 /*
  * Done
  */
@@ -697,8 +721,8 @@ int	npts, plot_ndx;
 /*
  * Draw the lines
  */
-	sk_Polyline (xt, yt, good_t, L_solid, C_DATA (plot_ndx));
-	sk_Polyline (xd, yd, good_d, L_solid, C_DATA (plot_ndx));
+	sk_Polyline (xt, yt, good_t, L_solid, Colors[C_DATA (plot_ndx)]);
+	sk_Polyline (xd, yd, good_d, L_solid, Colors[C_DATA (plot_ndx)]);
 /*
  * Draw the lifted parcel lines
  */
@@ -767,7 +791,7 @@ int	plot_ndx, nplots;
 	/*
 	 * Draw the wind line
 	 */
-		sk_Polyline (xov, yov, 2, L_solid, C_DATA (plot_ndx));
+		sk_Polyline (xov, yov, 2, L_solid, Colors[C_DATA (plot_ndx)]);
 	}
 /*
  * Draw the staff
@@ -775,22 +799,22 @@ int	plot_ndx, nplots;
 	xov[0] = xstart;	xov[1] = xstart;
 	yov[0] = 0.0;		yov[1] = 1.0;
 
-	sk_Polyline (xov, yov, 2, L_solid, C_BG2);
+	sk_Polyline (xov, yov, 2, L_solid, Colors[C_BG2]);
 /*
  * Annotate on the first one
  */
 	if (plot_ndx == 0)
 	{
 		sk_DrawText ("WINDS PROFILE", 1.0 + 0.5 * (Xhi - 1.0), -0.01, 
-			0.0, C_WHITE, 0.025, JustifyCenter, JustifyTop);
+			0.0, Tadefclr, 0.025, JustifyCenter, JustifyTop);
 		sk_DrawText (" = 10 M/S", 1.0 + 0.5 * (Xhi - 1.0), -0.06, 0.0, 
-			C_WHITE, 0.02, JustifyLeft, JustifyCenter); 
+			Tadefclr, 0.02, JustifyLeft, JustifyCenter); 
 
 		xov[0] = 1.0 + 0.5 * (Xhi - 1.0) - (10.0 * xscale);
 		xov[1] = 1.0 + 0.5 * (Xhi - 1.0);
 		yov[0] = -0.06;
 		yov[1] = -0.06;
-		sk_Polyline (xov, yov, 2, L_solid, C_WHITE);
+		sk_Polyline (xov, yov, 2, L_solid, Tadefclr);
 	}
 /*
  * Done
@@ -805,7 +829,7 @@ void
 sk_DrawText (text, x, y, rot, color_ndx, cheight, hjust, vjust)
 char	*text;
 float	x, y, rot, cheight;
-int	color_ndx;
+XColor	color_ndx;
 int	hjust, vjust;
 /*
  * ENTRY:
@@ -832,7 +856,7 @@ int	hjust, vjust;
 /*
  * Set up a graphics context with the correct foreground color
  */
-	color = Colors[color_ndx].pixel;
+	color = color_ndx.pixel;
 	XSetForeground (XtDisplay (Graphics), Gcontext, color);
 /*
  * Draw the text
@@ -876,7 +900,7 @@ sk_Polyline (x, y, npts, style, color_ndx)
 float		*x, *y;
 int		npts;
 LineStyle	style;
-int		color_ndx;
+XColor		color_ndx;
 /*
  * ENTRY:
  *	x,y	location arrays (the lower left corner of the skew-t box
@@ -910,7 +934,7 @@ int		color_ndx;
 /*
  * Set up the correct foreground color and line style
  */
-	color = Colors[color_ndx].pixel;
+	color = color_ndx.pixel;
 	XSetForeground (XtDisplay (Graphics), Gcontext, color);
 
 	switch (style)
