@@ -38,8 +38,10 @@
 # include "GC.h"
 # include "PixelCoord.h"
 # include "DrawText.h"
+# include "Skewt.h"
 
-RCSID ("$Id: Skewt.c,v 2.28 1997-02-03 17:53:01 corbet Exp $")
+
+RCSID ("$Id: Skewt.c,v 2.29 1997-05-21 21:09:23 corbet Exp $")
 
 /*
  * General definitions
@@ -78,10 +80,6 @@ static int	Tstep = 10;
  */
 static float	W_scale = 25.0;
 
-/*
- * Line style
- */
-typedef enum {L_solid, L_dashed, L_dotted} LineStyle;
 
 /*
  * Color array and indices
@@ -100,13 +98,6 @@ static bool	DoFeet = FALSE;
  */
 static bool	Do_vectors;
 
-# define C_BLACK	0
-# define C_WHITE	1
-# define C_BG1		2
-# define C_BG2		3
-# define C_BG3		4
-# define C_BG4		5
-# define C_DATA(i)	(6 + (i))
 
 
 /*
@@ -118,10 +109,6 @@ static void	sk_Lift FP ((int, float*, float*, float*, double));
 static void	sk_Thermo FP ((char *, char *, ZebTime *, XColor, int));
 static void	sk_Winds FP ((char *, char *, ZebTime *, XColor, int,
 			      int, int, int, int));
-static void	sk_Polyline FP ((float *, float*, int, LineStyle, XColor)); 
-static void	sk_DrawText FP ((char *, double, double, double, XColor, 
-				 double, int, int)); 
-static void	sk_Clip FP ((double, double, double, double)); 
 static int	sk_Surface FP ((float *, float *, float *, int, float*,
 				float *, float *, double));
 static int	sk_700mb FP ((float *, float *, float*, int, double, double,
@@ -249,10 +236,7 @@ bool	update;
 /*
  * Set the plot limits
  */
-	Xlo = -0.2;
-	Ylo = -0.1;
-	Xhi = 1.4;
-	Yhi = 1.1;
+	sk_InitPlotLimits ();
 /*
  * Plot the background and top annotation
  */
@@ -1306,7 +1290,7 @@ int	skip;
 
 
 
-static void
+void
 sk_DrawText (text, x, y, rot, color_ndx, cheight, hjust, vjust)
 char	*text;
 float	x, y, rot, cheight;
@@ -1350,7 +1334,7 @@ int	hjust, vjust;
 
 
 
-static void
+void
 sk_Clip (xlo, ylo, xhi, yhi)
 float	xlo, ylo, xhi, yhi;
 /*
@@ -1375,8 +1359,8 @@ float	xlo, ylo, xhi, yhi;
 
 
 
-
-static void
+/* now exported -- no static */
+void
 sk_Polyline (x, y, npts, style, color_ndx)
 float		*x, *y;
 int		npts;
@@ -1393,7 +1377,7 @@ XColor		color_ndx;
  *	The polyline has been drawn
  */
 {
-	int	i, line_style;
+	int	i, line_style, width = 0;
 	XPoint	*pts;
 	char	dash[2];
 	Pixel	color;
@@ -1420,6 +1404,9 @@ XColor		color_ndx;
 
 	switch (style)
 	{
+	    case L_fat:
+		width = 2;
+	/* fall into... */
 	    case L_solid:
 		line_style = LineSolid;
 		break;
@@ -1439,7 +1426,7 @@ XColor		color_ndx;
 		line_style = LineSolid;
 	}
 
-	XSetLineAttributes (XtDisplay (Graphics), Gcontext, 0, line_style, 
+	XSetLineAttributes (XtDisplay (Graphics), Gcontext, width, line_style, 
 		CapButt, JoinMiter);
 	if (line_style != LineSolid)
 		XSetDashes (XtDisplay (Graphics), Gcontext, 0, dash, 2);
@@ -1449,10 +1436,9 @@ XColor		color_ndx;
 	XDrawLines (XtDisplay (Graphics), GWFrame (Graphics), Gcontext, pts, 
 		npts, CoordModeOrigin);
 /*
- * Make the GC use LineSolid again
+ * Make the GC use LineSolid thin lines again
  */
-	if (line_style != LineSolid)
-		XSetLineAttributes (XtDisplay (Graphics), Gcontext, 0, 
+	XSetLineAttributes (XtDisplay (Graphics), Gcontext, 0, 
 			LineSolid, CapButt, JoinMiter);
 /*
  * Free the allocated points
@@ -1643,5 +1629,22 @@ Location *locp;
 			MINUTES (loc.l_lat), latc, (int) loc.l_lon,
 			MINUTES (loc.l_lon), lonc);
 }
+
+
+
+
+void
+sk_InitPlotLimits ()
+/*
+ * Set the plot limits up properly for things to work.
+ */
+{
+	Xlo = -0.2;
+	Ylo = -0.1;
+	Xhi = 1.4;
+	Yhi = 1.1;
+}
+
+
 
 # endif /* C_PT_SKEWT */

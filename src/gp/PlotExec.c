@@ -40,7 +40,7 @@
 # include "AxisControl.h"
 # include "ActiveArea.h"
 
-MAKE_RCSID ("$Id: PlotExec.c,v 2.52 1997-02-14 07:18:24 granger Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.53 1997-05-21 21:09:21 corbet Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -65,7 +65,8 @@ typedef struct
 # define PT_TSERIES	3
 # define PT_XYGRAPH	4
 # define PT_HISTOGRAM	5
-# define N_PTYPES	6	/* Increase this as plot types are added */
+# define PT_THETAPLOT	6
+# define N_PTYPES	7	/* Increase this as plot types are added */
 
 int TriggerGlobal = 0;		/* Update on component may trigger a global */
 
@@ -77,6 +78,7 @@ name_to_num Pt_table[] =
 	{"tseries",	PT_TSERIES	},
 	{"xygraph",	PT_XYGRAPH	},
 	{"histogram",	PT_HISTOGRAM    },
+	{"thetaplot",	PT_THETAPLOT 	},
 	{NULL,		0		}
 };
 
@@ -97,7 +99,9 @@ name_to_num Pt_table[] =
 # define RT_OBS		11
 # define RT_STATION	12	/* Station plot (not vector any more) 	*/
 # define RT_BARCHART	13	/* For histograms	*/
-# define N_RTYPES	14	/* Increase this as rep. types are added */
+# define RT_THETAE	14	/* Theta-e plot */
+# define RT_THETAW	15	/* Theta-w plot */
+# define N_RTYPES	16	/* Increase this as rep. types are added */
 
 name_to_num Rt_table[] = 
 {
@@ -117,6 +121,8 @@ name_to_num Rt_table[] =
 	{"obs",			RT_OBS		},
 	{"barchart",		RT_BARCHART     },
 	{"bar",			RT_BARCHART     },
+	{"thetae",		RT_THETAE 	},
+	{"thetaw",		RT_THETAW 	},
 	{NULL,			0		}
 };
 
@@ -204,6 +210,9 @@ static void _UncompiledFunction () { }
 	extern void	HG_CountBarChart ();
 # endif
 
+# if C_PT_THETAPLOT
+	extern void	TP_ThetaPlot ();
+# endif
 /*
  * How many plot components in our plot description and which
  * component are we currently dealing with?
@@ -832,6 +841,14 @@ px_Init ()
 # else
 	Plot_routines[PT_HISTOGRAM][RT_INIT] = UNCOMPILED_FUNCTION;
 	Plot_routines[PT_HISTOGRAM][RT_BARCHART] = UNCOMPILED_FUNCTION;
+# endif
+
+# if C_PT_THETAPLOT
+	Plot_routines[PT_THETAPLOT][RT_THETAE] = TP_ThetaPlot;
+	Plot_routines[PT_THETAPLOT][RT_THETAW] = TP_ThetaPlot;
+# else
+	Plot_routines[PT_THETAPLOT][RT_THETAE] = UNCOMPILED_FUNCTION;
+	Plot_routines[PT_THETAPLOT][RT_THETAW] = UNCOMPILED_FUNCTION;
 # endif
 }
 
