@@ -1,5 +1,5 @@
 /*
- * $Id: BTree.hh,v 1.6 1997-12-29 07:15:27 granger Exp $
+ * $Id: BTree.hh,v 1.7 1998-03-04 17:08:01 granger Exp $
  *
  * Public BTree class interface.
  */
@@ -123,7 +123,16 @@ template <class K, class T> struct Shortcut;
 
 /// BTree database access class
 
-/* Template based on Key type and element value type. */
+/*
+ * The BTree template based on a key type K and element type T.
+ *
+ * The KEY type must be comparable and serializable with
+ * copy semantics.  The tree expects to keep a private
+ * copy of each inserted key.  The value type needs
+ * to support the serial-streamable << operator.  It is
+ * encoded and/or decoded within the tree into private
+ * buffer.
+ */
 
 template <class K, class T> /* , class Factory<K,T> */
 class BTree
