@@ -1,7 +1,7 @@
 /*
  * Routines common to XY-Type plots
  */
-static char *rcsid = "$Id: XYCommon.c,v 1.8 1993-03-09 21:27:23 burghart Exp $";
+static char *rcsid = "$Id: XYCommon.c,v 1.9 1993-03-11 16:44:22 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -44,6 +44,7 @@ static char *rcsid = "$Id: XYCommon.c,v 1.8 1993-03-09 21:27:23 burghart Exp $";
 void	xy_GetScaleInfo FP ((plot_description, char *, int, short *));
 void	xy_SetScaleBounds FP ((plot_description, char *, int, int, DataValPtr,
 		DataValPtr));
+void	xy_TicInterval FP ((DataValPtr, DataValPtr, DataValPtr));
 void	xy_GetCurrentScaleBounds FP ((plot_description, char *, int, int,
 		DataValPtr, DataValPtr, char *));
 
@@ -123,33 +124,18 @@ DataValPtr		min,max;
  *           respectively
  */
 {
-    char	minkey[32];
-    char	maxkey[32];
+    char	minkey[32], maxkey[32], key1[32], key2[32], prefix[16];
+    bool	autoscale;
     short	info;
+    DataValRec	interval;
 
     xy_GetScaleInfo(pd,c,dim,&info);
-    if ( info & AUTO )
-    {
-        strcpy(minkey, "auto-scale-");
-        minkey[11] = dim;
-        minkey[12] = '\0';
-        strcat(minkey, "-min");
-        strcpy(maxkey, "auto-scale-");
-        maxkey[11] = dim;
-        maxkey[12] = '\0';
-        strcat(maxkey, "-max");
-    }
-    else
-    {
-        strcpy(minkey, "scale-");
-        minkey[6] = dim;
-        minkey[7] = '\0';
-        strcat(minkey, "-min");
-        strcpy(maxkey, "scale-");
-        maxkey[6] = dim;
-        maxkey[7] = '\0';
-        strcat(maxkey, "-max");
-    }
+    autoscale = (info & AUTO);
+
+    strcpy (prefix, autoscale ? "auto-scale" : "scale");
+    sprintf (minkey, "%s-%c-min", prefix, dim);
+    sprintf (maxkey, "%s-%c-max", prefix, dim);
+
     switch ( dimtype )
     {
 	case 'f':
@@ -161,7 +147,130 @@ DataValPtr		min,max;
             pd_Store(pd,c,minkey,(char *) &(min->val.t),SYMT_DATE);
 	break;
     }
+/*
+ * If we're not autoscaling, we're done
+ */
+    if (! autoscale)
+	return;
+/*
+ * Generate and store good tic intervals
+ */
+    xy_TicInterval (min, max, &interval);
 
+    if (dim == 'x')
+    {
+	strcpy (key1, "axis-b-tic-interval");
+	strcpy (key2, "axis-t-tic-interval");
+    }
+    else
+    {
+	strcpy (key1, "axis-l-tic-interval");
+	strcpy (key2, "axis-r-tic-interval");
+    }
+
+    switch (dimtype)
+    {
+	char	sval[16];
+
+	case 'f':
+	    pd_Store (pd, c, key1, (char *)&(interval.val.f), SYMT_FLOAT);
+	    pd_Store (pd, c, key2, (char *)&(interval.val.f), SYMT_FLOAT);
+	break;
+	case 't':
+	    sprintf (sval, "%ds", interval.val.t.zt_Sec);
+	    pd_Store (pd, c, key1, sval, SYMT_STRING);
+	    pd_Store (pd, c, key2, sval, SYMT_STRING);
+	break;
+    }
+}
+void
+xy_TicInterval (min, max, interval)
+DataValPtr	min, max, interval;
+/*
+ * Find a good tic interval, given the min and max
+ */
+{
+	float	span, tic_inc;
+	int	i, tspan;
+/*
+ * Array of good time steps and the associated minimum span for each
+ */
+	struct
+	{
+		int	step, minspan;
+	} timeSteps[] =
+	{
+		{86400,	345600},	/* 1d, 4d */
+		{43200,	172800},	/* 12h, 2d */
+		{21600,	86400},		/* 6h, 1d */
+		{7200,	43200},		/* 2h, 12h */
+		{3600,	21600},		/* 1h, 6h */
+		{1800,	10800},		/* 30m, 3h */
+		{900,	3600},		/* 15m, 1h */
+		{300,	1800},		/* 5m, 30m */
+		{120,	600},		/* 2m, 10m */
+		{60,	300},		/* 1m, 5m */
+		{30,	180},		/* 30s, 3m */
+		{15,	60},		/* 15s, 1m */
+		{5,	30},		/* 5s, 30s */
+		{2,	10},		/* 2s, 10s */
+		{1,	0},		/* 1s for anything smaller than 10s */
+	};
+/*
+ * Handle float and time limits differently
+ */
+	switch (min->type)
+	{
+	/*
+	 * Float values
+	 */
+	    case 'f':
+	    /*
+	     * Find a good interval based on the span
+	     */
+		span = max->val.f - min->val.f;
+
+		tic_inc = pow (10.0, floor (log10 (fabs (span))));
+
+		if (fabs (span / tic_inc) < 1.5)
+			tic_inc *= 0.1;
+		else if (fabs (span / tic_inc) < 3.0)
+			tic_inc *= 0.2;
+		else if (fabs (span / tic_inc) < 8.0)
+			tic_inc *= 0.5;
+	    /*
+	     * Store the interval we found
+	     */
+		interval->type = 'f';
+		interval->val.f = tic_inc;
+
+		break;
+	/*
+	 * Time values
+	 */
+	    case 't':
+	    /*
+	     * Find the appropriate time interval from the table, based on
+	     * the span between min and max
+	     */
+		tspan = max->val.t.zt_Sec - min->val.t.zt_Sec;
+		for (i = 0; tspan < timeSteps[i].minspan; i++)
+			/* nothing */;
+	    /*
+	     * Store the interval we found
+	     */
+		interval->type = 't';
+		interval->val.t.zt_Sec = timeSteps[i].step;
+		interval->val.t.zt_MicroSec = 0;
+
+		break;
+	/*
+	 * Uh-oh.  Can't handle any others
+	 */
+	    default:
+		msg_ELog (EF_PROBLEM, "xy_TicInterval can't handle type '%c'",
+			min->type);
+	}
 }
 void
 xy_GetCurrentScaleBounds(pd,c,dim,dimtype,min,max,qual)
@@ -188,31 +297,14 @@ char			*qual;
 {
     char	minkey[32];
     char	maxkey[32];
+    char	prefix[16];
     short	info;
 
     xy_GetScaleInfo(pd,c,dim,&info);
-    if ( info & AUTO )
-    {
-        strcpy(minkey, "auto-scale-");
-        minkey[11] = dim;
-        minkey[12] = '\0';
-        strcat(minkey, "-min");
-        strcpy(maxkey, "auto-scale-");
-        maxkey[11] = dim;
-        maxkey[12] = '\0';
-        strcat(maxkey, "-max");
-    }
-    else
-    {
-        strcpy(minkey, "scale-");
-        minkey[6] = dim;
-        minkey[7] = '\0';
-        strcat(minkey, "-min");
-        strcpy(maxkey, "scale-");
-        maxkey[6] = dim;
-        maxkey[7] = '\0';
-        strcat(maxkey, "-max");
-    }
+
+    strcpy (prefix, (info & AUTO) ? "auto-scale" : "scale");
+    sprintf (minkey, "%s-%c-min", prefix, dim);
+    sprintf (maxkey, "%s-%c-max", prefix, dim);
 
     min->type = dimtype;
     max->type = dimtype;
