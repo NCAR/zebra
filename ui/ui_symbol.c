@@ -1,7 +1,7 @@
 /*
  * This is the symbol table module.
  */
-static char *Rcsid = "$Id: ui_symbol.c,v 1.7 1990-03-27 15:41:57 corbet Exp $";
+static char *Rcsid = "$Id: ui_symbol.c,v 1.8 1990-09-19 08:49:42 corbet Exp $";
 
 # ifdef VMS
 # include <string.h>
@@ -101,6 +101,7 @@ static int S_ncoll = 0;			/* Number of hash collisions	*/
 static int S_nset = 0;			/* Number of symbol sets	*/
 
 
+void
 usy_init ()
 /*
  * Initialize the symbol table module.
@@ -194,19 +195,20 @@ char *name;
  * Put an entry into the master table for this new table.
  */
 	v.us_v_ptr = (char *) table;
- 	usy_s_symbol (M_table, name, SYMT_SYMBOL, &v);
+ 	usy_s_symbol ((stbl) M_table, name, SYMT_SYMBOL, &v);
 	return ((stbl) table);
 }
 
 
 
 
-usy_z_stbl (table)
-struct symbol_table *table;
+usy_z_stbl (stable)
+stbl stable;
 /*
  * Delete this symbol table.
  */
 {
+	struct symbol_table *table = (struct symbol_table *) stable;
 	int slot;
 /*
  * Do a sanity check.
@@ -216,7 +218,7 @@ struct symbol_table *table;
 /*
  * Delete the reference in the master table.
  */
- 	usy_z_symbol (M_table, table->st_name);
+ 	usy_z_symbol ((stbl) M_table, table->st_name);
 /*
  * Now clear out all symbols within the table.
  */
@@ -239,13 +241,14 @@ struct symbol_table *table;
 
 
 
-usy_z_symbol (table, symbol)
-struct symbol_table *table;
+usy_z_symbol (stable, symbol)
+stbl stable;
 char *symbol;
 /*
  * Remove this symbol from the table.
  */
 {
+	struct symbol_table *table = (struct symbol_table *) stable;
 	int slot;
 	struct ste *sym, *prev;
 	struct sdaemon *sdp, *old;
@@ -298,43 +301,6 @@ char *symbol;
  
  
  
-# ifdef notdef
-
-
-char *
-usy_string (text)
-char *text;
-/*
- * Return a dynamically-allocated string, containing the given text.
- */
-{
-	int len = strlen (text) + 1;
-	
-	S_nstring++;
-	if (D_string)
-		ui_printf ("\nUsy_string (%s), %d", text, S_nstring);
-	S_lenstring += len;
-	return (strcpy (getvm (len), text));
-}
-
-
-
-
-usy_rel_string (string)
-char *string;
-/*
- * Release a string previously obtained from usy_string;
- */
-{
-	S_relstring++;
-	if (D_string)
-		ui_printf ("\nrel (%s), %d", string, S_relstring);
-	S_lenrel += strlen (string) + 1;
-	relvm (string);
-}
-
-
-# endif
 
 
 struct ste *
@@ -393,8 +359,8 @@ char *symbol;
 
 
 int
-usy_g_symbol (table, symbol, type, value)
-struct symbol_table *table;
+usy_g_symbol (stable, symbol, type, value)
+stbl stable;
 char *symbol;
 union usy_value *value;
 int *type;
@@ -413,6 +379,7 @@ int *type;
  *		TYPE is SYMT_UNDEFINED.
  */
 {
+	struct symbol_table *table = (struct symbol_table *) stable;
 	struct ste *sp = usy_find_symbol (table, symbol);
 /*
  * If this symbol is undefined, just quit.
@@ -475,8 +442,8 @@ union usy_value *v;
 
 
 bool
-usy_defined (table, symbol)
-struct symbol_table *table;
+usy_defined (stable, symbol)
+stbl stable;
 char *symbol;
 /*
  * See if this symbol is defined.
@@ -487,6 +454,7 @@ char *symbol;
  *	TRUE is returned iff the symbol is defined in the given table.
  */
 {
+	struct symbol_table *table = (struct symbol_table *) stable;
 	return (usy_find_symbol (table, symbol) != 0);
 }
 
@@ -494,8 +462,8 @@ char *symbol;
 
 
 
-usy_s_symbol (table, symbol, type, value)
-struct symbol_table *table;
+usy_s_symbol (stable, symbol, type, value)
+stbl stable;
 char *symbol;
 int type;
 union usy_value *value;
@@ -510,6 +478,7 @@ union usy_value *value;
  *	The symbol has been defined.
  */
 {
+	struct symbol_table *table = (struct symbol_table *) stable;
 	struct ste *sp, *usy_new_entry ();
 
 	S_nset++;
@@ -647,17 +616,18 @@ char *symbol;
 
 
 
-usy_dump_table (table)
-struct symbol_table *table;
+usy_dump_table (stable)
+stbl stable;
 /*
  * Print out a listing of this table.
  */
 {
+	struct symbol_table *table = (struct symbol_table *) stable;
 	int usy_list_symbol ();
 	
 	ui_printf ("\nListing of table %s (%d symbols)\n", table->st_name,
 			table->st_nsym);
-	usy_traverse (table, usy_list_symbol, (long) 0, TRUE);
+	usy_traverse (stable, usy_list_symbol, (long) 0, TRUE);
 }
 
 
@@ -768,10 +738,10 @@ char *name;
 
 
 
-usy_c_indirect (table, symbol, target, type, length)
-struct symbol_table *table;
+usy_c_indirect (stable, symbol, target, type, length)
+stbl stable;
 char *symbol;
-char *target;
+void *target;
 int type, length;
 /*
  * Create an indirect symbol.
@@ -786,18 +756,19 @@ int type, length;
  *	the old value is destroyed.
  */
 {
+	struct symbol_table *table = (struct symbol_table *) stable;
 	struct ste *sp;
 /*
  * Clear out a definition of this symbol, if it exists.
  */
- 	if (usy_defined (table, symbol))
-		usy_z_symbol (table, symbol);
+ 	if (usy_defined (stable, symbol))
+		usy_z_symbol (stable, symbol);
 /*
  * Create a new entry, and fill it in.
  */
  	sp = usy_new_entry (table, symbol);
 	sp->ste_type = type;
-	sp->ste_v.us_v_ptr = target;
+	sp->ste_v.us_v_ptr = (char *) target;
 	sp->ste_length = length;
 	sp->ste_indirect = TRUE;
 }
@@ -825,8 +796,8 @@ char *s;
 
 
 
-usy_traverse (table, func, arg, sort)
-struct symbol_table *table;
+usy_traverse (stable, func, arg, sort)
+stbl stable;
 int (*func) ();
 long arg;
 bool sort;
@@ -834,15 +805,16 @@ bool sort;
  * The old interface to usy_search.
  */
 {
-	return (usy_search (table, func, arg, sort, (char *) 0));
+	struct symbol_table *table = (struct symbol_table *) stable;
+	return (usy_search (stable, func, arg, sort, (char *) 0));
 }
 
 
 
 
 
-usy_search (table, func, arg, sort, re)
-struct symbol_table *table;
+usy_search (stable, func, arg, sort, re)
+stbl stable;
 int (*func) ();
 long arg;
 bool sort;
@@ -872,6 +844,7 @@ char *re;
  *	FUNC will be the return value here.
  */
 {
+	struct symbol_table *table = (struct symbol_table *) stable;
 	int slot = 0, ret, nsy = 0, i;
 	char *re_comp (), *re_exec ();
 	struct ste *sp;
@@ -1005,8 +978,8 @@ char *symbol;
 
 
 int
-usy_daemon (table, symbol, ops, func, arg)
-struct symbol_table *table;
+usy_daemon (stable, symbol, ops, func, arg)
+stbl stable;
 char *symbol;
 int ops;
 int (*func) ();
@@ -1035,6 +1008,7 @@ char * arg;
  *	(*func) (symbol, arg, op, oldtype, oldvalue, newtype, newvalue)
  */
 {
+	struct symbol_table *table = (struct symbol_table *) stable;
 	struct ste *sym = usy_find_symbol (table, symbol);
 	struct sdaemon *sdp;
 /*
@@ -1056,8 +1030,8 @@ char * arg;
 
 
 int
-usy_z_daemon (table, symbol, ops, func, arg)
-struct symbol_table *table;
+usy_z_daemon (stable, symbol, ops, func, arg)
+stbl stable;
 char *symbol;
 int ops;
 int (*func) ();
@@ -1075,6 +1049,7 @@ char * arg;
  *	value is the number of daemons which were removed.
  */
 {
+	struct symbol_table *table = (struct symbol_table *) stable;
 	struct ste *sym = usy_find_symbol (table, symbol);
 	struct sdaemon *sdp, *next, *last;
 	int nzap = 0;
