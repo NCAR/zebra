@@ -5,18 +5,10 @@
 #define PassCDebugFlags /*nothing*/
 
 SUBDIRS = maps icons helpfiles audio pd gplib colortables
-DISTFILES = Imakefile FieldDefs startzeb.sh
+DISTFILES = Imakefile FieldDefs 
 DISTSUBDIRS = $(SUBDIRS)
 
-all:: startzeb		/* don't want first target to be install */
-
-startzeb.script:	startzeb.sh
-	sed -e s,##TOPDIRHERE,BaseDir, <startzeb.sh >startzeb.script
-
-clean::
-	rm -f startzeb.script
-
-InstallScript (startzeb, $(BINDIR))
+all:: /* don't want first target to be install */
 
 InstallLibFile (FieldDefs,.,.)
 
