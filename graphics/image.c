@@ -1,5 +1,5 @@
 /* 10/88 jc */
-/* $Id: image.c,v 1.2 1989-06-28 13:51:04 corbet Exp $ */
+/* $Id: image.c,v 1.3 1990-03-29 10:00:16 corbet Exp $ */
 /*
  * Routines related to image save/restore functions. 
  */
@@ -268,6 +268,8 @@ char *description;
 	data = getvm (len);
 	(*dev->gd_readscreen)(sta->ws_tag, 0, 0, dev->gd_xres, dev->gd_yres,
 		data);
+	if (dev->gd_coff)
+		Gi_offset (data, len, -(*dev->gd_coff) (sta->ws_tag));
 	bio_write (&ifl->if_bio_lun, &toc->it_offset, data, &len, &one);
 	relvm (data);
 /*
@@ -346,6 +348,8 @@ int image;
 	len = toc->it_x * toc->it_y;
 	data = getvm (len);
 	bio_read (&ifl->if_bio_lun, &toc->it_offset, data, &len, &one);
+	if (dev->gd_coff)
+		Gi_offset (data, len, (*dev->gd_coff) (sta->ws_tag));
 /*
  * Ship it out to the device.
  */
@@ -354,4 +358,22 @@ int image;
 	(*dev->gd_flush) (sta->ws_tag);
 	relvm (data);
 	return (GE_OK);
+}
+
+
+
+
+
+Gi_offset (data, len, offset)
+register char *data;
+register int len, offset;
+/*
+ * Apply this offset to the data.
+ */
+{
+	printf ("Offsetting, len %d offset %d\n", len,  offset);
+	if (! offset)
+		return;
+	for (; len > 0; len--)
+		*data++ += offset;
 }
