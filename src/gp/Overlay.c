@@ -1,7 +1,7 @@
 /*
  * Deal with static (or almost static) overlays.
  */
-static char *rcsid = "$Id: Overlay.c,v 2.11 1992-07-30 18:19:33 granger Exp $";
+static char *rcsid = "$Id: Overlay.c,v 2.12 1992-10-12 22:56:21 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -125,7 +125,7 @@ static bool 	ov_GetWBounds FP ((char *, char *, float *, float *, float *,
 static int 	ov_FindWBReply FP ((struct message *, struct dm_rp_wbounds *));
 static void 	ov_Boundary FP ((char *, int));
 static bool 	ov_GetBndParams FP ((char *, char *, XColor *, int *, int *,
-			LabelOpt *, char *, float *, int *, char *));
+			LabelOpt *, char *, float *, int *, char *, int *));
 static int 	ov_RRInfo FP ((char *, char *, Location *, float *, float *,
 			float *, float *, int *, float *, XColor *, int *,
 			float *));
@@ -977,7 +977,7 @@ int update;
 	PlatformId pid;
 	int lwidth, npt, closed, nplats, i;
 	int pt, total_pts;
-	int showicon;
+	int showicon, adjust;
 	short first_valid;
 	ZebTime t, target;
 	DataChunk *dc;
@@ -989,14 +989,20 @@ int update;
 	char *penup;
 	float penup_pt;	/* The x OR y value in lat-lon indicating a break */
 	Location *lp, c;
-
-	target = PlotTime;
 /*
  * Get the various parameters that control boundary drawing.
  */
 	if (! ov_GetBndParams (comp, platform, &xc, &lwidth, &closed, &opt, 
-		label, &asize, &showicon, iconname))
+		label, &asize, &showicon, iconname, &adjust))
 		return;
+/*
+ * Adjust the time we look for data at.
+ */
+	target = PlotTime;
+	msg_ELog (EF_DEBUG, "target %d", target.zt_Sec);
+	msg_ELog (EF_DEBUG, "adjust %d", adjust);
+	target.zt_Sec += adjust * 60;
+	msg_ELog (EF_DEBUG, "target %d", target.zt_Sec);
 /*
  * Loop through the platforms.
  */
@@ -1172,12 +1178,13 @@ int update;
 
 static bool
 ov_GetBndParams (comp, platform, xc, lwidth, closed, opt, label, asize,
-	showicon, iconname)
-char *comp, *platform, *label, *iconname;
-XColor *xc;
-int *lwidth, *closed, *showicon;
+	showicon, iconname, adjust)
+char	*comp, *platform, *label, *iconname;
+XColor	*xc;
+int	*lwidth, *closed, *showicon;
 LabelOpt *opt;
-float *asize;
+float	*asize;
+int	*adjust;
 /*
  * Get all of the parameters which control boundary drawing.
  */
@@ -1236,6 +1243,12 @@ float *asize;
 	if (*showicon && (! pda_Search (Pd, comp, "position-icon", "boundary",
 			iconname, SYMT_STRING)))
 		*showicon = FALSE;
+/*
+ * Check for that kludgey adjust data time parameter (in minutes).
+ */
+	*adjust = 0;
+	pda_Search (Pd, comp, "data-time-adjust", "boundary", (char *) adjust,
+		SYMT_INT);
 
 	return (TRUE);
 }
