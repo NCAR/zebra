@@ -1,4 +1,5 @@
 Makefile
+Makefile.dep
 actrack
 entertrack
 vor

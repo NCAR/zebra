@@ -1,4 +1,5 @@
 Makefile
+Makefile.dep
 nvxdmsp.f
 nvxgoes.f
 nvxgraf.f
