@@ -1,7 +1,7 @@
 /*
  * The data available menu.
  */
-static char *rcsid = "$Id: DataMenu.c,v 2.4 1991-10-25 18:00:26 kris Exp $";
+static char *rcsid = "$Id: DataMenu.c,v 2.5 1991-11-22 20:56:16 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -55,6 +55,12 @@ static char IComp[60];
 	static int AddPlatform (char *, int, time *);
 	static void ToRealTime (void);
 # else
+	static void EntryCallback ();
+	static void PopupCallback ();
+	static int SetupPlats ();
+	static int FunkyPlat ();
+	static int AddPlatform ();
+	static void ToRealTime ();
 # endif
 
 

@@ -1,7 +1,7 @@
 /*
  * Deal with static (or almost static) overlays.
  */
-static char *rcsid = "$Id: Overlay.c,v 2.4 1991-10-28 17:21:39 corbet Exp $";
+static char *rcsid = "$Id: Overlay.c,v 2.5 1991-11-22 20:53:27 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -152,10 +152,12 @@ typedef struct _MapPoints
 	static void ov_WBounds ();
 	static bool ov_GetWBounds ();
 	static void ov_Grid ();
+	static void ov_AzLimits ();
 	static int ov_FindWBReply ();
 	static void ov_Boundary ();
 	static bool ov_GetBndParams ();
 	static void ov_RangeRings ();
+	static void ov_Location ();
 	static int ov_RRInfo ();
 	static OvIcon *ov_GetIcon ();
 	static int ov_LocSetup ();
@@ -474,7 +476,7 @@ bool update;
 
 
 
-bool
+static bool
 ov_GetWBounds (window, ptype, x0, y0, x1, y1, alt)
 char *window, *ptype;
 float *x0, *y0, *x1, *y1, *alt;
@@ -985,12 +987,14 @@ int update;
 	char platform[40], *junk = "junk", label[20], *pnames[40];
 	PlatformId pid;
 	int lwidth, pt, npt, closed, nplats, i;
-	time t, target = PlotTime;
+	time t, target;
 	DataObject *dobj;
 	XPoint *xpts;
 	XColor xc;
 	LabelOpt opt;
 	float x, y, asize;
+
+	target = PlotTime;
 /*
  * Get the various parameters that control boundary drawing.
  */

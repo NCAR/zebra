@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: ds_consumer.c,v 2.2 1991-10-02 16:51:21 kris Exp $";
+static char *rcsid = "$Id: ds_consumer.c,v 2.3 1991-11-22 20:44:06 kris Exp $";
 
 # include <copyright.h>
 # include <defs.h>
@@ -43,6 +43,7 @@ DataObject OutData;
 # ifdef __STDC__
 	static int MDispatcher (struct message *);
 # else
+	static int MDispatcher ();
 # endif
 
 

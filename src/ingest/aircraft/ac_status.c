@@ -20,7 +20,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: ac_status.c,v 1.6 1991-11-14 19:17:32 kris Exp $";
+static char *rcsid = "$Id: ac_status.c,v 1.7 1991-11-22 20:43:31 kris Exp $";
 
 # include <copyright.h>
 # include <X11/X.h>
@@ -572,7 +572,7 @@ char	*label;
 
 
 
-void
+static void
 SetStatus (itsat, nplat)
 int	itsat;
 /*

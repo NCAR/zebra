@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.6 1991-11-13 22:03:24 corbet Exp $ */
+/* $Id: GraphProc.h,v 2.7 1991-11-22 20:55:42 kris Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -241,7 +241,6 @@ extern int AgeCheck (char *, time *);
 	extern void cvt_ToLatLon ();
 	extern void cvt_GetOrigin ();
 	extern bool cvt_Origin ();
-	extern Widget LeftRightButtons ();
 	extern int GetLocation ();
 	extern void SetClip ();
 	extern void ResetGC ();

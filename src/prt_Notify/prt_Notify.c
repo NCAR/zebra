@@ -134,8 +134,10 @@ struct dsp_Template *dmsg;
  * We just got a copy of a notification request.
  */
 {
-	struct dsp_NotifyRequest nrq = *(struct dsp_NotifyRequest *) dmsg;
+	struct dsp_NotifyRequest nrq;
 	char *from;
+
+	nrq = *(struct dsp_NotifyRequest *) dmsg;
 /*
  * If this is a notification request, we first see if there are already
  * requests outstanding for this PID -- if so, there will also be a timer

@@ -1,7 +1,7 @@
 /*
  * Widgets for changing plot limits.
  */
-static char *rcsid = "$Id: LimitWidgets.c,v 2.3 1991-11-04 18:06:11 kris Exp $";
+static char *rcsid = "$Id: LimitWidgets.c,v 2.4 1991-11-22 20:54:16 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -119,6 +119,26 @@ typedef struct _WidgetDesc_
 	static void lw_SWSetup (WidgetQueue *, struct ui_command *);
 	static void lw_SWStore (Widget, WidgetQueue *, XtPointer);
 	static Widget lw_OvCreate (char *, Widget, XtAppContext);
+# else
+	static Widget lw_SFCreate ();
+	static void lw_SFSetup ();
+	static void lw_SFStore ();
+	static Widget lw_DFCreate ();
+	static void lw_DFSetup ();
+	static void lw_DFStore ();
+	static Widget lw_SSCreate ();
+	static void lw_SSSetup ();
+	static void lw_SSStore ();
+	static Widget lw_TSCreate ();
+	static void lw_TSSetup ();
+	static void lw_TSStore ();
+	static Widget lw_SICreate ();
+	static void lw_SISetup ();
+	static void lw_SIStore ();
+	static Widget lw_SWCreate ();
+	static void lw_SWSetup ();
+	static void lw_SWStore ();
+	static Widget lw_OvCreate ();
 # endif
 
 
@@ -172,6 +192,14 @@ static char OvStatus[1024];
 	static void lw_Popdown (WidgetQueue *);
 	static void lw_Setup (WidgetQueue *, int, struct ui_command *);
 	static WidgetQueue *lw_GetWidget (int);
+	static void lw_InitOverlay ();
+	static void lw_SwCb ();
+# else
+	static void lw_Popup ();
+	static void lw_CBPopdown ();
+	static void lw_Popdown ();
+	static void lw_Setup ();
+	static WidgetQueue *lw_GetWidget ();
 	static void lw_InitOverlay ();
 	static void lw_SwCb ();
 # endif
@@ -262,7 +290,7 @@ int type;
 /*
  * Make it known to UI.
  */
-	uw_def_widget (ret->wq_name, "title", wd->wd_create, 0, (char *) ret);
+	uw_def_widget (ret->wq_name, " ", wd->wd_create, 0, (char *) ret);
 	uw_ForceOverride (ret->wq_name);
 /*
  * All done -- send it back.
@@ -838,7 +866,6 @@ XtPointer junk;
  * Store the value in our widget.
  */
 {
-	char field[20], param[40];
 	struct SFWData *wd = (struct SFWData *) wq->wq_wdata;
 /*
  * Get the string out of the widget and store it.
@@ -858,7 +885,6 @@ XtPointer junk;
  * Store the value in our widget.
  */
 {
-	char field[20], param[40];
 	struct SFWData *wd = (struct SFWData *) wq->wq_wdata;
 /*
  * Get the string out of the widget and store it.
@@ -878,7 +904,6 @@ XtPointer junk;
  * Store the value in our widget.
  */
 {
-	char field[20], param[40];
 	struct SFWData *wd = (struct SFWData *) wq->wq_wdata;
 /*
  * Get the string out of the widget and store it.
@@ -898,8 +923,6 @@ XtPointer junk;
  * Store the value in our widget.
  */
 {
-	Arg args[2];
-	char field[20], param1[40], param2[40];
 	struct DFWData *wd = (struct DFWData *) wq->wq_wdata;
 /*
  * Get the string out of the widget and store it.
@@ -921,8 +944,6 @@ XtPointer junk;
  * Store the value in our widget.
  */
 {
-	Arg args[2];
-	char field[20], param1[40], param2[40];
 	struct DFWData *wd = (struct DFWData *) wq->wq_wdata;
 /*
  * Get the string out of the widget and store it.

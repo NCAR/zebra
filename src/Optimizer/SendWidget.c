@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: SendWidget.c,v 1.2 1991-09-26 16:49:38 gracio Exp $";
+static char *rcsid = "$Id: SendWidget.c,v 1.3 1991-11-22 20:45:34 kris Exp $";
 
 # include <stdio.h>
 # include <signal.h>
@@ -458,7 +458,7 @@ XtPointer	val, junk;
 
 
 void
-sw_Timeout (void)
+sw_Timeout ()
 {
 /* 
  * Sending a file has taken too long
@@ -470,7 +470,7 @@ sw_Timeout (void)
 
 
 void
-sw_KermitCheck (void)
+sw_KermitCheck ()
 /*
  * Handle a "change in child status" signal.  We only care if a child
  * died.

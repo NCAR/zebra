@@ -1,7 +1,7 @@
 /*
  * Vertical cross-sectioning
  */
-static char *rcsid = "$Id: XSection.c,v 2.3 1991-11-04 18:00:23 kris Exp $";
+static char *rcsid = "$Id: XSection.c,v 2.4 1991-11-22 20:52:28 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -1241,7 +1241,7 @@ float		**xpp, **ypp;
  * be freed by the caller.
  */
 {
-	float	*xpos, *ypos, *lat, *lon, *wspd, *wdir, *time, *dummy;
+	float	*xpos, *ypos, *lat, *lon, *wspd, *wdir, *wtime, *dummy;
 	float	ws, wd, t, dt, site_x, site_y;
 	int	pt, npts;
 	float	snd_s_lat (), snd_s_lon ();
@@ -1314,11 +1314,11 @@ float		**xpp, **ypp;
 	 */
 		wspd = (float *) malloc (BUFLEN * sizeof (float));
 		wdir = (float *) malloc (BUFLEN * sizeof (float));
-		time = (float *) malloc (BUFLEN * sizeof (float));
+		wtime = (float *) malloc (BUFLEN * sizeof (float));
 
 		npts = snd_get_data (sid, wspd, BUFLEN, f_wspd, BADVAL);
 		snd_get_data (sid, wdir, BUFLEN, f_wdir, BADVAL);
-		snd_get_data (sid, time, BUFLEN, f_time, BADVAL);
+		snd_get_data (sid, wtime, BUFLEN, f_time, BADVAL);
 
 		xpos[0] = site_x;
 		ypos[0] = site_y;
@@ -1333,10 +1333,10 @@ float		**xpp, **ypp;
 				wd = wdir[pt];
 			}
 
-			if (time[pt] != BADVAL)
+			if (wtime[pt] != BADVAL)
 			{
-				dt = time[pt] - t;
-				t = time[pt];
+				dt = wtime[pt] - t;
+				t = wtime[pt];
 			}
 			else
 				dt = 0.0;
@@ -1351,7 +1351,7 @@ float		**xpp, **ypp;
 	 */
 		free (wspd);
 		free (wdir);
-		free (time);
+		free (wtime);
 	}
 	else
 	{

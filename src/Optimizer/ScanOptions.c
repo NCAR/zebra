@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: ScanOptions.c,v 1.2 1991-09-17 16:16:08 burghart Exp $";
+static char *rcsid = "$Id: ScanOptions.c,v 1.3 1991-11-22 20:45:49 kris Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -48,7 +48,7 @@ Widget	WDispRadar;		/* radar name label			*/
 Widget	WDispText;		/* text portion of the display widget	*/
 bool	DisplayUp = False;	/* is the widget popped up?		*/
 # define STRSIZE 2048		/* size of the display string		*/
-char	DisplayString[STRSIZE] = "";	/* display string		*/
+char	DisplayStr[STRSIZE] = "";	/* display string		*/
 int	DispRadar = 0;		/* which radar are we showing?		*/
 
 /*
@@ -130,8 +130,8 @@ ScanOptions ()
 		XtSetArg (arg, XtNlabel, "  ");
 		XtSetValues (WDispOption, &arg, 1);
 
-		DisplayString[0] = '\0';
-		XtSetArg (arg, XtNstring, DisplayString);
+		DisplayStr[0] = '\0';
+		XtSetArg (arg, XtNstring, DisplayStr);
 		XtSetValues (WDispText, &arg, 1);
 	}
 /*
@@ -300,7 +300,7 @@ int	opt;
 	XtSetValues (WDispOption, &arg, 1);
 
 	so_DisplayRadar (DispRadar);
-	XtSetArg (arg, XtNstring, DisplayString);
+	XtSetArg (arg, XtNstring, DisplayStr);
 	XtSetValues (WDispText, &arg, 1);
 
 	if (! DisplayUp)
@@ -334,7 +334,7 @@ int	r;
  */
 	if (! Rad[r].enabled)
 	{
-		sprintf (DisplayString, "** DISABLED **");
+		sprintf (DisplayStr, "** DISABLED **");
 		return;
 	}
 /*
@@ -349,32 +349,32 @@ int	r;
 		msg_ELog (EF_PROBLEM, "BUG: Scan should be possible!");
 	ENDCATCH
 /*
- * Write the info into DisplayString
+ * Write the info into DisplayStr
  */
 	minutes = (int)(Rad[r].scantime + 0.5) / 60;
 	seconds = (int)(Rad[r].scantime + 0.5) % 60;
 
-	sprintf (DisplayString, "Nsweeps: %d  Scan Rate: %.1f  Hits: %d\n", 
+	sprintf (DisplayStr, "Nsweeps: %d  Scan Rate: %.1f  Hits: %d\n", 
 		Rad[r].nsweeps, Rad[r].scanrate, Rad[r].hits);
 
-	s = DisplayString + strlen (DisplayString);
+	s = DisplayStr + strlen (DisplayStr);
 	sprintf (s, "H Res.: %.2f   V Res.: %.2f\n", Rad[r].res_horiz, 
 		Rad[r].res_vert);
 
-	s = DisplayString + strlen (DisplayString);
+	s = DisplayStr + strlen (DisplayStr);
 	sprintf (s, "Scan Time: %d:%02d\n", minutes, seconds);
 
-	s = DisplayString + strlen (DisplayString);
+	s = DisplayStr + strlen (DisplayStr);
 	sprintf (s, "Left Azimuth: %.1f   Right Azimuth: %.1f\n",
 		Rad[r].az_left, Rad[r].az_right);
 
-	s = DisplayString + strlen (DisplayString);
+	s = DisplayStr + strlen (DisplayStr);
 	sprintf (s, "Bottom Elevation: %.1f   Top Elevation: %.1f\n",
 		Rad[r].el_bottom, Rad[r].el_top);
 /*
  * Angle list
  */
-	s = DisplayString + strlen (DisplayString);
+	s = DisplayStr + strlen (DisplayStr);
 	if (Rad[r].fix_step)
 	{
 	/*
@@ -391,7 +391,7 @@ int	r;
 
 		for (i = 0; i < Rad[r].nsweeps; i++)
 		{
-			s = DisplayString + strlen (DisplayString);
+			s = DisplayStr + strlen (DisplayStr);
 
 			if (! (i % 8))
 				sprintf (s++, "\n");
@@ -400,7 +400,7 @@ int	r;
 		}
 	}
 
-	s = DisplayString + strlen (DisplayString);
+	s = DisplayStr + strlen (DisplayStr);
 	sprintf (s, "\n");
 /*
  * Radio readable parameters, all in one place and in the right order: 
@@ -411,7 +411,7 @@ int	r;
 	{
 		float	left, right, bottom, top, step;
 
-		s = DisplayString + strlen (DisplayString);
+		s = DisplayStr + strlen (DisplayStr);
 		sprintf (s, "\n\nRadio order scan parameters\n");
 
 		if (Rad[r].scantype == RHI)
@@ -430,13 +430,13 @@ int	r;
 		}
 
 
-		s = DisplayString + strlen (DisplayString);
+		s = DisplayStr + strlen (DisplayStr);
 		sprintf (s, "L:%.1f  R:%.1f  V:%.1f  B:%.1f  T:%.1f  ",
 			left, right, Rad[r].scanrate, bottom, top);
 
 		step = Rad[r].anglist[1] - Rad[r].anglist[0];
 
-		s = DisplayString + strlen (DisplayString);
+		s = DisplayStr + strlen (DisplayStr);
 		sprintf (s, "S:%.1f  H:%d\n", step, Rad[r].hits);
 	}
 
@@ -637,10 +637,10 @@ XtPointer	val, junk;
 /*
  * Generate the new display if we currently have one
  */
-	if (DisplayString[0] != '\0')
+	if (DisplayStr[0] != '\0')
 	{
 		so_DisplayRadar (DispRadar);
-		XtSetArg (arg, XtNstring, DisplayString);
+		XtSetArg (arg, XtNstring, DisplayStr);
 		XtSetValues (WDispText, &arg, 1);
 	}
 }

@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: nx_BCast.c,v 2.1 1991-09-26 23:09:42 gracio Exp $";
+static char *rcsid = "$Id: nx_BCast.c,v 2.2 1991-11-22 20:48:40 kris Exp $";
 
 # include <sys/time.h>
 # include <sys/signal.h>
@@ -75,8 +75,8 @@ static int NCAlloc = 0, NCReuse = 0;
 	static tx_BCast *FindBCP (int);
 	static void FlushRetrans (time *, void *);
 	static void ZapBCast (time *, tx_BCast *);
-	static void Delay (void);
-	static void Alarm (void);
+	void Delay (void);
+	void Alarm (void);
 	static int BCastPlain (tx_BCast *, DataBCChunk *, char *, int);
 	static int BCastRLE (tx_BCast *, DataBCChunk *, char *, int);
 	static int RLEncode (unsigned char *, DataBCChunk *, int);
@@ -86,8 +86,8 @@ static int NCAlloc = 0, NCReuse = 0;
 	static tx_BCast *FindBCP ();
 	static void FlushRetrans ();
 	static void ZapBCast ();
-	static void Delay ();
-	static void Alarm ();
+	void Delay ();
+	void Alarm ();
 	static int BCastPlain ();
 	static int BCastRLE ();
 	static int RLEncode ();

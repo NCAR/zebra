@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: Optimizer.c,v 1.5 1991-09-26 16:51:54 gracio Exp $";
+static char *rcsid = "$Id: Optimizer.c,v 1.6 1991-11-22 20:46:15 kris Exp $";
 
 # include <copyright.h>
 # include <ctype.h>
@@ -63,24 +63,24 @@ static void	(*Cmd_routine[MAXKW+1])();
 	static int	opt_Dispatch (int, struct ui_command *);
 	static void	opt_CmdInit (void);
 	static void	opt_DumpCmd (struct ui_command *);
-	static void	opt_LoadConfig (char *);
-	static int	opt_XEvent (int);
-	static void	opt_VolInfo (struct ui_command *);
-	static int	opt_Message (struct message *);
+	void	opt_LoadConfig (char *);
+	int	opt_XEvent (int);
+	void	opt_VolInfo (struct ui_command *);
+	int	opt_Message (struct message *);
 	static void	opt_ReportError (char *);
 	static void	opt_Print (char *);
-	static void	opt_Usage (void);
+	void	opt_Usage (void);
 # else
 	static int	opt_Dispatch ();
 	static void	opt_CmdInit ();
 	static void	opt_DumpCmd ();
-	static int	opt_XEvent ();
-	static void	opt_LoadConfig ();
-	static void	opt_VolInfo ();
-	static int	opt_Message ();
+	int	opt_XEvent ();
+	void	opt_LoadConfig ();
+	void	opt_VolInfo ();
+	int	opt_Message ();
 	static void	opt_ReportError ();
 	static void	opt_Print ();
-	static void	opt_Usage ();
+	void	opt_Usage ();
 # endif
 
 

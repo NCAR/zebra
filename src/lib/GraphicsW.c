@@ -3,7 +3,7 @@
  * of pixmap "frames" associated with it.  Zero frames means just write 
  * everything directly to the window.
  */
-static char *rcsid = "$Id: GraphicsW.c,v 2.2 1991-10-21 21:07:50 burghart Exp $";
+static char *rcsid = "$Id: GraphicsW.c,v 2.3 1991-11-22 20:54:52 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -270,21 +270,20 @@ GraphicsWidget	w;
 XEvent		*event;
 Region		region;
 {
-	GraphicsPart	gp = w->graphics;
-
 /*
  * If we don't have any frames, we have nothing from which to redraw
  */
-	if (gp.frame_count < 1)
+	if (w->graphics.frame_count < 1)
 		return;
 /*
  *  If the index of the display_frame is no good then return.
  */
-	if(gp.display_frame < 0 || gp.display_frame >= gp.frame_count)
+	if(w->graphics.display_frame < 0 || 
+		w->graphics.display_frame >= w->graphics.frame_count)
 	{
 		msg_ELog (EF_PROBLEM, "Can't Redraw window.");
 		msg_ELog (EF_DEBUG, "Invalid frame number (%d) in Redraw.",
-			gp.display_frame);
+			w->graphics.display_frame);
 		return;
 	}
 # ifdef use_XB
@@ -293,14 +292,15 @@ Region		region;
  */
 	if (w->graphics.ardent_server)
 		XBSetDrawBuffer (XtDisplay (w), XtWindow (w), 
-			gp.display_buffer, 0);
+			w->graphics.display_buffer, 0);
 # endif
 
 /*
  * Do a CopyArea to copy the current frame into the window
  */
-	XCopyArea (XtDisplay (w), gp.frames[gp.display_frame], XtWindow (w), 
-		gp.gc, 0, 0, w->core.width, w->core.height, 0, 0);
+	XCopyArea (XtDisplay (w),w->graphics.frames[w->graphics.display_frame], 
+		XtWindow (w), w->graphics.gc, 0, 0, w->core.width, 
+		w->core.height, 0, 0);
 }
 
 
@@ -526,8 +526,8 @@ GWResize (w, width, height)
 GraphicsWidget	w;
 int	width, height;
 {
-	if (XtMakeResizeRequest (w, (_XtDimension) width, 
-		(_XtDimension) height, NULL, NULL) == XtGeometryYes)
+	if (XtMakeResizeRequest (w, (Dimension) width, (Dimension) height, 
+		(Dimension) NULL, (Dimension) NULL) == XtGeometryYes)
 		Resize (w);
 }
 

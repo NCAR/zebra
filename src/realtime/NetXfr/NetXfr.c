@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: NetXfr.c,v 2.3 1991-11-11 17:53:58 gracio Exp $";
+static char *rcsid = "$Id: NetXfr.c,v 2.4 1991-11-22 20:49:42 kris Exp $";
 
 # include <copyright.h>
 # include <defs.h>
@@ -150,10 +150,11 @@ InProgress *IPList = 0;
 	static void ZapIP (InProgress *);
 	static void Timeout (time *, int);
 	static void AskRetrans (InProgress *, int);
-	static void ProcessPolled (void);
+	void ProcessPolled (void);
 	static void RLEDecode (unsigned char *, unsigned char *, int);
 	static void ScanIP (void);
-	static void SendDObj (DataObject *, int);
+	void SendDObj (DataObject *, int);
+	void SendOut (PlatformId, void *, int);
 	static inline DataBCChunk *NewBCChunk (void);
 	static inline void FreeBCChunk (DataBCChunk *);
 	static inline float *GetDataArray (int, int);
@@ -178,10 +179,11 @@ InProgress *IPList = 0;
 	static void ZapIP ();
 	static void Timeout ();
 	static void AskRetrans ();
-	static void ProcessPolled ();
+	void ProcessPolled ();
 	static void RLEDecode ();
 	static void ScanIP ();
-	static void SendDObj ();
+	void SendDObj ();
+	void SendOut ();
 	static inline DataBCChunk *NewBCChunk ();
 	static inline void FreeBCChunk ();
 	static inline float *GetDataArray ();

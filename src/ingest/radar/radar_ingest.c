@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: radar_ingest.c,v 2.3 1991-10-28 17:44:29 corbet Exp $";
+static char *rcsid = "$Id: radar_ingest.c,v 2.4 1991-11-22 20:43:53 kris Exp $";
 
 # include <copyright.h>
 # include <errno.h>
@@ -608,7 +608,7 @@ CheckMessages ()
 }
 
 
-
+static int
 MHandler (msg)
 Message *msg;
 /*

@@ -19,7 +19,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: GetList.c,v 2.1 1991-09-26 22:45:30 gracio Exp $";
+static char *rcsid = "$Id: GetList.c,v 2.2 1991-11-22 20:50:59 kris Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -51,7 +51,7 @@ GetList *GList = 0;
 	static int	dgl_DoList ();
 	static int	dgl_Overlaps ();
 	static GetList	*dgl_FixList ();
-	static int	dgl_TimeProblem ();
+	static bool	dgl_TimeProblem ();
 	static int	dgl_RequestNewDF ();
 	static int	dgl_GetNDFResp ();
 	static void	dgl_AbortNewDF ();

@@ -22,7 +22,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: Archiver.cc,v 1.4 1991-09-26 15:45:27 gracio Exp $";
+static char *rcsid = "$Id: Archiver.cc,v 1.5 1991-11-22 20:49:58 kris Exp $";
 
 # include <copyright.h>
 # include <stdio.h>
@@ -130,6 +130,13 @@ XtAppContext Appc;
 	static void	UpdateList ();
 	static int	WriteFileDate ();
 	static void	WriteEOF ();
+	static int	xevent ();
+	static void	MakeWidget ();
+	static void	TapeButton ();
+	static void	SpinOff ();
+	static void	SetStatus ();
+	static void	Sync ();
+	static void	Finish ();
 # endif
 
 
@@ -529,7 +536,7 @@ char *cmd;
 
 
 
-
+static int
 Handler (msg)
 Message *msg;
 /*
@@ -608,7 +615,7 @@ UpdateList ()
 
 
 
-int
+static int
 WriteFileDate (sym, type, v, fp)
 char *sym;
 int type;

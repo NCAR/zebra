@@ -1,7 +1,7 @@
 /*
  * Track drawing routines.
  */
-static char *rcsid = "$Id: Track.c,v 2.7 1991-11-14 17:50:10 kris Exp $";
+static char *rcsid = "$Id: Track.c,v 2.8 1991-11-22 20:52:44 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -190,8 +190,8 @@ bool update;
 		strcpy(tadefcolor, "white");
 	if(! ct_GetColorByName(tadefcolor, &tadefclr))
 	{
-		msg_ELog(EF_PROBLEM,"Can't get default color:
-			'%s'.",tadefcolor);
+		msg_ELog(EF_PROBLEM,"Can't get default color: '%s'.", 
+			tadefcolor);
 		strcpy(tadefcolor,"white");
 		ct_GetColorByName(tadefcolor,&tadefclr);
 	}
@@ -469,8 +469,8 @@ XColor *a_clr;
 		*a_int = 10;
 	else if((*a_int = pc_TimeTrigger (a_interval)) == 0)
 	{
-		msg_ELog(EF_PROBLEM,"Unparsable arrow interval:
-			'%s'.",a_interval);
+		msg_ELog(EF_PROBLEM,"Unparsable arrow interval: '%s'.",
+			a_interval);
 		*a_int = 30;
 	}
 /*

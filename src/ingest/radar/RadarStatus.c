@@ -33,7 +33,7 @@
 # include "../include/timer.h"
 # include "RadarInfo.h"
 
-static char *rcsid = "$Id: RadarStatus.c,v 2.1 1991-09-16 22:16:43 burghart Exp $";
+static char *rcsid = "$Id: RadarStatus.c,v 2.2 1991-11-22 20:44:31 kris Exp $";
 
 
 /*
@@ -373,7 +373,7 @@ wm ()
 
 
 
-
+static int
 GetStatus (port, data, len)
 int port, len;
 char *data;

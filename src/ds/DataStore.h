@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 2.3 1991-11-07 22:21:21 corbet Exp $
+ * $Id: DataStore.h,v 2.4 1991-11-22 20:50:47 kris Exp $
  *
  * Public data store definitions.
  */
@@ -199,7 +199,9 @@ typedef enum
  * that a reasonable compiler is being used, which will inline them.
  */
 static inline Location *
-ds_Where (DataObject *obj, int sample)
+ds_Where (obj, sample)
+DataObject *obj;
+int sample;
 /*
  * Where is this sample?
  */

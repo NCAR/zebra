@@ -81,6 +81,18 @@ XtAppContext Appc;
 	static void TimeOut (time *, int);
 	static void MsgInput ();
 # else
+	static void CreateWidget ();
+	static void Die ();
+	static int MsgHandler ();
+	static void DoPlatforms ();
+	static void AddPlatform ();
+	static void TogglePlat ();
+	static void GetColors ();
+	static void MakeLabel ();
+	static void SetColor ();
+	static void Arrival ();
+	static void TimeOut ();
+	static void MsgInput ();
 # endif
 
 

@@ -1,7 +1,7 @@
 /*
  * Widget for getting position of cursor.
  */
-static char *rcsid = "$Id: PositionWidget.c,v 1.3 1991-10-15 22:23:21 kris Exp $";
+static char *rcsid = "$Id: PositionWidget.c,v 1.4 1991-11-22 20:53:12 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -53,10 +53,19 @@ static int 	NOrg, OIndex = 0;
 	void ChangeType ();
 	void ChangeUnit ();
 	static void ChangeOrg (Widget, XtPointer, XtPointer);
+# else
+	static void pw_PosPopup ();
+	static void pw_PosPopdown ();
+	void pw_PosStatus ();
+	void pw_InitPos();
+	Widget pw_PosCreate ();
+	void ChangeType ();
+	void ChangeUnit ();
+	static void ChangeOrg ();
 # endif
 
 
-void
+static void
 pw_PosPopdown (w, junk1, junk2)
 Widget 	w; 
 int 	junk1, junk2;
@@ -177,7 +186,7 @@ XtPointer	change, junk;
 	if (OIndex < 0)
 		OIndex += NOrg;
 	XtSetArg (args[0], XtNlabel, ONames[OIndex]);
-	XtSetValues (OrgLabel, &args, 1);
+	XtSetValues (OrgLabel, args, 1);
 }
 
 

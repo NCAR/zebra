@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: Rasterize.c,v 2.1 1991-09-16 22:17:29 burghart Exp $";
+static char *rcsid = "$Id: Rasterize.c,v 2.2 1991-11-22 20:44:20 kris Exp $";
 
 # include <defs.h>
 # include <message.h>
@@ -109,6 +109,13 @@ static int NBeam = 0;		/* Number of beams in this sweep	*/
 	static void GetEndpoints ();
 	static void PFillR ();
 	static void PFillC ();
+	static void PFill2R ();
+	static void PFill2C ();
+	static void Threshold ();
+	static void CheckSweep ();
+	static void ScanConvert ();
+	static void CheckMax ();
+	static int DirCheck ();
 # define inline
 # endif
 

@@ -1,7 +1,7 @@
 /*
  * Movie control functions.
  */
-static char *rcsid = "$Id: MovieControl.c,v 2.5 1991-11-04 17:57:23 kris Exp $";
+static char *rcsid = "$Id: MovieControl.c,v 2.6 1991-11-22 20:53:38 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -127,7 +127,7 @@ static char PGComp[FLEN];		/* Component which wants pregen.*/
 	static void mc_ReGenFramesDS();
 	static void mc_SetupPreGen();
 	static int mc_FixTime();
-	static void mc_FixTime();
+	static void mc_Notification();
 # endif
 
 
@@ -1137,8 +1137,7 @@ mc_SetupPreGen()
 		{
 			if(CommaParse(fields, fieldlist) != 2)
 			{
-				msg_ELog(EF_PROBLEM, "Pregenerate fields are 
-					no good.");
+				msg_ELog(EF_PROBLEM,"Pregenerate fields bad.");
 				Pregenerate = FALSE;
 				return;
 			}	

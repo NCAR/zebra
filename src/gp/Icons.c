@@ -85,10 +85,10 @@ static stbl IconTable = 0;
 			struct IconList **);
 	static void I_MenuPopup (Widget, XEvent *);
 # else
-	static Pixmap I_GetIcon ();
-	static struct IconList *I_PutIcon ();
-	static struct Iconlist *I_GetWidget ();
-	static void I_MenuPopup ();
+	static Pixmap I_GetIcon();
+	static struct IconList *I_PutIcon();
+	static struct IconList *I_GetWidget();
+	static void I_MenuPopup();
 # endif
 
 

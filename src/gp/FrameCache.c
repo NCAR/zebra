@@ -1,7 +1,7 @@
 /*
  * Frame cache maintenance.
  */
-static char *rcsid = "$Id: FrameCache.c,v 2.1 1991-09-12 20:27:54 corbet Exp $";
+static char *rcsid = "$Id: FrameCache.c,v 2.2 1991-11-22 20:55:05 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -210,12 +210,6 @@ int number;
 	sprintf(FCache[findex].fc_info, "%-15s%-11s%-12s%2d:%02d\n", 
 		complist[1], platform, FCache[findex].fc_base, 
 		when->ds_hhmmss/10000, (when->ds_hhmmss/100)%100);  
-	msg_ELog (EF_DEBUG, "Cache %d, fld '%s' alt %.2f at %d %d, lru %d,
-		index %d", findex, FCache[findex].fc_base, 
-		FCache[findex].fc_alt, FCache[findex].fc_time.ds_yymmdd, 
-		FCache[findex].fc_time.ds_hhmmss, 
-		FCache[findex].fc_lru, number);
-	msg_ELog(EF_DEBUG, "fields: (%s)", FCache[findex].fc_fields);
 }
 
 
@@ -424,8 +418,8 @@ int frame, pixmap;
  */
 	if(FreePixmaps[pixmap] != FREE)
 	{
-		msg_ELog(EF_PROBLEM, "Pixmap %d to be swapped into is not
-			free.", pixmap);
+		msg_ELog(EF_PROBLEM,"Pixmap %d to be swapped into is not free.",
+			pixmap);
 		if(image) 
 		{
 			free(image->data);
@@ -685,14 +679,13 @@ fc_PrintCache()
 {
 	int i;
 
-	for(i = 0; i < MaxFrames; i++)
-		if(FCache[i].fc_valid)
-			msg_ELog(EF_DEBUG, "FCache[%d] base %s alt %f  lru %d  
-				keep %d  valid %d inmem %d  index %d ", 
-				i, FCache[i].fc_base,
-				FCache[i].fc_alt, FCache[i].fc_lru,
-				FCache[i].fc_keep, FCache[i].fc_valid,
-				FCache[i].fc_inmem, FCache[i].fc_index);
+for(i = 0; i < MaxFrames; i++)
+  if(FCache[i].fc_valid)
+    msg_ELog(EF_DEBUG, "FCache[%d] base %s alt %f  lru %d  keep %d  valid %d inmem %d  index %d ", 
+	i, FCache[i].fc_base,
+	FCache[i].fc_alt, FCache[i].fc_lru,
+	FCache[i].fc_keep, FCache[i].fc_valid,
+	FCache[i].fc_inmem, FCache[i].fc_index);
 }
 
 

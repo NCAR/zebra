@@ -1,7 +1,7 @@
 /*
  * Routines for pulling grids out of MUDRAS files.
  */
-static char *rcsid = "$Id: GridAccess.c,v 2.2 1991-09-18 14:38:56 burghart Exp $";
+static char *rcsid = "$Id: GridAccess.c,v 2.3 1991-11-22 20:54:40 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -210,7 +210,7 @@ float	*x0, *y0, *x1, *y1, *alt;
 
 
 
-bool
+static bool
 ga_Regularize (dobj)
 DataObject *dobj;
 /*

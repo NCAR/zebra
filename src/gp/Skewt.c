@@ -1,7 +1,7 @@
 /*
  * Skew-t plotting module
  */
-static char *rcsid = "$Id: Skewt.c,v 2.3 1991-09-12 20:27:54 corbet Exp $";
+static char *rcsid = "$Id: Skewt.c,v 2.4 1991-11-22 20:52:58 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -119,10 +119,18 @@ bool	update;
 	char	platforms[80], annot[80], ctname[20], tadefcolor[30];
 	time	ptime;
 	char	*pnames[5];
-	char	*flist[] = { "pres", "tdry", "dp", "u_wind", "v_wind" };
+	char	*flist[5];
 	PlatformId	pid;
 	DataObject	*dobj = NULL;
 	float		*pres, *temp, *dp, *u_wind, *v_wind;
+/*
+ * Done this way to satisfy cc.
+ */
+	flist[0] = "pres";
+	flist[1] = "tdry";
+	flist[2] = "dp";
+	flist[3] = "u_wind";
+	flist[4] = "v_wind";
 /*
  * Get the platform and color table
  */

@@ -32,6 +32,8 @@ static char *rcsid = "$ID$";
 # include <X11/Xaw/AsciiText.h>
 # include <X11/Shell.h>
 
+# include <ui_param.h>
+# include <ui_date.h>
 # include <defs.h>
 # include <message.h>
 # include <copyright.h>
@@ -386,23 +388,31 @@ time *begin, *end;
  * Make a label for this platform.
  */
 {
-        char label[80];
+        char label[80], end_date[40], begin_date[40];
         Arg arg;
 /*
  * Make the label.
  */
+	msg_ELog (EF_DEBUG, "Setting entry for %s", Names[index]);
 	if ((end->ds_yymmdd == 0) && (begin->ds_yymmdd == 0))
 	{
 		sprintf (label, "%-17s     -- None --", Names[index]);
 	}
 	else 
 	{
+		ud_format_date (end_date, (date *)end, UDF_FULL);
+		ud_format_date (begin_date, (date *)begin, UDF_FULL);
+		sprintf (label, "%-17s     %20s -> %20s", Names[index],
+			begin_date, end_date);
+# ifdef notdef
 	    sprintf (label, "%-17s     %d %2d:%02d:%02d -> %d %2d:%02d:%02d",
 		Names[index], begin->ds_yymmdd, begin->ds_hhmmss/10000,
                 (begin->ds_hhmmss/100) % 100, begin->ds_hhmmss % 100,
 		end->ds_yymmdd, end->ds_hhmmss/10000,
                 (end->ds_hhmmss/100) % 100, end->ds_hhmmss % 100);
+# endif
 	}
+	msg_ELog (EF_DEBUG, "Entry %s", label);
 /*
  * Stash it into the widget.
  */

@@ -1,7 +1,7 @@
 /*
  * Herein lies all the Constant Altitude Plot code, carved from PlotExec.
  */
-static char *rcsid = "$Id: ConstAltPlot.c,v 2.6 1991-11-14 17:48:57 kris Exp $";
+static char *rcsid = "$Id: ConstAltPlot.c,v 2.7 1991-11-22 20:56:28 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -95,6 +95,7 @@ typedef enum {LineContour, FilledContour} contour_type;
 	void	CAP_FContour ();
 	void	CAP_Vector (), CAP_Raster (), CAP_LineContour ();
 	void	CAP_Contour ();
+	static float *CAP_ImageGrid ();
 	void	CAP_RasterSideAnnot ();
 	void	CAP_StaPltSideAnnot ();
 # endif
@@ -383,9 +384,16 @@ Boolean	update;
 	DataObject *dobj;
 	float	unitlen;
 	char	quadrants[120], *quads[6], quadclr[30], string[10];
-	int	numquads = 0, offset_x[] = {-15, -15, 15, 15};
-	int	offset_y[] = {-15, 15, -15, 15};
+	int	numquads = 0; 
+	int	offset_x[4], offset_y[4];
 	char	data[100];
+/*
+ * Do this to satisfy cc.
+ */
+	offset_x[0] = offset_y[0] = -15;
+	offset_x[1] = offset_y[2] = -15;
+	offset_y[1] = offset_x[2] = 15;
+	offset_x[3] = offset_y[3] = 15;
 /*
  * Get necessary parameters from the plot description
  */
@@ -636,8 +644,14 @@ int datalen, begin, space;
 	float unitlen, used, scale; 
 	int i, left, numquads, limit;
 	XColor vc, qc;
-	int offset_x[] = {-15, -15, 15, 15};
-	int offset_y[] = {-15, 15, -15, 15};
+	int	offset_x[4], offset_y[4];
+/*
+ * Do this to satisfy cc.
+ */
+	offset_x[0] = offset_y[0] = -15;
+	offset_x[1] = offset_y[2] = -15;
+	offset_y[1] = offset_x[2] = 15;
+	offset_x[3] = offset_y[3] = 15;
 /*
  * Get annotation parameters.
  */
@@ -864,7 +878,7 @@ Boolean	update;
 }
 
 
-static void
+void
 CAP_RasterSideAnnot (comp, data, datalen, begin, space)
 char *comp, *data;
 int datalen, begin, space;

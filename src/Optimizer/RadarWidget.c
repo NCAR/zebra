@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: RadarWidget.c,v 1.3 1991-09-17 16:09:51 burghart Exp $";
+static char *rcsid = "$Id: RadarWidget.c,v 1.4 1991-11-22 20:46:04 kris Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -62,7 +62,7 @@ static Widget	WHits, WStep, WPrf, WMinRng, WMinElev;
 	void	rw_ToggleEnable (Widget, XtPointer, XtPointer);
 # else
 	Widget	rw_ParamWidget ();
-	Widget	rw_REnableWidget ();
+	Widget	rw_EnableWidget ();
 	void	rw_ShowParams ();
 	void	rw_ChangeRad ();
 	void	rw_ChangeType ();
@@ -383,7 +383,7 @@ Widget	parent;
 
 
 
-static Widget
+Widget
 rw_EnableWidget (parent)
 Widget	parent;
 /*

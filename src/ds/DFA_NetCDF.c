@@ -1,7 +1,7 @@
 /*
  * Access to netCDF files.
  */
-static char    *rcsid = "$Id: DFA_NetCDF.c,v 2.5 1991-10-22 20:05:13 barrett Exp $";
+static char    *rcsid = "$Id: DFA_NetCDF.c,v 2.6 1991-11-22 20:50:10 kris Exp $";
 
 #include "../include/defs.h"
 #include "../include/message.h"
@@ -67,12 +67,11 @@ static void     dnc_NCError(char *);
 static int      dnc_OFTimes(NCTag *);
 static int      dnc_GetTimes(NCTag *);
 static int      dnc_OFIRGrid(NCTag *);
-static int      dnc_TimeIndex(NCTag *, time *);
-static void
-dnc_GField(NCTag *, char *, float *, int, int,
-	   double, DataObject *);
-static void     dnc_MakeCoords(NCTag *, DataObject *, int *, int *);
+int      	dnc_TimeIndex(NCTag *, time *);
+static void dnc_GField(NCTag *, char *, float *, 
+	int, int, double, DataObject *);
 static void     dnc_LoadLocation(NCTag *, GetList *, int, int);
+static void     dnc_MakeCoords(NCTag *, DataObject *, int *, int *);
 static int      dnc_BuildPMap(NCTag *);
 static void     dnc_CFMakeDims(NCTag *, DataObject *, int *, int *);
 static void     dnc_CFMakeVars(NCTag *, DataObject *);
@@ -86,9 +85,10 @@ static void     dnc_NCError();
 static int      dnc_OFTimes();
 static int      dnc_GetTimes();
 static int      dnc_OFIRGrid();
-static int      dnc_TimeIndex();
+int      	dnc_TimeIndex();
 static void     dnc_GField();
 static void     dnc_LoadLocation();
+static void     dnc_MakeCoords();
 static int      dnc_BuildPMap();
 static void     dnc_CFMakeDims();
 static void     dnc_CFMakeVars();
@@ -884,9 +884,9 @@ dnc_GField(tag, fname, data, tbegin, tend, badval, dobj)
 
 static void
 dnc_MakeCoords(tag, dobj, start, count)
-	NCTag          *tag;
-	DataObject     *dobj;
-	int            *start, *count;
+	NCTag		*tag;
+	DataObject	*dobj;
+	int		*start, *count;
 /*
  * Figure out the ncvarget coords for this data grab. Times are already
  * assumed to be in [0].
@@ -1315,7 +1315,7 @@ dnc_CFMakeDims(tag, dobj, ndim, dims)
 
 
 
-void
+static void
 dnc_CFMakeVars(tag, dobj)
 	NCTag          *tag;
 	DataObject     *dobj;
