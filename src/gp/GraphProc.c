@@ -47,7 +47,7 @@
 # include "LayoutControl.h"
 # include "LLEvent.h"
 
-RCSID ("$Id: GraphProc.c,v 2.71 2000-04-10 20:36:28 burghart Exp $")
+RCSID ("$Id: GraphProc.c,v 2.72 2000-06-07 20:35:54 granger Exp $")
 
 /*
  * Default resources.
@@ -118,12 +118,6 @@ char MapPath[PathLen];
  */
 static int Argc;
 static char **Argv;
-
-/*
- * A symbol table for require's and the path to search them out in.
- */
-static stbl RequireTable = 0;
-static char RequirePath[PathLen];
 
 /*
  * To get some default, historic behavior from the datastore
@@ -399,10 +393,6 @@ finish_setup ()
 #ifdef XDEBUG
 	XSynchronize (Disp, True);
 #endif
-/*
- * Get the require table set up just in case anybody needs it.
- */
-	RequireTable = usy_c_stbl ("RequireTable");
 	Vtable = usy_g_stbl ("ui$variable_table");
 /*
  * Module initializations.
@@ -476,8 +466,6 @@ finish_setup ()
 # endif
 	usy_c_indirect (Vtable, "iconpath", IconPath, SYMT_STRING, PathLen);
 	usy_c_indirect (Vtable, "mappath", MapPath, SYMT_STRING, PathLen);
-	usy_c_indirect (Vtable, "requirepath", RequirePath, SYMT_STRING,
-			PathLen);
 /*
  * Default values for the path variables.
  */
@@ -487,7 +475,14 @@ finish_setup ()
 	    sprintf (MapPath, "%s,", getenv ("GP_MAP_DIR"));
 	sprintf (MapPath + strlen (MapPath), "./maps,%s", GetLibDir ());
 
-	sprintf (RequirePath, "./modules,%s/gplib", GetLibDir ());
+/*
+ * Initialize the require path to our default.
+ */
+	{
+	    char rpath[PathLen];
+	    sprintf (rpath, "./modules,%s/gplib", GetLibDir ());
+	    SetRequirePath (rpath);
+	}
 /*
  * Pull in the init files.
  */
@@ -1968,9 +1963,9 @@ XtPointer call_data;
 
 
 
+#ifdef notdef
 void
-Require (module)
-char *module;
+Require (char *module)
 /*
  * Make sure that we have loaded this module.
  */
@@ -1998,14 +1993,8 @@ char *module;
 	msg_ELog (EF_INFO, "Loading module %s", module);
 	ui_perform (fname);
 	usy_s_symbol (RequireTable, module, SYMT_BOOL, &v);
-#ifdef notdef
-/*
- * Sync any window popups which may have been performed
- */
-	uw_sync ();
-#endif
 }
-
+#endif
 
 
 
