@@ -1,5 +1,5 @@
 /*
- * $Id: apple.c,v 3.16 2001-10-26 08:08:06 granger Exp $
+ * $Id: apple.c,v 3.17 2003-08-11 23:12:24 burghart Exp $
  */
 
 /*
@@ -68,6 +68,7 @@ to 'expect'?
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <signal.h>
 
 #include <defs.h>
 #include <zl_symbol.h>		/* just need symbol tables */
@@ -76,7 +77,8 @@ to 'expect'?
 #include "DataStore.h"
 #include "apple.h"
 
-RCSID("$Id: apple.c,v 3.16 2001-10-26 08:08:06 granger Exp $")
+
+RCSID("$Id: apple.c,v 3.17 2003-08-11 23:12:24 burghart Exp $")
 
 extern TestRoutine NSpaceTests[];
 extern TestRoutine ZNFTests[];
@@ -92,6 +94,13 @@ extern TestRoutine DataChunkTests[];
 extern TestRoutine FieldTests[];
 extern TestRoutine MetDataTests[];
 extern TestRoutine DerivationTests[];
+
+/*
+ * We set a maximum time for the tests and declare a handler for the 
+ * alarm clock.
+ */
+# define MAX_TEST_TIME (2 * 60 * 60) /* max time to complete tests, seconds */
+static void OutOfTime (int signal);
 
 /*
  * Choose the modules to link and register.
@@ -390,7 +399,7 @@ char *name;
 	TestRoutine *tr;
 	int count = DefaultCount;
 	char buf[256];
-	char *c;
+char *c;
 	int errors =0;
 
 	strcpy (buf, name);
@@ -429,7 +438,9 @@ char *argv[];
 	/*
 	 * If we're not done in an hour, something is seriously wrong
 	 */
-	alarm (60*60);
+	signal (SIGALRM, OutOfTime);
+	alarm (MAX_TEST_TIME);
+
 	if (NoBuffer)
 	{
 		setvbuf (stdout, NULL, _IONBF, 0);
@@ -542,3 +553,12 @@ char *argv[];
 
 
 
+static void
+OutOfTime (int signal)
+{
+    msg_ELog (EF_PROBLEM, "Tests aborted after taking more than %d seconds!",
+	      MAX_TEST_TIME);
+    exit (1);
+}
+
+    
