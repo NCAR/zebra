@@ -1,7 +1,7 @@
 /*
  * Skew-t plotting module
  */
-static char *rcsid = "$Id: AxisControl.c,v 1.2 1991-10-30 21:36:12 barrett Exp $";
+static char *rcsid = "$Id: AxisControl.c,v 1.3 1992-01-02 17:05:08 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -35,6 +35,7 @@ static char *rcsid = "$Id: AxisControl.c,v 1.2 1991-10-30 21:36:12 barrett Exp $
 # include "GC.h"
 # include "LayoutControl.h"
 # include "DrawText.h"
+# include "ui_date.h"
 
 /*
  * General definitions
@@ -45,12 +46,9 @@ static char *rcsid = "$Id: AxisControl.c,v 1.2 1991-10-30 21:36:12 barrett Exp $
 # define AUTO_YMAX	(1<<1)
 # define AUTO_XMIN	(1<<2)
 # define AUTO_YMIN	(1<<3)
-# define ROUNDIT(x)	((int)(x + 0.5))
+# define ROUNDIT(x)	((long)(x + 0.5))
 
-extern int	ac_PlotAxis();
-extern int	ac_AddAxis();
 extern XColor   Tadefclr;
-extern int	TransConfig;
 typedef enum {L_solid, L_dashed, L_dotted} LineStyle;
 
 
@@ -58,229 +56,109 @@ typedef enum {L_solid, L_dashed, L_dotted} LineStyle;
 
 typedef struct _AxisInfo
 {
-    float		min;
-    float		max;
-    char		*component;
-    int			ticSize;
-    float		fontScale;
-    char		*axisTitle;
-    int			ntic;
-    int			changed;
-    int			invert;
+    char	*component;
+    int		computed;
+    char	datatype;
 } AxisInfoRec;
+static int FitAxes = 0;
 
 static AxisInfoRec AxisInfoList[4][5];
-
-void ac_TouchAxis ( axis,i)
-int axis;
-int i;
-{
-    AxisInfoList[axis][i].changed = 1;
-}
-int ac_DisplayAxes ( )
-{
-    int fit=1;
-    int pixPos;
-    int i;
-
-    pixPos = 0;
-    for ( i = 0; i < MAX_AXIS && fit; i++ )
-    {
-	if ( AxisInfoList[AXIS_BOTTOM][i].component )
-	{
-           fit = ac_PlotAxis ( AXIS_BOTTOM, 
-		&pixPos, AxisInfoList[AXIS_BOTTOM][i].ticSize, 
-		AxisInfoList[AXIS_BOTTOM][i].ntic, 
-		AxisInfoList[AXIS_BOTTOM][i].axisTitle, 
-		AxisInfoList[AXIS_BOTTOM][i].fontScale, 
-		AxisInfoList[AXIS_BOTTOM][i].min,
-		AxisInfoList[AXIS_BOTTOM][i].max,
-		AxisInfoList[AXIS_BOTTOM][i].invert);
-	   pixPos += 2;
-	   if ( !fit )
-	   {
-	       msg_ELog ( EF_PROBLEM, "Not enough room for BOTTOM axes.");
-	   }
-	   AxisInfoList[AXIS_BOTTOM][i].changed = 0;
-	}
-    }
-    pixPos = 0;
-    fit = 1;
-    for ( i = 0; i < MAX_AXIS && fit; i++ )
-    {
-	if ( AxisInfoList[AXIS_TOP][i].component )
-	{
-           fit = ac_PlotAxis ( AXIS_TOP, 
-		&pixPos, AxisInfoList[AXIS_TOP][i].ticSize,
-		AxisInfoList[AXIS_TOP][i].ntic, 
-		AxisInfoList[AXIS_TOP][i].axisTitle, 
-		AxisInfoList[AXIS_TOP][i].fontScale, 
-		AxisInfoList[AXIS_TOP][i].min, 
-		AxisInfoList[AXIS_TOP][i].max,
-		AxisInfoList[AXIS_TOP][i].invert);
-	   pixPos += 2;
-	   if ( !fit )
-	   {
-	       msg_ELog ( EF_PROBLEM, "Not enough room for TOP axes.");
-	   }
-	   AxisInfoList[AXIS_TOP][i].changed = 0;
-	}
-    }
-    pixPos = 0;
-    fit = 1;
-    for ( i = 0; i < MAX_AXIS && fit; i++ )
-    {
-	if ( AxisInfoList[AXIS_LEFT][i].component )
-	{
-           fit = ac_PlotAxis ( AXIS_LEFT, 
-		&pixPos, AxisInfoList[AXIS_LEFT][i].ticSize, 
-		AxisInfoList[AXIS_LEFT][i].ntic, 
-		AxisInfoList[AXIS_LEFT][i].axisTitle, 
-		AxisInfoList[AXIS_LEFT][i].fontScale, 
-		AxisInfoList[AXIS_LEFT][i].min, 
-		AxisInfoList[AXIS_LEFT][i].max,
-		AxisInfoList[AXIS_LEFT][i].invert);
-	   pixPos += 2;
-	   if ( !fit )
-	   {
-	       msg_ELog ( EF_PROBLEM, "Not enough room for LEFT axes.");
-	   }
-	   AxisInfoList[AXIS_LEFT][i].changed = 0;
-	}
-    }
-    pixPos = 0;
-    fit = 1;
-    for ( i = 0; i < MAX_AXIS && fit; i++ )
-    {
-	if ( AxisInfoList[AXIS_RIGHT][i].component )
-	{
-           fit = ac_PlotAxis ( AXIS_RIGHT, 
-		&pixPos, AxisInfoList[AXIS_RIGHT][i].ticSize, 
-		AxisInfoList[AXIS_RIGHT][i].ntic, 
-		AxisInfoList[AXIS_RIGHT][i].axisTitle, 
-		AxisInfoList[AXIS_RIGHT][i].fontScale, 
-		AxisInfoList[AXIS_RIGHT][i].min, 
-		AxisInfoList[AXIS_RIGHT][i].max,
-		AxisInfoList[AXIS_RIGHT][i].invert);
-	   pixPos += 2;
-	   if ( !fit )
-	   {
-	       msg_ELog ( EF_PROBLEM, "Not enough room for RIGHT axes.");
-	   }
-	   AxisInfoList[AXIS_RIGHT][i].changed = 0;
-	}
-    }
-}
-
-int 
-ac_ChangeAxisMax ( side, id, max )
-int	side;
-int	id;
-float	max;
-{
+# ifdef __STDC__
+    extern int ac_DisplayAxes( );
 /*
- * Make sure the id is less than the maximum number allowed
- */
-    if ( id >= MAX_AXIS )
-    {
-	msg_ELog( EF_PROBLEM, 
-	    "Axis id (%d) out of range. Must be less than %d.",id,MAX_AXIS);
-	return(0);
-    }
-    if ( AxisInfoList[side][id].component )
-    {
-	AxisInfoList[side][id].max = max;
-	AxisInfoList[side][id].changed = 1;
-    }
-    else
-    {
-	msg_ELog( EF_PROBLEM, "Axis id (%d) has not been set", id);
-	return(0);
-    }
-    return(id);
-}
+    static int ac_AxisId( char, char* );
+    static int ac_NewAxisId( char, char* );
+    static int ac_AxisSide( char );
+    static int ac_AddAxis( char, char*, char );
+    static void ac_FormatLabel( DataValPtr, char*[], int*, int );
+    static void ac_ComputeAxisDescriptors( plot_description, char*, char, char );
+    static int ac_DrawAxis(plot_description,char*,char,char,unsigned short);
+    extern int ac_AxisState(plot_description,char*,char,char,DataValPtr,DataValPtr );
+    extern void ac_UpdateAxisState(plot_description,char*,char, char,DataValPtr, DataValPtr );
+*/
+# else
+    extern int ac_DisplayAxes();
+    static int ac_AxisId();
+    static int ac_NewAxisId();
+    static int ac_AxisSide();
+    static int ac_AddAxis();
+    static void ac_FormatLabel();
+    static void ac_ComputeAxisDescriptors();
+    static int ac_DrawAxis();
+    extern int ac_AxisState();
+    extern void ac_UpdateAxisState();
+# endif
 
-int 
-ac_ChangeAxisMin ( side, id, min )
-int	side;
-int	id;
-float	min;
+int ac_DisplayAxes ()
 {
-/*
- * Make sure the id is less than the maximum number allowed
- */
-    if ( id >= MAX_AXIS )
-    {
-	msg_ELog( EF_PROBLEM, 
-	    "Axis id (%d) out of range. Must be less than %d.",id,MAX_AXIS);
-	return(0);
-    }
-    if ( AxisInfoList[side][id].component )
-    {
-	AxisInfoList[side][id].min = min;
-	AxisInfoList[side][id].changed = 1;
-    }
-    else
-    {
-	msg_ELog( EF_PROBLEM, "Axis id (%d) has not been set", id);
-	return(0);
-    }
-    return(id);
-}
+    int i,h;
+    char		side;
+    int			nextoffset = 0;
+    unsigned short	scalemode = 0;
+    static int		oldHeight = 0;
+    int			currentHeight = GWHeight(Graphics);
 
-int 
-ac_ChangeAxisTitle ( side, id, newTitle )
-int	side;
-int	id;
-char	*newTitle;
-{
-/*
- * Make sure the id is less than the maximum number allowed
- */
-    if ( id >= MAX_AXIS )
+    /*
+     *  If the Graphics widget has been resized, that the axes need to
+     *  re-computed and re-fitted as the fontscale is dependent upon 
+     *  the size of the Graphics widget.
+     */
+    if ( currentHeight != oldHeight ) FitAxes = 1;
+    for ( i = 0; i < MAX_AXIS; i++ )
     {
-	msg_ELog( EF_PROBLEM, 
-	    "Axis id (%d) out of range. Must be less than %d.",id,MAX_AXIS);
-	return(0);
-    }
-    if ( AxisInfoList[side][id].component )
-    {
-	if ( AxisInfoList[side][id].axisTitle && newTitle )
+	for ( h=0; h < 4;h++)
 	{
-	    if ( strlen(AxisInfoList[side][id].axisTitle) <
-		 strlen( newTitle )
-	       )
+	    if ( AxisInfoList[h][i].component && 
+		(!(AxisInfoList[h][i].computed)||
+		oldHeight != currentHeight))
 	    {
-		free ( AxisInfoList[side][id].axisTitle);
-		AxisInfoList[side][id].axisTitle = 
-		    (char*)malloc ( (strlen(newTitle)+1)* sizeof(char));
+		ac_ComputeAxisDescriptors(Pd, AxisInfoList[h][i].component,
+			side = h == AXIS_BOTTOM ? 'b' :
+			       h == AXIS_LEFT ? 'l' :
+			       h == AXIS_TOP ? 't' :
+			       h == AXIS_RIGHT ? 'r':'n',
+			AxisInfoList[h][i].datatype);
+		AxisInfoList[h][i].computed = 1;
 	    }
-	    strcpy ( AxisInfoList[side][id].axisTitle, newTitle );
 	}
-	else if ( AxisInfoList[side][id].axisTitle && !newTitle )
-	{
-	    free ( AxisInfoList[side][id].axisTitle);
-	    AxisInfoList[side][id].axisTitle = NULL;
-	}
-	else if ( !AxisInfoList[side][id].axisTitle && newTitle )
-	{
-	    AxisInfoList[side][id].axisTitle = 
-		    (char*)malloc ( (strlen(newTitle)+1)* sizeof(char));
-	    strcpy ( AxisInfoList[side][id].axisTitle, newTitle );
-	}
-	AxisInfoList[side][id].changed = 1;
     }
-    else
+    for ( h=0; h < 4;h++)
     {
-	msg_ELog( EF_PROBLEM, "Axis id (%d) has not been set", id);
-	return(0);
+	nextoffset = 0;
+        for ( i = 0; i < MAX_AXIS; i++ )
+	{
+	    if ( AxisInfoList[h][i].component )
+	    {
+		xy_GetScaleMode(Pd,AxisInfoList[h][i].component,
+				h == AXIS_BOTTOM || h == AXIS_TOP ? 'x' :
+				h == AXIS_LEFT || h == AXIS_RIGHT ? 'y' : 'n',
+				&scalemode);
+		if ( FitAxes )
+		{
+		    xy_SetPrivateAxisDescriptors(Pd,
+			AxisInfoList[h][i].component,
+			side = h == AXIS_BOTTOM ? 'b' :
+			       h == AXIS_LEFT ? 'l' :
+			       h == AXIS_TOP ? 't' :
+			       h == AXIS_RIGHT ? 'r':'n',
+			AxisInfoList[h][i].datatype,
+			&nextoffset,NULL,NULL,NULL, NULL,NULL);
+		}
+	    	nextoffset = ac_DrawAxis(Pd,AxisInfoList[h][i].component,
+			side = h == AXIS_BOTTOM ? 'b' :
+			       h == AXIS_LEFT ? 'l' :
+			       h == AXIS_TOP ? 't' :
+			       h == AXIS_RIGHT ? 'r':'n',
+		AxisInfoList[h][i].datatype,scalemode);
+	    }
+	}
     }
-    return(id);
+    FitAxes = 0;
+    oldHeight = GWHeight(Graphics);
 }
-
-int
-ac_AxisId ( side, cName )
-int	side;
+static int
+ac_AxisId( side, cName )
+char    side;
 char	*cName;
 {
     int id = -1;
@@ -289,8 +167,8 @@ char	*cName;
     {
 	for ( i = 0; i < MAX_AXIS; i++)
 	{
-	    if ( AxisInfoList[side][i].component &&
-		 strcmp(AxisInfoList[side][i].component, cName) == 0)
+	    if ( AxisInfoList[ac_AxisSide(side)][i].component &&
+	(strcmp(AxisInfoList[ac_AxisSide(side)][i].component, cName) == 0))
 		break;
 	}
 	if ( i < MAX_AXIS )
@@ -298,9 +176,9 @@ char	*cName;
     }
     return ( id );
 }
-int
+static int
 ac_NewAxisId ( side, cName )
-int	side;
+char	side;
 char	*cName;
 {
     int id = -1;
@@ -315,14 +193,18 @@ char	*cName;
 	    AxisInfoList[AXIS_LEFT][i].component = NULL;
 	    AxisInfoList[AXIS_RIGHT][i].component = NULL;
 	    AxisInfoList[AXIS_TOP][i].component = NULL;
+	    AxisInfoList[AXIS_BOTTOM][i].computed = 0;
+	    AxisInfoList[AXIS_LEFT][i].computed = 0;
+	    AxisInfoList[AXIS_RIGHT][i].computed = 0;
+	    AxisInfoList[AXIS_TOP][i].computed = 0;
 	}
     }
     if ( cName )
     {
 	for ( i = 0; i < MAX_AXIS; i++)
 	{
-	    if ( AxisInfoList[side][i].component &&
-		 strcmp(AxisInfoList[side][i].component, cName) == 0)
+	    if ( AxisInfoList[ac_AxisSide(side)][i].component &&
+	 (strcmp(AxisInfoList[ac_AxisSide(side)][i].component, cName) == 0))
 		break;
 	}
 	if ( i < MAX_AXIS )
@@ -332,7 +214,7 @@ char	*cName;
 	}
 	else
 	{
-	    for ( i = 0; i < MAX_AXIS && AxisInfoList[side][i].component; i++);
+	    for ( i = 0; i < MAX_AXIS && AxisInfoList[ac_AxisSide(side)][i].component; i++);
 	    if ( i < MAX_AXIS )
 		id = i;
 	}
@@ -340,17 +222,38 @@ char	*cName;
     return ( id );
 }
 
-int
-ac_AddAxis ( side, cName,ticSize, ntic, min, max,axisTitle, fontScale, invert )
-int	side;
+static int
+ac_AxisSide(side)
+char	side;
+{
+    int iside;
+    switch ( side )
+    {
+	case 'b':
+	    iside = AXIS_BOTTOM;
+	break;
+	case 't':
+	    iside = AXIS_TOP;
+	break;
+	case 'l':
+	    iside = AXIS_LEFT;
+	break;
+	case 'r':
+	    iside = AXIS_RIGHT;
+	break;
+	default:
+	    iside = -1;
+	break;
+    }
+    return (iside);
+}
+
+
+static int
+ac_AddAxis ( side, cName, dtype )
+char	side;
 char	*cName;
-int	ticSize;
-int	ntic;
-float	min;
-float	max;
-char	*axisTitle;
-float	fontScale;
-int	invert;
+char	dtype;
 {
 	int id;
 /*
@@ -363,427 +266,542 @@ int	invert;
 	    "Invalid component name for Axis Control.");
 	return(0);
     }
-    if ( axisTitle )
-    {
-	AxisInfoList[side][id].axisTitle = 
-		(char*)malloc ( (strlen(axisTitle)+1)*sizeof(char));
-	strcpy ( AxisInfoList[side][id].axisTitle, axisTitle );
-    }
-    else
-    {
-	AxisInfoList[side][id].axisTitle = NULL;
-    }
-    AxisInfoList[side][id].component = 
+    AxisInfoList[ac_AxisSide(side)][id].component = 
 		(char*)malloc ( (strlen(cName)+1)*sizeof(char));
-    strcpy ( AxisInfoList[side][id].component, cName );
-    AxisInfoList[side][id].max = max;
-    AxisInfoList[side][id].ticSize = ticSize;
-    AxisInfoList[side][id].fontScale = fontScale;
-    AxisInfoList[side][id].ntic = ntic;
-    AxisInfoList[side][id].min = min;
-    AxisInfoList[side][id].invert = invert;
-    AxisInfoList[side][id].changed = 1;
+    strcpy ( AxisInfoList[ac_AxisSide(side)][id].component, cName );
+    AxisInfoList[ac_AxisSide(side)][id].computed = 0;
+    AxisInfoList[ac_AxisSide(side)][id].datatype = dtype;
+    FitAxes = 1;
     return(id);
 }
 
-int
-ac_PlotAxis ( side, pixPos, ticSize, ntic, axisTitle, fontScale,min,max,invert)
-int	side;
-int	*pixPos;
-int	ticSize;
-int	ntic;
-char	*axisTitle;
-float	fontScale;
-float	min,max;
-int	invert;
+static void
+ac_FormatLabel( d1, string, nlab, dim )
+DataValPtr	d1;
+char		*string[];
+int		*nlab;
+int		dim;
 {
-	int i;
-	float x_coord[2],y_coord[2];
-	int	increment = 0;
-	float	scale = .1;
-	char	ticLabel[15];
-	float	ticLoc;
-	int	x1,y1,x2,y2,labelExtent,maxX;
-	int	fit = 1;
-	int	axisPix,ticPix,labelPix,titleOffset;
-	int	titlePix = 0;
-	float	savemin, savemax;
-        unsigned int	saveConfig;
-	
-	axisPix = *pixPos;
-	ticPix = axisPix + ticSize;
-	labelPix = ticPix + 2;
-	titleOffset = 2;
-	saveConfig = TransConfig;
-	switch (side)
-	{
-	    case AXIS_BOTTOM:
-		savemin = UX0;
-		savemax = UX1;
-		TransConfig = TransConfig & ~INVERT_Y;
-		TransConfig = invert ? 
-			TransConfig | INVERT_X : TransConfig & ~INVERT_X;
-		lc_SetUserCoord ( min,max, UY0,UY1);
-		x_coord[0] = UX0;
-		x_coord[1] = UX1;
-		y_coord[0] = devY(UY0)+ axisPix;
-		y_coord[1] = devY(UY0)+ axisPix;
-		y_coord[0] = userY((int)y_coord[0]);
-		y_coord[1] = userY((int)y_coord[1]);
-	
-		if ( devY (y_coord[0]) > 
-		     GWHeight(Graphics)-(int)(GWHeight(Graphics)*AxisY0[side]) )
-		{
-		    fit = 0;
-		    break;
-		}
-		gp_Pline( x_coord,y_coord,2,L_solid, Tadefclr.pixel);
-		while ( increment == 0 )
-		{
-		    scale = scale * 10.0;
-		    increment = ROUNDIT((UX1-UX0)*scale/ntic);
-		}
-		ticLoc = (int)UX0;
-		while ( ticLoc < UX0 )
-		    ticLoc+= increment/scale;
-		labelExtent = devX(UX0);
-		while ( ticLoc < UX1 )
-		{
-		    x_coord[0] = ticLoc;
-		    x_coord[1] = ticLoc;
-		    y_coord[0] = devY(UY0) + axisPix;
-		    y_coord[1] = devY(UY0) + ticPix;
-		    if ( y_coord[1] > GWHeight(Graphics)-
-			(int)(GWHeight(Graphics)*AxisY0[side]) )
-		    {
-		        fit = 0;
-		        break;
-		    }
-		    y_coord[0] = userY((int)y_coord[0]);
-		    y_coord[1] = userY((int)y_coord[1]);
-		    gp_Pline( x_coord,y_coord,2,L_solid, Tadefclr.pixel);
-		    sprintf ( ticLabel, "%.2f",ticLoc);
-		    DT_TextBox ( Graphics, GWFrame(Graphics), 
-				devX(x_coord[0]),devY(UY0)+labelPix,
-				ticLabel, 0.0, fontScale, 
-				JustifyCenter, JustifyTop, &x1,&y1,&x2,&y2);
-		    if ( y1 > GWHeight(Graphics)-
-			(int)(GWHeight(Graphics)*AxisY0[side]) )
-		    {
-		        fit = 0;
-		        break;
-		    }
-		    if ( (x1 > labelExtent && !invert) ||
-			 (x2 < labelExtent && invert) )
-		    {
-		        DrawText ( Graphics, GWFrame(Graphics), Gcontext,
-				devX(x_coord[0]),devY(UY0)+labelPix,
-				ticLabel, 0.0,fontScale, JustifyCenter, JustifyTop);
-		        labelExtent = invert ? x1 : x2;
-		    }
-		    ticLoc+= increment/scale;
-		}
-		titlePix = (y1 - devY(UY0));
-		if ( axisTitle )
-		{
-		    titlePix += titleOffset;
-		    DT_TextBox ( Graphics, GWFrame(Graphics),  
-		    		devX( UX0 + ((UX1-UX0)*0.5)),
-		    		devY(UY0) + titlePix,
-				ticLabel, 0.0,fontScale, JustifyCenter, JustifyTop,
-				&x1,&y1,&x2,&y2);
-		    if ( y1 > 
-		     GWHeight(Graphics)-(int)(GWHeight(Graphics)*AxisY0[side]) )
-		    {
-		        fit = 0;
-		        break;
-		    }
-		    DrawText ( Graphics, GWFrame(Graphics), Gcontext,
-		    		devX( UX0 + ((UX1-UX0)*0.5)),
-		    		devY(UY0) + titlePix,
-				axisTitle, 0.0,fontScale, 
-				JustifyCenter, JustifyTop);
-		
-		}
-		*pixPos = (y1 - devY(UY0));
-		lc_SetUserCoord ( savemin,savemax, UY0,UY1);
-	    break;
-	    case AXIS_TOP:
-		savemin = UX0;
-		savemax = UX1;
-		TransConfig = TransConfig & ~INVERT_Y;
-		TransConfig = invert ? 
-			TransConfig | INVERT_X : TransConfig & ~INVERT_X;
-		lc_SetUserCoord ( min,max, UY0,UY1);
-		x_coord[0] = UX0;
-		x_coord[1] = UX1;
-		y_coord[0] = devY(UY1)- axisPix;
-		y_coord[1] = devY(UY1)- axisPix;
-		if ( y_coord[0] < 
-		     GWHeight(Graphics)-(int)(GWHeight(Graphics)*AxisY1[side]) )
-		{
-		    fit = 0;
-		    break;
-		}
-		y_coord[0] = userY((int)y_coord[0]);
-		y_coord[1] = userY((int)y_coord[1]);
-	
-		gp_Pline( x_coord,y_coord,2,L_solid, Tadefclr.pixel);
-		while ( increment == 0 )
-		{
-		    scale = scale * 10.0;
-		    increment = ROUNDIT((UX1-UX0)*scale/ntic);
-		}
-		ticLoc = (int)UX0;
-		while ( ticLoc < UX0 )
-		    ticLoc+= increment/scale;
-		labelExtent = devX(UX0);
-		while ( ticLoc < UX1 )
-		{
-		    x_coord[0] = ticLoc;
-		    x_coord[1] = ticLoc;
-		    y_coord[0] = devY(UY1) - axisPix;
-		    y_coord[1] = devY(UY1) - ticPix;
-		    if ( y_coord[1] < GWHeight(Graphics)-
-			(int)(GWHeight(Graphics)*AxisY1[side]) )
-		    {
-		        fit = 0;
-		        break;
-		    }
-		    y_coord[0] = userY((int)y_coord[0]);
-		    y_coord[1] = userY((int)y_coord[1]);
-		    gp_Pline( x_coord,y_coord,2,L_solid, Tadefclr.pixel);
-		    sprintf ( ticLabel, "%.2f",ticLoc);
-		    DT_TextBox ( Graphics, GWFrame(Graphics), 
-				devX(x_coord[0]),devY(UY1)-labelPix,
-				ticLabel, 0.0, fontScale, 
-				JustifyCenter, JustifyBottom, &x1,&y1,&x2,&y2);
-		    if ( y2 < GWHeight(Graphics)-
-			(int)(GWHeight(Graphics)*AxisY1[side]) )
-		    {
-		        fit = 0;
-		        break;
-		    }
-		    if ( (x1 > labelExtent && !invert) ||
-			 (x2 < labelExtent && invert) )
-		    {
-		        DrawText ( Graphics, GWFrame(Graphics), Gcontext,
-				devX(x_coord[0]),devY(UY1)-labelPix,
-				ticLabel, 0.0,fontScale, JustifyCenter, 
-				JustifyBottom);
-		        labelExtent = invert ? x1 : x2;
-		    }
-		    ticLoc+= increment/scale;
-		}
-		titlePix = devY(UY1)-y2;
-		if ( axisTitle )
-		{
-		    titlePix += titleOffset;
-		    DT_TextBox ( Graphics, GWFrame(Graphics),  
-		    		devX( UX0 + ((UX1-UX0)*0.5)),
-		    		devY(UY1) - titlePix,
-				ticLabel, 0.0,fontScale, JustifyCenter, 
-				JustifyBottom, &x1,&y1,&x2,&y2);
-		    if ( y2 < 
-		     GWHeight(Graphics)-(int)(GWHeight(Graphics)*AxisY1[side]) )
-		    {
-		        fit = 0;
-		        break;
-		    }
-		    DrawText ( Graphics, GWFrame(Graphics), Gcontext,
-		    		devX( UX0 + ((UX1-UX0)*0.5)),
-		    		devY(UY1) - titlePix,
-				axisTitle, 0.0,fontScale, 
-				JustifyCenter, JustifyBottom);
-		
-		}
-		*pixPos = devY(UY1)-y2;
-		lc_SetUserCoord ( savemin,savemax, UY0,UY1);
-	    break;
-	    case AXIS_LEFT:
-		savemin = UY0;
-		savemax = UY1;
-		TransConfig = TransConfig & ~INVERT_X;
-		TransConfig = invert ? 
-			TransConfig | INVERT_Y : TransConfig & ~INVERT_Y;
-		lc_SetUserCoord ( UX0,UX1, min,max);
-		x_coord[0] = devX(UX0)- axisPix;
-		x_coord[1] = devX(UX0)- axisPix;
-		y_coord[0] = min;
-		y_coord[1] = max;
-		if ( (int)x_coord[0] < (int)(GWWidth(Graphics)*AxisX0[side]) )
-		{
-		    fit = 0;
-		    break;
-		}
-		x_coord[0] = userX((int)x_coord[0]);
-		x_coord[1] = userX((int)x_coord[1]);
-	
-		gp_Pline( x_coord,y_coord,2,L_solid, Tadefclr.pixel);
-		while ( increment == 0 )
-		{
-		    scale = scale * 10.0;
-		    increment = ROUNDIT((max-min)*scale/ntic);
-		}
-		ticLoc = (float)(int)min;
-		while ( ticLoc < (float)min )
-		    ticLoc+= increment/scale;
-		labelExtent = devY(min);
-		maxX = devX(UX0);
-		while ( ticLoc < max )
-		{
-		    y_coord[0] = ticLoc;
-		    y_coord[1] = ticLoc;
-		    x_coord[0] = devX(UX0) - axisPix;
-		    x_coord[1] = devX(UX0) - ticPix;
-		    if ( (int)x_coord[1]<(int)(GWWidth(Graphics)*AxisX0[side]) )
-		    {
-		        fit = 0;
-		        break;
-		    }
-		    x_coord[0] = userX((int)x_coord[0]);
-		    x_coord[1] = userX((int)x_coord[1]);
-		    gp_Pline( x_coord,y_coord,2,L_solid, Tadefclr.pixel);
-		    sprintf ( ticLabel, "%.2f",ticLoc);
-		
-		    DT_TextBox ( Graphics, GWFrame(Graphics), 
-				devX(UX0)-labelPix,devY(ticLoc),
-				ticLabel, 0.0, fontScale, 
-				JustifyRight, JustifyCenter, &x1,&y1,&x2,&y2);
-		    if ( x1 < (int)(GWWidth(Graphics)*AxisX0[side]) )
-		    {
-		        fit = 0;
-		        break;
-		    }
-		    if ( (y1 < labelExtent && !invert) ||
-			 (y2 > labelExtent && invert) )
-		    {
-		        DrawText ( Graphics, GWFrame(Graphics), Gcontext,
-				devX(UX0)-labelPix,devY(ticLoc),
-				ticLabel, 0.0,fontScale, JustifyRight, 
-				JustifyCenter);
-		        labelExtent = y2;
-		        labelExtent = invert ? y2 : y1;
-			maxX = maxX < x1 ? maxX : x1;
-		    }
-		    ticLoc+= increment/scale;
-		}
-		titlePix = devX(UX0) - maxX;
-		if ( axisTitle )
-		{
-		    titlePix += titleOffset;
-		    DT_TextBox ( Graphics, GWFrame(Graphics),  
-		    		devX(UX0) - titlePix,
-		    		devY( min + ((max-min)*0.5)),
-				ticLabel, 90.0,fontScale, JustifyCenter, JustifyBottom,
-				&x1,&y1,&x2,&y2);
-		    if ( x1 < (int)(GWWidth(Graphics)*AxisX0[side]) )
-		    {
-		        fit = 0;
-		        break;
-		    }
-		    DrawText ( Graphics, GWFrame(Graphics), Gcontext,
-		    		devX(UX0) - titlePix,
-		    		devY( min + ((max-min)*0.5)),
-				axisTitle, 90.0,fontScale, 
-				JustifyCenter, JustifyBottom);
-		
-		}
-		*pixPos = devX(UX0)- x2;
-		lc_SetUserCoord ( UX0,UX1,savemin,savemax);
-	    break;
-	    case AXIS_RIGHT:
-		savemin = UY0;
-		savemax = UY1;
-		TransConfig = TransConfig & ~INVERT_X;
-		TransConfig = invert ? 
-			TransConfig | INVERT_Y : TransConfig & ~INVERT_Y;
-		lc_SetUserCoord ( UX0,UX1, min,max);
-		x_coord[0] = devX(UX1)+ axisPix;
-		x_coord[1] = devX(UX1)+ axisPix;
-		y_coord[0] = min;
-		y_coord[1] = max;
-		if ( (int)x_coord[0] > (int)(GWWidth(Graphics)*AxisX1[side]) )
-		{
-		    fit = 0;
-		    break;
-		}
-		x_coord[0] = userX((int)x_coord[0]);
-		x_coord[1] = userX((int)x_coord[1]);
-	
-		gp_Pline( x_coord,y_coord,2,L_solid, Tadefclr.pixel);
-		while ( increment == 0 )
-		{
-		    scale = scale * 10.0;
-		    increment = ROUNDIT((max-min)*scale/ntic);
-		}
-		ticLoc = (float)(int)min;
-		while ( ticLoc < (float)min )
-		    ticLoc+= increment/scale;
-		labelExtent = devY(min);
-		maxX = devX(UX1); while ( ticLoc < max )
-		{
-		    y_coord[0] = ticLoc;
-		    y_coord[1] = ticLoc;
-		    x_coord[0] = devX(UX1) + axisPix;
-		    x_coord[1] = devX(UX1) + ticPix;
-		    if ( (int)x_coord[1]>(int)(GWWidth(Graphics)*AxisX1[side]) )
-		    {
-		        fit = 0;
-		        break;
-		    }
-		    x_coord[0] = userX((int)x_coord[0]);
-		    x_coord[1] = userX((int)x_coord[1]);
-		    gp_Pline( x_coord,y_coord,2,L_solid, Tadefclr.pixel);
-		    sprintf ( ticLabel, "%.2f",ticLoc);
-		
-		    DT_TextBox ( Graphics, GWFrame(Graphics), 
-				devX(UX1)+labelPix,devY(ticLoc),
-				ticLabel, 0.0, fontScale, 
-				JustifyLeft, JustifyCenter, &x1,&y1,&x2,&y2);
-		    if ( x2 > (int)(GWWidth(Graphics)*AxisX1[side]) )
-		    {
-		        fit = 0;
-		        break;
-		    }
-		    if ( (y1 < labelExtent && !invert) ||
-			 (y2 > labelExtent && invert) )
-		    {
-		        DrawText ( Graphics, GWFrame(Graphics), Gcontext,
-				devX(UX1)+labelPix,devY(ticLoc),
-				ticLabel, 0.0,fontScale, JustifyLeft, 
-				JustifyCenter);
-		        labelExtent = invert ? y2 : y1;
-			maxX = maxX > x2 ? maxX : x2;
-		    }
-		    ticLoc+= increment/scale;
-		}
-		titlePix = maxX - devX(UX1);
-		if ( axisTitle )
-		{
-		    titlePix += titleOffset;
-		    DT_TextBox ( Graphics, GWFrame(Graphics),  
-		    		devX(UX1) + titlePix,
-		    		devY( min + ((max-min)*0.5)),
-				ticLabel, -90.0,fontScale, JustifyCenter, JustifyBottom,
-				&x1,&y1,&x2,&y2);
-		    if ( x1 < (int)(GWWidth(Graphics)*AxisX0[side]) )
-		    {
-		        fit = 0;
-		        break;
-		    }
-		    DrawText ( Graphics, GWFrame(Graphics), Gcontext,
-		    		devX(UX1) + titlePix,
-		    		devY( min + ((max-min)*0.5)),
-				axisTitle, -90.0,fontScale, 
-				JustifyCenter, JustifyBottom);
-		
-		}
-		*pixPos = x2 - devX(UX1);
-		lc_SetUserCoord ( UX0,UX1,savemin,savemax);
-	    break;
-	}
-	TransConfig = saveConfig;
-	return(fit);
+    char	*lab[5];
+    char	tstring[80];
+    int		i;
+    *nlab = 1;
+    switch (d1->type)
+    {
+	case 'f':
+	    string[0] = (char*)calloc(80,sizeof(char));
+	    sprintf ( string[0], "%.2f",d1->val.f);
+	break;
+	case 'd':
+	    string[0] = (char*)calloc(80,sizeof(char));
+	    sprintf ( string[0], "%.2f",(double)(d1->val.d));
+	break;
+	case 'i':
+	    string[0] = (char*)calloc(80,sizeof(char));
+	    sprintf ( string[0], "%d",d1->val.i);
+	break;
+	case 't':
+	    ud_format_date ( tstring, &(d1->val.t), UDF_FULL);
+	    *nlab = CommaParse( tstring, lab);
+	    for ( i = 0; i < *nlab; i++)
+	    {
+	        string[i] = (char*)calloc(80,sizeof(char));
+		strcpy( string[i], lab[i] );
+	    }
+	break;
+    }
 }
 
+static void
+ac_ComputeAxisDescriptors(pd,c, side, datatype )
+plot_description	pd;
+char			*c;
+char			side;
+char			datatype;
+{
+    DataValRec	min,max;
+    int		offset,maxWidth,maxHeight,nticLabel;
+    int		ticlen; 
+    float	ticInterval;
+    DataValRec	baseTic,ticLoc;
+    char	color[80],label[80];
+    float	fscale;
+    char	*ticLabel[2];
+    int		nlab;
+    int		maxDim = 80;
+    int		kk,x1,y1,x2,y2;
+    long	iVal,iBase;
+
+    /*
+     *  Get parameters to use while computing the scale.
+     */
+    (void)ac_AxisState(pd,c,side,datatype,&min,&max );
+    xy_GetAxisDescriptors( pd, c, side, datatype, &offset,
+		&maxWidth, &maxHeight, &nticLabel, &ticlen, &ticInterval,
+		&baseTic,&fscale, color, label );
+    /*
+     * Now re-compute the private axis-descriptors;
+     */
+    baseTic.type = min.type;
+    switch ( min.type )
+    {
+	case 't':
+	{
+	    iVal = ts_GetSec(min.val.t);
+	    iBase = 
+     ((float)iVal)/ticInterval - (float)(int)(((float)iVal)/ticInterval) > 0.0 ?
+		((long)(((float)iVal)/ticInterval) + 1) * (long)ticInterval:
+		(long)(((float)iVal)/ticInterval) * (long)ticInterval;
+	    lc_GetTime( &(baseTic.val.t), iBase );
+	}
+	break;
+	case 'f':
+	{
+	    baseTic.val.f = 
+	min.val.f/ticInterval - (float)(int)(min.val.f/ticInterval) > 0.0 ?
+		(float)((int)(min.val.f/ticInterval)+1) * ticInterval :
+		(float)((int)(min.val.f/ticInterval)) * ticInterval ;
+	}
+	break;
+    }
+    
+    /*
+     *  Loop on tic-labels to determine required space.
+     */
+    ticLoc = baseTic;
+    maxWidth = 0;
+    maxHeight = 0;
+    nticLabel = 0;
+    while ( lc_CompareData(&ticLoc,&max) <= 0 )
+    {
+	ac_FormatLabel ( &ticLoc, ticLabel, &nlab,maxDim );
+	for ( kk = 0; kk < nlab; kk++)
+	{
+            DT_TextBox ( Graphics, GWFrame(Graphics), 0,0,
+				ticLabel[kk], 0.0, fscale, 
+				JustifyLeft, JustifyTop, &x1,&y1,&x2,&y2);
+	    maxWidth = abs(x2-x1) > maxWidth ? abs(x2-x1) : maxWidth;
+	    maxHeight = abs(y2-y1) > maxHeight ? abs(y2-y1) : maxHeight;
+	    free(ticLabel[kk]);
+	}
+	nticLabel = nlab > nticLabel ? nlab : nticLabel;
+	lc_IncrData( &ticLoc, (double)ticInterval );
+    }
+    xy_SetPrivateAxisDescriptors(pd,c,side,datatype,
+		NULL,&baseTic,&maxHeight,&maxWidth, &nticLabel,&ticInterval);
+}
+
+static int
+ac_DrawAxis(pd,c,side,datatype,mode)
+plot_description	pd;
+char			*c;
+char			side,datatype;
+unsigned short		mode;
+{
+    DataValRec	min,max;
+    int		offset,maxWidth,maxHeight,maxLabel;
+    int		ticlen; 
+    float	ticInterval;
+    DataValRec	baseTic;
+    char	color[80],label[80];
+    float	fscale;
+    char	*ticLabel[2];
+    int		nlab;
+    int		maxDim = 80;
+    int		labelExtent;
+    int		kk;
+    DataValRec	ticLoc;
+    int		fit = 1;
+    int		xloc,yloc;
+    DataValRec	savemin, savemax;
+    unsigned int	saveConfig;
+    int		axisSpaceHeight;
+    float	center;
+    int		even;
+    int		axisSpaceWidth;
+    DataValRec	yOrig,xOrig;
+    int		direction;
+    int		nextoffset = 0;
+    unsigned short xmode = 0,ymode = 0;
+
+    (void)ac_AxisState(pd,c,side,datatype,&min,&max );
+    xy_GetAxisDescriptors( pd, c, side, datatype, &offset,
+		&maxWidth, &maxHeight, &maxLabel, &ticlen, &ticInterval,
+		&baseTic,&fscale, color, label );
+    XSetLineAttributes ( XtDisplay(Graphics), Gcontext, 0, LineSolid,
+		CapButt, JoinMiter);
+    SetColor(c,"axis-color",NULL,"white");
+	
+    msg_ELog ( EF_DEBUG,"Draw Axis: component = %s side = %c datatype = %c",
+		c,side,datatype);
+    switch ( datatype )
+    {
+	case 'f':
+            msg_ELog ( EF_DEBUG,"Draw Axis: component = %s min = %f max = %f",
+		c,
+		min.val.f, max.val.f);
+	break;
+	case 't':
+        msg_ELog ( EF_DEBUG,"Draw Axis: component = %s min = %d %d max = %d %d",
+		c,
+		min.val.t.ds_yymmdd, min.val.t.ds_hhmmss,
+		max.val.t.ds_yymmdd, max.val.t.ds_hhmmss);
+	break;
+    }
+    switch (side)
+    {
+	case 't':
+	    direction = -1;
+	    axisSpaceHeight = abs((int)(GWHeight(Graphics)*AxisY1[AXIS_TOP]) -
+			(int)(GWHeight(Graphics)*AxisY0[AXIS_TOP]));
+	    yOrig = UY1;
+	    goto horizontal;
+	case 'b':
+	    direction = 1;
+	    axisSpaceHeight = (int)(GWHeight(Graphics)*AxisY1[AXIS_BOTTOM]) -
+			(int)(GWHeight(Graphics)*AxisY0[AXIS_BOTTOM]);
+	    yOrig = UY0;
+horizontal:
+	    xmode = mode;
+	   /*
+            * Set-up coordinate system.
+            */
+	    savemin = UX0;
+	    savemax = UX1;
+	    lc_SetUserCoord ( &min,&max, &UY0,&UY1);
+
+	   /*
+            * Draw axis-line.
+            */
+	    XDrawLine( XtDisplay(Graphics), GWFrame(Graphics), Gcontext, 
+		devX(&min,xmode), devY(&yOrig,ymode) + direction*(offset), 
+		devX(&max,xmode), devY(&yOrig,ymode) + direction*(offset));
+
+	    labelExtent = xmode & INVERT ?
+		devX(&min,xmode) + abs((int)(GWWidth(Graphics)*AxisX1[AXIS_RIGHT]) -
+			(int)(GWWidth(Graphics)*AxisX0[AXIS_RIGHT])):
+		devX(&min,xmode) - abs((int)(GWWidth(Graphics)*AxisX1[AXIS_LEFT]) -
+			(int)(GWWidth(Graphics)*AxisX0[AXIS_LEFT]));
+	    /* 
+	     * Draw tic-marks and tic-labels
+	     */
+	    ticLoc = baseTic;
+	    while ( lc_CompareData(&ticLoc,&max) <= 0 )
+	    {
+		if ( ticlen > axisSpaceHeight )
+		{
+		    fit = 0;
+		    break;
+		}
+		else
+		{
+
+		  /* 
+		   * Check for tic label to fit in given space 
+		   */
+		  if ( (maxHeight+2)* maxLabel > axisSpaceHeight - ticlen )
+		  {
+		    fit = 0;
+		    break;
+		  }
+		  else
+		  {
+		    xloc = devX(&ticLoc,xmode);
+		    /*
+		     *  Make sure tic - labels don't over-lap
+		     */
+		    if ( xmode & INVERT ? xloc + (maxWidth/2) < labelExtent :
+				xloc - (maxWidth/2) > labelExtent )
+		    {
+		        ac_FormatLabel ( &ticLoc, ticLabel, &nlab,maxDim );
+		        yloc = devY(&yOrig,ymode) + direction*(offset + ticlen + 2);
+		        kk = direction > 0 ? 0 : nlab-1; 
+		        fit = 1;
+		        while( direction > 0 ? kk < nlab: kk >= 0 )
+		        {
+		    	    XDrawLine( XtDisplay(Graphics), 
+			    	GWFrame(Graphics), Gcontext, 
+			    	devX(&ticLoc,xmode), 
+				devY(&yOrig,ymode) + direction*(offset), 
+			    	devX(&ticLoc,xmode), 
+			    	devY(&yOrig,ymode) + direction*(offset + ticlen));
+		            DrawText ( Graphics, GWFrame(Graphics), 
+				    Gcontext, xloc, yloc,
+				    ticLabel[kk], 0.0,fscale, 
+				    JustifyCenter, 
+				    direction > 0 ? JustifyTop : JustifyBottom);
+			    free(ticLabel[kk]);
+			    kk += direction;
+			    yloc += direction*(maxHeight + 2);
+		        }
+			labelExtent = xmode & INVERT ? xloc - maxWidth/2 :
+				xloc + maxWidth/2 ;
+		    }
+		    else
+		    {
+		        XDrawLine( XtDisplay(Graphics), 
+			    GWFrame(Graphics), Gcontext, 
+			    devX(&ticLoc,xmode), devY(&yOrig,ymode) + direction*(offset), 
+			    devX(&ticLoc,xmode), 
+			    devY(&yOrig,ymode) + direction*(offset + ticlen/2));
+		    }
+		  }
+		}
+		    
+		lc_IncrData( &ticLoc, (double)(ticInterval) );
+	    }
+	    nextoffset = offset + ticlen + (maxHeight+2)*maxLabel + 2;
+	    /*
+	     * Now draw the axis label
+	     */
+	    xloc = xmode & INVERT ? devX(&max,xmode) + 
+			(abs(devX(&min,xmode) - devX(&max,xmode)))/2:
+	    	devX(&min,xmode) + 
+			(abs(devX(&min,xmode) - devX(&max,xmode)))/2;
+	    yloc = devY(&yOrig,ymode) + direction*(nextoffset); 
+            DrawText ( Graphics, GWFrame(Graphics), 
+		    Gcontext, xloc, yloc, label, 0.0,fscale, 
+		    JustifyCenter, direction > 0 ? JustifyTop : JustifyBottom);
+	    nextoffset = nextoffset + maxHeight + 2;
+	    lc_SetUserCoord ( &savemin,&savemax, &UY0,&UY1);
+	break;
+	case 'r':
+	    direction = 1;
+	    axisSpaceWidth = abs((int)(GWWidth(Graphics)*AxisX1[AXIS_RIGHT]) -
+			(int)(GWWidth(Graphics)*AxisX0[AXIS_RIGHT]));
+	    xOrig = UX1;
+	    goto vertical;
+	case 'l':
+	    direction = -1;
+	    axisSpaceWidth = abs((int)(GWWidth(Graphics)*AxisX1[AXIS_LEFT]) -
+			(int)(GWWidth(Graphics)*AxisX0[AXIS_LEFT]));
+	    xOrig = UX0;
+vertical:
+	    ymode = mode;
+	   /*
+            * Set-up coordinate system.
+            */
+	    savemin = UY0;
+	    savemax = UY1;
+	    lc_SetUserCoord ( &UX0,&UX1,&min,&max );
+
+	   /*
+            * Draw axis-line.
+            */
+	    XDrawLine( XtDisplay(Graphics), GWFrame(Graphics), Gcontext, 
+			devX(&xOrig,xmode)+direction*(offset), devY(&min,ymode), 
+			devX(&xOrig,xmode)+direction*(offset), devY(&max,ymode));
+
+	    labelExtent = devY(&min,ymode);
+	    /* 
+	     * Draw tic-marks and tic-labels
+	     */
+	    ticLoc = baseTic;
+	    while ( lc_CompareData(&ticLoc,&max) <= 0 )
+	    {
+		if ( ticlen > axisSpaceWidth )
+		{
+		    fit = 0;
+		    break;
+		}
+		else
+		{
+		  /* 
+		   * Check for tic label to fit in given space 
+		   */
+		  if ( maxWidth > axisSpaceWidth - ticlen )
+		  {
+		    fit = 0;
+		    break;
+		  }
+		  else
+		  {
+		    ac_FormatLabel ( &ticLoc, ticLabel, &nlab,maxDim );
+		    xloc = devX(&xOrig,xmode) + direction*(offset + ticlen + 2);
+		    xloc = xloc + direction*(maxWidth/2);
+                    center = (float)(nlab-1)/2.0;
+                    even = nlab%2 ? 0 : 1;
+		    for ( kk = nlab-1; kk >= 0; kk--)
+		    {
+			yloc = devY(&ticLoc,ymode) -
+                            (center-(float)(kk))*(maxHeight+1);
+
+		        if ( ((yloc+maxHeight/2) < labelExtent && 
+					!(ymode & INVERT)) ||
+			       ((yloc-maxHeight/2) > labelExtent && 
+					 (ymode &INVERT)) )
+		        {
+		    	    XDrawLine( XtDisplay(Graphics), 
+			    	GWFrame(Graphics), Gcontext, 
+			    	devX(&xOrig,xmode) + direction*(offset), 
+			    	devY(&ticLoc,ymode), 
+			    	devX(&xOrig,xmode) + direction*(offset+ticlen), 
+			    	devY(&ticLoc,ymode));
+		            DrawText ( Graphics, GWFrame(Graphics), 
+				    Gcontext, xloc, yloc,
+				    ticLabel[kk], 0.0,fscale, 
+				    JustifyCenter, JustifyCenter);
+			        if(direction > 0 ? kk==nlab-1 : kk==0)
+				    labelExtent = ymode & INVERT ? 
+					yloc+maxHeight/2 : 
+					yloc-maxHeight/2;
+		        }
+			else
+			{
+		    	    XDrawLine( XtDisplay(Graphics), 
+			    	GWFrame(Graphics), Gcontext, 
+			    	devX(&xOrig,xmode) + direction*(offset), 
+			    	devY(&ticLoc,ymode), 
+			    	devX(&xOrig,xmode) + direction*(offset+ticlen/2), 
+			    	devY(&ticLoc,ymode));
+			}
+			free(ticLabel[kk]);
+			yloc += direction*(maxHeight + 2);
+		    }
+		  }
+		}
+		    
+		lc_IncrData( &ticLoc, (double)(ticInterval) );
+	    }
+	    nextoffset = offset + ticlen + maxWidth + 2;
+	    /*
+	     * Now draw the axis label
+	     */
+	    yloc = ymode & INVERT ? devY(&min,ymode) + 
+			(abs(devY(&min,ymode) - devY(&max,ymode)))/2:
+	    	devY(&max,ymode) + 
+			(abs(devY(&min,ymode) - devY(&max,ymode)))/2;
+	    xloc = devX(&xOrig,xmode) + direction*(nextoffset); 
+            DrawText ( Graphics, GWFrame(Graphics), 
+		    Gcontext, xloc, yloc, label, direction > 0 ? -90.0 :90.0,
+		    fscale, JustifyCenter, JustifyBottom);
+	    nextoffset = nextoffset + maxHeight + 2;
+	    lc_SetUserCoord ( &UX0,&UX1,&savemin,&savemax);
+	break;
+
+    }
+    return(nextoffset);
+}
+
+int
+ac_AxisState(pd,c,side,datatype,min,max )
+plot_description	pd; /* input */
+char			*c; /* input */
+char			side; /* input */
+char			datatype; /*input*/
+DataValPtr		min,max;
+{
+    char	keyword[80];
+    int		axid;
+    if ( (axid = ac_AxisId (side, c)) < 0 )
+    {
+	switch ( datatype )
+	{
+	    case 'f':
+		min->val.f = 0.0;
+		max->val.f = 0.0;
+	    break;
+	    case 't':
+		min->val.t.ds_yymmdd = 0;
+		min->val.t.ds_hhmmss = 0;
+		max->val.t.ds_yymmdd = 0;
+		max->val.t.ds_hhmmss = 0;
+	    break;
+	}
+	return(0);
+    }
+    min->type = datatype;
+    max->type = datatype;
+    strcpy(keyword, "private-axis-");
+    keyword[13] = side;
+    keyword[14] = '\0';
+    strcat(keyword, "-min");
+    switch( datatype )
+    {
+        case 't':
+            if (! pda_Search (pd, c, keyword, NULL,
+                (char *)&(min->val.t), SYMT_DATE))
+            {
+                min->val.t.ds_yymmdd = 0;
+                min->val.t.ds_hhmmss = 0;
+            }
+        break;
+        case 'f':
+            if (! pda_Search (pd, c, keyword, NULL,
+                (char *)&(min->val.f), SYMT_FLOAT))
+            {
+                min->val.f = 0.0;
+            }
+        break;
+    }
+    strcpy(keyword, "private-axis-");
+    keyword[13] = side;
+    keyword[14] = '\0';
+    strcat(keyword, "-max");
+    switch( datatype )
+    {
+        case 't':
+            if (! pda_Search (pd, c, keyword, NULL,
+                (char *)&(max->val.t), SYMT_DATE))
+            {
+                max->val.t.ds_yymmdd = 0;
+                max->val.t.ds_hhmmss = 0;
+            }
+        break;
+        case 'f':
+            if (! pda_Search (pd, c, keyword, NULL,
+                (char *)&(max->val.f), SYMT_FLOAT))
+            {
+                max->val.f = 0.0;
+            }
+        break;
+    }
+    return ( AxisInfoList[ac_AxisSide(side)][axid].computed );
+}
+
+void
+ac_UpdateAxisState(pd,c,side, datatype,scalemin, scalemax )
+plot_description	pd;
+char	*c;
+char	side;
+char	datatype;
+DataValPtr	scalemin;
+DataValPtr	scalemax;
+{
+    int axid = 0;
+    char	keyword[20];
+    /* 
+     * If axis doesn't exist, add it to the axis-list.
+     */
+    if ( (axid = ac_AxisId ( side, c)) < 0 )
+    {
+	axid = ac_AddAxis ( side,c,datatype);
+    }
+    strcpy(keyword, "private-axis-");
+    keyword[13] = side;
+    keyword[14] = '\0';
+    strcat(keyword, "-max");
+    switch( datatype )
+    {
+        case 't':
+            pd_Store (pd,c,keyword,(char *)&(scalemax->val.f), SYMT_DATE);
+        break;
+        case 'f':
+            pd_Store (pd,c,keyword,(char *)&(scalemax->val.f), SYMT_FLOAT);
+        break;
+    }
+    strcpy(keyword, "private-axis-");
+    keyword[13] = side;
+    keyword[14] = '\0';
+    strcat(keyword, "-min");
+    switch( datatype )
+    {
+        case 't':
+            pd_Store (pd,c,keyword,(char *)&(scalemin->val.f), SYMT_DATE);
+        break;
+        case 'f':
+            pd_Store (pd,c,keyword,(char *)&(scalemin->val.f), SYMT_FLOAT);
+        break;
+    }
+    AxisInfoList[ac_AxisSide(side)][axid].computed  = 0;
+}
