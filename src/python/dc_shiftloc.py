@@ -196,13 +196,15 @@ try:
     cmd = "platloc -s -t %d %s" % (plottime, platform)
     status, locstring = commands.getstatusoutput(cmd)
     if (status != 0):
-        print "Error from platloc: %s" % locstring
-        sys.exit(1)
-
-    lat, lon, datatime = string.split(locstring)
-    lat = string.atof(lat)
-    lon = string.atof(lon)
-    datatime = string.atoi(datatime)
+        print "Platloc problem: %s" % locstring
+        lat = originlat
+        lon = originlon
+        datatime = 0
+    else:
+        lat, lon, datatime = string.split(locstring)
+        lat = string.atof(lat)
+        lon = string.atof(lon)
+        datatime = string.atoi(datatime)
     
     #
     # find our plot bounds based on the location we got
