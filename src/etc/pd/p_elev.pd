@@ -9,9 +9,6 @@ p_elev
 	representation:	raster
 	altitude-control:	false
 	color-table:	Alpine
-	elev-highlight:		-1
-	elev-highlight-range:	2
-	elev-highlight-color:	blue3
 	icon:		topo
 	icon-right-menu:	raster-right
 	require:	raster
@@ -19,4 +16,7 @@ p_elev
 	elevation-center:	2000
 	elevation-step:		500
 	elevation-nsteps:	8
+	elevation-highlight:		-1
+	elevation-highlight-range:	2
+	elevation-highlight-color:	blue3
 	limit-proc:	raster-limit-proc
