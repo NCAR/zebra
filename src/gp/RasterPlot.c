@@ -1,7 +1,7 @@
 /*
  * Raster display a rectangular array
  */
-static char *rcsid = "$Id: RasterPlot.c,v 2.1 1991-09-12 20:27:54 corbet Exp $";
+static char *rcsid = "$Id: RasterPlot.c,v 2.2 1991-11-04 18:01:54 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -42,6 +42,13 @@ static char *rcsid = "$Id: RasterPlot.c,v 2.1 1991-09-12 20:27:54 corbet Exp $";
  */
 static int	Ncolor;
 static XColor	*Colors, Color_outrange;
+
+/*
+ * Highlight color stuff.
+ */
+static Boolean	Highlight;
+static XColor	HColor;
+static float	HValue, HRange;
 
 /*
  * Data range for the color scale
@@ -148,14 +155,23 @@ int	xdim, ydim;
 		 * Find the correct color and get a graphics context
 		 * with the color in the foreground
 		 */
-			r_color = (int) (cscale * (DATA (j, i) - Datamin));
-
-			if (r_color >= 0 && r_color < Ncolor)
+			if (Highlight 
+			   && (DATA (j, i) <= (HValue + HRange/2.0))
+			   && (DATA (j, i) >= (HValue - HRange/2.0)))
 				XSetForeground (XtDisplay (w), gcontext, 
-					Colors[r_color].pixel);
+					HColor.pixel);
 			else
-				XSetForeground (XtDisplay (w), gcontext, 
-					Color_outrange.pixel);
+			{
+				r_color = (int) (cscale * (DATA (j, i) - 
+					Datamin));
+
+				if (r_color >= 0 && r_color < Ncolor)
+					XSetForeground (XtDisplay (w), gcontext,
+						Colors[r_color].pixel);
+				else
+					XSetForeground (XtDisplay (w), gcontext,
+						Color_outrange.pixel);
+			}
 		/*
 		 * Draw a rectangle for this point
 		 */
@@ -180,11 +196,13 @@ int	xdim, ydim;
 
 
 void
-RP_Init (colors, count, c_outrange, clip, dmin, dmax)
+RP_Init (colors, count, c_outrange, clip, dmin, dmax, highlight, hvalue, 
+	hcolor, hrange)
 int	count;
-XColor	*colors, c_outrange;
+XColor	*colors, c_outrange, hcolor;
 XRectangle	clip;
-float	dmin, dmax;
+Boolean	highlight;
+float	dmin, dmax, hvalue, hrange;
 /*
  * Initialize colors and data flagging
  *
@@ -205,6 +223,14 @@ float	dmin, dmax;
 	Datamin = dmin;
 	Datamax = dmax;
 	Datarange = Datamax - Datamin;
+
+	Highlight = highlight;
+	if (highlight)
+	{
+		HValue = hvalue;
+		HColor = hcolor;
+		HRange = hrange;
+	}
 }
 
 
@@ -263,9 +289,19 @@ bool fast;
 	cscale = Ncolor/Datarange;
 	for (i = 0, gp = array, cgp = colgrid; i < gridelem; i++)
 	{
-		r_color = (int) (cscale * (*gp++ - Datamin));
-		*cgp++ = (r_color >= 0 && r_color < Ncolor) ? 
-			Colors[r_color].pixel : outrange;
+		if (Highlight 
+		   && (*gp <= (HValue + HRange/2.0)) 
+		   && (*gp >= (HValue - HRange/2.0)))
+		{
+			*gp++;
+			*cgp++ = HColor.pixel;
+		}
+		else
+		{
+			r_color = (int) (cscale * (*gp++ - Datamin));
+			*cgp++ = (r_color >= 0 && r_color < Ncolor) ? 
+				Colors[r_color].pixel : outrange;
+		}
 	}
 	width = xhi - xlo + 1;
 	height = ylo - yhi + 1;
@@ -602,9 +638,16 @@ float scale, bias;
  */
 	for (c = 0; c <= 254; c++)
 	{
-		rcolor = (int) (cscale*(c*scale + bias - Datamin));
-		cmap[c] = (rcolor >= 0 && rcolor < Ncolor) ? 
+		if (Highlight 
+		   && ((c*scale + bias) <= (HValue + HRange/2.0)) 
+		   && ((c*scale + bias) >= (HValue - HRange/2.0)))
+			cmap[c] = HColor.pixel;
+		else
+		{
+			rcolor = (int) (cscale*(c*scale + bias - Datamin));
+			cmap[c] = (rcolor >= 0 && rcolor < Ncolor) ? 
 				Colors[rcolor].pixel : Color_outrange.pixel;
+		}
 	}
 	cmap[255] = Color_outrange.pixel;
 /*
