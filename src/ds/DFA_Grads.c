@@ -19,7 +19,7 @@
 # include "dfa.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_Grads.c,v 3.13 1997-07-01 20:09:59 ishikawa Exp $")
+RCSID ("$Id: DFA_Grads.c,v 3.14 1998-01-28 17:09:26 burghart Exp $")
 
 
 /*
@@ -846,7 +846,8 @@ FieldId fid;
 	for (index = 0; index < tag->gt_nfield; index++)
 		if (tag->gt_fids[index] == fid)
 			return (index);
-	msg_ELog (EF_PROBLEM, "FID %d not found!", fid);
+	msg_ELog (EF_PROBLEM, "dgr_FindIndex: Field %s (%d) not found!", 
+		  F_GetFullName(fid), fid);
 	return (-1);
 }
 
