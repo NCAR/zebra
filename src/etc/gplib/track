@@ -1,5 +1,6 @@
 !
 ! Lotsa track support stuff.
+! $Id: track,v 1.6 1997-02-03 17:57:18 corbet Exp $
 !
 
 !
@@ -114,6 +115,7 @@ define widget track-right intmenu 'x'
 		(PDParam (icon_component, 'show-position') = 'true')
 	submenu 'Track color (when mono)' 'simple-color'
 	submenu 'Line width' LineWidth
+	entry 'Field chooser widget...' 'popup fchooser'
 	entry 'Other track parameters...' 'popup track-parameters'
 endmenu
 
@@ -143,13 +145,17 @@ define widget track-parameters form 'Track parameters'
 	label ltime2 '(s = seconds, m = minutes, h = hours)'
 	newline
 !
-! arrows.
+! arrows/barbs.
 !
-	label tarrow 'Arrows on tracks are'
+	button abarb 'Arrows' command tp-toggle-arrows
+	label tarrow ' on tracks are'
 	button arrow-enab 'Funky' command 'tp-toggle-enable  arrow-enab' \
 			 width 70
 	label tac 'arrow color: '
 	pulldown arrowcolor 'mauve' width 80 menu form-color-menu
+!
+! Arrow / barb details
+!
 	newline
 	label tad '     Draw arrows every'
 	blank arrowtime 'Funky' width 50
@@ -164,7 +170,8 @@ define widget track-parameters form 'Track parameters'
 !
 ! Annotation.
 !
-	label ttime 'Time annotations on tracks are'
+	button tdata 'Time' command tp-toggle-tdata
+	label ttime 'annotations on tracks are'
 	button time-enab 'Funky' command \
 			'tp-toggle-enable  time-enab' width 70
 	label ttime1 'every'
@@ -190,6 +197,15 @@ procedure tp-popup
 !
 	local time PDParam(c, 'time-period')
 	formtext #f time #time
+!
+! Arrows or barbs?
+!
+	local ab PDSearch(c, 'arrow-style', plat)
+	if (ab <> 'barb')
+		formtext #f abarb 'Arrows'
+	else
+		formtext #f abarb 'Barbs'
+	endif
 !
 ! Arrow enable.
 !
@@ -218,6 +234,11 @@ procedure tp-popup
 !
 ! Annotation.
 !
+	if (PDSearch (c, 'annot-time-label', plat) = 'data')
+		formtext #f tdata 'Data'
+	else
+		formtext #f tdata 'Time'
+	endif
 	local aen PDParam(c, 'annot-time')
 	if (aen = 'true')
 		formtext #f time-enab 'Enabled'
@@ -248,6 +269,12 @@ procedure tp-apply
 !
 ! Arrows.
 !
+	local abarb getftext(f, 'abarb')
+	if (abarb = 'Arrows')
+		parameter #c arrow-style arrow
+	else
+		parameter #c arrow-style barb
+	endif
 	local enab getftext(f, 'arrow-enab')
 	if (enab = 'Enabled')
 		parameter #c 'arrow' 'true'
@@ -255,7 +282,7 @@ procedure tp-apply
 		parameter #c 'arrow' 'false'
 	endif
 	local color getftext(f, 'arrowcolor')
-	parameter #c arrowcolor #color
+	parameter #c arrow-color #color
 	local atime getftext(f, 'arrowtime')
 	parameter #c arrow-interval #atime
 	local ascale getftext(f, 'arrowscale')
@@ -267,6 +294,11 @@ procedure tp-apply
 !
 ! Annotation.
 !
+	if (getftext (f, 'tdata') = 'Time')
+		parameter #c 'annot-time-label' 'time'
+	else
+		parameter #c 'annot-time-label' 'data'
+	endif
 	local aen getftext(f, 'time-enab')
 	if (aen = 'Enabled')
 		parameter #c 'annot-time' 'true'
@@ -289,6 +321,24 @@ procedure tp-toggle-enable param string
 		formtext #ui$form #param 'Disabled'
 	else
 		formtext #ui$form #param 'Enabled'
+	endif
+endprocedure
+
+
+procedure tp-toggle-arrows
+	local ab getftext(ui$form, 'abarb')
+	if (ab = 'Arrows')
+		formtext #ui$form abarb 'Barbs'
+	else
+		formtext #ui$form abarb 'Arrows'
+	endif
+endprocedure
+
+procedure tp-toggle-tdata
+	if (getftext (ui$form, 'tdata') = 'Time')
+		formtext #ui$form tdata 'Data'
+	else
+		formtext #ui$form tdata 'Time'
 	endif
 endprocedure
 
