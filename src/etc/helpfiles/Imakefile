@@ -61,7 +61,7 @@ GIFFILES = \
 	stannoti.gif staquad.gif starrow.gif stmenu.gif \
 	th-3color.gif th-empty.gif th-profile.gif th-solid.gif \
 	th-vector.gif th-wwidget.gif time-widget-date.gif \
-	time-widget-mode.gif \
+	time-widget-mode.gif time-widget-hot.gif time-widget-hotlabel.gif \
 	time-widget-skip.gif time-widget-window.gif time-widget.gif \
 	tools-icon.gif \
 	track-a.gif track.gif ts-empty.gif ts-first.gif \
