@@ -44,7 +44,7 @@
 # include "dsDaemon.h"
 # include "commands.h"
 
-MAKE_RCSID ("$Id: Daemon.c,v 3.45 1995-02-10 01:27:18 granger Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.46 1995-03-04 19:18:36 granger Exp $")
 
 
 /*
@@ -257,6 +257,12 @@ char **argv;
 			Debug = TRUE;
 		else if (Match (argv[i], "-parse"))
 			ParseOnly = TRUE;
+		else if (Match (argv[i], "-help"))
+		{
+			printf ("usage: %s [-parse][-debug][-help] initfile\n",
+				argv[0]);
+			exit (0);
+		}
 		else if (initfile)
 			printf ("%s: argument %s ignored\n", argv[0], argv[i]);
 		else
