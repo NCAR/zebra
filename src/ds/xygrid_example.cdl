@@ -1,8 +1,9 @@
 netcdf example {
 dimensions:
 	time = UNLIMITED ; // (1 currently)
+	z = 5;
 	y = 512 ;
-	x = 1024 ;
+	x = 512 ;
 variables:
 	int base_time ;
 		base_time:long_name = "base time in Epoch" ;
@@ -11,7 +12,7 @@ variables:
 		time_offset:long_name = "Time offset from base_time" ;
 		time_offset:units = "seconds" ;
 	float lat ;
-		lat:long_name = "latitude of soutwest corner" ;
+		lat:long_name = "latitude of southwest corner" ;
 		lat:units = "degrees" ;
 		lat:valid_range = -90.f, 90.f ;
 	float lon ;
@@ -30,11 +31,11 @@ variables:
 	float z_spacing ;
 		z_spacing:long_name = "vertical grid spacing" ;
 		z_spacing:units = "km" ;
-	float var1(time, y, x) ;
+	float var1(time, z, y, x) ;
 		var1:long_name = "first variable long name" ;
 		var1:units = "units string" ;
 		var1:missing_value = -99.99f ;
-	float var2(time, y, x) ;
+	float var2(time, z, y, x) ;
 		var2:long_name = "second variable long name" ;
 		var2:units = "units string" ;
 		var2:missing_value = -99.99f ;
