@@ -9,7 +9,7 @@ p_rings
 	field:		range-rings
 	color:		white
 	icon-left-menu:		minimal-cap-left-menu
-	icon-middle-menu:	rings-origin
+	icon-middle-menu:	rings-origins
 	icon-right-menu:	rings-right
 	icon:		rings
 	ring-interval:	20
