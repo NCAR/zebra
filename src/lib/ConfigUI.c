@@ -29,7 +29,84 @@
 # include "message.h"
 # include "setup.h"
 
-RCSID("$Id: ConfigUI.c,v 2.2 1997-02-14 07:31:58 granger Exp $")
+RCSID("$Id: ConfigUI.c,v 2.3 2000-06-07 20:25:51 granger Exp $")
+
+
+#define PathLen CFG_FILEPATH_LEN
+
+/*
+ * A symbol table for require's and the path to search them out in.
+ */
+static stbl RequireTable = 0;
+static char RequirePath[PathLen];
+
+
+static void
+InitRequires ()
+{
+    stbl vtable;
+
+    strcpy (RequirePath, GetLibDir());
+/*
+ * Get the require table set up.
+ */
+    RequireTable = usy_c_stbl ("RequireTable");
+    vtable = usy_g_stbl ("ui$variable_table");
+    usy_c_indirect (vtable, "requirepath", RequirePath, SYMT_STRING,
+		    PathLen);
+/*
+ * For compatibility with original require implementation for dm,
+ * make the dmmodpath variable an alias for the requirepath.
+ */
+    usy_c_indirect (vtable, "dmmodpath", RequirePath, SYMT_STRING, 
+		    PathLen);
+}
+
+
+void
+SetRequirePath (char *path)
+{
+    strcpy (RequirePath, path);
+}
+
+
+char *
+GetRequirePath ()
+{
+    return (RequirePath);
+}
+
+
+void
+Require (char *module)
+/*
+ * Make sure that we have loaded this module.
+ */
+{
+	int t;
+	SValue v;
+	char fname[PathLen];
+/*
+ * See if the module has been loaded already.
+ */
+	if (usy_g_symbol (RequireTable, module, &t, &v))
+		return;	/* Got it already */
+/*
+ * Nope.  We need to look for it.
+ */
+	strcpy (fname, "read ");
+	if (! FindFile (module, RequirePath, fname + 5))
+	{
+		msg_ELog (EF_PROBLEM, "Unable to find module %s", module);
+		return;
+	}
+/*
+ * Now load the module and make a note of it.
+ */
+	msg_ELog (EF_INFO, "Loading module %s", module);
+	ui_perform (fname);
+	usy_s_symbol (RequireTable, module, SYMT_BOOL, &v);
+}
 
 
 
@@ -68,6 +145,10 @@ SetupConfigVariables ()
 	usy_s_symbol (vtable, "c$msgname", SYMT_STRING, &v);
 	v.us_v_ptr = (char *) msg_SessionName ();
 	usy_s_symbol (vtable, "c$session", SYMT_STRING, &v);
+/*
+ * Initialize the require mechanism as well.
+ */
+	InitRequires ();
 }
 
 

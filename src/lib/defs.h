@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 2.42 1999-03-01 02:04:43 burghart Exp $ */
+/* $Id: defs.h,v 2.43 2000-06-07 20:25:51 granger Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -124,6 +124,9 @@ int	CommaParse FP ((char *, char **));
 int	ParseLine FP ((char *string, char **substrings, int delim));
 
 void	SetupConfigVariables FP ((void));
+void    Require FP ((char *module));
+char    *GetRequirePath FP ((void));
+void    SetRequirePath FP ((char *path));
 char 	*GetBaseDir FP ((void));
 char 	*GetBinDir FP ((void));
 char 	*GetLibDir FP ((void));
