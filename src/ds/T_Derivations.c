@@ -7,7 +7,7 @@
 # include "DataStore.h"
 # include "apple.h"
 
-RCSID("$Id: T_Derivations.c,v 3.2 1997-12-18 21:01:39 burghart Exp $")
+RCSID("$Id: T_Derivations.c,v 3.3 1997-12-19 15:24:01 burghart Exp $")
 
 # define NTIMES 100
 
@@ -69,8 +69,8 @@ T_Derivations ()
  *	[P][hPa] = pressure;
  *	[rh][%] = humidity_relative;
  */
-    if (! dc = ds_Fetch (pid, DCC_NSpace, &(times[NTIMES - 1]), &(times[0]), 
-			 &want_fld, 1, NULL, 0))
+    if (! (dc = ds_Fetch (pid, DCC_NSpace, &(times[NTIMES - 1]), &(times[0]), 
+			  &want_fld, 1, NULL, 0)))
     {
 	msg_ELog (EF_PROBLEM, "Error fetching data for %s/%s\n",
 		  ds_PlatformName (pid), F_GetFullName (want_fld));
