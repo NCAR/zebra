@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.29 1993-10-18 19:28:43 corbet Exp $ */
+/* $Id: GraphProc.h,v 2.30 1993-11-30 23:34:19 granger Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -19,6 +19,11 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+
+/*
+ * Some of the prototypes rely on the DataChunk type
+ */
+#include <DataStore.h>
 
 /*
  * This flag is set when something happens which should abort an ongoing
@@ -164,10 +169,8 @@ extern bool ga_GridBBox FP ((ZebTime *, char *, float *, float *, float *,
 		float *));
 extern void ga_RotateGrid FP ((float *, float *, int, int));
 extern bool ga_AvailableAlts FP ((ZebTime *, char *, float *, int *));
-# ifdef _DATACHUNK_H_
 extern DataChunk *ga_GetGrid FP ((ZebTime *, char *, char *, char *, int *,
 		int *, float *, float *, float *, float *, float *, int *));
-# endif
 
 /* Frame cache routines */
 extern void fc_InitFrameCache FP ((void));
@@ -245,11 +248,8 @@ extern void Require FP ((char *));
 extern void DoRequires FP ((void));
 extern void GetRange FP ((float *, int, double, float *, float *));
 extern void CalcCenterStep FP ((double, double, int, float *, float *));
-
-# ifdef _DATACHUNK_H_
 extern void FindCenterStep FP ((DataChunk *, FieldId, int, float *, float *));
 extern int ApplySpatialOffset FP ((DataChunk *, char *, ZebTime *));
-# endif
 
 /* This stuff contains window system oriented stuff, so is only brought
    in if this module is doing X things. */
