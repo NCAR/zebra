@@ -1,7 +1,7 @@
 /* -*- C -*- */
 #ifdef RPC_HDR
 %/*
-% * $Id: DataTypes.x,v 3.1 1999-03-01 16:32:08 burghart Exp $
+% * $Id: DataTypes.x,v 3.2 2002-10-24 16:29:59 granger Exp $
 % *
 % * Simple datastore types required by platform and datafile protocol
 % * structures.
@@ -59,7 +59,8 @@ enum FileType
 	FTGrads = 7,
 	FTGradsModel = 8,
 	FTHDF = 9,
-	FTSweepFile = 10	/* Radar sweep files */
+	FTSweepFile = 10,	/* Radar sweep files */
+	FTOpaque = 11
 	/* ... */
 };
 
