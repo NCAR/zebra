@@ -1,4 +1,4 @@
-XCOMM $Id: Imakefile,v 1.26 1996-11-20 21:19:09 granger Exp $
+XCOMM $Id: Imakefile,v 1.27 1996-11-20 22:42:50 granger Exp $
 XCOMM
 XCOMM This is the top-level Imakefile for the Zebra distribution.
 XCOMM It is modeled after the top-level Imakefile of the MIT X11R5
@@ -95,7 +95,7 @@ TestSubdirs($(TESTSUBDIRS))
 	$(MAKE) MAKE=$(MAKE) $(MFLAGS) depend
 #else
 #define MAKE_INCLUDES \
-	@echo "Using installed files: skipping includes and depend"
+	@echo "Using installed files --- skipping includes and depend"
 #endif
 
 World:: makeMakefile makeWorld
