@@ -48,7 +48,7 @@
 # include "dsPrivate.h"  /* Needed for MarkArchived call */
 /* # include "dslib.h" */
 
-MAKE_RCSID ("$Id: Archiver.c,v 1.20 1993-04-26 16:32:00 corbet Exp $")
+MAKE_RCSID ("$Id: Archiver.c,v 1.21 1993-05-06 05:02:44 granger Exp $")
 
 /*
  * Issues:
@@ -330,7 +330,7 @@ char **argv;
  */
 	MakeWidget (&argc, argv);
 
-	chdir (DATADIR);
+	chdir ( GetProjDir() );
 	LoadFileList ();
 	UpdateMem ();
 	switch (ArchiveMode)
@@ -825,7 +825,7 @@ LoadFileList ()
 /*
  * Open up the file.
  */
-	sprintf (listfile, "%s/DumpedFiles", DATADIR);
+	sprintf (listfile, "%s/DumpedFiles", GetProjDir() );
 	DumpedTable = usy_c_stbl ("DumpedTable");
 	if ((fp = fopen (listfile, "r")) == NULL)
 	{
@@ -1132,11 +1132,13 @@ int all;
 {
 	int plat, nplat = ds_GetNPlat ();
 	PlatformInfo pi;
+	int cmdlen;
 
 	/*
 	 * The tar command, less the file names
 	 */
 	sprintf (Tarbuf, "exec tar cfb - %d ", BFACTOR);
+	cmdlen = strlen (Tarbuf);
 
 	/*
 	 * Pass through the platform table and dump things.
@@ -1153,7 +1155,7 @@ int all;
 	 * Run the tar command to put this all together, but only if
 	 * we actually got any files to write
 	 */
-	if ( strlen(Tarbuf) > 20 )
+	if ( strlen(Tarbuf) > cmdlen )
 	{
 		/* 
 		 * Do all the settings to signal a write in progress 
@@ -1236,8 +1238,6 @@ int all;
 	/*
 	 * Fix up the file name and add it to our big tar command.
 	 */
-		if (! strncmp (fname, DATADIR, strlen (DATADIR)))
-			fname += (strlen (DATADIR) + 1);
 		msg_ELog (EF_DEBUG, "Dumping file '%s'", fname);
 		strcat (Tarbuf, dsi.dsrc_Where);
 		strcat (Tarbuf, "/");
@@ -1503,7 +1503,7 @@ UpdateList ()
 /*
  * Open up the file.
  */
-	sprintf (listfile, "%s/DumpedFiles", DATADIR);
+	sprintf (listfile, "%s/DumpedFiles", GetProjDir() );
 	if ((fp = fopen (listfile, "w")) == NULL)
 	{
 		msg_ELog (EF_PROBLEM, "Unable to open %s", listfile);
