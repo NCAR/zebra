@@ -55,6 +55,7 @@ while ($pattern = shift @ARGV)
 	    "   Read the plot queue from the given file\n" .
 	    "   as the list of plots to be generated.\n";
 	print "-norescan\n   No datastore rescan.\n";
+	print "-noindex\n   Do not run plotindex.\n";
 	print "\n";
 	print "The debug and platform options are recognized by all\n";
 	print "variations.  If platforms are given, only those platforms\n";
@@ -140,6 +141,7 @@ $batchfile = '';        # Batch file to which to write batch plot lines
 $enqfile = '';          # Queue file to which to write platform plot queue
 $deqfile = '';          # Queue file from which plot queue will be read
 $norescan = 0;
+$noindex = 0;
 
 # If we we're passed platform names or regular expressions on the
 # command line, just do those
@@ -168,6 +170,11 @@ while ($pattern = shift @clo)
     if ($pattern eq "-norescan")
     {
 	$norescan = 1;
+	next;
+    }
+    if ($pattern eq "-noindex")
+    {
+	$noindex = 1;
 	next;
     }
     if ($pattern eq "-since")
@@ -514,7 +521,7 @@ sub clear
     unlink("$batch");
 
     $pindex = "plotindex \"$project_name\" $ENV{'BATCH_IMAGE_SPOOL'}";
-    if ($debug < $D_NoPlot)
+    if ($debug < $D_NoPlot && ! $noindex)
     {
 	print "Generating plot image index:\n";
 	print "$pindex\n";
