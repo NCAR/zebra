@@ -1,10 +1,11 @@
-! $Id: Graphproc.ad,v 1.7 1993-03-19 23:58:11 granger Exp $
+! $Id: Graphproc.ad,v 1.8 1993-03-23 19:53:53 granger Exp $
 !
 ! The Graphics process resource file.
 !
 *Graphics.background:		black
 *header.zap.label:		Dismiss
 *header.zap.borderColor:	red
+Graphproc.?.form.background:	gray95
 !
 ! Don't change these first couple of lines.  They make things like
 ! menus and the movie controller work right.
