@@ -1,7 +1,7 @@
 /*
  * Deal with static (or almost static) overlays.
  */
-static char *rcsid = "$Id: Overlay.c,v 2.15 1992-11-03 16:35:13 burghart Exp $";
+static char *rcsid = "$Id: Overlay.c,v 2.16 1992-11-04 00:30:28 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -1784,8 +1784,8 @@ float xs, ys, theight;
 			{
 				sprintf (label, "%d  ", (int) ypos);
 				DrawText (Graphics, frame, Gcontext, left - 1,
-					yp, label, 0.0, theight/1.2,
-					JustifyRight, JustifyBottom);
+					yp, label, 0.0, theight, JustifyRight, 
+					JustifyBottom);
 				sprintf (label, "%d' %d\"", (int) (ypos*60)%60,
 					(int) (ypos*3600)%60);
 				DrawText (Graphics, frame, Gcontext, left - 1,
@@ -1803,8 +1803,9 @@ float xs, ys, theight;
 				label, 0.0, theight,JustifyCenter, JustifyTop);
 			sprintf (label, "%d' %d\"", (int)(-xpos*60)%60,
 					(int) (-xpos*3600)%60);
-			DrawText (Graphics, frame, Gcontext, xp, top + 14,
-				label, 0.0, theight,JustifyCenter, JustifyTop);
+			DrawText (Graphics, frame, Gcontext, xp, 
+				top + theight * GWHeight(Graphics), label, 0.0,
+				theight, JustifyCenter, JustifyTop);
 		}
 	}
 }
