@@ -1,5 +1,5 @@
 /* 1/88 jc */
-static char *rcsid = "$Id: bfile.c,v 1.7 1990-11-12 14:36:31 burghart Exp $";
+static char *rcsid = "$Id: bfile.c,v 1.8 1990-11-14 09:11:36 burghart Exp $";
 /*
  * System-dependant binary file stuff.  These routines are needed because
  * the VMS-specific variable-length-record-format file does not exist in
@@ -11,6 +11,7 @@ static char *rcsid = "$Id: bfile.c,v 1.7 1990-11-12 14:36:31 burghart Exp $";
 
 # ifdef UNIX
 #	include <unistd.h>
+#	include <assert.h>
 /* hack to make rfa work */
 static long Offset = 0;
 # endif
@@ -149,19 +150,42 @@ char *buf;
 	else
 		fd = lun_lookup (fd);
 #   endif
+/*
+ * When the assumption that an unsigned int is 4 bytes long fails, then
+ * we'll need to do something else
+ */
+	assert (sizeof (unsigned int) == 4);
+
 	Offset = tell (fd);
-	if (read (fd, &rlen, sizeof (int)) < sizeof (int))
+	if (read (fd, &rlen, 4) < 4)
 		return (-1);
+/*
+ * Deal with null records
+ */
 	if (rlen == 0)
+	{
+		read (fd, &rlen, 4);	/* trailing record length */
 		return (0);
+	}
+/*
+ * Data overrun? 
+ */
 	if (rlen > len)
 	{
 		ui_printf ("Data overrun, %d/%d\n", rlen, len);
 		read (fd, buf, len);
-		lseek (fd, (long) rlen - len, 1); /* skip rest of rec */
+	/*
+	 * Skip the rest of the record, including the 4 byte record length
+	 * at the end of the record
+	 */
+		lseek (fd, (long) rlen - len + 4, 1);
 		return (len);
 	}
+/*
+ * Normal read
+ */
 	read (fd, buf, rlen);
+	read (fd, &rlen, 4);	/* trailing record length */
 	return (rlen);
 # else
 	return (dget (fd, buf, len));
@@ -187,10 +211,17 @@ char *buf;
 	else
 		fd = lun_lookup (fd);
 # endif
+/*
+ * When the assumption that an unsigned int is 4 bytes long fails, then
+ * we'll need to do something else
+ */
+	assert (sizeof (unsigned int) == 4);
+
 	Offset = tell (fd);
-	write (fd, &rlen, sizeof (unsigned int));
+	write (fd, &rlen, 4);
 	if (rlen > 0)
 		write (fd, buf, len);
+	write (fd, &rlen, 4);
 # else
 	dput (fd, buf, len);
 # endif
