@@ -2,7 +2,7 @@
 #
 # This is an attempt at a generalized zebra startup script.
 #
-# $Id: zstart.sh,v 1.14 2002-04-17 22:53:04 burghart Exp $
+# $Id: zstart.sh,v 1.15 2002-04-19 01:22:32 burghart Exp $
 #
 # Here we do basic location of directories, set environment variables,
 # and try to hand things off to a project-specific startup file.
@@ -102,7 +102,12 @@ echo "To see the project options, this _may_ work: $0 <project> help"
 			set dmonly=1
 			breaksw
 		    case -ds:
+		    case -dsonly:
 			set dsonly=1
+			breaksw
+		    case -dshost:
+			setenv DS_DAEMON_HOST $argv[2]
+			shift
 			breaksw
 		    case -shell:
 			set execshell=1
@@ -184,20 +189,22 @@ again:
 	if (! $?ZEB_ZSTART ) setenv ZEB_ZSTART $ZEB_TOPDIR/bin/zstart
 	if ( $?DS_DAEMON_HOST ) then
 
+		echo "Using DS_DAEMON_HOST $DS_DAEMON_HOST"
 		if (! $?DS_DAEMON_SESSION ) then
 			setenv DS_DAEMON_SESSION "$DS_DAEMON_HOST"
 		endif
 		if ($DS_DAEMON_SESSION != $SESSION) then
-
-	 		ssh $DS_DAEMON_HOST $ZEB_ZSTART -ds -n \
-				-s $DS_DAEMON_SESSION $ZEB_PROJDIR
+	 		ssh -n $DS_DAEMON_HOST $ZEB_ZSTART -ds -n \
+				-dshost $DS_DAEMON_HOST \
+				-s $DS_DAEMON_SESSION $ZEB_PROJDIR &
 			if ( $status != 0 ) then
-			  echo "No datastore session on host $DS_DAEMON_HOST."
+			  echo "Unable to start DS via ssh on $DS_DAEMON_HOST."
 		 	  exit 1
 			endif
 			# Clients actually need the session name, 
 			# not the host, in case they're different
 			setenv DS_DAEMON_HOST "$DS_DAEMON_SESSION"
+			if ($dsonly) setenv ZEB_EVENTLOGGER ""
 		else
 			# Check for a datastore-session-specific socket
 			if ($?DS_DAEMON_SOCKET) then
@@ -395,6 +402,15 @@ restart_prompt:
 # there is not a pointer to a remote host, however.
 #
 	if ($?DS_DAEMON_HOST) then
+		echo "Waiting for DS_Daemon on $DS_DAEMON_HOST..."
+		$ZEB_TOPDIR/bin/msg_ping -t 30 DS_Daemon@$DS_DAEMON_HOST
+		if ( $status == 0 ) then
+		    echo "...done"
+		else
+		    echo "Zebra startup on $DS_DAEMON_HOST " \ 
+			"is taking too long"
+		    exit 1
+		endif
 		echo '	(DS Daemon running on' $DS_DAEMON_HOST ')'
 	else
 		echo '	datastore '
