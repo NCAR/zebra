@@ -15,9 +15,9 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.16 1996-05-01 20:29:57 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.17 1996-06-19 22:30:46 burghart Exp $"
 
-LIBS = $(DFALIBS) $(ZLIBS) $(XLIBS) $(LIBPCAP)
+LIBS = $(DFALIBS) $(ZLIBS) $(XLIBS)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
 SRCS =  radar_ingest.c adrad_ingest.c adradInput.c Input.c mtape.c \
@@ -46,7 +46,7 @@ DISTFILES = Imakefile $(SRCS) $(HDRS) $(APPDEFAULTS) $(STATES) $(PARAMS)
 AllTarget(radar_ingest)
 NormalProgramTarget(radar_ingest,radar_ingest.o mtape.o Rasterize.o
 	StatusWidget.o Input.o cp2.o PCapInput.o BeamBuffer.o, \
-	$(DEPLIBS),$(LIBS),$(SYSLIBS))
+	$(DEPLIBS),$(LIBS) $(LIBPCAP),$(SYSLIBS))
 
 NormalProgramTarget(btest, btest.o BeamBuffer.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
