@@ -25,7 +25,7 @@
 # include <DataChunk.h>
 # include "GraphProc.h"
 # include "rg_status.h"
-MAKE_RCSID ("$Id: GridAccess.c,v 2.10 1992-12-09 21:40:23 corbet Exp $")
+MAKE_RCSID ("$Id: GridAccess.c,v 2.11 1992-12-15 18:26:50 corbet Exp $")
 
 
 
@@ -426,7 +426,15 @@ char		*field, *platform, *comp;
  */
 	if (! pda_Search (Pd, comp, "grid-method", platform, method,
 		SYMT_STRING) || ! strcmp (method, "rgrid"))
+	{
+		if (dc_IRGetNPlatform (*dc) > 100)
+		{
+			msg_ELog (EF_PROBLEM, "too many stations for rgrid");
+			return (ga_BarnesRegularize (dc, field, platform,
+					comp, TRUE));
+		}
 		return (ga_RgridRegularize (dc, field));
+	}
 	else if (! strcmp (method, "barnes"))
 		return ga_BarnesRegularize (dc, field, platform, comp, TRUE);
 	else if (! strcmp (method, "closest-point"))
