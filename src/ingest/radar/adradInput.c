@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: adradInput.c,v 2.2 1994-02-02 19:29:39 burghart Exp $";
+static char *rcsid = "$Id: adradInput.c,v 2.3 1994-04-21 16:24:48 burghart Exp $";
 
 # include <sys/types.h>
 # include <sys/time.h>
@@ -28,9 +28,11 @@ static char *rcsid = "$Id: adradInput.c,v 2.2 1994-02-02 19:29:39 burghart Exp $
 # include <message.h>
 # include "HouseKeeping.h"
 # include "radar_ingest.h"
+
 /*
  * Adrad includes for xdr, etc.
  */
+
 #include "raw.h"
 #include "portable.h"
 #include "sunrise_head.h"
@@ -68,7 +70,10 @@ FILE *f;
 #define OK 0
 #define ERROR -1
 #define FAIL -1
-
+/* 1/3/94 (D.A.) external velocity var 	*/
+extern float Vu; 
+/* 1/10/93 (D.A.) external array of fields	*/
+extern char adfields[5];
 
 
 
@@ -110,11 +115,14 @@ struct sunrise_head             head;
         xdrstdio_create(&xdrstrm, f, XDR_DECODE);
 
         /* first we need to read the adrad volume header        */
-        if(accessvolhead(&xdrstrm,vol,RAW_VERSION)!=0)
+		/* !!! D.A. corrected pass-by-value error; needed &vol, not vol	*/
+        if(accessvolhead(&xdrstrm,&vol,RAW_VERSION)!=0)
                 printf("Err:version number mismatch\n");
+/*!!!
+		printf("vol.freq= %d \n",vol.freq);*/
       		  
 }
-
+ 
 Beam 
 GetBeam ()
 /*
@@ -123,23 +131,34 @@ GetBeam ()
 {
 struct ray_header               tmpray;
 int numfields=0,status,size,i;
+unsigned int freqint;
 float londeg,latdeg,tmp;
+float vtemp1,vtemp2;
+float C=299792500.0; /* ye olde speed limit m/s */
 
 	Nbeam++;
 	if( accessrayhead( &xdrstrm, &tmpray ) != OK )
 		return (NULL);
 
 	/* find numfields	*/
+	/* 1/10/94 (D.A.) changes for field name passing made here	*/
+
 	if(tmpray.flags.uz)
-		numfields++;
+		adfields[numfields++]='u';
+
 	if(tmpray.flags.cz)
-		numfields++;
+		adfields[numfields++]='c';
+
 	if(tmpray.flags.vel)
-		numfields++;
+		adfields[numfields++]='v';
+
 	if(tmpray.flags.wid)
-		numfields++;
+		adfields[numfields++]='w';
+
 	if(tmpray.flags.zdr)
-		numfields++;
+		adfields[numfields++]='z';
+
+	/* as of 1/3/94, adrad radar does not collect zdr field; maybe later	*/
 
 	Bst.b_hk=&b_hk;
 
@@ -159,7 +178,18 @@ float londeg,latdeg,tmp;
 	b_hk.gate_spacing=tmpray.gatewid;	/* gate spacing (m) = */
 	b_hk.gates_per_beam=tmpray.numgates;	/* gates per beam = 1024 */
 	b_hk.sweep_index=tmpray.sweep;	/* identifies the sweep (scan) in */
-					/* the volume scan (#'s 1 - 16) */
+
+	/* 1/3/94 calculate unambiguous velocity from ray header (D.A.) */
+	vtemp1=C*((vol.prf)/10.0); /*error in docs; prf=10*Hz!! */
+	freqint=vol.freq;
+	vtemp2=4*((vol.freq)*100000.0);
+	Vu=vtemp1/vtemp2;
+/*!!!
+        printf("values: vtemp1= %4.4f freqint= %d \n",vtemp1,freqint);
+        printf("values: vol.freq= %4.4f \n",vol.freq);
+        printf("value of Vu here is: %4.4f  \n",Vu);*/
+
+	/* the volume scan (#'s 1 - 16) */
 	switch(tmpray.sweep_type)
 	{
 		case SWEEP_POINT:
@@ -206,6 +236,17 @@ float londeg,latdeg,tmp;
 		die ();
        	 }
 
+	/* 1/4/93 (D.A.) added bad value filter loop	*/
+	/* now we have to loop through the data to switch bad data values*/
+	/* lassen uses 0, zeb uses 255		*/
+	/* we lose one data point here, but it can't be helped	*/
+
+	for(i=0; i < numfields*(tmpray.numgates); i++)	
+	{
+		if (raydata[i]==0)
+			raydata[i]=255;
+	}
+	
 	for (i = 0; i < numfields; i++)
 	{
 		Bst.b_gdesc[i].gd_data = raydata + i * tmpray.numgates;

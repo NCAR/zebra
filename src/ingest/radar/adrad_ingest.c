@@ -22,7 +22,7 @@
 
 /* rewrite for adrad data input by Dan Austin 8/93	*/
 
-static char *rcsid = "$Id: adrad_ingest.c,v 2.3 1994-02-02 19:29:41 burghart Exp $";
+static char *rcsid = "$Id: adrad_ingest.c,v 2.4 1994-04-21 16:24:50 burghart Exp $";
 
 /* clean up includes later	*/
 # include <copyright.h>
@@ -119,6 +119,10 @@ static char **Argv;
 XDR xdrstrm;
 FILE *f;
 struct volume_summary vol;
+/* 1/4/94 (D.A.) added global for ambiguous velocity	*/
+float Vu;
+/* 1/10/94 (D.A.) added global for fields 	*/
+char adfields[5]; 
 
 /* function declarations 	*/
 static int Dispatcher FP ((int, struct ui_command *));
@@ -404,12 +408,43 @@ Go ()
 	/* set the scaling & etc.	*/
 	beam = GetBeam ();
 	hk = beam->b_hk;
+
+/*!!!*/
+    /*for(i=0;i<5;i++)
+        printf("adfields value is: %d %c \n",i,adfields[i]);
+        printf("unfolded velocity value is: %f.4  \n",Vu);*/
+
 	for (i = 0; i < NField; i++)
 	{
-		Scale[i].s_Scale = 1.0;
-		Scale[i].s_Offset = 0.0;
-		msg_ELog (EF_INFO, "%s scale %.2f bias %.2f", Fields[i], 
-			   Scale[i].s_Scale, Scale[i].s_Offset);
+		/* 1/4/94 (D.A.) added correct scaling tests here for fields	*/
+
+
+		if(adfields[i]=='c' || adfields[i]=='u')
+		{
+			Scale[i].s_Scale = 0.5;
+			Scale[i].s_Offset = -32.0;
+			/*printf("field mnemonic is: %c \n",adfields[i]);*/
+			msg_ELog (EF_INFO, "%s scale %.2f bias %.2f", Fields[i], 
+				   Scale[i].s_Scale, Scale[i].s_Offset);
+		}
+
+		if(adfields[i]=='v')
+		{
+			Scale[i].s_Scale = Vu/128.0;
+			Scale[i].s_Offset = -Vu;
+			/*printf("field mnemonic is: %c \n",adfields[i]);*/
+			msg_ELog (EF_INFO, "%s scale %.2f bias %.2f", Fields[i], 
+				   Scale[i].s_Scale, Scale[i].s_Offset);
+		}
+
+		if(adfields[i]=='w')
+		{
+			Scale[i].s_Scale = Vu/256.0;
+			Scale[i].s_Offset = 0.0;
+			/*printf("field mnemonic is: %c \n",adfields[i]);*/
+			msg_ELog (EF_INFO, "%s scale %.2f bias %.2f", Fields[i], 
+				   Scale[i].s_Scale, Scale[i].s_Offset);
+		}
 	}
 /*
  * Now plow through the beams.
