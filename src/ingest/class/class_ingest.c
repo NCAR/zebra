@@ -1,5 +1,5 @@
 /*
- * $Id: class_ingest.c,v 2.13 1994-05-24 02:35:24 granger Exp $
+ * $Id: class_ingest.c,v 2.14 1994-07-07 22:01:04 corbet Exp $
  *
  * Ingest CLASS data into the system.
  *
@@ -32,7 +32,7 @@
 
 #ifndef lint
 MAKE_RCSID(
-   "$Id: class_ingest.c,v 2.13 1994-05-24 02:35:24 granger Exp $")
+   "$Id: class_ingest.c,v 2.14 1994-07-07 22:01:04 corbet Exp $")
 #endif
 
 static void	Usage FP((char *prog_name));
@@ -700,3 +700,9 @@ char	*ret, *text;
 	else
 		return ((char *) 0);
 }
+
+
+/*
+ * Suds lib seems to need this these days.
+ */
+main_dump_cmd () {}
