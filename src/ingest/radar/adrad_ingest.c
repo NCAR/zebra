@@ -22,7 +22,7 @@
 
 /* rewrite for adrad data input by Dan Austin 8/93	*/
 
-static char *rcsid = "$Id: adrad_ingest.c,v 2.2 1993-10-05 16:14:16 burghart Exp $";
+static char *rcsid = "$Id: adrad_ingest.c,v 2.3 1994-02-02 19:29:41 burghart Exp $";
 
 /* clean up includes later	*/
 # include <copyright.h>
@@ -132,7 +132,7 @@ static void SetConsumer FP ((struct ui_command *));
 static void InvokeConsumer FP ((void));
 static int MHandler FP ((Message *));
 static void CheckMessages FP ((void));
-int die(void);
+int die FP ((void));
 
 /* main loop 	*/
 

@@ -46,7 +46,8 @@ char		*Databuf;
 
 
 void 
-FileInput (char *file)
+FileInput (file)
+char	*file;
 /*
  * Make a note of file input. Where does this come in???
  */
@@ -250,7 +251,7 @@ ScaleInfo	*scale;
 
 	Bst.b_gdesc[0].gd_first = 1;
 	Bst.b_gdesc[0].gd_ngate = numgates;
-	Bst.b_gdesc[0].gd_data = Databuf;
+	Bst.b_gdesc[0].gd_data = (unsigned char *) Databuf;
 /*
  * Do the per-field stuff
  */

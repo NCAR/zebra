@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: adradInput.c,v 2.1 1993-08-18 15:34:30 burghart Exp $";
+static char *rcsid = "$Id: adradInput.c,v 2.2 1994-02-02 19:29:39 burghart Exp $";
 
 # include <sys/types.h>
 # include <sys/time.h>
@@ -74,7 +74,8 @@ FILE *f;
 
 
 void 
-FileInput (char *file)
+FileInput (file)
+char	*file;
 /*
  * Make a note of file input.
  */
@@ -115,7 +116,7 @@ struct sunrise_head             head;
 }
 
 Beam 
-GetBeam (void)
+GetBeam ()
 /*
  * Return a beam to the rasterizer. Routine modified for adrad data.
  */
@@ -341,7 +342,9 @@ FILE *f;
  *				  xdr_u_char().
  *
  ******************************************************************************/
-int accessrayhead( XDR *xdrptr, struct ray_header *rayptr )
+int accessrayhead (xdrptr, rayptr)
+XDR	*xdrptr;
+struct ray_header	*rayptr;
 {
 	register int	i, ret = 1;
 
