@@ -1,7 +1,7 @@
 /*
  * Ingest scheduler
  */
-static char    *rcsid = "$Id: is.c,v 1.9 1992-01-17 16:33:53 martin Exp $";
+static char    *rcsid = "$Id: is.c,v 1.10 1992-02-07 17:56:19 martin Exp $";
 
 /*
  * Copyright (C) 1987,88,89,90,91 by UCAR University Corporation for
@@ -43,8 +43,14 @@ void            sigchldHandler();
 
 #ifdef __STDC__
 int             is_shutdown(void);
+char           *substitute(char *, char *, char *);
+char           *last_part(char *, int);
+
 #else
 is_shutdown();
+char           *substitute();
+char           *last_part();
+
 #endif
 
 /*
@@ -675,6 +681,7 @@ cfg_go(cfg)
 	static char    *new_args[MAX_PROC_ARGS];
 	extern int      errno;
 	struct proc_entry *this_proc = NEW(struct proc_entry);
+	char           *ptr_proc, *ptr_ifile;
 
 	/*
 	 * this is the most important function in the whole mess. It is
@@ -692,10 +699,10 @@ cfg_go(cfg)
 		new_args[i] = NULL;
 
 	for (i = 0; i < cfg->n_proc_args; i++)
-		if (!strcmp("$p", cfg->proc_args[i]))
-			new_args[i] = cfg->platform;
-		else if (!strcmp("$f", cfg->proc_args[i]))
-			new_args[i] = cfg->ingest_file;
+		if (strstr(cfg->proc_args[i], "$p"))
+			new_args[i] = substitute(cfg->proc_args[i], "$p", cfg->platform);
+		else if (strstr(cfg->proc_args[i], "$f"))
+			new_args[i] = substitute(cfg->proc_args[i], "$f", cfg->ingest_file);
 		else
 			new_args[i] = cfg->proc_args[i];
 
@@ -742,7 +749,10 @@ cfg_go(cfg)
 		 */
 		sleep(1);
 
-		/* allow child to take full responsibilty and get all of his signals */
+		/*
+		 * allow child to take full responsibilty and get all of his
+		 * signals
+		 */
 		sigsetmask(0);
 
 		execv(cfg->process, new_args);
@@ -766,21 +776,27 @@ cfg_go(cfg)
 			else
 				cfg->timer = FALSE;
 
+
 			switch (cfg->type) {
+
 			case IS_FTYPE:
+				ptr_proc = last_part(cfg->process, '/');
+				ptr_ifile = last_part(cfg->ingest_file, '/');
 				msg_ELog(EF_INFO,
 					 "%s:file [%d]%s f=%s",
-					 cfg->name, pid, cfg->process, cfg->ingest_file);
+				       cfg->name, pid, ptr_proc, ptr_ifile);
 				break;
 			case IS_PTYPE:
+				ptr_proc = last_part(cfg->process, '/');
 				msg_ELog(EF_INFO,
 					 "%s:periodic [%d]%s rep:%d",
-				cfg->name, pid, cfg->process, cfg->interval);
+				   cfg->name, pid, ptr_proc, cfg->interval);
 				break;
 			case IS_CTYPE:
+				ptr_proc = last_part(cfg->process, '/');
 				msg_ELog(EF_INFO,
 					 "%s:continuous [%d]%s",
-					 cfg->name, pid, cfg->process);
+					 cfg->name, pid, ptr_proc);
 				break;
 			}
 		}
@@ -1188,4 +1204,67 @@ init_cfg(cmds, cfg, name)
 	cfg->rollover = FALSE;
 	cfg->restart = FALSE;
 	cfg->n_restarts = 0;
+}
+/**************************************************************************/
+char           *
+substitute(source, pattern, string)
+	char           *source;
+	char           *pattern;
+	char           *string;
+/*
+ * replace only one occurance of pattern in source with string
+ * 
+ * return is dynamically allocated, and should be freed when finished.
+ * 
+ */
+{
+	char           *starts_at;
+	char           *ends_at;
+	char           *ret;
+
+	if (strstr(source, pattern)) {
+		ret = malloc(strlen(source) - strlen(pattern) + strlen(string) + 1);
+
+		ret[0] = 0;
+
+		starts_at = strstr(source, pattern);
+
+		ends_at = starts_at + strlen(pattern);
+
+		strncpy(ret, source, starts_at - source);
+		strcat(ret, string);
+		strcat(ret, ends_at);
+
+	} else {
+		/* pattern not found, just return original source */
+		ret = malloc(strlen(source) + 1);
+		strcpy(ret, source);
+	}
+	return (ret);
+}
+/**************************************************************************/
+char           *
+last_part(str, cc)
+	char           *str;
+	char            cc;
+
+/*
+ * returns pointer to the substring found after the character c, or the whole
+ * string if it is not found
+ */
+
+
+{
+
+	char           *temp;
+
+	if (!str)
+		return ((char *) 0);
+
+	temp = strrchr(str, cc);
+
+	if (temp)
+		return (temp);
+	else
+		return (str);
 }
