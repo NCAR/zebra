@@ -1,5 +1,5 @@
 /*
- * $Id: class_ingest.c,v 2.10 1993-01-27 18:38:47 mueller Exp $
+ * $Id: class_ingest.c,v 2.11 1993-02-19 23:06:48 burghart Exp $
  *
  * Ingest CLASS data into the system.
  *
@@ -24,12 +24,15 @@
  * maintenance or updates for its software.
  */
 
+#include <errno.h>
+#include <stdio.h>
+#include <string.h>
 #include "ingest.h"
 #include <copyright.h>
 
 #ifndef lint
 MAKE_RCSID(
-   "$Id: class_ingest.c,v 2.10 1993-01-27 18:38:47 mueller Exp $")
+   "$Id: class_ingest.c,v 2.11 1993-02-19 23:06:48 burghart Exp $")
 #endif
 
 static void	Usage FP((char *prog_name));
@@ -40,15 +43,34 @@ static void	ParseCommandLineOptions FP((int *argc, char *argv[]));
 static void   	ParseFieldNames FP((int argc, char *argv[],
 				    FieldId *fields, int *nfields));
 static void 	LoadFieldData FP((DataChunk *dc, ZebTime *times,
-			  int nsamples, FieldId *fields, int nfields));
+			int nsamples, FieldId *fields, int nfields,
+			bool reverse));
 ZebTime *	GetTimes FP((int *npts));
-
+static void	BuildTranslationTable FP ((void));
+static char *	GetNextString FP ((char *, char*));
 
 # define INGEST_NAME "class_ingest"
 # define SND	"snd"
 # define BUFLEN	1024
 # define BADVAL -9999.0
 # define MAX_FIELDS 32
+
+/*
+ * Structure to build a linked list of site name -> platform name translations
+ */
+typedef struct _SiteTrans {
+	char	*site;
+	int	slen;
+	char	*plat;
+	struct _SiteTrans	*next;
+} SiteTranslation;
+
+static SiteTranslation	*SiteTransList = (SiteTranslation *) 0;
+
+/*
+ * The name of the site name -> platform name translations file (if any)
+ */
+static char	*Tfilename = NULL;
 
 /*
  * Define all large data buffers globally:
@@ -84,8 +106,11 @@ int main (argc, argv)
 				 * user has specified on the cmd-line */
 	int nfields;		/* The number of fields to be stored */
 	ZebTime *times;		/* Times for ea. sample in the s'nding file */
+	ZebTime temp;
 	int nsamples;		/* Number of samples, or pts, in the file */
 	DataChunk *Dchunk;   	/* The DataChunk will be building */
+	bool reverse;		/* Reverse samples? */
+	int i;
 	static struct ui_command end_cmd = { UTT_END };
 	static char ctime[40];
 
@@ -116,7 +141,10 @@ ERRORCATCH
  * Initialize usy, message, DataStore, and fields all at once
  */
 	IngestInitialize(INGEST_NAME);
-
+/*
+ * Build the table for special site name -> platform name translations
+ */ 
+	BuildTranslationTable ();
 /*
  * Create a new data chunk, get the field list from the command line
  * and set up these fields in the Dchunk, including our bad_value_flag
@@ -134,20 +162,34 @@ ERRORCATCH
 /*
  * Open sounding file, get platform name and check for validity
  */
+	IngestLog (EF_INFO, "Ingesting '%s'", filename);
+
 	GetPlatformName(filename, plat);
 	if (IngestLogFlags & (EF_DEBUG | EF_INFO)) snd_show(&end_cmd);
-	IngestLog(EF_INFO, "Platform: %s, File: %s", plat, filename);
+
 	if ((Dchunk->dc_Platform = ds_LookupPlatform (plat)) == BadPlatform)
 		ui_error ("Unknown platform: %s", plat);
 	if (DumpDataChunk)
-		IngestLog(EF_DEBUG,
-		    "Dumping data chunks to stdout");
-	if (DumpDataChunk) dc_DumpDC(Dchunk);
+	{
+		IngestLog (EF_DEBUG, "Dumping data chunks to stdout");
+		dc_DumpDC (Dchunk);
+	}
 
 /*
  * Get the times and locations
  */
 	times = GetTimes (&nsamples);
+	reverse = TC_Less (times[nsamples-1], times[0]);
+	if (reverse)
+	{
+		for (i = 0; i < nsamples / 2; i++)
+		{
+			temp = times[i];
+			times[i] = times[nsamples - i - 1];
+			times[nsamples - i - 1] = temp;
+		}
+	}
+
 	TC_EncodeTime(times, TC_Full, ctime);
 	IngestLog(EF_INFO, "%s: %d samples found, starting at %s", 
 		      plat, nsamples, ctime);
@@ -155,7 +197,7 @@ ERRORCATCH
 /*
  * Load the data for each field into the data chunk 
  */
-	LoadFieldData(Dchunk, times, nsamples, fields, nfields);
+	LoadFieldData(Dchunk, times, nsamples, fields, nfields, reverse);
 	IngestLog(EF_DEBUG,"%s: each field has been loaded", plat);
 	if (DumpDataChunk) dc_DumpDC(Dchunk);
 
@@ -181,7 +223,7 @@ ON_ERROR
 	IngestLog(EF_EMERGENCY,"Error occurred.  Aborting...");
 	exit (1);
 ENDCATCH
-	IngestLog(EF_DEBUG, "Exiting...");
+	IngestLog(EF_DEBUG, "Finished...");
 	exit (0);
 }
 
@@ -211,7 +253,6 @@ GetTimes (npts)
  * Allocate the times array
  */
 	times = (ZebTime *) malloc (Npts * sizeof(ZebTime));
-
 /*
  * Convert the sounding times, which are in seconds from sounding launch,
  * into absolute times and then convert them to ZebTime
@@ -306,185 +347,47 @@ GetPlatformName (classfile, plat)
 	char *snd_site FP((char *));
 	char *site;
 	int i;
+	SiteTranslation	*strans;
 
 /*
  * Load the sounding file (0 indicates we're loading a CLASS format file)
  */
 	snd_load_file (classfile, 0, SND);
 /*
- * Get the site name and figure out the platform
+ * Get the site name and make it lower case
  */
 	site = snd_site (SND);
 
-	if ((sscanf (site, "FIXED, %s", plat) == 1) ||
-	             (sscanf (site, "FIXED %s", plat) == 1))
-	{
-	        if (! strcmp (plat, "HYS") || !strcmp (plat, "COU") ||
-		           ! strcmp (plat, "EAR"))
-		{
-		     char ptmp[50];
-		     strcpy (ptmp, plat);
-		     sprintf (plat, "s%s", ptmp);
-		}
-		/* do nothing */
-	}
-	else if (sscanf (site, "MOBILE, %s", plat) == 1)
-		/* do nothing */;
-	else if (sscanf (site, "MOBILE %s", plat) == 1)
-		/* do nothing */;
-
-        /* This is where it gets REALLY ugly */
-
-        /* NWSI */
-        else if (strncmp (site, "Albuquerque, NM", 15) == 0)
-                strcpy (plat, "abq");
-        else if (strncmp (site, "Amarillo, TX", 12) == 0)
-                strcpy (plat, "sama");
-        else if (strncmp (site, "Dodge City, KS", 14) == 0)
-                strcpy (plat, "sddc");
-        else if (strncmp (site, "Denver, CO", 10) == 0)
-                strcpy (plat, "den");
-        else if (strncmp (site, "El Paso, TX", 11) == 0)
-                strcpy (plat, "elp");
-        else if (strncmp (site, "Longview, TX", 12) == 0)
-                strcpy (plat, "ggg");
-        else if (strncmp (site, "Grand Junction, CO", 18) == 0)
-                strcpy (plat, "sgjt");
-        else if (strncmp (site, "Green Bay, WI", 13) == 0)
-                strcpy (plat, "sgrb");
-        else if (strncmp (site, "Huron, SD", 9) == 0)
-                strcpy (plat, "shon");
-        else if (strncmp (site, "North Platte, NE", 16) == 0)
-                strcpy (plat, "lbf");
-        else if (strncmp (site, "North Little Rock, AR", 21) == 0)
-                strcpy (plat, "slit");
-        else if (strncmp (site, "Lander, WY", 10) == 0)
-                strcpy (plat, "lnd");
-        else if (strncmp (site, "Midland, TX", 11) == 0)
-                strcpy (plat, "maf");
-        else if (strncmp (site, "Omaha, NE", 9) == 0)
-                strcpy (plat, "oma");
-        else if (strncmp (site, "Norman, OK", 10) == 0)
-                strcpy (plat, "oun");
-        else if (strncmp (site, "Paducah, KY", 11) == 0)
-                strcpy (plat, "pah");
-        else if (strncmp (site, "Peoria, IL", 10) == 0)
-                strcpy (plat, "spia");
-        else if (strncmp (site, "Rapid City, SD", 14) == 0)
-                strcpy (plat, "rap");
-        else if (strncmp (site, "Stephenville, TX", 16) == 0)
-                strcpy (plat, "ssep");
-        else if (strncmp (site, "St Cloud, MN", 12) == 0)
-                strcpy (plat, "sstc");
-        else if (strncmp (site, "Topeka, KS", 10) == 0)
-                strcpy (plat, "stop");
-        else if (strncmp (site, "Monett, MO", 10) == 0)
-                strcpy (plat, "umn");
-
-        /* NWSO */
-        else if (strncmp (site, "Bismarck, ND", 12) == 0)
-                strcpy (plat, "sbis");
-        else if (strncmp (site, "Desert Rock, NV", 15) == 0)
-                strcpy (plat, "sdra");
-        else if (strncmp (site, "Boise, ID", 9) == 0)
-                strcpy (plat, "sboi");
-        else if (strncmp (site, "Ely, NV", 7) == 0)
-                strcpy (plat, "sely");
-        else if (strncmp (site, "Spokane, WA", 11) == 0)
-                strcpy (plat, "geg");
-        else if (strncmp (site, "Glasgow, MT", 11) == 0)
-                strcpy (plat, "sggw");
-        else if (strncmp (site, "Great Falls, MT", 15) == 0)
-                strcpy (plat, "gtf");
-        else if (strncmp (site, "Winslow, AZ", 11) == 0)
-                strcpy (plat, "sinw");
-        else if (strncmp (site, "Salt Lake City, UT", 18) == 0)
-                strcpy (plat, "slc");
-        else if (strncmp (site, "Tucson, AZ", 10) == 0)
-                strcpy (plat, "tus");
-        else if (strncmp (site, "Winnemucca, NV", 14) == 0)
-                strcpy (plat, "swmc");
-
-        /* PICK */
-        else if (strncmp (site, "Kodiak, AK", 10) == 0)
-                strcpy (plat, "adq");
-        else if (strncmp (site, "Medford, OR", 11) == 0)
-                strcpy (plat, "mfr");
-        else if (strncmp (site, "San Diego, CA", 13) == 0)
-                strcpy (plat, "myf");
-        else if (strncmp (site, "Oakland, CA", 11) == 0)
-                strcpy (plat, "oak");
-        else if (strncmp (site, "Salem, OR", 9) == 0)
-                strcpy (plat, "ssle");
-        else if (strncmp (site, "Quillayute, WA", 14) == 0)
-                strcpy (plat, "suil");
-        else if (strncmp (site, "Annette, AK", 11) == 0)
-                strcpy (plat, "ann");
-        else if (strncmp (site, "Yakutat, AK", 11) == 0)
-                strcpy (plat, "yak");
-
-        /* AES */
-        else if (strncmp (site, "WSE Edmonton-Stony Plain", 10) == 0)
-                strcpy (plat, "wse");
-        else if (strncmp (site, "WVK Vernon", 10) == 0)
-                strcpy (plat, "wvk");
-        else if (strncmp (site, "WSE Edmonton-Stony Plain", 10) == 0)
-                strcpy (plat, "wse");
-        else if (strncmp (site, "YEV Inuvik", 10) == 0)
-                strcpy (plat, "yev");
-        else if (strncmp (site, "YSM Fort Smith", 10) == 0)
-                strcpy (plat, "ysm");
-        else if (strncmp (site, "YVQ Norman Wells", 10) == 0)
-                strcpy (plat, "yvq");
-        else if (strncmp (site, "YXS Price George", 10) == 0)
-                strcpy (plat, "yxs");
-        else if (strncmp (site, "YXY Whitehorse", 10) == 0)
-                strcpy (plat, "yxy");
-        else if (strncmp (site, "YZT Port Hardy.", 10) == 0)
-                strcpy (plat, "yzt");
-
-	/* Air Weather Service Dropsonde*/
-
-        else if (strncmp (site, "AWS C130 CDH", 10) == 0)
-                strcpy (plat, "aws");
-
-	/* Flatland */
-
-        else if (strncmp (site, "WIL Flatlands, IL", 10) == 0)
-                strcpy (plat, "wil");
-
-	/* Fort Sill */
-
-        else if (strncmp (site, "FSI Fort Sill", 10) == 0)
-                strcpy (plat, "fsi");
-
-	/* Picket Fence */
-
-        else if (strncmp (site, "CGO Cottage Grove, OR.", 10) == 0)
-                strcpy (plat, "cgo");
-        else if (strncmp (site, "ILA Williams, CA.", 10) == 0)
-                strcpy (plat, "ila");
-        else if (strncmp (site, "NPS Monterey, CA.", 10) == 0)
-                strcpy (plat, "nps");
-        else if (strncmp (site, "NTD Point Mugu, CA.", 10) == 0)
-                strcpy (plat, "ntd");
-        else if (strncmp (site, "OLM Longview Olympia, WA.", 10) == 0)
-                strcpy (plat, "olm");
-        else if (strncmp (site, "PRB Pasarobles, CA.", 10) == 0)
-                strcpy (plat, "prb");
-        else if (strncmp (site, "RDD Redding, CA.", 10) == 0)
-	        strcpy (plat, "rdd");
-        else if (strncmp (site, "VBG Vandenberg AFB, CA.", 10) == 0)
-                strcpy (plat, "vbg");
-
-        /* It's over!  If we haven't got it yet, just give up! */
-	else
-		strcpy (plat, site);
-/*
- * Make the platform name lower case
- */
 	for (i = 0; i < strlen (site); i++)
-		plat[i] = tolower (plat[i]);
+		site[i] = tolower (site[i]);
+/*
+ * Convert the site name to a platform name.
+ * First check against the translation list, then look for the CLASS
+ * standard "FIXED, xxx" or "MOBILE, xxx".  Otherwise, just use the
+ * site name as the platform name.
+ */
+	strans = SiteTransList;
+	while (strans)
+	{
+		if (! strncmp (site, strans->site, strans->slen))
+		{
+			strcpy (plat, strans->plat);
+			break;
+		}
+
+		strans = strans->next;
+	}
+
+	if (! strans)
+	{
+		if ((sscanf (site, "FIXED, %s", plat) == 1) ||
+			(sscanf (site, "FIXED %s", plat) == 1) ||
+			(sscanf (site, "MOBILE, %s", plat) == 1) ||
+			(sscanf (site, "MOBILE %s", plat) == 1))
+			/* do nothing */;
+		else
+			strcpy (plat, site);
+	}
 }
 
 
@@ -514,18 +417,20 @@ ParseCommandLineOptions(argc, argv)
 			 streq(argv[i],"-s"))
 		{
 		   DumpDataChunk = (char)1;
+		   IngestRemoveOptions(argc, argv, i, 1);
 		}
 		else if (streq(argv[i],"-fields"))
 		{
 		   JustShowFields = (char)1;
+		   IngestRemoveOptions(argc, argv, i, 1);
+		}
+		else if (! strncmp (argv[i], "-t", 2))
+		{
+		   Tfilename = strdup (argv[i+1]);
+		   IngestRemoveOptions (argc, argv, i, 2);
 		}
 		else
-		{
 		   ++i;
-		   continue;
-		}
-
-		IngestRemoveOptions(argc, argv, i, 1);
 	}
 }
 
@@ -534,12 +439,13 @@ static void
 Usage(prog)
 	char *prog;
 {
-	printf ("Usage: %s [options] file fields\n",prog);
-	printf ("       %s -fields file\n",prog);
+	printf ("Usage: %s [options] <file> <fields>\n",prog);
+	printf ("       %s -fields <file>\n",prog);
 	printf ("       %s -help\n",prog);
 	printf ("\nOptions:\n");
 	printf ("   -show, -s		Dump data chunk as it's built\n");
 	printf ("   -fields		Describe the sounding file\n");
+	printf ("   -trans <tfile>	Use the site/platform translations in 'tfile'\n");
 	printf ("\n");
 	IngestUsage();
 	printf ("\nExamples:\n");
@@ -590,20 +496,20 @@ ParseFieldNames(argc, argv, fields, nfields)
  *    Load data from the sounding file for each FieldId in the fields array
  *    into the DataChunk dc.
  *    Each field has nsamples, and times holds the time of each sample
+ *    The order of samples should be reversed if 'reverse' is true
  */
 static void
-LoadFieldData(dc, times, nsamples, fields, nfields)
+LoadFieldData(dc, times, nsamples, fields, nfields, reverse)
 	DataChunk *dc;
 	ZebTime *times;
 	int nsamples;
 	FieldId *fields;
 	int nfields;
+	bool reverse;
 {
-	int Npts = nsamples;
-	int NBad = 0;
+	int nbad = 0;
 	int i, f;
-	float *newdata;
-
+	float temp;
 /*
  * Get pressure and pressure quality fields to build a data removal
  * list
@@ -611,20 +517,20 @@ LoadFieldData(dc, times, nsamples, fields, nfields)
 	snd_get_data (SND, Pres, BUFLEN, fd_num ("pres"), BADVAL);
 	snd_get_data (SND, QPres, BUFLEN, fd_num ("qpres"), BADVAL);
 
-	for (i = 0; i < Npts; i++)
+	for (i = 0; i < nsamples; i++)
 		if (Pres[i] == BADVAL 	|| 
 		    QPres[i] == BADVAL 	|| 
 		    Pres[i] == 0.0 	|| 
 				(QPres[i] > 1.5 && QPres[i] != 77 
 						&& QPres[i] != 88
 						&& QPres[i] != 99))
-			BadPts[NBad++] = i;
+			BadPts[nbad++] = i;
 
 	/* Report the number of bad points found */
-	IngestLog(EF_INFO, "number of bad points found: %d", NBad);
+	IngestLog(EF_INFO, "number of bad points found: %d", nbad);
 
 	/* If there are no good points in this file, say so */
-	if (NBad == Npts)
+	if (nbad == nsamples)
 	{
 		IngestLog(EF_PROBLEM,"no good samples in file");
 		ui_error("No good points to ingest");
@@ -644,8 +550,20 @@ LoadFieldData(dc, times, nsamples, fields, nfields)
 	/*
 	 * Remove the bad points
 	 */
-		for (i = 0; i < NBad; i++)
+		for (i = 0; i < nbad; i++)
 			Buf[BadPts[i]] = BADVAL;
+	/*
+	 * Reverse samples if necessary
+	 */
+		if (reverse)
+		{
+			for (i = 0; i < nsamples / 2; i++)
+			{
+				temp = Buf[i];
+				Buf[i] = Buf[nsamples - i - 1];
+				Buf[nsamples - i - 1] = temp;
+			}
+		}
 
 	/*
 	 * Store the data in the DataChunk dc (it will be copied from Buf)
@@ -656,3 +574,112 @@ LoadFieldData(dc, times, nsamples, fields, nfields)
 }
 
 
+
+
+static void
+BuildTranslationTable ()
+/*
+ * Read 'tfile' and build a table of site name -> platform name translations
+ */
+{
+	int	i;
+	char	line[80], *lp, quote, site[40], plat[40];
+	FILE	*tfile;
+	SiteTranslation	*newtrans;
+/*
+ * Open the file (or just return if there is no translations file)
+ */
+	if (! Tfilename)
+		return;
+
+	tfile = fopen (Tfilename, "r");
+
+	if (! tfile)
+	{
+		IngestLog(EF_PROBLEM, 
+			"Error %d opening translations file '%s'", errno, 
+			Tfilename);
+		ui_error ("Cannot open translations file");
+	}
+/*
+ * Loop to read all the lines from the file
+ */
+	while (fgets (line, sizeof (line), tfile))
+	{
+		line[strlen (line) - 1] = '\0';
+	/*
+	 * Get the site and platform strings from this line
+	 */
+		lp = line;
+		if ((lp = GetNextString (site, lp)) == 0 ||
+			(lp = GetNextString (plat, lp)) == 0)
+		{
+			IngestLog (EF_PROBLEM, "Bad translation line '%s'", 
+				line);
+			ui_error ("Bad site -> platform translation");
+		}
+	/*
+	 * Make things lower case
+	 */
+		for (i = 0; i < strlen (site); i++)
+			site[i] = tolower (site[i]);
+
+		for (i = 0; i < strlen (plat); i++)
+			plat[i] = tolower (plat[i]);
+	/*
+	 * Allocate and build a new entry, making it the head of the
+	 * linked list
+	 */
+		newtrans = (SiteTranslation *) 
+			malloc (sizeof (SiteTranslation));
+
+		newtrans->site = strdup (site);
+		newtrans->slen = strlen (site);
+		newtrans->plat = strdup (plat);
+		newtrans->next = SiteTransList;
+		SiteTransList = newtrans;
+
+		IngestLog(EF_DEBUG, "Site '%s' -> Platform '%s'", site, plat);
+	}
+}
+
+
+
+
+static char*
+GetNextString (ret, text)
+char	*ret, *text;
+/*
+ * Extract the next string from 'text', either quoted or terminated by
+ * white space.  The string is written into 'ret', and the return value
+ * of the function is a pointer to the first character after the string
+ * (success) or null (failure).
+ */
+{
+	char	*endquote, *whitespace;
+/*
+ * Remove leading white space
+ */
+	while (*text == ' ' || *text == '\t')
+		text++;
+/*
+ * Quoted string?
+ */
+	if (*text == '\"' || *text == '\'')
+	{
+		if ((endquote = strchr (text + 1, *text)) == 0)
+			return ((char *) 0);
+
+		strncpy (ret, text + 1, endquote - text - 1);
+		ret[endquote - text - 1] = '\0';
+
+		return (endquote + 1);
+	}
+/*
+ * No quotes, so delineate by whitespace
+ */
+	if (sscanf (text, "%s", ret) == 1)
+		return (text + strlen (ret));
+	else
+		return ((char *) 0);
+}
