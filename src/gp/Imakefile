@@ -1,5 +1,5 @@
 /**/# ---------------------------------------------------------------------
-/**/# $Id: Imakefile,v 1.9 1993-05-27 10:58:17 granger Exp $ 
+/**/# $Id: Imakefile,v 1.10 1993-06-23 21:49:42 granger Exp $ 
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -63,8 +63,6 @@ DISTFILES = Imakefile $(SRCS) $(FSRCS) $(HDRS) \
 	    GraphProc.state GraphProc.widgets Graphproc.ad
 
 NormalProgramTarget(gp,$(OBJS),$(DEPLIBS), $(LOCAL_LIBRARIES), $(SYSLIBS))
-
-InstallObjectsIntoLibrary(ZebLibrary,GraphicsW.o)
 
 UILoadFileTarget(graphproc.lf, GraphProc.state)
 
