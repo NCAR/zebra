@@ -1,7 +1,7 @@
 /*
  * The data store application interface.
  */
-static char *rcsid = "$Id: Appl.c,v 1.5 1991-03-08 18:45:13 corbet Exp $";
+static char *rcsid = "$Id: Appl.c,v 1.6 1991-04-02 21:01:16 corbet Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -579,8 +579,8 @@ float sel, badflag;
  */
 	if (get->gl_next)
 		msg_ELog (EF_PROBLEM, "GetObservation multiple get list!");
-	get->gl_begin = DFTable[get->gl_dfindex].df_begin;
-	get->gl_end = DFTable[get->gl_dfindex].df_end;
+	dobj->do_begin = get->gl_begin = DFTable[get->gl_dfindex].df_begin;
+	dobj->do_end = get->gl_end = DFTable[get->gl_dfindex].df_end;
 /*
  * Do the first pass over each list, initializing the DFA modules and getting
  * the point count.
