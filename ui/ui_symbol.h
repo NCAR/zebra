@@ -1,4 +1,4 @@
-/* $Id: ui_symbol.h,v 1.5 1992-08-24 21:57:53 corbet Exp $ */
+/* $Id: ui_symbol.h,v 1.6 1995-07-06 04:48:44 granger Exp $ */
 /*
  * Global declarations for the symbol table module.
  */
@@ -44,6 +44,18 @@ typedef char *stbl;
 /*
  * Symbol table routines.
  */
+# ifdef __cplusplus
+	int usy_traverse (const stbl, 
+	  int (*)(const char *, int, const SValue *, long), long, int);
+	int usy_search (const stbl, 
+	  int (*)(const char *, int, const SValue *, long), long, int, char *);
+# else
+# if __STDC__
+	int usy_traverse (const stbl, int (*)(), long, int);
+	int usy_search (const stbl, int (*)(), long, int, char *);
+# endif
+# endif /* __cplusplus */
+
 # ifdef __STDC__
 	void usy_init (void);
 	stbl usy_c_stbl (const char *);
@@ -55,8 +67,6 @@ typedef char *stbl;
 	int usy_dump_table (const stbl);
 	stbl usy_g_stbl (const char *);
 	int usy_c_indirect (stbl, const char *, const void *, int, int);
-	int usy_traverse (const stbl, int (*)(), long, int);
-	int usy_search (const stbl, int (*)(), long, int, char *);
 	int usy_daemon (stbl, const char *, int, int (*)(), char *);
 	int usy_z_daemon (stbl, const char *, int, int (*)(), char *);
 # else
