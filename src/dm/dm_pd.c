@@ -29,15 +29,13 @@
 
 # include <ui_symbol.h>
 # include <ui_error.h>
-#ifdef SVR4
 # include <unistd.h>
-#endif
 
 # include <defs.h>
 # include <pd.h>
 # include <message.h>
 
-RCSID("$Id: dm_pd.c,v 2.11 1997-05-15 18:32:59 granger Exp $")
+RCSID("$Id: dm_pd.c,v 2.12 1999-03-23 16:33:38 burghart Exp $")
 
 static void pddirfile FP ((char *file));
 
@@ -149,11 +147,7 @@ char *dir;
 /*
  * Move there.
  */
-#if defined(SVR4) || defined(SYSV) || defined (__osf__)
 	getcwd (wd,(size_t)(MAXPATHLEN));
-#else
-	getwd (wd);
-#endif
 	chdir (dir);
 /*
  * Now read through it.
