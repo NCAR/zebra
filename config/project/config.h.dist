@@ -49,7 +49,7 @@
 XCOMM -----------------------------------------------------------------------
 XCOMM Definitions from config.h included here.  The definitions here override
 XCOMM the defaults in Project.tmpl.  See ...../zeb/config/config.h.
-XCOMM $Id: config.h.dist,v 1.31 1995-08-03 21:01:58 corbet Exp $
+XCOMM $Id: config.h.dist,v 1.32 1995-08-08 04:24:44 granger Exp $
 XCOMM -----------------------------------------------------------------------
 # endif
 
@@ -376,7 +376,8 @@ XCOMM -----------------------------------------------------------------------
  *			   If not defined above, RDSSDir is /rdss.
  *
  * Note that gcc will search /usr/local/include by default, most other
- * compilers will not.
+ * compilers and makedepend will not.  Even if using gcc, go ahead and 
+ * specify /usr/local/include if it contains needed header files.
  */
 
 #ifdef HPArchitecture
@@ -605,9 +606,14 @@ XCOMM -----------------------------------------------------------------------
  * appropriate value.
  */
 # define MapProjections NO
-# define ProjLibrary -lproj
-# define ProjIncDir -I/usr/local/include /* unnecessary w/gcc */
+# define ProjLibDir /usr/local/lib
+# define ProjIncDir /usr/local/include
 	
+/*
+ * Examples of command-line options which override the above definitions
+ */
+/* # define ProjLibrary -L/usr/local/proj/lib -lproj */
+/* # define ProjIncludes -I/usr/local/proj/include */
 
 /*========================================================================
  * Distribution Options
