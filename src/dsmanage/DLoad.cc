@@ -19,6 +19,9 @@
  * maintenance or updates for its software.
  */
 
+# ifdef hpux
+# include <sys/sigevent.h>
+# endif
 # ifdef sgi
 # define _BSD_TYPES
 # include <sys/types.h>
@@ -44,7 +47,7 @@ extern "C"
 # include "DataDir.h"
 # include "Tape.h"
 # include "plcontainer.h"
-MAKE_RCSID ("$Id: DLoad.cc,v 1.13 1997-02-20 23:40:44 corbet Exp $")
+MAKE_RCSID ("$Id: DLoad.cc,v 1.14 1997-06-05 15:47:26 granger Exp $")
 
 //
 // Import from main.

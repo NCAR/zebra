@@ -18,6 +18,9 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+# ifdef hpux
+# include <sys/sigevent.h>
+# endif
 # ifdef sgi
 # define _BSD_TYPES
 # include <sys/types.h>
@@ -55,7 +58,7 @@ extern "C"
 # include "Index.h"
 # include "ZTime.h"
 # include "plcontainer.h"
-MAKE_RCSID ("$Id: TBCleanup.cc,v 1.7 1997-02-20 23:40:47 corbet Exp $")
+MAKE_RCSID ("$Id: TBCleanup.cc,v 1.8 1997-06-05 15:47:39 granger Exp $")
 
 class DelSelect;
 

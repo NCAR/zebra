@@ -19,6 +19,9 @@
  * maintenance or updates for its software.
  */
 
+# ifdef hpux
+# include <sys/sigevent.h>
+# endif
 # ifdef sgi
 # define _BSD_TYPES
 # include <sys/types.h>
@@ -53,7 +56,7 @@ extern "C"
 # include "Tape.h"
 
 
-RCSID ("$Id: TapeIndex.cc,v 1.12 1997-02-20 23:40:49 corbet Exp $")
+RCSID ("$Id: TapeIndex.cc,v 1.13 1997-06-05 15:47:41 granger Exp $")
 
 
 //

@@ -18,6 +18,9 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+# ifdef hpux
+# include <sys/sigevent.h>
+# endif
 # ifdef sgi
 # define _BSD_TYPES
 # include <sys/types.h>
@@ -54,7 +57,7 @@ extern "C"
 # include "Index.h"
 # include "ZTime.h"
 # include "plcontainer.h"
-MAKE_RCSID ("$Id: LoadData.cc,v 1.13 1997-02-20 23:40:46 corbet Exp $")
+MAKE_RCSID ("$Id: LoadData.cc,v 1.14 1997-06-05 15:47:33 granger Exp $")
 
 class LoadSelect;
 

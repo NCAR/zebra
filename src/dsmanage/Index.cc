@@ -19,6 +19,9 @@
  * maintenance or updates for its software.
  */
 
+# ifdef hpux
+# include <sys/sigevent.h>
+# endif
 extern "C"
 {
 #	include <defs.h>
@@ -32,7 +35,7 @@ extern "C"
 # include "Index.h"
 # include "ZTime.h"
 
-MAKE_RCSID ("$Id: Index.cc,v 1.8 1996-01-02 21:20:18 granger Exp $");
+MAKE_RCSID ("$Id: Index.cc,v 1.9 1997-06-05 15:47:30 granger Exp $");
 
 //
 // Internal structures

@@ -22,6 +22,12 @@
  * maintenance or updates for its software.
  */
 
+#ifdef hpux
+# include <sys/sigevent.h>
+#endif
+# include <stdio.h>
+# include <stream.h>
+# include <String.h>
 
 //
 // Zeb includes.
@@ -33,9 +39,6 @@ extern "C" {
 };
 
 # include "BoolKludge.h"
-#include <stdio.h>
-# include <stream.h>
-# include <String.h>
 # include "STable.h"
 //# include "container.h"
 # include "dsmanage.h"
@@ -43,7 +46,7 @@ extern "C" {
 # include "Index.h"
 # include "plcontainer.h"
 
-MAKE_RCSID ("$Id: dsmanage.cc,v 1.11 1997-02-14 07:07:17 granger Exp $");
+MAKE_RCSID ("$Id: dsmanage.cc,v 1.12 1997-06-05 15:47:43 granger Exp $");
 
 extern "C" char *strcat (char *, const char *);
 extern "C" char *strrchr (const char *, int);

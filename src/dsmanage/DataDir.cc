@@ -19,6 +19,9 @@
  * maintenance or updates for its software.
  */
 
+# ifdef hpux
+# include <sys/sigevent.h>
+# endif
 # if defined(SVR4) || defined(sgi)
 # define USE_STATVFS
 # endif
@@ -46,7 +49,7 @@ extern "C" {
 # endif
 };
 
-static char *rcsid = "$Id: DataDir.cc,v 1.8 1996-01-23 22:36:27 corbet Exp $";
+static char *rcsid = "$Id: DataDir.cc,v 1.9 1997-06-05 15:47:28 granger Exp $";
 
 //
 // The data directory class.

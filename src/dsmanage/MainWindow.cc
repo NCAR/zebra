@@ -19,6 +19,12 @@
  * maintenance or updates for its software.
  */
 
+# ifdef hpux
+# include <sys/sigevent.h>
+# endif
+# include <stdio.h>
+# include <stream.h>
+# include <stdlib.h>
 # include "MaybeCString.h"
 
 extern "C" 
@@ -33,14 +39,11 @@ extern "C"
 #	include <X11/Xaw/Toggle.h>
 #	include <X11/Xaw/Viewport.h>
 }
-# include <stdio.h>
-# include <stream.h>
-# include <stdlib.h>
 # include "dsmanage.h"
 # include "dsmWindows.h"
 # include "Dialog.h"
 
-static char *rcsid = "$Id: MainWindow.cc,v 1.8 1995-12-05 20:25:09 corbet Exp $";
+static char *rcsid = "$Id: MainWindow.cc,v 1.9 1997-06-05 15:47:37 granger Exp $";
 //
 // Externs.
 //
