@@ -27,7 +27,7 @@
 
 # include "defs.h"
 
-RCSID ("$Id: TCvt.c,v 2.26 1999-03-01 01:27:08 burghart Exp $")
+RCSID ("$Id: TCvt.c,v 2.27 2000-01-04 23:17:55 granger Exp $")
 
 /*
  * Public time constants
@@ -106,7 +106,7 @@ long
 TC_ZtToSys (zt)
 const ZebTime *zt;
 /*
- * Convert a zeb format time into a basic system format representation.
+ * Convert a zebra format time into a basic system format representation.
  * Includes microseconds and rounds to the nearest second.
  */
 {
@@ -120,7 +120,7 @@ TC_SysToZt (sys, zt)
 const long sys;
 ZebTime *zt;
 /*
- * Convert a system time to zeb format.
+ * Convert a system time to zebra format.
  */
 {
 	zt->zt_Sec = sys;
@@ -303,7 +303,7 @@ TC_ZtSplit (zt, year, month, day, hour, minute, second, microsec)
 const ZebTime *zt;
 int *year, *month, *day, *hour, *minute, *second, *microsec;
 /*
- * Split a zeb time into useful chunks.  Only stores into pieces
+ * Split a zebra time into useful chunks.  Only stores into pieces
  * which are non-NULL.
  */
 {
@@ -326,13 +326,17 @@ TC_ZtAssemble (zt, year, month, day, hour, minute, second, microsec)
 ZebTime *zt;
 int year, month, day, hour, minute, second, microsec;
 /*
- * Put together a zeb time out of these constituents.  For the tm
- * structure, the year field is the two-digit value (year - 1900).
+ * Put together a zebra time out of these constituents.  For the tm
+ * structure, the year field is the two- or three-digit value (year - 1900).
  * Make the sure the year we're passed is converted to this convention.
+ * It seems safe to assume that any year less than 70 is a two-digit
+ * year which was intended for the 21st century.
  */
 {
 	struct tm t;
 
+	if (year < 70)
+		year += 100;
 	if (year >= 1900)
 		year -= 1900;
 	t.tm_year = year;
