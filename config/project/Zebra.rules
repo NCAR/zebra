@@ -1,5 +1,5 @@
 XCOMM -*- C -*-
-XCOMM $Id: Zebra.rules,v 1.10 1996-11-21 21:42:09 granger Exp $
+XCOMM $Id: Zebra.rules,v 1.11 1996-12-03 07:11:34 granger Exp $
 XCOMM
 XCOMM Rules specific to the Zebra project, including some which override
 XCOMM definitions in Imake.rules
@@ -269,12 +269,14 @@ test:: program								@@\
 /*
  * Run a test program and echo the results to the terminal.
  */
+#define RunTest(cmdline,desc) \
+	echo "Testing" desc "..."; \					@@\
+	if cmdline ; then echo "Passed."; \				@@\
+	else echo "FAILED."; fi
+
 #define RunTestProgram(program,desc,cmdline)				@@\
 test:: program								@@\
-	@echo "Testing" desc "..."; \					@@\
-	if cmdline ; then echo "Passed."; \				@@\
-	else echo "FAILED."; fi						@@\
-
+	@RunTest(cmdline,desc)
 
 /*
  * InstallProgramSetUID -- Install a program into 'dest' using
