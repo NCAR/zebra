@@ -5,7 +5,7 @@
  * from the document "Formulation of Output Parameters for PAM II CMF Data"
  * compiled by Paul Herzegh (18 March 1988 revision).
  */
-static char *rcsid = "$Id: derive.c,v 2.1 1991-09-12 20:27:54 corbet Exp $";
+static char *rcsid = "$Id: derive.c,v 2.2 1992-03-17 23:05:44 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -25,6 +25,7 @@ static char *rcsid = "$Id: derive.c,v 2.1 1991-09-12 20:27:54 corbet Exp $";
  */
 
 # include <math.h>
+# include <defs.h>
 # include <message.h>
 # include "derive.h"
 

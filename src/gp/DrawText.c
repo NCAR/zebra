@@ -3,7 +3,7 @@
  * draw the text ourselves using a stroke font.  We need this so we can use 
  * rotated text.
  */
-static char *rcsid = "$Id: DrawText.c,v 2.2 1992-01-02 17:01:14 barrett Exp $";
+static char *rcsid = "$Id: DrawText.c,v 2.3 1992-03-17 23:04:36 barrett Exp $";
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -26,6 +26,7 @@ static char *rcsid = "$Id: DrawText.c,v 2.2 1992-01-02 17:01:14 barrett Exp $";
 # include <math.h>
 # include <X11/Intrinsic.h>
 # include <ui.h>
+# include <defs.h>
 # include <message.h>
 # include "DrawText.h"
 # include "sfont_1.c"
