@@ -50,7 +50,7 @@
 # include <config.h>
 # include <DataStore.h>
 
-MAKE_RCSID ("$Id: Archiver.c,v 1.24 1993-10-26 15:39:31 corbet Exp $")
+MAKE_RCSID ("$Id: Archiver.c,v 1.25 1994-02-02 20:31:06 burghart Exp $")
 
 /*
  * Issues:
@@ -110,8 +110,8 @@ MAKE_RCSID ("$Id: Archiver.c,v 1.24 1993-10-26 15:39:31 corbet Exp $")
 # define DEF_DEVICEFILE "/dev/nrst8"
 # define DEF_MOUNTNAME "eod0"
 # define DEF_OUTPUTDIR "/eod0"
-# define DEF_TAPELIMIT (3500000000ul)
-# define DEF_MINDISK (10000ul)
+# define DEF_TAPELIMIT ((unsigned long) 3500000000)
+# define DEF_MINDISK ((unsigned long) 10000)
 
 # define AR_TAPE 1
 # define AR_EOD 2
@@ -218,9 +218,10 @@ static XtResource AppResources[] = {
 };
 
 static XtPointer OptionBase[] = {
-   &TapeLimit, &DriveName, &OutputDir, &MountName,
-   &DumpInterval, &StartMinute, &MinDisk, &ModeString,
-   &ZeroZFree, &WaitTimes };
+   (XtPointer) &TapeLimit, (XtPointer) &DriveName, (XtPointer) &OutputDir, 
+   (XtPointer) &MountName, (XtPointer) &DumpInterval, (XtPointer) &StartMinute,
+   (XtPointer) &MinDisk, (XtPointer) &ModeString, (XtPointer) &ZeroZFree, 
+   (XtPointer) &WaitTimes };
 
 /*
  * For loading these resource from the command line:
@@ -1443,7 +1444,7 @@ check_messages(fd)
 	int fd;		/* message's file descriptor */
 {
 	fd_set fdset;
-	struct timeval timeout = {0, 0};
+	static struct timeval timeout = {0, 0};
 	
 	FD_ZERO(&fdset);
 	FD_SET(fd, &fdset);
