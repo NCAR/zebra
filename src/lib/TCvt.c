@@ -26,7 +26,7 @@
 
 # include "defs.h"
 
-MAKE_RCSID ("$Id: TCvt.c,v 2.20 1996-08-08 16:45:52 granger Exp $")
+RCSID ("$Id: TCvt.c,v 2.21 1996-11-19 07:50:08 granger Exp $")
 
 /*
  * Public time constants
@@ -85,11 +85,6 @@ const UItime *fcc;
 	t.tm_sec = fcc->ds_hhmmss % 100;
 #if defined(SVR4) || defined(SYSV) || defined(linux)
         putenv (TC_GMTZONE);
-#ifdef notdef /* mktime() has the effect of tzset() so these are ignored */
-        timezone = 0;
-        /* altzone = 0; */
-        daylight = 0;
-#endif
         t.tm_wday = t.tm_yday = 0;
         t.tm_isdst = -1;
 	return (mktime (&t));
@@ -109,8 +104,12 @@ TC_ZtToSys (zt)
 const ZebTime *zt;
 /*
  * Convert a zeb format time into a basic system format representation.
+ * Includes microseconds and rounds to the nearest second.
  */
 {
+#ifdef notdef
+	return (zt->zt_Sec + (int)((zt->zt_MicroSec * 1e-6) + 0.5));
+#endif
 	return (zt->zt_Sec);
 }
 
@@ -141,7 +140,8 @@ UItime *ui;
  * Convert a system time to an fcc time.
  */
 {
-	struct tm *t = gmtime (&zt->zt_Sec);
+	time_t syst = TC_ZtToSys (zt);
+	struct tm *t = gmtime (&syst);
 
 	ui->ds_yymmdd = t->tm_year*10000 + (t->tm_mon + 1)*100 + t->tm_mday;
 	ui->ds_hhmmss = t->tm_hour*10000 + t->tm_min*100 + t->tm_sec;
@@ -166,11 +166,6 @@ ZebTime *zt;
 	zt->zt_MicroSec = 0;
 #if defined(SVR4) || defined(SYSV) || defined(linux)
         putenv (TC_GMTZONE);
-#ifdef notdef
-        timezone = 0;
-        /* altzone = 0; */
-        daylight = 0;
-#endif
         t.tm_wday = t.tm_yday = 0;
         t.tm_isdst = -1;
 	zt->zt_Sec = mktime (&t);
@@ -291,7 +286,8 @@ ZebTime		*zt;
  * Trust the rest and use it to assemble a ZebTime structure.
  */
 	second = (int)fsecond;
-	microsec = (fsecond - second) * 1e+6;
+	/* round to the nearest microsecond */
+	microsec = (int)(((fsecond - second) * 1e+6) + 0.5);
 	++month;	/* ZtAssemble expects 1..12 */
 	TC_ZtAssemble (zt, year, month, day, hour, minute, second, microsec);
 	return (TRUE);
@@ -346,11 +342,6 @@ int year, month, day, hour, minute, second, microsec;
 	zt->zt_MicroSec = microsec;
 #if defined(SVR4) || defined(SYSV) || defined(linux)
         putenv (TC_GMTZONE);
-#ifdef notdef
-        timezone = 0;
-        /* altzone = 0; */
-        daylight = 0;
-#endif
         t.tm_wday = t.tm_yday = 0;
         t.tm_isdst = -1;
 	zt->zt_Sec = mktime (&t);
