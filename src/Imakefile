@@ -16,7 +16,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.28 2001-01-17 23:21:43 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.29 2001-01-17 23:54:59 granger Exp $"
 
 #define IHaveSubdirs
 #define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
@@ -52,7 +52,7 @@ PYTHON = python
  * "lib" and "ds" must come first, in that order.  Thereafter it's
  * alphabetical but really doesn't matter.
  */
-SUBDIRS = $(LIBS) $(DATAUTIL) dm dsdelete dsdump dsnotice dsprint \
+SUBDIRS = $(LIBS) dm dsdelete dsdump dsnotice dsprint \
 	dsdwidget dsmanage dsrescan $(ETC) EventLogger fccclock \
 	gettime pdmon $(GP) $(INGEST) ListMaker $(MAPUTIL) msg msg_ping \
 	mstatus mtap $(OPTIMIZER_DIR) pdcheck prt_Notify \
@@ -63,7 +63,7 @@ DSUTILS = $(LIBS) dsdelete dsdump dsnotice dsprint dsdwidget dsmanage \
 	dsrescan $(REALTIME)
 
 DSCLIENTS = $(DSUTILS) $(GP) $(INGEST) $(OPTIMIZER_DIR) xmgrpipe \
-	dm $(DATAUTIL)
+	dm 
 
 MSGUTILS = $(ZLIB) msg msg_ping mstatus mtap zstop zmon zquery zrun
 
@@ -74,7 +74,7 @@ XCOMM built, so that we don't forget it somewhere down the road.
 
 
 DISTFILES = Imakefile
-DISTSUBDIRS = lib ds datautil dm dsdelete dsdump dsnotice dsprint \
+DISTSUBDIRS = lib ds dm dsdelete dsdump dsnotice dsprint \
 	dsdwidget dsmanage dsrescan etc EventLogger fccclock \
 	gettime pdmon gp ingest ListMaker maputil msg msg_ping \
 	mstatus mtap Optimizer pdcheck prt_Notify \
@@ -113,10 +113,6 @@ OmitBuildRules(ingest utilities)
 
 #if !BuildOptimizer
 OmitBuildRules(Optimizer)
-#endif
-
-#if !BuildDataUtilities
-OmitBuildRules(data utilities)
 #endif
 
 #if !BuildRealtimeDataStoreTools
