@@ -40,7 +40,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-RCSID ("$Id: DataFormat.c,v 3.4 1996-12-06 00:40:14 granger Exp $")
+RCSID ("$Id: DataFormat.c,v 3.5 1997-06-30 21:44:35 ishikawa Exp $")
 
 /*
  * Include the DataFormat structure definition, and the public and
@@ -59,6 +59,7 @@ extern DataFormat *zebraFormat;
 extern DataFormat *gribFormat;
 extern DataFormat *gribSfcFormat;
 extern DataFormat *gradsFormat;
+extern DataFormat *gradsmodelFormat;
 extern DataFormat *hdfFormat;
 
 /*
@@ -75,6 +76,7 @@ static DataFormat **Formats[] =
 	&gribFormat,
 	&gribSfcFormat,
 	&gradsFormat,
+	&gradsmodelFormat,
 	&hdfFormat
 };
 
@@ -500,6 +502,40 @@ ZebTime *dest;
 		count = (fmt_DataTimes (ofp, when, which, n, dest));
 	}
 	return (count);
+}
+
+
+
+char **
+dfa_GetAssociatedFiles (df, nfiles)
+int df;
+int *nfiles;
+/* Returns the full path name of associated files. The caller must free
+ * filenames [0..n-1] and filenames. The number of files is returned in
+ * nfiles. If there are associated files, the main file is returned in
+ * filenames[0] and the associated files though [1..n-1].
+ */ 
+{
+  DataFile dfe;        
+  DataFormat *fmt;
+  char *datafile;
+  char ** filenames;
+
+  ds_GetFileStruct (df, &dfe);
+  fmt = FMTP(dfe.df_ftype);
+  if (fmt->f_GetAssociatedFiles)
+    return ((char **) (*fmt->f_GetAssociatedFiles) ( &dfe, nfiles ));
+  else
+  {
+        filenames = (char **) malloc ( sizeof(char *) );
+	datafile  = ds_FilePath ( dfe.df_platform, dfe.df_index );
+
+        filenames[0]=(char *) malloc (strlen(datafile)+1);
+        sprintf (filenames[0],"%s",datafile);
+
+        *nfiles=1;
+        return filenames;
+  }
 }
 
 
@@ -1317,5 +1353,7 @@ OpenFile *ofp;
 {
 	ofp->of_lru = OF_Lru++;
 }
+
+
 
 
