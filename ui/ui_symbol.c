@@ -1,7 +1,7 @@
 /*
  * This is the symbol table module.
  */
-static char *Rcsid = "$Id: ui_symbol.c,v 1.14 1997-08-07 19:41:03 ishikawa Exp $";
+static char *Rcsid = "$Id: ui_symbol.c,v 1.15 1997-08-29 16:57:11 ishikawa Exp $";
 
 # ifdef VMS
 # include <string.h>
@@ -864,7 +864,7 @@ char *re;
 {
 	struct symbol_table *table = (struct symbol_table *) stable;
 	int slot = 0, ret, nsy = 0, i;
-#ifdef SVR4
+#if defined (SVR4) || defined (AIXV3)
         /* nothing special for Solaris yet */
 #else
 #ifdef hpux 
@@ -887,7 +887,7 @@ char *re;
  */
 	if (re)
 	{
-#ifdef SVR4 
+#if defined (SVR4) || defined (AIXV3)
                 char *stat = regcmp(re, (char*)0);
                 if (!stat)
                         ui_error ("(BUG) RE comp error: %s", stat);
@@ -910,7 +910,7 @@ char *re;
  	for (; slot < HASH_MOD; slot++)
 		for (sp = table->st_ste[slot]; sp; )
 		{
-#ifdef SVR4
+#if defined (SVR4) || defined (AIXV3)
                         if (! re ||  ! regex (re, sp->ste_sym))
 #else
 #ifdef hpux 
