@@ -1,5 +1,5 @@
 /* 5/87 jc */
-static char *rcsid = "$Id: device.c,v 1.18 1993-07-23 18:00:32 case Exp $";
+static char *rcsid = "$Id: device.c,v 1.19 1993-11-02 22:11:41 cook Exp $";
 /*
  * Handle device specifics.
  */
@@ -750,8 +750,8 @@ struct device D_tab[] =
  */
  	{
 		"psc",
-		9, { "psc1", "psc2", "psc4", "psg1", "psg2", "psg4",
-		     "psm1", "psm2", "psm4"},
+		12, { "psc1", "psc2", "psc4", "psg1", "psg2", "psg4",
+		     "psm1", "psm2", "psm4", "psc1L1", "psc2L1", "psc4L1"},
 		GDF_VECTOR|GDF_HARDCOPY|GDF_HCW|GDF_VP|GDF_TEXT,
 		256,			/* 256 colors			*/
 		22500, 30000,		/* huge res (shrink round errs) */
