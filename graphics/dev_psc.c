@@ -10,7 +10,7 @@
 # include "device.h"
 # include <stdio.h>
 
-static char *rcsid = "$Id: dev_psc.c,v 1.4 1994-01-13 21:13:51 burghart Exp $";
+static char *rcsid = "$Id: dev_psc.c,v 1.5 1994-01-19 18:51:23 burghart Exp $";
 /*
  * The tag structure
  */
@@ -59,16 +59,16 @@ struct psc_tag
 static int Res[2][4][2] =
 {
 	{ /* PSC_PORTRAIT */
-		{ 2250, 3000 },
-		{ 2250, 1500 },
+		{ 768, 1024 },
+		{ 768, 512 },
 		{ 0, 0},
-		{ 1125, 1500 },
+		{ 384, 512 },
 	},
 	{ /* PSC_LANDSCAPE */
-		{ 3000, 2250 },
-		{ 1500, 2250 },
+		{ 1024, 768 },
+		{ 512, 768 },
 		{ 0, 0 },
-		{ 1500, 1125 },
+		{ 512, 384 },
 	},
 };
 
@@ -147,8 +147,10 @@ struct device *dev;
 /*
  * The fifth char is L for PS Level 1: psc1L1, psc2L1, psc4L1
  */
-	if (type[4] == 'L') ptp->pslevel = 1;
-	else ptp->pslevel = 2;
+	if (type[4] == 'L') 
+		ptp->pslevel = 1;
+	else 
+		ptp->pslevel = 2;
 /*
  * Set our device resolution
  */
@@ -161,8 +163,11 @@ struct device *dev;
 /*
  * Initialize the printer
  */
-	if (ptp->pslevel == 1) psc_out_s (ptp, "%!PS-Adobe\n");
-	else psc_out_s (ptp, "%!PS-Adobe-2.0\n");
+	if (ptp->pslevel == 1) 
+		psc_out_s (ptp, "%!PS-Adobe\n");
+	else 
+		psc_out_s (ptp, "%!PS-Adobe-2.0\n");
+
 	psc_init (ptp);
 /*
  * PostScript defines
@@ -328,7 +333,8 @@ struct psc_tag *ptp;
  */
 	if (ptp->pslevel == 1)
 		sprintf (command, "/TABLE %d array def\n", ptp->ncolor);
-	else	sprintf (command, "[/Indexed /DeviceRGB %d\n<\n", ptp->ncolor);
+	else
+		sprintf (command, "[/Indexed /DeviceRGB %d\n<\n", ptp->ncolor);
 
 	psc_out_s (ptp, command);
 
@@ -378,8 +384,97 @@ struct psc_tag *ptp;
 
 	if (ptp->pslevel == 1)
 		psc_out_s (ptp, "TABLE astore pop\n");
-	else	psc_out_s (ptp, ">\n] setcolorspace\n");
+	else
+		psc_out_s (ptp, ">\n] setcolorspace\n");
 }
+
+
+
+
+
+psc_pixel (ctag, x, y, xs, ys, data, size, org)
+char *ctag;
+unsigned char *data;
+int x, y, xs, ys, size, org;
+/*
+ * The pixel fill routine.
+ */
+{
+	struct psc_tag *ptp = (struct psc_tag *) ctag;
+	char	command[80], *dp;
+/*
+ * Start with scaling and translation
+ */
+	psc_out_s (ptp, "gsave\n");
+
+	sprintf (command, "%d %d translate\n", x, y);
+	psc_out_s (ptp, command);
+
+	sprintf (command, "%d %d scale\n", xs, ys);
+	psc_out_s (ptp, command);
+/*
+ * Create a small array to hold one line of pixel data
+ */
+	sprintf (command, "/pixdata %d string def\n", xs);
+	psc_out_s (ptp, command);
+
+	if (ptp->pslevel == 1)
+	{
+		unsigned char	rgb[3], *dp;
+	/*
+	 * Level 1: Use "colorimage" and RGB data.  This makes for a big 
+	 * file...
+	 */
+		sprintf (command, "%d %d 8 [%d 0 0 %d 0 %d] ", xs, ys, xs, -ys,
+			 ys); 
+		psc_out_s (ptp, command);
+
+		psc_out_s (ptp, "{currentfile pixdata readstring pop}\n");
+		psc_out_s (ptp, "false 3 colorimage\n");
+	/*
+	 * Data
+	 */
+		for (dp = (unsigned char *) data; dp < data + xs * ys; dp++)
+		{
+			rgb[0] = (unsigned char) (ptp->r[*dp] * 255.0);
+			rgb[1] = (unsigned char) (ptp->g[*dp] * 255.0);
+			rgb[2] = (unsigned char) (ptp->b[*dp] * 255.0);
+			psc_out (ptp, rgb, 3);
+		}
+	}
+	else
+	{
+	/*
+	 * Level 2: We use "image" with a dictionary so that it uses our
+	 * color map.
+	 */
+		psc_out_s (ptp, "<<\n");
+
+		sprintf (command, "/Width %d\n/Height %d\n", xs, ys);
+		psc_out_s (ptp, command);
+	
+		sprintf (command, "/ImageMatrix [%d 0 0 %d 0 %d]\n", xs, -ys,
+			 ys);
+		psc_out_s (ptp, command);
+
+		psc_out_s (ptp, "/ImageType 1\n");
+		psc_out_s (ptp, "/BitsPerComponent 8\n");
+		psc_out_s (ptp, "/Decode [0 255]\n");
+		psc_out_s (ptp, 
+			"/DataSource {currentfile pixdata readstring pop}\n");
+		psc_out_s (ptp, ">> image\n");
+	/*
+	 * Data
+	 */
+		psc_out (ptp, data, xs * ys);
+	}
+/*
+ * Restore graphics state
+ */
+	psc_out_s (ptp, "\n");
+	psc_out_s (ptp, "grestore\n");
+}
+
 
 
 
@@ -576,16 +671,20 @@ struct psc_tag *ptp;
  */
 {
 /*
- * Move axes so we have 1/2" margins and set scale for 300 pixels/inch
+ * Set scale for 100 pixels/inch and translate to center our 7.680" by
+ * 10.240" graphics area.
  */
-	psc_out_s (ptp, "0.24 0.24 scale\n");
-	psc_out_s (ptp, "150 150 translate\n");
+	psc_out_s (ptp, "0.72 0.72 scale\n");
 	psc_out_s (ptp, "1 setlinewidth\n");
+
+	psc_out_s (ptp, "41 38 translate\n");
+
 	if (ptp->pt_mode == PSC_LANDSCAPE)
 	{
 		psc_out_s (ptp, "90 rotate\n");
-		psc_out_s (ptp, "0 -2250 translate\n");
+		psc_out_s (ptp, "0 -768 translate\n");
 	}
+	
 	ptp->pt_winset = FALSE;
 	ptp->pt_winfilled = FALSE;
 	ptp->pt_win = 1;
@@ -630,7 +729,8 @@ struct psc_tag *ptp;
 
 		psc_out_s (ptp, "RR GG BB setrgbcolor} def\n");
 	}
-	else	psc_out_s (ptp, "/sc {setcolor} def\n");
+	else
+		psc_out_s (ptp, "/sc {setcolor} def\n");
 }
 
 
@@ -658,7 +758,7 @@ struct psc_tag *ptp;
  	 * 1 window
 	 *	do nothing since we're already positioned
 	 */
-		case 1:
+	    case 1:
 		break;
 	/*
  	 * 2 windows
@@ -671,14 +771,16 @@ struct psc_tag *ptp;
 	 *	|         |
 	 *	-----------
 	 */
-		case 2:
-			if (ptp->pt_mode == PSC_PORTRAIT)
-			    sprintf (command, "0 %d t\n",
-				ptp->pt_win == 1 ? Res[PSC_PORTRAIT][1][1] : 0);
-			else
-			    sprintf (command, "%d 0 t\n",
-				ptp->pt_win == 2 ? Res[PSC_LANDSCAPE][1][0] :0);
-			psc_out_s (ptp, command);
+	    case 2:
+		if (ptp->pt_mode == PSC_PORTRAIT)
+			sprintf (command, "0 %d t\n",
+				 (ptp->pt_win == 1) ? 
+				 Res[PSC_PORTRAIT][1][1] : 0);
+		else
+			sprintf (command, "%d 0 t\n",
+				 (ptp->pt_win == 2) ? 
+				 Res[PSC_LANDSCAPE][1][0] :0);
+		psc_out_s (ptp, command);
 		break;
 	/*
 	 * 4 windows
@@ -690,12 +792,12 @@ struct psc_tag *ptp;
 	 *      |  3   |   4  |
          *      ---------------
 	 */
-		case 4:
-			sprintf (command, "%d %d t\n",
-			  ((ptp->pt_win == 2) || (ptp->pt_win == 4) ?
+	    case 4:
+		sprintf (command, "%d %d t\n",
+			 ((ptp->pt_win == 2) || (ptp->pt_win == 4) ?
 			  Res[ptp->pt_mode][3][0] : 0),
-			  ((ptp->pt_win < 3) ? Res[ptp->pt_mode][3][1] : 0));
-			psc_out_s (ptp, command);
+			 ((ptp->pt_win < 3) ? Res[ptp->pt_mode][3][1] : 0));
+		psc_out_s (ptp, command);
 		break;
 	}
 /*
@@ -721,6 +823,32 @@ char *str;
 	psc_chk_buf (ptp, len);
 	memcpy (ptp->pt_bufp, str, len);
 	ptp->pt_bufp += len;
+}
+
+
+
+
+
+psc_out (ptp, data, len)
+struct psc_tag	*ptp;
+char	*data;
+int	len;
+/*
+ * Add 'len' bytes to our output buffer
+ */
+{
+	char	*dp;
+	int	nleft = len, nout;
+
+	for (dp = data; dp < data + len; dp += DBUFLEN / 2)
+	{
+		nout = (nleft < DBUFLEN / 2) ? nleft : DBUFLEN / 2;
+
+		psc_chk_buf (ptp, nout);
+		memcpy (ptp->pt_bufp, dp, nout);
+		ptp->pt_bufp += nout;
+		nleft -= nout;
+	}
 }
 
 
