@@ -1,11 +1,9 @@
 /*
+ * $Id: class_ingest.c,v 2.4 1992-07-03 18:30:12 granger Exp $
+ *
  * Ingest CLASS data into the system.
  *
- * See 
- *	class_ingest -help
- * -or- 
- *	usage() 
- * for usage info
+ * Type 'class_ingest -help' for usage info
  *
  */
 /*		Copyright (C) 1987-92 by UCAR
@@ -30,10 +28,10 @@
 #include <copyright.h>
 
 #ifndef lint
-MAKE_RCSID("$Id: class_ingest.c,v 2.3 1992-06-05 23:02:57 granger Exp $")
+MAKE_RCSID("$Id: class_ingest.c,v 2.4 1992-07-03 18:30:12 granger Exp $")
 #endif
 
-static void	usage FP((char *prog_name));
+static void	Usage FP((char *prog_name));
 static ZebTime *GetTimes FP((int *npts));
 static void	SetLocations FP((DataChunk *dc, int nsamples));
 static void	GetPlatformName FP((char *classfile, char *platname));
@@ -43,7 +41,6 @@ static void   	ParseFieldNames FP((int argc, char *argv[],
 static void 	LoadFieldData FP((DataChunk *dc, ZebTime *times,
 				  int nsamples, FieldId *fields, int nfields));
 ZebTime *	GetTimes FP((int *npts));
-static void	ListAvailableFields ();
 
 
 # define INGEST_NAME "class_ingest"
@@ -97,7 +94,7 @@ int main (argc, argv)
 	if (argc < 2)		/* Need a file name arg */
 	{
 		printf("%s: need a file name\n",argv[0]);
-		usage(argv[0]);
+		Usage(argv[0]);
 		exit(1);
 	}
 	filename = argv[1];
@@ -174,7 +171,8 @@ ERRORCATCH
 		IngestLog(EF_EMERGENCY,"%s: Data store failed",plat);
 	}
 	else
-		IngestLog(EF_INFO,"%s: CLASS data loaded into DataStore",plat);
+		IngestLog(EF_INFO,
+		   "%s: CLASS data loaded into DataStore",plat);
 
 ON_ERROR
 	IngestLog(EF_EMERGENCY,"Error occurred.  Aborting...");
@@ -317,10 +315,12 @@ GetPlatformName (classfile, plat)
 
 	if (sscanf (site, "FIXED, %s", plat) == 1)
 		/* do nothing */;
-	else if (sscanf (site, "FIXED  %s", plat) == 1)
+	else if (sscanf (site, "FIXED %s", plat) == 1)
 		/* do nothing */;
-	else if (strncmp (site, "MOBILE", 6) == 0)
-		strcpy (plat, "mobile");
+	else if (sscanf (site, "MOBILE, %s", plat) == 1)
+		/* do nothing */;
+	else if (sscanf (site, "MOBILE %s", plat) == 1)
+		/* do nothing */;
 	else
 		strcpy (plat, site);
 /*
@@ -345,7 +345,7 @@ ParseCommandLineOptions(argc, argv)
 /*
  * First parse any of the general ingest options
  */
-	IngestParseOptions(argc, argv, usage);
+	IngestParseOptions(argc, argv, Usage);
 
 /*
  * Now check for any of our own debug flags on the command line
@@ -368,16 +368,13 @@ ParseCommandLineOptions(argc, argv)
 		   continue;
 		}
 
-		/* Remove any options that are found */
-		--(*argc);
-		for (j = i; j < *argc; ++j) 
-		   argv[j] = argv[j+1];
+		RemoveOptions(argc, argv, i, 1);
 	}
 }
 
 
 static void
-usage(prog)
+Usage(prog)
 	char *prog;
 {
 	printf ("Usage: %s [options] file fields\n",prog);
@@ -388,9 +385,9 @@ usage(prog)
 	printf ("   -fields		Describe the sounding file\n");
 	printf ("\n");
 	IngestUsage();
-	printf ("\nExamples:\n%s -show -log pd i7282220.dpk pres temp rh\n",
-		prog);
-	printf ("%s -fields i7282220.dpk\n", prog);
+	printf ("\nExamples:\n");
+	printf ("   %s -show -log pd i7282220.dpk pres temp rh\n", prog);
+	printf ("   %s -fields i7282220.dpk\n\n", prog);
 }
 
 
@@ -458,10 +455,23 @@ LoadFieldData(dc, times, nsamples, fields, nfields)
 	snd_get_data (SND, QPres, BUFLEN, fd_num ("qpres"), BADVAL);
 
 	for (i = 0; i < Npts; i++)
-		if (Pres[i] == BADVAL || QPres[i] == BADVAL || 
-			Pres[i] == 0.0 || 
-			(QPres[i] > 1.5 && QPres[i] != 77 && QPres[i] != 88))
+		if (Pres[i] == BADVAL 	|| 
+		    QPres[i] == BADVAL 	|| 
+		    Pres[i] == 0.0 	|| 
+				(QPres[i] > 1.5 && QPres[i] != 77 
+						&& QPres[i] != 88
+						&& QPres[i] != 99))
 			BadPts[NBad++] = i;
+
+	/* Report the number of bad points found */
+	IngestLog(EF_INFO, "number of bad points found: %d", NBad);
+
+	/* If there are no good points in this file, say so */
+	if (NBad == Npts)
+	{
+		IngestLog(EF_PROBLEM,"no good samples in file");
+		ui_error("No good points to ingest");
+	}
 
 /*
  * For each field id in the fields array, read data into the buffer,
@@ -489,215 +499,3 @@ LoadFieldData(dc, times, nsamples, fields, nfields)
 }
 
 
-
-#ifdef notdef
-/*
- * ingest.c --- A common ingest interface and support routines for 
- *		Zeb ingest modules
- */
-
-# include <stdio.h>
-# include <varargs.h>
-# include <copyright.h>
-# include <ctype.h>
-# include <ui_error.h>
-# include "defs.h"
-# include "message.h"
-# include "timer.h"
-# include "DataStore.h"
-# include "DataChunk.h"
-# include "ds_fields.h"
-
-# ifndef streq
-# define streq(a,b) (strcmp(a,b) == 0)
-# endif
-
-static void	IngestLog FP((int, va_dcl));
-static int	incoming FP((struct message *));
-
-static int IngestLogFlags = 0;	/* Specifies what types of messages are
-				 * written to the terminal */
-static char *IngestName;	/* Message name of ingest module */
-
-void
-ListAvailableFields()
-{
-/*
- * Print a list of valid field names, as well as the maximum number of
- * fields which class_ingest can accept on the command line
- */
-/*
- * For now we have to cheat by knowing there cannot be more than
- * 128 fields.  It would be nice to have function in the Fields package
- * which returns the number of fields (i.e. the maximum field id)
- */
-/*
- * This should probably be changed to just list the fields available 
- * in a named sounding file...  how to do that?
- */
-	FieldId field;
-	char *field_name;
-
-	for (field = 0; field<128; ++field)
-	{
-		if ((field_name = F_GetName(field)))
-			printf("%-10s%-50s%-10s\n",
-				field_name,
-				F_GetDesc(field),
-				F_GetUnits(field));
-	}
-}
-
-
-
-void
-IngestLog(flags, va_alist)
-int flags;
-va_dcl
-/*
- * Send messages to the event logger and to stdout, according
- * to the global IngestLogFlags variable
- */
-{
-	va_list args;
-	struct msg_elog *el;
-	static char cbuf[1024];
-	char *fmt;
-
-	va_start(args);
-	fmt = va_arg(args, char *);
-
-/*
- * First check our local debug flag
- */
-	if ((flags & EF_EMERGENCY) || (IngestLogFlags & flags))
-	{
-		printf("%s: ",IngestName);
-		vprintf(fmt, args);
-		printf("\n");
-	}
-
-/*
- * Now create the message to the event logger
- */
-	el = (struct msg_elog *) cbuf;
-	vsprintf(el->el_text, fmt, args);
-	va_end(args);
-
-/*
- * Send the message
- */
-	el->el_flag = flags;
-	msg_send("Event logger", MT_ELOG, 0, el,
-		sizeof(*el) + strlen(el->el_text));
-}
-
-
-static int
-incoming (msg)
-struct message *msg;
-/*
- * Deal with incoming messages.
- */
-{
-	switch (msg->m_proto)
-	{
-	   case MT_TIMER:
-	   	tl_DispatchEvent ((struct tm_time *) msg->m_data);
-		break;
-	}
-	return (0);
-}
-
-
-void
-IngestUsage()
-{
-	printf ("General ingest options:\n");
-	printf ("   -log all|p|d|i	Set the log messages to write out\n");
-	printf ("	all: 	all\n");
-	printf ("	  p: 	problems\n");
-	printf ("	  d: 	debugging\n");
-	printf ("	  i: 	informational\n");
-	printf ("   -help		Show this information\n");
-}
-
-
-void
-IngestParseOptions(argc, argv)
-	int *argc;
-	char *argv[];
-{
-	int i,j;
-	int get_msgs = 0;
-	char *arg;
-
-	i = 1;
-	while (i < *argc)
-	{
-		if (get_msgs)
-		{
-		   arg = argv[i];
-		   if (streq(arg,"all"))
-		      IngestLogFlags = 0xff;
-		   else
-      		      while (!(*arg))
-      		      {
-         		 switch(*arg)
-          		 {
-    			    case 'd':
-       			       IngestLogFlags &= EF_DEBUG;
-			       break;
-			    case 'p':
-			       IngestLogFlags &= EF_PROBLEM;
-			       break;
-			    case 'i':
-			       IngestLogFlags &= EF_INFO;
-			       break;
-			    default:
-			       fprintf(stderr,"Invalid log flag: %c\n",*arg);
-         		 }
-			 ++arg;
-      		      };
-		   get_msgs = 0;
-		}
-		else if (streq(argv[i],"-help"))
-		{
-		   usage(argv[0]);
-		   exit(0);
-		}
-		else if (streq(argv[i],"-log"))
-		{
-		   get_msgs = 1;
-		}
-		else
-		{
-		   ++i;
-		   continue;
-		}
-
-		/* Remove any options that are found */
-		--(*argc);
-		for (j = i; j < *argc; ++j) 
-		   argv[j] = argv[j+1];
-	}
-}
-
-
-void
-IngestInitialize(name)
-	char *name;		/* Message name of this ingest module */
-{
-
-	IngestName = name;
-
-	usy_init ();
-	msg_connect (incoming, IngestName);
-	if (! ds_Initialize ())
-	{
-		IngestLog(EF_EMERGENCY,"Error: ds_Initialize() failed.");
-		exit(1);
-	}
-	F_Init();			/* Init field ID table */
-}
-#endif
