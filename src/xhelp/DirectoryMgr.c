@@ -194,7 +194,7 @@ DirectoryMgr *dm;
 	ptrs_size = sizeof(DirEntry *) * DirectoryMgrFilteredCount(dm);
 	dm_data = (DirEntry *)malloc(data_size);
 	dm_ptrs = (DirEntry **)malloc(ptrs_size);
-  if ((dm_data >0) && (ptrs_size >0))
+  if ((dm_data) && (ptrs_size >0))
 	if ((dm_data == NULL) || (dm_ptrs == NULL))
 	{
 		fprintf(stderr,"DirectoryMgrRefresh: Out of memory\n");
