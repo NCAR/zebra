@@ -1,0 +1,109 @@
+<title>Retrieving Coordinates from Horizontal Plots</title>
+<h1>Retrieving Coordinates from Horizontal Plots</h1>
+
+The <b>Position Widget</b> allows the user to click on a point in a 
+<a href=horizontal-plots.html>horizontal
+plot</a> and see the location of that point.  It reports positions in latitude
+and longitude coordinates, as well as in coordinates relative to a chosen
+origin.  Relative coordinates are reported as azimuth and range (in
+kilometers or nautical miles) and as x and y coordinates on
+a rectangular, kilometer grid.
+
+<h3>Popping it up</h3>
+
+Pop up the position widget one of two ways:
+
+<ul>
+<li>Find the <img src=zeb-icon.gif> icon in the lower left corner
+of the graphics window.  Choose the
+"Popup position readout widget" entry from the icon menu. <p>
+
+<li>Or type 'g' (for 'get position') inside the graphics window.
+</ul>
+
+The Position widget looks like this:<p>
+<blockquote><img src=position.gif></blockquote>
+</p>
+
+<p>The title appears at the top, and the position readout window is just
+below the title.  The position readout window reports all of the
+coordinates.  The buttons and text windows below the position readout set
+the origin for the relative coordinates and adjust the units of the
+coordinates.</p>
+
+<h3>Selecting the point</h3>
+
+<p>Until a point is selected on the horizontal plot, the position readout 
+window remains blank.  Move the mouse pointer to the desired location 
+in the plot 
+and click the <b>left button</b>.  The position widget will display the
+latitude and longitude of the selected location.</p>
+<blockquote>
+<img src=position-ll.gif>
+</blockquote>
+
+<p>
+The latitude and longitude can be displayed in either decimal degrees or
+in degrees, minutes, and seconds.  The current format is shown in 
+the button below the position readout window, on the left side of the widget:
+either 'Deg/Min/Sec' <img src=position-dms.gif> or 'Decimal Deg' <img
+src=position-dd.gif>.  Click on this button to change the display format.
+</p>
+
+<p> You can click the left mouse button in the graphics window
+at any time and any number of times.  Each time a new point is selected,
+the position readout window reports the coordinates of the new point.
+</p>
+
+<h3>Changing the origin</h3>
+
+When no origin has been chosen for the position widget, the readout
+window contains the message 'No origin for relative coordinates'.  No
+relative coordinates can be reported until an origin is chosen.  The
+name of the origin must be entered in the text window below the position
+readout window.  Type the name of the origin
+in the text window and press <b>Return</b>.
+The example above has set the origin to 'honiara'.</p>
+
+<p> The origin can be chosen from among the locations of the
+project configuration.  Most projects have a
+location called 'ops-ctr'.  Also, any of the locations available in the
+project's <a href=hp-coords.html>overlay</a> menu can also be used as
+origins.  The origin name is the station or location label seen in the
+horizontal plot.  </p>
+
+<p> The origin can be changed at any time by entering a new name into the
+origin window.  If you change the origin name and then press <b>Return</b>
+inside the text window, the coordinates of the currently selected point
+will be updated relative to the new origin.  If an origin name is typed
+into the text window without pressing return, the new origin will not
+become active until a position is selected with the left mouse button.
+</p>
+
+<p> If you see the message "Unable to locate origin: xxx" in the lower
+right message window, then the origin
+name could not be found.  Enter a different name in the origin window.
+</p>
+
+<h3>Changing the units of relative coordinates</h3>
+
+<p>
+Once an origin is chosen, the readout window will contain the relative
+coordinates of the selected position.  The azimuth is reported in compass
+degrees, while the range units are toggled between nautical miles and
+kilometers by clicking on the lower-left button.  The button label shows
+the current range units, either 'Nm' <img src=position-nm.gif> or 'km' <img
+src=position-km.gif>.  The x coordinate is kilometers north of the origin,
+while the y coordinate is kilometers east of the origin.</p>
+
+<h3>Removing the widget</h3>
+
+Remove the position widget by clicking on the dismiss button
+<img src=position-dis.gif>
+at the top of the widget.
+
+<hr>
+<a href=hp-aircraft.html><img src=la.gif></a>
+<a href=xy-graphs.html><img src=ra.gif> Next: X-Y Graphs</a><p>
+<i>Return to <a href=index.html> Zeb Help Index</i></a>
+<h6>$Id: getposition.html,v 1.1 1994-12-07 23:21:13 granger Exp $</h6>
