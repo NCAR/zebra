@@ -481,7 +481,7 @@ C AXIS OF DILATATION IN RADIANS.
              IF(SHDEF.LT.1.E-10) THEN
                ZZ(I,J)=PI/4.
              ELSE
-               ZZ(I,J)=P1/4.-ATAN(STDEF/SHDEF)
+               ZZ(I,J)=PI/4.-ATAN(STDEF/SHDEF)
              ENDIF
            ELSE
              IF(SHDEF.GT.(-1.E-10)) THEN
