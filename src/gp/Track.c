@@ -33,11 +33,12 @@
 # include "../include/pd.h"
 # include "../include/message.h"
 # include "../include/DataStore.h"
+# include "../include/GraphicsW.h"
 # include "GC.h"
 # include "GraphProc.h"
 # include "PixelCoord.h"
 # include "DrawText.h"
-MAKE_RCSID ("$Id: Track.c,v 2.10 1991-12-05 23:26:25 corbet Exp $")
+MAKE_RCSID ("$Id: Track.c,v 2.11 1991-12-06 00:45:13 corbet Exp $")
 
 # define ARROWANG .2618 /* PI/12 */
 
@@ -51,6 +52,8 @@ static void tr_GetArrowParams FP((char *, char *, float *, int *, int *,
 		int *, char *, XColor *, char *, char *, char *));
 static bool tr_CTSetup FP((char *, char *, PlatformId *, int *, int *,
 		char *, bool *, char *, int *, char *));
+static void tr_AnnotTrack FP((char *, char *, char *, int, char *, char *,
+		char *, double, double, double, char *));
 # define BADVAL -32768
 
 
@@ -59,28 +62,27 @@ tr_CAPTrack (comp, update)
 char *comp;
 bool update;
 {
-	char platform[30], ccfield[30], datastr[100], positionicon[40];
-	char *fields[5], mtcolor[20], string[40], ctable[30], a_color[30];
-	char a_xfield[30], a_yfield[30], a_type[30], tadefcolor[30];
+	char platform[30], ccfield[30], positionicon[40];
+	char *fields[5], mtcolor[20], ctable[30], a_color[30];
+	char a_xfield[30], a_yfield[30], a_type[30];
 	int period, dsperiod, x0, y0, x1, y1, nc, lwidth, pid, index;
-	int dskip = 0, npt = 0, i, top, bottom, left, right, wheight, mid;
-	int arrow, a_invert, a_int, numfields = 1, dummy, xannot, yannot;
-	int a_lwidth, tacmatch, showposition;
+	int dskip = 0, npt = 0, i, a_invert, a_int, numfields = 1, dummy;
+	int arrow, a_lwidth, showposition;
 	long timenow, vectime = 0;
 	unsigned int udummy, dwidth, dheight;
 	bool mono; 
 	time begin;
-	float *data, fx, fy, base, incr, cval, a_scale, *a_xdata, *a_ydata;
-	float a_x, a_y, unitlen, sascale, center, step;
+	float *data, fx, fy, base, incr, a_scale, *a_xdata, *a_ydata;
+	float a_x, a_y, unitlen, center, step;
 	Drawable d;
 	Window win;
-	XColor xc, *colors, outrange, a_clr, taclr, tadefclr;
+	XColor xc, *colors, outrange, a_clr;
 	DataObject *dobj;
 /*
  * Pull in our parameters.
  */
 	if (! tr_CTSetup (comp, platform, &pid, &period, &dskip, mtcolor,
-			&mono, ccfield, &showposition, positionicon));
+			&mono, ccfield, &showposition, positionicon))
 		return;
 	if (update)
 		period = period/4;
@@ -120,28 +122,6 @@ bool update;
 		fields[2] = a_yfield;
 		numfields += 2;
 	} 
-/*
- * Read in annotation information.
- */
-	if(! tr_GetParam ("global", "ta-color", NULL, tadefcolor, 
-			SYMT_STRING))
-		strcpy (tadefcolor, "white");
-	if(! ct_GetColorByName (tadefcolor, &tadefclr))
-	{
-		msg_ELog (EF_PROBLEM,"Can't get default color: '%s'.", 
-			tadefcolor);
-		strcpy (tadefcolor,"white");
-		ct_GetColorByName (tadefcolor,&tadefclr);
-	}
-	tacmatch = FALSE;
-	tr_GetParam("global", "ta-color-match", NULL, (char *) &tacmatch,
-		SYMT_BOOL);
-	if(tacmatch)
-		taclr = a_clr;
-	else taclr = tadefclr;
-	if(! tr_GetParam(comp, "sa-scale", platform, (char *) &sascale,
-		SYMT_FLOAT))
-		sascale = 0.02;
 /*
  * Figure the begin time.
  */
@@ -256,55 +236,105 @@ bool update;
 /*
  * Annotate if necessary.
  */
- 	if (! update)
+	if (! update)
+		tr_AnnotTrack (comp, platform, mono ? NULL : ccfield, arrow,
+			a_type, mtcolor, ctable, center, step, unitlen,
+			a_color);
+}
+
+
+
+
+
+
+static void
+tr_AnnotTrack (comp, platform, ccfield, arrow, a_type, mtcolor, ctable,
+	center, step, unitlen, a_color)
+char *comp, *platform, *ccfield, *a_type, *mtcolor, *ctable, *a_color;
+int arrow;
+float center, step, unitlen;
+/*
+ * Annotate the track we have just done.
+ */
+{
+	char tadefcolor[30], datastr[100];
+	XColor tadefclr, taclr;
+	int tacmatch = FALSE;
+	float sascale;
+/*
+ * Read in annotation information.
+ */
+	if(! tr_GetParam ("global", "ta-color", NULL, tadefcolor, 
+			SYMT_STRING))
+		strcpy (tadefcolor, "white");
+	if(! ct_GetColorByName (tadefcolor, &tadefclr))
 	{
-	/*
-	 * On the top.
-	 */
+		msg_ELog (EF_PROBLEM,"Can't get default color: '%s'.", 
+			tadefcolor);
+		strcpy (tadefcolor,"white");
+		ct_GetColorByName (tadefcolor,&tadefclr);
+	}
+/*
+ * Do we do color matching?
+ */
+	tr_GetParam("global", "ta-color-match", NULL, (char *) &tacmatch,
+		SYMT_BOOL);
+	if(tacmatch)
+		ct_GetColorByName (a_color, &taclr);
+	else
+		taclr = tadefclr;
+/*
+ * And scaling for side annotation.
+ */
+	if(! tr_GetParam(comp, "sa-scale", platform, (char *) &sascale,
+		SYMT_FLOAT))
+		sascale = 0.02;
+/*
+ * Annotate along the top.
+ */
+	An_TopAnnot(" ", tadefclr.pixel);
+	An_TopAnnot (platform, tadefclr.pixel);
+	if (ccfield)
+	{
 		An_TopAnnot(" ", tadefclr.pixel);
-		An_TopAnnot (platform, tadefclr.pixel);
-		if (! mono)
+		An_TopAnnot (px_FldDesc (comp, ccfield), 
+			tadefclr.pixel);
+	}
+	An_TopAnnot (" track", tadefclr.pixel);
+/*
+ * Annotate arrows if necessary.
+ */
+	if(arrow)
+	{
+		An_TopAnnot (" with ",tadefclr.pixel);
+		An_TopAnnot (a_type,taclr.pixel);
+		An_TopAnnot (" vectors",taclr.pixel);
+	}
+	An_TopAnnot (".  ", tadefclr.pixel);
+/*
+ * Down the side too.
+ */
+	if (! ccfield)
+	{
+		sprintf (datastr, "%s %s", platform, mtcolor);
+		An_AddAnnotProc (An_ColorString, comp, datastr,
+			strlen (datastr), 25, FALSE, FALSE);
+	}
+	else
+	{
+		sprintf (datastr, "%s %s %f %f", ccfield, ctable,center, step);
+		An_AddAnnotProc (An_ColorBar, comp, datastr,
+			strlen (datastr), 75, TRUE, FALSE);
+		if (arrow)
 		{
-			An_TopAnnot(" ", tadefclr.pixel);
-			An_TopAnnot (px_FldDesc (comp, ccfield), 
-				tadefclr.pixel);
-		}
-		An_TopAnnot (" track", tadefclr.pixel);
-	/*
-	 * Annotate arrows if necessary.
-	 */
-		if(arrow)
-		{
-			An_TopAnnot(" with ",tadefclr.pixel);
-			An_TopAnnot(a_type,taclr.pixel);
-			An_TopAnnot(" vectors",taclr.pixel);
-		}
-		An_TopAnnot (".  ", tadefclr.pixel);
-	/*
-	 * Down the side too.
-	 */
-		if (mono)
-		{
-			sprintf (datastr, "%s %s", platform, mtcolor);
-			An_AddAnnotProc (An_ColorString, comp, datastr,
+			sprintf (datastr, "%s %s %f %f %f", "10m/sec", 
+				a_color, 10.0, 0.0, unitlen);
+			An_AddAnnotProc (An_ColorVector, comp, datastr,
 				strlen (datastr), 25, FALSE, FALSE);
-		}
-		else
-		{
-			sprintf (datastr, "%s %s %f %f", ccfield, ctable,
-				center, step);
-			An_AddAnnotProc (An_ColorBar, comp, datastr,
-				strlen (datastr), 75, TRUE, FALSE);
-			if (arrow)
-			{
-				sprintf (datastr, "%s %s %f %f %f", "10m/sec", 
-					a_color, 10.0, 0.0, unitlen);
-				An_AddAnnotProc (An_ColorVector, comp, datastr,
-					strlen (datastr), 25, FALSE, FALSE);
-			}
 		}
 	}
 }
+
 
 
 
@@ -330,7 +360,7 @@ bool *mono;
 	if ((*pid = ds_LookupPlatform (platform)) == BadPlatform)
 	{
 		msg_ELog (EF_PROBLEM, "Unknown platform '%s'", platform);
-		return;
+		return (FALSE);
 	}
 /*
  * Make sure that we'll get the right sort of stuff.
@@ -383,6 +413,8 @@ bool *mono;
 	}
 	return (TRUE);
 }
+
+
 
 
 
