@@ -1,5 +1,5 @@
 /* 1/88 jc */
-static char *rcsid = "$Id: bfile.c,v 1.9 1991-10-11 17:29:47 case Exp $";
+static char *rcsid = "$Id: bfile.c,v 1.10 1993-12-28 20:49:46 case Exp $";
 /*
  * System-dependant binary file stuff.  These routines are needed because
  * the VMS-specific variable-length-record-format file does not exist in
@@ -252,7 +252,7 @@ short rfa[3];
 	if (lun_type (r) == LUN_NTDSK_DISK)
 	{
 		cli_drfa (lun_lookup (r), rfa);
-		return;
+		return (0);
 	}
 	else
 		fd = lun_lookup (r);
@@ -282,7 +282,7 @@ short rfa[3];
 	if (lun_type (r) == LUN_NTDSK_DISK)
 	{
 		cli_dfind (lun_lookup (r), rfa);
-		return;
+		return (0);
 	}
 	else
 		fd = lun_lookup (r);
