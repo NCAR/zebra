@@ -30,7 +30,7 @@
 # include <DataStore.h>
 # include <Platforms.h>
 
-RCSID ("$Id: dsdump.c,v 3.21 1999-03-01 02:03:50 burghart Exp $")
+RCSID ("$Id: dsdump.c,v 3.22 1999-11-01 20:14:18 burghart Exp $")
 
 /*
  * Standalone scanning flag.
@@ -219,7 +219,7 @@ GetPeriod (char *arg, ZebTime *when)
 		return (0);
 	}
 	/*
-	 * Otherwise look for a simple interval
+	 * Otherwise look for a simple interval relative to now
 	 */
 	if (sscanf (arg, "%f %n", &num, &offset) != 1)
 	{
@@ -245,7 +245,10 @@ GetPeriod (char *arg, ZebTime *when)
 		exit (4);
 	}
 	if (when)
+	{
+		TC_SysToZt (time(0), when);
 		when->zt_Sec -= result;
+	}
 	return (result);
 }
 
@@ -297,7 +300,6 @@ char **argv;
 		Alone = 1;
 	}
 #endif
-
 	sprintf (name, "DSDump-%d", getpid());
 	if (Alone)
 	{
@@ -510,7 +512,6 @@ DumpPlatform (const Platform *p, const DumpOptions *opts)
 		    continue;
 
 		PrintInfo (df, opts);
-
 
 		if (opts->obs)
 		    break;
