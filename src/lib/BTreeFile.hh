@@ -1,5 +1,5 @@
 /*
- * $Id: BTreeFile.hh,v 1.1 1998-05-15 19:36:40 granger Exp $
+ * $Id: BTreeFile.hh,v 1.2 1998-05-28 22:00:46 granger Exp $
  *
  * BTree subclass which implements persistence using a BlockFile.
  */
@@ -48,7 +48,7 @@ public:
 
 	virtual void translate (SerialStream &ss);
 
-	static const unsigned long BTREEFILE_MAGIC;
+	static const unsigned long MAGIC;
 
 protected:
 
@@ -65,7 +65,7 @@ protected:
 	/// Create a new node
 	virtual BTreeNode<K,T> *make (int depth);
 
-	virtual void release ();
+	//virtual void release ();
 
 private:
 	BlockFile *bf;
@@ -81,6 +81,9 @@ private:
 	long leaf_size;
 
 	Logger *log;
+
+	void Init (int order, long sz, int fix);
+
 };
 
 

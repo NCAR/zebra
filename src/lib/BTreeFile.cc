@@ -13,7 +13,7 @@
 //#include <message.h>
 //}
 
-// RCSID ("$Id: BTreeFile.cc,v 1.2 1998-05-15 21:47:21 granger Exp $")
+// RCSID ("$Id: BTreeFile.cc,v 1.3 1998-05-28 22:00:45 granger Exp $")
 
 #include "Logger.hh"
 #include "Format.hh"
@@ -26,44 +26,92 @@ SERIAL_STREAMABLE (Node);
 
 
 template <class K, class T>
+const unsigned long BTreeFile<K,T>::MAGIC = 0xbeeef11e;
+
+
+template <class K, class T>
 BTreeFile<K,T>::BTreeFile (BlockFile &_bf, int order, long sz, int fix) :
 	BTree(0, 0, 0),
 	SyncBlock (_bf),
 	bf (&_bf),
-	key_size(0),
-	value_size(sz),
-	key_size_fixed(0),
-	value_size_fixed(fix),
-	our_bf(0),
-	node_size(0),
-	leaf_size(0),
-	log(Logger::For("BTreeFile"))
+	our_bf(0)
 {
-	//BlockFactory<K,T> *f = new BlockFactory<K,T> (_bf, *this);
-	Setup (order, sz, fix/*, new BlockFactory<K,T> (_bf, *this)*/);
-
-	// Now that we are initialized, we must allocate ourself on disk
-	// and note our location in the header.
-	writeSync (1);
-	bf->setHeader (this->block);
+	Init (order, sz, fix);
 }
 
-
-template <class K, class T>
-const unsigned long BTreeFile<K,T>::BTREEFILE_MAGIC = 0x12481632;
 
 
 template <class K, class T>
 BTreeFile<K,T>::BTreeFile (int order, long sz, int fix) :
 	BTree(0, 0, 0),
-	SyncBlock (*(new BlockFile ("btree.bf", BTREEFILE_MAGIC,
-				    BlockFile::BF_CREATE))),
+	SyncBlock (*(new BlockFile ("btree.bf", MAGIC
+				    /*BlockFile::BF_CREATE*/))),
 	bf (SyncBlock::bf),
+	our_bf(1)
+{
+	Init (order, sz, fix);
+}
+
+
+
+template <class K, class T>
+void
+BTreeFile<K,T>::Init (int order, long sz, int fix)
+{
+	Setup (order, sz, fix);
+	key_size = 0;
+	value_size = sz;
+	key_size_fixed = 0;
+	value_size_fixed = fix;
+	node_size = 0;
+	leaf_size = 0;
+	log = Logger::For("BTreeFile");
+
+	// We have been given the blockfile to store into, so look for the
+	// correct app magic number with an existing app header, else
+	// we're creating a whole new tree.
+
+	Block header;
+	unsigned long magic;
+	bf->ReadLock ();
+	bf->getHeader (&header, &magic);
+	if (header.offset)
+	{
+		if (magic != MAGIC)
+		{
+			log->Error ("BlockFile has wrong magic number.");
+			++err;
+			return;
+		}
+		log->Info (Format("Reading BTreeFile header at (%u,%u)") %
+			   header.offset % header.length);
+		attach (header);
+		readSync ();
+
+		// If we have a root node, it must always be in memory.
+		if (depth != -1)
+			root = get (rootNode, depth);
+	}
+	else
+	{
+		// We're just creating a new tree from scratch.
+		bf->WriteLock ();
+		writeSync (1);
+		log->Info (Format("BTreeFile header allocated at (%u,%u)") %
+			   block.offset % block.length);
+		bf->setHeader (block, MAGIC);
+		bf->Unlock ();
+	}
+	bf->Unlock ();
+}
+
+
+
+#ifdef notdef
 	key_size(0),
 	value_size(sz),
 	key_size_fixed(0),
 	value_size_fixed(fix),
-	our_bf(1),
 	node_size(0),
 	leaf_size(0),
 	log(Logger::For("BTreeFile"))
@@ -73,10 +121,10 @@ BTreeFile<K,T>::BTreeFile (int order, long sz, int fix) :
 	Setup (order, sz, fix/*, new BlockFactory<K,T> (*bf, *this)*/);
 	bf->WriteLock ();
 	writeSync (1);
-	bf->setHeader (this->block);
+	bf->setHeader (this->block, MAGIC);
 	bf->Unlock ();
 }
-
+#endif
 
 
 #ifdef notdef
@@ -118,7 +166,15 @@ BTree<K,T>::BTree (BlockFile &bf, BlkOffset offset) :
 template <class K, class T>
 BTreeFile<K,T>::~BTreeFile ()
 {
-	// Do nothing here and instead act when release() is called.
+	// Delete any nodes in memory, leaving the tree empty when our
+	// superclass destructor is called.
+	if (root)
+		delete root;
+	root = 0;
+	bf->Close ();
+	if (our_bf)
+		delete bf;
+	delete log;
 }
 
 
@@ -128,17 +184,20 @@ BTreeNode<K,T> *
 BTreeFile<K,T>::get (Node &node, int depth)
 {
 	// The simple case is when this node is still in memory
-	assert (node.local);
 	BlockNode<K,T> *that = (BlockNode<K,T> *)node.local;
-	return (that);
 
 	if (! that)
 	{
 		that = new BlockNode<K,T> (*bf, *this, depth);
 		node.local = that;
+		that->block.offset = node.addr;
+		// Initially set this to the minimum we need to read, but
+		// it will be rewritten with the actual allocated size
+		// when the node is translated.
+		that->block.length = nodeSize (that);
+		log->Debug (Format("Recreating node from block (%u,%u)") %
+			    that->block.offset % that->block.length);
 	}
-	that->block.offset = node.addr;
-	that->block.length = nodeSize (that);
 	that->readSync ();
 	return (that);
 }
@@ -155,12 +214,14 @@ BTreeFile<K,T>::make (int depth)
 	// Force allocation to get an address
 	made->allocate (nodeSize (made));
 	assert (made->block.offset > 0);
-	made->thisNode.addr = block.offset;
-	log->Info (Format(" + node created, depth: %i") % depth);
+	made->thisNode.addr = made->block.offset;
+	log->Info (Format(" + node created (%u,%u), depth: %i")
+		   % made->block.offset % made->block.length % depth);
 	return (made);
 }
 
 
+#ifdef notdef
 /*
  * When releasing a btree from a file, we want to leave the block 
  * nodes in the file but delete all the nodes in memory.
@@ -169,12 +230,14 @@ template <class K, class T>
 void
 BTreeFile<K,T>::release ()
 {
-	// For now just erase the tree
-	Erase ();
+	// Delete all nodes in memory, which we do by deleting the root
+	if (root)
+		delete root;
 	bf->Close ();
 	if (our_bf)
 		delete bf;
 }
+#endif
 
 
 template <class K, class T>
@@ -199,7 +262,7 @@ template <class K, class T>
 void
 BTreeFile<K,T>::leave ()
 {
-	if (bf->WriteLockPending() && root)
+	if (bf->WriteLockPending() && lock == 1 && root)
 	{
 		// Need to tell all nodes in memory to writeSync(), which
 		// right now is done by a recursive sync() method.
@@ -323,6 +386,44 @@ BTreeFile<K,T>::nodeSize (BlockNode<K,T> *node)
 /* BlockNode methods */
 
 
+
+template <class K, class T>
+BlockNode<K,T>::~BlockNode ()
+{
+	// Recursively delete our children, but only those currently in memory
+	if (depth > 0)
+	{
+		// Traverse and delete the children residing in memory.
+		for (int i = 0; i < nkeys; ++i)
+		{
+			BlockNode<K,T> *that = 
+				(BlockNode<K,T> *)children[i].local;
+			if (that)
+			{
+				delete that;
+			}
+		}
+		nkeys = 0;
+	}
+	// Superclass frees the rest of this node's memory.
+}
+
+
+template <class K, class T>
+void
+BlockNode<K,T>::prune ()
+{
+	// Free ourselves from the block file, then call the 
+	// superclass method for the rest.
+	if (overflow.offset)
+	{
+		bf->Free (overflow.offset, overflow.length);
+	}
+	free();
+	BTreeNode<K,T>::prune();
+}
+
+
 template <class K, class T>
 void
 BlockNode<K,T>::sync ()
@@ -335,6 +436,8 @@ BlockNode<K,T>::sync ()
 			follow(children[i])->sync ();
 		}
 	}
+	filetree.log->Debug (Printf("Write sync node (%u,%u,%u)", 
+			    block.offset, block.length, block.revision));
 	writeSync ();
 }
 
@@ -344,31 +447,35 @@ BlockNode<K,T>::sync ()
  * When this method is called, our superclass syncblock methods have
  * already determined and allocated our block size.  All that remains is
  * allocating an overflow block if necessary, encoding into a sufficiently
- * large buffer, and writing that buffer to the file.
+ * large buffer, and writing that buffer to the file.  We only write into
+ * as much space as the btree has fixed upon for our node, since that is
+ * all that will be read in when we are recreated.  The actual block
+ * size allocated in the file, though, is still in SyncBlock::block.
  */
 template <class K, class T>
 void
 BlockNode<K,T>::write ()
 {
 	// Figure out how much space we need and get a buffer to encode into.
-	SerialBuffer *wb = bf->writeBuffer (block.length);
+	unsigned long nspace = filetree.nodeSize (this);
+	SerialBuffer *wb = bf->writeBuffer (nspace + overflow.length);
 	unsigned long len = encodedSize (*wb);
 
 	// Get enough space to translate the whole node.
 	wb->Need (len);
 
 	// If we have not been allocated yet, we need to get our fixed
-	// length and allocate that much.
+	// length and allocate at least that much.
 	if (! block.length)
 	{
-		allocate (filetree.nodeSize (this));
+		allocate (nspace);
 	}
 
 	// Determine whether we need overflow space, and if so allocate or
 	// reallocate our overflow block as necessary.
-	if (len > block.length)
+	if (len > nspace)
 	{
-		if (overflow.offset && (len - block.length > overflow.length))
+		if (overflow.offset && (len - nspace > overflow.length))
 		{
 			// Reallocate
 			bf->Free (overflow.offset, overflow.length);
@@ -376,8 +483,7 @@ BlockNode<K,T>::write ()
 		}
 
 		// Allocate
-		overflow.offset = bf->Alloc (len - block.length, 
-					     &overflow.length);
+		overflow.offset = bf->Alloc (len - nspace, &overflow.length);
 	}
 	else
 	{
@@ -390,11 +496,11 @@ BlockNode<K,T>::write ()
 
 	// Write our buffer
 	bf->Write (block.offset, wb->Peek(0, 0), 
-		   (len > block.length) ? block.length : len);
+		   (len > nspace) ? nspace : len);
 	if (overflow.offset)
 	{
-		bf->Write (overflow.offset, wb->Peek(block.length, 0),
-			   len - block.length);
+		bf->Write (overflow.offset, wb->Peek(nspace, 0),
+			   len - nspace);
 	}
 }
 
@@ -428,7 +534,10 @@ template <class K, class T>
 void
 BlockNode<K,T>::translate (SerialStream &ss)
 {
+	// Need to keep our originally allocated block length in our
+	// persistent state so we can free it all when done with it.
 	ss << overflow;
+	ss << block.length;
 	ss << nkeys;
 	for (int i = 0; i < nkeys; ++i)
 	{
@@ -466,6 +575,7 @@ BlockNode<K,T>::baseSize (SerialBuffer &wb)
 	// a separate count gives us the length of the key buffer.
 	SerialCountStream& cs = *wb.countStream();
 	cs << overflow;
+	cs << block.length;
 	cs << nkeys;
 	long s = cs.Count();
 

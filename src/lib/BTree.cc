@@ -11,7 +11,7 @@
 //#include <message.h>
 //}
 
-// RCSID ("$Id: BTree.cc,v 1.12 1998-05-15 19:36:36 granger Exp $")
+// RCSID ("$Id: BTree.cc,v 1.13 1998-05-28 22:00:42 granger Exp $")
 
 #include "Logger.hh"
 #include "BTreeP.hh"
@@ -30,7 +30,7 @@
 
 
 template <class K, class T>
-BTree<K,T>::BTree (int _order, long sz, int fix)
+BTree<K,T>::BTree (int _order, long sz, int fix) : current(0)
 {
 	Setup (_order, sz, fix /*,new HeapFactory<K,T>()*/);
 }
@@ -54,9 +54,11 @@ BTree<K,T>::Setup (int _order, long sz, int fix/*, NodeFactory<K,T> *f*/)
 {
 	depth = -1;
 	root = 0;
+	rootNode = Node();
 	check = 0;
 	err = 0;
-	current = new Shortcut<K,T>;
+	if (! current)
+		current = new Shortcut<K,T>;
 
 	order = _order;
 	fixed = fix;
@@ -71,8 +73,14 @@ BTree<K,T>::Setup (int _order, long sz, int fix/*, NodeFactory<K,T> *f*/)
 template <class K, class T>
 BTree<K,T>::~BTree ()
 {
-	release ();
+	//release ();
 	//delete factory;
+
+	// Root will only be non-zero if we are non-empty, and if the
+	// subclass has not already taken care of freeing node memory
+	// for us.
+	if (root)
+		delete root;
 	if (current)
 		delete current;
 }
@@ -281,6 +289,18 @@ int BTree<K,T>::Last (K *key /* = 0*/, T *value /* = 0*/)
 
 
 
+template <class K, class T>
+ostream &
+BTree<K,T>::Print (ostream &out)
+{
+	enterRead ();
+	if (! Empty())
+		root->print (out);
+	leave ();
+	return (out);
+}
+
+
 /* ---------------- Protected methods ---------------- */
 
 template <class K, class T>
@@ -290,7 +310,7 @@ BTree<K,T>::setRoot (BTreeNode<K,T> *node)
 	root = node;
 	if (! node)
 	{
-		rootNode.addr = 0;
+		rootNode = Node();
 		depth = -1;	// Empty again
 	}
 	else
@@ -322,6 +342,7 @@ BTree<K,T>::make (int depth)
 }
 
 
+#ifdef notdef
 template <class K, class T>
 void
 BTree<K,T>::release ()
@@ -329,7 +350,7 @@ BTree<K,T>::release ()
 	// For a heap tree we just erase ourself to give up our memory.
 	Erase ();
 }
-
+#endif
 
 #ifdef notdef
 /*
@@ -417,10 +438,18 @@ BTreeNode<K,T>::BTreeNode (BTree<K,T> &t, int d) :
 template <class K, class T>
 BTreeNode<K,T>::~BTreeNode ()
 {
-	if (keys)
-		delete[] keys;
+	// If our children have not yet been deleted (i.e., by a subclass),
+	// we need to do it
+	if (children && nkeys)
+	{
+		for (int i = 0; i < nkeys; ++i)
+			delete follow(children[i]);
+		nkeys = 0;
+	}
 	if (children)
 		delete[] children;
+	if (keys)
+		delete[] keys;
 	if (table)
 		delete[] table;
 	if (sbuf)
@@ -443,20 +472,11 @@ BTreeNode<K,T>::erase ()
 		{
 			follow(children[i])->erase ();
 		}
+		nkeys = 0;   // Tells subclasses the children are gone
 	}
 	prune ();
 }
 
-
-
-template <class K, class T>
-ostream &
-BTree<K,T>::Print (ostream &out)
-{
-	if (! Empty())
-		root->print (out);
-	return (out);
-}
 
 
 

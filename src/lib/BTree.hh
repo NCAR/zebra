@@ -1,5 +1,5 @@
 /*
- * $Id: BTree.hh,v 1.9 1998-05-15 19:36:37 granger Exp $
+ * $Id: BTree.hh,v 1.10 1998-05-28 22:00:43 granger Exp $
  *
  * Public BTree class interface.
  */
@@ -173,7 +173,7 @@ protected:
 	void Setup (int order, long sz, int fix /*,NodeFactory<K,T> *f */);
 
 	// Persistent state
-	int depth;
+	int depth;			// Depth of the root node (-1 if none)
 	int order;
 	Node rootNode;			// Root factory address
 	int fixed;			// non-zero for fixed element sizes
@@ -222,7 +222,7 @@ protected:
 	/// default implementation erases the tree.  Subclasses can override
 	/// this to delete any nodes in memory without deleting the 
 	/// persistent copy.
-	virtual void release ();
+	//virtual void release ();
 
 #ifdef notdef
 	/// Delete a node.
