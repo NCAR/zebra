@@ -26,7 +26,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_window.c,v 1.21 1992-06-02 22:37:24 burghart Exp $";
+static char *Rcsid = "$Id: ui_window.c,v 1.22 1992-06-26 22:23:05 burghart Exp $";
 
 static bool Initialized = FALSE;
 static bool Active = FALSE;	/* Is window mode active??	*/
@@ -799,7 +799,6 @@ Widget form;
 	label = XtCreateManagedWidget ("title", labelWidgetClass, header,
 		args, n);
 	n = 0;
-	XtSetArg (args[n], XtNlabel, "Zap");			n++;
 	XtSetArg (args[n], XtNfromHoriz, label);		n++;
 	XtSetArg (args[n], XtNfromVert, NULL);			n++;
 	XtSetArg (args[n], XtNcursor, Zapcursor);		n++;
