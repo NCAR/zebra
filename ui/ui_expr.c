@@ -27,7 +27,14 @@ struct iss
 	char iss_stuff[CHLENGTH];	/* The actual stuff to parse.	*/
 	int iss_col;			/* Text column number.		*/
 };
+static struct iss *Iss_lal = 0;		/* Look aside list		*/
 
+
+# define GET_ISS(ip) { if (Iss_lal) \
+	{ (ip) = Iss_lal; Iss_lal = Iss_lal->iss_next; } \
+	else (ip) = (struct iss *) getvm (sizeof (struct iss));}
+	
+# define REL_ISS(ip) { (ip)->iss_next = Iss_lal; Iss_lal = ip; };
 /*
  * This is the actual input stack.
  */
@@ -67,6 +74,10 @@ static struct roptab
 	{ ___,	___	}
 };
 
+/*
+ * The lookaside list for parse tree nodes.
+ */
+static struct parse_tree *Pt_lal = (struct parse_tree *) 0;
 
 
 
@@ -98,7 +109,8 @@ int col;
 /*
  * Just allocate a structure and fill it in.
  */
- 	ip = (struct iss *) getvm (sizeof (struct iss));
+/* 	ip = (struct iss *) getvm (sizeof (struct iss));*/
+	GET_ISS(ip);
 	ip->iss_stuff[0] = ' ';
 	strcpy (ip->iss_stuff + 1, string);
 	strcat (ip->iss_stuff, " ");
@@ -132,7 +144,8 @@ int *col;
  */
  	ip = Istack;
 	Istack = Istack->iss_next;
-	relvm (ip);
+/*	relvm (ip); */
+	REL_ISS(ip);
 	return (ue_get_char (col));
 }
 
@@ -536,8 +549,18 @@ ue_get_node ()
  * Return a pointer to a newly-allocated tree node.
  */
 {
-	struct parse_tree *ret =
-		(struct parse_tree *) getvm (sizeof (struct parse_tree));
+	struct parse_tree *ret;
+/*
+ * Allocate a node off the lookaside list if possible; otherwise create
+ * a new one.
+ */
+ 	if (ret = Pt_lal)
+		Pt_lal = Pt_lal->pt_left;
+	else
+		ret = (struct parse_tree *) getvm (sizeof (struct parse_tree));
+/*
+ * Clear it out and pass it back.
+ */
 	ret->pt_ntype = ret->pt_dtype = -1;
 	ret->pt_left = ret->pt_right = 0;
 	return (ret);
@@ -1122,7 +1145,8 @@ struct parse_tree *tree;
 	if (tree->pt_ntype == NT_SYM || tree->pt_ntype == NT_FCALL ||
 		(tree->pt_ntype == NT_CONST && tree->pt_dtype == SYMT_STRING))
 		usy_rel_string (tree->pt_v.us_v_ptr);
-	relvm (tree);
+	tree->pt_left = Pt_lal;
+	Pt_lal = tree;
 }
 		
 
