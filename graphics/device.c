@@ -1,5 +1,5 @@
 /* 5/87 jc */
-static char *rcsid = "$Id: device.c,v 1.15 1990-04-09 16:00:40 corbet Exp $";
+static char *rcsid = "$Id: device.c,v 1.16 1990-11-15 11:26:16 burghart Exp $";
 /*
  * Handle device specifics.
  */
@@ -216,7 +216,7 @@ struct device D_tab[] =
 # ifdef DEV_XTITAN
 	{
 		"titan",
-		3, { "titan500", "pctitan", "pctitan500" },
+		5, { "pctitan", "titan500", "pctitan500", "titan400" },
 		GDF_VECTOR | GDF_TOP | GDF_VP,
 		256,			/* x11_open will modify...	*/
 		500, 500,		/* Our resolution for now */
