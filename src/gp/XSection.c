@@ -42,7 +42,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: XSection.c,v 2.39 1997-10-23 22:14:04 burghart Exp $")
+RCSID ("$Id: XSection.c,v 2.40 1997-11-21 19:59:19 burghart Exp $")
 
 /*
  * General definitions
@@ -460,7 +460,7 @@ bool	update;
 	bool	ok;
 	int	nplat;
 	char	platforms[PlatformListLen];
-	char	*pnames[MaxPlatforms], fldname[20], cname[20];
+	char	*pnames[MaxPlatforms], fldname[40], cname[20];
 	char	param[50], outrange[40];
 /*
  * Platform(s).  Platform must come from the global component for zig-zag
@@ -608,7 +608,7 @@ bool	update;
 {
 	bool	ok;
 	char	platforms[PlatformListLen];
-	char	ufldname[20], vfldname[20], *pnames[MaxPlatforms];
+	char	ufldname[40], vfldname[40], *pnames[MaxPlatforms];
 	char	cname[20], style[16];
 	int	nplat;
 /*
