@@ -19,14 +19,14 @@
 # include <X11/Command.h>
 # include <X11/Form.h>
 # include <X11/Label.h>
-# include <X11/VPaned.h>
+/* # include <X11/VPaned.h> */
 
 # else
 # include <X11/Xaw/Box.h>
 # include <X11/Xaw/Command.h>
 # include <X11/Xaw/Form.h>
 # include <X11/Xaw/Label.h>
-# include <X11/Xaw/VPaned.h>
+/* # include <X11/Xaw/VPaned.h> */
 # endif
 
 # include "ui.h"
@@ -39,7 +39,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_window.c,v 1.16 1990-09-17 10:28:48 corbet Exp $";
+static char *Rcsid = "$Id: ui_window.c,v 1.17 1991-10-25 22:27:26 corbet Exp $";
 
 static bool Initialized = FALSE;
 static bool Active = FALSE;	/* Is window mode active??	*/
@@ -1333,18 +1333,21 @@ int x, y, width, height;
 	if (fw->fw_flags & WF_CREATED)
 	{
 		Arg args[5];
-		int n = 0;
 		if (x >= 0)
 		{
+			int n = 0;
 			XtSetArg (args[n], XtNx, x);	n++;
 			XtSetArg (args[n], XtNy, y);	n++;
+			XtSetValues (fw->fw_w, args, n);
 		}
 		if (width > 0)
 		{
+			int n = 0;
 			XtSetArg (args[n], XtNwidth, width);	n++;
 			XtSetArg (args[n], XtNheight, height);	n++;
+			XtSetValues (fw->fw_form, args, n);
 		}
-		XtSetValues (fw->fw_w, args, n);
+/*		XtSetValues (fw->fw_w, args, n); */
 		uw_sync ();
 	}
 /*
@@ -1391,7 +1394,7 @@ char *name;
  */
 	if ((fw->fw_flags & WF_CREATED) && (fw->fw_flags & WF_POPPED))
 		uw_popdown (name);
-	fw->fw_flags |= WF_OVERRIDE;
+	fw->fw_flags |= WF_OVERRIDE | WF_NOHEADER;
 /*
  * If the widget already exists, we must stuff it into there too.
  */
