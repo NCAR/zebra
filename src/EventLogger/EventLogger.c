@@ -1,7 +1,7 @@
 /*
  * The new event logger.
  */
-static char *rcsid = "$Id: EventLogger.c,v 2.1 1991-09-13 15:01:58 corbet Exp $";
+static char *rcsid = "$Id: EventLogger.c,v 2.2 1991-09-17 19:29:32 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -72,8 +72,8 @@ struct EMMap
  * Text info.
  */
 static int Buflen = 0;
-static char *Initmsg = "$Id: EventLogger.c,v 2.1 1991-09-13 15:01:58 corbet Exp $\n\
-Copyright (C) 1991 UCAR, All rights reserved.\n"";
+static char *Initmsg = "$Id: EventLogger.c,v 2.2 1991-09-17 19:29:32 kris Exp $\n\
+Copyright (C) 1991 UCAR, All rights reserved.\n";
 
 /*
  * Our widgets.
