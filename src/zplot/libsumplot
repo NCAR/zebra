@@ -1,0 +1,83 @@
+#! /bin/sh
+#
+
+sumplot_beginpage() # heading
+{
+cat <<EOF
+<html><head><title>$1</title></head><body>
+<body bgcolor="#ffffff">
+
+<h1><IMG alt="National Center for Atmospheric Research" 
+     SRC="http://www.atd.ucar.edu/gif/ncar_ban_sml.gif">
+<br>
+<A HREF="http://www.atd.ucar.edu/welcome.html"><IMG valign=center alt="ATD..." 
+   SRC="http://www.atd.ucar.edu/gif/atd_ban_sml.gif"></a>
+$1
+</h1>
+EOF
+}
+
+sumplot_begintable()
+{
+echo "<p>Click on an image to view the full-size plot.</p>"
+echo "<table border="0" cellspacing=2 cellpadding=2>"
+}
+
+sumplot_endtable()
+{
+echo "</table>"
+echo "</p>"
+}
+
+sumplot_fillrows() # destdir brightness [numcolumns]
+{
+i=0
+destdir="$1"
+brightness="$2"
+ncol=4;
+if [ $# -ge 3 ]; then
+    ncol="$3"
+fi
+echo "<tr>"
+while read path ; do
+
+    if [ $i -eq $ncol ]; then
+	i=0
+	echo "</tr><tr>"
+    fi
+    image=`basename $path`
+    destimage="$destdir/tn_$image"
+    /bin/test $destimage -nt $path || \
+	(set -x; convert -modulate $brightness -geometry 140x140 $path $destimage) 1>&2
+    echo '<td align=center bgcolor="#f0f0f0">'
+    echo "<font size=-1><strong>$image<strong></font><br><a href=$path><img src=tn_$image></a>"
+    echo "</td>"
+    i=`expr $i + 1`
+
+done
+echo "</tr>"
+}
+
+
+sumplot_filltable()
+{
+    sumplot_begintable
+    sumplot_fillrows "$1" "$2"
+    sumplot_endtable
+}
+
+
+sumplot_endpage()
+{
+cat <<EOF
+<HR SIZE=6 NOSHADE ALIGN=LEFT>
+<FONT SIZE=1>&copy;
+NCAR/Atmospheric Technology Division<br>
+Email: <a href="mailto:granger@atd.ucar.edu">granger@atd.ucar.edu</a>
+<br><HR WIDTH="100%"><BR>
+<P><FONT SIZE=-2>
+Created `date`
+</FONT></p>
+EOF
+echo "</body></html>"
+}

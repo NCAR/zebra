@@ -27,6 +27,7 @@ InstallNamedTarget(install,zplotloop,$(INSTBINFLAGS),$(BINDIR),zplotloop)
 InstallNamedTarget(install,plotindex,$(INSTBINFLAGS),$(BINDIR),plotindex)
 InstallNamedTarget(install,zplotnow,$(INSTBINFLAGS),$(BINDIR),zplotnow)
 InstallNamedTarget(install,sumplot,$(INSTBINFLAGS),$(BINDIR),sumplot)
+InstallNamedTarget(install,libsumplot,$(INSTBINFLAGS),$(BINDIR),libsumplot)
 
 DistfilesTarget($(DISTFILES))
 
