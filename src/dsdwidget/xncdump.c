@@ -1,6 +1,6 @@
 
 /*
- * $Id: xncdump.c,v 1.2 1995-06-29 22:33:52 granger Exp $
+ * $Id: xncdump.c,v 1.3 1996-08-13 21:37:02 granger Exp $
  */
 
 #include <stdio.h>
@@ -43,10 +43,9 @@ Widget text = NULL;
 char *filename = NULL;
 
 Boolean using_tmp = False;	/* Flag true when tmp file being used */
-static show_data = False;	/* Start out showing header only */
 static char tmp[256];   	/* Use global tmp name to remove 
 				 * before exiting */
-static char rcsid[]="$Id: xncdump.c,v 1.2 1995-06-29 22:33:52 granger Exp $";
+static char rcsid[]="$Id: xncdump.c,v 1.3 1996-08-13 21:37:02 granger Exp $";
 
 static char *fallbacks[] = {
 "Xncdump*text.height:		400",
@@ -145,8 +144,6 @@ char **argv;
 {
 	Widget top,pane,commands,quit,data,header;
 	XtAppContext app_context;
-	Arg args[3];
-	Pixmap icon_pixmap = None;
 
 	top = XtAppInitialize(&app_context, "Xncdump",
 			      NULL,0,
