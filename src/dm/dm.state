@@ -1,4 +1,4 @@
-! $Id: dm.state,v 1.4 1990-08-30 16:35:47 corbet Exp $
+! $Id: dm.state,v 1.5 1990-09-07 09:04:23 corbet Exp $
 !
 ! Command definition for the display manager.
 !
@@ -8,10 +8,10 @@ define state dm-initial
 	ctable ui$command_table
 	@ /rdss/ui/ui_commands.
 	input 'config' 1
-		next ust$final_string
+		next dm-config-name
 	endinput
 	input 'display' 2
-		next ust$final_string
+		next dm-disp-config
 	endinput
 	input 'list' 3
 		next ust$no_more
@@ -60,6 +60,9 @@ define state dm-initial
 	endinput
 	input 'pickwin' 33
 		next ust$final_string
+	endinput
+	input 'shutdown' 35
+		next ust$no_more
 	endinput
 enddef
 
@@ -156,6 +159,9 @@ define state dm-window
 	endinput
 	input 'description' 7
 		next ust$final_unmunged_string
+	endinput
+	input 'linkpd' 34
+		next ust$final_int
 	endinput
 	input 'buttonmap' 9
 		next ust$final_unmunged_string
@@ -358,5 +364,39 @@ define state dm-dial-opt-scale
 	endinput
 	input eos
 		done
+	endinput
+enddef
+
+
+
+define state dm-config-name
+	input string
+		next dm-maybe-links
+	endinput
+enddef
+
+define state dm-maybe-links
+	input EOS
+		done
+	endinput
+	input integer
+		next ust$no_more
+	endinput
+enddef
+
+
+
+define state dm-disp-config
+	input string
+		next dm-links
+	endinput
+enddef
+
+define state dm-links
+	input EOS
+		done
+	endinput
+	input string
+		next dm-links
 	endinput
 enddef
