@@ -10,7 +10,7 @@
 #include <message.h>
 #include "map.h"
 
-RCSID("$Id: map.c,v 2.1 1997-02-10 20:18:09 granger Exp $")
+RCSID("$Id: map.c,v 2.2 1997-02-14 07:31:59 granger Exp $")
 
 static unsigned char XDR_MAGIC[4] = { 0x88, 0x88, 0x00, 0x00 };
 
@@ -282,8 +282,6 @@ ascii_ReadPoint (MapFile *mf, float *lat, float *lon)
  * Read a lat/lon pair from the ascii stream.
  */
 {
-	int c;
-
 	if (fscanf (mf->map_fp, "%f %f ", lat, lon) < 2)
 	{
 		msg_ELog (EF_PROBLEM, "map file %s: premature eof",

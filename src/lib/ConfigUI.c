@@ -29,7 +29,7 @@
 # include "message.h"
 # include "setup.h"
 
-RCSID("$Id: ConfigUI.c,v 2.1 1996-11-19 07:43:08 granger Exp $")
+RCSID("$Id: ConfigUI.c,v 2.2 1997-02-14 07:31:58 granger Exp $")
 
 
 
@@ -62,10 +62,12 @@ SetupConfigVariables ()
 	v.us_v_ptr = RDSSDIR;
 	usy_s_symbol (vtable, "c$rdssdir", SYMT_STRING, &v);
 /*
- * Lastly, make our message handler name available
+ * Lastly, make our message handler name and session available
  */
 	v.us_v_ptr = (char *) msg_myname ();
 	usy_s_symbol (vtable, "c$msgname", SYMT_STRING, &v);
+	v.us_v_ptr = (char *) msg_SessionName ();
+	usy_s_symbol (vtable, "c$session", SYMT_STRING, &v);
 }
 
 

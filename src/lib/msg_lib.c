@@ -40,7 +40,7 @@
 # define MESSAGE_LIBRARY	/* to get netread prototypes */
 # include "message.h"
 
-RCSID ("$Id: msg_lib.c,v 2.47 1997-02-10 20:18:12 granger Exp $")
+RCSID ("$Id: msg_lib.c,v 2.48 1997-02-14 07:32:01 granger Exp $")
 
 /*
  * The array of functions linked with file descriptors.
@@ -88,7 +88,9 @@ static int SendMask = 0x00;
  * environment variable.
  */
 static int EchoMode = 0;
-static char Identity[ sizeof(struct mh_ident) ] = "unknown";
+#define UNKNOWN "unknown"
+static char Identity[ sizeof(struct mh_ident) ] = UNKNOWN;
+static char Session[ sizeof(struct mh_greeting) ] = UNKNOWN;
 
 /*
  * The queue used for holding messages while looking for something specific.
@@ -211,14 +213,16 @@ char *ident;
  * Get the greeting message.
  */
 	msg_netread (Msg_fd, (char *)&msg, sizeof (struct message));
-	if (msg.m_proto != MT_MESSAGE || msg.m_len != sizeof (greet))
+	if (msg.m_proto != MT_MESSAGE || 
+	    (msg.m_len != sizeof (greet) && 
+	     msg.m_len != sizeof (struct mh_greeting_v14)))
 	{
 		msg_PError ("Funky greeting from message server: %d",
 			    msg.m_proto);
 		close (Msg_fd);
 		return (FALSE);
 	}
-	msg_netread (Msg_fd, (char *)&greet, sizeof (greet));
+	msg_netread (Msg_fd, (char *)&greet, msg.m_len);
 	if (greet.mh_type != MH_GREETING || 
 	    strcmp (greet.mh_version, MSG_PROTO_VERSION))
 	{
@@ -228,17 +232,12 @@ char *ident;
 		fprintf (stderr, "fyi: this will not effect execution;\n%s",
  "     this is just a hint that the server or the client is outdated\n");
 	}
-	if (greet.mh_type == MH_GREETING &&
-	    strcmp (greet.mh_version, "V-1.3"))	/* must be newer protocol */
+	SendMask = EF_EMERGENCY | EF_PROBLEM;	/* V-1.3 default */
+	if (greet.mh_type == MH_GREETING)
 	{
-	/*
-	 * Initialize our log mask to the message manager's current mask.
-	 */
 		SendMask = msg.m_seq;
-	}
-	else
-	{
-		SendMask = EF_EMERGENCY | EF_PROBLEM;
+		if (msg.m_len == sizeof(greet))
+			strcpy (Session, greet.mh_session);
 	}
 /*
  * Send our Ident packet.
@@ -352,7 +351,8 @@ msg_disconnect ()
 	EchoMode = 0;
 	SendMask = 0;
 	PrintMask = (EF_ALL & ~(EF_DEVELOP) & ~(EF_DEBUG));
-	Identity[0] = 0;
+	strcpy (Identity, UNKNOWN);
+	strcpy (Session, UNKNOWN);
 }
 
 
@@ -613,6 +613,17 @@ msg_myname ()
  */
 {
 	return (Identity);
+}
+
+
+
+const char *
+msg_SessionName ()
+/*
+ * Return our message manager's session name
+ */
+{
+	return (Session);
 }
 
 

@@ -1,4 +1,4 @@
-/* $Id: message.h,v 2.29 1997-02-10 20:18:11 granger Exp $ */
+/* $Id: message.h,v 2.30 1997-02-14 07:32:00 granger Exp $ */
 /*
  * Message protocol types.
  */
@@ -140,10 +140,17 @@ struct mh_BoolRepl
 /*
  * The greeting structure.
  */
+struct mh_greeting_v14
+{
+	int	mh_type;	/* == MH_GREETING		*/
+	char	mh_version[20];	/* Server version number	*/
+};
+
 struct mh_greeting
 {
 	int	mh_type;	/* == MH_GREETING		*/
 	char	mh_version[20];	/* Server version number	*/
+	char	mh_session[MAX_NAME_LEN];	/* Session name	*/
 };
 
 /*
@@ -273,7 +280,7 @@ struct msg_elog
  * The name of the event manager.
  */
 # define MSG_MGR_NAME		"Message manager"
-# define MSG_PROTO_VERSION	"V-1.4"
+# define MSG_PROTO_VERSION	"V-1.5"
 
 /*
  * Standard group names recognized by the message manager
@@ -318,6 +325,7 @@ void msg_add_fd FP ((int, int (*handler) ()));
 void msg_delete_fd FP ((int));
 int msg_get_fd FP ((void));
 const char *msg_myname FP((void));
+const char *msg_SessionName FP ((void));
 int msg_await FP ((void));
 int msg_poll FP ((int timeout));
 int msg_PollProto FP ((int timeout, int nproto, int *protolist));
