@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.11 1992-01-29 22:30:58 barrett Exp $ */
+/* $Id: GraphProc.h,v 2.12 1992-03-26 20:12:12 kris Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -160,6 +160,9 @@ extern void mc_Dial FP ((int));
 /* Icons */
 extern void I_DoIcons FP ((void));
 extern void I_ColorIcons FP ((char *));
+extern void I_PositionIcon FP ((char *, char *, ZebTime, char *, int, 
+				int, int));
+extern void I_ClearPosIcon FP (());
 extern int ov_PositionIcon FP ((char *, int, int, int));
 
 /* User events */
