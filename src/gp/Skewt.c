@@ -1,7 +1,7 @@
 /*
  * Skew-t plotting module
  */
-static char *rcsid = "$Id: Skewt.c,v 2.5 1992-05-27 16:33:15 kris Exp $";
+static char *rcsid = "$Id: Skewt.c,v 2.6 1992-07-23 20:36:24 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -123,23 +123,16 @@ bool	update;
  */
 {
 	bool		ok;
-	int		npts, plat, nplat, n;
+	int		npts, plat, nplat, n, nfld, i, have_u, have_v, have_uv;
 	char		platforms[80], annot[80], ctname[20], tadefcolor[30];
 	time		t;
 	ZebTime		ptime, when;
 	char		*pnames[5];
-	FieldId		flist[5];
+	FieldId		flist[5], favail[30];
 	PlatformId	pid;
 	float		*pres, *temp, *dp, *u_wind, *v_wind, badvalue;
+	float		wspd, wdir;
 	DataChunk	*dc;
-/*
- * Done this way to satisfy cc.
- */
-	flist[0] = F_Lookup ("pres");
-	flist[1] = F_Lookup ("tdry");
-	flist[2] = F_Lookup ("dp");
-	flist[3] = F_Lookup ("u_wind");
-	flist[4] = F_Lookup ("v_wind");
 /*
  * Get the platform and color table
  */
@@ -239,7 +232,7 @@ bool	update;
 					Tadefclr.pixel);
 		}
 	/*
-	 * Get the data
+	 * Get the platform id and obtain a good data time
 	 */
 		pid = ds_LookupPlatform (pnames[plat]);
 		if (pid == BadPlatform)
@@ -248,12 +241,52 @@ bool	update;
 				pnames[plat]);
 			continue;
 		}
+
 		ptime = PlotTime;
 		if (! ds_GetObsTimes (pid, &ptime, &ptime, 1, NULL))
 		{
-			msg_ELog (EF_INFO, "No data for '%s'.", pnames[plat]);
+			char	tstring[20];
+			TC_EncodeTime (&ptime, TC_Full, tstring);
+			msg_ELog (EF_INFO, "No data for '%s' at %s.", 
+				pnames[plat], tstring);
 			continue;
 		}
+	/*	
+	 * Build the field list
+	 */
+		flist[0] = F_Lookup ("pres");
+		flist[1] = F_Lookup ("tdry");
+		flist[2] = F_Lookup ("dp");
+	/*
+	 * Get u_wind and v_wind if they exist, otherwise get wspd and wdir 
+	 * and we'll do the derivation.  (The necessity for this will 
+	 * disappear when the data store has some derivation capability of 
+	 * its own)
+	 */
+		have_u = have_v = FALSE;
+		nfld = sizeof (favail) / sizeof (FieldId); /* max we accept */
+		ds_GetFields (pid, &ptime, &nfld, favail);
+		for (i = 0; i < nfld; i++)
+		{
+			have_u |= (favail[i] == F_Lookup ("u_wind"));
+			have_v |= (favail[i] == F_Lookup ("v_wind"));
+		}
+
+		if (have_u && have_v)
+		{
+			have_uv = TRUE;
+			flist[3] = F_Lookup ("u_wind");
+			flist[4] = F_Lookup ("v_wind");
+		}
+		else
+		{
+			have_uv = FALSE;
+			flist[3] = F_Lookup ("wspd");
+			flist[4] = F_Lookup ("wdir");
+		}
+	/*
+	 * Get the data
+	 */
 		if (! (dc = ds_FetchObs (pid, DCC_Scalar, &ptime, flist, 5, 
 			NULL, 0)))
 		{
@@ -278,8 +311,20 @@ bool	update;
 			pres[n] = dc_GetScalar (dc, n, flist[0]);
 			temp[n] = dc_GetScalar (dc, n, flist[1]);
 			dp[n] = dc_GetScalar (dc, n, flist[2]);
-			u_wind[n] = dc_GetScalar (dc, n, flist[3]);
-			v_wind[n] = dc_GetScalar (dc, n, flist[4]);
+			if (have_uv)
+			{
+				u_wind[n] = dc_GetScalar (dc, n, flist[3]);
+				v_wind[n] = dc_GetScalar (dc, n, flist[4]);
+			}
+			else
+			{
+				wspd = dc_GetScalar (dc, n, flist[3]);
+				wdir = dc_GetScalar (dc, n, flist[4]);
+				u_wind[n] = wspd * 
+					cos (DEG_TO_RAD (270.0 - wdir));
+				v_wind[n] = wspd * 
+					sin (DEG_TO_RAD (270.0 - wdir));
+			}
 		}
 	/*
 	 * Plot the thermo data and then the winds data
@@ -828,7 +873,7 @@ int	plot_ndx, nplots;
  * Plot the winds for the given sounding
  */
 {
-	float	xstart, xscale, yscale, xov[2], yov[2], w_aspect;
+	float	xstart, xscale, yscale, xov[2], yov[2];
 	int	i;
 /*
  * Calculate the x starting position and the x and y scaling factors
@@ -837,9 +882,8 @@ int	plot_ndx, nplots;
 		(Xhi - 1.0) * (float) (plot_ndx + 0.5) / (float) (nplots);
 	xscale = (Xhi - 1.0) / (W_scale * 2 * nplots);
 
-	w_aspect = (Yhi - Ylo) / (Xhi - 1.0) * GWWidth (Graphics) /
-		GWHeight (Graphics);
-	yscale = w_aspect * xscale;
+	yscale = xscale * 
+		(YPIX (1.0) - YPIX (0.0)) / (XPIX (1.0) - XPIX (0.0));
 /*
  * Plot the winds
  */
