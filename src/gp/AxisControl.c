@@ -1,7 +1,7 @@
 /*
  * Skew-t plotting module
  */
-static char *rcsid = "$Id: AxisControl.c,v 1.3 1992-01-02 17:05:08 barrett Exp $";
+static char *rcsid = "$Id: AxisControl.c,v 1.4 1992-01-02 23:02:14 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -430,7 +430,7 @@ unsigned short		mode;
 		&baseTic,&fscale, color, label );
     XSetLineAttributes ( XtDisplay(Graphics), Gcontext, 0, LineSolid,
 		CapButt, JoinMiter);
-    SetColor(c,"axis-color",NULL,"white");
+    SetColor(c,"axis-color",NULL,color);
 	
     msg_ELog ( EF_DEBUG,"Draw Axis: component = %s side = %c datatype = %c",
 		c,side,datatype);
