@@ -1,0 +1,41 @@
+netcdf example {
+dimensions:
+	time = UNLIMITED ; // (1 currently)
+	y = 512 ;
+	x = 1024 ;
+variables:
+	int base_time ;
+		base_time:long_name = "base time in Epoch" ;
+		base_time:units = "seconds since 1970-01-01 00:00:00 UTC" ;
+	double time_offset(time) ;
+		time_offset:long_name = "Time offset from base_time" ;
+		time_offset:units = "seconds" ;
+	float lat ;
+		lat:long_name = "latitude of soutwest corner" ;
+		lat:units = "degrees" ;
+		lat:valid_range = -90.f, 90.f ;
+	float lon ;
+		lon:long_name = "longitude of southwest corner" ;
+		lon:units = "degrees" ;
+		lon:valid_range = -180.f, 180.f ;
+	float alt ;
+		alt:long_name = "first level MSL altitude" ;
+		alt:units = "km" ;
+	float x_spacing ;
+		x_spacing:long_name = "grid spacing west->east" ;
+		x_spacing:units = "km" ;
+	float y_spacing ;
+		y_spacing:long_name = "grid spacing south->north" ;
+		y_spacing:units = "km" ;
+	float z_spacing ;
+		z_spacing:long_name = "vertical grid spacing" ;
+		z_spacing:units = "km" ;
+	float var1(time, y, x) ;
+		var1:long_name = "first variable long name" ;
+		var1:units = "units string" ;
+		var1:missing_value = -99.99f ;
+	float var2(time, y, x) ;
+		var2:long_name = "second variable long name" ;
+		var2:units = "units string" ;
+		var2:missing_value = -99.99f ;
+}
