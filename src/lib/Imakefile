@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-/* $Id: Imakefile,v 1.23 1997-05-02 22:02:15 granger Exp $ */
+/* $Id: Imakefile,v 1.24 1997-06-10 18:58:28 burghart Exp $ */
 
 #if !HasWritev
 WRITEVOBJ=writev.o
@@ -40,10 +40,10 @@ DEPEND_DEFINES = $(SHMDEFINES) $(DIRDEFINES) $(XINCLUDES) $(RDSSINCLUDES)
 
 TESTSRCS = cvt_test.c re_test.c msg_test.c
 
-SRCS = alarmwidget.c altunits.c barb.c Bitmaps.c cmd_proto.c cmd_exec.c \
-	ConfigVars.c ConfigUI.c convert.c GraphicsW.c ImageXfr.c Buttons.c \
-	msg_BCast.c msg_lib.c netread.c Parse.c pdlib.c pdretrv.c pdaux.c \
-	RLEncode.c Sound_lib.c TCvt.c TInterp.c timer_lib.c twidget.c \
+SRCS = alarmwidget.c altunits.c barb.c Bitmaps.c byteorder.c cmd_proto.c \
+	cmd_exec.c ConfigVars.c ConfigUI.c convert.c GraphicsW.c ImageXfr.c \
+	Buttons.c msg_BCast.c msg_lib.c netread.c Parse.c pdlib.c pdretrv.c \
+	pdaux.c RLEncode.c Sound_lib.c TCvt.c TInterp.c timer_lib.c twidget.c \
 	vector.c $(WRITEVSRC) FindFile.c zl_regex.c dm_lib.c $(TESTSRCS) \
 	location.c version.c zl_symbol.c zl_string.c T_Expect.c T_Profile.c \
 	zebra_xdr.c map.c map_xdr.c
@@ -55,7 +55,7 @@ CFGOBJS = ConfigVars.o ConfigUI.o
 
 SPECIAL_OBJS = $(XOBJS) $(XUIOBJS) $(UIOBJS) $(CFGOBJS)
 
-OBJS = $(SPECIAL_OBJS) altunits.o cmd_exec.o \
+OBJS = $(SPECIAL_OBJS) altunits.o byteorder.o cmd_exec.o \
 	convert.o GraphicsW.o ImageXfr.o \
 	msg_BCast.o msg_lib.o netread.o Parse.o \
 	RLEncode.o Sound_lib.o TCvt.o TInterp.o timer_lib.o \

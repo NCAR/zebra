@@ -1,57 +1,95 @@
-/* $Id: byteorder.h,v 2.4 1997-05-13 22:16:36 ishikawa Exp $ */
+/* $Id: byteorder.h,v 2.5 1997-06-10 18:58:34 burghart Exp $ */
 /*
- * Byte swapping, where called for.
+ * Byte order testing and swapping functions.  Two's complement is assumed
+ * for all signed values.
  */
 
 /*
- * Thus far, only linux needs byte swapping.  This is, nonetheless, almost
- * certainly the wrong test; we need to get endianness together.
-   Added DEC/Alpha OSF/1 LITTLE_ENDIAN machine. Still is not complete
-   because Alpha is a 64 bit machine.
+ * Boolean endianness tests
+ */
+static inline int LittleEndian (void);
+static inline int BigEndian (void);
+
+/*
+ * In-place byte-swapping functions
+ */
+static inline void swap4 (void *p);
+static inline void swap2 (void *p);
+
+/*
+ * 4-byte integer handling
+ */
+long FromBigI4 (void *src);
+long FromLittleI4 (void *src);
+unsigned long FromBigUI4 (void *src);
+unsigned long FromLittleUI4 (void *src);
+
+int ToBigI4 (long val, void *dest);
+int ToLittleI4 (long val, void *dest);
+int ToBigUI4 (unsigned long val, void *dest);
+int ToLittleUI4 (unsigned long val, void *dest);
+
+/*
+ * 2-byte integer handling
+ */
+long FromBigI2 (void *src);
+long FromLittleI2 (void *src);
+unsigned long FromBigUI2 (void *src);
+unsigned long FromLittleUI2 (void *src);
+
+int ToBigI2 (long val, void *dest);
+int ToLittleI2 (long val, void *dest);
+int ToBigUI2 (unsigned long val, void *dest);
+int ToLittleUI2 (unsigned long val, void *dest);
+
+
+/*
+ * The function definitions (not just the declarations) have to be local for 
+ * inlines to work, so here they are...
  */
 
-# if defined (linux) || defined (__osf__) || defined (LITTLE_ENDIAN)
-static
-#  ifdef __GNUC__
-inline
-#  endif
-void swap4 (stuff)
-void *stuff;
-/*
- * 4-byte swap.
- */
+static inline void 
+swap4 (void *p)
 {
-	char *cp = (char *) stuff, t;
+    char tmp;
+    char *cp = (char *)p;
 
-	t = cp[0]; cp[0] = cp[3]; cp[3] = t;
-	t = cp[1]; cp[1] = cp[2]; cp[2] = t;
+    tmp = cp[0]; cp[0] = cp[3]; cp[3] = tmp;
+    tmp = cp[1]; cp[1] = cp[2]; cp[2] = tmp;
 }
 
-static
-#  ifdef __GNUC__
-inline
-#  endif
-void swap2 (stuff)
-void *stuff;
-/*
- * 2-byte swap.
- */
+    
+static inline void 
+swap2 (void *p)
 {
-	char *cp = (char *) stuff, t;
+    char tmp;
+    char *cp = (char *)p;
 
-	t = cp[0]; cp[0] = cp[1]; cp[1] = t;
+    tmp = cp[0]; cp[0] = cp[1]; cp[1] = tmp;
 }
-# ifndef LITTLE_ENDIAN
-# define LITTLE_ENDIAN
-# endif
-# undef BIG_ENDIAN
-# else /* linux */
 
-# define swap4(stuff) (stuff)
-# define swap2(stuff) (stuff)
-# ifndef BIG_ENDIAN
-# define BIG_ENDIAN
-# endif
-# undef LITTLE_ENDIAN
 
-# endif /* linux */
+
+/*
+ * This crude (but effective and fast) byte order testing will work only
+ * on true big- or little-endian machines.  Please no mid-endian weirdness..
+ * It should work on machines with 16-bit or larger ints.
+ */
+static inline int
+LittleEndian (void)
+{
+    unsigned int i = 1;
+    char *bytes = (char *)&i;
+
+    return (bytes[0] == 1);
+}
+
+
+static inline int
+BigEndian (void)
+{
+    unsigned int i = 1;
+    char *bytes = (char *)&i;
+
+    return (bytes[0] != 1);
+}
