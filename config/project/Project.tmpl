@@ -1,6 +1,6 @@
 /**/#-------------------------------------------------------------------------
 /**/# Zeb project build parameters
-/**/# $Id: Project.tmpl,v 1.13 1993-10-21 18:55:02 corbet Exp $
+/**/# $Id: Project.tmpl,v 1.14 1993-11-30 02:00:50 granger Exp $
 /**/#-------------------------------------------------------------------------
 
 /*****************************************************************************
@@ -547,6 +547,12 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
               UIC = UicCmd
             ARADD = ArAdd
      INSTAPPFLAGS = InstAppFlags
+
+/*
+ * Debugging tools
+ */
+/*          PROOF = /net/CenterLine/bin/proof	*/
+            PROOF = proof
 
 /*
  * Our own implicit rules, such as for C++ files (.cc extension)
