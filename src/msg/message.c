@@ -52,7 +52,7 @@
 # define MESSAGE_MANAGER	/* define prototypes for netread functions */
 # include <message.h>
 
-RCSID ("$Id: message.c,v 2.62 2000-03-01 20:33:15 burghart Exp $")
+RCSID ("$Id: message.c,v 2.63 2002-05-11 16:40:08 vanandel Exp $")
 
 /*
  * Symbol tables.
@@ -857,6 +857,7 @@ MakeInetSocket ()
 {
 	struct sockaddr_in saddr;
 	int ntry = 0;
+	int one = 1;
 /*
  * Get our socket.  Failures here are nonfatal, since we can, in some way,
  * get by without internet connectivity.
@@ -866,6 +867,21 @@ MakeInetSocket ()
 		perror ("Internet socket get");
 		return;
 	}
+
+/*
+ * If another copy died earlier, we want to reuse our socket address,
+ * rather than having to retry until the system cleans up the
+ * old address
+ * 
+ */
+	if (setsockopt(M_in_socket,SOL_SOCKET,SO_REUSEADDR,(char *)&one,
+	     sizeof one) == -1) 
+	{
+	     perror ("setsockopt");
+	     (void) close(M_in_socket);
+	     return;
+	}
+
 /*
  * Fill in the address info, and bind to this port.
  */
