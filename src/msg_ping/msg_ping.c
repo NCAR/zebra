@@ -1,7 +1,7 @@
 /*
  * Exercise the "ping" feature.
  */
-static char *rcsid = "$Id: msg_ping.c,v 2.1 1991-09-12 02:02:09 corbet Exp $";
+static char *rcsid = "$Id: msg_ping.c,v 2.2 1994-05-21 07:21:15 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -20,8 +20,8 @@ static char *rcsid = "$Id: msg_ping.c,v 2.1 1991-09-12 02:02:09 corbet Exp $";
  * maintenance or updates for its software.
  */
 
-# include "../include/defs.h"
-# include "message.h"
+# include <defs.h>
+# include <message.h>
 
 
 # ifdef __STDC__
@@ -64,7 +64,7 @@ char *host;
  */
 {
 	char to[60];
-	int proto = MT_PING;
+	int proto = MT_CPING;
 /*
  * Figure out who this is going to.
  */
@@ -73,7 +73,6 @@ char *host;
 		if (strchr (host, '@'))
 		{
 			strcpy (to, host);
-			proto = MT_CPING;
 		}
 		else
 			sprintf (to, "%s@%s", MSG_MGR_NAME, host);

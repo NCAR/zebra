@@ -1,7 +1,7 @@
 /*
  * Message server status grabber.
  */
-static char *rcsid = "$Id: mstatus.c,v 2.2 1992-03-17 22:37:09 barrett Exp $";
+static char *rcsid = "$Id: mstatus.c,v 2.3 1994-05-21 07:21:18 granger Exp $";
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -20,10 +20,11 @@ static char *rcsid = "$Id: mstatus.c,v 2.2 1992-03-17 22:37:09 barrett Exp $";
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-# include "../include/defs.h"
-# include "message.h"
+# include <defs.h>
+# include <message.h>
 # include <copyright.h>
 
+int
 main ()
 {
 	int handler ();
@@ -34,15 +35,17 @@ main ()
 	tm.mh_type = MH_STATS;
 	msg_send (MSG_MGR_NAME, MT_MESSAGE, 0, &tm, sizeof (tm));
 	msg_await ();
+	exit (0);
 }
 
 
 
+int
 handler (msg)
 struct message *msg;
 {
 	if (msg->m_proto != MT_MESSAGE)
-		return;
+		return (0);
 	if (msg->m_len == 0)
 		return (1);
 	printf ("%s\n", msg->m_data);

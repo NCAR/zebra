@@ -39,7 +39,7 @@
 # include "message.h"
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.20 1994-05-18 19:19:20 corbet Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.21 1994-05-21 07:21:11 granger Exp $")
 /*
  * Symbol tables.
  */
@@ -1090,21 +1090,23 @@ struct message *msg;
 	   	MsgProtocol (fd, msg);
 		break;
 	/*
-	 * We answer pings, but only if directed at us.
+	 * Message tapping.
+	 */
+	   case MT_MTAP:
+	   	Tap (fd, msg);
+		break;
+	/*
+	 * We answer pings, but only if directed at us.  Otherwise
+	 * we fall through and route the ping to the intended recipient.
 	 */
 	   case MT_PING:
+	   case MT_CPING:
 	   	if (! strcmp (msg->m_to, MSG_MGR_NAME))
 		{
 			AnswerPing (fd, msg);
 			break;
 		}
 		/* Else fall through.... */
-	/*
-	 * Message tapping.
-	 */
-	   case MT_MTAP:
-	   	Tap (fd, msg);
-		break;
 	/*
 	 * Most stuff just gets sent through to the destination.
 	 */
