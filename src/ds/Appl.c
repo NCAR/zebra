@@ -28,7 +28,7 @@
 #include "dfa.h"
 
 #ifndef lint
-MAKE_RCSID ("$Id: Appl.c,v 3.37 1994-11-21 22:46:40 granger Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.38 1995-01-20 22:14:08 granger Exp $")
 #endif
 
 /*
@@ -713,12 +713,12 @@ TimeSpec which;
 	/*
 	 * Get positioned.
 	 */
-		ds_LockPlatform (platform);
 		if ((index = ds_FindAfter (platform, when)) < 0)
 			return (0);
 	/*
 	 * Now we move forward filling the array.
 	 */
+		ds_LockPlatform (platform);
 		for (; index && ndone < n; index = dfe.df_BLink)
 		{
 			ds_GetFileStruct (index, &dfe);
