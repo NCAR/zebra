@@ -4,14 +4,16 @@
 # include <unistd.h>
 # include <string.h>
 
+# include <ui.h>
 # include "defs.h"
 # include "message.h"
 # include "DataStore.h"
 # include "dsPrivate.h"
+# include "Platforms.h"		/* for DefDataDir global declaration */
 # include "commands.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID("$Id: d_Debug.c,v 3.7 1995-08-31 09:49:02 granger Exp $")
+MAKE_RCSID("$Id: d_Debug.c,v 3.8 1996-11-19 09:27:11 granger Exp $")
 
 #ifdef ORGANIZATIONS
 typedef enum {
@@ -378,11 +380,11 @@ char *who;
 	char buf[1024];
 	time_t now = time (NULL);
 
-	sprintf (buf, "Zebra data store daemon, proto %08x, cache key %08x",
+	sprintf (buf, "Zebra data store daemon, proto %08x, cache key %08lx",
 		 DSProtocolVersion, CacheKey);
 	msg_AnswerQuery (who, buf);
 	sprintf (buf, "%s", 
-	 "$Id: d_Debug.c,v 3.7 1995-08-31 09:49:02 granger Exp $");
+	 "$Id: d_Debug.c,v 3.8 1996-11-19 09:27:11 granger Exp $");
 	msg_AnswerQuery (who, buf);
 
 	dbg_EncodeElapsed ("Up since ", &Genesis, &now, buf);
