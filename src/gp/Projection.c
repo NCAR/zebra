@@ -31,7 +31,7 @@
 # include <config.h>
 # include <defs.h>
 
-MAKE_RCSID ("$Id: Projection.c,v 2.12 2003-04-22 15:59:59 burghart Exp $")
+MAKE_RCSID ("$Id: Projection.c,v 2.13 2004-11-17 17:37:22 burghart Exp $")
 
 # ifdef MAP_PROJECTIONS
 static char *projopt[2] = { "@(#)$GP: Map projections compiled $",
@@ -58,13 +58,6 @@ static char *projopt[2] = { "@(#)$GP: Map projections NOT compiled $",
 # undef PI
 # endif
 # include "projects.h"
-/*
- * We use the newer type "projUV", but still allow for the old
- * "UV" type.
- */
-# ifndef USE_PROJUV	/* defined in newer projects.h */
-typedef UV projUV;
-# endif
 
 /*
  * This "PJ" dude is the magic cookie used by the proj library to describe
