@@ -32,7 +32,7 @@
 # include "dslib.h"
 # include "dfa.h"
 #ifndef lint
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.43 1995-04-05 20:55:20 burghart Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.44 1995-04-17 22:53:32 granger Exp $")
 #endif
 
 #include <netcdf.h>
@@ -118,6 +118,7 @@ typedef struct _nctag
 					/*     RGrid z spacing		*/
 	float		*nc_alts;	/* Alts for 3dgrid and nspace	*/ 
 	int 		nc_nalts;	/* Number of available altitudes*/
+	int		nc_altvar;	/* Varid of source of altitudes	*/
 } NCTag;
 
 
@@ -158,12 +159,16 @@ static struct CO_Compat
 	{ Org2dGrid,		DCC_RGrid	},
 	{ Org3dGrid,		DCC_RGrid	},
 	{ OrgIRGrid,		DCC_IRGrid	},
+#ifdef notdef /* notyet */
+	{ OrgIRGrid,		DCC_RGrid	}, /* profiles from irgrid */
+#endif
 	{ OrgIRGrid,		DCC_Scalar	},
 	{ OrgScalar,		DCC_Scalar	},
 	{ OrgScalar,		DCC_Location	},
 	{ Org1dGrid,		DCC_Location	},
 	{ Org2dGrid,		DCC_Location	},
 	{ Org3dGrid,		DCC_Location	},
+	{ OrgNSpace,		DCC_Location	},
 	{ OrgScalar,		DCC_NSpace	},
 	{ OrgNSpace,		DCC_NSpace	},
 /*
@@ -190,14 +195,22 @@ struct AttArg {
 static void     dnc_NCError FP ((char *));
 static int      dnc_OFTimes FP ((NCTag *));
 static int	dnc_LoadFields FP ((NCTag *tag));
+static int	dnc_Varid FP ((int id, char *name));
+static int	dnc_Dimid FP ((int id, char *name));
+static int	dnc_DecipherTime FP ((int id, int *vtime, int *dtime,
+				      long *ntime, nc_type *, ZebTime *base));
 static int      dnc_GetTimes FP ((NCTag *));
 static int      dnc_OFIRGrid FP ((NCTag *));
 static int	dnc_OFRGrid FP ((NCTag *tag));
-static int	dnc_OFRGridAlts FP ((NCTag *tag));
-static int	dnc_OFNSpaceAlts FP ((NCTag *tag));
+static int	dnc_GetRGridAlts FP ((NCTag *tag, FieldId fid, 
+				      int offset, int opening));
+static int	dnc_GetNSpaceAlts FP ((NCTag *tag, FieldId fid,
+				       int offset, int opening));
+static int	dnc_GetIRGridAlts FP ((NCTag *tag, FieldId fid, int offset));
 static int     	dnc_TimeIndex FP ((NCTag *, ZebTime *));
+static int	dnc_AltIndex FP ((NCTag *tag, dsDetail *, int ndetail));
 static void     dnc_LoadLocation FP ((NCTag *, Location *, long, long));
-static int      dnc_BuildPMap FP ((NCTag *));
+static int      dnc_BuildPMap FP ((NCTag *, int pdim));
 static void     dnc_CFMakeDims FP ((NCTag *, DataChunk *, int *, int *));
 static void     dnc_CFMakeVars FP ((NCTag *, DataChunk *));
 static void     dnc_CFScalarVars FP ((NCTag *, DataChunk *));
@@ -212,10 +225,12 @@ static void	dnc_NSpaceSetup FP((NCTag *tag, DataChunk *dc,
 				    int nfield, FieldId *fields));
 static void	dnc_NSpaceFinishSetup FP ((NCTag *tag, DataChunk *dc,
 					   dsDetail *details, int ndetail));
+static void	dnc_Slice FP ((NCTag *tag, int varid, long *start,
+			       long *count, int altindex, dsDetail *, int));
 static int 	dnc_ReadScalar FP((DataChunk *, NCTag *, long, long, FieldId *,
-				   int, double));
+				   int, double, dsDetail *, int ndetail));
 static void 	dnc_ReadIRGrid FP ((DataChunk *, NCTag *, int, int, FieldId *,
-			int, double));
+			int, double, dsDetail *, int ndetail));
 static void 	dnc_ReadRGrid FP ((DataChunk *, NCTag *, int, int, FieldId *,
 			int, double, dsDetail *, int));
 static int	dnc_ReadNSpace FP((DataChunk *, NCTag *, long,
@@ -225,6 +240,7 @@ static void	dnc_ReadNSpaceScalar FP((DataChunk *dc, NCTag *tag,
 			 int nfield, double badval, int altindex,
 			 dsDetail *details, int ndetail));
 static int	dnc_ReadLocation FP ((DataChunk *, NCTag *, long, long));
+static int 	dnc_VarAlts FP ((int ncid, int varid, AltUnitType *au));
 static int	dnc_GetFieldVar FP ((NCTag *, FieldId));
 #ifdef APPLY_BADVALUE
 static void	dnc_ApplyBadval FP ((NCTag *, int varid, 
@@ -265,6 +281,7 @@ static void	dnc_ReadFieldAtts FP ((DataChunk *, NCTag *, FieldId *, int));
 static
 #endif
 int dnc_TimeUnits FP ((ZebTime *zt, const char *time_units));
+static void	strtolower FP ((char *c));
 
 /*
  * The minimum size of a time list before it's worthwhile to do a binary
@@ -313,6 +330,179 @@ ZebTime *zt;
 
 
 
+static int
+dnc_Varid (id, name)
+int id;
+char *name;
+/*
+ * Search the variable names for a match which ignores case.
+ * Return -1 on failure, otherwise the varid of the matching variable.
+ */
+{
+	int ndim, nvar, natt, rdim;
+	int varid;
+	nc_type dtype;
+	char target[MAX_NC_NAME+1];
+	char vname[MAX_NC_NAME+1];
+
+	if (strlen(name) > MAX_NC_NAME)	/* can't match if too long */
+		return (-1);
+	strcpy (target, name);
+	strtolower (target);
+	if (ncinquire (id, &ndim, &nvar, &natt, &rdim) < 0)
+		return (-1);
+	for (varid = 0; varid < nvar; ++varid)
+	{
+		ncvarinq (id, varid, vname, &dtype, &ndim, NULL, NULL);
+		strtolower (vname);
+		if (strcmp (vname, target) == 0)
+			break;
+	}
+	return ((varid < nvar) ? varid : -1);
+}
+
+
+
+static int
+dnc_Dimid (id, name)
+int id;
+char *name;
+/*
+ * Search the dimension names for a match which ignores case.
+ * Return -1 on failure, otherwise the dimid of the matching dimension.
+ */
+{
+	int ndim, nvar, natt, rdim;
+	int dimid;
+	long size;
+	char target[MAX_NC_NAME+1];
+	char dname[MAX_NC_NAME+1];
+
+	if (strlen(name) > MAX_NC_NAME)	/* can't match if too long */
+		return (-1);
+	strcpy (target, name);
+	strtolower (target);
+	if (ncinquire (id, &ndim, &nvar, &natt, &rdim) < 0)
+		return (-1);
+	for (dimid = 0; dimid < ndim; ++dimid)
+	{
+		ncdiminq (id, dimid, dname, &size);
+		strtolower (dname);
+		if (strcmp (dname, target) == 0)
+			break;
+	}
+	return ((dimid < ndim) ? dimid : -1);
+}
+
+
+
+static int
+dnc_DecipherTime (id, vtime, dtime, ntime, ttype, base_time)
+int id;
+int *vtime;	/* varid of the time offset array variable */
+int *dtime;	/* dimid of the dimension of the time variable */
+long *ntime;	/* number of times in the time array */
+nc_type *ttype;	/* type of the time variable */
+ZebTime *base_time;
+/*
+ * Inquire a netcdf file and search its variables for names which
+ * match any of our expected time variable names.  Interpret variables
+ * and units as necessary to determine the base time.
+ *
+ * The idea is to do all of that deciphering here so that we can do
+ * things like detect mere differences in case or slight name tweaks.
+ */
+{
+	int ndim, nvar, natt, rdim, tvar, btime;
+	nc_type dtype, atype;
+	int dims[MAX_VAR_DIMS];
+	char time_units[256];
+	int alen;
+	ZebTime zt;
+	long base, dimlen;
+
+	if (ncinquire (id, &ndim, &nvar, &natt, &rdim) < 0)
+		return (FALSE);
+	if (((tvar = dnc_Varid (id, "time_offset")) < 0) && 
+	    ((tvar = dnc_Varid (id, "time")) < 0))
+	{
+		return (FALSE);
+	}
+/*
+ * Find out whether the time offsets are long, float, or double.
+ */
+	if (ncvarinq (id, tvar, (char *) 0, &dtype, &ndim, dims, &natt) < 0)
+	{
+		dnc_NCError ("inquiring time variable");
+		return (FALSE);
+	}
+/*
+ * We only handle certain time types
+ */
+	if (dtype != NC_FLOAT && dtype != NC_DOUBLE && dtype != NC_LONG)
+	{
+		dnc_NCError ("time must be type float, double, or long");
+		return (FALSE);
+	}
+/*
+ * For now we must require the time array to have only a single dimension,
+ * and the number of times is the size of that dimension.  Note that the 
+ * time dimension does _not_ need to be the record dimension.
+ */
+	if (ndim != 1)
+	{
+		dnc_NCError ("time variable must have exactly one dimension");
+		return (FALSE);
+	}
+	if (ncdiminq (id, dims[0], NULL, &dimlen) < 0)
+	{
+		dnc_NCError ("inquiring time dimension");
+		return (FALSE);
+	}
+/*
+ * The base time comes from the base_time variable if it exists, otherwise
+ * from the units of the time variable. 
+ */
+	if ((btime = dnc_Varid (id, "base_time")) >= 0)
+	{
+		if (ncvarget1 (id, btime, 0, &base) < 0)
+		{
+			dnc_NCError ("getting base_time value");
+			return (FALSE);
+		}
+	}
+	else if (ncattinq (id, tvar, "units", &atype, &alen) < 0)
+	{
+		dnc_NCError ("no 'units' attribute for 'time'");
+		return (FALSE);
+	}
+	else if ((atype != NC_CHAR) || (alen >= sizeof(time_units)))
+	{
+		dnc_NCError ("invalid units for 'time' variable");
+		return (FALSE);
+	}
+	else if (ncattget (id, tvar, "units", (void *)time_units) < 0)
+	{
+		dnc_NCError ("could not get 'units' attribute for 'time'");
+		return (FALSE);
+	}
+	else if (! dnc_TimeUnits (&zt, time_units))
+	{
+		return (FALSE);
+	}
+	else
+		base = (long) zt.zt_Sec;
+	*vtime = tvar;
+	*dtime = dims[0];
+	*ntime = dimlen;
+	*ttype = dtype;
+	base_time->zt_Sec = base;
+	base_time->zt_MicroSec = 0;
+	return (TRUE);
+}
+
+
+
 int
 dnc_QueryTime (file, begin, end, nsamp)
 char *file;
@@ -322,13 +512,11 @@ int *nsamp;
  * Query the times on this file.
  */
 {
-	int id, ndim, nvar, natt, rdim, tvar, btime;
-	nc_type dtype, atype;
-	int dims[MAX_VAR_DIMS];
-	char time_units[256];
-	int alen;
-	ZebTime zt;
-	long base, maxrec, index;
+	int id, tvar, tdim;
+	long ntime;
+	ZebTime base;
+	long index;
+	nc_type dtype;
 	float foffset;
 	double offset;
 	long loffset;
@@ -341,45 +529,8 @@ int *nsamp;
 /*
  * Look up the time array.
  */
-	ncinquire (id, &ndim, &nvar, &natt, &rdim);
-	if (rdim < 0)
-		rdim = ncdimid (id, "time");
-
-	ncdiminq (id, rdim, (char *) 0, &maxrec);
-
-	if (((tvar = ncvarid (id, "time_offset")) < 0) && 
-	    ((tvar = ncvarid (id, "time")) < 0))
-	{
+	if (! dnc_DecipherTime (id, &tvar, &tdim, &ntime, &dtype, &base))
 		return (FALSE);
-	}
-/*
- * Find out whether the time offsets are long, float, or double.
- */
-	ncvarinq (id, tvar, (char *) 0, &dtype, &ndim, dims, &natt);
-	if (ndim > 1)
-		return (FALSE);
-#ifdef notdef
-	if ((ndim == 0) || (dims[0] != rdim))
-		return (FALSE);
-#endif
-/*
- * Now pull out the times.  The base time comes from the base_time
- * variable if it exists, otherwise from the units of the time variable.
- */
-	if ((btime = ncvarid (id, "base_time")) >= 0)
-	{
-		ncvarget1 (id, btime, 0, &base);
-	}
-	else if (ncattinq (id, tvar, "units", &atype, &alen) < 0)
-		return (FALSE);
-	else if ((atype != NC_CHAR) || (alen >= sizeof(time_units)))
-		return (FALSE);
-	else if (ncattget (id, tvar, "units", (void *)time_units) < 0)
-		return (FALSE);
-	else if (! dnc_TimeUnits (&zt, time_units))
-		return (FALSE);
-	else
-		base = (long) zt.zt_Sec;
 
 	index = 0;
 	switch (dtype)
@@ -398,10 +549,10 @@ int *nsamp;
 	   default:
 		return (FALSE);
 	}
-	begin->zt_Sec = base + (long)offset;
+	begin->zt_Sec = base.zt_Sec + (long)offset;
 	begin->zt_MicroSec = 1e+6 * (offset - (long)offset);
 
-	index = maxrec - 1;
+	index = ntime - 1;
 	switch (dtype)
 	{
 	   case NC_FLOAT:
@@ -418,12 +569,12 @@ int *nsamp;
 	   default:
 		return (FALSE);
 	}
-	end->zt_Sec = base + (long)offset;
+	end->zt_Sec = base.zt_Sec + (long)offset;
 	end->zt_MicroSec = 1e+6 * (offset - (long)offset);
 /*
  * Clean up and return.
  */
-	*nsamp = maxrec;
+	*nsamp = ntime;
 	ncclose (id);
 	return (TRUE);
 }
@@ -444,7 +595,6 @@ NCTag **rtag;
 {
 	NCTag *tag = ALLOC (NCTag);
 	int ret, v;
-	char units[256];
 /*
  * Try to open the file.
  */
@@ -465,6 +615,7 @@ NCTag **rtag;
 	tag->nc_locs = (Location *) NULL;
 	tag->nc_alts = NULL;
 	tag->nc_nalts = 0;
+	tag->nc_altvar = -1;
 	tag->nc_FMap = 0;
 	tag->nc_buffered = TRUE;
 /*
@@ -481,19 +632,11 @@ NCTag **rtag;
  */
 	tag->nc_altUnits = DEF_ALT_UNITS;	/* default */
 
-	if ((v = ncvarid (tag->nc_id, "alt")) >= 0 &&
-	    dnc_GetStringAtt (tag->nc_id, v, VATT_UNITS, units, sizeof(units)))
+	if ((v = dnc_Varid (tag->nc_id, "alt")) >= 0 ||
+	     (v = dnc_Varid (tag->nc_id, "altitude")) >= 0)
 	{
-		if (units[0] == '\0')
+		if (! dnc_VarAlts (tag->nc_id, v, &tag->nc_altUnits))
 		{
-			msg_ELog (EF_PROBLEM, 
-				  "NetCDF: alt units empty, using default %s",
-				  au_LongUnitsName(tag->nc_altUnits));
-		}
-		else if (! au_ConvertName (units, &tag->nc_altUnits))
-		{
-			msg_ELog (EF_PROBLEM,
-				  "NetCDF: Unknown alt units: '%s'", units);
 			dnc_CloseFile (tag);
 			return (FALSE);
 		}
@@ -517,7 +660,7 @@ NCTag **rtag;
 	   case Org3dGrid:
 		ret = dnc_OFRGrid (tag);
 		if (ret)
-			ret = dnc_OFRGridAlts (tag);
+			ret = dnc_GetRGridAlts (tag, BadField, 0, 1);
 		break;
 	/*
 	 * For scalar and nspace files, pull in the location if it is static.
@@ -533,7 +676,7 @@ NCTag **rtag;
 	   case OrgNSpace:
 		if (! ds_IsMobile (dp->df_platform))
 			dnc_LoadLocation (tag, &tag->nc_sloc, 0, 1);
-	        ret = dnc_OFNSpaceAlts (tag);
+	        ret = dnc_GetNSpaceAlts (tag, BadField, 0, 1);
 		break;
 
 	   default:
@@ -599,7 +742,70 @@ NCTag *tag;
 
 
 
+static int
+dnc_LocationID (id, platid, name)
+int id;
+int platid;
+char *name;
+/*
+ * Try to find a location variable by the given name which includes the
+ * given dimension 'platid'.  For the moment we'll require that the
+ * requested dimension is the first dimension in the variable.  If platid
+ * is negative, skip the dim id check.
+ */
+{
+	int ndim, nvar, natt, rdim;
+	int varid;
+	nc_type dtype;
+	char target[MAX_NC_NAME+1];
+	char vname[MAX_NC_NAME+1];
+	int dimids[MAX_VAR_DIMS];
+	int match = -1;
 
+	if (strlen(name) > MAX_NC_NAME)	/* can't match if too long */
+		return (-1);
+	strcpy (target, name);
+	strtolower (target);
+	if (ncinquire (id, &ndim, &nvar, &natt, &rdim) < 0)
+		return (-1);
+	/*
+	 * Try to match the target name with either the beginning or
+	 * end of the variable name, and make sure the variable contains
+	 * the desired platform dimension.  Check all the variables, and
+	 * use an exact name match if found, or the first close match.
+	 */
+	for (varid = 0; varid < nvar; ++varid)
+	{
+		if (ncvarinq (id, varid, vname, &dtype, &ndim, dimids, 0) < 0)
+			continue;
+		if ((platid >= 0) && (ndim == 0 || dimids[0] != platid))
+			continue;
+#ifdef notdef
+		for (i = 0; i < ndim; ++i)
+		{
+			if (dimids[i] == platid)
+				break;
+		}
+		if (i >= ndim)
+			continue;
+#endif
+		strtolower (vname);
+		if (strcmp (vname, target) == 0)
+		{
+			match = varid;
+			break;
+		}
+		if (match >= 0)
+			continue;
+		if (! strncmp (vname, target, strlen(target)))
+			match = varid;
+		else if ((strlen (vname) > strlen (target)) &&
+			 ! strcmp (vname+strlen(vname)-strlen(target),
+				   target))
+			match = varid;
+	}
+	return (match);
+}
 
 
 
@@ -614,9 +820,15 @@ NCTag *tag;
 	long start = 0, stop;
 	float *pos;
 /*
- * See how many platforms there are.
+ * See how many platforms there are.  Try to be flexible about the
+ * dimension names which we'll accept.
  */
-	if ((dim = ncdimid (tag->nc_id, "platform")) < 0)
+	if ((dim = dnc_Dimid (tag->nc_id, "platform")) < 0 &&
+	    (dim = dnc_Dimid (tag->nc_id, "station")) < 0 &&
+	    (dim = dnc_Dimid (tag->nc_id, "site")) < 0 &&
+	    (dim = dnc_Dimid (tag->nc_id, "stn")) < 0 &&
+	    (dim = dnc_Dimid (tag->nc_id, "plat")) < 0 &&
+	    (dim = dnc_Dimid (tag->nc_id, "facility")) < 0)
 	{
 		dnc_NCError ("platform dimid");
 		return (FALSE);
@@ -627,13 +839,14 @@ NCTag *tag;
 		return (FALSE);
 	}
 /*
- * Find the positioning data.
+ * Find the positioning data.  We don't want the regular lat/lon/alt if
+ * they don't have the platform dimension.  So look around some.
  */
-	if ((lat = ncvarid (tag->nc_id, "lat")) < 0 ||
-	    (lon = ncvarid (tag->nc_id, "lon")) < 0 ||
-	    (alt = ncvarid (tag->nc_id, "alt")) < 0)
+	if ((lat = dnc_LocationID (tag->nc_id, dim, "lat")) < 0 ||
+	    (lon = dnc_LocationID (tag->nc_id, dim, "lon")) < 0 ||
+	    (alt = dnc_LocationID (tag->nc_id, dim, "alt")) < 0)
 	{
-		dnc_NCError ("lat/lon/alt varid");
+		dnc_NCError ("could not find station location variables");
 		return (FALSE);
 	}
 /*
@@ -663,7 +876,7 @@ NCTag *tag;
 /*
  * Build the subplatform map.
  */
-	if (!dnc_BuildPMap (tag))
+	if (!dnc_BuildPMap (tag, dim))
 		return (FALSE);
 	tag->nc_subplats = SubPlats[tag->nc_plat];
 /*
@@ -673,20 +886,28 @@ NCTag *tag;
 }
 
 
-
-
+static const char *PlatDimnNames[] = {
+	"platform", "station", "site_num", "stn_num", "plat_num", "site_id", 
+	"stn_id", "plat_id", "num_site", "num_stn", "num_plat", "subplat", 
+	"facility", NULL };
 
 static int
-dnc_BuildPMap (tag)
+dnc_BuildPMap (tag, pdim)
 NCTag *tag;
+int pdim;
 /*
  * Build the subplatform lookup map.
  */
 {
 	int i, name_id, len_id, plat;
+	int ndims;
+	int dimids[MAX_VAR_DIMS];
+	nc_type vtype;
 	long fldlen;
-	long start[2], count[2];
+	long start[MAX_VAR_DIMS];
+	long count[MAX_VAR_DIMS];
 	char *name, *base, *fullname;
+	char value[sizeof(double)];
 /*
  * Initialize the map if necessary.
  */
@@ -706,31 +927,65 @@ NCTag *tag;
  * Get set up to start snooping through platform names.
  */
 	base = ds_PlatformName (tag->nc_plat);
-	if ((name_id = ncvarid (tag->nc_id, "platform")) < 0)
+/*
+ * Look for a subplat 'id' variable, and check it's type for either
+ * string or numeric.  Numeric id's will be converted to string names.
+ * For strings, we assume the last dimension of the variable is the
+ * max length of the strings.
+ */
+	i = 0;
+	while (PlatDimnNames[i])
+	{
+		name_id = dnc_LocationID (tag->nc_id, pdim, PlatDimnNames[i]);
+		if (name_id >= 0)
+			break;
+		i++;
+	}
+	if (! PlatDimnNames[i])
 	{
 		msg_ELog (EF_PROBLEM, "No platform names for %s", base);
 		return (FALSE);
 	}
-	start[1] = 0;		/* Read full name */
+/*
+ * Now check the type
+ */
+	if (ncvarinq (tag->nc_id, name_id, 0, &vtype, &ndims, dimids, 0) < 0)
+	{
+		dnc_NCError ("inquiring sub-platform id variable");
+		return (FALSE);
+	}
+	for (i = 0; i < ndims; ++i)
+	{
+		start[i] = 0;
+		count[i] = 1;
+	}
 /*
  * Find out how long the names are and allocate appropriate space.
  */
-	if ((len_id = ncdimid (tag->nc_id, "fldlen")) < 0 ||
-		ncdiminq (tag->nc_id, len_id, NULL, &fldlen) < 0)
+	if (vtype == NC_CHAR)
 	{
-		msg_ELog (EF_PROBLEM, 
-			"Bad or nonexistent 'fldlen' in netCDF file");
-		return (FALSE);
+		if (ndims < 2)
+		{
+			dnc_NCError ("platform names without length dimn");
+			return (FALSE);
+		}
+		len_id = dimids[ndims - 1];
+		if (ncdiminq (tag->nc_id, len_id, NULL, &fldlen) < 0)
+		{
+			dnc_NCError ("inquiring length of platform names");
+			return (FALSE);
+		}
+		count[ndims - 1] = fldlen;
 	}
-	count[0] = 1;
-	count[1] = fldlen;
+	else
+	{
+		fldlen = 15;	/* large enough to hold a number */
+	}
 
 	name = (char *) malloc (fldlen + 1);
 	fullname = (char *) malloc (fldlen + strlen (base) + 1);
 /*
- * Go through and read back all the platform names.  We should
- * someday be smart and look at the length dimension, but for now
- * I'll assume that 10 will always work.
+ * Go through and read back all the platform ids.
  */
 	tag->nc_subplats = SubPlats[tag->nc_plat] =
 		(PlatformId *) malloc (tag->nc_nPlat * sizeof(PlatformId));
@@ -740,26 +995,37 @@ NCTag *tag;
 	 * Read the name of this platform.
 	 */
 		start[0] = i;
-		if (ncvarget (tag->nc_id, name_id, start, count, name) < 0)
+		if ((vtype == NC_CHAR &&
+		    ncvarget (tag->nc_id, name_id, start, count, name) < 0) ||
+		    (ncvarget (tag->nc_id, name_id, start, count, value) < 0))
 		{
 			msg_ELog (EF_PROBLEM,
 			       "Error %d reading subplat %d from %s", ncerr,
 				 i, base);
-			return (FALSE);
+			break;
 		}
+		if (vtype != NC_CHAR)	/* convert to string */
+		{
+			int id;
+			id = (int) atoi (dnc_ValueToString (value, vtype, 1));
+			sprintf (fullname, "%s/%i", base, id);
+		}
+		else
+			sprintf (fullname, "%s/%s", base, name);
 	/*
 	 * Create the full name of this subplatform, and look it up.
 	 */
-		sprintf (fullname, "%s/%s", base, name);
 		if ((plat = ds_LookupPlatform (fullname)) == BadPlatform)
 			msg_ELog (EF_INFO, "NC Platform %s unknown", fullname);
 		else
 			SPMap[plat] = i;
 		tag->nc_subplats[i] = plat;
 	}
-	SPMap[tag->nc_plat] = BASEDONE;
 	free (name);
 	free (fullname);
+	if (i < tag->nc_nPlat)
+		return (FALSE);
+	SPMap[tag->nc_plat] = BASEDONE;
 	return (TRUE);
 }
 
@@ -780,22 +1046,22 @@ NCTag *tag;
 /*
  * Get the grid origin.
  */
-	if ((v = ncvarid (tag->nc_id, "lat")) < 0 &&
-	    (v = ncvarid (tag->nc_id, "latitude")) < 0) 
+	if ((v = dnc_Varid (tag->nc_id, "lat")) < 0 &&
+	    (v = dnc_Varid (tag->nc_id, "latitude")) < 0) 
 	{
 		dnc_NCError ("No 'lat' or 'latitude' variable");
 		return (FALSE);
 	}
 	ncvarget1 (tag->nc_id, v, 0, &tag->nc_sloc.l_lat);
-	if ((v = ncvarid (tag->nc_id, "lon")) < 0 &&
-	    (v = ncvarid (tag->nc_id, "longitude")) < 0)
+	if ((v = dnc_Varid (tag->nc_id, "lon")) < 0 &&
+	    (v = dnc_Varid (tag->nc_id, "longitude")) < 0)
 	{
 		dnc_NCError ("No 'lon' or 'longitude' variable");
 		return (FALSE);
 	}
 	ncvarget1 (tag->nc_id, v, 0, &tag->nc_sloc.l_lon);
-	if ((v = ncvarid (tag->nc_id, "alt")) < 0 &&
-	    (v = ncvarid (tag->nc_id, "altitude")) < 0) 
+	if ((v = dnc_Varid (tag->nc_id, "alt")) < 0 &&
+	    (v = dnc_Varid (tag->nc_id, "altitude")) < 0) 
 	{
 		dnc_NCError ("No 'alt' or 'altitude' variable");
 		return (FALSE);
@@ -844,7 +1110,7 @@ NCTag *tag;
  * Finally the grid spacings.
  */
 	tag->nc_rgrid.rg_Yspacing = tag->nc_rgrid.rg_Zspacing = 0.0;
-	if ((v = ncvarid (tag->nc_id, "x_spacing")) < 0)
+	if ((v = dnc_Varid (tag->nc_id, "x_spacing")) < 0)
 	{
 		dnc_NCError ("No 'x_spacing' variable");
 		return (FALSE);
@@ -852,7 +1118,7 @@ NCTag *tag;
 	ncvarget1 (tag->nc_id, v, 0, &tag->nc_rgrid.rg_Xspacing);
 	if ((tag->nc_org == Org2dGrid) || (tag->nc_org == Org3dGrid))
 	{
-		if ((v = ncvarid (tag->nc_id, "y_spacing")) < 0)
+		if ((v = dnc_Varid (tag->nc_id, "y_spacing")) < 0)
 		{
 			dnc_NCError ("No 'y_spacing' variable");
 			return (FALSE);
@@ -860,7 +1126,7 @@ NCTag *tag;
 		ncvarget1 (tag->nc_id, v, 0, &tag->nc_rgrid.rg_Yspacing);
 		if (tag->nc_org == Org3dGrid)
 		{
-			if ((v = ncvarid (tag->nc_id, "z_spacing")) < 0)
+			if ((v = dnc_Varid (tag->nc_id, "z_spacing")) < 0)
 			{
 				dnc_NCError ("No 'z_spacing' variable");
 				return (FALSE);
@@ -874,8 +1140,11 @@ NCTag *tag;
 
 
 static int
-dnc_OFRGridAlts (tag)
+dnc_GetRGridAlts (tag, fid, offset, opening)
 NCTag *tag;
+FieldId fid;
+int offset;
+int opening;
 /*
  * Store the altitude levels from this rgrid org file into the tag
  */
@@ -884,6 +1153,9 @@ NCTag *tag;
 	RGrid *rg;
 	int nalts;
 	float *alts;
+
+	if (! opening)		/* keep what we figured earlier */
+		return (TRUE);
 /*
  * Organization determines what happens here.
  */
@@ -902,8 +1174,11 @@ NCTag *tag;
 
 
 static int
-dnc_OFNSpaceAlts (tag)
+dnc_GetNSpaceAlts (tag, fid, offset, op)
 NCTag *tag;
+FieldId fid;
+int offset;
+int op;		/* opening a file; initialize the altitudes */
 /*
  * Look for an 'altitude' coordinate variable with dimensions
  * other than time.  Take the values along the coordinate dimension as the
@@ -913,6 +1188,10 @@ NCTag *tag;
  * All of the variables should already be read and fields defined.
  * At the moment, we always return TRUE since it is valid for nspace org
  * not to have an altitude array.
+ *
+ * If we already have some altitudes, keep them.  For now NSpace does not
+ * allow different arrays of altitudes in the same file.  And we ignore
+ * fid and offset.
  */
 {
 	float *alts;
@@ -927,6 +1206,8 @@ NCTag *tag;
 	nc_type vtype;
 	int i;
 
+	if (! op)		/* don't change unless it's a new tag */
+		return (TRUE);
 	if ((altid = F_Declared ("altitude")) == BadField)
 		return (TRUE);
 	varid = dnc_GetFieldVar (tag, altid);
@@ -1114,95 +1395,25 @@ NCTag *tag;
  * Deal with the time info in this file.
  */
 {
-	int ndim, dims[MAX_VAR_DIMS], natt, vbase;
-	int use_time_offset;	/* use time_offset variable rather than time */
-	char time_units[256];
-	int alen;
-	ZebTime zt;
-	nc_type dtype, atype;
+	long ntime;
+	ZebTime base;
 /*
- * Get the base time, either from a base_time variable or from the units
- * of a time variable.
+ * We ignore the number of times returned since dnc_GetTimes takes care
+ * of syncing the number of times already in the tag with the number now
+ * recorded in the file.
  */
-	use_time_offset = 1;
-	if ((vbase = ncvarid (tag->nc_id, "base_time")) >= 0)
+	if (! dnc_DecipherTime (tag->nc_id, &tag->nc_vTime, &tag->nc_dTime,
+				&ntime, &tag->nc_timeType, &base))
 	{
-		ncvarget1 (tag->nc_id, vbase, 0, &tag->nc_base);
-	}
-	else if ((vbase = ncvarid (tag->nc_id, "time")) >= 0)
-	{
-		use_time_offset = 0;
-		if (ncattinq (tag->nc_id, vbase, "units", &atype, &alen) < 0)
-		{
-			dnc_NCError ("no 'units' attribute for 'time'");
-			return (FALSE);
-		}
-		if ((atype != NC_CHAR) || (alen >= sizeof(time_units)))
-		{
-			dnc_NCError ("invalid units for 'time' variable");
-			return (FALSE);
-		}
-		ncattget (tag->nc_id, vbase, "units", (void *)time_units);
-		/*
-		 * Now try to parse the units string
-		 */
-		if (! dnc_TimeUnits (&zt, time_units))
-			return (FALSE);
-		/*
-		 * Convert to a long base time, noting any precision loss
-		 */
-		if (zt.zt_MicroSec)
-			msg_ELog (EF_PROBLEM, "%i microseconds dropped %s",
-				  zt.zt_MicroSec,
-				  "converting ref time to long base time");
-		tag->nc_base = (long) zt.zt_Sec;
-	}
-	else	/* failure to find any time variables */
-	{
-		dnc_NCError ("no base_time or time variable");
+		dnc_NCError ("could not decipher time variables");
 		return (FALSE);
 	}
-/*
- * There's either a time_offset field or a time field.  The use of the
- * field is the same, only the name is different.  Also determine whether
- * we're dealing with float, double, or long times.
- */
-	if (! use_time_offset)
-	{
-		tag->nc_vTime = vbase;	/* one variable gives base and times */
-	}
-	else if ((tag->nc_vTime = ncvarid (tag->nc_id, "time_offset")) < 0)
-	{
-		dnc_NCError ("time_offset variable");
-		return (FALSE);
-	}
-	if (ncvarinq (tag->nc_id, tag->nc_vTime, (char *) 0, &dtype,
-		      &ndim, dims, &natt) < 0)
-	{
-		dnc_NCError ("time_offset or time varinq");
-		return (FALSE);
-	}
-	if (ndim != 1 /* || dims[0] != tag->nc_dTime */ )
-	{
-		msg_ELog (EF_PROBLEM, "time variable must have one dimension");
-		return (FALSE);
-	}
-	tag->nc_dTime = dims[0];
-/*
- * We only handle certain time types
- */
-	if (dtype != NC_FLOAT && dtype != NC_DOUBLE && dtype != NC_LONG)
-	{
-		msg_ELog (EF_PROBLEM, "time must be float, double, or long");
-		return (FALSE);
-	}
-	tag->nc_timeType = dtype;
+	tag->nc_base = base.zt_Sec;
 /*
  * Pull in the time array, and we're done.
  */
 	return (dnc_GetTimes (tag));
 }
-
 
 
 
@@ -1426,8 +1637,9 @@ DataClass class;
  */
 	dc = dc_CreateDC (class);
 /*
- * Put our altitude units into the data chunk.
+ * Make sure we have altitudes, and put the units into the data chunk.
  */
+	dnc_GetAlts (gp->gl_dfindex, fields[0], 0, NULL, NULL, NULL);
 	dc_SetLocAltUnits (dc, tag->nc_altUnits);
 /*
  * Now we try to get everything together.
@@ -1439,7 +1651,7 @@ DataClass class;
 	 */
 	   case DCC_IRGrid:
 	   	dc_IRSetup (dc, tag->nc_nPlat, tag->nc_subplats, tag->nc_locs,
-			nfield, fields);
+			    nfield, fields);
 		dnc_SetFieldTypes (tag, dc, nfield, fields);
 		break;
 	/*
@@ -1777,20 +1989,22 @@ int ndetail;
 	 * Scalars.
 	 */
 	   case DCC_Scalar:
-	   	dnc_ReadScalar (dc, tag, tbegin, nsamp, fids, nfield, badval);
+	   	dnc_ReadScalar (dc, tag, tbegin, nsamp, fids, nfield, badval,
+				details, ndetail);
 		break;
 	/*
 	 * IRGrids.
 	 */
 	   case DCC_IRGrid:
-	   	dnc_ReadIRGrid (dc, tag, tbegin, nsamp, fids, nfield, badval);
+	   	dnc_ReadIRGrid (dc, tag, tbegin, nsamp, fids, nfield, badval,
+				details, ndetail);
 		break;
 	/*
 	 * Regular grids.
 	 */
 	   case DCC_RGrid:
 	   	dnc_ReadRGrid (dc, tag, tbegin, nsamp, fids, nfield, badval,
-				details, ndetail);
+			       details, ndetail);
 		break;
 	/*
 	 * Locations.
@@ -1817,24 +2031,96 @@ int ndetail;
 
 
 
+static void
+dnc_Slice (tag, varid, start, count, altindex, details, ndetail)
+NCTag *tag;
+int varid;
+long start[MAX_VAR_DIMS];
+long count[MAX_VAR_DIMS];
+int altindex;
+dsDetail *details;
+int ndetail;
+/*
+ * Touch up the start and count arrays according to the dimensions of
+ * this field and the list of details.  Dimensions which are not fixed
+ * by a detail default to index 0.
+ */
+{
+	int id = tag->nc_id;
+	int ndims;
+	int dimids[ MAX_VAR_DIMS ];
+	char dname[ MAX_NC_NAME+1 ];
+	int dindex;
+	long size;
+	int dim;
+
+	/* 
+	 * Find the variable's dimensions, and loop through them slicing
+	 * those that need to be sliced.
+	 */
+	if (ncvarinq (id, varid, NULL, NULL, &ndims, dimids, NULL) < 0)
+		return;
+	/*
+	 * The first dimension is time, the second is a station if our org
+	 * is an irgrid.
+	 */
+	dim = (tag->nc_org == OrgIRGrid) ? 2 : 1;
+	while (dim < ndims)
+	{
+		if ((tag->nc_org == OrgIRGrid) && (altindex >= 0) &&
+		    (dim == 2))
+		{
+			/*
+			 * The dimension following time and station is an 
+			 * altitude, so use the altitude index.
+			 */
+			dindex = altindex;
+		}
+		/*
+		 * Get the dimension's name and check for relevant details
+		 */
+		else if (ncdiminq (id, dimids[dim], dname, &size) < 0)
+			return;
+		else if (! dc_NSFixedDimension (details, ndetail, 
+						dname, &dindex))
+		{
+			msg_ELog (EF_INFO, 
+				  "slicing dimn %s at index 0 by default",
+				  dname);
+			dindex = 0;
+		}
+		if (dindex >= size)
+			dindex = size - 1;
+		if (dindex < 0)
+			dindex = 0;
+		start[dim] = dindex;
+		count[dim] = 1;
+		++dim;
+	}
+}
+
+
 
 
 static int
-dnc_ReadScalar (dc, tag, begin, nsamp, fids, nfield, badval)
+dnc_ReadScalar (dc, tag, begin, nsamp, fids, nfield, badval, details, ndetail)
 DataChunk *dc;
 NCTag *tag;
 long begin, nsamp;
 FieldId *fids;
 int nfield;
 float badval;
+dsDetail *details;
+int ndetail;
 /*
  * Retrieve scalar data from this file.
  */
 {
 	void *temp;
-	long start[4], count[4];
+	long start[MAX_VAR_DIMS], count[MAX_VAR_DIMS];
 	int field, vfield, sbegin = dc_GetNSample (dc);
 	ZebTime *t;
+	int fill;
 /*
  *  Figure out our coords.
  */
@@ -1887,21 +2173,31 @@ float badval;
 	 * Look up the field and try to pull in the data.  Make sure we
 	 * get bad value flags right.
 	 */
-		if (((vfield = dnc_GetFieldVar (tag, fids[field])) < 0) ||
-			(ncvarget(tag->nc_id, vfield, start, count, temp) < 0))
+		fill = 0;
+		vfield = dnc_GetFieldVar (tag, fids[field]);
+		if (vfield < 0)
+			fill = 1;	/* field not in file */
+		else
+			dnc_Slice (tag, vfield, start, count, -1,
+				   details, ndetail);
+		if (!fill &&
+		    ncvarget(tag->nc_id, vfield, start, count, temp) < 0)
 		{
-			if (vfield >= 0)
-				dnc_NCError ("Scalar read");
-#ifdef FILL_FIELDS
-			if (dc_Type(dc, fids[field]) == DCT_Float)
-				dnc_FillArray (temp, nsamp, badval);
-#endif /* FILL_FIELDS */
+			dnc_NCError ("Scalar read");
+			fill = 1;
 		}
 #ifdef APPLY_BADVALUE
 		else if (dc_Type (dc, fids[field]) == DCT_Float)
 			dnc_ApplyBadval (tag, vfield, dc, fids[field],
 					 badval, temp, nsamp);
 #endif /* APPLY_BADVALUE */
+#ifdef FILL_FIELDS
+		if (fill)
+		{
+			if (dc_Type(dc, fids[field]) == DCT_Float)
+				dnc_FillArray (temp, nsamp, badval);
+		}
+#endif /* FILL_FIELDS */
 	/*
 	 * Add it to the data chunk.
 	 */
@@ -1928,6 +2224,37 @@ float badval;
 }
 
 
+static int
+dnc_AltIndex (tag, details, ndetail)
+NCTag *tag;
+dsDetail *details;
+int ndetail;
+{
+	float closest;
+	SValue v;
+	int i;
+	int altindex = -1;
+
+	/*
+	 * Determine the altitude index to read grids at
+	 */
+	if ((tag->nc_nalts > 0) &&
+	    ds_GetDetail ("altitude", details, ndetail, &v))
+	{
+		altindex = 0;
+		closest = fabs (tag->nc_alts[0] - v.us_v_float);
+		for (i = 1; (closest) && (i < tag->nc_nalts); ++i)
+		{
+			if (fabs (tag->nc_alts[i] - v.us_v_float) < closest)
+			{
+				closest = fabs(tag->nc_alts[i] - v.us_v_float);
+				altindex = i;
+			}
+		}
+	}
+	return (altindex);
+}
+	
 
 
 static int
@@ -1948,9 +2275,8 @@ int ndetail;
 	int sbegin = dc_GetNSample (dc);
 	ZebTime *t;
 	int altindex;
-	float closest;
-	SValue v;
-	int i;
+
+	altindex = dnc_AltIndex (tag, details, ndetail);
 
 	/*
 	 * Get the time array.
@@ -1958,25 +2284,6 @@ int ndetail;
 	t = (ZebTime *) malloc (nsamp * sizeof(ZebTime));
 	dnc_ConvTimes (tag, begin, nsamp, t);
 
-	/*
-	 * Determine the altitude index to read grids at
-	 */
-	altindex = -1;
-	if ((tag->nc_nalts > 0) &&
-	    ds_GetDetail ("altitude", details, ndetail, &v))
-	{
-		altindex = 0;
-		closest = fabs (tag->nc_alts[0] - v.us_v_float);
-		for (i = 1; (closest) && (i < tag->nc_nalts); ++i)
-		{
-			if (fabs (tag->nc_alts[i] - v.us_v_float) < closest)
-			{
-				closest = fabs(tag->nc_alts[i] - v.us_v_float);
-				altindex = i;
-			}
-		}
-	}
-	
 	/*
 	 * Split up task based on platform organization.
 	 */
@@ -2086,7 +2393,7 @@ int ndetail;
 				start[dim] = altindex;
 				count[dim] = 1;
 			}
-			else if (dc_NSFixedDimension (dc, details, ndetail,
+			else if (dc_NSFixedDimension (details, ndetail,
 						      names[i], &dindex))
 			{
 				start[dim] = dindex;
@@ -2172,25 +2479,30 @@ long begin, nsamp;
 
 
 static void
-dnc_ReadIRGrid (dc, tag, begin, nsamp, fids, nfield, badval)
+dnc_ReadIRGrid (dc, tag, begin, nsamp, fids, nfield, badval, details, ndetail)
 DataChunk *dc;
 NCTag *tag;
-int begin, nsamp, nfield;
+int begin, nsamp;
 FieldId *fids;
+int nfield;
 float badval;
+dsDetail *details;
+int ndetail;
 /*
  * Pull some number of IRGrids out of this file.
  */
 {
-	long start[4], count[4];
+	long start[MAX_VAR_DIMS], count[MAX_VAR_DIMS];
 	void *grid = (void *) malloc (tag->nc_nPlat * DC_ElemTypeMaxSize);
 	int sample, f, vfield, dsamp = dc_GetNSample (dc);
 	ZebTime t;
+	int altindex;
 /*
  * Coords.
  */
 	start[0] = begin;	count[0] = 1;
 	start[1] = 0;		count[1] = tag->nc_nPlat;
+	altindex = dnc_AltIndex (tag, details, ndetail);
 /*
  * Plow through each desired sample.
  */
@@ -2206,7 +2518,11 @@ float badval;
 		 * Look up the field and get the data from the file.  If
 		 * either step fails, fill the array with bad value flags.
 		 */
-			if (((vfield = dnc_GetFieldVar (tag, fids[f])) < 0) &&
+			vfield = dnc_GetFieldVar (tag, fids[f]);
+			if (vfield >= 0)
+				dnc_Slice (tag, vfield, start, count,
+					   altindex, details, ndetail);
+			if ((vfield < 0) &&
 			    (dc_Type (dc, fids[f]) == DCT_Float))
 			{
 #ifdef FILL_FIELDS
@@ -2214,7 +2530,7 @@ float badval;
 #endif /* FILL_FIELDS */
 			}
 			else if (ncvarget (tag->nc_id, vfield, start, count, 
-				grid) < 0)
+					   grid) < 0)
 			{
 				dnc_NCError ("Irgrid read");
 #ifdef FILL_FIELDS
@@ -2256,7 +2572,7 @@ dsDetail *dets;
  * Pull some number of RGrids out of this file.
  */
 {
-	long start[4], count[4];
+	long start[MAX_VAR_DIMS], count[MAX_VAR_DIMS];
 	int sample, field, vfield, dsamp = dc_GetNSample (dc), nc = 1;
 	ZebTime t;
 	SValue v;
@@ -2292,7 +2608,7 @@ dsDetail *dets;
  * If the file contains 3d grids, they may wish to subsection things.
  */
 	if (tag->nc_org == Org3dGrid &&
-				ds_GetDetail ("altitude", dets, ndet, &v))
+	    ds_GetDetail ("altitude", dets, ndet, &v))
 	{
 	/*
 	 * Figure out what level we want.
@@ -2463,48 +2779,56 @@ long begin, count;
 {
 	int i, var;
 	float *ltemp = (float *) malloc (count * sizeof (float));
+	int fail;
 /*
  * Just do it one piece at a time.  Latitude.
  */
-	if ((var = ncvarid (tag->nc_id, "lat")) < 0 &&
-	    (var = ncvarid (tag->nc_id, "latitude")) < 0) {
-		dnc_NCError ("No 'lat' or 'latitude' field");
-		return;
+	fail = 0;
+	if ((var = dnc_Varid (tag->nc_id, "lat")) < 0 &&
+	    (var = dnc_Varid (tag->nc_id, "latitude")) < 0)
+	{
+		msg_ELog (EF_DEBUG, "No 'lat' or 'latitude' field");
+		fail = 1;
 	}
-	if (ncvarget (tag->nc_id, var, &begin, &count, ltemp) < 0) {
+	else if (ncvarget (tag->nc_id, var, &begin, &count, ltemp) < 0)
+	{
 		dnc_NCError ("Latitude read");
-		return;
+		fail = 1;
 	}
 	for (i = 0; i < count; i++)
-		locs[i].l_lat = ltemp[i];
+		locs[i].l_lat = (fail) ? 0.0 : ltemp[i];
 /*
  * Longitude.
  */
-	if ((var = ncvarid (tag->nc_id, "lon")) < 0 &&
-	    (var = ncvarid (tag->nc_id, "longitude")) < 0) {
-		dnc_NCError ("No 'lon' or 'longitude' field");
-		return;
+	fail = 0;
+	if ((var = dnc_Varid (tag->nc_id, "lon")) < 0 &&
+	    (var = dnc_Varid (tag->nc_id, "longitude")) < 0) 
+	{
+		msg_ELog (EF_DEBUG, "No 'lon' or 'longitude' field");
+		fail = 1;
 	}
-	if (ncvarget (tag->nc_id, var, &begin, &count, ltemp) < 0) {
+	else if (ncvarget (tag->nc_id, var, &begin, &count, ltemp) < 0)
+	{
 		dnc_NCError ("Longitude read");
-		return;
+		fail = 1;
 	}
 	for (i = 0; i < count; i++)
-		locs[i].l_lon = ltemp[i];
+		locs[i].l_lon = (fail) ? 0.0 : ltemp[i];
 /*
  * Altitude.
  */
-	if ((var = ncvarid (tag->nc_id, "alt")) < 0 &&
-	    (var = ncvarid (tag->nc_id, "altitude")) < 0) {
-		dnc_NCError ("No 'alt' or 'altitude' field");
-		return;
+	fail = 0;
+	if ((var = dnc_Varid (tag->nc_id, "alt")) < 0 &&
+	    (var = dnc_Varid (tag->nc_id, "altitude")) < 0) {
+		msg_ELog (EF_DEBUG, "No 'alt' or 'altitude' field");
+		fail = 1;
 	}
 	if (ncvarget (tag->nc_id, var, &begin, &count, ltemp) < 0) {
 		dnc_NCError ("Altitude read");
-		return;
+		fail = 1;
 	}
 	for (i = 0; i < count; i++)
-		locs[i].l_alt = ltemp[i];
+		locs[i].l_alt = (fail) ? 0.0 : ltemp[i];
 	free (ltemp);
 }
 
@@ -2528,7 +2852,7 @@ Location *pos;
 /*
  * Write latitudes.
  */
-	if ((var = ncvarid (tag->nc_id, "lat")) < 0)
+	if ((var = dnc_Varid (tag->nc_id, "lat")) < 0)
 	{
 		dnc_NCError ("No latitude");
 		return;
@@ -2543,7 +2867,7 @@ Location *pos;
 /*
  * Write longitudes.
  */
-	if ((var = ncvarid (tag->nc_id, "lon")) < 0)
+	if ((var = dnc_Varid (tag->nc_id, "lon")) < 0)
 	{
 		dnc_NCError ("No longitude");
 		return;
@@ -2558,7 +2882,7 @@ Location *pos;
 /*
  * Write altitudes.
  */
-	if ((var = ncvarid (tag->nc_id, "alt")) < 0)
+	if ((var = dnc_Varid (tag->nc_id, "alt")) < 0)
 	{
 		dnc_NCError ("No altitude");
 		return;
@@ -2672,6 +2996,46 @@ Location *loc;
 
 
 
+static int 
+dnc_VarAlts (ncid, varid, au)
+int ncid;
+int varid;
+AltUnitType *au;
+/*
+ * Try to convert the units of this variable to an altitude unit type.
+ * Return TRUE on success, FALSE otherwise.
+ */
+{
+	char units[256];
+	AltUnitType altunit;
+
+	altunit = DEF_ALT_UNITS;
+	if (dnc_GetStringAtt (ncid, varid, VATT_UNITS, 
+			      units, sizeof(units)))
+	{
+		if (units[0] == '\0')
+		{
+			msg_ELog (EF_PROBLEM, 
+				  "NetCDF: alt units empty, using default %s",
+				  au_LongUnitsName(altunit));
+		}
+		else if (! au_ConvertName (units, &altunit))
+		{
+			msg_ELog (EF_PROBLEM,
+				  "NetCDF: Unknown alt units: '%s'", units);
+			return (FALSE);
+		}
+	}
+	/*
+	 * Either we got alts above, or the variable has no units, in 
+	 * which case we return the default.
+	 */
+	*au = altunit;
+	return (TRUE);
+}
+
+
+
 int
 dnc_GetAlts (dfindex, fid, offset, alts, nalts, altunits)
 int dfindex;
@@ -2681,38 +3045,185 @@ float *alts;
 int *nalts;
 AltUnitType *altunits;
 /*
- * Return the altitude information from this file.
+ * Return the altitude information from this file for the given fid.
  */
 {
 	NCTag *tag;
 	int i;
+	int ret;
 /*
  * Do some checking.
  */
 	if (!dfa_OpenFile (dfindex, FALSE, (void *) &tag))
 		return (FALSE);
-
-	if (tag->nc_nalts == 0)
+/*
+ * Let orgs do their own work.
+ */
+	switch (tag->nc_org)
 	{
-		msg_ELog (EF_PROBLEM, "netcdf: no altitudes in file");
+	   case OrgNSpace:
+		ret = dnc_GetNSpaceAlts (tag, fid, offset, 0);
+		break;
+	   case OrgIRGrid:
+		ret = dnc_GetIRGridAlts (tag, fid, offset);
+		break;
+	   case Org3dGrid:
+	   case Org2dGrid:
+	   case Org1dGrid:
+		ret = dnc_GetRGridAlts (tag, fid, offset, 0);
+		break;
+	   default:
 		return (FALSE);
 	}
 /*
- * Copy what we got here into what the caller wants there
+ * Now return whatever we were asked for
  */
 	if (nalts)
 		*nalts = tag->nc_nalts;
-
 	if (altunits)
 		*altunits = tag->nc_altUnits;
-
 	if (alts)
 	{
 		i = 0;
 		while (i < tag->nc_nalts)
 			alts[i] = tag->nc_alts[i++];
 	}
+	return (TRUE);
+}
 
+
+
+static int
+dnc_GetIRGridAlts (tag, fid, offset)
+NCTag *tag;
+FieldId fid;
+int offset;
+/*
+ * Find some altitudes for this field at this forecast offset
+ */
+{
+	int varid, altdimn, altvar;
+	int ndims;
+	int dimids[ MAX_VAR_DIMS ];
+	long start[ MAX_VAR_DIMS ];
+	long count[ MAX_VAR_DIMS ];
+	char altname[ MAX_NC_NAME ];
+	long nalt;
+	AltUnitType au;
+	nc_type vtype;
+	float *alts;
+	int i;
+/*
+ * If we already have altitudes for this field, we're cool
+ */
+	if (fid == tag->nc_altvar)
+		return (TRUE);
+/*
+ * Free what's there and try to find some new ones, since they depend
+ * upon the field being looked up.
+ */
+	if (tag->nc_alts)
+	{
+		free (tag->nc_alts);
+		tag->nc_alts = NULL;
+		tag->nc_nalts = 0;
+		tag->nc_altUnits = DEF_ALT_UNITS;
+		tag->nc_altvar = -1;
+	}
+/*
+ * Now try to build an array of altitudes for this field.  Find the
+ * variable for this field, and check its dimensions for one which
+ * implies altitudes.  If that dimension has a coordinate variable,
+ * use it to fill the alts.  Otherwise return the indices of the
+ * dimension as levels.
+ */
+	if ((varid = dnc_GetFieldVar (tag, fid)) < 0)
+	{
+		msg_ELog (EF_PROBLEM, "GetAlts on field %s not in file",
+			  F_GetName (fid));
+		return (FALSE);
+	}
+	if (ncvarinq (tag->nc_id, varid, NULL,
+		      &vtype, &ndims, dimids, NULL) < 0)
+	{
+		dnc_NCError ("inquiring variable for get alts");
+		return (FALSE);
+	}
+/*
+ * Since we're an irgrid, use the dimension after time and station, if any.
+ */
+	if (ndims > 2)
+	{
+		altdimn = dimids[2];
+	}
+	else
+	{
+		msg_ELog (EF_DEBUG, "netcdf irgrid: no altitudes in file");
+		return (FALSE);
+	}
+/*
+ * Now find the name of this dimension and see if it has a coordinate
+ * variable.
+ */	
+	if (ncdiminq (tag->nc_id, altdimn, altname, &nalt) < 0)
+	{
+		dnc_NCError ("inquiring dimns for get alts variable");
+		return (FALSE);
+	}
+	if ((altvar = dnc_Varid (tag->nc_id, altname)) >= 0)
+	{
+		if (ncvarinq (tag->nc_id, altvar, NULL,
+			      &vtype, &ndims, dimids, NULL) < 0)
+		{
+			dnc_NCError ("inquiring alt coord variable");
+			return (FALSE);
+		}
+		else if (vtype != NC_FLOAT)
+		{
+			dnc_NCError ("expected float alt variable");
+			return (FALSE);
+		}
+		/* use the variable values */
+		msg_ELog (EF_DEBUG, 
+			  "found coordinate variable %s for alts", altname);
+		if (! dnc_VarAlts (tag->nc_id, altvar, &au))
+			return (FALSE);
+	}
+	else	/* use the indices */
+	{
+		msg_ELog (EF_PROBLEM, "%s: no coord variable, using indices",
+			  "netcdf altitudes");
+		au = AU_level;
+	}
+
+	alts = (float *) malloc (sizeof(float) * nalt);
+	if (altvar >= 0)
+	{
+		for (i = 0; i < ndims; ++i)
+		{
+			start[i] = 0;
+			if (dimids[i] == altdimn)
+				count[i] = nalt;
+			else
+				count[i] = 1;
+		}
+		if (ncvarget (tag->nc_id, altvar, start, 
+			      count, (void *)alts) < 0)
+		{
+			dnc_NCError ("reading altitude variable");
+			free (alts);
+			return (FALSE);
+		}
+	}
+	else
+	{
+		for (i = 0; i < nalt; ++i)
+			alts[i] = (float) i;
+	}
+
+	tag->nc_nalts = nalt;
+	tag->nc_altUnits = au;
+	tag->nc_alts = alts;
 	return (TRUE);
 }
 
@@ -3136,7 +3647,7 @@ DataChunk *dc;
 	sprintf(history,"created by Zeb DataStore, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.43 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.44 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 #endif /* TEST_TIME_UNITS */
