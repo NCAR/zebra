@@ -12,7 +12,7 @@
 # include "ui_mode.h"
 # include "ui_cstack.h"
 
-static char *Rcsid = "$Id: ui_cmds.c,v 1.10 1990-04-26 12:11:14 corbet Exp $";
+static char *Rcsid = "$Id: ui_cmds.c,v 1.11 1992-01-29 21:47:48 corbet Exp $";
 
 # ifdef VMS
 # define HELPDIR "ui_help:"
@@ -211,6 +211,7 @@ int col;
 		RESIGNAL;
 	ENDCATCH
 	ue_rel_tree (pt);
+	ue_free_result (type, &v);
 }
 
 
@@ -277,6 +278,7 @@ struct ui_command *cmds;
 						RESIGNAL;
 					ENDCATCH
 					ue_rel_tree (pt);
+					ue_free_result (type, &v);
 				}
 				cmds++;
 			}
@@ -384,7 +386,7 @@ bool eval;
 	}
 	else
 	{
-		v.us_v_ptr = cmds[1].uc_v.us_v_ptr;
+		v.us_v_ptr = usy_string (cmds[1].uc_v.us_v_ptr);
 		type = SYMT_STRING;
 	}
 /*
@@ -394,6 +396,7 @@ bool eval;
  */
 	usy_s_symbol (usy_defined (Arg_table, UPTR (*cmds)) ? Arg_table :
 		Ui_variable_table, cmds->uc_v.us_v_ptr, type, &v);
+	ue_free_result (type, &v);
 	return (TRUE);
 }
 
@@ -411,7 +414,7 @@ char *file;
 	LUN lun;
 	char line[200];
 
-	if ((lun = dview (file)) <= 0)
+	if ((lun = (LUN) dview (file)) == 0)
 		ui_error ("Unable to open file '%s'", file);
 	while ((length = dget (lun, line, 200)) >= 0)
 	{
