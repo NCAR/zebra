@@ -1,7 +1,7 @@
 /*
  * Routines common to XY-Type plots
  */
-static char *rcsid = "$Id: XYCommon.c,v 1.3 1992-01-10 19:24:50 barrett Exp $";
+static char *rcsid = "$Id: XYCommon.c,v 1.4 1992-01-29 22:26:51 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -35,52 +35,26 @@ static char *rcsid = "$Id: XYCommon.c,v 1.3 1992-01-10 19:24:50 barrett Exp $";
 # include "GC.h"
 # include "LayoutControl.h"
 # include "DrawText.h"
-
-/*
- * General definitions
- */
-# define MAX_PLAT	10
-
-/*
-# ifdef __STDC__
-    extern void xy_GetScaleMode(plot_description,char*,char,unsigned short);
-    extern void xy_SetScaleBounds(plot_description,char*,char,char,DataValPtr,
-		DataValPtr);
-    extern void xy_GetCurrentScaleBounds(plot_description,char*,char,char,
-		DataValPtr,DataValPtr);
-    extern void xy_GetComponentAxes(plot_description, char*, int[4]);
-    extern void xy_GetAxisDescriptors( plot_description, char*, char, char,
-		       int*, int*,int*, int*,
-		       int*, float*,DataValPtr,float*, char*, label*);
-    extern void xy_SetPrivateAxisDescriptors( plot_description, char*, char, 
-		char, int*, DataValPtr,int*,int*,int*, float*);
-    extern void xy_SetPrivateDD ( plot_description, char*, time*,time*,int*);
-    extern void xy_GetDataDescriptors( plot_description,char*,bool,time*,time*,
-		time*,time*,int*);
-    extern void xy_GetPlotAttr(plot_description,char*,int,char*[],char*);
-    extern void xy_GetDataMinMax(bool, DataValPtr, DataValPtr, DataValPtr, int);
-    extern int xy_AvailableData(PlatformId, time,time,time, time*,time*)
-# else
-    extern void xy_GetScaleMode();
-    extern void xy_SetScaleBounds();
-    extern void xy_GetCurrentScaleBounds();
-    extern void xy_GetComponentAxes();
-    extern void xy_GetAxisDescriptors();
-    extern void xy_SetPrivateAxisDescriptors();
-    extern void xy_SetPrivateDD ();
-    extern void xy_GetDataDescriptors();
-    extern void xy_GetPlotAttr();
-    extern void xy_GetDataMinMax();
-    extern int xy_AvailableData()
-# endif
-*/
+# include "XYCommon.h"
 
 void
-xy_GetScaleMode(pd,c,dim,mode)
+xy_GetScaleInfo(pd,c,dim,info)
 plot_description	pd;
 char			*c;
 char			dim;
-unsigned short		*mode; /* return */
+short			*info; /* return */
+/*
+ * Retrieve the scaling information from the plot-description.
+ * pd - the plot-description to search
+ * c - the component to search in the plot-description
+ * dim - requested dimension. 'x' or 'y'
+ * info - the scaling information defined for this dimension including:
+ * pd-param: (xy)-scale-<dim>-mode
+ *	  mode == AUTO || MANUAL    (default==AUTO)
+ * pd-param: (xy)-scale-<dim>-style
+ *	  style == INVERT || REGULAR (default==REGULAR)
+ *
+ */
 {
     char	keyword[20];
     char	string[80];
@@ -88,24 +62,24 @@ unsigned short		*mode; /* return */
     keyword[6] = dim;
     keyword[7] = '\0';
     strcat(keyword, "-mode");
-    *mode = 0;
+    *info = 0;
     if ( pda_Search (pd, c, keyword, "xy", string, SYMT_STRING))
     {
 	if ( strcmp(string,"autoscale")==0)
-	    *mode = *mode | AUTO;
+	    *info = *info | AUTO;
 	else if ( strcmp(string,"manual")==0)
-	    *mode = *mode | MANUAL;
+	    *info = *info | MANUAL;
 	else	
 	{
     	    msg_ELog (EF_PROBLEM, 
 		"Unknown '%c' scaling mode: %s. Using autoscaling",
 		dim,string);
-	    *mode = *mode | AUTO;
+	    *info = *info | AUTO;
 	}
     }
     else
     {
-	*mode = *mode | AUTO;
+	*info = *info | AUTO;
     }
     strcpy(keyword, "scale-");
     keyword[6] = dim;
@@ -114,7 +88,7 @@ unsigned short		*mode; /* return */
     if ( pda_Search (pd, c, keyword, "xy", string, SYMT_STRING))
     {
 	if ( strcmp(string,"invert")==0)
-	    *mode = *mode | INVERT;
+	    *info = *info | INVERT;
 	else	
     	    msg_ELog (EF_PROBLEM, 
 		"Unknown '%c' scaling style: %s.", dim,string);
@@ -128,17 +102,44 @@ char			*c;
 char			dim;
 char			dimtype;
 DataValPtr		min,max;
+/*
+ * For a given dimension, record the current scale min and max bounds
+ * in the plot-description.
+ * pd - plot-description
+ * c - component in the plot-description to modify
+ * dim - dimension for which bounds are being recorded, ('x' or 'y')
+ * dimtype - data type of 'min' and 'max' ( 'f' or 't')
+ * min,max - value of minimum scale bound and maximum scale bound
+ *           respectively
+ */
 {
-    char	minkey[20];
-    char	maxkey[20];
-    strcpy(minkey, "scale-");
-    minkey[6] = dim;
-    minkey[7] = '\0';
-    strcat(minkey, "-min");
-    strcpy(maxkey, "scale-");
-    maxkey[6] = dim;
-    maxkey[7] = '\0';
-    strcat(maxkey, "-max");
+    char	minkey[32];
+    char	maxkey[32];
+    short	info;
+
+    xy_GetScaleInfo(pd,c,dim,&info);
+    if ( info & AUTO )
+    {
+        strcpy(minkey, "auto-scale-");
+        minkey[11] = dim;
+        minkey[12] = '\0';
+        strcat(minkey, "-min");
+        strcpy(maxkey, "auto-scale-");
+        maxkey[11] = dim;
+        maxkey[12] = '\0';
+        strcat(maxkey, "-max");
+    }
+    else
+    {
+        strcpy(minkey, "scale-");
+        minkey[6] = dim;
+        minkey[7] = '\0';
+        strcat(minkey, "-min");
+        strcpy(maxkey, "scale-");
+        maxkey[6] = dim;
+        maxkey[7] = '\0';
+        strcat(maxkey, "-max");
+    }
     switch ( dimtype )
     {
 	case 'f':
@@ -159,17 +160,46 @@ char			*c;
 char			dim;
 char			dimtype;
 DataValPtr		min,max;
+/*
+ * Find the scale bounds that apply to this component.
+ * pd - the plot-description to search
+ * c - the component to search
+ * dim - the dimension to find ( 'x' or 'y' )
+ * dimtype - the data type of the dimension data ( 'f' or 't' )
+ * min,max - the (returned) scale min and max bounds respectively.
+ *
+ * "xy_GetCurrentScaleBounds" will first search the given component, 
+ * then if the parameter scale-<dim>-min or scale-<dim>-max is not
+ * found, the global component and defaults will be searched respectively
+ * with the qualifier "xy" prepended to the parameter name.
+ */
 {
-    char	minkey[20];
-    char	maxkey[20];
-    strcpy(minkey, "scale-");
-    minkey[6] = dim;
-    minkey[7] = '\0';
-    strcat(minkey, "-min");
-    strcpy(maxkey, "scale-");
-    maxkey[6] = dim;
-    maxkey[7] = '\0';
-    strcat(maxkey, "-max");
+    char	minkey[32];
+    char	maxkey[32];
+    short	info;
+    xy_GetScaleInfo(pd,c,dim,&info);
+    if ( info & AUTO )
+    {
+        strcpy(minkey, "auto-scale-");
+        minkey[11] = dim;
+        minkey[12] = '\0';
+        strcat(minkey, "-min");
+        strcpy(maxkey, "auto-scale-");
+        maxkey[11] = dim;
+        maxkey[12] = '\0';
+        strcat(maxkey, "-max");
+    }
+    else
+    {
+        strcpy(minkey, "scale-");
+        minkey[6] = dim;
+        minkey[7] = '\0';
+        strcat(minkey, "-min");
+        strcpy(maxkey, "scale-");
+        maxkey[6] = dim;
+        maxkey[7] = '\0';
+        strcat(maxkey, "-max");
+    }
 
     min->type = dimtype;
     max->type = dimtype;
@@ -202,254 +232,19 @@ DataValPtr		min,max;
 }
 
 void
-xy_GetComponentAxes(pd, c, plotAxis)
-plot_description pd; /* input */
-char	*c;	     /* input */
-int	plotAxis[4];
-{
-    if ( !pda_Search (pd, c, "axis-bottom", "xy", 
-		(char *) &(plotAxis[AXIS_BOTTOM]), SYMT_INT))
-    {
-	plotAxis[AXIS_BOTTOM] = 1;
-    }
-
-    if ( !pda_Search (pd, c, "axis-top", "xy", 
-		(char *) &(plotAxis[AXIS_TOP]), SYMT_INT))
-    {
-	plotAxis[AXIS_TOP] = 0;
-    }
-
-    if ( !pda_Search (pd, c, "axis-left", "xy", 
-		(char *) &(plotAxis[AXIS_LEFT]), SYMT_INT))
-    {
-	plotAxis[AXIS_LEFT] = 1;
-    }
-
-    if ( !pda_Search (pd, c, "axis-right", "xy", 
-		(char *) &(plotAxis[AXIS_RIGHT]), SYMT_INT))
-    {
-	plotAxis[AXIS_RIGHT] = 0;
-    }
-}
-
-void
-xy_GetAxisDescriptors( pd, c, side, datatype,
-		       offset, tlabelWidth,tlabelHeight, nticLabel,
-		       ticlen, ticInterval,baseTic,fontScale, color, label)
-plot_description pd; /* input */
-char	*c;	     /* input */
-char	side;	     /* input */
-char	datatype;    /* input */
-int	*offset;
-int	*tlabelWidth,*tlabelHeight;
-int	*nticLabel;
-int	*ticlen;
-float	*ticInterval;
-DataValPtr	baseTic;
-float	*fontScale;
-char	*color;
-char	*label;
-{
-    char	keyword[80];
-    char	string[80];
-    /*
-     * Get the user-settable axis descriptors
-     */
-    strcpy(keyword, "axis-");
-    keyword[5] = side;
-    keyword[6] = '\0';
-    strcat(keyword, "-color");
-    if (! pda_Search (pd, c, keyword, "xy", (char *)color, SYMT_STRING))
-    {
-	strcpy(color,"white");
-    }
-    strcpy(keyword, "axis-");
-    keyword[5] = side;
-    keyword[6] = '\0';
-    strcat(keyword, "-label");
-    if (! pda_Search (pd, c, keyword, "xy", (char *)label, SYMT_STRING))
-    {
-	strcpy(label,"label");
-    }
-
-    strcpy(keyword, "axis-");
-    keyword[5] = side;
-    keyword[6] = '\0';
-    strcat(keyword, "-tic-len");
-    if (! pda_Search (pd, c, keyword, "xy", (char *)ticlen, SYMT_INT))
-    {
-	*ticlen = 5;
-    }
-    strcpy(keyword, "axis-");
-    keyword[5] = side;
-    keyword[6] = '\0';
-    strcat(keyword, "-tic-interval");
-    /* hardwired for now */
-    switch( datatype )
-    {
-	case 't':
-    	    *ticInterval = 600.0;
-            if(pda_Search (pd, c, keyword,"xy", (char*)string,SYMT_STRING))
-    	    {
-		if ( (*ticInterval = (float)pc_TimeTrigger(string)) == 0.0 )
-		{
-	    	    msg_ELog (EF_PROBLEM,"Unparseable tic interval: %s",string);
-		}
-    	    }
-	break;
-	case 'f':
-            if(!pda_Search (pd, c, keyword,"xy", (char*)ticInterval,SYMT_FLOAT))
-    	    {
-    	        *ticInterval = 1.0;
-	    }
-	break;
-    }
-    strcpy(keyword, "axis-");
-    keyword[5] = side;
-    keyword[6] = '\0';
-    strcat(keyword, "-font-scale");
-    if (! pda_Search (pd, c, keyword, "xy", (char *)fontScale, SYMT_FLOAT))
-    {
-	*fontScale = 0.025;
-    }
-
-    /*
-     * Get the axis descriptors that are private (calculated)
-     */
-    strcpy(keyword, "private-axis-");
-    keyword[13] = side;
-    keyword[14] = '\0';
-    strcat(keyword, "-offset");
-    if (! pda_Search (pd, c, keyword, NULL, (char *)offset, SYMT_INT))
-    {
-	*offset = 0;
-    }
-    strcpy(keyword, "private-axis-");
-    keyword[13] = side;
-    keyword[14] = '\0';
-    strcat(keyword, "-base-tic");
-    baseTic->type = datatype;
-    switch( datatype )
-    {
-	case 't':
-    	    if (! pda_Search (pd, c, keyword, NULL, 
-		(char *)&(baseTic->val.t), SYMT_DATE))
-            {
-	        baseTic->val.t.ds_yymmdd = 0;
-	        baseTic->val.t.ds_hhmmss = 0;
-            }
-	break;
-	case 'f':
-    	    if (! pda_Search (pd, c, keyword, NULL, 
-		(char *)&(baseTic->val.f), SYMT_FLOAT))
-            {
-	        baseTic->val.f = 0.0;
-            }
-	break;
-    }
-    strcpy(keyword, "private-axis-");
-    keyword[13] = side;
-    keyword[14] = '\0';
-    strcat(keyword, "-tic-label-height");
-    if (! pda_Search (pd, c, keyword, NULL, (char *)tlabelHeight, SYMT_INT))
-    {
-	*tlabelHeight = 0;
-    }
-    strcpy(keyword, "private-axis-");
-    keyword[13] = side;
-    keyword[14] = '\0';
-    strcat(keyword, "-n-tic-label");
-    if (! pda_Search (pd, c, keyword, NULL, (char *)nticLabel, SYMT_INT))
-    {
-	*nticLabel = 0;
-    }
-    strcpy(keyword, "private-axis-");
-    keyword[13] = side;
-    keyword[14] = '\0';
-    strcat(keyword, "-tic-label-width");
-    if (! pda_Search (pd, c, keyword, NULL, (char *)tlabelWidth, SYMT_INT))
-    {
-	*tlabelWidth = 0;
-    }
-
-}
-void
-xy_SetPrivateAxisDescriptors( pd, c, side, datatype,
-		       offset, baseTic,tlabelHeight,tlabelWidth,nticLabel,
-		       ticInterval)
-plot_description pd; /* input */
-char	*c;	     /* input */
-char	side;	     /* input */
-char	datatype;    /* input */
-int	*offset;
-DataValPtr	baseTic;
-int	*tlabelHeight,*tlabelWidth;
-int	*nticLabel;
-float	*ticInterval;
-{
-    char	mode[80];
-    char	keyword[80];
-
-    if ( offset )
-    {
-        strcpy(keyword, "private-axis-");
-        keyword[13] = side;
-        keyword[14] = '\0';
-        strcat(keyword, "-offset");
-        pd_Store (pd, c, keyword, (char *)offset, SYMT_INT);
-    }
-
-    if ( baseTic)
-    {
-        strcpy(keyword, "private-axis-");
-        keyword[13] = side;
-        keyword[14] = '\0';
-        strcat(keyword, "-base-tic");
-        switch( datatype )
-        {
-	    case 't':
-    	        pd_Store (pd, c, keyword, (char *)&(baseTic->val.t), SYMT_DATE);
-	    break;
-	    case 'f':
-    	        pd_Store (pd, c, keyword,(char *)&(baseTic->val.f), SYMT_FLOAT);
-	    break;
-        }
-    }
-
-    if ( tlabelHeight )
-    {
-        strcpy(keyword, "private-axis-");
-        keyword[13] = side;
-        keyword[14] = '\0';
-        strcat(keyword, "-tic-label-height");
-        pd_Store (pd, c, keyword, (char *)tlabelHeight, SYMT_INT);
-    }
-
-    if ( nticLabel )
-    {
-        strcpy(keyword, "private-axis-");
-        keyword[13] = side;
-        keyword[14] = '\0';
-        strcat(keyword, "-n-tic-label");
-        pd_Store (pd, c, keyword, (char *)nticLabel, SYMT_INT);
-    }
-
-    if ( tlabelWidth )
-    {
-        strcpy(keyword, "private-axis-");
-        keyword[13] = side;
-        keyword[14] = '\0';
-        strcat(keyword, "-tic-label-width");
-        pd_Store (pd, c, keyword,  (char *)tlabelWidth, SYMT_INT);
-    }
-}
-
-void
 xy_SetPrivateDD ( pd, c, btime,etime,npnts)
 plot_description pd;
 char	*c;
 time	*btime,*etime;	
 int	*npnts;
+/*
+ * Store the private data descriptors "data-end-time", "data-begin-time"
+ * and "data-ndatapoints".  These are meant to record the current state
+ * of the amount and span of data currently displayed on the plot
+ * for a given component.  These are "private" in the sense that they
+ * are changed regularly by the plot routine and should not be tampered
+ * with by "manual" means.
+ */
 {
     if ( btime ) pd_Store (pd, c, "data-begin-time",(char*)btime,SYMT_DATE);
     if ( etime ) pd_Store (pd, c, "data-end-time",(char*)etime,SYMT_DATE);
@@ -457,13 +252,26 @@ int	*npnts;
 }
 
 void
-xy_GetDataDescriptors( pd,c,update,btime,etime,bold,eold,dmode)
+xy_GetDataDescriptors( pd,c,update,btime,etime,bold,eold,dmode,ndat)
 plot_description pd;
 char	*c;
 bool	update;
-time	*btime,*etime;	/* Computed current target begin and end times */
-time	*bold,*eold;	/* old begin and end times of data */
+time	*btime,*etime;	
+time	*bold,*eold;
 int	*dmode;
+int	*ndat;
+/*
+ * Get data descriptors.  "xy_GetDataDescriptors" returns the maximum
+ * range of data times that are requested by the plot-description.
+ * pd - the plot-description
+ * c - the component name
+ * update - true if this is an update plot
+ * btime,etime - (return) The target data begin and end times needed to
+ *	to make the plot completely upto date.
+ * bold,eold - (return) The begin and end times of data that already
+ *	exists on the plot.  if (!update) bold and eold will be set
+ * 	to zero.
+ */
 {
     char	span[80];
     char	mode[80];
@@ -490,7 +298,7 @@ int	*dmode;
 		{
 	    	    msg_ELog (EF_PROBLEM, "Unparseable series span: %s",span);
 		}
-		spanTime = ts_GetSec(*etime) - spanSec;
+		spanTime = GetSec(*etime) - spanSec;
 		lc_GetTime ( btime, spanTime );
     	    }
 	}
@@ -502,6 +310,7 @@ int	*dmode;
     {
         pda_Search ( pd, c, "data-begin-time", NULL, (char*)bold, SYMT_DATE); 
         pda_Search ( pd, c, "data-end-time", NULL, (char*)eold, SYMT_DATE); 
+        pda_Search ( pd, c, "data-ndatapoints", NULL, (char*)ndat, SYMT_INT); 
     }
     else
     {
@@ -509,43 +318,68 @@ int	*dmode;
 	bold->ds_hhmmss = 0;
 	eold->ds_yymmdd = 0;
 	eold->ds_hhmmss = 0;
+	*ndat = 0;
     }
 }
 
 void
-xy_GetPlotAttr(pd,c,nplat,linecolor,topAnnColor)
+xy_GetPlotColors(pd,c,nplat,datacolor,topAnnColor)
 plot_description pd;
 char	*c;
 int	nplat;
-char	*linecolor[MAX_PLAT];
+char	*datacolor[MAX_PLAT];
 char	*topAnnColor;
+/*
+ * Get the color names for "ta-color" and "platform-color"
+ * from the plot description.
+ * pd - the plot-description to search
+ * c - the component to search
+ * nplat - the number of colors expected for "platform-color"
+ * datacolor - the (returned) list of platform colors.
+ * topAnnColor - the (returned) top annotation color
+ * 
+ * If datacolor or topAnnColor is NULL, then that value will not
+ * be searched for.
+ */
 {
-	char	attrs[80];
-	char	*attrlist[MAX_PLAT];
- 	int 	nattr;
+	char	colors[80];
+	char	*colorlist[MAX_PLAT];
+ 	int 	ncol;
 	int	i;
 /*
- * Get line color for data from each platform
+ * Get color for data from each platform
  */
-	if ( linecolor )
+	if ( datacolor )
 	{
-	    if ( pda_Search (pd, c, "line-color", NULL, attrs, SYMT_STRING))
+	    if ( pda_Search (pd, c, "platform-color", NULL,colors, SYMT_STRING))
 	    {
-	        nattr = CommaParse( attrs, attrlist);
-	        if ( nattr < nplat )
+	        ncol = CommaParse( colors, colorlist);
+	        if ( ncol < nplat )
 	        {
 		    msg_ELog ( EF_INFO, 
-		    "Not enough line-colors specified, filling in with white.");
+    "%s Not enough platform-colors specified, filling in with white.",c);
 	        }
 	        for ( i = 0; i < nplat; i++)
 	        {
-	            if (GWDepth(Graphics) == 1 || i >= nattr )
-		         strcpy(linecolor[i], "white");
+	            if (GWDepth(Graphics) == 1 || i >= ncol )
+		         strcpy(datacolor[i], "white");
 		    else
-		         strcpy(linecolor[i], attrlist[i]);
+		         strcpy(datacolor[i], colorlist[i]);
 	        }
 	    }
+	    else
+	    {
+		msg_ELog ( EF_INFO,
+			"%s: No platform-color(s) specified, using white.",c);
+		for ( i = 0; i < nplat; i++ )
+		{
+		    strcpy(datacolor[i], "white");
+		}
+	    }
 	}
+/*
+ * Get color for top annotation
+ */
 	if ( topAnnColor )
 	{
 	    if (! pda_Search (Pd,"global","ta-color", NULL,
@@ -559,6 +393,18 @@ xy_AvailableData(pid,bTimeTarget,eTimeTarget,eTimeOld,bTimeReq, eTimeReq)
 PlatformId      pid;
 time            bTimeTarget,eTimeTarget,eTimeOld;
 time            *bTimeReq,*eTimeReq;
+/*
+ * Find out the maximum begin and end times of actual data available
+ * within a requested range.
+ * pid - the platform id.
+ * bTimeTarget,eTimeTarget - the begin and end times of the requested
+ * 	range of data.
+ * eTimeOld - the ending time of data already retrieved.
+ *	If no data previously exists, the time should be 000000 000000.
+ * bTimeReq,eTimeReq - the begin and end times of data available to
+ *	fill the target range.
+ * If data is actually available, then return 1 else 0
+ */
 {
     int available = 1;
     *eTimeReq = eTimeOld;
@@ -569,6 +415,10 @@ time            *bTimeReq,*eTimeReq;
                                 eTimeTarget.ds_hhmmss);
         available = 0;
     }
+    /*
+     * If no data previously exists, then get the time of the oldest
+     * available data within the target range.
+     */
     if ( eTimeOld.ds_yymmdd == 0 )
     {
         if (! ds_DataTimes (pid, &bTimeTarget, 1, DsBefore, bTimeReq))
@@ -586,7 +436,7 @@ time            *bTimeReq,*eTimeReq;
     else
         *bTimeReq = eTimeOld;
 
-    if ( available && ts_GetSec(*eTimeReq) < ts_GetSec(*bTimeReq) )
+    if ( available && GetSec(*eTimeReq) < GetSec(*bTimeReq) )
     {
         available = 0;
         msg_ELog (EF_INFO, "No new data for at %d %d",eTimeTarget.ds_yymmdd,
@@ -594,23 +444,111 @@ time            *bTimeReq,*eTimeReq;
     }
     return (available);
 }
+
+void
 xy_GetDataMinMax(update, min, max, data, npts)
 bool    update;
 DataValPtr      min,max;
 DataValPtr      data;
 int             npts;
+/*
+ * Get the min and max data value for an array of data.
+ * If update is false, min and max will be reset and their returned
+ * values will be the true min and max of the data set.
+ * If update is true, min and max will be left as their current (passed in)
+ * values and will only be changed if the values in the current data
+ * set exceed them.
+ */
 {
    int  i;
-   if ( !update )
+   if ( !update && data )
    {
         *min = data[0];
         *max = data[0];
    }
    for ( i = 0; i < npts; i++)
    {
-        if ( lc_CompareData( &(data[i]), &max ) > 0 )
+        if ( lc_CompareData( &(data[i]), max ) > 0 )
                         *max = data[i];
-        if ( lc_CompareData( &(data[i]), &min ) < 0 )
+        if ( lc_CompareData( &(data[i]), min ) < 0 )
                         *min = data[i];
    }
+}
+
+void
+xy_AdjustAxes(pd,c,xtype,xrescale,ytype,yrescale )
+plot_description	pd;
+char			*c;
+char			xtype;
+int			xrescale;
+char			ytype;
+int			yrescale;
+/*
+ * Adjust the plot-description parameters controlling the limits of plotted
+ * axes associated with a given component. If for any horizontal axis
+ * plotted, xmin or xmax is different from the current axis min and max
+ * the axis plot-description parameters will be adjusted to reflect
+ * the new values. Similarly, if ymin and ymax are different from the existing
+ * left or right axis values, they will also be changed.
+ * If any one axis is adjusted, the plot-description will be changed
+ * and "xy_AdjustAxes" will return 1, indicating the need for the component
+ * axes to be redrawn to reflect the change. If no axes are adjusted,
+ * then 0 is returned.
+ */
+{
+    char	datatype;
+    int		computed;
+    
+    if ( ac_PlotAxis ( pd,c,'t') )
+    {
+        computed = ac_QueryAxisState(pd,c,'t',&datatype);
+	computed = 0;
+	if ( datatype == 'n' ) 
+	{
+	    ac_UpdateAxisState ( pd,c,'t',&xtype,&computed);
+	}
+	else if ( xrescale )
+	{
+	    ac_UpdateAxisState ( pd, c, 't',NULL, &computed );
+	}
+    }
+    if ( ac_PlotAxis ( pd,c,'b') )
+    {
+        computed = ac_QueryAxisState(pd,c,'b',&datatype);
+	computed = 0;
+	if ( datatype == 'n' ) 
+	{
+	    ac_UpdateAxisState ( pd,c,'b',&xtype,&computed);
+	}
+	else if ( xrescale )
+	{
+	    ac_UpdateAxisState ( pd, c, 'b',NULL, &computed );
+	}
+    }
+    if ( ac_PlotAxis ( pd,c,'l') )
+    {
+        computed = ac_QueryAxisState(pd,c,'l',&datatype);
+	computed = 0;
+	if ( datatype == 'n' ) 
+	{
+	    ac_UpdateAxisState ( pd,c,'l',&ytype,&computed);
+	}
+	else if ( yrescale )
+	{
+	    ac_UpdateAxisState ( pd, c, 'l',NULL, &computed );
+	}
+    }
+    if ( ac_PlotAxis ( pd,c,'r') )
+    {
+        computed = ac_QueryAxisState(pd,c,'r',&datatype);
+	computed = 0;
+	if ( datatype == 'n' ) 
+	{
+	    ac_UpdateAxisState ( pd,c,'r',&ytype,&computed);
+	}
+	else if ( yrescale )
+	{
+	    ac_UpdateAxisState ( pd, c, 'r',NULL, &computed );
+	}
+    }
 }
