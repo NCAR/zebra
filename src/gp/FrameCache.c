@@ -22,7 +22,7 @@
 # include <X11/Intrinsic.h>
 # include <errno.h>
 # include <fcntl.h>
-# include <ui.h>
+
 # include <config.h>
 # include <defs.h>
 # include <message.h>
@@ -32,7 +32,7 @@
 # include "GraphicsW.h"
 # include "ActiveArea.h"
 
-MAKE_RCSID ("$Id: FrameCache.c,v 2.20 1995-06-29 23:32:31 granger Exp $")
+MAKE_RCSID ("$Id: FrameCache.c,v 2.21 1996-11-19 07:17:33 granger Exp $")
 
 # define BFLEN		500
 # define FLEN		40
@@ -716,11 +716,9 @@ int frame, pixmap;
 /*
  *  Update important FrameFile values.
  */
-# ifdef SHM
 	if(GWFrameShared(Graphics, pixmap))
 		framesize = GWHeight(Graphics) * GWGetBPL(Graphics, pixmap);
  	else
-# endif
 	{
 		image = XCreateImage(XtDisplay(Graphics), 0, GWDepth(Graphics),
 			ZPixmap, 0, 0, GWWidth(Graphics), GWHeight(Graphics),
@@ -758,7 +756,6 @@ int frame, pixmap;
 /*
  *  Transfer frame data from FrameFile to pixmap.
  */
-#ifdef SHM
 	if(GWFrameShared(Graphics, pixmap))
 	{
 		if (read (FrameFile, GWGetFrameAddr (Graphics, pixmap), 
@@ -770,7 +767,6 @@ int frame, pixmap;
 		}
 	}
 	else
-#endif
 	{
 		if (read (FrameFile, image->data, framesize) != framesize)
 		{
@@ -818,12 +814,10 @@ int frame;
 /*
  *  Update important FrameFile values.
  */
-# ifdef SHM
 	if(GWFrameShared(Graphics, FCache[frame].fc_index))
 		framesize = GWHeight(Graphics) * GWGetBPL(Graphics, 
 			FCache[frame].fc_index);
 	else
-# endif
 	{
 		image = XGetImage(XtDisplay(Graphics), GWGetFrame(Graphics,
 			FCache[frame].fc_index), 0, 0, GWWidth(Graphics), 
@@ -853,7 +847,6 @@ int frame;
  *  Transfer frame data from pixmap into the FrameFile using shared memory
  *  pixmaps if possible.
  */
-#ifdef SHM
 	if (GWFrameShared(Graphics, FCache[frame].fc_index))
 	{
 		if (write (FrameFile, GWGetFrameAddr(Graphics, 
@@ -865,7 +858,6 @@ int frame;
 		}
 	}
 	else
-#endif
 	{
 		if (write (FrameFile, image->data, framesize) != framesize)
 		{
