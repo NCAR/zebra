@@ -1,0 +1,14 @@
+0.7 0.7 0.4 0.4 0.0 4.0 ASAP
+
+S-Pol
+file /tmp/spol.scan
+27.8893 -80.7457
+18.0 15.0
+18.0 15.0
+64 1024 variable
+850
+enabled
+PPI
+5.0 0.0
+variable
+1040 150
