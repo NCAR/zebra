@@ -5,26 +5,27 @@
 define widget iss-to-other intmenu 'other'
 	title 'Display in other window'
 	line
-	entry 'Omega sounding' 'iss-shipout none'
-	entry 'Wind profile (high)' 'iss-shipout _h'
-	entry 'Wind profile (low)' 'iss-shipout _l'
-	entry 'RASS' 'iss-shipout _r'
-	entry 'Surface measurements' 'iss-shipout _s'
+	entry 'Sounding' 'iss-shipout /class temp'
+	entry 'Wind profile (high)' 'iss-shipout /prof915h wspd'
+	entry 'Wind profile (low)' 'iss-shipout /prof915l wspd'
+	entry 'RASS' 'iss-shipout /rass915 tv'
+	entry 'Surface' 'iss-shipout /surface_met tdry'
 endmenu
-
 
 !
 ! The function which actually gets this data around.
 !
-procedure iss-shipout suffix string
+procedure iss-shipout suffix string fld string
 	if (suffix <> 'none')
 		local fullplat concat(icon_platform, suffix)
 	else
 		local fullplat icon_platform
 	endif
-	local dmcmd quote(concat3 ('PutScalar ', fullplat, ' tdry'))
+	local putcmd concat3('PutScalar ', fullplat, ' ')
+	local dmcmd quote(concat(putcmd, fld))
 	dm #dmcmd
 endprocedure
+
 
 
 define widget send-iss intmenu 'iss sender'
