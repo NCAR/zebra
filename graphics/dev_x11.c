@@ -2,10 +2,10 @@
 /*
  * Graphics driver for the X window system, version 11.3
  */
-# include "config.h"
+# include <graphdev.h>
 
 # ifdef DEV_X11
-static char *rcsid = "$Id: dev_x11.c,v 1.21 1991-11-05 23:21:27 corbet Exp $";
+static char *rcsid = "$Id: dev_x11.c,v 1.22 1991-11-15 20:15:35 oye Exp $";
 
 # include "graphics.h"
 # include "device.h"
@@ -128,6 +128,13 @@ struct device *dev;
 		tag->x_xres = 912;
 		tag->x_yres = 800;
 		dev->gd_xb = 152;
+	}
+	else if (! strcmp (type, "Sun-screen"))
+	{
+		tag->x_xres = 1152;
+		tag->x_yres = 880;
+		dev->gd_xb = 144;
+		dev->gd_yb = 110;
 	}
 	else
 	{
