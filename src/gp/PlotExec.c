@@ -34,7 +34,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 # include "LayoutControl.h"
-MAKE_RCSID ("$Id: PlotExec.c,v 2.15 1992-10-13 21:11:48 corbet Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.16 1992-10-14 16:35:14 corbet Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -484,12 +484,6 @@ px_GetCoords ()
 		Alt /= 1000.0;
 # endif
 /*
- * Unless told otherwise, readjust the coordinates so that x == y.
- */
-	if (! pda_Search (Pd, "global", "expand", NULL, (char *) &expand,
-			SYMT_BOOL) || expand == FALSE)
-		px_AdjustCoords (&Xlo, &Ylo, &Xhi, &Yhi);
-/*
  * Save the origin
  */
 	if (! cvt_Origin (lat, lon))
@@ -529,6 +523,13 @@ px_GetCoords ()
         {
             lc_SetAxisDim ( AXIS_RIGHT, axisSpace );
         }
+
+/*
+ * Unless told otherwise, readjust the coordinates so that x == y.
+ */
+	if (! pda_Search (Pd, "global", "expand", NULL, (char *) &expand,
+			SYMT_BOOL) || expand == FALSE)
+		px_AdjustCoords (&Xlo, &Ylo, &Xhi, &Yhi);
 
 	return (TRUE);
 }
