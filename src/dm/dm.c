@@ -38,7 +38,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm.c,v 2.47 1994-07-14 18:50:52 corbet Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.48 1994-09-14 16:38:44 burghart Exp $")
 
 
 /*
@@ -761,7 +761,6 @@ struct dm_msg *dmsg;
 		msg_ELog (EF_DEBUG, "Hello received from '%s' win %x", from,
 			  dmh->dmm_win);
 		win->cfw_win = dmh->dmm_win;
-		send_default (win);
 		config_win (win);
 		break;
 	/*
@@ -990,49 +989,6 @@ struct cf_window *win;
 	pd_RPDRelease (rpd);
 	free (dmp);
 }
-
-
-
-
-send_default (win)
-struct cf_window *win;
-/*
- * Send this window it's defaults table.
- */
-{
-	struct dm_pdchange *dmp;
-	plot_description def = pda_GetPD ("defaults");
-	raw_plot_description *rpd;
-	int len;
-/*
- * If there is no defaults table, forget it.
- */
-	if (! def)
-		return;
-/*
- * Convert it to external form.
- */
-	rpd = pd_Unload (def);
-	len = sizeof (struct dm_pdchange) + rpd->rp_len;
-/*
- * Allocate a sufficiently big pdchange structure.
- */
-	dmp = (struct dm_pdchange *) malloc (len);
-/*
- * Move over the stuff.
- */
-	dmp->dmm_type = DM_DEFAULTS;
-	dmp->dmm_pdlen = rpd->rp_len;
-	memcpy (dmp->dmm_pdesc, rpd->rp_data, rpd->rp_len);
-	msg_ELog (EF_DEBUG, "Sending defaults to %s len %d", win->cfw_name,
-		len);
-	msg_send (win->cfw_name, MT_DISPLAYMGR, FALSE, dmp, len);
-
-	pd_RPDRelease (rpd);
-	free (dmp);
-}
-
-
 
 
 
