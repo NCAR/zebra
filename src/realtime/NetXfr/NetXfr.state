@@ -1,0 +1,126 @@
+!
+!		Copyright (C) 1987,88,89,90,91 by UCAR
+!	University Corporation for Atmospheric Research
+!		   All rights reserved
+!
+! No part of this work covered by the copyrights herein may be reproduced
+! or used in any form or by any means -- graphic, electronic, or mechanical,
+! including photocopying, recording, taping, or information storage and
+! retrieval systems -- without permission of the copyright owner.
+! 
+! This software and any accompanying written materials are provided "as is"
+! without warranty of any kind.  UCAR expressly disclaims all warranties of
+! any kind, either express or implied, including but not limited to the
+! implied warranties of merchantibility and fitness for a particular purpose.
+! UCAR does not indemnify any infringement of copyright, patent, or trademark
+! through use or modification of this software.  UCAR does not provide 
+! maintenance or updates for its software.
+!
+!
+! Network transfer states.
+!
+define state initial
+	eoftext 'exit'
+	ctable ui$command_table
+	@ /rdss/ui/ui_commands.
+
+	input 'send' 1
+		next send-what
+	endinput
+	input 'run' 2
+		next ust$no_more
+	endinput
+	input 'get' 4	! Unimplemented, so far
+		next get-what
+	endinput
+	input 'broadcast' 5
+		next bcast-addr
+	endinput
+	input 'receive' 6
+		next receive-from
+	endinput
+enddef
+
+!
+! broadcast ADDR PORT
+!
+define state bcast-addr
+	input string
+		next ust$final_int
+	endinput
+enddef
+
+!
+! receive [from] PORT
+!
+define state receive-from
+	input 'from' 0
+		ignore
+		next ust$final_int
+	endinput
+	input integer
+		next ust$no_more
+	endinput
+enddef
+
+!
+! send PLATFORM [as PLATFORM] [to] recip ....
+!
+define state send-what 
+	input string
+		next send-maybe-as
+	endinput
+enddef
+
+define state send-maybe-as
+	input 'as' 3
+		next send-as-plat
+	endinput
+	input string	! no "as"
+		next send-plats
+	endinput
+	input 'to' 0
+		ignore
+		next send-recip
+	endinput
+enddef
+
+define state send-as-plat
+	input string
+		next send-recip
+	endinput
+enddef
+
+define state send-recip
+	input string	! gotta have one
+		next send-plats
+	endinput
+	input EOS
+		message 'No recipients specified'
+		reject
+		next send-recip
+	endinput
+enddef
+
+define state send-plats
+	input string
+		next send-plats
+	endinput
+	input EOS
+		done
+	endinput
+enddef
+
+set ui$initial_state "initial"
+
+procedure ui$init
+!
+! If there was a command file specified, we just read it and go
+! straight into run mode.  Otherwise we expect to be interactive.
+!
+	if (defined ("CommandFile"))
+		local rcmd "read"
+		#rcmd #CommandFile
+		run
+	endif
+endprocedure
