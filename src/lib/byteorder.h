@@ -1,4 +1,4 @@
-/* $Id: byteorder.h,v 2.3 1997-02-15 02:38:44 burghart Exp $ */
+/* $Id: byteorder.h,v 2.4 1997-05-13 22:16:36 ishikawa Exp $ */
 /*
  * Byte swapping, where called for.
  */
@@ -6,9 +6,11 @@
 /*
  * Thus far, only linux needs byte swapping.  This is, nonetheless, almost
  * certainly the wrong test; we need to get endianness together.
+   Added DEC/Alpha OSF/1 LITTLE_ENDIAN machine. Still is not complete
+   because Alpha is a 64 bit machine.
  */
 
-# ifdef linux
+# if defined (linux) || defined (__osf__) || defined (LITTLE_ENDIAN)
 static
 #  ifdef __GNUC__
 inline
