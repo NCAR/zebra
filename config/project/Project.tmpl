@@ -28,7 +28,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.33 1995-06-29 20:55:46 granger Exp $
+XCOMM $Id: Project.tmpl,v 1.34 1995-07-06 04:15:22 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -215,15 +215,16 @@ XCOMM -----------------------------------------------------------------------
 
 /*
  * If we're supposed to be building the part of RDSS we need, define
- * symbols appropriately.
+ * symbols appropriately.  We must be able to define RDSSDir, RDSSLibDir,
+ * and the Library symbols, so these cannot be defined in config.h else
+ * errors will result.
  */
 #ifndef BuildRDSS
 #define BuildRDSS NO
 #endif
+
 #if BuildRDSS
 # define RDSSDir BaseDir
-# define RDSSIncDir BuildIncRoot
-# define RDSSIncludes /* nothing */
 # define RDSSLibDir $(LIBDIR)
 # if UseInstalledZebra
 #  define RDSSUILibrary $(LIBDIR)/librdssui.a
@@ -233,24 +234,33 @@ XCOMM -----------------------------------------------------------------------
 #  define RDSSUtilLibrary $(TOP)/util/librdssutil.a
 # endif
 # define RDSSLibrary $(LIBRDSSUI) $(LIBRDSSUTIL)
-# if UseInstalledZebra
-#  define UicCmd $(BINDIR)/uic
-#  define UibCmd $(BINDIR)/uib
-# else
-#  define UicCmd $(TOP)/ui/uic
-#  define UibCmd $(TOP)/ui/uib
-# endif
 #else
 # define RDSSUILibrary	/* RDSSLibrary symbol will be used instead */
 # define RDSSUtilLibrary /* " */
 #endif
 
 #ifndef UicCmd
-#define UicCmd uic	/* Assumes uic in path */
+# if BuildRDSS
+#  if UseInstalledZebra
+#   define UicCmd $(BINDIR)/uic
+#  else
+#   define UicCmd $(TOP)/ui/uic
+#  endif
+# else
+#  define UicCmd uic	/* Assumes uic in path */
+# endif
 #endif
 
 #ifndef UibCmd
-#define UibCmd uib	/* Assumes uib in path */
+# if BuildRDSS
+#  if UseInstalledZebra
+#   define UibCmd $(BINDIR)/uib
+#  else
+#   define UibCmd $(TOP)/ui/uib
+#  endif
+# else
+#  define UibCmd uib	/* Assumes uib in path */
+# endif
 #endif
 
 #ifndef RDSSDir
@@ -287,12 +297,23 @@ XCOMM -----------------------------------------------------------------------
 #endif
 
 /*
- * For RDSS, the default include directory will be RDSSDir/include
+ * For RDSS, the default include directory will be RDSSDir/include, unless
+ * we're building RDSS ourselves in which case we leave it blank.  An RDSS
+ * include directory can still be specified, but any RDSS header files in
+ * the top include directory will take precedence over any in RDSSINCLUDES
+ * specified in EXTRA_INCLUDES.
  */
 #ifndef RDSSIncDir
-#   define RDSSIncDir $(RDSSDIR)/include
-#   ifndef RDSSIncludes
-#      define RDSSIncludes -I$(RDSSINCDIR)
+#   if BuildRDSS
+#      define RDSSIncDir /**/
+#      ifndef RDSSIncludes
+#         define RDSSIncludes /**/
+#      endif
+#   else
+#      define RDSSIncDir $(RDSSDIR)/include
+#      ifndef RDSSIncludes
+#         define RDSSIncludes -I$(RDSSINCDIR)
+#      endif
 #   endif
 #else
 #   ifndef RDSSIncludes
@@ -707,10 +728,11 @@ XCOMM -----------------------------------------------------------------------
    CXXEXTRA_INCLUDES = $(XINCLUDES) $(RDSSINCLUDES) $(CONFIGINCLUDES)
 /*
  * We redefine the order of the ALLINCLUDES variable here so that top
- * includes will be first on the compiler command line, but the include
- * path can still be overridden with the INCLUDES variable.  See Imake.tmpl.
+ * includes will be first on the compiler command line and always take
+ * precedence.  The location of the top include files can still be overridden
+ * by assigning TOP_INCLUDES on the make command line.  See Imake.tmpl.
  */
-      ALLINCLUDES = $(INCLUDES) $(TOP_INCLUDES) $(EXTRA_INCLUDES) \
+      ALLINCLUDES = $(TOP_INCLUDES) $(INCLUDES) $(EXTRA_INCLUDES) \
                     $(STD_INCLUDES)
 
 /*
@@ -785,6 +807,16 @@ XCOMM -----------------------------------------------------------------------
           DEPLIBS = $(LIBZEB)
           MATHLIB = $(LIBMATH)
        TERMCAPLIB = $(LIBTERMCAP)
+/*
+ * "Convenience" variables for Imakefiles.  Combine some common library
+ * groups into single variables.  In particular, programs needing DFA
+ * access should use DFALIBS rather than list the particular format libraries,
+ * to make it easier to add and remove formats down the road.  Likewise,
+ * programs only needing protocol access and not file access can use DSLIBS.
+ */
+            ZLIBS = $(LIBZEB) $(LIBRDSS)
+           DSLIBS = $(LIBZEBDS)
+          DFALIBS = $(LIBZEBDS) $(LIBNETCDF) $(LIBHDF)
 /*
  * Override some make variables settings in Imake.tmpl.  Set LD_RUN_PATH
  * to our X libraries if it exists, and don't bother with LDPRELIB since
