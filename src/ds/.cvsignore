@@ -18,3 +18,6 @@ aline
 FDParse.tab.cc
 FDParse.tab.h
 FDScan.cc
+*.lo
+*.la
+.libs

@@ -3,3 +3,6 @@ cvt_test
 msg_test
 re_test
 tbtree
+*.lo
+*.la
+.libs
