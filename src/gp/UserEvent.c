@@ -1,7 +1,7 @@
 /*
  * Deal with user-originated events.
  */
-static char *rcsid = "$Id: UserEvent.c,v 2.8 1994-11-19 00:35:51 burghart Exp $";
+static char *rcsid = "$Id: UserEvent.c,v 2.9 1995-04-17 22:18:24 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -102,7 +102,7 @@ struct dm_ebchange *dmsg;
  * Deal with these event binding changes.
  */
 {
-	int i, type;
+	int i;
 	EventResponse *resp;
 	union usy_value v;
 /*
@@ -223,7 +223,7 @@ char *data;
 
 	dme.dmm_type = DM_EVENT;
 	strcpy (dme.dmm_data, data);
-	msg_send ("Displaymgr", MT_DISPLAYMGR, FALSE, &dme, sizeof (dme));
+	dm_Send (&dme, sizeof (dme));
 }
 
 
@@ -238,7 +238,6 @@ char *data;
  * Execute the "data" as a local command.
  */
 {
-	struct dm_event dme;
 	XButtonEvent *button = (XButtonEvent *) event;
 	SValue v;
 /*
