@@ -1,0 +1,60 @@
+!
+! Radar ingest configuration language.
+!
+define state initial
+	eoftext 'exit'
+	ctable ui$command_table
+	@ /rdss/ui/ui_commands.
+
+	input 'go' 1
+		next ust$no_more
+	endinput
+	input 'source' 2
+		next source-type
+	endinput
+	input 'field' 5
+		next field-name
+	endinput
+enddef
+
+
+define state field-name
+	input string
+		lowercase
+		next field-opt-offset
+	endinput
+enddef
+
+define state field-opt-offset
+	input integer
+		next ust$no_more
+	endinput
+	input 'offset' 0
+		ignore
+		next field-opt-offset
+	endinput
+enddef
+
+define state source-type
+	input 'file' 3
+		next ust$final_unmunged_string
+	endinput
+	input 'interface' 4
+		next ust$final_unmunged_string
+	endinput
+enddef
+
+
+procedure ui$init
+!
+! Set up for CP4 at Marshall.
+!
+	set x_resolution	800
+	set y_resolution	800
+	set radar_lat		39.95
+	set radar_lon		-105.19
+	set radar_alt		1.750		! Not used now
+	set GMT_offset		7
+	set platform		"cp4"
+	set minimum_sweep	50
+endprocedure
