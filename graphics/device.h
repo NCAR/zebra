@@ -1,9 +1,9 @@
-/* $Id: device.h,v 1.7 1990-03-29 15:46:12 corbet Exp $ */
+/* $Id: device.h,v 1.8 1993-07-23 18:01:02 case Exp $ */
 /* 5/87 jc */
 /*
  * This file contains the definition of the device structure.
  */
-# define MAXALT		4
+# define MAXALT		9
 
 struct device
 {

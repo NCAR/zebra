@@ -1,5 +1,5 @@
 /* 5/87 jc */
-static char *rcsid = "$Id: device.c,v 1.17 1991-11-18 19:25:36 oye Exp $";
+static char *rcsid = "$Id: device.c,v 1.18 1993-07-23 18:00:32 case Exp $";
 /*
  * Handle device specifics.
  */
@@ -53,6 +53,12 @@ extern int ln_flush ();
 extern int ps_open (), ps_close (), ps_flush (), ps_poly (), ps_hcw ();
 extern int ps_cmap (), ps_clear (), ps_vp (), ps_print (), ps_qtext ();
 extern int ps_tsize (), ps_text ();
+# endif
+
+# ifdef DEV_PSC
+extern int psc_open (), psc_close (), psc_flush (), psc_poly (), psc_hcw ();
+extern int psc_cmap (), psc_clear (), psc_vp (), psc_print (), psc_qtext ();
+extern int psc_tsize (), psc_text ();
 # endif
 
 # ifdef DEV_SUNVIEW
@@ -737,6 +743,52 @@ struct device D_tab[] =
 		ps_print,		/* Hardware print screen routine*/
 	},
 # endif
+# ifdef DEV_PSC
+/*
+ * PostScript COLOR printer:  1, 2 and 4 window color, grayscale,
+ * and monochrome modes,
+ */
+ 	{
+		"psc",
+		9, { "psc1", "psc2", "psc4", "psg1", "psg2", "psg4",
+		     "psm1", "psm2", "psm4"},
+		GDF_VECTOR|GDF_HARDCOPY|GDF_HCW|GDF_VP|GDF_TEXT,
+		256,			/* 256 colors			*/
+		22500, 30000,		/* huge res (shrink round errs) */
+		1.0,			/* Assume square aspect for now */
+		1, 1,			/* unused, 1 to avoid div by 0  */
+		0,			/* no buttons, for now		*/
+		0,			/* Background color		*/
+		psc_open,		/* The open routine		*/
+		psc_close,		/* close			*/
+		psc_flush,		/* Flush			*/
+		___,			/* (no) flush w/o screen renew	*/
+		psc_cmap,		/* Set color table		*/
+		psc_poly,		/* Draw polyline		*/
+		___,			/* Pixel fill			*/
+		psc_qtext,		/* query text			*/
+		psc_tsize,		/* Text size			*/
+		psc_text,		/* Text				*/
+		psc_hcw,		/* Set clip window		*/
+		psc_clear,		/* Clear screen			*/
+		___,			/* Polygon fill			*/
+		___,			/* (no) Segment init		*/
+		___,			/* (no) Segment clear		*/
+		___,			/* (no) Segment select		*/
+		___,			/* (no) Segment end		*/
+		___,			/* (no) Segment attributes	*/
+		___,			/* Read target			*/
+		___,			/* Put target			*/
+		___,			/* (no) Remove target		*/
+		___,			/* (no) color assignment	*/
+		___,			/* (no) exposure checking	*/
+		psc_vp,			/* Viewport adjustment		*/
+		___,			/* (no) readscreen		*/
+		___,			/* (no) pick			*/
+		___,			/* (no) color offset		*/
+		psc_print,		/* Hardware print screen routine*/
+	},
+# endif
 # ifdef DEV_4010
 /*
  * Tektronix 4010
@@ -764,14 +816,14 @@ struct device D_tab[] =
 		___,			/* Set clip window		*/
 		t10_clear,		/* Clear screen			*/
 		___,			/* Polygon fill			*/
-		___,		/* Segment init			*/
-		___,		/* Segment clear		*/
-		___,		/* Segment select		*/
-		___,		/* Segment end			*/
-		___,		/* Segment attributes		*/
-		___,		/* Target read			*/
-		___,		/* Put target			*/
-		___,		/* Remove target		*/
+		___,			/* Segment init			*/
+		___,			/* Segment clear		*/
+		___,			/* Segment select		*/
+		___,			/* Segment end			*/
+		___,			/* Segment attributes		*/
+		___,			/* Target read			*/
+		___,			/* Put target			*/
+		___,			/* Remove target		*/
 		___,			/* (no) color assignment	*/
 		___,			/* (no) exposure checking	*/
 		___,			/* (no) viewport adjustment	*/
