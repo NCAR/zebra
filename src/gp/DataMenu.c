@@ -1,7 +1,7 @@
 /*
  * The data available menu.
  */
-static char *rcsid = "$Id: DataMenu.c,v 2.2 1991-09-12 20:27:54 corbet Exp $";
+static char *rcsid = "$Id: DataMenu.c,v 2.3 1991-10-17 15:21:57 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -203,9 +203,9 @@ SetupPlats ()
  * Figure out what should appear in this menu where.
  */
 {
-	char platform[80], *plats[MAXENTRY];
+	char platform[80], *plats[MAXENTRY], adjust_str[40];
 	SValue v;
-	int type, nplat, nentry = 0, plat;
+	int type, nplat, nentry = 0, plat, adjust, dsadjust;
 	time t;
 /*
  * See which is our component and platform.
@@ -223,7 +223,24 @@ SetupPlats ()
 /*
  * Add stuff from each platform.
  */
-	tl_GetTime (&t);
+	if (PostProcMode)
+	{
+		t = PlotTime;
+		if (! pda_Search (Pd, "global", "pp-dm-time-adjust", NULL,
+			adjust_str, SYMT_STRING))
+				adjust = 600;
+		else if ((adjust = pc_TimeTrigger (adjust_str)) == 0)  
+		{
+			msg_ELog (EF_PROBLEM, "Unparsable time adjustment %s",
+				adjust_str);
+			adjust = 600;
+		}
+		dsadjust = (adjust/3600)*10000 + ((adjust/60) % 60)*100 +
+			adjust % 60;
+		pmu_dadd (&t.ds_yymmdd, &t.ds_hhmmss, dsadjust);
+	}
+	else
+		tl_GetTime (&t);
 	for (plat = 0; plat < nplat; plat++)
 		nentry = AddPlatform (plats[plat], nentry, &t);
 	return (nentry);

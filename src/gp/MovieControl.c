@@ -1,7 +1,7 @@
 /*
  * Movie control functions.
  */
-static char *rcsid = "$Id: MovieControl.c,v 2.2 1991-09-12 20:27:54 corbet Exp $";
+static char *rcsid = "$Id: MovieControl.c,v 2.3 1991-10-17 15:20:08 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -493,29 +493,35 @@ mc_SetupParams ()
  */
 	if(strcmp(Endt, "now") == 0)
 	{
-		Now = TRUE;
-		tl_GetTime(&t);
-		msg_ELog (EF_DEBUG, "time %d %d", t.ds_yymmdd, t.ds_hhmmss);
-		pda_Search(Pd, "global", "trigger",0,trigger,SYMT_STRING);
-		if((pid = ds_LookupPlatform(trigger)) != BadPlatform)
+		if (PostProcMode)
 		{
-			if(! ds_DataTimes(pid, &t, 1, DsBefore, &t1))
+			ud_format_date (EndTime, &PlotTime, UDF_FULL);
+			v.us_v_date = PlotTime;
+		}
+		else
+		{
+			Now = TRUE;
+			tl_GetTime(&t);
+			pda_Search(Pd, "global", "trigger", 0, trigger, 
+				SYMT_STRING);
+			if((pid = ds_LookupPlatform(trigger)) != BadPlatform)
 			{
-				mc_SetStatus ("Unable to find any data.");
-				return(FALSE);
+				if(! ds_DataTimes(pid, &t, 1, DsBefore, &t1))
+				{
+				    mc_SetStatus ("Unable to find any data");
+				    return(FALSE);
+				}
+				ReGenFrame = FALSE;
+				ud_format_date(EndTime, &t1, UDF_FULL);
+				v.us_v_date = t1;
 			}
-			ReGenFrame = FALSE;
-			ud_format_date(EndTime, &t1, UDF_FULL);
-			v.us_v_date = t1;
+			else	 
+			{
+				ReGenFrame = TRUE;
+				ud_format_date(EndTime, &t, UDF_FULL);
+				v.us_v_date = t;
+			}
 		}
-		else 
-		{
-			ReGenFrame = TRUE;
-			ud_format_date(EndTime, &t, UDF_FULL);
-			v.us_v_date = t;
-		}
-		msg_ELog(EF_DEBUG, "ReGenFrame: %s.", ReGenFrame ? "True" : 
-			"False");
 	}
 	else 
 	{
