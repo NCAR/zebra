@@ -1,5 +1,5 @@
 /* Archiver Imakefile -*- C -*-
- * $Id: Imakefile,v 1.19 1999-11-24 00:03:08 granger Exp $
+ * $Id: Imakefile,v 1.20 1999-12-17 17:24:13 granger Exp $
  */
 
 SRCS = XArchiver.cc Archiver.cc Database.c Arq.c
@@ -10,9 +10,12 @@ HDRS = Database.h
 CXXOPTIONS=-fsjlj-exceptions -fasynchronous-exceptions
 /*CXXDEBUGFLAGS=-DNO_RUNTAR -DNO_MOUNT*/
 
-INCLUDES = $(XINCLUDES)
-RUNPATH = -R/usr/local/lib 
-LIBS = $(DFALIBS) $(LIBZEBRA) $(LIBRDSSUTIL) $(XLIBS) $(RUNPATH) 
+#ifdef LinuxArchitecture
+NDBMINCLUDES = -I/usr/include/db1
+#endif
+
+INCLUDES = $(NDBMINCLUDES) $(XINCLUDES) 
+LIBS = $(DFALIBS) $(LIBZEBRA) $(LIBRDSSUTIL) $(XLIBS)
 SYSLIBS = $(LIBNDBM) $(LIBREGEXP) $(LIBMATH)
 DISTFILES = $(SRCS) $(HDRS) Imakefile Archiver.ad
 
@@ -20,7 +23,7 @@ CccProgramTarget(Archiver, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 InstallAppDefaults(Archiver)
 
 DBOBJS = Arq.o Database.o
-CccProgramTarget(Arq, $(DBOBJS), $(DEPLIBS), $(LIBZEBRA),$(LIBNDBM) $(RUNPATH))
+CccProgramTarget(Arq, $(DBOBJS), $(DEPLIBS), $(LIBZEBRA),$(LIBNDBM))
 
 DependTarget()
 LintTarget()
