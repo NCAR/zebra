@@ -1,7 +1,7 @@
 /* 
  * User interface related DM code.
  */
-static char *rcsid = "$Id: dm_ui.c,v 2.1 1991-09-12 01:30:31 corbet Exp $";
+static char *rcsid = "$Id: dm_ui.c,v 2.2 1991-12-07 18:02:23 kris Exp $";
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -95,6 +95,7 @@ struct ui_command *cmds;
 	    */
 		win = cfg->c_wins + cfg->c_nwin;
 		strcpy (win->cfw_name, UPTR (cmds[1]));
+		win->cfw_win = 0;
 		win->cfw_linkpar = 0;
 		win->cfw_linksrc = 0;
 		win->cfw_x = UINT (cmds[2]);
@@ -127,6 +128,7 @@ struct ui_command *cmds;
 	   case DMC_WIDGET:
 		win = cfg->c_wins + cfg->c_nwin;
 		strcpy (win->cfw_name, UPTR (cmds[1]));
+		win->cfw_win = 0;
 		win->cfw_x = UINT (cmds[2]);
 		win->cfw_y = UINT (cmds[3]);
 		win->cfw_dx = UINT (cmds[4]);
