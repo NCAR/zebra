@@ -8,6 +8,10 @@
 #	include <X11/Xdirect.h>
 # endif
 
+# ifdef SHM 
+# 	include <X11/extensions/XShm.h>
+# endif
+
 typedef struct {
 	int empty;
 } GraphicsClassPart;
@@ -26,6 +30,11 @@ typedef struct {
     /* private state */
 	GC		gc;		/* Graphics context */
 	Pixmap		*frames;	/* Pixmaps for the frames */
+# ifdef  SHM
+	char		**frameaddr;	/* Pointer to pixmap data if SHM */
+	XShmSegmentInfo *shminfo;	/* Pointer to shared memory segments */
+	XImage		**image;	/* Used to create shm pixmap  */
+# endif
 	unsigned int	draw_frame;	/* Frame to draw */
 	unsigned int	display_frame;	/* Frame to display */
 # ifdef use_XB

@@ -39,7 +39,14 @@ extern void	GWText (/* GraphicsWidget, String, int, int, float,
 extern void	GWClearFrame (/* GraphicsWidget, int */);
 extern void	GWDrawInFrame (/* GraphicsWidget, int */);
 extern void	GWDisplayFrame (/* GraphicsWidget, int */);
-
+extern GC	GWGetGC(/* GraphicsWidget */);
+extern Pixmap	GWGetFrame(/* GraphicsWidget, int */);
+# ifdef SHM
+extern char 	*GWGetFrameAddr(/* GraphicsWidget, int */);
+extern int	GWShmPossible(/* GraphicsWidget */);
+extern int	GWGetBPL(/* GraphicsWidget, int */);
+extern void	GWZapShmPixmap(/* GraphicsWidget, int */);
+# endif
 /*
  * class and instance data types
  */
