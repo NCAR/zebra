@@ -28,7 +28,7 @@
 # include <time.h>
 # include "GraphProc.h"
 # include "PixelCoord.h"
-MAKE_RCSID ("$Id: Utilities.c,v 2.16 1993-11-12 22:52:42 corbet Exp $")
+MAKE_RCSID ("$Id: Utilities.c,v 2.17 1993-12-03 23:20:57 burghart Exp $")
 
 
 static void ApplyConstOffset FP ((Location *, double, double));
@@ -492,6 +492,11 @@ int nstep;
  */
 {
 	double range = fabs (top - bottom), nominal, ordermag = 1.0;
+/*
+ * If we have no range, just set things up so we end up with a step of 1
+ */
+	if (range == 0.0)
+		range = nstep;
 /*
  * Find the nominal step, then go through some gymnastics to turn it into
  * a "nice" value.  This could be done more elegantly with logarithms, but,
