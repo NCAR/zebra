@@ -1,4 +1,4 @@
-/* $Id: ingest.c,v 1.5 1992-11-02 21:56:40 granger Exp $
+/* $Id: ingest.c,v 1.6 1992-11-20 19:21:00 granger Exp $
  *
  * ingest.c --- A common ingest interface and support routines for 
  *		Zeb ingest modules
@@ -54,7 +54,7 @@ PlatformId _Ingest_ds_LookupPlatform FP((char *name));
 void _Ingest_ds_DeleteData FP((PlatformId platform, int leave));
 void IngestLog ();
 void IngestUsage ();
-void RemoveOptions FP((int *argc, char *argv[], int i, int n));
+void IngestRemoveOptions FP((int *argc, char *argv[], int i, int n));
 void IngestParseOptions FP((int *argc, char *argv[], 
 			   void (*usage)(/* char *prog */)));
 void IngestInitialize FP((char *name));
@@ -301,14 +301,14 @@ IngestParseOptions(argc, argv, usage)
 		   continue;
 		}
 
-		RemoveOptions(argc, argv, i, nargs);
+		IngestRemoveOptions(argc, argv, i, nargs);
 
 	}
 }
 
 
 void
-RemoveOptions(argc, argv, i, n)
+IngestRemoveOptions(argc, argv, i, n)
 	int *argc;
 	char *argv[];
 	int i;		/* position to start removing args from */

@@ -1,7 +1,7 @@
 /*
  * ingest.h --- Public protoypes and macros for ingest modules
  *
- * $Id: ingest.h,v 1.4 1992-11-02 21:56:40 granger Exp $
+ * $Id: ingest.h,v 1.5 1992-11-20 19:20:33 granger Exp $
  *
  * ingest.h --- A common ingest interface and support routines for 
  *		Zeb ingest modules
@@ -31,7 +31,7 @@
  * msg_ELog() to log messages with the EventLogger.
  *
  * IngestInitialize() also installs a default message handler which
- * recognizes MH_SHUTDOWN calls.  This handler can be overridden by
+ * handles MH_SHUTDOWN calls.  This handler can be overridden by
  * defining your own protocol handlers with the message library functions.
  */
 
@@ -69,7 +69,7 @@ extern PlatformId _Ingest_ds_LookupPlatform FP((char *name));
 /*
  * A useful function for removing recognized options from argv[]
  */
-extern void RemoveOptions FP((int *argc, char *argv[], int i, int n));
+extern void IngestRemoveOptions FP((int *argc, char *argv[], int i, int n));
 
 
 /*
