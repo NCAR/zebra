@@ -1,7 +1,7 @@
 /*
  * Deal with static (or almost static) overlays.
  */
-static char *rcsid = "$Id: Overlay.c,v 1.16 1991-06-28 19:53:35 corbet Exp $";
+static char *rcsid = "$Id: Overlay.c,v 1.17 1991-07-01 13:47:16 corbet Exp $";
 
 # include <stdio.h>
 # include <X11/Intrinsic.h>
@@ -878,6 +878,14 @@ int update;
 		return;
 	}
 /*
+ * Check into age limits.
+ */
+ 	if (! AgeCheck (comp, &t))
+	{
+		msg_ELog (EF_INFO, "Boundary %s too old", platform);
+		return;
+	}
+/*
  * Snarf it.
  */
 	if ((dobj = ds_GetData (pid, &junk, 0, &t, &t, OrgOutline, 0, BADVAL))
@@ -919,6 +927,10 @@ int update;
 	free (xpts);
 	ds_FreeDataObject (dobj);
 }
+
+
+
+
 
 
 
