@@ -6,7 +6,7 @@
 # include "ui_param.h"
 # include "ui_symbol.h"
 
-static char *rcsid = "$Id: ui_types.c,v 1.3 1990-05-13 11:10:41 corbet Exp $";
+static char *rcsid = "$Id: ui_types.c,v 1.4 1991-01-07 09:24:04 burghart Exp $";
 
 /*
  * Month info.
@@ -213,7 +213,7 @@ int *dte;
 		year = year*10 + *cp++ - '0';
 	if (year > 1900)
 		year -= 1900;
-	if (year < 70 || year > 90)
+	if (year < 70 || year > 99)
 		return (FALSE);
 /*
  * Wow!  We actually made it through all that.  Return the date.
