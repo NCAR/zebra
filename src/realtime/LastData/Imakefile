@@ -6,14 +6,14 @@ SRCS = LastData.c
 OBJS = LastData.o
 
 INCLUDES = $(XINCLUDES)
-LIBS = $(DFALIBS) $(LIBZEBRA) $(XLIBS)
+LIBS = $(DFALIBS) $(LIBZEBRA) $(LIBRDSSUTIL) $(XLIBS)
 SYSLIBS = $(LIBMATH) $(LIBREGEXP)
 
 APPDEFAULTS = LastData.ad
 
 DISTFILES = $(SRCS) $(APPDEFAULTS) Imakefile
 
-CompleteProgramTarget(LastData, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+CccProgramTarget(LastData, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 InstallAppDefaults(LastData)
 DependTarget()
 

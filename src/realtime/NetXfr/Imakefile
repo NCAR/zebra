@@ -14,7 +14,7 @@ DEPLIBS = $(LIBZEBRA) $(LIBZEBRADS)
 
 DISTFILES = $(SRCS) $(HEADERS) Imakefile NetXfr.state
 
-CompleteProgramTarget(NetXfr, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+CccProgramTarget(NetXfr, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 UILoadFileTarget(NetXfr.lf, NetXfr.state)
 DependTarget()
 LintTarget()

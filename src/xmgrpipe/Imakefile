@@ -6,12 +6,12 @@ SRCS = xmgrpipe.c
 OBJS = xmgrpipe.o
 
 INCLUDES = $(XINCLUDES) $(RDSSINCLUDES)
-DEPLIBS = $(LIBZEB) $(LIBZEBDS)
+DEPLIBS = $(LIBZEBRADS) $(LIBZEBRA)
 LIBS = $(DFALIBS) $(ZLIBS) $(XLIBS)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 DISTFILES = $(SRCS) Imakefile
 
-CompleteProgramTarget(xmgrpipe, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+CccProgramTarget(xmgrpipe, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 DistfilesTarget($(DISTFILES))
 DependTarget ()
 LintTarget()

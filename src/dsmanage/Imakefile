@@ -12,9 +12,9 @@ HEADERS = DataDir.h Dialog.h Index.h STable.h StatusWin.h Tape.h \
 	fcontainer.h plcontainer.h container.h dsmWindows.h dsmanage.h \
 	Exceptions.h dsPlatform.h BoolKludge.h MaybeCString.h
 
-DSMLIBS = $(DSLIBS) $(ZLIBS) $(XLIBS) $(C++LIBS)
-TILIBS = $(DFALIBS) $(ZLIBS) $(C++LIBS)
-SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
+DSMLIBS = $(DSLIBS) $(ZLIBS) $(XLIBS)
+TILIBS = $(DFALIBS) $(LIBZEBRA) $(LIBRDSSUTIL)
+SYSLIBS = $(LIBMATH) $(LIBREGEXP)
 
 INCLUDES = $(XINCLUDES)
 

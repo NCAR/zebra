@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.19 1997-01-06 19:54:26 burghart Exp $"
+MFVERSION="$Id: Imakefile,v 1.20 1997-11-21 21:03:37 burghart Exp $"
 
 #define IHaveSubdirs
 #define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
@@ -38,9 +38,6 @@ DATAUTIL = datautil
 #if BuildRealtimeDataStoreTools && DistributeRealtimeDataStoreTools
 REALTIME = realtime
 #endif   
-#if BuildDataManager && DistributeDataManager && HasCplusplus
-DSMANAGE = dsmanage
-#endif
 #if BuildXHelp && DistributeXHelp
 XHELP = xhelp
 #endif
@@ -54,12 +51,12 @@ MAPUTIL = maputil
  * alphabetical but really doesn't matter.
  */
 SUBDIRS = $(LIBS) $(DATAUTIL) dm dsdelete dsdump dsnotice dsprint \
-	dsdwidget $(DSMANAGE) dsrescan $(ETC) EventLogger fccclock gettime \
+	dsdwidget dsmanage dsrescan $(ETC) EventLogger fccclock gettime \
 	pdmon pdcheck $(GP) $(INGEST) $(MAPUTIL) msg msg_ping mstatus mtap \
 	$(OPTIMIZER_DIR) prt_Notify $(REALTIME) settime Sound timer \
 	tweakcolor $(XHELP) xmgrpipe zstop zmon zquery zrun zstart
 
-DSUTILS = $(LIBS) dsdelete dsdump dsnotice dsprint dsdwidget $(DSMANAGE) \
+DSUTILS = $(LIBS) dsdelete dsdump dsnotice dsprint dsdwidget dsmanage \
 	dsrescan $(REALTIME)
 
 DSCLIENTS = $(DSUTILS) $(GP) $(INGEST) $(OPTIMIZER_DIR) xmgrpipe \
@@ -84,9 +81,6 @@ DISTDATAUTIL = datautil
 #if DistributeRealtimeDataStoreTools
 DISTREALTIME = realtime
 #endif
-#if DistributeDataManager
-DISTDSMANAGE = dsmanage
-#endif
 #if DistributeXHelp
 DISTXHELP = xhelp
 #endif
@@ -96,7 +90,7 @@ DISTMAPUTIL = maputil
 
 DISTFILES = Imakefile
 DISTSUBDIRS = lib ds $(DISTDATAUTIL) dm dsdelete dsdump dsnotice dsprint \
-	dsdwidget $(DISTDSMANAGE) dsrescan etc EventLogger fccclock \
+	dsdwidget dsmanage dsrescan etc EventLogger fccclock \
 	gettime pdmon pdcheck $(GP) $(DISTINGEST) $(DISTMAPUTIL) msg msg_ping \
 	mstatus mtap $(DISTOPTIMIZER) prt_Notify $(DISTREALTIME) settime \
 	Sound timer tweakcolor $(DISTXHELP) xmgrpipe \
@@ -144,14 +138,6 @@ OmitBuildRules(data utilities)
 #if !BuildRealtimeDataStoreTools
 OmitBuildRules(real-time DataStore tools)
 #endif   
-
-#if !BuildDataManager
-OmitBuildRules(dsmanage)
-#else
-#if !HasCplusplus
-OmitBuildRules(dsmanage -- no C++ compiler)
-#endif
-#endif /* BuildDataManager */
 
 #if !BuildXHelp
 OmitBuildRules(xhelp)

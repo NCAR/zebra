@@ -6,11 +6,11 @@ SRCS = dsnotice.c
 OBJS = dsnotice.o
 
 DEPLIBS = $(LIBZEBRADS) $(LIBZEBRA)
-LIBS = $(DSLIBS) $(LIBZEBRA)
-SYSLIBS = $(LIBREGEXP)
+LIBS = $(DSLIBS) $(LIBZEBRA) $(LIBRDSSUTIL)
+SYSLIBS = $(LIBREGEXP) $(LIBMATH)
 DISTFILES = $(SRCS) Imakefile README
 
-CompleteProgramTarget(dsnotice, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+CccProgramTarget(dsnotice, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 DistfilesTarget($(DISTFILES))
 DependTarget()
 LintTarget()

@@ -6,11 +6,11 @@ SRCS = dsdump.c
 OBJS = dsdump.o
 
 DEPLIBS = $(LIBZEBRA) $(LIBZEBRADS)
-LIBS = $(DFALIBS) $(LIBZEBRA)
+LIBS = $(DFALIBS) $(LIBZEBRA) $(LIBRDSSUTIL)
 SYSLIBS = $(LIBMATH) $(LIBREGEXP)
 DISTFILES = $(SRCS) Imakefile
 
-CompleteProgramTarget(dsdump, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+CccProgramTarget(dsdump, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 DistfilesTarget($(DISTFILES))
 DependTarget ()
 LintTarget()

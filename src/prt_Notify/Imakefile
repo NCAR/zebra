@@ -5,7 +5,7 @@
 SRCS = prt_Notify.c
 OBJS = prt_Notify.o
 
-LIBS = $(DFALIBS) $(LIBZEBRA)
+LIBS = $(DFALIBS) $(LIBZEBRA) $(LIBRDSSUTIL)
 SYSLIBS = $(LIBMATH) $(LIBREGEXP)
 
 INCLUDES = -I$(TOP)/src/ds
@@ -14,7 +14,7 @@ all::
 
 install::
 
-CompleteProgramTarget(prt_Notify, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+CccProgramTarget(prt_Notify, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 DependTarget ()
 
 DISTFILES = $(SRCS) Imakefile
