@@ -1,3 +1,16 @@
+Tue Jan 31 09:37:40 1995  Chris Burghart  (burghart@fuggles.atd.ucar.edu)
+
+	* zstart: We now add /zeb/lib/resources to  XFILESEARCHPATH rather 
+	  than using XAPPLRESDIR, which fails if the LANG environment variable 
+	  is set.  The extra pieces which set XUSERFILESEARCHPATH have been 
+	  removed.
+
+Thu Jan 26 17:00:00 1995  Chris Burghart  (burghart@fuggles.atd.ucar.edu)
+
+	* dsmanage (DLoad.cc): Added function ExtractDirPlat(), which deals 
+	  with platform names containing a slash a bit more robustly than the 
+	  previous method.  It's still a KLUGE, though...
+
 Thu Jan 19 11:53:39 1995  Gary Granger  <granger@narnia.atd.ucar.edu>
 
 	* config symbols for field name and units string lengths, and
