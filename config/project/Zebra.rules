@@ -1,5 +1,5 @@
 XCOMM -*- C -*-
-XCOMM $Id: Zebra.rules,v 1.9 1996-11-19 06:45:09 granger Exp $
+XCOMM $Id: Zebra.rules,v 1.10 1996-11-21 21:42:09 granger Exp $
 XCOMM
 XCOMM Rules specific to the Zebra project, including some which override
 XCOMM definitions in Imake.rules
@@ -574,7 +574,7 @@ InstallNamedTarget(install,file.ad,$(INSTAPPFLAGS),$(XAPPLOADDIR),class)
 #ifdef InstallNamedTarget
 #undef InstallNamedTarget
 #define	InstallNamedTarget(step,srcname,flags,dest,dstname)		@@\
-step step.srcname:: srcname						@@\
+step step.dstname:: srcname						@@\
 	MakeDir($(DESTDIR)dest)						@@\
 	$(INSTALL) $(INSTALLFLAGS) flags srcname $(DESTDIR)dest/dstname
 #endif /* InstallNamedTarget */
