@@ -1,5 +1,5 @@
 /*
- * $Id: BlockFile.hh,v 1.2 1997-11-24 18:15:08 granger Exp $
+ * $Id: BlockFile.hh,v 1.3 1997-12-09 09:29:20 granger Exp $
  *
  * Definition of the BlockFile class, for storing opaque blocks of bytes
  * into a file through a block interface.  The overhead information in the
@@ -12,11 +12,31 @@
 #include <stdlib.h>
 #include <iostream.h>		// to add stream operator to dump header
 
-#include "Block.h"
+/* The types of our auxillary blocks, 
+ * also an index into revision numbers in BlockFile objects. */
+
+enum BlockInfo
+{ 
+	FREELIST = 0,
+	JOURNAL = 1, 
+	USERLIST = 2, 
+	REGISTRY = 3
+};
+
+typedef unsigned long BlkOffset;
+typedef unsigned long BlkSize;
+typedef unsigned long BlkVersion;
+
+#define BadBlockAddr (0)
+#define BAD_BLOCK_ADDR BadBlockAddr
+#define BadBlock BadBlockAddr
 
 class Logger;
 class FreeList;
+class Journal;
 class BlockFileHeader;
+class AuxBlock;
+class SerialBuffer;
 
 // The machine-independent block file interface
 //
@@ -52,53 +72,77 @@ public:
 	BlockFile ();
 	BlockFile (const char *path, int app_magic = 0, int flags = 0);
 
-	// Destructors
+	// Destructor
 
 	~BlockFile ();
 
-	BlkOffset Alloc (BlkSize size);
+	// ----- Common public interface -----
 
-	// BlkOffset Realloc (BlkOffset addr, BlkSize size);
-	void Free (BlkOffset addr);
+	BlkOffset Alloc (BlkSize size, BlkSize *actual);
+	void Free (BlkOffset addr, BlkSize len);
 
 	void *Read (void *buf, BlkOffset block, BlkSize len);
 	int Write (BlkOffset block, void *buf, BlkSize len);
 
-	BlkOffset Alloc (BlkSize size, BlkSize *actual);
+	// Return non-zero if this region has changed since rev
+	int Changed (BlkVersion rev, BlkOffset block, BlkSize len);
 
-	// BlockFile-specific administrative interface
+	// Return the current revision of the file
+	BlkVersion Revision ();
 
 	int Status ();
 	int Errno ();
 
-	int Open (const char *path, int app_magic = 0, int flags = 0);
-	int Create (const char *path, int app_magic = 0, int flags = 0);
+	int Open (const char *path, unsigned long app_magic = 0, 
+		  int flags = 0);
+	int Create (const char *path, unsigned long app_magic = 0, 
+		    int flags = 0);
 	int Close ();
 
-	BlkVersion AppVersion ();
-	void SetAppVersion (BlkVersion version, const char *description);
-	ostream& DumpHeader (ostream& out) const;
+	// ----- Buffers -----
 
-	// File sharing facilities
+	// Reads the block into the serial buffer and returns the buffer
+	SerialBuffer *readBuffer (BlkOffset addr, BlkSize length);
 
-	void Lock ();		// Lock entire file
-	void Unlock ();		// Unlock entire file
+	// Returns a serial buffer with enough space for the given length
+	SerialBuffer *writeBuffer (BlkSize length = 0);
 
-	void ReadSync ();	// Read sync from file
-	void WriteSync ();	// Write sync to file
+	// Write the current contents of the serial buffer to an offset
+	int Write (BlkOffset addr, SerialBuffer *sbuf);
+
+	// ----- File sharing -----
+
+	void Lock ();			// Lock entire file
+	void Unlock ();			// Unlock entire file
+
+	void ReadSync ();		// Read sync from file
+	void WriteSync (int force = 0);	// Write sync to file
+
+	// Debugging
+
+	ostream& DumpHeader (ostream& out);
 
 private:
+
+	Logger *log;
 
 	// In-memory structures
 
 	BlockFileHeader *header;
 	FreeList *freelist;
+	Journal *journal;
+	SerialBuffer *sbuf;
+
+	friend FreeList;
+	friend Journal;
+	friend AuxBlock;
+	friend BlockFileHeader;
 
 	int errno;	// Error result from last operation (or construction)
 	int status;	// Current status number
 	FILE *fp;	// File pointer of open file (NULL if not open)
 	char *path;	// Path name of current file
-	Logger *log;
+	int lock;	// Lock count
 
 	/* statistics and debugging */
 	struct
@@ -118,12 +162,15 @@ private:
 	 */
 	void seek (BlkOffset offset);
 	long seek_end (void);
-	int write (void *, long size);
-	int read (void *, long size);
+	int read (void *buf, BlkOffset block, BlkSize len);
+	int write (BlkOffset block, void *buf, BlkSize len);
+	int write (BlkOffset addr, SerialBuffer *sbuf);
+	BlkOffset append (BlkSize size);
+	void recover (BlkOffset addr);
+	BlkOffset alloc (BlkSize size, BlkSize *actual);
+	void free (BlkOffset addr, BlkSize len);
 
 	void init ();
-
-	BlkOffset AppendBlock (BlkSize size, BlkSize *actual = NULL);
 };
 
 
@@ -141,45 +188,13 @@ BlockFile::Errno ()
 }
 
 
-inline BlkOffset
-BlockFile::Alloc (BlkSize size)
-{
-	return (Alloc (size, NULL));
-}
-
-
 
 inline ostream&
-operator<< (ostream& out, const BlockFile& bf)
+operator<< (ostream& out, BlockFile& bf)
 {
 	return (bf.DumpHeader(out));
 }
 
-
-#ifdef notdef
-	void WriteHeader ();
-	void ReadHeader ();
-#endif
-
-#ifdef notdef
-	// Bit-field flags for regions of file kept in memory which need
-	// to be sync'ed to disk
-
-	enum BF_Region
-	{
-		HEADER = 1,
-		FREELIST = 2,
-	};
-
-	void mark (enum BF_Region r)		// Mark region as changed
-	{
-		std |= (int)r;
-	}
-	int changed (enum BF_Region r)		// Check if region needs write
-	{
-		return (std & (int)r);
-	}
-#endif
 
 #ifdef notdef
 	// Stream positioning

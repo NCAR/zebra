@@ -9,72 +9,20 @@
 
 #include <defs.h>
 
-RCSID ("$Id: BlockFile.cc,v 1.2 1997-11-24 18:15:07 granger Exp $");
+RCSID ("$Id: BlockFile.cc,v 1.3 1997-12-09 09:29:18 granger Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
-#include "BlockFileP.hh"	// For the private header structure and stuff
+#include "BlockFileP.hh"
+#include "AuxBlock.hh"
+#include "Logger.hh"
+#include "Format.hh"
 
-static const unsigned long DEFAULT_APP_MAGIC = 0x01020304;
 static const unsigned long BF_BLOCK_MAGIC = BLOCK_FILE_MAGIC+1;
-
-/*
- * Private forward declarations.
- */
-static void InitHeader (BlockFileHeader *h, int app_magic = 0);
-
-
-#ifdef notdef
-//
-// Compact free list memory management into a convenient structure
-//
-class FreeList
-{
-public:
-	FreeList (BlockFile &bf);
-	~FreeList (void);
-
-	void WriteSync ();	/* Send changes to disk */
-	void ReadSync ();	/* Read changes from disk */
-
-	/*
-	 * Add a freed block to the free block list.
-	 */
-	void FreeBlock (BlkOffset offset, BlkSize length);
-
-	/*
-	 * Find a block for this request and take it off the list.
-	 * Return non-zero on success, zero otherwise.
-	 */
-	int RequestBlock (BlkSize length, BF_FreeBlock &ret);
-	BlkOffset RequestBlock (BlkSize length, BlkSize *ret_length);
-
-	friend BlockFile;
-
-private:
-	int ncache;	/* Number of free blocks allocated space in array */
-	int n;		/* Actual number of free blocks in use in array */
-	BlkVersion rev;	/* Free list block revision we last sync'ed to */
-	BF_FreeBlock *blocks; /* The actual array of free blocks */
-	BlockFile *bf;
-
-	void Remove (int);
-	void Add (BlkSize length, BlkSize length);
-
-};
-#endif
 
 
 /* ================================================================
  * The C++ BlockFile class interface
  */
-
-
-#ifdef notdef
-// XDR stream operators
-
-XDR_ADDTYPE(BlockFileHeader)
-XDR_ADDTYPE(BF_Prefix)
-#endif
 
 
 /* --------------------
@@ -96,18 +44,20 @@ inline long BlockFile::seek_end ()
 
 void BlockFile::init ()
 {
-	fp = NULL;
+	fp = 0;
 	status = NOT_OPEN;
 	errno = 0;
-	path = NULL;
-	header = NULL;
-	freelist = new FreeList (*this);
-	log = new Logger("BlockFile");
+	path = 0;
+	lock = 0;
+	header = 0;
+	freelist = 0;
+	journal = 0;
+	log = new NullLogger;
+	//log = new Logger("BlockFile");
+	sbuf = new SerialBuffer;
 
 	memset (&(this->stats), 0, sizeof(this->stats));
 
-	encode = NULL;
-	decode = NULL;
 	log->Debug ("Initialized");
 }
 
@@ -139,7 +89,8 @@ BlockFile::BlockFile (const char *path, int app_magic = 0,
  * any existing file.
  */
 int
-BlockFile::Create (const char *path, int app_magic = 0, int flags = BF_NONE)
+BlockFile::Create (const char *path, unsigned long app_magic = 0, 
+		   int flags = BF_NONE)
 {
 	return (Open (path, app_magic, flags | BF_CREATE));
 }
@@ -150,71 +101,77 @@ BlockFile::Create (const char *path, int app_magic = 0, int flags = BF_NONE)
  * Open the given file path, creating the file if necessary.
  */
 int
-BlockFile::Open (const char *path, int app_magic = 0, int flags = BF_NONE)
+BlockFile::Open (const char *path, unsigned long app_magic = 0, 
+		 int flags = BF_NONE)
 {
 	status = COULD_NOT_OPEN;
 
-	log->Debug ("%s file: %s", (flags & BF_CREATE) ? "Creating" :
-		    "Opening", path);
+	log->Debug (Printf("%s file: %s", (flags & BF_CREATE) ? "Creating" :
+			   "Opening", path));
+
+	// Initialize path
+	status = OK;
+	this->path = (char *) malloc (strlen(path)+1);
+	strcpy (this->path, path);
+
+	Lock ();
 
 	// First try to open a file pointer on the given path
 	fp = fopen (path, (flags & BF_CREATE) ? "w+" : "r+");
 	if (! fp)
 	{
-		sys_errno = errno;
+		this->errno = ::errno;
+		Unlock ();
+		::free (this->path);
+		this->path = 0;
 		return (status);
 	}
 
-	// Initialize
-	status = OK;
-	this->path = (char *) malloc (strlen(path)+1);
-	strcpy (this->path, path);
-
-	// Create our encode and decode streams on the file
-	decode = new ReadXDR(fp);
-	encode = new WriteXDR(fp);
-	if (! encode || ! encode->success() || 
-	    ! decode || ! decode->success())
-	{
-		Close ();
-		return (XDR_ERROR);
-	}
-
 	// Allocate space for the header
-	header = (BlockFileHeader *) malloc (sizeof (BlockFileHeader));
+	header = new BlockFileHeader (*this);
+	header->init (app_magic);
 
-	// If the file length is 0, assume we have to initialize it to
-	// a new block file first.
-	if (seek_end() == 0)
+	// Unless the file length is 0, assume we're opening an existing file
+	if (seek_end() > 0)
 	{
-		InitHeader (header, app_magic);
-		header->file_length = header->header_size;
-		WriteHeader ();
-	}
-	else	// Sync with an existing header
-	{
-		ReadHeader ();
+		// Sync with an existing header
+		header->readSync ();
 		if (app_magic != 0 && app_magic != header->app_magic)
 			status = WRONG_APP_MAGIC;
 		// But leave the file open...
 	}
+	else	// Creating a new header
+	{
+		// Pad the header block first to the correct size
+		long len = header->bf_length;
+		char pad[ len ];
+		memset (pad, 0, len);
+		write (0, pad, len);
+		header->mark();
+	}
+
+	// Once we have a header, we can associate our auxillary blocks
+	freelist = new FreeList (*this, header->freelist);
+	journal = new Journal (*this, header->journal);
+
+	// Force the allocation of a free list at the beginning of the file
+	if (header->freelist.revision == 0)
+	{
+		freelist->writeSync (1);
+	}
+
+	// Likewise for the journal
+	if (header->journal.revision == 0)
+	{
+		journal->writeSync (1);
+	}
+
+	// Clean the header if its dirty
+	header->writeSync ();
+	Unlock ();
 	return (status);
 }
 
-
-
-void
-BlockFile::SetAppVersion (BlkVersion version, const char *description = NULL)
-{
-	header->app_version = version;
-	if (description)
-	{
-		strncpy (header->description, description, 
-			 sizeof(header->description) - 1);
-		header->description[sizeof(header->description) - 1] = '\0';
-	}
-	/* WriteHeader (); */
-}
 
 
 /*
@@ -225,37 +182,36 @@ BlockFile::SetAppVersion (BlkVersion version, const char *description = NULL)
 int
 BlockFile::Close ()
 {
-	log->Debug ("Closing '%s'", path ? path : "<no file>");
-	WriteSync ();		// Sync all overhead info as necessary
+	log->Debug (Printf("Closing '%s'", path ? path : "<no file>"));
+
+	// Release file-specific resources
 	if (fp)
 	{
+		Lock ();
+		WriteSync ();	// should be no-op unless we're exclusive
 		fclose (fp);
-		fp = NULL;
+		fp = 0;
+		Unlock ();
 	}
 	if (freelist)
 	{
 		delete freelist;
-		freelist = NULL;
+		freelist = 0;
+	}
+	if (journal)
+	{
+		delete journal;
+		journal = 0;
 	}
 	if (header)
 	{
-		free (header);
-		header = NULL;
-	}
-	if (encode)
-	{
-		delete encode;
-		encode = NULL;
-	}
-	if (decode)
-	{
-		delete decode;
-		decode = NULL;
+		delete header;
+		header = 0;
 	}
 	if (path)
 	{
-		free (path);
-		path = NULL;
+		::free (path);
+		path = 0;
 	}
 	status = NOT_OPEN;
 	return (status);
@@ -263,17 +219,54 @@ BlockFile::Close ()
 
 
 
-/*
- * Write all in-memory structures to disk.
- */
 void
-BlockFile::WriteSync ()
+BlockFile::Lock ()
 {
-	log->Debug ("WriteSync '%s'", path);
-	freelist->WriteSync ();
-	WriteHeader ();
+	if (lock++ == 0)
+	{
+		log->Debug (Printf("Locking '%s'", path));
+	}
 }
 
+
+
+void
+BlockFile::Unlock ()
+{
+	if (--lock == 0)
+	{
+		log->Debug (Printf("Unlocking '%s'", path));
+	}
+}
+
+
+
+/*
+ * Sync all in-memory structures to disk.
+ */
+void
+BlockFile::WriteSync (int force)
+{
+	log->Debug (Printf("WriteSync '%s'", path));
+	journal->writeSync (force);
+	freelist->writeSync (force);
+	header->writeSync (force);
+}
+
+
+
+/*
+ * Make sure in-memory structures are up-to-date with the disk
+ */
+void
+BlockFile::ReadSync ()
+{
+	log->Debug (Printf("ReadSync '%s'", path));
+	header->readSync ();
+	freelist->readSync ();
+	journal->readSync ();
+}
+	
 
 
 /* Destructor:
@@ -287,59 +280,85 @@ BlockFile::~BlockFile ()
 	if (log)
 	{
 		delete log;
-		log = NULL;
+		log = 0;
+	}
+	if (sbuf)
+	{
+		delete sbuf;
+		sbuf = 0;
 	}
 }
 
 
 
 ostream&
-BlockFile::DumpHeader (ostream& out) const
+BlockFile::DumpHeader (ostream& out) 
 {
-	BlockFileHeader *h = header;
-	BF_Block *b;
+	if (! header)
+	{
+		out << "File not open." << endl;
+		return out;
+	}
 
-	/* ReadHeader (); */
+	BlockFileHeader *h = header;
+	Block *b;
+	out << (header->dirty ? "*Dirty*" : "Clean") << endl;
 	out << "File: " << path << endl;
-	out << "Status(" << status << "), Errno(" << sys_errno << ")\n";
+	out << "Status(" << status << "), Errno(" << this->errno << ")\n";
 	out << setiosflags(ios::showbase);
-	out << "Block magic = " << hex << h->block_magic << endl;
+	out << "Block magic = " << hex << h->bf_magic << endl;
 	out << "App magic   = " << hex << h->app_magic << endl;
 	out << dec;
 	out << "Header size = " << h->header_size << endl;
-	out << "Description = " << h->description << endl;
-	out << "App version = " << h->app_version << endl;
-	out << "Blk version = " << hex << h->block_version << dec << endl;
+	out << "Blk version = " << hex << h->bf_version << dec << endl;
 	out << "Revision    = " << h->revision << endl;
-	out << "Length      = " << h->file_length << endl;
-	out << "Prefix len  = " << h->prefix_length << endl;
+	out << "Length      = " << h->bf_length << endl;
 	b = &(h->app_header);
 	out << "App header  = " << b->length << " bytes @ " <<
 		b->offset << " rev " << b->revision << endl;
 	b = &(h->freelist);
 	out << "Free list   = " << b->length << " bytes @ " <<
 		b->offset << " rev " << b->revision << endl;
-#ifdef notdef
-	out << "Bytes Req   = " << h->requested << endl;
-	out << "  Granted   = " << h->granted << endl;
-	out << "Free blocks = " << h->nfree << endl;
-	out << "  Bytes     = " << h->spacefree << endl;
-#endif
+	b = &(h->journal);
+	out << "Journal     = " << b->length << " bytes @ " <<
+		b->offset << " rev " << b->revision << endl;
 	return (out);
 }
 
 
 
-BlkVersion
-BlockFile::AppVersion ()
+// Reads the block into the serial buffer and returns the buffer
+SerialBuffer *
+BlockFile::readBuffer (BlkOffset addr, BlkSize length)
 {
-	/* ReadHeader (); */
-	return (header->app_version);
+	Lock ();
+	sbuf->Seek (0);
+	sbuf->Need (length);
+	read (sbuf->getBuffer(), addr, length);
+	Unlock ();
+	return (sbuf);
+}
+
+
+// Returns a serial buffer with enough space for the given length
+SerialBuffer *
+BlockFile::writeBuffer (BlkSize length)
+{
+	sbuf->Seek (0);
+	sbuf->Need (length);
+	return (sbuf);
+}
+
+
+// Write the current contents of the serial buffer to an offset
+int
+BlockFile::Write (BlkOffset addr, SerialBuffer *sbuf)
+{
+	return Write (addr, sbuf->getBuffer(), sbuf->Position());
 }
 
 
 /* ------------------------------------------------------------------
- * The BlockStore interface implementation
  */
 
 BlkOffset 
@@ -349,118 +368,26 @@ BlockFile::Alloc (BlkSize size, BlkSize *actual)
  * the block prefix.
  */
 {
-	BlkOffset addr;
-	BlkSize actual_len;
-	BF_Prefix bp;
-
-	bp.block_magic = BF_BLOCK_MAGIC;
-	bp.magic = header->app_magic;
-	bp.alloc = 0;
-
-	// The size we actually need includes the prefix
-	size += header->prefix_length;
-
-	// Query the free list
-	addr = freelist->RequestBlock (size, &actual_len);
-	if (! addr)
-	{
-		addr = AppendBlock (size, &actual_len);
-	}
-
-	// Now write the prefix
-	bp.alloc = actual_len;
-	XDRStream *xdrs = encodeStream (addr);
-	xdrs << bp;
-	addr += header->prefix_length;
-
-	// Finally return the address
-	if (actual)
-		*actual = actual_len - header->prefix_length;
-	log->Debug ("Allocated %d bytes @ offset %d for request of %d", 
-		    actual_len, addr, size - header->prefix_length);
+	Lock();
+	header->readSync ();
+	freelist->readSync ();
+	BlkOffset addr = alloc (size, actual);
+	WriteSync ();
+	Unlock ();
 	return (addr);
 }
 
 
-
-#ifdef notdef
-BlkOffset 
-BlockFile::Realloc (BlkOffset addr, BlkSize size)
-/*
- * First check this block for the amount originally allocated, and if 
- * the new size fits, return the same block.
- *
- * Otherwise, free the block and put it on the free list, get
- * a new block to hold the requested size, and copy the old block into
- * the new block.
- *
- * At present we don't do anything about making blocks smaller, i.e.,
- * splitting a reduced block to free up another block.
- */
-{
-	BF_Prefix bp;
-
-	// Read the prefix for this block
-	XDRStream *xdrs = decodeStream (addr - header->prefix_length);
-	xdrs >> bp;
-
-	// If the allocated size will hold the request, we're dandy
-	if (bp.alloc >= size + header->prefix_length)
-		return (addr);
-
-	// Free the block and get a new one, which might result in a
-	// concatenation and give us the same block address back.
-	addr -= header->prefix_length;
-	freelist->FreeBlock (addr, bp.alloc);
-
-	// Query the free list
-	size += header->prefix_length;
-	BlkSize alloc;
-	BlkOffset next = freelist->RequestBlock (size, &alloc);
-	if (! next)
-	{
-		next = AppendBlock (size, &alloc);
-	}
-
-	// See if we need to copy data.
-	if (next != addr)
-	{
-		int n = bp.alloc;
-		BlkOffset start = (next > addr) ? addr : addr + n - 1;
-	}
-
-	// Now write the prefix
-	bp.alloc = alloc;
-	XDRStream *xdrs = encodeStream (addr);
-	xdrs << bp;
-	addr += header->prefix_length;
-
-	// Finally return the address
-	return (addr);
-
-
-}
-#endif
 
 void
-BlockFile::Free (BlkOffset addr)
+BlockFile::Free (BlkOffset addr, BlkSize len)
 {
-	BF_Prefix bp;
-
-	// Read the prefix for this block
-	addr -= header->prefix_length;
-	XDRStream *xdrs = decodeStream (addr);
-	xdrs >> bp;
-	if (bp.block_magic != BF_BLOCK_MAGIC)
-	{
-		log->Problem ("Corrupt block prefix @ %lu, wrong magic %lu",
-			      addr, bp.block_magic);
-	}
-
-	log->Debug ("Free block @ %d of size %d", addr, bp.alloc);
-
-	// Add the block to the free list.
-	freelist->FreeBlock (addr, bp.alloc);
+	Lock ();
+	header->readSync ();
+	freelist->readSync ();
+	free (addr, len);
+	WriteSync ();
+	Unlock ();
 }
 
 
@@ -471,23 +398,10 @@ BlockFile::Free (BlkOffset addr)
 void *
 BlockFile::Read (void *buf, BlkOffset block, BlkSize len)
 {
-	status = OK;
-	seek (block);
-	read (buf, len);
+	Lock ();
+	read (buf, block, len);
+	Unlock ();
 	return (status == OK ? buf : NULL);
-}
-
-
-
-/*
- * Decode bytes from file into memory using given decoder.
- */
-void *
-BlockFile::Read (void *buf, BlkOffset block, BlkSize len, XDRDecoder xp)
-{
-	XDRStream *xdrs = decodeStream (block);
-	xdrs->translate (buf, xp);
-	return (buf);
 }
 
 
@@ -495,160 +409,120 @@ BlockFile::Read (void *buf, BlkOffset block, BlkSize len, XDRDecoder xp)
 int
 BlockFile::Write (BlkOffset block, void *buf, BlkSize len)
 {
-	status = OK;
-	seek (block);
-	write (buf, len);
+	Lock ();
+	header->readSync ();
+	journal->Record (Journal::BlockChanged, block, len);
+	write (block, buf, len);
+	WriteSync ();
+	Unlock ();
 	return (status == OK ? 0 : -1);
 }
 	
 
 
-int
-BlockFile::Write (BlkOffset block, void *buf, BlkSize len, XDREncoder xp)
+BlkVersion
+BlockFile::Revision ()
 {
-	XDRStream *xdrs = encodeStream (block);
-	xdrs->translate (buf, xp);
-	return (0);
+	Lock ();
+	header->readSync ();
+	Unlock ();
+	return (header->revision);
 }
+
+
+
+int
+BlockFile::Changed (BlkVersion rev, BlkOffset offset, BlkSize length)
+{
+	Lock ();
+	header->readSync ();
+	int changed = journal->Changed (rev, offset, length);
+	Unlock ();
+	return (changed);
+}
+
 
 
 
 /* ----------------
  * Internals
+ *
+ * The actual implementations of the public interface, but they assume
+ * the necessary entrance requirements are already met, such as the file
+ * is locked and sync'ed.
  * ---------------- */
 
-#ifdef notdef
+
+BlkOffset 
+BlockFile::alloc (BlkSize size, BlkSize *actual)
 /*
- * Add a free block to the free block list.
+ * Find a block of space to hold the requested size, including
+ * the block prefix.
  */
-void
-BlockFile::AddFreeBlock (BlkOffset addr, BlkSize size)
 {
-	// Find our free block list and begin searching it for a block
-	// which borders this one.  If we can't find one, then this block
-	// gets added to the end.
-	BlkOffset off;
+	BlkOffset addr;
+	BlkSize actual_len;
 
-	if (! freelist)		// need to create one or read one
-	{
-		if (! header->freelist.offset)
-		{
-			// create one
-			header->freelist.length = INITIAL_FREE_BLOCK_SIZE;
-			header->freelist.offset = 
-				AppendBlock (header->freelist.length);
-		}
-		// Allocate in-memory storage for the block list
-		freelist = (BF_BlockList *) malloc (header->freelist.length);
+	// Query the free list
+	addr = freelist->Request (size, &actual_len);
 
-		if (header->freelist.offset)
-		{
-			// read one
-			read (
-	}
-	++nfree;
-	spacefree += size;
+	// Finally return the address
+	if (actual)
+		*actual = actual_len; // - header->prefix_length;
+	log->Debug (Printf("Allocated %d bytes @ offset %d for request of %d", 
+			   actual_len, addr, size));
+	return (addr);
 }
-#endif
+
+
+
+
+void
+BlockFile::free (BlkOffset addr, BlkSize len)
+{
+	log->Debug (Printf("Free block @ %d of size %d", addr, len));
+
+	// Add the block to the free list.
+	freelist->Free (addr, len);
+}
+
 
 
 /*
  * Reserve a block at the end of the file, extending the file size.  Return
  * the offset of the block.
- *
- * For now the block allocation policy is to allocate in 256-byte chunks.
- * We'll see how that works for a while...
  */
 BlkOffset
-BlockFile::AppendBlock (BlkSize size, BlkSize *actual = NULL)
+BlockFile::append (BlkSize size)
 {
-	BlkOffset off = header->file_length;
-	size = (((size-1) >> 8) + 1) << 8;
-	header->file_length += size;
-	mark (HEADER);
-	if (actual)
-		*actual = size;
-	log->Debug ("Appending block %d bytes @ %d (eof)", size, off);
+	BlkOffset off = header->bf_length;
+	header->bf_length += size;
+	header->mark ();
+	// seek (header->bf_length);
+	log->Debug (Printf("Appending block %d bytes @ %d (eof)", size, off));
 	return (off);
 }
 
 
-
-static void InitBlock (BF_Block &b)
-{
-	b.offset = 0;
-	b.length = 0;
-	b.revision = 0;
-	b.count = 0;
-}
-
-
-
-/*
- * Initialize a new header.
- */
-static void InitHeader (BlockFileHeader *h, int app_magic = 0)
-{
-	h->block_magic = BLOCK_FILE_MAGIC;
-	h->app_magic = (app_magic == 0) ? DEFAULT_APP_MAGIC : app_magic;
-	h->header_size = sizeof (BlockFileHeader);
-	strcpy (h->description, "No description.");
-	h->app_version = 0;
-	h->block_version = BLOCK_FILE_VERSION;
-	h->revision = 0;
-	// Prefix length requires encoded size of block prefix
-	BF_Prefix bp = { 0, 0, 0 };
-	h->prefix_length = XDRStream::Length (xdr_BF_Prefix, &bp);
-	h->file_length = h->header_size;
-	InitBlock (h->app_header);
-	InitBlock (h->freelist);
-#ifdef notdef
-	InitBlock (h->userlist);
-	InitBlock (h->blocklist);
-	InitBlock (h->locks);
-	InitBlock (h->journal);
-#endif
-#ifdef notdef
-	h->requested = 0;
-	h->granted = 0;
-	h->spacefree = 0;
-	h->nfree = 0;
-#endif
-}
-
-
-
-/*
- * Write the header to the file.
- */
 void
-BlockFile::WriteHeader (void)
+BlockFile::recover (BlkOffset off)
 {
-	encode->setpos(0);
-	encode << *header;
+	header->bf_length = off;
+	header->mark();
+	// ftruncate (header->bf_length);
+	log->Debug (Printf("Truncated to %d", off));
 }
-
-
-
-/*
- * Read the header from the file.
- */
-void
-BlockFile::ReadHeader (void)
-{
-	decode->setpos(0);
-	decode >> *header;
-}
-
 
 
 
 int
-BlockFile::write (void *buf, long size)
+BlockFile::write (BlkOffset block, void *buf, BlkSize len)
 {	
-	if (fwrite ((char *)buf, (size_t)size, 1, fp) != 1)
+	status = OK;
+	seek (block);
+	if (fwrite ((char *)buf, (size_t)len, 1, fp) != 1)
 	{
-		this->sys_errno = errno;
+		this->errno = ::errno;
 		this->status = WRITE_FAILED;
 	}
 	return (status);
@@ -657,11 +531,21 @@ BlockFile::write (void *buf, long size)
 
 
 int
-BlockFile::read (void *buf, long size)
+BlockFile::write (BlkOffset addr, SerialBuffer *sbuf)
+{
+	return write (addr, sbuf->getBuffer(), sbuf->Position());
+}
+
+
+
+int
+BlockFile::read (void *buf, BlkOffset block, BlkSize size)
 {	
+	status = OK;
+	seek (block);
 	if (fread ((char *)buf, (size_t)size, 1, fp) != 1)
 	{
-		this->sys_errno = errno;
+		this->errno = ::errno;
 		this->status = READ_FAILED;
 	}
 	return (status);

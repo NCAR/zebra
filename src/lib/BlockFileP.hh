@@ -1,8 +1,8 @@
 /*
- * $Id: BlockFileP.hh,v 1.2 1997-11-24 18:15:10 granger Exp $
+ * $Id: BlockFileP.hh,v 1.3 1997-12-09 09:29:21 granger Exp $
  *
  * Private classes and declarations for BlockFile implementation,
- * such as auxillary block classes.
+ * such as auxiliary block classes.
  */
 
 
@@ -11,16 +11,17 @@
 
 #include <iostream.h>			// For << operators
 
-#include "Block.h"
+#include "BlockFile.hh"
 #include "Serialize.hh"
-#include "ZTime.hh"
 
 const unsigned long BLOCK_FILE_MAGIC = 0xb10cf11e;	/* blocfile */
 const unsigned long BLOCK_FILE_VERSION = 0x00010000;	/* major/minor 1.0 */
 
+#ifdef notdef
+#include "ZTime.hh"
 typedef ZebraTime BF_Time;
-
 SERIAL_XDR_OPERATOR(BF_Time, xdr_ZebraTime);
+#endif
 
 
 /* ================
@@ -45,6 +46,12 @@ public:
 		ss << offset << length << revision;
 	}
 
+	void init ()
+	{
+		offset = 0;
+		length = 0;
+		revision = 0;
+	}
 };
 
 SERIAL_STREAMABLE(Block);
@@ -68,46 +75,87 @@ struct BlockFileHeader : public Translatable
 	unsigned long bf_magic;	/* Block file magic number */
 	unsigned long app_magic;/* Application's magic number */
 	int header_size;	/* Size of block file header */
-	// char description[256];	/* application's file description */
-	BlkVersion app_version;	/* application's format version */
-	BlkVersion bf_version;	/* BlockFile format's version number */
-	BlkVersion revision;	/* Revision number of this file */
+	long bf_version;	/* BlockFile format's version number */
+	long revision;		/* Revision number of this file */
 	BlkOffset bf_length;	/* length of file (aka, pointer to eof) */
 	Block app_header;	/* application's header block */
 
 	/* Auxiliary blocks */
 
 	Block freelist;		/* Free list block */
-#ifdef notdef
-	BF_Block userlist;	/* List of concurrent users of this file */
-	BF_Block blocklist;	/* offset to allocated block list (if used) */
-	BF_Block locks;		/* offset to block-level lock block (:-) */
-	BF_Block journal;	/* offset to journal block */
-	BF_Block toc;		/* "table of contents" for block magic id's */
-#endif
+	Block journal;		/* Journal entries */
 
-#ifdef notdef
-	/* Statistics and debugging */
-	int requested;		/* Bytes granted - bytes requested = unused */
+	int dirty;		/* Dirty status */
+	BlockFile &bf;		/* Our block file */
 
-	int granted;
-	int spacefree;		/* Space held in free blocks */
-#endif
+	BlockFileHeader (BlockFile &_bf) : bf(_bf)
+	{ }
+
+	void mark () 
+	{
+		dirty = 1;
+	}
+
+	int clean ()
+	{
+		return (! dirty);
+	}
+
+	long Revision ()
+	{
+		return (revision);
+	}
 
 	void translate (SerialStream &ss)
 	{
 		ss << bf_magic << app_magic << header_size;
-		// ss.opaque (description, sizeof(description));
-		ss << app_version << bf_version << revision;
+		ss << bf_version << revision;
 		ss << bf_length;
 		ss << app_header;
-
 		ss << freelist;
+		ss << journal;
 	}
+
+	void init (int magic = 0)
+	{
+		bf_magic = BLOCK_FILE_MAGIC;
+		app_magic = magic;
+		header_size = 256;	// Room for future header versions
+		bf_version = BLOCK_FILE_VERSION;
+		revision = 0;
+		bf_length = header_size;
+		app_header.init();
+		freelist.init();
+		journal.init();
+
+		mark ();
+	}
+
+	void writeSync (int force = 0)
+	{
+		if (dirty || force)
+		{
+			++revision;
+			SerialBuffer *sbuf = bf.writeBuffer ();
+			*sbuf << *this;
+			bf.write (0, sbuf);
+			dirty = 0;
+		}
+	}
+
+	// Always read the header; there is no check for revision sync
+	void readSync ()
+	{
+		SerialBuffer *sbuf = bf.readBuffer (0, header_size);
+		*sbuf >> *this;
+		dirty = 0;
+	}
+
 };
 
 
 
+#ifdef notdef
 /*
  * A file "user", which might include info on both the particular 
  * application and the user running the application.  The mode might
@@ -152,31 +200,10 @@ public:
 };
 
 SERIAL_STREAMABLE(User);
+#endif
 
 
-
-/*
- * Free blocks are just length and offset, without a revision.
- */
-class FreeBlock // : public Translatable
-{
-public:
-	FreeBlock (BlkOffset addr, BlkSize size) :
-		offset(addr), length(size)
-	{ }
-
-	BlkOffset offset;	/* Location of block */
-	BlkSize length;		/* Length of block */
-
-	void translate (SerialStream &ss)
-	{
-		ss << offset << length;
-	}
-};
-
-SERIAL_STREAMABLE(FreeBlock);
-
-
+#ifdef notdef
 /*
  * Preface information for describing an allocated block.
  */
@@ -192,9 +219,10 @@ public:
 		ss << block_magic << magic << alloc;
 	}
 };
+#endif
 
 
-
+#ifdef notdef
 /*
  * A Block registration entry, describing the blocks with the given magic id.
  */
@@ -210,44 +238,10 @@ struct BlockEntry // : public Translatable
 };
 
 SERIAL_STREAMABLE(BlockEntry);
+#endif
 
 
-/* =================
- * Journal structure
- *
- * Describes and locates a change to the file and the new revision number
- * it resulted in.  Applications can use the journal to determine if an
- * in-memory copy of a block has changed and needs to be re-read.
- */
-
-class Journal
-{
-	enum ChangeType
-	{
-		BeginTransaction,
-		BlockRemoved,
-		BlockAdded,
-		BlockChanged,
-		EndTransaction
-	};
-};
-
-
-struct JournalEntry : public Translatable
-{
-	int change;		/* Type of change */
-	BF_Time when;		/* Time of change */
-	int id;			/* ID of application making change */
-	int flags;		/* Other flags */
-	Block block;		/* Region changed -- contains the revision */
-
-	void translate (SerialStream &ss)
-	{
-		ss << change << when << id << flags << block;
-	}
-};
-
-
+#ifdef notdef
 /* ===================
  * Block-level locking.
  */
@@ -264,8 +258,7 @@ struct BF_Lock
 	Block block;		/* Block which is locked */
 	BF_LockType lock;
 };
-
-
+#endif
 
 
 #endif /* _BlockFileP_hh_ */

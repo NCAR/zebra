@@ -1,5 +1,5 @@
 /*
- * $Id: Logger.hh,v 1.2 1997-11-24 10:41:39 granger Exp $
+ * $Id: Logger.hh,v 1.3 1997-12-09 09:29:27 granger Exp $
  *
  * Class for reporting error and log messages, which can be conveniently
  * subclassed to log messages through different facilities.  A subclass
@@ -38,6 +38,11 @@
    Allow a global "default" logger?  Create a logger hierarchy so that log
    messages to one logger can be passed back up the tree, possibly to
    loggers with different behaviors or selection criteria.
+
+   Provide:
+
+   log << ... << Logger::debug;
+   log << ... << Logger::info;
 
    */
    
@@ -129,10 +134,25 @@ public:
 			free (name);
 	}
 
+	// Not actually meant for public access, but needed for the template
+	// operator<<
+	ostrstream out;
+
 protected:
 	char *name;
 
 };
+
+
+/*
+ * To make Logger objects behave like output streams.  Use the
+ * log manipulators to send the message at a particular level.
+ */
+template <class T>
+Logger &operator<< (Logger &log, T &t)
+{
+	return log;
+}
 
 
 

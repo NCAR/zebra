@@ -2,16 +2,14 @@
  * The auxillary block base class from which BlockFile helper classes
  * can derive common functionality for serialization and syncing.
  *
- * $Id: AuxBlock.hh,v 1.1 1997-11-24 10:43:17 granger Exp $
+ * $Id: AuxBlock.hh,v 1.2 1997-12-09 09:29:16 granger Exp $
  */
 
 #ifndef _AuxBlock_hh_
 #define _AuxBlock_hh_
 
-#include "Block.h"
+#include "BlockFileP.hh"
 #include "Serialize.hh"
-
-class BlockFile;
 
 /* On block behavior:
 
@@ -44,16 +42,8 @@ public:
 	 * to simplify the BlockFile class.
 	 */
 
-	/// Construct an object from a block file
-	/** The constructor calls our decode() method, which the subclass
-	    has provided to deserialize itself.
-	    */
-	AuxBlock (BlockFile &bf, BlkOffset where, BlkSize howbig);
-
-	///
-	/** Create an auxillary block from nothing: just a block file
-	    without any allocation in the block file. */
-	AuxBlock (BlockFile &bf);
+	/// Associate a memory object with a block in the block file
+	AuxBlock (BlockFile &bf, Block &block);
 
 	/// 
 	/** Write this block to disk if its changed or if 'force' non-zero
@@ -77,73 +67,185 @@ public:
 	void mark (int marked = 1);
 
 	/// Return non-zero if this block is marked.
-	int marked ();
 	int dirty ();
 
 	/// Return non-zero if this block is clean (not marked).
 	int clean ();
 
-	// Allocate space for this block in the block file
-	void allocate ();
-
-	/// Return length to grow to given a needed amount of space
-	/** Growth function for allocating growing room over and
-	    above the stored size of the block, to limit re-allocations
-	    in the block file. */
-	virtual BlkSize grow (BlkSize needed);
-
 	/// The virtual destructor
-	~AuxBlock ();
+	virtual ~AuxBlock ();
 
+	//---- Subclasses must provide the serialization methods, and
+	//---- they may override the allocate() method to change their
+	//---- growth behavior.
+
+	// How much space to allocate for this block in the block file
+	virtual BlkSize allocate (BlkSize need);
+
+#ifdef notdef
 	///
 	/** Translate ourself onto a serial stream.  Subclasses override
 	    this, but call this before doing their translation.
 	    */
 	virtual void translate (SerialStream &ss);
+#endif
 
 protected:
-	// --- Stuff only the class and its subclasses need to know ---
 
-	BlockFile *bf;		// The block file we're associated with
-
-	BlkOffset block;	// Address of the block, zero if none yet
-	BlkSize length;		// Length of block, zero if no block
-
-	long revision;		// Revision of our block
-	long magic;		// The magic identifer, set by subclass
-
-	int id;			// "type" of this auxillary block info
-
-	int _marked;
-
-private:
-	// Private initializer
-	auxBlock ();
+	BlockFile &bf;		// The block file we're associated with
+	Block &block;		// The block we're associated with
+	BlkVersion revision;	// Revision we last sync'ed with
+	int marked;		// Whether we're dirty or not
 };
 
 
-inline void AuxBlock::mark (int marked = 1)
+inline void AuxBlock::mark (int _marked = 1)
 {
-	this->_marked = marked;
-}
-
-
-inline int AuxBlock::marked ()
-{
-	return _marked;
+	this->marked = _marked;
 }
 
 
 inline int AuxBlock::dirty ()
 {
-	return marked();
+	return marked;
 }
 
 
 inline int AuxBlock::clean ()
 {
-	return (! _marked);
+	return (! marked);
 }
+
+
+/*
+ * Free blocks are just length and offset, without a revision.
+ */
+class FreeBlock // : public Translatable
+{
+public:
+	FreeBlock (BlkOffset addr = 0, BlkSize size = 0) :
+		offset(addr), length(size)
+	{ }
+
+	BlkOffset offset;	/* Location of block */
+	BlkSize length;		/* Length of block */
+
+	void translate (SerialStream &ss)
+	{
+		ss << offset << length;
+	}
+};
+
+SERIAL_STREAMABLE(FreeBlock);
+
+
+//
+// Package free list memory management into a convenient structure
+//
+class FreeList : public virtual AuxBlock
+{
+public:
+	FreeList (BlockFile &bf, Block &b);
+	~FreeList ();
+
+	/*
+	 * Add a freed block to the list.
+	 */
+	void Free (BlkOffset offset, BlkSize length);
+
+	/*
+	 * Find a block for this request and take it off the list.
+	 * Return non-zero on success, zero otherwise.
+	 */
+	BlkOffset Request (BlkSize length, BlkSize *ret_length);
+
+	// Serialization interface
+	int encode (SerialBuffer &sbuf);
+	int decode (SerialBuffer &sbuf);
+	long size (SerialBuffer &sbuf);
+
+	// Inherit the growth allocation method
+
+private:
+	int ncache;	/* Number of free blocks allocated space in array */
+	int n;		/* Actual number of free blocks in use in array */
+	FreeBlock *blocks; /* The actual array of free blocks */
+
+	void Remove (int);
+	void Add (BlkSize length, BlkSize length);
+	void growCache (int num);
+
+};
+
+
+
+/* =================
+ * Journal structure
+ *
+ * Describes and locates a change to the file and the new revision number
+ * it resulted in.  Applications can use the journal to determine if an
+ * in-memory cache of a block has changed and needs to be re-read.
+ */
+
+
+class JournalEntry;
+
+class Journal : public virtual AuxBlock
+{
+public:
+	static const MaxEntries = 256;
+
+	typedef int ChangeType;
+
+	static const ChangeType BeginTransaction = 0;
+	static const ChangeType BlockRemoved = 1;
+	static const ChangeType BlockAdded = 2;
+	static const ChangeType BlockChanged = 3;
+	static const ChangeType EndTransaction = 4;
+
+	Journal (BlockFile &bf, Block &b);
+	~Journal ();
+
+	// Functionality
+	int Changed (BlkVersion, BlkOffset, BlkSize);
+	void Record (ChangeType, BlkOffset, BlkSize);
+
+	// Serialization interface
+	int encode (SerialBuffer &sbuf);
+	int decode (SerialBuffer &sbuf);
+	long size (SerialBuffer &sbuf);
+
+	// We'll never actually grow, so allocate only what we need when asked
+	virtual BlkSize allocate (BlkSize need)
+	{
+		return (need);
+	}
+
+private:
+	int serialSize;		// Fixed, so calculated once
+	int max;		// Size of queue
+	int first;		// Beginning of ciruclar queue
+	int last;		// End of circular queue
+	JournalEntry *entries;
+};
+
+
+struct JournalEntry // : public Translatable
+{
+	Journal::ChangeType change;
+	Block block;			/* Region changed */
+
+	void translate (SerialStream &ss)
+	{
+		ss << change << block;
+	}
+
+	JournalEntry () : change(0), block()
+	{ }
+};
+
+SERIAL_STREAMABLE(JournalEntry);
+
 
 
 #endif /* _AuxBlock_hh_ */

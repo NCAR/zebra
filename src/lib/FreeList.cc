@@ -9,63 +9,21 @@
 
 #include <defs.h>
 
-RCSID ("$Id: FreeList.cc,v 1.2 1997-11-24 18:15:11 granger Exp $");
+RCSID ("$Id: FreeList.cc,v 1.3 1997-12-09 09:29:23 granger Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
 #include "BlockFileP.hh"	// For the private header structure and stuff
-
-// XDR_ADDTYPE(BF_FreeBlock)
-
-//
-// Package free list memory management into a convenient structure
-//
-class FreeList : public AuxBlock, public Translatable
-{
-public:
-	FreeList (BlockFile &bf);
-	~FreeList (void);
-
-	/*
-	 * Add a freed block to the free block list.
-	 */
-	void FreeBlock (BlkOffset offset, BlkSize length);
-
-	/*
-	 * Find a block for this request and take it off the list.
-	 * Return non-zero on success, zero otherwise.
-	 */
-	int RequestBlock (BlkSize length, BF_FreeBlock &ret);
-	BlkOffset RequestBlock (BlkSize length, BlkSize *ret_length);
-
-	void translate (SerialStream &ss)
-	{
-		ss << ncache << n;
-		for (int i = 0; i < n; ++i)
-		{
-			ss << blocks[i];
-		}
-	}
-
-private:
-	int ncache;	/* Number of free blocks allocated space in array */
-	int n;		/* Actual number of free blocks in use in array */
-	FreeBlock *blocks; /* The actual array of free blocks */
-
-	void Remove (int);
-	void Add (BlkSize length, BlkSize length);
-
-};
-
-
-
+#include "AuxBlock.hh"
+#include "Logger.hh"
+#include "Format.hh"
 
 // Constructor
 
-FreeList::FreeList (BlockFile &bf) : AuxBlock (bf)
+FreeList::FreeList (BlockFile &bf, Block &b) : AuxBlock (bf, b)
 {
 	ncache = 0;
 	n = 0;
-	blocks = NULL;
+	blocks = 0;
 }
 
 
@@ -80,10 +38,12 @@ FreeList::~FreeList (void)
 
 
 void
-FreeList::FreeBlock (BlkOffset offset, BlkSize length)
+FreeList::Free (BlkOffset offset, BlkSize length)
 /*
  * Add a freed block to the list.  If the block can just be appended and/or
  * prepended to an existing block, do so.
+ *
+ * Still need to add logic to recover free space at the end of the file.
  */ 
 {
 	int remove = -1;
@@ -101,45 +61,41 @@ FreeList::FreeBlock (BlkOffset offset, BlkSize length)
 		}
 		else
 			continue;
-		if (remove < 0)		/* first contiguity found */
-		{
+
+		// Now we're looking to free a larger block
+		offset = blocks[i].offset;
+		length = blocks[i].length;
+		if (remove < 0)		// first contiguity found
 			remove = i;
-			offset = blocks[i].offset;
-			length = blocks[i].length;
-		}
-		else			// second found (freed block in middle)
-		{
+		else			// 2nd: freed block is in the middle
 			break;
-		}
 	}
 	if (remove >= 0 && i < n)	// 3 blocks became 1, remove 1 of them
 	{
 		Remove (remove);
-		return;
 	}
-	else if (remove >= 0)
+
+	// Now see if we can recover the freed block from the end of the file
+	if (offset + length >= bf.header->bf_length)
 	{
-		return;			// freed block added to existing block
+		bf.recover (offset);
+		// If we merged with an existing block, remove that block,
+		// otherwise we just don't add the freed block
+		if (remove >= 0 && i <= n)
+		{
+			if (i > remove)
+				--i;		// moved back by first remove
+			Remove (i);		// block @ remove already gone
+		}
+		else if (remove >= 0)
+			Remove (remove);
 	}
-
-	/*
-	 * Looks like we have to actually add this block to the list.
-	 */
-	Add (offset, length);
-}
-
-
-
-BlkOffset
-FreeList::RequestBlock (BlkSize length, BlkSize *ret_length)
-{
-	BF_FreeBlock fb;
-	if (RequestBlock (length, fb))
+	else if (remove < 0)
 	{
-		*ret_length = fb.length;
-		return (fb.offset);
+		// No choice but to add the freed block by itself
+		Add (offset, length);
 	}
-	return (BadBlock);
+	mark ();
 }
 
 
@@ -147,15 +103,13 @@ FreeList::RequestBlock (BlkSize length, BlkSize *ret_length)
 /*
  * Find a block for this request and take it off the list.
  */
-int
-FreeList::RequestBlock (BlkSize length, BF_FreeBlock &ret)
+BlkOffset
+FreeList::Request (BlkSize length, BlkSize *ret_length)
 {
+	FreeBlock ret;
+
 	/* Search the free list for the closest match to this request.
 	   If found, decide whether to return the whole block or split it. */
-
-	if (n == 0)
-		return (0);
-
 	int closest = -1;
 	for (int i = 0 ; i < n ; ++i)
 	{
@@ -167,30 +121,42 @@ FreeList::RequestBlock (BlkSize length, BF_FreeBlock &ret)
 		}
 	}
 
+	// Calculate the block size to allocate for the request
+	int size = (((length-1) >> 8) + 1) << 8;
+	ret.length = size;
+
 	if (closest < 0)
-		return (0);
-	ret = blocks[closest];
-	Remove (closest);
-	return (1);
+	{
+		ret.offset = bf.append (size);
+	}
+	else
+	{
+		mark();
+		ret.offset = blocks[closest].offset + blocks[closest].length;
+		ret.offset -= ret.length;
+		if (ret.offset == blocks[closest].offset)
+			Remove (closest);
+		else
+			blocks[closest].length -= ret.length;
+	}
+	if (ret_length)
+		*ret_length = ret.length;
+
+	return (ret.offset);
 }
+
 
 
 
 void
 FreeList::Add (BlkOffset offset, BlkSize length)
 {
-	if (n >= ncache)
+	if (!blocks || n >= ncache)
 	{
-		ncache = (ncache > 0) ? ncache * 2 : 16;
-		int len = ncache * sizeof (BF_FreeBlock);
-		if (blocks)
-			blocks = (BF_FreeBlock *) realloc (blocks, len);
-		else
-			blocks = (BF_FreeBlock *) malloc (len);
+		growCache (n+1);
 	}
 	blocks[n].offset = offset;
 	blocks[n].length = length;
-	rev++;
 	n++;
 }
 
@@ -202,93 +168,89 @@ FreeList::Remove (int x)
 	n--;
 	for (int i = x ; i < n ; ++i)
 		blocks[i] = blocks[i+1];
-	++rev;
+}
+
+
+// ---------------- Serialization ----------------
+
+
+long
+FreeList::size (SerialBuffer &sbuf)
+{
+	long s = serialCount (sbuf, n);
+	if (n > 0)
+	{
+		long b = serialCount (sbuf, blocks[0]);
+		s += n*b;
+	}
+	return (s);
 }
 
 
 
-void
-FreeList::WriteSync ()
-/*
- * Write the contents of our free list in memory to the file on disk.
- */
+int
+FreeList::encode (SerialBuffer &sbuf)
 {
-	BF_Block *fl = &(bf->header->freelist);
-
-	if (rev == fl->revision)	// haven't changed since last write
-		return;
-
-	/*
-	 * Make sure there is room enough on disk for the list we will
-	 * write.  The increment assures us that we'll have room for any
-	 * extra blocks in the list if the list changes underneath us.
-	 */
-	int len = XDRStream::Length (xdr_BF_FreeBlock, blocks) * (n + 5);
-
-	if (len > fl->length)
-	{
-		if (fl->length > 0)
-			bf->Free (fl->offset);
-		fl->offset = bf->Alloc (len, &fl->length);
-	}
-		
-	fl->count = n;
-	fl->revision = rev;
-	bf->mark (BlockFile::HEADER);
-	XDRStream *xdrs = bf->encodeStream (fl->offset);
-	bf->log->Debug ("Writing free list blocks:");
+	sbuf << n;
+	bf.log->Debug ("Writing free list blocks:");
 	for (int i = 0; i < n; ++i)
 	{
-		bf->log->Debug ("   %d bytes @ %d", 
-				blocks[i].length, blocks[i].offset);
-		xdrs << blocks[i];
+		bf.log->Debug (Printf("   %d bytes @ %d",
+				      blocks[i].length, blocks[i].offset));
+		sbuf << blocks[i];
 	}
+	return (0);
 }
 
 
 
-void
-FreeList::ReadSync ()
+int
+FreeList::decode (SerialBuffer &sbuf)
 {
-	BF_Block *fl = &(bf->header->freelist);
-
-	/*
-	 * Compare revisions.  The header is assumed to be in sync!
-	 */
-	if (fl->revision == rev)
-		return;		/* a-ok */
-	if (fl->count == 0)
-	{
-		// The free list is empty: no need to read; leave the cache.
-		n = 0;
-		return;
-	}
+	sbuf >> n;
 
 	/*
 	 * Make sure we have room in our array.
 	 */
-	int len = fl->count * sizeof (BF_FreeBlock);
-	n = fl->count;
-	if (!blocks)
-	{
-		blocks = (BF_FreeBlock *) malloc (len);
-		ncache = fl->count;
-	}
-	else if (n > ncache)
-	{
-		// Increase our cache
-		blocks = (BF_FreeBlock *) realloc (blocks, len);
-		ncache = fl->count;
-	}
+	growCache (n);
+
 	/*
-	 * Now we can finally read the array.
+	 * Now read in the array.
 	 */
-	XDRStream *xdrs = bf->decodeStream (fl->offset);
 	for (int i = 0; i < n; ++i)
 	{
-		xdrs >> blocks[i];
+		sbuf >> blocks[i];
 	}
-	rev = fl->revision;
+	return (0);
 }
+
+
+
+
+void
+FreeList::growCache (int num)
+{
+	int mincache = num + (num/2) + 1;
+	int len = mincache * sizeof (FreeBlock);
+	if (!blocks)
+	{
+		blocks = (FreeBlock *) malloc (len);
+		ncache = mincache;
+	}
+	else if (mincache > ncache)
+	{
+		// Increase our cache
+		blocks = (FreeBlock *) realloc (blocks, len);
+		ncache = mincache;
+	}
+	else if (mincache < ncache / 2)
+	{
+		// trim off some excess cache space
+		blocks = (FreeBlock *) realloc (blocks, len);
+		ncache = mincache;
+	}		
+}
+
+
 
 
