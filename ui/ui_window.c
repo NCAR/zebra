@@ -26,7 +26,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_window.c,v 1.22 1992-06-26 22:23:05 burghart Exp $";
+static char *Rcsid = "$Id: ui_window.c,v 1.23 1992-08-04 20:40:01 burghart Exp $";
 
 static bool Initialized = FALSE;
 static bool Active = FALSE;	/* Is window mode active??	*/
@@ -1512,7 +1512,7 @@ FrameWidget *fw;
  * Nope, we need to make one.  (KLUDGE) assuming only one child for the 
  * moment; eventually we probably need to follow the chain.
  */
-	sprintf (NewName, "%s.%d", fw->fw_name, fw->fw_ninst++);
+	sprintf (NewName, "%s-%d", fw->fw_name, fw->fw_ninst++);
 	inst = uw_make_frame (NewName, fw->fw_title);
 	inst->fw_flags = fw->fw_flags;
 	child = (*fw->fw_next->gw_clone) (fw->fw_next, inst);
