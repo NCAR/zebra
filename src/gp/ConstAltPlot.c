@@ -56,7 +56,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.78 1998-10-28 21:21:33 corbet Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.79 1998-11-20 15:58:02 burghart Exp $")
 
 
 /*
@@ -667,7 +667,7 @@ zbool update;
 {
 	char	cname[30], annot[120];
 	char	platform[PlatformListLen];
-	char	quadrants[4][60], quadclr[30];
+	char	quadrants[4][80], quadclr[30];
 	char	data[100], sticon[40];
 	char	*pnames[MaxPlatforms];
 	PlatformId pid;
@@ -747,9 +747,11 @@ zbool update;
 	{
 		if (quadrants[i][0] && !quadstn[i])
 		{
-			quadfields[i] = F_Lookup (quadrants[i]);
-			fields[nfield++] = quadfields[i];
+		    quadfields[i] = F_Lookup (quadrants[i]);
+		    fields[nfield++] = quadfields[i];
 		}
+		else
+		    quadfields[i] = BadField;
 	}
 /*
  * Maybe start with top annotation.
@@ -846,20 +848,25 @@ zbool update;
 /*
  * Side annotation.
  */
-	sprintf (data, "%s %li %li %f %d ", "m/s", color.pixel, qcolor.pixel, 
+	sprintf (data, "%s|%li|%li|%f|%d", "m/s", color.pixel, qcolor.pixel, 
 		 do_vectors ? unitlen : 0, 4 /*numquads*/);
 
 	for (i = 0; i < 4; i++)
 	{
+	    strcat (data, "|");
+	    
 		if (quadstn[i])
-			strcat (data, "station ");
-		else if (quadrants[i][0])
+		    strcat (data, "station ");
+		else if (quadfields[i] != BadField)
 		{
-			strcat (data, F_GetName (quadfields[i]));
-			strcat (data, " ");
+		    char *justname = F_GetName (quadfields[i]);
+		    if (justname[0] != '\0')
+			strcat (data, justname);
+		    else
+			strcat (data, F_GetFullName (quadfields[i]));
 		}
 		else
-			strcat (data, "none ");
+		    strcat (data, "none");
 	}
 
 	An_AddAnnotProc (CAP_StaPltSideAnnot, c, data, strlen (data), 90, 
@@ -1636,7 +1643,7 @@ int datalen, begin, space;
  * Routine to do station plot side annotation.
  */
 {
-	char string[40], units[40], qname[4][40];
+	char string[40], units[40], qname[4][80];
 	float unitlen, used, scale, speed = 10.0; 
 	int i, left, numquads, limit, middle;
 	Pixel vc, qc;
@@ -1647,8 +1654,9 @@ int datalen, begin, space;
 /*
  * Get the data.
  */
-        sscanf (data, "%s %li %li %f %d %s %s %s %s", units, &vc, &qc, 
-		&unitlen, &numquads, qname[0], qname[1], qname[2], qname[3]);
+        sscanf (data, "%[^|]|%li|%li|%f|%d|%[^|]|%[^|]|%[^|]|%[^|]", units,
+		&vc, &qc, &unitlen, &numquads, qname[0], qname[1], qname[2],
+		qname[3]);
 /*
  * Put in the vector (unless unitlen == 0, implying wind barbs).
  */
@@ -1718,8 +1726,8 @@ int datalen, begin, space;
 	 * so that we get a big enough active area to hit.
 	 */
 		sprintf (name, "quad%d", i + 1);
-		if (! strcmp (qname[i], "null") || ! strcmp (qname[i], "none"))
-			strcpy (qname[i], "      ");
+		if (! strcmp (qname[i], "none"))
+		    strcpy (qname[i], "      ");
 	/*
 	 * Throw it onto the screen and activate it.  We really need a
 	 * "draw and activate text" routine to do this for us...
