@@ -29,7 +29,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID ("$Id: d_Scan.c,v 1.12 1994-03-31 23:04:22 corbet Exp $")
+MAKE_RCSID ("$Id: d_Scan.c,v 1.13 1994-04-01 17:08:08 corbet Exp $")
 
 
 /*
@@ -301,6 +301,7 @@ bool local;
 	if (isconst || (FileChanged (p, DFTable + dfi) == 0))
 		return (TRUE);
 	msg_ELog (EF_DEBUG, "File %s changed", file);
+	CacheInvalidate (dfi);
 	dt_RemoveDFE (p, dfi);
 	return (FALSE);
 }
