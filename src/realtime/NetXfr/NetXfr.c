@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: NetXfr.c,v 2.4 1991-11-22 20:49:42 kris Exp $";
+static char *rcsid = "$Id: NetXfr.c,v 2.5 1991-12-17 19:52:48 kris Exp $";
 
 # include <copyright.h>
 # include <defs.h>
@@ -226,7 +226,7 @@ main (argc, argv)
 int argc;
 char **argv;
 {
-	char cmd[128];
+	char cmd[128], loadfile[100];
 	SValue v;
 	stbl vtable;
 	int i;
@@ -235,15 +235,17 @@ char **argv;
  * Hook into the user interface.  Only go interactive if they didn't
  * give us a file on the command line.
  */
+	fixdir_t ("NETXFRLOADFILE", LIBDIR, "NetXfr.lf", loadfile, ".lf");
 	if (argc > 1)
 	{
-		ui_init (strcat (LIBDIR, "/NetXfr.lf"), FALSE, TRUE);
+		ui_init (loadfile, FALSE, TRUE);
 		v.us_v_ptr = argv[1];
 		usy_s_symbol (usy_g_stbl ("ui$variable_table"), "commandfile",
 				SYMT_STRING, &v);
 	}
 	else
-		ui_init (strcat (LIBDIR, "/NetXfr.lf"), TRUE, FALSE);
+		ui_init (loadfile, TRUE, FALSE);
+	SetupConfigVariables ();
 /*
  * Debug level for certain things.
  */
