@@ -24,6 +24,10 @@
 # include <stdarg.h>
 # include <string.h>
 # include <errno.h>
+#if linux
+# include <unistd.h>
+# include <getopt.h>	/* for getopt external variables */
+#endif
 # include "fips123/stc123.h"
 
 typedef char	boolean;
