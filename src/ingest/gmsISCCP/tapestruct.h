@@ -23,9 +23,9 @@ typedef struct _fileheader
 	char	longitude[25];		/* satellite subpoint location in */
 	char	latitude[25];		/* decimal degrees */
 	char	what2[216];		/* ? */
-	char	irtable[256][7];	/* table of counts vs. temp. for IR */
+	char	irtable[256*7];		/* table of counts vs. temp. for IR */
 	char	what3[3841];		/* ? */
-	char	vistable[256][7];	/* table of counts vs. ? for vis */
+	char	vistable[256*7];	/* table of counts vs. ? for vis */
 	char	what4[210];		/* ? */
 	char	line_el[121][14];	/* line and element in 2(f7.2) fmt */
 	char	empty[119];		/* unused (makes size 10000 bytes) */

@@ -1,4 +1,8 @@
-/*		Copyright (C) 1987,88,89,90,91 by UCAR
+/*
+ * $Id: keywords.h,v 1.1 1993-06-22 14:59:04 burghart Exp $
+ * UI keyword definitions for the gmsISCCP program
+ */
+/*		Copyright (C) 1992 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
  *
@@ -15,22 +19,6 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.2 1993-06-22 14:58:54 burghart Exp $
-
-LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS) $(FLIBS)
-
-SRCS = gmsISCCP.c navigate.c
-OBJS = gmsISCCP.o navigate.o
-
-DISTFILES = Imakefile $(SRCS)
-
-NormalProgramTarget(gmsISCCP,$(OBJS),$(DEPLIBS),$(LIBS) $(XLIBS),/**/)
-
-UICppLoadFileTarget(gmsISCCP.lf,gmsISCCP.state,keywords.h)
-
-LintTarget()
-
-DependTarget()
-
-DistfilesTarget($(DISTFILES))
-
+# define KW_SUGAR	0
+# define KW_LIMITS	1
+# define KW_GO		2

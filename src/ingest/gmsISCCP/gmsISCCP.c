@@ -1,34 +1,77 @@
 /*
- * This program reads in a tape of  1100 by 1100 pixel images from a NOAA 
- * ISCCP format tape and puts them into the zeb data store
+ * This program ingests images from a NOAA ISCCP format tape into the 
+ * zeb data store
  */
 # include <errno.h>
 # include <stdio.h>
+# include <math.h>
 # include <fcntl.h>
 # include <defs.h>
 # include <message.h>
 # include <DataStore.h>
+# include "keywords.h"
 # include "tapestruct.h"
 
 /*
- * Image size
+ * Source device name and associated file descriptor.
+ */
+char	Source[80] = "";
+int	Fd = -1;
+
+/*
+ * Our platform
+ */
+char	Platname[80] = "";
+
+/*
+ * Raw images, their header, time, and IR calibration array
  */
 # define NROWS	1100
 # define NCOLS	1100
+unsigned char	RawImageIR[NROWS * NCOLS];
+unsigned char	RawImageVis[NROWS * NCOLS];
+float		IRCal[256];
+bool		HaveVis;
+int		Year, Month, Day, Hour, Minute;
+fileheader	Fheader;
+
+
 
 /*
- * Globals
+ * The grids into which we remap the image
  */
-static unsigned char	Image[NROWS * NCOLS];
-static fileheader	Fheader;
-static taperec		Record;
+unsigned char	*GridIR, *GridVis;
+float  	IRScale, IROffset;
+int	GridX = 0, GridY = 0;
+float	KmResolution = 0.0;
+float	Lon_min, Lon_max, Lat_min, Lat_max;
+float	Lat_step, Lon_step;
+int 	HaveLimits = FALSE;
+
+/*
+ * Reference latitude for x,y <-> lat,lon conversions
+ */
+float	OriginLat = -999.0;
+
+/*
+ * Useful stuff
+ */
+# define DEG_TO_RAD(x)	((x)*0.017453292)
+# define DEG_TO_KM(x)	((x)*111.3238367) /* on a great circle */
+# define KM_TO_DEG(x)	((x)*0.008982802) /* on a great circle */
 
 /*
  * Prototypes
  */
-static int	ExtractInt FP ((char *, int));
-static void	WriteImage FP ((int, int, int, int, int));
+static int	Dispatcher FP ((int, struct ui_command *));
+static void	UserLimits FP ((struct ui_command *));
+static void	Ingest FP ((void));
+static int	GetRawImages FP ((void));
+static void	MapToGrids FP ((void));
+static void	WriteGrids FP ((void));
 static int	MDispatcher FP ((struct message *));
+static int	ExtractInt FP ((char *, int));
+static float	ExtractFloat FP ((char *, int));
 static void	EbcdicToAscii FP ((char *, int));
 static void	AsciiToEbcdic FP ((char *, int));
 static int	my_read ();
@@ -41,159 +84,213 @@ main (argc, argv)
 int	argc;
 char	**argv;
 {
-	int	fd, nbytes, eofflag, i, line, nblocks;
-	int	iyear, imonth, iday, ihhmm, ihour, iminute;
-	int	reccount = 0, filecount = 0, imagecount = 0;
-	lcword	lcw;
+	SValue	v;
+	stbl	vtable;
+	char	loadfile[128];
 /*
  * Connect to the message system
  */
-	msg_connect (MDispatcher, "SatIngest");
+	msg_connect (MDispatcher, "gmsISCCP");
 /*
- * Open the input file
+ * UI stuff
  */
-	fd = open (argv[1], O_RDONLY);
-	if (fd < 1)
+	fixdir ("GMSISCCP_LOAD_FILE", GetLibDir (), "gmsISCCP.lf", loadfile);
+
+	if (argc > 1)
 	{
-		printf ("Error %d opening '%s'\n", errno, argv[1]);
+		ui_init (loadfile, FALSE, TRUE);
+		v.us_v_ptr = argv[1];
+		usy_s_symbol (usy_g_stbl ("ui$variable_table"), "commandfile",
+			SYMT_STRING, &v);
+	}
+	else
+		ui_init (loadfile, TRUE, FALSE);
+
+	ui_setup ("gmsISCCP", &argc, argv, 0);
+/*
+ * Initialization
+ */
+	ds_Initialize ();
+
+	vtable = usy_g_stbl ("ui$variable_table");
+	usy_c_indirect (vtable, "originLat", &OriginLat, SYMT_FLOAT, 0);
+	usy_c_indirect (vtable, "kmResolution", &KmResolution, SYMT_FLOAT, 0);
+	usy_c_indirect (vtable, "platform", &Platname, SYMT_STRING, 
+			sizeof (Platname));
+	usy_c_indirect (vtable, "gridX", &GridX, SYMT_INT, 0);
+	usy_c_indirect (vtable, "gridY", &GridY, SYMT_INT, 0);
+	usy_c_indirect (vtable, "source", &Source, SYMT_STRING, 
+			sizeof (Source));
+	
+/*
+ * Get on with it
+ */
+	ui_get_command ("initial", "gmsISCCP>", Dispatcher, 0);
+	ui_finish ();
+
+	msg_ELog (EF_INFO, "Finished.");
+
+	exit (0);
+}
+
+
+
+static int
+Dispatcher (junk, cmds)
+int	junk;
+struct ui_command	*cmds;
+/*
+ * The command dispatcher.
+ */
+{
+	switch (UKEY (*cmds))
+	{
+	/*
+	 * Time to actually do things.
+	 */
+	    case KW_GO:
+		Ingest ();
+		break;
+	/*
+	 * lat/lon limits
+	 */
+	    case KW_LIMITS:
+		UserLimits (cmds + 1);
+		break;
+	/*
+	 * Unknown command
+	 */
+	    default:
+		msg_ELog (EF_PROBLEM, "Unknown kw %d", UKEY (*cmds));
+		break;
+	}
+	return (TRUE);
+}
+
+
+
+
+static void
+UserLimits (cmds)
+struct ui_command	*cmds;
+/*
+ * Get user specified lat/lon limits for the grid
+ * ...and do some sanity checking...
+ */
+{
+	Lat_min = UFLOAT (cmds[0]);
+	Lon_min = UFLOAT (cmds[1]);
+	Lat_max = UFLOAT (cmds[2]);
+	Lon_max = UFLOAT (cmds[3]);
+
+	if ((Lat_min < Lat_max) && (Lon_min < Lon_max))
+	{
+		/* values are valid, note as much */
+		HaveLimits = TRUE;
+	}
+	else
+	{
+		/* illegal values: tell user */
+		msg_ELog (EF_PROBLEM, "bad lat/lon limits: %f %f %f %f",
+			  Lat_min, Lon_min, Lat_max, Lon_max);
+		HaveLimits = FALSE;
+	}
+}
+
+
+
+
+
+static void
+Ingest ()
+{
+	int	imagecount = 0;
+/*
+ * Make sure we have lat/lon limits, a platform name, and a source
+ */
+	if (! HaveLimits)
+	{
+		msg_ELog (EF_PROBLEM, 
+			  "Lat/lon limits not specified.  Exiting.");
+		exit (1);
+	}
+
+	if (! Platname[0])
+	{
+		msg_ELog (EF_PROBLEM, "No platform specified.  Exiting.");
+		exit (1);
+	}
+
+	if (! Source[0])
+	{
+		msg_ELog (EF_PROBLEM, "No source name specified.  Exiting.");
+		exit (1);
+	}
+
+	if (OriginLat < -90.0)
+	{
+		msg_ELog (EF_PROBLEM, "No origin latitude given.  Exiting.");
+		exit (1);
+	}
+	
+/*
+ * Figure out grid spacing
+ */
+	if (GridX && GridY)
+	{
+		if (KmResolution != 0.0)
+			msg_ELog (EF_INFO, 
+				"Gridsize overrides kmResolution setting");
+
+		Lat_step = (Lat_max - Lat_min) / (GridY - 1);
+		Lon_step = (Lon_max - Lon_min) / (GridX - 1);
+	}
+	else if (KmResolution != 0.0)
+	{
+		Lat_step = Lon_step = KM_TO_DEG (KmResolution);
+
+		GridX = (int)((Lon_max - Lon_min) / Lon_step) + 1;
+		GridY = (int)((Lat_max - Lat_min) / Lat_step) + 1;
+
+		Lon_max = Lon_min + Lon_step * (GridX - 1);
+		Lat_max = Lat_min + Lat_step * (GridY - 1);
+	}
+	else
+	{
+		msg_ELog (EF_PROBLEM, 
+			"gridX and gridY or kmResolution must be given");
+		exit (1);
+	}
+
+	msg_ELog (EF_INFO, "Lat. limits: %.2f to %.2f every %.2f",
+		Lat_min, Lat_max, Lat_step);
+	msg_ELog (EF_INFO, "Lon. limits: %.2f to %.2f every %.2f",
+		Lon_min, Lon_max, Lon_step);
+/*
+ * Open the input source (tape device)
+ */
+	Fd = open (Source, O_RDONLY);
+	if (Fd < 1)
+	{
+		printf ("Error %d opening '%s'\n", errno, Source);
 		exit(1);
 	}
 /*
- * Some initializations
+ * Allocate the grid for the remapped image
  */
-	usy_init ();
-	F_Init ();
-	ds_Initialize ();
+	GridIR = (unsigned char *) malloc (GridX * GridY * sizeof (char));
+	GridVis = (unsigned char *) malloc (GridX * GridY * sizeof (char));
 /*
- * Loop to read images until we hit the end of the tape
+ * Loop through the images
  */
-	while (TRUE)
+	while (GetRawImages ())
 	{
 	/*
-	 * Read until we hit a header record (i.e., something that's not
-	 * 80 bytes and not an EOF).  Quit if we hit a double EOF.
+	 * Remap the image to our grid and write it out
 	 */
-		nbytes = 0;
-
-		while (nbytes != sizeof (fileheader))
-		{
-			nbytes = my_read (fd, &Fheader, sizeof (fileheader));
-			
-			if (nbytes == 0)
-			{
-				msg_ELog (EF_DEBUG, "Read EOF");
-				filecount++;
-				if (eofflag)
-				{
-					msg_ELog (EF_INFO, 
-					  "No hdr (%d records, %d files).\n", 
-					  reccount, filecount);
-					exit (1);
-				}
-				eofflag = TRUE;
-			}
-			else
-			{
-				msg_ELog (EF_DEBUG, "%d byte rec.", nbytes);
-				reccount++;
-				eofflag = FALSE;
-			}
-		}
-	/*
-	 * Make sure it's an image header record
-	 */
-# ifdef notdef
-		if (nbytes != sizeof (fileheader))
-		{
-			printf ("Short header (%d bytes) on image %d.\n",
-				nbytes, ++imagecount);
-			exit(1);
-		}
-# endif
-
-		EbcdicToAscii ((char *)&Fheader, sizeof (fileheader));
-	/*
-	 * Read data lines up to the next EOF
-	 */
-		line = 0;
-
-		while (TRUE)
-		{
-		/*
-		 * Read the next record
-		 */
-			nbytes = my_read (fd, &Record, sizeof (taperec));
-
-			if (nbytes == 0)
-			{
-				msg_ELog (EF_DEBUG, "Read EOF");
-				filecount++;
-				break;
-			}
-			
-			msg_ELog (EF_DEBUG, "%d byte data rec.", nbytes);
-			reccount++;
-		/*
-		 * Convert the EBCDIC stuff to ASCII
-		 */
-			EbcdicToAscii ((char *)&Record.rheader, 
-				       sizeof (rechdr));
-
-			nblocks = ExtractInt (Record.rheader.blockcount, 
-					  sizeof (Record.rheader.blockcount));
-
-			for(i = 0; i < nblocks; i++)
-			{
-				
-				EbcdicToAscii ((char *)&Record.block[i].lcw, 
-					   sizeof (lcword));
-				EbcdicToAscii ((char *)&Record.block[i].tail, 
-					       8);
-			}
-		/*
-		 * Copy the pixel data to the image array
-		 */
-			for (i = 0; i < nblocks; i++)
-			{
-			/*
-			 * Only IR for now
-			 */
-				if (Record.block[i].lcw.type != 'I')
-					continue;
-			/*
-			 * Make sure we don't get too much
-			 */
-				if (line >= NROWS)
-				{
-					printf ("Rows > %d lost in img %d\n", 
-						NROWS, imagecount + 1);
-					break;
-				}
-			/*
-			 * Move the data into the image and increment the
-			 * line count
-			 */
-				memcpy (Image + (line * NCOLS),
-					Record.block[i].pixels, 1100);
-
-				line++;
-			}		
-		}
+		MapToGrids ();
+		WriteGrids ();
 		msg_ELog (EF_INFO, "Did image %d", ++imagecount);
-	/*
-	 * Dump the image to the data store
-	 */
-		lcw = Record.block[0].lcw;
-
-		iyear = ExtractInt (lcw.year, sizeof (lcw.year));
-		imonth = ExtractInt (lcw.month, sizeof (lcw.month));
-		iday = ExtractInt (lcw.day, sizeof (lcw.day));
-		ihhmm = ExtractInt (lcw.gmtime, sizeof (lcw.gmtime));
-
-		ihour = ihhmm / 100;
-		iminute = ihhmm % 100;
-
-		WriteImage (iyear, imonth, iday, ihour, iminute);
 	}
 
 	msg_ELog (EF_INFO, "Finished after %d images", imagecount);
@@ -202,50 +299,231 @@ char	**argv;
 
 
 
-static void
-WriteImage (year, month, day, hour, minute)
-int	year, month, day, hour, minute;
+static int
+GetRawImages ()
 /*
- * Write the image in array Image to the data store
+ * Read the next raw image from the given file.  Return FALSE when we
+ * hit the EOT.
+ */
+{
+	int	nbytes, i, irline, visline, nblocks, hhmm;
+	lcword	lcw;
+	taperec	record;
+	static int	eofflag = FALSE;
+/*
+ * Zero out the raw images
+ */
+	bzero (RawImageIR, sizeof (RawImageIR));
+	bzero (RawImageVis, sizeof (RawImageVis));
+/*
+ * Read until we hit a header record.  Quit if we hit a double EOF.
+ */
+	nbytes = 0;
+	
+	while (nbytes != sizeof (fileheader))
+	{
+		nbytes = my_read (Fd, &Fheader, sizeof (fileheader));
+		
+		if (nbytes == 0)
+		{
+			msg_ELog (EF_DEBUG, "Read EOF");
+			if (eofflag)
+			{
+				msg_ELog (EF_INFO, "End of tape");
+				return (FALSE);
+			}
+			eofflag = TRUE;
+		}
+		else
+		{
+			msg_ELog (EF_DEBUG, "%d byte rec.", nbytes);
+			eofflag = FALSE;
+		}
+	}
+	
+	EbcdicToAscii ((char *)&Fheader, sizeof (fileheader));
+/*
+ * Grab the IR calibration table
+ */
+	for (i = 0; i < 256; i++)
+		IRCal[i] = ExtractFloat (Fheader.irtable + 7*i, 7);
+
+	IROffset = IRCal[0];
+	IRScale = 255.0 / (IRCal[255] - IRCal[0]);
+/*
+ * Read data lines up to the next EOF
+ */
+	irline = 0;
+	visline = 0;
+	
+	while (TRUE)
+	{
+	/*
+	 * Read the next record
+	 */
+		nbytes = my_read (Fd, &record, sizeof (taperec));
+		
+		if (nbytes == 0)
+		{
+			msg_ELog (EF_DEBUG, "EOF. Raw image complete.");
+			eofflag = TRUE;
+			break;
+		}
+		
+		msg_ELog (EF_DEBUG, "%d byte data record", nbytes);
+	/*
+	 * Convert the EBCDIC stuff to ASCII
+	 */
+		EbcdicToAscii ((char *)&record.rheader, 
+			       sizeof (rechdr));
+		
+		nblocks = ExtractInt (record.rheader.blockcount, 
+				      sizeof (record.rheader.blockcount));
+		
+		for(i = 0; i < nblocks; i++)
+		{
+			
+			EbcdicToAscii ((char *)&record.block[i].lcw, 
+				       sizeof (lcword));
+			EbcdicToAscii ((char *)&record.block[i].tail, 
+				       8);
+		}
+	/*
+	 * Copy the pixel data to the image array
+	 */
+		for (i = 0; i < nblocks; i++)
+		{
+			char	type = record.block[i].lcw.type;
+ 		/*
+		 * Move the data into the image and increment the
+		 * line count.  IR and vis are handled separately.
+		 */
+			if (type == 'I')
+			{
+				memcpy (RawImageIR + (irline * NCOLS), 
+					record.block[i].pixels, 1100);
+				irline++;
+			}
+			else if (type == 'V')
+			{
+				memcpy (RawImageVis + (visline * NCOLS), 
+					record.block[i].pixels, 1100);
+				visline++;
+			}
+			else
+				msg_ELog (EF_DEBUG,
+					  "Unknown data type '%c' ignored");
+		}		
+	}
+/*
+ * Did we get a vis image?
+ */
+	HaveVis = visline > 0;
+/*
+ * Extract a time for the image
+ */
+	lcw = record.block[0].lcw;
+
+	Year = ExtractInt (lcw.year, sizeof (lcw.year));
+	Month = ExtractInt (lcw.month, sizeof (lcw.month));
+	Day = ExtractInt (lcw.day, sizeof (lcw.day));
+
+	hhmm = ExtractInt (lcw.gmtime, sizeof (lcw.gmtime));
+	Hour = hhmm / 100;
+	Minute = hhmm % 100;
+
+	return (TRUE);
+}
+
+
+
+
+static void
+MapToGrids ()
+/*
+ * Map the raw satellite image into our final image grid
+ */
+{
+	int	i, j, line, elem, gridpos, rawpos;
+	float	lat, lon, val;
+
+	NavInit (&Fheader);
+
+	for (j = 0; j < GridY; j++)
+	{
+		lat = Lat_max - Lat_step * j;
+
+		for (i = 0; i < GridX; i++)
+		{
+			lon = Lon_min + Lon_step * i;
+
+			gridpos = j * GridX + i;
+
+			Navigate (lat, lon, &line, &elem);
+			rawpos = line * NCOLS + elem;
+
+			val = IRCal[RawImageIR[rawpos]];
+			GridIR[gridpos] = (unsigned char)
+				(IRScale * (val - IROffset) + 0.5);
+		/*
+		 * We leave visible unscaled
+		 */
+			if (HaveVis)
+				GridVis[gridpos] = RawImageVis[rawpos];
+		}
+	}
+}
+			
+
+
+
+static void
+WriteGrids ()
+/*
+ * Write the image in Grid to the data store
  */
 {
 	ZebTime		t;
 	DataChunk	*dc;
 	Location	loc;
 	RGrid		rg;
-	FieldId		fid;
+	FieldId		fid[2];
+	ScaleInfo	scale[2];
 	PlatformId	pid;
-	ScaleInfo	scale;
 /*
  * Build the zeb time
  */
-	TC_ZtAssemble (&t, year - 1900, month, day, hour, minute, 0, 0);
+	TC_ZtAssemble (&t, Year - 1900, Month, Day, Hour, Minute, 0, 0);
 /*
  * Build the location and rgrid information
  */
-	loc.l_lat = -12.4572;
-	loc.l_lon = 130.9253;
+	loc.l_lat = Lat_min;
+	loc.l_lon = Lon_min;
 	loc.l_alt = 0.000;
 
-	rg.rg_Xspacing = 1.0;
-	rg.rg_Yspacing = 1.0;
+	rg.rg_Xspacing = DEG_TO_KM (Lon_step) * cos (DEG_TO_RAD (OriginLat));
+	rg.rg_Yspacing = DEG_TO_KM (Lat_step);
 	rg.rg_Zspacing = 0.0;
 
-	rg.rg_nX = NCOLS;
-	rg.rg_nY = NROWS;
+	rg.rg_nX = GridX;
+	rg.rg_nY = GridY;
 	rg.rg_nZ = 1;
 /*
  * Build a field list
  */
-	fid = F_DeclareField ("ir", "", "");
-	scale.s_Scale = 1.0;
-	scale.s_Offset = 0.0;
+	fid[0] = F_DeclareField ("ir", "infrared", "K");
+	scale[0].s_Scale = IRScale;
+	scale[0].s_Offset = IROffset;
+
+	fid[1] = F_DeclareField ("vis", "visible", "");
+	scale[1].s_Scale = 1.0;
+	scale[1].s_Offset = 0.0;
 /*
  * Get our platform
  */
-	if ((pid = ds_LookupPlatform ("gms")) == BadPlatform)
+	if ((pid = ds_LookupPlatform (Platname)) == BadPlatform)
 	{
-		msg_ELog (EF_PROBLEM, "Bad platform 'gms'");
+		msg_ELog (EF_PROBLEM, "Bad platform '%s'", Platname);
 		exit (1);
 	}
 /*
@@ -253,15 +531,18 @@ int	year, month, day, hour, minute;
  */
 	dc = dc_CreateDC (DCC_Image);
 	dc->dc_Platform = pid;
-	dc_ImgSetup (dc, 1, &fid, &scale);
+	dc_ImgSetup (dc, HaveVis ? 2 : 1, fid, scale);
 /*
- * Insert the image
+ * Insert the images
  */
-	dc_ImgAddImage (dc, 0, fid, &loc, &rg, &t, Image, NROWS * NCOLS);
+	dc_ImgAddImage (dc, 0, fid[0], &loc, &rg, &t, GridIR, GridX * GridY);
+	if (HaveVis)
+		dc_ImgAddImage (dc, 0, fid[1], &loc, &rg, &t, GridVis, 
+				GridX * GridY);
 /*
  * Write out the data chunk
  */
-	ds_Store (dc, 1, NULL, 0);
+	ds_Store (dc, TRUE, NULL, 0);
 /*
  * Free the data chunk
  */
@@ -285,6 +566,27 @@ int	len;
 	strncpy (copy, string, len);
 	copy[len] = '\0';
 	val = atoi (copy);
+	free (copy);
+	return (val);
+}
+
+
+
+
+static float
+ExtractFloat (string, len)
+char	*string;
+int	len;
+/*
+ * Read and return a float from the first len characters of string
+ */
+{
+	char	*copy = malloc ((len + 1) * sizeof (char));
+	float	val;
+
+	strncpy (copy, string, len);
+	copy[len] = '\0';
+	val = (float) atof (copy);
 	free (copy);
 	return (val);
 }

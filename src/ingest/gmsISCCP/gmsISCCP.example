@@ -1,0 +1,5 @@
+limits -45 110 -5 160
+set platform "gms_aus"
+set originLat -12.4572
+set kmResolution 22
+set source "/dev/nexa1"
