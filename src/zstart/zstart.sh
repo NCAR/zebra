@@ -2,7 +2,7 @@
 #
 # This is an attempt at a generalized zebra startup script.
 #
-# $Id: zstart.sh,v 1.11 1999-11-01 21:49:59 granger Exp $
+# $Id: zstart.sh,v 1.12 1999-11-30 01:29:33 granger Exp $
 #
 # Here we do basic location of directories, set environment variables,
 # and try to hand things off to a project-specific startup file.
@@ -186,16 +186,12 @@ again:
 			setenv ZEB_INTERNET "$ZEB_INTERNET -internet"
 		endif
 	endif
-# 
-# Jump to the shell exec if nothing else explicitly requested
-#
-	if (! $dmonly && ! $dsonly && $execshell) goto start_shell
-
 #
 # Data directory.
 #
 ddir_again:
-	if ( ! $dmonly && ! $?DATA_DIR && ! $?DS_DAEMON_HOST ) then
+	if (! $dmonly && ! $execshell && ! $?DATA_DIR && ! $?DS_DAEMON_HOST) \
+	then
 		if ( $check ) then
 			echo "Data directory unknown."
 			exit 1
@@ -216,7 +212,7 @@ ddir_again:
 # and we don't need to connect to a display.  We may be starting up a
 # datastore session for a remote machine.
 #
-   if (! $dsonly) then
+   if (! $dsonly && ! $execshell) then
 
 	tweakcolor red
 	if ( $status != 0 ) then
@@ -233,12 +229,6 @@ ddir_again:
    endif
 
 #
-# If the user told us to do only the dm startup for a supposedly
-# existing message manager session, so be it
-#
-	if ($dmonly) goto start_dm
-
-#
 # Do everything possible to insure that we start clean.  That means either
 # stopping a running Zebra or setting ZEB_SOCKET to a unique name. 'mstatus'
 # exits with 0 status when message is running, 1 otherwise.  Use the -u
@@ -246,17 +236,21 @@ ddir_again:
 #
 	set someone=`mstatus -u`
 	set mstatus=$status
-	if ($mstatus == 0 && $check) then
+
+	if ($execshell) then
+	    # Fall through to get the environment settings
+	else if ($dmonly) then
+	    if ($mstatus) then
+		echo 'Could not connect to zebra session...'
+		echo 'Display manager cannot be started.'
+		exit 1
+	    endif
+	    # Fall through to starting the dm
+	else if ($mstatus == 0 && $check) then
 	   echo "Zebra session is running."
 	   exit 0
 	else if ($mstatus == 0 && $unique > 0) then
-	    # Its up to us to find a unique socket and session name
-	    set i = 0
-	    while (-e /tmp/zebra.$HOST.$USER.$i)
-		@ i = $i + 1
-	    end
-	    set SESSION=$HOST.$USER.$i
-	    setenv ZEB_SOCKET /tmp/zebra.$SESSION
+	    # Compute the unique socket file below
 	else if ($mstatus == 0) then
 	   echo "User $someone is already running Zebra.  Enter"
 restart_prompt:
@@ -271,33 +265,26 @@ restart_prompt:
 		echo "Stopping the current Zebra session."
 	   else if ("$ans" == "2") then
 		echo "Starting a new Zebra session."
-	 	if (! $?USER) then
-			setenv ZEB_SOCKET /tmp/zeb.socket.$$
-	   	else
-			setenv ZEB_SOCKET /tmp/zeb.$USER.$$
-	   	endif
+		set unique=1
 	   else if ("$ans" == "3") then
-		echo "Starting a display manager."
-		goto start_dm
+		set dmonly=1
 	   else
 		goto restart_prompt
 	   endif
 	endif
-	if ( $?ZEB_SOCKET ) then
-	    echo "This Zebra session will use the socket $ZEB_SOCKET"
-	    echo "Enter 'setenv ZEB_SOCKET $ZEB_SOCKET' at the C-shell"
-	    echo "prompt to run Zebra programs from that shell."
-	endif
-#
-# Now try to start clean, whether deliberately killing an existing Zebra
-# or just cleaning a leftover socket file
-#
-	zstop >& /dev/null
-	sleep 1
-	if ( ! $?ZEB_SOCKET ) then
-		rm -f /tmp/fcc.socket
-	else
-		rm -f $ZEB_SOCKET
+
+	# It's up to us to find a unique socket and session name
+	if ($mstatus == 0 && $unique > 0) then
+	    set username="$HOST"
+	    if ($?USER) then
+		set username="${username}.${USER}"
+	    endif
+	    set i = 0
+	    while (-e /tmp/zebra.$username.$i)
+		@ i = $i + 1
+	    end
+	    set SESSION=$username.$i
+	    setenv ZEB_SOCKET /tmp/zebra.$SESSION
 	endif
 #
 # Make pointers to all of our executables so that somebody can
@@ -325,7 +312,37 @@ restart_prompt:
 	if (! $?ZEB_TIMER) setenv ZEB_TIMER $ZEB_TOPDIR/bin/timer
 	if (! $?ZEB_DSDAEMON) setenv ZEB_DSDAEMON $ZEB_TOPDIR/bin/dsDaemon
 	if (! $?ZEB_DM) setenv ZEB_DM $ZEB_TOPDIR/bin/dm
-
+	if (! $?DEFAULT_CONFIG) setenv DEFAULT_CONFIG empty
+	if (! $?ZEB_DM_CONFIG) setenv ZEB_DM_CONFIG dm.config
+	if (! $?ZEB_SHELL) then
+		if ($?SHELL) then
+			setenv ZEB_SHELL "$SHELL"
+		else
+			setenv ZEB_SHELL 'csh -f'
+		endif
+	endif
+#
+# If the user told us to do only the dm startup for an existing message
+# manager session, so be it.  Likewise for a shell.  At this point all of
+# the environment variables should be set just as for any other session
+# start-up.
+#
+	if ($dmonly) goto start_dm
+	if ($execshell) goto start_shell
+#
+# Now try to start clean, whether deliberately killing an existing Zebra
+# or just cleaning a leftover socket file
+#
+	zstop >& /dev/null
+	sleep 1
+	if ( $?ZEB_SOCKET ) then
+	    rm -f $ZEB_SOCKET
+	    echo "This Zebra session will use the socket $ZEB_SOCKET"
+	    echo "Enter 'setenv ZEB_SOCKET $ZEB_SOCKET' at the C-shell"
+	    echo "prompt to run Zebra programs from that shell."
+	else
+	    rm -f /tmp/fcc.socket
+	endif
 #
 # Start core processes.  Message is started in foreground now; we'll wait
 # for it to background itself.  Use eval, though, in case someone wants to
@@ -358,25 +375,23 @@ restart_prompt:
 	else
 		echo '	datastore '
 		eval "$ZEB_DSDAEMON ds.config &"
+		sleep 2
 	endif
 #
 # If they only wanted a baseline datastore running, we quit here
 #
-	if ( $dsonly && $execshell ) goto start_shell
 	if ( $dsonly ) then
 		echo "Datastore running..."
+		if ( $execshell ) goto start_shell
 		exit 0
 	endif
-	sleep 5
-
 #
 # If a display manager is already running, start the second one in
 # multiple mode.
 #
 start_dm:
+	echo "Starting a display manager."
 	set multiple=""
-	if ( ! $?DEFAULT_CONFIG ) setenv DEFAULT_CONFIG empty
-	if ( ! $?ZEB_DM_CONFIG ) setenv ZEB_DM_CONFIG dm.config
 	mstatus | grep Displaymgr > /dev/null
 	if ( $status == 0) set multiple="-multiple -name Dmgr-$$"
 	eval $ZEB_DM $multiple $ZEB_DM_CONFIG
@@ -389,12 +404,6 @@ start_dm:
 # Fall through on -shell option
 #
 start_shell:
-	if ( ! $?ZEB_SHELL ) then
-		if ( $?SHELL ) then
-			setenv ZEB_SHELL "$SHELL"
-		else
-			setenv ZEB_SHELL 'csh -f'
-		endif
-	endif
+	echo "Starting Zebra environment shell."
 	set path=(. $path)
 	exec $ZEB_SHELL
