@@ -1,8 +1,8 @@
 /*
- * Imakefile for the DataStore, including its real-time utilities
+ * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.9 1993-05-10 16:34:07 barrett Exp $"
+MFVERSION="$Id: Imakefile,v 1.10 1993-05-26 19:22:28 corbet Exp $"
 
 LIBS=$(LIBZEB) $(LIBNETCDF) $(LIBRDSS)
 LIBGCC=/usr/local/lib/gcc-lib/sparc-sun-sunos4.1.2/2.2/libgcc.a
@@ -14,20 +14,13 @@ CLIBS=$(LIBGCC)
 DSOBJS= Daemon.o d_DataTables.o d_Config.o d_Notify.o d_Scan.o
 DSSRCS= Daemon.c d_DataTables.c d_Config.c d_Notify.c d_Scan.c
 
-/*
- * BINSRCS, BINOBJS = Sources for DS utilities
- */
-BINSRCS= dsdump.c zfdump.c rfdump.c bfdump.c dsdelete.c \
-	 dsdwidget.c dsrescan.c Archiver.c LastData.c prt_Notify.c
-BINOBJS= dsdump.o zfdump.o rfdump.o bfdump.o dsdelete.o \
-	 dsdwidget.o dsrescan.o Archiver.o LastData.o prt_Notify.o
 
 /* 
  * DSLIBOBJS, DSLIBSRCS = normal DS library code 
  */
-DSLIBOBJS = Appl.o DataFileAccess.o DFA_NetCDF.o \
+DSLIBOBJS = Appl.o DataFileAccess.o DFA_NetCDF.o ingest.o \
 	GetList.o DFA_Boundary.o DFA_Raster.o Fields.o DFA_Zeb.o
-DSLIBSRCS = Appl.c DataFileAccess.c DFA_NetCDF.c \
+DSLIBSRCS = Appl.c DataFileAccess.c DFA_NetCDF.c ingest.c \
 	GetList.c DFA_Boundary.c DFA_Raster.c Fields.c DFA_Zeb.c
 
 /* 
@@ -40,18 +33,12 @@ DCSRCS = DataChunk.c dc_Boundary.c dc_IRGrid.c dc_Image.c \
 	dc_MetData.c dc_RGrid.c dc_Scalar.c dc_Transp.c dc_Attr.c \
 	dc_Location.c dc_NSpace.c
 
-/*
- * For NetXfr:
- */
-NXSRCS = NetXfr.c nx_BCast.c nx_PktGrabber.c nx_DirImage.c
-NXOBJS = NetXfr.o nx_BCast.o nx_PktGrabber.o nx_DirImage.o
 
 /*
  * For debugging
  */
 TESTSRCS = dstest.c dctest.c nstest.c nxtest.c
 
-APPDEFAULTS = Archiver.ad LastData.ad dsdwidget.ad
 
 /*
  * All of the sources in this directory, for the make depend
@@ -59,13 +46,13 @@ APPDEFAULTS = Archiver.ad LastData.ad dsdwidget.ad
  * need to be changed if it is decided that they will not be
  * distributed with the general distribution
  */
-SRCS = $(DSLIBSRCS) $(DCSRCS) $(DSSRCS) $(NXSRCS) $(BINSRCS) $(TESTSRCS)
+SRCS = $(DSLIBSRCS) $(DCSRCS) $(DSSRCS) 
 
-HEADERS = BoundaryFile.h DataChunk.h DataChunkP.h DataStore.h NetXfr.h \
+HEADERS = BoundaryFile.h DataChunk.h DataChunkP.h DataStore.h \
 	  RasterFile.h commands.h dfa.h dsDaemon.h dsPrivate.h \
-	  ds_fields.h dslib.h znfile.h
+	  ds_fields.h dslib.h znfile.h ingest.h fields.h
 
-DISTFILES = Imakefile $(SRCS) $(HEADERS) Daemon.state NetXfr.state \
+DISTFILES = Imakefile $(SRCS) $(HEADERS) Daemon.state \
 	    $(APPDEFAULTS)
 
 
@@ -74,69 +61,14 @@ NormalProgramTarget(dsDaemon,$(DSOBJS) $(DSLIBOBJS) $(DCOBJS),
 
 UILoadFileTarget(dsDaemon.lf,Daemon.state)
 
-NormalProgramTarget(dsdump,dsdump.o $(DSLIBOBJS) $(DCOBJS),
-		  $(DEPLIBS),$(LIBS),$(SYSLIBS))
+/*
+ * Make the library.
+ */
+NormalLibraryTarget (ZebDS, $(DSLIBOBJS) $(DCOBJS))
 
-NormalProgramTarget(zfdump,zfdump.o $(DSLIBOBJS) $(DCOBJS),
-		  $(DEPLIBS),$(LIBS),$(SYSLIBS))
-
-NormalProgramTarget(dsdwidget,dsdwidget.o $(DSLIBOBJS) $(DCOBJS),
-		    $(DEPLIBS),$(LIBS) $(XLIBS),$(SYSLIBS))
-InstallAppDefaults(dsdwidget)
-
-NormalProgramTarget(prt_Notify,
-		    prt_Notify.o d_Notify.o $(DSLIBOBJS) $(DCOBJS),
-		    $(DEPLIBS),$(LIBS),$(SYSLIBS))
-
-NormalProgramTarget(dsdelete,dsdelete.o $(DSLIBOBJS) $(DCOBJS),
-		    $(DEPLIBS), $(LIBS), $(SYSLIBS))
-
-NormalProgramTarget(dsrescan,dsrescan.o $(DSLIBOBJS) $(DCOBJS),
-		    $(DEPLIBS), $(LIBS), $(SYSLIBS))
-		    
-
-InstallObjectsIntoLibrary($(LIBZEB),$(DSLIBOBJS) $(DCOBJS))
-
+InstallLibrary (ZebDS, LibDir)
 
 BuildIncludes(DataStore.h ds_fields.h DataChunk.h,.,.)
-
-/*
- * Test programs.  These programs are not included in the all::
- * or install:: targets, but they are cleaned and they will have
- * saber targets just like normal programs, and their dependencies
- * will be listed by makedepend
- */
-TestProgramTarget(dctest,dctest.o $(DCOBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
-
-TestProgramTarget(nstest,nstest.o $(DSLIBOBJS) $(DCOBJS),$(DEPLIBS),
-		  $(LIBS),$(SYSLIBS))
-
-TestProgramTarget(dstest,dstest.o $(DSLIBOBJS) $(DCOBJS),
-		  $(DEPLIBS),$(LIBS),$(SYSLIBS))
-
-TestProgramTarget(nxtest,nxtest.o $(DSLIBOBJS) $(DCOBJS),
-		  $(DEPLIBS),$(LIBS),$(SYSLIBS))
-
-# if RT_DS_TOOLS
-/*
- * Conditional makefile rules for real-time DataStore utilities
- */
-
-NormalProgramTarget(NetXfr, $(NXOBJS) $(DSLIBOBJS) $(DCOBJS),
-	$(DEPLIBS),$(LIBS) $(XLIBS),$(SYSLIBS))
-	
-NormalProgramTarget(LastData,LastData.o $(DSLIBOBJS) $(DCOBJS),
-		$(DEPLIBS), $(LIBS) $(XLIBS), $(SYSLIBS))
-
-NormalProgramTarget(Archiver,Archiver.o $(DSLIBOBJS) $(DCOBJS),
-		$(DEPLIBS),$(LIBS) $(XLIBS),$(SYSLIBS))
-
-UILoadFileTarget(NetXfr.lf,NetXfr.state)
-
-InstallAppDefaults(Archiver)
-InstallAppDefaults(LastData)
-
-# endif /* RT_DS_TOOLS */
 
 /*
  * Saber stuff.  This is a bit complicated, depending on what you are
@@ -150,29 +82,6 @@ saber_lib:
 	#setopt ansi
 	#load $(CFLAGS) -I/usr/local/include $(DSLIBSRCS) $(DCOBJS)
 	#load -Bstatic $(LIBS) $(LIBGCC)
-
-saber_dsd: saber_lib
-	#load $(CFLAGS) dsdump.c
-
-saber_pn: saber_lib
-	#load $(CFLAGS) prt_Notify.c d_Notify.c
-
-saber_dct:
-	#setopt ansi
-	#load $(CFLAGS) dctest.c $(DCSRCS)
-	#load -Bstatic $(LIBS) $(LIBGCC)
-
-saber_dst: saber_lib
-	#setopt ansi
-	#load $(CFLAGS) dstest.c
-
-saber_arc: saber_lib
-	#setopt ansi
-	#load $(CFLAGS) Archiver.c $(XLIBS)
-
-saber_nx: saber_lib
-	#setopt ansi
-	#load $(CFLAGS) $(NXSRCS) $(XLIBS)
 
 DependTarget()
 
