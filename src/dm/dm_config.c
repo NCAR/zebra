@@ -35,7 +35,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm_config.c,v 1.24 1995-06-29 21:26:23 granger Exp $")
+MAKE_RCSID ("$Id: dm_config.c,v 1.25 1995-07-18 19:07:01 granger Exp $")
 
 /*
  * Exported variables
@@ -600,7 +600,12 @@ dg_SyncStates ()
 	{
 		if (proc->p_state == P_ACTIVE)
 		{
-			dg_SuspendWindow (proc->p_cfw);
+			if (! proc->p_cfw)
+				msg_ELog (EF_DEBUG,
+				  "warning: active process '%s' has no window",
+				  proc->p_name);
+			else
+				dg_SuspendWindow (proc->p_cfw);
 			proc->p_state = P_UNMAPPED;
 		}
 		else if (proc->p_state == P_ASSIGNED)
@@ -626,6 +631,7 @@ struct ui_command *cmds;
  * First, go through and make sure we have the right number of params.
  */
 	for (i = 0; i < cfg->c_nlink; i++)
+	{
 		if (cmds[i].uc_ctype == UTT_END)
 		{
 			msg_ELog (EF_PROBLEM,
@@ -633,6 +639,7 @@ struct ui_command *cmds;
 				cfg->c_nlink, i - 1);
 			return (FALSE);
 		}
+	}
 	if (cmds[i].uc_ctype != UTT_END)
 		msg_ELog (EF_PROBLEM, "Too many link parameters given");
 /*
@@ -1124,7 +1131,7 @@ int force;
 	 * give the window its own copy.
 	 */
 	if (g->g_pd)
-		/* Already there don't mung it */
+		/* Already there don't munge it */
 		;
 	else if (! g->g_linkpar && ! g->g_forcepd && exist &&
 		 exist->cfw_graphic)
