@@ -30,7 +30,7 @@
 # include "DrawText.h"
 # include "PixelCoord.h"
 # include "GC.h"
-MAKE_RCSID ("$Id: Annotate.c,v 2.37 2001-04-20 05:04:54 granger Exp $")
+MAKE_RCSID ("$Id: Annotate.c,v 2.38 2001-04-20 08:26:26 granger Exp $")
 
 /*
  * Graphics context (don't use the global one in GC.h because we don't
@@ -55,6 +55,7 @@ static int	SA_first;
 
 static int	Ncomps;		/* How many components		*/
 
+static XColor Tadefclr;
 
 
 
@@ -77,13 +78,42 @@ void An_GetSideParams FP ((char *, float *, int *));
 void An_GetTopParams FP ((XColor *, int *));
 
 
+static void
+An_Setup ()
+{
+/*
+ * Get annotation information
+ */
+	float tascale;
+	char tadefcolor[64];
+
+	if (! pda_Search (Pd, "global", "ta-color", NULL, tadefcolor, 
+			  SYMT_STRING))
+	    strcpy (tadefcolor, "white");
+
+	if (! ct_GetColorByName (tadefcolor, &Tadefclr))
+	{
+	    msg_ELog (EF_PROBLEM, "Can't get top annotation color: '%s'.",
+		      tadefcolor);
+	    strcpy (tadefcolor, "white");
+	    ct_GetColorByName (tadefcolor, &Tadefclr);
+	}
+
+	if (pda_Search (Pd, "global", "ta-scale", NULL, (char *) &tascale,
+			SYMT_FLOAT))
+	{
+	    An_SetScale (tascale);
+	}
+}
+	
+
 void
-An_ResetAnnot (nc)
-int nc;
+An_ResetAnnot (int nc)
 /*
  * Reset the annotation position
  */
 {
+        An_Setup ();
 /*
  * Get the line spacing for the top annotation. (If Annot_Scale is > 1, we
  * assume it's an absolute pixel height, otherwise a scale factor relative
@@ -127,28 +157,42 @@ float scale;
 
 
 void
-An_TopAnnot (string, color)
+An_TopAnnot (string)
 const char *string;
-Pixel color;
 /*
- * Older interface.
+ * Use the default top annotation color for the text.
  */
 {
-	An_DoTopAnnot (string, color, 0, 0);
+	An_DoTopAnnot (string, Tadefclr.pixel, 0, 0);
 }
 
 
 
+void
+An_TopAnnotMatch (const char *string, Pixel color, const char *comp,
+		  const char *plat)
+/*
+ * Use the given color only if color matching enabled, which requires that
+ * the component be passed (non-null).  Otherwise this entry is the same as
+ * An_DoTopAnnot().
+ */
+{
+    zbool tacmatch = FALSE;
+    if (comp)
+	pda_Search (Pd, comp, "ta-color-match", NULL, (char *) &tacmatch,
+		    SYMT_BOOL);
+    An_DoTopAnnot (string, tacmatch ? color : Tadefclr.pixel, comp, plat);
+}
+
+
 
 void
-An_DoTopAnnot (string, color, comp, plat)
-const char	*string;
-Pixel	color;
-const char *comp, *plat;
+An_DoTopAnnot (const char *string, Pixel color, 
+	       const char *comp, const char *plat)
 /*
- * Add the string to the top annotation using the given color.  If "comp"
- * and "plat" are provided, the annotation is made active using these
- * parameters.
+ * This is the full interface to adding top annotation.  Add the string to
+ * the top annotation using the given color.  If both "comp" and "plat" are
+ * provided, the annotation is made active using these parameters.
  */
 {
 	int	i, brk, slen, swidth, sx, sy, ex, ey;
@@ -256,7 +300,7 @@ const char *comp, *plat;
 /*
  * If they want this thing activated, go for it.
  */
-	if (comp)
+	if (comp && plat)
 		I_ActivateArea (sx - 2, ey + 2, ex - sx + 4, sy - ey + 3,
 				"topannot", comp, plat, 0);
 /*
@@ -994,16 +1038,14 @@ int *match;
  * Get all side annotation parameters from the plot description.
  */
 {
-	char colorstr[40];
 	zbool bmatch = FALSE;
 
-        if(! pd_Retrieve (Pd, "global", "ta-color", colorstr, SYMT_STRING))
-                strcpy (colorstr, "white");
-        if(! ct_GetColorByName (colorstr, color))
-                ct_GetColorByName ("white", color);
+	if (color)
+	    *color = Tadefclr;
         pd_Retrieve (Pd, "global", "ta-color-match", (char *) &bmatch, 
-		SYMT_BOOL);
-        *match = (int) bmatch;
+		     SYMT_BOOL);
+	if (match)
+	    *match = (int) bmatch;
 }
 
 

@@ -40,7 +40,7 @@
 # include "DrawText.h"
 # include "PlotPrim.h"
 
-RCSID ("$Id: XYObservation.c,v 1.28 2001-04-20 05:04:56 granger Exp $")
+RCSID ("$Id: XYObservation.c,v 1.29 2001-04-20 08:26:29 granger Exp $")
 
 /*
  * Enum to tell how we anchor z values
@@ -81,7 +81,7 @@ zbool	update;
 	ZebTime	eTimeTarget, bTimeTarget, bTimeOld, eTimeOld;
 	ZebTime	eTimeReq, bTimeReq;
 	float	zstart, xfrac, zScale, fscale;
-	Pixel	taColor, *lcolor;
+	Pixel	*lcolor;
 	ZAnchorType	zanchor;
 	DataValPtr	*xdata, *ydata, *zdata;
 	DataValRec	xmin, xmax, ymin, ymax, zmin[MAX_PLAT], zmax[MAX_PLAT];
@@ -89,6 +89,9 @@ zbool	update;
 	DataValRec	xpos[2], ypos[2];
 	xyDataVector	dv[3];
 	xyObsInfo	*dvObsInfo;
+	XColor taColor;
+
+	An_GetTopParams (&taColor, 0);
 /*
  * Get X-Y Observation Required parameters:
  * "platform","x-field", "y-field", "z-field"
@@ -217,7 +220,7 @@ zbool	update;
  * Colors
  */
 	lcolor = (Pixel *) malloc (nplat * sizeof (Pixel));
-	xy_GetPlotColors (c, nplat, lcolor, &taColor);
+	xy_GetPlotColors (c, nplat, lcolor);
 /*
  * Initialize data min/max values.
  */
@@ -367,8 +370,8 @@ zbool	update;
 	    {
 		    ac_PlotAxes (c);
 
-		    An_TopAnnot ("XYObservation:", taColor);
-		    An_TopAnnot (c, taColor);
+		    An_TopAnnot ("XYObservation:");
+		    An_TopAnnot (c);
 	    }
 	/*
 	 * Get our coordinates back, with zooming applied if necessary, then
@@ -447,13 +450,13 @@ zbool	update;
 			    ypos[0] = ybottom;
 			    ypos[1] = ytop;
 			    pp_SetLWidth (c, "axis-z-line-width", NULL, 0);
-			    pp_Pline (xpos, ypos, 2, L_dashed, taColor);
+			    pp_Pline (xpos, ypos, 2, L_dashed, taColor.pixel);
 
 			    pp_UnClip ();
 			/*
 			 * Numeric label
 			 */
-			    XSetForeground (Disp, Gcontext, taColor);
+			    XSetForeground (Disp, Gcontext, taColor.pixel);
 			    sprintf (label, "%0.2f", 
 				     zdata[plat][obsStart].val.f);
 
@@ -489,7 +492,7 @@ zbool	update;
 	 * Add a period to the top annotation
 	 */
 	    if (! update)
-		    An_TopAnnot (".  ", taColor);
+		    An_TopAnnot (".  ");
 	}
 /*
  * Free local memory

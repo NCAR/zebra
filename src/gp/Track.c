@@ -44,7 +44,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: Track.c,v 2.50 2001-04-20 05:04:55 granger Exp $")
+RCSID ("$Id: Track.c,v 2.51 2001-04-20 08:26:27 granger Exp $")
 
 # define ARROWANG .2618 /* PI/12 */
 # ifndef M_PI
@@ -753,64 +753,46 @@ TrackParams *tparams;
  * Annotate the track we have just done.
  */
 {
-	char tadefcolor[30], datastr[100];
-	XColor tadefclr, taclr, xc;
-	zbool tacmatch = FALSE;
-/*
- * Read in annotation information.
- */
-	if(! tr_GetParam ("global", "ta-color", NULL, tadefcolor, 
-			SYMT_STRING))
-		strcpy (tadefcolor, "white");
-	if(! ct_GetColorByName (tadefcolor, &tadefclr))
-	{
-		msg_ELog (EF_PROBLEM, "Can't get default color: '%s'.", 
-			tadefcolor);
-		strcpy (tadefcolor, "white");
-		ct_GetColorByName (tadefcolor, &tadefclr);
-	}
-/*
- * Do we do color matching?
- */
-	tr_GetParam ("global", "ta-color-match", NULL, (char *) &tacmatch,
-		SYMT_BOOL);
-	if (tacmatch)
-		taclr = tparams->tp_ArrowColor;
-	else
-		taclr = tadefclr;
+	char datastr[100];
+	XColor taclr, xc;
 /*
  * Annotate along the top.
  */
-	An_TopAnnot (" ", tadefclr.pixel);
-	An_TopAnnot (platform, tadefclr.pixel);
+	taclr = tparams->tp_ArrowColor;
+	An_TopAnnot (" ");
+	An_TopAnnot (platform);
 	if (! tparams->tp_Mono)
 	{
-		An_TopAnnot (" ", tadefclr.pixel);
-		An_TopAnnot (px_FldDesc (tparams->tp_CCField), tadefclr.pixel);
+		An_TopAnnot (" ");
+		An_TopAnnot (px_FldDesc (tparams->tp_CCField));
+		An_TopAnnot (" track");
 	}
-	An_TopAnnot (" track", tadefclr.pixel);
+	else
+	{
+		ct_GetColorByName (tparams->tp_MTColor, &xc);
+		An_TopAnnotMatch (" track", xc.pixel, comp, 0);
+	}
 	if (tparams->tp_Shifted)
-		An_TopAnnot (" (SHIFTED)", tadefclr.pixel);
+		An_TopAnnot (" (SHIFTED)");
 /*
  * Annotate arrows if necessary.
  */
 	if (tparams->tp_DoArrows)
 	{
-		An_TopAnnot (" with ",tadefclr.pixel);
-		An_TopAnnot (tparams->tp_AType, taclr.pixel);
-		An_TopAnnot (tparams->tp_Barb ? " barbs" : " vectors",
-				taclr.pixel);
+		An_TopAnnot (" with ");
+		An_TopAnnotMatch (tparams->tp_AType, taclr.pixel, comp, 0);
+		An_TopAnnotMatch (tparams->tp_Barb ? " barbs" : " vectors",
+				  taclr.pixel, comp, 0);
 	}
-	An_TopAnnot (".  ", tadefclr.pixel);
+	An_TopAnnot (".  ");
 /*
  * Down the side too.
  */
 	if (tparams->tp_Mono)
 	{
-		ct_GetColorByName (tparams->tp_MTColor, &xc);
 		sprintf (datastr, "%s|%li", platform, xc.pixel);
 		An_AddAnnotProc (An_ColorString, comp, datastr,
-			strlen (datastr), 25, FALSE, FALSE);
+				 strlen (datastr), 25, FALSE, FALSE);
 	}
 	else
 	{
@@ -1132,6 +1114,7 @@ TrackParams *tparams;
 	tparams->tp_Vectime = 0;
 	tparams->tp_BadValue = 0;
 	tparams->tp_Shifted = FALSE;
+	return TRUE;
 }
 
 

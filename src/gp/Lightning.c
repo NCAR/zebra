@@ -35,7 +35,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID("$Id: Lightning.c,v 2.15 1998-10-28 21:21:48 corbet Exp $")
+RCSID("$Id: Lightning.c,v 2.16 2001-04-20 08:26:27 granger Exp $")
 
 extern Pixel	White;
 
@@ -211,7 +211,7 @@ zbool update;
 	 * On the top.
 	 */
 		sprintf (temp, "%s location.", platform);
-		An_TopAnnot (temp, tadefclr.pixel);
+		An_TopAnnot (temp);
 	/*
 	 * Down the side too.
 	 */

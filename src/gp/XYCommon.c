@@ -35,7 +35,7 @@
 # include "DrawText.h"
 # include "XYCommon.h"
 
-RCSID("$Id: XYCommon.c,v 1.36 2000-11-16 23:01:00 granger Exp $")
+RCSID("$Id: XYCommon.c,v 1.37 2001-04-20 08:26:28 granger Exp $")
 
 /* 
  * One somewhat reasonable definition for infinity in XDR, lifted from 
@@ -54,11 +54,6 @@ char	Scratch[200];
  * Our routines.
  */
 void	xy_Init FP ((ZebTime *));
-
-/*
- * Default top annotation color (from PlotExec.c)
- */
-extern XColor 	Tadefclr;
 
 static plot_description XYPD = 0;
 
@@ -503,21 +498,15 @@ int	*dmode;
 
 
 void
-xy_GetPlotColors (c, nplat, datacolor, topAnnColor)
-char	*c;
-int	nplat;
-Pixel	*datacolor;
-Pixel	*topAnnColor;
+xy_GetPlotColors (char	*c, int	nplat, Pixel *datacolor)
 /*
  * Get the color names for "ta-color" and "field-color"
  * from the plot description and return the pixel values.
  *	c:	the component to search
  *	nplat:	the number of colors expected for "field-color"
  *	datacolor:	the (returned) list of platform colors.
- *	topAnnColor:	the (returned) top annotation color
  * 
- * If datacolor or topAnnColor is NULL, then that value will not
- * be searched for.
+ * If datacolor is NULL, then that value will not be searched for.
  */
 {
 	char	*colorlist[MAX_PLAT];
@@ -525,22 +514,6 @@ Pixel	*topAnnColor;
 	XColor	xc;
  	int 	ncol;
 	int	i;
-/*
- * Get color for top annotation
- */
-	if (topAnnColor)
-	{
-		*topAnnColor = white;
-
-		if (pda_Search (Pd, c, "ta-color", NULL, Scratch, SYMT_STRING))
-		{
-			if (ct_GetColorByName (Scratch, &xc))
-				*topAnnColor = xc.pixel;
-			else
-				msg_ELog (EF_PROBLEM, 
-					  "Can't get ta-color '%s'", Scratch);
-		}
-	}
 /*
  * Get color for data from each platform
  */

@@ -30,11 +30,10 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-MAKE_RCSID ("$Id: Histogram.c,v 2.8 1999-03-01 02:04:24 burghart Exp $")
+MAKE_RCSID ("$Id: Histogram.c,v 2.9 2001-04-20 08:26:26 granger Exp $")
 
 # if C_PT_HISTOGRAM
 
-extern XColor Tadefclr;		/* Sigh....*/
 /*
  * A couple of globals set up so that each histogram component knows what
  * to do when plot time comes up.
@@ -124,7 +123,7 @@ ZebTime *t;
  * There's not much useful we can put into the top annotation, but there
  * might as well be something there...
  */
-	An_DoTopAnnot ("Histogram", Tadefclr.pixel, NULL, NULL);
+	An_TopAnnot ("Histogram");
 /*
  * That's about it.
  */

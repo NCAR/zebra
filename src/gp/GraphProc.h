@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.72 2001-04-20 05:04:55 granger Exp $ */
+/* $Id: GraphProc.h,v 2.73 2001-04-20 08:26:26 granger Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -323,6 +323,7 @@ extern void An_AnnotLimits FP ((int *, int *, int *, int *));
 extern void An_SAUsed FP ((int));
 extern void An_XYGString FP ((char *, char *, int, int, int));
 extern void An_XYZGString FP ((char *, char *, int, int, int));
+extern void An_TopAnnot FP ((const char *));
 
 /* PLot description monitor protocol */
 extern void pdm_Init FP ((void));
@@ -442,7 +443,8 @@ extern DataChunk *GetVorticity ( ZebTime *, char *, char *, FieldId, int *,
 	extern void ct_DeleteTable FP ((char *));
 	extern int ct_GetColorByName FP ((char *, XColor *));
 	extern int ct_GetColorByRGB FP ((XColor *));
-	extern void An_TopAnnot FP ((const char *, Pixel));
+	extern void An_TopAnnotMatch FP ((const char *, Pixel, const char *,
+					  const char *));
 	extern void An_DoTopAnnot FP ((const char *, Pixel, const char *, 
 				       const char *));
 	extern void An_GetTopParams FP ((XColor *, int *));

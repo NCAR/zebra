@@ -56,7 +56,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.85 2001-04-20 05:04:55 granger Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.86 2001-04-20 08:26:26 granger Exp $")
 
 
 /*
@@ -80,7 +80,6 @@ static float	Sascale;
  * Non-modular kludgery to make things work for now, until something better
  * gets implemented.  All of these are defined in PlotExec.c.
  */
-extern XColor Tadefclr;		/* Kludge, for now	*/
 extern int Comp_index;
 extern Pixel White;
 
@@ -184,6 +183,7 @@ ZebTime *t;
 {
 	char	altlabel[40], prjlabel[80];
 	float	annotscale;
+	XColor tacolor;
 /*
  * Header line for the overlay times widget.
  */
@@ -200,7 +200,8 @@ ZebTime *t;
 	annotscale = TOPANNOTHEIGHT;
 	pd_Retrieve (Pd, "global", "ta-scale", (char *) &annotscale, 
 		     SYMT_FLOAT);
-	XSetForeground (XtDisplay (Graphics), Gcontext,Tadefclr.pixel);
+	An_GetTopParams (&tacolor, 0);
+	XSetForeground (XtDisplay (Graphics), Gcontext, tacolor.pixel);
 /*
  * Throw in the altitude label.
  */
@@ -218,7 +219,7 @@ ZebTime *t;
  * going about it.
  */
 	sprintf (prjlabel, "%s projection: ", prj_GetProjName ());
-	An_DoTopAnnot (prjlabel, Tadefclr.pixel, "global", "proj");
+	An_DoTopAnnot (prjlabel, tacolor.pixel, "global", "proj");
 	Require ("projection");
 # endif
 }
@@ -269,7 +270,7 @@ zbool	update;
 		 shift ? " (SHIFTED)" : "");
 	string[0] = toupper (string[0]);
 
-	An_TopAnnot (string, Tadefclr.pixel);
+	An_TopAnnot (string);
 /*
  * If there's no side annotation we can go have a beer now.
  */
@@ -331,16 +332,13 @@ zbool	update;
  */
 	sprintf (string, "%s ", plat);
 	string[0] = toupper (string[0]);
-	An_TopAnnot (string, Tadefclr.pixel);
 
-	if (Monocolor && pda_Search (Pd, c, "ta-color-match", NULL, 
-				     CPTR (tacmatch), SYMT_BOOL) && tacmatch)
-		An_TopAnnot (px_FldDesc (fname), Ctclr.pixel);
-	else 
-		An_TopAnnot (px_FldDesc (fname), Tadefclr.pixel);
-
-	An_TopAnnot (shift ? " contour (SHIFTED).  " : " contour.  ",
-		     Tadefclr.pixel);
+	An_TopAnnot (string);
+	if (Monocolor)
+	    An_TopAnnotMatch (px_FldDesc (fname), Ctclr.pixel, c, 0);
+	else
+	    An_TopAnnot (px_FldDesc (fname));
+	An_TopAnnot (shift ? " contour (SHIFTED).  " : " contour.  ");
 /*
  * Side annotation
  */
@@ -763,11 +761,8 @@ zbool update;
  */
 	if (! update)
 	{
-		if (pda_Search (Pd, c, "ta-color-match", NULL, (char *)
-				&tacmatch, SYMT_BOOL) && tacmatch)
-			An_TopAnnot ("Station plot (", color.pixel);
-		else
-			An_TopAnnot ("Station plot (", Tadefclr.pixel);
+	    An_TopAnnotMatch ("Station plot", color.pixel, c, 0);
+	    An_TopAnnot (" (");
 	}
 /*
  * Go through all the platforms.
@@ -835,7 +830,7 @@ zbool update;
 			CAP_AddStatusLine (c, pnames[i], "(station)", alt,
 					   altunits, &zt);
 			sprintf (annot, "%s%s", (i == 0) ? "" : " ",pnames[i]);
-			An_TopAnnot (annot, Tadefclr.pixel);
+			An_TopAnnot (annot);
 		}
 	}
 /*
@@ -847,9 +842,7 @@ zbool update;
 /*
  * Top annotation
  */
-	if (shifted)
-		An_TopAnnot (" [SHIFTED]", Tadefclr.pixel);
-	An_TopAnnot (").", Tadefclr.pixel);
+	An_TopAnnot (shifted ? " [SHIFTED])." : ").");
 /*
  * Side annotation.
  */
@@ -1380,7 +1373,7 @@ zbool	update;
 	float	vscale, x0, x1, y0, y1, alt, badvalue;
 	int	pix_x0, pix_x1, pix_y0, pix_y1, xdim, ydim;
 	int	linewidth, len, degrade, shifted, i;
-	zbool	tacmatch = FALSE, grid = FALSE, do_vectors, proj;
+	zbool	grid = FALSE, do_vectors, proj;
 	XColor	color;
 	ZebTime zt;
 	DataChunk	*udc, *vdc;
@@ -1514,16 +1507,12 @@ zbool	update;
 /*
  * Top annotation
  */
-	if (pda_Search (Pd, c, "ta-color-match", NULL, (char *) &tacmatch,
-			SYMT_BOOL) && tacmatch)
-		An_TopAnnot ("Vector winds", color.pixel);
-	else
-		An_TopAnnot ("Vector winds", Tadefclr.pixel);
+	An_TopAnnotMatch ("Vector winds", color.pixel, c, 0);
 	sprintf (annot, " plot (%s)", platform);
-	An_TopAnnot (annot, Tadefclr.pixel);
+	An_TopAnnot (annot);
 	if (shifted)
-		An_TopAnnot (" (SHIFTED)", Tadefclr.pixel);
-	An_TopAnnot (".", Tadefclr.pixel);
+		An_TopAnnot (" (SHIFTED)");
+	An_TopAnnot (".");
 /*
  * Side annotation (scale vectors or barbs)
  */
@@ -2036,7 +2025,7 @@ CAP_Raster (char *c, zbool update)
  * Now add any top or side annotation procedures
  */
 	if (topannot[0])
-		An_TopAnnot (topannot, Tadefclr.pixel);
+		An_TopAnnot (topannot);
 	if (sideannot[0])
 	{
 		An_AddAnnotProc (CAP_RasterSideAnnot, c, sideannot,
@@ -2060,9 +2049,11 @@ int datalen, begin, space;
 	int highlight;
 	int bpl;
 	XColor *colors, xc;
+	XColor tacolor;
 /*
  * Get annotation parameters.
  */
+	An_GetTopParams (&tacolor, 0);
 	An_GetSideParams (comp, &scale, &limit);
 /*
  * Get the data.
@@ -2075,7 +2066,7 @@ int datalen, begin, space;
  * Throw in the field name.
  */
 	left = An_GetLeft ();
-	XSetForeground (XtDisplay (Graphics), Gcontext, Tadefclr.pixel);
+	XSetForeground (XtDisplay (Graphics), Gcontext, tacolor.pixel);
 	DrawText (Graphics, GWFrame (Graphics), Gcontext, left, 
 		begin, string, 0.0, scale, JustifyLeft, 
 		JustifyCenter);
@@ -2113,7 +2104,7 @@ int datalen, begin, space;
 		val = center + (nsteps/2.0 - i) * step;
 		sprintf (string, spformat, val);
 
-		XSetForeground (XtDisplay (Graphics), Gcontext,Tadefclr.pixel);
+		XSetForeground (XtDisplay (Graphics), Gcontext, tacolor.pixel);
 #ifdef notdef
 		y = (float) begin + (float) i * (float) ncolors / (float)
 			(nsteps - 1.0) * (float) bar_height;
@@ -2435,13 +2426,13 @@ CAP_Polar (char *c, int update)
 /*
  * Toss some info on the top of the screen.
  */
-	An_TopAnnot (F_GetFullName (fids[0]), Tadefclr.pixel);
-	An_TopAnnot (" (", Tadefclr.pixel);
-	An_TopAnnot (plat, Tadefclr.pixel);
-	An_TopAnnot (")", Tadefclr.pixel);
+	An_TopAnnot (F_GetFullName (fids[0]));
+	An_TopAnnot (" (");
+	An_TopAnnot (plat);
+	An_TopAnnot (")");
 	if (shifted)
-		An_TopAnnot ("(SHIFTED)", Tadefclr.pixel);
-	An_TopAnnot (".  ", Tadefclr.pixel);
+		An_TopAnnot ("(SHIFTED)");
+	An_TopAnnot (".  ");
 /*
  * Set up for side annotation.
  */
@@ -2598,6 +2589,7 @@ CAP_LegendAnnot (char *comp, char *data, int datalen, int begin, int space)
 	float scale, center, step, mapv, min, max, cmult;
 	int limit, nstep, nmap, left, lheight, i, ncolors, cind;
 	XColor *colors;
+	XColor tacolor;
 /*
  * Pull out the stuff that was stashed into our data array.
  */
@@ -2625,6 +2617,7 @@ CAP_LegendAnnot (char *comp, char *data, int datalen, int begin, int space)
 /*
  * Some graphics parameters.
  */
+	An_GetTopParams (&tacolor, 0);
 	An_GetSideParams (comp, &scale, &limit);
 	lheight = DT_ApproxHeight (Graphics, scale, 1);
 /*
@@ -2638,7 +2631,7 @@ CAP_LegendAnnot (char *comp, char *data, int datalen, int begin, int space)
  * Put out the field name.
  */
        	left = An_GetLeft ();
-	XSetForeground (XtDisplay (Graphics), Gcontext, Tadefclr.pixel);
+	XSetForeground (XtDisplay (Graphics), Gcontext, tacolor.pixel);
 	DrawText (Graphics, GWFrame (Graphics), Gcontext, left, 
 		begin, field, 0.0, scale, JustifyLeft, 	JustifyCenter);
 	begin += lheight;
@@ -2660,7 +2653,7 @@ CAP_LegendAnnot (char *comp, char *data, int datalen, int begin, int space)
 		XSetForeground (Disp, Gcontext, colors[cind].pixel);
 		XFillRectangle (XtDisplay (Graphics), GWFrame (Graphics), 
 			Gcontext, left, begin - lheight/2, 10, lheight);
-		XSetForeground (Disp, Gcontext, Tadefclr.pixel);
+		XSetForeground (Disp, Gcontext, tacolor.pixel);
 		DrawText (Graphics, GWFrame (Graphics), Gcontext, left + 12,
 				begin, mentries[2*i + 1], 0.0, scale,
 				JustifyLeft, JustifyCenter);

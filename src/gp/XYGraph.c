@@ -40,7 +40,7 @@
 # include "PlotPrim.h"
 # include "DrawText.h"
 
-RCSID ("$Id: XYGraph.c,v 1.40 2001-04-20 05:04:56 granger Exp $")
+RCSID ("$Id: XYGraph.c,v 1.41 2001-04-20 08:26:28 granger Exp $")
 
 /*
  * Prototypes
@@ -68,7 +68,7 @@ zbool	update;
 	char	xflds[FieldListLen], yflds[FieldListLen];
 	char	*xfnames[MaxFields], *yfnames[MaxFields];
 	char	style[24], xtype, ytype;
-	Pixel	taColor, *lcolor;
+	Pixel	*lcolor;
 	ZebTime	eTimeTarget, bTimeTarget, bTimeOld, eTimeOld;
 	ZebTime	eTimeReq, bTimeReq;
 	zbool	xauto, yauto, xinvert, yinvert;
@@ -132,7 +132,7 @@ zbool	update;
  * Colors
  */
 	lcolor = (Pixel *) malloc (nplat * sizeof (Pixel));
-	xy_GetPlotColors (c, nplat, lcolor, &taColor);
+	xy_GetPlotColors (c, nplat, lcolor);
 /*
  * Initialize data min/max values.
  */
@@ -283,8 +283,8 @@ zbool	update;
 	    {
 		    ac_PlotAxes (c);
 
-		    An_TopAnnot ("XY Graph:", taColor);
-		    An_TopAnnot (c, taColor);
+		    An_TopAnnot ("XY Graph:");
+		    An_TopAnnot (c);
 	    }
 	/*
 	 * Get our coordinates back, with zooming applied if necessary, then
@@ -316,7 +316,7 @@ zbool	update;
 	    pp_UnClip ();
 
 	    if (! update)
-		    An_TopAnnot (".  ", taColor);
+		    An_TopAnnot (".  ");
 	}
 	ResetGC();
 /*

@@ -40,7 +40,7 @@
 # include "DrawText.h"
 # include "EventQueue.h"
 
-RCSID("$Id: TimeSeries.c,v 2.24 1999-03-01 02:04:30 burghart Exp $")
+RCSID("$Id: TimeSeries.c,v 2.25 2001-04-20 08:26:27 granger Exp $")
 
 /*
  * General definitions
@@ -294,41 +294,32 @@ int	nplat, nfld;
  */
 {
 	char	string[STRLEN], tacolor[PARAMLEN]; 
-	zbool	tacmatch; 
 	int	i, j, top, bottom, left, right;
 	float	sascale;
-	XColor	taclr;
 /*
  *  Get annotation plot description parameters.
  */
-	if(! pd_Retrieve (Pd, "global", "ta-color", tacolor, SYMT_STRING))
-		strcpy (tacolor, "white");
-	if(! ct_GetColorByName (tacolor, &taclr))
-		ct_GetColorByName ("white", &taclr);
-	tacmatch = FALSE;
-	pd_Retrieve (Pd, "global", "ta-color-match", (char *) &tacmatch, 
-		SYMT_BOOL);
 	if(! pda_Search (Pd, comp, "sa-scale", "tseries", (char *) &sascale, 
 		SYMT_FLOAT))
 		sascale = 0.03;
 /*
  *  Top Annotation
  */
-	An_TopAnnot ("Time series plot of ", taclr.pixel);
+	An_TopAnnot ("Time series plot of ");
 	for (i = 0; i < nfld; i++)
 	{
-		An_TopAnnot (px_FldDesc (fields[i]), taclr.pixel);
-		if (i < (nfld - 1)) An_TopAnnot (", ", taclr.pixel);
+		An_TopAnnot (px_FldDesc (fields[i]));
+		if (i < (nfld - 1)) An_TopAnnot (", ");
 	}
-	An_TopAnnot (" for platforms: ", taclr.pixel);
+	An_TopAnnot (" for platforms: ");
 	An_AnnotLimits (&top, &bottom, &left, &right);
 	left += 25;
 	for (i = 0; i < nplat; i++)
 	{
-		An_TopAnnot (platforms[i], taclr.pixel);
-		if (i < (nplat - 1)) An_TopAnnot (", ", taclr.pixel);
+		An_TopAnnot (platforms[i]);
+		if (i < (nplat - 1)) An_TopAnnot (", ");
 	}
-	An_TopAnnot (".", taclr.pixel);
+	An_TopAnnot (".");
 /*
  *  Side Annotation
  */

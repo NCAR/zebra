@@ -42,7 +42,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: XSection.c,v 2.48 2001-04-20 05:04:55 granger Exp $")
+RCSID ("$Id: XSection.c,v 2.49 2001-04-20 08:26:28 granger Exp $")
 
 /*
  * General definitions
@@ -76,7 +76,7 @@ static char	Scratch[128];
  */
 # define BAD_SOUNDING	{ \
 				sprintf (Scratch, " (bad)"); \
-				An_TopAnnot (Scratch, White.pixel); \
+				An_TopAnnot (Scratch); \
 				continue; \
 			}
 
@@ -171,11 +171,6 @@ static int	Ncolors;
 static XColor	White, Black, Ccolor, C_outrange;
 static int	Do_outrange;	/* do we want out-of-range contours? */
 
-
-/*
- * Match top annotation color to contour color?
- */
-static zbool	AnnotMatch;
 
 /*
  * Clip and unclip rectangles
@@ -339,7 +334,7 @@ ZebTime	*t;
 
 	sprintf (Scratch, "%s cross-section plot.  ", 
 		 Zig_zag ? "Zig-zag" : "Planar");
-	An_TopAnnot (Scratch, White.pixel);
+	An_TopAnnot (Scratch);
 /*
  * Text size
  */
@@ -533,14 +528,6 @@ zbool	update;
 	else
 		ok &= pda_ReqSearch (Pd, c, "color-table", "contour", cname, 
 				     SYMT_STRING);
-/*
- * Match top annotation color to contour color?
- */
-	AnnotMatch = FALSE;
-
-	if (Mono_color)
-		pda_Search (Pd, c, "ta-color-match", NULL, (char *)&AnnotMatch,
-			    SYMT_BOOL);
 /*
  * Out of range color?
  */
@@ -762,10 +749,10 @@ int	nplat;
 	int		vdim, diff, p;
 	ZebTime		dtime;
 
-	An_TopAnnot ("Contour of ", White.pixel);
-	An_TopAnnot (px_FldDesc (fldname), 
-		     AnnotMatch ? Ccolor.pixel : White.pixel);
-	An_TopAnnot (" using: ", White.pixel);
+	An_TopAnnot ("Contour of ");
+	An_TopAnnotMatch (px_FldDesc (fldname), Ccolor.pixel,
+			  Mono_color ? c : 0, 0);
+	An_TopAnnot (" using: ");
 /*
  * Get the filled data plane
  */
@@ -874,9 +861,9 @@ int	nplat;
 	 * the difference from the plot time is > 12 hours).
 	 */
 		if (p != 0)
-			An_TopAnnot (", ", White.pixel);
+			An_TopAnnot (", ");
 
-		An_TopAnnot (plane->plats[p], White.pixel);
+		An_TopAnnot (plane->plats[p]);
 
 		sprintf (Scratch, " (");
 
@@ -891,10 +878,10 @@ int	nplat;
 
 		strcat (Scratch + strlen (Scratch) - 3, ")");
 
-		An_TopAnnot (Scratch, White.pixel);
+		An_TopAnnot (Scratch);
 	}
 	
-	An_TopAnnot (".  ", White.pixel);
+	An_TopAnnot (".  ");
 
 	xs_FreeZZ_DPlane (plane);
 }
@@ -917,7 +904,7 @@ int	nplat;
 
 	sprintf (Scratch, "%s of (%s,%s) using: ", 
 		 Do_vectors ? "Vectors" : "Barbs", ufldname, vfldname);
-	An_TopAnnot (Scratch, Ccolor.pixel);
+	An_TopAnnotMatch (Scratch, Ccolor.pixel, c, 0);
 /*
  * Get the filled data planes.  
  */
@@ -1003,9 +990,9 @@ int	nplat;
 	 * the difference from the plot time is > 12 hours).
 	 */
 		if (p != 0)
-			An_TopAnnot (", ", White.pixel);
+			An_TopAnnot (", ");
 
-		An_TopAnnot (plane->plats[p], White.pixel);
+		An_TopAnnot (plane->plats[p]);
 
 		sprintf (Scratch, " (");
 
@@ -1020,10 +1007,10 @@ int	nplat;
 
 		strcat (Scratch + strlen (Scratch) - 3, ")");
 
-		An_TopAnnot (Scratch, White.pixel);
+		An_TopAnnot (Scratch);
 	}
 	
-	An_TopAnnot (".  ", White.pixel);
+	An_TopAnnot (".  ");
 
 	xs_FreeZZ_DPlane (uplane);
 	xs_FreeZZ_DPlane (vplane);
@@ -1358,10 +1345,10 @@ int	nplat;
 /*
  * Annotate
  */
-	An_TopAnnot ("Contour of ", White.pixel);
-	An_TopAnnot (px_FldDesc (fldname), 
-		     AnnotMatch ? Ccolor.pixel : White.pixel);
-	An_TopAnnot (" using: ", White.pixel);
+	An_TopAnnot ("Contour of ");
+	An_TopAnnotMatch (px_FldDesc (fldname), Ccolor.pixel,
+			  Mono_color ? c : 0, 0);
+	An_TopAnnot (" using: ");
 /*
  * Find the gridding method and grab the data
  */
@@ -1379,8 +1366,8 @@ int	nplat;
 	/*
 	 * Add this platform to the top annotation
 	 */
-		An_TopAnnot (pnames[0], White.pixel);
-		An_TopAnnot (".  ", White.pixel);
+		An_TopAnnot (pnames[0]);
+		An_TopAnnot (".  ");
 	/*
 	 * Get the data
 	 */
@@ -1405,9 +1392,9 @@ int	nplat;
 		for (i = 0; i < nplat; i++)
 		{
 			if (i != 0)
-				An_TopAnnot (", ", White.pixel);
+				An_TopAnnot (", ");
 
-			An_TopAnnot (pnames[i], White.pixel);
+			An_TopAnnot (pnames[i]);
 		/*
 		 * Annotate the sounding with a time or date and time if the
 		 * difference from the plot time is > 12 hours.  
@@ -1427,7 +1414,7 @@ int	nplat;
 
 			strcat (Scratch + strlen (Scratch) - 3, ")");
 
-			An_TopAnnot (Scratch, White.pixel);
+			An_TopAnnot (Scratch);
 		/*
 		 * Add a line to the overlay times widget, too.
 		 */
@@ -1435,7 +1422,7 @@ int	nplat;
 				ot_AddStatusLine (c, pnames[i], fldname, 
 						  times + i);
 		}
-		An_TopAnnot (".  ", White.pixel);
+		An_TopAnnot (".  ");
 	}
 
 	if (! plane)
@@ -1509,7 +1496,7 @@ int	nplat;
  */
 	sprintf (Scratch, "%s of (%s,%s) using: ", 
 		 Do_vectors ? "Vectors" : "Barbs", ufldname, vfldname);
-	An_TopAnnot (Scratch, Ccolor.pixel);
+	An_TopAnnotMatch (Scratch, Ccolor.pixel, c, 0);
 /*
  * Find the gridding method and grab the data
  */
@@ -1528,8 +1515,8 @@ int	nplat;
 	/*
 	 * Add this platform to the top annotation
 	 */
-		An_TopAnnot (pnames[0], White.pixel);
-		An_TopAnnot (".  ", White.pixel);
+		An_TopAnnot (pnames[0]);
+		An_TopAnnot (".  ");
 	/*
 	 * Get the data
 	 */
@@ -1564,9 +1551,9 @@ int	nplat;
 		for (i = 0; i < nplat; i++)
 		{
 			if (i != 0)
-				An_TopAnnot (", ", White.pixel);
+				An_TopAnnot (", ");
 
-			An_TopAnnot (pnames[i], White.pixel);
+			An_TopAnnot (pnames[i]);
 		/*
 		 * Annotate the sounding with a time or date and time if the
 		 * difference from the plot time is > 12 hours.  
@@ -1586,7 +1573,7 @@ int	nplat;
 
 			strcat (Scratch + strlen (Scratch) - 3, ")");
 
-			An_TopAnnot (Scratch, White.pixel);
+			An_TopAnnot (Scratch);
 		/*
 		 * Add a line to the overlay times widget, too
 		 */
@@ -1597,7 +1584,7 @@ int	nplat;
 						  "(winds)",
 						  times + i);
 		}
-		An_TopAnnot (".  ", White.pixel);
+		An_TopAnnot (".  ");
 	}
 /*
  * If we have 3-D vector components, project the vector onto the vertical

@@ -66,7 +66,7 @@ void	xy_GetPrivateScale FP ((char*, DataValPtr, DataValPtr, DataValPtr,
 int	xy_ManualScale FP ((char*, int, char*, DataValPtr, DataValPtr));
 void	xy_SaveDataTimes  FP ((char*, ZebTime*, ZebTime*));
 void	xy_GetTimes FP ((char*, ZebTime*, ZebTime*, ZebTime*, ZebTime*, int*));
-void	xy_GetPlotColors FP ((char*, int, Pixel*, Pixel*));
+void	xy_GetPlotColors FP ((char*, int, Pixel*));
 void	xy_GetDataMinMax FP ((int, DataValPtr, DataValPtr, DataValPtr, int));
 int	xy_AvailableData FP ((PlatformId, ZebTime*, ZebTime*, ZebTime*, 
 			      ZebTime*, ZebTime*));

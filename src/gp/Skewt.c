@@ -41,7 +41,7 @@
 # include "Skewt.h"
 
 
-RCSID ("$Id: Skewt.c,v 2.35 2000-11-16 22:56:34 granger Exp $")
+RCSID ("$Id: Skewt.c,v 2.36 2001-04-20 08:26:27 granger Exp $")
 
 /*
  * General definitions
@@ -86,8 +86,6 @@ static float	W_scale = 25.0;
  */
 static XColor	*Colors;
 static int	Ncolors;
-static zbool 	Tacmatch = TRUE;
-static XColor 	Tadefclr;
 /*
  * Feet vs. Kilometer flag.
  */
@@ -126,7 +124,7 @@ zbool	update;
 {
 	zbool		ok;
 	int		plat, nplat, nwplat, noffset;
-	char		ctname[24], tadefcolor[32], style[16];
+	char		ctname[24], style[16];
 	char		platforms[PlatformListLen];
 	char		windplats[PlatformListLen];
 	char		offsets[PlatformListLen];
@@ -191,20 +189,6 @@ zbool	update;
 	if (! pda_Search (Pd, c, "temp-maxval", "skewt", (char *) &Tmax, 
 		SYMT_FLOAT))
 		Tmax = 35.0;
-
-	if (! pda_Search (Pd, "global", "ta-color", NULL, tadefcolor, 
-		SYMT_STRING))
-		strcpy(tadefcolor, "white");
-	if (! ct_GetColorByName(tadefcolor, &Tadefclr))
-	{
-		msg_ELog(EF_PROBLEM, "Can't get default color: '%s'.",
-			tadefcolor);
-		strcpy(tadefcolor, "white");
-		ct_GetColorByName(tadefcolor, &Tadefclr);
-	}
-	Tacmatch = TRUE;
-	pda_Search (Pd, "global", "ta-color-match", NULL, (char *) &Tacmatch,
-		SYMT_BOOL);
 /*
  * Do feet or kilometers.
  */
@@ -243,7 +227,7 @@ zbool	update;
 	if (! update)
 	{
 		sk_Background ();
-		An_TopAnnot ("Skew-t plot for ", Tadefclr.pixel);
+		An_TopAnnot ("Skew-t plot for ");
 		ot_SetString ("PLATFORM            TIME\n");
 	}
 /*
@@ -261,12 +245,12 @@ zbool	update;
 	/*
 	 * Determine the color for this platform
 	 */
-		color = Tacmatch ? Colors[C_DATA(plat)] : Tadefclr;
+		color = Colors[C_DATA(plat)];
 	/*
 	 * Add a comma to the annotation (after the first platform)
 	 */
 		if (plat > 0)
-			An_TopAnnot (", ", Tadefclr.pixel);
+			An_TopAnnot (", ");
 	/*
 	 * Do the thermo bit, then the winds
 	 */
@@ -279,7 +263,7 @@ zbool	update;
  * Add a period to the top annotation
  */
         if (! update) 
-	    An_TopAnnot (".  ", Tadefclr.pixel);
+	    An_TopAnnot (".  ");
 /*
  * Unclip since we want to return the shared GC in clean condition
  */
@@ -302,6 +286,7 @@ sk_Background ()
 	static float	mr[] = {0.1, 0.2, 0.4, 1.0, 2.0, 3.0, 5.0, 8.0, 
 			12.0, 20.0, 30.0, 40.0, 50.0, 60.0, 0.0};
 	float step = Pstep;
+	XColor tacolor;
 /*
  * ICAO standard atmosphere pressures for altitudes from 0 km to 20 km
  * every 1 km
@@ -310,6 +295,8 @@ sk_Background ()
 				540.3, 471.9, 410.7, 356.1, 307.6, 264.5,
 				226.3, 193.3, 165.1, 141.0, 120.4, 102.9,
 			        87.86, 75.05, 64.10, 54.75};
+
+	An_GetTopParams (&tacolor, 0);
 /*
  * Draw the outside rectangle
  */
@@ -352,14 +339,14 @@ sk_Background ()
 
 		if (x[1] <= 1.0)
 			sk_DrawText (string, x[1] + 0.01 * SKEWSLOPE, 1.01,
-				annot_angle, Tadefclr, 0.025, JustifyLeft, 
+				annot_angle, tacolor, 0.025, JustifyLeft, 
 				JustifyCenter);
 		else
 		{
 			float	intercept = SKEWSLOPE * (1.01 - x[0]);
 			if (intercept > 0.0)
 				sk_DrawText (string, 1.01, intercept, 
-					annot_angle, Tadefclr, 0.025, 
+					annot_angle, tacolor, 0.025, 
 					JustifyLeft, JustifyCenter);
 		}
 	}
@@ -382,7 +369,7 @@ sk_Background ()
 	 * Annotate along the left side
 	 */
 		sprintf (string, "%d", (int) p);
-		sk_DrawText (string, -0.01, y[0], 0.0, Tadefclr, 0.025, 
+		sk_DrawText (string, -0.01, y[0], 0.0, tacolor, 0.025, 
 			JustifyRight, JustifyCenter);
 	/*
 	 * Kludge: if we get below the step value, decrease it so we continue
@@ -754,7 +741,6 @@ zbool    update;
 	ZebTime	ptime;
 	PlatformId	pid;
 	DataChunk	*dc;
-	Pixel tacolor = Tacmatch ? color.pixel : Tadefclr.pixel;
 	dsDetail details[5];
 	int ndetail = 0;
 /*
@@ -769,7 +755,7 @@ zbool    update;
 	 */
 	    pda_Search (Pd, c, "top-annot-active", "skewt",
 			(char *) &active, SYMT_BOOL);
-	    An_DoTopAnnot (pname, tacolor, active ? c : 0, pname);
+	    An_DoTopAnnot (pname, color.pixel, c, active ? pname : 0);
 	}
 /*
  * Get the platform id and obtain a good data time
@@ -853,7 +839,7 @@ zbool    update;
 				  (char *) &anloc, SYMT_BOOL))
 			anloc = FALSE;
 		if (antime || anloc)
-			An_TopAnnot (" (", tacolor);
+			An_TopAnnotMatch (" (", color.pixel, c, 0);
 	/*
 	 * Throw in the time if they want it.
 	 */
@@ -861,7 +847,7 @@ zbool    update;
 		{
 			char atime[40];
 			TC_EncodeTime (&ptime, TC_Full, atime);
-			An_TopAnnot (atime, tacolor);
+			An_TopAnnotMatch (atime, color.pixel, c, 0);
 		}
 	/*
 	 * The location too.
@@ -872,12 +858,12 @@ zbool    update;
 			Location loc;
 			dc_GetLoc (dc, 0, &loc);
 			if (antime)
-				An_TopAnnot (", ", tacolor);
+				An_TopAnnotMatch (", ", color.pixel, c, 0);
 			EncodeLocation (aloc, &loc);
-			An_TopAnnot (aloc, tacolor);
+			An_TopAnnotMatch (aloc, color.pixel, c, 0);
 		}
 		if (antime || anloc)
-			An_TopAnnot (")", tacolor);
+			An_TopAnnotMatch (")", color.pixel, c, 0);
 	}
 /*
  * Find the number of points in the observation, and stash it away
@@ -1015,13 +1001,16 @@ int	skip;
 	PlatformId	pid;
 	dsDetail details[5];
 	int ndetail = 0;
+	XColor tacolor;
+
+	An_GetTopParams (&tacolor, 0);
 /*
  * Add this platform to the annotation
  */
 	if (annot && ! update)
 	{
 		sprintf (string, " (winds: %s)", pname);
-		An_TopAnnot (string, Tacmatch ? color.pixel : Tadefclr.pixel);
+		An_TopAnnotMatch (string, color.pixel, c, 0);
 	}
 /*
  * Get the platform id and obtain a good data time
@@ -1231,18 +1220,18 @@ int	skip;
 	if (plot_ndx == 0 && ! update)
 	{
 		sk_DrawText ("WINDS PROFILE", 1.0 + 0.5 * (Xhi - 1.0), -0.01, 
-			0.0, Tadefclr, 0.025, JustifyCenter, JustifyTop);
+			0.0, tacolor, 0.025, JustifyCenter, JustifyTop);
 		if (Do_vectors)
 		{
 			sk_DrawText (" = 10 M/S", 1.0 + 0.5 * (Xhi - 1.0), 
-				     -0.06, 0.0, Tadefclr, 0.02, JustifyLeft, 
+				     -0.06, 0.0, tacolor, 0.02, JustifyLeft, 
 				     JustifyCenter); 
 
 			xov[0] = 1.0 + 0.5 * (Xhi - 1.0) - (10.0 * xscale);
 			xov[1] = 1.0 + 0.5 * (Xhi - 1.0);
 			yov[0] = -0.06;
 			yov[1] = -0.06;
-			sk_Polyline (xov, yov, 2, L_solid, Tadefclr);
+			sk_Polyline (xov, yov, 2, L_solid, tacolor);
 		}
 		else
 		{
@@ -1251,10 +1240,10 @@ int	skip;
 		 * Barb legend: 50 m/s, 10 m/s, 5 m/s
 		 */
 			XSetForeground (XtDisplay (Graphics), Gcontext,
-					Tadefclr.pixel);
+					tacolor.pixel);
 
 			sk_DrawText (" = 50 M/S", 1.0 + 0.5 * (Xhi - 1.0), 
-				     -0.08, 0.0, Tadefclr, 0.02, JustifyLeft, 
+				     -0.08, 0.0, tacolor, 0.02, JustifyLeft, 
 				     JustifyCenter); 
 			draw_barb (XtDisplay (Graphics), GWFrame (Graphics),
 				   Gcontext, XPIX (1.0 + 0.5 * (Xhi - 1.0)),
@@ -1262,7 +1251,7 @@ int	skip;
 				   FALSE);
 			
 			sk_DrawText (" = 10 M/S", 1.0 + 0.5 * (Xhi - 1.0), 
-				     -0.13, 0.0, Tadefclr, 0.02, JustifyLeft, 
+				     -0.13, 0.0, tacolor, 0.02, JustifyLeft, 
 				     JustifyCenter); 
 			draw_barb (XtDisplay (Graphics), GWFrame (Graphics),
 				   Gcontext, XPIX (1.0 + 0.5 * (Xhi - 1.0)),
@@ -1270,7 +1259,7 @@ int	skip;
 				   FALSE);
 			
 			sk_DrawText (" = 5 M/S", 1.0 + 0.5 * (Xhi - 1.0), 
-				     -0.18, 0.0, Tadefclr, 0.02, JustifyLeft, 
+				     -0.18, 0.0, tacolor, 0.02, JustifyLeft, 
 				     JustifyCenter); 
 			draw_barb (XtDisplay (Graphics), GWFrame (Graphics),
 				   Gcontext, XPIX (1.0 + 0.5 * (Xhi - 1.0)),

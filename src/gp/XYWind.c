@@ -38,7 +38,7 @@
 # include "AxisControl.h"
 # include "PlotPrim.h"
 
-RCSID ("$Id: XYWind.c,v 1.39 2001-04-20 05:04:56 granger Exp $")
+RCSID ("$Id: XYWind.c,v 1.40 2001-04-20 08:26:29 granger Exp $")
 
 /*
  * General definitions
@@ -76,7 +76,7 @@ zbool	update;
 	DataValRec	xmin, xmax, ymin, ymax;
 	DataValRec	xleft, xright, ybottom, ytop;
 	xyDataVector	dv[4];
-	Pixel	taColor;
+	XColor	taColor;
 	FieldId windfids[2];
 	WindInfo windinfo;
 /*
@@ -227,7 +227,8 @@ zbool	update;
 /*
  * Top annotation color
  */
-	xy_GetPlotColors (c, nplat, NULL, &taColor);
+	An_GetTopParams (&taColor, 0);
+	xy_GetPlotColors (c, nplat, NULL);
 /*
  * Allocate space for pointers to the data arrays and for observation info.
  * Also zero them out or else we get undesirable free() calls below.  I speak
@@ -324,7 +325,7 @@ zbool	update;
 			if (strcmp (style, "vector") == 0)
 			{
 			    sprintf (annotcontrol, "%s|%li|%f|%f|%f", "m/s", 
-				     taColor, scaleSpeed, 0.0, vecScale);
+				     taColor.pixel, scaleSpeed, 0.0, vecScale);
 			    An_AddAnnotProc (An_ColorVector, c, annotcontrol,
 					     strlen (annotcontrol) + 1, 30, 
 					     FALSE, FALSE);
@@ -336,7 +337,7 @@ zbool	update;
 			else if (strcmp (style, "barb") == 0)
 			{	
 			    sprintf (annotcontrol, "%s|%li|%d", barbtype,
-				     taColor,  (int) vecScale);
+				     taColor.pixel,  (int) vecScale);
 			    An_AddAnnotProc (An_BarbLegend, c, annotcontrol,
 					     strlen (annotcontrol) + 1, 100, 
 					     FALSE, FALSE);
@@ -351,7 +352,8 @@ zbool	update;
 					 strlen (annotcontrol) + 1, 75, TRUE, 
 					 FALSE);
 
-			sprintf(annotcontrol, "%s|%li", pnames[plat], taColor);
+			sprintf(annotcontrol, "%s|%li", pnames[plat], 
+				taColor.pixel);
 			An_AddAnnotProc (An_ColorString, c, annotcontrol, 
 					 strlen (annotcontrol), 25, FALSE, 
 					 FALSE);
@@ -429,8 +431,8 @@ zbool	update;
 	    {
 		    ac_PlotAxes (c);
 
-		    An_TopAnnot ("XYWind:", taColor);
-		    An_TopAnnot (c, taColor);
+		    An_TopAnnot ("XYWind:");
+		    An_TopAnnot (c);
 	    }
 	/*
 	 * Get our coordinates back, with zooming applied if necessary, then
@@ -462,7 +464,7 @@ zbool	update;
 	/*
 	 * Add a period to the top annotation
 	 */
-	    An_TopAnnot (".  ", taColor);
+	    An_TopAnnot (".  ");
 
 	    pp_UnClip ();
         }

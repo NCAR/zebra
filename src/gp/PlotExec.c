@@ -40,7 +40,7 @@
 # include "AxisControl.h"
 # include "ActiveArea.h"
 
-MAKE_RCSID ("$Id: PlotExec.c,v 2.58 1999-03-01 02:04:27 burghart Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.59 2001-04-20 08:26:27 granger Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -229,7 +229,6 @@ int	Comp_index;
 /*
  * Annotation stuff
  */
-XColor Tadefclr;
 Pixel	White;
 
 # ifdef notdef
@@ -375,11 +374,11 @@ ZebTime *cachetime;
  * Perform a global update.
  */
 {
-	float tascale;
-	char **comps, datestring[80], rep[30], tadefcolor[30];
+	char **comps, datestring[80], rep[30];
 	int i, showsteps = FALSE;
 	Pixel timecolor;
 	UItime temptime;
+	XColor xc;
 	zbool active;
 /*
  * Choose the drawing frame and clear it out
@@ -410,24 +409,6 @@ ZebTime *cachetime;
 			 (char *) &showsteps, SYMT_BOOL))
 		showsteps = FALSE;
 /*
- * Get annotation information
- */
-	if (! pda_Search (Pd, "global", "ta-color", NULL, tadefcolor, 
-		SYMT_STRING))
-		strcpy (tadefcolor, "white");
-
-	if (! ct_GetColorByName (tadefcolor, &Tadefclr))
-	{
-		msg_ELog (EF_PROBLEM, "Can't get top annotation color: '%s'.",
-			tadefcolor);
-		strcpy (tadefcolor, "white");
-		ct_GetColorByName (tadefcolor, &Tadefclr);
-	}
-	if (pda_Search (Pd, "global", "ta-scale", NULL, (char *) &tascale,
-		SYMT_FLOAT))
-		An_SetScale (tascale);
-	
-/*
  * Annotate with the date and time
  */
 	An_ResetAnnot (Ncomps);
@@ -440,6 +421,8 @@ ZebTime *cachetime;
 		sprintf (datestring + strlen (datestring), " (%s)", 
 			 px_ModelTimeLabel ());
 
+	An_GetTopParams (&xc, 0);
+	timecolor = xc.pixel;
 	if (PlotMode == History)
 	{
 	/*
@@ -447,7 +430,6 @@ ZebTime *cachetime;
 	 * (default to yellow)
 	 */
 		char	hcolor[30];
-		XColor xc;
 
 		if (pda_Search (Pd, "global", "history-color", NULL, hcolor, 
 			SYMT_STRING))
@@ -465,15 +447,13 @@ ZebTime *cachetime;
 
 		timecolor = xc.pixel;
 	}
-	else
-		timecolor = Tadefclr.pixel;
 
 	active = FALSE;
 	pda_Search (Pd, "global", "time-annot-active", NULL,
 		    (char *) &active, SYMT_BOOL);
 	An_DoTopAnnot (datestring, timecolor, active ? "global" : 0,
 		       active ? "time" : 0);
-	An_TopAnnot ("  ", timecolor);
+	An_TopAnnot ("  ");
 /*
  * If they want to see the window name in the top annotation, add it now.
  */
@@ -481,7 +461,7 @@ ZebTime *cachetime;
 			SYMT_BOOL) && active)
 	{
 		sprintf (datestring, "(%s) ", dm_WindowName());
-		An_TopAnnot (datestring, Tadefclr.pixel);
+		An_TopAnnot (datestring);
 	}
 /*
  * If there is an initialization routine, call it now.

@@ -22,6 +22,7 @@
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
 # include <X11/XWDFile.h>	/* for ImageDump() */
+# include <unistd.h>            /* for unlink() */
 # include <math.h>
 # include <string.h>
 # include <time.h>
@@ -49,7 +50,7 @@ typedef struct {
         CARD8   pad;
 } U_XWDColor;
 
-RCSID ("$Id: Utilities.c,v 2.59 2000-11-16 22:54:38 granger Exp $")
+RCSID ("$Id: Utilities.c,v 2.60 2001-04-20 08:26:27 granger Exp $")
 
 /*
  * Rules for image dumping.  Indexed by keyword number in GraphProc.state

@@ -37,7 +37,7 @@
 # include "rg_status.h"
 # include "Contour.h"
 
-RCSID("$Id: XYContour.c,v 1.43 2001-04-20 05:04:56 granger Exp $")
+RCSID("$Id: XYContour.c,v 1.44 2001-04-20 08:26:28 granger Exp $")
 
 # define GRID(g,i,j,ydim)   (g[((i) * (ydim)) + (j)])
 
@@ -97,7 +97,6 @@ zbool	update;
 	char	gridtype[20], ctname[24], style[20], annotcontrol[80];
 	char	xtype, ytype, ztype;
 	zbool	xauto, yauto, xinvert, yinvert, zauto, zinvert;
-	Pixel	taColor;
 	XColor	*colors, white;
 	ZebTime	bTimeTarget, eTimeTarget, bTimeReq, eTimeReq;
 	ZebTime	eTimeOld, bTimeOld;
@@ -201,7 +200,7 @@ zbool	update;
 /*
  * Get top annotation color
  */
-	xy_GetPlotColors (c, nplat, NULL, &taColor);
+	xy_GetPlotColors (c, nplat, NULL);
 /*
  * Initialize data min/max values.
  */
@@ -376,8 +375,8 @@ zbool	update;
 /*
  * Top annotation
  */
-	An_TopAnnot ("Contour plot of ", taColor);
-	An_TopAnnot (platforms, taColor);
+	An_TopAnnot ("Contour plot of ");
+	An_TopAnnot (platforms);
 /*
  * Do each platform
  */
@@ -492,7 +491,7 @@ zbool	update;
 /*
  * Add a period to the top annotation and draw axes
  */
-	An_TopAnnot (".  ", taColor);
+	An_TopAnnot (".  ");
 	ResetGC ();
 	ac_PlotAxes (c);
 /*
