@@ -1,5 +1,5 @@
 /* 12/88 jc */
-/* $Id: dev_x11.c,v 1.5 1989-08-07 14:20:01 corbet Exp $	*/
+/* $Id: dev_x11.c,v 1.6 1989-08-25 11:11:28 burghart Exp $	*/
 /*
  * Graphics driver for the X window system, version 11.3
  */
@@ -15,6 +15,7 @@
 
 # define PTR_SIZE	18
 
+# define ABS(x)		((x) < 0 ? -(x) : x)
 
 typedef struct {
 	short x, y;
@@ -29,12 +30,11 @@ struct xtag
 	Window 	x_window;	/* The window.			*/
 	GC	x_gc;		/* Graphics context		*/
 	Cursor	x_cursor;	/* The cursor for this window	*/
-	Colormap x_cmap;	/* The color map		*/
 	Visual	*x_visual;	/* The visual			*/
 	int	x_xres, x_yres;	/* The resolution of our window	*/
 	int	x_mono;		/* Is this a mono screen?	*/
 	long	x_fg, x_bg;	/* Foreground and background colors */
-	int 	x_base;		/* KLUDGE: color base		*/
+	int 	*x_dev_bg;	/* KLUGE: pointer to bg color in dev struct */
 	int	x_xptr, x_yptr;	/* Pointer position		*/
 	Pixmap	x_ptr_pixmap;	/* Pixmap to save data covered by pointer */
 };
@@ -95,11 +95,9 @@ struct device *dev;
 		return (GE_BAD_DEVICE);
 	}
 	screen = DefaultScreen (tag->x_display);
-	printf ("Screen is %d\n", screen);
 	tag->x_mono = DefaultDepth (tag->x_display, screen) == 1;
-	tag->x_fg = WhitePixel (tag->x_display, screen);
-	tag->x_bg = BlackPixel (tag->x_display, screen);
-	tag->x_base = 0;
+	tag->x_fg = 1;
+	tag->x_bg = 0;
 /*
  * No pointer for now
  */
@@ -136,8 +134,8 @@ struct device *dev;
 /*
  * Create the window to exist on that display.
  */
-	attr.background_pixel = 1;
-	attr.border_pixel = tag->x_fg;
+	attr.background_pixel = BlackPixel (tag->x_display, screen);
+	attr.border_pixel = WhitePixel (tag->x_display, screen);
 	attr.backing_store = WhenMapped;
 	attr.event_mask = ButtonPressMask | ExposureMask;
 	tag->x_window = XCreateWindow (tag->x_display,
@@ -162,29 +160,10 @@ struct device *dev;
 /*
  * Get a graphics context.
  */
- 	gcontext.foreground = tag->x_fg;
-	gcontext.background = tag->x_bg;
+ 	gcontext.foreground = WhitePixel (tag->x_display, screen);
+	gcontext.background = BlackPixel (tag->x_display, screen);
 	tag->x_gc = XCreateGC (tag->x_display, tag->x_window, 
 		GCForeground | GCBackground, &gcontext);
-/*
- * If this is a color display, get a colormap.  We need our own color map
- * because X is not interested in giving us contiguous colors.  The prospect
- * of remapping an entire pixel array of colors to suit X is not especially
- * pleasing.
- */
-	if (! tag->x_mono)
-	{
-		int pv[128], pm;
-		tag->x_visual = DefaultVisual (tag->x_display, screen);
-		tag->x_cmap = XCreateColormap (tag->x_display, tag->x_window,
-			tag->x_visual, AllocNone);
-		XSetWindowColormap (tag->x_display, tag->x_window,
-			tag->x_cmap);
-		XAllocColorCells (tag->x_display, tag->x_cmap, True, &pm,
-			0, pv, 2);
-		XInstallColormap (tag->x_display, tag->x_cmap);
-		x11_fixcolor (tag);
-	}
 /*
  * Get the cursor set up.
  */
@@ -202,12 +181,16 @@ struct device *dev;
 	}
 	dev->gd_xres = tag->x_xres;
 	dev->gd_yres = tag->x_yres;
+	dev->gd_background = tag->x_bg;
+/*
+ * KLUGE: Keep a pointer to the background color in the dev structure, since
+ * we need to change it when the user first allocates some colors
+ */
+	tag->x_dev_bg = &(dev->gd_background);
 /*
  * Clear the window.
  */
-	printf ("Waiting for expose...\n");
 	XWindowEvent (tag->x_display, tag->x_window, ExposureMask, &ev);
-	printf ("Got it.\n");
 	XClearWindow (tag->x_display, tag->x_window);
 	XSync (tag->x_display, False);
 /*
@@ -441,18 +424,99 @@ int ncolor, *base;
  */
 {
 	struct xtag *tag = (struct xtag *) ctag;
-	int pv[256], pm;
-
-	if (! tag->x_mono)
+	int	ncontig, nget, offset, ncells, contig_start;
+	int	start, i, status;
+	long	*cells, pm;
+/*
+ * Simple for a mono device
+ */
+	if (tag->x_mono)
 	{
-		XAllocColorCells (tag->x_display, tag->x_cmap, True,
-			&pm, 0, pv, ncolor);
-		*base = pv[0];
-		if (! tag->x_base)
-			tag->x_base = *base;
-	}
-	else
 		*base = 0;
+		return (GE_OK);
+	}
+/*
+ * Start with space for 256 color cells (this may increase below)
+ */
+	ncells = 256;
+	cells = (long *) malloc (ncells * sizeof (long));
+/*
+ * Initialize
+ */
+	offset = 0;
+	ncontig = 1;
+	nget = 0;
+	contig_start = 0;
+/*
+ * Allocate color cells until we have the requested number of contiguous
+ * cells
+ */
+	while (ncontig != ncolor)
+	{
+	/*
+	 * Update the offset and the number of cells to get
+	 */
+		offset += nget;
+		nget = ncolor - ncontig;
+	/*
+	 * Get more cell space if necessary
+	 */
+		if (offset + nget > ncells)
+		{
+			ncells *= 2;
+			cells = (long *) 
+				realloc (cells, ncells * sizeof (long));
+		}
+	/*
+	 * Get as many color cells as we need to complete a chunk of ncolor
+	 * contiguous cells
+	 */
+		status = XAllocColorCells (tag->x_display, 
+			DefaultColormap (tag->x_display, 0), False, &pm, 0,
+			cells + offset, nget);
+		if (! status)
+			return (GE_DEVICE_UNABLE);
+	/*
+	 * Find out how many contiguous cells we have now
+	 */
+		start = (offset == 0) ? 1 : offset;
+
+		for (i = start; i < nget + offset; i++)
+		{
+			if (ABS (cells[i] - cells[i-1]) == 1)
+				ncontig++;
+			else
+			{
+				contig_start = i;
+				ncontig == 1;
+			}
+		}
+	}
+/*
+ * Deallocate the cells before the contiguous chunk
+ */
+	XFreeColors (tag->x_display, DefaultColormap (tag->x_display, 0), 
+		cells, contig_start, 0);
+/*
+ * Save the base of the contiguous block
+ */
+	*base = cells[contig_start];
+/*
+ * Set the background if it hasn't been done
+ */
+	if (! tag->x_bg)
+	{
+		long	bg = cells[contig_start];
+
+		tag->x_bg = bg;
+		*(tag->x_dev_bg) = bg;
+		XSetWindowBackground (tag->x_display, tag->x_window, bg);
+	}
+/*
+ * Free the memory allocated for cells
+ */
+	free (cells);
+
 	return (GE_OK);
 }
 
@@ -487,15 +551,17 @@ float *r, *g, *b;
 /*
  * Now, store them.
  */
- 	XStoreColors (tag->x_display, tag->x_cmap, xc, ncolor);
+ 	XStoreColors (tag->x_display, DefaultColormap (tag->x_display, 0), 
+		xc, ncolor);
 	relvm (xc);
+		
 	return (GE_OK);
 }
 
 
 
 
-
+# ifdef notdef /* (8/24/89 cb) */
 
 x11_fixcolor (tag)
 struct xtag *tag;
@@ -517,7 +583,7 @@ struct xtag *tag;
 	XStoreColors (tag->x_display, tag->x_cmap, xc, 2);
 }
 
-
+# endif
 
 
 
@@ -534,7 +600,7 @@ int x, y, xs, ys, size, org;
  * Kludge to allow the restoration of images saved under Sunview.
  */
 	if (xs > 300 || ys > 300)
-		x11_sv_kludge (data, xs, ys, tag->x_base);
+		x11_sv_kludge (data, xs, ys, tag->x_bg);
 /*
  * Create the XImage structure.
  */
