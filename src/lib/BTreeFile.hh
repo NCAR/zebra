@@ -1,11 +1,13 @@
 /*
- * $Id: BTreeFile.hh,v 1.8 1998-09-15 20:57:00 granger Exp $
+ * $Id: BTreeFile.hh,v 1.9 1998-09-17 00:51:33 granger Exp $
  *
  * BTree subclass which implements persistence using a BlockFile.
  */
 
 #ifndef _BTreeFile_hh_
 #define _BTreeFile_hh_
+
+#include <vector>
 
 #include "BTree.hh"
 #include "BlockObject.hh"
@@ -162,6 +164,8 @@ protected:
 	virtual void mark ();
 
 	friend BlockNode<K,T>;
+	friend Stats;
+	friend FileStats;
 
 	/// Resurrect a reference to a node
 	virtual BTreeNode<K,T> *get (Node &, int depth);
@@ -178,6 +182,14 @@ protected:
 	int key_size;
 	int key_size_fixed;
 	int our_bf;
+
+	typedef BlockNode<K,T> node_type;
+
+	// Node cache 
+	unsigned long lru;
+	int maxcache;
+	int ncache;
+	node_type *lookupCache (int depth);
 
 	// The basic node size stays fixed while there are nodes in the
 	// tree.  It gets set by the first node to be encoded.

@@ -31,8 +31,8 @@ typedef BTreeFile<string,string> StringTree;
 /*
  * Choose the test_key type for the test trees.
  */
-//typedef long test_key;
-typedef string test_key;
+typedef long test_key;
+//typedef string test_key;
 //typedef ZTime test_key;
 
 typedef BTreeFile<test_key,test_key> test_tree;
@@ -58,7 +58,7 @@ Summarize (ostream &out, T &t)
 	out << " ----- " << endl;
 	typename T::Stats cs;
 	t.currentStats (cs);
-	cs.report (out, &t) << endl;
+	cs.report (out, &t);
 	out << " ----- " << endl;
 
 #ifdef notdef
@@ -136,8 +136,8 @@ int main (int argc, char *argv[])
 	for (int o = 3; (o == 3) || (o < N / 10); o *= 3)
 	{
 		BlockFile bf("btree.bf");
-		//test_tree tree(0, bf, o);
-		test_tree tree(o);
+		test_tree tree(0, bf, o);
+		//test_tree tree(o);
 		//cout << "BTreeFile address: " << tree.Address() << endl;
 		tree.Erase ();	// Start fresh
 		
@@ -313,7 +313,9 @@ T_Removal (test_tree &tree,
 	   vector<test_key>::iterator k, 
 	   vector<test_key>::iterator last, int check_empty = 1)
 {
-	test_tree::value_type v0, v;	// Accept default initialization
+	// Accept default initialization 
+	test_tree::value_type v0 = test_tree::value_type();
+	test_tree::value_type v  = v0;
 
 	// As removing, make sure the removed key cannot be found
 	//cout << " ...removing key: ";
@@ -341,9 +343,12 @@ T_Removal (test_tree &tree,
 		}
 		else if (v != v0)
 		{
+			// Find() should return false without changing
+			// the value parameter.
 			cout << "***** Removal: key not found: "
 			     << *k << " but value still set: " << v << endl;
 			++err;
+			v = v0;
 		}
 		if (Debug) tree.Print (cout);
 	}

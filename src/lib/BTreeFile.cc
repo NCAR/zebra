@@ -15,7 +15,7 @@
 //#include <message.h>
 //}
 
-// RCSID ("$Id: BTreeFile.cc,v 1.10 1998-09-15 20:56:59 granger Exp $")
+// RCSID ("$Id: BTreeFile.cc,v 1.11 1998-09-17 00:51:33 granger Exp $")
 
 #include "Logger.hh"
 #include "Format.hh"
@@ -42,7 +42,7 @@ public:
 
 	virtual ~BlockNode ();
 
-	virtual void sync ();
+	virtual void sync (int force = 0);
 
 	// Pass btree node virtual methods on to the block file
 	virtual void mark ()
@@ -66,6 +66,7 @@ public:
 
 	long nodeSize (SerialBuffer &wb);
 	long leafSize (SerialBuffer &wb);
+	long baseSize (SerialBuffer &wb);
 
 	// No sense in adding growth since our size is fixed by the btree.
 	virtual BlkSize grow (BlkSize needed)
@@ -83,8 +84,11 @@ protected:
 	// To keep a typesafe reference to our tree, which is actually
 	// a subclass of BTree.
 	BTreeFile<K,T>& filetree;
+	unsigned long lru;
 
-	long baseSize (SerialBuffer &wb);
+	//BlockNode<K,T> *findLRU (Node **parent);
+	BlockNode<K,T> *findLRU (BlockNode<K,T> *lrunode, Node *parent, 
+				 Node **lruparent, int *n);
 
 	virtual void destroy ();
 };
@@ -205,6 +209,12 @@ BTreeFile<K,T>::Init (int order, long sz, int fix)
 	key_size_fixed = 0;
 	node_size = 0;
 	leaf_size = 0;
+	lru = 0;
+	maxcache = 20;
+	ncache = 0;
+	//cache.clear ();
+	//cache.reserve (maxcache);
+	//freelist.clear ();
 	log.Declare ("BTreeFile");
 	log.Extend (bf->Path());
 }
@@ -332,12 +342,167 @@ BTreeFile<K,T>::release ()
 	// Delete any nodes in memory, leaving the tree empty when our
 	// superclass destructor is called.
 	if (root)
+	{
+		root->sync (1);
 		delete root;
+	}
+	writeSync (1);
 	root = 0;
 	bf->Close ();
 	if (our_bf)
 		delete bf;
 	bf = 0;
+	ncache = 0;
+	maxcache = 20;
+}
+
+
+
+#ifdef notdef
+/*
+ * Recursive breadth-first search for lru node.
+ */
+template <class K, class T>
+BlockNode<K,T> * 
+BlockNode<K,T>::findLRU (Node **parent)
+{
+	// If we're a leaf, then we're done.
+	if (depth == 0)
+	{
+		return this;
+	}
+
+	BlockNode<K,T> *child = 0, *minlru = 0;
+	int k = 0;
+	for (int i = 0; i < nkeys; ++i)
+	{
+		child = (BlockNode<K,T> *)children[i].local;
+		if (child)
+		{
+			cout << " - Child " << (void*)child 
+			     << " in memory, lru:" << child->lru;
+			cout << endl;
+		}
+		if (child && (!minlru || child->lru < minlru->lru))
+		{
+			minlru = child;
+			k = i;
+		}
+	}
+	/*
+	 * We have no children in memory, so return ourself.
+	 */
+	if (! minlru)
+		return this;
+	
+	// Now that we've found it, keep track of the parent's
+	// Node reference so it can be updated.
+	*parent = &(children[k]);
+	cout << "Looking for least LRU in " << (void *)minlru << endl;
+	return (minlru->findLRU (parent));
+}
+#endif
+
+
+
+/*
+ * Recursive depth-first full traversal of nodes in memory to find
+ * the least-recently-used dangling node.
+ */
+template <class K, class T>
+BlockNode<K,T> * 
+BlockNode<K,T>::findLRU (BlockNode<K,T> *lrunode, Node *parent, 
+			 Node **lruparent, int *n)
+{
+	// Add ourself to the count of nodes in the memory cache.
+	++(*n);
+	BlockNode<K,T> *child = 0;
+	Node *down = 0;
+	for (int i = 0; (depth > 0) && (i < nkeys); ++i)
+	{
+		child = (BlockNode<K,T> *)children[i].local;
+		if (child)
+		{
+			cout << string(depth*3,' ');
+			cout << " - Child " << (void*)child 
+			     << " in memory, lru:" << child->lru;
+			cout << endl;
+			/*
+			 * Let this child check its subtree.
+			 */
+			down = &(children[i]);
+			lrunode = child->findLRU (lrunode, down, lruparent, n);
+		}
+	}
+	/*
+	 * We are a leaf or have no children in memory, so we're dangling.
+	 * See if we're the lru so far.
+	 */
+	if (depth == 0 || down == 0)
+	{
+		if (! lrunode || (this->lru < lrunode->lru))
+		{
+			lrunode = this;
+			*lruparent = parent;
+		}
+	}
+	return (lrunode);
+}
+
+
+
+template <class K, class T>
+BlockNode<K,T> * 
+BTreeFile<K,T>::lookupCache (int node_depth)
+{
+	BlockNode<K,T> *that;
+
+	/*
+	 * If for some reason the tree grows very deep, we need to keep
+	 * at least enough nodes in memory for a depth-first traversal,
+	 * and some extra for recombinations and such.
+	 */
+	if (3*depth >= maxcache)
+	{
+		maxcache = 3*depth;
+	}
+#ifdef notdef
+	if (ncache >= maxcache)
+	{
+#endif
+		// Find an old one in memory.  Note that findLRU() could
+		// return the root node back to us if it had no children,
+		// which would be bad, but that cannot happen else there
+		// would be more memory cache slots.
+		//
+		Node *parent;
+		that = (BlockNode<K,T> *)rootNode.local;
+
+	if (that)
+	{	
+		cout << "Current context: ";
+		current->show (cout);
+		cout << "Looking for least LRU in root:" << endl;
+		int n = 0;
+		that = that->findLRU (0, 0, &parent, &n);
+		cout << "Found node " << (void*)that 
+		     << " depth:" << that->depth << " lru:" << that->lru
+		     << "; nodes searched: " << n << "; ncache: " << ncache
+		     << endl;
+	}
+
+	if (ncache >= maxcache && that)
+	{
+		// Release it
+		current->invalidate (that);
+		parent->local = 0;
+		that->sync ();
+		delete that;
+	}
+
+	++ncache;
+	that = new BlockNode<K,T> (*bf, *this, node_depth);
+	return that;
 }
 
 
@@ -351,7 +516,7 @@ BTreeFile<K,T>::get (Node &node, int depth)
 
 	if (! that)
 	{
-		that = new BlockNode<K,T> (*bf, *this, depth);
+		that = lookupCache (depth);
 		node.local = that;
 		that->block.offset = node.addr;
 		assert (that->block.offset > 0);
@@ -365,6 +530,7 @@ BTreeFile<K,T>::get (Node &node, int depth)
 			    that->block.offset % that->block.length);
 	}
 	that->readSync ();
+	that->lru = lru++;
 	return (that);
 }
 
@@ -375,8 +541,9 @@ BTreeNode<K,T> *
 BTreeFile<K,T>::make (int depth)
 {
 	log.Info (Format(" + creating node, depth: %i") % depth);
-	BlockNode<K,T> *made = new BlockNode<K,T> (*bf, *this, depth);
+	BlockNode<K,T> *made = lookupCache (depth);
 	made->thisNode.local = made;
+	made->lru = lru++;
 	// Force allocation to get an address
 	made->allocate (nodeSize (made));
 	assert (made->block.offset > 0);
@@ -442,19 +609,21 @@ template <class K, class T>
 ostream &BTreeFile<K,T>::Stats::report (ostream &out, BTreeFile<K,T> *t) const
 { 
 	BTree<K,T>::Stats::report (out, t);
-	out << endl << "Nodes read: " << file.nodesRead 
+	out << "Nodes read: " << file.nodesRead 
 	    << "; written: " << file.nodesWritten
 	    << "; Bytes alloc: " << file.allocBytes
-	    << "; overflow: " << file.overflowBytes;
+	    << "; overflow: " << file.overflowBytes << endl;
 	if (t)
 	{
-		out << endl;
 		out << "Leaf blk size: " << t->leafBlockSize()
 		    << "; branch: " << t->nodeBlockSize();
 		long slop = file.allocBytes;
 		slop -= (nLeaves * t->leafBlockSize());
 		slop -= ((nNodes - nLeaves) * t->nodeBlockSize());
 		out << "; slop: " << slop;
+		out << "; Nodes cached: " << t->ncache 
+		    << "; max cache: " << t->maxcache;
+		out << endl;
 	}
 	return out;
 }
@@ -561,6 +730,9 @@ BTreeFile<K,T>::nodeSize (BlockNode<K,T> *node)
 template <class K, class T>
 BlockNode<K,T>::~BlockNode ()
 {
+	// One less node in the memory cache
+	--filetree.ncache;
+
 	// Recursively delete our children, but only those currently in memory
 	if (depth > 0)
 	{
@@ -624,7 +796,7 @@ BlockNode<K,T>::free ()
 
 template <class K, class T>
 void
-BlockNode<K,T>::sync ()
+BlockNode<K,T>::sync (int force)
 {
 	// Sync our children first, then ourself
 	if (depth > 0)
@@ -636,13 +808,13 @@ BlockNode<K,T>::sync ()
 			assert (children[i].addr > 0);
 			if (child)
 			{
-				child->sync ();
+				child->sync (force);
 			}
 		}
 	}
 	assert (thisNode.addr > 0);
 	assert (block.offset > 0 && block.length > 0);
-	writeSync ();
+	writeSync (force);
 }
 
 

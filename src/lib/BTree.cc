@@ -14,7 +14,7 @@
 //#include <message.h>
 //}
 
-// RCSID ("$Id: BTree.cc,v 1.18 1998-09-15 20:56:58 granger Exp $")
+// RCSID ("$Id: BTree.cc,v 1.19 1998-09-17 00:51:32 granger Exp $")
 
 //#include "Logger.hh"
 #include "BTreeP.hh"
@@ -71,10 +71,10 @@ ostream &BTree<K,T>::Stats::report (ostream &out, BTree<K,T> *t) const
 	out << "Nodes: " << nNodes
 	    << "; Keys: " << nKeys
 	    << "; Leaves: " << nLeaves;
+	out << endl;
 	if (t)
 	{
 		int m = t->Order();
-		out << endl;
 		out << "Depth: " << t->Depth() << "; Order: " << m << "; ";
 		int minnodes = 0;
 		if (t->numKeys() > 0)
@@ -83,6 +83,7 @@ ostream &BTree<K,T>::Stats::report (ostream &out, BTree<K,T> *t) const
 		if (nNodes > 0)
 			pctnodes = (int)(100.0*minnodes/(float)nNodes);
 		out << "Min Nodes: " << minnodes << "; % nodes: " << pctnodes;
+		out << endl;
 	}
 	return out;
 }
