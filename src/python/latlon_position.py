@@ -81,13 +81,13 @@ class EnterPosition( Frame ):
 
         frame = Frame( entry_frame )
         frame.pack( side=TOP )
-        Label( frame, text="Latitude (deg E)", width=14 ).pack( side=LEFT )
+        Label( frame, text="Latitude (deg N)", width=14 ).pack( side=LEFT )
         self.lat_entry = Entry( frame, width=entrywidth )
         self.lat_entry.pack( side=RIGHT )
 
         frame = Frame( entry_frame )
         frame.pack( side=TOP )
-        Label( frame, text="Longitude (deg N)", width=14 ).pack( side=LEFT )
+        Label( frame, text="Longitude (deg E)", width=14 ).pack( side=LEFT )
         self.lon_entry = Entry( frame, width=entrywidth )
         self.lon_entry.pack( side=RIGHT )
 
