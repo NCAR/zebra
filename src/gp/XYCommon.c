@@ -1,7 +1,7 @@
 /*
  * Routines common to XY-Type plots
  */
-static char *rcsid = "$Id: XYCommon.c,v 1.20 1994-04-18 21:21:54 burghart Exp $";
+static char *rcsid = "$Id: XYCommon.c,v 1.21 1994-05-05 16:04:51 corbet Exp $";
 /*		Copyright (C) 1993 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -724,7 +724,7 @@ char 		*c;		/* Plot description component */
  */
 {
 	int	i, pt, samp, f, npts, ngood, fcount, *fndx, nobs, ntimes;
-	int	dcpts, dcveclen;
+	int	dcpts, dcveclen, sample, vecpts, ncopied, totalpts;
 	float	*val, **dcvector = NULL;
 	char	*dtype, stime1[32], stime2[32];
 	FieldId	*fids;
@@ -734,7 +734,7 @@ char 		*c;		/* Plot description component */
 	DataClass	xyClass;
 	DataOrganization	xyOrg;
 	dsDetail details[ 2 * DC_MaxDimension ];
-	int ndetail;
+	int ndetail, gridpts;
 	float 	badvals[20];
 	int	nbadval;
 	bool	ok;
@@ -803,21 +803,28 @@ char 		*c;		/* Plot description component */
 
 	xy_GetBadPoints (c, dc, badvals, &nbadval);
 
-	dcpts = dc_GetNSample (dc);
+	totalpts = dcpts = dc_GetNSample (dc);
 	if (xyOrg == Org1dGrid)
 	{
 	/*
 	 * Stuff for dealing with the 1d grids (vectors) from the data chunk
+	 * Figure the total length by looking at every vector.
 	 */
-		dc_RGGeometry (dc, 0, NULL, &rg);
-		dcveclen = rg.rg_nX;
-		dcpts *= dcveclen;
+		totalpts = 0;
+		for (sample = 0; sample < dcpts; sample++)
+		{
+			dc_RGGeometry (dc, sample, NULL, &rg);
+			/* dcveclen = rg.rg_nX; */
+			totalpts += rg.rg_nX;
+		}
 		dcvector = (float **) malloc (fcount * sizeof (float *));
+		dcpts = totalpts;
 	}
 	else if (xyOrg == OrgNSpace)
 	{
 	/*
 	 * Stuff for n-space vectors
+	 * FIX THIS ONE TOO
 	 */
 		xy_NSpaceVector (dc, fids, fcount, &dcveclen);
 		dcpts *= dcveclen;
@@ -836,7 +843,8 @@ char 		*c;		/* Plot description component */
 /*
  * Extract the data from the data chunk into the DataValRec arrays
  */
-	npts = ngood = 0;
+	sample = gridpts = -1;
+	npts = ngood = ncopied = 0;
 
 	for (pt = 0; pt < dcpts; pt++)
 	{
@@ -848,21 +856,25 @@ char 		*c;		/* Plot description component */
 		/*
 		 * Move to the next data chunk vector if necessary
 		 */
-			if (! (pt % dcveclen))
+			if (ncopied >= gridpts)
 			{
-				samp = pt / dcveclen;
-				dc_GetTime (dc, samp, &time);
+				sample++;
+				dc_GetTime (dc, sample, &time);
+				dc_RGGeometry (dc, sample, NULL, &rg);
+				gridpts = rg.rg_nX;
+				ncopied = 0;
 
 				for (f = 0; f < fcount; f++)
-					dcvector[f] = dc_RGGetGrid (dc, samp, 
-							      fids[f], NULL,
-							      NULL, NULL);
+					dcvector[f] = dc_RGGetGrid (dc, sample,
+							fids[f], NULL, NULL,
+							NULL);
 			}
 		/*
 		 * Grab the values for this point from the data chunk vectors
 		 */
 			for (f = 0; f < fcount; f++)
-				val[f] = dcvector[f][pt % dcveclen];
+				val[f] = dcvector[f][ncopied];
+			ncopied++;
 		}
 	/*
 	 * n-space specific stuff

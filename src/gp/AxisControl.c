@@ -1,7 +1,7 @@
 /*
  * Axis control. 
  */
-static char *rcsid = "$Id: AxisControl.c,v 1.20 1994-05-02 20:16:21 corbet Exp $";
+static char *rcsid = "$Id: AxisControl.c,v 1.21 1994-05-05 16:04:48 corbet Exp $";
 /*		Copyright (C) 1993 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -634,7 +634,7 @@ float   *drawGrid;
  * axis color
  */
 	strcpy (color, "white");
-	sprintf (Scratch, "axis-%c-color", sideletter);
+ 	sprintf (Scratch, "axis-%c-color", sideletter);
 	pda_Search (Pd, c, Scratch, "xy", (char *) color, SYMT_STRING);
 /*
  * axis label
