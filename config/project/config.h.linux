@@ -49,7 +49,7 @@
 XCOMM -----------------------------------------------------------------------
 XCOMM Definitions from config.h included here.  The definitions here override
 XCOMM the defaults in Project.tmpl.  See ...../zebra/config/project/config.h.
-XCOMM $Id: config.h.linux,v 1.3 2003-03-13 18:22:38 burghart Exp $
+XCOMM $Id: config.h.linux,v 1.4 2004-01-12 23:47:11 burghart Exp $
 XCOMM -----------------------------------------------------------------------
 # endif
 
@@ -91,7 +91,7 @@ XCOMM -----------------------------------------------------------------------
  * are not left taking up space.
  */
 
-# define BaseDir	/usr/local/zebra
+# define BaseDir	/net/local_lnx/zebra
 # define BinDir		BaseDir/bin
 # define LibDir		BaseDir/lib
 # define IncDir		BaseDir/include
@@ -131,7 +131,7 @@ XCOMM -----------------------------------------------------------------------
  * NetXfr, LastData and Archiver).  Most sites do not need this stuff.  They
  * will not build properly under a non-ANSI compiler.
  */
-# define	BuildRealtimeDataStoreTools	YES
+# define	BuildRealtimeDataStoreTools	NO
 
 /*
  * The map utilities allow converting maps from a few different existing
@@ -328,9 +328,8 @@ XCOMM -----------------------------------------------------------------------
 # define XIncDir /usr/X11R6/include
 #endif
 
-/* #define NetCDFIncDir /usr/local/include */
-
-/* #define UDUnitsIncDir /usr/local/include */
+#define NetCDFIncDir /net/opt_lnx/local_rh90/include
+#define UDUnitsIncDir /net/opt_lnx/local_rh90/include
 
 /*
  * Zebra can build an interface to HDF (Hierarchical Data Format) satellite
@@ -373,8 +372,8 @@ XCOMM -----------------------------------------------------------------------
  * (or SweepFileLibDir to just give the directory).
  */
 # define HasSweepFiles YES
-# define SweepFileIncDir /usr/local/rdss/include
-# define SweepFileLibrary /usr/local/rdss/lib/libddm.a
+# define SweepFileIncDir /net/local_lnx/rdss/include
+# define SweepFileLibrary /net/local_lnx/rdss/lib/libddm.a
 
 /*
  * Building the radar ingestor now requires the PCAP library from
@@ -384,7 +383,7 @@ XCOMM -----------------------------------------------------------------------
  * all this.
  */
 # define PCAPLibrary 	-lpcap
-# define PCAPIncludes 	-I/usr/local/include
+# define PCAPIncludes 	-I/net/opt_lnx/local_rh90/include
 
 /*
  * The graphics process can be built to do map projections.  Projections
@@ -398,8 +397,8 @@ XCOMM -----------------------------------------------------------------------
  * appropriate value. 
  */
 # define MapProjections YES
-# define ProjLibDir /usr/local/lib
-/* # define ProjIncDir /usr/local/include */
+# define ProjLibDir /net/opt_lnx/local_rh90/lib
+# define ProjIncDir /net/opt_lnx/local_rh90/include
 	
 /*
  * Examples of command-line options which override the above definitions
@@ -434,8 +433,8 @@ XCOMM -----------------------------------------------------------------------
 # define XLibDir /usr/X11R6/lib
 /* # define XLibDir /usr/contrib/mitX11R5/lib */ /* for HPUX */
 
-/* # define NetCDFLibDir /usr/local/lib */	/* not needed with gcc */
-/* # define UDUnitsLibDir /usr/local/lib */	/* not needed with gcc */
+# define NetCDFLibDir /net/opt_lnx/local_rh90/lib
+# define UDUnitsLibDir /net/opt_lnx/local_rh90/lib
 
 /*
  * To specify the whole command-line option for a library use the symbols
