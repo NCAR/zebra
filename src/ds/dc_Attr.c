@@ -32,7 +32,7 @@
 # include <regex.h>
 # endif
 
-MAKE_RCSID ("$Id: dc_Attr.c,v 1.7 1993-10-21 18:43:22 corbet Exp $")
+MAKE_RCSID ("$Id: dc_Attr.c,v 1.8 1993-10-22 19:05:49 corbet Exp $")
 
 
 /*
@@ -451,7 +451,7 @@ int *natts;
 # ifdef hpux
 	regex_t reg;
 # else
-	char *re_comp (), *re_exec (), *cp, *value;
+	char *re_comp (), *re_exec ();
 # endif
 #endif
 	if (natts)
