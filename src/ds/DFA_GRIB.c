@@ -33,7 +33,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 
-MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.2 1994-02-24 20:03:08 burghart Exp $")
+MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.3 1994-02-25 16:50:30 burghart Exp $")
 
 /*
  * The GRIB product definition section (PDS)
@@ -541,7 +541,7 @@ int		ndetail;
 
 		for (i = 0; i < nalts; i++)
 		{
-			diff = abs (ztarget - alts[i]);
+			diff = fabs (ztarget - alts[i]);
 			if (diff < bestdiff)
 			{
 				bestdiff = diff;
@@ -1327,7 +1327,7 @@ dsDetail	*details;
  */
 	dp = dgrid;
 	
-	for (level = nlevels - 1; level >= 0; level--)
+	for (level = 0; level < nlevels; level++)
 	{
 	/*
 	 * Get the scaling information for our field and unpack the GRIB
@@ -1414,8 +1414,6 @@ dsDetail	*details;
  */
 	free (sgrid);
 	free (dgrid);
-	free (lats);
-	free (lons);
 }
 
 
