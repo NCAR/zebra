@@ -1,4 +1,4 @@
-/* $Header: /code/cvs/rdss/rdsslibs/ui/ui_loadfile.h,v 1.1 1989-02-08 13:28:17 corbet Exp $ */
+/* $Id: ui_loadfile.h,v 1.2 1989-04-05 14:27:14 corbet Exp $ */
 /*
  * Markers used in UI loadfiles.
  */
@@ -8,3 +8,4 @@
 # define LF_PROC	23	/* Procedure definitions		*/
 # define LF_COMMAND	24	/* Defined commands			*/
 # define LF_KEYS	25	/* Defined keys				*/
+# define LF_WIDGET	26	/* Widgets				*/
