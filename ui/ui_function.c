@@ -2,6 +2,7 @@
 /*
  * Function call handling.
  */
+# include <stdlib.h>
 # include <math.h>
 # include <string.h>
 # include "ui.h"
@@ -9,13 +10,7 @@
 # include "ui_error.h"
 # include "ui_globals.h"
 
-# if defined (AIXV3) || defined (__osf__)	/* For DEC and IBM machines */
-# include <malloc.h>
-# else
-extern char *malloc ();
-# endif
-
-static char *rcsid = "$Id: ui_function.c,v 1.14 1998-12-17 17:18:16 burghart Exp $";
+static char *rcsid = "$Id: ui_function.c,v 1.15 2004-10-25 15:15:30 burghart Exp $";
 
 /*
  * These structures represent functions.
