@@ -34,7 +34,7 @@
 # include "DataFormat.h"
 # include "DFA_ncutil.c"
 
-RCSID ("$Id: DFA_NetCDF.c,v 3.83 2003-08-08 16:42:01 burghart Exp $")
+RCSID ("$Id: DFA_NetCDF.c,v 3.84 2004-07-22 18:26:23 burghart Exp $")
 
 /*
  * Location fields: standard attributes
@@ -1456,7 +1456,7 @@ FieldId *fields;
 		 * integer types (NC_CHAR, NC_BYTE, NC_SHORT, NC_INT).
 		 */
 		int s;
-		if (ncattget(tag->nc_id, varid, "is_signed", &s) != -1 && s)
+		if (ncattget(tag->nc_id, varid, VATT_IS_SIGNED, &s) != -1 && s)
 		    types[i] = DCT_Char;
 		else
 		    types[i] = DCT_UnsignedChar;
@@ -3037,6 +3037,17 @@ int *dims;
 		(void) ncattput (tag->nc_id, varid, VATT_FTYPE,
 				NC_CHAR, strlen(attr)+1, attr);
 	/*
+	 * NetCDF has no explicit unsigned byte type, so we add an
+	 * "is_signed" attribute for our byte data.
+	 */
+		DC_ElemType vartype = dc_Type (dc, fids[var]);
+		if (vartype == DCT_Char || vartype == DCT_UnsignedChar)
+		{
+		  int is_signed = (vartype == DCT_Char) ? 1 : 0;
+		  (void) ncattput (tag->nc_id, varid, VATT_IS_SIGNED, 
+				   NC_INT, 1, &is_signed);
+		}
+	/*
 	 * Add the missing_value attribute for this field, but only if the
 	 * attribute has not already been explicitly set in the datachunk.
 	 * dc_FindFieldBadval() will return the field-specific bad value,
@@ -3186,7 +3197,7 @@ DataChunk *dc;
 	strcat (history, "Created by the Zebra DataStore library, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.83 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.84 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 	free (history);

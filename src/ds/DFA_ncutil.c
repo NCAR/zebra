@@ -18,6 +18,7 @@
 #define VATT_UNITS	"units"		/* units of variable	   */
 #define VATT_MISSING	"missing_value" /* bad value		   */
 #define VATT_FTYPE	"field_type"	/* field type, for derivations */
+#define VATT_IS_SIGNED	"is_signed"	/* signed boolean, for byte data */
 
 #ifndef NCU_STATIC
 #define NCU_STATIC static
