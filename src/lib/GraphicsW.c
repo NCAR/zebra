@@ -40,7 +40,7 @@
 # include "pd.h"
 # include "GraphicsWP.h"
 
-RCSID("$Id: GraphicsW.c,v 2.27 1999-03-01 02:04:42 burghart Exp $")
+RCSID("$Id: GraphicsW.c,v 2.28 1999-03-11 17:00:29 burghart Exp $")
 
 /*
  * The SHM definition just tells us that we can link with the shared
@@ -676,6 +676,7 @@ gw_CatchXShmError (Display *d, XErrorEvent *ev)
     msg_ELog (EF_DEBUG, "gw_CatchXShmError: %d/%d/%d", ev->error_code,
 	      ev->request_code, ev->minor_code);
     HadShmError = 1;
+    return (1);
 }
 
 
