@@ -646,12 +646,25 @@ char *colorcomp;
                                		ct_GetColorByName (color, &xc);
 					fg = xc.pixel;
                        		}
+        			else if (pda_Search (Pd, comp, "icon-color",
+                			platform, color, SYMT_STRING)) 
+				{
+        				ct_GetColorByName (color, &xc);
+        				fg = xc.pixel;
+				}
                        		if (pda_Search (Pd, comp, "icon-age-background",
                                		NULL, color, SYMT_STRING))
                        		{
                           		ct_GetColorByName (color, &xc);
 					bg = xc.pixel;
                        		}
+        			else if (pda_Search (Pd, comp, 
+					"icon-background", platform, color, 
+					SYMT_STRING))
+				{
+        				ct_GetColorByName (color, &xc);
+        				bg = xc.pixel;
+				}
                		}
 		/*
 		 * If the data isn't old color it the regular colors.
