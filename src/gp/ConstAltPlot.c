@@ -39,7 +39,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.29 1993-04-22 03:31:06 burghart Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.30 1993-06-04 20:23:34 burghart Exp $")
 
 
 /*
@@ -753,7 +753,7 @@ StInfo *sinfo;
  */
 {
 	float bv = *badval;
-	int sta, xp, yp, max = 3*res/2;
+	int sta, xp, yp, n_good, max = 3*res/2;
 /*
  * Pixel limits.
  */
@@ -798,11 +798,20 @@ StInfo *sinfo;
 /*
  * Now one last pass through to exclude everything which was not marked.
  */
+	n_good = 0;
+
 	for (sta = 0; sta < nsta; sta++)
 	{
 		if (! sinfo[sta].si_mark)
 			sinfo[sta].si_excl = TRUE;
+
+		n_good += sinfo[sta].si_excl ? 0 : 1;
 	}
+/*
+ * Inform the user if we removed all stations
+ */
+	if (n_good == 0)
+		msg_ELog (EF_INFO, "All stations removed by spatial filter");
 }
 
 
