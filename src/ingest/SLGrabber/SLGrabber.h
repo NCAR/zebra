@@ -19,8 +19,8 @@
  * maintenance or updates for its software.
  */
 
-#ifndef _zeb_slgrabber_h_
-#define _zeb_slgrabber_h_
+#ifndef _zebra_slgrabber_h_
+#define _zebra_slgrabber_h_
 
 # define SL_DATA	1			/* Data			*/
 
@@ -31,4 +31,4 @@ typedef struct _SLdata
 	unsigned char	sl_data[1];		/* Actual data		*/
 } SLdata;
 
-#endif /* _zeb_slgrabber_h_ */
+#endif /* _zebra_slgrabber_h_ */

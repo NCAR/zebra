@@ -15,15 +15,15 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.5 1996-05-01 20:29:53 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.6 2000-07-19 23:08:46 granger Exp $"
 
 LIBS = $(LIBZEB) $(LIBRDSS) $(LIBNETCDF)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
-SRCS = SLGrabber.c
-OBJS = SLGrabber.o
+SRCS = SLGrabber.c Serial.c Options.c
+OBJS = SLGrabber.o Serial.o Options.o
 
-HEADERS = SLGrabber.h
+HEADERS = SLGrabber.h Serial.h Options.h
 
 DISTFILES = Imakefile $(SRCS) $(HEADERS)
 
