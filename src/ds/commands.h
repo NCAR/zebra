@@ -1,5 +1,5 @@
 /*
- * $Id: commands.h,v 2.6 1994-04-27 08:24:11 granger Exp $
+ * $Id: commands.h,v 2.7 1996-08-22 01:38:31 granger Exp $
  *
  * Command keywords for the data store daemon.
  */
@@ -73,3 +73,7 @@
 # define DK_COPY	52
 # define DK_NONE	53
 
+/*
+ * A hook to kick things off
+ */
+# define DK_START	90

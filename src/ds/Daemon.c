@@ -45,7 +45,7 @@
 # include "dsDaemon.h"
 # include "commands.h"
 
-MAKE_RCSID ("$Id: Daemon.c,v 3.56 1996-01-23 19:56:04 granger Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.57 1996-08-22 01:38:27 granger Exp $")
 
 
 /*
@@ -62,6 +62,9 @@ struct SearchInfo {
 /*
  * Local forwards.
  */
+static void	StartInit FP ((void));
+static void	FinishInit FP ((void));
+static void	OverrideSettings FP ((int argc, char **argv));
 static int 	msg_Handler FP ((struct message *));
 static int	ui_Handler FP ((int, struct ui_command *));
 static void	mh_message FP ((struct message *));
@@ -189,13 +192,16 @@ static void
 usage (prog)
 char *prog;
 {
-	printf("usage: %s [options] [variables] initfile\n", prog);
+	printf("usage: %s [options] [variables] [initfile ...]\n", prog);
 	printf("options: [can be abbreviated]\n");
 	printf("   -help       Show this usage message\n");
-	printf("   -parse      Parse config file and exit\n");
+	printf("   -parse      Parse config files and exit\n");
 	printf("   -debug      Print log messages\n");
 	printf("variables: \n");
 	printf("   name=value  Override config file variable\n");
+	printf("initfile: \n");
+	printf("               %s\n",
+	       "Multiple init files are read in the order given");
 }
 
 
@@ -206,7 +212,6 @@ int argc;
 char **argv;
 {
 	char loadfile[80];
-	char *initfile;
 	int argt = SYMT_STRING;
 	stbl vtable;
 	int i;
@@ -216,9 +221,8 @@ char **argv;
 	setvbuf (stderr, NULL, _IONBF, 0);
 #endif
 /*
- * Set up the init file and other command-line options
+ * Set up the command-line options
  */
-	initfile = NULL;
 	Argc = argc;
 	Argv = argv;
 	for (i = 1; i < argc; ++i)
@@ -232,12 +236,7 @@ char **argv;
 			usage (argv[0]);
 			exit (0);
 		}
-		else if (strchr (argv[i], '='))
-			/* variable settings handled later */ ;
-		else if (initfile)
-			printf ("%s: argument %s ignored\n", argv[0], argv[i]);
-		else
-			initfile = argv[i];
+		/* variable settings and init files handled later */
 	}
 /*
  * Hook into the message system.
@@ -296,28 +295,55 @@ char **argv;
 /*
  * Other initialization.
  */
-#ifdef notdef
-	InitSharedMemory ();
-	dt_InitTables ();	/* Allow setting table sizes in config file */
-#endif
 	dap_Init ();
 	uf_def_function ("freespace", 1, &argt, FreeSpace);
 	F_Init ();
 /*
- * Start reading commands.
+ * Enter the initial command state, from where the ui$init procedure calls
+ * our StartInit() hook.
  */
-	if (initfile)
-	{
-		SValue v;
-		v.us_v_ptr = initfile;
-		usy_s_symbol (usy_g_stbl ("ui$variable_table"),
-			      "initfile", SYMT_STRING, &v);
-	}
-	msg_ELog (EF_DEBUG, "Reading command file %s", initfile);
 	ui_get_command ("initial", "dsd>", ui_Handler, 0);
 	msg_ELog (EF_PROBLEM, "ui command interpreter failed; shutting down");
 	Shutdown ();
 	return (0);
+}
+
+
+
+static void
+StartInit ()
+/*
+ * This is the first thing called by the load file ui$init procedure.
+ * Parse our global argv array for init files and read each one.  When this
+ * routine exits, all the init files have been read, and the ui$init
+ * procedure calls 'done' to kick us into 'FinishInit'.
+ */
+{
+	char cmd[256];
+	int init = 0;
+	int i;
+
+	for (i = 1; i < Argc; ++i)
+	{
+		if ((Argv[i][0] != '-') && (strchr (Argv[i], '=') == 0))
+		{
+			sprintf (cmd, "read '%s'", Argv[i]);
+			msg_ELog (EF_DEBUG, "Reading init file '%s'", 
+				  Argv[i]);
+			ui_perform (cmd);
+			++init;
+		}
+	}
+	if (! init)
+	{
+		char *msg = "No init file on datastore daemon command line!";
+		msg_ELog (EF_INFO, "%s", msg);
+		printf ("%s\n", msg);
+	}
+	else
+	{
+		msg_ELog (EF_DEBUG, "%d init files read", init);
+	}
 }
 
 
@@ -483,12 +509,17 @@ struct ui_command *cmds;
 		dc_DefSubPlats ( UPTR(cmds[1]), UPTR(cmds[2]), cmds+3);
 		break;
 	/*
+	 * Begin with reading our command-line init files
+	 */
+	   case DK_START:
+		StartInit();
+		break;
+	/*
 	 * Configuration done -- go operational.
 	 */
 	   case DK_DONE:
 		if (Debug)
 		{
-			printf ("Status after reading init file:\n");
 			dbg_DumpStatus ();
 		}
 		if (ParseOnly)
@@ -1971,25 +2002,6 @@ PlatformId which;
 		msg_ELog (EF_DEBUG, 
 			  "Write lock on %s granted to %s",p->dp_name, who);
 	}
-#ifdef notdef
-/*
- * Otherwise the request needs to be enqueued.  We do this by putting it 
- * after the current lock.  NOTE that this does NOT implement proper
- * sequential ordering of locking, but it will be so rare that three processes
- * want locks at the same time that I don't think it is worth worrying
- * about.
- *
- *
- * do those sound like famous last words or what?
- */
-	else
-	{
-		msg_ELog (EF_DEBUG, 
-			  "%s waiting for write lock on %s", who, p->dp_name);
-		lp->l_Next = p->dp_WLockQ->l_Next;
-		p->dp_WLockQ->l_Next = lp;
-	}
-#endif
 	else
 	{
 		msg_ELog (EF_DEBUG, 

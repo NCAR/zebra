@@ -1,5 +1,5 @@
 !
-! $Id: Daemon.state,v 2.19 1996-08-20 20:16:47 granger Exp $
+! $Id: Daemon.state,v 2.20 1996-08-22 01:38:29 granger Exp $
 !
 ! The data store daemon configuration language.
 !
@@ -41,6 +41,9 @@ define state initial
 	endinput
 	input 'subplats' 29
 		next subplats-instance-or-class
+	endinput
+	input 'start' 90
+		next ust$no_more
 	endinput
 	input 'done' 8
 		next ust$no_more
@@ -536,16 +539,9 @@ enddef
 set ui$initial_state "initial"
 
 procedure ui$init
-	local _id '$Id: Daemon.state,v 2.19 1996-08-20 20:16:47 granger Exp $'
-!
-! Pull in the init file.
-!
-	if (defined ("initfile"))
-		local rcmd concat("read ", initfile)
-	else
-		local rcmd "message 'What?  No init file'"
-	endif
-	#rcmd
+	local _id '$Id: Daemon.state,v 2.20 1996-08-22 01:38:29 granger Exp $'
+
+	start
 	done
 endprocedure
 
