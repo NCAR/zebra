@@ -23,7 +23,7 @@
 # include "DataStore.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_Transp.c,v 1.2 1991-12-04 23:44:38 corbet Exp $")
+MAKE_RCSID ("$Id: dc_Transp.c,v 1.3 1991-12-27 21:20:50 corbet Exp $")
 
 /*
  * TODO:
@@ -32,14 +32,11 @@ MAKE_RCSID ("$Id: dc_Transp.c,v 1.2 1991-12-04 23:44:38 corbet Exp $")
  *	Location frob
  */
 
-# ifdef __STDC__
-	static DataChunk 	*Dc_TrCreate (DataClass);
-	static void 		dc_TrDump ();
-	static PlatformId	*dc_MakePlats (DataChunk *);
-	static void		dc_MorePlats (DataChunk *, int);
-	static void		dc_MoreLocs (DataChunk *, int);
-# else
-# endif
+static DataChunk 	*Dc_TrCreate FP((DataClass));
+static void 		dc_TrDump FP((DataChunk *));
+static PlatformId	*dc_MakePlats FP((DataChunk *));
+static void		dc_MorePlats FP((DataChunk *, int));
+static void		dc_MoreLocs FP((DataChunk *, int));
 /*
  * The basic methods structure.
  */
@@ -94,11 +91,8 @@ typedef struct _AuxTrans
 /*
  * Local routines.
  */
-# ifdef __STDC__
-	static AuxTrans * dc_TrMoreSamples (DataChunk *, AuxTrans *, int);
-	static int	dc_TrMoreData (DataChunk *, int);
-# else
-# endif
+static AuxTrans * dc_TrMoreSamples FP ((DataChunk *, AuxTrans *, int));
+static int	dc_TrMoreData FP ((DataChunk *, int));
 
 
 static DataChunk *

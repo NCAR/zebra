@@ -23,7 +23,7 @@
 # include "DataStore.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_Boundary.c,v 1.2 1991-12-04 23:44:38 corbet Exp $")
+MAKE_RCSID ("$Id: dc_Boundary.c,v 1.3 1991-12-27 21:21:49 corbet Exp $")
 
 
 /*
@@ -43,10 +43,8 @@ typedef struct _BndSamp
 /*
  * Local routines.
  */
-# ifdef __STDC__
-	static DataChunk *dc_BndCreate (DataClass);
-	static void dc_BndDump (DataChunk *);
-# endif
+static DataChunk *dc_BndCreate FP((DataClass));
+static void dc_BndDump FP((DataChunk *));
 
 /*
  * The basic methods structure.
