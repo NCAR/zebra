@@ -15,7 +15,7 @@
 //#include <message.h>
 //}
 
-// RCSID ("$Id: BTreeFile.cc,v 1.12 1998-09-21 19:50:50 granger Exp $")
+// RCSID ("$Id: BTreeFile.cc,v 1.13 1998-09-21 23:21:27 granger Exp $")
 
 #include "Logger.hh"
 #include "Format.hh"
@@ -124,7 +124,8 @@ BTreeFile<K,T>::BTreeFile (BlockFile &_bf, int order, long sz, int fix) :
 template <class K, class T>
 BTreeFile<K,T>::BTreeFile (int order, long sz, int fix) :
 	BTree(0, 0, 0),
-	SyncBlock (*(new BlockFile ("btree.bf", MAGIC))),
+	SyncBlock (*(new BlockFile ("btree.bf", MAGIC, 
+				    BlockFile::BF_EXCLUSIVE))),
 	bf (SyncBlock::bf),
 	our_bf(1)
 {
@@ -138,7 +139,8 @@ BTreeFile<K,T>::BTreeFile (int order, long sz, int fix) :
 template <class K, class T>
 BTreeFile<K,T>::BTreeFile (const char *fname, int order, long sz, int fix) :
 	BTree(0, 0, 0),
-	SyncBlock (*(new BlockFile (fname, MAGIC))),
+	SyncBlock (*(new BlockFile (fname, MAGIC,
+				    BlockFile::BF_EXCLUSIVE))),
 	bf (SyncBlock::bf),
 	our_bf(1)
 {
@@ -191,7 +193,7 @@ BTreeFile<K,T>::Reopen ()
 
 	// Release what we have, and start over with our own file
 	release ();
-	bf = new BlockFile (path.c_str());
+	bf = new BlockFile (path.c_str(), MAGIC, BlockFile::BF_EXCLUSIVE);
 	our_bf = 1;
 	attach (Block(), *bf);
 	Init (order, elementSize(), elementFixed());
@@ -212,9 +214,7 @@ BTreeFile<K,T>::Init (int order, long sz, int fix)
 	lru = 0;
 	maxcache = 20;
 	ncache = 0;
-	//cache.clear ();
-	//cache.reserve (maxcache);
-	//freelist.clear ();
+	fstats.reset();
 	log.Declare ("BTreeFile");
 	log.Extend (bf->Path());
 }
@@ -339,8 +339,9 @@ template <class K, class T>
 void
 BTreeFile<K,T>::release ()
 {
-	// Delete any nodes in memory, leaving the tree empty when our
-	// superclass destructor is called.
+	// Delete any nodes in memory, writing them to disk first if
+	// necessary, leaving the tree empty when our superclass destructor
+	// is called.
 	if (root)
 	{
 		root->sync (1);
@@ -500,10 +501,11 @@ BTreeFile<K,T>::trimCache ()
 		}
 		if (that)
 		{
-			// Release it
+			// Force it to disk if dirty and release it
 			current->invalidate (that);
 			parent->local = 0;
-			that->sync ();
+			if (that->dirty())
+				that->writeSync (1);
 			delete that;
 		}
 	}
@@ -601,8 +603,10 @@ BTreeFile<K,T>::leave ()
 		trimCache();
 
 		// Need to tell all nodes in memory to writeSync(), which
-		// right now is done by a recursive sync() method.
-		root->sync();
+		// right now is done by a recursive sync() method.  This
+		// is unnecessary when we have exclusive access.
+		if (! bf->Exclusive())
+			root->sync();
 	}
 	unlock ();
 	bf->Unlock ();
@@ -622,7 +626,9 @@ template <class K, class T>
 void
 BTreeFile<K,T>::FileStats::translate (SerialStream &ss)
 {
-	ss << nodesRead << nodesWritten << overflowBytes << allocBytes;
+	// Only the overflow and allocated bytes are persistent.  Read and
+	// write counts last only as long as our block file object.
+	ss << overflowBytes << allocBytes;
 }
 
 
@@ -815,6 +821,11 @@ BlockNode<K,T>::free ()
 
 
 
+/*
+ * Non-zero 'force' means force the write sync iff the node is dirty,
+ * which is necessary when we have exclusive blockfile access but
+ * the node is being released from memory.
+ */
 template <class K, class T>
 void
 BlockNode<K,T>::sync (int force)
@@ -835,7 +846,8 @@ BlockNode<K,T>::sync (int force)
 	}
 	assert (thisNode.addr > 0);
 	assert (block.offset > 0 && block.length > 0);
-	writeSync (force);
+	if (dirty())
+		writeSync (force);
 }
 
 

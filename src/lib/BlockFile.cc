@@ -11,7 +11,7 @@
 #include <iomanip.h>
 
 //#include <defs.h>
-//RCSID ("$Id: BlockFile.cc,v 1.15 1998-09-16 21:26:53 granger Exp $");
+//RCSID ("$Id: BlockFile.cc,v 1.16 1998-09-21 23:21:28 granger Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
 #include "BlockFileP.hh"
@@ -62,6 +62,7 @@ void BlockFile::init ()
 	path = 0;
 	lock = 0;
 	writelock = 0;
+	flags = 0;
 	header = 0;
 	freelist = 0;
 	journal = 0;
@@ -125,10 +126,10 @@ BlockFile::Create (const char *path, unsigned long app_magic = 0,
  */
 int
 BlockFile::Open (const char *path, unsigned long app_magic = 0, 
-		 int flags = BF_NONE)
+		 int flags_ = BF_NONE)
 {
 	Format fmt("Open(%s,%0x,%i)");
-	EnterBlock eb(log, fmt % path % app_magic % flags);
+	EnterBlock eb(log, fmt % path % app_magic % flags_);
 	if (fp)			// Close any currently open file
 		Close();
 
@@ -136,7 +137,7 @@ BlockFile::Open (const char *path, unsigned long app_magic = 0,
 	status = COULD_NOT_OPEN;
 
 	log && log.Debug (Format("%s file: %s") %
-			  ((flags & BF_CREATE) ? "Creating" : "Opening") %
+			  ((flags_ & BF_CREATE) ? "Creating" : "Opening") %
 			  path);
 
 	// Initialize path
@@ -146,7 +147,7 @@ BlockFile::Open (const char *path, unsigned long app_magic = 0,
 	// Create (truncate an existing) file iff explicitly requested
 	// or the file entry does not already exist.
 	struct stat st;
-	create = (flags & BF_CREATE) || 
+	create = (flags_ & BF_CREATE) || 
 		(stat (path, &st) < 0 && ::errno == ENOENT);
 
 	if (create)
@@ -197,6 +198,7 @@ BlockFile::Open (const char *path, unsigned long app_magic = 0,
 	// Once we have a header, we can associate our auxillary blocks
 	freelist = new FreeList (*this, header->freelist, header);
 	journal = new Journal (*this, header->journal, header);
+	flags = flags_;
 
 	if (create)
 	{
@@ -268,9 +270,10 @@ BlockFile::Close ()
 	{
 		// log.Info (Format("Closing '%s'") % path);
 		/*
-		 * Force writesync if we have a lock and may have changed.
+		 * Force writesync if we have a lock and may have changed,
+		 * or if we've had exclusive access.
 		 */
-		if (lock > 0 && writelock)
+		if ((lock > 0 && writelock) || Exclusive())
 			WriteSync (1);
 		fclose (fp);
 		fp = 0;
@@ -299,6 +302,7 @@ BlockFile::Close ()
 	status = NOT_OPEN;
 	lock = 0;
 	writelock = 0;
+	flags = 0;
 	return (status);
 }
 
@@ -310,7 +314,7 @@ BlockFile::ReadLock ()
 	if (lock++ == 0)
 	{
 		log.Debug ("read lock");
-		if (header)
+		if (header && !Exclusive())
 			header->readSync ();
 	}
 }
@@ -323,7 +327,7 @@ BlockFile::WriteLock ()
 	if (lock++ == 0)
 	{
 		log.Debug ("write lock");
-		if (header)
+		if (header && !Exclusive())
 			header->readSync ();
 	}
 	writelock = 1;
@@ -493,7 +497,6 @@ BlockFile::Alloc (BlkSize size, BlkSize *actual)
  */
 {
 	WriteLock();
-	//freelist->readSync ();
 	BlkOffset addr = alloc (size, actual);
 	Unlock ();
 	return (addr);

@@ -1,5 +1,5 @@
 /*
- * $Id: BTreeFile.hh,v 1.10 1998-09-21 19:50:51 granger Exp $
+ * $Id: BTreeFile.hh,v 1.11 1998-09-21 23:21:27 granger Exp $
  *
  * BTree subclass which implements persistence using a BlockFile.
  */
@@ -35,8 +35,6 @@ public:
 		unsigned long overflowBytes;	// persistent
 		// Bytes allocated to us in file
 		unsigned long allocBytes;
-		// Bytes of storage actually used
-		unsigned long usedBytes;
 
 		void translate (SerialStream &ss);
 		void reset ()

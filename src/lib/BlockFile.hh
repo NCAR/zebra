@@ -1,5 +1,5 @@
 /*
- * $Id: BlockFile.hh,v 1.13 1998-09-15 06:39:00 granger Exp $
+ * $Id: BlockFile.hh,v 1.14 1998-09-21 23:21:28 granger Exp $
  *
  * Definition of the BlockFile class, for storing opaque blocks of bytes
  * into a file through a block interface.  The overhead information in the
@@ -152,6 +152,11 @@ public:
 	void ReadSync ();			// Read sync from file
 	void WriteSync (int force = 0);		// Write sync to file
 
+	bool Exclusive ()
+	{
+		return (flags & BF_EXCLUSIVE);
+	}
+
 	// Debugging
 
 	ostream& DumpHeader (ostream& out);
@@ -183,6 +188,7 @@ protected:
 	char *path;	// Path name of current file
 	int lock;	// Lock count
 	int writelock;	// Write sync pending
+	unsigned long flags;	// Flags used on open
 
 	/* statistics and debugging */
 	Stats stats;

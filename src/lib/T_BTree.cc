@@ -292,6 +292,8 @@ T_Insert (test_tree &tree, vector<test_key> &keys, vector<test_key> &values)
 	//cout << "----- Snapshot -----" << endl;
 	//tree.Print (cout);
 
+	Summarize (cout, tree);
+
 	cout << " ...re-opening tree" << endl;
 	tree.Reopen();
 

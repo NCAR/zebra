@@ -6,7 +6,7 @@
 //#include <defs.h>
 //#undef bool
 //
-//RCSID("$Id: BlockObject.cc,v 1.9 1998-08-27 22:40:42 granger Exp $")
+//RCSID("$Id: BlockObject.cc,v 1.10 1998-09-21 23:21:28 granger Exp $")
 
 #include "BlockFile.hh"
 #include "BlockObject.hh"
@@ -23,21 +23,6 @@ SyncBlock::SyncBlock (BlockFile &_bf, const Block &exist) :
 {
 	// cout << "SyncBlock constructor" << endl;
 	attach (exist);
-#ifdef notdef
-	block.revision = 0;	// we have no revision in memory yet
-	marked = 0;
-	changed = 0;
-	lock = 0;
-	writelock = 0;
-	// If the given block has not been allocated, we're dirty
-	// because we don't yet exist in the file, and we don't need to
-	// be read-synced so our revision is set to the file rev.
-	if (block.offset == 0 && block.length == 0)
-	{
-		mark ();
-		block.revision = bf->Revision();
-	}
-#endif
 }
 
 
@@ -89,11 +74,6 @@ SyncBlock::attach (const Block &exist, BlockFile &_bf)
 void
 SyncBlock::mark (int _marked)
 {
-#ifdef notdef
-	// Increment our revision number on the first change
-	if (clean() && _marked)
-		++block.revision;
-#endif
 	this->marked = _marked;
 }
 
@@ -131,7 +111,8 @@ SyncBlock::readSync ()
 		changed = 0;
 		mark (0);
 	}
-	updateRev ();
+	if (clean())
+		updateRev ();
 }
 
 
@@ -162,7 +143,7 @@ SyncBlock::needsRead ()
 int
 SyncBlock::needsWrite (int force)
 {
-	return (! clean() || force);
+	return (force || (!bf->Exclusive() && !clean()));
 }
 
 
