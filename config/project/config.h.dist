@@ -39,7 +39,7 @@
 /**/# -----------------------------------------------------------------------
 /**/# Definitions from config.h included here.  The definitions here override
 /**/# the defaults in Project.tmpl.  See ...../zeb/config/config.h.
-/**/# $Id: config.h.dist,v 1.5 1994-02-01 11:40:03 granger Exp $
+/**/# $Id: config.h.dist,v 1.6 1994-02-02 03:23:39 granger Exp $
 /**/# -----------------------------------------------------------------------
 # endif
 
@@ -140,6 +140,14 @@
 # define	BuildDAPIngest		YES
 # define	BuildRAPDataServerIngest YES
 # define	BuildWetnetIngest	YES
+
+/*
+ * The PAM ingest programs (pam_ingest and daypam_ingest) require libraries
+ * which are compiled within the RDSS source tree.  Do not define this to YES
+ * unless your RDSS source tree still contains the compiled mda, pamutil, and
+ * unp libraries (i.e., it all built successfully and has not been cleaned).
+ */
+# define	BuildPamIngest		NO   /* Requires RDSS compiled tree */
 
 /*
  * Set this if you want the ingest-oriented DataStore utilities (these being
@@ -788,7 +796,6 @@
 # define	BuildRadarLimits	NO	/* still DataObject 	*/
 # define 	BuildNatsIngest		NO	/* still DataObject 	*/
 # define	BuildP3Ingest		NO	/* still DataObject 	*/
-# define	BuildPamIngest		NO	/* unresolved symbols 	*/
 # define	BuildAircraftIngest	NO	/* doesn't build anywhere */
 # define	BuildFMIngest		NO	/* still DataObject	*/
 # define 	BuildLLPIngest		NO	/* still DataObject	*/
