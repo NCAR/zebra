@@ -19,6 +19,7 @@
 static char *rcsid = "$ID$";
 
 # include "../include/defs.h"
+# include <copyright.h>
 # include "BoundaryFile.h"
 # include <fcntl.h>
 

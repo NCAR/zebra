@@ -1,5 +1,5 @@
 /*
- * $ID$
+ * "$Id: dslib.h,v 2.2 1991-09-26 23:22:54 gracio Exp $"
  * Internal info for the data store application interface library.
  */
 
