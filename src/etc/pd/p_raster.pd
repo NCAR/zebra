@@ -1,0 +1,17 @@
+!
+! Generic raster component for things like satellite or nowrad data.
+!
+global
+	pd-name:	p_raster
+p_raster
+	platform:	SOMETHING
+	field:		SOMETHING
+	representation:	raster
+	color-table:	16gray
+	icon:		satellite
+	icon-left-menu:		standard-cap-left-menu
+	icon-middle-menu:	FieldMenu
+	icon-right-menu:	raster-right
+	require:	raster
+	scale-mode:	auto
+	limit-proc:	raster-limit-proc

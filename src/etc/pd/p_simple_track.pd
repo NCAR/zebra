@@ -1,0 +1,22 @@
+!
+! PD component intended for very simple tracks -- those with no data other
+! than positions available.
+!
+global
+	pd-name:	p_simple_track
+p_simple_track
+	representation:	track
+	platform:	SOMETHING
+	time-period:	600s
+	trigger:	platform
+	color:		cyan
+	line-width:	3
+	sa-scale:	0.025
+	show-position:	true
+	position-icon:	littleplane
+	icon-left-menu:		standard-cap-left-menu
+	icon-middle-menu:	simple-color
+	icon-right-menu:	linewidth
+	icon:		littleplane
+	require:	simple-color, simple-track
+	limit-proc:	simple-track-adjust

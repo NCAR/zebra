@@ -1,0 +1,17 @@
+!
+! Your basic range rings.
+!
+GLOBAL
+	pd-name:	p_rings
+p_rings
+	platform:	ORIGIN
+	representation:	overlay
+	field:		range-rings
+	color:		white
+	icon-middle-menu:	rings-origin
+	icon-right-menu:	rings-right
+	icon:		rings
+	ring-interval:	20
+	azimuth-interval:	30
+	require:	rings, simple-color
+ 

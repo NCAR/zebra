@@ -1,0 +1,17 @@
+!
+! Generic lat/lon grid component.
+!
+global
+	pd-name:	p_llgrid
+p_llgrid
+	platform:	irrelevant
+	representation:	overlay
+	field:		grid
+	icon:		grid
+	lat-lon:	true
+	x-spacing:	15
+	y-spacing:	15
+	line-width:	0
+	require:	grid, simple-color
+	icon-left-menu:	standard-cap-left-menu
+	icon-right-menu:	llgrid-right

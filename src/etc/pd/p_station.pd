@@ -1,0 +1,20 @@
+!
+! Generic plot description for station plots.  Needs to have the platform
+! filled in (unless it happens to be "mesonet") but otherwise self contained.
+!
+global
+	pd-name:	p_station
+p_station
+	platform:	mesonet
+	representation:	station
+	u-field:	u_wind
+	v-field:	v_wind
+	quad4:		station
+	icon-left-menu:	standard-cap-left-menu
+	icon-middle-menu:	FieldMenu
+	field-select-command:	p_toggle_quadrant
+	field-menu-extras:	station|Station Identification
+	icon-right-menu:	p-station-right
+	arrow-scale:		0.01
+	require:		station, simple-color
+	limit-proc:		adj_arrow_scale

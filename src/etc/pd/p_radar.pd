@@ -1,0 +1,21 @@
+!
+! Generic radar component -- at least, as generic as one can get.  Needs
+! platform filled in, and field if not reflectivity.
+!
+! You also really want to put the window into radar-space mode as well.
+!
+global
+	pd-name:	p_radar
+p_radar
+	platform:	SOMETHING
+	field:		reflectivity
+	representation:	raster
+	icon:		cp4
+	color-table:	wild
+	every-sweep:	true
+	icon-left-menu:		standard-cap-left-menu
+	icon-middle-menu:	radar-middle
+	icon-right-menu:	DataAvailable
+	every-sweep:	true
+	scale-mode:	auto
+	require:	radar
