@@ -1,5 +1,5 @@
 /* -*- mode: c++; c-basic-offset: 8; -*-
- * $Id: glass_ingest.cxx,v 2.8 2000-05-24 19:46:35 granger Exp $
+ * $Id: glass_ingest.cxx,v 2.9 2001-01-04 21:14:16 granger Exp $
  *
  * Ingest GLASS data into the system.
  *
@@ -14,9 +14,8 @@
   the 3-digit seconds problem is being handled by zero'ing any out-of-range
   seconds values in the launch time in the header
 
-  zebra skew-t plotting needs dewpoint (dp) field, but dp not in D-file.
-  should we calculate and insert it, or see if derivations can handle it
-  automagically?
+  zebra skew-t plotting needs dewpoint (dp) field, but dp not in D-file,
+  so we calculate and insert it.
 
   apparently class_ingest accounts for files stored in reverse chronological
   order.  We can account for this by testing after samples are stored and
@@ -29,6 +28,10 @@
   should still be ok.  If >= 10000, then the launch button was not pressed,
   so we don't know what time to assign to the surface data.  Use -999 as a
   valid pre-launch time which hopefully flags the unusual circumstances.
+
+  The first sample in the file is the surface data.  It should have a 
+  negative time offset (less than -30), and it is stored in different
+  fields than the sounding samples.
 
 */
 
@@ -70,11 +73,12 @@ extern "C"
 #include <met_formulas.h>
 }
 
-RCSID("$Id: glass_ingest.cxx,v 2.8 2000-05-24 19:46:35 granger Exp $")
+RCSID("$Id: glass_ingest.cxx,v 2.9 2001-01-04 21:14:16 granger Exp $")
 
 #include <ZTime.h>
+#define FC_DEFINE_FIELDS
 #include "FieldClass.h"
-
+#undef FC_DEFINE_FIELDS
 
 class AppException
 {
@@ -139,26 +143,36 @@ extern const char *FT_VWind;	// Bug in older versions of Field.h
 DefineField(F_tdelta, "tdelta", "", "s", "time since launch")
 DefineField(F_pres, "pres", FT_Pres, "hPa", "pressure")
 DefineField(F_temp, "temp", FT_Temp, "degC", "temperature")
-DefineField(F_dewpoint, "dp", FT_DP, "degC", "dewpoint")
 DefineField(F_rh, "rh", FT_RH, "%", "relative humidity")
-DefineField(F_u, "u_wind", FT_UWind, "m/s", "u wind component")
-DefineField(F_v, "v_wind", FT_VWind, "m/s", "v wind component")
-DefineField(F_wspd, "wspd", FT_WSpd, "m/s", "wind speed")
 DefineField(F_wdir, "wdir", FT_WDir, "degrees", "wind direction")
-DefineField(F_ascent, "ascent", "", "m/s", "ascent rate")
+DefineField(F_wspd, "wspd", FT_WSpd, "m/s", "wind speed")
 DefineField(F_dz, "dz", "", "m/s", "ascent rate")
 DefineField(F_lon, "lon", "", "degrees_north", "longitude")
 DefineField(F_lat, "lat", "", "degrees_east", "latitude")
+DefineField(F_alt, "alt", "", "m", "altitude above MSL")
+DefineField(F_sa, "sa", "", "1", "GPS satellites")
+
+DefineField(F_stime, "stime", "", "s", "time since launch time")
+DefineField(F_spres, "spres", FT_Pres, "hPa", "surface pressure")
+DefineField(F_stemp, "stemp", FT_Temp, "degC", "surface temperature")
+DefineField(F_srh, "srh", FT_RH, "%", "surface relative humidity")
+DefineField(F_swdir, "swdir", FT_WDir, "degrees", "surface wind direction")
+DefineField(F_swspd, "swspd", FT_WSpd, "m/s", "surface wind speed")
+DefineField(F_sdewpoint, "sdp", FT_DP, "degC", "surface dewpoint")
+
+DefineField(F_dewpoint, "dp", FT_DP, "degC", "dewpoint")
+
+DefineField(F_u, "u_wind", FT_UWind, "m/s", "u wind component")
+DefineField(F_v, "v_wind", FT_VWind, "m/s", "v wind component")
+DefineField(F_ascent, "ascent", "", "m/s", "ascent rate")
 DefineField(F_range, "range", "", "km", "range from launch site")
 DefineField(F_az, "az", "", "degrees", "azimuth from launch site")
-DefineField(F_alt, "alt", "", "m", "altitude above MSL")
 DefineField(F_qpres, "qpres", "", "hPa", "pressure quality")
 DefineField(F_qtemp, "qtemp", "", "degC", "temperature quality")
 DefineField(F_qrh, "qrh", "", "%", "humidity quality")
 DefineField(F_qu, "qu", "", "m/s", "u wind quality")
 DefineField(F_qv, "qv", "", "m/s", "v wind quality")
 DefineField(F_qwind, "qwind", "", "m/s", "wind quality")
-DefineField(F_sa, "sa", "", "1", "GPS satellites")
 
 /*
  * The list of fields available from CLASS files.  These are fixed in the
@@ -199,9 +213,10 @@ struct ClassFileRecord
 };
 
 
-
 struct GlassFileRecord 
 {
+	static const int MAX_SURFACE = 100;
+
 	F_tdelta tdelta;
 	F_pres pres;
 	F_temp temp;
@@ -219,10 +234,27 @@ struct GlassFileRecord
 	void enumerate (E &e)
 	{
 		e << tdelta << pres << temp << rh;
-		e << wdir <<wspd << dz;
+		e << wdir << wspd << dz;
 		e << lon << lat << alt;
 		e << sa;
 	}
+
+	F_stime stime[MAX_SURFACE];
+	F_spres spres[MAX_SURFACE];
+	F_stemp stemp[MAX_SURFACE];
+	F_srh srh[MAX_SURFACE];
+	F_swdir swdir[MAX_SURFACE];
+	F_swspd swspd[MAX_SURFACE];
+
+	template <class E>
+	void enumerateSurfaceFields (E &e)
+	{
+		e << stime[nsurface] << spres[nsurface];
+		e << stemp[nsurface] << srh[nsurface];
+		e << swdir[nsurface] << swspd[nsurface];
+	}
+
+	int nsurface;
 };
 
 
@@ -370,42 +402,6 @@ struct CollectFields
 };
 
 
-#ifdef notdef
-struct _ClassField
-{
-    char *name;
-    char *type;		/* Zebra generic field type */
-    char *units;
-    char *description;
-} ClassFields[] = 
-{
-    { "tdelta", "", "s", "time since launch" },
-    { "pres", "P", "hPa", "pressure" },
-    { "temp", "T", "degC", "temperature" },
-    { "dp", "dp", "degC", "dewpoint" },
-    { "rh", "rh", "%", "relative humidity" },
-    { "u_wind", "uwind", "m/s", "u wind component" },
-    { "v_wind", "vwind", "m/s", "v wind component" },
-    { "wspd", "wspd", "m/s", "wind speed" },
-    { "wdir", "wdir", "deg", "wind direction" },
-    { "ascent", "", "m/s", "ascent rate" },
-    { "dz", "", "m/s", "ascent rate" },
-    { "lon", "", "deg", "longitude" },
-    { "lat", "", "deg", "latitude" },
-    { "range", "", "km", "range from launch site" },
-    { "az", "", "deg", "azimuth from launch site" },
-    { "alt", "", "m", "altitude above MSL" },
-    { "qpres", "", "hPa", "pressure quality" },
-    { "qtemp", "", "degC", "temperature quality" },
-    { "qrh", "", "%", "humidity quality" },
-    { "qu", "", "m/s", "u wind quality" },
-    { "qv", "", "m/s", "v wind quality" },
-    { "qwind", "", "m/s", "wind quality" }
-};
-
-int NClassFields = sizeof (ClassFields) / sizeof (struct _ClassField);
-#endif
-
 
 static void	ReadHeader (DataChunk *dc, char *file, Sounding &snd);
 static void	ReadSamples (DataChunk *dc, char *file, Sounding &snd);
@@ -430,12 +426,6 @@ static const int NO_PROBLEM = 0;
  * The name of the site name -> platform name translations file (if any)
  */
 static char	*Tfilename = NULL;
-
-/*
- * Pressure quality threshold (1.5 by default, but can be changed by
- * command line option)
- */
-static float	QualThresh = 1.5;
 
 
 /*
@@ -468,25 +458,55 @@ int main (int argc, char **argv)
 }
 
 
+static DataChunk *
+CreateSoundingDC (Sounding &snd)
+{
+	DataChunk *dc;
+	FieldId fields[MAX_FIELDS];
+	int nfields;
+	int i;
+
+	dc = dc_CreateDC (DCC_NSpace);
+
+	// Collect the sounding fields (different from the surface fields)
+	CollectFields cf (&nfields, fields);
+	snd.enumerate (cf);
+	// Add the dewpoint field which we'll derive
+	fields[nfields++] = F_dewpoint::fieldId();
+	for (i = 0; i < nfields; ++i)
+	{
+		dc_NSDefineVariable (dc, fields[i], 0, 0, 0);
+	}
+	IngestLog(EF_DEBUG,"%d sounding fields set in datachunk",nfields);
+
+	// Define the dimension for surface points
+	dc_NSDefineDimension (dc, F_stime::fieldId(), 
+			      GlassFileRecord::MAX_SURFACE);
+	CollectFields sf (&nfields, fields);
+	snd.gl->enumerateSurfaceFields (sf);
+	FieldId dimn = F_stime::fieldId();
+	for (i = 0; i < nfields; ++i)
+	{
+		dc_NSDefineVariable (dc, fields[i], 1, &dimn, /*static*/TRUE);
+	}
+	IngestLog(EF_DEBUG,"%d surface fields set in datachunk",nfields);
+
+	dc_SetBadval(dc, BADVAL);
+	IngestLog(EF_DEBUG,"bad_value_flag set to %6.2f",BADVAL);
+
+	dc_NSAllowRedefine (dc, 1);
+	return dc;
+}
+
+
 static void 
 GlassIngest (int argc, char *argv[])
 {
 	char 	*filename;	/* Name of the snding file, pts to argv[1] */
-	FieldId fields[MAX_FIELDS];
-				/* The FieldId's of each field which the
-				 * user has specified on the cmd-line */
-	int nfields;		/* The number of fields to be stored */
-	//	ZebTime *times;		/* Times for ea. sample in the s'nding file */
-	//	ZebTime temp;
-	//	int nsamples;		/* Number of samples, or pts, in the file */
 	DataChunk *Dchunk;   	/* The DataChunk we'll be building */
-	// bool reverse;		/* Reverse samples? */
-	// int i;
-	// static struct ui_command end_cmd = { UTT_END };
-	// static char ctime[40];
 /*
- * Get our command-line options, setting appropriate global variables
- * Only the file name and the names of the fields should remain
+ * Get our command-line options, setting appropriate global variables.
+ * Only the file name should remain.
  */
 	ParseCommandLineOptions(&argc, argv);
 	Sounding snd(SoundingType);
@@ -513,23 +533,9 @@ GlassIngest (int argc, char *argv[])
 	if (Tfilename)
 		BuildTranslationTable (Tfilename);
 /*
- * Create a new data chunk, get the field list from the command line
- * and set up these fields in the Dchunk, including our bad_value_flag
+ * Create a new data chunk.
  */
-	Dchunk = dc_CreateDC(DCC_Scalar);
-
-	// ParseFieldNames(argc, argv, fields, &nfields);
-	// if (nfields == 0)
-	//	throw AppException ("No valid fields specified.");
-	// Collect the record fields into a list for the datachunk setup.
-	CollectFields cf (&nfields, fields);
-	snd.enumerate (cf);
-	// Add the dewpoint field which we'll derive
-	fields[nfields++] = F_dewpoint::fieldId();
-	dc_SetScalarFields(Dchunk, nfields, fields);
-	IngestLog(EF_DEBUG,"%d scalar fields set in datachunk",nfields);
-	dc_SetBadval(Dchunk, BADVAL);
-	IngestLog(EF_DEBUG,"bad_value_flag set to %6.2f",BADVAL);
+	Dchunk = CreateSoundingDC(snd);
 /*
  * Open sounding file, get platform name and check for validity
  */
@@ -543,11 +549,6 @@ GlassIngest (int argc, char *argv[])
 		GetPlatformName (snd, PlatformName);
 	}
 
-	if (IngestLogFlags & (EF_DEBUG | EF_INFO)) 
-	{
-		//snd_show(&end_cmd);
-	}
-
 	SetPlatform (Dchunk, PlatformName);
 
 	if (DumpDataChunk)
@@ -555,46 +556,12 @@ GlassIngest (int argc, char *argv[])
 		IngestLog (EF_DEBUG, "Dumping data chunks to stdout");
 		dc_DumpDC (Dchunk);
 	}
-
-#ifdef notdef
-/*
- * Get the times and locations
- */
-	times = GetTimes (&nsamples);
-	reverse = TC_Less (times[nsamples-1], times[0]);
-	if (reverse)
-	{
-		for (i = 0; i < nsamples / 2; i++)
-		{
-			temp = times[i];
-			times[i] = times[nsamples - i - 1];
-			times[nsamples - i - 1] = temp;
-		}
-	}
-
-	TC_EncodeTime(times, TC_Full, ctime);
-	IngestLog(EF_INFO, "%s: %d samples found, starting at %s", 
-		      plat, nsamples, ctime);
-#endif
-
 /*
  * Now just read the sounding data into the datachunk.
  */
 	ReadSamples (Dchunk, filename, snd);
-
-/*
- * Load the data for each field into the data chunk 
- */
-	// LoadFieldData(Dchunk, times, nsamples, fields, nfields, reverse);
 	IngestLog(EF_DEBUG,"%s: each field has been loaded", PlatformName);
 	if (DumpDataChunk) dc_DumpDC(Dchunk);
-
-/*
- * Set the locations for each sample in the data chunk
- */
-	// SetLocations(Dchunk, nsamples);
-	//IngestLog(EF_DEBUG, "%s: Locations set for each sample",plat);
-
 /*
  * Send everything to the data store
  */
@@ -626,7 +593,7 @@ SetPlatform (DataChunk *dc, char PlatformName[])
 			PlatClassRef pc = ds_NewClass ("CLASS");
 			IngestLog(EF_DEBUG, "default platform class 'CLASS'");
 			/* relies on DefDataDir from ingest module */
-			ds_AssignClass (pc, OrgScalar, FTNetCDF,
+			ds_AssignClass (pc, OrgNSpace, FTNetCDF,
 					TRUE/*mobile*/);
 			ds_SetMaxSample (pc, 10000);
 			ds_SetComment (pc, "standalone CLASS platform ");
@@ -708,7 +675,6 @@ ParseCommandLineOptions (int *argc, char *argv[])
  * First parse any of the general ingest options
  */
 	IngestParseOptions(argc, argv, (void (*)(...))Usage);
-
 /*
  * Now check for any of our own debug flags on the command line
  */
@@ -746,11 +712,6 @@ ParseCommandLineOptions (int *argc, char *argv[])
 			strcpy (PlatformName, argv[i+1]);
 			IngestRemoveOptions (argc, argv, i, 2);
 		}
-		else if (! strncmp (argv[i], "-q", 2))
-		{
-			QualThresh = atof (argv[i+1]);
-			IngestRemoveOptions (argc, argv, i, 2);
-		}
 		else
 			++i;
 	}
@@ -768,7 +729,6 @@ Usage (char *prog)
 	printf ("   -fields		List the sounding fields\n");
 	printf ("   -trans <tfile>	Use the site/platform translations in 'tfile'\n");
 	printf ("   -platform <name>	Explicitly set the platform name\n");
-//	printf ("   -q <qval>		Set pressure quality threshold\n");
 	printf ("   -glass		Specify GLASS mode\n");
 	printf ("   -class		Specify CLASS mode\n");
 	printf ("\n");
@@ -921,7 +881,7 @@ ReadHeader (DataChunk *dc, char *file, Sounding &snd)
 	snd.tlaunch = 0;
 
 	/* Nothing graceful here.  Just read lines until we reach
-	   a line without a semicolon.  Everything before the semicolon
+	   a line without a colon.  Everything before the colon
 	   becomes an attribute, everything after is the value.
 	   Check for specific attributes for the location and launch time.
 	*/
@@ -1050,8 +1010,8 @@ struct AddRecord
 	{
 		if (! InternalField (f))
 		{
-			dc_AddScalar (dc, &when, sample, 
-				      f.fieldId(), &f.value());
+			dc_NSAddSample (dc, &when, sample, 
+					f.fieldId(), &f.value());
 		}
 		return *this;
 	}
@@ -1140,7 +1100,7 @@ ReadSamples (DataChunk *dc, char *file, Sounding &snd)
 			continue;
 		}
 
-		// Now we should have the fields we need to insert a sample.
+		// Now we should have the fields, we need to insert a sample.
 		when = snd.tlaunch;
 		when += snd.tdelta();
 
@@ -1155,13 +1115,51 @@ ReadSamples (DataChunk *dc, char *file, Sounding &snd)
 			++badlines;
 		}
 
+		// Records with negative tdelta are stored as surface fields.
+		int sample = dc_GetNSample(dc);
+		GlassFileRecord *gl = snd.gl;
+		if (snd.tdelta() < 0 && sample == 0)
+		{
+			if (gl->nsurface >= GlassFileRecord::MAX_SURFACE)
+				continue;
+			int i = gl->nsurface;
+			gl->stime[i] = gl->tdelta.value();
+			gl->spres[i] = gl->pres.value();
+			gl->stemp[i] = gl->temp.value();
+			gl->srh[i] = gl->rh.value();
+			gl->swdir[i] = gl->wdir.value();
+			gl->swspd[i] = gl->wspd.value();
+			++gl->nsurface;
+			continue;
+		}
+
+		// Add the surface data to the datachunk at the first
+		// post-launch point.
+		if (sample == 0)
+		{
+			// Redefine the length of the surface time dimension
+			// to actual length.
+			dc_NSDefineDimension (dc, F_stime::fieldId(), 
+					      gl->nsurface);
+
+			dc_NSAddStatic (dc, F_stime::fieldId(), gl->stime);
+			dc_NSAddStatic (dc, F_spres::fieldId(), gl->spres);
+			dc_NSAddStatic (dc, F_stemp::fieldId(), gl->stemp);
+			dc_NSAddStatic (dc, F_srh::fieldId(), gl->srh);
+			dc_NSAddStatic (dc, F_swdir::fieldId(), gl->swdir);
+			dc_NSAddStatic (dc, F_swspd::fieldId(), gl->swspd);
+			msg_ELog (EF_DEBUG, "%d surface records found.",
+				  gl->nsurface);
+		}
+
+		// Continue with the normal sounding record case.
 		Location loc;
 		loc.l_lat = snd.lat();
 		loc.l_lon = snd.lon();
 		loc.l_alt = snd.alt();
 		if (loc.l_alt != BADVAL)
 			loc.l_alt /= 1000.0;	// convert to km
-		int sample = dc_GetNSample(dc);
+
 		AddRecord estore(dc, when, sample);
 		snd.enumerate (estore);
 		dc_SetLoc (dc, sample, &loc);
@@ -1180,23 +1178,7 @@ ReadSamples (DataChunk *dc, char *file, Sounding &snd)
 				       e_sw(snd.temp() + 273.15));
 			dp -= 273.15;
 		}
-		dc_AddScalar (dc, &when, sample, dp.fieldId(), &dp.value());
-
-#ifdef notdef
-		cout << when << endl;
-		rec.enumerate (PrintRecord(cout));
-		cout << endl;
-#endif
-
-#ifdef notdef
-		int n = sscanf (line.c_str(), 
-				"%f %f %f %f %f %f %f %f %f %f %i",
-				&t, &pres, &temp, &rh, &wdir, &wspd, &dz,
-				&lon, &lat, &alt, &sa);
-		if (n != 11)
-		{
-		}
-#endif
+		dc_NSAddSample (dc, &when, sample, dp.fieldId(), &dp.value());
 	}
 	IngestLog (EF_INFO,
 		   "%d bad times or pressure points, %d good samples", 
@@ -1205,7 +1187,7 @@ ReadSamples (DataChunk *dc, char *file, Sounding &snd)
 	// If we didn't get anything useful, throw up our hands.
 	if (dc_GetNSample (dc) == 0)
 	{
-		throw AppException ("No good samples in file");
+		throw AppException ("No good sounding points in file");
 	}
 
 	// Check whether sample times are reversed and need to be sorted.
