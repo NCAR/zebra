@@ -1,7 +1,7 @@
 /*
  * XY-Contour plotting module
  */
-static char *rcsid = "$Id: XYContour.c,v 1.26 1994-11-01 20:39:43 corbet Exp $";
+static char *rcsid = "$Id: XYContour.c,v 1.27 1994-11-03 00:13:32 corbet Exp $";
 /*		Copyright (C) 1993 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -450,6 +450,7 @@ bool	update;
 				     devY (&ytop), devX (&xright), 
 				     devY (&ybottom), ccenter, zstep);
 		}
+		SetClip (TRUE);
 	}
 /*
  * Add a period to the top annotation and draw axes
