@@ -41,7 +41,7 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 # include "DrawText.h"
-MAKE_RCSID ("$Id: Track.c,v 2.22 1993-03-25 20:26:36 granger Exp $")
+MAKE_RCSID ("$Id: Track.c,v 2.23 1993-05-26 19:56:00 granger Exp $")
 
 # define ARROWANG .2618 /* PI/12 */
 
@@ -61,8 +61,8 @@ static void tr_AnnotTime FP((char *, char *, DataChunk *, Drawable));
 static void tr_DoTimeAnnot FP((Drawable, int, int, char *, char *, double, 
 		XColor, ZebTime, double));
 static float tr_FigureRot FP ((double, double, double, double));
-
-# define BADVAL -32768
+static int tr_LocateAnnot FP ((DataChunk *dc, int sample,
+			       ZebTime *a_time, int *x, int *y, float *rot));
 
 
 void
@@ -73,23 +73,24 @@ bool update;
 	char platform[30], ccfield[30], positionicon[40];
 	char mtcolor[20], ctable[30], a_color[30];
 	char a_xfield[30], a_yfield[30], a_type[30];
-	int period, x0, y0, x1, y1, nc, lwidth, pid, index;
-	int dskip = 0, npt = 0, i, a_int, numfields = 0, afield;
+	int period, nc, lwidth, pid, index;
+	int dskip = 0, i, a_int, numfields = 0, afield;
+	int x0, y0, x1, y1;
+	int samp0 = -1;		/* sample at which (x0,y0) last set  */
+	long vectime;	/* the time, multiple of the arrow interval */
+		        /* a_int, for which last vector arrow drawn */
+	int npt;   	/* number pts read so far, for data-skipping */
 	int a_lwidth, nfld, nsamp;
 	bool arrow, showposition, annot_time;
-	long timenow, vectime = 0;
 	bool mono, shifted, a_invert;
 	ZebTime begin, zt;
-	float *data, fx, fy, base, incr, a_scale, *a_xdata, *a_ydata;
+	float *data, base, incr, a_scale, *a_xdata, *a_ydata;
 	float unitlen, center, step;
 	Drawable d;
 	XColor xc, *colors, outrange, a_clr;
 	DataChunk *dc;
-	Location loc;
 	FieldId fields[5];
 	float badvalue;
-	float u, v;
-
 /*
  * Pull in our parameters.
  */
@@ -98,7 +99,6 @@ bool update;
 		return;
 	if (update)
 		period = period/4;
-
 /*
  * Color code field.
  */
@@ -115,7 +115,7 @@ bool update;
  */
 	arrow = FALSE;
 	tr_GetParam (comp, "arrow", platform, (char *) &arrow, SYMT_BOOL);
-	if(arrow)
+	if (arrow)
 	{
 		tr_GetArrowParams (comp, platform, &a_scale, &a_lwidth,
 			&a_invert, &a_int, a_color, &a_clr, a_type, 
@@ -135,7 +135,7 @@ bool update;
 	    begin = PlotTime;
 	    begin.zt_Sec -= period;
 	    dc = ds_Fetch (pid, numfields ? DCC_Scalar : DCC_Location, &begin,
-			&PlotTime, fields, numfields, 0, 0);
+			   &PlotTime, fields, numfields, 0, 0);
 	  } else {
 
 	    /* observation type plot */
@@ -144,13 +144,14 @@ bool update;
 
 	      /* update, get data since last plot */
 
-	      if (!pda_Search ( Pd, comp, "data-end-time", NULL, (char*) &begin, SYMT_DATE)){
+	      if (!pda_Search ( Pd, comp, "data-end-time", NULL, 
+			       (char*) &begin, SYMT_DATE)){
 		begin = PlotTime;
 	      }
 	      msg_ELog(EF_DEBUG,"update in obs mode from %d to %d",
 		       begin.zt_Sec, PlotTime.zt_Sec);
-	      dc = ds_Fetch (pid, numfields ? DCC_Scalar : DCC_Location, &begin,
-			&PlotTime, fields, numfields, 0, 0);
+	      dc = ds_Fetch (pid, numfields ? DCC_Scalar : DCC_Location, 
+			     &begin, &PlotTime, fields, numfields, 0, 0);
 
 	    } else {
 	      
@@ -162,18 +163,20 @@ bool update;
 		dc = NULL;
 	      } else {
 		msg_ELog(EF_DEBUG,"global, FetchObs for %d", begin.zt_Sec);
-		dc = ds_FetchObs(pid, numfields ? DCC_Scalar : DCC_Location, &begin,
-				 fields, numfields, 0, 0);
+		dc = ds_FetchObs(pid, numfields ? DCC_Scalar : DCC_Location, 
+				 &begin, fields, numfields, 0, 0);
 	      }
 	    }
 
 	    if (dc) {
 	      nsamp = dc_GetNSample (dc);
-	      msg_ELog(EF_DEBUG,"%d points returned in observation mode", nsamp);
+	      msg_ELog(EF_DEBUG,
+		       "%d points returned in observation mode", nsamp);
 	      dc_GetTime (dc, nsamp-1, &zt);
 	      
 	      /* remember end of this data span */
-	      msg_ELog(EF_DEBUG,"storing zt as data-end-time of %d", zt.zt_Sec);
+	      msg_ELog(EF_DEBUG,
+		       "storing zt as data-end-time of %d", zt.zt_Sec);
 	      pd_Store (Pd, comp, "data-end-time", (char*) &zt, SYMT_DATE);
 
 	    }
@@ -189,12 +192,6 @@ bool update;
 	nsamp = dc_GetNSample (dc);
 	badvalue = dc_GetBadval (dc);
 /*
- * Convert the first points.
- */
-	dc_GetLoc (dc, 0, &loc);
-	cvt_ToXY (loc.l_lat, loc.l_lon, &fx, &fy);
-	x0 = XPIX (fx); y0 = YPIX (fy);
-/*
  * Fix up some graphics info.
  */
 	if (mono)
@@ -208,64 +205,84 @@ bool update;
 /*
  * Now work through the data.
  */
-	for (i = 1; i < nsamp; i++)
+	vectime = 0;
+	npt = 0;
+	for (i = 0; i < nsamp; i++)
 	{
+		float u, v;		/* vector component values	     */
+		long timenow;		/* time of the current sample	     */
+		float fx, fy;	 /* x,y Cartesian coords of lat/lon location */
+		Location loc;	 	/* lat/lon locn extracted from sample*/
 	/*
 	 * Do skipping if requested.
 	 */
-		if (dskip && (npt++ % dskip) != 0)
+		if ((dskip) && ((npt++ % dskip) != 0))
 			continue;
 	/*
-	 * Locate this point.
+	 * Locate this point.  Skip it if either coordinate == badvalue.
 	 */
 		dc_GetLoc (dc, i, &loc);
+		if ((loc.l_lat == badvalue) || (loc.l_lon == badvalue))
+			continue;
 		cvt_ToXY (loc.l_lat, loc.l_lon, &fx, &fy);
 		x1 = XPIX (fx); y1 = YPIX (fy);
 	/*
-	 * Draw arrows if necessary.
+	 * Draw arrows if necessary.  Get the time of the sample, and see
+	 * if its time for an arrow: either the time falls on a multiple of
+	 * the interval, or the interval of time has passed since the last
+	 * vector was drawn.
 	 */
-		if(arrow)
+		if (arrow)
 		{
 			dc_GetTime (dc, i, &zt);
 			timenow = TC_ZtToSys (&zt);
 			if(((timenow % a_int) == 0) || 
 			   ((vectime + a_int) < timenow))
 			{
-				u = dc_GetScalar (dc, i-1, fields[afield]);
-				v = dc_GetScalar(dc, i-1,fields[afield+1]);
+				u = dc_GetScalar (dc, i, fields[afield]);
+				v = dc_GetScalar(dc, i, fields[afield+1]);
 				if (u != badvalue && v != badvalue) {
 				  vectime = timenow - timenow % a_int;
 				  FixForeground (a_clr.pixel);
 				  FixLWidth (a_lwidth);
-				  draw_vector (Disp, d, Gcontext, x0, y0, u, v, unitlen);
+				  draw_vector (Disp, d, Gcontext, 
+					       x1, y1, u, v, unitlen);
 				  FixLWidth (lwidth);
 				}
 			}
 		}
 	/*
-	 * Color code if necessary.
+	 * Draw the line, if (x0,y0) valid, color coding if requested.
 	 */
-	 	if (mono)
-			FixForeground (xc.pixel);
-		else
+		if (samp0 >= 0)
 		{
-			index = (dc_GetScalar (dc, i, fields[0]) - base)/incr;
-			FixForeground ((index >= 0 && index < nc) ?
-				colors[index].pixel : outrange.pixel);
+			if (mono)
+				FixForeground (xc.pixel);
+			else
+			{
+				index = (dc_GetScalar (dc, i, fields[0]) - 
+					 base)/incr;
+				FixForeground ((index >= 0 && index < nc) ?
+					       colors[index].pixel : 
+					       outrange.pixel);
+			}
+			XDrawLine (Disp, d, Gcontext, x0, y0, x1, y1); 
 		}
-	/*
-	 * Finally draw the line.
-	 */
-		XDrawLine (Disp, d, Gcontext, x0, y0, x1, y1); 
 		x0 = x1; y0 = y1;
+		samp0 = i;
 	}
 /*
  * If this isn't an update, indicate which end of the track is the front.
  */
-	if ((! update) && showposition)
-		if (mono) ov_PositionIcon (positionicon, x0, y0, xc.pixel);
-		else ov_PositionIcon (positionicon, x0, y0, (index >= 0 &&
-			index < nc) ? colors[index].pixel : outrange.pixel);
+	if ((! update) && showposition && (samp0 >= 0))
+	{
+		if (mono) 
+			ov_PositionIcon (positionicon, x0, y0, xc.pixel);
+		else 
+			ov_PositionIcon (positionicon, x0, y0, 
+					 (index >= 0 &&	index < nc) ? 
+					 colors[index].pixel : outrange.pixel);
+	}
 /*
  * If this isn't an update, see about annotating the track with times.
  */
@@ -314,10 +331,8 @@ Drawable	d;
 	int	i, interval_sec, nsamp;
 	int	x, y;
 	float	label_scale, rot;
-	float	fx, fy, fx0, fy0, fx1, fy1;
 	XColor	x_color;
-	ZebTime	when, t, t0, t1;
-	Location	loc;
+	ZebTime	when, t;
 /*
  * Get the time interval. 
  */
@@ -339,8 +354,8 @@ Drawable	d;
 	if (!interval_sec)
 	{
 		msg_ELog (EF_PROBLEM,
-			  "bad annotation interval for aircraft track %s, using 1h",
-			  comp);
+		  "bad annotation interval for aircraft track %s, using 1h",
+		  comp);
 		interval_sec = 3600;
 	}
 /*
@@ -392,64 +407,20 @@ Drawable	d;
 	 * Get the time of this sample.
 	 */
 		dc_GetTime (dc, i, &when);
-		if (when.zt_Sec == t.zt_Sec)
+		if (when.zt_Sec <= t.zt_Sec)
 		{
 		/*
-		 * Figure out where the annotation is supposed to go. 
+		 * Figure out where the annotation is supposed to go, and
+		 * do the annotation if possible.
 		 */
-			dc_GetLoc (dc, i, &loc);
-			cvt_ToXY (loc.l_lat, loc.l_lon, &fx, &fy);
-			x = XPIX (fx); y = YPIX (fy);
+			if (tr_LocateAnnot (dc, i, &t, &x, &y, &rot))
+				tr_DoTimeAnnot (d, x, y, icon, label, 
+						label_scale, x_color, t, rot);
 		/*
-		 * Figure a rotation for the text.
-		 */
-			dc_GetLoc (dc, i + 1, &loc);
-			cvt_ToXY (loc.l_lat, loc.l_lon, &fx1, &fy1);
-			rot = tr_FigureRot (fx, fy, fx1, fy1);
-		/*
-		 * Do the annotation.
-		 */
-			tr_DoTimeAnnot (d, x, y, icon, label, label_scale,
-				x_color, t, rot);
-		/*
-		 * Increment the time.
+		 * Decrement the time to the next interval multiple.
 		 */
 			t.zt_Sec -= interval_sec;
 		} 
-		else if (when.zt_Sec < t.zt_Sec)
-		{
-		/*
-		 * Figure out where to put the annotation.
-		 */
-			dc_GetLoc (dc, i, &loc);
-			cvt_ToXY (loc.l_lat, loc.l_lon, &fx0, &fy0);
-			t0.zt_Sec = when.zt_Sec;
-
-			dc_GetLoc (dc, i + 1, &loc);
-			cvt_ToXY (loc.l_lat, loc.l_lon, &fx1, &fy1);
-			dc_GetTime (dc, i + 1, &t1);
-
-			fx = fx0 + (fx1 - fx0) * (t.zt_Sec - t0.zt_Sec) / 
-				(t1.zt_Sec - t0.zt_Sec);
-
-			fy = fy0 + (fy1 - fy0) * (t.zt_Sec - t0.zt_Sec) / 
-				(t1.zt_Sec - t0.zt_Sec);
-
-			x = XPIX (fx); y = YPIX (fy);
-		/*
-		 * Firgure a rotation for the text.
-		 */
-			rot = tr_FigureRot (fx, fy, fx1, fy1);
-		/*
-		 * Do the annotation.
-		 */
-			tr_DoTimeAnnot (d, x, y, icon, label, label_scale,
-				x_color, t, rot);
-		/*
-		 * Increment the time.
-		 */
-			t.zt_Sec -= interval_sec;
-		}
 	}
 
 }
@@ -579,7 +550,7 @@ bool shifted;
 /*
  * Annotate arrows if necessary.
  */
-	if(arrow)
+	if (arrow)
 	{
 		An_TopAnnot (" with ",tadefclr.pixel);
 		An_TopAnnot (a_type,taclr.pixel);
@@ -611,6 +582,130 @@ bool shifted;
 }
 
 
+
+static void
+tr_GetLocations (dc, sample, loc0, samp0, loc1, samp1)
+DataChunk *dc;
+int sample;
+Location *loc0;
+int *samp0;
+Location *loc1;
+int *samp1;
+/*
+ * Given a sample, find the sample in the datachunk nearest to it,
+ * including the sample itself, with a valid location; and find the first
+ * sample after the given sample with a valid location.  samp0 and samp1
+ * return as -1 if a good location could not be found meeting the
+ * requirements.
+ */
+{
+	float badval;
+	Location loc;
+	int i;
+	int nsample;
+
+	badval = dc_GetBadval (dc);
+	i = sample + 1;
+	*samp0 = -1;
+	while (--i >= 0)
+	{
+		dc_GetLoc (dc, i, &loc);
+		if (loc.l_lat == badval || loc.l_lon == badval)
+			continue;
+		else
+		{
+			*samp0 = i;
+			*loc0 = loc;
+			break;
+		}
+	}
+
+	nsample = dc_GetNSample (dc);
+	i = sample;
+	*samp1 = -1;
+	while (++i < nsample)
+	{
+		dc_GetLoc (dc, i, &loc);
+		if (loc.l_lat == badval || loc.l_lon == badval)
+			continue;
+		else
+		{
+			*samp1 = i;
+			*loc1 = loc;
+			break;
+		}
+	}
+}
+
+
+
+
+static int
+tr_LocateAnnot (dc, sample, a_time, x, y, rot)
+DataChunk *dc;
+int sample;		/* Current sample about where annot needs plotting */
+ZebTime *a_time;	/* Time desired for annotation */
+int *x, *y;		/* Pixel location to put annotation */
+float *rot;		/* Rotation angle to use for annotation */
+/*
+ * Given the dc and the sample, find a location, interpolating over bad
+ * values if necessary, for the annotation and the rotation to use for the
+ * text.  Return 1 on success, 0 on failure.
+ */
+{
+	ZebTime t0, t1;
+	float fx, fy, fx0, fy0, fx1, fy1;
+	int i;
+	Location loc0, loc1;
+	int samp0, samp1;
+/*
+ * Try to find valid locations surrounding this particular sample
+ */
+	tr_GetLocations (dc, sample, &loc0, &samp0, &loc1, &samp1);
+/*
+ * If both locations valid, get the times for each and interpolate between
+ * them to find a location for the desired annotation time.
+ */
+	if (samp0 >= 0)
+	{
+		dc_GetTime (dc, samp0, &t0);
+		cvt_ToXY (loc0.l_lat, loc0.l_lon, &fx0, &fy0);
+		if (samp1 >= 0)
+			cvt_ToXY (loc1.l_lat, loc1.l_lon, &fx1, &fy1);
+	/*
+	 * If the time of the given sample equals the desired annot time,
+	 * we use the sample's location
+	 */
+		if ( t0.zt_Sec == a_time->zt_Sec )
+		{
+			fx = fx0;
+			fy = fy0;
+		}
+	/*
+	 * Otherwise we have to interpolate between the locations
+	 */
+		else if (samp1 >= 0)
+		{
+			dc_GetTime (dc, samp1, &t1);
+			fx = fx0 + (fx1 - fx0)*(a_time->zt_Sec - t0.zt_Sec) / 
+				(t1.zt_Sec - t0.zt_Sec);
+			fy = fy0 + (fy1 - fy0)*(a_time->zt_Sec - t0.zt_Sec) / 
+				(t1.zt_Sec - t0.zt_Sec);
+		}
+		*x = XPIX (fx); *y = YPIX (fy);
+	}
+	else	/* we're screwed, abandon our efforts */
+		return (0);
+/*
+ * Now we've got to determine the rotation.  If we don't have a samp1 to
+ * determine the slope, just supply a default.
+ */
+	if (samp1 >= 0)
+		*rot = tr_FigureRot (fx, fy, fx1, fy1);
+	else
+		*rot = 0;
+	return (1);
+}
 
 
 
@@ -662,9 +757,9 @@ bool *mono, *showposition;
 /*
  * Do they want us to pare things down?
  */
-	if (! tr_GetParam (comp, "data-skip", platform, (char *) &dskip,
+	if (! tr_GetParam (comp, "data-skip", platform, (char *) dskip,
 			SYMT_INT))
-		dskip = 0;
+		*dskip = 0;
 /*
  * Color info.
  */
@@ -676,7 +771,6 @@ bool *mono, *showposition;
 	*mono = ! (tr_GetParam (comp, "field", platform, ccfield, SYMT_STRING)
 			|| tr_GetParam (comp, "color-code-field", platform,
 				ccfield, SYMT_STRING));
-
 /*
  * Show the location?
  */
@@ -788,7 +882,7 @@ XColor *a_clr;
 	{
 		msg_ELog(EF_PROBLEM,"Unparsable arrow interval: '%s'.",
 			a_interval);
-		*a_int = 30;
+		*a_int = 10;
 	}
 /*
  * Color information.
@@ -826,60 +920,5 @@ int type;
 		pda_Search (Pd, comp, param, "track", target, type));
 }
 
-
-
-# ifdef notdef
-/*
- * This routine has hopefully been replaced by the generic
- * draw_vector ().
- */
-tr_DrawVector(x, y, u, v, unit, W, D, Gcontext)
-int x, y;
-float u, v, unit;
-Display *W;
-Drawable D;
-GC Gcontext;
-/*
- *  Draw a vector along a track.
- */
-{
-	float dx, dy;
-	int xend, yend;
-	float veclen, vecang, ang;
-
-/*
- *  Draw the shaft of the vector.
- */
-	dx = u * unit;
-	dy = -v * unit;
-
-	xend = (int)(x + dx + 0.5);
-	yend = (int)(y + dy + 0.5);
-
-	XDrawLine(W, D, Gcontext, x, y, xend, yend);
-/*
- *  If the vector has any length, put on the arrow head.
- */
-	if(dx != 0 || dy !=0)
-	{
-		vecang = atan2(v,u);
-		veclen = hypot(u,v);
-
-		ang = vecang + ARROWANG;
-		dx = 0.4 * veclen * unit * cos(ang);
-		dy = -0.4 * veclen * unit * sin(ang);
-
-		XDrawLine(W, D, Gcontext, xend, yend,
-			(int)(xend - dx), (int)(yend - dy));
-
-		ang = vecang - ARROWANG;
-		dx = 0.4 * veclen * unit * cos(ang);
-		dy = -0.4 * veclen * unit * sin(ang);
-
-		XDrawLine(W, D, Gcontext, xend, yend,
-			(int)(xend - dx), (int)(yend - dy));
-	}
-}
-# endif
 
 # endif /* C_CAP_TRACKS */
