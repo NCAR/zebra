@@ -1,5 +1,5 @@
 /* 10/85 jc */
-/* $Id: ui_error.h,v 1.3 1990-09-19 08:50:19 corbet Exp $ */
+/* $Id: ui_error.h,v 1.4 1993-07-23 19:53:01 case Exp $ */
 
 # ifndef UI_ERROR_SYMBOLS
 # define UI_ERROR_SYMBOLS
@@ -9,7 +9,9 @@
  * since they will save vast amounts of time.
  */
 # ifdef sun
+# ifdef BSD
 # define setjmp _setjmp
+# endif
 # endif
 
 # include <setjmp.h>
