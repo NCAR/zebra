@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 2.7 1991-12-20 17:46:06 corbet Exp $ */
+/* $Id: defs.h,v 2.8 1992-03-19 15:56:17 corbet Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -105,11 +105,11 @@ void	TC_ZtAssemble FP ((ZebTime *, int, int, int, int, int, int, int));
  */
 # define TC_Less(t1,t2) 				\
 	(((t1).zt_Sec == (t2).zt_Sec) ? 		\
-		((t1).zt_MicroSec < (t2).zt_Microsec) :	\
+		((t1).zt_MicroSec < (t2).zt_MicroSec) :	\
 		((t1).zt_Sec < (t2).zt_Sec))
 # define TC_LessEq(t1,t2) 					\
 	(((t1).zt_Sec == (t2).zt_Sec) ? 			\
-		((t1).zt_MicroSec <= (t2).zt_Microsec) :	\
+		((t1).zt_MicroSec <= (t2).zt_MicroSec) :	\
 		((t1).zt_Sec <= (t2).zt_Sec))
 
 
