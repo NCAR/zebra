@@ -17,6 +17,9 @@
  * The original NEXUS code is ifdef'ed out with the NEXUS symbol.
  *
  * Updates: $Log: not supported by cvs2svn $
+ * Revision 1.4  1995/06/29  22:33:57  granger
+ * fix compiler warnings, especially solaris cc -v -Xa
+ *
  * Revision 1.3  1995/05/05  22:35:48  granger
  * change ANSI headers to K&R so that 4.1.3 cc can compile them
  *
@@ -76,7 +79,7 @@
 #define MISSVAL		88888.0	/* NEXUS-specific missing data flags	 */
 #endif /* NEXUS */
 
-MAKE_RCSID("$Id: dsprint.c,v 1.4 1995-06-29 22:33:57 granger Exp $")
+MAKE_RCSID("$Id: dsprint.c,v 1.5 1996-01-10 18:42:47 granger Exp $")
 
 /*************************************************************
  ANSI C function prototypes
@@ -252,7 +255,7 @@ char *argv[];
     } else {
 
 	TC_SysToZt (tv.tv_sec, &sample_time);
-	t = gmtime (&tv.tv_sec);
+	t = gmtime ((time_t *) &tv.tv_sec);
 	year = t->tm_year;
 	month = t->tm_mon + 1;
 	day = t->tm_mday;
