@@ -52,7 +52,7 @@
 # include <config.h>
 # include <DataStore.h>
 
-RCSID ("$Id: Archiver.cc,v 1.31 1995-05-04 05:54:50 granger Exp $")
+RCSID ("$Id: Archiver.cc,v 1.32 1995-05-05 18:00:41 granger Exp $")
 
 /*
  * Issues:
@@ -265,10 +265,6 @@ static void	Die FP ((void));
 static int	Handler FP ((Message *));
 static int	xevent FP ((int));
 static void	Sync FP ((void));
-#ifdef notdef
-static void	PollWhileSuspended FP((int msg_fd));
-static void	check_messages FP((int msg_fd));
-#endif
 
 /*-- Xt callbacks --*/
 static void	Finish FP ((void));
@@ -299,7 +295,7 @@ static void	DoTheWriteThing FP((int finish));
 static void	SaveFiles FP ((int));
 static void	LoadFileList FP ((void));
 static int *	GetFileChain FP ((PlatformId pid, ZebTime *since, int *count));
-static void	DumpPlatform FP ((PlatformId, PlatformInfo *, int));
+static int	DumpPlatform FP ((PlatformId, PlatformInfo *, int));
 static int	RunTar FP ((char *));
 static void	UpdateList FP ((void));
 static int	WriteFileDate FP ((char *, int, SValue *, FILE *));
@@ -1164,14 +1160,18 @@ int all;
 	Tarlen = cmdlen;
 
 	/*
-	 * Pass through the platform table and dump things.
+	 * Pass through the platform table and dump things.  Keep adding
+	 * files until DumpPlatform indicates it's time to stop.
 	 */
 	SetStatus (FALSE, "Scanning platforms");
 	for (plat = 0; plat < nplat; plat++)
 	{
 		ds_GetPlatInfo (plat, &pi);
 		if (! pi.pl_SubPlatform)
-			DumpPlatform (plat, &pi, all);
+		{
+			if (! DumpPlatform (plat, &pi, all))
+				break;
+		}
 	}
 
 	/*
@@ -1270,7 +1270,7 @@ int *count;		/* Return number of files found */
 
 
 
-static void
+static int
 DumpPlatform (pid, pi, all)
 PlatformId pid;
 PlatformInfo *pi;
@@ -1289,6 +1289,7 @@ int all;
 	int findex;
 	int nfiles, i;
 	char buf[512];
+	int ret;
 /*
  * Find the last time this thing was dumped.
  */
@@ -1311,6 +1312,7 @@ int all;
  * the command line.  That way we can advance the dump time forward with
  * each file as its put on the tar command line.
  */
+	ret = 1;
 	for (i = nfiles - 1; (nfiles > 0) && (i >= (all ? 0 : 1)); --i)
 	{
 		char *fname;
@@ -1329,6 +1331,7 @@ int all;
 		if (Tarlen + strlen(buf) + 1 >= sizeof(Tarbuf))
 		{
 			msg_ELog (EF_DEBUG, "tar command line full");
+			ret = 0;
 		        break;
 		}
 		msg_ELog (EF_DEBUG, "Dumping file '%s' (index %d)", 
@@ -1359,6 +1362,7 @@ int all;
 	TC_ZtToUI (&dumptime, &(v.us_v_date));
 	usy_s_symbol (DumpedTable, pi->pl_Name, SYMT_DATE, &v);
 	ds_UnlockPlatform (pid);
+	return (ret);
 }
 
 
@@ -1375,11 +1379,6 @@ char *cmd;
 	FILE *pfp = popen (cmd, "r");
 	static char fbuf[BLOCKSIZE];
 	int rstatus, nb, tnb = 0;
-	char toggle;
-#ifdef notdef
-	int msg_fd = msg_get_fd(); /* Keeping message fd here avoids 
-			  	    * repeated requests for it when polling */
-#endif
 # ifdef hpux
 	int fd = pfp->__fileL;	/* HP weirdness -- untested */
 # else
@@ -1397,7 +1396,6 @@ char *cmd;
 /*
  * Now read out chunks of stuff.
  */
-	toggle = 0;
 	while ((nb = netread (fd, fbuf, BLOCKSIZE)) > 0)
 	{
 		if (write (DeviceFD, fbuf, nb) < nb) /* oh shit! */
@@ -1412,32 +1410,22 @@ char *cmd;
 			return (FALSE);
 		}
 		tnb += nb;
-		toggle = ~toggle;
 		/*
-		 * Get any X events.  If a suspension is requested, we'll
-		 * catch it here in the Suspended flag
+		 * Check for messages and X events between writes
 		 */
-		if (toggle)
-		{
-#ifdef notdef
-		   xevent (0);
-		   check_messages(msg_fd);
-		   if (Suspended)	 /* we must poll msg and X until
-					  * the Suspended flag is clear */
-		   {
-			PollWhileSuspended(msg_fd);
-		   }
-#endif
-		   msg_ELog(EF_DEBUG,"polling for end of suspension in write");
-		   /*
-		    * Handle messages and X events until one of them changes
-		    * our suspended state.  The timeout can be large since
-		    * each event handled will cause msg_poll() to return and
-		    * the Suspended condition to be tested.
-		    */
-		   while (Suspended)
-			   msg_poll (300);
-		}
+		while (msg_poll (0) != MSG_TIMEOUT)
+			/* keep responding */;
+		/*
+		 * If suspended, handle messages and X events until
+		 * one of them changes our suspended state.  The timeout
+		 * can be large since each event handled will cause
+		 * msg_poll() to return and the Suspended condition to
+		 * be tested. 
+		 */
+		if (Suspended)
+			msg_ELog (EF_DEBUG, "polling for end of suspension");
+		while (Suspended)
+			msg_poll (300);
 	}
 /*
  * If tar returned OK, so do we.
@@ -1543,60 +1531,6 @@ Message *msg;
 	return (0);
 }
 
-
-#ifdef notdef
-/*
- * Poll for and then handle any messages from the message handler
- */
-static void
-check_messages(fd)
-	int fd;		/* message's file descriptor */
-{
-	fd_set fdset;
-	static struct timeval timeout = {0, 0};
-	
-	FD_ZERO(&fdset);
-	FD_SET(fd, &fdset);
-	if (select(fd+1, (int *) &fdset, 0, 0, &timeout) > 0)
-	{
-		msg_incoming(fd);
-	}
-}
-#endif
-
-#ifdef notdef
-/*
- * Poll message fd and X fd and handle any messages as long
- * as Suspended remains true.  Hopefully the 1 second delay
- * in the poll reduces system cpu usage but maintains pseudo-timely
- * handling of X events.
- */
-static void
-PollWhileSuspended(fd)
-	int fd;
-{
-	static struct timeval timeout = { 1, 0 };
-	fd_set fdset;
-
-	msg_ELog(EF_DEBUG,"polling for end of suspension in write");
-	while (Suspended)
-	{
-		/*
-		 * Poll message 
-		 */
-		FD_ZERO(&fdset);
-		FD_SET(fd, &fdset);
-		if (select(fd+1, (int *) &fdset, 0, 0, &timeout) > 0)
-		{
-			msg_incoming(fd);
-		}
-		/*
-		 * Process any xevents
-		 */
-		xevent(0);
-	}
-}
-#endif
 
 
 static void
@@ -1825,11 +1759,11 @@ int junk;
 		for (index = dsi.dsrc_FFile; index; index = dfi.dfi_Next)
 		{
 			/*
-			 * If this file is already marked, or hasn't been done, 
+			 * If this file is already marked or hasn't been done, 
 			 * move on.  Otherwise send the notification.
 			 */
 			ds_GetFileInfo (index, &dfi);
-			if (TC_LessEq (dfi.dfi_End, ftime) && ! dfi.dfi_Archived)
+			if (TC_LessEq(dfi.dfi_End, ftime) && !dfi.dfi_Archived)
 				ds_MarkArchived (index);
 		}
 	}
