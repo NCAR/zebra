@@ -1,4 +1,4 @@
-MFVERSION="$Id: Makefile.cpp,v 1.4 1991-10-24 17:25:25 corbet Exp $"
+MFVERSION="$Id: Makefile.cpp,v 1.5 1991-11-22 20:51:48 kris Exp $"
 
 # include "../include/config.h"
 
@@ -6,8 +6,8 @@ MFVERSION="$Id: Makefile.cpp,v 1.4 1991-10-24 17:25:25 corbet Exp $"
 /*
  * Sun options
  */
-CC=gcc
-CFLAGS= -g -O -I$(FCCINC) -I$(RDSSINC)
+CC=CCompiler
+CFLAGS= CCOptions -I$(FCCINC) -I$(RDSSINC)
 LIBS=ZebLibrary -lrdss -ltermcap -lnetcdf -lm
 XLIBS=-lXaw -lXmu -lXt -lXext -lX11
 # endif
@@ -20,6 +20,7 @@ OBJS = Appl.o SharedMemory.o DataFileAccess.o DFA_NetCDF.o GetList.o \
 SRCS = Appl.c SharedMemory.c DataFileAccess.c DFA_NetCDF.c GetList.c \
 	DFA_Boundary.c DFA_Raster.c
 
+# if BUILD_NETXFR
 all:	dsDaemon dsDaemon.lf $(OBJS) dsdump dsdelete prt_Notify \
 		NetXfr NetXfr.lf Archiver LastData dsdwidget
 
@@ -37,6 +38,25 @@ install:	dsDaemon dsDaemon.lf $(OBJS) dsdelete include prt_Notify \
 	install -c -m 0444 NetXfr.lf D_LIBDIR
 	ar ruv ZebLibrary $(OBJS)
 	ranlib ZebLibrary
+
+# else
+all:	dsDaemon dsDaemon.lf $(OBJS) dsdump dsdelete prt_Notify \
+		Archiver LastData dsdwidget
+
+install:	dsDaemon dsDaemon.lf $(OBJS) dsdelete include prt_Notify \
+		dsdump Archiver LastData dsdwidget
+	install -c dsDaemon D_BINDIR
+	install -c Archiver D_BINDIR
+	install -c LastData D_BINDIR
+	install -c -s dsdelete D_BINDIR
+	install -c -s prt_Notify D_BINDIR
+	install -c -s dsdump D_BINDIR
+	install -c -s dsdwidget D_BINDIR
+	install -c -m 0444 dsDaemon.lf D_LIBDIR
+	ar ruv ZebLibrary $(OBJS)
+	ranlib ZebLibrary
+
+# endif
 
 include:
 	install -c -m 0444 DataStore.h D_FCCINC
