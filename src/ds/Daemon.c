@@ -45,7 +45,7 @@
 # include "dsDaemon.h"
 # include "commands.h"
 
-MAKE_RCSID ("$Id: Daemon.c,v 3.52 1995-08-31 09:48:59 granger Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.53 1995-08-31 09:58:07 granger Exp $")
 
 
 /*
@@ -776,8 +776,7 @@ struct dsp_CreateFile *request;
  */
 {
 	struct dsp_R_CreateFile response;
-	DataFile *new;
-	int fail = 0;
+	DataFile *new = NULL;
 	Platform *pi = PTable + request->dsp_plat;
 /*
  * Get a new file entry to give back to them.  Make sure there isn't already
@@ -797,16 +796,15 @@ struct dsp_CreateFile *request;
 	{
 		msg_ELog (EF_PROBLEM, "Cannot create %s datadir for new file",
 			  pi->dp_name);
-		fail = 1;
 	}
-	else if ((new = dt_NewFile ()) == 0)
-		fail = 1;
+	else
+		new = dt_NewFile ();
 
-	if (fail)
+	if (! new)
 	{
 		response.dsp_type = dpt_R_NewFileFailure;
 		msg_send (from, MT_DATASTORE, FALSE, &response,
-				sizeof (response));
+			  sizeof (response));
 		return;
 	}
 /*
