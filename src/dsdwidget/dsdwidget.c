@@ -362,7 +362,7 @@ Rescan ()
  * Rescan the disk for new data and display the results.
  */
 {
-	int i, nplat;
+	int i, nplat = 0;
 	ZebTime begin, end;
 	Platform *p;
 
