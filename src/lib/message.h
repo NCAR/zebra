@@ -1,4 +1,4 @@
-/* $Id: message.h,v 2.7 1992-11-09 15:59:59 burghart Exp $ */
+/* $Id: message.h,v 2.8 1992-11-09 18:18:51 burghart Exp $ */
 /*
  * Message protocol types.
  */
@@ -58,6 +58,7 @@
 # define MH_PID		-8	/* Report PID				*/
 # define MH_CQUERY	-9	/* Does this client exist?		*/
 # define MH_CQREPLY	-10	/* Reply to CQUERY			*/
+# define MH_QUIT	-11	/* Quit process group			*/
 # define MH_DIE 	-99	/* Kill the server -- use with care!	*/
 # define MH_SHUTDOWN	-100	/* Server is shutting down		*/
 
@@ -67,6 +68,7 @@
 # define MH_CE_CONNECT		1	/* New client connection	*/
 # define MH_CE_DISCONNECT	2	/* Client death			*/
 # define MH_CE_JOIN		3	/* New group joined by client	*/
+# define MH_CE_QUIT		4	/* Client quit a group		*/
 
 /*
  * Query message types.
@@ -208,6 +210,7 @@ int msg_incoming FP ((int));
 int msg_connect FP ((int (*handler) (), char *));
 void msg_send FP ((char *, int, int, void *, int));
 void msg_join FP ((char *));
+void msg_quit FP ((char *));
 void msg_log FP ((/* char *, ... */));
 void msg_ELog FP (());
 void msg_add_fd FP ((int, int (*handler) ()));
