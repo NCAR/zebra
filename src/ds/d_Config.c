@@ -28,7 +28,7 @@
 # include "commands.h"
 # include <ui_error.h>
 
-MAKE_RCSID("$Id: d_Config.c,v 2.9 1994-05-04 21:13:37 burghart Exp $")
+MAKE_RCSID("$Id: d_Config.c,v 2.10 1994-06-07 22:12:58 corbet Exp $")
 
 /*-----------------------------------------------------------------------
  * Local forwards.
@@ -401,7 +401,9 @@ struct ui_command *cmds;	/* Name of the instances		*/
  */
 {
 	PlatformClass *pc;
-
+/*
+ * Find the class they are asking for.
+ */
 	pc = dt_FindClass (classname);
 	if (! pc)
 	{
@@ -409,7 +411,9 @@ struct ui_command *cmds;	/* Name of the instances		*/
 			  classname);
 		return;
 	}
-	
+/*
+ * Debuggery.
+ */
 	if (Debug)
 	{
 		int i;
@@ -421,9 +425,15 @@ struct ui_command *cmds;	/* Name of the instances		*/
 		}
 		printf ("\n");
 	}
+/*
+ * Now go through and actually create the platforms.  In each case,
+ * also force a scan if this is not the initial file read.
+ */
 	for ( ; cmds->uc_ctype != UTT_END; cmds++)
 	{
-		(void) dt_Instantiate (pc, NULL, UPTR(*cmds));
+		Platform *newpl = dt_Instantiate (pc, NULL, UPTR(*cmds));
+		if (newpl && ! InitialScan)
+			RescanPlat (newpl);
 	}
 }
 
