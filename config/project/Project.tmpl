@@ -1,6 +1,6 @@
 /**/#-------------------------------------------------------------------------
 /**/# Zeb project build parameters
-/**/# $Id: Project.tmpl,v 1.19 1994-01-21 11:47:46 granger Exp $
+/**/# $Id: Project.tmpl,v 1.20 1994-02-01 21:08:05 corbet Exp $
 /**/#-------------------------------------------------------------------------
 
 /*****************************************************************************
@@ -237,6 +237,16 @@
 #   endif
 #endif
 
+/*
+ * Solaris requires the -R option for shared libraries or they never get
+ * found again when you run the program without LD_LIBRARY_PATH.
+ */
+# if defined(XLibDir) && defined(solaris)
+#	define XRunPath -R$(XLIBDIR)
+# else
+#	define XRunPath /**/
+# endif
+
 #ifndef XLibDir
 #   define XLibDir /**/
 #   ifndef XLibraries
@@ -245,7 +255,7 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #   endif
 #endif
 #ifndef XLibraries
-#   define XLibraries -L$(XLIBDIR) LoaderLibPrefix -lXaw LoaderLibPrefix -lXmu \
+#   define XLibraries XRunPath -L$(XLIBDIR) LoaderLibPrefix -lXaw LoaderLibPrefix -lXmu \
 LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #endif
 
