@@ -1,0 +1,49 @@
+<title>Overlay Times Widget</title>
+<h2>Determining the Time of Data Collection</h2>
+<hr>
+
+The Graphics Window plots the latest data available with a
+time occurring before the window's plot time, but it does
+not show the actual time of the data used for each platform
+in the plot.  The Overlay Times widget shows this
+information (i.e. it displays the time at which the data was
+collected for each data platform represented in the
+graphics window).<p>
+
+The widget may be popped up in two ways.  Either select the "Popup overlay
+times window" entry from the left-button menu of the <img
+src=zeb-icon.gif> (in the lower-left corner of the graphics window), or
+type 't' anywhere inside the graphics window.<p>
+
+A sample widget is shown.<p>
+<img src=overlay-times.gif>
+<p>
+
+The Overlay Times window will appear containing a list of all of the
+platforms being plotted in the graphics window, except for static overlays
+like maps, grids, and locations.  Next to each platform name, the widget
+displays the field, alititude and time of the data which the graphics
+window is presently plotting.  For example, suppose the plot time is
+"15-Dec-92,20:00:00".  If GMS satellite data is only sampled at the 45
+minutes after the hour, then the Overlay Times widget will display a time
+of "15-Dec-92,19:45:00" next to the platform name GMS.  This is the time
+for which the satellite image being displayed is valid.  If the 19:45 image
+were missing, this information would be reflected in the widget by a GMS
+platform time of 18:45.  The times shown in the Overlay Times window will
+ALWAYS be correct, even if the graphics window is in movie mode.  The
+overlay times will always correspond to the frame currently visible in the
+graphics window, even while stepping backward and forward through frames
+and while running a movie. <p>
+
+To remove the Overlay Times Widget, click on the <b>Dismiss</b>
+button at the top of the widget.<P>
+
+<a href=historytime.html><img src=la.gif></a>
+<a href=model-time.html><img src=ra.gif> Next: model times</a><p>
+<i>Return to <a href=index.html> Zeb Help Index</i></a>
+<h6>$Id: overlaytimes.html,v 1.1 1994-12-08 23:17:21 granger Exp $</h6>
+
+
+
+
+
