@@ -23,11 +23,11 @@
 # include <message.h>
 # include <copyright.h>
 
-RCSID("$Id: zstop.c,v 1.5 1995-06-29 22:39:04 granger Exp $")
+RCSID("$Id: zstop.c,v 1.6 1998-12-17 16:39:11 burghart Exp $")
 
 static char *argv0;
 
-void
+int
 main (argc, argv)
 int argc;
 char **argv;

@@ -27,7 +27,7 @@
 # include <defs.h>
 # include <message.h>
 
-MAKE_RCSID("$Id: msg_ping.c,v 2.6 1996-08-22 02:12:09 granger Exp $")
+MAKE_RCSID("$Id: msg_ping.c,v 2.7 1998-12-17 16:38:09 burghart Exp $")
 
 #define DEFAULT_DELAY 	20
 
@@ -62,7 +62,7 @@ char *prog;
 }
 
 
-void
+int
 main (argc, argv)
 int argc;
 char **argv;
