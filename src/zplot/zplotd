@@ -568,12 +568,15 @@ sub clear
 	$images =~ s/^\s+//;
 	foreach $i (split(/\s+/,$images))
 	{
-	    $url = $i;
-	    $url =~ s,/net/www,, ;
-	    $parenturl = `dirname $url`;
+	    # Setup a file url first, and if it matches the http path,
+	    # then replace the file path with the http url.
+	    $url = "file:$i";
+	    $url =~ s,file:/net/www,http://www.atd.ucar.edu, ;
+	    $parenturl = "file:" . `dirname $i`;
 	    chop $parenturl;
-	    print MAIL "http://www.atd.ucar.edu$parenturl\n";
-	    print MAIL "http://www.atd.ucar.edu$url\n\n";
+	    $parenturl =~ s,file:/net/www,http://www.atd.ucar.edu, ;
+	    print MAIL "$parenturl\n";
+	    print MAIL "$url\n\n";
 	}
 	print MAIL "\n";
 	print MAIL "Log files:\n";
