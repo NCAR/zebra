@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: pdlib.c,v 1.5 1991-02-13 23:34:08 corbet Exp $";
+static char *rcsid = "$Id: pdlib.c,v 1.6 1991-03-21 18:19:28 corbet Exp $";
 /*
  * The plot description library. 
  */
@@ -873,4 +873,56 @@ int type;
 		}
 	}
 	usy_s_symbol (comppd, param, SYMT_STRING, &v);
+}
+
+
+
+
+void
+pd_MoveComponent (pd, comp, newpos)
+plot_description pd;
+char *comp;
+int newpos;
+/*
+ * Move this component to the given new position.
+ */
+{
+	char **comps, *scomp;
+	SValue v;
+	int type, oldpos, ncomp, i;
+/*
+ * Get the component list for this PD.
+ */
+	usy_g_symbol ((stbl) pd, "$components", &type, &v);
+	comps = (char **) v.us_v_ptr;
+/*
+ * Count the components, and also find the one we want to move.
+ */
+	oldpos = -1;
+	for (ncomp = 0; comps[ncomp]; ncomp++)
+		if (! strcmp (comps[ncomp], comp))
+			oldpos = ncomp;
+	if (oldpos < 0)
+	{
+		msg_ELog (EF_PROBLEM, "Attempt to move bogus comp %s", comp);
+		return;
+	}
+/*
+ * Adjust newpos to a true absolute position.
+ */
+	if (newpos <= 0)
+		newpos += ncomp - 1;
+	if (newpos <= 0 || newpos >= ncomp)
+		newpos = ncomp - 1;
+/*
+ * Now shuffle things around.
+ */
+	scomp = comps[oldpos];   /* Save our own pointer to comp */
+	if (newpos < oldpos)
+		for (i = oldpos; i > newpos; i--)
+			comps[i] = comps[i - 1];
+	else
+		for (i = oldpos; i < newpos; i++)
+			comps[i] = comps[i + 1];
+	comps[newpos] = scomp;
 }
