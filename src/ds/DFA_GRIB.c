@@ -35,7 +35,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.8 1994-04-27 08:23:38 granger Exp $")
+MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.9 1994-05-25 14:55:49 burghart Exp $")
 
 /*
  * The GRIB product definition section (PDS)
@@ -197,12 +197,15 @@ static void	grb_105Index FP ((double, double, float *, float *));
 static void	grb_105LatLon FP ((double, double, float *, float *));
 static void	grb_36Index FP ((double, double, float *, float *));
 static void	grb_36LatLon FP ((double, double, float *, float *));
+static void	grb_27Index FP ((double, double, float *, float *));
+static void	grb_27LatLon FP ((double, double, float *, float *));
 static void	grb_UnpackBDS FP ((GFTag *, int, float *, int, int));
 static void	grb_ResetWind FP ((void));
 static void	grb_UnpackWind FP ((GFTag *, int, FieldId, int, int, float *, 
 				    GRB_TypeInfo *));
 static void	grb_DCFinishDefs FP ((DataChunk *, GRB_TypeInfo *, int));
 static void	grb_InitGInfo FP ((GRB_TypeInfo	*));
+static GRB_TypeInfo	*grb_GridTypeInfo FP ((GFpds *));
 
 /*
  * Field list.  We only include here the fields for which we have
@@ -267,6 +270,13 @@ int GRB_FList_len = sizeof (GRB_FList) / sizeof (struct s_GRB_FList);
  */
 GRB_TypeInfo GRB_Types[] =
 {
+	/*
+	 * 27: 4225-point (65x65) N. Hemisphere polar stereographic grid
+	 * oriented 80W; pole at (32,32) [C type indexing].  381.0 km
+	 * spacing at 60N.
+	 */
+	{ 27, 65, 65, NULL, NULL, grb_27Index, grb_27LatLon, 19, 11, 
+		  20.0, -130.0, 4.0, 4.0, NULL, NULL },
 	/*
 	 * 36: 1558-point (41x38) N. Hemisphere polar stereographic grid
 	 * oriented 105W; pole at (18,41) [C type indexing].  The TDL grid
@@ -626,7 +636,8 @@ int		ndetail;
 	bool	onelevel;
 	SValue	v;
 	GFTag	*tag;
-	FieldId	fids[5], lat_id, lon_id, alt_id;
+	GFpds	*pds;
+	FieldId	fids[5], lat_id, lon_id, alt_id, checkfld;
 	ZebTime	stime;
 	GRB_TypeInfo	*grbinfo;
 	AltUnitType	altunits;
@@ -635,38 +646,6 @@ int		ndetail;
  */
 	if (! dfa_OpenFile (gp->gl_dfindex, FALSE, (void *) &tag))
 		return (FALSE);
-/*
- * Get the grid type and get the entry from our types table.  (We use the
- * first grid in the file, assuming that all grids in the file are of the
- * same type).
- */
-	gtype = tag->gt_grib[0].gd_pds->grid_id;
-
-	grbinfo = NULL;
-	for (i = 0; i < GRB_NTypes; i++)
-	{
-		if (GRB_Types[i].gg_type == gtype)
-		{
-			grbinfo = GRB_Types + i;
-			break;
-		}
-	}
-
-	if (! grbinfo)
-	{
-		msg_ELog (EF_PROBLEM, "Cannot unpack GRIB grid type %d\n", 
-			  gtype);
-		return (FALSE);
-	}
-/*
- * Make sure the arrays for unpacking this grid type have been built
- */
-	grb_InitGInfo (grbinfo);
-/*
- * Get the requested forecast offset, in seconds.
- */
-	offset = ds_GetDetail (DD_FORECAST_OFFSET, details, ndetail, &v) ?
-		v.us_v_int : 0;
 /*
  * Field IDs for our dimension variables
  */
@@ -677,6 +656,65 @@ int		ndetail;
  * Get the field list
  */
 	nfield = dc_NSGetAllVariables (dc, fids, NULL);
+/*
+ * Find the first non-dimension field
+ */
+	for (i = 0; i < nfield; i++)
+	{
+		checkfld = fids[i];
+		if (checkfld != lon_id && checkfld != lat_id && 
+		    checkfld != alt_id)
+			break;
+	}
+/*
+ * Get the requested forecast offset, in seconds.
+ */
+	offset = ds_GetDetail (DD_FORECAST_OFFSET, details, ndetail, &v) ?
+		v.us_v_int : 0;
+/*
+ * Get the grid type and get the entry from our types table.  We look for the
+ * first grid in the file that is of a type we can unpack, matches our first
+ * (non-dimension) field, is a usable vertical level, and has the right
+ * forecast offset.  Once we find such a grid, we only accept grids of the
+ * same GRIB grid type thereafter.
+ */
+	for (i = 0; i < tag->gt_ngrids; i++)
+	{
+		pds = tag->gt_grib[i].gd_pds;
+
+		if ((grbinfo = grb_GridTypeInfo (pds)) != NULL &&
+		    grb_UsableLevel (pds, tag->gt_sfc_only) && 
+		    grb_Field (pds, NULL) == checkfld &&
+		    grb_Offset (pds) == offset)
+			break;
+	}
+/*
+ * Bail out if no grids met our criteria above
+ */
+	if (i == tag->gt_ngrids)
+	{
+		msg_ELog (EF_INFO, 
+			  "GRIB: No unpackable %d hr forecast for %s/%s", 
+			  offset / 3600, ds_PlatformName(dc->dc_Platform), 
+			  F_GetName (checkfld));
+
+		if (! dc_NSDefineIsComplete (dc))
+		{
+		/*
+		 * If dimension definition hasn't been closed off yet,
+		 * set them all to zero and close it now.
+		 */
+			dc_NSDefineDimension (dc, F_Lookup ("lat"), 0);
+			dc_NSDefineDimension (dc, F_Lookup ("lon"), 0);
+			dc_NSDefineDimension (dc, F_Lookup ("alt"), 0);
+			dc_NSDefineComplete (dc);
+		}
+		return (TRUE);
+	}
+/*
+ * Make sure the arrays for unpacking this grid type have been built
+ */
+	grb_InitGInfo (grbinfo);
 /*
  * Get the list of available alts and set the altitude units in our
  * data chunk.  We test to make sure we have the same number of alts for all
@@ -967,6 +1005,7 @@ AltUnitType	*altunits;
 	float	temp;
 	GFpds	*pds;
 	GFTag	*tag;
+	GRB_TypeInfo	*grbinfo;
 	ZebTime	t;
 /*
  * Make sure that the file is open.
@@ -992,7 +1031,8 @@ AltUnitType	*altunits;
 	{
 		pds = tag->gt_grib[i].gd_pds;
 
-		if (grb_UsableLevel (pds, tag->gt_sfc_only) && 
+		if ((grbinfo = grb_GridTypeInfo (pds)) != NULL &&
+		    grb_UsableLevel (pds, tag->gt_sfc_only) && 
 		    grb_Field (pds, NULL) == fid &&
 		    grb_Offset (pds) == offset)
 		{
@@ -1007,12 +1047,13 @@ AltUnitType	*altunits;
 		if (! TC_Eq (tag->gt_grib[i].gd_time, t))
 			break;
 	/*
-	 * Grab the altitude from this grid if it has the same field and time
-	 * offset as the first grid, and is a usable grid.
+	 * Grab the altitude from this grid if it has the same type, field, 
+	 * and time offset as the first grid, and is a usable grid.
 	 */
 		pds = tag->gt_grib[i].gd_pds;
 
-		if (grb_UsableLevel (pds, tag->gt_sfc_only) && 
+		if (pds->grid_id == grbinfo->gg_type  &&
+		    grb_UsableLevel (pds, tag->gt_sfc_only) && 
 		    grb_Field (pds, NULL) == fid &&
 		    grb_Offset (pds) == offset)
 		{
@@ -1022,6 +1063,9 @@ AltUnitType	*altunits;
 				count++;
 		}
 	}
+
+	if (! count)
+		return (FALSE);
 
 	if (nalts)
 		*nalts = count;
@@ -1214,7 +1258,8 @@ Location	*locs;
  */
 {
 	GFTag	*tag;
-	int	i, gtype, ntimes, ngrids;
+	int	i, ntimes, ngrids = tag->gt_ngrids;
+	GRB_TypeInfo	*grbinfo;
 	Location	gloc;
 /*
  * Get the file open.
@@ -1222,31 +1267,32 @@ Location	*locs;
 	if (! dfa_OpenFile (dfile, FALSE, (void *) &tag))
 		return (0);
 /*
- * Get the grid type and use it to determine location
+ * Find the first grid we know how to unpack and use its type to determine 
+ * location
  */
-	gtype = tag->gt_grib[0].gd_pds->grid_id;
-	for (i = 0; i < GRB_NTypes; i++)
+	for (i = 0; i < ngrids; i++)
 	{
-		if (GRB_Types[i].gg_type == gtype)
+		
+		grbinfo = grb_GridTypeInfo (tag->gt_grib[i].gd_pds);
+		if (grbinfo)
 		{
-			gloc.l_lat = GRB_Types[i].gg_dlat;
-			gloc.l_lon = GRB_Types[i].gg_dlon;
+			gloc.l_lat = grbinfo->gg_dlat;
+			gloc.l_lon = grbinfo->gg_dlon;
 			gloc.l_alt = 1000.0;	/* BOGUS! */
 			break;
 		}
 	}
+	
 
-	if (i == GRB_NTypes)
+	if (i == ngrids)
 	{
-		msg_ELog (EF_EMERGENCY, "Cannot unpack GRIB grid type %d\n", 
-			  gtype);
+		msg_ELog (EF_EMERGENCY, "No unpackable GRIB grid types!");
 		return (0);
 	}
 /*
  * Shortcut:  See if the first and last grid times in the file are the same.
  * If so, we assume all the ones between are the same, too.
  */
-	ngrids = tag->gt_ngrids;
 	if (TC_Eq (tag->gt_grib[0].gd_time, tag->gt_grib[ngrids-1].gd_time))
 	{
 		times[0] = tag->gt_grib[0].gd_time;
@@ -1584,10 +1630,11 @@ float		*ztarget;
 	{
 		pds = tag->gt_grib[ndx].gd_pds;
 	/*
-	 * Bag this grid now if the forecast time is wrong or it's a
-	 * not a usable level
+	 * Bag this grid now if the type is wrong, the forecast time is wrong,
+	 * or it's a not a usable level
 	 */
-		if (! grb_UsableLevel (pds, tag->gt_sfc_only) || 
+		if (pds->grid_id != ginfo->gg_type ||
+		    ! grb_UsableLevel (pds, tag->gt_sfc_only) || 
 		    grb_Offset (pds) != offset)
 			continue;
 	/*
@@ -1958,7 +2005,7 @@ bool	sfc_only;
 	int	l_id = pds->level_id;
 
 	if (sfc_only)
-		return (l_id == 1);
+		return (l_id == 1 || l_id == 102);
 	else
 		return (l_id == 100 || l_id == 103);
 }
@@ -1987,6 +2034,10 @@ AltUnitType	*units;
 		if (units)
 			*units = AU_mb;
 		break;
+	    case 102:	/* 0 meters MSL */
+		if (units)
+			*units = AU_mMSL;
+		return (0.0);
 	    case 103:	/* fixed height (meters MSL) */
 		if (units)
 			*units = AU_mMSL;
@@ -1998,6 +2049,120 @@ AltUnitType	*units;
 	}
 
 	return ((float) grb_TwoByteInt (&(pds->level_val)));
+}
+
+
+
+
+static void
+grb_27Index (lat, lon, ifloat, jfloat)
+double	lat, lon;
+float	*ifloat, *jfloat;
+/*
+ * Return the (floating point) array indices for a GRIB 27 type grid, given a
+ * latitude and longitude.  The formulas used here come from Section 21
+ * (Stereographic Projection) of "Map Projections--A Working Manual", USGS
+ * Professional Paper 1395.  Variable names have been chosen to correspond to
+ * those used in the book, and equation numbers from the book are referenced
+ * in the comments.
+ */
+{
+	float	x, y, k, psi = DEG_TO_RAD (lat), lambda = DEG_TO_RAD (lon);
+/*
+ * Origin lat & long, in radians, and scale factor at the origin for
+ * GRIB grid type 27 [4225-point (65x65) N. Hemisphere polar stereographic 
+ * grid oriented 80W].  For type 27, the pole is at grid location (33,33), 
+ * in Fortran terms, or (32,32) here in the C world.
+ */
+	const float	psi1 = 1.047197551;	/* 60.0 deg. north */
+	const float	lambda0 = -1.396263402;	/* 80.0 deg. west */
+	const float	scale = 381;
+	const float	ipole = 32;
+	const float	jpole = 32;
+/*
+ * Applying the formulas below to the north pole yields the following x 
+ * and y.
+ */
+	const float	xpole = 0.0;
+	const float	ypole = 3412.31689;
+/*
+ * Formula 21-4
+ */
+	k = 2 / (1 + sin (psi1) * sin (psi) + 
+		 cos (psi1) * cos (psi) * cos (lambda - lambda0));
+/*
+ * Formulas 21-2 and 21-3
+ */
+	x = R_Earth * k * cos (psi) * sin (lambda - lambda0);
+	y = R_Earth * k * (cos (psi1) * sin (psi) - 
+		 sin (psi1) * cos (psi) * cos (lambda - lambda0));
+/*
+ * Now turn x and y into grid coordinates based on the north pole, which is
+ * the only reference point for which we have grid coordinates.
+ */
+	*ifloat = ipole + (x - xpole) / scale;
+	*jfloat = jpole + (y - ypole) / scale;
+}
+
+
+
+
+static void
+grb_27LatLon (idouble, jdouble, lat, lon)
+double	idouble, jdouble;
+float	*lat, *lon;
+/*
+ * Turn the (double precision) indices into a GRIB 27 type grid into
+ * a latitude and longitude.  The formulas used here come from Section 21
+ * (Stereographic Projection) of "Map Projections--A Working Manual", USGS
+ * Professional Paper 1395.  Variable names have been chosen to correspond to
+ * those used in the book, and equation numbers from the book are referenced
+ * in the comments.
+ */
+{
+	float	x, y, rho, c, psi, lambda;
+/*
+ * Origin lat & long, in radians, and scale factor at the origin for
+ * GRIB grid type 27 [4225-point (65x65) N. Hemisphere polar stereographic 
+ * grid oriented 80W].  For type 27, the pole is at grid location (33,33), 
+ * in Fortran terms, or (32,32) here in the C world.
+ */
+	const float	psi1 = 1.047197551;	/* 60.0 deg. north */
+	const float	lambda0 = -1.396263402;	/* 80.0 deg. west */
+	const float	scale = 381;
+	const float	ipole = 32;
+	const float	jpole = 32;
+/*
+ * The x and y values below for the pole were calculated given the
+ * constants above.
+ */
+	const float	xpole = 0.0;
+	const float	ypole = 3412.31689;
+/*
+ * First turn our indices into x and y in km.
+ */
+	x = (scale * (idouble - ipole)) + xpole;
+	y = (scale * (jdouble - jpole)) + ypole;
+/*
+ * Formulas 20-18 and 21-15
+ */
+	rho = hypot (x, y);
+	c = 2 * atan ((double)(rho / (2 * R_Earth)));
+/*
+ * Formula 20-15
+ */
+	lambda = lambda0 + 
+		atan (x * sin (c) / 
+		      (rho * cos (psi1) * cos (c) - y * sin (psi1) * sin (c)));
+/*
+ * Formula 20-14
+ */
+	psi = asin (cos (c) * sin (psi1) + (y * sin (c) * cos (psi1) / rho));
+/*
+ * Now convert to degrees and we're done
+ */
+	*lat = RAD_TO_DEG (psi);
+	*lon = RAD_TO_DEG (lambda);
 }
 
 
@@ -2020,8 +2185,8 @@ float	*ifloat, *jfloat;
 /*
  * Origin lat & long, in radians, and scale factor at the origin for
  * GRIB grid type 36 [1558-point (41x38) N. Hemisphere polar stereographic 
- * grid].  For type 36, the pole is at grid location (19,42), in Fortran 
- * terms, or (18,41) here in the C world.
+ * grid oriented 105W].  For type 36, the pole is at grid location (19,42), 
+ * in Fortran terms, or (18,41) here in the C world.
  */
 	const float	psi1 = 1.047197551;	/* 60.0 deg. north */
 	const float	lambda0 = -1.832595715;	/* 105.0 deg. west */
@@ -2073,8 +2238,8 @@ float	*lat, *lon;
 /*
  * Origin lat & long, in radians, and scale factor at the origin for
  * GRIB grid type 36 [1558-point (41x38) N. Hemisphere polar stereographic 
- * grid].  For type 36, the pole is at grid location (19,42), in Fortran 
- * terms, or (18,41) here in the C world.
+ * grid oriented 105W].  For type 36, the pole is at grid location (19,42), 
+ * in Fortran terms, or (18,41) here in the C world.
  */
 	const float	psi1 = 1.047197551;	/* 60.0 deg. north */
 	const float	lambda0 = -1.832595715;	/* 105.0 deg. west */
@@ -2134,8 +2299,8 @@ float	*ifloat, *jfloat;
 /*
  * Origin lat & long, in radians, and scale factor at the origin for
  * GRIB grid type 105 [6889-point (83x83) N. hemisphere polar stereographic
- * grid].  For type 105, the pole is at grid location (40.5, 88.5), in
- * Fortran terms, or (39.5, 87.5) here in the C world.
+ * grid oriented 105W].  For type 105, the pole is at grid location 
+ * (40.5, 88.5), in Fortran terms, or (39.5, 87.5) here in the C world.
  */
 	const float	psi1 = 1.047197551;	/* 60.0 deg. north */
 	const float	lambda0 = -1.832595715;	/* 105.0 deg. west */
@@ -2187,8 +2352,8 @@ float	*lat, *lon;
 /*
  * Origin lat & long, in radians, and scale factor at the origin for
  * GRIB grid type 105 [6889-point (83x83) N. hemisphere polar stereographic
- * grid].  For type 105, the pole is at grid location (40.5, 88.5), in
- * Fortran terms, or (39.5, 87.5) here in the C world.
+ * grid oriented 105W].  For type 105, the pole is at grid location 
+ * (40.5, 88.5), in Fortran terms, or (39.5, 87.5) here in the C world.
  */
 	const float	psi1 = 1.047197551;	/* 60.0 deg. north */
 	const float	lambda0 = -1.832595715;	/* 105.0 deg. west */
@@ -2540,4 +2705,30 @@ GRB_TypeInfo	*ginfo;
 		free (ugrid);
 		free (vgrid);
 	}
+}
+
+
+
+
+GRB_TypeInfo *
+grb_GridTypeInfo (pds)
+GFpds	*pds;
+/*
+ * Return a pointer to a GRB_TypeInfo structure for the type of grid associated
+ * with the given PDS.  If we don't understand this grid type, return NULL.
+ */
+{
+	int	i;
+	GRB_TypeInfo	*grbinfo = NULL;
+
+	for (i = 0; i < GRB_NTypes; i++)
+	{
+		if (GRB_Types[i].gg_type == pds->grid_id)
+		{
+			grbinfo = GRB_Types + i;
+			break;
+		}
+	}
+
+	return (grbinfo);
 }
