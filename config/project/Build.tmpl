@@ -9,8 +9,20 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project auto-build parameters for development compilations
-XCOMM $Id: Build.tmpl,v 1.13 1995-11-27 05:54:36 granger Exp $
+XCOMM $Id: Build.tmpl,v 1.14 1995-12-03 02:02:16 granger Exp $
 XCOMM -----------------------------------------------------------------------
+
+/*
+ * Convenience definition
+ */
+#ifndef SolarisArchitecture
+# ifdef SunArchitecture
+#  if defined(SVR4) || defined(solaris) || defined(SVR4Architecture)
+#   define SolarisArchitecture
+#  endif
+# endif
+#endif
+
 
 #ifndef UseInstalledZebra
 # define UseInstalledZebra	NO
@@ -50,23 +62,14 @@ XCOMM -----------------------------------------------------------------------
 #define HDFIncDir /usr/local/include/hdf
 
 /*
- * Include map projections on systems which have it installed, but only
- * when we're using a compiler which supports ANSI prototypes (thanks
- * to projects.h).
+ * Map projections are installed on all our machines, but only GCC and 
+ * Solaris C compilers can compile the project.h include file.
  */
 #ifndef MapProjections
-# if UseGcc
+# if UseGcc || defined(SolarisArchitecture)
 #   define MapProjections YES
 # else
-#  if defined(SunArchitecture) && !defined(SVR4) && !defined(solaris)
-#   define MapProjections NO /* SunOS 4 native cannot compile projects.h */
-#  else
-#   if defined(SGIArchitecture)
-#    define MapProjections NO /* IRIX native cc cannot compile it */
-#   else
-#    define MapProjections YES
-#   endif
-#  endif
+#   define MapProjections NO
 # endif
 #endif
 
@@ -101,7 +104,7 @@ XCOMM -----------------------------------------------------------------------
 # ifndef BuildDataUtilities
 #  define	BuildDataUtilities	YES	/* SunOS/Solaris	*/
 # endif
-# if defined(SVR4) || defined(solaris) /* Solaris only */
+# ifdef SolarisArchitecture /* Solaris only */
 #  define	BuildRadarIngest	YES	/* Solaris only		*/
 #  define	BuildSLGrabber		NO
 #  define	Build_TRMM_Rain		NO
