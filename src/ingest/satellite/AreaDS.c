@@ -16,7 +16,12 @@
 
 # include "Area.h"
 
-RCSID("$Id: AreaDS.c,v 1.3 2003-01-29 22:22:21 burghart Exp $")
+RCSID("$Id: AreaDS.c,v 1.4 2004-08-26 19:53:08 burghart Exp $")
+
+/*
+ * swap the order of row data in a row-major grid
+ */
+void swapRowOrder (unsigned char* grid, int nrows, int ncols);
 
 
 
@@ -90,15 +95,20 @@ GetFieldMap (FieldId fid)
 
 
 DataChunk *
-SetupDC (AreaFile *chain, const char *platname)
+SetupDC (AreaFile *chain, const char *platname, AreaGrid *ag)
 {
 	int nfiles;
 	int nfields;
 	ScaleInfo *scale;
 	FieldId *fid;
+	FieldId latid, lonid, dims[2];
+	Location loc;
+	int nlats, nlons;
+	float *lats, *lons;
 	AreaFile *f;
 	PlatformId plat;
 	int i;
+	DataOrganization org;
 	DataChunk *dc;
 
 	nfields = 0;
@@ -138,12 +148,120 @@ SetupDC (AreaFile *chain, const char *platname)
 		msg_ELog (EF_PROBLEM, "Bad platform '%s'", (char *)platname);
 		return (NULL);
 	}
+
 /*
  * Create and initialize a data chunk
  */
-	dc = dc_CreateDC (DCC_Image);
-	dc->dc_Platform = plat;
-	dc_ImgSetup (dc, nfields, fid, scale);
+	org = ds_PlatformDataOrg (plat);
+	switch (org) {
+	  /*
+	   * Create an image data chunk for image platforms
+	   */
+	  case OrgImage:
+	  case OrgCmpImage:
+	    dc = dc_CreateDC (DCC_Image);
+	    dc_SetPlatform (dc, plat);
+	    dc_ImgSetup (dc, nfields, fid, scale);
+	    break;
+	  /*
+	   * Create an NSpace data chunk for NSpace platforms
+	   */
+	  case OrgNSpace:
+	    dc = dc_CreateDC (DCC_NSpace);
+	    dc_SetPlatform (dc, plat);
+
+	    /*
+	     * If we don't have limits, get them from the first file that
+	     * gives us good results via SetAreaLimits.
+	     */
+	    if (ag->reset)
+	    {
+	      msg_ELog (EF_INFO, "Variable image sizing is disabled "
+			"since platform has nspace organization");
+	      ag->reset = 0;
+	    }
+
+	    f = chain;
+	    while (! ag->limits)
+	    {
+	      if (SetAreaLimits (f, ag))
+	      {
+		msg_ELog (EF_INFO, "Created image limits using file %s",
+			  f->name);
+		break;
+	      }
+
+	      f = f->next;
+	      if (! f)
+	      {
+		msg_ELog (EF_PROBLEM, "Unable to get limits from any file");
+		return (NULL);
+	      }
+	    }
+
+	    /*
+	     * Fill in some unset stuff in the AreaGrid, and get a location
+	     */
+	    SetGrid (ag, NULL, &loc);
+
+	    /*
+	     * Set the location in the data chunk
+	     */
+	    dc_SetStaticLoc (dc, &loc);
+
+	    /*
+	     * Create the lat & lon dimensions
+	     */
+	    nlats = ag->gridY;
+	    latid = F_DeclareField ("latitude", "N latitude", "deg");
+	    dc_NSDefineDimension (dc, latid, nlats);
+	    dc_NSDefineVariable (dc, latid, 1, &latid, 1);
+	    dims[0] = latid;
+
+	    nlons = ag->gridX;
+	    lonid = F_DeclareField ("longitude", "E longitude", "deg");
+	    dc_NSDefineDimension (dc, lonid, nlons);
+	    dc_NSDefineVariable (dc, lonid, 1, &lonid, 1);
+	    dims[1] = lonid;
+
+	    /*
+	     * Create variables for the data fields
+	     */
+	    for (i = 0; i < nfields; ++i)
+	    {
+	      unsigned char badval = 0xff;
+	      dc_NSDefineVariable (dc, fid[i], 2, dims, 0);
+	      dc_SetType (dc, fid[i], DCT_UnsignedChar);
+	      dc_SetFieldBadval (dc, fid[i], &badval);
+	    }
+
+	    dc_NSDefineComplete(dc);
+
+	    /*
+	     * Fill in the latitudes & longitudes
+	     */
+	    lats = (float *) malloc (nlats * sizeof (float));
+	    for (i = 0; i < nlats; i++)
+	      lats[i] = ag->minlat + i * ag->latstep;
+	    dc_NSAddStatic (dc, latid, lats);
+	    free(lats);
+
+	    lons = (float *) malloc (nlons * sizeof (float));
+	    for (i = 0; i < nlons; i++)
+	      lons[i] = ag->minlon + i * ag->lonstep;
+	    dc_NSAddStatic (dc, lonid, lons);
+	    free(lons);
+
+	      
+	    break;
+	  default:
+	    msg_ELog (EF_PROBLEM, 
+		      "Platform must have 'image' or 'nspace' organization");
+	    msg_ELog (EF_PROBLEM,
+		      "Platform %s has organization: %s", platname,
+		      ds_OrgName (org));
+	    return (NULL);
+	}
 	free (fid);
 	free (scale);
 	return (dc);
@@ -178,7 +296,7 @@ AreaIngest (AreaFile *chain, AreaGrid *ag, const char *platname)
 /*
  * Set up an image dc for all the fields in our input files
  */
-	dc = SetupDC (chain, platname);
+	dc = SetupDC (chain, platname, ag);
 	if (! dc)
 		return (0);
 /*
@@ -236,9 +354,20 @@ AreaIngest (AreaFile *chain, AreaGrid *ag, const char *platname)
 					break;
 			}
 			ngood++;
-			dc_ImgAddImage (dc, i, F_Lookup(f->field), 
-					&loc, &rg, &f->when, grid, 
-					ag->gridX * ag->gridY);
+			if (dc_ClassId (dc) == DCID_Image)
+			  
+			  dc_ImgAddImage (dc, i, F_Lookup(f->field), 
+					  &loc, &rg, &f->when, grid, 
+					  ag->gridX * ag->gridY);
+			else
+			{
+			  /*
+			   * the grid we got runs N->S, but we need it S->N
+			   */
+			  swapRowOrder (grid, ag->gridY, ag->gridX);
+			  dc_NSAddSample (dc, &f->when, i, F_Lookup(f->field),
+					  grid);
+			}
 			free (grid);
 		}
 	/*
@@ -265,4 +394,23 @@ AreaIngest (AreaFile *chain, AreaGrid *ag, const char *platname)
 	return (1);
 }
 	
+
+void
+swapRowOrder (unsigned char *grid, int nrows, int ncols)
+/*
+ * Swap the row order in the given row-major grid.
+ */
+{
+  int rowsize = ncols;
+  void* tmpRowData = (void*) malloc (rowsize);
+  int row;
+
+  for (row = 0; row < (nrows / 2); row++)
+  {
+    int swaprow = nrows - row - 1;
+    memcpy (tmpRowData, grid + swaprow * rowsize, rowsize);
+    memcpy (grid + swaprow * rowsize, grid + row * rowsize, rowsize);
+    memcpy (grid + row * rowsize, tmpRowData, rowsize);
+  }
+}
 

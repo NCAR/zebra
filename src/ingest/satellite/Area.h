@@ -1,5 +1,5 @@
 /*
- * $Id: Area.h,v 1.5 2003-01-29 22:22:21 burghart Exp $
+ * $Id: Area.h,v 1.6 2004-08-26 19:53:08 burghart Exp $
  *
  * Prototypes for routies in the Area module
  */
@@ -83,7 +83,7 @@ int *ReadNavCod (AreaFile *f, AreaImage *area, int *nav_cod, char *imtype);
 int SetAreaLimits (AreaFile *f, AreaGrid *ag);
 unsigned char *ReadAreaImage (AreaFile *f, AreaImage *area);
 #ifdef __zebra_DataStore_h_
-DataChunk *SetupDC (AreaFile *chain, const char *platname);
+DataChunk *SetupDC (AreaFile *chain, const char *platname, AreaGrid *ag);
 int AreaIngest (AreaFile *chain, AreaGrid *ag, const char *platname);
 void SetFieldMap (FieldId fid, ScaleInfo *scale, unsigned char *map);
 #endif
