@@ -1,7 +1,7 @@
 /*
  * XY-Graph plotting module
  */
-static char *rcsid = "$Id: XYGraph.c,v 1.24 1993-12-01 19:02:03 burghart Exp $";
+static char *rcsid = "$Id: XYGraph.c,v 1.25 1993-12-02 17:15:08 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -226,6 +226,21 @@ bool	update;
 		npts[plat] = xy_GetDataVectors (pid, &bTimeReq, &eTimeReq, 
 						single_obs, 1, dv, 2, NULL);
 	/*
+	 * Update the overlay times widget and set up for side annotation
+	 * (Do it here since eTimeReq may change from platform to platform)
+	 */
+		if (npts[plat] > 0 && ! update)
+		{
+			lw_TimeStatus (c, pnames[plat], &eTimeReq);
+
+			if (sideAnnot)
+				XYG_DoSideAnnotation (c, style, pnames[plat],
+					      lcolor[plat],
+					      xfnames[nxfield > 1 ? plat : 0],
+					      yfnames[nyfield > 1 ? plat : 0],
+					      &eTimeReq);
+		}
+	/*
 	 * Keep the pointers to the data and apply the min and max values
 	 */
 		xdata[plat] = dv[0].data;
@@ -303,20 +318,6 @@ bool	update;
 		else
 			pp_Icons (xdata[plat], ydata[plat], npts[plat], 
 				  style, lcolor[plat], c, pnames[plat]);
-	    /*
-	     * Update the overlay times widget and set up for side annotation
-	     */
-		if (! update)
-		{
-			lw_TimeStatus (c, pnames[plat], &eTimeReq);
-
-			if (sideAnnot)
-				XYG_DoSideAnnotation (c, style, pnames[plat],
-					      lcolor[plat],
-					      xfnames[nxfield > 1 ? plat : 0],
-					      yfnames[nyfield > 1 ? plat : 0],
-					      &eTimeReq);
-		}
 	    }
 	/*
 	 * Unclip and add a period to the top annotation.

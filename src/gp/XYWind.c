@@ -1,7 +1,7 @@
 /*
  * XY-Wind plotting module
  */
-static char *rcsid = "$Id: XYWind.c,v 1.20 1993-12-01 17:32:30 burghart Exp $";
+static char *rcsid = "$Id: XYWind.c,v 1.21 1993-12-02 17:15:14 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -280,6 +280,55 @@ bool	update;
 
 		npts[plat] = xy_GetDataVectors (pid, &bTimeReq, &eTimeReq, 
 						single_obs, skip, dv, 4, NULL);
+	    /*
+	     * Update the overlay times widget and set up for side annotation
+	     * (Do it here since eTimeReq may change from platform to platform)
+	     */
+		if (npts[plat] > 0 && ! update)
+		{
+		    lw_TimeStatus (c, pnames[plat], &eTimeReq);
+
+		    if (sideAnnot)
+		    {
+			if (strcmp (style, "vector") == 0)
+			{
+			    sprintf (annotcontrol, "%5.1f%s %d %f %f %f", 
+				     scaleSpeed, "m/sec", taColor, scaleSpeed, 
+				     0.0, vecScale);
+			    An_AddAnnotProc (An_ColorVector, c, annotcontrol,
+					     strlen (annotcontrol) + 1, 30, 
+					     FALSE, FALSE);
+			    sprintf (annotcontrol, "%s %s %f %f", 
+				     "wind-speed:m/sec", ctname, 
+				     ncolors % 2 ? 
+				     (ncolors - 1) * cstep * 0.5 :
+				     ncolors * cstep * 0.5, cstep);
+			}
+
+			if (strcmp (style, "barb") == 0)
+			{	
+			    sprintf (annotcontrol, "%s %d %d", barbtype,
+				     taColor,  (int) vecScale);
+			    An_AddAnnotProc (An_BarbLegend, c, annotcontrol,
+					     strlen (annotcontrol) + 1, 100, 
+					     FALSE, FALSE);
+			    sprintf (annotcontrol, "%s%s %s %f %f ",
+				     "wind-speed:", barbtype, ctname,
+				     ncolors % 2 ? 
+				     (ncolors - 1) * cstep * 0.5 :
+				     ncolors * cstep * 0.5, cstep);
+			}
+
+			An_AddAnnotProc (An_ColorBar, c, annotcontrol, 
+					 strlen (annotcontrol) + 1, 75, TRUE, 
+					 FALSE);
+
+			sprintf (annotcontrol, "%s %d", pnames[plat], taColor);
+			An_AddAnnotProc (An_ColorString, c, annotcontrol, 
+					 strlen (annotcontrol), 25, FALSE, 
+					 FALSE);
+		    }
+		}
 	/*
 	 * Keep the pointers to the data and apply the min and max values
 	 */
@@ -365,54 +414,6 @@ bool	update;
 				   w2data[plat], npts[plat], angle, 
 				   (double) vecScale, L_solid, colors, 
 				   ncolors, cstep);
-	    /*
-	     * Update the overlay times widget and set up for side annotation
-	     */
-		if (! update)
-		{
-		    lw_TimeStatus (c, pnames[plat], &eTimeReq);
-
-		    if (sideAnnot)
-		    {
-			if (strcmp (style, "vector") == 0)
-			{
-			    sprintf (annotcontrol, "%5.1f%s %d %f %f %f", 
-				     scaleSpeed, "m/sec", taColor, scaleSpeed, 
-				     0.0, vecScale);
-			    An_AddAnnotProc (An_ColorVector, c, annotcontrol,
-					     strlen (annotcontrol) + 1, 30, 
-					     FALSE, FALSE);
-			    sprintf (annotcontrol, "%s %s %f %f", 
-				     "wind-speed:m/sec", ctname, 
-				     ncolors % 2 ? 
-				     (ncolors - 1) * cstep * 0.5 :
-				     ncolors * cstep * 0.5, cstep);
-			}
-
-			if (strcmp (style, "barb") == 0)
-			{	
-			    sprintf (annotcontrol, "%s %d %d", barbtype,
-				     taColor,  (int) vecScale);
-			    An_AddAnnotProc (An_BarbLegend, c, annotcontrol,
-					     strlen (annotcontrol) + 1, 100, 
-					     FALSE, FALSE);
-			    sprintf (annotcontrol, "%s%s %s %f %f ",
-				     "wind-speed:", barbtype, ctname,
-				     ncolors % 2 ? 
-				     (ncolors - 1) * cstep * 0.5 :
-				     ncolors * cstep * 0.5, cstep);
-			}
-
-			An_AddAnnotProc (An_ColorBar, c, annotcontrol, 
-					 strlen (annotcontrol) + 1, 75, TRUE, 
-					 FALSE);
-
-			sprintf (annotcontrol, "%s %d", pnames[plat], taColor);
-			An_AddAnnotProc (An_ColorString, c, annotcontrol, 
-					 strlen (annotcontrol), 25, FALSE, 
-					 FALSE);
-		    }
-		}
             }
 	/*
 	 * Add a period to the top annotation

@@ -1,7 +1,7 @@
 /*
  * XY-Contour plotting module
  */
-static char *rcsid = "$Id: XYContour.c,v 1.17 1993-12-01 19:01:59 burghart Exp $";
+static char *rcsid = "$Id: XYContour.c,v 1.18 1993-12-02 17:15:04 burghart Exp $";
 /*		Copyright (C) 1993 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -276,6 +276,25 @@ bool	update;
 		npts[plat] = xy_GetDataVectors (pid, &bTimeReq, &eTimeReq, 
 						single_obs, 1, dv, 3, NULL);
 	/*
+	 * Update the overlay times widget and set up for side annotation
+	 * (Do it here since eTimeReq may change from platform to platform)
+	 */
+		if (npts[plat] > 0)
+		{
+			lw_TimeStatus (c, pnames[plat], &eTimeReq);
+
+			if (sideAnnot)
+			{	
+				sprintf (annotcontrol, "%s%s %s %f %f", 
+					 "contour-", zfnames[plat], ctname, 
+					 ccenter, zstep);
+				An_AddAnnotProc (An_ColorBar, c, annotcontrol,
+						 strlen (annotcontrol) + 1, 75,
+						 TRUE, FALSE);
+			}
+			
+		}
+	/*
 	 * Keep the pointers to the data and apply the min and max values
 	 */
 		xdata[plat] = dv[0].data;
@@ -332,19 +351,6 @@ bool	update;
 		ccenter = zstep * 
 			nint ((zmin[plat].val.f + zmax[plat].val.f) * 
 			      0.5 / zstep);
-	/*
-	 * Update overlay times widget and set up for side annotation
-	 */
-		lw_TimeStatus (c, pnames[plat], &eTimeReq);
-
-		if (sideAnnot)
-		{	
-			sprintf (annotcontrol, "%s%s %s %f %f", "contour-",
-				 zfnames[plat], ctname, ccenter, zstep);
-			An_AddAnnotProc (An_ColorBar, c, annotcontrol,
-					 strlen (annotcontrol) + 1, 75, TRUE,
-					 FALSE);
-		}
 	/*
 	 * Grid the data as requested
 	 */

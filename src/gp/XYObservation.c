@@ -1,7 +1,7 @@
 /*
  * XY-Observation plotting module
  */
-static char *rcsid = "$Id: XYObservation.c,v 1.8 1993-12-01 17:32:27 burghart Exp $";
+static char *rcsid = "$Id: XYObservation.c,v 1.9 1993-12-02 17:15:11 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -277,6 +277,39 @@ bool	update;
 						single_obs, 1, dv, 3, 
 						dvObsInfo + plat);
 	/*
+	 * Update the overlay times widget and set up for side annotation
+	 * (Do it here since eTimeReq may change from platform to platform)
+	 */
+		if (npts[plat] > 0 && ! update)
+		{
+		    lw_TimeStatus (c, pnames[plat], &eTimeReq);
+
+		    if (sideAnnot)
+		    {
+			sprintf (annotcontrol, "%s-%s:%s %d", pnames[plat], 
+				 xfnames[nxfield > 1 ? plat : 0],
+				 yfnames[nyfield > 1 ? plat : 0], 
+				 lcolor[plat]);
+			An_AddAnnotProc (An_ColorString, c, annotcontrol,
+					 strlen (annotcontrol) + 1, 25, FALSE,
+					 FALSE);
+
+			TC_EncodeTime (&eTimeReq, TC_Full, label);
+			sprintf (annotcontrol, "   %s %d", label, 
+				 lcolor[plat]);
+			An_AddAnnotProc (An_ColorString, c, annotcontrol,
+					 strlen (annotcontrol) + 1, 25, FALSE,
+					 FALSE);
+
+			sprintf (annotcontrol, "%f %d %d %s", zScale, 
+				 F_PIX_WIDTH, lcolor[plat], 
+				 zfnames[nzfield > 1 ? plat : 0]);
+			An_AddAnnotProc (An_ColorScale, c,  annotcontrol, 
+					 strlen (annotcontrol) + 1, 35, FALSE,
+					 FALSE);
+		    }
+		}
+	/*
 	 * Keep the pointers to the data and apply the min and max values
 	 */
 		xdata[plat] = dv[0].data;
@@ -349,38 +382,6 @@ bool	update;
 	    {
 		if (npts[plat] == 0)
 			continue;
-	    /*
-	     * Update the overlay times widget and set up for side annotation
-	     */
-		if (! update)
-		{
-		    lw_TimeStatus (c, pnames[plat], &eTimeReq);
-
-		    if (sideAnnot)
-		    {
-			sprintf (annotcontrol, "%s-%s:%s %d", pnames[plat], 
-				 xfnames[nxfield > 1 ? plat : 0],
-				 yfnames[nyfield > 1 ? plat : 0], 
-				 lcolor[plat]);
-			An_AddAnnotProc (An_ColorString, c, annotcontrol,
-					 strlen (annotcontrol) + 1, 25, FALSE,
-					 FALSE);
-
-			TC_EncodeTime (&eTimeReq, TC_Full, label);
-			sprintf (annotcontrol, "   %s %d", label, 
-				 lcolor[plat]);
-			An_AddAnnotProc (An_ColorString, c, annotcontrol,
-					 strlen (annotcontrol) + 1, 25, FALSE,
-					 FALSE);
-
-			sprintf (annotcontrol, "%f %d %d %s", zScale, 
-				 F_PIX_WIDTH, lcolor[plat], 
-				 zfnames[nzfield > 1 ? plat : 0]);
-			An_AddAnnotProc (An_ColorScale, c,  annotcontrol, 
-					 strlen (annotcontrol) + 1, 35, FALSE,
-					 FALSE);
-		    }
-		}
 	    /*
 	     * Loop through the observations
 	     */
