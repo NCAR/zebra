@@ -39,7 +39,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.70 1999-03-01 02:03:09 burghart Exp $
+XCOMM $Id: Project.tmpl,v 1.71 1999-03-22 18:22:13 burghart Exp $
 XCOMM -----------------------------------------------------------------------
 
 /*
@@ -493,6 +493,18 @@ XCOMM -----------------------------------------------------------------------
 #	define XRunPath -R$(XLIBDIR)
 # else
 #	define XRunPath /**/
+# endif
+
+/*
+ * More run path stuff for Solaris.  Add -R/usr/local/lib so that we find
+ * libg++.so at run time.
+ */
+# if !defined(RunPath)
+#   ifdef SolarisArchitecture
+#      define RunPath -R/usr/local/lib
+#   else
+#      define RunPath /**/
+#   endif
 # endif
 
 #if UseOpenWindows && !defined(SolarisArchitecture)
@@ -1043,6 +1055,7 @@ CXXEXTRA_INCLUDES = /* $(XINCLUDES) $(RDSSINCLUDES) */ $(CONFIGINCLUDES)
        LIBTERMCAP = TermcapLibrary
         LIBREGEXP = RegexpLibrary
     SYS_LIBRARIES = SystemLibraries
+    LOCAL_LDFLAGS = RunPath
 
           DEPLIBS = $(LIBZEBRA)
           MATHLIB = $(LIBMATH)
