@@ -26,14 +26,15 @@
 # include <stdio.h>
 # include <netcdf.h>
 # include "defs.h"
-MAKE_RCSID ("$Id: gprotocdf.c,v 1.6 1992-10-20 22:21:11 kris Exp $")
+MAKE_RCSID ("$Id: gprotocdf.c,v 1.7 1992-10-26 23:12:12 kris Exp $")
 
 
 /*
  * Netcdf stuff.
  */
-# define MAXFLD 50
-int VFields[50];	/* The netcdf variables			*/
+# define MAXFLD 100
+# define STRLEN	50
+int VFields[MAXFLD];	/* The netcdf variables			*/
 int DTime;		/* The time (unlimited) dimension	*/
 int VTime;		/* The time offset variable		*/
 int VBTime;		/* The base time variable		*/
@@ -44,8 +45,8 @@ int NOut = 0;		/* Output record index			*/
 /*
  * Field names.
  */
-char SrcFlds[MAXFLD][50];	/* Genpro field names		*/
-char DstFlds[MAXFLD][50];	/* Equivalent netcdf names	*/
+char SrcFlds[MAXFLD][STRLEN];	/* Genpro field names		*/
+char DstFlds[MAXFLD][STRLEN];	/* Equivalent netcdf names	*/
 int NField = 0;
 
 /*
@@ -354,8 +355,12 @@ char *file;
 			break;
 		get_rec (hbuf, HDR_LEN);
 	}
-	while (Nrec % 10)
-		get_rec (hbuf, HDR_LEN);
+/*
+ * NCAR files need this done, the "new" Wyoming files don't.
+ */
+	if (TFmt == tf_NCAR)
+		while (Nrec % 10)
+			get_rec (hbuf, HDR_LEN);
 }
 
 
