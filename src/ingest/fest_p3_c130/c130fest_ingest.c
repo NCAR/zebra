@@ -1,5 +1,5 @@
 /*
- * $Id: c130fest_ingest.c,v 1.1 1992-11-18 00:33:51 granger Exp $
+ * $Id: c130fest_ingest.c,v 1.2 1992-11-19 01:40:53 granger Exp $
  *
  * Ingest ASCII data files for the U of Washington's C-130 Convair.
  * As far as I can determine from the files, they follow this format:
@@ -200,7 +200,8 @@ StoreDataChunk(dc)
 	/*
 	 * Each raw C-130 file will correspond to a single DataStore file
 	 */
-	IngestLog(EF_INFO,"Storing to new data file...");
+	IngestLog(EF_INFO,"Storing %i samples to new data file...",
+		  dc_GetNSample(dc));
 	ds_Store(dc, /*newfile*/ TRUE, /*details*/ NULL, /*ndetail*/ 0);
 	IngestLog(EF_INFO,"Done storing to file.");
 }
@@ -716,7 +717,7 @@ IngestSamples(dc, in, nfields, fields, flight_date)
 		/*
 		 * We should now have a valid sample time and valid location
 		 */
-		IngestLog(EF_DEBUG | ((nsample % 500) ? 0 : EF_INFO),
+		IngestLog(EF_DEBUG | ((nsample % 1000) ? 0 : EF_INFO),
 			  "Sample %5i, %s, %.2f lat, %.2f lon, alt %5.3f km",
 			  nsample, ctime, slocn.l_lat, slocn.l_lon, slocn.l_alt);
 
@@ -753,6 +754,8 @@ IngestSamples(dc, in, nfields, fields, flight_date)
 	IngestLog(EF_INFO,"Largest gap: %i seconds",max_gap);
 	IngestLog(EF_INFO,"Minimum duration between gaps: %i seconds",min_spacing);
 	IngestLog(EF_INFO,"Maximum duration between gaps: %i seconds",max_spacing);
+
+	StoreDataChunk(dc);
 }
 
 
