@@ -106,10 +106,13 @@
  * any of these to NO.
  *
  * The one possible exception is POLAR, which enables the "polar"
- * representation and contours of polar data.  This is probably not useful
- * to the bulk of people out there.  Polar plots currently only work from
- * sweepfile data, so you will need to have enabled sweepfile access as
- * well.
+ * representation and contours of polar data.  This is probably not
+ * useful to the bulk of people out there, but there is no harm in
+ * including it either.  We could make it conditional on
+ * HasSweepFiles, except currently that is only defined when
+ * MAKING_MAKEFILE and so is not available here.  Polar plots
+ * currently only work from sweepfile data, so you will need to have
+ * enabled sweepfile access as well.
  */
 # if C_PT_CAP
 #	define C_CAP_OVERLAY	YES	/* Overlays			*/
@@ -117,11 +120,7 @@
 # 	define C_CAP_LIGHTNING	YES	/* Lightning location		*/
 #	define C_CAP_RASTER	YES	/* Raster plots			*/
 #	define C_CAP_TRACKS	YES	/* Track plots (e.g. aircraft)	*/
-#  if HasSweepFiles
 # 	define C_CAP_POLAR	YES	/* Plots of polar data		*/
-#  else
-# 	define C_CAP_POLAR	NO	/* Plots of polar data		*/
-#  endif
 # endif
 /*------------------------------------------------------------------------*/
 
