@@ -5,7 +5,7 @@
 # ifdef XSUPPORT
 
 
-static char *rcsid = "$Id: ui_wPulldown.c,v 1.15 1994-03-31 16:34:16 burghart Exp $";
+static char *rcsid = "$Id: ui_wPulldown.c,v 1.16 1994-11-01 02:57:49 case Exp $";
 
 # ifndef X11R3		/* This stuff don't work under R3.	*/
 /* 
@@ -594,7 +594,7 @@ XtPointer xpmenu, junk;
 	Arg args[5];
 
 	int	star_width = 16, star_height = 16;
-	static char star_bits[] = {
+	static unsigned char star_bits[] = {
 		0x00, 0x00, 0x80, 0x00, 0x80, 0x00, 0x88, 0x08, 0x90, 0x04, 
 		0xa0, 0x02, 0x40, 0x01, 0x3e, 0x3e, 0x40, 0x01, 0xa0, 0x02, 
 		0x90, 0x04, 0x88, 0x08, 0x80, 0x00, 0x80, 0x00, 0x00, 0x00, 
