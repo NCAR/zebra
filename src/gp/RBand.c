@@ -1,7 +1,7 @@
 /*
  * Rubber-band interactive drawing routines.
  */
-static char *rcsid = "$Id: RBand.c,v 1.4 1991-01-11 22:16:47 burghart Exp $";
+static char *rcsid = "$Id: RBand.c,v 1.5 1991-02-20 20:03:44 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/cursorfont.h>
@@ -92,7 +92,7 @@ struct ui_command *cmds;
  */
 	RBandActive = TRUE;
 	Ue_Override (rb_ButtonDown, rb_ButtonUp, rb_Motion);
-	HoldProcess = TRUE;		/* No replots while we do this	*/
+	Eq_HoldProcess (); 	/* No replots while we do this	*/
 	RBandCmds = uip_clone_clist (cmds);
 /*
  * Set up our graphics context.
@@ -245,7 +245,7 @@ XEvent *event;
 		RBandX, RBandY, XUSER (RBandX), YUSER (RBandY));
 	RBandActive = FALSE;
 	Ue_ResetOverride ();
-	HoldProcess = FALSE;
+	Eq_ReleaseHold ();
 /*
  * Execute the rest of the stuff.
  */
@@ -318,5 +318,5 @@ char *name;
 	RBandActive = FALSE;
 	Ue_ResetOverride ();
 	uip_release (RBandCmds);	/* No execution	*/
-	HoldProcess = FALSE;
+	Eq_ReleaseHold ();
 }
