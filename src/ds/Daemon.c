@@ -39,7 +39,22 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 # include "commands.h"
-MAKE_RCSID ("$Id: Daemon.c,v 3.29 1993-11-02 20:34:49 corbet Exp $")
+# include "regex.h"
+
+MAKE_RCSID ("$Id: Daemon.c,v 3.30 1994-01-03 07:13:48 granger Exp $")
+
+
+
+/*
+ * Used to pass search criteria and message structures to the
+ * matching function during a symbol table traverse
+ */
+struct SearchInfo {
+	struct dsp_PlatformSearch *si_req;
+	struct dsp_PlatformList *si_list;
+	regex_t si_regex;
+	char *si_to;
+};
 
 
 
@@ -56,6 +71,7 @@ static void	dp_UpdateFile FP ((char *, struct dsp_UpdateFile *));
 static void	dp_DeleteData FP ((Platform *, ZebTime *));
 static void	dp_DeleteObs FP ((Platform *, ZebTime *));
 static void	ZapDF FP ((DataFile *));
+static void	DoRescan FP ((struct ui_command *cmds));
 static void	SetUpEvery FP ((struct ui_command *));
 static void	ExecEvery FP ((ZebTime *, int));
 static void	Truncate FP ((struct ui_command *));
@@ -65,6 +81,10 @@ static void	BCSetup FP ((char *, int));
 static void	RemDataGone FP ((struct dsp_BCDataGone *));
 static void 	SendNPlat FP ((char *));
 static void	SendPlatStruct FP ((char *, struct dsp_GetPlatStruct *));
+static void	SendPlatformList FP ((char *, struct dsp_PlatformSearch *));
+static int 	MatchPlatform FP ((char *symbol, int type,
+				   union usy_value *value,
+				   struct SearchInfo *info));
 static void	SendFileStruct FP ((char *, int));
 static void	LockPlatform FP ((char *, PlatformId));
 static void	UnlockPlatform FP ((char *, PlatformId, int));
@@ -101,15 +121,16 @@ char *ECmds[MAXEVERY];
 static Lock *FreeLocks = 0;
 
 bool InitialScan = TRUE;
+long LastScan = 0;		/* Time of the most recent FULL scan */
 
 /*
  * Caching options.
  */
-int LDirConst = FALSE;	/* Nothing changes		*/
-int RDirConst = FALSE;
-int LFileConst = FALSE;	/* Files don't change (but they	*/
-int RFileConst = FALSE;	/* can come and go)		*/
-int CacheOnExit = FALSE;	/* Write cache on way out?	*/
+bool LDirConst = FALSE;		/* Nothing changes		*/
+bool RDirConst = FALSE;
+bool LFileConst = FALSE;	/* Files don't change (but they	*/
+bool RFileConst = FALSE;	/* can come and go)		*/
+bool CacheOnExit = FALSE;	/* Write cache on way out?	*/
 
 /*
  * Memory allocation options.
@@ -120,8 +141,12 @@ int DFTableSize = 2000;	/* Data file table size		*/
 int DFTableGrow = 500;	/* Amount to grow by		*/
 
 
-int DisableRemote = FALSE;
-
+/*
+ * Other options
+ */
+bool DisableRemote = FALSE;	/* Disable use of remote directories 	*/
+bool StatRevisions = TRUE;	/* Use stat() calls to get revision 
+				   numbers, rather than using a counter	*/
 
 
 
@@ -156,6 +181,7 @@ char **argv;
 	usy_c_indirect (vtable, "remdatadir", RemDataDir, SYMT_STRING,
 			DDIR_LEN);
 	usy_c_indirect (vtable, "DisableRemote", &DisableRemote, SYMT_BOOL, 0);
+	usy_c_indirect (vtable, "StatRevisions", &StatRevisions, SYMT_BOOL, 0);
 	usy_c_indirect (vtable, "LDirConst", &LDirConst, SYMT_BOOL, 0);
 	usy_c_indirect (vtable, "RDirConst", &RDirConst, SYMT_BOOL, 0);
 	usy_c_indirect (vtable, "LFileConst", &LFileConst, SYMT_BOOL, 0);
@@ -328,7 +354,12 @@ struct ui_command *cmds;
 	   case DK_CACHE:
 	   	WriteCache (cmds + 1);
 		break;
-
+	/*
+	 * Force a rescan
+	 */
+	   case DK_RESCAN:
+		DoRescan (cmds + 1);
+		break;
 	   default:
 	   	msg_ELog (EF_PROBLEM, "Unknown Daemon kw: %d", UKEY (*cmds));
 		break;
@@ -548,7 +579,8 @@ struct dsp_Template *dt;
 	 * Do a rescan.
 	 */
 	   case dpt_Rescan:
-	   	Rescan ((struct dsp_Rescan *) dt);
+	   	Rescan (((struct dsp_Rescan *)dt)->dsp_pid,
+			((struct dsp_Rescan *)dt)->dsp_all);
 		break;
 	/*
 	 * Platform info.
@@ -562,6 +594,9 @@ struct dsp_Template *dt;
 	   case dpt_GetFileStruct:
 	   	SendFileStruct (from,
 			((struct dsp_GetFileStruct *) dt)->dsp_index);
+		break;
+	   case dpt_PlatformSearch:
+		SendPlatformList (from, (struct dsp_PlatformSearch *)dt);
 		break;
 	/*
 	 * Locking.
@@ -645,6 +680,10 @@ struct dsp_CreateFile *request;
  */
 	ClearLocks (PTable + request->dsp_plat);
 	strcpy (new->df_name, request->dsp_file);
+	strncpy (new->df_name, request->dsp_file, sizeof(new->df_name));
+	new->df_name[sizeof(new->df_name) - 1] = '\0';
+	if (strlen(request->dsp_file) >= sizeof(new->df_name))
+	   msg_ELog(EF_PROBLEM,"%s: new filename too long",request->dsp_file);
 	new->df_begin = new->df_end = request->dsp_time;
 	new->df_rev = 0;
 	new->df_FLink = new->df_BLink = new->df_nsample = 0;
@@ -697,25 +736,38 @@ struct dsp_UpdateFile *request;
 {
 	DataFile *df = DFTable + request->dsp_FileIndex;
 	Platform *plat = PTable + df->df_platform;
+	int recent;
 	int append = FALSE;
 	struct dsp_FileStruct ack;
 /*
  * Mark the changes in the datafile entry.  Update the rev count so that
  * reader processes know things have changed.
  */
-	msg_ELog (EF_DEBUG, "Update file %d plat %s, ns %d, ow %d last %d", 
-		request->dsp_FileIndex, plat->dp_name, request->dsp_NSamples,
-		request->dsp_NOverwrite, request->dsp_Last);
+	msg_ELog (EF_DEBUG,
+		  "Update %s file %d (%s) ns %d ow %d last %d",
+		  request->dsp_Local ? "local" : "remote",
+		  request->dsp_FileIndex, plat->dp_name, 
+		  request->dsp_NSamples, request->dsp_NOverwrite, 
+		  request->dsp_Last);
 	ClearLocks (plat);
 	if (TC_Less (df->df_end, request->dsp_EndTime))
 	{
 		df->df_end = request->dsp_EndTime;
-		if (request->dsp_FileIndex == LOCALDATA (*plat) ||
+		recent = (request->dsp_Local) ? 
+			LOCALDATA(*plat) : REMOTEDATA(*plat);
+		if (request->dsp_FileIndex == recent ||
 		    request->dsp_FileIndex == plat->dp_Tfile)
 		    	append = TRUE;
 	}
+/*
+ * Get a new revision for the file.  This will be the revision noted by the
+ * client in the DFA.
+ */
+	if (StatRevisions)
+		df->df_rev = dfa_StatRevision (plat, df);
+	else
+		df->df_rev += 1;
 	df->df_nsample += request->dsp_NSamples;
-	df->df_rev = dfa_GetRevision (plat, df);
 	plat->dp_NewSamps += request->dsp_NSamples;
 	plat->dp_OwSamps += request->dsp_NOverwrite;
 	plat->dp_flags |= DPF_DIRTY;
@@ -729,7 +781,7 @@ struct dsp_UpdateFile *request;
 	if (request->dsp_FileIndex == plat->dp_Tfile)
 	{
 		plat->dp_Tfile = 0;
-		dt_AddToPlatform (plat, df, TRUE);
+		dt_AddToPlatform (plat, df, (bool)request->dsp_Local);
 	}
 /*
  * Where last=TRUE, the client ends up receiving the DFE twice.  Send the
@@ -753,7 +805,6 @@ struct dsp_UpdateFile *request;
  */
 	if (request->dsp_Last)
 	{
-		/* CacheInvalidate (df - DFTable); */
 		dap_Notify (df->df_platform, &df->df_end, plat->dp_NewSamps,
 				plat->dp_OwSamps, append);
 		plat->dp_NewSamps = plat->dp_OwSamps = 0;
@@ -990,8 +1041,33 @@ DataFile *df;
  */
 	if (! (df->df_flags & DFF_Remote))
 		if (unlink (dfa_FilePath (PTable + df->df_platform, df)) < 0)
-			msg_ELog (EF_PROBLEM, "Error %d unlinking '%s'", errno,
-				df->df_name);
+			msg_ELog (EF_PROBLEM, "Error %d unlinking '%s'", 
+				  errno, df->df_name);
+}
+
+
+
+
+static void
+DoRescan (cmds)
+struct ui_command *cmds;
+{
+	bool all = FALSE;
+	PlatformId platid = BadPlatform;
+	Platform *plat;
+
+	all = (cmds[0].uc_ctype == UTT_END) || (cmds[0].uc_ctype == UTT_KW);
+	if (! all)
+	{
+		plat = dt_FindPlatform (UPTR (cmds[0]), FALSE);
+		if (plat)
+			platid = plat - PTable;
+		else
+			msg_ELog (EF_PROBLEM, "rescan: no such platform '%s'",
+				  cmds[0].uc_text);
+	}
+	if ((all) || (platid != BadPlatform))
+		Rescan (platid, all);
 }
 
 
@@ -1144,6 +1220,134 @@ struct dsp_GetPlatStruct *req;
 	msg_send (to, MT_DATASTORE, FALSE, &answer, sizeof (answer));
 }
 
+
+
+
+static void
+SendPlatformList (to, req)
+char *to;
+struct dsp_PlatformSearch *req;
+/*
+ * Search the platforms and return the IDs of those that match.
+ */
+{
+	struct dsp_PlatformList *answer;
+	struct SearchInfo info;
+	int re_result;
+	int len, i;
+/*
+ * Create space for all possible matches, but we'll send only as many as we
+ * fill.
+ */
+	if (NPlatform > 1)
+		answer = (struct dsp_PlatformList *) 
+			malloc (sizeof(struct dsp_PlatformList) + 
+				(sizeof(PlatformId) * (NPlatform - 1)));
+	else
+		answer = (struct dsp_PlatformList *) 
+			malloc (sizeof(struct dsp_PlatformList));
+	answer->dsp_type = dpt_R_PlatformSearch;
+	answer->dsp_npids = 0;
+/*
+ * Store the info for the search so that the matching function can use it
+ */
+	info.si_req = req;
+	info.si_list = answer;
+	info.si_to = to;
+/*
+ * Prepare our regexp, if there is one.  If there isn't, we match everything
+ */
+	re_result = 0;
+	if (req->dsp_regexp[0])
+	{
+		re_result = regcomp (&info.si_regex, req->dsp_regexp,
+				     REG_EXTENDED | REG_NOSUB);
+		if (re_result)
+			msg_ELog (EF_PROBLEM, "PlatformSearch, '%s': error %d",
+				  req->dsp_regexp, re_result);
+	}
+/*
+ * Now loop through all of our platforms and test each one, skipping
+ * all of the duplicate, parent-qualified subplatform names.
+ */
+	if (re_result == 0)
+	{
+		dt_SearchPlatforms (MatchPlatform, (void *)&info, 
+				    req->dsp_alphabet, "^[^/][^/]*$");
+		if (req->dsp_regexp[0])
+			regfree (&info.si_regex);
+	}
+/*
+ * The response has been filled or left empty.  Send it off.
+ */
+	msg_send (to, MT_DATASTORE, FALSE, answer, 
+		  sizeof (struct dsp_PlatformList) + 
+		  (((answer->dsp_npids == 0)?(0):
+		    (answer->dsp_npids - 1)) * sizeof(PlatformId)));
+	free (answer);
+}
+
+
+
+static int
+MatchPlatform (symbol, type, value, info)
+char *symbol;
+int type;
+union usy_value *value;
+struct SearchInfo *info;
+/*
+ * Use the request structure to see if there is a match with this
+ * platform.  If we're sending along structures of the matches, then
+ * do so here.  At the least we add the ID of a match to the
+ * PlatformList answer.
+ */
+{
+	int npids;
+	PlatformId *pids;
+	int len;
+	Platform *plat = (Platform *) value->us_v_ptr;
+	struct dsp_PlatformList *answer = info->si_list;
+	struct dsp_PlatformSearch *req = info->si_req;
+/*
+ * Ignore subplatforms if so requested
+ */
+	if (!req->dsp_subplats && (plat->dp_flags & DPF_SUBPLATFORM))
+		return (TRUE);
+/*
+ * If we're looking for subplatforms of a particular parent, ignore
+ * all other platforms.
+ */
+	if ((req->dsp_children) && (plat->dp_parent != req->dsp_parent))
+		return (TRUE);
+
+	pids = answer->dsp_pids;
+	len = strlen(plat->dp_name);
+/*
+ * The last remaining check is the regular expression, if there is one
+ */
+	if ((req->dsp_regexp[0] == '\0') || 
+	    (regexec (&info->si_regex, plat->dp_name, 0, NULL, 0) == 0))
+	{
+		struct dsp_PlatStructSearch send;
+
+		pids[(answer->dsp_npids)++] = (plat - PTable);
+	/*
+	 * Send this structure back if requested
+	 */
+		if (req->dsp_sendplats)
+		{
+			send.dsp_type = dpt_R_PlatStructSearch;
+			send.dsp_plat = *plat;
+			send.dsp_pid = plat - PTable;
+			msg_send (info->si_to, MT_DATASTORE, FALSE, 
+				  &send, sizeof (send));
+		}
+	}
+/*
+ * Done testing this platform
+ */
+	return (TRUE);
+}
 
 
 

@@ -1,7 +1,7 @@
 /*
  * Data store daemon-specific definitions.
  */
-/* $Id: dsDaemon.h,v 3.8 1993-11-02 20:34:55 corbet Exp $ */
+/* $Id: dsDaemon.h,v 3.9 1994-01-03 07:13:54 granger Exp $ */
 /*
  * The platform and data tables, via pointer.
  */
@@ -40,21 +40,27 @@ char RemDataDir[DDIR_LEN];
  * This is a kludge to make it easier to keep a uniform init file.  If this
  * flag is set, no remote directories will be accessed.
  */
-extern int DisableRemote;
+extern bool DisableRemote;
+
+/*
+ * Allow the revision numbering to be chosen from the config file.
+ */
+extern bool StatRevisions;
 
 /*
  * Cache options.
  */
-extern int LDirConst;	/* Nothing changes		*/
-extern int RDirConst;
-extern int LFileConst;	/* Files don't change (but they	*/
-extern int RFileConst;	/* can come and go)		*/
-extern int CacheOnExit;	/* Write cache on way out?	*/
+extern bool LDirConst;		/* Nothing changes		*/
+extern bool RDirConst;
+extern bool LFileConst;		/* Files don't change (but they	*/
+extern bool RFileConst;		/* can come and go)		*/
+extern bool CacheOnExit;	/* Write cache on way out?	*/
 
 /*
  * This variable is TRUE only during the initial file scan.
  */
-extern bool InitialScan;
+extern bool InitialScan;	/* True implies first data scan	*/
+extern long LastScan;		/* Time of latest full scan	*/
 
 /*
  * Metadata space
@@ -70,6 +76,7 @@ void InitSharedMemory FP ((void));
  */
 Platform *dt_NewPlatform FP ((char *));
 Platform *dt_FindPlatform FP ((char *, int));
+void dt_SearchPlatforms FP ((int (*func)(), void *arg, bool sort, char *re));
 DataFile *dt_NewFile FP ((void));
 void dt_FreeDFE FP ((DataFile *));
 void dt_AddToPlatform FP ((Platform *, DataFile *, int));
@@ -90,6 +97,6 @@ void DataFileGone FP ((DataFile *df));
  * Datascan.
  */
 void	DataScan FP ((void));
-void	Rescan FP ((struct dsp_Rescan *));
+void	Rescan FP ((PlatformId platid, int all));
 void	WriteCache FP ((struct ui_command *));
 void	ReadCacheFile FP ((char *, int));

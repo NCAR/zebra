@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 3.18 1993-11-02 20:34:57 corbet Exp $
+ * $Id: dsPrivate.h,v 3.19 1994-01-03 07:13:56 granger Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -101,7 +101,7 @@ typedef struct ds_Platform
 /*
  * The structure describing a file full of data.
  */
-# define FNAMELEN 32
+# define FNAMELEN 40
 typedef struct ds_DataFile
 {
 	char	df_name[FNAMELEN];	/* The name of the file		*/
@@ -194,6 +194,9 @@ enum dsp_Types
 	dpt_WriteLock,			/* Write lock a platform	*/
 	dpt_ReleaseWLock,		/* Release write lock		*/
 	dpt_DeleteObs,			/* 35: DANGER remove an observation*/
+	dpt_PlatformSearch,		/* Match regex to platform names*/
+	 dpt_R_PlatformSearch,		/* Reply with list of plat ids	*/
+	 dpt_R_PlatStructSearch,	/* For sending back structs 	*/
 };
 # define DSP_FLEN	256		/* File name length		*/
 
@@ -201,7 +204,7 @@ enum dsp_Types
  * The current data store protocol version.  CHANGE this when incompatible
  * protocol changes have been made.
  */
-# define DSProtocolVersion	0x930827
+# define DSProtocolVersion	0x931229
 
 /*
  * Create a new data file.
@@ -243,6 +246,7 @@ struct dsp_UpdateFile
 	int	dsp_NSamples;		/* How many samples added	*/
 	int	dsp_NOverwrite;		/* How many overwritten		*/
 	int	dsp_Last;		/* Last update			*/
+	int	dsp_Local;		/* true if updating local file	*/
 };
 
 
@@ -350,6 +354,42 @@ struct dsp_GetPlatStruct
 struct dsp_PlatStruct
 {
 	enum dsp_Types dsp_type;	/* == dpt_R_PlatStruct		*/
+	Platform dsp_plat;		/* Platform structure		*/
+};
+	
+
+/*
+ * A search for platform structures
+ */
+struct dsp_PlatformSearch
+{
+	enum dsp_Types dsp_type;	/* == dpt_PlatformSearch	*/
+	PlatformId dsp_parent;		/* Req'd if dsp_children TRUE	*/
+	bool dsp_children;		/* Want children of dsp_parent	*/
+	bool dsp_subplats;		/* Include subplatforms in search*/
+	bool dsp_alphabet;		/* Return list in alphabetical order*/
+	bool dsp_sendplats;		/* Send structures as well 	*/
+	char dsp_regexp[NAMELEN];	/* regexp pattern to match names*/
+};
+
+
+struct dsp_PlatformList
+{
+	enum dsp_Types dsp_type;	/* == dpt_R_PlatformSearch	*/
+					/* == dpt_R_SubplatsSearch	*/
+	int dsp_npids;			/* Number matches in dsp_pids	*/
+/*
+ * The actual size of this member, and hence the whole structure,
+ * depends upon the number of matches found
+ */
+	PlatformId dsp_pids[1];		/* Platform IDs matching search	*/
+};
+
+
+struct dsp_PlatStructSearch
+{
+	enum dsp_Types dsp_type;	/* == dpt_R_PlatStructSearch	*/
+	PlatformId dsp_pid;		/* The ID of the plat struct	*/
 	Platform dsp_plat;		/* Platform structure		*/
 };
 	

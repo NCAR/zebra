@@ -27,15 +27,24 @@
 #include "dslib.h"
 
 #ifndef lint
-MAKE_RCSID ("$Id: Appl.c,v 3.24 1993-10-27 20:17:52 corbet Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.25 1994-01-03 07:13:42 granger Exp $")
 #endif
 
 /*
- * Local stuff.
+ * Platform search lists
+ */
+typedef struct _PlatformList {
+	PlatformId *pl_pids;
+	int pl_npids;
+} PlatformList;
+
+
+/*
+ * Local prototypes.
  */
 static void     ds_InitPFTable FP ((void));
 static void     ds_NotifyDaemon FP ((Platform *, int, DataChunk *, int, int,
-			int, int));
+				     int, int));
 static void     ds_DispatchNotify FP ((struct dsp_Notify *));
 int             ds_DSMessage FP ((struct message *));
 static int      ds_AttrCheck FP ((int, ZebTime *, char *));
@@ -51,11 +60,15 @@ static void	ds_AbortNewDF FP ((PlatformId, int));
 static int	ds_AwaitAck FP ((Message *, int));
 static int	ds_AwaitNPlat FP ((Message *, int *));
 static int	ds_AwaitPlat FP ((Message *, Platform *));
+static int	ds_AwaitPlatformList FP ((Message *msg, PlatformList *));
+static void	ds_CachePlatform FP ((PlatformId pid, Platform *plat));
 static void 	ds_FProcGetList FP ((DataChunk *, GetList *, dsDetail *, int));
 static int	ds_AwaitFile FP ((Message *, DataFile *));
 static int	ds_AwaitGrant FP ((Message *, int));
 static int	ds_AwaitPID FP ((Message *, PlatformId *));
 static void	ds_SendToDaemon FP ((void *, int));
+static void	ds_SendSearch FP((char *regexp, bool sort, bool subs,
+				  bool sendplats));
 static int	ds_AwaitDF FP ((Message *, int *));
 static void	ds_ZapCache FP ((DataFile *));
 static void	ds_GreetDaemon FP ((void));
@@ -66,7 +79,6 @@ static int	ds_FindBlock FP((int dfile, int dfnext,
 static int	ds_FindAfter FP ((PlatformId, ZebTime *));
 static void	ds_WriteLock FP ((PlatformId));
 static void	ds_FreeWLock FP ((PlatformId));
-static void	ds_ForceClosure FP ((void));
 
 
 /*
@@ -81,6 +93,7 @@ VFunc CopyFunc = 0;
  * Platform structure caching.
  */
 static Platform *PlatStructs[MAXPLAT] = { 0 };
+
 
 /*
  * Data file entry cache structure.  The cache is intended to be small, 
@@ -224,8 +237,159 @@ PlatformId *pid;
 
 
 
+/* -----------------------------------------------------------------
+ * NOTE: The search functions below are not officially part of the 
+ * application interface.  Only the standard daemon clients use them
+ * at present.  These functions may change, and there is no gaurantee
+ * that the changes will be backwards compatible.
+ */
+
+static void
+ds_SendSearch (regexp, sort, subs, sendplats)
+char *regexp;
+bool sort;
+bool subs;
+bool sendplats;	/* True if we want to receive platform structures as well */
+/*
+ * Send off a search request to the daemon
+ */
+{
+	struct dsp_PlatformSearch search;
+
+	search.dsp_type = dpt_PlatformSearch;
+	search.dsp_sendplats = sendplats;
+	search.dsp_alphabet = sort;
+	search.dsp_subplats = subs;
+	search.dsp_parent = BadPlatform;
+	search.dsp_children = FALSE;
+	if (regexp)
+		strcpy(search.dsp_regexp, regexp);
+	else
+		search.dsp_regexp[0] = '\0';
+	ds_SendToDaemon (&search, sizeof (search));
+}
 
 
+
+PlatformId *
+ds_SearchPlatforms (regexp, nplats, sort, subs)
+char *regexp;
+int *nplats;
+bool sort;
+bool subs;
+/*
+ * Send a search message to the daemon, telling it we don't want platform
+ * structures, and return the list of pids we receive back from the daemon.
+ */
+{
+	PlatformList pl;
+
+	ds_SendSearch (regexp, sort, subs, FALSE);
+	msg_Search (MT_DATASTORE, ds_AwaitPlatformList, &pl);
+	*nplats = pl.pl_npids;
+/*
+ * If no platform ids returned, then pl_pids will be NULL
+ */
+	return (pl.pl_pids);
+}
+
+
+
+PlatformId *
+ds_GatherPlatforms (regexp, nplats, sort, subs)
+char *regexp;
+int *nplats;
+bool sort;
+bool subs;
+/*
+ * Send a search message to the daemon, telling it we do want platform
+ * structures, and return the list of pids we receive back from the daemon.
+ */
+{
+	PlatformList pl;
+
+	ds_SendSearch (regexp, sort, subs, TRUE);
+	msg_Search (MT_DATASTORE, ds_AwaitPlatformList, &pl);
+	*nplats = pl.pl_npids;
+	return (pl.pl_pids);
+}
+
+
+
+PlatformId *
+ds_LookupSubplatforms (parent, nsubplat)
+PlatformId parent;
+int *nsubplat;
+/*
+ * Return a list of the ID's of any subplatforms of the given platform.
+ * If none are found, returns NULL.  The returned list must be freed by
+ * the application.
+ */
+{
+	struct dsp_PlatformSearch search;
+	PlatformList pl;
+
+	search.dsp_type = dpt_PlatformSearch;
+	search.dsp_parent = parent;
+	search.dsp_children = TRUE;
+	search.dsp_subplats = TRUE;
+	search.dsp_alphabet = FALSE;
+	search.dsp_sendplats = FALSE;
+	search.dsp_regexp[0] = '\0';
+	ds_SendToDaemon (&search, sizeof (search));
+/*
+ * Now wait for the response
+ */
+	msg_Search (MT_DATASTORE, ds_AwaitPlatformList, &pl);
+	*nsubplat = pl.pl_npids;
+	return (pl.pl_pids);
+}
+
+
+
+static int
+ds_AwaitPlatformList (msg, pl)
+Message *msg;
+PlatformList *pl;
+/*
+ * See if this is our ack.
+ */
+{
+	struct dsp_PlatformList *ans = (struct dsp_PlatformList *)msg->m_data;
+	struct dsp_PlatStructSearch *pss = 
+		(struct dsp_PlatStructSearch *) msg->m_data;
+/*
+ * If this is the list, copy it into new memory and set our argument to point
+ * to this list.
+ */
+	if (ans->dsp_type == dpt_R_PlatformSearch)
+	{
+		pl->pl_npids = ans->dsp_npids;
+		pl->pl_pids = NULL;
+		if (ans->dsp_npids > 0)
+		{
+			int nbytes = ans->dsp_npids * sizeof(PlatformId);
+			pl->pl_pids = (PlatformId *) malloc (nbytes);
+			memcpy (pl->pl_pids, ans->dsp_pids, nbytes);
+		}
+		return (MSG_DONE);
+	}
+/*
+ * Otherwise we need to be processing PlatStruct messages, in case this is
+ * a search for which we requested that the structures be sent along.
+ */
+	switch (ans->dsp_type)
+	{
+	   case dpt_R_PlatStructSearch:
+		ds_CachePlatform (pss->dsp_pid, &(pss->dsp_plat));
+		return (MSG_CONSUMED);
+	   case dpt_CacheInvalidate:
+	   	ds_DSMessage (msg);
+		return (MSG_CONSUMED);
+	   default:
+	   	return (MSG_ENQUEUE);
+	}
+}
 
 
 
@@ -237,6 +401,8 @@ PlatformId id;
  * Get back the name for this platform.
  */
 {
+	if (id == BadPlatform)
+		return ("BadPlatformID");
 	if (! PlatStructs[id])
 	{
 		Platform p;
@@ -622,10 +788,12 @@ struct message *msg;
 		for (i = 0; i < N_DF_CACHE; i++)
 			if (DFCache[i].df_index == ddg->dsp_file)
 			{
+#ifdef DEBUG
 				msg_ELog (EF_DEBUG,
 				   "DataGone received for %s (%d)",
 				   DFCache[i].df_name,
 				   DFCache[i].df_index);
+#endif /* DEBUG */
 				DFCache[i].df_index = -1;
 				break;
 			}
@@ -984,6 +1152,15 @@ int ndetail;
 	int dfnext;
 	ZebTime curtime;
 /*
+ * This is a reasonable spot to make sure we have a valid platform
+ */
+	if (dc->dc_Platform == BadPlatform)
+	{
+		msg_ELog (EF_PROBLEM, "attempting ds_Store of DataChunk %s",
+			  "with bad platform id");
+		return (FALSE);
+	}
+/*
  * Pull some details together.
  */
 	ds_WriteLock (dc->dc_Platform);
@@ -1033,7 +1210,7 @@ int ndetail;
 	 * file we need to refresh the platform structure.
 	 */
 	 	ds_NotifyDaemon (&p, dfile, dc, now, nnew, sample, 
-			sample == (nsample - 1));
+				 sample == (nsample - 1));
 		if (new)
 			ds_GetPlatStruct (dc->dc_Platform, &p, TRUE);
 		now = nnew = 0;
@@ -1067,6 +1244,15 @@ int ndetail;
 	WriteCode wc;
 	Platform p;
 	ZebTime curtime;
+/*
+ * This is a reasonable spot to make sure we have a valid platform
+ */
+	if (dc->dc_Platform == BadPlatform)
+	{
+		msg_ELog (EF_PROBLEM, "attempting ds_Store of DataChunk %s",
+			  "with bad platform id");
+		return (FALSE);
+	}
 /*
  * Setup time.
  */
@@ -1148,14 +1334,6 @@ int ndetail;
 
 	} /* while (sample < nsample) */
 
-	/*
-	 * Close open files and free memory
-	 */
-	if (ds_GetDetail (DD_FORCE_CLOSURE, details, ndetail, NULL))
-	{
-		msg_ELog (EF_DEBUG, "ds: forced closure, freeing all memory");
-		ds_ForceClosure ();
-	}
 	ds_FreeWLock (dc->dc_Platform);
 	return (ndone == nsample);
 }
@@ -1347,7 +1525,7 @@ ZebTime *now;
 /*
  * Find the first file in the local list which begins before the time
  * of interest.  This may seem like an inefficient search, and I suppose
- * it, but the fact of the matter is that almost every time we are 
+ * it is, but the fact of the matter is that almost every time we are 
  * appending data and we'll stop at the first DFE.
  */
 	ds_LockPlatform (dc->dc_Platform);
@@ -1556,11 +1734,8 @@ DataChunk *dc;
 	update.dsp_NSamples = nnew;
 	update.dsp_NOverwrite = now;
 	update.dsp_Last = last;
-	ds_SendToDaemon ( &update, sizeof(update));
-/*
- * Then let DFA know that we've signalled a revision on this file.
- */
-	dfa_NoteRevision (p, dfile);
+	update.dsp_Local = TRUE;
+	ds_SendToDaemon ( &update, sizeof(update) );
 /*
  * Wait for the update ack.  While waiting for the ack, process any
  * CacheInvalidate messages which are put in the message queue by
@@ -1586,11 +1761,12 @@ int junk;
 /*
  * If this is the ack, we're outta here.  This should also mean we've
  * cleared our message queue of the CacheInvalidate's generated by our
- * FileUpdate message.
+ * FileUpdate message.  Note the new revision for the file in DFA.
  */
 	if (fs->dsp_type == dpt_R_UpdateAck)
 	{
 		ds_ZapCache (&fs->dsp_file);
+		dfa_NoteRevision (fs->dsp_file.df_index, fs->dsp_file.df_rev);
 		return (MSG_DONE);
 	}
 /*
@@ -1734,9 +1910,7 @@ bool refresh;
 /*
  * Cache the result.
  */
-	if (! PlatStructs[pid])
-		PlatStructs[pid] = ALLOC (Platform);
-	*PlatStructs[pid] = *plat;
+	ds_CachePlatform (pid, plat);
 }
 
 
@@ -1763,6 +1937,17 @@ Platform *p;
 
 
 
+static void
+ds_CachePlatform (pid, plat)
+PlatformId pid;
+Platform *plat;
+{
+	if (! PlatStructs[pid])
+		PlatStructs[pid] = ALLOC (Platform);
+	*PlatStructs[pid] = *plat;
+}
+
+
 
 int
 ds_GetDataSource (pid, which, dsi)
@@ -1778,7 +1963,7 @@ DataSrcInfo *dsi;
 /*
  * We need the platform structure to get anywhere with this.
  */
-	ds_GetPlatStruct (pid, &plat, TRUE);
+	ds_GetPlatStruct (pid, &plat, FALSE);
 /*
  * Now see what they want.  This is currently the bleeding edge of the 
  * "data source" notion, so we fake it from the old scheme.
@@ -1914,9 +2099,11 @@ DataFile *dfe;
 			if (DFCache[i].df_rev <=  dfe->df_rev)
 			{
 				DFCache[i] = *dfe;
+#ifdef DEBUG
 				msg_ELog (EF_DEBUG,
 				   "updating client cache for %s (%d)",
 				   dfe->df_name, dfe->df_index);
+#endif /* DEBUG */
 			}
 			break;
 		}
@@ -2156,7 +2343,7 @@ int dfi;
 	
 
 
-static void
+void
 ds_ForceClosure()
 /*
  * Release whatever memory we have been holding onto, from open files,
@@ -2177,3 +2364,129 @@ ds_ForceClosure()
 		}
 	}
 }
+
+
+
+
+bool
+ds_ScanFile (platid, filename, local)
+PlatformId platid;
+char *filename;
+bool local;
+/*
+ * Look for the file in the platform directory, verify the file name with
+ * DFA, and then retrieve time info about the file through DFA.
+ */
+{
+	static char fpath[1024];
+	Platform plat, *p = &plat;
+	ZebTime begin;
+	ZebTime end;
+	int nsample;
+
+	ds_GetPlatStruct (platid, &plat, FALSE);
+	if (! dfa_CheckName (p->dp_ftype, filename))
+	{
+		msg_ELog (EF_PROBLEM, "scan file '%s': %s",
+			  filename, "dfa name check failed");
+		return (FALSE);
+	}
+/*
+ * Now make sure we can open the file and retrieve some vital statistics
+ */
+	sprintf (fpath, "%s/%s", (local) ? p->dp_dir : p->dp_rdir, filename);
+	if (! dfa_QueryDate (p->dp_ftype, fpath, &begin, &end, &nsample))
+	{
+		msg_ELog (EF_PROBLEM, "scan file '%s': %s", 
+			  fpath, "inaccessible or incorrect format");
+		return (FALSE);
+	}
+/*
+ * Now we can pass on the rest of the work
+ */
+	ds_InsertFile (platid, filename, &begin, &end, nsample, local);
+}
+
+
+
+
+bool
+ds_InsertFile (platid, filename, begin, end, nsample, local)
+PlatformId platid;
+char *filename;
+ZebTime *begin;
+ZebTime *end;
+int nsample;
+bool local;
+/*
+ * Tell the Daemon about this new file by simulating a ds_Store to it
+ */
+{
+	int dfile;
+	DataFile dfe;
+	struct dsp_UpdateFile update;
+	Platform p;
+	int dfnext, df;
+/*
+ * Get a write lock and our platform structure.
+ */
+	ds_WriteLock (platid);
+	ds_GetPlatStruct (platid, &p, TRUE);
+/*
+ * Make sure the bounds of this file do not overlap any existing files.  Find
+ * the first file which begins before our end time.  If there is such a file
+ * make sure it ends before our begin time.  Otherwise we have a conflict and
+ * fail.
+ */
+	ds_LockPlatform (platid);
+	df = (local) ? LOCALDATA(p) : REMOTEDATA(p);
+	for (; df; df = dfe.df_FLink)
+	{
+		ds_GetFileStruct (df, &dfe);
+		if (TC_LessEq (dfe.df_begin, *end))
+			break;
+	};
+	ds_UnlockPlatform (platid);
+	if (df && !(TC_Less (dfe.df_end, *begin)))
+	{
+		msg_ELog (EF_PROBLEM, 
+			"inserting file '%s': %s %s", filename,
+			"times conflict with known file", dfe.df_name);
+		ds_FreeWLock (platid);
+		return (FALSE);
+	}
+/*
+ * Get a datafile entry for the new file
+ */
+	if ((dfile = ds_RequestNewDF (platid, filename, begin)) < 0)
+	{
+		ds_FreeWLock (platid);
+		return (FALSE);
+	}
+/*
+ * The rest of the steps are essentially like a call to ds_NotifyDaemon,
+ * except its possible we're updating a remote file rather than local.
+ */
+	update.dsp_type = dpt_UpdateFile;
+	update.dsp_FileIndex = dfile;
+	update.dsp_EndTime = *end;
+	update.dsp_NSamples = nsample;
+	update.dsp_NOverwrite = 0;
+	update.dsp_Last = TRUE;
+	update.dsp_Local = local;
+	ds_SendToDaemon ( &update, sizeof(update));
+/*
+ * Wait for the update ack.
+ */
+	msg_Search (MT_DATASTORE, ds_AwaitAck, 0);
+/*
+ * We know this file is new, so we must update the platform structure.
+ */
+	ds_GetPlatStruct (platid, &p, TRUE);
+/*
+ * Done.
+ */
+	ds_FreeWLock (platid);
+	return (TRUE);
+}
+

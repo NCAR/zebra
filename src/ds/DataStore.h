@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.16 1993-12-20 17:19:17 corbet Exp $
+ * $Id: DataStore.h,v 3.17 1994-01-03 07:13:51 granger Exp $
  *
  * Public data store definitions.
  */
@@ -26,8 +26,6 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-
-# define MAXFIELD	100	/* Max fields in one data object	*/
 
 /*
  * Possible data organizations.
@@ -126,11 +124,36 @@ typedef struct _dsDetail
 # define DD_NC_TIME_FLOAT	"dd_time_float" 
 # define DD_NC_TIME_DOUBLE	"dd_time_double"
 
+#ifdef notdef	/* removed in favor of direct calls to ds_ForceClosure() */
 /*
  * Details for doing program testing: Force closure of files when finished
  * with them to free dynamic memory allocated for the opening.
  */
 # define DD_FORCE_CLOSURE	"dd_force_closure"
+#endif
+
+/*
+ * Details for the ZNF format.  Hint to the file about the projected number
+ * of samples to be stored in this file.  The hint is in the integer member
+ * of the value union.
+ */
+# define DD_ZN_HINT_NSAMPLES	"dd_hint_nsamples"
+
+/*
+ * Reserve an amount of space, such as for attributes or special which will
+ * be added later.  Intended for reserving space in a ZNF file before adding
+ * samples which will be part of a block.  The block size is in the 
+ * integer member of the value union.  This detail is only recognized when
+ * the file is created.
+ */
+# define DD_ZN_RESERVE_BLOCK	"dd_reserve_block"
+
+/*
+ * Force new samples to be appended to the end of a file, so that they will
+ * be contiguous with previous samples and will not overwrite any reserved
+ * free blocks.  The detail need only be present; the value is ignored.
+ */
+# define DD_ZN_APPEND_SAMPLES	"dd_append_samples"
 
 /*
  * DataChunks -- the new "data object" format.
@@ -141,6 +164,61 @@ typedef struct _dsDetail
  *	- External access functions
  */
 
+/*
+ * 'Elements' are the atomic components of any data.  A field is a set of data
+ * containing similarly-typed elements.  The organization of the elements is
+ * specified by the class.  The type of a field's elements is handled by the
+ * MetData class, since the MetData class implements fields.  In order to
+ * support multi-typed fields, MetData subclasses must use the MetData class
+ * interface to retrieve field type and size.  This interface should allow
+ * subclasses to be completely independent of any particular field's type.  IF
+ * EITHER OF THESE TYPEDEFS CHANGES, UPDATE THE NAMES AND SIZES ARRAY IN
+ * DC_METDATA.C --- ALSO, TYPES SHOULD ONLY BE ADDED TO THE END, SO THAT THE
+ * INTEGER VALUE OF THE EXISTING ENUMS DOES NOT CHANGE.
+ */
+typedef enum _DC_ElemType { 
+	DCT_Unknown = 0,
+	DCT_Float, 
+	DCT_Double, 
+	DCT_LongDouble,
+	DCT_Char, 
+	DCT_UnsignedChar,
+	DCT_ShortInt,
+	DCT_UnsignedShort,
+	DCT_Integer,
+	DCT_UnsignedInt,
+	DCT_LongInt,
+	DCT_UnsignedLong,
+	DCT_String
+} DC_ElemType;
+
+#ifdef __STDC__
+typedef long double long_double;
+#else
+typedef double long_double;
+#endif
+
+typedef union _DC_Element {
+	float 		dcv_float;
+	double 		dcv_double;
+	long_double	dcv_longdbl;
+	char 		dcv_char;
+	unsigned char	dcv_uchar;
+	short 		dcv_shortint;
+	unsigned short 	dcv_ushort;
+	int 		dcv_int;
+	unsigned int 	dcv_uint;
+	long 		dcv_longint;
+	unsigned long 	dcv_ulong;
+	char *		dcv_string;
+} DC_Element;
+
+extern const char *DC_ElemTypeNames[];
+extern const int DC_ElemTypeSizes[];
+
+#define dc_TypeName(type) 	(DC_ElemTypeNames[(int)(type)])
+#define dc_SizeOfType(type)	(DC_ElemTypeSizes[(int)(type)])
+#define DC_ElemTypeMaxSize	(sizeof(long_double))
 
 /*
  * Here is the list of possible data chunk classes.  It is done this way
@@ -164,7 +242,11 @@ typedef enum _DataClass
 	DCC_Location	= 9,
 	DCC_NSpace	= 10,
 	/* DCC_Text 	= 11, */
+	DCC_OutOfBounds
 } DataClass;
+
+#define NUM_DATACLASS	((int)DCC_OutOfBounds)
+#define MAX_DCC_LEVELS	5	/* maximum depth of any class, 0 - 4 */
 
 /*
  * For the moment, data arrays are typeless.
@@ -180,34 +262,56 @@ typedef struct _AuxDataEntry
 	DataClass	dca_Class;	/* Class which owns this entry	*/
 	short		dca_SubType;	/* Class-specific code		*/
 	unsigned short	dca_Len;	/* Length of aux data		*/
-	DataPtr	dca_Data;	/* Actual information		*/
+	DataPtr		dca_Data;	/* Actual information		*/
 	bool		dca_Free;	/* Free this one?		*/
 } AuxDataEntry, *AuxDataChain;
 
+/*
+ * Because the hash function only uses the rightmost 3 bits of the subtype,
+ * each class should try to vary as much as possible these bits between ADE
+ * subtypes.
+ */
+#define ADE_HASH_SIZE		8
+#define ADE_HASH_TYPE(type)  	((type)&7)
+#define ADE_DCC_LEVELS		MAX_DCC_LEVELS
 
 /*
  * Raw data objects look like this:
- */ typedef struct _RawDataChunk {
+ */
+typedef struct _RawDataChunk {
 	DataClass	dc_Class;	/* The particular type		*/
 	PlatformId	dc_Platform;	/* The platform of interest	*/
-	DataPtr	dc_Data;	/* The actual data		*/
+	DataPtr		dc_Data;	/* The actual data		*/
 	int		dc_DataLen;	/* The length of the data field	*/
-	AuxDataChain	dc_AuxData;	/* Subclass data		*/
+	AuxDataChain	dc_AuxData[ADE_DCC_LEVELS][ADE_HASH_SIZE];
+	                                /* Subclass data		*/
 } DataChunk, RawDataChunk;
 	
+
+# define MAXFIELD		100	/* Max fields in one data object*/
 
 /*
  * Class-specific defines.
  */
-# define DC_MaxField	MAXFIELD	/* MetData -- max # of fields	*/
+# define DC_MaxField		MAXFIELD /* MetData -- max # of fields	*/
 # define DC_MaxDimension	30	/* Maximum number of dimensions */
 # define DC_MaxDimName		32	/* Max name length, incl \0	*/
 
+/* 
+ * HEY YOU!  READ THIS IF YOU CHANGE THE DEFINITION OF 'DC_MaxField':
+ * ------------------------------------------------------------------------
+ * The field index hash size depends on DC_MaxField, so we define it here.
+ * It must be the least power of 2 greater than (not equal to) DC_MaxField.
+ */
+# define MD_HASH_SIZE		128
 
 /*
  * Definitions of basic routines dealing with data chunks.
  */
+extern bool 	_CheckClass;
+
 bool		dc_IsSubClassOf FP((DataClass, DataClass));
+void		dc_CheckClass FP((bool));
 
 /*
  * Basic data chunk methods.
@@ -217,7 +321,17 @@ void		dc_DestroyDC FP((DataChunk *));
 void		dc_DumpDC FP((DataChunk *));
 void 		Dc_RawAdd FP((DataChunk *, int));
 void		dc_SetGlobalAttr FP ((DataChunk *, char *, char *));
-char *		dc_GetGlobalAttr FP ((DataChunk *, char *));
+char 		*dc_GetGlobalAttr FP ((DataChunk *, char *));
+void		dc_SetGlobalAttrArray FP ((DataChunk *dc, char *key,
+					   DC_ElemType type, int nval, 
+					   void *values));
+void 		*dc_GetGlobalAttrArray FP ((DataChunk *dc, char *key,
+					    DC_ElemType *type, int *nval));
+int		dc_ProcessAttrArrays FP ((DataChunk *dc, char *pattern,
+			  int (*func) (/* char *key, void *vals, int nval,
+					  DC_ElemType, void *arg */),
+					  void *arg));
+void		dc_RemoveGlobalAttr FP ((DataChunk *dc, char *key));
 int		dc_ProcessAttrs FP ((DataChunk *, char *, int (*) ()));
 void		*dc_GetGlAttrBlock FP ((DataChunk *, int *));
 void		dc_SetGlAttrBlock FP ((DataChunk *, void *, int));
@@ -225,21 +339,39 @@ int		dc_GetNGlobalAttrs FP ((DataChunk *));
 /*
  * Transparent class methods.
  */
+void		dc_HintNSamples FP((DataChunk *dc, int nsample,bool decrease));
+void		dc_HintSampleSize FP((DataChunk *dc, int size, bool override));
+void		dc_HintMoreSamples FP((DataChunk *dc, int nsample, bool decr));
+void		dc_HintUseAverages FP((DataChunk *dc, bool use));
+void		dc_AddMoreSamples FP((DataChunk *dc, int nsample, int size));
 int		dc_GetNSample FP((DataChunk *));
 DataPtr		dc_GetSample FP((DataChunk *, int, int *));
-void		dc_AddSample FP((DataChunk *, ZebTime *, DataPtr, int));
+DataPtr		dc_AddSample FP((DataChunk *, ZebTime *, DataPtr, int));
+DataPtr		dc_AddAlignedSample FP((DataChunk *dc, ZebTime *, DataPtr data,
+					int len, int align_size));
+int		dc_ReserveStaticSpace FP((DataChunk *dc, int len));
 void		dc_SetPlat FP((DataChunk *, int, PlatformId));
 PlatformId	dc_GetPlat FP((DataChunk *, int));
 bool		dc_GetTime FP((DataChunk *, int, ZebTime *));
 void		dc_SortSamples FP((DataChunk *dc));
 void		dc_AdjustSample FP((DataChunk *, int, int));
 void		dc_SetStaticLoc FP((DataChunk *, Location *));
+void		dc_SetMLoc FP((DataChunk *, int begin, int nsamp, Location *));
 void		dc_SetLoc FP((DataChunk *, int, Location *));
 void		dc_GetLoc FP((DataChunk *, int, Location *));
+void		dc_SetSampleAttrArray FP ((DataChunk *dc, int samp, char *key,
+					   DC_ElemType type, int nval, 
+					   void *values));
+void		*dc_GetSampleAttrArray FP ((DataChunk *dc, int samp, char *key,
+					    DC_ElemType *type, int *nval));
+int		dc_ProcSampleAttrArrays FP ((DataChunk *dc, int s, char *patt,
+		     int (*func) (/* char *key, void *vals, int nval, 
+				     DC_ElemType, void *arg */), void *arg));
 void		dc_SetSampleAttr FP ((DataChunk *, int, char *, char *));
 char		*dc_GetSampleAttr FP ((DataChunk *, int, char *));
 void		*dc_GetSaAttrBlock FP ((DataChunk *, int, int *));
 void		dc_SetSaAttrBlock FP ((DataChunk *, int, void *, int));
+int		dc_GetNSampleAttrs FP ((DataChunk *, int sample));
 /*
  * Boundary class methods.
  */
@@ -252,13 +384,38 @@ Location *	dc_BndGet FP((DataChunk *, int, int *));
 void		dc_SetupUniformFields FP((DataChunk *, int, int,
 			FieldId *, int));
 void		dc_SetupFields FP((DataChunk *, int, FieldId *));
+void		dc_SetupUniformOrg FP((DataChunk *dc, int nsamples, int nfield,
+				       FieldId *fields, int nelems));
+void		dc_FixFieldSizes FP((DataChunk *dc, int *sizes));
+void		dc_SetUniformFieldSize FP((DataChunk *dc, int size));
+void		dc_SetUniformOrg FP((DataChunk *dc, int num));
+void		dc_SetFieldTypes FP((DataChunk *dc, int nfld, 
+				     FieldId *fids, DC_ElemType *types));
+void		dc_SetType FP((DataChunk *dc, FieldId fid, DC_ElemType type));
+DC_ElemType	dc_Type FP((DataChunk *dc, FieldId fid));
+int		dc_SizeOf FP((DataChunk *dc, FieldId fid));
+void		dc_AssignElement FP((DC_Element *e, DC_ElemType type, void *));
+char 		*dc_ElemToString FP((void *ptr, DC_ElemType type));
 double		dc_GetBadval FP((DataChunk *));
 void		dc_SetBadval FP((DataChunk *, double));
+int		dc_GetFieldIndex FP((DataChunk *dc, FieldId field));
 int		dc_GetNField FP((DataChunk *));
 void		dc_AddMData FP((DataChunk *, ZebTime *, FieldId, int, int,
 			int, DataPtr));
 DataPtr		dc_GetMData FP((DataChunk *, int, FieldId, int *));
 FieldId		*dc_GetFields FP((DataChunk *, int *));
+DC_ElemType	*dc_GetFieldTypes FP((DataChunk *dc, int *nf));
+int		dc_GetFieldIndex FP((DataChunk *dc, FieldId field));
+void		dc_SetFieldAttrArray FP((DataChunk *dc, FieldId field, char *,
+					 DC_ElemType type, int nval, void *));
+void		*dc_GetFieldAttrArray FP((DataChunk *dc, FieldId field,
+					  char *, DC_ElemType *type, int *n));
+int		dc_ProcFieldAttrArrays FP((DataChunk *dc, FieldId field,
+					   char *pattern, 
+			   int (*func) (/* char *key, void *vals, int nval, 
+					   DC_ElemType, void *arg */),
+					   void *arg));
+void		dc_RemoveFieldAttr FP((DataChunk *dc, FieldId field, char *));
 void		dc_SetFieldAttr FP ((DataChunk *, FieldId, char *, char *));
 char		*dc_GetFieldAttr FP ((DataChunk *, FieldId, char *));
 void		*dc_GetFiAttrBlock FP ((DataChunk *, FieldId, int *));
@@ -273,30 +430,32 @@ int		dc_ProcessFieldAttrs
  */
 void		dc_SetScalarFields FP((DataChunk *, int, FieldId *));
 void		dc_AddScalar FP((DataChunk *, ZebTime *, int, FieldId,
-			float *));
+			void *));
 void		dc_AddMultScalar FP((DataChunk *, ZebTime *, int, int,
-			FieldId, float *));
+			FieldId, void *));
 float		dc_GetScalar FP((DataChunk *, int, FieldId));
+void 		*dc_GetScalarData FP((DataChunk *dc, int sample, FieldId fid));
+DC_Element	dc_GetScalarElement FP((DataChunk *dc, int sample, FieldId));
 /*
  * IRGrid class.
  */
 void		dc_IRSetup FP((DataChunk *, int, PlatformId *, Location *,
 			int, FieldId *));
 void		dc_IRAddGrid FP((DataChunk *, ZebTime *, int, FieldId,
-			float *));
+			void *));
 void		dc_IRAddScalarDC FP((DataChunk *irgrid_dc, 
 				     DataChunk *scalar_dc, int sample,
 				     int nsample, int nfield, FieldId *fids));
 int		dc_IRGetNPlatform FP((DataChunk *));
 void		dc_IRGetPlatforms FP((DataChunk *, PlatformId *, Location *));
-float 		*dc_IRGetGrid FP((DataChunk *, int, FieldId));
+void 		*dc_IRGetGrid FP((DataChunk *, int, FieldId));
 /*
  * RGrid.
  */
 void		dc_RGSetup FP((DataChunk *, int, FieldId *));
 void		dc_RGAddGrid FP((DataChunk *, int, FieldId, Location *,
-			RGrid *, ZebTime *, float *, int));
-float *		dc_RGGetGrid FP((DataChunk *, int, FieldId, Location *,
+			RGrid *, ZebTime *, void *, int));
+void *		dc_RGGetGrid FP((DataChunk *, int, FieldId, Location *,
 			RGrid *, int *));
 int		dc_RGGeometry FP ((DataChunk *, int, Location *, RGrid *));
 /*
@@ -313,13 +472,14 @@ unsigned char *	dc_ImgGetImage FP ((DataChunk *, int, FieldId, Location *,
  *-------------------------------------------------------------------------
  * Numerical and Boolean parameters, except for the size of a dimension,
  * will be ints.  Dimension sizes and lengths of data arrays will always be
- * unsigned long.  The 'length' of a data array is the number of floating
- * point elements.  This will be true for both definition and information
- * retrieval.  For retrieval, strings will be returned as pointers to
- * memory inside the datachunk.  The memory pointed to will be valid for
- * the life of the datachunk, but it SHOULD NOT be freed or modified.  Any
- * parameters being passed by reference to hold return values can be passed
- * as NULL, in which case nothing will be returned for that parameter.
+ * unsigned long.  The 'length' of a data array is the number of metdata
+ * elements, e.g. floating values.  This will be true for both definition
+ * and information retrieval.  For retrieval, strings will be returned as
+ * pointers to memory inside the datachunk.  The memory pointed to will be
+ * valid for the life of the datachunk, but it SHOULD NOT be freed or
+ * modified.  Any parameters being passed by reference to hold return
+ * values can be passed as NULL, in which case nothing will be returned for
+ * that parameter.
  *
  * Interface functions from the NSpace parent class, MetData, can also be
  * useful, but only for retrieving information and data, and only once
@@ -331,11 +491,16 @@ unsigned char *	dc_ImgGetImage FP ((DataChunk *, int, FieldId, Location *,
  *			   particular sample as an opaque block of bytes.
  *			   There is no way to retrieve static field data
  *			   outside of the NSpace interface.
- * dc_SetBadval(...), 
+ * dc_SetBadval (...), 
  * dc_GetBadval (...)	-- Bad values associated with fields (aka variables);
  *			   the bad value can only be set once definition is
  *			   complete.
+ * dc_SetType (...)	-- Change the element type for a field from the
+ *			   default of float.  Must be called AFTER the NSpace
+ *			   definition is complete and BEFORE any data, static
+ *			   or dynamic, is added.
  *---------------------------------------------------------------------------*/
+
 /*
  * NSpace Definition interface
  */
@@ -368,14 +533,16 @@ int dc_NSIsStatic FP((DataChunk *dc, FieldId field));
  * NSpace Data addition
  */
 void dc_NSAddSample FP((DataChunk *dc, ZebTime *when, int sample, 
-			FieldId field, float *values));
-void dc_NSAddStatic FP((DataChunk *dc, FieldId field, float *values));
+			FieldId field, void *values));
+void dc_NSAddMultSamples FP((DataChunk *dc, ZebTime *when, int begin,
+			     int nsample, FieldId field, void *values));
+void dc_NSAddStatic FP((DataChunk *dc, FieldId field, void *values));
 /*
  * NSpace Data retrieval
  */
-float *dc_NSGetSample FP((DataChunk *dc, int sample, FieldId field, 
-			  unsigned long *size));
-float *dc_NSGetStatic FP((DataChunk *dc, FieldId field, unsigned long *size));
+void *dc_NSGetSample FP((DataChunk *dc, int sample, FieldId field, 
+			 unsigned long *size));
+void *dc_NSGetStatic FP((DataChunk *dc, FieldId field, unsigned long *size));
 
 
 /**************************************************************************
@@ -441,6 +608,11 @@ typedef struct s_DataFileInfo
  */
 int		ds_Initialize FP ((void));
 PlatformId	ds_LookupPlatform FP ((char *));
+PlatformId *	ds_GatherPlatforms FP ((char *regexp, int *nplat, 
+					bool alphabet, bool subs));
+PlatformId *	ds_SearchPlatforms FP ((char *regexp, int *nplat, 
+					bool alphabet, bool subs));
+PlatformId *	ds_LookupSubplatforms FP ((PlatformId parent, int *nsubplat));
 char *		ds_PlatformName FP ((PlatformId));
 int		ds_IsMobile FP ((PlatformId));
 bool		ds_Store FP ((DataChunk *dc, bool newfile, 
@@ -453,6 +625,10 @@ DataChunk *	ds_FetchObs FP ((PlatformId, DataClass, ZebTime *, FieldId *,
 			int, dsDetail *, int));
 void		ds_DeleteData FP ((PlatformId, ZebTime *));
 void		ds_DeleteObs FP ((PlatformId platform, ZebTime *zaptime));
+bool		ds_InsertFile FP ((PlatformId platform, char *filename,
+				   ZebTime *begin, ZebTime *end,
+				   int nsample, bool local));
+bool		ds_ScanFile FP((PlatformId platid, char *fname, bool local));
 void		ds_RequestNotify FP ((PlatformId, int, void (*)()));
 void		ds_CancelNotify FP ((void));
 int		ds_DataTimes FP ((PlatformId, ZebTime *, int,TimeSpec,
@@ -470,5 +646,7 @@ int		ds_GetDataSource FP ((PlatformId, int, DataSrcInfo *));
 void		ds_GetFileInfo FP ((int, DataFileInfo *));
 void		ds_LockPlatform FP ((PlatformId));
 void		ds_UnlockPlatform FP ((PlatformId));
+void 		ds_ForceRescan FP ((PlatformId platform, int all));
+void		ds_ForceClosure FP ((void));
 
 # endif	/* !__zeb_DataStore_h_ */
