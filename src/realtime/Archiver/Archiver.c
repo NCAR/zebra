@@ -51,7 +51,7 @@
 # include <config.h>
 # include <DataStore.h>
 
-MAKE_RCSID ("$Id: Archiver.c,v 1.29 1994-11-17 06:57:49 granger Exp $")
+MAKE_RCSID ("$Id: Archiver.c,v 1.30 1995-04-20 07:55:30 granger Exp $")
 
 /*
  * Issues:
@@ -834,6 +834,7 @@ LoadFileList ()
  * Pull in the list of files which have already been dumped to disk.
  */
 {
+#	define DUMPED_FILES "DumpedFiles"
 	FILE *fp;
 	char pname[200], *colon;
 	SValue v;
@@ -841,7 +842,7 @@ LoadFileList ()
 /*
  * Open up the file.
  */
-	sprintf (listfile, "%s/DumpedFiles", GetProjDir() );
+	sprintf (listfile, "%s/%s", GetProjDir(), DUMPED_FILES );
 	DumpedTable = usy_c_stbl ("DumpedTable");
 	if ((fp = fopen (listfile, "r")) == NULL)
 	{
@@ -860,8 +861,8 @@ LoadFileList ()
 		if ((colon = strchr (pname, ':')) == 0 || 
 		  sscanf (colon + 1, "%d %d", &d.ds_yymmdd, &d.ds_hhmmss) != 2)
 		{
-			msg_ELog (EF_PROBLEM, "Bad DumpedTable line: %s",
-				  pname);
+			msg_ELog (EF_PROBLEM, "Bad %s line: %s",
+				  DUMPED_FILES, pname);
 			continue;
 		}
 		*colon = '\0';
@@ -1336,7 +1337,7 @@ int all;
 	/*
 	 * Send the MarkArchived request now, even though we do not know
 	 * that the tar will succeed.  This is to help insure that nothing
-	 * is written to the file after archive it.  If the archive fails,
+	 * is written to the file while archiving it.  If the archive fails,
 	 * we'll try again later, since we go by our own dates, and not the
 	 * archived flag, when picking files to write.
 	 */
@@ -1768,7 +1769,7 @@ Sync ()
 static void
 UpdateMem ()
 /*
- * Update the "archived" flags in the shm segment.
+ * Update the "archived" flags on the daemon side.
  */
 {
 /*
@@ -1776,6 +1777,7 @@ UpdateMem ()
  */
 	usy_traverse (DumpedTable, TellDaemon, 0, FALSE);
 }
+
 
 
 /* ARGSUSED */
@@ -1791,29 +1793,31 @@ int junk;
 {
 	int index;
 	ZebTime ftime;
-	PlatformId pid = ds_LookupPlatform (sym);
+	PlatformId pid;
 	DataSrcInfo dsi;
 	DataFileInfo dfi;
 /*
  * Plow through the file entries, marking everything that we have written 
  * out.
  */
-	TC_UIToZt (&(v->us_v_date), &ftime);
-
-	ds_GetDataSource (pid, 0, &dsi);
-	for (index = dsi.dsrc_FFile; index; index = dfi.dfi_Next)
+	if ((pid = ds_LookupPlatform (sym)) != BadPlatform)
 	{
-	/*
-	 * If this file is already marked, or hasn't been done, move on.  
-	 * Otherwise send the notification.
-	 */
-		ds_GetFileInfo (index, &dfi);
-	 	if (TC_LessEq (dfi.dfi_End, ftime) && ! dfi.dfi_Archived)
-			ds_MarkArchived (index);
+		TC_UIToZt (&(v->us_v_date), &ftime);
+
+		ds_GetDataSource (pid, 0, &dsi);
+		for (index = dsi.dsrc_FFile; index; index = dfi.dfi_Next)
+		{
+			/*
+			 * If this file is already marked, or hasn't been done, 
+			 * move on.  Otherwise send the notification.
+			 */
+			ds_GetFileInfo (index, &dfi);
+			if (TC_LessEq (dfi.dfi_End, ftime) && ! dfi.dfi_Archived)
+				ds_MarkArchived (index);
+		}
 	}
 	return (TRUE);
 }
-
 
 
 
