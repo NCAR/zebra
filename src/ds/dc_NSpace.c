@@ -93,7 +93,8 @@
  * The internal, private functions should pass the general info structure
  * between them so that it need only be retrieved from the ADE list once,
  * upon entry to one of the public interface functions.  And it probably
- * wouldn't hurt to prefix the private function names with `_' or `ns_'.
+ * wouldn't hurt to prefix the private function names with `_' or `ns_',
+ * leaving the dc_ prefix for the public functions.
  *
  * A local, static variable could be added holding a pointer to a DC and
  * the info for the DC.  Functions called on the same DC can use the stored
@@ -113,6 +114,19 @@
  * being operated on at time of message.  When NSpace calls a MetData method,
  * the method should report the message as if from an NSpace method by 
  * noting that the class of the chunk is NSpace.
+ *
+ * For applications which are extracting data from a chunk, like plotting
+ * or QC processes, it might be nice to have hyperslab access or some
+ * kind of "class conversion" available.  For example, given an NSpace
+ * chunk with dynanmic field theta (w, x, y, z), return a DCC_Scalar chunk
+ * with field theta over time with w, x, y, and z fixed at some coordinate.
+ * Another possibility is creating an NSpace chunk from a hyperslab of
+ * another NSpace chunk.
+ *
+ * Since static fields do not have samples, perhaps they should not be
+ * defined to the MetData parent class via dc_SetupFields().  And perhaps
+ * there should be two separate retrieval functions, one for a list of
+ * the dynamic fields and another for a separate list of the static fields.
  */
 
 /*=========================================================================
@@ -139,16 +153,12 @@
 #include "DataStore.h"
 #include "ds_fields.h"
 #include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_NSpace.c,v 1.1.1.1 1993-04-02 00:18:05 granger Exp $")
+MAKE_RCSID ("$Id: dc_NSpace.c,v 1.1.1.2 1993-04-13 21:30:29 granger Exp $")
 
 /*
- * The DCC_NSpace public interface
+ * The DCC_NSpace public interface, aka, what is included in DataStore.h
  */
-
-#ifdef NSPACE_TEST /* actually prototyped in DataStore.h */
-
-#define DC_MaxDimension		32	/* Maximum number of dimensions */
-#define DC_MaxDimName		32	/* Max name length, incl \0	*/
+#ifdef NSPACE_PUBLIC_INCLUDE
 
 /*-------------------------------------------------------------------------
  * Guidelines to the NSpace Interface
@@ -171,8 +181,10 @@ MAKE_RCSID ("$Id: dc_NSpace.c,v 1.1.1.1 1993-04-02 00:18:05 granger Exp $")
  * tested with dc_NSDefineIsComplete(dc).  Once definition is completed, it
  * cannot be re-opened.  Some potentially useful MetData functions:
  *
- * dc_GetNField (dc) 	-- For getting the number of fields (aka variables).
- * dc_GetFields (...)	-- For getting the fields and their field IDs.
+ * dc_GetNField (dc) 	-- For getting the number of fields (aka variables),
+ *			   both static and dynamic.
+ * dc_GetFields (...)	-- For getting the fields and their field IDs, both
+ * 			   static and dynamic.
  * dc_GetMData (...)	-- For retrieving data from a dynamic field at a
  *			   particular sample as an opaque block of bytes.
  *			   There is no way to retrieve static field data
@@ -226,16 +238,16 @@ float *dc_NSGetSample FP((DataChunk *dc, int sample, FieldId field,
 			  unsigned long *size));
 float *dc_NSGetStatic FP((DataChunk *dc, FieldId field, unsigned long *size));
 
-#endif
+#endif /* NSPACE_PUBLIC_INCLUDE */
 
 
-/*
+/*------------------------------------------------------------------------
  * Semi-private routines.
  */
 static DataChunk *NSCreate FP((DataClass));
 static void NSDump FP((DataChunk *dc));
 
-/*
+/*------------------------------------------------------------------------
  * Initialization of class structure
  */
 #define SUPERCLASS DCC_MetData
@@ -250,8 +262,7 @@ RawDCClass NSpaceMethods =
 	NSDump			/* Dump				*/
 };
 
-
-/*
+/*------------------------------------------------------------------------
  * Our class-specific AuxData structure types.
  */
 #define ST_NSPACE_INFO	1000	/* Our "global" info		*/
@@ -265,7 +276,6 @@ RawDCClass NSpaceMethods =
 #define ST_NSPACE_DIMNS		3000
 #define NSDimn(index)		(ST_NSPACE_DIMNS + (index))
 #define NSFld(index)		(ST_NSPACE_FIELDS + (index))
-#define NS_STATIC_SAMPLE	0
 
 #define IsNSpace(dc,fn) \
 	(dc_ReqSubClassOf (dc->dc_Class, DCC_NSpace, fn))
@@ -298,9 +308,10 @@ typedef struct _NSpaceFldInfo
 	unsigned short	nsf_NDimn;	/* number of dimensions */
 	unsigned short	nsf_Dimns[DC_MaxDimension];
 	                                /* index from BASE      */
-	unsigned char	nsf_IsStatic;	/* static field flag	*/
 	unsigned short	nsf_Index;	/* index of the ADE	*/
 	unsigned long	nsf_Size;	/* product of its dimns */
+	unsigned char	nsf_IsStatic;	/* static field flag	*/
+	unsigned long	nsf_StOffset;	/* Offset of static data*/
 } NSpaceFldInfo;
 
 typedef struct _NSpaceDimInfo
@@ -323,7 +334,7 @@ typedef struct _NSpaceDimInfo
  * match dimensions.
  */
 
-/*----------------------------------------------------------------
+/*------------------------------------------------------------------------
  * Private routines
  */
 
@@ -932,15 +943,14 @@ dc_NSAddStatic (dc, field, values)
 /*
  * Same as above except no time or sample is associated with the data.  The
  * field must have been defined as a static variable.  Each successive call
- * overwrites any previously stored data.  Static data will be stored in the
- * zero'eth sample.
+ * overwrites any previously stored data.  Static data will be added directly
+ * to the raw data chunk since it is not associated with any particular
+ * sample.  Note that the static fields are still lumped into the fields
+ * definition for the MetData class, but no data is ever stored for the
+ * fields via dc_AddMData().
  */
 {
 	NSpaceFldInfo *finfo;
-	ZebTime epoch;		/* serves as AddMData `when' parameter */
-
-	epoch.zt_Sec = 0;
-	epoch.zt_MicroSec = 0;
 
 	if (! IsNSpace(dc,"NSAddStatic"))
 		return;
@@ -962,14 +972,22 @@ dc_NSAddStatic (dc, field, values)
 	dc_NSDefineComplete (dc);
 
 	/*
-	 * Now add the data, retrieving the size from finfo structure.
+	 * If we don't already have space in the data chunk, get some.
 	 */
-	dc_AddMData (dc, /*when*/ &epoch, field, 
-		     (finfo->nsf_Size * sizeof(float)),
-		     NS_STATIC_SAMPLE, /*nsample*/ 1, values);
+	if (!finfo->nsf_StOffset && values)
+	{
+		finfo->nsf_StOffset = dc->dc_DataLen;
+		Dc_RawAdd (dc, finfo->nsf_Size * sizeof(float));
+	}
+
+	/*
+	 * Now copy the data
+	 */
+	if (values)
+		memcpy ((char *) dc->dc_Data + finfo->nsf_StOffset, 
+			(char *) values, (finfo->nsf_Size * sizeof(float)));
 }
 /*------------------------------------------------- end: dc_NSAddStatic ---*/
-
 
 /*
  * Note that there is, as yet, no intention to include the equivalent to
@@ -1052,10 +1070,22 @@ dc_NSGetStatic (dc, field, size)
 	if (!CheckStatic (finfo, TRUE, "NSGetStatic"))
 		return NULL;
 
-	data = dc_GetMData (dc, NS_STATIC_SAMPLE, field, &len);
-	if (size)
-		*size = (unsigned long) (len / sizeof(float));
-	return ((float *)data);
+	/*
+	 * Find our data, if there is any, and return a pointer to it
+	 */
+	if (finfo->nsf_StOffset)
+	{
+		data = dc->dc_Data + finfo->nsf_StOffset;
+		if (size)
+			*size = (unsigned long) (finfo->nsf_Size);
+		return ((float *)data);
+	}
+	else
+	{
+		if (size)
+			*size = 0;
+		return NULL;
+	}
 }
 /*------------------------------------------------ end: dc_NSGetStatic ----*/
 
@@ -1145,7 +1175,7 @@ NSDump (dc)
 	for (i = 0; i < info->ns_NDim; ++i)
 	{
 		dinfo[i] = GetDimn(dc,i);
-		printf("   %30s: size %-6lu  -- ", 
+		printf("   %35s: size %-6lu  -- ", 
 		       dinfo[i]->nsd_Name, dinfo[i]->nsd_Size);
 		if (dinfo[i]->nsd_Id != BadField)
 			printf("field %i, '%s'\n", 
@@ -1471,6 +1501,7 @@ DefineField (dc, field, ndims, dim_indices, is_static, routine)
 		finfo->nsf_Index = i;
 		finfo->nsf_Size = 0;
 		finfo->nsf_IsStatic = (is_static) ? TRUE : FALSE;
+		finfo->nsf_StOffset = 0;
 		AddFld(dc,finfo,i);
 		++(info->ns_NField);
 	}
@@ -1545,7 +1576,7 @@ CheckStatic(finfo, test, routine)
 	    (!(finfo->nsf_IsStatic) && test))
 	{
 		msg_ELog (EF_PROBLEM, 
-			  "%s: field %s, id %i, must be %s",
+			  "%s: field %s, id %i, not %s",
 			  routine, F_GetName(finfo->nsf_Id), finfo->nsf_Id,
 			  (test) ? "static" : "dynamic");
 		return (FALSE);
@@ -1553,339 +1584,3 @@ CheckStatic(finfo, test, routine)
 	return (TRUE);
 }
 /*----------------------------------------------- end: CheckStatic -----*/
-
-
-#ifdef NSPACE_TEST
-
-
-/* ARGSUSED */
-int
-msg_handler (msg)
-struct message *msg;
-{
-	msg_ELog (EF_INFO, "Message received");
-	return (0);
-}
-
-
-static float test_data[10000];
-
-#include <sys/types.h>
-#include <sys/time.h>
-#include <sys/timeb.h>
-
-/*ARGSUSED*/
-int
-main (argc, argv)
-	int argc;
-	char *argv[];
-{
-	DataChunk *dc;
-	int i,j;
-	ZebTime when;
-	struct timeb tp;
-	char *names[ DC_MaxDimension ];
-	unsigned long sizes[ DC_MaxDimension ];
-	FieldId ids[ DC_MaxDimension + DC_MaxField ];
-	FieldId rids[ DC_MaxDimension + DC_MaxField ];
-	int ndims[ DC_MaxDimension ];
-	int ndim, nvar, rndim, rstatic;
-	char *name;
-	unsigned long size;
-	float *retrieve;
-
-	ftime(&tp);
-	when.zt_Sec = tp.time;
-	when.zt_MicroSec = 0;
-
-	for (i = 0; i < 10000; ++i)
-		test_data[i] = i;
-
-	usy_init();
-	F_Init();
-	msg_connect (msg_handler, argv[0]);
-
-	printf("---------------------------------------------------------\n");
-	{	/* an empty NSpace data chunk */
-		
-		dc = dc_CreateDC (DCC_NSpace);
-		dc->dc_Platform = BadPlatform;
-		dc_DumpDC (dc);
-		dc_DestroyDC (dc);
-	}
-	printf("---------------------------------------------------------\n");
-	{	/* simple static variable over two dimensions */
-
-		FieldId field;
-		char *dim_names[2];
-		unsigned long dim_sizes[2];
-		
-		dim_names[0] = "x";	dim_names[1] = "y";
-		dim_sizes[0] = 50;	dim_sizes[1] = 25;
-		field = F_DeclareField ("curl","Long name","units");
-		dc = dc_CreateDC (DCC_NSpace);
-		dc_NSDefineField (dc, field, 2, dim_names, dim_sizes, TRUE);
-		dc->dc_Platform = BadPlatform;
-		dc_DumpDC (dc);
-
-		dc_NSAddSample (dc, &when, 0, field, test_data);
-		dc_NSAddStatic (dc, field, test_data);
-		dc_DumpDC (dc);
-
-		/* retrieve data and compare */
-		retrieve = dc_NSGetSample (dc, 0, field, &size);
-		retrieve = dc_NSGetStatic (dc, field, &size);
-		printf ("dc_NSGetStatic() returns size = %lu,", size);
-		for (i = 0; i < size; ++i)
-			if (retrieve[i] != test_data[i]) break;
-		printf ("  data comparison %s at %i\n",
-			(i < size) ? "failed" : "succeeded", i);
-
-		/* test dc_NSGetField */
-		(void)dc_NSGetField(dc, field, &rndim, names, sizes,
-				    &rstatic);
-		printf("dc_NSGetField(%s:%i): %i dims, %s static, ( ",
-		       F_GetName(field), field, rndim,
-		       (rstatic) ? "is" : "not");
-		for (i = 0; i < rndim; ++i)
-			printf("%s=%lu ",names[i],sizes[i]);
-		printf(")\n");
-
-		dc_DestroyDC (dc);
-        }
-	printf("---------------------------------------------------------\n");
-	{	/* ARM SOW example using explicit dimn defs with field ids */
-
-		FieldId wnum_id, therm_id;
-		FieldId mean_rad_id, sd_rad_id;
-		
-		dc = dc_CreateDC(DCC_NSpace);
-		dc->dc_Platform = /*ds_LookupPlatform("aeri")*/BadPlatform;
-		
-		wnum_id = F_DeclareField("wnum","Wave Number","1 / cm");
-		dc_NSDefineDimension(dc, wnum_id, 6224);
-		dc_NSDefineVariable(dc, wnum_id, 1, &wnum_id, 
-				    /*is_static*/TRUE);
-		
-		mean_rad_id = F_DeclareField("mean_rad",
-					"Mean of Radiance spectra ensemble",
-					"mW / m^2 sr 1 / cm");
-		dc_NSDefineVariable(dc, mean_rad_id, 1, &wnum_id, FALSE);
-		
-		sd_rad_id = F_DeclareField("standard_dev_rad",
-			   "standard deviation for Radiance spectra ensemble",
-			   "1/cm");
-		dc_NSDefineVariable(dc, sd_rad_id, 1, &wnum_id, FALSE);
-		therm_id = F_DeclareField("thermistor1",
-					  "Long name for thermistor",
-					  "units");
-		dc_NSDefineVariable(dc, therm_id, 0, NULL, FALSE);
-		
-		dc_DumpDC (dc);
-
-		/* Test the information retrieval functions */
-		ndim = dc_NSGetAllDimensions(dc, names, ids, sizes);
-		printf ("dc_NSGetAllDimensions() returns %i dimensions:\n", 
-			ndim);
-		for (i = 0; i < ndim; ++i)
-		{
-			printf("   %-30s %-5i %10lu\n",
-			       names[i],ids[i],sizes[i]);
-			dc_NSGetDimension (dc, ids[i], &name, &size);
-			printf(
-			  "   NSGetDimension(id %i): name %s, size = %lu\n",
-			  ids[i], name, size);
-		}
-
-		nvar = dc_NSGetAllVariables(dc, ids, ndims);
-		printf ("dc_NSGetAllVariables() returns %i variables:\n", 
-			nvar);
-		for (i = 0; i < nvar; ++i)
-		{
-			printf("   id: %-3i   ndims: %-5i", ids[i], ndims[i]);
-			printf("   NSIsStatic(): %s\n",
-			       (dc_NSIsStatic(dc, ids[i])) ? "True" : "False");
-			dc_NSGetVariable(dc, ids[i], &rndim, rids, &rstatic);
-			printf("   dc_NSGetVariable(%i): %i dims, %s static, ",
-			       ids[i], rndim, (rstatic)?"is":"not");
-			printf("  ( ");
-			for (j = 0; j < rndim; ++j)
-				printf(" %i ",rids[j]);
-			printf(")\n");
-		}
-
-		/* Test some storage */
-		dc_NSAddStatic (dc, wnum_id, test_data);
-		dc_NSAddStatic (dc, mean_rad_id, test_data);
-		dc_NSAddSample (dc, &when, 0, wnum_id, test_data);
-		dc_NSAddSample (dc, &when, 1, therm_id, test_data);
-		dc_NSAddSample (dc, &when, 2, mean_rad_id, test_data);
-		dc_NSAddSample (dc, &when, 2, sd_rad_id, test_data);
-		dc_DumpDC (dc);
-
-		/* test some retrieval */
-		(void)dc_NSGetSample (dc, 0, wnum_id, &size); /*should fail*/
-		retrieve = dc_NSGetStatic (dc, wnum_id, &size);
-		retrieve = dc_NSGetStatic (dc, wnum_id, NULL);
-		printf ("dc_NSGetStatic(%s) returns size = %lu,", 
-			F_GetName(wnum_id), size);
-		for (i = 0; i < size; ++i)
-			if (retrieve[i] != test_data[i]) break;
-		printf ("   data comparison %s at %i\n",
-			(i < size) ? "failed" : "succeeded", i);
-		retrieve = dc_NSGetSample (dc, 0, therm_id, &size);
-		printf("GetSample(0,%s): size=%lu, data=%s\n",
-		       F_GetName(therm_id),size,(retrieve)?"non-NULL":"NULL");
-		retrieve = dc_NSGetSample (dc, 2, mean_rad_id, &size);
-		retrieve = dc_NSGetSample (dc, 2, mean_rad_id, NULL);
-		printf ("dc_NSGetSample(%s) returns size = %lu,", 
-			F_GetName(mean_rad_id), size);
-		for (i = 0; i < size; ++i)
-			if (retrieve[i] != test_data[i]) break;
-		printf ("   data comparison %s at %i\n",
-			(i < size) ? "failed" : "succeeded", i);
-		retrieve = dc_NSGetSample (dc, 2, BadField, NULL);
-		printf("GetSample(2,BadField): data=%s\n",
-		       (retrieve)?"non-NULL":"NULL");
-
-		dc_DestroyDC (dc);
-	}
-	printf("---------------------------------------------------------\n");
-	{	/* ARM SOW example with implicit dimn defs */
-
-		FieldId mean_rad_id, sd_rad_id, wnum_id;
-		char *dimname[1];
-		unsigned long dimsize[1];
-		
-		dimname[0] = "wnum";	dimsize[0] = 6224;
-		dc = dc_CreateDC (DCC_NSpace);
-		dc->dc_Platform = /*ds_LookupPlatform("aeri")*/BadPlatform;
-		
-		wnum_id = F_DeclareField("wnum","Wave Number","1 / cm");
-		dc_NSDefineField(dc, wnum_id, 1, dimname, dimsize, FALSE);
-		
-		mean_rad_id = F_DeclareField("mean_rad",
-				     "Mean of Radiance spectra ensemble",
-				     "mW / m^2 sr 1 / cm");
-		dc_NSDefineField(dc, mean_rad_id, 1, 
-				 dimname, dimsize, FALSE);
-		
-		sd_rad_id = F_DeclareField("standard_dev_rad",
-			   "standard deviation for Radiance spectra ensemble",
-			   "1/cm");
-		dc_NSDefineField(dc, sd_rad_id, 1, dimname, dimsize, FALSE);
-		
-		dc_DumpDC (dc);
-
-		/* test dc_NSGetField */
-		(void)dc_NSGetField(dc, sd_rad_id, &rndim, names, sizes,
-				    &rstatic);
-		printf("dc_NSGetField(%s:%i): %i dims, %s static, ( ",
-		       F_GetName(sd_rad_id), sd_rad_id, rndim,
-		       (rstatic) ? "is" : "not");
-		for (i = 0; i < rndim; ++i)
-			printf("%s=%lu ",names[i],sizes[i]);
-		printf(")\n");
-
-		dc_DestroyDC (dc);
-	}
-	printf("---------------------------------------------------------\n");
-	{	/* silly stuff */
-
-		FieldId fid, did;
-		char *dimname[3];
-		unsigned long dimsize[3];
-		
-		dimname[0] = "thisdimensionhasareallylongnamethatwillnotfit";
-		dimname[1] = "thisoneisnotsolongjustlong283032";
-		dimname[2] = "third";
-		dimsize[0] = 20; dimsize[1] = 40; dimsize[2] = 60;
-
-		dc = dc_CreateDC (DCC_NSpace);
-		dc->dc_Platform = 0;
-		
-		fid = F_DeclareField("tests","Testing 1, 2, 3","#");
-		did = F_DeclareField(dimname[1],"Dimension","u");
-
-		/* define a variable whose dimensions do not exist */
-		dc_NSDefineVariable (dc, fid, 1, &did, TRUE);
-
-		/* try defining a dimension with a long name */
-		dc_NSDefineField(dc, fid, 3, dimname, dimsize, FALSE);
-		NSDump (dc);
-		
-		/* now try redefining a dimension */
-		dc_NSDefineDimension(dc, did, dimsize[2]);
-		NSDump (dc);
-
-		/* redefine a variable */
-		dc_NSDefineVariable(dc, fid, 1, &did, TRUE);
-		NSDump (dc);
-
-		/* test completion */
-		printf("dc_NSDefineIsComplete() returns %s\n",
-		       dc_NSDefineIsComplete(dc) ? "True" : "False");
-
-		/* force completion */
-		dc_NSDefineComplete(dc);
-		printf("%s, dc_NSDefineIsComplete() returns %s\n",
-		       "After dc_NSDefineComplete()",
-		       dc_NSDefineIsComplete(dc) ? "True" : "False");
-
-		/* try more definition after completion */
-		dc_NSDefineDimension(dc, did, dimsize[2]);
-		dc_NSDefineVariable(dc, fid, 1, &did, TRUE);
-		
-		dc_DumpDC (dc);
-		dc_DestroyDC (dc);
-	}
-	printf("---------------------------------------------------------\n");
-	{	/* push limits of number of dims and fields in a chunk */
-
-		char name[ 10 ];
-		char *namep = name;
-		FieldId fid, did;
-		unsigned long size;
-		int i;
-
-		dc = dc_CreateDC (DCC_NSpace);
-		dc->dc_Platform = BadPlatform;
-
-		/* test dimn limit */
-		for (i = 0; i < DC_MaxDimension + 2; ++i)
-		{
-			sprintf (name, "dimn%i", i);
-			did = F_DeclareField(name, "Dimension", "none");
-			size = i;
-			dc_NSDefineDimension(dc, did, size);
-		}
-
-		/* test field limit */
-		did = F_Lookup("dimn12");
-		for (i = 0; i < DC_MaxField + 2; ++i)
-		{
-			sprintf (name, "field%i", i);
-			fid = F_DeclareField(name, "Field", "units");
-			dc_NSDefineVariable(dc, fid, 1, &did, i % 2);
-		}
-
-		/* test field limit with DefineField */
-		dc_NSDefineField(dc, fid, 0, 0, 0, 0);
-
-		/* test dimn limit with DefineField by redefining field */
-		dc_NSDefineField(dc, F_Lookup("field1"), 1, 
-				 &namep, &size, TRUE);
-
-		NSDump (dc);
-
-		/* see what it looks like after closing definition */
-		dc_NSDefineComplete (dc);
-		NSDump (dc);
-
-		dc_DestroyDC (dc);
-	}
-
-	return(0);
-}
-
-#endif
