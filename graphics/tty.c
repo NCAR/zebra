@@ -7,7 +7,11 @@
 # include <iodef.h>
 # endif
 # ifdef unix
+# ifdef SVR4
+# include <fcntl.h>
+# else
 # include <sys/file.h>
+# endif
 # endif
 # include "graphics.h"
 # include "tty.h"
