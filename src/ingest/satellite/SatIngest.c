@@ -82,6 +82,7 @@ struct _InFile
 {
 	char	*name;
 	char	*field;
+	FILE	*stream;
 } Infile[MAXFILES];
 
 int Nfiles = 0;
@@ -108,8 +109,8 @@ static void	TimeCheck FP ((ZebTime *));
 static void	swapfour FP ((int *, int));
 static void	FileLimits FP ((void));
 static int	MDispatcher FP ((struct message *));
-static void *	DoFile FP ((char *));
-static void	GetFileTime FP ((char *, ZebTime *));
+static void *	DoFile FP ((int));
+static void	GetFileTime FP ((int, ZebTime *));
 static void	Die FP ((void));
 static inline unsigned char	imageval FP ((int, int));
 
@@ -247,6 +248,7 @@ struct ui_command	*cmds;
  * Add a file to be ingested
  */
 {
+	char	*fname = UPTR (cmds[0]), *fld = UPTR (cmds[1]);
 /*
  * Sanity check
  */
@@ -259,13 +261,19 @@ struct ui_command	*cmds;
 /*
  * Add the file to the list
  */
-	Infile[Nfiles].name = (char *) malloc (strlen (UPTR (cmds[0])) + 1);
-	strcpy (Infile[Nfiles].name, UPTR (cmds[0]));
+	Infile[Nfiles].name = (char *) malloc (strlen (fname) + 1);
+	strcpy (Infile[Nfiles].name, fname);
 
-	Infile[Nfiles].field = (char *) malloc (strlen (UPTR (cmds[1])) + 1);
-	strcpy (Infile[Nfiles].field, UPTR (cmds[1]));
-
-	Nfiles++;
+	Infile[Nfiles].field = (char *) malloc (strlen (fld) + 1);
+	strcpy (Infile[Nfiles].field, fld);
+/*
+ * Open it
+ */
+	if ((Infile[Nfiles].stream = fopen (fname, "r")) != NULL)
+		Nfiles++;
+	else
+		msg_ELog (EF_PROBLEM, "Error %d opening file '%s'", errno, 
+			fname);
 }
 
 
@@ -382,7 +390,7 @@ Ingest ()
  */
 	for (f = 0; f < Nfiles; f++)
 	{
-		if ((grid = DoFile (Infile[f].name)) == NULL)
+		if ((grid = DoFile (f)) == NULL)
 			continue;
 
 		ngood++;
@@ -431,7 +439,7 @@ ZebTime *t;
 
 	for (f = 0; f < Nfiles; f++)
 	{
-		GetFileTime (Infile[f].name, &ftime);
+		GetFileTime (f, &ftime);
 		if (ftime.zt_Sec < t->zt_Sec)
 		{
 		/*
@@ -443,6 +451,7 @@ ZebTime *t;
 
 			free (Infile[f].name);
 			free (Infile[f].field);
+			fclose (Infile[f].stream);
 
 			continue;
 		}
@@ -473,42 +482,32 @@ ZebTime *t;
 
 
 static void *
-DoFile (fname)
-char	*fname;
+DoFile (fentry)
+int	fentry;
 /*
- * Read the named GOES area file, remapping into a grid and returning that
+ * Read the fentry'th file, remapping into a grid and returning that
  * grid.  The caller is expected to free the grid when finished with it.
  * NULL is returned on failure.
  */
 {
-	FILE	*infile;
 	int	header[64], nav_cod[128];
 	unsigned char	*grid;
 	int	i, j, line, elem, status, stuff[128], one = 1;
+	int	imagelen, ngot;
 	float	dummy, fline, felem, lat, lon;
 	char	source[5], *c;
-/*
- * Open the input file
- */
-	infile = fopen (fname, "r");
-	if (infile == 0)
-	{
-		msg_ELog (EF_PROBLEM, "Error %d opening file '%s'\n", errno,
-			fname);
-		return (NULL);
-	}
 
-	msg_ELog (EF_INFO, "Reading %s", fname);
+	msg_ELog (EF_INFO, "Reading %s", Infile[fentry].name);
 /*
  * Read the 256 byte "area directory" header and the 512 byte
  * navigation codicil and swap bytes around in each one.  
  * NOTE: We don't swap in those portions which contain text
  */
-	fread ((void *) header, 4, 64, infile);
+	fread ((void *) header, 4, 64, Infile[fentry].stream);
 	swapfour (header, 20);
 	swapfour (header + 32, 19);
 
-	fread ((void *) nav_cod, 4, 128, infile);
+	fread ((void *) nav_cod, 4, 128, Infile[fentry].stream);
 	swapfour (nav_cod + 1, 39);
 /*
  * Verify that this is a GOES image
@@ -521,8 +520,8 @@ char	*fname;
 		imtype[4] = '\0';
 
 		msg_ELog (EF_PROBLEM, "'%s' contains a '%s' image, not GOES",
-			fname, imtype);
-		fclose (infile);
+			Infile[fentry].name, imtype);
+		fclose (Infile[fentry].stream);
 		return (NULL);
 	}
 /*
@@ -566,16 +565,28 @@ char	*fname;
  * 512 byte extra header for "aaa" areas (we ignore it for now)
  */
 	if (! strcmp (source, "aaa"))
-		fread ((void *) stuff, 4, 128, infile);
+		fread ((void *) stuff, 4, 128, Infile[fentry].stream);
 /*
  * Read the image data
  */
-	Image = (unsigned char *) malloc (Linelen * Ny);
-	fread ((void *) Image, 1, Linelen * Ny, infile);
+	imagelen = Linelen * Ny;
+	Image = (unsigned char *) malloc (imagelen);
+	ngot = fread ((void *) Image, 1, imagelen, Infile[fentry].stream);
+	if (ngot != imagelen)
+	{
+		if (feof (Infile[fentry].stream))
+			msg_ELog (EF_PROBLEM, 
+				"Premature EOF.  Got %d instead of %d bytes",
+				ngot, imagelen);
+		else
+			msg_ELog (EF_PROBLEM, 
+				"Read error %d.  Got %d instead of %d bytes",
+				errno, ngot, imagelen);
+	}
 /*
  * We're done with the file
  */
-	fclose (infile);
+	fclose (Infile[fentry].stream);
 /*
  * Element and line limits
  */
@@ -591,7 +602,8 @@ char	*fname;
 	if (status < 0)
 	{
 		msg_ELog (EF_PROBLEM, 
-			"Bad navigation initialization for file '%s'", fname);
+			"Bad navigation initialization for file '%s'", 
+				Infile[fentry].name);
 		free (Image);
 		return (NULL);
 	}
@@ -606,8 +618,8 @@ char	*fname;
 	for (j = 0; j < GridY; j++)
 	{
 		if (! ((j+1) % 20))
-			msg_ELog (EF_DEBUG, "%s: line %d of %d", fname,
-				j + 1, GridY);
+			msg_ELog (EF_DEBUG, "%s: line %d of %d", 
+				Infile[fentry].name, j + 1, GridY);
 
 		lat = Maxlat - j * Latstep;
 
@@ -642,33 +654,21 @@ char	*fname;
 
 
 static void
-GetFileTime (fname, t)
-char	*fname;
+GetFileTime (fentry, t)
+int	fentry;
 ZebTime	*t;
 /*
- * Return the time of the specified area file
+ * Return the time of the fentry'th file
  */
 {
 	int	year, month, day, hour, minute, second, header[5];
-	FILE	*infile;
-/*
- * Open the file
- */
-	infile = fopen (fname, "r");
-	if (infile == 0)
-	{
-		msg_ELog (EF_PROBLEM, "Error %d opening file '%s'\n", errno,
-			fname);
-		t->zt_Sec = t->zt_MicroSec = 0;
-		return;
-	}
 /*
  * Read the first piece of the area directory and do the appropriate byte
  * swapping.
  */
-	fread ((void *) header, 4, 5, infile);
+	fread ((void *) header, 4, 5, Infile[fentry].stream);
+	fseek (Infile[fentry].stream, 0, 0);	/* rewind the file */
 	swapfour (header, 5);
-	fclose (infile);
 /*
  * Extract the date.
  */
