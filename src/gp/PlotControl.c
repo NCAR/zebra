@@ -1,7 +1,7 @@
 /*
  * Window plot control routines.
  */
-static char *rcsid = "$Id: PlotControl.c,v 2.32 1994-11-19 00:35:32 burghart Exp $";
+static char *rcsid = "$Id: PlotControl.c,v 2.33 1995-06-09 17:03:46 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -40,8 +40,10 @@ static void	pc_SetTimeTrigger FP ((int, char *));
 static void	pc_PlotAlarm FP ((UItime *, char *));
 static void	pc_Plot FP ((char *));
 static void	pc_NextFrame FP (());
-static void	pc_Notification FP ((PlatformId, int, UItime *));
+static void	pc_Notification FP ((PlatformId, int, ZebTime *,
+				     int nsample, UpdCode ucode));
 static void	pc_DoTrigger FP ((char *, char *, int));
+static void	pc_SetUpTriggers FP ((void));
 
 
 /*
@@ -319,12 +321,15 @@ char	*param;
 }
 
 
+
+static void
 pc_SetUpTriggers ()
 /*
  * Figure out what our trigger condition will be.
  */
 {
 	char trigger[200], **comps;
+	bool disable = FALSE;
 	int i;
 /*
  * Find the global trigger first.
@@ -334,14 +339,18 @@ pc_SetUpTriggers ()
 	else
 		pc_DoTrigger (trigger, "global", 0);
 /*
- * Now go through and find the minor updates for each component.
+ * Now go through and find the minor updates for each component.  Ignore 
+ * components which have no trigger or which are disabled.
  */
 	comps = pd_CompList (Pd);
 	for (i = 1; comps[i]; i++)
-		if (pd_Retrieve (Pd, comps[i], "trigger", trigger,SYMT_STRING))
+	{
+		if (pd_Retrieve (Pd, comps[i], "trigger", trigger, SYMT_STRING)
+		    && (! pda_Search (Pd, comps[i], "disable", comps[i],
+			      (char *) &disable, SYMT_BOOL) || !disable))
 			pc_DoTrigger (trigger, comps[i], i);
+	}
 }
-
 
 
 
@@ -478,10 +487,12 @@ char *comp;
 
 
 static void
-pc_Notification (pid, index, t)
+pc_Notification (pid, index, zt, nsample, ucode)
 PlatformId pid;
 int index;
-UItime *t;
+ZebTime *zt;
+int nsample;
+UpdCode ucode;
 /*
  * A data available notification has arrived.
  */
@@ -490,17 +501,18 @@ UItime *t;
 	char rep[40];
 	int reroute;
 	bool global;
+	char ctime[40];
 /*
  * Look at times and components.  Florida change: Use the current time
  * for the plot, instead of the data time -- that way things like boundaries
  * plot right.
  */
-	/* PlotTime = *t; */
+	/* PlotTime = *zt; */
 	tl_Time (&PlotTime);
 	comps = pd_CompList (Pd);
-	msg_ELog (EF_DEBUG, "Data available on %s (c: %s) at %d %d", 
-		ds_PlatformName (pid), comps[index], t->ds_yymmdd,
-		t->ds_hhmmss);
+	TC_EncodeTime (zt, TC_Full, ctime);
+	msg_ELog (EF_DEBUG, "Data available on %s (c: %s) at %s", 
+		ds_PlatformName (pid), comps[index], ctime);
 /*
  * Look for cases in which global triggers should be rerouted into updates;
  * this is to make time series plots work right.
