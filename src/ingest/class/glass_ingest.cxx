@@ -1,5 +1,5 @@
 /*
- * $Id: glass_ingest.cxx,v 2.3 1999-07-12 21:46:22 granger Exp $
+ * $Id: glass_ingest.cxx,v 2.4 1999-07-13 00:41:58 granger Exp $
  *
  * Ingest GLASS data into the system.
  *
@@ -44,10 +44,12 @@
 
 #include <errno.h>
 #include <stdio.h>
-#include <string.h>
+#include <string>
 #include <iostream.h>
 #include <fstream.h>
 #include <strstream.h>
+
+// using std::string;
 
 #include <ctype.h>
 #include <defs.h>
@@ -60,7 +62,7 @@ extern "C"
 #include <met_formulas.h>
 }
 
-RCSID("$Id: glass_ingest.cxx,v 2.3 1999-07-12 21:46:22 granger Exp $")
+RCSID("$Id: glass_ingest.cxx,v 2.4 1999-07-13 00:41:58 granger Exp $")
 
 #include "ZTime.hh"
 #include "FieldClass.h"
@@ -69,7 +71,7 @@ RCSID("$Id: glass_ingest.cxx,v 2.3 1999-07-12 21:46:22 granger Exp $")
 class AppException
 {
 public:
-	AppException (const string msg) : m_msg (msg)
+	AppException (const string &msg) : m_msg (msg)
 	{}
 
 	AppException () : m_msg("unknown application exception") { }
@@ -84,12 +86,12 @@ protected:
 class LibraryException : public AppException
 {
 public:
-	LibraryException (unsigned int err, const string msg) :
+	LibraryException (unsigned int err, const string &msg) :
 		AppException (msg),
 		m_errno (err)
 	{}
 
-	LibraryException (const string msg) :
+	LibraryException (const string &msg) :
 		AppException (strerror (::errno)),
 		m_errno (::errno)
 	{
@@ -477,6 +479,7 @@ int main (int argc, char **argv)
 	}
 	catch (const AppException &e)
 	{
+		cerr << e.message() << endl;
 		IngestLog(EF_PROBLEM, "%s", e.message().c_str());
 		exit (PROBLEM);
 	}
