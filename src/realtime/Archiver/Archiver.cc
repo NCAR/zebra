@@ -48,7 +48,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 
-MAKE_RCSID ("$Id: Archiver.cc,v 1.15 1992-07-17 23:00:37 granger Exp $")
+MAKE_RCSID ("$Id: Archiver.cc,v 1.16 1992-07-22 14:44:52 granger Exp $")
 
 /*
  * Issues:
@@ -72,6 +72,33 @@ MAKE_RCSID ("$Id: Archiver.cc,v 1.15 1992-07-17 23:00:37 granger Exp $")
 			write to device
 		mark files dumped
  */
+
+/* The revised strategy to accomodate user-specified delays and writes:
+
+	A global Suspended flag can be set to True by button callbacks
+	while (read on pipe)
+		write to device
+		process x events
+		if (suspended flag was set)
+			Poll X and msg_fd as long as suspended flag 
+			   remains set
+	continue reading pipe
+
+	the suspended flag will be rest by either an X event (user presses
+		a resume event) or a timer message forcing a resume
+
+	the user can explicitly request a write (other than a finish)
+	a request to write during a write (such as the normal timer event
+	   during a user-requested write) will be pending and started
+	   after the completion of the current write
+	finishes can be queued as well and are executed like any other
+	   write, except that an explicit finish flag forces a finish
+	   once the write completes (rather than continuing normally)
+
+	death messages from the message handler must be flagged
+	   and acted on after any current write completes
+*/
+
 /*------------------------------------------------------------------------*/
 
 # define BFACTOR	64	/* Blocking factor for the tar command */
@@ -100,24 +127,32 @@ MAKE_RCSID ("$Id: Archiver.cc,v 1.15 1992-07-17 23:00:37 granger Exp $")
 stbl	DumpedTable;
 char listfile[200];	
 
-int	TimerEvent;		/* The absolute, regular write event */
+/*
+ * Global timer event slots
+ */
 int 	ResumeEvent = -1;	/* If in suspended status, this is the
 				 * timer event which will resume the tar.
 				 * -1 indicates we're not suspended */
 int	RemainingEvent = -1;	/* The event which slowly counts down the
 				 * the time remaining in a suspension */
+
+/*
+ * Global flags indicating the current status of Archiver
+ */
 int	Suspended = FALSE;	/* True when a write has been stopped */
 int	WriteInProgress = FALSE;/* A tar has been started */
-
 int	Dying = FALSE;		/* Set by Handler() on a MH_SHUTDOWN msg
 				 * during a write */
 
-int	DeviceFD = -1;		/* -1 = no drive	*/
+int	DeviceFD = -1;		/* output device file descriptor:
+				 * TAR output is piped to here
+				 * - for tape mode, it's the tape drive device
+				 * - for eod mode, it's a file on the
+				 *   mounted output directory
+				 * -1 <==> no drive	*/
 
-unsigned long	BytesWritten = 0;
-
-int	FilesWritten = 0;
-int	FreshTape = TRUE;
+unsigned long	BytesWritten = 0;	/* Statistics stuff */
+int		FilesWritten = 0;
 
 static char Tarbuf[65536]; 	/* Where the tar command is built.  */
 
@@ -130,6 +165,7 @@ Widget WaitButtons[MAX_WAITBUTTONS+1];
 XtAppContext Appc;
 
 Pixel RedPix, WhitePix; 	/* Colors for the status widget. */
+
 /*------------------------------------------------------------------------*/
 
 
@@ -208,7 +244,7 @@ static XrmOptionDescRec Options[] = {
 /*-- initialization --*/
 static void	InitArchiver FP ((int *, char**));
 static void	MakeWidget FP ((int *, char **));
-static void	CreateWaitButtons FP ((String times, Widget parent,
+static Widget	CreateWaitButtons FP ((String times, Widget parent,
 			Widget left, Widget above));
 static void	Usage FP((char *prog, int argc, char *argv[]));
 static void	Die FP ((void));
@@ -217,7 +253,8 @@ static void	Die FP ((void));
 static int	Handler FP ((Message *));
 static int	xevent FP ((int));
 static void	Sync FP ((void));
-static void	PollWhileSuspended FP((void));
+static void	PollWhileSuspended FP((int msg_fd));
+static void	check_messages FP((int msg_fd));
 
 /*-- Xt callbacks --*/
 static void	Finish FP ((void));
@@ -237,13 +274,15 @@ static int	EjectEOD FP ((void));
 static void	MountEOD FP ((void));
 
 /*-- Timer event handlers --*/
-static void	TimerSaveFiles FP ((ZebTime *));
+static void	TimerSaveFiles FP ((ZebTime *zt));
 static void	TimerResumeWrite FP((ZebTime *zt));
 static void	TimerRemaining FP((ZebTime *zt, void *cdata));
 
 /*-- high-level write and datastore interaction */
-static void	LoadFileList FP ((void));
+static void	RequestWrite FP((int finish));
+static void	DoTheWriteThing FP((int finish));
 static void	SaveFiles FP ((int));
+static void	LoadFileList FP ((void));
 static void	DumpPlatform FP ((Platform *, int));
 static int	RunTar FP ((char *));
 static void	UpdateList FP ((void));
@@ -251,6 +290,7 @@ static int	WriteFileDate FP ((char *, int, SValue *, FILE *));
 static void	SendMA FP ((int));
 static int	TellDaemon FP ((char *, int, SValue *, int));
 static void	UpdateMem FP ((void));
+static void	FinishFinishing FP((void));
 
 /*---------------------------------------------------------------------*/
 
@@ -263,21 +303,25 @@ char **argv;
  * Initialize.
  */
 	usy_init ();
-	msg_connect (Handler, "Archiver");
-#ifdef notdef
-	ds_Initialize ();
-#endif
+	if (!msg_connect (Handler, "Archiver"))
+	{
+		fprintf(stderr,"Archiver: could not connect to message\n");
+		Die();
+	}
+	if (!ds_Initialize ())
+	{
+		fprintf(stderr,"Archiver: DataStore initialization failed\n");
+		Die();
+	}
 	InitArchiver(&argc,argv);
 /*
  * Window sys initialization.
  */
 	MakeWidget (&argc, argv);
 
-#ifdef notdef
 	chdir (DATADIR);
 	LoadFileList ();
 	UpdateMem ();
-#endif
 	switch (ArchiveMode)
 	{
 	    case AR_TAPE:
@@ -291,13 +335,7 @@ char **argv;
  * Go into our dump loop.
  */
 	msg_add_fd (XConnectionNumber (XtDisplay (Top)), xevent);
-/*
- * msg_await() may return if a handler returns non-zero.  This 
- * occurrence only means something in the msg_await loop in RunTar,
- * so we just loop forever here and ignore return values
- */
-	while (1)
-		msg_await ();
+	msg_await ();
 }
 
 
@@ -316,13 +354,21 @@ char **argv;
 		Options, XtNumber(Options),
 		argc, argv,
 		NULL, NULL, 0);
-	
+
 	/*
 	 * If any args are left, there was an error on the command line
 	 */
 	if (*argc > 1)
 	{
-		msg_ELog(EF_PROBLEM,"Illegal command-line syntax");
+		/* Check for a help argument */
+		if (strncmp(argv[1], "-h", 2) == 0)
+		{
+			*argc = 1;	/* Ignore any other options */
+		}
+		else
+		{
+			msg_ELog(EF_PROBLEM,"Illegal command-line syntax");
+		}
 		Usage(argv[0], *argc, argv);
 		Die();
 	}
@@ -337,7 +383,7 @@ char **argv;
 	}
 
 	/*
-	 * Now do some error checking and feedback for the user
+	 * Now do some error checking and feedback to the user
 	 */
 	if (StartMinute > 60)
 	{
@@ -364,8 +410,8 @@ char **argv;
 	{
 		msg_ELog (EF_INFO, "Optical disk mode");
 		msg_ELog (EF_INFO, 
-			"device: %s, mount name: %s, dump files to directory: %s",
-			DriveName, MountName, OutputDir);
+			"mount name: %s, dump files to directory: %s",
+			MountName, OutputDir);
 		msg_ELog (EF_INFO, 
 			"minimum optical disk to dump: %d kb",MinDisk);
 	}
@@ -387,6 +433,16 @@ Usage(prog, argc, argv)
 	int argc;
 	char **argv;
 {
+   short i;
+
+   /*
+    * Mention all of the illegal options
+    */
+   for (i = 1; i < argc; ++i)
+   {
+   	fprintf(stderr,"Unknown or ambiguous option: %s\n",argv[i]);
+   }
+
    fprintf(stderr,"Usage: %s [options], where options are the following:\n",
 			prog);
    fprintf(stderr,"   %-20s Archive mode: optical disk or tape (tape)\n",
@@ -415,56 +471,11 @@ Usage(prog, argc, argv)
 
    fprintf(stderr,"\nDefault values are shown in parentheses.\n");
    fprintf(stderr,"Standard X Toolkit options are understood,\n");
-   fprintf(stderr,"and all options can be abbreviated.\n");
+   fprintf(stderr,"  and all options can be abbreviated.\n");
+   fprintf(stderr,"%s can also be configured through the resources database\n");
+   fprintf(stderr,"  and/or an application-defaults file.\n");
 }
 
-
-
-static void
-MountEOD()
-{
-    char cmd[80];
-    int	status;
-    sprintf ( cmd, "eodmount %s /%s", DriveName, MountName );
-    status = system(cmd);
-    DeviceFD = 0;
-}
-
-
-static int
-EjectEOD()
-{
-    char cmd[80];
-    int	 status;
-    if ( DeviceFD >= 0 )
-    {
-	sprintf ( cmd, "eodmount -u %s", DriveName );
-	status = system(cmd);
-    }
-    sprintf ( cmd, "eodutil %s eject", MountName);
-    status = system(cmd);
-    return ( WEXITSTATUS(status));
-}
-
-
-static int
-xevent (fd)
-int fd;
-/*
- * Deal with an Xt event.
- */
-{
-	XEvent event;
-/*
- * Deal with events as long as they keep coming.
- */
- 	while (XtAppPending (Appc))
-	{
-		XtAppNextEvent (Appc, &event);
-		XtDispatchEvent (&event);
-	}
-	return (0);
-}
 
 
 
@@ -499,10 +510,14 @@ char **argv;
 	XtSetArg (args[n], XtNlabel, "Unknown");	n++;
 	XtSetArg (args[n], XtNfromHoriz, w);		n++;
 	XtSetArg (args[n], XtNfromVert, above);		n++;
+	XtSetArg (args[n], XtNresizable, True);		n++;
 	WStatus = XtCreateManagedWidget ("status", labelWidgetClass, Form,
 			args, n);
 /*
- * The line of control buttons.
+ * The line of control buttons.  All but the "take/release button" start
+ * out insensitive, until we have a device to write to.
+ * The sensitivity will be updated in the ActionButton() callback,
+ * depending on whether the device is being opened or closed.
  */
 	n = 0;
 	above = w;
@@ -513,6 +528,7 @@ char **argv;
 			args, n);
 	XtAddCallback (button, XtNcallback, (XtCallbackProc) Finish, 0);
 	FinishButton = button;
+	XtSetSensitive(FinishButton, False);
 /*
  * A "take/release" button.
  */
@@ -543,15 +559,15 @@ char **argv;
 					Form, args, n);
 	XtAddCallback(button, XtNcallback, (XtCallbackProc) WriteNow, 0);
 	WriteButton = button;
+	XtSetSensitive(WriteButton, False);
 
-	CreateWaitButtons(WaitTimes, Form, button, above);
+	above = CreateWaitButtons(WaitTimes, Form, button, above);
 	SetWaitSensitivity(False);
 
 /*
  * Status info.
  */
 	n = 0;
-	above = Action;
 	XtSetArg (args[n], XtNlabel, "0 Bytes in 0 files");	n++;
 	XtSetArg (args[n], XtNfromHoriz, NULL);		n++;
 	XtSetArg (args[n], XtNfromVert, above);		n++;
@@ -575,8 +591,10 @@ char **argv;
 /*
  * Create the wait buttons as specified in the string 'times'
  * The global WaitButtons array will be NULL terminated when done
+ * Returns the widget which further widgets would come below,
+ * i.e. either the first WaitButton, or 'above' if there is none
  */
-static void
+static Widget
 CreateWaitButtons(times, parent, left, above)
 	String times;
 	Widget parent;
@@ -590,7 +608,8 @@ CreateWaitButtons(times, parent, left, above)
 	char buf[30];
 
 	ntimes = 0;
-	while (*scan && (sscanf(scan,"%i",&delays[ntimes]) == 1))
+	while (*scan && (ntimes < MAX_WAITBUTTONS) &&
+			(sscanf(scan,"%i",&delays[ntimes]) == 1))
 	{
 		++ntimes;
 		if ((scan = strchr(scan,',')) == NULL)
@@ -609,10 +628,15 @@ CreateWaitButtons(times, parent, left, above)
 					commandWidgetClass,
 					parent, args, n);
 		XtAddCallback(WaitButtons[i], XtNcallback, 
-		      (XtCallbackProc) SuspendWrite, (XtPointer)delays[i]);
+		      (XtCallbackProc) SuspendWrite, 
+		      (XtPointer)(delays[i]*60));
 		left = WaitButtons[i];
 	}
 	WaitButtons[ntimes] = NULL;
+	if (ntimes == 0)
+		return(above);
+	else
+		return(WaitButtons[0]);
 }
 
 
@@ -628,55 +652,50 @@ Finish ()
 	int	year,month,day,hour,minute;
 	int	status = 0;
 
-	/*
-	 * If a write is in progress, we can't finish yet because
-	 * we can't take the tape offline yet.
-	 */
-	if (WriteInProgress)
-		return;
-
 	if (DeviceFD < 0)
 	{
 	    switch ( ArchiveMode )
 	    {
 	      case AR_TAPE:
 		SetStatus (TRUE, "Can't finish -- no tape");
-		return;
 	      break;
 	      case AR_EOD:
 		SetStatus (TRUE, "Can't finish -- no optical disk");
-		return;
 	      break;
 	    }
 	}
+	else
+	{
+	   msg_ELog(EF_DEBUG, "requesting a write and a finish");
+	   RequestWrite(TRUE);	/* Request a write with an explicit finish */
+	}
+}
+
+
+/*
+ * Things to do when finishing off, such as releasing devices
+ * and dying
+ */
+static void
+FinishFinishing()
+{
+	msg_ELog(EF_DEBUG, "finishing a finish");
 	switch ( ArchiveMode )
 	{
 	    case AR_TAPE:
-		SaveFiles (TRUE);
-		SpinOff ();
+		XtSetSensitive(FinishButton, False);
+		XtSetSensitive(WriteButton, False);
+		SpinOff();
 	    break;
 	    case AR_EOD:
-		tl_Time (&zt);
-		TC_ZtSplit (&zt, &year, &month, &day, &hour, &minute, 0, 0);
-		sprintf( datafile, "%s/%02d%02d%02d.%02d%02d.tar",
-		    OutputDir,year,month,day,hour,minute );
-	        if ((DeviceFD = open (datafile, O_RDWR|O_CREAT,(int)0664)) < 0)
-		{
-		    SetStatus ( TRUE, "Bad file open on EOD" );
-		    msg_ELog (EF_INFO, "Error %d opening %s", errno, datafile);
-		}
-		else
-		{
-		    SaveFiles (TRUE);
-		    close(DeviceFD);
-		}
-		status = EjectEOD ();
+		if (DeviceFD >= 0)
+			close(DeviceFD);
+		EjectEOD ();
 	    break;
 	}
 	SetStatus (TRUE, "CROAK");
 	Die ();
 }
-
 
 
 
@@ -687,13 +706,17 @@ ActionButton ()
  * Take or release the tape.
  */
 {
+	static int TimerEvent;		/* The regular write event */
+					/* This function both starts and
+					 * cancels it */
 	Arg args[2];
 	ZebTime current, zt;
 	int year, month, day, hour, min, sec;
 	int status;
 
 /*
- * If in the middle of a write, ignore this button
+ * If in the middle of a write, we can't do anything now since we don't
+ * want to release the tape while writing.
  */
 	if (WriteInProgress)
 		return;
@@ -702,39 +725,42 @@ ActionButton ()
  */
 	if (DeviceFD < 0)
 	{
-	    switch ( ArchiveMode )
-	    {
-		case AR_TAPE:
-	        /*
-	         * Get the tape.
-	         */
-		    if (! OpenTapeDevice ())
-		    {
-			SetStatus (TRUE, "Unable to open tape");
-			return;
-		    }
-
-		    SetStatus (FALSE, "Sleeping");
-		    XtSetArg (args[0], XtNlabel, "Free tape");
-		break;
-		case AR_EOD:
-		    MountEOD();
-		    XtSetArg (args[0], XtNlabel, "Free optical disk.");
-		break;
-	    }
-	/*
-	 * Start saving stuff.  Find the next time by searching from the
-	 * beginning of the day until we get a time greater than the current
-	 * time.
-	 */
+		switch ( ArchiveMode )
+		{
+			case AR_TAPE:
+		        /*
+		         * Get the tape.
+		         */
+			    if (! OpenTapeDevice ())
+			    {
+				SetStatus (TRUE, "Unable to open tape");
+				return;
+			    }
+	
+			    SetStatus (FALSE, "Sleeping");
+			    XtSetArg (args[0], XtNlabel, "Free tape");
+			break;
+			case AR_EOD:
+			    MountEOD();
+			    XtSetArg (args[0], XtNlabel, "Free optical disk.");
+			break;
+		}
+		XtSetSensitive(FinishButton, True);
+		XtSetSensitive(WriteButton, True);
+	
+		/*
+		 * Start saving stuff.  Find the next time by searching 
+		 * from the beginning of the day until we get a time 
+		 * greater than the current time.
+		 */
 		tl_Time (&current);
 		TC_ZtSplit (&current, &year, &month, &day, 0, 0, 0, 0);
 		TC_ZtAssemble (&zt, year, month, day, 0, StartMinute, 0, 0);
 		while (zt.zt_Sec < current.zt_Sec)
 			zt.zt_Sec += DumpInterval * 60;
-					
+						
 		TimerEvent = tl_AbsoluteReq (TimerSaveFiles, 0, &zt,
-				DumpInterval*60*INCFRAC);
+			DumpInterval*60*INCFRAC);
 	}
 /*
  * Otherwise we give it away.
@@ -746,6 +772,8 @@ ActionButton ()
 	    {
 		case AR_TAPE:
 		    XtSetArg (args[0], XtNlabel, "Take tape");
+		    XtSetSensitive(FinishButton, False);
+		    XtSetSensitive(WriteButton, False);
 		    SpinOff ();
 		    close (DeviceFD);
 		    DeviceFD = -1;
@@ -758,6 +786,8 @@ ActionButton ()
 		        XtSetArg (args[0], XtNlabel, "Mount optical disk");
 		        DeviceFD = -1;
 		        SetStatus (TRUE, "Awaiting optical disk");
+		        XtSetSensitive(FinishButton, False);
+		        XtSetSensitive(WriteButton, False);
 		    }
 		    else
 		    {
@@ -840,37 +870,192 @@ OpenTapeDevice ()
 
 
 
-static void
-TimerSaveFiles (zt)
-ZebTime *zt;
 /*
- * File saving invoked from a timer event.
+ * Something or someone wants to do a write!  Every request MUST
+ * come through this function.  If a write is already in progress,
+ * then a static pending flag is set.  When the current write finishes,
+ * the loop will be re-entered because the pending flag is set.
+ * 'all' is true for an explicit request to finish.  An explicit finish
+ * automatically implies saving all files.  Situations where all files
+ * are saved, other than when finishing, are determined in DoTheWriteThing()
+ * If a request to finish is made, the follow-through actions are
+ * executed from DoTheWriteThing().
  */
+static void
+RequestWrite(finish)
+	int finish;
 {
+	static int pending = FALSE;  /* A write request is pending */
+	static int pending_finish;   /* True if a pending request has made
+				      * an explicit request for all files */
+	static int working = FALSE;
+
+	/*
+	 * If we have no tape, we do nothing.
+	 */
+	if (DeviceFD < 0)
+		return;
+
+	/*
+	 * If a SaveFiles is already in progress, just set the pending flag
+	 * and return.  If any request wants a finish, then the
+	 * next request will do a finish
+	 */
+	if (working)
+	{
+		pending = TRUE;
+		pending_finish = pending_finish | finish;
+		msg_ELog(EF_DEBUG,
+			"Write in progress, request to %s is now pending",
+			(finish)?"finish":"write");
+		return;
+	}
+	else
+	{
+		working = TRUE;
+		pending_finish = finish;
+		pending = TRUE;
+	}
+
+	/*
+	 * As long as we have pending requests, do the write thing
+	 */
+	while (pending)
+	{
+		pending = FALSE;
+
+		msg_ELog(EF_DEBUG, 
+			"Beginning a %s request",
+			(pending_finish)?"finish":"write");
+		/*
+		 * The time that this write request actually gets
+		 * started will be calculated in this function
+		 */
+		DoTheWriteThing(pending_finish);
+	}
+
+	/*
+	 * All writing is finished, so note this in all the necessary
+	 * settings
+	 */
+	working = FALSE;
+	SetStatus (FALSE, "Sleeping");
+	WriteInProgress = FALSE;
+	SetWaitSensitivity(False);
+	XtSetSensitive(FinishButton, True);
+	XtSetSensitive(Action, True);
+	Sync();
+}
+
+
+/*
+ * The timer calls this function at regular intervals (DumpInterval)
+ * to instigate a write.  This function just does a RequestWrite(),
+ * and that takes care of it.  This request could end up pending
+ * because of a current write in progress, so the current time is
+ * ignored and calculated at the time of the actual write
+ */
+static void
+TimerSaveFiles(zt)
+	ZebTime *zt;
+{
+	char stime[50];
+
+	TC_EncodeTime(zt, TC_Full, stime);
+	msg_ELog(EF_DEBUG,"%s, TimerSaveFiles() requesting a write",stime);
+	RequestWrite(FALSE);
+}
+
+
+/*
+ * Peform checks before and after a SaveFiles() call, such as
+ * finishing a day's tape or a full tape.  The current time
+ * is retrieved from the timer and used for all of the checks.
+ * All writes must go through this function, so FreshTape can keep
+ * track of whether the current tape has been written.
+ * The 'explicit_finish' parameter is an explicit request to write all files.
+ * If false, all files may still be written if deemed necessary here.
+ */
+static void
+DoTheWriteThing(explicit_finish)
+	int explicit_finish;
+{
+	static int FreshTape = TRUE;	/* True if the current tape has
+					 * never been written to */
 	int status;
 	int year, month, day, hour, minute, second;
-	int test, delta;
+	int all;		/* Whether we want to write all files */
+	int delta;
 	ZebTime daystart;
+	ZebTime zt;	/* The current time, the time this write begins */
 	char datafile[120];
 	struct statfs buf;
+
 /*
- * Special check -- if this is the first dump of a new day, we clean up 
- * everything
+ * Special check -- if this is the first dump of a new day, and not
+ *		    already a fresh tape, we clean up everything
  */
-	TC_ZtSplit (zt, &year, &month, &day, &hour, &minute, &second, 0);
+	tl_Time(&zt);
+	TC_ZtSplit (&zt, &year, &month, &day, &hour, &minute, &second, 0);
 	TC_ZtAssemble (&daystart, year, month, day, 0, 0, 0, 0);
-	delta = zt->zt_Sec - daystart.zt_Sec;
+	delta = zt.zt_Sec - daystart.zt_Sec;
+
+	all = FALSE;		/* Default, verified below */
 
 	switch ( ArchiveMode )
 	{
-	    case AR_TAPE:
+	   case AR_TAPE:
+		/*
+		 * If we are starting new tapes at 0z (ZeroZFree), and if this
+		 * is the first write of the day, and not a fresh tape,
+		 * then we need to finish on this write
+		 */
 		if (ZeroZFree)
-			test = ((delta < 60 * DumpInterval) && (! FreshTape));
-		else
-			test = FALSE;
+			all = ((delta < 60 * DumpInterval) && (! FreshTape));
+		if (all)
+			msg_ELog(EF_INFO,"finishing yesterday's tape");
+		break;
 
-		SaveFiles (test);
-		if (test)
+	   case AR_EOD:
+		/*
+		 * For optical disks, the ZeroZFree flag is ignored (?) 
+		 * Just write until the disk is full
+		 */
+		sprintf( datafile, "%s/%02d%02d%02d.%02d%02d.tar",
+		    OutputDir,year,month,day,hour,minute );
+		if ((DeviceFD = open (datafile, O_RDWR|O_CREAT,(int)0664)) < 0)
+		{
+		    SetStatus ( TRUE, "Bad file open on EOD" );
+		    msg_ELog (EF_INFO, "Error %d opening %s", errno, datafile);
+		    /*
+		     * If we're supposed to finish, then we do so despite the
+		     * error
+		     */
+		    if (explicit_finish)
+			FinishFinishing();
+		}
+		break;
+	}
+
+	/*
+	 * Save ALL files only if we want to finish off this tape, either
+	 * because we want to start a new day or because it has been
+	 * explicitly requested (most likely by the user)
+	 */
+	all = all | explicit_finish;
+	SaveFiles(all); 	
+
+	/*
+	 * If we are finishing, then complete the necessary actions.
+	 * This won't return.
+	 */
+	if (explicit_finish)
+	   	FinishFinishing();
+
+	switch ( ArchiveMode )
+	{
+	   case AR_TAPE:
+		if (all)	/* else we need a new day's tape */
 		{
 		    ActionButton ();
 		    SetStatus (TRUE, "Need new day's tape");
@@ -878,38 +1063,56 @@ ZebTime *zt;
 		}
 		else if (BytesWritten > TapeLimit)
 		{
+		    /*
+		     * This tape is full; get a new one 
+		     */
+		    msg_ELog(EF_DEBUG,"tape is full, %li Mb, limit %li",
+				BytesWritten/1000000,
+				TapeLimit/1000000);
 		    ActionButton ();
-		    SetStatus (TRUE, "Need new tape");
+		    SetStatus (TRUE, "Tape is full, need a new one");
 		    FreshTape = TRUE;
 		}
 		else
 		    FreshTape = FALSE;
 	    break;
-	    case AR_EOD:
-		sprintf( datafile, "%s/%02d%02d%02d.%02d%02d.tar",
-		    OutputDir,year,month,day,hour,minute );
-		if ((DeviceFD = open (datafile, O_RDWR|O_CREAT,(int)0664)) < 0)
+
+	   case AR_EOD:
+		/*
+		 * Finished writing another file onto optical disk
+		 * Make sure there is room for more, else request
+		 * a new disk
+		 */
+		close ( DeviceFD );
+		status = statfs(DriveName,&buf);
+		if ( !status && buf.f_bavail < MinDisk )
 		{
-		    SetStatus ( TRUE, "Bad file open on EOD" );
-		    msg_ELog (EF_INFO, "Error %d opening %s", errno, datafile);
-		}
-	 	else
-		{
-		    SaveFiles(FALSE);
-		    close ( DeviceFD );
-		    status = statfs(DriveName,&buf);
-		    if ( !status && buf.f_bavail < MinDisk )
-		    {
+			msg_ELog(EF_DEBUG,
+			   "Disk full. %li kb left less than %li",
+			   buf.f_bavail, MinDisk);
 			ActionButton ();
 			SetStatus (TRUE, "Need new optical disk.");
-		    }
 		}
-	    break;
+	    	break;
+	}
+
+	/*
+	 * If we're supposed to die when finished with this write action,
+	 * then do so.  Note that any PENDING writes will be lost.  No
+	 * further writes are possible since Dying implies we have
+	 * lost our DataStore connection.
+	 */
+	if (Dying)
+	{
+		msg_ELog(EF_DEBUG,"Acting on impending death");
+		Die();
 	}
 }
 
 
-
+/*
+ * The only function which should call this is DoTheWriteThing()
+ */
 static void
 SaveFiles (all)
 int all;
@@ -917,89 +1120,64 @@ int all;
  * Pass through the list of stuff and save files to the tape.
  */
 {
-	static int pending = FALSE, pending_all;
-	static int working = FALSE;
 	int plat;
-/*
- * If we have no tape, we do nothing.
- */
-	if (DeviceFD < 0)
-		return;
-/*
- * If a SaveFiles is already in progress, just set the pending flag
- * and return
- */
-	if (working)
-	{
-		pending = TRUE;
-		pending_all = pending_all | all;
-		return;
-	}
-	else
-	{
-		working = TRUE;
-		pending = TRUE;
-		pending_all = all;
-	}
 
-/*
- * As long as we have pending requests, save files
- */
-	while (pending)
-	{
-		pending = FALSE;
 	/*
 	 * The tar command, less the file names
 	 */
-		sprintf (Tarbuf, "exec tar cfb - %d ", BFACTOR);
+	sprintf (Tarbuf, "exec tar cfb - %d ", BFACTOR);
+
 	/*
 	 * Pass through the platform table and dump things.
 	 */
-		SetStatus (FALSE, "Scanning platforms");
-		for (plat = 0; plat < SHeader->sm_nPlatform; plat++)
-			if (! (PTable[plat].dp_flags & DPF_SUBPLATFORM))
-				DumpPlatform (PTable + plat, pending_all);
-	/*
-	 * Run the tar command to put this all together.
-	 */
-		if ( strlen(Tarbuf) > 20 )
-		{
-			SetStatus (FALSE, "Writing");
-			WriteInProgress = TRUE;
-			SetWaitSensitivity(True);
-			XtSetSensitive(FinishButton, False);
-			XtSetSensitive(Action, False);
-		}
-
-		if (strlen (Tarbuf) > 20 && RunTar (Tarbuf))
-		{
-		    switch ( ArchiveMode )
-		    {
-			case AR_TAPE:
-			    WriteEOF ();
-			break;
-			case AR_EOD:
-			break;
-		    }
-		    UpdateList ();
-		}
-		/*
-		 * If we received a death message while writing,
-		 * act on it now
-		 */
-		if (Dying)
-			Die();
+	SetStatus (FALSE, "Scanning platforms");
+	for (plat = 0; plat < SHeader->sm_nPlatform; plat++)
+	{
+		if (! (PTable[plat].dp_flags & DPF_SUBPLATFORM))
+			DumpPlatform (PTable + plat, all);
 	}
 
-	SetStatus (FALSE, "Sleeping");
-	working = FALSE;
-	WriteInProgress = FALSE;
-	SetWaitSensitivity(False);
-	XtSetSensitive(FinishButton, True);
-	XtSetSensitive(Action, True);
+	/*
+	 * Run the tar command to put this all together, but only if
+	 * we actually got any files to write
+	 */
+	if ( strlen(Tarbuf) > 20 )
+	{
+		/* 
+		 * Do all the settings to signal a write in progress 
+		 */
+		SetStatus (FALSE, "Writing");
+		WriteInProgress = TRUE;
+		SetWaitSensitivity(True);
+		XtSetSensitive(FinishButton, False);
+		XtSetSensitive(Action, False);
+		Sync();
+
+		/*
+		 * Now try running the tar command
+		 */
+		if (RunTar (Tarbuf))
+		{
+			/* The tar succeeded, so put an EOF marker
+			 * on the tape */
+			switch ( ArchiveMode )
+			{
+			   case AR_TAPE:
+				WriteEOF ();
+				break;
+			   case AR_EOD:
+				break;
+			}
+			UpdateList ();
+		}
+	}	
+
+	/*
+	 * Another write may be pending so we'll just return.
+	 * If all writing is finished, it is up to the calling function to
+	 * set all the necessary flags
+	 */
 }
-
-
 
 
 
@@ -1008,12 +1186,14 @@ DumpPlatform (p, all)
 Platform *p;
 int all;
 /*
- * Dump out any files from this platform.
+ * Dump out any files from this platform by appending each file name onto
+ * the Tarbuf command buffer
  */
 {
 	ZebTime last, dumptime;
 	SValue v;
 	int type, findex;
+
 /*
  * Find the last time this thing was dumped.
  */
@@ -1064,21 +1244,21 @@ int all;
 
 
 
-
-
-
-
 static int
 RunTar (cmd)
 char *cmd;
 /*
  * Run this tar command, and deal with writing its output to tape.
+ * To help reduce system load, at the cost of some response time,
+ * the X and msg fd's are only polled for every other block read
  */
 {
 	FILE *pfp = popen (cmd, "r");
 	static char fbuf[BLOCKSIZE];
 	int rstatus, nb, tnb = 0;
-	int msg_fd;
+	char toggle;
+	int msg_fd = msg_get_fd(); /* Keeping message fd here avoids 
+			  	    * repeated requests for it when polling */
 
 /*
  * Be sure we can run tar.
@@ -1092,6 +1272,7 @@ char *cmd;
 /*
  * Now read out chunks of stuff.
  */
+	toggle = 0;
 	while ((nb = netread (pfp->_file, fbuf, BLOCKSIZE)) > 0)
 	{
 		if (write (DeviceFD, fbuf, nb) < nb) /* oh shit! */
@@ -1106,15 +1287,20 @@ char *cmd;
 			return (FALSE);
 		}
 		tnb += nb;
+		toggle = ~toggle;
 		/*
 		 * Get any X events.  If a suspension is requested, we'll
 		 * catch it here in the Suspended flag
 		 */
-		xevent (0);
-		if (Suspended)		 /* we must poll msg and X until
-					  * the Suspended flag is clear */
+		if (toggle)
 		{
-			PollWhileSuspended();
+		   xevent (0);
+		   check_messages(msg_fd);
+		   if (Suspended)	 /* we must poll msg and X until
+					  * the Suspended flag is clear */
+		   {
+			PollWhileSuspended(msg_fd);
+		   }
 		}
 	}
 /*
@@ -1131,6 +1317,52 @@ char *cmd;
 }
 
 
+
+static void
+MountEOD()
+{
+    char cmd[80];
+    int	status;
+    sprintf ( cmd, "eodmount %s /%s", DriveName, MountName );
+    status = system(cmd);
+    DeviceFD = 0;
+}
+
+
+static int
+EjectEOD()
+{
+    char cmd[80];
+    int	 status;
+    if ( DeviceFD >= 0 )
+    {
+	sprintf ( cmd, "eodmount -u %s", DriveName );
+	status = system(cmd);
+    }
+    sprintf ( cmd, "eodutil %s eject", MountName);
+    status = system(cmd);
+    return ( WEXITSTATUS(status));
+}
+
+
+static int
+xevent (fd)
+int fd;
+/*
+ * Deal with an Xt event.
+ */
+{
+	XEvent event;
+/*
+ * Deal with events as long as they keep coming.
+ */
+ 	while (XtAppPending (Appc))
+	{
+		XtAppNextEvent (Appc, &event);
+		XtDispatchEvent (&event);
+	}
+	return (0);
+}
 
 
 static int
@@ -1156,6 +1388,8 @@ Message *msg;
 			if (WriteInProgress)
 			{
 				Dying = TRUE;
+				msg_ELog(EF_DEBUG,
+	   "MH_DIE message: death will ensue after current write completes");
 			}
 			else
 			{
@@ -1174,18 +1408,39 @@ Message *msg;
 }
 
 
+/*
+ * Poll for and then handle any messages from the message handler
+ */
+static void
+check_messages(fd)
+	int fd;		/* message's file descriptor */
+{
+	fd_set fdset;
+	struct timeval timeout = {0, 0};
+	
+	FD_ZERO(&fdset);
+	FD_SET(fd, &fdset);
+	if (select(fd+1, &fdset, 0, 0, &timeout) > 0)
+	{
+		msg_incoming(fd);
+	}
+}
+
 
 /*
  * Poll message fd and X fd and handle any messages as long
- * as Suspended remains true
+ * as Suspended remains true.  Note the built-in 1 second delay
+ * in the poll to reduce system cpu usage but maintain handling
+ * of X events
  */
 static void
-PollWhileSuspended()
+PollWhileSuspended(fd)
+	int fd;
 {
 	static struct timeval timeout = { 1, 0 };
 	fd_set fdset;
-	int fd = msg_get_fd();
 
+	msg_ELog(EF_DEBUG,"polling for end of suspension in write");
 	while (Suspended)
 	{
 		/*
@@ -1214,8 +1469,6 @@ Die ()
 {
 	exit (0);
 }
-
-
 
 
 
@@ -1340,7 +1593,6 @@ SpinOff ()
 
 
 
-
 static void
 SetStatus (problem, s)
 int problem;
@@ -1356,6 +1608,10 @@ char *s;
 	XtSetArg (args[n], XtNbackground, problem ? RedPix : WhitePix); n++;
 	XtSetValues (WStatus, args, n);
 	Sync ();
+	/*
+	 * Note the status in the log as well
+	 */
+	msg_ELog(problem ? EF_PROBLEM : EF_DEBUG, s);
 }
 
 
@@ -1384,9 +1640,6 @@ Sync ()
 	XSync (XtDisplay (Top), False);
 	xevent (0);
 }
-
-
-
 
 
 
@@ -1438,8 +1691,6 @@ int junk;
 
 
 
-
-
 static void
 SendMA (index)
 int index;
@@ -1453,8 +1704,6 @@ int index;
 	ma.dsp_FileIndex = index;
 	msg_send ("DS_Daemon", MT_DATASTORE, FALSE, &ma, sizeof (ma));
 }
-
-
 
 
 
@@ -1551,14 +1800,15 @@ SuspendWrite(w, call_data)
 
 	/*
 	 * Now register the relative timer event which will count
-	 * down to the end time every 10 seconds and show the value
+	 * down to the end time every 15 seconds and show the value
 	 * in the status label. The first call will be ASAP
 	 */
 	if (RemainingEvent != -1)
 	{
 		tl_Cancel(RemainingEvent);
 	}
-	RemainingEvent = tl_RelativeReq(TimerRemaining, &ends, 0, 10);
+	RemainingEvent = tl_RelativeReq(TimerRemaining, &ends, 0, 
+				15 * INCFRAC);
 
 	/*
 	 * Now set the Suspended flag.  This will be caught by the
@@ -1568,7 +1818,7 @@ SuspendWrite(w, call_data)
 	 */
 	Suspended = TRUE;
 	sprintf(buf,"Write suspended for %i seconds",waitsecs);
-	SetStatus(FALSE, buf);
+	SetStatus(TRUE, buf);
 	XtVaSetValues(WriteButton, XtNlabel, "Resume", NULL);
 }
 
@@ -1605,9 +1855,9 @@ TimerRemaining(zt, cdata)
 	/*
 	 * Display this value in the status label
 	 */
-	sprintf(buf,"Write suspended.  Time remaining: %li:%02li", 
+	sprintf(buf,"Suspended.  Time remaining: %li:%02li", 
 		seconds/60, seconds % 60);
-	SetStatus(FALSE,buf);
+	SetStatus(TRUE,buf);
 }
 
 
@@ -1622,8 +1872,20 @@ static void
 TimerResumeWrite(zt)
 	ZebTime *zt;
 {
+	char stime[50];
+
+	TC_EncodeTime(zt, TC_Full, stime);
 	if (Suspended)
+	{
+		msg_ELog(EF_DEBUG,
+		   "%s, resume event calling WriteNow()", stime);
 		WriteNow();
+	}
+	else
+	{
+		msg_ELog(EF_DEBUG,
+		   "%s, resume event while not suspended", stime);
+	}
 }
 
 
