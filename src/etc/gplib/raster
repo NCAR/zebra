@@ -84,7 +84,7 @@ endprocedure
 procedure hl-apply
 	local f ui$form
 	local c getftext(f, 'comp')
-	local field PDParam(c, 'field')
+	local field SimpleFieldName(PDParam(c, 'field'))
 
 	local center getftext(f, 'center')
 	local param concat(field, '-highlight')
@@ -202,7 +202,7 @@ procedure raster-ctr-step-apply
 	local center getftext(f, 'center')
 	local step getftext(f, 'step')
 	local nsteps getftext(f, 'nsteps')
-	local field pd_param(icon_component, 'field', 'string')
+	local field SimpleFieldName(pd_param(icon_component,'field','string'))
 	local param concat(field, '-center')
 	parameter #icon_component #param #center
 	local param concat(field, '-step')

@@ -111,7 +111,7 @@ endprocedure
 
 procedure iss-par-apply
 	local f ui$form
-	local fld PDParam('global','y-field')
+	local fld SimpleFieldName(PDParam('global','y-field'))
 	local c getftext(f, 'comp')
 
 	local t getftext(f, 'time')

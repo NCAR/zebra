@@ -85,7 +85,7 @@ procedure thc-cl-apply
 !		parameter #c scale-z-style normal
 !	endif
 	local ctr getftext(f, 'center')
-	local field PDParam(c, 'z-field')
+	local field SimpleFieldName(PDParam(c, 'z-field'))
 	local pname concat(field, '-scale-z-center')
 	parameter global #pname #ctr
 	local step getftext(f, 'step')
@@ -187,10 +187,11 @@ endprocedure
 ! use the field menu to change fields, and we can make sure that they have
 ! the right height array to go with it...
 !
-local th_wfields 'w_wind devw wid3 snr3 n_w wheight'
 
 procedure th-coare-fselect field string
-	parameter #icon_component z-field #field
+	local qfield quote(field)
+	local th_wfields 'w_wind devw wid3 snr3 n_w wheight'
+	parameter #icon_component z-field #qfield
 	if (substring (th_wfields, field))
 		parameter #icon_component y-field wheight
 	else
@@ -203,7 +204,8 @@ endprocedure
 ! This doesn't belong here; move it someday.  Set z field only.
 !
 procedure set-zfield field string
-	parameter #icon_component z-field #field
+	local qfield quote(field)
+	parameter #icon_component z-field #qfield
 endprocedure
 
 

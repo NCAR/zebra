@@ -1,6 +1,6 @@
 !
 ! Lotsa track support stuff.
-! $Id: track,v 1.6 1997-02-03 17:57:18 corbet Exp $
+! $Id: track,v 1.7 1998-10-08 22:51:52 burghart Exp $
 !
 
 !
@@ -60,7 +60,7 @@ endprocedure
 procedure track-adj-apply
 	local f ui$form
 	local comp getftext(f, 'comp')
-	local field PDParam(comp, 'field')
+	local field SimpleFieldName(PDParam(comp, 'field'))
 
 	local center getftext(f, 'center')
 	local pname concat(field, '-center')
@@ -83,13 +83,14 @@ procedure track-field-select field string
 ! to be shipping data off to another window.  Shipping out "mono" would be
 ! rude, though.
 !
+	local qfield quote(field)
 	if (area_type = 'posicon')
 	   	if (field = 'mono')
 			dm 'beep'
 			return
 		endif
 		local plat PDParam(icon_component, 'platform')
-		local cmd quote(concat4('PutScalar ', plat, ' ', field))
+		local cmd quote(concat4('PutScalar ', plat, ' ', qfield))
 		dm #cmd
 		return
 	endif
@@ -99,7 +100,7 @@ procedure track-field-select field string
 	if (field = 'mono')
 		local junk pd_removeparam(icon_component,'field')
 	else
-		parameter #icon_component field #field
+		parameter #icon_component field #qfield
 	endif
 endprocedure
 
@@ -287,9 +288,9 @@ procedure tp-apply
 	parameter #c arrow-interval #atime
 	local ascale getftext(f, 'arrowscale')
 	parameter #c arrow-scale #ascale
-	local u getftext(f, 'u')
+	local u quote(getftext(f, 'u'))
 	parameter #c x-field #u
-	local v getftext(f, 'v')
+	local v quote(getftext(f, 'v'))
 	parameter #c y-field #v
 !
 ! Annotation.

@@ -61,7 +61,7 @@ endprocedure
 procedure rl-apply
 	local f ui$form
 	local comp getftext(f, 'comp')
-	local field pd_param(comp, 'field', 'string')
+	local field SimpleFieldName(pd_param(comp, 'field', 'string'))
 !
 ! This is not quite right -- we need to somehow zap out the range limits
 ! if they say 'none'
