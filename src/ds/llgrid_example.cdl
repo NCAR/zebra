@@ -1,0 +1,29 @@
+netcdf example {
+dimensions:
+	time = UNLIMITED ; // (1 currently)
+	longitude = 500 ;
+	latitude = 500 ;
+	altitude = 3 ;
+variables:
+	int base_time ;
+		base_time:units = "seconds since 1970-01-01 00:00:00 UTC" ;
+		base_time:long_name = "base time for the file";
+	float time_offset(time) ;
+		time_offset:units = "seconds" ;
+		time_offset:long_name = "offset from file base time"
+	float longitude(longitude) ;
+		longitude:units = "degrees_east" ;
+		longitude:long_name = "longitude" ;
+	float latitude(latitude) ;
+		latitude:units = "degrees_north" ;
+		latitude:long_name = "latitude" ;
+	float altitude(altitude) ;
+		altitude:units = "km" ;
+		altitude:long_name = "altitude MSL" ;
+	float var1(time, altitude, latitude, longitude) ;
+		elev:long_name = "first variable long name" ;
+		var1:units = "units string"
+	float var2(time, altitude, latitude, longitude) ;
+		elev:long_name = "second variable long name" ;
+		var2:units = "units string"
+}
