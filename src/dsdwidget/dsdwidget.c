@@ -20,7 +20,8 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: dsdwidget.c,v 1.15 1993-08-04 17:16:16 granger Exp $";
+static char *rcsid = 
+   "$Id: dsdwidget.c,v 1.16 1994-01-03 17:30:06 granger Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -46,7 +47,9 @@ static char *rcsid = "$Id: dsdwidget.c,v 1.15 1993-08-04 17:16:16 granger Exp $"
  * Data structures for the platforms we know.
  */
 char	*Names[MAXPLAT];
+PlatformId PlatIds[MAXPLAT];
 Widget	Entry[MAXPLAT];
+int	NPlat = 0;
 
 char *RemoteName;
 /*
@@ -63,7 +66,7 @@ bool	DisplayUp = False;
 FILE	*Fptr;
 char	Fname[30];
 
-static void	AddPlatforms FP((void));
+static void	AddPlatforms FP((char *re, bool sort));
 static void	CreateDSDWidget FP((void));
 static void	Die FP((void));
 static void	DumpPlatform FP((int, PlatformInfo *));
@@ -78,15 +81,44 @@ static Widget	CreateDisplayWidget FP((void));
 static void	PopdownDisplay FP((Widget, XtPointer, XtPointer));
 
 
+static void
+usage (prog)
+char *prog;
+{
+	printf("Usage: %s [-h] [-a] [regexp ...] [platform ...]\n", prog);
+	printf("If a regular expression or platform name is present, only\n");
+	printf("those platforms whose names match the name or expression\n");
+	printf("are displayed.  Any number or combination of names and\n");
+	printf("expressions may be given.  If there are no strings to\n");
+	printf("match, all of the platforms will be displayed.\n");
+	printf("   -h\tPrint this usage message.\n");
+	printf("   -a\tAlphabetize the platforms for each matching string.\n");
+}
+
+
 main (argc, argv)
 int	argc;
 char	**argv;
 {
+	char name[256];
+	bool sort, first;
+	int opt;
 /*
- * Hook into the message system and initialize data store.
+ * As always, see if all they want is a little help first
+ */
+	if ((argc > 1) && !strcmp(argv[1], "-h"))
+	{
+		usage(argv[0]);
+		exit(0);
+	}
+/*
+ * Hook into the message system and initialize data store.  We use our pid
+ * in the name since it is very possible someone will want to run different
+ * displays for different sets of platforms.
  */
 	usy_init ();
-	if (! msg_connect (MsgHandler, "dsdwidget"))
+	sprintf (name, "dsdwidget-%d", getpid());
+	if (! msg_connect (MsgHandler, name))
 	{
 		printf ("Unable to connect to message handler.\n");
 		exit (1);
@@ -119,7 +151,25 @@ char	**argv;
  */
 	if (! (RemoteName = getenv ("REMOTE_NAME")))
 		RemoteName = "Remote";
-	AddPlatforms ();
+	first = FALSE;
+	sort = FALSE;
+	for (opt = 1; opt < argc; ++opt)
+	{
+		if (!strcmp (argv[opt], "-a"))
+			sort = TRUE;
+		else
+		{
+			first = TRUE;
+			AddPlatforms (argv[opt], sort);
+		}
+	}
+	if (!first)
+		AddPlatforms (NULL, sort);
+	if (NPlat == 0)
+	{
+		printf ("%s: No matches found!\n", argv[0]);
+		exit (1);
+	}
 /*
  * Display the widget and wait for something to happen.
  */
@@ -189,11 +239,6 @@ PlatformInfo *pi;
 {
 	int i;
 	DataSrcInfo dsi;
-/*
- * Make sure this isn't a subplatform.
- */
-	if (pi->pl_SubPlatform)
-		return;
 /*
  * Open the data file.
  */	
@@ -358,25 +403,22 @@ CreateDSDWidget ()
 static void
 Rescan ()
 /*
- * Rescan the disk for new data and display the results.
+ * In theory, our platform cache is being updated by messages broadcast
+ * from the DataStore.  So all we need to do is retrieve the latest
+ * platform info and reset the widget entries.
  */
 {
-	int i, nplat = 0, np;
+	int i;
 	ZebTime begin, end;
 	PlatformInfo pi;
 
-	msg_ELog (EF_INFO, "Rescanning disk.");	
-	np = ds_GetNPlat ();
-	for (i = 0; i < np; i++)
+	msg_ELog (EF_INFO, "Updating platform info.");
+	for (i = 0; i < NPlat; i++)
 	{
-		ds_GetPlatInfo (i, &pi);
-		if (pi.pl_SubPlatform)
-			continue;
-
-		GetTimes (i, &pi, &begin, &end);
+		ds_GetPlatInfo (PlatIds[i], &pi);
+		GetTimes (PlatIds[i], &pi, &begin, &end);
 		msg_ELog (EF_DEBUG, "Setting entry %d", i);
-		SetEntry (nplat, &begin, &end);
-		nplat++;
+		SetEntry (i, &begin, &end);
 	}
 }
 
@@ -415,40 +457,56 @@ ZebTime *begin, *end;
 }
 
 
+
 static void
-AddPlatforms ()
+AddPlatforms (re, sort)
+char *re;	/* NULL implies get them all 		*/
+bool sort;	/* true if we want them alphabetized 	*/
 /*
  * Add platform names and data times to dsdwidget.
  */
 {
-	int i, nplat = 0, np;
+	int i, nplat;
 	PlatformInfo pi;
 	UItime begin, end;
+	PlatformId *platforms;
 
-	np = ds_GetNPlat ();
-	for (i = 0; i < np; i++)
+	platforms = ds_GatherPlatforms (re, &nplat, sort, FALSE);
+	for (i = 0; i < nplat; i++)
 	{
+	/*
+	 * Make sure we have room for another platform
+	 */
+		if (NPlat >= MAXPLAT)
+		{
+			msg_ELog (EF_PROBLEM, "Too many platforms: %d", NPlat);
+			break;
+		}
 	/*
 	 * Get the platform info.  Don't bother with subplatforms, since
 	 * there is no info of interest there.
 	 */
-		ds_GetPlatInfo (i, &pi);
-		if (pi.pl_SubPlatform)
-			continue;
-	        Names[nplat] = usy_pstring (pi.pl_Name);
+		ds_GetPlatInfo (platforms[i], &pi);
+	        Names[NPlat] = usy_pstring (pi.pl_Name);
+		PlatIds[NPlat] = platforms[i];
 	/*
 	 * Create a command button for a platform.
 	 */
-		GetTimes (i, &pi, (ZebTime *)&begin, (ZebTime *)&end);
-        	Entry[nplat] = XtCreateManagedWidget (pi.pl_Name,
+		GetTimes (platforms[i], &pi, 
+			  (ZebTime *)&begin, (ZebTime *)&end);
+        	Entry[NPlat] = XtCreateManagedWidget (pi.pl_Name,
 			commandWidgetClass, Box, NULL, 0);
-		XtAddCallback (Entry[nplat], XtNcallback, 
-			(XtCallbackProc) PopupDisplay, (XtPointer) i);
+		XtAddCallback (Entry[NPlat], XtNcallback, 
+			       (XtCallbackProc) PopupDisplay, 
+			       (XtPointer) platforms[i]);
 
-		SetEntry (nplat, (ZebTime *)&begin, (ZebTime *)&end);
-		nplat++;
+		SetEntry (NPlat, (ZebTime *)&begin, (ZebTime *)&end);
+		NPlat++;
 	}
+	if (platforms)
+		free (platforms);
 }
+
 
 
 static int 
@@ -532,7 +590,7 @@ CreateDisplayWidget ()
         XtSetArg (args[n], XtNwidth, 650);		n++;
         XtSetArg (args[n], XtNheight, 200);		n++;
         XtSetArg (args[n], XtNtype, XawAsciiFile);	n++;
-        XtSetArg (args[n], XtNeditType, XawtextEdit);	n++;
+        XtSetArg (args[n], XtNeditType, XawtextRead);	n++;
         XtSetArg (args[n], XtNstring, Fname);		n++;
         DispText = XtCreateManagedWidget ("display", asciiTextWidgetClass,
                 form, args, n);
