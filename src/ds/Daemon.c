@@ -39,7 +39,7 @@
 # include "dsDaemon.h"
 # include "commands.h"
 
-MAKE_RCSID ("$Id: Daemon.c,v 3.37 1994-05-31 14:45:18 burghart Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.38 1994-06-28 19:58:59 corbet Exp $")
 
 
 /*
@@ -224,6 +224,7 @@ char **argv;
 /*	dt_InitTables (); */	/* Allow setting table sizes in config file */
 	dap_Init ();
 	uf_def_function ("freespace", 1, &argt, FreeSpace);
+	F_Init ();
 /*
  * Set up the init file and other command-line options
  */

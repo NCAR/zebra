@@ -1,5 +1,5 @@
 !
-! $Id: Daemon.state,v 2.15 1994-04-27 08:23:59 granger Exp $
+! $Id: Daemon.state,v 2.16 1994-06-28 19:59:01 corbet Exp $
 !
 ! The data store daemon configuration language.
 !
@@ -363,6 +363,9 @@ define state file-type
 	endinput
 	input 'grib_sfc' 6
 		next ust$no_more
+	endinput
+	input 'grads' 7
+	      	next ust$no_more
 	endinput
 enddef
 

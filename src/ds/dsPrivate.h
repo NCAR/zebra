@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 3.23 1994-06-10 21:56:08 burghart Exp $
+ * $Id: dsPrivate.h,v 3.24 1994-06-28 19:59:08 corbet Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -43,6 +43,7 @@ typedef enum {
 	FTZeb = 4,
 	FTGRIB = 5,
 	FTGRIBSfc = 6,	/* GRIB surface grids only */
+	FTGrads = 7,
 	/* ... */
 } FileType;
 

@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.21 1994-04-27 08:24:09 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.22 1994-06-28 19:59:06 corbet Exp $"
 
 LIBMPROF=/dt/granger/libc_mp.a
 SYSLIBS=/* $(LIBMPROF) */
@@ -30,9 +30,11 @@ DSSRCS= Daemon.c d_DataTables.c d_Config.c d_Notify.c d_Scan.c d_Debug.c
  * DSLIBOBJS, DSLIBSRCS = normal DS library code 
  */
 DSLIBOBJS = Appl.o DataFileAccess.o DFA_GRIB.o DFA_NetCDF.o ingest.o \
-	GetList.o DFA_Boundary.o DFA_Raster.o Fields.o DFA_Zeb.o
+	GetList.o DFA_Boundary.o DFA_Raster.o Fields.o DFA_Zeb.o \
+	DFA_Grads.o
 DSLIBSRCS = Appl.c DataFileAccess.c DFA_GRIB.c DFA_NetCDF.c ingest.c \
-	GetList.c DFA_Boundary.c DFA_Raster.c Fields.c DFA_Zeb.c
+	GetList.c DFA_Boundary.c DFA_Raster.c Fields.c DFA_Zeb.c \
+	DFA_Grads.c
 
 /* 
  * DCOBJS, DCSRCS =  data chunk modules 

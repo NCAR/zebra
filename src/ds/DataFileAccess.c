@@ -36,7 +36,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-MAKE_RCSID ("$Id: DataFileAccess.c,v 3.16 1994-04-27 08:24:02 granger Exp $")
+MAKE_RCSID ("$Id: DataFileAccess.c,v 3.17 1994-06-28 19:59:04 corbet Exp $")
 
 /*
  * This is the structure which describes a format.
@@ -294,6 +294,13 @@ extern int	grb_DataTimes (), grb_GetFields (), grb_GetAlts ();
 extern int	grb_GetForecastTimes (), grb_SfcOpenFile ();
 extern DataChunk *grb_Setup ();
 
+/*
+ * Grads format.
+ */
+extern int	dgr_OpenFile (), dgr_QueryTime (), dgr_CloseFile ();
+extern int	dgr_CreateFile (), dgr_GetData (), dgr_DataTimes ();
+extern int	dgr_GetObsSamples (), dgr_GetFields (), dgr_GetAlts ();
+extern DataChunk *dgr_Setup ();
 
 
 # define ___ 0
@@ -328,6 +335,9 @@ struct DataFormat Formats[] =
 	dnc_GetFields,			/* Get fields			*/
 	___,				/* Get Attributes		*/
     },
+/*
+ * Boundary files.
+ */
     {
 	"Boundary",	".bf",
 	bf_QueryTime,			/* Query times			*/
@@ -349,6 +359,9 @@ struct DataFormat Formats[] =
 	bf_GetFields,			/* Get fields			*/
 	___,				/* Get Attributes		*/
     },
+/*
+ * Raster image files.
+ */
     {
     	"Raster",	".rf",
 	drf_QueryTime,			/* Query times			*/
@@ -370,6 +383,9 @@ struct DataFormat Formats[] =
 	drf_GetFields,			/* Get fields			*/
 	drf_GetAttrs,			/* Get Attributes		*/
     },
+/*
+ * Raster files in compressed mode.
+ */
     {
     	"CmpRaster",	".rf",
 	drf_QueryTime,			/* Query times			*/
@@ -462,8 +478,31 @@ struct DataFormat Formats[] =
 	grb_GetObsSamples,		/* Get observation samples	*/
 	grb_GetFields,			/* Get fields			*/
 	___,				/* Get Attributes		*/
-    }
-
+    },
+/*
+ * GRADS.
+ */
+    {
+	"GRADS",	".ctl",		/* hope ".ctl" covers it 	*/
+	dgr_QueryTime,			/* Query times			*/
+	dgr_Setup,			/* setup			*/
+	dgr_OpenFile,			/* Open				*/
+	dgr_CloseFile,			/* Close			*/
+	___,			/* Synchronize			*/
+	___,				/* Inquire platforms		*/
+	dgr_GetData,			/* Get the data			*/
+	___,				/* Get IRGrid locations		*/
+	dgr_GetAlts,			/* Get altitude info		*/
+	dgr_DataTimes,			/* Get data times		*/
+	___,		/* Get forecast times		*/
+	___,		/* Make file name		*/
+	dgr_CreateFile,			/* Create a new file		*/
+	___,			/* Write to file		*/
+	___,				/* Write block to a file	*/
+	dgr_GetObsSamples,		/* Get observation samples	*/
+	dgr_GetFields,			/* Get fields			*/
+	___,				/* Get Attributes		*/
+    },	
 };
 
 
