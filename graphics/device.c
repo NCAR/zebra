@@ -1,5 +1,5 @@
 /* 5/87 jc */
-static char *rcsid = "$Id: device.c,v 1.20 1993-11-03 00:35:09 cook Exp $";
+static char *rcsid = "$Id: device.c,v 1.21 1994-01-19 18:52:10 burghart Exp $";
 /*
  * Handle device specifics.
  */
@@ -58,7 +58,7 @@ extern int ps_tsize (), ps_text ();
 # ifdef DEV_PSC
 extern int psc_open (), psc_close (), psc_flush (), psc_poly (), psc_hcw ();
 extern int psc_cmap (), psc_clear (), psc_vp (), psc_print (), psc_qtext ();
-extern int psc_tsize (), psc_text ();
+extern int psc_tsize (), psc_text (), psc_pixel ();
 # endif
 
 # ifdef DEV_SUNVIEW
@@ -752,11 +752,12 @@ struct device D_tab[] =
 		"psc",
 		12, { "psc1", "psc2", "psc4", "psg1", "psg2", "psg4",
 		     "psm1", "psm2", "psm4", "psc1L1", "psc2L1", "psc4L1"},
-		GDF_VECTOR|GDF_HARDCOPY|GDF_HCW|GDF_VP|GDF_TEXT,
+		GDF_VECTOR | GDF_HARDCOPY | GDF_HCW | GDF_VP | GDF_TEXT |
+			GDF_PIXEL | GDF_TOP,
 		256,			/* 256 colors			*/
-		22500, 30000,		/* huge res (shrink round errs) */
-		1.0,			/* Assume square aspect for now */
-		1, 1,			/* unused, 1 to avoid div by 0  */
+		0, 0,			/* resolution set at open	*/
+		1.0,			/* square pixels		*/
+		32, 32,			/* pixel block size		*/
 		0,			/* no buttons, for now		*/
 		0,			/* Background color		*/
 		psc_open,		/* The open routine		*/
@@ -765,7 +766,7 @@ struct device D_tab[] =
 		___,			/* (no) flush w/o screen renew	*/
 		psc_cmap,		/* Set color table		*/
 		psc_poly,		/* Draw polyline		*/
-		___,			/* Pixel fill			*/
+		psc_pixel,		/* Pixel fill			*/
 		psc_qtext,		/* query text			*/
 		psc_tsize,		/* Text size			*/
 		psc_text,		/* Text				*/
