@@ -1,0 +1,35 @@
+
+Installing dsnotice
+-------------------
+
+Uncompress and extract the tar file into a compiled zebra source tree,
+under zebra/src/dsnotice.
+
+If the imake program in zebra/config/imake has been cleaned, cd to
+that directory and remake it with 'make'.
+
+From the dsnotice directory:
+
+	$ZEB_TOPDIR/bin/zmkmf ../.. src/dsnotice
+	make mf
+	make install
+
+dsnotice should now be installed in the zebra binary directory.
+
+Run
+
+	dsnotice -h
+
+to see the usage message.  Multiple instances of dsnotice can be run in the
+same Zebra session if its necessary to split the output of notices on
+different sets of platforms.
+
+Bugs
+----
+
+There is one known bug with the datastore notify mechanism which always
+reports overwrites with zero samples.  All the other information is
+correct.  The output indicates that samples were overwritten in the named
+file, its just that the number of samples overwritten is not known.
+
+
