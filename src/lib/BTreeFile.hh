@@ -1,5 +1,5 @@
 /*
- * $Id: BTreeFile.hh,v 1.7 1998-09-15 17:06:53 granger Exp $
+ * $Id: BTreeFile.hh,v 1.8 1998-09-15 20:57:00 granger Exp $
  *
  * BTree subclass which implements persistence using a BlockFile.
  */
@@ -28,10 +28,21 @@ public:
 	class FileStats
 	{
 	public:
-		int nodesRead;
-		int nodesWritten;
+		unsigned long nodesRead;
+		unsigned long nodesWritten;
+		unsigned long overflowBytes;	// persistent
+		// Bytes allocated to us in file
+		unsigned long allocBytes;
+		// Bytes of storage actually used
+		unsigned long usedBytes;
+
 		void translate (SerialStream &ss);
-		void reset () { nodesRead = nodesWritten = 0; }
+		void reset ()
+		{ 
+			nodesRead = nodesWritten = 0; 
+			overflowBytes = 0;
+			allocBytes = 0;
+		}
 		FileStats() { reset(); }
 	};
 
@@ -39,13 +50,7 @@ public:
 	{
 	public:
 		FileStats file;
-		/*virtual*/ ostream &dump (ostream &out) const
-		{ 
-			BTree<K,T>::Stats::dump (out);
-			out << endl << "Nodes read: " << file.nodesRead 
-			    << "; Nodes written: " << file.nodesWritten;
-			return out;
-		}
+		ostream &report (ostream &out, BTreeFile<K,T> *t = 0) const;
 	};
 
 public:
@@ -115,6 +120,19 @@ public:
 	//
 	virtual int setElementSize (int vs, int fixed = 0);
 
+	// Return the current block sizes for branch nodes and leaves.
+	// If the tree is empty, these may still be zero.
+	//
+	long leafBlockSize ()
+	{
+		return leaf_size;
+	}
+
+	long nodeBlockSize ()
+	{
+		return node_size;
+	}
+
 	virtual const BTree<K,T>::Stats & currentStats ()
 	{
 		static BTreeFile<K,T>::Stats s;
@@ -127,8 +145,6 @@ public:
 		BTree<K,T>::currentStats (s);
 		s.file = BTreeFile<K,T>::fstats;
 	}
-
-	long nodeSize (BlockNode<K,T> *node);
 
 	virtual void translate (SerialStream &ss);
 
@@ -155,6 +171,8 @@ protected:
 
 	void Init (int order, long sz, int fix);
 	void release ();
+
+	long nodeSize (BlockNode<K,T> *node);
 
 	BlockFile *bf;
 	int key_size;

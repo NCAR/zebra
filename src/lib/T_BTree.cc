@@ -30,12 +30,13 @@ typedef BTreeFile<string,string> StringTree;
 
 /*
  * Choose the test_key type for the test trees.
- *///typedef long test_key;
-//typedef string test_key;
-typedef ZTime test_key;
+ */
+//typedef long test_key;
+typedef string test_key;
+//typedef ZTime test_key;
 
-//typedef BTreeFile<test_key,test_key> test_tree;
-typedef BTree<test_key,test_key> test_tree;
+typedef BTreeFile<test_key,test_key> test_tree;
+//typedef BTree<test_key,test_key> test_tree;
 
 static int Debug = 0;
 
@@ -54,16 +55,11 @@ int __getfpucw ()
 template <class T>
 Summarize (ostream &out, T &t)
 {
-	int m = t.Order();
-	out << " --- Depth: " << t.Depth() << "; Order: " << m << "; ";
+	out << " ----- " << endl;
 	typename T::Stats cs;
 	t.currentStats (cs);
-	cs.dump (out);
-	out << endl;
-	int minnodes = ((t.numKeys() - 1) / (m - 1)) + 1;
-	int pctnodes = (int)(100.0*(float)minnodes/(float)cs.nNodes);
-	out << " --- Min Nodes: " << minnodes << "; % nodes: " << pctnodes;
-	out << endl;
+	cs.report (out, &t) << endl;
+	out << " ----- " << endl;
 
 #ifdef notdef
 	BTreeStats s;
@@ -700,6 +696,10 @@ TestTree (test_tree &tree, int N)
 		err += T_RandomRemoval (tree);
 		err += tree.Check ();
 	}
+	/*
+	 * On the last one check the stats of an emptied tree.
+	 */
+	Summarize(cout, tree);
 
 	return err;
 }

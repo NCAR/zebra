@@ -14,7 +14,7 @@
 //#include <message.h>
 //}
 
-// RCSID ("$Id: BTree.cc,v 1.17 1998-09-15 17:06:52 granger Exp $")
+// RCSID ("$Id: BTree.cc,v 1.18 1998-09-15 20:56:58 granger Exp $")
 
 //#include "Logger.hh"
 #include "BTreeP.hh"
@@ -64,6 +64,28 @@ BTree<K,T>::Stats::translate (SerialStream &ss)
 	ss << nNodes << nKeys << nLeaves;
 }
 
+
+template <class K, class T>
+ostream &BTree<K,T>::Stats::report (ostream &out, BTree<K,T> *t) const
+{
+	out << "Nodes: " << nNodes
+	    << "; Keys: " << nKeys
+	    << "; Leaves: " << nLeaves;
+	if (t)
+	{
+		int m = t->Order();
+		out << endl;
+		out << "Depth: " << t->Depth() << "; Order: " << m << "; ";
+		int minnodes = 0;
+		if (t->numKeys() > 0)
+			minnodes = ((t->numKeys() - 1) / (m - 1)) + 1;
+		int pctnodes = 0;
+		if (nNodes > 0)
+			pctnodes = (int)(100.0*minnodes/(float)nNodes);
+		out << "Min Nodes: " << minnodes << "; % nodes: " << pctnodes;
+	}
+	return out;
+}
 
 
 template <class K, class T>

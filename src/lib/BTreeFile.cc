@@ -15,7 +15,7 @@
 //#include <message.h>
 //}
 
-// RCSID ("$Id: BTreeFile.cc,v 1.9 1998-09-15 17:06:53 granger Exp $")
+// RCSID ("$Id: BTreeFile.cc,v 1.10 1998-09-15 20:56:59 granger Exp $")
 
 #include "Logger.hh"
 #include "Format.hh"
@@ -57,6 +57,9 @@ public:
 
 	// Add to the base class free() functionality to free our overflow.
 	virtual void free ();
+
+	// Extend the allocate() method to keep some stats.
+	virtual void allocate (BlkSize need);
 
 	// As well as the translate() method for serialization.
 	virtual void translate (SerialStream &ss);
@@ -360,12 +363,8 @@ BTreeFile<K,T>::get (Node &node, int depth)
 		that->thisNode.local = that;
 		log.Debug (Format("Recreating node from block (%u,%u)") %
 			    that->block.offset % that->block.length);
-		that->readSync ();
 	}
-	// that->readSync ();
-
-	// For now, assume any access causes a change
-	//that->mark ();
+	that->readSync ();
 	return (that);
 }
 
@@ -433,6 +432,36 @@ BTreeFile<K,T>::mark ()
 
 template <class K, class T>
 void
+BTreeFile<K,T>::FileStats::translate (SerialStream &ss)
+{
+	ss << nodesRead << nodesWritten << overflowBytes << allocBytes;
+}
+
+
+template <class K, class T>
+ostream &BTreeFile<K,T>::Stats::report (ostream &out, BTreeFile<K,T> *t) const
+{ 
+	BTree<K,T>::Stats::report (out, t);
+	out << endl << "Nodes read: " << file.nodesRead 
+	    << "; written: " << file.nodesWritten
+	    << "; Bytes alloc: " << file.allocBytes
+	    << "; overflow: " << file.overflowBytes;
+	if (t)
+	{
+		out << endl;
+		out << "Leaf blk size: " << t->leafBlockSize()
+		    << "; branch: " << t->nodeBlockSize();
+		long slop = file.allocBytes;
+		slop -= (nLeaves * t->leafBlockSize());
+		slop -= ((nNodes - nLeaves) * t->nodeBlockSize());
+		out << "; slop: " << slop;
+	}
+	return out;
+}
+
+
+template <class K, class T>
+void
 BTreeFile<K,T>::translate (SerialStream &ss)
 {
 	// Translate our superclass state:
@@ -442,9 +471,7 @@ BTreeFile<K,T>::translate (SerialStream &ss)
 	// Translate our own persistent state
 	ss << key_size << key_size_fixed;
 	ss << node_size << leaf_size;
-
-	// Don't bother preserving file stats
-	// fstats.translate (ss);
+	this->fstats.translate (ss);
 }
 
 
@@ -566,12 +593,30 @@ BlockNode<K,T>::destroy ()
 
 template <class K, class T>
 void
+BlockNode<K,T>::allocate (BlkSize need)
+{
+	BlkSize len = block.length;
+	TranslateBlock::allocate (need);
+	if (block.length != len)
+	{
+		filetree.fstats.allocBytes += (block.length - len);
+		filetree.mark();
+	}
+}
+
+
+
+template <class K, class T>
+void
 BlockNode<K,T>::free ()
 {
 	if (overflow.offset)
 	{
+		filetree.fstats.overflowBytes -= overflow.length;
 		bf->Free (overflow.offset, overflow.length);
 	}
+	filetree.fstats.allocBytes -= block.length;
+	filetree.mark();
 	TranslateBlock::free ();
 }
 
@@ -617,6 +662,10 @@ BlockNode<K,T>::write ()
 {
 	assert (block.offset > 0 && block.length > 0);
 
+	// Update stats
+	++filetree.fstats.nodesWritten;
+	filetree.mark ();
+
 	// Figure out how much space we need and get a buffer to encode into.
 	unsigned long nspace = filetree.nodeSize (this);
 	SerialBuffer *wb = bf->writeBuffer (nspace + overflow.length);
@@ -629,6 +678,7 @@ BlockNode<K,T>::write ()
 	// reallocate our overflow block as necessary.
 	if (len > nspace && (len - nspace > overflow.length))
 	{
+		filetree.fstats.overflowBytes -= overflow.length;
 		if (overflow.offset)
 		{
 			// Reallocate
@@ -638,6 +688,8 @@ BlockNode<K,T>::write ()
 
 		// Allocate
 		overflow.offset = bf->Alloc (len - nspace, &overflow.length);
+		filetree.fstats.overflowBytes += overflow.length;
+		filetree.mark ();
 	}
 	else if (len <= nspace)
 	{
@@ -665,6 +717,10 @@ template <class K, class T>
 void
 BlockNode<K,T>::read ()
 {
+	// Update stats
+	++filetree.fstats.nodesRead;
+	filetree.mark ();
+
 	// Read the regular block size into a buffer and get our overflow.
 	SerialBuffer *rb = bf->readBuffer (block.offset, block.length);
 	SerialDecodeStream &ds = *rb->decodeStream ();

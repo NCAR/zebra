@@ -1,5 +1,5 @@
 /*
- * $Id: BTree.hh,v 1.15 1998-09-15 17:06:53 granger Exp $
+ * $Id: BTree.hh,v 1.16 1998-09-15 20:56:58 granger Exp $
  *
  * Public BTree class interface.
  */
@@ -58,13 +58,7 @@ public:
 		void translate (SerialStream &ss);
 		void reset () { nNodes = nKeys = nLeaves = 0; }
 		Stats() { reset(); }
-		/*virtual*/ ostream &dump (ostream &out) const
-		{
-			out << "Nodes: " << nNodes
-			    << "; Keys: " << nKeys
-			    << "; Leaves: " << nLeaves;
-			return out;
-		}
+		ostream &report (ostream &out, BTree<K,T> *t = 0) const;
 	};
 
 public:
