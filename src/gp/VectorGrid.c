@@ -1,7 +1,7 @@
 /*
  * Display two rectangular arrays (u and v) as wind vectors
  */
-static char *rcsid = "$Id: VectorGrid.c,v 2.1 1991-09-12 20:27:54 corbet Exp $";
+static char *rcsid = "$Id: VectorGrid.c,v 2.2 1991-11-14 17:50:55 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -29,16 +29,84 @@ static char *rcsid = "$Id: VectorGrid.c,v 2.1 1991-09-12 20:27:54 corbet Exp $";
  */
 # define ARROWANG	.2618	/* PI / 12 */
 
-/*
- * Color stuff
- */
-static int	Ncolor = 1, Color_outrange = 0;
-static XColor	*Colors;
 
 /*
- * Data range for the color scale
+ * Macros to reference the data arrays two dimensionally
  */
-static float	Datamin, Datamax, Datarange;
+# define UDATA(i,j)	u_array[(i) * ydim + (j)]
+# define VDATA(i,j)	v_array[(i) * ydim + (j)]
+
+
+
+VectorGrid (w, d, Gcontext, u_array, v_array, xdim, ydim, xlo, ylo, xhi, yhi, 
+	vlen, bad, color)
+Widget	w;
+Drawable 	d;
+GC	Gcontext;
+float	*u_array, *v_array, bad;
+int	xlo, ylo, xhi, yhi;
+int	xdim, ydim;
+XColor	color;
+float	vlen;
+/*
+ * Draw wind vectors using the rectangular (xdim x ydim) arrays u_array
+ * and v_array into widget w.  The coordinates (xlo,ylo) and (xhi,yhi) 
+ * specify the spatial extent of the array with respect to the widget
+ * (pixel coordinates). Vlen is the length of a unit vector with respect 
+ * to the height of the widget.  Color is the color to use for the vectors.
+ */
+{
+	int		dummy, xpos, ypos, i, j;
+	unsigned int	dwidth, dheight, udummy;
+	Window		win;
+	float		xbottom, ybottom, xstep, ystep;
+	float		unitlen;
+	XGCValues	gcvals;
+/*
+ * Find the size of the drawable so we can scale the arrows properly
+ */
+	XGetGeometry (XtDisplay (w), d, &win, &dummy, &dummy, &dwidth, 
+		&dheight, &udummy, &udummy);
+/*
+ * Find the unit length in pixels
+ */
+	unitlen = dheight * vlen;
+/*
+ * Loop through the array points
+ */
+	if (Gcontext == NULL)
+	{
+		gcvals.foreground = color.pixel;
+		Gcontext = XCreateGC (XtDisplay (w), XtWindow (w), 
+			GCForeground, &gcvals);
+	}
+	else
+		XSetForeground (XtDisplay (w), Gcontext, color.pixel);
+	
+
+	for (i = 0; i < xdim; i++)
+	{
+		xpos = (int)(xlo + (float) i / (float)(xdim - 1) * 
+			(xhi - xlo) + 0.5);
+
+		for (j = 0; j < ydim; j++)
+		{
+			ypos = (int)(ylo + (float) j / (float)(ydim - 1) *
+				(yhi - ylo) + 0.5);
+		/*
+		 * Check for bad values
+		 */
+			if ((int) UDATA(i,j) != bad && (int) VDATA(i,j) != bad)
+				draw_vector (XtDisplay (w), d, Gcontext, 
+					xpos, ypos, UDATA (i, j), VDATA (i, j),
+					 unitlen);
+		}
+	}
+}
+
+
+
+# ifdef notdef
 
 /*
  * Unit wind length
@@ -49,12 +117,6 @@ static float	Unitlen;
  * Bad value flag
  */
 static int	Badval;
-
-/*
- * Macros to reference the data arrays two dimensionally
- */
-# define UDATA(i,j)	u_array[(i) * ydim + (j)]
-# define VDATA(i,j)	v_array[(i) * ydim + (j)]
 
 /*
  * Graphics context
@@ -73,76 +135,6 @@ static Drawable	D;
 void	VG_DrawVector (), VG_AnnotVector ();
 
 
-
-
-VectorGrid (w, d, u_array, v_array, xdim, ydim, xlo, ylo, xhi, yhi, vlen,
-	bad, color)
-Widget	w;
-Drawable 	d;
-float	*u_array, *v_array, bad;
-int	xlo, ylo, xhi, yhi;
-int	xdim, ydim;
-XColor	color;
-float	vlen;
-/*
- * Draw wind vectors using the rectangular (xdim x ydim) arrays u_array
- * and v_array into widget w.  The coordinates (xlo,ylo) and (xhi,yhi) 
- * specify the spatial extent of the array with respect to the widget
- * (pixel coordinates). Vlen is the length of a unit vector with respect 
- * to the height of the widget.  Color is the color to use for the vectors.
- */
-{
-	int		dummy, xpos, ypos, i, j;
-	unsigned int	dwidth, dheight, udummy;
-	Window		win;
-	float		xbottom, ybottom, xstep, ystep;
-	XGCValues	gcvals;
-
-	W = w;
-	D = d;
-/*
- * Stash the bad value flag
- */
-	Badval = (int) bad;
-/*
- * Find the size of the drawable so we can scale the arrows properly
- */
-	XGetGeometry (XtDisplay (W), D, &win, &dummy, &dummy, &dwidth, 
-		&dheight, &udummy, &udummy);
-/*
- * Find the unit length in pixels
- */
-	Unitlen = dheight * vlen;
-/*
- * Loop through the array points
- */
-	if (Gcontext == NULL)
-	{
-		gcvals.foreground = color.pixel;
-		Gcontext = XCreateGC (XtDisplay (W), XtWindow (W), 
-			GCForeground, &gcvals);
-	}
-	else
-		XSetForeground (XtDisplay (W), Gcontext, color.pixel);
-	
-
-	for (i = 0; i < xdim; i++)
-	{
-		xpos = (int)(xlo + (float) i / (float)(xdim - 1) * 
-			(xhi - xlo) + 0.5);
-
-		for (j = 0; j < ydim; j++)
-		{
-			ypos = (int)(ylo + (float) j / (float)(ydim - 1) *
-				(yhi - ylo) + 0.5);
-			VG_DrawVector (xpos, ypos, UDATA (i, j), VDATA (i, j));
-		}
-	}
-}
-
-
-
-
 void
 VG_DrawVector (x, y, u, v)
 int	x, y;
@@ -155,7 +147,6 @@ float	u, v;
 	float	dx, dy;
 	int	xend, yend;
 	float	veclen, vecang, ang;
-
 /*
  * Check for bad values
  */
@@ -215,3 +206,5 @@ Pixel	color;
 	XSetForeground (XtDisplay (W), Gcontext, color);
 	VG_DrawVector (x, y, u, v);
 }
+
+# endif
