@@ -30,7 +30,7 @@
 # include <message.h>
 # include "DrawText.h"
 
-RCSID("$Id: DrawText.c,v 2.16 2000-08-22 20:28:14 burghart Exp $")
+RCSID("$Id: DrawText.c,v 2.17 2003-07-28 20:59:36 burghart Exp $")
 
 # ifndef __STDC__
 #  ifndef sgi
@@ -330,6 +330,8 @@ float	rot, scale;
 	 * Locate the vector info.
 	 */
 	 	cp = Gt_sf_1[(int)*text++];
+		if (! cp)
+		    continue; /* skip bad characters */
 		cdata = cp + 4;
 	/*
 	 * Now step through and draw the lines.
@@ -514,6 +516,8 @@ float	*xoffset, *yoffset, *width, *height;
 	while (*text)
 	{
 		cp = Gt_sf_1[(int)*text++];
+		if (! cp)
+		    continue; /* skip bad characters */
 		*width += (float)(cp[3] - cp[2]);
 	}
 /*
