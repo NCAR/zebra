@@ -25,7 +25,7 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_Scalar.c,v 1.4 1992-01-22 23:22:58 corbet Exp $")
+MAKE_RCSID ("$Id: dc_Scalar.c,v 1.5 1993-02-25 23:10:13 granger Exp $")
 
 # define SUPERCLASS DCC_MetData
 
@@ -143,7 +143,7 @@ FieldId field;
 {
 	float *ret;
 
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Scalar, "AddScalar"))
+	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_Scalar, "GetScalar"))
 		return (0.0);
 	if (! (ret = (float *) dc_GetMData (dc, sample, field, NULL)))
 		return (dc_GetBadval (dc));
