@@ -32,7 +32,7 @@
 # include <DataStore.h>
 # include <DataChunk.h>
 
-MAKE_RCSID("$Id: GMSIngest.c,v 1.5 1995-03-02 23:49:46 granger Exp $")
+MAKE_RCSID("$Id: GMSIngest.c,v 1.6 1995-05-19 20:26:16 corbet Exp $")
 
 # include "keywords.h"
 
@@ -136,6 +136,13 @@ int Nfiles = 0;
 # define KM_TO_DEG(x)	((x)*0.008982802) /* on a great circle */
 
 int	Mdays[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+
+/*
+ * Some files need byte swapping, some don't.  Depends on the source.  The
+ * GetFileTime function tries to figure out which is which and set the
+ * following correctly.
+ */
+static int NeedSwap = TRUE;
 
 /*
  * Prototypes
@@ -727,11 +734,17 @@ ZebTime	*t;
 {
 	int	year, month, day, hour, minute, second, header[5];
 /*
- * Read the first piece of the area directory and do the appropriate byte
- * swapping.
+ * Read the first piece of the area directory
  */
 	fread ((void *) header, 4, 5, Infile[fentry].stream);
 	fseek (Infile[fentry].stream, 0, 0);	/* rewind the file */
+/*
+ * Figure out whether this file needs to be swapped or not and
+ * set our flag accordingly.
+ */
+	NeedSwap = (header[3] > 99000); /* end-of-century problem, sigh! */
+	msg_ELog (EF_DEBUG, "This file does %sneed swapping",
+			NeedSwap ? "" : "not ");
 	swapfour (header, 5);
 /*
  * Extract the date.
@@ -772,15 +785,20 @@ int	*array, count;
 {
 	int	i;
 	char	*bytes, swapped[4];
-
-	for (i = 0; i < count; i++)
+/*
+ * Only do the swapping if really needed.
+ */
+	if (NeedSwap)
 	{
-		bytes = (char *) &(array[i]);
-		swapped[0] = bytes[3];
-		swapped[1] = bytes[2];
-		swapped[2] = bytes[1];
-		swapped[3] = bytes[0];
-		memcpy (bytes, swapped, 4);
+		for (i = 0; i < count; i++)
+		{
+			bytes = (char *) &(array[i]);
+			swapped[0] = bytes[3];
+			swapped[1] = bytes[2];
+			swapped[2] = bytes[1];
+			swapped[3] = bytes[0];
+			memcpy (bytes, swapped, 4);
+		}
 	}
 }
 
