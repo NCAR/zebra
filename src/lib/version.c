@@ -11,13 +11,13 @@
 
 #include "defs.h"
 
-RCSID("$Id: version.c,v 2.2 2000-02-04 17:46:56 burghart Exp $")
+RCSID("$Id: version.c,v 2.3 2000-12-06 20:55:32 granger Exp $")
 
 /*
  * Hand edit these lines until it can be done automatically.  One possibility
  * is using the RCS state field, but even that requires running a command
  * manually.  Perhaps an explicit version tag script which tags with CVS as
- * well as updating the ChangeLog and this file. $Name: not supported by cvs2svn $
+ * well as updating the ChangeLog and this file.
  */
 static const char _zl_version_id1[] = 
 "@(#)$ZebraVersion: 5.0beta-ExportDate $";
