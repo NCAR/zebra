@@ -29,7 +29,7 @@
 # include "commands.h"
 # include <ui_error.h>
 
-MAKE_RCSID("$Id: d_Config.c,v 2.12 1995-06-12 23:09:10 granger Exp $")
+MAKE_RCSID("$Id: d_Config.c,v 2.13 1995-08-28 21:36:35 granger Exp $")
 
 /*-----------------------------------------------------------------------
  * Local forwards.
@@ -226,7 +226,14 @@ struct ui_command *cmds;
 	 * Maximum samples.
 	 */
 	   case DK_MAXSAMPLES:
-	   	pc->dpc_maxsamp = UINT (cmds[1]);
+		if (UINT (cmds[1]) > (unsigned int) 65535)
+		{
+			msg_ELog (EF_PROBLEM, "%s: maxsamples %u too large",
+				  pc->dpc_name, UINT (cmds[1]));
+			pc->dpc_maxsamp = 65535;
+		}
+		else
+			pc->dpc_maxsamp = UINT (cmds[1]);
 		break;
 	/*
 	 * Various flags.
