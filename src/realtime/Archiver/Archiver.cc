@@ -65,7 +65,7 @@ extern "C" {
 # include "Database.h"
 # include "Archiver.h"
 
-RCSID ("$Id: Archiver.cc,v 1.46 2000-07-24 19:44:49 granger Exp $")
+RCSID ("$Id: Archiver.cc,v 1.47 2001-01-16 22:45:15 granger Exp $")
 
 /*
  * Issues:
@@ -905,6 +905,38 @@ FinishFinishing (int error)
 }
 
 
+static int TimerEvent;		/* The regular write event */
+
+
+static void
+SetupTimer ()
+{
+    ZebTime current, zt;
+    int year, month, day;
+
+    /*
+     * Start saving stuff.  Find the next time by searching 
+     * from the beginning of the day until we get a time 
+     * greater than the current time.
+     */
+    tl_Time (&current);
+    TC_ZtSplit (&current, &year, &month, &day, 0, 0, 0, 0);
+    TC_ZtAssemble (&zt, year, month, day, 0, StartMinute, 0, 0);
+    while (zt.zt_Sec < current.zt_Sec)
+	zt.zt_Sec += DumpInterval * 60;
+						
+    TimerEvent = tl_AbsoluteReq ((void (*)(...))TimerSaveFiles,
+				 0, &zt, DumpInterval*60*INCFRAC);
+}
+
+
+static void
+CancelTimer ()
+{
+    tl_Cancel (TimerEvent);
+}
+
+    
 
 
 void
@@ -913,11 +945,6 @@ ActionButton ()
  * Take or release the tape.
  */
 {
-	static int TimerEvent;		/* The regular write event */
-					/* This function both starts and
-					 * cancels it */
-	ZebTime current, zt;
-	int year, month, day;
 	int status;
 	char *action;
 /*
@@ -968,26 +995,14 @@ ActionButton ()
 		model->enableFinish ();
 		model->enableWrite ();
 	
-		/*
-		 * Start saving stuff.  Find the next time by searching 
-		 * from the beginning of the day until we get a time 
-		 * greater than the current time.
-		 */
-		tl_Time (&current);
-		TC_ZtSplit (&current, &year, &month, &day, 0, 0, 0, 0);
-		TC_ZtAssemble (&zt, year, month, day, 0, StartMinute, 0, 0);
-		while (zt.zt_Sec < current.zt_Sec)
-			zt.zt_Sec += DumpInterval * 60;
-						
-		TimerEvent = tl_AbsoluteReq ((void (*)(...))TimerSaveFiles,
-					     0, &zt, DumpInterval*60*INCFRAC);
+		SetupTimer ();
 	}
 /*
  * Otherwise we give it away.
  */
 	else
 	{
-	    tl_Cancel (TimerEvent);
+	    CancelTimer ();
 	    switch ( ArchiveMode )
 	    {
 		case AR_TAPE:
@@ -1716,6 +1731,18 @@ MountJaz()
     status = WEXITSTATUS(status);
     if ( status )
 	    msg_ELog (EF_PROBLEM, "%s: failed with %d", cmd, status);
+    //
+    // If we can still access our archive directory, then we assume the
+    // disk is already mounted and chalk up our inability to mount it to
+    // busy-ness.  This also flags right away what would be a future 
+    // failure: the inability to create the output directory.
+    //
+    status = mkdir (OutputDir, 0775);
+    if (status < 0 && errno != EEXIST)
+    {
+	msg_ELog (EF_PROBLEM, "failed to create outputdir (errno %d): %s",
+		  errno, OutputDir);
+    }
 #endif
     return status;
 }
