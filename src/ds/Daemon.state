@@ -1,5 +1,5 @@
 !
-! $Id: Daemon.state,v 2.5 1992-06-09 19:23:07 corbet Exp $
+! $Id: Daemon.state,v 2.6 1992-07-22 16:53:01 corbet Exp $
 !
 ! The data store daemon configuration language.
 !
@@ -151,6 +151,9 @@ define state organization
 		next ust$no_more
 	endinput
 	input 'outline' 5
+		next ust$no_more
+	endinput
+	input 'transparent' 9
 		next ust$no_more
 	endinput
 enddef
