@@ -29,25 +29,58 @@
 # include "DataStore.h"
 # include "DataChunkP.h"
 
-RCSID ("$Id: dc_MetAttr.c,v 3.2 1996-11-26 22:36:44 granger Exp $")
+RCSID ("$Id: dc_MetAttr.c,v 3.3 1996-11-27 02:24:12 granger Exp $")
 
 
-# define ST_FIELDATTR(x)	(2000+(x))
+/*
+ * Forwards 
+ */
+static int dc_FieldKey FP ((DataChunk *dc, FieldId fid, int warn));
+
+
+
+static int
+dc_FieldKey (dc, fid, warn)
+DataChunk *dc;
+FieldId fid;
+int warn;
+/* 
+ * Return the ADE sub-type to use for this field.  If the field does
+ * not exist in the datachunk, returns less than zero.  Log warnings 
+ * about missing fields if 'warn' is non-zero.
+ */
+{
+	int st;
+
+	if ((st = dc_GetFieldIndex (dc, fid)) >= 0)
+	{
+		st += 2000;
+	}
+	else if (warn)
+	{
+		msg_ELog (EF_PROBLEM, "%s: field %d (%s) not in datachunk",
+			  "accessing attribute", fid, F_GetName (fid));
+	}
+	return (st);
+}
+
 
 
 void
-dc_SetFieldAttrArray (dc, field, key, type, nval, values)
+dc_SetFieldAttrArray (dc, field, key, type, nval, vals)
 DataChunk *dc;
 FieldId field;
 char *key;
 DC_ElemType type;
 int nval;
-void *values;
+void *vals;
 {
+	int st;
+
 	if (! dc_ReqSubClass (dc, DCP_MetData, "SetFieldAttrArray"))
 		return;
-	dca_AddAttrArray (dc, DCP_MetData, ST_FIELDATTR(field),
-			  key, type, nval, values);
+	if ((st = dc_FieldKey (dc, field, 1)) >= 0)
+		dca_AddAttrArray (dc, DCP_MetData, st, key, type, nval, vals);
 }
 
 
@@ -62,11 +95,13 @@ DC_ElemType *type;
 int *nval;
 {
 	void *values;
+	int st;
 
 	if (! dc_ReqSubClass (dc, DCP_MetData, "GetFieldAttrArray"))
 		return NULL;
-	if ((values = dca_GetAttrArray (dc, DCP_MetData, ST_FIELDATTR(field),
-					key, type, nval)))
+	st = dc_FieldKey (dc, field, 1);
+	if ((st >= 0) && (values = dca_GetAttrArray (dc, DCP_MetData, st,
+						     key, type, nval)))
 		return (values);
 	return (dc_GetGlobalAttrArray (dc, key, type, nval));
 }
@@ -82,10 +117,14 @@ char *pattern;
 int (*func) (/* char *key, void *vals, int nval, DC_ElemType, void *arg */);
 void *arg;
 {
+	int st;
+
 	if (! dc_ReqSubClass (dc, DCP_MetData, "ProcFieldAttrArrays"))
 		return (0);
-	return (dca_ProcAttrArrays (dc, DCP_MetData, ST_FIELDATTR(field),
-				    pattern, func, arg));
+	if ((st = dc_FieldKey (dc, field, 1)) >= 0)
+		return (dca_ProcAttrArrays (dc, DCP_MetData, st, pattern, 
+					    func, arg));
+	return (-1);
 }
 
 
@@ -101,9 +140,12 @@ char *key;
  * Remove a field attribute from this data chunk.
  */
 {
+	int st;
+
 	if (! dc_ReqSubClass (dc, DCP_MetData, "RemoveFieldAttr"))
 		return;
-	dca_RemoveAttr (dc, DCP_MetData, ST_FIELDATTR(field), key);
+	if ((st = dc_FieldKey (dc, field, 0)) >= 0)
+		dca_RemoveAttr (dc, DCP_MetData, st, key);
 }
 
 
@@ -118,9 +160,12 @@ char *key, *value;
  * Store a field attribute into this data chunk.
  */
 {
+	int st;
+
 	if (! dc_ReqSubClass (dc, DCP_MetData, "SetFieldAttr"))
 		return;
-	dca_AddAttr (dc, DCP_MetData, ST_FIELDATTR(fid), key, value);
+	if ((st = dc_FieldKey (dc, fid, 1)) >= 0)
+		dca_AddAttr (dc, DCP_MetData, st, key, value);
 }
 
 
@@ -136,11 +181,13 @@ char *key;
  */
 {
 	char *value;
+	int st;
 
 	if (! dc_ReqSubClass (dc, DCP_MetData, "GetFieldAttr"))
 		return(NULL);
-	if ((value = dca_GetAttr (dc, DCP_MetData, ST_FIELDATTR(fid), key)))
-		return(value);
+	st = dc_FieldKey (dc, fid, 1);
+	if ((st >= 0) && (value = dca_GetAttr (dc, DCP_MetData, st, key)))
+		return (value);
 	return (dc_GetGlobalAttr (dc, key));
 }
 
@@ -156,9 +203,12 @@ int *len;
  * Get the per-field attributes out as an opaque chunk.
  */
 {
+	int st;
+
 	if (! dc_ReqSubClass (dc, DCP_MetData, "GetFiAttrBlock"))
-		return(NULL);
-	return (dca_GetBlock (dc, DCP_MetData, ST_FIELDATTR(fid), len));
+		return (NULL);
+	st = dc_FieldKey (dc, fid, 1);
+	return ((st >= 0) ? dca_GetBlock (dc, DCP_MetData, st, len) : NULL);
 }
 
 
@@ -174,16 +224,19 @@ int len;
  * Store a per-field attribute block back.
  */
 {
+	int st;
+
 	if (! dc_ReqSubClass (dc, DCP_MetData, "SetFiAttrBlock"))
 		return;
-	dca_PutBlock (dc, DCP_MetData, ST_FIELDATTR(fid), block, len);
+	if ((st = dc_FieldKey (dc, fid, 1)) >= 0)
+		dca_PutBlock (dc, DCP_MetData, st, block, len);
 }
 
 
 
 
 int
-dc_ProcessFieldAttrs(dc, fid, pattern, func)
+dc_ProcessFieldAttrs (dc, fid, pattern, func)
 DataChunk *dc;
 FieldId fid;
 char *pattern;
@@ -192,26 +245,32 @@ int (*func) ();
  * Pass all of the attributes of this fid to the function
  */
 {
+	int st;
+
 	if (! dc_ReqSubClass (dc, DCP_MetData, "ProcessFieldAttrs"))
 		return(0);
-	return (dca_ProcAttrs (dc, DCP_MetData, ST_FIELDATTR(fid),
-			       pattern, func));
+	st = dc_FieldKey (dc, fid, 1);
+	return ((st >= 0) ? dca_ProcAttrs (dc, DCP_MetData, st,
+					   pattern, func) : NULL);
 }
 
 
 
 
 int
-dc_GetNFieldAttrs(dc, fid)
+dc_GetNFieldAttrs (dc, fid)
 DataChunk *dc;
 FieldId fid;
 /*
  * Return the number of field attributes in a datachunk.
  */
 {
+	int st;
+
 	if (! dc_ReqSubClass (dc, DCP_MetData, "GetNFieldAttrs"))
 		return (0);
-	return(dca_GetNAttrs(dc, DCP_MetData, ST_FIELDATTR(fid)));
+	st = dc_FieldKey (dc, fid, 1);
+	return((st >= 0) ? dca_GetNAttrs (dc, DCP_MetData, st) : 0);
 }
 
 
@@ -225,10 +284,13 @@ char *pattern;
 void **values[];
 int *natts;
 {
+	int st;
+
 	if (! dc_ReqSubClass (dc, DCP_MetData, "GetFieldAttrList"))
 		return (NULL);
-	return(dca_GetAttrList(dc, DCP_MetData, ST_FIELDATTR(fid),
-			       pattern, values, natts));
+	st = dc_FieldKey (dc, fid, 1);
+	return ((st >= 0) ? dca_GetAttrList (dc, DCP_MetData, st,
+					     pattern, values, natts) : NULL);
 }
 
 
@@ -238,17 +300,20 @@ dc_GetFieldAttrKeys (dc, fid, natts)
 DataChunk *dc;
 FieldId fid;
 int *natts;
-{
 /*
  * Returns a list of keys for the field attributes in this data chunk.
- * Also puts into natt the number of global attributes for this dc.
+ * Also puts into natt the number of attributes for this field.
  * The returned array of attribute keys is only valid until the next call
  * of any of the Get*AttrList or Get*AttrKeys functions.
  */
+{
+	int st;
+
 	if (! dc_ReqSubClass (dc, DCP_MetData, "GetFieldAttrKeys"))
 		return (NULL);
-	return(dca_GetAttrList(dc, DCP_MetData, ST_FIELDATTR(fid),
-			       NULL, NULL, natts));
+	st = dc_FieldKey (dc, fid, 1);
+	return ((st >= 0) ? dca_GetAttrList(dc, DCP_MetData, st,
+					    NULL, NULL, natts) : NULL);
 }
  
 
@@ -264,11 +329,6 @@ int *natts;
  */
 
 /*
- * ADE keys for private field attributes
- */
-# define STP_FIELD(fid)		(4000+(fid))
-
-/*
  * Defined names for standard attribute keys
  */
 # define PK_BADVAL	"z-bad-value"
@@ -280,10 +340,27 @@ int *natts;
  */
 # define DefaultBadval 		CFG_DC_DEFAULT_BADVAL
 
+static int dcp_FieldKey FP ((DataChunk *dc, FieldId fid));
 
-# ifndef CFG_NO_BADVALUES
-# define SUPPORT_BADVALUES
-# endif
+
+static int
+dcp_FieldKey (dc, fid)
+DataChunk *dc;
+FieldId fid;
+/* 
+ * Return the ADE sub-type to use for this field.  If the field does
+ * not exist in the datachunk, returns less than zero.  
+ */
+{
+	int st;
+
+	if ((st = dc_GetFieldIndex (dc, fid)) >= 0)
+	{
+		st += 4000;
+	}
+	return (st);
+}
+
 
 
 
@@ -296,8 +373,11 @@ DC_ElemType type;
 int nval;
 void *values;
 {
-	dca_AddAttrArray (dc, DCP_MetData, STP_FIELD(field),
-			  key, type, nval, values);
+	int st;
+
+	if ((st = dcp_FieldKey (dc, field)) >= 0)
+		dca_AddAttrArray (dc, DCP_MetData, st,
+				  key, type, nval, values);
 }
 
 
@@ -311,9 +391,11 @@ DC_ElemType *type;
 int *nval;
 {
 	void *values;
+	int st;
 
-	if ((values = dca_GetAttrArray (dc, DCP_MetData, STP_FIELD(field),
-					key, type, nval)))
+	st = dcp_FieldKey (dc, field);
+	if ((st >= 0) && (values = dca_GetAttrArray (dc, DCP_MetData, st,
+						     key, type, nval)))
 		return (values);
 	return (NULL);
 }
@@ -559,12 +641,11 @@ int nfield;
 	printf ("Private field attributes:\n");
 	for (i = 0; i < nfield; i++)
 	{
-		if (dca_GetNAttrs (dc, DCP_MetData,
-				   STP_FIELD(fields[i])) > 0)
+		int st = dcp_FieldKey (dc, fields[i]);
+		if (dca_GetNAttrs (dc, DCP_MetData, st) > 0)
 		{
 			printf (" %s:", F_GetName (fields[i]));
-			dca_ProcAttrArrays (dc, DCP_MetData, 
-					    STP_FIELD(fields[i]),
+			dca_ProcAttrArrays (dc, DCP_MetData, st,
 					    NULL, dca_PrintAttrArray, ";");
 			printf ("\n");
 		}
