@@ -1,6 +1,6 @@
 // Some -*- C++ -*- goodies for dealing with ZebraTimes.
 //
-// $Id: ZTime.h,v 2.3 2000-05-25 15:40:16 granger Exp $
+// $Id: ZTime.h,v 2.4 2000-08-30 23:02:31 granger Exp $
 //
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
  *	University Corporation for Atmospheric Research
@@ -23,7 +23,7 @@
 #ifndef _ZTime_h_
 #define _ZTime_h_
 
-#include <defs.h>
+#include "defs.h"
 
 /*
  * Subclass the ZebraTime C struct and call it ZTime!
