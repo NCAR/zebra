@@ -1,5 +1,5 @@
 /*
- * USGS 1 degree Digital Elevation Model -> Zebra netCDF converter
+ * USGS 3 arc-second Digital Elevation Model -> Zebra netCDF converter
  *
  *		Copyright (C) 1996 by UCAR
  *	University Corporation for Atmospheric Research
@@ -18,29 +18,33 @@
  * through use or modification of this software.  UCAR does not provide
  * maintenance or updates for its software.
  */
-/* # include <copyright.h> */
+# include <sys/types.h>
+# include <sys/stat.h>
 # include <stdlib.h>	/* for atof */
 # include <stdio.h>
 # include <errno.h>
 # include <netcdf.h>
 
-/* $Id: dem2zebra.c,v 1.1 1996-12-04 17:10:34 burghart Exp $ */
+/* $Id: dem2zebra.c,v 1.2 1998-06-02 15:31:44 burghart Exp $ */
 
 struct _Map
 {
     int	nc_id;
     int	alt_var;
-    /* all the following are in arc seconds */
+    /* all of the following are in arc-seconds */
     int	lat_spacing, lon_spacing;
     int north, south, east, west;
 } Map;
 
 
-void	InitMap (char *fname);
-void	ProcessFiles (char *fnames[], int nfiles);
-void	ReadHeader (FILE *infile, int *lat_spacing, int *lon_spacing,
+void Usage (char *ourname);
+void InitMap (char *fname);
+void CreateMapFile (char *fname);
+void OpenMapFile (char *fname);
+void ProcessFiles (char *fnames[], int nfiles);
+void ReadHeader (FILE *infile, int *lat_spacing, int *lon_spacing,
 		    int *ssec, int *nsec, int *wsec, int *esec);
-short*	ReadColumn (FILE *infile, int firstneeded, int lastneeded, int step);
+short* ReadColumn (FILE *infile, int firstneeded, int lastneeded, int step);
 
 
 
@@ -49,21 +53,17 @@ main (int argc, char *argv[])
 {
     int	nfiles;
     char	**files, *outfname = argv[1];
-
-    /*
-     * Arg check
-     */
+/*
+ * Arg check
+ */
     if (argc < 7)
     {
-	fprintf (stderr, 
-		 "Usage: %s outfile <S> <W> <N> <E> DEM_file [DEM_file ...]\n",
-		 argv[0]);
+	Usage (argv[0]);
 	exit (1);
     }
-
-    /*
-     * Get the bounds for the file we're generating
-     */
+/*
+ * Get the desired map bounds
+ */
     if (!(Map.south = (int)(3600 * atof (argv[2]))) || 
 	!(Map.west = (int)(3600 * atof (argv[3]))) ||
 	!(Map.north = (int)(3600 * atof (argv[4]))) || 
@@ -76,20 +76,38 @@ main (int argc, char *argv[])
 		 "(Remember that longitudes in the US are negative!)\n");
 	exit (1);
     }
-
-    /*
-     * Initialize the output map file
-     */
+/*
+ * Initialize the output map file
+ */
     InitMap (outfname);
-
-    /*
-     * Extract from the input files
-     */
+/*
+ * Extract from the input files
+ */
     files = argv + 6;
     nfiles = argc - 6;
     ProcessFiles (files, nfiles);
     ncclose (Map.nc_id);
 }
+
+
+
+void
+Usage (char *ourname)
+{
+    fprintf (stderr, "Usage: %s [options] <out_file> [<DEM_file> ...]\n", 
+	     ourname);
+    fprintf (stderr, 
+"Options: \n"
+"  -d <DEM_directory>	directory containing source DEM files; files there \n"
+"			should have names of the form: <lon>W<lat>N \n"
+"  -b <S> <W> <N> <E>	lon/lat bounds (required if <out_file> is new, \n"
+"			ignored otherwise)\n"
+"  -s <spacing>		desired output spacing in arc-seconds, must be a \n"
+"			multiple of 3; default varies to give reasonable \n"
+"			final map size \n");
+}
+
+
 
 
 void
@@ -98,46 +116,61 @@ InitMap (char *fname)
  * Open up and initialize our output map file
  */
 {
+    char	*fullname = malloc (strlen (fname) + 4);
+    struct stat fstatus;
+/*
+ * Build the name of the netCDF output file, appending ".cdf" if necessary
+ */
+    strcpy (fullname, fname);
+    if (! strstr (fullname, ".nc") && ! strstr (fullname, ".cdf"))
+	strcat (fullname, ".cdf");
+/*
+ * Either open the file if it exists, or create it
+ */
+    if (stat (fullname, &fstatus) < 0)
+	CreateMapFile (fullname);
+    else
+	OpenMapFile (fullname);
+
+    free (fullname);
+}
+
+
+
+void
+CreateMapFile (char *fname)
+{
     int		ncid, i, time_dim, lat_dim, lon_dim, lat_var, lon_var;
     int		base_var, offset_var, dims[3];
     long	start, count, nlats, nlons;
     long	base;
     double	step, offset;
-    char	*fullname = malloc (strlen (fname) + 3);
     char	attrval[128];
-
-    /*
-     * Open our netCDF output file, appending ".cdf" to the name if necessary
-     */
-    strcpy (fullname, fname);
-    if (! strstr (".cdf", fullname))
-	strcat (fullname, ".cdf");
-
-    if ((ncid = nccreate (fullname, NC_NOCLOBBER)) < 0)
+/*
+ * Create the file
+ */    
+    if ((ncid = nccreate (fname, NC_NOCLOBBER)) < 0)
     {
 	fprintf (stderr, "Error creating map file %s\n", fullname);
 	exit (1);
     }
     
     Map.nc_id = ncid;
-
-    free (fullname);
-
-    /*
-     * To match the DEM maps, we use 3 arc second longitude spacing if our
-     * north edge is at or south of 50 degrees, 6 arc second if the north
-     * edge is between 50 and 70 degrees, and 9 arc second north of 70
-     * degrees.  We always use 3 second spacing in latitude. 
-     */
+/*
+ * To match the DEM maps, we start with 3 arc-second longitude spacing if
+ * our north edge is at or south of 50 degrees, 6 arc-second if the north
+ * edge is between 50 and 70 degrees, and 9 arc-second north of 70 degrees.
+ * We always start with 3 arc-second spacing in latitude. 
+ */
     Map.lon_spacing = (Map.north <= (50 * 3600)) ? 3 : 
-	              (Map.north <= (70 * 3600)) ? 6 : 9;
+	(Map.north <= (70 * 3600)) ? 6 : 9;
     Map.lat_spacing = 3;
 
     nlons = (int)((Map.east - Map.west) / Map.lon_spacing + 0.5) + 1;
     nlats = (int)((Map.north - Map.south) / Map.lat_spacing + 0.5) + 1;
-    /*
-     * Adjust spacing if necessary to get us below a 750x750 final map
-     */
+/*
+ * Adjust spacing if necessary to get us below a 750x750 final map
+ */
     if (nlons > 750)
     {
 	Map.lon_spacing *= (1 + nlons / 750);
@@ -151,28 +184,24 @@ InitMap (char *fname)
     }
 
     printf ("\n");
-    printf ("Using lon/lat spacing of %d/%d arc seconds\n", Map.lon_spacing,
+    printf ("Using lon/lat spacing of %d/%d arc-seconds\n", Map.lon_spacing,
 	    Map.lat_spacing);
     printf ("for a resulting map size of %dx%d\n\n", nlons, nlats);
-
-    /*
-     * Adjust our north and east edges to exactly match the spacing we just 
-     * determined
-     */
+/*
+ * Adjust our north and east edges to exactly match the spacing we just 
+ * determined
+ */
     Map.north = Map.south + (nlats - 1) * Map.lat_spacing;
     Map.east = Map.west + (nlons - 1) * Map.lon_spacing;
-
-    /*
-     * Create our dimensions
-     */
+/*
+ * Create our dimensions
+ */
     time_dim = ncdimdef (ncid, "time", 1);
     lat_dim = ncdimdef (ncid, "latitude", nlats);
     lon_dim = ncdimdef (ncid, "longitude", nlons);
-
-    /*
-     * and our variables
-     */
-    
+/*
+ * and our variables
+ */
     lat_var = ncvardef (ncid, "latitude", NC_FLOAT, 1, &lat_dim);
     strcpy (attrval, "north latitude");
     ncattput (ncid, lat_var, "long_name", NC_CHAR, strlen (attrval) + 1, 
@@ -213,9 +242,9 @@ InitMap (char *fname)
     strcpy (attrval, "seconds since 1970-1-1 0:00:00 0:00");
     ncattput (ncid, offset_var, "units", NC_CHAR, strlen (attrval) + 1, 
 	      attrval);
-    /*
-     * Get out of definition mode and write our times (we just use zero...)
-     */
+/*
+ * Get out of definition mode and write our times (we just use zero...)
+ */
     ncendef (ncid);
 
     base = 0;
@@ -225,9 +254,9 @@ InitMap (char *fname)
     
     ncvarput (ncid, base_var, &start, &count, &base);
     ncvarput (ncid, offset_var, &start, &count, &offset);
-    /*
-     * Write our lats & lons
-     */
+/*
+ * Write our lats & lons
+ */
     for (i = 0; i < nlats; i++)
     {
 	float	lat = (float)(Map.south + i * Map.lat_spacing) / 3600.0;
@@ -245,9 +274,9 @@ InitMap (char *fname)
 	count = 1;
 	ncvarput (ncid, lon_var, &start, &count, &lon);
     }
-    /*
-     * Done here
-     */
+/*
+ * Done here
+ */
     return;
 }
 
@@ -287,11 +316,10 @@ ProcessFiles (char *fnames[], int nfiles)
 		     fnames[f]);
 	    exit (1);
 	}
-
-	/*
-	 * Start/stop lats & lons, forced to multiples of the output file's
-	 * lat and lon spacings
-	 */
+    /*
+     * Start/stop lats & lons, forced to multiples of the output file's
+     * lat and lon spacings
+     */
 	lat_start = (ssec < Map.south) ? Map.south : ssec;
 	lat_start = (lat_start / Map.lat_spacing) * Map.lat_spacing;
 	
@@ -309,10 +337,9 @@ ProcessFiles (char *fnames[], int nfiles)
 
 	if (lon_start > lon_stop)
 	    continue;
-
-	/*
-	 * Loop through the columns in the file
-	 */
+    /*
+     * Loop through the columns in the file
+     */
 	for (lon = wsec; lon <= lon_stop; lon += lon_spacing)
 	{
 	    int	firstneeded, lastneeded, step;
@@ -325,18 +352,18 @@ ProcessFiles (char *fnames[], int nfiles)
 		ReadColumn (infile, 0, -1, 0);
 		continue;
 	    }
-	    /*
-	     * Bounding indices of the lats we need from the next column
-	     */
+	/*
+	 * Bounding indices of the lats we need from the next column
+	 */
 	    firstneeded = (lat_start - ssec) / lat_spacing;
 	    lastneeded = (lat_stop - ssec) / lat_spacing;
 	    step = Map.lat_spacing / lat_spacing;
 	    
 	    alts = ReadColumn (infile, firstneeded, lastneeded, step);
-	    /*
-	     * Position and size for the portion of the output file we cover
-	     * with this column
-	     */
+	/*
+	 * Position and size for the portion of the output file we cover
+	 * with this column
+	 */
 	    start[0] = 0;
 	    start[1] = (lon - Map.west) / Map.lon_spacing;
 	    start[2] = (lat_start - Map.south) / Map.lat_spacing;
@@ -344,9 +371,9 @@ ProcessFiles (char *fnames[], int nfiles)
 	    count[0]= 1;
 	    count[1] = 1;
 	    count[2] = (lastneeded - firstneeded) / step + 1;
-	    /*
-	     * Write the part of the column that goes into the output file
-	     */
+	/*
+	 * Write the part of the column that goes into the output file
+	 */
 	    ncvarput (Map.nc_id, Map.alt_var, start, count, alts);
 	}
 	printf ("\n");
@@ -360,7 +387,7 @@ ReadHeader (FILE *infile, int *lat_spacing, int *lon_spacing, int *ssec,
 /*
  * Read the "DEM Type A Logical Record" header from the file, returning the
  * latitude spacing, longitude spacing, south, north, west, and east edges,
- * all in integer arc seconds.
+ * all in integer arc-seconds.
  */
 {
     char	buf[1024];
@@ -392,35 +419,34 @@ ReadColumn (FILE *infile, int firstneeded, int lastneeded, int step)
 {
     char	buf[8192];
     int		nlats, i, n;
-    static short	lats[1201];
+    static short	alts[1201];
 
     fread (buf, 1, sizeof (buf), infile);
 /*
- * We assume 1201 lats per column (1 degree column, 3 arc second spacing)
+ * We assume 1201 lats per column (1 degree column, 3 arc-second spacing)
  */
-    sscanf (buf + 12, "%d", &nlats);
+    nlats = atoi (buf + 12);
+
     if (nlats != 1201)
     {
 	fprintf (stderr, "Eek! Column does not have 1201 entries!\n");
 	exit (1);
     }
 /*
- * Read out the needed lats
+ * Read out the altitudes at the needed lats
  */
     for (i = firstneeded, n = 0; i <= lastneeded; i += step, n++)
     {
 	int	offset;
-	/*
-	 * Offset to the desired lat.  144 byte heading, 6 bytes per lat, plus
-	 * four spaces of filler at the end of each 1024 byte segment.
-	 */
+    /*
+     * Offset to the desired lat.  144 byte heading, 6 bytes per lat, plus
+     * four spaces of filler at the end of each 1024 byte segment.
+     */
 	offset = 144 + 6 * i;
 	offset += (offset / 1024) * 4;
 
-	sscanf (buf + offset, "%6hd", lats + n);
+	alts[n] = atoi (buf + offset);
     }
 
-    return lats;
+    return alts;
 }
-
-    
