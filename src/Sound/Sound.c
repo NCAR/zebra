@@ -1,7 +1,7 @@
 /*
  * Send sound files to the audio port.
  */
-static char *rcsid = "$Id: Sound.c,v 2.1 1991-09-13 15:01:58 corbet Exp $";
+static char *rcsid = "$Id: Sound.c,v 2.2 1991-12-05 17:35:47 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -25,7 +25,7 @@ static char *rcsid = "$Id: Sound.c,v 2.1 1991-09-13 15:01:58 corbet Exp $";
 # include <errno.h>
 # include "defs.h"
 # include "copyright.h"
-# include "../config/config.h"
+# include "../include/config.h"
 # include "../include/message.h"
 # include "../include/timer.h"
 
