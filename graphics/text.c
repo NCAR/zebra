@@ -333,10 +333,10 @@ int *rastp, width, color, bg;
 	{
 		int rdata = SWAP (*rastp++), ndo = (width > 32) ? 32 : width;
 		for (bit = 0; bit < ndo; bit++)
-# ifdef VMS
-			*dest++ = (rdata & (1 << (31 - bit))) ? color : bg;
-# else
+# ifdef SUN
 			*dest++ = (rdata & (1 << stbl[bit])) ? color : bg;
+# else
+			*dest++ = (rdata & (1 << (31 - bit))) ? color : bg;
 # endif
 		width -= 32;
 	}
