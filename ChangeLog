@@ -1,3 +1,41 @@
+Mon Nov 18 13:51:00 1996  Gary Granger  <granger@narnia.atd.ucar.edu>
+
+	* DataStore: return non-float data as float in dc_GetScalar()
+
+	* Daemon and gp accept multiple init files on command line
+
+	* library: Expect and Profile interfaces for application testing
+	  and profiling
+
+	* Imake: fewer global make variable settings; compiler command
+	  lines limited to only what a module needs to compile
+
+	* multiple EventLoggers allowed per message manager session
+
+	* dsdwidget: start-up time greatly reduced for large datasets
+
+	* dsdump: add -f and -g options for printing file paths
+
+	* dsnotice: new utility for printing real-time daemon notifications
+
+	* version.h and version.c added to lib: version and copyright
+	  options added to major programs
+
+	* DataStore: field-specific bad values; microsecond handling in
+	  DFA and GetList and bug fix in netcdf; extensive test suite;
+	  greater intelligence at DFA level and fewer redundant algorithms
+	  among file formats; more efficient netcdf interface; field name
+	  checking; standalone mode; platform class and instance
+	  definition protocol and API; ds_Store replaced with
+	  ds_StoreBlocks; datachunks optimized to use local pointers but
+	  provide serialization methods; bug fix for number of samples in
+	  overwrite notifications
+
+	* imake: installs files in bin and lib to allow compiling and
+	  linking from a binary distribution
+
+	* gp: FORTRAN no longer required; uses C versions instead
+
 Wed Feb  7 09:49:03 1996  Gary Granger  <granger@narnia.atd.ucar.edu>
 
 	* --- Version 4.2 --- tagged and branched.
