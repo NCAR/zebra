@@ -1,4 +1,5 @@
 /*
+ * $XFree86: mit/config/imakemdep.h,v 2.8 1994/05/04 10:27:02 dawes Exp $
  * $XConsortium: imakemdep.h,v 1.38 91/08/25 11:36:39 rws Exp $
  * 
  * This file contains machine-dependent constants for the imake utility.
@@ -73,9 +74,19 @@
 
 #ifdef SYSV386
 # ifdef SVR4
-#  define imake_ccflags "-Xc -DSVR4"
+#  ifdef SOLX86
+#    define imake_ccflags "-DSOLX86 -DSVR4"
+#  else
+#    define imake_ccflags "-Xc -DSVR4"
+#  endif
 # else
 #  define imake_ccflags "-DSYSV"
+# endif
+#endif
+
+#ifdef MACH
+# ifdef i386
+#  define imake_ccflags "-DNOSTDHDRS"
 # endif
 #endif
 
@@ -87,10 +98,6 @@
 #define imake_ccflags "-DX_NOT_POSIX"
 #endif
 
-#ifdef sgi
-#define imake_ccflags "-D_SYSV"
-#endif
-
 #else /* not CCIMAKE */
 #ifndef MAKEDEPEND
 /*
@@ -99,7 +106,7 @@
  *     descriptor onto another, define such a mechanism here (if you don't
  *     already fall under the existing category(ies).
  */
-#if defined(SYSV) && !defined(CRAY) && !defined(Mips) && !defined(sgi)
+#if defined(SYSV) && !defined(CRAY) && !defined(Mips)
 #define	dup2(fd1,fd2)	((fd1 == fd2) ? fd1 : (close(fd2), \
 					       fcntl(fd1, F_DUPFD, fd2)))
 #endif
@@ -114,7 +121,7 @@
  *     all colons).  One way to tell if you need this is to see whether or not
  *     your Makefiles have no tabs in them and lots of @@ strings.
  */
-#if !defined sgi && (defined(sun) || defined(SYSV) || defined(SVR4) || defined(hcx))
+#if defined(sun) || defined(SYSV) || defined(SVR4) || defined(hcx)
 #define FIXUP_CPP_WHITESPACE
 #endif
 
@@ -130,10 +137,15 @@
 #if defined(_IBMR2) && !defined(DEFAULT_CPP)
 #define DEFAULT_CPP "/usr/lpp/X11/Xamples/util/cpp/cpp"
 #endif
-
-#ifdef solaris
-#define DEFAULT_CPP "/usr/ccs/lib/cpp"
+#if defined(__386BSD__) || defined(__NetBSD__) || defined(__FreeBSD__)
+#define DEFAULT_CPP "/usr/libexec/cpp"
 #endif
+#ifdef __bsdi__
+#define DEFAULT_CPP "/usr/bin/cpp"
+#endif
+#ifdef SOLX86
+#define DEFAULT_CPP "/usr/ccs/lib/cpp"
+#endif 
 
 /*
  * Step 5:  cpp_argv
@@ -164,9 +176,12 @@ char *cpp_argv[ARGUMENTS] = {
 #ifdef unix
 	"-Uunix",	/* remove unix symbol so that filename unix.c okay */
 #endif
-#ifdef hpux
-        "-P",    /* hp puts all the line control information in the Makefile */
-#endif 
+#if defined(__386BSD__) || defined(__NetBSD__) || defined(__FreeBSD__) || defined (__bsdi__)
+	"-traditional",
+#endif
+#ifdef __OSF__
+	"-traditional",
+#endif
 #ifdef M4330
 	"-DM4330",	/* Tektronix */
 #endif
@@ -237,14 +252,36 @@ char *cpp_argv[ARGUMENTS] = {
 #endif /* MOTOROLA */
 #ifdef SYSV386           /* System V/386 folks */
 	"-DSYSV386",
+# ifdef SOLX86			 /* Solaris 2.1 x86 */
+    "-DSOLX86"
+# endif
 # ifdef SVR4
 	"-DSVR4",
 # endif
 # ifdef ISC
-	"-DISC",         /* ISC 2.2.1 */
+	"-DISC",
+#  ifdef ISC40
+	"-DISC40",       /* ISC 4.0 */
+#  else
+#   ifdef ISC202
+	"-DISC202",      /* ISC 2.0.2 */
+#   else
+#    ifdef ISC30
+	"-DISC30",       /* ISC 3.0 */
+#    else
+	"-DISC22",       /* ISC 2.2.1 */
+#    endif
+#   endif
+#  endif
+# endif
+# ifdef NCR
+	"-DNCR",
 # endif
 # ifdef SCO
 	"-DSCO",
+# endif
+# ifdef SCO324
+	"-DSCO324",
 # endif
 # ifdef ESIX
 	"-DESIX",
@@ -252,19 +289,16 @@ char *cpp_argv[ARGUMENTS] = {
 # ifdef ATT
 	"-DATT",
 # endif
-# ifdef DELL
-	"-DDELL",
+#endif
+#ifdef __386BSD__
+# ifdef __FreeBSD__
+/* __FreeBSD__ is not defined by the OS in FreeBSD 1.0.2 or earlier. */
+	"-D__FreeBSD__",
 # endif
 #endif
-#ifdef solaris
-	"-Dsolaris",
+#ifdef linux
+	"-traditional",
 #endif
-#ifdef sgi
-#ifdef IRIX5 
-	"-DIRIX5",
-#endif
-#endif
-       
 };
 #else /* else MAKEDEPEND */
 /*
@@ -310,11 +344,6 @@ struct symtab	predefs[] = {
 #ifdef mips
 	{"mips", "1"},
 #endif
-#ifdef sgi
-        {"sgi", "1"},
-        {"__sgi", "1"},
-#endif
-
 #ifdef ultrix
 	{"ultrix", "1"},
 #endif
@@ -338,6 +367,12 @@ struct symtab	predefs[] = {
 #endif
 #ifdef CMU
 	{"CMU", "1"},
+#endif
+#ifdef i386
+	{"i386", "1"},
+#endif
+#ifdef MACH
+	{"MACH", "1"},
 #endif
 #ifdef luna
 	{"luna", "1"},
@@ -373,7 +408,19 @@ struct symtab	predefs[] = {
 	{"bsd43", "1"},
 #endif
 #ifdef hcx
-	{"hcx", 1},
+	{"hcx", "1"},
+#endif
+#ifdef __386BSD__
+	{"__386BSD__", "1"},
+#endif
+#ifdef __NetBSD__
+	{"__NetBSD__", "1"},
+#endif
+#ifdef __FreeBSD__
+	{"__FreeBSD__", "1"},
+#endif
+#ifdef __bsdi__
+	{"__bsdi__", "1"},
 #endif
 	/* add any additional symbols before this line */
 	{NULL, NULL}
