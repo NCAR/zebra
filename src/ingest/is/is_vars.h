@@ -1,7 +1,7 @@
 /*
  * IS variables.
  * 
- * $Id: is_vars.h,v 1.7 1992-07-13 18:52:32 martin Exp $
+ * $Id: is_vars.h,v 1.8 1992-08-28 23:36:36 barrett Exp $
  */
 /*
  * Copyright (C) 1987,88,89,90,91 by UCAR University Corporation for
@@ -31,6 +31,7 @@
 #define MAX_RESTARTS  1000
 #define LS_BEGIN "ls -1d "
 #define LS_END " 2> /dev/null"
+#define MAXGC	64
 
 enum CONFIG_TYPE {
 	IS_FTYPE, IS_CTYPE, IS_PTYPE
@@ -71,4 +72,9 @@ struct is_config {
 	int             n_restarts;	/* it is incremented for each restart
 					 * up to MAX_RESTARTS limit, then it
 					 * is turned off */
+};
+
+struct NList {
+	int	n;
+	char	*list[MAXGC];
 };
