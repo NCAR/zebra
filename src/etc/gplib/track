@@ -1,6 +1,6 @@
 !
 ! Lotsa track support stuff.
-! $Id: track,v 1.9 2000-04-11 21:39:29 burghart Exp $
+! $Id: track,v 1.10 2000-12-01 23:49:32 granger Exp $
 !
 
 !
@@ -81,9 +81,12 @@ procedure track-field-select field string
 !
 ! See if they called us out of the position icon.  If so, we really want
 ! to be shipping data off to another window.  Shipping out "mono" would be
-! rude, though.
+! rude, though.  The field is passed already quoted, so it doesn't need
+! need to be quoted again except when expanded for the parameter command
+! below.
 !
-	local qfield quote(field)
+!	local qfield quote(field)
+	local qfield field
 	if (area_type = 'posicon')
 	   	if (field = 'mono')
 			dm 'beep'
@@ -97,6 +100,7 @@ procedure track-field-select field string
 !
 ! OK, we're just changing things locally.  Have at it.
 !
+	local qfield quote(field)
 	if (field = 'mono')
 		local junk pd_removeparam(icon_component,'field')
 	else
@@ -116,7 +120,7 @@ define widget track-right intmenu 'x'
 		(PDParam (icon_component, 'show-position') = 'true')
 	submenu 'Track color (when mono)' 'simple-color'
 	submenu 'Line width' LineWidth
-	entry 'Field chooser widget...' 'popup fchooser'
+	entry 'Field chooser...' 'selectfield'
 	entry 'Other track parameters...' 'popup track-parameters'
 endmenu
 
@@ -142,7 +146,7 @@ define widget track-parameters form 'Track parameters'
 ! The time period covered by the track.
 !
 	label ltime 'Time period:'
-	blank time 'Funky' width 80
+	blank time 'Funky' width 80 command 'tp-apply'
 	label ltime2 '(s = seconds, m = minutes, h = hours)'
 	newline
 !
@@ -159,14 +163,14 @@ define widget track-parameters form 'Track parameters'
 !
 	newline
 	label tad '     Draw arrows every'
-	blank arrowtime 'Funky' width 50
+	blank arrowtime 'Funky' width 50  command 'tp-apply'
 	label tad1 'with scale factor'
-	blank arrowscale 'Funky' width 60
+	blank arrowscale 'Funky' width 60 command 'tp-apply'
 	newline
 	label lu '     U field for arrows:'
-	blank u 'funky' width 60
+	blank u 'funky' width 60 command 'tp-apply'
 	label lv 'V field:'
-	blank v 'funky' width 60
+	blank v 'funky' width 60 command 'tp-apply'
 	newline
 !
 ! Annotation.
@@ -176,10 +180,10 @@ define widget track-parameters form 'Track parameters'
 	button time-enab 'Funky' command \
 			'tp-toggle-enable  time-enab' width 70
 	label ttime1 'every'
-	blank annot-int 'funky' width 50
+	blank annot-int 'funky' width 50 command 'tp-apply'
 	newline
 	label tfont '     font size'
-	blank annot-scale 'funk' width 40
+	blank annot-scale 'funk' width 40 command 'tp-apply'
 	label tpix 'pixels.  Annotation color: '
 	pulldown annotation-color 'x' width 80 menu form-color-menu
 	newline

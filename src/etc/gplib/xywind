@@ -1,249 +1,105 @@
 !
-! Wind profile stuff.
+! Wind profile stuff used by the wind-template.
 !
-!
+! This module 'extends' the time-height module with a menu and widgets
+! for tweaking parameters specific to xywind plots.
 
 require simple-color
+require time-height
+require dataskip
+require form-utilities
+require color-table
 
+!
+! The menu meant to encapsulate all of the XYWind parameters for a 
+! wind profile component of a time-height plot.
+!
 define widget time-height-winds intmenu 'Generic winds'
 	title 'Time-Height Winds'
 	line
-	entry 'Vector' 'adjust_representation_style vector' \
-		(PDParam (icon_component,"representation-style") = "vector")
-	entry 'Barb' 'adjust_representation_style barb' \
-		(PDParam (icon_component,"representation-style") = "barb")
+	entry 'Vector' \
+		'parameter #icon_component representation-style vector' \
+	(PDSearch (icon_component,"representation-style","xy-wind") <> "barb")
+	entry 'Barb' 'parameter #icon_component representation-style barb' \
+	(PDSearch (icon_component,"representation-style","xy-wind") = "barb")
+	entry 'Barb in knots' \
+		'parameter #icon_component barb-type knots' \
+           (PDSearch (icon_component,"barb-type","xy-wind") = "knots")
+	entry 'Barb in m/s' \
+		'parameter #icon_component barb-type "m/s"' \
+           (PDSearch (icon_component,"barb-type","xy-wind") <> "knots")
 	line
-	entry 'Monochrome' 'ToggleBoolean "color-mono"' \
-		(PDParam (icon_component, "color-mono") = "true")
-	submenu 'Mono Color' simple-color
+	entry 'Color-coded barbs/arrows' 'ToggleBoolean color-mono' \
+		(PDParam (icon_component, 'color-mono') <> 'true')
+	submenu 'Color table' Color-tables
+	submenu 'Barb/arrow color (when mono)' simple-color
+	entry 'Wind parameters...' 'popup xyw-parameters'
 	line
-	submenu 'Data skip interval' 'xywind-data-skip'
+	submenu 'Data skip interval' 'data-skip-menu'
 	line
-	entry 'Other plot parameters...' 'popup iss-params'
+	entry 'Global grid parameters...' 'popup th-global'
+	entry 'Select height field...' 'selectfield "param=y-field"'
 endmenu
 
-
-
-define widget xywind-data-skip intmenu 'skip data points'
-	title 'Data skip interval'
-	line
-	entry 'Plot every point' \
-		'parameter #icon_component data-skip "1"' \
-		(PDParam (icon_component,"data-skip") = "1")
-	entry 'Every 5th point' \
-		'parameter #icon_component data-skip "5"' \
-		(PDParam (icon_component,"data-skip") = "5")
-	entry 'Every 10th point' \
-		'parameter #icon_component data-skip "10"' \
-		(PDParam (icon_component,"data-skip") = "10")
-	entry 'Every 20th point' \
-		'parameter #icon_component data-skip "20"' \
-		(PDParam (icon_component,"data-skip") = "20")
-	entry 'Every 30th point' \
-		'parameter #icon_component data-skip "30"' \
-		(PDParam (icon_component,"data-skip") = "30")
-endmenu
 
 
 !
 ! big damn form widget to tweak all these parameters.
 !
-define widget iss-params form 'ISS parameters'
+define widget xyw-parameters form 'Wind parameters'
 	noheader
-	popup 'iss-par-popup'
+	popup 'xyw-popup'
 
 	label title 'Wind profile display parameters'
-	button apply 'Apply' command 'iss-par-apply'
+	button help 'Help' command 'help limits'
+	button apply 'Apply' command 'xyw-apply'
 	button dismiss 'Dismiss' color red command 'popdown #ui$form'
 	label comp 'x' width 1 color gray95
 	newline
 
-	label l1 'Time period:'
-	blank time 'funky' width 50 command 'iss-par-apply'
-	label l2 '(s = seconds, m = minutes, h = hours)'
-	newline
-
-	label l3 'Height from:'
-	blank minheight 'funky' width 60 command 'iss-par-apply'
-	label l4 'to:'
-	blank maxheight 'funky' width 60 command 'iss-par-apply'
-	label l5 ', with lines every'
-	blank lines 'funky' width 60 command 'iss-par-apply'
-	newline
-
 	label l6 'Vector scale:'
-	blank vscale 'x' width 60 command 'iss-par-apply'
+	blank vscale 'x' width 60 command 'xyw-apply'
 	label l7 'Barb shaft length:'
-	blank bscale 'x' width 60 command 'iss-par-apply'
+	blank bscale 'x' width 60 command 'xyw-apply'
+	newline
+
+	label lmono 'Color coding: '
+	button mono 'unknown' command 'fu-toggle-enabled' width 80
+	label lstep ' Color step: '
+	blank step '0.0' width 60 command 'xyw-apply'
 enddef
 
 
-
-procedure iss-par-popup
+procedure xyw-popup
 	local f ui$form
 	local c icon_component
-	local fld PDParam('global','y-field')
-
 	formtext #f comp #c
-	local t PDParam('global','xy-series-span')
-	formtext #f time #t
 
-	local minheight PDSearch('global','scale-y-min',fld)
-	if (minheight = "(Undefined)")
-		local minheight '0.0'
-	endif
-	formtext #f minheight #minheight
-
-	local maxheight PDSearch('global','scale-y-max',fld)
-	if (maxheight = "(Undefined)")
-		local maxheight '0.0'
-	endif
-	formtext #f maxheight #maxheight
-
-	local l PDParam('global','xy-axis-l-tic-interval')
-	formtext #f lines #l
-	local v PDParam(c,'vec-scale')
+	local v PDSearch(c,'vec-scale','xy-wind')
 	formtext #f vscale #v
-	local b PDParam(c,'barb-scale')
+	local b PDSearch(c,'barb-scale','xy-wind')
 	formtext #f bscale #b
-endprocedure
-
-
-procedure iss-par-apply
-	local f ui$form
-	local fld SimpleFieldName(PDParam('global','y-field'))
-	local c getftext(f, 'comp')
-
-	local t getftext(f, 'time')
-	parameter global xy-series-span #t
-
-	local minheight getftext(f,'minheight')
-	local par concat(fld,'-scale-y-min')
-	parameter 'global' #par #minheight
-
-	local maxheight getftext(f,'maxheight')
-	local par concat(fld,'-scale-y-max')
-	parameter 'global' #par #maxheight
-
-	local l getftext(f, 'lines')
-	parameter global xy-axis-l-tic-interval #l
-	local v getftext(f, 'vscale')
-	parameter #c vec-scale #v
-	local b getftext(f, 'bscale')
-	parameter #c barb-scale #b
-endprocedure
-
-
-procedure adjust_representation_style style string
-	param #icon_component representation-style #style
-endprocedure
-
-!
-! Limits adjust for color coded barbs/vectors
-!
-
-procedure xyw-center-step junk string
-	popup xyw-center-step
-endprocedure
-
-
-define widget xyw-center-step form ''
-	popup xyw-ctr-step-popup
-	noheader
-!
-! title/zeb line.
-!
-	label l1 'Center and step for barb color coding'
-	button help 'Help' command 'help limits'
-	button apply 'Apply' command 'xyw-ctr-step-apply'
-	button zap 'Dismiss' color red command 'popdown #ui$form'
-	newline
-!
-! Scale mode.
-!
-	label lmode 'Mode: '
-	button mode 'FUNKY' command 'ToggleMode' width 70
-	label comp 'comp' color gray95 
-	newline
-!
-! The actual center and step if they want to tweak it.
-!
-	label lcenter 'Center: '
-	blank center '0.0' width 60 
-	label lstep ' Step: '
-	blank step '0.0' width 60
-enddef
-
-
-!
-! The popup procedure for the center/step form.
-!
-procedure xyw-ctr-step-popup
-!
-! Pull some basic info.
-!
-	local f ui$form
-	local rep pd_param(icon_component,'representation','string')
-	local plat pd_param(icon_component, 'platform', 'string')
-!
-! Stash aside the component name, we will want it later.
-!
-	formtext #f 'comp' #icon_component
-!
-! Now see if they have auto scaling turned on.
-!
-	local mode pd_ParamSearch(icon_component, 'scale-mode', plat, 'string')
-	if (mode = 'auto' or mode = 'autoscale')
-		formtext #f mode 'auto'
-	else
-		formtext #f mode 'manual'
-	endif
-!
-! Pull in the center and step values.
-!
-	local value pd_ParamSearch(icon_component, 'center', rep, 'string')
-	if (value = '(Undefined)')
-		formtext #f center 0
-	else
-		formtext #f center #value
-	endif
-
-	local value pd_ParamSearch(icon_component, 'step', rep, 'string')
-	if (value = '(Undefined)')
-		formtext #f step 1
+	fu-setdisabled #f mono #c 'color-mono' False
+	local value PDSearch(icon_component, 'step', 'xy-wind')
+	if (value = PUNDEF)
+		formtext #f step '5.0'
 	else
 		formtext #f step #value
 	endif
 endprocedure
 
 
-
-!
-! Apply all the junk they just put in.
-!
-procedure xyw-ctr-step-apply
-	parameter global 'plot-hold' 'true'
+procedure xyw-apply
 	local f ui$form
-	local comp getftext(f, 'comp')
-	local mode getftext(f, 'mode')
-	parameter #comp 'scale-mode' #mode
-	local center getftext(f, 'center')
-	parameter #comp center #center
+	local c getftext(f, 'comp')
+
+	local v getftext(f, 'vscale')
+	parameter #c vec-scale #v
+	local b getftext(f, 'bscale')
+	parameter #c barb-scale #b
+	fu-applydisabled #f 'mono' #c 'color-mono'
 	local step getftext(f, 'step')
-	parameter #comp step #step
-	parameter global 'plot-hold' 'false'
+	parameter #c step #step
 endprocedure
 
 
-
-!
-! Tweak autoscale mode.
-!
-procedure ToggleMode
-	local current getftext(ui$form, 'mode')
-	if (current = 'manual')
-		formtext #ui$form 'mode' 'auto'
-	else
-		formtext #ui$form 'mode' 'manual'
-	endif
-endprocedure

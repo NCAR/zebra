@@ -1,25 +1,22 @@
-! $Id: theight-add,v 1.2 2000-12-01 23:49:30 granger Exp $
+! $Id: cap-add,v 1.1 2000-12-01 23:49:30 granger Exp $
 !
-! The brains behind giving the user the choice of how to add a platform
-! to a time-height window.
+! The brains behind giving the user the choice of how to add a (scalar)
+! platform to a CAP window.
 !
 ! Here are the component options:
 !
-!   contour
-!   wind
-!
-! We don't tell the user they can't add a wind display of rass, even though
-! it probably wouldn't display anything, because there is no sure way of
-! determining that it's a rass platform.
+!   track
+!   location
+!   boat track
+!   station plot
 
-
-procedure theight-add platform string field string window string
+procedure cap-add platform string field string window string
 
 ! This is somewhat of a kludge in that we expect the ui$form variable
 ! to be set after the popup, so that we can set the state parameters
 ! from our arguments.
 
-	popup tha-form
+	popup ca-form
 	local f ui$form
 	formtext #f platform #platform
 	formtext #f field #field
@@ -28,14 +25,28 @@ procedure theight-add platform string field string window string
 endprocedure
 
 !
+! Pulldown for grid brightness.
+!
+define widget ca-comp-menu intmenu 'cap components'
+	title 'CAP Components'
+	line
+	entry 'Add Location'  'ca-add-comp location'
+	entry 'Add Station Plot'  'ca-add-comp station'
+	entry 'Add Aircraft Track'  'ca-add-comp track'
+	entry 'Add Boat Track'  'ca-add-comp boat'
+	entry 'Add Sounding Track'  'ca-add-comp balloon'
+endmenu
+
+
+!
 ! The foundation of the interface: a popup widget which gives the options
 ! for adding a given platform to the plot.
 !
-define widget tha-form form 'time-height platform put'
+define widget ca-form form 'cap platform put'
 	noheader
-	popup tha-popup
+	popup ca-popup
 
-	label title 'Add Platform to Time-height Plot'
+	label title 'Add Platform to CAP Plot'
 	button dismiss 'Dismiss' color red command 'popdown #ui$form'
 	newline
 	
@@ -50,8 +61,7 @@ define widget tha-form form 'time-height platform put'
 	label window 'null' width 200
 	newline
 
-	button addc 'Add Contour' command 'tha-add-comp contour'
-	button addw 'Add Wind Profile' command 'tha-add-comp winds'
+	pulldown paddcomp 'Choose Component' menu ca-comp-menu
 enddef
 
 
@@ -59,28 +69,29 @@ enddef
 ! This is only called so that the ui$form variable is set
 ! on popup for the time-height-add procedure to reference.
 !
-procedure tha-popup
+procedure ca-popup
 	local f ui$form
 endprocedure
 
 
-procedure tha-add-comp comp string
+procedure ca-add-comp comp string
 
 	local f ui$form
 	local plat getftext(f,'platform')
 	local field getftext(f,'field')
 	local window getftext(f,'window')
+	local pd 'cap-components'
 !
 ! Change the template component directly before adding it.
 ! This would also be where we might query the platform database
-! for the default y-field...
+! for the default track and component icons and such...
 !
-	parameter theight-components #comp platform #plat
-
-	if (comp = 'contour')
-		parameter theight-components #comp z-field #field
+	local rep PDParam(pd, comp, 'representation')
+	if (rep = 'track')
+		parameter #pd #comp field #field
 	endif
-	add theight-components #comp #window
+	parameter #pd #comp platform #plat
+	add #pd #comp #window
 
 endprocedure
 

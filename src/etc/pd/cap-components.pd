@@ -1,0 +1,157 @@
+!
+! CAP library components used by dm module cap-add.
+!
+global
+	pd-name:	cap-components
+location
+	platform:	SOMETHING
+	representation:	overlay
+	field:		location
+	color:		green
+	icon-left-menu:		minimal-cap-left-menu
+	posicon-left-menu:	minimal-cap-left-menu
+	icon-right-menu:	location-options
+	posicon-right-menu:	location-options
+	label:		platform
+	active-icon:	true
+	require:	location
+	label-size:	12
+	icon:		radar-loc
+!
+! The simple boat track component
+!
+boat
+	representation:	track
+	platform:	SOMETHING
+	time-period:	180m
+	trigger:	platform
+	mono:		true
+	color:		brown
+	line-width:	3
+	color-table:	Contour
+	arrow:		false
+	arrow-interval:	3m
+	x-field:	u_wind
+	y-field:	v_wind
+	arrow-scale:	0.005
+	arrow-color:	brown
+	sa-scale:	0.025
+	show-position:	true
+	position-icon:	microboat
+	scale-mode:	auto
+	icon-left-menu:		standard-cap-left-menu
+	icon-middle-menu:	FieldMenu
+	field-menu-extras:	mono|Monochrome track (no field)
+	field-select-command:	track-field-select
+	icon-right-menu:	track-right
+	icon:		microboat
+	require:	simple-color, track
+	limit-proc:	gnarly-track-adjust
+	annot-time:	false
+	annot-time-interval:	10m
+	annot-time-color:	red
+	annot-time-scale:	10
+	active-icon:	true
+	posicon-left-menu:	FieldMenu
+	posicon-right-menu:	track-right
+!
+! The "gnarly-track" component, with arrows, color-coding, and the
+! ginsu knife too.
+!
+track
+	representation:	track
+	platform:	SOMETHING
+	time-period:	60m
+	trigger:	platform
+	color:		brown
+	line-width:	3
+	field:		alt
+	color-table:	Contour
+	arrow:		true
+	arrow-interval:	3m
+	x-field:	u_wind
+	y-field:	v_wind
+	arrow-scale:	0.005
+	arrow-color:	brown
+	sa-scale:	0.025
+	show-position:	true
+	scale-mode:	auto
+	icon-left-menu:		standard-cap-left-menu
+	icon-middle-menu:	FieldMenu
+	field-menu-extras:	mono|Monochrome track (no field)
+	field-select-command:	track-field-select
+	icon-right-menu:	track-right
+	icon:		littleplane
+	require:	simple-color, track
+	limit-proc:	gnarly-track-adjust
+	annot-time:	false
+	annot-time-interval:	10m
+	annot-time-color:	red
+	annot-time-scale:	10
+	active-icon:	true
+	posicon-left-menu:	standard-cap-left-menu
+	posicon-middle-menu:	tr-simple-send
+	posicon-right-menu:	track-right
+!
+! Balloon track.  Started out same as aircraft except for the icon.
+!
+balloon
+	representation:	track
+	platform:	SOMETHING
+	time-period:	60m
+	trigger:	platform
+	color:		brown
+	line-width:	3
+	field:		alt
+	color-table:	Contour
+	arrow:		true
+	arrow-interval:	3m
+	x-field:	u_wind
+	y-field:	v_wind
+	arrow-scale:	0.005
+	arrow-color:	brown
+	sa-scale:	0.025
+	show-position:	true
+	scale-mode:	auto
+	icon-left-menu:		standard-cap-left-menu
+	icon-middle-menu:	FieldMenu
+	field-menu-extras:	mono|Monochrome track (no field)
+	field-select-command:	track-field-select
+	icon-right-menu:	track-right
+	icon:		sounding-small
+	require:	simple-color, track
+	limit-proc:	gnarly-track-adjust
+	annot-time:	false
+	annot-time-interval:	10m
+	annot-time-color:	red
+	annot-time-scale:	10
+	active-icon:	true
+	posicon-left-menu:	standard-cap-left-menu
+	posicon-middle-menu:	tr-simple-send
+	posicon-right-menu:	track-right
+!
+! Generic plot description for station plots.  Needs to have the platform
+! filled in (unless it happens to be "mesonet") but otherwise self contained.
+!
+station
+	platform:	mesonet
+	representation:	station
+	u-field:	u_wind
+	v-field:	v_wind
+	wspd-field:	ws
+	wdir-field:	wd
+	icon-left-menu:	standard-cap-left-menu
+	icon-middle-menu:	FieldMenu
+	posicon-middle-menu:	station-send
+	field-select-command:	p_toggle_quadrant
+	icon:		meso_stations
+	icon-field-menu-extras:	station|Station Identification
+	icon-right-menu:	p-station-right
+	annot-field-menu-extras:	station|Station Identification,none
+	annot-left-menu:	FieldMenu
+	annot-middle-menu:	FieldMenu
+	arrow-scale:		0.01
+	require:		station,simple-color
+	limit-proc:		adj_arrow_scale
+	active-icon:		true
+	sa-scale:		11

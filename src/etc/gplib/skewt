@@ -1,6 +1,9 @@
 !
 ! Skew-t support stuff.
 !
+
+require dataskip
+
 !
 ! The Skewt Adjust Limits submenu
 !
@@ -117,7 +120,7 @@ define widget skewt-right intmenu 'feet/km'
 	entry 'Altitude in kilometers' 'do-feet-proc false' \
 		(PDParam (icon_component, 'do-feet') <> 'true')
 	line
-	submenu 'Data skip interval' 'skewt-data-skip'
+	submenu 'Data skip interval' 'data-skip-menu'
 	submenu 'Time offsets' 'skewt-topannot-offsets'
 endmenu
 
@@ -133,27 +136,4 @@ procedure skewt-toggle-wind
 		parameter #icon_component wind-style barb
 	endif
 endprocedure
-
-define widget skewt-data-skip intmenu 'skip data points'
-	title 'Data skip interval'
-	line
-	entry 'Plot every point' \
-		'parameter #icon_component data-skip "1"' \
-		(PDParam (icon_component,"data-skip") = "1")
-	entry 'Every 5th point' \
-		'parameter #icon_component data-skip "5"' \
-		(PDParam (icon_component,"data-skip") = "5")
-	entry 'Every 10th point' \
-		'parameter #icon_component data-skip "10"' \
-		(PDParam (icon_component,"data-skip") = "10")
-	entry 'Every 20th point' \
-		'parameter #icon_component data-skip "20"' \
-		(PDParam (icon_component,"data-skip") = "20")
-	entry 'Every 30th point' \
-		'parameter #icon_component data-skip "30"' \
-		(PDParam (icon_component,"data-skip") = "30")
-	entry 'Every 50th point' \
-		'parameter #icon_component data-skip "50"' \
-		(PDParam (icon_component,"data-skip") = "50")
-endmenu
 

@@ -1,5 +1,5 @@
 !
-! $Id: active-time,v 1.2 1996-03-12 17:19:42 granger Exp $
+! $Id: active-time,v 1.3 2000-12-01 23:49:31 granger Exp $
 !
 ! Menus and commands for active time labels in the top annotation
 !
@@ -7,13 +7,13 @@
 define widget global-time-left-menu intmenu "global time actions"
 	title 'Time Options'
 	line
+	entry 'Time control tool...' 'dm "popup time"'
 	entry 'Set THIS window to real-time' \
 	   'parameter global plot-mode "real-time"'
 	entry 'Set ALL windows to real-time'	\
 	   'dm "realtime all"'
 	entry 'Set ALL windows to this history time' \
 	   'dm concat("history all ",PDParam("global","plot-time"))'
-	entry 'Time control tool...' 'dm "popup time"'
 	line
 	entry 'Previous day boundary'	previous-day
 	entry 'Previous 12-hour boundary' previous-halfday

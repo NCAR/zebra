@@ -1,4 +1,4 @@
-! $Id: global-defaults.pd,v 1.4 2000-11-21 23:13:37 granger Exp $
+! $Id: global-defaults.pd,v 1.5 2000-12-01 23:49:34 granger Exp $
 !
 ! This file contains default values for some plot description parameters.
 ! By default, this pd is loaded from the libray pd directory.  To use it,
@@ -82,6 +82,15 @@ defaults
 !
 
 	xy-wind-color-table:		Winds
+
+! ================
+!
+! Default data add methods
+!
+	CAP-add-data-command:		cap-add
+	skewt-add-data-command:		sk-add-data
+
+! ================
 !
 ! Adjust limit procedures.
 !

@@ -3,6 +3,7 @@
 !
 require simple-color
 require winds
+require annotation
 
 !
 ! Toggle quadrants on a station plot.  Intended to be called out of the
@@ -62,6 +63,10 @@ endprocedure
 define widget p-station-right intmenu 'meaningless title here'
 	title 'Station Plot Options'
 	line
+	entry "First quad field..." 'selectfield param=quad1,command=' 
+	entry "Second quad field..." 'selectfield param=quad2,command=' 
+	entry "Third quad field..." 'selectfield param=quad3,command=' 
+	entry "Fourth quad field..." 'selectfield param=quad4,command=' 
 	entry "Spatial filtering..." 'popup SpaceFilter'
 	submenu 'Color' 'simple-color'
 	submenu	'Arrow Line Width' 'linewidth'
@@ -129,22 +134,6 @@ procedure space-popup
 		local space '50'
 	endif
 	formtext #f space #space
-endprocedure
-
-
-define widget side-annot-scale intmenu 'Side annotation'
-	title 'Annotation Size'
-	line
-	entry 'Small' 'do_side_annot_size 11' \
-		(pd_param(icon_component, "sa-scale", "string") = "11")
-	entry 'Medium' 'do_side_annot_size 20' \
-		(pd_param(icon_component, "sa-scale", "string") = "20")
-	entry 'Large' 'do_side_annot_size 30' \
-		(pd_param(icon_component, "sa-scale", "string") = "30")
-endmenu
-
-procedure do_side_annot_size size string
-	parameter #icon_component sa-scale #size
 endprocedure
 
 

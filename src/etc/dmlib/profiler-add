@@ -1,12 +1,14 @@
+! $Id: profiler-add,v 1.3 2000-12-01 23:49:30 granger Exp $
 !
-! Add data to a profiler window.
+! A wind profile window is just a time-height window, so we defer to that
+! module now.
 !
+
+require theight-add
+
 procedure profiler-add platform string field string window string
-!
-! OK, throw it in to all components in the window.
-!
-        local comps pd_complist(window)
-        foreach comp #comps
-           parameter #window #comp platform #platform
-        endfor
+
+	theight-add #platform #field #window
+
 endprocedure
+

@@ -1,0 +1,63 @@
+! $Id: annotation,v 1.1 2000-12-01 23:49:31 granger Exp $
+!
+! Place to collect annotation-related code.
+
+
+define widget side-annot-scale intmenu 'Side annotation'
+	title 'Annotation Size'
+	line
+	entry 'Scaled Sizes:' 'beep'
+	line
+	entry '1.0 pct' 'do_side_annot_size 0.01' \
+		(pd_param(icon_component, "sa-scale", "string") = "0.01")
+	entry '2.5 pct' 'do_side_annot_size 0.025' \
+		(pd_param(icon_component, "sa-scale", "string") = "0.025")
+	entry '5.0 pct' 'do_side_annot_size 0.05' \
+		(pd_param(icon_component, "sa-scale", "string") = "0.05")
+	entry '7.5 pct' 'do_side_annot_size 0.075' \
+		(pd_param(icon_component, "sa-scale", "string") = "0.075")
+	line
+	entry 'Fixed pixel sizes:' 'beep'
+	line
+	entry 'Small (9)' 'do_side_annot_size 9' \
+		(pd_param(icon_component, "sa-scale", "string") = "9")
+	entry 'Small (11)' 'do_side_annot_size 11' \
+		(pd_param(icon_component, "sa-scale", "string") = "11")
+	entry 'Small (12)' 'do_side_annot_size 12' \
+		(pd_param(icon_component, "sa-scale", "string") = "12")
+	entry 'Medium (16)' 'do_side_annot_size 16' \
+		(pd_param(icon_component, "sa-scale", "string") = "16")
+	entry 'Medium (20)' 'do_side_annot_size 20' \
+		(pd_param(icon_component, "sa-scale", "string") = "20")
+	entry 'Large (30)' 'do_side_annot_size 30' \
+		(pd_param(icon_component, "sa-scale", "string") = "30")
+endmenu
+
+procedure do_side_annot_size size string
+	parameter #icon_component sa-scale #size
+endprocedure
+
+
+!
+! Pulldown for font scales.
+!
+define widget form-font-scale-menu intmenu 'form font scale'
+	title 'Font Size'
+	line
+	entry 'Scaled:' 'beep'
+	line
+	entry '0.010' 'formtext #ui$form #ui$formentry 0.010'
+	entry '0.025' 'formtext #ui$form #ui$formentry 0.025'
+	entry '0.050' 'formtext #ui$form #ui$formentry 0.050'
+	entry '0.075' 'formtext #ui$form #ui$formentry 0.050'
+	line
+	entry 'Fixed (pixels):' 'beep'
+	line
+	entry '9' 'formtext #ui$form #ui$formentry 9'
+	entry '11' 'formtext #ui$form #ui$formentry 11'
+	entry '12' 'formtext #ui$form #ui$formentry 12'
+	entry '16' 'formtext #ui$form #ui$formentry 16'
+	entry '20' 'formtext #ui$form #ui$formentry 20'
+	entry '30' 'formtext #ui$form #ui$formentry 30'
+endmenu
+

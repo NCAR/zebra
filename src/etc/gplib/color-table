@@ -14,13 +14,18 @@ define widget #wname intmenu 'ctbl'
 		(PDParam(icon_component, 'color-table') = '16gray')
 	entry 'Black and white log (36)' 'CTSet newgray' \
 		(PDParam(icon_component, 'color-table') = 'newgray')
+	entry 'Black and white alternating (9)' 'CTSet ContourMono' \
+		(PDParam (icon_component, 'color-table') = 'ContourMono')
+	entry 'Five grays (5)' 'CTSet fivegray' \
+		(PDParam (icon_component, 'color-table') = 'fivegray')
+	line
 	entry 'Cook (16)' 'CTSet gcook16' \
 		(PDParam (icon_component, 'color-table') = 'gcook')
 	entry 'Cook smooth (127)' 'CTSet scook' \
 		(PDParam(icon_component, 'color-table') = 'scook')
 	entry 'Hot and cold (31)' 'CTSet hotcold' \
 		(PDParam (icon_component, 'color-table') = 'hotcold')
-	entry 'Wild' 'CTSet wild (25)' \
+	entry 'Wild (25)' 'CTSet wild' \
 		(PDParam (icon_component, 'color-table') = 'wild')
 	entry 'New wild (25)' 'CTSet wild_new' \
 		(PDParam (icon_component, 'color-table') = 'wild_new')
@@ -28,6 +33,17 @@ define widget #wname intmenu 'ctbl'
 		(PDParam (icon_component, 'color-table') = 'chris')
 	entry 'Carbone (17)' 'CTSet carbone17' \
 		(PDParam (icon_component, 'color-table') = 'carbone17')
+	line
+	entry 'Winds (11)' 'CTSet Winds' \
+		(PDParam (icon_component, 'color-table') = 'Winds')
+	entry 'Simple Contour (9)' 'CTSet Contour' \
+		(PDParam (icon_component, 'color-table') = 'Contour')
+	entry 'Rainbow (7)' 'CTSet Rainbow' \
+		(PDParam (icon_component, 'color-table') = 'Rainbow')
+	entry 'Reversed Rainbow (7)' 'CTSet RevRainbow' \
+		(PDParam (icon_component, 'color-table') = 'RevRainbow')
+	entry 'Red to Blue (15)' 'CTSet RedBlue' \
+		(PDParam (icon_component, 'color-table') = 'RedBlue')
 endmenu
 
 

@@ -14,7 +14,7 @@ global
 ! Spacings.
 !
 	axis-bottom-space:	30
-	axis-top-space:		30
+	axis-top-space:		5
 	axis-left-space:	50
 	axis-right-space:	50
 ! 
@@ -35,10 +35,14 @@ xy-grid
 	axis-left:		false
 	axis-right:		false
 	axis-top:		false
-	icon:			none
+	icon:			grid
+	icon-left-menu:		minimal-cap-left-menu
+	icon-right-menu:	xyaxis-time-menu
+	color-tweaker:		xygrid-color-tweaker
 	axis-b-label:		Time
 	axis-b-tic-interval:	0
 	do-side-annotation:	false
 	platform:		null
+	require:		xytrace
 	field-color:		red
 	line-width:		0

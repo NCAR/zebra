@@ -26,17 +26,19 @@ global
 	xy-scale-x-mode:	autoscale
 	xy-scale-y-mode:	manual
 	xy-series-span:	720m
-th-grid
+grid
 	representation:		simple
 	x-field:		time
 	y-field:		height
 	axis-bottom:		true
 	axis-left:		true
 	axis-b-label:		time
-	axis-b-tic-interval:	1
+	axis-b-tic-interval:	0
 	icon:			grid
 	icon-left-menu:		minimal-cap-left-menu
-	icon-right-menu:	simple-color
-	color-tweaker:		thgrid-color-tweaker
+	icon-middle-menu:	simple-color
+	icon-right-menu:	xyaxes-time-menu
+	require:		xytrace
+	color-tweaker:		xygrid-color-tweaker
 	platform:		null
 	field-color:		red

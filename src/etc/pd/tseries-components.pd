@@ -1,0 +1,30 @@
+! $Id: tseries-components.pd,v 1.1 2000-12-01 23:49:34 granger Exp $
+!
+global
+	pd-name:		tseries-components
+xytrace
+	representation:		simple
+	platform:		SOMETHING
+	x-field:		time
+	y-field:		SOMETHING
+	axis-left:		true
+	axis-right:		false
+	axis-bottom:		false
+	axis-top:		false
+	field-color:		red
+	axis-l-grid-intensity:	0
+	axis-r-grid-intensity:	0
+	representation-style:	line
+	require:		xytrace, simple-color
+	icon:			tseries
+	icon-left-menu:		xytrace-left
+	icon-middle-menu:	FieldMenu
+	icon-right-menu:	xytrace-right
+	field-select-command:	xytrace-field
+	annot-left-menu:	xy-an-left
+	annot-middle-menu:	FieldMenu
+	annot-right-menu:	simple-color
+	color-tweaker:		xytrace-color
+	limit-proc:		xytrace-adjust
+	time-annot:		true
+	sa-scale:		12

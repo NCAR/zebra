@@ -1,7 +1,10 @@
 !
 ! XYGraph[simple] support stuff.
 !
-! $Id: xytrace,v 1.13 1999-03-01 02:03:58 burghart Exp $
+! $Id: xytrace,v 1.14 2000-12-01 23:49:32 granger Exp $
+
+require xyaxes
+require annotation
 
 !
 ! Some widths, so we can change 'em in one place
@@ -24,15 +27,20 @@ define widget xytrace-right intmenu 'x'
 	title 'XYGraph options'
 	line
 	entry 'Platforms & colors...' 'popup xytrace-plats-n-colors'
-	entry 'Other details...' 'popup xytrace-details'
+	entry 'Trace details...' 'popup xytrace-details'
+	entry 'Left axis details...' 'xyaxis-popup-details l'
+	entry 'Right axis details...' 'xyaxis-popup-details r'
 	line
 	
 endmenu
 
+
 define widget xytrace-left intmenu 'x'
-        title 'Overlay Operations'
+        title 'XY Trace'
 	line
-	entry 'Adjust Limits' 'i_adjust limit-proc'
+	entry 'Adjust limits' 'i_adjust limit-proc'
+        submenu 'Side annotation size' side-annot-scale
+	entry 'Clone this component...' 'xyaddfield'
         line
         entry 'Raise to top' 'move #icon_component 0'
         entry 'Move to bottom' 'move #icon_component 1'
@@ -41,10 +49,16 @@ define widget xytrace-left intmenu 'x'
         entry 'Remove' 'i_remove_component'
 	line
 	entry 'Platform(s) & color(s)...' 'popup xytrace-plats-n-colors'
-	entry 'Other details...' 'popup xytrace-details'
+	entry 'Trace details...' 'popup xytrace-details'
+	entry 'Left axis details...' 'xyaxis-popup-details l'
+	entry 'Right axis details...' 'xyaxis-popup-details r'
 	line
 	
 endmenu
+
+! ================================================================
+! Platforms and colors
+!
 
 !
 ! Form widget to tweak platforms & colors
@@ -151,6 +165,35 @@ procedure xyt-pnc-apply
 	parameter #c field-color #colorlist
 endprocedure
 
+
+! ================================================================
+! Trace details
+!
+
+!
+! Pulldown for line width for line representation.
+!
+define widget xylinewidth intmenu 'xy line width'
+	title 'Line Widths'
+	line
+	entry 'Thin' 'parameter #icon_component line-width 0' 
+	entry 'Medium' 'parameter #icon_component line-width 2'
+	entry 'Thick' 'parameter #icon_component line-width 3'
+	entry 'Extra Thick' 'parameter #icon_component line-width 6'
+endmenu
+
+
+define widget unused-xylinewidth intmenu 'xy line width'
+	title 'Line Width'
+	line
+	entry '0' 'formtext #ui$form #ui$formentry 0'
+	entry '1' 'formtext #ui$form #ui$formentry 1'
+	entry '2' 'formtext #ui$form #ui$formentry 2'
+	entry '3' 'formtext #ui$form #ui$formentry 3'
+	entry '4' 'formtext #ui$form #ui$formentry 4'
+	entry '5' 'formtext #ui$form #ui$formentry 5'
+endmenu
+
 !
 ! Form widget for other plot details
 !
@@ -175,33 +218,22 @@ define widget xytrace-details form ' '
 	pulldown repstyle '' width #one_w menu xyrepmenu
 	newline
 !
-! Scale axes
+! Line width
 !
-	label empty_1 ' '
+	label wlabel 'Line width:' width #one_w
+	pulldown linewidth 'Set Line Width' width #one_w menu xylinewidth
 	newline
-
-	label la_label 'Left scale axis is:' width #one_w
-	button l_axis ' ' command 'fu-toggle-enabled' width #one_w
-	newline
-	label lab_label 'with grid brightness (0.0-1.0):' width #oneandahalf_w
-	blank l_brite '' width #half_w
-	newline
-
-	label empty_2 ' '
-	newline
-
-	label ra_label 'Right scale axis is:' width #one_w
-	button r_axis ' ' command 'fu-toggle-enabled' width #one_w
-	newline
-	label rab_label 'with grid brightness (0.0-1.0):' width #oneandahalf_w
-	blank r_brite '' width #half_w
-	newline
-
-	label empty_3 ' '
-	newline
-
+!
+! Annotation times
+!
 	label ta_label 'Times in annotation:' width #one_w
 	button ta_button ' ' command 'fu-toggle-enabled' width #one_w
+	newline
+!
+! Side annotation
+!
+	label sa_label 'Side annotation:' width #one_w
+	button sa_button ' ' command 'fu-toggle-enabled' width #one_w
 	newline
 enddef
 
@@ -233,27 +265,22 @@ procedure xyt-det-popup
 		formtext #f repstyle #rep
 	endif
 !
-! Scale axes
+! Line width
 !
-	fu-setenabled #f "l_axis" #c "axis-left" True
-
-	local brite PDParam(c,"axis-l-grid-intensity")
-	if (brite = "(Undefined)")
-		local brite "0.75"
+	local linewidth PDParam(icon_component,'line-width')
+	if (linewidth = PUNDEF)
+		local linewidth "Thin"
 	endif
-	formtext #f l_brite #brite
-
-	fu-setenabled #f "r_axis" #c "axis-right" True
-
-	local brite PDParam(c,"axis-r-grid-intensity")
-	if (brite = "(Undefined)")
-		local brite "0.75"
-	endif
-	formtext #f r_brite #brite
+!	formtext #f linewidth #linewidth
 !
 ! Times in annotation?
 !
 	fu-setenabled #f "ta_button" #c "time-annot" True
+!
+! Side annotation
+!
+	fu-setenabled #f "sa_button" #c "do-side-annotation" True
+
 endprocedure
 
 
@@ -275,34 +302,20 @@ procedure xyt-det-apply
 	endif
 	parameter #icon_component point-icon #rep
 !
-! Axis stuff
+! line width
 !
-	fu-applyenabled #f "l_axis" #c "axis-left"
-
-	local brite getftext(f,"l_brite")
-	parameter #icon_component axis-l-grid-intensity #brite
-
-	fu-applyenabled #f "r_axis" #c "axis-right"
-
-	local brite getftext(f,"r_brite")
-	parameter #icon_component axis-r-grid-intensity #brite
+	local linewidth getftext(f,'linewidth')
+	parameter #icon_component line-width #linewidth
 !
 ! Times in annotation?
 !
 	fu-applyenabled #f "ta_button" #c "time-annot"
+!
+! Side annotation?
+!
+	fu-applyenabled #f "sa_button" #c "do-side-annotation"
 endprocedure
 
-
-define widget xysideannot intmenu ' '
-	title 'Side annotation size'
-	line
-	entry 'Small' 'parameter #icon_component sa-scale 9' \
-		(PDParam (icon_component, 'sa-scale') = '9')
-	entry 'Medium' 'parameter #icon_component sa-scale 12' \
-		(PDParam (icon_component, 'sa-scale') = '12')
-	entry 'Large' 'parameter #icon_component sa-scale 16' \
-		(PDParam (icon_component, 'sa-scale') = '16')
-endmenu
 
 
 define widget xyrepmenu intmenu ' '
@@ -320,7 +333,7 @@ define widget grebl intmenu ' '
 	line
 	submenu 'Line width' linewidth
 	line
-	submenu 'Side annotation size' xysideannot
+	submenu 'Side annotation size' side-annot-scale
 	entry 'Show time in side annotation' 'ToggleBoolean time-annot' \
 		(PDParam (icon_component, 'time-annot') = 'true')
 	line
@@ -370,7 +383,7 @@ define widget xy-an-left intmenu 'x'
 	title 'XY Trace options'
 	line
 	entry 'Remove this trace' 'xytrace-remove'
-	entry 'Pipe trace to ACE/gr' 'xytrace-acegr'
+!	entry 'Pipe trace to ACE/gr' 'xytrace-acegr'
 endmenu
 
 
@@ -493,10 +506,22 @@ endprocedure
 
 
 !
-! Get another field added on to this plot.
+! Call our add method with this component's platform value
 !
+procedure unused-xyaddfield
+	# shipscalar platform field window_name
+	local platform PDParam(icon_component,"platform")
+	local field PDParam(icon_component,"y-field")
+	local dmcmd concat4("ShipScalar ",platform," ",field)
+	local dmcmd quote(concat3(dmcmd," ",window_name))
+	dm #dmcmd
+endprocedure
+
 procedure xyaddfield
-	dm 'TSNewField'	! delegate
+	# add window_name icon_component window_name
+	local dmcmd concat4("add ",window_name," ",icon_component)
+	local dmcmd quote(concat3(dmcmd," ",window_name))
+	dm #dmcmd
 endprocedure
 
 
@@ -521,3 +546,13 @@ procedure xytrace-acegr
 endprocedure
 
 
+
+!
+! Tweak the color of the grid.
+!
+procedure xygrid-color-tweaker color string
+	parameter #icon_component axis-b-color #color
+	parameter #icon_component axis-l-color #color
+	parameter #icon_component axis-r-color #color
+	parameter #icon_component axis-t-color #color
+endprocedure

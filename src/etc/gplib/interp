@@ -26,15 +26,15 @@ define widget InterpParams form "Surface interpolation parameters"
 	label l2 'Barnes parameters:'
 	newline
 	label l3 '  Grid resolution: '
-	blank gx '20' width 50
+	blank gx '20' width 50 command IPApply
 	label l4 '(x)'
-	blank gy '20' width 50
+	blank gy '20' width 50 command IPApply
 	label l5 '(y)'
 	newline
 	label l6 '  Radius of influence:'
-	blank radius '2.0' width 50
+	blank radius '2.0' width 50 command IPApply
 	label l7 'Max fill: '
-	blank fill '3.0' width 50
+	blank fill '3.0' width 50 command IPApply
 !	newline
 !	label gripe ' ' color red width 200
 enddef

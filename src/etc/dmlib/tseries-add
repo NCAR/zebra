@@ -1,14 +1,85 @@
 !
-! $Id: tseries-add,v 1.1 1995-04-20 08:16:25 granger Exp $
+! $Id: tseries-add,v 1.2 2000-12-01 23:49:30 granger Exp $
 !
-! Throw data onto a time series plot.  This works a little different than
-! the (current) dm.widgets mechanism...the idea here is always add new
-! traces with the current field, if there is one.  At the moment, that
-! only one field per window, which is maybe undesirable, but that's how
-! things generally seem to get used anyway.
+! Throw data onto a time series plot.  Try to give reasonable options
+! for adding a new component for a platform or adding the platform
+! to all components.  This should allow two modes of use: each component
+! is a single platform with a single field, perhaps different than the
+! fields of the other components; or, a component is a single field with
+! multiple platforms and each component can be a different field.  Lastly,
+! give the option of which side to put the axis on, or not at all.
 !
+! Here are the component options:
+!
+!   platform		single platform component
+!   field		single field, multiple platforms
 
 procedure tseries-add platform string field string window string
+
+! This is somewhat of a kludge in that we expect the ui$form variable
+! to be set after the popup, so that we can set the state parameters
+! from our arguments.
+
+	popup tsa-form
+	local f ui$form
+	formtext #f platform #platform
+	formtext #f field #field
+	formtext #f window #window
+
+endprocedure
+
+define widget tsa-comp-menu intmenu 'time series components'
+	title 'Time Series Components'
+	line
+	entry 'Add component, left axis' 'tsa-add true true false'
+	entry 'Add component, right axis' 'tsa-add true false true'
+	entry 'Add component, no axes' 'tsa-add true false false'
+	entry 'Add trace to existing components' 'tsa-add false false false'
+endmenu
+
+!
+! The foundation of the interface: a popup widget which gives the options
+! for adding a given platform to the plot.
+!
+define widget tsa-form form 'cap platform put'
+	noheader
+	popup tsa-popup
+
+	label title 'Add Platform to Time Series Plot'
+	button dismiss 'Dismiss' color red command 'popdown #ui$form'
+	newline
+	
+	! Store our 'state' parameters at popup in labels
+	label lplat 'Platform:' width 80
+	label platform 'null' width 200
+	newline
+	label lfield 'Field:' width 80
+	label field 'null' width 200
+	newline
+	label lwindow 'Window:' width 80
+	label window 'null' width 200
+	newline
+
+	pulldown padd 'Choose Component' width 150 menu tsa-comp-menu
+
+enddef
+
+
+!
+! This is only called so that the ui$form variable is set
+! on popup for the time-height-add procedure to reference.
+!
+procedure tsa-popup
+	local f ui$form
+endprocedure
+
+
+procedure tsa-add newcomp bool leftaxis bool rightaxis bool
+	local pd "tseries-components"
+	local f ui$form
+	local platform getftext(f,'platform')
+	local field getftext(f,'field')
+	local window getftext(f,'window')
 	local comps pd_complist(window)
 	local nt 0
 !
@@ -18,6 +89,7 @@ procedure tseries-add platform string field string window string
 !
 ! Go through the list of components in search of existing traces.  Count them.
 !
+	local dcomps ""
 	foreach comp #comps
 		if (comp <> 'global' and comp <> 'xy-grid')
 			if (nt = 0)
@@ -29,12 +101,11 @@ procedure tseries-add platform string field string window string
 		endif
 	endfor
 !
-! OK, if we found anything, pass through again and add the new platform
-! to each.
+! OK, if we were told to add to existing components, do so.
 !
-	if (nt > 0)
+	if (not newcomp)
 		foreach comp #dcomps
-			message 'comp #' comp
+!			message 'comp #' comp
 			local plats PDParam(window, comp, 'platform')
 			local plats quote(concat3(plats, ',', platform))
 			parameter #window #comp platform #plats
@@ -45,18 +116,21 @@ procedure tseries-add platform string field string window string
 			local nt (nt + 1)
 		endfor
 	else
-!
-! there is no data component, we're starting from a blank
-! window.
-!
-		add p_xytrace p_xytrace #window
-		parameter #window p_xytrace platform #platform
-		parameter #window p_xytrace y-field #field
-		parameter #window p_xytrace axis-left true
-		parameter #window p_xytrace axis-right false
-		parameter #window p_xytrace axis-l-grid-intensity 0.7
+		parameter #pd xytrace platform #platform
+		parameter #pd xytrace y-field #field
+		parameter #pd xytrace axis-left false
+		parameter #pd xytrace axis-right false
+		if (leftaxis)
+			parameter #pd xytrace axis-left true
+			parameter #pd xytrace axis-l-grid-intensity 0.75
+		endif
+		if (rightaxis)
+			parameter #pd xytrace axis-right true
+			parameter #pd xytrace axis-r-grid-intensity 0.75
+		endif
 		local fcolor NthColor('xygraph', 0)
-		parameter #window p_xytrace field-color #fcolor
+		parameter #pd xytrace field-color #fcolor
+		add #pd xytrace #window
 	endif
 !
 ! Release the window and we are done.

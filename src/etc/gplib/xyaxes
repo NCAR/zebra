@@ -1,0 +1,215 @@
+! $Id: xyaxes,v 1.1 2000-12-01 23:49:32 granger Exp $
+
+require form-utilities
+require annotation
+
+!
+! Some widths, so we can change 'em in one place
+!
+local one_w "150"
+local two_w "300"
+local oneandahalf_w "225"
+local half_w "75"
+
+!
+! This is only called so that the ui$form variable is set
+! on popup for the time-height-add procedure to reference.
+!
+procedure xya-dummy-popup
+	local f ui$form
+endprocedure
+
+
+
+!
+! Pulldown for grid brightness.
+!
+define widget xya-brightness-menu intmenu 'grid brightness'
+	title 'Grid Brightness'
+	line
+	entry '0.0' 'formtext #ui$form #ui$formentry 0.0'
+	entry '0.1' 'formtext #ui$form #ui$formentry 0.1'
+	entry '0.2' 'formtext #ui$form #ui$formentry 0.2'
+	entry '0.3' 'formtext #ui$form #ui$formentry 0.3'
+	entry '0.4' 'formtext #ui$form #ui$formentry 0.4'
+	entry '0.5' 'formtext #ui$form #ui$formentry 0.5'
+	entry '0.6' 'formtext #ui$form #ui$formentry 0.6'
+	entry '0.7' 'formtext #ui$form #ui$formentry 0.7'
+	entry '0.8' 'formtext #ui$form #ui$formentry 0.8'
+	entry '0.9' 'formtext #ui$form #ui$formentry 0.9'
+	entry '1.0' 'formtext #ui$form #ui$formentry 1.0'
+endmenu
+
+
+! ================================================================
+! Axis details
+!
+! Form widget for axis and grid details
+!
+define widget xyaxis-details form ' '
+	popup xya-dummy-popup
+	noheader
+	label title 'Axis Details' width #two_w
+	label comp ' ' color gray95 width 1
+	label aname ' ' color gray95 width 1
+	label achar ' ' color gray95 width 1
+	newline
+!
+! options to actually do something.
+!
+	button apply 'Apply' command xya-det-apply
+	button applyd 'Apply and dismiss' \
+		command 'xya-det-apply; popdown #ui$form'
+	button dismiss 'Dismiss' command 'popdown #ui$form' color red
+	newline
+
+	label a_label 'Scale axis is:' width #one_w
+	button axis ' ' command 'fu-toggle-enabled' width #one_w
+	newline
+	label tic_label 'Tic interval:' width #one_w
+	blank tic '' width #one_w command xya-det-apply
+	newline
+	label brite_label 'Grid brightness:' width #one_w
+	pulldown brite '' width #half_w menu xya-brightness-menu
+	newline
+	label color_label 'Color:' width #one_w
+	pulldown color '' width #half_w menu form-color-menu
+	newline
+	label fontscale_label 'Font scale:' width #one_w
+	pulldown fontscale '' width #half_w menu form-font-scale-menu
+	newline
+	label label_label 'Label:' width #half_w
+	blank label '' width #oneandahalf_w command xya-det-apply
+	newline
+
+enddef
+
+
+!
+! The xyaxis-details form initializer
+!
+procedure xya-det-popup f string c string
+	local comp icon_component
+	local yfld SimpleFieldName(PDParam(comp,'y-field'))
+	local xfld SimpleFieldName(PDParam(comp,'x-field'))
+
+	local ttl 'Axis Details'
+	local aname 'axis-left'
+	if (c = 'b')
+		local ttl concat('Bottom axis details: ',xfld)
+		local aname 'axis-bottom'
+	elseif (c = 't')
+		local ttl concat('Top axis details: ',xfld)
+		local aname 'axis-top'
+	elseif (c = 'r')
+		local ttl concat('Right axis details: ',yfld)
+		local aname 'axis-right'
+	elseif (c = 'l')
+		local ttl concat('Left axis details: ',yfld)
+		local aname 'axis-left'
+	endif
+
+	local qttl quote(ttl)
+	formtext #f title #qttl
+	formtext #f comp #comp
+	formtext #f achar #c
+	formtext #f aname #aname
+
+	fu-setenabled #f "axis" #comp #aname True
+
+	local param concat3("axis-",c,"-grid-intensity")
+	local brite PDSearch(comp,param,"xy")
+	if (brite = PUNDEF)
+		local brite "0.75"
+	endif
+	formtext #f brite #brite
+
+	local param concat3("axis-",c,"-color")
+	local color PDSearch(comp,param,"xy")
+	if (color = PUNDEF)
+		local color "white"
+	endif
+	formtext #f color #color
+
+	local param concat3("axis-",c,"-tic-interval")
+	local tic PDSearch(comp,param,"xy")
+	if (tic = PUNDEF)
+		local tic "0"
+	endif
+	formtext #f tic #tic
+
+	local param concat3("axis-",c,"-font-scale")
+	local fontscale PDSearch(comp,param,"xy")
+	if (fontscale = PUNDEF)
+		local fontscale "0.025"
+	endif
+	formtext #f fontscale #fontscale
+
+	local param concat3("axis-",c,"-label")
+	local label PDSearch(comp,param,"xy")
+	if (label = PUNDEF)
+		local label ""
+	endif
+	local qlabel quote(label)
+	formtext #f label #qlabel
+
+endprocedure
+
+
+!
+! Apply all the changes in xya-details
+!
+procedure xya-det-apply
+	local f ui$form
+	local c getftext(f, 'achar')
+	local aname getftext(f, 'aname')
+	local comp getftext(f, 'comp')
+
+	fu-applyenabled #f "axis" #comp #aname
+
+	local brite getftext(f,"brite")
+	local param concat3("axis-",c,"-grid-intensity")
+	parameter #comp #param #brite
+
+	local color getftext(f,"color")
+	local param concat3("axis-",c,"-color")
+	parameter #comp #param #color
+
+	local tic getftext(f,"tic")
+	local param concat3("axis-",c,"-tic-interval")
+	parameter #comp #param #tic
+
+	local fontscale getftext(f,"fontscale")
+	local param concat3("axis-",c,"-font-scale")
+	parameter #comp #param #fontscale
+
+	local label getftext(f,"label")
+	if (label <> "")
+		local qlabel quote(label)
+		local param concat3("axis-",c,"-label")
+		parameter #comp #param #qlabel
+	endif
+
+endprocedure
+
+
+!
+! The entry point for popping up the grid details widget.
+! We need the axis character, r, l, b, or t.
+!
+procedure xyaxis-popup-details c string
+
+	popup xyaxis-details
+	local f ui$form
+	xya-det-popup #f #c
+
+endprocedure
+
+
+
+define widget xyaxis-time-menu intmenu 'x'
+	title 'Time axis options'
+	line
+	entry 'Time axis details...' 'xyaxis-popup-details b'
+endmenu
+

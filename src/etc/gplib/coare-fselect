@@ -1,0 +1,20 @@
+
+
+!
+! COARE profiler kludgery: different fields use different height arrays.
+! This is an inherently dangerous situation; hopefully everybody will
+! use the field menu to change fields, and we can make sure that they have
+! the right height array to go with it...
+!
+
+procedure th-coare-fselect field string
+	local qfield quote(field)
+	local th_wfields 'w_wind devw wid3 snr3 n_w wheight'
+	parameter #icon_component z-field #qfield
+	if (substring (th_wfields, field))
+		parameter #icon_component y-field wheight
+	else
+		parameter #icon_component y-field height
+	endif
+endprocedure
+

@@ -1,5 +1,6 @@
 global
 	pd-name:	cap-template
+	add-data-command: cap-add
 	plot-mode:	history
 	plot-time:	now
 	plot-type:	CAP

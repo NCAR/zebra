@@ -1,0 +1,41 @@
+! This single pd holds component templates for all the kinds of components
+! which the theight-add dm module expects to add.
+!
+global
+	pd-name:		theight-components
+winds
+	axis-bottom:		false
+	axis-left:		false
+	barb-scale:             10
+	color-mono:		true
+	color:			cyan
+	data-skip:              0
+	icon:                   iss-prof
+	icon-left-menu:         minimal-cap-left-menu
+	icon-middle-menu:       time-height-winds
+	icon-right-menu:        DataAvailable
+	platform:               null
+	representation:         wind
+	representation-style:   barb
+	require:                xywind
+	trigger:                platform
+	vec-scale:              2
+	x-field:                time
+	y-field:                height
+contour
+	axis-bottom:		false
+	axis-left:		false
+	color-table:		Contour
+	do-side-annotation:	true
+	icon:			iss-contour
+	icon-left-menu:		medium-cap-left-menu
+	icon-middle-menu:	FieldMenu param=z-field
+	icon-right-menu:	contour-right
+	limit-proc:		thc-climits
+	platform:		null
+	representation:		contour
+	require:		contour,time-height
+	trigger:		platform
+	x-field:		time
+	y-field:		height
+	z-field:		snrw
