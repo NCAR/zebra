@@ -2,6 +2,8 @@
 ! UI-readable file containing definitions of the fields we usually deal with.
 !
 field	altitude	"altitude"			m
+field	latitude	"latitude"			"degrees north"
+field	longitude	"longitude"			"degrees east"
 field	cpres0		"altitude-corrected pressure"	mb
 field	dp		"dewpoint temperature"		"deg c"
 field	ept		"equiv. pot. temperature"	k
@@ -34,6 +36,8 @@ field	pres_w		"pressure vertical velocity"	Pa/s
 ! Aliases exist to make the name of one field the equivalent to another.
 !
 alias	altitude	alt
+alias	latitude	lat
+alias	longitude	lon
 alias	reflectivity	dbz
 alias	u_wind	hu
 alias 	v_wind	hv
