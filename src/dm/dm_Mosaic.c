@@ -1,5 +1,6 @@
 /*
- * Provide help using Mosaic.
+ * This (now misnamed) module provides help information using the Mosaic or
+ * netscape browsers.
  */
 # include <unistd.h>
 # include <sys/types.h>
@@ -18,13 +19,14 @@
 # define URL_LEN (2 * CFG_FILEPATH_LEN)
 
 /*
- * When Mosaic is running, we keep it's PID here.
+ * When the browser is running, we keep it's PID here.
  */
 static int MosPid = -1;
 
 static int dm_FindURL FP ((char *, char *));
 static void dm_StartMosaic FP ((char *));
 static void dm_TweakMosaic FP ((char *));
+static void dm_TweakNetscape FP ((char *));
 
 /*
  * The temporary file through which we send commands to Mosaic.
@@ -34,6 +36,12 @@ static char TFile[ CFG_FILEPATH_LEN ] = { '\0' };
 
 static char HelpPath[CFG_SEARCHPATH_LEN]; /* Where are the helpfiles */
 static char MosaicPath[CFG_FILEPATH_LEN]; /* Mosaic executable */
+
+/*
+ * A variable to tell us if "Mosaic" is really netscape.
+ */
+static bool ReallyNetscape = FALSE;
+
 
 
 void
@@ -187,20 +195,39 @@ char *url;
 		unlink (TFile);
 		TFile[0] = '\0';
 	}
+/*
+ * Fire off a browser.  Check now to see which it is, and hope we don't
+ * get confused.
+ */
+	ReallyNetscape = strstr (MosaicPath, "netscape") != 0;
 	if ((MosPid = fork ()) == 0)
 	{
 		char *args[10];
 	/*
-	 * OK, we get to be Mosaic.  Clean up and fire it off.
+	 * OK, we get to be Mosaic.  Clean up.
 	 */
 		for (i = 3; i < 20 /* xxx */ ; i++)
 			close (i);
+	/*
+	 * Fix up args for our browser.
+	 */
 		i = 0;
-		args[i++] = "Mosaic";
-		args[i++] = "-xrm";
-		args[i++] = "useGlobalHistory: false";
-		args[i++] = "-home";
-		args[i++] = url;
+		if (ReallyNetscape)
+		{
+			args[i++] = "netscape";
+			args[i++] = url;
+		}
+		else
+		{
+			args[i++] = "Mosaic";
+			args[i++] = "-xrm";
+			args[i++] = "useGlobalHistory: false";
+			args[i++] = "-home";
+			args[i++] = url;
+		}
+	/*
+	 * Now see if we can make it go.
+	 */
 		args[i] = 0;
 		if (MosaicPath[0])
 		{
@@ -226,9 +253,19 @@ char *url;
  * control" mechanism described in:
  *
  * 	http://www.ncsa.uiuc.edu/SDG/Software/Mosaic/Docs/remote-control.html
+ *
+ * Netscape, of course, uses a different protocol...
  */
 {
 	FILE *cfile;
+/*
+ * Netscape?  Do it their way.
+ */
+	if (ReallyNetscape)
+	{
+		dm_TweakNetscape (url);
+		return;
+	}
 /*
  * Create the control file if necessary.
  */
@@ -258,4 +295,33 @@ char *url;
 			msg_ELog (EF_PROBLEM, "Weird Mosaic poke status %s",
 					errno);
 	}
+}
+
+
+
+
+
+static void
+dm_TweakNetscape (url)
+char *url;
+/*
+ * Poke the netscape browser.
+ */
+{
+	char nscmd[URL_LEN];
+/*
+ * See if it died.
+ */
+	if (waitpid (MosPid, (int *) 0, WNOHANG) > 0)
+	{
+		msg_ELog (EF_INFO, "Netscape died, restarting");
+		dm_StartMosaic (url);
+		return;
+	}
+/*
+ * It's still there.  Format up the funky command needed to make it go to the
+ * new URL.
+ */
+	sprintf (nscmd, "%s -remote 'openURL(%s)'", MosaicPath, url);
+	system (nscmd);
 }
