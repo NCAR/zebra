@@ -6,7 +6,7 @@
 # include "../include/pd.h"
 # include "GraphProc.h"
 
-static char *rcsid = "$Id: GridAccess.c,v 1.1 1990-07-08 12:54:15 corbet Exp $";
+static char *rcsid = "$Id: GridAccess.c,v 1.2 1990-09-13 09:45:56 corbet Exp $";
 
 
 /*
@@ -77,7 +77,7 @@ static struct mudkludge
 	{ 212118,	"17jcp3v11.mud", FALSE, { 0 } },
 	{ 212601,	"17jcp3v12.mud", FALSE, { 0 } },
 	{ 213044,	"17jcp3v13.mud", FALSE, { 0 } },
-/*	{ 213527,	"17jcp3v14.mud", FALSE, { 0 } }, */
+	{ 213527,	"17jcp3v14.mud", FALSE, { 0 } },
 	{ 214010,	"17jcp3v15.mud", FALSE, { 0 } },
 	{ 214453,	"17jcp3v16.mud", FALSE, { 0 } },
 	{ 214936,	"17jcp3v17.mud", FALSE, { 0 } },
@@ -85,13 +85,18 @@ static struct mudkludge
 	{ 215901,	"17jcp3v19.mud", FALSE, { 0 } },
 	{ 220344,	"17jcp3v20.mud", FALSE, { 0 } },
 	{ 220827,	"17jcp3v21.mud", FALSE, { 0 } },
-/*	{ 221350,	"17jcp3v22.mud", FALSE, { 0 } }, */
+	{ 221350,	"17jcp3v22.mud", FALSE, { 0 } },
 	{ 221840,	"17jcp3v23.mud", FALSE, { 0 } },
 	{ 222326,	"17jcp3v24.mud", FALSE, { 0 } },
 	{ 222813,	"17jcp3v25.mud", FALSE, { 0 } },
 	{ 223300,	"17jcp3v26.mud", FALSE, { 0 } },
 	{ 223746,	"17jcp3v27.mud", FALSE, { 0 } },
-	{ 224600,	"just another kludge", FALSE, { 0 } },
+	{ 224200,	"17jcp3v28.mud", FALSE, { 0 } },
+	{ 224700,	"17jcp3v29.mud", FALSE, { 0 } },
+	{ 225200,	"17jcp3v30.mud", FALSE, { 0 } },
+	{ 225600,	"17jcp3v31.mud", FALSE, { 0 } },
+	{ 230100,	"17jcp3v32.mud", FALSE, { 0 } },
+	{ 231000,	"just another kludge", FALSE, { 0 } },
 	{ 0,		0		}
 };
 
@@ -179,6 +184,61 @@ NDFiles[] =
 };
 
 
+
+/*
+ * Temp stuff to pull in GALE data.
+ */
+static struct mudkludge 
+GaleFiles[] =
+{
+	{ 000100,	"d1260000.mud",	FALSE, { 0 } },
+	{ 000500,	"d1260005.mud",	FALSE, { 0 } },
+	{ 001000,	"d1260000.mud",	FALSE, { 0 } },
+	{ 001500,	"d1260005.mud",	FALSE, { 0 } },
+	{ 002000,	"d1260000.mud",	FALSE, { 0 } },
+	{ 002500,	"d1260005.mud",	FALSE, { 0 } },
+	{ 003000,	"d1260000.mud",	FALSE, { 0 } },
+	{ 003500,	"d1260005.mud",	FALSE, { 0 } },
+	{ 004000,	"d1260000.mud",	FALSE, { 0 } },
+	{ 004500,	"d1260005.mud",	FALSE, { 0 } },
+	{ 005000,	"d1260000.mud",	FALSE, { 0 } },
+	{ 005500,	"d1260005.mud",	FALSE, { 0 } },
+	{ 010000,	"d1260100.mud",	FALSE, { 0 } },
+	{ 010500,	"d1260105.mud",	FALSE, { 0 } },
+	{ 011000,	"d1260100.mud",	FALSE, { 0 } },
+	{ 011500,	"d1260105.mud",	FALSE, { 0 } },
+	{ 012000,	"d1260100.mud",	FALSE, { 0 } },
+	{ 012500,	"d1260105.mud",	FALSE, { 0 } },
+	{ 013000,	"d1260100.mud",	FALSE, { 0 } },
+	{ 013500,	"d1260105.mud",	FALSE, { 0 } },
+	{ 014000,	"d1260100.mud",	FALSE, { 0 } },
+	{ 014500,	"d1260105.mud",	FALSE, { 0 } },
+	{ 015000,	"d1260100.mud",	FALSE, { 0 } },
+	{ 015500,	"d1260105.mud",	FALSE, { 0 } },
+	{ 020000,	"d1260200.mud",	FALSE, { 0 } },
+	{ 020500,	"d1260205.mud",	FALSE, { 0 } },
+	{ 021000,	"d1260200.mud",	FALSE, { 0 } },
+	{ 021500,	"d1260205.mud",	FALSE, { 0 } },
+	{ 022000,	"d1260200.mud",	FALSE, { 0 } },
+	{ 022500,	"d1260205.mud",	FALSE, { 0 } },
+	{ 023000,	"d1260200.mud",	FALSE, { 0 } },
+	{ 023500,	"d1260205.mud",	FALSE, { 0 } },
+	{ 024000,	"d1260200.mud",	FALSE, { 0 } },
+	{ 024500,	"d1260205.mud",	FALSE, { 0 } },
+	{ 025000,	"d1260200.mud",	FALSE, { 0 } },
+	{ 025500,	"d1260205.mud",	FALSE, { 0 } },
+	{ 030000,	"d1260300.mud",	FALSE, { 0 } },
+	{ 030500,	"d1260305.mud",	FALSE, { 0 } },
+	{ 031000,	"d1260300.mud",	FALSE, { 0 } },
+	{ 031500,	"d1260305.mud",	FALSE, { 0 } },
+	{ 032000,	"d1260300.mud",	FALSE, { 0 } },
+	{ 032500,	"d1260305.mud",	FALSE, { 0 } },
+	{ 033000,	"d1260300.mud",	FALSE, { 0 } },
+	{ 033500,	"d1260305.mud",	FALSE, { 0 } },
+	{ 0, 0}
+};
+
+
 /*
  * More kludges.  This one maps nice names onto what we find in the file.
  */
@@ -225,6 +285,16 @@ static struct fld_map NOAAFmap[] =
 
 
 
+static struct fld_map GaleFmap[] =
+{
+	{ "reflectivity",	"DZ"	},
+	{ "velocity",		"VE"	},
+	{ 0, 0 }
+};
+
+
+
+
 /*
  * Meta-kludge map.
  */
@@ -242,6 +312,7 @@ static struct meta_kludge
 	{ "dualdop",	DDFiles,	CP3Fmap, 39.7647, -104.8731 },
 	{ "noaac",	NCFiles,	NOAAFmap, 0.0, 0.0 },
 	{ "noaad",	NDFiles,	NOAAFmap, 0.0, 0.0 },
+	{ "gale",	GaleFiles,	GaleFmap, 0.0, 0.0 },
 	{ 0, 0}
 };
 
@@ -317,13 +388,13 @@ float	*x0, *y0, *x1, *y1;
 		msg_ELog (EF_PROBLEM, "Open error on %s", fname);
 		return (0);
 	}
-# ifdef notdef
+
 	msg_ELog(EF_DEBUG, "vol: axes %d %d %d, date %d %d Z %.2f %.2f %.2f",
 		volume_.mc_ncx[0],
 		volume_.mc_ncx[1], volume_.mc_ncx[2], volume_.mc_ivdate,
 		volume_.mc_ivtime, volume_.mc_csp[6], volume_.mc_csp[7],
 		volume_.mc_csp[8]);
-# endif
+
 /*
  * Stash the header if necessary.
  */
@@ -391,10 +462,10 @@ float	*x0, *y0, *x1, *y1;
 	*x1 = x + volume_.mc_csp[1];
 	*y0 = y + volume_.mc_csp[3];
 	*y1 = y + volume_.mc_csp[4];
-# ifdef notdef
+
 	msg_ELog (EF_DEBUG, "Coords are (%.2f %.2f) to (%.2f %.2f)", *x0, *y0,
 		*x1, *y1);
-# endif
+
 /*
  * All done.
  */
