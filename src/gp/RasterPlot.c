@@ -1,7 +1,7 @@
 /*
  * Raster display a rectangular array
  */
-static char *rcsid = "$Id: RasterPlot.c,v 2.10 1993-12-22 01:17:00 corbet Exp $";
+static char *rcsid = "$Id: RasterPlot.c,v 2.11 1993-12-27 17:40:37 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -82,24 +82,7 @@ static XRectangle	Clip;
 /*--------------------------------------------------
  * Public prototypes
  */
-void RasterPlot FP ((Widget w, Drawable d, float *array, 
-		     int xdim, int ydim,
-		     int xlo, int ylo, int xhi, int yhi));
-void RP_Init FP ((XColor *colors, int count, XColor c_outrange,
-		  XRectangle clip, double dmin, double dmax, 
-		  Boolean highlight, double hvalue, XColor hcolor,
-		  double hrange));
-void RasterImagePlot FP ((Widget w, int frame, unsigned char *grid,
-			  int xd, int yd, int xlo, int ylo, int xhi, int yhi,
-			  double scale, double bias));
-void RasterXIPlot FP ((Widget w, Drawable d, float *array, 
-		       int xdim, int ydim, 
-		       int xlo, int ylo, int xhi, int yhi,
-		       bool fast));
 
-# ifdef SHM
-void RP_ZapSHMImage FP ((Widget w));
-# endif
 
 
 /*--------------------------------------------------

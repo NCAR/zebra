@@ -39,7 +39,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.36 1993-10-28 20:28:38 burghart Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.37 1993-12-27 17:40:32 corbet Exp $")
 
 
 /*
@@ -86,32 +86,6 @@ typedef struct _StInfo
 } StInfo;
 
 
-/*----------------------------------------------------------------
- * Externals
- */
-extern void
-RasterPlot FP ((Widget w, Drawable d, float *array, 
-		int xdim, int ydim,
-		int xlo, int ylo, int xhi, int yhi));
-extern void 
-RP_Init FP ((XColor *colors, int count, XColor c_outrange,
-	     XRectangle clip, float dmin, float dmax, 
-	     Boolean highlight, float hvalue, XColor hcolor,
-	     float hrange));
-extern void 
-RasterImagePlot FP ((Widget w, int frame, unsigned char *grid,
-		     int xd, int yd, int xlo, int ylo, int xhi, int yhi,
-		     float scale, float bias));
-
-extern void 
-RasterXIPlot FP ((Widget w, Drawable d, float *array, 
-		  int xdim, int ydim, 
-		  int xlo, int ylo, int xhi, int yhi,
-		  bool fast));
-
-# ifdef SHM
-extern void RP_ZapSHMImage FP ((Widget w));
-# endif
 
 
 /*----------------------------------------------------------------

@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.31 1993-12-01 16:54:15 burghart Exp $ */
+/* $Id: GraphProc.h,v 2.32 1993-12-27 17:40:35 corbet Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -268,4 +268,22 @@ extern int ApplySpatialOffset FP ((DataChunk *, char *, ZebTime *));
 	extern void draw_vector FP ((Display *, Drawable, GC, int, int,
 		double, double, double));
 	extern Pixmap I_GetPMap FP ((char *, int *, int *, int *, int *));
-# endif
+
+	void RasterPlot FP ((Widget w, Drawable d, float *array, 
+		     int xdim, int ydim,
+		     int xlo, int ylo, int xhi, int yhi));
+	void RP_Init FP ((XColor *colors, int count, XColor c_outrange,
+		  XRectangle clip, double dmin, double dmax, 
+		  Boolean highlight, double hvalue, XColor hcolor,
+		  double hrange));
+	void RasterImagePlot FP ((Widget w, int frame, unsigned char *grid,
+			  int xd, int yd, int xlo, int ylo, int xhi, int yhi,
+			  double scale, double bias));
+	void RasterXIPlot FP ((Widget w, Drawable d, float *array, 
+		       int xdim, int ydim, 
+		       int xlo, int ylo, int xhi, int yhi,
+		       bool fast));
+# ifdef SHM
+	void RP_ZapSHMImage FP ((Widget w));
+# endif /* SHM */
+# endif /* _XtIntrinsic_h */
