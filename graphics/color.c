@@ -155,32 +155,40 @@ gc_transtable ()
 {
 	struct ctranstbl	*clr, *prev;
 	int	r, g, b;
-	char	fname[50], colorname[50];
+	char	string[128], colorname[50];
 	FILE	*infile;
 /*
  * Get the name of the translation file
  */
 	if (getenv ("COLORNAMES") != 0)
-		strcpy (fname, getenv ("COLORNAMES"));
+		strcpy (string, getenv ("COLORNAMES"));
 	else
 # ifdef VMS
-		strcpy (fname, "ds:[rdss.graphics]rgb.txt");
+		strcpy (string, "ds:[rdss.graphics]rgb.txt");
 # else
-		strcpy (fname, COLORDB);
+		strcpy (string, COLORDB);
 # endif
 
 /*
  * Open the file
  */
-	if ((infile = fopen (fname, "r")) == NULL)
+	if ((infile = fopen (string, "r")) == NULL)
 		return (GE_BAD_FILE);
 /*
  * Loop and read everything
  */
 	clr = (struct ctranstbl *) 0;
 
-	while (fscanf (infile, "%d%d%d %[^\n]", &r, &g, &b, colorname) == 4)
+	while (fgets (string, sizeof (string), infile))
 	{
+	/*
+	 * Skip comments (lines with '!' as the first character) and lines
+	 * that don't parse properly.
+	 */
+		if ((string[0] == '!') ||
+		    (sscanf (string, "%d%d%d %[^\n]", &r, &g, &b, 
+			     colorname) != 4))
+			continue;
 	/*
 	 * Allocate the next table entry
 	 */
