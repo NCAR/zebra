@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.6 2001-10-04 21:52:52 burghart Exp $"
+MFVERSION="$Id: Imakefile,v 1.7 2003-05-08 17:11:40 burghart Exp $"
 
 LIBS = -L/usr/local/lib $(DFALIBS) $(ZLIBS)
 MODULESRCS = zebra.c ds.c msg.c
@@ -28,7 +28,7 @@ SRCS = $(CCSRCS)
 OBJS = $(CCOBJS)
 HEADERS = 
 
-PYSCRIPTS = DataTimes.py vor_position.py latlon_position.py
+PYSCRIPTS = DataTimes.py vor_position.py latlon_position.py dc_shiftloc.py
 
 DISTFILES = $(SRCS) ($HEADERS) Imakefile 
 
