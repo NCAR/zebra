@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: ac_ingest.c,v 1.6 1992-03-31 21:54:07 burghart Exp $";
+static char *rcsid = "$Id: ac_ingest.c,v 1.7 1992-04-09 18:49:01 granger Exp $";
 
 # include <copyright.h>
 # include <errno.h>
@@ -344,10 +344,10 @@ SetupIndirect ()
 {
 	stbl vtable = usy_g_stbl ("ui$variable_table");
 
-	usy_c_indirect (vtable, "black_box", &BlackBox, SYMT_STRING, STRLEN);
-	usy_c_indirect (vtable, "dial_out", &DialOut, SYMT_STRING, STRLEN);
+	usy_c_indirect (vtable, "black_box", BlackBox, SYMT_STRING, STRLEN);
+	usy_c_indirect (vtable, "dial_out", DialOut, SYMT_STRING, STRLEN);
 	usy_c_indirect (vtable, "baud_rate", &BaudRate, SYMT_INT, 0);
-	usy_c_indirect (vtable, "our_aircraft", &OurAircraft, SYMT_STRING, 
+	usy_c_indirect (vtable, "our_aircraft", OurAircraft, SYMT_STRING, 
 		BUFLEN);
 	usy_c_indirect (vtable, "range_res", &RangeRes, SYMT_FLOAT, 0);
 	usy_c_indirect (vtable, "azimuth_res", &AzimuthRes, SYMT_FLOAT, 0);
@@ -421,14 +421,14 @@ Dial ()
 	n_written = write (Fd, "at e", 4);
   	n_written = write (Fd, endcmd, 1);
 	sleep (2);
-	n_read = read (Fd, &buf, BUFLEN);
+	n_read = read (Fd, buf, BUFLEN);
 /*
  * Write atv0 
  */
 	n_written = write (Fd, "at v", 4);
   	n_written = write (Fd, endcmd, 1);
 	sleep (2);
-	n_read = read (Fd, &buf, BUFLEN);
+	n_read = read (Fd, buf, BUFLEN);
 /*
  * Dial the black box.
  */
@@ -438,7 +438,7 @@ Dial ()
 /*
  * Read back the ok.
  */
-	n_written = read (Fd, &buf, BUFLEN);
+	n_written = read (Fd, buf, BUFLEN);
 	msg_ELog (EF_DEBUG, "Dialed (%c).", buf[0]);
 	switch (buf[0])
 	{
@@ -862,7 +862,7 @@ char 	*buf;
 	{
 		for (i = 0; i < p_len; i++)
 			buffer[i] = 0;
-		i = ReadChars (Fd, &buffer, p_len);
+		i = ReadChars (Fd, buffer, p_len);
 		if (i <= 0) return (FALSE);
   
 		for (i = 0; i < p_len; i++)
