@@ -1,6 +1,8 @@
 #! /bin/csh -f
 #
 
+setenv PROJECT_NAME PROPHET
+
 setenv ZEB_CACHEDIR tmp
 setenv DATA_DIR /net/sssf2/cases99
 setenv ZEB_PROJDIR /net/sssf2/cases99/cases99-iss
@@ -36,5 +38,8 @@ endif
 setenv IMAGE_MAIL_LIST " granger "
 setenv PLOT_PLATFORMS "$ZEB_PROJDIR/Plots"
 
-
+# These are the hours each day at which we want plots, 
+# and the length of the plot period
+setenv PLOT_HOURS "10 22"
+setenv PLOT_PERIOD 12
 
