@@ -40,7 +40,7 @@
 # define MESSAGE_LIBRARY	/* to get netread prototypes */
 # include "message.h"
 
-RCSID ("$Id: msg_lib.c,v 2.38 1996-08-21 22:16:39 granger Exp $")
+RCSID ("$Id: msg_lib.c,v 2.39 1996-08-22 02:13:56 granger Exp $")
 
 /*
  * The array of functions linked with file descriptors.
@@ -717,6 +717,7 @@ int *ret;	/* return value of message handler, if called */
 {
 	int i;
 
+	*ret = 0;
 	if (msg_Intercept (msg) == MH_NOTFOUND)
 		return (1);	/* clients can't handle this yet */
 	if (protolist != NULL && nproto != 0)
