@@ -1,3 +1,46 @@
+Fri Nov 21 13:41:29 1997  Chris Burghart  <burghart@saaz.atd.ucar.edu>
+
+	* This is the big field derivation addition.  With this addition,
+ 	  a C++ compiler becomes required for Zebra, as does Unidata's
+ 	  udunits library.  The old external interface to the data store
+ 	  remains essentially intact (F_Alias() now generates a complaint)
+ 	  and new functions have been added.  See the documentation on
+ 	  field derivation for more information.
+
+	  Existing files that received significant to major thrashing:
+	          Imakefile DFA_Appl.c DFA_NetCDF.c dc_NSpace.c
+
+	  Existing files that received minor thrashing:
+	  	DFA_HDF.c
+		DataChunkP.h
+		DataStore.h
+		T_NSpace.c
+		T_Utils.c
+		apple.c
+		dc_MetAttr.c
+		dc_MetData.c
+		ds_fields.h
+
+	  New modules:
+	        DerivNode.cc    -- class for derivation nodes
+		DerivNode.h     -- header for DerivNode.cc
+		DerivTable.cc   -- class for tables of derivation trees
+		DerivTable.h    -- header for DerivTable.cc
+		Derivations     -- default derivation definitions
+		FDParse.bison   -- bison field derivation parser definition
+		FDParse.tab.cc  -- bison-generated file (from FDParse.bison)
+		FDParse.tab.h   -- bison-generated header (from FDParse.bison)
+		FDScan.cc       -- flex-generated file (from FDScan.flex)
+		FDScan.flex     -- flex field derivation token definitions
+		Field.cc        -- field class
+		Field.h         -- header for Field.cc
+		T_Derivations.c -- field derivation test module
+		ds_Derive.cc    -- functions for field derivation (C bindings)
+		ds_fields.cc (replaces Fields.c)
+
+	  Removed modules:
+		Fields.c (replaced by ds_fields.cc, to parallel ds_fields.h)
+
 Tue Jul  1 14:26:02 1997  Gary Granger  <granger@steam.atd.ucar.edu>
 
 	* Merge V4_2_alpha_ARM patches up to patchlevel 3:
