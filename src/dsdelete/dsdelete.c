@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: dsdelete.c,v 2.6 1993-09-02 07:43:17 granger Exp $";
+static char *rcsid = "$Id: dsdelete.c,v 2.7 1993-10-19 21:20:47 granger Exp $";
 
 # include "defs.h"
 # include "message.h"
@@ -32,12 +32,14 @@ extern char *getenv FP((char *));
 
 #define USAGE \
 "Deletes files from the named platform.  Use with caution!\n\
-All files are deleted whose times fall before a determined cutoff time.\n\
-If 'zap-time' is a number, the cutoff time is that number of seconds prior \n\
-to the current ZEB time.  Otherwise the cutoff time is the 'zap-time' \n\
-taken as an absolute time in UI format.\n\
-   -o\tdeletes the single observation which begins at the cutoff time\n\
+All files are deleted whose times fall before a calculated cutoff time.\n\
+If 'zap-time' is a number, or a UI expression which evaluates to a number,\n\
+the cutoff time is that number of seconds prior to the current ZEB time.\n\
+Otherwise the cutoff time is 'zap-time' interpreted as an absolute time\n\
+in UI format, 'dd-mmm-yy[,hh:mm:ss]'.\n\
+   -o\tdeletes the single observation which contains the cutoff time\n\
    -z\tdeletes the single most recent observation\n\
+   -h\tprints this usage message\n\
 Examples: \n\
    dsdelete -z radar                  Delete the most recent radar file\n\
    dsdelete prof915h '(3600*24)'      Delete files 24 hrs earlier and before\n\
@@ -49,7 +51,7 @@ void
 usage(prog)
 char *prog;
 {
-	printf ("Usage: %s [-o] [-z] platform zap-time\n", prog);
+	printf ("Usage: %s [-h] [-o] [-z] platform zap-time\n", prog);
 	printf ("%s", USAGE);
 }
 
@@ -69,7 +71,7 @@ char **argv;
 	extern int optind;
 	int c;
 
-	while ((c = getopt (argc, argv, "oz")) != -1)
+	while ((c = getopt (argc, argv, "hoz")) != -1)
 	{
 		switch (c)
 		{
@@ -79,6 +81,9 @@ char **argv;
 		   case 'z':
 			last_obs = TRUE;
 			break;
+		   case 'h':
+			usage(argv[0]);
+			exit(0);
 		   case '?':
 			usage(argv[0]);
 			exit(1);
