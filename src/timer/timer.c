@@ -1,8 +1,8 @@
 /*
  * The timer process.
  */
-static char *rcsid = "$Id: timer.c,v 1.5 1990-07-08 13:04:11 corbet Exp $";
-char *Version = "$Revision: 1.5 $ $Date: 1990-07-08 13:04:11 $";
+static char *rcsid = "$Id: timer.c,v 1.6 1990-11-15 16:28:52 corbet Exp $";
+char *Version = "$Revision: 1.6 $ $Date: 1990-11-15 16:28:52 $";
 
 # include <sys/types.h>
 # include <sys/time.h>
@@ -198,6 +198,8 @@ struct timeval *sys;
 	t.tm_hour = fcc->ds_hhmmss/10000;
 	t.tm_min = (fcc->ds_hhmmss/100) % 100;
 	t.tm_sec = fcc->ds_hhmmss % 100;
+	t.tm_zone = (char *) 0;
+	t.tm_wday = t.tm_isdst = t.tm_yday = 0;
 	sys->tv_sec = timegm (&t);
 	sys->tv_usec = 0;
 }
@@ -668,8 +670,6 @@ struct tm_prt *prt;
  * Set the new offset, and inform the world.
  */
 	T_offset = now->tv_sec - newtime.tv_sec;
-	msg_ELog (EF_INFO, "Pseudo RT mode: time %d %d, (%d sec)",
-		prt->tr_time.ds_yymmdd, prt->tr_time.ds_hhmmss, T_offset);
 	TimeChangeBc ();
 }
 
