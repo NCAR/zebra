@@ -37,3 +37,16 @@ define widget simple-gray intmenu 'Grayscale submenu for simple color'
 	entry '80-Percent' 'do_simple_color gray80'
 	entry '90-Percent' 'do_simple_color gray90'
 endmenu
+
+
+!
+! Actually tweak the color.
+!
+procedure do_simple_color color string
+	local colortweaker PDParam(icon_component,'color-tweaker')
+	if (colortweaker <> "(Undefined)")
+		#colortweaker #color
+	else
+		parameter #icon_component color #color
+	endif
+endprocedure

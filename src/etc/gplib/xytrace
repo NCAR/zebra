@@ -1,0 +1,79 @@
+!
+! XYGraph[simple] support stuff.
+!
+
+
+define widget xytrace-right intmenu 'x'
+	title 'XYGraph options'
+	line
+! want color here but don't know how
+! want line width here but no such option in xygraphs
+	entry 'Line representation' 'xyrep line' \
+		(PDParam (icon_component, 'representation-style') = 'line')
+	entry 'Point representation' 'xyrep point' \
+		(PDParam (icon_component, 'representation-style') = 'point')
+	entry 'Cross representation' 'xyrep cross' \
+		(PDParam (icon_component, 'representation-style') = 'cross')
+	entry 'X-mark representation' 'xyrep xmark' \
+		(PDParam (icon_component, 'representation-style') = 'xmark')
+endmenu
+
+procedure xyrep rep string
+	parameter #icon_component representation-style #rep
+endprocedure
+
+!
+! The field selection procedure.
+!
+procedure xytrace-field field string
+	parameter #icon_component y-field #field
+endprocedure
+
+
+
+
+
+!
+! Zap this trace.
+!
+procedure xytrace-remove 
+	local plats PDParam(icon_component,'platform')
+!
+! If we are the only platform we really want to just zorch the whole
+! component.
+!
+	if (plats = icon_platform)
+		local dmcmd quote(concat4('remove ', ourname, ' ', icon_component))
+		dm #dmcmd
+		return
+	endif
+!
+! Nope, there are others.  Just clean this one out.
+!
+	local pos ListPosition(icon_platform, plats)
+	local plats quote(RmElement(plats,pos))
+	parameter #icon_component platform #plats
+	local clist RmElement(PdParam(icon_component,'field-color'), pos)
+	parameter #icon_component 'field-color' #clist
+endprocedure
+
+
+
+
+define widget xy-an-left intmenu 'x'
+	title 'XY Trace options'
+	line
+	entry 'Remove this trace' 'xytrace-remove'
+endmenu
+
+
+!
+! The color tweaker, called out of simple-color
+!
+procedure xytrace-color color string
+	local plats PDParam(icon_component,'platform')
+	local pos ListPosition(icon_platform, plats)
+	local clist PDParam(icon_component,'field-color')
+	local clist ReplElement(clist, pos, color)
+	parameter #icon_component field-color #clist
+endprocedure
