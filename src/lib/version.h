@@ -1,5 +1,5 @@
 /*
- * $Id: version.h,v 2.1 1996-11-19 07:57:58 granger Exp $
+ * $Id: version.h,v 2.2 1997-04-27 07:36:47 granger Exp $
  *
  * Include various symbols, compilation, and version info into an object
  * file.  We try to take advantage of ANSI C pre-preprocessors as much as
@@ -17,9 +17,20 @@
 /*
  * Prototypes from version.c
  */
+#ifdef __cplusplus
+extern "C" {
+const char *V_version (void);
+const char *V_format (char *buf, const char *a, const char *b, 
+		      const char *c, const char *d);
+/* Full copyright text linked from version.c */
+const char *V_copyright (void);
+}
+#else
 const char *V_version FP ((void));
 const char *V_format FP ((char *buf, const char *a, const char *b, 
 			  const char *c, const char *d));
+const char *V_copyright FP((void));
+#endif
 
 /* ----------------------------------------------------------------------
  * CPP symbols present at the time an object module is compiled.
@@ -154,11 +165,6 @@ static inline const char *Z_version()
 	return (V_version ());
 }
 
-
-/* -------------------------------------------------------------------------
- * The full copyright text is now linked from version.c
- */
-const char *V_copyright FP((void));
 
 static inline const char *Z_copyright()
 { return (V_copyright()); }
