@@ -1,7 +1,7 @@
 /*
  * The data store application interface.
  */
-static char *rcsid = "$Id: Appl.c,v 1.6 1991-04-02 21:01:16 corbet Exp $";
+static char *rcsid = "$Id: Appl.c,v 1.7 1991-04-11 21:59:11 corbet Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"
@@ -36,6 +36,8 @@ static char *rcsid = "$Id: Appl.c,v 1.6 1991-04-02 21:01:16 corbet Exp $";
 # define MAXPLAT 128
 typedef void (*VFunc) ();
 VFunc ApplFuncs[MAXPLAT];
+
+VFunc CopyFunc = 0;
 
 
 
@@ -147,6 +149,29 @@ PlatformId id;
 	return (PTable[id].dp_flags & DPF_MOBILE);
 }
 
+
+
+
+int
+ds_GetObsSamples (pid, when, times, locs, max)
+PlatformId pid;
+time *times, *when;
+Location *locs;
+int max;
+/*
+ * Get the time and location of up to "max" samples from the observation
+ * enclosing "when".
+ */
+{
+	int dfindex;
+/*
+ * Find the data file holding the observation of interest, then pass off
+ * the real work to DFA.
+ */
+	if ((dfindex = ds_FindDF (pid, when)) < 0)
+		return (0);
+	return (dfa_GetObsSamples (dfindex, times, locs, max));
+}
 
 
 
@@ -318,16 +343,28 @@ DataObject *dobj;
 	if (dobj->do_flags & DOF_FREETIME)
 		free (dobj->do_times);
 /*
- * Irregular grids have some additional stuff to get rid of.
+ * Some organizations have additional stuff to get rid of.
  */
-	if (dobj->do_org == OrgIRGrid)
+	switch (dobj->do_org)
 	{
+	   case OrgIRGrid:
 		free (dobj->do_desc.d_irgrid.ir_loc);
 		if (dobj->do_desc.d_irgrid.ir_subplats)
 			free (dobj->do_desc.d_irgrid.ir_subplats);
-	}
-	else if (dobj->do_org == OrgOutline)
+		break;
+
+	   case OrgOutline:
 		free (dobj->do_desc.d_length);
+		break;
+
+	   case OrgImage:
+	   	free (dobj->do_desc.d_img.ri_rg);
+	   	free (dobj->do_desc.d_img.ri_scale);
+		break;
+	}
+/*
+ * Finally we can dump the data object itself.
+ */
 	free ((char *) dobj);
 }
 
@@ -342,10 +379,11 @@ GetList *get;
  * Allocate the memory needed to satisfy this data request.
  */
 {
-	int nsample, npoint, field, offset, toffset;
+	int nsample, npoint, field, offset, toffset, size;
 	GetList *gp;
 	RGrid *rp;
 	IRGrid *irg;
+	RastImg *rip;
 /*
  * Pass through the list and get the total number of data points.
  */
@@ -356,11 +394,15 @@ GetList *get;
 		nsample += gp->gl_nsample;
 	}
 /*
+ * Figure the size of our data items.
+ */
+	size = (dobj->do_org == OrgImage) ? sizeof (char) : sizeof (float);
+/*
  * Get the memory in a big chunk.
  */
 	if (dobj->do_nfield > 0)
 		dobj->do_data[0] = (float *)
-				malloc (npoint*dobj->do_nfield*sizeof (float));
+				malloc (npoint*dobj->do_nfield*size);
 	dobj->do_times = (time *) malloc (nsample * sizeof (time));
 	dobj->do_flags |= DOF_FREEDATA | DOF_FREETIME;
 	dobj->do_npoint = nsample;
@@ -368,16 +410,20 @@ GetList *get;
  * Set the pointers for each field.
  */
 	for (field = 1; field < dobj->do_nfield; field++)
-		dobj->do_data[field] = dobj->do_data[0] + npoint*field;
+		dobj->do_data[field] = (float * ) (npoint*field*size +
+						(char *) dobj->do_data[0]);
 /*
  * If this is a mobile platform, we need to arrange for location info.
  */
-	if (ds_IsMobile (dobj->do_id) || dobj->do_org == OrgOutline)
+	if (ds_IsMobile (dobj->do_id) || dobj->do_org == OrgOutline ||
+			dobj->do_org == OrgImage)
 	{
 		dobj->do_aloc = (Location *)
 				malloc (nsample*sizeof (Location));
 		dobj->do_flags |= DOF_FREEALOC;
 	}
+	else
+		dobj->do_aloc = (Location *) 0;
 /*
  * Fix up the getlist pointers.
  */
@@ -385,13 +431,23 @@ GetList *get;
 	toffset = nsample;
 	for (gp = get; gp; gp = gp->gl_next)
 	{
+	/*
+	 * Move our offsets back to the beginning of the period covered
+	 * by this getlist entry.
+	 */
 		offset -= gp->gl_npoint;
 		toffset -= gp->gl_nsample;
+	/*
+	 * Adjust the various gp pointers so that this entry can be
+	 * satisfied without the rest.
+	 */
 		for (field = 0; field < dobj->do_nfield; field++)
-			gp->gl_data[field] = dobj->do_data[field] + offset;
+			gp->gl_data[field] = (float *) (offset*size + 
+						(char *) dobj->do_data[field]);
 		gp->gl_time = dobj->do_times + toffset;
-		if (ds_IsMobile (dobj->do_id) || dobj->do_org == OrgOutline)
+		if (dobj->do_aloc)
 			gp->gl_locs = dobj->do_aloc + toffset;
+		gp->gl_sindex = toffset;
 	}
 	if (offset != 0 || toffset != 0)
 		msg_ELog (EF_PROBLEM, "BUG: Offsets nonzero: %d %d", offset,
@@ -417,6 +473,12 @@ GetList *get;
 			dobj->do_desc.d_rgrid.rg_nZ = 1;
 		break;
 	   case OrgScalar:
+		break;
+	   case OrgImage:
+		rip = &dobj->do_desc.d_img;
+		rip->ri_rg = (RGrid *) malloc (nsample * sizeof (RGrid));
+		rip->ri_scale = (ScaleInfo *) malloc (dobj->do_nfield *
+						sizeof (ScaleInfo));
 		break;
 	}
 }
@@ -493,29 +555,64 @@ TimeSpec which;
 /*
  * We don't do it all yet.
  */
-	if (which != DsBefore)
+	switch (which)
 	{
+	/*
+	 * Handle dsBefore -- the usual case.
+	 */
+	   case DsBefore:
+		/*
+		 * Scan down the datafile list until we find the first
+		 * entry which begins before the given time.
+		 */
+		for (index = LOCALDATA (PTable[platform]); index; 
+				index = DFTable[index].df_FLink)
+			if (DLE (DFTable[index].df_begin, *when))
+				break;
+		/*
+		 * Now we plow through datafile entries until we have
+		 * all we want.
+		 */
+		while (index && ndone < n)
+		{
+			ndone += dfa_DataTimes (index, when, which, n - ndone,
+					rettimes + ndone);
+			index = DFTable[index].df_FLink;
+		}
+		return (ndone);
+	/*
+	 * We now do DsAfter too.
+	 */
+	   case DsAfter:
+		/*
+		 * Scan down the datafile list until we find the first entry
+		 * which does not end after the time of interest.
+		 */
+		for (index = LOCALDATA (PTable[platform]); index; 
+				index = DFTable[index].df_FLink)
+			if (DLE (DFTable[index].df_end, *when))
+				break;
+		/*
+		 * Now we move forward filling the array.
+		 */
+		for (index = DFTable[index].df_BLink; index && ndone < n;
+				index = DFTable[index].df_BLink)
+			ndone += dfa_DataTimes (index, when, which, n - ndone,
+					rettimes + n - ndone - 1);
+		/*
+		 * If we couldn't do it all, copy what we could do forward.
+		 */
+		if (ndone && ndone < n)
+			memcpy (rettimes, rettimes + n - ndone,
+					(n - ndone)*sizeof (time));
+		return (ndone);
+	/*
+	 * But that's all.
+	 */
+	   default:
 		msg_ELog (EF_PROBLEM, "Only DsBefore TimeSpec handled");
 		return (0);
 	}
-/*
- * Scan down the datafile list until we find the first entry which
- * begins before the given time.
- */
-	for (index = LOCALDATA (PTable[platform]); index; 
-			index = DFTable[index].df_FLink)
-		if (DLE (DFTable[index].df_begin, *when))
-			break;
-/*
- * Now we plow through datafile entries until we have all we want.
- */
-	while (index && ndone < n)
-	{
-		ndone += dfa_DataTimes (index, when, which, n - ndone,
-				rettimes + ndone);
-		index = DFTable[index].df_FLink;
-	}
-	return (ndone);
 }
 
 
@@ -645,6 +742,20 @@ bool newfile;
 
 
 
+DataOrganization
+ds_PlatformDataOrg (pid)
+PlatformId pid;
+/*
+ * Return the organization of the data returned by this platform.
+ */
+{
+	return (PTable[pid].dp_org);
+}
+
+
+
+
+
 
 static void
 ds_NotifyDaemon (dfile, dobj, begin, end)
@@ -700,9 +811,20 @@ struct message *msg;
 		ds_DispatchNotify ((struct dsp_Notify *) dt);
 		break;
 
+	/*
+	 * If we are getting notification requests, then dispatch them
+	 * out to the copy function, which really should ought to exist.
+	 */
+	   case dpt_NotifyRequest:
+	   case dpt_CancelNotify:
+	   	if (CopyFunc)
+			(*CopyFunc) (dt);
+		break;
+
 	   default:
-	   	msg_ELog (EF_PROBLEM, "Unknown DS message type %d",
-			dt->dsp_type);
+		if (dt->dsp_type != MH_CLIENT)
+		   	msg_ELog (EF_PROBLEM, "Unknown DS message type %d",
+				dt->dsp_type);
 		break;
 	}
 	return (0);
@@ -788,4 +910,22 @@ struct dsp_Notify *notify;
 	if (ApplFuncs[notify->dsp_pid])
 		(*ApplFuncs[notify->dsp_pid]) (notify->dsp_pid, 
 				notify->dsp_param, &notify->dsp_when);
+}
+
+
+
+
+
+void
+ds_SnarfCopies (handler)
+void (*handler) ();
+/*
+ * Request copies of notification request events.
+ */
+{
+	struct dsp_Template req;
+
+	req.dsp_type = dpt_CopyNotifyReq;
+	msg_send ("DS_Daemon", MT_DATASTORE, FALSE, &req, sizeof (req));
+	CopyFunc = handler;
 }
