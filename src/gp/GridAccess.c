@@ -28,7 +28,7 @@
 # include <DataChunk.h>
 # include "GraphProc.h"
 # include "rg_status.h"
-MAKE_RCSID ("$Id: GridAccess.c,v 2.28 1995-10-31 04:07:12 granger Exp $")
+MAKE_RCSID ("$Id: GridAccess.c,v 2.29 1997-10-07 17:19:12 ishikawa Exp $")
 
 # define DEG_TO_RAD(x)	((x)*0.017453292)
 # define KM_TO_DEG(x)	((x)*0.008982802) /* on a great circle */
@@ -47,7 +47,7 @@ static bool 	ga_DoNSpace FP ((DataChunk **, FieldId));
 static bool 	ga_NSSimpleGrid FP ((DataChunk **, FieldId));
 
 int		ga_NSCoordVariable FP ((DataChunk *dc, const char *name,
-					FieldId *fid));
+ 					FieldId *fid));
 int		ga_NSRegularSpacing FP((DataChunk *dc, FieldId fid,
 					float *rspacing, unsigned long *rnum,
 					float *origin));
@@ -58,6 +58,8 @@ DataChunk 	*ga_NSRGrid FP((DataChunk *dc, FieldId fid, Location *location,
 static void	ga_StoreSpacings FP ((DataChunk *, float, float));
 #endif
 
+int             Derive_Vorticity( float *adiv, float *av, float *au, 
+		      Location *loc, RGrid *rg, float badvalue, float afact );
 
 
 void
@@ -1219,6 +1221,260 @@ FieldId *fid;		/* Returned FieldId of coordinate variable 	*/
 
 	*fid = field;
 	return (TRUE);
+}
+
+/*============================================================================
+ * Functions related to Vorticity and Divergence calculation
+ ============================================================================*/
+
+/* 
+ * Return the derivation of Vorticity or Divergence as a DataChunk.
+ */
+DataChunk * GetVorticity( when, comp, platform, fname, xdim, ydim, 
+			x0, y0, x1, y1, alt, shifted)
+ZebTime *when;
+char    *comp, *platform, *fname;
+int     *xdim, *ydim, *shifted;
+float   *x0, *y0, *x1, *y1, *alt;
+{
+DataChunk   *vortdc;
+DataChunk   *udc, *vdc;
+float       *ugrid, *vgrid, *adiv;
+FieldId     winds[2];
+FieldId     vortfld, divfld;
+PlatformId  pid;
+WindInfo    wi;
+Location    loc;
+RGrid       rg;
+int         len;
+float       badvalue;
+AltUnitType altunits;
+
+/*
+ * Look up our platform.
+ */
+   if ((pid = ds_LookupPlatform (platform)) == BadPlatform)
+   {
+      msg_ELog (EF_PROBLEM, "Bad platform '%s'", platform);
+      return (0);
+   }
+
+   FindWindsFields (comp, pid, when, winds, &wi);
+/*
+ * Get u component.
+ */
+   if (! (udc = ga_GetGrid (when, comp, platform, F_GetName(winds[0]), 
+            xdim, ydim, x0, y0, x1, y1, alt, shifted)))
+   {
+      msg_ELog (EF_PROBLEM, "No U field for this '%s'", platform);
+      return(0);
+   }
+
+   ugrid = (float *) dc_RGGetGrid(udc,0,winds[0], &loc, &rg, &len);
+   if ( ugrid==NULL )
+     {
+       msg_ELog (EF_PROBLEM, "Problems in getting U grid");
+       return (0);
+     }
+
+   badvalue = dc_GetBadval (udc);
+   altunits = dc_GetLocAltUnits (udc);
+
+/*
+ * Get v component.
+ */
+   if (! (vdc = ga_GetGrid (when, comp, platform, F_GetName(winds[1]), 
+            xdim, ydim, x0, y0, x1, y1, alt, shifted)))
+   {
+      msg_ELog (EF_PROBLEM, "No V field for this '%s'", platform);
+      return(0);
+   }
+
+   vgrid = (float *) dc_RGGetGrid(vdc, 0, winds[1], &loc,&rg,&len);
+   if ( vgrid==NULL )
+     {
+       msg_ELog (EF_PROBLEM, "Problems in getting V grid");
+       return (0);
+     }
+
+   adiv = (float *) malloc ( (*xdim) * (*ydim) * sizeof(float));
+   if ( adiv==NULL )
+   {
+      msg_ELog (EF_PROBLEM, "Could not allocate memory"); 
+      return ( 0 );
+   }
+
+/*
+ * Compute divergence or vorticity. 
+ */
+   if ( !strcasecmp (fname, "vorticity") )        /* Calculate Vorticity */
+     {
+        msg_ELog (EF_DEBUG, "Deriving Vorticity"); 
+        if(!Derive_Vorticity (adiv, ugrid, vgrid, &loc, &rg, badvalue, 1.0 ))
+	  return(0);
+     } 
+   else                                           /* Calculate Divergence */ 
+     {
+        msg_ELog (EF_DEBUG, "Deriving Divergence");
+        if(!Derive_Vorticity (adiv, vgrid, ugrid, &loc, &rg, badvalue, -1.0 ))
+	  return(0);
+     }
+
+/*
+ * We don't need the data arrays and the data chunks any more.
+ */
+
+   free (ugrid);
+   free (vgrid);
+   dc_DestroyDC (udc);
+   dc_DestroyDC (vdc);
+
+/* 
+ * Create  a DataChunk using NSpace representation to store the resultant
+ * Vorticity or Divergence.  Need to set the bad value flag for this data.
+ * Return the vortdc DataChunk with vorticity or divergence.
+ */
+
+   vortdc = dc_CreateDC ( DCC_RGrid );
+   vortdc->dc_Platform = ds_LookupPlatform (platform);
+   dc_SetBadval (vortdc, badvalue );
+   dc_SetLocAltUnits (vortdc, altunits );
+
+   if ( !strcasecmp (fname, "vorticity") )
+   {
+
+     vortfld = F_DeclareField ("vorticity", "Vorticity", "vort");
+     if ( vortfld == BadField )   msg_ELog (EF_PROBLEM, "Bad field ID");
+      dc_RGSetup   ( vortdc, 1, &vortfld ); 
+      if (!dc_RGAddGrid (vortdc, 0, vortfld, &loc, &rg, when, adiv, len))
+      {
+         msg_ELog (EF_PROBLEM, "Error to add a sample to datachunk");
+	 return (0);
+      };
+   }
+   else
+   {
+      divfld  = F_DeclareField ("divergence", "Divergence", "diver");
+      if ( divfld == BadField )   msg_ELog (EF_PROBLEM, "Bad field ID");
+      dc_RGSetup   ( vortdc, 1, &divfld );
+      if(!dc_RGAddGrid (vortdc, 0, divfld, &loc, &rg, when, adiv, len ))
+      { 
+        msg_ELog (EF_PROBLEM, "Error to add a sample to datachunk");
+	return (0);
+      }
+   }
+
+   free ( adiv );
+   return ( vortdc );
+
+}
+
+
+
+/*
+ * Divergence and Vorticity algorithm  
+ * by Rosmeri Porfirio da Rocha : rocha@ipmet1.ipmet.unesp.br 
+ *
+ * Adapted to Zebra software 
+ * by Sergio Hiroshi Ishikawa   : ishikawa@ipmet1.ipmet.unesp.br
+ *                              : ishikawa@stout.atd.ucar.edu
+ * 9/30/97
+ *
+ * This function computes vorticity or divergence depending on the order of 
+ * wind_v and wind_u passed as parameters by the calling function and also the
+ * value of parameter afact. The derived field will be returned in adiv array.
+ * The calling function must pass parameters like:
+ * 
+ * For divergence :
+ *         Derive_Vorticity (adiv, vgrid, ugrid, loc, rg, badvalue, -1.0) 
+ * For vorticity :
+ *         Derive_Vorticity (adiv, ugrid, vgrid, loc, rg, badvalue, 1.0 ) 
+ */  
+int Derive_Vorticity( float *adiv, float *au, float *av, Location *loc, 
+		       RGrid *rg, float badvalue, float afact )
+{
+double  aa, bb, aux, arad;
+int     offset, offsetm1, offsetp1;
+int     i, j, nlat, nlon;
+float   olat, olon, slat, wlon, latstep, lonstep;
+double  *alat, *alon;
+
+  cvt_GetOrigin (&olat, &olon);
+  lonstep = KM_TO_DEG (rg->rg_Xspacing/cos (M_PI/180.0*olat));
+  latstep = KM_TO_DEG (rg->rg_Yspacing);
+
+  nlat = rg->rg_nY;
+  nlon = rg->rg_nX;
+  slat = loc->l_lat;
+  wlon = loc->l_lon;
+
+  msg_ELog (EF_DEBUG, "NLAT '%d' NLON '%d' SLAT '%f' WLON '%f' LATSTEP '%f' LONSTEP '%f' BADVALUE '%f' ", 
+	    nlat, nlon, slat, wlon, latstep, lonstep, badvalue);
+
+  if ((alat = (double *) malloc (nlat*sizeof(double)))==NULL)
+  {
+    msg_ELog(EF_PROBLEM, "Could not allocate memory");
+    return(0);
+  }
+
+  if ((alon = (double *) malloc (nlon*sizeof(double)))==NULL)
+  {
+    msg_ELog(EF_PROBLEM, "Could not allocate memory");
+    return(0);
+  }
+
+  arad = M_PI/180.0;
+
+  for (j=0, aux=0.0; j<nlon; j++)
+    { 
+      aux += lonstep;
+      alon[j] = (double) arad*(wlon+aux);
+    }
+  
+  for (j=0, aux=0.0; j<nlat; j++)
+    { 
+      aux += latstep;
+      alat[j] = (double) arad*(slat+aux);
+    }
+
+/* Computing for a given altitude */
+
+  for (i=1; i<nlat-1; i++)
+  {
+    offset = i*nlon;
+    offsetm1 = (i-1)*nlon;
+    offsetp1 = (i+1)*nlon;
+    for (j=1; j<nlon-1; j++)
+    {
+       if ( av[offset+j+1] != badvalue && av[offset+j-1] != badvalue &&
+	    au[offsetp1+j] != badvalue && au[offsetm1+j] != badvalue )
+       {
+	  aa = (av[offset+j+1]-av[offset+j-1])/(alon[j+1]-alon[j-1]);
+          bb = (au[offsetp1+j]*cos((double)alat[i+1]) -
+	       au[offsetm1+j]*cos((double)alat[i-1])) / (alat[i+1]-alat[i-1]);
+          adiv[offset+j] = (float) (aa-afact*bb)/(6370000.0*cos(alat[i]));
+       }
+         else adiv[offset+j] = badvalue;
+    }
+  }
+
+/* Fill in badvalue on the boundaries */
+ 
+  for (i=0; i<nlon; i++)
+    {
+      adiv[i]=badvalue;
+      adiv[(nlat-1)*nlon+i]=badvalue;
+    } 
+
+  for (i=1; i<nlat-1; i++)
+    {
+      offset = i*nlon;
+      adiv[offset]=badvalue;
+      adiv[offset+nlon-1]=badvalue;
+    }
+
+  free (alat);
+  free (alon);
 }
 
 
