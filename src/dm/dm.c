@@ -32,7 +32,7 @@
 # include <timer.h>
 # include <config.h>
 # include <copyright.h>
-MAKE_RCSID ("$Id: dm.c,v 2.13 1992-06-29 23:56:31 pai Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.14 1992-07-13 15:59:10 pai Exp $")
 
 
 /*
@@ -46,8 +46,9 @@ stbl Bmaps;
 ButtonMap *Default_map;	/* The default button map	*/
 Display *Dm_Display;
 
-char ConfigDir[200];	/* Where to look for display configs */
+char ConfigDir[200];	/* Default directory for display configs */
 char ConfigPD[200];	/* Where to save plot descriptions	*/
+char ConfigPath[512];	/* Path to search for display configs */
 
 /*
  * Is sound enabled?
@@ -130,11 +131,17 @@ char **argv;
 	usy_c_indirect (vtable, "sleepafter", &SleepAfter, SYMT_INT, 0);
 	usy_c_indirect (vtable, "sleepfor", &SleepFor, SYMT_INT, 0);
 	usy_c_indirect (vtable, "configdir", ConfigDir, SYMT_STRING, 200);
-	/*strcpy (ConfigDir, ".");*/
 	usy_c_indirect (vtable, "configpd", ConfigPD, SYMT_STRING, 200);
-	strcpy (ConfigPD, ".");
+	usy_c_indirect (vtable, "configpath", ConfigPath, SYMT_STRING, 512);
 	usy_daemon (vtable, "soundenabled", SOP_WRITE, SEChange, 0);
 	tty_watch (msg_get_fd (), (void (*)()) msg_incoming);
+
+/*
+ * Can't figure out why these were in here.  Leaving them for now...
+ *	strcpy (ConfigDir, ".");
+ *	strcpy (ConfigPD, ".");
+ */
+
 # ifdef titan
 /*
  * Hook into the dialbox.
@@ -474,18 +481,19 @@ char *name;
 	SValue v;
 	char fname[200];
 	char delim = ',';	/* a token delimiter for strtok() */
-	char * ccd;		/* current configs directory */
-	char * ConfigPath;
-	int firstime = TRUE;
+	char * ccd;		/* current configs directory 	*/
+	int firstime = TRUE;	/* Check the default dir first 	*/
 	
 /*
  * If ConfigPath is defined, get it, otherwise set it to "."
  */
-	ConfigPath = (char *)getenv("CONFIG_PATH");
-	if(ConfigPath == NULL)
+ 	if (usy_g_symbol (Configs, "configpath", &type, &v) == FALSE)
 		ccd = NULL;
 	else
+	{
+		strcpy(ConfigPath, v.us_v_ptr);
 		ccd = strtok(ConfigPath, &delim);
+	}
 
 /*
  * Look up this config in the configs table.
@@ -493,8 +501,8 @@ char *name;
  	if (usy_g_symbol (Configs, name, &type, &v))
 		return ((struct config *) v.us_v_ptr);
 /*
- * If we didn't find it in the table, search through ConfigPath to try and
- * find it, load it if it exists, then try again.
+ * If we didn't find it in the table, search ConfigDir and ConfigPath to 
+ * try and find it, load it if it exists, then try again.
  */
 	while(1)
 	{
