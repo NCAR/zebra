@@ -1,8 +1,8 @@
-//
-// Read-only support for opaque files.  Return the file timestamp as the
-// time of the one and only sample of the file.  Only return Transparent
-// DataChunk fetches of the contents of the entire file.
-//
+/*
+ * Read-only support for opaque files.  Return the file timestamp as the
+ * time of the one and only sample of the file.  Only return Transparent
+ * DataChunk fetches of the contents of the entire file.
+ */
 
 # include <stdio.h>
 # include <string.h>
@@ -20,7 +20,7 @@
 # include "DataFormat.h"
 
 
-RCSID ("$Id: DFA_OpaqueFile.c,v 3.2 2002-10-24 17:02:52 granger Exp $")
+RCSID ("$Id: DFA_OpaqueFile.c,v 3.3 2002-10-24 18:48:17 granger Exp $")
 
 
 typedef struct OpaqueOpenFile
@@ -31,16 +31,12 @@ typedef struct OpaqueOpenFile
 	off_t		opaque_length;
 } OpaqueOpenFile;
 
-//
-// Our access methods.
-//
 P_OpenFile (dof_OpenFile);
 P_CloseFile (dof_CloseFile);
 P_QueryTime (dof_QueryTime);
 P_GetFields (dof_GetFields);
 P_GetTimes (dof_GetTimes);
 P_GetObsSamples (dof_GetObsSamples);
-// P_GetAttrs (dof_GetAttrs);
 P_Setup (dof_Setup);
 P_GetData (dof_GetData);
 
@@ -57,35 +53,35 @@ static DataFormat opaqueFileFormatRec =
 	FTOpaque,
 	NULL,
 
-	COCTable,			// Compatibility table
-	N_COC (COCTable),		// Length of that table
-	sizeof (OpaqueOpenFile),	// Open file size
-	TRUE,				// This is a read-only format
+	COCTable,			/* Compatibility table */
+	N_COC (COCTable),		/* Length of that table */
+	sizeof (OpaqueOpenFile),	/* Open file size */
+	TRUE,				/* This is a read-only format */
 
-	FORMAT_INIT,			// Weird open file stuff
+	FORMAT_INIT,
 
-	dof_QueryTime,			// Query times
-	___,				// Make file name
+	dof_QueryTime,			/* Query times */
+	___,				/* Make file name */
 
-	dof_Setup,			// Setup
-	dof_OpenFile,			// open
-	dof_CloseFile,			// Close
-	___, 				// Synchronize
-	dof_GetData,			// GetData
-	___,				// AltitudeInfo
-	fmt_DataTimes,			// DataTimes
-	___,				// Forecast times
-	___,				// Create
-	___,				// PutSample
-	___,				// WriteBlock
-	dof_GetObsSamples,		// GetObsSamples
-	dof_GetFields,			// GetFields
-	___,				// GetAttrs
-	dof_GetTimes,			// GetTimes
-	___,				// Associated files
+	dof_Setup,			/* Setup */
+	dof_OpenFile,			/* open */
+	dof_CloseFile,			/* Close */
+	___, 				/* Synchronize */
+	dof_GetData,			/* GetData */
+	___,				/* AltitudeInfo */
+	fmt_DataTimes,			/* DataTimes */
+	___,				/* Forecast times */
+	___,				/* Create */
+	___,				/* PutSample */
+	___,				/* WriteBlock */
+	dof_GetObsSamples,		/* GetObsSamples */
+	dof_GetFields,			/* GetFields */
+	___,				/* GetAttrs */
+	dof_GetTimes,			/* GetTimes */
+	___,				/* Associated files */
 };
 
-DataFormat *opaqueFileFormat = &opaqueFileFormatRec;
+DataFormat *opaqueFileFormat = (DataFormat *) &opaqueFileFormatRec;
 
 
 static int
@@ -113,13 +109,7 @@ dof_StatFile (const char *file, ZebraTime *begin, off_t *size)
 static int
 dof_QueryTime (const char *file, ZebraTime *begin, ZebraTime *end, 
 	       int *nsample)
-//
-// Query this file to see what's in it.
-//
 {
-//
-// Fake up one sample and return it.
-//
     if (dof_StatFile (file, begin, 0))
     {
 	*nsample = 1;
@@ -134,9 +124,6 @@ dof_QueryTime (const char *file, ZebraTime *begin, ZebraTime *end,
 
 static int
 dof_OpenFile (OpenFile *ofp, int write)
-//
-// Open up one of these guys.
-//
 {
     ZebraTime end;
     int nsample;
@@ -174,9 +161,6 @@ dof_CloseFile (OpenFile *ofp)
 
 static int
 dof_GetFields (OpenFile *ofp, int sample, int *nfield, FieldId *flist)
-//
-// Return one field by the name of 'opaquefilecontents'.
-//
 {
     *nfield = 1;
     flist[0] = F_DeclareField ("opaquefilecontents", 
@@ -189,9 +173,6 @@ dof_GetFields (OpenFile *ofp, int sample, int *nfield, FieldId *flist)
 
 static ZebraTime *
 dof_GetTimes (OpenFile *ofp, int *ntime)
-//
-// Return our time "array".
-//
 {
     OpaqueOpenFile *oof = (OpaqueOpenFile *)ofp;
     *ntime = 1;
@@ -202,23 +183,14 @@ dof_GetTimes (OpenFile *ofp, int *ntime)
 
 static int
 dof_GetObsSamples (OpenFile *ofp, ZebraTime *times, Location *locs, int max)
-//
-// Return all of the 'samples' in this observation.  We make it look like
-// there is only one.
-//
 {
     static Location Boulder = { 40.0, -105, 1500 };
     OpaqueOpenFile *oof = (OpaqueOpenFile *)ofp;
-    //
-    // Protect against something really weird.
-    //
     if (max < 1)
 	return (0);
-    //
-    // Hand back the info for the one 'sample' we have.
-    //
+
     *times = oof->opaque_time;
-    *locs = Boulder;   // Any other suggestions?
+    *locs = Boulder;   /* Any other suggestions? */
     return (1);
 }
 
@@ -229,9 +201,7 @@ dof_Setup (OpenFile *ofp, FieldId *fids, int nfid, DataClass dclass)
 
 {
     DataChunk *dc;
-//
-// Create our data chunk and return it.
-//
+
     dc = dc_CreateDC (dclass);
     return (dc);
 }
@@ -254,7 +224,7 @@ dof_GetData (OpenFile *ofp, DataChunk *dc, int begin, int nsample,
     if (begin > 0)
 	return (0);
 
-    // Read the file and stash it as a sample.
+    /* Read the file and stash it as a sample. */
     data = dc_AddSample (dc, &oof->opaque_time, 0, len);
     if ((wrote = fread (data, len, 1, fin)) != len)
     {
