@@ -27,7 +27,7 @@
 # define NO_SHM
 #include "dslib.h"
 #ifndef lint
-MAKE_RCSID ("$Id: Appl.c,v 3.14 1993-05-25 18:35:56 granger Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.15 1993-05-27 20:12:27 corbet Exp $")
 #endif
 
 /*
@@ -63,6 +63,9 @@ static int	ds_CheckProtocol FP ((Message *, int));
 static int	ds_FindBlock FP((int dfile, DataChunk *dc, Platform *p,
 				 int sample, WriteCode wc, int *nsample));
 static int	ds_FindAfter FP ((PlatformId, ZebTime *));
+static void	ds_WriteLock FP ((PlatformId));
+static void	ds_FreeWLock FP ((PlatformId));
+
 /*
  * The application notification table.
  */
@@ -942,6 +945,7 @@ int ndetail;
 	Platform p;
 
 	ds_GetPlatStruct (dc->dc_Platform, &p, TRUE);
+	ds_WriteLock (dc->dc_Platform);
 /*
  * For now (and maybe forever) we do the writing one sample at a time,
  * to ease the process of figuring out what goes where.
@@ -992,8 +996,9 @@ int ndetail;
 		now = nnew = 0;
 	}
 /*
- * Final daemon update.
+ * Done.
  */
+	ds_FreeWLock (dc->dc_Platform);
 	return (ndone == nsample);
 }
 
@@ -1834,6 +1839,26 @@ PlatformId plat;
 
 
 
+void
+ds_WriteLock (plat)
+PlatformId plat;
+/*
+ * Take out a write lock on this platform.
+ */
+{
+	struct dsp_PLock req;
+/*
+ * Send off the lock request, and wait for the answer saying that we
+ * got it.
+ */
+	req.dsp_type = dpt_WriteLock;
+	req.dsp_pid = plat;
+	ds_SendToDaemon (&req, sizeof (req));
+	msg_Search (MT_DATASTORE, ds_AwaitGrant, 0);
+}
+
+
+
 
 
 /* ARGSUSED */
@@ -1846,8 +1871,23 @@ int junk;
  */
 {
 	struct dsp_Template *dt = (struct dsp_Template *) msg->m_data;
-
-	return (dt->dsp_type != dpt_R_PLockGranted);
+/*
+ * If this is our grant, we're done.
+ */
+	if (dt->dsp_type == dpt_R_PLockGranted)
+		return (MSG_DONE);
+/*
+ * Otherwise let's look for messages that are worth processing now.
+ */
+	switch (dt->dsp_type)
+	{
+	   case dpt_DataGone:	/* Could be dangerous, this one? */
+	   case dpt_CacheInvalidate:
+	   	ds_DSMessage (msg);
+		return (MSG_CONSUMED);
+	   default:
+	   	return (MSG_ENQUEUE);
+	}
 }
 
 
@@ -1867,6 +1907,22 @@ PlatformId plat;
 	req.dsp_type = dpt_ReleasePLock;
 	req.dsp_pid = plat;
 	ds_SendToDaemon ( &req, sizeof (req));
+}
+
+
+
+void
+ds_FreeWLock (plat)
+PlatformId plat;
+/*
+ * Release the lock on this platform.
+ */
+{
+	struct dsp_PLock req;
+
+	req.dsp_type = dpt_ReleaseWLock;
+	req.dsp_pid = plat;
+	ds_SendToDaemon (&req, sizeof (req));
 }
 
 

@@ -27,7 +27,7 @@
 # include "dsPrivate.h"
 # include "commands.h"
 # include "dsDaemon.h"
-MAKE_RCSID("$Id: d_DataTables.c,v 3.7 1993-04-26 16:00:50 corbet Exp $")
+MAKE_RCSID("$Id: d_DataTables.c,v 3.8 1993-05-27 20:12:30 corbet Exp $")
 
 
 /*
@@ -179,7 +179,7 @@ char *name;
 	new->dp_keep = DefaultKeep;
 	new->dp_maxsamp = 60;
 	new->dp_LocalData = new->dp_RemoteData = 0;
-	new->dp_RLockQ = new->dp_WLock = 0;
+	new->dp_RLockQ = new->dp_WLockQ = 0;
 /*
  * Consider automatically establishing a remote data dir.
  */

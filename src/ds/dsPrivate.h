@@ -1,5 +1,5 @@
 /*
- * $Id: dsPrivate.h,v 3.12 1993-05-05 15:39:17 corbet Exp $
+ * $Id: dsPrivate.h,v 3.13 1993-05-27 20:12:32 corbet Exp $
  *
  * Data store information meant for DS (daemon and access) eyes only.
  */
@@ -71,7 +71,7 @@ typedef struct ds_Platform
 	unsigned short dp_NewSamps;	/* New samps (not yet notified) */
 	unsigned short dp_OwSamps;	/* Overwritten samps (n.y.n.)	*/
 	Lock	*dp_RLockQ;		/* Read locks held		*/
-	Lock	*dp_WLock;		/* The write lock 		*/
+	Lock	*dp_WLockQ;		/* The write lock 		*/
 } Platform;
 
 # define DPF_MOBILE	0x0001		/* Does this platform move?	*/
@@ -181,6 +181,8 @@ enum dsp_Types
 	dpt_Hello,			/* 30: New client greeting	*/
 	 dpt_R_ProtoVersion,		/* Protocol version		*/
 	dpt_FindAfter,			/* Find closest DFE after Time	*/
+	dpt_WriteLock,			/* Write lock a platform	*/
+	dpt_ReleaseWLock,		/* Release write lock		*/
 };
 # define DSP_FLEN	256		/* File name length		*/
 

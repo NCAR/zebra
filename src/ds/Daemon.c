@@ -33,7 +33,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 # include "commands.h"
-MAKE_RCSID ("$Id: Daemon.c,v 3.18 1993-05-25 20:00:27 corbet Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.19 1993-05-27 20:12:29 corbet Exp $")
 
 
 
@@ -62,6 +62,8 @@ static void	SendPlatStruct FP ((char *, struct dsp_GetPlatStruct *));
 static void	SendFileStruct FP ((char *, int));
 static void	LockPlatform FP ((char *, PlatformId));
 static void	UnlockPlatform FP ((char *, PlatformId, int));
+static void	WriteLock FP ((char *, PlatformId));
+static void	ReleaseWLock FP ((char *, PlatformId, int));
 static int	AwaitUnlock FP ((Message *, int));
 static Lock	*GetLockEntry FP ((void));
 static void	DoLookup FP ((char *, char *));
@@ -438,8 +440,12 @@ struct message *msg;
 			dap_Cancel (client->mh_client,
 					(struct dsp_Template *) tm);
 			for (i = 0; i < NPlatform; i++)
+			{
 				if (PTable[i].dp_RLockQ)
 					UnlockPlatform (client->mh_client,i,0);
+				if (PTable[i].dp_WLockQ)
+					ReleaseWLock (client->mh_client,i,0);
+			}
 		}
 		break;
 
@@ -538,6 +544,12 @@ struct dsp_Template *dt;
 		break;
 	   case dpt_ReleasePLock:
 	   	UnlockPlatform (from, ((struct dsp_PLock *) dt)->dsp_pid, 1);
+		break;
+	   case dpt_WriteLock:
+	   	WriteLock (from, ((struct dsp_PLock *) dt)->dsp_pid);
+		break;
+	   case dpt_ReleaseWLock:
+	   	ReleaseWLock (from, ((struct dsp_PLock *) dt)->dsp_pid, 1);
 		break;
 	/*
 	 * Platform lookup.
@@ -1346,3 +1358,102 @@ char *who;
 	msg_AnswerQuery (who, buf);
 	msg_FinishQuery (who);
 }
+
+
+
+
+
+
+
+static void
+WriteLock (who, which)
+char *who;
+PlatformId which;
+/*
+ * Write lock platform WHICH for WHO.
+ */
+{
+	Lock *lp;
+	Platform *p = PTable + which;
+	struct dsp_PLock answer;
+/*
+ * Fill in the lock structure.  Avoid the overhead for the time field, at
+ * least until experience shows that we need it.
+ */
+	lp = GetLockEntry ();
+	strcpy (lp->l_Owner, who);
+	/* tl_Time (lp->l_When); */
+/*
+ * Now...if there is no lock active we can add this one and send the
+ * answer back.
+ */
+	if (! p->dp_WLockQ)
+	{
+		lp->l_Next = 0;
+		p->dp_WLockQ = lp;
+		answer.dsp_type = dpt_R_PLockGranted;
+		answer.dsp_pid = which;
+		msg_send (who, MT_DATASTORE, FALSE, &answer, sizeof (answer));
+	}
+/*
+ * Otherwise the request needs to be enqueued.  We do this by putting it 
+ * after the current lock.  NOTE that this does NOT implement proper
+ * sequential ordering of locking, but it will be so rare that three processes
+ * want locks at the same time that I don't think it is worth worrying
+ * about.
+ *
+ *
+ * do those sound like famous last words or what?
+ */
+	else
+	{
+		lp->l_Next = p->dp_WLockQ->l_Next;
+		p->dp_WLockQ->l_Next = lp;
+	}
+}
+
+
+
+
+static void
+ReleaseWLock (who, which, expect)
+char *who;
+PlatformId which;
+int expect;
+/*
+ * Release a lock on this platform.
+ */
+{
+	Lock *lp, *zap;
+	Platform *p = PTable + which;
+
+	msg_ELog (EF_DEBUG, "Write lock on %s released by %s",p->dp_name, who);
+/*
+ * Do some checking first.
+ */
+	if (! p->dp_WLockQ || strcmp (p->dp_WLockQ->l_Owner, who))
+	{
+		msg_ELog (EF_PROBLEM, "%s releasing non-held lock on %s",
+				who, p->dp_name);
+		return;
+	}
+/*
+ * Pull the zapped entry off and put it on the free list.
+ */
+	zap = p->dp_WLockQ;
+	p->dp_WLockQ = zap->l_Next;
+	zap->l_Next = FreeLocks;
+	FreeLocks = zap;
+/*
+ * If there is somebody else waiting for a lock, grant it.
+ */
+ 	if (p->dp_WLockQ)
+	{
+		struct dsp_PLock answer;
+		answer.dsp_type = dpt_R_PLockGranted;
+		answer.dsp_pid = which;
+		msg_send (p->dp_WLockQ->l_Owner, MT_DATASTORE, FALSE,
+				&answer, sizeof (answer));
+	}
+}
+
