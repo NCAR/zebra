@@ -1,6 +1,6 @@
 /* -*- C -*- */
 XCOMM ---------------------------------------------------------------------
-XCOMM $Id: Imakefile,v 1.39 1997-11-21 21:04:35 burghart Exp $ 
+XCOMM $Id: Imakefile,v 1.40 1998-03-17 18:30:04 corbet Exp $ 
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -120,10 +120,10 @@ DISTFILES = Imakefile $(SRCS) $(ALLFSRCS) $(HDRS) \
 CccProgramTarget(gp, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 
 SpecialObjectRule($(UIOBJS),/**/,$(RDSSINCLUDES))
-SpecialObjectRule(RasterPlot.o,/**/,$(SHMDEFINES) $(MAPDEFINE))
+SpecialObjectRule(RasterPlot.o,RasterPlot.c,$(SHMDEFINES) $(MAPDEFINE))
 MAPOBJS = ConstAltPlot.o Ov_Grid.o
 SpecialObjectRule($(MAPOBJS),/**/,$(MAPDEFINE))
-SpecialObjectRule(Projection.o,/**/,$(MAPDEFINE) $(PROJINCLUDES))
+SpecialObjectRule(Projection.o,Projection.c,$(MAPDEFINE) $(PROJINCLUDES))
 
 UILoadFileDepsTarget(graphproc.lf, GraphProc.state, GraphProc.widgets)
 

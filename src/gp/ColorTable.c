@@ -29,37 +29,41 @@
 # include <message.h>
 # include "GraphProc.h"
 
-RCSID ("$Id: ColorTable.c,v 2.9 1996-11-19 07:28:39 granger Exp $")
+RCSID ("$Id: ColorTable.c,v 2.10 1998-03-17 18:30:03 corbet Exp $")
 
 /*
  * For now, we use a simple bitmap to keep track of the colors that
  * have been allocated.
+ *
+ * Those days are now passed.  In the world of 32-bit video depth, we
+ * can't do things that way any more.  Now we have a simple list, and
+ * search it linearly.  The number of colors we actually allocate is still
+ * reasonably small, so I'm hoping this won't get too expensive; otherwise
+ * something a little smarter will have to be done.
  */
 # define MAXCOLOR 4096		/* That oughtta be enough		*/
-# define NCBYTES (MAXCOLOR/8)	/* Number of bytes to allocate.		*/
-static unsigned char Cmap[NCBYTES] = { 0 };
-static unsigned char BitMap[8] = { 0x01, 0x02, 0x04, 0x08,
-				   0x10, 0x20, 0x40, 0x80 };
-static int MaxAlloc = 0;
+static Pixel AColors[MAXCOLOR];
+static int NColorsAlloc = 0;
+
 
 /*
- * Functions for accessing the color map.
+ * Keep track of which colors we have allocated.
  */
 static inline void
 ct_MarkColor (color)
 Pixel color;
 {
-	Cmap[color/8] |= BitMap[color & 0x7];
-	if (color > MaxAlloc)
-		MaxAlloc = color;
-}
-
-
-static inline int
-ct_ColorIsAlloc (color)
-int color;
-{
-	return (Cmap[color/8] & BitMap[color & 0x7]);
+	int nc;
+/*
+ * Don't mark colors more than once.
+ */
+	for (nc = 0; nc < NColorsAlloc; nc++)
+		if (AColors[nc] == color)
+			return;
+	if (NColorsAlloc >= (MAXCOLOR - 1))
+		msg_ELog (EF_PROBLEM, "Allocated too many colors!");
+	else
+		AColors[NColorsAlloc++] = color;
 }
 
 
@@ -67,7 +71,8 @@ int color;
 static void
 ct_ClearColors ()
 {
-	memset ((void *) Cmap, 0, NCBYTES);
+	memset ((void *) AColors, 0, NColorsAlloc*sizeof (Pixel));
+	NColorsAlloc = 0;
 }
 
 
@@ -260,19 +265,11 @@ ct_FreeColors ()
  * Clear out the allocated colors.
  */
 {
-	int np = 0, i;
-	unsigned long pixels[4096];
-/*
- * Go through and make a list of allocated pixels.
- */
-	for (i = 0; i < MaxAlloc; i++)
-		if (ct_ColorIsAlloc (i))
-			pixels[np++] = i;
 /*
  * Release them all in one swell foop.
  */
 	XFreeColors (XtDisplay (Top), DefaultColormap (XtDisplay (Top), 0),
-		pixels, np, 0);
+		AColors, NColorsAlloc, 0);
 	ct_ClearColors ();
 /*
  * Traverse through the symbol table, and mark every entry as unallocated.

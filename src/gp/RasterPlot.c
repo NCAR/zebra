@@ -19,6 +19,49 @@
  * maintenance or updates for its software.
  */
 
+/*
+ * This is some of the gnarlier code in gp, in that it tries to do raster
+ * plots of lots of data, perhaps involving map projections, in a
+ * reasonably quick manner.  Even given that, it could use some work.
+ * Someday.
+ *
+ * There are three different public entry points for rasterization,
+ * depending on what needs to be done.  They be:
+ *
+ * 	RasterPlot
+ *		Plots from floating-point data using XFillPolygon
+ *		requests (one per grid point).  It's fastest for
+ *		small grids, dead slow for large ones.  It understands
+ *		projections, though, and is the only option when
+ *		projection is being done.
+ *
+ *	RasterXIPlot
+ *		A faster version of RasterPlot, using (possibly shared-
+ *		memory) XImages.  It should really use shared memory
+ *		pixmaps, but it predates their introduction.  It's
+ *		fairly fast for large floating-point grids, but can not
+ *		do projections.  The internal routine RP_IRasterize is
+ *		called to do the actual dirty work.
+ *
+ *	RasterImagePlot
+ *		The routine to use when image data are to be plotted.
+ *		If projections are in use, a kludgy heuristic is used to
+ *		decide whether to defer to RP_SlowImagePlot; for "small"
+ *		grids projection is ignored.  RP_ImageRasterize is used
+ *		to do the dirty work without projection.
+ *
+ * RP_SlowImagePlot performs projections by reverse-mapping each pixel
+ * back into the data space, then grabbing the data value.  It's almost
+ * as slow as you would expect it to be.
+ *
+ * RasterXIPlot and RasterImagePlot should really share almost all of
+ * their code, but don't currently.
+ *
+ * These routines now handle 8, 16, and 32-bit displays.  RP_IRasterize
+ * currently does it using XPutPixel, which is not the fastest way of
+ * going about things.
+ */
+
 # include <errno.h>
 # include <math.h>
 # include <X11/Intrinsic.h>
@@ -31,7 +74,7 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 
-RCSID ("$Id: RasterPlot.c,v 2.30 1997-06-10 19:10:41 burghart Exp $")
+RCSID ("$Id: RasterPlot.c,v 2.31 1998-03-17 18:30:05 corbet Exp $")
 
 # ifdef TIMING
 # include <sys/time.h>
@@ -116,6 +159,7 @@ static void RP_FPRasterize FP((
 	int pad));
 
 static void RP_IRasterize FP((
+	XImage *image,
 	unsigned char *ximp,
 	int width, int height, 
 	unsigned int *colgrid, 
@@ -129,17 +173,18 @@ static XImage *RP_GetXImage FP((Widget, int, int));
 static void RP_ImageRasterize FP ((unsigned char *ximp,
 				   int width, int height,
 				   unsigned char *grid,
-				   unsigned char *cmap,
+				   Pixel *cmap,
 				   double row, double icol, 
 				   double rowinc, double colinc,
-				   int xdim, int ydim, int pad));
-# ifdef notdef
-static void RP_MakeColorMap FP ((float, float, unsigned char *));
-# endif
+				   int xdim, int ydim, int pad,
+				   int bdepth));
+
+static void RP_MakeColorMap FP ((float, float, Pixel *));
+
 
 # ifdef MAP_PROJECTIONS
 static void RP_SlowImagePlot FP ((Widget, int, unsigned char *, double, double,
-		Location *, RGrid *, unsigned char *));
+		Location *, RGrid *, Pixel *));
 # ifdef notdef
 static void RP_FindLimits FP ((Location *, float, int, float, int, int*,
 		int *, int *, int *));
@@ -173,6 +218,33 @@ XPoint *xp;
 	xp->x = XPIX (ux);
 	xp->y = YPIX (uy);
 }
+
+
+
+
+
+static bool
+RP_OffScreen (points, np)
+XPoint *points;
+int np;
+/*
+ * Return TRUE iff this polygon is completely off screen.  "Off screen"
+ * meaning that all of its component points are off screen; we don't try
+ * to catch more subtle cases.
+ *
+ * This is inefficient for it's only current use: RasterPlot.  We check
+ * each point twice (actually, up to four times).  Someday...
+ */
+{
+	int p, w = GWWidth (Graphics), h = GWHeight (Graphics);
+	for (p = 0; p < np; p++)
+		if (points[p].x < 0 || points[p].x >= w ||
+				points[p].y < 0 || points[p].y >= h)
+			return (TRUE);
+	return (FALSE);
+}
+
+
 
 
 
@@ -212,6 +284,9 @@ int	xdim, ydim;
 	SetClip (FALSE);
 /*
  * Figure some quantities to take stuff out of the loop.
+ *
+ * 3/98 jc: this is wrong (and xpos too), since it can yield points in
+ * 	    space for whole-globe grids.
  */
 	y0 = origin->l_lat - 0.5*lats;
 	cscale = Ncolor/Datarange;
@@ -247,9 +322,10 @@ int	xdim, ydim;
 			RP_LLToXPoint (ypos, xpos, points + 2);
 			RP_LLToXPoint (ypos, xpos + lons, points + 3);
 		/*
-		 * If this is a bad point just drop it.
+		 * If this is a bad point just drop it.  Also if it's
+		 * complete off screen.
 		 */
-			if (dval == badval)
+			if (dval == badval || RP_OffScreen (points, 4))
 				continue;
 		/*
 		 * Find the correct color and get a graphics context
@@ -487,6 +563,10 @@ bool	fast; /* not used any more */
  * corner elements, in pixel space.  Since they are the centers, we will 
  * actually plot half a grid width outside of these bounds on each side 
  * (neglecting clipping, which may reduce this).
+ *
+ * This stuff uses shared memory XImages, which made sense at the time,
+ * but no longer does.  We should really go straight into the SHM pixmaps,
+ * and cut out that copy.  Someday.
  */
 {
 	int		r_color, i, width, height;
@@ -564,7 +644,7 @@ bool	fast; /* not used any more */
 		image = RP_GetXImage (w, width, height);
 
 	ximp = (unsigned char *) image->data;
-	RP_IRasterize (ximp, width, height, colgrid, toprow, leftcol,
+	RP_IRasterize (image, ximp, width, height, colgrid, toprow, leftcol,
 		   rowinc, colinc, xdim, ydim, image->bytes_per_line - width);
 /*
  * Now we ship over the image, and deallocate everything.
@@ -613,6 +693,7 @@ int width, height;
  */
 {
 	Display *disp = XtDisplay (w);
+	int depth = GWDepth (Graphics);
 
 	if (shm_failed)
 		return (NULL);
@@ -636,7 +717,7 @@ int width, height;
 /*
  * Now get a new one.
  */
-	image = XShmCreateImage (disp, 0, 8, ZPixmap, 0, &shminfo, width,
+	image = XShmCreateImage (disp, 0, depth, ZPixmap, 0, &shminfo, width,
 			height);
 /*
  * All of the shmucking around.
@@ -726,6 +807,8 @@ int width, height;
 	static int XIwidth = -1, XIheight = -1;
 	static XImage *image = 0;
 	char *xim;
+	int depth = GWDepth (Graphics);
+	int bpad = GWBDepth (Graphics)*8;
 /*
  * If the geometry matches, we can just return what we got last time.  This
  * will be the case most of the time -- only when the window changes will
@@ -741,11 +824,11 @@ int width, height;
 /*
  * Now get a new one.
  */
-	xim = malloc (width*height);
+	xim = malloc (width*height*(bpad/8));
 	image = XCreateImage (XtDisplay (w),
 		DefaultVisual (XtDisplay (w),
 			XScreenNumberOfScreen (XtScreen (w))),
-		8, ZPixmap, 0, xim, width, height, 8, width);
+		depth, ZPixmap, 0, xim, width, height, bpad, 0);
 /*
  * Save info and return the image.
  */
@@ -757,8 +840,9 @@ int width, height;
 
 
 static void
-RP_IRasterize (ximp, width, height, colgrid, row, icol, rowinc, colinc,
+RP_IRasterize (image, ximp, width, height, colgrid, row, icol, rowinc, colinc,
 	xdim, ydim, pad)
+XImage *image;
 unsigned char 	*ximp;
 int 		width, height;
 unsigned int 	*colgrid;
@@ -793,7 +877,10 @@ int		xdim, ydim, pad;
 		col = (int) (icol * 65536);
 		for (j = 0; j < width; j++)
 		{
+# ifdef NOTTHISWAY
 			*ximp++ = cp[*s_col];
+# endif
+			XPutPixel (image, j, i, cp[*s_col]);
 			col += icolinc;
 		}
 		row += rowinc;
@@ -807,7 +894,7 @@ int		xdim, ydim, pad;
 static void
 RP_MakeColorMap (scale, bias, cmap)
 float scale, bias;
-unsigned char *cmap;
+Pixel *cmap;
 /*
  * Create the data->color map.
  */
@@ -858,8 +945,9 @@ RGrid *rg;
  * (neglecting clipping, which may reduce this).
  */
 {
-	unsigned char *destimg, cmap[256];
-	int width, height;
+	unsigned char *destimg;
+	Pixel cmap[256];
+	int width, height, bdepth = GWBDepth (Graphics);
 	float toprow, leftcol, rowinc, colinc, bottomrow, rightcol;
 	GC gcontext;
 	XGCValues gcvals;
@@ -968,10 +1056,10 @@ RGrid *rg;
 	if (GWFrameShared (Graphics, frame))
 	{
 		destimg = (unsigned char *) GWGetFrameAddr (w, frame);
-		destimg += yhi * GWGetBPL(w, frame) + xlo;
+		destimg += yhi * GWGetBPL(w, frame) + xlo*bdepth;
 		RP_ImageRasterize (destimg, width, height, grid, cmap, toprow, 
 				   leftcol, rowinc, colinc, xd, yd,
-				   GWGetBPL (w, frame) - width);
+				   GWGetBPL (w, frame) - width*bdepth, bdepth);
 	}
 	else
 # endif
@@ -988,7 +1076,8 @@ RGrid *rg;
 		RP_ImageRasterize ((unsigned char *)(image->data), 
 				   width, height, grid, cmap, toprow, leftcol,
 				   rowinc, colinc, xd, yd,
-				   image->bytes_per_line - width);
+				   image->bytes_per_line - width*bdepth,
+				   bdepth);
 	/*
 	 * Now send our local XImage to the server
 	 */
@@ -1007,19 +1096,20 @@ RGrid *rg;
 
 static void
 RP_ImageRasterize (ximp, width, height, grid, cmap, row, icol, rowinc, colinc,
-		   xdim, ydim, pad)
+		   xdim, ydim, pad, bdepth)
 unsigned char 	*ximp;
 int 		width, height;
 unsigned char 	*grid;
-unsigned char	*cmap;
+Pixel		*cmap;
 float 		row, icol, rowinc, colinc;
-int		xdim, ydim, pad;
+int		xdim, ydim, pad, bdepth;
 /*
  * Do rasterization using the new integer-based (Sun-fast) method.
  */
 {
 	int i, j, icolinc;
-
+	unsigned short *simp;
+	unsigned long *limp;
 # ifdef __STDC__
 	static int col;
 	static short *s_col;
@@ -1046,12 +1136,39 @@ int		xdim, ydim, pad;
 				  row);
 #endif
 		col = (int) (icol * 65536);
-		for (j = 0; j < width - 1; j++)
+		switch (bdepth)
 		{
-			*ximp++ = cmap[cp[*s_col]];
-			col += icolinc;
+		    case 1: /* Eight-bit video */
+			for (j = 0; j < width; j++)
+			{
+				*ximp++ = cmap[cp[*s_col]];
+				col += icolinc;
+			}
+			break;
+		    case 2:
+			simp = (unsigned short *) ximp;
+			for (j = 0; j < width; j++)
+			{
+				*simp++ = cmap[cp[*s_col]];
+				col += icolinc;
+			}
+			ximp = (unsigned char *) simp;
+			break;
+		    case 4:
+			limp = (unsigned long *) ximp;
+			for (j = 0; j < width; j++)
+			{
+				*limp++ = cmap[cp[*s_col]];
+				col += icolinc;
+			}
+			ximp = (unsigned char *) limp;
+			break;
+			
+		    default:
+			msg_ELog (EF_PROBLEM, "Bad bdepth %d", bdepth);
+			return;
 		}
-		*ximp++ = cmap[cp[*s_col]];
+	/* *ximp++ = cmap[cp[*s_col]]; */
 		row += rowinc;
 		ximp += pad;	/* End of raster line padding.	*/
 	}
@@ -1120,7 +1237,8 @@ static void
 RP_SlowImagePlot (w, frame, grid, scale, bias, loc, rg, cmap)
 Widget w;
 int frame;
-unsigned char *cmap, *grid;
+unsigned char *grid;
+Pixel *cmap;
 double scale, bias;
 Location *loc;
 RGrid *rg;
@@ -1138,6 +1256,7 @@ RGrid *rg;
 	Location gloc;
 	XImage *image;
 	XGCValues gcvals;
+	const int bdepth = GWBDepth (Graphics);
 /*
  * Get our origin, and try to work back to the original lat/lon spacing.
  */
@@ -1145,18 +1264,6 @@ RGrid *rg;
 	lonstep = KM_TO_DEG (rg->rg_Xspacing/cos (DEG_TO_RAD (olat)));
 	latstep = KM_TO_DEG (rg->rg_Yspacing);
 	msg_ELog (EF_DEBUG, "Slowplot, spacings %.2f %.2f", latstep, lonstep);
-# ifdef notdef
-/*
- * The origin attached to the grid was generated from the old projection.
- * Let's make a new one.
- */
-	londelt = olon - loc->l_lon;
-	if (londelt < -180.0)
-		londelt += 360.0;
-	xdelt = (int) (londelt/lonstep + 0.5);
-	ydelt = (int) ((olat - loc->l_lat)/latstep + 0.5);
-	gloc.l_lon = olon + xdelt*lonstep;
-# endif
 /*
  * Approximate a bounding box for the image, since the projected points
  * can end up in surprising places.
@@ -1213,7 +1320,8 @@ RGrid *rg;
  */
 	for (y = y0; y <= y1; y++)
 	{
-		unsigned char *dest = destimg +  (y - yoff)*lwidth + xoff;
+		unsigned char *dest = destimg + (y-yoff)*lwidth + xoff*bdepth;
+		unsigned int pval;
 		for (x = x0; x <= x1; x++)
 		{
 			prj_Reverse (XUSER (x), YUSER (y), &lat, &lon);
@@ -1221,68 +1329,30 @@ RGrid *rg;
 				lon += 360;
 			xp = (lon - loc->l_lon)/lonstep + 0.5;
 			yp = (lat - loc->l_lat)/latstep + 0.5;
-			*dest++ = (xp >= 0 && xp < nx && yp >= 0 && yp < ny) ?
+		/*
+		 * Hate to have this switch so deep, but, compared to
+		 * prj_reverse, it should be cheap...
+		 */
+			pval = (xp >= 0 && xp < nx && yp >= 0 && yp < ny) ?
 				 cmap[grid[(ny - yp - 1)*nx + xp]] : cmap[255];
-		}
-	}
-#ifdef notdef
-/*
- * Time for some additional fun.  Since latitude lines are no longer
- * necessarily straight, we could actually have a good chunk of data
- * above and/or below the area we just plotted.  To reverse map the whole
- * screen to get it would be a severely slow bummer.  Instead we explore
- * our way up and down from the edges until we run completely off the data.
- * We should really do the same for the sides, but that is a rarer and
- * smaller problem -- for now.
- */
-	for (y = y1 + 1; y < (int)(Clip.y + Clip.height); y++)
-	{
-		int indata = FALSE;
-		unsigned char *dest = destimg +  (y - yoff)*lwidth + xoff;
-		for (x = x0; x <= x1; x++)
-		{
-			prj_Reverse (XUSER (x), YUSER (y), &lat, &lon);
-			if (loc->l_lon > 0 && lon < 0)
-				lon += 360;
-			xp = (lon - loc->l_lon)/lonstep + 0.5;
-			yp = (lat - loc->l_lat)/latstep + 0.5;
-			if (xp >= 0 && xp < nx && yp >= 0 && yp < ny)
+			switch (bdepth)
 			{
-				*dest++ = cmap[grid[(ny - yp - 1)*nx + xp]];
-				indata = TRUE;
+			    case 1:
+				*dest = pval;
+				break;
+			    case 2:
+				* ((unsigned short *) dest) = pval;
+				break;
+			    case 4:
+				* ((unsigned long *) dest) = pval;
+			        break;
+			    default:
+				msg_ELog (EF_PROBLEM, "Bad byte depth");
+				return;
 			}
-			else
-				*dest++ = cmap[255];
-		}
-		if (! indata)	/* We're out */
-			break;
-	}
-/*
- * Do it all again above.
- */
-	for (y = y0 - 1; y >= Clip.y; y--)
-	{
-		int indata = FALSE;
-		unsigned char *dest = destimg +  (y - yoff)*lwidth + xoff;
-		for (x = x0; x <= x1; x++)
-		{
-			prj_Reverse (XUSER (x), YUSER (y), &lat, &lon);
-			if (loc->l_lon > 0 && lon < 0)
-				lon += 360;
-			xp = (lon - loc->l_lon)/lonstep + 0.5;
-			yp = (lat - loc->l_lat)/latstep + 0.5;
-			if (xp >= 0 && xp < nx && yp >= 0 && yp < ny)
-			{
-				*dest++ = cmap[grid[(ny - yp - 1)*nx + xp]];
-				indata = TRUE;
-			}
-			else
-				*dest++ = cmap[255];
-		}
-		if (! indata)	/* We're out */
-			break;
-	}
-#endif
+			dest += bdepth;
+		} /* x loop */
+	} /* Y loop */
 /*
  * If we doing things with an XImage we need to ship it out.
  */
