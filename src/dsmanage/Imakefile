@@ -9,30 +9,19 @@ SRCS = dsmanage.cc dsmWindows.cc DataDir.cc Index.cc MainWindow.cc Dialog.cc \
 HEADERS = DataDir.h Dialog.h Index.h STable.h StatusWin.h Tape.h ZTime.h \
 	container.h dsmWindows.h dsmanage.h
 
-DSMLIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS) -lg++
-TILIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) -lg++
+DSMLIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS) $(C++LIBS)
+TILIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(C++LIBS)
 
 OBJS = dsmanage.o dsmWindows.o DataDir.o Index.o MainWindow.o Dialog.o \
 	LoadData.o StatusWin.o DLoad.o Tape.o TBCleanup.o
 TIOBJS = TapeIndex.o Index.o Tape.o
 
-/*
- * Eventually this needs to go into the templates somewhere.
- */
-COMPILE.cc = $(CC) $(CFLAGS) $(CPPFLAGS) -c 
+DISTFILES = $(SRCS) $(HEADERS) Imakefile
 
-/*
- * NormalProgramTarget invokes SaberProgramTarget, which messes up with
- * c++ source files.
- */
-# undef SaberProgramTarget
-# define SaberProgramTarget(a,b,c,de,f)	/* nothing */
-
-/*
- * Now we can get around to the real stuff.
- */
- 
-NormalProgramTarget (tapeindex,$(TIOBJS),$(DEPLIBS),$(TILIBS),$(SYSLIBS))
-NormalProgramTarget (dsmanage,$(OBJS),$(DEPLIBS),$(DSMLIBS),$(SYSLIBS))
+CccProgramTarget (tapeindex,$(TIOBJS),$(DEPLIBS),$(TILIBS),/**/)
+CccProgramTarget (dsmanage,$(OBJS),$(DEPLIBS),$(DSMLIBS),/**/)
 
 InstallAppDefaults(dsmanage)
+
+DistfilesTarget($(DISTFILES))
+
