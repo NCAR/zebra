@@ -1,7 +1,7 @@
 /*
- * Routines for pulling grids out of MUDRAS files.
+ * Basic grid access and transformation routines.
  */
-static char *rcsid = "$Id: GridAccess.c,v 2.3 1991-11-22 20:54:40 kris Exp $";
+ 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -25,6 +25,7 @@ static char *rcsid = "$Id: GridAccess.c,v 2.3 1991-11-22 20:54:40 kris Exp $";
 # include "../include/DataStore.h"
 # include "GraphProc.h"
 # include "rg_status.h"
+MAKE_RCSID ("$Id: GridAccess.c,v 2.4 1991-12-03 21:42:55 corbet Exp $")
 
 
 
@@ -36,9 +37,13 @@ static char *rcsid = "$Id: GridAccess.c,v 2.3 1991-11-22 20:54:40 kris Exp $";
 # ifdef __STDC__
 	static bool ga_Regularize (DataObject *);
 	static void ga_RangeLimit (char *, int, float *);
+	static void ga_ImgToGrid (DataObject *);
+	static void ga_ImgToCGrid (DataObject *);
 # else
 	static bool ga_Regularize ();
 	static void ga_RangeLimit ();
+	static void ga_ImgToGrid ();
+	static void ga_ImgToCGrid ();
 # endif
 
 
@@ -144,11 +149,12 @@ char 	*platform, *fname;
 int	*xdim, *ydim;
 float	*x0, *y0, *x1, *y1, *alt;
 {
-	PlatformId	pid;
-	DataObject	*dobj;
+	PlatformId pid;
+	DataObject *dobj;
 	RGrid *rg;
 	float *ret;
 	time realtime;
+	DataOrganization platorg;
 /*
  * Look up our platform.
  */
@@ -157,6 +163,9 @@ float	*x0, *y0, *x1, *y1, *alt;
 		msg_ELog (EF_PROBLEM, "Bad platform '%s'", platform);
 		return (0);
 	}
+	platorg = ds_PlatformDataOrg (pid);
+	if (platorg == Org3dGrid)
+		platorg = Org2dGrid;
 /*
  * Find out when we can really get data.
  */
@@ -173,7 +182,7 @@ float	*x0, *y0, *x1, *y1, *alt;
  * Do a DS get for this data.
  */
 	if ((dobj = ds_GetData (pid, &fname, 1, &realtime, &realtime,
-				Org2dGrid, *alt, BADVAL)) == 0)
+				platorg, *alt, BADVAL)) == 0)
 	{
 		msg_ELog (EF_PROBLEM, "Get failed on %s/%s at %d %06d",
 			platform, fname, realtime.ds_yymmdd, 
@@ -182,14 +191,37 @@ float	*x0, *y0, *x1, *y1, *alt;
 	}
 	*alt = dobj->do_loc.l_alt;
 /*
- * Now turn this grid into a regular one if necessary.
+ * If we need to tweak this data into a grid, do so now.
  */
-	if (dobj->do_org == OrgIRGrid)
+	switch (dobj->do_org)
+	{
+	/*
+	 * IRGrids can be interpolated.
+	 */
+	   case OrgIRGrid:
 		if (! ga_Regularize (dobj))
 		{
 			ds_FreeDataObject (dobj);
 			return (0);
 		}
+		break;
+	/*
+	 * Images can be turned into real info.
+	 */
+	   case OrgImage:
+	   	ga_ImgToCGrid (dobj);
+		break;
+	/*
+	 * If it's already a grid, we do nothing; otherwise we bail.
+	 */
+	   case Org2dGrid:
+	   case Org3dGrid:
+	    	break;
+	   default:
+	   	msg_ELog (EF_PROBLEM, "Bad grid data org %d", dobj->do_org);
+		ds_FreeDataObject (dobj);
+		return (0);
+	}
 /*
  * Pull out the info and return it.  For now we yank out the data and 
  * assume that it can be freed later.
@@ -205,6 +237,107 @@ float	*x0, *y0, *x1, *y1, *alt;
 	ds_FreeDataObject (dobj);
 	*plot_time = realtime;
 	return (ret);
+}
+
+
+
+
+
+static void
+ga_ImgToGrid (dobj)
+DataObject *dobj;
+/*
+ * Turn an image format data object into a regular grid.
+ */
+{
+	float *grid, *gp, table[256];
+	RGrid *rg = dobj->do_desc.d_img.ri_rg;
+	ScaleInfo *sc = dobj->do_desc.d_img.ri_scale;
+	unsigned char *img = (unsigned char *) dobj->do_data[0];
+	int i, npt = rg->rg_nX*rg->rg_nY;
+/*
+ * Allocate a huge chunk of memory for the grid.
+ */
+	gp = grid = (float *) malloc (npt * sizeof (float));
+/*
+ * Go through and calculate the translation table.
+ */
+	for (i = 0; i < 256; i++)
+		table[i] = (float) i/sc->s_Scale + sc->s_Offset;
+/*
+ * Populate the new grid.
+ */
+	for (i = 0; i < npt; i++)
+		*gp++ = table[*img++];
+/*
+ * Fix up the data object, free old memory, and we're done.
+ */
+	free (dobj->do_data[0]);
+	dobj->do_data[0] = grid;
+	dobj->do_org = Org2dGrid;
+	dobj->do_desc.d_rgrid = *rg;
+	dobj->do_loc = dobj->do_aloc[0];
+	free (rg);
+	free (sc);
+}
+
+
+
+
+static void
+ga_ImgToCGrid (dobj)
+DataObject *dobj;
+/*
+ * Turn an image format data object into a regular grid with compression.
+ */
+{
+# define COMPRESS 8
+	float *grid, *gp, table[256];
+	RGrid *rg = dobj->do_desc.d_img.ri_rg;
+	ScaleInfo *sc = dobj->do_desc.d_img.ri_scale;
+	unsigned char *img = (unsigned char *) dobj->do_data[0];
+	int i, npx = rg->rg_nX/COMPRESS, npy = rg->rg_nY/COMPRESS, x, y;
+/*
+ * Allocate a chunk of memory for the grid.
+ */
+	gp = grid = (float *) malloc (npx * npy * sizeof (float));
+/*
+ * Go through and calculate the translation table.
+ */
+	for (i = 0; i < 256; i++)
+		table[i] = (float) i*sc->s_Scale + sc->s_Offset;
+/*
+ * Populate the new grid.
+ */
+	for (y = 0; y < npy; y++)
+		for (x = 0; x < npx; x++)
+		{
+			int xp, yp;
+			gp = grid + (npy - y - 1)*npx + x;
+			*gp = 0.0;
+			for (yp = 0; yp < COMPRESS; yp++)
+				for (xp = 0; xp < COMPRESS; xp++)
+	*gp += table[img[(y*COMPRESS + yp)*rg->rg_nX + x*COMPRESS + xp]];
+			*gp /= COMPRESS*COMPRESS;
+		}
+/*
+ * Kludge: rotate the grid so it can be rotated again later.
+ */
+	free (dobj->do_data[0]);
+	/* ga_RotateGrid (grid, dobj->do_data[0], npy, npx); */
+	dobj->do_data[0] = grid;
+/*
+ * Fix up the data object, free old memory, and we're done.
+ */
+	dobj->do_org = Org2dGrid;
+	rg->rg_nX = npx;
+	rg->rg_nY = npy;
+	rg->rg_Xspacing *= COMPRESS;
+	rg->rg_Yspacing *= COMPRESS;
+	dobj->do_desc.d_rgrid = *rg;
+	dobj->do_loc = dobj->do_aloc[0];
+	free (rg);
+	free (sc);
 }
 
 
