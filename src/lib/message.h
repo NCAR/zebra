@@ -1,4 +1,4 @@
-/* $Id: message.h,v 2.6 1992-09-15 14:56:43 corbet Exp $ */
+/* $Id: message.h,v 2.7 1992-11-09 15:59:59 burghart Exp $ */
 /*
  * Message protocol types.
  */
@@ -35,6 +35,7 @@
 # define MT_QUERY	13	/* General status query protocol	*/
 # define MT_COMMAND	14	/* Command execution protocol		*/
 # define MT_PDMON	15	/* Plot description monitoring		*/
+# define MT_PBOUNDS	16	/* Plot bounds exchange protocol	*/
 
 /*
  * Preallocated chunks of protocol numbers for various groups.
