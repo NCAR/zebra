@@ -21,7 +21,7 @@
  */
 
 # ifndef lint
-	static char *rcsid = "$Id: trmm_rain.c,v 1.1 1993-05-17 22:23:16 granger Exp $";
+	static char *rcsid = "$Id: trmm_rain.c,v 1.2 1993-05-19 23:10:54 granger Exp $";
 # endif
 
 # include <time.h>
@@ -30,6 +30,7 @@
 # include <defs.h>
 # include <message.h>
 # include <DataStore.h>
+# include <ingest.h>
 
 # define BADVAL	-9999.0
 
@@ -44,14 +45,30 @@ static void	GrabData FP ((void));
 static time_t	YearSeconds FP ((int));
 
 
+static void
+Usage (prog)
+char *prog;
+{
+	printf ("Usage: %s [ingest options] filename\n", prog);
+	IngestUsage ();
+}
+	
+
 
 main (argc, argv)
 int	argc;
 char	**argv;
 {
+/*
+ * Parse general ingest options
+ */
+	IngestParseOptions (&argc, argv, Usage);
+/*
+ * Get our program-specific options
+ */
 	if (argc != 2)
 	{
-		printf ("Usage: %s [filename]\n", argv[0]);
+		Usage (argv[0]);
 		exit (1);
 	}
 /*
@@ -142,11 +159,11 @@ InitDC ()
 /*
  * Find this one in the site list
  */
-	for (s = 0; strcmp (Sites[s].name, ""); s++)
+	for (s = 0; Sites[s].name[0]; s++)
 		if (! strncmp (sitename, Sites[s].name, 4))
 			break;
 	
-	if (! strcmp (Sites[s].name, ""))
+	if (! Sites[s].name[0])
 	{
 		IngestLog (EF_EMERGENCY, "Bad site string '%s'", sitename);
 		exit (1);
@@ -172,7 +189,7 @@ InitDC ()
 	loc.l_alt = 0.00;	/* We don't have altitudes available */
 	dc_SetStaticLoc (Dc, &loc);
 
-	Fid = F_Lookup ("rainr");
+	Fid = F_DeclareField ("rainr", "Rain gauge rates", "mm/hr");
 	dc_SetScalarFields (Dc, 1, &Fid);
 
 	dc_SetBadval (Dc, BADVAL);
@@ -206,6 +223,16 @@ GrabData ()
 		t.zt_Sec = Yearsec + (jday - 1) * 24 * 3600 + hour * 3600 +
 			minute * 60;
 		t.zt_MicroSec = 0;
+	/*
+	 * XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	 * According to email from Matthias Steiner, times are LOCAL,
+	 * so here we must adjust final time from local to GMT, assuming
+	 * the email is correct.  Anybody know the timezone of Darwin?
+	 * XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	 */
+
+
+
 	/*
 	 * Throw this sample into the data chunk
 	 */
