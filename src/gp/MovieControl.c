@@ -1,7 +1,7 @@
 /*
  * Movie control functions.
  */
-static char *rcsid = "$Id: MovieControl.c,v 1.11 1991-04-10 23:07:06 kris Exp $";
+static char *rcsid = "$Id: MovieControl.c,v 1.12 1991-04-12 21:56:51 kris Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -42,12 +42,12 @@ static int 	MovieSlot = -1;
 static int 	Nframes = 0;		/* Number of frames in the movie*/
 static int 	TimeSkip = 1;		/* Minutes between frames	*/
 static int 	Rate;			/* Display Rate frames/second	*/
-static int 	OldFrameCount;		/* FrameCount before movie  	*/
+static int 	OldFrameCount = 0;		/* FrameCount before movie  	*/
 static bool 	Now;			/* Should endtime track realtime*/
 static bool 	ReGenFrame = FALSE;
 static bool 	Notification = FALSE;
 static time 	NotTime;
-static char	EndTime[ATSLEN];
+static char	*EndTime;
 static int 	CurrentFrame;
 static int 	DisplayedFrame;
 /*
@@ -63,7 +63,7 @@ static bool Pregenerate = FALSE;	/* Should frames be pregenerated*/
 static char Field1[FLEN], Field2[FLEN]; /* Fields to be pregenerated	*/	
 static char PGComp[FLEN];		/* Component which wants pregen.*/
 
-extern void px_GlobalPlot();
+extern void px_GlobalPlot(), px_FixPlotTime();
 
 /*
  * Forward definitions.
@@ -472,6 +472,8 @@ mc_SetupParams ()
 	char trigger[200];
 	PlatformId pid;
 	char fskipk[ATSLEN];
+
+	EndTime = (char *) malloc(ATSLEN * sizeof(char));
 /*
  * Figure out what is in the control widget now.
  */
@@ -486,22 +488,34 @@ mc_SetupParams ()
 				return(FALSE);
 			ReGenFrame = FALSE;
 			ud_format_date(EndTime, &t1, UDF_FULL);
+			if(EndTime[0] == ' ')
+				EndTime++;
+			v.us_v_date = t1;
 		}
 		else 
 		{
 			ReGenFrame = TRUE;
 			ud_format_date(EndTime, &t, UDF_FULL);
+			if(EndTime[0] == ' ')
+				EndTime++;
+			v.us_v_date = t;
 		}
-		msg_ELog(EF_DEBUG, "ReGenFrame: %s.", ReGenFrame ? "True" : "False");
+		msg_ELog(EF_DEBUG, "ReGenFrame: %s.", ReGenFrame ? "True" : 
+			"False");
 	}
-	else strcpy(EndTime, Endt);
+	else 
+	{
+		strcpy(EndTime, Endt);
+		if(EndTime[0] == ' ')
+			EndTime++;
+		if (! uit_parse_date (EndTime, &v, FALSE))
+		{
+			mc_SetStatus ("Unable to understand end time.");
+			return (FALSE);
+		}
+	}
 	msg_ELog(EF_DEBUG, "Now: %s.", Now ? "True" : "False");
 	msg_ELog(EF_DEBUG, "EndTime: %s.", EndTime);
-	if (! uit_parse_date (EndTime, &v, FALSE))
-	{
-		mc_SetStatus ("Unable to understand end time.");
-		return (FALSE);
-	}
 	if (! sscanf (Minutes, "%d", &minutes))
 	{
 		mc_SetStatus ("Unable to understand MINUTES value.");
@@ -598,7 +612,7 @@ int *which;
 		msg_ELog(EF_DEBUG, "Pregenerating %s.", Field2);
 		pd_Store(Pd, PGComp, "field", Field2, SYMT_STRING);
 		if(fc_LookupFrame(&PlotTime) < 0)
-			px_GlobalPlot();
+			px_GlobalPlot(&PlotTime);
 		pd_Store(Pd, PGComp, "field", Field1, SYMT_STRING);
 	}
 	px_PlotExec ("global");
@@ -730,9 +744,11 @@ mc_MovieStop ()
  *  Cancel the data available notification for the movies.
  */
 	ds_CancelNotify();
+	tl_AllCancel();
 /*
  * Throw the system into history mode, showing the current frame.
  */
+	free(EndTime);
 	if (CurrentFrame >= Nframes)
 		CurrentFrame = Nframes - 1;
 	MovieMode = FALSE;
@@ -749,18 +765,21 @@ void
 mc_ResetFrameCount()
 {
 	Arg args[2];
-
-	FrameCount = OldFrameCount;
-	fc_SetNumFrames(FrameCount);
-	DisplayFrame = DrawFrame = fc_LookupFrame(&PlotTime);
-	if(DisplayFrame < 0)
-		DisplayFrame = DrawFrame = 0;
-	GWDrawInFrame(Graphics, DrawFrame);
-	GWDisplayFrame(Graphics, DisplayFrame);
-	XtSetArg (args[0], XtNframeCount, FrameCount);
-	XtSetValues (Graphics, args, ONE);
-	XSync(XtDisplay(Graphics), False);
-	pd_Store (Pd, "global", "time-frames", (char *) &FrameCount, SYMT_INT);
+	
+	if(OldFrameCount > 0)
+	{
+		FrameCount = OldFrameCount;
+		fc_SetNumFrames(FrameCount);
+		DisplayFrame = DrawFrame = fc_LookupFrame(&PlotTime);
+		if(DisplayFrame < 0)
+			DisplayFrame = DrawFrame = 0;
+		GWDrawInFrame(Graphics, DrawFrame);
+		GWDisplayFrame(Graphics, DisplayFrame);
+		XtSetArg (args[0], XtNframeCount, FrameCount);
+		XtSetValues (Graphics, args, ONE);
+		pd_Store (Pd, "global", "time-frames", (char *) &FrameCount, 
+			SYMT_INT);
+	}
 }
 
 
@@ -854,6 +873,8 @@ int *frame;
 		DoSound ("click"); 
 */
 		PlotTime = Mtimes[*frame];
+		pd_Store(Pd, "global", "plot-time", (char *) &PlotTime, 
+			SYMT_DATE);
 		mc_SetIndicator (*frame);
 		px_PlotExec ("global");
 	}
@@ -1019,6 +1040,8 @@ mc_ReGenFrames()
  */
 	tl_GetTime(&t);
 	t.ds_hhmmss = mc_FixTime(t.ds_hhmmss);
+	if(EndTime[0] == ' ')
+		EndTime++;
 	uit_parse_date(EndTime, &endtime, FALSE);
 	endtime.ds_hhmmss = mc_FixTime(endtime.ds_hhmmss);
 	ud_sub_date(&t, &endtime, &diff);
@@ -1035,15 +1058,11 @@ mc_ReGenFrames()
 	Eq_ZapProc(PDisplay, mc_GenNFrame);
 	fc_UnMarkFrames();
 /*
- *  Get the current time and convert it into the format we want.
+ *  Convert stuff into the format we want.
  */
-	tl_GetTime(&t);
 	ud_format_date(EndTime, &t, UDF_FULL);
-	if(! uit_parse_date(EndTime, &v, FALSE))	
-	{
-		msg_ELog(EF_PROBLEM, "Unable to understand end time.");
-		return;
-	}
+	if(EndTime[0] == ' ')
+		EndTime++;
 	if(! sscanf (Minutes, "%d", &minutes))
 	{
 		msg_ELog(EF_PROBLEM, "Unable to understand MINUTES value.");
@@ -1053,7 +1072,7 @@ mc_ReGenFrames()
  *  Get the new frame times based on this new end time and start regenerating
  *  the frames.
  */
-	mc_ReGetFrameTimes(&v.us_v_date);
+	mc_ReGetFrameTimes(&t);
 	DisplayedFrame = CurrentFrame = 0;
 	sec = 1.0/(float) Rate;
 	MovieSlot = tl_AddRelativeEvent(mc_NextFrame, 0, (int) (sec*INCFRAC),
@@ -1149,13 +1168,14 @@ static void
 mc_ReGenFramesDS()
 {
 	time endtime, diff;
-	union usy_value v;
 	int minutes;
 	float sec;
 /*
  *  See if enough time has elapsed.
  */
 	NotTime.ds_hhmmss = mc_FixTime(NotTime.ds_hhmmss);
+	if(EndTime[0] == ' ')
+		EndTime++;
 	uit_parse_date(EndTime, &endtime, FALSE);
 	endtime.ds_hhmmss = mc_FixTime(endtime.ds_hhmmss);
 	ud_sub_date(&NotTime, &endtime, &diff);
@@ -1177,11 +1197,8 @@ mc_ReGenFramesDS()
  *  Get the current time and convert it into the format we want.
  */
 	ud_format_date(EndTime, &NotTime, UDF_FULL);
-	if(! uit_parse_date(EndTime, &v, FALSE))	
-	{
-		msg_ELog(EF_PROBLEM, "Unable to understand end time.");
-		return;
-	}
+	if(EndTime[0] == ' ')
+		EndTime++;
 	if(! sscanf (Minutes, "%d", &minutes))
 	{
 		msg_ELog(EF_PROBLEM, "Unable to understand MINUTES value.");
@@ -1191,7 +1208,7 @@ mc_ReGenFramesDS()
  *  Get the new frame times based on this new end time and start regenerating
  *  the frames.
  */
-	mc_ReGetFrameTimes(&v.us_v_date);
+	mc_ReGetFrameTimes(&NotTime);
 	DisplayedFrame = CurrentFrame = 0;
 	sec = 1.0/(float) Rate;
 	MovieSlot = tl_AddRelativeEvent(mc_NextFrame, 0, (int) (sec*INCFRAC),
