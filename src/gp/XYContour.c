@@ -37,7 +37,7 @@
 # include "rg_status.h"
 # include "Contour.h"
 
-RCSID("$Id: XYContour.c,v 1.35 1997-02-03 17:53:06 corbet Exp $")
+RCSID("$Id: XYContour.c,v 1.36 1997-02-14 22:05:44 burghart Exp $")
 
 # define GRID(g,i,j,ydim)   (g[((i) * (ydim)) + (j)])
 
@@ -90,6 +90,7 @@ bool	update;
 	int	npts[MAX_PLAT], plat, nplat, ncolors, dmode;
 	int	dolabel = 1, linewidth = 0, nxfield, nyfield, nzfield;
 	int	xgridres, ygridres = 0;
+	int	oneplot;
 	float	zstep, ccenter, *datagrid = NULL, widen = 0.0;
 	char	platforms[PlatformListLen], *pnames[MaxPlatforms];
 	char	*xfnames[MaxFields], *yfnames[MaxFields], *zfnames[MaxFields];
@@ -275,8 +276,9 @@ bool	update;
 	 * Update the overlay times widget 
 	 */
 		if (npts[plat] > 0)
-			ot_AddStatusLine (c, pnames[plat], zfnames[plat], 
-					  &eTimeReq);
+			ot_AddStatusLine (c, pnames[plat], 
+				  (nzfield > 1) ? zfnames[plat] : zfnames[0],
+				  &eTimeReq);
 	/*
 	 * Keep the pointers to the data and apply the min and max values
 	 */
@@ -295,6 +297,47 @@ bool	update;
 		zdata[plat] = dv[2].data;
 		zmin[plat] = dv[2].min;
 		zmax[plat] = dv[2].max;
+	}
+/*
+ * Do it all as one plot if either:
+ *	o  we have just one platform
+ *		OR
+ *	o  there are multiple platforms, but exactly one each of 
+ *	   x-field, y-field, and z-field
+ */
+	oneplot = (nplat == 1) || 
+	    (nxfield == 1 && nyfield == 1 && nzfield == 1);
+/*
+ * Gather the data together if we're doing this as one plot.  For each
+ * of the platforms after the first, we append the data to those from the
+ * first platform, i.e., everything ends up in xdata[0], ydata[0], and 
+ * zdata[0].
+ */
+	if (oneplot && nplat > 1)
+	{
+	    int	allpts = 0;
+
+	    for (plat = 0; plat < nplat; plat++)
+		allpts += npts[plat];
+	    
+	    xdata[0] = (DataValPtr) realloc (xdata[0], 
+					     allpts * sizeof (DataValRec));
+	    ydata[0] = (DataValPtr) realloc (ydata[0], 
+					     allpts * sizeof (DataValRec));
+	    zdata[0] = (DataValPtr) realloc (zdata[0], 
+					     allpts * sizeof (DataValRec));
+
+	    for (plat = 1; plat < nplat; plat++)
+	    {
+		memcpy ((char*)(xdata[0] + npts[0]), (char*)(xdata[plat]),
+			npts[plat] * sizeof (DataValRec));
+		memcpy ((char*)(ydata[0] + npts[0]), (char*)(ydata[plat]),
+			npts[plat] * sizeof (DataValRec));
+		memcpy ((char*)(zdata[0] + npts[0]), (char*)(zdata[plat]),
+			npts[plat] * sizeof (DataValRec));
+
+		npts[0] += npts[plat];
+	    }
 	}
 /*
  * Get the info on whether we're using autoscaling or inverted scales
@@ -330,7 +373,7 @@ bool	update;
 /*
  * Do each platform
  */
-	for (plat = 0; plat < nplat; plat++)
+	for (plat = 0; plat < (oneplot ? 1 : nplat); plat++)
 	{
 	/*
 	 * If z is manual get the info now.
@@ -367,7 +410,7 @@ bool	update;
 		if (sideAnnot && ncolors > 1)
 		{	
 			sprintf (annotcontrol, "%s %s %f %f", zfnames[plat],
-					ctname, ccenter, zstep);
+				 ctname, ccenter, zstep);
 			An_AddAnnotProc (An_ColorBar, c, annotcontrol,
 					strlen (annotcontrol) + 1, 75,
 					TRUE, FALSE);
