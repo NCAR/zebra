@@ -1,4 +1,4 @@
-! $Id: DisplayMgr.ad,v 1.13 1995-08-10 18:48:43 granger Exp $
+! $Id: DisplayMgr.ad,v 1.14 2000-11-21 23:11:19 granger Exp $
 !
 ! Application defaults file for the Display Manager
 !
@@ -77,6 +77,9 @@ dm.iconbar.form.background: cadetblue
 *iconbar*Form.background: CadetBlue
 *SimpleMenu*menuLabel.font: -*-helvetica-bold-r-*-*-14-140-*
 *SimpleMenu*font: -*-helvetica-medium-r-*-*-14-140-*
+*SimpleMenu*background: gray95
+*RdssMenu*background: gray95
+*SmeMenu*background: gray95
 *UIForm.defaultDistance: 8
 *UIForm*Text*background: gray90
 *UIForm*Command*borderColor: red
