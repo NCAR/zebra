@@ -1,7 +1,7 @@
 /*
  * Frame cache maintenance.
  */
-static char *rcsid = "$Id: FrameCache.c,v 1.4 1991-03-11 15:18:00 kris Exp $";
+static char *rcsid = "$Id: FrameCache.c,v 1.5 1991-03-18 18:27:44 kris Exp $";
 # include <X11/Intrinsic.h>
 # include <errno.h>
 # include <ui.h>
@@ -49,7 +49,7 @@ static int FreePixmaps[NCACHE];
  *  pixmaps.
  */
 static int FrameFile = InvalidEntry; /*  File descriptor                 */
-static char FileName[70];       /*  The name of the FrameFile.           */
+static char FileName[100];      /*  The name of the FrameFile.           */
 static int BufferTable[NCACHE]; /*  Hold corresponding FrameFile index   */
                                 /*    and FCache index.                  */
 static int BytesPerLine;	/*  Holds the correct number of bytes per*/
@@ -67,6 +67,10 @@ fc_InvalidateCache ()
  */
 {
 	int i;
+/*
+ *  Reset the Lru counter.
+ */
+	Lru = 0;
 /*
  *  Invalidate the FCache and clear the BufferTable and FreePixmaps.
  */
@@ -105,7 +109,8 @@ void fc_CreateFrameFile()
  */
 	if(FrameFile < 0)
 	{
-		sprintf(FileName, "%s/%sFrameFile", FrameFilePath, Ourname);
+		sprintf(FileName, "%s/%s%dFrameFile", FrameFilePath, Ourname,
+			getpid());
 		msg_ELog(EF_DEBUG, "FrameFile:  %s.", FileName);
 		if((FrameFile = creat(FileName, PMODE)) < 0)
 			msg_ELog(EF_PROBLEM, "Can't create %s (%d).", FileName,
@@ -530,7 +535,7 @@ fc_GetFreePixmap()
  *  at this time associated with any FCache entry.
  */
 {
-	int i, minlru = 9999, minframe = -1, kframe = -1, klru = 9999;
+	int i, minlru = 999999, minframe = -1, kframe = -1, klru = 999999;
 	int index;
 	
 	for(i = 0; i < FrameCount; i++)
@@ -571,7 +576,7 @@ fc_GetFreeFrame()
  *  FCache entry is not associated with any pixmap at this time. 
  */
 {
-	int i, minlru = 9999, minframe = -1, kframe = -1, klru = 9999;
+	int i, minlru = 999999, minframe = -1, kframe = -1, klru = 999999;
 
 	for(i = 0; i < NCACHE; i++)
 	{
@@ -674,7 +679,7 @@ fc_GetFreeFile()
  */
 {
 	int offset, index;
-	int minlru = 9999, minframe = -1, kframe = -1, klru = 9999;
+	int minlru = 999999, minframe = -1, kframe = -1, klru = 999999;
 
 	for(offset = 0; offset < NCACHE; offset++)
 	{
