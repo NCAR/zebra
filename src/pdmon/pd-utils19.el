@@ -1,7 +1,7 @@
 ;;
 ;; GNU Emacs v19 utilities for dealing with plot descriptions.
 ;;
-(defvar pd::rcsid "$Id: pd-utils19.el,v 1.1 1993-08-24 17:13:40 burghart Exp $"
+(defvar pd::rcsid "$Id: pd-utils19.el,v 1.2 1993-08-27 15:03:32 burghart Exp $"
  "The RCS id")
 
 ;
@@ -817,9 +817,7 @@ lat-lon is TRUE; kilometers otherwise.")
   '((zebPD-comp	. blue3-bold)
     (zebPD-param . default)
     (zebPD-unk-param . default-italic)
-    (zebPD-gripe . red/gray80-italic)
-    (zebPD-button . black/gray80)
-    (zebPD-button-pressed . gray80/black)))
+    (zebPD-gripe . red/gray80-italic)))
 
 (setq hilit-face-translation-table (append hilit-face-translation-table
 					   zebPD-face-table))
