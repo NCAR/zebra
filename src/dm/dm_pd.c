@@ -35,8 +35,9 @@
 
 # include <defs.h>
 # include <pd.h>
+# include <message.h>
 
-RCSID("$Id: dm_pd.c,v 2.8 1995-06-29 21:29:25 granger Exp $")
+RCSID("$Id: dm_pd.c,v 2.9 1995-10-31 02:23:54 granger Exp $")
 
 static void pddirfile FP ((char *file));
 
@@ -203,11 +204,13 @@ char *file;
 		char *dot;
 
 		strcpy (name, file);
-		if ((dot = strrchr (file, '.')))
+		if ((dot = strrchr (name, '.')))
 			*dot = '\0';
 	}
 /*
- * Stash away the PD.
+ * Stash away the PD, but warn of conflicts with an existing pd.
  */
+	if (pda_GetPD (name))
+		msg_ELog (EF_INFO, "existing pd '%s' being replaced", name);
 	pda_StorePD (pd, name);
 }

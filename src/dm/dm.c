@@ -43,7 +43,7 @@
 # include "dm_vars.h"
 # include "dm_cmds.h"
 
-MAKE_RCSID ("$Id: dm.c,v 2.65 1995-07-18 19:05:13 granger Exp $")
+MAKE_RCSID ("$Id: dm.c,v 2.66 1995-10-31 02:20:43 granger Exp $")
 
 
 /*
@@ -91,7 +91,7 @@ char GroupName[ CFG_MSGNAME_LEN ] = { '\0' };
  */
 Display *Dm_Display;
 static Widget Top;
-char **Argv;		/* Save our args for a potential exec */
+static char **Argv;		/* Save our args for a potential exec */
 
 /*
  * Is sound enabled?
