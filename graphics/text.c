@@ -407,9 +407,9 @@ float rot;
  * Handle the actual generation of stroke text.
  */
 {
-	int pdata[200], *pdp, xpos = x, ypos = y, cbase;
-	char *cp;
-	float	del_x, del_y;
+	int	pdata[200], *pdp, cbase;
+	char	*cp;
+	float	xpos = (float) x, ypos = (float) y, del_x, del_y;
 	float	cos_rot = cos (DEG_TO_RAD (rot));
 	float	sin_rot = sin (DEG_TO_RAD (rot));
 	float	aspect = ov->ov_ws->ws_dev->gd_aspect;
@@ -436,8 +436,8 @@ float rot;
 	 */
 		if (text[-1] == ' ')
 		{
-		 	xpos += cos_rot * ((cp[3] - cp[2])*scale)/100;
-			ypos += sin_rot * ((cp[3] - cp[2])*scale)/100;
+		 	xpos += cos_rot * ((cp[3] - cp[2])*scale)/100.0;
+			ypos += sin_rot * ((cp[3] - cp[2])*scale)/100.0;
 			continue;
 		}
 	/*
@@ -482,10 +482,10 @@ float rot;
 			/*
 			 * New point, with rotation
 			 */
-				*pdp++ = xpos + del_x * cos_rot -
-					del_y * sin_rot;
-				*pdp++ = ypos + del_x * sin_rot + 
-					del_y * cos_rot;
+				*pdp++ = (int) (xpos + del_x * cos_rot -
+					del_y * sin_rot);
+				*pdp++ = (int) (ypos + del_x * sin_rot + 
+					del_y * cos_rot);
 
 				npoint++;
 			}
@@ -493,8 +493,8 @@ float rot;
 	/*
 	 * Advance the position to the next character slot.
 	 */
-	 	xpos += cos_rot * ((cp[3] - cp[2])*scale)/100;
-	 	ypos += sin_rot * aspect * ((cp[3] - cp[2])*scale)/100;
+	 	xpos += cos_rot * ((cp[3] - cp[2])*scale)/100.0;
+	 	ypos += sin_rot * aspect * ((cp[3] - cp[2])*scale)/100.0;
 	}
 }
 		
