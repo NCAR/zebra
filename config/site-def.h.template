@@ -35,9 +35,9 @@
 
 # ifdef MAKING_MAKEFILE
 /**/# -----------------------------------------------------------------------
-/**/# Definitions from config.h included here.  The definitions here override
+/**/# Definitions from site-def.h included here.  The definitions here override
 /**/# the defaults in Project.tmpl.  
-/**/# $Id: site-def.h.template,v 1.13 1993-05-12 14:58:38 case Exp $
+/**/# $Id: site-def.h.template,v 1.14 1993-07-23 19:38:23 case Exp $
 /**/# -----------------------------------------------------------------------
 # endif
 
@@ -74,10 +74,10 @@
 
 # ifdef MAKING_MAKEFILE	 	
 
-# define RDSSHome	/rdss	
-# define RDSSIncDir     RDSSHome/include
-# define RDSSLibDir	RDSSHome/lib
-# define RDSSBinDir	RDSSHome/bin
+# define RDSSHome /rdss
+# define RDSSIncDir RDSSHome/include
+# define RDSSLibDir RDSSHome/lib
+# define RDSSBinDir RDSSHome/bin
 
 # endif /* MAKING_MAKEFILE */
 
@@ -95,14 +95,14 @@
  * By default, the configuration will link with MIT X11 X libraries in
  * standard library directories.  You can link with MIT's X and still use
  * most software under OpenWindows, and vice versa.  The Libraries must know 
- * if it is being linked with OpenWindows, however, because the build must
- * adjustments in order to link properly.  
+ * if they are being linked with OpenWindows, however, because the build must
+ * make adjustments in order to link properly.  
  *
  */
 # ifdef MAKING_MAKEFILE
 
 /*
- * If you don't have the MIT X11 distribution, set UseXWindows to No.
+ * If you don't have the MIT X11 distribution, set UseXWindows to NO.
  * If you have X11 and your X11 libraries aren't in /usr/lib, edit define
  * XLibraries with the proper path.
  *
@@ -116,14 +116,14 @@
  *        Edit "define XIncludes" to read:
  *        #       define XIncludes -I/usr/local/include
  *
- * Either UseXWindows or UseOpenWin should be set to yes to get X windows
+ * Either UseXWindows or UseOpenWin should be set to YES to get X windows
  * support; however, OpenWindows 3.0 or higher is required by some programs
  * (notably Zeb) to get full windows support.  If you have an earlier
- * OpenWindows version, set #define OldOpenWin to yes below.
+ * OpenWindows version, set #define OldOpenWin to YES below.
  *
  * For Zeb users:  to compile Zeb exclusively with OpenWindows, you
- * must have OpenWindows 3.0, and RDSS must be compiled with
- * UseOpenWindows defined as Yes and OldOpenWin defined as No.
+ * must have OpenWindows 3.0 or higher, and RDSS must be compiled with
+ * UseOpenWindows defined as YES and OldOpenWin defined as NO.
  */
 
 # define UseXWindows YES 
@@ -135,15 +135,15 @@
 # endif
 
 /*
- * If your release of X is MIT X11 Release 3 or older, set this to Yes.
+ * If your release of X is MIT X11 Release 3 or older, set this to YES.
  */
 # define OldX11 NO
 
 /*
- * If you use OpenWindows, set UseOpenWin to Yes.
+ * If you use OpenWindows, set UseOpenWin to YES.
  *
  * If your version of OpenWindows is older than OpenWindows 3.0, set
- * OldOpenWin to Yes.
+ * OldOpenWin to YES.
  */
 # define UseOpenWindows NO 
 # define OldOpenWin     NO 
@@ -154,7 +154,7 @@
 # define OpenWinHome /usr/openwin
 
 /*
- * If you wish to use Sunview, set this to Yes and
+ * If you wish to use Sunview, set this to YES and
  * edit the graphdev.h file.  Please note that some software may not
  * support Sunview; check the respective installation manuals for
  * details.  In all cases, however, either MIT X11 or OpenWindows3.0 or
@@ -172,8 +172,8 @@
  *     cc  - Sun's bundled C Compiler
  *     acc - Sun's ANSI C Compiler
  *
- * To use gcc, set UseGcc to Yes and define CCompiler as gcc.  Otherwise,
- * set UseGcc to No and define CCompiler as cc or acc.
+ * To use gcc, set UseGcc to YES and define CCompiler as gcc.  Otherwise,
+ * set UseGcc to NO and define CCompiler as cc or acc.
  *
  */
 
@@ -198,23 +198,24 @@
 
 /*
  * To set debugging flags for the FORTRAN and C compilers' command
- * lines, define the symbols CDebugFlags and FortDebugFlags.
- * The default is no debugging.  Note that for most compilers
- * (gcc is an exception), the -g and -O flags cannot be combined.
- * On Sun's, a debugging flag will disable optimization.  The FORTRAN
- * should probably always be optimized, so make sure FortDebugFlags
- * does not disable optimization by specifying any debug flags.
+ * lines, define the symbols CDebugFlags and FortDebugFlags to -g.
+ * The default is no debugging.  
+ *
  */
-# define CDebugFlags -g
-# define FortDebugFlags -g
+# define CDebugFlags 
+# define FortDebugFlags 
 
 /*
  * To change other compiler command line options, such as required by your
  * compiler (floating point stuff, etc.), or optimization flags, define
- * CCOptions and FortOptions.  The default is optimization, -O.
+ * CCOptions and FortOptions.  The default is optimization, -O.  Note that
+ * some compilers will not combine the -g -O options while others will. 
+ * If you are not sure how your compiler treats the -g -O options and wish
+ * to debug source code, the safest approach to is set DebugFlags above
+ * and remove optimization (-O below).
  */
-# define CCOptions -O 
-# define FortOptions -O
+# define CCOptions -O   
+# define FortOptions -O 
 
 
 /*========================================================================
@@ -259,19 +260,14 @@
 
 
 /*
- * The math library to use
+ * The math library to use.  Depending upon your FORTRAN compiler (SC1.0
+ * in particular), this may need to be explicitly defined as the compiler
+ * math library.  Consult Known Problems in the Installation Manual for
+ * more details. 
  */
 
-# define MathLibrary /usr/lang/SC1.0.1/libm.a
+# define MathLibrary -lm 
 
-
-/*
- * Some of the Library routines require the terminal capability library,
- * usually /usr/lib/libtermcap.a.  Edit this only if your termcap library
- * does not live in /usr/lib.
- */
-
-# define TermcapLibrary -ltermcap
 
 
 /*========================================================================
@@ -280,8 +276,13 @@
  */
 
 /*
+ * RDSS Radar Package specifics.  Ignore if you are not installing
+ * the RDSS Radar software
+ */
+
+/*
  * Byte ordering flag.  Do not change this unless you are attempting a
- * port to another machine.
+ * port to another machine which has "little endian" byte ordering.
  *
  * /
 
@@ -291,7 +292,20 @@
  * The location for RADAR include files (for Perusal, Editor, Reorder, ToDisk).
  * This should not need editing.
  */
-# define RADARInclude RDSSRoot/radar/h
+# define RADARInclude RDSSHome/radar/h
+
+/*
+ * Sun Solaris 2.0 and higher now differentiates between BSD and System V
+ * devices, and the behavior is different for each.  If you are using          
+ * Solaris 2.0 (Sun OS 5.0) or higher and wish to use a BSD device
+ * (specified as a 'b' in your device name as in "/dev/rmt/0bn") for your
+ * Exabyte or 9-track device, then set UseSystemVDev to NO.  The software
+ * will default to System V devices.  If you are not using Solaris 2.0 or
+ * higher, you can ignore this definition.  See your RDSS Radar documentation 
+ * for more details.
+ */
+
+# define UseSystemVDev YES
 
 
 /*
@@ -300,8 +314,8 @@
  */
 
 # define DefDBDir \"/data/ppf\"
-# define DefDBType \"pam\"
-# define DefDBName \"pam\"
+# define DefDBType \"cmf\"
+# define DefDBName \"cmf\"
 
 
 
