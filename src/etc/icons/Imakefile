@@ -8,7 +8,7 @@ all::
 
 install::
 	MakeDir ($(LIBDIR)/icons)
-	for icon_file in `find . -name "[0-9a-z]*"`; do \
+	LC_ALL=C; for icon_file in [0-9a-z]* ; do \
 		$(INSTALLICON) $${icon_file} $(LIBDIR)/icons ; \
 	done
 
