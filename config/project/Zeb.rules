@@ -1,5 +1,5 @@
 XCOMM
-XCOMM $Id: Zeb.rules,v 1.8 1993-11-30 02:01:36 granger Exp $
+XCOMM $Id: Zeb.rules,v 1.9 1993-11-30 23:31:17 granger Exp $
 XCOMM
 XCOMM Rules specific to the Zeb project, including some which override
 XCOMM definitions in Imake.rules
@@ -90,7 +90,7 @@ XCOMM
  *
  * DistfilesTarget(distfiles)
  *  -- Echoes each of the files in distfiles, prepended with the
- *     $(CURRENT_DIR) variable (normally the path of the Imakefile's 
+ *     $(DISTCURDIR) variable (normally the path of the Imakefile's 
  *     directory relative to the top).  The distfiles are
  *     dependencies, so the target fails (or the file is automatically
  *     checked out if its GNU make and an RCS file) if the file
@@ -99,8 +99,8 @@ XCOMM
  *
  * DistfilesSubdirs(subdirs)
  *  -- Propagate the distfiles target to the subdirectories in the
- *     subdirs parameter.  A new value of CURRENT_DIR is passed as
- *     CURRENT_DIR=$(CURRENT_DIR)/$$subdir so that a special top-level
+ *     subdirs parameter.  A new value of DISTCURDIR is passed as
+ *     DISTCURDIR=$(DISTCURDIR)/$$subdir so that a special top-level
  *     path can be given, as in the case of making a tar file of a
  *     whole distribution.
  *
@@ -444,7 +444,7 @@ clean::									@@\
 									@@\
 program.tc: objects deplibs						@@\
 	RemoveTargetProgram($@)						@@\
-	$(PROOF) $(CC) -o $@ objects $(LDOPTIONS) locallibs $(LDLIBS) syslibs $(EXTRA_LOAD_FLAGS) @@\
+	$(PROOF) $(PROOFOPTS) $(CC) -o $@ objects $(LDOPTIONS) locallibs $(LDLIBS) syslibs $(EXTRA_LOAD_FLAGS) @@\
 									@@\
 clean::									@@\
 	$(RM) program.tc
@@ -558,7 +558,7 @@ install::								@@\
 #define DistfilesTarget(files)						@@\
 distfiles:: files							@@\
 	@for f in files ; do \						@@\
-		echo $(CURRENT_DIR)/$$f ; \				@@\
+		echo $(DISTCURDIR)/$$f ; \				@@\
 	done
 #endif
 
@@ -576,7 +576,7 @@ distfiles::								@@\
 	for i in dirs ;\						@@\
 	do \								@@\
 		(cd $$i ; \						@@\
-		   $(MAKE) $(MFLAGS) CURRENT_DIR=$(CURRENT_DIR)/$$i distfiles); \ @@\
+		   $(MAKE) $(MFLAGS) DISTCURDIR=$(DISTCURDIR)/$$i distfiles); \ @@\
 	done
 #endif
 
