@@ -23,7 +23,7 @@
 # include "timer.h"
 # include "message.h"
 
-RCSID ("$Id: timer_lib.c,v 2.9 1995-05-24 22:33:26 granger Exp $")
+RCSID ("$Id: timer_lib.c,v 2.10 1998-02-26 00:25:32 burghart Exp $")
 
 typedef enum { Empty = 0, Active, Cancelled } sstatus;
 
@@ -38,7 +38,7 @@ static struct Tevent
 	sstatus	te_status;		/* This stuff in use		*/
 	bool	te_recurring;		/* Does this one recurr?	*/
 	bool	te_BCompat;		/* Backward compatible fmt?	*/
-} Events[MAXEVENT] = { { 0, 0, 0, 0, 0 } };
+} Events[MAXEVENT] = { { 0, 0, Empty, 0, 0 } };
 
 static bool First = TRUE;
 

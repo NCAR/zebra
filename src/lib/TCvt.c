@@ -26,7 +26,7 @@
 
 # include "defs.h"
 
-RCSID ("$Id: TCvt.c,v 2.23 1997-06-05 15:54:47 granger Exp $")
+RCSID ("$Id: TCvt.c,v 2.24 1998-02-26 00:25:25 burghart Exp $")
 
 /*
  * Public time constants
@@ -225,7 +225,7 @@ char *dest;
 const char *
 TC_AscTime (zt, format)
 const ZebTime *zt;
-int format;
+TimePrintFormat format;
 /*
  * Encodes the time into a string according to format and returns a pointer
  * to the string.  Like the library asctime() function but without that

@@ -10,7 +10,7 @@
 #include "message.h"
 #include "map.h"
 
-RCSID("$Id: map.c,v 2.3 1997-05-29 14:53:08 granger Exp $")
+RCSID("$Id: map.c,v 2.4 1998-02-26 00:25:29 burghart Exp $")
 
 static unsigned char XDR_MAGIC[4] = { 0x88, 0x88, 0x00, 0x00 };
 
@@ -381,6 +381,7 @@ map_Point (MapFile *mf, float *lat, float *lon)
 		return (0);
 	if (! xdr_float (&mf->map_xdr, lon))
 		return (0);
+	return (1);
 }
 
 
