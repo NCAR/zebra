@@ -29,7 +29,7 @@
 # include <config.h>
 # include <defs.h>
 
-RCSID("$Id: Overlay.c,v 2.58 1997-02-03 17:52:57 corbet Exp $")
+RCSID("$Id: Overlay.c,v 2.59 1997-02-03 20:14:00 granger Exp $")
 
 # include <pd.h>
 # include <GraphicsW.h>
@@ -829,8 +829,12 @@ int npts;
 
     for (i = 0; i < npts; i++)
     {
-	poly[i].x = XPIX (x[i]);
-	poly[i].y = YPIX (y[i]);
+	/*
+	 * Clip real space coordinates to edge of region so that pixel
+	 * coordinates do not get ridiculous.
+	 */
+	poly[i].x = XPIX ((x[i] < Xlo) ? Xlo : ((x[i] > Xhi) ? Xhi : x[i]));
+	poly[i].y = YPIX ((y[i] < Ylo) ? Ylo : ((y[i] > Yhi) ? Yhi : y[i]));
     }
 
     XSetFillRule (XtDisplay (Graphics), Gcontext, WindingRule);
