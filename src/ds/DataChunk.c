@@ -25,7 +25,7 @@
 # include "DataStore.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: DataChunk.c,v 3.1 1992-05-27 17:24:03 corbet Exp $")
+MAKE_RCSID ("$Id: DataChunk.c,v 3.2 1992-06-09 19:28:05 corbet Exp $")
 
 /*
  * ADE Codes for the raw data object.
@@ -583,4 +583,32 @@ int (*func) ();
  */
 {
 	return (dca_ProcAttrs (dc, DCC_Raw, ST_GLOBATTR, pattern, func));
+}
+
+
+
+
+void *
+dc_GetGlAttrBlock (dc, len)
+DataChunk *dc;
+int *len;
+/*
+ * Get the global attributes out as an opaque chunk.
+ */
+{
+	return (dca_GetBlock (dc, DCC_Raw, ST_GLOBATTR, len));
+}
+
+
+
+void
+dc_SetGlAttrBlock (dc, block, len)
+DataChunk *dc;
+void *block;
+int len;
+/*
+ * Store a global attribute block back.
+ */
+{
+	dca_PutBlock (dc, DCC_Raw, ST_GLOBATTR, block, len);
 }
