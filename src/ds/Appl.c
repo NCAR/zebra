@@ -27,7 +27,7 @@
 # define NO_SHM
 #include "dslib.h"
 #ifndef lint
-MAKE_RCSID ("$Id: Appl.c,v 3.13 1993-05-25 07:06:54 granger Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.14 1993-05-25 18:35:56 granger Exp $")
 #endif
 
 /*
@@ -1127,17 +1127,19 @@ int *block_size;
  * At present, any write code other than wc_Append returns 1.
  */
 {
-	int smp;
+	int smp, fut;		/* counters			*/
 	int nsample;
 	DataFile dfe, dfenext;
 	ZebTime when, past;
 	int dfnext;		/* file following dfile 	*/
 	ZebTime next;		/* time dfnext starts		*/
 	int avail;		/* samples available in the file*/
+	ZebTime *future;	/* data times already in file	*/
+	int nfuture;		/* returned by dfa_DataTimes	*/
 /*
- * Require the write code to be Append (to an existing or empty file):
+ * At the moment, only append and overwrite are accepted
  */
-	if (wc != wc_Append)
+	if (wc == wc_Insert)
 	{
 		*block_size = 1;
 		return;
@@ -1145,11 +1147,15 @@ int *block_size;
 /*
  * To be a block, times must be chronological (the order they'll
  * be written to the file), and the samples cannot overwrite or
- * overlap any existing data.
+ * overlap any existing data (in the append case), or they must
+ * coincide with each and every sample in the file (overwrite case)
  */
 	ds_LockPlatform (dc->dc_Platform);
 	ds_GetFileStruct (dfile, &dfe);
-	avail = plat->dp_maxsamp - dfe.df_nsample;
+	if (wc != wc_Overwrite)
+		avail = plat->dp_maxsamp - dfe.df_nsample;
+	else
+		avail = plat->dp_maxsamp;
 /*
  * The next file, chronologically, is backwards on the linked list
  */
@@ -1160,30 +1166,68 @@ int *block_size;
 		next = dfenext.df_begin;
 	}
 /*
- * So we'll first see how many samples we can get
- *  a) in chronological order, and
- *  b) which precede the start of dfnext (if there is one), and
- *  c) which are on the same day, iff DPF_SPLIT set, and finally
- *  d) will fit within the platform's maxsamples limit
- * ...without exceding the number of samples in the data chunk
+ * So we'll see how many samples we can get which
+ *  a) are in chronological order, and
+ *  b) precede the start of dfnext (if there is one), and
+ *  c) are on the same day, iff DPF_SPLIT set, and
+ *  d) will fit within the platform's maxsamples limit, and finally
+ *  e) if overwriting, which coincide with a sample already in the file
+ * ...without exceeding the number of samples in the data chunk
  */
 	nsample = dc_GetNSample(dc);
 	dc_GetTime(dc, sample, &past);
-	smp = sample + 1;
+
+	if (wc == wc_Overwrite)
+	{
+	/*
+	 * Remember: for DsAfter, the times will be written chronologically
+	 * beginning at the end of the future[] array and working backwards
+	 */
+		future = (ZebTime *)malloc(avail * sizeof(ZebTime));
+		fut = avail - 1;
+		nfuture = dfa_DataTimes (dfile, &past, DsAfter, 
+					 avail, future + fut);
+	/*
+	 * I think I can correctly assume that the list of times in future[]
+	 * will not include the time passed in 'past'.  If not, someone
+	 * please correct this.
+	 */
+#ifdef notdef
+	/*
+	 * Just in case, see if the first time we got is the one we
+	 * already know we're overwriting.  If so, go to the next one.
+	 */
+		if (nfuture && TC_Eq(past, future[fut]))
+			--fut;
+#endif
+	}
 /*
  * We know that at least one sample remains in the DC and that there is
- * space in the file for at least that sample (ds_FindDest told us)
+ * space in the file for at least that sample (ds_FindDest told us).
+ * So start looking at the next sample.
  */
+	smp = sample + 1;
 	while ((smp < nsample) && (smp - sample < avail))
 	{
 		dc_GetTime(dc, smp, &when);
 		if (! TC_Less(past, when))
 			break;
-		if (dfnext && (! TC_Less(when, next)))
-			break;
-		if ((plat->dp_flags & DPF_SPLIT) &&
-		    (! ds_SameDay (&when, &past)))
-			break;
+		if (wc == wc_Append)
+		{
+			if (dfnext && (! TC_Less(when, next)))
+				break;
+			if ((plat->dp_flags & DPF_SPLIT) &&
+			    (! ds_SameDay (&when, &past)))
+				break;
+		}
+		else if (wc == wc_Overwrite)
+		{
+			if (avail - fut > nfuture) /* no more times in file */
+				break;
+			if (! TC_Eq(when, future[fut]))
+				break;
+			--fut;
+		}
 		past = when;
 		smp++;
 	}
@@ -1193,6 +1237,8 @@ int *block_size;
  */
 	*block_size = smp - sample;
 	ds_UnlockPlatform (dc->dc_Platform);
+	if (wc == wc_Overwrite)
+		free (future);
 	return;
 }
 
