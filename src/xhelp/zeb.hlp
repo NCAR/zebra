@@ -1,4 +1,4 @@
-17
+16
 000000%000000Welcome to the Wide World of Zeb
 796
 
@@ -567,7 +567,7 @@ command at the display manager prompt:
         Second the background processes must be stopped.  Do
 this by typing the command:
 
-	% zebstopddop         Displaying Dual Doppler Analysis Data
+	% zebstopxygraph      Using X-Y Graphs
 1602
 Displaying Dual Doppler Analisys Data
 
@@ -608,48 +608,7 @@ on top of the existing data.
 
 	Wind Vectors may also be added to a graphics 
 window.  Wind vectors will be overlayed on top of the
-existing data.xygraph      Using X-Y Graphs
-1245
-Using X-Y Graphs
-
-	In general, X-Y Graphs allow plotting of any two-
-dimensional data combination.
-
-Adding Data to an X-Y Graph
-
-	If a particular X-Y Graph allows data from different
-platforms to be added, then this will be done using the
-menu activated by clicking the middle mouse button on the
-Zeb icon in the graphics window.
-
-Changing Fields
-
-	Changing fields per se is not usually allowed.  To
-see data from a different field, add it from the Zeb icon.
-
-Changing Time Interval
-
-	If the time interval of an X-Y Graph may be changed,
-then it is done by selecting the Adjust Limits entry in the
-menu activated by clicking the left mouse button on the
-icons in the graphics window.  Traverse the Adjust Limits
-submenu, if necessary, and select Time Interval.  A Limit
-Widget will pop up, that allows the time interval to be
-changed.
-
-Changing Platforms
-
-	If changing the platform of a component is allowed,
-then it will be done using the menu activated by clicking
-the middle mouse button on the icons in the graphics window.
-
-Changing Color and Representation
-
-	If changing the color and the representation of data
-points is allowed, then menus to do this will be found by
-clicking the right mouse button on the icons in the graphics
-window.
-printer      Printing Hardcopies of Windows
+existing data.printer      Printing Hardcopies of Windows
 4631
 
 / THE HARDCOPY WIDGET /
