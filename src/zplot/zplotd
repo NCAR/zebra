@@ -241,7 +241,7 @@ if ($first && ! $since && ! $notice && ! $fixtime)
 $dt = `date -u '+%y%m%d.%H%M'`;
 chop $dt;
 system("mkdir $project/logs > /dev/null 2>&1");
-$log="$project/logs/zplotd.$dt.log";
+$log="$project/logs/zplotd.$dt.$$.log";
 if ($debug >= $D_Out)
 {
     open(LOG, "| tee $log") || die "$log : $!\n";
