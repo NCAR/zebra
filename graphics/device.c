@@ -1,5 +1,5 @@
 /* 5/87 jc */
-/* $Id: device.c,v 1.4 1989-08-07 14:19:48 corbet Exp $ */
+/* $Id: device.c,v 1.5 1989-08-24 17:12:54 corbet Exp $ */
 /*
  * Handle device specifics.
  */
@@ -22,8 +22,8 @@ extern int x11_pixel (), x11_put_target ();
 # endif
 # ifdef DEV_XTITAN
 extern int xt_open (), xt_clear (), xt_close (), xt_flush (), xt_noop ();
-extern int xt_poly (), xt_pick (), xt_target (), xt_color ();
-extern int xt_pixel (), xt_put_target ();
+extern int xt_poly (), xt_pick (), xt_target (), xt_color (), xt_event ();
+extern int xt_pixel (), xt_put_target (), xt_vp ();
 # endif
 # ifdef DEV_RAMTEK
 extern int rm_open (), rm_clear (), rm_flush (), rm_poly (), rm_color_map ();
@@ -231,8 +231,8 @@ struct device D_tab[] =
 # ifdef DEV_XTITAN
 	{
 		"titan",
-		3, { "titan-700", "titan700", "titan500" },
-		GDF_VECTOR | GDF_TOP,
+		3, { "titan500", "pctitan", "pctitan500" },
+		GDF_VECTOR | GDF_TOP | GDF_VP,
 		256,			/* x11_open will modify...	*/
 		500, 500,		/* Our resolution for now */
 		1.0,			/* Square pixels (X assumption) */
@@ -258,10 +258,10 @@ struct device D_tab[] =
 		xt_target,		/* Read target			*/
 		xt_put_target,		/* (no) Put target		*/
 		___,			/* Color assignment		*/
-		___,		/* Exposure checking		*/
-		___,		/* (no)	viewport adjustment	*/
-		___,		/* readscreen			*/
-		xt_pick,			/* (no) pick		*/
+		xt_event,		/* Event handling		*/
+		xt_vp,			/* (no)	viewport adjustment	*/
+		___,			/* readscreen			*/
+		xt_pick,			/* pick			*/
 	},
 # endif
 
