@@ -51,6 +51,15 @@
 
  */
 
+#ifndef HDF_INTERFACE 	/* Conditional compilation of HDF interface */
+
+static char *hdfopt[2] = { "@(#)$DFA: HDF_INTERFACE NOT Compiled $",
+				   (char *)hdfopt };
+
+# else
+static char *hdfopt[2] = { "@(#)$DFA: HDF_INTERFACE Compiled $",
+				   (char *)hdfopt };
+
 # include <math.h>
 # include <sys/time.h>
 # include <string.h>
@@ -69,9 +78,7 @@
 # include <config.h>
 # include <message.h>
 
-RCSID ("$Id: DFA_HDF.c,v 3.2 1995-07-07 22:49:51 granger Exp $")
-
-#ifdef HDF_INTERFACE 	/* Conditional compilation of HDF interface */
+RCSID ("$Id: DFA_HDF.c,v 3.3 1995-07-09 14:21:13 granger Exp $")
 
 #ifdef HDF_TEST
 #define ds_PlatformDataOrg(id) Org2dGrid
