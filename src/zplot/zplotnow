@@ -1,4 +1,4 @@
-#! /bin/sh -x
+#! /bin/sh
 
 if [ "$1" = "-h" ]; then
     echo "Usage: $0 [h1 h2 ...]"
@@ -54,5 +54,6 @@ else
     plot2=`TZ=GMT-24 date +"%d-%h-%Y,$hfirst:00:00"`
 fi
 
-echo exec zplotd -period $plot1
-echo exec zplotd -period $plot2
+# Any reason this can't be run in parallel?  Leaving serial for now...
+zplotd -period $plot1
+zplotd -period $plot2
