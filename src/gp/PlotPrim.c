@@ -5,7 +5,6 @@
  * region to hide details of the X coordinate system from individual
  * Plotting routines.
  */
-static char *rcsid = "$Id: PlotPrim.c,v 1.8 1994-04-15 21:26:24 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -32,6 +31,7 @@ static char *rcsid = "$Id: PlotPrim.c,v 1.8 1994-04-15 21:26:24 burghart Exp $";
 # include <ui_error.h>
 # include <defs.h>
 # include <pd.h>
+# include <GraphicsW.h>
 # include <message.h>
 # include <DataStore.h>
 # include "derive.h"
@@ -41,6 +41,7 @@ static char *rcsid = "$Id: PlotPrim.c,v 1.8 1994-04-15 21:26:24 burghart Exp $";
 # include "DrawText.h"
 # include "PlotPrim.h"
 
+RCSID("$Id: PlotPrim.c,v 1.9 1995-04-17 22:15:37 granger Exp $")
 
 
 

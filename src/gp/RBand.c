@@ -1,7 +1,6 @@
 /*
  * Rubber-band interactive drawing routines.
  */
-static char *rcsid = "$Id: RBand.c,v 2.10 1994-10-11 16:26:28 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -33,6 +32,8 @@ static char *rcsid = "$Id: RBand.c,v 2.10 1994-10-11 16:26:28 corbet Exp $";
 # include <DataStore.h>
 # include "GraphProc.h"
 # include "PixelCoord.h"
+
+RCSID("$Id: RBand.c,v 2.11 1995-04-17 22:16:41 granger Exp $")
 
 /*
  * Types of things we can rubber band
