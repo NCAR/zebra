@@ -11,7 +11,7 @@
 #include <iomanip.h>
 
 //#include <defs.h>
-//RCSID ("$Id: BlockFile.cc,v 1.14 1998-09-15 06:39:00 granger Exp $");
+//RCSID ("$Id: BlockFile.cc,v 1.15 1998-09-16 21:26:53 granger Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
 #include "BlockFileP.hh"
@@ -267,7 +267,11 @@ BlockFile::Close ()
 	if (fp)
 	{
 		// log.Info (Format("Closing '%s'") % path);
-		WriteSync ();	// should be no-op unless we're exclusive
+		/*
+		 * Force writesync if we have a lock and may have changed.
+		 */
+		if (lock > 0 && writelock)
+			WriteSync (1);
 		fclose (fp);
 		fp = 0;
 	}
@@ -293,6 +297,8 @@ BlockFile::Close ()
 	}
 	log.Declare ("BlockFile");
 	status = NOT_OPEN;
+	lock = 0;
+	writelock = 0;
 	return (status);
 }
 
@@ -334,10 +340,6 @@ BlockFile::Unlock ()
 			WriteSync ();
 		writelock = 0;
 		log.Debug ("unlock");
-		/*
-		 * Flush any pending writes incurred during this last lock.
-		 */
-		fflush (fp);
 	}
 	--lock;
 }
@@ -355,6 +357,7 @@ BlockFile::WriteSync (int force)
 	journal->writeSync (force);
 	freelist->writeSync (force);
 	header->writeSync (force);
+	fflush (fp);
 	Unlock ();		// No need to do another write sync!
 }
 
