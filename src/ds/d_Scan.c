@@ -40,7 +40,7 @@
 # include "Platforms.h"		/* for dt_SetString */
 # include "byteorder.h"
 
-RCSID ("$Id: d_Scan.c,v 1.39 2000-08-22 19:11:32 granger Exp $")
+RCSID ("$Id: d_Scan.c,v 1.40 2002-10-22 08:12:19 granger Exp $")
 
 /*
  * Define this to force changed files to be closed and re-opened by
@@ -415,6 +415,8 @@ ScanFile (const char *file, Source *src, const Platform *p,
  */
     if (newfile)
     {
+	int isfile = 0;
+
 	msg_ELog (EF_DEBUG, "New file %s:%s:%s", src_Name (src), pi_Name (p),
 		  file);
     /*
@@ -422,17 +424,25 @@ ScanFile (const char *file, Source *src, const Platform *p,
      */
 	dt_SetString (dfc.dfc_name, file, sizeof(dfc.dfc_name),
 		      "scanning new file");
-
-	if (StatRevisions)
-	    dfc.dfc_rev = StatRevision (DataFilePath (src, p, &dfc), 
-					&dfc.dfc_inode);
-	else
+	/*
+	 * Always stat a new file just to make sure it's not a directory.
+	 * After this it will never be checked with stat() again if 
+	 * StatRevisions is false.
+	 */
+	dfc.dfc_ftype = pi_FileType(p);
+	dfc.dfc_rev = StatRevision (DataFilePath (src, p, &dfc), 
+				    &dfc.dfc_inode, &isfile);
+	if (! isfile)
+	{
+	    msg_ELog (EF_DEBUG, "not a file or stat failed: skipping %s",
+		      file);
+	    return;
+	}
+	if (! StatRevisions)
 	{
 	    dfc.dfc_inode = 0;
 	    dfc.dfc_rev = 0;
 	}
-
-	dfc.dfc_ftype = pi_FileType(p);
     }
     else
     {
@@ -461,11 +471,30 @@ ScanFile (const char *file, Source *src, const Platform *p,
     }
 
     dfc.dfc_nsample = ns;
+    if (pi_FileType(p) == FTOpaque)
+    {
+	int same = 0;
+	/*
+	 * Well here's a kludge if I've ever seen one.  For the opaque
+	 * filetype, we don't care about overlapping sample times.  So
+	 * overload the milliseconds field with a count to differentiate
+	 * files with the same timestamp.
+	 */
+	while (newfile && src_FindExact (src, p, &dfc.dfc_begin, 
+					 &existing_dfc))
+	{
+	    ++dfc.dfc_begin.zt_MicroSec;
+	    ++same;
+	}
+	if (same > 0)
+	    msg_ELog (EF_DEBUG, "%s: time tweaked to avoid collision with %d "
+		      "other opaque files", file, same);
+    }
 /*
  * Report if we're going to stomp on a file already in the source with 
  * the same start time
  */
-    if (newfile && src_FindExact (src, p, &dfc.dfc_begin, &existing_dfc))
+    else if (newfile && src_FindExact (src, p, &dfc.dfc_begin, &existing_dfc))
     {
 	msg_ELog (EF_PROBLEM, "File %s being superceded", 
 		  DataFilePath (src, p, &existing_dfc));
@@ -585,7 +614,7 @@ FileChanged (Source *src, const Platform *p, const DataFileCore *dfc,
 {
     ino_t inode;
 
-    *new_rev = StatRevision (DataFilePath (src, p, dfc), &inode);
+    *new_rev = StatRevision (DataFilePath (src, p, dfc), &inode, 0);
 /*
  * If we're using stat() revision numbers, the answer is easy
  */
@@ -631,22 +660,22 @@ RescanPlat (Source *src, const Platform *p)
 
 
 long 
-StatRevision (const char *name, ino_t *inode)
+StatRevision (const char *name, ino_t *inode, int *isfile)
 /*
  * Get a revision count for this file from its modification time
  */
 {
 	struct stat sbuf;
 
+	if (inode) *inode = 0;
+	if (isfile) *isfile = 0;
 	if (stat (name, &sbuf) < 0)
 	{
 		msg_ELog (EF_PROBLEM, "Error %d on stat of %s", errno, name);
-		if (inode)
-			*inode = 0;
 		return (0);
 	}
-	if (inode)
-		*inode = sbuf.st_ino;
+	if (inode) *inode = sbuf.st_ino;
+	if (isfile) *isfile = S_ISREG(sbuf.st_mode);
 #ifdef DEBUG
 	msg_ELog (EF_DEBUG, "stat file %s: rev %d inode %d", name,
 		  sbuf.st_mtime, sbuf.st_ino);

@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.80 2002-10-21 08:30:53 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.81 2002-10-22 08:12:19 granger Exp $"
 
 DEPLIBS=$(DEPZLIBS)
 
@@ -27,10 +27,10 @@ DEFINES = $(DEBUG) /* -DNCSYNC_FIXED */
  */
 DFAOBJS = DataFormat.o DFA_NetCDF.o DFA_Zebra.o DFA_HDF.o DFA_Grads.o \
           DFA_Boundary.o DFA_GRIB.o GRIB.o DFA_Raster.o Raster.o DFA_None.o \
-          DFA_SweepFile.o
+          DFA_SweepFile.o DFA_OpaqueFile.o
 DFASRCS = DataFormat.c DFA_NetCDF.c DFA_Zebra.c DFA_HDF.c DFA_Grads.c \
           DFA_Boundary.c DFA_GRIB.c GRIB.c DFA_Raster.c Raster.c DFA_None.c \
-	  DFA_SweepFile.cc
+	  DFA_SweepFile.cc DFA_OpaqueFile.c
 
 /* 
  * DCOBJS, DCSRCS =  data chunk modules 

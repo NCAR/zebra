@@ -54,7 +54,7 @@
 # include "dsDaemon.h"
 # include "commands.h"
 
-RCSID ("$Id: Daemon.c,v 3.74 2001-10-16 22:26:29 granger Exp $")
+RCSID ("$Id: Daemon.c,v 3.75 2002-10-22 08:12:19 granger Exp $")
 
 /*
  * Private SourceId type, for convenience
@@ -2109,7 +2109,7 @@ NewRevision (DataFile *df)
 
     if (StatRevisions)
     {
-	rev = StatRevision (df->df_fullname, &df->df_core.dfc_inode);
+	rev = StatRevision (df->df_fullname, &df->df_core.dfc_inode, 0);
     /*
      * Make sure we actually got a more recent revision number
      */

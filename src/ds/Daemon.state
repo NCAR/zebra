@@ -1,5 +1,5 @@
 !
-! $Id: Daemon.state,v 2.27 2002-01-19 06:50:02 granger Exp $
+! $Id: Daemon.state,v 2.28 2002-10-22 08:12:19 granger Exp $
 !
 ! The data store daemon configuration language.
 !
@@ -403,6 +403,9 @@ define state file-type
 	input 'sweepfile' 10
 		next ust$no_more
 	endinput	      
+	input 'opaque' 11
+		next ust$no_more
+	endinput	      
 enddef
 
 
@@ -624,7 +627,7 @@ enddef
 set ui$initial_state "initial"
 
 procedure ui$init
-	local _id '$Id: Daemon.state,v 2.27 2002-01-19 06:50:02 granger Exp $'
+	local _id '$Id: Daemon.state,v 2.28 2002-10-22 08:12:19 granger Exp $'
 
 	start
 	done

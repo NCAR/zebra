@@ -1,7 +1,7 @@
 /*
  * Data store daemon-specific definitions.
  */
-/* $Id: dsDaemon.h,v 3.27 1999-03-02 05:09:25 granger Exp $ */
+/* $Id: dsDaemon.h,v 3.28 2002-10-22 08:12:19 granger Exp $ */
 /*
  * The platform and data tables, via pointer.
  */
@@ -99,7 +99,7 @@ void BuildDataFile (DataFile *df, const DataFileCore *dfc, Source *src,
  */
 void	DataScan (Source *src);
 void	Rescan (Source *src, const Platform *plat, zbool all);
-long	StatRevision (const char* name, ino_t *inode);
+long	StatRevision (const char* name, ino_t *inode, int *isfile);
 
 # ifdef UI_H_SYMBOLS
 /*

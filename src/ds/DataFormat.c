@@ -40,7 +40,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-RCSID ("$Id: DataFormat.c,v 3.13 2000-11-17 18:40:19 granger Exp $")
+RCSID ("$Id: DataFormat.c,v 3.14 2002-10-22 08:12:19 granger Exp $")
 
 /*
  * Include the DataFormat structure definition, and the public and
@@ -62,6 +62,7 @@ extern DataFormat *gradsFormat;
 extern DataFormat *gradsmodelFormat;
 extern DataFormat *hdfFormat;
 extern DataFormat *sweepfileFormat;
+extern DataFormat *opaqueFileFormat;
 
 /*
  * And here is the format table.  Indexing into this table is done through
@@ -80,6 +81,7 @@ static DataFormat **Formats[] =
 	&gradsmodelFormat,
 	&hdfFormat,
 	&sweepfileFormat,
+	&opaqueFileFormat,
 };
 
 static const int NumFormats = (sizeof(Formats)/sizeof(Formats[0]));
@@ -996,7 +998,7 @@ dfa_CheckName (int type, const char *name)
  * See if this file name is consistent with this file type.
  */
 {
-	char *dot, *ext = FMTP(type)->f_ext;
+	char *ldot, *dot, *ext = FMTP(type)->f_ext;
 /*
  * First hack of the day...a, um, certain file format puts its extension
  * at the beginning instead of the end.  Have a look for a ^ in the
@@ -1006,10 +1008,13 @@ dfa_CheckName (int type, const char *name)
 	if (ext && ext[0] == '^' && !strncmp (ext + 1, name, strlen (ext + 1)))
 		return (TRUE);
 /*
- * Nope, the usual scheme applies.
+ * Nope, the usual scheme applies.  A format without an extension matches
+ * all files except dot-files.  dot-files are never matched.
  */
 	dot = strrchr (name, '.');
-	return (dot && (dot != name) && dfa_MatchExt (type, dot));
+	ldot = strchr (name, '.');
+	return ((ldot != name) &&
+		(!ext || (dot && dfa_MatchExt (type, dot))));
 }
 
 
