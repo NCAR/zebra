@@ -1,6 +1,6 @@
 /* -*- C++ -*-
  *
- * $Id: GridMap.cc,v 1.1 1994-07-31 06:17:29 granger Exp $
+ * $Id: GridMap.cc,v 1.2 1994-11-16 19:25:05 granger Exp $
  *
  * Functions for filling grid maps and cell buckets from square scans
  */
@@ -618,7 +618,7 @@ GridMap::FillImageGrid (unsigned char *image, SquareScan *ss,
 				image[ row * gm_info.rg_nX + ix ] = 
 					(unsigned char)
 					((ss->CellValue (scan, cell, ch) - 
-					  scale->s_Offset) * scale->s_Scale);
+					  scale->s_Offset) / scale->s_Scale);
 			}
 		}
 	}
