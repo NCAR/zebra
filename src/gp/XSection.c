@@ -42,7 +42,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: XSection.c,v 2.55 2003-08-06 21:53:46 burghart Exp $")
+RCSID ("$Id: XSection.c,v 2.56 2004-01-15 18:28:52 burghart Exp $")
 
 /*
  * General definitions
@@ -2421,8 +2421,10 @@ xs_Background ()
  */
 {
 	float	tick, tickinc, lolim, hilim, xpos, ypos, lat, lon;
-	int	lbltoggle, ypix;
+	int	lbltoggle;
 	XPoint	pts[5];
+	int text_pixelht = (Text_size < 1.0) ? 
+	    Text_size * (Pix_bottom - Pix_top) : Text_size;
 /*
  * Draw a box
  */
@@ -2503,7 +2505,8 @@ xs_Background ()
 /*
  * Vertical scale units
  */
-	DrawText (Graphics, GWFrame (Graphics), Gcontext, XPIX (-0.04 * P_len),
+	DrawText (Graphics, GWFrame (Graphics), Gcontext, 
+		  Pix_left - 2 * text_pixelht,
 		  YPIX (P_bot + 0.5 * P_hgt), 
 		  (char *) au_LongUnitsName (AltUnits), 
 		  90.0, Text_size, JustifyCenter, JustifyBottom);
@@ -2583,11 +2586,9 @@ xs_Background ()
 		Scratch[0] = '\0';
 	}			
 
-	ypix = (Text_size < 1.0) ? YPIX (P_bot - 1.2 * Text_size * P_hgt) :
-	    YPIX (P_bot - 1.2 * Text_size);
-	
 	DrawText (Graphics, GWFrame (Graphics), Gcontext, XPIX (0.5 * P_len), 
-		  ypix, Scratch, 0.0, Text_size, JustifyCenter, JustifyTop);
+		  Pix_bottom + 1.2 * text_pixelht, Scratch, 0.0, Text_size, 
+		  JustifyCenter, JustifyTop);
 }
 
 
