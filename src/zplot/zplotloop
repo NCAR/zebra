@@ -1,6 +1,6 @@
 #! /usr/local/bin/perl5
 #
-# $Id: zplotloop,v 1.2 2001-07-19 20:19:40 granger Exp $
+# $Id: zplotloop,v 1.3 2002-01-15 18:43:05 granger Exp $
 #
 # Loop through times by a certain time step collecting from zplotd all the
 # plots which need to be generated, then generate those plots with
@@ -10,18 +10,26 @@
 use Time::Local;
 use POSIX;
 
-if ($#ARGV < 2)
+if ($#ARGV < 1)
 {
-    print "Usage: zplotloop <begin> <end> <hours> [-enqueue <queue>]";
+    print "Usage: zplotloop <begin> <end> [<hours>] [-enqueue <queue>]";
     print " [zplotd opts...]\n";
+    print "The begin time can be 'start', which uses the project\n";
+    print "start date and the first plot hour.\n";
     print "The end time can be 'now'.\n";
+    print "The plot period in hours defaults to PLOT_PERIOD.\n";
     exit 1;
 }
 
+$step = "$ENV{'PLOT_PERIOD'}";
 $begin = $ARGV[0];
 $end = $ARGV[1];
-$step = $ARGV[2];
-shift; shift; shift;
+shift; shift;
+if ($#ARGV > 0)
+{
+    $step = $ARGV[0];
+    shift;
+}
 
 sub ztsys
 {
@@ -37,7 +45,25 @@ sub syszt
 }
 
 
-$sbegin = &ztsys($begin);
+$project_start_date = "$ENV{'PROJECT_START_DATE'}";
+$plot_hours = "$ENV{'PLOT_HOURS'}";
+if ($begin != 'start')
+{
+    $sbegin = &ztsys($begin);
+}
+elsif (! $project_start_date)
+{
+    die "PROJECT_START_DATE must be set to use 'start' as begin time.";
+}
+elsif ( ! $plot_hours)
+{
+    die "PLOT_HOURS must be set to use 'start' as begin time.";
+}
+else
+{
+    @hours = split(/\s+/,"$plot_hours");
+    $sbegin = &ztsys($project_start_date . "," . "$hours[0]:00");
+}
 $send = time();
 if ($end != 'now')
 {
@@ -45,7 +71,8 @@ if ($end != 'now')
 }
 $zplotd = "zplotd -d1 -norescan @ARGV ";
 print "zplotd command: $zplotd\n";
-print "Looping from ", &syszt($sbegin), " to ", &syszt($send), "\n";
+print "Looping from ", &syszt($sbegin), " to ", &syszt($send), 
+    ", step $step hours.\n";
 
 $stime = $sbegin;
 $last = '';
