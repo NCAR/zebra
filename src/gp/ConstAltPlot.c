@@ -37,7 +37,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.21 1992-10-15 15:54:12 corbet Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.22 1992-11-03 16:07:13 burghart Exp $")
 
 
 /*
@@ -45,13 +45,13 @@ MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.21 1992-10-15 15:54:12 corbet Exp $")
  */
 static XColor	*Colors, Ctclr;
 static int	Ncolors;
-static int  	Monocolor;
+static bool 	Monocolor;
 
 /*
  * Other annotation information.
  */
-static float Sascale;
-static int Sashow;
+static float	Sascale;
+static bool	Sashow;
 
 /*
  * Non-modular kludgery to make things work for now, until something better
@@ -125,7 +125,7 @@ time *t;
 void
 CAP_FContour (c, update)
 char	*c;
-Boolean	update;
+bool	update;
 /*
  * Filled contour CAP plot for the given component
  */
@@ -166,14 +166,15 @@ Boolean	update;
 void
 CAP_LineContour (c, update)
 char	*c;
-Boolean	update;
+bool	update;
 /*
  * Line contour CAP plot for the given component
  */
 {
 	float	center, step;
 	char	fname[20], data[100], ctable[40];
-	int	tacmatch = 0, shift;
+	bool	tacmatch = FALSE;
+	int	shift;
 /* 
  * Use the common CAP contouring routine to do a color line contour plot
  */
@@ -228,10 +229,9 @@ int *shifted;
 	char	platform[40], ctcolor[40], param[50];
 	int	xdim, ydim;
 	float	*rgrid, *grid, x0, x1, y0, y1, alt;
-	int	pix_x0, pix_x1, pix_y0, pix_y1, dolabels, linewidth;
-	int 	labelflag;
+	int	pix_x0, pix_x1, pix_y0, pix_y1, linewidth;
+	bool	labelflag, dolabels, ok;
 	ZebTime	zt;
-	Boolean	ok;
 	XColor	black;
 	XRectangle	clip;
 	DataChunk	*dc;
@@ -371,7 +371,7 @@ int *shifted;
 void
 CAP_Station (c, update)
 char *c;
-Boolean update;
+bool update;
 /*
  * Deal with a station plot.
  */
@@ -382,8 +382,8 @@ Boolean update;
 	static const int offset_y[4] = { -10, 10, -10, 10 };
 	PlatformId pid, *platforms;
 	float vscale, unitlen, badvalue, *ugrid, *vgrid, *qgrid[4];
-	int linewidth, numquads = 0, shifted, npts, i, j;
-	int pix_x0, pix_y0, tacmatch, filter = 0;
+	int linewidth, numquads = 0, shifted, npts, i, j, pix_x0, pix_y0;
+	bool	filter = FALSE, tacmatch;
 	ZebTime zt;
 	XColor	color, qcolor;
 	FieldId	fields[6];
@@ -723,7 +723,7 @@ StInfo *sinfo;
 void
 CAP_Vector (c, update)
 char	*c;
-Boolean	update;
+bool	update;
 /*
  * Execute a CAP vector plot, based on the given plot
  * description, specified component, and plot time
@@ -734,7 +734,8 @@ Boolean	update;
 	float	*rgrid, *ugrid, *vgrid, unitlen;
 	float	vscale, x0, x1, y0, y1, alt, badvalue;
 	int	pix_x0, pix_x1, pix_y0, pix_y1, xdim, ydim;
-	int	tacmatch = 0, grid = 0, linewidth, len, degrade, shifted, ok;
+	int	linewidth, len, degrade, shifted, ok;
+	bool	tacmatch = FALSE, grid = FALSE;
 	XColor	color;
 	ZebTime zt;
 	PlatformId pid;
@@ -983,7 +984,7 @@ int datalen, begin, space;
 void
 CAP_Raster (c, update)
 char	*c;
-Boolean	update;
+bool	update;
 /*
  * Execute a CAP raster plot, based on the given plot
  * description, specified conent, and plot time
@@ -992,8 +993,8 @@ Boolean	update;
 	char	name[20], ctname[40], platform[40], data[100], hcolor[40];
 	char	param[50], outrange[40];
 	int	xdim, ydim;
-	int	fastloop, newrp, nsteps;
-	Boolean	ok, highlight;
+	int	nsteps;
+	bool	ok, highlight, fastloop, newrp;
 	float	*grid, x0, x1, y0, y1, alt;
 	float	min, max, center, step, hvalue, hrange;
 	int	pix_x0, pix_x1, pix_y0, pix_y1, image, shifted;
@@ -1289,7 +1290,8 @@ float	*x0, *y0, *x1, *y1, *alt;
 	float cdiff;
 	char *img;
 	Location slocs[60], origin;
-	int nsample, samp, all = 0, ntime, len;
+	int nsample, samp, ntime, len;
+	bool all = FALSE;
 	DataChunk *dc;
 	FieldId	fid = F_Lookup (field);
 /*
@@ -1394,7 +1396,7 @@ float alt;
  */
 {
 	char string[80];
-	int deg = 0;
+	bool deg = FALSE;
 /*
  * Kludge for fake CAP's where altitudes are really radar elevations.
  */
