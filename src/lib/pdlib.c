@@ -1,4 +1,4 @@
-/* $Id: pdlib.c,v 1.1 1990-03-27 13:45:41 corbet Exp $ */
+static char *rcsid = "$Id: pdlib.c,v 1.2 1990-05-31 10:57:10 corbet Exp $";
 /*
  * The plot description library.
  */
@@ -211,7 +211,7 @@ char *dest, *begin, *end;
 		;
 	for (end--; end > begin && (*end == ' ' || *end == '\t'); end--)
 		;
-	if (end > begin)
+	if (end >= begin)
 	{
 		memcpy (dest, begin, end - begin + 1);
 		dest[end - begin + 1] = '\0';
@@ -542,7 +542,7 @@ char *compname;
 /*
  * Add a new component with this name, but with the old table.
  */
-	usy_g_symbol (pd, "$components", &type, &v);
+	usy_g_symbol (dest, "$components", &type, &v);
 	comps = (char **) v.us_v_ptr;
 	for (i = 0; comps[i]; i++)
 		;
@@ -578,6 +578,7 @@ char *name;
  * Clear the symbol table.
  */
  	usy_z_stbl ((stbl) v.us_v_ptr);
+	usy_z_symbol (pd, name);
 /*
  * Remove the name from the components list.
  */
@@ -625,10 +626,7 @@ int type;
  * First, find this component.
  */
  	if (! usy_g_symbol (pd, comp, &t, &v))
-	{
-		msg_log ("Lookup attempted on missing comp %s", comp);
 		return (FALSE);
-	}
 /*
  * Now look for the parameter.
  */
