@@ -9,7 +9,7 @@
 # include "EventQueue.h"
 # include "LLEvent.h"
 
-static char *rcsid = "$Id: LLEvent.c,v 1.2 1990-06-11 14:24:34 corbet Exp $";
+static char *rcsid = "$Id: LLEvent.c,v 1.3 1990-12-14 14:00:45 burghart Exp $";
 
 
 /*
@@ -77,35 +77,48 @@ int block;
  * "block" is true.
  */
 {
-	int status, i, did_work = TRUE;
+	int status, i, nready;
 	fd_set fds;
 	static struct timeval noblock = { 0, 0 };
 /*
- * Wait for something.
+ * Get everything from the input stream, waiting for at least one item if
+ * we're blocking
  */
-	fds = Mfd;
-	while ((status = select (Mfd_width + 1, &fds, 0, 0,
-		block ? (struct timeval *) 0 : &noblock)) < 0)
+	status = 1;
+
+	while (status)
 	{
-	/*
-	 * Just do another select if we were stopped by
-	 * a signal
-	 */
-		if (errno == EINTR)
-			continue;
-	/*
-	 * Bad error, shut down
-	 */
-		msg_log ("Select error %d", errno);
-		GPShutDown ();
-	}
-/*
- * Deal with what came in.
- */
-	for (i = 0; status && i <= Mfd_width; i++)
-		if (FD_ISSET (i, &fds))
+		msg_DispatchQueued ();
+		xtEvent (0);	/* XXX */
+		fds = Mfd;
+		while ((status = select (Mfd_width + 1, &fds, 0, 0,
+			block ? (struct timeval *) 0 : &noblock)) < 0)
 		{
-			status--;
-			(*Procs[i]) (i);
+		/*
+		 * Just do another select if we were stopped by
+		 * a signal
+		 */
+			if (errno == EINTR)
+				continue;
+		/*
+		 * Bad error, shut down
+		 */
+			msg_log ("Select error %d", errno);
+			GPShutDown ();
 		}
+	/*
+	 * Deal with what came in.
+	 */
+		nready = status;
+		for (i = 0; nready && i <= Mfd_width; i++)
+			if (FD_ISSET (i, &fds))
+			{
+				nready--;
+				(*Procs[i]) (i);
+			}
+	/*
+	 * Don't block for subsequent selects
+	 */
+		block = FALSE;
+	}
 }
