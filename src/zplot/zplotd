@@ -247,8 +247,10 @@ if ($first && ! $since && ! $notice && ! $fixtime)
 
 $dt = `date -u '+%y%m%d.%H%M'`;
 chop $dt;
-system("mkdir $project/logs > /dev/null 2>&1");
-$log="$project/logs/zplotd.$dt.$$.log";
+$datedir = `date -u '+%y%m%d'`;
+chop $datedir;
+system("mkdir -p $project/logs/logs-$datedir > /dev/null 2>&1");
+$log="$project/logs/logs-$datedir/zplotd.$dt.$$.log";
 if ($debug >= $D_Out)
 {
     open(LOG, "| tee $log") || die "$log : $!\n";
@@ -585,7 +587,7 @@ sub clear
 	print MAIL "Log files:\n";
 	print MAIL "file://$log\n";
 	print MAIL "http://www.atd.ucar.edu/rtf/projects/" .
-	    "$project_name/iss/realtime/logs/" . `basename $log`;
+	    "$project_name/iss/realtime/logs/logs-$datedir" . `basename $log`;
 	print MAIL "\n";
 	close MAIL;
 	print "--- Mail sent. ---\n";
