@@ -1,7 +1,7 @@
 /*
  * Deal with the icons on the bottom of the window.
  */
-static char *rcsid = "$Id: Icons.c,v 2.19 1993-10-18 19:28:48 corbet Exp $";
+static char *rcsid = "$Id: Icons.c,v 2.20 1993-12-01 17:02:00 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -191,6 +191,11 @@ int	x, y, fg;
 	Pixmap pmap = I_GetPMap (name, &xh, &yh, &w, &h);
 	XGCValues vals;
 	bool active = FALSE;
+/*
+ * Bail out if we didn't get a good pixmap
+ */
+	if (! pmap)
+		return;
 /*
  * Back off to put the hotspot on the requested place.
  */
