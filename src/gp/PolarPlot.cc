@@ -217,6 +217,7 @@ ScanConverter::DoBeam (PolarBeam *pb, void *data, float xr, float yr)
 // If we need to swap data order, make a copy and swap there
 //
 	int swapping = sc_Dest->di_needswap;
+	unsigned int* newdata = 0;
 	if (swapping)
 	{
 	//
@@ -224,7 +225,7 @@ ScanConverter::DoBeam (PolarBeam *pb, void *data, float xr, float yr)
 	// point "data" to the new swapped array.
 	//
 	    int ngates = pb->pb_NGates;
-	    unsigned int* newdata = new unsigned int[ngates];
+	    newdata = new unsigned int[ngates];
 	    memcpy (newdata, data, ngates * sizeof (unsigned int));
 
 	    for (int i = 0; i < ngates; i++)
@@ -278,8 +279,8 @@ ScanConverter::DoBeam (PolarBeam *pb, void *data, float xr, float yr)
 //
 // If we made a swapped copy of the data, release it now
 //
-	if (swapping)
-	    delete[] data;
+	if (newdata)
+	  delete[] newdata;
 }
 
 
