@@ -26,7 +26,7 @@
 # include <DataChunk.h>
 # include "GraphProc.h"
 # include "rg_status.h"
-MAKE_RCSID ("$Id: GridAccess.c,v 2.20 1994-10-11 16:26:14 corbet Exp $")
+MAKE_RCSID ("$Id: GridAccess.c,v 2.21 1995-02-24 22:25:25 burghart Exp $")
 
 
 
@@ -862,25 +862,37 @@ FieldId	fid;
 	    !ga_NSRegularSpacing (*dc, lon_id, &lonspacing, &nlons, &lonorg))
 		return (FALSE);
 /*
- * Build a location.  We must find "alt" or "altitude" for vertical level.
+ * Build a location.  If "alt" or "altitude" doesn't exist, set the altitude
+ * to zero.
  */
+	location.l_lat = latorg;
+	location.l_lon = lonorg;
+
 	alt_id = F_Declared ("alt");
-	if ((alt_id == BadField) ||
-	    !dc_NSGetVariable (*dc, alt_id, &ndims, dims, &is_static))
+	if ((alt_id != BadField) && 
+	    dc_NSGetVariable (*dc, alt_id, &ndims, dims, &is_static))
+	{
+		location.l_alt = * (float *) dc_NSGetSample (*dc, 0, alt_id, 
+							     NULL);
+	}
+	else 
 	{
 		alt_id = F_Declared ("altitude");
-		if ((alt_id == BadField) || 
-		    !dc_NSGetVariable (*dc, alt_id, &ndims, dims, &is_static))
+		if ((alt_id != BadField) &&
+		    dc_NSGetVariable (*dc, alt_id, &ndims, dims, &is_static))
+		{
+			location.l_alt = * (float *) dc_NSGetSample (*dc, 0, 
+								     alt_id, 
+								     NULL);
+		}
+		else
 		{
 			msg_ELog (EF_DEBUG, 
-			  "ga_NSSimpleGrid: No 'alt' or 'altitude' variable");
-			return (FALSE);
+			  "ga_NSSimpleGrid: No alt variable.  Assuming 0.");
+			location.l_alt = 0.0;
 		}
 	}
 
-	location.l_lat = latorg;
-	location.l_lon = lonorg;
-	location.l_alt = * (float *) dc_NSGetSample (*dc, 0, alt_id, NULL);
 /*
  * It looks like all our requirements have been met.  Let's build an 
  * RGrid data chunk.
