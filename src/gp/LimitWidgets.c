@@ -38,7 +38,7 @@
 # include <pd.h>
 # include "GraphProc.h"
 
-RCSID("$Id: LimitWidgets.c,v 2.21 1996-11-19 07:28:55 granger Exp $")
+RCSID("$Id: LimitWidgets.c,v 2.22 1997-10-16 19:50:07 burghart Exp $")
 
 /*
  * Station widget static data.
@@ -165,7 +165,7 @@ static void	 lw_Popup FP ((WidgetQueue *));
 static void	 lw_CBPopdown FP ((Widget, WidgetQueue *, XtPointer));
 static void	 lw_Popdown FP ((WidgetQueue *));
 static void	 lw_Setup FP ((WidgetQueue *, int, struct ui_command *));
-static WidgetQueue	 *lw_GetWidget FP ((int));
+static WidgetQueue	 *lw_GetWidget FP ((WidgetType));
 static void	 lw_SwCb FP ((Widget, int, int));
 static void	 CopyBackground FP ((Widget soure, Widget dest));
 
@@ -199,7 +199,7 @@ struct ui_command *cmds;
 /*
  * Get a widget.
  */
-	w = lw_GetWidget (type);
+	w = lw_GetWidget ((WidgetType) type);
 
 	if (type == StationWidget)
 	{
@@ -228,7 +228,7 @@ struct ui_command *cmds;
 
 static WidgetQueue *
 lw_GetWidget (type)
-int type;
+WidgetType type;
 /*
  * Get a widget of this type.
  */

@@ -36,7 +36,7 @@
 # include "AxisControl.h"
 # include "PlotPrim.h"
 
-RCSID("$Id: AxisControl.c,v 1.26 1996-11-19 07:28:37 granger Exp $")
+RCSID("$Id: AxisControl.c,v 1.27 1997-10-16 19:50:05 burghart Exp $")
 
 /*
  * Convenient scratch string
@@ -71,7 +71,7 @@ ac_ResetAxes ()
 {
 	AxisSide	side;
 	
-	for (side = 0; side < NumSides; side++)
+	for (side = (AxisSide) 0; side < NumSides; side++)
 		SpaceUsed[side] = 0;
 }
 
@@ -89,7 +89,7 @@ char	*c;
 	/*
 	 * Loop through the sides
 	 */
-	for (side = 0; side < NumSides; side++)
+	for (side = (AxisSide) 0; side < NumSides; side++)
 	{
 		if (ac_AxisEnabled (c, side))
 			ac_DrawAxis (c, side);

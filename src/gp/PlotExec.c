@@ -40,7 +40,7 @@
 # include "AxisControl.h"
 # include "ActiveArea.h"
 
-MAKE_RCSID ("$Id: PlotExec.c,v 2.53 1997-05-21 21:09:21 corbet Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.54 1997-10-16 19:50:09 burghart Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -575,7 +575,7 @@ px_GetCoords ()
 					  GWWidth(Graphics)));
 	lc_SetAnnotateSpace (px_PixelSpace ("ta-space", (float) ANNOTATESPACE,
 					    GWHeight(Graphics)));
-	for (side = 0; side < NumSides; side++)
+	for (side = (AxisSide) 0; side < NumSides; side++)
 	{
 		sprintf (param, "axis-%s-space", SIDE_NAME (side));
 		pixel_space = px_PixelSpace (param, 0.0, 

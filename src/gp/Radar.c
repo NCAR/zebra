@@ -19,7 +19,7 @@
 #include "PixelCoord.h"
 #include "GC.h"
 
-RCSID ("$Id: Radar.c,v 2.4 1997-06-19 20:51:50 granger Exp $")
+RCSID ("$Id: Radar.c,v 2.5 1997-10-16 19:50:11 burghart Exp $")
 
 
 static char *ScanNames[5] = 
@@ -230,7 +230,7 @@ float angle;
 
 
 
-static int
+static void
 r_GetScanAngle (comp, scan, angle)
 char *comp;
 R_ScanMode scan;
