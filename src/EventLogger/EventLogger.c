@@ -49,7 +49,7 @@
 # include <config.h>
 # include <copyright.h>
 
-RCSID ("$Id: EventLogger.c,v 2.41 1999-12-03 21:56:36 granger Exp $")
+RCSID ("$Id: EventLogger.c,v 2.42 1999-12-06 19:32:32 granger Exp $")
 
 # define LOGNAME "EventLogger"
 
@@ -1525,7 +1525,11 @@ FormatMessage (char code, char *from_in, char *msg_in)
 		 * This ignores the first 5 repeats and logs them as usual.
 		 * Beyond 5 we report repeats at intervals of 10 until 50.
 		 */
-		if (((repeat_count < 50) && !(repeat_count % 10)) ||
+		if (repeat_count <= 5)
+		{
+			/* fall through */
+		}
+		else if (((repeat_count < 50) && !(repeat_count % 10)) ||
 		    (!(repeat_count % 50)))
 		{
 			sprintf (repeat_msg, ", %d repeats", repeat_count);
