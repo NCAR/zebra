@@ -5,11 +5,11 @@
  * from the document "Formulation of Output Parameters for PAM II CMF Data"
  * compiled by Paul Herzegh (18 March 1988 revision).
  *
- * $Revision: 1.4 $ $Date: 1990-05-11 14:35:19 $ $Author: burghart $
+ * $Revision: 1.5 $ $Date: 1991-01-16 21:40:29 $ $Author: burghart $
  */
 
 # include <math.h>
-# include "derive.h"
+# include "met_formulas.h"
 
 /*
  * Constants
