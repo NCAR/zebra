@@ -5,7 +5,7 @@
  * Usage: mapfilter <lonWest> <latSouth> <lonEast> <latNorth>
  */
 
-/* $Id: rect_filter.c,v 1.1 1996-12-30 17:10:22 burghart Exp $ */
+/* $Id: rect_filter.c,v 1.2 1997-11-17 21:32:35 burghart Exp $ */
 
 # include <stdio.h>
 # include <stdlib.h>
@@ -108,22 +108,32 @@ CheckIntersection (const Box *box0, const Box *box1)
 	int	latlap, lonlap;
 
 /*
- * First check for overlap in latitude.
+ * First check for overlap in latitude.  Slight kluge to avoid zero-height
+ * boxes (which give us zero overlap...)
  */
 	a0 = box0->latSouth;
 	a1 = box0->latNorth;
+	if (a0 == a1)
+	    a0 -= 0.0001;
+	
 	b0 = box1->latSouth;
 	b1 = box1->latNorth;
+	if (b0 == b1)
+	    b0 -= 0.0001;
+	
 	if (OverlapLen (a0, a1, b0, b1) <= 0)
 		return (FALSE);
 /*
  * We have latitude overlap, so test for longitude overlap.  Be extra careful
- * with boxes that cross 180 longitude...
+ * with boxes that cross 180 longitude...  Also, we add a slight kluge to
+ * avoid zero-width boxes (which give us zero overlap...)
  */
 	a0 = box0->lonWest;
 	a1 = box0->lonEast;
 	if ((a0 > 0.0) && (a1 < 0.0))
 		a1 += 360.0;
+	else if (a0 == a1)
+		a0 -= 0.0001;
 
 	b0 = box1->lonWest;
 	b1 = box1->lonEast;
@@ -134,9 +144,11 @@ CheckIntersection (const Box *box0, const Box *box1)
 		else
 			b1 += 360.0;
 	}
-	
+	else if (b0 == b1)
+		b0 -= 0.0001;
 
-	if (OverlapLen (a0, a1, b0, b1) <= 0)
+
+	if (OverlapLen (a0, a1, b0, b1) < 0)
 		return (FALSE);
 
 	return (TRUE);
