@@ -1,3 +1,9 @@
+Tue Jan 16 17:29:04 1996  Gary Granger  <granger@narnia.atd.ucar.edu>
+
+	* ds: force close-and-open of netCDF files to work around ncsync
+	  bug; daemon debug mode logs messages to stdout; datastore
+	  testing more thorough and simplified
+
 Thu Sep 21 16:03:08 1995  Gary Granger  <granger@narnia.atd.ucar.edu>
 
 	* gp: parameters exist and are respected for all layout regions;
