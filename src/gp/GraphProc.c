@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: GraphProc.c,v 1.11 1990-09-04 08:41:38 corbet Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 1.12 1990-09-13 09:41:43 corbet Exp $";
 
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
@@ -62,6 +62,11 @@ float	Xlo, Xhi, Ylo, Yhi;
 int	Alt;
 
 /*
+ * Saved versions of the "command line" parameters.
+ */
+static int Argc;
+static char **Argv;
+/*
  * Forward routine definitions.
  */
 int msg_handler ();
@@ -113,7 +118,8 @@ char **argv;
  * Hand off our information to the UI, and initialize things.
  */
 	ui_init ("../lib/graphproc.lf", FALSE, TRUE);
-	ui_setup ("Graphproc", argc, argv, Resources);
+	Argc = argc;  Argv = argv;
+	ui_setup ("Graphproc", &Argc, Argv, Resources);
 /*
  * Now we have to go into the UI, and finish our setup later.  This is
  * essentially a kludge designed to keep UI from trying to open tty
@@ -143,14 +149,25 @@ finish_setup ()
 		{ "ue_el",		Ue_el		},
 	};
 	int type[4], pd_defined (), pd_param ();
+	char *initfile, perf[80];
 /*
  * Force a shift into window mode, so we can start with the fun stuff.
  */
 	uw_ForceWindowMode ((char *) 0, &Top, &Actx);
 	XtAppAddActions (Actx, actions, FOUR);
+# ifdef notdef
 	XtRegisterGrabAction (Ue_PointerEvent, True,
 	      ButtonPressMask|ButtonReleaseMask, GrabModeAsync, GrabModeAsync);
-
+# endif
+/*
+ * If there is a parameter left on the "command line", it will be the name
+ * of an initialization file to read.
+ */
+	if (Argc > 1)
+		initfile = Argv[1];
+	else
+		initfile = "../gp/Widgets";
+	msg_ELog (EF_DEBUG, "Init file is '%s'", initfile);
 /*
  * Now create a popup shell to hold the graphics widget that holds
  * our output.
@@ -196,16 +213,17 @@ finish_setup ()
 	ui_ErrorOutputRoutine (UiErrorReport);
 	ui_OutputRoutine (UiPfHandler, UiPfHandler);
 /*
- * UI widgets.
+ * More initialization
  */
-	mc_DefMovieWidget ();
+	mc_DefMovieWidget ();		/* Movie control	*/
+	fc_InvalidateCache ();		/* Clear frame cache	*/
 /*
  * Pull in the widget definition file.
  */
 	usy_c_indirect (usy_g_stbl ("ui$variable_table"), "ourname",
 		Ourname, SYMT_STRING, 40);
-	ui_perform ("read ../gp/Widgets");
-	fc_InvalidateCache ();
+	sprintf (perf, "read %s", initfile);
+	ui_perform (perf);
 }
 
 
@@ -739,15 +757,6 @@ struct dm_pdchange *dmp;
  */
 	rpd.rp_len = dmp->dmm_pdlen;
 	rpd.rp_data = dmp->dmm_pdesc;
-	if (pd_Retrieve (Pd, "global", "dump-defaults", &xxx, SYMT_BOOL))
-	{
-		int fd = open ("/fcc/etc/def.dump",
-			O_CREAT | O_TRUNC | O_WRONLY, 0666);
-		msg_ELog (EF_DEBUG, "Dump %d defaults bytes to %d", rpd.rp_len,
-			fd);
-		write (fd, rpd.rp_data, rpd.rp_len);
-		close (fd);
-	}
 	pd = pd_Load (&rpd);
 	pda_StorePD (pd, "defaults");
 /*
