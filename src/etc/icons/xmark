@@ -1,0 +1,6 @@
+#define xmark_width 5
+#define xmark_height 5
+#define xmark_x_hot 2
+#define xmark_y_hot 2
+static char xmark_bits[] = {
+   0x11, 0x0a, 0x04, 0x0a, 0x11};
