@@ -5,7 +5,7 @@
 #define PassCDebugFlags /*nothing*/
 
 SUBDIRS = maps icons helpfiles audio pd gplib colortables
-DISTFILES = Imakefile FieldDefs
+DISTFILES = Imakefile FieldDefs startzeb.sh
 DISTSUBDIRS = $(SUBDIRS)
 
 all:: startzeb		/* don't want first target to be install */
