@@ -19,7 +19,7 @@ using namespace std;
 #include "T_BTree.hh"
 
 #ifdef RCSID
-RCSID("$Id: T_BTree.cc,v 1.34 2002-12-18 22:22:24 granger Exp $")
+RCSID("$Id: T_BTree.cc,v 1.35 2002-12-19 19:15:49 granger Exp $")
 #endif
 
 typedef BTreeFile<ZTime,DataFileCore> TimeFileTree;
@@ -336,11 +336,6 @@ T_Removal (test_tree &tree,
 	   typename vector<key_type>::iterator k, 
 	   typename vector<key_type>::iterator last, int check_empty = 1)
 {
-	value_type v0;
-
-	v0 = getDefault<value_type>();
-	value_type v = v0;
-
 	// As removing, make sure the removed key cannot be found
 	//cout << " ...removing key: ";
 	int err = 0;
@@ -359,21 +354,24 @@ T_Removal (test_tree &tree,
 			     << "key " << *k << endl;
 			++err;
 		}
+		value_type v = getDefault<value_type>();
 		if (tree.Find (*k, &v))
 		{
 			cout << "***** Removal: removed key still found: "
 			     << *k << " value: " << v << endl;
 			++err;
 		}
-		else if (v != v0)
+#ifdef notdef
+		else if (v != getDefault<value_type>())
 		{
 			// Find() should return false without changing
 			// the value parameter.
 			cout << "***** Removal: key not found: "
 			     << *k << " but value still set: " << v << endl;
 			++err;
-			v = v0;
+			v = getDefault<value_type>();
 		}
+#endif
 		if (Debug) tree.Print (cout);
 	}
 	//cout << endl;
