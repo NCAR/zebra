@@ -37,7 +37,7 @@
 /**/# -----------------------------------------------------------------------
 /**/# Definitions from site-def.h included here.  The definitions here override
 /**/# the defaults in Project.tmpl.  
-/**/# $Id: site-def.h.template,v 1.16 1994-01-04 20:44:58 case Exp $
+/**/# $Id: site-def.h.template,v 1.17 1994-01-24 17:23:49 case Exp $
 /**/# -----------------------------------------------------------------------
 # endif
 
@@ -301,14 +301,24 @@
 # define RADARInclude RDSSHome/radar/h
 
 /*
- * Sun Solaris 2.0 and higher now differentiates between BSD and System V
- * devices, and the behavior is different for each.  If you are using          
+ *
+ * The next line is used for telling the RDSS Radar software what type of
+ * device I/O your system uses.
+ *
+ * In general, System V operating systems handle tape I/O functions
+ * differently than Berkeley (BSD) systems (although not all System V systems
+ * use System V I/O!).
+ *
+ * RDSS Radar software defaults to System V I/O for System V systems. 
+ * If you are building the software on an HP system or a Sun running
  * Solaris 2.0 (Sun OS 5.0) or higher and wish to use a BSD device
- * (specified as a 'b' in your device name as in "/dev/rmt/0bn") for your
- * Exabyte or 9-track device, then set UseSystemVDev to NO.  The software
- * will default to System V devices.  If you are not using Solaris 2.0 or
- * higher, you can ignore this definition.  See your RDSS Radar documentation 
- * for more details.
+ * (specified as a 'b' in your device name as in "/dev/rmt/0bn" or
+ * ("/dev/rmt/c201d4hnb" ) for your Exabyte or 9-track device, then set
+ * UseSystemVDev to NO.
+ *
+ * SGI users should set UseSystemVDev to NO.  SGIs use BSD I/O even though
+ * SGIs use System V operating systems.  
+ *
  */
 
 # define UseSystemVDev YES
