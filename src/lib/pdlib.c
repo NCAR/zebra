@@ -36,7 +36,7 @@
 # include "message.h"
 # include "pd.h"
 
-RCSID ("$Id: pdlib.c,v 1.24 1996-09-11 14:30:49 granger Exp $")
+RCSID ("$Id: pdlib.c,v 1.25 1996-11-19 08:04:24 granger Exp $")
 
 struct traverse {
 	int (*func)();		/* Function to call for traverse */
@@ -234,7 +234,7 @@ char *end;
 	int line;
 	char name[256];
 	char param[256];
-	int nparam;	/* count parameters added to a component */
+	int nparam = 0;	/* count parameters added to a component */
 	int ncomp;
 	char value[1024];
 	stbl comp;

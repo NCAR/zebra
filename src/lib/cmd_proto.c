@@ -21,11 +21,12 @@
  */
 
 # include <ui.h>
-# include "defs.h"
 # include <config.h>
+
+# include "defs.h"
 # include "message.h"
 
-MAKE_RCSID ("$Id: cmd_proto.c,v 1.5 1996-09-11 14:33:00 granger Exp $")
+MAKE_RCSID ("$Id: cmd_proto.c,v 1.6 1996-11-19 08:04:21 granger Exp $")
 
 
 
@@ -35,7 +36,7 @@ cp_SetupCmdProto ()
  * Set up to execute incoming commands.
  */
 {
-	cp_SetupCmdHandler (ui_perform);
+	cp_SetupCmdHandler ((int (*)()) ui_perform);
 }
 
 

@@ -26,7 +26,7 @@
 # include "defs.h"
 # include "draw.h"
 
-RCSID ("$Id: barb.c,v 1.8 1996-09-05 16:35:51 granger Exp $")
+RCSID ("$Id: barb.c,v 1.9 1996-11-19 08:04:19 granger Exp $")
 
 # define ARROWANG .2618 /* PI/12 */
 #define DX(len,ang)	((double)len) * cos((double)(ang))
@@ -54,7 +54,7 @@ int	doKnots;
 	int	flaglen = 10;
 	int	quadrant;
 	int	dxsign = 0, dysign = 0;
-	double flagangle;
+	double flagangle = 0.0;
 /*
  *  Draw the shaft of the barb.
  */
