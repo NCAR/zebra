@@ -1,7 +1,7 @@
 /*
  * Altitude control for CAP plots.
  */
-static char *rcsid = "$Id: AltControl.c,v 2.3 1992-09-22 20:12:07 corbet Exp $";
+static char *rcsid = "$Id: AltControl.c,v 2.4 1992-11-03 15:54:20 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -54,7 +54,8 @@ int nstep;
  * Step the altitude by this many steps.
  */
 {
-	int nalt, closest = 0, i, rspace = 0;
+	int nalt, closest = 0, i;
+	bool rspace = 0;
 	float alts[MAXALT], alt, dist = 9999.9;
 	char platform[40], **comps = pd_CompList (Pd), calt[20];
 /*
