@@ -1,0 +1,9 @@
+!
+! Reset a window to its default plot description.  Expects to be invoked
+! from a graphics process.
+!
+procedure ResetWindow
+	local pdname pd_param(dm$button_window,"global","pd-name","string")
+	newpd dm$button_window pdname
+endprocedure
+

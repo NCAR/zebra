@@ -1,0 +1,30 @@
+!
+! $Id: xmgr-pipe,v 1.1 1995-04-20 08:16:28 granger Exp $
+!
+! Pipe a time series of data to an ACE/gr tool
+!
+
+
+procedure xmgr-pipe begin string end string platform string field string
+	local acegr getenv("ACEGR_PATH")
+	if (acegr = "UNDEFINED")
+		local acegr "xvgr"
+	endif
+!
+! Assume xmgrpipe and xvgr are in the path
+!
+	local cmd concat4("xmgrpipe ",begin," ",end)
+	local cmd concat3(cmd, " ", platform)
+	local cmd concat3(cmd, " ", field)
+	local amp '>& /dev/null &'
+	local cmd concat4(cmd, ' | ', acegr, " -pipe ")
+	local cmd concat(cmd,amp)
+!
+! Now pass it on to the shell
+!
+	message "#" cmd
+	shell cmd
+endprocedure
+
+
+

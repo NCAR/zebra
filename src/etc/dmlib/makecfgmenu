@@ -1,0 +1,60 @@
+#!/usr/local/bin/perl
+#
+# Read through the files in the directory given in the first
+# argument, and create menu entries for each one in a dm
+# submenu.
+#
+
+$configdir = shift(@ARGV);
+$cfgmenu = shift(@ARGV);
+$debug = 0;
+print $configdir, "\n" if $debug;
+print $cfgmenu, "\n" if $debug;
+
+open (DIR,"ls $configdir |") || die ("could not list $configdir");
+
+$numconfigs = 0;
+
+while (<DIR>)
+{
+	chop;
+	# Verify each config file
+	next unless (-T "$configdir/$_");
+	next if /.*(~|.bak|.saved)$/;
+	next if /^#.*#$/;
+	print "checking $configdir/$_\n" if $debug;
+	open (FILE, "<$configdir/$_");
+	while (<FILE>)
+	{
+		if (/^\s*config\s+([\w-]+)/)
+		{
+			print "found config $1\n" if $debug;
+			$configs[$numconfigs] = $1;
+			++$numconfigs;
+			break;
+		}			
+	}
+	close(FILE);
+}
+close(DIR);
+
+#
+# We now have an array of configuration files in @configs, so
+# generate the dm submenu
+#
+
+open (MENU, ">$cfgmenu") || die ("could not open $cfgmenu");
+
+printf (MENU "! Automatically created submenu of saved configurations\n");
+printf (MENU
+	"define widget saved-config-menu intmenu 'saved configurations'\n");
+printf (MENU "\ttitle 'Saved Configurations'\n\tline\n");
+
+foreach $cfgname (@configs)
+{
+	printf (MENU "\tentry '%s' 'display %s' ", $cfgname, $cfgname);
+	printf (MENU "(dm\$config = '%s')\n", $cfgname);
+}	
+
+printf (MENU "endmenu\n");
+

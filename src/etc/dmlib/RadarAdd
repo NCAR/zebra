@@ -1,0 +1,17 @@
+!
+! $Id: RadarAdd,v 1.1 1995-04-20 08:16:09 granger Exp $
+!
+
+procedure RadarAdd plat string
+	set target_win "none"
+	pickwin target_win
+	if (target_win = "none")	! They picked root or something
+		beep
+		return
+	endif
+	parameter c_ship_radar c_ship_radar platform #plat
+	parameter #target_win global radar-space true
+	sendout c_ship_radar #target_win
+endprocedure
+
+

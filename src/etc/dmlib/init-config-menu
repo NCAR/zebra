@@ -1,0 +1,52 @@
+!
+! Redefine the save config menu to remove mention of the pddir
+!
+define widget SaveConfig form 'Configuration saver'
+	noheader
+	label l1 'Save configuration as: '
+	blank cname variable dm$config width 150 command 'do_cfg_save'
+	button doit 'Do It' command 'do_cfg_save'
+	button cancel 'Cancel' command 'popdown #ui$form' color red
+	newline
+	label l2 'Config directory: '
+	blank configdir variable configdir width 300
+	newline
+endform
+
+procedure do_cfg_save
+	set configdir getftext(ui$form,'configdir')
+	local configname quote(getftext(ui$form,'cname'))
+	
+	cfgsave #configname
+	popdown #ui$form
+endprocedure
+
+!
+! A backup saved menu
+!
+define widget saved-config-menu intmenu 'saved configurations'
+	title 'Saved Configurations'
+	line
+	entry 'Empty' 'display empty' (dm$config = 'empty')
+endmenu
+
+!
+! We need ConfigDir to be set correctly, make sure it has
+!
+require init-config-path
+
+!
+! Define the procedure which creates the saved config menu
+!
+procedure init-config-menu
+
+	local menufile concat(DmModPath,"/ConfigMenu")
+	local args concat3(ConfigDir," ",menufile)
+	shell concat3(DmModPath,"/makecfgmenu ",args)
+	local delayread 'read'
+	#delayread #menufile
+
+endprocedure
+
+init-config-menu
+

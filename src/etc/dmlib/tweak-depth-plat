@@ -1,0 +1,96 @@
+!
+! $Id: tweak-depth-plat,v 1.1 1995-04-20 08:16:26 granger Exp $
+!
+! Throw a new platform into a depth-trace window
+!
+procedure tweak-depth-plat platform string field string win string
+	parameter #win global plot-hold true
+!
+! See if the depth grid components are there; if not, throw them on.
+!
+	if (not pd_defined (win, 'depth-grid', 'platform'))
+		add tc_depth-trace depth-grid #win 0
+		add tc_depth-trace depth-grid-1 #win 0
+	endif
+!
+! Throw in the new platform.
+!
+	local ourcomp 'depth-grid'
+	local plats pd_param(win, ourcomp, 'platform', 'string')
+	if (plats = 'SOMETHING')
+		local plats platform
+	else
+		local plats quote(concat3(plats, ',', platform))
+	endif
+	parameter #win #ourcomp platform #plats
+	local clrs pd_param(win,ourcomp,'field-color','string')
+	local fcolor NthColor('xygraph', nvalue(win,ourcomp,'platform')- 1)
+	local clrs quote(concat3(clrs, ',', fcolor))
+	parameter #win #ourcomp field-color #clrs
+
+	local ourcomp 'depth-grid-1'
+	local plats pd_param(win, ourcomp, 'platform', 'string')
+	if (plats = 'SOMETHING')
+		local plats platform
+	else
+		local plats quote(concat3(plats, ',', platform))
+	endif
+	parameter #win #ourcomp platform #plats
+	local clrs pd_param(win,ourcomp,'field-color','string')
+	local fcolor NthColor('xygraph', 2*nvalue(win,ourcomp,'platform')- 1)
+	local clrs quote(concat3(clrs, ',', fcolor))
+	parameter #win #ourcomp field-color #clrs
+
+	parameter #win global plot-hold false
+endprocedure
+
+
+!
+! Throw a new platform into a depth-trace window
+!
+procedure new-time-depth platform string field string win string
+	parameter #win global plot-hold true
+!
+! See if the depth profile component is there; if not, throw it on.
+!
+	if (not pd_defined (win, 'tc_timedepth', 'platform'))
+		add tc_timedepth tc_timedepth #win 0
+	endif
+!
+! Throw in the new platform.
+!
+	local ourcomp 'tc_timedepth'
+	local plats pd_param(win, ourcomp, 'platform', 'string')
+	if (plats = 'SOMETHING')
+		local plats platform
+	else
+		local plats quote(concat3(plats, ',', platform))
+	endif
+	parameter #win #ourcomp platform #plats
+	local clrs pd_param(win,ourcomp,'field-color','string')
+	local fcolor NthColor('xygraph', nvalue(win,ourcomp,'platform')- 1)
+	local clrs quote(concat3(clrs, ',', fcolor))
+	parameter #win #ourcomp field-color #clrs
+	parameter #win global plot-hold false
+endprocedure
+
+
+
+!
+! Tweak things for a depth contour window
+!
+procedure new-depth-contour platform string field string win string
+	parameter #win global plot-hold true
+!
+! See if the depth profile component is there; if not, throw it on.
+!
+	if (not pd_defined (win, 'tc_depth-contour', 'platform'))
+		add tc_depth-contour tc_depth-contour #win 0
+	endif
+!
+! Throw in the new platform.
+!
+	parameter #win tc_depth-contour platform #platform
+	parameter #win global plot-hold false
+endprocedure
+

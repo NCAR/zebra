@@ -1,0 +1,37 @@
+!
+! Add stuff to a time-height display.
+!
+
+
+!
+! Make sure that a given component is in this window, and that it is
+! displaying the desired platform.
+!
+procedure th-cadd comp string plat string win string
+	parameter #comp #comp platform #plat
+	add #comp #comp #win
+endprocedure
+
+
+
+
+
+procedure lineplot-add plat string field string win string
+	parameter #win global plot-hold true
+!
+! What we do depends a lot on what sort of data is coming in.
+!
+	if (substring (plat, 'prof/') or realplatform (concat ('prof/', plat)))
+		th-cadd c_wind #plat #win
+	elseif (substring(plat,'sounding/') or realplatform(concat('sounding/',plat)))
+		th-cadd c_sound #plat #win
+	elseif (substring(plat,'rass/') or realplatform(concat('rass/',plat)))
+	        th-cadd c_rass #plat #win
+	else
+		beep	! cant do it
+	endif
+
+	parameter #win global plot-hold false
+endprocedure
+
+

@@ -1,0 +1,18 @@
+!
+! Here we blast something out to all cross section displays.
+!
+
+procedure AllXSect x0 string y0 string x1 string y1 string
+	windowlist wins
+	foreach window #wins
+		local pt PDParam(window, 'global', 'plot-type')
+		if (pt = 'xsect')
+			local ep1 quote(concat3(x0, ',', y0))
+			local ep2 quote(concat3(x1, ',', y1))
+			parameter #window global plot-hold true
+			parameter #window global left-endpoint #ep1
+			parameter #window global right-endpoint #ep2
+			parameter #window global plot-hold false
+		endif
+	endfor
+endprocedure

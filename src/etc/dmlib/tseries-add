@@ -1,0 +1,65 @@
+!
+! $Id: tseries-add,v 1.1 1995-04-20 08:16:25 granger Exp $
+!
+! Throw data onto a time series plot.  This works a little different than
+! the (current) dm.widgets mechanism...the idea here is always add new
+! traces with the current field, if there is one.  At the moment, that
+! only one field per window, which is maybe undesirable, but that's how
+! things generally seem to get used anyway.
+!
+
+procedure tseries-add platform string field string window string
+	local comps pd_complist(window)
+	local nt 0
+!
+! Put the window on hold first.
+!
+	parameter #window global plot-hold true
+!
+! Go through the list of components in search of existing traces.  Count them.
+!
+	foreach comp #comps
+		if (comp <> 'global' and comp <> 'xy-grid')
+			if (nt = 0)
+				local dcomps comp
+			else
+				local dcomps concat3(dcomps, ' ', comp)
+			endif
+			local nt (nt + nvalue(window, comp, 'platform'))
+		endif
+	endfor
+!
+! OK, if we found anything, pass through again and add the new platform
+! to each.
+!
+	if (nt > 0)
+		foreach comp #dcomps
+			message 'comp #' comp
+			local plats PDParam(window, comp, 'platform')
+			local plats quote(concat3(plats, ',', platform))
+			parameter #window #comp platform #plats
+			local colors PDParam(window, comp, 'field-color')
+			local fcolor NthColor('xygraph', nt)
+			local colors quote(concat3(colors, ',', fcolor))
+			parameter #window #comp field-color #colors
+			local nt (nt + 1)
+		endfor
+	else
+!
+! there is no data component, we're starting from a blank
+! window.
+!
+		add p_xytrace p_xytrace #window
+		parameter #window p_xytrace platform #platform
+		parameter #window p_xytrace y-field #field
+		parameter #window p_xytrace axis-left true
+		parameter #window p_xytrace axis-right false
+		parameter #window p_xytrace axis-l-grid-intensity 0.7
+		local fcolor NthColor('xygraph', 0)
+		parameter #window p_xytrace field-color #fcolor
+	endif
+!
+! Release the window and we are done.
+!
+	parameter #window global plot-hold false
+endprocedure

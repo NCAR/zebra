@@ -1,0 +1,12 @@
+!
+! Handle zooming out of window menus.
+!
+procedure zoom window string
+	if (dm$config = "zoom")		! Already zoomed -- go back
+		display #previous_config
+	else
+		set previous_config dm$config
+		display zoom #window
+	endif
+endprocedure
+

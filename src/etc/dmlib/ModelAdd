@@ -1,0 +1,75 @@
+!
+! $Id: ModelAdd,v 1.1 1995-04-20 08:16:07 granger Exp $
+!
+! Several procedures for adding several types of model platforms
+! and representations
+!
+
+!
+! Add basic model data: ModelAdd <platform> <field> <color>
+!
+procedure ModelAdd plat string field string color string
+        parameter p_model p_model platform #plat
+        parameter p_model p_model icon #plat
+	parameter p_model p_model field #field
+        parameter p_model p_model color #color
+        parameter p_model p_model altitude-control true
+        sendout p_model 'pick'
+	if (plat = 'ecmwf' or plat = 'ecmwf_sfc')
+	  	parameter #target_win p_model require ecmwf
+	endif
+endprocedure
+
+!
+! Add model winds data: ModelWindsAdd <platform> <icon> <color> <degrade>
+!
+procedure ModelWindsAdd plat string color string degrade string
+        local iconname concat(plat,"_winds")
+        parameter p_model_winds p_model_winds platform #plat
+        parameter p_model_winds p_model_winds icon #iconname
+        parameter p_model_winds p_model_winds color #color
+        parameter p_model_winds p_model_winds degrade #degrade
+        parameter p_model_winds p_model_winds u-field u_wind
+	parameter p_model_winds p_model_winds v-field v_wind
+        parameter p_model_winds p_model_winds altitude-control true
+        sendout p_model_winds 'pick'
+	if (plat = 'ecmwf' or plat = 'ecmwf_sfc')
+	  	parameter #target_win p_model require ecmwf
+	endif
+endprocedure
+
+!
+! Add surface-only model data: SfcModelAdd <platform> <field> <color>
+! (This is like ModelAdd above, except we turn off altitude-control)
+!
+procedure SfcModelAdd plat string field string color string
+        parameter p_model p_model platform #plat
+        parameter p_model p_model icon #plat
+        parameter p_model p_model color #color
+        parameter p_model p_model field #field
+        parameter p_model p_model altitude-control false
+        sendout p_model 'pick'
+	if (plat = 'ecmwf' or plat = 'ecmwf_sfc')
+	  	parameter #target_win p_model require ecmwf
+	endif
+endprocedure
+
+!
+! Add surface winds model data: SfcModelWindsAdd <platform> <color> <degrade>
+! (This is like ModelWindsAdd above, except we turn off altitude-control)
+!
+procedure SfcModelWindsAdd plat string color string degrade string
+        local iconname concat(plat,"_winds")
+        parameter p_model_winds p_model_winds platform #plat
+        parameter p_model_winds p_model_winds icon #iconname
+        parameter p_model_winds p_model_winds color #color
+        parameter p_model_winds p_model_winds degrade #degrade
+        parameter p_model_winds p_model_winds u-field u_wind_10m
+	parameter p_model_winds p_model_winds v-field v_wind_10m
+        parameter p_model_winds p_model_winds altitude-control false
+        sendout p_model_winds 'pick'
+	if (plat = 'ecmwf' or plat = 'ecmwf_sfc')
+	  	parameter #target_win p_model require ecmwf
+	endif
+endprocedure
+

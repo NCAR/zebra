@@ -1,0 +1,16 @@
+/*
+ * DM library modules
+ */
+
+LFILES = init-config-path theight-add lineplot-add tseries-add
+	 makecfgmenu tweak-depth-plat ModelAdd profiler-add \
+         xmgr-pipe RadarAdd rass-add zoom
+
+DISTFILES = $(LFILES) Imakefile
+
+all::	/* nothing */
+
+InstallLibFile ($(LFILES),dmlib,..)
+
+DistfilesTarget ($(DISTFILES))
+

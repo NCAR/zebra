@@ -1,0 +1,71 @@
+!
+! $Id: send-wbounds,v 1.1 1995-04-20 08:16:20 granger Exp $
+!
+! Prompt the user to choose two windows, the first window will be
+! the window whose bounds are desired, and the second will the window
+! where the bounds will be placed
+!
+procedure send-wbounds
+	local dest 'none'
+	local src 'none'
+
+	message 'Select the window whose bounds you wish plotted' color "red" \
+	pickwin src
+	if (src = 'none')
+		return
+	endif
+	message 'Select the constant-altitude plot where the bounds will be drawn' \
+	putc1 p_wbounds platform #src
+endprocedure
+
+!
+! I can't remember what these were for... if anything
+!
+define widget select-source form 'wbounds-src-message'
+	noheader
+	newline
+	label msg \
+	   'Select the window whose bounds you wish plotted' color "red" \
+	   font "*-fixed-*--24-*"
+enddef	
+
+define widget select-dest form 'wbounds-dest-message'
+	noheader
+	newline
+	label msg \
+	 'Select the constant-altitude plot where the bounds will be drawn' \
+	 color "red" font "*-fixed-*--24-*"
+enddef	
+
+
+
+!
+! Put in window bounds.
+!
+procedure put_wbounds comp string
+!
+! Get the window we want to see.
+!
+	set wbounds_win "none"
+	pickwin wbounds_win
+	if (wbounds_win = "none")
+		beep
+		return
+	endif
+!
+! And now the place where it goes.
+!
+	set target_win "none"
+	pickwin target_win
+	if (target_win = "none")
+		beep
+		return
+	endif
+!
+! Fix up the component and ship it over.
+!
+	parameter #comp #comp platform #wbounds_win
+	add #comp #comp #target_win
+endprocedure
+
+

@@ -1,0 +1,32 @@
+!
+! Default submenu for window templates.  Projects can either require this
+! module or copy it and customize for the project.
+!
+
+require "cfg-tools"
+
+! The object here is to add a window
+! from a list of common plot types with generic plot descriptions
+! from a single menu entry.
+!
+define widget template-menu intmenu 'window templates'
+	title 'Window Templates'
+	line
+	entry 'Constant altitude plot' \
+		'create-window cap cap-template big'
+	entry 'Time-series plot' \
+		'create-window tseries tseries-template xyplot'
+	entry 'Time-height plot' \
+		'create-window theight time-height-template xyplot'
+	entry 'Simple line plot' \
+		'create-window lineplot lineplot-template xyplot'
+	entry 'Skew-t plot' \
+		'create-window skewt skewt-template sounding'
+	entry 'Wind profile' 'create-window wind wind-template xyplot'
+	entry 'RASS profile' 'create-window rass rass-template xyplot'
+	entry 'XY Graph' 'create-window xygraph xygraph-template xyplot'
+	entry 'Vertical cross-section' \
+		'create-window xsect xsect-template default'
+	entry 'Real-time clock' 'create-clock'
+endmenu
+

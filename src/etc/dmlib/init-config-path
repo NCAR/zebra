@@ -1,0 +1,47 @@
+!
+! $Id: init-config-path,v 1.1 1995-04-20 08:16:13 granger Exp $
+!
+! Initialize the config search path and default save directory.  By
+! default, save configs to a user-specific subdirectory.  That directory is
+! also put first on in the config path so that user-saved configs take
+! precedence.  The value of ZEB_CONFIGS has even higher precedence.
+!
+set ConfigDir "./dconfig"
+set ConfigPath ConfigDir
+
+!
+! For now, make everyone share the same time file.  Maybe we should make
+! it read-only so people don't destroy it during the conference.
+!
+set TimeFile './dconfig/Showcases'
+
+!
+! First define the procedure, then actually invoke it
+!
+procedure init-config-path
+
+	local user getenv("USER")
+	if (user = "UNDEFINED")
+		local user getenv("LOGNAME")
+	endif
+	if (user <> "UNDEFINED")
+	  	set UserConfigs concat3(ConfigDir,"/",user)
+	else
+		set UserConfigs "UNDEFINED"
+	endif
+	set ZebraConfigs getenv("ZEB_CONFIGS")
+
+	if (UserConfigs <> "UNDEFINED")
+		set ConfigPath concat3(UserConfigs,",",ConfigPath)
+	  	set ConfigDir UserConfigs
+	endif
+	if (ZebraConfigs <> "UNDEFINED")
+		set ConfigPath concat3(ZebraConfigs,",",ConfigPath)
+		set ConfigDir ZebraConfigs
+	endif
+
+endprocedure
+
+
+init-config-path
+

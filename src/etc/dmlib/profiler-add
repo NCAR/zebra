@@ -1,0 +1,24 @@
+!
+! Add data to a profiler window.
+!
+procedure profiler-add platform string field string window string
+!
+! If this is actually a RASS platform, handle it differently.
+!
+!
+! Actually check things?
+!
+	if (not substring (platform, 'prof/') and not realplatform(concat('prof/', platform)))
+		message 'This is not a profiler platform!'
+		beep
+		return
+	endif
+!
+! OK, throw it in to all componenets in the window.
+!
+!	local comp NthComp(window, 1)
+        local comps pd_complist(window)
+        foreach comp #comps
+           parameter #window #comp platform #platform
+        endfor
+endprocedure
