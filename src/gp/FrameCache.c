@@ -32,10 +32,10 @@
 # include "GraphicsW.h"
 # include "ActiveArea.h"
 
-MAKE_RCSID ("$Id: FrameCache.c,v 2.22 1998-10-28 21:21:38 corbet Exp $")
+MAKE_RCSID ("$Id: FrameCache.c,v 2.23 1999-05-28 16:43:04 burghart Exp $")
 
 # define BFLEN		500
-# define FLEN		40
+# define FLEN		80
 # define PMODE		0666
 # define InvalidEntry	-1
 # define FREE		-2

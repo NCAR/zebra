@@ -30,7 +30,7 @@
 # include "DrawText.h"
 # include "PixelCoord.h"
 # include "GC.h"
-MAKE_RCSID ("$Id: Annotate.c,v 2.34 1999-03-01 02:04:19 burghart Exp $")
+MAKE_RCSID ("$Id: Annotate.c,v 2.35 1999-05-28 16:43:04 burghart Exp $")
 
 /*
  * Graphics context (don't use the global one in GC.h because we don't
@@ -873,7 +873,7 @@ int datalen, begin, space;
  */
 {
 	int i, limit, left, ncolors, match, barHeight;
-	char string[40], ctable[40];
+	char string[80], ctable[40];
 	XColor xc, *colors;
 	float scale, center, step, cval, used;
 /*
