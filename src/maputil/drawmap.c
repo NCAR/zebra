@@ -306,15 +306,15 @@ startline:
 			/*
 			 * Dump the line to the file
 			 */		
-				fprintf (Mfile," %3d %9.3f %9.3f %9.3f %9.3f",
+				fprintf (Mfile," %3d %9.6f %9.6f %9.6f %9.6f",
 					 2 * npts, maxlat, minlat, maxlon, 
 					minlon);
 
 				for (i = 0; i < npts; i++)
 				{
-					if (! (i % 4))
+					if (! (i % 3))
 						fprintf (Mfile, "\n");
-					fprintf (Mfile, " %9.3f %9.3f", 
+					fprintf (Mfile, " %12.6f %12.6f", 
 						lat[i], lon[i]);
 				}
 
