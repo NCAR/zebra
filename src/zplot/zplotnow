@@ -9,8 +9,24 @@ if [ "$1" = "-h" ]; then
     exit 0
 fi
 
+# Separate zplotd options from our plot hours
+zplotdargs=""
+opthours=""
+for opt in $* END; do
+    case $opt in
+    END) break ;;
+    -*) zplotdargs="$zplotdargs $opt"
+	;;
+    *)  opthours="$opthours $opt"
+	;;
+    esac
+done
+set skip $opthours
+shift
+
 if [ $# -eq 0 ]; then
-    set $PLOT_HOURS
+    set skip $PLOT_HOURS
+    shift
 else
     PLOT_HOURS="$*"
 fi
@@ -19,6 +35,8 @@ if [ $# -eq 0 ]; then
     echo "No plot hours.  Exiting."
     exit 1
 fi
+
+echo "Plot hours: $*"
 
 currenthour=`date -u '+%H'`
 h1=99
@@ -55,5 +73,6 @@ else
 fi
 
 # Any reason this can't be run in parallel?  Leaving serial for now...
-zplotd -period $plot1
-zplotd -period $plot2
+set -x
+zplotd -period $plot1 $zplotdargs
+zplotd -period $plot2 $zplotdargs
