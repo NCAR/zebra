@@ -1,4 +1,4 @@
-! $Id: DisplayMgr.ad,v 1.14 2000-11-21 23:11:19 granger Exp $
+! $Id: DisplayMgr.ad,v 1.15 2001-01-19 04:55:34 granger Exp $
 !
 ! Application defaults file for the Display Manager
 !
@@ -21,7 +21,6 @@ dm.time.form.background: gray90
 *time*MenuButton*font:	-*-helvetica-medium-r-*-*-*-100-*-*-*-*-*-*
 *time*title*font:	-*-helvetica-bold-r-*-*-*-160-*-*-*-*-*-*
 *time*arrow*font:	-*-symbol-*-*-*-*-*-100-*-*-*-*-*-*
-*time*Text*height:	12	
 *time*title*borderWidth: 0
 *time*background:	gray90
 *time*Command.borderColor:	red
