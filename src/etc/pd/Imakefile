@@ -1,7 +1,7 @@
 /* -*- C -*-
  * PD library files.
  *
- * $Id: Imakefile,v 1.12 1997-04-29 03:54:05 granger Exp $
+ * $Id: Imakefile,v 1.13 1997-05-21 21:33:13 corbet Exp $
  */
 
 INSTALLPD = $(INSTALL) $(INSTALLFLAGS) $(INSTDATFLAGS)
@@ -21,7 +21,8 @@ PDFILES = cap-template.pd /* defaults.pd */ depth-contour-template.pd \
 	p_rg_winds.pd p_rings.pd p_simple_track.pd p_slowtrack.pd \
 	p_station.pd p_track.pd p_wbounds.pd p_xytrace.pd rass-template.pd \
 	skewt-template.pd time-depth-template.pd time-height-template.pd \
-	tseries-template.pd wind-template.pd xygraph-template.pd 
+	tseries-template.pd wind-template.pd xygraph-template.pd \
+	thetaplot-template.pd
 
 install::
 	MakeDir ($(LIBDIR)/pd)

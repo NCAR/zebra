@@ -4,7 +4,7 @@
 
 LFILES = init-config-path theight-add lineplot-add tseries-add \
          makecfgmenu tweak-depth-plat ModelAdd profiler-add \
-         xmgr-pipe RadarAdd rass-add zoom
+         xmgr-pipe RadarAdd rass-add zoom theta-add
 
 DISTFILES = $(LFILES) Imakefile
 
