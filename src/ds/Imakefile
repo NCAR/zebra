@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.38 1996-02-02 17:58:06 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.39 1996-02-02 20:55:40 granger Exp $"
 
 DEPLIBS=$(LIBZEB) /*$(LIBNETCDF)*/
 /* LIBNETCDF=/net/src/netcdf-2.3.2/libsrc/libnetcdf.a */
@@ -134,11 +134,17 @@ TestProgramTarget (aline, $(ALOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
  * a zebra session, and we're dependent on multiple programs.
  */
 #if UseInstalledZebra
-ZEBPROGS = $(BINDIR)/message $(BINDIR)/timer $(BINDIR)/zstop $(BINDIR)/dsdump
+MESSAGE = $(BINDIR)/message
+TIMER = $(BINDIR)/timer
+ZSTOP = $(BINDIR)/zstop
+DSDUMP = $(BINDIR)/dsdump
 #else
-ZEBPROGS = $(TOP)/src/msg/message $(TOP)/src/timer/timer \
-	   $(TOP)/src/zstop/zstop $(TOP)/src/dsdump/dsdump
+MESSAGE = $(TOP)/src/msg/message
+TIMER = $(TOP)/src/timer/timer
+ZSTOP = $(TOP)/src/zstop/zstop
+DSDUMP = $(TOP)/src/dsdump/dsdump
 #endif
+ZEBPROGS = $(MESSAGE) $(TIMER) $(ZSTOP) $(DSDUMP)
 TESTPROJ = /net/shared/zebra/project/test
 DATA_DIR = $(TESTPROJ)/data
 SOCKET = ./test.socket
@@ -162,14 +168,18 @@ test.apple: test.apple.only test.close
 
 #define TEST_ENV \
 	-@ZEB_SOCKET=$(SOCKET); export ZEB_SOCKET; \ @@\
-	DSDUMP=$(BINDIR)/dsdump; export DSDUMP; \ @@\
+	DSDUMP=$(DSDUMP); export DSDUMP; \ @@\
 	DATA_DIR=$(DATA_DIR); export DATA_DIR; \ 
+
 
 test.session $(SOCKET): $(ZEBPROGS) dsDaemon nstest.config
 	TEST_ENV
 	echo "Starting a zebra test session... ZEB_SOCKET=$$ZEB_SOCKET"; \
-	$(BINDIR)/zstop; rm -f $$ZEB_SOCKET; \
-	set -x; message /* -d */ ; (timer &); ($(DSDAEMON) nstest.config &); \
+	$(ZSTOP) $(TESTOUT); $(RM) $$ZEB_SOCKET; \
+	set -x; \
+	$(MESSAGE) $(TESTOUT) ; \
+	($(TIMER) $(TESTOUT) &); \
+	($(DSDAEMON) nstest.config $(TESTOUT) &); \
 	sleep 5; /* give daemon time to connect */
 
 #ifndef LinuxArchitecture
@@ -222,7 +232,7 @@ test.aline.only: aline $(SOCKET)
 	echo " -- Linux NFS bug -- skipping linked znf test"
 #endif
 
-test.apple.only: apple $(SOCKET)
+test.apple.only: apple $(SOCKET) $(DSDUMP)
 	TEST_ENV
 	echo "Running 'apple', arrows away..."; \
 	if $(APPLE) $(TESTOUT); \
@@ -231,10 +241,10 @@ test.apple.only: apple $(SOCKET)
 		echo "FAILED."; \
 	fi
 
-test.close: $(BINDIR)/zstop
+test.close: $(ZSTOP)
 	TEST_ENV
 	echo "Ending zebra test session..."; \
-	$(BINDIR)/zstop; rm -f $$ZEB_SOCKET
+	$(ZSTOP) $(TESTOUT); $(RM) $$ZEB_SOCKET
 
 clean::
 	$(RM) $(SOCKET)
