@@ -1,7 +1,7 @@
 /*
  * ingest.h --- Public protoypes and macros for ingest modules
  *
- * $Id: ingest.h,v 1.7 1993-05-18 05:49:59 granger Exp $
+ * $Id: ingest.h,v 1.8 1993-06-10 22:28:37 granger Exp $
  *
  * ingest.h --- A common ingest interface and support routines for 
  *		Zeb ingest modules
@@ -42,7 +42,6 @@
 # define _ingest_h_
 
 # include <stdio.h>
-# include <varargs.h>
 # include <ctype.h>
 # include <ui_error.h>
 # include "defs.h"
