@@ -28,7 +28,7 @@
 # include "dsPrivate.h"
 # include "dslib.h"
 #ifndef lint
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.26 1994-01-03 07:17:16 granger Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.27 1994-01-12 21:09:59 granger Exp $")
 #endif
 
 # include "netcdf.h"
@@ -138,8 +138,8 @@ static void     dnc_CFIRGridVars FP ((NCTag *, DataChunk *));
 static bool     dnc_OverheadField FP ((char *const));
 static int	dnc_OrgClassCompat FP ((DataOrganization, DataClass));
 static void	dnc_ConvTimes FP ((NCTag *, int, int, ZebTime *));
-static void	dnc_ScalarSetup FP ((NCTag *tag, DataChunk *dc, int nfield,
-				     FieldId *fields));
+static void	dnc_SetFieldTypes FP ((NCTag *tag, DataChunk *dc, int nfield,
+				       FieldId *fields));
 static void	dnc_NSpaceSetup FP((NCTag *tag, DataChunk *dc, 
 				    int nfield, FieldId *fields));
 static int 	dnc_ReadScalar FP ((DataChunk *, NCTag *, long, long, FieldId *,
@@ -934,18 +934,21 @@ DataClass class;
 	   case DCC_IRGrid:
 	   	dc_IRSetup (dc, tag->nc_nPlat, tag->nc_subplats, tag->nc_locs,
 			nfield, fields);
+		dnc_SetFieldTypes (tag, dc, nfield, fields);
 		break;
 	/*
 	 * All rgrids need is the set of fields.
 	 */
 	   case DCC_RGrid:
 	   	dc_RGSetup (dc, nfield, fields);
+		dnc_SetFieldTypes (tag, dc, nfield, fields);
 		break;
 	/*
 	 * Scalars need to know the type of the fields.
 	 */
 	   case DCC_Scalar:
-		dnc_ScalarSetup (tag, dc, nfield, fields);
+		dc_SetScalarFields (dc, nfield, fields);
+		dnc_SetFieldTypes (tag, dc, nfield, fields);
 		break;
 	/*
 	 * NSpace must inquire about dimensions for each field
@@ -986,8 +989,9 @@ DataClass class;
 
 
 
+
 static void
-dnc_ScalarSetup (tag, dc, nfield, fields)
+dnc_SetFieldTypes (tag, dc, nfield, fields)
 NCTag *tag;
 DataChunk *dc;
 int nfield;
@@ -1004,20 +1008,21 @@ FieldId *fields;
 	DC_ElemType types[ MAX_NC_VARS ];
 
 	/*
-	 * For each field, see if its varid is in the tag.  If not,
-	 * skip it.  Else inquire the varid and get its type.
+	 * For each field, see if its varid is in the tag and get the type.
+	 * Unknown fields default to Float so that they'll be filled with
+	 * bad values when data are retrieved.
 	 */
 	for (i = 0; i < nfield; ++i)
 	{
-		types[i] = DCT_Unknown;
+		types[i] = DCT_Float;
 		if ((varid = dnc_GetFieldVar (tag, fields[i])) < 0)
 			continue;
 		ncvarinq (tag->nc_id, varid, 0, &vtype, &ndims, dims, &natts);
 		types[i] = dnc_ElemType (vtype);
 	}
-	dc_SetScalarFields (dc, nfield, fields);
 	dc_SetFieldTypes (dc, nfield, fields, types);
 }
+
 
 
 
@@ -1052,13 +1057,20 @@ FieldId *fields;
 		names[i] = &(dim_names[i][0]);
 	/*
 	 * For each field, see if its varid is in the tag.  If not,
-	 * skip it.  Else inquire the varid and get its dimensions
+	 * default to scalar float.
+	 * Else inquire the varid and get its dimensions
 	 * and define the field with dc_NSDefineField()
 	 */
 	for (i = 0; i < nfield; ++i)
 	{
 		if ((varid = dnc_GetFieldVar (tag, fields[i])) < 0)
-			continue;
+		{
+			/*
+			 * Field unknown, so default to scalar float
+			 */
+			types[i] = DCT_Float;
+			dc_NSDefineField (dc, fields[i], 0, NULL, NULL, FALSE);
+		}
 		/*
 		 * Have a varid for the field.  Get the dimensions.  If
 		 * not static, then we skip the first dimension, time,
@@ -1483,7 +1495,7 @@ float badval;
  */
 {
 	long start[4], count[4];
-	float *grid = (float *) malloc (tag->nc_nPlat * sizeof (float));
+	void *grid = (void *) malloc (tag->nc_nPlat * DC_ElemTypeMaxSize);
 	int sample, f, vfield, dsamp = dc_GetNSample (dc);
 	ZebTime t;
 /*
@@ -1506,20 +1518,23 @@ float badval;
 		 * Look up the field and get the data from the file.  If
 		 * either step fails, fill the array with bad value flags.
 		 */
-			if ((vfield = dnc_GetFieldVar (tag, fids[f])) < 0)
-				dnc_FillArray (grid, count[1], badval);
+			if (((vfield = dnc_GetFieldVar (tag, fids[f])) < 0) &&
+			    (dc_Type (dc, fids[f]) == DCT_Float))
+				dnc_FillArray((float *)grid, count[1], badval);
 			else if (ncvarget (tag->nc_id, vfield, start, count, 
 				grid) < 0)
 			{
-				dnc_FillArray (grid, count[1], badval);
 				dnc_NCError ("Irgrid read");
+				if (dc_Type (dc, fids[f]) == DCT_Float)
+					dnc_FillArray ((float *)grid, count[1],
+						       badval);
 			}
 		/*
 		 * If we got data, swap our bad value flag for the netCDF one
 		 */
-			else
+			else if (dc_Type (dc, fids[f]) == DCT_Float)
 				dnc_ApplyBadval (tag, vfield, dc, fids[f],
-						 badval, grid, count[1]);
+					 badval, (float *)grid, count[1]);
 		/*
 		 * Put the data into the chunk
 		 */
@@ -1616,23 +1631,25 @@ dsDetail *dets;
 		/*
 		 * Look up the field and try to read it in.
 		 */
-			if ((vfield = dnc_GetFieldVar (tag, fids[field])) < 0)
-				dnc_FillArray (dp, count[1]*count[2]*count[3],
-					badval);
+			if (((vfield = dnc_GetFieldVar (tag, fids[field])) < 0)
+			    && (dc_Type (dc, fids[field]) == DCT_Float))
+				dnc_FillArray ((float *)dp, 
+				       count[1]*count[2]*count[3], badval);
 			else if (ncvarget (tag->nc_id, vfield,start, count, 
 			    dp) < 0)
 			{
 				dnc_NCError ("Rgrid read");
-				dnc_FillArray (dp, count[1]*count[2]*count[3],
-					badval);
+				if (dc_Type (dc, fids[field]) == DCT_Float)
+					dnc_FillArray ((float *)dp, 
+					   count[1]*count[2]*count[3], badval);
 			}
 		/*
 		 * If that works, we can apply the bad value flag and
 		 * store the data away.
 		 */
-			else
+			else if (dc_Type (dc, fids[field]) == DCT_Float)
 				dnc_ApplyBadval (tag, vfield, dc, fids[field],
-						 badval, dp,
+						 badval, (float *)dp,
 						 count[1]*count[2]*count[3]);
 		}
 		start[0]++;
@@ -2362,7 +2379,7 @@ DataChunk *dc;
 	sprintf(history,"created by Zeb DataStore, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.26 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.27 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 }
