@@ -17,6 +17,9 @@
  * The original NEXUS code is ifdef'ed out with the NEXUS symbol.
  *
  * Updates: $Log: not supported by cvs2svn $
+ * Updates: Revision 1.12  2000/01/04 23:15:31  granger
+ * Updates: fix a few calls to TC_ZtSplit which still expect a 2-digit year in return
+ * Updates:
  * Updates: Revision 1.11  1999/03/01 02:03:57  burghart
  * Updates: It's time to take the plunge.  This is the merge of the large file database
  * Updates: changes made for the U. of Washington, specifically Branch_Seattle_980430.
@@ -90,12 +93,7 @@
 #include <signal.h>
 #include <ctype.h>
 #include <sys/types.h>
-
-# ifdef  AIXV3			/* For IBM AIX systems */
 # include <time.h>
-# else
-# include <sys/time.h>
-# endif
 
 #include <errno.h>
 #include <math.h>
@@ -112,7 +110,7 @@
 #define MISSVAL		88888.0	/* NEXUS-specific missing data flags	 */
 #endif /* NEXUS */
 
-MAKE_RCSID("$Id: dsprint.c,v 1.12 2000-01-04 23:15:31 granger Exp $")
+MAKE_RCSID("$Id: dsprint.c,v 1.13 2001-09-18 22:00:21 granger Exp $")
 
 /*************************************************************
  ANSI C function prototypes
