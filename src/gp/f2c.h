@@ -1,6 +1,6 @@
 /* f2c.h  --  Standard Fortran to C header file */
 
-/* $Id: f2c.h,v 2.1 1996-04-16 00:20:13 granger Exp $ */
+/* $Id: f2c.h,v 2.2 1997-06-06 22:23:02 ishikawa Exp $ */
 /* Modified for the Zebra distribution.  Thanks to AT&T Bell Labs and
  * Bellcore for a useful and generous copyright -- granger@ncar.ucar.edu */
 
@@ -178,7 +178,9 @@ struct Namelist {
 	};
 typedef struct Namelist Namelist;
 
-#define abs(x) ((x) >= 0 ? (x) : -(x))
+# ifndef AIXV3
+# define abs(x) ((x) >= 0 ? (x) : -(x))
+# endif
 #define dabs(x) (doublereal)abs(x)
 #define min(a,b) ((a) <= (b) ? (a) : (b))
 #define max(a,b) ((a) >= (b) ? (a) : (b))
