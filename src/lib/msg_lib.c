@@ -28,7 +28,7 @@
 # include <sys/uio.h>
 # include "defs.h"
 # include "message.h"
-MAKE_RCSID ("$Id: msg_lib.c,v 2.15 1993-05-25 20:01:25 corbet Exp $")
+MAKE_RCSID ("$Id: msg_lib.c,v 2.16 1993-06-10 22:21:24 granger Exp $")
 
 /*
  * The array of functions linked with file descriptors.
@@ -752,7 +752,7 @@ static int EMask = 0xff;
 
 
 void
-msg_ELog (flags, va_alist)
+msg_ELog (va_alist)
 va_dcl
 /*
  * Extended message logging.
@@ -761,22 +761,24 @@ va_dcl
 	struct msg_elog *el;
 	static char cbuf[10000];
 	va_list args;
+	int flags;
 	char *fmt;
+/*
+ * Get and/or use all of our arguments from the va_alist first
+ */
+	va_start (args);
+	flags = va_arg (args, int);
+	fmt = va_arg (args, char *);
+	el = (struct msg_elog *) cbuf;
+	vsprintf (el->el_text, fmt, args);
+	va_end (args);
 /*
  * If this message won't get logged, don't even send it.
  */
 	if (! (flags & EMask))
 		return;
 /*
- * Print up our message.
- */
-	el = (struct msg_elog *) cbuf;
-	va_start (args);
-	fmt = va_arg (args, char *);
-	vsprintf (el->el_text, fmt, args);
-	va_end (args);
-/*
- * Send it.
+ * Otherwise, send it.
  */
 	el->el_flag = flags;
 	msg_send ("Event logger", MT_ELOG, 0, el,
