@@ -20,7 +20,6 @@
  */
 
 # include <string.h>
-# include <memory.h>
 
 # include <defs.h>
 # include <message.h>
@@ -28,7 +27,7 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_Scalar.c,v 1.7 1995-02-10 01:17:01 granger Exp $")
+MAKE_RCSID ("$Id: dc_Scalar.c,v 1.8 1995-11-20 20:23:00 granger Exp $")
 
 # define SUPERCLASS DCC_MetData
 

@@ -20,7 +20,6 @@
  */
 
 # include <sys/types.h>
-# include <memory.h>
 # include <string.h>
 
 # include <defs.h>
@@ -32,7 +31,7 @@
 # include <zl_regex.h> /* System-independent regex functions in Zeb library */
 
 #ifndef lint
-MAKE_RCSID ("$Id: dc_Attr.c,v 1.12 1995-02-10 01:16:57 granger Exp $")
+MAKE_RCSID ("$Id: dc_Attr.c,v 1.13 1995-11-20 20:22:55 granger Exp $")
 #endif
 
 /*--------------------------------------------------------------------

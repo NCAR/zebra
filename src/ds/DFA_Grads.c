@@ -9,7 +9,6 @@
 # include <unistd.h>
 # include <math.h>
 # include <string.h>
-# include <memory.h>
 
 # include <defs.h>
 # include <message.h>
@@ -19,7 +18,7 @@
 # include "dfa.h"
 # include <byteorder.h>
 
-MAKE_RCSID ("$Id: DFA_Grads.c,v 3.8 1995-06-12 23:08:54 granger Exp $")
+MAKE_RCSID ("$Id: DFA_Grads.c,v 3.9 1995-11-20 20:22:40 granger Exp $")
 
 
 

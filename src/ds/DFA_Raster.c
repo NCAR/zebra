@@ -6,7 +6,6 @@
 # include <fcntl.h>
 # include <unistd.h>
 # include <string.h>
-# include <memory.h>
 
 # include <defs.h>
 # include <message.h>
@@ -17,7 +16,7 @@
 # include "RasterFile.h"
 # include <byteorder.h>
 
-MAKE_RCSID ("$Id: DFA_Raster.c,v 3.12 1995-05-01 16:07:03 corbet Exp $")
+MAKE_RCSID ("$Id: DFA_Raster.c,v 3.13 1995-11-20 20:22:43 granger Exp $")
 
 
 

@@ -24,7 +24,6 @@
 # include <unistd.h>
 # include <errno.h>
 # include <string.h>
-# include <memory.h>
 
 # include <defs.h>
 # include <message.h>
@@ -39,7 +38,7 @@
 #endif
 
 # ifndef lint
-MAKE_RCSID ("$Id: DFA_Zeb.c,v 1.25 1995-02-10 00:49:16 granger Exp $")
+MAKE_RCSID ("$Id: DFA_Zeb.c,v 1.26 1995-11-20 20:22:47 granger Exp $")
 # endif
 
 /*

@@ -19,7 +19,6 @@
  * maintenance or updates for its software.
  */
 # include <string.h>
-# include <memory.h>
 
 # include <defs.h>
 # include <message.h>
@@ -27,7 +26,7 @@
 # include "DataChunk.h"
 # include "DataChunkP.h"
 
-MAKE_RCSID ("$Id: dc_Transp.c,v 1.21 1995-06-29 21:37:33 granger Exp $")
+MAKE_RCSID ("$Id: dc_Transp.c,v 1.22 1995-11-20 20:23:03 granger Exp $")
 
 /*
  * TODO:

@@ -22,13 +22,12 @@
 
 # include <unistd.h>
 # include <string.h>
-# include <memory.h>
 
 # include <defs.h>
 # include <message.h>
 # include "DataStore.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: DataChunk.c,v 3.8 1995-02-10 01:30:15 granger Exp $")
+MAKE_RCSID ("$Id: DataChunk.c,v 3.9 1995-11-20 20:22:51 granger Exp $")
 
 /*
  * ADE Codes for the raw data object.

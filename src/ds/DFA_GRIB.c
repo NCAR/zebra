@@ -26,7 +26,6 @@
 # include <fcntl.h>
 # include <unistd.h>
 # include <string.h>
-# include <memory.h>
 
 # include <copyright.h>
 # include <defs.h>
@@ -38,7 +37,7 @@
 # include "dfa.h"
 # include "GRIB.h"
 
-MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.22 1995-06-12 23:08:50 granger Exp $")
+MAKE_RCSID ("$Id: DFA_GRIB.c,v 3.23 1995-11-20 20:22:37 granger Exp $")
 
 
 /*

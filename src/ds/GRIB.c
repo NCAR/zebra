@@ -25,7 +25,6 @@
 # include <fcntl.h>
 # include <unistd.h>
 # include <string.h>
-# include <memory.h>
 
 # include <copyright.h>
 # include <defs.h>
@@ -33,7 +32,7 @@
 
 # include "GRIB.h"
 
-RCSID ("$Id: GRIB.c,v 3.3 1995-06-29 21:37:29 granger Exp $")
+RCSID ("$Id: GRIB.c,v 3.4 1995-11-20 20:22:53 granger Exp $")
 
 typedef struct s_GRB_DataRepType {
 	int data_type;

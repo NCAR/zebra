@@ -22,7 +22,6 @@
  */
 
 # include <string.h>
-# include <memory.h>
 
 # include <defs.h>
 # include <config.h>		/* For CFG_ symbols */
@@ -31,7 +30,7 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_MetData.c,v 3.16 1995-06-23 23:05:57 corbet Exp $")
+MAKE_RCSID ("$Id: dc_MetData.c,v 3.17 1995-11-20 20:22:57 granger Exp $")
 
 # define SUPERCLASS DCC_Transparent
 
