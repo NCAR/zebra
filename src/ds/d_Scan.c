@@ -32,7 +32,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID ("$Id: d_Scan.c,v 1.21 1994-11-19 00:29:39 burghart Exp $")
+MAKE_RCSID ("$Id: d_Scan.c,v 1.22 1994-12-08 20:02:56 corbet Exp $")
 
 
 /*
@@ -45,6 +45,8 @@ static int	FileChanged FP ((Platform *p, DataFile *df));
 static void	CleanChain FP ((Platform *, int));
 static int	LoadCache FP ((Platform *, int));
 static char     *CacheFileName FP((Platform *p, int local));
+static int	MakeDataDir FP ((char *));
+
 
 
 void
@@ -106,7 +108,9 @@ bool local, rescan;
  */
 	if (! (dp = opendir (dir)))
 	{
-		if (mkdir (dir, 0777))
+		msg_ELog (EF_PROBLEM,
+			"Data dir %s (plat %s) nonexistent", dir, p->dp_name);
+		if (! MakeDataDir (dir))
 		{
 			msg_ELog (EF_PROBLEM, 
 				  "Cannot open or create dir %s (plat %s)",
@@ -129,6 +133,35 @@ bool local, rescan;
 	if (cloaded)
 		CleanChain (p, local ? LOCALDATA (*p) : REMOTEDATA (*p));
 }
+
+
+
+
+
+static int
+MakeDataDir (dir)
+char *dir;
+/*
+ * Try to make the data directory.
+ */
+{
+	char tmp[120], *slash = dir, *strchr ();
+/*
+ * Go through and try to make all of the parent directories.
+ */
+	while (slash = strchr (slash + 1, '/'))
+	{
+		strncpy (tmp, dir, slash - dir);
+		tmp[slash - dir] = '\0';
+		mkdir (tmp, 0777);
+	}
+/*
+ * Now try for the whole thing.
+ */
+	return (mkdir (dir, 0777) == 0);
+}
+
+
 
 
 
@@ -539,7 +572,10 @@ struct ui_command *cmd;
 	/*
 	 * Follow the chain.
 	 */
-	 	for (df = LOCALDATA (*p); df; df = DFTable[df].df_FLink)
+	 	for (df = LOCALDATA (*p); DFTable[df].df_FLink;
+					  df = DFTable[df].df_FLink)
+			; /* Scan to end of chain */
+		for (; df; df = DFTable[df].df_BLink)
 			write (fd, DFTable + df, sizeof (DataFile));
 		if (! onefile)
 			close (fd);
