@@ -8,7 +8,7 @@
 #include <iomanip.h>
 
 //#include <defs.h>
-//RCSID ("$Id: FreeList.cc,v 1.8 1998-05-15 19:36:53 granger Exp $");
+//RCSID ("$Id: FreeList.cc,v 1.9 1998-05-28 21:42:12 granger Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
 #include "BlockFileP.hh"	// For the private header structure and stuff
@@ -224,6 +224,51 @@ FreeList::Remove (int x)
 	for (int i = x ; i < n ; ++i)
 		blocks[i] = blocks[i+1];
 }
+
+
+
+void
+FreeList::Show (ostream &out)
+{
+	for (int i = 0; i < n; ++i)
+	{
+		out << Printf("   %d bytes @ %d\n", 
+			      blocks[i].length, blocks[i].offset);
+	}
+
+	FreeStats fs = Stats();
+	out << "           nfree: " << fs.nfree << endl;
+	out << "      bytes free: " << fs.bytesfree << endl;
+	out << "        nrequest: " << fs.nrequest << endl;
+	out << "   bytes request: " << fs.bytesrequest << endl;
+	out << "     bytes alloc: " << fs.bytesalloc << endl;
+	out << "     bytes freed: " << fs.bytesfreed << endl;
+	long slop = fs.bytesalloc - fs.bytesrequest;
+	out << "            slop: " << slop << " bytes";
+	if (fs.bytesalloc > 0)
+	{
+		float sloppct = (float)slop/fs.bytesalloc*100.0;
+		out << ", " << sloppct << "%";
+	}
+	out << endl;
+	if (fs.nrequest > 0)
+	{
+		out << "     avg request: " 
+		    << (float)fs.bytesrequest/fs.nrequest 
+		    << " bytes" << endl;
+	}
+	out << "        pct free: "
+	    << (float)fs.bytesfree/bf->header->bf_length*100.0 
+	    << "%" << endl;
+	if (fs.nfree > 0)
+	{
+		out << "  avg free block: "
+		    << (float)fs.bytesfree/fs.nfree
+		    << " bytes" << endl;
+	}
+}
+
+
 
 
 // ---------------- Serialization ----------------
