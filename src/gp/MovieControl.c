@@ -1,7 +1,7 @@
 /*
  * Movie control functions.
  */
-static char *rcsid = "$Id: MovieControl.c,v 1.7 1990-11-15 13:37:41 corbet Exp $";
+static char *rcsid = "$Id: MovieControl.c,v 1.8 1991-01-26 00:10:56 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -410,6 +410,7 @@ mc_MovieRun ()
  * out of real time mode.
  */
 	tl_AllCancel ();
+	ds_CancelNotify ();
 	PlotMode = History;
 	mc_UpdateWidgets ();
 /*
