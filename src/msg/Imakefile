@@ -9,3 +9,5 @@ LIBS = $(LIBZEB) $(LIBRDSS)
 
 
 NormalProgramTarget(message, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
+
+DependTarget ()
