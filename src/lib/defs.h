@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 2.25 1994-06-29 20:58:55 case Exp $ */
+/* $Id: defs.h,v 2.26 1994-11-17 07:13:27 granger Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -121,6 +121,7 @@ char 	*GetBaseDir FP ((void));
 char 	*GetBinDir FP ((void));
 char 	*GetLibDir FP ((void));
 char 	*GetProjDir FP ((void));
+char 	*GetDataDir FP ((void));
 
  /* New time format utilities */
 
