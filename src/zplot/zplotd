@@ -12,8 +12,8 @@ $D_NoFtp = 2;   # Skip ftp
 $D_NoPlot = 3;  # Skip batch plot and ftp
 $D_NoEmail = 4; # Don't email
 
-$debug = 0;     # No debugging
-
+$debug = 0;		     	# No debugging
+$FAIL = "ZPLOTD_FAILED";	# failure string
 
 # Top zebra directory
 $ztop=$ENV{'ZEB_TOPDIR'};
@@ -21,7 +21,8 @@ $zbin="$ztop/bin";
 $ENV{'PATH'} = "$zbin:" . $ENV{'PATH'};
 
 # Project directory
-$project=".";
+$project = `pwd`;
+chop $project;
 
 # The platforms which are plotted for each observation rather
 # than only the most recent
@@ -110,7 +111,7 @@ if ($first && ! $since && ! $notice && ! $fixtime)
 
 $dt = `date -u '+%y%m%d.%H%M'`;
 chop $dt;
-$log="logs/zplotd.$dt.log";
+$log="$project/logs/zplotd.$dt.log";
 if ($debug >= $D_Out)
 {
     open(LOG, "| tee $log") || die "$log : $!\n";
@@ -248,7 +249,7 @@ sub clear
 
     $dt = `date -u '+%y%m%d.%H%M'`;
     chop $dt;
-    $plog="logs/plot.$dt.log";
+    $plog="$project/logs/plot.$dt.log";
     open(PLOG, "> $plog") || die "could not open $plog: $!\n";
     $oldfh = select(PLOG); $| = 1; select($oldfh);
 
@@ -280,7 +281,7 @@ sub clear
     print "Opening $batch...\n" if $debug;
     if (! open (BATCH, "> $batch"))
     {
-	$status="FAILED $batch: $!";
+	$status="$FAIL $batch: $!";
 	print "$status" if $debug;
 	return 0;
     }
@@ -299,7 +300,7 @@ sub clear
     {
 	if (! open (BP, "sh -x ./batch-plot - < $batch 2>&1 |"))
 	{
-	    $status="FAILED batch-plot: $!";
+	    $status="$FAIL batch-plot: $!";
 	    print "$status" if $debug;
 	    return 0;
 	}
@@ -313,7 +314,7 @@ sub clear
 	    }
 	}
 	close BP;
-	$status = "plot FAILED" if ($?);
+	$status = "$FAIL" if ($?);
     }
     unlink("$batch");
     print "Running: ftpjoss.pl $images\n" unless ($D_NoFtp);
@@ -328,13 +329,13 @@ sub clear
 	}
 	close FTP;
 	if ($?) {
-	    $status = "FAILED";
+	    $status = "$FAIL";
 	    $result = 0;
 	}
     }
     else
     {
-	$status="ftp FAILED";
+	$status="$FAIL: ftp";
 	$result = 0;
     }
 
@@ -354,6 +355,10 @@ sub clear
 	{
 	    print MAIL "file:$i\n";
 	}
+	print MAIL "\n";
+	print MAIL "Log files:\n";
+	print MAIL "file:$log\n";
+	print MAIL "file:$plog\n";
 	print MAIL "\n";
 	close MAIL;
 	print "--- Mail sent. ---\n";
