@@ -1,7 +1,7 @@
 ;;
 ;; GNU Emacs v19 utilities for dealing with plot descriptions.
 ;;
-(defvar pd::rcsid "$Id: pd-utils19.el,v 1.6 1993-11-06 16:26:13 corbet Exp $"
+(defvar pd::rcsid "$Id: pd-utils19.el,v 1.7 1994-04-21 16:03:11 burghart Exp $"
  "The RCS id")
 
 ;
@@ -262,11 +262,13 @@
 	 "The oldest that data for this overlay is allowed to be before
 being dropped.  Qualified by platform name.")
 
+	("by-altitude"	"xsect"		nil		pd::ck-bool
+	 "Use altitude for the vertical scale of the cross-section?")
+
 	("altitude"	"cap"		nil		pd::ck-float
 	 "The altitude of the constant altitude plane, in km.  If this
 window is operating in radar-space, this parameter is instead the elevation
-of the radar, in degrees." 
-	)
+of the radar, in degrees.")
 
 	("annotation-format"	nil	nil	nil
 	 "A printf-style format for side annotation for track plots.  This
