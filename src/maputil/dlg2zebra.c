@@ -1015,6 +1015,8 @@ ReadRAttrs (char *fname)
 		    MaxRAttrs += 1024;
 		    RAttrs = (RoadAttr*) 
 			realloc (RAttrs, MaxRAttrs * sizeof (RoadAttr));
+		    memset ((void *)(RAttrs + MaxRAttrs - 1024), 0, 
+			    1024 * sizeof (RoadAttr));
 		}
 
 		if ((attr_ndx + 1) > NRAttrs)
@@ -1651,7 +1653,7 @@ WriteRoads (void)
     int	i;
 
     for (i = 1; i < NRLines; i++)
-	if (IsRoadOfClass (RLines + i, MaxRoadClass))
+ 	if (IsRoadOfClass (RLines + i, MaxRoadClass))
 	    WritePolyline (RLines + i, 0);
 } 
 
@@ -1753,7 +1755,23 @@ IsRoadOfClass (LineInfo *line, int class)
 
     if (class > 4)
 	class = 4;
-
+/*
+ * Automatic false if this line has an attribute index of zero
+ */
+    if (! line->attr_ndx)
+	return 0;
+/*
+ * Automatic true if this line's entity is zero.  This happens because some of 
+ * the attributes files are incomplete, i.e., some roads want attribute
+ * indices that are never provided.  Since we don't know for sure about these
+ * roads, it's better to include them than to leave them out.
+ */
+    if (! entity)
+	return 1;
+/*
+ * The real check.  Test the road's entity and see if it fits into one of
+ * the desired road classes.
+ */    
     switch (class)
     {
       case 4:
