@@ -1,11 +1,89 @@
+Note: This document is excerpted from the USGS Web site page:
+
+    http://edcwww.cr.usgs.gov/glis/hyper/guide/1_dgr_dem.supplement#1_dgr.sup1
+
+
+
+Background 
+==========
+
+A Digital Elevation Model (DEM), consists of a sampled array of elevations
+for ground positions that are normally at regularly spaced intervals. The
+1-Degree DEM (3- by 3-arc-second data spacing) provides coverage in 1- by
+1-degree blocks for all of the contiguous United States, Hawaii, and
+limited portions of Alaska. The basic elevation model is produced by or for
+the Defense Mapping Agency (DMA), but is distributed by the USGS, EROS Data
+Center, in the DEM data record format. In reformatting the product the USGS
+does not change the basic elevation information. 1-degree DEM's are also
+referred to as "3-arc second" or "1:250,000 scale" DEM data.
+
+
+Data Characteristics 
+====================
+
+The 1-degree DEM consists of a regular array of elevations referenced
+horizontally on the geographic (latitude/longitude) coordinate system of
+the WGS 72 (to be converted to WGS 84). The information content is
+approximately equivalent to that which can be derived from contour
+information represented on 1:250,000 scale maps.
+
+The unit of coverage is a 1- x 1- degree block. Elevation data on the
+integer degree lines (all four sides) overlap with the corresponding
+profiles on the surrounding eight blocks.
+
+Elevations are in meters relative to National Geodetic Vertical Datum of
+1929 (NGVD 29) in the continental U.S.  and local mean sea level in
+Hawaii. DEM accuracy information is provided below.
+
+The 1-degree DEM mosaic data set is characteristically the same as the
+source 1- by 1-degree DEM unit of coverage.
+
+
+Spatial Resolution 
+==================
+
+Spacing of the elevations along and between each profile is 3-arc seconds
+with 1,201 elevations per profile. The exception is DEM data in Alaska,
+where the spacing and number of elevations per profile varies depending on
+the latitudinal location of the DEM. Latitudes between 50 and 70 degrees
+North have spacings at 6 arc seconds with 601 elevations per profile and
+latitudes greater than 70 degrees North have spacings at 9 arc seconds with
+401 elevations per profile.
+
+The 1-degree mosaic data set spacing of elevation and profile data is the
+same as the 1-degree DEM conterminous U.S. data.
+
+
+Data Organization 
+=================
+
+A DEM file is organized into three logical records: 
+
+ Type A   contains information defining the general
+          characteristics of the DEM, including DEM
+          name, boundaries, units of measurement,
+          minimum and maximum elevations, projection
+          parameters, and number of type B records.
+          Each DEM file has one Type A record.
+
+ Type B   contains profiles of elevation data and
+          associated header information.  Each profile
+          has a Type B record.
+
+ Type C   contains statistics on the accuracy of the
+          data.
+
+A more detailed description of the DEM formats may be found in the USGS
+publication titled "Digital Elevation Models Data Users Guide 1".
+
 			Sample DEM Type A Logical Record
 		Tooele, UT Quadrangle (East Half) (1 degree) 
-	==========================================================
+	----------------------------------------------------------
 TOOELE - E                       UT             NK12-10E                                                                                             1     1     0     0   0.0                     0.0                     0.0                     0.0                     0.0                     0.0                     0.0                     0.0                     0.0                     0.0                     0.0                     0.0                     0.0                     0.0                     0.0                       3     2     4  -0.406800000000000D+06   0.144000000000000D+06  -0.406800000000000D+06   0.147600000000000D+06  -0.403200000000000D+06   0.147600000000000D+06  -0.403200000000000D+06   0.144000000000000D+06   0.126500000000000D+04   0.333600000000000D+04   0.0                       10.300000E+010.300000E+010.100000E+01     1  1201
-	==========================================================
+	----------------------------------------------------------
 
-Data
-Element     Content               Explanation
+  Data
+  Element   Content               Explanation
 
   1         TOOELE...    Quadrangle name field (144 characters); TOOELE - E
                          is the designation for the DEM covering the east half
@@ -76,16 +154,14 @@ Element     Content               Explanation
 
 
 
-
-
 			Sample DEM Type B Logical Record
 		Tooele, UT Quadrangle (East Half) (1 degree) 
-	==========================================================
+	----------------------------------------------------------
      1     1  1201     1  -0.406800000000000D+06   0.144000000000000D+06   0.0                     0.129800000000000D+04   0.207000000000000D+04  1353  1361  1361  1366  1365  1363  1355  1359  ...
-	==========================================================
+	----------------------------------------------------------
 
-Data
-Element     Content               Explanation
+  Data
+  Element   Content               Explanation
 
   1         1 1               Row and column identification number of the
                               profile contained in this record; 1, 1
@@ -120,16 +196,16 @@ Element     Content               Explanation
 
 			Sample DEM Type C Logical Record
 		Tooele, UT Quadrangle (East Half) (1 degree) 
-	==========================================================
+	----------------------------------------------------------
      0     0     0     0     0     0     0     0    26     0
-	==========================================================
+	----------------------------------------------------------
 
                        Type       Physical Record Format
-Data                 (FORTRAN    ASCII  Starting  Ending    Comment
-Element              Notation)   Format   byte     byte
+  Data               (FORTRAN    ASCII  Starting  Ending    Comment
+  Element            Notation)   Format   byte     byte
 
-1  Code indicating   INTEGER*2    16       1        6    Code 1 = available
-   availability of                                            0 = unavailable
+1  Code indicating   INTEGER*2    16       1        6    Code 1 - available
+   availability of                                            0 - unavailable
    statistics in
    data element 2
 
@@ -143,8 +219,8 @@ Element              Notation)   Format   byte     byte
    in data element                                       estimated rather than
    2 are based                                           computed.
 
-4  Code indicating   INTEGER*2    I6      31       36    Code 1 = available
-   availability of                                            0 = unavailable
+4  Code indicating   INTEGER*2    I6      31       36    Code 1 - available
+   availability of                                            0 - unavailable
    statistics in
    data element 5
 
@@ -158,4 +234,51 @@ Element              Notation)   Format   byte     byte
    in element 5                                          be estimated rather
    are based                                             than computed.
 
-  Padded to 1024 bytes with blanks
+Padded to 1024 bytes with blanks
+
+
+DEM Accuracy 
+============
+
+General Information 
+-------------------
+
+The accuracy of a DEM is dependent upon its source and the spatial
+resolution, that is grid spacing, of the data profiles. One factor
+influencing DEM accuracy is source data scale and resolution. A dependency
+exists between the scale of the source materials and the level of grid
+refinement possible. The source resolution is also a factor in determining
+the level of content that may be extracted during digitization. For
+example, 1:250,000-scale topographic maps are the primary source of
+1-degree DEM's.
+
+Another factor is the horizontal and vertical dimension of the
+DEM. Horizontal accuracy of DEM data is dependent upon the horizontal
+spacing of the elevation matrix. Within a standard DEM, most terrain
+features are generalized by being reduced to grid nodes spaced at regular
+intersections in the horizontal plane. This generalization reduces the
+ability to recover positions of specific features less than the internal
+spacing during testing and results in a de facto filtering or smoothing of
+the surface during gridding.
+
+Vertical accuracy of DEM data is dependent upon the spatial resolution
+(horizontal grid spacing), quality of the source data, collection and
+processing procedures, and digitizing systems. As with horizontal accuracy,
+the entire process, beginning with project authorization, compilation of
+the source data sets, and the final gridding process, must satisfy accuracy
+criteria customarily applied to each system. Each source data set must
+qualify to be used in the next step of the process. Errors have the effect
+of compounding for each step of the process.  Production personnel are
+directed to account for each production step leading to the final DEM.
+
+1-Degree DEM Accuracy 
+---------------------
+
+The broad DMA production objective for a 1-degree DTED-1 is to satisfy an
+absolute horizontal accuracy (feature to datum) of 130 m, circular error at
+90-percent probability; and an absolute vertical accuracy (feature to mean
+sea level) of + or - 30m, linear error at 90-percent probability. The
+relative horizontal and vertical accuracy (feature to feature on the
+surface of the elevation model), although not specified, will in many cases
+conform to the actual hypsographic features with higher integrity than
+indicated by the absolute accuracy.
