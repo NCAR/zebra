@@ -34,7 +34,8 @@ typedef enum EqPriority {
 typedef enum {
 	Override,
 	Augment,
-	Bounce
+	Bounce,
+	OverrideQ
 } EQoverride;
 
 
