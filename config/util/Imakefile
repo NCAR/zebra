@@ -1,8 +1,12 @@
-XCOMM $Id: Imakefile,v 1.1 1993-05-26 19:17:32 corbet Exp $
+XCOMM $Id: Imakefile,v 1.2 1994-05-23 23:58:40 granger Exp $
 #if UseCCMakeDepend
 MDEP_DIR = makedepend
 #endif
          PROGRAMS = $(MDEP_DIR) zmkmf
+
+DISTFILES = Imakefile bsdinst.sh checkSysV.sh crayar.sh install.sh \
+            lndir.man lndir.sh lninst.sh mdepend.cpp mkdirhier.man \
+            mkdirhier.sh syminst.sh zmkmf.cpp
 
 all:: $(PROGRAMS)
 
@@ -31,4 +35,4 @@ depend::
 
 install.man::
 
-
+DistfilesTarget($(DISTFILES))
