@@ -1,4 +1,4 @@
-XCOMM $Id: Imakefile,v 1.1 1993-03-15 18:10:15 granger Exp $
+XCOMM $Id: Imakefile,v 1.2 1993-04-30 23:09:04 granger Exp $
 XCOMM
 XCOMM This is the top-level Imakefile for the Zeb distribution.
 XCOMM It is modeled after the top-level Imakefile of the MIT X11R5
@@ -88,7 +88,7 @@ usage::
 
 all:: Everything
 
-MakeSubdirs($(SUBDIRS))
+/*MakeSubdirs($(SUBDIRS))*/ /* Can't use all target because of install.lib */
 DependSubdirs($(SUBDIRS))
 InstallLibSubdirs($(SUBDIRS))
 DistfilesTarget($(DISTFILES))
