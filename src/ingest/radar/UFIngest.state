@@ -1,0 +1,160 @@
+!
+! Radar ingest configuration language.
+!
+!
+!		Copyright (C) 1987,88,89,90,91 by UCAR
+!	University Corporation for Atmospheric Research
+!		   All rights reserved
+!
+! No part of this work covered by the copyrights herein may be reproduced
+! or used in any form or by any means -- graphic, electronic, or mechanical,
+! including photocopying, recording, taping, or information storage and
+! retrieval systems -- without permission of the copyright owner.
+! 
+! This software and any accompanying written materials are provided "as is"
+! without warranty of any kind.  UCAR expressly disclaims all warranties of
+! any kind, either express or implied, including but not limited to the
+! implied warranties of merchantibility and fitness for a particular purpose.
+! UCAR does not indemnify any infringement of copyright, patent, or trademark
+! through use or modification of this software.  UCAR does not provide 
+! maintenance or updates for its software.
+!
+define state initial
+	eoftext 'exit'
+	ctable ui$command_table
+	@ /rdss/ui/ui_commands.
+
+	input 'go' 1
+		next ust$no_more
+	endinput
+	input 'source' 2
+		next source-type
+	endinput
+	input 'field' 5
+		next field-name
+	endinput
+	input 'threshold' 6
+		next threshold-offset
+	endinput
+	input 'consumer' 7
+		next consumer-args
+	endinput
+enddef
+
+define state field-name
+	input string
+		lowercase
+		next field-opt-offset
+	endinput
+enddef
+
+define state field-opt-offset
+	input integer
+		next field-opt-min
+	endinput
+	input 'offset' 0
+		ignore
+		next field-offset
+	endinput
+enddef
+
+define state field-offset
+	input integer
+		next field-opt-min
+	endinput
+enddef
+
+define state field-opt-min
+	input 'min' 0
+		ignore
+		next field-min
+	endinput
+	input real
+		next field-opt-max
+	endinput
+enddef
+
+define state field-min
+	input real
+		next field-opt-max
+	endinput
+enddef
+
+define state field-opt-max
+	input 'max' 0
+		ignore
+		next ust$final_real
+	endinput
+	input real
+		next ust$no_more
+	endinput
+enddef
+
+define state source-type
+	input 'file' 3
+		next ust$final_unmunged_string
+	endinput
+	input 'interface' 4
+		next ust$final_unmunged_string
+	endinput
+enddef
+
+
+define state threshold-offset
+	input 'offset' 0
+		ignore
+		next threshold-offset
+	endinput
+	input integer
+		next threshold-counts
+	endinput
+enddef
+
+define state threshold-counts
+	input 'threshold' 0
+		ignore
+		next threshold-counts
+	endinput
+	input integer
+		next ust$no_more
+	endinput
+enddef
+
+
+define state consumer-args
+	input EOS
+		done
+	endinput
+	input string
+		next consumer-args
+	endinput
+enddef
+
+set ui$initial_state "initial"
+
+procedure ui$init
+!
+! Set up for nexrad radar level II data.
+!
+	set x_resolution	920
+	set y_resolution	920
+!	set radar_lat	    29.4728 ! these #'s are for khou
+!	set radar_lon		-95.0823
+	set radar_lat	    28.1311 !these are for kmlb
+	set radar_lon		-80.6544
+	set radar_alt	        0.0		! Not used now
+	set GMT_offset		5		!daylight savings time!!!
+	set platform		"nexrad_kmlb"
+	set minimum_sweep	25
+!
+! If there was a command file specified, we just read it and go
+! straight into run mode.  Otherwise we expect to be interactive.
+!
+	if (defined ("CommandFile"))
+		local rcmd "read"
+		#rcmd #CommandFile
+		go
+	else
+		message 'No command file'
+	endif
+endprocedure

@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.4 1993-08-18 15:34:20 burghart Exp $"
+MFVERSION="$Id: Imakefile,v 1.5 1993-10-05 16:14:58 burghart Exp $"
 
 LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
 
@@ -45,17 +45,26 @@ NormalProgramTargetNoInstall(adrad_ingest,adrad_ingest.o Rasterize.o
 NormalProgramTarget(adradFieldList,
 	adradFieldList.o adradInput.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
-UILoadFileTarget(radar_ingest.lf,adrad_ingest.state)
+NormalProgramTargetNoInstall(UFIngest,UFIngest.o Rasterize.o 
+	UFInput.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
+
+UILoadFileTarget(radar_ingest.lf,radar_ingest.state)
 
 UILoadFileTarget(adrad_ingest.lf,adrad_ingest.state)
+
+UILoadFileTarget(UFIngest.lf,UFIngest.state)
 
 InstallProgramSetUID(radar_ingest,$(BINDIR))
 
 InstallProgramSetUID(adrad_ingest,$(BINDIR))
 
+InstallProgramSetUID(UFIngest,$(BINDIR))
+
 InstallAppDefaults(radar_ingest)
 
 InstallAppDefaults(adrad_ingest)
+
+InstallAppDefaults(UFIngest)
 
 NormalProgramTarget(ds_consumer,ds_consumer.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
