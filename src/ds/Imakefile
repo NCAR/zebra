@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.25 1995-04-17 22:35:10 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.26 1995-04-20 20:25:23 granger Exp $"
 
 DEPLIBS=$(LIBZEB) /*$(LIBNETCDF)*/
 /* LIBNETCDF=/net/src/netcdf-2.3.2/libsrc/libnetcdf.a */
@@ -27,18 +27,18 @@ DEFINES = /* -DDEBUG -DTEST_TIME_UNITS */
 /* 
  * DSOBJS, DSSRCS = Daemon-specific object modules 
  */
-DSOBJS= Daemon.o d_DataTables.o d_Config.o d_Notify.o d_Scan.o d_Debug.o
-DSSRCS= Daemon.c d_DataTables.c d_Config.c d_Notify.c d_Scan.c d_Debug.c
+DSOBJS= Daemon.o d_DataTables.o d_Config.o d_Scan.o d_Debug.o
+DSSRCS= Daemon.c d_DataTables.c d_Config.c d_Scan.c d_Debug.c
 
 /* 
  * DSLIBOBJS, DSLIBSRCS = normal DS library code 
  */
 DSLIBOBJS = Appl.o DataFileAccess.o DFA_GRIB.o DFA_NetCDF.o ingest.o \
 	GetList.o DFA_Boundary.o DFA_Raster.o Fields.o DFA_Zeb.o \
-	DFA_Grads.o GRIB.o
+	DFA_Grads.o GRIB.o d_Notify.o 
 DSLIBSRCS = Appl.c DataFileAccess.c DFA_GRIB.c DFA_NetCDF.c ingest.c \
 	GetList.c DFA_Boundary.c DFA_Raster.c Fields.c DFA_Zeb.c \
-	DFA_Grads.c GRIB.c
+	DFA_Grads.c GRIB.c d_Notify.c
 
 /* 
  * DCOBJS, DCSRCS =  data chunk modules 

@@ -44,7 +44,7 @@
 # include "dsDaemon.h"
 # include "commands.h"
 
-MAKE_RCSID ("$Id: Daemon.c,v 3.47 1995-04-17 22:38:58 granger Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.48 1995-04-20 20:25:21 granger Exp $")
 
 
 /*
@@ -596,8 +596,7 @@ struct message *msg;
 		client = (struct mh_client *) msg->m_data;
 		if (client->mh_evtype == MH_CE_DISCONNECT)
 		{
-			dap_Cancel (client->mh_client,
-					(struct dsp_Template *) tm);
+			dap_Cancel (client->mh_client);
 			for (i = 0; i < NPlatform; i++)
 			{
 				if (PTable[i].dp_RLockQ)
@@ -670,7 +669,7 @@ struct dsp_Template *dt;
 		break;
 
 	   case dpt_CancelNotify:
-	   	dap_Cancel (from, dt);
+	   	dap_Cancel (from);
 		break;
 
 	   case dpt_CopyNotifyReq:

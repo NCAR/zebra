@@ -20,13 +20,12 @@
  * maintenance or updates for its software.
  */
 
-# include "defs.h"
-# include "message.h"
+# include <defs.h>
+# include <message.h>
 # include "DataStore.h"
 # include "dsPrivate.h"
-# include "dsDaemon.h"
 
-RCSID("$Id: d_Notify.c,v 3.5 1995-02-10 01:02:50 granger Exp $")
+RCSID("$Id: d_Notify.c,v 3.6 1995-04-20 20:24:56 granger Exp $")
 
 /*
  * Here we take advantage of the knowledge that PlatformID's are simply small
@@ -131,15 +130,16 @@ struct dsp_NotifyRequest *req;
 
 
 void
-dap_Cancel (proc, dt)
+dap_Cancel (proc)
 char *proc;
-struct dsp_Template *dt;
 /*
  * Cancel all requests by this proc.
  */
 {
 	int plat;
 	NRequest *zap, *last;
+	char buf[256];
+	struct dsp_Template *dt = (struct dsp_Template *) buf;
 
 	for (plat = 0; plat < MAXPLAT; plat++)
 	{
@@ -173,13 +173,15 @@ struct dsp_Template *dt;
 		}
 	}
 /*
- * Notify the copy proc if there is one.
+ * Notify the copy process if there is one.  Append the client name to the
+ * template message to tell the copy process which client should be
+ * cancelled.
  */
-	if (Copies /* && dt->dsp_type != MH_CLIENT */ )
+	if (Copies)
 	{
-		strcpy (((char *) dt) + sizeof (dt), proc);
+		strcpy (((char *) dt) + sizeof (*dt), proc);
 		msg_send (CopyProc, MT_DATASTORE, FALSE, dt,
-			sizeof (*dt) + strlen (proc) + 1);
+			  sizeof (*dt) + strlen (proc) + 1);
 	}
 }
 
