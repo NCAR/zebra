@@ -1,7 +1,278 @@
 !
 ! XYGraph[simple] support stuff.
 !
-! $Id: xytrace,v 1.7 1995-07-24 18:31:30 granger Exp $
+! $Id: xytrace,v 1.8 1996-02-08 16:40:22 burghart Exp $
+
+!
+! Some widths, so we can change 'em in one place
+!
+set one_w "150"
+set two_w "300"
+set oneandahalf_w "225"
+set half_w "75"
+
+!
+! Main menu
+!
+
+require simple-color
+require form-utilities
+
+define widget xytrace-right intmenu 'x'
+	title 'XYGraph options'
+	line
+	entry 'Platforms & colors...' 'popup xytrace-plats-n-colors'
+	entry 'Other details...' 'popup xytrace-details'
+	line
+	
+endmenu
+
+!
+! Form widget to tweak platforms & colors
+!
+define widget xytrace-plats-n-colors form ' '
+	popup xyt-pnc-popup
+	noheader
+	label title 'happy happy joy joy' width #two_w
+	label comp 'c' color gray95
+	newline
+!
+! options to actually do something.
+!
+	button apply 'Apply' command xyt-pnc-apply
+	button applyd 'Apply and dismiss' \
+		command 'xyt-pnc-apply; popdown #ui$form'
+	button dismiss 'Dismiss' command 'popdown #ui$form' color red
+	newline
+!
+! Platforms and colors
+!
+	label plabel0 'Platform 1:'
+	blank plat0 '' width #one_w
+	pulldown color0 '' width #one_w menu form-color-menu
+	newline
+	label plabel1 'Platform 2:'
+	blank plat1 '' width #one_w
+	pulldown color1 '' width #one_w menu form-color-menu
+	newline
+	label plabel2 'Platform 3:'
+	blank plat2 '' width #one_w
+	pulldown color2 '' width #one_w menu form-color-menu
+	newline
+	label plabel3 'Platform 4:'
+	blank plat3 '' width #one_w
+	pulldown color3 '' width #one_w menu form-color-menu
+	newline
+enddef
+
+!
+! The xytrace-plats-n-colors initialization routine.
+!
+procedure xyt-pnc-popup
+	local f ui$form
+	local c icon_component
+	local yfld PDParam(c,'y-field')
+	local xfld PDParam(c,'x-field')
+	local platlist PDParam(c, 'platform')
+	local colorlist PDParam(c, 'field-color')
+
+	formtext #f comp #c
+
+	local ttl quote(concat3(yfld,' vs. ',xfld))
+	formtext #f title #ttl
+
+	local which 0
+	while (which < 4)
+		local plat NthElement(platlist, which)
+		local color NthElement(colorlist, which)
+		local pblank concat("plat", string(which))
+		local cbutton concat("color", string(which))
+		formtext #f #pblank #plat
+		if (color <> "(NONE)")
+			formtext #f #cbutton #color
+		else
+			formtext #f #cbutton white
+		endif
+		local which (which + 1)
+	endwhile
+endprocedure
+
+
+
+!
+! Apply all the changes.
+!
+procedure xyt-pnc-apply
+	local f ui$form
+	local c getftext(f, 'comp')
+
+	local platlist ""
+	local colorlist ""
+
+	local which 0
+	while (which < 4)
+		local pblank concat("plat", string(which))
+		local cbutton concat("color", string(which))
+
+		local plat getftext(f, pblank)
+		local color getftext(f, cbutton)
+
+		if (plat <> "(NONE)")
+			if (which <> 0)
+				local platlist concat(platlist, ",")
+				local colorlist concat(colorlist, ",")
+			endif
+			local platlist concat(platlist, plat)
+			local colorlist concat(colorlist, color)
+		endif
+		local which (which + 1)
+	endwhile
+
+	parameter #c platform #platlist
+	parameter #c field-color #colorlist
+endprocedure
+
+!
+! Form widget for other plot details
+!
+define widget xytrace-details form ' '
+	popup xyt-det-popup
+	noheader
+	label title ' ' width #two_w
+	label comp ' ' color gray95
+	newline
+!
+! options to actually do something.
+!
+	button apply 'Apply' command xyt-det-apply
+	button applyd 'Apply and dismiss' \
+		command 'xyt-det-apply; popdown #ui$form'
+	button dismiss 'Dismiss' command 'popdown #ui$form' color red
+	newline
+!
+! Representation style
+!
+	label rlabel 'Representation style:' width #one_w
+	pulldown repstyle '' width #one_w menu xyrepmenu
+	newline
+!
+! Scale axes
+!
+	label empty_1 ' '
+	newline
+
+	label la_label 'Left scale axis is:' width #one_w
+	button l_axis ' ' command 'fu-toggle-enabled' width #one_w
+	newline
+	label lab_label 'with grid brightness (0.0-1.0):' width #oneandahalf_w
+	blank l_brite '' width #half_w
+	newline
+
+	label empty_2 ' '
+	newline
+
+	label ra_label 'Right scale axis is:' width #one_w
+	button r_axis ' ' command 'fu-toggle-enabled' width #one_w
+	newline
+	label rab_label 'with grid brightness (0.0-1.0):' width #oneandahalf_w
+	blank r_brite '' width #half_w
+	newline
+
+	label empty_3 ' '
+	newline
+
+	label ta_label 'Times in annotation:' width #one_w
+	button ta_button ' ' command 'fu-toggle-enabled' width #one_w
+	newline
+enddef
+
+
+!
+! The xytrace-details form initializer
+!
+procedure xyt-det-popup
+	local f ui$form
+	local c icon_component
+	local yfld PDParam(c,'y-field')
+	local xfld PDParam(c,'x-field')
+
+	formtext #f comp #c
+
+	local ttl quote(concat3(yfld,' vs. ',xfld))
+	formtext #f title #ttl
+!
+! Representation style
+!
+	local rep PDParam(icon_component,'representation-style')
+	if (rep <> 'icon')
+		formtext #f repstyle 'line'
+	else
+		local rep PDParam(icon_component,'point-icon')
+		if (rep = '(Undefined)')
+			local rep 'cross'
+		endif
+		formtext #f repstyle #rep
+	endif
+!
+! Scale axes
+!
+	fu-setenabled #f "l_axis" #c "axis-left" True
+
+	local brite PDParam(c,"axis-l-grid-intensity")
+	if (brite = "(Undefined)")
+		local brite "0.75"
+	endif
+	formtext #f l_brite #brite
+
+	fu-setenabled #f "r_axis" #c "axis-right" True
+
+	local brite PDParam(c,"axis-r-grid-intensity")
+	if (brite = "(Undefined)")
+		local brite "0.75"
+	endif
+	formtext #f r_brite #brite
+!
+! Times in annotation?
+!
+	fu-setenabled #f "ta_button" #c "time-annot" True
+endprocedure
+
+
+
+!
+! Apply all the changes in xyt-details
+!
+procedure xyt-det-apply
+	local f ui$form
+	local c getftext(f, 'comp')
+!
+! Representation style
+!
+	local rep getftext(f,'repstyle')
+	if (rep = 'line')
+		parameter #icon_component representation-style line
+	else
+		parameter #icon_component representation-style icon
+	endif
+	parameter #icon_component point-icon #rep
+!
+! Axis stuff
+!
+	fu-applyenabled #f "l_axis" #c "axis-left"
+
+	local brite getftext(f,"l_brite")
+	parameter #icon_component axis-l-grid-intensity #brite
+
+	fu-applyenabled #f "r_axis" #c "axis-right"
+
+	local brite getftext(f,"r_brite")
+	parameter #icon_component axis-r-grid-intensity #brite
+!
+! Times in annotation?
+!
+	fu-applyenabled #f "ta_button" #c "time-annot"
+endprocedure
+
 
 define widget xysideannot intmenu ' '
 	title 'Side annotation size'
@@ -15,19 +286,17 @@ define widget xysideannot intmenu ' '
 endmenu
 
 
-define widget xytrace-right intmenu 'x'
-	title 'XYGraph options'
+define widget xyrepmenu intmenu ' '
+	title 'Representation style'
 	line
-	entry 'Line representation' 'xyrep line' \
-		(PDParam (icon_component, 'representation-style') = 'line')
-	entry 'Point representation' 'xyrep point' \
-		(PDParam (icon_component, 'point-icon') = 'point')
-	entry 'Cross representation' 'xyrep cross' \
-		(PDParam (icon_component, 'point-icon') = 'cross')
-	entry 'X-mark representation' 'xyrep xmark' \
-		(PDParam (icon_component, 'point-icon') = 'xmark')
-	entry 'Circle representation' 'xyrep fmill-loc' \
-		(PDParam (icon_component, 'point-icon') = 'fmill-loc')
+	entry 'line' 'formtext #ui$form #ui$formentry line'
+	entry 'point' 'formtext #ui$form #ui$formentry point'
+	entry 'cross' 'formtext #ui$form #ui$formentry cross'
+	entry 'xmark' 'formtext #ui$form #ui$formentry xmark'
+	entry 'tinycircle' 'formtext #ui$form #ui$formentry tinycircle'
+endmenu
+
+define widget grebl intmenu ' '
 	line
 	submenu 'Side annotation size' xysideannot
 	entry 'Show time in side annotation' 'ToggleBoolean time-annot' \
@@ -35,15 +304,6 @@ define widget xytrace-right intmenu 'x'
 	line
 	entry 'Add new field' xyaddfield
 endmenu
-
-procedure xyrep rep string
-	if (rep = 'line')
-		parameter #icon_component representation-style #rep
-	else
-		parameter #icon_component representation-style icon
-	endif
-	parameter #icon_component point-icon #rep
-endprocedure
 
 !
 ! The field selection procedure.
