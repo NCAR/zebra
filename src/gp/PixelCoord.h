@@ -53,8 +53,8 @@
  */
 # define F_X0 0.05
 # define F_X1 0.85
-# define F_Y0 0.05
-# define F_Y1 0.85
+# define F_Y0 0.00
+# define F_Y1 0.90
 
 /*
  * Space reserved for icons, and resultant usable plot height, both in pixels
