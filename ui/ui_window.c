@@ -28,7 +28,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_window.c,v 1.36 1998-10-29 21:22:01 burghart Exp $";
+static char *Rcsid = "$Id: ui_window.c,v 1.37 1998-12-17 17:18:18 burghart Exp $";
 
 /*
  * Public variables, declared in ui_window.h
@@ -488,7 +488,7 @@ char *name, *title;
 	frame->fw_flags = WF_INTERNAL;
 	ERRORCATCH
 		ui_subcommand ("ust$in-stack", "Stack>", uw_in_stack, 
-			(int) frame);
+			(long) frame);
 	ON_ERROR
 		/* uw_destroy (frame) */
 		RESIGNAL;
@@ -1167,7 +1167,8 @@ int lun, init;
 	char name[MAXTITLE], title[MAXTITLE];
 	struct frame_widget *frame = 0;
 	struct gen_widget *gw, *uw_l_list (), *uw_l_cmenu ();
-	struct gen_widget *uw_LoadMenubar ();
+	struct gen_widget *uw_LoadMenubar (), *uw_LoadPulldown ();
+	struct gen_widget *uw_FLoad ();
 /*
  * Go through all the widgets in the file.
  */
@@ -1224,14 +1225,14 @@ int lun, init;
 		 * Internal popups.
 		 */
 		   case WT_INTPOPUP:
-		   	gw = (GenWidget *) uw_LoadPulldown (lun);
+		   	gw = uw_LoadPulldown (lun);
 			uw_add_child (frame, gw);
 			break;
 		/*
 		 * Forms.
 		 */
 		   case WT_FORM:
-		   	gw = (GenWidget *) uw_FLoad (lun);
+		   	gw = uw_FLoad (lun);
 			uw_add_child (frame, gw);
 			break;
 		/*

@@ -1,5 +1,5 @@
 /* 11/84 jc */
-/* $Id: disk.c,v 1.6 1998-02-26 21:16:43 burghart Exp $ */
+/* $Id: disk.c,v 1.7 1998-12-17 17:18:20 burghart Exp $ */
 /*
  * Disk handling.
  *
@@ -14,12 +14,14 @@
 # endif
 
 # ifdef UNIX
-# include <stdio.h>
-# include <errno.h>
-# ifdef NETACCESS
-#   include "netdisk.h"
-# endif
-# define LTYPE long
+#   include <stdio.h>
+#   include <errno.h>
+#   include <string.h>
+#   include <stdlib.h>
+#   ifdef NETACCESS
+#     include "netdisk.h"
+#   endif
+#   define LTYPE long
 FILE *fopen ();
 long ftell (), Offset;
 # endif
@@ -29,8 +31,9 @@ long ftell (), Offset;
 
 static char *Def_name = "SYS$SCRATCH:TAPE.TAP";
 static char Def_buf[200];
-char *malloc ();
 
+long lun_assign();
+long lun_lookup();
 
 void
 dsetdef (name)
@@ -129,7 +132,7 @@ char *file;
 		return (FALSE);
 	}
 #   ifdef NETACCESS
-	return ((LTYPE) lun_assign ((int) fd, LUN_LOCAL));
+	return ((LTYPE) lun_assign ((long) fd, LUN_LOCAL));
 #   else
 	return ((LTYPE) fd);
 #   endif
@@ -294,7 +297,7 @@ char *file;
 		return (FALSE);
 	}
 #   ifdef NETACCESS
-	return ((LTYPE) lun_assign ((int) fd, LUN_LOCAL));
+	return ((LTYPE) lun_assign ((long) fd, LUN_LOCAL));
 #   else
 	return ((LTYPE) fd);
 #   endif
@@ -393,7 +396,7 @@ char *file;
 		return (FALSE);
 	}
 #   ifdef NETACCESS
-	return ((LTYPE) lun_assign ((int) fd, LUN_LOCAL));
+	return ((LTYPE) lun_assign ((long) fd, LUN_LOCAL));
 #   else
 	return ((LTYPE) fd);
 #   endif

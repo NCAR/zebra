@@ -1,4 +1,4 @@
-/* $Id: ui_symbol.h,v 1.7 1998-02-26 21:18:46 burghart Exp $ */
+/* $Id: ui_symbol.h,v 1.8 1998-12-17 17:18:17 burghart Exp $ */
 /*
  * Global declarations for the symbol table module.
  */
@@ -23,7 +23,7 @@
  */
 typedef union usy_value
 {
-	int us_v_int;		/* Integer symbol value		*/
+	long us_v_int;		/* Integer symbol value		*/
 	float	us_v_float;	/* Floating point value		*/
 	date	us_v_date;	/* Date value			*/
 	char	*us_v_ptr;	/* Everything else		*/

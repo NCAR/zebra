@@ -1,6 +1,7 @@
 # ifdef NETACCESS
 
 # include <stdlib.h>
+# include <string.h>
 # include <sys/types.h>
 # include <sys/socket.h>
 # include <netinet/in.h>
@@ -621,14 +622,13 @@ int len;
  * Logical unit stuff
  */
 
-static int Lun_table[256][2];
+static long Lun_table[256][2];
 static int Initialized = 0;
 
-int
-lun_type (lun)
-int lun;
+long
+lun_type (long lun)
 {
-	if (lun == (int) stdin || lun == (int) stdout || lun == (int) stderr)
+	if (lun == (long) stdin || lun == (long) stdout || lun == (long) stderr)
 		return (LUN_LOCAL);
 	return (Lun_table[lun - 3][0]);
 }
@@ -636,11 +636,11 @@ int lun;
 
 
 
-int
-lun_lookup (lun)
-int lun;
+long
+lun_lookup (long lun)
 {
-	if (lun == (int) stdin || lun == (int) stdout || lun == (int) stderr)
+	if (lun == (long) stdin || lun == (long) stdout || 
+	    lun == (long) stderr)
 		return (lun);
 	return (Lun_table[lun - 3][1]);
 }
@@ -649,8 +649,7 @@ int lun;
 
 
 int
-lun_assign (lun, type)
-int lun, type;
+lun_assign (long lun, long type)
 {
 	int	i;
 
@@ -674,10 +673,9 @@ int lun, type;
 
 
 void
-lun_deassign (lun)
-int lun;
+lun_deassign (long lun)
 {
-	if (lun == (int) stdin || lun == (int) stdout || lun == (int) stderr)
+	if (lun == (long) stdin || lun == (long) stdout || lun == (long) stderr)
 		return;
 	Lun_table[lun - 3][0] = LUN_FREE;
 }

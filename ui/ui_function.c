@@ -15,7 +15,7 @@
 extern char *malloc ();
 # endif
 
-static char *rcsid = "$Id: ui_function.c,v 1.13 1998-02-26 21:18:35 burghart Exp $";
+static char *rcsid = "$Id: ui_function.c,v 1.14 1998-12-17 17:18:16 burghart Exp $";
 
 /*
  * These structures represent functions.
@@ -462,7 +462,7 @@ union usy_value *argv, *retv;
  */
 {
 	*rett = SYMT_BOOL;
-	retv->us_v_int = (int) strchr (argv[0].us_v_ptr, *argv[1].us_v_ptr);
+	retv->us_v_int = (long) strchr (argv[0].us_v_ptr, *argv[1].us_v_ptr);
 	return (TRUE);
 }
 
