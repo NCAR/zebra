@@ -1,7 +1,7 @@
 /*
  * Routines common to XY-Type plots
  */
-static char *rcsid = "$Id: XYCommon.c,v 1.16 1993-12-01 17:32:16 burghart Exp $";
+static char *rcsid = "$Id: XYCommon.c,v 1.17 1993-12-02 21:38:41 burghart Exp $";
 /*		Copyright (C) 1993 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -688,7 +688,7 @@ xyObsInfo	*obsinfo;
  * single "observation", and the length of the array.  The field name must be
  * already set in each data vector in the array.  Space for holding the
  * data in the data vectors will be malloc'ed here if necessary, and must
- * be free'd by the caller.  Only every nskip'th good point will be put
+ * be free'd by the caller.  Only every (nskip+1)th good point will be put
  * into the resultant data vectors.
  *
  * If obsinfo is non-NULL, then an xyObsInfo structure describing the 
@@ -885,10 +885,10 @@ xyObsInfo	*obsinfo;
 		if (f < fcount)
 			continue;
 	/*
-	 * We have good data, but make sure we only take every nskip'th 
+	 * We have good data, but make sure we only take every (nskip+1)th 
 	 * good data point
 	 */
-		if ((ngood++ % nskip) != 0)
+		if ((ngood++ % (nskip + 1)) != 0)
 			continue;
 	/*
 	 * OK, we finally have something we really want to put into the
