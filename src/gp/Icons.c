@@ -37,7 +37,7 @@
 # include <DataStore.h>
 # include <GraphicsW.h>
 
-RCSID("$Id: Icons.c,v 2.34 2001-11-30 21:29:28 granger Exp $")
+RCSID("$Id: Icons.c,v 2.35 2003-01-02 22:31:05 granger Exp $")
 
 # include "GraphProc.h"
 # include "FieldMenu.h"
@@ -397,6 +397,7 @@ I_DoIcons ()
  */
 	for (comp = 0; comps[comp]; comp++)
 	{
+	    qual = NULL;
 	/*
 	 * Is this one disabled?	
 	 */
@@ -444,6 +445,12 @@ I_DoIcons ()
 	 * found.  Also, get a title for each menu to add to the tooltop.
 	 */
 		buf[0] = '\0';
+		if (comp > 0 && qual)
+		{
+		    /* Shorten the platform in case its long or a list */
+		    sprintf (platform+20, "...");
+		    sprintf (buf+strlen(buf), "[%s] ", platform);
+		}
 		for (i = 0; i < 3; ++i)
 		{
 		    char title[256];
@@ -453,7 +460,6 @@ I_DoIcons ()
 		    {
 			msg_ELog (EF_PROBLEM, "menu could not be found: %s",
 				  menu);
-			//strcpy (menu, "");
 			strcpy (title, menu);
 		    };
 		    sprintf (buf+strlen(buf), " %s %s ", title,
