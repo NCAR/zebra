@@ -24,8 +24,6 @@
 # include <X11/Shell.h>
 # include <X11/Xaw/Cardinals.h>
 # include <X11/Xaw/Label.h>
-# include <ui_symbol.h>
-# include <ui_date.h>
 
 # include <defs.h>
 # include <message.h>
@@ -35,7 +33,7 @@
 # include <timer.h>
 # include <pd.h>
 
-MAKE_RCSID ("$Id: fccclock.c,v 2.11 1995-10-31 02:10:09 granger Exp $")
+RCSID ("$Id: fccclock.c,v 2.12 1996-11-19 07:14:28 granger Exp $")
 
 /*
  * Default resources.
