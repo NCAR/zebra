@@ -401,6 +401,8 @@ float	cval, cstep;
 	if (Use_flag &&
 		(v_val[0]==Badflag || v_val[1]==Badflag || v_val[2]==Badflag))
 		return;
+	if (!FINITE(v_val[0]) || !FINITE(v_val[1]) || !FINITE(v_val[2]))
+		return;
 /*
  * Bail out if we don't need to draw anything in this triangle
  */

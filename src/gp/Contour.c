@@ -36,7 +36,7 @@
 # include "PixelCoord.h"
 
 
-RCSID("$Id: Contour.c,v 2.14 1995-08-07 23:04:55 granger Exp $")
+RCSID("$Id: Contour.c,v 2.15 1995-09-13 17:07:21 granger Exp $")
 
 typedef short	cbool;
 
@@ -593,11 +593,10 @@ int	ix, iy, iseg;
 /*
  * Check for bad values
  */
-	if (Use_flag)
-		draw = drawprev = 
-			ZVAL (ix, iy) != Badflag && ZVAL (ix2, iy2) != Badflag;
-	else
-		draw = drawprev = TRUE;
+	draw = (! Use_flag) || 
+		(ZVAL (ix, iy) != Badflag && ZVAL (ix2, iy2) != Badflag);
+	draw = draw && FINITE(ZVAL (ix, iy)) && FINITE(ZVAL (ix2, iy2));
+	drawprev = draw;
 /*
  * Get the first point
  */
@@ -673,8 +672,10 @@ int	ix, iy, iseg;
 	/*
 	 * Bad value test
 	 */
+		draw = FINITE(ZVAL (ix, iy)) && FINITE(ZVAL (ix2, iy2)) &&
+			FINITE(ZVAL (ix3, iy3)) && FINITE(ZVAL (ix4, iy4));
 		if (Use_flag)
-			draw = ZVAL(ix, iy) != Badflag && 
+			draw = draw && ZVAL(ix, iy) != Badflag && 
 				ZVAL(ix2, iy2) != Badflag &&
 				ZVAL(ix3, iy3) != Badflag && 
 				ZVAL(ix4, iy4) != Badflag;
