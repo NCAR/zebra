@@ -44,7 +44,7 @@ static XRectangle	Clip;
 /*
  * Graphics context
  */
-static GC	Gcontext;
+static GC	Gcontext = NULL;
 
 /*
  * The widget and drawable we're using (the drawable should belong to the

@@ -1,7 +1,7 @@
 /*
  * Contour a rectangular array
  */
-static char *rcsid = "$Id: Contour.c,v 2.3 1992-03-17 23:02:02 barrett Exp $";
+static char *rcsid = "$Id: Contour.c,v 2.4 1993-09-15 22:58:15 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -182,11 +182,13 @@ int	dolabels, linewidth;
 /*
  * Graphics context stuff.
  */
-	Gcontext = XCreateGC (XtDisplay (W), XtWindow (W), 0, NULL);
+	if (! Gcontext)
+		Gcontext = XCreateGC (XtDisplay (W), XtWindow (W), 0, NULL);
+
 	if (linewidth == 1)
 		linewidth = 0;
-	XSetLineAttributes (XtDisplay (W), Gcontext, linewidth, 
-		LineSolid, CapButt, JoinMiter);
+	XSetLineAttributes (XtDisplay (W), Gcontext, linewidth, LineSolid, 
+			    CapButt, JoinMiter);
 	XSetClipRectangles (XtDisplay (W), Gcontext, 0, 0, &Clip, 1, Unsorted);
 /*
  * Loop through the contour values
@@ -248,9 +250,8 @@ int	dolabels, linewidth;
 		CO_DoContours ();
 	}
 /*
- * Release the GC and allocated space
+ * Release the allocated space
  */
-	XFreeGC (XtDisplay (W), Gcontext);
 	free (Xpos);
 	free (Ypos);
 }

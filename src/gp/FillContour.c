@@ -141,6 +141,11 @@ int	xdim, ydim;
 		return;
 	}
 /*
+ * Make sure we have a GC
+ */
+	if (! Gcontext)
+		Gcontext = XCreateGC (XtDisplay (W), XtWindow (W), 0, NULL);
+/*
  * Loop through the contour values
  */
 	cndx_min = (int) floor ((min - ccenter) / cstep);
@@ -158,7 +163,6 @@ int	xdim, ydim;
 		else
 			foreground = Colors[Color_center + cndx].pixel;
 
-		Gcontext = XCreateGC (XtDisplay (W), XtWindow (W), 0, NULL);
 		XSetForeground (XtDisplay (W), Gcontext, foreground);
 		XSetClipRectangles (XtDisplay (W), Gcontext, 0, 0, &Clip, 1, 
 			Unsorted);
@@ -170,10 +174,6 @@ int	xdim, ydim;
 			for (tri.k = 0; tri.k < 2; tri.k++)
 				FC_DoContour (tri, cval, cstep);
 	}
-/*
- * Free the pixel location arrays and the GC
- */
-	XFreeGC (XtDisplay (W), Gcontext);
 }
 
 
