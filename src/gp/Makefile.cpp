@@ -1,4 +1,4 @@
-/* $Id: Makefile.cpp,v 1.5 1991-10-30 21:39:01 barrett Exp $ */
+/* $Id: Makefile.cpp,v 1.6 1991-11-14 17:51:33 kris Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -42,6 +42,12 @@ OBJS =  TimeSeries.o ColorTable.o EventQueue.o LLEvent.o PlotControl.o \
 	XYGraph.o PlotPrim.o LayoutControl.o AxisControl.o
 
 all:	gp
+
+saber:	$(OBJS)
+	# setopt ansi
+	# load $(CFLAGS) GraphProc.o
+	# load $(CFLAGS) $(OBJS) -Bstatic $(LIBS) /locallib/gcc-gnulib
+	# link
 
 install:	gp graphproc.lf include
 	ar ruv D_LIBDIR/libfcc.a GraphicsW.o
