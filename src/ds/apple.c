@@ -1,5 +1,5 @@
 /*
- * $Id: apple.c,v 3.15 1999-03-01 02:03:38 burghart Exp $
+ * $Id: apple.c,v 3.16 2001-10-26 08:08:06 granger Exp $
  */
 
 /*
@@ -76,7 +76,7 @@ to 'expect'?
 #include "DataStore.h"
 #include "apple.h"
 
-RCSID("$Id: apple.c,v 3.15 1999-03-01 02:03:38 burghart Exp $")
+RCSID("$Id: apple.c,v 3.16 2001-10-26 08:08:06 granger Exp $")
 
 extern TestRoutine NSpaceTests[];
 extern TestRoutine ZNFTests[];
@@ -252,12 +252,10 @@ int standalone;
 	if (standalone)
 	{
 		msg_connect (NULL, "");
-		ds_Standalone ();
 	}
-	else if (!msg_connect (msg_handler, "Will-Tell") ||
-		 !ds_Initialize())
+	else if (!msg_connect (msg_handler, "Will-Tell"))
 	{
-		msg_ELog (EF_EMERGENCY, "Cannot connect nor initialize DS!");
+		msg_ELog (EF_EMERGENCY, "Cannot connect to message manager!");
 		exit(1);
 	}
 /*
@@ -271,6 +269,15 @@ int standalone;
 	{
 		msg_ELPrintMask (EF_ALL | EF_DEVELOP);
 		DumpDataChunks = 1;
+	}
+	if (standalone)
+	{
+		ds_Standalone ();
+	}
+	else if (!ds_Initialize())
+	{
+		msg_ELog (EF_EMERGENCY, "Cannot connect nor initialize DS!");
+		exit(1);
 	}
 	InitializePlatforms();
 }
