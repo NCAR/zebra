@@ -1,10 +1,9 @@
-/* $Id: ui_wList.c,v 1.4 1990-07-16 15:23:13 corbet Exp $ */
 /*
  * List-widget specific windowing code.
  */
 
 # ifdef XSUPPORT
-
+static char *rcsid = "$Id: ui_wList.c,v 1.5 1990-09-19 09:11:22 corbet Exp $";
 /* 
  * Window system code.
  */
@@ -175,7 +174,7 @@ uw_list_def ()
  */
 	struct list_widget *new;
 	int uw_in_list ();
-	void uw_lcreate (), ui_perform (), uw_ldestroy ();
+	void uw_lcreate (), uw_ldestroy ();
 /*
  * Make a new list widget structure.
  */
@@ -444,7 +443,7 @@ uw_cm_def ()
  */
 	struct list_widget *new;
 	int uw_in_cmenu (), i;
-	void uw_lcreate (), ui_perform (), uw_ldestroy ();
+	void uw_lcreate (), uw_ldestroy ();
 	struct cmenu_temp cm;
 	char *cp, *ip;
 /*
@@ -787,7 +786,7 @@ int lun;
 {
 	struct list_widget *lw;
 	char ctmp[500];
-	void ui_perform (), uw_ldestroy ();
+	void uw_ldestroy ();
 	struct map_table *uw_LoadMap ();
 /*
  * Allocate a new list widget structure, and read the old one from the file.
@@ -838,7 +837,7 @@ int lun;
 {
 	struct list_widget *lw;
 	char ctmp[500], *cp;
-	void ui_perform (), uw_ldestroy ();
+	void uw_ldestroy ();
 	int i;
 /*
  * Allocate and read a new structure.
