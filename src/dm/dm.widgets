@@ -1,7 +1,7 @@
 !
 ! Display manager widgets.
 !
-! $Id: dm.widgets,v 1.39 2000-12-05 19:05:05 granger Exp $
+! $Id: dm.widgets,v 1.40 2000-12-08 18:51:55 granger Exp $
 !
 
 define widget SaveConfig form 'Configuration saver'
@@ -157,8 +157,6 @@ define widget ConfigEdit form 'config edit'
 	button b3 'Save Configuration' width 160 command 'popup SaveConfig'
 endform
 
-
-require enter-widget
 
 !
 ! Interface to the "kill" function.
@@ -396,9 +394,6 @@ procedure PutScalar platform string field string
 endprocedure
 
 
-! Older projects expect it to be here on startup.
-require hardcopy-widget
-
 !
 ! Stuff for the old "create window" widget.
 !
@@ -514,5 +509,5 @@ procedure AllXSect x0 string y0 string x1 string y1 string
 endprocedure
 
 procedure dm_widgets_id
-	local '$Id: dm.widgets,v 1.39 2000-12-05 19:05:05 granger Exp $'
+	local '$Id: dm.widgets,v 1.40 2000-12-08 18:51:55 granger Exp $'
 endprocedure
