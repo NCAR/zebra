@@ -22,7 +22,7 @@
 # include <defs.h>
 # include <message.h>
 # include "ds_fields.h"
-MAKE_RCSID ("$Id: Fields.c,v 3.1 1992-05-27 17:24:03 corbet Exp $")
+MAKE_RCSID ("$Id: Fields.c,v 3.2 1992-11-04 03:27:35 burghart Exp $")
 
 
 
@@ -92,7 +92,17 @@ char *name, *desc, *units;
 	if (usy_defined (FNameTable, name))
 		ind = F_Lookup (name);
 	else
-		ind = NField++;
+	{
+		if ((ind = NField++) == MaxFieldID)
+		{
+			msg_ELog (EF_EMERGENCY,
+				"Cannot declare field '%s'", name);
+			msg_ELog (EF_EMERGENCY, 
+				"MaxFieldID too small in Fields.c");
+			NField--;
+			return (BadField);
+		}
+	}
 	strcpy (FieldTable[ind].fd_CName, name);
 	strcpy (FieldTable[ind].fd_LongName, desc);
 	strcpy (FieldTable[ind].fd_Units, units);
