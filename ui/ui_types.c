@@ -6,7 +6,7 @@
 # include "ui_param.h"
 # include "ui_symbol.h"
 
-static char *rcsid = "$Id: ui_types.c,v 1.4 1991-01-07 09:24:04 burghart Exp $";
+static char *rcsid = "$Id: ui_types.c,v 1.5 1992-05-06 18:47:10 corbet Exp $";
 
 /*
  * Month info.
@@ -162,6 +162,24 @@ bool strict;
 
 
 
+static int
+mcmp (test, month)
+char *test, *month;
+/*
+ * Compare the test string against the month name, in a case-insensitive way.
+ */
+{
+	return (tolower(test[0]) == month[0] &&
+		tolower(test[1]) == month[1] &&
+		tolower(test[2]) == month[2]);
+}
+
+
+
+
+
+
+
 
 uit_date_get (ds, ts, dte)
 char *ds, *ts;
@@ -200,7 +218,7 @@ int *dte;
  */
 	*cp = 0;	/* Zap - */
 	for (month = 1; month <= 12; month++)
-		if (! strcmp (ds, Month_names[month]))
+		if (mcmp (ds, Month_names[month]))
 			break;
 	if (month > 12)
 		return (FALSE);

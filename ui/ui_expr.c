@@ -1,5 +1,5 @@
 /* 1/87 jc */
-/* $Id: ui_expr.c,v 1.8 1992-01-30 21:09:54 corbet Exp $ */
+/* $Id: ui_expr.c,v 1.9 1992-05-06 18:47:10 corbet Exp $ */
 /*
  * Expression handling.
  */
@@ -433,6 +433,23 @@ char *string;
 
 
 
+
+static int
+mcmp (test, month)
+char *test, *month;
+/*
+ * Compare the test string against the month name, in a case-insensitive way.
+ */
+{
+	return (tolower(test[0]) == month[0] &&
+		tolower(test[1]) == month[1] &&
+		tolower(test[2]) == month[2]);
+}
+
+
+
+
+
 ue_check_date (string)
 char *string;
 /*
@@ -458,7 +475,7 @@ char *string;
 	ue_lookahead (string);
 	string[4] = '\0';
 	for (i = 0; i < 12; i++)
-		if (! strcmp (ostr + 1, months[i]))
+		if (mcmp (ostr + 1, months[i]))
 			break;
 	if (i >= 12)
 	{
