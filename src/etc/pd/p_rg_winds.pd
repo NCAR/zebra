@@ -6,6 +6,7 @@ global
 	pd-name:	p_rg_winds
 p_rg_winds
 	platform:	CHANGEME
+	icon:		CHANGEME
 	representation:	vector
 	u-field:	u_wind
 	v-field:	v_wind
