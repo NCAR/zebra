@@ -1,0 +1,70 @@
+#! /usr/local/bin/perl5
+#
+# $Id: dfsince,v 1.1 1997-12-07 21:08:53 granger Exp $
+#
+# Collect all the datafiles files more recent than a persistent timestamp.
+# Assumes zebra is already running.
+#
+
+$ENV{'PATH'} = "/net/sssf3/lake_ice/zebra/bin:" . $ENV{'PATH'};
+
+# Default timestamp file, if not given on the command line
+$timestamp="./SinceStamp" unless ($timestamp = shift @ARGV);
+$update = "$timestamp" unless ($update = shift @ARGV);
+
+print STDERR "Using timestamp file: $timestamp, updating $update\n";
+
+if (system("mstatus > /dev/null 2>&1"))
+{
+    print STDERR "Zebra not running.\n";
+    exit 1;
+}
+
+# Read times from the timestamp file
+system("touch $timestamp") unless -f "$timestamp";
+open(TS, "$timestamp");
+%Stamps = ();
+while (<TS>)
+{
+    ($platform, $time) = split(/\s+/,$_);
+    $Stamps{$platform} = $time;
+}
+close TS;
+
+# First find all the platforms whose most recent time does not match
+# that in the timestamp table
+open (DS, "dsdump -z -l |");
+while (<DS>)
+{
+    ($platform, $file, $dir, $time, $nsample) = split(/\s+/,$_);
+    if (! defined $Stamps{$platform})
+    {
+	$since = "";
+    }
+    elsif ($Stamps{$platform} ne $time)
+    {
+	$since = "-p $Stamps{$platform}";
+    }
+    else
+    {
+	next;
+    }
+    # New platform or more recent time found.
+    # Dump all the files in this platform since the timestamp.
+    system ("dsdump $since -l -e $platform");
+    $Stamps{$platform} = $time;
+}
+
+# Now update the timestamp file
+
+rename ("$update", "$update.bak");
+open(TS, "> $update");
+foreach $platform (sort (keys %Stamps))
+{
+    $time = $Stamps{$platform};
+    printf TS "%-40s %s\n", $platform, $time;
+}
+close TS;
+print STDERR "Updated timestamp file $update.\n";
+
+exit 0;

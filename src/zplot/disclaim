@@ -3,20 +3,20 @@
 # Given a list of gif files on the command line, "sign" each one with
 # a data disclaimer in the lower right corner.
 #
-# $Id: disclaim,v 1.1.1.1 1997-12-04 18:27:39 granger Exp $
+# $Id: disclaim,v 1.2 1997-12-07 21:08:55 granger Exp $
 
 use GD;
 
 foreach $gif (@ARGV)
 {
     
-    print "$gif:\n";
+    print "disclaimer: $gif\n";
     open (GIF,"< $gif") || die "could not open $gif";
     $im = newFromGif GD::Image(GIF) || die "creating GD image from $gif";
     close GIF;
 
     ($width, $height) = $im->getBounds();
-    print "Bounds: ", $width, " x ", $height , "\n";
+    # print "Bounds: ", $width, " x ", $height , "\n";
 
     # Allocate colors in the image
     ($white,$black,$red,$blue,$yellow) = 
@@ -33,7 +33,7 @@ foreach $gif (@ARGV)
 
     $x = $width / 3;
     $y = $height - 20;
-    print "x = $x, y = $y\n";
+    # print "x = $x, y = $y\n";
     $msg = "Realtime data, not checked for quality";
     $font = gdLargeFont;
     $font = gdMediumBoldFont;

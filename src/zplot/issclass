@@ -1,0 +1,55 @@
+#! /usr/local/bin/perl5
+#
+# $Id: issclass,v 1.1 1997-12-07 21:09:01 granger Exp $
+#
+# Convert recent iss class files to ascii and ftp
+#
+
+# Top zebra directory
+$ztop="/net/sssf3/lake_ice/zebra";
+$zbin="$ztop/bin";
+$ENV{'PATH'} = "$zbin:" . $ENV{'PATH'};
+
+# Project directory
+$project="$ztop/project/lake_ice";
+
+$joss = "/net/sssf3/lake_ice/joss";
+
+if (system("ZEB_EVENTLOGGER=\"true\" $zbin/zstart -n -ds -preserve $project >/dev/null"))
+{
+    die "Failed to start zebra.\n";
+}
+sleep 5;
+
+@files = `./dfsince LastSounding 2> /dev/null | egrep 'iss.*class'`;
+@ftp = ();
+
+foreach $line (@files)
+{
+    next unless $line =~ /class/;
+    ($platform, $file, $dir, $time, $nsample) = split(/\s+/,$line);
+    $full = "$dir/$file";
+
+    # Generate JOSS name from file name
+    ($year, $mo, $day, $hour, $min, $sec) = 
+	$file =~ /\.(\d\d)(\d\d)(\d\d)\.(\d\d)(\d\d)(\d\d)\./;
+    $site = $platform;
+    $site =~ s,/class,,;
+    $ascii = sprintf ("%02d%02d%02d%02d%02d.%s_class.txt",
+		      $year, $mo, $day, $hour, $min, $site);
+    $site =~ s/iss/is/;
+    $ascii = "$joss/$ascii";
+    $cmd = "./class2ascii $full LAKE_ICE $site > $ascii";
+    print $cmd, "\n";
+    system($cmd);
+    push (@ftp, $ascii);
+}
+
+$cmd = "./ftpjoss.pl " . join(" ",@ftp);
+if ($#ftp >= 0)
+{
+    print $cmd, "\n";
+    system ($cmd);
+}
+
+exit 0;

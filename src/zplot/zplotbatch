@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# $Id: zplotbatch,v 1.1.1.1 1997-12-04 18:27:39 granger Exp $
+# $Id: zplotbatch,v 1.2 1997-12-07 21:08:50 granger Exp $
 #
 # Start a display manager session with a virtual X server and dump
 # images of its plots.
@@ -19,11 +19,12 @@ config="iss1"
 
 # Top zebra directory
 ztop="/net/sssf3/lake_ice/zebra"
+zstart=./zstart
 
 # Project directory
 project="$ztop/project/lake_ice"
 
-# Special paths for Xvfb and such.
+# Special paths for Xvfb and zebra.
 PATH=$ztop/bin:/local/X11R6/bin:$PATH
 
 # Only used when file paths are not what were compiled into Xvfb
@@ -80,9 +81,11 @@ if [ $# -gt 0 ]; then
 fi
 
 PRESERVE_ZEB=1; export PRESERVE_ZEB
-ZEB_DM=$ztop/bin/dm; export ZEB_DM
+#ZEB_DM=$ztop/bin/dm; export ZEB_DM
 
-# Start our private, virtual X display
+# Start our private, virtual X display.
+# This may fail if one is already there, in which case we'll use the
+# existing one.
 
 $xvfb $display &
 x=$!
@@ -93,31 +96,33 @@ DISPLAY=${display}.0 ; export DISPLAY
 ZEB_EVENTLOGGER=true ; export ZEB_EVENTLOGGER
 
 echo "-- Checking for datastore session:"
-zstart -n -ds $project
+$zstart -n -ds $project
 sleep 5
 
 # Then start a private display session
 # We set the dm name explicitly so that we can query it
 
 DEFAULT_CONFIG=$config
-ZEB_DM_CONFIG="-multiple -name Batch dm.config"
+DM=B$$
+ZEB_DM_CONFIG="-multiple -name $DM dm.config"
 export DEFAULT_CONFIG ZEB_DM_CONFIG
 echo "-- Starting display manager:"
-zstart -dm -preserve $project &
+$zstart -dm -preserve $project &
+dm=$!
 sleep 10
 # Wait for dm to connect to datastore, then wait for windows to come up
-if zquery -t 10 Batch ; then true ; else
+if zquery -t 10 $DM ; then true ; else
     sleep 20
-    if zquery -t 20 Batch ; then true ; else
-	echo "Batch display never connected."
+    if zquery -t 20 $DM ; then true ; else
+	echo "$DM display never connected."
 	exit 1
     fi
 fi
 sleep 30
 if [ $when = "now" ]; then
-    zrun Batch 'realtime all'
+    zrun $DM "realtime all"
 else
-    zrun Batch 'history all $when'
+    zrun $DM "history all $when"
 fi
 # Wait for windows to take the new time
 sleep 15
@@ -125,7 +130,7 @@ sleep 15
 # Get a list of the graphics processes appearing in this display
 
 mstatus
-procs=`mstatus | egrep 'group-Batch' | sed -e 's,^.*:,,g' -e 's/,//g'`
+procs=`mstatus | egrep "group-$DM" | sed -e 's,^.*:,,g' -e 's/,//g'`
 echo "Processes: $procs"
 
 # For each process, tell it to dump its plot
@@ -146,7 +151,7 @@ base=`date -u '+%y%m%d%H%M'`.${config}_
 images=''
 for plot in $procs ; do
 
-    name=`echo $plot | sed -e 's/-Batch.*//'`
+    name=`echo $plot | sed -e "s/-$DM.*//"`
 
     # If we have specific targets, skip this window if it's not one of them
     if test "$windows" = "" || echo "$windows" | egrep -s "$name"; then
@@ -173,15 +178,19 @@ $echo perl5 disclaim.pl $images
 
 # Exit the window manager and kill our virtual X server
 
-zrun Batch 'shutdown'
-sleep 5
-
-#kill `ps -f | grep Xvfb | grep -v grep | awk -e '{ print $1; }'`
+zrun $DM 'shutdown'
+sleep 20
+kill $dm
 kill $x
-
-# Give the server time to die and clear its socket
 sleep 15
+
+# Kill the server if no one else is using it
+#if [ `xlswins -display $display | wc -l` -lt 2 ]; then
+#    kill `ps -e | grep Xvfb | grep -v grep | awk -e '{ print $1; }'`
+#    # Give the server time to die and clear its socket
+#fi
 
 # Pass on the image file names
 echo Images: $images
 
+exit 0

@@ -1,0 +1,62 @@
+#! /usr/local/bin/perl5
+#
+# $Id: sendclass,v 1.1 1997-12-07 21:09:04 granger Exp $
+#
+
+# Look for class files in the spool directory
+
+$spool = "/net/sssf3/lake_ice";
+$store = "/net/sssf3/lake_ice";
+$zbin = "/net/sssf3/lake_ice/zebra/bin";
+open (LS, "ls $spool |");
+
+@Fields = ("pres", "temp", "dp", "rh", "u_wind", "v_wind",
+	   "wspd", "wdir", "ascent", "range", "azimuth",
+	   "qpres", "qtemp", "qrh", "qu", "qv", "qwind");
+@send = ();
+@class = ();
+while (<LS>)
+{
+    next unless /x.*\....$/;
+    # print;
+    ($mo, $day, $hour, $min, $site) = $_ =~ /x(.)(\d\d)(\d\d)(\d\d)\.(...)/;
+    # print "$mo, $day, $hour, $min, $site\n";
+    $mo = 10 if ($mo eq "a");
+    $mo = 11 if ($mo eq "b");
+    $mo = 12 if ($mo eq "c");
+    $year = 97 if ($mo > 6);
+    $year = 98 if ($mo <= 6);
+    $jfile = sprintf ("%02d%02d%02d%02d%02d.%s_class.txt",
+		      $year, $mo, $day, $hour, $min, $site);
+    print $jfile, "\n";
+
+    # Copy it to joss directory under its new name, and add to ftp list
+    $file = $_;
+    chop $file;
+    $file = "$spool/$file";
+    # print "cp $file $spool/joss/$jfile\n";
+    system ("cp $file $spool/joss/$jfile");
+    push (@send, " $spool/joss/$jfile ");
+
+    # And add this file to the CLASS list to be ingested
+    push (@class, $file);
+
+    # Derive the platform and destination dir for this site
+    $platform = "$site";
+    $dir = "$store/class/$platform";
+
+    $ingest = "$zbin/class_ingest -standalone -data $store/class " .
+	" $file " . join(" ",@Fields);
+    print $ingest, "\n";
+    if (! system ("$ingest"))
+    {
+	# Successful ingest, move the ascii file there also
+	print "mv $file $store/class/$site\n";
+	system ("mv $file $store/class/$site");
+    }
+}
+
+# print "ftpjoss.pl $send\n";
+system ("./ftpjoss.pl " . join(" ",@send)) if ($#send >= 0);
+
+exit 0;

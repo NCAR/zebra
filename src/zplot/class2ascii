@@ -1,0 +1,67 @@
+#! /usr/local/bin/perl5
+#
+# $Id: class2ascii,v 1.1 1997-12-07 21:08:51 granger Exp $
+#
+# Given a CLASS netcdf file, use suds to convert it to ascii
+#
+
+# Usage: class2ascii 
+# Writes ascii to stdout
+
+select STDERR;
+
+if ($#ARGV != 2)
+{
+    print "Usage: class2ascii <netdf> <project> <id>\n";
+    print "Writes ascii class file to standard output.\n";
+    print "Eg: class2ascii iss1class.cdf LAKE_ICE is1\n";
+    exit 1;
+}
+
+$file = $ARGV[0];
+$project = $ARGV[1];
+$id = $ARGV[2];
+
+if (! -f $file)
+{
+    print "Could not find file: $file\n";
+    exit 2;
+}
+
+$tmp="/tmp/class.$$";
+$suds="/usr/local/bin/suds";
+
+if (system ("echo \'file $file netcdf $id \; write $tmp $id\' | $suds >/dev/null 2>&1"))
+{
+    print "SUDS failed.\n";
+    unlink ($tmp);
+    exit 1;
+}
+
+if (! -f "$tmp")
+{
+    print "Target ascii class file missing?! ($tmp)\n";
+    exit 1;
+}
+
+$caution = "CAUTION: Converted from netCDF, likely to be UNEDITED";
+open (CLASS, "$tmp");
+while (<CLASS>)
+{
+    if (/^Project ID/)
+    {
+	s/UNKNOWN/$project/;
+    }
+    elsif (/^System Operator/)
+    {
+	s/(:\s*)\S?.*$/\1$caution/;
+    }
+    elsif (/Site ID:/)
+    {
+	s/$/, $id/;
+    }
+    print STDOUT;
+}
+
+unlink($tmp);
+

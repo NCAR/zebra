@@ -1,7 +1,7 @@
 #! /usr/local/bin/perl5
 #
 # FTP images to JOSS
-# $Id: ftpplots,v 1.1.1.1 1997-12-04 18:27:39 granger Exp $
+# $Id: ftpplots,v 1.2 1997-12-07 21:08:59 granger Exp $
 
 #$site="ftp.joss.ucar.edu";
 #$user="anonymous";
@@ -12,6 +12,12 @@ $site="fog.personal.engin.umich.edu";
 $user="anonymous";
 $pass="granger\@ucar.edu";
 $dir="/pub/lakeice";
+
+if ($#ARGV < 0)
+{
+    print "No files to transmit\n";
+    exit 0;
+}
 
 require ("ftplib.pl");
 
@@ -36,7 +42,7 @@ TRY:
 	if (! &ftp::put ($local,$remote))
 	{
 	    print "$ftp::Error\n";
-	    last TRY;
+	    # last TRY;
 	}
 	print "\n";
     }

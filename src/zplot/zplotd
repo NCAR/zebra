@@ -7,41 +7,101 @@
 # Use an associative array to give the config and window to plot
 # when a given platform is updated.
 
-$debug = 0;
+$D_Out  = 1;    # Just pipe log output to stdout as well as to file
+$D_NoFtp = 2;   # Skip ftp
+$D_NoPlot = 3;  # Skip batch plot and ftp
+$D_NoEmail = 4; # Don't email
+
+$debug = 0;     # No debugging
+
 
 # Top zebra directory
 $ztop="/net/sssf3/lake_ice/zebra";
 $zbin="$ztop/bin";
+$ENV{'PATH'} = "$zbin:" . $ENV{'PATH'};
 
 # Project directory
 $project="$ztop/project/lake_ice";
 
 %Plots = (
 	  "iss1/class", 	"iss1 class",
-	  "iss1/prof915h",	"iss1 prof915h",
 	  "iss1/prof915l",	"iss1 prof915l",
 	  "iss1/rass915",	"iss1 rass",
 	  "iss1/surface_met",	"iss1 surfmet",
 
 	  "iss2/class", 	"iss2 class",
-	  "iss2/prof915h",	"iss2 prof915h",
 	  "iss2/prof915l",	"iss2 prof915l",
 	  "iss2/rass915",	"iss2 rass",
 	  "iss2/surface_met",	"iss2 surfmet",
 
 	  "iss3/class", 	"iss3 class",
-	  "iss3/prof915h",	"iss3 prof915h",
 	  "iss3/prof915l",	"iss3 prof915l",
 	  "iss3/rass915",	"iss3 rass",
 	  "iss3/surface_met",	"iss3 surfmet"
 	  );
 
+%Queue = ();
+%Displays = ();
+
+# Default to getting notifications from standard input
+$since = 0;		# Plot only data since a given timestamp
+$notice = 0;		# Plot data as notices received from dsnotice
+$first = 0;		# true when platforms were queued from the cmd-line
+
+# If we we're passed platform names or regular expressions on the
+# command line, just do those
+while ($pattern = shift @ARGV)
+{
+    if ($pattern eq "-since")
+    {
+	$since = shift @ARGV;
+	$since = " " unless ($since);
+	next;
+    }
+    if ($pattern eq "-notice")
+    {
+	$notice = 1;
+	next;
+    }
+    if ($pattern =~ /^-d(\d*)/)
+    {
+	if ($1) 
+	{
+	    $debug = $1;
+	}
+	else
+	{
+	    ++$debug;
+	}
+	next;
+    }
+    $first = 1;
+    foreach $platform (keys(%Plots))
+    {
+	if ($platform =~ /$pattern/)
+	{
+	    $Queue{$platform} = "";
+	}
+    }
+}
+print STDERR "Debug level = $debug\n" if $debug;
+print STDERR "Queueing platforms: \n   ",
+    join("\n   ",keys(%Queue)), "\n" unless (! $first);
+
+# If we weren't told to get input elsewhere, then
+# just clear the queue and we're done
+if ($first && ! $since && ! $notice)
+{
+    &clear;
+    exit 0;
+}
+
 $dt = `date -u '+%y%m%d.%H%M'`;
 chop $dt;
 $log="logs/zplotd.$dt.log";
-if ($debug)
+if ($debug >= $D_Out)
 {
-    open(LOG, ">-") || die "$log : $!\n";
+    open(LOG, "| tee $log") || die "$log : $!\n";
 }
 else
 {
@@ -52,61 +112,98 @@ $| = 1;
 open(STDOUT, ">& LOG") || die "could not redirect stdout: $!\n";
 open(STDERR, ">& LOG") || die "could not redirect stderr: $!\n";
 print "Log file: $log\n";
-$EL = "EventLogger -n -l epic -f logs/zebra.$dt.log";
+$EL = "true";
+#$EL = "$zbin/EventLogger -n -l epic -f logs/zebra.$dt.log";
 
 # Make sure zebra is running
-if (! $debug)
+if (system("ZEB_EVENTLOGGER=\"$EL\" $zbin/zstart -n -ds -preserve $project"))
 {
-    system("ZEB_EVENTLOGGER=\"$EL\" $zbin/zstart -n -ds $project");
-    sleep 10;
+    die "Failed to start zebra.\n";
 }
-# Now open a dsnotice session and read the output
-if (! $debug)
+sleep 5;
+
+$timeout = 30;
+
+# Open our source for platform and file notices
+if ($since)
 {
+    # If we're only plotting since a given time, get our platform list from 
+    # the dfsince script.
+    print "Opening dfsince -since $since ...\n";
+    open (DS, "dfsince $since 2> /dev/null |") || 
+	die "dfsince: $!";
+    $timeout = 0;
+}
+elsif ($notice)
+{
+    # Open a dsnotice session and read the output
     $targets = join(' ',keys(%Plots));
-    print "Opening $zbin/dsnotice $targets ...\n";
-    open (DS, "$zbin/dsnotice $targets 2>&1 |") || die "running dsnotice: $!";
+    print "Opening $zbin/dsnotice -dir $targets ...\n";
+    open (DS, "$zbin/dsnotice -dir $targets 2>&1 |") || 
+	die "dsnotice: $!";
 }
 else
 {
+    # Just use standard input
     print "Opening -\n";
-    open (DS, "-") || die "notify failed: $!";
+    open (DS, "-") || die "stdin: $!";
 }
 
-%Queue = ();
-%Displays = ();
 
 $SIG{'ALRM'} = 'clear';
 
-$timeout = 30;
 while (<DS>)
 {
-	next if /Receiving/;	# Skip start-up line
+	next if /Receiving/;	# Skip dsnotice start-up line
 
-	# Decipher the line
+	# Remove any elog verbosity
 	s/^.*Notice-\S+ //g;
-	($platform, $file, $time, $nsample, $what) = split(/\s+/,$_);
-	print "$platform $file $time $nsample $what\n";
+	# Decipher the line; the gap is for the directory
+	($platform, $file, $dir, $time, $nsample) = split(/\s+/,$_);
+	print "$platform $file $time $nsample";
 
-	# This latest notify will overwrite any notifications for this
-	# platform already in the queue
-    
-	$Queue{$platform} = join(' ', ($file, $time, $nsample, $what));
+	# If not in our list of plots, ignore it
+	if (defined $Plots{$platform})
+	{
+	    # This latest notify will overwrite any notifications for this
+	    # platform already in the queue
+	    $Queue{$platform} = join(' ', ($file, $time, $nsample, $what));
 
-	# After adding to the queue, set the alarm to clear the queue
-	# after a suitable timeout with no further notifications.
-
-	alarm($timeout);
+	    # After adding to the queue, set the alarm to clear the queue
+	    # after a suitable timeout with no further notifications.
+	    alarm($timeout);
+	    
+	    print " ...queued\n";
+	}
+	else
+	{
+	    print " ...skip\n";
+	}
 }
+print "Input exhausted.\n" if $debug;
+close DS;
 
 # Clear anything left in the queue
 &clear;
+
+# For some reason STDOUT and STDERR must be closed before LOG can close,
+# else perl hangs.  It might be because they have been redirected to LOG.
+close STDOUT;
+close STDERR;
 close LOG;
+
 exit 0;
 
 sub clear
 {
         alarm(0);
+
+	@keys = keys %Queue;
+	if ($#keys < 0)
+	{
+	    print "clear: No platforms in queue.\n";
+	    return;
+	}
 
 	$dt = `date -u '+%y%m%d.%H%M'`;
 	chop $dt;
@@ -114,15 +211,12 @@ sub clear
 	open(PLOG, "> $plog") || die "could not open $plog: $!\n";
 	$oldfh = select(PLOG); $| = 1; select($oldfh);
 
-	if ($debug)
-	{
-	    print join("\n",%Queue), "\n";
-	    print join(" ",keys(%Queue)), "\n";
-	}
+	# print join("\n",%Queue), "\n";
+	# print join(" ",keys(%Queue)), "\n";
 
 	# Map the platforms in the queue into an array
 	# of display configs and windows
-	foreach $platform (keys(%Queue))
+	foreach $platform (@keys)
 	{
 	    ($file, $time, $nsample, $what) = split(/\s+/,$Queue{$platform});
 	    ($config, $window) = split(/\s+/,$Plots{$platform});
@@ -135,6 +229,7 @@ sub clear
 		$Displays{$config} .= " $window";
 	    }
 	}
+	undef @keys;
 
 	# Finally we can plot each config and its windows
 
@@ -144,6 +239,8 @@ sub clear
 	{
 	    $windows = $Displays{$config};
 	    print "Running: ./batch-plot now $config $windows\n";
+	    next if ($debug >= $D_NoPlot);
+
 	    if (! open (BP, "./batch-plot now $config $windows 2>&1 |"))
 	    {
 		$status="FAILED";
@@ -159,11 +256,13 @@ sub clear
 		}
 	    }
 	    close BP;
-	    $status = "FAILED" if ($?);
+	    $status = "plot FAILED" if ($?);
 	}
 
 	print "Running: ftpjoss.pl $images\n";
-	if (!$debug && open (FTP, "ftpjoss.pl $images 2>&1 |"))
+	if ($debug >= $D_NoFtp)
+	{ }
+	elsif (open (FTP, "ftpjoss.pl $images 2>&1 |"))
 	{
 	    while (<FTP>)
 	    {
@@ -173,16 +272,16 @@ sub clear
 	    close FTP;
 	    $status = "FAILED" if ($?);
 	}
-	elsif (!$debug)
+	else
 	{
-	    $status="FAILED";
+	    $status="ftp FAILED";
 	}
 
 	close PLOG;
 	$cmd = "elm -s \"zplotd $status, log $plog\" " .
 	       " granger <$plog >/dev/null";
 	print "$cmd\n";
-	if (system($cmd))
+	if ($debug < $D_NoEmail && system($cmd))
 	{
 	    print "*** Mail failed! ***\n";
 	}
