@@ -1,13 +1,14 @@
 /*
  * Raster display a rectangular array
  */
-static char *rcsid = "$Id: RasterPlot.c,v 1.7 1991-02-12 20:55:07 corbet Exp $";
+static char *rcsid = "$Id: RasterPlot.c,v 1.8 1991-06-14 22:21:26 corbet Exp $";
 
 # include <errno.h>
 # include <math.h>
 # include <X11/Intrinsic.h>
 # include "../include/defs.h"
 # include "../include/message.h"
+# include "GraphicsW.h"
 
 # ifdef TIMING
 # include <sys/time.h>
@@ -41,8 +42,12 @@ static XRectangle	Clip;
 /* static */ void RP_FPRasterize (), RP_IRasterize ();
 # ifdef __STDC__
 	static XImage *RP_GetXImage (Widget, int, int);
+	static void RP_ImageRasterize (unsigned char *, int, int,
+		unsigned char *, unsigned char *, double, double, double,
+		double, int, int);
 # else
 	static XImage *RP_GetXImage ();
+	static void RP_ImageRasterize ();
 # endif
 
 /*
@@ -259,8 +264,8 @@ bool fast;
 	if (xlo < Clip.x)
 	{
 		icol = (Clip.x - xlo - 1)*colinc;
-		xlo = Clip.x;
 		width -= Clip.x - xlo - 1;
+		xlo = Clip.x;
 	}
 	else
 		icol = 0.5;
@@ -555,3 +560,126 @@ float row, icol, rowinc, colinc;
 
 
 
+
+# ifdef SHM
+
+
+
+void
+RasterImagePlot (w, frame, grid, xd, yd, xlo, ylo, xhi, yhi, scale, bias)
+Widget w;
+int frame;
+unsigned char *grid;
+int xd, yd, xlo, ylo, xhi, yhi;
+float scale, bias;
+/*
+ * Do a raster plot of a raster image.
+ */
+{
+	unsigned char *destimg, cmap[256];
+	int c, rcolor, width, height;
+	float cscale = Ncolor/Datarange;
+	float row, col, rowinc, colinc, icol, irow;
+/*
+ * Go through and make the color map.
+ */
+	for (c = 0; c <= 254; c++)
+	{
+		rcolor = (int) (cscale*(c*scale + bias - Datamin));
+		cmap[c] = (rcolor >= 0 && rcolor < Ncolor) ? 
+				Colors[rcolor].pixel : Color_outrange.pixel;
+	}
+	cmap[255] = Color_outrange.pixel;
+/*
+ * Figure our offsets into the color array.  Width and height are screen
+ * parameters.  Colinc and rowinc are the number of raster image points to
+ * move for every screen pixel we move.
+ */
+	width = xhi - xlo + 1;
+	height = ylo - yhi + 1;
+	row = 0.5;
+	colinc = ((float) xd - 1)/((float) width);
+	rowinc = ((float) yd)/((float) height);
+/*
+ * Clip to the window, if appropriate.
+ */
+	if (xlo < Clip.x)
+	{
+		icol = (Clip.x - xlo - 1)*colinc;
+		width -= Clip.x - xlo - 1;
+		xlo = Clip.x;
+	}
+	else
+		icol = 0.5;
+	if (width > Clip.width)
+		width = Clip.width;
+	if (yhi < Clip.y)
+	{
+		row += (Clip.y - yhi)*rowinc;
+		height -= (Clip.y - yhi);
+		yhi = Clip.y;
+	}
+	if (height > Clip.height)
+		height = Clip.height;
+/*
+ * Find the image space and start rasterizing.  Also force a sync with 
+ * the server; things could happen in the wrong order otherwise.
+ */
+	eq_sync ();
+	destimg = (unsigned char *) GWGetFrameAddr (w, frame);
+	destimg += yhi*GWWidth(w) + xlo;
+	RP_ImageRasterize (destimg, width, height, grid, cmap, row, icol,
+		rowinc, colinc, xd, GWWidth (w) - width);
+/*
+ * Done!
+ */
+}
+
+
+
+
+static void
+RP_ImageRasterize (ximp, width, height, grid, cmap, row, icol, rowinc, colinc,
+	xdim, pad)
+unsigned char *ximp, *cmap;
+int width, height, xdim, pad;
+unsigned char *grid;
+float row, icol, rowinc, colinc;
+/*
+ * Do rasterization using the new integer-based (Sun-fast) method.
+ */
+{
+	int i, j, icolinc;
+# ifdef __STDC__
+	static int col;
+	static const short *s_col = (short *) &col;
+# else
+	int col;
+	short *s_col = (short *) &col;
+# endif
+/*
+ * Set up our integer values, which are simply the FP values scaled by 
+ * 64K, so that the integer part is in the upper two bytes.  We then kludge
+ * our way in with the short pointer to pull out the int part directly.
+ */
+	icolinc = (int) (colinc * 65536);
+/*
+ * Step through the data.
+ */
+	for (i = 0; i < height; i++)
+	{
+		unsigned char *cp = grid + ((int) row)*xdim;
+
+		col = (int) (icol*65536);
+		for (j = 0; j < width; j++)
+		{
+			*ximp++ = cmap[cp[*s_col]];
+			col += icolinc;
+		}
+		row += rowinc;
+		ximp += pad;	/* End of raster line padding.	*/
+	}
+}
+
+
+# endif
