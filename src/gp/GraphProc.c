@@ -45,7 +45,7 @@
 # include "GC.h"
 # include "GraphProc.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.15 1992-01-24 18:15:32 corbet Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.16 1992-03-26 20:11:37 kris Exp $")
 
 /*
  * Default resources.
@@ -276,14 +276,16 @@ finish_setup ()
 /*
  * Module initializations.
  */
-	SetupConfigVariables (); /* Configuration info	*/
-	F_Init ();		/* Data store fields module */
-	ct_Init ();		/* Color tables		*/
-	Ue_Init ();		/* User event handling	*/
-	I_init ();		/* Icons		*/
-	lw_InitWidgets ();	/* Limit widgets	*/
-	InitDataMenu ();	/* Data available menu	*/
-	pw_InitPos ();		/* Position Widget	*/
+	SetupConfigVariables ();/* Configuration info		*/
+	F_Init ();		/* Data store fields module 	*/
+	ct_Init ();		/* Color tables			*/
+	Ue_Init ();		/* User event handling		*/
+	I_init ();		/* Icons			*/
+	lw_InitWidgets ();	/* Limit widgets		*/
+	InitDataMenu ();	/* Data available menu		*/
+	pw_InitPos ();		/* Position Widget		*/
+	iw_Initialize ();	/* Data insertion widget	*/
+	aw_InitAnnot ();	/* Annotation widget		*/
 /*
  * Tell DM that we're here.
  */
@@ -604,6 +606,12 @@ struct ui_command *cmds;
 		fixdir ("ZEB_HELPFILE", LIBDIR, "zeb.hlp", helpfile);
 		XhCallXHelp (Graphics, helpfile, XHELP_INTRO_ID, 
 			"Welcome to Zeb");
+		break;
+	/*
+	 * The user wants to annotate something.
+	 */
+	   case GPC_USERANNOT:
+		aw_SetLoc ();
 		break;
 	/*
 	 * "Should never happen"
