@@ -363,7 +363,7 @@ const char *RawFldDNode::clid = "RawFldDNode";
 ostream& 
 RawFldDNode::PutTo( ostream& s ) const 
 { 
-    return( s << fld->Name() ); 
+    return( s << fld->FullName() ); 
 }
 
 
