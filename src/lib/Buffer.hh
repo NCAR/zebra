@@ -1,5 +1,5 @@
 /*
- * $Id: Buffer.hh,v 1.3 1997-12-28 05:57:34 granger Exp $
+ * $Id: Buffer.hh,v 1.4 1998-03-16 20:44:19 granger Exp $
  * 
  * Simple expandable sequential buffer.
  */
@@ -31,13 +31,13 @@ public:
 	virtual ~Buffer ();
 
 	/// Reset the buffer position to the beginning
-	void Reset ()
+	inline void Reset ()
 	{ 
 		Seek (0);
 	}
 
 	/// Seek to the end of the buffer
-	void seekEnd ()
+	inline void seekEnd ()
 	{
 		Seek (Length());
 	}
@@ -45,9 +45,14 @@ public:
 	/// 
 	/** Move relative to the current position, such as after a 
 	  direct read or write. */
-	int seekOffset (int offset)
+	inline int seekOffset (int offset)
 	{
 		return (setPosition (position + offset));
+	}
+
+	inline int Skip (int offset)
+	{
+		return (seekOffset (offset));
 	}
 
 	/// Clear the existing buffer and reset, but preserve the zone size.
@@ -152,7 +157,7 @@ public:
 	}
 
 	/// Return the length of the buffer
-	long Length ()
+	inline long Length ()
 	{ 
 		return length;
 	}
@@ -160,7 +165,7 @@ public:
 	/// 
 	/** Return the current offset into the buffer, the point to which
 	    data should next be written. */
-	long Position () { return position; }
+	inline long Position () { return position; }
 
 	/// 
 	/** Set the position.  If less than zero, the position will be set
@@ -184,7 +189,7 @@ public:
 	/** Return non-zero when the current position is at or past the
 	    end of the buffer.
 	    */
-	int End ()
+	inline int End ()
 	{
 		return (position >= length);
 	}
