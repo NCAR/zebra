@@ -1,7 +1,7 @@
 /*
  * Message server zapper.
  */
-static char *rcsid = "$Id: zstop.c,v 1.1 1994-11-28 23:18:33 corbet Exp $";
+static char *rcsid = "$Id: zstop.c,v 1.2 1994-12-03 06:50:00 granger Exp $";
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -20,9 +20,12 @@ static char *rcsid = "$Id: zstop.c,v 1.1 1994-11-28 23:18:33 corbet Exp $";
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+# include <string.h>
 # include <defs.h>
 # include <message.h>
 # include <copyright.h>
+
+static char *argv0;
 
 int
 main (argc, argv)
@@ -32,6 +35,10 @@ char **argv;
 	int handler ();
 	struct mh_template tm;
 
+	if ((argv0 = strrchr(argv[0], '/')) != NULL)
+		++argv0;
+	else
+		argv0 = argv[0];
 	if (! msg_connect (handler, "Grim reaper"))
 		exit (1);
 	tm.mh_type = MH_DIE;
@@ -44,7 +51,7 @@ char **argv;
 	{
 		/* wait for a shutdown message or a timeout */
 	}
-	printf ("%s: shutdown message never received.\n", argv[0]);
+	printf ("%s: shutdown message never received.\n", argv0);
 	exit (1);
 }
 
@@ -56,7 +63,7 @@ handler (Message *msg)
 
 	if (tm->mh_type == MH_SHUTDOWN)
 	{
-		printf ("zebstop: message manager shutting down\n");
+		printf ("%s: message manager shutting down\n", argv0);
 		exit (0);
 	}
 	else
