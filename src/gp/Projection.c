@@ -29,7 +29,7 @@
 # include <config.h>
 # include <defs.h>
 
-MAKE_RCSID ("$Id: Projection.c,v 2.4 1995-11-20 20:31:39 granger Exp $")
+MAKE_RCSID ("$Id: Projection.c,v 2.5 1996-01-02 20:48:31 corbet Exp $")
 
 # ifdef MAP_PROJECTIONS
 static char *projopt[2] = { "@(#)$GP: Map projections NOT compiled $",
@@ -117,7 +117,7 @@ static float O_Lat, O_Lon;
  */
 static int prj_GetParams FP ((char *, float *, float *));
 # ifdef MAP_PROJECTIONS
-static int prj_InitProj FP ((struct ProjMap *, float, float));
+static int prj_InitProj FP ((struct ProjMap *, double, double));
 static struct ProjMap *prj_Lookup FP ((char *));
 # endif
 
@@ -299,7 +299,7 @@ char *proj;
 static int
 prj_InitProj (pm, lat, lon)
 struct ProjMap *pm;
-float lat, lon;
+double lat, lon;
 /*
  * Try to set up a fancy projection.
  */

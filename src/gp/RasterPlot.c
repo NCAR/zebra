@@ -30,7 +30,7 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 
-RCSID ("$Id: RasterPlot.c,v 2.26 1995-10-31 04:07:19 granger Exp $")
+RCSID ("$Id: RasterPlot.c,v 2.27 1996-01-02 20:48:34 corbet Exp $")
 
 # ifdef TIMING
 # include <sys/time.h>
@@ -141,7 +141,7 @@ static void RP_MakeColorMap FP ((float, float, unsigned char *));
 # endif
 
 # ifdef MAP_PROJECTIONS
-static void RP_SlowImagePlot FP ((Widget, int, unsigned char *, float, float,
+static void RP_SlowImagePlot FP ((Widget, int, unsigned char *, double, double,
 		Location *, RGrid *, unsigned char *));
 # ifdef notdef
 static void RP_FindLimits FP ((Location *, float, int, float, int, int*,
@@ -1110,7 +1110,7 @@ RP_SlowImagePlot (w, frame, grid, scale, bias, loc, rg, cmap)
 Widget w;
 int frame;
 unsigned char *cmap, *grid;
-float scale, bias;
+double scale, bias;
 Location *loc;
 RGrid *rg;
 /*

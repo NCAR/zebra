@@ -30,7 +30,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-MAKE_RCSID ("$Id: Histogram.c,v 2.2 1995-10-24 21:59:29 corbet Exp $")
+MAKE_RCSID ("$Id: Histogram.c,v 2.3 1996-01-02 20:48:28 corbet Exp $")
 
 # if C_PT_HISTOGRAM
 
@@ -72,11 +72,11 @@ static DataChunk *HG_GetBCData FP ((PlatformId, FieldId *, int, int));
 static void HG_FillBins FP ((DataChunk *, FieldId, float *, int, int *,int *));
 static void HG_GetLimits FP ((int **, int, int, int, int *, int, int *,int *));
 static void HG_DrawBar FP ((int, int, int, int, int, int, int, Pixel, int,
-		float));
+		double));
 static void HG_SideAnnot FP ((char *, int *, int, PlatformId, FieldId *, int,
-		XColor *, int, int, float));
+		XColor *, int, int, double));
 static void HG_ChartLimits FP ((int *, int *));
-static void HG_BinAnnot FP ((float *, int, int, float, int, int, int));
+static void HG_BinAnnot FP ((float *, int, int, double, int, int, int));
 static void HG_DividerBar FP ((char *));
 static int HG_FigureInterval FP ((int, int, int));
 static void HG_CountGrid FP ((char *, int, int, int, int));
@@ -595,7 +595,7 @@ static void
 HG_DrawBar (pos, bbase, maxbh, bwidth, counts, min, max, color, annot, bscale)
 int pos, bbase, maxbh, bwidth, counts, min, max, annot;
 Pixel color;
-float bscale;
+double bscale;
 /*
  * Actually draw a bar for this thing.
  */
@@ -647,7 +647,7 @@ int *ypos, lheight, nfield, ncolor, offset;
 PlatformId pid;
 FieldId *fids;
 XColor *ctable;
-float scale;
+double scale;
 /*
  * Do the side annotation for this platform.
  */
@@ -713,7 +713,8 @@ int *y0, *y1;
 
 static void
 HG_BinAnnot (bins, nbin, bvbin, bscale, left, bottom, binwidth)
-float *bins, bscale;
+float *bins;
+double bscale;
 int nbin, bvbin, left, bottom, binwidth;
 /*
  * Annotate our bins.
