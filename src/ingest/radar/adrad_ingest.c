@@ -22,7 +22,7 @@
 
 /* rewrite for adrad data input by Dan Austin 8/93	*/
 
-static char *rcsid = "$Id: adrad_ingest.c,v 2.6 1994-11-17 03:42:30 granger Exp $";
+static char *rcsid = "$Id: adrad_ingest.c,v 2.7 1995-04-07 21:05:34 corbet Exp $";
 
 /* clean up includes later	*/
 # include <copyright.h>
@@ -89,7 +89,7 @@ char PlatformName[PF_LEN];
 /*
  * We use this data object to write out finished products.
  */
-ScaleInfo Scale[10];
+ScaleInfo Scale[MFIELD];
 
 /*
  * Who consumes our data.
@@ -105,7 +105,7 @@ static int CPid = 0;		/* It's process ID	*/
  * Field info.
  */
 /* field defines will nedd changing from raw.h	*/
-# define MFIELD 5
+/* # define MFIELD 5 in radar_ingest.h now */
 RDest Rd[MFIELD];
 int NField = 0;
 char *Fields[MFIELD];
@@ -124,6 +124,7 @@ struct volume_summary vol;
 float Vu;
 /* 1/10/94 (D.A.) added global for fields 	*/
 char adfields[5]; 
+RadarFormat RFormat = RF_ADRAD;		/* The format of our data */
 
 /* function declarations 	*/
 static int Dispatcher FP ((int, struct ui_command *));
@@ -395,12 +396,13 @@ Go ()
 		}
 	}
 	
-
+# ifdef BSD
 /*
  * If they have asked for a priority change, try to do it.
  */
 	if (Niceness)
 		setpriority (PRIO_PROCESS, 0, Niceness);
+# endif
 /*
  * Origin setting.
  */
@@ -677,3 +679,30 @@ Message *msg;
 		die ();
 	msg_ELog (EF_PROBLEM, "Unknown msg proto %d", msg->m_proto);
 }
+
+
+
+/*
+ * Ugliness.  A couple of stubs which should never get called, put here
+ * to keep the linker happy (preferable to linking in the whole CP2 mess
+ * for the same purpose).
+ */
+
+void CP2_CheckParams (beam, hk, scale)
+Beam beam;
+Housekeeping *hk;
+ScaleInfo *scale;
+{
+/* yawn */
+}
+
+
+void CP2_DoDerivation (hk, beam, n, data)
+Housekeeping *hk;
+Beam beam;
+int n;
+unsigned char *data;
+{
+/* snore */
+}
+

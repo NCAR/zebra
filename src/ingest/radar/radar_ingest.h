@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-/* $Id: radar_ingest.h,v 2.7 1994-10-26 00:36:20 granger Exp $ */
+/* $Id: radar_ingest.h,v 2.8 1995-04-07 21:05:40 corbet Exp $ */
 
 
 /*
@@ -102,12 +102,38 @@ unsigned char ThrCounts;		/* Threshold count value	*/
 /*
  * Mhr mode -- drop .5's.
  */
-extern bool MhrMode;
+/* extern bool MhrMode; */
 extern float MhrTop;
 /*
  * Do we do elevation projection?
  */
 extern bool Project;
+
+/*
+ * Data formats with which we can deal in this driver (see ADRad and UF
+ * for others)
+ *
+ * Numbers on the enums match those in the .state file, of course.
+ */
+typedef enum
+{
+	RF_CBAND = 0,	/* Latter day C-Band */
+	RF_CP2 = 1,	/* Ancient, musty, disgusting CP2 */
+	RF_MHR = 2,	/* Mile High RIP */
+	RF_ADRAD = 3,	/* Aggie Doppler	*/
+	RF_UF = 4	/* Universal format 	*/
+} RadarFormat;
+extern RadarFormat RFormat;
+
+/*
+ * Field information.
+ */
+# define MFIELD 8
+extern RDest Rd[MFIELD];
+extern int NField;
+extern char *Fields[MFIELD];
+extern ScaleInfo Scale[MFIELD];
+
 
 /*
  * Functions.
@@ -129,6 +155,15 @@ extern bool Project;
 	void	OutputSweep ();
 # endif
 
+
+void HandleCP2Mess FP ((Beam, Housekeeping *, ScaleInfo *));
+void CP2_CheckParams FP ((Beam, Housekeeping *, ScaleInfo *));
+void CP2_DoDerivation FP ((Housekeeping *, Beam, int, unsigned char *));
+void CP2_LoadCal FP ((int));
+
+void OpenEthernet FP ((char *));
+Beam GetEtherBeam FP ((Beam));
+
 /*
  * Command constants go here.
  */
@@ -140,3 +175,7 @@ extern bool Project;
 # define RIC_THRESHOLD	6
 # define RIC_CONSUMER	7
 # define RIC_MHRSTATE	8
+# define RIC_FORMAT	9
+# define RIC_CALIBRATION 10
+# define RIC_PAIR	11
+# define RIC_ENDCAL	12

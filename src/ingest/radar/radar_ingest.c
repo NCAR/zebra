@@ -19,12 +19,24 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: radar_ingest.c,v 2.11 1994-11-17 03:42:31 granger Exp $";
+static char *rcsid = "$Id: radar_ingest.c,v 2.12 1995-04-07 21:05:39 corbet Exp $";
 
 # include <copyright.h>
 # include <errno.h>
 # include <sys/time.h>
 # include <sys/resource.h>
+
+/*
+ * Solaris priority weirdness.
+ */
+# if defined(sun) && defined(SVR4)
+#  include <sys/types.h>
+#  include <sys/procset.h>
+#  include <sys/priocntl.h>
+#  include <sys/rtpriocntl.h>
+#  include <sys/tspriocntl.h> /* maybe we don't need this one? */
+static void SetRealTime ();
+# endif
 
 # include <config.h>
 # include <defs.h>
@@ -53,9 +65,10 @@ int Niceness = 0;
 int WidgetUpdate = 20;
 int NBeam = 0, NMissed = 0;
 bool Project = TRUE;
-bool MhrMode = FALSE;
+/* bool MhrMode = FALSE; */
 bool ForceRealTime = TRUE;	/* Force data times to real time?	*/
 float MhrTop = 21.0;
+RadarFormat RFormat = RF_CBAND;		/* The format of our data */
 
 /*
  * Thresholding.
@@ -79,7 +92,7 @@ char PlatformName[PF_LEN];
 /*
  * We use this data object to write out finished products.
  */
-ScaleInfo Scale[10];
+ScaleInfo Scale[MFIELD];
 
 /*
  * Who consumes our data.
@@ -93,7 +106,6 @@ static int CPid;		/* It's process ID	*/
 /*
  * Field info.
  */
-# define MFIELD 2
 RDest Rd[MFIELD];
 int NField = 0;
 char *Fields[MFIELD];
@@ -129,9 +141,10 @@ static int MHandler FP ((Message *));
 static void CheckMessages FP ((void));
 
 
-
 static unsigned char *Image[4];
 
+
+void
 die ()
 /*
  * Finish gracefully.
@@ -209,7 +222,7 @@ SetupIndirect ()
 	usy_c_indirect (vtable, "niceness", &Niceness, SYMT_INT, 0);
 	usy_c_indirect (vtable, "update", &WidgetUpdate, SYMT_INT, 0);
 	usy_c_indirect (vtable, "project", &Project, SYMT_BOOL, 0);
-	usy_c_indirect (vtable, "mhrmode", &MhrMode, SYMT_BOOL, 0);
+/* usy_c_indirect (vtable, "mhrmode", &MhrMode, SYMT_BOOL, 0); */
 	usy_c_indirect (vtable, "mhrtop", &MhrTop, SYMT_FLOAT, 0);
 	usy_c_indirect (vtable, "forcerealtime", &ForceRealTime, SYMT_BOOL, 0);
 /*
@@ -276,6 +289,18 @@ struct ui_command *cmds;
 	   	MHStates[NStates].ms_Elev = UFLOAT (cmds[1]);
 		MHStates[NStates].ms_Keep = UKEY (cmds[2]);
 		NStates++;
+		break;
+	/*
+	 * Formats.
+	 */
+	    case RIC_FORMAT:
+		RFormat = (RadarFormat) cmds[1].uc_v.us_v_int;
+		break;
+	/*
+	 * Radar calibrations.  Ugh.
+	 */
+	    case RIC_CALIBRATION:
+		CP2_LoadCal (cmds[1].uc_v.us_v_int);
 		break;
 	/*
 	 * Time to complain.
@@ -378,10 +403,22 @@ Go ()
  */
 	InvokeConsumer ();
 /*
- * If they have asked for a priority change, try to do it.
+ * If they have asked for a priority change, try to do it.  Note that this
+ * happens *after* the consumer is fired off, so that said consumer has to
+ * fend for itself in the priority arena.
  */
+# ifdef BSD
 	if (Niceness)
 		setpriority (PRIO_PROCESS, 0, Niceness);
+# endif
+# if defined(sun) && defined(SVR4)
+/*
+ * You would not believe what's required to make this work under Solaris.
+ * The good side is that we get a true real time scheduler...
+ */
+	if (Niceness)
+		SetRealTime (Niceness);
+# endif
 /*
  * Set up fields until there is a command-based way to do it.
  */
@@ -392,14 +429,19 @@ Go ()
 # endif
 	beam = GetBeam ();
 	hk = beam->b_hk;
-	for (i = 0; i < NField; i++)
+	if (RFormat == RF_CP2)
+		HandleCP2Mess (beam, hk, Scale);
+	else
 	{
-		Scale[i].s_Scale =
-			hk->parm_info[Rd[i].rd_foffset].pi_scale/100.0;
-		Scale[i].s_Offset =
-			hk->parm_info[Rd[i].rd_foffset].pi_bias/100.0;
-	ui_printf ("%s scale %.2f bias %.2f\n", Fields[i], Scale[i].s_Scale,
-			Scale[i].s_Offset);
+		for (i = 0; i < NField; i++)
+		{
+			Scale[i].s_Scale =
+				hk->parm_info[Rd[i].rd_foffset].pi_scale/100.0;
+			Scale[i].s_Offset =
+				hk->parm_info[Rd[i].rd_foffset].pi_bias/100.0;
+			ui_printf ("%s scale %.2f bias %.2f\n", Fields[i],
+					Scale[i].s_Scale, Scale[i].s_Offset);
+		}
 	}
 /*
  * Origin setting.
@@ -422,7 +464,7 @@ Go ()
 	/*
 	 * Rasterize it.
 	 */
-		Rasterize (beam, Rd, 2, TRUE);
+		Rasterize (beam, Rd, NField, TRUE);
 		if ((++nbeam % WidgetUpdate) == 0)
 		{
 			SetStatus (beam->b_hk);
@@ -453,7 +495,7 @@ int newvol, left, right, up, down, mode;
 /*
  * MHR filtering.
  */
-	if (MhrMode && ! MHR_Filter (alt))
+	if (RFormat == RF_MHR && ! MHR_Filter (alt))
 		return;
 /*
  * Radars tend to record in local time; make the move over to GMT now.
@@ -476,7 +518,19 @@ int newvol, left, right, up, down, mode;
  * Figure out attributes.
  */
 	strcpy (attr, newvol ? "newfile," : "");
-	strcat (attr, (mode == SM_PPI) ? "radar,ppi" : "radar,sur");
+	switch (mode)
+	{
+	    case SM_PPI:
+		strcat (attr, "radar,ppi");
+		break;
+	    case SM_RHI:
+		strcat (attr, "radar,rhi");
+		break;
+	    case SM_SUR:
+		strcat (attr, "radar,sur");
+		break;
+	}
+/*	strcat (attr, (mode == SM_PPI) ? "radar,ppi" : "radar,sur");*/
 /*
  * Force time unless told not to -- we usually know better than they do.
  */
@@ -491,8 +545,9 @@ int newvol, left, right, up, down, mode;
 /*
  * Say something, and make the display show what we've done.
  */
-	ui_printf (" Output %s at %d %06d alt %.2f new %c\n", PlatformName,
-		t.ds_yymmdd, t.ds_hhmmss, alt, newvol ? 't' : 'f');
+	ui_printf (" Output %s at %d %06d ang %.2f new %c scale %.2f %.2f\n",
+			PlatformName, t.ds_yymmdd, t.ds_hhmmss, alt,
+			newvol ? 't' : 'f', PixScale, rg.rg_Xspacing);
 }
 
 
@@ -564,10 +619,7 @@ BeginSweep ()
 {
 	int i;
 	char s[50];
-# ifdef notdef
-	ui_printf ("Next sweep: ");
-	getchar ();
-# endif
+
 	UpdateThreshold ();
 /*
  * If we already have a sweep going, we just clear the frames and start over.
@@ -722,3 +774,51 @@ Message *msg;
 		die ();
 	msg_ELog (EF_PROBLEM, "Unknown msg proto %d", msg->m_proto);
 }
+
+
+
+# if defined(sun) && defined(SVR4)
+/*
+ * Herein lies the code to tweak ourselves into a realtime class under
+ * solaris.
+ *
+ * SGI has a similar but totally incompatible set of incantations to
+ * follow for this.  So much for standards.  I can't bring myself to even
+ * look at the HP.
+ */
+
+static void
+SetRealTime (priority)
+int priority;
+{
+	pcinfo_t pcinfo;
+	pcparms_t parms;
+	rtparms_t *rtparms;
+/*
+ * Figure out what the class ID is for the real time class.  This is Sun's way
+ * of turning a normal integer constant into a character constant instead...
+ *
+ * Note also that without the (caddr_t) below, the compiler gripes about the
+ * type of "argument 5".  Yes, there's only four of them.  Look at
+ * <sys/priocntl.h> if you really want to know...
+ */
+	strcpy (pcinfo.pc_clname, "RT");
+	if (priocntl (0, 0, PC_GETCID, (caddr_t) &pcinfo) == -1L)
+	{
+		msg_ELog (EF_PROBLEM, "GETCID failed on RT class, en %d",
+				errno);
+		return;
+	}
+/*
+ * Now that we have the magic cookie, make ourselves a real time mondo
+ * process.
+ */
+	parms.pc_cid = pcinfo.pc_cid;
+	rtparms = (rtparms_t *) &parms.pc_clparms;
+	rtparms->rt_pri = priority;
+	rtparms->rt_tqnsecs = RT_TQDEF;
+	if (priocntl (P_PID, getpid (), PC_SETPARMS, (caddr_t) &parms) == -1)
+		msg_ELog (EF_PROBLEM, "SETPARMS failed, errno %d", errno);
+}
+
+# endif /* solaris */

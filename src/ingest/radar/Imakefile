@@ -15,17 +15,17 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.8 1994-01-26 11:26:39 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.9 1995-04-07 21:05:23 corbet Exp $"
 
-LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
+LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS) $(LIBPCAP)
 
 SRCS =  radar_ingest.c adrad_ingest.c adradInput.c Input.c mtape.c \
 	Rasterize.c StatusWidget.c XDisplay.c ds_consumer.c adradFieldList.c \
-	RadarStatus.c UFIngest.c UFInput.c
+	RadarStatus.c UFIngest.c UFInput.c cp2.c
 
 OBJS =	radar_ingest.o adrad_ingest.o adradInput.o Input.o mtape.o \
 	Rasterize.o StatusWidget.o XDisplay.o ds_consumer.o adradFieldList.o \
-	RadarStatus.o UFIngest.o UFInput.o
+	RadarStatus.o UFIngest.o UFInput.o cp2.o
 
 HDRS =  Ethernet.h HouseKeeping.h RadarInfo.h Types.h cvrt.h display.h \
 	portable.h radar.h radar_ingest.h radinfo.h raw.h sunrise_head.h \
@@ -41,7 +41,7 @@ PARAMS = cp4.params adrad.params mhr.params nexrad-kmlb.params \
 DISTFILES = Imakefile $(SRCS) $(HDRS) $(APPDEFAULTS) $(STATES) $(PARAMS)
 
 NormalProgramTargetNoInstall(radar_ingest,radar_ingest.o mtape.o Rasterize.o
-	StatusWidget.o Input.o, $(DEPLIBS),$(LIBS),$(SYSLIBS))
+	StatusWidget.o Input.o cp2.o PCapInput.o, $(DEPLIBS),$(LIBS),$(SYSLIBS))
 
 NormalProgramTargetNoInstall(adrad_ingest,adrad_ingest.o Rasterize.o 
 	adradInput.o,$(DEPLIBS),$(LIBS),$(SYSLIBS))

@@ -41,7 +41,7 @@ typedef struct _ParmInfo
 {
 	unsigned short pi_scale;	/* Scale factor	* 100	*/
 	short pi_bias;			/* Bias factor * 100 	*/
-} ParmInfo;
+} ParmInfo, SCALING;
 
 
 /******************************************************************************
@@ -197,7 +197,44 @@ typedef struct {
 /*098*/	USHORT unused_98;
 /*099*/	USHORT unused_99;
 /*100*/	USHORT live_or_sim;	/* LIVE or SIM */
-/*101*/ 			/** TRIP POINT FOR LISTING HSKP **/
+/*101-160*/ unsigned short unused5[60];
+/*161-170*/ unsigned short parm_desc2[10];
+/*171*/ unsigned short src_test_bus;
+/*172*/ unsigned short add_test_bus;
+/*173*/ unsigned short half_prf;
+/*174*/ unsigned short ptape_unit;
+/*175*/ unsigned short stape_unit;
+/*176*/ unsigned short word_176;
+/*177*/ unsigned short word_177;
+/*178*/ unsigned short word_178;
+/*179*/ unsigned short cal_attn_step;
+/*180*/ unsigned short cal_freq_step;
+/*181*/ unsigned short r_sq_offset;
+/*182*/ unsigned short refl_thres;
+/*183*/ unsigned short shifter_cnts;
+/*184*/ unsigned short attn_setting;
+/*185*/ unsigned short swp_center;
+/*186*/ unsigned short cp2_mode;
+/*187*/ unsigned short non_dual_mode;
+/*188*/ unsigned short word_188;
+/*189-200*/ unsigned short unused6[12];
+/*201*/ unsigned short wavelength2;	/* wavelength, secondary system */
+/*202*/ unsigned short atp2;		/* average tx pwr, secondary wavlen */
+/*203*/ unsigned short pulse_width2;
+/*204*/ unsigned short prf_secondary;
+/*205*/ unsigned short sys_gain2;
+/*206*/ unsigned short log_bw2;
+/*207*/ unsigned short ant_bw2;
+/*208*/ unsigned short polarization2;
+/*209-211*/ unsigned short unused7[3];
+/*212-231*/
+ 	SCALING cal_info2[10];
+/*232-240*/ unsigned short unused8[9];
+/*241-246*/ unsigned short aircraft_info[6];
+/*247*/ unsigned short dual_pol_mode;
+/*248*/ unsigned short dual_pol_switch;
+/*249-256*/ unsigned short unused9[8];
+
 } Housekeeping;
 
 /* bit flag definitions for rp7_bit_flags field */
@@ -223,11 +260,13 @@ typedef struct {
 
 /* defined constants for "parameter descriptors" */
 #define HSK_PD_PWRCNT 0x1008	/* power counts */
-#define HSK_PD_NCP  0x0608	/* normalized coherent power */
-#define HSK_PD_VEL  0x0208	/* velocity in m/s */
-#define HSK_PD_WIDTH 0x0308	/* width in m/s */
-#define HSK_PD_DBZ 0x0108	/* reflectivity in dBZ */
-#define HSK_PD_SNR 0x0408	/* SNR */
+/* #define HSK_PD_NCP  0x6008	/* normalized coherent power */
+#define HSK_PD_XPWR 0x6008	/* X-band power */
+#define HSK_PD_ZDR  0x2008	/* ZDR */
+#define HSK_PD_VEL  0x8008	/* velocity in m/s */
+#define HSK_PD_WIDTH 0x3008	/* width in m/s */
+#define HSK_PD_DBZ 0x1008	/* reflectivity in dBZ */
+#define HSK_PD_SNR 0x4008	/* SNR */
 
 /*
  * Scan modes.
@@ -237,3 +276,28 @@ typedef struct {
 # define SM_COP		2
 # define SM_RHI		3
 # define SM_SUR		8
+
+
+/*
+ * Describe the dual polarization mode word.
+ */
+struct dual_pol_mode {
+    unsigned int unused     :  8;
+    unsigned int half_nyq   :  1; /* Half Nyquist Enable (Velocity interface
+				   * 0 = HV pairs
+				   * 1 = HH and VV pairs
+				   */
+    unsigned int ldr_scale  :  2; /* 00 +-  6 db
+				   * 01 +- 12 db
+				   * 10 +- 24 db
+				   * 11 +- 48 db
+				   */
+    unsigned int ldr_limit  :  1; /* LDR limit enable (0 = folding) */
+    unsigned int zdr_scale  :  2; /* 00 +-  3 db
+				   * 01 +-  6 db
+				   * 10 +- 12 db
+				   * 11 +- 24 db
+				   */
+    unsigned int zdr_limit  :  1; /* ZDR limit enable (0 = folding) */
+    unsigned int dual_polar :  1; /* Dual Polarization Mode Enable */
+};

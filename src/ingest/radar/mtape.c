@@ -319,7 +319,11 @@ int mtmnt_ (unit)
     if ( MTdev != NULL )
          strcpy( fname, MTdev );
     else
-	 sprintf (fname, "/dev/nrmt%d", *unit);
+# ifdef SVR4
+	    sprintf (fname, "/dev/rmt/%dbn", *unit);
+# else
+	    sprintf (fname, "/dev/nrmt%d", *unit);
+# endif   
     /*
     printf( "Opening input device %s\n", fname );
      */

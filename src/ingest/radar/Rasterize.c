@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: Rasterize.c,v 2.9 1994-06-17 21:49:07 burghart Exp $";
+static char *rcsid = "$Id: Rasterize.c,v 2.10 1995-04-07 21:05:28 corbet Exp $";
 
 # include <defs.h>
 # include <message.h>
@@ -107,6 +107,8 @@ static void ScanConvert FP ((struct RastInfo *, int, double, double,
 	double, double, RDest *, int));
 static inline void CheckMax FP ((int, int, int, int));
 static int DirCheck FP ((Direction *, Beam, int, double));
+static bool CheckFixAng FP ((Housekeeping *, double));
+
 
 /*
  * This is used for debugging only.
@@ -218,7 +220,8 @@ int interleaved;
 /*
  * Filter out obvious junk.
  */
-	if (! InSweep && hk->scan_mode != SM_PPI && hk->scan_mode != SM_SUR)
+	if (! InSweep && hk->scan_mode != SM_PPI && hk->scan_mode != SM_SUR &&
+		hk->scan_mode != SM_RHI)
 		return;
 	if (hk->minute > 60 || hk->gates_per_beam > 2048 || hk->month > 12)
 	{
@@ -234,27 +237,29 @@ int interleaved;
 		return;
 	NBeam++;
 /*
- * Threshold the data.
+ * Go through and thrash up the data; what actually happens here is format
+ * dependent.  Most data is merely thresholded; CP2 needs to be truly
+ * derived.
  */
 	for (fld = 0; fld < nrd; fld++)
-	  {
-	    if (interleaved)
-	      Threshold (beam, TBuf[fld], rd[fld].rd_foffset,
-			 hk->parm_per_gate);
-	    else
-	      {
+	{
+		if (RFormat == RF_CP2)
+			CP2_DoDerivation (hk, beam, fld, TBuf[fld]);
+		else if (interleaved)
+			Threshold (beam, TBuf[fld], rd[fld].rd_foffset,
+					hk->parm_per_gate);
+		else
+		{
 		/*
 		 * Kluge:  tweak the ThrFldOffset temporarily since we're
 		 * dealing with sequential rather than interleaved data.
 		 */
-		ThrFldOffset *= hk->gates_per_beam;
-
-		Threshold (beam, TBuf[fld], 
-			   rd[fld].rd_foffset * hk->gates_per_beam, 1);
-
-		ThrFldOffset /= hk->gates_per_beam;
-	      }
-	  }
+			ThrFldOffset *= hk->gates_per_beam;
+			Threshold (beam, TBuf[fld], 
+				   rd[fld].rd_foffset * hk->gates_per_beam, 1);
+			ThrFldOffset /= hk->gates_per_beam;
+		}
+	}
 /*
  * Calculate the rasterization parameters.
  */
@@ -412,7 +417,7 @@ Beam beam;
 		msg_ELog (EF_DEBUG, "Sweep count/transition break");
 	else if (Fixed != hk->fixed)		/* Fixed angle change */
 		msg_ELog (EF_DEBUG, "Fixed angle break");
-	else if (ABS (hk->fixed - hk->elevation) > ElTolerance * CORR_FACT)
+	else if (! CheckFixAng (hk, ElTolerance))
 		msg_ELog (EF_DEBUG, "Fixed/real difference break: %.2f/%.2f",
 			  hk->fixed / CORR_FACT, hk->elevation / CORR_FACT);
 	else if (DirCheck (&dir, beam, hk->log_rec_num - firstbeam,
@@ -478,9 +483,10 @@ Beam beam;
  *	in a simple attempt to filter out obnoxious between-sweep
  *	behavior.
  */
-	if (hk->scan_mode != SM_SUR && hk->scan_mode != SM_PPI ||
-			ABS (hk->elevation - hk->fixed) > ElTolerance*CORR_FACT
-			|| hk->elevation <= (int) (0.1*CORR_FACT))
+	if (hk->scan_mode != SM_SUR && hk->scan_mode != SM_PPI &&
+			hk->scan_mode != SM_RHI ||
+			! CheckFixAng (hk, ElTolerance) ||
+			hk->elevation <= (int) (0.1*CORR_FACT))
 	{
 		InSweep = FALSE;
 		return;
@@ -492,6 +498,8 @@ Beam beam;
 	InSweep = BeginSweep ();
 	if (!InSweep)
 		return;
+	if (RFormat == RF_CP2)
+		CP2_CheckParams (beam, hk, Scale);
 
 	scan++;
 	oldtime = newtime;
@@ -520,6 +528,28 @@ Beam beam;
 
 
 
+
+
+static bool
+CheckFixAng (hk, tol)
+Housekeeping *hk;
+float tol;
+/*
+ * Check that the fixed angle is within the tolerance.
+ */
+{
+	int diff;
+	if (hk->scan_mode == SM_RHI)
+		diff = ABS (hk->azimuth - hk->fixed);
+	else
+		diff = ABS (hk->elevation - hk->fixed);
+	return (diff < tol*CORR_FACT);
+}
+
+
+
+
+
 static int
 DirCheck (dir, beam, nbeam, first)
 Direction *dir;
@@ -530,12 +560,14 @@ float first;
  * Check directions.
  */
 {
-	float diff, az = beam->b_hk->azimuth/CORR_FACT;
+	float diff, ang;
 	int retv = FALSE;
 /*
- * Check for non-moving antenna.
+ * Check for non-moving antenna.  THIS IS WRONG FOR RHI
  */
-	if (nbeam == 4 && ABS (first - az) < 0.1)
+	ang = ((beam->b_hk->scan_mode == RHI_SCAN) ? beam->b_hk->elevation :
+			beam->b_hk->azimuth)/CORR_FACT;
+	if (nbeam == 4 && ABS (first - ang) < 0.1)
 	{
 		msg_ELog (EF_DEBUG, "DirCheck 4 beam trigger");
 		return (TRUE);
@@ -543,7 +575,7 @@ float first;
 /*
  * Find the difference here.
  */
-   	diff = az - first;
+   	diff = ang - first;
 	if (diff < -180)
 		diff += 360;
 	else if (diff > 180)
@@ -567,8 +599,8 @@ float first;
 	}
 	if (retv)
 		msg_ELog (EF_DEBUG,
-		    "DIRCHECK, dir %d, nb %d, first %.2f, az %.2f, diff %.2f",
-				*dir, nbeam, first, az, diff);
+		    "DIRCHECK, dir %d, nb %d, first %.2f, ang %.2f, diff %.2f",
+				*dir, nbeam, first, ang, diff);
 	return (retv);
 }
 
@@ -592,9 +624,22 @@ struct RastInfo *rinfo;
 	Housekeeping *hk = beam->b_hk;
 	int far = 0;
 /*
- * Figure out azimuths.
+ * Figure out azimuths.  Kludge things here for an RHI if need be.
  */
-	az = hk->azimuth/CORR_FACT;
+	if (hk->scan_mode == SM_RHI)
+	{
+		az = hk->elevation/CORR_FACT;
+		if (az < 0)
+			az += 360.0;
+		az = 450 - az;
+		if (az >= 360.0)
+			az -= 360.0;
+	}
+	else
+		az = hk->azimuth/CORR_FACT;
+/*
+ * Figure differences from the last beam.
+ */
 	if ((adiff = dabs (az - lastaz)) > 1.5)
 		adiff = AzFill;
 	if ((az1 = az - adiff) < 0)
@@ -645,7 +690,7 @@ struct RastInfo *rinfo;
  */
 	pr0 = (hk->rhozero1 + hk->rhozero2/1000.0)*PixScale;
 	pgs = 1.0/((hk->gate_spacing/1000.0)*PixScale);
-	if (Project)
+	if (Project && hk->scan_mode != SM_RHI)
 		pgs /= cos (DegToRad (hk->elevation/CORR_FACT));
 	/* printf ("Gt %5.3f/%5.3f ", pr0, pgs); */
 /*

@@ -42,6 +42,12 @@ define state initial
 	input 'mhrstate' 8
 		next mhr-elev
 	endinput
+	input 'format' 9
+	        next radar-format
+	endinput
+	input 'calibration' 10
+		next cal-type
+	endinput
 enddef
 
 define state mhr-elev
@@ -116,6 +122,52 @@ define state consumer-args
 		next consumer-args
 	endinput
 enddef
+
+
+!
+! Radar formats.  The numbers match the enum in radar_ingest.h
+!
+define state radar-format
+     	input 'cband' 0
+		next ust$no_more
+	endinput
+	input 'cp2' 1
+		next ust$no_more
+	endinput
+	input 'mhr' 2
+		next ust$no_more
+	endinput
+enddef
+
+
+!
+! CP2 calibrations.
+!
+define state cal-type
+       	input 'sband' 0
+		next ust$no_more
+	endinput
+	input 'xband' 1
+		next ust$no_more
+	endinput
+enddef
+
+
+define state cal-initial
+	input 'pair' 11
+		next pair-counts
+	endinput
+	input 'endcal' 12
+		next ust$no_more
+	endinput
+enddef
+
+define state pair-counts
+        input integer
+		next ust$final_real
+	endinput
+enddef
+
 
 set ui$initial_state "initial"
 

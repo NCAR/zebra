@@ -91,12 +91,12 @@ int	CPid = 0;		/* Its process ID	*/
 /*
  * Field info.
  */
-# define MFIELD 5
 RDest		Rd[MFIELD];
 ScaleInfo	Scale[MFIELD];
 int		NField = 0, FIndex[MFIELD];
 char		*Fields[MFIELD];
 static unsigned char	*Image[MFIELD];
+RadarFormat RFormat = RF_UF;		/* The format of our data */
 
 /*
  * Prototypes
@@ -369,12 +369,13 @@ Go ()
 		}
 	}
 	
-
+# ifdef BSD
 /*
  * If they have asked for a priority change, try to do it.
  */
 	if (Niceness)
 		setpriority (PRIO_PROCESS, 0, Niceness);
+# endif
 /*
  * Now plow through the beams.
  */
@@ -612,4 +613,29 @@ Message *msg;
 	if (msg->m_proto == MT_MESSAGE && tmpl->mh_type == MH_DIE)
 		die ();
 	msg_ELog (EF_PROBLEM, "Unknown msg proto %d", msg->m_proto);
+}
+
+
+/*
+ * Ugliness.  A couple of stubs which should never get called, put here
+ * to keep the linker happy (preferable to linking in the whole CP2 mess
+ * for the same purpose).
+ */
+
+void CP2_CheckParams (beam, hk, scale)
+Beam beam;
+Housekeeping *hk;
+ScaleInfo *scale;
+{
+/* yawn */
+}
+
+
+void CP2_DoDerivation (hk, beam, n, data)
+Housekeeping *hk;
+Beam beam;
+int n;
+unsigned char *data;
+{
+/* snore */
 }
