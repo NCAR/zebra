@@ -1,7 +1,7 @@
 /*
  * The MOCCA display manager.
  */
-static char *rcsid = "$Id: dm.c,v 2.7 1991-12-17 19:50:27 kris Exp $";
+static char *rcsid = "$Id: dm.c,v 2.8 1991-12-20 17:49:15 corbet Exp $";
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -1382,7 +1382,8 @@ time *when;
 	struct tm_prt prt;
 	
 	prt.tr_type = TR_PRT;
-	prt.tr_time = *when;
+	/* prt.tr_time = *when; */
+	TC_UIToZt (when, &prt.tr_time);
 	prt.tr_scale = 1;
 	msg_send ("Timer", MT_TIMER, FALSE, &prt, sizeof (prt));
 }
