@@ -32,7 +32,7 @@
 # include "znfile.h"
 # include "ds_fields.h"
 
-MAKE_RCSID ("$Id: DFA_Zebra.c,v 1.10 1993-04-26 16:00:50 corbet Exp $");
+MAKE_RCSID ("$Id: DFA_Zebra.c,v 1.11 1993-05-10 17:08:40 barrett Exp $");
 
 
 /*
@@ -2285,7 +2285,7 @@ FieldId *fids;
 		fids[*nfield] = tag->zt_Fids[fld];
 		(*nfield)++;
 	}
-	return (TRUE);
+	return (*nfield);
 }
 
 
