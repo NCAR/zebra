@@ -19,7 +19,6 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-static char *rcsid = "$Id: SharedMemory.c,v 2.1 1991-09-26 22:54:18 gracio Exp $";
 
 # include <errno.h>
 # include <sys/types.h>
@@ -33,6 +32,7 @@ static char *rcsid = "$Id: SharedMemory.c,v 2.1 1991-09-26 22:54:18 gracio Exp $
 # include "dsPrivate.h"
 # include "dslib.h"
 
+MAKE_RCSID ("$Id: SharedMemory.c,v 2.2 1991-11-22 21:11:42 corbet Exp $")
 
 
 /*
