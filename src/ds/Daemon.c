@@ -54,7 +54,7 @@
 # include "dsDaemon.h"
 # include "commands.h"
 
-RCSID ("$Id: Daemon.c,v 3.69 1999-03-19 16:19:04 burghart Exp $")
+RCSID ("$Id: Daemon.c,v 3.70 1999-05-18 22:14:14 burghart Exp $")
 
 /*
  * Private SourceId type, for convenience
@@ -1161,7 +1161,8 @@ struct dsp_UpdateFile *request;
 {
     DataFile *df = &request->dsp_file;
     DataFileCore *core = &df->df_core;
-    Source *src = Srcs[df->df_srcid];
+    SourceId srcid;
+    Source *src;
     PlatformId pid = df->df_pid;
     const Platform *p = dt_FindPlatform (pid);
     DaemonPlatform *dp = dp_DaemonPlatform (pid);
@@ -1170,10 +1171,22 @@ struct dsp_UpdateFile *request;
     struct dsp_UpdateAck ack;
     ZebraTime last;
 /*
+ * Source substitution for SRC_DEFAULT, and sanity check
+ */
+    srcid = (df->df_srcid == SRC_DEFAULT) ? 0 : df->df_srcid;
+    if (srcid < 0 || srcid >= NSrcs)
+    {
+	msg_ELog (EF_PROBLEM, "Unable to update file '%s', with bad source %d",
+		  df->df_fullname, srcid);
+	msg_ELog (EF_PROBLEM, "File update failed due to bad source");
+	return;
+    }
+/*
  * Message
  */
+    src = Srcs[srcid];
     msg_ELog (EF_DEBUG,
-	      "%s updated %s file %s (%s) ns %d ow %d last %d",
+	      "%s updated '%s' file %s (%s) ns %d ow %d last %d",
 	      from, src_Name (src), df->df_core.dfc_name, pi_Name (p), 
 	      request->dsp_NSamples, request->dsp_NOverwrite, 
 	      request->dsp_Last);
