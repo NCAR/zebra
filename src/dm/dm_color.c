@@ -1,7 +1,7 @@
 /*
  * Color table routines.
  */
-static char *rcsid = "$Id: dm_color.c,v 2.4 1993-10-14 20:12:18 corbet Exp $";
+static char *rcsid = "$Id: dm_color.c,v 2.5 1993-10-21 22:52:59 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -221,7 +221,7 @@ SValue *argv, *retv;
 	*rett = SYMT_STRING;
 	if (! ct)
 	{
-		*retv = usy_string ("white");
+		retv->us_v_ptr = usy_string ("white");
 		return;
 	}
 /*
@@ -232,10 +232,10 @@ SValue *argv, *retv;
 		xc = ct->ct_colors + n;
 		sprintf (ret, "rgb:%02x/%02x/%02x", xc->red, xc->green,
 			 xc->blue);
-		*retv = usy_string (ret);
+		retv->us_v_ptr = usy_string (ret);
 	}
 	else
-		*retv = usy_string ("hot pink");	/* WTH */
+		retv->us_v_ptr = usy_string ("hot pink");	/* WTH */
 }
 
 

@@ -23,7 +23,7 @@
 # include <ui_error.h>
 # include "dm_vars.h"
 # include "dm_cmds.h"
-MAKE_RCSID ("$Id: dm_ui.c,v 2.4 1993-10-14 20:12:20 corbet Exp $")
+MAKE_RCSID ("$Id: dm_ui.c,v 2.5 1993-10-21 22:53:02 corbet Exp $")
 
 
 
@@ -377,7 +377,7 @@ SValue *argv, *retv;
  */
 	if (! pd)
 	{
-		*retv = usy_string ("bogus");
+		retv->us_v_ptr = usy_string ("bogus");
 		return;
 	}
 /*
