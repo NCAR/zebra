@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: Rasterize.c,v 2.3 1992-07-31 16:54:31 corbet Exp $";
+static char *rcsid = "$Id: Rasterize.c,v 2.4 1992-12-22 21:19:36 granger Exp $";
 
 # include <defs.h>
 # include <message.h>
@@ -143,9 +143,13 @@ int y;
 
 
 
-static inline double
-abs (a)
+static inline double  
+dabs (a)
 double a;
+/* 
+ * 'dabs' name required because 'abs' conflicts with prototype in 
+ * cc's stdlib.h
+ */
 {
 	return (a > 0 ? a : -a);
 }
@@ -556,7 +560,7 @@ struct RastInfo *rinfo;
  * Figure out azimuths.
  */
 	az = hk->azimuth/CORR_FACT;
-	if ((adiff = abs (az - lastaz)) > 1.5)
+	if ((adiff = dabs (az - lastaz)) > 1.5)
 		adiff = AzFill;
 	if ((az1 = az - adiff) < 0)
 		az1 += 360.0;
