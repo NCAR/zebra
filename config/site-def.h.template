@@ -37,7 +37,7 @@
 /**/# -----------------------------------------------------------------------
 /**/# Definitions from site-def.h included here.  The definitions here override
 /**/# the defaults in Project.tmpl.  
-/**/# $Id: site-def.h.template,v 1.34 1997-09-16 16:50:54 case Exp $
+/**/# $Id: site-def.h.template,v 1.35 1998-06-08 20:45:26 oye Exp $
 /**/# -----------------------------------------------------------------------
 # endif
 
@@ -351,7 +351,7 @@
  * which has "little endian" byte ordering.  Linux users should
  * modify the line to read:
  *
- *      # define EndianFlag -DLITTLE_ENDIAN
+ *      # define EndianFlag -DLITTLENDIAN
  *
  */
 
