@@ -1,7 +1,7 @@
 /*
  * Movie control functions.
  */
-static char *rcsid = "$Id: MovieControl.c,v 1.12 1991-04-12 21:56:51 kris Exp $";
+static char *rcsid = "$Id: MovieControl.c,v 1.13 1991-04-19 17:37:20 kris Exp $";
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
@@ -63,7 +63,6 @@ static bool Pregenerate = FALSE;	/* Should frames be pregenerated*/
 static char Field1[FLEN], Field2[FLEN]; /* Fields to be pregenerated	*/	
 static char PGComp[FLEN];		/* Component which wants pregen.*/
 
-extern void px_GlobalPlot(), px_FixPlotTime();
 
 /*
  * Forward definitions.
@@ -611,9 +610,11 @@ int *which;
 	{
 		msg_ELog(EF_DEBUG, "Pregenerating %s.", Field2);
 		pd_Store(Pd, PGComp, "field", Field2, SYMT_STRING);
+		reset_limits(PGComp, "field", Field2);
 		if(fc_LookupFrame(&PlotTime) < 0)
 			px_GlobalPlot(&PlotTime);
 		pd_Store(Pd, PGComp, "field", Field1, SYMT_STRING);
+		reset_limits(PGComp, "field", Field1);
 	}
 	px_PlotExec ("global");
 	fc_MarkFrames(Mtimes, Nframes);
@@ -770,11 +771,15 @@ mc_ResetFrameCount()
 	{
 		FrameCount = OldFrameCount;
 		fc_SetNumFrames(FrameCount);
+		px_FixPlotTime(&PlotTime);
 		DisplayFrame = DrawFrame = fc_LookupFrame(&PlotTime);
 		if(DisplayFrame < 0)
-			DisplayFrame = DrawFrame = 0;
-		GWDrawInFrame(Graphics, DrawFrame);
-		GWDisplayFrame(Graphics, DisplayFrame);
+			px_PlotExec("global");	
+		else
+		{
+			GWDrawInFrame(Graphics, DrawFrame);
+			GWDisplayFrame(Graphics, DisplayFrame);
+		}
 		XtSetArg (args[0], XtNframeCount, FrameCount);
 		XtSetValues (Graphics, args, ONE);
 		pd_Store (Pd, "global", "time-frames", (char *) &FrameCount, 
