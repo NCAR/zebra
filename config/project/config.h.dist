@@ -39,7 +39,7 @@
 /**/# -----------------------------------------------------------------------
 /**/# Definitions from config.h included here.  The definitions here override
 /**/# the defaults in Project.tmpl.  See ...../zeb/config/config.h.
-/**/# $Id: config.h.dist,v 1.3 1994-01-31 17:12:52 corbet Exp $
+/**/# $Id: config.h.dist,v 1.4 1994-02-01 11:01:31 granger Exp $
 /**/# -----------------------------------------------------------------------
 # endif
 
@@ -120,10 +120,10 @@
  * Here you can select which individual ingest modules to build.  
  * NONE of these will be built if BuildIngest is NO
  */
-# define	BuildIngestScheduler	YES
+# define	BuildIngestScheduler	YES	/* Sun only	 	*/
 # define	BuildClassIngest	YES
-# define	BuildRadarIngest	YES	/* Sun only */
-# define	BuildSLGrabber		YES
+# define	BuildRadarIngest	YES	/* Sun only		*/
+# define	BuildSLGrabber		YES	/* Sun only		*/
 # define	BuildNowradIngest	YES
 # define	BuildProfsIngest	YES
 # define	BuildSatelliteIngest	YES
@@ -132,8 +132,8 @@
 # define	BuildSlowTapeIngest	YES
 # define 	BuildTAOIngest		YES
 # define	Build_GMS_ISCCP		YES
-# define	Build_TRMM_SSMI		YES
-# define	Build_TRMM_Rain		YES
+# define	Build_TRMM_SSMI		YES	/* Not for HP-UX	*/
+# define	Build_TRMM_Rain		YES	/* Not for HP-UX	*/
 # define	Build_TRMM_Sonde	YES
 # define	Build_FEST_P3_C130	YES
 # define	BuildPrecipIngest	YES
@@ -317,13 +317,34 @@
  * During linking, the linker must be told where to find the libraries 
  * for the various packages which Zeb requires.  The locations of these
  * libraries can be defined in the following parameters.  All of these
- * default to empty, which assumes that the libraries will be found in the
- * system's default library search path.
+ * default to empty, meaning that the libraries will be found in the
+ * system's default library search path.  If any of these are defined, then
+ * they will automatically be included in a -L option to the compiler,
+ * unless they are overridden by XLibraries, NetCDFLibrary, or RDSSLibrary
+ * below.
  *
  * 	XLibDir		-- Location of X libraries.
  *	NetCDFLibDir    -- Location of the netCDF library.
- *	RDSSLibDir	-- RDSS Library directory.
+ *	RDSSLibDir	-- RDSS Library directory.  IF NOT INSTALLED IN
+ *			   /usr/local/lib OR /usr/lib, DEFINE A DIRECTORY
+ *			   BELOW.
  *
+ * WARNING: If any of the following libraries are in /usr/lib and you are
+ * building on a Sun, DO NOT specify /usr/lib explicitly.  Otherwise you
+ * will run into extremely weird linking problems involving the fact that
+ * Sun provides at least three math libraries and you HAVE to get the right
+ * one.
+ */
+
+/* # define XLibDir /local/X11R5/lib */
+/* # define XLibDir /usr/contrib/mitX11R5/lib */ /* for HPUX */
+
+/* # define RDSSLibDir /rdss/lib */		/* common RDSS installation */
+/* # define RDSSLibDir /usr/local/lib */	/* not needed with gcc */
+
+/* # define NetCDFLibDir /usr/local/lib */	/* non needed with gcc */
+
+/*
  * To specify the whole command-line option for a library use the symbols
  * XLibraries, NetCDFLibrary, RDSSLibrary.  For example, to use a 
  * version of RDSS which has a different name, use 
@@ -336,22 +357,13 @@
  * 		       /usr/local/lib/librdssutil2.a
  *
  * Note that defining one of the 'Library' symbols as above will completely
- * circumvent the definition of the corresponding 'LibDir' symbol.  See the
- * next section for more details and more of the available 'Library' symbols.
+ * circumvent the definition of the corresponding 'LibDir' symbol.  
+ * FOR ALMOST ALL INSTALLATIONS, it should only be necessary to specify
+ * library directories via the XLibDir, RDSSLibDir, and NetCDFLibDir symbols,
+ * meaning the symbols XLibraries, NetCDFLibrary, and RDSSLibrary do not
+ * need to be defined here. (The names of the libraries will be added
+ * automatically to the LibDir symbols.)
  *
- * WARNING: If any of the following libraries are in /usr/lib and you are
- * building on a Sun, DO NOT specify /usr/lib explicitly.  Otherwise you
- * will run into extremely weird linking problems involving the fact that
- * Sun provides at least three math libraries and you HAVE to get the right
- * one.
- */
-
-/* # define XLibDir /local/X11R5/lib */
-/* # define RDSSLibDir /usr/local/lib */	/* non-gcc */
-/* # define NetCDFLibDir /usr/local/lib */	/* non-gcc */
-/* # define XLibDir /usr/contrib/mitX11R5/lib */ /* for HPUX */
-
-/*
  * If you need to define the actual command-line option for specifying
  * some or all of the libraries, you can change several parameters.
  * All of these parameters will default to the specified library directory
@@ -383,6 +395,14 @@
  * two symbols above.
  */
 
+/*
+ * This one works if the RDSS source tree is in /rdss and has not been cleaned
+ */
+/* # define PamCfgLibrary /rdss/pam/cfg/access/libunp.a */
+
+/*
+ * This one is for RDSS libraries installed into /usr/local/lib
+ */
 /* # define PamCfgLibrary /usr/local/lib/libunp.a */
 
 /*
@@ -399,7 +419,6 @@
 # define FortranLibraries -L/usr/lang/SC1.0.1 -lF77 -lV77	/* SunOS 4 */
 /* # define FortranLibraries -L/opt/SUNWspro/SC2.0.1 -lF77 -lV77 /* Solaris */
 /* # define FortranLibraries -lU77 -lf -lisamstub */	/* HPUX version */
-
 
 /*
  * Some of Zeb's routines require the terminal capability library,
@@ -724,14 +743,6 @@
 # endif
 
 /*
- * For backwards compatibility, in case these symbols are still
- * referenced somewhere...
- */
-#define RT_DS_TOOLS BuildRealtimeDataStoreTools
-#define BUILD_OPTIMIZER BuildOptimizer
-#define BUILD_INGEST BuildIngest
-
-/*
  * Set some defaults
  */
 #ifndef DistributeIngest
@@ -779,6 +790,14 @@
 #   define ZEBDIR	BASEDIR
 #   define FCCDIR	BASEDIR
 
-#endif
+/*
+ * For backwards compatibility, in case these symbols are still
+ * referenced somewhere...
+ */
+#define RT_DS_TOOLS BuildRealtimeDataStoreTools
+#define BUILD_OPTIMIZER BuildOptimizer
+#define BUILD_INGEST BuildIngest
+
+#endif /* MAKING_MAKEFILE */
 
 # endif /* ! _zeb_config_h_ */
