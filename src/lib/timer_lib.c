@@ -1,7 +1,7 @@
 /*
  * Access routines for the timer module.
  */
-static char *rcsid = "$Id: timer_lib.c,v 1.3 1991-01-30 20:44:37 corbet Exp $";
+static char *rcsid = "$Id: timer_lib.c,v 1.4 1991-02-08 23:08:02 corbet Exp $";
 
 # include "../include/defs.h"
 # include "timer.h"
@@ -24,6 +24,7 @@ static struct Tevent
 
 static bool First = TRUE;
 
+static void (*ChangeHandler) () = 0;
 
 /*
  * Forward routines
@@ -52,6 +53,21 @@ tl_Init ()
 		msg_AddProtoHandler (MT_TIMER, tl_ProtoHandler);
 	}
 }
+
+
+
+
+void
+tl_ChangeHandler (func)
+void (*func) ();
+/*
+ * Register a routine to handle time changes.
+ */
+{
+	ChangeHandler = func;
+}
+
+
 
 
 
@@ -189,6 +205,11 @@ struct tm_time *te;
 
 	   case TRR_CANCELACK:
 	   	tl_CancelAck ((struct tm_alarm *) te);
+		break;
+
+	   case TRR_TCHANGE:
+	   	if (ChangeHandler)
+			(*ChangeHandler)(&((struct tm_tchange *) te)->tm_time);
 		break;
 
 	   default:
