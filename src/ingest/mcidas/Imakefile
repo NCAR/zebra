@@ -8,7 +8,7 @@ XCOMM Nearly all of the source files in this directory are U. of Wisconsin
 XCOMM SSEC copyrighted code and should *not* be distributed outside 
 XCOMM of NCAR/UCAR.
 
-MFVERSION = "$Id: Imakefile,v 1.12 2003-01-10 01:09:03 granger Exp $"
+MFVERSION = "$Id: Imakefile,v 1.13 2003-01-27 22:20:21 burghart Exp $"
 
 REALMCIDAS=$(McINST_ROOT)/src/libmcidas.a
 CHECKOBJ=$(McINST_ROOT)/src/alit.o
@@ -38,6 +38,7 @@ DISTFILES = Imakefile $(ALLSRCS) $(HEADERS) README
 MCIDASOBJS=
 
 all:: mcidascheck
+install:: mcidascheck
 
 NormalLibraryTarget(mcidas,$(OBJS) $(wildcard $(McINST_ROOT)/src/?*.o))
 
