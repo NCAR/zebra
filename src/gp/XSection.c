@@ -1,7 +1,7 @@
 /*
  * Vertical cross-sectioning
  */
-static char *rcsid = "$Id: XSection.c,v 2.25 1995-03-20 21:00:32 burghart Exp $";
+static char *rcsid = "$Id: XSection.c,v 2.26 1995-04-17 21:19:51 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -2110,19 +2110,24 @@ int	nalts;
  * decreasing doesn't matter.  Return -1 if z is not encompassed within
  * alts.  To avoid slight floating point errors when testing equalities,
  * we integerize stuff.
+ *
+ * Sigma altitudes have significant decimal digits so we introduce
+ * a factor to bring them into the realm of the integral.
  */
 {
-	int	a, iz = nint (z);
+	float	factor = 1000.0;
+	int	a, iz = nint (z*factor);
 /*
  * Quick bailout test
  */
-	if (! BETWEEN (iz, nint (alts[0]), nint (alts[nalts-1])))
+	if (! BETWEEN (iz, nint (factor*alts[0]), nint (factor*alts[nalts-1])))
 		return (-1);
 /*
  * Loop until we find the right spot
  */
 	for (a = 0; a < nalts - 2; a++)
-		if (BETWEEN (iz, nint (alts[a]), nint (alts[a+1])))
+		if (BETWEEN (iz, nint (factor*alts[a]),
+				nint (factor*alts[a+1])))
 			return (a);
 }
 
