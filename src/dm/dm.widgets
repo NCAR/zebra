@@ -85,7 +85,7 @@ define widget NewWindow form 'Window creation'
 	pulldown bmaps 'Select Button Map' menu 'bmap-menu'
 	newline 
 	label l4 '    '
-	button doit 'Create window' command 'DoWindowCreate'
+	button doit 'Create Window' command 'DoWindowCreate'
 	button cancel 'Cancel' command 'popdown #ui$form' color red
 endform
 
@@ -132,11 +132,14 @@ endprocedure
 define widget newconfig form 'New configs'
 	noheader
 	label l1 'New configuration name: '
-	blank cname 'new' width 150 command 'DoConfigCreate'
+	newline
+	blank cname 'new' width 220
 	newline
 	label l2 'Copy from: '
-	blank oldname variable dm$config width 150
-	button doit 'Create config' command 'DoConfigCreate'
+	newline
+	blank oldname variable dm$config width 220
+	newline
+	button doit 'Create Configuration' command 'DoConfigCreate'
 	button cancel 'Cancel' command 'popdown #ui$form' color red
 endform
 
@@ -152,8 +155,10 @@ endprocedure
 
 define widget ConfigEdit form 'config edit'
 	noheader
-	label l1 'Configuration editing'
-	button zap 'zap' command 'popdown #ui$form'
+	label l1 'Configuration Editing'
+	newline
+	button zap 'Zap' width 75 command 'popdown #ui$form'
+	button help 'Help' width 75 command 'help editdconfig'
 	newline
 	button b1 'New configuration' width 160 command 'popup newconfig'
 	newline
