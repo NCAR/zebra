@@ -29,7 +29,7 @@
 # include <timer.h>
 # include <DataStore.h>
 
-RCSID ("$Id: dsdump.c,v 3.18 1997-04-28 04:55:01 granger Exp $")
+RCSID ("$Id: dsdump.c,v 3.19 1998-04-23 16:22:53 granger Exp $")
 
 /*
  * Standalone scanning flag.
@@ -41,8 +41,14 @@ static int Alone = 0;
  */
 #define NOFILES 0
 #define SHOWFILES 1
-#define ONLYFILES 2
-#define FULLFILES 3
+
+/*
+ * Options for the format of file entries.  Default is the historic format.
+ */
+#define ONLYFILES 2	/* filepath only */
+#define LONGFILES 4	/* dsnotice format */
+
+#define TC_DIGITS 10
 
 /*
  * The global options structure which gets passed around.
@@ -58,6 +64,10 @@ struct dsdump_options
 	bool defn;
 	bool toc;
 	bool quiet;	/* skip default output if true */
+	bool full;	/* full datafile paths if true */
+	int tcf;	/* time formats */
+	ZebraTime since;
+	ZebraTime before;
 };
 
 typedef struct dsdump_options DumpOptions;
@@ -75,7 +85,9 @@ DumpOptions Options =
 	FALSE,		/* only show most recent file */
 	FALSE,		/* don't show class definitions */
 	FALSE,		/* don't dump field list */
-	FALSE
+	FALSE,
+	FALSE,
+	TC_Full
 };
 	
 
@@ -83,9 +95,11 @@ DumpOptions Options =
  * Local prototypes
  */
 static void DumpSubplatforms FP((PlatformId pid, PlatformInfo *pi));
-static void DumpPlatform FP((PlatformId pid, PlatformInfo *pi, ZebTime *since,
+static void DumpPlatform FP((PlatformId pid, PlatformInfo *pi,
 			     DumpOptions *opts));
-static void PrintInfo FP((int index, DataFileInfo *dfi, DumpOptions *opts));
+static void PrintInfo FP((DataSrcInfo *dsi, DataFileInfo *dfi, 
+			  DumpOptions *opts));
+static void PrintTime (char *s, ZebraTime *zt, DumpOptions *opts);
 static void PrintFilePath FP((DataSrcInfo *dsi, DataFileInfo *dfi, 
 			      DumpOptions *opts));
 
@@ -117,9 +131,16 @@ char *prog;
 	       "table of contents");
 	printf("\t-f\tList filenames only\n");
 	printf("\t-g\tList filenames with their full pathnames\n");
+	printf("\t-l\tList filenames in 'dsnotice' column format\n");
+	/* Save -r for 'realtime' option to assume dsnotice functionality */
 	printf("\t-p '<number> [days|minutes|hours]'\n");
 	printf("\t\tList data within a certain period of the current time,\n");
 	printf("\t\twhere units can be abbreviated and defaults to days.\n");
+	printf("\t-p '<time>'\n");
+	printf("\t\tList files with data since the given time.\n");
+	printf("\t\tA second -p limits the end time of the period.\n");
+	printf("\t-T {full|date|time|micro|digits}\n");
+	printf("\t\tSet the format for printing times.\n");
 #ifdef notyet
 	printf("\t-i\tIndependently of the datastore, scan the given\n");
 	printf("\t\tfiles and dump the results as usual.\n");
@@ -132,6 +153,8 @@ char *prog;
 	printf("\t   %s radars -e base\n", prog);
 	printf("\tShow the last two days worth of data for all platforms:\n");
 	printf("\t   %s -p '2 days'\n", prog);
+	printf("\tShow one days worth of data, two days ago:\n");
+	printf("\t   %s -p '2 days' -p '1 day'\n", prog);
 	printf("\tTar the last 6 hours of GOES data\n");
 	printf("\t   tar cf goes.tar `%s -g -p '6 hours' goes`\n", prog);
 	printf("\tList fields in most recent observation of each platform:\n");
@@ -143,9 +166,36 @@ char *prog;
 }
 
 
+
+void
+GetFormat (char *arg, int *fmt)
+{
+	if (!strncmp("full", arg, strlen(arg)))
+	{
+		*fmt = TC_Full;
+	}
+	else if (!strncmp("date", arg, strlen(arg)))
+	{
+		*fmt = TC_DateOnly;
+	}
+	else if (!strncmp("time", arg, strlen(arg)))
+	{
+		*fmt = TC_TimeOnly;
+	}
+	else if (!strncmp("micro", arg, strlen(arg)))
+	{
+		*fmt = TC_FullUSec;
+	}
+	else if (!strncmp("digits", arg, strlen(arg)))
+	{
+		*fmt = TC_DIGITS;
+	}
+}
+
+
+
 long
-GetPeriod (arg)
-char *arg;
+GetPeriod (char *arg, ZebTime *when)
 /*
  * Parse a period string and return the number of seconds it represents.
  */
@@ -154,12 +204,25 @@ char *arg;
 	int offset;
 	char *units;
 	float num;
+	ZebTime since;
 
 	if (arg == NULL)
 	{
 		fprintf (stderr, "missing period string\n");
 		exit (9);
 	}
+	/*
+	 * First try for a full-fledged date and time
+	 */
+	if (TC_DecodeTime (arg, &since))
+	{
+		if (when)
+			*when = since;
+		return (0);
+	}
+	/*
+	 * Otherwise look for a simple interval
+	 */
 	if (sscanf (arg, "%f %n", &num, &offset) != 1)
 	{
 		fprintf (stderr, "illegal period string: '%s'\n", arg);
@@ -183,19 +246,21 @@ char *arg;
 		fprintf (stderr, "illegal period units: '%s'\n", units);
 		exit (4);
 	}
+	if (when)
+		when->zt_Sec -= result;
 	return (result);
 }
 
 
 
 static void
-NextPlatform (PlatformId pid, ZebraTime *since, DumpOptions *opts)
+NextPlatform (PlatformId pid, DumpOptions *opts)
 {
 	PlatformInfo pi;
 
 	ds_GetPlatInfo (pid, &pi);
 	if (! opts->quiet)
-		DumpPlatform (pid, &pi, since, opts);
+		DumpPlatform (pid, &pi, opts);
 	if (opts->defn)
 	{
 		fprintf (stdout, "\n");
@@ -220,8 +285,6 @@ char **argv;
 	char name[20];
 	int matches;
 	long period = 0;	/* Length of time to show data for */
-	ZebTime now;
-	ZebTime since;		/* Time to dump since */
 	DumpOptions *opts = &Options;
 /*
  * First check for the help option
@@ -249,10 +312,8 @@ char **argv;
 		printf("%s: could not connect to DataStore daemon\n",argv[0]);
 		exit (1);
 	}
-	tl_Time (&now);
-	now.zt_MicroSec = 0;
-	since.zt_Sec = 0;	/* default: show all files */
-	since.zt_MicroSec = 0;
+	opts->since = ZT_ALPHA;		/* default: show all files */
+	opts->before = ZT_OMEGA;
 /*
  * How many platforms?
  */
@@ -304,15 +365,38 @@ char **argv;
 				opts->toc = TRUE;
 				break;
 			   case 'f':
-				opts->files = ONLYFILES;
+				opts->files |= ONLYFILES;
+				opts->files &= ~LONGFILES;
+				break;
+			   case 'l':
+				opts->files &= ~ONLYFILES;
+				opts->files |= LONGFILES;
 				break;
 			   case 'g':
-				opts->files = FULLFILES;
+				opts->full = TRUE;
 				break;
 			   case 'p':
-				period = GetPeriod (argv[++opt]);
-				since = now;
-				since.zt_Sec -= period;
+				if (! argv[++opt])
+				{
+					usage (argv[0]);
+					exit (1);
+				}
+				if (TC_Eq (opts->since, ZT_ALPHA))
+				{
+					GetPeriod (argv[opt], &opts->since);
+				}
+				else
+				{
+					GetPeriod (argv[opt], &opts->before);
+				}
+				break;
+			   case 'T':
+				if (! argv[++opt])
+				{
+					usage (argv[0]);
+					exit (1);
+				}
+				GetFormat (argv[opt], &opts->tcf);
 				break;
 			   case 'q':
 				opts->quiet = TRUE;
@@ -332,7 +416,7 @@ char **argv;
 				printf ("%s: bad platform\n", argv[opt]);
 			else
 			{
-				NextPlatform (pid, &since, opts);
+				NextPlatform (pid, opts);
 				++matches;
 			}
 			exact = FALSE;
@@ -347,7 +431,7 @@ char **argv;
 			matches += nplat;
 			for (i = 0; i < nplat; i++)
 			{
-				NextPlatform (platforms[i], &since, opts);
+				NextPlatform (platforms[i], opts);
 			}
 			if (pattern && (nplat == 0))
 				printf ("No matches for '%s'\n", pattern);
@@ -375,10 +459,9 @@ char **argv;
 
 
 static void
-DumpPlatform (pid, pi, since, opts)
+DumpPlatform (pid, pi, opts)
 PlatformId pid;
 PlatformInfo *pi;
-ZebTime *since;		/* Time since which to dump files */
 DumpOptions *opts;
 {
 	int i, index;
@@ -425,12 +508,11 @@ DumpOptions *opts;
 			     index = dfi.dfi_Next)
 			{
 				ds_GetFileInfo (index, &dfi);
-				if (TC_Less(dfi.dfi_End, *since))
+				if (TC_Less(dfi.dfi_End, opts->since))
 					break;
-				if (opts->files >= ONLYFILES)
-					PrintFilePath (&dsi, &dfi, opts);
-				else
-					PrintInfo (index, &dfi, opts);
+				if (TC_Less(opts->before, dfi.dfi_Begin))
+					continue;
+				PrintInfo (&dsi, &dfi, opts);
 				if (opts->obs)
 					break;
 			}
@@ -486,28 +568,42 @@ PlatformInfo *pi;
 
 
 static void
-PrintInfo (index, dfi, opts)
-int index;
+PrintInfo (dsi, dfi, opts)
+DataSrcInfo *dsi;
 DataFileInfo *dfi;
 DumpOptions *opts;
 /*
  * Dump out file info.
  */
 {
-	char abegin[40], aend[20];
 	FieldId fields [DC_MaxField];
 	int nfield = DC_MaxField;
-/*
- * Pull out the date information and encode it.
- */
-	TC_EncodeTime (&dfi->dfi_Begin, TC_Full, abegin);
-	TC_EncodeTime (&dfi->dfi_End, TC_TimeOnly, aend);
-/*
- * Now print.
- */
-	printf ("  %c %4d  %s  %s > %s [%hu]\n",
-		dfi->dfi_Archived ? 'A' : 'N',
-		index, dfi->dfi_Name, abegin, aend, dfi->dfi_NSample);
+	char abegin[40], aend[20];
+
+	if (opts->files & LONGFILES)
+	{
+		printf ("%s ", ds_PlatformName(dfi->dfi_Plat));
+		PrintFilePath (dsi, dfi, opts);
+		PrintTime (aend, &dfi->dfi_End, opts);
+		printf (" %s %s %hu\n", dsi->dsrc_Where, 
+			aend, dfi->dfi_NSample);
+	}
+	else if (opts->files & ONLYFILES)
+	{
+		PrintFilePath (dsi, dfi, opts);
+		printf ("\n");
+	}
+	else if (opts->files & SHOWFILES)	/* The trusty default */
+	{
+		/*
+		 * Pull out the date information and encode it.
+		 */
+		PrintTime (abegin, &dfi->dfi_Begin, opts);
+		PrintTime (aend, &dfi->dfi_End, opts);
+		printf (" %c  %s  %s . %s [%hu]\n",
+			dfi->dfi_Archived ? 'A' : 'N',
+			dfi->dfi_Name, abegin, aend, dfi->dfi_NSample);
+	}
 /*
  * Perform GetFields on this file if enabled.
  */
@@ -533,9 +629,26 @@ DumpOptions *opts;
  * Print just the pathname of this file on one line.
  */
 {
-	if (opts->files == ONLYFILES)
-		printf ("%s\n", dfi->dfi_Name);
-	else if (opts->files == FULLFILES)
-		printf ("%s/%s\n", dsi->dsrc_Where, dfi->dfi_Name);
+	if (opts->full)
+		printf ("%s/%s", dsi->dsrc_Where, dfi->dfi_Name);
+	else
+		printf ("%s", dfi->dfi_Name);
 }
 
+
+
+static void
+PrintTime (char *s, ZebraTime *zt, DumpOptions *opts)
+{
+	if (opts->tcf == TC_DIGITS)
+	{
+		UItime uid;
+
+		TC_ZtToUI (zt, &uid);
+		sprintf (s, "%06d%04d", uid.ds_yymmdd, uid.ds_hhmmss/100);
+	}
+	else
+	{
+		TC_EncodeTime (zt, (TimePrintFormat)opts->tcf, s);
+	}
+}
