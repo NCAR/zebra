@@ -54,7 +54,7 @@
 # include "dsDaemon.h"
 # include "commands.h"
 
-RCSID ("$Id: Daemon.c,v 3.72 2000-06-07 20:28:52 granger Exp $")
+RCSID ("$Id: Daemon.c,v 3.73 2001-10-11 16:39:37 burghart Exp $")
 
 /*
  * Private SourceId type, for convenience
@@ -417,8 +417,13 @@ FinishInit ()
 
 	    msg_ELog (EF_INFO, "No 'source' lines in DS config file");
 	    msg_ELog (EF_INFO, "Opening %s as source 'default'", datadir);
-	    Srcs[NSrcs++] = src_Open ("default", datadir, cachefile);
 
+	    if (! (Srcs[NSrcs++] = src_Open ("default", datadir, cachefile)))
+	    {
+		msg_ELog (EF_EMERGENCY, "Could not open default data source");
+		exit (1);
+	    }
+	    
 	    free (datadir);
 	    free (cachefile);
 	}
@@ -784,7 +789,13 @@ InSourceDef (const char* srcname, struct ui_command *cmds)
  * Open the source and set the appropriate flags.
  */
     s = NSrcs++;
-    Srcs[s] = src_Open (srcname, dir, cachefile);
+    if (! (Srcs[s] = src_Open (srcname, dir, cachefile)))
+    {
+	msg_ELog (EF_PROBLEM, "Failed to open source '%s'", srcname);
+	NSrcs--;
+	return 0;
+    }
+	
     src_SetDirConst (Srcs[s], dirconst);
     src_SetFileConst (Srcs[s], fileconst);
     src_SetForceDirs (Srcs[s], forcedirs);
@@ -1995,29 +2006,78 @@ SourceList (SourceId wanted, int *nsrcs)
 static void
 FindDFLink (char *who, struct dsp_FindDFLink *req, int prev)
 /* 
- * Find the previous or next data file w.r.t. a given file.  
+ * Find the previous or next data file w.r.t. a given file.  Time comparisons
+ * are based on the start times of the files.  All sources are checked.
  */
 {
     struct dsp_R_DataFile answer;
     DataFile *df_in = &req->dsp_file;
-    Source *src = Srcs[df_in->df_srcid];
+    int s;
     PlatformId pid = df_in->df_pid;
     const Platform *p = dt_FindPlatform (pid);
-    DataFileCore core;
+    zbool haveone = FALSE;
+    DataFileCore best;
+    Source *bestsrc;
+    ZTime t = df_in->df_core.dfc_begin;
+    /*
+     * Set our file-finding function based on whether we want the 
+     * previous or next file.
+     */
+    zbool (*findFunc)(Source *src, const Platform *p, const ZebraTime *t, 
+		      DataFileCore *dfc);
+    findFunc = prev ? src_FindBefore : src_FindAfter;
 
+    /*
+     * Gotta adjust our time by epsilon, since src_FindBefore and src_FindAfter
+     * will return exact time matches if found.
+     */
+    t.zt_MicroSec += prev ? -1 : 1;
+
+    if (t.zt_MicroSec > 1000000)
+    {
+        t.zt_MicroSec -= 1000000; t.zt_Sec += 1;
+    }
+    else if (t.zt_MicroSec < 0)
+    {
+        t.zt_MicroSec += 1000000; t.zt_Sec -= 1;
+    }
+    
+    /*
+     * Loop through the sources to find the closest previous/next
+     * file.
+     */
+    for (s = 0; s < NSrcs; s++)
+    {
+	Source *src = Srcs[s];
+	DataFileCore core;
+	
+	if ((*findFunc)(src, p, &t, &core))
+	{
+	    if (! haveone ||
+		(prev && TC_Less(best.dfc_begin, core.dfc_begin))||
+		(!prev && TC_Less(core.dfc_begin, best.dfc_begin)))
+	    {
+		best = core;
+		bestsrc = src;
+		haveone = TRUE;
+	    }
+	}
+    }
+    
+    /*
+     * Build our answer message.
+     */
     answer.dsp_type = dpt_R_DataFile;
-    answer.dsp_success = 0;
-/*
- * Set our position to the given file, if possible, then to the previous or
- * next file as appropriate.
- */
-    if (src_FindExact (src, p, &(df_in->df_core.dfc_begin), 0) &&
-	(prev ? src_Prev (src, p, &core) : src_Next (src, p, &core)))
+    if (haveone)
     {
 	answer.dsp_success = 1;
-	BuildDataFile (&answer.dsp_file, &core, src, p);
+	BuildDataFile (&answer.dsp_file, &best, bestsrc, p);
     }
-	
+    else
+    {
+	answer.dsp_success = 0;
+    }
+    
     msg_send (who, MT_DATASTORE, FALSE, &answer, sizeof (answer));
 }	    
 
