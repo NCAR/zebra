@@ -2,17 +2,18 @@
  * Dump out a zeb file
  */
 
-# include <unistd.h>
 # include <stdio.h>
+# include <stdlib.h>
 # include <sys/types.h>
 # include <string.h>
 # include <errno.h>
+# include <unistd.h>
 
 # include <defs.h>
 # include "DataStore.h"
 # include "znfile.h"
 
-MAKE_RCSID ("$Id: zfdump.c,v 1.13 1995-06-12 23:09:21 granger Exp $")
+MAKE_RCSID ("$Id: zfdump.c,v 1.14 1995-06-29 21:37:42 granger Exp $")
 
 extern int optind;
 

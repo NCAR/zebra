@@ -27,7 +27,7 @@
 # include "DataChunk.h"
 # include "DataChunkP.h"
 
-MAKE_RCSID ("$Id: dc_Transp.c,v 1.20 1995-06-12 23:09:17 granger Exp $")
+MAKE_RCSID ("$Id: dc_Transp.c,v 1.21 1995-06-29 21:37:33 granger Exp $")
 
 /*
  * TODO:
@@ -119,7 +119,7 @@ static AuxTrans * 	dc_TrMoreSamples FP ((DataChunk *, AuxTrans *, int));
 static int		dc_TrMoreData FP ((DataChunk *, AuxTrans *, int));
 static int		dc_PrintSaAttr FP ((char *key, void *value, int nval,
 					    DC_ElemType type, void *arg));
-static int		dc_TrCompareSamples FP((const void *, const void *));
+static int		dc_TrCompareSamples ();
 static int		dc_TrGrowthHint FP((DataChunk *dc, AuxTrans *tp, int));
 static int		dc_AvgSampleSize FP((DataChunk *dc, AuxTrans *tp));
 static int		dc_SampleReserve FP((DataChunk *dc, AuxTrans *, int));
@@ -1384,30 +1384,6 @@ int sample, *len;
 
 
 
-
-static int
-dc_TrCompareSamples (a1, a2)
-const void *a1;
-const void *a2;
-/*
- * Return -1 if time of s1 before s2, 0 if time of s1 == s2, and 
- * 1 if time of s1 after s2
- */
-{
-        TransSample *s1 = (TransSample *) a1;
-        TransSample *s2 = (TransSample *) a2;
-
-	if (TC_Less(s1->ats_Time, s2->ats_Time))
-		return -1;
-	else if (TC_Less(s2->ats_Time, s1->ats_Time))
-		return 1;
-	else
-		return 0;
-}
-
-
-
-
 void
 dc_SortSamples (dc)
 DataChunk *dc;
@@ -1486,6 +1462,29 @@ DataChunk *dc;
 		list[i] = sr[i].pid;
 	}
 	free (sr);
+}
+
+
+
+
+static int
+dc_TrCompareSamples (a1, a2)
+const void *a1;
+const void *a2;
+/*
+ * Return -1 if time of s1 before s2, 0 if time of s1 == s2, and 
+ * 1 if time of s1 after s2
+ */
+{
+        TransSample *s1 = (TransSample *) a1;
+        TransSample *s2 = (TransSample *) a2;
+
+	if (TC_Less(s1->ats_Time, s2->ats_Time))
+		return -1;
+	else if (TC_Less(s2->ats_Time, s1->ats_Time))
+		return 1;
+	else
+		return 0;
 }
 
 

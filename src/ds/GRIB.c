@@ -33,7 +33,7 @@
 
 # include "GRIB.h"
 
-RCSID ("$Id: GRIB.c,v 3.2 1995-06-09 16:00:46 granger Exp $")
+RCSID ("$Id: GRIB.c,v 3.3 1995-06-29 21:37:29 granger Exp $")
 
 typedef struct s_GRB_DataRepType {
 	int data_type;
@@ -417,7 +417,6 @@ float	*altitude;
 		break;
 	   default:
 		return (0);
-		break;
 	}
 	/*
 	 * If they only wanted surface levels, make sure that's what we found.

@@ -30,6 +30,7 @@
 # include <errno.h>
 # include <string.h>
 # include <stdio.h>
+# include <unistd.h>
 
 # include <copyright.h>
 # include <config.h>
@@ -44,7 +45,7 @@
 # include "dsDaemon.h"
 # include "commands.h"
 
-MAKE_RCSID ("$Id: Daemon.c,v 3.50 1995-06-12 23:09:05 granger Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.51 1995-06-29 21:37:26 granger Exp $")
 
 
 /*

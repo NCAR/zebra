@@ -32,7 +32,7 @@
 # include "dslib.h"
 # include "dfa.h"
 #ifndef lint
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.49 1995-06-12 23:08:59 granger Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.50 1995-06-29 21:37:16 granger Exp $")
 #endif
 
 #include <netcdf.h>
@@ -3332,7 +3332,7 @@ ZebTime *zt;
  * Generate a file name.
  */
 {
-	date t;
+	UItime t;
 
 	TC_ZtToUI (zt, &t);
 #ifndef TEST_TIME_UNITS
@@ -3661,7 +3661,7 @@ DataChunk *dc;
 	sprintf(history,"created by Zeb DataStore, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.49 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.50 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 #endif /* TEST_TIME_UNITS */
@@ -4219,7 +4219,6 @@ long *start;
 		dc_GetTime(dc, sample, &t);
 	   	*start = dnc_TimeIndex (tag, &t);
 		return(TRUE);
-		break;
 	/*
 	 * For insertion, we must create space for the new samples by
 	 * moving everything back.  Essentially, take all of the arrays
