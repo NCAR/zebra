@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: fccclock.c,v 1.1 1990-07-08 13:03:54 corbet Exp $";
+static char *rcsid = "$Id: fccclock.c,v 1.2 1990-08-20 20:51:14 corbet Exp $";
 /*
  * The FCC clock program.
  */
@@ -6,7 +6,7 @@ static char *rcsid = "$Id: fccclock.c,v 1.1 1990-07-08 13:03:54 corbet Exp $";
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
 # include <X11/Shell.h>
-# include <X11/Cardinals.h>
+# include <X11/Xaw/Cardinals.h>
 # include <X11/Xaw/Label.h>
 # include <ui_symbol.h>
 # include <ui_date.h>
