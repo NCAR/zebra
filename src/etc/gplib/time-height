@@ -187,7 +187,7 @@ endprocedure
 ! use the field menu to change fields, and we can make sure that they have
 ! the right height array to go with it...
 !
-set th_wfields 'w_wind devw wid3 snr3 n_w wheight'
+local th_wfields 'w_wind devw wid3 snr3 n_w wheight'
 
 procedure th-coare-fselect field string
 	parameter #icon_component z-field #field
