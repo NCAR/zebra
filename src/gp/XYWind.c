@@ -1,7 +1,7 @@
 /*
  * XY-Wind plotting module
  */
-static char *rcsid = "$Id: XYWind.c,v 1.9 1992-08-10 18:07:46 barrett Exp $";
+static char *rcsid = "$Id: XYWind.c,v 1.10 1992-10-12 22:57:15 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -317,13 +317,39 @@ bool	update;
  */
 
 /*
- * Plot the annotation.
+ * Plot the top annotation.
  */
 	if (! update)
 	{
 	    An_TopAnnot ("X/Y Wind:", Tadefclr.pixel);
 	    An_TopAnnot (c,Tadefclr.pixel);
 	}
+/*
+ * Side annotation.
+ */
+	if (sideAnnot && !update)
+	{
+	    if (strcmp (style, "vector") == 0 )
+	    {
+                sprintf (datalabel, "%5.1f%s %s %f %f %f", scaleSpeed,
+			"m/sec", tadefcolor, scaleSpeed, 0.0, vecScale);
+                An_AddAnnotProc (An_ColorVector, c, datalabel,
+                        strlen (datalabel) + 1, 30, FALSE, FALSE);
+	    }
+	    if (strcmp (style, "barb") == 0 )
+	    {	
+                sprintf (datalabel, "%s %s %d", "m/sec", tadefcolor,  
+			(int) vecScale);
+                An_AddAnnotProc (An_BarbLegend, c, datalabel,
+                	strlen (datalabel) + 1, 100, FALSE, FALSE);
+	    }
+            sprintf (datalabel, "%s %s %f %f", "wind-speed:m/sec", ctname,
+           	ncolors%2 ?(ncolors*cstep*0.5)-cstep*0.5 :ncolors*cstep*0.5, 
+	        cstep);
+            An_AddAnnotProc (An_ColorBar, c, datalabel, strlen (datalabel) + 1,
+		 75, TRUE, FALSE);
+	}
+
 /*
  * Loop through the platforms
  */
@@ -334,26 +360,9 @@ bool	update;
 	 */
 	    if (sideAnnot && !update)
 	    {
-
-	        if ( strcmp(style, "vector" ) == 0 )
-		{
-                    sprintf (datalabel, "%5.1f%s %s %f %f %f", scaleSpeed,
-			"m/sec", tadefcolor, scaleSpeed, 0.0, vecScale);
-                    An_AddAnnotProc (An_ColorVector, c, datalabel,
-                                strlen(datalabel)+1, 30, FALSE, FALSE);
-		}
-	        if ( strcmp(style, "barb" ) == 0 )
-		{
-                    sprintf (datalabel, "%s %s %d", "m/sec",
-				tadefcolor,  (int)vecScale);
-                    An_AddAnnotProc (An_BarbLegend, c, datalabel,
-                                strlen(datalabel)+1, 100, FALSE, FALSE);
-		}
-                sprintf (datalabel, "%s %s %f %f", "wind-speed:m/sec", ctname,
-                    ncolors%2 ?(ncolors*cstep*0.5)-cstep*0.5 :ncolors*cstep*0.5, 
-		    cstep);
-                An_AddAnnotProc (An_ColorBar, c, datalabel,
-                                strlen(datalabel)+1, 75, TRUE, FALSE);
+		sprintf (datalabel, "%s %s", pnames[plat], tadefcolor);
+		An_AddAnnotProc (An_ColorString, c, datalabel, 
+			strlen (datalabel), 25, FALSE, FALSE);
 	    }
 	/*
 	 * Get the data and determine the coordinate min and max's
