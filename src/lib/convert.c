@@ -1,7 +1,7 @@
 /*
  * lat,lon <-> x,y conversion utilities
  */
-static char *rcsid = "$Id: convert.c,v 2.5 1994-02-16 22:21:53 burghart Exp $";
+static char *rcsid = "$Id: convert.c,v 2.6 1994-06-29 20:56:02 case Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -210,7 +210,8 @@ cvt_ShowOrigin ()
 		return;
 	}
 
-	msg_ELog ("Current origin for lat/lon <-> x,y conversions: %.4f/%.4f",
+	msg_ELog (EF_INFO,
+		"Current origin for lat/lon <-> x,y conversions: %.4f/%.4f",
 		Origin_lat * 180.0 / PI, Origin_lon * 180.0 / PI);
 	return;
 }
