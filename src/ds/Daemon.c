@@ -44,7 +44,7 @@
 # include "dsDaemon.h"
 # include "commands.h"
 
-MAKE_RCSID ("$Id: Daemon.c,v 3.48 1995-04-20 20:25:21 granger Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.49 1995-05-11 15:41:33 granger Exp $")
 
 
 /*
@@ -328,7 +328,12 @@ FinishInit ()
 /*
  * Now just wait for something to happen.
  */
-	msg_await ();
+	while (1)
+	{
+		int ret = msg_await ();
+		msg_ELog (EF_PROBLEM, "msg_await returned %d, errno is %d: %s",
+			  ret, errno, "continuing");
+	}
 }
 
 
@@ -424,7 +429,7 @@ struct ui_command *cmds;
 		}
 		if (ParseOnly)
 		{
-			msg_ELog (EF_INFO, "finished init file; shutting down");
+			msg_ELog(EF_INFO, "finished init file; shutting down");
 			Shutdown();
 		}
 	   	else if (ndone++)
@@ -557,6 +562,8 @@ Shutdown ()
  * Clean up in UI land.
  */
 	ui_finish ();
+	msg_disconnect ();
+	msg_ELog (EF_INFO, "shutdown: disconnected, exiting.");
 	exit (0);
 }
 
