@@ -1,5 +1,5 @@
 /*
- * $Id: BTreeFile.hh,v 1.5 1998-09-01 05:04:06 granger Exp $
+ * $Id: BTreeFile.hh,v 1.6 1998-09-15 06:42:10 granger Exp $
  *
  * BTree subclass which implements persistence using a BlockFile.
  */
@@ -94,6 +94,17 @@ public:
 
 	static const unsigned long MAGIC;
 
+	/*
+	 * Statistics we care about.
+	 */
+	class Stats
+	{
+	public:
+		int nodesRead;
+		int nodesWritten;
+		void translate (SerialStream &ss);
+	};
+
 protected:
 
 	void OpenHeader ();
@@ -113,9 +124,12 @@ protected:
 	/// Create a new node
 	virtual BTreeNode<K,T> *make (int depth);
 
-	//virtual void release ();
+	/// Destroy this node
+	//virtual void prune (BTreeNode<K,T> *which);
 
-private:
+	void Init (int order, long sz, int fix);
+	void release ();
+
 	BlockFile *bf;
 	int key_size;
 	int key_size_fixed;
@@ -128,10 +142,8 @@ private:
 
 	Sender log;
 
-	void Init (int order, long sz, int fix);
-	void release ();
+	Stats stats;
 };
-
 
 
 #endif /* _BTreeFile_hh_ */

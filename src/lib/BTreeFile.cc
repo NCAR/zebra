@@ -15,7 +15,7 @@
 //#include <message.h>
 //}
 
-// RCSID ("$Id: BTreeFile.cc,v 1.7 1998-09-01 05:17:45 granger Exp $")
+// RCSID ("$Id: BTreeFile.cc,v 1.8 1998-09-15 06:42:10 granger Exp $")
 
 #include "Logger.hh"
 #include "Format.hh"
@@ -70,8 +70,6 @@ public:
 		return needed;
 	}
 
-	virtual void prune ();
-
 protected:
 
 	friend BTreeFile<K,T>;
@@ -84,6 +82,8 @@ protected:
 	BTreeFile<K,T>& filetree;
 
 	long baseSize (SerialBuffer &wb);
+
+	virtual void destroy ();
 };
 
 
@@ -380,6 +380,27 @@ BTreeFile<K,T>::make (int depth)
 
 
 
+#ifdef notdef
+/*
+ * This is a hook through which we can catch nodes being pruned from the
+ * tree.  For now we destroy() the node (which only releases the block file
+ * allocation), then delete the object memory.  Both destroy() and the
+ * deletion rely on the virtualness of the methods to get to the
+ * BlockNode behavior.  When we get to node caching, we may want to
+ * hang on to the memory while forgetting about the original node in
+ * the block file.
+ */
+template <class K, class T>
+void
+BTreeFile<K,T>::prune (BTreeNode<K,T> *which)
+{
+	which->destroy();
+	delete which;
+}
+#endif
+
+
+
 template <class K, class T>
 void
 BTreeFile<K,T>::enterWrite ()
@@ -427,7 +448,7 @@ void
 BTreeFile<K,T>::translate (SerialStream &ss)
 {
 	// Translate our superclass state
-	BTree::serial (ss);
+	BTree::translate (ss);
 	TranslateBlock::translate (ss);
 
 	// Translate our own persistent state
@@ -544,12 +565,10 @@ BlockNode<K,T>::~BlockNode ()
 
 template <class K, class T>
 void
-BlockNode<K,T>::prune ()
+BlockNode<K,T>::destroy ()
 {
-	// Free ourselves from the block file, then call the 
-	// superclass prune() for the rest.
 	free();
-	BTreeNode<K,T>::prune();
+	BTreeNode<K,T>::destroy ();	// Deletes us from memory
 }
 
 

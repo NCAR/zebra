@@ -14,7 +14,7 @@
 //#include <message.h>
 //}
 
-// RCSID ("$Id: BTree.cc,v 1.15 1998-09-01 05:04:02 granger Exp $")
+// RCSID ("$Id: BTree.cc,v 1.16 1998-09-15 06:42:09 granger Exp $")
 
 //#include "Logger.hh"
 #include "BTreeP.hh"
@@ -58,11 +58,21 @@ BTree<K,T>::Setup (int _order, long sz, int fix)
 
 
 template <class K, class T>
+inline void
+BTree<K,T>::Stats::translate (SerialStream &ss)
+{
+	ss << nNodes << nKeys;
+}
+
+
+
+template <class K, class T>
 void
-BTree<K,T>::serial (SerialStream &ss)
+BTree<K,T>::translate (SerialStream &ss)
 {
 	ss << depth << order << rootNode;
 	ss << elem_size << elem_size_fixed;
+	stats.translate (ss);
 }
 
 
@@ -89,6 +99,8 @@ BTree<K,T>::Erase ()
 	current->clear ();
 	if (! Empty())
 		root->erase ();
+	stats.nNodes = 0;
+	stats.nKeys = 0;
 	setRoot (0);
 	leave ();
 }
@@ -109,7 +121,7 @@ BTree<K,T>::Insert (const K &key, const T &value)
 		setRoot (root);
 	}
 	// Find the location and insert
-	root->find (key, current);
+	int found = root->find (key, current);
 	int r = current->insert (value);
 	if (bootstrap && !r)
 	{
@@ -118,6 +130,8 @@ BTree<K,T>::Insert (const K &key, const T &value)
 		setRoot (0);
 		current->clear();
 	}
+	if (!found && r)
+		++stats.nKeys;
 	if (current->RootChanged ()) 
 		setRoot (current->getRoot());
 	if (check) err += Check ();
@@ -174,6 +188,8 @@ int BTree<K,T>::Remove ()
 {
 	enterWrite ();
 	int r = current->remove();
+	if (r)
+		--stats.nKeys;
 	if (current->RootChanged ()) 
 		setRoot (current->getRoot());
 	if (check) err += Check ();
@@ -352,6 +368,16 @@ BTree<K,T>::make (int depth)
 {
 	return new BTreeNode<K,T> (*this, depth);
 }
+
+
+#if notdef
+template <class K, class T>
+void
+BTree<K,T>::prune (BTreeNode<K,T> *which)
+{
+	which->destroy();
+}
+#endif
 
 
 /*================================================================

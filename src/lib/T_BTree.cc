@@ -31,8 +31,8 @@ typedef BTreeFile<string,string> StringTree;
 /*
  * Choose the test_key type for the test trees.
  *///typedef long test_key;
-typedef string test_key;
-//typedef ZTime test_key;
+//typedef string test_key;
+typedef ZTime test_key;
 
 typedef BTreeFile<test_key,test_key> test_tree;
 //typedef BTree<test_key,test_key> test_tree;
@@ -93,9 +93,9 @@ int main (int argc, char *argv[])
 	srand (1000);
 
 	// Set the default logger.
-	ofstream lf("tbtree.log");
-	StreamLogger log(lf);
-	Logger::Prototype (log);
+	//ofstream lf("tbtree.log");
+	//StreamLogger log(lf);
+	//Logger::Prototype (log);
 
 	cout << "-----------------================----------------" << endl;
 	if (argc > 1)

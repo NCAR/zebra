@@ -1,5 +1,5 @@
 /*
- * $Id: BTree.hh,v 1.13 1998-09-01 05:04:04 granger Exp $
+ * $Id: BTree.hh,v 1.14 1998-09-15 06:42:10 granger Exp $
  *
  * Public BTree class interface.
  */
@@ -15,6 +15,7 @@
 
 class SerialStream;
 
+#if 0
 struct Node
 {
 	void *local;		// Memory cache
@@ -24,6 +25,7 @@ struct Node
 
 	inline void translate (SerialStream &ss);
 };
+#endif
 
 
 /*
@@ -184,11 +186,16 @@ public:
 		return _err;
 	}
 
-	// Allow our persistent state to be translated, usually by 
-	// a persistent subclass implementation, without actually being
-	// Translatable.
-	//
-	void serial (SerialStream &ss);
+	/*
+	 * Statistics we care about.
+	 */
+	class Stats
+	{
+	public:
+		unsigned long nNodes;
+		unsigned long nKeys;
+		void translate (SerialStream &ss);
+	};
 
 	/* ----- Public constructors and destructors ----- */
 
@@ -209,6 +216,23 @@ public:
 
 protected:
 
+	struct Node
+	{
+		//BTreeNode<K,T> *local;	// Memory cache
+		void *local;		// Memory cache
+		unsigned long addr;	// Persistent address
+
+		Node () : local(0), addr(0) { }
+
+		inline void translate (SerialStream &ss);
+	};
+
+	// Allow our persistent state to be translated, usually by 
+	// a persistent subclass implementation, without actually being
+	// Translatable.
+	//
+	void translate (SerialStream &ss);
+
 	// Delayed initialization must be completed with this call.
 	void Setup (int order, long sz, int fix);
 
@@ -225,6 +249,7 @@ protected:
 	int err;
 
 	Shortcut<K,T> *current;		// Reference to current key
+	Stats stats;
 
 	// Change the root node when growing up or down (could be zero)
 	void setRoot (BTreeNode<K,T> *node);
@@ -256,6 +281,8 @@ protected:
 	/// Create a new node
 	virtual node_type *make (int depth);
 
+	/// Destroy this node
+	//virtual void prune (BTreeNode<K,T> *which);
 };
 
 
