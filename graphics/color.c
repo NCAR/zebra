@@ -18,7 +18,12 @@ static struct ctranstbl
 	struct ctranstbl	*next;
 } *Cname_to_rgb = (struct ctranstbl *) 0;
 
-
+/*
+ * The default color database file, if not passed in by the compiler.
+ */
+# ifndef COLORDB
+# define COLORDB "/usr/lib/X11/rgb.txt"
+# endif
 
 
 char *getvm ();
@@ -159,7 +164,7 @@ gc_transtable ()
 # ifdef VMS
 		strcpy (fname, "ds:[rdss.graphics]rgb.txt");
 # else
-		strcpy (fname, "/usr/local/lib/X11/rgb.txt");
+		strcpy (fname, COLORDB);
 # endif
 
 /*
