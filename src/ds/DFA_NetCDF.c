@@ -33,7 +33,7 @@
 # include "dfa.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_NetCDF.c,v 3.67 1999-07-21 17:24:59 burghart Exp $")
+RCSID ("$Id: DFA_NetCDF.c,v 3.68 1999-11-01 21:16:42 granger Exp $")
 
 # include <netcdf.h>
 
@@ -234,7 +234,7 @@ static void     dnc_CFMakeVars FP ((NCTag *, DataChunk *));
 static void     dnc_CFScalarVars FP ((NCTag *, DataChunk *));
 static void     dnc_CFGridVars FP ((NCTag *, DataChunk *));
 static void     dnc_CFIRGridVars FP ((NCTag *, DataChunk *));
-static zbool     dnc_OverheadField FP ((char *const));
+static zbool    dnc_OverheadField FP ((char *const));
 static void	dnc_SetFieldTypes FP ((NCTag *tag, DataChunk *dc, int nfield,
 				       FieldId *fields));
 static void	dnc_NSpaceSetup FP((NCTag *tag, DataChunk *dc, 
@@ -290,6 +290,8 @@ static void	dnc_ReadFieldAtts FP ((DataChunk *, NCTag *, FieldId *, int));
 static int	dnc_TimeUnits FP ((ZebTime *zt, const char *time_units));
 static FieldId	dnc_GetFieldByName FP ((NCTag *tag, char *fname));
 static void	strtolower FP ((char *c));
+static int	dnc_MatchVarName (int id, int platid, const char *name, 
+				  const char *longname, int pri);
 
 /*
  * Global attribute names which are automatically stored with the file
@@ -332,7 +334,14 @@ ZebTime *zt;
 }
 
 
+static int
+dnc_Varid (int id, char *name)
+{
+	return dnc_MatchVarName (id, -1, name, 0, 50);
+}
 
+
+#ifdef notdef
 static int
 dnc_Varid (id, name)
 int id;
@@ -363,6 +372,7 @@ char *name;
 	}
 	return ((varid < nvar) ? varid : -1);
 }
+#endif
 
 
 
@@ -758,36 +768,78 @@ NCTag *tag;
 
 
 static int
-dnc_LocationID (id, platid, name)
-int id;
-int platid;
-const char *name;
+dnc_LocationID (int id, int platid, const char *name)
+{
+	return dnc_MatchVarName (id, platid, name, 0, 0);
+}
+
+
+static int
+dnc_MatchVarName (int id, int platid, const char *name, 
+		  const char *longname, int pri)
 /*
  * Try to find a location variable by the given name which includes the
  * given dimension 'platid'.  For the moment we'll require that the
  * requested dimension is the first dimension in the variable.  If platid
  * is negative, skip the dim id check.
+ *
+ * Need to consider adding variable type to the search, since many parts
+ * of this interface assume a particular type (usually float, but sometimes
+ * int and long) based only on the name.  If we find a variable of the
+ * wrong type, garbage will ensue.  Someday we can take advantage of
+ * the netcdf library's automatic conversion.
  */
 {
+    /*
+     * Possible matches are weighted by priority, and the caller can
+     * choose the minimum acceptable weight of a match, as follows:
+     *
+     * exact match, case sensitive:		100
+     * exact match, case insensitive:		50
+     * The rest are all case insensitive...
+     * prefix match, longname substring:	30
+     * suffix match, longname substring:	25
+     * prefix match, no longname:		20
+     * suffix match, no longname:		0
+     * substr, longname substr:			-5
+     * substr, no longname:			-10
+     * 
+     * Calling with a weight of zero gives a match with the default
+     * amount of "reasonability".  Use less than zero if you're desperate.
+     * Probably higher priority should be required when writing over
+     * just reading data.
+     *
+     * Given two variables with equal weighting, the one with the lower id
+     * will be chosen first.
+     */
 	int ndim, nvar, natt, rdim;
 	int varid;
 	nc_type dtype;
+	nc_type atype;
+	int alen;
 	char target[MAX_NC_NAME+1];
+	char ltarget[256];
 	char vname[MAX_NC_NAME+1];
+	char lname[1024];
 	int dimids[MAX_VAR_DIMS];
 	int match = -1;
+	int weight = -100;
 
 	if (strlen(name) > (unsigned)MAX_NC_NAME) /* can't match if too long */
 		return (-1);
 	strcpy (target, name);
 	strtolower (target);
+	if (! longname) longname = "";
+	strcpy (ltarget, longname);
+	strtolower (ltarget);
 	if (ncinquire (id, &ndim, &nvar, &natt, &rdim) < 0)
 		return (-1);
 	/*
 	 * Try to match the target name with either the beginning or
 	 * end of the variable name, and make sure the variable contains
 	 * the desired platform dimension.  Check all the variables, and
-	 * use an exact name match if found, or the first close match.
+	 * use an exact name match (case-insensitive) if found, or the 
+	 * first close match.
 	 */
 	for (varid = 0; varid < nvar; ++varid)
 	{
@@ -795,20 +847,85 @@ const char *name;
 			continue;
 		if ((platid >= 0) && (ndim == 0 || dimids[0] != platid))
 			continue;
+		if (strcmp (vname, target) == 0)
+		{
+			/* exact matches immediately exit the loop */
+			match = varid;
+			weight = 100;
+			break;
+		}
 		strtolower (vname);
 		if (strcmp (vname, target) == 0)
 		{
+			/* next-closest match can just continue the loop */
 			match = varid;
-			break;
-		}
-		if (match >= 0)
+			weight = 50;
 			continue;
-		if (! strncmp (vname, target, strlen(target)))
+		}
+		/* Fetch the long_name attribute in lower case so we can
+		 * match against it.
+		 */
+		if (!(ncattinq (id, varid, VATT_LONGNAME, &atype, &alen) >= 0
+		    && (atype == NC_CHAR) && (alen < 1024) &&
+		    ncattget (id, varid, VATT_LONGNAME, (void *)lname) >= 0))
+		{
+		    lname[0] = '\0';
+		}
+		strtolower (lname);
+		if (! strncmp (vname, target, strlen(target)) &&
+		    strstr (lname, ltarget) &&
+		    weight < 30)
+		{
 			match = varid;
+			weight = 30;
+		}
 		else if (((unsigned)strlen (vname) > strlen (target)) &&
 			 ! strcmp (vname+strlen(vname)-strlen(target),
-				   target))
+				   target) &&
+			 strstr (lname, ltarget) &&
+			 weight < 25)
+		{
 			match = varid;
+			weight = 25;
+		}
+		/* same prefix and suffix tests above but with no longname */
+		else if (! strncmp (vname, target, strlen(target)) &&
+			 ! lname[0] &&
+			 weight < 20)
+		{
+			match = varid;
+			weight = 20;
+		}
+		else if (((unsigned)strlen (vname) > strlen (target)) &&
+			 ! strcmp (vname+strlen(vname)-strlen(target),
+				   target) &&
+			 ! lname[0] &&
+			 weight < 0)
+		{
+			match = varid;
+			weight = 0;
+		}
+		else if (strstr (vname, target) && strstr (lname, ltarget) &&
+			 weight < -5)
+		{
+			match = varid;
+			weight = -5;
+		}
+		else if (strstr (vname, target) && ! lname[0] &&
+			 weight < -10)
+		{
+			match = varid;
+			weight = -10;
+		}
+	}
+	/* Lastly, verify our match weight meets the threshold. */
+	if (pri > weight)
+		match = -1;
+	if (match >= 0 && weight < 50 &&
+	    ncvarinq (id, match, vname, &dtype, &ndim, dimids, 0) >= 0)
+	{
+		msg_ELog (EF_DEBUG, "using nc variable '%s' in place of '%s'",
+			  vname, target);
 	}
 	return (match);
 }
@@ -2717,7 +2834,9 @@ long begin, count;
  * Load in mobile platform location info.  If we're a static location,
  * then we return the same location for all of the samples, where the
  * location either comes from zero-dimensional lat, lon, alt fields
- * or from the very first samples of those fields.
+ * or from the very first samples of those fields.  We try to be more
+ * flexible about finding appropriate location fields by using
+ * dnc_MatchVarName.
  */
 {
 	int i, var;
@@ -2738,10 +2857,9 @@ long begin, count;
  * Just do it one piece at a time.  Latitude.
  */
 	fail = 0;
-	if ((var = dnc_Varid (tag->nc_id, "lat")) < 0 &&
-	    (var = dnc_Varid (tag->nc_id, "latitude")) < 0)
+	if ((var = dnc_MatchVarName(tag->nc_id, -1, "lat", "latitude", 0)) < 0)
 	{
-		msg_ELog (EF_DEBUG, "No 'lat' or 'latitude' field");
+		msg_ELog (EF_DEBUG, "No match for 'lat' field");
 		fail = 1;
 	}
 	else if (ncvargetg (tag->nc_id, var, &begin, &count, 
@@ -2761,10 +2879,10 @@ long begin, count;
  * Longitude.
  */
 	fail = 0;
-	if ((var = dnc_Varid (tag->nc_id, "lon")) < 0 &&
-	    (var = dnc_Varid (tag->nc_id, "longitude")) < 0) 
+	if ((var = 
+	     dnc_MatchVarName(tag->nc_id, -1, "lon", "longitude", 0)) < 0)
 	{
-		msg_ELog (EF_DEBUG, "No 'lon' or 'longitude' field");
+		msg_ELog (EF_DEBUG, "No match for 'lon' field");
 		fail = 1;
 	}
 	else if (ncvargetg (tag->nc_id, var, &begin, &count, 
@@ -2784,9 +2902,10 @@ long begin, count;
  * Altitude.
  */
 	fail = 0;
-	if ((var = dnc_Varid (tag->nc_id, "alt")) < 0 &&
-	    (var = dnc_Varid (tag->nc_id, "altitude")) < 0) {
-		msg_ELog (EF_DEBUG, "No 'alt' or 'altitude' field");
+	if ((var = 
+	     dnc_MatchVarName(tag->nc_id, -1, "alt", "altitude", 0)) < 0)
+	  {
+		msg_ELog (EF_DEBUG, "No match for 'alt' field");
 		fail = 1;
 	}
 	if (ncvargetg (tag->nc_id, var, &begin, &count, 
@@ -3411,7 +3530,7 @@ DataChunk *dc;
 	sprintf(history,"created by the Zebra DataStore library, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.67 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.68 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 }
