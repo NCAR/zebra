@@ -42,7 +42,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: XSection.c,v 2.50 2001-04-24 22:32:59 granger Exp $")
+RCSID ("$Id: XSection.c,v 2.51 2001-04-24 22:49:39 granger Exp $")
 
 /*
  * General definitions
@@ -1688,8 +1688,15 @@ int	nplat;
 	    {
 		float u = uplane->data[i];
 		float v = vplane->data[i];
-		double theta = pangle - atan2(v, u);
-		uplane->data[i] = sqrt(u*u + v*v) * cos(theta);
+		if (u == BADVAL || v == BADVAL)
+		{
+		    uplane->data[i] = BADVAL;
+		}
+		else
+		{
+		    double theta = pangle - atan2(v, u);
+		    uplane->data[i] = sqrt(u*u + v*v) * cos(theta);
+		}
 	    }
 
 	    /* Swap v and w so that both will still be freed later. */
