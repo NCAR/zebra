@@ -63,10 +63,18 @@ procedure ctr-step-popup
 !
 	local param concat(field, '-center')
 	local value pd_ParamSearch(icon_component, param, rep, 'string')
-	formtext #f center #value
+	if (value = '(Undefined)')
+		formtext #f center 0
+	else
+		formtext #f center #value
+	endif
 	local param concat(field, '-step')
 	local value pd_ParamSearch(icon_component, param, rep, 'string')
-	formtext #f step #value
+	if (value = '(Undefined)')
+		formtext #f step 1
+	else
+		formtext #f step #value
+	endif
 endprocedure
 
 
