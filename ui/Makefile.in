@@ -683,10 +683,11 @@ uninstall-info: uninstall-info-recursive
 #
 # UI loadfile
 #
-ui.lf: ui.state
+ui.lf: ui.state uib
 	$(RM) ui.lf
 	@echo "Making $@"
-	@echo read ui.state\; set 'ui$pager_mode' false\; save ui.lf all | uib
+	@echo read ui.state\; set 'ui$pager_mode' false\; save ui.lf all | \
+		./uib
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:
