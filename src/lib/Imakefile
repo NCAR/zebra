@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-/* $Id: Imakefile,v 1.25 1997-07-10 22:04:22 granger Exp $ */
+/* $Id: Imakefile,v 1.26 1997-07-25 21:38:21 granger Exp $ */
 
 #if !HasWritev
 WRITEVOBJ=writev.o
@@ -121,8 +121,8 @@ TestProgramTarget(re_test,$(REOBJS),/**/,/**/,$(LIBREGEXP))
 
 TestProgramTarget(msg_test, msg_test.o $(MSGOBJS),/**/,/**/,/**/)
 
-RunTestProgram(cvt_test,coordinate conversion,cvt_test)
-RunTestProgram(msg_test,error logging,msg_test > /dev/null 2>&1)
-RunTestProgram(re_test,regular expressions,re_test)
+RunTestProgram(cvt_test,coordinate conversion,./cvt_test)
+RunTestProgram(msg_test,error logging,./msg_test > /dev/null 2>&1)
+RunTestProgram(re_test,regular expressions,./re_test)
 
 DistfilesTarget($(DISTFILES))
