@@ -1,7 +1,7 @@
 /*
  * Vertical cross-sectioning
  */
-static char *rcsid = "$Id: XSection.c,v 2.6 1992-10-20 20:25:13 burghart Exp $";
+static char *rcsid = "$Id: XSection.c,v 2.7 1992-11-03 20:59:53 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -95,7 +95,8 @@ static bool	Zig_zag;
  * Contour info
  */
 static float	Contour_center, Contour_step;
-static int	Do_labels, Line_width;
+static int	Line_width;
+static bool	Do_labels;
 
 /*
  * Maximum acceptable time difference between sounding time and plot time

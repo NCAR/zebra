@@ -1,7 +1,7 @@
 /*
  * XY-Contour plotting module
  */
-static char *rcsid = "$Id: XYContour.c,v 1.7 1992-10-01 17:49:12 barrett Exp $";
+static char *rcsid = "$Id: XYContour.c,v 1.8 1992-11-03 21:00:45 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -156,7 +156,7 @@ bool	update;
 	char	gridtype[80];
 	XColor	*colors;
 	int	ncolors;
-	int	sideAnnot;
+	bool	sideAnnot;
 /*
  * Contour forces global update.
  */

@@ -28,7 +28,7 @@
 # include <time.h>
 # include "GraphProc.h"
 # include "PixelCoord.h"
-MAKE_RCSID ("$Id: Utilities.c,v 2.6 1992-10-06 15:29:00 corbet Exp $")
+MAKE_RCSID ("$Id: Utilities.c,v 2.7 1992-11-03 20:58:23 burghart Exp $")
 
 
 static void ApplyConstOffset FP ((Location *, double, double));
@@ -273,7 +273,8 @@ ZebTime *ptime;
  *	    dimension.
  */
 {
-	int enable = FALSE, advect, constant, sample, ns;
+	int advect, constant, sample, ns;
+	bool enable = FALSE;
 	float xoffset = 0, yoffset = 0, xpos, ypos, advdir, advspeed;
 	char *pname = ds_PlatformName (dc->dc_Platform);
 	Location loc;
