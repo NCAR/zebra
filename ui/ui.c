@@ -5,7 +5,7 @@
  * commands are in ui_cmds.c
  */
 
-static char *Rcsid = "$Header: /code/cvs/rdss/rdsslibs/ui/ui.c,v 1.2 1989-03-10 16:18:11 corbet Exp $";
+static char *Rcsid = "$Id: ui.c,v 1.3 1989-06-05 14:14:02 corbet Exp $";
 /*
  * Declare all globals here
  */
@@ -115,6 +115,9 @@ bool interact, nokeypad;
 	uk_init ();		/* Special keys		*/
 	um_init ();		/* Menus		*/
 	uf_init ();		/* Functions		*/
+# ifdef XSUPPORT
+	uw_init ();		/* Windowing		*/
+# endif
 /*
  * Create the procedure table.
  */
@@ -221,6 +224,9 @@ long arg;
 		/*
 		 * Plain old command mode.
 		 */
+# ifdef XSUPPORT
+		   case M_WINDOW:
+# endif
 		   case M_COMMAND:
 		   	if (! ui_do_cmode ())
 			{
@@ -269,7 +275,7 @@ ui_do_cmode ()
 		cmds = 0;
 		if (! Cs || ! Cs->cs_input)
 			return (FALSE);
-		if (Cs->cs_mode != M_COMMAND)
+		if (Cs->cs_mode != M_COMMAND && Cs->cs_mode != M_WINDOW)
 			return (TRUE);
 	/*
 	 * Get a command string.
@@ -456,6 +462,7 @@ bool exec;
 	 */
 	  case UIC_TEST:
 		dump_str (UINT (cmds[1]));
+		/* ui_test (cmds + 1); */
 		return (TRUE);
 	/*
 	 * Evaluate an expression.
@@ -529,6 +536,20 @@ bool exec;
 	   case UIC_DELETE:
 	   	ui_delete (cmds + 1);
 		return (TRUE);
+# ifdef XSUPPORT
+	/*
+	 * Throw a widget on the screen.
+	 */
+	   case UIC_POPUP:
+	   	uw_popup (UPTR (cmds[1]));
+		return (TRUE);
+	/*
+	 * Take it off again.
+	 */
+	   case UIC_POPDOWN:
+	   	uw_popdown (UPTR (cmds[1]));
+		return (TRUE);
+# endif
 	/*
 	 * Otherwise complain.
 	 */
@@ -1651,6 +1672,13 @@ int mode;
 		ui_error ("Stack top is not a MODE");
 	else if (mode && mode != Cs->cs_mode)
 		ui_error ("(BUG): endmode mismatch");
+# ifdef XSUPPORT
+/*
+ * If we are ending window mode, shut things down.
+ */
+ 	if (Cs->cs_mode == M_WINDOW)
+		uw_endmode ();
+# endif
 	ucs_pop_cstack ();
 }
 
@@ -1665,7 +1693,8 @@ char *command;
 {
 	char *fixedcmd = getvm (strlen (command) + 1);
 /*
- * Throw the M_NONE entry onto the list.
+ * Throw the M_NONE entry onto the list.  This mode essentially acts like
+ * break, to insure that ui_do_cmode will quit when the input runs out.
  */
 	ucs_new_entry ();
 	Cs->cs_exec = TRUE;
