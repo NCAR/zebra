@@ -11,7 +11,7 @@
 # include "dm_cmds.h"
 # include "../include/timer.h"
 
-static char *rcsid = "$Id: dm.c,v 1.7 1990-08-30 16:35:49 corbet Exp $";
+static char *rcsid = "$Id: dm.c,v 1.8 1990-09-07 09:03:39 corbet Exp $";
 
 /*
  * Definitions of globals.
@@ -24,7 +24,13 @@ stbl Bmaps;
 ButtonMap *Default_map;	/* The default button map	*/
 Display *Dm_Display;
 
-int dm_shutdown ();
+# ifdef __STDC__
+	int dm_shutdown (void);
+	static bool ResolveLinks (struct config *, struct ui_command *);
+# else
+	int dm_shutdown (void);
+	static bool ResolveLinks (struct config *, struct ui_command *);
+# endif
 
 
 
@@ -112,11 +118,11 @@ struct ui_command *cmds;
 	switch (UKEY (*cmds))
 	{
 	   case DMC_CONFIG:
-	   	def_config (UPTR (cmds[1]));
+	   	def_config (cmds + 1);
 		break;
 
 	   case DMC_DISPLAY:
-	   	display (UPTR (cmds[1]));
+	   	display (cmds + 1);
 		break;
 
 	   case DMC_LIST:
@@ -184,6 +190,10 @@ struct ui_command *cmds;
 
 	   case DMC_PICKWIN:
 	   	PickWin (UPTR (cmds[1]));
+		break;
+
+	   case DMC_SHUTDOWN:
+	   	dm_shutdown ();
 		break;
 
 	   default:
@@ -280,8 +290,8 @@ bool curonly;
 
 
 
-display (name)
-char *name;
+display (cmds)
+struct ui_command *cmds;
 /*
  * Actually put up a given configuration.
  */
@@ -290,7 +300,7 @@ char *name;
 	int type, win, disp_suspend ();
 	union usy_value v;
 	stbl new_table;
-	char cfg_sname[MAXNAME];
+	char cfg_sname[MAXNAME], *name = UPTR (*cmds);
 /*
  * If this config is already the current config, we do nothing.
  */
@@ -303,6 +313,14 @@ char *name;
  	if (! usy_g_symbol (Configs, name, &type, &v))
 		ui_error ("Unknown configuration: '%s'\n", name);
 	cfg = (struct config *) v.us_v_ptr;
+/*
+ * If this window has linked PD's, go through and resolve them now.
+ */
+	if (cfg->c_nlink > 0)
+		if (! ResolveLinks (cfg, cmds + 1))
+			return;
+	msg_ELog (EF_DEBUG, "Display %s, %d links %d wins", cfg->c_name,
+		cfg->c_nlink, cfg->c_nwin);
 /*
  * Get a new symbol table for this display config.
  */
@@ -319,6 +337,7 @@ char *name;
 	 */
 		if (! (exist = lookup_win (wp->cfw_name, FALSE)))
 		{
+			msg_ELog (EF_DEBUG, "Create win %s", wp->cfw_name);
 			create_win (wp);
 			/* msg_incoming (msg_get_fd ()); */
 			if ((win % 4) == 0)
@@ -326,7 +345,8 @@ char *name;
 		}
 		else
 		{
-			if (! wp->cfw_forcepd)
+			msg_ELog (EF_DEBUG, "Existing win %s", wp->cfw_name);
+			if (! wp->cfw_linkpar && ! wp->cfw_forcepd)
 				wp->cfw_pd = exist->cfw_pd; /* no copy! */
 			config_win (wp);
 		}
@@ -347,6 +367,69 @@ char *name;
 }
 
 
+
+
+static bool
+ResolveLinks (cfg, cmds)
+struct config *cfg;
+struct ui_command *cmds;
+/*
+ * Resolve all linked pd's in this config.
+ */
+{
+	int i;
+	struct cf_window *win;
+/*
+ * First, go through and make sure we have the right number of params.
+ */
+	for (i = 0; i < cfg->c_nlink; i++)
+		if (cmds[i].uc_ctype == UTT_END)
+		{
+			msg_ELog (EF_PROBLEM,
+				"%d link parameters needed, %d given",
+				cfg->c_nlink, i - 1);
+			return (FALSE);
+		}
+	if (cmds[i].uc_ctype != UTT_END)
+		msg_ELog (EF_PROBLEM, "Too many link parameters given");
+/*
+ * Go through now and resolve each one.
+ */
+	for (i = 0; i < cfg->c_nwin; i++)
+	{
+		struct cf_window *linkwin = cfg->c_wins + i;
+		int link = linkwin->cfw_linkpar;
+	/*
+	 * If no link parameter in this window, no work to do.
+	 */
+	 	if (! link)
+			continue;
+	/*
+	 * Do some sanity checking.
+	 */
+	 	if (link > cfg->c_nlink)
+		{
+			msg_ELog (EF_PROBLEM, "Win %s wants too high link %d",
+				linkwin->cfw_name, link);
+			return (FALSE);
+		}
+	/*
+	 * Dig out the link window.
+	 */
+	 	if (! (win = lookup_win (UPTR (cmds[link - 1]), TRUE)))
+		{
+			msg_ELog (EF_PROBLEM, "Link to bad window '%s'",
+				UPTR (cmds[link - 1]));
+			return (FALSE);
+		}
+	/*
+	 * Link it.  Since the given win is required to be in the current
+	 * display configuration, we know that the PD has to be realized.
+	 */
+	 	linkwin->cfw_pd = win->cfw_pd;
+	}
+	return (TRUE);
+}
 
 
 
@@ -452,7 +535,7 @@ struct cf_window *win;
 /*
  * Then ship over the PD too.
  */
-	if (win->cfw_forcepd || created)
+	if (win->cfw_linkpar || win->cfw_forcepd || created)
 		send_pd (win);
 /*
  * And the button maps.
@@ -461,32 +544,6 @@ struct cf_window *win;
 }
 
 
-
-
-# ifdef notdef
-
-log_printf (va_alist)
-va_dcl
-/*
- * Send a message to the event logger.
- */
-{
-	va_list args;
-	char mbuf[300], *fmt;
-/*
- * Print up our message.
- */
-	va_start (args);
-	fmt = va_arg (args, char *);
-	vsprintf (mbuf, fmt, args);
-	va_end (args);
-/*
- * Send it to the event logger.
- */
-	msg_send ("Event logger", MT_LOG, 0, mbuf, strlen (mbuf) + 1);
-}
-
-# endif
 
 
 
