@@ -65,7 +65,7 @@ extern "C" {
 # include "Database.h"
 # include "Archiver.h"
 
-RCSID ("$Id: Archiver.cc,v 1.42 1999-11-24 00:03:06 granger Exp $")
+RCSID ("$Id: Archiver.cc,v 1.43 1999-12-17 17:12:09 granger Exp $")
 
 /*
  * Issues:
@@ -263,11 +263,11 @@ static XtResource AppResources[] = {
    { "tapeLimit", "TapeLimit", XtRInt, sizeof(int),
       0, XtRImmediate, (XtPointer)DEF_TAPELIMIT },
    { "driveName", "DriveName", XtRString, sizeof(String),
-      0, XtRString, DEF_DEVICEFILE },
+      0, XtRString, (XtPointer)DEF_DEVICEFILE },
    { "outputDir", "OutputDir", XtRString, sizeof(String),
-      0, XtRString, DEF_OUTPUTDIR },
+      0, XtRString, (XtPointer)DEF_OUTPUTDIR },
    { "mountName", "MountName", XtRString, sizeof(String),
-      0, XtRString, DEF_MOUNTNAME },
+      0, XtRString, (XtPointer)DEF_MOUNTNAME },
    { "dumpInterval", "DumpInterval", XtRInt, sizeof(int),
       0, XtRImmediate, (XtPointer)DEF_DUMPINTERVAL },
    { "startMinute", "StartMinute", XtRInt, sizeof(int),
@@ -275,23 +275,23 @@ static XtResource AppResources[] = {
    { "minDisk", "MinDisk", XtRInt, sizeof(int),
       0, XtRImmediate, (XtPointer)DEF_MINDISK },
    { "mode", "Mode", XtRString, sizeof(String),
-      0, XtRImmediate, "tape" },
+      0, XtRImmediate, (XtPointer)"tape" },
    { "zeroZFree", "ZeroZFree", XtRBoolean, sizeof(Boolean),
       0, XtRImmediate, (XtPointer)True },
    { "waitTimes", "WaitTimes", XtRString, sizeof(String),
-      0, XtRString, "1,2,5" },
+      0, XtRString, (XtPointer)"1,2,5" },
    { "database", "Database", XtRString, sizeof(String),
-      0, XtRString, DUMPED_FILES },
+      0, XtRString, (XtPointer)DUMPED_FILES },
    { "blockFactor", "BlockFactor", XtRInt, sizeof(int),
       0, XtRImmediate, (XtPointer)DEF_BFACTOR },
    { "exclude", "Exclude", XtRString, sizeof (String),
-      0, XtRString, DEF_EXCLUDE },
+      0, XtRString, (XtPointer)DEF_EXCLUDE },
    { "automatic", "Automatic", XtRBoolean, sizeof(Boolean),
       0, XtRImmediate, (XtPointer)False },
    { "hide", "Hide", XtRBoolean, sizeof(Boolean),
       0, XtRImmediate, (XtPointer)False },
    { "reveal", "Reveal", XtRString, sizeof(String),
-      0, XtRString, "" }
+      0, XtRString, (XtPointer)"" }
 };
 
 static XtPointer OptionBase[] = {
@@ -398,7 +398,7 @@ main (int argc, char **argv)
 	ArchiverModel our_model(Options, XtNumber(Options), argc, argv);
 	model = &our_model;
 	char name[64];
-	sprintf (name, "Archiver-%li", getpid());
+	sprintf (name, "Archiver-%li", (long int)getpid());
 	if (!msg_connect (Handler, name))
 	{
 		fprintf(stderr,"Archiver: could not connect to message\n");
@@ -688,7 +688,7 @@ InitArchiver (int *argc, char **argv)
 static void
 OpenView (char *display)
 {
-	char *dstring = display ? display : "<default>";
+	const char *dstring = display ? display : "<default>";
 	msg_ELog (EF_INFO, "Opening X11 view on display: %s", dstring);
 	ArchiverView *view = CreateXView (model, display);
 	if (! view)
