@@ -15,7 +15,7 @@ InstallLibFile ($(MAPS),.,.)
  * Make the small world map the last resort default map
  */
 install::
-	(cd $(LIBDIR); ln -s smallworld.map default.map)
+	(cd $(LIBDIR); ln -sf smallworld.map default.map)
 
 DistfilesTarget($(DISTFILES))
 
