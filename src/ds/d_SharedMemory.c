@@ -1,7 +1,7 @@
 /*
  * Basic shared memory management routines for the data store daemon.
  */
-static char *rcsid = "$Id: d_SharedMemory.c,v 1.2 1991-02-26 19:11:27 corbet Exp $";
+static char *rcsid = "$Id: d_SharedMemory.c,v 2.0 1991-07-18 22:55:54 corbet Exp $";
 
 # include <errno.h>
 # include <sys/types.h>

@@ -1,7 +1,7 @@
 /*
  * The application notification module.
  */
-static char *rcsid = "$Id: d_Notify.c,v 1.3 1991-06-14 22:17:36 corbet Exp $";
+static char *rcsid = "$Id: d_Notify.c,v 2.0 1991-07-18 22:55:54 corbet Exp $";
 
 # include "../include/defs.h"
 # include "../include/message.h"

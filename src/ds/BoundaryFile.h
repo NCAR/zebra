@@ -1,7 +1,7 @@
 /*
  * The structures defining a boundary file.
  */
-/* $Id: BoundaryFile.h,v 1.2 1991-02-26 19:00:39 corbet Exp $ */
+/* $Id: BoundaryFile.h,v 2.0 1991-07-18 22:55:54 corbet Exp $ */
 
 # define BH_MAGIC	0x910221
 # define MAXBFPLAT	60
