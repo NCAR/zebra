@@ -15,23 +15,56 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.1 1993-06-07 18:38:31 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.2 1993-06-21 21:52:47 granger Exp $"
 
-LOCAL_LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
+LIBZEBDS = /zeb/gary/cvs/ds/libZebDS.a
+LIBMP = /local/src/prog-tools/mprof/libc_mp.a
+
+SYS_LIBRARIES = $(MATHLIB) $(TERMCAPLIB) $(LIBMP)
+LOCAL_LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) \
+		$(LIBNETCDF) $(XLIBS) $(FLIBS)
+DEPLIBS = $(LIBZEBDS) $(LIBZEB)
 
 LINTOPTS = -nuvxz
 
+FORTDEBUGFLAGS = /* none */
+FORTOPTIONS = -O
+CCOPTIONS = -O
+
 FSRCS = decode.f
-SRCS = dumpSSMI.c
+TSRCS = dumpSSMI.c
+SRCS = ssmi_ingest.c scan.c decode_ssmi.c
 
 OBJS = decode.o dumpSSMI.o
+IOBJS = ssmi_ingest.o decode.o decode_ssmi.o scan.o
 
 DISTFILES = Imakefile $(SRCS) $(FSRCS)
 
-NormalProgramTarget(dumpSSMI,dumpSSMI.o,/*deplibs*/,/*libs*/,$(SYSLIBS))
+NormalProgramTarget(ssmi_ingest, $(IOBJS), $(DEPLIBS), $(LOCAL_LIBS),/**/)
+
+TestProgramTarget(dumpSSMI,dumpSSMI.o,/*deplibs*/,/*libs*/,/**/)
 
 DistfilesTarget($(DISTFILES))
 
 DependTarget()
 
 LintTarget()
+
+LIBGCC = /usr/local/lib/gcc-lib/sparc-sun-sunos4.1/2.4.1/libgcc.a
+
+osaber:	$(IOBJS)
+	# setopt ansi
+	# load $(CFLAGS) $(IOBJS)
+	# load -G decode.o
+	# load -G /locallib/librdss.a
+	# load $(CFLAGS) $(IOBJS) -Bstatic $(LOCAL_LIBS) $(LIBGCC)
+	# link
+
+saber: decode.o
+	# setopt ansi
+	# load $(CFLAGS) $(SRCS)
+	# load -G decode.o
+	# load -G /locallib/librdss.a
+	# load $(CFLAGS) -Bstatic $(LOCAL_LIBS) $(LIBGCC)
+	# link
+
