@@ -9,7 +9,7 @@
 # include "DataStore.h"
 # include "znfile.h"
 
-MAKE_RCSID ("$Id: zfdump.c,v 1.8 1993-09-02 08:27:04 granger Exp $")
+MAKE_RCSID ("$Id: zfdump.c,v 1.9 1994-01-03 23:34:49 granger Exp $")
 
 extern int optind;
 
@@ -20,14 +20,17 @@ static void DumpSample FP((int fd, zn_Header *hdr, zn_Sample *sample,
 static zn_Field *DumpFields FP((int fd, zn_Header *hdr));
 static void DumpGlobalAttrs FP((int fd, zn_Header *hdr));
 static void ReadFreeNode FP ((int fd, long offset, zn_Free *zf));
+static int PrintAttr FP((char *key, void *value, int nval, DC_ElemType type,
+			 void *arg));
 
 void
 Usage(prog)
 char *prog;
 {
-	printf ("Usage: %s [-f] [-a] file ...\n", prog);
-	printf ("   -f\tDump free list\n");
+	printf ("Usage: %s [-h] [-f] [-a] file ...\n", prog);
+	printf ("Prints header, sample indices, and attributes by default.\n");
 	printf ("   -h\tDump header only\n");
+	printf ("   -f\tDump free list\n");
 	printf ("   -a\tDump everything else, ");
 	printf ("including (scalar and fixed-scalar) data\n");
 }
@@ -208,15 +211,16 @@ int dump_free, dump_header, dump_all;
 			if (satts && (satts[t].znf_Size > 0))
 			{
 				char *ablock, *att;
+				DataChunk *dc;
 
 				ablock = (char *)malloc(satts[t].znf_Size);
 				lseek (fd, satts[t].znf_Offset, 0);
 				read (fd, ablock, satts[t].znf_Size);
-				for (att = ablock; 
-				     (*att) && 
-				     (att - ablock < satts[t].znf_Size); 
-				     att += strlen(att) + 1)
-					printf ("\t%s\n", att);
+				dc = dc_CreateDC (DCC_Raw);
+				dc_SetGlAttrBlock (dc, (void *)ablock, 
+						   satts[t].znf_Size);
+				dc_ProcessAttrArrays (dc,NULL,PrintAttr,NULL);
+				dc_DestroyDC (dc);
 				free (ablock);
 			}
 			if (dump_all)
@@ -248,6 +252,7 @@ zn_Header *hdr;
 {
 	long blen;
 	char *ablock, *att;
+	DataChunk *dc;
 
 	printf ("Global Attributes:\n");
 	blen = hdr->znh_GlAttrLen;
@@ -257,12 +262,14 @@ zn_Header *hdr;
 	lseek (fd, hdr->znh_OffGlAttr, SEEK_SET);
 	read (fd, ablock, blen);
 /*
- * Now have our block of attributes.  Process it.
+ * Now have our block of attributes.  Process it.  To do this with the new
+ * complicated typed attribute arrays, we'll add the block to a DataChunk
+ * and dump the datachunk.
  */
-	for (att = ablock; (*att) && (att - ablock < blen); 
-	     att += strlen(att) + 1)
-		printf ("\t%s\n", att);
-
+	dc = dc_CreateDC (DCC_Raw);
+	dc_SetGlAttrBlock (dc, (void *)ablock, blen);
+	dc_ProcessAttrArrays (dc, NULL, PrintAttr, NULL);
+	dc_DestroyDC (dc);
 	free (ablock);
 }
 
@@ -509,3 +516,38 @@ zn_Free *fb;
 		read (fd, fb, sizeof(zn_Free));
 	}
 }
+
+
+
+
+static int
+PrintAttr (key, value, nval, type, arg)
+char *key;
+void *value;
+int nval;
+DC_ElemType type;
+void *arg;
+/*
+ * Print out an attribute value.
+ */
+{
+	int i;
+
+	if (nval && (type == DCT_String))
+	{
+		printf ("   %s --> '%s'\n", key, (char *)value);
+		return (0);
+	}
+	printf ("   %s --> ", key);
+	for (i = 0; i < nval; ++i)
+	{
+		printf ("%s%s", dc_ElemToString(value, type),
+			(i == nval - 1) ? "\n" : ", ");
+		value = (char *)value + dc_SizeOfType (type);
+	}
+	if (nval == 0)
+		printf ("\n");
+	return (0);
+}
+
+

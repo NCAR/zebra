@@ -2,7 +2,7 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.18 1994-01-03 07:17:45 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.19 1994-01-03 23:34:45 granger Exp $"
 
 LIBMPROF=/dt/granger/libc_mp.a
 SYSLIBS=/* $(LIBMPROF) */
@@ -86,7 +86,8 @@ BuildIncludes($(HEADERS),.,.)
  */
 NormalProgramTarget (rfdump, rfdump.o, /**/, /**/, /**/)
 
-NormalProgramTarget (zfdump, zfdump.o, /**/, $(LIBZEB), /**/)
+NormalProgramTarget (zfdump, zfdump.o $(DSLIBOBJS) $(DCOBJS), 
+                     $(LIBZEB), $(LIBZEB) $(LIBNETCDF) $(LIBRDSS), /**/)
 
 /*
  * Test routines.
