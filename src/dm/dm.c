@@ -1,7 +1,7 @@
 /*
  * The MOCCA display manager.
  */
-static char *rcsid = "$Id: dm.c,v 2.2 1991-09-12 01:41:44 corbet Exp $";
+static char *rcsid = "$Id: dm.c,v 2.3 1991-09-26 17:23:14 gracio Exp $";
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -29,6 +29,7 @@ static char *rcsid = "$Id: dm.c,v 2.2 1991-09-12 01:41:44 corbet Exp $";
 # include "dm_vars.h"
 # include "dm_cmds.h"
 # include "../include/timer.h"
+# include "../include/config.h"
 # include <copyright.h>
 
 
@@ -86,7 +87,7 @@ char **argv;
 /*
  * Get the interface set up.
  */
-	fixdir_t ("DMLOADFILE", "/fcc/lib", "dm.lf", loadfile, ".lf");
+	fixdir_t ("DMLOADFILE", LIBDIR, "dm.lf", loadfile, ".lf");
 	ui_init (loadfile, TRUE, FALSE);
 	ui_setup ("DisplayMgr", &argc, argv, (char *) 0);
 /*
