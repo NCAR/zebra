@@ -21,6 +21,8 @@ DSMLIBS = $(DSLIBS) $(ZLIBS) $(XLIBS) $(C++LIBS)
 TILIBS = $(DFALIBS) $(ZLIBS) $(C++LIBS)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
+INCLUDES = $(XINCLUDES)
+
 OBJS = dsmanage.o dsmWindows.o DataDir.o Index.o MainWindow.o Dialog.o \
 	LoadData.o StatusWin.o DLoad.o Tape.o TBCleanup.o
 TIOBJS = TapeIndex.o Index.o Tape.o
