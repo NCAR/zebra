@@ -1,0 +1,118 @@
+#!/usr/bin/python
+#
+
+from Tkinter import *
+from Dialog import Dialog
+import os
+import sys
+import time
+
+
+class Main (Frame):
+    def __init__ (self, master = None):
+	Frame.__init__ (self, master)
+	self.pack ()
+	self.l = Label (self, bitmap = '@/zebra/lib/icons/global',
+			foreground = 'yellow', background = 'darkblue')
+	self.l.pack (side = 'left')
+	#
+	# Redirect stdout to a log file
+	#
+	hostname = os.popen('hostname -a', 'r').readline()[:-2]
+	self.logname = os.environ['HOME'] + '/startbutton.' + hostname + '.log'
+	self.logfile = open(self.logname, 'w')
+	self.logfile.write(sys.argv[0] + ' started at ' + 
+			   time.ctime (time.time()) + '\n')
+	self.logfile.flush()
+
+	#
+	# Make sure that the ZEBRA_MASTER environment variable is set (since
+	# it's needed by startup and newdisplay)
+	#
+	def_zebra_master = "zebu.gate.net"
+
+	try:
+	    zebra_master = os.environ["ZEBRA_MASTER"]
+	except:
+	    os.environ["ZEBRA_MASTER"] = def_zebra_master
+	    zebra_master = def_zebra_master
+
+	self.label = Label (self, foreground='red',
+			    text = 'Zebra (master is ' + 
+			    zebra_master + ')')
+	self.label.pack (side = 'top')
+	self.button = Button (self, text = 'Click here to Start system',
+			      command = self.startsys)
+	self.button.pack (side = 'top')
+	self.kill = Button( self, text = 'Click here to Stop zebra tasks',
+		command = self.killit)
+        self.kill.pack (side = 'top')
+
+	self.killallb = Button( self,  foreground='red', 
+	    text = 'Click to STOP Zebra AND All Data Aquisition Tasks ',
+		command = self.kill_all)
+        self.killallb.pack (side = 'bottom')
+
+	self.resetb = Button( self,  text = 'Click to Reset Rain Accumulation',
+		command = self.reset_rain)
+        self.resetb.pack (side = 'bottom')
+
+	self.newiopb = Button( self,  text = 'Click to Start New IOP',
+		command = self.new_iop)
+        self.newiopb.pack (side = 'bottom')
+
+	self.selb = Button( self,  text = 'Select Archive IOP',
+		command = self.select_archive)
+        self.selb.pack (side = 'bottom')
+	
+    def startsys(self):
+	d = Dialog(self, 
+		title = 'Start Zebra',
+		text = 'select dual or single pol image generation',
+		bitmap = 'question',
+		default = 0,
+		strings=('dual', 'single'))
+	if d.num == 0:
+	    # user selected 'dual'
+            print 'start dual polarization images'
+	    os.system('/usr/local/zebra/bin/start_dual_pol_images &')
+	else:
+	    # user selected 'single'
+            print 'start single polarization images'
+	    os.system('/usr/local/zebra/bin/start_single_pol_images &')
+
+        # and now actually start zebra
+	self.doit()
+	
+        
+
+    def doit (self):
+	self.button['text'] = '...Zebra starting now...'
+	self.button.flash ()
+	#
+	# Run startup, appending its output to our log file
+	#
+	# tell zebra to restart us when user closes down
+	os.environ['STARTBUTTON_USED'] = 'certainly'
+	self.logfile.close()
+	os.system ('/ops/zebra/startup >> ' + self.logname + ' 2>&1')
+	sys.exit (0)
+
+    def killit(self):
+	os.system('/zebra/bin/zstop &')
+
+    def kill_all(self):
+	os.system('/zebra/bin/kill_all &')
+
+    def reset_rain(self):
+	os.system('/ops/bin/reset_rain &')
+
+    def new_iop(self):
+	os.system('/zebra/bin/do_new_iop &')
+
+    def select_archive(self):
+	os.system('/ops/bin/zebra_data_select &')
+
+
+win = Main ()
+win.mainloop ()
