@@ -45,7 +45,7 @@
 # include <message.h>
 # include <ui_symbol.h>
 
-MAKE_RCSID ("$Id: message.c,v 2.31 1995-05-02 23:11:41 granger Exp $")
+MAKE_RCSID ("$Id: message.c,v 2.32 1995-05-05 17:43:38 granger Exp $")
 /*
  * Symbol tables.
  */
@@ -436,12 +436,13 @@ char **argv;
 		if (NWriteFd)
 		{
 			wfds = WriteFds;
-			nsel = select (Nfd, (z_FdSet *)&fds, (z_FdSet *)&wfds,
-				       (z_FdSet *) 0, (struct timeval *) NULL);
+			nsel = select (Nfd, (SelectSet *)&fds, 
+				       (SelectSet *)&wfds, (SelectSet *)0,
+				       (struct timeval *) NULL);
 		}
 		else
-			nsel = select (Nfd, (z_FdSet *)&fds, (z_FdSet *) 0,
-				       (z_FdSet *) 0, (struct timeval *) NULL);
+			nsel = select (Nfd, (SelectSet *)&fds, (SelectSet *)0,
+			       (SelectSet *)0, (struct timeval *) NULL);
 	/*
 	 * See what happened.
 	 */
