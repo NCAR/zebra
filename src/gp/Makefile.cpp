@@ -1,4 +1,4 @@
-/* $Id: Makefile.cpp,v 1.4 1991-10-24 20:42:39 corbet Exp $ */
+/* $Id: Makefile.cpp,v 1.5 1991-10-30 21:39:01 barrett Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -38,7 +38,8 @@ OBJS =  TimeSeries.o ColorTable.o EventQueue.o LLEvent.o PlotControl.o \
 	Lightning.o Track.o GridAccess.o Overlay.o  PositionWidget.o\
 	FrameCache.o MovieControl.o rgrid.o cfit.o AltControl.o \
 	Icons.o Skewt.o RBand.o Annotate.o XSection.o LimitWidgets.o \
-	ConstAltPlot.o Utilities.o DataMenu.o malloc.o
+	ConstAltPlot.o Utilities.o DataMenu.o malloc.o \
+	XYGraph.o PlotPrim.o LayoutControl.o AxisControl.o
 
 all:	gp
 
