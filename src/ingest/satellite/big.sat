@@ -1,0 +1,6 @@
+limits 20 -140 55 -65
+set originLat 39.71
+set platform "goes"
+file /scr/scupper/stack/sideb_mar16/area2152 vis
+file /scr/scupper/stack/sideb_mar16/area2452 ir
+set kmResolution 32

@@ -1,0 +1,31 @@
+Info for this directory:
+------------------------
+
+festSatIngest.c has been checked in and left there, just in case anyone ever
+wants to use it.
+
+The original SatIngest has been checked in as SatIngestDO.c, since this version
+uses the old DataObject interface.
+
+The newSatIngest.c file is now SatIngest.c.  Older versions of this which had
+been named newSatIngest.c.old and the like have now been checked in as older
+versions of the SatIngest.c file.
+
+
+To get area files from MCIDAS, use the following procedure on a MCIDAS PC,
+such as the one in the RAP users room:
+
+SEE REAL
+LA <area#> <area#>
+SENAA <area#> 1 EC <center-lat> <center-lon> 1
+	      ^-- destination area           ^-- magnification
+
+The <destination area> parameter determines the name of the file which the
+areas info will be stored in.  In this example, the file would be 'areas001'.
+
+The Wisconsin MCIDAS server from which the MCIDAS PC gets its info is at
+128.104.83.32
+
+If there are problems, help might be available from
+jeanb@ssecmail.ssec.wisc.edu
+
