@@ -26,7 +26,7 @@
 
 # include "defs.h"
 
-RCSID ("$Id: TCvt.c,v 2.21 1996-11-19 07:50:08 granger Exp $")
+RCSID ("$Id: TCvt.c,v 2.22 1997-05-13 22:10:48 ishikawa Exp $")
 
 /*
  * Public time constants
@@ -35,7 +35,7 @@ const ZebTime ZT_ALPHA = { 0, 0 };
 const ZebTime ZT_OMEGA = { 0x7fffffff, 999999 };
 const ZebTime ZT_NONE = { -1, -1 };
 
-#if defined(SVR4) || defined(SYSV) || defined(linux)
+#if defined(SVR4) || defined(SYSV) || defined(linux) || defined (__osf__)
 static char *TC_GMTZONE = "TZ=GMT";
 #endif
 
@@ -83,7 +83,7 @@ const UItime *fcc;
 	t.tm_hour = fcc->ds_hhmmss/10000;
 	t.tm_min = (fcc->ds_hhmmss/100) % 100;
 	t.tm_sec = fcc->ds_hhmmss % 100;
-#if defined(SVR4) || defined(SYSV) || defined(linux)
+#if defined(SVR4) || defined(SYSV) || defined(linux) || defined (__osf__)
         putenv (TC_GMTZONE);
         t.tm_wday = t.tm_yday = 0;
         t.tm_isdst = -1;
@@ -164,7 +164,7 @@ ZebTime *zt;
 	t.tm_min = (ui->ds_hhmmss/100) % 100;
 	t.tm_sec = ui->ds_hhmmss % 100;
 	zt->zt_MicroSec = 0;
-#if defined(SVR4) || defined(SYSV) || defined(linux)
+#if defined(SVR4) || defined(SYSV) || defined(linux) || defined (__osf__)
         putenv (TC_GMTZONE);
         t.tm_wday = t.tm_yday = 0;
         t.tm_isdst = -1;
@@ -340,7 +340,7 @@ int year, month, day, hour, minute, second, microsec;
 	t.tm_min = minute;
 	t.tm_sec = second;
 	zt->zt_MicroSec = microsec;
-#if defined(SVR4) || defined(SYSV) || defined(linux)
+#if defined(SVR4) || defined(SYSV) || defined(linux) || defined (__osf__)
         putenv (TC_GMTZONE);
         t.tm_wday = t.tm_yday = 0;
         t.tm_isdst = -1;

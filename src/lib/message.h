@@ -1,4 +1,4 @@
-/* $Id: message.h,v 2.30 1997-02-14 07:32:00 granger Exp $ */
+/* $Id: message.h,v 2.31 1997-05-13 22:08:30 ishikawa Exp $ */
 /*
  * Message protocol types.
  */
@@ -21,6 +21,10 @@
  */
 # ifndef _ZEBRA_MESSAGE_H_
 # define _ZEBRA_MESSAGE_H_
+
+# ifdef AIXV3
+# include <sys/select.h>	/* For IBM/AIX machines */ 
+# endif
 
 # include <sys/types.h>		/* To get fd_set */
 

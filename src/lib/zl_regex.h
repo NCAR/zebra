@@ -26,7 +26,7 @@
 # include "defs.h"		/* for FP and const defines */
 # include <sys/types.h>
 
-#if defined(hpux) || defined(_POSIX_SOURCE)
+#if defined(hpux) || defined(_POSIX_SOURCE) || defined (__osf__) || defined (AIXV3)
 #   define ZL_RE_POSIX
 #else
 #if defined(SVR4)	/* Solaris */
