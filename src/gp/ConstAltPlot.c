@@ -56,7 +56,7 @@
 
 # undef quad 	/* Sun cc header file definition conflicts with variables */
 
-MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.76 1998-09-22 22:28:24 burghart Exp $")
+MAKE_RCSID ("$Id: ConstAltPlot.c,v 2.77 1998-10-14 16:29:03 burghart Exp $")
 
 
 /*
@@ -667,7 +667,7 @@ bool update;
 {
 	char	cname[30], annot[120];
 	char	platform[PlatformListLen];
-	char	quadrants[4][20], quadclr[30];
+	char	quadrants[4][60], quadclr[30];
 	char	data[100], sticon[40];
 	char	*pnames[MaxPlatforms];
 	PlatformId pid;
@@ -855,7 +855,7 @@ bool update;
 			strcat (data, "station ");
 		else if (quadrants[i][0])
 		{
-			strcat (data, quadrants[i]);
+			strcat (data, F_GetName (quadfields[i]));
 			strcat (data, " ");
 		}
 		else
