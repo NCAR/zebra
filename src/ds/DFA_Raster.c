@@ -414,6 +414,7 @@ RFTag *tag;
 /*
  * Simply reread the header and table of contents.
  */
+	lseek (tag->rt_fd, 0, SEEK_SET);
 	read (tag->rt_fd, &tag->rt_hdr, sizeof (RFHeader));
 	read (tag->rt_fd, tag->rt_toc, tag->rt_hdr.rf_NSample*sizeof (RFToc));
 }
