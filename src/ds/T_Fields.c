@@ -9,7 +9,9 @@
 
 #include "apple.h"
 
-RCSID("$Id: T_Fields.c,v 3.2 1996-12-06 00:40:22 granger Exp $")
+RCSID("$Id: T_Fields.c,v 3.3 1997-07-01 23:59:45 granger Exp $")
+
+extern void F_Warnings (int);
 
 static int
 T_FieldNames ()
@@ -26,6 +28,7 @@ T_FieldNames ()
 	 * be defined.  If the fields have already been defined, then
 	 * we won't get any warnings.
 	 */
+	F_Warnings (1);
 	if ((F_Declared (name)) == BadField)
 	{
 		TX_Catch ("declare field 'thisname.*name longer than");

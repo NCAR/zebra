@@ -40,7 +40,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-RCSID ("$Id: DataFormat.c,v 3.5 1997-06-30 21:44:35 ishikawa Exp $")
+RCSID ("$Id: DataFormat.c,v 3.6 1997-07-01 23:59:40 granger Exp $")
 
 /*
  * Include the DataFormat structure definition, and the public and
@@ -875,8 +875,14 @@ int ndetail;
  * the extension.
  */
 {
+	int fullyear;
 	SValue v;
 	char *ext = NULL;
+#ifdef CFG_FULL_YEARS
+	fullyear = 1;
+#else
+	fullyear = 0;
+#endif
 /*
  * See if we're supposed to use an alternative extension.
  */
@@ -915,32 +921,39 @@ int ndetail;
 	}
 	else
 	{
+		int year, mo, day, hr, min, sec, ms;
+		char *c = dest;
+
 		/*
 		 * Here's where we supply a default, with a possibly
-		 * modified extension.
+		 * modified extension, with 2- or 4-digit years.
 		 */
-		UItime ut;
+		if (ds_GetDetail (DD_FOUR_YEAR, details, ndetail, NULL))
+			fullyear = 1;
+		else if (ds_GetDetail (DD_TWO_YEAR, details, ndetail, NULL))
+			fullyear = 0;
 
-		TC_ZtToUI (t, &ut);
-		if (t->zt_MicroSec)	/* need microsecond resolution */
+		TC_ZtSplit (t, &year, &mo, &day, &hr, &min, &sec, &ms);
+
+		sprintf (c, "%s", plat_name);
+		c += strlen(c);
+		if (fullyear)
 		{
-			sprintf (dest, "%s.%06ld.%06ld.%06ld%s", plat_name, 
-				 ut.ds_yymmdd, ut.ds_hhmmss, 
-				 t->zt_MicroSec, ext);
+			sprintf (c, ".%04d%02d%02d", year+1900, mo, day);
 		}
-#ifdef notdef
-		else if ((t->zt_Sec % (24*3600)) == 0)
+		else 
 		{
-			/* resolution on order of days */
-			sprintf (dest, "%s.%06ld%s", plat_name, 
-				 ut.ds_yymmdd, ext);
+			sprintf (c, ".%02d%02d%02d", (year % 100), mo, day);
 		}
-#endif
-		else
+		c += strlen(c);
+		sprintf (c, ".%02d%02d%02d", hr, min, sec);
+		c += strlen(c);
+		if (ms)	/* need microsecond resolution */
 		{
-			sprintf (dest, "%s.%06ld.%06ld%s", plat_name, 
-				 ut.ds_yymmdd, ut.ds_hhmmss, ext);
+			sprintf (c, ".%06d", ms);
+			c += strlen(c);
 		}
+		sprintf (c, "%s", ext);
 		dfa_Deslash (dest);
 	}
 	return (0);

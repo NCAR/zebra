@@ -261,6 +261,7 @@ TestFormats ()
 	nerror += VerifyFiletype (FTGRIB, "GRIB", gribFormat);
 	nerror += VerifyFiletype (FTGRIBSfc, "GRIB_sfc", gribSfcFormat);
 	nerror += VerifyFiletype (FTGrads, "GRADS", gradsFormat);
+	nerror += VerifyFiletype (FTGradsModel,"GRADSModel",gradsmodelFormat);
 	if (hdfFormat->f_OpenFile != fmt_OpenNotCompiled)
 		nerror += VerifyFiletype (FTHDF, "HDF", hdfFormat);
 
@@ -358,7 +359,6 @@ T_MakeFileName ()
 	dsDetail details[5];
 	
 	TC_ZtAssemble (&when, 1996, 7, 13, 12, 0, 0, 0);
-	strcpy (stime, "960713.120000");
 	for (ft = FTNetCDF; ft <= FTHDF; ++ft)
 	{
 		fplat.ftype = ft;
@@ -366,7 +366,28 @@ T_MakeFileName ()
 		pid = MakePlatform (&fplat);
 		fmt = FMTP(fplat.ftype);
 		ds_GetPlatStruct (pid, &cp, FALSE);
-		/* create what we expect */
+		/* try with four-digit years */
+		strcpy (stime, "19960713.120000");
+		sprintf (name, "%s.%s%s", fplat.name, stime, fmt->f_ext);
+		if ((bar = strrchr (name, '|')))
+			*bar++ = '\0';
+		/* see what we get */
+		ds_SetDetail (DD_FOUR_YEAR, details, 0);
+		errors += CheckFileName (&cp, &when, name, details, 1);
+		/* try with two-digit years */
+		strcpy (stime, "960713.120000");
+		sprintf (name, "%s.%s%s", fplat.name, stime, fmt->f_ext);
+		if ((bar = strrchr (name, '|')))
+			*bar++ = '\0';
+		/* see what we get */
+		ds_SetDetail (DD_TWO_YEAR, details, 0);
+		errors += CheckFileName (&cp, &when, name, details, 1);
+		/* try the default */
+#ifdef CFG_FULL_YEARS
+		strcpy (stime, "19960713.120000");
+#else
+		strcpy (stime, "960713.120000");
+#endif
 		sprintf (name, "%s.%s%s", fplat.name, stime, fmt->f_ext);
 		if ((bar = strrchr (name, '|')))
 			*bar++ = '\0';

@@ -29,7 +29,7 @@
 # include <message.h>
 # include "ds_fields.h"
 
-RCSID ("$Id: Fields.c,v 3.12 1996-12-06 00:40:19 granger Exp $")
+RCSID ("$Id: Fields.c,v 3.13 1997-07-01 23:59:43 granger Exp $")
 
 
 /*
@@ -52,7 +52,7 @@ static FieldDesc FieldTable[MaxFieldID];
 static stbl FNameTable = NULL;
 
 static int NField = 0;
-
+static int Warnings = 0;
 
 
 
@@ -67,8 +67,20 @@ F_Init ()
 		zl_usy_init ();
 		FNameTable = usy_c_stbl ("FieldNames");
 	}
+#ifdef CFG_WARN_FIELD_NAMES
+	Warnings = 1;
+#else
+	Warnings = 0;
+#endif /* CFG_WARN_FIELD_NAMES */
 }
 
+
+
+void
+F_Warnings (int on)
+{
+	Warnings = on;
+}
 
 
 
@@ -217,7 +229,8 @@ const char *name, *desc, *units;
 /*
  * Now that we've defined it, warn if we didn't really like it.
  */
-	F_CheckName (name);
+	if (Warnings)
+		F_CheckName (name);
 	return (ind);
 }
 

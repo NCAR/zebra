@@ -1,3 +1,14 @@
+Tue Jul  1 14:26:02 1997  Gary Granger  <granger@steam.atd.ucar.edu>
+
+	* Merge V4_2_alpha_ARM patches up to patchlevel 3:
+	  implicit coordinate variables fix in DFA_NetCDF; verify
+	  d_Notify fix: use num overwritten for nsample if UpdOverwrite
+	
+ 	* config.h: add CFG_FULL_YEARS and CFG_WARN_FIELD_NAMES
+
+	* Merge V4_2_Juneau up to Tag_Branch_Juneau_KC:
+	  add keep-colors parameter; more proportional wind barbs
+
 Tue Nov 26 14:00:33 1996  Gary Granger  <granger@narnia.atd.ucar.edu>
 
 	* config.h: critical parameters have been reconciled between ARM

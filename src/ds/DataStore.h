@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.42 1997-06-30 21:47:28 ishikawa Exp $
+ * $Id: DataStore.h,v 3.43 1997-07-01 23:59:42 granger Exp $
  *
  * Public data store definitions.
  */
@@ -208,6 +208,15 @@ typedef struct _dsDetail
 # define DD_FILE_NAME		"filename"
 # define DD_FILE_BASE		"basename"
 # define DD_FILE_EXT		"extension"
+
+/*
+ * More filename details.  Existence of DD_FOUR_YEAR puts 4-digit years
+ * into the filename, while DD_TWO_YEAR uses the historical 2-digit years.
+ * DD_TWO_YEAR is the default (for now...); use CFG_FULL_YEARS to switch
+ * the default to DD_FOUR_YEAR.
+ */
+# define DD_TWO_YEAR		"two-digit-years"
+# define DD_FOUR_YEAR		"four-digit-years"
 
 /*
  * DataChunks -- the new "data object" format.
