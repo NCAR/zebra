@@ -36,7 +36,7 @@
 # include "BoundaryFile.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_Boundary.c,v 3.13 1996-12-06 00:40:00 granger Exp $")
+RCSID ("$Id: DFA_Boundary.c,v 3.14 1997-02-21 00:01:29 burghart Exp $")
 
 
 /*
@@ -216,7 +216,7 @@ int ndetail;
 /*
  * Now synchronize the whole thing and return.
  */
-	bf_ReadSync (ofp);
+	bf_WriteSync (ofp);
 	return (TRUE);
 }
 
