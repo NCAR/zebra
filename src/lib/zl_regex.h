@@ -26,17 +26,16 @@
 # include "defs.h"		/* for FP and const defines */
 # include <sys/types.h>
 
-#if defined(SVR4)	/* Solaris */
-#   define ZL_RE_SVR4
-#else
 #if defined(hpux) || defined(_POSIX_SOURCE)
 #   define ZL_RE_POSIX
 #else
+#if defined(SVR4)	/* Solaris */
+#   define ZL_RE_SVR4
+#else
     /* everything else is assumed BSD */
 #   define ZL_RE_BSD
-#endif /* hpux and POSIX */
 #endif /* SVR4 */
-
+#endif /* hpux and POSIX */
 
 #ifdef ZL_RE_SVR4
 #   include <libgen.h>
