@@ -1,0 +1,34 @@
+XCOMM $Id: Imakefile,v 1.1 1993-07-26 17:03:54 case Exp $
+#if UseCCMakeDepend
+MDEP_DIR = makedepend
+#endif
+         PROGRAMS = $(MDEP_DIR) zmkmf
+
+all:: $(PROGRAMS)
+
+CppScriptTarget(zmkmf,zmkmf.cpp,/* cpp args */,/*$(ICONFIGFILES)*/)
+InstallNamedProg(zmkmf,zmkmf,$(BINDIR))
+
+#if UseCCMakeDepend
+CppScriptTarget(makedepend,mdepend.cpp,-DPREPROC='"'"$(PREPROCESSCMD)"'"',$(ICONFIGFILES))
+#endif
+
+InstallNamedProg(mkdirhier.sh,mkdirhier,$(BINDIR))
+InstallManPage(mkdirhier,$(MANDIR))
+#if UseCCMakeDepend
+InstallNamedProg(makedepend,makedepend,$(BINDIR))
+#endif
+InstallNamedProg(lndir.sh,lndir,$(BINDIR))
+InstallManPage(lndir,$(MANDIR))
+#if SystemV || SystemV4
+InstallNamedProg(bsdinst.sh,bsdinst,$(BINDIR))
+#endif
+
+clean::
+	$(RM) $(PROGRAMS)
+
+depend::
+
+install.man::
+
+
