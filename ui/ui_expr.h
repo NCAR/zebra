@@ -1,4 +1,4 @@
-/* $Header: /code/cvs/rdss/rdsslibs/ui/ui_expr.h,v 1.1 1989-02-08 13:28:16 corbet Exp $ */
+/* $Id: ui_expr.h,v 1.2 1990-09-11 16:20:27 corbet Exp $ */
 /*
  * Global info for the use of the recursive descent parser.
  */
@@ -47,7 +47,16 @@ struct parse_tree
 # define OP_EQ		12
 # define OP_NEQ		13
 
-
-struct parse_tree *ue_parse ();
+# ifdef __STDC__
+	struct parse_tree *ue_parse (char *, int, int);
+	int ue_rel_tree (struct parse_tree *);
+	int ue_dump_tree (struct parse_tree *);
+	int ue_eval (struct parse_tree *, union usy_value *, int *);
+# else
+	struct parse_tree *ue_parse ();
+	int ue_rel_tree ();
+	int ue_dump_tree ();
+	int ue_eval ();
+# endif
 
 # endif
