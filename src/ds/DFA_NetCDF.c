@@ -33,16 +33,9 @@
 # include "dfa.h"
 # include "DataFormat.h"
 
-RCSID ("$Id: DFA_NetCDF.c,v 3.58 1996-11-26 22:36:28 granger Exp $")
+RCSID ("$Id: DFA_NetCDF.c,v 3.59 1997-04-28 04:52:30 granger Exp $")
 
 # include <netcdf.h>
-
-/*
- * Do we include units attribute for altitude
- */
-#ifndef CFG_NC_NO_ALT_UNITS
-#define STORE_ALT_UNITS
-#endif
 
 /*
  * Location fields: standard attributes
@@ -3378,7 +3371,7 @@ DataChunk *dc;
 	sprintf(history,"created by the Zebra DataStore library, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.58 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.59 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 }
@@ -3585,11 +3578,9 @@ DataChunk *dc;
 			vz = ncvardef(tag->nc_id, "z_spacing", NC_FLOAT, 0, 0);
 			(void)ncattput(tag->nc_id, vz, VATT_LONGNAME, NC_CHAR,
 				       strlen(Z_LONGNAME)+1, Z_LONGNAME);
-#ifdef STORE_ALT_UNITS
 			units = au_LongUnitsName (tag->nc_altUnits);
 			(void) ncattput (tag->nc_id, vz, VATT_UNITS, NC_CHAR, 
 					 strlen (units) + 1, units);
-#endif /* STORE_ALT_UNITS */
 		}
 	}
 /*
@@ -3714,11 +3705,9 @@ int *vlat, *vlon, *valt;
 	*valt = ncvardef (tag->nc_id, "alt", NC_FLOAT, ndims, dims);
 	(void)ncattput(tag->nc_id, *valt, VATT_LONGNAME,
 		       NC_CHAR, strlen(ALT_LONGNAME)+1, ALT_LONGNAME);
-#ifdef STORE_ALT_UNITS
 	(void)ncattput(tag->nc_id, *valt, VATT_UNITS, NC_CHAR, 
 		       strlen (au_LongUnitsName (tag->nc_altUnits)) + 1, 
 		       au_LongUnitsName (tag->nc_altUnits));
-#endif /* STORE_ALT_UNITS */
 }
 
 
