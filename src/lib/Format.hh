@@ -1,5 +1,5 @@
 /*
- * $Id: Format.hh,v 1.3 1998-05-15 19:36:52 granger Exp $
+ * $Id: Format.hh,v 1.4 1998-05-28 21:41:41 granger Exp $
  * 
  * An interesting, if possibly useful, interface for formatting strings
  * using printf-style format specifiers.
@@ -101,8 +101,8 @@ public:
 	/// Reset to beginning of format and clear errors
 	Format &reset()
 	{
-		pos = 0;
 		buf = "";
+		pos = 0;
 		err = OK;
 		verbose = true;
 		return *this;
@@ -128,25 +128,17 @@ public:
 		return err;
 	}
 
-	friend ostream & operator<< (ostream &out, const Format &f);
+	//friend ostream & operator<< (ostream &out, const Format &f);
 
 	/* Add a method for checking the type against the format flag
 	   then printing the parameter. */
+	// Automatic reset after an evaluation or when format consumed
 #	define PERCENT(T,F) \
 	Format & operator% (const T t) \
 	{ \
 		char temp[1024]; \
 		char flag = 0; \
-		string f; \
-		do { \
-			f = next_format(&flag); \
-			if (flag == '%') \
-			{ \
-				sprintf (temp, f.c_str()); \
-				buf += temp; \
-			} \
-		} \
-		while (flag == '%'); \
+		string f = parse_format (temp, &flag); \
 		if (! strchr (F,flag)) \
 			f = error(TYPE_MISMATCH); \
 		sprintf (temp, f.c_str(), t); \
@@ -155,7 +147,9 @@ public:
 	}
 
 	PERCENT(int,"idoxX");
+	PERCENT(long,"idoxX");
 	PERCENT(unsigned int,"u");
+	PERCENT(unsigned long,"u");
 	PERCENT(double,"feEgG");
 	PERCENT(char,"c");
 	PERCENT(unsigned char,"c");
@@ -164,9 +158,22 @@ public:
 
 #	undef PERCENT
 
-	operator const char * ()
+	operator const char * () const
 	{
-		return buf.c_str();
+		return (eval()).c_str();
+	}
+
+	/// "Evaluate" the format buffer as filled in so far, which includes
+	/// the remainder of the format string not yet parsed, and which also
+	/// resets the format to the beginning.
+	const string &eval () const
+	{
+		// This method is labelled const so it can be called on
+		// temporary objects, but we have to kludge things of course.
+		Format &f = const_cast<Format &>(*this);
+		f.buf.append (fmt, pos, fmt.length() - pos);
+		f.pos = fmt.length();
+		return f.buf;
 	}
 
 	/// Return error string for a given error
@@ -194,6 +201,24 @@ public:
 	}
 
 protected:
+
+	string parse_format (char *temp, char *flag)
+	{
+		if (pos >= fmt.length())
+			reset();
+		string f;
+		do {
+			f = next_format (flag);
+			if (*flag == '%')
+			{
+				sprintf (temp, f.c_str());
+				buf += temp;
+			}
+		}
+		while (*flag == '%');
+		return f;
+	}
+
 
 	string next_format (char *flag = 0)
 	{
@@ -257,6 +282,7 @@ public:
 		vsprintf (sbuf, s, vl);
 		va_end (vl);
 		buf = sbuf;
+		pos = fmt.length();
 	}
 	/// Apply an argument list using a buffer of size 'n'
 	Printf (unsigned int n, const char *s ...) : Format(s)
@@ -267,21 +293,16 @@ public:
 		vsprintf (sbuf, s, vl);
 		va_end (vl);
 		buf = sbuf;
+		pos = fmt.length();
 	}
-
-#ifdef notdef
-	operator const char * ()
-	{
-		return buf.c_str();
-	}
-#endif
 };
 
 
 
 inline ostream & operator<< (ostream &out, const Format &f)
 {
-	out << f.buf;
+	//out << (const_cast<Format &>(f)).eval();
+	out << f.eval();
 	return out;
 }
 
