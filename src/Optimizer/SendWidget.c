@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-static char *rcsid = "$Id: SendWidget.c,v 1.1 1991-09-17 17:05:26 burghart Exp $";
+static char *rcsid = "$Id: SendWidget.c,v 1.2 1991-09-26 16:49:38 gracio Exp $";
 
 # include <stdio.h>
 # include <signal.h>
@@ -31,6 +31,7 @@ static char *rcsid = "$Id: SendWidget.c,v 1.1 1991-09-17 17:05:26 burghart Exp $
 # include <X11/Xaw/Command.h>
 # include <X11/Xaw/Label.h>
 # include <ui_error.h>
+# include <config.h>
 # include "globals.h"
 # include "prototypes.h"
 # include "radar.h"
@@ -256,7 +257,7 @@ XtPointer	val, junk;
  */
 	int	r = (int) val;
 	int	in_sockets[2], out_sockets[2], status, done;
-	char	label[20], kermit_exec[] = "/fcc/Optimizer/nkermit/nkermit";
+	char	label[20], kermit_exec[200];
 	char	speed[10];
 	Arg	arg;
 /*
@@ -300,6 +301,8 @@ XtPointer	val, junk;
 	 * Exec kermit.  We don't dial if it's a radio modem, otherwise we do.
 	 */
 		sprintf (speed, "%d\0", Rad[r].baud);
+
+		sprintf (kermit_exec, "%s/Optimizer/nkermit/nkermit", FCCDIR);
 
 		if (! strcmp (Rad[r].phone, "radio-modem"))
 			status = execl (kermit_exec, "nkermit", "slb", 
