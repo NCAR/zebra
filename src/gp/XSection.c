@@ -42,7 +42,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-RCSID ("$Id: XSection.c,v 2.44 1999-03-01 02:04:32 burghart Exp $")
+RCSID ("$Id: XSection.c,v 2.45 1999-05-12 15:01:11 burghart Exp $")
 
 /*
  * General definitions
@@ -213,6 +213,7 @@ static DataChunk	*xs_GetObsDC FP ((char *, char *, ZebTime *,
 static DataChunk	*xs_GetGridDC FP ((char *, char *, ZebTime *, 
 					   float *));
 static DataChunk	*xs_NSpaceToRGrid FP ((DataChunk *, FieldId, float *));
+static FieldId	xs_FindCV (DataChunk *dc, const char *dimname);
 
 
 
@@ -2906,20 +2907,20 @@ float		*alts;
  *	   must be the only dimensions with size > 1.
  *	2) 'lat', 'lon', and 'alt' are coordinate variables (i.e., variables
  *	   whose dimension has the same name.
- *	3) The values in 'lat', 'lon' are regularly spaced.
+ *	3) The values in 'lat' and 'lon' are regularly spaced.
  */
 {
-	int	i, ndims, dimorder = 0;
-	float	*lat, *lon, *dc_alts, latspacing, lonspacing;
-	float	delta, olat, olon, *grid, *nsdata;
-	FieldId	lat_id, lon_id, alt_id, dim_id;
-	char	*dnames[DC_MaxDimension];
-	unsigned long	dsizes[DC_MaxDimension];
-	RGrid	rg;
-	unsigned long	nlats, nlons, nalts;
-	Location	location;
-	DataChunk	*rdc;
-	ZebTime		when;
+    int i, ndims, dimorder;
+    float *lat, *lon, *dc_alts, latspacing, lonspacing;
+    float delta, olat, olon, *grid, *nsdata;
+    char *dnames[DC_MaxField];
+    unsigned long dsizes[DC_MaxField];
+    FieldId lat_id, lon_id, alt_id;
+    RGrid rg;
+    unsigned long nlats, nlons, nalts;
+    Location location;
+    DataChunk *rdc;
+    ZebTime when;
 /*
  * Start by checking the dimensions of our field.  'dimorder' is an integer
  * used to keep track of the ordering of the lat, lon, and alt dimensions,
@@ -2928,84 +2929,84 @@ float		*alts;
  * dimensions occur in order lat,alt,lon then dimorder will end up 213.)
  * We use 'dimorder' below when copying data from one data chunk to the other.
  */
-	dc_NSGetField (dc, fid, &ndims, dnames, dsizes, NULL);
-
-	lat_id = F_Lookup ("lat");
-	lon_id = F_Lookup ("lon");
-	alt_id = F_Lookup ("alt");
-
-	dimorder = 0;
+    dc_NSGetField (dc, fid, &ndims, dnames, dsizes, NULL);
+    dimorder = 0;
 	
-	for (i = 0; i < ndims; i++)
+    for (i = 0; i < ndims; i++)
+    {
+    /*
+     * Alt, lat, or lon
+     */
+	if (! strcmp (dnames[i], "alt") || 
+	    ! strcmp (dnames[i], "altitude"))
 	{
-		dim_id = F_Declared (dnames[i]);
+	    dimorder = dimorder * 10 + 1;
+	    nalts = dsizes[i];
 	/*
-	 * Alt, lat, or lon
+	 * Get the associated coordinate variable
 	 */
-		if (dim_id == alt_id)
-		{
-			dimorder = dimorder * 10 + 1;
-			nalts = dsizes[i];
-		}
-		else if (dim_id == lat_id)
-		{
-			dimorder = dimorder * 10 + 2;
-			nlats = dsizes[i];
-		}
-		else if (dim_id == lon_id)
-		{
-			dimorder = dimorder * 10 + 3;
-			nlons = dsizes[i];
-		}
-	/*
-	 * Other dimension (make sure its size is exactly one)
-	 */
-		else
-		{
-			if (dsizes[i] != 1)
-			{
-				msg_ELog (EF_PROBLEM, 
-				    "xs_NSpaceToRGrid: dim '%s' too big (%d)",
-				    dnames[i], dsizes[i]);
-				return (NULL);
-			}
-		}
+	    if ((alt_id = xs_FindCV (dc, dnames[i])) == BadField)
+	    {
+		msg_ELog (EF_PROBLEM, "%s is not a coordinate variable", 
+			  dnames[i]);
+		return NULL;
+	    }
 	}
+	else if (! strcmp (dnames[i], "lat") || 
+		 ! strcmp (dnames[i], "latitude"))
+	{
+	    dimorder = dimorder * 10 + 2;
+	    nlats = dsizes[i];
+	    lat_id = F_Lookup (dnames[i]);
+	/*
+	 * Get the associated coordinate variable
+	 */
+	    if ((lat_id = xs_FindCV (dc, dnames[i])) == BadField)
+	    {
+		msg_ELog (EF_PROBLEM, "%s is not a coordinate variable", 
+			  dnames[i]);
+		return NULL;
+	    }
+	}
+	else if (! strcmp (dnames[i], "lon") || 
+		 ! strcmp (dnames[i], "longitude"))
+	{
+	    dimorder = dimorder * 10 + 3;
+	    nlons = dsizes[i];
+	    lon_id = F_Lookup (dnames[i]);
+	/*
+	 * Get the associated coordinate variable
+	 */
+	    if ((lon_id = xs_FindCV (dc, dnames[i])) == BadField)
+	    {
+		msg_ELog (EF_PROBLEM, "%s is not a coordinate variable", 
+			  dnames[i]);
+		return NULL;
+	    }
+	}
+    /*
+     * Other dimension (make sure its size is exactly one)
+     */
+	else
+	{
+	    if (dsizes[i] != 1)
+	    {
+		msg_ELog (EF_PROBLEM, 
+			  "xs_NSpaceToRGrid: dim '%s' too big (%d)",
+			  dnames[i], dsizes[i]);
+		return (NULL);
+	    }
+	}
+    }
 /*
  * Make sure we got all three of alt, lat, and lon
  */
-	if (dimorder < 100)
-	{
-		msg_ELog (EF_INFO, 
-			  "xs_NSpaceToRGrid: lat, lon, or alt dimn missing");
-		return (NULL);
-	}
-/*
- * Make sure lat, lon, and alt are coordinate variables
- */
-	if (! dc_NSGetField (dc, lat_id, &ndims, dnames, NULL, NULL) ||
-	    (ndims != 1) || (F_Declared (dnames[0]) != lat_id))
-	{
-		msg_ELog (EF_PROBLEM, 
-			  "xs_NSpaceToRGrid: lat is not a coordinate var");
-		return (NULL);
-	}
-
-	if (! dc_NSGetField (dc, lon_id, &ndims, dnames, NULL, NULL) ||
-	    (ndims != 1) || (F_Declared (dnames[0]) != lon_id))
-	{
-		msg_ELog (EF_PROBLEM, 
-			  "xs_NSpaceToRGrid: lon is not a coordinate var");
-		return (NULL);
-	}
-
-	if (! dc_NSGetField (dc, alt_id, &ndims, dnames, NULL, NULL) ||
-	    (ndims != 1) || (F_Declared (dnames[0]) != alt_id))
-	{
-		msg_ELog (EF_PROBLEM, 
-			  "xs_NSpaceToRGrid: alt is not a coordinate var");
-		return (NULL);
-	}
+    if (dimorder < 100)
+    {
+	msg_ELog (EF_INFO, 
+		  "xs_NSpaceToRGrid: lat, lon, or alt dimension missing");
+	return (NULL);
+    }
 /*
  * Make sure our dimensions are all non-zero.  (We can occasionally get 
  * a 0x0x0 grid from GRIB files...)
@@ -3016,7 +3017,7 @@ float		*alts;
 		return (NULL);
 	}
 /*
- * Check for regular lat, lon, and alt spacing
+ * Check for regular lat and lon spacing
  */
 	if (dc_Type (dc, lat_id) != DCT_Float || 
 	    dc_Type (dc, lon_id) != DCT_Float ||
@@ -3425,6 +3426,43 @@ zbool	update;
 {
 	msg_ELog (EF_INFO, "xs_Track: no cross-section tracks yet");
 }
+
+
+static FieldId
+xs_FindCV (DataChunk *dc, const char *dimname)
+/*
+ * From the dc, find a coordinate variable matching the given dimension name,
+ * and return its FieldId.  If no such coordinate variable exists, return
+ * BadField.
+ */
+{
+    FieldId var_ids[DC_MaxField];
+    int nvars = dc_NSGetAllVariables(dc, var_ids, 0);
+    char *dnames[DC_MaxField];
+    int v, ndims;
+/*
+ * Find a variable with a name match first.
+ */   
+    for (v = 0; v < nvars; v++)
+	if (! strcmp (F_GetName (var_ids[v]), dimname))
+	    break;
+
+    if (v == nvars)
+	return (BadField);
+/*
+ * We have a name match, so verify that this field has exactly one dimension
+ * and that the dimension name is the same as the passed-in dimension name.
+ */
+    dc_NSGetField (dc, var_ids[v], &ndims, dnames, NULL, NULL);
+    if (ndims == 1 && ! strcmp (dnames[0], dimname))
+	return (var_ids[v]);
+    else
+	return (BadField);
+}
+
+
+    
+
 
 
 # endif  /* C_PT_XSECT */
