@@ -235,10 +235,11 @@ FILE	*fptr;
 float	*data;
 {
 	int		bsize, i;
-	static int	count = BFACT;
+	static int	count = 0 /* = BFACT */;
 /* 
  * Should we expect an rtape header? 
  */
+# ifdef notdef
 	if (count >= BFACT)
 	{
 		count = 0;
@@ -253,11 +254,17 @@ float	*data;
 			return (FALSE);
     		}
   	}
+# endif
 /* 
  * Get the variables.
  */
 	for (i = 0; i < N_RAW; i++)
-		fscanf (fptr, "%g", data + i);
+		if (fscanf (fptr, "%g", data + i) < 1)
+		{
+			msg_ELog (EF_INFO, "End of data. Ingested %d records",
+				  count);
+			return (FALSE);
+		}
 /*
  * Increment buffer count.
  */
