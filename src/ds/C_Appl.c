@@ -33,7 +33,7 @@
 #include "dslib.h"
 #include "Appl.h"
 
-RCSID ("$Id: C_Appl.c,v 3.1 1996-11-19 08:09:52 granger Exp $")
+RCSID ("$Id: C_Appl.c,v 3.2 1996-11-21 18:17:52 granger Exp $")
 
 
 /* ======================================================================
@@ -116,6 +116,33 @@ PlatClassRef pc;
 	dt_EraseClass (pc);
 	free (pc);
 }
+
+
+
+int
+ds_ShowPlatformClass (fp, cid)
+FILE *fp;
+PlatClassId cid;
+/*
+ * Dump the config definition for this class to the given file pointer.
+ * Return 0 if we succeed, negative otherwise.
+ */
+{
+	const PlatformClass *pc, *spc = NULL;
+
+	pc = ds_GetClassStruct (cid, NULL);
+	if (!pc)
+		return (-1);
+	if (pc->dpc_superclass != BadClass)
+	{
+		spc = ds_GetClassStruct (pc->dpc_superclass, NULL);
+		if (!spc)
+			return (-2);
+	}
+	dt_DecodeClass (fp, pc, spc);
+	return (0);
+}
+
 
 
 

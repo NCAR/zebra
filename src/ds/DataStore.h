@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.35 1996-11-19 08:58:46 granger Exp $
+ * $Id: DataStore.h,v 3.36 1996-11-21 18:17:55 granger Exp $
  *
  * Public data store definitions.
  */
@@ -7,6 +7,7 @@
 # ifndef __zeb_DataStore_h_
 # define __zeb_DataStore_h_
 
+# include <stdio.h>
 # include <config.h>		/* CFG_ parameter definitions 	*/
 # include <defs.h>		/* RGrid, ScaleInfo, and Svalue	*/
 # include "ds_fields.h"		/* FieldId and function protos	*/
@@ -948,6 +949,7 @@ PlatClassRef	ds_NewClass FP ((const char *name));
 void		ds_AddClassSubplat FP ((PlatClassRef pc, PlatClassId subid,
 					const char *subname));
 void		ds_DestroyClass FP ((PlatClassRef pc));
+int		ds_ShowPlatformClass FP ((FILE *fp, PlatClassId cid));
 
 /*
  * Modify class references

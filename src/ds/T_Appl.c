@@ -6,32 +6,6 @@
 #define DEBUG
 #include "Appl.c"
 
-int
-ds_ShowPlatformClass (fp, cid)
-FILE *fp;
-PlatClassId cid;
-/*
- * Dump the config definition for this class to the given file pointer.
- * Return 0 if we succeed, negative otherwise.
- */
-{
-	const PlatformClass *pc, *spc = NULL;
-
-	pc = ds_GetClassStruct (cid, NULL);
-	if (!pc)
-		return (-1);
-	if (pc->dpc_superclass != BadClass)
-	{
-		spc = ds_GetClassStruct (pc->dpc_superclass, NULL);
-		if (!spc)
-			return (-2);
-	}
-	dt_DecodeClass (fp, pc, spc);
-	return (0);
-}
-
-
-
 /*
  * Now the testing modules
  */
