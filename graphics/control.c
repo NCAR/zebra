@@ -12,7 +12,7 @@
 # include "workstation.h"
 # include "pixel.h"
 
-static char *rcsid = "$Id: control.c,v 1.13 1990-04-09 16:01:51 corbet Exp $";
+static char *rcsid = "$Id: control.c,v 1.14 1992-10-16 15:16:28 case Exp $";
 static int Trace = 0;
 
 /*
@@ -383,7 +383,7 @@ int priority;
 /*
  * Create a raw new overlay.
  */
- 	ov = gov_new_overlay (priority);
+ 	ov = (struct overlay *) gov_new_overlay (priority);
 /*
  * Now hook it into the list.
  */
