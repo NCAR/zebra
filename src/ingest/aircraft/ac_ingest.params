@@ -1,13 +1,29 @@
 !
-! Save these parameters.  They are good for testing.
-! Radar lat and lon are CP2, but range_res and azimuth_res are from
-! the parker radar, so the data will not be 'real'
+! Example ac_ingest params file
 !
-set black_box "/dev/cua/a"
+set black_box "/dev/modem"
 set dial_out "atdt 9,6780768"
 set baud_rate 2400
 set our_aircraft ""
-set range_res 0.125
-set azimuth_res 0.0875
+
+!
+! Tracking radar location
+!
 set radar_lat 28.2139
 set radar_lon -80.5992
+
+!
+! Unit values for the data from the tracking radar, in nautical miles 
+! and degrees
+!
+set range_res 0.125
+set azimuth_res 0.0875
+
+!
+! Range of position values we'll accept
+!
+set lat_min 22.0
+set lat_max 34.0
+set lon_min -85.0
+set lon_max -75.0
+
