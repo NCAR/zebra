@@ -1,7 +1,7 @@
 /*
  * Deal with static (or almost static) overlays.
  */
-static char *rcsid = "$Id: Overlay.c,v 1.10 1991-01-10 21:59:33 burghart Exp $";
+static char *rcsid = "$Id: Overlay.c,v 1.11 1991-01-29 19:57:19 corbet Exp $";
 
 # include <stdio.h>
 # include <X11/Intrinsic.h>
@@ -86,6 +86,10 @@ struct FList
 static stbl Ftable = 0;
 
 
+/*
+ * How many polyline segments we can get away with drawing at once.
+ */
+# define MAXPLSEG 100
 
 
 
@@ -489,9 +493,8 @@ FILE *mapfp;
  */
 {
 	float lat, lon, x, y;
-	int px, py, npt, pt;
-	static int nalloc = 0;
-	static XPoint *pts = 0;
+	int px, py, npt, pt, xp;
+	XPoint pts[MAXPLSEG];
 	char line[200], c;
 /*
  * Just plow through the file.
@@ -499,7 +502,8 @@ FILE *mapfp;
 	while (fgets (line, 200, mapfp))
 	{
 	/*
-	 * Figure out how many points we have.
+	 * Figure out how many points we have.  Then discard the rest of the
+	 * line, which seems to be a sort of bounding box.
 	 */
 	 	sscanf (line, "%4d", &npt);
 	/*
@@ -512,19 +516,10 @@ FILE *mapfp;
 			continue;
 		}
 	/*
-	 * OK, it's a line of some kind.  Look into our memory allocation.
-	 */
-		npt /= 2;
-	 	if (npt > nalloc)
-		{
-			nalloc = npt;
-			if (pts)
-				free (pts);
-			pts = (XPoint *) malloc (npt*sizeof (XPoint));
-		}
-	/*
 	 * Pass through each point.
 	 */
+		npt /= 2;
+		xp = 0;
 	 	for (pt = 0; pt < npt; pt++)
 		{
 		/*
@@ -533,19 +528,31 @@ FILE *mapfp;
 		 */
 		 	fscanf (mapfp, "%f %f", &lat, &lon);
 			cvt_ToXY (lat, lon, &x, &y);
-		 	pts[pt].x = XPIX (x);
-			pts[pt].y = YPIX (y);
+		 	pts[xp].x = XPIX (x);
+			pts[xp].y = YPIX (y);
+		/*
+		 * If we've filled our array, shove it out.
+		 */
+		 	if (++xp >= MAXPLSEG)
+			{
+				XDrawLines (XtDisplay (Graphics),
+					GWFrame (Graphics), Gcontext, pts, xp,
+					CoordModeOrigin);
+				pts[0] = pts[xp - 1];
+				xp = 1;
+			}
 		}
 	/*
-	 * Now draw them.
+	 * Draw any points remaining.
 	 */
-		XDrawLines (XtDisplay (Graphics), GWFrame (Graphics), Gcontext,
-			pts, npt, CoordModeOrigin);
+		if (xp > 1)
+			XDrawLines (XtDisplay (Graphics), GWFrame (Graphics),
+				Gcontext, pts, xp, CoordModeOrigin);
 	/*
 	 * Eat a newline if need be.
 	 */
-	 	if ((c = fgetc (mapfp)) != '\n')
-			ungetc (c, mapfp);
+		while ((c = fgetc (mapfp)) != '\n' && c != EOF)
+			;
 	}
 }
 
