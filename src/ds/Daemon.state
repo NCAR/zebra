@@ -1,0 +1,78 @@
+!
+! $Id: Daemon.state,v 1.1 1990-10-22 16:04:07 corbet Exp $
+!
+! The data store daemon configuration language.
+!
+define state initial
+	eoftext 'exit'
+	ctable ui$command_table
+	@ /rdss/ui/ui_commands.
+
+	input 'platform' 1
+		next ust$final_unmunged_string
+	endinput
+enddef
+
+
+
+
+
+!
+! Stuff for platform definition
+!
+define state in-platform
+	input 'endplatform' 2
+		next ust$no_more
+	endinput
+	input 'organization' 3
+		next organization
+	endinput
+	input 'filetype' 4
+		next file-type
+	endinput
+	input 'keep' 5
+		next ust$final_string
+	endinput
+	input 'regular' 6
+		next ust$final_int
+	endinput
+	input 'fixed' 7
+		next ust$no_more
+	endinput
+enddef
+
+
+
+!
+! File types -- must match those in dsPrivate.h
+!
+define state file-type
+	input 'netcdf' 1
+		next ust$no_more
+	endinput
+enddef
+
+
+
+
+
+!
+! Possible organizations -- must match those in DataStore.h
+!
+define state organization
+	input image
+		next ust$no_more
+	endinput
+	input grid
+		next ust$no_more
+	endinput
+	input irgrid
+		next ust$no_more
+	endinput
+	input scalar
+		next ust$no_more
+	endinput
+	input outline
+		next ust$no_more
+	endinput
+endinput
