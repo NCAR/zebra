@@ -19,15 +19,14 @@
  * maintenance or updates for its software.
  */
 
+# include <stdio.h>
+
 # include <defs.h>
 # include <message.h>
 # include "DataStore.h"
-# include "ds_fields.h"
-# include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_RGrid.c,v 3.4 1994-01-03 07:18:15 granger Exp $")
 
-# define SUPERCLASS DCC_MetData
+RCSID ("$Id: dc_RGrid.c,v 3.5 1996-11-19 09:49:44 granger Exp $")
 
 /*
  * Our class-specific AuxData structure types.
@@ -44,87 +43,117 @@ typedef struct _GridGeometry
 	RGrid		gg_Rg;		/* Dims and spacing	*/
 } GridGeometry;
 
+typedef struct _RGridDataChunk
+{
+	RawDataChunkPart	rawpart;
+	TranspDataChunkPart	transpart;
+	MetDataChunkPart	metpart;
+	RGridDataChunkPart	rgridpart;
 
+} RGridDataChunk;
+
+#define GGP(dc) (((RGridDataChunk *)(dc))->rgridpart.rg_gg)
+#define RGP(dc) (&((RGridDataChunk *)(dc))->rgridpart)
 
 /*
  * Local routines.
  */
-static DataChunk *dc_RGCreate FP((DataClass));
-static void dc_RGDump FP ((DataChunk *));
+static DataChunk *rg_Create FP((DataChunk *));
+static void rg_Dump FP ((DataChunk *));
+static void rg_Localize FP ((DataChunk *dc));
+static void rg_Serialize FP ((DataChunk *dc));
+static void rg_Destroy FP ((DataChunk *dc));
 
-RawDCClass RGridMethods =
+# define SUPERCLASS ((DataClassP)&MetDataMethods)
+
+RawClass RGridMethods =
 {
+	DCID_RGrid,
 	"RGrid",
 	SUPERCLASS,		/* Superclass			*/
 	3,			/* Depth, Raw = 0		*/
-	dc_RGCreate,
-	InheritMethod,		/* No special destroy		*/
-	0,			/* Add??			*/
-	dc_RGDump,		/* Dump				*/
+	rg_Create,		/* Create			*/
+	rg_Destroy,		/* Destroy			*/
+	0,			/* Add				*/
+	rg_Dump,		/* Dump				*/
+
+	rg_Serialize,		/* Serialize			*/
+	rg_Localize,		/* Localize			*/
+
+	sizeof (RGridDataChunk)
 };
 
+DataClassP DCP_RGrid = (DataClassP)&RGridMethods;
 
 
+
+/*----------------------------------------------------------------------*/
+/* RGrid class methods */
 
 
 static DataChunk *
-dc_RGCreate (class)
-DataClass class;
+rg_Create (dc)
+DataChunk *dc;
 /*
- * Create a chunk of this class.
+ * Initialize our instance part.
  */
 {
-	DataChunk *dc;
-/*
- * The usual.  Make a superclass chunk and tweak it to look like us.  We don't
- * add any info here, because we don't know it yet.
- */
-	dc = DC_ClassCreate (SUPERCLASS);
-	dc->dc_Class = class;
+	RGridDataChunkPart *rg = RGP(dc); 
+	
+	rg->rg_gg = NULL;
+	rg->rg_Ngg = 0;
 	return (dc);
 }
 
 
 
-
-
-
-void
-dc_RGSetup (dc, nfld, fields)
+static void
+rg_Destroy (dc)
 DataChunk *dc;
-int nfld;
-FieldId *fields;
-/*
- * Initialize this RGrid data chunk.
- * Entry:
- *	DC	is a new data chunk which is a subclass of DCC_IRGrid.
- *	NFLD	is the number of fields to be stored in this DC.
- *	FIELDS	is the list of those fields.
- * Exit:
- *	The data chunk has been set up.
- */
 {
-/*
- * Checking time.
- */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_RGrid, "RGSetup"))
-		return;
-/*
- * Do the field setup.
- */
-	dc_SetupFields (dc, nfld, fields);
-}
+	RGridDataChunkPart *rg = RGP(dc); 
 
+	if (rg->rg_gg)
+		free (rg->rg_gg);
+	rg->rg_gg = NULL;
+	rg->rg_Ngg = 0;
+}	
 
 
 
 static void
-dc_RGDump (dc)
+rg_Serialize (dc)
+DataChunk *dc;
+{
+	RGridDataChunkPart *rg = RGP(dc); 
+
+	if (rg->rg_gg && rg->rg_Ngg)
+		dc_AddADE (dc, rg->rg_gg, DCP_RGrid, ST_GRID_GEOM,
+			   rg->rg_Ngg * sizeof (GridGeometry), FALSE);
+}	
+
+
+
+static void
+rg_Localize (dc)
+DataChunk *dc;
+{
+	RGridDataChunkPart *rg = RGP(dc); 
+
+	rg->rg_gg = (GridGeometry *)
+		dc_FindADE (dc, DCP_RGrid, ST_GRID_GEOM, 0);
+}	
+
+
+
+static void
+rg_Dump (dc)
 DataChunk *dc;
 /*
  * Dump out some info.
  */
 {
+	RGridDataChunkPart *rg = RGP(dc); 
 	GridGeometry *gg;
 	int nsamples = dc_GetNSample (dc), samp;
 /*
@@ -135,8 +164,7 @@ DataChunk *dc;
 /*
  * Get the grid info.
  */
-	if (! (gg = (GridGeometry *) dc_FindADE (dc, DCC_RGrid,
-						 ST_GRID_GEOM, NULL)))
+	if (! (gg = rg->rg_gg))
 	{
 		msg_ELog (EF_PROBLEM, "Grid geometry block vanished!");
 		return;
@@ -159,6 +187,35 @@ DataChunk *dc;
 
 
 void
+dc_RGSetup (dc, nfld, fields)
+DataChunk *dc;
+int nfld;
+FieldId *fields;
+/*
+ * Initialize this RGrid data chunk.
+ * Entry:
+ *	DC	is a new data chunk which is a subclass of DCC_IRGrid.
+ *	NFLD	is the number of fields to be stored in this DC.
+ *	FIELDS	is the list of those fields.
+ * Exit:
+ *	The data chunk has been set up.
+ */
+{
+/*
+ * Checking time.
+ */
+	if (! dc_ReqSubClass (dc, DCP_RGrid, "RGSetup"))
+		return;
+/*
+ * Do the field setup.
+ */
+	dc_SetupFields (dc, nfld, fields);
+}
+
+
+
+
+int
 dc_RGAddGrid (dc, sample, field, origin, rg, t, data, len)
 DataChunk *dc;
 int sample;
@@ -181,25 +238,26 @@ int len;
  *	LEN	is the length of the grid data, IN BYTES.  If it is specified
  *		as zero, the length will be calculated from the dimensions.
  * Exit:
- *	The grid has been added.
+ *	The grid has been added.  Return zero on failure, non-zero otherwise.
  */
 {
+	RGridDataChunkPart *rgdc = RGP(dc); 
 	GridGeometry *gg;
 	int nsamples = dc_GetNSample (dc);
-	int numgg, newlen, newsamp;
+	int newlen, newsamp;
 /*
  * Checking time.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_RGrid, "RGSetup"))
-		return;
+	if (! dc_ReqSubClass (dc, DCP_RGrid, "RGAddGrid"))
+		return (0);
 /*
  * Make them add samples in order.
  */
 	if (sample > nsamples)
 	{
-		msg_ELog (EF_PROBLEM, "Try to add grid %d when exist %d",
+		msg_ELog (EF_PROBLEM, "Trying to add grid %d when exist %d",
 			sample, nsamples);
-		return;
+		return (0);
 	}
 	if (len == 0)
 		len = rg->rg_nX * rg->rg_nY * rg->rg_nZ * dc_SizeOf(dc, field);
@@ -213,8 +271,8 @@ int len;
 	 */
 		gg = ALLOC (GridGeometry);
 		gg->gg_Rg = *rg;
-		dc_AddADE (dc, gg, DCC_RGrid, ST_GRID_GEOM,
-				sizeof (GridGeometry), TRUE);
+		rgdc->rg_gg = gg;
+		rgdc->rg_Ngg = 1;
 	/*
 	 * Set some sample size hints, assuming that all of the samples will
 	 * have the same grid geometry (which is usually a safe assumption).
@@ -227,11 +285,10 @@ int len;
  * This is not the first data, so there should already be a GridGeometry
  * structure.
  */
-	else if (! (gg = (GridGeometry *) dc_FindADE (dc, DCC_RGrid,
-						      ST_GRID_GEOM, &numgg)))
+	else if (! (gg = rgdc->rg_gg))
 	{
 		msg_ELog (EF_PROBLEM, "Grid geometry block vanished!");
-		return;
+		return (0);
 	}
 /*
  * If they are adding a new sample to the DC, expand our grid info now.  Use
@@ -243,16 +300,16 @@ int len;
  */
 	else if (sample == nsamples)
 	{
-		numgg /= sizeof(GridGeometry);
 	/*
 	 * We need at least one more slot, but perhaps there's hints for more
 	 */
 		newsamp = dc_NSamplesGrowthHint (dc, 1);
-		if (numgg < newsamp)
+		if (rgdc->rg_Ngg < newsamp)
 		{
-			newlen = (newsamp)*sizeof (GridGeometry);
+			newlen = (newsamp) * sizeof (GridGeometry);
 			gg = (GridGeometry *) realloc (gg, newlen);
-			dc_ChangeADE (dc, gg, DCC_RGrid, ST_GRID_GEOM, newlen);
+			rgdc->rg_gg = gg;
+			rgdc->rg_Ngg = newsamp;
 		}
 	}
 /*
@@ -261,6 +318,30 @@ int len;
 	gg[sample].gg_Rg = *rg;
 	dc_AddMData (dc, t, field, len, sample, 1, data);
 	dc_SetLoc (dc, sample, origin);
+	return (1);
+}
+
+
+
+
+int
+dc_RGAddMissing (dc, sample, field, origin, rg, t, len)
+DataChunk *dc;
+int sample;
+FieldId field;
+Location *origin;
+RGrid *rg;
+ZebTime *t;
+int len;
+/*
+ * Fill this grid with the field missing value.
+ */
+{
+	if (! dc_RGAddGrid (dc, sample, field, origin, rg, t, NULL, len))
+		return (0);
+	if (len == 0)
+		len = rg->rg_nX * rg->rg_nY * rg->rg_nZ * dc_SizeOf(dc, field);
+	return (dc_FillMissing (dc, t, field, len, sample, 1));
 }
 
 
@@ -283,7 +364,7 @@ int *len;
 /*
  * Checking time.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_RGrid, "RGGetGrid"))
+	if (! dc_ReqSubClass (dc, DCP_RGrid, "RGGetGrid"))
 		return (NULL);
 /*
  * Find the data itself.
@@ -295,10 +376,9 @@ int *len;
  */
 	if (! (origin || rg))  /* Maybe they don't want it. */
 		return ((void *) data);
-	if (! (gg = (GridGeometry *) dc_FindADE (dc, DCC_RGrid, ST_GRID_GEOM, 
-					NULL)))
+	if (! (gg = GGP(dc)))
 	{
-		msg_ELog (EF_PROBLEM, "GridGeometry structure gone");
+		msg_ELog (EF_PROBLEM, "GridGeometry does not exist");
 		return (NULL);
 	}
 /*
@@ -327,19 +407,16 @@ RGrid *rg;
  * Pull out the geometry of a grid in this DC.
  */
 {
-	GridGeometry *gg;
+	RGridDataChunkPart *rgdc = RGP(dc); 
 /*
  * Checking time.
  */
-	if (! dc_ReqSubClassOf (dc->dc_Class, DCC_RGrid, "RGGetGrid"))
+	if (! dc_ReqSubClass (dc, DCP_RGrid, "RGGetGrid"))
 		return (FALSE);
-/*
- * Now look up our dimension info.
- */
-	if (! (gg = (GridGeometry *) dc_FindADE (dc, DCC_RGrid, ST_GRID_GEOM, 
-					NULL)))
+	if (sample < 0 || sample >= dc_GetNSample (dc))
 	{
-		msg_ELog (EF_PROBLEM, "GridGeometry structure gone");
+		msg_ELog (EF_PROBLEM, "illegal sample %d in RGGeometry",
+			  sample);
 		return (FALSE);
 	}
 /*
@@ -348,6 +425,6 @@ RGrid *rg;
 	if (origin)
 		dc_GetLoc (dc, sample, origin);
 	if (rg)
-		*rg = gg[sample].gg_Rg;
+		*rg = rgdc->rg_gg[sample].gg_Rg;
 	return (TRUE);
 }
