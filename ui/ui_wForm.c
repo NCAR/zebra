@@ -19,7 +19,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_wForm.c,v 1.3 1992-04-21 13:48:46 corbet Exp $";
+static char *Rcsid = "$Id: ui_wForm.c,v 1.4 1992-04-21 16:30:14 granger Exp $";
 
 
 # define MAXENTRY 100
@@ -111,6 +111,16 @@ static char *BlTrans =
 	static FormEntry * uw_FindEntry (char *, char *);
 	static void uw_FDestroy (UIFormWidget *, int);
 	static void uw_FormPopup (UIFormWidget *);
+# else
+	static void uw_FormCreate ();
+	static GenWidget *uw_FormClone ();
+	static int uw_InForm ();
+	static void uw_CmdCB ();
+	int uw_GetFText ();
+	static Widget uw_FBlank ();
+	static FormEntry * uw_FindEntry ();
+	static void uw_FDestroy ();
+	static void uw_FormPopup ();
 # endif
 
 
@@ -589,7 +599,7 @@ Cardinal *cardjunk;
 
 
 
-GenWidget *
+static GenWidget *
 uw_FormClone (fw, frame)
 UIFormWidget *fw;
 FrameWidget *frame;
