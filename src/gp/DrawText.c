@@ -3,7 +3,7 @@
  * draw the text ourselves using a stroke font.  We need this so we can use 
  * rotated text.
  */
-static char *rcsid = "$Id: DrawText.c,v 2.7 1993-09-27 21:22:23 corbet Exp $";
+static char *rcsid = "$Id: DrawText.c,v 2.8 1993-10-07 16:57:11 corbet Exp $";
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -639,4 +639,40 @@ int	*actual;
 	Fonts[index] = *fs;
 	*actual = Fonts[Fndx[size]].ascent + Fonts[Fndx[size]].descent;
 	return (TRUE);
+}
+
+
+
+
+
+int
+DT_ApproxHeight (w, scale, lines)
+Widget w;
+float scale;
+int lines;
+/*
+ * Return a guess as to the height of this many lines of text.
+ */
+{
+	int cheight;
+	XtWidgetGeometry	geom;
+/*
+ * Get the geometry of the widget (which must have the same geometry as 
+ * the drawable)
+ */
+	XtQueryGeometry (w, NULL, &geom);
+/*
+ * Deal with scaling to get the height of a single line.
+ */
+	if (scale > 1.0)
+	{
+		cheight = (int) scale;
+		scale /= geom.height;
+	}
+	else
+		cheight = (int)(scale * geom.height);
+/*
+ * Then just return the answer.
+ */
+	return (lines*(cheight + 2));
 }

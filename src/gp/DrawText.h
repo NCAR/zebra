@@ -25,13 +25,10 @@
 # define JustifyLeft		4
 # define JustifyRight		5
 
-# ifdef __STDC__
-	void	DrawText (Widget, Drawable, GC, int, int, char *, double, 
-			double, int, int);
-	void	DT_StrokeText (Widget, Drawable, GC, int, int, char *, 
-			double, double, int, int);
-	void	DT_TextBox (Widget, Drawable, int, int, char *, double, 
-			double, int, int, int *, int *, int *, int *);
-# else
-	void	DrawText (), DT_StrokeText (), DT_TextBox ();
-# endif
+void	DrawText FP ((Widget, Drawable, GC, int, int, char *, double, 
+			double, int, int));
+void	DT_StrokeText FP ((Widget, Drawable, GC, int, int, char *, 
+			double, double, int, int));
+void	DT_TextBox FP ((Widget, Drawable, int, int, char *, double, 
+			double, int, int, int *, int *, int *, int *));
+int	DT_ApproxHeight FP ((Widget, double, int));

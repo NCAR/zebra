@@ -1,7 +1,7 @@
 /*
  * Window plot control routines.
  */
-static char *rcsid = "$Id: PlotControl.c,v 2.20 1993-09-27 21:22:33 corbet Exp $";
+static char *rcsid = "$Id: PlotControl.c,v 2.21 1993-10-07 16:57:20 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -97,6 +97,7 @@ static struct ParamAction PActions[] =
 	{ "icon-background",	F_NOREDRAW | F_NOINVALIDATE | F_ICONS	},
 	{ "icon-color",		F_NOREDRAW | F_NOINVALIDATE | F_ICONS	},
 	{ "platform",		F_ICONS					},
+	{ "plot-hold",		F_NOINVALIDATE				},
 	{ "plot-mode",		F_ICONS					},
 	{ "movie-end-time",	F_NOREDRAW | F_NOINVALIDATE | F_MOVIEUPD },
 	{ "movie-minutes",	F_NOREDRAW | F_NOINVALIDATE | F_MOVIEUPD },
@@ -116,11 +117,18 @@ pc_PlotHandler ()
 	char	pmstring[80];
 	Arg	arg;
 	static bool First = TRUE;
+	bool hold = FALSE;
 /*
  * Cancel all existing timer requests.
  */
  	tl_AllCancel ();
 	ds_CancelNotify ();
+/*
+ * See if they have put us on hold.
+ */
+	if (pd_Retrieve (Pd, "global", "plot-hold", (char *) &hold, SYMT_BOOL)
+	    && hold)
+		return;
 /*
  * Get the plot mode
  */

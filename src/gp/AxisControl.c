@@ -1,7 +1,7 @@
 /*
  * Axis control. 
  */
-static char *rcsid = "$Id: AxisControl.c,v 1.13 1993-06-24 20:36:05 barrett Exp $";
+static char *rcsid = "$Id: AxisControl.c,v 1.14 1993-10-07 16:57:09 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -50,6 +50,9 @@ static void ac_SetPrivateAxisDescriptors FP((plot_description, char*, int,
 static void ac_FormatLabel FP((DataValPtr, char*[], int*, int ));
 static void ac_ComputeAxisDescriptors FP((plot_description, char*, int, int));
 static int ac_DrawAxis FP((plot_description, char*, int, int, int));
+static void ac_GetLabel FP ((plot_description, char *, int, char *));
+
+
 
 int 
 ac_DisplayAxes ()
@@ -807,17 +810,8 @@ float   *drawGrid;
             strcpy(color,"white");
         }
     }
-    if ( label )
-    {
-        strcpy(keyword, "axis-");
-        keyword[5] = side;
-        keyword[6] = '\0';
-        strcat(keyword, "-label");
-        if (! pda_Search (pd, c, keyword, "xy", (char *)label, SYMT_STRING))
-        {
-            strcpy(label,"label");
-        }
-    }
+    if (label)
+	    ac_GetLabel (pd, c, side, label);
 
     if ( ticlen )
     {
@@ -1023,4 +1017,48 @@ float   *ticInterval;
         strcat(keyword, "-tic-label-width");
         pd_Store (pd, c, keyword,  (char *)tlabelWidth, SYMT_INT);
     }
+}
+
+
+
+
+
+void
+ac_GetLabel (pd, c, side, label)
+plot_description pd;
+char *c, side, *label;
+/*
+ * Figure out a label for this side.
+ */
+{
+	char keyword[120], field[120];
+	FieldId fid;
+/*
+ * Try to find an explicit label first.
+ */
+        strcpy(keyword, "axis-");
+        keyword[5] = side;
+        keyword[6] = '\0';
+        strcat(keyword, "-label");
+        if (pda_Search (pd, c, keyword, "xy", label, SYMT_STRING))
+		return;
+/*
+ * Figure out what our display field is.
+ */
+	if (! pda_Search (pd, c, (side == 'b' || side == 't') ? "x-field" :
+			  "y-field", "xy", field, SYMT_STRING))
+	{
+		strcpy (label, "Who knows?");
+		return;
+	}
+/*
+ * If we can successfully look up the field, then set the label to be its
+ * description.  Otherwise just use the literal field text.  The lookup will
+ * fail, of course, with comma-separated field lists; but I don't know how
+ * we would annotate those anyway.
+ */
+	if ((fid = F_Declared (field)) != BadField)
+		strcpy (label, F_GetDesc (fid));
+	else
+		strcpy (label, field);
 }

@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.25 1993-09-27 21:22:27 corbet Exp $ */
+/* $Id: GraphProc.h,v 2.26 1993-10-07 16:57:16 corbet Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -215,6 +215,7 @@ extern void An_ResetAnnot FP ((int));
 extern void An_SetScale FP ((double));
 extern void An_AnnotLimits FP ((int *, int *, int *, int *));
 extern void An_SAUsed FP ((int));
+extern void An_XYGString FP ((char *, char *, int, int, int));
 
 /* Coord space transformations */
 extern void cvt_ToXY FP ((double, double, float *, float *));

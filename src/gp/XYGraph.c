@@ -1,7 +1,7 @@
 /*
  * XY-Graph plotting module
  */
-static char *rcsid = "$Id: XYGraph.c,v 1.20 1993-09-27 21:22:40 corbet Exp $";
+static char *rcsid = "$Id: XYGraph.c,v 1.21 1993-10-07 16:57:22 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -309,7 +309,7 @@ bool	update;
 	    {
 		    TC_EncodeTime (&bTimeTarget, TC_Full, stime1);
 		    TC_EncodeTime (&eTimeTarget, TC_Full, stime2);
-		    msg_ELog (EF_INFO, "No data for '%s' between %s and %s",
+		    msg_ELog (EF_DEBUG, "No data for '%s' between %s and %s",
 			      pnames[plat], stime1, stime2);
 		    npts[plat] = 0;
 		    xdata[plat] = NULL;
@@ -451,18 +451,11 @@ bool	update;
 	     * Do the side annotation for this data
 	     */
 	    if ( sideAnnot && npts[plat] > 0 && !update )
-	    {
-		sprintf(datalabel, "%s-%s:%s %s", 
-			pnames[plat], fnames[0][nxfield > 1 ? plat : 0],
-			fnames[1][nyfield > 1 ? plat : 0], linecolor[plat]);
-		An_AddAnnotProc ( An_ColorString, c, datalabel,
-		    strlen(datalabel)+1,25, FALSE,FALSE);
-
-		TC_EncodeTime ( &eTimeReq, TC_Full, timelabel );
-		sprintf(datalabel, "   %s %s", timelabel, linecolor[plat]);
-		An_AddAnnotProc ( An_ColorString, c, datalabel,
-		    strlen(datalabel)+1,25, FALSE,FALSE);
-	    }
+		    XYG_DoSideAnnotation (c, style, pnames[plat],
+					  linecolor[plat],
+					  fnames[0][nxfield > 1 ? plat : 0],
+					  fnames[1][nyfield > 1 ? plat : 0],
+					  &eTimeReq);
 	}
 /*
  * Now set the current scale bounds.
@@ -585,4 +578,47 @@ bool	update;
 	}
 	free(lcolor); free(xdata); free(ydata); 
 }
+
+
+
+
+
+XYG_DoSideAnnotation (c, style, plat, color, xfield, yfield, time)
+char *c, *style, *plat, *color, *xfield, *yfield;
+ZebTime *time;
+{
+	float scale = 0.02;
+	int dotime = 0, nline = 2;
+	char label[200], timelabel[32];
+/*
+ * Throw together the basic info.
+ */
+	pda_Search (Pd, c, "sa-scale", NULL, (char *) &scale,
+		    SYMT_FLOAT);
+	sprintf (label, "%s|%s|%s|%s : %s", style, color, plat, xfield,yfield);
+/*
+ * If they want the time put that in too.
+ */
+	if (! pda_Search (Pd, c, "time-annot", "xy", (char *) &dotime,
+			  SYMT_BOOL))
+		dotime = TRUE;
+	if (dotime)
+	{
+		strcat (label, "|");
+		TC_EncodeTime (time, TC_Full, timelabel);
+		strcat (label, timelabel);
+		nline++;
+	}
+/*
+ * Store up the annotation request and we're set.
+ */
+	An_AddAnnotProc (An_XYGString, c, label, strlen (label) + 1,
+			 DT_ApproxHeight (Graphics, scale, nline),
+			 FALSE, FALSE);
+}
+
+
+
+
+
 # endif /* C_PT_XYGRAPH */

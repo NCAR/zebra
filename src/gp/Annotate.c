@@ -27,7 +27,7 @@
 # include "DrawText.h"
 # include "PixelCoord.h"
 # include "GC.h"
-MAKE_RCSID ("$Id: Annotate.c,v 2.15 1993-10-01 21:01:55 burghart Exp $")
+MAKE_RCSID ("$Id: Annotate.c,v 2.16 1993-10-07 16:57:05 corbet Exp $")
 
 /*
  * Graphics context (don't use the global one in GC.h because we don't
@@ -51,6 +51,10 @@ static int	SA_space;	/* How much space each gets	*/
 static int	SA_first;
 
 static int	Ncomps;		/* How many components		*/
+
+
+# define AN_XYG_SYMBOL 12	/* Pixels for xygraph symbol	*/
+
 
 
 static void An_Divider FP ((int, int, int));
@@ -937,3 +941,77 @@ int *match;
         *match = (int) bmatch;
 }
 
+
+
+
+
+void
+An_XYGString (comp, data, datalen, begin, space)
+char *comp, *data;
+int datalen, begin, space;
+/*
+ * A specialized process for annotating XYGraph traces.
+ *
+ * The data string is expected to be formatted as:
+ *
+ *	style|color|line[|line...]
+ */
+{
+	int limit, left, cheight, nstuff, i;
+	float scale;
+	char *stuff[20];
+	XColor xc;
+/*
+ * Get annotation parameters.
+ */
+	An_GetSideParams (comp, &scale, &limit);
+/*
+ * Pull the info out of the string.
+ */
+	nstuff = ParseLine (data, stuff, '|');
+/*
+ * Initial graphics setup.
+ */
+	ct_GetColorByName (stuff[1], &xc);
+	left = An_GetLeft ();
+        XSetForeground (XtDisplay (Graphics), AnGcontext, xc.pixel);
+	cheight = DT_ApproxHeight (Graphics, scale, 1);
+	begin -= 4; /* XXX */
+/*
+ * First line: symbol and platform name.
+ */
+	if (! strcmp (stuff[0], "line"))
+		XDrawLine (Disp, GWFrame (Graphics), AnGcontext, left,
+			   begin + cheight/2, left + cheight,
+			   begin + cheight/2);
+	else if (! strcmp (stuff[0], "cross"))
+	{
+		XDrawLine (Disp, GWFrame (Graphics), AnGcontext, left,
+			   begin + cheight/2, left + cheight,
+			   begin + cheight/2);
+		XDrawLine (Disp, GWFrame (Graphics), AnGcontext,
+			   left + cheight/2, begin,
+			   left + cheight/2, begin + cheight);
+	}
+	else if (! strcmp (stuff[0], "xmark"))
+	{
+		XDrawLine (Disp, GWFrame (Graphics), AnGcontext, left,
+			   begin, left + cheight, begin + cheight);
+		XDrawLine (Disp, GWFrame (Graphics), AnGcontext,
+			   left + cheight, begin,
+			   left, begin + cheight);
+	}
+	else if (! strcmp (stuff[0], "point"))
+		XDrawPoint (Disp, GWFrame (Graphics), AnGcontext,
+			    left + cheight/2, begin + cheight/2);
+        DrawText (Graphics, GWFrame (Graphics), AnGcontext, 
+        	left + cheight + 2, begin, stuff[2], 0.0, scale,
+		JustifyLeft, JustifyTop);
+/*
+ * Draw any additional lines.
+ */
+	for (i = 3; i < nstuff; i++)
+		DrawText (Graphics, GWFrame (Graphics), AnGcontext,
+			  left, begin + cheight*(i - 2),
+			  stuff[i], 0.0, scale, JustifyLeft, JustifyTop);
+}
