@@ -32,16 +32,24 @@ XCOMM site:  $XConsortium: site.sample,v 1.9 94/04/08 17:02:06 rws Exp $
 #include ProjectConfigFile
 
 /*
- * Map the config.h symbols into the equivalent Imake.tmpl definitions
+ * Map the config.h symbols into the equivalent Imake.tmpl definitions.
+ * Some architecture cf files (e.g. linux) have already defined HasGcc
+ * and HasGcc2 so we shouldn't do it again.
  */
 #ifndef UseGcc
 # define UseGcc NO
 #endif
 #if UseGcc
-# define HasGcc2 YES
-# define HasGcc2ForCplusplus YES
+# ifndef HasGcc2
+#  define HasGcc2 YES
+# endif
+# ifndef HasGcc2ForCplusplus
+#  define HasGcc2ForCplusplus YES
+# endif
 #else
-# define HasGcc NO
+# ifndef HasGcc
+#  define HasGcc NO
+# endif
 #endif
 
 #ifdef CCompiler
