@@ -31,7 +31,6 @@
 //# include <sys/select.h>
 # include <stdio.h>
 # include <stream.h>
-# include <GetOpt.h>	// libg++ option parser.
 # include <fcntl.h>
 # include <errno.h>
 # include <unistd.h>
@@ -56,7 +55,7 @@ extern "C"
 # include "Tape.h"
 
 
-RCSID ("$Id: TapeIndex.cc,v 1.13 1997-06-05 15:47:41 granger Exp $")
+RCSID ("$Id: TapeIndex.cc,v 1.14 1998-03-02 20:22:11 burghart Exp $")
 
 
 //
@@ -122,38 +121,43 @@ PlatformIndex *PIndex;
 int
 main (int argc, char **argv)
 {
-	GetOpt parser (argc, argv, "s:c:p:");
 	int flag;
 	Tape *outtape = 0;
+//
+// Extern declarations below are only useful on SunOS 4.x systems, where
+// these symbols are not in unistd.h
+//
+	extern char *optarg;
+	extern int optind;
 //
 // Start by making sure we have our arguments
 //
 	sprintf (TmpFile, "%s/TapeIndex%x.tmp", Scratch, getpid ());
-	while ((flag = parser ()) != EOF)
+	while ((flag = getopt (argc, argv, "s:c:p:")) != -1)
 	{
 		switch (flag)
 		{
 		    case 'c':
-		   	outtape = new Tape (parser.optarg, TRUE);
+		   	outtape = new Tape (optarg, TRUE);
 			break;
 		    case 's':
-			sprintf (TmpFile, "%s/%s", parser.optarg,
+			sprintf (TmpFile, "%s/%s", optarg,
 				"TapeIndex.tmp");
 			break;
 		    case 'p':
-		    	LoadPrefixFile (parser.optarg);
+		    	LoadPrefixFile (optarg);
 			break;
 		    case '?':
 			Usage ();
 			break;
 		}
 	}
-	if ((argc - parser.optind) != 2)
+	if ((argc - optind) != 2)
 		Usage ();
 //
 // Get our drive.
 //
-	Tape tape (argv[parser.optind]);
+	Tape tape (argv[optind]);
 	if (! tape.OK ())
 		exit (1);
 //
@@ -161,7 +165,7 @@ main (int argc, char **argv)
 //
 	PlatformIndex index;
 	PIndex = &index;
-	IName = argv[parser.optind + 1];
+	IName = argv[optind + 1];
 //
 // Initialize field stuff
 //
@@ -175,10 +179,10 @@ main (int argc, char **argv)
 	while (tp = (TarHeader *) GetTarBlock (tape, outtape))
 	{
 		if ((++ndone % SaveInterval) == 0)
-			index.save (argv[parser.optind + 1]);
+			index.save (argv[optind + 1]);
 		ProcessTarFile (tape, outtape, tp, index);
 	}
-	index.save (argv[parser.optind + 1]);
+	index.save (argv[optind + 1]);
 }
 
 
