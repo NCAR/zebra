@@ -1,7 +1,7 @@
 /*
  * Useful definitions.
  */
-/* $Id: defs.h,v 2.4 1991-11-21 21:56:03 corbet Exp $ */
+/* $Id: defs.h,v 2.5 1991-11-21 22:29:45 kris Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -87,10 +87,11 @@ typedef struct s_Location
 # define DLE(d1,d2) ((d1).ds_yymmdd < (d2).ds_yymmdd || \
 	((d1).ds_yymmdd == (d2).ds_yymmdd && (d1).ds_hhmmss <= (d2).ds_hhmmss))
 /*
- * Set up inline so that we can use it.
+ * Set up inline and const so that we can use it.
  */
 # ifndef __GNUC__
 # define inline
+# define const
 # endif
 
 /*

@@ -1,7 +1,7 @@
 /*
  * The new event logger.
  */
-static char *rcsid = "$Id: EventLogger.c,v 2.4 1991-11-19 21:44:21 burghart Exp $";
+static char *rcsid = "$Id: EventLogger.c,v 2.5 1991-11-21 22:29:34 kris Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -73,7 +73,7 @@ struct EMMap
  * Text info.
  */
 static int Buflen = 0;
-static char *Initmsg = "$Id: EventLogger.c,v 2.4 1991-11-19 21:44:21 burghart Exp $\n\
+static char *Initmsg = "$Id: EventLogger.c,v 2.5 1991-11-21 22:29:34 kris Exp $\n\
 Copyright (C) 1991 UCAR, All rights reserved.\n";
 
 /*
@@ -100,7 +100,7 @@ static String Resources[] =
  */
 #define check_width ((unsigned int) 9)
 #define check_height ((unsigned int) 8)
-_Xconst char Check_bits[] = {
+char Check_bits[] = {
 	0x00, 0x01, 0x80, 0x01, 0xc0, 0x00, 0x60, 0x00,
 	0x31, 0x00, 0x1b, 0x00, 0x0e, 0x00, 0x04, 0x00
 };
@@ -136,7 +136,7 @@ char **argv;
 /*
  * Open our log file.
  */
-	if (fname = getenv ("ZEB_LOGFILE"))
+	if (fname = (char *) getenv ("ZEB_LOGFILE"))
 	{
 		Log_file = fopen (fname, "w");
 
