@@ -1,12 +1,11 @@
 /*
  * Tap into the message string.
  */
+# include <stdio.h>
 # include <defs.h>
-# include "message.h"
+# include <message.h>
 # include <DataStore.h>
-# include "../ds/dsPrivate.h"
-
-
+# include <dsPrivate.h>
 
 
 static char *Std_protos[] =
@@ -33,6 +32,17 @@ static char *Std_protos[] =
 
 # define N_STD_PROTO (sizeof (Std_protos)/sizeof (char *))
 
+
+#ifdef __STDC__
+#define PCASE(proto)	 		\
+   case proto:				\
+	printf("\t%s\n",#proto); break
+#else
+#define PCASE(proto)
+#endif
+
+
+void print_dfe FP((DataFile *dfe));
 
 
 int
@@ -94,6 +104,7 @@ char *mtdata;
 	msg->m_data = mtdata + sizeof (Message);
 
 	printf ("%-16s > %-16s %4d", msg->m_from, msg->m_to, msg->m_len);
+	printf ("  seq=%-8i", msg->m_seq);
 	if (msg->m_proto >= 0 && msg->m_proto < N_STD_PROTO)
 		printf (" %s\n", Std_protos[msg->m_proto]);
 	else
@@ -107,6 +118,7 @@ char *mtdata;
 	   	DumpDSProto (msg);
 		break;
 	}
+	fflush(stdout);
 }
 
 
@@ -132,6 +144,7 @@ Message *msg;
 	struct dsp_FileStruct *dfs;
 	struct dsp_PLock *dp;
 	struct dsp_FindDF *dfdf;
+	struct dsp_CacheInvalidate *dci;
 
 	switch (dt->dsp_type)
 	{
@@ -149,6 +162,9 @@ Message *msg;
 	   case dpt_R_NewFileFailure:
 	   	printf ("\tNewFileFailure\n"); break;
 
+	   case dpt_AbortNewFile:
+		printf ("\tAbortNewFile\n"); break;
+
 	   case dpt_UpdateFile:
 		duf = (struct dsp_UpdateFile *) dt;
 	   	printf ("\tUpdateFile: dfi %d samp %d ow %d last %s\n",
@@ -156,7 +172,10 @@ Message *msg;
 			duf->dsp_NOverwrite, duf->dsp_Last ? "TRUE" : "FALSE");
 		break;
 	   case dpt_R_UpdateAck:
-	   	printf ("\tUpdateAck\n"); break;
+	   	dfs = (struct dsp_FileStruct *) dt;
+	   	printf ("\tUpdateAck\n"); 
+		print_dfe (&dfs->dsp_file);
+		break;
 
 	   case dpt_NotifyRequest:
 	   	dnr = (struct dsp_NotifyRequest *) dt;
@@ -168,6 +187,18 @@ Message *msg;
 		printf ("\tNotify: pid %d par %d ns %d code %d\n", dn->dsp_pid,
 			dn->dsp_param, dn->dsp_nsample, dn->dsp_ucode);
 		break;
+
+		PCASE(dpt_CancelNotify);
+		PCASE(dpt_CancelAck);
+		PCASE(dpt_DeleteData);
+		PCASE(dpt_DataGone);
+		PCASE(dpt_CopyNotifyReq);
+		PCASE(dpt_MarkArchived);
+		PCASE(dpt_Rescan);
+		PCASE(dpt_BCDataGone);
+
+		PCASE(dpt_GetNPlat);
+		PCASE(dpt_R_NPlat);
 
 	   case dpt_GetPlatStruct:
 		dgps = (struct dsp_GetPlatStruct *) dt;
@@ -193,24 +224,21 @@ Message *msg;
 		printf ("\tPLock%s: id %d\n",
 			dt->dsp_type == dpt_PLock ? "" :"Granted",dp->dsp_pid);
 		break;
-	   case dpt_WriteLock:
-	   	dp = (struct dsp_PLock *) dt;
-		printf ("\tWriteLock: id %d\n", dp->dsp_pid);
-		break;
 	   case dpt_ReleasePLock:
 	   	dp = (struct dsp_PLock *) dt;
 		printf ("\tReleasePLock: id %d\n", dp->dsp_pid);
 		break;
+
+		PCASE(dpt_LookupPlatform);
+		PCASE(dpt_R_PID);
+
+	   case dpt_WriteLock:
+	   	dp = (struct dsp_PLock *) dt;
+		printf ("\tWriteLock: id %d\n", dp->dsp_pid);
+		break;
 	   case dpt_ReleaseWLock:
 	   	dp = (struct dsp_PLock *) dt;
 		printf ("\tReleaseWLock: id %d\n", dp->dsp_pid);
-		break;
-	   case dpt_Hello:
-	   	printf ("\tHello\n");
-		break;
-	   case dpt_R_ProtoVersion:
-	   	printf ("\tProtoVersion = 0x%x\n", 
-			((struct dsp_ProtoVersion *) dt)->dsp_version);
 		break;
 	   case dpt_FindDF:
 	   	dfdf = (struct dsp_FindDF *) dt;
@@ -222,8 +250,39 @@ Message *msg;
 	   	printf ("\tDFI, index = %d\n",
 			((struct dsp_R_DFI *) dt)->dsp_index);
 		break;
+	   case dpt_CacheInvalidate:
+		dci = (struct dsp_CacheInvalidate *) dt;
+		printf ("\tCacheInvalidate: index = %d\n", 
+			dci->dsp_dfe.df_index);
+		print_dfe (&dci->dsp_dfe);
+		break;
+	   case dpt_Hello:
+	   	printf ("\tHello\n");
+		break;
+	   case dpt_R_ProtoVersion:
+	   	printf ("\tProtoVersion = 0x%x\n", 
+			((struct dsp_ProtoVersion *) dt)->dsp_version);
+		break;
+
+		PCASE(dpt_FindAfter);
 
 	   default:
 	   	printf ("\tData store proto %d\n", dt->dsp_type);
 	}
+}
+
+
+
+void
+print_dfe(dfe)
+DataFile *dfe;
+{
+	printf ("\tdfi %d '%s', begin: %lu, end: %lu\n",
+		dfe->df_index,
+		dfe->df_name,
+		dfe->df_begin.zt_Sec,
+		dfe->df_end.zt_Sec);
+	printf ("\tRev: %li, nsample: %d\n",
+		dfe->df_rev,
+		dfe->df_nsample);
 }
