@@ -1,7 +1,7 @@
 /*
  * Basic shared memory management routines for the data store daemon.
  */
-static char *rcsid = "$Id: d_SharedMemory.c,v 1.1 1990-11-02 08:56:21 corbet Exp $";
+static char *rcsid = "$Id: d_SharedMemory.c,v 1.2 1991-02-26 19:11:27 corbet Exp $";
 
 # include <errno.h>
 # include <sys/types.h>
@@ -21,6 +21,10 @@ static char *rcsid = "$Id: d_SharedMemory.c,v 1.1 1990-11-02 08:56:21 corbet Exp
 static int ShmId;
 static int SemId;
 
+/*
+ * The lock count -- so that ShmLock calls can be nested and work properly.
+ */
+static int NLock = 0;
 
 
 void
@@ -96,6 +100,11 @@ ShmLock ()
 {
 	struct sembuf op;
 /*
+ * If we're already locked, only increment the count now.
+ */
+	if (NLock++ > 0)
+		return;
+/*
  * Set the write semaphore first.
  */
 	op.sem_num = S_WRITE;
@@ -123,7 +132,14 @@ ShmUnlock ()
  */
 {
 	struct sembuf op;
-
+/*
+ * If this is a nested lock, we don't really free things yet.
+ */
+	if (--NLock > 0)
+		return;
+/*
+ * Turn it loose.
+ */
 	op.sem_num = S_WRITE;
 	op.sem_flg = SEM_UNDO | IPC_NOWAIT;
 	op.sem_op = -1;
