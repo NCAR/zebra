@@ -40,7 +40,7 @@
 # include <DataStore.h>
 # include <Platforms.h>
 
-RCSID ("$Id: dsdwidget.c,v 1.29 1999-03-01 02:03:50 burghart Exp $")
+RCSID ("$Id: dsdwidget.c,v 1.30 1999-11-01 20:16:23 burghart Exp $")
 
 
 /*
@@ -569,8 +569,13 @@ DumpChain (struct df_context *dfc, const SourceInfo *si)
     char dest[256];
     const Platform *p = dt_FindPlatform (dfc->pid);
 
+    /* Order them with most recent data first */
+#ifdef notdef
     for (df = ds_FirstFile (si->src_Id, pi_Id (p)); df; 
 	 df = ds_NextFile (df))
+#endif
+    for (df = ds_LastFile (si->src_Id, pi_Id (p)); df; 
+	 df = ds_PrevFile (df))
     {
 	TC_EncodeTime (&df->df_core.dfc_begin, TC_Full, abegin);
 	sprintf (dest,"%-8s '%s' %s    ", si->src_Name, 
