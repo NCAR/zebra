@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 1.3 1991-01-24 17:01:15 kris Exp $ */
+/* $Id: GraphProc.h,v 1.4 1991-02-14 17:18:11 kris Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -75,6 +75,7 @@ extern XtAppContext Actx;		/* The application context	*/
 extern Cursor BusyCursor, NormalCursor;	/* Our cursors		*/
 # endif
 extern int FrameCount;			/* How many frames?		*/
+extern int MaxPixmaps;			/* Max number of pixmaps        */
 extern int DisplayFrame;		/* Frame to display		*/
 extern int DrawFrame;			/* Frame to draw in		*/
 
@@ -105,6 +106,7 @@ extern void fc_AddFrame (time *, int);
 extern int fc_LookupFrame (time *);
 extern int fc_GetFrame (void);
 extern void fc_MarkFrames (time *, int);
+extern int fc_GetFrameData(int);
 extern void mc_DefMovieWidget (void);
 extern void mc_Dial (int);
 extern char *px_FldDesc (char *, char *);
@@ -151,6 +153,7 @@ extern bool cvt_Origin (double, double);
 	extern int fc_LookupFrame ();
 	extern int fc_GetFrame ();
 	extern void fc_MarkFrames ();
+	extern int fc_GetFrameData();
 	extern void mc_DefMovieWidget ();
 	extern void mc_Dial ();
 	extern char *px_FldDesc ();

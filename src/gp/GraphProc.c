@@ -1,4 +1,4 @@
-static char *rcsid = "$Id: GraphProc.c,v 1.21 1991-02-07 16:24:36 corbet Exp $";
+static char *rcsid = "$Id: GraphProc.c,v 1.22 1991-02-14 17:16:03 kris Exp $";
 
 # include <X11/X.h>
 # include <X11/Intrinsic.h>
@@ -102,10 +102,15 @@ GPShutDown ()
  * Finish up and quit.
  */
 {
+	int i;
+	
 	ui_finish ();
 # ifdef SHM
 	RP_ZapSHMImage (Graphics);
+	for(i = 0; i < FrameCount; i++)
+		gw_ZapShmPixmap(Graphics, i);
 # endif
+	unlink("FrameFile");
 	exit (0);
 }
 
@@ -258,6 +263,7 @@ finish_setup ()
  */
 	sprintf (perf, "read %s", initfile);
 	ui_perform (perf);
+
 }
 
 
@@ -600,6 +606,7 @@ int len;
 {
 	Arg args[10];
 	bool schanged, wchanged;
+	
 /*
  * Figure out if anything really important has changed.
  */
@@ -745,6 +752,7 @@ struct dm_pdchange *dmp;
  */
 {
 	raw_plot_description rpd;
+
 /*
  * If we have an old plot description, get rid of it.  Also cancel any
  * pending plot activity and free the colors we were using.
@@ -770,6 +778,7 @@ struct dm_pdchange *dmp;
  */
 	Eq_AddEvent (PDisplay, pc_PlotHandler, 0, 0, Override);
 	Eq_AddEvent (PDisplay, I_DoIcons, 0, 0, Bounce);
+	
 }
 
 
