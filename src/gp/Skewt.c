@@ -87,10 +87,11 @@ bool	update;
  */
 {
 	bool	ok;
-	char	platforms[80], annot[80], ctname[20], tadefcolor[30];
 	int	status, i, npts, plat, nplat;
+	char	platforms[80], annot[80], ctname[20], tadefcolor[30];
 	time	ptime;
-	char		*flist[5], *pnames[5];
+	char	*pnames[5];
+	char	*flist[] = { "pres", "tdry", "dp", "u_wind", "v_wind" };
 	PlatformId	pid;
 	DataObject	*dobj = NULL;
 	float		*pres, *temp, *dp, *u_wind, *v_wind;
@@ -115,11 +116,9 @@ bool	update;
 	if (! pda_Search (Pd, c, "pres-minval", "skewt", (char *) &Pmin, 
 		SYMT_FLOAT))
 		Pmin = 100.0;
-
 	if (! pda_Search (Pd, c, "pres-maxval", "skewt", (char *) &Pmax, 
 		SYMT_FLOAT))
 		Pmax = 1050.0;
-
 	if (! pda_Search (Pd, c, "temp-minval", "skewt", (char *) &Tmin, 
 		SYMT_FLOAT))
 		Tmin = -40.0;
@@ -127,7 +126,7 @@ bool	update;
 	if (! pda_Search (Pd, c, "temp-maxval", "skewt", (char *) &Tmax, 
 		SYMT_FLOAT))
 		Tmax = 35.0;
-	
+
 	if (! pda_Search (Pd, "global", "ta-color", NULL, tadefcolor, 
 		SYMT_STRING))
 		strcpy(tadefcolor, "white");
@@ -141,7 +140,6 @@ bool	update;
 	Tacmatch = TRUE;
 	pda_Search (Pd, "global", "ta-color-match", NULL, (char *) &Tacmatch,
 		SYMT_BOOL);
-
 /*
  * Get the color table
  */
@@ -159,14 +157,6 @@ bool	update;
 	Ylo = -0.1;
 	Xhi = 1.4;
 	Yhi = 1.1;
-/*
- * Build the field list
- */
-	flist[0] = "pres";
-	flist[1] = "tdry";	/* "temp" */
-	flist[2] = "dp";
-	flist[3] = "u_wind";
-	flist[4] = "v_wind";
 /*
  * Plot the background and top annotation
  */
@@ -215,10 +205,8 @@ bool	update;
 				ptime.ds_hhmmss);
 			continue;
 		}
-
 		dobj = ds_GetObservation (pid, flist, 5, &ptime, OrgScalar,
 			0.0, BADVAL);
-
 		if (! dobj)
 		{
 			msg_ELog (EF_PROBLEM, 
