@@ -1,4 +1,25 @@
-<<<<<<< ChangeLog
+Fri Sep 16 11:03:23 1994  Jonathan Corbet  <corbet@ale>
+
+	* InsertWidget.c Don't mangle the time after inserting boundaries.
+
+Fri Sep 16 10:15:21 1994  Jonathan Corbet  <corbet@ale>
+
+	* Everything: Merged in the Toulouse branch.
+
+Tue Jun 28 14:04:24 1994  Jonathan Corbet  (corbet@ale)
+
+	* ds: A read-only format driver for the GRADS format has been
+	  added.
+
+Tue Jun  7 16:08:42 1994  Jonathan Corbet  (corbet@ale)
+
+	* gp: Store the user coordinates of button events in "buttonx" and
+	  "buttony" so that UI procedures can get at them.
+	  
+	* dm: made configpath work right.  It never, ever could have in
+	  the past.  Also attempt (silently) to create ConfigDir before
+	  saving a configuration.
+
 Wed May 18 16:05:54 1994  Chris Burghart  (burghart@fuggles)
 
 	* dsDaemon: Changed variables Genesis, LastScan, and LastCache from
@@ -43,8 +64,6 @@ Fri Apr 15 16:00:00 1994  Chris Burghart  (burghart@fuggles)
 	  Second, the official addition of support for GRIB format data files
 	  (DFA_GRIB.c) comes with this merge.
 
-||||||| 1.16
-=======
 Tue May 24 03:04:57 1994  Gary Granger  (granger@steam)
 
 	* dm: yanked DM_GEOMETRY method until I figure out why olwm 
@@ -164,7 +183,6 @@ Thu Feb 10 14:08:45 1994  Jonathan Corbet  (corbet@ale)
 	  stuff around so that the right thing happens in the right order.
 	  This code needs some review in the future...
 
->>>>>>> /tmp/T4a08325
 Thu Feb  3 14:45:32 1994  Jonathan Corbet  (corbet@steam)
 
 	* Tagging version V4.0.
