@@ -33,7 +33,7 @@
 # include "PixelCoord.h"
 # include "DrawText.h"
 
-MAKE_RCSID ("$Id: Ov_Grid.c,v 2.2 1995-08-07 22:29:16 granger Exp $")
+MAKE_RCSID ("$Id: Ov_Grid.c,v 2.3 1995-09-21 21:06:40 granger Exp $")
 
 /*
  * Some macros.  I'm not sure they are all used here.
@@ -149,10 +149,23 @@ int update;
 /*
  * Set the pixel limits of the grid according to the current user km limits
  */
+#ifdef notdef
 	bottom = YPIX (Yhi) - 10;
 	top = YPIX (Ylo) - 12;
 	left = XPIX (Xlo);
 	right = XPIX (Xhi);
+#endif
+#ifdef notdef
+	bottom = YPIX (Yhi) - AXIS_SPACE(SideTop)/4;
+	top = YPIX (Ylo) + AXIS_SPACE(SideBottom)/4;
+	left = XPIX (Xlo) - AXIS_SPACE(SideLeft)/4;
+	right = XPIX (Xhi) + AXIS_SPACE(SideRight)/4;
+#endif
+	bottom = YPIX (Yhi) - 5;
+	top = YPIX (Ylo) + 5;
+	left = XPIX (Xlo) - 5;
+	right = XPIX (Xhi) + 5;
+
 /* 
  * If this is a lat/lon grid, the x/y-spacing parameters are interpreted as
  * minutes.  If this is a km grid, they are in kilometers.  The calculation
@@ -414,12 +427,14 @@ float aint;
 	float xpos, ypos, blat, blon, maxlat, maxlon, minlat, minlon;
 	int xp, yp, nx;
 	char label[30];
+	int approx;
 	Drawable frame = GWFrame (Graphics);
 /*
  * Figure out where we are.
  */
 	ov_CGFixLL (&minlat, &minlon, &maxlat, &maxlon, &blat, &blon, xs, ys);
 	prj_Reverse (Xhi, Yhi, &maxlat, &maxlon);
+	approx = DT_ApproxHeight (Graphics, theight, 1);
 /*
  * NOTE: maxlon will be more than 90 degrees LESS THAN blon if maxlon is
  * actually across the Intl Date Line.  We must take this into account and
@@ -485,7 +500,7 @@ float aint;
 				  label,0.0,theight,JustifyCenter,JustifyTop);
 			sprintf (label, "%d' %d\"", Round(fabs(xpos)*60)%60,
 				 Round(fabs(xpos)*3600)%60);
-			DrawText (Graphics, frame, Gcontext, xp, top + 14,
+			DrawText (Graphics, frame, Gcontext, xp, top+approx+1,
 				  label,0.0,theight,JustifyCenter,JustifyTop);
 		}
 		nx++;
@@ -511,6 +526,7 @@ float aint;
 	int max_xannot = F_X1*GWWidth (Graphics);
 	int xe, ye, proj = prj_FancyProjection ();
 	char label[30];
+	int approx;
 	Drawable frame = GWFrame (Graphics);
 /*
  * Make nice increments.
@@ -521,6 +537,7 @@ float aint;
 		maxlon += 360.0;
 	xs /= 60.0;
 	ys /= 60.0;
+	approx = DT_ApproxHeight (Graphics, theight, 1);
 /*
  * Draw all of the horizontal lines and the left annotation
  */
@@ -604,9 +621,8 @@ float aint;
 			sprintf (label, "%d' %d\"", Round(fabs(xpos)*60)%60,
 				 Round(fabs(xpos)*3600)%60);
 			DrawText (Graphics, frame, Gcontext, xp, 
-				  (int) (top + theight * GWHeight(Graphics)),
-				  label, 0.0, theight, JustifyCenter,
-				  JustifyTop);
+				  top + 1 + approx, label, 0.0, theight,
+				  JustifyCenter, JustifyTop);
 			yp = top - 1;
 			SetClip (FALSE);
 		}
