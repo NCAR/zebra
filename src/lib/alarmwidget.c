@@ -36,7 +36,7 @@
 # include "message.h"
 # include "timer.h"
 
-MAKE_RCSID ("$Id: alarmwidget.c,v 1.2 1994-01-28 21:31:12 granger Exp $")
+MAKE_RCSID ("$Id: alarmwidget.c,v 1.3 1995-04-15 00:16:35 granger Exp $")
 
 # define STRLEN 50
 # define STATUSSTR 200
@@ -44,7 +44,7 @@ MAKE_RCSID ("$Id: alarmwidget.c,v 1.2 1994-01-28 21:31:12 granger Exp $")
 /*
  * Global stuff
  */
-static Widget Form, AlarmText, RepeatText, StatusText;
+static Widget AlarmText, RepeatText, StatusText;
 static Widget RepeatButton, SetButton, CancelButton;
 static char AlarmTime[STRLEN], RepeatMin[STRLEN];
 static int Repeat = TRUE;
@@ -52,7 +52,8 @@ static int Tslot;
 
 Widget aw_CreateWidget ();
 static void ChangeRepeat (), SetAlarm (), CancelAlarm ();
-static void SetStatus (), SoundAlarm ();
+static void SetStatus FP((char *string));
+static void SoundAlarm ();
 
 
 
@@ -221,6 +222,7 @@ ChangeRepeat ()
 
 static void
 SetStatus (string)
+char *string;
 /*
  * Set the status line to 'string'.
  */
