@@ -1,7 +1,7 @@
 /*
  * Window plot control routines.
  */
-static char *rcsid = "$Id: PlotControl.c,v 2.11 1992-07-31 22:03:09 barrett Exp $";
+static char *rcsid = "$Id: PlotControl.c,v 2.12 1992-09-15 20:00:10 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -530,6 +530,7 @@ float x0, y0, x1, y1;
 	fc_InvalidateCache ();
 	Eq_AddEvent (PDisplay, pc_PlotHandler, NULL, 0, Override);
 	Eq_AddEvent (PWhenever, eq_ReturnPD, 0, 0, Bounce);
+	pdm_ScheduleUpdate ();
 }
 
 
