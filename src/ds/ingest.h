@@ -1,7 +1,7 @@
 /*
  * ingest.h --- Public protoypes and macros for ingest modules
  *
- * $Id: ingest.h,v 1.11 1995-03-03 18:27:28 granger Exp $
+ * $Id: ingest.h,v 1.12 1996-11-19 09:18:50 granger Exp $
  *
  * ingest.h --- A common ingest interface and support routines for 
  *		Zeb ingest modules
@@ -43,13 +43,13 @@
 
 # include <stdio.h>
 # include <ctype.h>
+# include <ui.h>
 # include <ui_error.h>
-# include "defs.h"
-# include "message.h"
-# include "timer.h"
-# include "DataStore.h"
-# include "DataChunk.h"
-# include "ds_fields.h"
+
+# include <defs.h>
+# include <message.h>
+# include <timer.h>
+# include <DataStore.h>
 
 # ifndef streq
 # define streq(a,b) (strcmp(a,b) == 0)
@@ -100,7 +100,7 @@ extern void IngestRemoveOptions FP((int *argc, char *argv[], int i, int n));
  * during normal operations.  This reduces clutter in the EventLogger.
  */
 #ifndef EF_DEVELOP
-#define EF_DEVELOP (0x400)
+#define EF_DEVELOP (0x400)	/* moved to message.h */
 #endif
 
 /*
