@@ -1,5 +1,5 @@
 /*
- * $Id: GRIB.h,v 3.3 1996-11-19 08:47:21 granger Exp $
+ * $Id: GRIB.h,v 3.4 1997-05-22 23:05:32 burghart Exp $
  *
  * GRIB file access structures and utility prototypes.
  */
@@ -45,6 +45,20 @@ typedef struct s_GFpds
 	short		ds_factor;	/* decimal scale factor		*/
 	unsigned char	reserved1;	/* any length of reserved data	*/
 } GFpds;
+
+/*
+ * The GRIB bit map section (BMS) header
+ */
+typedef struct s_GFbmshdr
+{
+    unsigned char	len;
+    unsigned char	len1;
+    unsigned char	len2;
+    unsigned char	unused_bits;
+    unsigned char	bitmap_id;
+    unsigned char	bitmap_id1;
+} GFbmshdr;
+
 /*
  * The GRIB grid description section (GDS)
  * This is currently only set up for Latitude/Longitude Grids.
