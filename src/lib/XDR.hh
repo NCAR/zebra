@@ -1,5 +1,5 @@
 /*
- * $Id: XDR.hh,v 1.1 1997-05-07 17:21:05 granger Exp $
+ * $Id: XDR.hh,v 1.2 1997-08-01 19:34:37 granger Exp $
  *
  * C++ interface to the xdr layer.
  */
@@ -16,6 +16,10 @@
  * since we know this one includes arguments.
  */
 typedef bool_t (*XDREncoder)(XDR *, void *);
+/*
+ * Functionally, xdr encoders and decoders are the same.
+ */
+typedef XDREncoder XDRDecoder;
 
 /*
  * Abstract base class for XDR stream subclasses.
@@ -24,7 +28,7 @@ class XDRStream
 {
 public:
 
-	// Class members which do not need a stream
+	// ---------------- Class members which do not need a stream
 
 	// Free any allocated memory in a decoded structure.
 	static void Free (XDREncoder xp, void *data)
@@ -37,6 +41,8 @@ public:
 	{
 		return (xdr_sizeof ((xdrproc_t)xp, (char *)data));
 	}
+
+	// ---------------- Instance members
 
 	// Constructors
 
@@ -112,6 +118,16 @@ protected:
 // with this macro, given a type T and its xdr procedure XP.
 
 #define XDR_OPERATOR(T, XP) \
+XDRStream operator<< (XDRStream *xdr, T &tp) \
+{ \
+	xdr->translate ((void *)&tp, XP); \
+	return (*xdr); \
+} \
+XDRStream &operator>> (XDRStream *xdr, T &tp) \
+{ \
+	xdr->translate ((void *)&tp, XP); \
+	return (*xdr); \
+} \
 XDRStream &operator<< (XDRStream &xdr, T &tp) \
 { \
 	xdr.translate ((void *)&tp, XP); \
@@ -158,7 +174,7 @@ class ReadXDR : public StdioXDR
 public:
 	// Constructors
 
-	ReadXDR (FILE *fp) : StdioXDR (fp, XDR_DECODE) {};
+	ReadXDR (FILE *fp) : StdioXDR (fp, XDR_DECODE) { }
 
 	// Inherit the destructor
 
@@ -173,7 +189,80 @@ class WriteXDR : public StdioXDR
 public:
 	// Constructors
 
-	WriteXDR (FILE *fp) : StdioXDR (fp, XDR_ENCODE) {};
+	WriteXDR (FILE *fp) : StdioXDR (fp, XDR_ENCODE) { }
+
+	// Inherit the destructor
+
+};
+
+
+/*
+ * An XDR subclass built on top of a range of memory.
+ */
+class MemoryXDR : public XDRStream
+{
+public:
+
+	// Constructors
+
+	MemoryXDR (void *addr, long len, xdr_op op) : XDRStream ()
+	{
+		create (addr, len, op);
+	}
+
+	MemoryXDR () : XDRStream () { }
+
+	void create (void *addr, long len, xdr_op op);
+
+	// Inherit the destructor
+
+};
+
+
+/*
+ * A class for reading from a memory stream.
+ */
+class MemReadXDR : public MemoryXDR
+{
+public:
+	// Constructors
+
+	MemReadXDR (void *addr, long len) : 
+		MemoryXDR (addr, len, XDR_DECODE) { }
+
+	// Stream will be created later:
+
+	MemReadXDR () : MemoryXDR () { }
+
+	void create (void *addr, long len)
+	{
+		MemoryXDR::create (addr, len, XDR_DECODE);
+	}
+
+	// Inherit the destructor
+
+};
+
+
+/*
+ * A class for writing to a memory stream.
+ */
+class MemWriteXDR : public MemoryXDR
+{
+public:
+	// Constructors
+
+	MemWriteXDR (void *addr, long len) : 
+		MemoryXDR (addr, len, XDR_ENCODE) { }
+
+	// Stream will be created later:
+
+	MemWriteXDR () : MemoryXDR () { }
+
+	void create (void *addr, long len)
+	{
+		MemoryXDR::create (addr, len, XDR_ENCODE);
+	}
 
 	// Inherit the destructor
 
