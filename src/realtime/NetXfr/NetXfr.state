@@ -39,6 +39,9 @@ define state initial
 	input 'receive' 6
 		next receive-from
 	endinput
+	input 'dirimage' 7
+		next ust$final_string
+	endinpug
 enddef
 
 !
