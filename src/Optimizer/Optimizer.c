@@ -1,14 +1,34 @@
 /*
  * Radar scan optimizer main driver
- *
- * $Id: Optimizer.c,v 1.2 1991-07-05 18:47:38 burghart Exp $
  */
+/*		Copyright (C) 1987,88,89,90,91 by UCAR
+ *	University Corporation for Atmospheric Research
+ *		   All rights reserved
+ *
+ * No part of this work covered by the copyrights herein may be reproduced
+ * or used in any form or by any means -- graphic, electronic, or mechanical,
+ * including photocopying, recording, taping, or information storage and
+ * retrieval systems -- without permission of the copyright owner.
+ * 
+ * This software and any accompanying written materials are provided "as is"
+ * without warranty of any kind.  UCAR expressly disclaims all warranties of
+ * any kind, either express or implied, including but not limited to the
+ * implied warranties of merchantibility and fitness for a particular purpose.
+ * UCAR does not indemnify any infringement of copyright, patent, or trademark
+ * through use or modification of this software.  UCAR does not provide 
+ * maintenance or updates for its software.
+ */
+
+static char *rcsid = "$Id: Optimizer.c,v 1.3 1991-09-17 16:07:31 burghart Exp $";
+
+# include <copyright.h>
+# include <ctype.h>
 # include <X11/Intrinsic.h>
+# include <X11/StringDefs.h>
 # include <unistd.h>
 # include <ui.h>
 # include <ui_date.h>
 # include <ui_error.h>
-# include <message.h>
 # include "globals.h"
 # include "radar.h"
 # include "keywords.h"
@@ -19,14 +39,16 @@
  */
 Radar	Rad[MAXRAD];
 int	Nradars = 0;
-char	ConfigName[30];
-float	Hres = 0.5, Vres = 0.5;
-float	Hsep_min = 0.0, Vsep_min = 0.0;
-float	Vol_bot = 0.0, Vol_top = 5.0;
-float	Vol_time = TIME_ASAP;
-bool	Msg = FALSE, Ds = FALSE;
+float	Hres, Vres;
+float	Hsep_min, Vsep_min;
+float	Vol_bot, Vol_top;
+float	Vol_time;
+int	Opt;
+int	MinOpt, MaxOpt;
+float	Slowtime[7];
 
 XtAppContext	Appc;
+
 
 /*
  * Pointers to routines to handle each command (stored by keyword number)
@@ -40,12 +62,13 @@ static void	(*Cmd_routine[MAXKW+1])();
 	static int	opt_Dispatch (int, struct ui_command *);
 	static void	opt_CmdInit (void);
 	static void	opt_DumpCmd (struct ui_command *);
-	static void	opt_LoadConfig (void);
+	static void	opt_LoadConfig (char *);
 	static int	opt_XEvent (int);
 	static void	opt_VolInfo (struct ui_command *);
 	static int	opt_Message (struct message *);
 	static void	opt_ReportError (char *);
 	static void	opt_Print (char *);
+	static void	opt_Usage (void);
 # else
 	static int	opt_Dispatch ();
 	static void	opt_CmdInit ();
@@ -56,6 +79,7 @@ static void	(*Cmd_routine[MAXKW+1])();
 	static int	opt_Message ();
 	static void	opt_ReportError ();
 	static void	opt_Print ();
+	static void	opt_Usage ();
 # endif
 
 
@@ -65,70 +89,87 @@ main (argc, argv)
 int	argc;
 char	**argv;
 {
-	Widget		top;
+	Widget	top;
+	char	*name;
+	int	n;
+	Arg	args[5];
+	char	configname[30];
 /*
- * Lose the first command line argument (the name of the program) which
- * is there whether we want it or not
- */
-	argv++;
-	argc--;
-/*
- * Use an error catch until we get to ui_get_command (which has its own)
+ * Set up an error catch until we loop for input
  */
 	ERRORCATCH
 	/*
 	 * Initialize UI and our command table
 	 */
+		usy_init ();
+		uw_init ();
+		ui_errinit ();
+# ifdef notdef
 		ui_init ("../lib/Optimizer.lf", FALSE, TRUE);
-		ui_setup ("Optimizer", &argc, argv, NULL);
 		opt_CmdInit ();
+# endif
+		ui_setup ("Optimizer", &argc, argv, NULL);
+		uw_ForceWindowMode (NULL, &top, &Appc);
 	/*
-	 * Hook into the message system and the data store if they're around
+	 * Make sure we have a configuration name
 	 */
-		Msg = msg_connect (opt_Message, "Optimizer");
-
-		if (Msg)
+		if (argc > 1)
+			strcpy (configname, argv[1]);
+		else
+			opt_Usage ();
+	/*
+	 * Get the user specified name (or use "Optimizer")
+	 */
+		if (argc > 2)
 		{
-			msg_DeathHandler (opt_Finish);
-		/*
-		 * Deal with output so it goes to event logger
-		 */
-			ui_ErrorOutputRoutine (opt_ReportError);
-			ui_OutputRoutine (opt_Print, opt_Print);
-		/*
-		 * Initialize the data store
-		 */
-			Ds = ds_Initialize ();
+			name = argv[2];
+
+			n = 0;
+			XtSetArg (args[n], "title", name); n++;
+			XtSetValues (top, args, n);
+		}
+		else
+			name = "Optimizer";
+	/*
+	 * Hook into the message system and the data store
+	 */
+		if (! msg_connect (opt_Message, name))
+		{
+			printf ("Unable to connect to message handler!\n");
+			exit (1);
+		}
+
+		msg_DeathHandler (opt_Finish);
+	/*
+	 * Deal with UI error output so it goes to event logger
+	 */
+		ui_ErrorOutputRoutine (opt_ReportError);
+		ui_OutputRoutine (opt_Print, opt_Print);
+	/*
+	 * Initialize the data store
+	 */
+		if (! ds_Initialize ())
+		{
+			printf ("Unable to connect to data store!\n");
+			exit (1);
 		}
 	/*
-	 * Get into window mode
+	 * Load the configuration
 	 */
-		uw_ForceWindowMode (NULL, &top, &Appc);
+		opt_LoadConfig (configname);
 	/*
 	 * Make the bitmaps and the widgets
 	 */
 		bm_BuildBitmaps (top);
-		mw_DefineMainWidget ();
-	/*
-	 * Make sure we have a configuration name
-	 */
-		if (argc)
-			strcpy (ConfigName, argv[0]);
-		else
-			ui_string_prompt ("Enter configuration name", NULL, 
-				ConfigName, NULL);
-	/*
-	 * Load the configuration
-	 */
-		opt_LoadConfig ();
+		mw_MainWidget (top);
 	/*
 	 * Get the initial volume boundary
 	 */
 		bnd_InitBoundary ();
 	/*
-	 * Pop up the main and radar widgets
+	 * Realize the top widget
 	 */
-		uw_popup ("Optimizer");
+		XtRealizeWidget (top);
 	/*
 	 * Get and list the first set of scan options
 	 */
@@ -137,13 +178,8 @@ char	**argv;
 		opt_Finish ();
 	ENDCATCH
 /*
- * Get commands via UI if we don't have a widget, otherwise the interface is
- * interrupt driven and we just have to look for stuff from the message
- * handler 
+ * Go
  */
-# ifdef notdef
-	ui_get_command ("optimizer-initial", "->", opt_Dispatch, 0);
-# endif
 	msg_add_fd (XConnectionNumber (XtDisplay (top)), opt_XEvent);
 	while (TRUE)
 	{
@@ -161,6 +197,7 @@ char	**argv;
 
 
 
+# ifdef notdef
 void
 opt_CmdInit ()
 /*
@@ -274,35 +311,62 @@ struct ui_command *cmd;
 			cmd->uc_ctype);
 	}
 }
+# endif
 
 
 
 
 void
-opt_LoadConfig ()
+opt_LoadConfig (cfg)
+char	*cfg;
 /*
  * Load the configuration file
  */
 {
-	int	status;
+	int	status, i, baud;
 	char	fname[50], string[30], line[30], phone[30];
 	FILE	*cfile;
 	Radar	r;
 /*
  * Make sure we can find the config file
  */
-	strcpy (fname, ConfigName);
+	strcpy (fname, cfg);
 	if (access (fname, R_OK) != 0)
 	{
-		sprintf (fname, "/fcc/optimizer/%s", ConfigName);
+		sprintf (fname, "/fcc/optimizer/%s", cfg);
 		if (access (fname, R_OK) != 0)
-			ui_error ("Cannot open '%s' config file!", ConfigName);
+		{
+			msg_ELog (EF_PROBLEM, "Cannot open '%s' config file!",
+				cfg);
+			exit (1);
+		}
 	}
 /*
  * Open the file and read everything out of it
  */
 	cfile = fopen (fname, "r");
+/*
+ * Starting resolutions, minimum beam separations, volume height bounds,
+ * and volume scan time
+ */
+	status = fscanf (cfile, "%f%f%f%f%f%f%s", &Hres, &Vres, &Hsep_min, 
+		&Vsep_min, &Vol_bot, &Vol_top, string);
+	if (status != 7)
+	{
+		msg_ELog (EF_PROBLEM, "Bad global line in the config file!\n");
+		exit (1);
+	}
 
+	for (i = 0; i < strlen (string); i++)
+		string[i] = tolower (string[i]);
+
+	if (! strcmp (string, "asap"))
+		Vol_time = TIME_ASAP;
+	else
+		sscanf (string, "%f", &Vol_time);
+/*
+ * Get the radar information
+ */
 	while (TRUE)
 	{
 	/*
@@ -317,14 +381,13 @@ opt_LoadConfig ()
 
 		r.name[strlen (r.name) - 1] = '\0';
 	/*
-	 * Outgoing line and phone number for sending scan info
+	 * Outgoing line, phone number, and baud rate for sending scan info
 	 */
 		fgets (string, sizeof (string), cfile);
-		sscanf (string, "%s%s", line, phone);
+		sscanf (string, "%s%s%d", line, phone, &baud);
 
 		if (line[0] != '-')
 		{
-			line[strlen (line) - 1] = '\0';	/* remove \n */
 			r.line_out = (char *) 
 				malloc ((1 + strlen (line)) * sizeof (char));
 			strcpy (r.line_out, line);
@@ -332,16 +395,19 @@ opt_LoadConfig ()
 			r.phone = (char *) 
 				malloc ((1 + strlen (phone)) * sizeof (char));
 			strcpy (r.phone, phone);
+
+			r.baud = baud;
 		}
 		else
 		{
 			r.line_out = NULL;
 			r.phone = NULL;
+			r.baud = 0;
 		}
 	/*
 	 * Lat and lon
 	 */
-		status = fscanf (cfile, "%f %f", &(r.lat), &(r.lon));
+		status = fscanf (cfile, "%f%f", &(r.lat), &(r.lon));
 		if (status != 2)
 			break;
 	/*
@@ -359,11 +425,26 @@ opt_LoadConfig ()
 		if (status != 2)
 			break;
 	/*
-	 * Min and max hits
+	 * Min, max, and default hits
 	 */
-		status = fscanf (cfile, "%d%d", &(r.min_hits), &(r.max_hits));
-		if (status != 2)
+		status = fscanf (cfile, "%d%d%s", &(r.min_hits), 
+			&(r.max_hits), string);
+		if (status != 3)
 			break;
+
+		if (! strncmp (string, "var", 3))
+			r.fix_hits = FALSE;
+		else
+		{
+			r.fix_hits = TRUE;
+			status = sscanf (string, "%d", &r.hits);
+			if (status != 1)
+			{
+				msg_ELog (EF_PROBLEM, 
+					"Bad hits '%s', using variable");
+				r.fix_hits = FALSE;
+			}
+		}
 	/*
 	 * default PRF
 	 */
@@ -371,24 +452,78 @@ opt_LoadConfig ()
 		if (status != 1)
 			break;
 	/*
-	 * Set up defaults
+	 * Enabled/disabled
 	 */
-		r.enabled = TRUE;
+		status = fscanf (cfile, "%s", string);
+		if (status != 1)
+			break;
+
+		for (i = 0; i < strlen (string); i++)
+			string[i] = tolower (string[i]);
+
+		r.enabled = (bool) strcmp (string, "disabled");
+	/*
+	 * Default scan type
+	 */
+		status = fscanf (cfile, "%s", string);
+		if (status != 1)
+			break;
+
+		for (i = 0; i < strlen (string); i++)
+			string[i] = tolower (string[i]);
+
+		if (! strcmp (string, "ppi"))
+			r.scantype = PPI;
+		else if (! strcmp (string, "rhi"))
+			r.scantype = RHI;
+		else if (! strcmp (string, "sur"))
+			r.scantype = SUR;
+		else
+		{
+			msg_ELog (EF_PROBLEM, 
+				"Unknown scan type '%s' for %s, using PPI",
+				r.name, string);
+			r.scantype = PPI;
+		}
+	/*
+	 * Default minimum range and elevation
+	 */
+		status = fscanf (cfile, "%f%f", &(r.min_range), &(r.min_elev));
+		if (status != 2)
+			break;
+	/*
+	 * Constant/variable step
+	 */
+		status = fscanf (cfile, "%s", string);
+		if (status != 1)
+			break;
+
+		r.fix_step = (bool) strcmp (string, "variable");
+	/*
+	 * Number of gates and gate spacing
+	 */
+		status = fscanf (cfile, "%d%d", &(r.ngates), &(r.gspacing));
+		if (status != 2)
+			break;
+	/*
+	 * Default to MatchBoth status
+	 */
 		r.status = MatchBoth;
-		r.scantype = PPI;
-		r.fix_hits = FALSE;
-		r.fix_step = FALSE;
-		r.min_range = 5.0;
 	/*
 	 * Make sure we don't get too many radars
 	 */
 		if (Nradars >= MAXRAD)
-			ui_error ("Too many radars!  %d is the maximum.",
+		{
+			msg_ELog (EF_PROBLEM, 
+				"Too many radars!  %d is the maximum.",
 				MAXRAD);
+			exit (1);
+		}
 	/*
 	 * We have everything.  Save the radar and increment the count.
 	 */
 		Rad[Nradars++] = r;
+		msg_ELog (EF_INFO, "Add radar %s", r.name);
 	}
 }
 
@@ -547,3 +682,9 @@ char	*line;
 
 
 
+void
+opt_Usage ()
+{
+	printf ("Usage: Optimizer config [opt-name] [X options]");
+	exit (1);
+}
