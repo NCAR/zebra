@@ -1,47 +1,55 @@
-<title>Starting Zeb</title>
-<h2>Starting Zeb</h2>
+<title>Starting Zebra</title>
+<h2>Starting Zebra</h2>
 
-Documentation on obtaining the Zeb software and installation can be found
-in the <a href=http://www.atd.ucar.edu/rdp/zebdoc/Install.html> Zeb release
-notes, installation, and tutorial</A> option off the <a
-href=http://www.atd.ucar.edu/rdp/zeb.html>Zeb home page</a>.<p>
+Documentation on obtaining the Zebra software and on installation can be
+found in the <a
+href="http://www.atd.ucar.edu/rdp/zebra/doc/Release/Release.html">Zebra
+release notes</a> and <a
+href="http://www.atd.ucar.edu/rdp/zebra/doc/Install/Install.html">Installation
+manual</a>, both of are accessible through the <a
+href="http://www.atd.ucar.edu/rdp/zebra.html">Zebra home page</a>.<p>
 
-Once Zeb is loaded onto your system, type <code>startzeb</code>	in a free
-window.  Note: Do not run startzeb in background.  
+Once Zebra is loaded onto your system, type <code>zstart</code> in a free
+window.  Note: Do not run zstart in background.  
 <p>
-The <code>startzeb</code> command
-starts up zeb through the following series of steps:
+The <code>zstart</code> command
+starts up Zebra through the following series of steps:
 
 <ul>
 <li> The first step is to try to find the project directory.  If
-     <code>startzeb</code> is given a parameter on the command line, it is
-     expected to be the project directory.  If not, <code>startzeb</code>
+     <code>zstart</code> is given a parameter on the command line, it is
+     expected to be the project directory.  If not, <code>zstart</code>
      first checks to see if the current directory is a project directory.
      Failing that, the user will be prompted for the name of the directory
      to use.
 <p>
-<li> Next <code>startzeb</code> needs to find the data directory.  If the
+<li> Next <code>zstart</code> needs to find the data directory.  If the
      environment variable <code>DATA_DIR</code> is set then its value will
      be used; otherwise the user is prompted.
 <p>
-<li> Finally, all of the zeb processes are started up with a properly
+<li> Finally, all of the Zebra processes are started up with a properly
      configured environment.  Some project configurations include special
-     startup code which will also be run by <code>startzeb</code>.  For
+     startup code which will also be run by <code>zstart</code>.  For
      example, the STORMFEST configuration has code to deal with the
      possible existence of a CDROM on the system.
 </ul>
 
-<code>startzeb</code> has numerous other options controlled mostly through
-environment variables.  These are mostly of use to zeb developers and are
-beyond the scope of this tutorial.
+<code>zstart</code> has numerous other options controlled mostly through
+environment variables.  These are useful mainly to Zebra developers, but an
+overview of each of them can be found in the <a
+href="http://www.atd.ucar.edu/rdp/zebra/doc/Intro/Intro.html">Introducing
+Zebra</a> manual.
 
-<h3>What happens when zeb starts up</h3>
+<h3>What happens when Zebra starts up</h3>
 
-Zeb is made up of several processes which must be running for things to
-work properly.  What you will see initially is the <code>startzeb</code>
+Zebra is made up of several processes which must be running for things to
+work properly.  What you will see initially is the <code>zstart</code>
 command starting up all of these processes.  You will see output like:
-<blockquote> <pre><code> Project dir is .  182 colors tweaked Starting core
-zeb processes:
+
+<blockquote> <pre><code>
+Project dir is . 
+182 colors tweaked
+Starting core Zebra processes:
         message daemon [1] 4731
         event logger [2] 4734
         timer [3] 4736
@@ -56,9 +64,11 @@ ready!
 DM> 
 </code></pre>
 </blockquote>
-The last line is the display manager prompt.  You may type commands at that
-prompt.<p>
 
+The last line is the display manager prompt.  You may type commands at that
+prompt.
+
+<p>
 A set of windows will come up on the workstation.  The set of windows
 displayed is dependant on the "DEFAULT_CONFIG" environment variable.  In
 general the <a href=event-logger.html>Event Logger</a>, <a
@@ -69,8 +79,8 @@ Graphics Window </a> will be displayed.
 <hr>
 <a href=intro.html><img src=la.gif></a>
 <a href=shut-down.html><img src=ra.gif> Next: shutting down</a><p>
-<i>Return to <a href=index.html> Zeb Help Index</i></a>
-<h6>$Id: start.html,v 1.2 1994-11-30 17:25:18 corbet Exp $</h6>
+<i>Return to <a href=index.html> Zebra Help Index</i></a>
+<h6>$Id: start.html,v 1.3 1996-03-12 20:39:49 granger Exp $</h6>
 
 
 

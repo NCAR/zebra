@@ -1,10 +1,10 @@
 <title>Recalling a saved display configuration</title>
 <h1>Recalling a saved display configuration</h1>
 
-At the current time, zeb is not able to automatically add new display
+At the current time, Zebra is not able to automatically add new display
 configurations to the icon bar.  Thus, if you want to bring up your new
 configuration, you will actually have to type a command.  Move to the
-terminal window in which you originally started zeb, and type the
+terminal window in which you originally started Zebra, and type the
 following:
 <pre>
 	DM&gt; display name
@@ -14,7 +14,7 @@ configuration.  (The <tt>DM&gt;</tt> is the display manager prompt; do not
 type it yourself).
 <p>
 If you always want to see a particular display configuration when you start
-up zeb, assign the environment variable <tt>DEFAULT_CONFIG</tt> to be the
+up Zebra, assign the environment variable <tt>DEFAULT_CONFIG</tt> to be the
 name of that configuration.
 
 <h2>Adding a configuration to the icon bar</h2>
@@ -25,7 +25,7 @@ task.  The steps are:
 <ul>
 <li> Be sure that the display configuration has been saved in a directory
      that is accessible by all users.  Otherwise you will create
-     frustration for other zeb users who will see the new menu entry, but
+     frustration for other Zebra users who will see the new menu entry, but
      who will be unable to invoke it.
 <p>
 <li> Move to the project directory, and edit the file <tt>IconBar</tt> with
@@ -45,7 +45,7 @@ task.  The steps are:
 <li> Be sure of a couple of things: (1) maintain the quotes as shown above,
      and (2) the backslash must appear at the end of the first line.
 <p>
-<li> Save the file, and you are done.  You will need to restart zeb before
+<li> Save the file, and you are done.  You will need to restart Zebra before
      the new menu entry is available.
 </ul>
 For the curious: the keyword <tt>entry</tt> denotes an entry in the
@@ -60,5 +60,5 @@ when this configuration is the one currently being displayed.
 <hr>
 <a href=ec-save.html><img src=la.gif></a>
 <a href=dsdwidget.html><img src=ra.gif> Next: Displaying available data</a><p>
-<i>Return to <a href=index.html> Zeb Help Index</i></a>
-<h6>$Id: ec-display.html,v 1.1 1994-11-30 17:24:05 corbet Exp $</h6>
+<i>Return to <a href=index.html> Zebra Help Index</i></a>
+<h6>$Id: ec-display.html,v 1.2 1996-03-12 20:39:07 granger Exp $</h6>

@@ -1,17 +1,17 @@
 <title>Time</title>
 <h1>Time</h1>
 
-Zeb can be run in history, real time, or pseudo-real-time modes. <b>History
+Zebra can be run in history, real time, or pseudo-real-time modes. <b>History
 mode</b> generates a static display for any given time; <b>real-time
 mode</b> updates displays in real-time; <b>pseudo-real-time mode</b> runs
 the system in a playback mode, simulating real-time events which happened
 in the past.  Pseudo-real-time mode is rarely used and will not be covered
 in any detail here.
 <p>
-The time displayed in the upper-left hand corner of a Zeb display window is
+The time displayed in the upper-left hand corner of a Zebra display window is
 the "reference time".  The reference time is white in real-time mode and
 yellow in history mode.  The data in a display window will NOT necessarily
-be collected at the reference time.  Zeb searches for the data that is as
+be collected at the reference time.  Zebra searches for the data that is as
 close as possible and prior to the reference time.  The actual time of data
 collection is determined using the <a href=overlay-time.html> Overlay Time
 Widget</a>.  This widget is obtained by typing a "t" in the display
@@ -27,12 +27,12 @@ rather than the most recent data available in real time, the window is in
 history mode.  When a graphics window is in history mode, it's plot will
 not be updated as new real-time data arrives. <p>
 
-Zeb indicates that a history time has been set (i.e. the graphics window is
+Zebra indicates that a history time has been set (i.e. the graphics window is
 in history mode) by changing the color of the date and time in the graphics
 window to yellow.  However, similar to real-time mode, the time displayed
 in the upper left corner of the display window is not necessarily the time
 the data was collected.  Data for the exact history time selected may not
-exist, so Zeb searches for the data that is as close as possible to, as
+exist, so Zebra searches for the data that is as close as possible to, as
 well as prior to, the selected history time.  Especially old data may be
 indicated by an icon which has changed colors to red.  Use the <a
 href=overlay-time.html>Overlay Times Widget </a> to see the actual data
@@ -51,5 +51,5 @@ information on selecting history times.<p>
 <hr>
 <a href=graphic-overview.html><img src=la.gif></a>
 <a href=historytime.html><img src=ra.gif> Next: setting the history time</a><p>
-<i>Return to <a href=index.html> Zeb Help Index</i></a>
-<h6>$Id: time.html,v 1.3 1994-11-30 17:25:37 corbet Exp $</h6>
+<i>Return to <a href=index.html> Zebra Help Index</i></a>
+<h6>$Id: time.html,v 1.4 1996-03-12 20:39:52 granger Exp $</h6>

@@ -14,7 +14,7 @@ HELPFILES = \
 BCFILES = overlaytimes.html shutdown.html limitwidgets.html editdconfig.html \
 	timeseries.html
 
-HTMLFILES = color-lables.html components.html cross-section.html \
+HTMLFILES = color-labels.html components.html cross-section.html \
 	default-configs.html disable.html dmwidget.html dsdwidget.html \
 	dsmanage.html ec-add.html ec-delete.html ec-display.html \
 	ec-rearrange.html ec-save.html ec-start.html editing-configs.html \
