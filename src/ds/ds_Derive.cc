@@ -43,6 +43,7 @@ DerivTable	ProjectDerivs;
 class _PlatDerList
 {
 public:
+    _PlatDerList( void );
     DerivTable* Table( PlatformId pid );
 private:
     DerivTable **derivs;
