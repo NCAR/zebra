@@ -1,5 +1,5 @@
 /* -*- mode: c++; c-basic-offset: 8; -*-
- * $Id: glass_ingest.cxx,v 2.10 2001-01-04 22:49:27 granger Exp $
+ * $Id: glass_ingest.cxx,v 2.11 2001-01-08 22:13:54 granger Exp $
  *
  * Ingest GLASS data into the system.
  *
@@ -74,7 +74,7 @@ extern "C"
 #include <met_formulas.h>
 }
 
-RCSID("$Id: glass_ingest.cxx,v 2.10 2001-01-04 22:49:27 granger Exp $")
+RCSID("$Id: glass_ingest.cxx,v 2.11 2001-01-08 22:13:54 granger Exp $")
 
 #include <ZTime.h>
 #define FC_DEFINE_FIELDS
@@ -610,7 +610,7 @@ SetPlatform (DataChunk *dc, char PlatformName[])
 			PlatClassRef pc = ds_NewClass ("CLASS");
 			IngestLog(EF_DEBUG, "default platform class 'CLASS'");
 			/* relies on DefDataDir from ingest module */
-			ds_AssignClass (pc, OrgNSpace, FTNetCDF,
+			ds_AssignClass (pc, OrgScalar, FTNetCDF,
 					TRUE/*mobile*/);
 			ds_SetMaxSample (pc, 10000);
 			ds_SetComment (pc, "standalone CLASS platform ");
@@ -1120,9 +1120,7 @@ ReadSamples (DataChunk *dc, char *file, Sounding &snd)
 
 		// Now we should have the fields, we need to insert a sample.
 		when = snd.tlaunch;
-		when.zt_Sec += (int)snd.tdelta();
-		when.zt_MicroSec += 
-			(int)((snd.tdelta() - (int)snd.tdelta())*1e6);
+		when += snd.tdelta().value();
 
 		if (snd.pres() == BADVAL)
 		{
