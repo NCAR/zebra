@@ -1,3 +1,4 @@
+/* -*- c -*- */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -15,7 +16,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.26 2000-09-01 06:34:24 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.27 2001-01-17 20:29:04 granger Exp $"
 
 #define IHaveSubdirs
 #define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
@@ -24,29 +25,28 @@ all::
 
 ETC = etc
 DSLIB = ds
-ZEBLIB = lib
-LIBS = $(ZEBLIB) $(DSLIB)
+ZLIB = lib
+LIBS = $(ZLIB) $(DSLIB)
 GP = gp
 
-#if BuildIngest && DistributeIngest
+#if BuildIngest
 INGEST = ingest
 #endif
-#if BuildOptimizer && DistributeOptimizer
+#if BuildOptimizer
 OPTIMIZER_DIR = Optimizer
 #endif
-#if BuildDataUtilities && DistributeDataUtil
+#if BuildDataUtilities
 DATAUTIL = datautil
 #endif
-#if BuildRealtimeDataStoreTools && DistributeRealtimeDataStoreTools
+#if BuildRealtimeDataStoreTools
 REALTIME = realtime
 #endif   
-#if BuildXHelp && DistributeXHelp
+#if BuildXHelp
 XHELP = xhelp
 #endif
-#if BuildMapUtilities && DistributeMapUtil
+#if BuildMapUtilities
 MAPUTIL = maputil
 #endif
-
 #if BuildPythonUtils
 PYTHON = python
 #endif
@@ -68,39 +68,21 @@ DSUTILS = $(LIBS) dsdelete dsdump dsnotice dsprint dsdwidget dsmanage \
 DSCLIENTS = $(DSUTILS) $(GP) $(INGEST) $(OPTIMIZER_DIR) xmgrpipe \
 	dm $(DATAUTIL)
 
-MSGUTILS = $(ZEBLIB) msg msg_ping mstatus mtap zstop zmon zquery zrun
+MSGUTILS = $(ZLIB) msg msg_ping mstatus mtap zstop zmon zquery zrun
 
 XCOMM Include everything in the distfiles target.  They
 XCOMM don't all have to be compiled, so no big deal sending along a little
 XCOMM extra source.  Distribute prt_Notify even though it will never get
 XCOMM built, so that we don't forget it somewhere down the road.
 
-#if DistributeIngest
-DISTINGEST = ingest
-#endif
-#if DistributeOptimizer
-DISTOPTIMIZER = Optimizer
-#endif
-#if DistributeDataUtil
-DISTDATAUTIL = datautil
-#endif
-#if DistributeRealtimeDataStoreTools
-DISTREALTIME = realtime
-#endif
-#if DistributeXHelp
-DISTXHELP = xhelp
-#endif
-#if DistributeMapUtil
-DISTMAPUTIL = maputil
-#endif
 
 DISTFILES = Imakefile
-DISTSUBDIRS = $(LIBS) $(DATAUTIL) dm dsdelete dsdump dsnotice dsprint \
-	dsdwidget dsmanage dsrescan $(ETC) EventLogger fccclock \
-	gettime pdmon $(GP) $(INGEST) ListMaker $(MAPUTIL) msg msg_ping \
-	mstatus mtap $(OPTIMIZER_DIR) pdcheck prt_Notify \
-	python $(REALTIME) settime Sound timer \
-	tweakcolor $(XHELP) xmgrpipe zstop zmon zquery zrun zstart
+DISTSUBDIRS = lib ds datautil dm dsdelete dsdump dsnotice dsprint \
+	dsdwidget dsmanage dsrescan etc EventLogger fccclock \
+	gettime pdmon gp ingest ListMaker maputil msg msg_ping \
+	mstatus mtap Optimizer pdcheck prt_Notify \
+	python realtime settime Sound timer \
+	tweakcolor xhelp xmgrpipe zstop zmon zquery zrun zstart
 
 TESTSUBDIRS = $(LIBS) pdcheck
 
@@ -126,7 +108,7 @@ dsutils:
 	$(MAKE) $(MFLAGS) SUBDIRS='$(DSUTILS)' LIBS='$(LIBS)' $(TARGET)
 
 msgutils:
-	$(MAKE) $(MFLAGS) SUBDIRS='$(MSGUTILS)' ZEBLIB='$(ZEBLIB)' $(TARGET)
+	$(MAKE) $(MFLAGS) SUBDIRS='$(MSGUTILS)' ZLIB='$(ZLIB)' $(TARGET)
 
 #if !BuildIngest
 OmitBuildRules(ingest utilities)
