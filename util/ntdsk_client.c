@@ -223,7 +223,7 @@ int *alloc, *extend;
 cli_bio_close (lun)
 int lun;
 {
-	if (!Connected) return;
+	if (!Connected) return (FALSE);
 	msg_addopc (OP_BIO_CLOSE);
 	msg_addbyt ((char *) &lun, 4);
 	ntd_msg_send ();
@@ -239,7 +239,7 @@ char *buffer;
 {
 	int		nread;
 
-	if (!Connected) return (-1);
+	if (!Connected) return (FALSE);
 	msg_addopc (OP_BIO_READ);
 	msg_addbyt ((char *) &lun, 4);
 	msg_addbyt ((char *) block, 4);
@@ -271,7 +271,7 @@ cli_bio_write (lun, block, buffer, nbytes)
 int lun, *block, *nbytes;
 char *buffer;
 {
-	if (!Connected) return (-1);
+	if (!Connected) return (FALSE);
 	msg_addopc (OP_BIO_WRITE);
 	msg_addbyt ((char *) &lun, 4);
 	msg_addbyt ((char *) block, 4);
@@ -390,7 +390,7 @@ cli_drfa (fnum, rfa)
 int fnum;
 short *rfa;
 {
-	if (!Connected) return;
+	if (!Connected) return (FALSE);
 	msg_addopc (OP_DRFA);
 	msg_addbyt (&fnum, 4);
 	ntd_msg_send ();
@@ -405,7 +405,7 @@ short *rfa;
 cli_dagain (fnum)
 int fnum;
 {
-	if (!Connected) return;
+	if (!Connected) return (FALSE);
 	msg_addopc (OP_DAGAIN);
 	msg_addbyt (&fnum, 4);
 	ntd_msg_send ();
@@ -419,7 +419,7 @@ cli_dfind (fnum, rfa)
 int fnum;
 short rfa[3];
 {
-	if (!Connected) return;
+	if (!Connected) return (FALSE);
 	msg_addopc (OP_DFIND);
 	msg_addbyt (&fnum, 4);
 	msg_addbyt (rfa, 6);
@@ -433,7 +433,7 @@ short rfa[3];
 cli_dclose (fnum)
 int fnum;
 {
-	if (!Connected) return;
+	if (!Connected) return (FALSE);
 	msg_addopc (OP_DCLOSE);
 	msg_addbyt (&fnum, 4);
 	ntd_msg_send ();
@@ -446,7 +446,7 @@ int fnum;
 cli_drewind (fnum)
 int fnum;
 {
-	if (!Connected) return;
+	if (!Connected) return (FALSE);
 	msg_addopc (OP_DREWIND);
 	msg_addbyt (&fnum, 4);
 	ntd_msg_send ();
@@ -660,7 +660,7 @@ lun_deassign (lun)
 int lun;
 {
 	if (lun == (int) stdin || lun == (int) stdout || lun == (int) stderr)
-		return;
+		return (-1);
 	Lun_table[lun - 3][0] = LUN_FREE;
 }
 
