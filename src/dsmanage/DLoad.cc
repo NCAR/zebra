@@ -19,6 +19,11 @@
  * maintenance or updates for its software.
  */
 
+# ifdef sgi
+# define _BSD_TYPES
+# include <sys/types.h>
+# undef _BSD_TYPES
+# endif
 # include <stdio.h>
 # include <stream.h>
 # include <unistd.h>
@@ -39,7 +44,7 @@ extern "C"
 # include "DataDir.h"
 # include "Tape.h"
 # include "plcontainer.h"
-MAKE_RCSID ("$Id: DLoad.cc,v 1.12 1996-10-03 18:36:05 corbet Exp $")
+MAKE_RCSID ("$Id: DLoad.cc,v 1.13 1997-02-20 23:40:44 corbet Exp $")
 
 //
 // Import from main.

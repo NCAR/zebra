@@ -18,6 +18,11 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
+# ifdef sgi
+# define _BSD_TYPES
+# include <sys/types.h>
+# undef _BSD_TYPES
+# endif
 
 # include <stdio.h>
 # include <stream.h>
@@ -50,7 +55,7 @@ extern "C"
 # include "Index.h"
 # include "ZTime.h"
 # include "plcontainer.h"
-MAKE_RCSID ("$Id: TBCleanup.cc,v 1.6 1995-12-05 20:25:13 corbet Exp $")
+MAKE_RCSID ("$Id: TBCleanup.cc,v 1.7 1997-02-20 23:40:47 corbet Exp $")
 
 class DelSelect;
 

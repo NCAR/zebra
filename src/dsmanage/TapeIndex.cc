@@ -19,7 +19,13 @@
  * maintenance or updates for its software.
  */
 
+# ifdef sgi
+# define _BSD_TYPES
+# include <sys/types.h>
+# undef _BSD_TYPES
+# endif
 
+//# include <sys/select.h>
 # include <stdio.h>
 # include <stream.h>
 # include <GetOpt.h>	// libg++ option parser.
@@ -47,7 +53,7 @@ extern "C"
 # include "Tape.h"
 
 
-RCSID ("$Id: TapeIndex.cc,v 1.11 1996-11-19 07:12:01 granger Exp $")
+RCSID ("$Id: TapeIndex.cc,v 1.12 1997-02-20 23:40:49 corbet Exp $")
 
 
 //
