@@ -35,7 +35,7 @@
 # include "DrawText.h"
 # include "XYCommon.h"
 
-RCSID("$Id: XYCommon.c,v 1.39 2001-11-27 23:22:56 granger Exp $")
+RCSID("$Id: XYCommon.c,v 1.40 2001-12-18 04:05:38 granger Exp $")
 
 /* 
  * One somewhat reasonable definition for infinity in XDR, lifted from 
@@ -166,6 +166,8 @@ zbool	*xauto, *xinvert, *yauto, *yinvert;
     {
 	if (strcmp (Scratch, "invert") == 0)
 	    *xinvert = TRUE;
+	else if (strcmp (Scratch, "normal") == 0)
+	    *xinvert = FALSE;
 	else
     	    msg_ELog (EF_PROBLEM, 
 		"Unknown x scaling style '%s'.", Scratch);
@@ -175,6 +177,8 @@ zbool	*xauto, *xinvert, *yauto, *yinvert;
     {
 	if (strcmp (Scratch, "invert") == 0)
 	    *yinvert = TRUE;
+	else if (strcmp (Scratch, "normal") == 0)
+	    *yinvert = FALSE;
 	else
     	    msg_ELog (EF_PROBLEM, 
 		"Unknown y scaling style '%s'.", Scratch);
