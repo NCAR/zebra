@@ -8,7 +8,7 @@ XCOMM Nearly all of the source files in this directory are U. of Wisconsin
 XCOMM SSEC copyrighted code and should *not* be distributed outside 
 XCOMM of NCAR/UCAR.
 
-MFVERSION = "$Id: Imakefile,v 1.14 2003-01-29 17:31:45 burghart Exp $"
+MFVERSION = "$Id: Imakefile,v 1.15 2004-10-25 22:53:00 burghart Exp $"
 
 REALMCIDASLIB=$(McINST_ROOT)/src/libmcidas.a
 
@@ -18,8 +18,8 @@ HEADERS = mcidas_nav.h
 
 NAVOBJS = nvxairc.o nvxdmsp.o nvxgmsx.o nvxgoes.o nvxgraf.o nvxgvar.o \
           nvxlalo.o nvxlamb.o nvxmerc.o nvxmoll.o nvxmsat.o nvxmsg.o \
-          nvxnowr.o nvxps.o nvxradr.o nvxrect.o nvxsin.o nvxtanc.o \
-          nvxtiro.o
+          nvxps.o nvxradr.o nvxrect.o nvxsin.o nvxtanc.o \
+          /* nvxtiro.o (currently generates compiler errors) */
 
 OBJS =  $(SRCS:.c=.o) $(NAVOBJS)
 
@@ -82,13 +82,12 @@ NavRule(nvxmerc,NME)
 NavRule(nvxmoll,NMO)
 NavRule(nvxmsat,NMS)
 NavRule(nvxmsg,NMG)
-NavRule(nvxnowr,NOW)
 NavRule(nvxps,NPS)
 NavRule(nvxradr,NRA)
 NavRule(nvxrect,NRC)
 NavRule(nvxsin,NSI)
 NavRule(nvxtanc,NTA)
-NavRule(nvxtiro,NTI)
+/* NavRule(nvxtiro,NTI) (currently compiles with errors) */
 
 NavRuleSed(nvxgoes,NGS,goes.sed)
 NavRuleSed(nvxgmsx,NGX,goes.sed)

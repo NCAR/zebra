@@ -61,20 +61,19 @@ NAV_PROTO(MercMethods,"MERC",nme)
 NAV_PROTO(MollMethods,"MOLL",nmo)
 NAV_PROTO(MsatMethods,"MSAT",nms)
 NAV_PROTO(MsgMethods,"MSG",nmg)
-NAV_PROTO(NowrMethods,"NOWR",now)
 NAV_PROTO(PSMethods,"PS",nps)
 NAV_PROTO(RadrMethods,"RADR",nra)
 NAV_PROTO(RectMethods,"RECT",nrc)
 NAV_PROTO(SinMethods,"SIN",nsi)
 NAV_PROTO(TancMethods,"TANC",nta)
-NAV_PROTO(TiroMethods,"TIRO",nti)
+/* NAV_PROTO(TiroMethods,"TIRO",nti) (currently generates compiler errors) */
 
 static NavMethods *Navs[] =
 {
     &AircMethods, &DmspMethods, &GmsxMethods, &GoesMethods, &GrafMethods, 
     &GvarMethods, &LaloMethods, &LambMethods, &MercMethods, &MollMethods, 
-    &MsatMethods, &MsgMethods, &NowrMethods, &PSMethods, &RadrMethods,
-    &RectMethods, &SinMethods, &TancMethods, &TiroMethods
+    &MsatMethods, &MsgMethods, &PSMethods, &RadrMethods,
+    &RectMethods, &SinMethods, &TancMethods, /* &TiroMethods */
     
 };
 static int NumNavs = sizeof (Navs) / sizeof (Navs[0]);
