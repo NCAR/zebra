@@ -1,4 +1,4 @@
-MFVERSION="$Id: Imakefile,v 1.2 1997-01-09 22:36:12 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.3 1997-01-13 22:29:49 granger Exp $"
 
 #define IHaveSubdirs
 #define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
@@ -39,9 +39,9 @@ OBJS =	a_toe.o bak_fld.o bak_rec.o bak_sfld.o beg_ddre.o beg_file.o \
 
 DISTFILES = Imakefile $(SRCS) gvd123.h stc123.h
 
-DistfilesTarget($(DISTFILES))
-
 NormalLibraryTarget (fips123, $(OBJS))
+
+DistfilesTarget($(DISTFILES))
 
 /*
  * Force library to be built for installs as well
