@@ -28,7 +28,7 @@
 # include <time.h>
 # include "GraphProc.h"
 # include "PixelCoord.h"
-MAKE_RCSID ("$Id: Utilities.c,v 2.7 1992-11-03 20:58:23 burghart Exp $")
+MAKE_RCSID ("$Id: Utilities.c,v 2.8 1992-11-10 04:33:10 corbet Exp $")
 
 
 static void ApplyConstOffset FP ((Location *, double, double));
@@ -50,25 +50,128 @@ Location *loc;
 {
 
 	char sloc[80];
+	PlatformId pid;
+	ZebTime dtime;
+	DataChunk *dc;
 /*
- * The data store routine for finding a location isn't there yet.  We'll
- * instead use the fallback -- which will be here anyway -- of finding the
- * location in the defaults table.
+ * Try first to find a static location in the plot description.
  */
-	if (! pda_ReqSearch (Pd, "global", "location", platform, sloc,
-			SYMT_STRING))
-		return (FALSE);
-	if (sscanf (sloc, "%f %f %f", &loc->l_lat, &loc->l_lon, &loc->l_alt)
-				!= 3)
+	if (pda_Search (Pd, "global", "location", platform, sloc, SYMT_STRING))
 	{
-		msg_ELog (EF_PROBLEM, "Bad location string: '%s'", sloc);
+		if (sscanf (sloc, "%f %f %f", &loc->l_lat, &loc->l_lon,
+				&loc->l_alt) != 3)
+		{
+			msg_ELog (EF_PROBLEM, "Bad location string: '%s'",
+					sloc);
+			return (FALSE);
+		}
+		return (TRUE);
+	}
+/*
+ * Well, let's see what the data store can do for us.
+ */
+	if ((pid = ds_LookupPlatform (platform)) == BadPlatform)
+	{
+		msg_ELog (EF_PROBLEM, "Unknown platform %s for loc", platform);
+		return (FALSE);
+	}
+	if (! ds_DataTimes (pid, t, 1, DsBefore, &dtime))
+	{
+		msg_ELog (EF_INFO, "No position info for %s", platform);
 		return (FALSE);
 	}
 /*
- * Range checking?
+ * Fetch the location and we are done.
  */
+	if (! (dc = ds_Fetch (pid, DCC_Location, &dtime, &dtime, 0, 0, 0, 0)))
+	{
+		msg_ELog (EF_PROBLEM, "Unable to fetch %s location", platform);
+		return (FALSE);
+	}
+	dc_GetLoc (dc, 0, loc);
+	dc_DestroyDC (dc);
 	return (TRUE);
 }
+
+
+
+
+
+
+int
+FancyGetLocation (c, platform, when, actual, loc)
+char *c, *platform;
+ZebTime *when, *actual;
+Location *loc;
+/*
+ * Find out where this platform is at this time.
+ * This is the fancier version, here so that I can avoid the extra hassle
+ * of changing the interface to GetLocation.
+ * Entry:
+ *	C	is the component of interest.
+ *	PLATFORM is the platform for which the location is to be found.
+ * 	WHEN	is the time of interest
+ * Exit:
+ *	If a location is found, then:
+ *		ACTUAL	is the real time associated with it
+ *		LOC	is the location
+ *		the return value is true.
+ *	else
+ *		return value is false.
+ *
+ */
+{
+
+	char sloc[80];
+	PlatformId pid;
+	DataChunk *dc;
+/*
+ * Try first to find a static location in the plot description.
+ */
+	if (pda_Search (Pd, "global", "location", platform, sloc, SYMT_STRING))
+	{
+		if (sscanf (sloc, "%f %f %f", &loc->l_lat, &loc->l_lon,
+				&loc->l_alt) != 3)
+		{
+			msg_ELog (EF_PROBLEM, "Bad location string: '%s'",
+					sloc);
+			return (FALSE);
+		}
+		*actual = *when;
+		return (TRUE);
+	}
+/*
+ * Well, let's see what the data store can do for us.
+ */
+	if ((pid = ds_LookupPlatform (platform)) == BadPlatform)
+	{
+		msg_ELog (EF_PROBLEM, "Unknown platform %s for loc", platform);
+		return (FALSE);
+	}
+	if (! ds_DataTimes (pid, when, 1, DsBefore, actual))
+	{
+		msg_ELog (EF_INFO, "No position info for %s", platform);
+		return (FALSE);
+	}
+/*
+ * Perform an age check.
+ */
+	if (! AgeCheck (c, platform, actual))
+		return (FALSE);
+/*
+ * Fetch the location and we are done.
+ */
+	if (! (dc = ds_Fetch (pid, DCC_Location, actual, actual, 0, 0, 0, 0)))
+	{
+		msg_ELog (EF_PROBLEM, "Unable to fetch %s location", platform);
+		return (FALSE);
+	}
+	dc_GetLoc (dc, 0, loc);
+	dc_DestroyDC (dc);
+	return (TRUE);
+}
+
+
 
 
 
@@ -231,6 +334,9 @@ ZebTime	*t;
 	return ((PlotTime.zt_Sec - t->zt_Sec) <= seconds);
 }
 
+
+
+
 long
 GetSec (t)
 time    t;
@@ -273,8 +379,7 @@ ZebTime *ptime;
  *	    dimension.
  */
 {
-	int advect, constant, sample, ns;
-	bool enable = FALSE;
+	int enable = FALSE, advect, constant, sample, ns;
 	float xoffset = 0, yoffset = 0, xpos, ypos, advdir, advspeed;
 	char *pname = ds_PlatformName (dc->dc_Platform);
 	Location loc;
