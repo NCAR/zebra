@@ -34,7 +34,7 @@
 # include "PixelCoord.h"
 # include "EventQueue.h"
 # include "LayoutControl.h"
-MAKE_RCSID ("$Id: PlotExec.c,v 2.38 1994-04-15 21:26:21 burghart Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.39 1994-05-19 21:08:28 burghart Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -258,8 +258,7 @@ char	*component;
 /*
  * Set the busy cursor so that people know something is going on.
  */
-	XDefineCursor (XtDisplay (Top), XtWindow (Graphics), BusyCursor);
-	eq_sync ();
+	ChangeCursor (Graphics, BusyCursor);
 /*
  * Figure out coords.
  */
@@ -335,10 +334,9 @@ char	*component;
 	if (EOPHandler)
 		 (*EOPHandler) ();
 /*
- * Put the cursor back.
+ * Put the cursor back to normal.
  */
-	XDefineCursor (XtDisplay (Top), XtWindow (Graphics), NormalCursor);
-	XSync (XtDisplay (Top), False);
+	ChangeCursor (Graphics, None);
 }
 
 
