@@ -65,7 +65,7 @@ extern "C" {
 # include "Database.h"
 # include "Archiver.h"
 
-RCSID ("$Id: Archiver.cc,v 1.47 2001-01-16 22:45:15 granger Exp $")
+RCSID ("$Id: Archiver.cc,v 1.48 2001-01-31 00:26:09 granger Exp $")
 
 /*
  * Issues:
@@ -1742,6 +1742,10 @@ MountJaz()
     {
 	msg_ELog (EF_PROBLEM, "failed to create outputdir (errno %d): %s",
 		  errno, OutputDir);
+    }
+    else
+    {
+	status = 0;
     }
 #endif
     return status;
