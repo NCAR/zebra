@@ -5,7 +5,7 @@
 # include <graphdev.h>
 
 # ifdef DEV_X11
-static char *rcsid = "$Id: dev_x11.c,v 1.27 1992-04-30 22:19:57 burghart Exp $";
+static char *rcsid = "$Id: dev_x11.c,v 1.28 1992-09-02 15:32:23 oye Exp $";
 
 # include "graphics.h"
 # include "device.h"
@@ -132,9 +132,9 @@ struct device *dev;
 	}
 	else if (! strcmp (type, "Sun-screen"))
 	{
-		tag->x_xres = 1152;
+		tag->x_xres = 1148;
 		tag->x_yres = 880;
-		dev->gd_xb = 144;
+		dev->gd_xb = 164;
 		dev->gd_yb = 110;
 	}
 	else
