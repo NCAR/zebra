@@ -1,0 +1,12 @@
+#
+# Ingest a CaPE satellite image
+#
+if (${#argv} != 1) then
+	echo "Usage: $0 <sat_file>"
+	exit (1)
+endif
+
+#
+# Ingest using CP4's latitude as the origin latitude
+#
+/zeb/bin/SatIngest 28.2294 $1 -

@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.3 1993-05-17 20:02:38 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.4 1993-06-28 07:14:10 granger Exp $"
 
 LIBMCIDAS = $(LIBDIR)/libmcidas.a
 
@@ -38,8 +38,12 @@ XCOMM nvxgoes.f contains the definitions of the nvxeas,nvxini,nvxopt, and
 XCOMM    nvxsae routines required by the satellite ingestors
 
 DISTFILES = Imakefile $(SRCS) SatIngest.state big.sat \
-	    cape_sat dir_ingest goes.ini keywords.h sat.init satheader \
-	    nvxgoes.f
+	    cape_sat dir_ingest goes.ini gms.ini \
+	    keywords.h sat.init satheader nvxgoes.f \
+	    hackgms.c harp.ini README mcidas_read.c
+
+/*---------------------------------------------------------------------*/
+#if BuildIngest && BuildSatelliteIngest
 
 NormalProgramTarget(SatIngest,SatIngest.o $(OBJS),
 		    $(DEPLIBS),$(LIBS),$(SYSLIBS))
@@ -57,8 +61,11 @@ TestProgramTarget(areadump,areadump.o,/**/,/**/,/**/)
 UICppLoadFileTarget(SatIngest.lf,SatIngest.state,keywords.h)
 
 LintTarget()
-
 DependTarget()
+/*---------------------------------------------------------------------*/
+#else
+OmitBuildRules(MCIDAS GOES/GMS ingest)
+#endif
 
 DistfilesTarget($(DISTFILES))
 
