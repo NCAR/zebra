@@ -1,4 +1,3 @@
-static char *rcsid = "$Id: pdlib.c,v 1.8 1991-09-12 01:49:34 corbet Exp $";
 /*
  * The plot description library. 
  */
@@ -25,6 +24,7 @@ static char *rcsid = "$Id: pdlib.c,v 1.8 1991-09-12 01:49:34 corbet Exp $";
 # include <ui_expr.h>		/* XXX */
 # include <message.h>
 # include "pd.h"
+MAKE_RCSID ("$Id: pdlib.c,v 1.9 1992-01-28 18:09:34 corbet Exp $")
 
 /*
  * A counter used to generate unique symbol table names.
@@ -35,21 +35,13 @@ static int Count = 0;
 /*
  * Forwards.
  */
-# ifdef __STDC__
-static char *pd_CompileComp (char *pdname, stbl pd, char *data, char *end);
-static void pd_CarveString (char *dest, char *begin, char *end);
-static void pd_Complain (char *msg, char *data);
-static int pd_ForEachComponent (plot_description pd, int (*func)(), int param);
-static stbl pd_NewPD (char *name);
-static stbl pd_NewComponent (stbl pd, char *pdname, char *compname);
-# else
-static char *pd_CompileComp ();
-static void pd_CarveString ();
-static void pd_Complain ();
-static int pd_ForEachComponent ();
-static stbl pd_NewPD ();
-static stbl pd_NewComponent ();
-# endif
+static char *pd_CompileComp FP((char *pdname, stbl pd, char *data, char *end));
+static void pd_CarveString FP ((char *dest, char *begin, char *end));
+static void pd_Complain FP ((char *msg, char *data));
+static int pd_ForEachComponent FP ((plot_description pd, int (*func)(),
+				int param));
+static stbl pd_NewPD FP ((char *name));
+static stbl pd_NewComponent FP ((stbl pd, char *pdname, char *compname));
 
 /*
  * Size of temp buffer used for writing raw PD's.
