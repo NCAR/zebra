@@ -1,5 +1,5 @@
 /*
- * $Id: acqual.c,v 1.4 1994-02-01 08:51:57 granger Exp $
+ * $Id: acqual.c,v 1.5 1994-02-02 20:06:00 burghart Exp $
  *
  * A quickly-written (hopefully) program to test aircraft netCDF files.  Tries to
  * verify several criteria:
@@ -189,8 +189,8 @@ void
 VerifyTimes(cdfid)
 	int cdfid;
 {
-	void *t;
-	void *tptr;
+	char *t;
+	char *tptr;
 	int t_id;
 	nc_type t_type;
 	int t_ndims;
@@ -228,7 +228,7 @@ VerifyTimes(cdfid)
 	 * Allocate memory and get the samples
 	 */
 	start = 0;
-	t = (void *)malloc(nctypelen(t_type) * count);
+	t = (char *)malloc(nctypelen(t_type) * count);
 	ncvarget(cdfid, t_id, &start, &count, t);
 
 	/*
@@ -326,7 +326,7 @@ VerifyFloatVariable(cdfid, var_name, min, max, delta)
 	 * Allocate memory and get the samples
 	 */
 	start = 0;
-	vals = (void *)malloc(sizeof(float) * count);
+	vals = (float *)malloc(sizeof(float) * count);
 	ncvarget(cdfid, var_id, &start, &count, vals);
 
 	/*
