@@ -32,7 +32,7 @@
 # include "DataStore.h"
 # include "dsPrivate.h"
 # include "dslib.h"
-MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.10 1992-11-14 00:06:12 burghart Exp $")
+MAKE_RCSID ("$Id: DFA_NetCDF.c,v 3.11 1992-11-17 03:27:49 burghart Exp $")
 
 # include "netcdf.h"
 
@@ -140,6 +140,7 @@ static double	dnc_ZtToOffset FP ((NCTag *, ZebTime *));
 static void	dnc_DoWriteCoords FP ((NCTag *, DataChunk *, int, long *,
 			long *));
 static int	dnc_PutGlobalAttribute FP ((char *key, char *value));
+static void	dnc_FillArray FP ((float *, int, double));
 
 /*
  * The minimum size of a time list before it's worthwhile to do a binary
@@ -1046,9 +1047,9 @@ float badval;
 		if (((vfield = dnc_GetFieldVar (tag, fids[field])) < 0) ||
 			(ncvarget(tag->nc_id, vfield, start, count, temp) < 0))
 		{
-			float bad = dc_GetBadval (dc);
-			for (i = 0; i < nsamp; i++)
-				temp[i] = bad;
+			dnc_FillArray (temp, nsamp, badval);
+			if (vfield >= 0)
+				dnc_NCError ("Scalar read");
 		}
 		else
 			dnc_ApplyBadval (tag, vfield, badval, temp, nsamp);
@@ -1128,7 +1129,7 @@ float badval;
 {
 	long start[4], count[4];
 	float *grid = (float *) malloc (tag->nc_nPlat * sizeof (float));
-	int sample, field, vfield, dsamp = dc_GetNSample (dc);
+	int sample, f, vfield, dsamp = dc_GetNSample (dc);
 	ZebTime t;
 /*
  * Coords.
@@ -1144,26 +1145,30 @@ float badval;
 	/*
 	 * Now do each field.
 	 */
-	 	for (field = 0; field < nfield; field++)
+		for (f = 0; f < nfield; f++)
 		{
 		/*
-		 * Look up the field and try to read it in.
+		 * Look up the field and get the data from the file.  If
+		 * either step fails, fill the array with bad value flags.
 		 */
-			if ((vfield = dnc_GetFieldVar (tag, fids[field])) < 0)
-				continue;
-			if (ncvarget (tag->nc_id, vfield,start,count,grid) < 0)
+			if ((vfield = dnc_GetFieldVar (tag, fids[f])) < 0)
+				dnc_FillArray (grid, count[1], badval);
+			else if (ncvarget (tag->nc_id, vfield, start, count, 
+				grid) < 0)
+			{
+				dnc_FillArray (grid, count[1], badval);
 				dnc_NCError ("Irgrid read");
+			}
 		/*
-		 * If that works, we can apply the bad value flag and
-		 * store the data away.
+		 * If we got data, swap our bad value flag for the netCDF one
 		 */
 			else
-			{
-				dnc_ApplyBadval (tag, vfield, badval, grid,
-						count[1]);
-				dc_IRAddGrid (dc, &t, dsamp + sample,
-						fids[field], grid);
-			}
+				dnc_ApplyBadval (tag, vfield, badval, grid, 
+					count[1]);
+		/*
+		 * Put the data into the chunk
+		 */
+			dc_IRAddGrid (dc, &t, dsamp + sample, fids[f], grid);
 		}
 		start[0]++;
 	}
@@ -1256,9 +1261,15 @@ dsDetail *dets;
 		 * Look up the field and try to read it in.
 		 */
 			if ((vfield = dnc_GetFieldVar (tag, fids[field])) < 0)
-				continue;
-			if (ncvarget (tag->nc_id, vfield,start, count, dp) < 0)
+				dnc_FillArray (dp, count[1]*count[2]*count[3],
+					badval);
+			else if (ncvarget (tag->nc_id, vfield,start, count, 
+			    dp) < 0)
+			{
 				dnc_NCError ("Rgrid read");
+				dnc_FillArray (dp, count[1]*count[2]*count[3],
+					badval);
+			}
 		/*
 		 * If that works, we can apply the bad value flag and
 		 * store the data away.
@@ -1796,7 +1807,7 @@ NCTag **rtag;
 		sprintf(history,"created by Zeb DataStore, ");
 		(void)gettimeofday(&tv, NULL);
 		TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-		strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.10 $\n");
+		strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.11 $\n");
 		(void)ncattput(tag->nc_id, NC_GLOBAL, "history",
 			       NC_CHAR, strlen(history)+1, history);
 	}
@@ -2390,4 +2401,22 @@ Location *locs;
 		times++;
 		*locs++ = (tag->nc_locs) ? tag->nc_locs[i] : tag->nc_sloc;
 	}
+}
+
+
+
+
+static void
+dnc_FillArray (array, len, val)
+float	*array;
+int	len;
+double	val;
+/*
+ * Fill the specified array of length len with val
+ */
+{
+	int	i;
+
+	for (i = 0; i < len; i++)
+		array[i] = val;
 }
