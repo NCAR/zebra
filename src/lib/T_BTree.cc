@@ -9,7 +9,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <vector>
-//#include <function.h>
+#ifndef NO_LOGICAL_PREDICATES
+#include <function.h>
+#endif
 #include <algorithm>
 
 #include <time.h>	// Need time() to seed srand()
@@ -21,7 +23,7 @@
 //#include "BTreeStats.hh"
 
 #ifdef RCSID
-RCSID("$Id: T_BTree.cc,v 1.26 1998-10-20 20:44:45 granger Exp $")
+RCSID("$Id: T_BTree.cc,v 1.27 1998-10-21 14:17:57 granger Exp $")
 #endif
 
 typedef BTreeFile<ZTime,ZTime> TimeFileTree;
@@ -139,7 +141,7 @@ Counter<string>::operator()()
 	if (! (cin >> s))
 	{
 		char buf[16];
-		sprintf (buf, "zzz%08d", n);
+		sprintf (buf, "zzz%08ld", n);
 		return buf;
 	}
 	return s;
@@ -174,8 +176,8 @@ class TreeTest
 {
 public:
 
-	typedef /*typename*/ test_tree::key_type key_type;
-	typedef /*typename*/ test_tree::value_type value_type;
+	typedef typename test_tree::key_type key_type;
+	typedef typename test_tree::value_type value_type;
 
 int 
 T_Members (test_tree &tree, vector<key_type> &keys)

@@ -1,5 +1,5 @@
 /*
- * $Id: BTreeFile.hh,v 1.12 1998-10-20 20:44:40 granger Exp $
+ * $Id: BTreeFile.hh,v 1.13 1998-10-21 14:17:57 granger Exp $
  *
  * BTree subclass which implements persistence using a BlockFile.
  */
@@ -60,6 +60,7 @@ class BTreeFile : virtual public BTree<K,T>, virtual public TranslateBlock
 public:
 
 	typedef BTreeFileP::FileStats Stats;
+	typedef BTreeFileP::FileStats FileStats;
 
 public:
 	/* ----------------
@@ -147,8 +148,7 @@ public:
 		s.file = BTreeFile<K,T>::fstats;
 	}
 
-	ostream &reportStats (ostream &out, 
-			      const BTreeFileP::FileStats &s) const;
+	ostream &reportStats (ostream &out, const FileStats &s) const;
 
 	virtual ostream &reportStats (ostream &out) const
 	{
