@@ -31,7 +31,7 @@
 # include "GraphProc.h"
 # include "PixelCoord.h"
 
-MAKE_RCSID ("$Id: Utilities.c,v 2.30 1995-05-05 22:46:26 granger Exp $")
+MAKE_RCSID ("$Id: Utilities.c,v 2.31 1995-05-24 21:59:31 granger Exp $")
 
 /*
  * Rules for image dumping.  Indexed by keyword number in GraphProc.state
@@ -722,7 +722,7 @@ FieldId *field2;
 	}
 	if (! f1 || ! f2)
 	{
-		msg_ELog (EF_PROBLEM, 
+		msg_ELog (EF_DEBUG, 
 			  "platform %s missing field %s or %s",
 			  ds_PlatformName (pid), name1, name2);
 		return (0);
@@ -750,8 +750,8 @@ WindInfo *wi;
 	char *p;
 	char wspd[128];
 	char wdir[128];
-	FieldId fields[128];
-	int nfield = 128;
+	FieldId fields[MAXFIELD];
+	int nfield = MAXFIELD;
 	int found;
 /*
  * Initialize info structure
@@ -815,7 +815,9 @@ WindInfo *wi;
 			  comp, p);
 	}
 /*
- * Now return the fields which need to be fetched.
+ * Now return the fields which need to be fetched.  If no wind components
+ * were found in the platform, the id's will at least be valid and will be
+ * filled in with bad values when fetched.
  */
 	if (wi->wi_polar)
 	{
@@ -828,7 +830,6 @@ WindInfo *wi;
 		fids[1] = wi->wi_vwind;
 	}
 }
-
 
 
 
