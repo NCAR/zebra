@@ -12,7 +12,7 @@
 # include "ui_mode.h"
 # include "ui_cstack.h"
 
-static char *Rcsid = "$Id: ui_cmds.c,v 1.8 1989-10-25 16:20:03 corbet Exp $";
+static char *Rcsid = "$Id: ui_cmds.c,v 1.9 1990-02-06 11:07:59 corbet Exp $";
 
 # ifdef VMS
 # define HELPDIR "ui_help:"
@@ -94,7 +94,7 @@ struct ui_command *cmds;
 	 * Widgets.
 	 */
 	   case UIC_WIDGET:
-	   	uw_define (UPTR (cmds[1]), UKEY (cmds[2]), UPTR (cmds[3]));
+	   	uw_define (cmds + 1);
 		break;
 # endif
 	/*
