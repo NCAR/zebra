@@ -1,7 +1,7 @@
 /*
  * Skew-t plotting module
  */
-static char *rcsid = "$Id: AxisControl.c,v 1.7 1992-02-19 23:55:43 barrett Exp $";
+static char *rcsid = "$Id: AxisControl.c,v 1.8 1992-04-03 19:49:51 barrett Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -70,6 +70,7 @@ ac_DisplayAxes ()
     char		**comps;
     int			computed;
     char		datatype;
+    char		dim;
     /*
      * Get list of components and count them.
      */
@@ -104,7 +105,8 @@ ac_DisplayAxes ()
 		    computed = 1;
 		    ac_UpdateAxisState(Pd,comps[ic],side, NULL, &computed );
 	        }
-	        xy_GetScaleInfo(Pd,comps[ic],side, &scalemode);
+		dim = side == 'r' || side == 'l' ? 'y' : 'x' ;
+	        xy_GetScaleInfo(Pd,comps[ic],dim, &scalemode);
 		if ( fitAxes )
 		{
 		    ac_SetPrivateAxisDescriptors(Pd, comps[ic],side, datatype,
