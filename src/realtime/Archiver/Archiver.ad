@@ -1,10 +1,11 @@
-! $Id: Archiver.ad,v 1.1.1.1 1993-04-02 00:32:58 granger Exp $
+! $Id: Archiver.ad,v 1.2 1994-06-29 20:15:12 case Exp $
 !
 ! Application defaults file for Archiver, from the DataStore directory
 !
 ! THIS FILE IS UNDER RCS CONTROL.  
 ! DO NOT MODIFY THIS FILE IF IT IS THE INSTALLED COPY IN THE LIB DIRECTORY!
 !
+*font:  *-courier-bold-r-normal--12-*
 *status.left:		chainLeft
 *status.right:		chainRight
 *Label.borderWidth:	0
