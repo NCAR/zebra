@@ -1,4 +1,4 @@
-/* $Id: ui_param.h,v 1.7 1993-10-04 15:02:53 case Exp $ */
+/* $Id: ui_param.h,v 1.8 1993-10-21 21:47:53 corbet Exp $ */
 /*
  * Basic UI parameters.
  */
@@ -13,6 +13,13 @@
 #   define UNIX
 #  endif
 # endif
+
+# ifdef hpux
+#  ifndef UNIX
+#   define UNIX
+#  endif
+# endif
+
 
 # ifdef unix
 #  ifndef UNIX
