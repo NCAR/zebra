@@ -1,7 +1,7 @@
 /*
  * The graphics process event/processing queue system.
  */
-static char *rcsid = "$Id: EventQueue.c,v 2.2 1992-07-30 21:25:48 barrett Exp $";
+static char *rcsid = "$Id: EventQueue.c,v 2.3 1992-07-30 23:48:27 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -22,9 +22,9 @@ static char *rcsid = "$Id: EventQueue.c,v 2.2 1992-07-30 21:25:48 barrett Exp $"
 
 # include <X11/Intrinsic.h>
 # include <X11/StringDefs.h>
-# include "../include/defs.h"
-# include "../include/pd.h"
-# include "../include/message.h"
+# include "defs.h"
+# include "pd.h"
+# include "message.h"
 # include "GraphProc.h"
 # include "EventQueue.h"
 
@@ -64,19 +64,12 @@ static Pixel OldBorder;		/* For when we change it		*/
 /*
  * Forward routine definitions.
  */
-# ifdef __STDC__
-static struct pq_entry *Eq_NewEntry (void (*proc) (), char *data, int len);
-static void Eq_RemoveEntry (EQpriority pri, struct pq_entry *pqe);
-static void Eq_FreeEntry (struct pq_entry *pqe);
-static void Eq_RestoreBorder (void);
-# else
-static struct pq_entry *Eq_NewEntry ();
-static void Eq_RemoveEntry ();
-static void Eq_FreeEntry ();
-static void Eq_RestoreBorder ();
-# endif
+static struct pq_entry *Eq_NewEntry FP((void (*proc) (), char *data, int len));
+static void Eq_RemoveEntry FP((EQpriority pri, struct pq_entry *pqe));
+static void Eq_FreeEntry FP((struct pq_entry *pqe));
+static void Eq_RestoreBorder FP((void));
 
-
+void Eq_ZapQProc FP((EQpriority pri, void (*proc)(), void *data, int len));
 
 
 
