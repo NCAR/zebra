@@ -1,7 +1,7 @@
 /*
  * Fields module stuff.
  *
- * $Id: ds_fields.h,v 1.4 1995-02-10 01:21:38 granger Exp $
+ * $Id: ds_fields.h,v 1.5 1996-11-19 09:39:00 granger Exp $
  */
 
 /*		Copyright (C) 1987,88,89,90,91,92 by UCAR
@@ -31,24 +31,14 @@ typedef int FieldId;
 
 # define BadField -1
 
-# ifdef __STDC__
-	void	F_Init (void);
-	FieldId	F_Lookup (const char *);
-	FieldId F_DeclareField (const char *, const char *, const char *);
-	FieldId F_Declared (const char *name);
-	FieldId F_Alias (const char *, const char *);
-	char *	F_GetName (FieldId);
-	char *	F_GetUnits (FieldId);
-	char *	F_GetDesc (FieldId);
-# else
-	void	F_Init ();
-	FieldId	F_Lookup ();
-	FieldId F_DeclareField ();
-	FieldId F_Declared ();
-	FieldId F_Alias ();
-	char *	F_GetName ();
-	char *	F_GetUnits ();
-	char *	F_GetDesc ();
-# endif
+void	F_Init FP((void));
+void	F_Closure FP((void));
+FieldId	F_Lookup FP((const char *));
+FieldId F_DeclareField FP((const char *, const char *, const char *));
+FieldId F_Declared FP((const char *name));
+FieldId F_Alias FP((const char *, const char *));
+char *	F_GetName FP((FieldId));
+char *	F_GetUnits FP((FieldId));
+char *	F_GetDesc FP((FieldId));
 
 # endif /* __DS_FIELDS_H__ */
