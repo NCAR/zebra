@@ -1,7 +1,7 @@
 !
 ! XYGraph[simple] support stuff.
 !
-! $Id: xytrace,v 1.6 1995-04-19 14:59:06 granger Exp $
+! $Id: xytrace,v 1.7 1995-07-24 18:31:30 granger Exp $
 
 define widget xysideannot intmenu ' '
 	title 'Side annotation size'
@@ -41,8 +41,8 @@ procedure xyrep rep string
 		parameter #icon_component representation-style #rep
 	else
 		parameter #icon_component representation-style icon
-		parameter #icon_component point-icon #rep
 	endif
+	parameter #icon_component point-icon #rep
 endprocedure
 
 !
