@@ -34,7 +34,7 @@
 # include "DataFormat.h"
 # include "DFA_ncutil.c"
 
-RCSID ("$Id: DFA_NetCDF.c,v 3.84 2004-07-22 18:26:23 burghart Exp $")
+RCSID ("$Id: DFA_NetCDF.c,v 3.85 2004-07-22 20:59:58 burghart Exp $")
 
 /*
  * Location fields: standard attributes
@@ -1477,6 +1477,7 @@ FieldId fid;
 	int j;
 	int varid;
 	nc_type vtype;
+	DC_ElemType elemtype;
 	int is_static;
 	int ndims, natts, nsdims, startdim;
 	int dims[ MAX_VAR_DIMS ];
@@ -1539,6 +1540,24 @@ FieldId fid;
 	 * Have all the dimensions.  Define the field.
 	 */
 	dc_NSDefineField (dc, fid, nsdims, names, sizes, is_static);
+
+	/*
+	 * Set the type for this field in the dc.  Look for the "is_signed"
+	 * attribute if this is a one-byte var, otherwise use the simple
+	 * mapping from dnc_ElemType().
+	 */
+	if (vtype == NC_BYTE)
+	{
+	  int s;
+	  if (ncattget(tag->nc_id, varid, VATT_IS_SIGNED, &s) != -1 && s)
+	    elemtype = DCT_Char;
+	  else
+	    elemtype = DCT_UnsignedChar;
+	}
+	else
+	  elemtype = dnc_ElemType (vtype);
+
+	dc_SetType (dc, fid, elemtype);
 }
 
 
@@ -3197,7 +3216,7 @@ DataChunk *dc;
 	strcat (history, "Created by the Zebra DataStore library, ");
 	(void)gettimeofday(&tv, NULL);
 	TC_EncodeTime((ZebTime *)&tv, TC_Full, history+strlen(history));
-	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.84 $\n");
+	strcat(history,", $RCSfile: DFA_NetCDF.c,v $ $Revision: 3.85 $\n");
 	(void)ncattput(tag->nc_id, NC_GLOBAL, GATT_HISTORY,
 		       NC_CHAR, strlen(history)+1, history);
 	free (history);
