@@ -3,7 +3,7 @@
  * of pixmap "frames" associated with it.  Zero frames means just write 
  * everything directly to the window.
  *
- * $Id: GraphicsW.c,v 1.9 1991-06-03 21:26:09 corbet Exp $
+ * $Id: GraphicsW.c,v 2.0 1991-07-18 23:03:36 corbet Exp $
  */
 # include <stdio.h>
 # include <errno.h>
