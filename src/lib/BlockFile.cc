@@ -11,7 +11,7 @@
 #include <iomanip.h>
 
 //#include <defs.h>
-//RCSID ("$Id: BlockFile.cc,v 1.12 1998-08-27 22:44:27 granger Exp $");
+//RCSID ("$Id: BlockFile.cc,v 1.13 1998-09-02 00:42:05 granger Exp $");
 
 #include "BlockFile.hh"		// Our interface definition
 #include "BlockFileP.hh"
@@ -31,9 +31,19 @@ static const unsigned long BF_BLOCK_MAGIC = BLOCK_FILE_MAGIC+1;
  * Convenience routines
  */
 
-inline void BlockFile::seek (BlkOffset offset)
+/*
+ * Return true on success, false otherwise.
+ */
+inline bool BlockFile::seek (BlkOffset offset)
 {
-	fseek (fp, offset, SEEK_SET);
+	int s = fseek (fp, offset, SEEK_SET);
+	if (s != 0)
+	{
+		this->errno = ::errno;
+		this->status = ERROR;
+		log.System (Format("seek to %lu") % offset);
+	}
+	return (s == 0);
 }
 
 
@@ -138,8 +148,8 @@ BlockFile::Open (const char *path, unsigned long app_magic = 0,
 	fp = fopen (path, create ? "w+" : "r+");
 	if (! fp)
 	{
-		log.System (Format("opening %s") % path);
 		this->errno = ::errno;
+		log.System (Format("opening %s") % path);
 		Unlock ();
 		::free (this->path);
 		this->path = 0;
@@ -584,16 +594,20 @@ BlockFile::free (BlkOffset addr, BlkSize len)
 
 /*
  * Reserve a block at the end of the file, extending the file size.  Return
- * the offset of the block.
+ * the offset of the block.  We need to actually write zeros at the end of
+ * the file so that subsequent reads of this block will not read past eof.
  */
 BlkOffset
 BlockFile::append (BlkSize size)
 {
+	static const unsigned long zero = 0;
+	static const size_t len = sizeof(zero);
 	BlkOffset off = header->bf_length;
 	header->bf_length += size;
 	header->mark ();
-	// seek (header->bf_length);
 	log.Debug (Format("append block %lu bytes @ %lu (eof)") % size % off);
+	if (write (header->bf_length - len, &zero, len) != OK)
+		log.Problem ("extend end of file failed");
 	return (off);
 }
 
@@ -610,17 +624,16 @@ BlockFile::recover (BlkOffset off)
 
 
 int
-BlockFile::write (BlkOffset block, void *buf, BlkSize len)
+BlockFile::write (BlkOffset block, const void *buf, BlkSize len)
 {	
 	status = OK;
-	seek (block);
 	++stats.num_writes;
 	stats.bytes_writ += len;
-	if (fwrite ((char *)buf, (size_t)len, 1, fp) != 1)
+	if (! seek (block) || fwrite ((char *)buf, (size_t)len, 1, fp) != 1)
 	{
-		log.System (Format("write len %lu at %lu") % len % block);
 		this->errno = ::errno;
 		this->status = WRITE_FAILED;
+		log.System (Format("write len %lu at %lu") % len % block);
 	}
 	return (status);
 }
@@ -641,12 +654,11 @@ BlockFile::read (void *buf, BlkOffset block, BlkSize size)
 	status = OK;
 	++stats.num_reads;
 	stats.bytes_read += size;
-	seek (block);
-	if (fread ((char *)buf, (size_t)size, 1, fp) != 1)
+	if (! seek(block) || fread((char *)buf, (size_t)size, 1, fp) != 1)
 	{
-		log.System (Format("read len %lu at %lu") % size % block);
 		this->errno = ::errno;
 		this->status = READ_FAILED;
+		log.System (Format("read len %lu at %lu") % size % block);
 	}
 	return (status);
 }

@@ -3,6 +3,7 @@
  */
 
 #include <iostream.h>
+#include <fstream.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <vector>
@@ -29,8 +30,7 @@ typedef BTreeFile<string,string> StringTree;
 
 /*
  * Choose the test_key type for the test trees.
- */
-//typedef long test_key;
+ *///typedef long test_key;
 typedef string test_key;
 //typedef ZTime test_key;
 
@@ -92,7 +92,10 @@ int main (int argc, char *argv[])
 
 	srand (1000);
 
-	// Logger::Prototype (StreamLogger());
+	// Set the default logger.
+	ofstream lf("tbtree.log");
+	StreamLogger log(lf);
+	Logger::Prototype (log);
 
 	cout << "-----------------================----------------" << endl;
 	if (argc > 1)

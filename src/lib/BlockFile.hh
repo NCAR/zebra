@@ -1,5 +1,5 @@
 /*
- * $Id: BlockFile.hh,v 1.11 1998-08-27 22:44:28 granger Exp $
+ * $Id: BlockFile.hh,v 1.12 1998-09-02 00:42:07 granger Exp $
  *
  * Definition of the BlockFile class, for storing opaque blocks of bytes
  * into a file through a block interface.  The overhead information in the
@@ -64,7 +64,8 @@ public:
 		WRITE_FAILED = 6,
 		READ_FAILED = 7,
 		WRONG_BLOCK_MAGIC = 8,
-		WRONG_APP_MAGIC = 9
+		WRONG_APP_MAGIC = 9,
+		ERROR = 99
 	};
 	
 	// ----- Constructors -----
@@ -180,10 +181,10 @@ private:
 	/*
 	 * Private methods
 	 */
-	void seek (BlkOffset offset);
+	bool seek (BlkOffset offset);
 	long seek_end (void);
 	int read (void *buf, BlkOffset block, BlkSize len);
-	int write (BlkOffset block, void *buf, BlkSize len);
+	int write (BlkOffset block, const void *buf, BlkSize len);
 	int write (BlkOffset addr, SerialBuffer *sbuf);
 	BlkOffset append (BlkSize size);
 	void recover (BlkOffset addr);
