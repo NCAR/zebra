@@ -39,7 +39,7 @@
 XCOMM -----------------------------------------------------------------------
 XCOMM Definitions from config.h included here.  The definitions here override
 XCOMM the defaults in Project.tmpl.  See ...../zeb/config/config.h.
-XCOMM $Id: config.h.dist,v 1.7 1994-02-02 16:20:54 corbet Exp $
+XCOMM $Id: config.h.dist,v 1.8 1994-02-02 21:21:34 granger Exp $
 XCOMM -----------------------------------------------------------------------
 # endif
 
@@ -132,8 +132,8 @@ XCOMM -----------------------------------------------------------------------
 # define	BuildSlowTapeIngest	YES
 # define 	BuildTAOIngest		YES
 # define	Build_GMS_ISCCP		YES
-# define	Build_TRMM_SSMI		YES	/* Not for HP-UX	*/
-# define	Build_TRMM_Rain		YES	/* Not for HP-UX	*/
+# define	Build_TRMM_SSMI		YES
+# define	Build_TRMM_Rain		YES	/* Sun only		*/
 # define	Build_TRMM_Sonde	YES
 # define	Build_FEST_P3_C130	YES
 # define	BuildPrecipIngest	YES
@@ -292,10 +292,10 @@ XCOMM -----------------------------------------------------------------------
  * compiler (floating point stuff, etc.), or optimization flags, define
  * CCOptions and FortOptions.  The default is optimization, -O.
  *
- * HPUX: Do NOT turn on the ANSI ("-Aa") option with the HP native compiler,
- *	 or you will encounter more weirdness than you ever wished to deal
- *	 with.  You must also provide the "+ppu" fortran option or you will
- *	 get undefined externals when you link the graphics process.
+ * HP-UX: Do NOT turn on the ANSI ("-Aa") option with the HP native compiler,
+ *	  or you will encounter more weirdness than you ever wished to deal
+ *	  with.  You must also provide the "+ppu" fortran option or you will
+ *	  get undefined externals when you link the graphics process.
  */
 # define CCOptions -O
 # define FortOptions -O
@@ -432,9 +432,19 @@ XCOMM -----------------------------------------------------------------------
  * you followed the recommended installation for FORTRAN.
  */
 
-# define FortranLibraries -L/usr/lang/SC1.0.1 -lF77 -lV77	/* SunOS 4 */
+/* SunOS 4 (comment or remove this definition if you use a different one) */
+# define FortranLibraries -L/usr/lang/SC1.0.1 -lF77 -lV77
+
+/* SunOS 4 with gcc (or bundled cc) and FORTRAN SC2.0.1,
+ * assuming its installed in the standard place, /usr/lang: */
+/* # define FortranLibraries \
+   -L/usr/lang/SC2.0.1 -lF77 -lV77 -lansi /usr/lang/SC2.0.1/values-Xa.o */
+
+/* Solaris */
 /* # define FortranLibraries -L/opt/SUNWspro/SC2.0.1 -lF77 -lV77 /* Solaris */
-/* # define FortranLibraries -lU77 -lf -lisamstub */	/* HPUX version */
+
+/* HP-UX */
+/* # define FortranLibraries -lU77 -lf -lisamstub */
 
 /*
  * Some of Zeb's routines require the terminal capability library,
@@ -451,37 +461,6 @@ XCOMM -----------------------------------------------------------------------
 
 # define MathLibrary	-lm
 # define TermcapLibrary -ltermcap
-
-/*
- * The following allows you to configure in or out various pieces of the
- * zeb graphics process.  There are very few cases in which it is desirable
- * to change any of the following.
- */
-
-/*
- * The various plot types.
- */
-# define C_PT_CAP	YES		/* Constant altitude plots	*/
-# define C_PT_SKEWT	YES		/* Skew T plots			*/
-# define C_PT_XSECT	YES		/* Cross section plots		*/
-# define C_PT_TSERIES	YES		/* Time series plots		*/
-# define C_PT_XYGRAPH	YES		/* XY-Graph plots		*/
-# define C_PT_XYWIND	YES		/* XY-Graph wind plots		*/
-
-/*
- * CAP Subplots.
- */
-# if C_PT_CAP
-/*
- * Define these YES if you want them.  If C_PT_CAP above is not YES, these
- * settings will be ignored and none of them will be built.
- */
-#	define C_CAP_OVERLAY	YES	/* Overlays			*/
-#	define C_CAP_VECTOR	YES	/* Vector plots			*/
-# 	define C_CAP_LIGHTNING	YES	/* Lightning location		*/
-#	define C_CAP_RASTER	YES	/* Raster plots			*/
-#	define C_CAP_TRACKS	YES	/* Track plots (e.g. aircraft)	*/
-# endif
 
 /*========================================================================
  * Distribution Options
@@ -568,6 +547,41 @@ XCOMM -----------------------------------------------------------------------
 # endif /* MAKING_MAKEFILE */
 
 /*========================================================================
+ * Selecting Graphics Process Plot Types
+ *------------------------------------------------------------------------
+ * The following definitions allow you to configure in or out various 
+ * pieces of the zeb graphics process.  There are very few cases in which 
+ * it is desirable to change any of the following.
+ *------------------------------------------------------------------------*/
+/*
+ * --- The various plot types ---
+ */
+# define C_PT_CAP	YES		/* Constant altitude plots	*/
+# define C_PT_SKEWT	YES		/* Skew T plots			*/
+# define C_PT_XSECT	YES		/* Cross section plots		*/
+# define C_PT_TSERIES	YES		/* Time series plots		*/
+# define C_PT_XYGRAPH	YES		/* XY-Graph plots		*/
+# define C_PT_XYWIND	YES		/* XY-Graph wind plots		*/
+
+/*
+ * --- CAP subplots ---
+ *
+ * Define these YES if you want them.  If C_PT_CAP above is not YES, then
+ * ALL of these definitions will be ignored and none of these plots will
+ * be built.  Again, it is rare that anyone would want or need to define
+ * any of these to NO.
+ */
+# if C_PT_CAP
+#	define C_CAP_OVERLAY	YES	/* Overlays			*/
+#	define C_CAP_VECTOR	YES	/* Vector plots			*/
+# 	define C_CAP_LIGHTNING	YES	/* Lightning location		*/
+#	define C_CAP_RASTER	YES	/* Raster plots			*/
+#	define C_CAP_TRACKS	YES	/* Track plots (e.g. aircraft)	*/
+# endif
+/*------------------------------------------------------------------------*/
+
+
+/*========================================================================
  * Customization Options
  *------------------------------------------------------------------------
  * Several parameters used throughout the Zeb distribution can be modified
@@ -608,6 +622,7 @@ XCOMM -----------------------------------------------------------------------
 #define DistributeOptimizer 	NO
 
 #endif /* ARM_PROJECT */
+/*------------------------------------------------------------------------*/
 
 
 /*------------------------------------------------------------------------
@@ -622,6 +637,7 @@ XCOMM -----------------------------------------------------------------------
 #define DistributeDataManager NO
 
 #endif /* NEXUS_PROJECT */
+/*------------------------------------------------------------------------*/
 
 
 /*------------------------------------------------------------------------*/
@@ -737,6 +753,9 @@ XCOMM -----------------------------------------------------------------------
 #ifndef CFG_ALTITUDE_UNITS
 #define CFG_ALTITUDE_UNITS 	"km"	/* Default units for "alt" field */
 #endif
+/*------------------------------------------------------------------------*/
+
+
 
 /*-//////////////////////////////////////////////////////////////////////-*/
 /*========================================================================
@@ -747,6 +766,9 @@ XCOMM -----------------------------------------------------------------------
  *========================================================================*/
 /*-//////////////////////////////////////////////////////////////////////-*/
 
+
+
+/*------------------------------------------------------------------------*/
 /*
  * These are always NO -- do not change them!
  */
