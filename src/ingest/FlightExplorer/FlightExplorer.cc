@@ -95,6 +95,7 @@ main(int argc, char* argv[])
 	//          /      date     HHMMSS tail#  /      \   \   lon (DDMM)
 	// Flight Explorer                       /        \ lat (DDMM)
 	//   flight ID                     ground speed    \
+	//                                (may be empty)    \
         //                                            altitude (100s feet)
 	//
 	char line[80];
@@ -103,24 +104,66 @@ main(int argc, char* argv[])
 	    //
 	    // Parse apart the line
 	    //
-	    int fid;
 	    int month, day, year;
 	    int hhmmss;
 	    char tailnum[16];
-	    char speedstring[16];
-	    char altstring[16];
+	    int ialt;
 	    int lat_ddmm, lon_ddmm;
 	    char lat_ns, lon_ew;
-	    sscanf(line,"%d,%d/%d/%d,%d,%[^,],%[^,],%[^,],%d%c,%d%c",
-		   &fid, &month, &day, &year, &hhmmss, tailnum, speedstring, 
-		   altstring, &lat_ddmm, &lat_ns, &lon_ddmm, &lon_ew);
 
-	    //	
-	    // extract the altitude from the altitude string
 	    //
-	    int ialt;
-	    sscanf(altstring, "%d", &ialt);
+	    // Break the line as comma separated tokens, since it's 
+	    // difficult to handle an empty speed item otherwise
+	    //
+	    char* token;
+	    char* next_token = line;
 
+	    //
+	    // flight ID
+	    //
+	    token = strsep(&next_token, ",");
+
+	    //
+	    // date
+	    //
+	    token = strsep(&next_token, ",");
+	    sscanf(token, "%d/%d/%d", &month, &day, &year);
+	    
+	    //
+	    // time
+	    //
+	    token = strsep(&next_token, ",");
+	    sscanf(token, "%d", &hhmmss);
+
+	    //
+	    // tail num
+	    //
+	    token = strsep(&next_token, ",");
+	    strcpy(tailnum, token);
+
+	    //
+	    // speed (ignore)
+	    //
+	    token = strsep(&next_token, ",");
+
+	    //
+	    // altitude
+	    //
+	    token = strsep(&next_token, ",");
+	    sscanf(token, "%d", &ialt);
+
+	    //
+	    // lat
+	    //
+	    token = strsep(&next_token, ",");
+	    sscanf(token, "%d%c", &lat_ddmm, &lat_ns);
+
+	    //
+	    // lon
+	    //
+	    token = strsep(&next_token, ",");
+	    sscanf(token, "%d%c", &lon_ddmm, &lon_ew);
+	    
 	    //
 	    // verify that this is a plane we know about
 	    //
