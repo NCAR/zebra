@@ -25,7 +25,7 @@
 # include "ds_fields.h"
 # include "DataChunk.h"
 # include "DataChunkP.h"
-MAKE_RCSID ("$Id: dc_Attr.c,v 1.1 1991-12-27 21:21:21 corbet Exp $")
+MAKE_RCSID ("$Id: dc_Attr.c,v 1.2 1992-06-09 19:22:16 corbet Exp $")
 
 
 /*
@@ -252,4 +252,50 @@ char *pattern;
 		cp++;
 	}
 	return (0);
+}
+
+
+
+
+
+
+void *
+dca_GetBlock (dc, class, code, len)
+DataChunk *dc;
+DataClass class;
+int code, *len;
+/*
+ * Pull out the attributes in one big chunk.
+ */
+{
+	AttrADE *ade;
+/*
+ * Find the ADE, then return it.
+ */
+	if (! (ade = (AttrADE *) dc_FindADE (dc, class, code, 0)))
+		return (0);
+	*len = ade->aa_Used;
+	return (ade->aa_Data);
+}
+
+
+
+void
+dca_PutBlock (dc, class, code, block, len)
+DataChunk *dc;
+DataClass class;
+int code, len;
+void *block;
+/*
+ * Put back an attribute block obtained with dca_GetBlock.
+ */
+{
+	AttrADE *ade;
+	int alen;
+
+	alen = sizeof (AttrADE) + len - 1;
+	ade = (AttrADE *) malloc (alen);
+	ade->aa_Alloc = ade->aa_Used = len;
+	memcpy (ade->aa_Data, block, len);
+	dc_AddADE (dc, ade, class, code, alen, TRUE);
 }
