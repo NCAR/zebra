@@ -22,21 +22,15 @@
 
 # include <sys/types.h>
 
-# ifdef __osf__
-# include <sys/statvfs.h>
-# include <sys/mount.h>
-# else
-# ifdef AIXV3 
-# include <sys/vfs.h>
-# include <sys/statfs.h>
-# else
-# ifdef SVR4
+# if defined(SVR4) || defined(__osf__)
 #    include <sys/statvfs.h>
 # else
+# ifdef AIXV3
+#    include <sys/statfs.h>
+# else
 #    include <sys/vfs.h>
-# endif
-# endif
-# endif
+# endif /* AIX */
+# endif /* SVR4 */
 
 # include <fcntl.h>
 # include <errno.h>
@@ -59,7 +53,7 @@
 # include "dsDaemon.h"
 # include "commands.h"
 
-RCSID ("$Id: Daemon.c,v 3.63 1997-06-30 21:42:50 ishikawa Exp $")
+RCSID ("$Id: Daemon.c,v 3.64 1997-09-18 22:09:34 ishikawa Exp $")
 
 /*
  * Local forwards.
@@ -1496,7 +1490,7 @@ union usy_value *argv, *rv;
  * [Command line function] return the amount of the disk that is free.
  */
 {
-#ifndef SVR4
+#if !defined(SVR4) && !defined(__osf__)
 	struct statfs sfs;
 #else
 	struct statvfs sfs;
@@ -1504,7 +1498,7 @@ union usy_value *argv, *rv;
 /*
  * Stat the file system.
  */
-#ifndef SVR4
+#if !defined(SVR4) && !defined(__osf__)
 	if (statfs (argv->us_v_ptr, &sfs))
 		msg_ELog (EF_PROBLEM, "Statfs failed, errno %d", errno);
 #else
