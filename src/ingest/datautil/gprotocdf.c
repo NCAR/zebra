@@ -26,14 +26,14 @@
 # include <stdio.h>
 # include <netcdf.h>
 # include "defs.h"
-MAKE_RCSID ("$Id: gprotocdf.c,v 1.3 1992-09-10 21:31:15 corbet Exp $")
+MAKE_RCSID ("$Id: gprotocdf.c,v 1.4 1992-09-22 19:50:20 pai Exp $")
 
 
 /*
  * Netcdf stuff.
  */
-# define MAXFLD 30
-int VFields[30];	/* The netcdf variables			*/
+# define MAXFLD 50
+int VFields[50];	/* The netcdf variables			*/
 int DTime;		/* The time (unlimited) dimension	*/
 int VTime;		/* The time offset variable		*/
 int VBTime;		/* The base time variable		*/
@@ -44,8 +44,8 @@ int NOut = 0;		/* Output record index			*/
 /*
  * Field names.
  */
-char SrcFlds[MAXFLD][40];	/* Genpro field names		*/
-char DstFlds[MAXFLD][40];	/* Equivalent netcdf names	*/
+char SrcFlds[MAXFLD][50];	/* Genpro field names		*/
+char DstFlds[MAXFLD][50];	/* Equivalent netcdf names	*/
 int NField = 0;
 
 /*
