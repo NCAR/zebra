@@ -1,21 +1,17 @@
 /*
  * Plot execution module
  */
-static char *rcsid = "$Id: PlotExec.c,v 1.6 1990-11-26 15:22:16 burghart Exp $";
+static char *rcsid = "$Id: PlotExec.c,v 1.7 1990-12-04 15:14:05 corbet Exp $";
 
 # include <X11/Intrinsic.h>
 # include <ui.h>
-# include <ui_error.h>
 # include <defs.h>
 # include <pd.h>
-# include <fields.h>
-# include <mda.h>
 # include <ui_date.h>
 # include "../include/message.h"
 # include "GraphProc.h"
 # include "DrawText.h"
 # include "PixelCoord.h"
-# include "rg_status.h"
 # include "EventQueue.h"
 
 /*
@@ -89,8 +85,6 @@ typedef enum {LineContour, FilledContour} contour_type;
  * Forward declarations
  */
 # ifdef __STDC__
-	float	*px_GetGrid (time *, char *, char *, int *, int *, float *, 
-		float *, float *, float *);
 	int	px_NameToNumber (char *, name_to_num *);
 	void	px_Init ();
 	void	px_AddComponent (char *, int);
@@ -102,7 +96,6 @@ typedef enum {LineContour, FilledContour} contour_type;
 	void	px_AdjustCoords (float *, float *, float *, float *);
 	void	px_FixPlotTime ();
 # else
-	float	*px_GetGrid ();
 	int	px_NameToNumber ();
 	void	px_Init (), px_AddComponent (), px_CAPFContour ();
 	void	px_CAPVector (), px_CAPRaster (), px_CAPLineContour ();
@@ -115,13 +108,6 @@ typedef enum {LineContour, FilledContour} contour_type;
  */
 extern void	tr_CAPTrack (), ov_CAPOverlay (), sk_Skewt ();
 extern void	xs_LineContour (), xs_FilledContour ();
-
-# ifdef titan
-#	define do_rgrid DO_RGRID
-# else
-#	define do_rgrid do_rgrid_
-# endif
-extern int	do_rgrid ();
 
 /*
  * How many plot components in our plot description and which
@@ -157,8 +143,8 @@ char	*component;
  */
 {
 	char	**comps, datestring[40], plt[30], rep[30];
-	float	lat, lon;
-	int	i, expand, orig_alt;
+	float	lat, lon, orig_alt;
+	int	i, expand;
 	Boolean	ok, cvt_Origin (), global;
 /*
  * Check now for an abort condition
@@ -210,8 +196,11 @@ char	*component;
 /*
  * Get the altitude too.  Default it to ground level if all else fails.
  */
-	if (! pda_Search (Pd, "global", "altitude", NULL, CPTR (Alt),SYMT_INT))
+	if (! pda_Search (Pd, "global", "altitude", NULL, CPTR (Alt),
+				SYMT_FLOAT))
 		Alt = 0;
+	if (Alt > 10)	/* Assume no space stations -- must be in meters */
+		Alt /= 1000.0;
 	orig_alt = Alt;
 /*
  * Unless told otherwise, readjust the coordinates so that x == y.
@@ -293,7 +282,7 @@ char	*component;
 	/*
 	 * Annotate the altitude we eventually got.
 	 */
-		sprintf (datestring, "Alt: %dm", Alt);
+		sprintf (datestring, "Alt: %dm", (int) (Alt*1000.0));
 		DrawText (Graphics, GWFrame (Graphics), White,
 			GWWidth (Graphics) - 10, GWHeight (Graphics) - 10, 
 			datestring, 0.0, TOPANNOTHEIGHT, JustifyRight,
@@ -304,7 +293,7 @@ char	*component;
 		if (Alt != orig_alt)
 		{
 			pd_Store (Pd, "global", "altitude", CPTR (Alt),
-				SYMT_INT);
+				SYMT_FLOAT);
 			Eq_AddEvent (PWhenever, eq_ReturnPD, 0, 0, Override);
 		}
 	/*
@@ -610,10 +599,9 @@ float	*center, *step;
  * description.
  */
 {
-	field	fnum;
 	char	ctname[40], platform[40];
 	int	xdim, ydim;
-	float	*rgrid, *grid, x0, x1, y0, y1;
+	float	*rgrid, *grid, x0, x1, y0, y1, alt;
 	int	pix_x0, pix_x1, pix_y0, pix_y1, dolabels, linewidth;
 	Boolean	ok;
 	XColor	black;
@@ -643,24 +631,18 @@ float	*center, *step;
 		SYMT_INT))
 		linewidth = 0;
 /*
- * Get the field number and grab the color table
+ * Grab the color table
  */
 	ct_LoadTable (ctname, &Colors, &Ncolors);
-# ifdef notdef
-	fnum = fld_number (fname);
-/*
- * Allocate the data array
- */
-	xdim = 16;
-	ydim = 16;
-
-	grid = (float *) malloc (xdim * ydim * sizeof (float));
-# endif
 /*
  * Get the data (pass in plot time, get back actual data time)
  */
-	rgrid = px_GetGrid (&PlotTime, platform, fname, &xdim, &ydim, &x0, &y0,
-			&x1, &y1);
+	alt = Alt;
+	msg_ELog (EF_INFO, "Get grid at %.2f km", alt);
+	rgrid = ga_GetGrid (&PlotTime, platform, fname, &xdim, &ydim, &x0, &y0,
+			&x1, &y1, &alt);
+	if (Comp_index == 0)
+		Alt = alt;
 	if (! rgrid)
 	{
 		msg_ELog (EF_PROBLEM, "Unable to get grid");
@@ -728,7 +710,7 @@ Boolean	update;
 	char	uname[20], vname[20], cname[30], platform[40], annot[120];
 	int	xdim, ydim;
 	float	*rgrid, *ugrid, *vgrid;
-	float	vscale, x0, x1, y0, y1;
+	float	vscale, x0, x1, y0, y1, alt;
 	int	pix_x0, pix_x1, pix_y0, pix_y1;
 	int	top, bottom, left, right, xannot, yannot;
 	Boolean	ok;
@@ -760,8 +742,11 @@ Boolean	update;
 /*
  * Get the data (pass in plot time, get back actual data time)
  */
-	rgrid = px_GetGrid (&PlotTime, platform, uname, &xdim, &ydim, &x0, &y0,
-		&x1, &y1);
+	alt = Alt;
+	rgrid = ga_GetGrid (&PlotTime, platform, uname, &xdim, &ydim, &x0, &y0,
+			&x1, &y1, &alt);
+	if (Comp_index == 0)
+		Alt = alt;
 	if (! rgrid)
 	{
 		msg_ELog (EF_PROBLEM, "Unable to get U grid");
@@ -771,8 +756,8 @@ Boolean	update;
 	ga_RotateGrid (rgrid, ugrid, xdim, ydim);
 	free (rgrid);
 
-	rgrid = px_GetGrid (&PlotTime, platform, vname, &xdim, &ydim, &x0, &y0,
-		&x1, &y1);
+	rgrid = ga_GetGrid (&PlotTime, platform, vname, &xdim, &ydim, &x0, &y0,
+			&x1, &y1, &alt);
 	if (! rgrid)
 	{
 		msg_ELog (EF_PROBLEM, "Unable to get V grid");
@@ -849,7 +834,7 @@ Boolean	update;
 	int	xdim, ydim;
 	int	top, bottom, left, right, i, newrp, fastloop;
 	Boolean	ok;
-	float	*grid, x0, x1, y0, y1;
+	float	*grid, x0, x1, y0, y1, alt;
 	float	min, max, bar_height, val, frac;
 	int	pix_x0, pix_x1, pix_y0, pix_y1;
 	XRectangle	clip;
@@ -885,8 +870,11 @@ Boolean	update;
 /*
  * Get the data (pass in plot time, get back actual data time)
  */
-	grid = px_GetGrid (&PlotTime, platform, name, &xdim, &ydim, &x0, &y0,
-		&x1, &y1);
+	alt = Alt;
+	grid = ga_GetGrid (&PlotTime, platform, name, &xdim, &ydim, &x0, &y0,
+			&x1, &y1, &alt);
+	if (Comp_index == 0)
+		Alt = alt;
 	if (! grid)
 	{
 		msg_ELog (EF_INFO, "Unable to get grid for %s at %d %d",
@@ -969,199 +957,6 @@ Boolean	update;
 	}
 }
 
-
-
-
-float *
-px_GetGrid (plot_time, platform, fname, xdim, ydim, x0, y0, x1, y1)
-time	*plot_time;
-char 	*platform, *fname;
-int	*xdim, *ydim;
-float	*x0, *y0, *x1, *y1;
-{
-/*
- * The static variables below keep the information gathered when
- * we initialize.  We need to keep the stuff around between calls.
- */
-	static int	initialized = FALSE;
-	static int	nsta;
-	static float	*rawdata;
-	static struct dstream	*ds;
-	static int	slist[80];
-	static float	width, height;
-	static float	*xsta, *ysta;
-	static float	xmin, xmax, ymin, ymax;
-	float		*grid;
-	float		val, lat, lon, badflag;
-	float		*sval, *spos, *scratch;
-	int		elev, ok, ngood, fnum, status, balt = Alt;
-	short		i, j, ix, iy, bigdim;
-	int		RGRID ();
-	float		spline_eval ();
-	void		spline ();
-
-/*
- * If this is not a request for mesonet data, go off and look for a 
- * MUDRAS file.
- */
-	if (strcmp (platform, "mesonet"))
-	{
-		float * ret = ga_MudrasGrid(plot_time, platform, fname, &balt, 
-				xdim, ydim, x0, y0, x1, y1);
-		if (Comp_index == 0)
-			Alt = balt;
-		return (ret);
-	}
-		
-
-ERRORCATCH	/* For MDA stuff */
-/*
- * Initialize if necessary
- */
-	if (! initialized)
-	{
-	/*
-	 * Declare the cinde database
-	 */
-		mda_declare_file ("/data/ppf", MDA_TYPE_DATABASE, MDA_F_PACKET,
-			"ppf", "cinde");
-	/*
-	 * Get a list of all stations
-	 */
-		mda_do_init (plot_time->ds_yymmdd, plot_time->ds_hhmmss);
-		sta_g_slist (slist, &nsta);
-	/*
-	 * Find the station positions and the (lat,lon) bounding box
-	 */
-		xmin = 99999.0;	xmax = -99999.0;
-		ymin = 99999.0;	ymax = -99999.0;
-		Melev = 0.0;
-		xsta = (float *) malloc (nsta * sizeof (float));
-		ysta = (float *) malloc (nsta * sizeof (float));
-
-		for (i = 0; i < nsta; i++)
-		{
-			sta_g_position (slist[i], &lat, &lon, &elev);
-			lon *= -1.0;
-			cvt_ToXY (lat, lon, &xsta[i], &ysta[i]);
-
-			if (xsta[i] < xmin)
-				xmin = xsta[i];
-			if (xsta[i] > xmax)
-				xmax = xsta[i];
-			if (ysta[i] < ymin)
-				ymin = ysta[i];
-			if (ysta[i] > ymax)
-				ymax = ysta[i];
-			Melev += elev;
-		}
-
-		width = xmax - xmin;
-		height = ymax - ymin;
-		Melev /= nsta;
-# ifdef notdef /* don't do this when using rgrid */
-	/*
-	 * Change the station positions to be relative to the lower
-	 * left corner
-	 */
-		for (i = 0; i < nsta; i++)
-		{
-			xsta[i] -= xmin;
-			ysta[i] -= ymin;
-		}
-# endif
-	/*
-	 * Build the dstream structures
-	 */
-		rawdata = (float *) malloc (nsta * sizeof (float));
-		ds = (struct dstream *) 
-			malloc (nsta * sizeof (struct dstream));
-
-		for (i = 0; i < nsta; i++)
-		{
-			ds[i].ds_plat = slist[i];
-			ds[i].ds_stride = 1;
-			ds[i].ds_data = &(rawdata[i]);
-		}
-	/*
-	 * Done with initialization
-	 */
-		initialized = TRUE;
-	}
-/*
- * Allocate the grid for the return data.
- */
-	*xdim = *ydim = 16;
-	grid = (float *) malloc ((*xdim)*(*ydim)*sizeof (float));
-/*
- * Put the grid limits into the return variables
- */
-	*x0 = xmin;	*x1 = xmax;
-	*y0 = ymin;	*y1 = ymax;
-	if (Comp_index == 0)
-		Alt = Melev;
-/*
- * Put the chosen field into the dstream structures
- */
-	if (! (fnum = fld_number (fname)))
-	{
-		msg_ELog (EF_PROBLEM, "Unrecognized PAM field: %s", fname);
-		return (0);
-	}
-	for (i = 0; i < nsta; i++)
-		ds[i].ds_field = fnum | FLD_F_DEGLITCH;
-/*
- * Get the data using MDA
- */
-	plot_time->ds_hhmmss -= plot_time->ds_hhmmss % 100;	/* XXX */
-	mda_fetch (nsta, ds, plot_time, plot_time, BADVAL, 0);
-ON_ERROR
-/*
- * For UI error conditions, just return an array full of bad
- * value flags
- */
-	msg_ELog (EF_PROBLEM, "px_GetGrid quitting on error");
-
-	for (i = 0; i < *xdim; i++)
-		for (j = 0; j < *ydim; j++)
-			GRID (i,j) = BADVAL;
-
-	return (grid);
-ENDCATCH
-/*
- * Fill the grid with bad value flags
- */
-	for (i = 0; i < *xdim; i++)
-		for (j = 0; j < *ydim; j++)
-			GRID (i,j) = BADVAL;
-/*
- * Use RGRID to generate gridded data
- */
-	badflag = BADVAL;
-	scratch = (float *) malloc ((*xdim) * (*ydim) * sizeof (float));
-	status = do_rgrid (grid, xdim, ydim, &nsta, rawdata, &badflag, 
-		xsta, ysta, &xmin, &ymin, &xmax, &ymax, scratch);
-	free (scratch);
-
-	switch (status)
-	{
-	    case RG_OK:
-		break;
-	    case RG_NOTENUFPTS:
-		msg_ELog (EF_PROBLEM, 
-			"Not enough good points to generate a grid");
-		break;
-	    case RG_COLLINEAR:
-		msg_ELog (EF_PROBLEM,
-			"Points are collinear, unable to generate a grid");
-		break;
-	    default:
-		msg_ELog (EF_PROBLEM,
-			"Unknown status %d returned by RGRID", status);
-	}
-
-	return (grid);
-}
 
 
 
