@@ -48,7 +48,7 @@ extern "C"
 # include "Index.h"
 # include "ZTime.h"
 # include "plcontainer.h"
-MAKE_RCSID ("$Id: LoadData.cc,v 1.4 1993-05-26 19:36:47 corbet Exp $")
+MAKE_RCSID ("$Id: LoadData.cc,v 1.5 1993-06-07 20:29:43 corbet Exp $")
 
 class LoadSelect;
 
@@ -752,7 +752,7 @@ LoadSelect::addButtons (Widget form, PlatformIndex *index)
 			ep += strlen (ep);
 			dfi = p.files.nth (0).index;
 			TC_EncodeTime (&dfinfo.dfi_End, TC_Full, ep);
-			strcat (ep, "     ");
+			strcat (ep, "        ");
 			ep += 22;
 		}
 	//
@@ -766,7 +766,7 @@ LoadSelect::addButtons (Widget form, PlatformIndex *index)
 			strcat (ep, " -> ");
 			ep += strlen (ep);
 			TC_EncodeTime (&et, TC_Full, ep);
-			strcat (ep, "     ");
+			strcat (ep, "        ");
 			ep += 22;
 		}
 	//

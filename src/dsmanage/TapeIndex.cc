@@ -46,7 +46,7 @@ extern "C"
 # include "Tape.h"
 
 
-static char *rcsid = "$Id: TapeIndex.cc,v 1.2 1993-02-02 19:35:33 corbet Exp $";
+static char *rcsid = "$Id: TapeIndex.cc,v 1.3 1993-06-07 20:29:47 corbet Exp $";
 
 
 //
@@ -77,7 +77,9 @@ struct TarHeader
 
 
 
-
+//
+// Local stuff.
+//
 char *GetTarBlock (Tape &, Tape *);
 void ProcessTarFile (Tape &, Tape *, const TarHeader *, PlatformIndex &);
 int DecodeNum (const char *);
@@ -86,6 +88,15 @@ void ZapTempFile (int);
 void ExtractPlat (const char *, char *);
 void Interrupt ();
 volatile void Usage ();
+void LoadPrefixFile (const char *);
+
+//
+// Kinda ugly....prefixes for layered platforms.
+//
+const int MaxPrefix = 20;
+char *Prefixes[MaxPrefix];
+int NPrefix = 0;
+
 
 
 
@@ -101,7 +112,7 @@ PlatformIndex *PIndex;
 int
 main (int argc, char **argv)
 {
-	GetOpt parser (argc, argv, "s:c:");
+	GetOpt parser (argc, argv, "s:c:p:");
 	int flag;
 	Tape *outtape = 0;
 //
@@ -119,6 +130,9 @@ main (int argc, char **argv)
 			sprintf (TmpFile, "%s/%s", parser.optarg,
 				"TapeIndex.tmp");
 			break;
+		    case 'p':
+		    	LoadPrefixFile (parser.optarg);
+			break;
 		    case '?':
 			Usage ();
 			break;
@@ -126,16 +140,6 @@ main (int argc, char **argv)
 	}
 	if ((argc - parser.optind) != 2)
 		Usage ();
-# ifdef notdef
-	if (argc == 4)
-		Scratch = argv[3];
-	else if (argc != 2)
-	{
-		cerr << "Usage: " << argv[0] <<
-			" tape-drive out-index [scratch]\n.";
-		exit (1);
-	}
-# endif
 //
 // Get our drive.
 //
@@ -173,6 +177,7 @@ Usage ()
 //
 {
 	cerr << "Usage: tapeindex [-s scratch-dir] [-c copy-dev] " 
+	     << "[-p prefix-file] "
 	     << "input-tape index-file\n.";
 	exit (1);
 }
@@ -383,4 +388,47 @@ ExtractPlat (const char *file, char *plat)
 			nperiod++;
 	strncpy (plat, begin, end - begin + 1);
 	plat[end - begin + 1] = '\0';
+//
+// Now let's see if there is a prefix to apply to this platform name.
+//
+	int len;
+	for (int i = 0; i < NPrefix; i++)
+		if (! strncmp (Prefixes[i], plat, len = strlen (Prefixes[i])))
+		{
+			for (int j = strlen (plat) + 1; j > len; j--)
+				plat[j] = plat[j - 1];
+			plat[len] = '/';
+		}
+}
+
+
+
+
+
+void
+LoadPrefixFile (const char *fname)
+//
+// Pull in a prefix file.
+//
+{
+//
+// Open up the file.
+//
+	FILE *file = fopen (fname, "r");
+	if (! file)
+	{
+		cerr << "Unable to open prefix file " << fname << "\n";
+		exit (1);
+	}
+//
+// Now read in prefixes.
+//
+	char line[80];
+	while (fgets (line, 80, file))
+	{
+		line[strlen (line) - 1] = '\0';
+		Prefixes[NPrefix] = new char[strlen (line) + 1];
+		strcpy (Prefixes[NPrefix], line);
+		NPrefix++;
+	}
 }

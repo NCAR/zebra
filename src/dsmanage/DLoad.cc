@@ -38,7 +38,7 @@ extern "C"
 # include "DataDir.h"
 # include "Tape.h"
 # include "plcontainer.h"
-MAKE_RCSID ("$Id: DLoad.cc,v 1.5 1993-03-24 22:50:34 corbet Exp $")
+MAKE_RCSID ("$Id: DLoad.cc,v 1.6 1993-06-07 20:29:39 corbet Exp $")
 
 //
 // Import from main.
@@ -258,7 +258,7 @@ FixFName (const char *fname, const char *newbase, int nstrip, char *dest)
 // The tape buffer.
 //
 const int TarBlockSize = 512;
-const int BufSize = 64*TarBlockSize;
+const int BufSize = 128*TarBlockSize;
 const int TarNameSize = 100;
 
 char TapeBuffer[BufSize];
