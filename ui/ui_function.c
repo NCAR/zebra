@@ -9,7 +9,9 @@
 # include "ui_error.h"
 # include "ui_globals.h"
 
-static char *rcsid = "$Id: ui_function.c,v 1.5 1992-01-28 21:00:08 corbet Exp $";
+extern char *malloc ();
+
+static char *rcsid = "$Id: ui_function.c,v 1.6 1992-01-30 21:10:06 corbet Exp $";
 
 /*
  * These structures represent functions.
@@ -39,11 +41,18 @@ int uf_sqrt (), uf_exp (), uf_defined (), uf_stbl (), uf_concat ();
 int uf_quote (), uf_within ();
 int uf_cos (), uf_sin (), uf_tan (), uf_contains (), uf_substring ();
 int uf_getenv (), uf_noccur (), uf_string ();
+# ifdef XSUPPORT
+	int uw_GetFText ();
+# endif
 
 static struct func
 Func_tbl[] =
 {
   { "concat",	2,	{ SYMT_STRING, SYMT_STRING },	FF_HARD, uf_concat },
+  { "concat3",	3,	{ SYMT_STRING, SYMT_STRING, SYMT_STRING},
+  							FF_HARD, uf_concat },
+  { "concat4",	4,	{ SYMT_STRING, SYMT_STRING, SYMT_STRING, SYMT_STRING},
+  							FF_HARD, uf_concat },
   { "contains",	2,	{ SYMT_STRING, SYMT_STRING },	FF_HARD, uf_contains},
   { "cos",	1,	{ SYMT_FLOAT },			FF_HARD, uf_cos },
   { "defined",	1,	{ SYMT_STRING },		FF_HARD, uf_defined },
@@ -59,6 +68,9 @@ Func_tbl[] =
   { "tan",	1,	{ SYMT_FLOAT },			FF_HARD, uf_tan },
   { "within",	3,	{ SYMT_FLOAT, SYMT_FLOAT, SYMT_FLOAT },
   							FF_HARD, uf_within },
+# ifdef XSUPPORT
+  { "getftext", 2,	{ SYMT_STRING, SYMT_STRING },	FF_HARD, uw_GetFText },
+# endif
   { ___, 	___, 	___, 				___,	 ___	     }
 };
 
@@ -107,7 +119,7 @@ int *type;
  * Evaluate a function call.
  */
 {
-	int ftype, argt[MAXARG], narg;
+	int ftype, argt[MAXARG], narg, arg;
 	union usy_value fv, argv[MAXARG];
 	struct func *fp;
 /*
@@ -124,6 +136,8 @@ int *type;
  * Perform the invocation.
  */
 	(*fp->f_func) (narg, argv, argt, v, type);
+	for (arg = 0; arg < narg; arg++)
+		ue_free_result (argt[arg], argv + arg);
 }
 
 
@@ -280,12 +294,21 @@ union usy_value *argv, *retv;
  * Concatenate two strings.
  */
 {
-	char *result = getvm (strlen (argv[0].us_v_ptr) +
-		strlen (argv[1].us_v_ptr) + 1);
-
+	char *result;
+	int tlen = 0, i;
+/*
+ * Figure out our total length and get some memory.
+ */
+	for (i = 0; i < narg; i++)
+		tlen += strlen (argv[i].us_v_ptr);
+	result = getvm (tlen + 1);
+/*
+ * Copy everything over.
+ */
+	result[0] = '\0';
+	for (i = 0; i < narg; i++)
+		strcat (result, argv[i].us_v_ptr);
 	*rett = SYMT_STRING;
-	strcpy (result, argv[0].us_v_ptr);
-	strcat (result, argv[1].us_v_ptr);
 	retv->us_v_ptr = usy_string (result);
 	relvm (result);
 }
@@ -434,9 +457,17 @@ union usy_value *argv, *retv;
  * Quote a value as a single parameter.
  */
 {
+	char *ctmp = malloc (strlen (argv->us_v_ptr) + 3);
+
+	ctmp[0] = '\"';
+	strcpy (ctmp + 1, argv->us_v_ptr);
+	strcat (ctmp, "\"");
 	*rett = SYMT_STRING;
-	retv->us_v_ptr = usy_string (argv->us_v_ptr);
+	retv->us_v_ptr = usy_string (ctmp);
+	free (ctmp);
 }
+
+
 
 
 uf_getenv (narg, argv, argt, retv, rett)
