@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-/* $Id: Imakefile,v 1.19 1996-11-19 07:01:02 granger Exp $ */
+/* $Id: Imakefile,v 1.20 1996-12-09 17:56:49 granger Exp $ */
 
 #if !HasWritev
 WRITEVOBJ=writev.o
@@ -86,12 +86,13 @@ DependTarget()
 
 LintTarget()
 
-MSGOBJS = msg_lib.o netread.o
+MSGOBJS = msg_lib.o netread.o version.o
 CVTOBJS = cvt_test.o convert.o
+REOBJS = re_test.o zl_regex.o version.o
 
 TestProgramTarget(cvt_test,$(CVTOBJS) $(MSGOBJS),/**/,/**/,$(LIBMATH))
 
-TestProgramTarget(re_test, re_test.o zl_regex.o,/**/,/**/,$(LIBREGEXP))
+TestProgramTarget(re_test,$(REOBJS),/**/,/**/,$(LIBREGEXP))
 
 TestProgramTarget(msg_test, msg_test.o $(MSGOBJS),/**/,/**/,/**/)
 
