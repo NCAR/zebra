@@ -1,7 +1,7 @@
 /*
  * Window plot control routines.
  */
-static char *rcsid = "$Id: PlotControl.c,v 1.3 1991-01-26 00:12:17 corbet Exp $";
+static char *rcsid = "$Id: PlotControl.c,v 1.4 1991-03-05 23:13:38 kris Exp $";
 
 # include <ctype.h>
 # include <X11/Intrinsic.h>
@@ -116,6 +116,7 @@ pc_PlotHandler ()
 	char	pmstring[80];
 	time	ptime;
 	Arg	arg;
+
 /*
  * Cancel all existing timer requests.
  */
@@ -140,7 +141,16 @@ pc_PlotHandler ()
 	MovieMode = FALSE;
 	pda_Search (Pd, "global", "movie-mode", 0, &MovieMode, SYMT_BOOL);
 /*
- * Figure out how many frames we need the graphics widget to have
+ * Get the path to the FrameFile from the plot description.
+ */
+	if(! pda_Search (Pd, "global", "file-path", NULL, FrameFilePath,
+		SYMT_STRING))
+		strcpy(FrameFilePath, "/dt/tmp");
+	FrameFileFlag = TRUE;
+	fc_CreateFrameFile();
+/*
+ * Figure out how many frames we need the frame cache to have and the
+ * maximum number of pixmaps the graphics widget may have.
  */
 	FrameCount = 1;
 	pda_Search (Pd, "global", "time-frames", 0, (char *)(&FrameCount), 
@@ -150,8 +160,9 @@ pc_PlotHandler ()
 	 * and multiple base fields. . .
 	 */
 /*
- * Tell the graphics widget how many frames we need
+ * Tell the graphics widget and frame cache how many frames we need
  */
+	fc_SetNumFrames(FrameCount);
 	XtSetArg (arg, XtNframeCount, FrameCount);
 	XtSetValues (Graphics, &arg, 1);
 /*
@@ -184,6 +195,7 @@ pc_PlotHandler ()
  */
 	if (MovieMode && WindowState == UP)
 		pc_DoMovie ();
+	
 }
 
 
@@ -406,7 +418,7 @@ char	*comp;
  * Actually execute the plot of the given component
  */
 {
-	/* msg_ELog (EF_DEBUG, "pc_Plot (%s)", comp); */
+	 msg_ELog (EF_DEBUG, "pc_Plot (%s)", comp); 
 /*
  * Stop movie mode until the plot is done
  */
@@ -503,6 +515,8 @@ pc_NextFrame ()
  * Display the next frame
  */
 {
+	int index;
+
 	DisplayFrame++;
 	DisplayFrame %= FrameCount;
 	GWDisplayFrame (Graphics, DisplayFrame);
