@@ -24,8 +24,8 @@
  * (notably Zeb) to get full windows support.  If you have an earlier 
  * OpenWindows version, set #define OldOpenWin to yes below.  
  *
- * For Zeb users:  To compile Zeb exclusively with OpenWindows, you
- * must have OpenWindows 3.0.  So RDSS must be compiled with
+ * For Zeb users:  to compile Zeb exclusively with OpenWindows, you
+ * must have OpenWindows 3.0, and RDSS must be compiled with
  * UseOpenWin defined as Yes and OldOpenWin defined as No.
  */ 
  
@@ -44,7 +44,7 @@
 # define OldX11 No
 
 /*
- * If you have OpenWindows, either 2.0 or 3.0, set UseOpenWin to Yes.
+ * If you use OpenWindows, set UseOpenWin to Yes.
  *
  * If your version of OpenWindows is older than OpenWindows 3.0, set
  * OldOpenWin to Yes.
@@ -91,15 +91,32 @@
 
 /*
  *
- * Use the GNU C compiler.  
- * 
+ * Decide on a compiler.  Choices are:
+ *     gcc - GNU C Compiler
+ *     cc  - Sun's bundled C Compiler
+ *     acc - Sun's ANSI C Compiler
+ *
+ * To use gcc, set UseGcc to Yes and define CCompiler as gcc.  Otherwise,
+ * set UseGcc to No and define CCompiler as cc or acc.
+ *
  */
-# define UseGcc No 
+
+# define UseGcc No
+
+# define CCompiler cc
+
 
 /*
- * The math library to use.  This will rarely need to be changed.
+ * Libraries needed to link Fortran code with the C compiler.  Be sure
+ * to check your system paths and correct this if necessary, as well as
+ * the math library path below.
  */
-#define MathLib -lm
+# define FortranLibs -L/usr/lang/SC1.0.1 -lF77
+
+/*
+ * The math library to use. 
+ */
+# define MathLib /usr/lang/SC1.0.1/libm.a 
 
 
 /*
@@ -127,8 +144,8 @@
 
 # define RDSSRoot	/rdss
 # define RDSSInclude	/rdss/include
-# define RDSSLibraries  /usr/local/lib
-# define RDSSBin        /usr/local/bin
+# define RDSSLibraries  /rdss/lib
+# define RDSSBin        /rdss/bin
 
 
 /*
