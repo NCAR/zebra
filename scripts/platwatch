@@ -62,6 +62,7 @@ EOF
 cd $dir
 while (1)
     foreach file (`find . -newer $testfile -print`)
+	if ($file == ".") continue;
 	dsrescan -file $file $plat >& /dev/null
     end
     touch $testfile
