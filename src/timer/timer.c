@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-char *Version = "$Revision: 2.7 $ $Date: 1994-11-17 06:42:22 $";
+char *Version = "$Revision: 2.8 $ $Date: 1995-04-20 07:58:29 $";
 
 # include <sys/types.h>
 # include <sys/time.h>
@@ -28,7 +28,7 @@ char *Version = "$Revision: 2.7 $ $Date: 1994-11-17 06:42:22 $";
 # include <defs.h>
 # include <message.h>
 # include <timer.h>
-MAKE_RCSID ("$Id: timer.c,v 2.7 1994-11-17 06:42:22 granger Exp $")
+MAKE_RCSID ("$Id: timer.c,v 2.8 1995-04-20 07:58:29 granger Exp $")
 
 /*
  * The timer queue is made up of these sorts of entries.
@@ -93,7 +93,7 @@ char *argv[];
 		printf ("%s: unable to connect to message handler\n", argv[0]);
 		exit (1);
 	}
-	msg_join ("Client events");
+	msg_join (MSG_CLIENT_EVENTS);
 	msg_SetQueryHandler (Status);
 /*
  * Log a message telling the world we're here.
