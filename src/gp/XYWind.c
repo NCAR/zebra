@@ -38,7 +38,7 @@
 # include "AxisControl.h"
 # include "PlotPrim.h"
 
-RCSID ("$Id: XYWind.c,v 1.37 2000-11-22 19:27:37 granger Exp $")
+RCSID ("$Id: XYWind.c,v 1.38 2000-11-29 18:46:23 granger Exp $")
 
 /*
  * General definitions
@@ -524,15 +524,17 @@ char *ctname;
 	if (! *mono)
 	{
 		if (! pda_ReqSearch (Pd, c, "color-table", "xy-wind", ctname,
-			     SYMT_STRING))
+				     SYMT_STRING))
 		{
-			msg_ELog (EF_PROBLEM, "XYWind color table missing");
+			msg_ELog (EF_PROBLEM, 
+				  "xywind: color-table parameter missing");
 			*mono = TRUE;
 		}
 		else if (! ct_LoadTable (ctname, colors, ncolors))
 		{
-			msg_ELog (EF_PROBLEM, "Unloadable color table %s",
-					ctname);
+			msg_ELog (EF_PROBLEM, 
+				  "xywind: unloadable color table %s",
+				  ctname);
 			*mono = TRUE;
 		}
 	}
