@@ -26,7 +26,7 @@
 # include <stdio.h>
 # include <netcdf.h>
 # include "defs.h"
-MAKE_RCSID ("$Id: gprotocdf.c,v 1.8 1992-11-03 17:57:52 kris Exp $")
+MAKE_RCSID ("$Id: gprotocdf.c,v 1.9 1992-11-05 20:30:27 kris Exp $")
 
 
 /*
@@ -640,6 +640,9 @@ Plow ()
 	time tv;
 	float toff, data;
 	static int nplow = 0;
+	ZebTime	zt, last_zt;
+
+	last_zt.zt_Sec = last_zt.zt_MicroSec = 0;
 /*
  * Now work through the file.
  */
@@ -669,13 +672,15 @@ Plow ()
 		{
 			tv.ds_hhmmss = ((ip[0]/1000 - 1000) + Time_off)*10000 
 			      + (ip[1]/1000 - 1000)*100 + (ip[2]/1000) - 1000;
+			TC_UIToZt (&tv, &zt);
 			if (Time_tweak)
 			{
-				ZebTime zt;
-				TC_UIToZt (&tv, &zt);
 				zt.zt_Sec += Time_tweak;
 				TC_ZtToUI (&zt, &tv);
 			}
+			if (zt.zt_Sec < last_zt.zt_Sec)
+				continue;
+			last_zt.zt_Sec = zt.zt_Sec;
 		}
 		else
 		{
