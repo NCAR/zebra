@@ -6,6 +6,7 @@
  */
 # include <X11/X.h>
 # include <X11/Xlib.h>
+# include <X11/Xutil.h>
 # include <X11/cursorfont.h>
 # include <X11/Intrinsic.h>
 # include <X11/Xaw/Cardinals.h>
@@ -26,7 +27,7 @@
 # include "ui_error.h"
 # include "ui_loadfile.h"
 
-static char *Rcsid = "$Id: ui_window.c,v 1.23 1992-08-04 20:40:01 burghart Exp $";
+static char *Rcsid = "$Id: ui_window.c,v 1.24 1992-08-06 16:32:42 burghart Exp $";
 
 static bool Initialized = FALSE;
 static bool Active = FALSE;	/* Is window mode active??	*/
@@ -121,8 +122,18 @@ struct ui_command *cmds;
  * perform a shift into Window mode.
  */
 {
-	uw_ForceWindowMode (cmds->uc_ctype == UTT_END ? (char *) 0 :
-		UPTR (*cmds), 0, 0);
+	char	*popup = NULL, *geom = NULL;
+
+	uw_ForceWindowMode (NULL, 0, 0);
+
+	if (cmds[0].uc_ctype != UTT_END)
+	{
+		popup = UPTR (cmds[0]);
+		if (cmds[1].uc_ctype != UTT_END)
+			geom = UPTR (cmds[1]);
+	}
+
+	uw_GeomPopup (popup, geom);
 }
 
 
@@ -186,6 +197,29 @@ XtAppContext *appc;
 	return (TRUE);
 }
 
+
+
+
+uw_XInit (top, appc)
+Widget	*top;
+XtAppContext	*appc;
+/*
+ * Initialize X stuff without actually entering window mode.  (The creates
+ * no control stack problems when we just want to get the Top widget set up)
+ */
+{
+	if (! Initialized)
+	{
+		Top = XtAppInitialize (&Appc, Appl_name, NULL, ZERO, Argc, 
+			Argv, (String *) Resources, NULL, ZERO);
+		Labelfont = XLoadQueryFont (XtDisplay (Top), Title_font_name);
+		Zapcursor = XCreateFontCursor (XtDisplay (Top), XC_pirate);
+		Initialized = TRUE;
+	}
+
+	*top = Top;
+	*appc = Appc;
+}
 
 
 
@@ -547,6 +581,18 @@ char *name;
  * Pop this particular widget up.
  */
 {
+	uw_GeomPopup (name, NULL);
+}
+
+
+
+
+uw_GeomPopup (name, geom)
+char *name, *geom;
+/*
+ * Pop this particular widget up, with the specified X syntax geometry (if any)
+ */
+{
 	struct gen_widget *gw = uw_g_widget (name);
 	struct frame_widget *frame;
 /*
@@ -560,10 +606,17 @@ char *name;
 		ui_error ("Funky widget type: %d", gw->gw_type);
 	frame = (struct frame_widget *) gw;
 /*
- * If the widget is already on screen, we do nothing.
+ * If the widget is already popped up:
+ *	Just return if there's no specified geometry OR
+ *	pop it down if a geometry was specified
  */
  	if (frame->fw_flags & WF_POPPED)
-		return;
+	{
+		if (! geom)
+			return;
+		else
+			uw_BringDown (frame);
+	}
 /*
  * Certain widgets are not meant to be popped up from the command line.
  */
@@ -579,6 +632,16 @@ char *name;
  */
  	if (! (frame->fw_flags & WF_CREATED))
 		uw_cr_frame (frame);
+/*
+ * Set the geometry
+ */
+	if (geom)
+	{
+		Arg	arg;
+
+		XtSetArg (arg, XtNgeometry, geom);
+		XtSetValues (frame->fw_w, &arg, 1);
+	}
 /*
  * Now put it up on the screen.
  */
