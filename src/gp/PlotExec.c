@@ -1,14 +1,15 @@
 /*
  * Plot execution module
  */
-static char *rcsid = "$Id: PlotExec.c,v 1.8 1990-12-14 10:32:11 corbet Exp $";
+static char *rcsid = "$Id: PlotExec.c,v 1.9 1990-12-14 14:01:24 burghart Exp $";
 
 # include <X11/Intrinsic.h>
 # include <ui.h>
 # include <defs.h>
 # include <pd.h>
 # include <ui_date.h>
-# include "../include/message.h"
+# include <message.h>
+# include "GC.h"
 # include "GraphProc.h"
 # include "DrawText.h"
 # include "PixelCoord.h"
@@ -284,7 +285,9 @@ px_GlobalPlot ()
  * Annotate the altitude we eventually got.
  */
 	sprintf (datestring, "Alt: %dm", (int) (Alt*1000.0));
-	DrawText (Graphics, GWFrame (Graphics), White,
+
+	XSetForeground (XtDisplay (Graphics), Gcontext, White);
+	DrawText (Graphics, GWFrame (Graphics), Gcontext,
 		GWWidth (Graphics) - 10, GWHeight (Graphics) - 10, 
 		datestring, 0.0, TOPANNOTHEIGHT, JustifyRight,
 		JustifyBottom);
@@ -507,8 +510,6 @@ Boolean	update;
 	float	center, step, bar_height, cval;
 	int	i, left, right, top, bottom;
 	char	string[10], fname[20];
-	GC	gc;
-	XGCValues	gcvals;
 /*
  * Use the common CAP contouring routine to do a filled contour plot
  */
@@ -542,10 +543,10 @@ Boolean	update;
 	 */
 		if (i < Ncolors)
 		{
-			gcvals.foreground = Colors[i].pixel;
-			gc = XtGetGC (Graphics, GCForeground, &gcvals);
+			XSetForeground (XtDisplay (Graphics), Gcontext, 
+				Colors[i].pixel);
 			XFillRectangle (XtDisplay (Graphics), 
-				GWFrame (Graphics), gc, left, 
+				GWFrame (Graphics), Gcontext, left, 
 				(int)(top + i * bar_height), 10, 
 				(int)(bar_height + 1.5));
 		}
@@ -554,7 +555,9 @@ Boolean	update;
 	 */
 		cval = center + (i - Ncolors / 2) * step;
 		sprintf (string, "%.1f", cval);
-		DrawText (Graphics, GWFrame (Graphics), White, left + 15, 
+
+		XSetForeground (XtDisplay (Graphics), Gcontext, White);
+		DrawText (Graphics, GWFrame (Graphics), Gcontext, left + 15, 
 			(int)(top + i * bar_height), string, 0.0, 0.02, 
 			JustifyLeft, JustifyCenter);
 	}
@@ -606,8 +609,12 @@ Boolean	update;
 	 */
 		cval = center + (i - Ncolors / 2) * step;
 		sprintf (string, "%.1f", cval);
-		DrawText (Graphics, GWFrame (Graphics), Colors[i].pixel, 
-			left, top, string, 0.0, 0.02, JustifyLeft, JustifyTop);
+
+
+		XSetForeground (XtDisplay (Graphics), Gcontext, 
+			Colors[i].pixel);
+		DrawText (Graphics, GWFrame (Graphics), Gcontext, left, top, 
+			string, 0.0, 0.02, JustifyLeft, JustifyTop);
 		top += (int)(1.2 * 0.02 * wheight);
 	}
 }
@@ -825,23 +832,25 @@ Boolean	update;
  */
 	An_AnnotLimits (&top, &bottom, &left, &right);
 
+	XSetForeground (XtDisplay (Graphics), Gcontext, White);
+
 	xannot = (left + right) / 2;
 	yannot = top + 0.04 * GWHeight (Graphics);
-	DrawText (Graphics, GWFrame (Graphics), White, xannot, yannot, 
+	DrawText (Graphics, GWFrame (Graphics), Gcontext, xannot, yannot, 
 		"VECTOR", 0.0, 0.02, JustifyCenter, JustifyBottom);
 
 	yannot += 0.022 * GWHeight (Graphics);
-	DrawText (Graphics, GWFrame (Graphics), White, xannot, yannot, 
+	DrawText (Graphics, GWFrame (Graphics), Gcontext, xannot, yannot, 
 		"SCALE", 0.0, 0.02, JustifyCenter, JustifyBottom);
 
 	xannot = left + 0.25 * (right - left);
 	yannot += 0.03 * GWHeight (Graphics);
-	DrawText (Graphics, GWFrame (Graphics), White, xannot, yannot,
+	DrawText (Graphics, GWFrame (Graphics), Gcontext, xannot, yannot,
 		"5.0", 0.0, 0.02, JustifyCenter, JustifyBottom);
 	VG_AnnotVector (xannot, yannot + 4, 0.0, -5.0, White);
 
 	xannot = left + 0.75 * (right - left);
-	DrawText (Graphics, GWFrame (Graphics), White, xannot, yannot,
+	DrawText (Graphics, GWFrame (Graphics), Gcontext, xannot, yannot,
 		"10.0", 0.0, 0.02, JustifyCenter, JustifyBottom);
 	VG_AnnotVector (xannot, yannot + 4, 0.0, -10.0, White);
 }
@@ -867,8 +876,6 @@ Boolean	update;
 	int	pix_x0, pix_x1, pix_y0, pix_y1;
 	XRectangle	clip;
 	XColor	black;
-	GC	gc;
-	XGCValues	gcvals;
 /*
  * Get necessary parameters from the plot description
  */
@@ -963,10 +970,10 @@ Boolean	update;
 	/*
 	 * Draw a color rectangle
 	 */
-		gcvals.foreground = Colors[i].pixel;
-		gc = XtGetGC (Graphics, GCForeground, &gcvals);
+		XSetForeground (XtDisplay (Graphics), Gcontext, 
+			Colors[i].pixel);
 		XFillRectangle (XtDisplay (Graphics), GWFrame (Graphics), 
-			gc, left, (int)(top + i * bar_height + 1), 10, 
+			Gcontext, left, (int)(top + i * bar_height + 1), 10, 
 			(int) bar_height);
 	}
 
@@ -979,7 +986,8 @@ Boolean	update;
 		val = min + frac * (max - min);
 		sprintf (string, "%.1f", val);
 
-		DrawText (Graphics, GWFrame (Graphics), White, left + 15, 
+		XSetForeground (XtDisplay (Graphics), Gcontext, White);
+		DrawText (Graphics, GWFrame (Graphics), Gcontext, left + 15, 
 			(int)(top + frac * (bottom - top)), string, 0.0, 0.02, 
 			JustifyLeft, JustifyCenter);
 	}
