@@ -27,7 +27,7 @@
 # include <sys/uio.h>
 # include "../include/defs.h"
 # include "message.h"
-MAKE_RCSID ("$Id: msg_lib.c,v 2.7 1992-09-24 19:22:34 corbet Exp $")
+MAKE_RCSID ("$Id: msg_lib.c,v 2.8 1992-10-26 23:18:58 burghart Exp $")
 
 /*
  * The array of functions linked with file descriptors.
@@ -397,8 +397,17 @@ int fd;
  */
 {
 	static struct message msg;
-# define MAX_MESSAGE 20480
-	static char data[MAX_MESSAGE];	/* XXX */
+# define MAX_STATIC 8192
+	static char static_data[MAX_STATIC];
+	static char *dyn_data = NULL;
+/*
+ * Free dynamic data if it's allocated
+ */
+	if (dyn_data)
+	{
+		free (dyn_data);
+		dyn_data = NULL;
+	}
 /*
  * Read in the message, and possibly any extra text.
  */
@@ -409,14 +418,22 @@ int fd;
 			(*Death_handler) ();
 		return (0);
 	}
-	if (msg.m_len > 0)
+/*
+ * Get some dynamic memory if the data portion is too big
+ */
+	if (msg.m_len > MAX_STATIC)
 	{
-		if (msg.m_len > MAX_MESSAGE)
-			msg_ELog (EF_EMERGENCY, "Message too long (%d)", 
-					msg.m_len);
-		msg_netread (Msg_fd, data, msg.m_len);
+		msg_ELog (EF_DEBUG, "Malloc'ing for message data (%d)",
+			msg.m_len);
+		msg.m_data = dyn_data = (char *) malloc (msg.m_len);
 	}
-	msg.m_data = data;
+	else
+		msg.m_data = static_data;
+/*
+ * Read the data portion
+ */
+	if (msg.m_len > 0)
+		msg_netread (Msg_fd, msg.m_data, msg.m_len);
 	
 	return (&msg);
 }
