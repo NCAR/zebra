@@ -51,6 +51,10 @@
  */
 # define UseOpenWin No
 # define OldOpenWin Yes
+/*
+ * You can change the location of OpenWindow's home directory here:
+ */
+# define OpenWinHome /usr/openwin
 
 
 /*
