@@ -3,20 +3,28 @@
  */
 
 #include <iostream.h>
+#include <fstream.h>
 #include <assert.h>
 
-//#include <defs.h>
 #include "BlockFile.hh"
 #include "Logger.hh"
+#include "Format.hh"
 
-//RCSID ("$Id: T_Block.cc,v 1.6 1998-05-28 22:01:54 granger Exp $")
+//RCSID ("$Id: T_Block.cc,v 1.7 1998-08-27 22:44:51 granger Exp $")
 
 static int TestStore (char *name);
 
 int main (int, char *[])
 {
-	{
-	Logger log;
+{
+	ofstream lf("tblocks.log");
+	StreamLogger log(lf);
+
+	char *s = 0;
+	cout << Format("null char *: %s") % s << endl;
+
+	// Set the default logger.
+	Logger::Prototype (log);
 
 	cout << "-----------------------------------------------" << endl;
 
@@ -49,8 +57,8 @@ int main (int, char *[])
 	log.Info ("Testing storage on second block file:");
 	TestStore ("test.bf");
 
-	}
-	exit (0);
+}
+exit (0);
 }
 
 
