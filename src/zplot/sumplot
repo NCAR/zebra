@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# $Id: sumplot,v 1.11 2001-12-07 06:03:39 granger Exp $
+# $Id: sumplot,v 1.12 2001-12-13 17:05:31 granger Exp $
 #
 # Collect all the images of a given pattern, reduce their size, and
 # put them into a table in the current directory.
@@ -103,7 +103,7 @@ echo "Done generating $htmlfile"
 #
 quickpartfile="$htmlfile.quick.part"
 (echo "<tr>"
-echo "<td colspan=2><p><strong>$project</strong></p></td></tr><tr>"
+echo "<td align=center colspan=2><p><strong>$project</strong></p></td></tr><tr>"
 find $basedir/. -type f -name "*${pattern}*.png" -o -name "*${pattern}*.gif" \
     | sort | tail -2 | while read path ; do
 
@@ -111,7 +111,7 @@ find $basedir/. -type f -name "*${pattern}*.png" -o -name "*${pattern}*.gif" \
     destimage="$destdir/tn_$image"
     /bin/test $destimage -nt $path || \
 	(set -x; convert -modulate $brightness -geometry 140x140 $path $destimage) 1>&2
-    echo '<td bgcolor="#f0f0f0">'
+    echo '<td align=center bgcolor="#f0f0f0">'
     echo "<font><strong>$image<strong></font><br><a href=$path><img src=tn_$image></a>"
     echo "</td>"
 
