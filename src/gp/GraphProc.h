@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.4 1991-10-15 22:22:16 kris Exp $ */
+/* $Id: GraphProc.h,v 2.5 1991-10-30 23:21:38 kris Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -47,7 +47,11 @@ extern plot_description Pd, Defaults;
 extern time PlotTime;		/* Time currently shown on the screen	*/
 extern enum pmode PlotMode;	/* The current plot mode		*/
 extern bool MovieMode;		/* Movie mode?				*/
+/*
+ * Post processing stuff.
+ */
 extern int PostProcMode;	/* Post processing mode?		*/
+extern time PostProcTime;	/* Post processing mode history time	*/
 /*
  * Needed for opening the FrameFile.
  */
@@ -134,9 +138,19 @@ extern void mc_PDChange (void);
 extern void mc_Dial (int);
 extern char *px_FldDesc (char *, char *);
 extern void I_DoIcons (void);
+extern void I_ColorIcons (char *);
 extern int ov_PositionIcon (char *, int, int, int);
 extern void Ue_Override (void (*) (), void (*) (), void (*) ());
 extern void Ue_ResetOverride (void);
+extern void An_AddAnnotProc (void (*) (), char *, char *, int, int,
+		int, int);
+extern void An_DoSideAnnot ();
+extern void An_ColorBar (char *, char *, int, int, int);
+extern void An_ColorNumber (char *, char *, int, int, int);
+extern void An_ColorVector (char *, char *, int, int, int);
+extern void An_ColorString (char *, char *, int, int, int);
+extern int An_GetLeft ();
+extern void An_GetSideParams (char *, float *, int *);
 extern void An_ResetAnnot (int);
 extern void An_SetScale (double);
 extern void An_AnnotLimits (int *, int *, int *, int *);
@@ -159,7 +173,10 @@ extern int AgeCheck (char *, time *);
 	extern int ct_GetColorByName (char *, XColor *);
 	extern int ct_GetColorByRGB (XColor *);
 	extern void An_TopAnnot (char *, Pixel);
+	extern void An_GetTopParams (XColor *, int *);
 	extern Widget LeftRightButtons (Widget, void *,XtTranslations);
+	extern void draw_vector (Display *, Drawable, GC, int, int,
+		double, double, double);
 # endif
 # else
 	extern void tr_InitAcWidget ();
@@ -198,9 +215,18 @@ extern int AgeCheck (char *, time *);
 	extern void mc_Dial ();
 	extern char *px_FldDesc ();
 	extern void I_DoIcons ();
+	extern void I_ColorIcons ();
 	extern int ov_PositionIcon ();
 	extern void Ue_Override ();
 	extern void Ue_ResetOverride ();
+	extern void An_AddAnnotProc ();
+	extern void An_DoSideAnnot ();
+	extern void An_ColorBar ();
+	extern void An_ColorNumber ();
+	extern void An_ColorVector ();
+	extern void An_ColorString ();
+	extern int An_GetLeft ();
+	extern void An_GetSideParams ();
 	extern void An_ResetAnnot ();
 	extern void An_AnnotLimits ();
 	extern void An_SAUsed ();
@@ -222,6 +248,8 @@ extern int AgeCheck (char *, time *);
 	extern int ct_GetColorByName ();
 	extern int ct_GetColorByRGB ();
 	extern void An_TopAnnot ();
+	extern void An_GetTopParams ();
 	extern Widget LeftRightButtons ();
+	extern void draw_vector ();
 # endif
 # endif
