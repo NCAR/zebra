@@ -2,10 +2,6 @@
  * Imakefile for the etc/icons directory.
  */
 
-/*
- * Hell if I'm going to type in all of those damn icon names.
- */
-
 INSTALLICON = $(INSTALL) $(INSTALLFLAGS) $(INSTDATFLAGS)
 
 all::
@@ -16,6 +12,17 @@ install::
 		$(INSTALLICON) $${icon_file} $(LIBDIR)/icons ; \
 	done
 
-DISTFILES = Imakefile "[0-9a-z]*"
+DISTFILES = Imakefile
 
 DistfilesTarget($(DISTFILES))
+
+/*
+ * Hard-code a distfiles target for the icon file pattern, since
+ * some makes (osf and aix) don't like file patterns in dependencies.
+ */
+distfiles::
+	@for f in [0-9a-z]* END; do \
+	if [ $$f = "END" ]; then break; fi; \
+	echo $(DISTCURDIR)/$$f ; \
+	done
+
