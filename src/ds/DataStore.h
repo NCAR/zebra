@@ -1,5 +1,5 @@
 /*
- * $Id: DataStore.h,v 3.41 1997-05-13 11:07:33 granger Exp $
+ * $Id: DataStore.h,v 3.42 1997-06-30 21:47:28 ishikawa Exp $
  *
  * Public data store definitions.
  */
@@ -62,7 +62,8 @@ typedef enum {
 	FTGRIB = 5,
 	FTGRIBSfc = 6,	/* GRIB surface grids only */
 	FTGrads = 7,
-	FTHDF = 8
+	FTGradsModel = 8, /* Grads Model format */
+	FTHDF = 9
 	/* ... */
 } FileType;
 
