@@ -1,7 +1,7 @@
 /*
  * XY-Observation plotting module
  */
-static char *rcsid = "$Id: XYObservation.c,v 1.12 1994-04-15 21:26:54 burghart Exp $";
+static char *rcsid = "$Id: XYObservation.c,v 1.13 1994-05-10 21:42:07 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -56,6 +56,8 @@ typedef enum
  * Our routines.
  */
 void xy_Observation FP ((char *, int));
+static void XYO_DoSideAnnotation FP ((char *, char *, Pixel, char *, char *,
+		char *, float, ZebTime *));
 
 
 
@@ -306,33 +308,12 @@ bool	update;
 		    ot_AddStatusLine (c, pnames[plat], fstring, &eTimeReq);
 
 		    if (sideAnnot)
-		    {
-			sprintf (annotcontrol, "%s-%s:%s", pnames[plat], 
-				 xfnames[nxfield > 1 ? plat : 0],
-				 yfnames[nyfield > 1 ? plat : 0]);
-			if (dimns[0])
-				sprintf (annotcontrol+strlen(annotcontrol),
-					 "(%s)", dimns);
-			sprintf (annotcontrol+strlen(annotcontrol), " %d",
-				 lcolor[plat]);
-			An_AddAnnotProc (An_ColorString, c, annotcontrol,
-					 strlen (annotcontrol) + 1, 25, FALSE,
-					 FALSE);
-
-			TC_EncodeTime (&eTimeReq, TC_Full, label);
-			sprintf (annotcontrol, "   %s %d", label, 
-				 lcolor[plat]);
-			An_AddAnnotProc (An_ColorString, c, annotcontrol,
-					 strlen (annotcontrol) + 1, 25, FALSE,
-					 FALSE);
-
-			sprintf (annotcontrol, "%f %d %d %s", zScale, 
-				 F_PIX_WIDTH, lcolor[plat], 
-				 zfnames[nzfield > 1 ? plat : 0]);
-			An_AddAnnotProc (An_ColorScale, c,  annotcontrol, 
-					 strlen (annotcontrol) + 1, 35, FALSE,
-					 FALSE);
-		    }
+			    XYO_DoSideAnnotation (c, pnames[plat],
+					    lcolor[plat], 
+					    xfnames[nxfield > 1 ? plat : 0],
+					    yfnames[nyfield > 1 ? plat : 0],
+					    zfnames[nzfield > 1 ? plat : 0],
+					    zScale, &eTimeReq);
 		}
 	/*
 	 * Keep the pointers to the data and apply the min and max values
@@ -534,4 +515,65 @@ bool	update;
 	free (lcolor);
 	free (dvObsInfo);
 }
+
+
+
+
+static void
+XYO_DoSideAnnotation (c, plat, color, xfield, yfield, zfield, zscale, time)
+char *c, *zfield, *plat, *xfield, *yfield;
+Pixel color;
+ZebTime *time;
+float zscale;
+{
+	float scale = 0.02;
+	int dotime = 0, nline = 3;
+	char label[200], timelabel[32];
+	char dimns[200];
+/*
+ * Main annotation stuff.
+ */
+	pda_Search (Pd, c, "sa-scale", NULL, (char *) &scale, SYMT_FLOAT);
+	sprintf(label, "line|%d|%s|%s|%s|%s", color, plat, xfield, yfield,
+			zfield);
+	if (pda_Search (Pd, c, "dimensions", NULL, dimns, SYMT_STRING))
+		sprintf (label+strlen(label), "(%s)", dimns);
+/*
+ * If they want the time put that in too.
+ */
+	if (! pda_Search (Pd, c, "time-annot", "xy-obs", (char *) &dotime,
+			  SYMT_BOOL))
+		dotime = TRUE;
+	if (dotime)
+	{
+		strcat (label, "|");
+		TC_EncodeTime (time, TC_DateOnly, timelabel);
+		strcat (label, timelabel);
+		strcat (label, "| ");
+		TC_EncodeTime (time, TC_TimeOnly, timelabel);
+		strcat (label, timelabel);
+		nline += 2;
+	}
+/*
+ * Store up the annotation request and we're set.
+ */
+	An_AddAnnotProc (An_XYGString, c, label, strlen (label) + 1,
+			 DT_ApproxHeight (Graphics, scale, nline),
+			 FALSE, FALSE);
+/*
+ * Throw in the z dimension bar too.
+ */
+	sprintf (label, "%f %d %d %s", zscale, F_PIX_WIDTH, color, zfield);
+	An_AddAnnotProc (An_ColorScale, c,  label, strlen (label) + 1, 40,
+			FALSE, FALSE);
+}
+
+
+
+
+
+
+
+
+
 # endif /* C_PT_XYGRAPH */

@@ -4,7 +4,7 @@
 ! Most widgets have now been moved out of here, finding their home instead
 ! in the library directory and brought in through the require mechanism.
 !
-! $Id: GraphProc.widgets,v 1.11 1994-04-26 20:03:39 corbet Exp $
+! $Id: GraphProc.widgets,v 1.12 1994-05-10 21:42:01 corbet Exp $
 !
 set ui$initial_state 'initial'
 
@@ -30,6 +30,22 @@ define widget standard-cap-left-menu intmenu "leftmenu"
 	line
 	entry 'Adjust Limits' 'i_adjust limit-proc'
 	entry 'Spatial Offset options' 'require offsets; popup offsets'
+	line
+	entry 'Raise to top' 'move #icon_component 0'
+	entry 'Move to bottom' 'move #icon_component 1'
+	entry 'Disable/reenable' 'ToggleBoolean "disable"' \
+		(PDParam(icon_component,"disable") = "true")
+	entry 'Remove' 'i_remove_component'
+endmenu
+
+!
+! A medium version which doesn't do spatial offsets, but does have adjust
+! 
+!
+define widget medium-cap-left-menu intmenu "leftmenu"
+	title 'Overlay Operations'
+	line
+	entry 'Adjust Limits' 'i_adjust limit-proc'
 	line
 	entry 'Raise to top' 'move #icon_component 0'
 	entry 'Move to bottom' 'move #icon_component 1'

@@ -1,7 +1,7 @@
 /*
  * XY-Contour plotting module
  */
-static char *rcsid = "$Id: XYContour.c,v 1.23 1994-05-09 22:45:34 corbet Exp $";
+static char *rcsid = "$Id: XYContour.c,v 1.24 1994-05-10 21:42:04 corbet Exp $";
 /*		Copyright (C) 1993 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -343,7 +343,7 @@ bool	update;
  * Top annotation
  */
 	An_TopAnnot ("XY Contour:", taColor);
-	An_TopAnnot (c, taColor);
+	An_TopAnnot (platforms, taColor);
 /*
  * Do each platform
  */
@@ -358,9 +358,8 @@ bool	update;
 	 */
 		if (sideAnnot)
 		{	
-			sprintf (annotcontrol, "%s%s %s %f %f", 
-					"contour-", zfnames[plat], ctname, 
-					ccenter, zstep);
+			sprintf (annotcontrol, "%s %s %f %f", zfnames[plat],
+					ctname, ccenter, zstep);
 			An_AddAnnotProc (An_ColorBar, c, annotcontrol,
 					strlen (annotcontrol) + 1, 75,
 					TRUE, FALSE);
