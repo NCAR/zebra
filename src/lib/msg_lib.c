@@ -1,7 +1,7 @@
 /*
  * Library routines for the message system.
  */
-static char *rcsid = "$Id: msg_lib.c,v 2.2 1991-11-21 21:36:43 kris Exp $";
+static char *rcsid = "$Id: msg_lib.c,v 2.3 1991-12-04 18:47:25 corbet Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -36,6 +36,8 @@ typedef int (*ifptr) ();
 static ifptr Fd_funcs[64] = { 0 };
 static ifptr Msg_handler;	/* Kludge */
 static ifptr Death_handler = 0;
+static ifptr Query_Handler;
+static ifptr QueryRoutine = 0;
 
 /*
  * The permanent list of file descriptors.
@@ -62,7 +64,7 @@ static struct mqueue
 /*
  * The list of protocol-specific handlers.
  */
-# define MAXPROTO 20	/* Should last for a while	*/
+# define MAXPROTO 25	/* Should last for a while	*/
 static ifptr 
 ProtoHandlers[MAXPROTO] = { 0 };
 
@@ -75,6 +77,8 @@ ProtoHandlers[MAXPROTO] = { 0 };
 	static int msg_SrchAck (struct message *, struct mh_ack *);
 	static int msg_ELHandler (struct message *);
 	static int msg_PingHandler (Message *);
+	static int msg_QueryHandler (Message *);
+	static int msg_DefaultQH (char *);
 	static void msg_SendPID (void);
 # else
 	static struct mqueue *msg_NewMq ();
@@ -82,6 +86,8 @@ ProtoHandlers[MAXPROTO] = { 0 };
 	static int msg_SrchAck ();
 	static int msg_ELHandler ();
 	static int msg_PingHandler ();
+	static int msg_QueryHandler ();
+	static int msg_DefaultQH ();
 	static void msg_SendPID ();
 # endif
 
@@ -180,6 +186,8 @@ char *ident;
  */
 	msg_AddProtoHandler (MT_ELOG, msg_ELHandler);
 	msg_AddProtoHandler (MT_CPING, msg_PingHandler);
+	msg_AddProtoHandler (MT_QUERY, msg_QueryHandler);
+	Query_Handler = msg_DefaultQH;
 	msg_SendPID ();
  	return (TRUE);
 }
@@ -790,4 +798,124 @@ msg_DispatchQueued ()
 		if (ret)
 			return (ret);
 	}
+}
+
+
+
+
+
+static int
+msg_QueryHandler (msg)
+Message *msg;
+/*
+ * Handle query protocol messages.
+ */
+{
+	struct mh_template *mh = (struct mh_template *) msg->m_data;
+
+	switch (mh->mh_type)
+	{
+	   case MHQ_QUERY:
+	   	(*Query_Handler) (msg->m_from);
+		break;
+
+	  case MHQ_QTEXT:
+	  	if (QueryRoutine)
+			(*QueryRoutine) (msg->m_data + sizeof (int));
+		break;
+
+	  case MHQ_QDONE:
+	  	if (QueryRoutine)
+			(*QueryRoutine) (NULL);
+		QueryRoutine = 0;
+		break;
+	}
+	return (0);
+}
+
+
+
+
+
+static int
+msg_DefaultQH (who)
+char *who;
+/*
+ * The default query handler -- not very informative.
+ */
+{
+	msg_AnswerQuery (who, "No query handler defined for this process.");
+	msg_FinishQuery (who);
+	return (0);
+}
+
+
+
+
+
+void
+msg_SendQuery (whom, routine)
+char *whom;
+ifptr routine;
+/*
+ * Send a query to this process.
+ */
+{
+	struct mh_template mh;
+	
+	mh.mh_type = MHQ_QUERY;
+	msg_send (whom, MT_QUERY, FALSE, &mh, sizeof (mh));
+	QueryRoutine = routine;
+}
+
+
+
+
+
+
+void
+msg_AnswerQuery (to, text)
+char *to, *text;
+/*
+ * Send this text back to the requestor.
+ */
+{
+	int len = sizeof (struct mh_template) + strlen (text) + 1;
+	char *resp = malloc (len);
+	struct mh_template *mh = (struct mh_template *) resp;
+
+	mh->mh_type = MHQ_QTEXT;
+	strcpy (resp + sizeof (struct mh_template), text);
+	
+	msg_send (to, MT_QUERY, FALSE, resp, len);
+	free (resp);
+}
+
+
+
+void
+msg_FinishQuery (to)
+char *to;
+/*
+ * Finish out this query.
+ */
+{
+	struct mh_template mh;
+	
+	mh.mh_type = MHQ_QDONE;
+	msg_send (to, MT_QUERY, FALSE, &mh, sizeof (mh));
+}
+
+
+
+
+
+void
+msg_SetQueryHandler (func)
+int (*func) ();
+/*
+ * Set the query handler for this process.
+ */
+{
+	Query_Handler = func;
 }

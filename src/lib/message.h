@@ -1,4 +1,4 @@
-/* $Id: message.h,v 2.1 1991-09-12 02:02:09 corbet Exp $ */
+/* $Id: message.h,v 2.2 1991-12-04 18:47:25 corbet Exp $ */
 /*
  * Message protocol types.
  */
@@ -32,6 +32,7 @@
 # define MT_NETXFR	10	/* Data store network transfer		*/
 # define MT_ACINGEST	11	/* Aircraft ingest			*/
 # define MT_SLDATA	12	/* Serial line data grabber		*/
+# define MT_QUERY	13	/* General status query protocol	*/
 
 /*
  * Message handler protocol message types.
@@ -54,6 +55,12 @@
 # define MH_CE_DISCONNECT	2	/* Client death			*/
 # define MH_CE_JOIN		3	/* New group joined by client	*/
 
+/*
+ * Query message types.
+ */
+# define MHQ_QUERY		1	/* The basic query		*/
+# define MHQ_QTEXT		2	/* Query answer text		*/
+# define MHQ_QDONE		3	/* Query finished		*/
 # define MAX_NAME_LEN	32	/* Maximum length of a name.	*/
 
 /*
@@ -187,6 +194,11 @@ struct msg_elog
 	int msg_await (void);
 	int msg_Search (int proto, int (*func) (), void * param);
 	void msg_AddProtoHandler (int, int (*) ());
+	/* query protocol */
+	void msg_SendQuery (char *, int (*) ());
+	void msg_AnswerQuery (char *, char *);
+	void msg_FinishQuery (char *);
+	void msg_SetQueryHandler (int (*) ());
 # else
 	int msg_DispatchQueued ();
 	int msg_incoming ();
@@ -200,6 +212,11 @@ struct msg_elog
 	int msg_await ();
 	int msg_Search ();
 	void msg_AddProtoHandler ();
+	/* query protocol */
+	void msg_SendQuery ();
+	void msg_AnswerQuery ();
+	void msg_FinishQuery ();
+	void msg_SetQueryHandler ();
 # endif
 
 
