@@ -1,5 +1,5 @@
 XCOMM ---------------------------------------------------------------------
-XCOMM $Id: Imakefile,v 1.4 1996-04-11 15:56:39 granger Exp $ 
+XCOMM $Id: Imakefile,v 1.5 2002-02-12 23:33:42 granger Exp $ 
 XCOMM ---------------------------------------------------------------------
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
@@ -20,7 +20,7 @@ XCOMM ---------------------------------------------------------------------
  * maintenance or updates for its software.
  */
 
-DEPLIBS= $(LIBZEBDS) $(LIBZEB)
+DEPLIBS= $(DEPDSLIBS)
 
 LIBS = $(DFALIBS) $(ZLIBS) $(XLIBS)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)

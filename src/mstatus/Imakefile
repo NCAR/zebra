@@ -2,7 +2,7 @@
 SRCS = mstatus.c
 OBJS = mstatus.o
 
-LIBS = $(LIBZEBRA)
+LIBS = $(ZLIBS)
 DISTFILES = $(SRCS) Imakefile
 
 CompleteProgramTarget(mstatus, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))

@@ -2,10 +2,10 @@
  * Imakefile for rfdump
  */
 
-MFVERSION="$Id: Imakefile,v 2.1 2001-01-18 17:11:28 granger Exp $"
+MFVERSION="$Id: Imakefile,v 2.2 2002-02-12 23:33:51 granger Exp $"
 
-DEPLIBS = $(LIBZEBRADS) $(LIBZEBRA)
-LIBS = $(LIBZEBRADS) $(LIBZEBRA)
+DEPLIBS = $(DEPDSLIBS)
+LIBS = $(DSLIBS) $(ZLIBS)
 SYSLIBS=
 
 SRCS = rfdump.c

@@ -9,7 +9,6 @@ ELISPFILES = pd-utils.el pd-utils19.el
 ECOMPILE = $(EMACS) -batch -f batch-byte-compile
 E19COMPILE = $(EMACS19) -batch -f batch-byte-compile
 
-LIBS = $(LIBZEBRA)
 DISTFILES = $(SRCS) $(HEADERS) $(ELISPFILES) Imakefile
 
 /*
@@ -17,7 +16,7 @@ DISTFILES = $(SRCS) $(HEADERS) $(ELISPFILES) Imakefile
  * and install just in case someone decides to run with the non-compiled
  * elisp files.
  */
-CompleteProgramTarget(pdmon, $(OBJS), $(DEPLIBS), $(LIBS), /**/)
+CompleteProgramTarget(pdmon, $(OBJS), $(DEPZLIBS), $(ZLIBS), /**/)
 
 BuildIncludesTop($(HEADERS))
 InstallMultipleFlags($(HEADERS),$(INCDIR),$(INSTINCFLAGS))

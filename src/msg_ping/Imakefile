@@ -2,7 +2,7 @@
 SRCS = msg_ping.c
 OBJS = msg_ping.o
 
-LIBS = $(LIBZEBRA)
+LIBS = $(ZLIBS)
 DISTFILES = $(SRCS) Imakefile
 
 CompleteProgramTarget(msg_ping, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))

@@ -1,5 +1,5 @@
 #
-# $Id: Imakefile,v 1.7 1999-03-01 02:03:56 burghart Exp $
+# $Id: Imakefile,v 1.8 2002-02-12 23:33:40 granger Exp $
 #
 # Imakefile for dsprint program stolen from NEXUS
 #
@@ -7,8 +7,8 @@
 SRCS = dsprint.c
 OBJS = dsprint.o
 
-DEPLIBS = $(LIBZEBRADS) $(LIBZEB)
-LIBS = $(DFALIBS) $(LIBZEB) $(LIBRDSSUTIL)
+DEPLIBS = $(DEPDSLIBS)
+LIBS = $(DFALIBS) $(ZLIBS)
 SYSLIBS = $(LIBMATH) $(LIBREGEXP)
 
 DISTFILES = $(SRCS) Imakefile

@@ -2,20 +2,18 @@
  * Imakefile for the DataStore
  */
 
-MFVERSION="$Id: Imakefile,v 1.76 2002-01-19 06:50:02 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.77 2002-02-12 23:33:38 granger Exp $"
 
-DEPLIBS=$(ZLIBS)
-LIBMPROF=/dt/granger/libc_mp.a
-/* SYSLIBS= $(LIBMPROF) */
+DEPLIBS=$(DEPZLIBS)
 
 /*
  * Defines for the sweepfile stuff.
  */
 
 DMNSYSLIBS=$(LIBREGEXP) $(LIBMATH) $(LIBTERMCAP)
-DMNLIBS=$(ZLIBS) $(XLIBS) $(LIBNETCDF) $(LIBHDF) $(LIBUDUNITS) $(LIBSWF)
+DMNLIBS=$(DFALIBS) $(ZLIBS) $(XLIBS)
 SYSLIBS=$(LIBREGEXP) $(LIBMATH)
-LIBS=$(ZLIBS) $(LIBNETCDF) $(LIBHDF) $(LIBUDUNITS) $(LIBSWF)
+LIBS=$(DFALIBS) $(ZLIBS)
 
 DEBUGGER = xgdb
 #ifdef DebugFlag
@@ -103,7 +101,7 @@ TESTOBJS = T_Appl.o T_Attr.o T_DataChunk.o T_DataFormat.o T_DataStore.o \
  * The complete set of modules for linking test programs.  Some test
  * objects supercede the normal library objects, so order is important.
  */
-TESTMODS = $(TESTOBJS) ./libZebraDS.a
+TESTMODS = $(TESTOBJS) $(DSLIBFILE)
 
 /*
  * All of the sources in this directory, for the make depend.
@@ -128,11 +126,39 @@ DISTFILES = Imakefile $(SRCS) $(SRCS_CXX) $(PRIVATE_HEADERS) $(TESTSRCS) \
 DEPEND_DEFINES = $(HDFDEFINES) $(HDFINCLUDES) $(NETCDFINCLUDES) \
 		 $(RDSSINCLUDES) $(UDUNITSINCLUDES)
 
+LIBZEBRADSREV=1
+
+/*
+ * Make the library.
+ */
+#if ZebraSharedLibraries
+EXTRA_DEFINES=$(PICFLAGS)
+CXXEXTRA_DEFINES=$(CXXPICFLAGS)
+DSLIBFILE = 
+SharedLibraryTarget (ZebraDS,$(LIBZEBRADSREV),$(DSLIBOBJS),.,.)
+InstallSharedLibrary (ZebraDS,$(LIBZEBRADSREV),$(LIBDIR))
+#else
+DSLIBFILE = libZebraDS.a
+NormalLibraryTarget (ZebraDS,$(DSLIBOBJS))
+InstallLibrary (ZebraDS, $(LIBDIR))
+#endif
+
+SpecialObjectRule(ingest.o,ingest.c ingest.h,$(RDSSINCLUDES))
+SpecialObjectRule(DFA_NetCDF.o T_NetCDF.o,DFA_NetCDF.c,$(NETCDFINCLUDES))
+SpecialObjectRule(DFA_HDF.o T_HDF.o,DFA_HDF.c,$(HDFDEFINES) $(HDFINCLUDES))
+SpecialCplusplusObjectRule(Field.o,Field.cc,$(UDUNITSINCLUDES))
+SpecialCplusplusObjectRule(DFA_SweepFile.o,DFA_SweepFile.cc,$(SWFDEFINES) $(SWFINCLUDES))
+
+InstallNonExecFile ($(DERIVDEF), $(LIBDIR))
+
+BuildIncludesTop($(HEADERS))
+InstallMultipleFlags($(HEADERS),$(INCDIR),$(INSTINCFLAGS))
+
 /*
  * The daemon
  */
-DMNOBJS = $(DSOBJS) $(SHAREDOBJS)
-CccProgramTarget(dsDaemon,$(DMNOBJS),$(DEPLIBS),$(DMNLIBS),$(DMNSYSLIBS))
+DMNOBJS = $(DSOBJS)
+CccProgramTarget(dsDaemon,$(DMNOBJS),$(DSLIBFILE) $(DEPLIBS),$(DMNLIBS),$(DMNSYSLIBS))
 
 SpecialObjectRule($(DSOBJS),/**/,$(RDSSINCLUDES))
 
@@ -147,25 +173,9 @@ XDRFILES = DataTypes.x
 XDRTarget(DataTypes)
 
 /*
- * Make the library.
- */
-NormalLibraryTarget (ZebraDS, $(DSLIBOBJS))
-SpecialObjectRule(ingest.o,ingest.c ingest.h,$(RDSSINCLUDES))
-SpecialObjectRule(DFA_NetCDF.o T_NetCDF.o,DFA_NetCDF.c,$(NETCDFINCLUDES))
-SpecialObjectRule(DFA_HDF.o T_HDF.o,DFA_HDF.c,$(HDFDEFINES) $(HDFINCLUDES))
-SpecialCplusplusObjectRule(Field.o,Field.cc,$(UDUNITSINCLUDES))
-SpecialCplusplusObjectRule(DFA_SweepFile.o,DFA_SweepFile.cc,$(SWFDEFINES) $(SWFINCLUDES))
-
-InstallLibrary (ZebraDS, $(LIBDIR))
-InstallNonExecFile ($(DERIVDEF), $(LIBDIR))
-
-BuildIncludesTop($(HEADERS))
-InstallMultipleFlags($(HEADERS),$(INCDIR),$(INSTINCFLAGS))
-
-/*
  * Dump routines.
  */
-TestProgramTarget (bfdump, bfdump.o, $(LIBZEBRA), $(LIBZEBRA), /**/)
+TestProgramTarget (bfdump,bfdump.o,/**/,/**/,/**/)
 
 /* 
  * Special stuff for the field derivation flex scanner/bison parser code.  The
@@ -196,11 +206,6 @@ SpecialObjectRule (hdflook.o, hdflook.c, $(HDFINCLUDES))
 
 APOBJS = apple.o $(TESTMODS)
 CccTestProgramTarget (apple, $(APOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
-
-#ifdef notdef
-TestProgramTarget (nctime, nctime.o, /*DEPLIBS*/, $(LIBNETCDF), /**/)
-SpecialObjectRule(nctime.o,/**/,$(NETCDFINCLUDES))
-#endif
 
 #ifdef NETCDF31
 NC31DIR = /net/src/data-tools/netcdf-3.1a/gcc-g/include
@@ -236,7 +241,7 @@ nctime24: nctime.o FORCE
 FORCE:
 #endif
 
-ALOBJS = aline.o ./libZebraDS.a
+ALOBJS = aline.o $(DSLIBFILE)
 CccTestProgramTarget (aline, $(ALOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 
 test:: dbgstart
@@ -250,7 +255,7 @@ clean::
 	rm -f dbgstart
 
 #ifdef notdef
-THDFOBJS = T_HDF.o ./libZebraDS.a
+THDFOBJS = T_HDF.o $(DSLIBFILE)
 TestProgramTarget (testhdf, $(THDFOBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 #endif
 
@@ -300,7 +305,8 @@ test.apple: test.apple.only test.close
 	-@ZEBRA_SOCKET=$(SOCKET); export ZEBRA_SOCKET; \ @@\
 	DSDUMP=$(DSDUMP); export DSDUMP; \ @@\
 	ZEB_PROJECT=$(TESTPROJ); export ZEB_PROJECT; \ @@\
-	DATA_DIR=$(DATA_DIR); export DATA_DIR;
+	DATA_DIR=$(DATA_DIR); export DATA_DIR; \ @@\
+        LD_LIBRARY_PATH=$${LD_LIBRARY_PATH:-$(BUILDLIBDIR)}:$(BUILDLIBDIR)
 
 
 test.session $(SOCKET): $(ZPROGS) dsDaemon dsDaemon.lf $(DSCONFIG)

@@ -2,7 +2,7 @@
 SRCS = timer.c
 OBJS = timer.o
 
-LIBS = $(LIBZEBRA)
+LIBS = $(ZLIBS)
 DISTFILES = $(SRCS) Imakefile
 
 CompleteProgramTarget(timer, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))

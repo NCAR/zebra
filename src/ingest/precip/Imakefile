@@ -1,5 +1,5 @@
 /**/# ---------------------------------------------------------------------
-/**/# $Id: Imakefile,v 1.4 1995-07-06 04:28:28 granger Exp $ 
+/**/# $Id: Imakefile,v 1.5 2002-02-12 23:33:43 granger Exp $ 
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -19,7 +19,7 @@
  * maintenance or updates for its software.
  */
 
-DEPLIBS = $(LIBZEBDS) $(LIBZEB)
+DEPLIBS = $(DEPDSLIBS)
 LIBS = $(DFALIBS) $(ZLIBS) $(XLIBS)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 

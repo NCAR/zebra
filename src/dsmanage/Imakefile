@@ -11,7 +11,7 @@ HEADERS = dsFile.h dsPlatform.h Dialog.h Index.h STable.h StatusWin.h Tape.h \
 	Exceptions.h dsPlatform.h 
 
 DSMLIBS = $(DFALIBS) $(ZLIBS) $(XLIBS)
-TILIBS = $(DFALIBS) $(LIBZEBRA)
+TILIBS = $(DFALIBS) $(ZLIBS)
 SYSLIBS = $(LIBMATH) $(LIBREGEXP)
 
 INCLUDES = $(XINCLUDES)

@@ -2,7 +2,7 @@
 SRCS = mtap.c
 OBJS = mtap.o
 
-LIBS = $(LIBZEBRA)
+LIBS = $(ZLIBS)
 DISTFILES = $(SRCS) Imakefile
 DSDIR = $(TOP)/src/ds
 DSINCLUDES = -I$(DSDIR)

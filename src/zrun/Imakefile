@@ -6,7 +6,7 @@ OBJS = zrun.o
  * RDSS libraries not required since no RDSS routines referenced in the
  * source file nor in the cmd_exec or msg_lib library objects.
  */
-LIBS = $(LIBZEB)
+LIBS = $(ZLIBS)
 
 DISTFILES = Imakefile $(SRCS)
 

@@ -18,7 +18,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-/* $Id: Imakefile,v 1.40 2001-12-28 00:27:54 granger Exp $ */
+/* $Id: Imakefile,v 1.41 2002-02-12 23:33:47 granger Exp $ */
 
 #if !HasWritev
 WRITEVOBJ=writev.o
@@ -26,10 +26,6 @@ WRITEVSRC=writev.c
 #else
 WRITEVOBJ=
 WRITEVSRC=
-#endif
-
-#ifdef notdef
-INCLUDES = -I.		/* so that <> includes can be found */
 #endif
 
 /*
@@ -122,7 +118,17 @@ DISTFILES = $(SRCS) writev.c $(HEADERS) Imakefile $(PHEADERS) $(SOURCES.x)
 
 INCLUDES = $(RDSSINCLUDES)
 
+LIBZEBRAREV=1
+
+#if ZebraSharedLibraries
+EXTRA_DEFINES=$(PICFLAGS)
+CXXEXTRA_DEFINES=$(CXXPICFLAGS)
+SharedLibraryTarget (Zebra,$(LIBZEBRAREV),$(OBJS),.,.)
+InstallSharedLibrary (Zebra,$(LIBZEBRAREV),$(LIBDIR))
+#else
 NormalLibraryTarget (Zebra, $(OBJS))
+InstallLibrary (Zebra, $(LIBDIR))
+#endif
 
 $(OBJS): $(RPCTARGETS)
 
@@ -139,8 +145,6 @@ SpecialObjectRule(GraphicsW.o,GraphicsW.c GraphicsW.h GraphicsWP.h,$(SHMDEFINES)
  */
 XDRTarget(zebra_rpc)
 XDRTarget(map)
-
-InstallLibrary (Zebra, $(LIBDIR))
 
 BuildIncludesTop ($(HEADERS))
 InstallMultipleFlags($(HEADERS),$(INCDIR),$(INSTINCFLAGS))

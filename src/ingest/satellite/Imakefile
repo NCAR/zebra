@@ -16,12 +16,12 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.20 1997-11-21 21:04:40 burghart Exp $"
+MFVERSION="$Id: Imakefile,v 1.21 2002-02-12 23:33:44 granger Exp $"
 
 LIBS = $(DFALIBS) $(ZLIBS) $(XLIBS) $(LIBMCIDAS) $(FLIBS)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
-DEPLIBS = $(LIBZEBRA) $(LIBZEBRADS) $(LIBMCIDAS)
+DEPLIBS = $(DEPDSLIBS) $(LIBMCIDAS)
 
 SRCS = SatIngest.c GMS.c Area.c AreaIngest.c AreaDS.c areadump.c GriddedGOES.c
 

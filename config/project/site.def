@@ -36,16 +36,34 @@ XCOMM site:  $XConsortium: site.sample,v 1.9 94/04/08 17:02:06 rws Exp $
 # define CcCmd CCompiler
 #endif
 
+/*
+ * Some architecture cf files (e.g. linux) will already define HasGcc and
+ * HasGcc2.  However, if we're told to use gcc, then we'll force the issue
+ * later after the vendor cf regardless of the definition of HasGcc.
+ */
+#ifndef UseGcc
+# define UseGcc NO
+#endif
 #if UseGcc
 # ifdef AIXArchitecture
-#  ifndef CplusplusCmd
-#   define CplusplusCmd g++
-#  endif
+#   define CcCmd gcc
+#   ifndef CplusplusCmd
+#    define CplusplusCmd g++
+#   endif
+# endif
+# ifdef HasGcc2
+#  undef HasGcc2
+# endif
+# define HasGcc2 YES
+# ifdef HasGcc2ForCplusplus
+#  undef HasGcc2ForCplusplus
+# endif
+# define HasGcc2ForCplusplus YES
+#else
+# ifndef HasGcc
+#  define HasGcc NO
 # endif
 #endif
-
-/* #define HasCplusplus YES */
-/* #define HasSunCplusplus YES */
 
 #endif /* BeforeVendorCF */
 
@@ -55,16 +73,14 @@ XCOMM site:  $XConsortium: site.sample,v 1.9 94/04/08 17:02:06 rws Exp $
 
 /* 
  * Map the config.h symbols into the equivalent Imake.tmpl definitions.
- * Some architecture cf files (e.g. linux) may already define HasGcc and
- * HasGcc2.  However, if we're told to use gcc, then we'll force the issue
- * regardless of the definition of HasGcc.
  */
-#ifndef UseGcc
-# define UseGcc NO
-#endif
+
 #if UseGcc
 # ifdef AIXArchitecture
 #   define CcCmd gcc
+#   ifndef CplusplusCmd
+#    define CplusplusCmd g++
+#   endif
 # endif
 # ifdef HasGcc2
 #  undef HasGcc2

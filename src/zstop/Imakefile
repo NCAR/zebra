@@ -2,7 +2,7 @@
 SRCS = zstop.c
 OBJS = zstop.o
 
-LIBS = $(LIBZEBRA)
+LIBS = $(ZLIBS)
 DISTFILES = $(SRCS) Imakefile
 
 CompleteProgramTarget(zstop, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))

@@ -5,7 +5,7 @@
 SRCS = message.c
 OBJS = message.o
 
-LIBS = $(LIBZEB)
+LIBS = $(ZLIBS)
 SYSLIBS = $(LIBREGEXP)
 
 DISTFILES = Imakefile $(SRCS)

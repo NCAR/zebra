@@ -16,13 +16,12 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.12 2000-08-23 16:51:30 burghart Exp $"
+MFVERSION="$Id: Imakefile,v 1.13 2002-02-12 23:33:47 granger Exp $"
 
 #define IHaveSubdirs
 #define PassCDebugFlags 'CDEBUGFLAGS=$(CDEBUGFLAGS)'
 
-LIBS = $(LIBZEBRA)
-DEPLIBS = $(LIBZEBRA)
+LIBS = $(ZLIBS)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 FIPSLIB = fips123/libfips123.a
 
@@ -50,12 +49,12 @@ SpecialObjectRule(dem2zebra.o,/**/,$(NETCDFINCLUDES))
 CompleteProgramTarget(dem2zebra,dem2zebra.o,/**/,$(LIBNETCDF),$(LIBMATH))
 CompleteProgramTarget(dlg2zebra,dlg2zebra.o,$(FIPSLIB),$(FIPSLIB),)
 MDOBJS = map_decimate.o
-CompleteProgramTarget(map_decimate,$(MDOBJS),$(DEPLIBS),$(LIBZEBRA),$(LIBMATH))
-CompleteProgramTarget(zmap,zmap.o,$(DEPLIBS),$(LIBZEBRA),$(LIBMATH))
+CompleteProgramTarget(map_decimate,$(MDOBJS),$(DEPLIBS),$(ZLIBS),$(LIBMATH))
+CompleteProgramTarget(zmap,zmap.o,$(DEPLIBS),$(ZLIBS),$(LIBMATH))
 CompleteProgramTarget(ncar2zebra,ncar2zebra.o,/**/,/**/,/**/)
 CompleteProgramTarget(rect_filter,rect_filter.o,/**/,/**/,/**/)
 CompleteProgramTarget(sdtsdump,sdtsdump.o,$(FIPSLIB),$(FIPSLIB),)
-CccProgramTarget(lobes,lobes.o,,$(LIBZEBRA),$(LIBMATH))
+CccProgramTarget(lobes,lobes.o,,$(ZLIBS),$(LIBMATH))
 
 # if defined(SunArchitecture)
 DEPEND_DEFINES=$(NETCDFINCLUDES) $(XINCLUDES)

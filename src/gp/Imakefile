@@ -1,6 +1,6 @@
 /* -*- C -*- */
 XCOMM ---------------------------------------------------------------------
-XCOMM $Id: Imakefile,v 1.45 2001-11-30 21:29:28 granger Exp $ 
+XCOMM $Id: Imakefile,v 1.46 2002-02-12 23:33:41 granger Exp $ 
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -29,7 +29,7 @@ SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
 INCLUDES = $(XINCLUDES) $(RDSSINCLUDES)
 
-DEPLIBS = $(LIBZEBDS) $(ZLIBS)
+DEPLIBS = $(DEPDSLIBS)
 
 #if UseOpenWindows && (OpenWindowsVersion < 3)
    LABELOBJS=Label.o
@@ -143,8 +143,6 @@ UILoadFileDepsTarget(graphproc.lf, GraphProc.state, GraphProc.widgets)
 InstallAppDefaults(Graphproc)
 
 CccDependTarget($(SRCS_CXX))
-
-TestProgramTarget(gtest,$(OBJS),$(DEPLIBS),$(LIBS),$(SYSLIBS))
 
 CflowTarget(gp,GraphProc.o $(COBJS),/**/)
 

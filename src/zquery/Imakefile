@@ -2,7 +2,7 @@
 SRCS = zquery.c
 OBJS = zquery.o
 
-LIBS = $(LIBZEBRA)
+LIBS = $(ZLIBS)
 
 DISTFILES = Imakefile $(SRCS)
 

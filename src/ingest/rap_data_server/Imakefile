@@ -15,12 +15,12 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.4 1995-07-06 04:28:43 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.5 2002-02-12 23:33:44 granger Exp $"
 
 LIBS = $(DFALIBS) $(ZLIBS) $(XLIBS)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
-DEPLIBS = $(LIBZEB) $(LIBZEBDS)
+DEPLIBS = $(DEPDSLIBS)
 
 SRCS = RAP_DsIngest.c freeform.c get_server_data.c print_stuff.c \
 	sock_subs.c test_server.c time_date.c

@@ -39,7 +39,7 @@
 
 XCOMM -----------------------------------------------------------------------
 XCOMM Zebra project makefile template
-XCOMM $Id: Project.tmpl,v 1.74 2001-10-04 21:52:51 burghart Exp $
+XCOMM $Id: Project.tmpl,v 1.75 2002-02-12 23:33:36 granger Exp $
 XCOMM -----------------------------------------------------------------------
 
 
@@ -140,6 +140,13 @@ XCOMM -----------------------------------------------------------------------
 
 #ifndef UseInstalledZebra
 #define UseInstalledZebra YES
+#endif
+
+#if ! UseInstalledZebra
+#undef ZebraSharedLibraries
+#endif
+#ifndef ZebraSharedLibraries
+#define ZebraSharedLibraries NO
 #endif
 
 #ifndef BuildIncRoot
@@ -263,12 +270,22 @@ XCOMM -----------------------------------------------------------------------
 # define RDSSLibDir $(LIBDIR)
 # if UseInstalledZebra
 #  define RDSSDir $(LIBDIR)
-#  define RDSSUILibrary $(LIBDIR)/librdssui.a
-#  define RDSSUtilLibrary $(LIBDIR)/librdssutil.a
+#  if ZebraSharedLibraries
+#   define RDSSUILibrary -L$(LIBDIR) -lrdssui
+#   define RDSSUtilLibrary -L$(LIBDIR) -lrdssutil
+#  else
+#   define RDSSUILibrary $(LIBDIR)/librdssui.a
+#   define RDSSUtilLibrary $(LIBDIR)/librdssutil.a
+#  endif
 # else
 #  define RDSSDir $(TOP)
-#  define RDSSUILibrary $(TOP)/ui/librdssui.a
-#  define RDSSUtilLibrary $(TOP)/util/librdssutil.a
+#  if ZebraSharedLibraries
+#   define RDSSUILibrary -L$(BUILDLIBDIR) -lrdssui
+#   define RDSSUtilLibrary -L$(BUILDLIBDIR) -lrdssutil
+#  else
+#   define RDSSUILibrary $(TOP)/ui/librdssui.a
+#   define RDSSUtilLibrary $(TOP)/util/librdssutil.a
+#  endif
 # endif
 # define RDSSLibrary $(LIBRDSSUI) $(LIBRDSSUTIL)
 #else
@@ -276,12 +293,13 @@ XCOMM -----------------------------------------------------------------------
 # define RDSSUtilLibrary /* " */
 #endif
 
+#define LdLibEnv LD_LIBRARY_PATH=$(LIBDIR):$${LD_LIBRARY_PATH:-.} 
 #ifndef UicCmd
 # if BuildRDSS
 #  if UseInstalledZebra
-#   define UicCmd $(BINDIR)/uic
+#   define UicCmd LdLibEnv $(BINDIR)/uic
 #  else
-#   define UicCmd LOADFILE=$(TOP)/ui/ui.lf $(TOP)/ui/uic
+#   define UicCmd LdLibEnv LOADFILE=$(TOP)/ui/ui.lf $(TOP)/ui/uic
 #  endif
 # else
 #  define UicCmd uic	/* Assumes uic in path and loadfile in built-in path */
@@ -291,9 +309,9 @@ XCOMM -----------------------------------------------------------------------
 #ifndef UibCmd
 # if BuildRDSS
 #  if UseInstalledZebra
-#   define UibCmd $(BINDIR)/uib
+#   define UibCmd LdLibEnv $(BINDIR)/uib
 #  else
-#   define UibCmd $(TOP)/ui/uib
+#   define UibCmd LdLibEnv $(TOP)/ui/uib
 #  endif
 # else
 #  define UibCmd uib	/* Assumes uib in path */
@@ -529,10 +547,18 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 
 #if ! UseInstalledZebra
 #ifndef ZebraLibrary
+# if ZebraSharedLibraries
+#    define ZebraLibrary 	-L$(BUILDLIBDIR) -lZebra
+# else
 #    define ZebraLibrary 	$(TOP)/src/lib/libZebra.a
+# endif
 #endif
 #ifndef ZebraDSLibrary
+# if ZebraSharedLibraries
+#    define ZebraDSLibrary	-L$(BUILDLIBDIR) -lZebraDS
+# else
 #    define ZebraDSLibrary	$(TOP)/src/ds/libZebraDS.a
+# endif
 #endif
 #ifndef MCIDASLibrary
 #    define MCIDASLibrary	$(TOP)/src/ingest/mcidas/libmcidas.a
@@ -540,11 +566,19 @@ LoaderLibPrefix -lXt LoaderLibPrefix -lXext LoaderLibPrefix -lX11
 #endif
 
 #ifndef ZebraLibrary
-#define ZebraLibrary LoaderLibPrefix $(LIBDIR)/libZebra.a
+# if ZebraSharedLibraries
+#  define ZebraLibrary -L$(LIBDIR) -lZebra
+# else
+#  define ZebraLibrary LoaderLibPrefix $(LIBDIR)/libZebra.a
+# endif
 #endif
 
 #ifndef ZebraDSLibrary
-#define ZebraDSLibrary LoaderLibPrefix $(LIBDIR)/libZebraDS.a
+# if ZebraSharedLibraries
+#  define ZebraDSLibrary -L$(LIBDIR) -lZebraDS
+# else
+#  define ZebraDSLibrary LoaderLibPrefix $(LIBDIR)/libZebraDS.a
+# endif
 #endif
 
 #ifndef MCIDASLibrary
@@ -841,6 +875,7 @@ XCOMM -----------------------------------------------------------------------
      BUILDINCROOT = BuildIncRoot	/* root of build include directory */
       BUILDINCDIR = $(BUILDINCROOT)	/* where headers put in inc dir */
       BUILDINCTOP = BuildIncTop		/* top relative to BUILDINCDIR */
+      BUILDLIBDIR = BuildIncRoot        /* use same dir for built shared libs*/
 
 /*
  * General directory locations
@@ -1049,6 +1084,8 @@ CXXEXTRA_INCLUDES = /* $(XINCLUDES) $(RDSSINCLUDES) */ $(CONFIGINCLUDES)
 # endif
           XLIBDIR = XLibDir
 
+       LIBZEBRASO = libZebra.so.$(LIBZEBRAREV)
+     LIBZEBRADSSO = libZebraDS.so.$(LIBZEBRADSREV)
 /*
  * Library link command-line options.  These make variables should include
  * any -L options and the -l prefix to library names, or they can
@@ -1087,7 +1124,6 @@ CXXEXTRA_INCLUDES = /* $(XINCLUDES) $(RDSSINCLUDES) */ $(CONFIGINCLUDES)
     SYS_LIBRARIES = SystemLibraries
     LOCAL_LDFLAGS = RunPath
 
-          DEPLIBS = $(LIBZEBRA)
           MATHLIB = $(LIBMATH)
        TERMCAPLIB = $(LIBTERMCAP)
 /*
@@ -1096,18 +1132,36 @@ CXXEXTRA_INCLUDES = /* $(XINCLUDES) $(RDSSINCLUDES) */ $(CONFIGINCLUDES)
  * access should use DFALIBS rather than list the particular format libraries,
  * to make it easier to add and remove formats down the road.  Likewise,
  * programs only needing protocol access and not file access can use DSLIBS.
+ * When the Zebra libraries are shared, then we need to add all possible
+ * dependencies, which also means making DSLIBS imply DFALIBS.
  */
+#if ZebraSharedLibraries
+ZLIBS = $(LIBZEBRA) $(LIBRDSS) $(XLIBS) $(LIBREGEXP) $(LIBTERMCAP) $(LIBMATH)
+DFALIBS = $(LIBZEBRADS) $(LIBNETCDF) $(LIBHDF) $(LIBUDUNITS) $(LIBSWF)
+DSLIBS = $(DFALIBS)
+DEPLIBS =
+#else
            ZLIBS = $(LIBZEBRA) $(LIBRDSS)
          DFALIBS = $(LIBZEBRADS) $(LIBNETCDF) $(LIBHDF) $(LIBUDUNITS) $(LIBSWF)
           DSLIBS = $(LIBZEBRADS) $(LIBUDUNITS)
+         DEPLIBS = $(ZLIBS)
+        DEPZLIBS = $(ZLIBS)
+       DEPDSLIBS = $(LIBZEBRADS) $(ZLIBS)
+#endif
 /*
  * Override some make variables settings in Imake.tmpl.  Set LD_RUN_PATH
  * to our X libraries if it exists, and don't bother with LDPRELIB since
  * we already have the X libraries in a link option.
  */
-         LDPRELIB = 
-       CCENVSETUP = 
-      CXXENVSETUP = 
+XCOMM         LDPRELIB = 
+XCOMM       CCENVSETUP = 
+XCOMM      CXXENVSETUP = 
+/*
+ * Define the pic flags explicitly since we know we're compiling with GCC.
+ */
+         PICFLAGS = -DPIC -fPIC
+      CXXPICFLAGS = -DPIC -fPIC
+
 #if HasCvs && WantCvsIgnore
         CVSIGNORE = .cvsignore
 #endif

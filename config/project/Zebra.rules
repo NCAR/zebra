@@ -1,5 +1,5 @@
 XCOMM -*- C -*-
-XCOMM $Id: Zebra.rules,v 1.20 2001-01-17 20:22:49 granger Exp $
+XCOMM $Id: Zebra.rules,v 1.21 2002-02-12 23:33:36 granger Exp $
 XCOMM
 XCOMM Rules specific to the Zebra project, including some which override
 XCOMM definitions in Imake.rules
@@ -846,4 +846,27 @@ DistfilesSubdirs($(DISTSUBDIRS))
 #endif
 #define ObjectCompile(options) @ RemoveFile($@)				@@\
 	$(CC) -c $(CFLAGS) options $*.c
+
+/*
+ * Shared library target, redefined to assume GCC and use GCC options
+ * to do the linking.
+ */
+#ifdef SharedLibraryTarget
+#undef SharedLibraryTarget
+#endif
+#ifndef SharedLibraryTarget
+#define SharedLibraryTarget(libname,rev,solist,down,up)			@@\
+AllTarget(Concat(lib,libname.so.rev))					@@\
+									@@\
+Concat(lib,libname.so.rev):  solist					@@\
+	$(RM) $@~							@@\
+	(cd down; $(CXX) -o up/$@~ -shared solist $(REQUIREDLIBS)) @@\
+	$(RM) $@ 							@@\
+	$(MV) $@~ $@							@@\
+	LinkBuildLibrary($@)						@@\
+									@@\
+clean::									@@\
+	$(RM) Concat(lib,libname.so.rev)				@@\
+
+#endif /* SharedLibraryTarget */
 

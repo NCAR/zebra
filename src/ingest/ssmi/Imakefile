@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.8 1995-07-06 04:28:51 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.9 2002-02-12 23:33:44 granger Exp $"
 
 PROOF=/net/CenterLine/bin/proof
 
@@ -23,7 +23,7 @@ LIBMP = /local/src/prog-tools/mprof/libc_mp.a
 
 LIBS = $(DFALIBS) $(ZLIBS) $(XLIBS) $(FLIBS)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
-DEPLIBS = $(LIBZEBDS) $(LIBZEB)
+DEPLIBS = $(DEPDSLIBS)
 
 LINTOPTS = -nuvxz
 

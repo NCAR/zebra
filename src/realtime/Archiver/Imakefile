@@ -1,5 +1,5 @@
 /* Archiver Imakefile -*- C -*-
- * $Id: Imakefile,v 1.20 1999-12-17 17:24:13 granger Exp $
+ * $Id: Imakefile,v 1.21 2002-02-12 23:33:50 granger Exp $
  */
 
 SRCS = XArchiver.cc Archiver.cc Database.c Arq.c
@@ -15,7 +15,7 @@ NDBMINCLUDES = -I/usr/include/db1
 #endif
 
 INCLUDES = $(NDBMINCLUDES) $(XINCLUDES) 
-LIBS = $(DFALIBS) $(LIBZEBRA) $(LIBRDSSUTIL) $(XLIBS)
+LIBS = $(DFALIBS) $(ZLIBS) $(XLIBS)
 SYSLIBS = $(LIBNDBM) $(LIBREGEXP) $(LIBMATH)
 DISTFILES = $(SRCS) $(HDRS) Imakefile Archiver.ad
 
@@ -23,7 +23,7 @@ CccProgramTarget(Archiver, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
 InstallAppDefaults(Archiver)
 
 DBOBJS = Arq.o Database.o
-CccProgramTarget(Arq, $(DBOBJS), $(DEPLIBS), $(LIBZEBRA),$(LIBNDBM))
+CccProgramTarget(Arq, $(DBOBJS), $(DEPLIBS), $(ZLIBS),$(LIBNDBM))
 
 DependTarget()
 LintTarget()

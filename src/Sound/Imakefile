@@ -2,7 +2,7 @@
 SRCS = Sound.c
 OBJS = Sound.o
 
-LIBS = $(LIBZEBRA)
+LIBS = $(ZLIBS)
 DISTFILES = $(SRCS) Imakefile
 SYSLIBS = $(LIBREGEXP)
 

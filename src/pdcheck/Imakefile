@@ -3,7 +3,7 @@ PROG = pdcheck
 SRCS = pdcheck.c
 OBJS = pdcheck.o
 
-LIBS = $(LIBZEB) $(LIBRDSS)
+LIBS = $(ZLIBS)
 DISTFILES = $(SRCS) Imakefile
 SYSLIBS = $(LIBREGEXP)
 

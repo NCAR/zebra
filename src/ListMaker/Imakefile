@@ -15,9 +15,9 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.1 2000-03-09 17:38:47 burghart Exp $"
+MFVERSION="$Id: Imakefile,v 1.2 2002-02-12 23:33:37 granger Exp $"
 
-DEPLIBS = $(LIBZEBRA) $(LIBZEBRADS)
+DEPLIBS = $(DEPDSLIBS)
 LIBS = $(DFALIBS) $(ZLIBS)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 

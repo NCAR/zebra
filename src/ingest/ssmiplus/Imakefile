@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.10 1995-07-06 04:28:56 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.11 2002-02-12 23:33:45 granger Exp $"
 
 PROOF=/net/CenterLine/bin/proof
 
@@ -50,7 +50,7 @@ LOCAL_LIBS = $(DFALIBS) $(ZLIBS) \
 		$(XLIBS) $(FLIBS)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
-DEPLIBS = $(LIBZEBDS) $(LIBZEB)
+DEPLIBS = $(DEPDSLIBS)
 
 CCOPTIONS = -O
 CDEBUGFLAGS = -g /* -Wall */

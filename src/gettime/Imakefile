@@ -2,7 +2,7 @@
 SRCS = gettime.c
 OBJS = gettime.o
 
-LIBS = $(LIBZEBRA)
+LIBS = $(ZLIBS)
 DISTFILES = $(SRCS) Imakefile
 
 CompleteProgramTarget(gettime, $(OBJS), $(DEPLIBS), $(LIBS), $(SYSLIBS))
