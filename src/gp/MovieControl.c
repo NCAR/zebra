@@ -1,7 +1,7 @@
 /*
  * Movie control functions.
  */
-static char *rcsid = "$Id: MovieControl.c,v 2.11 1993-03-02 23:09:06 granger Exp $";
+static char *rcsid = "$Id: MovieControl.c,v 2.12 1993-03-12 22:05:17 granger Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -182,6 +182,14 @@ XtAppContext appc;
 /*
  * The movie control buttons.
  */
+	n = 0;
+	XtSetArg (args[n], XtNfromHoriz, w); n++;
+	XtSetArg (args[n], XtNfromVert, NULL); n++;
+	XtSetArg (args[n], XtNlabel, "Help"); n++;
+	w = XtCreateManagedWidget ("movieHelp", commandWidgetClass, form,
+		args, n);
+	XtAddCallback (w, XtNcallback, HelpCallback, 
+		       (XtPointer)GP_HELP_MOVIE);
 	n = 0;
 	XtSetArg (args[n], XtNfromHoriz, w); n++;
 	XtSetArg (args[n], XtNfromVert, NULL); n++;
