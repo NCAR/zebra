@@ -1,4 +1,4 @@
-/* $Id: GraphProc.h,v 2.69 2000-10-18 20:34:17 granger Exp $ */
+/* $Id: GraphProc.h,v 2.70 2000-11-08 23:47:02 granger Exp $ */
 /*
  * Graphics process definitions.
  */
@@ -61,9 +61,11 @@ extern stbl Vtable;
 
 /*
  * Two plot descriptions are maintained in the graphics process -- the
- * "current" plot description, and the defaults table.
+ * "current" plot description, and the defaults table.  Only the "current"
+ * plot description has a global reference.  The defaults pd is kept by the
+ * pd library under the name "defaults".
  */
-extern plot_description Pd, Defaults;
+extern plot_description Pd;
 
 /*
  * The current plot parameters.

@@ -47,7 +47,7 @@
 # include "LayoutControl.h"
 # include "LLEvent.h"
 
-RCSID ("$Id: GraphProc.c,v 2.72 2000-06-07 20:35:54 granger Exp $")
+RCSID ("$Id: GraphProc.c,v 2.73 2000-11-08 23:47:02 granger Exp $")
 
 /*
  * Default resources.
@@ -83,7 +83,6 @@ zbool	HoldProcess = FALSE;		/* Plotting on hold?		*/
 # endif
 stbl	Vtable;				/* The variable table		*/
 plot_description	Pd = 0;		/* Current plot description	*/
-plot_description	Defaults = 0;	/* Plot description info	*/
 ZebTime	PlotTime;			/* The current plot time.	*/
 long	ForecastOffset;			/* Forecast offset time (models)*/
 zbool	ValidationMode;			/* Validation mode for models?	*/
@@ -1963,66 +1962,47 @@ XtPointer call_data;
 
 
 
-#ifdef notdef
-void
-Require (char *module)
-/*
- * Make sure that we have loaded this module.
- */
-{
-	int t;
-	SValue v;
-	char fname[PathLen];
-/*
- * See if the module has been loaded already.
- */
-	if (usy_g_symbol (RequireTable, module, &t, &v))
-		return;	/* Got it already */
-/*
- * Nope.  We need to look for it.
- */
-	strcpy (fname, "read ");
-	if (! FindFile (module, RequirePath, fname + 5))
-	{
-		msg_ELog (EF_PROBLEM, "Unable to find module %s", module);
-		return;
-	}
-/*
- * Now load the module and make a note of it.
- */
-	msg_ELog (EF_INFO, "Loading module %s", module);
-	ui_perform (fname);
-	usy_s_symbol (RequireTable, module, SYMT_BOOL, &v);
-}
-#endif
-
-
-
-
-void
-DoRequires ()
+static void
+DoRequiresIn (plot_description pd, char *pdname)
 /*
  * Pass through the plot description and make sure that we have all of our
  * requires in place.
  */
 {
-	char **comps = pd_CompList (Pd), rqs[256], *module;
+	char **comps = pd_CompList (pd), rqs[256], *module;
 	int comp;
 /*
  * Pass through each component, including the global one, and see if there
  * is a require parameter therein.
  */
-	msg_ELog (EF_DEBUG, "checking components for module requirements");
+	msg_ELog (EF_DEBUG, "checking %s components for module requirements",
+		  pdname);
 	for (comp = 0; comps[comp]; comp++)
 	{
-		if (! pd_Retrieve (Pd, comps[comp], "require", rqs,
+		if (! pd_Retrieve (pd, comps[comp], "require", rqs,
 				   SYMT_STRING))
 			continue;
 		for (module = (char *)strtok (rqs, ", \t"); module;
 		     module = (char *)strtok (NULL, ", \t"))
 			Require (module);
 	}
-	msg_ELog (EF_DEBUG, "module requirements check complete");
+	msg_ELog (EF_DEBUG, "%s module requirements check complete", pdname);
+}
+		    
+
+
+
+void
+DoRequires ()
+/*
+ * Do the require check in both our window pd and the defaults pd.
+ */
+{
+    plot_description defpd = pda_GetPD ("defaults");
+    if (Pd) 
+	DoRequiresIn (Pd, "pd");
+    if (defpd) 
+	DoRequiresIn (defpd, "defaults");
 }
 		    
 
