@@ -40,7 +40,7 @@
 # include "AxisControl.h"
 # include "ActiveArea.h"
 
-MAKE_RCSID ("$Id: PlotExec.c,v 2.55 1998-04-27 21:44:45 corbet Exp $")
+MAKE_RCSID ("$Id: PlotExec.c,v 2.56 1998-09-22 22:07:13 burghart Exp $")
 
 /*
  * Macro for a pointer to x cast into a char *
@@ -967,7 +967,7 @@ char *fld;
 {
 	char *ret = F_GetDesc (F_Lookup (fld));
 	
-	return (ret ? ret : fld);
+	return ((ret && ret[0]) ? ret : fld);
 }
 
 
