@@ -15,4 +15,4 @@ p_irg_winds
 	icon-right-menu:	irg-winds-right
 	icon:		meso_winds
 	limit-proc:	adj_arrow_scale
-	require:	irg_winds, simple-color
+	require:	winds, simple-color
