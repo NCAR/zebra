@@ -1,8 +1,8 @@
 /*
  * The graphics process event/processing queue system.
  */
-static char *rcsid = "$Id: EventQueue.c,v 2.4 1993-10-25 19:11:00 burghart Exp $";
-/*		Copyright (C) 1987,88,89,90,91 by UCAR
+static char *rcsid = "$Id: EventQueue.c,v 2.5 1993-10-27 21:46:37 burghart Exp $";
+/*		Copyright (C) 1993 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
  *
@@ -41,8 +41,7 @@ static char *rcsid = "$Id: EventQueue.c,v 2.4 1993-10-25 19:11:00 burghart Exp $
 struct pq_entry
 {
 	void	(*pqe_proc) ();		/* The procedure to call	*/
-	char	*pqe_data;		/* Proc data			*/
-	int	pqe_len;		/* Length of that data		*/
+	void	*pqe_data;		/* Proc data			*/
 	struct pq_entry *pqe_next;	/* Next entry			*/
 };
 
@@ -52,6 +51,11 @@ struct pq_entry
 static struct pq_entry *P_queue[3] = { 0, 0, 0};
 static struct pq_entry *P_tails[3];
 static struct pq_entry *P_free = 0;	/* pqe free list		*/
+
+/*
+ * The pq_entry currently being dealt with by Eq_Execute().
+ */
+static struct pq_entry *CurrentPQE = NULL;
 
 /*
  * If HoldProcess is nonzero, only stuff at the PUrgent level will be
@@ -120,6 +124,8 @@ EQoverride override;
 	pqe->pqe_next = 0;
 }
 
+
+
 void
 Eq_ZapQProc (pri, proc, data, len)
 EQpriority pri;
@@ -135,17 +141,12 @@ int     len;
 
         for (ent = P_queue[pri]; ent; )
         {
-                if (ent->pqe_proc == proc)
+                if (ent->pqe_proc == proc && 
+		    ! strcmp ((char *) data, ent->pqe_data))
                 {
-                    for ( i = 0;
-                  i < len && ((char*)data)[i]==ent->pqe_data[i];
-                          i++);
-                    if ( i == len )
-                    {
                         struct pq_entry *zap = ent;
                         ent = ent->pqe_next;
                         Eq_RemoveEntry (pri, zap);
-                    }
                 }
                 else
                         ent = ent->pqe_next;
@@ -205,12 +206,14 @@ int len;
  * Go ahead and fill in the data.
  */
 	new->pqe_proc = proc;
-	new->pqe_len = len;
 	if (len)
 	{
 		new->pqe_data = malloc (len);
 		memcpy (new->pqe_data, data, len);
 	}
+	else
+		new->pqe_data = NULL;
+
 	return (new);
 }
 
@@ -227,6 +230,12 @@ struct pq_entry *pqe;
  */
 {
 	struct pq_entry *last;
+/*
+ * If Eq_Execute() is dealing with this pq_entry, leave it alone.  It will
+ * be removed when Eq_Execute() is done.
+ */
+	if (pqe == CurrentPQE)
+		return;
 /*
  * If this is the first entry, clear it directly.
  */
@@ -270,8 +279,9 @@ struct pq_entry *pqe;
  * Get rid of this entry.
  */
 {
-	if (pqe->pqe_len)
+	if (pqe->pqe_data)
 		free (pqe->pqe_data);
+
 	pqe->pqe_next = P_free;
 	P_free = pqe;
 }
@@ -300,10 +310,28 @@ Eq_Execute ()
 /*
  * Do it.
  */
+
 	if (pqe)
 	{
-		(*pqe->pqe_proc) (pqe->pqe_data, pqe->pqe_len);
+	/*
+	 * Mark this pq_entry so that the procedure we execute can't
+	 * remove it.  Otherwise, it could be gone when we try to remove
+	 * it below.
+	 */
+		CurrentPQE = pqe;
+	/*
+	 * Execute the procedure.
+	 */
+		if (pqe->pqe_data)
+			(*pqe->pqe_proc) (pqe->pqe_data);
+		else
+			(*pqe->pqe_proc) ();
+	/*
+	 * Remove the entry.
+	 */
+		CurrentPQE = NULL;
 		Eq_RemoveEntry (pri, pqe);
+
 		return (1);
 	}
 	return (0);
