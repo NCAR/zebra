@@ -9,7 +9,7 @@
 # include "DataStore.h"
 # include "znfile.h"
 
-MAKE_RCSID ("$Id: zfdump.c,v 1.7 1993-08-26 22:00:31 granger Exp $")
+MAKE_RCSID ("$Id: zfdump.c,v 1.8 1993-09-02 08:27:04 granger Exp $")
 
 extern int optind;
 
@@ -133,7 +133,8 @@ int dump_free, dump_header, dump_all;
 	lseek (fd, hdr.znh_OffTime, 0);
 	read (fd, zt, hdr.znh_NSample*sizeof (ZebTime));
 
-	ssps = (hdr.znh_Org == OrgFixedScalar) ? 1 : hdr.znh_NField;
+	ssps = ((hdr.znh_Org == OrgFixedScalar) ||
+		(hdr.znh_NField == 0)) ? 1 : hdr.znh_NField;
 	samples = (zn_Sample *) malloc (hdr.znh_NSample * ssps *
 				sizeof (zn_Sample));
 	lseek (fd, hdr.znh_OffSample, 0);
@@ -281,8 +282,7 @@ zn_Header *hdr;
 	long flen;
 	int i;
 
-	if ((hdr->znh_NField == 0) 
-	    /*|| (hdr->znh_Org == OrgTransparent)*/ )
+	if (hdr->znh_NField == 0)
 		return NULL;
 
 	printf ("Fields:\n");
