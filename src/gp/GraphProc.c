@@ -28,22 +28,22 @@
 # include <ui.h>
 # include <fcntl.h>
 
-# include "../include/config.h"
-# include "../include/defs.h"
-# include "../include/message.h"
-# include "../include/dm.h"
-# include "../include/pd.h"
-# include "../include/GraphicsW.h"
-# include "../include/timer.h"
-# include "../include/DataStore.h"
-# include "../include/copyright.h"
+# include "config.h"
+# include "defs.h"
+# include "message.h"
+# include "dm.h"
+# include "pd.h"
+# include "GraphicsW.h"
+# include "timer.h"
+# include "DataStore.h"
+# include "copyright.h"
 
 # include "gp_cmds.h"
 # include "EventQueue.h"
 # include "GC.h"
 # include "GraphProc.h"
 
-MAKE_RCSID ("$Id: GraphProc.c,v 2.12 1991-12-04 23:05:51 corbet Exp $")
+MAKE_RCSID ("$Id: GraphProc.c,v 2.13 1991-12-07 18:04:04 kris Exp $")
 
 /*
  * Default resources.
@@ -114,6 +114,7 @@ static char **Argv;
  */
 int	msg_handler (), dispatcher (), xtEvent ();
 void	SendEndpoints ();
+XtCallbackProc WMResize ();
 
 static void UiErrorReport (), UiPfHandler ();
 
@@ -249,14 +250,21 @@ finish_setup ()
  * our output.
  */
 	XtSetArg (args[0], XtNinput, True);
-	XtSetArg (args[1], XtNoverrideRedirect, True);
-	GrShell = XtCreatePopupShell ("grshell", topLevelShellWidgetClass,
-		Top, args, 2);
+# ifdef notdef
+	XtSetArg (args[1], XtNoverrideRedirect, False);
+# endif
+	GrShell = XtCreatePopupShell ("grshell", applicationShellWidgetClass,
+		Top, args, 1);
 /*
  * Inside this shell goes the graphics widget itself.
  */
 	Graphics = XtCreateManagedWidget ("graphics", graphicsWidgetClass,
 		GrShell, NULL, 0);
+/*
+ * Add the resize callback procedure.
+ */
+	XtAddCallback (Graphics, XtNresizeCallback, (XtCallbackProc) WMResize, 
+		(XtPointer) NULL);
 /*
  * Cursors.
  */
@@ -321,6 +329,28 @@ finish_setup ()
 	ui_perform (perf);
 }
 
+
+XtCallbackProc
+WMResize (w, junk, stuff)
+Widget w;
+XtPointer junk, stuff;
+/*
+ * Respond to a window manager resize.
+ */
+{
+/*
+ * Invalidate the frame cache.
+ */
+	fc_InvalidateCache ();
+/*
+ * Force a redisplay.
+ */
+	if (Pd)
+	{
+		Eq_AddEvent (PDisplay, I_DoIcons, NULL, 0, Bounce);
+		Eq_AddEvent (PDisplay, pc_PlotHandler, NULL, 0, Override);
+	}
+}
 
 
 
@@ -683,13 +713,13 @@ int len;
 /*
  * Go through and set the new values for the shell.
  */
- 	XtSetArg (args[0], XtNx, dmsg->dmm_x);
-	XtSetArg (args[1], XtNy, dmsg->dmm_y);
-	XtSetValues (GrShell, args, TWO);
-
 	XtSetArg (args[0], XtNwidth, dmsg->dmm_dx);
 	XtSetArg (args[1], XtNheight, dmsg->dmm_dy);
 	XtSetValues (Graphics, args, TWO);
+
+ 	XtSetArg (args[0], XtNx, dmsg->dmm_x);
+	XtSetArg (args[1], XtNy, dmsg->dmm_y);
+	XtSetValues (GrShell, args, TWO);
 /*
  * If we are not currently on-screen, put it there.  Also set the cursor 
  * to our normal value.
