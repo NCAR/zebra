@@ -19,13 +19,13 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  *
- * $Id: met_formulas.h,v 1.6 1992-03-16 17:27:20 burghart Exp $
+ * $Id: met_formulas.h,v 1.7 1993-07-21 21:51:50 burghart Exp $
  */
 
 # ifndef __STDC__
 	double	w_sat (), e_sw (), t_mr (), theta_to_t (), theta_e ();
 	double	t_sat (), square (), ten_to_the (), lcl_pres (), lcl_temp ();
-	double	theta_dry (), dewpoint (), e_from_dp (), t_v ();
+	double	theta_dry (), dewpoint (), e_from_dp (), t_v (), t_wet ();
 # else
 	double	w_sat (double t, double p);
 	double	e_sw (double t);
@@ -41,5 +41,6 @@
 	double	dewpoint (double e);
 	double	e_from_dp (double dp);
 	double	t_v (double t, double p, double e);
+	double	t_wet (double t, double p, double rh);
 # endif
 
