@@ -5,6 +5,7 @@
 # include <fcntl.h>
 # include <sys/types.h>
 # include <sys/file.h>
+# include <unistd.h>
 
 # ifdef NETACCESS
 #   include "netdisk.h"
