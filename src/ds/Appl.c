@@ -28,7 +28,7 @@
 #include "dfa.h"
 
 #ifndef lint
-MAKE_RCSID ("$Id: Appl.c,v 3.30 1994-04-27 08:23:31 granger Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.31 1994-05-31 19:54:09 burghart Exp $")
 #endif
 
 /*
@@ -544,6 +544,7 @@ int *index;
 	return (1);
 }
 		
+
 
 
 
@@ -1979,6 +1980,24 @@ ClientPlatform *p;
 	if (tmpl->dsp_type == dpt_R_PlatStruct)
 	{
 		struct dsp_PlatStruct *dps = (struct dsp_PlatStruct *) tmpl;
+	/*
+	 * Sanity check
+	 */
+		if (msg->m_len != sizeof (struct dsp_PlatStruct))
+		{
+			msg_ELog (EF_EMERGENCY, 
+				  "Plat structure size mismatch (%d vs. %d)!",
+				  sizeof (struct dsp_PlatStruct), msg->m_len);
+			msg_ELog (EF_EMERGENCY, 
+			  "Make sure dsDaemon and I are compiled with the");
+			msg_ELog (EF_EMERGENCY,
+			  "same value of CFG_PLATNAME_LEN in config.h");
+
+			exit (1);
+		}
+	/*
+	 * Give them what we got
+	 */
 		*p = dps->dsp_plat;
 		return (0);
 	}
@@ -2116,6 +2135,24 @@ DataFile *df;
 	if (tmpl->dsp_type == dpt_R_FileStruct)
 	{
 		struct dsp_FileStruct *dfs = (struct dsp_FileStruct *) tmpl;
+	/*
+	 * Sanity check
+	 */
+		if (msg->m_len != sizeof (struct dsp_FileStruct))
+		{
+			msg_ELog (EF_EMERGENCY, 
+				  "dsp_FileStruct size mismatch (%d vs. %d)!",
+				  sizeof (struct dsp_FileStruct), msg->m_len);
+			msg_ELog (EF_EMERGENCY, 
+			  "Make sure dsDaemon and I are compiled with the");
+			msg_ELog (EF_EMERGENCY,
+			  "same value of CFG_DATAFILE_LEN in config.h");
+
+			exit (1);
+		}
+	/*
+	 * Stash what we got
+	 */
 		DFCache[DFZap++] = *df = dfs->dsp_file;
 		if (DFZap >= N_DF_CACHE)
 			DFZap = 0;
