@@ -1,7 +1,7 @@
 /*
  * Skew-t plotting module
  */
-static char *rcsid = "$Id: Skewt.c,v 2.8 1992-11-03 20:40:50 burghart Exp $";
+static char *rcsid = "$Id: Skewt.c,v 2.9 1993-06-04 20:29:57 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -102,16 +102,16 @@ static bool	DoFeet = FALSE;
 void		sk_Skewt FP ((char *, int)); 
 static void	sk_Background FP (()); 
 static void	sk_Lift FP ((int, float*, float*, float*, double)); 
-static void	sk_Thermo FP ((float *, float *, float *, int, int, double)); 
-static void	sk_Winds FP ((float *, float *, float*, int, int, int, double));
+static void	sk_Thermo FP ((char *, XColor));
+static void	sk_Winds FP ((char *, XColor, int, int, bool));
 static void	sk_Polyline FP ((float *, float*, int, LineStyle, XColor)); 
-static void	sk_DrawText FP ((char *, double, double, double, XColor, double,
-			int, int)); 
+static void	sk_DrawText FP ((char *, double, double, double, XColor, 
+				 double, int, int)); 
 static void	sk_Clip FP ((double, double, double, double)); 
 static void	sk_Surface FP ((float *, float *, float *, int, float*,
-			float *, float *, double));
+				float *, float *, double));
 static int	sk_700mb FP ((float *, float *, float*, int, double, double,
-			float *, float *, int *, double));
+			      float *, float *, int *, double));
 
 
 void
@@ -123,18 +123,13 @@ bool	update;
  */
 {
 	bool		ok;
-	int		npts, plat, nplat, n, nfld, i, have_u, have_v, have_uv;
-	char		platforms[80], annot[80], ctname[20], tadefcolor[30];
-	time		t;
-	ZebTime		ptime, when;
-	char		*pnames[5];
-	FieldId		flist[5], favail[30];
-	PlatformId	pid;
-	float		*pres, *temp, *dp, *u_wind, *v_wind, badvalue;
-	float		wspd, wdir;
-	DataChunk	*dc;
+	int		plat, n, i, nplat, nwplat;
+	char		ctname[20], tadefcolor[30];
+	char		platforms[80], windplats[80];
+	char		*pnames[5], *wpnames[5];
+	XColor		color;
 /*
- * Get the platform and color table
+ * Get the platform list and color table
  */
 	ok = pda_ReqSearch (Pd, c, "platform", NULL, platforms, SYMT_STRING);
 	ok &= pda_ReqSearch (Pd, c, "color-table", "skewt", ctname, 
@@ -148,6 +143,23 @@ bool	update;
 	nplat = CommaParse (platforms, pnames);
 	if (nplat > 3)
 		nplat = 3;
+/*
+ * Allow for separate platform(s) for winds data
+ */
+	nwplat = 0;
+
+	if (pda_Search (Pd, c, "wind-platform", NULL, windplats, SYMT_STRING))
+	{
+		nwplat = CommaParse (windplats, wpnames);
+		if (nwplat < nplat)
+		{
+			msg_ELog (EF_PROBLEM, 
+				  "Not enough names in 'wind-platform'");
+			nwplat = 0;
+		}
+		else
+			nwplat = nplat;
+	}
 /*
  * Look for data limits; set them to defaults if necessary
  */
@@ -209,7 +221,7 @@ bool	update;
 	{
 		sk_Background ();
 		An_TopAnnot ("Skew-t plot for ", Tadefclr.pixel);
-		lw_OvInit ("PLATFORM    TIME\n");
+		lw_OvInit ("PLATFORM            TIME\n");
 	}
 /*
  * Loop through the platforms
@@ -217,137 +229,20 @@ bool	update;
 	for (plat = 0; plat < nplat; plat++)
 	{
 	/*
-	 * Add this platform to the annotation
+	 * Determine the color for this platform
 	 */
-		if (! update)
-		{
-			if (plat > 0)
-				An_TopAnnot (", ", Tadefclr.pixel);
-
-			if (Tacmatch)
-				An_TopAnnot (pnames[plat], 
-					Colors[C_DATA(plat)].pixel);
-			else
-				An_TopAnnot (pnames[plat], 
-					Tadefclr.pixel);
-		}
+		color = Tacmatch ? Colors[C_DATA(plat)] : Tadefclr;
 	/*
-	 * Get the platform id and obtain a good data time
+	 * Add a comma to the annotation (after the first platform)
 	 */
-		pid = ds_LookupPlatform (pnames[plat]);
-		if (pid == BadPlatform)
-		{
-			msg_ELog (EF_PROBLEM, "Bad platform '%s'", 
-				pnames[plat]);
-			continue;
-		}
-
-		ptime = PlotTime;
-		if (! ds_GetObsTimes (pid, &ptime, &ptime, 1, NULL))
-		{
-			char	tstring[20];
-			TC_EncodeTime (&ptime, TC_Full, tstring);
-			msg_ELog (EF_INFO, "No data for '%s' at %s.", 
-				pnames[plat], tstring);
-			continue;
-		}
-	/*	
-	 * Build the field list
-	 */
-		flist[0] = F_Lookup ("pres");
-		flist[1] = F_Lookup ("tdry");
-		flist[2] = F_Lookup ("dp");
+		if (plat > 0)
+			An_TopAnnot (", ", Tadefclr.pixel);
 	/*
-	 * Get u_wind and v_wind if they exist, otherwise get wspd and wdir 
-	 * and we'll do the derivation.  (The necessity for this will 
-	 * disappear when the data store has some derivation capability of 
-	 * its own)
+	 * Do the thermo bit, then the winds
 	 */
-		have_u = have_v = FALSE;
-		nfld = sizeof (favail) / sizeof (FieldId); /* max we accept */
-		ds_GetFields (pid, &ptime, &nfld, favail);
-		for (i = 0; i < nfld; i++)
-		{
-			have_u |= (favail[i] == F_Lookup ("u_wind"));
-			have_v |= (favail[i] == F_Lookup ("v_wind"));
-		}
-
-		if (have_u && have_v)
-		{
-			have_uv = TRUE;
-			flist[3] = F_Lookup ("u_wind");
-			flist[4] = F_Lookup ("v_wind");
-		}
-		else
-		{
-			have_uv = FALSE;
-			flist[3] = F_Lookup ("wspd");
-			flist[4] = F_Lookup ("wdir");
-		}
-	/*
-	 * Get the data
-	 */
-		if (! (dc = ds_FetchObs (pid, DCC_Scalar, &ptime, flist, 5, 
-			NULL, 0)))
-		{
-			msg_ELog (EF_PROBLEM, "Unable to get data for '%s'.", 
-				pnames[plat]);
-			continue;
-		}
-	/*
-	 * Get the data from the chunk.
-	 */
-		badvalue = dc_GetBadval (dc);
-		npts = dc_GetNSample (dc);
-			
-		pres = (float *) malloc (npts * sizeof (float));
-		temp = (float *) malloc (npts * sizeof (float));
-		dp = (float *) malloc (npts * sizeof (float));
-		u_wind = (float *) malloc (npts * sizeof (float));
-		v_wind = (float *) malloc (npts * sizeof (float));
-
-		for (n = 0; n < npts; n++)
-		{
-			pres[n] = dc_GetScalar (dc, n, flist[0]);
-			temp[n] = dc_GetScalar (dc, n, flist[1]);
-			dp[n] = dc_GetScalar (dc, n, flist[2]);
-			if (have_uv)
-			{
-				u_wind[n] = dc_GetScalar (dc, n, flist[3]);
-				v_wind[n] = dc_GetScalar (dc, n, flist[4]);
-			}
-			else
-			{
-				wspd = dc_GetScalar (dc, n, flist[3]);
-				wdir = dc_GetScalar (dc, n, flist[4]);
-				u_wind[n] = wspd * 
-					cos (DEG_TO_RAD (270.0 - wdir));
-				v_wind[n] = wspd * 
-					sin (DEG_TO_RAD (270.0 - wdir));
-			}
-		}
-	/*
-	 * Plot the thermo data and then the winds data
-	 */
-		sk_Thermo (pres, temp, dp, npts, plat, badvalue);
-		sk_Winds (pres, u_wind, v_wind, npts, plat, nplat, badvalue);
-	/*
-	 * Fill in the time info.
-	 */
-		dc_GetTime (dc, 0, &when);
-		TC_ZtToUI (&when, &t);
-		sprintf (annot, "%-12s%2d:%02d\n", pnames[plat],
-			t.ds_hhmmss/10000, (t.ds_hhmmss/100) % 100);
-		lw_OvAddString (annot);
-	/*
-	 * Free the data.
-	 */
-		free (pres);
-		free (temp);
-		free (dp);
-		free (u_wind);
-		free (v_wind);
-		dc_DestroyDC (dc);
+		sk_Thermo (pnames[plat], color);
+		sk_Winds ((nwplat > 0) ? wpnames[plat] : pnames[plat],
+			  color, plat, nplat, (bool)(nwplat > 0));
 	}
 /*
  * Add a period to the top annotation
@@ -800,16 +695,82 @@ ENDCATCH
 
 
 static void
-sk_Thermo (p, t, d, npts, plot_ndx, badvalue)
-float	*p, *t, *d, badvalue;
-int	npts, plot_ndx;
+sk_Thermo (pname, color)
+char	*pname;
+XColor	color;
 /*
- * Plot the thermo data for the given sounding
+ * Plot the thermo data using the given platform name and color
  */
 {
-	float	*xt, *xd, *yt, *yd;
+	float	*xt, *xd, *yt, *yd, *pres, *temp, *dp, badvalue;
 	float	y;
-	int	i, good_d = 0, good_t = 0;
+	int	i, npts, good_d = 0, good_t = 0;
+	char	string[40];
+	FieldId	flist[3];
+	ZebTime	ptime;
+	PlatformId	pid;
+	DataChunk	*dc;
+/*
+ * Add this platform to the annotation
+ */
+	An_TopAnnot (pname, Tacmatch ? color.pixel : Tadefclr.pixel);
+/*
+ * Get the platform id and obtain a good data time
+ */
+	pid = ds_LookupPlatform (pname);
+	if (pid == BadPlatform)
+	{
+		msg_ELog (EF_PROBLEM, "Bad platform '%s'", pname);
+		return;
+	}
+	
+	ptime = PlotTime;
+	if (! ds_GetObsTimes (pid, &ptime, &ptime, 1, NULL))
+	{
+		char	tstring[20];
+
+		TC_EncodeTime (&ptime, TC_Full, tstring);
+		msg_ELog (EF_INFO, "No data for '%s' at %s", pname, tstring);
+		return;
+	}
+/*	
+ * Build the field list
+ */
+	flist[0] = F_Lookup ("pres");
+	flist[1] = F_Lookup ("tdry");
+	flist[2] = F_Lookup ("dp");
+/*
+ * Get the data
+ */
+	if (! (dc = ds_FetchObs (pid, DCC_Scalar, &ptime, flist, 3, NULL, 0)))
+	{
+		msg_ELog (EF_PROBLEM, "Unable to get data for '%s'.", pname);
+		return;
+	}
+/*
+ * Get the data from the chunk.
+ */
+	badvalue = dc_GetBadval (dc);
+	npts = dc_GetNSample (dc);
+	
+	pres = (float *) malloc (npts * sizeof (float));
+	temp = (float *) malloc (npts * sizeof (float));
+	dp = (float *) malloc (npts * sizeof (float));
+	
+	for (i = 0; i < npts; i++)
+	{
+		pres[i] = dc_GetScalar (dc, i, flist[0]);
+		temp[i] = dc_GetScalar (dc, i, flist[1]);
+		dp[i] = dc_GetScalar (dc, i, flist[2]);
+	}
+
+	dc_DestroyDC (dc);
+/*
+ * Put a line in the overlay times widget
+ */
+	sprintf (string, "%-19.19s ", pname);
+	TC_EncodeTime (&ptime, TC_Full, string + 20);
+	lw_OvAddString (string);
 /*
  * Clip
  */
@@ -826,33 +787,38 @@ int	npts, plot_ndx;
  */
 	for (i = 0; i < npts; i++)
 	{
-		if (p[i] == badvalue)
+		if (pres[i] == badvalue)
 			continue;
 		else
 		{
-			y = YPOS (p[i]);
+			y = YPOS (pres[i]);
 			yt[good_t] = y;
 			yd[good_d] = y;
 		}
 
-		if (t[i] != badvalue)
-			xt[good_t++] = XPOS (t[i], y);
+		if (temp[i] != badvalue)
+			xt[good_t++] = XPOS (temp[i], y);
 
-		if (d[i] != badvalue)
-			xd[good_d++] = XPOS (d[i], y);
+		if (dp[i] != badvalue)
+			xd[good_d++] = XPOS (dp[i], y);
 	}
 /*
  * Draw the lines
  */
-	sk_Polyline (xt, yt, good_t, L_solid, Colors[C_DATA (plot_ndx)]);
-	sk_Polyline (xd, yd, good_d, L_solid, Colors[C_DATA (plot_ndx)]);
+	sk_Polyline (xt, yt, good_t, L_solid, color);
+	sk_Polyline (xd, yd, good_d, L_solid, color);
 /*
  * Draw the lifted parcel lines
  */
-	sk_Lift (npts, p, t, d, badvalue);
+	sk_Lift (npts, pres, temp, dp, badvalue);
 /*
  * Free the allocated space and return
  */
+
+	free (pres);
+	free (temp);
+	free (dp);
+
 	free (xt);
 	free (xd);
 	free (yt);
@@ -865,18 +831,127 @@ int	npts, plot_ndx;
 
 
 static void
-sk_Winds (p, u, v, npts, plot_ndx, nplots, badvalue)
-float	*p, *u, *v, badvalue;
-int	npts;
+sk_Winds (pname, color, plot_ndx, nplots, annot)
+char	*pname;
+XColor	color;
 int	plot_ndx, nplots;
+bool	annot;
 /*
- * Plot the winds for the given sounding
+ * Plot sounding winds given:
+ *	pname:	the platform name
+ *	color:	the color to use
+ *	plot_ndx:	the index for this winds plot
+ *	nplots:	the total number of winds plots
+ *	annot:	write annotation for this plot?
  */
 {
-	float	xstart, xscale, yscale, xov[2], yov[2];
-	int	i;
+	float	xstart, xscale, yscale, xov[2], yov[2], badvalue;
+	float	*pres, *u, *v, wspd, wdir;
+	int	i, nfld, npts;
+	char	string[40];
+	bool	have_u, have_v, have_uv;
+	ZebTime	ptime;
+	FieldId	flist[3], favail[30];
+	DataChunk	*dc;
+	PlatformId	pid;
 /*
- * Calculate the x starting position and the x and y scaling factors
+ * Add this platform to the annotation
+ */
+	if (annot)
+	{
+		sprintf (string, " (winds: %s)", pname);
+		An_TopAnnot (string, Tacmatch ? color.pixel : Tadefclr.pixel);
+	}
+/*
+ * Get the platform id and obtain a good data time
+ */
+	pid = ds_LookupPlatform (pname);
+	if (pid == BadPlatform)
+	{
+		msg_ELog (EF_PROBLEM, "Bad winds platform '%s'", pname);
+		return;
+	}
+	
+	ptime = PlotTime;
+	if (! ds_GetObsTimes (pid, &ptime, &ptime, 1, NULL))
+	{
+		char	tstring[20];
+
+		TC_EncodeTime (&ptime, TC_Full, tstring);
+		msg_ELog (EF_INFO, "No winds data for '%s' at %s", pname, 
+			  tstring);
+		return;
+	}
+/*
+ * Get u_wind and v_wind if they exist, otherwise get wspd and wdir 
+ * and we'll do the derivation.  (The necessity for this will 
+ * disappear when the data store has some derivation capability of 
+ * its own)
+ */
+	have_u = have_v = FALSE;
+	nfld = sizeof (favail) / sizeof (FieldId); /* max we accept */
+	ds_GetFields (pid, &ptime, &nfld, favail);
+	for (i = 0; i < nfld; i++)
+	{
+		have_u |= (favail[i] == F_Lookup ("u_wind"));
+		have_v |= (favail[i] == F_Lookup ("v_wind"));
+	}
+	
+	have_uv = have_u && have_v;
+
+	flist[0] = F_Lookup ("pres");
+	flist[1] = have_uv ? F_Lookup ("u_wind") : F_Lookup ("wspd");
+	flist[2] = have_uv ? F_Lookup ("v_wind") : F_Lookup ("wdir");
+/*
+ * Get the data
+ */
+	if (! (dc = ds_FetchObs (pid, DCC_Scalar, &ptime, flist, 3, NULL, 0)))
+	{
+		msg_ELog (EF_PROBLEM, "Unable to get winds data for '%s'", 
+			  pname);
+		return;
+	}
+/*
+ * Get the data from the chunk, deriving u_wind and v_wind if necessary
+ */
+	badvalue = dc_GetBadval (dc);
+	npts = dc_GetNSample (dc);
+
+	pres = (float *) malloc (npts * sizeof (float));
+	u = (float *) malloc (npts * sizeof (float));
+	v = (float *) malloc (npts * sizeof (float));
+
+	for (i = 0; i < npts; i++)
+	{
+		pres[i] = dc_GetScalar (dc, i, flist[0]);
+
+		if (have_uv)
+		{
+			u[i] = dc_GetScalar (dc, i, flist[1]);
+			v[i] = dc_GetScalar (dc, i, flist[2]);
+		}
+		else
+		{
+			wspd = dc_GetScalar (dc, i, flist[1]);
+			wdir = dc_GetScalar (dc, i, flist[2]);
+			u[i] = wspd * cos (DEG_TO_RAD (270.0 - wdir));
+			v[i] = wspd * sin (DEG_TO_RAD (270.0 - wdir));
+		}
+	}
+
+	dc_DestroyDC (dc);
+/*
+ * Put a line in the overlay times widget
+ */
+	if (annot)
+	{
+		sprintf (string, "%-11.11s (winds) ", pname);
+		TC_EncodeTime (&ptime, TC_Full, string + 20);
+		lw_OvAddString (string);
+	}
+/*
+ * Calculate the x starting position for the wind vectors and the x and y 
+ * scaling factors
  */
 	xstart = 1.0 + 
 		(Xhi - 1.0) * (float) (plot_ndx + 0.5) / (float) (nplots);
@@ -891,13 +966,13 @@ int	plot_ndx, nplots;
 
 	for (i = 0; i < npts; i++)
 	{
-		if (p[i] == badvalue || p[i] < Pmin || p[i] > Pmax)
+		if (pres[i] == badvalue || pres[i] < Pmin || pres[i] > Pmax)
 			continue;
 	/*
 	 * Get the starting point
 	 */
 		xov[0] = xstart;
-		yov[0] = YPOS (p[i]);
+		yov[0] = YPOS (pres[i]);
 	/*
 	 * Convert to the overlay coordinates
 	 */
@@ -913,7 +988,7 @@ int	plot_ndx, nplots;
 	/*
 	 * Draw the wind line
 	 */
-		sk_Polyline (xov, yov, 2, L_solid, Colors[C_DATA (plot_ndx)]);
+		sk_Polyline (xov, yov, 2, L_solid, color);
 	}
 /*
  * Draw the staff
@@ -923,7 +998,7 @@ int	plot_ndx, nplots;
 
 	sk_Polyline (xov, yov, 2, L_solid, Colors[C_BG2]);
 /*
- * Annotate on the first one
+ * Scaling annotation (draw for the first one only)
  */
 	if (plot_ndx == 0)
 	{
@@ -941,6 +1016,10 @@ int	plot_ndx, nplots;
 /*
  * Done
  */
+	free (pres);
+	free (u);
+	free (v);
+
 	return;
 }
 
