@@ -1,4 +1,4 @@
-! $Id: GraphProc.state,v 1.1 1990-07-08 12:53:28 corbet Exp $
+! $Id: GraphProc.state,v 1.2 1990-09-04 08:42:45 corbet Exp $
 !
 ! State entries for the graphics process.
 !
@@ -10,7 +10,7 @@ define state initial
 		next ust$no_more
 	endinput
 	input 'dm' 2
-		next ust$final_unmunged_string
+		next dm-command
 	endinput
 	input 'parameter' 3
 		next dm-param-comp
@@ -95,7 +95,7 @@ define state text-string
 enddef
 
 define state text-opt-size
-	input integer
+	input real
 		next ust$no_more
 	endinput
 	input 'size' 0
@@ -129,6 +129,12 @@ define state circ-rad
 	endinput
 enddef
 
+
+define state dm-command
+	input expression
+		next ust$no_more
+	endinput
+enddef
 
 
 !
