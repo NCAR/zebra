@@ -9,7 +9,7 @@
 # include "commands.h"
 # include "dsDaemon.h"
 
-MAKE_RCSID("$Id: d_Debug.c,v 3.4 1994-05-24 00:14:11 granger Exp $")
+MAKE_RCSID("$Id: d_Debug.c,v 3.5 1994-11-29 14:09:30 granger Exp $")
 
 #ifdef ORGANIZATIONS
 typedef enum {
@@ -24,13 +24,14 @@ typedef enum {
         Org1dGrid       = 8,
 	OrgTransparent  = 9,
 	OrgFixedScalar  = 10,	/* Inflexible scalar for DFA_Zeb */
+	OrgNSpace	= 11
 } DataOrganization;
 #endif
 
 static char *orgstr[] = {
 	"unknown", "2dgrid", "irgrid", "scalar", "image",
 	"outline", "3dgrid", "cmpimage", "1dgrid", "transparent",
-	"fixedscalar" };
+	"fixedscalar", "nspace" };
 
 
 #ifdef FILETYPES
@@ -41,12 +42,17 @@ typedef enum {
 	FTRaster = 2,
 	FTCmpRaster = 3,
 	FTZeb = 4,
+	FTGRIB = 5,
+	FTGRIBSfc = 6,	/* GRIB surface grids only */
+	FTGrads = 7
 	/* ... */
 } FileType;
 #endif
 
 static char *ftypestr[] = {
-	"unknown", "netcdf", "boundary", "raster", "cmpraster", "zeb" };
+	"unknown", "netcdf", "boundary", "raster", "cmpraster", "zeb",
+	"grib", "grib_sfc", "grads"
+};
 
 static char *inheritdir[] = { "none", "append", "copy" };
 
@@ -368,7 +374,7 @@ char *who;
 		 DSProtocolVersion);
 	msg_AnswerQuery (who, buf);
 	sprintf (buf, "%s", 
-	 "$Id: d_Debug.c,v 3.4 1994-05-24 00:14:11 granger Exp $");
+	 "$Id: d_Debug.c,v 3.5 1994-11-29 14:09:30 granger Exp $");
 	msg_AnswerQuery (who, buf);
 
 	dbg_EncodeElapsed ("Up since ", &Genesis, &now, buf);
