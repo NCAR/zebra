@@ -1,7 +1,10 @@
-! $Id: Graphproc.ad,v 1.5 1993-03-13 08:56:59 granger Exp $
+! $Id: Graphproc.ad,v 1.6 1993-03-19 23:24:07 granger Exp $
 !
 ! The Graphics process resource file.
 !
+*Graphics.background:		black
+*header.zap.label:		Dismiss
+*header.zap.borderColor:	red
 !
 ! Don't change these first couple of lines.  They make things like
 ! menus and the movie controller work right.
@@ -55,7 +58,6 @@
 *graphics.Cursor:	left_ptr
 *graphics.cursor:	left_ptr
 *cursor:		left_ptr
-!*grshell.borderWidth:	2
 !
 ! Stuff for the overlay widget.  This one wants a monospace font.
 !
@@ -63,10 +65,14 @@
 *overlay.resize:	true
 *overlay*form.resize:	true
 *overlay*allowShellResize:	true
+*overlay*background:	gray90
+*overlay*foreground:	MidnightBlue
+*overlay*OverlayStatus.borderColor: MidnightBlue
 !
 ! Data insertion widget.
 !
 *insert*background:		gray90
+*insert*foreground:		MidnightBlue
 *insert*Command*borderColor:	red
 *insert*Text*borderColor:	yellow
 *insert*MenuButton*borderColor:	orange
@@ -85,6 +91,9 @@
 !
 ! Polyline instructions.
 !
+*PLInstructions*background:	gray95
+*PLInstructions*Command.borderColor: red
+*PLInstructions*Command.background: gray90
 *PLInstructions.background:	forest green
 *PLInstructions.borderWidth:	1
 *PLInstructions.borderColor:	green
@@ -101,15 +110,29 @@
 	<Key>Return:	no-op(RingBell) \n\
 	<Key>Delete:	end-of-line()delete-previous-character() \n\
 	Ctrl<Key>u:	beginning-of-line()kill-to-end-of-line()
+*movie*background:	gray95
+*movie*foreground:	black
+*movie*movieStop.foreground:	red
+*movie*movieRun.foreground:	forestgreen
+*movieform.defaultDistance: 8
+*movie*Text*background: gray90
+*movie*Command*borderColor: red
+*movie*Command*background: Gray90
+*movie.background: gray95
+*movie.borderWidth:	1
+*movie.borderColor:	MidnightBlue
+*movie*Label.background: gray95
 !
 ! GetPosition resources
 !
 *position*origintext.translations: #override 	\n\
 	<Key>Return:	new-origin()	 	\n\
+	<Key>Linefeed:	no-op()			\n\
 	Ctrl<Key>U:	beginning-of-line()kill-to-end-of-line()
 *position*origintext.accelerators:\
  	#override				\n\
 	<KeyPress>Return:	new-origin()	\n\
+	<Key>Linefeed:		no-op()			\n\
 	<Key>Delete:		delete-previous-character() \n\
 	<Key>BackSpace:		delete-previous-character() \n\
 	<KeyPress>Right:	forward-character()	\n\
@@ -122,6 +145,17 @@
 	Ctrl<Key>D:		change-type()		\n\
 	Ctrl<Key>U:		beginning-of-line()kill-to-end-of-line() \n\
 	<KeyPress>:		insert-char()
+*position*background:		gray95
+*position*foreground:		black
+*position*Command.borderColor:	red
+*position*Command.background:	gray90
+*position*Text*background:	gray90
+*position.borderWidth:		1
+*position.borderColor:		MidnightBlue
+*position*Label.background:	gray95
+*position*GetPosition.backgroun: gray90
+*position*GetPosition.foreground: MidnightBlue
+*position*GetPosition.borderColor: MidnightBlue
 !
 ! Color widgets.
 !
@@ -216,18 +250,30 @@
 *quadrant-color*violet.foreground:	violet
 *quadrant-color*foreground:	white
 !
-! SingleFloat widget coloring
+! Coloring for LimitWidgets.  Intended to look consistent with UIForm.
 !
-*SingleFloat.background:		light gray
-*SingleFloat.cancel.background:		red
-*SingleFloat.cancel.foreground:		black
-*SingleFloat.SFLabel.background:	light gray
-*SingleFloat.SFLabel.foreground:	black
-*SingleFloat.store.background:		green
-*SingleFloat.store.foreground:		black
-*SingleFloat.SFValue.background:	yellow
-*SingleFloat.SFValue.translations: #override \n\
+*LimitForm.horizDistance: 2
+*LimitForm.vertDistance:  2
+*LimitForm.defaultDistance: 8
+*LimitForm.borderWidth:	0
+*LimitForm.borderColor:	gray95
+*LimitForm*Text*background: yellow
+*LimitForm*Command*borderColor: red
+*LimitForm*Command*background: Gray90
+*LimitForm.background: gray95
+*LimitForm*Label.background: gray95
+*LimitForm*Label.foreground: black
+*LimitForm.cancel.foreground:		red
+*LimitForm.store.foreground:		green4
+*LimitForm.help.foreground:		black
+!
+! 'Default' text translations for LimitForms will only allow
+! numbers.  LimitWidgets needing string values override this
+! resource below.
+!
+*LimitForm*Text.translations: #override \n\
 	<Key>Delete:	end-of-line()delete-previous-character() \n\
+	Ctrl<Key>u:	beginning-of-line()kill-to-end-of-line() \n\
 	<Key>Return:	no-op() \n\
 	<Key>Linefeed:	no-op()	\n\
 	<Key>0:		kill-to-end-of-line()insert-char() \n\
@@ -240,26 +286,13 @@
 	<Key>7:		kill-to-end-of-line()insert-char() \n\
 	<Key>8:		kill-to-end-of-line()insert-char() \n\
 	<Key>9:		kill-to-end-of-line()insert-char() \n\
-	<Key>-:		kill-to-end-of-line()insert-char() \n\
-	<Key>+:		kill-to-end-of-line()insert-char() \n\
+	<Key>-:		beginning-of-line()kill-to-end-of-line()insert-char() \n\
+	<Key>+:		beginning-of-line()kill-to-end-of-line()insert-char() \n\
 	<Key>.:		kill-to-end-of-line()insert-char() \n\
 	<Key>:		no-op()
-!
-! DoubleFloat widget coloring
-!
-*DoubleFloat.background:		light gray
-*DoubleFloat.DFLabel1.background:	light gray
-*DoubleFloat.DFLabel1.foreground:	black
-*DoubleFloat.DFLabel2.background:	light gray
-*DoubleFloat.DFLabel2.foreground:	black
-*DoubleFloat.DFValue1.background:	yellow
-*DoubleFloat.DFValue2.background:	yellow
-*DoubleFloat.cancel.background:		red
-*DoubleFloat.cancel.foreground:		black
-*DoubleFloat.store.background:		green
-*DoubleFloat.store.foreground:		black
-*DoubleFloat.Text.translations: #override \n\
+*LimitForm.SFValue.accelerators: #override \n\
 	<Key>Delete:	end-of-line()delete-previous-character() \n\
+	Ctrl<Key>u:	beginning-of-line()kill-to-end-of-line() \n\
 	<Key>Return:	no-op() \n\
 	<Key>Linefeed:	no-op()	\n\
 	<Key>0:		kill-to-end-of-line()insert-char() \n\
@@ -272,22 +305,34 @@
 	<Key>7:		kill-to-end-of-line()insert-char() \n\
 	<Key>8:		kill-to-end-of-line()insert-char() \n\
 	<Key>9:		kill-to-end-of-line()insert-char() \n\
-	<Key>-:		kill-to-end-of-line()insert-char() \n\
-	<Key>+:		kill-to-end-of-line()insert-char() \n\
+	<Key>-:		beginning-of-line()kill-to-end-of-line()insert-char() \n\
+	<Key>+:		beginning-of-line()kill-to-end-of-line()insert-char() \n\
+	<Key>.:		kill-to-end-of-line()insert-char() \n\
+	<Key>:		no-op()
+*LimitForm.SIValue.accelerators: #override \n\
+	<Key>Delete:	end-of-line()delete-previous-character() \n\
+	Ctrl<Key>u:	beginning-of-line()kill-to-end-of-line() \n\
+	<Key>Return:	no-op() \n\
+	<Key>Linefeed:	no-op()	\n\
+	<Key>0:		kill-to-end-of-line()insert-char() \n\
+	<Key>1:		kill-to-end-of-line()insert-char() \n\
+	<Key>2:		kill-to-end-of-line()insert-char() \n\
+	<Key>3:		kill-to-end-of-line()insert-char() \n\
+	<Key>4:		kill-to-end-of-line()insert-char() \n\
+	<Key>5:		kill-to-end-of-line()insert-char() \n\
+	<Key>6:		kill-to-end-of-line()insert-char() \n\
+	<Key>7:		kill-to-end-of-line()insert-char() \n\
+	<Key>8:		kill-to-end-of-line()insert-char() \n\
+	<Key>9:		kill-to-end-of-line()insert-char() \n\
+	<Key>-:		beginning-of-line()kill-to-end-of-line()insert-char() \n\
+	<Key>+:		beginning-of-line()kill-to-end-of-line()insert-char() \n\
 	<Key>.:		kill-to-end-of-line()insert-char() \n\
 	<Key>:		no-op()
 !
-! SingleString widget coloring
+! SingleString widget
 !
-*SingleString.background:		light gray
-*SingleString.cancel.background:	red
-*SingleString.cancel.foreground:	black
-*SingleString.SSLabel.background:	light gray
-*SingleString.SSLabel.foreground:	black
-*SingleString.store.background:		green
-*SingleString.store.foreground:		black
-*SingleString.SSValue.background:	yellow
-*SingleString.Text.translations: #override \n\
+*LimitForm.SSValue.translations: #override \n\
+	Ctrl<Key>u:	beginning-of-line()kill-to-end-of-line() \n\
 	<Key>Delete:	end-of-line()delete-previous-character() \n\
 	<Key>Return:	no-op() \n\
 	<Key>Linefeed:	no-op()	\n\
@@ -304,49 +349,8 @@
 	<Key>-:		kill-to-end-of-line()insert-char() \n\
 	<Key>+:		kill-to-end-of-line()insert-char() \n\
 	<Key>.:		kill-to-end-of-line()insert-char()
-!
-! SingleInt widget coloring
-!
-*SingleInt.background:		light gray
-*SingleInt.cancel.background:	red
-*SingleInt.cancel.foreground:	black
-*SingleInt.SILabel.background:	light gray
-*SingleInt.SILabel.foreground:	black
-*SingleInt.store.background:		green
-*SingleInt.store.foreground:		black
-*SingleInt.SIValue.background:	yellow
-*SingleInt.Text.translations: #override \n\
-	<Key>Delete:	end-of-line()delete-previous-character() \n\
-	<Key>Return:	no-op() \n\
-	<Key>Linefeed:	no-op()	\n\
-	<Key>0:		kill-to-end-of-line()insert-char() \n\
-	<Key>1:		kill-to-end-of-line()insert-char() \n\
-	<Key>2:		kill-to-end-of-line()insert-char() \n\
-	<Key>3:		kill-to-end-of-line()insert-char() \n\
-	<Key>4:		kill-to-end-of-line()insert-char() \n\
-	<Key>5:		kill-to-end-of-line()insert-char() \n\
-	<Key>6:		kill-to-end-of-line()insert-char() \n\
-	<Key>7:		kill-to-end-of-line()insert-char() \n\
-	<Key>8:		kill-to-end-of-line()insert-char() \n\
-	<Key>9:		kill-to-end-of-line()insert-char() \n\
-	<Key>-:		kill-to-end-of-line()insert-char() \n\
-	<Key>+:		kill-to-end-of-line()insert-char() \n\
-	<Key>:		no-op()
-!
-! TimeSeries widget coloring
-!
-*TimeSeries.background:		light gray
-*TimeSeries.TSLabel1.background:	light gray
-*TimeSeries.TSLabel1.foreground:	black
-*TimeSeries.TSLabel2.background:	light gray
-*TimeSeries.TSLabel2.foreground:	black
-*TimeSeries.TSValue1.background:	yellow
-*TimeSeries.TSValue2.background:	yellow
-*TimeSeries.cancel.background:		red
-*TimeSeries.cancel.foreground:		black
-*TimeSeries.store.background:		green
-*TimeSeries.store.foreground:		black
-*TimeSeries.Text.translations: #override \n\
+*LimitForm.SSValue.accelerators: #override \n\
+	Ctrl<Key>u:	beginning-of-line()kill-to-end-of-line() \n\
 	<Key>Delete:	end-of-line()delete-previous-character() \n\
 	<Key>Return:	no-op() \n\
 	<Key>Linefeed:	no-op()	\n\
@@ -363,15 +367,9 @@
 	<Key>-:		kill-to-end-of-line()insert-char() \n\
 	<Key>+:		kill-to-end-of-line()insert-char() \n\
 	<Key>.:		kill-to-end-of-line()insert-char() \n\
-	<Key>:		no-op()
+	<Key>:		insert-char()
 !
 ! StationWidget widget coloring
 !
-*stationform.background:		light gray
-*stationform.cancel.background:		red
-*stationform.cancel.foreground:		black
-*stationform.store.background:		green
-*stationform.store.foreground:		black
-*stationform.stationbox.background:	light gray
-*stationform.stationbox.?.background:	red
-*stationform.stationbox.?.foreground:	green
+*LimitForm.stationbox.?.background:	red
+*LimitForm.stationbox.?.foreground:	green
