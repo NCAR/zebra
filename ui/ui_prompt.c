@@ -14,7 +14,11 @@
 # include "ui_commands.h"
 # include "ui_expr.h"
 
+static char *Rcsid = "$Id: ui_prompt.c,v 1.2 1989-03-16 15:47:14 corbet Exp $";
+
 void ui_pr_cc ();	/* Keyboard interrupt handler.	*/
+struct token_context Ctx;
+
 
 int
 ui_int_prompt (prompt, helpfile, lower, upper, def)
@@ -61,7 +65,7 @@ int lower, upper, def;
 	 	sprintf (rprompt, "%s [Default %d]: ", prompt, def);
 	 	uii_set_handler (ui_pr_cc, TRUE);
 		ucs_tty_cmode ();
-	 	ut_int_string (rprompt, &tok);
+	 	ut_int_string (&Ctx, rprompt, &tok);
 		ucs_pop_cstack ();
 		uii_clear_handler (ui_pr_cc);
 	/*
@@ -181,7 +185,7 @@ float lower, upper, def;
 	 	sprintf (rprompt, "%s [Default %.2f]: ", prompt, def);
 		uii_set_handler (ui_pr_cc, TRUE);
 		ucs_tty_cmode ();
-	 	ut_int_string (rprompt, &tok);
+	 	ut_int_string (&Ctx, rprompt, &tok);
 		ucs_pop_cstack ();
 		uii_clear_handler (ui_pr_cc);
 	/*
@@ -295,7 +299,7 @@ char *prompt, *helpfile, *dest, *def;
 				def);
 		uii_set_handler (ui_pr_cc, TRUE);
 		ucs_tty_cmode ();
-		ut_int_string (rprompt, &tok);
+		ut_int_string (&Ctx, rprompt, &tok);
 		ucs_pop_cstack ();
 		uii_clear_handler (ui_pr_cc);
 		if (tok.tk_type != TT_HELP)
@@ -374,7 +378,7 @@ date *val, *def;
 
 		uii_set_handler (ui_pr_cc, TRUE);
 		ucs_tty_cmode ();
-	 	ut_int_string (rprompt, &tok);
+	 	ut_int_string (&Ctx, rprompt, &tok);
 		ucs_pop_cstack ();
 		uii_clear_handler (ui_pr_cc);
 	/*
@@ -487,7 +491,7 @@ char *prompt, *helpfile, *state, *def;
 	 	sprintf (rprompt, "%s [Default '%s']: ", prompt, def);
 		uii_set_handler (ui_pr_cc, TRUE);
 		ucs_tty_cmode ();
-	 	ut_int_string (rprompt, &tok);
+	 	ut_int_string (&Ctx, rprompt, &tok);
 		ucs_pop_cstack ();
 		uii_clear_handler (ui_pr_cc);
 		if (tok.tk_string[0] == '\0')
@@ -531,7 +535,8 @@ ui_pr_cc ()
  * catch interrupts.
  */
 {
-	ut_finish_line (FALSE);
+	ut_finish_line (&Ctx, FALSE);
+	ucs_pop_cstack ();
 	ui_error ("Prompt aborted by ^C");
 }
 
