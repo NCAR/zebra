@@ -1,12 +1,9 @@
 /*
- * Imakefile for the ETC directory.
+ * Imakefile for the etc/maps directory.
  */
 
-MAPS = cape.map cape_aircraft.map cape_ddop.map cape_llpnet.map \
-	cape_roads.map cinde.map ctex.map \
-	fest_array.map harp.map nowrad.map raps_county.map \
-	raps_now_region.map stormfest.map stormfest_lobes.map \
-	wisp.map
+MAPS = smallworld.map us.map world.map
+
 
 DISTFILES = Imakefile $(MAPS)
 
@@ -14,8 +11,11 @@ all::
 
 InstallLibFile ($(MAPS),.,.)
 
+/*
+ * Make the small world map the last resort default map
+ */
 install::
-	(cd $(LIBDIR); $(RM) wisp91.map; ln -s wisp.map wisp91.map)
+	(cd $(LIBDIR); ln -s smallworld.map default.map)
 
 DistfilesTarget($(DISTFILES))
 
