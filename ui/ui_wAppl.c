@@ -7,7 +7,7 @@
 # include "ui.h"
 # include "ui_window.h"
 
-static char *rcsid = "$Id: ui_wAppl.c,v 1.2 1990-04-20 14:22:56 corbet Exp $";
+static char *rcsid = "$Id: ui_wAppl.c,v 1.3 1990-05-13 11:11:19 corbet Exp $";
 
 /*
  * The format of an application widget.
@@ -75,7 +75,7 @@ Widget parent;
  * Invoke the application create procedure.
  */
 {
-	aw->aw_w = (*aw->aw_acreate) (aw->aw_tag, parent);
+	aw->aw_w = (*aw->aw_acreate) (aw->aw_tag, parent, Appc);
 }
 
 
