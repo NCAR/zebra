@@ -10,7 +10,7 @@
 # include "device.h"
 # include <stdio.h>
 
-static char *rcsid = "$Id: dev_ps.c,v 1.8 1992-06-18 15:05:55 burghart Exp $";
+static char *rcsid = "$Id: dev_ps.c,v 1.9 1993-07-23 19:43:34 case Exp $";
 /*
  * The tag structure
  */
@@ -105,11 +105,15 @@ struct device *dev;
 	}
 	else
 	/*
-	 * Open up a pipe to lpr -P'device'.
+	 * Open up a pipe to lpr -P'device'.  SystemV uses lp -d'. 
 	 */
 	{
 		ptp->pt_pipe = TRUE;
+#ifdef SYSV
+                sprintf (command, "lp -d%s", device);
+#else
 		sprintf (command, "lpr -P%s", device);
+#endif
 		if (!(ptp->pt_file = popen (command, "w")))
 			ui_error ("Unable to open pipe '%s'", command);
 	/*
