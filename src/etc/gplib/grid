@@ -58,6 +58,7 @@ endif
 define widget #wname intmenu 'kmgrid-spacing'
 	title 'Grid spacing'
 	line
+	entry '1 km lines' 'GridSpacing 1' (PDParam(icon_component,'x-spacing') = '1')
 	entry '5 km lines' 'GridSpacing 5' (PDParam(icon_component,'x-spacing') = '5')
 	entry '10 km lines' 'GridSpacing 10' (PDParam(icon_component,'x-spacing') = '10')
 	entry '25 km lines' 'GridSpacing 25' (PDParam(icon_component,'x-spacing') = '25')
