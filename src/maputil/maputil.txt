@@ -1,0 +1,188 @@
+$Id: maputil.txt,v 1.1 2001-10-05 16:09:18 burghart Exp $
+
+                       Generating Zebra maps
+                       ---------------------
+
+
+1) U.S. Line Maps
+-----------------
+
+We have a full set of USGS Digital Line Graph (DLG) 1:2,000,000 scale
+maps for the U.S.  These maps include state boundaries, county boundaries,
+roads, streams, bodies of water, and boundaries of federally administered
+land.  Currently, the files live under /net/data/maps/usgs/2M, with a separate
+subdirectory for each state named by the standard two-letter designation.
+There is also a CD with all of the maps.
+
+The program for extracting Zebra-style maps from the files is dlg2zebra:
+
+    Usage: dlg2zebra [options] <top_map_dir> <2_letter_state>
+    Options:
+	-s  state bounds -> state.map
+	-c  county bounds -> county.map
+	-f  federally administered land -> fed.map
+	-r[<digit>]  roads, class 1 to <digit> -> road.map
+	             (default 4, i.e., everything)
+	-w  streams & water body outlines -> water.map
+	-W  filled polygon bodies of water -> fwater.map
+
+Most commonly, the full set of maps other than federal land is extracted.
+For Colorado, the command would be:
+
+    $ dlg2zebra -scwWr4 /net/data/maps/usgs/2M CO
+
+which would create five Zebra map files in the current directory, overwriting 
+any existing files of the same name:
+
+    state.map	   - the state outline
+    county.map	   - county boundaries
+    water.map	   - streams & water body outlines
+    fwater.map	   - water bodies (can be drawn as filled polygons)
+    road.map	   - roads
+
+Once these map files are moved to the appropriate Zebra project
+map directory, e.g., /zebra/project/improve2/maps, they will be
+ready for use with that project.  All recent Zebra project configurations
+are set up to use files with these given names.
+
+If multiple states are needed, map files can be appended together
+to create larger maps.  The files should be extracted in separate
+directories or renamed before successive runs of dlg2zebra to avoid
+overwriting files.  As an example, assume that Colorado maps have
+been extracted in directory c_maps and Kansas maps extracted in
+the k_maps directory.  The files can be appended for project "foo"
+as follows:
+
+    $ cat c_maps/state.map k_maps/state.map > /zebra/project/foo/maps/state.map
+    $ cat c_maps/water.map k_maps/water.map > /zebra/project/foo/maps/water.map
+    ...
+
+
+2) International Line Maps
+--------------------------
+
+For international projects, we have a set of world maps from the CIA, in
+"Compressed Binary Data" (CBD) format, under the directory
+/net/data/maps/cia.  Beneath that directory are five continental
+subdirectories: asia, europe, africa, n_america, and s_america.  The file
+/net/data/maps/cia/cbd_world.gif shows graphically how the world is broken
+into the five directories.  In each of the directories are three files:
+
+    bdy.cbd	- international political boundaries
+    cil.cbd	- coast, islands and lakes
+    riv.cbd	- rivers
+
+Zebra maps are generated from these files using the cbd2zebra
+program:
+
+    cbd2zebra <filename> <rank> [<rank> ...]
+
+where the <filename> is one of the cbd files, and each <rank> is 
+a desired numeric segment rank to be extracted.  The resulting
+map is written to standard output.  The ranks available, 
+by file type, are:
+
+    bdy.cbd:
+	01	Demarcated or delimited boundary (country border)
+	02	Indefinite or in Dispute 
+	03	Other line of separation of sovreignty on land 
+	
+    cil.cbd:
+	01	Coast, islands and lakes that appear on all maps 
+	02	Additional major islands and lakes 
+	03	Intermediate islands and lakes 
+	04	Minor islands and lakes 
+	06	Intermittent major lakes 
+	07	Intermittent minor lakes 
+	08	Reefs 
+	09	Salt pans -- major 
+	10	Salt pans -- minor 
+	13	Ice Shelves -- major 
+	14	Ice Shelves -- minor 
+	15	Glaciers 
+	
+    riv.cbd:	
+	01	Permanent major rivers 
+	02	Additional major rivers 
+	03	Additional rivers 
+	04	Minor rivers 
+	05	Double lined rivers 
+	06	Intermittent rivers -- major 
+	07	Intermittent rivers -- additional 
+	08	Intermittent rivers -- minor 
+	10	Major canals 
+	11	Canals of lesser importance 
+	12	Canals -- irrigation type
+
+As an example, assume that we want permanent major rivers, 
+additional major rivers, and double-lined (*really* big) rivers
+from South America in map file water.map.  The command to
+extract the map would be:
+
+    $ cbd2zebra /net/data/maps/cia/s_america/riv.cbd 1 2 5 > sa_rivers.map
+
+The maps once again need to be installed in the /zebra/project/<project>/maps
+directory.  Most likely, the project's IconBar file will have to be 
+modified to make use of the new maps.  An example entry for the 
+above map might look like:
+
+    entry 'South American rivers' \
+        'putc3 p_map platform sa_rivers icon rivers color cyan3'
+
+where the phrase "platform sa_rivers" causes the entry to use the 
+sa_rivers.map file.
+
+
+4) Filtering Line Maps
+----------------------
+
+Sometimes line maps generated by dlg2zebra or cbd2zebra cover a
+much larger area than needed.  It is possible to filter the maps
+to a smaller rectangular area using the rect_filter command:
+
+    rect_filter <W> <S> <E> <N>
+
+where <W>, <S>, <E>, <N> are the lat/lon bounds for the filtered
+data.  
+
+As an example, assume that file rivers.map covers all of Oregon, but
+only the region from 42N to 44N and 125E to 122E is desired.  The
+file can be filtered to generate a new map new_rivers.map using the
+command:
+
+    $ cat rivers.map | rect_filter -125 42 -121 44 > new_rivers.map
+
+
+3) Topography
+-------------
+
+It is also possible to generate topography datasets from USGS Digital
+Elevation Model (DEM) files for use with Zebra.  We have a full set of 15
+CDs with three arc-second DEM data which cover all of the U.S. except
+Alaska.  The program used to extract the data is dem2zebra:
+
+    dem2zebra <outfile> <S> <W> <N> <E> <DEM_file> [<DEM_file> ...]
+
+The dem2zebra program extracts data from the given <DEM_file>s, using the
+lat/lon bounds specified by <S>, <W>, <N>, and <E>, and writes the results
+to netCDF file <outfile>.
+
+As an example, assume that a map for a portion of Oregon is desired,
+over the area 42N to 47N and 125E to 121E.  With the appropriate CD
+mounted on /mnt/cdrom, the command would be:
+
+    $ dem2zebra oregon_elev.nc 42 -125 47 -121 /mnt/cdrom/[a-z]*
+
+In this example, many of the DEM files do not include any of the
+region of interest.  However, it's much easier (and not really slower)
+to just pass all of the files, rather than try to figure out the
+individual files that contain data of interest.
+
+In cases where data from multiple CDs are needed, the same command
+can be used multiple times, changing CDs between runs.  The successive
+runs will add to the existing file rather than overwriting it.
+
+To use the resulting netCDF file, copy it to the /zebra/project/<project>/elev
+directory.  Recent SPOL projects like STEPS and IMPROVE are already
+configured to make use of the data from the elev directory.
+
