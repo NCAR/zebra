@@ -1,7 +1,7 @@
 !
 ! Display manager widgets.
 !
-! $Id: dm.widgets,v 1.33 2000-04-06 16:29:43 burghart Exp $
+! $Id: dm.widgets,v 1.34 2000-04-06 16:33:58 burghart Exp $
 !
 
 define widget SaveConfig form 'Configuration saver'
@@ -366,7 +366,7 @@ procedure putc3 comp string p1 string v1 string p2 string v2 string p3 string v3
 	sendout #comp 'pick'
 endprocedure
 
-procedure putc4 comp string p1 string v1 string p2 string v2 string p3 string v3 string string p4 string v4
+procedure putc4 comp string p1 string v1 string p2 string v2 string p3 string v3 string p4 string v4 string
 	parameter #comp #comp #p1 #v1
 	parameter #comp #comp #p2 #v2
 	parameter #comp #comp #p3 #v3
@@ -992,5 +992,5 @@ procedure AllXSect x0 string y0 string x1 string y1 string
 endprocedure
 
 procedure dm_widgets_id
-	local '$Id: dm.widgets,v 1.33 2000-04-06 16:29:43 burghart Exp $'
+	local '$Id: dm.widgets,v 1.34 2000-04-06 16:33:58 burghart Exp $'
 endprocedure
