@@ -20,7 +20,11 @@
  */
 
 # include <sys/types.h>
+# ifdef SVR4
+# include <sys/statvfs.h>
+# else
 # include <sys/vfs.h>
+# endif
 # include <sys/stat.h>
 # include <stream.h>
 
@@ -29,14 +33,16 @@
 
 extern "C" {
 	int stat (const char *, struct stat *);
+# ifndef SVR4
 	int statfs (const char *, struct statfs *);
+# endif
 # ifndef __GNUC__
 	int strlen (char *);
 	char *strcpy (char *, char *);
 # endif
 };
 
-static char *rcsid = "$Id: DataDir.cc,v 1.3 1993-02-02 19:35:33 corbet Exp $";
+static char *rcsid = "$Id: DataDir.cc,v 1.4 1994-01-10 20:46:42 corbet Exp $";
 
 //
 // The data directory class.
@@ -69,9 +75,13 @@ int DataDir::FreeSpace ()
 // How much space is free here?
 //
 {
+# ifdef SVR4
+	struct statvfs stbuf;
+	if (statvfs (directory, &stbuf) < 0)
+# else
 	struct statfs stbuf;
-
 	if (statfs (directory, &stbuf) < 0)
+# endif
 		return (-1);
 	return (stbuf.f_bsize*stbuf.f_bavail);
 }
