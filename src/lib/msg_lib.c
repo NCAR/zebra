@@ -40,7 +40,7 @@
 # define MESSAGE_LIBRARY	/* to get netread prototypes */
 # include "message.h"
 
-RCSID ("$Id: msg_lib.c,v 2.45 1996-12-13 18:27:29 granger Exp $")
+RCSID ("$Id: msg_lib.c,v 2.46 1996-12-20 00:15:34 granger Exp $")
 
 /*
  * The array of functions linked with file descriptors.
@@ -1912,6 +1912,7 @@ static void
 msg_SendLog (el)
 struct msg_elog *el;
 {
+	char code;
 /*
  * The callback function, if any, gets first dibs at suppressing the message.
  */
@@ -1924,18 +1925,33 @@ struct msg_elog *el;
 	if (! (el->el_flag & SendMask) && ! (el->el_flag & PrintMask))
 		return;
 /*
+ * Determine the character code for our message.
+ */
+	if (el->el_flag & EF_EMERGENCY)
+		code = 'E';
+	else if (el->el_flag & EF_PROBLEM)
+		code = 'P';
+	else if (el->el_flag & EF_INFO)
+		code = 'i';
+	else if (el->el_flag & EF_DEBUG)
+		code = 'd';
+	else if (el->el_flag & EF_CLIENT)
+		code = 'c';
+	else if (el->el_flag & EF_DEVELOP)
+		code = 'v';
+	else
+		code = 'x';
+/*
  * Print the message if we're shutting down or the message matches the 
  * print mask.
  */
 	if ((ShuttingDown && (el->el_flag & SendMask)) || 
 	    (el->el_flag & PrintMask))
 	{
-		if (el->el_flag & EF_EMERGENCY)
-			printf ("%s: EMERGENCY: %s\n", Identity, el->el_text); 
-		else if (el->el_flag & EF_PROBLEM)
-			printf ("%s: PROBLEM: %s\n", Identity, el->el_text); 
-		else
-			printf ("%s: %s\n", Identity, el->el_text); 
+		printf ("%s[%c] %s%s\n", Identity, code, 
+			(el->el_flag & EF_EMERGENCY) ? "EMERGENCY: " :
+			((el->el_flag & EF_PROBLEM) ? "PROBLEM: " : ""),
+			el->el_text);
 	}
 /*
  * Actually send the message only if it's in the send mask, we're not
