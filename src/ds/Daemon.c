@@ -35,7 +35,7 @@
 # include "dsPrivate.h"
 # include "dsDaemon.h"
 # include "commands.h"
-MAKE_RCSID ("$Id: Daemon.c,v 3.20 1993-06-18 15:59:18 corbet Exp $")
+MAKE_RCSID ("$Id: Daemon.c,v 3.21 1993-07-09 19:51:22 granger Exp $")
 
 
 
@@ -696,12 +696,26 @@ struct dsp_UpdateFile *request;
 	plat->dp_flags |= DPF_DIRTY;
 /*
  * If this file is in the Tfile slot, now we move it over to the localdata
- * list.
+ * list.  The dt_AddToPlatform() may cause some CacheInvalidate messages.
+ * We want these messages to be sent before the R_UpdateAck below, so that
+ * the client will process them while waiting for the R_UpdateAck response
+ * to the file update notification.
  */
 	if (request->dsp_FileIndex == plat->dp_Tfile)
 	{
 		plat->dp_Tfile = 0;
 		dt_AddToPlatform (plat, df, TRUE);
+	}
+/*
+ * Where last=TRUE, the client ends up receiving the DFE twice.  Send the
+ * CacheInvalidate first so that the client sending this FileUpdate will
+ * process it before its UpdateAck message.  The other clients won't be
+ * affected by receiving the invalidate here rather than after sending
+ * the UpdateAck to client with the write lock.
+ */
+	if (request->dsp_Last)
+	{
+		CacheInvalidate (df - DFTable);
 	}
 /*
  * Send an ack back to the updating process.
@@ -714,7 +728,7 @@ struct dsp_UpdateFile *request;
  */
 	if (request->dsp_Last)
 	{
-		CacheInvalidate (df - DFTable);
+		/* CacheInvalidate (df - DFTable); */
 		dap_Notify (df->df_platform, &df->df_end, plat->dp_NewSamps,
 				plat->dp_OwSamps, append);
 		plat->dp_NewSamps = plat->dp_OwSamps = 0;

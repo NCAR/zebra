@@ -27,7 +27,7 @@
 # define NO_SHM
 #include "dslib.h"
 #ifndef lint
-MAKE_RCSID ("$Id: Appl.c,v 3.16 1993-05-27 20:19:59 corbet Exp $")
+MAKE_RCSID ("$Id: Appl.c,v 3.17 1993-07-09 19:51:15 granger Exp $")
 #endif
 
 /*
@@ -39,8 +39,8 @@ static void     ds_NotifyDaemon FP ((Platform *, int, DataChunk *, int, int,
 static void     ds_DispatchNotify FP ((struct dsp_Notify *));
 int             ds_DSMessage FP ((struct message *));
 static int      ds_AttrCheck FP ((int, ZebTime *, char *));
-static int 	ds_FindDest FP ((DataChunk *, Platform *, int, int *,
-			WriteCode *, int));
+static int 	ds_FindDest FP ((DataChunk *, Platform *, int, int *dfile,
+				 int *dfnext, WriteCode *, int));
 static bool	ds_SameDay FP ((ZebTime *, ZebTime *));
 static int	ds_MakeNewFile FP ((DataChunk *, Platform *, int sample, 
 				    dsDetail *details, int ndetail));
@@ -60,7 +60,8 @@ static int	ds_AwaitDF FP ((Message *, int *));
 static void	ds_ZapCache FP ((DataFile *));
 static void	ds_GreetDaemon FP ((void));
 static int	ds_CheckProtocol FP ((Message *, int));
-static int	ds_FindBlock FP((int dfile, DataChunk *dc, Platform *p,
+static int	ds_FindBlock FP((int dfile, int dfnext, 
+				 DataChunk *dc, Platform *p,
 				 int sample, WriteCode wc, int *nsample));
 static int	ds_FindAfter FP ((PlatformId, ZebTime *));
 static void	ds_WriteLock FP ((PlatformId));
@@ -948,6 +949,7 @@ int ndetail;
 	int nsample, sample, dfile, nnew = 0, now = 0, ndone = 0;
 	WriteCode wc;
 	Platform p;
+	int dfnext;
 
 	ds_GetPlatStruct (dc->dc_Platform, &p, TRUE);
 	ds_WriteLock (dc->dc_Platform);
@@ -962,8 +964,8 @@ int ndetail;
 	/*
 	 * Find a feasible location for this data.
 	 */
-		if (! ds_FindDest (dc, &p, sample, &dfile, &wc,
-						newfile && (sample == 0)))
+		if (! ds_FindDest (dc, &p, sample, &dfile, &dfnext, 
+				   &wc, newfile && (sample == 0)))
 			continue;	/* Sigh */
 	/*
 	 * If a new file is called for, create it.  Then write the data.
@@ -1022,6 +1024,7 @@ int ndetail;
 {
 	int nsample, sample;
 	int dfile;
+	int dfnext;
 	int nnew, now;
 	int ndone = 0;
 	int block_size;
@@ -1043,7 +1046,7 @@ int ndetail;
 	/*
 	 * Find a feasible location for the next sample of the data chunk
 	 */
-		if (! ds_FindDest (dc, &p, sample, &dfile, &wc,
+		if (! ds_FindDest (dc, &p, sample, &dfile, &dfnext, &wc, 
 				   newfile && (sample == 0)))
 			continue;	/* Sigh */
 	/*
@@ -1061,19 +1064,12 @@ int ndetail;
 	 * Find out how many samples can be written to this file
 	 * as a single block.  The answer is at least one.
 	 */
-		ds_FindBlock (dfile, dc, &p, sample, wc, &block_size);
-		if (block_size >= 50)
-			msg_ELog(EF_INFO,
-				 "%s block of %i samples",
-				 (wc == wc_Append) ? "appending" :
-				 ((wc == wc_Insert) ? "inserting" : 
-				  "overwriting"), block_size);
-		if (block_size < 50)
-			msg_ELog(EF_DEBUG,
-				 "%s block of %i samples",
-				 (wc == wc_Append) ? "appending" :
-				 ((wc == wc_Insert) ? "inserting" : 
-				  "overwriting"), block_size);
+		ds_FindBlock (dfile, dfnext, dc, &p, sample, wc, &block_size);
+		msg_ELog(EF_DEBUG | ((block_size >= 50) ? EF_INFO : 0),
+			 "%s block of %i samples",
+			 (wc == wc_Append) ? "appending" :
+			 ((wc == wc_Insert) ? "inserting" : 
+			  "overwriting"), block_size);
 	/*
 	 * Now we write whatever block we found, or if we have just a
 	 * single sample, use dfa_PutSample() instead
@@ -1123,8 +1119,9 @@ int ndetail;
 
 
 static int
-ds_FindBlock(dfile, dc, plat, sample, wc, block_size)
+ds_FindBlock(dfile, dfnext, dc, plat, sample, wc, block_size)
 int dfile;
+int dfnext;		/* file following dfile, chronologically */
 DataChunk *dc;
 Platform *plat;
 int sample;
@@ -1136,20 +1133,19 @@ int *block_size;
  * with dfa_PutBlock() into 'dfile'.  
  * Returns the number in 'block_size'.  Unless
  * 'sample' is out of range, 'nsample' will always hold at least 1.
- * At present, any write code other than wc_Append returns 1.
+ * At present, write code other wc_Insert automatically returns 1.
  */
 {
 	int smp, fut;		/* counters			*/
 	int nsample;
 	DataFile dfe, dfenext;
 	ZebTime when, past;
-	int dfnext;		/* file following dfile 	*/
 	ZebTime next;		/* time dfnext starts		*/
 	int avail;		/* samples available in the file*/
 	ZebTime *future;	/* data times already in file	*/
 	int nfuture;		/* returned by dfa_DataTimes	*/
 /*
- * At the moment, only append and overwrite are accepted
+ * Only accept appends and overwrites
  */
 	if (wc == wc_Insert)
 	{
@@ -1160,14 +1156,23 @@ int *block_size;
  * To be a block, times must be chronological (the order they'll
  * be written to the file), and the samples cannot overwrite or
  * overlap any existing data (in the append case), or they must
- * coincide with each and every sample in the file (overwrite case)
+ * coincide with each and every sample in the file (overwrite case).
+ * If overwriting, the maximum number of slots ever possibly available
+ * is the number in the file already.
  */
 	ds_LockPlatform (dc->dc_Platform);
 	ds_GetFileStruct (dfile, &dfe);
 	if (wc != wc_Overwrite)
 		avail = plat->dp_maxsamp - dfe.df_nsample;
 	else
-		avail = plat->dp_maxsamp;
+		avail = dfe.df_nsample;
+
+#ifdef notdef
+/*
+ * The code below doesn't work because new files do not have links set.
+ * Instead, we have to rely on being passed in the next file, presumably
+ * as determined in ds_FindDest().
+ */
 /*
  * The next file, chronologically, is backwards on the linked list
  */
@@ -1177,6 +1182,14 @@ int *block_size;
 		ds_GetFileStruct (dfnext, &dfenext);
 		next = dfenext.df_begin;
 	}
+#endif
+
+	if (dfnext)
+	{
+		ds_GetFileStruct (dfnext, &dfenext);
+		next = dfenext.df_begin;
+	}
+
 /*
  * So we'll see how many samples we can get which
  *  a) are in chronological order, and
@@ -1184,7 +1197,7 @@ int *block_size;
  *  c) are on the same day, iff DPF_SPLIT set, and
  *  d) will fit within the platform's maxsamples limit, and finally
  *  e) if overwriting, which coincide with a sample already in the file
- * ...without exceeding the number of samples in the data chunk
+ * ...all without exceeding the number of samples in the data chunk
  */
 	nsample = dc_GetNSample(dc);
 	dc_GetTime(dc, sample, &past);
@@ -1259,14 +1272,15 @@ int *block_size;
 
 
 static int
-ds_FindDest (dc, plat, sample, dfile, wc, newfile)
+ds_FindDest (dc, plat, sample, dfile, dfnext, wc, newfile)
 DataChunk *dc;
 Platform *plat;
-int sample, *dfile, newfile;
+int sample, *dfile, *dfnext, newfile;
 WriteCode *wc;
 /*
  * Try to find an appropriate destination for this datum.
- * Return value is TRUE iff it was possible.
+ * Return value is TRUE iff it was possible.  *dfnext returns with
+ * the data file which chronologically follows *dfile, if it exists.
  */
 {
 	int df = LOCALDATA (*plat);
@@ -1280,11 +1294,13 @@ WriteCode *wc;
  */
 	ds_LockPlatform (dc->dc_Platform);
 	dc_GetTime (dc, sample, &when);
+	*dfnext = 0;
 	for (; df; df = dfe.df_FLink)
 	{
 		ds_GetFileStruct (df, &dfe);
 		if (TC_LessEq (dfe.df_begin, when))
 			break;
+		*dfnext = df;
 	}
 /*
  * If there is none, then this data predates anything we have, so we
@@ -1489,7 +1505,9 @@ DataChunk *dc;
  */
 	dfa_NoteRevision (p, dfile);
 /*
- * Wait for the update ack.
+ * Wait for the update ack.  While waiting for the ack, process any
+ * CacheInvalidate messages which are put in the message queue by
+ * the Daemon's update process.
  */
 	msg_Search (MT_DATASTORE, ds_AwaitAck, 0);
 }
@@ -1508,13 +1526,28 @@ int junk;
  */
 {
 	struct dsp_FileStruct *fs = (struct dsp_FileStruct *) msg->m_data;
-
+/*
+ * If this is the ack, we're outta here.  This should also mean we've
+ * cleared our message queue of the CacheInvalidate's generated by our
+ * FileUpdate message.
+ */
 	if (fs->dsp_type == dpt_R_UpdateAck)
 	{
 		ds_ZapCache (&fs->dsp_file);
-		return (0);
+		return (MSG_DONE);
 	}
-	return (1);
+/*
+ * Otherwise we need to be processing CacheInvalidate messages to keep
+ * our data file cache up to date.
+ */
+	switch (fs->dsp_type)
+	{
+	   case dpt_CacheInvalidate:
+	   	ds_DSMessage (msg);
+		return (MSG_CONSUMED);
+	   default:
+	   	return (MSG_ENQUEUE);
+	}
 }
 
 
@@ -1810,12 +1843,20 @@ DataFile *dfe;
 	for (i = 0; i < N_DF_CACHE; i++)
 		if (DFCache[i].df_index == dfe->df_index)
 		{
-			DFCache[i] = *dfe;
+		/*
+		 * We only want to update the cache if this dfe is in fact
+		 * more recent than the one in the cache.  It could be that
+		 * the cache entry is newer by virtue of an update ack and
+		 * the fact that the invalidate message may have been
+		 * sitting in a queue for a while.  This is only a
+		 * safeguard, and may not be failsafe. XXX.  A perhaps better
+		 * method would be to use the message sequence number.
+		 */
+			if (DFCache[i].df_rev <=  dfe->df_rev)
+				DFCache[i] = *dfe;
 			break;
 		}
 }
-
-
 
 
 
@@ -1846,7 +1887,7 @@ PlatformId plat;
 
 
 
-void
+static void
 ds_WriteLock (plat)
 PlatformId plat;
 /*
@@ -1918,7 +1959,7 @@ PlatformId plat;
 
 
 
-void
+static void
 ds_FreeWLock (plat)
 PlatformId plat;
 /*
