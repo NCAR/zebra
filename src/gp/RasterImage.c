@@ -19,7 +19,7 @@
 # endif
 
 
-RCSID ("$Id: RasterImage.c,v 2.4 1999-08-12 16:56:43 burghart Exp $");
+RCSID ("$Id: RasterImage.c,v 2.5 1999-08-12 19:33:31 burghart Exp $");
 
 /*
  * Forwards.
@@ -106,7 +106,7 @@ ri_XImageSetup (DestImage *i)
     /*
      * Fill the image with the background pixel
      */
-	XtVaGetValues (Graphics, XtNbackground, &xc_bg);
+	XtVaGetValues (Graphics, XtNbackground, &xc_bg, NULL);
 	bg = xc_bg.pixel;
 	dp = i->di_image;
 
