@@ -33,7 +33,7 @@
 #include "dslib.h"
 #include "Appl.h"
 
-RCSID ("$Id: Appl.c,v 3.45 1996-11-19 08:24:17 granger Exp $")
+RCSID ("$Id: Appl.c,v 3.46 1996-12-03 06:53:16 granger Exp $")
 
 /*
  * Notification callbacks are void functions
@@ -117,22 +117,67 @@ int Standalone = 0;
 DS_Methods DSM = { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
 
 
+static char Daemon[ 2*MAX_NAME_LEN ];
+
+
+static int
+ds_Connect ()
+/*
+ * Set the name of the datastore daemon to which we will send messages.
+ * Greet the daemon and join the appropriate groups.  Return non-zero
+ * on success.
+ */
+{
+	const char *dhost;
+/*
+ * Set our protocol handler.
+ */
+	msg_AddProtoHandler (MT_DATASTORE, ds_DSMessage);
+	if ((dhost = getenv ("DS_DAEMON_HOST")) != NULL)
+	{
+		char group[ 2*MAX_NAME_LEN ];
+	/*
+	 * Connect to a remote daemon and join that session's datastore
+	 * group.
+	 */
+		sprintf (group, "DataStore@%s", dhost);
+		msg_join (group);
+		strcpy (Daemon, "DS_Daemon@");
+		strcat (Daemon, dhost);
+	}
+	else
+	{
+	/* 
+	 * Connect to the local session's daemon and group.
+	 */
+		msg_join ("DataStore");
+		strcpy (Daemon, "DS_Daemon");
+	}
+	return (ds_GreetDaemon() == 0);
+}
+
+
 
 void
 ds_InitAPI ()
+/*
+ * Initialize api, allowing for multiple calls for forked processes
+ * or re-connections to possibly different datastores.
+ */
 {
+	static int once = 0;
 	int i;
 
-	zl_usy_init ();	/* ok to call this, even if application
-			   already has */
+	zl_usy_init ();
+	F_Reset ();
+	for (i = 0; i < MAXPLAT; i++)
+		ApplFuncs[i] = 0;
 /*
  * Set up the platform lookup tables and caches.
  */
+	if (once++)
+		ds_FreeCache ();
 	ds_InitPFCaches ();
-	for (i = 0; i < MAXPLAT; i++)
-		ApplFuncs[i] = 0;
-	dt_InitDirectories ();
-	F_Init ();
 }
 
 
@@ -146,12 +191,8 @@ ds_Initialize()
 {
 	Standalone = 0;
 	ds_InitAPI ();
-/*
- * Join the data store group.
- */
-	msg_join("DataStore");
-	msg_AddProtoHandler(MT_DATASTORE, ds_DSMessage);
-	return (! ds_GreetDaemon ());
+	dt_InitDirectories ();
+	return (ds_Connect ());
 }
 
 
@@ -821,7 +862,7 @@ void (*func) ();
 
 
 void 
-ds_CancelNotify()
+ds_CancelNotify ()
 /*
  * Cancel all data available notifications.
  */
@@ -842,7 +883,7 @@ ds_CancelNotify()
 
 
 static void
-ds_DispatchNotify(notify)
+ds_DispatchNotify (notify)
 struct dsp_Notify *notify;
 /*
  * An application notification has arrived -- give it back to those who
@@ -860,7 +901,7 @@ struct dsp_Notify *notify;
 
 
 void
-ds_SnarfCopies(handler)
+ds_SnarfCopies (handler)
 void (*handler) ();
 /*
  * Request copies of notification request events.
@@ -1907,8 +1948,6 @@ int len;
  * Send a message off to the data store daemon.
  */
 {
-	static char daemon[80];
-	static int first = TRUE;
 	char *dhost, group[80];
 
 	if (Standalone)
@@ -1916,20 +1955,7 @@ int len;
 		msg_ELog (EF_PROBLEM, "Can't send to daemon while standalone");
 		return;
 	}
-	if (first)
-	{
-		if ((dhost = getenv ("DS_DAEMON_HOST")) != NULL)
-		{
-			sprintf (group, "DataStore@%s", dhost);
-			msg_join (group);
-			strcpy (daemon, "DS_Daemon@");
-			strcat (daemon, dhost);
-		}
-		else
-			strcpy (daemon, "DS_Daemon");
-		first = FALSE;
-	}
-	msg_send (daemon, MT_DATASTORE, FALSE, msg, len);
+	msg_send (Daemon, MT_DATASTORE, FALSE, msg, len);
 }
 
 
