@@ -1,7 +1,7 @@
 /*
  * DM variables.
  *
- * $Id: dm_vars.h,v 1.2 1990-08-30 16:35:11 corbet Exp $
+ * $Id: dm_vars.h,v 1.3 1990-09-07 09:05:51 corbet Exp $
  */
 # include <X11/Xlib.h>
 # include "../include/defs.h"
@@ -40,6 +40,7 @@ struct cf_window
 	char	cfw_desc[MAXNAME];	/* The plot description	name	*/
 	plot_description cfw_pd;	/* The actual PD		*/
 	ButtonMap *cfw_bmap;		/* The button map for this win	*/
+	short	cfw_linkpar;		/* PD link parameter		*/
 	bool	cfw_nongraph;		/* This is not a graphic window */
 	bool	cfw_forcepd;		/* Always force new PD		*/
 };
@@ -50,6 +51,7 @@ struct config
 {
 	char c_name[MAXNAME];		/* The name of this configuration */
 	int c_nwin;			/* Number of windows in this config */
+	int c_nlink;			/* Number of link params	*/
 	struct cf_window c_wins[MAXWIN];/* The actual windows		*/
 };
 
