@@ -19,7 +19,7 @@ using namespace std;
 #include "T_BTree.hh"
 
 #ifdef RCSID
-RCSID("$Id: T_BTree.cc,v 1.35 2002-12-19 19:15:49 granger Exp $")
+RCSID("$Id: T_BTree.cc,v 1.36 2002-12-20 15:59:18 granger Exp $")
 #endif
 
 typedef BTreeFile<ZTime,DataFileCore> TimeFileTree;
@@ -197,7 +197,7 @@ getDefault()
 
 template <>
 ZTime
-getDefault()
+getDefault<ZTime>()
 {
 	ZTime zt(0);
 	return zt;
