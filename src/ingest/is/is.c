@@ -1,7 +1,7 @@
 /*
  * Ingest scheduler
  */
-static char    *rcsid = "$Id: is.c,v 1.18 1995-01-07 23:57:29 martin Exp $";
+static char    *rcsid = "$Id: is.c,v 1.19 1995-01-09 20:11:19 martin Exp $";
 
 /*
  * Copyright (C) 1987,88,89,90,91 by UCAR University Corporation for
@@ -83,6 +83,7 @@ main(argc, argv)
 	char            loadfile[100];
 	stbl            vtable;
 	Widget          top;
+	char           *lfdir = NULL;	/* points to user specified location of the .lf file */
 #ifdef SVR4
 	struct sigaction act;
 #endif
@@ -113,10 +114,34 @@ main(argc, argv)
 		}
 	}
 	/*
+	 * Look for -lfdir in the arg list; capture argument, remove both
+	 */
+	for (i = 1; i < argc; i++)
+	{
+		if (! strcmp (argv[i], "-lfdir"))
+		  {
+		    if (argc > 2) {
+		      lfdir = argv[i+1];
+		      argc -= 2;
+		      for (;i < argc; i++)
+			argv[i] = argv[i+2];
+		    } else {
+		      msg_ELog(EF_PROBLEM, 
+			       "usage: is [-batch] [-lfdir lf_library_path] [file]");
+		      ui_printf("usage: is [-batch] [-lfdir lf_library_path] [file]");
+		      is_shutdown();
+		    }
+		    break;
+		}
+	}
+	/*
 	 * Get the interface set up.
 	 */
 
-	fixdir_t("ISLOADFILE", GetLibDir(), "is.lf", loadfile, ".lf");
+	if (!lfdir)
+	  fixdir_t("ISLOADFILE", GetLibDir(), "is.lf", loadfile, ".lf");
+	else
+	  fixdir_t("ISLOADFILE", lfdir, "is.lf", loadfile, ".lf");
 	ui_init(loadfile, ! Batch, FALSE);
 	ui_setup("is", &argc, argv, (char *) 0);
 
@@ -794,19 +819,19 @@ list_cfg(name, type, v, junk)
 		ui_nf_printf("\ttype:\t\t%s\n", "periodic");
 		break;
 	}
-	ui_nf_printf("\tplatform:\t%s\n", cfg->platform);
-	ui_nf_printf("\tmovedir:\t%s\n", cfg->movedir);
+	ui_nf_printf("\tplatform:\t%s\n", cfg->platform ? cfg->platform : "<none>");
+	ui_nf_printf("\tmovedir:\t%s\n", cfg->movedir ? cfg->movedir : "<none>");
 	ui_nf_printf("\tdelete:\t\t%c\n", cfg->delete ? 'T' : 'F');
-	ui_nf_printf("\tfilename:\t%s\n", cfg->filename);
+	ui_nf_printf("\tfilename:\t%s\n", cfg->filename ? cfg->filename : "<none>");
 	ui_nf_printf("\tpid:\t\t%d\n", cfg->pid);
-	ui_nf_printf("\tprocess:\t%s", cfg->process);
+	ui_nf_printf("\tprocess:\t%s", cfg->process ? cfg->process : "<none>");
 	for (i = 1; i < cfg->n_proc_args; i++)
 		ui_nf_printf(" %s", cfg->proc_args[i]);
 	ui_nf_printf("\n");
 	ui_nf_printf("\tinterval:\t%d\n", cfg->interval);
 	ui_nf_printf("\trollover:\t%c\n", cfg->rollover ? 'T' : 'F');
 	ui_nf_printf("\ttimer slot:\t%d\n", cfg->timer_slot);
-	ui_nf_printf("\tingest file:\t%s\n", cfg->ingest_file);
+	ui_nf_printf("\tingest file:\t%s\n", cfg->ingest_file ? cfg->ingest_file : "<none>");
 	ui_nf_printf("\tn_restarts:\t%d\n", cfg->n_restarts);
 
 	return (TRUE);
