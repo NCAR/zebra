@@ -47,7 +47,7 @@
 # include "LayoutControl.h"
 # include "LLEvent.h"
 
-RCSID ("$Id: GraphProc.c,v 2.70 1999-05-12 14:57:56 burghart Exp $")
+RCSID ("$Id: GraphProc.c,v 2.71 2000-04-10 20:36:28 burghart Exp $")
 
 /*
  * Default resources.
@@ -361,7 +361,7 @@ finish_setup ()
 		{ "ue_motion",		Ue_MotionEvent	},
 	};
 	int type[5], pd_defined (), pd_param (), pd_paramsearch();
-	int pd_removeparam (), substr_remove(), ReplString ();
+	int pd_removeparam (), substr_remove(), ReplString (), MyName ();
 /*
  * Force a shift into window mode, so we can start with the fun stuff.
  */
@@ -446,6 +446,7 @@ finish_setup ()
 	uf_def_function ("realplatform", 1, type, RealPlatform);
 	uf_def_function ("listposition", 2, type, ListPosition);
 	uf_def_function ("replstring", 3, type, ReplString);
+	uf_def_function ("myname", 0, type, MyName);
 	uf_def_function ("simplefieldname", 1, type, SimpleFieldName);
 /*
  * Couple more CLF's with non-string parameters
@@ -805,6 +806,15 @@ struct ui_command *cmds;
 	 */
 	    case GPC_IMGDUMP:
 		ImageDump (UKEY (cmds[1]), UPTR (cmds[2]));
+		break;
+        /*
+	 * Shell
+	 */
+	    case GPC_SHELL:
+	   	if (cmds[1].uc_vptype != SYMT_STRING)
+			msg_ELog (EF_PROBLEM, "Non-string shell command");
+		else
+			system (UPTR (cmds[1]));
 		break;
 	/*
 	 * "Should never happen"
@@ -2166,6 +2176,19 @@ SValue *argv, *retv;
 	return (0);
 }
 
+
+
+
+int
+MyName (int narg, SValue *argv, int *argt, SValue *retv, int *rett)
+/*
+ * MyName ()
+ */
+{
+    *rett = SYMT_STRING;
+    retv->us_v_ptr = usy_string (msg_myname ());
+    return (0);
+}
 
 
 

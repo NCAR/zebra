@@ -1,4 +1,4 @@
-! $Id: GraphProc.state,v 1.26 1996-08-21 17:26:06 granger Exp $
+! $Id: GraphProc.state,v 1.27 2000-04-10 20:36:28 burghart Exp $
 !
 !		Copyright (C) 1987,88,89,90,91 by UCAR
 !	University Corporation for Atmospheric Research
@@ -96,6 +96,9 @@ define state initial
 	endinput
 	input 'imgdump' 28
 	      	next img-format
+	endinput
+	input 'shell' 29
+		next shell-expr
 	endinput
 enddef
 
@@ -471,6 +474,15 @@ define state img-format
 enddef
 
 !
+! shell: execute a command via the shell
+!
+define state shell-expr
+	input expression
+		next ust$no_more
+	endinput
+enddef
+
+!
 ! Read in control widgets too.
 !
 set ui$initial_state "initial"
@@ -480,7 +492,7 @@ read GraphProc.widgets
 ! into the graphproc event loop.
 !
 procedure ui$init
-	local _id '$Id: GraphProc.state,v 1.26 1996-08-21 17:26:06 granger Exp $'
+	local _id '$Id: GraphProc.state,v 1.27 2000-04-10 20:36:28 burghart Exp $'
 	!
 	! Don't die just because we hit something undefined
 	!
