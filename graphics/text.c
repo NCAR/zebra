@@ -10,13 +10,10 @@
 # include "oplist.h"
 # include "overlay.h"
 # include "pixel.h"
-# ifdef VMS
-# include "lib_include:lib_proto.h"
-# endif
 
-static char *rcsid = "$Id: text.c,v 1.10 1998-02-27 16:00:55 burghart Exp $";
+static char *rcsid = "$Id: text.c,v 1.11 2002-07-11 23:09:45 burghart Exp $";
 
-# ifdef BIG_ENDIAN
+# ifdef WORDS_BIGENDIAN
 #	define SWAP(v) (v)
 # else
 #	define SWAP(v) swap4 (v)
@@ -37,13 +34,10 @@ struct font_dir
 	int	fd_tfm_width;	/* The TFM width of a character */
 };
 
-# ifndef VMS
-# define globalref extern
-# endif
+extern short *Gt_sf_0[128], *Gt_sf_1[128];
+extern struct font_dir Pf0_dir[];
+extern int Pf0_rasters[];
 
-globalref short *Gt_sf_0[128], *Gt_sf_1[128];
-globalref struct font_dir Pf0_dir[];
-globalref int Pf0_rasters[];
 /*
  * The description of a text font.
  */
@@ -350,7 +344,7 @@ int *rastp, width, color, bg;
  */
 {
 	int bit, nword = (width + 31)/32;
-# ifdef BIG_ENDIAN
+# ifdef WORDS_BIGENDIAN
 	static char stbl[32] = { 7, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11,
 		10, 9, 8, 23, 22, 21, 20, 19, 18, 17, 16, 31, 30, 29, 28,
 		27, 26, 25, 24 };
@@ -360,7 +354,7 @@ int *rastp, width, color, bg;
 	{
 		int rdata = SWAP (*rastp++), ndo = (width > 32) ? 32 : width;
 		for (bit = 0; bit < ndo; bit++)
-# ifdef BIG_ENDIAN
+# ifdef WORDS_BIGENDIAN
 			*dest++ = (rdata & (1 << stbl[bit])) ? color : bg;
 # else
 			*dest++ = (rdata & (1 << (31 - bit))) ? color : bg;
