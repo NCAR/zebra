@@ -1,3 +1,14 @@
+Thu Jun 22 09:48:33 1995  Chris Burghart  <burghart@saaz.atd.ucar.edu>
+
+	* gp: (PlotControl.c) The microseconds portion of PlotTime is now 
+	  forced to 999999, since we only get our time from the plot
+	  description to the second.  This solves a problem where the
+	  DefaultDataAvail gp function builds a command to set the
+	  plot time, but can only encode it to the second.  Hence, a
+	  data time of 1-jan-70,00:00:00.2 would cause a requested
+	  plot time of 1-jan-70,00:00:00.  Since the data were *after*
+	  the requested time, they weren't plotted.
+
 Thu May 25 09:41:44 1995  Gary Granger  <granger@narnia.atd.ucar.edu>
 
 	* Tagged modules zebra, ui, and util: V4_2_alpha_ARM
