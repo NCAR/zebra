@@ -5,10 +5,7 @@
  * from the document "Formulation of Output Parameters for PAM II CMF Data"
  * compiled by Paul Herzegh (18 March 1988 revision).
  *
- * $Log: not supported by cvs2svn $
- * Revision 1.1  89/03/16  15:12:23  burghart
- * Initial revision
- * 
+ * $Revision: 1.3 $ $Date: 1990-05-04 13:34:58 $ $Author: burghart $
  */
 
 # include <math.h>
@@ -278,7 +275,7 @@ double	theta, p;
 
 
 double
-theta_w (t, p)
+theta_e (t, p)
 double	t, p;
 /*
  * Equivalent potential temperature of saturated air at t (deg. K) 
@@ -302,7 +299,7 @@ double	ept, p;
 {
 	double	t_s = T_3, delta = 60.0, x;
 
-	x = ept - theta_w (t_s, p);
+	x = ept - theta_e (t_s, p);
 
 	while (x > 0.01 || x < -0.01)
 	{
@@ -310,7 +307,7 @@ double	ept, p;
 		delta /= 2.0;
 		if (delta == 0.0)
 			delta = 60.0;
-		x = ept - theta_w (t_s, p);
+		x = ept - theta_e (t_s, p);
 	}
 
 	return (t_s);
