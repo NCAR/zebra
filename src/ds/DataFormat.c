@@ -40,7 +40,7 @@
 # include "dslib.h"
 # include "dfa.h"
 
-RCSID ("$Id: DataFormat.c,v 3.10 1999-03-01 02:03:30 burghart Exp $")
+RCSID ("$Id: DataFormat.c,v 3.11 1999-11-01 20:07:59 burghart Exp $")
 
 /*
  * Include the DataFormat structure definition, and the public and
@@ -224,7 +224,7 @@ dfa_GetFields (const DataFile *df, const ZebraTime *t, int *nfld,
 
 	if ((ofp = dfa_OpenFile (df, 0)) && ofp->of_fmt->f_GetFields)
 	{	
-	int sample = dfa_TimeIndex (ofp, t, 0);
+		int sample = dfa_TimeIndex (ofp, t, 0);
 		if (sample < 0)
 			sample = 0;
 		return ((*ofp->of_fmt->f_GetFields)(ofp, sample, nfld, flist));
@@ -446,13 +446,17 @@ dfa_DataTimes (const DataFile *df, const ZebraTime *when, TimeSpec which,
 	OpenFile *ofp;
 	int count = 0;
 
-	if ((ofp = dfa_OpenFile (df, 0)) && (ofp->of_fmt->f_DataTimes))
+	if ((ofp = dfa_OpenFile (df, 0)))
 	{
-		count = (*ofp->of_fmt->f_DataTimes)(ofp, when, which, n, dest);
-	}
-	else
-	{
-		count = fmt_DataTimes (ofp, when, which, n, dest);
+		if (ofp->of_fmt->f_DataTimes)
+		{
+			count = (*ofp->of_fmt->f_DataTimes)
+				(ofp, when, which, n, dest);
+		}
+		else
+		{
+			count = fmt_DataTimes (ofp, when, which, n, dest);
+		}
 	}
 	return (count);
 }
