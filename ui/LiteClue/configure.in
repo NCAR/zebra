@@ -1,6 +1,6 @@
 # Process this file with autoconf to produce a configure script.
-AC_INIT(LiteClue)
-AM_INIT_AUTOMAKE(LiteClue, 20020624, rdp-support@atd.ucar.edu)
+AC_INIT(LiteClue, 20020712, rdp-support@atd.ucar.edu)
+AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR([LiteClue.c])
 
 # Checks for programs.
