@@ -1,7 +1,7 @@
 /*
  * Raster display a rectangular array
  */
-static char *rcsid = "$Id: RasterPlot.c,v 2.12 1994-04-15 21:26:26 burghart Exp $";
+static char *rcsid = "$Id: RasterPlot.c,v 2.13 1994-04-22 17:55:32 burghart Exp $";
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -735,7 +735,7 @@ float 		scale, bias;
  * elements.
  */
 	colinc = ((float) xd - 1) / ((float) (xhi - xlo + 1));
-	rowinc = -((float) yd - 1) / ((float) (ylo - yhi + 1));
+	rowinc = ((float) yd - 1) / ((float) (ylo - yhi + 1));
 /*
  * Add half a grid width to our dimensions, so that we plot full squares
  * on the edges.  Again, this is because our current limits refer to the
@@ -745,9 +745,9 @@ float 		scale, bias;
 	xhi += 0.5 / colinc;
 	leftcol = -0.5;	/* column (floating) corresponding to xlo */
 
-	ylo -= 0.5 / rowinc;
-	yhi += 0.5 / rowinc;
-	toprow = (yd - 1) + 0.5; /* row (floating) corresponding to yhi */
+	ylo += 0.5 / rowinc;
+	yhi -= 0.5 / rowinc;
+	toprow = -0.5; /* row (floating) corresponding to yhi */
 /*
  * Clip to the window, if appropriate.
  */
