@@ -15,12 +15,14 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.8 1995-05-24 22:08:43 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.9 1995-07-06 04:27:46 granger Exp $"
 
-LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
+LIBS = $(DFALIBS) $(ZLIBS) $(XLIBS)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
 DEPLIBS = $(LIBZEBDS) $(LIBZEB)
+
+INCLUDES = $(NETCDFINCLUDES)
 
 SRCS = p3fest_ingest.c c130fest_ingest.c interp.c acqual.c windsname.c
 OBJS = interp.o
@@ -48,6 +50,7 @@ CompleteProgramTarget(c130fest_ingest,c130fest_ingest.o $(OBJS),$(DEPLIBS),
 AllTarget(acqual)
 NormalProgramTarget(acqual,acqual.o,/**/,$(LIBNETCDF),/**/)
 InstallProgramWithFlags(acqual,$(BINDIR),-s)
+
 AllTarget(windsname)
 NormalProgramTarget(windsname,windsname.o,/**/,$(LIBNETCDF),/**/)
 InstallProgramWithFlags(windsname,$(BINDIR),-s)

@@ -15,9 +15,9 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.13 1995-06-23 20:10:17 burghart Exp $"
+MFVERSION="$Id: Imakefile,v 1.14 1995-07-06 04:28:38 granger Exp $"
 
-LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS) $(LIBPCAP)
+LIBS = $(DFALIBS) $(ZLIBS) $(XLIBS) $(LIBPCAP)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
 SRCS =  radar_ingest.c adrad_ingest.c adradInput.c Input.c mtape.c \

@@ -1,5 +1,5 @@
 /**/# ---------------------------------------------------------------------
-/**/# $Id: Imakefile,v 1.3 1995-05-24 22:09:37 granger Exp $ 
+/**/# $Id: Imakefile,v 1.4 1995-07-06 04:28:28 granger Exp $ 
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -20,7 +20,7 @@
  */
 
 DEPLIBS = $(LIBZEBDS) $(LIBZEB)
-LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBNETCDF) $(LIBRDSS) $(XLIBS)
+LIBS = $(DFALIBS) $(ZLIBS) $(XLIBS)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
 OBJS =	PrecipIngest.o

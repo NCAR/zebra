@@ -15,10 +15,9 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.5 1995-05-24 22:09:13 granger Exp $
+MFVERSION="$Id: Imakefile,v 1.6 1995-07-06 04:28:05 granger Exp $
 
-LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS) \
-	$(LIBMCIDAS) $(FLIBS)
+LIBS = $(DFALIBS) $(ZLIBS) $(XLIBS) $(LIBMCIDAS) $(FLIBS)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
 XCOMM nvxrect.f contains the appropriate nvxeas,nvxini,nvxopt,nvxsae

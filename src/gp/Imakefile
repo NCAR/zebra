@@ -1,6 +1,6 @@
 /* -*- C -*- */
 XCOMM ---------------------------------------------------------------------
-XCOMM $Id: Imakefile,v 1.23 1995-06-29 23:41:50 granger Exp $ 
+XCOMM $Id: Imakefile,v 1.24 1995-07-06 04:27:27 granger Exp $ 
 
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
@@ -21,8 +21,7 @@ XCOMM $Id: Imakefile,v 1.23 1995-06-29 23:41:50 granger Exp $
  */
 
 
-LIBS=$(LIBZEBDS) $(LIBNETCDF) $(LIBHDF) $(LIBZEB) $(LIBRDSS) $(XLIBS) $(FLIBS)
-/* LIBS=$(DFALIBS) $(ZLIBS) $(XLIBS) $(FLIBS) */
+LIBS = $(DFALIBS) $(ZLIBS) $(XLIBS) $(FLIBS)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
 /* LIBRDSS = /rdss/ui/uilib.a /locallib/librdssutil.a */
@@ -34,7 +33,7 @@ CLIBS = /local/lib/gcc-lib/sparc-sun-solaris2/2.4.3/libgcc.a
 #if UseOpenWindows && (OpenWindowsVersion < 3)
    LABELOBJS=Label.o
 #else
-   LABELOBJS = 
+   LABELOBJS= 
 #endif
 
 /*
@@ -116,8 +115,7 @@ DistfilesTarget($(DISTFILES))
 fortran.o: $(FOBJS)
 	$(LD) -r -Bstatic -o fortran.o $(FOBJS)
 
-C_GP_LIBRARIES=$(LIBZEBDS) $(LIBZEB) $(LIBNETCDF) $(LIBRDSS) $(XLIBS) \
-		$(LIBREGEXP) fortran.o $(FLIBS)
+C_GP_LIBRARIES = $(DFALIBS) $(ZLIBS) $(XLIBS) $(LIBREGEXP) fortran.o $(FLIBS)
 
 TestProgramTarget(c_gp,$(COBJS),$(DEPLIBS),$(C_GP_LIBRARIES),/**/)
 

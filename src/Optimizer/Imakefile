@@ -1,4 +1,4 @@
-/* $Id: Imakefile,v 1.7 1995-05-24 22:07:12 granger Exp $ */
+/* $Id: Imakefile,v 1.8 1995-07-06 04:26:43 granger Exp $ */
 /*		Copyright (C) 1987,88,89,90,91 by UCAR
  *	University Corporation for Atmospheric Research
  *		   All rights reserved
@@ -17,7 +17,7 @@
  * maintenance or updates for its software.
  */
 
-LIBS=$(LIBZEBDS) $(LIBZEB) $(LIBRDSS) $(LIBNETCDF) $(XLIBS)
+LIBS = $(DFALIBS) $(ZLIBS) $(XLIBS)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
 OBJS = Optimizer.o Boundary.o CommandWidget.o GenScan.o \

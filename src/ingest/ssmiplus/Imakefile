@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.9 1995-05-24 22:10:07 granger Exp $"
+MFVERSION="$Id: Imakefile,v 1.10 1995-07-06 04:28:56 granger Exp $"
 
 PROOF=/net/CenterLine/bin/proof
 
@@ -45,9 +45,9 @@ LIBTKX = $(SRC)/tclX7.3a/tkmaster/lib/libtkx.a
 LIBTCL = $(SRC)/tcl7.3/libtcl.a
 #endif
 
-LOCAL_LIBS = $(LIBZEBDS) $(LIBZEB) $(LIBRDSS) \
+LOCAL_LIBS = $(DFALIBS) $(ZLIBS) \
 		/* /usr/local/lib/libtclx.a */ /usr/local/lib/libtcl.a \
-		$(LIBNETCDF) $(XLIBS) $(FLIBS)
+		$(XLIBS) $(FLIBS)
 SYSLIBS = $(LIBMATH) $(LIBTERMCAP) $(LIBREGEXP)
 
 DEPLIBS = $(LIBZEBDS) $(LIBZEB)
