@@ -72,6 +72,16 @@ int IPScan = 5;		/* Scan interval in minutes			*/
  * The queue of broadcast packets awaiting everything else.
  */
 static DataBCChunk *BCQueue = 0, *PollQueue = 0;
+static DataBCChunk *BCFree = 0;		/* Chunk free list	*/
+
+/*
+ * Kludge, of sorts.  Maintain one humungo array to accept large, broadcast
+ * data chunks, to avoid getting the dynamic memory heap all fragmented,
+ * huge, and ugly.
+ */
+# define BDASIZE (2*1024*1024)
+static char BigDataArray[BDASIZE];
+static int BDA_IPSeq = -1;	/* Seq which owns bda	*/
 
 /*
  * Stuff for data builds in progress.
@@ -124,6 +134,9 @@ InProgress *IPList = 0;
 	static void RLEDecode (unsigned char *, unsigned char *, int);
 	static void ScanIP (void);
 	static void SendDObj (DataObject *, int);
+	static inline DataBCChunk *NewBCChunk (void);
+	static inline void FreeBCChunk (DataBCChunk *);
+	static inline float *GetDataArray (int, int);
 # else
 	static int Incoming ();
 	static void Die ();
@@ -148,7 +161,10 @@ InProgress *IPList = 0;
 	static void ProcessPolled ();
 	static void RLEDecode ();
 	static void ScanIP ();
-	static void SendDObj (DataObject *, int);
+	static void SendDObj ();
+	static inline DataBCChunk *NewBCChunk ();
+	static inline void FreeBCChunk ();
+	static inline float *GetDataArray ();
 # endif
 
 /*
@@ -790,13 +806,10 @@ DataHdr *hdr;
 	ip->ip_Age = 0;
 	ip->ip_NewFile = hdr->dh_NewFile;
 	strcpy (ip->ip_Source, from);
-# ifdef BUGHACK
-	ip->ip_DObj->do_times = ALLOC (time);
-	tl_GetTime (ip->ip_DObj->do_times);
-# endif
 /*
  * Weird bug tracking.
  */
+	ip->ip_DObj->do_flags = 0;
 	ip->ip_DObj->do_desc.d_irgrid.ir_subplats = 0;
 /*
  * Add it to the list
@@ -844,7 +857,8 @@ ScanIP ()
 	for (chunk = BCQueue; chunk && chunk->dh_ID; chunk = BCQueue)
 	{
 		BCQueue = chunk->dh_Next;
-		free (chunk);
+		/* 	free (chunk); */
+		FreeBCChunk (chunk);
 		nzapped++;
 	}
 /*
@@ -861,7 +875,8 @@ ScanIP ()
 		{
 			nzapped++;
 			last->dh_Next = chunk->dh_Next;
-			free (chunk);
+			/* free (chunk); */
+			FreeBCChunk (chunk);
 		}
 		else
 		{
@@ -949,6 +964,29 @@ DataContinue *cont;
 
 
 
+
+
+static inline float *
+GetDataArray (seq, size)
+int seq, size;
+/*
+ * Get the data array.
+ */
+{
+	size += 50000;	/* Memory bug kludge */
+
+	if (size < 100000 || BDA_IPSeq >= 0 || size > BDASIZE)
+		return ((float *) malloc (size));
+	else
+	{
+		BDA_IPSeq = seq;
+		return ((float *) BigDataArray);
+	}
+}
+
+
+
+
 int
 BCastHandler (port, data, len)
 int port, len;
@@ -1003,19 +1041,18 @@ char *data;
 	if (! ip->ip_Arrived)
 	{
 	/*
-	 * Set up some stuff.  Kludgy, ugly, dishonest +50000 until the RLE
-	 * bug gets fixed.
+	 * Set up some stuff.
 	 */
 		ip->ip_Arrived = malloc (chunk->dh_NChunk);
 		memset (ip->ip_Arrived, 0, chunk->dh_NChunk);
 		ip->ip_NBCast = 0;
 		ip->ip_NBExpect = chunk->dh_NChunk;
-# ifdef notdef
-		ip->ip_DObj->do_data[0] = (float *) malloc(chunk->dh_DataSize + 50000);
-# endif
-		ip->ip_DObj->do_data[0] = (float *) malloc(chunk->dh_DataSize);
+	/* ip->ip_DObj->do_data[0] = (float *) malloc(chunk->dh_DataSize); */
+		ip->ip_DObj->do_data[0] = GetDataArray (ip->ip_Seq,
+							chunk->dh_DataSize);
 		ip->ip_DObj->do_flags &= ~DOF_FREEALLDATA;
-		ip->ip_DObj->do_flags |= DOF_FREEDATA;
+		if (ip->ip_Seq != BDA_IPSeq)
+			ip->ip_DObj->do_flags |= DOF_FREEDATA;
 	}
 /*
  * Mark this packet as arrived, and copy over the stuff.
@@ -1037,47 +1074,6 @@ char *data;
 		FinishIP (ip);
 }
 
-
-
-
-static void
-RLEDecode (dest, src, len)
-register unsigned char *dest;
-unsigned char * const src;
-const int len;
-/*
- * Run-length decode this packet.
- */
-{
-	register unsigned char *sp = src;
-	register int i;
-
-	while (sp - src < len)
-	{
-	/*
-	 * Look for the run bit.  If it's there, we replicate the next
-	 * byte.
-	 */
-	 	if (*sp & 0x80)
-		{
-			const int runlen = (*sp & 0x7f) ? (*sp & 0x7f) : 128;
-			const unsigned char c = *++sp;
-			for (i = 0; i < runlen; i++)
-				*dest++ = c;
-			sp++;
-		}
-	/*
-	 * Otherwise we have a literal run.
-	 */
-	 	else
-		{
-			const int runlen = *sp ? *sp : 128;
-			sp++;
-			for (i = 0; i < runlen; i++)
-				*dest++ = *sp++;
-		}
-	}
-}
 
 
 
@@ -1136,7 +1132,8 @@ int len;
  * Otherwise we enqueue it, waiting for the header info to arrive.  Use the
  * ID Flag for scanning, now that the above check is done.
  */
-	new = (DataBCChunk *) malloc (len);
+	/* new = (DataBCChunk *) malloc (len); */
+	new = NewBCChunk ();
 	memcpy (new, chunk, len);
 	new->dh_Next = BCQueue;
 	new->dh_ID = 0;
@@ -1162,7 +1159,8 @@ int seq;
 		chunk = BCQueue;
 		BCQueue = BCQueue->dh_Next;
 		BCastHandler (0, (char *) chunk, 0);
-		free (chunk);
+		FreeBCChunk (chunk);
+		/* free (chunk); */
 	}
 /*
  * Now pass through the rest.
@@ -1174,7 +1172,8 @@ int seq;
 		{
 			last->dh_Next = chunk->dh_Next;
 			BCastHandler (0, (char *) chunk, 0);
-			free (chunk);
+			FreeBCChunk (chunk);
+			/* free (chunk); */
 		}
 		else
 			last = chunk;
@@ -1355,6 +1354,11 @@ InProgress *ip;
 	if (ip->ip_Arrived)
 		free (ip->ip_Arrived);
 /*
+ * If we were using the static array, "free" it.
+ */
+	if (ip->ip_Seq == BDA_IPSeq)
+		BDA_IPSeq = -1;
+/*
  * Clear this entry out of the inprogress list.
  */
 	if (ip == IPList)
@@ -1371,4 +1375,40 @@ InProgress *ip;
 					seq);
 	}
 	free (ip);
+}
+
+
+
+
+
+static inline DataBCChunk *
+NewBCChunk ()
+/*
+ * Return a free broadcast chunk.
+ */
+{
+	DataBCChunk *ret;
+
+	if (BCFree)
+	{
+		ret = BCFree;
+		BCFree = BCFree->dh_Next;
+	}
+	else
+		ret = (DataBCChunk *) malloc (CBYTES + 32);
+	return (ret);
+}
+
+
+
+
+static inline void
+FreeBCChunk (chunk)
+DataBCChunk *chunk;
+/*
+ * Free up this chunk.
+ */
+{
+	chunk->dh_Next = BCFree;
+	BCFree = chunk;
 }
