@@ -1,7 +1,7 @@
 /*
  * Ingest scheduler
  */
-static char    *rcsid = "$Id: is.c,v 1.14 1992-08-28 23:36:00 barrett Exp $";
+static char    *rcsid = "$Id: is.c,v 1.15 1992-09-30 22:20:52 burghart Exp $";
 
 /*
  * Copyright (C) 1987,88,89,90,91 by UCAR University Corporation for
@@ -50,7 +50,7 @@ char           *last_part(char *, int);
 void            cfg_done(struct is_config *);
 
 #else
-is_shutdown();
+int		is_shutdown();
 char           *substitute();
 char           *last_part();
 void            cfg_done();
@@ -68,6 +68,8 @@ stbl		Groups;		/* will hold configuration groups */
 char           *redirect = "none";	/* where to redirect stdout and
 					 * stderr when an ingest process is
 					 * spawned */
+bool		Batch = FALSE;	/* Continue after user input is done?*/
+						
 
 main(argc, argv)
 	int             argc;
@@ -77,9 +79,11 @@ main(argc, argv)
 	int             is_list();
 	void            sigchldHandler();
 
+	int		i;
 	char            loadfile[100];
 	stbl            vtable;
 	Widget          top;
+	
 
 	/*
 	 * Hook into the message handler.
@@ -92,11 +96,26 @@ main(argc, argv)
 	msg_ELog(EF_INFO, "%s", rcsid);
 	msg_ELog(EF_INFO, "is started ");
 	/*
+	 * Look for -batch in the arg list, removing it if it's there
+	 */
+	for (i = 1; i < argc; i++)
+	{
+		if (! strcmp (argv[i], "-batch"))
+		{
+			Batch = TRUE;
+			argc--;
+			for (;i < argc; i++)
+				argv[i] = argv[i+1];
+
+			break;
+		}
+	}
+	/*
 	 * Get the interface set up.
 	 */
 
 	fixdir_t("ISLOADFILE", LIBDIR, "is.lf", loadfile, ".lf");
-	ui_init(loadfile, TRUE, FALSE);
+	ui_init(loadfile, ! Batch, FALSE);
 	ui_setup("is", &argc, argv, (char *) 0);
 
 	/*
@@ -117,7 +136,8 @@ main(argc, argv)
 	 * force into window mode, since mode window followed by popup
 	 * doesn't seem to work from a command file
 	 */
-	uw_ForceWindowMode((char *) 0, &top, (XtAppContext *) 0);
+	if (! Batch)
+		uw_ForceWindowMode((char *) 0, &top, (XtAppContext *) 0);
 
 	/*
 	 * If a file appears on the command line, open it.
@@ -137,7 +157,17 @@ main(argc, argv)
 	 */
 
 	ui_get_command("is-initial", "IS>", is_initial, 0);
-	is_shutdown();
+
+	/*
+	 * For batch mode, continue running after input is done, otherwise 
+	 * quit when there's no more input
+	 */
+
+	if (Batch)
+		while (TRUE)
+			msg_await ();
+	else
+		is_shutdown();
 }
 
 
