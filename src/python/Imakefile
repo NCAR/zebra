@@ -15,7 +15,7 @@
  * through use or modification of this software.  UCAR does not provide 
  * maintenance or updates for its software.
  */
-MFVERSION="$Id: Imakefile,v 1.1 2000-03-09 17:23:16 burghart Exp $"
+MFVERSION="$Id: Imakefile,v 1.2 2000-03-29 16:29:25 burghart Exp $"
 
 LIBS = $(DFALIBS) $(ZLIBS)
 INCLUDES = -I/usr/local/include/python1.5
@@ -28,17 +28,33 @@ CCOBJS = $(MODULEOBJS)
 
 SRCS = $(CCSRCS)
 OBJS = $(CCOBJS)
-
 HEADERS = 
+
+PYSCRIPTS = DataTimes.py
 
 DISTFILES = $(SRCS) ($HEADERS) Imakefile 
 
 all:: zebra.so
 
 zebra.so: $(MODULEOBJS)
-	$(CXX) -shared -o $@ $^ $(LIBS)
+	$(CXX) -shared -o $@ $(MODULEOBJS) $(LIBS)
 
 InstallLibFile (zebra.so,python,..)
+
+all:: pythonscripts
+
+#
+# Intall each Python script in the binary directory, along with a shell
+# wrapper to execute it more simply.
+#
+pythonscripts: $(PYSCRIPTS)
+	for script in $(PYSCRIPTS); do \
+	    $(INSTALL) -c -m 0775 $${script} $(BINDIR); \
+	    wrapper_name=$(BINDIR)/`echo $${script} | sed "s/.py//g"`; \
+	    cat shell_wrapper.tmpl | sed "s/PYTHON_SCRIPT/$${script}/g" | \
+		sed "s#DEFAULT_TOPDIR#$(DEFBASEDIR)#g" > $${wrapper_name}; \
+	    chmod 775 $${wrapper_name};\
+	done
 
 CcDependTarget($(CCSRCS))
 
