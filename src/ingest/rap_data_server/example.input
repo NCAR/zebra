@@ -1,0 +1,11 @@
+!
+! Parameters to ingest cartesian MHR data from RAP's data server.
+!
+set host 'typhoon.rap.ucar.edu'
+set port 65012
+set platform 'mhr_grid'
+set frequency 30
+field 'reflectivity' 1
+field 'velocity' 0
+set levels 8
+set levelspacing .5
